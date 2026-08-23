@@ -10,6 +10,8 @@ const ActivityRuntimeScript := preload("res://scripts/world/planetary_activity_r
 const NavigationScript := preload("res://scripts/world/planetary_surface_navigation_runtime.gd")
 const NavigationContractScript := preload("res://scripts/world/planetary_surface_navigation_contract.gd")
 const HazardScript := preload("res://scripts/world/planetary_surface_hazard_runtime.gd")
+const HazardContentScript := preload("res://scripts/world/planetary_surface_hazard_content_contract.gd")
+const HazardZonePresentationScript := preload("res://scripts/world/ember_surface_hazard_zone_presentation.gd")
 const WeatherScript := preload("res://scripts/world/planetary_weather_field.gd")
 const WeatherProfile := preload("res://assets/world/planets/aurora_temperate_atmosphere.tres")
 const WaterPresentationScript := preload("res://scripts/world/planetary_water_presentation.gd")
@@ -33,6 +35,10 @@ const SurfaceAudioAdapterScript := preload("res://scripts/audio/planetary_surfac
 const SurfaceAudioPolicyScript := preload("res://scripts/world/planetary_surface_audio_policy.gd")
 const SurfaceAudioCatalog := preload("res://assets/audio/planetary/temperate_surface_audio_catalog.tres")
 
+const AUTHORED_HAZARD_ID: StringName = &"ember_relay_arc"
+const AUTHORED_HAZARD_MARKER_ID: StringName = &"surface_staging_gate"
+const AUTHORED_HAZARD_RUNTIME_ROUTE_ID: StringName = &"pad_to_surface_staging"
+
 enum State { IDLE, BOUND, DETACHED }
 
 var _state := State.IDLE
@@ -43,6 +49,10 @@ var _composition_generation := 0
 var _adapter: RefCounted
 var _navigation: RefCounted
 var _hazard: RefCounted
+var _hazard_content: Resource
+var _authored_hazard: Dictionary = {}
+var _hazard_zone_presentation: Node
+var _hazard_semantic_status: Dictionary = {}
 var _weather: RefCounted
 var _solar_phase: Dictionary = {}
 var _weather_observation: Dictionary = {}
@@ -98,8 +108,17 @@ func configure(
 	_host = host
 	_host_generation = generation
 	_attachment_generation = int(host.call(&"get_attachment_generation"))
+	_hazard_content = HazardContentScript.new()
+	if not _hazard_content.call(&"is_definition_valid"):
+		return _result(false, &"hazard_content_configuration_rejected")
+	var hazard_composition := _compose_authored_hazard_navigation_contract(
+		_hazard_content.call(&"get_snapshot") as Dictionary
+	)
+	if not bool(hazard_composition.get("accepted", false)):
+		return _result(false, hazard_composition.get("reason", &"hazard_content_unavailable") as StringName)
+	var navigation_contract := hazard_composition.get("contract") as PlanetarySurfaceNavigationContract
+	_authored_hazard = (hazard_composition.get("hazard", {}) as Dictionary).duplicate(true)
 	_navigation = NavigationScript.new()
-	var navigation_contract := NavigationContractScript.new()
 	var configured: Dictionary = _navigation.call(&"configure", navigation_contract)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"navigation_configuration_rejected")
@@ -114,6 +133,15 @@ func configure(
 	configured = _hazard.call(&"bind_weather_field", _weather)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"weather_binding_rejected")
+	_hazard_zone_presentation = HazardZonePresentationScript.new() as Node
+	_hazard_zone_presentation.name = "OwnedEmberRelayArcHazardZone"
+	add_child(_hazard_zone_presentation)
+	configured = _hazard_zone_presentation.call(
+		&"configure", _authored_hazard, PlanetarySurfaceHazardRuntime.HAZARD_RADIUS_M
+	)
+	if not bool(configured.get("accepted", false)):
+		return _result(false, &"hazard_zone_presentation_rejected")
+	_set_hazard_semantic_clear(&"hazard_zone_ready")
 	_surface_audio_policy = SurfaceAudioPolicyScript.new()
 	configured = _surface_audio_policy.call(&"configure", WeatherProfile)
 	if not bool(configured.get("accepted", false)):
@@ -224,6 +252,57 @@ func submit_hazard_exposure(hazard_id: StringName, position: Variant, exposure: 
 	if not _live():
 		return _result(false, &"composition_detached")
 	return _adapter.call(&"submit_surface_hazard_exposure", hazard_id, position, exposure, delta_seconds)
+
+
+## Consumes one exact caller-owned on-foot observation for the authored Relay
+## Arc zone. Returned damage/recovery requests and semantic HUD copy are
+## detached; this binding never applies them or advances another lifecycle.
+func submit_authored_hazard_observation(
+		observation: Variant,
+		expected_host_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if not _live():
+		return _result(false, &"composition_detached")
+	if expected_host_generation != _host_generation:
+		return _result(false, &"stale_host_generation")
+	if expected_attachment_generation != _attachment_generation \
+			or int(_host.call(&"get_attachment_generation")) != _attachment_generation:
+		return _result(false, &"stale_attachment_generation")
+	var validation := _validate_authored_hazard_observation(observation)
+	if not bool(validation.get("accepted", false)):
+		return _result(false, validation.get("reason", &"invalid_hazard_observation") as StringName)
+	var evidence := observation as Dictionary
+	var actor_position := evidence.get("position_body_local_m") as Vector3
+	var center := _authored_hazard.get("position_body_local_m", Vector3.INF) as Vector3
+	var inside := actor_position.distance_to(center) \
+		<= PlanetarySurfaceHazardRuntime.HAZARD_RADIUS_M
+	if not inside:
+		_clear_authored_hazard_runtime_exposure()
+		_set_hazard_semantic_clear(&"hazard_zone_exited")
+		return _hazard_observation_result(
+			true, &"hazard_zone_clear", {}, actor_position
+		)
+	var sampled: Dictionary = _hazard.call(
+		&"submit_exposure", AUTHORED_HAZARD_ID, actor_position,
+		float(evidence.exposure_unitless), float(evidence.delta_seconds)
+	)
+	if not bool(sampled.get("accepted", false)):
+		return _result(
+			false, sampled.get("reason", &"hazard_observation_rejected") as StringName
+		)
+	_set_hazard_semantic_from_sample(sampled)
+	return _hazard_observation_result(
+		true,
+		&"hazard_recovery_requested" if bool(
+			(sampled.get("recovery_request", {}) as Dictionary).get("requested", false)
+		) else &"hazard_zone_exposed",
+		sampled, actor_position
+	)
+
+
+func get_authored_hazard_status() -> Dictionary:
+	return _hazard_semantic_status.duplicate(true)
 
 
 func submit_weather_exposure(
@@ -370,6 +449,10 @@ func detach() -> Dictionary:
 	_route_trail.call(&"detach")
 	for beacon: Node in _landmark_beacons.values():
 		beacon.call(&"detach")
+	if _hazard_zone_presentation != null:
+		_hazard_zone_presentation.call(&"detach")
+	_clear_authored_hazard_runtime_exposure()
+	_set_hazard_semantic_clear(&"composition_detached")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"in_water":
 		_water.call(&"detach")
@@ -401,6 +484,9 @@ func reenter() -> Dictionary:
 	_apply_landing_markers()
 	_orbital_ring.call(&"reenter")
 	_route_trail.call(&"reenter")
+	if _hazard_zone_presentation != null:
+		_hazard_zone_presentation.call(&"reenter")
+	_set_hazard_semantic_clear(&"composition_reentered")
 	_apply_relay_survey_presentation()
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
@@ -445,6 +531,10 @@ func get_snapshot() -> Dictionary:
 		"adapter": _adapter.get_snapshot() if _adapter != null else {},
 		"navigation": _navigation.get_snapshot() if _navigation != null else {},
 		"hazard": _hazard.get_snapshot() if _hazard != null else {},
+		"hazard_content": _hazard_content.call(&"get_snapshot") if _hazard_content != null else {},
+		"authored_hazard_status": _hazard_semantic_status.duplicate(true),
+		"hazard_zone_presentation": _hazard_zone_presentation.call(&"get_snapshot") \
+			if _hazard_zone_presentation != null else {},
 		"weather": _weather.call(&"audit") if _weather != null else {},
 		"solar_phase": _solar_phase.duplicate(true),
 		"weather_observation": _weather_observation.duplicate(true),
@@ -482,6 +572,148 @@ func _register_relay_survey_activity(director: ActivityDirector) -> void:
 		Vector3(180.0, 120009.0, -44.0), Vector3(540.0, 120030.0, -210.0)
 	])
 	director.register_definition(definition)
+
+
+func _compose_authored_hazard_navigation_contract(
+		content_snapshot: Dictionary
+	) -> Dictionary:
+	var selected := {}
+	for hazard_value in content_snapshot.get("hazards", []) as Array:
+		var hazard := hazard_value as Dictionary
+		if StringName(hazard.get("id", &"")) == AUTHORED_HAZARD_ID:
+			selected = hazard.duplicate(true)
+			break
+	if selected.is_empty():
+		return {"accepted": false, "reason": &"authored_hazard_missing"}
+	var contract := NavigationContractScript.new() as PlanetarySurfaceNavigationContract
+	contract.hazard_ids.append(String(selected.id))
+	contract.hazard_display_names.append(String(selected.display_name))
+	contract.hazard_kind_ids.append(String(selected.kind))
+	contract.hazard_marker_ids.append(String(AUTHORED_HAZARD_MARKER_ID))
+	contract.hazard_route_ids.append(String(AUTHORED_HAZARD_RUNTIME_ROUTE_ID))
+	contract.hazard_recovery_ids.append(String(selected.recovery_id))
+	contract.hazard_positions_body_local_m.append(
+		selected.position_body_local_m as Vector3
+	)
+	if not contract.is_definition_valid():
+		return {"accepted": false, "reason": &"authored_hazard_runtime_contract_rejected"}
+	selected["runtime_marker_id"] = AUTHORED_HAZARD_MARKER_ID
+	selected["runtime_route_id"] = AUTHORED_HAZARD_RUNTIME_ROUTE_ID
+	return {
+		"accepted": true, "reason": &"authored_hazard_composed",
+		"contract": contract, "hazard": selected,
+	}
+
+
+func _validate_authored_hazard_observation(observation: Variant) -> Dictionary:
+	if not observation is Dictionary:
+		return {"accepted": false, "reason": &"invalid_hazard_observation"}
+	var evidence := observation as Dictionary
+	var expected_keys := [
+		"actor_instance_id", "delta_seconds", "exposure_unitless",
+		"position_body_local_m", "surface_phase_id",
+	]
+	if evidence.size() != expected_keys.size():
+		return {"accepted": false, "reason": &"hazard_observation_schema_mismatch"}
+	for key in expected_keys:
+		if not evidence.has(key):
+			return {"accepted": false, "reason": &"hazard_observation_schema_mismatch"}
+	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	var identities := host_snapshot.get("identities", {}) as Dictionary
+	if not evidence.actor_instance_id is int \
+			or int(evidence.actor_instance_id) < 1 \
+			or int(evidence.actor_instance_id) \
+				!= int(identities.get("player_instance_id", 0)):
+		return {"accepted": false, "reason": &"hazard_actor_identity_mismatch"}
+	if not evidence.surface_phase_id is StringName \
+			or StringName(evidence.surface_phase_id) != &"on_foot" \
+			or StringName(host_snapshot.get("phase_id", &"")) != &"on_foot":
+		return {"accepted": false, "reason": &"hazard_lifecycle_mismatch"}
+	if not evidence.position_body_local_m is Vector3 \
+			or not (evidence.position_body_local_m as Vector3).is_finite():
+		return {"accepted": false, "reason": &"invalid_hazard_position"}
+	if not (evidence.exposure_unitless is float or evidence.exposure_unitless is int) \
+			or not is_finite(float(evidence.exposure_unitless)) \
+			or float(evidence.exposure_unitless) < 0.0 \
+			or float(evidence.exposure_unitless) > 1.0:
+		return {"accepted": false, "reason": &"invalid_hazard_exposure"}
+	if not (evidence.delta_seconds is float or evidence.delta_seconds is int) \
+			or not is_finite(float(evidence.delta_seconds)) \
+			or float(evidence.delta_seconds) < 0.0 \
+			or float(evidence.delta_seconds) > PlanetarySurfaceHazardRuntime.MAX_DELTA_SECONDS:
+		return {"accepted": false, "reason": &"invalid_hazard_delta"}
+	return {"accepted": true, "reason": &"hazard_observation_valid"}
+
+
+func _set_hazard_semantic_from_sample(sampled: Dictionary) -> void:
+	var recovery := sampled.get("recovery_request", {}) as Dictionary
+	var recovery_required := bool(recovery.get("requested", false))
+	_hazard_semantic_status = {
+		"visible": true,
+		"state": &"recovery_required" if recovery_required else &"warning",
+		"hazard_id": AUTHORED_HAZARD_ID,
+		"title": "RELAY ARC EXPOSURE",
+		"status_text": "Return to the staging relay" if recovery_required \
+			else "Electrical discharge zone",
+		"recovery_id": recovery.get("recovery_id", &""),
+		"exposure_unitless": float(sampled.get("exposure_unitless", 0.0)),
+		"damage_request": (sampled.get("damage_request", {}) as Dictionary).duplicate(true),
+		"recovery_request": recovery.duplicate(true),
+		"authority": _hazard_zero_authority(),
+	}.duplicate(true)
+	_hazard_zone_presentation.call(&"apply_status", _hazard_semantic_status)
+
+
+func _set_hazard_semantic_clear(reason: StringName) -> void:
+	_hazard_semantic_status = {
+		"visible": false,
+		"state": &"clear",
+		"hazard_id": AUTHORED_HAZARD_ID,
+		"title": "RELAY ARC PERIMETER",
+		"status_text": "Clear",
+		"recovery_id": _authored_hazard.get("recovery_id", &""),
+		"exposure_unitless": 0.0,
+		"reason": reason,
+		"damage_request": {"requested": false, "health_mutation": false},
+		"recovery_request": {"requested": false, "movement_mutation": false},
+		"authority": _hazard_zero_authority(),
+	}.duplicate(true)
+	if _hazard_zone_presentation != null \
+			and bool((_hazard_zone_presentation.call(&"get_snapshot") as Dictionary).get("attached", false)):
+		_hazard_zone_presentation.call(&"apply_status", _hazard_semantic_status)
+
+
+func _clear_authored_hazard_runtime_exposure() -> void:
+	if _hazard == null:
+		return
+	var snapshot := _hazard.call(&"get_snapshot") as Dictionary
+	var exposure := (snapshot.get("exposure", {}) as Dictionary).duplicate(true)
+	if exposure.has(AUTHORED_HAZARD_ID):
+		exposure[AUTHORED_HAZARD_ID] = 0.0
+		snapshot["exposure"] = exposure
+		_hazard.call(&"restore_snapshot", snapshot)
+
+
+func _hazard_observation_result(
+		accepted: bool, reason: StringName, sample: Dictionary,
+		position_body_local_m: Vector3
+	) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"position_body_local_m": position_body_local_m,
+		"sample": sample.duplicate(true),
+		"status": _hazard_semantic_status.duplicate(true),
+		"presentation": _hazard_zone_presentation.call(&"get_snapshot"),
+	}.duplicate(true)
+
+
+func _hazard_zero_authority() -> Dictionary:
+	return {
+		"damage": false, "health": false, "movement": false,
+		"recovery": false, "reward": false, "hud": false,
+		"lifecycle": false,
+	}.duplicate(true)
 
 
 func _apply_relay_survey_presentation() -> void:
