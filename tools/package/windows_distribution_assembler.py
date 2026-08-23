@@ -76,6 +76,34 @@ def _payload_manifest(stage: Path, paths: Iterable[str]) -> list[dict[str, objec
     return entries
 
 
+def _install_instructions(manifest: dict[str, object]) -> str:
+    installer = manifest["portable_installer"]
+    powershell_path = installer["powershell_path"]
+    launcher = installer["launcher"]
+    return (
+        "Mudds Shipyards Windows installation\n"
+        "===================================\n\n"
+        f"Distribution: {manifest['distribution']}\n"
+        f"Source commit: {manifest['source_commit']}\n\n"
+        "Unzip this directory, then run these commands from its root in PowerShell:\n\n"
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} install -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n'
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} status -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n'
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} rollback -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n'
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} uninstall -Destination "$env:LOCALAPPDATA\\MuddsShipyards"\n\n'
+        "Upgrade by running the install command again with a newer distribution.\n"
+        "The helper keeps one rollback and preserves files it does not own.\n\n"
+        "Portable run (no installation):\n"
+        f'  .\\{launcher}\n\n'
+        "Verify the exported executable before use:\n"
+        "  Get-FileHash .\\MuddsShipyards.exe -Algorithm SHA256\n"
+        "Compare the result with the MuddsShipyards.exe line in SHA256SUMS.txt.\n\n"
+        "Save data: Godot user:// (Windows: %APPDATA%\\Godot\\app_userdata\\Mudds Shipyards).\n"
+        "Do not delete that directory when uninstalling the portable distribution.\n\n"
+        f"Signing: {manifest['signing']} (this package is unsigned).\n"
+        f"Native validation: {manifest['native_validation']}. Human playtest: {manifest['human_playtest']}.\n"
+    )
+
+
 def assemble_distribution(
     artifact: Path,
     output_root: Path,
@@ -126,12 +154,10 @@ def assemble_distribution(
         LAUNCHER_NAME,
         "install/windows_portable_installer.py",
         "install/windows_portable_installer.ps1",
+        "INSTALL-WINDOWS.txt",
     ]
     if pck is not None:
         payload_paths.append("MuddsShipyards.pck")
-    entries = _payload_manifest(stage, payload_paths)
-    checksum_text = "".join(f"{entry['sha256']}  {entry['path']}\n" for entry in entries)
-    (stage / "SHA256SUMS.txt").write_text(checksum_text, encoding="utf-8", newline="\n")
     manifest = {
         "schema_version": 1,
         "distribution": distribution_name,
@@ -146,8 +172,13 @@ def assemble_distribution(
             "launcher": LAUNCHER_NAME,
             "commands": ["install", "upgrade", "status", "rollback", "uninstall"],
         },
-        "files": entries,
+        "files": [],
     }
+    (stage / "INSTALL-WINDOWS.txt").write_text(_install_instructions(manifest), encoding="utf-8", newline="\n")
+    entries = _payload_manifest(stage, payload_paths)
+    checksum_text = "".join(f"{entry['sha256']}  {entry['path']}\n" for entry in entries)
+    (stage / "SHA256SUMS.txt").write_text(checksum_text, encoding="utf-8", newline="\n")
+    manifest["files"] = entries
     (stage / "distribution-manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
     )
