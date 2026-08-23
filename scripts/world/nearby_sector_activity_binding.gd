@@ -22,6 +22,7 @@ const MINING_ACTIVITY := preload("res://scripts/world/cinder_mining_platform_act
 const SCAN_ACTIVITY := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const BEACON_ACTIVITY := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
 const CINDER_FIELD_AUDIO := preload("res://scripts/audio/cinder_field_activity_audio_binding.gd")
+const CINDER_CARGO_TERMINAL_AUDIO := preload("res://scripts/audio/cinder_cargo_terminal_audio_binding.gd")
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
 const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activity_session_adapter.gd")
 const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
@@ -55,6 +56,7 @@ var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
 var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
+var _cinder_cargo_terminal_audio: RefCounted
 
 
 func _ready() -> void:
@@ -90,6 +92,8 @@ func _ready() -> void:
 	_session_adapter = SESSION_ADAPTER.new() as RefCounted
 	_cinder_field_audio = CINDER_FIELD_AUDIO.new() as RefCounted
 	_cinder_field_audio.attach()
+	_cinder_cargo_terminal_audio = CINDER_CARGO_TERMINAL_AUDIO.new() as RefCounted
+	_cinder_cargo_terminal_audio.attach()
 	bind_mining_presentation(Callable(self, "_on_mining_audio_snapshot"))
 	bind_structure_scan_presentation(Callable(self, "_on_structure_scan_audio_snapshot"))
 	bind_beacon_traversal_presentation(Callable(self, "_on_beacon_audio_snapshot"))
@@ -99,10 +103,15 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if _cinder_field_audio != null:
 		_cinder_field_audio.detach()
+	if _cinder_cargo_terminal_audio != null:
+		_cinder_cargo_terminal_audio.detach()
 
 
 func get_cinder_field_audio_binding_snapshot() -> Dictionary:
 	return _cinder_field_audio.get_snapshot() if _cinder_field_audio != null else {}
+
+func get_cinder_cargo_terminal_audio_snapshot() -> Dictionary:
+	return _cinder_cargo_terminal_audio.get_snapshot() if _cinder_cargo_terminal_audio != null else {}
 
 
 func _on_mining_audio_snapshot(snapshot: Dictionary) -> void:
@@ -315,6 +324,8 @@ func _publish_cargo_presentation(authority_record: Dictionary = {}) -> void:
 	}.duplicate(true)
 	_cargo_access.apply_cargo_presentation_snapshot(detached)
 	_cargo_terminal.apply_cargo_presentation_snapshot(detached)
+	if _cinder_cargo_terminal_audio != null:
+		_cinder_cargo_terminal_audio.present_snapshot(detached)
 
 
 func _cargo_terminal_result(
