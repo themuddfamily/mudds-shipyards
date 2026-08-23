@@ -5354,6 +5354,10 @@ func _set_help_text(rows: Array) -> void:
 		_help_close_button.focus_mode = Control.FOCUS_ALL
 		_help_close_button.pressed.connect(_close_help_panel)
 		navigation.add_child(_help_close_button)
+		_help_previous_button.focus_neighbor_right = _help_previous_button.get_path_to(_help_next_button)
+		_help_next_button.focus_neighbor_left = _help_next_button.get_path_to(_help_previous_button)
+		_help_next_button.focus_neighbor_right = _help_next_button.get_path_to(_help_close_button)
+		_help_close_button.focus_neighbor_left = _help_close_button.get_path_to(_help_next_button)
 		_help_stack.add_child(navigation)
 	_refresh_help_page()
 	_refresh_bomber_payload_help()
