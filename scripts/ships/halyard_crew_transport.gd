@@ -76,6 +76,16 @@ signal gunner_target_cleared(
 	target_generation: int,
 	reason: StringName
 )
+signal engineer_component_selected(
+	component_id: StringName,
+	component_generation: int,
+	receipt: Dictionary
+)
+signal engineer_component_cleared(
+	component_id: StringName,
+	component_generation: int,
+	reason: StringName
+)
 
 const DESIGN_NOTE := (
 	"The Halyard is an original modern design created for this remake. It is not "
@@ -285,6 +295,8 @@ var _gunner_role_cooldowns: Dictionary = {}
 var _passenger_ping_markers: Dictionary = {}
 var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
+var _engineer_component_selection: Dictionary = {}
+var _engineer_component_generation := 1
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -340,6 +352,8 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_gunner_role_cooldowns.clear()
 	_clear_gunner_target_selection(&"ship_reused", false)
 	_gunner_target_generation = 1
+	_clear_engineer_component_selection(&"ship_reused", false)
+	_engineer_component_generation = 1
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
@@ -643,6 +657,7 @@ func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
 	var payload := intent.get("payload", {}) as Dictionary
 	var system_id := StringName(payload.get("system_id", &""))
 	var requested_repair := float(payload.get("repair", 0.0))
+	var system_generation := int(payload.get("system_generation", 0))
 	var model := get_component_damage()
 	if model == null or not model.is_configured():
 		return _crew_role_result(false, &"component_damage_unavailable")
@@ -651,29 +666,59 @@ func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
 		return _crew_role_result(false, &"ship_destroyed")
 	if not bool(telemetry.get("landed", false)) or bool(telemetry.get("landing_active", false)):
 		return _crew_role_result(false, &"repair_requires_berthed_ship")
-	if requested_repair <= 0.0:
-		return _crew_role_result(false, &"zero_repair_request")
 	var report := model.get_component_report()
 	var order: Array = report.get("component_order", []) as Array
 	if not order.has(system_id):
-		return _crew_role_result(false, &"unknown_system")
+		return _crew_role_result(false, &"foreign_component")
+	if system_generation != _engineer_component_generation:
+		return _crew_role_result(false, &"stale_component_generation")
 	var before := model.get_component_integrity(system_id)
 	if before < 0.0:
-		return _crew_role_result(false, &"unknown_system")
+		return _crew_role_result(false, &"foreign_component")
 	if before >= 1.0:
-		return _crew_role_result(false, &"system_nominal")
+		return _crew_role_result(false, &"healthy_component")
+	var selection := _select_engineer_component(intent, system_id, system_generation)
+	if not bool(selection.get("accepted", false)):
+		return selection
+	if requested_repair <= 0.0:
+		return selection
 	var rate := maxf(float(report.get("repair_rate_per_second", 0.0)), 0.05)
 	var repair_result := model.tick_repair(requested_repair / rate, true)
 	var after := model.get_component_integrity(system_id)
 	if not bool(repair_result.get("accepted", false)) or after <= before:
 		var rejected := _crew_role_result(false, StringName(repair_result.get("reason", &"system_not_repaired")))
 		rejected["repair"] = repair_result
+		rejected["selection"] = selection
 		return rejected
 	var result := _crew_role_result(true, &"repair_applied")
 	result["system_id"] = system_id
 	result["integrity_before"] = before
 	result["integrity_after"] = after
 	result["repair"] = repair_result
+	result["selection"] = selection
+	return result
+
+
+func _select_engineer_component(
+	intent: Dictionary,
+	component_id: StringName,
+	component_generation: int
+) -> Dictionary:
+	var selection := {
+		"component_id": component_id,
+		"component_generation": component_generation,
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+	}
+	_engineer_component_selection = selection
+	engineer_component_selected.emit(
+		component_id,
+		component_generation,
+		selection.duplicate(true)
+	)
+	var result := _crew_role_result(true, &"component_selected")
+	result["selection"] = selection.duplicate(true)
 	return result
 
 
@@ -1894,6 +1939,7 @@ func _set_interior_operational(enabled: bool) -> void:
 		_passenger_ping_cooldowns.clear()
 		_gunner_role_cooldowns.clear()
 		_clear_gunner_target_selection(&"interior_unavailable")
+		_clear_engineer_component_selection(&"interior_unavailable")
 	if _walkable_interior != null:
 		_walkable_interior.visible = enabled
 	if _occupant_volume != null:
@@ -1907,11 +1953,14 @@ func _set_interior_operational(enabled: bool) -> void:
 
 
 func _cleanup_detached_passenger_pings() -> void:
-	if _passenger_ping_markers.is_empty() and _gunner_target_selection.is_empty():
+	if _passenger_ping_markers.is_empty() \
+			and _gunner_target_selection.is_empty() \
+			and _engineer_component_selection.is_empty():
 		return
 	if _crew_role_authority == null:
 		_clear_passenger_ping_markers(&"authority_detached")
 		_clear_gunner_target_selection(&"authority_detached")
+		_clear_engineer_component_selection(&"authority_detached")
 		return
 	var detached: Array[Dictionary] = []
 	for marker_variant in _passenger_ping_markers.values():
@@ -1937,6 +1986,17 @@ func _cleanup_detached_passenger_pings() -> void:
 			_clear_crew_role_state(
 				int(_gunner_target_selection.get("occupant_peer_id", 0)),
 				StringName(_gunner_target_selection.get("avatar_id", &"")),
+				&"role_detached"
+			)
+	if not _engineer_component_selection.is_empty():
+		var component_assignment := _crew_role_authority.get_assignment(
+			int(_engineer_component_selection.get("occupant_peer_id", 0)),
+			StringName(_engineer_component_selection.get("avatar_id", &""))
+		)
+		if component_assignment.is_empty():
+			_clear_crew_role_state(
+				int(_engineer_component_selection.get("occupant_peer_id", 0)),
+				StringName(_engineer_component_selection.get("avatar_id", &"")),
 				&"role_detached"
 			)
 
@@ -1972,6 +2032,10 @@ func _clear_crew_role_state(
 			and int(_gunner_target_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
 			and StringName(_gunner_target_selection.get("avatar_id", &"")) == avatar_id:
 		_clear_gunner_target_selection(reason)
+	if not _engineer_component_selection.is_empty() \
+			and int(_engineer_component_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
+			and StringName(_engineer_component_selection.get("avatar_id", &"")) == avatar_id:
+		_clear_engineer_component_selection(reason)
 
 
 func _advance_crew_role_cooldowns(delta: float) -> void:
@@ -2015,6 +2079,30 @@ func _clear_gunner_target_selection(reason: StringName, advance_generation: bool
 	if advance_generation:
 		_gunner_target_generation = mini(
 			_gunner_target_generation + 1,
+			MAX_GUNNER_TARGET_GENERATION
+		)
+
+
+func _clear_engineer_component_selection(
+	reason: StringName,
+	advance_generation: bool = true
+) -> void:
+	if _engineer_component_selection.is_empty():
+		if advance_generation:
+			_engineer_component_generation = mini(
+				_engineer_component_generation + 1,
+				MAX_GUNNER_TARGET_GENERATION
+			)
+		return
+	var component_id := StringName(_engineer_component_selection.get("component_id", &""))
+	var component_generation := int(
+		_engineer_component_selection.get("component_generation", 0)
+	)
+	_engineer_component_selection.clear()
+	engineer_component_cleared.emit(component_id, component_generation, reason)
+	if advance_generation:
+		_engineer_component_generation = mini(
+			_engineer_component_generation + 1,
 			MAX_GUNNER_TARGET_GENERATION
 		)
 

@@ -139,15 +139,21 @@ static func _gunner_fire(payload: Dictionary) -> Dictionary:
 
 
 static func _engineer_repair(payload: Dictionary) -> Dictionary:
-	if not _exact_keys(payload, ["system_id", "repair"]):
+	var base_schema := _exact_keys(payload, ["system_id", "repair"])
+	var generation_schema := _exact_keys(payload, ["system_id", "repair", "system_generation"])
+	if not base_schema and not generation_schema:
 		return _rejected(&"invalid_engineer_repair_schema")
 	var system_id := StringName(str(payload.get("system_id", "")))
 	var repair := _finite_number(payload.get("repair", NAN))
-	if not _valid_id(system_id) or is_nan(repair):
+	var system_generation: Variant = payload.get("system_generation", 1)
+	if not _valid_id(system_id) or is_nan(repair) \
+			or not system_generation is int \
+			or int(system_generation) <= 0 or int(system_generation) > 1_000_000:
 		return _rejected(&"invalid_engineer_repair_payload")
 	return _accepted({
 		"system_id": system_id,
 		"repair": clampf(repair, 0.0, 1.0),
+		"system_generation": int(system_generation),
 	})
 
 
