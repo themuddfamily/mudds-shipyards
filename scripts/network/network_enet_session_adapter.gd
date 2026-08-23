@@ -21,6 +21,7 @@ const ShipOwnershipAuthority := preload("res://scripts/network/network_ship_owne
 const SeatAuthority := preload("res://scripts/network/network_seat_authority.gd")
 const SessionMigration := preload("res://scripts/network/network_session_migration.gd")
 const PredictionGuard := preload("res://scripts/network/network_prediction_correction_guard.gd")
+const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -39,6 +40,7 @@ signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
 signal migration_result(result: Dictionary)
 signal prediction_correction_result(result: Dictionary)
+signal server_browser_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -59,6 +61,7 @@ var _ship_ownership
 var _seat_authority
 var _migration
 var _prediction
+var _server_browser
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -91,6 +94,7 @@ func _init() -> void:
 	_seat_authority = SeatAuthority.new(AUTHORITY_PEER_ID)
 	_migration = SessionMigration.new(AUTHORITY_PEER_ID)
 	_prediction = PredictionGuard.new(AUTHORITY_PEER_ID)
+	_server_browser = ServerBrowser.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -815,6 +819,45 @@ func apply_prediction_correction(
 
 func get_prediction_entity(entity_id: StringName) -> Dictionary:
 	return _prediction.get_entity_snapshot(entity_id)
+
+
+func publish_server_directory(directory_generation: int, server_tick: int, entries: Array) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _server_browser.publish_snapshot(
+		AUTHORITY_PEER_ID, directory_generation, server_tick, entries
+	)
+	server_browser_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func advance_server_directory_clock(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _server_browser.advance_clock(AUTHORITY_PEER_ID, server_tick)
+	server_browser_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func query_server_directory(region_filter: StringName = &"", max_ping_ms: int = -1, include_full: bool = true) -> Array:
+	return _server_browser.query(region_filter, max_ping_ms, include_full)
+
+
+func request_join_advertised_session(
+	session_id: StringName,
+	address: String = "127.0.0.1",
+	port: int = DEFAULT_PORT
+) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	var entry: Dictionary = _server_browser.get_session(session_id)
+	if entry.is_empty():
+		return _remember(_result(false, &"session_not_found"))
+	if int(entry.get("player_count", 0)) >= int(entry.get("max_players", 0)):
+		return _remember(_result(false, &"session_full"))
+	var started: Dictionary = join(address, port)
+	started["session_id"] = session_id
+	return _remember(started)
 
 
 func publish_snapshot(

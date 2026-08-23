@@ -285,6 +285,31 @@ func _initialize() -> void:
 		_client.rotate_session_migration(2).get("status") == &"authority_required",
 		"client cannot rotate the authoritative migration epoch"
 	)
+	_check(
+		bool(_server.publish_server_directory(1, 1, [{
+			"session_id": &"lan_session",
+			"host_peer_id": 1,
+			"title": &"Hosted LAN",
+			"region_id": &"eu",
+			"ping_ms": 42,
+			"player_count": 1,
+			"max_players": 4,
+		}]).get("accepted", false)),
+		"server publishes bounded caller-provided LAN session metadata"
+	)
+	_check(
+		_server.query_server_directory(&"eu", 80, false).size() == 1,
+		"server browser returns fresh non-full sessions without owning join authority"
+	)
+	_check(
+		_client.request_join_advertised_session(&"missing_session").get("status") == &"session_not_found",
+		"join intent fails closed when the advertised session is absent"
+	)
+	_check(
+		bool(_server.advance_server_directory_clock(32).get("accepted", false))
+		and _server.query_server_directory().is_empty(),
+		"stale advertised sessions expire from the directory cache"
+	)
 	var prediction_register := _server.register_prediction_entity(client_peer_id, &"prediction_1", 1)
 	_check(
 		bool(prediction_register.get("accepted", false)),
