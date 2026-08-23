@@ -15,6 +15,7 @@ const MovementAuthority := preload("res://scripts/network/network_movement_autho
 const BoardingAuthority := preload("res://scripts/network/network_boarding_authority.gd")
 const ProjectileAuthority := preload("res://scripts/network/network_projectile_authority.gd")
 const LandingAuthority := preload("res://scripts/network/network_landing_authority.gd")
+const LandingIntent := preload("res://scripts/network/network_landing_intent.gd")
 const DamageRespawnIntegration := preload("res://scripts/network/network_damage_respawn_integration.gd")
 const MovingInteriorAuthority := preload("res://scripts/network/network_moving_interior_authority.gd")
 const ShipOwnershipAuthority := preload("res://scripts/network/network_ship_ownership_authority.gd")
@@ -912,6 +913,114 @@ func send_landing_intent(wire: Dictionary) -> Dictionary:
 
 func get_landing_entity(entity_id: StringName) -> Dictionary:
 	return _landing.get_entity_snapshot(entity_id)
+
+
+## Mirrors a server-validated physical berth reservation into the existing
+## landing authority. The caller must own the actual berth lease; this adapter
+## only creates the network lifecycle token and cannot choose a pose or occupy
+## a berth. Clients cannot invoke this path.
+func reserve_server_landing(
+	entity_id: StringName,
+	entity_generation: int,
+	region_id: StringName,
+	target_id: StringName,
+	stream_id: int,
+	sequence: int,
+	server_tick: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var entity: Dictionary = _landing.get_entity_snapshot(entity_id)
+	if entity.is_empty() \
+			or int(entity.get("owner_peer_id", 0)) != AUTHORITY_PEER_ID \
+			or int(entity.get("entity_generation", 0)) != entity_generation:
+		return _remember(_result(false, &"stale_landing_entity"))
+	var tick_result: Dictionary = _landing.set_server_tick(AUTHORITY_PEER_ID, server_tick)
+	if not bool(tick_result.get("accepted", false)):
+		return _remember(tick_result)
+	var intent = LandingIntent.create(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, stream_id, sequence,
+		server_tick, LandingIntent.ACTION_LANDING, region_id, target_id
+	)
+	var result: Dictionary = _landing.accept_intent(
+		AUTHORITY_PEER_ID, intent.to_dictionary()
+	)
+	landing_intent_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func commit_server_landing(
+	entity_id: StringName,
+	entity_generation: int,
+	lease_id: StringName
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _landing.commit_landing(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, lease_id
+	)
+	landing_intent_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func abort_server_landing(
+	entity_id: StringName,
+	entity_generation: int,
+	lease_id: StringName
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _landing.abort_landing(
+		AUTHORITY_PEER_ID, entity_id, entity_generation, lease_id
+	)
+	landing_intent_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+## Retires one committed landed generation after the server-observed physical
+## departure, which releases the authority target occupancy, then registers the
+## strictly newer flying generation. No client transform or lease is consumed.
+func release_server_landing(
+	entity_id: StringName,
+	entity_generation: int,
+	lease_id: StringName
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var entity: Dictionary = _landing.get_entity_snapshot(entity_id)
+	if entity.is_empty() \
+			or int(entity.get("entity_generation", 0)) != entity_generation \
+			or StringName(entity.get("state", &"")) != LandingAuthority.STATE_LANDED \
+			or StringName(entity.get("lease_id", &"")) != lease_id:
+		return _remember(_result(false, &"stale_landing_handoff"))
+	if entity_generation >= LandingAuthority.MAX_SAFE_INTEGER:
+		return _remember(_result(false, &"entity_generation_exhausted"))
+	var retired: Dictionary = _landing.retire_entity(
+		AUTHORITY_PEER_ID, entity_id, entity_generation
+	)
+	if not bool(retired.get("accepted", false)):
+		return _remember(retired)
+	var next_generation := entity_generation + 1
+	var registered: Dictionary = _landing.register_entity(
+		AUTHORITY_PEER_ID, AUTHORITY_PEER_ID, entity_id, next_generation,
+		LandingAuthority.STATE_FLYING
+	)
+	if not bool(registered.get("accepted", false)):
+		return _remember(_result(false, &"landing_release_registration_failed", {
+			"mutation_committed": true,
+			"retired_generation": entity_generation,
+		}))
+	_landing_entities[entity_id] = {
+		"owner_peer_id": AUTHORITY_PEER_ID,
+		"entity_generation": next_generation,
+	}
+	var result := _result(true, &"landing_released", {
+		"entity_id": entity_id,
+		"entity_generation": next_generation,
+		"retired_generation": entity_generation,
+	})
+	landing_intent_result.emit(result.duplicate(true))
+	return _remember(result)
 
 
 func register_damage_entity(

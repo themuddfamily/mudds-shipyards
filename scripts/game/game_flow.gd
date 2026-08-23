@@ -389,6 +389,9 @@ var _network_hud_snapshot_generation := 0
 var _network_damage_entities: Dictionary = {}
 var _network_damage_server_tick := 0
 var _network_landing_entities: Dictionary = {}
+var _network_landing_handoffs: Dictionary = {}
+var _last_network_landing_handoff_result: Dictionary = {}
+var _network_landing_request_sequence := 0
 var _network_landing_server_tick := 0
 var _network_boarding_entities: Dictionary = {}
 var _network_boarding_server_tick := 0
@@ -5202,6 +5205,7 @@ func _publish_network_landing_state(ship_to_publish: HeroShip, state: StringName
 	if (
 		not is_instance_valid(network_session)
 		or not network_session.is_server()
+		or _network_session_mode != &"server"
 		or not is_instance_valid(ship_to_publish)
 	):
 		return {"accepted": false, "status": &"network_publish_unavailable"}
@@ -5220,8 +5224,258 @@ func _publish_network_landing_state(ship_to_publish: HeroShip, state: StringName
 	)
 
 
+## Mirrors the already-owned physical berth token into the server landing
+## lifecycle. ShipBerth remains the sole occupancy authority; this handoff
+## neither chooses a berth nor accepts a client transform/token.
+func _begin_network_landing_handoff(
+	ship_to_land: HeroShip,
+	berth: ShipBerth,
+) -> Dictionary:
+	if not is_instance_valid(network_session) or not network_session.is_server() \
+			or _network_session_mode != &"server":
+		return {"accepted": true, "status": &"network_landing_not_required"}
+	if not is_instance_valid(ship_to_land) or not is_instance_valid(berth):
+		return {"accepted": false, "status": &"physical_landing_owner_unavailable"}
+	var instance_id := ship_to_land.get_instance_id()
+	var entity_id := ship_to_land.get_ship_id()
+	var target_id := berth.get_berth_id()
+	var physical_token := StringName(_berth_tokens.get(instance_id, &""))
+	if entity_id.is_empty() or target_id.is_empty() or physical_token.is_empty() \
+			or StringName(_reserved_berth_ids.get(instance_id, &"")) != target_id \
+			or not berth.has_valid_lease(ship_to_land, physical_token, entity_id):
+		return {"accepted": false, "status": &"physical_berth_lease_mismatch"}
+	if _network_landing_handoffs.has(entity_id):
+		return {"accepted": false, "status": &"landing_handoff_active"}
+	var entity_generation := int(_network_landing_entities.get(entity_id, 0))
+	if entity_generation <= 0:
+		entity_generation = 1
+		var registered := network_session.register_landing_entity(
+			1, entity_id, entity_generation
+		)
+		if not bool(registered.get("accepted", false)):
+			return registered
+		_network_landing_entities[entity_id] = entity_generation
+	var target_registered := network_session.register_landing_target(
+		target_id, MUDDS_RETURN_TARGET_ID, 1
+	)
+	if not bool(target_registered.get("accepted", false)) \
+			and target_registered.get("status") != &"duplicate_target":
+		return target_registered
+	_network_landing_request_sequence += 1
+	_network_landing_server_tick += 1
+	var reserved := network_session.reserve_server_landing(
+		entity_id, entity_generation, MUDDS_RETURN_TARGET_ID, target_id, 0,
+		_network_landing_request_sequence, _network_landing_server_tick
+	)
+	if not bool(reserved.get("accepted", false)):
+		return reserved
+	var handoff := {
+		"entity_id": entity_id,
+		"entity_generation": entity_generation,
+		"target_id": target_id,
+		"network_lease_id": StringName(reserved.get("lease_id", &"")),
+		"physical_token": physical_token,
+		"state": &"landing_pending",
+	}
+	_network_landing_handoffs[entity_id] = handoff
+	var published := _publish_network_landing_state(ship_to_land, &"landing_pending")
+	if not bool(published.get("accepted", false)):
+		network_session.abort_server_landing(
+			entity_id, entity_generation, StringName(handoff.network_lease_id)
+		)
+		_network_landing_handoffs.erase(entity_id)
+		return published
+	return {
+		"accepted": true,
+		"status": &"network_landing_reserved",
+		"handoff": handoff.duplicate(true),
+		"publication": published.duplicate(true),
+	}
+
+
+func _commit_network_landing_handoff(
+	ship_to_land: HeroShip,
+	berth: ShipBerth,
+) -> Dictionary:
+	if not is_instance_valid(network_session) or not network_session.is_server() \
+			or _network_session_mode != &"server":
+		return {"accepted": true, "status": &"network_landing_not_required"}
+	if not is_instance_valid(ship_to_land) or not is_instance_valid(berth):
+		return {"accepted": false, "status": &"physical_landing_owner_unavailable"}
+	var entity_id := ship_to_land.get_ship_id()
+	var handoff := _network_landing_handoffs.get(entity_id, {}) as Dictionary
+	if handoff.is_empty() or handoff.get("state") not in [&"landing_pending", &"landed"]:
+		return {"accepted": false, "status": &"landing_handoff_not_pending"}
+	var instance_id := ship_to_land.get_instance_id()
+	var physical_token := StringName(handoff.get("physical_token", &""))
+	if StringName(handoff.get("target_id", &"")) != berth.get_berth_id() \
+			or StringName(_berth_tokens.get(instance_id, &"")) != physical_token \
+			or berth.get_occupant() != ship_to_land \
+			or not berth.has_valid_lease(ship_to_land, physical_token, entity_id):
+		return {"accepted": false, "status": &"physical_berth_occupancy_mismatch"}
+	var mutation_committed: bool = handoff.get("state") == &"landed"
+	if not mutation_committed:
+		var committed := network_session.commit_server_landing(
+			entity_id,
+			int(handoff.get("entity_generation", 0)),
+			StringName(handoff.get("network_lease_id", &"")),
+		)
+		if not bool(committed.get("accepted", false)):
+			return committed
+		handoff["state"] = &"landed"
+		_network_landing_handoffs[entity_id] = handoff
+		mutation_committed = true
+	var published := _publish_network_landing_state(ship_to_land, &"landed")
+	return {
+		"accepted": bool(published.get("accepted", false)),
+		"status": (
+			&"network_landing_committed"
+			if bool(published.get("accepted", false))
+			else &"network_landing_commit_publication_failed"
+		),
+		"mutation_committed": mutation_committed,
+		"retryable": not bool(published.get("accepted", false)),
+		"handoff": handoff.duplicate(true),
+		"publication": published.duplicate(true),
+	}
+
+
+func _abort_network_landing_handoff(ship_to_abort: HeroShip) -> Dictionary:
+	if not is_instance_valid(network_session) or not network_session.is_server() \
+			or _network_session_mode != &"server":
+		return {"accepted": true, "status": &"network_landing_not_required"}
+	if not is_instance_valid(ship_to_abort):
+		return {"accepted": false, "status": &"physical_landing_owner_unavailable"}
+	var entity_id := ship_to_abort.get_ship_id()
+	var handoff := _network_landing_handoffs.get(entity_id, {}) as Dictionary
+	if handoff.is_empty():
+		var entity := network_session.get_landing_entity(entity_id) as Dictionary
+		if entity.is_empty() or entity.get("state") == &"flying":
+			return {"accepted": true, "status": &"network_landing_not_tracked"}
+		return {"accepted": false, "status": &"landing_handoff_not_pending"}
+	if handoff.get("state") not in [&"landing_pending", &"abort_pending_publication"]:
+		return {"accepted": false, "status": &"landing_handoff_not_pending"}
+	var mutation_committed: bool = handoff.get("state") == &"abort_pending_publication"
+	if not mutation_committed:
+		var aborted := network_session.abort_server_landing(
+			entity_id,
+			int(handoff.get("entity_generation", 0)),
+			StringName(handoff.get("network_lease_id", &"")),
+		)
+		if not bool(aborted.get("accepted", false)):
+			aborted["mutation_committed"] = false
+			aborted["retryable"] = true
+			return aborted
+		handoff["state"] = &"abort_pending_publication"
+		_network_landing_handoffs[entity_id] = handoff
+		mutation_committed = true
+	var published := _publish_network_landing_state(ship_to_abort, &"flying")
+	if bool(published.get("accepted", false)):
+		_network_landing_handoffs.erase(entity_id)
+	return {
+		"accepted": bool(published.get("accepted", false)),
+		"status": (
+			&"network_landing_aborted"
+			if bool(published.get("accepted", false))
+			else &"network_landing_abort_publication_failed"
+		),
+		"mutation_committed": mutation_committed,
+		"retryable": not bool(published.get("accepted", false)),
+		"handoff": handoff.duplicate(true),
+		"publication": published.duplicate(true),
+	}
+
+
+func _release_network_landing_handoff(
+	ship_to_release: HeroShip,
+	berth: ShipBerth,
+) -> Dictionary:
+	if not is_instance_valid(network_session) or not network_session.is_server() \
+			or _network_session_mode != &"server":
+		return {"accepted": true, "status": &"network_landing_not_required"}
+	if not is_instance_valid(ship_to_release) or not is_instance_valid(berth):
+		return {"accepted": false, "status": &"physical_landing_owner_unavailable"}
+	var entity_id := ship_to_release.get_ship_id()
+	var handoff := _network_landing_handoffs.get(entity_id, {}) as Dictionary
+	if handoff.is_empty():
+		var entity := network_session.get_landing_entity(entity_id) as Dictionary
+		if entity.is_empty() or entity.get("state") == &"flying":
+			return {"accepted": true, "status": &"network_landing_not_tracked"}
+		return {"accepted": false, "status": &"landed_handoff_unavailable"}
+	if handoff.get("state") not in [
+		&"landed", &"release_pending_publication"
+	]:
+		return {"accepted": false, "status": &"landed_handoff_unavailable"}
+	var physical_token := StringName(handoff.get("physical_token", &""))
+	if berth.get_occupant() != ship_to_release \
+			or berth.get_berth_id() != StringName(handoff.get("target_id", &"")) \
+			or not berth.has_valid_lease(
+				ship_to_release, physical_token, entity_id
+			):
+		return {"accepted": false, "status": &"physical_berth_occupancy_mismatch"}
+	var next_generation := int(handoff.get("released_entity_generation", 0))
+	if handoff.get("state") == &"landed":
+		var released := network_session.release_server_landing(
+			entity_id,
+			int(handoff.get("entity_generation", 0)),
+			StringName(handoff.get("network_lease_id", &"")),
+		)
+		if not bool(released.get("accepted", false)):
+			return released
+		next_generation = int(released.get("entity_generation", 0))
+		_network_landing_entities[entity_id] = next_generation
+		handoff["state"] = &"release_pending_publication"
+		handoff["released_entity_generation"] = next_generation
+		_network_landing_handoffs[entity_id] = handoff
+	var published := _publish_network_landing_state(ship_to_release, &"flying")
+	if bool(published.get("accepted", false)):
+		_network_landing_handoffs.erase(entity_id)
+	return {
+		"accepted": bool(published.get("accepted", false)),
+		"status": (
+			&"network_landing_released"
+			if bool(published.get("accepted", false))
+			else &"network_landing_release_publication_failed"
+		),
+		"entity_generation": next_generation,
+		"mutation_committed": true,
+		"retryable": not bool(published.get("accepted", false)),
+		"publication": published.duplicate(true),
+	}
+
+
+## Ensures completion paths that did not originate in `_try_request_landing`
+## still enter the same server-owned reserve -> commit -> publish lifecycle.
+## A committed mutation with a failed publication remains in the handoff ledger
+## so retrying this method only republishes; it never commits occupancy twice.
+func _ensure_network_landing_handoff_committed(
+	ship_to_land: HeroShip,
+	berth: ShipBerth,
+) -> Dictionary:
+	if not is_instance_valid(network_session) or not network_session.is_server() \
+			or _network_session_mode != &"server":
+		return {"accepted": true, "status": &"network_landing_not_required"}
+	if not is_instance_valid(ship_to_land) or not is_instance_valid(berth):
+		return {
+			"accepted": false,
+			"status": &"physical_landing_owner_unavailable",
+			"retryable": true,
+		}
+	var entity_id := ship_to_land.get_ship_id()
+	if not _network_landing_handoffs.has(entity_id):
+		var begun := _begin_network_landing_handoff(ship_to_land, berth)
+		if not bool(begun.get("accepted", false)):
+			begun["retryable"] = true
+			return begun
+	var committed := _commit_network_landing_handoff(ship_to_land, berth)
+	if not bool(committed.get("accepted", false)):
+		committed["retryable"] = true
+	return committed
+
+
 func _on_landing_completed(source_ship: HeroShip = null) -> void:
-	_publish_network_landing_state(source_ship if source_ship != null else active_ship, &"docked")
+	if _network_session_mode == &"client":
+		return
 	if source_ship != null and source_ship != active_ship:
 		return
 	if phase not in [Phase.RETURN_TO_YARD, Phase.FREE_FLIGHT] or not _sortie_departed_berth:
@@ -5241,6 +5495,22 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 			if is_instance_valid(world) and world.has_method(&"get_berth_node")
 			else null
 		)
+		var network_landing := _ensure_network_landing_handoff_committed(
+			active_ship, physical_berth
+		)
+		_last_network_landing_handoff_result = network_landing.duplicate(true)
+		if not bool(network_landing.get("accepted", false)):
+			if is_instance_valid(hud):
+				hud.set_interaction("", false)
+				hud.set_objective(
+					"Docking network handoff interrupted — berth retained; retry completion"
+				)
+				hud.toast(
+					"Docking coordination retry pending",
+					"Physical occupancy is retained until the authoritative landing publishes",
+					3.5,
+				)
+			return
 		var physical_arrival := _complete_planetary_return_physical_arrival(
 			physical_berth, landing_report
 		)
@@ -5258,6 +5528,7 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 					3.5,
 				)
 		return
+	var completed_berth_id := _active_landing_berth_id
 	_landing_request_active = false
 	_active_landing_berth_id = &""
 	if not _ensure_landed_berth_occupancy(active_ship):
@@ -5265,6 +5536,17 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		hud.set_interaction("", false)
 		hud.set_objective("Docking claim interrupted — keep the pad clear and retry the approach")
 		hud.toast("Docking coordination fault", "The berth lease could not be secured; do not exit", 3.5)
+		return
+	var occupied_berth := (
+		world.call(&"get_berth_node", completed_berth_id) as ShipBerth
+		if is_instance_valid(world) and world.has_method(&"get_berth_node")
+		else null
+	)
+	var network_landing := _commit_network_landing_handoff(active_ship, occupied_berth)
+	if not bool(network_landing.get("accepted", false)):
+		hud.set_interaction("", false)
+		hud.set_objective("Docking network handoff interrupted — keep the pad clear")
+		hud.toast("Docking coordination fault", "The authoritative landing was not published; do not exit", 3.5)
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
 		_complete_cargo_delivery_on_return()
@@ -6150,8 +6432,25 @@ func consume_planetary_return_receipt(
 
 
 func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> void:
-	_publish_network_landing_state(source_ship if source_ship != null else active_ship, &"flying")
+	if _network_session_mode == &"client":
+		return
 	if source_ship != null and source_ship != active_ship:
+		return
+	var network_abort := _abort_network_landing_handoff(
+		source_ship if source_ship != null else active_ship
+	)
+	_last_network_landing_handoff_result = network_abort.duplicate(true)
+	if not bool(network_abort.get("accepted", false)):
+		if is_instance_valid(hud):
+			hud.set_interaction("", false)
+			hud.set_objective(
+				"Landing abort coordination interrupted — berth retained; retry pending"
+			)
+			hud.toast(
+				"Landing abort retry pending",
+				"The physical reservation remains held until the server publishes flying",
+				3.5,
+			)
 		return
 	if _planetary_return_physical_arrival_armed:
 		_abort_planetary_return_physical_arrival(reason)
@@ -7020,6 +7319,13 @@ func _get_active_landing_assist_report() -> Dictionary:
 func _try_request_landing() -> void:
 	if not is_instance_valid(active_ship):
 		return
+	if _network_session_mode == &"client":
+		if is_instance_valid(hud):
+			hud.toast(
+				"Landing controlled by host",
+				"Client landing replicas are presentation-only",
+			)
+		return
 	if _landing_request_active:
 		hud.toast("Landing assist active", "Maintain clearance while the docking sequence completes")
 		return
@@ -7079,6 +7385,20 @@ func _try_request_landing() -> void:
 					3.5,
 				)
 				return
+		var network_handoff := _begin_network_landing_handoff(
+			active_ship, landing_berth
+		)
+		if not bool(network_handoff.get("accepted", false)):
+			# The ship's next authority check observes this physical lease release
+			# and emits the ordinary abort. No parallel landing rollback is owned
+			# by networking.
+			_release_ship_berth(active_ship)
+			hud.toast(
+				"Landing coordination interrupted",
+				"The server landing handoff changed — retry the approach",
+				3.5,
+			)
+			return
 		if _convoy_is_running():
 			_fail_active_activity(&"landing_requested")
 	else:
@@ -8908,11 +9228,38 @@ func _ensure_landed_berth_occupancy(candidate: HeroShip) -> bool:
 ## one-shot sortie departure. Engine startup alone is intentionally insufficient:
 ## a physically parked craft continues to own its occupied berth until thrust
 ## actually clears the docking latch.
-func _mark_sortie_departed() -> void:
+func _mark_sortie_departed() -> Dictionary:
 	if _sortie_departed_berth or not is_instance_valid(active_ship):
-		return
-	_sortie_departed_berth = true
+		return {"accepted": false, "status": &"sortie_departure_unavailable"}
+	var berth_id := StringName(
+		_reserved_berth_ids.get(active_ship.get_instance_id(), &"")
+	)
+	var berth := (
+		world.call(&"get_berth_node", berth_id) as ShipBerth
+		if not berth_id.is_empty() and is_instance_valid(world) \
+			and world.has_method(&"get_berth_node")
+		else null
+	)
+	var network_release := _release_network_landing_handoff(active_ship, berth)
+	_last_network_landing_handoff_result = network_release.duplicate(true)
+	if not bool(network_release.get("accepted", false)):
+		if is_instance_valid(hud):
+			hud.set_objective(
+				"Departure coordination interrupted — berth retained; retrying authoritative release"
+			)
+			hud.toast(
+				"Departure coordination retry pending",
+				"The physical berth remains occupied until network retirement publishes",
+				3.5,
+			)
+		return network_release
 	_release_ship_berth(active_ship)
+	_sortie_departed_berth = true
+	return {
+		"accepted": true,
+		"status": &"sortie_departed",
+		"network_release": network_release.duplicate(true),
+	}
 
 
 func _reserve_berth_for_ship(candidate: HeroShip, berth_id: StringName, occupy_now: bool) -> bool:
