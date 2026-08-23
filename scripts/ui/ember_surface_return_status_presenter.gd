@@ -36,9 +36,19 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 	var mapped := _map_state(state)
 	if mapped.is_empty():
 		return _reject(&"unsupported_phase")
+	var route_guidance := _route_guidance(
+		host, binding, mapped.get("state", &"rejected") as StringName
+	)
 	var lines := PackedStringArray(["EMBER RETURN  //  %s" % str(mapped.get("label", "UNAVAILABLE"))])
 	var distance := _finite(host, &"distance_meters")
 	var speed := _finite(host, &"speed_meters_per_second")
+	if bool(route_guidance.get("available", false)):
+		distance = float(route_guidance.get("distance_m", distance))
+		lines.append(
+			"NEXT  %s  //  %.1f m" % [
+				route_guidance.get("target_label", "ROUTE"), distance,
+			]
+		)
 	if distance >= 0.0:
 		lines.append("DISTANCE  %.1f m" % distance)
 	if speed >= 0.0:
@@ -54,7 +64,9 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 		"text": "\n".join(lines), "generation": generation,
 		"distance_m": distance, "speed_mps": speed,
 		"reduced_motion": reduced_motion, "focusable": true,
-		"color_independent": true, "presentation_only": true,
+		"color_independent": true, "reduced_flash_safe": true,
+		"flash_requested": false, "route_guidance": route_guidance,
+		"presentation_only": true,
 		"movement_authority": false, "landing_authority": false,
 		"session_authority": false, "reward_authority": false,
 	}.duplicate(true)
@@ -91,6 +103,83 @@ func _finite(source: Dictionary, key: StringName) -> float:
 	if not (value is int or value is float) or not is_finite(float(value)) or float(value) < 0.0:
 		return -1.0
 	return float(value)
+
+
+## Derives one display-only route vector from the Host's detached actor/route
+## observations and the retained planetary presentation's authored landmarks.
+## It never samples a node, chooses a path, or mutates either source.
+func _route_guidance(
+		host: Dictionary, binding: Dictionary, state: StringName
+	) -> Dictionary:
+	var actor_state := host.get("actor_state", {}) as Dictionary
+	var surface_route := host.get("surface_route", {}) as Dictionary
+	var planetary := binding.get("planetary_surface", {}) as Dictionary
+	var relay_presentation := planetary.get(
+		"relay_survey_presentation", {}
+	) as Dictionary
+	var actor_key := &"player_position" if state in [
+		&"on_foot", &"reboard",
+	] else &"ship_position"
+	var actor: Variant = actor_state.get(actor_key)
+	if actor is not Vector3 or not (actor as Vector3).is_finite():
+		return _unavailable_route_guidance()
+	var target: Variant
+	var target_id: StringName
+	var target_label: String
+	var route_kind: StringName
+	if state in [&"descent", &"landed"]:
+		target = surface_route.get("egress_anchor")
+		target_id = &"ember_landing_pad"
+		target_label = "LANDING PAD"
+		route_kind = &"landing"
+	elif state == &"on_foot":
+		var cue_mode := StringName(relay_presentation.get("cue_mode", &""))
+		if cue_mode in [&"approach_relay", &"active_relay"]:
+			target = relay_presentation.get("relay_anchor")
+			target_id = &"ember_relay_tower"
+			target_label = "RELAY"
+		else:
+			target = relay_presentation.get(
+				"return_anchor", surface_route.get("staging_anchor")
+			)
+			target_id = &"ember_return_route"
+			target_label = "RETURN ROUTE"
+		route_kind = &"surface_route"
+	elif state == &"reboard":
+		target = surface_route.get("egress_anchor")
+		target_id = &"ember_landing_pad"
+		target_label = "LANDING PAD"
+		route_kind = &"surface_route"
+	else:
+		return _unavailable_route_guidance()
+	if target is not Vector3 or not (target as Vector3).is_finite():
+		return _unavailable_route_guidance()
+	var actor_position := actor as Vector3
+	var target_position := target as Vector3
+	var displacement := target_position - actor_position
+	var map_direction := Vector2(displacement.x, displacement.z)
+	return {
+		"available": true,
+		"target_id": target_id,
+		"target_label": target_label,
+		"actor_position": actor_position,
+		"target_position": target_position,
+		"distance_m": displacement.length(),
+		"offscreen_direction": map_direction.normalized() \
+			if not map_direction.is_zero_approx() else Vector2.ZERO,
+		"route_kind": route_kind,
+		"coordinate_source": &"authoritative_detached_actor_and_landmark_snapshots",
+		"reduced_flash_safe": true,
+		"navigation_authority": false,
+	}.duplicate(true)
+
+
+func _unavailable_route_guidance() -> Dictionary:
+	return {
+		"available": false,
+		"reduced_flash_safe": true,
+		"navigation_authority": false,
+	}.duplicate(true)
 
 
 func _reject(reason: StringName) -> Dictionary:
