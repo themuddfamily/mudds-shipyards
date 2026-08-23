@@ -292,11 +292,11 @@ const DEFENSIVE_VISUAL_PARTS_PER_MOUNT := 5
 ## submission through a ship-local MultiMesh.
 const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
 const SPINE_RIB_COPY_COUNT := 7
-const RENDER_DESCENDANT_COUNT := 162
-const RENDER_MESH_INSTANCE_COUNT := 156
-const RENDER_MULTIMESH_BATCH_COUNT := 1
+const RENDER_DESCENDANT_COUNT := 143
+const RENDER_MESH_INSTANCE_COUNT := 136
+const RENDER_MULTIMESH_BATCH_COUNT := 2
 const RENDER_DRAWN_COPY_COUNT := 163
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 157
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 138
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 65
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
 
@@ -2312,6 +2312,8 @@ func _build_bow_docking_arch() -> void:
 func _build_flank_detail() -> void:
 	var band_centre_z := CABIN_WINDOW_FIRST_Z + CABIN_WINDOW_PITCH * float(CABIN_WINDOW_COUNT - 1) * 0.5
 	var band_length := CABIN_WINDOW_PITCH * float(CABIN_WINDOW_COUNT - 1) + 1.30
+	var cabin_window_pane_transforms: Array[Transform3D] = []
+	var cabin_window_pane_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_halyard_visual, side_name + "WindowFrame", Vector3(side * (HULL_HALF_WIDTH + 0.04), 2.35, band_centre_z), Vector3(0.12, 0.78, band_length), _halyard_materials.structure)
@@ -2322,7 +2324,11 @@ func _build_flank_detail() -> void:
 			# on the first pass, every window was hidden inside the hull skin and
 			# the band rendered as an unbroken dark stripe.
 			_box(_halyard_visual, side_name + "WindowGlow%02d" % window_index, Vector3(side * (HULL_HALF_WIDTH + 0.09), 2.35, window_z), Vector3(0.05, 0.48, 1.00), _halyard_materials.window_glow)
-			_box(_halyard_visual, side_name + "WindowPane%02d" % window_index, Vector3(side * (HULL_HALF_WIDTH + 0.13), 2.35, window_z), Vector3(0.05, 0.54, 1.08), _halyard_materials.glass)
+			cabin_window_pane_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(side * (HULL_HALF_WIDTH + 0.13), 2.35, window_z)
+			))
+			cabin_window_pane_names.append(side_name + "WindowPane%02d" % window_index)
 		# A single continuous banding stripe in the identification accent, low on
 		# the flank where it is unbroken by windows or hardware.
 		_box(_halyard_visual, side_name + "IdentificationBand", Vector3(side * (HULL_HALF_WIDTH + 0.05), 0.92, -1.20), Vector3(0.14, 0.36, 17.60), _halyard_materials.accent)
@@ -2379,6 +2385,18 @@ func _build_flank_detail() -> void:
 				)
 			_box(_halyard_visual, "AirstairStringer", Vector3(-3.60, -0.36, AIRSTAIR_Z), Vector3(2.00, 0.16, 0.14), _halyard_materials.structure, Vector3(0.0, 0.0, deg_to_rad(-46.0)))
 			_box(_halyard_visual, "AirstairHatchSurround", Vector3(-2.70, 1.55, AIRSTAIR_Z), Vector3(0.16, 2.10, 1.90), _halyard_materials.accent)
+	var window_pane_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(0.05, 0.54, 1.08),
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_halyard_visual,
+		"CabinWindowPaneBatch",
+		window_pane_mesh,
+		_halyard_materials.glass,
+		cabin_window_pane_transforms,
+		cabin_window_pane_names
+	)
 
 
 func _build_connected_interior() -> void:
