@@ -5,6 +5,7 @@ extends RefCounted
 ## objective, reward, and inventory authority remain with the caller.
 
 signal semantic_activity_cue_emitted(cue_id: StringName, transaction_id: StringName, intensity: float)
+signal semantic_cue_emitted(source_id: StringName, cue_id: StringName, intensity: float, world_position: Vector3)
 
 const MAXIMUM_SIMULTANEOUS_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
@@ -30,6 +31,17 @@ var _active_cue_slots: Array[Dictionary] = []
 var _emitted_cue_count := 0
 var _preempted_cue_count := 0
 var _last_cue_id: StringName = &""
+var _audio_director: Node
+
+func register_audio_director(audio_director: Node) -> Dictionary:
+	if audio_director == null or not is_instance_valid(audio_director) or not audio_director.has_method(&"_on_semantic_cue"):
+		return _result(false, &"invalid_audio_director")
+	_audio_director = audio_director
+	return _result(true, &"audio_director_registered")
+
+func unregister_audio_director() -> Dictionary:
+	_audio_director = null
+	return _result(true, &"audio_director_unregistered")
 
 func attach(expected_generation: int = 0) -> Dictionary:
 	if expected_generation != _generation:
@@ -57,6 +69,9 @@ func present_transfer_receipt(receipt: Dictionary) -> Dictionary:
 	_emitted_cue_count += 1
 	_last_cue_id = cue_id
 	semantic_activity_cue_emitted.emit(cue_id, transaction_id, float(decoded.intensity))
+	semantic_cue_emitted.emit(&"cinder_cargo", cue_id, float(decoded.intensity), Vector3.ZERO)
+	if _audio_director != null and is_instance_valid(_audio_director):
+		_audio_director.call(&"_on_semantic_cue", &"cinder_cargo", cue_id, float(decoded.intensity), Vector3.ZERO)
 	return _result(true, &"cue_presented")
 
 func detach() -> Dictionary:

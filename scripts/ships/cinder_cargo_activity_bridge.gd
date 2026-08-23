@@ -88,6 +88,7 @@ func detach() -> Dictionary:
 		cleanup = _binding.call("reset_cargo_run")
 	_bound = false
 	if _audio_binding != null:
+		_audio_binding.unregister_audio_director()
 		_audio_binding.detach()
 	_audio_binding = null
 	_craft = null
@@ -119,6 +120,16 @@ func present_audio_receipt(receipt: Dictionary) -> Dictionary:
 	if _audio_binding == null:
 		return _result(false, &"audio_binding_unavailable")
 	return _audio_binding.present_transfer_receipt(receipt)
+
+func register_audio_director(audio_director: Node) -> Dictionary:
+	if _audio_binding == null:
+		return _result(false, &"audio_binding_unavailable")
+	return _audio_binding.register_audio_director(audio_director)
+
+func unregister_audio_director() -> Dictionary:
+	if _audio_binding == null:
+		return _result(true, &"already_unregistered")
+	return _audio_binding.unregister_audio_director()
 
 
 func _sync_audio_generation(target_generation: int) -> void:

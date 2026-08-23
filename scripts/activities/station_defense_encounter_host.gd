@@ -65,6 +65,7 @@ func _exit_tree() -> void:
 		_activity.detach(generation)
 		_detached_by_tree = true
 	if _audio_binding != null:
+		_audio_binding.unregister_audio_director()
 		_audio_binding.detach()
 
 
@@ -276,6 +277,16 @@ func get_combat_authority() -> LiveCombatAuthority:
 
 func get_audio_binding_snapshot() -> Dictionary:
 	return _audio_binding.get_snapshot() if _audio_binding != null else {"attached": false}
+
+func register_audio_director(audio_director: Node) -> Dictionary:
+	if _audio_binding == null:
+		return _result(false, &"audio_binding_unavailable")
+	return _audio_binding.register_audio_director(audio_director)
+
+func unregister_audio_director() -> Dictionary:
+	if _audio_binding == null:
+		return _result(true, &"already_unregistered")
+	return _audio_binding.unregister_audio_director()
 
 
 func get_snapshot() -> Dictionary:
