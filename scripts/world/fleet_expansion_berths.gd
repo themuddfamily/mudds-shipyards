@@ -18,6 +18,7 @@ const MAX_STATIC_BODIES := 10
 const MAX_MESH_INSTANCES := 30
 
 var _pads: Dictionary = {}
+var _attachments: Dictionary = {}
 var _built := false
 
 
@@ -56,6 +57,44 @@ func get_landing_contract(pad_id: StringName) -> Dictionary:
 	}.duplicate(true)
 
 
+func attach_craft(pad_id: StringName, craft: Node3D, craft_id: StringName) -> Dictionary:
+	if not _pads.has(pad_id):
+		return {"accepted": false, "reason": &"unknown_pad"}
+	if not is_instance_valid(craft) or not craft.is_inside_tree():
+		return {"accepted": false, "reason": &"craft_not_current"}
+	if not _is_stable_craft_id(craft_id):
+		return {"accepted": false, "reason": &"invalid_craft_id"}
+	if StringName(craft.get_meta(&"evidence_status", &"")) != EVIDENCE_STATUS:
+		return {"accepted": false, "reason": &"craft_evidence_not_new"}
+	if _attachments.has(pad_id):
+		return {"accepted": false, "reason": &"pad_occupied"}
+	for attachment in _attachments.values():
+		if (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref() == craft:
+			return {"accepted": false, "reason": &"craft_already_attached"}
+	var anchor: Vector3 = _pads[pad_id].get("landing_anchor", Vector3.INF)
+	craft.global_transform = Transform3D(craft.global_transform.basis, anchor)
+	_attachments[pad_id] = {"craft": weakref(craft), "craft_id": craft_id, "landing_anchor": anchor}
+	return {"accepted": true, "reason": &"attached", "pad_id": pad_id, "craft_id": craft_id, "landing_anchor": anchor}
+
+
+func detach_craft(pad_id: StringName, craft: Node3D) -> Dictionary:
+	if not _attachments.has(pad_id):
+		return {"accepted": false, "reason": &"pad_empty"}
+	var attachment := _attachments[pad_id] as Dictionary
+	var owner: Object = (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref()
+	if owner != craft:
+		return {"accepted": false, "reason": &"foreign_craft"}
+	_attachments.erase(pad_id)
+	return {"accepted": true, "reason": &"detached", "pad_id": pad_id}
+
+
+func get_attachment_snapshot(pad_id: StringName) -> Dictionary:
+	var attachment := _attachments.get(pad_id, {}) as Dictionary
+	if attachment.is_empty():
+		return {"attached": false, "pad_id": pad_id}
+	return {"attached": true, "pad_id": pad_id, "craft_id": attachment.get("craft_id", &""), "landing_anchor": attachment.get("landing_anchor", Vector3.INF)}
+
+
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	if PAD_IDS.size() != 3 or _pads.size() != 3:
@@ -70,6 +109,10 @@ func get_audit_report() -> Dictionary:
 		var contract := get_landing_contract(pad_id)
 		if not bool(contract.get("accepted", false)):
 			errors.append("missing landing contract: %s" % pad_id)
+	for pad_id in _attachments:
+		var attachment := _attachments[pad_id] as Dictionary
+		if (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref() == null:
+			errors.append("attachment has lost its craft owner: %s" % pad_id)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -143,3 +186,14 @@ func _material(color: Color, metallic: float) -> StandardMaterial3D:
 	material.metallic = metallic
 	material.roughness = 0.44
 	return material
+
+
+func _is_stable_craft_id(craft_id: StringName) -> bool:
+	var text := str(craft_id)
+	if text.is_empty() or text.length() > 64:
+		return false
+	for index in text.length():
+		var code := text.unicode_at(index)
+		if not ((code >= 97 and code <= 122) or (code >= 48 and code <= 57) or code in [95, 45]):
+			return false
+	return true

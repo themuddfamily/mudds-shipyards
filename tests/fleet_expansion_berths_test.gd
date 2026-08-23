@@ -20,6 +20,24 @@ func _initialize() -> void:
 		_check(not bool(contract.get("ship_authority", true)) and not bool(contract.get("berth_lease_authority", true)), "contract remains caller-owned for %s" % pad_id)
 	var unknown := berths.get_landing_contract(&"dock_99")
 	_check(not bool(unknown.get("accepted", true)), "unknown pad IDs fail closed")
+	var craft := Node3D.new()
+	craft.set_meta(&"evidence_status", &"NEW")
+	root.add_child(craft)
+	await process_frame
+	var attached := berths.attach_craft(&"dock_04_cargo", craft, &"cinder_cargo_hauler")
+	_check(bool(attached.get("accepted", false)) and craft.global_position == attached.get("landing_anchor", Vector3.INF), "Dock 04 accepts a NEW craft at its exact landing anchor")
+	var duplicate := berths.attach_craft(&"dock_05_bomber", craft, &"cinder_cargo_hauler")
+	_check(not bool(duplicate.get("accepted", true)) and duplicate.get("reason", &"") == &"craft_already_attached", "one craft cannot occupy multiple expansion pads")
+	var foreign := Node3D.new()
+	foreign.set_meta(&"evidence_status", &"NEW")
+	root.add_child(foreign)
+	await process_frame
+	var foreign_detach := berths.detach_craft(&"dock_04_cargo", foreign)
+	_check(not bool(foreign_detach.get("accepted", true)) and foreign_detach.get("reason", &"") == &"foreign_craft", "foreign detach requests fail closed")
+	var detached := berths.detach_craft(&"dock_04_cargo", craft)
+	_check(bool(detached.get("accepted", false)) and not bool(berths.get_attachment_snapshot(&"dock_04_cargo").get("attached", true)), "the owner detaches and clears a reusable pad")
+	craft.queue_free()
+	foreign.queue_free()
 	berths.queue_free()
 	await process_frame
 	if _failures.is_empty():
