@@ -91,9 +91,12 @@ const PRESENTATION_PLANETARY: StringName = &"planetary"
 const PRESENTATION_LANDING: StringName = &"landing"
 const PRESENTATION_ORBIT: StringName = &"orbit"
 const PRESENTATION_SURFACE: StringName = &"surface"
+const PRESENTATION_ACTIVITY_ACTIVE: StringName = &"activity_active"
+const PRESENTATION_ACTIVITY_COMPLETE: StringName = &"activity_complete"
 const PRESENTATION_STATES: Array[StringName] = [
 	PRESENTATION_STATION, PRESENTATION_PLANETARY, PRESENTATION_LANDING,
-	PRESENTATION_ORBIT, PRESENTATION_SURFACE, STATE_COMBAT,
+	PRESENTATION_ORBIT, PRESENTATION_SURFACE, PRESENTATION_ACTIVITY_ACTIVE,
+	PRESENTATION_ACTIVITY_COMPLETE, STATE_COMBAT,
 ]
 
 ## Target layer gains per observed session state. Combat silences the bed
@@ -143,6 +146,16 @@ const PRESENTATION_LAYER_TARGETS := {
 		LAYER_DRONE: 0.6,
 		LAYER_HARMONICS: 0.9,
 		LAYER_MOTIF: 0.4,
+	},
+	PRESENTATION_ACTIVITY_ACTIVE: {
+		LAYER_DRONE: 0.5,
+		LAYER_HARMONICS: 0.35,
+		LAYER_MOTIF: 0.15,
+	},
+	PRESENTATION_ACTIVITY_COMPLETE: {
+		LAYER_DRONE: 0.7,
+		LAYER_HARMONICS: 0.35,
+		LAYER_MOTIF: 0.8,
 	},
 	STATE_COMBAT: {
 		LAYER_DRONE: 0.0,
@@ -315,6 +328,21 @@ func notify_music_phase(phase: StringName) -> bool:
 		if is_inside_tree() and not _tearing_down:
 			_apply_playback_state()
 	return accepted
+
+
+func notify_activity_state(activity_kind: StringName, activity_state: StringName) -> bool:
+	if not _can_mutate_live_bed() or not is_instance_valid(_music_director):
+		return false
+	if _session_state == STATE_COMBAT:
+		return false
+	var observation := _music_director.observe_activity(activity_kind, activity_state)
+	if not bool(observation.get("accepted", false)):
+		return false
+	_presentation_state = StringName(observation.get("state", PRESENTATION_ORBIT))
+	_apply_session_targets()
+	if is_inside_tree() and not _tearing_down:
+		_apply_playback_state()
+	return true
 
 
 ## Accepts a caller-owned combat presentation intensity. Zero retains the

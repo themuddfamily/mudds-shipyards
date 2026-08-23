@@ -20,8 +20,11 @@ const STATE_LANDING: StringName = &"landing"
 const STATE_PLANETARY: StringName = &"planetary"
 const STATE_ORBIT: StringName = &"orbit"
 const STATE_SURFACE: StringName = &"surface"
+const STATE_ACTIVITY_ACTIVE: StringName = &"activity_active"
+const STATE_ACTIVITY_COMPLETE: StringName = &"activity_complete"
 const STATES: Array[StringName] = [
 	STATE_STATION, STATE_COMBAT, STATE_LANDING, STATE_PLANETARY, STATE_ORBIT, STATE_SURFACE,
+	STATE_ACTIVITY_ACTIVE, STATE_ACTIVITY_COMPLETE,
 ]
 
 ## The names are authored mix layers, not player nodes. A runtime backend may
@@ -33,6 +36,8 @@ const STATE_LAYER_GAINS := {
 	STATE_PLANETARY: {&"bed": 0.75, &"motif": 0.35, &"stinger": 0.0},
 	STATE_ORBIT: {&"bed": 0.9, &"motif": 0.2, &"stinger": 0.0},
 	STATE_SURFACE: {&"bed": 0.6, &"motif": 0.55, &"stinger": 0.0},
+	STATE_ACTIVITY_ACTIVE: {&"bed": 0.5, &"motif": 0.35, &"stinger": 0.15},
+	STATE_ACTIVITY_COMPLETE: {&"bed": 0.7, &"motif": 0.35, &"stinger": 0.8},
 }
 
 var _state: StringName = STATE_STATION
@@ -118,7 +123,7 @@ func get_snapshot() -> Dictionary:
 
 func audit() -> Dictionary:
 	return {
-		"valid": STATES.size() == 6 and VOICE_CEILING == 3 and AUDIO_BUS == &"Music",
+		"valid": STATES.size() == 8 and VOICE_CEILING == 3 and AUDIO_BUS == &"Music",
 		"states": STATES.duplicate(),
 		"voice_ceiling": VOICE_CEILING,
 		"presentation_only": true,

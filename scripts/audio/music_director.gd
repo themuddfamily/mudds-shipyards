@@ -21,6 +21,8 @@ const PRESENTATION_STATES: Array[StringName] = [
 	Transition.STATE_PLANETARY,
 	Transition.STATE_ORBIT,
 	Transition.STATE_SURFACE,
+	Transition.STATE_ACTIVITY_ACTIVE,
+	Transition.STATE_ACTIVITY_COMPLETE,
 ]
 const OBSERVED_PHASES: Array[StringName] = [
 	&"station",
@@ -32,6 +34,10 @@ const OBSERVED_PHASES: Array[StringName] = [
 	&"planetary",
 ]
 const OBSERVED_SESSION_STATES: Array[StringName] = [&"rest", &"flight", &"combat"]
+const OBSERVED_ACTIVITY_KINDS: Array[StringName] = [
+	&"race", &"patrol", &"convoy", &"cargo", &"defense", &"mining", &"salvage", &"beacon",
+]
+const OBSERVED_ACTIVITY_STATES: Array[StringName] = [&"active", &"complete", &"reset", &"idle"]
 const MAX_COMBAT_INTENSITY := 1.0
 const SEMANTIC_THRESHOLD := 0.25
 
@@ -39,6 +45,8 @@ var _transition := Transition.new()
 var _last_observation: StringName = &"station"
 var _observation_count := 0
 var _combat_intensity := 0.0
+var _activity_kind: StringName = &""
+var _activity_state: StringName = &"idle"
 
 
 ## Records the already-decided station-bed session vocabulary.
@@ -67,6 +75,25 @@ func observe_phase(phase: StringName) -> Dictionary:
 		&"surface":
 			mapped_state = Transition.STATE_SURFACE
 	return _accept_observation(mapped_state, phase)
+
+
+func observe_activity(activity_kind: StringName, activity_state: StringName) -> Dictionary:
+	if not OBSERVED_ACTIVITY_KINDS.has(activity_kind) or not OBSERVED_ACTIVITY_STATES.has(activity_state):
+		return _rejected(&"unknown_activity_state")
+	_activity_kind = activity_kind
+	_activity_state = activity_state
+	var mapped_state := Transition.STATE_ACTIVITY_ACTIVE
+	if activity_state == &"complete":
+		mapped_state = Transition.STATE_ACTIVITY_COMPLETE
+	elif activity_state in [&"reset", &"idle"]:
+		mapped_state = Transition.STATE_ORBIT
+	var result := _accept_observation(mapped_state, activity_kind)
+	if bool(result.get("accepted", false)):
+		if activity_state == &"active":
+			semantic_music_cue_emitted.emit(&"music_activity_active", 1.0)
+		elif activity_state == &"complete":
+			semantic_music_cue_emitted.emit(&"music_activity_complete", 1.0)
+	return result
 
 
 func advance(delta_seconds: float) -> bool:
@@ -111,6 +138,8 @@ func get_snapshot() -> Dictionary:
 	snapshot["last_observation"] = _last_observation
 	snapshot["observation_count"] = _observation_count
 	snapshot["combat_intensity"] = _combat_intensity
+	snapshot["activity_kind"] = _activity_kind
+	snapshot["activity_state"] = _activity_state
 	return snapshot.duplicate(true)
 
 
