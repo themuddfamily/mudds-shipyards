@@ -1,6 +1,8 @@
 class_name CinderLightInterceptor
 extends HeroShip
 
+const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
+
 ## Original-modern lightweight interceptor. No historical craft, weapon, or
 ## combat claim is authenticated here.
 
@@ -12,9 +14,11 @@ const HULL_SIZE := Vector3(4.8, 2.5, 8.8)
 const HULL_COLOR := Color("e0a43d")
 const CANOPY_COLOR := Color("55d5dc")
 const WING_COLOR := Color("8b4a38")
+const WEAPON_ID: StringName = &"cinder_light_repeater"
 
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
+var _weapon_definition: WeaponDefinition
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -22,6 +26,7 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 
 func _ready() -> void:
+	_weapon_definition = _build_weapon_definition()
 	ship_id = COMPONENT_ID
 	display_name = DISPLAY_NAME
 	role_name = "Light interceptor"
@@ -57,6 +62,12 @@ func get_boarding_marker() -> Marker3D:
 	return _interceptor_boarding_marker
 
 
+## Returns a defensive copy of the interceptor's explicit modern combat role.
+## Shared combat resolution remains outside this presentation/flight component.
+func get_weapon_definition() -> WeaponDefinition:
+	return _weapon_definition.duplicate(true) as WeaponDefinition if _weapon_definition != null else null
+
+
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	if not _interceptor_built:
@@ -79,10 +90,29 @@ func get_audit_report() -> Dictionary:
 		"reuse_authority": true,
 		"combat_authority": false,
 		"weapon_authority": false,
+		"weapon_definition_valid": _weapon_definition != null and _weapon_definition.is_definition_valid(),
+		"weapon_id": WEAPON_ID,
 		"berth_authority": false,
 		"game_flow_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+func _build_weapon_definition() -> WeaponDefinition:
+	var definition := WeaponDefinitionType.new() as WeaponDefinition
+	definition.weapon_id = WEAPON_ID
+	definition.display_name = "Cinder light repeater"
+	definition.resolution_mode = WeaponDefinition.ResolutionMode.HITSCAN
+	definition.evidence_status = WeaponDefinition.EvidenceStatus.NEW
+	definition.evidence_notes = "Original-modern lightweight interceptor tuning; not a recovered historical weapon specification."
+	definition.range_meters = 320.0
+	definition.damage_per_hit = 18.0
+	definition.cadence_shots_per_second = 6.0
+	definition.presentation_id = &"cinder_light_repeater"
+	definition.fire_audio_id = &"cinder_light_repeater_fire"
+	definition.impact_audio_id = &"cinder_light_repeater_impact"
+	definition.dry_fire_audio_id = &"cinder_light_repeater_dry_fire"
+	return definition
 
 
 func _build_collision() -> void:

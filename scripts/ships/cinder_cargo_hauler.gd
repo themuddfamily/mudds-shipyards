@@ -1,6 +1,8 @@
 class_name CinderCargoHauler
 extends HeroShip
 
+const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
+
 ## Original-modern industrial cargo craft component. No historical class,
 ## silhouette, cargo contract, or ownership claim is authenticated here.
 
@@ -10,6 +12,7 @@ const EVIDENCE_STATUS: StringName = &"NEW"
 const DISPLAY_NAME := "Cinder cargo hauler"
 const CARGO_CAPACITY := 8
 const HULL_SIZE := Vector3(6.4, 3.2, 12.0)
+const WEAPON_ID: StringName = &"cinder_cargo_mass_driver"
 
 const HULL_COLOR := Color("536b73")
 const CARGO_COLOR := Color("b2773d")
@@ -20,6 +23,7 @@ var _cargo_boarding_marker: Marker3D
 var _cargo_hold: Node3D
 var _cargo_anchors: Array[Marker3D] = []
 var _cargo_built := false
+var _weapon_definition: WeaponDefinition
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -27,6 +31,7 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 
 func _ready() -> void:
+	_weapon_definition = _build_weapon_definition()
 	ship_id = COMPONENT_ID
 	display_name = DISPLAY_NAME
 	role_name = "Cargo hauler"
@@ -88,6 +93,13 @@ func get_cargo_capacity() -> int:
 	return CARGO_CAPACITY
 
 
+## Returns a defensive copy of the cargo hauler's explicit modern combat role.
+## Combat resolution remains owned by the shared authority; this component only
+## publishes immutable-by-copy authoring identity.
+func get_weapon_definition() -> WeaponDefinition:
+	return _weapon_definition.duplicate(true) as WeaponDefinition if _weapon_definition != null else null
+
+
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	if not _cargo_built:
@@ -116,9 +128,29 @@ func get_audit_report() -> Dictionary:
 		"reuse_authority": true,
 		"berth_authority": false,
 		"combat_authority": false,
+		"weapon_authority": false,
+		"weapon_definition_valid": _weapon_definition != null and _weapon_definition.is_definition_valid(),
+		"weapon_id": WEAPON_ID,
 		"game_flow_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+func _build_weapon_definition() -> WeaponDefinition:
+	var definition := WeaponDefinitionType.new() as WeaponDefinition
+	definition.weapon_id = WEAPON_ID
+	definition.display_name = "Cinder cargo mass driver"
+	definition.resolution_mode = WeaponDefinition.ResolutionMode.PROJECTILE
+	definition.evidence_status = WeaponDefinition.EvidenceStatus.NEW
+	definition.evidence_notes = "Original-modern cargo defensive tuning; not a recovered historical weapon specification."
+	definition.range_meters = 180.0
+	definition.damage_per_hit = 26.0
+	definition.cadence_shots_per_second = 1.8
+	definition.presentation_id = &"cinder_cargo_mass_driver"
+	definition.fire_audio_id = &"cinder_cargo_mass_driver_fire"
+	definition.impact_audio_id = &"cinder_cargo_mass_driver_impact"
+	definition.dry_fire_audio_id = &"cinder_cargo_mass_driver_dry_fire"
+	return definition
 
 
 func _build_collision() -> void:
