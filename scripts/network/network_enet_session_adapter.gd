@@ -125,6 +125,7 @@ var _projectile_sources: Dictionary = {}
 var _landing_entities: Dictionary = {}
 var _damage_entities: Dictionary = {}
 var _moving_occupants: Dictionary = {}
+var _seat_moving_relationships: Dictionary = {}
 var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
@@ -293,6 +294,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_configured = false
 	_is_server = false
 	_peer_generations.clear()
+	_seat_moving_relationships.clear()
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -848,9 +850,17 @@ func claim_crew_seat(
 	var ship: Dictionary = _ship_ownership.get_ship_snapshot(StringName(seat_record.get("vessel_id", &"")))
 	if int(ship.get("owner_peer_id", 0)) != occupant_peer_id:
 		return _remember(_result(false, &"ship_owner_mismatch"))
+	var frame_status := _validate_seat_moving_frame(seat_record)
+	if not frame_status.is_empty():
+		return _remember(_result(false, frame_status))
 	var result: Dictionary = _seat_authority.claim(
 		AUTHORITY_PEER_ID, occupant_peer_id, avatar_id, seat_id, requested_role, request_sequence
 	)
+	if bool(result.get("accepted", false)):
+		var assignment: Dictionary = result.get("assignment", {}) as Dictionary
+		var relationship := _relationship_for_seat_assignment(assignment)
+		_seat_moving_relationships[_seat_relationship_key(occupant_peer_id, avatar_id)] = relationship.get_snapshot()
+		result["moving_interior_relationship"] = relationship.get_snapshot()
 	seat_occupancy_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -870,6 +880,7 @@ func release_crew_seat(
 		AUTHORITY_PEER_ID, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
 	)
 	if bool(result.get("accepted", false)):
+		_seat_moving_relationships.erase(_seat_relationship_key(occupant_peer_id, avatar_id))
 		_crew_roles.release_avatar(AUTHORITY_PEER_ID, occupant_peer_id,
 			int(_peer_generations.get(occupant_peer_id, 0)), avatar_id)
 		_crew_commands.release_avatar(AUTHORITY_PEER_ID, occupant_peer_id,
@@ -893,12 +904,24 @@ func transfer_crew_seat(
 	var result: Dictionary = _seat_authority.transfer(
 		AUTHORITY_PEER_ID, from_peer_id, to_peer_id, avatar_id, seat_id, request_sequence, seat_generation
 	)
+	if bool(result.get("accepted", false)):
+		var relationship_key := _seat_relationship_key(from_peer_id, avatar_id)
+		var relationship: Dictionary = _seat_moving_relationships.get(relationship_key, {}) as Dictionary
+		_seat_moving_relationships.erase(relationship_key)
+		if not relationship.is_empty():
+			_seat_moving_relationships[_seat_relationship_key(to_peer_id, avatar_id)] = relationship
 	seat_occupancy_result.emit(result.duplicate(true))
 	return _remember(result)
 
 
 func get_crew_assignment(occupant_peer_id: int, avatar_id: StringName) -> Dictionary:
 	return _seat_authority.get_assignment(occupant_peer_id, avatar_id)
+
+
+func get_crew_moving_interior_relationship(occupant_peer_id: int, avatar_id: StringName) -> Dictionary:
+	return (_seat_moving_relationships.get(
+		_seat_relationship_key(occupant_peer_id, avatar_id), {}
+	) as Dictionary).duplicate(true)
 
 
 func accept_crew_role_intent(
@@ -2423,6 +2446,10 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 	_crew_roles.release_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	_crew_commands.release_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
+	for relationship_key_variant in _seat_moving_relationships.keys():
+		var relationship_key := String(relationship_key_variant)
+		if relationship_key.begins_with("%d:" % peer_id):
+			_seat_moving_relationships.erase(relationship_key_variant)
 	for prediction_id_variant in _prediction_entities.keys():
 		var prediction_id := StringName(prediction_id_variant)
 		var prediction_entity := _prediction_entities[prediction_id] as Dictionary
@@ -2470,6 +2497,47 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 func _on_server_disconnected() -> void:
 	if not is_server():
 		shutdown(&"server_disconnected")
+
+
+func _seat_relationship_key(peer_id: int, avatar_id: StringName) -> String:
+	return "%d:%s" % [peer_id, String(avatar_id)]
+
+
+func _validate_seat_moving_frame(seat_record: Dictionary) -> StringName:
+	var frame_id := StringName(seat_record.get("frame_id", &""))
+	if frame_id.is_empty():
+		return &""
+	var requested_generation := int(seat_record.get("seat_generation", 0))
+	for frame_variant in _moving_interior.get_snapshot().get("frames", []) as Array:
+		var frame := frame_variant as Dictionary
+		if StringName(frame.get("frame_id", &"")) == frame_id:
+			if int(frame.get("frame_generation", 0)) != requested_generation:
+				return &"moving_interior_frame_generation_mismatch"
+			return &""
+	return &"moving_interior_frame_unavailable"
+
+
+func _relationship_for_seat_assignment(assignment: Dictionary) -> RefCounted:
+	var frame_id := StringName(assignment.get("frame_id", &""))
+	var frame_generation := 0
+	if not frame_id.is_empty():
+		for frame_variant in _moving_interior.get_snapshot().get("frames", []) as Array:
+			var frame := frame_variant as Dictionary
+			if StringName(frame.get("frame_id", &"")) == frame_id:
+				frame_generation = int(frame.get("frame_generation", 0))
+				break
+	var server_tick := int(_moving_interior.get_snapshot().get("server_tick", 0))
+	return MovingInteriorRelationship.create(
+		server_tick,
+		StringName(assignment.get("avatar_id", &"")),
+		int(assignment.get("seat_generation", 0)),
+		frame_id,
+		frame_generation,
+		Transform3D.IDENTITY,
+		Vector3.ZERO,
+		Vector3.ZERO,
+		int(assignment.get("claim_sequence", 0))
+	)
 
 
 func _make_secure_rpc_packet(stream_id: StringName, payload: Dictionary) -> Dictionary:
