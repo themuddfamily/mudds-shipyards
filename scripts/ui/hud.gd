@@ -47,6 +47,7 @@ signal nearby_activity_intent_requested(intent: Dictionary)
 signal session_recovery_safe_requested(recovery_token: int, recovery_generation: int)
 signal session_recovery_continue_requested(recovery_token: int, recovery_generation: int)
 signal session_recovery_discard_requested(recovery_token: int, recovery_generation: int)
+signal session_recovery_support_export_requested(recovery_token: int, recovery_generation: int)
 
 const INK := Color("07111d")
 const PANEL := Color("101c2bd9")
@@ -475,6 +476,7 @@ var _session_recovery_token := 0
 var _session_recovery_generation := 0
 var _session_recovery_choice_latched := false
 var _session_recovery_action_buttons: Dictionary = {}
+var _session_recovery_support_export_latched := false
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
@@ -2512,6 +2514,7 @@ func present_session_recovery_notice(
 	_session_recovery_token = token
 	_session_recovery_generation = generation
 	_session_recovery_choice_latched = false
+	_session_recovery_support_export_latched = false
 	_render_session_recovery_notice()
 	return {
 		"accepted": true,
@@ -2652,6 +2655,7 @@ func _render_session_recovery_notice() -> void:
 		{"id": &"safe", "label": "Safe Recovery", "role": CAUTION},
 		{"id": &"continue", "label": "Continue", "role": NOMINAL},
 		{"id": &"discard", "label": "Discard", "role": MUTED},
+		{"id": &"support_export", "label": "Save Support Summary", "role": MUTED},
 	]:
 		var action := StringName(action_data.id)
 		var button := _menu_button(str(action_data.label), StringName(action_data.role))
@@ -2669,6 +2673,7 @@ func _render_session_recovery_notice() -> void:
 		_session_recovery_action_buttons[&"safe"] as Button,
 		_session_recovery_action_buttons[&"continue"] as Button,
 		_session_recovery_action_buttons[&"discard"] as Button,
+		_session_recovery_action_buttons[&"support_export"] as Button,
 	]
 	for index in ordered.size():
 		ordered[index].focus_neighbor_left = ordered[index].get_path_to(ordered[maxi(0, index - 1)])
@@ -2693,8 +2698,17 @@ func _request_session_recovery_action(
 		or _session_recovery_choice_latched
 	):
 		return false
-	if action not in [&"safe", &"continue", &"discard"]:
+	if action not in [&"safe", &"continue", &"discard", &"support_export"]:
 		return false
+	if action == &"support_export":
+		if _session_recovery_support_export_latched:
+			return false
+		_session_recovery_support_export_latched = true
+		var export_button := _session_recovery_action_buttons.get(&"support_export") as Button
+		if is_instance_valid(export_button):
+			export_button.disabled = true
+		session_recovery_support_export_requested.emit(recovery_token, recovery_generation)
+		return true
 	_session_recovery_choice_latched = true
 	for button_variant: Variant in _session_recovery_action_buttons.values():
 		var button := button_variant as Button
@@ -2710,12 +2724,40 @@ func _request_session_recovery_action(
 	return true
 
 
+## Bounded presentation-only feedback for the one receipt-fenced local export.
+## Paths, snapshots, and sink errors never enter the HUD copy.
+func present_session_recovery_support_export_result(
+		recovery_token: int,
+		recovery_generation: int,
+		accepted: bool
+		) -> Dictionary:
+	if (
+		recovery_token != _session_recovery_token
+		or recovery_generation != _session_recovery_generation
+		or not _session_recovery_support_export_latched
+	):
+		return {"accepted": false, "reason": &"stale_recovery_fence"}
+	if not is_instance_valid(_recovery_prompt_detail):
+		return {"accepted": false, "reason": &"recovery_prompt_unavailable"}
+	_recovery_prompt_detail.text += (
+		"\nSupport summary %s."
+		% ("saved locally" if accepted else "could not be saved")
+	)
+	return {
+		"accepted": true,
+		"reason": &"support_export_result_presented",
+		"export_accepted": accepted,
+		"presentation_only": true,
+	}.duplicate(true)
+
+
 func clear_session_recovery_notice() -> void:
 	_session_recovery_snapshot.clear()
 	_session_recovery_recommendation.clear()
 	_session_recovery_token = 0
 	_session_recovery_generation = 0
 	_session_recovery_choice_latched = false
+	_session_recovery_support_export_latched = false
 	_clear_recovery_action_controls()
 	if is_instance_valid(_recovery_prompt_dismiss_button):
 		_recovery_prompt_dismiss_button.visible = true
@@ -2742,6 +2784,7 @@ func get_session_recovery_notice_snapshot() -> Dictionary:
 		"recovery_token": _session_recovery_token,
 		"recovery_generation": _session_recovery_generation,
 		"choice_latched": _session_recovery_choice_latched,
+		"support_export_latched": _session_recovery_support_export_latched,
 		"recovery_snapshot": _session_recovery_snapshot.duplicate(true),
 		"recommendation": _session_recovery_recommendation.duplicate(true),
 		"reduced_motion": _reduced_motion,

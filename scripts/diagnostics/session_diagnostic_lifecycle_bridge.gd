@@ -86,6 +86,14 @@ func export_support_bundle(export_root: String, expected_generation: int) -> Dic
 	return _sink.call(&"export_support_bundle", export_root, expected_generation)
 
 
+## Caller-selected local export using the sink's fixed-root monotonic generation
+## allocator. This bridge neither chooses a destination nor reads export bytes.
+func export_support_bundle_next_generation(export_root: String) -> Dictionary:
+	if _sink == null or not _sink.has_method(&"export_support_bundle_next_generation"):
+		return {"accepted": false, "reason": &"support_export_unavailable"}
+	return _sink.call(&"export_support_bundle_next_generation", export_root)
+
+
 func delete_all_support_exports(export_root: String) -> Dictionary:
 	if _sink == null or not _sink.has_method(&"delete_all_support_exports"):
 		return {"accepted": false, "reason": &"support_export_unavailable"}

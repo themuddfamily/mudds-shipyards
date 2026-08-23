@@ -43,6 +43,8 @@ class RecoveryBridgeProbe extends BridgeType:
 	var safe_choices: Array[StringName] = []
 	var acknowledge_count := 0
 	var discard_count := 0
+	var support_export_count := 0
+	var support_export_roots: Array[String] = []
 
 	func _init() -> void:
 		super(null, null, null)
@@ -105,6 +107,15 @@ class RecoveryBridgeProbe extends BridgeType:
 			return {"accepted": false, "reason": &"no_recovery_available"}
 		recovery_snapshot.clear()
 		return {"accepted": true, "reason": &"recovery_discarded"}
+
+	func export_support_bundle_next_generation(export_root: String) -> Dictionary:
+		support_export_count += 1
+		support_export_roots.append(export_root)
+		return {
+			"accepted": true,
+			"reason": &"exported",
+			"generation": support_export_count,
+		}.duplicate(true)
 
 	func get_snapshot() -> Dictionary:
 		return {"recovery_available": not recovery_snapshot.is_empty()}.duplicate(true)
@@ -190,6 +201,32 @@ func _run() -> void:
 	)
 	bridge.install(54, 7, 2)
 	flow._publish_recovery_choice_to_hud()
+	actions = hud.get("_recovery_prompt_actions") as HBoxContainer
+	(actions.get_child(3) as Button).pressed.emit()
+	var exported_status := flow.get_session_diagnostics_snapshot().recovery_hud as Dictionary
+	_check(
+		bridge.support_export_count == 1
+		and bridge.support_export_roots == ["user://diagnostics/exports"]
+		and bool(exported_status.accepted)
+		and exported_status.choice == &"support_export"
+		and not bridge.recovery_snapshot.is_empty()
+		and bridge.acknowledge_count == 1
+		and bridge.discard_count == 1
+		and bool(hud.get_session_recovery_notice_snapshot().active),
+		"Save Support Summary exports only through the fixed local sink root without consuming recovery"
+	)
+	(actions.get_child(3) as Button).pressed.emit()
+	var replayed_export := flow.export_session_recovery_support_summary(54, 7)
+	var stale_export := flow.export_session_recovery_support_summary(53, 7)
+	_check(
+		bridge.support_export_count == 1
+		and not bool(replayed_export.accepted)
+		and replayed_export.reason == &"support_export_replayed"
+		and not bool(stale_export.accepted)
+		and stale_export.reason == &"stale_recovery_fence"
+		and not bridge.recovery_snapshot.is_empty(),
+		"support export is receipt-fenced against HUD replay and forged token requests"
+	)
 	root.remove_child(hud)
 	_check(
 		not bool(hud.get_session_recovery_notice_snapshot().active)

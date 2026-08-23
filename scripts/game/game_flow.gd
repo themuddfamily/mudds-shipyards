@@ -469,6 +469,8 @@ var _session_diagnostics_last_status: Dictionary = {}
 var _session_diagnostics_filesystem: UserDataFilesystem
 var _session_recovery_command_status: Dictionary = {}
 var _session_recovery_hud_status: Dictionary = {}
+var _session_recovery_support_export_token := 0
+var _session_recovery_support_export_generation := 0
 const _DIAGNOSTIC_STARTUP := 1
 const _DIAGNOSTIC_BOARD := 2
 const _DIAGNOSTIC_DISEMBARK := 3
@@ -479,6 +481,7 @@ const _DIAGNOSTIC_RETURN := 7
 const _DIAGNOSTIC_NETWORK_START := 8
 const _DIAGNOSTIC_NETWORK_STOP := 9
 const _DIAGNOSTIC_SHUTDOWN := 10
+const SESSION_DIAGNOSTIC_SUPPORT_EXPORT_ROOT := "user://diagnostics/exports"
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
 var _pending_display_confirmation: Dictionary = {}
@@ -1549,6 +1552,11 @@ func _connect_session_recovery_hud_signals() -> void:
 		&"session_recovery_discard_requested",
 		_on_hud_session_recovery_discard_requested
 	)
+	_connect_signal_once(
+		hud,
+		&"session_recovery_support_export_requested",
+		_on_hud_session_recovery_support_export_requested
+	)
 
 
 func _restore_session_recovery_hud_after_reentry() -> void:
@@ -1566,6 +1574,59 @@ func _on_hud_session_recovery_continue_requested(token: int, generation: int) ->
 
 func _on_hud_session_recovery_discard_requested(token: int, generation: int) -> void:
 	_handle_hud_session_recovery_choice(&"discard", token, generation)
+
+
+func _on_hud_session_recovery_support_export_requested(token: int, generation: int) -> void:
+	var status := export_session_recovery_support_summary(token, generation)
+	if is_instance_valid(hud) and hud.has_method(&"present_session_recovery_support_export_result"):
+		hud.call(
+			&"present_session_recovery_support_export_result",
+			token,
+			generation,
+			bool(status.get("accepted", false))
+		)
+
+
+## Explicit player-requested local support export. It is deliberately separate
+## from recovery choices: it neither retires the receipt nor changes settings,
+## gameplay, networking, or diagnostic payloads.
+func export_session_recovery_support_summary(token: int, generation: int) -> Dictionary:
+	var recovery_snapshot := get_recovery_available_snapshot()
+	if recovery_snapshot.is_empty():
+		return _record_session_recovery_hud_result(
+			false, &"no_recovery_available", &"support_export", token, generation, {}
+		)
+	if (
+		token != int(recovery_snapshot.get("session_id", 0))
+		or generation != int(recovery_snapshot.get("startup_generation", 0))
+	):
+		return _record_session_recovery_hud_result(
+			false, &"stale_recovery_fence", &"support_export", token, generation, {}
+		)
+	if _session_diagnostics_bridge == null:
+		return _record_session_recovery_hud_result(
+			false, &"diagnostics_unavailable", &"support_export", token, generation, {}
+		)
+	if (
+		token == _session_recovery_support_export_token
+		and generation == _session_recovery_support_export_generation
+	):
+		return _record_session_recovery_hud_result(
+			false, &"support_export_replayed", &"support_export", token, generation, {}
+		)
+	_session_recovery_support_export_token = token
+	_session_recovery_support_export_generation = generation
+	var result := _session_diagnostics_bridge.export_support_bundle_next_generation(
+		SESSION_DIAGNOSTIC_SUPPORT_EXPORT_ROOT
+	)
+	return _record_session_recovery_hud_result(
+		bool(result.get("accepted", false)),
+		StringName(str(result.get("reason", &"support_export_failed"))),
+		&"support_export",
+		token,
+		generation,
+		result
+	)
 
 
 func _handle_hud_session_recovery_choice(
