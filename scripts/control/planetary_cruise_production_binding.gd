@@ -12,6 +12,7 @@ extends Node
 signal engagement_changed(snapshot: Dictionary)
 signal tick_committed(receipt: Dictionary)
 signal final_approach_completed(receipt: Dictionary)
+signal return_approach_completed(receipt: Dictionary)
 
 const SCHEMA_VERSION := 1
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
@@ -72,6 +73,8 @@ var _final_approach_landing_root_transform := Transform3D.IDENTITY
 var _final_approach_completion_receipt: Dictionary = {}
 var _final_approach_completion_consumed := false
 var _final_approach_completion_count := 0
+var _approach_kind: StringName = &""
+var _return_approach_home_target_transform := Transform3D.IDENTITY
 var _mutation_active := false
 var _signal_dispatch_active := false
 
@@ -110,6 +113,8 @@ func _exit_tree() -> void:
 	_final_approach_landing_root_instance_id = 0
 	_final_approach_completion_receipt.clear()
 	_final_approach_completion_consumed = false
+	_approach_kind = &""
+	_return_approach_home_target_transform = Transform3D.IDENTITY
 	set_process(false)
 	set_physics_process(false)
 
@@ -155,6 +160,8 @@ func request_engage(
 		_final_approach_landing_root_ref = null
 		_final_approach_landing_root_instance_id = 0
 		_final_approach_landing_root_transform = Transform3D.IDENTITY
+		_approach_kind = &""
+		_return_approach_home_target_transform = Transform3D.IDENTITY
 	_mutation_active = true
 	var bind := _controller.bind_ship(
 		ship,
@@ -285,6 +292,7 @@ func request_final_approach(
 			armed.get("reason", &"controller_final_approach_rejected")
 		))
 	_final_approach_target_generation = target.target_generation
+	_approach_kind = _ControllerType.FINAL_APPROACH_KIND
 	_final_approach_location_generation = expected_location_generation
 	_final_approach_host_generation = expected_host_generation
 	_final_approach_host_attachment_generation = expected_host_attachment_generation
@@ -304,6 +312,89 @@ func request_final_approach(
 	return _last_result.duplicate(true)
 
 
+func request_return_approach(
+		return_target: Dictionary,
+		expected_coordinate_frame_generation: int,
+		expected_generation: int,
+	) -> Dictionary:
+	var preflight := _mutation_preflight(expected_generation)
+	if not preflight.is_empty():
+		return _result(false, preflight)
+	if not _engagement_requested:
+		return _result(false, &"not_engaged")
+	if _final_approach_target_generation > 0:
+		return _result(false, &"approach_already_requested")
+	if expected_coordinate_frame_generation != _bound_frame_generation:
+		return _result(false, &"coordinate_frame_generation_mismatch")
+	if _frame == null \
+			or expected_coordinate_frame_generation != _frame.get_generation():
+		return _result(false, &"coordinate_frame_generation_mismatch")
+	var target_reason := _validate_return_approach_target(return_target)
+	if not target_reason.is_empty():
+		return _result(false, target_reason)
+	if _final_approach_completion_count >= MAX_SAFE_INTEGER:
+		return _result(false, &"return_approach_generation_exhausted")
+	var ship := _resolve_engaged_ship_even_if_detached()
+	if ship == null:
+		return _result(false, &"ship_unavailable")
+	var active_ship_id := ship.get_ship_id()
+	var fleet_bounds := return_target.get("fleet_collision_bounds", {}) as Dictionary
+	if not fleet_bounds.has(active_ship_id) or not fleet_bounds[active_ship_id] is AABB:
+		return _result(false, &"return_approach_active_hull_missing")
+	var collision_report := ship.get_landing_collision_report()
+	var live_bounds := collision_report.get("local_bounds", AABB()) as AABB
+	if not bool(collision_report.get("valid", false)) \
+			or live_bounds != (fleet_bounds[active_ship_id] as AABB):
+		return _result(false, &"return_approach_active_hull_mismatch")
+	var target := _ControllerType.ReturnApproachTarget.new()
+	target.target_generation = _final_approach_completion_count + 1
+	target.coordinate_frame_generation = expected_coordinate_frame_generation
+	target.home_target_id = return_target.get("home_target_id", &"") as StringName
+	target.home_target_world_transform = return_target.get(
+		"home_target_world_transform", Transform3D.IDENTITY
+	) as Transform3D
+	target.corridor_half_extents_m = return_target.get(
+		"corridor_half_extents_m", Vector3.ZERO
+	) as Vector3
+	target.brake_shell_min_distance_m = float(
+		return_target.get("brake_shell_min_distance_m", 0.0)
+	)
+	target.brake_shell_max_distance_m = float(
+		return_target.get("brake_shell_max_distance_m", 0.0)
+	)
+	target.maximum_speed_mps = float(
+		return_target.get("maximum_speed_mps", 0.0)
+	)
+	target.maximum_attitude_degrees = float(
+		return_target.get("maximum_attitude_degrees", 0.0)
+	)
+	target.hull_margin_m = float(return_target.get("hull_margin_m", -1.0))
+	target.active_ship_id = active_ship_id
+	target.collision_bounds = live_bounds
+	target.fleet_collision_bounds = fleet_bounds.duplicate(true)
+	_mutation_active = true
+	var armed := _controller.arm_return_approach(
+		target, expected_coordinate_frame_generation, _controller.get_generation()
+	)
+	if not bool(armed.get("accepted", false)):
+		_mutation_active = false
+		return _result(false, StringName(
+			armed.get("reason", &"controller_return_approach_rejected")
+		))
+	_final_approach_target_generation = target.target_generation
+	_approach_kind = _ControllerType.RETURN_APPROACH_KIND
+	_return_approach_home_target_transform = target.home_target_world_transform
+	_final_approach_completion_receipt.clear()
+	_final_approach_completion_consumed = false
+	_last_reason = &"return_approach_armed"
+	_last_result = _result(true, _last_reason, {
+		"return_approach": armed.get("final_approach", {}).duplicate(true),
+	})
+	_mutation_active = false
+	_emit_engagement_changed()
+	return _last_result.duplicate(true)
+
+
 func consume_final_approach_completion(
 		expected_target_generation: int,
 		expected_generation: int,
@@ -311,6 +402,8 @@ func consume_final_approach_completion(
 	var preflight := _mutation_preflight(expected_generation)
 	if not preflight.is_empty():
 		return _result(false, preflight)
+	if _approach_kind != _ControllerType.FINAL_APPROACH_KIND:
+		return _result(false, &"final_approach_completion_unavailable")
 	if _final_approach_completion_receipt.is_empty():
 		return _result(false, &"final_approach_completion_unavailable")
 	if expected_target_generation != int(
@@ -326,6 +419,29 @@ func consume_final_approach_completion(
 	return receipt
 
 
+func consume_return_approach_completion(
+		expected_target_generation: int,
+		expected_generation: int,
+	) -> Dictionary:
+	var preflight := _mutation_preflight(expected_generation)
+	if not preflight.is_empty():
+		return _result(false, preflight)
+	if _approach_kind != _ControllerType.RETURN_APPROACH_KIND \
+			or _final_approach_completion_receipt.is_empty():
+		return _result(false, &"return_approach_completion_unavailable")
+	if expected_target_generation != int(
+		_final_approach_completion_receipt.get("target_generation", 0)
+	):
+		return _result(false, &"return_approach_generation_mismatch")
+	if _final_approach_completion_consumed:
+		return _result(false, &"return_approach_completion_replayed")
+	_mutation_active = true
+	_final_approach_completion_consumed = true
+	var receipt := _final_approach_completion_receipt.duplicate(true)
+	_mutation_active = false
+	return receipt
+
+
 func discard_final_approach_completion(
 		expected_target_generation: int,
 		expected_generation: int,
@@ -334,6 +450,8 @@ func discard_final_approach_completion(
 	var preflight := _mutation_preflight(expected_generation)
 	if not preflight.is_empty():
 		return _result(false, preflight)
+	if _approach_kind != _ControllerType.FINAL_APPROACH_KIND:
+		return _result(false, &"final_approach_completion_unavailable")
 	if _final_approach_completion_receipt.is_empty():
 		return _result(false, &"final_approach_completion_unavailable")
 	if expected_target_generation != int(
@@ -352,6 +470,36 @@ func discard_final_approach_completion(
 	_final_approach_landing_root_ref = null
 	_final_approach_landing_root_instance_id = 0
 	_final_approach_landing_root_transform = Transform3D.IDENTITY
+	_approach_kind = &""
+	_return_approach_home_target_transform = Transform3D.IDENTITY
+	_last_reason = reason
+	_last_result = _result(true, reason)
+	_mutation_active = false
+	_emit_engagement_changed()
+	return _last_result.duplicate(true)
+
+
+func discard_return_approach_completion(
+		expected_target_generation: int,
+		expected_generation: int,
+		reason: StringName,
+	) -> Dictionary:
+	var preflight := _mutation_preflight(expected_generation)
+	if not preflight.is_empty():
+		return _result(false, preflight)
+	if _approach_kind != _ControllerType.RETURN_APPROACH_KIND \
+			or _final_approach_completion_receipt.is_empty():
+		return _result(false, &"return_approach_completion_unavailable")
+	if expected_target_generation != int(
+		_final_approach_completion_receipt.get("target_generation", 0)
+	):
+		return _result(false, &"return_approach_generation_mismatch")
+	_mutation_active = true
+	_final_approach_completion_receipt.clear()
+	_final_approach_completion_consumed = true
+	_final_approach_target_generation = 0
+	_approach_kind = &""
+	_return_approach_home_target_transform = Transform3D.IDENTITY
 	_last_reason = reason
 	_last_result = _result(true, reason)
 	_mutation_active = false
@@ -420,14 +568,18 @@ func physics_tick_from_caller_sample(
 	if not ship_reason.is_empty():
 		return _fail_tick_guarded(ship_reason, true)
 	if _final_approach_target_generation > 0:
-		if expected_location_generation != _final_approach_location_generation:
-			return _fail_tick_guarded(&"location_generation_mismatch", true)
-		var target_source_reason := _final_approach_source_rejection()
-		if not target_source_reason.is_empty():
-			return _fail_tick_guarded(target_source_reason, true)
+		if _approach_kind == _ControllerType.FINAL_APPROACH_KIND:
+			if expected_location_generation != _final_approach_location_generation:
+				return _fail_tick_guarded(&"location_generation_mismatch", true)
+			var target_source_reason := _final_approach_source_rejection()
+			if not target_source_reason.is_empty():
+				return _fail_tick_guarded(target_source_reason, true)
 		if expected_coordinate_frame_generation != _bound_frame_generation:
 			return _fail_tick_guarded(
-				&"final_approach_rebase_aborted", true
+				&"return_approach_rebase_aborted" \
+					if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
+					else &"final_approach_rebase_aborted",
+				true,
 			)
 	if expected_coordinate_frame_generation != _frame.get_generation():
 		return _fail_tick_guarded(&"coordinate_frame_generation_mismatch", true)
@@ -439,16 +591,20 @@ func physics_tick_from_caller_sample(
 			StringName(frame_binding.get("reason", &"frame_rebind_rejected")),
 			true,
 		)
-	var destination := _frame.orbital_to_world_streaming_position(
-		_canonical_destination_orbital,
-		expected_coordinate_frame_generation,
-	)
-	if not bool(destination.get("accepted", false)):
-		return _fail_tick_guarded(
-			StringName(destination.get("reason", &"destination_decode_rejected")),
-			true,
+	var destination_world := _return_approach_home_target_transform.origin \
+		if _approach_kind == _ControllerType.RETURN_APPROACH_KIND \
+		else Vector3.INF
+	if _approach_kind != _ControllerType.RETURN_APPROACH_KIND:
+		var destination := _frame.orbital_to_world_streaming_position(
+			_canonical_destination_orbital,
+			expected_coordinate_frame_generation,
 		)
-	var destination_world := destination.get("position", Vector3.INF) as Vector3
+		if not bool(destination.get("accepted", false)):
+			return _fail_tick_guarded(
+				StringName(destination.get("reason", &"destination_decode_rejected")),
+				true,
+			)
+		destination_world = destination.get("position", Vector3.INF) as Vector3
 	if not destination_world.is_finite():
 		return _fail_tick_guarded(&"destination_nonfinite", true)
 	var evaluation := _controller.evaluate_and_submit(
@@ -463,7 +619,9 @@ func physics_tick_from_caller_sample(
 			true,
 			evaluation,
 		)
-	if evaluation.get("reason") == &"final_approach_completed":
+	if evaluation.get("reason") in [
+		&"final_approach_completed", &"return_approach_completed",
+	]:
 		return _complete_final_approach_guarded(evaluation, caller_tick)
 	var policy := evaluation.get("policy", {}) as Dictionary
 	var final_state := StringName(
@@ -471,7 +629,7 @@ func physics_tick_from_caller_sample(
 			.get("state_id", &"none"))
 	)
 	if not bool(policy.get("desired_cruise_participation", false)) \
-			and final_state != &"final_approach":
+			and final_state not in [&"final_approach", &"return_approach"]:
 		return _fail_tick_guarded(
 			StringName(policy.get("reason", &"policy_disengaged")),
 			true,
@@ -479,9 +637,11 @@ func physics_tick_from_caller_sample(
 		)
 	_accepted_tick_count += 1
 	_last_destination_world = destination_world
-	_last_reason = &"final_approach_envelope_submitted" \
-		if final_state == &"final_approach" \
-		else &"next_ship_physics_envelope_submitted"
+	_last_reason = &"return_approach_braking_envelope_submitted" \
+		if final_state == &"return_approach" \
+		else (&"final_approach_envelope_submitted" \
+			if final_state == &"final_approach" \
+			else &"next_ship_physics_envelope_submitted")
 	_last_result = _result(true, _last_reason, {
 		"caller_tick": caller_tick,
 		"coordinate_frame_generation": expected_coordinate_frame_generation,
@@ -538,6 +698,7 @@ func get_snapshot() -> Dictionary:
 		"last_result": _last_result.duplicate(true),
 		"controller": _safe_controller_snapshot(),
 		"final_approach": {
+			"approach_kind": _approach_kind,
 			"target_generation": _final_approach_target_generation,
 			"location_generation": _final_approach_location_generation,
 			"host_generation": _final_approach_host_generation,
@@ -547,6 +708,16 @@ func get_snapshot() -> Dictionary:
 			"completion_count": _final_approach_completion_count,
 			"completion_consumed": _final_approach_completion_consumed,
 			"completion_receipt": _final_approach_completion_receipt.duplicate(true),
+		}.duplicate(true),
+		"return_approach": {
+			"active": _approach_kind == _ControllerType.RETURN_APPROACH_KIND,
+			"target_generation": _final_approach_target_generation \
+				if _approach_kind == _ControllerType.RETURN_APPROACH_KIND else 0,
+			"home_target_world_transform": _return_approach_home_target_transform,
+			"completion_count": _final_approach_completion_count,
+			"completion_consumed": _final_approach_completion_consumed,
+			"completion_receipt": _final_approach_completion_receipt.duplicate(true) \
+				if _approach_kind == _ControllerType.RETURN_APPROACH_KIND else {},
 		}.duplicate(true),
 	}.duplicate(true)
 
@@ -598,6 +769,9 @@ func audit() -> Dictionary:
 			"controller_binding": true,
 			"controller_cadence": true,
 			"typed_final_approach_lifecycle": true,
+			"typed_return_approach_lifecycle": true,
+			"caller_supplied_return_target": true,
+			"all_five_craft_return_corridor_proof": true,
 			"completion_receipt_relay": true,
 			"input_sampling": false,
 			"actor_sampling": false,
@@ -670,10 +844,18 @@ func _complete_final_approach_guarded(
 	var controller_receipt := controller_evaluation.get(
 		"completion_receipt", {}
 	) as Dictionary
+	var return_approach := _approach_kind == _ControllerType.RETURN_APPROACH_KIND
+	var expected_target_id := _ControllerType.RETURN_APPROACH_TARGET_ID \
+		if return_approach else _ControllerType.FINAL_APPROACH_TARGET_ID
 	if not bool(controller_receipt.get("accepted", false)) \
+			or controller_receipt.get("target_id", &"") != expected_target_id \
 			or int(controller_receipt.get("target_generation", 0)) \
 				!= _final_approach_target_generation:
-		return _fail_tick_guarded(&"final_approach_completion_invalid", true)
+		return _fail_tick_guarded(
+			&"return_approach_completion_invalid" if return_approach \
+				else &"final_approach_completion_invalid",
+			true,
+		)
 	if _generation >= MAX_SAFE_INTEGER:
 		return _fail_tick_guarded(&"generation_exhausted", true)
 	var release := _release_controller(false)
@@ -685,7 +867,9 @@ func _complete_final_approach_guarded(
 	if released_ship == null \
 			or int(released_ship_report.get("controller_instance_id", -1)) != 0:
 		return _fail_tick_guarded(
-			&"final_approach_ship_release_unconfirmed", false,
+			&"return_approach_ship_release_unconfirmed" if return_approach \
+				else &"final_approach_ship_release_unconfirmed",
+			false,
 			released_ship_report
 		)
 	_engagement_requested = false
@@ -695,19 +879,17 @@ func _complete_final_approach_guarded(
 	_retirement_count += 1
 	_final_approach_completion_count += 1
 	_generation = _next_generation(_generation)
+	var handoff_reason: StringName = &"return_approach_handoff_ready" \
+		if return_approach else &"final_approach_handoff_ready"
 	_final_approach_completion_receipt = {
 		"accepted": true,
-		"reason": &"final_approach_handoff_ready",
+		"reason": handoff_reason,
 		"schema_version": SCHEMA_VERSION,
 		"generation": _generation,
 		"target_generation": _final_approach_target_generation,
 		"coordinate_frame_generation": int(
 			controller_receipt.get("coordinate_frame_generation", 0)
 		),
-		"location_generation": _final_approach_location_generation,
-		"host_generation": _final_approach_host_generation,
-		"host_attachment_generation": _final_approach_host_attachment_generation,
-		"host_instance_id": _final_approach_host_instance_id,
 		"ship_instance_id": int(controller_receipt.get("ship_instance_id", 0)),
 		"released_ship_attachment_generation": int(
 			released_ship_report.get("ship_attachment_generation", 0)
@@ -716,12 +898,36 @@ func _complete_final_approach_guarded(
 		"controller_completion": controller_receipt.duplicate(true),
 		"controller_release": release.duplicate(true),
 	}.duplicate(true)
+	if return_approach:
+		_final_approach_completion_receipt["home_target_id"] = (
+			(controller_receipt.get("target", {}) as Dictionary)
+				.get("home_target_id", &"")
+		)
+	else:
+		_final_approach_completion_receipt["location_generation"] = (
+			_final_approach_location_generation
+		)
+		_final_approach_completion_receipt["host_generation"] = (
+			_final_approach_host_generation
+		)
+		_final_approach_completion_receipt["host_attachment_generation"] = (
+			_final_approach_host_attachment_generation
+		)
+		_final_approach_completion_receipt["host_instance_id"] = (
+			_final_approach_host_instance_id
+		)
+	_final_approach_completion_receipt = (
+		_final_approach_completion_receipt.duplicate(true)
+	)
 	_final_approach_completion_consumed = false
-	_last_reason = &"final_approach_handoff_ready"
+	_last_reason = handoff_reason
 	_last_result = _final_approach_completion_receipt.duplicate(true)
 	_mutation_active = false
 	_emit_engagement_changed()
-	_emit_final_approach_completed()
+	if return_approach:
+		_emit_return_approach_completed()
+	else:
+		_emit_final_approach_completed()
 	return _last_result.duplicate(true)
 
 
@@ -744,6 +950,29 @@ func _validate_final_approach_envelope(envelope: Dictionary) -> StringName:
 			or not envelope.hull_margin_m is float \
 			or not envelope.collision_bounds is AABB:
 		return &"final_approach_envelope_type_mismatch"
+	return &""
+
+
+func _validate_return_approach_target(target: Dictionary) -> StringName:
+	for key in [
+		"home_target_id", "home_target_world_transform",
+		"corridor_half_extents_m", "brake_shell_min_distance_m",
+		"brake_shell_max_distance_m", "maximum_speed_mps",
+		"maximum_attitude_degrees", "hull_margin_m",
+		"fleet_collision_bounds",
+	]:
+		if not target.has(key):
+			return &"return_approach_target_schema_mismatch"
+	if not target.home_target_id is StringName \
+			or not target.home_target_world_transform is Transform3D \
+			or not target.corridor_half_extents_m is Vector3 \
+			or not target.brake_shell_min_distance_m is float \
+			or not target.brake_shell_max_distance_m is float \
+			or not target.maximum_speed_mps is float \
+			or not target.maximum_attitude_degrees is float \
+			or not target.hull_margin_m is float \
+			or not target.fleet_collision_bounds is Dictionary:
+		return &"return_approach_target_type_mismatch"
 	return &""
 
 
@@ -843,11 +1072,17 @@ func _retire_engagement_guarded(
 			((_controller.get_snapshot().get("final_approach", {}) as Dictionary)
 				.get("state_id", &"none"))
 		)
-		if final_state in [&"armed", &"final_approach"]:
-			_controller.abort_final_approach(
-				reason, _final_approach_target_generation,
-				_controller.get_generation()
-			)
+		if final_state in [&"armed", &"final_approach", &"return_approach"]:
+			if _approach_kind == _ControllerType.RETURN_APPROACH_KIND:
+				_controller.abort_return_approach(
+					reason, _final_approach_target_generation,
+					_controller.get_generation()
+				)
+			else:
+				_controller.abort_final_approach(
+					reason, _final_approach_target_generation,
+					_controller.get_generation()
+				)
 	var release := _release_controller(brake_to_stop)
 	if not bool(release.get("accepted", false)):
 		return _result(false, &"controller_release_rejected", {
@@ -867,6 +1102,8 @@ func _retire_engagement_guarded(
 	_final_approach_host_ref = null
 	_final_approach_host_instance_id = 0
 	_final_approach_target_generation = 0
+	_approach_kind = &""
+	_return_approach_home_target_transform = Transform3D.IDENTITY
 	_retirement_count += 1
 	_last_reason = reason
 	_generation = _next_generation(_generation)
@@ -1104,6 +1341,16 @@ func _emit_final_approach_completed() -> void:
 		return
 	_signal_dispatch_active = true
 	final_approach_completed.emit(_final_approach_completion_receipt.duplicate(true))
+	_signal_dispatch_active = false
+
+
+func _emit_return_approach_completed() -> void:
+	if _signal_dispatch_active:
+		return
+	_signal_dispatch_active = true
+	return_approach_completed.emit(
+		_final_approach_completion_receipt.duplicate(true)
+	)
 	_signal_dispatch_active = false
 
 
