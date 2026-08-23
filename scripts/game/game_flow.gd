@@ -8,6 +8,9 @@ const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
 const BomberPayloadProjectileType := preload("res://scripts/combat/bomber_payload_projectile.gd")
 const BomberPayloadCombatAdapterType := preload("res://scripts/combat/bomber_payload_combat_adapter.gd")
 const CinderLongRangeBomberType := preload("res://scripts/ships/cinder_long_range_bomber.gd")
+const CinderCargoHaulerType := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const CinderLoadmasterHudBindingType := preload("res://scripts/ui/cinder_loadmaster_hud_binding.gd")
+const FinalApproachHudCompositionType := preload("res://scripts/ui/final_approach_hud_composition.gd")
 const WeaponDefinitionResolverProfileType := preload(
 	"res://scripts/combat/weapon_definition_resolver_profile.gd"
 )
@@ -310,6 +313,9 @@ var ember_surface_loop_host: EmberSurfaceLoopHost
 var ember_surface_berth: EmberSurfaceBerth
 var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
 var planetary_cruise_binding: PlanetaryCruiseProductionBinding
+var _final_approach_hud_composition: FinalApproachHudComposition
+var _cinder_loadmaster_hud_binding: CinderLoadmasterHudBinding
+var _cinder_loadmaster_hud_craft: CinderCargoHauler
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
@@ -561,6 +567,8 @@ func _exit_tree() -> void:
 	_detach_network_halyard_command_bridge()
 	_cancel_ground_transition_for_detach()
 	_detach_cinder_race_session()
+	_detach_cinder_loadmaster_hud_binding()
+	_detach_final_approach_hud_composition()
 	_detach_caption_presentation()
 	_detach_nearby_activity_audio()
 	_detach_halyard_crew_semantic_audio()
@@ -1212,6 +1220,8 @@ func _start_up() -> void:
 	# signals can sample it.
 	_apply_all_runtime_settings()
 	_connect_runtime_signals()
+	_sync_cinder_loadmaster_hud_binding()
+	_ensure_final_approach_hud_composition()
 	opponent.set_target(active_ship)
 	opponent.deactivate()
 	total_targets = world.get_target_count()
@@ -2503,6 +2513,8 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	# under a stale one.
 	_update_music_bed_state()
 	_restore_cabin_occupancy_after_reentry()
+	_sync_cinder_loadmaster_hud_binding()
+	_ensure_final_approach_hud_composition()
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
 
@@ -3676,7 +3688,9 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		_fail_active_activity(&"active_ship_replaced")
 	if candidate != active_ship:
 		_clear_bomber_payload_loop(&"active_ship_replaced")
+		_detach_cinder_loadmaster_hud_binding()
 	active_ship = candidate
+	_sync_cinder_loadmaster_hud_binding()
 	_first_sortie_tutorial_generation += 1
 	_first_sortie_tutorial_active_step = &""
 	_first_sortie_tutorial_dismissed_generation = -1
@@ -7607,6 +7621,19 @@ func _sync_planetary_cruise_hud() -> void:
 	):
 		return
 	var presentation := _planetary_cruise_presentation()
+	if _final_approach_hud_composition != null:
+		var final_controls := _final_approach_hud_composition.set_cruise_controls(
+			bool(presentation.get("toggle_enabled", false)),
+			bool(presentation.get("engagement_requested", false)),
+		)
+		var final_snapshot := _final_approach_hud_composition.get_snapshot()
+		var final_adapter := final_snapshot.get("adapter", {}) as Dictionary
+		var final_view := final_adapter.get("source_view", {}) as Dictionary
+		var final_state := StringName(final_view.get("state", &""))
+		if bool(final_controls.get("accepted", false)) and final_state in [
+			&"armed", &"approaching", &"aligned", &"handoff", &"rejected"
+		]:
+			return
 	hud.call(
 		&"set_planetary_cruise_state",
 		StringName(presentation.get("status_id", &"unavailable")),
@@ -7614,6 +7641,65 @@ func _sync_planetary_cruise_hud() -> void:
 		bool(presentation.get("toggle_enabled", false)),
 		bool(presentation.get("engagement_requested", false)),
 	)
+
+
+func _sync_cinder_loadmaster_hud_binding() -> void:
+	var candidate := active_ship as CinderCargoHauler
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not is_instance_valid(hud)
+	):
+		_detach_cinder_loadmaster_hud_binding()
+		return
+	if (
+		_cinder_loadmaster_hud_binding != null
+		and _cinder_loadmaster_hud_craft == candidate
+		and _cinder_loadmaster_hud_binding.is_attached()
+	):
+		return
+	_detach_cinder_loadmaster_hud_binding()
+	var binding := CinderLoadmasterHudBindingType.new()
+	var result := binding.attach(candidate, hud, &"loadmaster")
+	if bool(result.get("accepted", false)):
+		_cinder_loadmaster_hud_binding = binding
+		_cinder_loadmaster_hud_craft = candidate
+
+
+func _detach_cinder_loadmaster_hud_binding() -> void:
+	if _cinder_loadmaster_hud_binding != null:
+		_cinder_loadmaster_hud_binding.detach()
+	_cinder_loadmaster_hud_binding = null
+	_cinder_loadmaster_hud_craft = null
+
+
+func _ensure_final_approach_hud_composition() -> void:
+	if (
+		_final_approach_hud_composition != null
+		and bool(_final_approach_hud_composition.get_snapshot().get("attached", false))
+	):
+		return
+	if not is_instance_valid(planetary_cruise_binding) or not (hud is GameHUD):
+		return
+	if _final_approach_hud_composition != null:
+		_final_approach_hud_composition.detach()
+	var presentation := _planetary_cruise_presentation()
+	var composition := FinalApproachHudCompositionType.new()
+	var result := composition.attach(
+		planetary_cruise_binding,
+		hud as GameHUD,
+		bool(presentation.get("toggle_enabled", false)),
+		bool(presentation.get("engagement_requested", false)),
+		bool(runtime_settings.reduced_motion) if runtime_settings != null else false,
+	)
+	if bool(result.get("accepted", false)):
+		_final_approach_hud_composition = composition
+
+
+func _detach_final_approach_hud_composition() -> void:
+	if _final_approach_hud_composition != null:
+		_final_approach_hud_composition.detach()
+	_final_approach_hud_composition = null
 
 
 func get_planetary_cruise_report() -> Dictionary:
