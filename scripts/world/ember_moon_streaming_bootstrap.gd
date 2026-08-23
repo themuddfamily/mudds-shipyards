@@ -30,6 +30,11 @@ const _LOCATION_DEFINITION := preload(LOCATION_RESOURCE_PATH)
 const _LOCATION_SCENE := preload(SCENE_RESOURCE_PATH)
 const _EMBER_WORLD_DEFINITION := preload(EMBER_WORLD_RESOURCE_PATH)
 const _AIRLESS_SUN_RIG_SCENE := preload(AIRLESS_SUN_RIG_SCENE_PATH)
+const _AIRLESS_ENVIRONMENT_SCRIPT := preload(
+	"res://scripts/world/ember_airless_environment_presentation.gd"
+)
+const AUTHORED_WORLD_ENVIRONMENT_PATH := \
+	NodePath("../ShipyardWorld/ShipyardEnvironment")
 
 @export var airless_sun_rig_scene: PackedScene = _AIRLESS_SUN_RIG_SCENE
 
@@ -75,6 +80,10 @@ var _last_body_local_focus := Vector3.ZERO
 var _last_focus_frame_generation := 0
 var _sun_attach_count := 0
 var _sun_detach_count := 0
+var _airless_environment_presentation: RefCounted
+var _last_environment_result: Dictionary = {}
+var _environment_attach_count := 0
+var _environment_detach_count := 0
 
 
 func _init() -> void:
@@ -88,6 +97,13 @@ func _init() -> void:
 	_coordinator.location_load_failed.connect(_on_ember_location_load_failed)
 	_coordinator.location_unloaded.connect(_on_ember_location_unloaded)
 	_configure_checked_contract()
+
+
+func _exit_tree() -> void:
+	# Main's authored Environment outlives the streamed Ember generation. Restore
+	# its exact station baseline before a whole composition detach; re-entry binds
+	# it again from the next accepted current-generation sun sample.
+	_retire_airless_environment(&"bootstrap_detached")
 
 
 ## Returns the exact immutable-config frame instance required by
@@ -335,6 +351,17 @@ func get_snapshot() -> Dictionary:
 			"detach_count": _sun_detach_count,
 			"last_result": _last_sun_result.duplicate(true),
 		},
+		"airless_environment": {
+			"active": _airless_environment_presentation != null,
+			"authored_target_path": AUTHORED_WORLD_ENVIRONMENT_PATH,
+			"attach_count": _environment_attach_count,
+			"detach_count": _environment_detach_count,
+			"last_result": _last_environment_result.duplicate(true),
+			"presentation": (
+				_airless_environment_presentation.call(&"get_snapshot")
+				if _airless_environment_presentation != null else {}
+			),
+		},
 	}.duplicate(true)
 
 
@@ -386,6 +413,19 @@ func audit() -> Dictionary:
 		errors.append("loaded Ember generation is missing its airless sun rig")
 	elif not directional_lights.is_empty():
 		errors.append("unloaded Ember retains a directional light")
+	var authored_environment := _resolve_authored_world_environment()
+	# The sun binding calls this audit while it configures, before the passive
+	# environment adapter can consume its first accepted sample. Audit an adapter
+	# once attached without making it a circular prerequisite of sun startup.
+	if _airless_environment_presentation != null:
+		if not is_instance_valid(loaded_instance) or authored_environment == null:
+			errors.append("airless environment presentation outlived its target lifecycle")
+		else:
+			var environment_audit := (
+				_airless_environment_presentation.call(&"audit") as Dictionary
+			)
+			if not bool(environment_audit.get("valid", false)):
+				errors.append("authored environment presentation is invalid")
 	if airless_sun_rig_scene != _AIRLESS_SUN_RIG_SCENE:
 		errors.append("airless sun scene binding diverged")
 	var owned_capabilities := {}
@@ -490,6 +530,7 @@ func _on_ember_location_loaded(
 		_last_sun_result = failed_result
 		return
 	_sun_attach_count += 1
+	_attach_airless_environment(frame_generation, generation)
 	if _last_focus_frame_generation == frame_generation:
 		_present_airless_sun(
 			_last_body_local_focus,
@@ -536,11 +577,23 @@ func _present_airless_sun(
 		location_generation,
 		binding_generation,
 	) as Dictionary
+	if bool(result.get("accepted", false)):
+		if _airless_environment_presentation == null:
+			_attach_airless_environment(frame_generation, location_generation)
+		if _airless_environment_presentation != null:
+			var environment_result := _airless_environment_presentation.call(
+				&"present_accepted_sun", result, frame_generation,
+				location_generation,
+				_airless_environment_presentation.call(&"get_generation")
+			) as Dictionary
+			_last_environment_result = environment_result.duplicate(true)
+			result["environment_presentation"] = environment_result.duplicate(true)
 	_last_sun_result = result.duplicate(true)
 	return result.duplicate(true)
 
 
 func _retire_airless_sun(reason: StringName) -> void:
+	_retire_airless_environment(reason)
 	if not is_instance_valid(_airless_sun_rig):
 		_airless_sun_rig = null
 		return
@@ -554,6 +607,55 @@ func _retire_airless_sun(reason: StringName) -> void:
 	_last_sun_result = _sun_result(true, reason, {
 		"retired_rig_instance_id": retired_id,
 	})
+
+
+func _attach_airless_environment(
+		frame_generation: int, location_generation: int
+	) -> Dictionary:
+	if _airless_environment_presentation != null:
+		return _sun_result(true, &"environment_already_attached")
+	var target := _resolve_authored_world_environment()
+	if target == null or not is_instance_valid(_airless_sun_rig):
+		_last_environment_result = _sun_result(
+			false, &"authored_environment_unavailable"
+		)
+		return _last_environment_result.duplicate(true)
+	var candidate := _AIRLESS_ENVIRONMENT_SCRIPT.new() as RefCounted
+	var configured := candidate.call(
+		&"configure", target, _airless_sun_rig, frame_generation,
+		location_generation
+	) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		_last_environment_result = configured.duplicate(true)
+		return _last_environment_result.duplicate(true)
+	_airless_environment_presentation = candidate
+	_environment_attach_count += 1
+	_last_environment_result = configured.duplicate(true)
+	return configured.duplicate(true)
+
+
+func _retire_airless_environment(reason: StringName) -> void:
+	if _airless_environment_presentation == null:
+		return
+	var detached := _airless_environment_presentation.call(
+		&"detach", reason,
+		_airless_environment_presentation.call(&"get_generation")
+	) as Dictionary
+	_last_environment_result = detached.duplicate(true)
+	_airless_environment_presentation = null
+	_environment_detach_count += 1
+
+
+func _resolve_authored_world_environment() -> WorldEnvironment:
+	var host := get_parent()
+	var candidate := (
+		host.get_node_or_null(^"ShipyardWorld/ShipyardEnvironment")
+		if host != null else null
+	)
+	if candidate is not WorldEnvironment:
+		return null
+	var target := candidate as WorldEnvironment
+	return target if target.environment != null else null
 
 
 func _sun_result(
