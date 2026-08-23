@@ -60,6 +60,9 @@ var _cue_counts: Dictionary = {}
 var _last_cue_id: StringName = &""
 var _last_world_position := Vector3.ZERO
 var _last_source_instance_id := 0
+var _last_cue_pitch_scale := 1.0
+var _last_cue_volume_db := -80.0
+var _occlusion := 0.0
 var _initialized := false
 var _audio_available := true
 
@@ -113,18 +116,35 @@ func play_dry_fire(world_position: Vector3, source_instance_id: int) -> bool:
 
 
 func play_impact(world_position: Vector3, intensity: float, source_instance_id: int) -> bool:
-	if not is_finite(intensity):
+	if not is_finite(intensity) or intensity < 0.0:
 		return false
+	var severity := clampf(intensity, 0.0, 1.5) / 1.5
 	var cue_id := CUE_IMPACT_LIGHT
 	if intensity >= 1.2:
 		cue_id = CUE_IMPACT_HEAVY
 	elif intensity >= 0.65:
 		cue_id = CUE_IMPACT_MEDIUM
-	return _play(cue_id, &"impact", world_position, source_instance_id, -1.0)
+	var volume_db := lerpf(-5.0, -1.0, severity)
+	var pitch_scale := lerpf(1.08, 0.88, severity)
+	return _play(cue_id, &"impact", world_position, source_instance_id, volume_db, pitch_scale)
 
 
 func play_explosion(world_position: Vector3, source_instance_id: int) -> bool:
 	return _play(CUE_EXPLOSION, &"explosion", world_position, source_instance_id, 1.0)
+
+
+## Records caller-owned interior occlusion. Zero is exterior; one is fully
+## occluded. This presentation control never samples geometry or owns routing.
+func set_occlusion(occlusion: float) -> bool:
+	if is_queued_for_deletion() or not is_finite(occlusion) \
+			or occlusion < 0.0 or occlusion > 1.0:
+		return false
+	_occlusion = occlusion
+	return true
+
+
+func get_occlusion() -> float:
+	return _occlusion
 
 
 func get_component_id() -> StringName:
@@ -144,6 +164,9 @@ func get_state_snapshot() -> Dictionary:
 		"last_cue_id": _last_cue_id,
 		"last_world_position": _last_world_position,
 		"last_source_instance_id": _last_source_instance_id,
+		"last_cue_pitch_scale": _last_cue_pitch_scale,
+		"last_cue_volume_db": _last_cue_volume_db,
+		"occlusion": _occlusion,
 		"active_voice_names": active_voices,
 		"voice_count": _voice_ids.size(),
 	}.duplicate(true)
@@ -225,6 +248,7 @@ func _play(
 		world_position: Vector3,
 		source_instance_id: int,
 		volume_db: float
+		, pitch_scale: float = 1.0
 	) -> bool:
 	if is_queued_for_deletion() or not is_inside_tree() \
 			or not world_position.is_finite() or source_instance_id < 0:
@@ -253,7 +277,10 @@ func _play(
 	player.stop()
 	player.global_position = world_position
 	player.stream = stream
-	player.volume_db = volume_db
+	var occluded_volume_db := volume_db - 12.0 * _occlusion
+	var occluded_pitch_scale := pitch_scale * lerpf(1.0, 0.96, _occlusion)
+	player.volume_db = occluded_volume_db
+	player.pitch_scale = occluded_pitch_scale
 	player.play()
 	if not _request_player_playback(player):
 		_stop_and_detach_player(player)
@@ -264,6 +291,8 @@ func _play(
 	_last_cue_id = cue_id
 	_last_world_position = world_position
 	_last_source_instance_id = source_instance_id
+	_last_cue_pitch_scale = occluded_pitch_scale
+	_last_cue_volume_db = occluded_volume_db
 	cue_started.emit(cue_id, StringName(player.name), world_position, source_instance_id)
 	return true
 
@@ -290,6 +319,7 @@ func _stop_and_detach_player(player: AudioStreamPlayer3D) -> void:
 	if is_instance_valid(player):
 		player.stop()
 		player.stream = null
+		player.pitch_scale = 1.0
 
 
 func _configure_player(player: AudioStreamPlayer3D) -> void:
