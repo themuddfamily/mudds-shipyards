@@ -80,6 +80,15 @@ func clear() -> void:
 	queue_redraw()
 
 
+func clear_offscreen_route_marker() -> void:
+	_offscreen_marker.clear()
+	queue_redraw()
+
+
+func get_offscreen_route_marker() -> Dictionary:
+	return _offscreen_marker.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	return _snapshot.duplicate(true)
 

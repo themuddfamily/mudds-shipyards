@@ -510,6 +510,30 @@ func update_minimap(snapshot: Dictionary) -> bool:
 	return _minimap.apply_snapshot(snapshot)
 
 
+## Caller-owned route and landing guidance is rendered inside the minimap's
+## already safe-area-adjusted surface. The minimap returns the detached record
+## so controller/UI callers can mirror the same readable marker text.
+func update_offscreen_route_marker(
+	direction: Vector2, distance_m: float, route_kind: StringName, reduced_motion := false
+) -> Dictionary:
+	if not is_instance_valid(_minimap):
+		return {"accepted": false, "reason": &"minimap_unavailable"}
+	return _minimap.present_offscreen_route_marker(
+		direction, distance_m, route_kind, reduced_motion or _reduced_motion
+	)
+
+
+func clear_offscreen_route_marker() -> void:
+	if is_instance_valid(_minimap):
+		_minimap.clear_offscreen_route_marker()
+
+
+func get_offscreen_route_marker() -> Dictionary:
+	if not is_instance_valid(_minimap):
+		return {}
+	return _minimap.get_offscreen_route_marker()
+
+
 func get_minimap_report() -> Dictionary:
 	if not is_instance_valid(_minimap):
 		return {
