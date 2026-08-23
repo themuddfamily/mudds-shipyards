@@ -107,6 +107,13 @@ const BOARDING_STEP_VISIBLE_COPIES := 3
 # Retain the only stable renderer path from the former three-node family; the
 # two duplicate siblings had engine-generated fallback names and no authority.
 const BOARDING_STEP_BATCH_NAME := "BoardingStep"
+const COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER := [
+	"PortConsoleKey00",
+	"PortConsoleKey02",
+	"StarboardConsoleKey00",
+	"StarboardConsoleKey02",
+]
+const COCKPIT_CONSOLE_KEY_SIZE := Vector3(0.12, 0.035, 0.12)
 const RECON_PULSE_EMITTER_NAMES := [
 	"PortReconPulseEmitter",
 	"StarboardReconPulseEmitter",
@@ -159,7 +166,7 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 1,
 	"geometry_submissions": 158,
 	"visible_geometry_copies": 159,
-	"unique_mesh_resource_allocations": 122,
+	"unique_mesh_resource_allocations": 119,
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
@@ -168,7 +175,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 3,
 	"geometry_submissions": 165,
 	"visible_geometry_copies": 169,
-	"unique_mesh_resource_allocations": 128,
+	"unique_mesh_resource_allocations": 125,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -204,6 +211,7 @@ var _dorsal_data_conduit_curve_joint_mesh: SphereMesh
 var _fuselage_panel_band_mesh: BoxMesh
 var _array_receiver_mesh: SphereMesh
 var _boarding_step_mesh: ArrayMesh
+var _cockpit_console_key_mesh: BoxMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -339,7 +347,8 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"sensor_leading_edge_curve_joint_sharing": {},
 			"dorsal_data_conduit_curve_joint_sharing": {},
 			"fuselage_panel_band_mesh_sharing": {},
-			"array_receiver_mesh_sharing": {},
+		"array_receiver_mesh_sharing": {},
+		"cockpit_console_key_mesh_sharing": {},
 			"recon_pulse_emitters": {},
 		}.duplicate(true)
 
@@ -365,6 +374,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var receivers := _inspect_array_receiver_mesh_sharing()
 	if not bool(receivers.valid):
 		errors.append_array(receivers.errors as PackedStringArray)
+	var console_keys := _inspect_cockpit_console_key_mesh_sharing()
+	if not bool(console_keys.valid):
+		errors.append_array(console_keys.errors as PackedStringArray)
 	var pulse_emitters := _inspect_recon_pulse_emitters()
 	if not bool(pulse_emitters.valid):
 		errors.append_array(pulse_emitters.errors as PackedStringArray)
@@ -383,14 +395,14 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": -10,
 			"geometry_submissions": -6,
-			"unique_mesh_resource_allocations": 14,
+			"unique_mesh_resource_allocations": 17,
 			"auto_fallback_names": 4,
 			"visible_geometry_copies": -10,
 		},
 		"phase9_reductions_before_entry_heat": {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 20,
+			"unique_mesh_resource_allocations": 23,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
@@ -400,6 +412,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"dorsal_data_conduit_curve_joint_sharing": dorsal_conduit_joints,
 		"fuselage_panel_band_mesh_sharing": panel_bands,
 		"array_receiver_mesh_sharing": receivers,
+		"cockpit_console_key_mesh_sharing": console_keys,
 		"recon_pulse_emitters": pulse_emitters,
 		"entry_heat_target": entry_heat_target,
 	}.duplicate(true)
@@ -470,6 +483,7 @@ func _build_arrow_variant(_controller: HeroShip) -> bool:
 	_build_escape_pods()
 	_build_engines_and_landing_gear()
 	_restyle_inherited_cockpit(cockpit, canopy)
+	_share_inherited_console_key_meshes(cockpit)
 	_replace_collision_and_markers()
 	if not replace_variant_visual_root(_arrow_visual):
 		return false
@@ -900,6 +914,27 @@ func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
 			(frame as MeshInstance3D).material_override = _arrow_materials.graphite
 		for rail in canopy.find_children("*Canopy*Rail", "MeshInstance3D", true, false):
 			(rail as MeshInstance3D).material_override = _arrow_materials.ceramic
+
+
+func _share_inherited_console_key_meshes(cockpit: Node3D) -> void:
+	if cockpit == null:
+		return
+	var shared_mesh: BoxMesh
+	for key_name: String in COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER:
+		var key := cockpit.get_node_or_null(NodePath(key_name)) as MeshInstance3D
+		if key == null or key.mesh is not BoxMesh \
+				or key.material_override != _arrow_materials.sensor:
+			return
+		if shared_mesh == null:
+			shared_mesh = key.mesh as BoxMesh
+		elif key.mesh.surface_get_material(0) != shared_mesh.surface_get_material(0) \
+				or not key.mesh.get_aabb().is_equal_approx(shared_mesh.get_aabb()):
+			return
+	if shared_mesh == null:
+		return
+	_cockpit_console_key_mesh = shared_mesh
+	for key_name: String in COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER:
+		(cockpit.get_node(NodePath(key_name)) as MeshInstance3D).mesh = shared_mesh
 
 
 func _replace_collision_and_markers() -> void:
@@ -2121,6 +2156,81 @@ func _inspect_array_receiver_mesh_sharing() -> Dictionary:
 		"resource_allocation_reduction": 1,
 		"legacy": {"geometry_nodes": 2, "geometry_submissions": 2, "visible_geometry_copies": 2, "primitive_mesh_allocations": 2, "multimesh_allocations": 0},
 	}.duplicate(true)
+
+
+func _inspect_cockpit_console_key_mesh_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var cockpit := _arrow_visual.get_node_or_null("CockpitInterior") as Node3D \
+		if is_instance_valid(_arrow_visual) else null
+	var keys: Array[MeshInstance3D] = []
+	var node_paths := PackedStringArray()
+	var mesh_identities := {}
+	if cockpit == null:
+		errors.append("inherited cockpit is missing")
+	else:
+		for key_name: String in COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER:
+			var key := cockpit.get_node_or_null(NodePath(key_name)) as MeshInstance3D
+			if key == null:
+				errors.append("console-key roster drift: %s" % key_name)
+				continue
+			keys.append(key)
+			node_paths.append(str(_arrow_visual.get_path_to(key)))
+			if key.mesh == null or key.mesh is not BoxMesh \
+					or not (key.mesh as BoxMesh).size.is_equal_approx(COCKPIT_CONSOLE_KEY_SIZE):
+				errors.append("console-key primitive recipe drift: %s" % key_name)
+				continue
+			var expected_transform := _cockpit_console_key_transforms().get(key_name) as Transform3D
+			if not key.transform.is_equal_approx(expected_transform):
+				errors.append("console-key transform drift: %s" % key_name)
+			mesh_identities[key.mesh.get_instance_id()] = true
+			if not key.visible \
+					or key.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+					or key.material_override != _arrow_materials.sensor \
+					or key.material_overlay != null \
+					or key.layers != 1 \
+					or not is_zero_approx(key.transparency):
+				errors.append("console-key render-state drift: %s" % key_name)
+			if key.get_child_count() != 0 or key.get_script() != null \
+					or not key.get_groups().is_empty() or not key.get_meta_list().is_empty():
+				errors.append("console-key gained semantic authority: %s" % key_name)
+	if keys.size() != COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER.size():
+		errors.append("console-key visible-copy roster drift")
+	if mesh_identities.size() != 1:
+		errors.append("console-key shared-mesh identity drift")
+	if _cockpit_console_key_mesh == null \
+			or _cockpit_console_key_mesh.resource_local_to_scene \
+			or _cockpit_console_key_mesh.get_surface_count() != 1:
+		errors.append("console-key retained mesh recipe drift")
+	for key in keys:
+		if key.mesh != _cockpit_console_key_mesh:
+			errors.append("console-key retained a private mesh")
+			break
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": node_paths,
+		"authored_transforms": _cockpit_console_key_transforms(),
+		"geometry_nodes": keys.size(),
+		"geometry_submissions": keys.size(),
+		"visible_geometry_copies": keys.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 3,
+		"legacy": {
+			"geometry_nodes": 4,
+			"geometry_submissions": 4,
+			"visible_geometry_copies": 4,
+			"primitive_mesh_allocations": 4,
+		},
+	}.duplicate(true)
+
+
+func _cockpit_console_key_transforms() -> Dictionary:
+	return {
+		"PortConsoleKey00": Transform3D(Basis.IDENTITY, Vector3(-0.76, 2.41, -0.88)),
+		"PortConsoleKey02": Transform3D(Basis.IDENTITY, Vector3(-0.67, 2.41, -0.24)),
+		"StarboardConsoleKey00": Transform3D(Basis.IDENTITY, Vector3(0.76, 2.41, -0.88)),
+		"StarboardConsoleKey02": Transform3D(Basis.IDENTITY, Vector3(0.85, 2.41, -0.24)),
+	}
 
 
 func _torus(

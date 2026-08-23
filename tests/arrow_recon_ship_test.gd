@@ -608,10 +608,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 3,
 			"geometry_submissions": 165,
 			"visible_geometry_copies": 169,
-			"unique_mesh_resource_allocations": 128,
+			"unique_mesh_resource_allocations": 125,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 187-node, 165-submission, 128-mesh census with all 169 copies"
+		"entry-complete Arrow freezes the exact 187-node, 165-submission, 125-mesh census with all 169 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -620,7 +620,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 1,
 			"geometry_submissions": 158,
 			"visible_geometry_copies": 159,
-			"unique_mesh_resource_allocations": 122,
+			"unique_mesh_resource_allocations": 119,
 			"auto_fallback_names": 23,
 		}
 		and report.entry_heat_target_delta == {
@@ -642,14 +642,14 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and report.reductions == {
 			"nodes": -10,
 			"geometry_submissions": -6,
-			"unique_mesh_resource_allocations": 14,
+			"unique_mesh_resource_allocations": 17,
 			"auto_fallback_names": 4,
 			"visible_geometry_copies": -10,
 		}
 		and report.phase9_reductions_before_entry_heat == {
 			"nodes": 1,
 			"geometry_submissions": 1,
-			"unique_mesh_resource_allocations": 20,
+			"unique_mesh_resource_allocations": 23,
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
@@ -756,6 +756,26 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[3]).begins_with("@MeshInstance3D@")
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[4]).begins_with("@MeshInstance3D@"),
 		"five ordinary dorsal panel seams retain one shallow BoxMesh instead of hollow full-circumference loops"
+	)
+	_check(
+		report.cockpit_console_key_mesh_sharing.legacy == {
+			"geometry_nodes": 4,
+			"geometry_submissions": 4,
+			"visible_geometry_copies": 4,
+			"primitive_mesh_allocations": 4,
+		}
+		and int(report.cockpit_console_key_mesh_sharing.geometry_nodes) == 4
+		and int(report.cockpit_console_key_mesh_sharing.geometry_submissions) == 4
+		and int(report.cockpit_console_key_mesh_sharing.visible_geometry_copies) == 4
+		and int(report.cockpit_console_key_mesh_sharing.primitive_mesh_allocations) == 1
+		and int(report.cockpit_console_key_mesh_sharing.resource_allocation_reduction) == 3
+		and report.cockpit_console_key_mesh_sharing.node_paths == PackedStringArray([
+			"CockpitInterior/PortConsoleKey00",
+			"CockpitInterior/PortConsoleKey02",
+			"CockpitInterior/StarboardConsoleKey00",
+			"CockpitInterior/StarboardConsoleKey02",
+		]),
+		"four inherited cyan console keys retain their named nodes, transforms, submissions and visible copies while sharing one immutable mesh"
 	)
 	var visual := arrow.get_arrow_visual_root()
 	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
