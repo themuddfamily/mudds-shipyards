@@ -35,7 +35,6 @@ const BODY_ID: StringName = &"ember_body"
 const REGION_ID: StringName = &"ember_caldera"
 const TERRAIN_PROFILE_ID: StringName = &"ember_basalt_terrain"
 const ORBITAL_FRAME_ID: StringName = &"nearby_sector_orbital"
-const SHIP_DEFINITION_ID: StringName = &"arrow_provisional"
 const LOCATION_GENERATION_META: StringName = &"world_location_generation"
 const LOCATION_ID_META: StringName = &"world_location_id"
 
@@ -407,7 +406,7 @@ var _origin_owner: CommonWorldOriginRebaseOwner
 var _origin_binding: EmberMoonStreamingProductionBinding
 var _scene: EmberMoonAuthoredScene
 var _berth: EmberSurfaceBerth
-var _ship: ArrowReconShip
+var _ship: HeroShip
 var _player: PlayerController
 var _boarding_area: ShipBoardingArea
 var _walkable_body: StaticBody3D
@@ -445,7 +444,7 @@ func _ready() -> void:
 func bind_dependencies(
 	bootstrap: EmberMoonStreamingBootstrap,
 	berth: EmberSurfaceBerth,
-	ship: ArrowReconShip,
+	ship: HeroShip,
 	player: PlayerController,
 	reference_surface_gravity_mps2: float,
 	location_generation: int,
@@ -974,7 +973,8 @@ func get_snapshot() -> Dictionary:
 			"region_id": REGION_ID,
 			"terrain_profile_id": TERRAIN_PROFILE_ID,
 			"orbital_frame_id": ORBITAL_FRAME_ID,
-			"ship_definition_id": SHIP_DEFINITION_ID,
+			"ship_definition_id": _ship.get_ship_definition().ship_id \
+				if is_instance_valid(_ship) and _ship.get_ship_definition() != null else &"",
 			"composition_root_instance_id": _composition_root_instance_id,
 			"loaded_scene_instance_id": _loaded_scene_instance_id,
 			"ship_instance_id": _ship_instance_id,
@@ -1457,7 +1457,7 @@ func _travel_observation() -> Dictionary:
 func _validate_dependencies(
 	bootstrap: EmberMoonStreamingBootstrap,
 	berth: EmberSurfaceBerth,
-	ship: ArrowReconShip,
+	ship: HeroShip,
 	player: PlayerController,
 	reference_surface_gravity_mps2: float,
 	location_generation: int,
@@ -1521,9 +1521,10 @@ func _validate_dependencies(
 			return {"accepted": false, "reason": &"origin_binding_frame_mismatch"}
 	if not _node_is_current(berth) or berth.get_parent() != composition_root:
 		return {"accepted": false, "reason": &"berth_mismatch"}
+	var ship_definition := ship.get_ship_definition() if _node_is_current(ship) else null
 	if not _node_is_current(ship) or ship.get_parent() != composition_root \
-			or ship.is_destroyed() or ship.get_ship_definition() == null \
-			or ship.get_ship_definition().ship_id != SHIP_DEFINITION_ID:
+			or ship.is_destroyed() or ship_definition == null \
+			or not ship_definition.is_definition_valid():
 		return {"accepted": false, "reason": &"ship_mismatch"}
 	if not berth.is_configured_for(ship):
 		var configured := berth.configure_for_ship(ship)

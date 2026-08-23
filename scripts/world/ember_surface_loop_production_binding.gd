@@ -71,7 +71,7 @@ var _bootstrap: EmberMoonStreamingBootstrap
 var _origin_owner: CommonWorldOriginRebaseOwner
 var _origin_binding: EmberMoonStreamingProductionBinding
 var _frame: PlanetaryCoordinateFrame
-var _ship: ArrowReconShip
+var _ship: HeroShip
 var _player: PlayerController
 
 var _host_instance_id := 0
@@ -163,7 +163,7 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	_origin_owner = resolved.origin_owner as CommonWorldOriginRebaseOwner
 	_origin_binding = resolved.origin_binding as EmberMoonStreamingProductionBinding
 	_frame = resolved.frame as PlanetaryCoordinateFrame
-	_ship = resolved.ship as ArrowReconShip
+	_ship = resolved.ship as HeroShip
 	_player = resolved.player as PlayerController
 	_host_instance_id = _host.get_instance_id()
 	_composition_root_instance_id = _composition_root.get_instance_id()
@@ -1338,7 +1338,7 @@ func _resolve_host_composition(host: EmberSurfaceLoopHost) -> Dictionary:
 	if not bootstrap is EmberMoonStreamingBootstrap \
 			or not owner is CommonWorldOriginRebaseOwner \
 			or not binding is EmberMoonStreamingProductionBinding \
-			or not ship is ArrowReconShip or not player is PlayerController:
+			or not ship is HeroShip or not player is PlayerController:
 		return {"accepted": false, "reason": &"host_identity_schema_mismatch"}
 	for dependency: Node in [host, bootstrap, owner, binding, ship, player]:
 		if not _node_current(dependency) or dependency.get_parent() != composition_root:
