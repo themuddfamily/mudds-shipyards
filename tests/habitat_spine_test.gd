@@ -479,12 +479,13 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_garden_column_collar_mesh_sharing(module)
 	_test_pipe_collar_mesh_sharing(module)
 	_test_cupola_downlight_batch(module)
+	_test_corridor_deck_seam_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1882
+		int(render.descendant_nodes) == 1883
 		and module.find_children("*", "MeshInstance3D", true, false).size() == 1233
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 18,
-		"visual batching stays frozen at 1882 render nodes, 1233 meshes and 18 MultiMeshes"
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 19,
+		"visual batching stays frozen at 1883 render nodes, 1233 meshes and 19 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -519,6 +520,79 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	var material_sample := (module.find_child("ConnectorFloor", true, false) as StaticBody3D).get_node("Mesh") as MeshInstance3D
 	var pbr := material_sample.material_override as StandardMaterial3D
 	_check(pbr != null and pbr.clearcoat_enabled and pbr.roughness > 0.0 and pbr.metallic > 0.0, "primary shell uses layered PBR response rather than flat unlit colour")
+
+
+func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
+	var corridor := module.get_node_or_null(
+		^"Structure/PressurizedHabitatCorridor"
+	) as Node3D
+	var batch := corridor.get_node_or_null(^"DeckSeams") as MultiMeshInstance3D if corridor != null else null
+	_check(
+		corridor != null and batch != null and batch.multimesh != null,
+		"nine corridor deck seams resolve through one visual-only MultiMesh"
+	)
+	if corridor == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for seam_z in [3.15, 5.1, 7.1, 8.15, 10.1, 12.1, 13.15, 15.1, 17.1]:
+		expected.append(Transform3D(Basis.IDENTITY, Vector3(0, 0.055, float(seam_z))))
+	var anchors: Array[MeshInstance3D] = []
+	for raw_node in corridor.get_children():
+		var candidate := raw_node as MeshInstance3D
+		if (
+			candidate != null
+			and candidate.mesh != null
+			and candidate.mesh.get_aabb().size.is_equal_approx(Vector3(4.2, 0.02, 0.045))
+			and not candidate.visible
+		):
+			anchors.append(candidate)
+	var anchors_exact := anchors.size() == expected.size()
+	for index in mini(anchors.size(), expected.size()):
+		anchors_exact = (
+			anchors_exact
+			and anchors[index].transform.is_equal_approx(expected[index])
+			and anchors[index].get_child_count() == 0
+			and anchors[index].get_script() == null
+			and anchors[index].material_override == anchors[0].material_override
+		)
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(
+		anchors_exact
+		and authored_exact
+		and batch.multimesh.instance_count == HabitatSpine.CORRIDOR_DECK_SEAM_COPY_COUNT
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(4.2, 0.02, 0.045))
+		and batch.material_override == anchors[0].material_override,
+		"batch preserves nine exact transforms, graphite material, mesh extent and stable legacy anchors"
+	)
+	_check(
+		batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty()
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"deck-seam batch remains childless, collision-free and presentation-only"
+	)
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.corridor_deck_seam_legacy_submissions) == 9
+		and int(report.corridor_deck_seam_submissions) == 1
+		and int(report.geometry_submissions_before_deck_seam_batch) == 1251
+		and int(report.geometry_submissions) == 1243
+		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
+		and int(report.drawn_copies) == 1377
+		and bool(report.corridor_deck_seam_authored),
+		"corridor seams measure 9 -> 1 submissions while all nine visible copies remain"
+	)
+	var detached := report.authored_corridor_deck_seam_transforms as Array
+	detached[0] = Transform3D.IDENTITY
+	_check(
+		not ((module.get_render_allocation_report().authored_corridor_deck_seam_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"deck-seam allocation report returns a detached authored-transform roster"
+	)
 
 
 func _test_cupola_downlight_batch(module: HabitatSpine) -> void:
@@ -669,21 +743,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1882
+		int(report.descendant_nodes) == 1883
 		and int(report.mesh_instances) == 1233
-		and int(report.multimesh_batches) == 18,
-		"renderer nodes freeze at 1886 -> 1882, MeshInstances 1245 -> 1233, batches 14 -> 18"
+		and int(report.multimesh_batches) == 19,
+		"renderer census includes the exact corridor deck-seam batch"
 	)
 	_check(
 		int(report.drawn_copies) == 1377
-		and int(report.geometry_submissions) == 1251
+		and int(report.geometry_submissions) == 1243
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1377 while surface submissions fall 1259 -> 1251"
+		"drawn copies freeze at 1377 while surface submissions fall 1251 -> 1243"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
 		and int(report.unique_material_resources) == 32
-		and int(report.multimesh_resources) == 18
+		and int(report.multimesh_resources) == 19
 		and int(report.renderer_buffer_floats) == 144,
 		"mesh/material allocations freeze at 349/32 while the hatch batch retains its 144-float renderer buffer"
 	)

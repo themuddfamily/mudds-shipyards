@@ -76,11 +76,13 @@ const GARDEN_BENCH_LEG_LONGITUDINAL_SIZE := Vector3(0.42, 0.40, 0.14)
 const GARDEN_BENCH_LEG_TRANSVERSE_SIZE := Vector3(0.14, 0.40, 0.42)
 const GARDEN_BENCH_LEG_COPY_COUNT := 6
 const CUPOLA_DOWNLIGHT_COPY_COUNT := 3
-const RENDER_DESCENDANT_COUNT := 1882
+const CORRIDOR_DECK_SEAM_COPY_COUNT := 9
+const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
+const RENDER_DESCENDANT_COUNT := 1883
 const RENDER_MESH_INSTANCE_COUNT := 1233
-const RENDER_MULTIMESH_BATCH_COUNT := 18
+const RENDER_MULTIMESH_BATCH_COUNT := 19
 const RENDER_DRAWN_COPY_COUNT := 1377
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1251
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1243
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 32
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
@@ -197,6 +199,8 @@ var _garden_bench_leg_longitudinal_transforms: Array[Transform3D] = []
 var _garden_bench_leg_transverse_transforms: Array[Transform3D] = []
 var _garden_bench_leg_longitudinal_batch: MultiMeshInstance3D
 var _garden_bench_leg_transverse_batch: MultiMeshInstance3D
+var _corridor_deck_seam_transforms: Array[Transform3D] = []
+var _corridor_deck_seam_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -788,11 +792,13 @@ func get_render_allocation_report() -> Dictionary:
 		var instance := raw_node as MeshInstance3D
 		if instance.mesh == null:
 			continue
-		drawn_copies += 1
-		submissions += instance.mesh.get_surface_count()
 		mesh_resource_ids[instance.mesh.get_instance_id()] = true
 		if instance.material_override != null:
 			material_resource_ids[instance.material_override.get_instance_id()] = true
+		if not instance.visible:
+			continue
+		drawn_copies += 1
+		submissions += instance.mesh.get_surface_count()
 	for raw_node in batch_nodes:
 		var batch := raw_node as MultiMeshInstance3D
 		if batch.multimesh == null or batch.multimesh.mesh == null:
@@ -980,8 +986,22 @@ func get_render_allocation_report() -> Dictionary:
 	var collar_sharing := _inspect_garden_column_collar_mesh_sharing()
 	var pipe_collar_sharing := _inspect_pipe_collar_mesh_sharing()
 	var garden_bench_leg_batching := _inspect_garden_bench_leg_batching()
+	var deck_seam_authored: bool = (
+		is_instance_valid(_corridor_deck_seam_batch)
+		and _corridor_deck_seam_batch.multimesh != null
+		and _corridor_deck_seam_batch.multimesh.instance_count == CORRIDOR_DECK_SEAM_COPY_COUNT
+		and _corridor_deck_seam_batch.multimesh.mesh != null
+		and _corridor_deck_seam_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(4.2, 0.02, 0.045)
+		)
+		and _corridor_deck_seam_batch.material_override == _materials.get("graphite")
+		and (_corridor_deck_seam_batch.get_meta("authored_instance_transforms", []) as Array).size()
+			== CORRIDOR_DECK_SEAM_COPY_COUNT
+		and _corridor_deck_seam_batch.get_child_count() == 0
+		and _corridor_deck_seam_batch.get_script() == null
+	)
 	var descendant_count := _render_descendant_count()
-	var exact_counts := (
+	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
 		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
 		and batch_nodes.size() == RENDER_MULTIMESH_BATCH_COUNT
@@ -994,6 +1014,8 @@ func get_render_allocation_report() -> Dictionary:
 		and _nutrient_tank_band_transforms.size() == NUTRIENT_TANK_BAND_COPY_COUNT
 		and _nutrient_valve_transforms.size() == NUTRIENT_VALVE_COPY_COUNT
 		and bool(garden_bench_leg_batching.valid)
+		and _corridor_deck_seam_transforms.size() == CORRIDOR_DECK_SEAM_COPY_COUNT
+		and deck_seam_authored
 	)
 	return {
 		"schema_version": 1,
@@ -1003,6 +1025,14 @@ func get_render_allocation_report() -> Dictionary:
 		"multimesh_resources": multimesh_resource_ids.size(),
 		"drawn_copies": drawn_copies,
 		"geometry_submissions": submissions,
+		"geometry_submissions_before_deck_seam_batch": PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT,
+		"geometry_submissions_removed_by_deck_seam_batch": (
+			PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
+		"corridor_deck_seam_legacy_submissions": CORRIDOR_DECK_SEAM_COPY_COUNT,
+		"corridor_deck_seam_submissions": 1 if deck_seam_authored else 0,
+		"corridor_deck_seam_copies": _corridor_deck_seam_transforms.size(),
+		"corridor_deck_seam_authored": deck_seam_authored,
 		"unique_mesh_resources": mesh_resource_ids.size(),
 		"unique_material_resources": material_resource_ids.size(),
 		"hatch_fastener_copies": _hatch_fastener_transforms.size(),
@@ -1102,6 +1132,7 @@ func get_render_allocation_report() -> Dictionary:
 			_nutrient_tank_band_transforms.duplicate()
 		),
 		"authored_nutrient_valve_transforms": _nutrient_valve_transforms.duplicate(),
+		"authored_corridor_deck_seam_transforms": _corridor_deck_seam_transforms.duplicate(),
 	}
 
 
@@ -1686,8 +1717,27 @@ func _build_habitat_corridor(structure: Node3D) -> void:
 	_box(habitat, "CorridorLane", Vector3(0, 0.022, 10.15), Vector3(4.6, 0.04, 15.15), _materials["floor"], false)
 	for edge_x in [-2.26, 2.26]:
 		_box(habitat, "LaneEdge", Vector3(float(edge_x), 0.052, 10.15), Vector3(0.08, 0.035, 15.0), _materials["teal_dim"], false)
+	_corridor_deck_seam_transforms.clear()
 	for seam_z in [3.15, 5.1, 7.1, 8.15, 10.1, 12.1, 13.15, 15.1, 17.1]:
-		_box(habitat, "DeckSeam", Vector3(0, 0.055, float(seam_z)), Vector3(4.2, 0.02, 0.045), _materials["graphite"], false)
+		var seam_anchor := _box(
+			habitat,
+			"DeckSeam",
+			Vector3(0, 0.055, float(seam_z)),
+			Vector3(4.2, 0.02, 0.045),
+			_materials["graphite"],
+			false
+		)
+		_corridor_deck_seam_transforms.append(seam_anchor.transform)
+		# Retain the established paths, transforms, mesh and material handles as
+		# hidden inspection anchors; the one batch owns their visible draw.
+		seam_anchor.visible = false
+	_corridor_deck_seam_batch = _multimesh_boxes(
+		habitat,
+		"DeckSeams",
+		Vector3(4.2, 0.02, 0.045),
+		_materials["graphite"],
+		_corridor_deck_seam_transforms
+	)
 
 	# Solid outer pressure walls. Alcoves open inward onto the unobstructed lane.
 	for side in [-1.0, 1.0]:
