@@ -385,6 +385,7 @@ var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
 var _semantic_transcript_panel: PanelContainer
 var _semantic_transcript_body: Label
+var _semantic_transcript_heading: Label
 var _semantic_transcript_toggle: Button
 var _semantic_transcript_scroll := 0
 var _semantic_transcript_tick := 0
@@ -2010,6 +2011,10 @@ func _refresh_semantic_transcript() -> void:
 		var suffix := (" // " + direction) if not direction.is_empty() else ""
 		lines.append("%s%s  P%d  +%dT" % [str(entry.get("label", "Cue")), suffix, int(entry.get("priority", 0)), int(entry.get("age_ticks", 0))])
 	var start := mini(_semantic_transcript_scroll, maxi(0, lines.size() - 8))
+	if is_instance_valid(_semantic_transcript_heading):
+		var first := 0 if lines.is_empty() else start + 1
+		var last := 0 if lines.is_empty() else mini(start + 8, lines.size())
+		_semantic_transcript_heading.text = "SEMANTIC CAPTION LOG  //  %d-%d / %d" % [first, last, lines.size()]
 	_semantic_transcript_body.text = "\n".join(lines.slice(start, start + 8)) if not lines.is_empty() else "No semantic captions yet."
 
 
@@ -2033,7 +2038,8 @@ func _build_semantic_transcript_panel() -> void:
 	_semantic_transcript_panel.add_child(margin)
 	var stack := VBoxContainer.new()
 	margin.add_child(stack)
-	stack.add_child(_label("SEMANTIC CAPTION LOG  //  8 MAX", 11, PRIMARY))
+	_semantic_transcript_heading = _label("SEMANTIC CAPTION LOG  //  0-0 / 0", 11, PRIMARY)
+	stack.add_child(_semantic_transcript_heading)
 	_semantic_transcript_body = _label("No semantic captions yet.", 11, NOMINAL_SOFT)
 	_semantic_transcript_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_semantic_transcript_body.custom_minimum_size = Vector2(420.0, 120.0)
@@ -2052,6 +2058,12 @@ func _build_semantic_transcript_panel() -> void:
 	clear.focus_mode = Control.FOCUS_ALL
 	clear.pressed.connect(clear_semantic_caption_transcript)
 	controls.add_child(clear)
+	up.focus_next = down.get_path()
+	down.focus_previous = up.get_path()
+	down.focus_next = clear.get_path()
+	clear.focus_previous = down.get_path()
+	clear.focus_next = up.get_path()
+	up.focus_previous = clear.get_path()
 
 
 func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:
