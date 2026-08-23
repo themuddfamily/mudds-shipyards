@@ -9,6 +9,7 @@ extends RefCounted
 ## This is a single-writer recoverable transaction, not durable ACID storage.
 
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
+const Retirement := preload("res://scripts/persistence/legacy_data_retirement.gd")
 
 const SCHEMA_VERSION := 1
 const MAX_DOCUMENT_BYTES := 1024 * 1024
@@ -376,6 +377,14 @@ func get_commit_metadata() -> Dictionary:
 
 func get_loaded_source() -> StringName:
 	return _loaded_from
+
+
+## Explicitly imports a caller-validated legacy payload through the normal
+## atomic commit path, then retires the legacy bytes. Normal load never
+## discovers or consumes legacy files implicitly.
+func migrate_legacy(legacy_path: String, payload: Dictionary, commit_id: String) -> Dictionary:
+	var retirement := Retirement.new(legacy_path, self, _filesystem)
+	return retirement.migrate(payload, _generation, commit_id)
 
 
 static func validate_payload(payload: Variant) -> Dictionary:

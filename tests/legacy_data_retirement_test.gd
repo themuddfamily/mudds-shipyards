@@ -73,6 +73,17 @@ func _run() -> void:
 	var blocked_load := blocked_store.load()
 	var blocked := Retirement.new(LEGACY_PATH, blocked_store, newer_fs).migrate({"safe": true}, 0, "legacy-newer")
 	_check(not bool(blocked_load.accepted) and blocked_load.reason == &"newer_schema" and not bool(blocked.accepted) and blocked.reason == &"store_not_loaded", "newer store schema fails migration closed without retiring legacy bytes")
+
+	var composed_fs := FakeFilesystem.new()
+	composed_fs.files[LEGACY_PATH] = "composed-legacy".to_utf8_buffer()
+	var composed_store := Store.new(STORE_PATH, composed_fs) as UserDataStore
+	composed_store.load()
+	composed_fs.fail_legacy_rename = true
+	var composed := composed_store.migrate_legacy(LEGACY_PATH, {"save": {"progress": 9}}, "legacy-composed-1")
+	_check(not bool(composed.accepted) and composed.reason == &"legacy_retirement_failed" and composed_fs.files.has(LEGACY_PATH), "store migration path preserves legacy bytes on retirement failure")
+	composed_fs.fail_legacy_rename = false
+	var composed_retry := composed_store.migrate_legacy(LEGACY_PATH, {"save": {"progress": 9}}, "legacy-composed-retry")
+	_check(bool(composed_retry.accepted) and composed_retry.already_published and not composed_fs.files.has(LEGACY_PATH), "store migration path retries retirement without duplicate publish")
 	_finish()
 
 

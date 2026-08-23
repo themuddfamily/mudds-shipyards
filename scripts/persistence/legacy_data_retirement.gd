@@ -5,7 +5,6 @@ extends RefCounted
 ## UserDataStore. Legacy bytes are never parsed or deleted by this class; the
 ## caller supplies the already-validated destination payload.
 
-const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
 
 const MAX_LEGACY_BYTES := 1024 * 1024
@@ -38,7 +37,7 @@ func migrate(
 		return {"accepted": false, "reason": &"migration_unavailable"}
 	if _store.get_loaded_source() == &"none":
 		return {"accepted": false, "reason": &"store_not_loaded"}
-	if not bool(Store.validate_payload(payload).valid):
+	if not bool(UserDataStore.validate_payload(payload).valid):
 		return {"accepted": false, "reason": &"payload_invalid"}
 	var legacy := _read_legacy()
 	if not bool(legacy.accepted):
