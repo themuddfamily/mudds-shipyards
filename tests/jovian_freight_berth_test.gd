@@ -51,6 +51,7 @@ func _run() -> void:
 	_test_recessed_lashing_ring_profile(module)
 	_test_lashing_ring_visual_allocation(module)
 	_test_catwalk_ladder_hoop_visual_allocation(module)
+	_test_catwalk_ladder_rung_batch(module)
 	_test_nothing_drawn_floats(module)
 	await _test_handling_fixtures_are_solid(module)
 	_test_collision_contract(module)
@@ -689,6 +690,98 @@ func _test_catwalk_ladder_hoop_visual_allocation(
 	)
 
 
+func _test_catwalk_ladder_rung_batch(module: JovianFreightBerth) -> void:
+	var access := module.get_node_or_null(^"GantryAccess") as Node3D
+	var batch := access.get_node_or_null(^"CatwalkLadderRungs") as MultiMeshInstance3D if access != null else null
+	_check(
+		access != null and batch != null and batch.multimesh != null,
+		"twelve named gantry ladder rungs resolve through one visual-only MultiMesh"
+	)
+	if access == null or batch == null or batch.multimesh == null:
+		return
+	var material_reference := (
+		access.get_node(^"CatwalkLadderRung01") as MeshInstance3D
+	).material_override
+	var exact_anchors := true
+	for index in JovianFreightBerth.CATWALK_LADDER_RUNG_COPY_COUNT:
+		var rung := access.get_node_or_null(
+			NodePath("CatwalkLadderRung%02d" % (index + 1))
+		) as MeshInstance3D
+		var expected := Transform3D(
+			Basis.IDENTITY,
+			Vector3(-14.62, 0.6 + float(index), JovianFreightBerth.CATWALK_CENTER_Z + 0.05)
+		)
+		exact_anchors = (
+			exact_anchors
+			and rung != null
+			and rung.transform.is_equal_approx(expected)
+			and not rung.visible
+			and rung.mesh != null
+			and rung.mesh.get_aabb().size.is_equal_approx(
+				JovianFreightBerth.CATWALK_LADDER_RUNG_SIZE
+			)
+			and rung.material_override == material_reference
+			and rung.get_child_count() == 0
+		)
+	_check(
+		exact_anchors,
+		"all twelve stable rung paths retain exact transforms, mesh extent and ceramic material"
+	)
+	var audit := module.get_catwalk_ladder_rung_batch_contract()
+	_check(bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(), "fresh rung batch passes its local audit")
+	_check(
+		audit.legacy == {
+			"renderer_submissions": 12,
+			"visible_copies": 12,
+			"anchor_nodes": 12,
+		}
+		and audit.current == {
+			"renderer_submissions": 1,
+			"visible_copies": 12,
+			"anchor_nodes": 12,
+		}
+		and audit.reductions == {
+			"renderer_submissions": 11,
+			"visible_copies": 0,
+			"anchor_nodes": 0,
+		},
+		"ladder rung submissions measure 12 -> 1 while copies and stable anchors remain twelve"
+	)
+	_check(
+		batch.multimesh.instance_count == 12
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			JovianFreightBerth.CATWALK_LADDER_RUNG_SIZE
+		)
+		and batch.material_override == material_reference
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and not bool(audit.collision_authority)
+		and not bool(audit.route_authority)
+		and not bool(audit.interaction_authority),
+		"batch preserves the visual recipe and owns no collision, route or interaction authority"
+	)
+	(audit.authored_transforms as Array)[0] = Transform3D.IDENTITY
+	_check(
+		not ((module.get_catwalk_ladder_rung_batch_contract().authored_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"rung allocation evidence is deeply detached"
+	)
+	var original_material := batch.material_override
+	batch.material_override = null
+	_check(
+		not bool(module.get_catwalk_ladder_rung_batch_contract().valid)
+		and not bool(module.get_performance_contract().within_budget),
+		"RED: losing the exact rung material turns both local and module performance audits red"
+	)
+	batch.material_override = original_material
+	_check(
+		bool(module.get_catwalk_ladder_rung_batch_contract().valid)
+		and bool(module.get_performance_contract().within_budget),
+		"restoring the exact rung material returns both audits to green"
+	)
+
+
 func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	var rings: Array[MeshInstance3D] = []
 	for candidate in module.find_children("*", "MeshInstance3D", true, false):
@@ -823,14 +916,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 907,
+			"descendant_nodes": 908,
 			"mesh_instance_nodes": 418,
-			"multimesh_nodes": 2,
-			"surfaces": 420,
+			"multimesh_nodes": 3,
+			"surfaces": 409,
 			"visible_copies": 438,
 		}
 		and _renderer_census(module) == renderer_before,
-		"module renderer census stays exact at 907 descendants, 420 surfaces, and 438 visible copies"
+		"module renderer census stays exact at 908 descendants, 409 submissions, and 438 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before
@@ -991,11 +1084,13 @@ func _renderer_census(module: Node) -> Dictionary:
 	var meshes := module.find_children("*", "MeshInstance3D", true, false)
 	var batches := module.find_children("*", "MultiMeshInstance3D", true, false)
 	var surfaces := 0
-	var visible_copies := meshes.size()
+	var visible_copies := 0
 	for candidate in meshes:
-		var mesh := (candidate as MeshInstance3D).mesh
-		if mesh != null:
+		var instance := candidate as MeshInstance3D
+		var mesh := instance.mesh
+		if mesh != null and instance.is_visible_in_tree():
 			surfaces += mesh.get_surface_count()
+			visible_copies += 1
 	for candidate in batches:
 		var multi := (candidate as MultiMeshInstance3D).multimesh
 		if multi == null or multi.mesh == null:

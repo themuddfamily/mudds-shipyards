@@ -115,6 +115,9 @@ const CATWALK_LADDER_HOOP_INNER_RADIUS := 0.42
 const CATWALK_LADDER_HOOP_OUTER_RADIUS := 0.52
 const CATWALK_LADDER_HOOP_RINGS := 48
 const CATWALK_LADDER_HOOP_RING_SEGMENTS := 12
+const CATWALK_LADDER_RUNG_COPY_COUNT := 12
+const CATWALK_LADDER_RUNG_SIZE := Vector3(0.08, 0.05, 0.9)
+const CATWALK_LADDER_RUNG_SUBMISSIONS_BEFORE := 12
 
 ## Eighteen named, light-owning guide lenses keep their authored transforms and
 ## individual colour materials. Only their identical, one-surface sphere mesh is
@@ -220,6 +223,8 @@ var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
 var _catwalk_ladder_hoop_mesh: TorusMesh
+var _catwalk_ladder_rung_batch: MultiMeshInstance3D
+var _catwalk_ladder_rung_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
@@ -666,6 +671,91 @@ func get_dock_guide_batch_contract() -> Dictionary:
 		"census_before": DOCK_GUIDE_BATCH_CENSUS_BEFORE.duplicate(true),
 		"census_after": DOCK_GUIDE_BATCH_CENSUS_AFTER.duplicate(true),
 	}
+
+
+func get_catwalk_ladder_rung_batch_contract() -> Dictionary:
+	var errors := PackedStringArray()
+	var access := get_node_or_null(^"GantryAccess") as Node3D
+	var anchor_paths := PackedStringArray()
+	var anchors_exact := access != null
+	for index in CATWALK_LADDER_RUNG_COPY_COUNT:
+		var rung := (
+			access.get_node_or_null(NodePath("CatwalkLadderRung%02d" % (index + 1))) as MeshInstance3D
+			if access != null else null
+		)
+		if rung == null:
+			anchors_exact = false
+			continue
+		anchor_paths.append(String(get_path_to(rung)))
+		var expected := Transform3D(
+			Basis.IDENTITY,
+			Vector3(-14.62, 0.6 + float(index), CATWALK_CENTER_Z + 0.05)
+		)
+		anchors_exact = (
+			anchors_exact
+			and rung.transform.is_equal_approx(expected)
+			and not rung.visible
+			and rung.mesh != null
+			and rung.mesh.get_aabb().size.is_equal_approx(CATWALK_LADDER_RUNG_SIZE)
+			and rung.material_override == _materials.get("ceramic")
+			and rung.get_child_count() == 0
+			and rung.get_script() == null
+			and rung.get_groups().is_empty()
+		)
+	var authored := (
+		_catwalk_ladder_rung_batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(_catwalk_ladder_rung_batch) else []
+	)
+	var batch_exact: bool = (
+		is_instance_valid(_catwalk_ladder_rung_batch)
+		and _catwalk_ladder_rung_batch.multimesh != null
+		and _catwalk_ladder_rung_batch.multimesh.instance_count == CATWALK_LADDER_RUNG_COPY_COUNT
+		and _catwalk_ladder_rung_batch.multimesh.mesh != null
+		and _catwalk_ladder_rung_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			CATWALK_LADDER_RUNG_SIZE
+		)
+		and _catwalk_ladder_rung_batch.material_override == _materials.get("ceramic")
+		and authored.size() == CATWALK_LADDER_RUNG_COPY_COUNT
+		and _catwalk_ladder_rung_batch.get_child_count() == 0
+		and _catwalk_ladder_rung_batch.get_script() == null
+		and _catwalk_ladder_rung_batch.get_groups().is_empty()
+		and bool(_catwalk_ladder_rung_batch.get_meta("visual_detail_only", false))
+		and StringName(_catwalk_ladder_rung_batch.get_meta("visual_batch_family_id", &""))
+			== &"catwalk-ladder-rungs"
+	)
+	for index in mini(authored.size(), _catwalk_ladder_rung_transforms.size()):
+		batch_exact = batch_exact and (authored[index] as Transform3D).is_equal_approx(
+			_catwalk_ladder_rung_transforms[index]
+		)
+	if not anchors_exact:
+		errors.append("catwalk_ladder_rung_anchor_roster_drift")
+	if not batch_exact:
+		errors.append("catwalk_ladder_rung_batch_payload_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_freight_berth_catwalk_ladder_rungs",
+		"legacy": {
+			"renderer_submissions": CATWALK_LADDER_RUNG_SUBMISSIONS_BEFORE,
+			"visible_copies": CATWALK_LADDER_RUNG_COPY_COUNT,
+			"anchor_nodes": CATWALK_LADDER_RUNG_COPY_COUNT,
+		},
+		"current": {
+			"renderer_submissions": 1 if batch_exact else 0,
+			"visible_copies": _catwalk_ladder_rung_transforms.size(),
+			"anchor_nodes": anchor_paths.size(),
+		},
+		"reductions": {
+			"renderer_submissions": CATWALK_LADDER_RUNG_SUBMISSIONS_BEFORE - 1,
+			"visible_copies": 0,
+			"anchor_nodes": 0,
+		},
+		"anchor_paths": anchor_paths,
+		"authored_transforms": _catwalk_ladder_rung_transforms.duplicate(),
+		"collision_authority": false,
+		"route_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
 
 
 ## Renderer-independent retained-resource audit for the four childless gantry
@@ -1176,8 +1266,14 @@ func get_performance_contract() -> Dictionary:
 	})
 	contract["schema_version"] = SCHEMA_VERSION
 	var hoop_sharing := get_catwalk_ladder_hoop_visual_allocation_audit()
+	var rung_batching := get_catwalk_ladder_rung_batch_contract()
 	contract["catwalk_ladder_hoop_visual_sharing"] = hoop_sharing
-	contract["within_budget"] = bool(contract.within_budget) and bool(hoop_sharing.valid)
+	contract["catwalk_ladder_rung_batching"] = rung_batching
+	contract["within_budget"] = (
+		bool(contract.within_budget)
+		and bool(hoop_sharing.valid)
+		and bool(rung_batching.valid)
+	)
 	return contract
 
 
@@ -2242,15 +2338,28 @@ func _build_gantry_access() -> void:
 			_materials["steel_blue"]
 		)
 		_register_handling_fixture(stringer, &"catwalk-ladder-stringer")
-	for rung_index in 12:
-		_rounded_box(
+	_catwalk_ladder_rung_transforms.clear()
+	for rung_index in CATWALK_LADDER_RUNG_COPY_COUNT:
+		var rung_anchor := _rounded_box(
 			access,
 			"CatwalkLadderRung%02d" % (rung_index + 1),
 			Vector3(-14.62, 0.6 + float(rung_index) * 1.0, CATWALK_CENTER_Z + 0.05),
-			Vector3(0.08, 0.05, 0.9),
+			CATWALK_LADDER_RUNG_SIZE,
 			_materials["ceramic"],
 			false
-		)
+		) as MeshInstance3D
+		_catwalk_ladder_rung_transforms.append(rung_anchor.transform)
+		# Preserve every stable rung path, transform, mesh and material handle as
+		# a hidden inspection anchor; the batch owns the visible copies.
+		rung_anchor.visible = false
+	_catwalk_ladder_rung_batch = _multimesh_rounded_boxes(
+		access,
+		"CatwalkLadderRungs",
+		CATWALK_LADDER_RUNG_SIZE,
+		_materials["ceramic"],
+		_catwalk_ladder_rung_transforms,
+		&"catwalk-ladder-rungs"
+	)
 	_catwalk_ladder_hoop_mesh = _torus_mesh(
 		CATWALK_LADDER_HOOP_INNER_RADIUS,
 		CATWALK_LADDER_HOOP_OUTER_RADIUS,
