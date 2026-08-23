@@ -22,12 +22,29 @@ var _optional_receipt: Dictionary = {}
 func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 	if adapter == null:
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
+	var adapter_state := StringName(
+		(adapter.call(&"get_snapshot") as Dictionary).get("state", &"")
+	) if adapter.has_method(&"get_snapshot") else &""
+	var restarted: Dictionary = {}
+	if adapter_state == &"completed" and adapter.has_method(&"repeat_activity"):
+		restarted = adapter.call(&"repeat_activity", ACTIVITY_ID)
+	elif adapter_state == &"failed" and adapter.has_method(&"retry_activity"):
+		restarted = adapter.call(&"retry_activity", ACTIVITY_ID)
+	if not restarted.is_empty():
+		if bool(restarted.get("accepted", false)):
+			_reconcile_optional_checkpoint_generation(adapter)
+		return restarted
 	var ids: Array[StringName] = [ACTIVITY_ID]
+	var started: Dictionary
 	if navigation != null and adapter.has_method(&"start_surface_activity_sequence"):
-		return adapter.call(&"start_surface_activity_sequence", ids, navigation)
-	if not adapter.has_method(&"start_activity_sequence"):
+		started = adapter.call(&"start_surface_activity_sequence", ids, navigation)
+	elif adapter.has_method(&"start_activity_sequence"):
+		started = adapter.call(&"start_activity_sequence", ids)
+	else:
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
-	return adapter.call(&"start_activity_sequence", ids)
+	if bool(started.get("accepted", false)):
+		_reconcile_optional_checkpoint_generation(adapter)
+	return started
 
 func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"submit_activity_landmark_discovery") \
@@ -49,6 +66,7 @@ func commit_reward(adapter: Object) -> Dictionary:
 func submit_optional_checkpoint(adapter: Object, receipt: Variant) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"get_snapshot") or not receipt is Dictionary:
 		return _checkpoint_result(false, &"invalid_optional_checkpoint_evidence", adapter)
+	_reconcile_optional_checkpoint_generation(adapter)
 	if _optional_checkpoint_completed:
 		return _checkpoint_result(false, &"optional_checkpoint_already_completed", adapter)
 	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
@@ -147,6 +165,7 @@ func get_snapshot(adapter: Object = null) -> Dictionary:
 
 
 func _optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
+	_reconcile_optional_checkpoint_generation(adapter)
 	var eligible := false
 	var current_activity_generation := -1
 	if adapter != null and adapter.has_method(&"get_snapshot"):
@@ -180,6 +199,26 @@ func _optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
 		"interpretation_status": &"modern_interpretation",
 		"authority": {"route": false, "reward": false, "activity_start": false},
 	}.duplicate(true)
+
+
+func _reconcile_optional_checkpoint_generation(adapter: Object) -> void:
+	if not _optional_checkpoint_completed or adapter == null \
+			or not adapter.has_method(&"get_snapshot"):
+		return
+	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
+	if StringName(adapter_snapshot.get("state", &"")) != &"active" \
+			or StringName(runtime.get("state", &"")) != &"active" \
+			or StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID:
+		return
+	var current_activity_generation := int(runtime.get("activity_generation", -1))
+	if current_activity_generation <= _optional_activity_generation:
+		return
+	_optional_checkpoint_completed = false
+	_optional_activity_generation = -1
+	_optional_run_generation = -1
+	_optional_attachment_generation = -1
+	_optional_receipt = {}
 
 
 func _checkpoint_result(accepted: bool, reason: StringName, adapter: Object) -> Dictionary:

@@ -118,6 +118,19 @@ func _run() -> void:
 			and not bool(after_restore.relay_survey.optional_checkpoint.authority.reward),
 		"the saved optional checkpoint restores without gaining route or reward authority"
 	)
+	var next_run: Dictionary = binding.call(&"start_relay_survey")
+	var next_run_snapshot := binding.call(&"get_snapshot") as Dictionary
+	_check(
+		bool(next_run.accepted)
+			and int(next_run_snapshot.relay_survey.optional_checkpoint.current_activity_generation) == 2
+			and not bool(next_run_snapshot.relay_survey.optional_checkpoint.completed)
+			and next_run_snapshot.relay_survey.optional_checkpoint.status == &"available"
+			and next_run_snapshot.relay_survey_presentation.hud.progress_text \
+				== "OPTIONAL BUNKER LOG  0 / 1"
+			and bool(next_run_snapshot.survey_interaction.completed)
+			and _reward_calls == 1,
+		"a genuinely newer relay-survey generation clears run N optional progress"
+	)
 
 	var standalone_actor := Node3D.new()
 	root.add_child(standalone_actor)
