@@ -184,6 +184,16 @@ func _test_green_runtime_contract(presentation: CentralBerthHeroPresentation) ->
 	)
 	var deck_meshes := presentation.get_semantic_root(&"deck_panels").find_children("*", "MeshInstance3D", true, false)
 	_check(deck_meshes.size() == 1 and _mesh_has_uv0((deck_meshes[0] as MeshInstance3D).mesh), "batched deck skin retains non-collapsed runtime TEXCOORD_0")
+	var deck_mesh := deck_meshes[0] as MeshInstance3D if deck_meshes.size() == 1 else null
+	if deck_mesh != null and deck_mesh.mesh != null:
+		var deck_bounds := (deck_mesh.global_transform * deck_mesh.mesh.get_aabb()).abs()
+		_check(
+			deck_bounds.position.x >= -12.252 and deck_bounds.end.x <= 12.252
+			and deck_bounds.position.z >= -27.252 and deck_bounds.end.z <= 7.252,
+			"DeckComposite terminates inside the EdgeIvory fascia rim without coplanar overlap"
+		)
+	else:
+		_check(false, "DeckComposite mesh resolves for the fascia-clearance check")
 	_check(
 		is_equal_approx(presentation.get_runtime_material(&"EdgeIvory").metallic, 0.18)
 		and is_equal_approx(presentation.get_runtime_material(&"StructuralAlloy").metallic, 0.72)

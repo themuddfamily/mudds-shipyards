@@ -268,7 +268,10 @@ def build_authored_source(source_collection: bpy.types.Collection) -> bpy.types.
     # while retaining an exact flush top.  Side strips close the walking skin to
     # the established shell without moving the outer fascia envelope.
     x_bands = [(-8.0, 7.5), (0.0, 7.8), (8.0, 7.5)]
-    z_bands = [(-24.20, 6.70), (-17.25, 6.70), (-10.0, 7.30), (-2.75, 6.70), (4.20, 6.70)]
+    # The deck skin stops inside the fascia's inner perimeter. The old forward
+    # and aft cassettes (and all four margin strips) shared the fascia's flush
+    # top plane, producing a visible z-fight at grazing camera angles.
+    z_bands = [(-23.85, 6.00), (-17.25, 6.70), (-10.0, 7.30), (-2.75, 6.70), (3.85, 6.00)]
     for x_index, (x, width) in enumerate(x_bands):
         for z_index, (z, depth) in enumerate(z_bands):
             box_part(
@@ -276,14 +279,16 @@ def build_authored_source(source_collection: bpy.types.Collection) -> bpy.types.
                 (x, 0.045, z), (width, 0.10, depth),
                 "deck_panels", "DeckComposite", semantic_parents["deck_panels"], 0.025,
             )
-    for side, x in (("Port", -12.325), ("Starboard", 12.325)):
+    # Keep the side strips clear of both the fascia and the end strips; all
+    # pieces now meet only at boundaries instead of occupying the same top face.
+    for side, x in (("Port", -12.025), ("Starboard", 12.025)):
         box_part(
-            f"{side}DeckMargin", (x, 0.045, -10.0), (0.35, 0.10, 34.5),
+            f"{side}DeckMargin", (x, 0.045, -10.0), (0.35, 0.10, 33.7),
             "deck_panels", "DeckComposite", semantic_parents["deck_panels"], 0.018,
         )
-    for end, z in (("Forward", -27.325), ("Aft", 7.325)):
+    for end, z in (("Forward", -27.025), ("Aft", 7.025)):
         box_part(
-            f"{end}DeckMargin", (0.0, 0.045, z), (24.3, 0.10, 0.35),
+            f"{end}DeckMargin", (0.0, 0.045, z), (23.5, 0.10, 0.35),
             "deck_panels", "DeckComposite", semantic_parents["deck_panels"], 0.018,
         )
 
