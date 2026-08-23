@@ -63,11 +63,18 @@ func get_snapshot() -> Dictionary:
 ## integrity range; no stage, health, damage, or repair state is written back.
 func present_hero_report(report: Dictionary) -> Dictionary:
 	var worst: Dictionary = {}
+	var repairing_component_id := StringName(report.get("repairing_component_id", &""))
 	for raw_component in report.get("components", []) as Array:
 		if not raw_component is Dictionary:
 			continue
 		var component := raw_component as Dictionary
 		var integrity := clampf(float(component.get("integrity", 0.0)), 0.0, 1.0)
+		if (
+			not repairing_component_id.is_empty()
+			and StringName(component.get("id", &"")) == repairing_component_id
+		):
+			worst = component
+			break
 		if worst.is_empty() or integrity < float(worst.get("integrity", 2.0)):
 			worst = component
 	if not bool(report.get("configured", false)) or worst.is_empty():
@@ -77,7 +84,10 @@ func present_hero_report(report: Dictionary) -> Dictionary:
 	var integrity := clampf(float(worst.get("integrity", 0.0)), 0.0, 1.0)
 	var authoritative_stage := StringName(worst.get("state_id", &"failed"))
 	var wording := &"nominal"
-	if authoritative_stage == &"failed":
+	var repairing := component_id == repairing_component_id and integrity < 1.0
+	if repairing:
+		wording = &"repairing"
+	elif authoritative_stage == &"failed":
 		wording = &"failed"
 	elif integrity <= CRITICAL_INTEGRITY_THRESHOLD:
 		wording = &"critical"
@@ -98,6 +108,7 @@ func present_hero_report(report: Dictionary) -> Dictionary:
 		"percentage": percentage,
 		"authoritative_stage": authoritative_stage,
 		"wording": wording,
+		"repairing": repairing,
 		"presentation_only": true,
 		"authority": false,
 	}.duplicate(true)

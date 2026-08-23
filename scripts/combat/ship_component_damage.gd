@@ -70,6 +70,7 @@ const _LEDGER_STAGES := [
 ]
 
 signal component_state_changed(component_id: StringName, state: int, integrity: float)
+signal component_repair_committed(progress: Dictionary)
 signal components_restored()
 
 @export_range(0.05, 8.0, 0.01) var repair_rate_per_second := 0.62
@@ -297,6 +298,20 @@ func _tick_repair_components(
 	report["accepted"] = true
 	report["repaired_components"] = contexts.size()
 	report["revision"] = _revision
+	var repaired_states: Array[Dictionary] = []
+	for context in contexts:
+		var component_id := StringName(context.get("component_id", &""))
+		repaired_states.append({
+			"component_id": component_id,
+			"integrity": get_component_integrity(component_id),
+			"state_id": state_id_for(get_component_state(component_id)),
+		})
+	component_repair_committed.emit({
+		"generation": _ledger.get_generation(),
+		"revision": _revision,
+		"component_count": repaired_states.size(),
+		"components": repaired_states.duplicate(true),
+	}.duplicate(true))
 	return report
 
 

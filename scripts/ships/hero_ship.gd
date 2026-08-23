@@ -19,6 +19,7 @@ signal canopy_motion_finished(open: bool)
 signal camera_view_changed(view: StringName)
 signal damage_stage_changed(stage: int, status: StringName)
 signal component_damage_changed(component_id: StringName, state: int, integrity: float)
+signal component_repair_progressed(progress: Dictionary)
 signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
 signal planetary_cruise_state_changed(snapshot: Dictionary)
 
@@ -3670,6 +3671,8 @@ func _ensure_component_damage() -> void:
 		add_child(_component_damage)
 	if not _component_damage.component_state_changed.is_connected(_on_component_state_changed):
 		_component_damage.component_state_changed.connect(_on_component_state_changed)
+	if not _component_damage.component_repair_committed.is_connected(_on_component_repair_committed):
+		_component_damage.component_repair_committed.connect(_on_component_repair_committed)
 	var collision_report := get_landing_collision_report()
 	var local_bounds: AABB = collision_report.get("local_bounds", AABB())
 	if not bool(collision_report.get("valid", false)):
@@ -3786,6 +3789,10 @@ func _on_component_state_changed(
 		integrity: float
 	) -> void:
 	component_damage_changed.emit(component_id, state, integrity)
+
+
+func _on_component_repair_committed(progress: Dictionary) -> void:
+	component_repair_progressed.emit(progress.duplicate(true))
 
 
 func _sync_damage_presentation() -> void:

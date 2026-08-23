@@ -9,6 +9,7 @@ var _hud_reference: WeakRef
 var _ship_reference: WeakRef
 var _presentation_requested := false
 var _tree_suspended := false
+var _repairing_component_id: StringName = &""
 
 
 func attach(hud: Node, ship: Node) -> bool:
@@ -23,6 +24,8 @@ func attach(hud: Node, ship: Node) -> bool:
 	_hud_reference = weakref(hud)
 	_ship_reference = weakref(ship)
 	ship.connect(&"component_damage_changed", _on_component_damage_changed)
+	if ship.has_signal("component_repair_progressed"):
+		ship.connect(&"component_repair_progressed", _on_component_repair_progressed)
 	if ship.has_signal("hull_changed"):
 		ship.connect(&"hull_changed", _on_hull_changed)
 	ship.connect(&"tree_exiting", _on_ship_tree_exiting)
@@ -34,6 +37,7 @@ func detach() -> void:
 	var ship := _get_ship()
 	if is_instance_valid(ship):
 		_disconnect_if_connected(ship, &"component_damage_changed", _on_component_damage_changed)
+		_disconnect_if_connected(ship, &"component_repair_progressed", _on_component_repair_progressed)
 		_disconnect_if_connected(ship, &"hull_changed", _on_hull_changed)
 		_disconnect_if_connected(ship, &"tree_exiting", _on_ship_tree_exiting)
 		_disconnect_if_connected(ship, &"tree_entered", _on_ship_tree_entered)
@@ -42,6 +46,7 @@ func detach() -> void:
 	_ship_reference = null
 	_presentation_requested = false
 	_tree_suspended = false
+	_repairing_component_id = &""
 
 
 func set_presenting(enabled: bool) -> void:
@@ -76,7 +81,10 @@ func refresh() -> bool:
 	):
 		_clear_hud()
 		return false
-	hud.call("_present_bound_hero_component_report", ship.call("get_component_damage_report"))
+	var report := ship.call("get_component_damage_report") as Dictionary
+	if not _repairing_component_id.is_empty():
+		report["repairing_component_id"] = _repairing_component_id
+	hud.call("_present_bound_hero_component_report", report)
 	return true
 
 
@@ -90,12 +98,29 @@ func get_bound_ship_instance_id() -> int:
 
 
 func _on_component_damage_changed(_component_id: StringName, _state: int, _integrity: float) -> void:
+	_repairing_component_id = &""
 	refresh()
 
 
 func _on_hull_changed(_current: float, _maximum: float) -> void:
 	# Hull remains unrelated authority; its signal is only a reliable notification
 	# that a localized component observation has just committed at finer-than-stage cadence.
+	_repairing_component_id = &""
+	refresh()
+
+
+func _on_component_repair_progressed(progress: Dictionary) -> void:
+	var worst_integrity := 2.0
+	var repaired_component: StringName = &""
+	for raw_component in progress.get("components", []) as Array:
+		if not raw_component is Dictionary:
+			continue
+		var component := raw_component as Dictionary
+		var integrity := clampf(float(component.get("integrity", 0.0)), 0.0, 1.0)
+		if integrity < worst_integrity:
+			worst_integrity = integrity
+			repaired_component = StringName(component.get("component_id", &""))
+	_repairing_component_id = repaired_component if worst_integrity < 1.0 else &""
 	refresh()
 
 
