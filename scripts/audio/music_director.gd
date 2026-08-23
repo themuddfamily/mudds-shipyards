@@ -1,6 +1,8 @@
 class_name MusicDirector
 extends Node
 
+signal semantic_music_cue_emitted(cue_id: StringName, intensity: float)
+
 ## Presentation-only bridge for already-decided session and phase signals.
 ##
 ## MusicDirector never reads gameplay state, emits gameplay commands, or owns
@@ -27,6 +29,7 @@ const OBSERVED_PHASES: Array[StringName] = [
 ]
 const OBSERVED_SESSION_STATES: Array[StringName] = [&"rest", &"flight", &"combat"]
 const MAX_COMBAT_INTENSITY := 1.0
+const SEMANTIC_THRESHOLD := 0.25
 
 var _transition := Transition.new()
 var _last_observation: StringName = &"station"
@@ -67,7 +70,12 @@ func advance(delta_seconds: float) -> bool:
 func set_combat_intensity(intensity: float) -> Dictionary:
 	if not is_finite(intensity) or intensity < 0.0 or intensity > MAX_COMBAT_INTENSITY:
 		return _rejected(&"invalid_combat_intensity")
+	var previous_intensity := _combat_intensity
 	_combat_intensity = intensity
+	if intensity >= SEMANTIC_THRESHOLD and previous_intensity < SEMANTIC_THRESHOLD:
+		semantic_music_cue_emitted.emit(&"music_combat_tension", intensity)
+	elif intensity < SEMANTIC_THRESHOLD and previous_intensity >= SEMANTIC_THRESHOLD:
+		semantic_music_cue_emitted.emit(&"music_combat_tension_end", intensity)
 	return {
 		"accepted": true,
 		"reason": &"combat_intensity_recorded",
@@ -130,6 +138,13 @@ func _accept_observation(state: StringName, observation: StringName) -> Dictiona
 	result["observation"] = observation
 	result["session_state"] = _session_state_for(state)
 	result["presentation_only"] = true
+	var previous_state := StringName(transition.get("previous_state", &""))
+	if state == Transition.STATE_LANDING and previous_state != state:
+		semantic_music_cue_emitted.emit(&"music_landing", 1.0)
+	elif state == Transition.STATE_COMBAT and previous_state != state:
+		semantic_music_cue_emitted.emit(&"music_combat", 1.0)
+	elif state == Transition.STATE_STATION and previous_state != state:
+		semantic_music_cue_emitted.emit(&"music_return_station", 1.0)
 	return result
 
 

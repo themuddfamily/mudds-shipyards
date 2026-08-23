@@ -19,6 +19,7 @@ const MusicDirectorType := preload("res://scripts/audio/music_director.gd")
 ## observe this; nothing in gameplay does. It fires from the component's own
 ## bookkeeping, so it stays correct under the Dummy driver.
 signal layer_state_changed(layer_id: StringName, active: bool)
+signal semantic_music_cue_emitted(cue_id: StringName, intensity: float)
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"station-music-bed"
@@ -220,6 +221,7 @@ func _ready() -> void:
 	_music_director = MusicDirectorType.new()
 	_music_director.name = "MusicDirector"
 	add_child(_music_director)
+	_music_director.semantic_music_cue_emitted.connect(_on_semantic_music_cue)
 	add_to_group(&"station_music_bed", false)
 	_initialized = true
 	_apply_session_targets()
@@ -640,6 +642,10 @@ func _apply_session_targets() -> void:
 	var resolved := _resolve_targets()
 	for layer_id in LAYER_IDS:
 		_targets[layer_id] = float(resolved[layer_id])
+
+
+func _on_semantic_music_cue(cue_id: StringName, intensity: float) -> void:
+	semantic_music_cue_emitted.emit(cue_id, intensity)
 
 
 func _resolve_targets() -> Dictionary:
