@@ -29,6 +29,7 @@ var _nominal_color := CYAN
 var _caution_color := AMBER
 var _danger_color := RED
 var _muted_color := MUTED
+var _offscreen_marker: Dictionary = {}
 
 
 func _ready() -> void:
@@ -73,6 +74,7 @@ func set_palette(palette: Dictionary) -> bool:
 
 func clear() -> void:
 	_snapshot.clear()
+	_offscreen_marker.clear()
 	_warnings.clear()
 	_revision += 1
 	queue_redraw()
@@ -225,12 +227,84 @@ func _draw() -> void:
 		])
 		draw_colored_polygon(arrow, _nominal_color)
 	_draw_frame(center, radius)
+	_draw_offscreen_marker(center, radius)
+
+
+## Presents one caller-owned route/landing target that lies beyond the map
+## bounds. The marker is clamped inside the minimap's safe frame and carries
+## shape plus distance text, so colour and motion are optional enhancements.
+func present_offscreen_route_marker(
+	direction: Vector2, distance_m: float, route_kind: StringName, reduced_motion := false
+) -> Dictionary:
+	var presentation := get_offscreen_marker_presentation(
+		direction, distance_m, route_kind, reduced_motion
+	)
+	if not bool(presentation.get("accepted", false)):
+		return presentation
+	_offscreen_marker = presentation.duplicate(true)
+	queue_redraw()
+	return _offscreen_marker.duplicate(true)
+
+
+static func get_offscreen_marker_presentation(
+	direction: Vector2, distance_m: float, route_kind: StringName, reduced_motion := false
+) -> Dictionary:
+	if direction.is_zero_approx() or not direction.is_finite():
+		return {"accepted": false, "reason": &"invalid_direction"}
+	if not is_finite(distance_m) or distance_m < 0.0:
+		return {"accepted": false, "reason": &"invalid_distance"}
+	if route_kind not in [&"surface_route", &"landing"]:
+		return {"accepted": false, "reason": &"invalid_route_kind"}
+	return {
+		"accepted": true,
+		"direction": direction.normalized(),
+		"distance_m": distance_m,
+		"route_kind": route_kind,
+		"marker": "△" if route_kind == &"landing" else ">>",
+		"reduced_motion": reduced_motion,
+		"presentation_only": true,
+	}
 
 
 func _draw_frame(center: Vector2, radius: float) -> void:
 	draw_arc(center, radius, 0.0, TAU, 64, Color(INK, 0.95), 5.0, true)
 	draw_arc(center, radius, 0.0, TAU, 64, _nominal_color, 1.5, true)
 	draw_string(ThemeDB.fallback_font, center + Vector2(-6.0, -radius + 17.0), "N", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12, _nominal_color)
+
+
+func _draw_offscreen_marker(center: Vector2, radius: float) -> void:
+	if _offscreen_marker.is_empty():
+		return
+	var direction := _offscreen_marker.direction as Vector2
+	var point := center + direction * maxf(radius - 14.0, 1.0)
+	var route_kind := StringName(_offscreen_marker.route_kind)
+	var marker_color := _caution_color if route_kind == &"landing" else _nominal_color
+	if route_kind == &"landing":
+		var triangle := PackedVector2Array([
+			point + Vector2(0.0, -7.0),
+			point + Vector2(6.0, 5.0),
+			point + Vector2(-6.0, 5.0),
+		])
+		draw_colored_polygon(triangle, marker_color)
+	else:
+		var side := direction.orthogonal() * 5.0
+		var arrow := PackedVector2Array([
+			point + direction * 7.0,
+			point - direction * 5.0 + side,
+			point - direction * 1.0,
+			point - direction * 5.0 - side,
+		])
+		draw_colored_polygon(arrow, marker_color)
+	var distance_text := "%s  %.0f M" % [_offscreen_marker.marker, float(_offscreen_marker.distance_m)]
+	draw_string(
+		ThemeDB.fallback_font,
+		point + Vector2(-30.0, 22.0),
+		distance_text,
+		HORIZONTAL_ALIGNMENT_CENTER,
+		60.0,
+		10,
+		marker_color
+	)
 
 
 func _project(world_position: Vector2, center: Vector2, radius: float) -> Vector2:
