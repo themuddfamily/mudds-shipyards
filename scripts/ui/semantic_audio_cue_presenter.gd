@@ -23,6 +23,8 @@ const REGISTERED_CUES := {
 	&"disembark_confirmed": {"caption": "Disembark confirmed", "default_severity": &"low"},
 	&"surface_entry_severe": {"caption": "Severe surface entry", "default_severity": &"high"},
 	&"surface_entry_clear": {"caption": "Surface entry clear", "default_severity": &"low"},
+	&"surface_touchdown": {"caption": "Surface touchdown", "default_severity": &"medium"},
+	&"surface_departure": {"caption": "Surface departure", "default_severity": &"medium"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

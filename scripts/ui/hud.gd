@@ -68,6 +68,8 @@ const CAPTION_CUES := {
 	&"disembark_confirmed": [&"system", "Boarding computer", "[ disembark confirmed ]", 55],
 	&"surface_entry_severe": [&"system", "Entry guidance", "[ severe surface entry ]", 95],
 	&"surface_entry_clear": [&"system", "Entry guidance", "[ surface entry clear ]", 45],
+	&"surface_touchdown": [&"system", "Surface guidance", "[ surface touchdown ]", 70],
+	&"surface_departure": [&"system", "Surface guidance", "[ surface departure ]", 70],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
