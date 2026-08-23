@@ -47,6 +47,8 @@ func _run() -> void:
 	)
 	var interaction := binding.get_node("OwnedSurveyBunkerInteraction") as Area3D
 	var marker := interaction.get_node("SurveyLogPedestal") as MeshInstance3D
+	var lintel_mesh := marker.mesh as PrismMesh
+	var interaction_shape := interaction.get_node("SurveyInteractionShape") as CollisionShape3D
 	var ready := binding.call(&"get_snapshot") as Dictionary
 	var ready_wayfinding := ready.survey_interaction.wayfinding as Dictionary
 	_check(
@@ -60,8 +62,14 @@ func _run() -> void:
 			)
 			and (-marker.basis.z).normalized().is_equal_approx(EXPECTED_DIRECTION)
 			and marker.scale == Vector3(0.48, 1.9, 2.2)
-			and marker.position == Vector3(0.0, 1.1, 0.0),
-		"the reused pedestal is a tall directional blade aligned to the bunker door"
+			and marker.position == Vector3(0.0, 1.1, 0.0)
+			and lintel_mesh != null
+			and lintel_mesh.size == Vector3(0.72, 1.15, 0.72)
+			and interaction_shape.shape is SphereShape3D
+			and is_equal_approx(
+				(interaction_shape.shape as SphereShape3D).radius, 0.65
+			),
+		"the bevelled retained mesh remains a tall directional access blade"
 	)
 
 	var completed: Dictionary = interaction.call(
@@ -70,18 +78,38 @@ func _run() -> void:
 	var deployed := binding.call(&"get_snapshot") as Dictionary
 	var entry_wayfinding := deployed.survey_interaction.wayfinding as Dictionary
 	var alcove := interaction.get_node("OwnedBunkerServiceAlcove") as StaticBody3D
+	var structural_profile := entry_wayfinding.structural_profile as Dictionary
+	var roof_collision := alcove.get_node("RoofCollision") as CollisionShape3D
+	var port_collision := alcove.get_node("PortWallCollision") as CollisionShape3D
+	var starboard_collision := alcove.get_node("StarboardWallCollision") as CollisionShape3D
+	var response_length := float(
+		deployed.survey_interaction.completion_response.length_m
+	)
 	_check(
 		bool(completed.accepted) and bool(entry_wayfinding.visible)
 			and entry_wayfinding.state == &"service_entry_lintel"
-			and entry_wayfinding.silhouette == &"overhead_service_entry_lintel"
+			and entry_wayfinding.silhouette \
+				== &"bevelled_overhead_service_entry_lintel"
+			and structural_profile.shape == &"prism_bevelled_lintel"
+			and structural_profile.bounds_m == Vector3(0.72, 1.15, 0.72)
+			and bool(structural_profile.bevelled_profile)
+			and not bool(structural_profile.collision_changed)
+			and int(structural_profile.triangle_count) > 0
+			and int(structural_profile.triangle_count) <= 12
 			and marker.scale == Vector3(2.2, 0.22, 0.7)
 			and is_equal_approx(marker.position.y, 2.35)
 			and marker.position.x < 0.0 and marker.position.z < 0.0
 			and alcove.collision_layer == 1
+			and (roof_collision.shape as BoxShape3D).size \
+				== Vector3(2.76, 0.18, response_length)
+			and (port_collision.shape as BoxShape3D).size \
+				== Vector3(0.18, 2.6, response_length)
+			and (starboard_collision.shape as BoxShape3D).size \
+				== Vector3(0.18, 2.6, response_length)
 			and not bool(entry_wayfinding.authority.collision)
 			and not bool(entry_wayfinding.authority.navigation)
 			and _reward_calls == 0,
-		"completion lowers the same mesh into a collision-free alcove entry lintel"
+		"completion lowers a bevelled lintel above the unchanged walkable alcove"
 	)
 
 	var detached: Dictionary = binding.call(&"detach")
@@ -97,7 +125,9 @@ func _run() -> void:
 			and bool(retained.survey_interaction.wayfinding.visible)
 			and retained.survey_interaction.wayfinding.state == &"service_entry_lintel"
 			and bool(retained.survey_interaction.completion_response.revealed)
-			and marker.scale == Vector3(2.2, 0.22, 0.7),
+			and marker.scale == Vector3(2.2, 0.22, 0.7)
+			and retained.survey_interaction.wayfinding.silhouette \
+				== &"bevelled_overhead_service_entry_lintel",
 		"detach hides and same-generation re-entry restores the completed wayfinding"
 	)
 
@@ -139,6 +169,7 @@ func _run() -> void:
 	)
 
 	var incremental := reset.survey_interaction.wayfinding.incremental_budget as Dictionary
+	var reset_profile := reset.survey_interaction.wayfinding.structural_profile as Dictionary
 	_check(
 		incremental == {
 			"nodes": 0, "mesh_instances": 0, "materials": 0,
@@ -146,6 +177,16 @@ func _run() -> void:
 		}
 			and reset.survey_interaction.wayfinding.reused_node \
 				== &"SurveyLogPedestal"
+			and int(reset_profile.triangle_count) \
+				== int(entry_wayfinding.structural_profile.triangle_count)
+			and int(reset_profile.triangle_count) == 8
+			and int(deployed.survey_interaction.completion_response.runtime_nodes) == 7
+			and int(deployed.survey_interaction.completion_response.mesh_instances) == 3
+			and int(deployed.survey_interaction.completion_response.collision_shapes) == 3
+			and int(deployed.survey_interaction.completion_response.triangles) == 36
+			and reset.survey_interaction.evidence.content_class == &"NEW"
+			and reset.survey_interaction.evidence.status == &"modern_interpretation"
+			and not bool(reset.survey_interaction.evidence.historical_claim)
 			and not bool(reset.survey_interaction.wayfinding.authority.movement)
 			and not bool(reset.survey_interaction.wayfinding.authority.activity)
 			and not bool(reset.survey_interaction.wayfinding.authority.reward),

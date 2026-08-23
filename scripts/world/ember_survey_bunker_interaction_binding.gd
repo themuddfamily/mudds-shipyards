@@ -26,6 +26,7 @@ const WAYFINDING_READY_SCALE := Vector3(0.48, 1.9, 2.2)
 const WAYFINDING_COMPLETE_SCALE := Vector3(2.2, 0.22, 0.7)
 const WAYFINDING_READY_POSITION := Vector3(0.0, 1.1, 0.0)
 const WAYFINDING_COMPLETE_HEIGHT_M := 2.35
+const WAYFINDING_LINTEL_SIZE_M := Vector3(0.72, 1.15, 0.72)
 
 var _host: Object
 var _host_generation := -1
@@ -66,8 +67,11 @@ func _ready() -> void:
 	add_child(shape_node)
 	_marker = MeshInstance3D.new()
 	_marker.name = "SurveyLogPedestal"
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.72, 1.15, 0.72)
+	# One retained prism serves both states: upright it is the access blade;
+	# after completion its stretched sloped profile becomes the overhead entry
+	# lintel. Its authored bounds exactly match the old rectangular box.
+	var mesh := PrismMesh.new()
+	mesh.size = WAYFINDING_LINTEL_SIZE_M
 	_marker.mesh = mesh
 	_marker.position = Vector3(0.0, 0.575, 0.0)
 	_material = StandardMaterial3D.new()
@@ -401,6 +405,7 @@ func _presentation_is_current() -> bool:
 
 func _wayfinding_snapshot() -> Dictionary:
 	var visible := _marker != null and _marker.visible
+	var lintel_mesh := _marker.mesh as PrismMesh if _marker != null else null
 	return {
 		"visible": visible,
 		"state": (&"service_entry_lintel" if _completed else &"survey_access_blade") \
@@ -410,7 +415,15 @@ func _wayfinding_snapshot() -> Dictionary:
 		"marker_local_position": _marker.position if _marker != null else Vector3.ZERO,
 		"marker_scale": _marker.scale if _marker != null else Vector3.ONE,
 		"silhouette": &"elongated_directional_blade" if not _completed \
-			else &"overhead_service_entry_lintel",
+			else &"bevelled_overhead_service_entry_lintel",
+		"structural_profile": {
+			"shape": &"prism_bevelled_lintel",
+			"bounds_m": lintel_mesh.size if lintel_mesh != null else Vector3.ZERO,
+			"triangle_count": int(lintel_mesh.get_faces().size() / 3) \
+				if lintel_mesh != null else 0,
+			"bevelled_profile": true,
+			"collision_changed": false,
+		},
 		"color_independent": true,
 		"gameplay_readability_distance_m": 24.0,
 		"reused_node": &"SurveyLogPedestal",
