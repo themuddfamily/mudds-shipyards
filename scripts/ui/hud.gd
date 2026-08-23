@@ -88,6 +88,13 @@ const CAPTION_CUES := {
 	&"boost_released": [&"system", "Flight computer", "[ boost released ]", 45],
 	&"thrust_load_engaged": [&"system", "Flight computer", "[ thrust load engaged ]", 70],
 	&"thrust_load_released": [&"system", "Flight computer", "[ thrust load released ]", 45],
+	&"activity_selected": [&"system", "Activity board", "[ {activity} selected ]", 45],
+	&"activity_started": [&"system", "Activity board", "[ {activity} started ]", 60],
+	&"activity_checkpoint": [&"system", "Activity board", "[ {activity} checkpoint reached ]", 65],
+	&"activity_progress": [&"system", "Activity board", "[ {activity} progress updated ]", 50],
+	&"activity_complete": [&"system", "Activity board", "[ {activity} complete ]", 75],
+	&"activity_reward_pending": [&"system", "Activity board", "[ {activity} reward pending ]", 70],
+	&"activity_reset": [&"system", "Activity board", "[ {activity} reset ]", 45],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
@@ -1765,6 +1772,26 @@ func caption_cue(cue_id: StringName) -> bool:
 		"category_id": StringName(cue[0]),
 		"speaker": str(cue[1]),
 		"text": str(cue[2]),
+		"duration_physics_seconds": CAPTION_DURATION_PHYSICS_SECONDS,
+		"priority": int(cue[3]),
+	})
+
+
+## Activity captions retain the single caption ingress while adding the
+## caller-supplied activity label. The label is presentation text only; the
+## activity owner remains responsible for state and reward authority.
+func caption_activity_cue(cue_id: StringName, activity_label: String) -> bool:
+	if not _captions_enabled or not CAPTION_CUES.has(cue_id):
+		return false
+	var cue := CAPTION_CUES[cue_id] as Array
+	var label := activity_label.strip_edges()
+	if label.is_empty():
+		label = "Activity"
+	return _submit_caption_request({
+		"cue_id": cue_id,
+		"category_id": StringName(cue[0]),
+		"speaker": str(cue[1]),
+		"text": str(cue[2]).replace("{activity}", label),
 		"duration_physics_seconds": CAPTION_DURATION_PHYSICS_SECONDS,
 		"priority": int(cue[3]),
 	})
