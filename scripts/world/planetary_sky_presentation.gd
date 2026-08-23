@@ -424,6 +424,31 @@ func get_audit_report() -> Dictionary:
 	return audit().duplicate(true)
 
 
+## Maps a retained caller-owned Ember solar phase into bounded presentation
+## hints. This never advances time or writes renderer resources.
+func present_solar_phase_snapshot(snapshot: Variant) -> Dictionary:
+	if not snapshot is Dictionary:
+		return _result(false, &"invalid_solar_phase_snapshot")
+	var phase := snapshot as Dictionary
+	var state := StringName(phase.get("state", &""))
+	if state not in [&"daylight", &"twilight", &"night"]:
+		return _result(false, &"invalid_solar_phase_state")
+	var elevation: Variant = phase.get("sun_elevation_sine", NAN)
+	var twilight: Variant = phase.get("twilight_factor_unitless", NAN)
+	if not (elevation is float or elevation is int) or not (twilight is float or twilight is int):
+		return _result(false, &"invalid_solar_phase_values")
+	var day_factor := clampf(float(elevation), 0.0, 1.0)
+	var twilight_factor := clampf(float(twilight), 0.0, 1.0)
+	var night_factor := 1.0 if state == &"night" else clampf(1.0 - day_factor - twilight_factor, 0.0, 1.0)
+	return _result(true, &"solar_phase_mapped", {
+		"state": state,
+		"sun_energy_unitless": day_factor,
+		"sky_exposure_unitless": clampf(0.16 + day_factor * 0.84 + twilight_factor * 0.16, 0.0, 1.0),
+		"night_visibility_unitless": clampf(0.35 + night_factor * 0.65, 0.0, 1.0),
+		"sun_color": Color(1.0, 0.62 + day_factor * 0.38, 0.32 + day_factor * 0.68, 1.0),
+	}).duplicate(true)
+
+
 func _build_observation(
 		altitude_m: float,
 		view: Vector3,
