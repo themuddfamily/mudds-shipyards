@@ -77,6 +77,8 @@ var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
 var _landing_jitter
 var _landing_replica_samples: Dictionary = {}
+var _damage_jitter
+var _damage_replica_samples: Dictionary = {}
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -118,6 +120,7 @@ func _init() -> void:
 	_snapshot_fragmenter = SnapshotFragmenter.new()
 	_projectile_jitter = SnapshotJitterBuffer.new()
 	_landing_jitter = SnapshotJitterBuffer.new()
+	_damage_jitter = SnapshotJitterBuffer.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -854,6 +857,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_projectile_jitter.reset(migration_generation)
 	_landing_replica_samples.clear()
 	_landing_jitter.reset(migration_generation)
+	_damage_replica_samples.clear()
+	_damage_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
@@ -1003,6 +1008,69 @@ func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dict
 
 func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
+
+
+## Presents damage/respawn state only; health mutation and lifecycle remain
+## server-owned. Delayed updates freeze the last known presentation.
+func consume_damage_respawn_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("damage") or not is_finite(alpha):
+		return _remember(_result(false, &"invalid_damage_snapshot"))
+	var damage_variant: Variant = packet.get("damage")
+	if not damage_variant is Dictionary:
+		return _remember(_result(false, &"invalid_damage_snapshot"))
+	var damage := damage_variant as Dictionary
+	var entity_id := StringName(damage.get("entity_id", &""))
+	var health := float(damage.get("health", NAN))
+	if entity_id.is_empty() or not is_finite(health):
+		return _remember(_result(false, &"invalid_damage_snapshot"))
+	var buffered: Dictionary = _damage_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+	var presented: Array = []
+	while true:
+		var ready: Dictionary = _damage_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var ready_variant: Variant = ready.get("damage")
+		if not ready_variant is Dictionary:
+			return _remember(_result(false, &"invalid_damage_snapshot"))
+		var ready_damage := ready_variant as Dictionary
+		var ready_id := StringName(ready_damage.get("entity_id", &""))
+		var ready_health := float(ready_damage.get("health", NAN))
+		if ready_id.is_empty() or not is_finite(ready_health):
+			return _remember(_result(false, &"invalid_damage_snapshot"))
+		var displayed_health := ready_health
+		var prior: Dictionary = _damage_replica_samples.get(ready_id, {})
+		if not prior.is_empty():
+			displayed_health = lerpf(float(prior.get("health", ready_health)), ready_health, clampf(alpha, 0.0, 1.0))
+		var state := StringName(ready_damage.get("state", &"active"))
+		_damage_replica_samples[ready_id] = {
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": int(ready.get("server_tick", 0)),
+			"health": displayed_health,
+			"state": state,
+		}
+		presented.append({
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": int(ready.get("server_tick", 0)),
+			"entity_id": ready_id,
+			"health": displayed_health,
+			"state": state,
+		})
+	if presented.is_empty():
+		var frozen: Array = []
+		for entity_variant in _damage_replica_samples.keys():
+			var sample: Dictionary = _damage_replica_samples[entity_variant] as Dictionary
+			frozen.append({
+				"revision": int(sample.get("revision", 0)),
+				"server_tick": int(sample.get("server_tick", 0)),
+				"entity_id": StringName(entity_variant),
+				"health": float(sample.get("health", 0.0)),
+				"state": sample.get("state", &"active"),
+			})
+		return _remember(_result(true, &"damage_waiting_for_gap", {"samples": frozen, "frozen": true}))
+	return _remember(_result(true, &"damage_presented", {"samples": presented}))
 
 
 ## Presents landing/support state only; landing acceptance and support remain
