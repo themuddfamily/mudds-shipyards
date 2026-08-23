@@ -29,6 +29,7 @@ func _run() -> void:
 	var session := SessionType.new()
 	var settings := SettingsType.new("user://game_flow_browser_controls_test.cfg")
 	settings.network_default_port = 28111
+	settings.multiplayer_max_players = 5
 	root.add_child(flow)
 	await process_frame
 	flow.hud = hud
@@ -41,6 +42,9 @@ func _run() -> void:
 	})
 	_check(hud.statuses.size() == 1 and hud.statuses[0].state == &"connected", "host intent uses the adapter host path")
 	_check(hud.feedback.size() == 1 and bool(hud.feedback[0].accepted), "host result returns normalized browser feedback")
+	_check(int(session.get_session_capacity_snapshot().max_players) == 5, "host uses the persisted multiplayer capacity")
+	settings.multiplayer_max_players = 12
+	_check(int(session.get_session_capacity_snapshot().max_players) == 5, "live capacity edits do not mutate an active session")
 	flow.shutdown_network_session(&"test_cleanup")
 	flow._on_hud_presentation_intent_requested(&"server_browser", {
 		"action": &"manual_join",

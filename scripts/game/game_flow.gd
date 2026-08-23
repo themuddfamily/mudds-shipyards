@@ -2130,7 +2130,8 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_publish_network_session_result(started, &"client")
 		&"host_session":
 			var host_port := int(payload.get("port", runtime_settings.network_default_port if runtime_settings != null else NetworkSessionAdapterType.DEFAULT_PORT))
-			var hosted := host_network_session(host_port)
+			var host_capacity := int(payload.get("max_clients", runtime_settings.multiplayer_max_players if runtime_settings != null else NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS))
+			var hosted := host_network_session(host_port, host_capacity)
 			_publish_server_browser_feedback(hosted)
 		&"manual_join":
 			var address := str(payload.get("address", "")).strip_edges()
