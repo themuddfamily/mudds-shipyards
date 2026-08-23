@@ -8735,6 +8735,10 @@ func _normalize_nearby_activity_audio_snapshot(snapshot: Dictionary) -> Dictiona
 				state = {
 					0: &"idle", 1: &"active", 2: &"completed", 3: &"reset",
 				}.get(int(raw_state), &"")
+			elif kind == &"mining":
+				state = {
+					0: &"idle", 1: &"active", 2: &"completed", 3: &"reset",
+				}.get(int(raw_state), &"")
 		if state in [&"idle", &"selected", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
 			if state in [&"idle", &"selected"]:
 				if fallback.is_empty():
@@ -8850,6 +8854,19 @@ func _build_nearby_activity_audio_snapshot(
 						&"failed" if state in [&"failed", &"aborted", &"expired"] else &"active"
 					)
 				)
+		elif StringName(candidate.get("kind", &"")) == &"mining":
+			var elapsed: Variant = value.get("elapsed_seconds", null)
+			var duration: Variant = value.get("extraction_seconds", null)
+			var reward_requested: Variant = value.get("reward_requested", null)
+			if (elapsed is float or elapsed is int) and is_finite(float(elapsed)) \
+					and float(elapsed) >= 0.0 \
+					and (duration is float or duration is int) and is_finite(float(duration)) \
+					and float(duration) > 0.0 and float(duration) <= 86_400.0 \
+					and float(elapsed) <= float(duration) and reward_requested is bool:
+				normalized["source_time_seconds"] = float(elapsed)
+				normalized["mining_elapsed_seconds"] = float(elapsed)
+				normalized["mining_extraction_seconds"] = float(duration)
+				normalized["reward_pending"] = reward_requested
 		return normalized
 	return {}
 

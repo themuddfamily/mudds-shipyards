@@ -20,6 +20,11 @@ const CONVOY_TRANSITION_CUES := [
 	&"convoy_escort_separation_critical", &"convoy_escort_recovered",
 	&"convoy_escort_arrived", &"convoy_escort_lost",
 ]
+const MINING_TRANSITION_CUES := [
+	&"cinder_mining_extraction_started", &"cinder_mining_yield_checkpoint",
+	&"cinder_mining_extraction_interrupted", &"cinder_mining_capacity_ready",
+	&"cinder_mining_extraction_completed",
+]
 const CUE_PRIORITIES := {
 	&"activity_progress": 10,
 	&"activity_checkpoint": 20,
@@ -41,6 +46,11 @@ const CUE_PRIORITIES := {
 	&"convoy_escort_recovered": 75,
 	&"convoy_escort_arrived": 90,
 	&"convoy_escort_lost": 100,
+	&"cinder_mining_extraction_started": 50,
+	&"cinder_mining_yield_checkpoint": 40,
+	&"cinder_mining_extraction_interrupted": 90,
+	&"cinder_mining_capacity_ready": 85,
+	&"cinder_mining_extraction_completed": 95,
 }
 
 var _attached := false
@@ -125,12 +135,19 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var previous_generation := int(previous.get("generation", -1))
 	if source_generation < previous_generation:
 		return _result(false, &"stale_activity_generation")
+	var mining_reset_rewind := activity_kind == &"mining" and state == &"reset" \
+		and is_zero_approx(source_time)
 	if source_generation == previous_generation \
-			and source_time < float(previous.get("source_time_seconds", 0.0)):
+			and source_time < float(previous.get("source_time_seconds", 0.0)) \
+			and not mining_reset_rewind:
 		return _result(false, &"stale_activity_time")
 	if activity_kind == &"beacon" and source_generation == previous_generation \
 			and int(decoded.next_beacon_index) < int(previous.get("next_beacon_index", 0)):
 		return _result(false, &"stale_beacon_checkpoint")
+	if activity_kind == &"mining" and source_generation == previous_generation \
+			and state != &"reset" \
+			and _mining_progress(decoded) < float(previous.get("mining_progress", 0.0)):
+		return _result(false, &"stale_mining_yield")
 	var generation_changed := source_generation > previous_generation
 	var prior_generation_urgency := StringName(previous.get("urgency", &"normal"))
 	if generation_changed:
@@ -146,6 +163,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var previous_beacon_index := int(previous.get("next_beacon_index", 0))
 	var previous_beacon_reason := StringName(previous.get("beacon_interruption_reason", &""))
 	var previous_convoy_threat := StringName(previous.get("convoy_threat", &"none"))
+	var previous_mining_checkpoint := int(previous.get("mining_yield_checkpoint", 0))
 	if generation_changed and urgency == &"normal":
 		previous_urgency = prior_generation_urgency
 	if previous.is_empty():
@@ -191,8 +209,23 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			_emit_cue(&"convoy_escort_separation_warning", activity_id, 0.8)
 		elif convoy_threat == &"critical" and previous_convoy_threat != &"critical":
 			_emit_cue(&"convoy_escort_separation_critical", activity_id, 1.0)
+	elif activity_kind == &"mining":
+		_retire_activity_transition_slots(activity_id, MINING_TRANSITION_CUES)
+		var mining_checkpoint := _mining_yield_checkpoint(decoded)
+		if state == &"active" and previous_state != &"active":
+			_emit_cue(&"cinder_mining_extraction_started", activity_id, 0.8)
+		if state == &"active" and mining_checkpoint > previous_mining_checkpoint:
+			_emit_cue(
+				&"cinder_mining_yield_checkpoint", activity_id,
+				[0.0, 0.4, 0.65, 1.0][mining_checkpoint]
+			)
+		if state == &"reset" and previous_state != &"reset":
+			_emit_cue(&"cinder_mining_extraction_interrupted", activity_id, 1.0)
 	if state == &"complete" and previous_state != &"complete":
-		if activity_kind == &"convoy":
+		if activity_kind == &"mining":
+			_emit_cue(&"cinder_mining_capacity_ready", activity_id, 1.0)
+			_emit_cue(&"cinder_mining_extraction_completed", activity_id, 1.0)
+		elif activity_kind == &"convoy":
 			if StringName(decoded.convoy_outcome) == &"arrived":
 				_emit_cue(&"convoy_escort_arrived", activity_id, 1.0)
 			elif StringName(decoded.convoy_outcome) == &"failed":
@@ -216,6 +249,10 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		"next_beacon_index": int(decoded.get("next_beacon_index", 0)),
 		"beacon_interruption_reason": StringName(decoded.get("beacon_interruption_reason", &"")),
 		"convoy_threat": _convoy_threat(decoded) if activity_kind == &"convoy" else &"none",
+		"mining_progress": _mining_progress(decoded) if activity_kind == &"mining" else 0.0,
+		"mining_yield_checkpoint": (
+			_mining_yield_checkpoint(decoded) if activity_kind == &"mining" else 0
+		),
 		"state": state,
 		"checkpoint_id": checkpoint_id,
 		"progress": progress,
@@ -372,6 +409,18 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 		decoded["convoy_status"] = convoy_status
 		decoded["convoy_outcome"] = convoy_outcome
 		decoded["convoy_terminal_reason"] = terminal_reason
+	elif activity_kind == &"mining":
+		var elapsed: Variant = snapshot.get("mining_elapsed_seconds", null)
+		var duration: Variant = snapshot.get("mining_extraction_seconds", null)
+		if not _finite_range(duration, 0.001, 86_400.0) \
+				or not _finite_range(elapsed, 0.0, float(duration)):
+			return _result(false, &"invalid_mining_extraction")
+		if (state == &"complete" and not is_equal_approx(float(elapsed), float(duration))) \
+				or (state == &"reset" and not is_zero_approx(float(elapsed))) \
+				or (reward_pending and state != &"complete"):
+			return _result(false, &"invalid_mining_state")
+		decoded["mining_elapsed_seconds"] = float(elapsed)
+		decoded["mining_extraction_seconds"] = float(duration)
 	return decoded
 
 
@@ -427,6 +476,20 @@ func _convoy_threat(decoded: Dictionary) -> StringName:
 	var maximum := float(decoded.get("convoy_maximum_separation_seconds", 1.0))
 	var remaining := float(decoded.get("convoy_separation_remaining_seconds", maximum))
 	return &"critical" if remaining / maximum <= 0.25 else &"warning"
+
+
+func _mining_progress(decoded: Dictionary) -> float:
+	var duration := float(decoded.get("mining_extraction_seconds", 1.0))
+	return clampf(float(decoded.get("mining_elapsed_seconds", 0.0)) / duration, 0.0, 1.0)
+
+
+func _mining_yield_checkpoint(decoded: Dictionary) -> int:
+	var progress := _mining_progress(decoded)
+	if progress >= 0.75:
+		return 3
+	if progress >= 0.5:
+		return 2
+	return 1 if progress >= 0.25 else 0
 
 
 func _bind_authored_semantic_output() -> void:
