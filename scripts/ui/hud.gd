@@ -265,6 +265,8 @@ var _server_browser_port: LineEdit
 var _server_browser_player_name: LineEdit
 var _server_browser_rows: VBoxContainer
 var _server_browser_actions: HBoxContainer
+var _server_browser_filter_controls: Dictionary = {}
+var _server_browser_filter_summary: Label
 var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
@@ -3285,6 +3287,45 @@ func _build_server_browser_page() -> void:
 	_server_browser_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_server_browser_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(_server_browser_detail)
+	var filters := HBoxContainer.new()
+	filters.name = "ServerBrowserFilters"
+	filters.add_theme_constant_override("separation", 5)
+	stack.add_child(filters)
+	for filter_id: StringName in [&"compatible_only", &"not_full", &"no_password"]:
+		var check := CheckButton.new()
+		check.name = "ServerBrowserFilter" + String(filter_id).to_pascal_case()
+		check.text = {
+			&"compatible_only": "COMPATIBLE",
+			&"not_full": "NOT FULL",
+			&"no_password": "NO PASSWORD",
+		}.get(filter_id, String(filter_id))
+		check.tooltip_text = "Filter server rows by " + check.text.to_lower()
+		check.focus_mode = Control.FOCUS_ALL
+		check.toggled.connect(_on_server_browser_filter_changed.bind(filter_id))
+		filters.add_child(check)
+		_server_browser_filter_controls[filter_id] = check
+	var latency := OptionButton.new()
+	latency.name = "ServerBrowserFilterLatency"
+	latency.add_item("LATENCY: ANY", 0)
+	latency.add_item("LATENCY: EXCELLENT", 1)
+	latency.add_item("LATENCY: GOOD", 2)
+	latency.add_item("LATENCY: POOR", 3)
+	latency.add_item("LATENCY: UNKNOWN", 4)
+	latency.tooltip_text = "Filter server rows by latency band"
+	latency.focus_mode = Control.FOCUS_ALL
+	latency.item_selected.connect(_on_server_browser_latency_filter_changed)
+	filters.add_child(latency)
+	_server_browser_filter_controls[&"latency_band"] = latency
+	var clear_filters := _menu_button("CLEAR FILTERS", MUTED)
+	clear_filters.name = "ServerBrowserClearFiltersButton"
+	clear_filters.focus_mode = Control.FOCUS_ALL
+	clear_filters.pressed.connect(_clear_server_browser_filters)
+	filters.add_child(clear_filters)
+	_server_browser_filter_controls[&"clear_filters"] = clear_filters
+	_server_browser_filter_summary = _label("FILTERS: NONE", 10, MUTED)
+	_server_browser_filter_summary.name = "ServerBrowserFilterSummary"
+	_server_browser_filter_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(_server_browser_filter_summary)
 	var join_fields := HBoxContainer.new()
 	join_fields.add_theme_constant_override("separation", 6)
 	stack.add_child(join_fields)
@@ -3346,8 +3387,13 @@ func _build_server_browser_page() -> void:
 
 func _configure_server_browser_focus_order(
 	refresh: Control, host: Control, manual_join: Control, back: Control
-) -> void:
-	var ordered: Array[Control] = [_server_browser_address, _server_browser_port, _server_browser_player_name, refresh, host, manual_join, back]
+	) -> void:
+	var ordered: Array[Control] = [_server_browser_address, _server_browser_port, _server_browser_player_name]
+	for filter_id: StringName in [&"compatible_only", &"not_full", &"no_password", &"latency_band", &"clear_filters"]:
+		var filter_control := _server_browser_filter_controls.get(filter_id) as Control
+		if is_instance_valid(filter_control):
+			ordered.append(filter_control)
+	ordered.append_array([refresh, host, manual_join, back])
 	for index in ordered.size():
 		var control := ordered[index]
 		control.focus_mode = Control.FOCUS_ALL
@@ -3448,6 +3494,42 @@ func request_server_browser_refresh() -> Dictionary:
 	return request
 
 
+func _on_server_browser_filter_changed(_enabled: bool, _filter_id: StringName) -> void:
+	_apply_server_browser_filters()
+
+
+func _on_server_browser_latency_filter_changed(index: int) -> void:
+	var bands: Array[StringName] = [&"", &"excellent", &"good", &"poor", &"unknown"]
+	var latency := bands[clampi(index, 0, bands.size() - 1)]
+	var current := _server_browser_presenter.get_accessibility_filters()
+	current["latency_band"] = latency
+	var presentation := _server_browser_presenter.set_accessibility_filters(current)
+	_render_server_browser(presentation)
+
+
+func _apply_server_browser_filters() -> void:
+	var filters := {
+		"compatible_only": bool((_server_browser_filter_controls.get(&"compatible_only") as CheckButton).button_pressed),
+		"not_full": bool((_server_browser_filter_controls.get(&"not_full") as CheckButton).button_pressed),
+		"no_password": bool((_server_browser_filter_controls.get(&"no_password") as CheckButton).button_pressed),
+		"latency_band": _server_browser_presenter.get_accessibility_filters().get("latency_band", &""),
+	}
+	var presentation := _server_browser_presenter.set_accessibility_filters(filters)
+	_render_server_browser(presentation)
+
+
+func _clear_server_browser_filters() -> void:
+	var presentation := _server_browser_presenter.clear_accessibility_filters()
+	for filter_id: StringName in [&"compatible_only", &"not_full", &"no_password"]:
+		var check := _server_browser_filter_controls.get(filter_id) as CheckButton
+		if is_instance_valid(check):
+			check.set_pressed_no_signal(false)
+	var latency := _server_browser_filter_controls.get(&"latency_band") as OptionButton
+	if is_instance_valid(latency):
+		latency.select(0)
+	_render_server_browser(presentation)
+
+
 func request_server_browser_join(session_id: StringName) -> Dictionary:
 	if session_id == &"":
 		return {"accepted": false, "reason": &"missing_session_id", "presentation_only": true}
@@ -3471,6 +3553,16 @@ func _render_server_browser(presentation: Dictionary) -> void:
 	}.get(status, "SERVER BROWSER")
 	_server_browser_title.text = status_title
 	_server_browser_detail.text = str(presentation.get("error_message", "Select a session to request joining."))
+	_server_browser_filter_summary.text = str(presentation.get("active_filter_summary", "FILTERS: NONE"))
+	var active_filters := presentation.get("accessibility_filters", {}) as Dictionary
+	for filter_id: StringName in [&"compatible_only", &"not_full", &"no_password"]:
+		var check := _server_browser_filter_controls.get(filter_id) as CheckButton
+		if is_instance_valid(check):
+			check.set_pressed_no_signal(bool(active_filters.get(filter_id, false)))
+	var latency_filter := _server_browser_filter_controls.get(&"latency_band") as OptionButton
+	if is_instance_valid(latency_filter):
+		var latency_index := [&"", &"excellent", &"good", &"poor", &"unknown"].find(StringName(str(active_filters.get("latency_band", &""))))
+		latency_filter.select(maxi(latency_index, 0))
 	for child in _server_browser_rows.get_children():
 		child.queue_free()
 	var rows: Array = presentation.get("rows", [])

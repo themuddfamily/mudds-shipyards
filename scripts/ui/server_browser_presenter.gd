@@ -24,8 +24,15 @@ var _include_full := true
 var _generation := 0
 var _latest_capacity_generation := 0
 var _last_snapshot: Dictionary = {}
+var _last_unfiltered_rows: Array = []
 var _focus_target: StringName = &"refresh"
 var _manual_connect: Dictionary = {"address": "", "port": DEFAULT_PORT, "player_name": "", "error": "", "focus_target": &"manual_address"}
+var _accessibility_filters: Dictionary = {
+	"compatible_only": false,
+	"not_full": false,
+	"no_password": false,
+	"latency_band": &"",
+}
 
 
 func configure_filters(region_filter: StringName = &"", max_ping_ms: int = PING_ANY, include_full: bool = true) -> Dictionary:
@@ -78,21 +85,45 @@ func present_result(result: Dictionary) -> Dictionary:
 			continue
 		var row := _present_row(source as Dictionary)
 		rows.append(row)
+	_last_unfiltered_rows = rows.duplicate(true)
+	var filtered_rows := _filter_rows(_last_unfiltered_rows)
 	if not rows.is_empty():
 		_focus_target = &"row:%s" % str(rows[0].get("session_id", ""))
 	else:
 		_focus_target = &"refresh"
 	return _store_snapshot(_status_snapshot(
-		&"ready" if not rows.is_empty() else &"empty",
-		rows,
-		&"" if not rows.is_empty() else &"no_matches",
-		"" if not rows.is_empty() else "No matching servers.",
+		&"ready" if not filtered_rows.is_empty() else &"empty",
+		filtered_rows,
+		&"" if not filtered_rows.is_empty() else &"no_matches",
+		"" if not filtered_rows.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers."),
 		false
 	))
 
 
+func set_accessibility_filters(filters: Dictionary) -> Dictionary:
+	var band := StringName(str(filters.get("latency_band", _accessibility_filters.latency_band)))
+	if band not in [&"", &"excellent", &"good", &"poor", &"unknown"]:
+		return {"accepted": false, "reason": &"invalid_latency_band", "presentation_only": true}
+	_accessibility_filters = {
+		"compatible_only": bool(filters.get("compatible_only", _accessibility_filters.compatible_only)),
+		"not_full": bool(filters.get("not_full", _accessibility_filters.not_full)),
+		"no_password": bool(filters.get("no_password", _accessibility_filters.no_password)),
+		"latency_band": band,
+	}
+	_generation += 1
+	return _refresh_filtered_snapshot()
+
+
+func clear_accessibility_filters() -> Dictionary:
+	return set_accessibility_filters({"compatible_only": false, "not_full": false, "no_password": false, "latency_band": &""})
+
+
+func get_accessibility_filters() -> Dictionary:
+	return _accessibility_filters.duplicate(true)
+
+
 func set_focus_target(control_id: StringName) -> Dictionary:
-	var allowed := [&"refresh", &"retry", &"cancel", &"host_session", &"manual_join"]
+	var allowed := [&"refresh", &"retry", &"cancel", &"host_session", &"manual_join", &"compatible_only", &"not_full", &"no_password", &"latency_band", &"clear_filters"]
 	if not allowed.has(control_id) and not control_id.begins_with("row:"):
 		return {"accepted": false, "reason": &"unknown_focus_target", "presentation_only": true}
 	_focus_target = control_id
@@ -134,7 +165,16 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 		"retryable": retryable,
 		"actions": actions,
 		"focus_target": _focus_target,
-		"focus_order": [&"refresh", &"host_session", &"manual_join", &"retry", &"cancel"],
+		"focus_order": [&"refresh", &"host_session", &"manual_join", &"compatible_only", &"not_full", &"no_password", &"latency_band", &"clear_filters", &"retry", &"cancel"],
+		"accessibility_filters": get_accessibility_filters(),
+		"active_filter_summary": _active_filter_summary(),
+		"filter_controls": [
+			{"id": &"compatible_only", "label": "Compatible only", "focusable": true},
+			{"id": &"not_full", "label": "Not full", "focusable": true},
+			{"id": &"no_password", "label": "No password", "focusable": true},
+			{"id": &"latency_band", "label": "Latency band", "focusable": true},
+			{"id": &"clear_filters", "label": "Clear filters", "focusable": true},
+		],
 		"controls": _browser_controls(),
 		"accessibility_prompts": get_accessibility_prompts(),
 		"presentation_only": true,
@@ -377,7 +417,56 @@ func _validation_error(reason: StringName, message: String) -> Dictionary:
 		"message": message,
 		"presentation_only": true,
 		"authority": false,
-	}
+}
+
+
+func _filter_rows(rows: Array) -> Array:
+	var filtered: Array = []
+	for row_value in rows:
+		if not row_value is Dictionary:
+			continue
+		var row := row_value as Dictionary
+		if _accessibility_filters.compatible_only and row.get("compatibility_label") != "Compatible":
+			continue
+		if _accessibility_filters.not_full and bool(row.get("full", false)):
+			continue
+		if _accessibility_filters.no_password and row.get("password_label") != "No Password":
+			continue
+		var band := String(_accessibility_filters.latency_band)
+		if not band.is_empty() and str(row.get("latency_band", "")).to_lower() != "latency " + band:
+			continue
+		filtered.append(row)
+	return filtered
+
+
+func _has_active_filters() -> bool:
+	return bool(_accessibility_filters.compatible_only) or bool(_accessibility_filters.not_full) or bool(_accessibility_filters.no_password) or not String(_accessibility_filters.latency_band).is_empty()
+
+
+func _active_filter_summary() -> String:
+	var active: Array[String] = []
+	if _accessibility_filters.compatible_only: active.append("COMPATIBLE ONLY")
+	if _accessibility_filters.not_full: active.append("NOT FULL")
+	if _accessibility_filters.no_password: active.append("NO PASSWORD")
+	if not String(_accessibility_filters.latency_band).is_empty(): active.append("LATENCY %s" % String(_accessibility_filters.latency_band).to_upper())
+	return "FILTERS: " + ", ".join(active) if not active.is_empty() else "FILTERS: NONE"
+
+
+func _refresh_filtered_snapshot() -> Dictionary:
+	if _last_snapshot.is_empty():
+		return {"accepted": true, "reason": &"filters_applied", "filters": get_accessibility_filters(), "active_filter_summary": _active_filter_summary(), "presentation_only": true}
+	var filtered := _filter_rows(_last_unfiltered_rows)
+	_last_snapshot["rows"] = filtered
+	_last_snapshot["row_count"] = filtered.size()
+	_last_snapshot["status"] = &"ready" if not filtered.is_empty() else &"empty"
+	_last_snapshot["error_message"] = "" if not filtered.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers.")
+	_last_snapshot["generation"] = _generation
+	_last_snapshot["accessibility_filters"] = get_accessibility_filters()
+	_last_snapshot["active_filter_summary"] = _active_filter_summary()
+	var refreshed := _last_snapshot.duplicate(true)
+	refreshed["accepted"] = true
+	refreshed["reason"] = &"filters_applied"
+	return refreshed
 
 
 func _status_reason_message(reason: StringName, fallback: String) -> String:

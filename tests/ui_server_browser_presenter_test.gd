@@ -33,6 +33,12 @@ func _run() -> void:
 	_check(rich_snapshot.rows[0].password_label == "No Password" and rich_snapshot.rows[1].password_label == "Password Required", "password state is textual")
 	_check(rich_snapshot.rows[0].compatibility_label == "Compatible" and rich_snapshot.rows[1].compatibility_label == "Incompatible", "compatibility state is textual")
 	_check("Latency Excellent" in rich_snapshot.rows[0].focus_label and "No Password" in rich_snapshot.rows[0].focus_label and "Compatible" in rich_snapshot.rows[0].focus_label, "spoken focus label composes all row status fields")
+	var filtered := presenter.set_accessibility_filters({"compatible_only": true, "not_full": true, "no_password": true, "latency_band": &"excellent"})
+	_check(filtered.accepted and filtered.row_count == 1 and filtered.rows[0].session_id == &"rich", "caller-owned accessibility filters narrow rows")
+	_check(filtered.active_filter_summary == "FILTERS: COMPATIBLE ONLY, NOT FULL, NO PASSWORD, LATENCY EXCELLENT", "active filter summary is explicit and textual")
+	_check((filtered.filter_controls as Array).size() == 5 and filtered.focus_order == [&"refresh", &"host_session", &"manual_join", &"compatible_only", &"not_full", &"no_password", &"latency_band", &"clear_filters", &"retry", &"cancel"], "filter controls expose bounded presentation metadata")
+	var cleared := presenter.clear_accessibility_filters()
+	_check(cleared.accepted and cleared.row_count == 2 and cleared.active_filter_summary == "FILTERS: NONE", "clear-all restores the unfiltered caller snapshot")
 	var generation_presenter := Presenter.new()
 	var generation_snapshot := generation_presenter.present_result({
 		"accepted": true,
