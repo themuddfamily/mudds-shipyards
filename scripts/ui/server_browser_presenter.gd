@@ -12,6 +12,11 @@ const COMPONENT_ID: StringName = &"server-browser-presenter"
 const MAX_ROWS := 256
 const MAX_REGION_FILTER_LENGTH := 32
 const PING_ANY := -1
+const DEFAULT_PORT := 27101
+const MIN_PORT := 1
+const MAX_PORT := 65535
+const MAX_ADDRESS_LENGTH := 253
+const MAX_PLAYER_NAME_LENGTH := 32
 
 var _region_filter: StringName = &""
 var _max_ping_ms := PING_ANY
@@ -94,6 +99,7 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 		"error_message": message,
 		"retryable": retryable,
 		"actions": actions,
+		"controls": _browser_controls(),
 		"accessibility_prompts": get_accessibility_prompts(),
 		"presentation_only": true,
 		"join_authority": false,
@@ -136,6 +142,46 @@ func get_accessibility_prompts() -> Dictionary:
 ## authority must validate any eventual join request independently.
 func request_join(_session_id: StringName) -> Dictionary:
 	return {"accepted": false, "reason": &"join_authority_external", "presentation_only": true}
+
+
+func host_session_intent(port: int = DEFAULT_PORT, player_name: String = "") -> Dictionary:
+	var validation := _validate_port(port)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	validation = _validate_player_name(player_name)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	return {
+		"accepted": true,
+		"reason": &"host_requested",
+		"action": &"host_session",
+		"port": port,
+		"player_name": player_name.strip_edges(),
+		"presentation_only": true,
+		"authority": false,
+	}
+
+
+func manual_join_intent(address: String, port: int = DEFAULT_PORT, player_name: String = "") -> Dictionary:
+	var clean_address := address.strip_edges()
+	if clean_address.is_empty() or clean_address.length() > MAX_ADDRESS_LENGTH or clean_address.contains(" "):
+		return _validation_error(&"invalid_address", "Enter a valid host address or name.")
+	var validation := _validate_port(port)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	validation = _validate_player_name(player_name)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	return {
+		"accepted": true,
+		"reason": &"manual_join_requested",
+		"action": &"manual_join",
+		"address": clean_address,
+		"port": port,
+		"player_name": player_name.strip_edges(),
+		"presentation_only": true,
+		"authority": false,
+	}
 
 
 func audit() -> Dictionary:
@@ -191,3 +237,34 @@ func _human_ping_label(value: Variant, ping_ms: int) -> String:
 
 func _reject(reason: StringName) -> Dictionary:
 	return {"accepted": false, "reason": reason, "generation": _generation}
+
+
+func _browser_controls() -> Array[Dictionary]:
+	return [
+		{"id": &"host_session", "label": "Host Session", "focusable": true, "authority": false},
+		{"id": &"manual_join", "label": "Manual Join", "focusable": true, "authority": false},
+	]
+
+
+func _validate_port(port: int) -> Dictionary:
+	if port < MIN_PORT or port > MAX_PORT:
+		return _validation_error(&"invalid_port", "Port must be between %d and %d." % [MIN_PORT, MAX_PORT])
+	return {"accepted": true}
+
+
+func _validate_player_name(player_name: String) -> Dictionary:
+	var clean_name := player_name.strip_edges()
+	if clean_name.is_empty() or clean_name.length() > MAX_PLAYER_NAME_LENGTH:
+		return _validation_error(&"invalid_player_name", "Player name must be 1–%d characters." % MAX_PLAYER_NAME_LENGTH)
+	return {"accepted": true}
+
+
+func _validation_error(reason: StringName, message: String) -> Dictionary:
+	return {
+		"accepted": false,
+		"reason": reason,
+		"validation_error": message,
+		"message": message,
+		"presentation_only": true,
+		"authority": false,
+	}
