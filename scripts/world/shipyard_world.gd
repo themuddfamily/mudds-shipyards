@@ -18,6 +18,8 @@ const JOVIAN_FREIGHT_BERTH_ID: StringName = &"jovian_freight_berth"
 const ZENITH_FLEET_DOCK_BERTH_ID: StringName = &"zenith_fleet_dock_berth"
 const HALYARD_FLEET_DOCK_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
 const BULWARK_FLEET_DOCK_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
+const COMPONENT_DAMAGE_AUDIO_BINDING := preload("res://scripts/audio/component_damage_audio_binding.gd")
+const FLEET_EXPANSION_BINDING := preload("res://scripts/world/fleet_expansion_production_binding.gd")
 const SHIP_BERTH_FEEDBACK_SCHEMA_VERSION := 2
 const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 4
 const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
@@ -911,6 +913,7 @@ var _station_route_registry_report: Dictionary = {}
 var _station_service_agents: Array[StationServiceAgent] = []
 var _station_navigation_graph := STATION_NAVIGATION_GRAPH_SCRIPT.new() as StationNavigationGraph
 var _station_navigation_graph_report: Dictionary = {}
+var _fleet_expansion_production_binding: Node3D
 
 
 func _enter_tree() -> void:
@@ -1913,6 +1916,38 @@ func get_nearby_sector_cluster_audit_report() -> Dictionary:
 ## circulation and landmarks, never berth or ship-regeneration authority itself.
 func get_fleet_dock_comb() -> FleetDockComb:
 	return fleet_dock_comb
+
+
+## Production-owned composition for the original-modern Dock 04/05/06 craft.
+## ShipyardWorld owns placement only; flight, landing, damage, and berth
+## contracts remain on the composed craft and FleetExpansionBerths node.
+func get_fleet_expansion_production_binding() -> FleetExpansionProductionBinding:
+	return _fleet_expansion_production_binding as FleetExpansionProductionBinding
+
+
+func get_fleet_expansion_production_audit_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var binding := get_fleet_expansion_production_binding()
+	if binding == null or binding.get_parent() != self:
+		errors.append("fleet expansion production binding is missing from ShipyardWorld")
+	var component_audit: Dictionary = binding.get_audit_report() if binding != null else {}
+	if not bool(component_audit.get("valid", false)):
+		errors.append("fleet expansion production binding audit failed")
+	var snapshot: Dictionary = binding.get_fleet_snapshot() if binding != null else {}
+	var craft_rows := snapshot.get("craft", []) as Array
+	if craft_rows.size() != 3:
+		errors.append("Dock 04/05/06 must publish exactly three composed craft")
+	return {
+		"schema_version": 1,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"binding": component_audit.duplicate(true),
+		"snapshot": snapshot.duplicate(true),
+		"dock_ids": [&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"],
+		"shipyard_placement_authority": true,
+		"flight_authority": false,
+		"berth_lease_authority": false,
+	}.duplicate(true)
 
 
 ## Integration-only audit for the authored modern placement and its narrow,
@@ -7196,6 +7231,13 @@ func _build_provisional_fleet() -> void:
 	var fleet := Node3D.new()
 	fleet.name = "ProvisionalParkedFleet"
 	add_child(fleet)
+	_fleet_expansion_production_binding = FLEET_EXPANSION_BINDING.new()
+	_fleet_expansion_production_binding.name = "FleetExpansionProductionBinding"
+	_fleet_expansion_production_binding.transform = Transform3D(
+		Basis(Vector3.UP, PI * 0.5),
+		Vector3(12.0, 4.2, 68.3)
+	)
+	add_child(_fleet_expansion_production_binding)
 	# The port node is now a second live berth. Its former static courier concept
 	# is intentionally omitted so a real flyable test article occupies the space.
 	# The former starboard gunship placeholder is deliberately absent: this node
