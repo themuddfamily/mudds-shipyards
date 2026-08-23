@@ -154,14 +154,19 @@ const ROOF_VENT_COLLAR_COPY_COUNT := 2
 const ROOF_VENT_COLLAR_POSITIONS := [Vector3(3.05, 5.31, 13.0), Vector3(8.1, 5.31, 13.0)]
 const ROOF_VENT_COLLAR_FAMILY_META: StringName = &"aft_roof_vent_collar_family"
 const ROOF_VENT_COLLAR_FAMILY_ID: StringName = &"roof_vent_collars"
+## Fourteen presentation-only insert cards fill the two open cages in the
+## isolated watch rack. Their names remain childless Marker3D anchors while one
+## MultiMesh submits the same cached rounded-box surface at the authored poses.
+const RACK_CARD_SIZE := Vector3(0.02, 0.24, 0.10)
+const RACK_CARD_COPY_COUNT := 14
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1169
+const RENDER_DESCENDANT_NODE_COUNT := 1170
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 853
+const RENDERER_NODE_COUNT := 840
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 856
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 853
+const SURFACE_SUBMISSION_COUNT := 840
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -232,6 +237,7 @@ var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _pod_corner_collar_mesh: TorusMesh
 var _vip_facade_column_trim_batch: MultiMeshInstance3D
+var _rack_card_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
@@ -468,6 +474,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("shared pod-corner collar visual allocation contract drifted")
 	if not bool(performance.vip_facade_column_trim_batch.valid):
 		errors.append("VIP facade column-trim batch contract drifted")
+	if not bool(performance.rack_card_batch.valid):
+		errors.append("watch-rack card batch contract drifted")
 	if not bool(performance.spine_clamp_visual_sharing.valid):
 		errors.append("shared spine-clamp visual allocation contract drifted")
 	if not bool(performance.rack_cable_tray_clamp_visual_sharing.valid):
@@ -550,8 +558,9 @@ func get_performance_contract() -> Dictionary:
 		# Mesh ceiling re-frozen in the open, 170 -> 600 -> 848, and it is now the
 		# exact built count rather than the previous ~13% of headroom, for the same
 		# reason the light ceiling already was: a ceiling with slack in it lets the
-		# next content pass land without declaring itself. 600 -> 853 is the content
-		# pass and every one of the 320 is in this file. Measured per assembly
+		# next content pass land without declaring itself. 600 -> 853 was the content
+		# pass; batching fourteen rack cards into one renderer brings it to 840.
+		# Every content primitive remains in this file. Measured per assembly
 		# against the live tree:
 		#
 		#   Watch rack bank, 118. Three rack frames, kicks, caps and their cable
@@ -583,7 +592,7 @@ func get_performance_contract() -> Dictionary:
 		# llvmpipe. What is measured is that every one of these is a chamfered kit
 		# primitive sharing this module's two mesh caches, so the added *unique*
 		# mesh resources are far fewer than the added instances.
-        "mesh_instances": 853,
+        "mesh_instances": 840,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -657,6 +666,7 @@ func get_performance_contract() -> Dictionary:
 	contract["schema_version"] = SCHEMA_VERSION
 	var visual_sharing := get_pod_corner_collar_visual_allocation_audit()
 	var facade_batch := get_vip_facade_column_trim_batch_audit()
+	var rack_card_batch := get_rack_card_batch_audit()
 	var spine_sharing := get_spine_clamp_visual_allocation_audit()
 	var tray_clamp_sharing := get_rack_cable_tray_clamp_visual_allocation_audit()
 	var console_collar_sharing := get_console_shock_collar_visual_allocation_audit()
@@ -665,6 +675,7 @@ func get_performance_contract() -> Dictionary:
 	var roof_vent_collar_sharing := get_roof_vent_collar_visual_allocation_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
+	contract["rack_card_batch"] = rack_card_batch
 	contract["spine_clamp_visual_sharing"] = spine_sharing
 	contract["rack_cable_tray_clamp_visual_sharing"] = tray_clamp_sharing
 	contract["console_shock_collar_visual_sharing"] = console_collar_sharing
@@ -675,6 +686,7 @@ func get_performance_contract() -> Dictionary:
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
 		and bool(facade_batch.valid)
+		and bool(rack_card_batch.valid)
 		and bool(spine_sharing.valid)
 		and bool(tray_clamp_sharing.valid)
 		and bool(console_collar_sharing.valid)
@@ -857,10 +869,10 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": 2,
-			"renderer_nodes": 2,
+			"descendant_nodes": 1,
+			"renderer_nodes": 15,
 			"drawn_copies": -1,
-			"surface_submissions": 2,
+			"surface_submissions": 15,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		},
@@ -1993,6 +2005,154 @@ func get_conduit_collar_visual_allocation_audit() -> Dictionary:
 		"semantic_authority_count": authority_nodes,
 		"batched": false,
 		"renderer_values_changed": false,
+	}.duplicate(true)
+
+
+## Detached component-local proof for the fourteen card inserts in the opened
+## watch rack. Named childless anchors preserve every authored path while one
+## renderer owns the identical rounded-box copies.
+func get_rack_card_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var bank := get_node_or_null(
+		^"Structure/OperationsRoom/OperationsContent/WatchRackBank"
+	) as Node3D
+	var batch := _rack_card_batch
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh as ArrayMesh if multimesh != null else null
+	var expected_transforms := _rack_card_transforms()
+	var expected_buffer := _encode_multimesh_transforms(expected_transforms)
+	var expected_bounds := (
+		_transformed_mesh_bounds(mesh.get_aabb(), expected_transforms)
+		if mesh != null else AABB()
+	)
+	var anchor_paths := PackedStringArray()
+	var anchors_exact := bank != null
+	var anchor_count := 0
+	for module_index in range(1, 3):
+		for card_index in 7:
+			var flat_index := (module_index - 1) * 7 + card_index
+			var node_name := "RackCard%02d%02d" % [module_index, card_index]
+			var anchor := (
+				bank.get_node_or_null(NodePath(node_name)) as Marker3D
+				if bank != null else null
+			)
+			anchor_paths.append(
+				String(get_path_to(anchor)) if anchor != null else ""
+			)
+			anchor_count += 1 if anchor != null else 0
+			anchors_exact = (
+				anchors_exact
+				and anchor != null
+				and anchor.get_parent() == bank
+				and anchor.transform.is_equal_approx(expected_transforms[flat_index])
+				and anchor.get_child_count() == 0
+				and anchor.get_script() == null
+				and anchor.get_groups().is_empty()
+				and anchor.get_meta_list().is_empty()
+			)
+	if not anchors_exact:
+		errors.append("rack_card_anchor_roster_or_transform_drift")
+	if batch == null or multimesh == null or mesh == null:
+		errors.append("rack_card_batch_missing")
+	else:
+		if batch.get_parent() != bank or str(batch.name) != "RackCardRenderBatch":
+			errors.append("rack_card_batch_path_drift")
+		if multimesh.transform_format != MultiMesh.TRANSFORM_3D \
+				or multimesh.use_colors or multimesh.use_custom_data:
+			errors.append("rack_card_multimesh_format_drift")
+		if multimesh.instance_count != RACK_CARD_COPY_COUNT \
+				or multimesh.visible_instance_count != RACK_CARD_COPY_COUNT:
+			errors.append("rack_card_visible_copy_roster_drift")
+		if multimesh.buffer != expected_buffer:
+			errors.append("rack_card_renderer_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(expected_bounds):
+			errors.append("rack_card_culling_bounds_drift")
+		if mesh != _rounded_box_mesh(RACK_CARD_SIZE) \
+				or mesh.get_surface_count() != 1 \
+				or mesh.surface_get_material(0) != null \
+				or mesh.resource_local_to_scene \
+				or not mesh.get_aabb().size.is_equal_approx(RACK_CARD_SIZE):
+			errors.append("rack_card_mesh_recipe_or_identity_drift")
+		if not batch.transform.is_equal_approx(Transform3D.IDENTITY) \
+				or not batch.visible \
+				or batch.layers != 1 \
+				or batch.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or batch.material_override != _materials.get("panel_light") \
+				or batch.material_overlay != null \
+				or not is_zero_approx(batch.transparency):
+			errors.append("rack_card_render_state_drift")
+		var metadata_keys := batch.get_meta_list()
+		if batch.get_child_count() != 0 \
+				or batch.get_script() != null \
+				or not batch.get_groups().is_empty() \
+				or metadata_keys.size() != 2 \
+				or not metadata_keys.has(&"visual_detail_only") \
+				or not metadata_keys.has(&"authored_instance_transforms") \
+				or not bool(batch.get_meta("visual_detail_only", false)) \
+				or not _transform_arrays_match(
+					batch.get_meta("authored_instance_transforms", []) as Array,
+					expected_transforms
+				):
+			errors.append("rack_card_batch_gained_semantic_authority")
+	if bank == null:
+		errors.append("watch_rack_bank_missing")
+	else:
+		for module_index in range(1, 3):
+			var cage := bank.get_node_or_null(
+				NodePath("RackCardCage%02d" % module_index)
+			) as MeshInstance3D
+			if cage == null:
+				errors.append("rack_card_cage_readability_drift")
+
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_watch_rack_cards",
+		"legacy": {
+			"family_nodes": 14,
+			"stable_anchor_nodes": 0,
+			"renderer_nodes": 14,
+			"drawn_copies": 14,
+			"surface_submissions": 14,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+		},
+		"current": {
+			"family_nodes": anchor_count + (1 if batch != null else 0),
+			"stable_anchor_nodes": anchor_count,
+			"renderer_nodes": 1 if batch != null else 0,
+			"drawn_copies": (
+				multimesh.visible_instance_count if multimesh != null else 0
+			),
+			"surface_submissions": mesh.get_surface_count() if mesh != null else 0,
+			"mesh_resource_allocations": 1 if mesh != null else 0,
+			"material_resource_allocations": 1 if batch != null \
+				and batch.material_override != null else 0,
+		},
+		"reductions": {
+			"family_nodes": -1,
+			"renderer_nodes": 13,
+			"drawn_copies": 0,
+			"surface_submissions": 13,
+			"mesh_resource_allocations": 0,
+			"material_resource_allocations": 0,
+		},
+		"anchor_paths": anchor_paths,
+		"authored_transforms": expected_transforms.duplicate(),
+		"renderer_buffer": expected_buffer.duplicate(),
+		"renderer_buffer_float_count": multimesh.buffer.size() \
+			if multimesh != null else 0,
+		"culling_bounds": multimesh.custom_aabb if multimesh != null else AABB(),
+		"collision_authority_added": false,
+		"interaction_authority_added": false,
+		"evidence_authority_added": false,
+		"lifecycle_authority_added": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+		"pixel_equivalence_claimed": false,
 	}.duplicate(true)
 
 
@@ -3188,6 +3348,7 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 	var bank := Node3D.new()
 	bank.name = "WatchRackBank"
 	content.add_child(bank)
+	var rack_card_transforms: Array[Transform3D] = []
 
 	# The tray is what makes three boxes read as installed plant rather than as
 	# three boxes. It runs the length of the bank and turns east into the service
@@ -3276,14 +3437,16 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 			if not in_service and module_index != 0 and module_index != 3:
 				_box(bank, "RackCardCage%02d" % module_index, Vector3(rack_x, module_y, 9.955), Vector3(1.24, 0.30, 0.05), _materials["graphite"], false)
 				for card_index in 7:
-					_box(
-						bank,
-						"RackCard%02d%02d" % [module_index, card_index],
-						Vector3(rack_x - 0.54 + float(card_index) * 0.18, module_y, 10.000),
-						Vector3(0.02, 0.24, 0.10),
-						_materials["panel_light"],
-						false
+					var card_position := Vector3(
+						rack_x - 0.54 + float(card_index) * 0.18,
+						module_y,
+						10.000
 					)
+					var card_anchor := Marker3D.new()
+					card_anchor.name = "RackCard%02d%02d" % [module_index, card_index]
+					card_anchor.position = card_position
+					bank.add_child(card_anchor)
+					rack_card_transforms.append(Transform3D(Basis.IDENTITY, card_position))
 				continue
 			_box(
 				bank,
@@ -3337,6 +3500,14 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 			false,
 			Vector3(-26 if in_service else 26, 0, 0)
 		)
+
+	_rack_card_batch = _multimesh_rounded_box(
+		bank,
+		"RackCardRenderBatch",
+		RACK_CARD_SIZE,
+		_materials["panel_light"],
+		rack_card_transforms
+	)
 
 
 ## The room's own status board, above the rack bank.
@@ -4464,6 +4635,50 @@ func _multimesh_torus(
 	batch.set_meta("authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
+
+
+func _multimesh_rounded_box(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	var mesh := _rounded_box_mesh(size)
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = transforms.size()
+	multimesh.buffer = _encode_multimesh_transforms(transforms)
+	multimesh.custom_aabb = _transformed_mesh_bounds(mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multimesh
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+static func _rack_card_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	const RACK_X := 6.90
+	for module_index in range(1, 3):
+		var module_y := 0.46 + float(module_index) * 0.44
+		for card_index in 7:
+			transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(
+					RACK_X - 0.54 + float(card_index) * 0.18,
+					module_y,
+					10.000
+				)
+			))
+	return transforms
 
 
 static func _vip_facade_column_trim_transforms() -> Array[Transform3D]:

@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
 	_test_pod_corner_collar_visual_resource_sharing(module)
+	_test_rack_card_batch(module)
 	_test_vip_facade_column_trim_batch(module)
 	_test_spine_clamp_visual_resource_sharing(module)
 	_test_roof_vent_collar_visual_resource_sharing(module)
@@ -325,10 +326,10 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1169,
-			"renderer_nodes": 853,
+			"descendant_nodes": 1170,
+			"renderer_nodes": 840,
 			"drawn_copies": 856,
-			"surface_submissions": 853,
+			"surface_submissions": 840,
 			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
@@ -336,14 +337,14 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"pod, spine, roof-vent, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1169 descendants, 853 renderers/submissions, 856 copies, and 296 mesh allocations"
+		"shared collar families plus VIP trim and rack-card batching freeze 1170 descendants, 840 renderers/submissions, 856 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": 2,
-			"renderer_nodes": 2,
+			"descendant_nodes": 1,
+			"renderer_nodes": 15,
 			"drawn_copies": -1,
-			"surface_submissions": 2,
+			"surface_submissions": 15,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		}
@@ -1475,6 +1476,153 @@ func _test_conduit_collar_visual_resource_sharing(
 		bool(module.get_conduit_collar_visual_allocation_audit().valid)
 		and module.get_validation_errors() == baseline_errors,
 		"restoring conduit identity, recipe, budget, material, layer and authority returns the exact validator state"
+	)
+
+
+func _test_rack_card_batch(module: AftJunctionStack) -> void:
+	var report := module.get_rack_card_batch_audit()
+	if not bool(report.valid):
+		print("AFT_RACK_CARD_BATCH_ERRORS: ", report.errors)
+	print(
+		(
+			"AFT_RACK_CARD_BATCH: nodes %d->%d renderers %d->%d "
+			+ "submissions %d->%d resources %d->%d copies %d->%d"
+		) % [
+			int(report.legacy.family_nodes),
+			int(report.current.family_nodes),
+			int(report.legacy.renderer_nodes),
+			int(report.current.renderer_nodes),
+			int(report.legacy.surface_submissions),
+			int(report.current.surface_submissions),
+			int(report.legacy.mesh_resource_allocations),
+			int(report.current.mesh_resource_allocations),
+			int(report.legacy.drawn_copies),
+			int(report.current.drawn_copies),
+		]
+	)
+	_check(
+		bool(report.valid)
+		and report.legacy == {
+			"family_nodes": 14,
+			"stable_anchor_nodes": 0,
+			"renderer_nodes": 14,
+			"drawn_copies": 14,
+			"surface_submissions": 14,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+		}
+		and report.current == {
+			"family_nodes": 15,
+			"stable_anchor_nodes": 14,
+			"renderer_nodes": 1,
+			"drawn_copies": 14,
+			"surface_submissions": 1,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+		}
+		and report.reductions == {
+			"family_nodes": -1,
+			"renderer_nodes": 13,
+			"drawn_copies": 0,
+			"surface_submissions": 13,
+			"mesh_resource_allocations": 0,
+			"material_resource_allocations": 0,
+		},
+		"fourteen open-rack inserts become one submission while retaining all visible copies and named anchors"
+	)
+
+	var bank := module.get_node_or_null(
+		^"Structure/OperationsRoom/OperationsContent/WatchRackBank"
+	) as Node3D
+	var batch := module.get_node_or_null(
+		^"Structure/OperationsRoom/OperationsContent/WatchRackBank/RackCardRenderBatch"
+	) as MultiMeshInstance3D
+	var expected_transforms := report.authored_transforms as Array
+	var anchors_exact := bank != null and expected_transforms.size() == 14
+	for module_index in range(1, 3):
+		for card_index in 7:
+			var flat_index := (module_index - 1) * 7 + card_index
+			var anchor := bank.get_node_or_null(NodePath(
+				"RackCard%02d%02d" % [module_index, card_index]
+			)) as Marker3D if bank != null else null
+			anchors_exact = (
+				anchors_exact
+				and anchor != null
+				and anchor.transform.is_equal_approx(
+					expected_transforms[flat_index] as Transform3D
+				)
+				and anchor.get_child_count() == 0
+				and anchor.get_script() == null
+				and anchor.get_meta_list().is_empty()
+			)
+	var cage_one := bank.get_node_or_null(^"RackCardCage01") \
+		as MeshInstance3D if bank != null else null
+	var cage_two := bank.get_node_or_null(^"RackCardCage02") \
+		as MeshInstance3D if bank != null else null
+	_check(
+		anchors_exact
+		and cage_one != null
+		and cage_two != null
+		and batch != null
+		and batch.multimesh != null
+		and batch.multimesh.mesh is ArrayMesh
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			AftJunctionStack.RACK_CARD_SIZE
+		)
+		and batch.multimesh.instance_count == 14
+		and batch.multimesh.visible_instance_count == 14
+		and int(report.renderer_buffer_float_count) == 168
+		and batch.multimesh.buffer == (report.renderer_buffer as PackedFloat32Array)
+		and batch.multimesh.custom_aabb.is_equal_approx(report.culling_bounds as AABB)
+		and batch.material_override == cage_one.get_parent().get_node(
+			^"RackModule0001"
+		).material_override,
+		"batch preserves exact insert transforms, cached rounded-box recipe, panel-light binding, open cages and rack readability"
+	)
+	_check(
+		batch != null
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and batch.get_groups().is_empty()
+		and not bool(report.collision_authority_added)
+		and not bool(report.interaction_authority_added)
+		and not bool(report.evidence_authority_added)
+		and not bool(report.lifecycle_authority_added),
+		"rack-card batching remains presentation-only with no collision, interaction, evidence or lifecycle authority"
+	)
+
+	(report.current as Dictionary)["renderer_nodes"] = -1
+	(report.authored_transforms as Array).clear()
+	(report.renderer_buffer as PackedFloat32Array)[0] = -999.0
+	var detached := module.get_rack_card_batch_audit()
+	_check(
+		int(detached.current.renderer_nodes) == 1
+		and (detached.authored_transforms as Array).size() == 14
+		and (detached.renderer_buffer as PackedFloat32Array)[0] != -999.0,
+		"rack-card allocation, path, transform and raw-buffer evidence is deeply detached"
+	)
+
+	var baseline_errors := module.get_validation_errors()
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var corrupted_buffer := original_buffer.duplicate()
+	corrupted_buffer[3] += 0.1
+	batch.multimesh.buffer = corrupted_buffer
+	var buffer_red := module.get_rack_card_batch_audit()
+	_check(
+		not bool(buffer_red.valid)
+		and (buffer_red.errors as PackedStringArray).has(
+			"rack_card_renderer_buffer_drift"
+		)
+		and module.get_validation_errors().has(
+			"watch-rack card batch contract drifted"
+		),
+		"RED buffer mutation rejects a shifted insert and reaches the module validator"
+	)
+	batch.multimesh.buffer = original_buffer
+	_check(
+		bool(module.get_rack_card_batch_audit().valid)
+		and module.get_validation_errors() == baseline_errors,
+		"restoring the exact rack-card buffer returns the pre-mutation validator state"
 	)
 
 
