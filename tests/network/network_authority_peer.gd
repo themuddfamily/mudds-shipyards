@@ -27,6 +27,7 @@ var _initial_peer_generation := 0
 var _last_terminal_record: Dictionary = {}
 var _reconnect_damage_seen := false
 var _reconnect_relationship_seen := false
+var _station_terminal_seen := false
 
 
 func _init() -> void:
@@ -102,6 +103,41 @@ func _server_loop() -> void:
 				relationship.get_snapshot(), peer_ids, 1
 			)
 			_log("RELATIONSHIP_%s" % ("PUBLISHED" if relationship_result.get("accepted", false) else "FAILED"))
+			var station_id: StringName = &"station_defense_protected_asset"
+			var station_registration := _adapter.register_damage_entity(
+				Adapter.AUTHORITY_PEER_ID, station_id, 1, 1
+			)
+			var station_start := _adapter.publish_damage_respawn_snapshot(
+				station_id, 1, 100.0, &"active", false, 1, peer_ids, 1
+			)
+			var station_wave := _adapter.publish_damage_respawn_snapshot(
+				station_id, 1, 100.0, &"active_wave", false, 1, peer_ids, 2
+			)
+			var station_critical := _adapter.publish_damage_respawn_snapshot(
+				station_id, 1, 25.0, &"critical", false, 1, peer_ids, 3
+			)
+			var station_terminal := _adapter.publish_damage_respawn_snapshot(
+				station_id, 1, 0.0, &"destroyed", true, 1, peer_ids, 4
+			)
+			var station_replay := _adapter.publish_damage_respawn_snapshot(
+				station_id, 1, 100.0, &"active", false, 1, peer_ids, 1
+			)
+			var station_invalid := _adapter.publish_damage_respawn_snapshot(
+				station_id, 0, 100.0, &"active", false, 1, peer_ids, 5
+			)
+			if bool(station_registration.get("accepted", false)) \
+				and bool(station_start.get("accepted", false)) \
+				and bool(station_wave.get("accepted", false)) \
+				and bool(station_critical.get("accepted", false)) \
+				and bool(station_terminal.get("accepted", false)):
+				_log("STATION_DEFENSE_STARTED")
+				_log("STATION_ACTIVE_WAVE")
+				_log("STATION_ASSET_CRITICAL")
+				_log("STATION_DEFENSE_TERMINAL")
+			if bool(station_replay.get("accepted", false)):
+				_log("STATION_REPLAY_SENT")
+			if not bool(station_invalid.get("accepted", false)):
+				_log("STATION_INVALID_GENERATION_REJECTED")
 			if not bool(relationship_result.get("accepted", false)):
 				_log("RELATIONSHIP_STATUS_%s" % relationship_result.get("status", &"unknown"))
 			var accepted_count := 0
@@ -397,11 +433,15 @@ func _server_loop() -> void:
 					var resync_damage := _adapter.publish_damage_respawn_snapshot(
 						&"jovian_authority_craft", 3, 100.0, &"active", false, 2, current_peers, 60
 					)
+					var station_terminal_resync := _adapter.publish_damage_respawn_snapshot(
+						&"station_defense_protected_asset", 1, 0.0, &"destroyed", true, 1, current_peers, 4
+					)
 					var resync_relationship := _adapter.publish_moving_interior_snapshot(
 						_resync_relationship_snapshot(relationship.get_snapshot()), current_peers, 2
 					)
 					_log("RECONNECT_RESYNC_STATUS %s %s" % [resync_damage.get("status", &"unknown"), resync_relationship.get("status", &"unknown")])
 					if bool(resync_damage.get("accepted", false)) \
+						and bool(station_terminal_resync.get("accepted", false)) \
 						and bool(resync_relationship.get("accepted", false)):
 						_log("RECONNECT_RESYNC_PUBLISHED")
 					break
@@ -518,11 +558,28 @@ func _on_moving_interior_result(result: Dictionary) -> void:
 
 func _on_damage_respawn_result(result: Dictionary) -> void:
 	if StringName(result.get("status", &"")) != &"damage_presented":
+		if _station_terminal_seen:
+			_log("STATION_REPLAY_REJECTED")
 		return
 	var samples := result.get("samples", []) as Array
 	if samples.is_empty():
 		return
 	var state := StringName((samples[0] as Dictionary).get("state", &""))
+	var sample := samples[0] as Dictionary
+	var entity_id := StringName(sample.get("entity_id", &""))
+	if entity_id == &"station_defense_protected_asset":
+		var server_tick := int(sample.get("server_tick", 0))
+		if server_tick == 1 and state == &"active":
+			_log("STATION_STARTED_PRESENTED")
+		elif server_tick == 2 and state == &"active_wave":
+			_log("STATION_WAVE_PRESENTED")
+		elif server_tick == 3 and state == &"critical":
+			_log("STATION_CRITICAL_PRESENTED")
+		elif server_tick == 4 and state == &"destroyed":
+			_station_terminal_seen = true
+			_log("STATION_TERMINAL_PRESENTED")
+			if _reconnect_attempted:
+				_log("STATION_TERMINAL_RESYNC_PRESENTED")
 	if state == &"destroyed":
 		_log("DAMAGE_DESTROYED_PRESENTED")
 	elif state == &"active":
@@ -530,6 +587,10 @@ func _on_damage_respawn_result(result: Dictionary) -> void:
 	if _reconnect_attempted and state == &"active":
 		_reconnect_damage_seen = true
 		_log("RECONNECT_DAMAGE_RESYNC")
+	if StringName(result.get("status", &"")) in [&"stale_server_tick", &"stale_or_duplicate"]:
+		_log("STATION_REPLAY_REJECTED")
+	elif _station_terminal_seen and StringName(result.get("status", &"")) != &"damage_presented":
+		_log("STATION_REPLAY_REJECTED")
 
 
 func _on_projectile_replica_result(result: Dictionary) -> void:
