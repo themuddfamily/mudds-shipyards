@@ -222,6 +222,7 @@ var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
 var _settings_status_label: Label
+var _settings_dirty := false
 ## The pause overlay survives a whole-Main detach, but Viewport focus does not.
 ## Retain the exact in-overlay target so controller users return to the same
 ## reachable control instead of an open page with no GUI focus owner.
@@ -1393,6 +1394,30 @@ func set_settings_status(text: String, success: bool = true) -> void:
 	_settings_status_label.text = text
 	_settings_status_label.modulate = _c(NOMINAL_SOFT) if success else _c(DANGER)
 	_settings_status_label.visible = not text.is_empty()
+
+
+## Caller-owned persistence result. The HUD never writes settings; it only
+## keeps the player informed about whether the last Apply/Reset request landed.
+func present_settings_persistence_result(result: Dictionary, operation: StringName = &"save") -> bool:
+	var accepted := bool(result.get("accepted", false))
+	if accepted:
+		_settings_dirty = false
+		set_settings_status(
+			"SETTINGS RESET" if operation == &"reset" else "SETTINGS SAVED",
+			true
+		)
+		return true
+	_settings_dirty = true
+	var reason := str(result.get("reason", result.get("status", "unknown failure")))
+	set_settings_status(
+		("RESET FAILED  //  %s" if operation == &"reset" else "SAVE FAILED  //  %s") % reason.to_upper(),
+		false
+	)
+	return false
+
+
+func has_unsaved_settings() -> bool:
+	return _settings_dirty
 
 
 ## Applies a complete accessibility descriptor from
@@ -3421,6 +3446,7 @@ func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 			# HUD is detached or the owner responds on a later frame.
 			set_ui_scale(float(value))
 	if not _updating_settings:
+		_settings_dirty = true
 		setting_change_requested.emit(key, value)
 
 
