@@ -398,6 +398,13 @@ var _throttle_bar: ProgressBar
 var _hull_bar: ProgressBar
 var _damage_status_label: Label
 var _hull_frame_profile: Dictionary = {}
+var _weapon_component_hud_stage: StringName = &"nominal"
+var _weapon_heat_presentation := 0.0
+var _weapon_status_presentation: StringName = &"unavailable"
+var _last_engine_power_presentation := 1.0
+var _last_weapon_power_presentation := 1.0
+var _last_targeting_power_presentation := 1.0
+var _last_hull_ratio_presentation := 1.0
 var _component_status_label: Label
 var _telemetry_panel: PanelContainer
 var _target_label: Label
@@ -1427,6 +1434,12 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	var engine_power := clampf(float(data.get("engine_power", 1.0)), 0.0, 1.0)
 	var weapon_power := clampf(float(data.get("weapon_power", 1.0)), 0.0, 1.0)
 	var targeting_power := clampf(float(data.get("targeting_power", 1.0)), 0.0, 1.0)
+	_last_engine_power_presentation = engine_power
+	_last_weapon_power_presentation = weapon_power
+	_last_targeting_power_presentation = targeting_power
+	_last_hull_ratio_presentation = clampf(hull / maximum_hull, 0.0, 1.0)
+	_weapon_heat_presentation = clampf(float(data.get("weapon_heat", 0.0)), 0.0, 1.0)
+	_weapon_status_presentation = StringName(data.get("weapon_status", &"unavailable"))
 	_speed_label.text = "%03d" % roundi(speed)
 	_altitude_label.text = "%04d M" % roundi(altitude)
 	_throttle_bar.value = absf(throttle) * 100.0
@@ -1435,13 +1448,7 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	)
 	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
-	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%    WEAPONS  %03d%%    TARGETING  %03d%%    HULL INTEGRITY  %03d%%" % [
-		_damage_status_accessible_text(damage_status),
-		roundi(engine_power * 100.0),
-		roundi(weapon_power * 100.0),
-		roundi(targeting_power * 100.0),
-		roundi(clampf(hull / maximum_hull, 0.0, 1.0) * 100.0),
-	]
+	_render_damage_status_label()
 	_damage_status_label.modulate = _damage_status_color(damage_status)
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
 	if _flight_cue_layer != null:
@@ -1590,6 +1597,7 @@ func get_hero_component_hud_snapshot() -> Dictionary:
 func _present_bound_hero_component_report(report: Dictionary) -> void:
 	var presentation := _component_degradation_presenter.present_hero_report(report)
 	_present_sensor_reticle_report(report)
+	_present_weapon_component_report(report)
 	if not is_instance_valid(_component_status_label):
 		return
 	_component_status_label.text = str(presentation.get("text", ""))
@@ -1603,6 +1611,8 @@ func _present_bound_hero_component_report(report: Dictionary) -> void:
 func _clear_bound_hero_component_report() -> void:
 	_component_degradation_presenter.detach()
 	_apply_sensor_reticle_stage(&"nominal", 1.0, &"cleared")
+	_weapon_component_hud_stage = &"nominal"
+	_render_damage_status_label()
 	if is_instance_valid(_component_status_label):
 		_component_status_label.text = ""
 		_component_status_label.visible = false
@@ -1702,6 +1712,99 @@ func get_sensor_reticle_component_snapshot() -> Dictionary:
 	snapshot["lock_state"] = _reticle_state
 	snapshot["lock_text"] = _reticle_state_label.text if is_instance_valid(_reticle_state_label) else ""
 	return snapshot
+
+
+## Inline geometry on the retained telemetry label. The weaker wing determines
+## the static pip silhouette; HeroShip remains the only fire and heat authority.
+func _present_weapon_component_report(report: Dictionary) -> void:
+	var integrity := 1.0
+	var authoritative_state: StringName = &"nominal"
+	var found := false
+	for raw_component in report.get("components", []) as Array:
+		if not raw_component is Dictionary:
+			continue
+		var component := raw_component as Dictionary
+		var component_id := StringName(component.get("id", &""))
+		if component_id not in [&"port_wing", &"starboard_wing"]:
+			continue
+		found = true
+		var candidate_integrity := clampf(float(component.get("integrity", 0.0)), 0.0, 1.0)
+		if candidate_integrity <= integrity:
+			integrity = candidate_integrity
+			authoritative_state = StringName(component.get("state_id", &"failed"))
+	_weapon_component_hud_stage = &"nominal"
+	if found and authoritative_state == &"failed":
+		_weapon_component_hud_stage = &"failed"
+	elif found and integrity <= 0.40:
+		_weapon_component_hud_stage = &"critical"
+	elif found and authoritative_state == &"impaired":
+		_weapon_component_hud_stage = &"degraded"
+	_render_damage_status_label()
+
+
+func _render_damage_status_label() -> void:
+	if not is_instance_valid(_damage_status_label):
+		return
+	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%    WEAPONS  %03d%%    TARGETING  %03d%%    HULL INTEGRITY  %03d%%\nWEAPON READY / HEAT  //  %s  %s  %03d%%" % [
+		_damage_status_accessible_text(_state_damage),
+		roundi(_last_engine_power_presentation * 100.0),
+		roundi(_last_weapon_power_presentation * 100.0),
+		roundi(_last_targeting_power_presentation * 100.0),
+		roundi(_last_hull_ratio_presentation * 100.0),
+		_weapon_component_heat_pips(_weapon_component_hud_stage, _weapon_heat_presentation),
+		_weapon_readiness_text(_weapon_status_presentation),
+		roundi(_weapon_heat_presentation * 100.0),
+	]
+
+
+func _weapon_component_heat_pips(stage: StringName, heat: float) -> String:
+	var safe_heat := clampf(heat, 0.0, 1.0)
+	if stage == &"failed":
+		return "[XXXX]"
+	var capacity := 2 if stage == &"critical" else 4
+	var filled := clampi(roundi(safe_heat * capacity), 0, capacity)
+	var pips := ""
+	for index in capacity:
+		pips += "#" if index < filled else "."
+	match stage:
+		&"degraded":
+			return "[%s %s]" % [pips.left(2), pips.right(2)]
+		&"critical":
+			return "[%s  %s]" % [pips.left(1), pips.right(1)]
+		_:
+			return "[%s]" % pips
+
+
+func _weapon_readiness_text(status: StringName) -> String:
+	return str({
+		&"ready": "READY",
+		&"cooldown": "CYCLING",
+		&"overheated": "OVERHEAT",
+		&"offline": "SAFE",
+	}.get(status, "UNAVAILABLE"))
+
+
+func get_weapon_heat_component_hud_snapshot() -> Dictionary:
+	return {
+		"stage": _weapon_component_hud_stage,
+		"pips": _weapon_component_heat_pips(
+			_weapon_component_hud_stage, _weapon_heat_presentation
+		),
+		"heat": _weapon_heat_presentation,
+		"readiness": _weapon_readiness_text(_weapon_status_presentation),
+		"label_text": _damage_status_label.text if is_instance_valid(_damage_status_label) else "",
+		"label_instance_id": (
+			_damage_status_label.get_instance_id() if is_instance_valid(_damage_status_label) else 0
+		),
+		"added_nodes": 0,
+		"geometry_policy": &"static",
+		"flashing": false,
+		"reduced_flash_safe": true,
+		"changes_reticle": false,
+		"changes_hull_frame": false,
+		"presentation_only": true,
+		"authority": false,
+	}.duplicate(true)
 
 
 func update_loadmaster_telemetry(snapshot: Dictionary) -> void:
