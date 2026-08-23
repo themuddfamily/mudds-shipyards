@@ -7,6 +7,7 @@ const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const CALLER_DELTA := 1.0 / 12.0
 const TEST_TIME_SCALE := 5.0
+const ATMOSPHERE_SCENE := preload("res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn")
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -252,8 +253,12 @@ func _test_real_scheduler_complete_loop() -> void:
 	_check(production.configure(host, 0).accepted, "real bound Host configures exactly once")
 	var planetary_director := ActivityDirector.new()
 	world.add_child(planetary_director)
+	var atmosphere := ATMOSPHERE_SCENE.instantiate() as PlanetaryAtmosphereComposition
+	world.add_child(atmosphere)
+	await process_frame
+	_check(atmosphere.configure().accepted, "live atmosphere composition configures for planetary recipe consumption")
 	var planetary_bound := production.configure_planetary_surface(
-		planetary_director, Callable(self, "_planetary_reward_sink")
+		planetary_director, Callable(self, "_planetary_reward_sink"), atmosphere
 	)
 	var planetary_discovery := production.discover_planetary_settlements(
 		Vector3(92.0, 120000.5, -18.0), 20.0
@@ -311,6 +316,11 @@ func _test_real_scheduler_complete_loop() -> void:
 			and water_contact.recovery_request.requested
 			and water_contact.recovery_request.movement_mutation == false,
 		"caller-owned deep-water contact publishes a bounded shoreline recovery request"
+	)
+	_check(
+		atmosphere.get_atmosphere_rig().get_sun_light().light_energy >= 0.1
+			and atmosphere.get_atmosphere_rig().get_cloud_shell().transparency >= 0.0,
+		"retained solar/weather observations apply bounded values to live atmosphere nodes"
 	)
 	var planetary_session := production.get_planetary_surface_session_snapshot()
 	var malformed_session := planetary_session.duplicate(true)

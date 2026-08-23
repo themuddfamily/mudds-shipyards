@@ -78,6 +78,7 @@ var _player_instance_id := 0
 var _loaded_scene_instance_id := 0
 var _location_generation := 0
 var _planetary_composition: Node
+var _atmosphere_composition: Node
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -169,7 +170,8 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 ## Ember production owner. The composition remains caller-observation driven.
 func configure_planetary_surface(
 		director: ActivityDirector,
-		reward_sink: Callable
+		reward_sink: Callable,
+		atmosphere_composition: Node = null
 	) -> Dictionary:
 	if not _configured or _composition_root == null:
 		return _reject(&"production_binding_unavailable")
@@ -184,6 +186,7 @@ func configure_planetary_surface(
 	if not bool(result.get("accepted", false)):
 		_planetary_composition.queue_free()
 		_planetary_composition = null
+	_atmosphere_composition = atmosphere_composition
 	return result
 
 
@@ -227,10 +230,12 @@ func submit_planetary_weather_exposure(
 	) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
-	return _planetary_composition.call(
+	var result: Dictionary = _planetary_composition.call(
 		&"submit_weather_exposure", hazard_id, position, altitude_m,
 		caller_time_seconds, exposure, delta_seconds, shelter_scalar
 	)
+	_apply_planetary_atmosphere_recipe()
+	return result
 
 
 func submit_planetary_solar_observation(
@@ -238,8 +243,26 @@ func submit_planetary_solar_observation(
 	) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
-	return _planetary_composition.call(
+	var result: Dictionary = _planetary_composition.call(
 		&"submit_solar_observation", surface_up, direction_to_sun, caller_time_seconds
+	)
+	_apply_planetary_atmosphere_recipe()
+	return result
+
+
+func _apply_planetary_atmosphere_recipe() -> void:
+	if _atmosphere_composition == null or _planetary_composition == null:
+		return
+	var snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
+	var solar := snapshot.get("solar_phase", {}) as Dictionary
+	var weather := snapshot.get("weather_observation", {}) as Dictionary
+	if solar.is_empty() or weather.is_empty():
+		return
+	_atmosphere_composition.call(
+		&"apply_retained_presentation_recipe", solar, {
+			"intensity_unitless": 0.0, "gust_factor_unitless": 1.0,
+			"shelter_scalar": 0.0, "wind_velocity_mps": Vector3.ZERO,
+		}
 	)
 
 
