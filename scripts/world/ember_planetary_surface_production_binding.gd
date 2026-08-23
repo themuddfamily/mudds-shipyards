@@ -17,6 +17,7 @@ const WaterScript := preload("res://scripts/world/planetary_water_contact_runtim
 const WaterContractScript := preload("res://scripts/world/planetary_water_surface_material_contract.gd")
 const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark_runtime.gd")
 const LandmarkContractScript := preload("res://scripts/world/planetary_activity_landmark_cluster_contract.gd")
+const LandmarkBeaconScript := preload("res://scripts/world/planetary_surface_landmark_beacon_presentation.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
@@ -41,6 +42,7 @@ var _weather_observation: Dictionary = {}
 var _water_presentation: Node
 var _water: RefCounted
 var _landmarks: RefCounted
+var _landmark_beacons: Dictionary = {}
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
@@ -109,9 +111,11 @@ func configure(
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"water_configuration_rejected")
 	_landmarks = LandmarkScript.new()
-	configured = _landmarks.call(&"configure", LandmarkContractScript.new())
+	var landmark_contract := LandmarkContractScript.new()
+	configured = _landmarks.call(&"configure", landmark_contract)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"landmark_configuration_rejected")
+	_configure_landmark_beacons(landmark_contract.get_snapshot())
 	_settlement = SettlementScript.new()
 	var settlement_contract := SettlementContractScript.new()
 	configured = _settlement.call(&"configure", settlement_contract)
@@ -189,6 +193,7 @@ func submit_weather_exposure(
 		_surface_audio_generation += 1
 		_present_surface_audio()
 		_apply_water_presentation()
+		_apply_landmark_beacons()
 	return result
 
 
@@ -217,6 +222,7 @@ func submit_solar_observation(
 		"caller_time_seconds": caller_time_seconds,
 	}.duplicate(true)
 	_apply_settlement_practicals()
+	_apply_landmark_beacons()
 	_surface_audio_generation += 1
 	_present_surface_audio()
 	_apply_water_presentation()
@@ -296,6 +302,8 @@ func detach() -> Dictionary:
 		_settlement.call(&"detach")
 	for practical: Node in _settlement_practicals.values():
 		practical.call(&"detach")
+	for beacon: Node in _landmark_beacons.values():
+		beacon.call(&"detach")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"in_water":
 		_water.call(&"detach")
@@ -323,6 +331,7 @@ func reenter() -> Dictionary:
 	if settlement_snapshot.get("state", &"idle") == &"detached":
 		_settlement.call(&"reenter", next_attachment)
 	_apply_settlement_practicals()
+	_apply_landmark_beacons()
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
 		_water.call(&"reenter", next_attachment)
@@ -374,6 +383,7 @@ func get_snapshot() -> Dictionary:
 		"landmarks": _landmarks.get_snapshot() if _landmarks != null else {},
 		"settlement": _settlement.get_snapshot() if _settlement != null else {},
 		"settlement_practicals": _settlement_practical_snapshot(),
+		"landmark_beacons": _landmark_beacon_snapshot(),
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
 
@@ -438,6 +448,36 @@ func _settlement_practical_snapshot() -> Dictionary:
 	for structure_id: StringName in _settlement_practicals:
 		var practical: Node = _settlement_practicals[structure_id]
 		snapshot[structure_id] = practical.call(&"get_snapshot")
+	return snapshot
+
+
+func _configure_landmark_beacons(contract_snapshot: Dictionary) -> void:
+	_landmark_beacons.clear()
+	for item in contract_snapshot.get("landmarks", []) as Array:
+		var landmark := item as Dictionary
+		var landmark_id := StringName(landmark.get("id", &""))
+		var anchor: Variant = landmark.get("position_body_local_m", Vector3.INF)
+		if landmark_id.is_empty() or not anchor is Vector3 or not (anchor as Vector3).is_finite():
+			continue
+		var beacon := LandmarkBeaconScript.new() as Node
+		beacon.name = "LandmarkBeacon_%s" % landmark_id
+		add_child(beacon)
+		var result: Dictionary = beacon.call(&"configure", landmark_id, anchor)
+		if bool(result.get("accepted", false)):
+			_landmark_beacons[landmark_id] = beacon
+
+
+func _apply_landmark_beacons() -> void:
+	if _solar_phase.is_empty() or _weather_observation.is_empty():
+		return
+	for beacon: Node in _landmark_beacons.values():
+		beacon.call(&"apply_presentation_recipe", _solar_phase, _weather_observation)
+
+
+func _landmark_beacon_snapshot() -> Dictionary:
+	var snapshot := {}
+	for landmark_id: StringName in _landmark_beacons:
+		snapshot[landmark_id] = (_landmark_beacons[landmark_id] as Node).call(&"get_snapshot")
 	return snapshot
 
 
