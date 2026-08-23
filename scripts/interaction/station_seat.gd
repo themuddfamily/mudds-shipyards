@@ -8,13 +8,14 @@ extends Area3D
 ## and one local occupant reservation.
 
 const INTERACTABLE_LAYER := PhysicsLayers.INTERACTABLE_AREA_LAYER
-const DEFAULT_REACH := 1.55
+const DEFAULT_REACH := 0.55
 
 var _seat_anchor: Marker3D
 var _entry_anchor: Marker3D
 var _exit_anchor: Marker3D
 var _occupant: Node
 var _transitioning := false
+var _enabled := true
 
 
 static func install(
@@ -101,11 +102,21 @@ func get_exit_transform() -> Transform3D:
 
 func is_available() -> bool:
 	return (
-		is_inside_tree()
+		_enabled
+		and is_inside_tree()
 		and not is_queued_for_deletion()
 		and not _transitioning
 		and not is_instance_valid(_occupant)
 	)
+
+
+func set_enabled(enabled: bool) -> void:
+	_enabled = enabled
+	_apply_availability()
+
+
+func is_enabled() -> bool:
+	return _enabled
 
 
 func is_reserved_for(actor: Node) -> bool:
@@ -158,7 +169,7 @@ func interact(_actor: Node = null) -> bool:
 
 
 func _apply_availability() -> void:
-	var available := not _transitioning and not is_instance_valid(_occupant)
+	var available := _enabled and not _transitioning and not is_instance_valid(_occupant)
 	collision_layer = INTERACTABLE_LAYER if available else 0
 	monitorable = available
 	for child in get_children():

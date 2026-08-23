@@ -496,7 +496,7 @@ func _test_structured_red_on_undeclared_slot(world: ShipyardWorld) -> void:
 	_check(
 		int(red_adjacency.get("dangling_slot_count", -1)) == 1
 		and (red_adjacency.get("dangling_slots", PackedStringArray()) as PackedStringArray).has("hub-aft-junction"),
-		"exactly the orphaned hub slot is listed as dangling"
+		"exactly the unpaired hub slot is listed as dangling"
 	)
 	_check((red_adjacency.get("edges", []) as Array).size() == EXPECTED_EDGES.size() - 1, "the mutated station graph keeps only the six intact edges")
 	_check(

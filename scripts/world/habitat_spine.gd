@@ -1274,6 +1274,8 @@ func _apply_enabled_state() -> void:
 	StationModuleContract.apply_enabled_state(
 		StationModuleContract.collect_static_bodies(self), WORLD_LAYER, _module_enabled, self
 	)
+	for seat in find_children("*", "StationSeat", true, false):
+		(seat as StationSeat).set_enabled(_module_enabled)
 
 
 func _index_semantics() -> void:
