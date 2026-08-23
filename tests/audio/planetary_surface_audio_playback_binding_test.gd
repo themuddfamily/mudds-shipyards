@@ -39,7 +39,7 @@ func _run() -> void:
 		float((calm_snapshot.fade as Dictionary).wind_gain_db) == -80.0,
 		"calm exterior keeps the wind contribution silent"
 	)
-	var windy_result: Dictionary = binding.present_policy_result(windy, 0.75, generation, 1001, 7, 11)
+	var windy_result: Dictionary = binding.present_policy_result(windy, 0.1875, generation, 1001, 7, 11)
 	_check(
 		bool(windy_result.accepted),
 		"windy exterior policy reaches the playback adapter"
@@ -48,10 +48,23 @@ func _run() -> void:
 	var windy_fade := windy_snapshot.fade as Dictionary
 	var windy_voice := (windy_snapshot.voices as Dictionary).exterior as Dictionary
 	_check(
-		float(windy_fade.wind_gain_db) <= -9.0
-		and float(windy_fade.wind_gain_db) > -80.0
+		float(windy_fade.wind_intensity_unitless) > 0.0
+		and float(windy_fade.wind_intensity_unitless) < float(windy_fade.target_wind_intensity_unitless)
+		and float(windy_fade.wind_gain_db) < -9.0
 		and float(windy_voice.effective_linear_gain) > 0.0,
-		"wind intensity modulates the authored exterior wind loop without a new voice"
+		"weather change crossfades the authored exterior wind loop at the midpoint"
+	)
+	var settled_result: Dictionary = binding.present_policy_result(
+		windy, 0.5625, generation, 1001, 7, 11
+	)
+	var settled_fade := binding.get_state_snapshot().fade as Dictionary
+	_check(
+		bool(settled_result.accepted)
+		and is_equal_approx(
+			float(settled_fade.wind_intensity_unitless),
+			float(settled_fade.target_wind_intensity_unitless)
+		),
+		"weather transition settles at its authored wind target"
 	)
 	_check(
 		int((binding.get_audit_report().performance as Dictionary).maximum_simultaneous_voices) == 2,
