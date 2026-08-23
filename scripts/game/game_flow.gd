@@ -30,6 +30,9 @@ const NetworkSessionAdapterType := preload(
 const NetworkHalyardCrewCommandBridgeType := preload(
 	"res://scripts/network/network_halyard_crew_command_bridge.gd"
 )
+const NetworkShipAuthorityCompositionType := preload(
+	"res://scripts/network/network_ship_authority_composition.gd"
+)
 const MovingInteriorRelationshipType := preload(
 	"res://scripts/network/moving_interior_relationship.gd"
 )
@@ -326,6 +329,10 @@ var cargo_delivery_activity: CargoDeliveryActivity
 ## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
 var network_session: NetworkSessionAdapterType
 var _network_halyard_command_bridge
+var _network_ship_authority_composition: NetworkShipAuthorityComposition
+var _network_composition_ship: HeroShip
+var _network_ship_generation := 0
+var _network_ship_event_sequence := 0
 var _network_session_mode: StringName = &""
 var _network_session_address := "127.0.0.1"
 var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
@@ -568,6 +575,7 @@ func _exit_tree() -> void:
 	if is_instance_valid(network_session):
 		network_session.shutdown(&"game_flow_exit")
 		network_session = null
+	_detach_network_ship_authority_composition(&"game_flow_exit")
 	_detach_network_halyard_command_bridge()
 	_cancel_ground_transition_for_detach()
 	_detach_cinder_race_session()
@@ -667,7 +675,37 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	_connect_signal_once(network_session, &"crew_command_result", _on_network_crew_command_result)
 	_connect_signal_once(network_session, &"server_browser_result", _on_server_browser_result)
 	_attach_network_halyard_command_bridge()
+	_attach_network_ship_authority_composition()
 	return network_session
+
+
+func _attach_network_ship_authority_composition() -> Dictionary:
+	if not is_instance_valid(network_session) or not is_instance_valid(active_ship):
+		return {"accepted": false, "status": &"network_or_ship_unavailable"}
+	if _network_ship_authority_composition == null:
+		_network_ship_authority_composition = NetworkShipAuthorityCompositionType.new()
+		_network_ship_authority_composition.name = "NetworkShipAuthorityComposition"
+		add_child(_network_ship_authority_composition)
+	if _network_composition_ship == active_ship:
+		return {"accepted": true, "status": &"already_attached", "ship_generation": _network_ship_generation}
+	_network_ship_generation += 1
+	if _network_ship_generation <= 0:
+		_network_ship_generation = 1
+	var result := _network_ship_authority_composition.attach(
+		 network_session, active_ship, _network_ship_generation
+	)
+	if bool(result.get("accepted", false)):
+		_network_composition_ship = active_ship
+		_network_ship_event_sequence = 0
+	return result
+
+
+func _detach_network_ship_authority_composition(reason: StringName = &"detached") -> Dictionary:
+	_network_composition_ship = null
+	_network_ship_event_sequence = 0
+	if _network_ship_authority_composition == null:
+		return {"accepted": true, "status": &"already_detached"}
+	return _network_ship_authority_composition.detach(reason)
 
 
 func _attach_network_halyard_command_bridge() -> Dictionary:
@@ -1951,6 +1989,14 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
+	if is_instance_valid(network_session) and _network_session_mode == &"server":
+		var composition_attachment := _attach_network_ship_authority_composition()
+		if bool(composition_attachment.get("accepted", false)) \
+				and _network_ship_authority_composition != null:
+			_network_ship_event_sequence += 1
+			_network_ship_authority_composition.submit_server_physics_tick(
+				_network_ship_event_sequence, _network_ship_event_sequence
+			)
 	_advance_safe_start_recovery_physics(delta)
 	if _caption_presentation_service != null:
 		_caption_presentation_service.advance_physics(delta)
@@ -2692,6 +2738,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 func _on_network_session_stopped(reason: StringName) -> void:
 	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_STOP, 0, false)
+	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
 	_publish_network_session_snapshot(
@@ -3703,6 +3750,8 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		_clear_bomber_payload_loop(&"active_ship_replaced")
 		_detach_cinder_loadmaster_hud_binding()
 	active_ship = candidate
+	if is_instance_valid(network_session):
+		_attach_network_ship_authority_composition()
 	_sync_optional_semantic_audio()
 	_sync_cinder_loadmaster_hud_binding()
 	_first_sortie_tutorial_generation += 1
