@@ -22,6 +22,7 @@ const SeatAuthority := preload("res://scripts/network/network_seat_authority.gd"
 const SessionMigration := preload("res://scripts/network/network_session_migration.gd")
 const PredictionGuard := preload("res://scripts/network/network_prediction_correction_guard.gd")
 const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
+const SnapshotJitterBuffer := preload("res://scripts/network/network_snapshot_jitter_buffer.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -62,6 +63,7 @@ var _seat_authority
 var _migration
 var _prediction
 var _server_browser
+var _snapshot_jitter
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -95,6 +97,7 @@ func _init() -> void:
 	_migration = SessionMigration.new(AUTHORITY_PEER_ID)
 	_prediction = PredictionGuard.new(AUTHORITY_PEER_ID)
 	_server_browser = ServerBrowser.new(AUTHORITY_PEER_ID)
+	_snapshot_jitter = SnapshotJitterBuffer.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -821,6 +824,16 @@ func get_prediction_entity(entity_id: StringName) -> Dictionary:
 	return _prediction.get_entity_snapshot(entity_id)
 
 
+func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	return _remember(_snapshot_jitter.reset(migration_generation))
+
+
+func get_snapshot_jitter_state() -> Dictionary:
+	return _snapshot_jitter.get_snapshot()
+
+
 func publish_server_directory(directory_generation: int, server_tick: int, entries: Array) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -995,9 +1008,17 @@ func _send_server_offer(offer: Dictionary) -> void:
 func _broadcast_snapshot(packet: Dictionary) -> void:
 	if is_server():
 		return
-	var applied: Dictionary = _lifecycle.apply_replica_snapshot(AUTHORITY_PEER_ID, packet)
-	snapshot_applied.emit(applied.duplicate(true))
-	_last_result = applied.duplicate(true)
+	var buffered: Dictionary = _snapshot_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		_last_result = buffered.duplicate(true)
+		return
+	while true:
+		var ready: Dictionary = _snapshot_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var applied: Dictionary = _lifecycle.apply_replica_snapshot(AUTHORITY_PEER_ID, ready)
+		snapshot_applied.emit(applied.duplicate(true))
+		_last_result = applied.duplicate(true)
 
 
 @rpc("authority", "call_remote", "reliable")

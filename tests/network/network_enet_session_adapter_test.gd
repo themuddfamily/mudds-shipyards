@@ -286,6 +286,10 @@ func _initialize() -> void:
 		"client cannot rotate the authoritative migration epoch"
 	)
 	_check(
+		_client.reset_snapshot_jitter(2).get("status") == &"reset",
+		"client resets snapshot ordering state for a fresh migration generation"
+	)
+	_check(
 		bool(_server.publish_server_directory(1, 1, [{
 			"session_id": &"lan_session",
 			"host_peer_id": 1,
