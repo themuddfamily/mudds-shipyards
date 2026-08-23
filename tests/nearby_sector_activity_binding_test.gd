@@ -1,0 +1,51 @@
+extends SceneTree
+
+const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
+
+var _assertions := 0
+var _failures: Array[String] = []
+
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	root.add_child(cluster)
+	await process_frame
+	var binding: Node = cluster.get_node_or_null(^"ActivityBinding")
+	_check(binding != null, "the authored nearby-sector scene owns one activity binding")
+	if binding != null:
+		var audit: Dictionary = binding.call("audit")
+		_check(bool(audit.get("valid", false)), "the existing convoy host is valid inside the authored cluster envelope")
+		_check(
+			StringName(audit.get("activity_id", &"")) == &"cinder_reach_emberline_convoy"
+			and not bool(audit.get("gameplay_authority", true)),
+			"the binding publishes the convoy as a production activity without gameplay authority"
+		)
+		var started: Dictionary = binding.call("start_convoy")
+		_check(bool(started.get("accepted", false)), "the cluster owner starts the existing convoy lifecycle")
+		var advanced: Dictionary = binding.call("advance_convoy", 0.25, Vector3(84.0, -68.0, -724.0))
+		_check(bool(advanced.get("accepted", false)), "the owner advances one caller-supplied convoy physics step")
+		var reset: Dictionary = binding.call("reset_convoy")
+		_check(bool(reset.get("accepted", false)), "the owner can reset the convoy without changing authored route data")
+	cluster.queue_free()
+	await process_frame
+	_finish()
+
+
+func _check(condition: bool, message: String) -> void:
+	_assertions += 1
+	if not condition:
+		_failures.append(message)
+
+
+func _finish() -> void:
+	if _failures.is_empty():
+		print("PASS nearby_sector_activity_binding_test (%d assertions)" % _assertions)
+		quit(0)
+	else:
+		for failure in _failures:
+			push_error(failure)
+		quit(1)

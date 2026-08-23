@@ -186,6 +186,7 @@ const MOONLET_CRATER_COUNT := 6
 @onready var _field_root: Node3D = get_node(^"DebrisField") as Node3D
 @onready var _platform_root: Node3D = get_node(^"ExtractionPlatform") as Node3D
 @onready var _landmark_root: Node3D = get_node(^"Landmarks") as Node3D
+@onready var _activity_binding: Node3D = get_node(^"ActivityBinding") as Node3D
 
 var _materials: Dictionary = {}
 var _lens_materials: Dictionary = {}
@@ -589,6 +590,11 @@ func _compose_audit_report() -> Dictionary:
 		"evidence_status": EVIDENCE_STATUS,
 		"content_note": CONTENT_NOTE,
 		"gameplay_authority": false,
+		"activity_authority": is_instance_valid(_activity_binding),
+		"activity_id": &"cinder_reach_emberline_convoy" if is_instance_valid(_activity_binding) else &"",
+		"activity_audit": (
+			_activity_binding.call("audit") if is_instance_valid(_activity_binding) else {}
+		),
 		"grants_rewards": false,
 		"range_targets_added": 0,
 		"platform_anchor": PLATFORM_ANCHOR,

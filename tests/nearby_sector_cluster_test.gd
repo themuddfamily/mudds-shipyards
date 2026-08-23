@@ -60,12 +60,12 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 160
+const EXPECTED_LOCAL_MESH_NODES := 167
 const EXPECTED_LOCAL_MULTIMESH_NODES := 3
-const EXPECTED_LOCAL_RENDERER_NODES := 163
-const EXPECTED_LOCAL_VISIBLE_COPIES := 688
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 163
-const EXPECTED_LOCAL_TRIANGLES := 117457
+const EXPECTED_LOCAL_RENDERER_NODES := 170
+const EXPECTED_LOCAL_VISIBLE_COPIES := 695
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 170
+const EXPECTED_LOCAL_TRIANGLES := 117541
 const EXPECTED_LOCAL_STATIC_BODIES := 38
 const EXPECTED_LOCAL_COLLISION_SHAPES := 38
 const EXPECTED_LAMP_LENS_COPY_COUNT := 22
@@ -306,7 +306,7 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster renderer nodes are locally frozen at 160 Mesh + 3 MultiMesh = 163"
+		"NearbySectorCluster renderer nodes include the one authored convoy owner at 167 Mesh + 3 MultiMesh = 170"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES

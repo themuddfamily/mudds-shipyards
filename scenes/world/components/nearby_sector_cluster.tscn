@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/nearby_sector_cluster.gd" id="1_cluster"]
+[ext_resource type="Script" path="res://scripts/world/nearby_sector_activity_binding.gd" id="2_binding"]
+[ext_resource type="Script" path="res://scripts/activities/cinder_convoy_escort_host.gd" id="3_convoy"]
 
 [node name="NearbySectorCluster" type="Node3D"]
 script = ExtResource("1_cluster")
@@ -12,3 +14,9 @@ script = ExtResource("1_cluster")
 [node name="DebrisField" type="Node3D" parent="."]
 
 [node name="ExtractionPlatform" type="Node3D" parent="."]
+
+[node name="ActivityBinding" type="Node3D" parent="."]
+script = ExtResource("2_binding")
+
+[node name="EmberlineSupplyTenderHost" type="Node3D" parent="ActivityBinding"]
+script = ExtResource("3_convoy")
