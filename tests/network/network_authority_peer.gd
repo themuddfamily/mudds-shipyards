@@ -3,6 +3,7 @@ extends SceneTree
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 const JovianScene := preload("res://scenes/ships/jovian_light_freighter.tscn")
+const HalyardScene := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const PlayerScene := preload("res://scenes/player/player.tscn")
 const CinderBomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const PayloadProjectile := preload("res://scripts/combat/bomber_payload_projectile.gd")
@@ -15,6 +16,7 @@ var _port := 29140
 var _log_path := ""
 var _adapter: Adapter
 var _jovian: Node3D
+var _halyard: Node3D
 var _player: Node3D
 var _passenger_player: Node3D
 var _cinder: Node3D
@@ -42,6 +44,9 @@ func _init() -> void:
 	_jovian.name = &"JovianAuthorityCraft"
 	_jovian.position = Vector3(0.0, 8.0, 0.0)
 	root.add_child(_jovian)
+	_halyard = HalyardScene.instantiate() as Node3D
+	_halyard.name = &"HalyardAuthorityCraft"
+	root.add_child(_halyard)
 	_player = PlayerScene.instantiate() as Node3D
 	_player.name = &"PassengerAvatar"
 	_player.position = Vector3(0.0, 9.0, 0.0)
@@ -233,11 +238,25 @@ func _server_loop() -> void:
 				pilot_peer, int(_adapter._peer_generations.get(pilot_peer, 0)),
 				&"loadmaster_avatar", &"passenger", 1, &"halyard_authority_craft", 1
 			)
+			var loadmaster_effect := _halyard.call("_consume_loadmaster_manifest_intent", {
+				"seat_id": &"crew_port_00", "occupant_peer_id": pilot_peer,
+				"avatar_id": &"loadmaster_avatar", "seat_generation": 1,
+				"request_sequence": 2, "payload": {
+					"manifest_id": &"halyard_manifest_alpha", "route_id": &"halyard_route_alpha",
+					"ready": true,
+				},
+			}) as Dictionary
+			var loadmaster_receipt := loadmaster_effect.get("receipt", {}) as Dictionary
+			if StringName(loadmaster_receipt.get("manifest_id", &"")) == &"halyard_manifest_alpha" \
+				and StringName(loadmaster_receipt.get("route_id", &"")) == &"halyard_route_alpha" \
+				and int(loadmaster_receipt.get("manifest_generation", 0)) > 0 \
+				and bool(loadmaster_receipt.get("ready", false)):
+				_log("LOADMASTER_RECEIPT_REAL")
 			var loadmaster_ready := _adapter.publish_cargo_manifest_snapshot(
-				_loadmaster_manifest(&"ready", 1, 12, 1), peer_ids
+				_loadmaster_manifest_from_receipt(&"ready", loadmaster_receipt, 1), peer_ids
 			)
 			var loadmaster_route := _adapter.publish_cargo_manifest_snapshot(
-				_loadmaster_manifest(&"route_ready", 1, 12, 2), peer_ids
+				_loadmaster_manifest_from_receipt(&"route_ready", loadmaster_receipt, 2), peer_ids
 			)
 			var loadmaster_replay := _adapter.publish_cargo_manifest_snapshot(
 				_loadmaster_manifest(&"route_ready", 1, 12, 2), peer_ids
@@ -543,7 +562,7 @@ func _server_loop() -> void:
 						break
 				if reconnect_peer > 0:
 					reconnected = true
-					await create_timer(0.4).timeout
+					await create_timer(1.0).timeout
 					var stale_command: Dictionary = _adapter._remote_ship_commands.accept_command(
 						reconnect_peer, _movement_command(
 							reconnect_peer, 900, _initial_peer_generation
@@ -718,6 +737,23 @@ func _loadmaster_manifest(state: StringName, manifest_generation: int, quantity:
 	manifest["route_id"] = &"halyard_route_alpha"
 	manifest["route_sequence"] = route_sequence
 	manifest["ready"] = state == &"ready" or state == &"route_ready"
+	manifest["inventory_mutation_authority"] = false
+	manifest["reward_authority"] = false
+	manifest["helm_authority"] = false
+	return manifest
+
+
+func _loadmaster_manifest_from_receipt(state: StringName, receipt: Dictionary, route_sequence: int) -> Dictionary:
+	var manifest := _cargo_manifest(state, 1, 12)
+	manifest["role"] = &"loadmaster"
+	manifest["seat_id"] = receipt.get("seat_id", &"crew_port_00")
+	manifest["occupant_avatar_id"] = receipt.get("avatar_id", &"loadmaster_avatar")
+	manifest["occupant_peer_id"] = int(receipt.get("occupant_peer_id", 0))
+	manifest["manifest_id"] = receipt.get("manifest_id", &"")
+	manifest["route_id"] = receipt.get("route_id", &"")
+	manifest["manifest_generation"] = int(receipt.get("manifest_generation", 0))
+	manifest["route_sequence"] = route_sequence
+	manifest["ready"] = bool(receipt.get("ready", false))
 	manifest["inventory_mutation_authority"] = false
 	manifest["reward_authority"] = false
 	manifest["helm_authority"] = false
