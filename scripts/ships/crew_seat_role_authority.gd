@@ -1,6 +1,8 @@
 class_name CrewSeatRoleAuthority
 extends RefCounted
 
+const RoleProfile := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
+
 ## Runtime seat/role authority for a multi-crew ship.
 ##
 ## This is the production seam between a ship's physical seat markers and a
@@ -15,23 +17,23 @@ const POLICY_VERSION: StringName = &"crew_seat_role_authority_v1"
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ID_LENGTH := 64
 
-const ROLE_PILOT: StringName = &"pilot"
-const ROLE_GUNNER: StringName = &"gunner"
-const ROLE_PASSENGER: StringName = &"passenger"
-const ROLE_ENGINEER: StringName = &"engineer"
-const ROLES := [ROLE_PILOT, ROLE_GUNNER, ROLE_PASSENGER, ROLE_ENGINEER]
+const ROLE_PILOT: StringName = RoleProfile.ROLE_PILOT
+const ROLE_GUNNER: StringName = RoleProfile.ROLE_GUNNER
+const ROLE_PASSENGER: StringName = RoleProfile.ROLE_PASSENGER
+const ROLE_ENGINEER: StringName = RoleProfile.ROLE_ENGINEER
+const ROLES := RoleProfile.ROLES
 
-const CAPABILITY_SHIP_COMMAND: StringName = &"ship_command"
-const CAPABILITY_WEAPON_CONTROL: StringName = &"weapon_control"
-const CAPABILITY_SYSTEMS_CONTROL: StringName = &"systems_control"
-const CAPABILITY_PASSENGER_ACCESS: StringName = &"passenger_access"
+const CAPABILITY_SHIP_COMMAND: StringName = RoleProfile.CAPABILITY_SHIP_COMMAND
+const CAPABILITY_WEAPON_CONTROL: StringName = RoleProfile.CAPABILITY_WEAPON_CONTROL
+const CAPABILITY_SYSTEMS_CONTROL: StringName = RoleProfile.CAPABILITY_SYSTEMS_CONTROL
+const CAPABILITY_PASSENGER_ACCESS: StringName = RoleProfile.CAPABILITY_PASSENGER_ACCESS
 
-const ROLE_CAPABILITIES := {
-	ROLE_PILOT: [CAPABILITY_SHIP_COMMAND],
-	ROLE_GUNNER: [CAPABILITY_WEAPON_CONTROL],
-	ROLE_PASSENGER: [CAPABILITY_PASSENGER_ACCESS],
-	ROLE_ENGINEER: [CAPABILITY_SYSTEMS_CONTROL],
-}
+const ACTION_FLIGHT_COMMAND: StringName = RoleProfile.ACTION_FLIGHT_COMMAND
+const ACTION_GUNNER_FIRE: StringName = RoleProfile.ACTION_GUNNER_FIRE
+const ACTION_ENGINEER_REPAIR: StringName = RoleProfile.ACTION_ENGINEER_REPAIR
+const ACTION_PASSENGER_PING: StringName = RoleProfile.ACTION_PASSENGER_PING
+
+const ROLE_CAPABILITIES := RoleProfile.ROLE_CAPABILITIES
 
 const FORBIDDEN_DIRECT_CAPABILITIES := [
 	&"movement_truth",
@@ -46,6 +48,7 @@ var _roster_sealed := false
 var _seats: Dictionary = {}
 var _assignments: Dictionary = {}
 var _last_request_sequence_by_peer: Dictionary = {}
+var _last_intents: Dictionary = {}
 var _event_sequence := 0
 var _last_result: Dictionary = {}
 
@@ -216,6 +219,7 @@ func release(
 	if not _accept_sequence(occupant_peer_id, request_sequence):
 		return _remember(_result(false, &"stale_request_sequence"))
 	_assignments.erase(key)
+	_last_intents.erase(key)
 	_last_request_sequence_by_peer[occupant_peer_id] = request_sequence
 	_event_sequence += 1
 	return _remember(_result(true, &"released", {"assignment": assignment}))
@@ -235,6 +239,7 @@ func release_peer(source_peer_id: int, occupant_peer_id: int) -> Dictionary:
 		if int(assignment.get("occupant_peer_id", 0)) == occupant_peer_id:
 			removed.append(assignment.duplicate(true))
 			_assignments.erase(key)
+			_last_intents.erase(key)
 	if not removed.is_empty():
 		removed.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 			return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
@@ -263,6 +268,52 @@ func authorize_action(
 	return _result(true, &"capability_authorized", {"role": role, "capability": capability})
 
 
+## Accepts one role-specific gameplay intent. The server owns admission and
+## sequencing; the returned normalized receipt is consumed by the downstream
+## ship, combat, repair, or presentation authority. This method never mutates
+## movement, damage, landing, or occupancy state.
+func submit_intent(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		action: StringName,
+		payload: Dictionary,
+		request_sequence: int
+) -> Dictionary:
+	var request_status := _validate_request(source_peer_id, occupant_peer_id, avatar_id, request_sequence)
+	if not request_status.is_empty():
+		return _remember(_result(false, request_status))
+	var key := _assignment_key(occupant_peer_id, avatar_id)
+	if not _assignments.has(key):
+		return _remember(_result(false, &"assignment_not_found"))
+	var assignment := _assignments[key] as Dictionary
+	var role := StringName(assignment.get("role", &""))
+	var validation: Dictionary = RoleProfile.validate_intent(role, action, payload)
+	if not bool(validation.get("accepted", false)):
+		return _remember(_result(false, validation.get("status", &"invalid_intent")))
+	var normalized_payload: Dictionary = validation.get("payload", {}) as Dictionary
+	_last_request_sequence_by_peer[occupant_peer_id] = request_sequence
+	var intent := {
+		"occupant_peer_id": occupant_peer_id,
+		"avatar_id": avatar_id,
+		"seat_id": assignment.seat_id,
+		"vessel_id": assignment.vessel_id,
+		"role": role,
+		"action": action,
+		"channel": RoleProfile.get_role_profile(role).get("channel", &""),
+		"payload": normalized_payload,
+		"request_sequence": request_sequence,
+		"seat_generation": int(assignment.seat_generation),
+	}
+	_last_intents[key] = intent
+	_event_sequence += 1
+	return _remember(_result(true, &"intent_accepted", {"intent": intent}))
+
+
+func get_last_intent(occupant_peer_id: int, avatar_id: StringName) -> Dictionary:
+	return (_last_intents.get(_assignment_key(occupant_peer_id, avatar_id), {}) as Dictionary).duplicate(true)
+
+
 func get_assignment(occupant_peer_id: int, avatar_id: StringName) -> Dictionary:
 	var assignment: Variant = _assignments.get(_assignment_key(occupant_peer_id, avatar_id), {})
 	return (assignment as Dictionary).duplicate(true)
@@ -281,6 +332,12 @@ func get_snapshot() -> Dictionary:
 	assignments.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
 	)
+	var intents: Array = []
+	for intent_variant in _last_intents.values():
+		intents.append((intent_variant as Dictionary).duplicate(true))
+	intents.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("seat_id", "")) < str(right.get("seat_id", ""))
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"policy_version": POLICY_VERSION,
@@ -289,6 +346,7 @@ func get_snapshot() -> Dictionary:
 		"event_sequence": _event_sequence,
 		"seats": seats,
 		"assignments": assignments,
+		"intents": intents,
 	}.duplicate(true)
 
 
@@ -310,6 +368,7 @@ func audit() -> Dictionary:
 		"role_counts": role_counts,
 		"server_owns_seat_reservation": true,
 		"server_owns_role_assignment": true,
+		"server_owns_role_intent_admission": true,
 		"client_can_mutate_ledger": false,
 		"owns_movement": false,
 		"owns_ship_simulation": false,
