@@ -18,6 +18,9 @@ const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd
 const SafeStartProductionRecoveryType := preload(
 	"res://scripts/recovery/safe_start_production_recovery.gd"
 )
+const NetworkSessionAdapterType := preload(
+	"res://scripts/network/network_enet_session_adapter.gd"
+)
 
 ## First production nearby activity. It is a modern interpretation and remains
 ## a progress-only route: the director and this integration own no rewards,
@@ -252,6 +255,9 @@ var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
 var planetary_cruise_binding: PlanetaryCruiseProductionBinding
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
+## Opt-in multiplayer transport. Normal solo startup never creates this node;
+## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
+var network_session: NetworkSessionAdapterType
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -426,6 +432,9 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if is_instance_valid(network_session):
+		network_session.shutdown(&"game_flow_exit")
+		network_session = null
 	_cancel_ground_transition_for_detach()
 	_detach_cinder_race_session()
 	_detach_caption_presentation()
@@ -457,6 +466,49 @@ func release_mouse_capture() -> void:
 		return
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## Explicit multiplayer entry point. Solo startup remains offline because this
+## method is never called by `_ready()` or the boot loader.
+func host_network_session(
+	port: int = NetworkSessionAdapterType.DEFAULT_PORT,
+	max_clients: int = NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
+) -> Dictionary:
+	var session := _ensure_network_session()
+	if session == null:
+		return {"accepted": false, "status": &"game_flow_not_in_tree"}
+	return session.host(port, max_clients)
+
+
+func join_network_session(
+	address: String = "127.0.0.1",
+	port: int = NetworkSessionAdapterType.DEFAULT_PORT
+) -> Dictionary:
+	var session := _ensure_network_session()
+	if session == null:
+		return {"accepted": false, "status": &"game_flow_not_in_tree"}
+	return session.join(address, port)
+
+
+func shutdown_network_session(reason: StringName = &"requested") -> Dictionary:
+	if not is_instance_valid(network_session):
+		return {"accepted": false, "status": &"not_started"}
+	return network_session.shutdown(reason)
+
+
+func get_network_session() -> NetworkSessionAdapterType:
+	return network_session
+
+
+func _ensure_network_session() -> NetworkSessionAdapterType:
+	if not is_inside_tree():
+		return null
+	if is_instance_valid(network_session):
+		return network_session
+	network_session = NetworkSessionAdapterType.new()
+	network_session.name = "NetworkSession"
+	add_child(network_session)
+	return network_session
 
 
 func _ready() -> void:

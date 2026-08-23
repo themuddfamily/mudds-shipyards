@@ -274,6 +274,40 @@ func validate_motion_sample(
 	})
 
 
+## Commits one player/ship support handoff only when the motion budgets and
+## every swept terrain tile are valid together. This is the caller's atomic
+## anti-tunnelling seam at an LOD transition; it never moves the actor.
+func validate_supported_motion_handoff(
+		previous_world_streaming_position: Vector3,
+		current_world_streaming_position: Vector3,
+		support_jitter_meters: Variant,
+		stream_plan: Variant
+	) -> Dictionary:
+	var motion := validate_motion_sample(
+		previous_world_streaming_position,
+		current_world_streaming_position,
+		support_jitter_meters
+	)
+	if not bool(motion.get("accepted", false)):
+		return _result(false, motion.get("reason", &"motion_rejected") as StringName, {
+			"motion": motion.duplicate(true),
+		})
+	var residency := validate_collision_residency(
+		previous_world_streaming_position,
+		current_world_streaming_position,
+		stream_plan
+	)
+	if not bool(residency.get("accepted", false)):
+		return _result(false, residency.get("reason", &"collision_residency_rejected") as StringName, {
+			"motion": motion.duplicate(true),
+			"residency": residency.duplicate(true),
+		})
+	return _result(true, &"supported_motion_handoff", {
+		"motion": motion.duplicate(true),
+		"residency": residency.duplicate(true),
+	})
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,

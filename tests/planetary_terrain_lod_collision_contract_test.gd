@@ -180,6 +180,30 @@ func _test_motion_budgets_and_purity() -> void:
 			and tunnel.reason == &"tunneling_budget_exceeded",
 		"motion guard accepts safe movement and rejects jitter/tunnelling violations"
 	)
+	var resident_plan := {
+		"lod_ring_index": 1,
+		"desired_tiles": [_tile(1, 0, 0, true)],
+	}
+	var supported: Dictionary = contract.validate_supported_motion_handoff(
+		Vector3(0.2, 0.0, 0.2), Vector3(1.4, 0.0, 1.4), 0.05, resident_plan
+	)
+	_check(
+		supported.accepted and supported.reason == &"supported_motion_handoff"
+			and supported.motion.reason == &"motion_within_budgets"
+			and supported.residency.reason == &"collision_resident",
+		"supported movement commits only when motion and collision residency agree"
+	)
+	var missing_support := resident_plan.duplicate(true)
+	(missing_support.desired_tiles as Array)[0].collision = false
+	var rejected_support: Dictionary = contract.validate_supported_motion_handoff(
+		Vector3(0.2, 0.0, 0.2), Vector3(1.4, 0.0, 1.4), 0.05, missing_support
+	)
+	_check(
+		not rejected_support.accepted
+			and rejected_support.reason == &"collision_tile_missing"
+			and rejected_support.motion.accepted,
+		"an otherwise safe movement is rejected when its LOD collision tile is absent"
+	)
 	var invalid: Dictionary = contract.validate_motion_sample(
 		Vector3.ZERO, Vector3.ZERO, NAN
 	)
