@@ -254,9 +254,26 @@ func _build_gantry() -> void:
 	safety_bands.set_meta("authored_visual_names", PackedStringArray([
 		"SafetyBand", "SafetyBand2", "SafetyBand3", "SafetyBand4",
 	]))
+	var rail_face_transforms: Array[Transform3D] = []
 	for z_side in [-1.0, 1.0]:
 		_box(gantry, "OverheadRail", Vector3(0.0, 5.82, z_side * 2.72), Vector3(9.08, 0.42, 0.48), _materials["frame"])
-		_box(gantry, "RailFace", Vector3(0.0, 5.83, z_side * 2.46), Vector3(8.55, 0.17, 0.055), _materials["frame_edge"])
+		rail_face_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(0.0, 5.83, z_side * 2.46)
+		))
+	# The two rail faces are childless structural trim, not the stable overhead-rail
+	# anchors beside them. One fixed batch retains their exact world-local copies
+	# while leaving collision declarations, carriage motion and named anchors alone.
+	var rail_faces := _box_batch(
+		gantry, "RailFaces", Vector3(8.55, 0.17, 0.055),
+		rail_face_transforms, _materials["frame_edge"]
+	)
+	rail_faces.multimesh.custom_aabb = _transformed_mesh_bounds(
+		rail_faces.multimesh.mesh.get_aabb(), rail_face_transforms
+	)
+	rail_faces.set_meta("explicit_authored_bounds", true)
+	rail_faces.set_meta("authored_visual_names", PackedStringArray([
+		"RailFace", "RailFace2",
+	]))
 	var rail_fastener_transforms: Array[Transform3D] = []
 	for z_side in [-1.0, 1.0]:
 		for x in [-3.15, -1.05, 1.05, 3.15]:

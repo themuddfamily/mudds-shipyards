@@ -147,30 +147,35 @@ static var _shared_material_catalog: Dictionary = {}
 ## wheels below the same `AnimatedGantryCarriage` parent. FULL/GANTRY each retain
 ## four copies at the exact local transforms while nodes and submissions fall by
 ## three: `mesh_instances` -4, `multimesh_batches` +1 and instances +4.
+##
+## The rail-face pass batches the two identical childless frame-edge strips while
+## retaining both ordinary `OverheadRail` anchors. FULL/GANTRY each move by
+## `node_count` -1, `mesh_instances` -2, `multimesh_batches` +1 and instances +2;
+## submissions fall by one and all carriage motion and visible copies remain.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
-		"node_count": 83,
-		"mesh_instances": 63,
+		"node_count": 82,
+		"mesh_instances": 61,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 3,
-		"multimesh_instances": 16,
-		"geometry_submissions": 66,
+		"multimesh_batches": 4,
+		"multimesh_instances": 18,
+		"geometry_submissions": 65,
 		"drawn_copies": 79,
 		"animated_assemblies": 5,
 	},
 	ActivityProfile.GANTRY: {
-		"node_count": 46,
-		"mesh_instances": 32,
+		"node_count": 45,
+		"mesh_instances": 30,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 3,
-		"multimesh_instances": 16,
-		"geometry_submissions": 35,
+		"multimesh_batches": 4,
+		"multimesh_instances": 18,
+		"geometry_submissions": 34,
 		"drawn_copies": 48,
 		"animated_assemblies": 1,
 	},
@@ -300,17 +305,20 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## The guide-wheel batch applies to those same two placements: nodes 507 -> 501,
 ## MeshInstances 375 -> 367, batches 17 -> 19, copies 86 -> 94 and submissions
 ## 392 -> 386. All 461 visible copies remain.
+## The two rail-face batches then move nodes 501 -> 499, MeshInstances 367 -> 363,
+## batches 19 -> 21, copies 94 -> 98 and submissions 386 -> 384. The same 461
+## visible copies, named rail anchors and animated assemblies remain.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 501,
-	"mesh_instances": 367,
+	"node_count": 499,
+	"mesh_instances": 363,
 	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
-	"multimesh_batches": 19,
-	"multimesh_instances": 94,
-	"geometry_submissions": 386,
+	"multimesh_batches": 21,
+	"multimesh_instances": 98,
+	"geometry_submissions": 384,
 	"drawn_copies": 461,
 	"animated_assemblies": 21,
 }
