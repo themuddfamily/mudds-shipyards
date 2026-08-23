@@ -15,6 +15,8 @@ func _init() -> void:
 	root.add_child(_adapter)
 	_adapter.moving_interior_result.connect(_on_moving_interior_result)
 	_adapter.damage_respawn_result.connect(_on_damage_respawn_result)
+	_adapter.seat_occupancy_result.connect(_on_seat_result)
+	_adapter.landing_intent_result.connect(_on_landing_result)
 	call_deferred(&"_start")
 
 
@@ -168,6 +170,80 @@ func _server_loop() -> void:
 						)
 						if bool(respawn_delivery.get("accepted", false)):
 							_log("RESPAWN_AUTHORITATIVE_DELIVERED")
+					var ship_registration := _adapter.register_owned_ship(
+						&"jovian_authority_craft", 3, passenger_peer
+					)
+					var frame_registration := _adapter.register_boarding_ship(
+						&"jovian_authority_craft", 3, &"jovian_authority_craft", 1
+					)
+					var interior_frame := _adapter.register_moving_interior_frame(
+						&"jovian_authority_craft", 1
+					)
+					var pilot_seat := _adapter.register_crew_seat(
+						&"pilot_seat", &"jovian_authority_craft", &"pilot", &"jovian_authority_craft", 1
+					)
+					var passenger_seat := _adapter.register_crew_seat(
+						&"passenger_seat", &"jovian_authority_craft", &"passenger", &"jovian_authority_craft", 1
+					)
+					var pilot_claim := _adapter.claim_crew_seat(
+						passenger_peer, &"pilot_avatar", &"pilot_seat", &"pilot", 1
+					)
+					var passenger_claim := _adapter.claim_crew_seat(
+						passenger_peer, &"passenger_avatar", &"passenger_seat", &"passenger", 2
+					)
+					var landing_registration := _adapter.register_landing_entity(
+						passenger_peer, &"jovian_authority_craft", 3
+					)
+					var landed := _adapter.publish_landing_snapshot(
+						&"jovian_authority_craft", 3, Vector3.ZERO, &"landed", peer_ids, 53
+					)
+					var pilot_occupied := _adapter.publish_boarding_snapshot(
+						&"jovian_authority_craft", passenger_peer, &"pilot_seat", 3, 1, true, peer_ids, 53
+					)
+					var passenger_occupied := _adapter.publish_boarding_snapshot(
+						&"jovian_authority_craft", passenger_peer, &"passenger_seat", 3, 1, true, peer_ids, 53
+					)
+					_log("LANDING_SETUP %s %s %s %s %s %s" % [
+						ship_registration.get("status", &"unknown"),
+						pilot_seat.get("status", &"unknown"), passenger_seat.get("status", &"unknown"),
+						pilot_claim.get("status", &"unknown"), passenger_claim.get("status", &"unknown"),
+						landed.get("status", &"unknown"),
+					])
+					if bool(ship_registration.get("accepted", false)) \
+						and bool(frame_registration.get("accepted", false)) \
+						and bool(interior_frame.get("accepted", false)) \
+						and bool(pilot_seat.get("accepted", false)) \
+						and bool(passenger_seat.get("accepted", false)) \
+						and bool(pilot_claim.get("accepted", false)) \
+						and bool(passenger_claim.get("accepted", false)) \
+						and bool(landing_registration.get("accepted", false)) \
+						and bool(landed.get("accepted", false)) \
+						and bool(pilot_occupied.get("accepted", false)) \
+						and bool(passenger_occupied.get("accepted", false)):
+						_log("LANDED_OCCUPIED")
+						var pilot_release := _adapter.release_crew_seat(
+							passenger_peer, &"pilot_avatar", &"pilot_seat", 3, 1
+						)
+						var passenger_release := _adapter.release_crew_seat(
+							passenger_peer, &"passenger_avatar", &"passenger_seat", 4, 1
+						)
+						_adapter.publish_boarding_snapshot(
+							&"jovian_authority_craft", passenger_peer, &"pilot_seat", 3, 1, false, peer_ids, 54
+						)
+						_adapter.publish_boarding_snapshot(
+							&"jovian_authority_craft", passenger_peer, &"passenger_seat", 3, 1, false, peer_ids, 54
+						)
+						_adapter.publish_landing_snapshot(
+							&"jovian_authority_craft", 3, Vector3.ZERO, &"departed", peer_ids, 54
+						)
+						_adapter.publish_moving_interior_release(&"jovian_passenger", 1, peer_ids)
+						_adapter.release_owned_ship(passenger_peer, &"jovian_authority_craft", 3, 1)
+						_log("SEAT_RELEASE_STATUS %s %s" % [pilot_release.get("status", &"unknown"), passenger_release.get("status", &"unknown")])
+						if bool(pilot_release.get("accepted", false)) and bool(passenger_release.get("accepted", false)):
+							_log("SEATS_RELEASED")
+							_log("LANDING_EXIT_CLEAN")
+					else:
+						_log("SEAT_RELEASE_FAILED")
 			_log("TRANSFER_CLEAN_DISCONNECT")
 			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			await create_timer(0.8).timeout
@@ -225,6 +301,31 @@ func _on_damage_respawn_result(result: Dictionary) -> void:
 		_log("DAMAGE_DESTROYED_PRESENTED")
 	elif state == &"active":
 		_log("DAMAGE_RESPAWN_PRESENTED")
+
+
+func _on_seat_result(result: Dictionary) -> void:
+	if StringName(result.get("status", &"")) != &"boarding_presented":
+		return
+	var samples := result.get("samples", []) as Array
+	if samples.is_empty():
+		return
+	if bool((samples[0] as Dictionary).get("seat_occupied", false)):
+		_log("LANDED_OCCUPIED_PRESENTED")
+	else:
+		_log("SEATS_RELEASED_PRESENTED")
+
+
+func _on_landing_result(result: Dictionary) -> void:
+	if StringName(result.get("status", &"")) != &"landing_presented":
+		return
+	var samples := result.get("samples", []) as Array
+	if samples.is_empty():
+		return
+	var state := StringName((samples[0] as Dictionary).get("state", &""))
+	if state == &"landed":
+		_log("LANDED_PRESENTED")
+	elif state == &"departed":
+		_log("LANDING_EXIT_PRESENTED")
 
 
 func _parse_args() -> void:

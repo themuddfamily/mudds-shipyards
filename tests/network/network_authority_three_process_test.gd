@@ -61,7 +61,7 @@ func _evidence_complete() -> bool:
 		"TRANSFER_COMMAND_ACCEPTED", "TRANSFER_AUTHORITATIVE_DELIVERED",
 		"CRAFT_DESTROYED", "OLD_REPLICAS_CLEARED", "CRAFT_RESPAWNED",
 		"RESPAWN_COMMAND_ACCEPTED", "RESPAWN_AUTHORITATIVE_DELIVERED",
-		"TRANSFER_CLEAN_DISCONNECT",
+		"LANDED_OCCUPIED", "SEATS_RELEASED", "LANDING_EXIT_CLEAN", "TRANSFER_CLEAN_DISCONNECT",
 	]:
 		if not server_log.contains(marker):
 			return false
@@ -70,6 +70,10 @@ func _evidence_complete() -> bool:
 			or not client_log.contains("RELATIONSHIP_RELEASED") \
 			or not client_log.contains("DAMAGE_DESTROYED_PRESENTED") \
 			or not client_log.contains("DAMAGE_RESPAWN_PRESENTED") \
+			or not client_log.contains("LANDED_PRESENTED") \
+			or not client_log.contains("LANDED_OCCUPIED_PRESENTED") \
+			or not client_log.contains("SEATS_RELEASED_PRESENTED") \
+			or not client_log.contains("LANDING_EXIT_PRESENTED") \
 			or not client_log.contains("CLIENT_CLEAN"):
 			return false
 	return true
