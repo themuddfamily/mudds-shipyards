@@ -25,6 +25,7 @@ const REGISTERED_CUES := {
 	&"surface_entry_clear": {"caption": "Surface entry clear", "default_severity": &"low"},
 	&"surface_touchdown": {"caption": "Surface touchdown", "default_severity": &"medium"},
 	&"surface_departure": {"caption": "Surface departure", "default_severity": &"medium"},
+	&"ship_destroyed": {"caption": "Ship destroyed", "default_severity": &"high"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

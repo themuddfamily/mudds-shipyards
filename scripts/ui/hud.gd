@@ -70,6 +70,7 @@ const CAPTION_CUES := {
 	&"surface_entry_clear": [&"system", "Entry guidance", "[ surface entry clear ]", 45],
 	&"surface_touchdown": [&"system", "Surface guidance", "[ surface touchdown ]", 70],
 	&"surface_departure": [&"system", "Surface guidance", "[ surface departure ]", 70],
+	&"ship_destroyed": [&"system", "Damage control", "[ ship destroyed ]", 100],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
