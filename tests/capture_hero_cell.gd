@@ -229,6 +229,7 @@ var _triangle_mesh_cache: Dictionary = {}
 var _cockpit_camera_for_metrics: Camera3D
 var _cockpit_critical_exterior_control: Image
 var _quiesced_damage_emitters := PackedStringArray()
+var _capture_transaction_cleanup_armed := false
 
 var _stage: Node3D
 var _world: ShipyardWorld
@@ -254,6 +255,10 @@ func _run() -> void:
 		await _run_automatic_propulsion_witness()
 		return
 
+	# Only the full capture owns this transaction. Arm cleanup before the first
+	# renderer check so an early failure also clears staging orphaned by a prior
+	# interrupted run; parse-only and propulsion staging remain artifact-free.
+	_capture_transaction_cleanup_armed = true
 	_configure_native_capture()
 	if not _capture_renderer_is_available():
 		_fail("capture renderer is unavailable; refusing to wait for a frame that cannot be read back")
@@ -2706,6 +2711,17 @@ func _remove_directory_tree(path: String) -> bool:
 	return valid
 
 
+func _cleanup_capture_transaction(context: String) -> void:
+	if not _capture_transaction_cleanup_armed:
+		return
+	if not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR)):
+		_capture_transaction_cleanup_armed = false
+		return
+	if _remove_directory_tree(TRANSACTION_DIR):
+		_capture_transaction_cleanup_armed = false
+		print("HERO_CELL_TRANSACTION_CLEANUP: %s" % context)
+
+
 func _transform_dictionary(transform: Transform3D) -> Dictionary:
 	return {
 		"origin": _vector3_array(transform.origin),
@@ -2784,6 +2800,10 @@ func _print_measured_metrics() -> void:
 
 
 func _finish() -> void:
+	# Preserve all top-level published evidence: only the isolated transaction
+	# subtree is eligible for cleanup. Cleanup failures join the existing failure
+	# list, so they cannot turn a failed capture green or hide its measurements.
+	_cleanup_capture_transaction("capture finish")
 	_print_measured_metrics()
 	if _failures.is_empty():
 		print(
@@ -2794,3 +2814,9 @@ func _finish() -> void:
 	else:
 		push_error("HERO_CELL_CAPTURE_FAILED: " + "; ".join(_failures))
 		quit(1)
+
+
+func _finalize() -> void:
+	# MainLoop invokes this on engine shutdown, including close/abort paths which
+	# bypass _finish(). The guard makes the retry idempotent after normal cleanup.
+	_cleanup_capture_transaction("engine shutdown")
