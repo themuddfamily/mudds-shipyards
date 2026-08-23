@@ -20,6 +20,7 @@ var _baseline_sun_color := Color.WHITE
 var _baseline_ambient_energy := 1.0
 var _baseline_cloud_transparency := 0.0
 var _last_recipe: Dictionary = {}
+var _cloud_shadow_projection: MeshInstance3D
 
 
 func _ready() -> void:
@@ -38,6 +39,19 @@ func _ready() -> void:
 			_baseline_ambient_energy = target.environment.ambient_light_energy
 		if cloud != null:
 			_baseline_cloud_transparency = cloud.transparency
+	_cloud_shadow_projection = MeshInstance3D.new()
+	_cloud_shadow_projection.name = "OwnedCloudShadowProjection"
+	var shadow_mesh := QuadMesh.new()
+	shadow_mesh.size = Vector2(64.0, 64.0)
+	_cloud_shadow_projection.mesh = shadow_mesh
+	_cloud_shadow_projection.rotation_degrees.x = -90.0
+	var shadow_material := ShaderMaterial.new()
+	var shadow_shader := Shader.new()
+	shadow_shader.code = "shader_type spatial; render_mode unshaded, cull_disabled, blend_mix; uniform float shadow_opacity; uniform vec3 wind_offset; void fragment(){ ALBEDO = vec3(0.015, 0.02, 0.025); ALPHA = shadow_opacity; }"
+	shadow_material.shader = shadow_shader
+	_cloud_shadow_projection.material_override = shadow_material
+	_cloud_shadow_projection.visible = false
+	add_child(_cloud_shadow_projection)
 
 
 func _exit_tree() -> void:
@@ -56,6 +70,8 @@ func _exit_tree() -> void:
 				target.environment.ambient_light_energy = _baseline_ambient_energy
 			if cloud != null:
 				cloud.transparency = _baseline_cloud_transparency
+		if _cloud_shadow_projection != null:
+			_cloud_shadow_projection.visible = false
 
 
 func _enter_tree() -> void:
@@ -120,6 +136,12 @@ func apply_retained_presentation_recipe(
 	sun.light_color = solar.get("sun_color", _baseline_sun_color) as Color
 	target.environment.ambient_light_energy = clampf(float(solar.get("sky_exposure_unitless", 0.16)), 0.16, 1.0)
 	cloud.transparency = clampf(1.0 - float(weather.get("cloud_opacity_unitless", 0.0)), 0.0, 1.0)
+	var shadow_material := _cloud_shadow_projection.material_override as ShaderMaterial
+	if shadow_material != null:
+		var shadow_opacity := clampf(float(weather.get("cloud_opacity_unitless", 0.0)) * 0.35, 0.0, 0.35)
+		shadow_material.set_shader_parameter("shadow_opacity", shadow_opacity)
+		shadow_material.set_shader_parameter("wind_offset", weather.get("wind_velocity_mps", Vector3.ZERO))
+		_cloud_shadow_projection.visible = shadow_opacity > 0.01
 	_last_recipe = {"solar": solar, "weather": weather}.duplicate(true)
 	return {"accepted": true, "reason": &"presentation_recipe_applied", "solar": solar, "weather": weather}.duplicate(true)
 
