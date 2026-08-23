@@ -193,6 +193,9 @@ const MINING_PRESENTATION_SUBMISSION_BUDGET := 11
 const MINING_PRESENTATION_MESH_RESOURCE_BUDGET := 10
 const MINING_PRESENTATION_LIGHT_BUDGET := 2
 const MINING_PRESENTATION_DESCENDANT_BUDGET := 14
+const MINING_PRESENTATION_STATE_NODE_DELTA := 0
+const MINING_PRESENTATION_STATE_LIGHT_DELTA := 0
+const MINING_PRESENTATION_STATE_SUBMISSION_DELTA := 0
 const MINING_PRESENTATION_PREBATCH_RENDERERS := 18
 const MINING_PRESENTATION_PREBATCH_SUBMISSIONS := 18
 const MINING_PRESENTATION_PREBATCH_DESCENDANTS := 21
@@ -269,6 +272,7 @@ var _audit_report: Dictionary = {}
 var _streaming_transition: CinderStreamingTransitionPresentation
 var _cargo_access: CinderCargoAccess
 var _cargo_destination_terminal: CargoTransferTerminal
+var _mining_presentation_snapshot: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -791,6 +795,18 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 			or not presentation.find_children("*", "CollisionShape3D", true, false).is_empty() \
 			or not presentation.find_children("*", "Area3D", true, false).is_empty()):
 		errors.append("mining_presentation_gained_collision_or_interaction_authority")
+	var state_feedback := get_mining_activity_presentation_state()
+	if (
+		StringName(state_feedback.get("activity_id", &"")) != MINING_ACTIVITY_ID
+		or StringName(state_feedback.get("state_id", &"")) \
+			not in [&"available", &"extracting", &"secured", &"reset"]
+		or int(state_feedback.get("node_delta", -1)) != 0
+		or int(state_feedback.get("light_delta", -1)) != 0
+		or int(state_feedback.get("submission_delta", -1)) != 0
+		or bool(state_feedback.get("activity_authority", true))
+		or bool(state_feedback.get("reward_authority", true))
+	):
+		errors.append("mining_state_feedback_contract_drift")
 	errors.sort()
 	return {
 		"valid": errors.is_empty(),
@@ -835,6 +851,7 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 			"visible_copies_before": MINING_PRESENTATION_VISIBLE_COPY_BUDGET,
 			"visible_copies_after": visible_copies,
 		},
+		"state_feedback": state_feedback,
 		"approach_readable": local_bounds.size.x >= 28.0 \
 			and local_bounds.size.y >= 32.0,
 		"activity_authority": false,
@@ -1790,6 +1807,88 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
 	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
 	_sign(presentation, "ORE EXTRACTION", Vector3(0.0, 27.0, 18.0), Vector3.ZERO, 2.4, _materials["orange_glow"])
+	_activity_binding.call(
+		"bind_mining_presentation", Callable(self, "_apply_mining_activity_presentation")
+	)
+
+
+## Reuses the two crown practicals and fixed sign to distinguish available,
+## extracting, secured, and reset states. It consumes authority snapshots only;
+## no node/resource is allocated and no progress is inferred from world state.
+func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
+	if StringName(snapshot.get("activity_id", &"")) != MINING_ACTIVITY_ID:
+		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
+	var generation := int(snapshot.get("generation", -1))
+	var state := int(snapshot.get("state", -1))
+	var elapsed := float(snapshot.get("elapsed_seconds", -1.0))
+	var duration := float(snapshot.get("extraction_seconds", 0.0))
+	if generation < 0 or state < 0 or state > 3 or elapsed < 0.0 or duration <= 0.0:
+		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
+	var presentation := get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/MiningActivityPresentation"
+	) as Node3D
+	if presentation == null:
+		return {"accepted": false, "reason": &"presentation_unavailable"}
+	var port := presentation.get_node_or_null(^"MiningCrownLampPort") as OmniLight3D
+	var starboard := presentation.get_node_or_null(^"MiningCrownLampStarboard") as OmniLight3D
+	var port_lens := presentation.get_node_or_null(^"MiningCrownLampPortLens") as MeshInstance3D
+	var starboard_lens := presentation.get_node_or_null(^"MiningCrownLampStarboardLens") as MeshInstance3D
+	var sign := presentation.get_node_or_null(^"Sign_ORE_EXTRACTION") as MeshInstance3D
+	if port == null or starboard == null or port_lens == null or starboard_lens == null or sign == null:
+		return {"accepted": false, "reason": &"presentation_roster_incomplete"}
+	var progress := clampf(elapsed / duration, 0.0, 1.0)
+	var state_id: StringName = &"available"
+	port.light_color = KETH_CYAN
+	starboard.light_color = KETH_ORANGE
+	port_lens.material_override = _lens_material(KETH_CYAN)
+	starboard_lens.material_override = _lens_material(KETH_ORANGE)
+	port.light_energy = 0.7
+	starboard.light_energy = 0.7
+	sign.material_override = _materials["orange_glow"]
+	sign.scale = Vector3.ONE * 2.4
+	match state:
+		CinderMiningPlatformActivity.State.ACTIVE:
+			state_id = &"extracting"
+			port.light_energy = lerpf(1.4, 3.2, progress)
+			starboard.light_energy = lerpf(3.2, 1.4, progress)
+			sign.material_override = _materials["cyan_glow"]
+			sign.scale = Vector3.ONE * 2.55
+		CinderMiningPlatformActivity.State.COMPLETE:
+			state_id = &"secured"
+			port.light_energy = 3.4
+			starboard.light_energy = 3.4
+			starboard.light_color = KETH_CYAN
+			starboard_lens.material_override = _lens_material(KETH_CYAN)
+			sign.material_override = _materials["cyan_glow"]
+			sign.scale = Vector3.ONE * 2.75
+		CinderMiningPlatformActivity.State.RESET:
+			state_id = &"reset"
+			port.light_energy = 0.35
+			starboard.light_energy = 0.35
+		_:
+			pass
+	_mining_presentation_snapshot = {
+		"activity_id": MINING_ACTIVITY_ID,
+		"state_id": state_id,
+		"authority_state": state,
+		"generation": generation,
+		"progress": progress,
+		"port_energy": port.light_energy,
+		"starboard_energy": starboard.light_energy,
+		"port_color": port.light_color,
+		"starboard_color": starboard.light_color,
+		"sign_scale": sign.scale.x,
+		"node_delta": MINING_PRESENTATION_STATE_NODE_DELTA,
+		"light_delta": MINING_PRESENTATION_STATE_LIGHT_DELTA,
+		"submission_delta": MINING_PRESENTATION_STATE_SUBMISSION_DELTA,
+		"activity_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"mining_presentation_applied"}
+
+
+func get_mining_activity_presentation_state() -> Dictionary:
+	return _mining_presentation_snapshot.duplicate(true)
 
 
 ## A fractured datum frame visually gathers the already-authored torn habitat,

@@ -46,6 +46,7 @@ var _station_anchor: Node3D
 var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
+var _mining_presentation_consumer: Callable
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
@@ -489,25 +490,51 @@ func reenter_station_defense_reward(attachment_generation: int) -> Dictionary:
 func start_mining_activity(caller_position: Vector3) -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
-	return _mining_activity.call("start", caller_position)
+	var result: Dictionary = _mining_activity.call("start", caller_position)
+	_publish_mining_presentation()
+	return result
 
 
 func advance_mining_activity(delta: float) -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
-	return _mining_activity.call("advance_physics", delta)
+	var result: Dictionary = _mining_activity.call("advance_physics", delta)
+	_publish_mining_presentation()
+	return result
 
 
 func request_mining_reward() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
-	return _mining_activity.call("request_reward")
+	var result: Dictionary = _mining_activity.call("request_reward")
+	_publish_mining_presentation()
+	return result
 
 
 func reset_mining_activity() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
-	return _mining_activity.call("reset")
+	var result: Dictionary = _mining_activity.call("reset")
+	_publish_mining_presentation()
+	return result
+
+
+## Presentation-only observer seam. MiningActivity remains the sole state and
+## reward-request owner; the consumer receives detached snapshots after commits.
+func bind_mining_presentation(consumer: Callable) -> Dictionary:
+	if not consumer.is_valid() or _mining_presentation_consumer.is_valid():
+		return _result(false, &"mining_presentation_binding_rejected")
+	_mining_presentation_consumer = consumer
+	_publish_mining_presentation()
+	return _result(true, &"mining_presentation_bound")
+
+
+func _publish_mining_presentation() -> void:
+	if not _mining_presentation_consumer.is_valid() or _mining_activity == null:
+		return
+	_mining_presentation_consumer.call(
+		(_mining_activity.call("get_snapshot") as Dictionary).duplicate(true)
+	)
 
 
 func start_structure_scan(caller_position: Vector3) -> Dictionary:
