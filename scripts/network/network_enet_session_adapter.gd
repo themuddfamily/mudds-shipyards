@@ -79,6 +79,7 @@ var _bound_port := 0
 var _latest_snapshot_revision := 0
 var _prediction_entities: Dictionary = {}
 var _next_peer_generation := 1
+var _replication_budget_counters: Dictionary = {}
 var _secure_sequences: Dictionary = {}
 var _security_strikes: Dictionary = {}
 var _secure_window_started := 0
@@ -888,6 +889,58 @@ func replicate_interest_for_peer(peer_id: int, server_tick: int) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	return _remember(_replication_interest.replicate(AUTHORITY_PEER_ID, peer_id, server_tick))
+
+
+func replicate_interest_with_budget(peer_id: int, server_tick: int, max_bytes: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if max_bytes <= 0:
+		return _remember(_result(false, &"invalid_replication_budget"))
+	var batch: Dictionary = _replication_interest.replicate(AUTHORITY_PEER_ID, peer_id, server_tick)
+	if not bool(batch.get("accepted", false)):
+		return _remember(batch)
+	var selected: Array = []
+	var deferred: Array = []
+	var used_bytes := 0
+	var entities: Array = batch.get("entities", []) as Array
+	entities.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_owned := int(left.get("owner_peer_id", 0)) == peer_id
+		var right_owned := int(right.get("owner_peer_id", 0)) == peer_id
+		if left_owned != right_owned:
+			return left_owned
+		return int(left.get("state_revision", 0)) < int(right.get("state_revision", 0))
+	)
+	for entity_variant in entities:
+		var entity: Dictionary = entity_variant as Dictionary
+		var entity_bytes := JSON.stringify(entity).to_utf8_buffer().size()
+		if used_bytes + entity_bytes > max_bytes:
+			deferred.append(entity.get("entity_id", &""))
+			continue
+		selected.append(entity)
+		used_bytes += entity_bytes
+	_replication_budget_counters[peer_id] = {
+		"last_server_tick": server_tick,
+		"max_bytes": max_bytes,
+		"used_bytes": used_bytes,
+		"sent_entities": selected.size(),
+		"deferred_entities": deferred.size(),
+	}
+	return _remember({
+		"accepted": true,
+		"status": &"replicated" if not selected.is_empty() else &"budget_deferred",
+		"peer_id": peer_id,
+		"server_tick": server_tick,
+		"entities": selected,
+		"deferred_entity_ids": deferred,
+		"used_bytes": used_bytes,
+		"max_bytes": max_bytes,
+	})
+
+
+func get_replication_budget_counters(peer_id: int = 0) -> Dictionary:
+	if peer_id > 0:
+		return (_replication_budget_counters.get(peer_id, {}) as Dictionary).duplicate(true)
+	return _replication_budget_counters.duplicate(true)
 
 
 func publish_server_directory(directory_generation: int, server_tick: int, entries: Array) -> Dictionary:

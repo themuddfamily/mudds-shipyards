@@ -336,6 +336,21 @@ func _initialize() -> void:
 		and (interest_batch.entities[0] as Dictionary).get("entity_id") == &"near_entity",
 		"peer replication receives only nearby or owned entities within its budget"
 	)
+	_server.register_replication_entity(&"mid_entity", 1, 0, Vector3(10.0, 0.0, 0.0), 100.0)
+	_server.publish_replication_state(&"mid_entity", 1, 2, Vector3(10.0, 0.0, 0.0), {"kind": &"nearby"})
+	_server.publish_replication_state(&"near_entity", 1, 2, Vector3.ZERO, {"kind": &"owned", "revision": 2})
+	_server.publish_replication_state(&"far_entity", 1, 2, Vector3(1000.0, 0.0, 0.0), {"kind": &"distant", "revision": 2})
+	var budget_batch := _server.replicate_interest_with_budget(client_peer_id, 2, 250)
+	_check(
+		bool(budget_batch.get("accepted", false))
+		and int(budget_batch.get("used_bytes", 0)) <= 250
+		and (budget_batch.get("deferred_entity_ids", []) as Array).size() == 1,
+		"outbound replication defers lower-priority entities within the byte budget"
+	)
+	_check(
+		int(_server.get_replication_budget_counters(client_peer_id).get("deferred_entities", 0)) == 1,
+		"replication budget exposes detached sent/deferred counters per peer"
+	)
 	var prediction_register := _server.register_prediction_entity(client_peer_id, &"prediction_1", 1)
 	_check(
 		bool(prediction_register.get("accepted", false)),
