@@ -1150,7 +1150,8 @@ func _initialize_session_diagnostics() -> void:
 		_session_diagnostics_last_status = {"accepted": false, "reason": &"restore_failed", "status": restored}
 		return
 	_session_diagnostics_bridge = SessionDiagnosticLifecycleBridgeType.new(coordinator, record, sink)
-	_session_diagnostics_last_status = _session_diagnostics_bridge.begin_session(1, "main-session-start", 0, 0.0)
+	var start_commit_id := "main-session-start-%d" % (_runtime_settings_user_data_store.get_generation() + 1)
+	_session_diagnostics_last_status = _session_diagnostics_bridge.begin_session(1, start_commit_id, 0, 0.0)
 	_record_session_lifecycle_transition(_DIAGNOSTIC_STARTUP)
 
 
@@ -1173,12 +1174,31 @@ func mark_orderly_session_shutdown() -> Dictionary:
 	if _session_diagnostics_bridge == null:
 		return {"accepted": false, "reason": &"diagnostics_unavailable"}
 	_record_session_lifecycle_transition(_DIAGNOSTIC_SHUTDOWN)
-	_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(0, 0.0, "main-session-clean")
+	var clean_commit_id := "main-session-clean-%d" % (_runtime_settings_user_data_store.get_generation() + 1)
+	_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(0, 0.0, clean_commit_id)
 	return _session_diagnostics_last_status.duplicate(true)
 
 
 func record_session_lifecycle_transition(transition_code: int, entity_code: int = 0, active: bool = true) -> Dictionary:
 	return _record_session_lifecycle_transition(transition_code, entity_code, active)
+
+
+func get_recovery_available_snapshot() -> Dictionary:
+	if _session_diagnostics_bridge == null:
+		return {}
+	return _session_diagnostics_bridge.get_recovery_available_snapshot()
+
+
+func acknowledge_recovery() -> Dictionary:
+	if _session_diagnostics_bridge == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	return _session_diagnostics_bridge.acknowledge_recovery()
+
+
+func discard_recovery() -> Dictionary:
+	if _session_diagnostics_bridge == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	return _session_diagnostics_bridge.discard_recovery()
 
 
 func _record_session_lifecycle_transition(

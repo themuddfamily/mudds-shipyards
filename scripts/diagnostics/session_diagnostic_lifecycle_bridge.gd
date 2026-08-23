@@ -22,6 +22,7 @@ var _session_id := 0
 var _recovery_flush_pending := false
 var _last_status: Dictionary = {}
 var _network_generation := 0
+var _recovery_available_snapshot: Dictionary = {}
 
 
 func _init(
@@ -39,6 +40,8 @@ func _init(
 func begin_session(session_id: int, commit_id: String, physics_tick: int, elapsed_physics_seconds: float) -> Dictionary:
 	if _coordinator == null or _record == null or _sink == null:
 		return _status(false, &"bridge_unavailable")
+	var prior := _coordinator.get_snapshot()
+	var prior_was_unclean := StringName(prior.get("state", &"")) == &"running"
 	var begun := _coordinator.begin_session(session_id, commit_id)
 	if not bool(begun.accepted):
 		return _status(false, &"begin_failed", {"coordinator_status": begun})
@@ -48,6 +51,8 @@ func begin_session(session_id: int, commit_id: String, physics_tick: int, elapse
 	if not bool(attached.accepted) and attached.reason != &"already_attached":
 		return _status(false, &"diagnostic_attach_failed", {"record_status": attached})
 	if bool(begun.get("recovered", false)):
+		if prior_was_unclean:
+			_recovery_available_snapshot = prior.duplicate(true)
 		var flushed := _coordinator.publish_recovery_event(
 			_record, _sink, physics_tick, elapsed_physics_seconds
 		)
@@ -60,6 +65,27 @@ func begin_session(session_id: int, commit_id: String, physics_tick: int, elapse
 	_recovery_flush_pending = false
 	_last_status = _status(true, &"started", {"coordinator_status": begun})
 	return _last_status.duplicate(true)
+
+
+func get_recovery_available_snapshot() -> Dictionary:
+	return _recovery_available_snapshot.duplicate(true)
+
+
+## Explicit caller acknowledgement retires only the detached recovery receipt.
+func acknowledge_recovery() -> Dictionary:
+	if _recovery_available_snapshot.is_empty():
+		return _status(false, &"no_recovery_available")
+	_recovery_available_snapshot.clear()
+	return _status(true, &"recovery_acknowledged")
+
+
+## Explicit discard has the same narrow authority as acknowledgement: it clears
+## only the in-memory receipt, never the marker, save store, or diagnostics log.
+func discard_recovery() -> Dictionary:
+	if _recovery_available_snapshot.is_empty():
+		return _status(false, &"no_recovery_available")
+	_recovery_available_snapshot.clear()
+	return _status(true, &"recovery_discarded")
 
 
 ## Retries publication of the one recovery event without recording another one.
@@ -122,6 +148,8 @@ func get_snapshot() -> Dictionary:
 		"state": _state,
 		"session_id": _session_id,
 		"recovery_flush_pending": _recovery_flush_pending,
+		"recovery_available": not _recovery_available_snapshot.is_empty(),
+		"recovery_snapshot": _recovery_available_snapshot.duplicate(true),
 		"last_status": _last_status.duplicate(true),
 		"coordinator": _coordinator.get_snapshot() if _coordinator != null else {},
 		"record": _record.get_snapshot() if _record != null else {},

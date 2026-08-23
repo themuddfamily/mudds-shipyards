@@ -92,7 +92,47 @@ func _run() -> void:
 		and StringName(finished.bridge.get("state", "")) == &"clean",
 		"caller-confirmed Main shutdown clears the running marker without touching gameplay state"
 	)
+	var unclean := GameFlowType.new()
+	unclean.set("_runtime_settings_user_data_store", store)
+	unclean.set_session_diagnostics_filesystem(filesystem)
+	unclean._initialize_session_diagnostics()
+	unclean.free()
 	flow.free()
+	var restarted_store := Store.new("memory://main-session-diagnostics.json", filesystem)
+	_check(bool(restarted_store.load().accepted), "restart fixture loads the prior running marker")
+	var restarted := GameFlowType.new()
+	restarted.set("_runtime_settings_user_data_store", restarted_store)
+	restarted.set_session_diagnostics_filesystem(filesystem)
+	restarted._initialize_session_diagnostics()
+	var recovery := restarted.get_recovery_available_snapshot()
+	var recovery_phase := restarted.phase
+	_check(
+		StringName(recovery.get("state", "")) == &"running"
+		and int(recovery.get("session_id", 0)) == 1
+		and restarted.phase == recovery_phase,
+		"unclean restart exposes a detached recovery snapshot without changing GameFlow phase"
+	)
+	var acknowledged := restarted.acknowledge_recovery()
+	_check(
+		bool(acknowledged.accepted)
+		and restarted.get_recovery_available_snapshot().is_empty(),
+		"caller acknowledgement retires only the detached recovery receipt"
+	)
+	restarted.free()
+	var discard_store := Store.new("memory://main-session-diagnostics.json", filesystem)
+	_check(bool(discard_store.load().accepted), "discard fixture reloads the running marker")
+	var discard_flow := GameFlowType.new()
+	discard_flow.set("_runtime_settings_user_data_store", discard_store)
+	discard_flow.set_session_diagnostics_filesystem(filesystem)
+	discard_flow._initialize_session_diagnostics()
+	var discarded := discard_flow.discard_recovery()
+	_check(
+		bool(discarded.accepted)
+		and discard_flow.get_recovery_available_snapshot().is_empty(),
+		"caller discard clears only the in-memory recovery receipt"
+	)
+	discard_flow.mark_orderly_session_shutdown()
+	discard_flow.free()
 	if _failures.is_empty():
 		print("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
