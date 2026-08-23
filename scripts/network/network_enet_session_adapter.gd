@@ -28,6 +28,7 @@ const SnapshotJitterBuffer := preload("res://scripts/network/network_snapshot_ji
 const ReplicationInterest := preload("res://scripts/network/network_replication_interest.gd")
 const SnapshotDeltaCodec := preload("res://scripts/network/network_snapshot_delta_codec.gd")
 const SnapshotFragmenter := preload("res://scripts/network/network_snapshot_fragmenter.gd")
+const CrewSnapshotCodec := preload("res://scripts/network/network_crew_snapshot_codec.gd")
 const MovingInteriorRelationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
 signal session_started(mode: StringName)
@@ -47,6 +48,8 @@ signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
 signal crew_role_result(result: Dictionary)
 signal crew_command_result(result: Dictionary)
+signal crew_snapshot_published(snapshot: Dictionary)
+signal crew_snapshot_applied(result: Dictionary)
 signal migration_result(result: Dictionary)
 signal prediction_correction_result(result: Dictionary)
 signal server_browser_result(result: Dictionary)
@@ -84,6 +87,10 @@ var _replication_interest
 var _snapshot_delta_encoder
 var _snapshot_delta_decoder
 var _snapshot_fragmenter
+var _crew_snapshot_codec
+var _crew_snapshot_fragmenter
+var _crew_snapshot_revision := 0
+var _crew_replica_snapshot: Dictionary = {}
 var _moving_replica_samples: Dictionary = {}
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
@@ -158,6 +165,8 @@ func _init() -> void:
 	_snapshot_delta_encoder = SnapshotDeltaCodec.new()
 	_snapshot_delta_decoder = SnapshotDeltaCodec.new()
 	_snapshot_fragmenter = SnapshotFragmenter.new()
+	_crew_snapshot_codec = CrewSnapshotCodec.new()
+	_crew_snapshot_fragmenter = SnapshotFragmenter.new()
 	_projectile_jitter = SnapshotJitterBuffer.new()
 	_landing_jitter = SnapshotJitterBuffer.new()
 	_damage_jitter = SnapshotJitterBuffer.new()
@@ -267,6 +276,9 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_is_server = false
 	_peer_generations.clear()
 	_server_offer.clear()
+	_crew_snapshot_fragmenter.reset()
+	_crew_snapshot_revision = 0
+	_crew_replica_snapshot.clear()
 	mark_reconnect_succeeded()
 	record_session_end(reason)
 	_reset_handshake_deadline()
@@ -1014,6 +1026,10 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_last_join_intent_sequence = 0
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
+	_crew_snapshot_fragmenter.reset()
+	_crew_snapshot_codec = CrewSnapshotCodec.new()
+	_crew_snapshot_revision = 0
+	_crew_replica_snapshot.clear()
 	_moving_replica_samples.clear()
 	_projectile_replica_samples.clear()
 	_projectile_jitter.reset(migration_generation)
@@ -1876,6 +1892,28 @@ func publish_snapshot(
 	}))
 
 
+func publish_crew_snapshot(command_receipts: Array = []) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var encoded: Dictionary = _crew_snapshot_codec.encode(
+		_crew_roles.get_snapshot(), _crew_commands.get_snapshot(), command_receipts
+	)
+	if not bool(encoded.get("accepted", false)):
+		return _remember(encoded)
+	_crew_snapshot_revision += 1
+	var generation := int(_migration.get_snapshot().get("migration_generation", 1))
+	var wire := {"crew_snapshot": (encoded.bytes as PackedByteArray).get_string_from_utf8()}
+	for fragment in _crew_snapshot_fragmenter.fragment(wire, generation, _crew_snapshot_revision):
+		_broadcast_crew_snapshot_fragment.rpc(fragment)
+	var snapshot := {"revision": _crew_snapshot_revision, "generation": generation, "entry_count": encoded.get("entry_count", 0)}
+	crew_snapshot_published.emit(snapshot.duplicate(true))
+	return _remember(_result(true, &"crew_snapshot_published", snapshot))
+
+
+func get_crew_replica_snapshot() -> Dictionary:
+	return _crew_replica_snapshot.duplicate(true)
+
+
 @rpc("any_peer", "reliable")
 func _receive_movement_intent(wire: Dictionary) -> void:
 	if not is_server():
@@ -2054,6 +2092,32 @@ func _broadcast_snapshot_fragment(fragment: Dictionary) -> void:
 		var applied: Dictionary = _lifecycle.apply_replica_snapshot(AUTHORITY_PEER_ID, ready)
 		snapshot_applied.emit(applied.duplicate(true))
 		_last_result = applied.duplicate(true)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _broadcast_crew_snapshot_fragment(fragment: Dictionary) -> void:
+	if is_server():
+		return
+	var reassembled: Dictionary = _crew_snapshot_fragmenter.accept(fragment, Time.get_ticks_msec())
+	if not bool(reassembled.get("accepted", false)) or reassembled.get("status") != &"reassembled":
+		return
+	var generation := int(fragment.get("generation", 0))
+	var revision := int(fragment.get("revision", 0))
+	var current_generation := int(_migration.get_snapshot().get("migration_generation", 1))
+	if generation != current_generation or revision <= _crew_snapshot_revision:
+		crew_snapshot_applied.emit(_result(false, &"stale_crew_snapshot"))
+		return
+	var packet: Dictionary = reassembled.get("packet", {}) as Dictionary
+	var encoded_text := String(packet.get("crew_snapshot", ""))
+	var decoded: Dictionary = _crew_snapshot_codec.decode(encoded_text.to_utf8_buffer())
+	if not bool(decoded.get("accepted", false)):
+		crew_snapshot_applied.emit(decoded.duplicate(true))
+		return
+	_crew_snapshot_revision = revision
+	_crew_replica_snapshot = decoded.get("snapshot", {}).duplicate(true)
+	var applied := _result(true, &"crew_snapshot_applied", {"revision": revision, "snapshot": _crew_replica_snapshot})
+	crew_snapshot_applied.emit(applied.duplicate(true))
+	_last_result = applied.duplicate(true)
 
 
 @rpc("authority", "call_remote", "reliable")
