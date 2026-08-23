@@ -51,12 +51,12 @@ enum ColorblindPalette {
 ## [constant MINIMUM_SUPPORTED_SCHEMA_VERSION]..[constant SCHEMA_VERSION] load
 ## and are upgraded in memory; keys a older writer never stored fall back to
 ## their authored defaults. Anything outside that range still fails closed.
-const SCHEMA_VERSION := 6
+const SCHEMA_VERSION := 7
 const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 8
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 9
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -73,6 +73,7 @@ const DEFAULT_ON_FOOT_MOUSE_SENSITIVITY := 0.0025
 const MIN_CAMERA_FOV := 55.0
 const MAX_CAMERA_FOV := 110.0
 const DEFAULT_CAMERA_FOV := 72.0
+const DEFAULT_ON_FOOT_FIRST_PERSON := false
 
 const MIN_VOLUME := 0.0
 const MAX_VOLUME := 1.0
@@ -130,6 +131,7 @@ const _USER_DATA_VALUE_KEYS := [
 	"invert_ship_y",
 	"invert_on_foot_y",
 	"camera_fov",
+	"on_foot_first_person",
 	"master_volume",
 	"ambience_volume",
 	"engine_volume",
@@ -153,6 +155,16 @@ const _USER_DATA_VALUE_KEYS := [
 	"network_default_port",
 	"multiplayer_max_players",
 	"input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V8 := [
+	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
+	"invert_on_foot_y", "camera_fov", "master_volume", "ambience_volume",
+	"engine_volume", "weapons_volume", "ui_volume", "music_volume",
+	"graphics_profile", "window_mode", "display_resolution", "vsync_mode",
+	"control_preset", "ui_scale", "colorblind_palette", "reduced_motion",
+	"captions_enabled", "reduced_dynamic_range", "reduced_flash",
+	"payload_visual_intensity", "show_tutorials", "multiplayer_display_name",
+	"network_default_port", "multiplayer_max_players", "input_binding_profile",
 ]
 const _USER_DATA_VALUE_KEYS_V5 := [
 	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
@@ -326,6 +338,13 @@ var camera_fov: float = DEFAULT_CAMERA_FOV:
 			return
 		camera_fov = validated
 		_queue_change(&"camera_fov", validated)
+
+var on_foot_first_person := DEFAULT_ON_FOOT_FIRST_PERSON:
+	set(value):
+		if on_foot_first_person == value:
+			return
+		on_foot_first_person = value
+		_queue_change(&"on_foot_first_person", value)
 
 var master_volume: float = DEFAULT_MASTER_VOLUME:
 	set(value):
@@ -544,6 +563,7 @@ func to_dictionary() -> Dictionary:
 		"invert_ship_y": invert_ship_y,
 		"invert_on_foot_y": invert_on_foot_y,
 		"camera_fov": camera_fov,
+		"on_foot_first_person": on_foot_first_person,
 		"master_volume": master_volume,
 		"ambience_volume": ambience_volume,
 		"engine_volume": engine_volume,
@@ -583,6 +603,7 @@ func to_user_data_payload() -> Dictionary:
 			"invert_ship_y": invert_ship_y,
 			"invert_on_foot_y": invert_on_foot_y,
 			"camera_fov": camera_fov,
+			"on_foot_first_person": on_foot_first_person,
 			"master_volume": master_volume,
 			"ambience_volume": ambience_volume,
 			"engine_volume": engine_volume,
@@ -638,6 +659,7 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	invert_ship_y = bool(values.invert_ship_y)
 	invert_on_foot_y = bool(values.invert_on_foot_y)
 	camera_fov = float(values.camera_fov)
+	on_foot_first_person = bool(values.on_foot_first_person)
 	master_volume = float(values.master_volume)
 	ambience_volume = float(values.ambience_volume)
 	engine_volume = float(values.engine_volume)
@@ -674,6 +696,7 @@ func reset_to_defaults() -> void:
 	invert_ship_y = false
 	invert_on_foot_y = false
 	camera_fov = DEFAULT_CAMERA_FOV
+	on_foot_first_person = DEFAULT_ON_FOOT_FIRST_PERSON
 	master_volume = DEFAULT_MASTER_VOLUME
 	ambience_volume = DEFAULT_AMBIENCE_VOLUME
 	engine_volume = DEFAULT_ENGINE_VOLUME
@@ -745,6 +768,7 @@ func save_to_file(path_override: String = "") -> Error:
 		_input_binding_profile.to_dictionary()
 	)
 	config.set_value(_SECTION_CAMERA, "fov", camera_fov)
+	config.set_value(_SECTION_CAMERA, "on_foot_first_person", on_foot_first_person)
 	config.set_value(_SECTION_AUDIO, "master", master_volume)
 	config.set_value(_SECTION_AUDIO, "ambience", ambience_volume)
 	config.set_value(_SECTION_AUDIO, "engine", engine_volume)
@@ -844,6 +868,9 @@ func load_from_file(path_override: String = "") -> Error:
 		DEFAULT_ON_FOOT_MOUSE_SENSITIVITY
 	)
 	var loaded_camera_fov := _read_number(config, _SECTION_CAMERA, "fov", DEFAULT_CAMERA_FOV)
+	var loaded_on_foot_first_person := _read_bool(
+		config, _SECTION_CAMERA, "on_foot_first_person", DEFAULT_ON_FOOT_FIRST_PERSON
+	)
 	var loaded_master := _read_number(config, _SECTION_AUDIO, "master", DEFAULT_MASTER_VOLUME)
 	var loaded_ambience := _read_number(config, _SECTION_AUDIO, "ambience", DEFAULT_AMBIENCE_VOLUME)
 	var loaded_engine := _read_number(config, _SECTION_AUDIO, "engine", DEFAULT_ENGINE_VOLUME)
@@ -875,6 +902,7 @@ func load_from_file(path_override: String = "") -> Error:
 		config.get_value(_SECTION_CONTROLS, "preset", _control_preset_id(DEFAULT_CONTROL_PRESET))
 	)
 	camera_fov = loaded_camera_fov
+	on_foot_first_person = loaded_on_foot_first_person
 	master_volume = loaded_master
 	ambience_volume = loaded_ambience
 	engine_volume = loaded_engine
@@ -1143,7 +1171,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
 	var expected_value_keys := _USER_DATA_VALUE_KEYS
-	if schema == 7:
+	if schema == 8:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V8
+	elif schema == 7:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V7
 	elif schema == 6:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V6
@@ -1181,6 +1211,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		raw_values = raw_values.duplicate()
 		raw_values["display_resolution"] = DEFAULT_DISPLAY_RESOLUTION_ID
 		raw_values["vsync_mode"] = String(_vsync_mode_id(DEFAULT_VSYNC_MODE))
+	if schema <= 8:
+		raw_values = raw_values.duplicate()
+		raw_values["on_foot_first_person"] = DEFAULT_ON_FOOT_FIRST_PERSON
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -1222,6 +1255,7 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	for key: String in [
 		"invert_ship_y",
 		"invert_on_foot_y",
+		"on_foot_first_person",
 		"reduced_motion",
 		"captions_enabled",
 		"reduced_dynamic_range",

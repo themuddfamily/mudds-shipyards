@@ -277,6 +277,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"invert_ship_y",
 	&"invert_on_foot_y",
 	&"camera_fov",
+	&"on_foot_first_person",
 	&"master_volume",
 	&"ambience_volume",
 	&"engine_volume",
@@ -454,6 +455,9 @@ var _runtime_settings_commit_serial := 0
 var _runtime_settings_last_commit_id := ""
 var _runtime_settings_unsaved_changes := false
 var _runtime_settings_transaction_active := false
+## Prevent a settings hydration/re-entry apply from becoming a fresh player
+## preference write through the PlayerController signal.
+var _applying_on_foot_camera_preference := false
 var _runtime_settings_reentrant_rejection_count := 0
 var _runtime_settings_repair_request_active := false
 ## A verified repair resolves the retained startup receipt for the rest of this
@@ -3180,6 +3184,9 @@ func _connect_runtime_signals() -> void:
 		_on_orderly_shutdown_requested
 	)
 	_connect_signal_once(player, &"interact_requested", _on_interact_requested)
+	_connect_signal_once(
+		player, &"camera_view_mode_changed", _on_player_camera_view_mode_changed
+	)
 	_connect_signal_once(opponent, &"projectile_fired", _on_opponent_projectile_fired)
 	_connect_signal_once(opponent, &"health_changed", _on_opponent_health_changed)
 	_connect_signal_once(opponent, &"destroyed", _on_opponent_destroyed)
@@ -9715,6 +9722,7 @@ func _apply_all_runtime_settings() -> void:
 	player.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
 	player.invert_mouse_y = runtime_settings.invert_on_foot_y
 	player.set_camera_fov(runtime_settings.camera_fov)
+	_apply_on_foot_camera_preference()
 	# The tractor's chase camera is an on-foot-scale third-person rig, so it takes
 	# the on-foot look preference rather than the flight one.
 	if is_instance_valid(tow_tractor):
@@ -9938,6 +9946,8 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		player.set_camera_fov(runtime_settings.camera_fov)
 		if is_instance_valid(tow_tractor):
 			tow_tractor.set_camera_fov(runtime_settings.camera_fov)
+	elif setting == &"on_foot_first_person":
+		_apply_on_foot_camera_preference()
 	elif setting in [
 		&"master_volume", &"ambience_volume", &"engine_volume",
 		&"weapons_volume", &"ui_volume", &"music_volume"
@@ -9972,6 +9982,32 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
 	]:
 		_apply_accessibility_settings()
+
+
+func _apply_on_foot_camera_preference() -> void:
+	if runtime_settings == null or not is_instance_valid(player):
+		return
+	_applying_on_foot_camera_preference = true
+	player.set_camera_view_mode(
+		PlayerController.CameraViewMode.FIRST_PERSON
+		if runtime_settings.on_foot_first_person
+		else PlayerController.CameraViewMode.THIRD_PERSON
+	)
+	_applying_on_foot_camera_preference = false
+
+
+func _on_player_camera_view_mode_changed(mode: PlayerController.CameraViewMode) -> void:
+	if (
+		_applying_on_foot_camera_preference
+		or runtime_settings == null
+		or not is_inside_tree()
+		or is_queued_for_deletion()
+	):
+		return
+	_on_setting_change_requested(
+		&"on_foot_first_person",
+		mode == PlayerController.CameraViewMode.FIRST_PERSON
+	)
 
 
 ## Caller-facing convenience seam; RuntimeSettings remains the authority for

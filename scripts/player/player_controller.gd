@@ -9,6 +9,8 @@ extends CharacterBody3D
 signal interact_requested
 signal boarding_completed
 signal disembarking_completed
+## Emitted only when the player's persistent on-foot preference actually changes.
+signal camera_view_mode_changed(mode: CameraViewMode)
 
 enum EmbodimentState {
 	ON_FOOT,
@@ -2654,6 +2656,7 @@ func set_camera_view_mode(mode: CameraViewMode) -> void:
 	# Leaving first person can also leave the head pitched further than a 5.2 m
 	# boom may go; `_process` eases that back rather than snapping it.
 	_update_avatar_self_culling()
+	camera_view_mode_changed.emit(_view_mode)
 
 
 ## The view the player chose, regardless of whether the situation currently
