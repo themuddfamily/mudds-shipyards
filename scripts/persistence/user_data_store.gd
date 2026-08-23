@@ -57,8 +57,18 @@ func load() -> Dictionary:
 	# A valid temporary document is an interrupted transaction, not an empty
 	# or stale sibling. Fail closed so a caller cannot silently discard it.
 	if bool(temporary.valid):
+		var staged := temporary.document as Dictionary
+		_recovery_receipt = {
+			"available": true,
+			"kind": &"interrupted_transaction",
+			"path": _temp_path(),
+			"generation": int(staged.get("generation", 0)),
+			"requires_explicit_action": true,
+		}
 		_restore_state(previous)
-		return _load_result(false, &"interrupted_transaction", &"none", primary, backup)
+		var interrupted_result := _load_result(false, &"interrupted_transaction", &"none", primary, backup)
+		interrupted_result["recovery_receipt"] = _recovery_receipt.duplicate(true)
+		return interrupted_result
 	if bool(primary.valid) and bool(backup.valid) and not _documents_form_chain(
 		primary.document as Dictionary, backup.document as Dictionary
 	):
