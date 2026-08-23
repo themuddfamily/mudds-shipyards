@@ -35,6 +35,8 @@ const REGISTERED_CUES := {
 	&"weapon_ready": {"caption": "Weapon ready", "default_severity": &"low"},
 	&"engine_started": {"caption": "Engine started", "default_severity": &"low"},
 	&"engine_stopped": {"caption": "Engine stopped", "default_severity": &"medium"},
+	&"boost_engaged": {"caption": "Boost engaged", "default_severity": &"medium"},
+	&"boost_released": {"caption": "Boost released", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

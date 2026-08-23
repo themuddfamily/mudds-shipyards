@@ -80,6 +80,8 @@ const CAPTION_CUES := {
 	&"weapon_ready": [&"system", "Weapons computer", "[ weapon ready ]", 45],
 	&"engine_started": [&"system", "Engine monitor", "[ engine started ]", 45],
 	&"engine_stopped": [&"system", "Engine monitor", "[ engine stopped ]", 70],
+	&"boost_engaged": [&"system", "Flight computer", "[ boost engaged ]", 70],
+	&"boost_released": [&"system", "Flight computer", "[ boost released ]", 45],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
