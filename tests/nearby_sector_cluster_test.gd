@@ -52,11 +52,19 @@ const EXPECTED_SPINE_RIB_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, 12.0)),
 ]
 const EXPECTED_SPINE_RIB_FAMILY_ID: StringName = &"nearby-processing-spine-ribs"
-const EXPECTED_LOCAL_MESH_NODES := 164
-const EXPECTED_LOCAL_MULTIMESH_NODES := 2
-const EXPECTED_LOCAL_RENDERER_NODES := 166
+const EXPECTED_GANTRY_RAIL_AABB := AABB(Vector3(-0.6, -0.6, -9.0), Vector3(1.2, 1.2, 18.0))
+const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(-15.5, -9.0, 86.0)),
+	Transform3D(Basis.IDENTITY, Vector3(-15.5, 17.0, 86.0)),
+	Transform3D(Basis.IDENTITY, Vector3(15.5, -9.0, 86.0)),
+	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
+]
+const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
+const EXPECTED_LOCAL_MESH_NODES := 160
+const EXPECTED_LOCAL_MULTIMESH_NODES := 3
+const EXPECTED_LOCAL_RENDERER_NODES := 163
 const EXPECTED_LOCAL_VISIBLE_COPIES := 688
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 166
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 163
 const EXPECTED_LOCAL_TRIANGLES := 117457
 const EXPECTED_LOCAL_STATIC_BODIES := 38
 const EXPECTED_LOCAL_COLLISION_SHAPES := 38
@@ -107,6 +115,7 @@ func _run() -> void:
 	_test_frozen_contract()
 	_test_identity_and_authority(world, cluster)
 	_test_processing_spine_rib_batch(cluster)
+	_test_gantry_rail_batch(cluster)
 	_test_lamp_lens_mesh_sharing(cluster)
 	_test_torus_mesh_sharing(cluster)
 	_test_placement_envelope(cluster)
@@ -297,19 +306,54 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster renderer nodes are locally frozen at 164 Mesh + 2 MultiMesh = 166"
+		"NearbySectorCluster renderer nodes are locally frozen at 160 Mesh + 3 MultiMesh = 163"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local batch keeps 688 copies and 117457 triangles while submissions fall 169 -> 166"
+		"the local batches keep 688 copies and 117457 triangles while submissions fall 166 -> 163"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
 		and int(geometry["collision_shapes"]) == EXPECTED_LOCAL_COLLISION_SHAPES,
 		"the bounded trim leaves the cluster's 38 bodies and 38 collision shapes unchanged"
 	)
+
+
+func _test_gantry_rail_batch(cluster: NearbySectorCluster) -> void:
+	var platform := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var batch := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/GantryRails"
+	) as MultiMeshInstance3D
+	_check(platform != null and batch != null, "the gantry exposes one named rail batch")
+	if platform == null or batch == null or batch.multimesh == null:
+		return
+	var multimesh := batch.multimesh
+	_check(
+		multimesh.transform_format == MultiMesh.TRANSFORM_3D
+		and multimesh.instance_count == EXPECTED_GANTRY_RAIL_TRANSFORMS.size()
+		and multimesh.visible_instance_count == -1
+		and multimesh.buffer == _encode_multimesh_transforms(EXPECTED_GANTRY_RAIL_TRANSFORMS),
+		"the one gantry batch preserves all four authored rail transforms"
+	)
+	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array
+	_check(
+		bool(batch.get_meta(&"visual_detail_only", false))
+		and StringName(batch.get_meta(&"visual_batch_family_id", &"")) == EXPECTED_GANTRY_RAIL_FAMILY_ID
+		and authored_transforms == EXPECTED_GANTRY_RAIL_TRANSFORMS
+		and multimesh.mesh != null
+		and multimesh.mesh.get_aabb().is_equal_approx(EXPECTED_GANTRY_RAIL_AABB)
+		and batch.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"the rail batch stays visual-only, collision-free, and keeps the exact rail recipe"
+	)
+	var legacy_rails := 0
+	for child in platform.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).name == &"GantryRail":
+			legacy_rails += 1
+	_check(legacy_rails == 0, "no legacy gantry rail renderer remains beside the batch")
 
 
 func _test_lamp_lens_mesh_sharing(cluster: NearbySectorCluster) -> void:
