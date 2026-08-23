@@ -244,6 +244,8 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"music_volume",
 	&"graphics_profile",
 	&"window_mode",
+	&"display_resolution",
+	&"vsync_mode",
 	&"control_preset",
 	&"ui_scale",
 	&"colorblind_palette",
@@ -304,6 +306,8 @@ var cinder_streaming_coordinator: WorldStreamingCoordinator
 var ember_streaming_bootstrap: EmberMoonStreamingBootstrap
 var ember_streaming_binding: EmberMoonStreamingProductionBinding
 var ember_surface_loop_production_binding: EmberSurfaceLoopProductionBinding
+var ember_surface_loop_host: EmberSurfaceLoopHost
+var ember_surface_berth: EmberSurfaceBerth
 var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
 var planetary_cruise_binding: PlanetaryCruiseProductionBinding
 var cargo_transfer_authority: CargoTransferAuthority
@@ -707,6 +711,12 @@ func _resolve_scene_bindings() -> void:
 	ember_surface_loop_production_binding = (
 		get_node_or_null(^"EmberSurfaceLoopProductionBinding")
 		as EmberSurfaceLoopProductionBinding
+	)
+	ember_surface_loop_host = (
+		get_node_or_null(^"EmberSurfaceLoopHost") as EmberSurfaceLoopHost
+	)
+	ember_surface_berth = (
+		get_node_or_null(^"EmberSurfaceBerth") as EmberSurfaceBerth
 	)
 	common_world_origin_rebase_owner = (
 		get_node_or_null(^"CommonWorldOriginRebaseOwner")
@@ -1817,6 +1827,51 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 	return markers
 
 
+## Binds the single retained Ember host only after the asynchronous authored
+## scene exists. The active Torrent and Main Player remain the sole actors;
+## this composition owns no movement or landing authority.
+func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
+	if not streaming_ready:
+		return {"accepted": false, "reason": &"streaming_not_ready"}
+	if not is_instance_valid(ember_surface_loop_host) \
+			or not is_instance_valid(ember_surface_berth) \
+			or not is_instance_valid(ember_surface_loop_production_binding):
+		return {"accepted": false, "reason": &"composition_missing"}
+	if bool(ember_surface_loop_host.get_snapshot().get("attached", false)):
+		return {"accepted": true, "reason": &"already_bound"}
+	if bool(ember_surface_loop_production_binding.get_snapshot().get("configured", false)):
+		return {"accepted": true, "reason": &"already_configured"}
+	var loaded_scene := ember_streaming_bootstrap.get_loaded_instance() \
+			if is_instance_valid(ember_streaming_bootstrap) else null
+	var player_controller := player as PlayerController
+	if not is_instance_valid(loaded_scene) or not is_instance_valid(active_ship) \
+			or not is_instance_valid(player_controller):
+		return {"accepted": false, "reason": &"loaded_actor_unavailable"}
+	var location_generation := int(
+		ember_streaming_bootstrap.get_snapshot().get("location_generation", 0)
+	)
+	if location_generation < 1:
+		return {"accepted": false, "reason": &"location_generation_unavailable"}
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null or not frame.is_configured():
+		return {"accepted": false, "reason": &"coordinate_frame_unavailable"}
+	var bound := ember_surface_loop_host.bind_dependencies(
+		ember_streaming_bootstrap, ember_surface_berth, active_ship,
+		player_controller, 1.62, location_generation,
+		ember_surface_loop_host.get_generation(),
+		ember_surface_loop_host.get_attachment_generation(), self,
+		common_world_origin_rebase_owner
+	)
+	if not bool(bound.get("accepted", false)):
+		return bound
+	var configured := ember_surface_loop_production_binding.configure(
+		ember_surface_loop_host, ember_surface_loop_production_binding.get_generation()
+	)
+	if not bool(configured.get("accepted", false)):
+		return configured
+	return {"accepted": true, "reason": &"bound_after_stream_load"}
+
+
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
@@ -1878,6 +1933,9 @@ func _physics_process(delta: float) -> void:
 								ember_streaming_accepted
 								and streaming.get("action", &"") == &"load"
 							)
+	_ensure_ember_surface_loop_host_bound(
+		ember_streaming_accepted and not required_origin_rebase_uncommitted
+	)
 	if is_instance_valid(ember_surface_loop_production_binding):
 		var surface_binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
 		var surface_state := StringName(surface_binding_snapshot.get("state_id", &""))
@@ -7446,6 +7504,7 @@ func _apply_all_runtime_settings() -> void:
 	runtime_settings.apply_audio_settings()
 	_apply_reduced_dynamic_range_setting()
 	runtime_settings.apply_window_mode()
+	runtime_settings.apply_display_settings()
 	if world.has_method("apply_visual_quality"):
 		world.apply_visual_quality(runtime_settings.graphics_profile)
 	_apply_accessibility_settings()
@@ -7601,6 +7660,9 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 	elif setting == &"window_mode":
 		if is_inside_tree():
 			runtime_settings.apply_window_mode()
+	elif setting in [&"display_resolution", &"vsync_mode"]:
+		if is_inside_tree():
+			runtime_settings.apply_display_settings()
 	elif setting == &"input_binding_profile":
 		_apply_runtime_input_bindings_and_options()
 		# Re-apply the canonical profile to the retained HUD after the settings

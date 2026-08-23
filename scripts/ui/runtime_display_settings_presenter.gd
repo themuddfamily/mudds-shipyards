@@ -26,6 +26,26 @@ func attach(settings: RuntimeSettings) -> Dictionary:
 	return get_snapshot()
 
 
+func attach_snapshot(snapshot: Dictionary) -> Dictionary:
+	if not snapshot is Dictionary:
+		return _reject(&"snapshot_invalid")
+	var resolution := String(snapshot.get("display_resolution", Settings.DEFAULT_DISPLAY_RESOLUTION_ID))
+	var vsync := StringName(snapshot.get("vsync_mode", &"on"))
+	var window_mode := StringName(snapshot.get("window_mode", &"windowed"))
+	if not Settings.SUPPORTED_DISPLAY_RESOLUTION_IDS.has(resolution):
+		return _reject(&"unsupported_resolution")
+	if not [&"off", &"on", &"adaptive"].has(vsync):
+		return _reject(&"unsupported_vsync")
+	if not [&"windowed", &"borderless", &"fullscreen"].has(window_mode):
+		return _reject(&"unsupported_window_mode")
+	_resolution_id = resolution
+	_vsync_id = vsync
+	_window_mode_id = window_mode
+	_attached = true
+	_generation += 1
+	return get_snapshot()
+
+
 func detach() -> Dictionary:
 	_attached = false
 	_generation += 1

@@ -8,6 +8,8 @@ const InputRebindServiceType := preload("res://scripts/settings/input_rebind_ser
 const RuntimeInputRemappingControllerType := preload("res://scripts/settings/runtime_input_remapping_controller.gd")
 const RuntimeInputRemappingPresenterType := preload("res://scripts/ui/runtime_input_remapping_presenter.gd")
 const RuntimeInputRebindPresenterType := preload("res://scripts/ui/runtime_input_rebind_presenter.gd")
+const RuntimeDisplaySettingsPresenterType := preload("res://scripts/ui/runtime_display_settings_presenter.gd")
+const RuntimeSettingsType := preload("res://scripts/settings/runtime_settings.gd")
 const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
 const RuntimeInputGlyphPresenterType := preload("res://scripts/ui/runtime_input_glyph_presenter.gd")
 const UltrawideSafeAreaContractType := preload("res://scripts/ui/ultrawide_safe_area_contract.gd")
@@ -292,6 +294,7 @@ var _input_rebind_service: InputRebindService
 var _input_remapping_controller: RuntimeInputRemappingController
 var _input_remapping_presenter: RuntimeInputRemappingPresenter
 var _runtime_input_rebind_presenter: RefCounted
+var _runtime_display_settings_presenter: RefCounted
 var _input_binding_profile: InputBindingProfile
 var _input_binding_defaults: InputBindingProfile
 var _input_glyph_resolver: InputGlyphResolver
@@ -486,6 +489,7 @@ func _ready() -> void:
 		_input_glyph_resolver
 	)
 	_runtime_input_rebind_presenter.attach(_input_binding_profile)
+	_runtime_display_settings_presenter = RuntimeDisplaySettingsPresenterType.new()
 	_build_interface()
 	set_process_input(true)
 	set_process_unhandled_input(true)
@@ -1482,6 +1486,8 @@ func _pause_focus_fallback() -> Control:
 ## the settings owner. Missing keys retain the values currently shown.
 func set_settings_snapshot(snapshot: Dictionary) -> void:
 	_updating_settings = true
+	if _runtime_display_settings_presenter != null:
+		_runtime_display_settings_presenter.attach_snapshot(snapshot)
 	if snapshot.has("input_binding_profile"):
 		var parsed_profile := InputBindingProfileType.from_dictionary(
 			snapshot["input_binding_profile"]
@@ -1518,7 +1524,11 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 				set_reduced_flash(bool(value))
 		elif control is OptionButton:
 			var option := control as OptionButton
-			option.select(clampi(int(value), 0, option.item_count - 1))
+			option.select(
+				_display_option_index(key, value)
+				if key in [&"window_mode", &"display_resolution", &"vsync_mode"]
+				else clampi(int(value), 0, option.item_count - 1)
+			)
 		elif control is LineEdit:
 			(control as LineEdit).text = str(value)
 	_refresh_accessibility_tooltips()
@@ -3508,6 +3518,8 @@ func _build_settings_page() -> void:
 	var display_group := _settings_group(left_column, "DISPLAY", "Choose clarity or headroom.")
 	_add_option_setting(display_group, &"graphics_profile", "Graphics quality", ["Low", "Medium", "High"], 2)
 	_add_option_setting(display_group, &"window_mode", "Window mode", ["Windowed", "Borderless", "Fullscreen"], 0)
+	_add_option_setting(display_group, &"display_resolution", "Resolution", ["1280 × 720", "1600 × 900", "1920 × 1080", "2560 × 1440"], 2)
+	_add_option_setting(display_group, &"vsync_mode", "VSync", ["Off", "On", "Adaptive"], 1)
 
 	var network_group := _settings_group(left_column, "MULTIPLAYER", "Defaults for the server browser; joining remains caller-owned.")
 	_add_text_setting(network_group, &"multiplayer_display_name", "Display name", "Pilot")
@@ -4495,6 +4507,12 @@ func _on_controller_glyph_family_selected(index: int) -> void:
 
 
 func _on_setting_value_changed(key: StringName, value: Variant) -> void:
+	if not _updating_settings and _runtime_display_settings_presenter != null:
+		var display_result := _display_settings_intent(key, value)
+		if not display_result.is_empty():
+			if not bool(display_result.get("accepted", false)):
+				return
+			value = (display_result.get("values", {}) as Dictionary).get(String(key), value)
 	if value is float:
 		_update_setting_value_label(key, float(value))
 		if key == &"ui_scale":
@@ -4507,6 +4525,33 @@ func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 		setting_change_requested.emit(key, value)
 	if key == &"reduced_flash" or key == &"payload_visual_intensity":
 		_refresh_accessibility_tooltips()
+
+
+func _display_settings_intent(key: StringName, value: Variant) -> Dictionary:
+	var generation := int(_runtime_display_settings_presenter.get_snapshot().get("generation", -1))
+	if key == &"window_mode":
+		return _runtime_display_settings_presenter.select_window_mode(
+			[&"windowed", &"borderless", &"fullscreen"][clampi(int(value), 0, 2)], generation
+		)
+	if key == &"display_resolution":
+		return _runtime_display_settings_presenter.select_resolution(
+			StringName(RuntimeSettingsType.SUPPORTED_DISPLAY_RESOLUTION_IDS[clampi(int(value), 0, 3)]), generation
+		)
+	if key == &"vsync_mode":
+		return _runtime_display_settings_presenter.select_vsync(
+			[&"off", &"on", &"adaptive"][clampi(int(value), 0, 2)], generation
+		)
+	return {}
+
+
+func _display_option_index(key: StringName, value: Variant) -> int:
+	if key == &"window_mode":
+		return [&"windowed", &"borderless", &"fullscreen"].find(StringName(value))
+	if key == &"display_resolution":
+		return RuntimeSettingsType.SUPPORTED_DISPLAY_RESOLUTION_IDS.find(String(value))
+	if key == &"vsync_mode":
+		return [&"off", &"on", &"adaptive"].find(StringName(value))
+	return int(value)
 
 
 func _refresh_accessibility_tooltips() -> void:
