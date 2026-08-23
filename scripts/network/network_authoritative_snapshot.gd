@@ -10,8 +10,8 @@ extends RefCounted
 ## spawn projectiles, or call RPC; server adapters publish here and replicas
 ## consume the copied result.
 
-const SCHEMA_VERSION := 4
-const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v4"
+const SCHEMA_VERSION := 5
+const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v5"
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ENTRIES_PER_SECTION := 256
 const LANDING_STATES := [&"flying", &"landing_pending", &"landed"]
@@ -21,6 +21,7 @@ const DAMAGE_RESPAWN_STATES := [
 ]
 const OWNERSHIP_STATES := [&"owned", &"released", &"transferred", &"disconnected"]
 const BOARDING_STATES := [&"boarded", &"released", &"transferred", &"disconnected"]
+const PROJECTILE_STATES := [&"spawned", &"active", &"impacted", &"expired", &"aborted"]
 const SECTION_NAMES := [
 	&"movement", &"ownership", &"projectiles", &"boarding", &"respawn", &"landing",
 ]
@@ -40,7 +41,8 @@ const SECTION_REQUIRED_FIELDS := {
 	],
 	&"projectiles": [
 		&"projectile_id", &"projectile_generation", &"source_entity_id",
-		&"source_generation", &"state",
+		&"source_generation", &"owner_peer_id", &"projectile_revision",
+		&"projectile_server_tick", &"position", &"terminal", &"state",
 	],
 	&"boarding": [
 		&"seat_id", &"seat_generation", &"occupant_peer_id", &"occupant_peer_generation",
@@ -69,6 +71,8 @@ var _landing_high_water: Dictionary = {}
 var _damage_high_water: Dictionary = {}
 var _ownership_high_water: Dictionary = {}
 var _boarding_high_water: Dictionary = {}
+var _projectile_high_water: Dictionary = {}
+var _projectile_source_high_water: Dictionary = {}
 var _last_result: Dictionary = {}
 
 
@@ -125,6 +129,9 @@ func publish(
 	var boarding_status := _validate_boarding_progress(boarding)
 	if not bool(boarding_status.get("valid", false)):
 		return _remember(_result(false, boarding_status.get("status", &"stale_boarding_snapshot")))
+	var projectile_status := _validate_projectile_progress(projectiles)
+	if not bool(projectile_status.get("valid", false)):
+		return _remember(_result(false, projectile_status.get("status", &"stale_projectile_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision += 1
@@ -133,6 +140,7 @@ func publish(
 	_remember_damage_progress(respawn)
 	_remember_ownership_progress(ownership)
 	_remember_boarding_progress(boarding)
+	_remember_projectile_progress(projectiles)
 	return _remember(_result(true, &"published", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -182,6 +190,10 @@ func apply_replica(source_peer_id: int, packet: Dictionary) -> Dictionary:
 	var boarding_status := _validate_boarding_progress(boarding)
 	if not bool(boarding_status.get("valid", false)):
 		return _remember(_result(false, boarding_status.get("status", &"stale_boarding_snapshot")))
+	var projectiles := (incoming_variant as Dictionary).get(&"projectiles", []) as Array
+	var projectile_status := _validate_projectile_progress(projectiles)
+	if not bool(projectile_status.get("valid", false)):
+		return _remember(_result(false, projectile_status.get("status", &"stale_projectile_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision = revision
@@ -190,6 +202,7 @@ func apply_replica(source_peer_id: int, packet: Dictionary) -> Dictionary:
 	_remember_damage_progress(respawn)
 	_remember_ownership_progress(ownership)
 	_remember_boarding_progress(boarding)
+	_remember_projectile_progress(projectiles)
 	return _remember(_result(true, &"replica_applied", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -220,6 +233,7 @@ func audit() -> Dictionary:
 		"server_owns_movement_snapshot": true,
 		"server_owns_ship_ownership_snapshot": true,
 		"server_owns_projectile_snapshot": true,
+		"projectile_records_are_presentation_only": true,
 		"server_owns_boarding_snapshot": true,
 		"boarding_records_are_presentation_only": true,
 		"server_owns_respawn_snapshot": true,
@@ -279,6 +293,8 @@ func _validate_sections(raw_sections: Dictionary) -> Dictionary:
 				return {"valid": false, "status": &"invalid_ownership_record"}
 			if section_name == &"boarding" and not _valid_boarding_entry(entry):
 				return {"valid": false, "status": &"invalid_boarding_record"}
+			if section_name == &"projectiles" and not _valid_projectile_entry(entry):
+				return {"valid": false, "status": &"invalid_projectile_record"}
 	return {"valid": true}
 
 
@@ -350,6 +366,19 @@ func _valid_boarding_entry(entry: Dictionary) -> bool:
 			and state in [&"released", &"disconnected"]
 	return occupant_peer_generation > 0 and _valid_id(avatar_id) \
 		and state in [&"boarded", &"transferred"]
+
+
+func _valid_projectile_entry(entry: Dictionary) -> bool:
+	var position_variant: Variant = entry.get("position")
+	var terminal_variant: Variant = entry.get("terminal")
+	var state := StringName(entry.get("state", &""))
+	if not position_variant is Vector3 or not (position_variant as Vector3).is_finite() \
+			or not terminal_variant is bool or not state in PROJECTILE_STATES \
+			or int(entry.get("owner_peer_id", 0)) <= 0 \
+			or not _valid_positive_integer(entry.get("projectile_revision")) \
+			or not _valid_nonnegative_integer(entry.get("projectile_server_tick")):
+		return false
+	return bool(terminal_variant) == (state in [&"impacted", &"expired", &"aborted"])
 
 
 ## A newer canonical envelope cannot regress one landing entity's own
@@ -503,6 +532,57 @@ func _remember_boarding_progress(records: Array) -> void:
 			"boarding_server_tick": int(record.get("boarding_server_tick", 0)),
 			"record": record,
 		}
+
+
+func _validate_projectile_progress(records: Array) -> Dictionary:
+	for record_variant in records:
+		var record := record_variant as Dictionary
+		var projectile_id := StringName(record.get("projectile_id", &""))
+		var source_id := StringName(record.get("source_entity_id", &""))
+		var source_generation := int(record.get("source_generation", 0))
+		# Retained tombstones from an older source generation may coexist with
+		# current fire. Only a live projectile can improperly revive that source.
+		if source_generation < int(_projectile_source_high_water.get(source_id, 0)) \
+				and not bool(record.get("terminal", false)):
+			return {"valid": false, "status": &"stale_projectile_source_generation"}
+		var prior := _projectile_high_water.get(projectile_id, {}) as Dictionary
+		if prior.is_empty():
+			continue
+		var generation := int(record.get("projectile_generation", 0))
+		var prior_generation := int(prior.get("projectile_generation", 0))
+		if generation < prior_generation:
+			return {"valid": false, "status": &"stale_projectile_generation"}
+		if generation == prior_generation and bool(prior.get("terminal", false)):
+			if record != (prior.get("record", {}) as Dictionary):
+				return {"valid": false, "status": &"projectile_generation_terminal"}
+			continue
+		var revision := int(record.get("projectile_revision", 0))
+		var prior_revision := int(prior.get("projectile_revision", 0))
+		if revision < prior_revision:
+			return {"valid": false, "status": &"stale_projectile_revision"}
+		if int(record.get("projectile_server_tick", 0)) \
+				< int(prior.get("projectile_server_tick", 0)):
+			return {"valid": false, "status": &"stale_projectile_server_tick"}
+		if revision == prior_revision and record != (prior.get("record", {}) as Dictionary):
+			return {"valid": false, "status": &"stale_projectile_revision"}
+	return {"valid": true}
+
+
+func _remember_projectile_progress(records: Array) -> void:
+	for record_variant in records:
+		var record := (record_variant as Dictionary).duplicate(true)
+		_projectile_high_water[StringName(record.get("projectile_id", &""))] = {
+			"projectile_generation": int(record.get("projectile_generation", 0)),
+			"projectile_revision": int(record.get("projectile_revision", 0)),
+			"projectile_server_tick": int(record.get("projectile_server_tick", 0)),
+			"terminal": bool(record.get("terminal", false)),
+			"record": record,
+		}
+		var source_id := StringName(record.get("source_entity_id", &""))
+		_projectile_source_high_water[source_id] = maxi(
+			int(_projectile_source_high_water.get(source_id, 0)),
+			int(record.get("source_generation", 0))
+		)
 
 
 func _valid_component_modifiers(entry: Dictionary) -> bool:

@@ -83,6 +83,8 @@ const MAX_PROJECTILE_REPLICATION_PACKET_BYTES := 6000
 const PROJECTILE_BUDGET_WINDOW_TICKS := 10
 const PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW := 16
 const PROJECTILE_MAX_BYTES_PER_WINDOW := 24000
+const PROJECTILE_CANONICAL_MAX_RECORDS := 256
+const PROJECTILE_TOMBSTONE_RETENTION_TICKS := 120
 const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
 const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
 const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
@@ -153,6 +155,8 @@ var _projectile_replica_packet_revisions: Dictionary = {}
 var _projectile_replica_terminal_generations: Dictionary = {}
 var _projectile_replica_revision := 0
 var _projectile_replica_migration_generation := 1
+var _canonical_projectile_revision := 0
+var _projectile_authoritative_records: Dictionary = {}
 var _landing_jitter
 var _landing_replica_samples: Dictionary = {}
 var _landing_snapshot_revision := 0
@@ -393,6 +397,8 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_projectile_recipient_pending.clear()
 	_projectile_published_generations.clear()
 	_reset_projectile_replica_state(1)
+	_canonical_projectile_revision = 0
+	_projectile_authoritative_records.clear()
 	_landing_snapshot_revision = 0
 	_landing_authoritative_records.clear()
 	_damage_snapshot_revision = 0
@@ -691,8 +697,13 @@ func publish_projectile_snapshot(
 	for peer_variant in target_peers:
 		if not _peer_generations.has(int(peer_variant)):
 			return _remember(_result(false, &"peer_not_admitted"))
-	_projectile_snapshot_revision += 1
 	var logical_tick := int(projectile.get("last_update_tick", 0)) if budget_tick < 0 else budget_tick
+	var canonical_stage := _stage_canonical_projectile_record(
+		projectile, terminal, logical_tick
+	)
+	if not bool(canonical_stage.get("accepted", false)):
+		return _remember(canonical_stage)
+	_projectile_snapshot_revision += 1
 	var packet := {
 		"revision": _projectile_snapshot_revision,
 		"server_tick": logical_tick,
@@ -720,6 +731,7 @@ func publish_projectile_snapshot(
 		if bool(budget.get("accepted", false)):
 			published[projectile_id] = int(projectile.get("projectile_generation", 0))
 			_projectile_published_generations[peer_id] = published
+	_commit_canonical_projectile_record(canonical_stage)
 	var status: StringName = &"projectile_snapshot_coalesced" if coalesced == target_peers.size() and not target_peers.is_empty() else &"projectile_snapshot_published"
 	return _remember(_result(true, status, {
 		"revision": _projectile_snapshot_revision,
@@ -786,6 +798,153 @@ func _validate_projectile_replica_snapshot(projectile: Dictionary) -> Dictionary
 			or int(projectile.get("last_update_tick", -1)) < 0:
 		return _result(false, &"invalid_projectile_snapshot")
 	return _result(true, &"valid_projectile_snapshot")
+
+
+func _stage_canonical_projectile_record(
+	projectile: Dictionary, terminal: bool, logical_tick: int
+) -> Dictionary:
+	if logical_tick < 0:
+		return _result(false, &"invalid_projectile_snapshot")
+	var projectile_id := StringName(projectile.get("projectile_id", &""))
+	var generation := int(projectile.get("projectile_generation", 0))
+	var prior := _projectile_authoritative_records.get(projectile_id, {}) as Dictionary
+	var effective_terminal := terminal or StringName(projectile.get("state", &"")) != &"flying"
+	var canonical_state := _canonical_projectile_state(projectile, effective_terminal, prior)
+	if not prior.is_empty():
+		var prior_generation := int(prior.get("projectile_generation", 0))
+		if generation < prior_generation:
+			return _result(false, &"stale_projectile_generation")
+		if generation == prior_generation:
+			if StringName(prior.get("source_entity_id", &"")) \
+					!= StringName(projectile.get("source_entity_id", &"")) \
+					or int(prior.get("source_generation", 0)) \
+					!= int(projectile.get("source_generation", 0)):
+				return _result(false, &"projectile_source_generation_mismatch")
+			if int(prior.get("owner_peer_id", 0)) != int(projectile.get("owner_peer_id", 0)):
+				return _result(false, &"projectile_owner_mismatch")
+			if bool(prior.get("terminal", false)):
+				if not effective_terminal \
+						or canonical_state != StringName(prior.get("state", &"")) \
+						or (projectile.get("position", Vector3.ZERO) as Vector3) \
+						!= prior.get("position", Vector3.ZERO):
+					return _result(false, &"projectile_generation_terminal")
+				return _result(true, &"canonical_projectile_unchanged", {
+					"changed": false, "record": prior.duplicate(true),
+				})
+			if logical_tick < int(prior.get("projectile_server_tick", 0)):
+				return _result(false, &"stale_projectile_server_tick")
+			if logical_tick == int(prior.get("projectile_server_tick", 0)):
+				if effective_terminal == bool(prior.get("terminal", false)) \
+						and (projectile.get("position", Vector3.ZERO) as Vector3) \
+						== prior.get("position", Vector3.ZERO):
+					return _result(true, &"canonical_projectile_unchanged", {
+						"changed": false, "record": prior.duplicate(true),
+					})
+				if not effective_terminal:
+					return _result(false, &"stale_projectile_server_tick")
+	var evict_id: StringName = &""
+	if prior.is_empty() and _projectile_authoritative_records.size() \
+			>= PROJECTILE_CANONICAL_MAX_RECORDS:
+		evict_id = _oldest_projectile_tombstone_id()
+		if evict_id.is_empty():
+			return _result(false, &"projectile_snapshot_capacity")
+	var record := {
+		"projectile_id": projectile_id,
+		"projectile_generation": generation,
+		"source_entity_id": StringName(projectile.get("source_entity_id", &"")),
+		"source_generation": int(projectile.get("source_generation", 0)),
+		"owner_peer_id": int(projectile.get("owner_peer_id", 0)),
+		"projectile_revision": _canonical_projectile_revision + 1,
+		"projectile_server_tick": logical_tick,
+		"position": projectile.get("position", Vector3.ZERO),
+		"terminal": effective_terminal,
+		"state": canonical_state,
+	}
+	return _result(true, &"canonical_projectile_staged", {
+		"changed": true,
+		"record": record,
+		"evict_projectile_id": evict_id,
+	})
+
+
+func _commit_canonical_projectile_record(stage: Dictionary) -> void:
+	if not bool(stage.get("changed", false)):
+		return
+	var evict_id := StringName(stage.get("evict_projectile_id", &""))
+	if not evict_id.is_empty():
+		_projectile_authoritative_records.erase(evict_id)
+	var record := (stage.get("record", {}) as Dictionary).duplicate(true)
+	_canonical_projectile_revision = int(record.get("projectile_revision", 0))
+	_projectile_authoritative_records[StringName(record.get("projectile_id", &""))] = record
+
+
+func _canonical_projectile_state(
+	projectile: Dictionary, terminal: bool, prior: Dictionary
+) -> StringName:
+	if terminal:
+		var raw_state := StringName(projectile.get("state", &""))
+		if raw_state == &"expired":
+			return &"expired"
+		if raw_state in [&"resolved", &"impacted", &"impact_pending"] \
+				or not (projectile.get("terminal_intent", {}) as Dictionary).is_empty():
+			return &"impacted"
+		return &"aborted"
+	return &"spawned" if prior.is_empty() \
+		or int(projectile.get("projectile_generation", 0)) \
+		> int(prior.get("projectile_generation", 0)) else &"active"
+
+
+func _oldest_projectile_tombstone_id() -> StringName:
+	var oldest_id: StringName = &""
+	var oldest_tick := 9_223_372_036_854_775_807
+	for projectile_id_variant in _projectile_authoritative_records.keys():
+		var record := _projectile_authoritative_records[projectile_id_variant] as Dictionary
+		if not bool(record.get("terminal", false)):
+			continue
+		var tick := int(record.get("projectile_server_tick", 0))
+		if tick < oldest_tick:
+			oldest_tick = tick
+			oldest_id = StringName(projectile_id_variant)
+	return oldest_id
+
+
+func _canonical_projectile_records(server_tick: int) -> Array:
+	var expired_tombstones: Array[StringName] = []
+	var records: Array = []
+	for projectile_id_variant in _projectile_authoritative_records.keys():
+		var projectile_id := StringName(projectile_id_variant)
+		var record := _projectile_authoritative_records[projectile_id] as Dictionary
+		if bool(record.get("terminal", false)) \
+				and server_tick - int(record.get("projectile_server_tick", 0)) \
+				> PROJECTILE_TOMBSTONE_RETENTION_TICKS:
+			expired_tombstones.append(projectile_id)
+			continue
+		records.append(record.duplicate(true))
+	for projectile_id in expired_tombstones:
+		_projectile_authoritative_records.erase(projectile_id)
+	records.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("projectile_id", "")) < str(right.get("projectile_id", ""))
+	)
+	return records
+
+
+func _abort_canonical_projectiles_for_source(
+	source_entity_id: StringName, source_generation: int
+) -> void:
+	for projectile_id_variant in _projectile_authoritative_records.keys():
+		var projectile_id := StringName(projectile_id_variant)
+		var prior := _projectile_authoritative_records[projectile_id] as Dictionary
+		if StringName(prior.get("source_entity_id", &"")) != source_entity_id \
+				or int(prior.get("source_generation", 0)) != source_generation \
+				or bool(prior.get("terminal", false)):
+			continue
+		_canonical_projectile_revision += 1
+		var aborted := prior.duplicate(true)
+		aborted["projectile_revision"] = _canonical_projectile_revision
+		aborted["projectile_server_tick"] = int(prior.get("projectile_server_tick", 0)) + 1
+		aborted["terminal"] = true
+		aborted["state"] = &"aborted"
+		_projectile_authoritative_records[projectile_id] = aborted
 
 
 func _projectile_budget_decision(
@@ -1959,6 +2118,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_projectile_recipient_pending.clear()
 	_projectile_published_generations.clear()
 	_reset_projectile_replica_state(migration_generation)
+	_canonical_projectile_revision = 0
+	_projectile_authoritative_records.clear()
 	for entity_variant in _moving_replica_binding_ids.keys():
 		_moving_replica_binding.detach(StringName(entity_variant))
 	_moving_replica_binding_ids.clear()
@@ -2963,12 +3124,17 @@ func publish_snapshot(
 	# revision or server tick.
 	var ownership_cache_before := _ownership_authoritative_records.duplicate(true)
 	var boarding_cache_before := _boarding_authoritative_records.duplicate(true)
+	var projectile_cache_before := _projectile_authoritative_records.duplicate(true)
 	var ownership_revision_before := _canonical_ownership_revision
 	var boarding_revision_before := _canonical_boarding_revision
 	var ownership_records := _canonical_ownership_records(server_tick)
 	var boarding_records := _canonical_boarding_records(server_tick)
+	# Standalone projectile publications are the authority admission seam. Ignore
+	# caller arrays here so a client-shaped payload cannot enter the canonical
+	# late-join snapshot without first passing that server-owned lifecycle.
+	var projectile_records := _canonical_projectile_records(server_tick)
 	var published: Dictionary = _lifecycle.publish_authority_snapshot(
-		AUTHORITY_PEER_ID, server_tick, movement, projectiles,
+		AUTHORITY_PEER_ID, server_tick, movement, projectile_records,
 		_canonical_damage_respawn_records(respawn),
 		_canonical_landing_records(),
 		ownership_records,
@@ -2977,6 +3143,7 @@ func publish_snapshot(
 	if not bool(published.get("accepted", false)):
 		_ownership_authoritative_records = ownership_cache_before
 		_boarding_authoritative_records = boarding_cache_before
+		_projectile_authoritative_records = projectile_cache_before
 		_canonical_ownership_revision = ownership_revision_before
 		_canonical_boarding_revision = boarding_revision_before
 		return _remember(published)
@@ -3790,10 +3957,14 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 		var source_id := StringName(source_id_variant)
 		var source := _projectile_sources[source_id] as Dictionary
 		if int(source.get("owner_peer_id", 0)) == peer_id:
-			_projectile.retire_source(
+			var projectile_retirement: Dictionary = _projectile.retire_source(
 				AUTHORITY_PEER_ID, source_id, int(source.get("source_generation", 0))
 			)
-			_projectile_sources.erase(source_id)
+			if bool(projectile_retirement.get("accepted", false)):
+				_abort_canonical_projectiles_for_source(
+					source_id, int(source.get("source_generation", 0))
+				)
+				_projectile_sources.erase(source_id)
 	for entity_id_variant in _landing_entities.keys():
 		var entity_id := StringName(entity_id_variant)
 		var entity := _landing_entities[entity_id] as Dictionary

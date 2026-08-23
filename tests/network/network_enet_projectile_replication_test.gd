@@ -28,7 +28,9 @@ func _run() -> void:
 	_check(int(server.get_projectile_replication_budget(2).get("transition_count", 0)) >= 1,
 		"terminal transition is retained")
 	var client := Adapter.new()
-	var published_packet: Dictionary = server.publish_projectile_snapshot(projectile, [], false, 11).get("packet", {}) as Dictionary
+	var published_packet: Dictionary = server.publish_projectile_snapshot(
+		_projectile(2, &"flying", Vector3(1.0, 2.0, 3.0)), [], false, 11
+	).get("packet", {}) as Dictionary
 	_check(client._apply_projectile_replica_snapshot(published_packet).accepted, "client accepts flying projectile")
 	_check(int(client.get_presentation_cursor_audit().get("projectile_count", 0)) == 1,
 		"client stores presentation-only projectile state")
@@ -45,7 +47,7 @@ func _run() -> void:
 	var terminal_packet := published_packet.duplicate(true)
 	terminal_packet["revision"] = int(published_packet.get("revision", 0)) + 2
 	terminal_packet["terminal"] = true
-	terminal_packet["projectile"] = _projectile(1, &"expired", Vector3.ZERO)
+	terminal_packet["projectile"] = _projectile(2, &"expired", Vector3.ZERO)
 	terminal_packet.projectile.last_update_tick = 2
 	_check(client._apply_projectile_replica_snapshot(terminal_packet).get("status") == &"projectile_terminal_applied",
 		"terminal packet retires client presentation")
@@ -53,10 +55,10 @@ func _run() -> void:
 		"terminal cleanup removes the replica cursor")
 	_check(client._apply_projectile_replica_snapshot(terminal_packet).get("status") == &"stale_projectile_revision",
 		"terminal packet replay is rejected")
-	var resurrection := _packet(_projectile(1, &"flying", Vector3.ONE), 12, int(terminal_packet.revision) + 1)
+	var resurrection := _packet(_projectile(2, &"flying", Vector3.ONE), 12, int(terminal_packet.revision) + 1)
 	_check(client._apply_projectile_replica_snapshot(resurrection).get("status") == &"projectile_generation_terminal",
 		"a terminal generation cannot be resurrected by a later tick")
-	var next_generation := _packet(_projectile(2, &"flying", Vector3.ONE), 13, int(resurrection.revision) + 1)
+	var next_generation := _packet(_projectile(3, &"flying", Vector3.ONE), 13, int(resurrection.revision) + 1)
 	var next_generation_result: Dictionary = client._apply_projectile_replica_snapshot(next_generation)
 	_check(next_generation_result.get("status") == &"projectile_presented"
 		and int(client.get_presentation_cursor_audit().get("projectile_count", 0)) == 1,

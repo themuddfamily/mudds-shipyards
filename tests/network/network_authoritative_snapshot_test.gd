@@ -20,6 +20,7 @@ func _run() -> void:
 	_test_landing_lifecycle_guards()
 	_test_damage_respawn_lifecycle_guards()
 	_test_boarding_ownership_lifecycle_guards()
+	_test_projectile_lifecycle_guards()
 	_test_replica_server_boundary()
 	if _failures.is_empty():
 		print("OK: network authoritative snapshot synchronization (%d assertions)" % _assertions)
@@ -307,6 +308,61 @@ func _test_boarding_ownership_lifecycle_guards() -> void:
 		"boarding server tick rejects reordered transition records")
 
 
+func _test_projectile_lifecycle_guards() -> void:
+	var authority := Authority.new(99)
+	var sections := _sections()
+	_check(authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).accepted,
+		"projectile fixture publishes one active server-owned generation")
+	var impacted := _sections()
+	(impacted.projectiles[0] as Dictionary).projectile_revision = 4
+	(impacted.projectiles[0] as Dictionary).projectile_server_tick = 41
+	(impacted.projectiles[0] as Dictionary).terminal = true
+	(impacted.projectiles[0] as Dictionary).state = &"impacted"
+	_check(authority.publish(99, 41, 13, impacted.movement, impacted.ownership, impacted.projectiles, impacted.boarding, impacted.respawn, impacted.landing).accepted,
+		"impact advances the exact projectile generation to a terminal tombstone")
+	var resurrection := impacted.duplicate(true)
+	(resurrection.projectiles[0] as Dictionary).projectile_revision = 5
+	(resurrection.projectiles[0] as Dictionary).projectile_server_tick = 42
+	(resurrection.projectiles[0] as Dictionary).terminal = false
+	(resurrection.projectiles[0] as Dictionary).state = &"active"
+	_check(authority.publish(99, 42, 14, resurrection.movement, resurrection.ownership, resurrection.projectiles, resurrection.boarding, resurrection.respawn, resurrection.landing).status == &"projectile_generation_terminal",
+		"a newer envelope cannot resurrect an impacted projectile generation")
+	var next_generation := _sections()
+	(next_generation.projectiles[0] as Dictionary).projectile_generation = 2
+	(next_generation.projectiles[0] as Dictionary).source_generation = 5
+	(next_generation.projectiles[0] as Dictionary).projectile_revision = 5
+	(next_generation.projectiles[0] as Dictionary).projectile_server_tick = 42
+	(next_generation.projectiles[0] as Dictionary).state = &"spawned"
+	_check(authority.publish(99, 42, 14, next_generation.movement, next_generation.ownership, next_generation.projectiles, next_generation.boarding, next_generation.respawn, next_generation.landing).accepted,
+		"a strictly newer projectile and source generation can replace a tombstone")
+	var stale_generation := next_generation.duplicate(true)
+	(stale_generation.projectiles[0] as Dictionary).projectile_generation = 1
+	(stale_generation.projectiles[0] as Dictionary).projectile_revision = 6
+	(stale_generation.projectiles[0] as Dictionary).projectile_server_tick = 43
+	(stale_generation.projectiles[0] as Dictionary).terminal = true
+	(stale_generation.projectiles[0] as Dictionary).state = &"aborted"
+	_check(authority.publish(99, 43, 15, stale_generation.movement, stale_generation.ownership, stale_generation.projectiles, stale_generation.boarding, stale_generation.respawn, stale_generation.landing).status == &"stale_projectile_generation",
+		"a terminal record cannot regress the projectile lifecycle generation")
+	var stale_source := next_generation.duplicate(true)
+	(stale_source.projectiles[0] as Dictionary).projectile_id = &"projectile_2"
+	(stale_source.projectiles[0] as Dictionary).projectile_generation = 1
+	(stale_source.projectiles[0] as Dictionary).source_generation = 4
+	(stale_source.projectiles[0] as Dictionary).projectile_revision = 6
+	(stale_source.projectiles[0] as Dictionary).projectile_server_tick = 43
+	_check(authority.publish(99, 43, 15, stale_source.movement, stale_source.ownership, stale_source.projectiles, stale_source.boarding, stale_source.respawn, stale_source.landing).status == &"stale_projectile_source_generation",
+		"a different projectile cannot regress its source lifecycle generation")
+	var stale_revision := next_generation.duplicate(true)
+	(stale_revision.projectiles[0] as Dictionary).projectile_revision = 4
+	(stale_revision.projectiles[0] as Dictionary).projectile_server_tick = 43
+	_check(authority.publish(99, 43, 15, stale_revision.movement, stale_revision.ownership, stale_revision.projectiles, stale_revision.boarding, stale_revision.respawn, stale_revision.landing).status == &"stale_projectile_revision",
+		"projectile record revision rejects reordered lifecycle state")
+	var stale_tick := next_generation.duplicate(true)
+	(stale_tick.projectiles[0] as Dictionary).projectile_revision = 6
+	(stale_tick.projectiles[0] as Dictionary).projectile_server_tick = 41
+	_check(authority.publish(99, 43, 15, stale_tick.movement, stale_tick.ownership, stale_tick.projectiles, stale_tick.boarding, stale_tick.respawn, stale_tick.landing).status == &"stale_projectile_server_tick",
+		"projectile server tick rejects reordered motion state")
+
+
 func _test_replica_server_boundary() -> void:
 	var server := Authority.new(99)
 	var sections := _sections()
@@ -333,7 +389,7 @@ func _test_replica_server_boundary() -> void:
 	)
 	(packet.sections.projectiles as Array)[0].state = &"client_mutated"
 	_check(
-		String((replica.get_section(&"projectiles")[0] as Dictionary).state) == "flying",
+		String((replica.get_section(&"projectiles")[0] as Dictionary).state) == "active",
 		"replica state is detached from transport packet mutation"
 	)
 
@@ -367,7 +423,12 @@ func _sections() -> Dictionary:
 			"projectile_generation": 1,
 			"source_entity_id": &"jovian_a",
 			"source_generation": 4,
-			"state": &"flying",
+			"owner_peer_id": 7,
+			"projectile_revision": 3,
+			"projectile_server_tick": 40,
+			"position": Vector3(4.0, 1.0, 2.0),
+			"terminal": false,
+			"state": &"active",
 		}],
 		"boarding": [{
 			"seat_id": &"jovian_pilot",

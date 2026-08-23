@@ -119,7 +119,18 @@ func _movement() -> Array:
 
 
 func _projectiles() -> Array:
-	return [{"projectile_id": &"projectile_1", "projectile_generation": 1, "source_entity_id": &"jovian_a", "source_generation": 4, "state": &"flying"}]
+	return [{
+		"projectile_id": &"projectile_1",
+		"projectile_generation": 1,
+		"source_entity_id": &"jovian_a",
+		"source_generation": 4,
+		"owner_peer_id": 7,
+		"projectile_revision": 2,
+		"projectile_server_tick": 20,
+		"position": Vector3(2.0, 1.0, 0.0),
+		"terminal": false,
+		"state": &"active",
+	}]
 
 
 func _respawn() -> Array:
