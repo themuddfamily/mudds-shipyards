@@ -74,6 +74,20 @@ func _run() -> void:
 			and rejected_binding.get("reason", &"") == &"wrong_encounter_authority",
 			"the binding refuses to replace the existing EncounterScenarioDirector authority"
 		)
+		var mining_start: Dictionary = binding.call(
+			"start_mining_activity", Vector3(60.0, -66.0, -605.0)
+		)
+		_check(bool(mining_start.get("accepted", false)), "the owner starts the bounded modern mining activity at its authored approach")
+		var mining_step: Dictionary = binding.call("advance_mining_activity", 6.0)
+		_check(bool(mining_step.get("accepted", false)), "the mining activity completes on caller-supplied extraction time")
+		var reward: Dictionary = binding.call("request_mining_reward")
+		_check(
+			bool(reward.get("accepted", false))
+			and not bool((reward.get("reward_request", {}) as Dictionary).get("granted", true)),
+			"completion emits a caller-owned reward request without granting inventory"
+		)
+		var mining_reset: Dictionary = binding.call("reset_mining_activity")
+		_check(bool(mining_reset.get("accepted", false)), "the mining activity resets its progress and reward request")
 	cluster.queue_free()
 	await process_frame
 	_finish()
