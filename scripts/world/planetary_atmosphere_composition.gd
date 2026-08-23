@@ -19,6 +19,10 @@ var _baseline_sun_energy := 1.0
 var _baseline_sun_color := Color.WHITE
 var _baseline_ambient_energy := 1.0
 var _baseline_cloud_transparency := 0.0
+var _baseline_fog_enabled := false
+var _baseline_fog_density := 0.0
+var _baseline_fog_sky_affect := 0.0
+var _baseline_background_energy := 1.0
 var _last_recipe: Dictionary = {}
 var _cloud_shadow_projection: MeshInstance3D
 
@@ -37,6 +41,10 @@ func _ready() -> void:
 			_baseline_sun_color = sun.light_color
 		if target != null and target.environment != null:
 			_baseline_ambient_energy = target.environment.ambient_light_energy
+			_baseline_fog_enabled = target.environment.fog_enabled
+			_baseline_fog_density = target.environment.fog_density
+			_baseline_fog_sky_affect = target.environment.fog_sky_affect
+			_baseline_background_energy = target.environment.background_energy_multiplier
 		if cloud != null:
 			_baseline_cloud_transparency = cloud.transparency
 	_cloud_shadow_projection = MeshInstance3D.new()
@@ -68,6 +76,10 @@ func _exit_tree() -> void:
 				sun.light_color = _baseline_sun_color
 			if target != null and target.environment != null:
 				target.environment.ambient_light_energy = _baseline_ambient_energy
+				target.environment.fog_enabled = _baseline_fog_enabled
+				target.environment.fog_density = _baseline_fog_density
+				target.environment.fog_sky_affect = _baseline_fog_sky_affect
+				target.environment.background_energy_multiplier = _baseline_background_energy
 			if cloud != null:
 				cloud.transparency = _baseline_cloud_transparency
 		if _cloud_shadow_projection != null:
@@ -135,6 +147,14 @@ func apply_retained_presentation_recipe(
 	sun.light_energy = clampf(float(solar.get("sun_energy_unitless", 0.0)) * 1.2 + 0.1, 0.1, 1.3)
 	sun.light_color = solar.get("sun_color", _baseline_sun_color) as Color
 	target.environment.ambient_light_energy = clampf(float(solar.get("sky_exposure_unitless", 0.16)), 0.16, 1.0)
+	var altitude_m := float(weather_snapshot.get("altitude_m", 0.0)) if weather_snapshot is Dictionary else 0.0
+	var aerial := clampf(altitude_m / 20000.0, 0.0, 1.0) if is_finite(altitude_m) else 0.0
+	target.environment.fog_enabled = _baseline_fog_enabled or aerial < 0.95
+	target.environment.fog_density = clampf(_baseline_fog_density * (1.0 - aerial * 0.85), 0.0, 0.2)
+	target.environment.fog_sky_affect = clampf(_baseline_fog_sky_affect * (1.0 - aerial) + aerial * 0.15, 0.0, 1.0)
+	target.environment.background_energy_multiplier = clampf(
+		_baseline_background_energy * (0.8 + aerial * 0.2), 0.0, 2.0
+	)
 	cloud.transparency = clampf(1.0 - float(weather.get("cloud_opacity_unitless", 0.0)), 0.0, 1.0)
 	var shadow_material := _cloud_shadow_projection.material_override as ShaderMaterial
 	if shadow_material != null:
@@ -142,8 +162,14 @@ func apply_retained_presentation_recipe(
 		shadow_material.set_shader_parameter("shadow_opacity", shadow_opacity)
 		shadow_material.set_shader_parameter("wind_offset", weather.get("wind_velocity_mps", Vector3.ZERO))
 		_cloud_shadow_projection.visible = shadow_opacity > 0.01
-	_last_recipe = {"solar": solar, "weather": weather}.duplicate(true)
-	return {"accepted": true, "reason": &"presentation_recipe_applied", "solar": solar, "weather": weather}.duplicate(true)
+	var retained_weather := (weather_snapshot as Dictionary).duplicate(true)
+	retained_weather["altitude_m"] = altitude_m
+	_last_recipe = {
+		"solar": (solar_snapshot as Dictionary).duplicate(true),
+		"weather": retained_weather,
+		"aerial_factor_unitless": aerial,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"presentation_recipe_applied", "solar": solar, "weather": weather, "aerial_factor_unitless": aerial}.duplicate(true)
 
 
 func get_presentation_snapshot() -> Dictionary:
@@ -159,6 +185,10 @@ func get_presentation_snapshot() -> Dictionary:
 		"ambient_energy": target.environment.ambient_light_energy if target != null and target.environment != null else 0.0,
 		"cloud_transparency": cloud.transparency if cloud != null else 1.0,
 		"cloud_shadow_visible": shadow.visible if shadow != null else false,
+		"fog_enabled": target.environment.fog_enabled if target != null and target.environment != null else false,
+		"fog_density": target.environment.fog_density if target != null and target.environment != null else 0.0,
+		"fog_sky_affect": target.environment.fog_sky_affect if target != null and target.environment != null else 0.0,
+		"background_energy_multiplier": target.environment.background_energy_multiplier if target != null and target.environment != null else 0.0,
 		"recipe": _last_recipe.duplicate(true),
 	}.duplicate(true)
 
