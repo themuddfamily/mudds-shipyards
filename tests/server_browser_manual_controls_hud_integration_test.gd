@@ -20,6 +20,11 @@ func _run() -> void:
 	_check(_intents.size() == 1 and _intents[0].action == &"host_session", "Host Session forwards caller-owned intent")
 	hud.request_server_browser_manual_join()
 	_check(_intents.size() == 2 and _intents[1].action == &"manual_join", "Manual Join forwards caller-owned intent")
+	var address := hud.get("_server_browser_address") as LineEdit
+	address.text = "[fe80::1"
+	var malformed := hud.request_server_browser_manual_join()
+	_check(not malformed.accepted and malformed.reason == &"invalid_address", "invalid IPv6 manual join is rejected before intent emission")
+	_check(root.get_viewport().gui_get_focus_owner() == address, "manual address rejection restores keyboard focus to the invalid field")
 	var port := hud.get("_server_browser_port") as LineEdit
 	port.text = "70000"
 	var rejected := hud.request_server_browser_host()

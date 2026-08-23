@@ -3371,12 +3371,21 @@ func request_server_browser_host() -> Dictionary:
 
 
 func request_server_browser_manual_join() -> Dictionary:
-	var request := _server_browser_presenter.manual_join_intent(
+	var composed := _server_browser_presenter.configure_manual_connect(
 		_server_browser_address.text,
 		int(_server_browser_port.text.to_int()),
 		_server_browser_player_name.text
 	)
+	var request := composed.get("intent", {}) as Dictionary
 	if not bool(request.get("accepted", false)):
+		var focus_target := StringName(composed.get("focus_target", &"manual_address"))
+		var target: Control = _server_browser_address
+		if focus_target == &"manual_port":
+			target = _server_browser_port
+		elif focus_target == &"manual_player_name":
+			target = _server_browser_player_name
+		if is_instance_valid(target):
+			target.grab_focus()
 		return apply_server_browser_feedback(request)
 	presentation_intent_requested.emit(&"server_browser", request.duplicate(true))
 	return request
