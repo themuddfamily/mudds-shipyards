@@ -30,6 +30,7 @@ func _run() -> void:
 			and authored_tie_mesh.ring_segments == 16,
 		"tie-down sockets retain the authored 64 by 16 recipe before TorusGeometryBudget"
 	)
+	_test_drain_slat_batch(authored_world)
 	authored_world.queue_free()
 	await process_frame
 	var game := MAIN_SCENE.instantiate() as GameFlow
@@ -136,6 +137,86 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_drain_slat_batch(world: ShipyardWorld) -> void:
+	var details := world.get_node_or_null(^"LandingPad/IntegratedDeckServices") as Node3D
+	var batch := details.get_node_or_null(^"DrainSlatVisuals") as MultiMeshInstance3D \
+		if details != null else null
+	var multi := batch.multimesh if batch != null else null
+	var expected_transforms: Array[Transform3D] = []
+	for drain_position in [
+		Vector3(-9.6, 0.104, -20.0),
+		Vector3(9.6, 0.104, -20.0),
+		Vector3(-9.6, 0.104, 0.0),
+		Vector3(9.6, 0.104, 0.0),
+	]:
+		for slat_index in 5:
+			expected_transforms.append(
+				Transform3D(
+					Basis.IDENTITY,
+					drain_position + Vector3(-0.64 + float(slat_index) * 0.32, 0.015, 0.0)
+				)
+			)
+	var slat_mesh := multi.mesh if multi != null else null
+	var expected_bounds := AABB()
+	if slat_mesh != null:
+		for index in expected_transforms.size():
+			var transformed_bounds := (expected_transforms[index] * slat_mesh.get_aabb()).abs()
+			expected_bounds = transformed_bounds if index == 0 else expected_bounds.merge(transformed_bounds)
+	var tie_socket := details.get_node_or_null(^"TieDownSocket") as MeshInstance3D \
+		if details != null else null
+	_check(
+		batch != null \
+			and multi != null \
+			and multi.transform_format == MultiMesh.TRANSFORM_3D \
+			and multi.visible_instance_count == -1 \
+			and multi.instance_count == expected_transforms.size() \
+			and multi.buffer == _encode_multimesh_transforms(expected_transforms) \
+			and slat_mesh != null \
+			and slat_mesh.get_aabb().size.is_equal_approx(Vector3(0.055, 0.012, 0.29)) \
+			and multi.custom_aabb.is_equal_approx(expected_bounds) \
+			and tie_socket != null \
+			and batch.material_override == tie_socket.material_override \
+			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			and batch.layers == 1,
+		"twenty identical drain slats retain exact geometry/transforms in one shadow-casting submission"
+	)
+	var anchors := details.find_children("*", "Marker3D", true, false) \
+		if details != null else []
+	anchors = anchors.filter(func(anchor: Node) -> bool: return anchor.has_meta("visual_batch_index"))
+	var anchors_are_inert := anchors.size() == 20
+	for raw_anchor in anchors:
+		var anchor := raw_anchor as Marker3D
+		anchors_are_inert = anchors_are_inert \
+			and anchor != null \
+			and anchor.find_children("*", "GeometryInstance3D", true, false).is_empty() \
+			and anchor.find_children("*", "CollisionObject3D", true, false).is_empty()
+	_check(
+		anchors_are_inert,
+		"all twenty historical drain-slat paths remain inert anchors with no render or collision authority"
+	)
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
 
 
 func _ray(world: Node3D, from: Vector3, to: Vector3) -> Dictionary:

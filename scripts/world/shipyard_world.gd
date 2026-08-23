@@ -5930,6 +5930,7 @@ func _build_central_deck_details(pad: Node3D) -> void:
 	details.name = "IntegratedDeckServices"
 	details.set_meta("presentation_collision_free", true)
 	pad.add_child(details)
+	var drain_slat_transforms: Array[Transform3D] = []
 
 	var long_trench := _box(details, "CableTrenchLong", Vector3(8.08, 0.103, -10.0), Vector3(0.46, 0.018, 25.7), _materials["black"], false)
 	long_trench.set_meta("recessed_below_surface", true)
@@ -5948,14 +5949,26 @@ func _build_central_deck_details(pad: Node3D) -> void:
 		drain.set_meta("recessed_below_surface", true)
 		_tag_central_feature(drain, &"drain")
 		for slat_index in 5:
-			_box(
-				drain,
-				"DrainSlat",
-				Vector3(-0.64 + float(slat_index) * 0.32, 0.015, 0.0),
-				Vector3(0.055, 0.012, 0.29),
-				_materials["steel_blue"],
-				false
+			var local_position := Vector3(-0.64 + float(slat_index) * 0.32, 0.015, 0.0)
+			drain_slat_transforms.append(
+				Transform3D(Basis.IDENTITY, drain.transform * local_position)
 			)
+			# Preserve the old repeated path without retaining a renderer node. The
+			# slat has always been inert deck dressing; its batch index is metadata,
+			# not gameplay or interaction authority.
+			var slat_anchor := Marker3D.new()
+			slat_anchor.name = "DrainSlat"
+			slat_anchor.position = local_position
+			slat_anchor.set_meta("visual_batch", ^"../../DrainSlatVisuals")
+			slat_anchor.set_meta("visual_batch_index", drain_slat_transforms.size() - 1)
+			drain.add_child(slat_anchor)
+	_multimesh_visual_boxes(
+		details,
+		"DrainSlatVisuals",
+		Vector3(0.055, 0.012, 0.29),
+		_materials["steel_blue"],
+		drain_slat_transforms
+	)
 
 	# Six flush tie-down sockets add scale and believable work detail without
 	# filling the player or craft lanes with freestanding props.
