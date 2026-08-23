@@ -146,6 +146,7 @@ def assemble_distribution(
     _copy(Path(__file__), stage / "install" / "windows_portable_installer.py")
     _copy(Path(__file__).with_name("windows_portable_installer.ps1"), stage / "install" / "windows_portable_installer.ps1")
     _copy(Path(__file__).with_name("verify_distribution.ps1"), stage / "install" / "verify_distribution.ps1")
+    _copy(Path(__file__).with_name("collect_support_bundle.ps1"), stage / "install" / "collect_support_bundle.ps1")
 
     payload_paths = [
         artifact_name,
@@ -156,6 +157,7 @@ def assemble_distribution(
         "install/windows_portable_installer.py",
         "install/windows_portable_installer.ps1",
         "install/verify_distribution.ps1",
+        "install/collect_support_bundle.ps1",
         "INSTALL-WINDOWS.txt",
     ]
     if pck is not None:
@@ -175,6 +177,7 @@ def assemble_distribution(
             "commands": ["install", "upgrade", "status", "rollback", "uninstall"],
         },
         "verification_helper": "install/verify_distribution.ps1",
+        "support_bundle_helper": "install/collect_support_bundle.ps1",
         "files": [],
     }
     (stage / "INSTALL-WINDOWS.txt").write_text(_install_instructions(manifest), encoding="utf-8", newline="\n")

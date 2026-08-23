@@ -46,6 +46,12 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
             self.assertTrue((stage / "install/windows_portable_installer.py").is_file())
             self.assertTrue((stage / "install/windows_portable_installer.ps1").is_file())
             self.assertTrue((stage / "install/verify_distribution.ps1").is_file())
+            self.assertTrue((stage / "install/collect_support_bundle.ps1").is_file())
+            collector = (stage / "install/collect_support_bundle.ps1").read_text(encoding="utf-8")
+            self.assertIn("crash-log.json", collector)
+            self.assertIn("save files", collector)
+            self.assertIn("[REDACTED]", collector)
+            self.assertIn("native_status = 'NOT_RUN'", collector)
             verifier = (stage / "install/verify_distribution.ps1").read_text(encoding="utf-8")
             self.assertIn("Get-FileHash", verifier)
             self.assertIn("native_validation -ne 'NOT_RUN'", verifier)
@@ -72,12 +78,14 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/install/windows_portable_installer.py", bundle.namelist())
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/install/windows_portable_installer.ps1", bundle.namelist())
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/install/verify_distribution.ps1", bundle.namelist())
+                self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/install/collect_support_bundle.ps1", bundle.namelist())
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/INSTALL-WINDOWS.txt", bundle.namelist())
             installed = install_package(first["archive"], root / "installed")
             self.assertTrue((Path(installed["destination"]) / "Start Mudds Shipyards.cmd").is_file())
             self.assertTrue((Path(installed["destination"]) / "install/windows_portable_installer.py").is_file())
             self.assertTrue((Path(installed["destination"]) / "install/windows_portable_installer.ps1").is_file())
             self.assertTrue((Path(installed["destination"]) / "install/verify_distribution.ps1").is_file())
+            self.assertTrue((Path(installed["destination"]) / "install/collect_support_bundle.ps1").is_file())
 
     def test_checksum_manifest_matches_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
