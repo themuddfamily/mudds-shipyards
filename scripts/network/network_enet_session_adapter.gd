@@ -135,6 +135,7 @@ var _damage_replica_samples: Dictionary = {}
 var _damage_snapshot_revision := 0
 var _boarding_jitter
 var _boarding_replica_samples: Dictionary = {}
+var _boarding_snapshot_revision := 0
 var _migration_jitter
 var _migration_replica_generation := 0
 var _migration_replica_samples: Dictionary = {}
@@ -457,6 +458,48 @@ func register_boarding_ship(
 	return _remember(_boarding.register_ship(
 		AUTHORITY_PEER_ID, ship_id, ship_generation, frame_id, frame_generation
 	))
+
+
+func publish_boarding_snapshot(
+	ship_id: StringName,
+	owner_peer_id: int,
+	seat_id: StringName,
+	ship_generation: int,
+	seat_generation: int,
+	occupied: bool,
+	recipients: Array = [],
+	server_tick: int = 0
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if ship_id.is_empty() or seat_id.is_empty() or ship_generation <= 0 or seat_generation <= 0:
+		return _remember(_result(false, &"invalid_boarding_snapshot"))
+	var target_peers: Array = recipients.duplicate()
+	if target_peers.is_empty():
+		target_peers = _peer_generations.keys()
+	for peer_variant in target_peers:
+		if not _peer_generations.has(int(peer_variant)):
+			return _remember(_result(false, &"peer_not_admitted"))
+	_boarding_snapshot_revision += 1
+	var packet := {
+		"revision": _boarding_snapshot_revision,
+		"server_tick": maxi(0, server_tick),
+		"boarding": {
+			"ship_id": ship_id,
+			"seat_id": seat_id,
+			"seat_generation": seat_generation,
+			"occupied": occupied,
+		},
+		"ownership": {
+			"ship_id": ship_id,
+			"ship_generation": ship_generation,
+			"owner_peer_id": owner_peer_id,
+		},
+	}
+	for peer_variant in target_peers:
+		if _peer != null:
+			_send_boarding_snapshot.rpc_id(int(peer_variant), packet)
+	return _remember(_result(true, &"boarding_snapshot_published", {"packet": packet, "recipients": target_peers.size()}))
 
 
 func register_boarding_seat(
@@ -1612,6 +1655,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_damage_snapshot_revision = 0
 	_damage_jitter.reset(migration_generation)
 	_boarding_replica_samples.clear()
+	_boarding_snapshot_revision = 0
 	_boarding_jitter.reset(migration_generation)
 	_migration_replica_generation = migration_generation
 	_migration_replica_samples.clear()
@@ -2936,6 +2980,15 @@ func _send_landing_snapshot(packet: Dictionary) -> void:
 		return
 	var applied := consume_landing_snapshot(packet)
 	landing_intent_result.emit(applied.duplicate(true))
+	_last_result = applied.duplicate(true)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _send_boarding_snapshot(packet: Dictionary) -> void:
+	if is_server():
+		return
+	var applied := consume_boarding_ownership_snapshot(packet)
+	seat_occupancy_result.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)
 
 

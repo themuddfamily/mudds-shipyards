@@ -310,6 +310,8 @@ var _network_damage_entities: Dictionary = {}
 var _network_damage_server_tick := 0
 var _network_landing_entities: Dictionary = {}
 var _network_landing_server_tick := 0
+var _network_boarding_entities: Dictionary = {}
+var _network_boarding_server_tick := 0
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -3313,6 +3315,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
 			return
 	_piloting = true
+	_publish_network_boarding_state(active_ship, true)
 	player.set_camera_active(false)
 	active_ship.set_piloted(true)
 	active_ship.get_camera().current = true
@@ -3449,6 +3452,30 @@ func _try_exit_ship() -> void:
 ##
 ## `_recover_from_destroyed_ship()` remains the outer safety net for the case
 ## the cabin itself is destroyed, and now runs for this phase too.
+func _publish_network_boarding_state(ship_to_publish: HeroShip, occupied: bool) -> Dictionary:
+	if (
+		not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or not is_instance_valid(ship_to_publish)
+	):
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var ship_id := ship_to_publish.get_ship_id()
+	var seat_id := StringName("%s_pilot" % String(ship_id))
+	var frame_id := StringName("frame_%s" % String(ship_id))
+	if not _network_boarding_entities.has(ship_id):
+		var registered_ship := network_session.register_boarding_ship(ship_id, 1, frame_id, 1)
+		if not bool(registered_ship.get("accepted", false)) and registered_ship.get("status") != &"duplicate_ship":
+			return registered_ship
+		var registered_seat := network_session.register_boarding_seat(seat_id, ship_id, 1, &"pilot")
+		if not bool(registered_seat.get("accepted", false)) and registered_seat.get("status") != &"duplicate_seat":
+			return registered_seat
+		_network_boarding_entities[ship_id] = true
+	_network_boarding_server_tick += 1
+	return network_session.publish_boarding_snapshot(
+		ship_id, 1, seat_id, 1, 1, occupied, [], _network_boarding_server_tick
+	)
+
+
 func _leave_seat_into_cabin() -> void:
 	var cabin := active_ship.get_in_flight_cabin_report()
 	var frame := cabin.get("frame") as MovingInteriorFrame
@@ -3482,6 +3509,7 @@ func _leave_seat_into_cabin() -> void:
 	if _selected_activity_is_running():
 		_fail_active_activity(&"pilot_unseated")
 	transition_ship.set_piloted(false)
+	_publish_network_boarding_state(transition_ship, false)
 	if transition_ship.get_camera() != null:
 		transition_ship.get_camera().current = false
 	player.set_camera_active(true)
