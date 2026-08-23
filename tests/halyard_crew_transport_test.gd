@@ -31,15 +31,18 @@ extends SceneTree
 ##   D2. render allocations — the seven childless dorsal ribs retain their exact
 ##      copies, mesh, material and culling union through one renderer batch.
 ##      Red: a mutated renderer buffer and a mutated culling box are rejected.
+##   D3. weapons — two compact dorsal self-defence mounts remain aligned to the
+##      unchanged combat muzzles, smaller than the Jovian fit, and explicitly
+##      registered as modern visual presentation rather than historical evidence.
 ##   E. physical cockpit and boarding — the frozen fleet seat/eye convention on a
 ##      two-station flight deck. Red: a shifted seat anchor breaks the rise.
 ##   F. walkable interior and the in-flight cabin contract — a continuous deck
 ##      from the airstair to the pilot seat, and a cabin offer derived from the
 ##      live coordinator rather than asserted. Red: unbind the coordinator, and
 ##      destroy the craft; both must withdraw the offer.
-##   G. surfacing — the registered world-triplanar panel recipe is actually
-##      bound, and the hull skin is not left at station relief. Red: a stripped
-##      material is detected.
+##   G. surfacing — the registered panel recipe is bound in moving-ship-local
+##      triplanar space, and the hull skin is not left at station relief. Red: a
+##      stripped material is detected.
 ##   H. berth — the craft's complete collision envelope fits the strict landing
 ##      volume of the berth it is assigned to. Red: an inflated envelope does
 ##      not fit.
@@ -206,6 +209,7 @@ func _run() -> void:
 	_test_winding(craft)
 	_test_bow_docking_arch(craft)
 	_test_render_allocations(craft)
+	_test_weapon_presentation(craft)
 	_test_cockpit_and_boarding(craft)
 	_test_interior(craft)
 	await _test_in_flight_cabin(craft)
@@ -804,23 +808,23 @@ func _test_render_allocations(craft: HeroShip) -> void:
 
 	var report := craft.call("get_halyard_render_allocation_report") as Dictionary
 	_check(
-		int(report.descendant_nodes) == 156
-			and int(report.mesh_instances) == 150
-			and int(report.multimesh_batches) == 1,
-		"open docking arch reduces the frozen renderer roster to 156 nodes and 150 MeshInstances while retaining one rib batch"
+		int(report.descendant_nodes) == 162
+		and int(report.mesh_instances) == 156
+		and int(report.multimesh_batches) == 1,
+		"weapon-complete open-arch renderer nodes freeze at 162, MeshInstances at 156, batches at 1"
 	)
 	_check(
-		int(report.drawn_copies) == 157
-			and int(report.geometry_submissions) == 151
-			and int(report.spine_rib_copies) == 7,
-		"open docking arch retains 157 visible copies and 151 geometry submissions with all seven rib copies"
+		int(report.drawn_copies) == 163
+		and int(report.geometry_submissions) == 157
+		and int(report.spine_rib_copies) == 7,
+		"weapon-complete open-arch drawn copies freeze at 163 and surface submissions at 157"
 	)
 	_check(
-		int(report.unique_mesh_resources) == 61
+		int(report.unique_mesh_resources) == 65
 		and int(report.unique_material_resources) == 14
 		and int(report.multimesh_resources) == 1
 		and int(report.renderer_buffer_floats) == 84,
-		"mesh/material allocations remain 61/14 while one 84-float MultiMesh resource replaces seven renderer nodes"
+		"weapon-complete mesh/material allocations freeze at 65/14 with one 84-float MultiMesh resource"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
@@ -860,6 +864,108 @@ func _test_render_allocations(craft: HeroShip) -> void:
 	_check(
 		bool(craft.call("get_halyard_audit_report").valid),
 		"restoring the exact batch payload restores a clean Halyard audit"
+	)
+
+
+# --------------------------------------------------------------- group D3 ----
+
+
+func _test_weapon_presentation(craft: HeroShip) -> void:
+	var visual := craft.call("get_halyard_visual_root") as Node3D
+	var report := craft.call("get_halyard_weapon_visual_report") as Dictionary
+	var expected_names := PackedStringArray([
+		"PortDefensiveMountBase", "PortDefensivePulseBarrel",
+		"PortDefensiveBarrelShroud", "PortDefensiveMuzzleCollar",
+		"PortDefensiveMuzzleLens", "StarboardDefensiveMountBase",
+		"StarboardDefensivePulseBarrel", "StarboardDefensiveBarrelShroud",
+		"StarboardDefensiveMuzzleCollar", "StarboardDefensiveMuzzleLens",
+	])
+	_check(
+		visual != null
+		and int(report.mount_count) == 2
+		and int(report.visual_parts_per_mount) == 5
+		and report.present_node_names == expected_names
+		and bool(report.exact_roster),
+		"the twin defensive mounts expose the exact five-part base/barrel/shroud/collar/lens roster"
+	)
+	if visual == null:
+		return
+
+	var muzzle_names := ["LeftMuzzle", "RightMuzzle"]
+	var side_names := ["Port", "Starboard"]
+	var expected_muzzles := HalyardCrewTransport.DEFENSIVE_MUZZLE_POSITIONS
+	var aligned := true
+	var dimensions_match := true
+	var metadata_matches := true
+	var measured_dimensions: Array[Vector3] = []
+	for side_index in 2:
+		var muzzle := craft.get_node_or_null(muzzle_names[side_index]) as Marker3D
+		var prefix: String = side_names[side_index]
+		var base := visual.get_node_or_null(prefix + "DefensiveMountBase") as MeshInstance3D
+		var barrel := visual.get_node_or_null(prefix + "DefensivePulseBarrel") as MeshInstance3D
+		var shroud := visual.get_node_or_null(prefix + "DefensiveBarrelShroud") as MeshInstance3D
+		var collar := visual.get_node_or_null(prefix + "DefensiveMuzzleCollar") as MeshInstance3D
+		var lens := visual.get_node_or_null(prefix + "DefensiveMuzzleLens") as MeshInstance3D
+		aligned = (
+			aligned and muzzle != null and lens != null
+			and muzzle.position.is_equal_approx(expected_muzzles[side_index])
+			and lens.position.is_equal_approx(muzzle.position)
+			and lens.global_position.is_equal_approx(muzzle.global_position)
+		)
+		if base == null or barrel == null or shroud == null or collar == null or lens == null:
+			dimensions_match = false
+			metadata_matches = false
+			continue
+		measured_dimensions.append_array([
+			base.mesh.get_aabb().size, barrel.mesh.get_aabb().size,
+			shroud.mesh.get_aabb().size, collar.mesh.get_aabb().size,
+			lens.mesh.get_aabb().size,
+		])
+		dimensions_match = (
+			dimensions_match
+			and base.mesh.get_aabb().size.is_equal_approx(Vector3(0.72, 0.28, 0.72))
+			and barrel.mesh.get_aabb().size.is_equal_approx(Vector3(0.22, 1.10, 0.22))
+			and shroud.mesh.get_aabb().size.is_equal_approx(HalyardCrewTransport.DEFENSIVE_SHROUD_SIZE)
+			and collar.mesh.get_aabb().size.is_equal_approx(Vector3(0.32, 0.14, 0.32))
+			and is_equal_approx(lens.mesh.get_aabb().size.y, 0.15)
+			and absf(lens.mesh.get_aabb().size.x - 0.15) < 0.002
+			and absf(lens.mesh.get_aabb().size.z - 0.15) < 0.002
+		)
+		for part in [base, barrel, shroud, collar, lens]:
+			metadata_matches = (
+				metadata_matches
+				and part.get_meta("evidence_status", &"") == &"modern_interpretation"
+				and part.get_meta("weapon_role", &"") == &"light_self_defence"
+				and bool(part.get_meta("modern_original", false))
+				and bool(part.get_meta("visual_only", false))
+			)
+	_check(aligned, "both low-output lenses remain centred on the unchanged combat muzzle transforms")
+	_check(
+		dimensions_match,
+		"both mounts retain their compact authored base/barrel/shroud/collar/lens dimensions (%s)"
+			% str(measured_dimensions)
+	)
+	_check(
+		HalyardCrewTransport.DEFENSIVE_MOUNT_BASE_RADIUS < 0.68
+		and HalyardCrewTransport.DEFENSIVE_BARREL_RADIUS < 0.19
+		and HalyardCrewTransport.DEFENSIVE_BARREL_LENGTH < 1.55,
+		"the Halyard mount remains visibly lighter and shorter than the Jovian defensive convention"
+	)
+	_check(
+		metadata_matches
+		and bool(report.modern_metadata_matches)
+		and report.design_status == &"modern_interpretation"
+		and not bool(report.historically_authenticated)
+		and report.weapon_role == &"light_self_defence",
+		"every defensive part is explicitly modern, visual-only light self-defence presentation"
+	)
+	_check(
+		craft.get_ship_definition() != null
+		and is_equal_approx(
+			float(craft.get_ship_definition().get_systems_profile().get("weapon_cooldown", -1.0)),
+			0.95
+		),
+		"the compact presentation remains coupled to the fleet's slowest frozen weapon cadence"
 	)
 
 
@@ -1195,9 +1301,9 @@ func _test_surfacing(craft: HeroShip) -> void:
 			"%s binds the registered panel albedo/normal/roughness trio" % key
 		)
 		_check(
-			material.uv1_triplanar and material.uv1_world_triplanar
+			material.uv1_triplanar and not material.uv1_world_triplanar
 			and is_equal_approx(material.uv1_triplanar_sharpness, PANEL_TRIPLANAR_SHARPNESS),
-			"%s uses the registered world-triplanar projection" % key
+			"%s uses the registered ship-local triplanar projection" % key
 		)
 		_check(
 			material.normal_scale >= SHIP_NORMAL_SCALE_BAND.x
@@ -1211,15 +1317,16 @@ func _test_surfacing(craft: HeroShip) -> void:
 
 	# Walked and structural surfaces keep the registered station relief, which is
 	# exactly where that family belongs.
-	for key: String in ["deck", "structure", "trim"]:
+	for key: String in ["deck", "structure", "dark", "accent", "trim", "locker"]:
 		var material := materials.get(key) as StandardMaterial3D
 		_check(material != null, "the transport publishes its %s surface material" % key)
 		if material == null:
 			continue
 		_check(
-			material.normal_texture != null and material.uv1_world_triplanar
+			material.normal_texture != null and material.uv1_triplanar
+			and not material.uv1_world_triplanar
 			and is_equal_approx(material.normal_scale, STATION_PANEL_NORMAL_SCALE),
-			"%s keeps the registered panel recipe at normal_scale %.1f" % [key, STATION_PANEL_NORMAL_SCALE]
+			"%s keeps the ship-local panel recipe at normal_scale %.1f" % [key, STATION_PANEL_NORMAL_SCALE]
 		)
 
 	# RED: a stripped material must be detected by the same predicate.

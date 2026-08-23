@@ -132,10 +132,11 @@ const HALYARD_NAV_GREEN := Color("74ec97")
 # ------------------------------------------------------------- surfacing ----
 #
 # Every surface on this craft is built by `StationSurfaceKit`'s chamfered
-# builders and finished with the registered world-triplanar panel recipe
+# builders and finished with the registered object-local triplanar panel recipe
 # (`StationSurfaceKit.apply_panel_triplanar`), which binds the registered
 # `procedural-panel-triplanar-*-v2` albedo/normal/roughness trio at
-# `normal_scale = 1.0`, world triplanar, sharpness 4.0.
+# `normal_scale = 1.0`, triplanar projection, sharpness 4.0. The helper's
+# station-world projection is disabled after binding because this craft moves.
 #
 # One deliberate departure, with both rules named. `apply_panel_triplanar` sets
 # `normal_scale = 1.0`; that is the *station* family's relief, and
@@ -193,6 +194,23 @@ const CABIN_WINDOW_COUNT := 10
 const CABIN_WINDOW_FIRST_Z := -8.30
 const CABIN_WINDOW_PITCH := 1.55
 
+## Compact dorsal self-defence hardware. These dimensions remain below the
+## Jovian freighter's 0.68 m base, 0.19 m barrel radius and 1.55 m barrel length:
+## the Halyard owns the fleet's slowest cadence, so its weapon silhouette must
+## read as the lightest defensive fit rather than as freight-scale armament.
+const DEFENSIVE_MOUNT_BASE_RADIUS := 0.36
+const DEFENSIVE_BARREL_RADIUS := 0.11
+const DEFENSIVE_BARREL_LENGTH := 1.10
+const DEFENSIVE_SHROUD_SIZE := Vector3(0.34, 0.28, 0.56)
+const DEFENSIVE_COLLAR_RADIUS := 0.16
+const DEFENSIVE_COLLAR_LENGTH := 0.14
+const DEFENSIVE_LENS_RADIUS := 0.075
+const DEFENSIVE_MUZZLE_POSITIONS := [
+	Vector3(-1.75, 4.24, -7.65),
+	Vector3(1.75, 4.24, -7.65),
+]
+const DEFENSIVE_VISUAL_PARTS_PER_MOUNT := 5
+
 ## Component-local render allocation freeze. The seven dorsal ribs are repeated,
 ## childless exterior trim: no collider, route, seat, boarding, propulsion,
 ## damage, weapon, audio, lifecycle or evidence contract names one of them. They
@@ -200,12 +218,12 @@ const CABIN_WINDOW_PITCH := 1.55
 ## submission through a ship-local MultiMesh.
 const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
 const SPINE_RIB_COPY_COUNT := 7
-const RENDER_DESCENDANT_COUNT := 156
-const RENDER_MESH_INSTANCE_COUNT := 150
+const RENDER_DESCENDANT_COUNT := 162
+const RENDER_MESH_INSTANCE_COUNT := 156
 const RENDER_MULTIMESH_BATCH_COUNT := 1
-const RENDER_DRAWN_COPY_COUNT := 157
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 151
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 61
+const RENDER_DRAWN_COPY_COUNT := 163
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 157
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 65
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
 
 var _halyard_built := false
@@ -456,6 +474,55 @@ func get_halyard_evidence_report() -> Dictionary:
 	}
 
 
+## Authored visual roster for the Halyard's two light defensive mounts. Combat
+## authority remains entirely with HeroShip and the unchanged muzzle markers;
+## this report describes presentation only.
+func get_halyard_weapon_visual_report() -> Dictionary:
+	var expected_names := PackedStringArray()
+	var present_names := PackedStringArray()
+	var modern_metadata_matches := true
+	for side_name in ["Port", "Starboard"]:
+		for suffix in [
+			"DefensiveMountBase", "DefensivePulseBarrel", "DefensiveBarrelShroud",
+			"DefensiveMuzzleCollar", "DefensiveMuzzleLens",
+		]:
+			var node_name: String = side_name + suffix
+			expected_names.append(node_name)
+			var part := _halyard_visual.get_node_or_null(node_name) as MeshInstance3D if _halyard_visual != null else null
+			if part == null:
+				modern_metadata_matches = false
+				continue
+			present_names.append(node_name)
+			modern_metadata_matches = (
+				modern_metadata_matches
+				and part.get_meta("evidence_status", &"") == EVIDENCE_STATUS
+				and part.get_meta("weapon_role", &"") == &"light_self_defence"
+				and bool(part.get_meta("modern_original", false))
+			)
+	var left_muzzle := get_node_or_null("LeftMuzzle") as Marker3D
+	var right_muzzle := get_node_or_null("RightMuzzle") as Marker3D
+	return {
+		"schema_version": 1,
+		"design_status": EVIDENCE_STATUS,
+		"historically_authenticated": false,
+		"weapon_role": &"light_self_defence",
+		"mount_count": 2,
+		"visual_parts_per_mount": DEFENSIVE_VISUAL_PARTS_PER_MOUNT,
+		"expected_node_names": expected_names,
+		"present_node_names": present_names,
+		"exact_roster": present_names == expected_names,
+		"modern_metadata_matches": modern_metadata_matches,
+		"muzzle_markers": [left_muzzle, right_muzzle],
+		"authored_muzzle_positions": DEFENSIVE_MUZZLE_POSITIONS.duplicate(),
+		"barrel_radius": DEFENSIVE_BARREL_RADIUS,
+		"barrel_length": DEFENSIVE_BARREL_LENGTH,
+		"shroud_size": DEFENSIVE_SHROUD_SIZE,
+		"collar_radius": DEFENSIVE_COLLAR_RADIUS,
+		"collar_length": DEFENSIVE_COLLAR_LENGTH,
+		"lens_radius": DEFENSIVE_LENS_RADIUS,
+	}
+
+
 func get_halyard_render_allocation_report() -> Dictionary:
 	var mesh_nodes := _halyard_visual.find_children("*", "MeshInstance3D", true, false) if _halyard_visual != null else []
 	var batch_nodes := _halyard_visual.find_children("*", "MultiMeshInstance3D", true, false) if _halyard_visual != null else []
@@ -564,6 +631,11 @@ func get_halyard_audit_report() -> Dictionary:
 		errors.append("crew cabin requires at least six seat anchors")
 	if _engine_plumes.size() != 4:
 		errors.append("tail yoke requires exactly four engine plumes")
+	var weapons := get_halyard_weapon_visual_report()
+	if not bool(weapons.exact_roster):
+		errors.append("Halyard defensive weapon visual roster drifted")
+	if not bool(weapons.modern_metadata_matches):
+		errors.append("Halyard defensive mounts lost their modern light-self-defence metadata")
 	var render := get_halyard_render_allocation_report()
 	if not bool(render.exact_counts):
 		errors.append("Halyard render allocations drifted from the frozen component-local roster")
@@ -669,14 +741,14 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.nav_green = _halyard_material(HALYARD_NAV_GREEN, 0.10, 0.22, HALYARD_NAV_GREEN, 2.3)
 	_halyard_materials.glass = _halyard_glass(Color(0.16, 0.28, 0.24, 0.22))
 
-	# The registered world-triplanar station panel recipe, applied through the
+	# The registered station panel maps and triplanar recipe, applied through the
 	# shared kit. See the surfacing note at the top of this file for why the two
 	# hull skins step `normal_scale` back into the fleet band afterwards and the
 	# walked/structural surfaces keep the registered 1.0.
 	for hull_material: StandardMaterial3D in [
 		_halyard_materials.hull_olive, _halyard_materials.hull_shade
 	]:
-		if StationSurfaceKit.apply_panel_triplanar(hull_material, HULL_PANEL_UV_SCALE):
+		if _apply_vehicle_panel_triplanar(hull_material, HULL_PANEL_UV_SCALE):
 			hull_material.normal_scale = HULL_NORMAL_SCALE
 			hull_material.clearcoat_enabled = true
 			hull_material.clearcoat = HULL_CLEARCOAT
@@ -690,10 +762,19 @@ func _create_halyard_materials() -> void:
 		_halyard_materials.accent, _halyard_materials.trim,
 		_halyard_materials.locker,
 	]:
-		StationSurfaceKit.apply_panel_triplanar(structural_material, STRUCTURE_PANEL_UV_SCALE)
+		_apply_vehicle_panel_triplanar(structural_material, STRUCTURE_PANEL_UV_SCALE)
 	# Surfaces the crew physically stands on take the walked panel scale, exactly
 	# as the freight berth's decks do.
-	StationSurfaceKit.apply_panel_triplanar(_halyard_materials.deck, WALKED_PANEL_UV_SCALE)
+	_apply_vehicle_panel_triplanar(_halyard_materials.deck, WALKED_PANEL_UV_SCALE)
+
+
+func _apply_vehicle_panel_triplanar(material: StandardMaterial3D, uv_scale: float) -> bool:
+	if not StationSurfaceKit.apply_panel_triplanar(material, uv_scale):
+		return false
+	# Static station pieces need world-continuous projection. This moving craft
+	# must carry its projection with it so the panel pattern cannot swim in flight.
+	material.uv1_world_triplanar = false
+	return true
 
 
 func get_variant_materials() -> Dictionary:
@@ -901,8 +982,42 @@ func _build_flank_detail() -> void:
 		_box(_halyard_visual, side_name + "IdentificationBand", Vector3(side * (HULL_HALF_WIDTH + 0.05), 0.92, -1.20), Vector3(0.14, 0.36, 17.60), _halyard_materials.accent)
 		# Defensive pulse mount. The Halyard's cadence is the slowest in the
 		# fleet; this is self-defence hardware, not an armament.
-		_cylinder(_halyard_visual, side_name + "DefensiveMountBase", Vector3(side * 1.75, 4.12, -6.30), 0.36, 0.28, _halyard_materials.structure)
-		_cylinder(_halyard_visual, side_name + "DefensivePulseBarrel", Vector3(side * 1.75, 4.24, -7.05), 0.11, 1.10, _halyard_materials.dark, Vector3(90.0, 0.0, 0.0))
+		var weapon_parts: Array[MeshInstance3D] = []
+		weapon_parts.append(_cylinder(
+			_halyard_visual, side_name + "DefensiveMountBase",
+			Vector3(side * 1.75, 4.12, -6.30), DEFENSIVE_MOUNT_BASE_RADIUS, 0.28,
+			_halyard_materials.structure
+		))
+		weapon_parts.append(_cylinder(
+			_halyard_visual, side_name + "DefensivePulseBarrel",
+			Vector3(side * 1.75, 4.24, -7.05), DEFENSIVE_BARREL_RADIUS,
+			DEFENSIVE_BARREL_LENGTH, _halyard_materials.dark, Vector3(90.0, 0.0, 0.0)
+		))
+		# A short faceted fairing carries the barrel out of the low-profile base;
+		# it is a shroud, not a second heavy turret body.
+		weapon_parts.append(_box(
+			_halyard_visual, side_name + "DefensiveBarrelShroud",
+			Vector3(side * 1.75, 4.24, -6.62), DEFENSIVE_SHROUD_SIZE,
+			_halyard_materials.hull_shade
+		))
+		weapon_parts.append(_cylinder(
+			_halyard_visual, side_name + "DefensiveMuzzleCollar",
+			Vector3(side * 1.75, 4.24, -7.49), DEFENSIVE_COLLAR_RADIUS,
+			DEFENSIVE_COLLAR_LENGTH, _halyard_materials.structure,
+			Vector3(90.0, 0.0, 0.0)
+		))
+		# The dim amber lens is centred exactly on the unchanged combat marker.
+		# It communicates a low-output pulse emitter without increasing authority.
+		weapon_parts.append(_sphere(
+			_halyard_visual, side_name + "DefensiveMuzzleLens",
+			DEFENSIVE_MUZZLE_POSITIONS[0 if side < 0.0 else 1],
+			DEFENSIVE_LENS_RADIUS, _halyard_materials.instrument_low
+		))
+		for part in weapon_parts:
+			part.set_meta("evidence_status", EVIDENCE_STATUS)
+			part.set_meta("modern_original", true)
+			part.set_meta("weapon_role", &"light_self_defence")
+			part.set_meta("visual_only", true)
 		# Port-side airstair into the crew cabin. Its z is not a styling choice:
 		# parked on Fleet Dock 02 the craft's bow and tail overhang a 12 m slab,
 		# so the only deck a crew member can actually stand on runs alongside the
@@ -1245,9 +1360,9 @@ func _replace_collision_and_markers() -> void:
 		exit.position = Vector3(-5.60, LANDING_CONTACT_Y, AIRSTAIR_Z)
 		exit.rotation.y = -PI * 0.5
 	if left_muzzle != null:
-		left_muzzle.position = Vector3(-1.75, 4.24, -7.65)
+		left_muzzle.position = DEFENSIVE_MUZZLE_POSITIONS[0]
 	if right_muzzle != null:
-		right_muzzle.position = Vector3(1.75, 4.24, -7.65)
+		right_muzzle.position = DEFENSIVE_MUZZLE_POSITIONS[1]
 	var boarding_area := get_node_or_null("ShipBoardingArea") as Area3D
 	if boarding_area != null:
 		boarding_area.position = Vector3(-4.90, LANDING_CONTACT_Y + 0.50, AIRSTAIR_Z)
