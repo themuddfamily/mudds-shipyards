@@ -160,6 +160,12 @@ const ROOF_VENT_COLLAR_FAMILY_ID: StringName = &"roof_vent_collars"
 const RACK_CARD_SIZE := Vector3(0.02, 0.24, 0.10)
 const RACK_CARD_COPY_COUNT := 14
 const JUNCTION_ARC_TILE_COPY_COUNT := 8
+## Fifteen childless visual treads sit over the continuous collision ramp. Their
+## authored names remain as Marker3D anchors while one circulation-local batch
+## draws the identical rounded-box surfaces. The ramp remains the only physics
+## and navigation authority for the stair.
+const STAIR_TREAD_SIZE := Vector3(2.92, 0.1, 0.72)
+const STAIR_TREAD_COPY_COUNT := STAIR_STEP_COUNT
 ## Six identical emissive lenses are presentation surfaces for six independent
 ## ceiling practicals. The housings and Light3D nodes remain ordinary; only the
 ## visual-only rounded-box submissions are combined here.
@@ -174,13 +180,13 @@ const CEILING_LUMINAIRE_LENS_POSITIONS := [
 	Vector3(8.0, 4.405, 16.15),
 ]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1176
+const RENDER_DESCENDANT_NODE_COUNT := 1177
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 814
+const RENDERER_NODE_COUNT := 800
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 860
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 814
+const SURFACE_SUBMISSION_COUNT := 800
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -253,6 +259,7 @@ var _pod_corner_collar_mesh: TorusMesh
 var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _rack_card_batch: MultiMeshInstance3D
 var _junction_arc_tile_batch: MultiMeshInstance3D
+var _stair_tread_batch: MultiMeshInstance3D
 var _console_shock_collar_batch: MultiMeshInstance3D
 var _cabinet_fastener_batch: MultiMeshInstance3D
 var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
@@ -1015,10 +1022,10 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": 1,
-			"renderer_nodes": 15,
-			"drawn_copies": -1,
-			"surface_submissions": 15,
+			"descendant_nodes": -6,
+			"renderer_nodes": 55,
+			"drawn_copies": -5,
+			"surface_submissions": 55,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		},
@@ -2893,14 +2900,14 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	ramp_collision.shape = ramp_shape
 	ramp.add_child(ramp_collision)
 
+	var tread_transforms := _stair_tread_transforms()
 	for index in STAIR_STEP_COUNT:
-		var progress := float(index) / float(STAIR_STEP_COUNT - 1)
-		var tread_position := Vector3(
-			-5.7,
-			progress * UPPER_FLOOR_ELEVATION + 0.06,
-			3.0 + progress * 9.8
-		)
-		_box(circulation, "VisibleTread%02d" % index, tread_position, Vector3(2.92, 0.1, 0.72), _materials["off_white_floor"], false)
+		var tread_transform := tread_transforms[index]
+		var tread_position := tread_transform.origin
+		var tread_anchor := Marker3D.new()
+		tread_anchor.name = "VisibleTread%02d" % index
+		tread_anchor.transform = tread_transform
+		circulation.add_child(tread_anchor)
 		_box(
 			circulation,
 			"TreadNosing%02d" % index,
@@ -2909,6 +2916,13 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 			_materials["graphite"] if index % 3 else _materials["cyan_dim"],
 			false
 		)
+	_stair_tread_batch = _multimesh_rounded_box(
+		circulation,
+		"VisibleTreadRenderBatch",
+		STAIR_TREAD_SIZE,
+		_materials["off_white_floor"],
+		tread_transforms
+	)
 
 	# Twin tubular stringers make the climb read as an engineered assembly rather
 	# than fifteen floating boxes. They sit beneath the unchanged navigation ramp.
@@ -4972,6 +4986,21 @@ static func _rack_card_transforms() -> Array[Transform3D]:
 					10.000
 				)
 			))
+	return transforms
+
+
+static func _stair_tread_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for index in STAIR_STEP_COUNT:
+		var progress := float(index) / float(STAIR_STEP_COUNT - 1)
+		transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				-5.7,
+				progress * UPPER_FLOOR_ELEVATION + 0.06,
+				3.0 + progress * 9.8
+			)
+		))
 	return transforms
 
 

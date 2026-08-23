@@ -39,6 +39,7 @@ func _run() -> void:
 	_test_route_and_space_contract(module)
 	await _test_collision_backed_surfaces(module)
 	await _test_stair_circulation(module)
+	_test_stair_tread_batch(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
 	_test_ceiling_luminaire_lens_batch(module)
@@ -243,6 +244,57 @@ func _test_stair_circulation(module: AftJunctionStack) -> void:
 	_check(absf(samples[samples.size() - 1].y - 4.31) < 0.02, "stair terminates flush with the upper landing surface")
 
 
+func _test_stair_tread_batch(module: AftJunctionStack) -> void:
+	var circulation := module.get_node_or_null(^"Structure/Circulation") as Node3D
+	var batch := circulation.get_node_or_null(^"VisibleTreadRenderBatch") as MultiMeshInstance3D \
+		if circulation != null else null
+	var anchors_exact := circulation != null
+	var expected_buffer := PackedFloat32Array()
+	for index in AftJunctionStack.STAIR_TREAD_COPY_COUNT:
+		var anchor := circulation.get_node_or_null(
+			NodePath("VisibleTread%02d" % index)
+		) as Marker3D if circulation != null else null
+		var progress := float(index) / float(AftJunctionStack.STAIR_STEP_COUNT - 1)
+		var expected := Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				-5.7,
+				progress * AftJunctionStack.UPPER_FLOOR_ELEVATION + 0.06,
+				3.0 + progress * 9.8
+			)
+		)
+		anchors_exact = anchors_exact and anchor != null \
+			and anchor.transform.is_equal_approx(expected) \
+			and anchor.get_child_count() == 0
+		expected_buffer.append_array(PackedFloat32Array([
+			1.0, 0.0, 0.0, expected.origin.x,
+			0.0, 1.0, 0.0, expected.origin.y,
+			0.0, 0.0, 1.0, expected.origin.z,
+		]))
+	var floor_mesh := module.get_node_or_null(
+		^"Structure/UpperOpenDeck/UpperFloor/Mesh"
+	) as MeshInstance3D
+	_check(
+		anchors_exact
+		and batch != null
+		and batch.multimesh != null
+		and batch.multimesh.buffer == expected_buffer
+		and batch.multimesh.instance_count == AftJunctionStack.STAIR_TREAD_COPY_COUNT
+		and batch.multimesh.visible_instance_count == AftJunctionStack.STAIR_TREAD_COPY_COUNT
+		and floor_mesh != null
+		and batch.material_override == floor_mesh.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			AftJunctionStack.STAIR_TREAD_SIZE
+		)
+		and batch.multimesh.custom_aabb.is_equal_approx(
+			AABB(Vector3(-7.16, 0.01, 2.64), Vector3(2.92, 4.30, 10.52))
+		),
+		"fifteen named visual tread anchors retain their poses under one bounded stair batch"
+	)
+
+
 func _test_operations_door_and_room(module: AftJunctionStack) -> void:
 	var door := module.get_operations_entrance()
 	_check(door != null, "cyan operations entrance is exposed as StationDoor")
@@ -398,10 +450,10 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1174,
-			"renderer_nodes": 812,
-			"drawn_copies": 856,
-			"surface_submissions": 812,
+			"descendant_nodes": 1177,
+			"renderer_nodes": 800,
+			"drawn_copies": 860,
+			"surface_submissions": 800,
 			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
@@ -409,14 +461,14 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus visual batching freeze 1174 descendants, 812 renderers/submissions, 856 copies, and 296 mesh allocations"
+		"shared collar families plus visual batching freeze 1177 descendants, 800 renderers/submissions, 860 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": 1,
-			"renderer_nodes": 15,
-			"drawn_copies": -1,
-			"surface_submissions": 15,
+			"descendant_nodes": -6,
+			"renderer_nodes": 55,
+			"drawn_copies": -5,
+			"surface_submissions": 55,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		}
