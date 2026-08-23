@@ -2722,14 +2722,30 @@ func _publish_bomber_payload_network(
 		projectile == null
 		or not is_instance_valid(network_session)
 		or not network_session.is_server()
+		or _network_session_mode != &"server"
 		or _bomber_payload_ship == null
 	):
 		return {"accepted": false, "status": &"network_publish_unavailable"}
 	var snapshot := projectile.get_snapshot()
 	var release_record := snapshot.get("release_record", {}) as Dictionary
 	var projectile_id := StringName(release_record.get("record_id", &""))
-	if projectile_id.is_empty():
-		return {"accepted": false, "status": &"network_projectile_identity_missing"}
+	var generation := int(snapshot.get("generation", 0))
+	var authority := _bomber_payload_ship.get_payload_authority_snapshot()
+	if (
+		projectile_id.is_empty()
+		or not bool(snapshot.get("active", false))
+		or generation <= 0
+		or generation != _bomber_payload_generation
+		or int(release_record.get("generation", 0)) != generation
+		or not bool(authority.get("active", false))
+		or int(authority.get("generation", 0)) != generation
+	):
+		return {"accepted": false, "status": &"stale_bomber_projectile_generation"}
+	var terminal_intent := snapshot.get("terminal_intent", {}) as Dictionary
+	if not _bomber_payload_network_records_match(
+		projectile_id, generation, release_record, terminal_intent, terminal
+	):
+		return {"accepted": false, "status": &"invalid_bomber_projectile_record"}
 	var velocity: Vector3 = snapshot.get("velocity", Vector3.FORWARD)
 	var direction := velocity.normalized() if velocity.is_finite() and velocity.length_squared() > 0.000001 else Vector3.FORWARD
 	var state := StringName(snapshot.get("state", &"flying"))
@@ -2737,9 +2753,9 @@ func _publish_bomber_payload_network(
 		state = &"terminal"
 	var packet := {
 		"projectile_id": projectile_id,
-		"projectile_generation": int(snapshot.get("generation", _bomber_payload_generation)),
+		"projectile_generation": generation,
 		"source_entity_id": CINDER_BOMBER_SHIP_ID,
-		"source_generation": _bomber_payload_generation,
+		"source_generation": generation,
 		"owner_peer_id": 1,
 		"position": snapshot.get("position", Vector3.ZERO),
 		"direction": direction,
@@ -2747,7 +2763,7 @@ func _publish_bomber_payload_network(
 		"state": state,
 		"release_record": release_record.duplicate(true),
 		"terminal_intent": (
-			(snapshot.get("terminal_intent", {}) as Dictionary).duplicate(true)
+			terminal_intent.duplicate(true)
 			if terminal else {}
 		),
 	}
@@ -2775,47 +2791,113 @@ func _republish_bomber_payloads_for_peer(peer_id: int) -> Dictionary:
 	}.duplicate(true)
 
 
-func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> void:
-	if _network_session_mode != &"client" or not bool(result.get("accepted", false)):
-		return
+func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> Dictionary:
+	if _network_session_mode != &"client" or not bool(result.get("accepted", false)) \
+			or not is_instance_valid(network_session) or network_session.is_server():
+		return {"accepted": false, "status": &"client_replica_authority_required"}
 	var projectile := packet.get("projectile", {}) as Dictionary
 	if StringName(projectile.get("source_entity_id", &"")) != CINDER_BOMBER_SHIP_ID:
-		return
+		return {"accepted": false, "status": &"unrelated_projectile"}
 	var migration_generation := int(packet.get("migration_generation", 0))
 	if migration_generation <= 0:
-		return
+		return {"accepted": false, "status": &"invalid_migration_generation"}
+	var projectile_id := StringName(projectile.get("projectile_id", &""))
+	var generation := int(projectile.get("projectile_generation", 0))
+	if projectile_id.is_empty() or generation <= 0:
+		return {"accepted": false, "status": &"invalid_projectile_identity"}
+	var status := StringName(result.get("status", &""))
+	if status not in [&"projectile_presented", &"projectile_terminal_applied"]:
+		return {"accepted": false, "status": &"projectile_not_presentable"}
+	var lifecycle := network_session.get_projectile_replica_lifecycle_snapshot()
+	var admitted_generations := lifecycle.get("generations", {}) as Dictionary
+	var terminal_generations := lifecycle.get("terminal_generations", {}) as Dictionary
+	if (
+		int(lifecycle.get("migration_generation", 0)) != migration_generation
+		or int(admitted_generations.get(projectile_id, 0)) != generation
+		or (
+			status == &"projectile_terminal_applied"
+			and int(terminal_generations.get(projectile_id, 0)) != generation
+		)
+	):
+		return {"accepted": false, "status": &"projectile_lifecycle_receipt_mismatch"}
+	var release_record := projectile.get("release_record", {}) as Dictionary
+	var terminal_intent := projectile.get("terminal_intent", {}) as Dictionary
+	if (
+		int(projectile.get("source_generation", 0)) != generation
+		or not _bomber_payload_network_records_match(
+			projectile_id, generation, release_record, terminal_intent,
+			status == &"projectile_terminal_applied"
+		)
+	):
+		return {"accepted": false, "status": &"invalid_bomber_projectile_record"}
+	# Migration cleanup occurs only after both the transport lifecycle receipt and
+	# the nested bomber records agree, so malformed future packets are atomic at
+	# the production presentation boundary.
 	if migration_generation != _bomber_payload_replica_migration_generation:
 		_clear_bomber_payload_replica_presentation(migration_generation)
 	var bomber := _find_flyable_ship_by_id(CINDER_BOMBER_SHIP_ID) as CinderLongRangeBomber
 	if not is_instance_valid(bomber):
-		return
-	var projectile_id := StringName(projectile.get("projectile_id", &""))
-	var generation := int(projectile.get("projectile_generation", 0))
-	if projectile_id.is_empty() or generation <= 0:
-		return
-	var status := StringName(result.get("status", &""))
+		return {"accepted": false, "status": &"bomber_replica_unavailable"}
 	if status == &"projectile_terminal_applied":
-		var terminal_intent := projectile.get("terminal_intent", {}) as Dictionary
 		if terminal_intent.is_empty():
 			_clear_bomber_payload_replica_presentation(migration_generation)
-			return
-		bomber.present_payload_terminal_record(terminal_intent)
+			return {"accepted": true, "status": &"bomber_projectile_abort_presented"}
+		var terminal_result := bomber.present_payload_terminal_record(terminal_intent)
+		if not bool(terminal_result.get("accepted", false)):
+			return {"accepted": false, "status": &"bomber_terminal_presentation_rejected"}
 		_bomber_payload_replica_generations[projectile_id] = generation
-		return
-	if status != &"projectile_presented":
-		return
+		return {"accepted": true, "status": &"bomber_projectile_terminal_presented"}
 	var prior_generation := int(_bomber_payload_replica_generations.get(projectile_id, 0))
 	if prior_generation == generation:
-		return
+		return {"accepted": true, "status": &"bomber_projectile_already_presented"}
 	if prior_generation > 0:
 		_clear_bomber_payload_replica_presentation(migration_generation)
-	var release_record := projectile.get("release_record", {}) as Dictionary
 	var presentation = bomber.get_payload_presentation()
 	if not is_instance_valid(presentation):
-		return
+		return {"accepted": false, "status": &"bomber_replica_unavailable"}
 	var presented: Dictionary = presentation.consume_release_record(release_record)
 	if bool(presented.get("accepted", false)):
 		_bomber_payload_replica_generations[projectile_id] = generation
+		return {"accepted": true, "status": &"bomber_projectile_presented"}
+	return {"accepted": false, "status": &"bomber_release_presentation_rejected"}
+
+
+func _bomber_payload_network_records_match(
+	projectile_id: StringName,
+	generation: int,
+	release_record: Dictionary,
+	terminal_intent: Dictionary,
+	terminal: bool,
+) -> bool:
+	if (
+		projectile_id.is_empty()
+		or generation <= 0
+		or StringName(release_record.get("record_id", &"")) != projectile_id
+		or not release_record.get("generation") is int
+		or int(release_record.get("generation", 0)) != generation
+		or not release_record.get("release_sequence") is int
+		or int(release_record.get("release_sequence", 0)) <= 0
+		or not release_record.get("request_sequence") is int
+		or int(release_record.get("request_sequence", 0)) <= 0
+	):
+		return false
+	if not terminal:
+		return terminal_intent.is_empty()
+	# An empty terminal record is the explicit authority-detach tombstone. A real
+	# impact/expiry must echo every release fence before it can reach presentation.
+	if terminal_intent.is_empty():
+		return true
+	return (
+		StringName(terminal_intent.get("record_id", &"")) == projectile_id
+		and terminal_intent.get("generation") is int
+		and int(terminal_intent.get("generation", 0)) == generation
+		and terminal_intent.get("release_sequence") is int
+		and int(terminal_intent.get("release_sequence", 0))
+			== int(release_record.get("release_sequence", 0))
+		and terminal_intent.get("request_sequence") is int
+		and int(terminal_intent.get("request_sequence", 0))
+			== int(release_record.get("request_sequence", 0))
+	)
 
 
 func _clear_bomber_payload_replica_presentation(migration_generation: int = 0) -> void:

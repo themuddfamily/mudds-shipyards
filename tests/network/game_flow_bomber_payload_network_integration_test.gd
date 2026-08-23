@@ -48,6 +48,20 @@ func _run() -> void:
 	_check(int(tick_projectile.get("last_update_tick", 0)) == 2
 		and (tick_projectile.get("position", Vector3.ZERO) as Vector3).distance_to(launch_position) > 0.01,
 		"server physics advances and publishes the next strict projectile tick")
+	var publication_revision := int(tick_packet.get("revision", 0))
+	var stale_projectile := Projectile.new(
+		1, Vector3(0.0, -9.81, 0.0), 30.0, 500.0, 100_000.0,
+	) as BomberPayloadProjectile
+	var stale_record := (launch_projectile.get("release_record", {}) as Dictionary).duplicate(true)
+	stale_record.generation = server_flow._bomber_payload_generation + 1
+	_check(stale_projectile.begin_generation(server_flow._bomber_payload_generation + 1).accepted
+		and stale_projectile.consume_release_record(1, stale_record).accepted
+		and server_flow._publish_bomber_payload_network(stale_projectile, false).get("status")
+			== &"stale_bomber_projectile_generation"
+		and int((server._last_result.get("packet", {}) as Dictionary).get("revision", 0))
+			== publication_revision,
+		"server rejects a projectile outside the live bomber authority generation before transport")
+	stale_projectile.detach(&"stale_generation_probe_complete")
 	server._peer_generations[3] = 1
 	server_flow._on_network_peer_admitted(3, {})
 	var late_join_packet := server._last_result.get("packet", {}) as Dictionary
@@ -69,11 +83,38 @@ func _run() -> void:
 	client_flow.ships.append(client_bomber)
 	client_bomber.set_piloted(true)
 	var launch_applied: Dictionary = client._apply_projectile_replica_snapshot(launch_packet)
-	client_flow._on_projectile_replica_packet(launch_packet, launch_applied)
+	var launch_presented := client_flow._on_projectile_replica_packet(launch_packet, launch_applied)
 	var client_visuals: Array = client_bomber.get_payload_presentation().get_active_snapshots()
-	_check(bool(launch_applied.get("accepted", false)) and client_visuals.size() == 1
+	_check(bool(launch_applied.get("accepted", false))
+		and launch_presented.get("status") == &"bomber_projectile_presented"
+		and client_visuals.size() == 1
 		and StringName((client_visuals[0] as Dictionary).get("phase", &"")) == &"flight",
-		"client consumes the accepted launch into presentation only")
+		"client consumes an adapter-receipted launch into presentation only")
+	var forged_result := {"accepted": true, "status": &"projectile_presented"}
+	var forged_packet := launch_packet.duplicate(true)
+	forged_packet.migration_generation = 2
+	forged_packet.projectile.projectile_generation = 2
+	forged_packet.projectile.source_generation = 2
+	forged_packet.projectile.release_record.generation = 2
+	var forged_rejected := client_flow._on_projectile_replica_packet(forged_packet, forged_result)
+	_check(forged_rejected.get("status") == &"projectile_lifecycle_receipt_mismatch"
+		and client_bomber.get_payload_presentation().get_active_snapshots().size() == 1
+		and client_flow._bomber_payload_replica_migration_generation == 1,
+		"an unreceipted future generation cannot clear or replace client presentation")
+	var mismatched_packet := tick_packet.duplicate(true)
+	mismatched_packet.revision = int(tick_packet.get("revision", 0)) + 20
+	mismatched_packet.projectile.last_update_tick = int(tick_projectile.get("last_update_tick", 0)) + 20
+	mismatched_packet.projectile.projectile_id = &"bomber_payload_release_mismatched"
+	mismatched_packet.projectile.release_record.record_id = &"bomber_payload_release_mismatched"
+	mismatched_packet.projectile.release_record.generation = 2
+	var mismatched_applied: Dictionary = client._apply_projectile_replica_snapshot(mismatched_packet)
+	var mismatched_rejected := client_flow._on_projectile_replica_packet(
+		mismatched_packet, mismatched_applied
+	)
+	_check(bool(mismatched_applied.get("accepted", false))
+		and mismatched_rejected.get("status") == &"invalid_bomber_projectile_record"
+		and client_bomber.get_payload_presentation().get_active_snapshots().size() == 1,
+		"nested release generation mismatch is atomic at the GameFlow presentation boundary")
 	var tick_applied: Dictionary = client._apply_projectile_replica_snapshot(tick_packet)
 	client_flow._on_projectile_replica_packet(tick_packet, tick_applied)
 	_check(bool(tick_applied.get("accepted", false))

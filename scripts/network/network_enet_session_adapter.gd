@@ -704,6 +704,18 @@ func get_projectile_replication_budget(peer_id: int = 0) -> Dictionary:
 	return _projectile_recipient_budgets.duplicate(true)
 
 
+## Read-only receipt for the projectile replica lifecycle already admitted by
+## this adapter. GameFlow uses it to prove that a presentation callback came
+## from the current migration and exact projectile generation; the receipt does
+## not expose a mutation path or grant projectile/combat authority.
+func get_projectile_replica_lifecycle_snapshot() -> Dictionary:
+	return {
+		"migration_generation": _projectile_replica_migration_generation,
+		"generations": _projectile_replica_generations.duplicate(true),
+		"terminal_generations": _projectile_replica_terminal_generations.duplicate(true),
+	}.duplicate(true)
+
+
 func publish_projectile_resync(peer_id: int, budget_tick: int = -1) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
