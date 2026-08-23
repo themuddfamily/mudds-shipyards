@@ -600,6 +600,94 @@ func reset_planetary_return_berth() -> Dictionary:
 	return _return_berth_adapter.call(&"reset")
 
 
+func _current_planetary_return_surface_attachment_generation() -> int:
+	var surface_snapshot := get_planetary_surface_snapshot()
+	var surface_attachment := int(surface_snapshot.get("attachment_generation", 0))
+	if surface_attachment > 0:
+		return surface_attachment
+	return _host.get_attachment_generation() if _host != null else 0
+
+
+## Adopts GameFlow's existing home-berth lease after HeroShip has accepted the
+## ordinary landing assist. The adapter receives only detached identities and
+## cannot reserve, move, occupy, release, or reward the craft.
+func adopt_physical_planetary_return_arrival(
+		shell_handoff: Variant,
+		current_shell_generation: int,
+		current_coordinate_frame_generation: int,
+		berth: ShipBerth,
+		ship: Node,
+		definition: ShipDefinition,
+		existing_token: StringName,
+		actor_instance_id: int,
+		craft_instance_id: int
+	) -> Dictionary:
+	if _host == null:
+		return _reject(&"return_surface_host_unavailable")
+	if _return_berth_adapter == null:
+		_return_berth_adapter = ReturnBerthAdapterScript.new()
+	return _return_berth_adapter.call(
+		&"adopt_physical_arrival",
+		shell_handoff,
+		current_shell_generation,
+		current_coordinate_frame_generation,
+		_generation,
+		_current_planetary_return_surface_attachment_generation(),
+		berth,
+		ship,
+		definition,
+		existing_token,
+		actor_instance_id,
+		craft_instance_id,
+	)
+
+
+func confirm_physical_planetary_return_arrival(
+		landing_evidence: Variant,
+		current_shell_generation: int,
+		current_coordinate_frame_generation: int
+	) -> Dictionary:
+	if _host == null:
+		return _reject(&"return_surface_host_unavailable")
+	if _return_berth_adapter == null:
+		return _reject(&"return_berth_adapter_unavailable")
+	return _return_berth_adapter.call(
+		&"confirm_physical_arrival",
+		landing_evidence,
+		current_shell_generation,
+		current_coordinate_frame_generation,
+		_generation,
+		_current_planetary_return_surface_attachment_generation(),
+	)
+
+
+func complete_physical_planetary_return_arrival(
+		occupied_receipt: Variant,
+		current_shell_generation: int,
+		current_coordinate_frame_generation: int
+	) -> Dictionary:
+	if _host == null:
+		return _reject(&"return_surface_host_unavailable")
+	if _return_berth_adapter == null:
+		return _reject(&"return_berth_adapter_unavailable")
+	return _return_berth_adapter.call(
+		&"complete_physical_arrival",
+		occupied_receipt,
+		current_shell_generation,
+		current_coordinate_frame_generation,
+		_generation,
+		_current_planetary_return_surface_attachment_generation(),
+	)
+
+
+func abort_physical_planetary_return_arrival(
+		reason: StringName
+	) -> Dictionary:
+	if _return_berth_adapter == null:
+		return _reject(&"return_berth_adapter_unavailable")
+	return _return_berth_adapter.call(&"abort_physical_arrival", reason)
+
+
 ## Caller-owned UserDataStore bridge for the terminal Ember return. The exact
 ## completed evidence is committed in one namespaced transaction, while the
 ## restorable state remains detached and carries no berth or reward authority.

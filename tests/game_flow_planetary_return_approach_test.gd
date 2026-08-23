@@ -7,6 +7,7 @@ class CompletedSurfaceBinding:
 	extends EmberSurfaceLoopProductionBinding
 
 	var take_calls := 0
+	var detach_calls := 0
 	var handback: Dictionary = {}
 
 	func get_snapshot() -> Dictionary:
@@ -24,6 +25,17 @@ class CompletedSurfaceBinding:
 			"reason": &"completion_handback_delivered",
 			"runtime_ownership_return": handback.duplicate(true),
 		}.duplicate(true)
+
+	func get_planetary_surface_snapshot() -> Dictionary:
+		var host: Object = get("_host")
+		return {
+			"attachment_generation": host.get_attachment_generation()
+				if host != null else 0,
+		}.duplicate(true)
+
+	func detach_planetary_surface() -> Dictionary:
+		detach_calls += 1
+		return {"accepted": true, "reason": &"detached"}
 
 
 class CadenceSurfaceBinding:
@@ -208,6 +220,9 @@ func _run() -> void:
 	var player_parent_before := game.player.get_parent()
 
 	var surface := CompletedSurfaceBinding.new()
+	game.ember_surface_loop_host.set("_attachment_generation", 5)
+	surface.set("_host", game.ember_surface_loop_host)
+	surface.set("_generation", 9)
 	surface.handback = {
 		"reason": &"runtime_ownership_returned",
 		"ship_instance_id": craft.get_instance_id(),
@@ -301,6 +316,102 @@ func _run() -> void:
 			and int(craft.get_planetary_cruise_attachment_report()
 				.get("controller_instance_id", -1)) == 0,
 		"handoff neither moves nor reparents actors and leaves berth occupancy unclaimed",
+	)
+
+	var home_berth := game.world.call(
+		&"get_berth_node", craft.get_home_berth_id()
+	) as ShipBerth
+	craft.global_transform = home_berth.get_dock_transform()
+	craft.velocity = Vector3.ZERO
+	var landing_parent_before := craft.get_parent()
+	game._try_request_landing()
+	var landing_started := craft.get_planetary_cruise_attachment_report()
+	var landing_token := StringName(
+		game.get("_berth_tokens").get(craft.get_instance_id(), &"")
+	)
+	if not bool(game.get("_planetary_return_physical_arrival_armed")):
+		push_error("physical arrival arm result: %s identities=%s" % [
+			game.get("_last_planetary_return_physical_arrival_result"),
+			{
+				"surface_generation": surface.get_generation(),
+				"host_attachment": game.ember_surface_loop_host.get_attachment_generation(),
+				"shell_generation": cruise.get_generation(),
+				"frame_generation": frame.get_generation(),
+				"token": landing_token,
+				"actor": game.player.get_instance_id(),
+				"craft": craft.get_instance_id(),
+			},
+		])
+	_check(
+		bool(game.get("_planetary_return_physical_arrival_required"))
+			and bool(game.get("_planetary_return_physical_arrival_armed"))
+			and bool(game.get("_landing_request_active"))
+			and game.get("_active_landing_berth_id") == craft.get_home_berth_id()
+			and not landing_token.is_empty()
+			and home_berth.get_reservation_token(craft) == landing_token
+			and landing_started.get("reason") == &"landing_started"
+			and bool(landing_started.get("landing_active", false)),
+		"the pending Ember return adopts GameFlow's exact home-berth landing lease",
+	)
+	craft.call(
+		&"_complete_landing",
+		home_berth,
+		home_berth.get_dock_transform().basis,
+	)
+	var terminal_result := game.get(
+		"_last_planetary_return_physical_arrival_result"
+	) as Dictionary
+	_check(
+		bool(terminal_result.get("accepted", false))
+			and terminal_result.get("reason") == &"planetary_return_consumed"
+			and game.phase == GameFlow.Phase.SHUT_DOWN
+			and bool(game.get("_planetary_return_receipt_consumed"))
+			and not bool(game.get("_planetary_return_physical_arrival_required"))
+			and not bool(game.get("_planetary_return_physical_arrival_armed"))
+			and home_berth.get_occupant() == craft
+			and home_berth.get_reservation_token(craft) == landing_token
+			and craft.get_parent() == landing_parent_before
+			and surface.detach_calls == 1,
+		"real HeroShip touchdown produces one consumed physical station receipt without reparent or second lease",
+	)
+	var terminal_replay := game.consume_planetary_return_receipt(
+		{
+			"accepted": true,
+			"reason": &"returned_to_station",
+		},
+		surface,
+		home_berth,
+		craft,
+		game.player,
+	)
+	_check(
+		not bool(terminal_replay.get("accepted", true))
+			and terminal_replay.get("reason") == &"planetary_return_receipt_replayed"
+			and surface.detach_calls == 1,
+		"the terminal station handoff cannot detach or consume twice",
+	)
+
+	for _index in 300:
+		await physics_frame
+		if str(craft.get_telemetry().get("engine_state", "ONLINE")).to_upper() \
+				== "OFFLINE":
+			break
+	var engine_offline := str(
+		craft.get_telemetry().get("engine_state", "ONLINE")
+	).to_upper() == "OFFLINE"
+	game._try_exit_ship()
+	for _index in 300:
+		await process_frame
+		await physics_frame
+		if not bool(game.get("_piloting")):
+			break
+	_check(
+		engine_offline
+			and not craft.is_piloted()
+			and not bool(game.get("_piloting"))
+			and not bool(game.player.call(&"is_seated"))
+			and home_berth.get_occupant() == craft,
+		"the consumed physical arrival reaches the existing automatic shutdown and disembark lifecycle",
 	)
 
 	game.ember_surface_loop_production_binding = null

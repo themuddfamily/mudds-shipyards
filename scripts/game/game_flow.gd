@@ -602,6 +602,12 @@ var _mudds_return_approach_active := false
 var _mudds_return_approach_completion_attempted := false
 var _mudds_return_approach_completion_receipt: Dictionary = {}
 var _last_mudds_return_approach_result: Dictionary = {}
+## A completed Ember brake-shell handoff must finish through the exact physical
+## home-berth landing it armed. These latches prevent the ordinary yard fallback
+## from accepting a stale landing after abort, destruction, detach, or replay.
+var _planetary_return_physical_arrival_required := false
+var _planetary_return_physical_arrival_armed := false
+var _last_planetary_return_physical_arrival_result: Dictionary = {}
 ## Station topology is captured in ShipyardWorld-local coordinates. A common
 ## floating-origin rebase can then translate the live world root without leaving
 ## the presentation snapshot pinned to its pre-rebase global coordinates.
@@ -620,6 +626,10 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _planetary_return_physical_arrival_armed:
+		_abort_planetary_return_physical_arrival(&"return_main_detached")
+		_landing_request_active = false
+		_active_landing_berth_id = &""
 	if _mudds_return_approach_active \
 			and not _mudds_return_approach_completion_attempted:
 		_mudds_return_approach_active = false
@@ -5003,6 +5013,29 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		or landing_report.get("berth_id", &"") != _active_landing_berth_id
 	):
 		return
+	if _planetary_return_physical_arrival_required:
+		var physical_berth := (
+			world.call(&"get_berth_node", _active_landing_berth_id) as ShipBerth
+			if is_instance_valid(world) and world.has_method(&"get_berth_node")
+			else null
+		)
+		var physical_arrival := _complete_planetary_return_physical_arrival(
+			physical_berth, landing_report
+		)
+		if not bool(physical_arrival.get("accepted", false)):
+			_landing_request_active = false
+			_active_landing_berth_id = &""
+			if is_instance_valid(hud):
+				hud.set_interaction("", false)
+				hud.set_objective(
+					"The Ember return identity changed; re-align and retry the home berth"
+				)
+				hud.toast(
+					"Return receipt rejected",
+					"No station completion or reward was granted",
+					3.5,
+				)
+		return
 	_landing_request_active = false
 	_active_landing_berth_id = &""
 	if not _ensure_landed_berth_occupancy(active_ship):
@@ -5128,6 +5161,17 @@ func begin_ember_surface_journey(
 	_mudds_return_approach_completion_attempted = false
 	_mudds_return_approach_completion_receipt.clear()
 	_last_mudds_return_approach_result.clear()
+	_planetary_return_receipt_consumed = false
+	_planetary_return_physical_arrival_required = false
+	_planetary_return_physical_arrival_armed = false
+	_last_planetary_return_physical_arrival_result.clear()
+	# A prior completed attempt retains evidence until a new journey is admitted.
+	# Resetting here cannot release GameFlow's berth because the physical adapter
+	# explicitly adopts, rather than owns, that lease.
+	if ember_surface_loop_production_binding.has_method(
+		&"reset_planetary_return_berth"
+	):
+		ember_surface_loop_production_binding.reset_planetary_return_berth()
 	return {
 		"accepted": true,
 		"reason": &"ember_surface_journey_admitted",
@@ -5453,6 +5497,10 @@ func _consume_mudds_return_approach_completion(receipt: Dictionary) -> Dictionar
 	_mudds_return_approach_completion_receipt = consumed.duplicate(true)
 	_mudds_return_approach_active = false
 	_ember_surface_journey_active = false
+	_planetary_return_receipt_consumed = false
+	_planetary_return_physical_arrival_required = true
+	_planetary_return_physical_arrival_armed = false
+	_last_planetary_return_physical_arrival_result.clear()
 	_landing_request_active = false
 	_active_landing_berth_id = &""
 	_return_registered = false
@@ -5474,6 +5522,131 @@ func _consume_mudds_return_approach_completion(receipt: Dictionary) -> Dictionar
 			"Manual flight and the registered berth lifecycle now own the return",
 		)
 	return _last_mudds_return_approach_result.duplicate(true)
+
+
+func _current_planetary_return_frame_generation() -> int:
+	if not is_instance_valid(ember_streaming_bootstrap):
+		return 0
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	return frame.get_generation() if is_instance_valid(frame) else 0
+
+
+## Arms the evidence-only adapter only after HeroShip has synchronously accepted
+## its ordinary landing request. No physics tick can complete the landing before
+## this call returns, and the exact GameFlow token remains the sole lease.
+func _arm_planetary_return_physical_arrival(berth: ShipBerth) -> Dictionary:
+	if not _planetary_return_physical_arrival_required \
+			or _planetary_return_receipt_consumed:
+		return {"accepted": false, "reason": &"physical_return_not_pending"}
+	if _planetary_return_physical_arrival_armed:
+		return {"accepted": false, "reason": &"physical_return_already_armed"}
+	if not is_instance_valid(active_ship) or not is_instance_valid(player) \
+			or not is_instance_valid(berth) \
+			or not is_instance_valid(planetary_cruise_binding) \
+			or not is_instance_valid(ember_surface_loop_production_binding) \
+			or not ember_surface_loop_production_binding.has_method(
+				&"adopt_physical_planetary_return_arrival"
+			):
+		return {"accepted": false, "reason": &"physical_return_owner_unavailable"}
+	var craft_instance_id := active_ship.get_instance_id()
+	var home_berth_id := active_ship.get_home_berth_id()
+	if berth.get_berth_id() != home_berth_id \
+			or StringName(_reserved_berth_ids.get(craft_instance_id, &"")) \
+				!= home_berth_id:
+		return {"accepted": false, "reason": &"physical_return_wrong_home_berth"}
+	var token := StringName(_berth_tokens.get(craft_instance_id, &""))
+	var definition := active_ship.get_ship_definition()
+	var frame_generation := _current_planetary_return_frame_generation()
+	if token.is_empty() or definition == null or frame_generation < 1:
+		return {"accepted": false, "reason": &"physical_return_identity_unavailable"}
+	var adopted := ember_surface_loop_production_binding.call(
+		&"adopt_physical_planetary_return_arrival",
+		_mudds_return_approach_completion_receipt,
+		planetary_cruise_binding.get_generation(),
+		frame_generation,
+		berth,
+		active_ship,
+		definition,
+		token,
+		player.get_instance_id(),
+		craft_instance_id,
+	) as Dictionary
+	_last_planetary_return_physical_arrival_result = adopted.duplicate(true)
+	_planetary_return_physical_arrival_armed = bool(adopted.get("accepted", false))
+	return adopted
+
+
+func _abort_planetary_return_physical_arrival(reason: StringName) -> Dictionary:
+	if not _planetary_return_physical_arrival_armed:
+		return {"accepted": false, "reason": &"physical_return_not_armed"}
+	var aborted := {"accepted": false, "reason": &"physical_return_owner_unavailable"}
+	if is_instance_valid(ember_surface_loop_production_binding) \
+			and ember_surface_loop_production_binding.has_method(
+				&"abort_physical_planetary_return_arrival"
+			):
+		aborted = ember_surface_loop_production_binding.call(
+			&"abort_physical_planetary_return_arrival", reason
+		) as Dictionary
+	_planetary_return_physical_arrival_armed = false
+	_last_planetary_return_physical_arrival_result = aborted.duplicate(true)
+	return aborted
+
+
+func _complete_planetary_return_physical_arrival(
+		berth: ShipBerth, landing_report: Dictionary
+	) -> Dictionary:
+	if not _planetary_return_physical_arrival_required \
+			or not _planetary_return_physical_arrival_armed \
+			or _planetary_return_receipt_consumed:
+		return {"accepted": false, "reason": &"physical_return_not_armed"}
+	if not is_instance_valid(berth) \
+			or not is_instance_valid(planetary_cruise_binding) \
+			or not is_instance_valid(ember_surface_loop_production_binding):
+		return {"accepted": false, "reason": &"physical_return_owner_unavailable"}
+	var shell_generation := planetary_cruise_binding.get_generation()
+	var frame_generation := _current_planetary_return_frame_generation()
+	var confirmed := ember_surface_loop_production_binding.call(
+		&"confirm_physical_planetary_return_arrival",
+		landing_report,
+		shell_generation,
+		frame_generation,
+	) as Dictionary
+	if not bool(confirmed.get("accepted", false)):
+		_last_planetary_return_physical_arrival_result = confirmed.duplicate(true)
+		_abort_planetary_return_physical_arrival(&"physical_landing_confirmation_rejected")
+		return confirmed
+	var terminal := ember_surface_loop_production_binding.call(
+		&"complete_physical_planetary_return_arrival",
+		confirmed,
+		shell_generation,
+		frame_generation,
+	) as Dictionary
+	if not bool(terminal.get("accepted", false)):
+		_last_planetary_return_physical_arrival_result = terminal.duplicate(true)
+		_abort_planetary_return_physical_arrival(&"physical_landing_completion_rejected")
+		return terminal
+	var consumed := consume_planetary_return_receipt(
+		terminal,
+		ember_surface_loop_production_binding,
+		berth,
+		active_ship,
+		player,
+	) as Dictionary
+	_last_planetary_return_physical_arrival_result = consumed.duplicate(true)
+	_planetary_return_physical_arrival_armed = false
+	if not bool(consumed.get("accepted", false)):
+		return consumed
+	_planetary_return_physical_arrival_required = false
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_LANDING, _diagnostic_ship_code(active_ship), true
+	)
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_RETURN, _diagnostic_ship_code(active_ship), true
+	)
+	publish_first_sortie_tutorial_phase(
+		&"return_land", _first_sortie_tutorial_generation
+	)
+	return consumed
 
 
 func cancel_ember_surface_journey() -> Dictionary:
@@ -5646,6 +5819,8 @@ func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> vo
 	_publish_network_landing_state(source_ship if source_ship != null else active_ship, &"flying")
 	if source_ship != null and source_ship != active_ship:
 		return
+	if _planetary_return_physical_arrival_armed:
+		_abort_planetary_return_physical_arrival(reason)
 	if not _landing_request_active or _active_landing_berth_id.is_empty():
 		return
 	_landing_request_active = false
@@ -6531,6 +6706,13 @@ func _try_request_landing() -> void:
 	if not bool(landing_report.get("assist_capture_accepted", false)):
 		hud.toast("Landing unavailable", _landing_assist_failure_copy(landing_report))
 		return
+	if _planetary_return_physical_arrival_required \
+			and berth_id != active_ship.get_home_berth_id():
+		hud.toast(
+			"Landing unavailable",
+			"The Ember return must finish at this craft's registered home berth",
+		)
+		return
 	if not _reserve_berth_for_ship(active_ship, berth_id, false):
 		hud.toast("Berth occupied", "Choose another illuminated docking node")
 		return
@@ -6547,6 +6729,21 @@ func _try_request_landing() -> void:
 	if active_ship.request_berth_landing(landing_berth):
 		_landing_request_active = true
 		_active_landing_berth_id = berth_id
+		if _planetary_return_physical_arrival_required:
+			var physical_arrival := _arm_planetary_return_physical_arrival(
+				landing_berth
+			)
+			if not bool(physical_arrival.get("accepted", false)):
+				# Invalidating this one lease lets HeroShip's normal authority check
+				# abort the assist on its next physics tick; the adapter never owns
+				# a second release path.
+				_release_ship_berth(active_ship)
+				hud.toast(
+					"Landing coordination interrupted",
+					"The physical Ember return proof changed — retry the approach",
+					3.5,
+				)
+				return
 		if _convoy_is_running():
 			_fail_active_activity(&"landing_requested")
 	else:
@@ -6609,6 +6806,8 @@ func _on_ship_destroyed(
 	_publish_network_damage_state(source_ship, 0.0, true)
 	if source_ship.get_pending_terminal_damage_presentation_receipt_id() < 0:
 		combat_audio.play_explosion(world_position, source_ship.get_instance_id())
+	if source_ship == active_ship and _planetary_return_physical_arrival_armed:
+		_abort_planetary_return_physical_arrival(&"return_ship_destroyed")
 	_release_ship_berth(source_ship)
 	var active_transition_loss := (
 		source_ship == active_ship
@@ -6635,6 +6834,9 @@ func _recover_from_destroyed_ship(destroyed_ship: HeroShip) -> void:
 	_release_cabin_occupancy()
 	_landing_request_active = false
 	_active_landing_berth_id = &""
+	_planetary_return_physical_arrival_required = false
+	_planetary_return_physical_arrival_armed = false
+	_last_planetary_return_physical_arrival_result.clear()
 	_transition_busy = true
 	phase = Phase.RECOVERING
 	opponent.deactivate()
@@ -8413,7 +8615,12 @@ func _release_ship_berth(candidate: HeroShip) -> void:
 	if world.has_method("get_berth_node"):
 		var berth := world.call("get_berth_node", _reserved_berth_ids[instance_id]) as ShipBerth
 		if berth != null:
-			berth.release(candidate, _berth_tokens[instance_id])
+			var token := StringName(_berth_tokens[instance_id])
+			# HeroShip's landing abort/destruction lifecycle may have already
+			# released this exact lease before its synchronous signal reaches us.
+			# Retire GameFlow bookkeeping without issuing a duplicate mutation.
+			if berth.has_valid_lease(candidate, token, candidate.get_ship_id()):
+				berth.release(candidate, token)
 	_berth_tokens.erase(instance_id)
 	_reserved_berth_ids.erase(instance_id)
 
