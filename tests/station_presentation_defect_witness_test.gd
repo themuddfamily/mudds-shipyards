@@ -332,6 +332,7 @@ func _run() -> void:
 	_space = world.get_world_3d().direct_space_state
 
 	_test_approach_facing_signs(world)
+	_test_junction_gateway_clears_walkway_sightline(world)
 	_test_seated_decorations_rest_on_their_surface(world)
 	_test_structural_pieces_rest_on_drawn_geometry(world)
 	_test_berth_cues_are_seated_on_the_deck_they_mark(world)
@@ -362,6 +363,44 @@ func _test_approach_facing_signs(world: ShipyardWorld) -> void:
 		reversed_signs.is_empty(),
 		"pod facade and registry terminal legends read forwards from the deck they are approached from"
 	)
+
+
+func _test_junction_gateway_clears_walkway_sightline(world: ShipyardWorld) -> void:
+	var lattice := world.get_node_or_null(^"ExposedDockLattice") as Node3D
+	var header := world.get_node_or_null(
+		^"ExposedDockLattice/JunctionPortalHeader"
+	) as StaticBody3D
+	var posts: Array[StaticBody3D] = []
+	if lattice != null:
+		for raw_child in lattice.get_children():
+			if raw_child is StaticBody3D:
+				var body := raw_child as StaticBody3D
+				if is_equal_approx(absf(body.position.x), 6.1) \
+						and is_equal_approx(body.position.z, 22.6):
+					posts.append(body)
+	_check(header != null, "central-junction gateway header remains in production")
+	_check(posts.size() == 2, "central-junction gateway retains both grounded supports")
+	if header == null or posts.size() != 2:
+		return
+	var header_mesh := header.get_node_or_null(^"Mesh") as MeshInstance3D
+	_check(header_mesh != null, "central-junction gateway header remains visibly modelled")
+	if header_mesh == null:
+		return
+	var header_bottom := header.global_position.y + header_mesh.get_aabb().position.y
+	_check(
+		header_bottom >= 10.95,
+		"central-junction gateway clears the upper walkway sightline (underside %.2f m)" % header_bottom
+	)
+	for raw_post in posts:
+		var post := raw_post as StaticBody3D
+		var post_mesh := post.get_node_or_null(^"Mesh") as MeshInstance3D
+		_check(post_mesh != null, "%s remains visibly modelled" % post.name)
+		if post_mesh != null:
+			var post_top := post.global_position.y + post_mesh.get_aabb().end.y
+			_check(
+				post_top >= header_bottom,
+				"%s reaches the raised gateway header" % post.name
+			)
 
 
 func _test_seated_decorations_rest_on_their_surface(world: ShipyardWorld) -> void:

@@ -22,8 +22,15 @@ const COMPONENT_DAMAGE_AUDIO_BINDING := preload("res://scripts/audio/component_d
 const FLEET_EXPANSION_BINDING := preload("res://scripts/world/fleet_expansion_production_binding.gd")
 const STATION_DEFENSE_CONTENT_SCENE := preload("res://scenes/activities/station_defense_encounter.tscn")
 const STATION_DEFENSE_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/station_defense_activity_board.gd")
+const HEAVY_BREACH_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/heavy_breach_activity_board.gd")
 const STATION_DEFENSE_ACTIVITY_BOARD_TRANSFORM := Transform3D(
 	Basis.IDENTITY, Vector3(12.0, 1.0, -26.0)
+)
+const HEAVY_BREACH_ACTIVITY_BOARD_TRANSFORM := Transform3D(
+	Basis.IDENTITY, Vector3(17.0, 1.0, -26.0)
+)
+const HEAVY_BREACH_PROTECTED_OBJECTIVE_TRANSFORM := Transform3D(
+	Basis.IDENTITY, Vector3(24.0, 1.0, -26.0)
 )
 const SHIP_BERTH_FEEDBACK_SCHEMA_VERSION := 2
 const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 4
@@ -921,6 +928,8 @@ var _station_navigation_graph_report: Dictionary = {}
 var _fleet_expansion_production_binding: Node3D
 var _station_defense_content: StationDefenseEncounterContent
 var _station_defense_activity_board: Area3D
+var _heavy_breach_activity_board: Area3D
+var _heavy_breach_protected_objective: Node3D
 
 
 func _enter_tree() -> void:
@@ -929,6 +938,7 @@ func _enter_tree() -> void:
 	if _built:
 		call_deferred("_restore_operational_lattice_after_reentry")
 		call_deferred("_bind_station_defense_external_owners")
+		call_deferred("_bind_heavy_breach_external_owners")
 
 
 func _exit_tree() -> void:
@@ -990,6 +1000,7 @@ const BUILD_STAGES: Array[Array] = [
 	[&"_build_space_backdrop", "Hanging the sky"],
 	[&"_build_module_reflection_probes", "Baking reflections"],
 	[&"_build_station_defense_production_content", "Placing perimeter defense"],
+	[&"_build_heavy_breach_production_activity", "Placing heavy breach board"],
 	[&"_initialize_station_route_registry", "Routing the station"],
 	[&"_build_station_service_agents", "Dispatching service couriers"],
 	[&"_build_station_activity_collision", "Securing station machinery"],
@@ -1030,6 +1041,46 @@ func _build_station_defense_production_content() -> void:
 	call_deferred("_bind_station_defense_external_owners")
 
 
+func _build_heavy_breach_production_activity() -> void:
+	if is_instance_valid(_heavy_breach_activity_board):
+		return
+	_heavy_breach_protected_objective = Node3D.new()
+	_heavy_breach_protected_objective.name = "HeavyBreachProtectedObjective"
+	_heavy_breach_protected_objective.transform = HEAVY_BREACH_PROTECTED_OBJECTIVE_TRANSFORM
+	_heavy_breach_protected_objective.set_meta(&"activity_id", &"shipyard_heavy_breach")
+	_heavy_breach_protected_objective.set_meta(&"caller_owned", true)
+	_heavy_breach_protected_objective.set_meta(&"combat_authority", false)
+	add_child(_heavy_breach_protected_objective)
+	var objective_marker := MeshInstance3D.new()
+	objective_marker.name = "ProtectedObjectiveMarker"
+	var marker_mesh := CylinderMesh.new()
+	marker_mesh.top_radius = 1.2
+	marker_mesh.bottom_radius = 1.2
+	marker_mesh.height = 0.18
+	objective_marker.mesh = marker_mesh
+	objective_marker.position = Vector3(0.0, -0.88, 0.0)
+	var marker_material := StandardMaterial3D.new()
+	marker_material.albedo_color = Color("5b2020")
+	marker_material.emission_enabled = true
+	marker_material.emission = Color("ff5c43")
+	marker_material.emission_energy_multiplier = 0.3
+	objective_marker.material_override = marker_material
+	_heavy_breach_protected_objective.add_child(objective_marker)
+	var objective_label := Label3D.new()
+	objective_label.name = "ProtectedObjectiveLabel"
+	objective_label.text = "PROTECTED ASSET"
+	objective_label.font_size = 24
+	objective_label.modulate = Color("ffb09a")
+	objective_label.pixel_size = 0.005
+	objective_label.position = Vector3(0.0, 0.6, 0.0)
+	_heavy_breach_protected_objective.add_child(objective_label)
+	_heavy_breach_activity_board = HEAVY_BREACH_ACTIVITY_BOARD_SCRIPT.new() as Area3D
+	_heavy_breach_activity_board.name = "HeavyBreachActivityBoard"
+	_heavy_breach_activity_board.transform = HEAVY_BREACH_ACTIVITY_BOARD_TRANSFORM
+	add_child(_heavy_breach_activity_board)
+	call_deferred("_bind_heavy_breach_external_owners")
+
+
 func _bind_station_defense_external_owners() -> void:
 	if (
 		is_queued_for_deletion()
@@ -1048,6 +1099,27 @@ func _bind_station_defense_external_owners() -> void:
 	_station_defense_activity_board.call(
 		"configure_external_owners",
 		_station_defense_content, combat_authority, activity_director
+	)
+
+
+func _bind_heavy_breach_external_owners() -> void:
+	if (
+		is_queued_for_deletion()
+		or not is_inside_tree()
+		or not is_instance_valid(_heavy_breach_protected_objective)
+		or not is_instance_valid(_heavy_breach_activity_board)
+	):
+		return
+	var host := get_parent()
+	if host == null:
+		return
+	var combat_authority := host.get_node_or_null(^"CombatAuthority") as LiveCombatAuthority
+	var scenario_director := host.get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	if not is_instance_valid(combat_authority) or not is_instance_valid(scenario_director):
+		return
+	_heavy_breach_activity_board.call(
+		"configure_external_owners",
+		_heavy_breach_protected_objective, scenario_director, combat_authority
 	)
 
 
@@ -1935,12 +2007,32 @@ func get_station_defense_activity_board() -> Area3D:
 	)
 
 
+func get_heavy_breach_activity_board() -> Area3D:
+	return (
+		_heavy_breach_activity_board
+		if is_instance_valid(_heavy_breach_activity_board) else null
+	)
+
+
+func get_heavy_breach_protected_objective() -> Node3D:
+	return (
+		_heavy_breach_protected_objective
+		if is_instance_valid(_heavy_breach_protected_objective) else null
+	)
+
+
 ## Binds the caller-owned reward sink to the board's shared nearby-activity
 ## adapter. ShipyardWorld never grants or persists the reward itself.
 func configure_station_defense_reward_handoff(callback: Callable) -> Dictionary:
 	if not is_instance_valid(_station_defense_activity_board):
 		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
 	return _station_defense_activity_board.call("configure_reward_handoff", callback)
+
+
+func configure_heavy_breach_reward_handoff(callback: Callable) -> Dictionary:
+	if not is_instance_valid(_heavy_breach_activity_board):
+		return {"accepted": false, "reason": &"heavy_breach_board_unavailable"}
+	return _heavy_breach_activity_board.call("configure_reward_handoff", callback)
 
 
 func configure_station_defense_session_persistence(
@@ -5411,10 +5503,18 @@ func _build_architecture() -> void:
 	# historical bay number or original structure.
 	# A high header and two narrow posts replace the former solid pylon. The
 	# opening is a real player-clear route into the aft circulation stack.
+	#
+	# The first version put the header's underside at y = 6.4. From the upper
+	# operations walkway camera near (3.2, 7.7, 61.0), its broad rear face read as
+	# an unreachable floating platform and crowded the lit walkway below it. Raise
+	# the complete sign assembly by 4.6 m and lengthen its grounded posts to meet it;
+	# the portal keeps the same footprint and navigation role while the walkway
+	# retains an open sky/light gap above the player sightline and the header's key-
+	# light shadow lands beyond the branch walkway.
 	for x_position in [-6.1, 6.1]:
-		_box(shell, "JunctionPortalPost", Vector3(x_position, 3.25, 22.6), Vector3(1.1, 6.5, 1.2), _materials["blue"])
-	_box(shell, "JunctionPortalHeader", Vector3(0, 7.4, 22.6), Vector3(13.3, 2.0, 1.2), _materials["blue"])
-	_box(shell, "JunctionSignFace", Vector3(0, 7.4, 21.95), Vector3(12.0, 1.3, 0.12), _materials["navy"], false)
+		_box(shell, "JunctionPortalPost", Vector3(x_position, 5.55, 22.6), Vector3(1.1, 11.1, 1.2), _materials["blue"])
+	_box(shell, "JunctionPortalHeader", Vector3(0, 12.0, 22.6), Vector3(13.3, 2.0, 1.2), _materials["blue"])
+	_box(shell, "JunctionSignFace", Vector3(0, 12.0, 21.95), Vector3(12.0, 1.3, 0.12), _materials["navy"], false)
 	# MAP-004 family, found by sweeping every live `TextMesh` rather than only the
 	# six the intake listed. Both legends stand at z = 21.86/21.84, in front of
 	# `JunctionSignFace` (z = 21.95) on the -Z side of the portal, and both were
@@ -5424,7 +5524,7 @@ func _build_architecture() -> void:
 	_text_sign(
 		shell,
 		"MUDDS  //  REGENERATION DECK",
-		Vector3(0, 7.65, 21.86),
+		Vector3(0, 12.25, 21.86),
 		Vector3(0.0, 180.0, 0.0),
 		0.54,
 		_materials["cyan_glow"]
@@ -5432,7 +5532,7 @@ func _build_architecture() -> void:
 	_text_sign(
 		shell,
 		"CENTRAL JUNCTION  //  FLEET DOCKS",
-		Vector3(0, 7.08, 21.84),
+		Vector3(0, 11.68, 21.84),
 		Vector3(0.0, 180.0, 0.0),
 		0.27,
 		_materials["orange_glow"]
