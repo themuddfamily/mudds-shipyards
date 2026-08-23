@@ -58,7 +58,53 @@ func _run() -> void:
 		await process_frame
 		_finish()
 		return
-	_check(module.get_validation_errors().is_empty(), "integrated junction retains its evidence and structure audit")
+	var junction_errors := module.get_validation_errors()
+	_check(
+		junction_errors.is_empty(),
+		"integrated junction retains its evidence and structure audit: %s" % [junction_errors]
+	)
+	var ceiling_lens_audit := module.get_ceiling_luminaire_lens_batch_audit()
+	_check(
+		bool(ceiling_lens_audit.valid) \
+			and int(ceiling_lens_audit.legacy.renderer_nodes) == 6 \
+			and int(ceiling_lens_audit.current.renderer_nodes) == 1 \
+			and int(ceiling_lens_audit.current.drawn_copies) == 6 \
+			and int(ceiling_lens_audit.fixture_housings) == 6 \
+			and int(ceiling_lens_audit.fixture_practicals) == 6 \
+			and not bool(ceiling_lens_audit.collision_authority_added) \
+			and not bool(ceiling_lens_audit.interaction_authority_added),
+		"six Aft luminaire lenses retain their fixtures and visible copies in one inert renderer"
+	)
+	var door_indicator_batches_current := true
+	for door in [module.get_operations_entrance(), module.get_vip_access()]:
+		var left_indicator := door.get_node_or_null(
+			^"SlidingPanel/LeftIndicator"
+		) as MeshInstance3D
+		var right_indicator := door.get_node_or_null(
+			^"SlidingPanel/RightIndicator"
+		) as MeshInstance3D
+		var indicator_batch := door.get_node_or_null(
+			^"SlidingPanel/IndicatorRenderBatch"
+		) as MultiMeshInstance3D
+		var indicator_multi := indicator_batch.multimesh if indicator_batch != null else null
+		door_indicator_batches_current = door_indicator_batches_current \
+			and left_indicator != null \
+			and right_indicator != null \
+			and indicator_batch != null \
+			and indicator_multi != null \
+			and left_indicator.visible \
+			and right_indicator.visible \
+			and left_indicator.layers == 0 \
+			and right_indicator.layers == 0 \
+			and indicator_batch.layers == 1 \
+			and indicator_multi.instance_count == 2 \
+			and indicator_multi.visible_instance_count == -1 \
+			and indicator_batch.material_override == left_indicator.material_override \
+			and indicator_batch.material_override == right_indicator.material_override
+	_check(
+		door_indicator_batches_current,
+		"both Aft access doors render their two host-coloured indicators through the live batches"
+	)
 	_check(module.global_position.is_equal_approx(Vector3(0.0, 0.0, 48.0)), "module uses the documented aft-spine connection plane")
 
 	# Prove that the procedural spine, new connector, and authored module form one

@@ -174,13 +174,13 @@ const CEILING_LUMINAIRE_LENS_POSITIONS := [
 	Vector3(8.0, 4.405, 16.15),
 ]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1174
+const RENDER_DESCENDANT_NODE_COUNT := 1176
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 812
+const RENDERER_NODE_COUNT := 814
 const BASELINE_DRAWN_COPY_COUNT := 855
-const DRAWN_COPY_COUNT := 856
+const DRAWN_COPY_COUNT := 860
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 812
+const SURFACE_SUBMISSION_COUNT := 814
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -4552,6 +4552,15 @@ func _apply_door_material(door: StationDoor, panel_material: Material, indicator
 		left_indicator.material_override = indicator_material
 	if right_indicator != null:
 		right_indicator.material_override = indicator_material
+	# StationDoor creates this renderer from the scene-authored indicator material
+	# before its host applies the cyan/red access language. The authored paths are
+	# deliberately layer-zero anchors after batching, so the batch must receive the
+	# same host colour or the visible strips retain the stale scene material.
+	var indicator_batch := door.get_node_or_null(
+		^"SlidingPanel/IndicatorRenderBatch"
+	) as MultiMeshInstance3D
+	if indicator_batch != null:
+		indicator_batch.material_override = indicator_material
 
 
 func _apply_metadata() -> void:
