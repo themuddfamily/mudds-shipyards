@@ -35,6 +35,7 @@ func _run() -> void:
 	_test_dorsal_cargo_rib_joint_allocation(jovian)
 	_test_shoulder_rail_joint_allocation(jovian)
 	_test_cargo_frame_joint_allocation(jovian)
+	_test_cargo_restraint_mesh_allocation(jovian)
 	_test_passenger_seat_mesh_allocation(jovian)
 	_test_passenger_cabin_light_strip_allocation(jovian)
 	await _test_scale_handling_and_presentation(jovian)
@@ -288,6 +289,78 @@ func _test_cargo_deck_lane_render_allocation(jovian: JovianLightFreighter) -> vo
 		"RED: mutating one live cargo-deck lane transform fails its focused audit"
 	)
 	batch.multimesh.buffer = original_buffer
+
+
+func _test_cargo_restraint_mesh_allocation(jovian: JovianLightFreighter) -> void:
+	var audit := jovian.get_cargo_restraint_mesh_allocation_audit()
+	var current := audit.get("current", {}) as Dictionary
+	var legacy := audit.get("legacy", {}) as Dictionary
+	var delta := audit.get("delta", {}) as Dictionary
+	_check(
+		bool(audit.get("valid", false))
+			and legacy == {
+				"geometry_nodes": 8,
+				"named_nodes": 8,
+				"drawn_copies": 8,
+				"geometry_submissions": 8,
+				"mesh_resource_allocations": 8,
+				"material_resource_allocations": 1,
+				"multimesh_batches": 0,
+			}
+			and current == {
+				"geometry_nodes": 8,
+				"named_nodes": 8,
+				"drawn_copies": 8,
+				"geometry_submissions": 8,
+				"mesh_resource_allocations": 1,
+				"material_resource_allocations": 1,
+				"multimesh_batches": 0,
+			}
+			and delta == {
+				"geometry_nodes": 0,
+				"drawn_copies": 0,
+				"geometry_submissions": 0,
+				"mesh_resource_allocations": -7,
+				"material_resource_allocations": 0,
+			}
+			and not bool(audit.get("batched", true))
+			and not bool(audit.get("collision_authority", true))
+			and not bool(audit.get("crew_authority", true))
+			and not bool(audit.get("cargo_authority", true))
+			and not bool(audit.get("flight_authority", true))
+			and not bool(audit.get("lifecycle_authority", true)),
+		"eight named cargo restraints retain eight submissions while exact mesh allocations fall 8 -> 1"
+	)
+	var cargo_bay := jovian.get_node(^"WalkableInterior/CargoBay") as Node3D
+	var first := cargo_bay.get_node(^"CargoRestraintPort0000") as MeshInstance3D
+	var last := cargo_bay.get_node(^"CargoRestraintStarboard0101") as MeshInstance3D
+	_check(
+		first.mesh == last.mesh
+			and first.mesh is ArrayMesh
+			and first.position.is_equal_approx(Vector3(-3.75, 2.26, -0.39))
+			and last.position.is_equal_approx(Vector3(3.75, 2.26, 6.19))
+			and jovian.get_node_or_null(^"CargoContainerCollisionPort00")
+				is CollisionShape3D
+			and jovian.get_node_or_null(^"CargoContainerCollisionStarboard01")
+				is CollisionShape3D,
+		"restraint sharing preserves exact endpoint names/transforms and separate secured-freight collision"
+	)
+	var retained := last.mesh
+	last.mesh = (retained as ArrayMesh).duplicate() as ArrayMesh
+	_check(
+		not bool(jovian.get_cargo_restraint_mesh_allocation_audit().get("valid", true))
+			and _has_error(
+				jovian.get_cargo_restraint_mesh_allocation_audit(),
+				"cargo_restraint_recipe_or_authority_drift:CargoRestraintStarboard0101"
+			),
+		"RED: one private cargo-restraint mesh fails the exact shared-resource audit"
+	)
+	last.mesh = retained
+	_check(
+		bool(jovian.get_cargo_restraint_mesh_allocation_audit().get("valid", false))
+			and bool(jovian.get_jovian_audit_report().get("valid", false)),
+		"restoring the shared cargo-restraint mesh returns the Jovian audit green"
+	)
 
 
 func _test_passenger_seat_mesh_allocation(jovian: JovianLightFreighter) -> void:

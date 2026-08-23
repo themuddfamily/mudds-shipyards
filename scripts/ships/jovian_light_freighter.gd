@@ -66,6 +66,7 @@ const CARGO_CONTAINER_SIZE := Vector3(1.95, 1.3, 2.15)
 const CARGO_RESTRAINT_OFFSET_Y := 1.62
 const CARGO_RESTRAINT_BAND_Z: Array[float] = [-0.64, 0.64]
 const CARGO_RESTRAINT_SIZE := Vector3(2.02, 0.08, 0.1)
+const CARGO_RESTRAINT_COPY_COUNT := 8
 const PASSENGER_SEAT_COUNT := 6
 const PASSENGER_SEAT_BASE_SIZE := Vector3(0.72, 0.2, 0.82)
 const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
@@ -228,6 +229,7 @@ var _jovian_engine_lights: Array[OmniLight3D] = []
 var _dorsal_cargo_rib_joint_mesh: SphereMesh
 var _shoulder_rail_joint_mesh: SphereMesh
 var _cargo_frame_joint_mesh: SphereMesh
+var _cargo_restraint_mesh: ArrayMesh
 var _passenger_seat_base_mesh: ArrayMesh
 var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
@@ -1052,6 +1054,7 @@ func get_jovian_audit_report() -> Dictionary:
 	var dorsal_rib_allocation := get_dorsal_cargo_rib_joint_allocation_audit()
 	var shoulder_rail_allocation := get_shoulder_rail_joint_allocation_audit()
 	var cargo_frame_allocation := get_cargo_frame_joint_allocation_audit()
+	var cargo_restraint_allocation := get_cargo_restraint_mesh_allocation_audit()
 	var passenger_seat_allocation := get_passenger_seat_mesh_allocation_audit()
 	var passenger_cabin_light_strip_allocation := get_passenger_cabin_light_strip_allocation_audit()
 	var definition := get_ship_definition()
@@ -1093,6 +1096,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("shoulder rail joint allocation contract drifted")
 	if not bool(cargo_frame_allocation.get("valid", false)):
 		errors.append("cargo frame joint allocation contract drifted")
+	if not bool(cargo_restraint_allocation.get("valid", false)):
+		errors.append("cargo restraint mesh allocation contract drifted")
 	if not bool(passenger_seat_allocation.get("valid", false)):
 		errors.append("passenger seat mesh allocation contract drifted")
 	if not bool(passenger_cabin_light_strip_allocation.get("valid", false)):
@@ -1116,6 +1121,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"dorsal_cargo_rib_joint_allocation": dorsal_rib_allocation,
 		"shoulder_rail_joint_allocation": shoulder_rail_allocation,
 		"cargo_frame_joint_allocation": cargo_frame_allocation,
+		"cargo_restraint_mesh_allocation": cargo_restraint_allocation,
 		"passenger_seat_mesh_allocation": passenger_seat_allocation,
 		"passenger_cabin_light_strip_allocation": passenger_cabin_light_strip_allocation,
 	}
@@ -1492,6 +1498,118 @@ func get_passenger_cabin_light_strip_allocation_audit() -> Dictionary:
 		"delta": {"mesh_resource_allocations": mesh_ids.size() - 2},
 		"batched": false,
 		"collision_authority": false,
+	}.duplicate(true)
+
+
+## Eight named cargo-restraint bands retain their exact visual nodes, transforms,
+## and submissions while sharing one immutable rounded-box mesh. Their matching
+## cargo-unit collision remains separately authored on the ship root.
+func get_cargo_restraint_mesh_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var node_ids: Dictionary = {}
+	var node_names: Dictionary = {}
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var submission_count := 0
+	if not is_instance_valid(_cargo_bay):
+		errors.append("cargo_restraint_bay_unavailable")
+	else:
+		for unit_index in CARGO_UNIT_ANCHORS.size():
+			var anchor := CARGO_UNIT_ANCHORS[unit_index]
+			var suffix := cargo_unit_suffix(unit_index)
+			for band_index in CARGO_RESTRAINT_BAND_Z.size():
+				var node_name := "CargoRestraint%s%02d" % [suffix, band_index]
+				var restraint := _cargo_bay.get_node_or_null(
+					NodePath(node_name)
+				) as MeshInstance3D
+				if not is_instance_valid(restraint):
+					errors.append("cargo_restraint_missing:%s" % node_name)
+					continue
+				node_ids[restraint.get_instance_id()] = true
+				node_names[String(restraint.name)] = true
+				var mesh := restraint.mesh as ArrayMesh
+				if mesh == null:
+					errors.append("cargo_restraint_mesh_type_drift:%s" % node_name)
+					continue
+				mesh_ids[mesh.get_instance_id()] = true
+				submission_count += mesh.get_surface_count()
+				for surface_index in mesh.get_surface_count():
+					var material := mesh.surface_get_material(surface_index)
+					if material != null:
+						material_ids[material.get_instance_id()] = true
+				var expected_position := anchor + Vector3(
+					0.0,
+					CARGO_RESTRAINT_OFFSET_Y,
+					CARGO_RESTRAINT_BAND_Z[band_index]
+				)
+				if (
+					mesh != _cargo_restraint_mesh
+					or mesh.get_surface_count() != 1
+					or not mesh.get_aabb().size.is_equal_approx(CARGO_RESTRAINT_SIZE)
+					or mesh.surface_get_material(0) != _jovian_materials.get("amber")
+					or not restraint.position.is_equal_approx(expected_position)
+					or not restraint.rotation.is_equal_approx(Vector3.ZERO)
+					or not restraint.scale.is_equal_approx(Vector3.ONE)
+					or not restraint.visible
+					or restraint.layers != 1
+					or restraint.cast_shadow
+						!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+					or restraint.material_override != null
+					or restraint.material_overlay != null
+					or restraint.get_child_count() != 0
+					or restraint.get_script() != null
+					or not restraint.get_meta_list().is_empty()
+				):
+					errors.append("cargo_restraint_recipe_or_authority_drift:%s" % node_name)
+	if node_ids.size() != CARGO_RESTRAINT_COPY_COUNT:
+		errors.append("cargo_restraint_node_count_drift")
+	if node_names.size() != CARGO_RESTRAINT_COPY_COUNT:
+		errors.append("cargo_restraint_name_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("cargo_restraint_mesh_resource_count_drift")
+	if material_ids.size() != 1:
+		errors.append("cargo_restraint_material_resource_count_drift")
+	if submission_count != CARGO_RESTRAINT_COPY_COUNT:
+		errors.append("cargo_restraint_submission_count_drift")
+	var current := {
+		"geometry_nodes": node_ids.size(),
+		"named_nodes": node_names.size(),
+		"drawn_copies": node_ids.size(),
+		"geometry_submissions": submission_count,
+		"mesh_resource_allocations": mesh_ids.size(),
+		"material_resource_allocations": material_ids.size(),
+		"multimesh_batches": 0,
+	}
+	var legacy := {
+		"geometry_nodes": CARGO_RESTRAINT_COPY_COUNT,
+		"named_nodes": CARGO_RESTRAINT_COPY_COUNT,
+		"drawn_copies": CARGO_RESTRAINT_COPY_COUNT,
+		"geometry_submissions": CARGO_RESTRAINT_COPY_COUNT,
+		"mesh_resource_allocations": CARGO_RESTRAINT_COPY_COUNT,
+		"material_resource_allocations": 1,
+		"multimesh_batches": 0,
+	}
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"current": current,
+		"legacy": legacy,
+		"delta": {
+			"geometry_nodes": int(current.geometry_nodes) - int(legacy.geometry_nodes),
+			"drawn_copies": int(current.drawn_copies) - int(legacy.drawn_copies),
+			"geometry_submissions": int(current.geometry_submissions)
+				- int(legacy.geometry_submissions),
+			"mesh_resource_allocations": int(current.mesh_resource_allocations)
+				- int(legacy.mesh_resource_allocations),
+			"material_resource_allocations": int(current.material_resource_allocations)
+				- int(legacy.material_resource_allocations),
+		},
+		"batched": false,
+		"collision_authority": false,
+		"crew_authority": false,
+		"cargo_authority": false,
+		"flight_authority": false,
+		"lifecycle_authority": false,
 	}.duplicate(true)
 
 
@@ -2750,6 +2868,9 @@ func _build_cargo_bay() -> void:
 	# lane and door-to-cabin diagonal remain at least 2 m wide. Positions come from
 	# `CARGO_UNIT_ANCHORS`, which `_build_collision` also builds the freight's
 	# colliders from, so the drawn crate and the solid crate cannot drift apart.
+	_cargo_restraint_mesh = _rounded_box_mesh(
+		CARGO_RESTRAINT_SIZE, _jovian_materials.amber
+	)
 	for index in CARGO_UNIT_ANCHORS.size():
 		var position := CARGO_UNIT_ANCHORS[index]
 		var side := signf(position.x)
@@ -2768,12 +2889,11 @@ func _build_cargo_bay() -> void:
 		_box(_cargo_bay, "CargoPallet" + suffix, position + Vector3(0.0, CARGO_PALLET_OFFSET_Y, 0.0), CARGO_PALLET_SIZE, _jovian_materials.structure)
 		_box(_cargo_bay, "CargoContainer" + suffix, position + Vector3(0.0, CARGO_CONTAINER_OFFSET_Y, 0.0), CARGO_CONTAINER_SIZE, _jovian_materials.cargo_blue)
 		for band_index in CARGO_RESTRAINT_BAND_Z.size():
-			_box(
+			_rounded_box_from_mesh(
 				_cargo_bay,
 				"CargoRestraint%s%02d" % [suffix, band_index],
 				position + Vector3(0.0, CARGO_RESTRAINT_OFFSET_Y, CARGO_RESTRAINT_BAND_Z[band_index]),
-				CARGO_RESTRAINT_SIZE,
-				_jovian_materials.amber
+				_cargo_restraint_mesh
 			)
 	# Rear corner lockers add believable stowage without obstructing egress.
 	for side in [-1.0, 1.0]:
