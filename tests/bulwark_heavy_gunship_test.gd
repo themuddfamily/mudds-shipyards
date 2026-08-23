@@ -71,8 +71,7 @@ func _test_physical_crew_contract(ship: HeroShip) -> void:
 func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	var visual := ship.get_node_or_null("BulwarkHeavyGunshipVisual") as Node3D
 	_check(visual != null and visual.get_node_or_null("ArmoredCentralSlab") is MeshInstance3D, "armored central slab is a real visual mesh")
-	_check(visual != null and visual.get_node_or_null("PortArmoredShoulder") is MeshInstance3D, "port armored shoulder differentiates the silhouette")
-	_check(visual != null and visual.get_node_or_null("StarboardArmoredShoulder") is MeshInstance3D, "starboard armored shoulder differentiates the silhouette")
+	_test_armored_shoulder_batch(visual)
 	_test_identity_band_batch(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
@@ -83,6 +82,54 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_check(audit.get("lifecycle_authority", &"") == &"HeroShip", "audit preserves one lifecycle authority")
 	_check(not bool(audit.get("world_or_berth_registered", true)), "component remains unregistered with world and berth")
 	_check(not bool(ship.get_meta("authenticated_historical_silhouette", true)), "root metadata denies historical silhouette authentication")
+
+
+func _test_armored_shoulder_batch(visual: Node3D) -> void:
+	var batch := visual.get_node_or_null("ArmoredShoulderBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var multi := batch.multimesh if batch != null else null
+	_check(
+		multi != null
+		and multi.transform_format == MultiMesh.TRANSFORM_3D
+		and multi.instance_count == 2
+		and multi.visible_instance_count == -1
+		and multi.mesh != null
+		and multi.mesh.get_surface_count() == 1,
+		"two armored-shoulder copies retain one bounded renderer submission"
+	)
+	if multi == null:
+		return
+	var transforms: Array = batch.get_meta(&"authored_instance_transforms", []) as Array
+	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray
+	var expected_transforms := [
+		Transform3D(Basis.IDENTITY, Vector3(-4.15, 1.05, 0.55)),
+		Transform3D(Basis.IDENTITY, Vector3(4.15, 1.05, 0.55)),
+	]
+	var mesh_bounds := multi.mesh.get_aabb()
+	var expected_bounds: AABB = (expected_transforms[0] * mesh_bounds).abs().merge(
+		(expected_transforms[1] * mesh_bounds).abs()
+	)
+	var material := multi.mesh.surface_get_material(0) as StandardMaterial3D
+	_check(
+		transforms == expected_transforms
+		and names == PackedStringArray(["PortArmoredShoulder", "StarboardArmoredShoulder"])
+		and material != null
+		and material.albedo_color.is_equal_approx(Color("101b2a"))
+		and is_equal_approx(material.metallic, 0.78)
+		and is_equal_approx(material.roughness, 0.32)
+		and mesh_bounds.size.is_equal_approx(Vector3(3.4, 1.9, 5.3))
+		and multi.custom_aabb.is_equal_approx(expected_bounds)
+		and batch.material_override == null
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"shoulder transforms, inspection names, mesh, material, culling, and shadows remain exact"
+	)
+	_check(
+		visual.get_node_or_null("PortArmoredShoulder") == null
+		and visual.get_node_or_null("StarboardArmoredShoulder") == null,
+		"legacy armored-shoulder renderer submissions are removed"
+	)
+	print("BULWARK_ARMORED_SHOULDER_BATCH: visible_copies 2->2 submissions 2->1")
 
 
 func _test_identity_band_batch(visual: Node3D) -> void:
