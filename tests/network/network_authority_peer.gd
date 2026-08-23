@@ -20,6 +20,13 @@ var _passenger_player: Node3D
 var _cinder: Node3D
 var _combat_authority: Node
 var _projectile_logged := false
+var _projectile_terminal_seen := false
+var _reconnect_attempted := false
+var _did_reconnect := false
+var _initial_peer_generation := 0
+var _last_terminal_record: Dictionary = {}
+var _reconnect_damage_seen := false
+var _reconnect_relationship_seen := false
 
 
 func _init() -> void:
@@ -76,6 +83,11 @@ func _server_loop() -> void:
 			peer_ids.sort()
 			var pilot_peer := int(peer_ids[0])
 			var passenger_peer := int(peer_ids[1])
+			var initial_peer_generations: Dictionary = {}
+			for peer_variant in peer_ids:
+				initial_peer_generations[int(peer_variant)] = int(_adapter._peer_generations.get(int(peer_variant), 0))
+			if _initial_peer_generation == 0:
+				_initial_peer_generation = int(_adapter._peer_generations.get(pilot_peer, 0))
 			_log("PEERS_%d_%d" % [pilot_peer, passenger_peer])
 			_log("IMPAIRMENT rtt_ms=100 loss_percent=2 jitter_ms=20 reorder=true")
 			var pilot := _adapter.register_remote_ship_pilot(pilot_peer, &"jovian_authority_craft", 1)
@@ -102,7 +114,7 @@ func _server_loop() -> void:
 				if sequence == 24:
 					actual_sequence = 24
 				var command := _movement_command(pilot_peer, actual_sequence)
-				await create_timer(0.08 + float(sequence % 5) * 0.01).timeout
+				await create_timer(0.03 + float(sequence % 5) * 0.005).timeout
 				if sequence == 17:
 					_log("IMPAIRMENT_DROP sequence=17")
 					continue
@@ -357,6 +369,45 @@ func _server_loop() -> void:
 							_log("SEATS_RELEASED")
 							_log("LANDING_EXIT_CLEAN")
 			_log("TRANSFER_CLEAN_DISCONNECT")
+			var reconnect_deadline := Time.get_ticks_msec() + 9000
+			var reconnected := false
+			var reconnect_peer := 0
+			while Time.get_ticks_msec() < reconnect_deadline:
+				for peer_variant in _adapter._peer_generations.keys():
+					var candidate_peer := int(peer_variant)
+					if not initial_peer_generations.has(candidate_peer) \
+						or int(_adapter._peer_generations.get(candidate_peer, 0)) > int(initial_peer_generations[candidate_peer]):
+						reconnect_peer = candidate_peer
+						break
+				if reconnect_peer > 0:
+					reconnected = true
+					var stale_command: Dictionary = _adapter._remote_ship_commands.accept_command(
+						reconnect_peer, _movement_command(
+							reconnect_peer, 900, _initial_peer_generation
+						)
+					)
+					if not bool(stale_command.get("accepted", false)):
+						_log("RECONNECT_OLD_COMMAND_REJECTED")
+					var current_peers: Array = _adapter._peer_generations.keys()
+					for current_peer_variant in current_peers:
+						var current_peer := int(current_peer_variant)
+						_adapter._moving_recipient_entities.erase(current_peer)
+						_adapter._moving_recipient_pending.erase(current_peer)
+						_adapter._moving_recipient_budgets.erase(current_peer)
+					var resync_damage := _adapter.publish_damage_respawn_snapshot(
+						&"jovian_authority_craft", 3, 100.0, &"active", false, 2, current_peers, 60
+					)
+					var resync_relationship := _adapter.publish_moving_interior_snapshot(
+						_resync_relationship_snapshot(relationship.get_snapshot()), current_peers, 2
+					)
+					_log("RECONNECT_RESYNC_STATUS %s %s" % [resync_damage.get("status", &"unknown"), resync_relationship.get("status", &"unknown")])
+					if bool(resync_damage.get("accepted", false)) \
+						and bool(resync_relationship.get("accepted", false)):
+						_log("RECONNECT_RESYNC_PUBLISHED")
+					break
+				await create_timer(0.05).timeout
+			if reconnected:
+				_log("RECONNECT_GENERATION_FRESH")
 			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			await create_timer(0.8).timeout
 			quit(0)
@@ -379,6 +430,34 @@ func _client_loop() -> void:
 			_log("PROJECTILE_TERMINAL_PRESENTED")
 		if not _adapter._server_offer.is_empty():
 			_log("ADMITTED")
+			var offered_generation := int(
+				((_adapter._server_offer.get("admission", {}) as Dictionary)
+				.get("peer", {}) as Dictionary).get("peer_generation", 0)
+			)
+			if _role == "client_a" and not _reconnect_attempted:
+				_initial_peer_generation = offered_generation
+				_reconnect_attempted = true
+				await create_timer(10.0).timeout
+				_adapter.shutdown(&"manual_leave")
+				_log("MID_SESSION_DISCONNECT")
+				await create_timer(0.2).timeout
+				var rejoin := _adapter.join("127.0.0.1", _port)
+				_log("RECONNECT_JOIN_STARTED" if rejoin.get("accepted", false) else "RECONNECT_JOIN_FAILED")
+				continue
+			if _role == "client_a" and offered_generation > _initial_peer_generation:
+				_did_reconnect = true
+				_log("RECONNECT_ADMITTED")
+				if not _last_terminal_record.is_empty():
+					var stale_terminal: Dictionary = _cinder.present_payload_terminal_record(_last_terminal_record)
+					if not bool(stale_terminal.get("accepted", false)):
+						_log("RECONNECT_OLD_TERMINAL_REJECTED")
+				var resync_deadline := Time.get_ticks_msec() + 7000
+				while Time.get_ticks_msec() < resync_deadline \
+					and (not _reconnect_damage_seen or not _reconnect_relationship_seen):
+					await create_timer(0.05).timeout
+				_log("CLIENT_CLEAN")
+				quit(0)
+				return
 			await create_timer(8.0).timeout
 			_log("CLIENT_CLEAN")
 			quit(0)
@@ -399,6 +478,13 @@ func _movement_command(
 		"move_axis": [0.5, 0.0], "board_request": false,
 		"boarding_target_id": &"", "disembark_request": false,
 }
+
+
+func _resync_relationship_snapshot(snapshot: Dictionary) -> Dictionary:
+	var resync := snapshot.duplicate(true)
+	resync["server_tick"] = 2
+	resync["event_sequence"] = 2
+	return resync
 
 
 func _projectile_wire(snapshot: Dictionary, terminal: bool) -> Dictionary:
@@ -423,6 +509,9 @@ func _on_moving_interior_result(result: Dictionary) -> void:
 	var status := StringName(result.get("status", &""))
 	if status == &"moving_interior_presented":
 		_log("RELATIONSHIP_STABLE")
+		if _reconnect_attempted:
+			_reconnect_relationship_seen = true
+			_log("RECONNECT_RELATIONSHIP_RESYNC")
 	elif status == &"moving_interior_release_applied":
 		_log("RELATIONSHIP_RELEASED")
 
@@ -438,6 +527,9 @@ func _on_damage_respawn_result(result: Dictionary) -> void:
 		_log("DAMAGE_DESTROYED_PRESENTED")
 	elif state == &"active":
 		_log("DAMAGE_RESPAWN_PRESENTED")
+	if _reconnect_attempted and state == &"active":
+		_reconnect_damage_seen = true
+		_log("RECONNECT_DAMAGE_RESYNC")
 
 
 func _on_projectile_replica_result(result: Dictionary) -> void:
@@ -445,6 +537,7 @@ func _on_projectile_replica_result(result: Dictionary) -> void:
 	if status == &"projectile_presented":
 		_log("PROJECTILE_PRESENTED")
 	elif status == &"projectile_terminal_applied":
+		_projectile_terminal_seen = true
 		_log("PROJECTILE_TERMINAL_PRESENTED")
 
 
@@ -462,6 +555,7 @@ func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> vo
 			_log("CLIENT_PAYLOAD_POOL_RELEASED")
 	elif status == &"projectile_terminal_applied":
 		var terminal_record := projectile.get("terminal_intent", {}) as Dictionary
+		_last_terminal_record = terminal_record.duplicate(true)
 		var terminal: Dictionary = _cinder.call("present_payload_terminal_record", terminal_record)
 		if bool(terminal.get("accepted", false)):
 			_log("CLIENT_PAYLOAD_POOL_TERMINAL")

@@ -24,7 +24,7 @@ func _run() -> void:
 		var args := PackedStringArray([
 			"--headless", "--path", ProjectSettings.globalize_path("res://"),
 			"--script", script_path, "--", "--role",
-			"server" if role == "server" else "client", "--port", str(PORT), "--log", log_path,
+			role, "--port", str(PORT), "--log", log_path,
 		])
 		var pid := OS.create_process(executable, args)
 		if pid <= 0:
@@ -35,7 +35,7 @@ func _run() -> void:
 		_pids.append(pid)
 		_logs.append(log_path)
 		print("SPAWN %s pid=%d" % [role, pid])
-	var deadline := Time.get_ticks_msec() + 18000
+	var deadline := Time.get_ticks_msec() + 24000
 	while Time.get_ticks_msec() < deadline:
 		await create_timer(0.1).timeout
 		if _evidence_complete():
@@ -65,9 +65,17 @@ func _evidence_complete() -> bool:
 		"REAL_JOVIAN_MOVED", "REAL_PASSENGER_ATTACHED", "REAL_PASSENGER_RELEASED",
 		"REAL_PLAYERS_BOARDING", "REAL_BOARDING_RELEASED",
 		"REAL_PAYLOAD_RELEASED", "REAL_PAYLOAD_TERMINAL_RESOLVED", "DAMAGE_ONCE_SERVER_ONLY",
+		"RECONNECT_OLD_COMMAND_REJECTED", "RECONNECT_RESYNC_PUBLISHED", "RECONNECT_GENERATION_FRESH",
 	]:
 		if not server_log.contains(marker):
 			return false
+	if not client_a_log.contains("MID_SESSION_DISCONNECT") \
+		or not client_a_log.contains("RECONNECT_JOIN_STARTED") \
+		or not client_a_log.contains("RECONNECT_ADMITTED") \
+		or not client_a_log.contains("RECONNECT_OLD_TERMINAL_REJECTED") \
+		or not client_a_log.contains("RECONNECT_DAMAGE_RESYNC") \
+		or not client_a_log.contains("RECONNECT_RELATIONSHIP_RESYNC"):
+		return false
 	for client_log in [client_a_log, client_b_log]:
 		if not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \
 			or not client_log.contains("PROJECTILE_PRESENTED") \
