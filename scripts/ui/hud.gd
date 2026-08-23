@@ -222,6 +222,7 @@ var _input_remapping_presenter: RuntimeInputRemappingPresenter
 var _input_binding_profile: InputBindingProfile
 var _input_binding_defaults: InputBindingProfile
 var _input_glyph_resolver: InputGlyphResolver
+var _safe_area_insets := Rect2()
 var _binding_rows: Dictionary = {}
 var _binding_buttons: Dictionary = {}
 var _binding_reset_buttons: Dictionary = {}
@@ -1408,6 +1409,11 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 	var effective := compute_effective_ui_scale(_ui_scale, viewport_size)
 	_layout_effective_ui_scale = effective
 	var logical := viewport_size / maxf(effective, 0.01)
+	var safe_left := maxf(_safe_area_insets.position.x, 0.0) / maxf(effective, 0.01)
+	var safe_top := maxf(_safe_area_insets.position.y, 0.0) / maxf(effective, 0.01)
+	var safe_right := maxf(_safe_area_insets.size.x, 0.0) / maxf(effective, 0.01)
+	var safe_bottom := maxf(_safe_area_insets.size.y, 0.0) / maxf(effective, 0.01)
+	_apply_safe_area_offsets(safe_left, safe_top, safe_right, safe_bottom)
 	for layer in _scaled_layers:
 		if not is_instance_valid(layer):
 			continue
@@ -1431,6 +1437,45 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 			CAPTION_BOTTOM_SAFE_LOGICAL * effective
 		)
 	return effective
+
+
+## Applies physical-pixel display cutout/overscan insets to edge-anchored HUD
+## panels. The value is retained across viewport changes and intentionally lives
+## in the HUD presentation layer rather than settings persistence.
+func set_safe_area_insets(insets: Rect2) -> void:
+	_safe_area_insets = Rect2(
+		Vector2(maxf(insets.position.x, 0.0), maxf(insets.position.y, 0.0)),
+		Vector2(maxf(insets.size.x, 0.0), maxf(insets.size.y, 0.0))
+	)
+	_apply_ui_scale()
+
+
+func get_safe_area_insets() -> Rect2:
+	return _safe_area_insets
+
+
+func _apply_safe_area_offsets(left: float, top: float, right: float, bottom: float) -> void:
+	if is_instance_valid(_brand_block):
+		_brand_block.position.x = 30.0 + left
+		_brand_block.position.y = 26.0 + top
+	if is_instance_valid(_objective_panel):
+		_objective_panel.position.x = 30.0 + left
+		_objective_panel.position.y = 126.0 + top
+	if is_instance_valid(_help_panel):
+		_help_panel.offset_left = -(PANEL_HELP_WIDTH + PANEL_MARGIN + right)
+		_help_panel.offset_right = -PANEL_MARGIN - right
+		_help_panel.offset_top = 28.0 + top
+		_help_panel.offset_bottom = 342.0 + top
+	if is_instance_valid(_minimap):
+		_minimap.offset_left = PANEL_MARGIN + left
+		_minimap.offset_right = PANEL_MARGIN + 240.0 + left
+		_minimap.offset_top = -270.0 - bottom
+		_minimap.offset_bottom = -PANEL_MARGIN - bottom
+	if is_instance_valid(_telemetry_panel):
+		_telemetry_panel.offset_left = -(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN + right)
+		_telemetry_panel.offset_right = -PANEL_MARGIN - right
+		_telemetry_panel.offset_top = -250.0 - bottom
+		_telemetry_panel.offset_bottom = -PANEL_MARGIN - bottom
 
 
 ## The logical size the gameplay panels are currently laid out into. This is the

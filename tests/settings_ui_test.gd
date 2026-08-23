@@ -202,6 +202,24 @@ func _run() -> void:
 	_check(settings_page.visible and not main_page.visible, "Settings switches to a dedicated second page")
 	_check(settings_page.size.x <= 1280.0 and settings_page.size.y <= 720.0, "settings panel fits a 1280 by 720 window")
 	await _test_ultrawide_settings_layout(hud, settings_page)
+	hud.set_safe_area_insets(Rect2(24.0, 18.0, 30.0, 22.0))
+	var safe_effective := hud.layout_for_viewport(Vector2(3440.0, 1440.0))
+	await process_frame
+	await process_frame
+	var safe_rects := hud.get_hud_panel_rects()
+	var safe_minimap := safe_rects.get("minimap", Rect2()) as Rect2
+	var safe_telemetry := safe_rects.get("telemetry", Rect2()) as Rect2
+	var safe_brand := safe_rects.get("brand", Rect2()) as Rect2
+	var safe_logical := Vector2(3440.0, 1440.0) / safe_effective
+	_check(
+		safe_brand.position.x + 0.1 >= 30.0 + 24.0 / safe_effective
+		and safe_minimap.position.x + 0.1 >= 28.0 + 24.0 / safe_effective
+		and safe_telemetry.end.x <= safe_logical.x - 30.0 / safe_effective + 0.1
+		and safe_minimap.end.y <= safe_logical.y - 22.0 / safe_effective + 0.1,
+		"gameplay HUD edge panels honor physical safe-area insets at 32:9"
+	)
+	hud.set_safe_area_insets(Rect2())
+	hud.layout_for_viewport(Vector2(1280.0, 720.0))
 	await _test_input_binding_editor(hud, settings_owner)
 	await _test_deferred_settings_scroll_currentness()
 
