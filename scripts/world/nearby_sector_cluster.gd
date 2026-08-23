@@ -168,6 +168,9 @@ const SPINE_CENTER_Z := -6.0
 const PROCESSING_SPINE_RIB_SIZE := Vector3(13.0, 9.5, 1.6)
 const PROCESSING_SPINE_RIB_Z_POSITIONS: Array[float] = [-24.0, -14.0, 0.0, 12.0]
 const PROCESSING_SPINE_RIB_FAMILY_ID: StringName = &"nearby-processing-spine-ribs"
+const EXTRACTION_ARM_COLLAR_SIZE := Vector3(6.0, 1.4, 6.0)
+const EXTRACTION_ARM_COLLAR_Y_POSITIONS: Array[float] = [-6.0, -17.0, -28.0]
+const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"
 const GANTRY_RAIL_SIZE := Vector3(1.2, 1.2, GANTRY_NEAR_Z - GANTRY_FAR_Z)
 const GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
 const LAMP_LENS_RADIUS := 0.45
@@ -222,11 +225,11 @@ const PERFORMANCE_BUDGET := {
 	# Includes the production cargo access route (21 bodies/19 meshes/three
 	# batches) and the real destination terminal (two bodies/four meshes).
 	"static_bodies": 61,
-	"mesh_instances": 209,
+	"mesh_instances": 203,
 	# Bounded visual batches retain the debris shell, processing-spine ribs,
 	# gantry rails, and streamed aperture lenses without increasing gameplay or
 	# collision ownership.
-	"multimesh_instances": 12,
+	"multimesh_instances": 14,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -2401,17 +2404,39 @@ func _build_extraction_arms(platform: Node3D) -> void:
 		arm.rotation_degrees = Vector3(-36.0, 0.0, side * 14.0)
 		platform.add_child(arm)
 		_box(arm, "ArmSpar", Vector3(0.0, -17.0, 0.0), Vector3(4.4, 38.0, 4.4), _materials["hull_shadow"], true)
-		for segment in 3:
-			_box(
-				arm,
-				"ArmCollar",
-				Vector3(0.0, -6.0 - float(segment) * 11.0, 0.0),
-				Vector3(6.0, 1.4, 6.0),
-				_materials["steel"],
-				false
-			)
+		_build_extraction_arm_collars(arm)
 		_cylinder(arm, "DrillHead", Vector3(0.0, -37.5, 0.0), 1.2, 3.6, 6.0, _materials["orange"], true)
 		_lamp(arm, "ArmLamp", Vector3(0.0, -33.0, 3.6), KETH_ORANGE, 1.5, 12.0, false)
+
+
+## Each arm retains its authored transform and canonical ArmCollar path while
+## three identical, presentation-only steel collars submit as one renderer.
+## The arm spar and drill stay collision-backed; this batch owns no authority.
+func _build_extraction_arm_collars(arm: Node3D) -> void:
+	var transforms: Array[Transform3D] = []
+	for y_position in EXTRACTION_ARM_COLLAR_Y_POSITIONS:
+		transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, y_position, 0.0)))
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = StationSurfaceKit.rounded_box_mesh_cached(
+		EXTRACTION_ARM_COLLAR_SIZE, _box_cache
+	)
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = -1
+	multimesh.buffer = _encode_multimesh_transforms(transforms)
+	var bounds := _transformed_mesh_bounds(multimesh.mesh.get_aabb(), transforms)
+	multimesh.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "ArmCollar"
+	batch.multimesh = multimesh
+	batch.material_override = _materials["steel"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.custom_aabb = bounds
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", EXTRACTION_ARM_COLLAR_FAMILY_ID)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	batch.set_meta(&"authored_instance_names", PackedStringArray(["ArmCollar", "ArmCollar", "ArmCollar"]))
+	arm.add_child(batch)
 
 
 func _build_derelict_hardware(platform: Node3D) -> void:
