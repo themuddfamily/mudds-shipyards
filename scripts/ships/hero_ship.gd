@@ -34,6 +34,7 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const TARGET_LAYER := PhysicsLayers.TARGET
 const WEAPON_AIM_MASK := PhysicsLayers.HITSCAN_QUERY_MASK
 const WEAPON_AIM_DISTANCE := 1000.0
+const FAILED_SENSOR_MANUAL_AIM_DISTANCE_FACTOR := 0.30
 const DEPARTURE_SPEED_THRESHOLD := 0.25
 const DEPARTURE_MOTION_EPSILON_SQUARED := 0.000001
 const PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION := 1
@@ -2015,6 +2016,8 @@ func get_telemetry() -> Dictionary:
 			_component_damage.get_worst_integrity() if _component_damage != null else 1.0
 		),
 		"engine_power": _get_damage_engine_multiplier(),
+		"weapon_power": _get_damage_weapon_multiplier(),
+		"targeting_power": _get_damage_targeting_multiplier(),
 		"engine_state": _engine_state,
 		"automatic_engine_idle_remaining": (
 			maxf(
@@ -2430,10 +2433,11 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 		_throttle = 0.0
 	else:
 		var target_velocity := _planetary_cruise_direction_world \
-			* _planetary_cruise_desired_speed
+			* _planetary_cruise_desired_speed \
+			* _get_damage_engine_multiplier()
 		velocity = velocity.move_toward(
 			target_velocity,
-			_planetary_cruise_acceleration * safe_delta
+			_planetary_cruise_acceleration * _get_damage_engine_multiplier() * safe_delta
 		)
 		_throttle = (
 			1.0
@@ -2940,11 +2944,14 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 	var mouse_pitch := 0.0 if suppress_look else command.look_pitch_delta * maximum_mouse_turn
 	# Mouse motion maps directly to craft attitude. A/D performs yaw only; the
 	# accompanying bank is presentation-only so it cannot corrupt the movement axes.
-	rotate_object_local(Vector3.UP, -key_yaw * deg_to_rad(yaw_speed_degrees) * delta)
+	rotate_object_local(
+		Vector3.UP,
+		-key_yaw * deg_to_rad(yaw_speed_degrees) * damage_power * delta
+	)
 	# Compose simultaneous mouse yaw and pitch as one local rotation-vector
 	# exponential. Repeating proportional diagonal samples now follows the same
 	# attitude path regardless of how the OS partitions the physical mouse sweep.
-	var mouse_rotation_vector := Vector3(mouse_pitch, mouse_yaw, 0.0)
+	var mouse_rotation_vector := Vector3(mouse_pitch, mouse_yaw, 0.0) * damage_power
 	var mouse_rotation_angle := mouse_rotation_vector.length()
 	if mouse_rotation_vector.is_finite() and is_finite(mouse_rotation_angle) and mouse_rotation_angle > 0.000001:
 		var mouse_rotation := Quaternion(
@@ -2954,9 +2961,12 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 		global_basis = global_basis * Basis(mouse_rotation)
 	rotate_object_local(
 		Vector3.RIGHT,
-		command.pitch * deg_to_rad(yaw_speed_degrees) * delta
+		command.pitch * deg_to_rad(yaw_speed_degrees) * damage_power * delta
 	)
-	rotate_object_local(Vector3.FORWARD, command.roll * deg_to_rad(roll_speed_degrees) * delta)
+	rotate_object_local(
+		Vector3.FORWARD,
+		command.roll * deg_to_rad(roll_speed_degrees) * damage_power * delta
+	)
 	global_basis = global_basis.orthonormalized()
 
 	# Preserve arcade momentum while pulling the travel vector toward the visible
@@ -2966,16 +2976,16 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 	if velocity.length_squared() > 0.01:
 		var assisted_velocity := flight_forward * velocity.length() * _travel_sign
 		var assist_weight := 1.0 - exp(
-			-flight_assist_strength * maxf(absf(_throttle), 0.35) * delta
+			-flight_assist_strength * damage_power * maxf(absf(_throttle), 0.35) * delta
 		)
 		velocity = velocity.lerp(assisted_velocity, assist_weight)
 
-	if command.barrel_roll and absf(_roll_animation) < 0.01:
+	if command.barrel_roll and damage_power > 0.0 and absf(_roll_animation) < 0.01:
 		_roll_animation = TAU
 	if _roll_animation > 0.0:
 		var roll_step := minf(
 			_roll_animation,
-			deg_to_rad(roll_speed_degrees) * 2.2 * delta
+			deg_to_rad(roll_speed_degrees) * 2.2 * damage_power * delta
 		)
 		rotate_object_local(Vector3.FORWARD, roll_step)
 		_roll_animation -= roll_step
@@ -3349,20 +3359,26 @@ func _clear_landing_authority_snapshot() -> void:
 
 
 func _fire_weapon() -> void:
-	if _weapon_timer > 0.0 or _engine_state != ENGINE_ONLINE:
+	var modifiers := get_operational_modifiers()
+	var fire_power := _get_damage_weapon_multiplier()
+	if _weapon_timer > 0.0 \
+			or _engine_state != ENGINE_ONLINE \
+			or fire_power <= 0.0 \
+			or bool(modifiers.get("fire_disabled", false)):
 		return
-	_weapon_timer = weapon_cooldown
+	_weapon_timer = weapon_cooldown / fire_power
 	var muzzle := _muzzle_left if _fire_from_left else _muzzle_right
 	_fire_from_left = not _fire_from_left
 	var aiming_camera := get_camera()
 	var screen_center := aiming_camera.get_viewport().get_visible_rect().size * 0.5
 	var camera_direction := aiming_camera.project_ray_normal(screen_center).normalized()
-	var ray_end := aiming_camera.global_position + camera_direction * WEAPON_AIM_DISTANCE
+	var targeting_distance := _get_weapon_targeting_distance()
+	var ray_end := aiming_camera.global_position + camera_direction * targeting_distance
 	var convergence_point := ray_end
 	# Resolve the reticle ray first so both offset cannons converge exactly on
 	# nearby geometry and range drones. Damage remains owned by game_flow.gd;
 	# this query only corrects the emitted direction.
-	if is_inside_tree():
+	if is_inside_tree() and not bool(modifiers.get("targeting_disabled", false)):
 		var query := PhysicsRayQueryParameters3D.create(
 			aiming_camera.global_position,
 			ray_end,
@@ -3582,6 +3598,13 @@ func get_component_damage_report() -> Dictionary:
 	return _component_damage.get_component_report()
 
 
+## Detached operational consequences consumed by this ship's existing control
+## authorities. ComponentDamageModel remains data-only and owns no movement,
+## projectile dispatch, aim query, or repair decision.
+func get_operational_modifiers() -> Dictionary:
+	return _component_damage.get_operational_modifiers() if _component_damage != null else {}
+
+
 func _on_component_state_changed(
 		component_id: StringName,
 		state: int,
@@ -3651,9 +3674,42 @@ func _resume_destroyed_hull_hide_after_reentry() -> void:
 
 
 func _get_damage_engine_multiplier() -> float:
-	if _damage_presentation == null:
-		return 1.0
-	return clampf(_damage_presentation.get_engine_power_multiplier(), 0.0, 1.0)
+	var presentation_power := (
+		clampf(_damage_presentation.get_engine_power_multiplier(), 0.0, 1.0)
+		if _damage_presentation != null
+		else 1.0
+	)
+	var modifiers := get_operational_modifiers()
+	var component_power := clampf(
+		float(modifiers.get("mobility_multiplier", 1.0)),
+		0.0,
+		1.0
+	)
+	return minf(presentation_power, component_power)
+
+
+func _get_damage_weapon_multiplier() -> float:
+	return clampf(
+		float(get_operational_modifiers().get("fire_multiplier", 1.0)),
+		0.0,
+		1.0
+	)
+
+
+func _get_damage_targeting_multiplier() -> float:
+	return clampf(
+		float(get_operational_modifiers().get("targeting_multiplier", 1.0)),
+		0.0,
+		1.0
+	)
+
+
+func _get_weapon_targeting_distance() -> float:
+	return WEAPON_AIM_DISTANCE * lerpf(
+		FAILED_SENSOR_MANUAL_AIM_DISTANCE_FACTOR,
+		1.0,
+		_get_damage_targeting_multiplier()
+	)
 
 
 func _apply_ship_definition() -> void:

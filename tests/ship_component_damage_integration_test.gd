@@ -15,6 +15,7 @@ extends SceneTree
 ## clock or on a fixed number of seconds.
 
 const ARENA_ORIGIN := Vector3(600.0, 90.0, -900.0)
+const ShipCommandType := preload("res://scripts/control/ship_command.gd")
 const OPPONENT_ARENA_OFFSET := Vector3(0.0, 0.0, 60.0)
 ## Bounded budgets. Each loop below exits on its condition; the budget only caps
 ## a failure so the suite terminates instead of hanging.
@@ -77,7 +78,7 @@ func _run() -> void:
 	_test_production_roster()
 	_test_fleet_reset_geometry_stability()
 	_test_hull_authority_is_untouched()
-	_test_difficulty_neutrality()
+	_test_operational_control_modifiers()
 	await _test_live_encounter()
 	await _test_no_repair_in_flight()
 	await _test_whole_main_reentry()
@@ -324,40 +325,69 @@ func _test_hull_authority_is_untouched() -> void:
 	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
 
 
-## The slice deliberately opens no handling channel. A failed section must not
-## move speed, acceleration, or engine power, so encounter difficulty is exactly
-## what it was before the component model existed.
-func _test_difficulty_neutrality() -> void:
+## Resolved component state is consumed by Hero's existing control authorities;
+## the component model itself still owns no motion, projectile, or aim query.
+func _test_operational_control_modifiers() -> void:
 	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
-	var engine_position := _world_component_position(_hero, ShipComponentDamage.COMPONENT_ENGINE_BAY)
-	var engine_power_before := float(_hero.get_telemetry().get("engine_power", -1.0))
-	var guard := 0
-	while (
-		_hero.get_component_damage().get_component_state(ShipComponentDamage.COMPONENT_ENGINE_BAY)
-			!= ShipComponentDamage.ComponentState.FAILED
-		and guard < 8
-	):
-		_hero.call("apply_damage", 11.0, engine_position, Vector3.UP, -1, false)
-		guard += 1
+	_hero.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	_hero.set("_piloted", true)
+	_hero.set("_landed", false)
+	var control := ShipCommandType.new(1, 0, 1, 1.0, 1.0) as ShipCommand
+	_hero.velocity = Vector3.ZERO
+	_hero.call("_update_flight", 0.1, control, true)
+	var nominal_response := _hero.velocity.length()
+
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	_degrade_hero_component_to_impaired(ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	_hero.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	_hero.set("_piloted", true)
+	_hero.set("_landed", false)
+	_hero.velocity = Vector3.ZERO
+	_hero.call("_update_flight", 0.1, control, true)
+	var degraded_response := _hero.velocity.length()
 	var telemetry := _hero.get_telemetry()
 	_check(
-		int(telemetry.get("components_failed", 0)) > 0,
-		"a section can be driven to failure by ordinary defence-cannon damage"
+		is_equal_approx(float(telemetry.get("engine_power", -1.0)), 0.62)
+		and degraded_response < nominal_response
+		and nominal_response > 0.0,
+		"engine-bay damage reduces real Hero thrust and handling response"
+	)
+
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	_degrade_hero_component_to_impaired(ShipComponentDamage.COMPONENT_PORT_WING)
+	_hero.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	_hero.set("_weapon_timer", 0.0)
+	_hero.call("_fire_weapon")
+	var degraded_cooldown := float(_hero.get("_weapon_timer"))
+	var weapon_power := float(_hero.get_telemetry().get("weapon_power", -1.0))
+	_check(
+		is_equal_approx(weapon_power, 0.62)
+		and is_equal_approx(degraded_cooldown, _hero.weapon_cooldown / weapon_power)
+		and degraded_cooldown > _hero.weapon_cooldown,
+		"weapon-wing damage lengthens the real Hero projectile dispatch cadence"
+	)
+
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	var nominal_targeting_distance := float(_hero.call("_get_weapon_targeting_distance"))
+	_degrade_hero_component_to_impaired(ShipComponentDamage.COMPONENT_CORE_SYSTEMS)
+	var degraded_targeting_distance := float(_hero.call("_get_weapon_targeting_distance"))
+	_check(
+		is_equal_approx(float(_hero.get_telemetry().get("targeting_power", -1.0)), 0.62)
+		and degraded_targeting_distance < nominal_targeting_distance,
+		"core-systems damage shortens the real reticle convergence query"
 	)
 	_check(
-		float(telemetry.get("hull", 0.0)) > float(telemetry.get("maximum_hull", 1.0)) * 0.3,
-		"the section fails while the hull is still above its own critical stage"
-	)
-	_check(
-		is_equal_approx(float(telemetry.get("engine_power", -1.0)), engine_power_before)
-		and is_equal_approx(float(telemetry.get("engine_power", -1.0)), 1.0),
-		"a failed section changes no handling value, so encounter difficulty is unmoved"
-	)
-	_check(
-		telemetry.get("damage_status") == &"healthy",
-		"the staged hull channel keeps its own thresholds independent of the roster"
+		_hero.get_telemetry().get("damage_status") == &"healthy",
+		"component control degradation remains independent of the hull presentation stage"
 	)
 	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	var restored := _hero.get_operational_modifiers()
+	_check(
+		is_equal_approx(float(restored.mobility_multiplier), 1.0)
+		and is_equal_approx(float(restored.fire_multiplier), 1.0)
+		and is_equal_approx(float(restored.targeting_multiplier), 1.0),
+		"reuse restores all Hero control modifiers through the single component ledger"
+	)
 
 
 # --------------------------------------------------------- live encounter --
@@ -602,6 +632,10 @@ func _test_berth_repair() -> void:
 		_hero.get_component_damage().get_worst_integrity() < 1.0,
 		"the berthed craft starts the repair measurement with real component damage"
 	)
+	_check(
+		float(_hero.get_operational_modifiers().get("fire_multiplier", 1.0)) < 1.0,
+		"the damaged berthed weapon wing starts with degraded fire capability"
+	)
 	var presentation := _hero.get_damage_presentation()
 	var frames := 0
 	while frames < BERTH_REPAIR_PHYSICS_FRAMES:
@@ -617,6 +651,13 @@ func _test_berth_repair() -> void:
 	_check(
 		presentation.get_active_component_effect_count() == 0,
 		"berth repair retires the localized rigs as the sections return to nominal"
+	)
+	_check(
+		is_equal_approx(
+			float(_hero.get_operational_modifiers().get("fire_multiplier", 0.0)),
+			1.0
+		),
+		"authorized berth repair restores the consumed weapon modifier"
 	)
 	_check(
 		bool(_hero.get_telemetry().get("landed", false))
@@ -755,6 +796,21 @@ func _world_component_position(craft: HeroShip, component_id: StringName) -> Vec
 	if not local.is_finite():
 		return craft.global_position
 	return craft.to_global(local)
+
+
+func _degrade_hero_component_to_impaired(component_id: StringName) -> void:
+	for _hit in 8:
+		if _hero.get_component_damage().get_component_state(component_id) \
+				!= ShipComponentDamage.ComponentState.NOMINAL:
+			return
+		_hero.call(
+			"apply_damage",
+			3.0,
+			_world_component_position(_hero, component_id),
+			Vector3.UP,
+			-1,
+			false
+		)
 
 
 func _worst_component_id(report: Dictionary) -> StringName:

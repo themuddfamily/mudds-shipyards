@@ -49,6 +49,7 @@ func _run() -> void:
 	_test_duplicate_configuration()
 	_test_owner_mutation_transaction()
 	_test_attribution()
+	_test_operational_modifiers_and_repair()
 	_test_state_boundaries()
 	_test_invalid_damage()
 	_test_unlocated_damage()
@@ -117,6 +118,44 @@ func _test_configuration() -> void:
 		model.get_component_report().get("components", []).size()
 			== ShipComponentDamageType.COMPONENT_ORDER.size(),
 		"the audit report hands out copies a caller cannot mutate model state through"
+	)
+	model.free()
+
+
+func _test_operational_modifiers_and_repair() -> void:
+	var model := _make_model()
+	var nominal := model.get_operational_modifiers()
+	_check(
+		is_equal_approx(float(nominal.mobility_multiplier), 1.0)
+		and is_equal_approx(float(nominal.fire_multiplier), 1.0)
+		and is_equal_approx(float(nominal.targeting_multiplier), 1.0),
+		"the single physical component ledger starts with nominal control modifiers"
+	)
+	_degrade_to_impaired(model, ShipComponentDamageType.COMPONENT_ENGINE_BAY)
+	_degrade_to_impaired(model, ShipComponentDamageType.COMPONENT_PORT_WING)
+	_degrade_to_impaired(model, ShipComponentDamageType.COMPONENT_CORE_SYSTEMS)
+	var degraded := model.get_operational_modifiers()
+	_check(
+		is_equal_approx(float(degraded.mobility_multiplier), 0.62)
+		and is_equal_approx(float(degraded.fire_multiplier), 0.62)
+		and is_equal_approx(float(degraded.targeting_multiplier), 0.62)
+		and degraded.component_bindings.engine \
+			== ShipComponentDamageType.COMPONENT_ENGINE_BAY
+		and (degraded.component_bindings.weapons as Array).has(
+			ShipComponentDamageType.COMPONENT_PORT_WING
+		),
+		"engine bay, weaker weapon wing, and core systems publish the bounded runtime channels"
+	)
+	for _step in REPAIR_STEP_BUDGET:
+		model.tick_repair(SIMULATION_STEP, true)
+		if model.get_worst_integrity() >= 1.0:
+			break
+	var repaired := model.get_operational_modifiers()
+	_check(
+		is_equal_approx(float(repaired.mobility_multiplier), 1.0)
+		and is_equal_approx(float(repaired.fire_multiplier), 1.0)
+		and is_equal_approx(float(repaired.targeting_multiplier), 1.0),
+		"authorized repair restores all control modifiers through that same ledger"
 	)
 	model.free()
 
@@ -904,6 +943,13 @@ func _component_position(model: ShipComponentDamage, component_id: StringName) -
 		if StringName(entry.id) == component_id:
 			return entry.local_position as Vector3
 	return Vector3.ZERO
+
+
+func _degrade_to_impaired(model: ShipComponentDamage, component_id: StringName) -> void:
+	for _hit in 8:
+		if model.get_component_state(component_id) != ShipComponentDamageType.ComponentState.NOMINAL:
+			return
+		model.record_damage(3.0, _component_position(model, component_id))
 
 
 func _state_entry(component_id: StringName, state: int, local_position: Vector3) -> Dictionary:

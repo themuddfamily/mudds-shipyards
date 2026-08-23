@@ -53,7 +53,7 @@ const _LEDGER_STAGES := [
 		"stage_id": STATE_ID_IMPAIRED,
 		"health_ratio_at_or_below": IMPAIRED_THRESHOLD,
 		"disabled": false,
-		"performance_multiplier": 1.0,
+		"performance_multiplier": 0.62,
 	},
 	{
 		"stage_id": STATE_ID_FAILED,
@@ -396,6 +396,52 @@ func get_component_states() -> Array[Dictionary]:
 			"local_radius": float(placement.get("local_radius", 0.0)),
 		})
 	return states
+
+
+## Maps the existing physical roster onto data-only operational channels. Hero
+## remains the movement/fire/targeting authority; this adapter only combines
+## resolved ledger stages. Either wing-mounted weapon section can constrain the
+## twin-cannon fire channel, so the weaker side wins deterministically.
+func get_operational_modifiers() -> Dictionary:
+	if not is_configured():
+		return {}
+	var port := _ledger.get_operational_modifiers(
+		COMPONENT_ENGINE_BAY,
+		COMPONENT_PORT_WING,
+		COMPONENT_CORE_SYSTEMS
+	)
+	var starboard := _ledger.get_operational_modifiers(
+		COMPONENT_ENGINE_BAY,
+		COMPONENT_STARBOARD_WING,
+		COMPONENT_CORE_SYSTEMS
+	)
+	if port.is_empty() or starboard.is_empty():
+		return {}
+	return {
+		"generation": int(port.get("generation", 0)),
+		"revision": int(port.get("revision", 0)),
+		"mobility_multiplier": clampf(
+			float(port.get("mobility_multiplier", 0.0)), 0.0, 1.0
+		),
+		"fire_multiplier": minf(
+			clampf(float(port.get("fire_multiplier", 0.0)), 0.0, 1.0),
+			clampf(float(starboard.get("fire_multiplier", 0.0)), 0.0, 1.0)
+		),
+		"targeting_multiplier": clampf(
+			float(port.get("targeting_multiplier", 0.0)), 0.0, 1.0
+		),
+		"mobility_disabled": bool(port.get("mobility_disabled", true)),
+		"fire_disabled": (
+			bool(port.get("fire_disabled", true))
+			or bool(starboard.get("fire_disabled", true))
+		),
+		"targeting_disabled": bool(port.get("targeting_disabled", true)),
+		"component_bindings": {
+			"engine": COMPONENT_ENGINE_BAY,
+			"weapons": [COMPONENT_PORT_WING, COMPONENT_STARBOARD_WING],
+			"sensor": COMPONENT_CORE_SYSTEMS,
+		},
+	}.duplicate(true)
 
 
 func get_component_report() -> Dictionary:
