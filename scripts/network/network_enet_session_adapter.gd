@@ -1029,6 +1029,28 @@ func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
 
 
+## Detached session-quality counters; these are observations, never admission
+## or authority inputs. Every presentation cursor resets with migration.
+func get_session_quality_telemetry() -> Dictionary:
+	var buffers: Array = [_snapshot_jitter, _projectile_jitter, _landing_jitter,
+		_damage_jitter, _boarding_jitter, _migration_jitter, _interest_jitter]
+	var aggregate := {
+		"accepted_count": 0,
+		"released_count": 0,
+		"stale_rejection_count": 0,
+		"gap_rejection_count": 0,
+		"pending_depth": 0,
+		"max_pending_depth": 0,
+		"buffer_count": buffers.size(),
+	}
+	for buffer in buffers:
+		var telemetry: Dictionary = buffer.get_telemetry()
+		for key in [&"accepted_count", &"released_count", &"stale_rejection_count", &"gap_rejection_count", &"pending_depth"]:
+			aggregate[key] = int(aggregate[key]) + int(telemetry.get(key, 0))
+		aggregate.max_pending_depth = maxi(int(aggregate.max_pending_depth), int(telemetry.get("max_pending_depth", 0)))
+	return aggregate.duplicate(true)
+
+
 ## Tracks replica presentation lifetime for interest entries. This cache never
 ## grants replication authority and retired revisions cannot resurrect state.
 func consume_interest_snapshot(packet: Dictionary) -> Dictionary:
