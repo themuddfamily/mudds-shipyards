@@ -6,6 +6,7 @@ extends HeroShip
 
 const PayloadAuthority := preload("res://scripts/combat/bomber_payload_authority.gd")
 const PayloadPresentation := preload("res://scripts/effects/bomber_payload_presentation.gd")
+const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"cinder-long-range-bomber"
@@ -29,6 +30,7 @@ var _payload_hardpoints: Array[Marker3D] = []
 var _bomber_built := false
 var _payload_authority: BomberPayloadAuthority
 var _payload_presentation
+var _ship_perspective_audio_binding: RefCounted
 
 
 func _init() -> void:
@@ -43,6 +45,12 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
 
 
+func _enter_tree() -> void:
+	super._enter_tree()
+	if _ship_perspective_audio_binding != null:
+		call_deferred("_rebind_cinder_perspective_audio")
+
+
 func _ready() -> void:
 	ship_id = COMPONENT_ID
 	display_name = DISPLAY_NAME
@@ -51,9 +59,49 @@ func _ready() -> void:
 	set_meta(&"evidence_status", EVIDENCE_STATUS)
 	set_meta(&"historically_supported", false)
 	super._ready()
+	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
+	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(perspective_result.get("accepted", false)):
+		camera_view_changed.connect(_on_cinder_camera_view_changed)
+	else:
+		_ship_perspective_audio_binding = null
 	if not _bomber_built:
 		_bomber_built = rebuild_variant_presentation(_build_bomber_variant)
 	_build_payload_presentation()
+
+
+func _exit_tree() -> void:
+	if _ship_perspective_audio_binding != null:
+		if camera_view_changed.is_connected(_on_cinder_camera_view_changed):
+			camera_view_changed.disconnect(_on_cinder_camera_view_changed)
+		_ship_perspective_audio_binding.detach()
+	super._exit_tree()
+
+
+func _rebind_cinder_perspective_audio() -> void:
+	if not is_inside_tree() or _ship_perspective_audio_binding == null \
+			or _ship_audio_rig == null or not is_instance_valid(_ship_audio_rig):
+		return
+	var snapshot: Dictionary = _ship_perspective_audio_binding.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		return
+	var result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(result.get("accepted", false)) \
+			and not camera_view_changed.is_connected(_on_cinder_camera_view_changed):
+		camera_view_changed.connect(_on_cinder_camera_view_changed)
+
+
+func _on_cinder_camera_view_changed(view: StringName) -> void:
+	if _ship_perspective_audio_binding == null:
+		return
+	var perspective: StringName = &"cockpit" if view == CAMERA_VIEW_COCKPIT else &"exterior"
+	var generation := int(_ship_perspective_audio_binding.get_snapshot().get("generation", -1))
+	_ship_perspective_audio_binding.present_perspective(perspective, generation)
+
+
+func get_ship_perspective_audio_snapshot() -> Dictionary:
+	return _ship_perspective_audio_binding.get_snapshot() \
+		if _ship_perspective_audio_binding != null else {"attached": false}
 
 
 func _physics_process(delta: float) -> void:
