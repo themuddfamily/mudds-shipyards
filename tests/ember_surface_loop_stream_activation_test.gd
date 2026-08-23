@@ -35,5 +35,6 @@ func _run() -> void:
 		quit(1)
 		return
 	print("EMBER_SURFACE_LOOP_STREAM_ACTIVATION_TEST_OK")
+	main.free()
 	quit(0)
 func _reward(_receipt: Dictionary) -> Dictionary: return {"accepted": true}
