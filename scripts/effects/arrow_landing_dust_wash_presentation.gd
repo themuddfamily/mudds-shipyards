@@ -1,9 +1,9 @@
 class_name ArrowLandingDustWashPresentation
 extends Node3D
 
-## Bounded, ship-local renderer for Ember's powered airless descent. Caller
-## observations select visibility only; this component has no process callback,
-## collision, movement, damage, atmosphere, or landing authority.
+## Bounded, ship-local renderer for Ember's powered airless final approach.
+## Caller-owned support, clearance, and descent observations drive presentation
+## only; this component has no process callback or gameplay authority.
 
 const COMPONENT_ID: StringName = &"arrow-landing-dust-wash-presentation"
 const MAX_VISIBLE_ALTITUDE_M := 350.0
@@ -12,13 +12,25 @@ const MIN_DESCENT_SPEED_MPS := 2.0
 const FULL_DESCENT_SPEED_MPS := 32.0
 const MAX_VISUAL_INTENSITY := 0.72
 const REDUCED_FLASH_SCALE := 0.45
-const REDUCED_MOTION_SCALE := 0.82
+const MAX_DUST_SCALE_DELTA := 0.6
+const REDUCED_MOTION_DUST_SCALE_DELTA := 0.22
+const MAX_THRUSTER_SCALE_DELTA := 0.45
+const REDUCED_MOTION_THRUSTER_SCALE_DELTA := 0.15
+const THRUSTER_OPACITY_SCALE := 0.82
 
 var _dust: CPUParticles3D
 var _dust_material: StandardMaterial3D
 var _thruster_material: StandardMaterial3D
 var _thrusters: Array[MeshInstance3D] = []
 var _intensity := 0.0
+var _support_clearance_factor := 0.0
+var _descent_factor := 0.0
+var _presentation_load := 0.0
+var _dust_opacity := 0.0
+var _dust_scale := 1.0
+var _thruster_opacity := 0.0
+var _thruster_scale := 1.0
+var _landing_supported := false
 var _observation_count := 0
 var _last_reason: StringName = &"not_presented"
 var _reduced_flash := false
@@ -27,54 +39,53 @@ var _reduced_motion := false
 
 func _ready() -> void:
 	_build_visuals()
-	_apply_intensity(0.0)
+	_reset_visuals()
 
 
 func _exit_tree() -> void:
-	_apply_intensity(0.0)
+	_reset_visuals()
 
 
 func present_observation(
 		altitude_m: float, vertical_speed_mps: float, airless: bool,
-		reduced_flash: bool, reduced_motion: bool
+		landing_supported: bool, reduced_flash: bool, reduced_motion: bool
 	) -> Dictionary:
 	if not is_finite(altitude_m) or not is_finite(vertical_speed_mps) \
 			or altitude_m < 0.0:
 		return _result(false, &"invalid_observation")
 	_reduced_flash = reduced_flash
 	_reduced_motion = reduced_motion
+	_landing_supported = landing_supported
 	var reason: StringName = &"low_altitude_descent"
-	var candidate := 0.0
+	var clearance_factor := 0.0
+	var descent_factor := 0.0
 	if not airless:
 		reason = &"atmospheric_branch_zero"
+	elif not landing_supported:
+		reason = &"landing_support_unavailable"
 	elif altitude_m >= MAX_VISIBLE_ALTITUDE_M:
 		reason = &"high_altitude_zero"
 	elif vertical_speed_mps >= -MIN_DESCENT_SPEED_MPS:
 		reason = &"climb_or_level_zero"
 	else:
-		var altitude_factor := clampf(
+		clearance_factor = clampf(
 			(MAX_VISIBLE_ALTITUDE_M - altitude_m) \
 				/ (MAX_VISIBLE_ALTITUDE_M - FULL_WASH_ALTITUDE_M),
 			0.0, 1.0,
 		)
-		var descent_factor := clampf(
+		descent_factor = clampf(
 			(-vertical_speed_mps - MIN_DESCENT_SPEED_MPS) \
 				/ (FULL_DESCENT_SPEED_MPS - MIN_DESCENT_SPEED_MPS),
 			0.0, 1.0,
 		)
-		candidate = altitude_factor * descent_factor * MAX_VISUAL_INTENSITY
-		if reduced_flash:
-			candidate *= REDUCED_FLASH_SCALE
-		if reduced_motion:
-			candidate *= REDUCED_MOTION_SCALE
-	_apply_intensity(candidate)
+	_apply_load(clearance_factor, descent_factor, reduced_flash, reduced_motion)
 	_observation_count += 1
 	_last_reason = reason
 	return _result(true, reason)
 
 
 func clear(reason: StringName = &"cleared") -> Dictionary:
-	_apply_intensity(0.0)
+	_reset_visuals()
 	_last_reason = reason
 	return _result(true, reason)
 
@@ -83,6 +94,14 @@ func get_snapshot() -> Dictionary:
 	return {
 		"component_id": COMPONENT_ID,
 		"intensity": _intensity,
+		"support_clearance_factor": _support_clearance_factor,
+		"descent_factor": _descent_factor,
+		"presentation_load": _presentation_load,
+		"dust_opacity": _dust_opacity,
+		"dust_scale": _dust_scale,
+		"thruster_opacity": _thruster_opacity,
+		"thruster_scale": _thruster_scale,
+		"landing_supported": _landing_supported,
 		"visible": _intensity > 0.0,
 		"dust_emitting": _dust != null and _dust.emitting,
 		"thruster_visible_count": _visible_thruster_count(),
@@ -91,6 +110,32 @@ func get_snapshot() -> Dictionary:
 		"reduced_flash": _reduced_flash,
 		"reduced_motion": _reduced_motion,
 		"steady_emission": _dust != null and is_zero_approx(_dust.randomness),
+		"continuous_clearance_descent_response": true,
+		"effect_bounds": {
+			"max_dust_opacity": MAX_VISUAL_INTENSITY,
+			"reduced_flash_max_dust_opacity": (
+				MAX_VISUAL_INTENSITY * REDUCED_FLASH_SCALE
+			),
+			"min_scale": 1.0,
+			"max_dust_scale": 1.0 + MAX_DUST_SCALE_DELTA,
+			"reduced_motion_max_dust_scale": (
+				1.0 + REDUCED_MOTION_DUST_SCALE_DELTA
+			),
+			"max_thruster_scale": 1.0 + MAX_THRUSTER_SCALE_DELTA,
+			"reduced_motion_max_thruster_scale": (
+				1.0 + REDUCED_MOTION_THRUSTER_SCALE_DELTA
+			),
+		}.duplicate(true),
+		"node_budget": {
+			"total_nodes": 4,
+			"particle_nodes": 1,
+			"mesh_nodes": 2,
+			"process_loops": 0,
+		}.duplicate(true),
+		"resource_budget": {
+			"mesh_resources": 3,
+			"material_resources": 2,
+		}.duplicate(true),
 		"ship_local": true,
 		"presentation_only": true,
 		"collision_authority": false,
@@ -156,22 +201,47 @@ func _build_visuals() -> void:
 	add_child(_dust)
 
 
-func _apply_intensity(value: float) -> void:
-	_intensity = clampf(value, 0.0, MAX_VISUAL_INTENSITY)
+func _apply_load(
+		clearance_factor: float, descent_factor: float,
+		reduced_flash: bool, reduced_motion: bool
+	) -> void:
+	_support_clearance_factor = clampf(clearance_factor, 0.0, 1.0)
+	_descent_factor = clampf(descent_factor, 0.0, 1.0)
+	_presentation_load = _support_clearance_factor * _descent_factor
+	var opacity_cap := MAX_VISUAL_INTENSITY * (
+		REDUCED_FLASH_SCALE if reduced_flash else 1.0
+	)
+	var dust_scale_delta := REDUCED_MOTION_DUST_SCALE_DELTA \
+		if reduced_motion else MAX_DUST_SCALE_DELTA
+	var thruster_scale_delta := REDUCED_MOTION_THRUSTER_SCALE_DELTA \
+		if reduced_motion else MAX_THRUSTER_SCALE_DELTA
+	_dust_opacity = _presentation_load * opacity_cap
+	_dust_scale = 1.0 + _presentation_load * dust_scale_delta
+	_thruster_opacity = _dust_opacity * THRUSTER_OPACITY_SCALE
+	_thruster_scale = 1.0 + _presentation_load * thruster_scale_delta
+	_intensity = _dust_opacity
 	if _dust != null:
 		_dust.emitting = _intensity > 0.0 and is_inside_tree()
-		_dust.amount = maxi(1, roundi(6.0 + 18.0 * _intensity / MAX_VISUAL_INTENSITY))
-		_dust.color = Color(1.0, 1.0, 1.0, _intensity)
-		# A fixed emission stream avoids flashing/flicker in both accessibility
-		# modes; reduced settings additionally lower the bounded intensity.
+		_dust.amount = maxi(1, roundi(6.0 + 18.0 * _presentation_load))
+		_dust.color = Color(1.0, 1.0, 1.0, _dust_opacity)
+		_dust.scale = Vector3.ONE * _dust_scale
+		# A fixed stream avoids flicker; accessibility settings only lower the
+		# bounded opacity or geometry expansion computed above.
 		_dust.randomness = 0.0
 	for thruster in _thrusters:
 		thruster.visible = _intensity > 0.0
-		thruster.scale = Vector3(1.0, 0.25 + _intensity, 1.0)
+		thruster.scale = Vector3(1.0, _thruster_scale, 1.0)
 	if _thruster_material != null:
 		var color := _thruster_material.albedo_color
-		color.a = _intensity * 0.82
+		color.a = _thruster_opacity
 		_thruster_material.albedo_color = color
+
+
+func _reset_visuals() -> void:
+	_reduced_flash = false
+	_reduced_motion = false
+	_landing_supported = false
+	_apply_load(0.0, 0.0, false, false)
 
 
 func _visible_thruster_count() -> int:

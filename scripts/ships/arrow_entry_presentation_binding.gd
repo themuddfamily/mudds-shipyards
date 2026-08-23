@@ -141,7 +141,7 @@ func present_observation(
 	if _landing_wash != null:
 		wash_result = _landing_wash.call(
 			&"present_observation", altitude_m, vertical_speed_mps,
-			not _atmospheric,
+			not _atmospheric, landing_supported,
 			bool(accessibility.get("reduced_flash", false)),
 			bool(accessibility.get("reduced_motion", false))
 		) as Dictionary

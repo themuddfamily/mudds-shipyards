@@ -54,6 +54,7 @@ func _run() -> void:
 	production.set("_composition_root", composition)
 	production.set("_ship", arrow)
 	production.set("_ship_instance_id", arrow.get_instance_id())
+	production.probe_phase = EmberSurfaceLoopHost.Phase.LANDING_APPROACH
 	production.set("_last_planetary_altitude_m", 100.0)
 	var airless := production.advance_from_caller_sample(
 		1, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
@@ -72,6 +73,24 @@ func _run() -> void:
 	var safe_exterior := (airless_snapshot.entry_presentation as Dictionary).get(
 		"exterior_envelope", {}
 	) as Dictionary
+	var physical_wash := arrow.get_arrow_visual_root().get_node_or_null(
+		^"ArrowLandingDustWashPresentation"
+	) as Node3D
+	var physical_wash_id := physical_wash.get_instance_id() \
+		if physical_wash != null else 0
+	var physical_dust := physical_wash.get_node_or_null(
+		^"ShipLocalDustWash"
+	) as CPUParticles3D if physical_wash != null else null
+	var physical_thruster := physical_wash.get_node_or_null(
+		^"PortLandingThruster"
+	) as MeshInstance3D if physical_wash != null else null
+	var physical_thruster_material := (
+		physical_thruster.mesh.material as StandardMaterial3D
+	) if physical_thruster != null else null
+	var normal_dust_scale := physical_dust.scale.x \
+		if physical_dust != null else 0.0
+	var normal_thruster_scale := physical_thruster.scale.y \
+		if physical_thruster != null else 0.0
 	var physical_entry_readout := arrow.get_arrow_visual_root().get_node_or_null(
 		^"CockpitInterior/InstrumentCluster/EntryDescentReadout"
 	) as Label3D
@@ -104,6 +123,25 @@ func _run() -> void:
 		and float(normal_wash.get("intensity", 0.0)) > 0.0
 		and normal_wash.get("dust_emitting") == true
 		and normal_wash.get("thruster_visible_count") == 2
+		and normal_wash.get("landing_supported") == true
+		and float(normal_wash.get("support_clearance_factor", 0.0)) > 0.0
+		and float(normal_wash.get("descent_factor", 0.0)) > 0.0
+		and float(normal_wash.get("presentation_load", 0.0)) > 0.0
+		and normal_wash.get("continuous_clearance_descent_response") == true
+		and physical_wash != null
+		and physical_dust != null and physical_dust.emitting
+		and is_equal_approx(
+			physical_dust.color.a, float(normal_wash.get("dust_opacity", -1.0))
+		)
+		and physical_thruster != null and physical_thruster.visible
+		and physical_thruster_material != null
+		and is_equal_approx(
+			physical_thruster_material.albedo_color.a,
+			float(normal_wash.get("thruster_opacity", -1.0))
+		)
+		and (normal_wash.get("node_budget", {}) as Dictionary).get(
+			"total_nodes"
+		) == 4
 		and normal_wash.get("collision_authority") == false
 		and normal_wash.get("movement_authority") == false
 		and normal_wash.get("damage_authority") == false
@@ -178,6 +216,18 @@ func _run() -> void:
 		and reduced_wash.get("reduced_flash") == true
 		and reduced_wash.get("reduced_motion") == true
 		and reduced_wash.get("steady_emission") == true
+		and is_equal_approx(
+			float(reduced_wash.get("presentation_load", -1.0)),
+			float(normal_wash.get("presentation_load", -2.0))
+		)
+		and float(reduced_wash.get("dust_opacity", 0.0)) \
+			< float(normal_wash.get("dust_opacity", 0.0))
+		and float(reduced_wash.get("dust_scale", 0.0)) \
+			< float(normal_wash.get("dust_scale", 0.0))
+		and float(reduced_wash.get("thruster_scale", 0.0)) \
+			< float(normal_wash.get("thruster_scale", 0.0))
+		and physical_dust.scale.x < normal_dust_scale
+		and physical_thruster.scale.y < normal_thruster_scale
 		and reduced_cockpit.get("reduced_flash") == true
 		and reduced_cockpit.get("reduced_motion") == true
 		and reduced_cockpit.get("steady") == true
@@ -196,6 +246,7 @@ func _run() -> void:
 		"reduced settings lower the wash while airless exterior heat remains zero",
 	)
 
+	production.set("_last_planetary_altitude_m", 45.0)
 	var high_sink_airless := production.advance_from_caller_sample(
 		3, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
@@ -204,6 +255,9 @@ func _run() -> void:
 	var high_sink_cockpit := (
 		production.get_snapshot().entry_presentation as Dictionary
 	).get("cockpit_readout", {}) as Dictionary
+	var high_sink_wash := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("landing_wash", {}) as Dictionary
 	var high_sink_exterior := (
 		production.get_snapshot().entry_presentation as Dictionary
 	).get("exterior_envelope", {}) as Dictionary
@@ -216,6 +270,23 @@ func _run() -> void:
 			"filled_segments"
 		) == 4
 		and high_sink_cockpit.get("steady") == true
+		and is_equal_approx(float(high_sink_wash.get(
+			"presentation_load", -1.0
+		)), 1.0)
+		and float(high_sink_wash.get("dust_opacity", 0.0)) \
+			> float(reduced_wash.get("dust_opacity", 0.0))
+		and float(high_sink_wash.get("dust_scale", 0.0)) \
+			> float(reduced_wash.get("dust_scale", 0.0))
+		and float(high_sink_wash.get("dust_opacity", 1.0)) <= 0.324
+		and float(high_sink_wash.get("dust_scale", 2.0)) <= 1.22
+		and float(high_sink_wash.get("thruster_scale", 2.0)) <= 1.15
+		and is_equal_approx(
+			physical_dust.scale.x, float(high_sink_wash.get("dust_scale", 0.0))
+		)
+		and is_equal_approx(
+			physical_thruster.scale.y,
+			float(high_sink_wash.get("thruster_scale", 0.0))
+		)
 		and physical_entry_readout.text == high_sink_cockpit.get("text")
 		and high_sink_exterior.get("visible_segment_count") == 0
 		and high_sink_exterior.get("airless_zero") == true
@@ -226,8 +297,34 @@ func _run() -> void:
 		"high sink remains legible in the cockpit without inventing airless heat",
 	)
 
-	var climbing_airless := production.advance_from_caller_sample(
+	production.probe_phase = EmberSurfaceLoopHost.Phase.DESCENT
+	var unsupported := production.advance_from_caller_sample(
 		4, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
+		false, false, false, {}, 1, 1, 0
+	)
+	var unsupported_wash := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("landing_wash", {}) as Dictionary
+	_check(
+		bool(unsupported.get("accepted", false))
+		and unsupported_wash.get("last_reason") \
+			== &"landing_support_unavailable"
+		and unsupported_wash.get("landing_supported") == false
+		and is_zero_approx(float(unsupported_wash.get("intensity", -1.0)))
+		and is_zero_approx(float(unsupported_wash.get(
+			"presentation_load", -1.0
+		)))
+		and not physical_dust.emitting
+		and physical_dust.scale.is_equal_approx(Vector3.ONE)
+		and not physical_thruster.visible
+		and physical_thruster.scale.is_equal_approx(Vector3.ONE),
+		"wash requires the caller-accepted landing support phase",
+	)
+
+	production.probe_phase = EmberSurfaceLoopHost.Phase.LANDING_APPROACH
+	var climbing_airless := production.advance_from_caller_sample(
+		5, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 15.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -261,7 +358,7 @@ func _run() -> void:
 
 	production.set("_last_planetary_altitude_m", 500.0)
 	var high_airless := production.advance_from_caller_sample(
-		5, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		6, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -20.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -281,7 +378,7 @@ func _run() -> void:
 	production.set("_atmosphere_composition", atmosphere)
 	production.set("_last_planetary_altitude_m", 14_000.0)
 	var atmospheric_midpoint := production.advance_from_caller_sample(
-		6, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		7, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -294,7 +391,7 @@ func _run() -> void:
 	var midpoint_physical_scale := physical_segments.scale.x
 	production.set("_last_planetary_altitude_m", 10_000.0)
 	var atmospheric := production.advance_from_caller_sample(
-		7, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		8, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -307,6 +404,7 @@ func _run() -> void:
 	var high_sink_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
 	var atmospheric_cockpit := bridge.get("cockpit_readout", {}) as Dictionary
 	var atmospheric_exterior := bridge.get("exterior_envelope", {}) as Dictionary
+	var atmospheric_wash := bridge.get("landing_wash", {}) as Dictionary
 	_check(
 		bool(atmospheric.get("accepted", false))
 		and source.get("branch_id") == &"atmospheric"
@@ -318,6 +416,16 @@ func _run() -> void:
 			"atmospheric_intensity", -1.0
 		)), 0.5)
 		and is_equal_approx(float(entry.get("entry_intensity", 0.0)), 1.0)
+		and atmospheric_wash.get("last_reason") == &"atmospheric_branch_zero"
+		and is_zero_approx(float(atmospheric_wash.get("dust_opacity", -1.0)))
+		and is_equal_approx(float(atmospheric_wash.get(
+			"dust_scale", 0.0
+		)), 1.0)
+		and not physical_dust.emitting
+		and physical_dust.scale.is_equal_approx(Vector3.ONE)
+		and not physical_thruster.visible
+		and physical_thruster.scale.is_equal_approx(Vector3.ONE)
+		and is_zero_approx(physical_thruster_material.albedo_color.a)
 		and title != null and title.text == "Critical Atmospheric Entry"
 		and detail != null and detail.text.begins_with(
 			"[ STEADY ENTRY LOAD CRITICAL ]"
@@ -355,7 +463,7 @@ func _run() -> void:
 	)
 
 	var climb := production.advance_from_caller_sample(
-		8, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		9, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 15.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -435,6 +543,7 @@ func _run() -> void:
 	)
 	var entry_binding := production.get("_entry_presentation_binding") as RefCounted
 	var detached := entry_binding.call(&"detach") as Dictionary
+	var cleared_wash := physical_wash.call(&"get_snapshot") as Dictionary
 	var cleared_physical := physical_entry_readout.call(&"get_snapshot") as Dictionary
 	var cleared_exterior := physical_exterior.call(&"get_snapshot") as Dictionary
 	var detached_wash := entry_binding.call(&"get_snapshot").get(
@@ -448,6 +557,22 @@ func _run() -> void:
 		and is_zero_approx(float(detached_wash.get("intensity", -1.0)))
 		and detached_wash.get("visible") == false
 		and detached_wash.get("last_reason") == &"detached_zero"
+		and cleared_wash.get("last_reason") == &"detached_zero"
+		and is_zero_approx(float(cleared_wash.get("dust_opacity", -1.0)))
+		and is_equal_approx(float(cleared_wash.get("dust_scale", 0.0)), 1.0)
+		and is_zero_approx(float(cleared_wash.get(
+			"thruster_opacity", -1.0
+		)))
+		and is_equal_approx(float(cleared_wash.get(
+			"thruster_scale", 0.0
+		)), 1.0)
+		and cleared_wash.get("landing_supported") == false
+		and not physical_dust.emitting
+		and is_zero_approx(physical_dust.color.a)
+		and physical_dust.scale.is_equal_approx(Vector3.ONE)
+		and not physical_thruster.visible
+		and physical_thruster.scale.is_equal_approx(Vector3.ONE)
+		and is_zero_approx(physical_thruster_material.albedo_color.a)
 		and detached_cockpit.get("visible") == false
 		and detached_cockpit.get("text") == ""
 		and cleared_physical.get("visible") == false
@@ -499,9 +624,24 @@ func _run() -> void:
 	var reentry_exterior_snapshot := reentry_exterior.call(
 		&"get_snapshot"
 	) as Dictionary if reentry_exterior != null else {}
+	var reentry_wash := arrow.get_arrow_visual_root().get_node_or_null(
+		^"ArrowLandingDustWashPresentation"
+	) as Node3D
+	var reentry_wash_snapshot := reentry_wash.call(
+		&"get_snapshot"
+	) as Dictionary if reentry_wash != null else {}
 	_check(
 		bool(reattached.get("accepted", false))
 		and bool(reentered.get("accepted", false))
+		and reentry_wash != null
+		and reentry_wash.get_instance_id() != physical_wash_id
+		and is_zero_approx(float(reentry_wash_snapshot.get(
+			"dust_opacity", -1.0
+		)))
+		and is_equal_approx(float(reentry_wash_snapshot.get(
+			"dust_scale", 0.0
+		)), 1.0)
+		and reentry_wash_snapshot.get("landing_supported") == false
 		and reentry_readout != null
 		and reentry_readout.get_instance_id() != physical_readout_id
 		and reentry_snapshot.get("text") \
@@ -526,7 +666,7 @@ func _run() -> void:
 	composition.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 11 assertions")
+		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 12 assertions")
 		quit(0)
 		return
 	for failure in _failures:
