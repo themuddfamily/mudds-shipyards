@@ -67,6 +67,15 @@ const PORTAL_Z := 9.7
 const PORTAL_MAST_HALF_SPAN := 6.5
 const PORTAL_HEADER_ELEVATION := 5.95
 
+## Freight-control doorway lintel. Its broad Y/Z face is visible throughout the
+## starboard service approach; the old proportional bevel was only 92 mm deep
+## and still read as a rectangular block at that distance. A 0.65 m capsule end
+## radius gives the threshold an authored pressure-frame silhouette while the
+## exact box collision and overall envelope remain unchanged.
+const FREIGHT_CONTROL_HEADER_SIZE := Vector3(0.42, 1.3, 4.05)
+const FREIGHT_CONTROL_HEADER_END_RADIUS := 0.65
+const FREIGHT_CONTROL_HEADER_CURVE_SEGMENTS := 8
+
 ## Painted handling bays. Both sit on the apron flanks outside the parked hull's
 ## protected width, which is what makes the wide empty middle of the apron read
 ## as reserved for the craft rather than as unfinished floor.
@@ -2035,11 +2044,11 @@ func _build_approach_portal() -> void:
 	# at z = 26.975 and `InnerWallAft` restarts at z = 31.025, leaving a 4.05 m by
 	# 4.5 m hole with a 3.1 m door in the middle of it. This is the header that
 	# should always have spanned it, and it is what `FREIGHT CONTROL` now reads off.
-	var door_header := _rounded_box(
+	var door_header := _freight_control_capsule_header(
 		self,
 		"FreightControlDoorHeader",
 		Vector3(16.3, 3.85, 29.0),
-		Vector3(0.42, 1.3, 4.05),
+		FREIGHT_CONTROL_HEADER_SIZE,
 		_materials["ceramic"]
 	)
 	_register_handling_fixture(door_header, &"freight-control-door-header")
@@ -3046,6 +3055,115 @@ func _rounded_box(
 		mesh_instance.mesh = mesh
 		mesh_instance.material_override = material
 	return container
+
+
+## Collision-backed service-door lintel with a capsule outline in its broad Y/Z
+## face and constant X extrusion. The body, collider, material and authored
+## bounds intentionally match the former rounded box; only the visible silhouette
+## changes. Eighteen boundary points emit 72 triangles, down from the previous
+## chamfered box's 108 triangles, with no added node or submission.
+func _freight_control_capsule_header(
+		parent: Node3D,
+		node_name: String,
+		position_value: Vector3,
+		size: Vector3,
+		material: Material,
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = position_value
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	body.set_meta("geometry_profile", &"yz_extruded_capsule_header")
+	body.set_meta("end_radius_m", FREIGHT_CONTROL_HEADER_END_RADIUS)
+	body.set_meta("curve_segments_per_end", FREIGHT_CONTROL_HEADER_CURVE_SEGMENTS)
+	body.set_meta("evidence_status", EVIDENCE_STATUS)
+	body.set_meta("authenticated_original_geometry", false)
+	parent.add_child(body, true)
+
+	var visual := MeshInstance3D.new()
+	visual.name = "Mesh"
+	visual.mesh = _yz_extruded_capsule_mesh(
+		size,
+		FREIGHT_CONTROL_HEADER_END_RADIUS,
+		FREIGHT_CONTROL_HEADER_CURVE_SEGMENTS
+	)
+	visual.material_override = material
+	body.add_child(visual)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+func _yz_extruded_capsule_mesh(
+		size: Vector3,
+		end_radius: float,
+		segments_per_end: int,
+	) -> ArrayMesh:
+	var radius := clampf(end_radius, 0.001, minf(size.y, size.z) * 0.5)
+	var segment_count := maxi(segments_per_end, 2)
+	var straight_half_width := size.z * 0.5 - radius
+	# Boundary points are (z, y), counter-clockwise when viewed from local -X.
+	var boundary: Array[Vector2] = []
+	for segment in segment_count + 1:
+		var angle := lerpf(-PI * 0.5, PI * 0.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			straight_half_width + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+	for segment in segment_count + 1:
+		var angle := lerpf(PI * 0.5, PI * 1.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			-straight_half_width + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+
+	var half_depth := size.x * 0.5
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in boundary.size():
+		var current := boundary[index]
+		var next := boundary[(index + 1) % boundary.size()]
+		var current_uv := Vector2(current.x / size.z + 0.5, current.y / size.y + 0.5)
+		var next_uv := Vector2(next.x / size.z + 0.5, next.y / size.y + 0.5)
+		# Service-approach cap, outward toward local -X.
+		_emit_capsule_vertex(surface, Vector3(-half_depth, 0.0, 0.0), Vector3.LEFT, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), Vector3.LEFT, current_uv)
+		_emit_capsule_vertex(surface, Vector3(-half_depth, next.y, next.x), Vector3.LEFT, next_uv)
+		# Room-side cap, outward toward local +X.
+		_emit_capsule_vertex(surface, Vector3(half_depth, 0.0, 0.0), Vector3.RIGHT, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), Vector3.RIGHT, next_uv)
+		_emit_capsule_vertex(surface, Vector3(half_depth, current.y, current.x), Vector3.RIGHT, current_uv)
+		# Constant-depth rim following the rounded outline.
+		var rim_normal := Vector3(0.0, current.x - next.x, next.y - current.y).normalized()
+		var rim_u := float(index) / float(boundary.size())
+		var rim_next_u := float(index + 1) / float(boundary.size())
+		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(-half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 0.0))
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	mesh.resource_name = "jovian_freight_control_capsule_header_v1"
+	return mesh
+
+
+func _emit_capsule_vertex(
+		surface: SurfaceTool,
+		position_value: Vector3,
+		normal: Vector3,
+		uv: Vector2,
+	) -> void:
+	surface.set_normal(normal)
+	surface.set_uv(uv)
+	surface.add_vertex(position_value)
 
 
 ## Deliberately NOT folded into `StationSurfaceKit`, unlike the five other
