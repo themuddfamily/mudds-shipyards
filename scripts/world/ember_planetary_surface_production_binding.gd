@@ -224,7 +224,7 @@ func submit_solar_observation(
 
 
 func apply_graphics_profile(profile: StringName) -> Dictionary:
-	if not _live() or profile not in [&"low", &"high"]:
+	if not _live() or profile not in [&"low", &"medium", &"high"]:
 		return _result(false, &"invalid_graphics_profile")
 	_water_presentation.call(&"apply_graphics_profile", profile)
 	for practical: Node in _settlement_practicals.values():

@@ -21,10 +21,14 @@ func _run() -> void:
 	practical.apply_solar_phase({"state": &"night", "sun_elevation_sine": -1.0})
 	var low: bool = atmosphere.apply_graphics_profile(&"low").accepted and water.apply_graphics_profile(&"low").accepted and practical.apply_graphics_profile(&"low").accepted
 	var low_snapshot := practical.get_snapshot()
+	var medium: bool = atmosphere.apply_graphics_profile(&"medium").accepted and water.apply_graphics_profile(&"medium").accepted and practical.apply_graphics_profile(&"medium").accepted
+	var medium_snapshot := practical.get_snapshot()
 	var high: bool = atmosphere.apply_graphics_profile(&"high").accepted and water.apply_graphics_profile(&"high").accepted and practical.apply_graphics_profile(&"high").accepted
-	if not configured or not recipe.accepted or not low or not high or low_snapshot.energy > 0.4501 or atmosphere.get_presentation_snapshot().graphics_profile != &"high":
+	if not configured or not recipe.accepted or not low or not medium or not high \
+			or low_snapshot.energy > 0.4501 or medium_snapshot.energy > 0.7501 \
+			or atmosphere.get_presentation_snapshot().graphics_profile != &"high":
 		push_error("graphics profile presentation lifecycle failed")
 		quit(1)
 		return
-	print("PLANETARY_PRESENTATION_GRAPHICS_PROFILE_TEST_OK: low/high bounded presentation")
+	print("PLANETARY_PRESENTATION_GRAPHICS_PROFILE_TEST_OK: low/medium/high bounded presentation")
 	quit(0)

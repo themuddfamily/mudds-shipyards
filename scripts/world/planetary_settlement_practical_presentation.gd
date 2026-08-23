@@ -44,7 +44,7 @@ func apply_solar_phase(snapshot: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_solar_phase"}
 	var night_factor := clampf(-float(elevation), 0.0, 1.0) if state != &"daylight" else 0.0
 	_light.visible = night_factor > 0.01
-	var energy_cap := 0.45 if _graphics_profile == &"low" else 1.1
+	var energy_cap := 0.45 if _graphics_profile == &"low" else (0.75 if _graphics_profile == &"medium" else 1.1)
 	_light.light_energy = clampf(night_factor * energy_cap, 0.0, energy_cap)
 	_light.light_color = Color(1.0, 0.55 + night_factor * 0.2, 0.3 + night_factor * 0.25, 1.0)
 	_last_solar = solar.duplicate(true)
@@ -52,7 +52,7 @@ func apply_solar_phase(snapshot: Variant) -> Dictionary:
 
 
 func apply_graphics_profile(profile: StringName) -> Dictionary:
-	if profile not in [&"low", &"high"]:
+	if profile not in [&"low", &"medium", &"high"]:
 		return {"accepted": false, "reason": &"invalid_graphics_profile"}
 	_graphics_profile = profile
 	if not _last_solar.is_empty():

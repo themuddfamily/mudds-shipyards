@@ -27,6 +27,7 @@ var _last_recipe: Dictionary = {}
 var _cloud_shadow_projection: MeshInstance3D
 var _graphics_profile: StringName = &"high"
 var _cloud_shadow_enabled := true
+var _cloud_shadow_opacity_scale := 1.0
 
 
 func _ready() -> void:
@@ -160,7 +161,7 @@ func apply_retained_presentation_recipe(
 	cloud.transparency = clampf(1.0 - float(weather.get("cloud_opacity_unitless", 0.0)), 0.0, 1.0)
 	var shadow_material := _cloud_shadow_projection.material_override as ShaderMaterial
 	if shadow_material != null:
-		var shadow_opacity := clampf(float(weather.get("cloud_opacity_unitless", 0.0)) * 0.35, 0.0, 0.35)
+		var shadow_opacity := clampf(float(weather.get("cloud_opacity_unitless", 0.0)) * 0.35 * _cloud_shadow_opacity_scale, 0.0, 0.35)
 		shadow_material.set_shader_parameter("shadow_opacity", shadow_opacity)
 		shadow_material.set_shader_parameter("wind_offset", weather.get("wind_velocity_mps", Vector3.ZERO))
 		_cloud_shadow_projection.visible = _cloud_shadow_enabled and shadow_opacity > 0.01
@@ -197,10 +198,11 @@ func get_presentation_snapshot() -> Dictionary:
 
 
 func apply_graphics_profile(profile: StringName) -> Dictionary:
-	if profile not in [&"low", &"high"]:
+	if profile not in [&"low", &"medium", &"high"]:
 		return {"accepted": false, "reason": &"invalid_graphics_profile"}
 	_graphics_profile = profile
 	_cloud_shadow_enabled = profile != &"low"
+	_cloud_shadow_opacity_scale = 0.6 if profile == &"medium" else 1.0
 	if not _cloud_shadow_enabled and _cloud_shadow_projection != null:
 		_cloud_shadow_projection.visible = false
 	elif _cloud_shadow_enabled and not _last_recipe.is_empty():

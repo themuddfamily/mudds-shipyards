@@ -64,6 +64,8 @@ func apply_presentation_recipe(solar_snapshot: Variant, weather_snapshot: Varian
 	var wave_strength := clampf(0.05 + wind_value.length() / 1000.0 * 0.25, 0.05, 0.3)
 	if _graphics_profile == &"low":
 		wave_strength *= 0.35
+	elif _graphics_profile == &"medium":
+		wave_strength *= 0.7
 	_material.set_shader_parameter("wave_strength", wave_strength)
 	_material.set_shader_parameter("wind_velocity", wind_value)
 	_last_recipe = {"solar": solar.duplicate(true), "weather": weather.duplicate(true), "water_color": water_color}.duplicate(true)
@@ -71,7 +73,7 @@ func apply_presentation_recipe(solar_snapshot: Variant, weather_snapshot: Varian
 
 
 func apply_graphics_profile(profile: StringName) -> Dictionary:
-	if profile not in [&"low", &"high"]:
+	if profile not in [&"low", &"medium", &"high"]:
 		return {"accepted": false, "reason": &"invalid_graphics_profile"}
 	_graphics_profile = profile
 	if not _last_recipe.is_empty():
