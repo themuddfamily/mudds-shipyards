@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameFlowScript := preload("res://scripts/game/game_flow.gd")
+const MainScene := preload("res://scenes/main.tscn")
 const BerthScript := preload("res://scripts/world/ship_berth.gd")
 const ARROW_DEFINITION := preload("res://assets/ships/arrow_provisional.tres")
 const StoreScript := preload("res://scripts/persistence/user_data_store.gd")
@@ -58,6 +59,9 @@ func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	var authored_main := MainScene.instantiate()
+	var authored_binding_count := authored_main.find_children("EmberSurfaceLoopProductionBinding", "Node", true, false).size()
+	authored_main.free()
 	var berth := BerthScript.new()
 	berth.berth_id = &"mudds_return_berth"
 	var craft := ReturnCraft.new()
@@ -105,7 +109,8 @@ func _run() -> void:
 	var replay := flow.consume_planetary_return_receipt(
 		receipt, binding, berth, craft, actor
 	)
-	var valid: bool = occupied and not rejected.accepted \
+	var valid: bool = authored_binding_count == 1 \
+			and occupied and not rejected.accepted \
 			and not stale_result.accepted \
 			and accepted.accepted \
 			and accepted.reason == &"planetary_return_consumed" \

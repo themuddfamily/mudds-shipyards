@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -30,6 +30,7 @@
 [ext_resource type="Script" path="res://scripts/world/cinder_streamed_ship_berth_binding.gd" id="27_cinder_berths"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ember_moon_streaming_bootstrap.tscn" id="28_ember_streaming"]
 [ext_resource type="Script" path="res://scripts/world/ember_moon_streaming_production_binding.gd" id="29_ember_binding"]
+[ext_resource type="Script" path="res://scripts/world/ember_surface_loop_production_binding.gd" id="32_ember_surface_loop_binding"]
 [ext_resource type="Script" path="res://scripts/world/common_world_origin_rebase_owner.gd" id="30_origin_owner"]
 [ext_resource type="Script" path="res://scripts/control/planetary_cruise_production_binding.gd" id="31_cruise_binding"]
 
@@ -106,6 +107,9 @@ script = ExtResource("26_cinder_convoy")
 
 [node name="EmberMoonStreamingProductionBinding" type="Node" parent="."]
 script = ExtResource("29_ember_binding")
+
+[node name="EmberSurfaceLoopProductionBinding" type="Node" parent="."]
+script = ExtResource("32_ember_surface_loop_binding")
 
 [node name="CommonWorldOriginRebaseOwner" type="Node" parent="."]
 script = ExtResource("30_origin_owner")

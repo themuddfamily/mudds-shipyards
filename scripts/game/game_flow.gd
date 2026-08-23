@@ -303,6 +303,7 @@ var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
 var ember_streaming_bootstrap: EmberMoonStreamingBootstrap
 var ember_streaming_binding: EmberMoonStreamingProductionBinding
+var ember_surface_loop_production_binding: EmberSurfaceLoopProductionBinding
 var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
 var planetary_cruise_binding: PlanetaryCruiseProductionBinding
 var cargo_transfer_authority: CargoTransferAuthority
@@ -392,6 +393,7 @@ var _runtime_settings_reentrant_rejection_count := 0
 var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
 var _session_diagnostics_last_status: Dictionary = {}
 var _session_diagnostics_filesystem: UserDataFilesystem
+var _session_recovery_command_status: Dictionary = {}
 const _DIAGNOSTIC_STARTUP := 1
 const _DIAGNOSTIC_BOARD := 2
 const _DIAGNOSTIC_DISEMBARK := 3
@@ -700,6 +702,10 @@ func _resolve_scene_bindings() -> void:
 	ember_streaming_binding = (
 		get_node_or_null(^"EmberMoonStreamingProductionBinding")
 		as EmberMoonStreamingProductionBinding
+	)
+	ember_surface_loop_production_binding = (
+		get_node_or_null(^"EmberSurfaceLoopProductionBinding")
+		as EmberSurfaceLoopProductionBinding
 	)
 	common_world_origin_rebase_owner = (
 		get_node_or_null(^"CommonWorldOriginRebaseOwner")
@@ -1116,7 +1122,10 @@ func _get_startup_stager() -> MainStartupStagerType:
 ## difference is when the authored subtree became complete.
 func _start_up() -> void:
 	_initialize_runtime_settings()
+	bind_planetary_return_persistence(ember_surface_loop_production_binding)
+	restore_planetary_return_persistence()
 	_initialize_session_diagnostics()
+	_apply_command_line_recovery_args(OS.get_cmdline_args())
 	player.teleport_to(world.get_player_spawn())
 	player.set_control_enabled(false)
 	player.set_camera_active(false)
@@ -1162,6 +1171,7 @@ func get_session_diagnostics_snapshot() -> Dictionary:
 		"available": _session_diagnostics_bridge != null,
 		"last_status": _session_diagnostics_last_status.duplicate(true),
 		"bridge": _session_diagnostics_bridge.get_snapshot() if _session_diagnostics_bridge != null else {},
+		"recovery_command": _session_recovery_command_status.duplicate(true),
 	}.duplicate(true)
 
 
@@ -1219,6 +1229,34 @@ func choose_session_start_recovery(choice: StringName) -> Dictionary:
 	if _safe_start_production_recovery != null:
 		apply_safe = Callable(_safe_start_production_recovery, &"apply_current_session_safe_graphics")
 	return _session_diagnostics_bridge.choose_recovery(choice, apply_safe)
+
+
+func apply_command_line_recovery_args(args: PackedStringArray) -> Dictionary:
+	return _apply_command_line_recovery_args(args)
+
+
+func _apply_command_line_recovery_args(args: PackedStringArray) -> Dictionary:
+	var safe_requested := args.has("--safe-mode")
+	var discard_requested := args.has("--discard-recovery")
+	if not safe_requested and not discard_requested:
+		_session_recovery_command_status = {"accepted": true, "reason": &"not_requested", "source": &"command_line"}
+		return _session_recovery_command_status.duplicate(true)
+	if safe_requested and discard_requested:
+		_session_recovery_command_status = {"accepted": false, "reason": &"conflicting_recovery_flags", "source": &"command_line"}
+		return _session_recovery_command_status.duplicate(true)
+	if _session_diagnostics_bridge == null or get_recovery_available_snapshot().is_empty():
+		_session_recovery_command_status = {"accepted": false, "reason": &"no_recovery_available", "source": &"command_line"}
+		return _session_recovery_command_status.duplicate(true)
+	var choice: StringName = &"safe_graphics_windowed" if safe_requested else &"discard"
+	var result := choose_session_start_recovery(choice)
+	_session_recovery_command_status = {
+		"accepted": bool(result.get("accepted", false)),
+		"reason": result.get("reason", &"command_recovery_failed"),
+		"source": &"command_line",
+		"choice": choice,
+		"result": result.duplicate(true),
+	}.duplicate(true)
+	return _session_recovery_command_status.duplicate(true)
 
 
 func _record_session_lifecycle_transition(
@@ -4180,6 +4218,8 @@ func consume_planetary_return_receipt(
 	if not receipt is Dictionary:
 		return {"accepted": false, "reason": &"planetary_return_receipt_invalid"}
 	var returned := receipt as Dictionary
+	if planetary_binding == null:
+		planetary_binding = ember_surface_loop_production_binding
 	if not bool(returned.get("accepted", false)) \
 			or StringName(returned.get("reason", &"")) != &"returned_to_station":
 		return {"accepted": false, "reason": &"planetary_return_receipt_invalid"}
