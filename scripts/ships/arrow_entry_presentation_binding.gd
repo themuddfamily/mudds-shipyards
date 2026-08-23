@@ -171,7 +171,7 @@ func present_observation(
 			and bool(cockpit_result.get("accepted", false)):
 		exterior_result = _exterior_envelope.call(
 			&"present_envelope", cockpit_result.get("snapshot", {}),
-			StringName(source.branch_id),
+			StringName(source.branch_id), float(source.entry_intensity),
 			bool(accessibility.get("reduced_flash", false)),
 			bool(accessibility.get("reduced_motion", false)),
 			_observation_count + 1, _exterior_generation

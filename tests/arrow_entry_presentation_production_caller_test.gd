@@ -81,6 +81,9 @@ func _run() -> void:
 	var physical_segments := physical_exterior.get_node_or_null(
 		^"EnvelopeSegments"
 	) as MultiMeshInstance3D if physical_exterior != null else null
+	var physical_segment_material := (
+		physical_segments.multimesh.mesh.material as StandardMaterial3D
+	) if physical_segments != null else null
 	var physical_recovery_ring := physical_exterior.get_node_or_null(
 		^"RecoveryRing"
 	) as MeshInstance3D if physical_exterior != null else null
@@ -122,20 +125,26 @@ func _run() -> void:
 		and safe_cockpit.get("landing_authority") == false
 		and physical_entry_readout != null
 		and physical_entry_readout.text == safe_cockpit.get("text")
-		and safe_exterior.get("visible_segment_count") == 1
-		and safe_exterior.get("marker_text") == "AIRLESS SINK 1/5"
+		and safe_exterior.get("visible_segment_count") == 0
+		and is_zero_approx(float(safe_exterior.get(
+			"atmospheric_intensity", -1.0
+		)))
+		and is_zero_approx(float(safe_exterior.get("effect_opacity", -1.0)))
+		and is_equal_approx(float(safe_exterior.get("effect_scale", 0.0)), 1.0)
+		and safe_exterior.get("airless_zero") == true
+		and safe_exterior.get("marker_text") == ""
 		and safe_exterior.get("color_independent") == true
-		and physical_exterior != null and physical_exterior.visible
+		and physical_exterior != null and not physical_exterior.visible
 		and physical_segments != null
-		and physical_segments.multimesh.visible_instance_count == 1
+		and physical_segment_material != null
+		and physical_segments.multimesh.visible_instance_count == 0
+		and physical_segments.scale.is_equal_approx(Vector3.ONE)
 		and physical_exterior_marker != null
-		and physical_exterior_marker.text == "AIRLESS SINK 1/5"
+		and physical_exterior_marker.text == ""
+		and not physical_exterior_marker.visible
 		and physical_exterior_marker.billboard \
 			== BaseMaterial3D.BILLBOARD_ENABLED
 		and chase_camera != null
-		and chase_camera.is_position_in_frustum(
-			physical_exterior_marker.global_position
-		)
 		and (safe_exterior.get("node_budget", {}) as Dictionary).get(
 			"total_nodes"
 		) == 4
@@ -143,7 +152,7 @@ func _run() -> void:
 			"particle_nodes"
 		) == 0
 		and hud.get("_runtime_status_kind") == &"entry",
-		"low Ember descent reaches the HUD, cockpit, wash, and chase silhouette",
+		"low Ember descent reaches the HUD, cockpit, and wash with exact-zero exterior heat",
 	)
 
 	hud.set_reduced_flash(true)
@@ -177,10 +186,14 @@ func _run() -> void:
 		and reduced_exterior.get("reduced_flash") == true
 		and reduced_exterior.get("reduced_motion") == true
 		and reduced_exterior.get("steady") == true
-		and reduced_exterior.get("visible_segment_count") == 1
-		and float(reduced_exterior.get("visual_intensity_scale", 1.0)) \
-			< float(safe_exterior.get("visual_intensity_scale", 0.0)),
-		"reduced settings lower the wash and retain steady emission",
+		and reduced_exterior.get("visible_segment_count") == 0
+		and is_zero_approx(float(reduced_exterior.get(
+			"visual_intensity_scale", -1.0
+		)))
+		and is_zero_approx(float(reduced_exterior.get(
+			"effect_emission", -1.0
+		))),
+		"reduced settings lower the wash while airless exterior heat remains zero",
 	)
 
 	var high_sink_airless := production.advance_from_caller_sample(
@@ -204,10 +217,13 @@ func _run() -> void:
 		) == 4
 		and high_sink_cockpit.get("steady") == true
 		and physical_entry_readout.text == high_sink_cockpit.get("text")
-		and high_sink_exterior.get("visible_segment_count") == 4
-		and high_sink_exterior.get("marker_text") == "AIRLESS SINK 4/5"
-		and physical_segments.multimesh.visible_instance_count == 4,
-		"high sink is legible in cockpit and chase views without relying on color",
+		and high_sink_exterior.get("visible_segment_count") == 0
+		and high_sink_exterior.get("airless_zero") == true
+		and is_zero_approx(float(high_sink_exterior.get(
+			"effect_opacity", -1.0
+		)))
+		and physical_segments.multimesh.visible_instance_count == 0,
+		"high sink remains legible in the cockpit without inventing airless heat",
 	)
 
 	var climbing_airless := production.advance_from_caller_sample(
@@ -235,12 +251,12 @@ func _run() -> void:
 			"recovery"
 		) == true
 		and climb_exterior.get("visible_segment_count") == 0
-		and climb_exterior.get("recovery") == true
-		and climb_exterior.get("recovery_ring_visible") == true
-		and climb_exterior.get("marker_text") == "ENTRY RECOVER 0/5"
-		and physical_recovery_ring != null and physical_recovery_ring.visible
-		and physical_exterior_marker.text == "ENTRY RECOVER 0/5",
-		"climb clears the wash and shows a non-color-only recovery envelope",
+		and climb_exterior.get("recovery") == false
+		and climb_exterior.get("recovery_ring_visible") == false
+		and climb_exterior.get("marker_text") == ""
+		and physical_recovery_ring != null and not physical_recovery_ring.visible
+		and physical_exterior_marker.text == "",
+		"airless climb clears both wash and atmosphere-only exterior effects",
 	)
 
 	production.set("_last_planetary_altitude_m", 500.0)
@@ -263,9 +279,22 @@ func _run() -> void:
 	atmosphere.atmosphere_profile = AURORA_ATMOSPHERE
 	composition.add_child(atmosphere)
 	production.set("_atmosphere_composition", atmosphere)
+	production.set("_last_planetary_altitude_m", 14_000.0)
+	var atmospheric_midpoint := production.advance_from_caller_sample(
+		6, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
+		false, false, false, {}, 1, 1, 0
+	)
+	var midpoint_entry := (
+		production.get_snapshot().last_entry_presentation_result as Dictionary
+	)
+	var midpoint_exterior := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("exterior_envelope", {}) as Dictionary
+	var midpoint_physical_scale := physical_segments.scale.x
 	production.set("_last_planetary_altitude_m", 10_000.0)
 	var atmospheric := production.advance_from_caller_sample(
-		6, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		7, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -281,6 +310,13 @@ func _run() -> void:
 	_check(
 		bool(atmospheric.get("accepted", false))
 		and source.get("branch_id") == &"atmospheric"
+		and bool(atmospheric_midpoint.get("accepted", false))
+		and is_equal_approx(float(midpoint_entry.get(
+			"entry_intensity", -1.0
+		)), 0.5)
+		and is_equal_approx(float(midpoint_exterior.get(
+			"atmospheric_intensity", -1.0
+		)), 0.5)
 		and is_equal_approx(float(entry.get("entry_intensity", 0.0)), 1.0)
 		and title != null and title.text == "Critical Atmospheric Entry"
 		and detail != null and detail.text.begins_with(
@@ -301,14 +337,25 @@ func _run() -> void:
 		) as Dictionary).get("severity_id") == &"critical"
 		and atmospheric_cockpit.get("steady") == true
 		and atmospheric_exterior.get("visible_segment_count") == 5
-		and atmospheric_exterior.get("marker_text") == "ATM ENTRY 5/5"
+		and atmospheric_exterior.get("marker_text") == "ATM ENTRY 100% 5/5"
 		and atmospheric_exterior.get("recovery_ring_visible") == false
+		and atmospheric_exterior.get("continuous_intensity_response") == true
+		and float(midpoint_exterior.get("effect_opacity", -1.0)) > 0.0
+		and float(midpoint_exterior.get("effect_opacity", 1.0)) \
+			< float(atmospheric_exterior.get("effect_opacity", 0.0))
+		and float(atmospheric_exterior.get("effect_opacity", 1.0)) <= 0.42
+		and float(midpoint_exterior.get("effect_emission", 1.0)) \
+			< float(atmospheric_exterior.get("effect_emission", 0.0))
+		and float(atmospheric_exterior.get("effect_emission", 1.0)) <= 0.95
+		and midpoint_physical_scale > 1.0
+		and midpoint_physical_scale < physical_segments.scale.x
+		and physical_segments.scale.x <= 1.06
 		and physical_segments.multimesh.visible_instance_count == 5,
-		"atmospheric altitude and Arrow speed drive visible steady reduced-flash heat guidance",
+		"accepted intensity continuously increases bounded steady reduced-flash heat opacity and scale",
 	)
 
 	var climb := production.advance_from_caller_sample(
-		7, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		8, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
 		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 15.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
@@ -354,11 +401,13 @@ func _run() -> void:
 		"last_observation_serial", -1
 	))
 	var stale_exterior := physical_exterior.call(
-		&"present_envelope", atmospheric_cockpit, &"atmospheric", true, true,
+		&"present_envelope", atmospheric_cockpit, &"atmospheric", 1.0,
+		true, true,
 		last_exterior_serial + 1, exterior_generation - 1
 	) as Dictionary
 	var replayed_exterior := physical_exterior.call(
-		&"present_envelope", atmospheric_cockpit, &"atmospheric", true, true,
+		&"present_envelope", atmospheric_cockpit, &"atmospheric", 1.0,
+		true, true,
 		last_exterior_serial, exterior_generation
 	) as Dictionary
 	var exterior_after_fence := physical_exterior.call(
@@ -410,7 +459,26 @@ func _run() -> void:
 		) as Dictionary).get("filled_segments", -1)) == 0
 		and cleared_exterior.get("visible") == false
 		and cleared_exterior.get("visible_segment_count") == 0
+		and is_zero_approx(float(cleared_exterior.get(
+			"atmospheric_intensity", -1.0
+		)))
+		and is_zero_approx(float(cleared_exterior.get(
+			"effect_opacity", -1.0
+		)))
+		and is_equal_approx(float(cleared_exterior.get(
+			"effect_scale", 0.0
+		)), 1.0)
 		and cleared_exterior.get("recovery_ring_visible") == false
+		and physical_segments.scale.is_equal_approx(Vector3.ONE)
+		and is_zero_approx(physical_segment_material.albedo_color.a)
+		and is_zero_approx(
+			physical_segment_material.emission_energy_multiplier
+		)
+		and is_zero_approx(float(
+			arrow.get_entry_heat_target().get_material().get_shader_parameter(
+				&"entry_effect_intensity_unitless"
+			)
+		))
 		and int(cleared_exterior.get("generation", -1)) \
 			== exterior_generation + 1,
 		"detach clears wash and both generation-fenced physical envelopes",
@@ -445,6 +513,10 @@ func _run() -> void:
 		and reentry_exterior != null
 		and reentry_exterior.get_instance_id() != physical_exterior_id
 		and reentry_exterior_snapshot.get("visible_segment_count") == 5
+		and is_equal_approx(float(reentry_exterior_snapshot.get(
+			"atmospheric_intensity", -1.0
+		)), 1.0)
+		and float(reentry_exterior_snapshot.get("effect_opacity", 0.0)) > 0.0
 		and reentry_exterior_snapshot.get("recovery") == false
 		and int(reentry_exterior_snapshot.get("generation", -1)) == 1,
 		"re-entry creates a clean envelope generation without inherited recovery",
