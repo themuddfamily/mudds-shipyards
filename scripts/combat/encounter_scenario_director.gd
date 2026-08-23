@@ -91,10 +91,14 @@ const OUTCOME_EXPIRED: StringName = &"expired"
 const TERMINAL_OUTCOMES: Array[StringName] = [
 	OUTCOME_CLEARED, OUTCOME_ESCAPED, OUTCOME_WITHDRAWN, OUTCOME_ABORTED, OUTCOME_EXPIRED,
 ]
+const TACTIC_SUPPRESS: StringName = &"suppress"
+const TACTIC_FLANK_UNDER_COVER: StringName = &"flank_under_cover"
+const TACTIC_ENGAGE: StringName = &"engage"
+const TACTIC_WITHHOLD: StringName = &"withhold"
 
 const CONTENT_NOTE := (
-	"The scenario roster, objectives, boundary distances, escort trigger, and "
-	+ "every timing value are an original modern interpretation. They do not "
+	"The scenario roster, objectives, boundary distances, escort trigger, paired-wing "
+	+ "suppression opening, and every timing value are an original modern interpretation. They do not "
 	+ "reproduce or claim any authenticated historical Keth Shipyards mission, "
 	+ "patrol, objective, or scenario."
 )
@@ -123,6 +127,13 @@ const CONTENT_NOTE := (
 ## Hull ratio below which the courier broadcasts and its escort launches.
 @export_range(0.0, 1.0, 0.01) var distress_hull_ratio := 0.82
 @export_range(0.0, 20.0, 0.1) var escort_response_delay := 2.4
+
+@export_category("Paired wing tactic")
+## Opening window in which the anchor supplies suppressive fire while the
+## flanker moves for the rear arc. Existing opponents consume this director's
+## dispatch-frame fire gate; the resolver and each craft's movement/arc rules
+## remain the sole authorities for what happens after the intent.
+@export_range(0.0, 10.0, 0.1) var suppression_lead_time := 2.2
 
 @export_category("Encounter wiring")
 @export var encounter_host_path := NodePath("..")
@@ -249,7 +260,48 @@ func is_fire_authorized(member: Node) -> bool:
 		return false
 	if not _is_phase_authorized():
 		return false
+	if _paired_wing_suppression_active():
+		var coordinator := _get_wing_coordinator()
+		if is_instance_valid(coordinator):
+			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
 	return true
+
+
+## Detached maneuver/fire intent for the live paired-wing tactic. Opponents use
+## `is_fire_authorized()` directly; this snapshot makes the simultaneous anchor
+## suppression and covered flanking decision inspectable without owning motion,
+## aim, ray queries, or damage.
+func get_member_tactic_intent(member: Node) -> Dictionary:
+	var authorized := is_fire_authorized(member)
+	var action := TACTIC_WITHHOLD
+	var role := WingCoordinator.ROLE_UNASSIGNED
+	var coordinator := _get_wing_coordinator()
+	if is_instance_valid(coordinator) and member is Node3D:
+		role = coordinator.get_role(member as Node3D)
+	if _paired_wing_suppression_active():
+		action = (
+			TACTIC_SUPPRESS
+			if role == WingCoordinator.ROLE_ANCHOR
+			else TACTIC_FLANK_UNDER_COVER
+		)
+	elif authorized:
+		action = TACTIC_ENGAGE
+	return {
+		"action": action,
+		"fire_authorized": authorized,
+		"role": role,
+		"suppression_active": _paired_wing_suppression_active(),
+		"elapsed": _elapsed,
+	}.duplicate(true)
+
+
+func _paired_wing_suppression_active() -> bool:
+	return (
+		_state == STATE_RUNNING
+		and _scenario == SCENARIO_PAIRED_WING
+		and suppression_lead_time > 0.0
+		and _elapsed < suppression_lead_time
+	)
 
 
 # ------------------------------------------------------------ lifecycle ----
@@ -699,6 +751,7 @@ func get_evidence_metadata() -> Dictionary:
 		"modern_interpretations": PackedStringArray([
 			"intercept-before-it-escapes objective and its boundary distance",
 			"coordinated pair objective and its split entry",
+			"anchor suppression opening while its flanker maneuvers under cover",
 			"distress broadcast and escort response timing",
 			"every scenario duration, radius, and delay",
 		]),
@@ -742,6 +795,7 @@ func get_audit_report() -> Dictionary:
 			"disengage_grace": disengage_grace,
 			"escape_distance": escape_distance,
 			"start_delay": start_delay,
+			"suppression_lead_time": suppression_lead_time,
 		},
 	}.duplicate(true)
 
@@ -757,6 +811,9 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("the disengage grace must be finite and non-negative")
 	if not is_finite(escape_distance) or escape_distance <= 0.0:
 		errors.append("the escape distance must be finite and positive")
+	if not is_finite(suppression_lead_time) \
+			or suppression_lead_time < 0.0 or suppression_lead_time > 10.0:
+		errors.append("the suppression lead time must stay inside its finite 0..10 second bound")
 	if not is_finite(_elapsed) or _elapsed < 0.0:
 		errors.append("scenario elapsed time must be finite and non-negative")
 	if _state == STATE_RUNNING and _elapsed > scenario_time_limit:

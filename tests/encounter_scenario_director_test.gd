@@ -76,6 +76,7 @@ func _run() -> void:
 	await _test_queued_target_is_rejected_before_scenario_mutation()
 	await _test_queued_target_aborts_an_active_scenario()
 	await _test_paired_wing_cleared_when_broken()
+	await _test_paired_wing_suppression_opens_crossfire()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
 	await _test_production_bounds_and_audit()
@@ -502,6 +503,50 @@ func _test_paired_wing_cleared_when_broken() -> void:
 		"a concluded wing scenario dismisses its whole roster from the coordinator"
 	)
 	await _assert_fully_terminated(fixture, "wing broken")
+	await _free_fixture(fixture)
+
+
+func _test_paired_wing_suppression_opens_crossfire() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var coordinator: WingCoordinator = fixture.coordinator
+	var target: EncounterTarget = fixture.target
+	_check(
+		director.begin_scenario(EncounterScenarioDirector.SCENARIO_PAIRED_WING, target),
+		"paired wing suppression fixture starts through the production scenario authority"
+	)
+	var anchor := coordinator.get_anchor() as FlankingSkirmisherOpponent
+	var flanker: FlankingSkirmisherOpponent = null
+	for member in fixture.skirmishers as Array[FlankingSkirmisherOpponent]:
+		if member != anchor:
+			flanker = member
+			break
+	# Put the flanker in its own valid rear firing arc. Its dispatch must still be
+	# denied during the lead window specifically by the director's suppression
+	# intent, then accepted by that same existing opponent gate after release.
+	flanker.global_position = target.global_position + Vector3(0.0, 0.0, 36.0)
+	flanker.look_at(target.global_position, Vector3.UP)
+	var anchor_intent := director.get_member_tactic_intent(anchor)
+	var flank_intent := director.get_member_tactic_intent(flanker)
+	_check(
+		anchor_intent.action == EncounterScenarioDirector.TACTIC_SUPPRESS
+		and bool(anchor_intent.fire_authorized)
+		and flank_intent.action == EncounterScenarioDirector.TACTIC_FLANK_UNDER_COVER
+		and not bool(flank_intent.fire_authorized),
+		"opening intent authorizes anchor suppression while the flanker maneuvers under cover"
+	)
+	_check(
+		not bool(flanker.call("_is_fire_authorized")),
+		"the existing rear-arc-ready opponent consumes the suppression fire denial"
+	)
+	director._physics_process(director.suppression_lead_time + 0.01)
+	var released_intent := director.get_member_tactic_intent(flanker)
+	_check(
+		released_intent.action == EncounterScenarioDirector.TACTIC_ENGAGE
+		and bool(released_intent.fire_authorized)
+		and bool(flanker.call("_is_fire_authorized")),
+		"bounded lead expiry releases crossfire through the existing opponent dispatch gate"
+	)
 	await _free_fixture(fixture)
 
 
