@@ -86,12 +86,97 @@ func _run() -> void:
 	print("STATION_STRUCTURAL_DRESSING_PERFORMANCE: ", performance)
 	_check(bool(performance["within_budget"]), "maximum-detail component remains within every explicit budget")
 	_check(
-		int(counts["mesh_instances"]) == 27
-		and int(counts["multimesh_batches"]) == 3
-		and int(counts["geometry_submissions"]) == 30
+		int(counts["mesh_instances"]) == 19
+		and int(counts["multimesh_batches"]) == 4
+		and int(counts["geometry_submissions"]) == 23
 		and int(counts["visible_primitives"]) == 41,
-		"high quality preserves 41 visible copies through 30 renderer submissions"
+		"high quality preserves 41 visible copies through 23 renderer submissions"
 	)
+	var brace_batch := dressing.get_node_or_null(
+		^"PresentationRoot/StructuralCoreRoot/CrossBraceBatch"
+	) as MultiMeshInstance3D
+	var expected_brace_transforms: Array[Transform3D] = []
+	var first_x := -7.0 + 0.14
+	var last_x := 7.0 - 0.14
+	var top_y := -0.14 * 1.35
+	var lower_y := -1.08 + 0.14 * 1.3
+	var brace_z := 0.78 * 0.58
+	var brace_height := 0.0
+	var stable_brace_anchors := true
+	for bay_index in 4:
+		var bay_start := lerpf(first_x, last_x, float(bay_index) / 4.0)
+		var bay_end := lerpf(first_x, last_x, float(bay_index + 1) / 4.0)
+		var endpoints := [
+			[Vector3(bay_start, lower_y, brace_z), Vector3(bay_end, top_y, brace_z)],
+			[Vector3(bay_start, top_y, brace_z), Vector3(bay_end, lower_y, brace_z)],
+		]
+		for brace_side in 2:
+			var from := endpoints[brace_side][0] as Vector3
+			var to := endpoints[brace_side][1] as Vector3
+			var direction := to - from
+			brace_height = direction.length()
+			var expected_transform := Transform3D(
+				Basis(Quaternion(Vector3.UP, direction.normalized())),
+				(from + to) * 0.5
+			)
+			expected_brace_transforms.append(expected_transform)
+			var anchor := dressing.get_node_or_null(NodePath(
+				"PresentationRoot/StructuralCoreRoot/CrossBrace%s%02d"
+				% ["A" if brace_side == 0 else "B", bay_index + 1]
+			)) as Marker3D
+			stable_brace_anchors = stable_brace_anchors and (
+				anchor != null
+				and anchor.transform.is_equal_approx(expected_transform)
+				and anchor.get_child_count() == 0
+				and anchor.get_script() == null
+				and anchor.get_groups().is_empty()
+			)
+	var authored_brace_transforms := (
+		brace_batch.get_meta("authored_instance_transforms", []) as Array
+		if brace_batch != null else []
+	)
+	var exact_brace_transforms := authored_brace_transforms.size() == expected_brace_transforms.size()
+	for brace_index in mini(authored_brace_transforms.size(), expected_brace_transforms.size()):
+		exact_brace_transforms = exact_brace_transforms and (
+			authored_brace_transforms[brace_index] is Transform3D
+			and (authored_brace_transforms[brace_index] as Transform3D).is_equal_approx(
+				expected_brace_transforms[brace_index]
+			)
+		)
+	_check(
+		brace_batch != null
+		and brace_batch.multimesh != null
+		and brace_batch.multimesh.instance_count == 8
+		and brace_batch.multimesh.visible_instance_count == 8
+		and brace_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.084, brace_height, 0.084)
+		)
+		and exact_brace_transforms
+		and stable_brace_anchors
+		and brace_batch.get_child_count() == 0
+		and dressing.find_children("CrossBrace?*", "MeshInstance3D", true, false).is_empty(),
+		"eight stable cross-brace paths retain exact geometry and transforms through one inert visual batch"
+	)
+	_check(
+		int(counts["mesh_instances"]) == 27 - 8
+		and int(counts["multimesh_batches"]) == 3 + 1
+		and int(counts["geometry_submissions"]) == 30 - 7,
+		"cross-brace family records 8 -> 1 renderer submissions with all eight copies preserved"
+	)
+	if brace_batch != null and brace_batch.multimesh != null:
+		var original_brace_buffer := brace_batch.multimesh.buffer.duplicate()
+		var drifted_brace_buffer := original_brace_buffer.duplicate()
+		drifted_brace_buffer[3] += 0.25
+		brace_batch.multimesh.buffer = drifted_brace_buffer
+		_check(
+			not bool(dressing.get_audit_report()["valid"]),
+			"structured red: cross-brace renderer-buffer drift fails the component audit"
+		)
+		brace_batch.multimesh.buffer = original_brace_buffer
+		_check(
+			bool(dressing.get_audit_report()["valid"]),
+			"restoring the exact cross-brace renderer buffer repairs the component audit"
+		)
 	var task_batch := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStripBatch") as MultiMeshInstance3D
 	var task_anchor_01 := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStrip01") as Marker3D
 	var task_anchor_02 := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStrip02") as Marker3D
@@ -260,7 +345,7 @@ func _run() -> void:
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
 	performance = dressing.get_performance_audit()
 	counts = performance["counts"] as Dictionary
-	_check(int(counts["mesh_instances"]) == 27 and int(counts["visible_primitives"]) == 33, "medium quality keeps 27 allocated meshes plus three batches and exposes 33 copies")
+	_check(int(counts["mesh_instances"]) == 19 and int(counts["visible_primitives"]) == 33, "medium quality keeps 19 allocated meshes plus four batches and exposes 33 copies")
 	_check(int(counts["visible_lights"]) == 0, "medium quality hides the high-tier task light")
 	_check(int(counts["node_count"]) == high_node_count, "medium quality performs no structural allocation")
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.LOW), "quality API accepts low")
@@ -366,7 +451,7 @@ func _run() -> void:
 	(detached_audit["evidence"] as Dictionary).clear()
 	(detached_audit["node_contract"] as Dictionary).clear()
 	var fresh_audit := dressing.audit()
-	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 27, "deep-copy audit protects nested performance counts")
+	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 19, "deep-copy audit protects nested performance counts")
 	_check(not (fresh_audit["integration"] as Dictionary).is_empty(), "deep-copy audit protects integration state")
 	_check(not (fresh_audit["evidence"] as Dictionary).is_empty(), "deep-copy audit protects evidence state")
 	_check(not (fresh_audit["node_contract"] as Dictionary).is_empty(), "deep-copy audit protects semantic node paths")

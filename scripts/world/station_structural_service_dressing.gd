@@ -42,8 +42,8 @@ const RADIATOR_VENT_COUNT := 6
 const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
-const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT
-const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 3
+const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT - CROSS_BRACE_COUNT
+const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 4
 
 ## The four resident dressing instances all publish this one material-free,
 ## immutable fastener recipe. It intentionally lives for the session rather
@@ -52,12 +52,12 @@ const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 3
 static var _fascia_fastener_mesh_cache: Dictionary = {}
 
 const PERFORMANCE_BUDGET := {
-	"node_count": 56,
-	"visible_primitives": 45,
-	"mesh_instances": 45,
-	"multimesh_batches": 3,
-	"geometry_submissions": 40,
-	"unique_materials": 10,
+	"node_count": 47,
+	"visible_primitives": 41,
+	"mesh_instances": 19,
+	"multimesh_batches": 4,
+	"geometry_submissions": 23,
+	"unique_materials": 8,
 	"lights": 1,
 	"visible_lights": 1,
 	"shadow_casting_lights": 0,
@@ -100,6 +100,7 @@ var _task_light: OmniLight3D
 var _radiator_vent_batch: MultiMeshInstance3D
 var _task_strip_batch: MultiMeshInstance3D
 var _fascia_fastener_batch: MultiMeshInstance3D
+var _cross_brace_batch: MultiMeshInstance3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _built := false
@@ -507,6 +508,69 @@ func get_radiator_vent_batch_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_cross_brace_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_transforms := _cross_brace_transforms()
+	var expected_mesh := _cross_brace_mesh()
+	var multimesh := _cross_brace_batch.multimesh if is_instance_valid(_cross_brace_batch) else null
+	if (
+		not is_instance_valid(_cross_brace_batch)
+		or _structural_core_root.get_node_or_null(^"CrossBraceBatch") != _cross_brace_batch
+		or multimesh == null
+	):
+		errors.append("cross_brace_batch_missing")
+	else:
+		if multimesh.mesh != expected_mesh:
+			errors.append("cross_brace_mesh_identity_drift")
+		if multimesh.instance_count != CROSS_BRACE_COUNT or multimesh.visible_instance_count != CROSS_BRACE_COUNT:
+			errors.append("cross_brace_copy_count_drift")
+		if multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
+			errors.append("cross_brace_transform_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(expected_mesh.get_aabb(), expected_transforms)
+		):
+			errors.append("cross_brace_culling_bounds_drift")
+	if is_instance_valid(_cross_brace_batch) and (
+		_cross_brace_batch.material_override != _materials.get("brace")
+		or _cross_brace_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		or _cross_brace_batch.layers != 1
+		or _cross_brace_batch.get_child_count() != 0
+		or _cross_brace_batch.get_script() != null
+		or not _cross_brace_batch.get_groups().is_empty()
+	):
+		errors.append("cross_brace_visual_contract_drift")
+	for brace_index in CROSS_BRACE_COUNT:
+		var side := "A" if brace_index % 2 == 0 else "B"
+		var bay := brace_index / 2 + 1
+		var anchor := _structural_core_root.get_node_or_null(
+			NodePath("CrossBrace%s%02d" % [side, bay])
+		) as Marker3D
+		if (
+			anchor == null
+			or not anchor.transform.is_equal_approx(expected_transforms[brace_index])
+			or anchor.get_child_count() != 0
+			or anchor.get_script() != null
+			or not anchor.get_groups().is_empty()
+		):
+			errors.append("cross_brace_anchor_drift:%s%02d" % [side, bay])
+	if not _structural_core_root.find_children(
+		"CrossBrace?*", "MeshInstance3D", true, false
+	).is_empty():
+		errors.append("cross_brace_legacy_renderer_nodes_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"copy_count": CROSS_BRACE_COUNT,
+		"baseline_renderer_nodes": CROSS_BRACE_COUNT,
+		"renderer_nodes": 1 if multimesh != null else 0,
+		"baseline_geometry_submissions": CROSS_BRACE_COUNT,
+		"geometry_submissions": 1 if multimesh != null else 0,
+		"drawn_copies": multimesh.instance_count if multimesh != null else 0,
+		"collision_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
+
+
 func get_validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if (
@@ -564,7 +628,7 @@ func get_validation_errors() -> PackedStringArray:
 	var counts := performance["counts"] as Dictionary
 	if (
 		int(counts["mesh_instances"]) != BATCHED_MESH_INSTANCE_COUNT
-		or int(counts["multimesh_batches"]) != 3
+		or int(counts["multimesh_batches"]) != 4
 		or int(counts["geometry_submissions"]) != RENDERER_NODE_COUNT
 	):
 		errors.append("stable maximum-detail primitive contract changed")
@@ -587,6 +651,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("fascia fastener shared-resource contract diverged")
 	if not bool(get_radiator_vent_batch_audit().get("valid", false)):
 		errors.append("radiator vent batch contract diverged")
+	if not bool(get_cross_brace_batch_audit().get("valid", false)):
+		errors.append("cross-brace batch contract diverged")
 	if not _all_live_meshes_fit_published_footprint():
 		errors.append("live dressing mesh geometry exceeds the immutable published footprint")
 	return errors
@@ -689,33 +755,28 @@ func _build_structural_core(dimensions: Dictionary) -> void:
 			&"keel_post",
 			DetailQuality.LOW
 		)
-	for bay_index in STRUCTURAL_BAY_COUNT:
-		var bay_start := lerpf(first_x, last_x, float(bay_index) / float(STRUCTURAL_BAY_COUNT))
-		var bay_end := lerpf(first_x, last_x, float(bay_index + 1) / float(STRUCTURAL_BAY_COUNT))
-		_tag_visual_detail(
-			_cylinder_between(
-				_structural_core_root,
-				"CrossBraceA%02d" % (bay_index + 1),
-				Vector3(bay_start, lower_y, brace_z),
-				Vector3(bay_end, top_y, brace_z),
-				thickness * 0.3,
-				_materials["brace"]
-			),
-			&"cross_brace",
-			DetailQuality.LOW
-		)
-		_tag_visual_detail(
-			_cylinder_between(
-				_structural_core_root,
-				"CrossBraceB%02d" % (bay_index + 1),
-				Vector3(bay_start, top_y, brace_z),
-				Vector3(bay_end, lower_y, brace_z),
-				thickness * 0.3,
-				_materials["brace"]
-			),
-			&"cross_brace",
-			DetailQuality.LOW
-		)
+	var cross_brace_transforms := _cross_brace_transforms()
+	for brace_index in CROSS_BRACE_COUNT:
+		var anchor := Marker3D.new()
+		anchor.name = "CrossBrace%s%02d" % [
+			"A" if brace_index % 2 == 0 else "B", brace_index / 2 + 1,
+		]
+		anchor.transform = cross_brace_transforms[brace_index]
+		anchor.set_meta("component_id", COMPONENT_ID)
+		anchor.set_meta("evidence_status", EVIDENCE_STATUS)
+		anchor.set_meta("presentation_only", true)
+		anchor.set_meta("collision_free", true)
+		anchor.set_meta("detail_role", &"cross_brace")
+		anchor.set_meta("quality_tier", DetailQuality.LOW)
+		_structural_core_root.add_child(anchor)
+	_cross_brace_batch = _multimesh_rounded_box(
+		_structural_core_root,
+		"CrossBraceBatch",
+		_cross_brace_mesh(),
+		_materials["brace"],
+		cross_brace_transforms
+	)
+	_tag_visual_batch(_cross_brace_batch, &"cross_brace", DetailQuality.LOW)
 
 
 func _build_service_detail(dimensions: Dictionary) -> void:
@@ -954,7 +1015,7 @@ func _apply_evidence_metadata() -> void:
 func _get_feature_counts() -> Dictionary:
 	return {
 		"structural_posts": _structural_core_root.find_children("KeelPost*", "MeshInstance3D", true, false).size() if _structural_core_root != null else 0,
-		"cross_braces": _structural_core_root.find_children("CrossBrace*", "MeshInstance3D", true, false).size() if _structural_core_root != null else 0,
+		"cross_braces": _structural_core_root.find_children("CrossBrace?*", "Marker3D", true, false).size() if _structural_core_root != null else 0,
 		"conduits": _service_detail_root.find_children("Conduit??", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"conduit_clamps": _service_detail_root.find_children("ConduitClamp*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"manifold_couplers": _service_detail_root.find_children("ManifoldCoupler*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
@@ -1456,6 +1517,49 @@ func _radiator_vent_mesh() -> ArrayMesh:
 	return StationSurfaceKit.rounded_box_mesh_cached(
 		Vector3(0.075, float(dimensions["crossface_span"]) * 0.48 * 0.82, 0.045),
 		_rounded_box_cache
+	)
+
+
+func _cross_brace_transforms() -> Array[Transform3D]:
+	var dimensions := _get_profile_dimensions()
+	var length := _get_effective_segment_length()
+	var thickness := float(dimensions["frame_thickness"])
+	var first_x := -length * 0.5 + thickness
+	var last_x := length * 0.5 - thickness
+	var top_y := -thickness * 1.35
+	var lower_y := -float(dimensions["crossface_span"]) + thickness * 1.3
+	var brace_z := float(dimensions["outward_depth"]) * 0.58
+	var transforms: Array[Transform3D] = []
+	for bay_index in STRUCTURAL_BAY_COUNT:
+		var bay_start := lerpf(first_x, last_x, float(bay_index) / float(STRUCTURAL_BAY_COUNT))
+		var bay_end := lerpf(first_x, last_x, float(bay_index + 1) / float(STRUCTURAL_BAY_COUNT))
+		for endpoints in [
+			[Vector3(bay_start, lower_y, brace_z), Vector3(bay_end, top_y, brace_z)],
+			[Vector3(bay_start, top_y, brace_z), Vector3(bay_end, lower_y, brace_z)],
+		]:
+			var from := endpoints[0] as Vector3
+			var to := endpoints[1] as Vector3
+			var direction := to - from
+			transforms.append(Transform3D(
+				Basis(Quaternion(Vector3.UP, direction.normalized())),
+				(from + to) * 0.5
+			))
+	return transforms
+
+
+func _cross_brace_mesh() -> ArrayMesh:
+	var dimensions := _get_profile_dimensions()
+	var bay_width := (
+		_get_effective_segment_length() - float(dimensions["frame_thickness"]) * 2.0
+	) / float(STRUCTURAL_BAY_COUNT)
+	var vertical_span := (
+		-float(dimensions["frame_thickness"]) * 1.35
+		- (-float(dimensions["crossface_span"]) + float(dimensions["frame_thickness"]) * 1.3)
+	)
+	var brace_height := Vector2(bay_width, vertical_span).length()
+	var radius := float(dimensions["frame_thickness"]) * 0.3
+	return StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, brace_height, 16, _chamfered_cylinder_cache, 1
 	)
 
 
