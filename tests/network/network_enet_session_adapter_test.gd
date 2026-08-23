@@ -4,6 +4,7 @@ const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd"
 const MovementIntent := preload("res://scripts/network/network_movement_intent.gd")
 const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 const ProjectileIntent := preload("res://scripts/network/network_projectile_intent.gd")
+const LandingIntent := preload("res://scripts/network/network_landing_intent.gd")
 
 var _failures: Array[String] = []
 var _server: Adapter
@@ -13,6 +14,7 @@ var _client_applies: Array[Dictionary] = []
 var _movement_results: Array[Dictionary] = []
 var _boarding_results: Array[Dictionary] = []
 var _projectile_results: Array[Dictionary] = []
+var _landing_results: Array[Dictionary] = []
 var _branches: Array[Dictionary] = []
 
 
@@ -50,6 +52,9 @@ func _initialize() -> void:
 	)
 	_server.projectile_intent_result.connect(func(result: Dictionary) -> void:
 		_projectile_results.append(result)
+	)
+	_server.landing_intent_result.connect(func(result: Dictionary) -> void:
+		_landing_results.append(result)
 	)
 	_client.snapshot_applied.connect(func(result: Dictionary) -> void:
 		_client_applies.append(result)
@@ -146,6 +151,31 @@ func _initialize() -> void:
 		_projectile_results.size() == 2 and _projectile_results[1].get("status") == &"stale_sequence",
 		"server rejects a replayed fire sequence"
 	)
+	_check(
+		bool(_server.register_landing_entity(client_peer_id, &"ship-1", 1).get("accepted", false)),
+		"server registers the admitted landing entity generation"
+	)
+	_check(
+		bool(_server.register_landing_target(&"berth-1", &"shipyard", 1).get("accepted", false)),
+		"server registers the authoritative landing target"
+	)
+	_check(bool(_server.set_landing_server_tick(1).get("accepted", false)), "server opens the landing tick window")
+	var landing = LandingIntent.create(
+		client_peer_id, &"ship-1", 1, 1, 0, 1,
+		LandingIntent.ACTION_LANDING, &"shipyard", &"berth-1"
+	)
+	_check(bool(_client.send_landing_intent(landing.to_dictionary()).get("accepted", false)), "client queues landing intent over RPC")
+	await _pump_until(func() -> bool: return _landing_results.size() == 1, 3.0)
+	_check(
+		_landing_results.size() == 1 and bool(_landing_results[0].get("accepted", false)),
+		"server reserves a landing lease for the admitted ship"
+	)
+	_client.send_landing_intent(landing.to_dictionary())
+	await _pump_until(func() -> bool: return _landing_results.size() == 2, 3.0)
+	_check(
+		_landing_results.size() == 2 and _landing_results[1].get("status") == &"stale_sequence",
+		"server rejects a replayed landing sequence"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -175,6 +205,10 @@ func _initialize() -> void:
 	_check(
 		_server.get_projectile(&"projectile_1").is_empty(),
 		"server disconnect cleanup retires the peer-owned projectile source"
+	)
+	_check(
+		_server.get_landing_entity(&"ship-1").is_empty(),
+		"server disconnect cleanup retires the peer-owned landing entity"
 	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),

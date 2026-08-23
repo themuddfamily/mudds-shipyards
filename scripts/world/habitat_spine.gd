@@ -77,7 +77,7 @@ const RENDER_MESH_INSTANCE_COUNT := 1245
 const RENDER_MULTIMESH_BATCH_COUNT := 14
 const RENDER_DRAWN_COPY_COUNT := 1377
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 1259
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 348
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
 ## Which of the six berths are currently taken, in alcove order.
@@ -115,11 +115,15 @@ const CORRIDOR_HALF_EXTENTS := Vector3(2.3, 2.3, 7.55)
 const COMMON_CENTER := Vector3(0.0, 2.35, 23.2)
 const COMMON_HALF_EXTENTS := Vector3(7.25, 2.4, 5.15)
 const BUNK_ROOM_HALF_EXTENTS := Vector3(1.72, 2.3, 1.82)
-const GARDEN_CENTER := Vector3(14.4, 2.5, 20.2)
-const GARDEN_HALF_EXTENTS := Vector3(4.05, 2.5, 5.7)
+# The garden's walkable envelope is 30% wider and longer than its original
+# 8.10 x 11.40 m occupancy volume. The inner wall stays fixed at the branch
+# link, so the extra width grows outward while the extra length grows equally
+# at both ends. Height and every interior fixture retain their authored scale.
+const GARDEN_CENTER := Vector3(15.615, 2.5, 20.2)
+const GARDEN_HALF_EXTENTS := Vector3(5.265, 2.5, 7.41)
 
 const FOOTPRINT_MIN := Vector3(-9.0, -1.6, -4.25)
-# `local_max.x` 9.0 -> 18.75 and `local_max.y` 6.8 -> 7.3 for the side branch.
+# `local_max.x` 9.0 -> 21.36 and `local_max.y` 6.8 -> 7.3 for the side branch.
 #
 # The module's declared envelope is a published contract that
 # `habitat_integration_test.gd` checks for overlap against the other modules, so
@@ -129,7 +133,7 @@ const FOOTPRINT_MIN := Vector3(-9.0, -1.6, -4.25)
 # module's own deferred door posts. The station does not move and no other
 # module's footprint is touched; the habitat grows a garden bay outward from its
 # own starboard flank into vacuum that was already empty.
-const FOOTPRINT_MAX := Vector3(18.75, 7.3, 29.25)
+const FOOTPRINT_MAX := Vector3(21.36, 7.3, 29.25)
 
 const EVIDENCE_REFERENCES := [
 	"RESEARCH.md:C1@01:20-02:30 / later secondary habitat entry, bunks, chair-lined corridor, and consoles",
@@ -2036,8 +2040,11 @@ func _build_garden_shell(branch: Node3D) -> void:
 	shell.name = "GardenShell"
 	branch.add_child(shell)
 
-	_box(shell, "GardenFloor", Vector3(14.4, -0.25, 20.2), Vector3(8.60, 0.5, 12.00), _materials["shell_light_floor"])
-	_box(shell, "GardenFloorInset", Vector3(14.4, 0.025, 20.2), Vector3(7.90, 0.045, 11.20), _materials["floor"], false)
+	# 8.60 x 12.00 m -> 11.18 x 15.60 m: both horizontal room dimensions grow
+	# by exactly 30%. The original x-min remains fixed so the branch-link doorway
+	# still meets the pressure shell; only the perimeter envelope changes.
+	_box(shell, "GardenFloor", Vector3(15.69, -0.25, 20.2), Vector3(11.18, 0.5, 15.60), _materials["shell_light_floor"])
+	_box(shell, "GardenFloorInset", Vector3(15.69, 0.025, 20.2), Vector3(10.48, 0.045, 14.80), _materials["floor"], false)
 	_torus(shell, "GardenDeckRing", Vector3(14.4, 0.056, 20.2), 3.02, 3.16, _materials["teal_dim"])
 	_torus(shell, "GardenDeckRingInner", Vector3(14.4, 0.056, 20.2), 1.86, 1.96, _materials["teal_dim"])
 
@@ -2045,9 +2052,9 @@ func _build_garden_shell(branch: Node3D) -> void:
 	# the link opening, because it backs onto the common room's starboard sill.
 	var wall_runs := [
 		# [sill centre, sill size, pane centre, pane size]
-		[Vector3(18.49, 0.5, 20.2), Vector3(0.42, 1.00, 12.00), Vector3(18.49, 2.55, 20.2), Vector3(0.14, 3.10, 11.10)],
-		[Vector3(14.4, 0.5, 26.01), Vector3(8.60, 1.00, 0.42), Vector3(14.4, 2.55, 26.01), Vector3(7.70, 3.10, 0.14)],
-		[Vector3(14.4, 0.5, 14.39), Vector3(8.60, 1.00, 0.42), Vector3(14.4, 2.55, 14.39), Vector3(7.70, 3.10, 0.14)],
+		[Vector3(21.07, 0.5, 20.2), Vector3(0.42, 1.00, 15.60), Vector3(21.07, 2.55, 20.2), Vector3(0.14, 3.10, 14.70)],
+		[Vector3(15.69, 0.5, 27.81), Vector3(11.18, 1.00, 0.42), Vector3(15.69, 2.55, 27.81), Vector3(10.28, 3.10, 0.14)],
+		[Vector3(15.69, 0.5, 12.59), Vector3(11.18, 1.00, 0.42), Vector3(15.69, 2.55, 12.59), Vector3(10.28, 3.10, 0.14)],
 	]
 	for run_index in wall_runs.size():
 		var run: Array = wall_runs[run_index]
@@ -2064,19 +2071,19 @@ func _build_garden_shell(branch: Node3D) -> void:
 		_register_window(_box(shell, "GardenPane%02d" % (run_index + 1), run[2] as Vector3, run[3] as Vector3, _materials["glass"]))
 	# The inner wall backs onto the common room and is plate rather than glass, and
 	# the link cuts a real hole through it. Sill *and* plate are both built as two
-	# returns: a single 12 m sill would have laid a 1.0 m kerb straight across the
+	# returns: a single full-width sill would lay a 1.0 m kerb straight across the
 	# doorway, which is the identical defect the starboard sill in the common room
 	# had and the reason that one is two runs now as well. The header stays one
 	# piece because it sits at y = 4.00..4.80, clear above the link's 3.84 m soffit.
-	_box(shell, "GardenHeader04", Vector3(10.31, 4.40, 20.2), Vector3(0.42, 0.80, 12.00), _materials["shell_mid"])
-	for inner_run in [[16.275, 4.19], [23.925, 4.59]]:
+	_box(shell, "GardenHeader04", Vector3(10.31, 4.40, 20.2), Vector3(0.42, 0.80, 15.60), _materials["shell_mid"])
+	for inner_run in [[15.375, 5.99], [24.825, 6.39]]:
 		var inner: Array = inner_run
 		_box(shell, "GardenSill04", Vector3(10.31, 0.5, float(inner[0])), Vector3(0.42, 1.00, float(inner[1])), _materials["shell_mid"])
 		_box(shell, "GardenInnerWall", Vector3(10.31, 2.55, float(inner[0])), Vector3(0.42, 3.10, float(inner[1])), _materials["shell_mid"])
-	for mullion_z in [16.00, 20.20, 24.40]:
-		_box(shell, "GardenMullionOuter", Vector3(18.49, 2.55, float(mullion_z)), Vector3(0.48, 3.20, 0.24), _materials["structural"])
-	for mullion_x in [12.20, 14.40, 16.60]:
-		for wall_z in [26.01, 14.39]:
+	for mullion_z in [14.80, 20.20, 25.60]:
+		_box(shell, "GardenMullionOuter", Vector3(21.07, 2.55, float(mullion_z)), Vector3(0.48, 3.20, 0.24), _materials["structural"])
+	for mullion_x in [12.30, 15.69, 19.08]:
+		for wall_z in [27.81, 12.59]:
 			_box(shell, "GardenMullionEnd", Vector3(float(mullion_x), 2.55, float(wall_z)), Vector3(0.24, 3.20, 0.48), _materials["structural"])
 	# The ceiling is a ring, not a lid.
 	#
@@ -2086,10 +2093,12 @@ func _build_garden_shell(branch: Node3D) -> void:
 	# for the room's roof was invisible. Four runs leave a 5.8 x 6.0 m opening under
 	# the drum, and the 2.94..3.34 m curb torus overlaps the two side runs at
 	# x = 11.5 and 17.3 so the opening is framed rather than hanging.
-	for ceiling_z in [15.65, 24.75]:
-		_box(shell, "GardenCeiling", Vector3(14.4, 5.02, float(ceiling_z)), Vector3(8.60, 0.44, 3.10), _materials["shell_mid"])
-	for ceiling_x in [10.80, 18.00]:
-		_box(shell, "GardenCeiling", Vector3(float(ceiling_x), 5.02, 20.2), Vector3(1.40, 0.44, 5.80), _materials["shell_mid"])
+	for ceiling_z in [14.80, 25.60]:
+		_box(shell, "GardenCeiling", Vector3(15.69, 5.02, float(ceiling_z)), Vector3(11.18, 0.44, 4.80), _materials["shell_mid"])
+	# The inner run stays fixed with the cupola; the outer run extends to the new
+	# hull wall. This leaves the original 5.8 x 6.0 m cupola opening untouched.
+	for ceiling_run in [[10.80, 1.40], [19.29, 3.98]]:
+		_box(shell, "GardenCeiling", Vector3(float(ceiling_run[0]), 5.02, 20.2), Vector3(float(ceiling_run[1]), 0.44, 5.80), _materials["shell_mid"])
 
 	# The cupola. An octagonal glazed drum standing on the ceiling plate, capped
 	# by a ring of eight sloped segments around a glass oculus. Its floor opening

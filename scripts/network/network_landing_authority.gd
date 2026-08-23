@@ -80,6 +80,27 @@ func register_entity(
 	return _remember(_result(true, &"registered", {"entity_id": entity_id}))
 
 
+func retire_entity(
+	source_peer_id: int,
+	entity_id: StringName,
+	entity_generation: int
+) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if not _entities.has(entity_id):
+		return _remember(_result(false, &"unknown_entity"))
+	var entity := _entities[entity_id] as Dictionary
+	if int(entity.entity_generation) != entity_generation:
+		return _remember(_result(false, &"stale_entity_generation"))
+	_clear_entity_target(entity)
+	_entities.erase(entity_id)
+	for key_variant in _last_sequence_by_entity_stream.keys():
+		if String(key_variant).begins_with("%s:" % String(entity_id)):
+			_last_sequence_by_entity_stream.erase(key_variant)
+	_event_sequence += 1
+	return _remember(_result(true, &"retired", {"entity_id": entity_id}))
+
+
 func register_landing_target(
 	source_peer_id: int,
 	target_id: StringName,

@@ -14,6 +14,7 @@ const TransportSecurity := preload("res://scripts/network/network_transport_secu
 const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
 const BoardingAuthority := preload("res://scripts/network/network_boarding_authority.gd")
 const ProjectileAuthority := preload("res://scripts/network/network_projectile_authority.gd")
+const LandingAuthority := preload("res://scripts/network/network_landing_authority.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -25,6 +26,7 @@ signal transport_rejected(status: StringName)
 signal movement_intent_result(result: Dictionary)
 signal boarding_intent_result(result: Dictionary)
 signal projectile_intent_result(result: Dictionary)
+signal landing_intent_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -36,10 +38,12 @@ var _transport
 var _movement
 var _boarding
 var _projectile
+var _landing
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
 var _projectile_sources: Dictionary = {}
+var _landing_entities: Dictionary = {}
 var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
@@ -51,6 +55,7 @@ func _init() -> void:
 	_movement = MovementAuthority.new(AUTHORITY_PEER_ID)
 	_boarding = BoardingAuthority.new(AUTHORITY_PEER_ID)
 	_projectile = ProjectileAuthority.new(AUTHORITY_PEER_ID)
+	_landing = LandingAuthority.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -104,6 +109,14 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 						AUTHORITY_PEER_ID, source_id, int(source.get("source_generation", 0))
 					)
 					_projectile_sources.erase(source_id)
+			for entity_id_variant in _landing_entities.keys():
+				var entity_id := StringName(entity_id_variant)
+				var entity := _landing_entities[entity_id] as Dictionary
+				if int(entity.get("owner_peer_id", 0)) == peer_id:
+					_landing.retire_entity(
+						AUTHORITY_PEER_ID, entity_id, int(entity.get("entity_generation", 0))
+					)
+					_landing_entities.erase(entity_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -250,6 +263,56 @@ func get_projectile(projectile_id: StringName) -> Dictionary:
 	return _projectile.get_projectile(projectile_id)
 
 
+func register_landing_entity(
+	owner_peer_id: int,
+	entity_id: StringName,
+	entity_generation: int,
+	state: StringName = LandingAuthority.STATE_FLYING
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _landing.register_entity(
+		AUTHORITY_PEER_ID, owner_peer_id, entity_id, entity_generation, state
+	)
+	if bool(result.get("accepted", false)):
+		_landing_entities[entity_id] = {
+			"owner_peer_id": owner_peer_id,
+			"entity_generation": entity_generation,
+		}
+	return _remember(result)
+
+
+func register_landing_target(
+	target_id: StringName,
+	region_id: StringName,
+	target_generation: int = 1
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_landing.register_landing_target(
+		AUTHORITY_PEER_ID, target_id, region_id, target_generation
+	))
+
+
+func set_landing_server_tick(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_landing.set_server_tick(AUTHORITY_PEER_ID, server_tick))
+
+
+func send_landing_intent(wire: Dictionary) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	if not _configured:
+		return _remember(_result(false, &"not_started"))
+	_receive_landing_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	return _remember(_result(true, &"queued"))
+
+
+func get_landing_entity(entity_id: StringName) -> Dictionary:
+	return _landing.get_entity_snapshot(entity_id)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -297,6 +360,15 @@ func _receive_projectile_intent(wire: Dictionary) -> void:
 	var source_peer_id := multiplayer.get_remote_sender_id()
 	var result: Dictionary = _projectile.accept_fire(source_peer_id, wire)
 	projectile_intent_result.emit(result.duplicate(true))
+
+
+@rpc("any_peer", "reliable")
+func _receive_landing_intent(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var source_peer_id := multiplayer.get_remote_sender_id()
+	var result: Dictionary = _landing.accept_intent(source_peer_id, wire)
+	landing_intent_result.emit(result.duplicate(true))
 
 
 @rpc("any_peer", "reliable")
@@ -389,6 +461,14 @@ func _on_peer_disconnected(peer_id: int) -> void:
 				AUTHORITY_PEER_ID, source_id, int(source.get("source_generation", 0))
 			)
 			_projectile_sources.erase(source_id)
+	for entity_id_variant in _landing_entities.keys():
+		var entity_id := StringName(entity_id_variant)
+		var entity := _landing_entities[entity_id] as Dictionary
+		if int(entity.get("owner_peer_id", 0)) == peer_id:
+			_landing.retire_entity(
+				AUTHORITY_PEER_ID, entity_id, int(entity.get("entity_generation", 0))
+			)
+			_landing_entities.erase(entity_id)
 	peer_disconnected.emit(peer_id, receipt.duplicate(true))
 
 
