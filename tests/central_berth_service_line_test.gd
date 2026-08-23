@@ -90,8 +90,8 @@ func _test_report_and_roster(world: ShipyardWorld) -> void:
 		and int(expected.get(&"parts_bin_rack", 0)) == 1
 		and int(expected.get(&"chock_locker", 0)) == 1
 		and int(expected.get(&"access_work_stand", 0)) == 1
-		and int(expected.get(&"mast_foot", 0)) == 4,
-		"the frozen roster is five port-flank assemblies and four mast feet"
+		and int(expected.get(&"mast_foot", 0)) == 3,
+		"the frozen roster is five port-flank assemblies and three mast feet"
 	)
 	var roster_matches := true
 	for role: StringName in expected:
@@ -102,7 +102,7 @@ func _test_report_and_roster(world: ShipyardWorld) -> void:
 	(report.get("assembly_counts", {}) as Dictionary)[&"mast_foot"] = 99
 	var second := world.get_central_berth_service_line_report()
 	_check(
-		int((second.get("assembly_counts", {}) as Dictionary).get(&"mast_foot", 0)) == 4,
+		int((second.get("assembly_counts", {}) as Dictionary).get(&"mast_foot", 0)) == 3,
 		"the audit report is a deep copy that callers cannot mutate"
 	)
 
@@ -200,24 +200,24 @@ func _test_black_bin_stock_batch(world: ShipyardWorld) -> void:
 
 	var render := world.get_central_berth_service_line_render_contract()
 	_check(
-		int(render.get("descendant_nodes", -1)) == 247
-		and int(render.get("mesh_instances", -1)) == 105
+		int(render.get("descendant_nodes", -1)) == 224
+		and int(render.get("mesh_instances", -1)) == 96
 		and int(render.get("multimesh_batches", -1)) == 1,
-		"renderer nodes freeze at 250 -> 247, MeshInstances 109 -> 105, batches 0 -> 1"
+		"renderer nodes freeze at 224, MeshInstances at 96, and batches at one"
 	)
 	_check(
-		int(render.get("drawn_copies", -1)) == 109
-		and int(render.get("geometry_submissions", -1)) == 106
+		int(render.get("drawn_copies", -1)) == 100
+		and int(render.get("geometry_submissions", -1)) == 97
 		and bool(render.get("exact_counts", false)),
-		"all 109 copies remain drawn while geometry submissions fall 109 -> 106"
+		"the remaining service line draws 100 copies in 97 geometry submissions"
 	)
 	_check(
-		int(render.get("physics_bodies", -1)) == 62
-		and int(render.get("collision_shapes", -1)) == 62
-		and int(render.get("lights", -1)) == 7
+		int(render.get("physics_bodies", -1)) == 56
+		and int(render.get("collision_shapes", -1)) == 56
+		and int(render.get("lights", -1)) == 6
 		and int(render.get("areas", -1)) == 0
 		and int(render.get("ship_berths", -1)) == 0,
-		"batching leaves 62 bodies, 62 shapes, seven lights, and no local area/berth authority"
+		"the remaining line has 56 matched bodies/shapes, six lights, and no local area/berth authority"
 	)
 	var central_berth := world.get_berth_node(&"central_berth")
 	_check(

@@ -242,9 +242,9 @@ const SERVICE_LINE_SEAT_BEARING := 0.010
 ## floodlight rather than as a signal.
 const MAST_FOOT_PRACTICAL_COLOR := Color("bfeaf0")
 ## Fixture practicals in the hero cell's ground-support line: one at each of the
-## four dock mast feet, plus the readiness board hood, the parts-rack strip and
+## three dock mast feet, plus the readiness board hood, the parts-rack strip and
 ## the work stand's clamp lamp.
-const SERVICE_LINE_PRACTICAL_COUNT := 7
+const SERVICE_LINE_PRACTICAL_COUNT := 6
 ## Renderer roster for the four anonymous black stock blocks in the parts rack.
 ##
 ## These are visual shelf fill only: the six independently named, colliding
@@ -253,11 +253,11 @@ const SERVICE_LINE_PRACTICAL_COUNT := 7
 ## this black family removes three submissions without moving or merging any
 ## berth, route, evidence, lifecycle, collision or fixture authority.
 const SERVICE_LINE_BLACK_BIN_STOCK_COPY_COUNT := 4
-const SERVICE_LINE_RENDER_DESCENDANT_COUNT := 247
-const SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT := 105
+const SERVICE_LINE_RENDER_DESCENDANT_COUNT := 224
+const SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT := 96
 const SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT := 1
-const SERVICE_LINE_RENDER_DRAWN_COPY_COUNT := 109
-const SERVICE_LINE_RENDER_SUBMISSION_COUNT := 106
+const SERVICE_LINE_RENDER_DRAWN_COPY_COUNT := 100
+const SERVICE_LINE_RENDER_SUBMISSION_COUNT := 97
 ## Local renderer contract for ModernFleetRegistry's four roof-column visuals.
 ##
 ## The four `StaticBody3D` columns and their box colliders stay independent and
@@ -677,23 +677,23 @@ const IVORY := Color("cfd6d3")
 const HAZARD_AMBER := Color("8f6530")
 const GLASS := Color(0.24, 0.86, 0.93, 0.24)
 
-## All 51 world-built guide lenses are the same childless 0.16 m sphere and use
+## All 50 world-built guide lenses are the same childless 0.16 m sphere and use
 ## one of four immutable emissive recipes. Before this cache every call retained
-## a private SphereMesh and StandardMaterial3D: 102 resource identities for 51
+## a private SphereMesh and StandardMaterial3D: 100 resource identities for 50
 ## identical-geometry nodes. Sharing changes only retained resource identity;
 ## every MeshInstance3D, OmniLight3D and one-surface render submission remains.
 const GUIDE_LENS_RADIUS := 0.16
 const GUIDE_LENS_HEIGHT := 0.32
 const GUIDE_LENS_RADIAL_SEGMENTS := 24
 const GUIDE_LENS_RINGS := 12
-const GUIDE_LENS_EXPECTED_COUNT := 51
+const GUIDE_LENS_EXPECTED_COUNT := 50
 const GUIDE_LENS_EXPECTED_RECIPE_COUNT := 4
-const GUIDE_LENS_BASELINE_RETAINED_RESOURCES := 102
-const GUIDE_LENS_BASELINE_SCOPE_NODES := 102
-const GUIDE_LENS_BASELINE_SUBMISSIONS := 51
-const GUIDE_LIGHT_BEHAVIOR_FINGERPRINT := "d91c20a3aa38001b9a9171b56bec150059465ed703c95b1fd8a88dd3304ee20e"
+const GUIDE_LENS_BASELINE_RETAINED_RESOURCES := 100
+const GUIDE_LENS_BASELINE_SCOPE_NODES := 100
+const GUIDE_LENS_BASELINE_SUBMISSIONS := 50
+const GUIDE_LIGHT_BEHAVIOR_FINGERPRINT := "790d4162ba1c9e4369d79c69afe066390d4f34c65780068d3cf6f6a88f867f3a"
 const GUIDE_LENS_COLOR_COUNTS := {
-	"48dbe2ff": 17,
+	"48dbe2ff": 16,
 	"ff9f43ff": 13,
 	"ff5f57ff": 20,
 	"cfe6eeff": 1,
@@ -5073,12 +5073,12 @@ func _build_architecture() -> void:
 		for join_position in [Vector3(side * 4.0, 0.55, 39.5), Vector3(side * 3.35, 0.55, 39.0)]:
 			_cylinder(shell, "AftConnectorTransitionPost", join_position, 0.09, 1.3, _materials["orange"], true)
 
-	# Freestanding rounded mast pairs establish several readable heights without
+	# Freestanding rounded masts establish several readable heights without
 	# becoming a roof cage.
-	# Keep the port mast outside the observation-stair approach while retaining
-	# physical support on CentralJunction. Its previous (-11, 0, 10) position
-	# overlapped the production player's centreline before the first tread.
-	for mast_position in [Vector3(-11.0, 0.0, 14.0), Vector3(11.0, 0.0, 10.0), Vector3(-11.0, 0.0, -23.0), Vector3(11.0, 0.0, -23.0)]:
+	# The former port mast at (-11, 0, 14) stood directly in the live junction
+	# walkway beside the player spawn. Keep that route open; the remaining three
+	# masts retain the height markers without narrowing circulation.
+	for mast_position in [Vector3(11.0, 0.0, 10.0), Vector3(-11.0, 0.0, -23.0), Vector3(11.0, 0.0, -23.0)]:
 		_cylinder(shell, "DockMast", mast_position + Vector3(0, 5.2, 0), 0.46, 10.4, _materials["steel_blue"], true)
 		_torus(shell, "DockMastCollar", mast_position + Vector3(0, 1.0, 0), 0.55, 0.74, _materials["orange"])
 		_box(shell, "MastCap", mast_position + Vector3(0, 10.15, 0), Vector3(2.4, 0.55, 1.6), _materials["ivory"], false)
@@ -5583,7 +5583,7 @@ func _build_central_reflection_probe(pad: Node3D) -> void:
 
 
 ## Ground-support hardware on the central berth's port flank, and foot hardware
-## at the four dock masts.
+## at the three remaining dock masts.
 ##
 ## Why this exists, and why it is not under `LandingPad`. The starboard flank of
 ## the hero berth already carries the *utility* half of a working berth — power,
@@ -5895,11 +5895,10 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 	_service_practical(stand, "WorkLampPractical", Vector3(-0.30, platform_top + 0.62, -0.92), Color("f1e6cf"), 1.35, 6.8)
 
 
-## Foot hardware and a practical at each of the four freestanding dock masts.
+## Foot hardware and a practical at each of the three freestanding dock masts.
 ##
-## The masts are the tallest thing in the hero cell and one of them stands 2.3 m
-## from the player spawn, filling the left third of the first frame of every
-## session. Before this each was a bare 10.4 m column with a lamp on its cap and
+## The masts are the tallest things in the hero cell. Before this each was a bare
+## 10.4 m column with a lamp on its cap and
 ## nothing at its base: the cap lamp is 9.5 m up, so from eye height the mast is
 ## an unlit silhouette with no indication of what it is for or what it is bolted
 ## to. Emission cannot fix that — it is a purely local surface term and lights
@@ -5907,18 +5906,20 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 ## sub-7 m, distance-faded, carrying the hue of the lens beside it, in the same
 ## idiom as the thirty-nine fixture practicals in the four authored modules.
 ##
-## The mast at `z = 14` and the mast at `z = 10` stand on the lattice decks,
-## whose drawn top is `y = -0.02`; the two at `z = -23` stand on the authored
+## The mast at `z = 10` stands on the lattice deck, whose drawn top is
+## `y = -0.02`; the two at `z = -23` stand on the authored
 ## shell at `y = 0.095`. Each foot is seated against its own deck.
 func _build_dock_mast_foot_hardware(line: Node3D) -> void:
-	var mast_positions := [
-		Vector3(-11.0, 0.0, 14.0),
-		Vector3(11.0, 0.0, 10.0),
-		Vector3(-11.0, 0.0, -23.0),
-		Vector3(11.0, 0.0, -23.0),
+	# Preserve the remaining assemblies' stable IDs after removing foot 00 with
+	# the obstructing port mast.
+	var mast_specs := [
+		[1, Vector3(11.0, 0.0, 10.0)],
+		[2, Vector3(-11.0, 0.0, -23.0)],
+		[3, Vector3(11.0, 0.0, -23.0)],
 	]
-	for mast_index in mast_positions.size():
-		var mast_position: Vector3 = mast_positions[mast_index]
+	for mast_spec: Array in mast_specs:
+		var mast_index := int(mast_spec[0])
+		var mast_position := mast_spec[1] as Vector3
 		var deck := (
 			AUTHORED_CENTRAL_BERTH_DECK_TOP
 			if mast_position.z <= AUTHORED_CENTRAL_BERTH_EDGE_Z
@@ -6075,7 +6076,7 @@ func get_central_berth_service_line_report() -> Dictionary:
 		&"parts_bin_rack": 1,
 		&"chock_locker": 1,
 		&"access_work_stand": 1,
-		&"mast_foot": 4,
+		&"mast_foot": 3,
 	}
 	var role_counts := {}
 	var solid_body_count := 0
@@ -6107,7 +6108,7 @@ func get_central_berth_service_line_report() -> Dictionary:
 				if practical.shadow_enabled or practical.omni_range > 7.0 or not practical.distance_fade_enabled:
 					errors.append("mast foot practical left the fixture-practical idiom")
 		# Deliberately the port flank only. The mast feet are a separate roster and
-		# two of the four masts stand at x = +11, so sweeping the whole line would
+		# two of the three masts stand at x = +11, so sweeping the whole line would
 		# report a starboard extent under a port-flank name.
 		var flank := line.get_node_or_null(^"PortFlank") as Node3D
 		if flank == null:
@@ -6126,7 +6127,7 @@ func get_central_berth_service_line_report() -> Dictionary:
 				"%s assembly count is %d, expected %d"
 				% [role, int(role_counts.get(role, 0)), int(expected_roles[role])]
 			)
-	# Four mast feet, plus the readiness board hood, the parts-rack strip and the
+	# Three mast feet, plus the readiness board hood, the parts-rack strip and the
 	# work stand's clamp lamp. Every one is mounted just outside a drawn lens.
 	if practical_count != SERVICE_LINE_PRACTICAL_COUNT:
 		errors.append(

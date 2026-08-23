@@ -178,15 +178,34 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 48
+		and int(performance.mesh_instances) == 33
 		and int(performance.static_bodies) == 33
 		and int(performance.collision_shapes) == 33
 		and module.find_children("*", "Node", true, false).size() == 133,
-		"low-submission module freezes 133 nodes, 48 meshes and 33 body/shape pairs"
+		"finished district freezes 133 nodes, 33 meshes and 33 body/shape pairs"
 	)
-	_check(int(performance.lights) == 6 and int(performance.labels) == 1 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, one identity sign and no frame loop")
+	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
 	_check(marker_batch != null and marker_batch.multimesh.instance_count == 10, "ten repeated connector markers use one visual-only MultiMesh submission")
+	var finishing_batches := {
+		"ConnectorPortalPosts": 10,
+		"ConnectorPortalBeams": 5,
+		"PadCanopySlats": 12,
+		"PadCanopyRibs": 8,
+		"PadCanopySupports": 8,
+		"ObservationConsoleTrim": 3,
+		"CargoCaseBands": 12,
+		"ObservationZoneTicks": 6,
+		"LogisticsZoneTicks": 6,
+		"ReturnBridgeChevrons": 5,
+	}
+	var finishing_exact := true
+	for batch_name in finishing_batches:
+		var batch := module.get_node_or_null(NodePath("Structure/Dressing/%s" % batch_name)) as MultiMeshInstance3D
+		finishing_exact = finishing_exact and batch != null \
+			and batch.multimesh.instance_count == int(finishing_batches[batch_name]) \
+			and bool(batch.get_meta("visual_detail_only", false))
+	_check(finishing_exact, "open portal, canopy, console, cargo and zoning batches finish the district without new collision")
 
 
 func _test_deterministic_runtime_names(module: ObservationLogisticsSpur) -> void:
@@ -213,6 +232,15 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 		and int(materials.retained_unique_materials) == 9,
 		"practical recipe sharing reduces retained material resources exactly 12 -> 9"
 	)
+	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
+	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsole01/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
+	_check(
+		deck_material.uv1_triplanar and deck_material.uv1_world_triplanar
+		and deck_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+		and shell_material.uv1_triplanar and shell_material.uv1_world_triplanar
+		and shell_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30),
+		"large deck and shell surfaces use the shared 0.30 m world-triplanar panel treatment"
+	)
 	_check(
 		int(materials.practical_lens_recipe_count) == 3
 		and bool(materials.practical_lens_identities_exact)
@@ -236,17 +264,17 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and StringName(performance.selected_family) == &"observation_lenses_and_logistics_cases"
 		and int(performance.baseline_descendant_nodes) == 133
 		and int(performance.descendant_nodes) == 133
-		and int(performance.baseline_renderer_nodes) == 49
-		and int(performance.renderer_nodes) == 49
-		and int(performance.baseline_drawn_copies) == 58
-		and int(performance.drawn_copies) == 58
-		and int(performance.baseline_surface_submissions) == 49
-		and int(performance.surface_submissions) == 49,
-		"lens and logistics-case sharing preserve 133 nodes, 49 renderer nodes, 58 drawn copies and 49 submissions"
+		and int(performance.baseline_renderer_nodes) == 46
+		and int(performance.renderer_nodes) == 46
+		and int(performance.baseline_drawn_copies) == 232
+		and int(performance.drawn_copies) == 232
+		and int(performance.baseline_surface_submissions) == 46
+		and int(performance.surface_submissions) == 46,
+		"open rails and shared dressing preserve the finished 133-node, 46-renderer district census"
 	)
 	_check(
-		int(performance.baseline_mesh_resources) == 49
-		and int(performance.mesh_resources) == 37
+		int(performance.baseline_mesh_resources) == 46
+		and int(performance.mesh_resources) == 34
 		and int(performance.mesh_resource_delta) == -12
 		and int(performance.baseline_material_resources) == 9
 		and int(performance.material_resources) == 9
@@ -256,7 +284,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_submissions) == 3
 		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"lens and collidable-case families reduce mesh resources 49 -> 37 without changing nodes, submissions or materials"
+		"open rails and dressing sharing reduce the finished district's mesh resources 46 -> 34"
 	)
 	var practical_lenses: Array[MeshInstance3D] = []
 	for lens_index in ObservationLogisticsSpur.PRACTICAL_LENS_COPY_COUNT:
@@ -277,7 +305,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		practical_lenses[1].mesh = practical_mesh
 		_check(
 			not bool(practical_red.exact)
-			and int(practical_red.mesh_resources) == 38
+			and int(practical_red.mesh_resources) == 35
 			and int(practical_red.practical_lens_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one practical lens mesh fails the resource contract and restores cleanly"
@@ -326,7 +354,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		case_meshes[1].mesh = case_mesh
 		_check(
 			not bool(case_red.exact)
-			and int(case_red.mesh_resources) == 38
+			and int(case_red.mesh_resources) == 35
 			and int(case_red.logistics_case_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one logistics-case mesh fails the resource contract and restores cleanly"
@@ -368,7 +396,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	var red := module.get_visual_resource_contract()
 	_check(
 		not bool(red.exact)
-		and int(red.mesh_resources) == 38
+		and int(red.mesh_resources) == 35
 		and int(red.family_mesh_resources) == 2
 		and module.get_validation_errors().has(
 			"observation lens or logistics-case visual-resource sharing drifted"
@@ -409,11 +437,19 @@ func _test_collision_support_and_safe_edges(module: ObservationLogisticsSpur) ->
 		func(candidate: Node) -> bool: return bool(candidate.get_meta("station_safety_edge", false))
 	)
 	_check(rails.size() == 15, "fifteen collision-backed rail runs protect every exposed route edge")
+	var rail_bars := module.get_node_or_null(^"Structure/SafetyRails/VisibleRailBars") as MultiMeshInstance3D
+	var rail_posts := module.get_node_or_null(^"Structure/SafetyRails/VisibleRailPosts") as MultiMeshInstance3D
+	_check(
+		rail_bars != null and rail_bars.multimesh.instance_count == 30
+		and rail_posts != null and rail_posts.multimesh.instance_count == 84,
+		"fifteen conservative safety volumes render as 30 open bars and 84 spaced posts"
+	)
 	var rail_collision_exact := true
 	for rail in rails:
 		rail_collision_exact = rail_collision_exact \
 			and rail.collision_layer == WORLD_LAYER \
 			and rail.collision_mask == 0 \
+			and rail.get_node_or_null(^"Mesh") == null \
 			and not bool(rail.get_meta("walkable_surface", false)) \
 			and not str(rail.get_meta("non_walkable_reason", "")).is_empty()
 	_check(rail_collision_exact, "safe edges are physical World rails and never masquerade as usable floor")
@@ -667,4 +703,4 @@ func _count_assertions() -> int:
 	# Kept explicit in output by counting anchored call sites from this suite is not
 	# available at runtime; successful and failed assertions together equal this
 	# frozen suite total.
-	return 66
+	return 69

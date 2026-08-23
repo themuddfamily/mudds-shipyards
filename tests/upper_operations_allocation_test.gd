@@ -4,9 +4,9 @@ extends SceneTree
 ## guide-light stock, including the UpperOperations observation-post practical.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
-const BASELINE_BEHAVIOR_FINGERPRINT := "d91c20a3aa38001b9a9171b56bec150059465ed703c95b1fd8a88dd3304ee20e"
+const BASELINE_BEHAVIOR_FINGERPRINT := "790d4162ba1c9e4369d79c69afe066390d4f34c65780068d3cf6f6a88f867f3a"
 const EXPECTED_COLOR_COUNTS := {
-	"48dbe2ff": 17,
+	"48dbe2ff": 16,
 	"ff9f43ff": 13,
 	"ff5f57ff": 20,
 	"cfe6eeff": 1,
@@ -41,33 +41,33 @@ func _run() -> void:
 			or str(row.path).contains("@")
 	_check(bool(audit.valid), "guide-light retained-resource audit starts green: %s" % [audit.errors])
 	_check(
-		lenses.size() == 51 and lights.size() == 51
-		and int(audit.lens_node_count) == 51 and int(audit.light_node_count) == 51,
-		"exactly 51 childless lens/light pairs remain in the production world"
+		lenses.size() == 50 and lights.size() == 50
+		and int(audit.lens_node_count) == 50 and int(audit.light_node_count) == 50,
+		"exactly 50 childless lens/light pairs remain in the production world"
 	)
 	_check(
-		int(audit.scope_node_count) == 102
-		and int(audit.baseline_scope_node_count) == 102
+		int(audit.scope_node_count) == 100
+		and int(audit.baseline_scope_node_count) == 100
 		and int(audit.node_delta) == 0,
-		"resource sharing retains all 102 guide-light scope nodes with zero node delta"
+		"resource sharing retains all 100 guide-light scope nodes with zero node delta"
 	)
 	_check(
-		int(audit.structural_submission_count) == 51
-		and int(audit.baseline_structural_submission_count) == 51
+		int(audit.structural_submission_count) == 50
+		and int(audit.baseline_structural_submission_count) == 50
 		and int(audit.submission_delta) == 0,
-		"51 one-surface structural submissions remain; the trim does not claim batching"
+		"50 one-surface structural submissions remain; the trim does not claim batching"
 	)
 	_check(
 		int(audit.mesh_resource_identity_count) == 1
 		and int(audit.material_resource_identity_count) == 4
 		and int(audit.retained_visual_resource_identity_count) == 5
-		and int(audit.baseline_retained_visual_resource_identity_count) == 102
-		and int(audit.retained_visual_resource_identity_delta) == -97,
-		"51 mesh plus 51 material identities become one mesh plus four immutable recipes (102 -> 5, delta -97)"
+		and int(audit.baseline_retained_visual_resource_identity_count) == 100
+		and int(audit.retained_visual_resource_identity_delta) == -95,
+		"50 mesh plus 50 material identities become one mesh plus four immutable recipes (100 -> 5, delta -95)"
 	)
 	_check(
 		(audit.color_counts as Dictionary) == EXPECTED_COLOR_COUNTS,
-		"shared recipes retain the exact 17 cyan, 13 orange, 20 red, and one neutral lens roster"
+		"shared recipes retain the exact 16 cyan, 13 orange, 20 red, and one neutral lens roster"
 	)
 	_check(
 		str(audit.behavior_fingerprint) == BASELINE_BEHAVIOR_FINGERPRINT
@@ -164,7 +164,7 @@ func _test_detached_report(world: ShipyardWorld) -> void:
 	(detached.errors as PackedStringArray).append("caller mutation")
 	var fresh := world.get_guide_light_allocation_audit()
 	_check(
-		int((fresh.color_counts as Dictionary).get("48dbe2ff", 0)) == 17
+		int((fresh.color_counts as Dictionary).get("48dbe2ff", 0)) == 16
 		and "caller mutation" not in (fresh.errors as PackedStringArray)
 		and bool(fresh.valid),
 		"allocation reports are deeply detached from caller mutation"
@@ -254,7 +254,7 @@ func _test_detach_reentry(world: ShipyardWorld, lenses: Array[MeshInstance3D]) -
 		reentered_material_ids[lens.material_override.get_instance_id()] = true
 	var reentered_audit := world.get_guide_light_allocation_audit()
 	_check(
-		reentered_lenses.size() == 51
+		reentered_lenses.size() == 50
 		and reentered_lenses[0].mesh.get_instance_id() == mesh_id
 		and reentered_material_ids == material_ids
 		and bool(reentered_audit.valid),

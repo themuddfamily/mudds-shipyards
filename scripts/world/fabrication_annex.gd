@@ -66,32 +66,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 34,
-	"multi_mesh_instances": 12,
-	"geometry_instances": 46,
-	"visible_geometry_copies": 128,
-	"multi_mesh_drawn_copies": 94,
+	"mesh_instances": 27,
+	"multi_mesh_instances": 31,
+	"geometry_instances": 58,
+	"visible_geometry_copies": 203,
+	"multi_mesh_drawn_copies": 176,
 	"static_bodies": 34,
 	"collision_shapes": 34,
-	"labels": 3,
+	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 129,
+	"nodes": 144,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 35,
-	"multi_mesh_instances": 12,
-	"geometry_instances": 47,
-	"visible_geometry_copies": 130,
-	"multi_mesh_drawn_copies": 95,
+	"mesh_instances": 27,
+	"multi_mesh_instances": 31,
+	"geometry_instances": 58,
+	"visible_geometry_copies": 204,
+	"multi_mesh_drawn_copies": 177,
 	"static_bodies": 35,
 	"collision_shapes": 35,
-	"labels": 3,
+	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 132,
+	"nodes": 146,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -141,6 +141,9 @@ func _make_materials() -> void:
 	_materials[&"hazard"] = _material(Color("d58b27"), 0.5, 0.35, false)
 	_materials[&"rail"] = _material(Color("aeb9bc"), 0.5, 0.55, false)
 	_materials[&"accent"] = _material(Color("3b9ca2"), 0.38, 0.4, false)
+	_materials[&"ceiling"] = _material(Color("151d23"), 0.86, 0.32, true)
+	_materials[&"floor_inlay"] = _material(Color("19353b"), 0.64, 0.28, true)
+	_materials[&"luminous"] = _emissive_material(Color("64d9dc"), 1.7)
 
 
 func _material(color: Color, roughness: float, metallic: float, panel: bool) -> StandardMaterial3D:
@@ -152,6 +155,14 @@ func _material(color: Color, roughness: float, metallic: float, panel: bool) -> 
 		# 0.30 is the production-compliant large station-module panel scale.
 		StationSurfaceKit.apply_panel_triplanar(result, 0.30)
 		result.albedo_color = color
+	return result
+
+
+func _emissive_material(color: Color, energy: float) -> StandardMaterial3D:
+	var result := _material(color.darkened(0.38), 0.32, 0.18, false)
+	result.emission_enabled = true
+	result.emission = color
+	result.emission_energy_multiplier = energy
 	return result
 
 
@@ -202,7 +213,11 @@ func _build_guardrails() -> void:
 
 
 func _add_rail_run(at: Vector3, collider_size: Vector3) -> StaticBody3D:
-	var collider := _add_solid("GuardrailCollider", collider_size, at, &"rail")
+	# The conservative 1.44 m collision volume must never be rendered: doing so
+	# turns every rail into an opaque waist-high wall. The actual two rails and
+	# posts below remain the complete visible assembly.
+	var collider := _add_collision_only("GuardrailCollider", collider_size, at)
+	collider.set_meta(&"safety_rail", true)
 	var horizontal := collider_size.x > collider_size.z
 	var rail_size := Vector3(collider_size.x, 0.1, collider_size.z)
 	for y in [0.55, 1.1]:
@@ -220,6 +235,22 @@ func _add_rail_run(at: Vector3, collider_size: Vector3) -> StaticBody3D:
 	return collider
 
 
+func _add_collision_only(label: String, size: Vector3, at: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = _next_stable_name(label)
+	body.position = at
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	shape.name = "Collision"
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	_build_root.add_child(body)
+	return body
+
+
 func _build_work_bays() -> void:
 	for raw_side in [-1.0, 1.0]:
 		var side: float = raw_side
@@ -228,14 +259,23 @@ func _build_work_bays() -> void:
 		var rack_x: float = side * 10.6
 		for z in [7.0, 15.0]:
 			_add_fixed_equipment("FabricatorBase", Vector3(4.0, 0.4, 3.0), Vector3(bay_x, 0.2, z), &"machine")
+			_add_mesh("FabricatorDeck", Vector3(3.55, 0.1, 2.55), Vector3(bay_x, 0.45, z), &"floor_inlay")
 			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x - side * 1.45, 1.8, z - 1.0), &"structure")
 			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x + side * 1.45, 1.8, z - 1.0), &"structure")
 			_add_mesh("FabricatorGantry", Vector3(3.4, 0.45, 0.55), Vector3(bay_x, 3.0, z - 1.0), &"hazard")
 			_add_mesh("FabricatorHead", Vector3(1.1, 1.5, 1.1), Vector3(bay_x, 1.65, z), &"accent")
+			_add_mesh("FabricatorNozzle", Vector3(0.28, 0.72, 0.28), Vector3(bay_x, 0.75, z), &"luminous")
+			_add_mesh("FabricatorControl", Vector3(0.18, 0.72, 1.05), Vector3(bay_x - side * 1.76, 1.25, z + 0.55), &"machine")
+			_add_mesh("FabricatorStatus", Vector3(0.08, 0.18, 0.72), Vector3(bay_x - side * 1.87, 1.35, z + 0.55), &"luminous")
 			_add_fixed_equipment("WorkBench", Vector3(1.0, 0.9, 3.0), Vector3(bench_x, 0.45, z), &"structure")
+			_add_mesh("BenchBackboard", Vector3(0.16, 1.35, 2.7), Vector3(bench_x + side * 0.42, 1.5, z), &"machine")
+			for tool_z in [-0.72, 0.0, 0.72]:
+				_add_mesh("ToolDock", Vector3(0.12, 0.22, 0.3), Vector3(bench_x - side * 0.1, 1.62, z + tool_z), &"hazard")
 			_add_fixed_equipment("MaterialRack", Vector3(0.8, 2.2, 2.4), Vector3(rack_x, 1.1, z), &"structure")
 			for shelf_y in [0.55, 1.15, 1.75]:
 				_add_mesh("RackShelf", Vector3(0.86, 0.08, 2.3), Vector3(rack_x, shelf_y, z), &"hazard")
+			for canister_z in [-0.72, 0.0, 0.72]:
+				_add_mesh("RackCanister", Vector3(0.42, 0.42, 0.42), Vector3(rack_x - side * 0.08, 1.42, z + canister_z), &"accent")
 
 
 func _build_structure_and_dressing() -> void:
@@ -244,27 +284,62 @@ func _build_structure_and_dressing() -> void:
 			_add_fixed_equipment("RoofColumn", Vector3(0.45, 5.6, 0.45), Vector3(x, 2.8, z), &"structure")
 	for z in [5.0, 11.0, 17.0]:
 		_add_mesh("OverheadCrossbeam", Vector3(27.0, 0.45, 0.5), Vector3(0.0, 5.35, z), &"structure")
+	# Deep ceiling coffers and longitudinal spines turn the former open frame
+	# into a complete industrial hall while retaining the central clerestory.
+	for x in [-8.25, 8.25]:
+		for z in [7.65, 12.55, 17.45]:
+			_add_mesh("CeilingCoffer", Vector3(9.8, 0.18, 4.5), Vector3(x, 5.52, z), &"ceiling")
+	for x in [-13.1, -3.2, 3.2, 13.1]:
+		_add_mesh("RoofSpine", Vector3(0.34, 0.34, 15.3), Vector3(x, 5.15, 12.25), &"structure")
+	for z in [6.5, 9.5, 12.5, 15.5, 18.5]:
+		_add_mesh("ClerestoryRib", Vector3(5.8, 0.16, 0.24), Vector3(0.0, 5.5, z), &"rail")
+
+	# A layered portal and shallow fascia give the inbound threshold a readable
+	# facade without introducing collision or narrowing the six-metre route.
+	for x in [-8.5, 8.5]:
+		_add_mesh("EntryFascia", Vector3(10.4, 1.15, 0.32), Vector3(x, 4.45, 4.42), &"ceiling")
+	for x in [-2.72, 2.72]:
+		_add_mesh("EntryJamb", Vector3(0.26, 4.2, 0.34), Vector3(x, 2.35, 4.34), &"hazard")
+	_add_mesh("EntryHeader", Vector3(5.7, 0.64, 0.38), Vector3(0.0, 4.55, 4.38), &"structure")
+	_add_mesh("EntryLightBand", Vector3(5.25, 0.1, 0.12), Vector3(0.0, 4.72, 4.14), &"luminous")
+	_add_mesh("MainSignBacking", Vector3(6.2, 1.05, 0.16), Vector3(0.0, 3.4, 4.25), &"structure")
+	for x in [-7.0, 7.0]:
+		_add_mesh("BaySignBacking", Vector3(4.4, 0.82, 0.14), Vector3(x, 3.65, 10.0), &"structure")
 	# Low curb makes bay zoning legible without closing any approach.
 	for x in [-3.0, 3.0]:
 		for z in [6.0, 16.0]:
 			_add_mesh("HazardCurb", Vector3(0.22, 0.08, 4.0), Vector3(x, 0.04, z), &"hazard")
 	for x in [-9.5, 9.5]:
 		_add_mesh("ServiceConduit", Vector3(0.22, 0.22, 13.0), Vector3(x, 4.65, 11.0), &"accent")
+	# Flush deck graphics ground each work cell and keep the central route clear.
+	for x in [-9.45, -4.55, 4.55, 9.45]:
+		_add_mesh("BayGuideLine", Vector3(0.09, 0.025, 14.7), Vector3(x, 0.018, 12.15), &"floor_inlay")
+	for x in [-7.0, 7.0]:
+		for z in [5.05, 10.9, 13.1, 18.95]:
+			_add_mesh("BayCrossMark", Vector3(4.72, 0.027, 0.09), Vector3(x, 0.02, z), &"hazard")
+	for x in [-2.55, 2.55]:
+		_add_mesh("AisleGuide", Vector3(0.1, 0.028, 14.8), Vector3(x, 0.021, 12.1), &"luminous")
 	_add_label("FABRICATION ANNEX", Vector3(0.0, 3.4, 4.25), 0.65)
 	_add_label("PORT BAY", Vector3(-7.0, 3.65, 10.0), 0.5)
 	_add_label("STARBOARD BAY", Vector3(7.0, 3.65, 10.0), 0.5)
 
 
 func _add_label(text: String, at: Vector3, font_size: float) -> void:
-	var label := Label3D.new()
-	label.name = text.to_pascal_case()
-	label.text = text
-	label.position = at
-	label.font_size = 72
-	label.pixel_size = font_size / 72.0
-	label.modulate = Color("cbe9e7")
-	label.outline_size = 8
-	_build_root.add_child(label)
+	# One culled face per viewing direction prevents Godot's rear-face text from
+	# reading as a giant mirrored word across the hall.
+	for rear_facing in [false, true]:
+		var label := Label3D.new()
+		label.name = "%s%s" % [text.to_pascal_case(), "Rear" if rear_facing else "Front"]
+		label.text = text
+		label.position = at + Vector3(0.0, 0.0, 0.1 if rear_facing else -0.1)
+		label.rotation.y = 0.0 if rear_facing else PI
+		label.font_size = 72
+		label.pixel_size = font_size / 72.0
+		label.modulate = Color("d9ffff")
+		label.outline_modulate = Color("071216")
+		label.outline_size = 12
+		label.double_sided = false
+		_build_root.add_child(label)
 
 
 func _build_lighting() -> void:
@@ -272,7 +347,7 @@ func _build_lighting() -> void:
 	# shadowless light volumes are consolidated: each longitudinal same-colour
 	# pair becomes one midpoint pool whose radius contains both former spheres.
 	for luminaire_position in LUMINAIRE_POSITIONS:
-		_add_mesh("Luminaire", LUMINAIRE_SIZE, luminaire_position as Vector3, &"accent")
+		_add_mesh("Luminaire", LUMINAIRE_SIZE, luminaire_position as Vector3, &"luminous")
 	for definition_variant in PAIRED_POOL_DEFINITIONS:
 		var definition := definition_variant as Dictionary
 		var light := OmniLight3D.new()
@@ -562,7 +637,7 @@ func get_lighting_contract() -> Dictionary:
 			"source_range_m": SOURCE_PRACTICAL_RANGE_M,
 			"sources_geometrically_contained": sources_contained,
 		})
-	var luminaire_key := "accent:%0.3f:%0.3f:%0.3f" % [
+	var luminaire_key := "luminous:%0.3f:%0.3f:%0.3f" % [
 		LUMINAIRE_SIZE.x, LUMINAIRE_SIZE.y, LUMINAIRE_SIZE.z,
 	]
 	var authored_luminaires := _authored_batch_transforms.get(luminaire_key, []) as Array
@@ -789,7 +864,7 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(render.forward_plus_buffers_match_authored) or int(render.authored_transform_count) != int(render.multi_mesh_drawn_copies):
 		errors.append("Forward+ MultiMesh buffers drifted from authored transforms")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 47 if observation_rear_gate_open else 46
+	var expected_name_allocations := 66 if observation_rear_gate_open else 65
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()

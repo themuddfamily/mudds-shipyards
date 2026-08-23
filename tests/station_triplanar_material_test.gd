@@ -114,6 +114,9 @@ func _test_live_station_coverage(
 	# recipe so nothing hides in the gap.
 	var vip_root := world.get_node_or_null(^"VipReceptionSuite")
 	var cluster_root: Node = cluster_fixture
+	# Mobile vehicle bodywork is covered by its own focused material/lifecycle
+	# contract, not by this static station-architecture census.
+	var tow_tractor_root := world.get_node_or_null(^"CargoAndMachinery/TowTractor")
 	_check(
 		world.get_node_or_null(^"NearbySectorCluster") == null
 		and world.get_nearby_sector_cluster() == null,
@@ -127,6 +130,8 @@ func _test_live_station_coverage(
 			continue
 		if cluster_root != null and cluster_root.is_ancestor_of(mesh_instance):
 			continue
+		if tow_tractor_root != null and tow_tractor_root.is_ancestor_of(mesh_instance):
+			continue
 		for surface_index in mesh_instance.mesh.get_surface_count():
 			var material := mesh_instance.get_active_material(surface_index) as StandardMaterial3D
 			if material == null:
@@ -137,16 +142,9 @@ func _test_live_station_coverage(
 			if albedo_path != ALBEDO_PATH:
 				continue
 			mapped_surface_count += 1
-			exact_recipe = (
-				exact_recipe
-				and material.normal_enabled
+			var recipe_matches := (
+				material.normal_enabled
 				and _texture_path(material.normal_texture) == NORMAL_PATH
-				# Re-frozen from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9.
-				# 0.48 left plated walls nearly featureless at eye height; 1.9 domed
-				# the plate faces into embossed plastic on bright surfaces. 1.0 is the
-				# highest sampled value with no doming in any frame. This stays an
-				# exact equality on purpose: the whole point is that every module
-				# shares one relief depth.
 				and is_equal_approx(material.normal_scale, 1.0)
 				and _texture_path(material.roughness_texture) == ROUGHNESS_PATH
 				and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
@@ -154,6 +152,7 @@ func _test_live_station_coverage(
 				and material.uv1_world_triplanar
 				and material.texture_repeat
 			)
+			exact_recipe = exact_recipe and recipe_matches
 			if material.uv1_scale.is_equal_approx(Vector3.ONE * 0.22):
 				scale_022_count += 1
 			elif material.uv1_scale.is_equal_approx(Vector3.ONE * 0.28):
@@ -572,12 +571,19 @@ func _test_live_station_coverage(
 	# instanced-family census below gains exactly one mapped batch.
 	# Splitting the Aft junction deck at Operations Access adds one mapped 0.30
 	# apron while removing the prior positive-area floor overlap: 2600 -> 2601.
+	# Removing the obstructing junction mast subtracts its three structural meshes
+	# and the seven mapped pieces in its detached foot assembly, all at 0.30.
+	# The finished Annex/Observation/Salvage district replaces opaque rail-collider
+	# slabs with batched open rails, maps the Observation deck/shell, and adds the
+	# three modules' structural finish. Measured on the merged production tree,
+	# Excluding the mobile tow tractor leaves final static-architecture buckets of
+	# 115 / 844 / 1655.
 	_check(
-		mapped_surface_count == 2601
-		and scale_022_count == 130
-		and scale_028_count == 850
-		and scale_030_count == 1621,
-		"live station binds exactly 2601 ordinary surfaces after the Aft threshold seam split"
+		mapped_surface_count == 2614
+		and scale_022_count == 115
+		and scale_028_count == 844
+		and scale_030_count == 1655,
+		"live static station binds exactly 2614 ordinary surfaces after the finished outer-district pass"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -670,8 +676,8 @@ func _test_instanced_station_family(
 	# maintenance-gantry SafetyBands and the rubber TowTractor wheel batch. Those
 	# three visual-only families are intentionally outside the station plate maps.
 	_check(
-		batches == 49 and mapped == 18,
-		"instanced station structure is exactly forty-nine batches, eighteen of them mapped"
+		batches == 86 and mapped == 34,
+		"instanced station structure is exactly eighty-six batches, thirty-four of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -686,13 +692,13 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 	var expected := {
 		"CentralBerthServiceLine/PortFlank/PartsBinRack": [15, 14, 1, 1],
 		"ModernFleetRegistry": [35, 22, 1, 1],
-		"FabricationAnnex": [35, 27, 12, 2],
+		"FabricationAnnex": [27, 27, 31, 12],
 		"ExposedDockLattice/FabricationAnnexConnector": [10, 10, 0, 0],
 		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
-		"ObservationLogisticsSpur": [48, 0, 1, 0],
+		"ObservationLogisticsSpur": [33, 9, 13, 2],
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
-		"SalvageTerrace": [30, 29, 3, 2],
+		"SalvageTerrace": [40, 33, 6, 5],
 		"ExposedDockLattice/SalvageTerraceConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier": [7, 5, 0, 0],
 	}

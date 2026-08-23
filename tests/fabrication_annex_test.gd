@@ -23,13 +23,15 @@ func _run() -> void:
 
 	_test_contract(annex)
 	_test_area_and_surface_census(annex)
+	_test_finishing_pass(annex)
 	await _test_collision_and_edges(stage, annex)
 	await _test_physical_roof_columns(stage, annex)
 	await _test_embodied_traversal(stage, annex)
-	await _test_structured_red_mutations(annex)
-	await _test_lifecycle(annex)
 	if OS.get_cmdline_user_args().has("--capture-fabrication-annex"):
 		await _capture_one_forward_plus_frame(stage, annex)
+	await _test_observation_gate_variant(stage)
+	await _test_structured_red_mutations(annex)
+	await _test_lifecycle(annex)
 
 	Input.action_release(&"move_forward")
 	Input.action_release(&"sprint_boost")
@@ -169,13 +171,13 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
-	_check(int(render.multi_mesh_batches) == 12 and int(render.multi_mesh_drawn_copies) == 94, "twelve batches store all 94 non-colliding drawn copies")
-	_check(int(render.geometry_submissions) == 46 and int(render.visible_geometry_copies) == 128, "46 submissions draw the frozen 128 visible geometry copies")
-	_check(int(render.authored_transform_count) == 94, "every MultiMesh copy retains an authored transform")
-	_check(int(render.forward_plus_buffer_float_count) == 1128 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 94 valid 3D transforms")
+	_check(int(render.multi_mesh_batches) == 31 and int(render.multi_mesh_drawn_copies) == 176, "31 restrained batches store all 176 non-colliding architectural and equipment copies")
+	_check(int(render.geometry_submissions) == 58 and int(render.visible_geometry_copies) == 203, "58 submissions draw the frozen 203 visible geometry copies")
+	_check(int(render.authored_transform_count) == 176, "every MultiMesh copy retains an authored transform")
+	_check(int(render.forward_plus_buffer_float_count) == 2112 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 176 valid 3D transforms")
 	var naming := annex.get_deterministic_naming_contract()
 	print("FABRICATION_ANNEX_NAMING: nodes=%d allocations=%d fallbacks=%d duplicates=%d paths=%s" % [naming.node_count, naming.generated_name_allocation_count, naming.auto_generated_fallback_path_count, naming.duplicate_sibling_name_count, naming.auto_generated_fallback_paths])
-	_check(int(naming.node_count) == 129 and int(naming.generated_name_allocation_count) == 46, "all 129 nodes and 46 generated allocations are frozen deterministically")
+	_check(int(naming.node_count) == 144 and int(naming.generated_name_allocation_count) == 65, "all 144 nodes and 65 generated allocations are frozen deterministically")
 	_check(int(naming.auto_generated_fallback_path_count) == 0 and int(naming.duplicate_sibling_name_count) == 0, "no runtime path contains an auto-generated @ fallback or duplicate sibling name")
 
 	var mapped_materials := {}
@@ -187,6 +189,61 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	for material in mapped_materials.values():
 		compliant_scale = compliant_scale and (material as StandardMaterial3D).uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
 	_check(compliant_scale, "every mapped annex panel uses the accepted 0.30 production station scale")
+
+
+func _test_finishing_pass(annex: FabricationAnnex) -> void:
+	var rail_colliders := annex.find_children("GuardrailCollider*", "StaticBody3D", true, false)
+	var collision_is_invisible := rail_colliders.size() == 7
+	for raw_collider in rail_colliders:
+		collision_is_invisible = collision_is_invisible and raw_collider.find_children("*", "MeshInstance3D", false, false).is_empty()
+	_check(collision_is_invisible, "guardrails retain conservative collision without rendering it as opaque wall slabs")
+	var required_batches := [
+		"CeilingCofferBatch", "RoofSpineBatch", "ClerestoryRibBatch",
+		"EntryFasciaBatch", "EntryJambBatch", "EntryHeaderBatch",
+		"MainSignBackingBatch", "BayGuideLineBatch", "AisleGuideBatch",
+		"FabricatorDeckBatch", "FabricatorControlBatch", "FabricatorStatusBatch",
+		"BenchBackboardBatch", "ToolDockBatch", "RackCanisterBatch",
+	]
+	var complete := true
+	for node_name in required_batches:
+		complete = complete and annex.find_child(node_name, true, false) is MultiMeshInstance3D
+	_check(complete, "roof, facade, deck zoning, controls, benches, and material racks all carry their finishing geometry")
+
+	var labels := annex.find_children("*", "Label3D", true, false)
+	var culled_faces := labels.size() == 6
+	for raw_label in labels:
+		culled_faces = culled_faces and not (raw_label as Label3D).double_sided
+	_check(culled_faces, "three signs use six individually culled faces instead of mirrored rear-face text")
+	var entry_front := annex.find_child("FabricationAnnexFront", true, false) as Label3D
+	var entry_rear := annex.find_child("FabricationAnnexRear", true, false) as Label3D
+	_check(
+		entry_front != null and entry_rear != null
+		and is_equal_approx(entry_front.rotation.y, PI)
+		and is_zero_approx(entry_rear.rotation.y)
+		and entry_front.text == entry_rear.text,
+		"the FABRICATION ANNEX legend has correctly oriented front and rear faces"
+	)
+	var status_batch := annex.find_child("FabricatorStatusBatch", true, false) as MultiMeshInstance3D
+	var status_material := status_batch.material_override as StandardMaterial3D if status_batch != null else null
+	_check(status_material != null and status_material.emission_enabled, "fabricator status strips and aisle guides use a grounded emissive material")
+
+
+func _test_observation_gate_variant(stage: Node3D) -> void:
+	var gate_annex := ANNEX_SCENE.instantiate() as FabricationAnnex
+	gate_annex.observation_rear_gate_open = true
+	stage.add_child(gate_annex)
+	await process_frame
+	var performance := gate_annex.get_performance_contract()
+	_check(
+		int(performance.mesh_instances) == 27
+		and int(performance.multi_mesh_instances) == 31
+		and int(performance.visible_geometry_copies) == 204
+		and int(performance.nodes) == 146,
+		"the integrated Observation-gate variant retains its exact finished rendering budget"
+	)
+	_check(bool(gate_annex.get_audit_report().valid), "the finished Observation-gate variant retains its production integration contract")
+	gate_annex.queue_free()
+	await process_frame
 
 
 func _test_collision_and_edges(stage: Node3D, annex: FabricationAnnex) -> void:

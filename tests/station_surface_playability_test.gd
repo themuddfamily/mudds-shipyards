@@ -1448,8 +1448,11 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 ##
 ## The sweep is deliberately structural rather than a roster: it rays down over
 ## the reachable envelopes and asks the renderer, not a list, whether anything is
-## drawn where the physics says a player may stand. Both individual meshes and
-## every visible transform in a MultiMesh contribute drawn bounds. Hull collision on the live
+## drawn where the physics says a player may stand. Tagged safety-rail envelopes
+## are barriers rather than standable route surfaces; their open-rail visuals are
+## verified by the owning module suites and intentionally do not cover the
+## conservative collider's complete top face. Both individual meshes and every
+## visible transform in a MultiMesh contribute drawn bounds. Hull collision on the live
 ## craft is out of scope here — that is a published per-ship contract audited by
 ## `tests/torrent_collision_art_alignment_test.gd` and friends — so only the
 ## World layer is swept.
@@ -1508,11 +1511,14 @@ func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -
 						break
 					var point := hit.position as Vector3
 					if (hit.normal as Vector3).dot(Vector3.UP) >= 0.6:
+						var collider := hit.collider as Node
+						if collider != null and bool(collider.get_meta(&"safety_rail", false)):
+							cursor = point.y - 0.05
+							continue
 						probes += 1
 						if _column_is_drawn(buckets, x, z, point.y):
 							supported += 1
 						else:
-							var collider := hit.collider as Node
 							var key := str(collider.get_path()) if collider != null else "<null>"
 							if not orphans.has(key):
 								orphans[key] = 0
@@ -1760,20 +1766,17 @@ func _test_spawn_adjacent_stair(world: ShipyardWorld, player: PlayerController) 
 	_check(exact_tread_roster, "central stair exposes seven uniquely named tread overlays with no duplicate fallback names")
 	_check(maximum_tread_edge_delta <= 0.08, "every visible tread edge stays within 0.08 m of the rendered/colliding ramp surface")
 
-	var relocated_mast: StaticBody3D = null
+	var blocking_mast: StaticBody3D = null
 	for candidate in world.get_node(^"ExposedDockLattice").find_children("DockMast*", "StaticBody3D", false, false):
 		var mast := candidate as StaticBody3D
 		if mast.global_position.is_equal_approx(Vector3(-11.0, 5.2, 14.0)):
-			relocated_mast = mast
+			blocking_mast = mast
 			break
-	var mast_supported := false
-	if relocated_mast != null:
-		var mast_ray := PhysicsRayQueryParameters3D.create(Vector3(-11.0, 0.08, 14.0), Vector3(-11.0, -0.20, 14.0), WORLD_LAYER)
-		mast_ray.exclude = [relocated_mast.get_rid()]
-		mast_ray.collide_with_areas = false
-		var mast_hit := world.get_world_3d().direct_space_state.intersect_ray(mast_ray)
-		mast_supported = not mast_hit.is_empty() and mast_hit.collider is StaticBody3D
-	_check(mast_supported, "relocated port mast remains collision-supported by the CentralJunction deck")
+	_check(blocking_mast == null, "the port dock mast no longer blocks the CentralJunction walkway")
+	_check(
+		world.get_node_or_null(^"CentralBerthServiceLine/DockMastFoot00") == null,
+		"the removed walkway mast leaves no detached foot assembly"
+	)
 
 
 func _vertical_distance_to_rendered_ramp(

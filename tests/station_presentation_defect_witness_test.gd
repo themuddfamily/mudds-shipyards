@@ -132,8 +132,8 @@ const SEATED_DECORATION_TOLERANCE := 0.03
 ## mesh in the module; that sweep is what found COMB-DECK-CUE-001.
 ##
 ## Widened again by the central-berth finishing pass, nineteen entries to
-## twenty-nine, for the hero berth's port-flank ground support line and the four
-## dock mast feet. These are entered pre-emptively rather than as repairs: the
+## twenty-eight, for the hero berth's port-flank ground support line and the three
+## remaining dock mast feet. These are entered pre-emptively rather than as repairs: the
 ## pass added the first freestanding objects that stand on the *authored* berth
 ## deck, and that deck is the one surface on the station where the obvious
 ## seating method is wrong. Its drawn top face is y = 0.095 while the
@@ -143,7 +143,7 @@ const SEATED_DECORATION_TOLERANCE := 0.03
 ## that put the central berth cue 0.235 m over its own deck. Every piece listed
 ## below is instead seated arithmetically against
 ## `ShipyardWorld.AUTHORED_CENTRAL_BERTH_DECK_TOP` (or `LATTICE_DECK_TOP` for the
-## two masts standing on `CentralJunction`), with the station's shared 0.010 m
+## one mast standing on `CentralJunction`), with the station's shared 0.010 m
 ## bearing into the surface, and is checked here against drawn geometry.
 ##
 ## One entry per assembly is listed, at its ground contact, plus the work stand's
@@ -179,7 +179,6 @@ const SEATED_ON_GEOMETRY_PATHS := [
 	"CentralBerthServiceLine/PortFlank/ChockLocker/LockerBody/Mesh",
 	"CentralBerthServiceLine/PortFlank/AccessWorkStand/StandStepLower/Mesh",
 	"CentralBerthServiceLine/PortFlank/AccessWorkStand/StandPlatform/Mesh",
-	"CentralBerthServiceLine/DockMastFoot00/MastBaseFlange",
 	"CentralBerthServiceLine/DockMastFoot01/MastBaseFlange",
 	"CentralBerthServiceLine/DockMastFoot02/MastBaseFlange",
 	"CentralBerthServiceLine/DockMastFoot03/MastBaseFlange",

@@ -59,20 +59,21 @@ const ROUTE_IDS := [
 	&"inspection-pad",
 ]
 
-## Exact focused-census budgets. These are frozen to the standalone build rather
-## than padded during integration, so any added submission/node turns audit red.
+## Exact focused-census budgets. These are frozen to the finished standalone
+## build rather than padded during integration, so any added submission/node
+## turns audit red.
 const PERFORMANCE_BUDGET := {
-	"mesh_instances": 30,
-	"multimesh_batches": 3,
-	"multimesh_instances": 20,
-	"geometry_submissions": 33,
-	"visible_geometry_copies": 50,
-	"multimesh_buffer_floats": 240,
+	"mesh_instances": 40,
+	"multimesh_batches": 6,
+	"multimesh_instances": 164,
+	"geometry_submissions": 46,
+	"visible_geometry_copies": 204,
+	"multimesh_buffer_floats": 1968,
 	"static_bodies": 26,
 	"collision_shapes": 26,
 	"labels": 1,
-	"lights": 0,
-	"nodes": 96,
+	"lights": 3,
+	"nodes": 112,
 	"process_loops": 0,
 	"physics_process_loops": 0,
 }
@@ -80,6 +81,9 @@ const MULTIMESH_INSTANCE_COUNTS := {
 	"TerraceSupportBatch": 10,
 	"SalvageCageBatch": 6,
 	"ServiceBeaconBatch": 4,
+	"SalvageFrameBatch": 10,
+	"SortingMachineryBatch": 8,
+	"RailDetailBatch": 126,
 }
 
 ## First unbatched repeated family after the three authored dressing batches.
@@ -138,6 +142,7 @@ var _built_multimesh_visible_counts: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _short_side_rail_visual_mesh: BoxMesh
 var _long_rail_visual_mesh: BoxMesh
+var _rail_detail_transforms: Array[Transform3D] = []
 
 
 func _ready() -> void:
@@ -150,6 +155,7 @@ func _ready() -> void:
 		_build_surfaces()
 		_build_safety_rails()
 		_build_batched_supports_and_dressing()
+		_build_salvage_work_bay()
 		_build_identity_sign()
 		_apply_metadata()
 		_build_generation += 1
@@ -285,6 +291,8 @@ func get_component_roster() -> Dictionary:
 	roster["safety_rail_count"] = _rail_nodes.size()
 	roster["identity_label_count"] = find_children("*", "Label3D", true, false).size()
 	roster["multimesh_batch_count"] = find_children("*", "MultiMeshInstance3D", true, false).size()
+	roster["work_light_count"] = find_children("*", "OmniLight3D", true, false).size()
+	roster["salvage_work_bay_present"] = _salvage_work_bay_is_complete()
 	return roster
 
 
@@ -408,6 +416,7 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 				visual.material_override != _materials.get("rail")
 				or not visual.transform.is_equal_approx(Transform3D.IDENTITY)
 				or visual.layers != 1
+				or visual.visible
 				or visual.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 				or str(visual.get_meta("non_walkable_reason", ""))
 					!= "physical safety rail, not a route surface"
@@ -465,7 +474,7 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 		errors.append("short_side_rail_visual_mesh_recipe_drift")
 	if visual_node_count != SHORT_SIDE_RAIL_VISUAL_COUNT:
 		errors.append("short_side_rail_visual_node_count_drift")
-	if visible_copy_count != SHORT_SIDE_RAIL_VISUAL_COUNT:
+	if visible_copy_count != 0:
 		errors.append("short_side_rail_visual_copy_count_drift")
 	if structural_submissions != SHORT_SIDE_RAIL_VISUAL_COUNT:
 		errors.append("short_side_rail_visual_submission_count_drift")
@@ -511,7 +520,7 @@ func get_short_side_rail_visual_allocation_audit() -> Dictionary:
 		"current": current,
 		"reductions": {
 			"visual_nodes": 0,
-			"visible_geometry_copies": 0,
+			"visible_geometry_copies": 4,
 			"structural_submissions": 0,
 			"mesh_resource_allocations": 3,
 			"physical_rail_bodies": 0,
@@ -651,6 +660,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("exposed terrace and ramp edges require live physical safety rails")
 	if not _dressing_is_batched_and_route_clear():
 		errors.append("salvage/service dressing must stay batched and outside traversal routes")
+	if not _salvage_work_bay_is_complete():
+		errors.append("finished salvage work bay identity, machinery, framing, or lighting drifted")
 	if not _identity_sign_is_route_clear():
 		errors.append("identity sign must remain behind the entry rail and outside every walkable projection")
 	var collision := get_collision_contract()
@@ -838,6 +849,10 @@ func _build_safety_rails() -> void:
 	_add_rail("TopAft", Transform3D(Basis.IDENTITY, Vector3(23.0, 6.05, 18.0)), Vector3(6.0, 1.3, 0.16))
 	_add_rail("TopPort", Transform3D(Basis.IDENTITY, Vector3(20.0, 6.05, 16.0)), Vector3(0.16, 1.3, 4.0))
 	_add_rail("TopStarboard", Transform3D(Basis.IDENTITY, Vector3(26.0, 6.05, 16.0)), Vector3(0.16, 1.3, 4.0))
+	_add_multimesh_batch(
+		"RailDetailBatch", Vector3.ONE, _rail_detail_transforms, _materials.rail,
+		"open top and mid rails with regular posts over conservative hidden collision"
+	)
 
 
 func _add_rail(node_name: String, transform: Transform3D, size: Vector3) -> void:
@@ -851,8 +866,36 @@ func _add_rail(node_name: String, transform: Transform3D, size: Vector3) -> void
 	)
 	rail.set_meta("safety_rail", true)
 	var mesh := rail.get_node(^"Mesh") as MeshInstance3D
+	# Keep the proven conservative physics envelope but do not render it as a
+	# waist-high solid wall. Open rail bars and posts are drawn by RailDetailBatch.
+	mesh.visible = false
 	mesh.set_meta("non_walkable_reason", "physical safety rail, not a route surface")
 	_rail_nodes.append(rail)
+	_append_rail_detail_transforms(transform, size)
+
+
+func _append_rail_detail_transforms(rail_transform: Transform3D, size: Vector3) -> void:
+	var runs_on_x := size.x >= size.z
+	var run_length := size.x if runs_on_x else size.z
+	var bar_size := (
+		Vector3(run_length, 0.10, 0.10)
+		if runs_on_x else Vector3(0.10, 0.10, run_length)
+	)
+	for rail_height in [-0.05, 0.50]:
+		_rail_detail_transforms.append(
+			rail_transform * Transform3D(
+				Basis.IDENTITY.scaled(bar_size), Vector3(0.0, rail_height, 0.0)
+			)
+		)
+	var interval_count := ceili(run_length / 2.0)
+	for post_index in range(interval_count + 1):
+		var along := lerpf(-run_length * 0.5, run_length * 0.5, float(post_index) / interval_count)
+		var local_position := Vector3(along, 0.0, 0.0) if runs_on_x else Vector3(0.0, 0.0, along)
+		_rail_detail_transforms.append(
+			rail_transform * Transform3D(
+				Basis.IDENTITY.scaled(Vector3(0.10, 1.20, 0.10)), local_position
+			)
+		)
 
 
 func _add_sloped_rail(node_name: String, start: Vector3, finish: Vector3) -> void:
@@ -895,6 +938,81 @@ func _build_batched_supports_and_dressing() -> void:
 	_visual_box("InspectionGantryMast", Vector3(27.0, 3.0, 7.5), Vector3(0.45, 6.0, 0.45), _materials.frame, "outboard inspection gantry over void")
 	_visual_box("InspectionGantryBoom", Vector3(24.5, 5.8, 7.5), Vector3(5.0, 0.35, 0.35), _materials.hazard, "overhead inspection boom outside capsule height")
 	_visual_box("SuspendedSalvageClamp", Vector3(26.6, 5.0, 7.5), Vector3(0.8, 1.2, 0.8), _materials.salvage, "suspended service clamp beyond the upper terrace rail")
+
+
+func _build_salvage_work_bay() -> void:
+	# A tall portal frame turns the lower terrace into a recognizable covered
+	# breaking/sorting bay. The uprights hug the already-guarded perimeter and
+	# every cross-member remains well above the player capsule.
+	var frame_transforms: Array[Transform3D] = []
+	for z_value in [3.0, 8.0, 13.0]:
+		frame_transforms.append(
+			Transform3D(Basis.IDENTITY.scaled(Vector3(0.7, 7.0, 0.7)), Vector3(-17.55, 2.1, z_value))
+		)
+		frame_transforms.append(
+			Transform3D(Basis.IDENTITY.scaled(Vector3(0.7, 7.0, 0.7)), Vector3(-6.45, 2.1, z_value))
+		)
+		frame_transforms.append(
+			Transform3D(Basis.IDENTITY.scaled(Vector3(11.8, 0.55, 0.7)), Vector3(-12.0, 4.25, z_value))
+		)
+	frame_transforms.append(
+		Transform3D(Basis.IDENTITY.scaled(Vector3(0.7, 3.0, 0.7)), Vector3(25.55, 5.1, 5.0))
+	)
+	_add_multimesh_batch(
+		"SalvageFrameBatch", Vector3.ONE, frame_transforms, _materials.frame,
+		"portal framing hugs guarded edges or stays above player clearance"
+	)
+
+	# Compact sorting equipment is staged behind the aft rail, not on any of the
+	# six walkable projections. Different transforms make the shared cube read as
+	# conveyor, crusher, hopper, and stock rather than repeated crates.
+	var machinery_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY.scaled(Vector3(3.2, 0.7, 1.2)), Vector3(-15.7, 1.0, 15.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(1.4, 2.2, 1.4)), Vector3(-12.4, 1.25, 15.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(1.8, 0.45, 1.6)), Vector3(-9.8, 0.65, 15.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(0.35, 1.6, 0.35)), Vector3(-16.8, 1.45, 15.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(2.8, 0.55, 1.1)), Vector3(16.0, 4.2, 11.25)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(1.2, 1.8, 1.2)), Vector3(19.2, 4.75, 11.25)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(1.7, 0.4, 1.4)), Vector3(21.4, 4.05, 11.25)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(0.3, 1.4, 0.3)), Vector3(17.6, 4.65, 11.25)),
+	]
+	_add_multimesh_batch(
+		"SortingMachineryBatch", Vector3.ONE, machinery_transforms, _materials.machine,
+		"sorting machinery staged behind physical aft rails outside route projections"
+	)
+
+	_visual_box("LowerBayRoof", Vector3(-12.0, 4.6, 8.0), Vector3(11.4, 0.22, 9.4), _materials.roof, "high salvage-bay roof above player clearance")
+	_visual_box("RoofHazardStripe", Vector3(-12.0, 4.46, 2.95), Vector3(8.0, 0.10, 0.35), _materials.hazard, "overhead bay-edge identification stripe")
+	_visual_box("CrusherFeedHood", Vector3(-12.4, 2.55, 15.35), Vector3(2.2, 0.35, 1.8), _materials.hazard, "crusher hood behind aft safety rail")
+	_visual_box("CraneBridge", Vector3(-12.0, 4.05, 8.0), Vector3(9.4, 0.28, 0.38), _materials.hazard, "overhead salvage crane bridge above player clearance")
+	_visual_box("CraneTrolley", Vector3(-10.1, 3.72, 8.0), Vector3(0.8, 0.55, 0.7), _materials.machine, "overhead crane trolley above player clearance")
+	_visual_box("CraneDropCable", Vector3(-10.1, 3.15, 8.0), Vector3(0.08, 0.9, 0.08), _materials.rail, "overhead crane cable outside capsule height")
+	_visual_box("CraneHook", Vector3(-10.1, 2.68, 8.0), Vector3(0.35, 0.22, 0.35), _materials.hazard, "high suspended crane hook outside route contact")
+	_visual_box("UpperInspectionConsole", Vector3(25.55, 4.25, 5.0), Vector3(0.45, 1.1, 1.8), _materials.machine, "inspection console beyond upper outboard rail")
+	_visual_box("UpperConsoleScreen", Vector3(25.28, 4.45, 5.0), Vector3(0.05, 0.55, 1.15), _materials.emissive, "emissive inspection display beyond upper outboard rail")
+	_visual_box("BayNameplate", Vector3(-12.0, 4.15, 2.76), Vector3(4.4, 0.65, 0.12), _materials.emissive, "illuminated salvage-bay nameplate above entry clearance")
+
+	_add_work_light("LowerBayWorkLight", Vector3(-12.0, 3.9, 7.0), Color("83e9df"), 1.4, 6.5)
+	_add_work_light("SortingLineWorkLight", Vector3(-12.0, 2.8, 13.0), Color("ff9b43"), 1.15, 4.5)
+	_add_work_light("UpperInspectionWorkLight", Vector3(24.8, 5.25, 5.0), Color("72dcd7"), 1.0, 4.0)
+
+
+func _add_work_light(
+		node_name: String, position_value: Vector3, color_value: Color,
+		energy: float, range_value: float
+	) -> void:
+	var light := OmniLight3D.new()
+	light.name = node_name
+	light.position = position_value
+	light.light_color = color_value
+	light.light_energy = energy
+	light.omni_range = range_value
+	light.shadow_enabled = false
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = range_value * 3.0
+	light.distance_fade_length = range_value
+	light.set_meta("non_walkable_reason", "localized static work illumination")
+	_build_root.add_child(light)
 
 
 func _build_identity_sign() -> void:
@@ -1018,7 +1136,9 @@ func _create_materials() -> void:
 	_materials["salvage"] = _material(Color("7a5132"), 0.42, 0.5)
 	_materials["hazard"] = _material(Color("dc7f2d"), 0.28, 0.38)
 	_materials["emissive"] = _material(Color("76e6dc"), 0.12, 0.25, Color("36c9c2"), 1.2)
-	for key in ["deck", "frame", "rail", "salvage"]:
+	_materials["machine"] = _material(Color("415b62"), 0.82, 0.26)
+	_materials["roof"] = _material(Color("20363d"), 0.74, 0.42)
+	for key in ["deck", "frame", "rail", "salvage", "machine", "roof"]:
 		StationSurfaceKit.apply_panel_triplanar(_materials[key] as StandardMaterial3D, 0.3)
 
 
@@ -1249,7 +1369,7 @@ func _rails_are_live_and_physical() -> bool:
 
 func _dressing_is_batched_and_route_clear() -> bool:
 	var batches := _build_root.find_children("*", "MultiMeshInstance3D", true, false)
-	if batches.size() != 3:
+	if batches.size() != 6:
 		return false
 	for raw_batch in batches:
 		var batch := raw_batch as MultiMeshInstance3D
@@ -1257,8 +1377,38 @@ func _dressing_is_batched_and_route_clear() -> bool:
 			return false
 		if str(batch.get_meta("non_walkable_reason", "")).is_empty():
 			return false
-	# All three free-standing visual boxes are above/outboard of the declared
-	# centreline corridors; their exact transforms are held by the build contract.
+	# Free-standing visuals are above/outboard of the declared centreline
+	# corridors; their exact transforms are held by the build contract.
+	return true
+
+
+func _salvage_work_bay_is_complete() -> bool:
+	var required_nodes := PackedStringArray([
+		"SalvageFrameBatch", "SortingMachineryBatch", "LowerBayRoof",
+		"CraneBridge", "CraneTrolley", "CraneHook", "UpperInspectionConsole",
+		"UpperConsoleScreen", "BayNameplate", "LowerBayWorkLight",
+		"SortingLineWorkLight", "UpperInspectionWorkLight",
+	])
+	for node_name in required_nodes:
+		var candidate := _build_root.get_node_or_null(NodePath(node_name))
+		if candidate == null or str(candidate.get_meta("non_walkable_reason", "")).is_empty():
+			return false
+	var frame_batch := _build_root.get_node_or_null(^"SalvageFrameBatch") as MultiMeshInstance3D
+	var machinery_batch := _build_root.get_node_or_null(^"SortingMachineryBatch") as MultiMeshInstance3D
+	if (
+		frame_batch == null or frame_batch.multimesh == null
+		or frame_batch.multimesh.instance_count != 10
+		or machinery_batch == null or machinery_batch.multimesh == null
+		or machinery_batch.multimesh.instance_count != 8
+	):
+		return false
+	var lights := _build_root.find_children("*", "OmniLight3D", true, false)
+	if lights.size() != 3:
+		return false
+	for raw_light in lights:
+		var light := raw_light as OmniLight3D
+		if light.shadow_enabled or light.omni_range > 6.5 or light.light_energy > 1.4:
+			return false
 	return true
 
 

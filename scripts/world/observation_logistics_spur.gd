@@ -131,14 +131,14 @@ const OBSERVATION_LENS_POSITIONS := [
 ]
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 133
 const VISUAL_DESCENDANT_NODE_COUNT := 133
-const BASELINE_RENDERER_NODE_COUNT := 49
-const RENDERER_NODE_COUNT := 49
-const BASELINE_DRAWN_COPY_COUNT := 58
-const DRAWN_COPY_COUNT := 58
-const BASELINE_SURFACE_SUBMISSION_COUNT := 49
-const SURFACE_SUBMISSION_COUNT := 49
-const BASELINE_MESH_RESOURCE_COUNT := 49
-const MESH_RESOURCE_COUNT := 37
+const BASELINE_RENDERER_NODE_COUNT := 46
+const RENDERER_NODE_COUNT := 46
+const BASELINE_DRAWN_COPY_COUNT := 232
+const DRAWN_COPY_COUNT := 232
+const BASELINE_SURFACE_SUBMISSION_COUNT := 46
+const SURFACE_SUBMISSION_COUNT := 46
+const BASELINE_MESH_RESOURCE_COUNT := 46
+const MESH_RESOURCE_COUNT := 34
 const BASELINE_MATERIAL_RESOURCE_COUNT := 9
 const MATERIAL_RESOURCE_COUNT := 9
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
@@ -174,6 +174,8 @@ var _practical_lens_mesh: BoxMesh
 var _logistics_case_mesh: BoxMesh
 var _route_markers: Dictionary = {}
 var _walkable_surfaces: Array[StaticBody3D] = []
+var _visible_rail_bar_transforms: Array[Transform3D] = []
+var _visible_rail_post_transforms: Array[Transform3D] = []
 var _built := false
 var _module_enabled := true
 
@@ -303,16 +305,17 @@ func get_authority_contract() -> Dictionary:
 
 func get_performance_contract() -> Dictionary:
 	# Exact standalone build census, frozen rather than estimated: 133 descendant
-	# nodes, 48 MeshInstance3D nodes, one MultiMesh submission holding ten repeated
-	# visual markers, 33 bodies/shapes, one Label3D and six practicals. The module
+	# nodes, 33 MeshInstance3D nodes plus thirteen visual-only MultiMesh batches,
+	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
+	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
 	# reducing retained materials 12 -> 9 without changing a visible parameter.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 48,
+		"mesh_instances": 33,
 		"static_bodies": 33,
 		"collision_shapes": 33,
-		"labels": 1,
+		"labels": 4,
 		"lights": 6,
 		"process_loops": 0,
 		"physics_process_loops": 0,
@@ -748,12 +751,40 @@ func _build_safety_rails(parent: Node3D) -> void:
 	# a loop instead of two dead ends.
 	_safety_rail(parent, "FarBridgeSouthRail", Vector3(0.0, 0.62, 36.38), Vector3(5.7, 1.24, 0.16))
 	_safety_rail(parent, "FarBridgeNorthRail", Vector3(0.0, 0.62, 39.62), Vector3(6.2, 1.24, 0.16))
+	_multimesh_scaled_boxes(parent, "VisibleRailBars", _materials["rail"], _visible_rail_bar_transforms)
+	_multimesh_scaled_boxes(parent, "VisibleRailPosts", _materials["rail"], _visible_rail_post_transforms)
 
 
 func _safety_rail(parent: Node3D, node_name: String, position: Vector3, size: Vector3) -> void:
 	var rail := _box(parent, node_name, position, size, _materials["rail"], true) as StaticBody3D
 	rail.set_meta("station_safety_edge", true)
 	rail.set_meta("non_walkable_reason", "physical fall-protection rail at exposed deck edge")
+	# The full-height box is intentionally conservative collision, not architecture.
+	# Remove its renderer and describe a real open rail with two bars and regularly
+	# spaced posts; the body and BoxShape3D remain completely unchanged.
+	var solid_renderer := rail.get_node_or_null(^"Mesh") as MeshInstance3D
+	if solid_renderer != null:
+		rail.remove_child(solid_renderer)
+		solid_renderer.free()
+	for bar_y in [0.66, 1.15]:
+		_visible_rail_bar_transforms.append(Transform3D(
+			Basis.from_scale(Vector3(size.x, 0.10, size.z)),
+			Vector3(position.x, bar_y, position.z)
+		))
+	var rail_runs_along_x := size.x >= size.z
+	var run_length := size.x if rail_runs_along_x else size.z
+	var segment_count := ceili(run_length / 2.4)
+	for post_index in segment_count + 1:
+		var offset := -run_length * 0.5 + run_length * float(post_index) / float(segment_count)
+		var post_position := position
+		if rail_runs_along_x:
+			post_position.x += offset
+		else:
+			post_position.z += offset
+		post_position.y = 0.62
+		_visible_rail_post_transforms.append(Transform3D(
+			Basis.from_scale(Vector3(0.12, 1.24, 0.12)), post_position
+		))
 
 
 func _build_dressing(parent: Node3D) -> void:
@@ -787,6 +818,77 @@ func _build_dressing(parent: Node3D) -> void:
 		parent, "ConnectorMarkers", Vector3(0.10, 0.44, 0.62), _materials["amber"], connector_marker_transforms
 	)
 	_label(parent, "AreaIdentity", "OBSERVATION  //  LOGISTICS", Vector3(0.0, 1.65, 26.25), Color("dbe8e4"))
+	_build_finishing_details(parent)
+
+
+func _build_finishing_details(parent: Node3D) -> void:
+	# Five open portals give the long approach a deliberate station silhouette
+	# without adding walls, floor or collision across its exposed negative space.
+	var portal_posts: Array[Transform3D] = []
+	var portal_beams: Array[Transform3D] = []
+	for bay_z in [2.0, 7.0, 12.0, 17.0, 22.0]:
+		for side in [-1.0, 1.0]:
+			portal_posts.append(Transform3D(Basis.IDENTITY, Vector3(side * 2.42, 1.80, bay_z)))
+		portal_beams.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 3.55, bay_z)))
+	_multimesh_boxes(parent, "ConnectorPortalPosts", Vector3(0.22, 3.60, 0.22), _materials["rail"], portal_posts)
+	_multimesh_boxes(parent, "ConnectorPortalBeams", Vector3(5.05, 0.22, 0.34), _materials["shell"], portal_beams)
+
+	# Perforated ribbon roofs shelter the working zones but keep the two pads and
+	# the void between them visually legible from the approach and from space.
+	var canopy_slats: Array[Transform3D] = []
+	for pad_x in [-8.0, 8.0]:
+		for slat_index in 6:
+			canopy_slats.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(pad_x - 2.5 + float(slat_index), 3.72, 32.0)
+			))
+	var canopy_ribs: Array[Transform3D] = []
+	for pad_x in [-8.0, 8.0]:
+		for rib_z in [28.15, 30.7, 33.3, 35.85]:
+			canopy_ribs.append(Transform3D(Basis.IDENTITY, Vector3(pad_x, 3.58, rib_z)))
+	var canopy_supports: Array[Transform3D] = []
+	# Supports sit directly outside the pad edges against the safety rails, so a
+	# player never encounters a visual-only post in either walkable route.
+	for support_x in [-13.18, -2.82, 2.82, 13.18]:
+		for support_z in [28.4, 35.6]:
+			canopy_supports.append(Transform3D(Basis.IDENTITY, Vector3(support_x, 1.78, support_z)))
+	_multimesh_boxes(parent, "PadCanopySlats", Vector3(0.62, 0.12, 8.0), _materials["shell"], canopy_slats)
+	_multimesh_boxes(parent, "PadCanopyRibs", Vector3(9.35, 0.20, 0.24), _materials["rail"], canopy_ribs)
+	_multimesh_boxes(parent, "PadCanopySupports", Vector3(0.20, 3.56, 0.20), _materials["rail"], canopy_supports)
+
+	# Small functional accents resolve the existing consoles and cargo stacks at
+	# player distance while staying visual-only and out of the circulation lane.
+	var console_trim: Array[Transform3D] = []
+	for console_z in [28.6, 31.4, 34.2]:
+		console_trim.append(Transform3D(Basis.IDENTITY, Vector3(-11.02, 1.00, console_z)))
+	_multimesh_boxes(parent, "ObservationConsoleTrim", Vector3(0.07, 0.12, 1.08), _materials["cyan"], console_trim)
+	var cargo_bands: Array[Transform3D] = []
+	for stack_index in 3:
+		var stack_z := 28.8 + float(stack_index) * 2.75
+		for tier_index in 2:
+			var tier_y := 0.48 + float(tier_index) * 0.58
+			for band_offset in [-0.34, 0.34]:
+				cargo_bands.append(Transform3D(Basis.IDENTITY, Vector3(11.15 + band_offset, tier_y + 0.27, stack_z)))
+	_multimesh_boxes(parent, "CargoCaseBands", Vector3(0.12, 0.05, 1.34), _materials["amber"], cargo_bands)
+
+	# Colour-coded deck ticks and bridge chevrons create a readable material and
+	# wayfinding hierarchy without increasing the five walkable surface extents.
+	var observation_ticks: Array[Transform3D] = []
+	var logistics_ticks: Array[Transform3D] = []
+	for tick_index in 6:
+		var tick_z := 27.2 + float(tick_index) * 1.75
+		observation_ticks.append(Transform3D(Basis.IDENTITY, Vector3(-4.25, 0.025, tick_z)))
+		logistics_ticks.append(Transform3D(Basis.IDENTITY, Vector3(4.25, 0.025, tick_z)))
+	_multimesh_boxes(parent, "ObservationZoneTicks", Vector3(0.14, 0.035, 0.92), _materials["cyan"], observation_ticks)
+	_multimesh_boxes(parent, "LogisticsZoneTicks", Vector3(0.14, 0.035, 0.92), _materials["amber"], logistics_ticks)
+	var return_chevrons: Array[Transform3D] = []
+	for chevron_index in 5:
+		return_chevrons.append(Transform3D(Basis.IDENTITY, Vector3(-2.0 + float(chevron_index), 0.025, 38.0)))
+	_multimesh_boxes(parent, "ReturnBridgeChevrons", Vector3(0.48, 0.035, 0.12), _materials["practical_white"], return_chevrons)
+
+	_label(parent, "ObservationArraySign", "OBS  //  ARRAY  04", Vector3(-8.0, 2.78, 27.82), Color("8fe8ef"))
+	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(8.0, 2.78, 27.82), Color("f4bf72"))
+	_label(parent, "ReturnLoopSign", "RETURN LOOP", Vector3(0.0, 2.62, 37.70), Color("dbe8e4"))
 
 
 func _build_lighting(parent: Node3D) -> void:
@@ -841,6 +943,12 @@ func _create_materials() -> void:
 	_materials["practical_cyan"] = _emissive_material(Color("8fe8ef"))
 	_materials["practical_white"] = _emissive_material(Color("dbe8e4"))
 	_materials["practical_amber"] = _emissive_material(Color("f4bf72"))
+	StationSurfaceKit.apply_panel_triplanar(
+		_materials["deck"] as StandardMaterial3D,
+		0.30,
+		StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
+	StationSurfaceKit.apply_panel_triplanar(_materials["shell"] as StandardMaterial3D, 0.30)
 
 
 func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
@@ -910,6 +1018,32 @@ func _multimesh_boxes(
 	) -> MultiMeshInstance3D:
 	var box := BoxMesh.new()
 	box.size = size
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = box
+	multi.instance_count = transforms.size()
+	for transform_index in transforms.size():
+		multi.set_instance_transform(transform_index, transforms[transform_index])
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	instance.multimesh = multi
+	instance.material_override = material
+	instance.set_meta("visual_detail_only", true)
+	instance.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(instance)
+	return instance
+
+
+func _multimesh_scaled_boxes(
+		parent: Node3D,
+		node_name: String,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	# A unit box plus per-instance scale allows every differently sized rail run
+	# to remain in one submission instead of creating a renderer per segment.
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = box

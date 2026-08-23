@@ -206,10 +206,38 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 			rail_shapes_valid = rail_shapes_valid and rail.find_children("*", "CollisionShape3D", true, false).size() == 1
 	_check(rail_shapes_valid, "every safety rail is a real one-shape World barrier, not presentation trim")
 	_check(
-		int(roster.multimesh_batch_count) == 3
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 3,
-		"repeated supports, salvage cages, and emissive markers use three bounded batches"
+		int(roster.multimesh_batch_count) == 6
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 6,
+		"supports, stock, markers, open rails, framing, and sorting machinery use six bounded batches"
 	)
+	var rail_detail := module.get_node_or_null(^"GeneratedRoot/RailDetailBatch") as MultiMeshInstance3D
+	var hidden_rail_colliders := true
+	for raw_rail in module.find_children("*", "StaticBody3D", true, false):
+		var rail_body := raw_rail as StaticBody3D
+		if bool(rail_body.get_meta("safety_rail", false)):
+			hidden_rail_colliders = hidden_rail_colliders \
+				and not (rail_body.get_node(^"Mesh") as MeshInstance3D).visible
+	_check(
+		hidden_rail_colliders and rail_detail != null and rail_detail.multimesh != null
+		and rail_detail.multimesh.instance_count == 126,
+		"conservative rail colliders are invisible while one batch draws open top/mid rails and regular posts"
+	)
+	_check(
+		bool(roster.salvage_work_bay_present)
+		and int(roster.work_light_count) == 3
+		and module.get_node_or_null(^"GeneratedRoot/LowerBayRoof") != null
+		and module.get_node_or_null(^"GeneratedRoot/CraneBridge") != null
+		and module.get_node_or_null(^"GeneratedRoot/SortingMachineryBatch") != null
+		and module.get_node_or_null(^"GeneratedRoot/UpperInspectionConsole") != null,
+		"finished terrace reads as a covered salvage work bay with crane, sorting line, inspection console, and three local work lights"
+	)
+	var work_lights := module.find_children("*", "OmniLight3D", true, false)
+	var lights_are_bounded := work_lights.size() == 3
+	for raw_light in work_lights:
+		var light := raw_light as OmniLight3D
+		lights_are_bounded = lights_are_bounded and not light.shadow_enabled \
+			and light.omni_range <= 6.5 and light.light_energy <= 1.4
+	_check(lights_are_bounded, "work lighting is local, shadow-free, and bounded to the salvage terraces")
 	var reasons_complete := true
 	for visual in module.find_children("*", "MeshInstance3D", true, false):
 		var mesh := visual as MeshInstance3D
@@ -276,7 +304,7 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 		}
 		and report.current == {
 			"visual_nodes": 4,
-			"visible_geometry_copies": 4,
+			"visible_geometry_copies": 0,
 			"structural_submissions": 4,
 			"mesh_resource_allocations": 1,
 			"material_resource_allocations": 1,
@@ -284,7 +312,7 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 			"collision_shapes": 4,
 			"collision_resource_allocations": 4,
 		},
-		"short-side rail visuals freeze exact nodes 4->4, submissions 4->4, mesh allocations 4->1, and visible copies 4->4"
+		"short-side conservative colliders freeze exact nodes 4->4 and mesh allocations 4->1 while hiding all four solid visual copies"
 	)
 	_check(
 		report.reductions.mesh_resource_allocations == 3
@@ -413,21 +441,21 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget) and bool(performance.exact_census), "module exactly matches every published performance count")
 	_check(
-		int(performance.mesh_instances) == 30
+		int(performance.mesh_instances) == 40
 		and int(performance.static_bodies) == 26
 		and int(performance.collision_shapes) == 26
-		and int(performance.lights) == 0
+		and int(performance.lights) == 3
 		and int(performance.labels) == 1
-		and int(performance.multimesh_batches) == 3
-		and int(performance.multimesh_instances) == 20
-		and int(performance.multimesh_drawn_copies) == 20
-		and int(performance.multimesh_buffer_floats) == 240
-		and int(performance.geometry_submissions) == 33
-		and int(performance.visible_geometry_copies) == 50
-		and int(performance.nodes) == 96
+		and int(performance.multimesh_batches) == 6
+		and int(performance.multimesh_instances) == 164
+		and int(performance.multimesh_drawn_copies) == 164
+		and int(performance.multimesh_buffer_floats) == 1968
+		and int(performance.geometry_submissions) == 46
+		and int(performance.visible_geometry_copies) == 204
+		and int(performance.nodes) == 112
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"exact census freezes 33 submissions, 50 visible copies, 26 bodies/shapes, 96 nodes, one label, and zero lights/loops"
+		"exact census freezes 46 submissions, 204 authored copies, 26 bodies/shapes, 112 nodes, one label, three bounded lights, and zero loops"
 	)
 	_check(
 		bool(performance.buffers_match_authored)
@@ -435,8 +463,11 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 			&"TerraceSupportBatch": 10,
 			&"SalvageCageBatch": 6,
 			&"ServiceBeaconBatch": 4,
+			&"SalvageFrameBatch": 10,
+			&"SortingMachineryBatch": 8,
+			&"RailDetailBatch": 126,
 		},
-		"three MultiMesh batches freeze all twenty drawn-copy transforms in 240 raw buffer floats"
+		"six MultiMesh batches freeze all 164 structural, machinery, and open-rail transforms in 1968 raw buffer floats"
 	)
 	var before := module.get_lifecycle_contract()
 	module.set_module_enabled(false)
