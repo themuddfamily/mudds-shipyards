@@ -23,6 +23,7 @@ var _recovery_flush_pending := false
 var _last_status: Dictionary = {}
 var _network_generation := 0
 var _recovery_available_snapshot: Dictionary = {}
+var _recovery_choice_generation := -1
 
 
 func _init(
@@ -105,6 +106,34 @@ func get_recovery_recommendation(safe_start_patch: Dictionary = {}) -> Dictionar
 		"applies_settings": false,
 		"persists_settings": false,
 	}.duplicate(true)
+
+
+## Executes exactly one caller-authorized choice. Safe graphics application is
+## delegated to SafeStartRecoveryPolicy's production owner; normal/discard do
+## not touch settings. A failed safe choice leaves the receipt available.
+func choose_recovery(choice: StringName, safe_graphics_apply: Callable = Callable()) -> Dictionary:
+	if _recovery_available_snapshot.is_empty():
+		return _status(false, &"no_recovery_available")
+	var generation := int(_recovery_available_snapshot.get("startup_generation", 0))
+	if generation <= 0 or _recovery_choice_generation == generation:
+		return _status(false, &"recovery_choice_replayed")
+	match choice:
+		&"normal_start":
+			_recovery_choice_generation = generation
+			return acknowledge_recovery()
+		&"discard":
+			_recovery_choice_generation = generation
+			return discard_recovery()
+		&"safe_graphics_windowed":
+			if not safe_graphics_apply.is_valid():
+				return _status(false, &"safe_graphics_unavailable")
+			var applied := safe_graphics_apply.call(generation) as Dictionary
+			if not bool(applied.get("accepted", false)):
+				return applied
+			_recovery_choice_generation = generation
+			return acknowledge_recovery()
+		_:
+			return _status(false, &"invalid_recovery_choice")
 
 
 ## Retries publication of the one recovery event without recording another one.

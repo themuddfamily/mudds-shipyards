@@ -1212,6 +1212,15 @@ func discard_recovery() -> Dictionary:
 	return _session_diagnostics_bridge.discard_recovery()
 
 
+func choose_session_start_recovery(choice: StringName) -> Dictionary:
+	if _session_diagnostics_bridge == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	var apply_safe := Callable()
+	if _safe_start_production_recovery != null:
+		apply_safe = Callable(_safe_start_production_recovery, &"apply_current_session_safe_graphics")
+	return _session_diagnostics_bridge.choose_recovery(choice, apply_safe)
+
+
 func _record_session_lifecycle_transition(
 		transition_code: int,
 		entity_code: int = 0,

@@ -59,6 +59,7 @@ var _begin_attempted_before_first_apply := false
 var _starting_before_first_apply := false
 var _graphics_recovery_receipt: Dictionary = {}
 var _audio_recovery_receipt: Dictionary = {}
+var _startup_choice_generation := -1
 
 
 func _init(
@@ -158,6 +159,36 @@ func note_first_settings_apply() -> void:
 ## persisting it remains an explicit owner decision.
 func get_recovery_recommendation_patch() -> Dictionary:
 	return _policy.get_recommended_runtime_settings_patch() if _policy != null else {}
+
+
+## Applies only the bounded graphics/window fallback to live settings. It does
+## not persist; the caller owns any later persistence decision.
+func apply_current_session_safe_graphics(expected_startup_generation: int) -> Dictionary:
+	if _policy == null or not _initialized:
+		return _local_status(false, &"policy_unavailable")
+	if expected_startup_generation != _startup_generation:
+		return _local_status(false, &"stale_recovery_generation")
+	if _startup_choice_generation == expected_startup_generation:
+		return _local_status(false, &"recovery_choice_replayed")
+	if not bool(_policy.get_snapshot().get("recommendation_available", false)):
+		return _local_status(false, &"safe_graphics_not_recommended")
+	var before := _settings.to_user_data_payload()
+	var merged := before.duplicate(true)
+	var values := merged.get("values", {}) as Dictionary
+	values["graphics_profile"] = "low"
+	values["window_mode"] = "windowed"
+	merged["values"] = values
+	var validated := _settings.validate_user_data_payload(merged)
+	if not bool(validated.get("accepted", false)):
+		return _local_status(false, &"safe_graphics_invalid", {"validation": validated})
+	var applied := _settings.apply_user_data_payload(merged)
+	if not bool(applied.get("accepted", false)):
+		return _local_status(false, &"safe_graphics_apply_failed", {"apply_status": applied})
+	_startup_choice_generation = expected_startup_generation
+	return _local_status(true, &"safe_graphics_applied_current_session", {
+		"persisted": false,
+		"startup_generation": expected_startup_generation,
+	})
 
 
 func advance_physics(delta: float) -> void:

@@ -122,12 +122,14 @@ func _run() -> void:
 		and restarted.phase == recovery_phase,
 		"safe-start guidance is an explicit recommendation rather than an automatic settings change"
 	)
-	var acknowledged := restarted.acknowledge_recovery()
+	var acknowledged := restarted.choose_session_start_recovery(&"normal_start")
 	_check(
 		bool(acknowledged.accepted)
 		and restarted.get_recovery_available_snapshot().is_empty(),
-		"caller acknowledgement retires only the detached recovery receipt"
+		"caller normal-start choice retires only the detached recovery receipt"
 	)
+	var replayed := restarted.choose_session_start_recovery(&"normal_start")
+	_check(not bool(replayed.accepted), "replayed recovery choice is rejected")
 	restarted.free()
 	var discard_store := Store.new("memory://main-session-diagnostics.json", filesystem)
 	_check(bool(discard_store.load().accepted), "discard fixture reloads the running marker")
