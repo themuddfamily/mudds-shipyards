@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 48
+const EXPECTED_ASSERTIONS := 50
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -71,10 +71,10 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 36
+		audit.performance.node_count == 37
 			and audit.performance.mesh_instances == 11
-			and audit.performance.multi_mesh_instances == 1
-			and audit.performance.multi_mesh_copies == 8
+			and audit.performance.multi_mesh_instances == 2
+			and audit.performance.multi_mesh_copies == 11
 			and audit.performance.static_bodies == 5
 			and audit.performance.collision_shapes == 7
 			and audit.performance.triangle_count <= 8192,
@@ -179,6 +179,38 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	_check(
 		cue_family_exact,
 		"four paired geometric chevrons share the guide material in one collision-free batch outside the touchdown pad",
+	)
+	var orbital_cue := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue"
+	) as MultiMeshInstance3D
+	var orbital_batch := orbital_cue.multimesh if orbital_cue != null else null
+	var orbital_mesh := orbital_batch.mesh as BoxMesh if orbital_batch != null else null
+	var orbital_transforms: Array = orbital_cue.get_meta("authored_transforms", []) as Array \
+		if orbital_cue != null else []
+	var orbital_exact := orbital_cue != null and orbital_cue.get_child_count() == 0 \
+		and orbital_batch != null and orbital_batch.instance_count == 3 \
+		and orbital_mesh != null and orbital_mesh.size == Vector3.ONE \
+		and orbital_mesh.material == route_visual.material_override \
+		and orbital_transforms.size() == 3 \
+		and StringName(orbital_cue.get_meta("approach_marker_id", &"")) == &"caldera_approach" \
+		and StringName(orbital_cue.get_meta("landing_marker_id", &"")) == &"caldera_pad"
+	if orbital_transforms.size() == 3:
+		var port_arm := orbital_transforms[0] as Transform3D
+		var starboard_arm := orbital_transforms[1] as Transform3D
+		var threshold := orbital_transforms[2] as Transform3D
+		orbital_exact = orbital_exact \
+			and port_arm.origin == Vector3(-55.0, 3.0, 135.0) \
+			and starboard_arm.origin == Vector3(55.0, 3.0, 135.0) \
+			and threshold.origin == Vector3(0.0, 3.0, 62.0) \
+			and port_arm.basis.z.normalized().z > 0.8 \
+			and starboard_arm.basis.z.normalized().z > 0.8 \
+			and port_arm.basis.z.normalized().x < 0.0 \
+			and starboard_arm.basis.z.normalized().x > 0.0
+	_check(
+		orbital_exact \
+			and snapshot.geometry.orbital_landing_navigation_direction == Vector3(0.0, 0.0, -1.0) \
+			and float(snapshot.geometry.orbital_landing_cue_maximum_radius_m) < 280.0,
+		"one non-emissive open-arrow batch ties low-orbit caldera readability to the exact approach-to-pad datum inside the rim",
 	)
 
 
@@ -367,6 +399,16 @@ func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonA
 	_check(
 		(drifted.audit().error_codes as PackedStringArray).has("landing_approach_cue_drift"),
 		"approach-chevron transform drift produces a structured red code",
+	)
+	var drifted_orbital := drifted.get_node(
+		^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue"
+	) as MultiMeshInstance3D
+	var drifted_orbital_transforms := drifted_orbital.get_meta("authored_transforms", []) as Array
+	drifted_orbital_transforms[0] = Transform3D.IDENTITY
+	drifted_orbital.set_meta("authored_transforms", drifted_orbital_transforms)
+	_check(
+		(drifted.audit().error_codes as PackedStringArray).has("orbital_landing_datum_cue_drift"),
+		"orbital landing-datum transform drift produces a structured red code",
 	)
 	drifted.queue_free()
 	await process_frame

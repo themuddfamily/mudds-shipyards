@@ -176,6 +176,14 @@ gi_mode = 0
 metadata/content_class = &"NEW"
 metadata/status = &"modern_interpretation"
 
+[node name="OrbitalLandingDatumCue" type="MultiMeshInstance3D" parent="LandingRegion/SurfaceLandmarks"]
+cast_shadow = 0
+gi_mode = 0
+metadata/content_class = &"NEW"
+metadata/status = &"modern_interpretation"
+metadata/approach_marker_id = &"caldera_approach"
+metadata/landing_marker_id = &"caldera_pad"
+
 [node name="EgressRouteVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks"]
 position = Vector3(28, 0.01, 0)
 cast_shadow = 0

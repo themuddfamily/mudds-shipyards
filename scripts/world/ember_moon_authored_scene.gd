@@ -43,6 +43,13 @@ const APPROACH_CUE_BAR_SIZE_M := Vector3(0.72, 0.03, 4.0)
 const APPROACH_CUE_CENTRE_Z_M := [20.0, 27.0, 34.0, 41.0]
 const APPROACH_CUE_INSTANCE_COUNT := 8
 const APPROACH_CUE_Y_M := 0.035
+const ORBITAL_CUE_INSTANCE_COUNT := 3
+const ORBITAL_CUE_TIP_M := Vector3(0.0, 3.0, 50.0)
+const ORBITAL_CUE_PORT_END_M := Vector3(-110.0, 3.0, 220.0)
+const ORBITAL_CUE_STARBOARD_END_M := Vector3(110.0, 3.0, 220.0)
+const ORBITAL_CUE_THRESHOLD_SIZE_M := Vector3(90.0, 3.0, 8.0)
+const ORBITAL_CUE_ARM_WIDTH_M := 8.0
+const ORBITAL_CUE_MAXIMUM_RADIUS_M := 252.0
 const SAMPLE_RACK_SIZE_M := Vector3(4.0, 1.0, 1.4)
 const SAMPLE_RACK_POSITION_M := Vector3(28.0, 0.5, -7.0)
 const RELAY_ROOT_POSITION_M := Vector3(42.0, 0.0, 7.0)
@@ -63,10 +70,10 @@ const GUIDE_COLOR := Color("71d9da")
 const EQUIPMENT_COLOR := Color("4f4942")
 const RELAY_COLOR := Color("e1a458")
 
-const EXPECTED_NODE_COUNT := 36
+const EXPECTED_NODE_COUNT := 37
 const EXPECTED_MESH_INSTANCE_COUNT := 11
-const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 1
-const EXPECTED_MULTI_MESH_COPY_COUNT := 8
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 2
+const EXPECTED_MULTI_MESH_COPY_COUNT := 11
 const EXPECTED_STATIC_BODY_COUNT := 5
 const EXPECTED_COLLISION_SHAPE_COUNT := 7
 const MAXIMUM_TRIANGLE_COUNT := 8192
@@ -108,6 +115,7 @@ func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
 	_configure_landing_approach_cues()
+	_configure_orbital_landing_datum_cue()
 	_initialize_contract()
 
 
@@ -213,6 +221,9 @@ func get_snapshot() -> Dictionary:
 			"approach_cue_bar_size_m": APPROACH_CUE_BAR_SIZE_M,
 			"approach_cue_centres_z_m": APPROACH_CUE_CENTRE_Z_M.duplicate(),
 			"approach_cue_instance_count": APPROACH_CUE_INSTANCE_COUNT,
+			"orbital_landing_cue_instance_count": ORBITAL_CUE_INSTANCE_COUNT,
+			"orbital_landing_cue_maximum_radius_m": ORBITAL_CUE_MAXIMUM_RADIUS_M,
+			"orbital_landing_navigation_direction": Vector3(0.0, 0.0, -1.0),
 			"sample_rack_size_m": SAMPLE_RACK_SIZE_M,
 			"relay_base_size_m": RELAY_BASE_SIZE_M,
 			"relay_mast_radius_m": RELAY_MAST_RADIUS_M,
@@ -338,6 +349,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/Markers/StagingGate": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks": "Node3D",
 		^"LandingRegion/SurfaceLandmarks/LandingApproachCues": "MultiMeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue": "MultiMeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort": "StaticBody3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual": "MeshInstance3D",
@@ -365,7 +377,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		if node == null or not node.is_class(expected[path]):
 			_append_error(errors, &"missing_or_wrong_node", StringName(str(path)), "required authored node is missing or has the wrong type")
 	if _count_nodes() != EXPECTED_NODE_COUNT:
-		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-six nodes")
+		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-seven nodes")
 	var landing_root := get_node_or_null(^"LandingRegion")
 	var walkable := get_node_or_null(^"LandingRegion/WalkablePatch")
 	var markers := get_node_or_null(^"LandingRegion/Markers")
@@ -376,7 +388,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
-			or landmarks == null or landmarks.get_child_count() != 7 \
+			or landmarks == null or landmarks.get_child_count() != 8 \
 			or route_markers == null or route_markers.get_child_count() != 3 \
 			or relay == null or relay.get_child_count() != 6:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
@@ -400,6 +412,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var pad := get_node_or_null(^"LandingRegion/PadVisual") as MeshInstance3D
 	var route := get_node_or_null(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
 	var approach_cues := get_node_or_null(^"LandingRegion/SurfaceLandmarks/LandingApproachCues") as MultiMeshInstance3D
+	var orbital_cue := get_node_or_null(^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue") as MultiMeshInstance3D
 	var port_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual") as MeshInstance3D
 	var starboard_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/GuideVisual") as MeshInstance3D
 	var rack := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual") as MeshInstance3D
@@ -440,6 +453,8 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		_append_error(errors, &"surface_route_visual_drift", &"EgressRouteVisual", "continuous pad-to-staging route visual drifted")
 	if not _landing_approach_cues_are_exact(approach_cues, port_guide):
 		_append_error(errors, &"landing_approach_cue_drift", &"LandingApproachCues", "batched final-approach chevrons drifted from their bounded passive recipe")
+	if not _orbital_landing_datum_cue_is_exact(orbital_cue, route):
+		_append_error(errors, &"orbital_landing_datum_cue_drift", &"OrbitalLandingDatumCue", "orbital landing-side arrow drifted from the exact approach-to-pad datum")
 	if port_guide_mesh == null or port_guide_mesh.size != PAD_GUIDE_SIZE_M \
 			or starboard_guide_mesh == null or starboard_guide_mesh.size != PAD_GUIDE_SIZE_M:
 		_append_error(errors, &"pad_guidance_visual_drift", &"PadGuidance", "paired solid pad guidance recipe drifted")
@@ -648,6 +663,92 @@ static func _approach_cue_transforms() -> Array[Transform3D]:
 			Vector3(1.4, APPROACH_CUE_Y_M, centre_z + 1.4),
 		))
 	return transforms
+
+
+func _configure_orbital_landing_datum_cue() -> void:
+	var cue := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue"
+	) as MultiMeshInstance3D
+	var route := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual"
+	) as MeshInstance3D
+	if cue == null or route == null:
+		return
+	var unit_bar := BoxMesh.new()
+	unit_bar.size = Vector3.ONE
+	unit_bar.material = route.material_override
+	var batch := MultiMesh.new()
+	batch.transform_format = MultiMesh.TRANSFORM_3D
+	batch.mesh = unit_bar
+	batch.instance_count = ORBITAL_CUE_INSTANCE_COUNT
+	var transforms := _orbital_landing_cue_transforms()
+	for index in transforms.size():
+		batch.set_instance_transform(index, transforms[index])
+	cue.multimesh = batch
+	cue.set_meta("authored_transforms", transforms.duplicate())
+
+
+func _orbital_landing_datum_cue_is_exact(
+		cue: MultiMeshInstance3D,
+		route: MeshInstance3D,
+	) -> bool:
+	if cue == null or route == null or cue.multimesh == null \
+			or cue.transform != Transform3D.IDENTITY \
+			or cue.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or cue.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or StringName(cue.get_meta("content_class", &"")) != &"NEW" \
+			or StringName(cue.get_meta("status", &"")) != &"modern_interpretation" \
+			or StringName(cue.get_meta("approach_marker_id", &"")) != &"caldera_approach" \
+			or StringName(cue.get_meta("landing_marker_id", &"")) != &"caldera_pad":
+		return false
+	var batch := cue.multimesh
+	var unit_bar := batch.mesh as BoxMesh
+	if batch.transform_format != MultiMesh.TRANSFORM_3D \
+			or batch.instance_count != ORBITAL_CUE_INSTANCE_COUNT \
+			or batch.visible_instance_count not in [-1, ORBITAL_CUE_INSTANCE_COUNT] \
+			or unit_bar == null or unit_bar.size != Vector3.ONE \
+			or unit_bar.material != route.material_override:
+		return false
+	var authored: Variant = cue.get_meta("authored_transforms", [])
+	var expected := _orbital_landing_cue_transforms()
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	var approach := _expected_marker_transform(&"caldera_approach").origin
+	var landing := _expected_marker_transform(&"caldera_pad").origin
+	var horizontal_direction := Vector3(
+		landing.x - approach.x, 0.0, landing.z - approach.z
+	).normalized()
+	return horizontal_direction.is_equal_approx(Vector3(0.0, 0.0, -1.0))
+
+
+static func _orbital_landing_cue_transforms() -> Array[Transform3D]:
+	return [
+		_bar_between(ORBITAL_CUE_TIP_M, ORBITAL_CUE_PORT_END_M, ORBITAL_CUE_ARM_WIDTH_M, 3.0),
+		_bar_between(ORBITAL_CUE_TIP_M, ORBITAL_CUE_STARBOARD_END_M, ORBITAL_CUE_ARM_WIDTH_M, 3.0),
+		Transform3D(
+			Basis().scaled(ORBITAL_CUE_THRESHOLD_SIZE_M),
+			Vector3(0.0, 3.0, 62.0),
+		),
+	]
+
+
+static func _bar_between(
+		start: Vector3,
+		finish: Vector3,
+		width: float,
+		height: float,
+	) -> Transform3D:
+	var direction := (finish - start).normalized()
+	var lateral := Vector3(direction.z, 0.0, -direction.x).normalized()
+	var length := start.distance_to(finish)
+	return Transform3D(
+		Basis(lateral * width, Vector3.UP * height, direction * length),
+		(start + finish) * 0.5,
+	)
 
 
 func _validate_performance(errors: Array[Dictionary], census: Dictionary) -> void:
