@@ -50,6 +50,7 @@ const ADJACENT_AUTHORITY_KEYS := [
 	"seat_mutation", "streaming_generation", "streaming_load_unload",
 ]
 const PlanetaryCompositionScript := preload("res://scripts/world/ember_planetary_surface_production_binding.gd")
+const ReturnManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
 
 var _state := State.IDLE
 var _generation := 0
@@ -80,6 +81,7 @@ var _location_generation := 0
 var _planetary_composition: Node
 var _atmosphere_composition: Node
 var _last_planetary_altitude_m := 0.0
+var _relay_return_manifest: RefCounted
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -187,6 +189,8 @@ func configure_planetary_surface(
 	if not bool(result.get("accepted", false)):
 		_planetary_composition.queue_free()
 		_planetary_composition = null
+	else:
+		_relay_return_manifest = ReturnManifestScript.new()
 	_atmosphere_composition = atmosphere_composition
 	return result
 
@@ -323,6 +327,30 @@ func commit_planetary_relay_survey_reward() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
 	return _planetary_composition.call(&"commit_relay_survey_reward")
+
+
+## Emits a caller-routed return intent after the survey's reward handoff is
+## accepted. This binding never moves the actor, grants the reward, or selects
+## a berth; the receipt only names the authored Mudds Shipyards destination.
+func issue_planetary_relay_survey_return_manifest() -> Dictionary:
+	if _planetary_composition == null or _relay_return_manifest == null:
+		return _reject(&"planetary_composition_unavailable")
+	var snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
+	var adapter_snapshot := snapshot.get("adapter", {}) as Dictionary
+	var activity_snapshot := adapter_snapshot.get("activity_reward", {}) as Dictionary
+	return _relay_return_manifest.issue(activity_snapshot, _host.get_attachment_generation())
+
+
+func reset_planetary_relay_survey_return_manifest() -> Dictionary:
+	if _relay_return_manifest == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _relay_return_manifest.reset()
+
+
+func get_planetary_relay_survey_return_manifest_snapshot() -> Dictionary:
+	if _relay_return_manifest == null:
+		return {}
+	return _relay_return_manifest.get_snapshot()
 
 
 func detach_planetary_surface() -> Dictionary:
