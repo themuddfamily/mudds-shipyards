@@ -405,7 +405,7 @@ var _runtime_settings_store_adapter: RuntimeSettingsStoreAdapter
 var _runtime_settings_legacy_path := RuntimeSettings.DEFAULT_CONFIG_PATH
 var _runtime_settings_load_attempted := false
 var _runtime_settings_load_status: Dictionary = {}
-var _runtime_settings_repair_binding: RuntimeSettingsRepairBinding
+var _runtime_settings_repair_binding: RefCounted
 var _runtime_settings_last_save_status: Dictionary = {}
 var _runtime_settings_load_attempt_count := 0
 var _runtime_settings_save_attempt_count := 0
@@ -7993,7 +7993,7 @@ func _ensure_runtime_settings_repair_binding() -> void:
 	if _runtime_settings_store_adapter == null or _runtime_settings_user_data_store == null:
 		return
 	_runtime_settings_repair_binding = RuntimeSettingsRepairBindingType.new()
-	var configured := _runtime_settings_repair_binding.configure(
+	var configured: Dictionary = _runtime_settings_repair_binding.configure(
 		_runtime_settings_store_adapter,
 		_runtime_settings_user_data_store
 	)
