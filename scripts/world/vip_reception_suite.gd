@@ -591,7 +591,7 @@ func get_render_batch_contract() -> Dictionary:
 		roof_bounds_match = _roof_cassette_batch.multimesh.custom_aabb.is_equal_approx(
 			expected_roof_bounds
 		)
-	var descendant_count := find_children("*", "Node", true, false).size()
+	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
 		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
@@ -669,6 +669,21 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_joint_transforms": _banquette_joint_transforms.duplicate(),
 		"authored_roof_cassette_transforms": _roof_cassette_transforms.duplicate(),
 	}
+
+
+func _render_descendant_count() -> int:
+	var count := 0
+	for candidate in find_children("*", "Node", true, false):
+		var cursor := candidate as Node
+		var interaction_owned := false
+		while cursor != null and cursor != self:
+			if cursor is StationSeat:
+				interaction_owned = true
+				break
+			cursor = cursor.get_parent()
+		if not interaction_owned:
+			count += 1
+	return count
 
 
 func set_module_enabled(enabled: bool) -> void:
@@ -1204,6 +1219,11 @@ func _build_banquette_segment(
 	segment.set_meta("seat_class", &"banquette")
 	parent.add_child(segment)
 	_seat_nodes.append(segment)
+	# The banquette stands on the lowered well floor while its root remains at
+	# reception-floor zero. Its back is local -Z, so the seated frame faces +Z.
+	StationSeat.install(
+		segment, -0.59, 180.0, 1.05, WELL_FLOOR, "RECEPTION BANQUETTE %02d" % (index + 1)
+	)
 
 	var base := _box(segment, "Base", Vector3(0.0, -0.225, 0.0), Vector3(1.05, 0.45, 0.78), _materials["lacquer"])
 	_register_support(base, &"banquette seat", &"well floor")
@@ -1230,6 +1250,7 @@ func _build_armchair(parent: Node3D, index: int, chair_position: Vector3, yaw_de
 	chair.set_meta("seat_class", &"armchair")
 	parent.add_child(chair)
 	_seat_nodes.append(chair)
+	StationSeat.install(chair, -0.20, 180.0, 1.05, 0.0, "RECEPTION ARMCHAIR %02d" % (index + 1))
 
 	var pedestal := _cylinder(chair, "Pedestal", Vector3(0.0, 0.05, 0.0), 0.28, 0.1, _materials["bronze"], true)
 	_register_support(pedestal, &"armchair", &"floor beneath it")

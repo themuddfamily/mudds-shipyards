@@ -46,18 +46,21 @@ func _run() -> void:
 		if room != null and room.get_node_or_null(NodePath("DispatchSeat%02d" % (station_index + 1))) is StaticBody3D:
 			seat_count += 1
 	_check(console_count == 3 and seat_count == 3, "three dispatch stations and three physical seats are present")
-	var relocated_console := room.get_node_or_null(^"DispatchConsole03") as StaticBody3D if room != null else null
-	var relocated_screen := room.get_node_or_null(^"DispatchScreen03") as MeshInstance3D if room != null else null
-	var relocated_stool := room.get_node_or_null(^"DispatchStool03") as StaticBody3D if room != null else null
-	_check(
-		relocated_console != null
-		and relocated_console.position.is_equal_approx(Vector3(45.5, 1.02, 24.75))
-		and relocated_screen != null
-		and relocated_screen.position.is_equal_approx(Vector3(45.5, 1.48, 24.28))
-		and relocated_stool != null
-		and relocated_stool.position.is_equal_approx(Vector3(45.5, 0.73, 25.55)),
-		"dispatch station 03 moves as one assembly into the front-right corner"
-	)
+	var west_wall_bank_exact := true
+	for station_index in 3:
+		var expected_z := 24.5 + float(station_index) * 2.5
+		var console := room.get_node_or_null(NodePath("DispatchConsole%02d" % (station_index + 1))) as StaticBody3D if room != null else null
+		var screen := room.get_node_or_null(NodePath("DispatchScreen%02d" % (station_index + 1))) as MeshInstance3D if room != null else null
+		var stool := room.get_node_or_null(NodePath("DispatchStool%02d" % (station_index + 1))) as StaticBody3D if room != null else null
+		west_wall_bank_exact = west_wall_bank_exact \
+			and console != null \
+			and console.position.is_equal_approx(Vector3(38.25, 1.02, expected_z)) \
+			and is_equal_approx(console.rotation_degrees.y, -90.0) \
+			and screen != null \
+			and screen.position.is_equal_approx(Vector3(38.72, 1.48, expected_z)) \
+			and stool != null \
+			and stool.position.is_equal_approx(Vector3(37.45, 0.73, expected_z))
+	_check(west_wall_bank_exact, "all three dispatch stations form one exact west-wall bank")
 	var east_west_arrival_clear := true
 	if room != null:
 		for body in room.find_children("*", "StaticBody3D", true, false):
@@ -65,22 +68,59 @@ func _run() -> void:
 			if station_body.position.z >= 28.25 and station_body.position.z <= 28.85:
 				east_west_arrival_clear = east_west_arrival_clear and station_body.position.x < 42.5
 	_check(east_west_arrival_clear, "the east-west arrival line at z 28.5 is clear through the room")
-
-	var lockers_clear_of_annex_aisle := true
+	var central_floor_clear := true
 	if room != null:
-		for locker in room.find_children("DockEquipmentLocker*", "StaticBody3D", false, false):
-			lockers_clear_of_annex_aisle = lockers_clear_of_annex_aisle and (locker as Node3D).position.x < 38.1
-	_check(lockers_clear_of_annex_aisle, "west-wall lockers do not intrude into the Annex approach aisle")
+		for body in room.find_children("*", "StaticBody3D", true, false):
+			var station_body := body as StaticBody3D
+			central_floor_clear = central_floor_clear and not (
+				station_body.position.x >= 40.0
+				and station_body.position.z >= 24.5
+				and station_body.position.z <= 28.8
+			)
+	_check(central_floor_clear, "the room centre is free of console, table, seat, and locker collision")
+	var cargo_root := world.get_node_or_null(^"CargoAndMachinery") as Node3D
+	var foreign_cargo_clear := true
+	if cargo_root != null:
+		for cargo in cargo_root.find_children("Cargo*", "StaticBody3D", false, false):
+			var cargo_body := cargo as StaticBody3D
+			foreign_cargo_clear = foreign_cargo_clear and not (
+				cargo_body.position.x >= 37.0
+				and cargo_body.position.x <= 49.0
+				and cargo_body.position.z >= 23.0
+				and cargo_body.position.z <= 31.0
+			)
+	_check(foreign_cargo_clear, "global cargo dressing does not occupy the Dock Operations pod")
+	var plot_table := room.get_node_or_null(^"DockPlotTable") as StaticBody3D if room != null else null
+	_check(
+		plot_table != null and plot_table.position.is_equal_approx(Vector3(45.4, 0.78, 29.6)),
+		"the plotting table occupies the back-right perimeter instead of the room centre"
+	)
+	var status_field := room.get_node_or_null(^"DockStatusField") as MeshInstance3D if room != null else null
+	var status_material := status_field.material_override as StandardMaterial3D if status_field != null else null
+	_check(
+		status_material != null
+		and status_material.emission_enabled
+		and is_equal_approx(status_material.emission_energy_multiplier, 0.35)
+		and status_material.albedo_color.is_equal_approx(Color("3a7479")),
+		"the large traffic board uses an exposure-safe dark-screen recipe"
+	)
+
+	_check(
+		room != null and room.find_children("DockEquipmentLocker*", "StaticBody3D", false, false).is_empty(),
+		"obsolete lockers do not replace the cleared centre with an entrance obstruction"
+	)
 
 	var room_lights := room.find_children("*", "Light3D", true, false) if room != null else []
 	var bounded_room_lights := room_lights.size() == 2
 	for candidate in room_lights:
-		var room_light := candidate as OmniLight3D
+		var room_light := candidate as SpotLight3D
 		bounded_room_lights = bounded_room_lights \
 			and room_light != null \
-			and is_equal_approx(room_light.light_energy, 0.82) \
-			and is_equal_approx(room_light.omni_range, 9.0) \
-			and is_equal_approx(room_light.omni_attenuation, 1.45) \
+			and is_equal_approx(room_light.light_energy, 1.6) \
+			and is_equal_approx(room_light.spot_range, 8.5) \
+			and is_equal_approx(room_light.spot_angle, 55.0) \
+			and is_equal_approx(room_light.spot_angle_attenuation, 0.55) \
+			and is_equal_approx(room_light.spot_attenuation, 0.85) \
 			and room_light.light_color.is_equal_approx(Color("d9f6f3")) \
 			and not room_light.shadow_enabled \
 			and room_light.distance_fade_enabled \
@@ -93,10 +133,14 @@ func _run() -> void:
 	]:
 		var corner_covered := false
 		for candidate in room_lights:
-			var room_light := candidate as OmniLight3D
+			var room_light := candidate as SpotLight3D
+			if room_light == null:
+				continue
+			var to_corner: Vector3 = floor_corner - room_light.global_position
+			var cone_angle := rad_to_deg(acos(clampf((-room_light.global_basis.z).normalized().dot(to_corner.normalized()), -1.0, 1.0)))
 			corner_covered = corner_covered or (
-				room_light != null
-				and room_light.global_position.distance_to(floor_corner) < room_light.omni_range
+				to_corner.length() < room_light.spot_range
+				and cone_angle < room_light.spot_angle
 			)
 		floor_corners_covered = floor_corners_covered and corner_covered
 	_check(floor_corners_covered, "every room-floor corner falls inside at least one practical's range")

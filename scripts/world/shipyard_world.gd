@@ -6436,6 +6436,13 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 	room.set_meta("presentation_only", true)
 	room.set_meta("historical_form_identified", false)
 	upper.add_child(room)
+	# Room-local displays use the same restrained dark-screen recipe as Aft
+	# Operations. The station-wide cyan signal material is intentionally much
+	# brighter and made this room's large traffic board clip white, forcing the
+	# exposure down until the surrounding floor and furniture read as black.
+	var room_screen_material := _material(
+		Color("3a7479"), 0.34, 0.42, Color("2aa6ae"), 0.35
+	)
 
 	# A shallow inset breaks up the otherwise empty deck without adding a raised
 	# edge to the approach path.
@@ -6445,51 +6452,39 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 	# frontage.  It is seated against the structural back wall, not suspended in
 	# the glazed volume.
 	_box(room, "DockStatusBoard", Vector3(42.4, 3.35, 30.52), Vector3(7.4, 2.45, 0.12), _materials["navy"], false)
-	_box(room, "DockStatusField", Vector3(42.4, 3.35, 30.44), Vector3(6.85, 1.78, 0.035), _materials["cyan_glow"], false)
-	_text_sign(room, "TRAFFIC BOARD", Vector3(42.4, 4.18, 30.405), Vector3(0.0, 180.0, 0.0), 0.20, _materials["black"])
-	_text_sign(room, "DOCK 01  CLEAR", Vector3(42.4, 3.62, 30.40), Vector3(0.0, 180.0, 0.0), 0.16, _materials["black"])
-	_text_sign(room, "DOCK 02  TRANSFER", Vector3(42.4, 3.24, 30.40), Vector3(0.0, 180.0, 0.0), 0.14, _materials["black"])
-	_text_sign(room, "DOCK 03  STANDBY", Vector3(42.4, 2.88, 30.40), Vector3(0.0, 180.0, 0.0), 0.14, _materials["black"])
+	_box(room, "DockStatusField", Vector3(42.4, 3.35, 30.44), Vector3(6.85, 1.78, 0.035), room_screen_material, false)
+	_text_sign(room, "TRAFFIC BOARD", Vector3(42.4, 4.18, 30.405), Vector3(0.0, 180.0, 0.0), 0.20, _materials["ivory"])
+	_text_sign(room, "DOCK 01  CLEAR", Vector3(42.4, 3.62, 30.40), Vector3(0.0, 180.0, 0.0), 0.16, _materials["ivory"])
+	_text_sign(room, "DOCK 02  TRANSFER", Vector3(42.4, 3.24, 30.40), Vector3(0.0, 180.0, 0.0), 0.14, _materials["ivory"])
+	_text_sign(room, "DOCK 03  STANDBY", Vector3(42.4, 2.88, 30.40), Vector3(0.0, 180.0, 0.0), 0.14, _materials["ivory"])
 
 	# A compact dispatch island faces the glazed front, with three independently
 	# legible posts. The east aisle beyond x=47.0 is intentionally left open for
 	# the Annex route and for a clear view through the right-hand window bay.
-	# Station 03 formerly continued the row through the east-west arrival line at
-	# z = 28.5, presenting its broad solid side to anyone entering from the Annex
-	# aisle. It now occupies the open front-right corner; every attached piece
-	# moves with it and the two original stations retain their exact transforms.
-	var dispatch_station_origins := [
-		Vector2(39.15, 28.72),
-		Vector2(41.40, 28.72),
-		Vector2(45.50, 24.75),
-	]
-	for station_index in dispatch_station_origins.size():
-		var station_origin := dispatch_station_origins[station_index] as Vector2
-		var station_x := station_origin.x
-		var station_z := station_origin.y
-		_box(room, "DispatchConsole%02d" % (station_index + 1), Vector3(station_x, 1.02, station_z), Vector3(1.82, 1.22, 0.88), _materials["navy"])
-		_box(room, "DispatchScreen%02d" % (station_index + 1), Vector3(station_x, 1.48, station_z - 0.47), Vector3(1.48, 0.56, 0.045), _materials["cyan_glow"], false, Vector3(-20.0, 0.0, 0.0))
-		_box(room, "DispatchKeyline%02d" % (station_index + 1), Vector3(station_x, 1.67, station_z + 0.07), Vector3(1.26, 0.035, 0.31), _materials["steel_blue"], false, Vector3(-20.0, 0.0, 0.0))
-		_text_sign(room, "BAY %02d" % (station_index + 1), Vector3(station_x, 1.49, station_z - 0.505), Vector3(-20.0, 180.0, 0.0), 0.12, _materials["black"])
-		# Stools stay on the rear side of their consoles, so none intrude on the
-		# player-facing approach lane.
-		_cylinder(room, "DispatchStool%02d" % (station_index + 1), Vector3(station_x, 0.73, station_z + 0.80), 0.32, 0.62, _materials["steel_blue"], true)
-		_box(room, "DispatchSeat%02d" % (station_index + 1), Vector3(station_x, 1.06, station_z + 0.80), Vector3(0.76, 0.16, 0.70), _materials["ivory"])
+	# The original row ran across the middle of the room. Moving only station 03
+	# exposed station 02 in the same sightline, so the row itself was the defect.
+	# All three stations now form a west-wall bank, rotated toward the open room;
+	# the centre and the full east/Annex arrival aisle remain unobstructed.
+	var dispatch_station_z_positions := [24.50, 27.00, 29.50]
+	for station_index in dispatch_station_z_positions.size():
+		var station_z := float(dispatch_station_z_positions[station_index])
+		_box(room, "DispatchConsole%02d" % (station_index + 1), Vector3(38.25, 1.02, station_z), Vector3(1.82, 1.22, 0.88), _materials["navy"], true, Vector3(0.0, -90.0, 0.0))
+		_box(room, "DispatchScreen%02d" % (station_index + 1), Vector3(38.72, 1.48, station_z), Vector3(1.48, 0.56, 0.045), room_screen_material, false, Vector3(-20.0, -90.0, 0.0))
+		_box(room, "DispatchKeyline%02d" % (station_index + 1), Vector3(38.18, 1.67, station_z), Vector3(1.26, 0.035, 0.31), _materials["steel_blue"], false, Vector3(-20.0, -90.0, 0.0))
+		_text_sign(room, "BAY %02d" % (station_index + 1), Vector3(38.755, 1.49, station_z), Vector3(-20.0, 90.0, 0.0), 0.12, _materials["ivory"])
+		_cylinder(room, "DispatchStool%02d" % (station_index + 1), Vector3(37.45, 0.73, station_z), 0.32, 0.62, _materials["steel_blue"], true)
+		_box(room, "DispatchSeat%02d" % (station_index + 1), Vector3(37.45, 1.06, station_z), Vector3(0.76, 0.16, 0.70), _materials["ivory"], true, Vector3(0.0, -90.0, 0.0))
 
 	# A shared plotting surface adds a foreground read from outside without
 	# sealing the pod's centre. It is low enough to read as equipment rather than
 	# a second wall between the player and the room.
-	_box(room, "DockPlotTable", Vector3(42.45, 0.78, 26.38), Vector3(2.55, 0.76, 1.35), _materials["steel_blue"])
-	_box(room, "DockPlotDisplay", Vector3(42.45, 1.175, 26.38), Vector3(2.12, 0.035, 0.96), _materials["cyan_glow"], false)
-	_torus(room, "DockPlotLocatorRing", Vector3(42.45, 1.21, 26.38), 0.25, 0.42, _materials["orange_glow"])
+	_box(room, "DockPlotTable", Vector3(45.40, 0.78, 29.60), Vector3(2.55, 0.76, 1.35), _materials["steel_blue"])
+	_box(room, "DockPlotDisplay", Vector3(45.40, 1.175, 29.60), Vector3(2.12, 0.035, 0.96), room_screen_material, false)
+	_torus(room, "DockPlotLocatorRing", Vector3(45.40, 1.21, 29.60), 0.25, 0.42, _materials["orange_glow"])
 
-	# Small equipment lockers give the blank west wall a working-scale anchor;
-	# they are fully inside the deck and clear of both the frontage and annex
-	# handoff.
-	for locker_index in 2:
-		var locker_z := 25.15 + float(locker_index) * 2.08
-		_box(room, "DockEquipmentLocker%02d" % (locker_index + 1), Vector3(37.72, 1.40, locker_z), Vector3(0.62, 2.38, 1.54), _materials["deck_light"])
-		_box(room, "DockLockerStripe%02d" % (locker_index + 1), Vector3(37.385, 1.40, locker_z), Vector3(0.025, 1.55, 0.92), _materials["orange"], false)
+	# The west-wall console bank takes over the lockers' former strip. The old
+	# lockers are omitted instead of being pushed into the glass-fronted entrance;
+	# that would merely exchange a centre obstruction for an approach obstruction.
 
 	# Narrow ceiling ribs make the interior read as an occupied room from the
 	# exterior.
@@ -6508,13 +6503,16 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 		var light_position := light_spec[1] as Vector3
 		_box(room, light_name + "Body", Vector3(light_position.x, 5.57, light_position.z), Vector3(2.15, 0.11, 0.44), _materials["black"], false)
 		_box(room, light_name + "Lens", Vector3(light_position.x, 5.4975, light_position.z), Vector3(1.85, 0.035, 0.20), _materials["white_glow"], false)
-		var room_light := OmniLight3D.new()
+		var room_light := SpotLight3D.new()
 		room_light.name = light_name
 		room_light.position = light_position
+		room_light.rotation_degrees.x = -90.0
 		room_light.light_color = Color("d9f6f3")
-		room_light.light_energy = 0.82
-		room_light.omni_range = 9.0
-		room_light.omni_attenuation = 1.45
+		room_light.light_energy = 1.6
+		room_light.spot_range = 8.5
+		room_light.spot_angle = 55.0
+		room_light.spot_angle_attenuation = 0.55
+		room_light.spot_attenuation = 0.85
 		room_light.shadow_enabled = false
 		room_light.distance_fade_enabled = true
 		room_light.distance_fade_begin = 28.0
@@ -7109,27 +7107,11 @@ func _build_cargo_and_machinery() -> void:
 	props.name = "CargoAndMachinery"
 	add_child(props)
 
-	# Cargo is clustered on solid service nodes and kept clear of the player,
-	# hero berth, disembark point, and direct launch line.
-	var cargo_layout := [
-		[Vector3(46.0, 1.1, 27.5), Vector3(3.0, 2.2, 2.7), "ivory"],
-		[Vector3(42.5, 0.9, 27.5), Vector3(2.7, 1.8, 2.5), "orange"],
-	]
-	for index in cargo_layout.size():
-		var entry: Array = cargo_layout[index]
-		var cargo_position: Vector3 = entry[0]
-		var cargo_size: Vector3 = entry[1]
-		var material_key: String = entry[2]
-		_box(props, "Cargo%02d" % index, cargo_position, cargo_size, _materials[material_key])
-		for x_side in [-1.0, 1.0]:
-			_box(
-				props,
-				"CargoBrace",
-				cargo_position + Vector3(x_side * cargo_size.x * 0.38, cargo_size.y * 0.02, cargo_size.z * 0.505),
-				Vector3(0.18, cargo_size.y * 0.82, 0.08),
-				_materials["navy"],
-				false
-			)
+	# The former Cargo00/Cargo01 cluster occupied the Dock Operations pod at
+	# x=42.5..46.0, z=27.5. It was global dressing built after the room, which is
+	# why room-local clearance checks missed the large blocks entirely. The pod's
+	# purpose-built dispatch furniture now supplies that visual role, so the stale
+	# cargo cluster is removed rather than relocated onto another player route.
 
 	# Refuelling cabinets and a tiny tow tractor suggest active dock operations.
 	for z_position in [12.8, 18.1]:

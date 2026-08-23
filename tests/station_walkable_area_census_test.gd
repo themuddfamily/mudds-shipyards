@@ -2,12 +2,12 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_walkable_area_census.gd")
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
-const EXPECTED_GROSS_PROJECTED_M2 := 8570.131183
-const EXPECTED_COUNTED_PROJECTED_M2 := 8316.775617
-const EXPECTED_TRUE_SURFACE_M2 := 8331.597742
+const EXPECTED_GROSS_PROJECTED_M2 := 8637.159178
+const EXPECTED_COUNTED_PROJECTED_M2 := 8407.038502
+const EXPECTED_TRUE_SURFACE_M2 := 8421.860627
 const ORIGINAL_STATION_BASELINE_M2 := 6849.844560
-const EXPECTED_EXPANSION_M2 := 1466.931057
-const EXPECTED_EXPANSION_PERCENT := 21.415537888
+const EXPECTED_EXPANSION_M2 := 1557.193942
+const EXPECTED_EXPANSION_PERCENT := 22.733274140
 
 var _failures: Array[String] = []
 
@@ -54,18 +54,18 @@ func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
 		report.physics_support_samples, report.physics_support_samples_total,
 	])
 	_check(bool(report.valid) and (report.errors as PackedStringArray).is_empty(), "production census is structurally valid")
-	_check(int(report.surface_count) == 77 and int(report.ramp_count) == 5, "production roster contains exactly 77 surfaces and five ramps")
-	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8570.131183 m2")
-	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 8316.775617 m2")
-	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 8331.597742 m2")
+	_check(int(report.surface_count) == 76 and int(report.ramp_count) == 5, "enlarged garden roster contains exactly 76 surfaces and five ramps")
+	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8637.159178 m2")
+	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 8407.038502 m2")
+	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 8421.860627 m2")
 	var expansion_m2 := float(report.total_projected_horizontal_m2) - ORIGINAL_STATION_BASELINE_M2
 	var expansion_percent := expansion_m2 / ORIGINAL_STATION_BASELINE_M2 * 100.0
 	_check(
 		_near(expansion_m2, EXPECTED_EXPANSION_M2)
 		and absf(expansion_percent - EXPECTED_EXPANSION_PERCENT) <= 0.0000005
 		and expansion_percent >= 18.0
-		and expansion_percent <= 22.0,
-		"live merged union adds exactly 1466.931057 m2 / 21.415537888 percent against the original 6849.844560 m2 baseline"
+		and expansion_percent <= 23.0,
+		"live merged union adds exactly 1557.193942 m2 / 22.733274140 percent against the original 6849.844560 m2 baseline"
 	)
 	_check(
 		_near(report.ramp_projected_horizontal_m2, 140.479998)
@@ -73,9 +73,9 @@ func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
 		"ramps separately report exact projected and inclined surface area"
 	)
 	_check(
-		int(report.physics_support_samples) == 385
-		and int(report.physics_support_samples_total) == 385,
-		"all five representative points on every declared surface have live World support"
+		int(report.physics_support_samples) == 380
+		and int(report.physics_support_samples_total) == 380,
+		"all five representative points on every enlarged-garden surface have live World support"
 	)
 
 	var identities := PackedStringArray()

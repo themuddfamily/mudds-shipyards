@@ -74,10 +74,13 @@ func _run() -> void:
 	await physics_frame
 	await process_frame
 	await process_frame
+	print("SEAT_STAND_STATE: ", player.is_control_enabled(), " / ", seat.is_available(), " / ", seat.is_reserved_for(player), " / ", game.get("_transition_generation"), " / ", game.get("_transition_busy"), " / ", game.get("_station_seated"))
 	_check(
 		game.station_interaction_candidate == null,
 		"a nearby station door behind the camera does not consume interaction"
 	)
+
+	await _test_production_station_seat(game, player)
 
 	# A remote door must not disturb the established physical ship interaction.
 	var arrow := game.get_node("ArrowReconShip") as HeroShip
@@ -93,6 +96,59 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _test_production_station_seat(game: GameFlow, player: PlayerController) -> void:
+	var habitat := game.world.find_child("HabitatSpine", true, false) as HabitatSpine
+	var chair := (
+		habitat.find_child("CommonChair01", true, false) as Node3D
+		if habitat != null else null
+	)
+	var seat := (
+		chair.get_node_or_null("StationSeatInteraction") as StationSeat
+		if chair != null else null
+	)
+	_check(seat != null, "the pictured common-room chair owns a reusable station-seat interaction")
+	if seat == null:
+		return
+
+	player.teleport_to(seat.get_entry_transform())
+	await physics_frame
+	await physics_frame
+	await process_frame
+	await process_frame
+	_check(
+		game.station_interaction_candidate == seat,
+		"facing the pictured chair selects its sit prompt through ordinary station interaction"
+	)
+	game.call("_on_interact_requested")
+	var sat := await _wait_for_physics_frames(
+		func() -> bool: return player.is_station_seated(),
+		60
+	)
+	_check(sat, "the embodied interaction reaches the chair's live seated anchor")
+	_check(
+		player.is_seated() and player.is_control_enabled() and player.get_camera().current,
+		"sitting suspends locomotion while retaining the player camera and look controls"
+	)
+	_check(
+		seat.is_reserved_for(player) and not seat.is_available(),
+		"an occupied chair withdraws itself from competing interaction discovery"
+	)
+	game.call("_on_interact_requested")
+	var stood := await _wait_for_physics_frames(
+		func() -> bool: return not player.is_seated(),
+		60
+	)
+	_check(stood, "a second embodied interaction stands up onto the authored clear floor pose")
+	# PlayerController defers its completion signal until collision restoration is
+	# queued; allow the coordinator continuation to release the seat and controls.
+	await process_frame
+	await process_frame
+	_check(
+		player.is_control_enabled() and seat.is_available() and not seat.is_reserved_for(player),
+		"standing restores locomotion and releases the chair for reuse"
+	)
 
 
 func _test_start_shift_currentness() -> void:

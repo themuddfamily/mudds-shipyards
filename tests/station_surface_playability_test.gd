@@ -1359,7 +1359,7 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 		AABB(Vector3(-60.0, -0.2, -69.0), Vector3(120.0, 1.0, 129.0)),
 		# Garden bay added beyond the old world-x=60 station envelope. Kept local
 		# rather than widening the whole-station box into unrelated dressing.
-		AABB(Vector3(62.8, -0.2, -3.5), Vector3(12.8, 1.0, 9.2)),
+		AABB(Vector3(61.0, -0.2, -6.1), Vector3(16.4, 1.0, 12.0)),
 		AABB(Vector3(-14.0, -0.1, 4.3), Vector3(5.0, 3.7, 6.8)),
 		AABB(Vector3(-8.0, -0.1, 49.0), Vector3(4.7, 4.7, 12.5)),
 		AABB(Vector3(-12.0, 3.9, 60.0), Vector3(67.0, 1.2, 63.0)),

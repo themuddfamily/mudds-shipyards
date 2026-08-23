@@ -231,6 +231,11 @@ var _target_body_yaw: float = 0.0
 var _motion_state: StringName = &""
 
 var _embodiment_state := EmbodimentState.ON_FOOT
+## Ordinary fixed furniture keeps this controller's own camera and interaction
+## input while locomotion remains suspended. Pilot and vehicle seats never set
+## this flag and retain their existing external-camera/control ownership.
+var _station_seated_context := false
+var _station_disembark_pending := false
 var _seat_anchor: Node3D
 var _transition_start := Transform3D.IDENTITY
 var _transition_entry := Transform3D.IDENTITY
@@ -333,6 +338,13 @@ func _enter_tree() -> void:
 func _physics_process(delta: float) -> void:
 	_ensure_motion_authority(_advance_pilot_integrity_probe(delta))
 	if _embodiment_state != EmbodimentState.ON_FOOT:
+		if (
+			_station_seated_context
+			and _control_enabled
+			and _embodiment_state == EmbodimentState.SEATED
+			and Input.is_action_just_pressed("interact")
+		):
+			interact_requested.emit()
 		_update_embodiment(delta)
 		_advance_motion_animation(delta)
 		return
@@ -437,7 +449,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Enables or suspends on-foot movement and interaction input.
 func set_control_enabled(enabled: bool) -> void:
-	if enabled and _embodiment_state != EmbodimentState.ON_FOOT:
+	if (
+		enabled
+		and _embodiment_state != EmbodimentState.ON_FOOT
+		and not (_station_seated_context and _embodiment_state == EmbodimentState.SEATED)
+	):
 		return
 	_control_enabled = enabled
 	if not enabled:
@@ -566,6 +582,7 @@ func begin_disembark(
 func force_recovery_to_on_foot(target: Transform3D) -> void:
 	var interrupted_state := _embodiment_state
 	_control_enabled = false
+	_station_seated_context = false
 	# Destructive recovery is world-space by definition: the craft that owned the
 	# frame and the cabin envelope is the thing that was just lost.
 	_clear_cabin_containment()
@@ -594,6 +611,20 @@ func force_recovery_to_on_foot(target: Transform3D) -> void:
 ## True only after the boarding movement has reached the live pilot anchor.
 func is_seated() -> bool:
 	return _embodiment_state == EmbodimentState.SEATED
+
+
+## Enables look/zoom and the interact edge while an ordinary station chair owns
+## the seated handoff. Locomotion remains bypassed by the embodiment state.
+func set_station_seated_context(enabled: bool) -> void:
+	if not enabled and _embodiment_state == EmbodimentState.SEATED:
+		_station_disembark_pending = true
+	_station_seated_context = enabled and _embodiment_state == EmbodimentState.SEATED
+	if not _station_seated_context:
+		_control_enabled = false
+
+
+func is_station_seated() -> bool:
+	return _station_seated_context and _embodiment_state == EmbodimentState.SEATED
 
 
 func get_camera() -> Camera3D:
@@ -1035,9 +1066,14 @@ func _complete_disembark() -> void:
 	_transition_frame = null
 	velocity = Vector3.ZERO
 	_seat_anchor = null
+	_station_seated_context = false
+	_station_disembark_pending = false
 	process_physics_priority = _standing_physics_priority
 	_reset_body_facing()
 	_embodiment_state = EmbodimentState.ON_FOOT
+	if _station_disembark_pending:
+		_station_disembark_pending = false
+		_control_enabled = true
 	_set_motion_state(MOTION_IDLE, 0.0, 1.0, true, true)
 	_set_embodied_collision_enabled(true)
 	reset_physics_interpolation()

@@ -92,13 +92,12 @@ func _test_placement_isolation(world: ShipyardWorld, habitat: HabitatSpine) -> v
 		habitat_footprint.local_max
 	)
 	_check(habitat_aabb.position.x >= 44.7 and habitat_aabb.end.x <= 78.3, "world footprint extends outward from the starboard node")
-	# Band low edge 6.49 -> -3.26. The habitat's declared `local_max.x` went 9.0 to
-	# 18.75 when the side branch was built, and the module is yawed 90 degrees, so
-	# local +X is world -Z: the envelope now reaches world z = -3.25. The high edge,
+	# The habitat's declared `local_max.x` is 21.36 for the enlarged garden and the
+	# module is yawed 90 degrees, so local +X is world -Z. The high edge,
 	# both x edges and the overlap assertion below are untouched, and the module's
 	# own origin did not move. `tools/habitat_branch_clearance_probe.gd` swept the
 	# volume first and found nothing in it but this module's own door posts.
-	_check(habitat_aabb.position.z >= -3.26 and habitat_aabb.end.z <= 24.51, "rotated footprint remains inside the intended starboard band")
+	_check(habitat_aabb.position.z >= -5.87 and habitat_aabb.end.z <= 24.51, "rotated footprint remains inside the intended starboard band")
 
 	var aft := world.get_node("AftJunctionStack") as AftJunctionStack
 	var aft_footprint := aft.get_integration_footprint()

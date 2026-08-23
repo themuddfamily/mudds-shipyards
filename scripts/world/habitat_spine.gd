@@ -916,7 +916,7 @@ func get_render_allocation_report() -> Dictionary:
 		)
 	var collar_sharing := _inspect_garden_column_collar_mesh_sharing()
 	var pipe_collar_sharing := _inspect_pipe_collar_mesh_sharing()
-	var descendant_count := find_children("*", "Node", true, false).size()
+	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
 		and mesh_nodes.size() == RENDER_MESH_INSTANCE_COUNT
@@ -1037,6 +1037,21 @@ func get_render_allocation_report() -> Dictionary:
 		),
 		"authored_nutrient_valve_transforms": _nutrient_valve_transforms.duplicate(),
 	}
+
+
+func _render_descendant_count() -> int:
+	var count := 0
+	for candidate in find_children("*", "Node", true, false):
+		var cursor := candidate as Node
+		var interaction_owned := false
+		while cursor != null and cursor != self:
+			if cursor is StationSeat:
+				interaction_owned = true
+				break
+			cursor = cursor.get_parent()
+		if not interaction_owned:
+			count += 1
+	return count
 
 
 ## The column collars stay as ordinary named MeshInstance3D nodes because the
@@ -1828,6 +1843,10 @@ func _build_common_chair(parent: Node3D, index: int, chair_position: Vector3, ya
 	chair.set_meta("evidence_status", EVIDENCE_STATUS)
 	parent.add_child(chair)
 	_chair_nodes.append(chair)
+	# The cushion top is y = 0.94 and PlayerController's hips sit 0.72 m
+	# above its feet-frame root. These chairs have their backs on local -Z, so
+	# the interaction frame turns the occupant to face local +Z.
+	StationSeat.install(chair, 0.22, 180.0, 1.2, 0.0, "COMMON CHAIR %02d" % (index + 1))
 	_cylinder(chair, "Pedestal", Vector3(0, 0.42, 0), 0.16, 0.84, _materials["structural"], true)
 	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.46, 0.14, _materials["graphite"], true)
 	var bearing := _torus(

@@ -455,18 +455,19 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_nutrient_valve_batch(module)
 	_test_garden_column_collar_mesh_sharing(module)
 	_test_pipe_collar_mesh_sharing(module)
+	var render := module.get_render_allocation_report()
 	_check(
-		module.find_children("*", "Node", true, false).size() == 1884
+		int(render.descendant_nodes) == 1884
 		and module.find_children("*", "MeshInstance3D", true, false).size() == 1245
 		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 14,
-		"visual batching re-freezes the Habitat census at 1884 nodes, 1245 meshes and 14 MultiMeshes"
+		"visual batching stays frozen at 1884 render nodes, 1245 meshes and 14 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
 		int(performance.static_bodies) == 245
-		and int(performance.collision_shapes) == 258
+		and int(performance.collision_shapes) == 266
 		and bool(performance.within_budget),
-		"visual-only batching preserves the exact 245-body/258-shape collision census and performance contract"
+		"23 fixed seats add only the expected eight Habitat interaction shapes beside 245 solid bodies"
 	)
 
 	var pressure_ribs := module.find_children("*", "Node3D", true, false).filter(

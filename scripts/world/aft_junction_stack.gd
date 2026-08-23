@@ -810,7 +810,9 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 	):
 		errors.append("pod_corner_collar_mesh_recipe_drift")
 
-	var descendant_nodes := find_children("*", "Node", true, false).size()
+	# Gameplay interaction markers are not render allocations. Keep this visual
+	# census scoped to the nodes that can affect the authored draw roster.
+	var descendant_nodes := _render_descendant_count()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	if (
 		descendant_nodes != RENDER_DESCENDANT_NODE_COUNT
@@ -2186,14 +2188,27 @@ func _index_routes() -> void:
 		marker.set_meta("station_route_marker", true)
 		marker.set_meta("route_id", route_id)
 	# Only the outward approach face is a station connection slot. Every other
-	# marker is an internal waypoint, and the VIP landmark stays out of the graph
-	# even now that it opens: `VipReceptionSuite` is an interpretation interior,
-	# not a registered station module, so it declares no slot and adds no edge.
+	# marker is an internal waypoint, and the VIP landmark stays out of the graph.
 	_route_approach.set_meta(StationModuleContract.CONNECTION_SLOT_META, HUB_CONNECTION_SLOT)
 	_operations_room_anchor.set_meta("station_room_marker", true)
 	_operations_room_anchor.set_meta("room_id", &"aft-operations")
 	_upper_floor_anchor.set_meta("station_upper_floor_marker", true)
 	_vip_access_anchor.set_meta("station_vip_landmark", true)
+
+
+func _render_descendant_count() -> int:
+	var count := 0
+	for candidate in find_children("*", "Node", true, false):
+		var cursor := candidate as Node
+		var interaction_owned := false
+		while cursor != null and cursor != self:
+			if cursor is StationSeat:
+				interaction_owned = true
+				break
+			cursor = cursor.get_parent()
+		if not interaction_owned:
+			count += 1
+	return count
 
 
 func _create_materials() -> void:
@@ -3884,6 +3899,9 @@ func _build_chair(parent: Node3D, chair_index: int, chair_position: Vector3, yaw
 	chair.set_meta("chair_index", chair_index)
 	parent.add_child(chair)
 	_chair_nodes.append(chair)
+	# Cushion top 0.99 minus the pilot rig's 0.72 m hip height. BackFrame is on
+	# local +Z, so the native -Z player-forward convention already faces the desk.
+	StationSeat.install(chair, 0.27, 0.0, 1.2, 0.0, "OPERATIONS CHAIR %02d" % (chair_index + 1))
 	_cylinder(chair, "Pedestal", Vector3(0, 0.38, 0), 0.18, 0.76, _materials["mid_grey"], true)
 	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.52, 0.12, _materials["graphite"], true)
 	_interface_collar(
