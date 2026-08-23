@@ -122,6 +122,15 @@ func _run() -> void:
 		and restarted.phase == recovery_phase,
 		"safe-start guidance is an explicit recommendation rather than an automatic settings change"
 	)
+	var conflicting_flags := restarted.apply_command_line_recovery_args(
+		PackedStringArray(["--safe-mode", "--discard-recovery"])
+	)
+	_check(
+		not bool(conflicting_flags.accepted)
+		and StringName(conflicting_flags.reason) == &"conflicting_recovery_flags"
+		and not restarted.get_recovery_available_snapshot().is_empty(),
+		"conflicting command-line recovery flags reject without consuming the receipt"
+	)
 	var acknowledged := restarted.choose_session_start_recovery(&"normal_start")
 	_check(
 		bool(acknowledged.accepted)
@@ -137,7 +146,9 @@ func _run() -> void:
 	discard_flow.set("_runtime_settings_user_data_store", discard_store)
 	discard_flow.set_session_diagnostics_filesystem(filesystem)
 	discard_flow._initialize_session_diagnostics()
-	var discarded := discard_flow.discard_recovery()
+	var discarded := discard_flow.apply_command_line_recovery_args(
+		PackedStringArray(["--discard-recovery"])
+	)
 	_check(
 		bool(discarded.accepted)
 		and discard_flow.get_recovery_available_snapshot().is_empty(),
