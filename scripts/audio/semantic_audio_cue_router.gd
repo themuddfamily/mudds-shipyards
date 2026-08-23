@@ -20,6 +20,7 @@ const SOURCE_SIGNALS := {
 	&"ship": &"semantic_engine_cue_emitted",
 	&"planetary": &"semantic_surface_cue_emitted",
 	&"station": &"semantic_maintenance_cue_emitted",
+	&"activity": &"semantic_activity_cue_emitted",
 }
 
 var _bindings: Array[Dictionary] = []
@@ -37,7 +38,9 @@ func bind_source(source: Node, source_id: StringName) -> Dictionary:
 	var signal_name: StringName = SOURCE_SIGNALS[source_id]
 	if not source.has_signal(signal_name):
 		return _result(false, &"missing_semantic_signal")
-	var callback := Callable(self, "_on_combat_cue" if source_id == &"combat" else "_on_scalar_cue").bind(source_id)
+	var callback_name := "_on_combat_cue" if source_id == &"combat" \
+			else ("_on_activity_cue" if source_id == &"activity" else "_on_scalar_cue")
+	var callback := Callable(self, callback_name).bind(source_id)
 	var error := source.connect(signal_name, callback)
 	if error != OK:
 		return _result(false, &"signal_connect_failed")
@@ -65,6 +68,15 @@ func _on_combat_cue(cue_id: StringName, world_position: Vector3, intensity: floa
 
 
 func _on_scalar_cue(cue_id: StringName, intensity: float, source_id: StringName) -> void:
+	_emit_normalized(source_id, cue_id, intensity, Vector3.ZERO)
+
+
+func _on_activity_cue(
+		cue_id: StringName,
+		_activity_id: StringName,
+		intensity: float,
+		source_id: StringName
+	) -> void:
 	_emit_normalized(source_id, cue_id, intensity, Vector3.ZERO)
 
 
