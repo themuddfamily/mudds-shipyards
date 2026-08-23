@@ -30,15 +30,24 @@ func _run() -> void:
 			{"session_id": &"locked", "title": "Locked Run", "ping_ms": 220, "player_count": 4, "max_players": 4, "password_required": true, "compatible": false},
 		],
 	})
-	_check(rich_snapshot.rows[0].password_label == "No Password" and rich_snapshot.rows[1].password_label == "Password Required", "password state is textual")
-	_check(rich_snapshot.rows[0].compatibility_label == "Compatible" and rich_snapshot.rows[1].compatibility_label == "Incompatible", "compatibility state is textual")
-	_check("Latency Excellent" in rich_snapshot.rows[0].focus_label and "No Password" in rich_snapshot.rows[0].focus_label and "Compatible" in rich_snapshot.rows[0].focus_label, "spoken focus label composes all row status fields")
+	var rich_row: Dictionary = rich_snapshot.rows.filter(func(row: Variant) -> bool: return (row as Dictionary).session_id == &"rich")[0]
+	var locked_row: Dictionary = rich_snapshot.rows.filter(func(row: Variant) -> bool: return (row as Dictionary).session_id == &"locked")[0]
+	_check(rich_row.password_label == "No Password" and locked_row.password_label == "Password Required", "password state is textual")
+	_check(rich_row.compatibility_label == "Compatible" and locked_row.compatibility_label == "Incompatible", "compatibility state is textual")
+	_check("Latency Excellent" in rich_row.focus_label and "No Password" in rich_row.focus_label and "Compatible" in rich_row.focus_label, "spoken focus label composes all row status fields")
 	var filtered := presenter.set_accessibility_filters({"compatible_only": true, "not_full": true, "no_password": true, "latency_band": &"excellent"})
 	_check(filtered.accepted and filtered.row_count == 1 and filtered.rows[0].session_id == &"rich", "caller-owned accessibility filters narrow rows")
 	_check(filtered.active_filter_summary == "FILTERS: COMPATIBLE ONLY, NOT FULL, NO PASSWORD, LATENCY EXCELLENT", "active filter summary is explicit and textual")
 	_check((filtered.filter_controls as Array).size() == 5 and filtered.focus_order == [&"refresh", &"host_session", &"manual_join", &"compatible_only", &"not_full", &"no_password", &"latency_band", &"clear_filters", &"retry", &"cancel"], "filter controls expose bounded presentation metadata")
 	var cleared := presenter.clear_accessibility_filters()
 	_check(cleared.accepted and cleared.row_count == 2 and cleared.active_filter_summary == "FILTERS: NONE", "clear-all restores the unfiltered caller snapshot")
+	var sorted_latency := presenter.set_sort(&"latency", false)
+	_check(sorted_latency.accepted and sorted_latency.rows[0].session_id == &"rich", "latency sort orders rows from caller data")
+	_check(sorted_latency.sort.summary == "SORT: LATENCY ↑", "sort summary exposes key and direction")
+	var sorted_descending := presenter.set_sort(&"latency", true)
+	_check(sorted_descending.rows[0].session_id == &"locked", "descending sort is explicit")
+	var cleared_sort := presenter.clear_sort()
+	_check(cleared_sort.sort.summary == "SORT: NAME ↑", "clear sort restores deterministic name order")
 	var generation_presenter := Presenter.new()
 	var generation_snapshot := generation_presenter.present_result({
 		"accepted": true,

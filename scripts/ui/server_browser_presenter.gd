@@ -33,6 +33,8 @@ var _accessibility_filters: Dictionary = {
 	"no_password": false,
 	"latency_band": &"",
 }
+var _sort_key: StringName = &"name"
+var _sort_descending := false
 
 
 func configure_filters(region_filter: StringName = &"", max_ping_ms: int = PING_ANY, include_full: bool = true) -> Dictionary:
@@ -86,9 +88,12 @@ func present_result(result: Dictionary) -> Dictionary:
 		var row := _present_row(source as Dictionary)
 		rows.append(row)
 	_last_unfiltered_rows = rows.duplicate(true)
-	var filtered_rows := _filter_rows(_last_unfiltered_rows)
-	if not rows.is_empty():
-		_focus_target = &"row:%s" % str(rows[0].get("session_id", ""))
+	var filtered_rows := _sort_rows(_filter_rows(_last_unfiltered_rows))
+	var prior_focus := _focus_target
+	if prior_focus.begins_with("row:") and filtered_rows.any(func(row: Variant) -> bool: return "row:%s" % str((row as Dictionary).get("session_id", "")) == prior_focus):
+		_focus_target = prior_focus
+	elif not filtered_rows.is_empty():
+		_focus_target = &"row:%s" % str(filtered_rows[0].get("session_id", ""))
 	else:
 		_focus_target = &"refresh"
 	return _store_snapshot(_status_snapshot(
@@ -120,6 +125,23 @@ func clear_accessibility_filters() -> Dictionary:
 
 func get_accessibility_filters() -> Dictionary:
 	return _accessibility_filters.duplicate(true)
+
+
+func set_sort(key: StringName, descending: bool = false) -> Dictionary:
+	if key not in [&"name", &"latency", &"occupancy", &"compatible_first"]:
+		return {"accepted": false, "reason": &"invalid_sort_key", "presentation_only": true}
+	_sort_key = key
+	_sort_descending = descending
+	_generation += 1
+	return _refresh_filtered_snapshot()
+
+
+func clear_sort() -> Dictionary:
+	return set_sort(&"name", false)
+
+
+func get_sort() -> Dictionary:
+	return {"key": _sort_key, "descending": _sort_descending, "summary": _sort_summary()}
 
 
 func set_focus_target(control_id: StringName) -> Dictionary:
@@ -174,6 +196,12 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 			{"id": &"no_password", "label": "No password", "focusable": true},
 			{"id": &"latency_band", "label": "Latency band", "focusable": true},
 			{"id": &"clear_filters", "label": "Clear filters", "focusable": true},
+		],
+		"sort": get_sort(),
+		"sort_controls": [
+			{"id": &"sort_key", "label": "Sort by", "focusable": true},
+			{"id": &"sort_direction", "label": "Sort direction", "focusable": true},
+			{"id": &"clear_sort", "label": "Clear sort", "focusable": true},
 		],
 		"controls": _browser_controls(),
 		"accessibility_prompts": get_accessibility_prompts(),
@@ -455,7 +483,7 @@ func _active_filter_summary() -> String:
 func _refresh_filtered_snapshot() -> Dictionary:
 	if _last_snapshot.is_empty():
 		return {"accepted": true, "reason": &"filters_applied", "filters": get_accessibility_filters(), "active_filter_summary": _active_filter_summary(), "presentation_only": true}
-	var filtered := _filter_rows(_last_unfiltered_rows)
+	var filtered := _sort_rows(_filter_rows(_last_unfiltered_rows))
 	_last_snapshot["rows"] = filtered
 	_last_snapshot["row_count"] = filtered.size()
 	_last_snapshot["status"] = &"ready" if not filtered.is_empty() else &"empty"
@@ -463,10 +491,40 @@ func _refresh_filtered_snapshot() -> Dictionary:
 	_last_snapshot["generation"] = _generation
 	_last_snapshot["accessibility_filters"] = get_accessibility_filters()
 	_last_snapshot["active_filter_summary"] = _active_filter_summary()
+	_last_snapshot["sort"] = get_sort()
 	var refreshed := _last_snapshot.duplicate(true)
 	refreshed["accepted"] = true
 	refreshed["reason"] = &"filters_applied"
 	return refreshed
+
+
+func _sort_rows(rows: Array) -> Array:
+	var sorted := rows.duplicate(true)
+	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var a_value: Variant = _sort_value(a)
+		var b_value: Variant = _sort_value(b)
+		if a_value == b_value:
+			return str(a.get("session_id", "")) < str(b.get("session_id", ""))
+		return b_value < a_value if _sort_descending else a_value < b_value
+	)
+	return sorted
+
+
+func _sort_value(row: Dictionary) -> Variant:
+	match _sort_key:
+		&"latency": return int(row.get("ping_ms", -1)) if int(row.get("ping_ms", -1)) >= 0 else 2147483647
+		&"occupancy":
+			var maximum := maxf(float(row.get("max_players", 0)), 1.0)
+			return float(row.get("player_count", 0)) / maximum
+		&"compatible_first":
+			return {"Compatible": 0, "Compatibility Unknown": 1, "Incompatible": 2}.get(str(row.get("compatibility_label", "Compatibility Unknown")), 1)
+		_:
+			return str(row.get("title", "")).to_lower()
+
+
+func _sort_summary() -> String:
+	var names := {&"name": "NAME", &"latency": "LATENCY", &"occupancy": "OCCUPANCY", &"compatible_first": "COMPATIBLE FIRST"}
+	return "SORT: %s %s" % [names.get(_sort_key, "NAME"), "↓" if _sort_descending else "↑"]
 
 
 func _status_reason_message(reason: StringName, fallback: String) -> String:

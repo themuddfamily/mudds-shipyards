@@ -267,6 +267,8 @@ var _server_browser_rows: VBoxContainer
 var _server_browser_actions: HBoxContainer
 var _server_browser_filter_controls: Dictionary = {}
 var _server_browser_filter_summary: Label
+var _server_browser_sort_controls: Dictionary = {}
+var _server_browser_sort_summary: Label
 var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
@@ -3338,6 +3340,38 @@ func _build_server_browser_page() -> void:
 	_server_browser_filter_summary.name = "ServerBrowserFilterSummary"
 	_server_browser_filter_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(_server_browser_filter_summary)
+	var sort_row := HBoxContainer.new()
+	sort_row.name = "ServerBrowserSortControls"
+	sort_row.add_theme_constant_override("separation", 5)
+	stack.add_child(sort_row)
+	var sort_key := OptionButton.new()
+	sort_key.name = "ServerBrowserSortKey"
+	sort_key.add_item("SORT: NAME", 0)
+	sort_key.add_item("SORT: LATENCY", 1)
+	sort_key.add_item("SORT: OCCUPANCY", 2)
+	sort_key.add_item("SORT: COMPATIBLE FIRST", 3)
+	sort_key.tooltip_text = "Choose server row sort order"
+	sort_key.focus_mode = Control.FOCUS_ALL
+	sort_key.item_selected.connect(_on_server_browser_sort_key_changed)
+	sort_row.add_child(sort_key)
+	_server_browser_sort_controls[&"sort_key"] = sort_key
+	var sort_direction := _menu_button("ASCENDING", MUTED)
+	sort_direction.name = "ServerBrowserSortDirection"
+	sort_direction.tooltip_text = "Toggle ascending or descending sort"
+	sort_direction.focus_mode = Control.FOCUS_ALL
+	sort_direction.pressed.connect(_toggle_server_browser_sort_direction)
+	sort_row.add_child(sort_direction)
+	_server_browser_sort_controls[&"sort_direction"] = sort_direction
+	var clear_sort := _menu_button("CLEAR SORT", MUTED)
+	clear_sort.name = "ServerBrowserClearSortButton"
+	clear_sort.focus_mode = Control.FOCUS_ALL
+	clear_sort.pressed.connect(_clear_server_browser_sort)
+	sort_row.add_child(clear_sort)
+	_server_browser_sort_controls[&"clear_sort"] = clear_sort
+	_server_browser_sort_summary = _label("SORT: NAME ↑", 10, MUTED)
+	_server_browser_sort_summary.name = "ServerBrowserSortSummary"
+	_server_browser_sort_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(_server_browser_sort_summary)
 	var join_fields := HBoxContainer.new()
 	join_fields.add_theme_constant_override("separation", 6)
 	stack.add_child(join_fields)
@@ -3405,6 +3439,10 @@ func _configure_server_browser_focus_order(
 		var filter_control := _server_browser_filter_controls.get(filter_id) as Control
 		if is_instance_valid(filter_control):
 			ordered.append(filter_control)
+	for sort_id: StringName in [&"sort_key", &"sort_direction", &"clear_sort"]:
+		var sort_control := _server_browser_sort_controls.get(sort_id) as Control
+		if is_instance_valid(sort_control):
+			ordered.append(sort_control)
 	ordered.append_array([refresh, host, manual_join, back])
 	for index in ordered.size():
 		var control := ordered[index]
@@ -3542,6 +3580,24 @@ func _clear_server_browser_filters() -> void:
 	_render_server_browser(presentation)
 
 
+func _on_server_browser_sort_key_changed(index: int) -> void:
+	var keys: Array[StringName] = [&"name", &"latency", &"occupancy", &"compatible_first"]
+	var direction: bool = bool(_server_browser_presenter.get_sort().get("descending", false))
+	var presentation: Dictionary = _server_browser_presenter.set_sort(keys[clampi(index, 0, keys.size() - 1)], direction)
+	_render_server_browser(presentation)
+
+
+func _toggle_server_browser_sort_direction() -> void:
+	var current: Dictionary = _server_browser_presenter.get_sort()
+	var presentation: Dictionary = _server_browser_presenter.set_sort(StringName(str(current.get("key", &"name"))), not bool(current.get("descending", false)))
+	_render_server_browser(presentation)
+
+
+func _clear_server_browser_sort() -> void:
+	var presentation: Dictionary = _server_browser_presenter.clear_sort()
+	_render_server_browser(presentation)
+
+
 func request_server_browser_join(session_id: StringName) -> Dictionary:
 	if session_id == &"":
 		return {"accepted": false, "reason": &"missing_session_id", "presentation_only": true}
@@ -3566,6 +3622,15 @@ func _render_server_browser(presentation: Dictionary) -> void:
 	_server_browser_title.text = status_title
 	_server_browser_detail.text = str(presentation.get("error_message", "Select a session to request joining."))
 	_server_browser_filter_summary.text = str(presentation.get("active_filter_summary", "FILTERS: NONE"))
+	_server_browser_sort_summary.text = str((presentation.get("sort", {}) as Dictionary).get("summary", "SORT: NAME ↑"))
+	var sort_state := presentation.get("sort", {}) as Dictionary
+	var sort_keys: Array[StringName] = [&"name", &"latency", &"occupancy", &"compatible_first"]
+	var sort_key := _server_browser_sort_controls.get(&"sort_key") as OptionButton
+	if is_instance_valid(sort_key):
+		sort_key.select(sort_keys.find(StringName(str(sort_state.get("key", &"name")))))
+	var sort_direction := _server_browser_sort_controls.get(&"sort_direction") as Button
+	if is_instance_valid(sort_direction):
+		sort_direction.text = "DESCENDING" if bool(sort_state.get("descending", false)) else "ASCENDING"
 	var active_filters := presentation.get("accessibility_filters", {}) as Dictionary
 	for filter_id: StringName in [&"compatible_only", &"not_full", &"no_password"]:
 		var check := _server_browser_filter_controls.get(filter_id) as CheckButton
