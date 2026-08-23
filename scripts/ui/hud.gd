@@ -365,6 +365,9 @@ var _palette_targets: Array[Dictionary] = []
 var _ui_scale := 1.0
 var _reduced_motion := false
 var _reduced_flash := false
+var _payload_visual_intensity := 2
+var _bomber_payload_help_snapshot: Dictionary = {}
+var _bomber_payload_help_button: Button
 var _captions_enabled := false
 var _caption_preview_revision := 0
 ## Containers whose contents scale with the UI-scale preference. The reticle,
@@ -1578,6 +1581,9 @@ func set_accessibility(descriptor: Dictionary) -> void:
 		set_reduced_motion(bool(descriptor["reduced_motion"]))
 	if descriptor.has("reduced_flash"):
 		set_reduced_flash(bool(descriptor["reduced_flash"]))
+	if descriptor.has("payload_visual_intensity"):
+		_payload_visual_intensity = clampi(int(descriptor["payload_visual_intensity"]), 0, 2)
+		_refresh_bomber_payload_help()
 	if descriptor.has("captions_enabled"):
 		set_captions_enabled(bool(descriptor["captions_enabled"]))
 
@@ -1796,6 +1802,7 @@ func set_reduced_motion(enabled: bool) -> void:
 
 func set_reduced_flash(enabled: bool) -> void:
 	_reduced_flash = enabled
+	_refresh_bomber_payload_help()
 
 
 func is_reduced_motion() -> bool:
@@ -2431,6 +2438,8 @@ func apply_bomber_payload_snapshot(snapshot: Dictionary) -> bool:
 		if not action_rows.is_empty():
 			(action_rows[0] as Dictionary)["label"] = "[%s] RELEASE PAYLOAD" % str(resolved_action.get("text", "INPUT"))
 	presentation["message"] = "%s  %s" % [presentation.get("marker", ""), presentation.get("message", "")]
+	_bomber_payload_help_snapshot = presentation.duplicate(true)
+	_refresh_bomber_payload_help()
 	_render_runtime_status(presentation, &"bomber")
 	return true
 
@@ -2448,6 +2457,8 @@ func clear_bomber_payload_status() -> void:
 	if _bomber_payload_presenter != null:
 		_bomber_payload_presenter.detach()
 	clear_runtime_status()
+	_bomber_payload_help_snapshot = {}
+	_refresh_bomber_payload_help()
 
 
 func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
@@ -4616,7 +4627,38 @@ func _set_help_text(rows: Array) -> void:
 		var row := rows[index] as Array
 		(controls.key as Label).text = str(row[0])
 		(controls.detail as Label).text = str(row[1])
+	if _bomber_payload_help_button == null:
+		_bomber_payload_help_button = _menu_button("PAYLOAD // WAITING FOR BOMBER", NOMINAL)
+		_bomber_payload_help_button.name = "BomberPayloadTutorialButton"
+		_bomber_payload_help_button.focus_mode = Control.FOCUS_ALL
+		_bomber_payload_help_button.pressed.connect(request_bomber_payload_release)
+		_help_stack.add_child(_bomber_payload_help_button)
+	_refresh_bomber_payload_help()
 	_set_mouse_passthrough(_help_panel)
+
+
+func _refresh_bomber_payload_help() -> void:
+	if _bomber_payload_help_button == null:
+		return
+	var snapshot := _bomber_payload_help_snapshot
+	var attached := not snapshot.is_empty() and bool(snapshot.get("attached", false))
+	_bomber_payload_help_button.visible = attached and bool(snapshot.get("active", true))
+	if not attached:
+		return
+	var state := str(snapshot.get("state", "unavailable")).to_upper()
+	var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(&"fire")
+	var glyph := str(resolved.get("text", "INPUT")) if bool(resolved.get("valid", false)) else "INPUT"
+	_bomber_payload_help_button.text = "PAYLOAD  // [%s] RELEASE  // %s" % [glyph, state]
+	var intensity_names := ["LOW", "MEDIUM", "HIGH"]
+	var intensity: String = intensity_names[clampi(_payload_visual_intensity, 0, intensity_names.size() - 1)]
+	var detail := "Payload readiness: %s. Remaining: %d." % [state, maxi(0, int(snapshot.get("ammo", 0)))]
+	var cooldown := maxf(0.0, float(snapshot.get("cooldown_remaining", 0.0)))
+	if cooldown > 0.0:
+		detail += " Cooldown: %.1f seconds." % cooldown
+	if not bool(snapshot.get("release_allowed", false)):
+		detail += " Unavailable: %s." % str(snapshot.get("reason", "unavailable"))
+	detail += " Reduced flash: %s. Visual intensity: %s." % ["ON" if _reduced_flash else "OFF", intensity]
+	_bomber_payload_help_button.tooltip_text = detail
 
 
 func _label(text: String, size: int, role: StringName) -> Label:
