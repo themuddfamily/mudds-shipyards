@@ -292,11 +292,14 @@ const DEFENSIVE_VISUAL_PARTS_PER_MOUNT := 5
 ## submission through a ship-local MultiMesh.
 const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
 const SPINE_RIB_COPY_COUNT := 7
-const RENDER_DESCENDANT_COUNT := 124
-const RENDER_MESH_INSTANCE_COUNT := 116
-const RENDER_MULTIMESH_BATCH_COUNT := 3
+const GEAR_DAMPER_RADIUS := 0.12
+const GEAR_DAMPER_HEIGHT := 0.83
+const GEAR_DAMPER_COPY_COUNT := 4
+const RENDER_DESCENDANT_COUNT := 121
+const RENDER_MESH_INSTANCE_COUNT := 112
+const RENDER_MULTIMESH_BATCH_COUNT := 4
 const RENDER_DRAWN_COPY_COUNT := 163
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 119
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 116
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 65
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
 
@@ -2725,12 +2728,31 @@ func _build_propulsion_and_gear() -> void:
 	# four feet sit inside the 12 m Fleet Dock 02 slab (0.8 m and 1.2 m of slab
 	# to spare fore and aft) while the bow collar and the tail yoke overhang it,
 	# the way a long aircraft overhangs its stand.
+	var gear_damper_transforms: Array[Transform3D] = []
+	var gear_damper_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		for leg_z in [-5.20, 4.80]:
 			var leg_name := ("Port" if side < 0.0 else "Starboard") + ("Forward" if leg_z < 0.0 else "Aft")
 			_box(_halyard_visual, leg_name + "GearStrut", Vector3(side * 1.95, -0.37, leg_z), Vector3(0.30, 0.88, 0.30), _halyard_materials.dark, Vector3(0.0, 0.0, side * deg_to_rad(-6.0)))
 			_box(_halyard_visual, leg_name + "GearFoot", Vector3(side * 2.08, -0.98, leg_z), Vector3(1.20, 0.20, 1.65), _halyard_materials.structure)
-			_cylinder(_halyard_visual, leg_name + "GearDamper", Vector3(side * 1.78, -0.19, leg_z), 0.12, 0.83, _halyard_materials.accent)
+			gear_damper_transforms.append(Transform3D(Basis.IDENTITY, Vector3(side * 1.78, -0.19, leg_z)))
+			gear_damper_names.append(leg_name + "GearDamper")
+	# The four dampers are immutable visual trim. Landing contact and collision
+	# remain owned by LandingGearCollision, so this retains every physical gear
+	# contract while replacing four identical renderer submissions with one.
+	var gear_damper_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		GEAR_DAMPER_RADIUS, GEAR_DAMPER_RADIUS, GEAR_DAMPER_HEIGHT, 32,
+		_chamfered_cylinder_cache, ShipSurfaceDetail.CYLINDER_WALL_RINGS,
+		true, true, _halyard_materials.accent
+	)
+	_multimesh_visual_stock(
+		_halyard_visual,
+		"LandingGearDamperBatch",
+		gear_damper_mesh,
+		_halyard_materials.accent,
+		gear_damper_transforms,
+		gear_damper_names
+	)
 
 
 func _replace_collision_and_markers() -> void:
