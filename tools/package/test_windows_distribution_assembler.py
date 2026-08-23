@@ -5,6 +5,7 @@ import zipfile
 from pathlib import Path
 
 from tools.package.windows_distribution_assembler import assemble_distribution
+from tools.package.windows_portable_installer import install_package
 
 
 class WindowsDistributionAssemblerTest(unittest.TestCase):
@@ -41,11 +42,19 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
             self.assertTrue((stage / "LICENSE.txt").is_file())
             self.assertTrue((stage / "config/project.godot").is_file())
             self.assertTrue((stage / "SHA256SUMS.txt").is_file())
+            self.assertTrue((stage / "Start Mudds Shipyards.cmd").is_file())
+            self.assertTrue((stage / "install/windows_portable_installer.py").is_file())
             self.assertEqual(first["manifest"]["signing"], "NOT_RUN")
             self.assertEqual(first["manifest"]["native_validation"], "NOT_RUN")
+            self.assertEqual(first["manifest"]["portable_installer"]["launcher"], "Start Mudds Shipyards.cmd")
             with zipfile.ZipFile(first["archive"]) as bundle:
                 self.assertEqual(bundle.namelist(), sorted(bundle.namelist()))
                 self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/MuddsShipyards.exe", bundle.namelist())
+                self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/Start Mudds Shipyards.cmd", bundle.namelist())
+                self.assertIn("MuddsShipyards-v1.2.3-aaaaaaa/install/windows_portable_installer.py", bundle.namelist())
+            installed = install_package(first["archive"], root / "installed")
+            self.assertTrue((Path(installed["destination"]) / "Start Mudds Shipyards.cmd").is_file())
+            self.assertTrue((Path(installed["destination"]) / "install/windows_portable_installer.py").is_file())
 
     def test_checksum_manifest_matches_payload(self):
         with tempfile.TemporaryDirectory() as temporary:

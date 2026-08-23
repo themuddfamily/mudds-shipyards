@@ -17,6 +17,11 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Iterable
 
+try:
+    from .windows_portable_installer import LAUNCHER_NAME, _launcher_bytes
+except ImportError:
+    from windows_portable_installer import LAUNCHER_NAME, _launcher_bytes
+
 
 COMMIT = re.compile(r"^[0-9a-f]{40,64}$")
 VERSION = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
@@ -109,12 +114,16 @@ def assemble_distribution(
     _copy(readme, stage / "README.md")
     _copy(license_file, stage / "LICENSE.txt")
     _copy(config, stage / "config" / "project.godot")
+    (stage / LAUNCHER_NAME).write_bytes(_launcher_bytes())
+    _copy(Path(__file__), stage / "install" / "windows_portable_installer.py")
 
     payload_paths = [
         artifact_name,
         "README.md",
         "LICENSE.txt",
         "config/project.godot",
+        LAUNCHER_NAME,
+        "install/windows_portable_installer.py",
     ]
     if pck is not None:
         payload_paths.append("MuddsShipyards.pck")
@@ -129,6 +138,11 @@ def assemble_distribution(
         "signing": "NOT_RUN",
         "native_validation": "NOT_RUN",
         "human_playtest": "NOT_RUN",
+        "portable_installer": {
+            "path": "install/windows_portable_installer.py",
+            "launcher": LAUNCHER_NAME,
+            "commands": ["install", "upgrade", "status", "rollback", "uninstall"],
+        },
         "files": entries,
     }
     (stage / "distribution-manifest.json").write_text(
