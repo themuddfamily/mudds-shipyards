@@ -12,6 +12,7 @@ var _attached := false
 var _generation := 0
 var _resolution_id := Settings.DEFAULT_DISPLAY_RESOLUTION_ID
 var _vsync_id: StringName = &"on"
+var _window_mode_id: StringName = &"windowed"
 
 
 func attach(settings: RuntimeSettings) -> Dictionary:
@@ -19,6 +20,7 @@ func attach(settings: RuntimeSettings) -> Dictionary:
 		return _reject(&"settings_missing")
 	_resolution_id = settings.display_resolution
 	_vsync_id = settings.get_vsync_mode_id()
+	_window_mode_id = settings.get_window_mode_id()
 	_attached = true
 	_generation += 1
 	return get_snapshot()
@@ -50,6 +52,16 @@ func select_vsync(vsync_id: StringName, expected_generation: int = -1) -> Dictio
 	return _intent(&"vsync_mode_changed", {"vsync_mode": _vsync_id})
 
 
+func select_window_mode(window_mode_id: StringName, expected_generation: int = -1) -> Dictionary:
+	var rejected := _validate(expected_generation)
+	if not rejected.is_empty():
+		return rejected
+	if not [&"windowed", &"borderless", &"fullscreen"].has(window_mode_id):
+		return _reject(&"unsupported_window_mode")
+	_window_mode_id = window_mode_id
+	return _intent(&"window_mode_changed", {"window_mode": _window_mode_id})
+
+
 func get_snapshot() -> Dictionary:
 	var resolutions: Array[Dictionary] = []
 	for resolution_id: String in Settings.SUPPORTED_DISPLAY_RESOLUTION_IDS:
@@ -67,16 +79,26 @@ func get_snapshot() -> Dictionary:
 			"selected": vsync_id == _vsync_id,
 			"focusable": true,
 		})
+	var window_modes: Array[Dictionary] = []
+	for window_mode_id: StringName in [&"windowed", &"borderless", &"fullscreen"]:
+		window_modes.append({
+			"id": window_mode_id,
+			"label": String(window_mode_id).capitalize(),
+			"selected": window_mode_id == _window_mode_id,
+			"focusable": true,
+		})
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"attached": _attached,
 		"generation": _generation,
 		"status": &"ready" if _attached else &"detached",
 		"rows": [
+			{"id": &"window_mode", "label": "Window Mode", "options": window_modes, "focusable": true},
 			{"id": &"display_resolution", "label": "Resolution", "options": resolutions, "focusable": true},
 			{"id": &"vsync_mode", "label": "VSync", "options": vsync_modes, "focusable": true},
 		],
-		"focus_order": [&"display_resolution", &"vsync_mode"],
+		"focus_order": [&"window_mode", &"display_resolution", &"vsync_mode"],
+		"window_mode": _window_mode_id,
 		"display_resolution": StringName(_resolution_id),
 		"vsync_mode": _vsync_id,
 		"presentation_only": true,
