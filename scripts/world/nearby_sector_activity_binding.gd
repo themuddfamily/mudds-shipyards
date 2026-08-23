@@ -27,6 +27,7 @@ const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adap
 const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activity_session_adapter.gd")
 const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
+const PRESENTATION_OBSERVER_LIMIT := 3
 
 var _host: CinderConvoyEscortHost
 var _race_director: ActivityDirector
@@ -48,15 +49,20 @@ var _station_anchor: Node3D
 var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
-var _mining_presentation_consumer: Callable
-var _structure_scan_presentation_consumer: Callable
-var _beacon_traversal_presentation_consumer: Callable
+var _mining_presentation_consumers: Array[Callable] = []
+var _structure_scan_presentation_consumers: Array[Callable] = []
+var _beacon_traversal_presentation_consumers: Array[Callable] = []
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
 var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
+
+
+func _enter_tree() -> void:
+	if _mining_activity != null:
+		call_deferred("_restore_presentation_observers_after_reentry")
 
 
 func _ready() -> void:
@@ -94,17 +100,43 @@ func _ready() -> void:
 	_cinder_field_audio.attach()
 	_cinder_cargo_terminal_audio = CINDER_CARGO_TERMINAL_AUDIO.new() as RefCounted
 	_cinder_cargo_terminal_audio.attach()
-	bind_mining_presentation(Callable(self, "_on_mining_audio_snapshot"))
-	bind_structure_scan_presentation(Callable(self, "_on_structure_scan_audio_snapshot"))
-	bind_beacon_traversal_presentation(Callable(self, "_on_beacon_audio_snapshot"))
+	_bind_audio_presentation_observers()
 	_publish_cinder_route_audio()
 
 
 func _exit_tree() -> void:
+	_clear_presentation_observers()
 	if _cinder_field_audio != null:
 		_cinder_field_audio.detach()
 	if _cinder_cargo_terminal_audio != null:
 		_cinder_cargo_terminal_audio.detach()
+
+
+func _restore_presentation_observers_after_reentry() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	if _cinder_field_audio != null:
+		_cinder_field_audio.attach(
+			int(_cinder_field_audio.get_snapshot().get("generation", 0))
+		)
+	if _cinder_cargo_terminal_audio != null:
+		_cinder_cargo_terminal_audio.attach(
+			int(_cinder_cargo_terminal_audio.get_snapshot().get("generation", 0))
+		)
+	_bind_audio_presentation_observers()
+	_publish_cinder_route_audio()
+
+
+func _bind_audio_presentation_observers() -> void:
+	bind_mining_presentation(Callable(self, "_on_mining_audio_snapshot"))
+	bind_structure_scan_presentation(Callable(self, "_on_structure_scan_audio_snapshot"))
+	bind_beacon_traversal_presentation(Callable(self, "_on_beacon_audio_snapshot"))
+
+
+func _clear_presentation_observers() -> void:
+	_mining_presentation_consumers.clear()
+	_structure_scan_presentation_consumers.clear()
+	_beacon_traversal_presentation_consumers.clear()
 
 
 func get_cinder_field_audio_binding_snapshot() -> Dictionary:
@@ -652,20 +684,30 @@ func reset_mining_activity() -> Dictionary:
 
 
 ## Presentation-only observer seam. MiningActivity remains the sole state and
-## reward-request owner; the consumer receives detached snapshots after commits.
+## reward-request owner; each bounded observer receives one detached current
+## snapshot on registration and one detached snapshot after every state commit.
 func bind_mining_presentation(consumer: Callable) -> Dictionary:
-	if not consumer.is_valid() or _mining_presentation_consumer.is_valid():
-		return _result(false, &"mining_presentation_binding_rejected")
-	_mining_presentation_consumer = consumer
-	_publish_mining_presentation()
-	return _result(true, &"mining_presentation_bound")
+	var current := (
+		(_mining_activity.call("get_snapshot") as Dictionary).duplicate(true)
+		if _mining_activity != null else {}
+	)
+	return _bind_presentation_observer(
+		_mining_presentation_consumers, consumer, current, &"mining"
+	)
+
+
+func unbind_mining_presentation(consumer: Callable) -> Dictionary:
+	return _unbind_presentation_observer(
+		_mining_presentation_consumers, consumer, &"mining"
+	)
 
 
 func _publish_mining_presentation() -> void:
-	if not _mining_presentation_consumer.is_valid() or _mining_activity == null:
+	if _mining_activity == null:
 		return
-	_mining_presentation_consumer.call(
-		(_mining_activity.call("get_snapshot") as Dictionary).duplicate(true)
+	_publish_presentation_observers(
+		_mining_presentation_consumers,
+		_mining_activity.call("get_snapshot") as Dictionary
 	)
 
 
@@ -703,18 +745,27 @@ func reset_structure_scan() -> Dictionary:
 
 
 func bind_structure_scan_presentation(consumer: Callable) -> Dictionary:
-	if not consumer.is_valid() or _structure_scan_presentation_consumer.is_valid():
-		return _result(false, &"structure_scan_presentation_binding_rejected")
-	_structure_scan_presentation_consumer = consumer
-	_publish_structure_scan_presentation()
-	return _result(true, &"structure_scan_presentation_bound")
+	var current := (
+		(_scan_activity.call("get_snapshot") as Dictionary).duplicate(true)
+		if _scan_activity != null else {}
+	)
+	return _bind_presentation_observer(
+		_structure_scan_presentation_consumers, consumer, current, &"structure_scan"
+	)
+
+
+func unbind_structure_scan_presentation(consumer: Callable) -> Dictionary:
+	return _unbind_presentation_observer(
+		_structure_scan_presentation_consumers, consumer, &"structure_scan"
+	)
 
 
 func _publish_structure_scan_presentation() -> void:
-	if not _structure_scan_presentation_consumer.is_valid() or _scan_activity == null:
+	if _scan_activity == null:
 		return
-	_structure_scan_presentation_consumer.call(
-		(_scan_activity.call("get_snapshot") as Dictionary).duplicate(true)
+	_publish_presentation_observers(
+		_structure_scan_presentation_consumers,
+		_scan_activity.call("get_snapshot") as Dictionary
 	)
 
 
@@ -752,22 +803,111 @@ func reset_beacon_traversal() -> Dictionary:
 
 
 func bind_beacon_traversal_presentation(consumer: Callable) -> Dictionary:
-	if not consumer.is_valid() or _beacon_traversal_presentation_consumer.is_valid():
-		return _result(false, &"beacon_traversal_presentation_binding_rejected")
-	_beacon_traversal_presentation_consumer = consumer
-	_publish_beacon_traversal_presentation()
-	return _result(true, &"beacon_traversal_presentation_bound")
+	var current := (
+		(_beacon_activity.call("get_snapshot") as Dictionary).duplicate(true)
+		if _beacon_activity != null else {}
+	)
+	return _bind_presentation_observer(
+		_beacon_traversal_presentation_consumers, consumer, current, &"beacon_traversal"
+	)
+
+
+func unbind_beacon_traversal_presentation(consumer: Callable) -> Dictionary:
+	return _unbind_presentation_observer(
+		_beacon_traversal_presentation_consumers, consumer, &"beacon_traversal"
+	)
 
 
 func _publish_beacon_traversal_presentation(authority_record: Dictionary = {}) -> void:
-	if not _beacon_traversal_presentation_consumer.is_valid() or _beacon_activity == null:
+	if _beacon_activity == null:
 		return
 	var detached := authority_record.duplicate(true)
 	if detached.is_empty():
 		detached = (_beacon_activity.call("get_snapshot") as Dictionary).duplicate(true)
-	_beacon_traversal_presentation_consumer.call(detached)
+	_publish_presentation_observers(_beacon_traversal_presentation_consumers, detached)
 	if not authority_record.is_empty():
 		_on_beacon_audio_result(authority_record)
+
+
+func get_presentation_observer_snapshot() -> Dictionary:
+	_prune_invalid_presentation_observers(_mining_presentation_consumers)
+	_prune_invalid_presentation_observers(_structure_scan_presentation_consumers)
+	_prune_invalid_presentation_observers(_beacon_traversal_presentation_consumers)
+	return {
+		"observer_limit": PRESENTATION_OBSERVER_LIMIT,
+		"mining_observers": _mining_presentation_consumers.size(),
+		"structure_scan_observers": _structure_scan_presentation_consumers.size(),
+		"beacon_traversal_observers": _beacon_traversal_presentation_consumers.size(),
+		"activity_authority": false,
+		"reward_authority": false,
+		"audio_authority": false,
+		"visual_authority": false,
+	}.duplicate(true)
+
+
+func _bind_presentation_observer(
+		observers: Array[Callable],
+		consumer: Callable,
+		current_snapshot: Dictionary,
+		channel_id: StringName
+	) -> Dictionary:
+	_prune_invalid_presentation_observers(observers)
+	if not consumer.is_valid():
+		return _presentation_observer_result(false, channel_id, &"invalid_observer", false)
+	if observers.has(consumer):
+		return _presentation_observer_result(false, channel_id, &"observer_already_bound", false)
+	if observers.size() >= PRESENTATION_OBSERVER_LIMIT:
+		return _presentation_observer_result(false, channel_id, &"observer_limit_reached", false)
+	if current_snapshot.is_empty():
+		return _presentation_observer_result(false, channel_id, &"presentation_unavailable", false)
+	observers.append(consumer)
+	consumer.call(current_snapshot.duplicate(true))
+	return _presentation_observer_result(true, channel_id, &"observer_bound", true)
+
+
+func _unbind_presentation_observer(
+		observers: Array[Callable], consumer: Callable, channel_id: StringName
+	) -> Dictionary:
+	_prune_invalid_presentation_observers(observers)
+	var observer_index := observers.find(consumer)
+	if observer_index < 0:
+		return _presentation_observer_result(false, channel_id, &"observer_not_bound", false)
+	observers.remove_at(observer_index)
+	return _presentation_observer_result(true, channel_id, &"observer_unbound", false)
+
+
+func _publish_presentation_observers(
+		observers: Array[Callable], snapshot: Dictionary
+	) -> void:
+	_prune_invalid_presentation_observers(observers)
+	for observer in observers:
+		observer.call(snapshot.duplicate(true))
+
+
+func _prune_invalid_presentation_observers(observers: Array[Callable]) -> void:
+	for observer_index in range(observers.size() - 1, -1, -1):
+		if not observers[observer_index].is_valid():
+			observers.remove_at(observer_index)
+
+
+func _presentation_observer_result(
+		accepted: bool,
+		channel_id: StringName,
+		reason: StringName,
+		initial_snapshot_delivered: bool
+	) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"channel_id": channel_id,
+		"initial_snapshot_delivered": initial_snapshot_delivered,
+		"observer_limit": PRESENTATION_OBSERVER_LIMIT,
+		"activity_authority": false,
+		"reward_authority": false,
+		"audio_authority": false,
+		"visual_authority": false,
+		"snapshot": get_snapshot(),
+	}.duplicate(true)
 
 
 ## Caller-owned persistence seam. Configuration does not read or write files;

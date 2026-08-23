@@ -282,7 +282,6 @@ var _cargo_destination_terminal: CargoTransferTerminal
 var _mining_presentation_snapshot: Dictionary = {}
 var _structure_scan_presentation_snapshot: Dictionary = {}
 var _beacon_traversal_presentation_snapshot: Dictionary = {}
-var _presentation_feedback_upstreams: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -292,6 +291,23 @@ func _enter_tree() -> void:
 	# is one path rather than two.
 	if _built:
 		call_deferred("_restore_cluster_enabled_after_reentry")
+
+
+func _exit_tree() -> void:
+	if not _built or not is_instance_valid(_activity_binding):
+		return
+	_activity_binding.call(
+		"unbind_mining_presentation",
+		Callable(self, "_apply_mining_activity_presentation")
+	)
+	_activity_binding.call(
+		"unbind_structure_scan_presentation",
+		Callable(self, "_apply_structure_scan_activity_presentation")
+	)
+	_activity_binding.call(
+		"unbind_beacon_traversal_presentation",
+		Callable(self, "_apply_beacon_traversal_activity_presentation")
+	)
 
 
 ## A deferred re-entry callback must use the state retained at execution time:
@@ -309,6 +325,18 @@ func _restore_cluster_enabled_after_reentry() -> void:
 			_cargo_destination_terminal,
 			_cargo_access.get_attachment_generation()
 		)
+	_activity_binding.call(
+		"bind_mining_presentation",
+		Callable(self, "_apply_mining_activity_presentation")
+	)
+	_activity_binding.call(
+		"bind_structure_scan_presentation",
+		Callable(self, "_apply_structure_scan_activity_presentation")
+	)
+	_activity_binding.call(
+		"bind_beacon_traversal_presentation",
+		Callable(self, "_apply_beacon_traversal_activity_presentation")
+	)
 	set_cluster_enabled(_cluster_enabled)
 
 
@@ -320,11 +348,9 @@ func _ready() -> void:
 	_quality_level = clampi(initial_quality, DetailQuality.LOW, DetailQuality.HIGH)
 	_create_materials()
 	_build_route_beacons()
-	_bind_activity_presentation_relay(
-		&"bind_beacon_traversal_presentation",
-		&"_beacon_traversal_presentation_consumer",
-		&"_publish_beacon_traversal_presentation",
-		Callable(self, "_relay_beacon_traversal_activity_presentation")
+	_activity_binding.call(
+		"bind_beacon_traversal_presentation",
+		Callable(self, "_apply_beacon_traversal_activity_presentation")
 	)
 	_build_landmarks()
 	_build_debris_field()
@@ -332,38 +358,6 @@ func _ready() -> void:
 	_audit_report = _compose_audit_report()
 	set_cluster_enabled(starts_enabled)
 	_arm_streaming_transition()
-
-
-## ActivityBinding deliberately owns the authority snapshot and initially had
-## one presentation observer. Production audio now occupies that observer before
-## this parent becomes ready, so preserve it as the upstream consumer and make
-## this component the bounded fan-out point for its own existing visuals. The
-## relay allocates no scene resources and never interprets or mutates authority.
-func _bind_activity_presentation_relay(
-		bind_method: StringName,
-		consumer_property: StringName,
-		publish_method: StringName,
-		local_consumer: Callable
-	) -> void:
-	var binding_result := _activity_binding.call(bind_method, local_consumer) as Dictionary
-	if bool(binding_result.get("accepted", false)):
-		return
-	var upstream := _activity_binding.get(consumer_property) as Callable
-	if not upstream.is_valid() or upstream == local_consumer:
-		return
-	_presentation_feedback_upstreams[consumer_property] = upstream
-	_activity_binding.set(consumer_property, local_consumer)
-	_activity_binding.call(publish_method)
-
-
-func _forward_activity_presentation_upstream(
-		consumer_property: StringName, snapshot: Dictionary
-	) -> void:
-	var upstream := _presentation_feedback_upstreams.get(
-		consumer_property, Callable()
-	) as Callable
-	if upstream.is_valid():
-		upstream.call(snapshot.duplicate(true))
 
 
 func _process(delta: float) -> void:
@@ -715,14 +709,6 @@ func get_beacon_traversal_presentation_audit() -> Dictionary:
 ## Maps an authority-produced detached traversal record onto the existing four
 ## guide rosters. No route order is calculated here: next/cleared status comes
 ## directly from the activity's authoritative `next_beacon_index` field.
-func _relay_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dictionary:
-	var result := _apply_beacon_traversal_activity_presentation(snapshot)
-	_forward_activity_presentation_upstream(
-		&"_beacon_traversal_presentation_consumer", snapshot
-	)
-	return result
-
-
 func _apply_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	if StringName(snapshot.get("activity_id", &"")) != BEACON_TRAVERSAL_ACTIVITY_ID:
 		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
@@ -2018,23 +2004,15 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
 	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
 	_sign(presentation, "ORE EXTRACTION", Vector3(0.0, 27.0, 18.0), Vector3.ZERO, 2.4, _materials["orange_glow"])
-	_bind_activity_presentation_relay(
-		&"bind_mining_presentation",
-		&"_mining_presentation_consumer",
-		&"_publish_mining_presentation",
-		Callable(self, "_relay_mining_activity_presentation")
+	_activity_binding.call(
+		"bind_mining_presentation",
+		Callable(self, "_apply_mining_activity_presentation")
 	)
 
 
 ## Reuses the two crown practicals and fixed sign to distinguish available,
 ## extracting, secured, and reset states. It consumes authority snapshots only;
 ## no node/resource is allocated and no progress is inferred from world state.
-func _relay_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
-	var result := _apply_mining_activity_presentation(snapshot)
-	_forward_activity_presentation_upstream(&"_mining_presentation_consumer", snapshot)
-	return result
-
-
 func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	if StringName(snapshot.get("activity_id", &"")) != MINING_ACTIVITY_ID:
 		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
@@ -2142,24 +2120,14 @@ func _build_structure_scan_presentation(platform: Node3D) -> void:
 	_lamp(presentation, "DerelictDatumLampPort", Vector3(-22.0, 28.0, 0.0), KETH_ORANGE, 1.1, 20.0, false)
 	_lamp(presentation, "DerelictDatumLampStarboard", Vector3(22.0, 27.0, 0.0), MOONLET_TEAL, 0.8, 18.0, false)
 	_sign(presentation, "DERELICT SCAN", Vector3(0.0, 23.0, 4.0), Vector3.ZERO, 2.0, _materials["orange_glow"])
-	_bind_activity_presentation_relay(
-		&"bind_structure_scan_presentation",
-		&"_structure_scan_presentation_consumer",
-		&"_publish_structure_scan_presentation",
-		Callable(self, "_relay_structure_scan_activity_presentation")
+	_activity_binding.call(
+		"bind_structure_scan_presentation",
+		Callable(self, "_apply_structure_scan_activity_presentation")
 	)
 
 
 ## Detached scan state drives only the two existing datum practicals and sign.
 ## Collision, scan progression, completion, and reward requests remain external.
-func _relay_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictionary:
-	var result := _apply_structure_scan_activity_presentation(snapshot)
-	_forward_activity_presentation_upstream(
-		&"_structure_scan_presentation_consumer", snapshot
-	)
-	return result
-
-
 func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	if StringName(snapshot.get("activity_id", &"")) != STRUCTURE_SCAN_ACTIVITY_ID:
 		return {"accepted": false, "reason": &"wrong_activity_snapshot"}

@@ -4,6 +4,9 @@ const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_clus
 
 var _assertions := 0
 var _failures: Array[String] = []
+var _mining_presentations: Array[Dictionary] = []
+var _structure_scan_presentations: Array[Dictionary] = []
+var _beacon_traversal_presentations: Array[Dictionary] = []
 
 
 func _initialize() -> void:
@@ -14,9 +17,61 @@ func _run() -> void:
 	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
 	root.add_child(cluster)
 	await process_frame
-	var binding: Node = cluster.get_node_or_null(^"ActivityBinding")
+	var binding := cluster.get_node_or_null(^"ActivityBinding") as NearbySectorActivityBinding
 	_check(binding != null, "the authored nearby-sector scene owns one activity binding")
 	if binding != null:
+		var production_observers := binding.get_presentation_observer_snapshot()
+		_check(
+			int(production_observers.mining_observers) == 2
+			and int(production_observers.structure_scan_observers) == 2
+			and int(production_observers.beacon_traversal_observers) == 2
+			and int(production_observers.observer_limit) == 3
+			and not bool(production_observers.activity_authority)
+			and not bool(production_observers.reward_authority)
+			and not bool(production_observers.audio_authority)
+			and not bool(production_observers.visual_authority),
+			"bounded presentation fan-out starts with one audio and one visual observer without authority"
+		)
+		var mining_probe := Callable(self, "_on_mining_presentation")
+		var scan_probe := Callable(self, "_on_structure_scan_presentation")
+		var beacon_probe := Callable(self, "_on_beacon_traversal_presentation")
+		var mining_bound := binding.bind_mining_presentation(mining_probe)
+		var scan_bound := binding.bind_structure_scan_presentation(scan_probe)
+		var beacon_bound := binding.bind_beacon_traversal_presentation(beacon_probe)
+		_check(
+			bool(mining_bound.accepted) and bool(scan_bound.accepted) and bool(beacon_bound.accepted)
+			and bool(mining_bound.initial_snapshot_delivered)
+			and bool(scan_bound.initial_snapshot_delivered)
+			and bool(beacon_bound.initial_snapshot_delivered)
+			and _mining_presentations.size() == 1
+			and _structure_scan_presentations.size() == 1
+			and _beacon_traversal_presentations.size() == 1,
+			"each added observer receives exactly one detached current snapshot"
+		)
+		var duplicate_mining := binding.bind_mining_presentation(mining_probe)
+		var duplicate_scan := binding.bind_structure_scan_presentation(scan_probe)
+		var duplicate_beacon := binding.bind_beacon_traversal_presentation(beacon_probe)
+		_check(
+			not bool(duplicate_mining.accepted) and duplicate_mining.reason == &"observer_already_bound"
+			and not bool(duplicate_scan.accepted) and duplicate_scan.reason == &"observer_already_bound"
+			and not bool(duplicate_beacon.accepted) and duplicate_beacon.reason == &"observer_already_bound"
+			and _mining_presentations.size() == 1
+			and _structure_scan_presentations.size() == 1
+			and _beacon_traversal_presentations.size() == 1,
+			"duplicate observer registration is rejected without replay"
+		)
+		var mining_overflow := binding.bind_mining_presentation(scan_probe)
+		var scan_overflow := binding.bind_structure_scan_presentation(beacon_probe)
+		var beacon_overflow := binding.bind_beacon_traversal_presentation(mining_probe)
+		_check(
+			not bool(mining_overflow.accepted) and mining_overflow.reason == &"observer_limit_reached"
+			and not bool(scan_overflow.accepted) and scan_overflow.reason == &"observer_limit_reached"
+			and not bool(beacon_overflow.accepted) and beacon_overflow.reason == &"observer_limit_reached"
+			and _mining_presentations.size() == 1
+			and _structure_scan_presentations.size() == 1
+			and _beacon_traversal_presentations.size() == 1,
+			"the explicit three-observer bound rejects overflow without delivery"
+		)
 		var audit: Dictionary = binding.call("audit")
 		_check(bool(audit.get("valid", false)), "the existing convoy host is valid inside the authored cluster envelope")
 		_check(
@@ -45,15 +100,19 @@ func _run() -> void:
 		var patrol_reset: Dictionary = binding.call("reset_patrol")
 		_check(bool(patrol_reset.get("accepted", false)), "the owner resets patrol without changing its route")
 		var cargo_started: Dictionary = binding.call("start_cargo_run")
-		_check(bool(cargo_started.get("accepted", false)), "the owner starts the existing cargo delivery activity")
+		_check(
+			not bool(cargo_started.get("accepted", true))
+			and cargo_started.get("reason", &"") == &"not_ready",
+			"an unoccupied production berth cannot start a cargo delivery activity"
+		)
 		var cargo_loaded: Dictionary = binding.call("submit_cargo_phase", &"load_crate")
-		_check(bool(cargo_loaded.get("accepted", false)), "the cargo run accepts its first authored phase")
+		_check(not bool(cargo_loaded.get("accepted", true)), "cargo phases fail closed without a live source craft")
 		var cargo_cleared: Dictionary = binding.call("submit_cargo_phase", &"clear_gate")
-		_check(bool(cargo_cleared.get("accepted", false)), "the cargo run accepts the route gate phase")
+		_check(not bool(cargo_cleared.get("accepted", true)), "the route gate cannot advance an unavailable cargo run")
 		var cargo_docked: Dictionary = binding.call("submit_cargo_phase", &"dock_platform")
-		_check(bool(cargo_docked.get("accepted", false)), "the cargo run accepts the platform docking phase")
+		_check(not bool(cargo_docked.get("accepted", true)), "the platform phase cannot invent cargo source authority")
 		var cargo_reset: Dictionary = binding.call("reset_cargo_run")
-		_check(bool(cargo_reset.get("accepted", false)), "the owner resets cargo without changing authored phases")
+		_check(not bool(cargo_reset.get("accepted", true)), "an unavailable cargo run remains fail-closed on reset")
 		var station_unbound: Dictionary = binding.call("start_station_defense")
 		_check(
 			not bool(station_unbound.get("accepted", true))
@@ -113,6 +172,45 @@ func _run() -> void:
 		_check(bool(beacon_reward.get("accepted", false)), "the completed traversal emits a reward request")
 		var beacon_reset: Dictionary = binding.call("reset_beacon_traversal")
 		_check(bool(beacon_reset.get("accepted", false)), "the traversal resets without changing beacon anchors")
+		_check(
+			_mining_presentations.size() == 5
+			and _structure_scan_presentations.size() == 5
+			and _beacon_traversal_presentations.size() == 8
+			and StringName(_mining_presentations[-1].activity_id) == &"cinder_platform_mining_run"
+			and StringName(_structure_scan_presentations[-1].activity_id) == &"cinder_derelict_structure_scan"
+			and StringName(_beacon_traversal_presentations[-1].activity_id) == &"cinder_debris_beacon_traversal",
+			"each observer receives exactly one snapshot per mining, scan, and traversal update"
+		)
+		_check(
+			bool(binding.unbind_mining_presentation(mining_probe).accepted)
+			and bool(binding.unbind_structure_scan_presentation(scan_probe).accepted)
+			and bool(binding.unbind_beacon_traversal_presentation(beacon_probe).accepted),
+			"explicit unbind removes each caller-owned presentation observer"
+		)
+		var production_parent := cluster.get_parent()
+		production_parent.remove_child(cluster)
+		await process_frame
+		var detached_observers := binding.get_presentation_observer_snapshot()
+		_check(
+			int(detached_observers.mining_observers) == 0
+			and int(detached_observers.structure_scan_observers) == 0
+			and int(detached_observers.beacon_traversal_observers) == 0,
+			"whole-cluster detach clears every presentation observer"
+		)
+		production_parent.add_child(cluster)
+		await process_frame
+		await process_frame
+		var reentered_observers := binding.get_presentation_observer_snapshot()
+		_check(
+			int(reentered_observers.mining_observers) == 2
+			and int(reentered_observers.structure_scan_observers) == 2
+			and int(reentered_observers.beacon_traversal_observers) == 2
+			and bool(binding.get_cinder_field_audio_binding_snapshot().attached)
+			and bool(cluster.get_mining_platform_presentation_audit().valid)
+			and bool(cluster.get_structure_scan_presentation_audit().valid)
+			and bool(cluster.get_beacon_traversal_presentation_audit().valid),
+			"re-entry restores one audio and one visual observer with current presentation state"
+		)
 	cluster.queue_free()
 	await process_frame
 	_finish()
@@ -122,6 +220,18 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _on_mining_presentation(snapshot: Dictionary) -> void:
+	_mining_presentations.append(snapshot)
+
+
+func _on_structure_scan_presentation(snapshot: Dictionary) -> void:
+	_structure_scan_presentations.append(snapshot)
+
+
+func _on_beacon_traversal_presentation(snapshot: Dictionary) -> void:
+	_beacon_traversal_presentations.append(snapshot)
 
 
 func _finish() -> void:
