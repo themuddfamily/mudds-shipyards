@@ -21,6 +21,7 @@ const CARGO_CONTRACT := preload("res://scripts/cargo/cargo_delivery_contract.gd"
 const MINING_ACTIVITY := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const SCAN_ACTIVITY := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const BEACON_ACTIVITY := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
+const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
 const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activity_session_adapter.gd")
 const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
@@ -43,6 +44,7 @@ var _beacon_activity: RefCounted
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
+var _station_reward_adapter: RefCounted
 
 
 func _ready() -> void:
@@ -207,7 +209,52 @@ func reset_station_defense() -> Dictionary:
 	if not _station_binding_current():
 		return _result(false, &"station_defense_unbound")
 	_station_director.call("abort")
+	if _station_reward_adapter != null:
+		_station_reward_adapter.call("reset")
 	return _result(true, &"station_defense_reset")
+
+
+func configure_station_defense_reward(
+		reward_callback: Callable,
+		reward_id: StringName = &"return_defense_report_to_shipyard"
+	) -> Dictionary:
+	if _station_reward_adapter != null:
+		return _result(false, &"station_reward_already_configured")
+	_station_reward_adapter = REWARD_ADAPTER.new() as RefCounted
+	var result: Dictionary = _station_reward_adapter.call(
+		"configure", reward_callback, &"shipyard_perimeter_defense", reward_id
+	)
+	if not bool(result.get("accepted", false)):
+		_station_reward_adapter = null
+	return result
+
+
+func request_station_defense_reward(expected_generation: int) -> Dictionary:
+	if not _station_binding_current() or _station_reward_adapter == null:
+		return _result(false, &"station_defense_reward_unavailable")
+	var snapshot := {
+		"activity_id": &"shipyard_perimeter_defense",
+		"state_id": _station_director.call("get_state"),
+		"outcome": _station_director.call("get_outcome"),
+		"generation": _station_director.call("get_scenario_generation"),
+	}.duplicate(true)
+	return _station_reward_adapter.call("consume", snapshot, expected_generation)
+
+
+func get_station_defense_reward_snapshot() -> Dictionary:
+	return _station_reward_adapter.call("get_snapshot") if _station_reward_adapter != null else {}
+
+
+func detach_station_defense_reward() -> Dictionary:
+	if _station_reward_adapter == null:
+		return _result(false, &"station_defense_reward_unavailable")
+	return _station_reward_adapter.call("detach")
+
+
+func reenter_station_defense_reward(attachment_generation: int) -> Dictionary:
+	if _station_reward_adapter == null:
+		return _result(false, &"station_defense_reward_unavailable")
+	return _station_reward_adapter.call("reenter", attachment_generation)
 
 
 func start_mining_activity(caller_position: Vector3) -> Dictionary:
@@ -324,6 +371,7 @@ func get_snapshot() -> Dictionary:
 		"station_defense_state": (
 			_station_director.call("get_state") if _station_binding_current() else &"unbound"
 		),
+		"station_defense_reward": get_station_defense_reward_snapshot(),
 		"mining": _mining_activity.call("get_snapshot") if is_instance_valid(_mining_activity) else {},
 		"structure_scan": _scan_activity.call("get_snapshot") if is_instance_valid(_scan_activity) else {},
 		"beacon_traversal": _beacon_activity.call("get_snapshot") if is_instance_valid(_beacon_activity) else {},
