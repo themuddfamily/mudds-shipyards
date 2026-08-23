@@ -4357,10 +4357,31 @@ func begin_ember_surface_journey(
 	if not is_instance_valid(active_ship) or not active_ship.is_piloted() \
 			or phase in [Phase.INTERCEPTOR_ENGAGEMENT, Phase.FAILED, Phase.SHUT_DOWN]:
 		return {"accepted": false, "reason": &"ember_surface_actor_unavailable"}
+	var cruise_gate_reason := _planetary_cruise_gate_reason(false)
+	if not cruise_gate_reason.is_empty():
+		return {"accepted": false, "reason": cruise_gate_reason}
+	if not is_instance_valid(planetary_cruise_binding):
+		return {"accepted": false, "reason": &"ember_cruise_binding_unavailable"}
+	var cruise_snapshot := planetary_cruise_binding.get_snapshot()
+	if not bool(cruise_snapshot.get("activated", false)):
+		return {"accepted": false, "reason": &"ember_cruise_binding_not_ready"}
+	if not bool(cruise_snapshot.get("engagement_requested", false)):
+		var engaged := planetary_cruise_binding.request_engage(
+			active_ship,
+			int(cruise_snapshot.get("current_coordinate_frame_generation", 0)),
+			&"",
+			planetary_cruise_binding.get_generation()
+		)
+		if not bool(engaged.get("accepted", false)):
+			return engaged
 	if not is_instance_valid(ember_streaming_binding):
 		return {"accepted": false, "reason": &"ember_streaming_binding_unavailable"}
 	var streaming := ember_streaming_binding.get_snapshot()
-	if not bool(streaming.get("activated", false)) \
+	var host_snapshot: Dictionary = host.get_snapshot()
+	var host_ready := bool(host_snapshot.get("attached", false)) \
+			and int(host_snapshot.get("phase", -1)) == EmberSurfaceLoopHost.Phase.IDLE
+	if not host_ready \
+			or not bool(streaming.get("activated", false)) \
 			or int(streaming.get("bound_coordinate_frame_generation", 0)) \
 			!= int(streaming.get("current_coordinate_frame_generation", -1)):
 		_pending_ember_surface_host = host
@@ -4394,6 +4415,14 @@ func begin_ember_surface_journey(
 func cancel_ember_surface_journey() -> Dictionary:
 	if _pending_ember_surface_request.is_empty():
 		return {"accepted": false, "reason": &"ember_surface_request_not_pending"}
+	if is_instance_valid(planetary_cruise_binding):
+		var cruise_snapshot: Dictionary = planetary_cruise_binding.get_snapshot()
+		if bool(cruise_snapshot.get("engagement_requested", false)):
+			var disengaged: Dictionary = planetary_cruise_binding.request_disengage(
+				planetary_cruise_binding.get_generation(), true
+			)
+			if not bool(disengaged.get("accepted", false)):
+				return disengaged
 	_pending_ember_surface_request.clear()
 	_pending_ember_surface_host = null
 	_pending_ember_surface_director = null
