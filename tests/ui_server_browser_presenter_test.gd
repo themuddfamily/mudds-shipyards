@@ -21,6 +21,17 @@ func _run() -> void:
 	_check(snapshot.row_count == 2, "fresh directory records become visible rows")
 	_check(snapshot.rows[0].region_label == "EU-WEST" and snapshot.rows[0].ping_label == "Fast", "region and ping labels are textual")
 	_check(snapshot.rows[1].full and snapshot.rows[1].occupancy_label == "4/4 players", "occupancy label exposes full state")
+	_check(snapshot.rows[0].capacity_label == "AVAILABLE" and snapshot.rows[1].capacity_label == "FULL", "capacity state is textual and color-independent")
+	var generation_presenter := Presenter.new()
+	var generation_snapshot := generation_presenter.present_result({
+		"accepted": true,
+		"rows": [
+			{"session_id": &"new", "title": "New", "player_count": 2, "max_players": 4, "capacity_generation": 4},
+			{"session_id": &"stale", "title": "Old", "player_count": 1, "max_players": 4, "capacity_generation": 3},
+		],
+	})
+	_check(generation_snapshot.row_count == 1 and generation_snapshot.rows[0].session_id == &"new", "older capacity generations are ignored")
+	_check(generation_snapshot.rows[0].capacity_generation == 4, "capacity generation is exposed with bounded counts")
 	_check(presenter.configure_filters(&"eu-west", 100, false).accepted, "region/ping/full filters apply atomically")
 	snapshot = presenter.present(browser)
 	_check(snapshot.row_count == 1 and snapshot.rows[0].session_id == &"cinder_run", "filters narrow presentation rows")

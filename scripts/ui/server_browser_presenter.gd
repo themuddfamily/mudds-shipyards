@@ -22,6 +22,7 @@ var _region_filter: StringName = &""
 var _max_ping_ms := PING_ANY
 var _include_full := true
 var _generation := 0
+var _latest_capacity_generation := 0
 var _last_snapshot: Dictionary = {}
 
 
@@ -57,10 +58,21 @@ func present_result(result: Dictionary) -> Dictionary:
 		var retryable := bool(result.get("retryable", true))
 		return _store_snapshot(_status_snapshot(&"error", [], reason, message, retryable))
 	var source_rows: Array = result.get("rows", []) as Array
+	var newest_capacity_generation := _latest_capacity_generation
+	for source in source_rows:
+		if source is Dictionary:
+			newest_capacity_generation = maxi(
+				newest_capacity_generation,
+				int((source as Dictionary).get("capacity_generation", (source as Dictionary).get("generation", 0)))
+			)
+	_latest_capacity_generation = newest_capacity_generation
 	var rows: Array = []
 	for source in source_rows:
 		if rows.size() >= MAX_ROWS or not source is Dictionary:
 			break
+		var source_generation := int((source as Dictionary).get("capacity_generation", (source as Dictionary).get("generation", 0)))
+		if source_generation > 0 and source_generation < _latest_capacity_generation:
+			continue
 		rows.append(_present_row(source as Dictionary))
 	return _store_snapshot(_status_snapshot(
 		&"ready" if not rows.is_empty() else &"empty",
@@ -201,8 +213,10 @@ func _present_row(source: Dictionary) -> Dictionary:
 	var ping_ms := int(source.get("ping_ms", -1))
 	var ping_label := _human_ping_label(source.get("ping_label", &"unavailable"), ping_ms)
 	var players := int(source.get("player_count", 0))
-	var maximum := int(source.get("max_players", 0))
+	var maximum := clampi(int(source.get("max_players", 0)), 0, 256)
+	players = clampi(players, 0, maximum if maximum > 0 else 256)
 	var is_full := maximum > 0 and players >= maximum
+	var capacity_generation := maxi(int(source.get("capacity_generation", source.get("generation", 0))), 0)
 	return {
 		"session_id": source.get("session_id", &""),
 		"title": str(source.get("title", "")),
@@ -213,6 +227,8 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"player_count": players,
 		"max_players": maximum,
 		"occupancy_label": "%d/%d players" % [players, maximum],
+		"capacity_label": "FULL" if is_full else "AVAILABLE",
+		"capacity_generation": capacity_generation,
 		"full": is_full,
 		"selectable": true,
 		"stale": false,

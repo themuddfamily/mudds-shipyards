@@ -2995,11 +2995,12 @@ func _render_server_browser(presentation: Dictionary) -> void:
 			continue
 		var row := row_value as Dictionary
 		var button := _menu_button(
-			"%s  //  %s  //  %s  //  %s" % [
+			"%s  //  %s  //  %s  //  %s  //  %s" % [
 				str(row.get("title", "Unnamed session")),
 				str(row.get("region_label", "UNKNOWN")),
 				str(row.get("ping_label", "Unavailable")),
 				str(row.get("occupancy_label", "0/0 players")),
+				str(row.get("capacity_label", "AVAILABLE")),
 			],
 			MUTED if bool(row.get("full", false)) else NOMINAL_SOFT
 		)
