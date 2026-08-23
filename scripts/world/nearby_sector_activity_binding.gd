@@ -106,6 +106,7 @@ func bind_cargo_access(
 	if is_instance_valid(_cargo_access) or is_instance_valid(_cargo_terminal):
 		if _cargo_access == access and _cargo_terminal == terminal:
 			_cargo_access_attachment_generation = expected_attachment_generation
+			_publish_cargo_presentation()
 			return _result(true, &"cargo_access_already_bound")
 		return _result(false, &"cargo_access_already_bound")
 	var destination_registration := _cargo_authority.register_entity(
@@ -134,6 +135,7 @@ func bind_cargo_access(
 	var occupant := berth.get_occupant()
 	if is_instance_valid(occupant):
 		_on_cargo_berth_occupancy_changed(occupant)
+	_publish_cargo_presentation()
 	return _result(true, &"cargo_access_bound")
 
 
@@ -173,6 +175,7 @@ func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
 	_cargo_activity = CARGO_ACTIVITY.new(
 		_cargo_authority, cargo_contract
 	) as CargoDeliveryActivity
+	_publish_cargo_presentation()
 
 
 func _on_cargo_manifest_retired(handle: Dictionary) -> void:
@@ -181,10 +184,12 @@ func _on_cargo_manifest_retired(handle: Dictionary) -> void:
 	_cargo_source_handle.clear()
 	_cargo_source_entity = null
 	_cargo_activity = null
+	_publish_cargo_presentation()
 
 
 func _on_cargo_terminal_interaction_requested(actor: Node, snapshot: Dictionary) -> void:
 	_last_cargo_terminal_request = _submit_cargo_terminal_request(actor, snapshot)
+	_publish_cargo_presentation(_last_cargo_terminal_request)
 
 
 func _submit_cargo_terminal_request(actor: Node, snapshot: Dictionary) -> Dictionary:
@@ -218,6 +223,52 @@ func _submit_cargo_terminal_request(actor: Node, snapshot: Dictionary) -> Dictio
 
 func get_last_cargo_terminal_request() -> Dictionary:
 	return _last_cargo_terminal_request.duplicate(true)
+
+
+## Produces one detached presentation record from existing cargo activity,
+## berth/source and terminal authority outputs. The visual consumers cannot
+## mutate any of those owners.
+func _publish_cargo_presentation(authority_record: Dictionary = {}) -> void:
+	if not is_instance_valid(_cargo_access) or not is_instance_valid(_cargo_terminal):
+		return
+	var activity := (
+		_cargo_activity.get_snapshot().duplicate(true)
+		if is_instance_valid(_cargo_activity) else {}
+	)
+	var state_id: StringName = &"unavailable"
+	if is_instance_valid(_cargo_source_entity) and not activity.is_empty():
+		var activity_state := int(activity.get("state", CARGO_ACTIVITY.State.IDLE))
+		if not authority_record.is_empty() and not bool(authority_record.get("accepted", true)):
+			state_id = &"stale_rejected"
+		elif activity_state == CARGO_ACTIVITY.State.COMPLETED:
+			state_id = &"committed"
+		elif activity_state in [CARGO_ACTIVITY.State.FAILED, CARGO_ACTIVITY.State.EXPIRED]:
+			state_id = &"stale_rejected"
+		elif activity_state == CARGO_ACTIVITY.State.ACTIVE:
+			state_id = (
+				&"at_terminal" if bool(activity.get("phases_complete", false)) else &"carrying"
+			)
+		elif StringName(authority_record.get("reason", &"")) == &"reset":
+			state_id = &"reset"
+		else:
+			state_id = &"ready"
+	var terminal_state := _cargo_terminal.get_state_snapshot()
+	var detached := {
+		"component_id": CinderCargoAccess.COMPONENT_ID,
+		"terminal_id": _cargo_terminal.terminal_id,
+		"attachment_generation": _cargo_access_attachment_generation,
+		"terminal_generation": _cargo_terminal.get_terminal_generation(),
+		"state_id": state_id,
+		"activity": activity,
+		"terminal": terminal_state,
+		"authority_record": authority_record.duplicate(true),
+		"source_available": is_instance_valid(_cargo_source_entity),
+		"inventory_authority": false,
+		"reward_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
+	_cargo_access.apply_cargo_presentation_snapshot(detached)
+	_cargo_terminal.apply_cargo_presentation_snapshot(detached)
 
 
 func _cargo_terminal_result(
@@ -299,31 +350,41 @@ func reset_patrol() -> Dictionary:
 func start_cargo_run() -> Dictionary:
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
-	return _cargo_activity.start(_cargo_activity.get_generation())
+	var result := _cargo_activity.start(_cargo_activity.get_generation())
+	_publish_cargo_presentation(result)
+	return result
 
 
 func advance_cargo_run(delta: float) -> Dictionary:
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
-	return _cargo_activity.advance_physics(delta, _cargo_activity.get_generation())
+	var result := _cargo_activity.advance_physics(delta, _cargo_activity.get_generation())
+	_publish_cargo_presentation(result)
+	return result
 
 
 func submit_cargo_phase(phase_id: StringName) -> Dictionary:
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
-	return _cargo_activity.submit_phase(phase_id, _cargo_activity.get_generation())
+	var result := _cargo_activity.submit_phase(phase_id, _cargo_activity.get_generation())
+	_publish_cargo_presentation(result)
+	return result
 
 
 func reset_cargo_run() -> Dictionary:
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
-	return _cargo_activity.reset(_cargo_activity.get_generation())
+	var result := _cargo_activity.reset(_cargo_activity.get_generation())
+	_publish_cargo_presentation(result)
+	return result
 
 
 func abort_cargo_run(expected_generation: int) -> Dictionary:
 	if not is_instance_valid(_cargo_activity):
 		return _result(false, &"not_ready")
-	return _cargo_activity.fail(&"embodied_transfer_aborted", expected_generation)
+	var result := _cargo_activity.fail(&"embodied_transfer_aborted", expected_generation)
+	_publish_cargo_presentation(result)
+	return result
 
 
 ## Binds the existing EncounterScenarioDirector and caller-owned station anchor.

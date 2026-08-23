@@ -98,6 +98,13 @@ const STEP_COLOR := Color("61747a")
 const RAIL_COLOR := Color("18343e")
 const CUE_COLOR := Color("56e0e3")
 const HAZARD_COLOR := Color("f6a13b")
+const PRESENTATION_STATE_IDS: Array[StringName] = [
+	&"unavailable", &"ready", &"carrying", &"at_terminal",
+	&"committed", &"stale_rejected", &"reset",
+]
+const PRESENTATION_NODE_DELTA := 0
+const PRESENTATION_LIGHT_DELTA := 0
+const PRESENTATION_SUBMISSION_DELTA := 0
 
 ## Phase 9 component-local allocation freeze. The five childless, visual-only
 ## route cues retain their exact authored copy names/transforms, five visible
@@ -160,6 +167,9 @@ var _terminal_actor: WeakRef
 var _terminal_actor_ship: WeakRef
 var _terminal_actor_lease: StringName = &""
 var _terminal_actor_attachment_generation := 0
+var _cargo_presentation_state: Dictionary = {}
+var _cue_presentation_energy := 1.5
+var _hazard_presentation_energy := 1.5
 
 
 func _enter_tree() -> void:
@@ -310,6 +320,78 @@ func get_route_snapshot() -> Array[Dictionary]:
 			"world_transform": marker.global_transform,
 		})
 	return result.duplicate(true)
+
+
+## Applies only a detached caller record to the existing two route-cue batches
+## and label. Cargo, berth, terminal interaction, and reward state stay external.
+func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
+	if StringName(snapshot.get("component_id", &"")) != COMPONENT_ID:
+		return {"accepted": false, "reason": &"wrong_cargo_access_component"}
+	if int(snapshot.get("attachment_generation", -1)) != _attachment_generation:
+		return {"accepted": false, "reason": &"stale_attachment_generation"}
+	var state_id := StringName(snapshot.get("state_id", &""))
+	if state_id not in PRESENTATION_STATE_IDS:
+		return {"accepted": false, "reason": &"invalid_cargo_presentation_state"}
+	var cue_energy := 1.5
+	var hazard_energy := 1.5
+	var label_text := "CINDER CARGO — READY"
+	var label_color := CUE_COLOR
+	match state_id:
+		&"unavailable":
+			cue_energy = 0.18
+			hazard_energy = 0.18
+			label_text = "CINDER CARGO — BERTH REQUIRED"
+			label_color = HAZARD_COLOR.darkened(0.35)
+		&"carrying":
+			cue_energy = 2.6
+			hazard_energy = 0.65
+			label_text = "CINDER CARGO — FOLLOW ROUTE"
+		&"at_terminal":
+			cue_energy = 3.2
+			hazard_energy = 1.1
+			label_text = "CINDER CARGO — TERMINAL READY"
+		&"committed":
+			cue_energy = 3.0
+			hazard_energy = 3.0
+			label_text = "CINDER CARGO — TRANSFER COMMITTED"
+		&"stale_rejected":
+			cue_energy = 0.15
+			hazard_energy = 3.4
+			label_text = "CINDER CARGO — REQUEST REJECTED"
+			label_color = HAZARD_COLOR
+		&"reset":
+			cue_energy = 0.25
+			hazard_energy = 0.25
+			label_text = "CINDER CARGO — RESET"
+			label_color = HAZARD_COLOR.darkened(0.25)
+		_:
+			pass
+	_cue_presentation_energy = cue_energy
+	_hazard_presentation_energy = hazard_energy
+	(_materials.cue as StandardMaterial3D).emission_energy_multiplier = cue_energy
+	(_materials.hazard as StandardMaterial3D).emission_energy_multiplier = hazard_energy
+	var label := get_node_or_null(^"VisualRouteCues/CargoAccessLabel") as Label3D
+	if label == null:
+		return {"accepted": false, "reason": &"cargo_route_presentation_missing"}
+	label.text = label_text
+	label.modulate = label_color
+	_cargo_presentation_state = snapshot.duplicate(true)
+	_cargo_presentation_state.merge({
+		"cue_energy": cue_energy,
+		"hazard_energy": hazard_energy,
+		"label_text": label_text,
+		"node_delta": PRESENTATION_NODE_DELTA,
+		"light_delta": PRESENTATION_LIGHT_DELTA,
+		"submission_delta": PRESENTATION_SUBMISSION_DELTA,
+		"inventory_authority": false,
+		"reward_authority": false,
+		"interaction_authority": false,
+	}, true)
+	return {"accepted": true, "reason": &"cargo_route_presentation_applied"}
+
+
+func get_cargo_presentation_state() -> Dictionary:
+	return _cargo_presentation_state.duplicate(true)
 
 
 func get_approach_sample_transforms(sample_count: int = 17) -> Array[Transform3D]:
@@ -1190,7 +1272,10 @@ func _matches_route_cue_material_recipe(
 		and material.specular_mode == BaseMaterial3D.SPECULAR_SCHLICK_GGX \
 		and material.emission_enabled \
 		and material.emission.is_equal_approx(emission_color) \
-		and is_equal_approx(material.emission_energy_multiplier, 1.5)
+		and is_equal_approx(
+			material.emission_energy_multiplier,
+			_cue_presentation_energy if emission_color == CUE_COLOR else _hazard_presentation_energy
+		)
 
 
 func _marker(parent: Node3D, node_name: String, position_value: Vector3) -> Marker3D:

@@ -30,6 +30,10 @@ const TERMINAL_CONSOLE_SIZE := Vector3(1.40, 1.30, 0.70)
 const PLACEMENT_SLOT_TRANSFORM := Transform3D.IDENTITY
 const INTERACTION_ORIGIN := Vector3(0.0, 0.85, 0.25)
 const APPROACH_ORIGIN := Vector3(0.0, 0.85, 1.10)
+const CARGO_PRESENTATION_STATE_IDS: Array[StringName] = [
+	&"unavailable", &"ready", &"carrying", &"at_terminal",
+	&"committed", &"stale_rejected", &"reset",
+]
 
 ## Phase 9 component-local resource freeze. The checked-in source and
 ## destination fixtures use the same four immutable box recipes. Materials stay
@@ -114,6 +118,9 @@ var _placement_slot: Marker3D
 var _interaction_origin: Marker3D
 var _approach_marker: Marker3D
 var _interaction_shape: CollisionShape3D
+var _cargo_presentation_state: Dictionary = {}
+var _presentation_accent_color := Color.WHITE
+var _presentation_emission_energy := 1.15
 
 
 func _enter_tree() -> void:
@@ -379,6 +386,77 @@ func get_interaction_snapshot(
 
 func get_interaction_prompt() -> String:
 	return str(get_state_snapshot().prompt)
+
+
+## Presentation-only endpoint for a detached cargo activity record. It reuses
+## the existing screen/stripe material and label without changing interaction.
+func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
+	if StringName(snapshot.get("terminal_id", &"")) != terminal_id:
+		return {"accepted": false, "reason": &"wrong_terminal_identity"}
+	if int(snapshot.get("terminal_generation", -1)) != _terminal_generation:
+		return {"accepted": false, "reason": &"stale_terminal_generation"}
+	var state_id := StringName(snapshot.get("state_id", &""))
+	if state_id not in CARGO_PRESENTATION_STATE_IDS:
+		return {"accepted": false, "reason": &"invalid_cargo_presentation_state"}
+	var color := accent_color
+	var energy := 1.15
+	var label_text := "CARGO DESTINATION — READY"
+	match state_id:
+		&"unavailable":
+			color = Color("617078")
+			energy = 0.18
+			label_text = "CARGO DESTINATION — BERTH REQUIRED"
+		&"carrying":
+			color = Color("56e0e3")
+			energy = 2.2
+			label_text = "CARGO DESTINATION — ROUTE ACTIVE"
+		&"at_terminal":
+			color = Color("56e0e3")
+			energy = 3.0
+			label_text = "CARGO DESTINATION — SUBMIT TRANSFER"
+		&"committed":
+			color = Color("72e6a0")
+			energy = 2.7
+			label_text = "CARGO DESTINATION — COMMITTED"
+		&"stale_rejected":
+			color = Color("f6a13b")
+			energy = 3.2
+			label_text = "CARGO DESTINATION — REQUEST REJECTED"
+		&"reset":
+			color = Color("617078")
+			energy = 0.25
+			label_text = "CARGO DESTINATION — RESET"
+		_:
+			pass
+	var screen := get_node_or_null(^"StatusScreen") as MeshInstance3D
+	var label := get_node_or_null(^"TerminalLabel") as Label3D
+	var material := screen.material_override as StandardMaterial3D if screen != null else null
+	if material == null or label == null:
+		return {"accepted": false, "reason": &"terminal_presentation_missing"}
+	_presentation_accent_color = color
+	_presentation_emission_energy = energy
+	material.albedo_color = color.darkened(0.38)
+	material.emission = color
+	material.emission_energy_multiplier = energy
+	label.text = label_text
+	label.modulate = color
+	_cargo_presentation_state = snapshot.duplicate(true)
+	_cargo_presentation_state.merge({
+		"accent_color": color,
+		"emission_energy": energy,
+		"label_text": label_text,
+		"node_delta": 0,
+		"light_delta": 0,
+		"submission_delta": 0,
+		"inventory_authority": false,
+		"reward_authority": false,
+		"interaction_authority": false,
+	}, true)
+	return {"accepted": true, "reason": &"cargo_terminal_presentation_applied"}
+
+
+func get_cargo_presentation_state() -> Dictionary:
+	return _cargo_presentation_state.duplicate(true)
 
 
 func can_interact(actor: Node = null) -> bool:
@@ -830,6 +908,8 @@ func _build_physical_terminal() -> void:
 	accent_material.emission_enabled = true
 	accent_material.emission = accent_color
 	accent_material.emission_energy_multiplier = 1.15
+	_presentation_accent_color = accent_color
+	_presentation_emission_energy = 1.15
 	_static_box(
 		"AccessDeck",
 		Vector3(0.0, -0.15, 0.50),
@@ -948,12 +1028,12 @@ func _matches_visual_material_recipe(
 			and not material.emission_enabled
 		)
 	return (
-		material.albedo_color.is_equal_approx(accent_color.darkened(0.38))
+		material.albedo_color.is_equal_approx(_presentation_accent_color.darkened(0.38))
 		and is_equal_approx(material.roughness, 0.28)
 		and is_equal_approx(material.metallic, 0.18)
 		and material.emission_enabled
-		and material.emission.is_equal_approx(accent_color)
-		and is_equal_approx(material.emission_energy_multiplier, 1.15)
+		and material.emission.is_equal_approx(_presentation_accent_color)
+		and is_equal_approx(material.emission_energy_multiplier, _presentation_emission_energy)
 	)
 
 
