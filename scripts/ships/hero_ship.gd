@@ -2220,11 +2220,11 @@ func apply_damage(
 		return
 	var has_hit_position := world_hit_position.is_finite()
 	var safe_normal := Vector3.ZERO
-	if world_hit_normal.is_finite() and world_hit_normal.length_squared() > 0.001:
+	if world_hit_normal.is_finite() and world_hit_normal != Vector3.ZERO:
 		safe_normal = world_hit_normal.normalized()
-	elif has_hit_position:
+	if safe_normal.length_squared() <= 0.001 and has_hit_position:
 		var radial_normal := world_hit_position - global_position
-		if radial_normal.length_squared() > 0.001:
+		if radial_normal != Vector3.ZERO:
 			safe_normal = radial_normal.normalized()
 	if (
 		_damage_presentation != null

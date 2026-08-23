@@ -307,6 +307,51 @@ func _test_hull_authority_is_untouched() -> void:
 		and presentation.get_live_world_effect_count() == positionless_effects_before,
 		"position-less damage changes hull without creating a non-finite impact effect"
 	)
+
+	# Guarding the optional vectors must not change the old finite-vector
+	# contract. A small but non-zero explicit normal is still a direction after
+	# normalization; testing its raw magnitude against a post-normalization
+	# threshold would incorrectly replace it with the radial fallback.
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	var explicit_position := _hero.global_position + Vector3.RIGHT
+	var small_explicit_normal := Vector3(0.0, 0.01, 0.0)
+	var explicit_effects_before := presentation.get_live_world_effect_count()
+	_hero.apply_damage(1.0, explicit_position, small_explicit_normal)
+	var explicit_impact := root.get_node_or_null("HeroDamageImpact") as Node3D
+	var explicit_sparks := (
+		explicit_impact.get_node_or_null("ImpactSparks") as CPUParticles3D
+		if explicit_impact != null
+		else null
+	)
+	_check(
+		presentation.get_live_world_effect_count() == explicit_effects_before + 1
+		and explicit_sparks != null
+		and explicit_sparks.direction.is_equal_approx(small_explicit_normal.normalized()),
+		"a finite non-zero explicit hit normal keeps its direction regardless of magnitude"
+	)
+
+	# The same preservation applies to a very close finite hit when no normal was
+	# supplied. It still derives a radial direction instead of collapsing to the
+	# presentation fallback merely because the offset is short.
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	var close_position := _hero.global_position + Vector3(0.0, 0.0, -0.01)
+	var close_effects_before := presentation.get_live_world_effect_count()
+	_hero.apply_damage(1.0, close_position, Vector3.ZERO)
+	var close_impact := root.get_node_or_null("HeroDamageImpact") as Node3D
+	var close_sparks := (
+		close_impact.get_node_or_null("ImpactSparks") as CPUParticles3D
+		if close_impact != null
+		else null
+	)
+	_check(
+		presentation.get_live_world_effect_count() == close_effects_before + 1
+		and close_impact != null
+		and close_impact.global_position.is_equal_approx(close_position)
+		and close_sparks != null
+		and close_sparks.direction.is_equal_approx(Vector3.FORWARD),
+		"a close finite hit still derives its exact radial impact direction"
+	)
+
 	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
 	var hull_before := float(_hero.get_telemetry().get("hull", 0.0))
 	var engine_position := _world_component_position(_hero, ShipComponentDamage.COMPONENT_ENGINE_BAY)
