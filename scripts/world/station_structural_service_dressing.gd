@@ -42,8 +42,8 @@ const RADIATOR_VENT_COUNT := 6
 const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
-const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT
-const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 2
+const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT
+const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 3
 
 ## The four resident dressing instances all publish this one material-free,
 ## immutable fastener recipe. It intentionally lives for the session rather
@@ -55,7 +55,7 @@ const PERFORMANCE_BUDGET := {
 	"node_count": 56,
 	"visible_primitives": 45,
 	"mesh_instances": 45,
-	"multimesh_batches": 2,
+	"multimesh_batches": 3,
 	"geometry_submissions": 40,
 	"unique_materials": 10,
 	"lights": 1,
@@ -99,6 +99,7 @@ var _chamfered_cylinder_cache: Dictionary = {}
 var _task_light: OmniLight3D
 var _radiator_vent_batch: MultiMeshInstance3D
 var _task_strip_batch: MultiMeshInstance3D
+var _fascia_fastener_batch: MultiMeshInstance3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _built := false
@@ -366,31 +367,23 @@ func get_performance_audit() -> Dictionary:
 
 
 ## Per-instance evidence for the session-retained, material-free fascia recipe.
-## Six named visual copies remain local; only their immutable ArrayMesh identity
-## is shared with the other resident dressing instances.
+## Six named marker anchors remain local while one inert MultiMesh submits their
+## exact visual copies.
 func get_fascia_fastener_resource_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var mesh_ids: Dictionary = {}
 	var rows: Array[Dictionary] = []
 	for fastener_index in FASCIA_FASTENER_COUNT:
-		var fastener: MeshInstance3D = null
+		var fastener: Marker3D = null
 		if is_instance_valid(_high_detail_root):
 			fastener = _high_detail_root.get_node_or_null(
 				NodePath("FasciaFastener%02d" % (fastener_index + 1))
-			) as MeshInstance3D
+			) as Marker3D
 		if fastener == null:
 			errors.append("fascia_fastener_node_missing:%02d" % (fastener_index + 1))
 			continue
-		if fastener.mesh == null:
-			errors.append("fascia_fastener_mesh_missing:%02d" % (fastener_index + 1))
-			continue
-		mesh_ids[fastener.mesh.get_instance_id()] = true
-		if fastener.mesh != _shared_fascia_fastener_mesh():
-			errors.append("fascia_fastener_mesh_identity_drift:%02d" % (fastener_index + 1))
 		if (
-			fastener.material_override != _materials.get("frame_edge")
-			or not fastener.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
-			or fastener.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			not fastener.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
 			or fastener.get_child_count() != 0
 			or fastener.get_script() != null
 			or not fastener.get_groups().is_empty()
@@ -402,8 +395,19 @@ func get_fascia_fastener_resource_audit() -> Dictionary:
 			"path": "PresentationRoot/HighDetailRoot/FasciaFastener%02d" % (fastener_index + 1),
 			"position": [fastener.position.x, fastener.position.y, fastener.position.z],
 			"rotation_degrees": [fastener.rotation_degrees.x, fastener.rotation_degrees.y, fastener.rotation_degrees.z],
-			"material_override_id": fastener.material_override.get_instance_id() if fastener.material_override != null else 0,
+			"material_override_id": _materials.get("frame_edge").get_instance_id() if _materials.get("frame_edge") != null else 0,
 		})
+	var batch := _fascia_fastener_batch
+	var expected_mesh := _shared_fascia_fastener_mesh()
+	mesh_ids[expected_mesh.get_instance_id()] = true
+	if batch == null or batch.multimesh == null or batch.multimesh.mesh == null:
+		errors.append("fascia_fastener_batch_missing")
+	else:
+		mesh_ids[batch.multimesh.mesh.get_instance_id()] = true
+		if batch.multimesh.instance_count != FASCIA_FASTENER_COUNT:
+			errors.append("fascia_fastener_batch_copy_count_drift")
+		if batch.multimesh.mesh != expected_mesh:
+			errors.append("fascia_fastener_mesh_identity_drift")
 	if mesh_ids.size() != 1:
 		errors.append("fascia_fastener_mesh_identity_count_drift")
 	return {
@@ -415,7 +419,9 @@ func get_fascia_fastener_resource_audit() -> Dictionary:
 		"baseline_mesh_resource_identity_count": FASCIA_FASTENER_COUNT,
 		"mesh_resource_identity_delta": mesh_ids.size() - FASCIA_FASTENER_COUNT,
 		"session_retained_immutable_mesh": true,
-		"batched": false,
+		"batched": true,
+		"baseline_geometry_submissions": FASCIA_FASTENER_COUNT,
+		"geometry_submissions": 1 if batch != null else 0,
 		"collision_authority": false,
 		"lifecycle_authority": false,
 		"rows": rows,
@@ -558,7 +564,7 @@ func get_validation_errors() -> PackedStringArray:
 	var counts := performance["counts"] as Dictionary
 	if (
 		int(counts["mesh_instances"]) != BATCHED_MESH_INSTANCE_COUNT
-		or int(counts["multimesh_batches"]) != 2
+		or int(counts["multimesh_batches"]) != 3
 		or int(counts["geometry_submissions"]) != RENDERER_NODE_COUNT
 	):
 		errors.append("stable maximum-detail primitive contract changed")
@@ -836,18 +842,31 @@ func _build_high_detail(dimensions: Dictionary) -> void:
 	)
 	_task_strip_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_tag_visual_batch(_task_strip_batch, &"task_strip", DetailQuality.HIGH)
+	var fascia_fastener_transforms: Array[Transform3D] = []
 	for fastener_index in FASCIA_FASTENER_COUNT:
 		var progress := float(fastener_index + 1) / float(FASCIA_FASTENER_COUNT + 1)
-		_tag_visual_detail(
-			_fascia_fastener(
-				_high_detail_root,
-				"FasciaFastener%02d" % (fastener_index + 1),
-				Vector3(lerpf(-length * 0.44, length * 0.44, progress), -thickness * 0.76, thickness * 1.57),
-				_materials["frame_edge"]
-			),
-			&"fascia_fastener",
-			DetailQuality.HIGH
-		)
+		var fastener_position := Vector3(lerpf(-length * 0.44, length * 0.44, progress), -thickness * 0.76, thickness * 1.57)
+		var fastener_anchor := Marker3D.new()
+		fastener_anchor.name = "FasciaFastener%02d" % (fastener_index + 1)
+		fastener_anchor.position = fastener_position
+		fastener_anchor.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+		fastener_anchor.set_meta("component_id", COMPONENT_ID)
+		fastener_anchor.set_meta("evidence_status", EVIDENCE_STATUS)
+		fastener_anchor.set_meta("presentation_only", true)
+		fastener_anchor.set_meta("collision_free", true)
+		fastener_anchor.set_meta("detail_role", &"fascia_fastener")
+		fastener_anchor.set_meta("quality_tier", DetailQuality.HIGH)
+		_high_detail_root.add_child(fastener_anchor)
+		fascia_fastener_transforms.append(Transform3D(Basis(Vector3.RIGHT, deg_to_rad(90.0)), fastener_position))
+	_fascia_fastener_batch = _multimesh_rounded_box(
+		_high_detail_root,
+		"FasciaFastenerBatch",
+		_shared_fascia_fastener_mesh(),
+		_materials["frame_edge"],
+		fascia_fastener_transforms
+	)
+	_fascia_fastener_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_tag_visual_batch(_fascia_fastener_batch, &"fascia_fastener", DetailQuality.HIGH)
 	_task_light = OmniLight3D.new()
 	_task_light.name = "RestrainedTaskLight"
 	_task_light.position = Vector3(0.0, -minf(0.3, crossface_span * 0.24), depth * 0.42)
@@ -942,7 +961,7 @@ func _get_feature_counts() -> Dictionary:
 		"radiator_backplates": _service_detail_root.find_children("RadiatorBackplate", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"radiator_vents": _radiator_vent_batch.multimesh.instance_count if is_instance_valid(_radiator_vent_batch) and _radiator_vent_batch.multimesh != null else 0,
 		"task_strips": _high_detail_root.find_children("TaskStrip*", "Marker3D", true, false).size() if _high_detail_root != null else 0,
-		"fascia_fasteners": _high_detail_root.find_children("FasciaFastener*", "MeshInstance3D", true, false).size() if _high_detail_root != null else 0,
+		"fascia_fasteners": _high_detail_root.find_children("FasciaFastener??", "Marker3D", true, false).size() if _high_detail_root != null else 0,
 		"task_lights": 1 if is_instance_valid(_task_light) and is_ancestor_of(_task_light) else 0,
 	}.duplicate(true)
 

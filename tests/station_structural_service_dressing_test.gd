@@ -86,11 +86,11 @@ func _run() -> void:
 	print("STATION_STRUCTURAL_DRESSING_PERFORMANCE: ", performance)
 	_check(bool(performance["within_budget"]), "maximum-detail component remains within every explicit budget")
 	_check(
-		int(counts["mesh_instances"]) == 33
-		and int(counts["multimesh_batches"]) == 2
-		and int(counts["geometry_submissions"]) == 35
+		int(counts["mesh_instances"]) == 27
+		and int(counts["multimesh_batches"]) == 3
+		and int(counts["geometry_submissions"]) == 30
 		and int(counts["visible_primitives"]) == 41,
-		"high quality preserves 41 visible copies through 35 renderer submissions"
+		"high quality preserves 41 visible copies through 30 renderer submissions"
 	)
 	var task_batch := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStripBatch") as MultiMeshInstance3D
 	var task_anchor_01 := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStrip01") as Marker3D
@@ -219,32 +219,35 @@ func _run() -> void:
 			and int(fastener_audit.get("baseline_mesh_resource_identity_count", 0)) == 6
 			and int(fastener_audit.get("mesh_resource_identity_delta", 0)) == -5
 			and bool(fastener_audit.get("session_retained_immutable_mesh", false))
-			and not bool(fastener_audit.get("batched", true))
+			and bool(fastener_audit.get("batched", false))
+			and int(fastener_audit.get("baseline_geometry_submissions", 0)) == 6
+			and int(fastener_audit.get("geometry_submissions", 0)) == 1
 			and not bool(fastener_audit.get("collision_authority", true))
 			and not bool(fastener_audit.get("lifecycle_authority", true)),
 			"%s retains one exact inert fascia-fastener mesh" % sharing_dressing.name
 		)
-		for fastener in sharing_dressing.find_children("FasciaFastener*", "MeshInstance3D", true, false):
-			sharing_mesh_ids[(fastener as MeshInstance3D).mesh.get_instance_id()] = true
+		for fastener in sharing_dressing.find_children("FasciaFastener??", "Marker3D", true, false):
+			var batch := sharing_dressing.get_node(^"PresentationRoot/HighDetailRoot/FasciaFastenerBatch") as MultiMeshInstance3D
+			sharing_mesh_ids[batch.multimesh.mesh.get_instance_id()] = true
 			sharing_rows += 1
 	_check(
 		sharing_rows == 24 and sharing_mesh_ids.size() == 1,
 		"four resident dressings retain 24 fascia copies through one immutable mesh"
 	)
-	var sharing_fastener := sharing_instances[3].get_node(
-		"PresentationRoot/HighDetailRoot/FasciaFastener06"
-	) as MeshInstance3D
-	var shared_fastener_mesh := sharing_fastener.mesh
-	sharing_fastener.mesh = shared_fastener_mesh.duplicate() as ArrayMesh
+	var sharing_fastener_batch := sharing_instances[3].get_node(
+		"PresentationRoot/HighDetailRoot/FasciaFastenerBatch"
+	) as MultiMeshInstance3D
+	var shared_fastener_mesh := sharing_fastener_batch.multimesh.mesh
+	sharing_fastener_batch.multimesh.mesh = shared_fastener_mesh.duplicate() as ArrayMesh
 	var sharing_red := sharing_instances[3].get_fascia_fastener_resource_audit()
 	_check(
 		not bool(sharing_red.get("valid", true))
 		and int(sharing_red.get("mesh_resource_identity_count", 0)) == 2
-		and _has_error(sharing_red, "fascia_fastener_mesh_identity_drift:06")
+		and _has_error(sharing_red, "fascia_fastener_mesh_identity_drift")
 		and _has_error(sharing_red, "fascia_fastener_mesh_identity_count_drift"),
 		"structured red: one duplicated resident fastener breaks the shared identity contract"
 	)
-	sharing_fastener.mesh = shared_fastener_mesh
+	sharing_fastener_batch.multimesh.mesh = shared_fastener_mesh
 	_check(
 		bool(sharing_instances[3].get_fascia_fastener_resource_audit().get("valid", false)),
 		"restoring the fastener mesh repairs the shared-resource contract"
@@ -257,7 +260,7 @@ func _run() -> void:
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
 	performance = dressing.get_performance_audit()
 	counts = performance["counts"] as Dictionary
-	_check(int(counts["mesh_instances"]) == 33 and int(counts["visible_primitives"]) == 33, "medium quality keeps 33 allocated meshes plus two batches and exposes 33 copies")
+	_check(int(counts["mesh_instances"]) == 27 and int(counts["visible_primitives"]) == 33, "medium quality keeps 27 allocated meshes plus three batches and exposes 33 copies")
 	_check(int(counts["visible_lights"]) == 0, "medium quality hides the high-tier task light")
 	_check(int(counts["node_count"]) == high_node_count, "medium quality performs no structural allocation")
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.LOW), "quality API accepts low")
@@ -363,7 +366,7 @@ func _run() -> void:
 	(detached_audit["evidence"] as Dictionary).clear()
 	(detached_audit["node_contract"] as Dictionary).clear()
 	var fresh_audit := dressing.audit()
-	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 33, "deep-copy audit protects nested performance counts")
+	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 27, "deep-copy audit protects nested performance counts")
 	_check(not (fresh_audit["integration"] as Dictionary).is_empty(), "deep-copy audit protects integration state")
 	_check(not (fresh_audit["evidence"] as Dictionary).is_empty(), "deep-copy audit protects evidence state")
 	_check(not (fresh_audit["node_contract"] as Dictionary).is_empty(), "deep-copy audit protects semantic node paths")
