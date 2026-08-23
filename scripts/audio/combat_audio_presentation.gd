@@ -65,6 +65,8 @@ var _last_cue_pitch_scale := 1.0
 var _last_cue_volume_db := -80.0
 var _occlusion := 0.0
 var _last_semantic_intensity := 0.0
+var _target_lock_active := false
+var _target_lock_position := Vector3.ZERO
 var _initialized := false
 var _audio_available := true
 
@@ -147,6 +149,28 @@ func set_occlusion(occlusion: float) -> bool:
 
 func get_occlusion() -> float:
 	return _occlusion
+
+
+## Records caller-owned target-lock presentation state without selecting a target
+## or reading combat authority. Semantic edges are emitted once per transition.
+func set_target_lock(active: bool, world_position: Vector3 = Vector3.ZERO) -> bool:
+	if is_queued_for_deletion() or not world_position.is_finite():
+		return false
+	if _target_lock_active == active:
+		_target_lock_position = world_position
+		return true
+	_target_lock_active = active
+	_target_lock_position = world_position
+	semantic_cue_emitted.emit(
+		&"target_lock_acquired" if active else &"target_lock_lost",
+		world_position,
+		1.0 if active else 0.0
+	)
+	return true
+
+
+func is_target_lock_active() -> bool:
+	return _target_lock_active
 
 
 func get_component_id() -> StringName:
