@@ -55,6 +55,7 @@ func _test_defaults_and_descriptors() -> void:
 	_check(settings.colorblind_palette == Settings.ColorblindPalette.NONE, "colour-vision preset defaults to the authored palette")
 	_check(not settings.reduced_motion, "reduced motion is off by default")
 	_check(not settings.captions_enabled, "audio cue captions are off by default")
+	_check(settings.show_tutorials, "first-sortie tutorials default to enabled")
 	_check(settings.get_colorblind_palette_id() == &"none", "colour-vision preset exposes a stable off ID")
 	var accessibility: Dictionary = settings.get_accessibility_descriptor()
 	_check(
@@ -65,6 +66,7 @@ func _test_defaults_and_descriptors() -> void:
 			"reduced_motion": false,
 			"captions_enabled": false,
 			"reduced_dynamic_range": false,
+			"show_tutorials": true,
 		},
 		"the accessibility descriptor exposes the five presentation presets"
 	)

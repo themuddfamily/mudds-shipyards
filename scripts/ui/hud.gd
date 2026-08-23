@@ -2891,6 +2891,13 @@ func _build_settings_page() -> void:
 		false
 	)
 	_add_toggle_setting(accessibility_group, &"captions_enabled", "Audio cue captions", false)
+	_add_toggle_setting_with_help(
+		accessibility_group,
+		&"show_tutorials",
+		"Show first-sortie tutorials",
+		"Keep controller-readable onboarding prompts available until you turn them off.",
+		true
+	)
 	_add_caption_preview_setting(accessibility_group)
 	_add_controller_glyph_family_setting(accessibility_group)
 

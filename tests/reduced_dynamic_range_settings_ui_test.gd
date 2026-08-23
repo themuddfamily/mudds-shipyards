@@ -28,6 +28,10 @@ func _run() -> void:
 	_check(control.button_pressed, "missing backend key retains compatible UI value")
 	hud.set_settings_snapshot({"reduced_dynamic_range": false})
 	_check(not control.button_pressed, "present backend key updates live snapshot")
+	var tutorials := controls.get(&"show_tutorials") as CheckButton
+	_check(tutorials != null and tutorials.button_pressed, "settings exposes tutorials enabled by default")
+	hud.set_settings_snapshot({"show_tutorials": false})
+	_check(not tutorials.button_pressed, "tutorial preference follows live settings snapshots")
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

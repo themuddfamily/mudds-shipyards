@@ -12,6 +12,7 @@ func _init() -> void:
 func _run() -> void:
 	var settings := Settings.new("user://reduced_dynamic_range_settings_test.cfg")
 	_check(not settings.reduced_dynamic_range, "reduced dynamic range defaults off")
+	_check(settings.show_tutorials, "show tutorials defaults on")
 	settings.reduced_dynamic_range = true
 	_check(settings.reduced_dynamic_range, "reduced dynamic range accepts a validated change")
 	var payload := settings.to_user_data_payload()
@@ -22,11 +23,19 @@ func _run() -> void:
 	var legacy := payload.duplicate(true)
 	legacy.schema_version = 1
 	(legacy.values as Dictionary).erase("reduced_dynamic_range")
+	(legacy.values as Dictionary).erase("show_tutorials")
 	var migrated := Settings.new("user://reduced_dynamic_range_settings_test.cfg")
 	_check(bool(migrated.apply_user_data_payload(legacy).accepted), "legacy payload migrates successfully")
 	_check(not migrated.reduced_dynamic_range, "legacy payload uses the default-off migration")
 	restored.reset_to_defaults()
 	_check(not restored.reduced_dynamic_range, "reset restores the default-off policy")
+	_check(restored.show_tutorials, "reset restores tutorials to enabled")
+	var legacy_tutorial_payload := settings.to_user_data_payload()
+	legacy_tutorial_payload.schema_version = 2
+	(legacy_tutorial_payload.values as Dictionary).erase("show_tutorials")
+	var legacy_tutorial := Settings.new("user://legacy_tutorial_settings_test.cfg")
+	var legacy_tutorial_result := legacy_tutorial.apply_user_data_payload(legacy_tutorial_payload)
+	_check(legacy_tutorial_result.accepted and legacy_tutorial.show_tutorials, "schema-2 payload migrates missing tutorials to enabled")
 	var future := payload.duplicate(true)
 	future.schema_version = Settings.USER_DATA_PAYLOAD_SCHEMA_VERSION + 1
 	_check(not bool(restored.apply_user_data_payload(future).accepted), "newer payload schemas fail closed")

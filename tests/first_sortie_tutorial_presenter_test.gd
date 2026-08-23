@@ -19,6 +19,8 @@ func _run() -> void:
 	_check(fire.prompt.contains("LMB") and fire.step_index == 4, "keyboard fire prompt is readable")
 	var accessible := presenter.present_snapshot({"step_id": &"return_land", "accessible": true})
 	_check(accessible.prompt == accessible.accessible_prompt, "accessible mode uses descriptive prompt")
+	var disabled := presenter.present_snapshot({"step_id": &"board", "show_tutorials": false})
+	_check(not disabled.accepted and disabled.reason == &"tutorials_disabled" and not disabled.has("completion_intent"), "disabled tutorial policy hides prompts without completion")
 	var dismiss := presenter.request(&"dismiss")
 	_check(dismiss.accepted and dismiss.completion_intent.persist, "dismiss returns caller-owned completion intent")
 	var invalid := presenter.present_snapshot({"step_id": &"combat"})

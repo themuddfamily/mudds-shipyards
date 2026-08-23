@@ -22,6 +22,8 @@ var _snapshot: Dictionary = {}
 
 
 func present_snapshot(source: Dictionary) -> Dictionary:
+	if not bool(source.get("show_tutorials", true)):
+		return _reject(&"tutorials_disabled")
 	var step_id := StringName(str(source.get("step_id", &"walk_interact")))
 	if not STEP_ORDER.has(step_id):
 		return _reject(&"unknown_step")

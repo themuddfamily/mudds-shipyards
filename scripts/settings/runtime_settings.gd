@@ -50,7 +50,7 @@ const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 2
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 3
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -89,6 +89,7 @@ const DEFAULT_COLORBLIND_PALETTE := ColorblindPalette.NONE
 const DEFAULT_REDUCED_MOTION := false
 const DEFAULT_CAPTIONS_ENABLED := false
 const DEFAULT_REDUCED_DYNAMIC_RANGE := false
+const DEFAULT_SHOW_TUTORIALS := true
 
 const _SECTION_META := "meta"
 const _SECTION_CONTROLS := "controls"
@@ -119,6 +120,16 @@ const _USER_DATA_VALUE_KEYS := [
 	"colorblind_palette",
 	"reduced_motion",
 	"captions_enabled",
+	"reduced_dynamic_range",
+	"show_tutorials",
+	"input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V2 := [
+	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
+	"invert_on_foot_y", "camera_fov", "master_volume", "ambience_volume",
+	"engine_volume", "weapons_volume", "ui_volume", "music_volume",
+	"graphics_profile", "window_mode", "control_preset", "ui_scale",
+	"colorblind_palette", "reduced_motion", "captions_enabled",
 	"reduced_dynamic_range",
 	"input_binding_profile",
 ]
@@ -355,6 +366,14 @@ var reduced_dynamic_range := DEFAULT_REDUCED_DYNAMIC_RANGE:
 		reduced_dynamic_range = validated
 		_queue_change(&"reduced_dynamic_range", validated)
 
+var show_tutorials := DEFAULT_SHOW_TUTORIALS:
+	set(value):
+		var validated := bool(value)
+		if show_tutorials == validated:
+			return
+		show_tutorials = validated
+		_queue_change(&"show_tutorials", validated)
+
 ## Detached on read and validated on write. Callers cannot mutate the canonical
 ## profile through an aliased Resource; use [method set_input_binding_profile]
 ## and then explicitly call [method apply_input_bindings].
@@ -408,6 +427,7 @@ func to_dictionary() -> Dictionary:
 		"reduced_motion": reduced_motion,
 		"captions_enabled": captions_enabled,
 		"reduced_dynamic_range": reduced_dynamic_range,
+		"show_tutorials": show_tutorials,
 		"input_binding_profile": _input_binding_profile.to_dictionary(),
 	}
 
@@ -439,6 +459,7 @@ func to_user_data_payload() -> Dictionary:
 			"reduced_motion": reduced_motion,
 			"captions_enabled": captions_enabled,
 			"reduced_dynamic_range": reduced_dynamic_range,
+			"show_tutorials": show_tutorials,
 			"input_binding_profile": _input_profile_to_json_dictionary(
 				_input_binding_profile
 			),
@@ -486,6 +507,7 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	reduced_motion = bool(values.reduced_motion)
 	captions_enabled = bool(values.captions_enabled)
 	reduced_dynamic_range = bool(values.reduced_dynamic_range)
+	show_tutorials = bool(values.show_tutorials)
 	# Compatibility was proven by the decoder against this same service.
 	set_input_binding_profile(profile)
 	_end_batch()
@@ -514,6 +536,7 @@ func reset_to_defaults() -> void:
 	reduced_motion = DEFAULT_REDUCED_MOTION
 	captions_enabled = DEFAULT_CAPTIONS_ENABLED
 	reduced_dynamic_range = DEFAULT_REDUCED_DYNAMIC_RANGE
+	show_tutorials = DEFAULT_SHOW_TUTORIALS
 	input_binding_profile = _input_rebind_service.reset_to_defaults()
 	_end_batch()
 
@@ -580,6 +603,7 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_ACCESSIBILITY, "reduced_motion", reduced_motion)
 	config.set_value(_SECTION_ACCESSIBILITY, "captions", captions_enabled)
 	config.set_value(_SECTION_ACCESSIBILITY, "reduced_dynamic_range", reduced_dynamic_range)
+	config.set_value(_SECTION_ACCESSIBILITY, "show_tutorials", show_tutorials)
 
 	var save_error := config.save(staging_path)
 	if save_error != OK:
@@ -706,6 +730,9 @@ func load_from_file(path_override: String = "") -> Error:
 		"reduced_dynamic_range",
 		DEFAULT_REDUCED_DYNAMIC_RANGE
 	)
+	show_tutorials = _read_bool(
+		config, _SECTION_ACCESSIBILITY, "show_tutorials", DEFAULT_SHOW_TUTORIALS
+	)
 	input_binding_profile = loaded_input_profile
 	_end_batch()
 	return OK
@@ -790,6 +817,7 @@ func get_accessibility_descriptor() -> Dictionary:
 		"reduced_motion": reduced_motion,
 		"captions_enabled": captions_enabled,
 		"reduced_dynamic_range": reduced_dynamic_range,
+		"show_tutorials": show_tutorials,
 	}
 
 
@@ -880,12 +908,19 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if not section.values is Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
-	var expected_value_keys := _USER_DATA_VALUE_KEYS if schema == USER_DATA_PAYLOAD_SCHEMA_VERSION else _USER_DATA_VALUE_KEYS_V1
+	var expected_value_keys := _USER_DATA_VALUE_KEYS
+	if schema == 2:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V2
+	elif schema == 1:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V1
 	if not _has_exact_string_keys(raw_values, expected_value_keys):
 		return {"accepted": false, "reason": &"value_fields_invalid"}
 	if schema == 1:
 		raw_values = raw_values.duplicate()
 		raw_values["reduced_dynamic_range"] = DEFAULT_REDUCED_DYNAMIC_RANGE
+	if schema <= 2:
+		raw_values = raw_values.duplicate()
+		raw_values["show_tutorials"] = DEFAULT_SHOW_TUTORIALS
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -912,6 +947,7 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		"reduced_motion",
 		"captions_enabled",
 		"reduced_dynamic_range",
+		"show_tutorials",
 	]:
 		if not raw_values[key] is bool:
 			return {"accepted": false, "reason": StringName("invalid_%s" % key)}
