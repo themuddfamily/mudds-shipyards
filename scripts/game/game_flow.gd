@@ -1824,6 +1824,7 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(opponent, &"destroyed", _on_opponent_destroyed)
 	_connect_signal_once(world, &"target_destroyed", _on_target_destroyed)
 	_connect_signal_once(audio, &"cue_started", _on_audio_cue_started)
+	_connect_signal_once(audio, &"semantic_cue_emitted", _on_semantic_audio_cue_emitted)
 	_connect_signal_once(combat_audio, &"cue_started", _on_combat_audio_cue_started)
 	_connect_signal_once(
 		cinder_convoy_host,
@@ -6102,6 +6103,16 @@ func _on_combat_audio_cue_started(
 ) -> void:
 	if hud.has_method("caption_cue"):
 		hud.caption_cue(cue_id)
+
+
+func _on_semantic_audio_cue_emitted(
+	source_id: StringName,
+	cue_id: StringName,
+	intensity: float,
+	world_position: Vector3
+) -> void:
+	if is_instance_valid(hud) and hud.has_method(&"present_semantic_audio_cue"):
+		hud.call(&"present_semantic_audio_cue", cue_id, source_id, intensity, world_position)
 
 
 func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
