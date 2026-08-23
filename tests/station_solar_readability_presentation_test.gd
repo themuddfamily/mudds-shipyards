@@ -43,7 +43,9 @@ func _test_bounded_adapter() -> void:
 	sky_material.set_shader_parameter(&"sun_halo", Presenter.SUN_HALO_STRENGTH)
 	sky_material.set_shader_parameter(&"sun_halo_focus", Presenter.SUN_HALO_FOCUS)
 	var baseline := _environment_values(environment)
-	var presenter := Presenter.new() as StationSolarReadabilityPresentation
+	# Use the explicitly preloaded script instead of relying on a per-worktree
+	# global class cache, which is absent in a clean checkout.
+	var presenter = Presenter.new()
 	var configured := presenter.configure(environment, sky_material)
 	_check(
 		bool(configured.accepted) and configured.reason == &"solar_readability_presented",
