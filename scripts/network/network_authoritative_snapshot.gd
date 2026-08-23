@@ -36,6 +36,8 @@ const SECTION_REQUIRED_FIELDS := {
 		&"entity_id", &"entity_generation", &"component_generation", &"state",
 	],
 }
+const COMPONENT_MODIFIER_FIELDS := [&"engine_power", &"weapon_power", &"targeting_power"]
+const COMPONENT_DISABLED_FIELDS := [&"engine_disabled", &"weapon_disabled", &"targeting_disabled"]
 
 var _authority_peer_id := 1
 var _server_tick := -1
@@ -200,7 +202,25 @@ func _validate_sections(raw_sections: Dictionary) -> Dictionary:
 			seen[identity] = true
 			if not _valid_entry_generations(entry, section_name):
 				return {"valid": false, "status": &"invalid_section_generation"}
+			if not _valid_component_modifiers(entry):
+				return {"valid": false, "status": &"invalid_component_modifiers"}
 	return {"valid": true}
+
+
+func _valid_component_modifiers(entry: Dictionary) -> bool:
+	for field_variant in COMPONENT_MODIFIER_FIELDS:
+		var field: StringName = field_variant
+		if not entry.has(field):
+			continue
+		var value: Variant = entry.get(field)
+		if not (value is float or value is int) or not is_finite(float(value)) \
+				or float(value) < 0.0 or float(value) > 1.0:
+			return false
+	for field_variant in COMPONENT_DISABLED_FIELDS:
+		var disabled_field: StringName = field_variant
+		if entry.has(disabled_field) and not entry.get(disabled_field) is bool:
+			return false
+	return true
 
 
 func _valid_entry_generations(entry: Dictionary, section_name: StringName) -> bool:

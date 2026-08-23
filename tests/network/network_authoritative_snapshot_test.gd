@@ -55,6 +55,12 @@ func _test_server_publication_and_detachment() -> void:
 		String(authority.get_section(&"movement")[0].entity_id) == "avatar_a",
 		"published sections and returned snapshots are detached from caller mutation"
 	)
+	var modifiers := authority.get_section(&"ownership")[0] as Dictionary
+	_check(
+		float(modifiers.get("engine_power", -1.0)) == 0.8
+		and bool(modifiers.get("weapon_disabled", true)) == false,
+		"authoritative component modifiers remain detached in the ship snapshot"
+	)
 	var audit := authority.audit()
 	_check(
 		bool(audit.server_owns_movement_snapshot)
@@ -93,6 +99,12 @@ func _test_order_and_generation_guards() -> void:
 	_check(
 		authority.publish(99, 41, 13, duplicate.movement, duplicate.ownership, duplicate.projectiles, duplicate.boarding, duplicate.respawn).status == &"duplicate_section_identity",
 		"duplicate ship identities cannot enter one synchronized snapshot"
+	)
+	var invalid_modifiers := _sections()
+	(invalid_modifiers.ownership[0] as Dictionary)["weapon_power"] = 1.5
+	_check(
+		authority.publish(99, 41, 13, invalid_modifiers.movement, invalid_modifiers.ownership, invalid_modifiers.projectiles, invalid_modifiers.boarding, invalid_modifiers.respawn).status == &"invalid_component_modifiers",
+		"component modifiers reject non-normalized authoritative values"
 	)
 
 
@@ -140,6 +152,12 @@ func _sections() -> Dictionary:
 			"ship_generation": 4,
 			"owner_peer_id": 7,
 			"ownership_generation": 1,
+			"engine_power": 0.8,
+			"weapon_power": 1.0,
+			"targeting_power": 0.6,
+			"engine_disabled": false,
+			"weapon_disabled": false,
+			"targeting_disabled": false,
 		}],
 		"projectiles": [{
 			"projectile_id": &"projectile_1",
