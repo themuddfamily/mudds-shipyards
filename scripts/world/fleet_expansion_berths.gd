@@ -1,8 +1,8 @@
 class_name FleetExpansionBerths
 extends Node3D
 
-## Original-modern station expansion: two bounded service pads for the new
-## cargo hauler and bomber. No historical berth or ship-ownership claim.
+## Original-modern station expansion: three bounded service pads for the new
+## cargo hauler, bomber, and interceptor. No historical berth or ship-ownership claim.
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"fleet-expansion-berths"
@@ -16,9 +16,32 @@ const APPROACH_OFFSET := Vector3(0.0, 0.0, 30.0)
 const LANDING_ANCHOR_Y := 4.0
 const MAX_STATIC_BODIES := 10
 const MAX_MESH_INSTANCES := 30
+const EXPECTED_STATIC_BODIES := 3
+const EXPECTED_COLLISION_SHAPES := 3
+const EXPECTED_MESH_INSTANCES := 19
+const EXPECTED_GUIDE_LIGHTS := 6
+const EXPECTED_DESCENDANTS := 46
+const SERVICE_MESH_COUNTS := {
+	&"dock_04_cargo": 6,
+	&"dock_05_bomber": 5,
+	&"dock_06_interceptor": 5,
+}
+const SERVICE_ROLES := {
+	&"dock_04_cargo": &"cargo_crane_and_container_apron",
+	&"dock_05_bomber": &"ordnance_safe_gantry_markers",
+	&"dock_06_interceptor": &"rapid_launch_guide_frame",
+}
+const SERVICE_LOCAL_BOUNDS := {
+	&"dock_04_cargo": AABB(Vector3(-20.0, -0.1, -15.0), Vector3(43.0, 13.0, 30.0)),
+	&"dock_05_bomber": AABB(Vector3(-21.0, -0.1, -21.0), Vector3(42.0, 12.0, 25.0)),
+	&"dock_06_interceptor": AABB(Vector3(-18.0, -0.1, -18.0), Vector3(36.0, 12.0, 44.0)),
+}
+const LANDING_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, -14.0), Vector3(20.0, 8.0, 28.0))
+const APPROACH_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, 21.0), Vector3(20.0, 8.0, 15.0))
 
 var _pads: Dictionary = {}
 var _attachments: Dictionary = {}
+var _service_materials: Dictionary = {}
 var _built := false
 
 
@@ -29,6 +52,7 @@ func _ready() -> void:
 	set_meta(&"component_id", COMPONENT_ID)
 	set_meta(&"evidence_status", EVIDENCE_STATUS)
 	set_meta(&"historically_supported", false)
+	_build_service_materials()
 	for index in PAD_IDS.size():
 		_build_pad(PAD_IDS[index], PAD_POSITIONS[index], index)
 
@@ -95,16 +119,117 @@ func get_attachment_snapshot(pad_id: StringName) -> Dictionary:
 	return {"attached": true, "pad_id": pad_id, "craft_id": attachment.get("craft_id", &""), "landing_anchor": attachment.get("landing_anchor", Vector3.INF)}
 
 
+func get_service_presentation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var pad_reports: Dictionary = {}
+	for pad_index in PAD_IDS.size():
+		var pad_id := PAD_IDS[pad_index]
+		var pad := get_node_or_null(NodePath(String(pad_id))) as Node3D
+		var service := pad.get_node_or_null(^"ServicePresentation") as Node3D \
+			if pad != null else null
+		var meshes: Array[Node] = []
+		var lights: Array[Node] = []
+		var local_bounds := AABB()
+		var first_bound := true
+		var landing_clear := true
+		var approach_clear := true
+		if service == null:
+			errors.append("service presentation missing: %s" % pad_id)
+		else:
+			meshes = service.find_children("*", "MeshInstance3D", true, false)
+			lights = service.find_children("*", "Light3D", true, false)
+			for raw_mesh in meshes:
+				var instance := raw_mesh as MeshInstance3D
+				if instance.mesh == null:
+					errors.append("service mesh missing: %s" % pad_id)
+					continue
+				var bounds := (instance.transform * instance.mesh.get_aabb()).abs()
+				local_bounds = bounds if first_bound else local_bounds.merge(bounds)
+				first_bound = false
+				landing_clear = landing_clear and not bounds.intersects(LANDING_VISUAL_CLEARANCE)
+				approach_clear = approach_clear and not bounds.intersects(APPROACH_VISUAL_CLEARANCE)
+			for raw_light in lights:
+				if (raw_light as Light3D).shadow_enabled:
+					errors.append("shadow light added: %s" % pad_id)
+			if not bool(service.get_meta(&"presentation_only", false)) \
+					or StringName(service.get_meta(&"service_role", &"")) != SERVICE_ROLES[pad_id] \
+					or bool(service.get_meta(&"ship_authority", true)) \
+					or bool(service.get_meta(&"berth_lease_authority", true)):
+				errors.append("service presentation authority drift: %s" % pad_id)
+			if not service.find_children("*", "CollisionObject3D", true, false).is_empty() \
+					or not service.find_children("*", "CollisionShape3D", true, false).is_empty() \
+					or not service.find_children("*", "Area3D", true, false).is_empty():
+				errors.append("service presentation gained collision or interaction: %s" % pad_id)
+		if meshes.size() != int(SERVICE_MESH_COUNTS[pad_id]):
+			errors.append("service mesh budget drift: %s" % pad_id)
+		if lights.size() != 2:
+			errors.append("service light budget drift: %s" % pad_id)
+		if not (SERVICE_LOCAL_BOUNDS[pad_id] as AABB).encloses(local_bounds):
+			errors.append("service silhouette left local bounds: %s" % pad_id)
+		if not landing_clear or not approach_clear:
+			errors.append("service silhouette entered landing or approach clearance: %s" % pad_id)
+		var readable := not first_bound and local_bounds.size.x >= 33.0 \
+			and local_bounds.size.y >= 10.0
+		if pad_id == &"dock_06_interceptor":
+			readable = readable and local_bounds.size.z >= 40.0
+		if not readable:
+			errors.append("service silhouette readability drift: %s" % pad_id)
+		var expected_landing := PAD_POSITIONS[pad_index] + Vector3(0.0, LANDING_ANCHOR_Y, 0.0)
+		var expected_approach := PAD_POSITIONS[pad_index] + APPROACH_OFFSET
+		var contract := get_landing_contract(pad_id)
+		if (contract.get("landing_anchor", Vector3.INF) as Vector3) != expected_landing \
+				or (contract.get("approach_anchor", Vector3.INF) as Vector3) != expected_approach:
+			errors.append("service presentation moved landing contract: %s" % pad_id)
+		pad_reports[pad_id] = {
+			"service_role": SERVICE_ROLES[pad_id],
+			"mesh_nodes": meshes.size(),
+			"light_nodes": lights.size(),
+			"local_bounds": local_bounds,
+			"maximum_local_bounds": SERVICE_LOCAL_BOUNDS[pad_id],
+			"landing_clear": landing_clear,
+			"approach_clear": approach_clear,
+			"readable": readable,
+		}.duplicate(true)
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"pads": pad_reports,
+		"budgets": {
+			"mesh_instances": EXPECTED_MESH_INSTANCES,
+			"guide_lights": EXPECTED_GUIDE_LIGHTS,
+			"descendants": EXPECTED_DESCENDANTS,
+			"static_bodies": EXPECTED_STATIC_BODIES,
+			"collision_shapes": EXPECTED_COLLISION_SHAPES,
+		},
+		"ship_authority": false,
+		"berth_lease_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
+
+
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	if PAD_IDS.size() != 3 or _pads.size() != 3:
 		errors.append("exactly three authored expansion pads are required")
 	var bodies := find_children("*", "StaticBody3D", true, false).size()
 	var meshes := find_children("*", "MeshInstance3D", true, false).size()
+	var collision_shapes := find_children("*", "CollisionShape3D", true, false).size()
+	var guide_lights := find_children("*", "OmniLight3D", true, false).size()
+	var descendants := find_children("*", "", true, false).size()
 	if bodies > MAX_STATIC_BODIES:
 		errors.append("static body budget exceeded")
 	if meshes > MAX_MESH_INSTANCES:
 		errors.append("mesh budget exceeded")
+	if bodies != EXPECTED_STATIC_BODIES or collision_shapes != EXPECTED_COLLISION_SHAPES:
+		errors.append("walkable collision roster drift")
+	if meshes != EXPECTED_MESH_INSTANCES or guide_lights != EXPECTED_GUIDE_LIGHTS \
+			or descendants != EXPECTED_DESCENDANTS:
+		errors.append("service presentation census drift")
+	var service_presentation := get_service_presentation_audit()
+	if not bool(service_presentation.get("valid", false)):
+		for error in (service_presentation.get("errors", PackedStringArray()) as PackedStringArray):
+			errors.append("service presentation: %s" % error)
 	for pad_id in PAD_IDS:
 		var contract := get_landing_contract(pad_id)
 		if not bool(contract.get("accepted", false)):
@@ -123,6 +248,10 @@ func get_audit_report() -> Dictionary:
 		"pad_count": _pads.size(),
 		"static_bodies": bodies,
 		"mesh_instances": meshes,
+		"collision_shapes": collision_shapes,
+		"guide_lights": guide_lights,
+		"descendants": descendants,
+		"service_presentation": service_presentation,
 		"ship_authority": false,
 		"berth_lease_authority": false,
 		"game_flow_authority": false,
@@ -171,6 +300,7 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	sign.font_size = 32
 	sign.modulate = Color("63dbe0")
 	pad.add_child(sign)
+	_build_service_presentation(pad, pad_id)
 	_pads[pad_id] = {
 		"pad_id": pad_id,
 		"landing_anchor": landing.global_position,
@@ -178,6 +308,96 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 		"position": pad_position,
 		"size": PAD_SIZE,
 	}
+
+
+func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
+	var service := Node3D.new()
+	service.name = "ServicePresentation"
+	service.set_meta(&"presentation_only", true)
+	service.set_meta(&"service_role", SERVICE_ROLES[pad_id])
+	service.set_meta(&"ship_authority", false)
+	service.set_meta(&"berth_lease_authority", false)
+	pad.add_child(service)
+	match pad_id:
+		&"dock_04_cargo":
+			_visual_box(service, "CargoCraneMast", Vector3(-18.0, 6.0, -7.0), Vector3(1.5, 12.0, 1.5), _service_materials["cargo_frame"])
+			_visual_box(service, "CargoCraneJib", Vector3(-12.0, 11.5, -7.0), Vector3(13.5, 1.0, 1.0), _service_materials["cargo_frame"])
+			_visual_box(service, "CargoCraneHoist", Vector3(-7.0, 10.0, -7.0), Vector3(1.0, 3.0, 1.0), _service_materials["cargo_marker"])
+			for container_index in 3:
+				_visual_box(
+					service, "CargoContainer%02d" % (container_index + 1),
+					Vector3(18.0, 1.8, -10.0 + float(container_index) * 10.0),
+					Vector3(7.0, 3.6, 7.0),
+					_service_materials["cargo_container"]
+				)
+			_guide_light(service, "CargoApronGuidePort", Vector3(-18.0, 1.2, 12.0), Color("56d8de"))
+			_guide_light(service, "CargoApronGuideStarboard", Vector3(18.0, 1.2, 14.0), Color("56d8de"))
+		&"dock_05_bomber":
+			_visual_box(service, "OrdnanceGantryPort", Vector3(-18.0, 5.0, -5.0), Vector3(2.0, 10.0, 2.0), _service_materials["bomber_frame"])
+			_visual_box(service, "OrdnanceGantryStarboard", Vector3(18.0, 5.0, -5.0), Vector3(2.0, 10.0, 2.0), _service_materials["bomber_frame"])
+			_visual_box(service, "OrdnanceMarkerPort", Vector3(-18.0, 10.5, -5.0), Vector3(3.0, 1.0, 6.0), _service_materials["bomber_marker"])
+			_visual_box(service, "OrdnanceMarkerStarboard", Vector3(18.0, 10.5, -5.0), Vector3(3.0, 1.0, 6.0), _service_materials["bomber_marker"])
+			_visual_box(service, "BlastSafetyDatum", Vector3(0.0, 0.4, -18.0), Vector3(24.0, 0.5, 2.0), _service_materials["bomber_marker"])
+			_guide_light(service, "OrdnanceGuidePort", Vector3(-18.0, 10.5, -1.5), Color("ff9b4a"))
+			_guide_light(service, "OrdnanceGuideStarboard", Vector3(18.0, 10.5, -1.5), Color("ff9b4a"))
+		&"dock_06_interceptor":
+			_visual_box(service, "LaunchRailPort", Vector3(-16.0, 0.5, 5.0), Vector3(1.0, 1.0, 38.0), _service_materials["interceptor_marker"])
+			_visual_box(service, "LaunchRailStarboard", Vector3(16.0, 0.5, 5.0), Vector3(1.0, 1.0, 38.0), _service_materials["interceptor_marker"])
+			_visual_box(service, "LaunchFramePort", Vector3(-16.0, 5.0, -16.0), Vector3(1.5, 10.0, 1.5), _service_materials["interceptor_frame"])
+			_visual_box(service, "LaunchFrameStarboard", Vector3(16.0, 5.0, -16.0), Vector3(1.5, 10.0, 1.5), _service_materials["interceptor_frame"])
+			_visual_box(service, "LaunchFrameHeader", Vector3(0.0, 10.0, -16.0), Vector3(33.5, 1.0, 1.5), _service_materials["interceptor_frame"])
+			_guide_light(service, "LaunchGuidePort", Vector3(-16.0, 1.2, 24.0), Color("61e4ee"))
+			_guide_light(service, "LaunchGuideStarboard", Vector3(16.0, 1.2, 24.0), Color("61e4ee"))
+
+
+func _visual_box(
+		parent: Node3D, node_name: String, position_value: Vector3,
+		size: Vector3, material: Material
+	) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = position_value
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(instance)
+	return instance
+
+
+func _guide_light(
+		parent: Node3D, node_name: String, position_value: Vector3, color: Color
+	) -> OmniLight3D:
+	var light := OmniLight3D.new()
+	light.name = node_name
+	light.position = position_value
+	light.light_color = color
+	light.light_energy = 1.15
+	light.omni_range = 12.0
+	light.shadow_enabled = false
+	parent.add_child(light)
+	return light
+
+
+func _build_service_materials() -> void:
+	_service_materials = {
+		"cargo_frame": _material(Color("8a6a36"), 0.72),
+		"cargo_container": _material(Color("2f5966"), 0.58),
+		"cargo_marker": _emissive_material(Color("56d8de")),
+		"bomber_frame": _material(Color("3b3034"), 0.78),
+		"bomber_marker": _emissive_material(Color("ff8b42")),
+		"interceptor_frame": _material(Color("31515b"), 0.74),
+		"interceptor_marker": _emissive_material(Color("61e4ee")),
+	}
+
+
+func _emissive_material(color: Color) -> StandardMaterial3D:
+	var material := _material(color.darkened(0.25), 0.48)
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = 1.6
+	return material
 
 
 func _material(color: Color, metallic: float) -> StandardMaterial3D:
