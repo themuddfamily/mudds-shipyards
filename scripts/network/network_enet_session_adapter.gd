@@ -71,6 +71,7 @@ const HANDSHAKE_MAX_TIMEOUT_MILLISECONDS := 30000
 const KEEPALIVE_DEFAULT_TIMEOUT_MILLISECONDS := 10000
 const KEEPALIVE_MAX_TIMEOUT_MILLISECONDS := 60000
 const MAX_PRESENTATION_ENTITIES := 256
+const MAX_MOVING_INTERIOR_PACKET_BYTES := 12000
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -99,6 +100,7 @@ var _crew_snapshot_revision := 0
 var _crew_replica_snapshot: Dictionary = {}
 var _moving_replica_samples: Dictionary = {}
 var _moving_relationship_stream
+var _moving_snapshot_revision := 0
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
 var _landing_jitter
@@ -297,6 +299,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_crew_snapshot_fragmenter.reset()
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
+	_moving_snapshot_revision = 0
 	mark_reconnect_succeeded()
 	record_session_end(reason)
 	_reset_handshake_deadline()
@@ -689,6 +692,50 @@ func get_moving_interior_occupancy(entity_id: StringName) -> Dictionary:
 	return _moving_interior.get_occupancy(entity_id)
 
 
+## Publishes one server-captured moving-interior relationship to admitted peers.
+## The relationship contract is the wire codec; this adapter only adds bounded
+## revision/generation framing and never accepts a client publication.
+func publish_moving_interior_snapshot(
+	relationship_snapshot: Dictionary,
+	recipients: Array = []
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var relationship := MovingInteriorRelationship.from_dictionary(relationship_snapshot)
+	if not relationship.is_valid():
+		return _remember(_result(false, &"invalid_moving_interior_relationship", {
+			"errors": relationship.get_validation_errors(),
+		}))
+	var target_peers: Array = recipients.duplicate()
+	if target_peers.is_empty():
+		target_peers = _peer_generations.keys()
+	for peer_variant in target_peers:
+		var peer_id := int(peer_variant)
+		if peer_id <= 0 or not _peer_generations.has(peer_id):
+			return _remember(_result(false, &"peer_not_admitted"))
+	var generation := int(_migration.get_snapshot().get("migration_generation", 1))
+	var next_revision := _moving_snapshot_revision + 1
+	var packet := {
+		"revision": next_revision,
+		"server_tick": relationship.get_server_tick(),
+		"migration_generation": generation,
+		"relationship": relationship.get_snapshot(),
+	}
+	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_MOVING_INTERIOR_PACKET_BYTES:
+		return _remember(_result(false, &"moving_interior_packet_too_large"))
+	_moving_snapshot_revision = next_revision
+	for peer_variant in target_peers:
+		_broadcast_moving_interior_snapshot.rpc_id(int(peer_variant), packet)
+	var result := _result(true, &"moving_interior_snapshot_published", {
+		"revision": next_revision,
+		"migration_generation": generation,
+		"recipients": target_peers.size(),
+		"packet": packet,
+	})
+	moving_interior_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
 func register_owned_ship(
 	ship_id: StringName,
 	ship_generation: int,
@@ -954,6 +1001,7 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 		return _remember(_result(false, &"authority_required"))
 	var result: Dictionary = _migration.rotate_server(AUTHORITY_PEER_ID, next_package_generation)
 	if bool(result.get("accepted", false)):
+		_moving_snapshot_revision = 0
 		_reset_peer_keepalive_deadlines(Time.get_ticks_msec())
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
@@ -1104,6 +1152,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
 	_moving_replica_samples.clear()
+	_moving_snapshot_revision = 0
 	if migration_generation > int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1)):
 		_moving_relationship_stream.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 	_projectile_replica_samples.clear()
@@ -2284,6 +2333,24 @@ func _broadcast_snapshot_fragment(fragment: Dictionary) -> void:
 		var applied: Dictionary = _lifecycle.apply_replica_snapshot(AUTHORITY_PEER_ID, ready)
 		snapshot_applied.emit(applied.duplicate(true))
 		_last_result = applied.duplicate(true)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _broadcast_moving_interior_snapshot(packet: Dictionary) -> void:
+	if is_server():
+		return
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("relationship") or not packet.has("migration_generation"):
+		moving_interior_result.emit(_result(false, &"invalid_moving_interior_snapshot"))
+		return
+	var generation := int(packet.get("migration_generation", 0))
+	var current_generation := int(_moving_relationship_stream.get_snapshot().get("migration_generation", 1))
+	if generation != current_generation:
+		moving_interior_result.emit(_result(false, &"stale_migration_generation"))
+		return
+	var applied := consume_moving_interior_snapshot(packet)
+	moving_interior_result.emit(applied.duplicate(true))
+	_last_result = applied.duplicate(true)
 
 
 @rpc("authority", "call_remote", "reliable")
