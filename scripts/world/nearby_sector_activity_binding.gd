@@ -19,6 +19,7 @@ const PATROL_ACTIVITY := preload("res://scripts/activities/patrol_activity.gd")
 const CARGO_ACTIVITY := preload("res://scripts/cargo/cargo_delivery_activity.gd")
 const CARGO_CONTRACT := preload("res://scripts/cargo/cargo_delivery_contract.gd")
 const MINING_ACTIVITY := preload("res://scripts/world/cinder_mining_platform_activity.gd")
+const SCAN_ACTIVITY := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 
 var _host: CinderConvoyEscortHost
@@ -34,6 +35,7 @@ var _station_director: Node
 var _station_target: Node3D
 var _station_anchor: Node3D
 var _mining_activity: RefCounted
+var _scan_activity: RefCounted
 
 
 func _ready() -> void:
@@ -84,6 +86,7 @@ func _ready() -> void:
 	)
 	_cargo_activity = CARGO_ACTIVITY.new(_cargo_authority, cargo_contract) as CargoDeliveryActivity
 	_mining_activity = MINING_ACTIVITY.new() as RefCounted
+	_scan_activity = SCAN_ACTIVITY.new() as RefCounted
 
 
 func start_convoy() -> Dictionary:
@@ -222,6 +225,30 @@ func reset_mining_activity() -> Dictionary:
 	return _mining_activity.call("reset")
 
 
+func start_structure_scan(caller_position: Vector3) -> Dictionary:
+	if _scan_activity == null:
+		return _result(false, &"not_ready")
+	return _scan_activity.call("start", caller_position)
+
+
+func advance_structure_scan(delta: float) -> Dictionary:
+	if _scan_activity == null:
+		return _result(false, &"not_ready")
+	return _scan_activity.call("advance_physics", delta)
+
+
+func request_structure_scan_reward() -> Dictionary:
+	if _scan_activity == null:
+		return _result(false, &"not_ready")
+	return _scan_activity.call("request_reward")
+
+
+func reset_structure_scan() -> Dictionary:
+	if _scan_activity == null:
+		return _result(false, &"not_ready")
+	return _scan_activity.call("reset")
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -237,6 +264,7 @@ func get_snapshot() -> Dictionary:
 			_station_director.call("get_state") if _station_binding_current() else &"unbound"
 		),
 		"mining": _mining_activity.call("get_snapshot") if is_instance_valid(_mining_activity) else {},
+		"structure_scan": _scan_activity.call("get_snapshot") if is_instance_valid(_scan_activity) else {},
 		"production_owner": true,
 		"gameplay_authority": false,
 		"game_flow_authority": false,
@@ -267,6 +295,8 @@ func audit() -> Dictionary:
 		errors.append("station defense authority contract is incomplete")
 	if not is_instance_valid(_mining_activity) or not bool(_mining_activity.call("audit").get("valid", false)):
 		errors.append("authored mining platform activity audit failed")
+	if not is_instance_valid(_scan_activity) or not bool(_scan_activity.call("audit").get("valid", false)):
+		errors.append("authored abandoned structure scan audit failed")
 	for point in RACE_ROUTE.checkpoint_positions:
 		if not point.is_finite() or point.length() > NearbySectorCluster.MAXIMUM_CONTENT_DISTANCE:
 			errors.append("beacon race route leaves the authored cluster envelope")

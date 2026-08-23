@@ -88,6 +88,20 @@ func _run() -> void:
 		)
 		var mining_reset: Dictionary = binding.call("reset_mining_activity")
 		_check(bool(mining_reset.get("accepted", false)), "the mining activity resets its progress and reward request")
+		var scan_start: Dictionary = binding.call(
+			"start_structure_scan", Vector3(60.0, -66.0, -680.0)
+		)
+		_check(bool(scan_start.get("accepted", false)), "the owner starts the bounded abandoned-structure scan")
+		var scan_step: Dictionary = binding.call("advance_structure_scan", 4.0)
+		_check(bool(scan_step.get("accepted", false)), "the scan completes on caller-supplied time")
+		var scan_reward: Dictionary = binding.call("request_structure_scan_reward")
+		_check(
+			bool(scan_reward.get("accepted", false))
+			and not bool((scan_reward.get("reward_request", {}) as Dictionary).get("granted", true)),
+			"the scan emits a non-granting caller-owned reward request"
+		)
+		var scan_reset: Dictionary = binding.call("reset_structure_scan")
+		_check(bool(scan_reset.get("accepted", false)), "the scan resets without changing the authored anchor")
 	cluster.queue_free()
 	await process_frame
 	_finish()
