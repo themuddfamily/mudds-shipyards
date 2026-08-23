@@ -112,6 +112,20 @@ func _run() -> void:
 		and settings_status.text == "SETTINGS BACKUP REPAIRED",
 		"successful repair preserves unrelated payload and reports final success accurately"
 	)
+	var repaired_bytes := (filesystem.files[PATH] as PackedByteArray).duplicate()
+	var repair_binding: RefCounted = flow.get("_runtime_settings_repair_binding")
+	repair_binding.call("set_attached", false)
+	hud.clear_runtime_settings_repair_report()
+	repair_binding.call("set_attached", true)
+	var reentered := flow.call("_publish_runtime_settings_repair_to_hud") as Dictionary
+	_check(
+		reentered.get("reason", &"") == &"repair_resolved"
+		and not repair_panel.visible
+		and not hud.get_runtime_settings_repair_presentation().confirmation_available
+		and store.get_generation() == 2
+		and filesystem.files[PATH] == repaired_bytes,
+		"successful repair stays resolved and write-free across detach and re-entry"
+	)
 
 	var failed_fixture := _backup_recovery_fixture("memory://repair-hud-failure.json")
 	var failed_store := failed_fixture.store as UserDataStore

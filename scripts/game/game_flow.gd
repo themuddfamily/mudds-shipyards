@@ -455,6 +455,10 @@ var _runtime_settings_unsaved_changes := false
 var _runtime_settings_transaction_active := false
 var _runtime_settings_reentrant_rejection_count := 0
 var _runtime_settings_repair_request_active := false
+## A verified repair resolves the retained startup receipt for the rest of this
+## process. The receipt remains useful diagnostics, but must not reopen a stale
+## recovery notice after the repaired store advances to its next generation.
+var _runtime_settings_repair_resolved := false
 var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
 var _session_diagnostics_last_status: Dictionary = {}
 var _session_diagnostics_filesystem: UserDataFilesystem
@@ -8370,6 +8374,10 @@ func _connect_runtime_settings_repair_hud() -> void:
 func _publish_runtime_settings_repair_to_hud() -> Dictionary:
 	if not is_instance_valid(hud):
 		return {"accepted": false, "reason": &"hud_unavailable"}
+	if _runtime_settings_repair_resolved:
+		if hud.has_method(&"clear_runtime_settings_repair_report"):
+			hud.clear_runtime_settings_repair_report()
+		return {"accepted": false, "reason": &"repair_resolved"}
 	var inspected := inspect_runtime_settings_repair()
 	var reason := StringName(inspected.get("reason", &""))
 	if bool(inspected.get("accepted", false)) or reason in [
@@ -8426,7 +8434,11 @@ func _on_settings_repair_confirmation_requested(confirmation: String) -> void:
 		return
 	var committed := commit_runtime_settings_repair(confirmation)
 	_runtime_settings_repair_request_active = false
-	if bool(committed.get("accepted", false)):
+	if (
+		bool(committed.get("accepted", false))
+		and committed.get("reason", &"") == &"repair_committed"
+	):
+		_runtime_settings_repair_resolved = true
 		_runtime_settings_commit_serial = maxi(
 			_runtime_settings_commit_serial,
 			_runtime_settings_user_data_store.get_generation()
@@ -9103,6 +9115,9 @@ func _adopt_production_runtime_settings_state() -> void:
 	_runtime_settings_first_apply_followed_load = bool(
 		_production_runtime_settings_state.get("first_apply_followed_load", false)
 	)
+	_runtime_settings_repair_resolved = bool(
+		_production_runtime_settings_state.get("repair_resolved", false)
+	)
 	_safe_start_production_recovery = (
 		_production_runtime_settings_state.get("safe_start_recovery")
 		as SafeStartProductionRecovery
@@ -9130,6 +9145,7 @@ func _sync_production_runtime_settings_state() -> void:
 		"reentrant_rejection_count": _runtime_settings_reentrant_rejection_count,
 		"apply_count": _runtime_settings_apply_count,
 		"first_apply_followed_load": _runtime_settings_first_apply_followed_load,
+		"repair_resolved": _runtime_settings_repair_resolved,
 		"safe_start_recovery": _safe_start_production_recovery,
 	}
 
