@@ -1935,6 +1935,14 @@ func get_station_defense_activity_board() -> Area3D:
 	)
 
 
+## Binds the caller-owned reward sink to the board's shared nearby-activity
+## adapter. ShipyardWorld never grants or persists the reward itself.
+func configure_station_defense_reward_handoff(callback: Callable) -> Dictionary:
+	if not is_instance_valid(_station_defense_activity_board):
+		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
+	return _station_defense_activity_board.call("configure_reward_handoff", callback)
+
+
 ## Resolves the currently committed, coordinator-owned Cinder instance without
 ## caching a Node across streaming generations. The cluster is intentionally
 ## absent at station start and after return travel, so callers must handle null.

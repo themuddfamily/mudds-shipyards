@@ -9,6 +9,7 @@ signal interaction_resolved(actor: Node, result: Dictionary)
 
 const COMPONENT_ID: StringName = &"station-defense-activity-board"
 const ACTIVITY_ID: StringName = &"shipyard_perimeter_defense"
+const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
 const INTERACTION_RADIUS := 2.6
 const BOARD_SIZE := Vector3(0.75, 1.35, 1.8)
 const PEDESTAL_SIZE := Vector3(1.4, 1.0, 2.2)
@@ -19,6 +20,9 @@ var _combat_authority: LiveCombatAuthority
 var _activity_director: ActivityDirector
 var _built := false
 var _last_result: Dictionary = {}
+var _reward_adapter: RefCounted
+var _last_reward_result: Dictionary = {}
+var _highest_reward_generation := 0
 
 
 func _ready() -> void:
@@ -62,7 +66,24 @@ func configure_external_owners(
 	_content = content
 	_combat_authority = combat_authority
 	_activity_director = activity_director
+	if not _content.snapshot_changed.is_connected(_on_content_snapshot_changed):
+		_content.snapshot_changed.connect(_on_content_snapshot_changed)
 	return _result(true, &"configured")
+
+
+## Configures the shared nearby-activity handoff. The callback remains the
+## reward owner; this board only forwards a completed detached activity snapshot.
+func configure_reward_handoff(callback: Callable) -> Dictionary:
+	if _reward_adapter != null:
+		return _result(false, &"reward_handoff_already_configured")
+	var adapter := REWARD_ADAPTER.new() as RefCounted
+	var configured: Dictionary = adapter.call(
+		"configure", callback, ACTIVITY_ID, &"return_defense_report_to_shipyard"
+	)
+	if not bool(configured.get("accepted", false)):
+		return configured
+	_reward_adapter = adapter
+	return _result(true, &"reward_handoff_configured")
 
 
 func get_interaction_snapshot(actor: Node, expected_generation: int) -> Dictionary:
@@ -108,8 +129,48 @@ func interact(actor: Node = null) -> bool:
 	return bool(_last_result.get("accepted", false))
 
 
+## Physical recovery seam. Active encounters abort before reset; terminal
+## encounters reset directly. The content remains the sole lifecycle owner.
+func abort_and_reset(actor: Node, expected_generation: int) -> Dictionary:
+	var gate := get_interaction_snapshot(actor, expected_generation)
+	if not bool(gate.get("available", false)):
+		_last_result = gate.duplicate(true)
+		return _last_result.duplicate(true)
+	var activity := (_content.get_snapshot().get("host", {}) as Dictionary).get(
+		"activity", {}
+	) as Dictionary
+	var state_id := StringName(activity.get("state_id", &""))
+	var aborted: Dictionary = {}
+	if state_id == &"active":
+		aborted = _content.abort(expected_generation)
+		if not bool(aborted.get("accepted", false)):
+			_last_result = aborted.duplicate(true)
+			return _last_result.duplicate(true)
+	var reset_result := _content.reset(expected_generation)
+	_last_result = {
+		"accepted": bool(reset_result.get("accepted", false)),
+		"reason": reset_result.get("reason", &"reset_rejected"),
+		"aborted": aborted.duplicate(true),
+		"reset": reset_result.duplicate(true),
+	}.duplicate(true)
+	return _last_result.duplicate(true)
+
+
 func get_last_result() -> Dictionary:
 	return _last_result.duplicate(true)
+
+
+func get_reward_handoff_snapshot() -> Dictionary:
+	return {
+		"configured": _reward_adapter != null,
+		"highest_reward_generation": _highest_reward_generation,
+		"last_result": _last_reward_result.duplicate(true),
+		"adapter": (
+			_reward_adapter.call("get_snapshot")
+			if _reward_adapter != null else {}
+		),
+		"reward_authority": false,
+	}.duplicate(true)
 
 
 func get_snapshot() -> Dictionary:
@@ -125,6 +186,7 @@ func get_snapshot() -> Dictionary:
 			_activity_director.get_instance_id() if is_instance_valid(_activity_director) else 0
 		),
 		"last_result": _last_result.duplicate(true),
+		"reward_handoff": get_reward_handoff_snapshot(),
 		"combat_authority": false,
 		"activity_authority": false,
 		"health_authority": false,
@@ -132,6 +194,27 @@ func get_snapshot() -> Dictionary:
 		"ship_motion_authority": false,
 		"process_loops": int(is_processing()) + int(is_physics_processing()),
 	}.duplicate(true)
+
+
+func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
+	if _reward_adapter == null:
+		return
+	var host := snapshot.get("host", {}) as Dictionary
+	var activity := (host.get("activity", {}) as Dictionary).duplicate(true)
+	var generation := int(activity.get("generation", 0))
+	if (
+		StringName(activity.get("state_id", &"")) != &"completed"
+		or generation <= _highest_reward_generation
+	):
+		return
+	activity["activity_id"] = ACTIVITY_ID
+	# StationDefenseActivity publishes a terminal state rather than duplicating
+	# EncounterScenarioDirector's outcome field. Completion is its exact cleared
+	# terminal, so the adapter receives the canonical shared handoff vocabulary.
+	activity["outcome"] = &"cleared"
+	_last_reward_result = _reward_adapter.call("consume", activity, generation)
+	if bool(_last_reward_result.get("accepted", false)):
+		_highest_reward_generation = generation
 
 
 func _build_physical_board() -> void:

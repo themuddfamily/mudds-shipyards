@@ -1,15 +1,21 @@
 extends SceneTree
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
+const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
+const TORRENT_WEAPON := preload("res://assets/weapons/torrent_combat_pulse.tres")
 const AUDITED_ENCOUNTER_TRANSFORM := Transform3D(
 	Basis.IDENTITY, Vector3(90.0, 0.0, -10.0)
 )
 const ACTIVITY_BOARD_TRANSFORM := Transform3D(
 	Basis.IDENTITY, Vector3(12.0, 1.0, -26.0)
 )
+const TORRENT_SOURCE_ID := 1101
+const TORRENT_FACTION: StringName = &"shipyard_flight_test"
 
 var _assertions := 0
 var _failures: Array[String] = []
+var _reward_requests: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -85,6 +91,30 @@ func _run() -> void:
 		and bool(world.get_station_route_registry_report().get("valid", false)),
 		"collision-backed console sits outside the central landing envelope and preserves the station route registry"
 	)
+	var torrent := TORRENT_SCENE.instantiate() as HeroShip
+	torrent.name = "TorrentInterceptor"
+	torrent.ship_definition = TORRENT_DEFINITION
+	production_root.add_child(torrent)
+	await process_frame
+	var torrent_profile := {
+		TORRENT_WEAPON.weapon_id: {
+			"range": TORRENT_WEAPON.range_meters,
+			"damage": TORRENT_WEAPON.damage_per_hit,
+			"origin_tolerance": 24.0,
+		},
+	}
+	var torrent_registered := authority.register_source(
+			torrent, TORRENT_SOURCE_ID, TORRENT_FACTION, torrent_profile
+		)
+	var reward_configured := world.configure_station_defense_reward_handoff(
+			Callable(self, "_accept_reward_request")
+		)
+	_check(
+		torrent.get_ship_id() == &"torrent_provisional"
+		and torrent_registered
+		and bool(reward_configured.get("accepted", false)),
+		"real production Torrent source and shared nearby reward handoff join the existing live authority"
+	)
 
 	var actor := Node3D.new()
 	actor.name = "StationDefenseBoardActor"
@@ -110,8 +140,88 @@ func _run() -> void:
 		and bool(board.get_last_result().get("accepted", false))
 		and started_snapshot.host.activity.state_id == &"active"
 		and int(started_snapshot.host.active_entity_count) == 1
-		and authority.get_resolver().get_registered_source_count() == 3,
+		and authority.get_resolver().get_registered_source_count() == 4,
 		"embodied board interaction starts the externally combat-owned encounter and its first authored wave"
+	)
+	generation = content.get_generation()
+	var roster := content.get_node(^"OpponentRoster") as Node3D
+	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
+	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
+	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
+	var alpha_terminal := await _destroy_with_torrent(authority, torrent, alpha)
+	var relief := content.advance_physics(0.5, generation)
+	await physics_frame
+	var beta_terminal := await _destroy_with_torrent(authority, torrent, beta)
+	var gamma_terminal := await _destroy_with_torrent(authority, torrent, gamma)
+	await process_frame
+	var reward_snapshot: Dictionary = board.get_reward_handoff_snapshot()
+	_check(
+		bool(alpha_terminal.get("destroyed", false))
+		and bool(relief.get("accepted", false))
+		and bool(beta_terminal.get("destroyed", false))
+		and bool(gamma_terminal.get("destroyed", false))
+		and content.get_snapshot().host.activity.state_id == &"completed"
+		and _reward_requests.size() == 1
+		and int(_reward_requests[0].activity_generation) == generation
+		and int(reward_snapshot.highest_reward_generation) == generation
+		and authority.get_resolver().get_registered_source_count() == 1,
+		"real fleet fire resolves every wave and completion feeds the shared reward adapter exactly once"
+	)
+	content.snapshot_changed.emit(content.get_snapshot())
+	_check(
+		_reward_requests.size() == 1,
+		"a repeated completed snapshot cannot duplicate the committed reward handoff"
+	)
+
+	var completed_reset: Dictionary = board.abort_and_reset(actor, generation)
+	var failure_start_generation := int(
+		(completed_reset.get("reset", {}) as Dictionary).get("activity", {}).get("generation", 0)
+	)
+	var restarted := content.start(failure_start_generation)
+	var asset := content.get_protected_asset()
+	var damageable := asset.get_damageable_component()
+	var asset_terminal := await _destroy_with_torrent(authority, torrent, asset, 10)
+	var failed_snapshot := content.get_snapshot()
+	_check(
+		bool(completed_reset.get("accepted", false))
+		and bool(restarted.get("accepted", false))
+		and bool(asset_terminal.get("destroyed", false))
+		and failed_snapshot.host.activity.state_id == &"failed"
+		and failed_snapshot.host.activity.failure_reason == &"protected_asset_destroyed"
+		and damageable.is_destroyed()
+		and asset.collision_layer == PhysicsLayers.NONE
+		and _reward_requests.size() == 1
+		and authority.get_resolver().get_registered_source_count() == 1,
+		"resolver-owned asset damage drives physical failure without producing a completion reward"
+	)
+	var failed_generation := content.get_generation()
+	var failure_reset: Dictionary = board.abort_and_reset(actor, failed_generation)
+	var recovered_generation := int(
+		(failure_reset.get("reset", {}) as Dictionary).get("activity", {}).get("generation", 0)
+	)
+	var recovery_started := content.start(recovered_generation)
+	_check(
+		bool(failure_reset.get("accepted", false))
+		and bool(recovery_started.get("accepted", false))
+		and not damageable.is_destroyed()
+		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
+		and asset.collision_layer == PhysicsLayers.TARGET
+		and authority.get_resolver().get_registered_source_count() == 4
+		and _reward_requests.size() == 1,
+		"failure recovery renews the same asset/content generation and restores exactly three hostile sources"
+	)
+	var active_reset: Dictionary = board.abort_and_reset(actor, content.get_generation())
+	var post_abort_generation := int(
+		(active_reset.get("reset", {}) as Dictionary).get("activity", {}).get("generation", 0)
+	)
+	var post_abort_start := content.start(post_abort_generation)
+	_check(
+		bool(active_reset.get("accepted", false))
+		and bool((active_reset.get("aborted", {}) as Dictionary).get("accepted", false))
+		and bool(post_abort_start.get("accepted", false))
+		and authority.get_resolver().get_registered_source_count() == 4
+		and _reward_requests.size() == 1,
+		"active abort/reset retires then restores bounded sources without duplicating reward state"
 	)
 
 	var content_id := content.get_instance_id()
@@ -121,7 +231,7 @@ func _run() -> void:
 	await process_frame
 	_check(
 		not content.is_inside_tree()
-		and authority.get_resolver().get_registered_source_count() == 0,
+		and authority.get_resolver().get_registered_source_count() == 1,
 		"whole-world detach retires encounter sources without freeing the one content instance"
 	)
 	production_root.add_child(world)
@@ -133,7 +243,7 @@ func _run() -> void:
 		and world.get_station_defense_activity_board().get_instance_id() == board_id
 		and content.get_generation() == content_generation
 		and content.get_combat_authority() == authority
-		and authority.get_resolver().get_registered_source_count() == 3
+		and authority.get_resolver().get_registered_source_count() == 4
 		and bool(content.get_snapshot().host.activity.attached),
 		"world re-entry preserves one encounter/board, generation and external authority while restoring live sources"
 	)
@@ -150,6 +260,32 @@ func _run() -> void:
 	for _frame in 10:
 		await process_frame
 	call_deferred("_finish")
+
+
+func _accept_reward_request(request: Dictionary) -> Dictionary:
+	_reward_requests.append(request.duplicate(true))
+	return {"accepted": true, "grant_count": _reward_requests.size()}
+
+
+func _destroy_with_torrent(
+		authority: LiveCombatAuthority,
+		torrent: HeroShip,
+		target: Node3D,
+		maximum_shots: int = 4
+	) -> Dictionary:
+	var result: Dictionary = {}
+	for _shot in maximum_shots:
+		torrent.global_position = target.global_position + Vector3(0.0, 0.0, 20.0)
+		await physics_frame
+		var origin := torrent.global_position
+		var direction := (target.global_position - origin).normalized()
+		result = authority.submit_hitscan(
+			torrent, TORRENT_WEAPON.weapon_id, origin, direction
+		)
+		await process_frame
+		if bool(result.get("destroyed", false)):
+			break
+	return result.duplicate(true)
 
 
 func _check(condition: bool, description: String) -> void:
