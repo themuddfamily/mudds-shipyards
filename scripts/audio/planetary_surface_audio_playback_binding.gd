@@ -26,6 +26,7 @@ const VOICE_ROUTES: Array[StringName] = [&"exterior", &"interior"]
 const CROSSFADE_SECONDS := 0.75
 const MAX_CALLER_DELTA_SECONDS := 1.0
 const SILENCE_DB := -80.0
+const WIND_BASE_GAIN_DB := -9.0
 const MAX_GAIN_DB := 24.0
 const MIN_AUDIBLE_LINEAR := 0.0001
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
@@ -110,6 +111,7 @@ var _intensity_unitless := 0.0
 var _target_intensity_unitless := 0.0
 var _exterior_gain_db := SILENCE_DB
 var _interior_gain_db := SILENCE_DB
+var _wind_gain_db := SILENCE_DB
 var _last_policy_evaluation := {}
 var _accepted_submission_count := 0
 var _revision := 0
@@ -273,6 +275,7 @@ func present_policy_result(
 	_target_intensity_unitless = float(targets.get("intensity_unitless", 0.0))
 	_exterior_gain_db = float(targets.get("exterior_gain_db", SILENCE_DB))
 	_interior_gain_db = float(targets.get("interior_gain_db", SILENCE_DB))
+	_wind_gain_db = float(targets.get("wind_gain_db", SILENCE_DB))
 	_last_policy_evaluation = evaluation.duplicate(true)
 	var before := _fade_value_snapshot()
 	if not _paused and caller_physics_delta > 0.0:
@@ -381,6 +384,7 @@ func get_state_snapshot() -> Dictionary:
 			"target_intensity_unitless": _target_intensity_unitless,
 			"exterior_gain_db": _exterior_gain_db,
 			"interior_gain_db": _interior_gain_db,
+			"wind_gain_db": _wind_gain_db,
 			"exterior_route_weight_unitless": route_weights.exterior,
 			"interior_route_weight_unitless": route_weights.interior,
 			"target_exterior_route_weight_unitless": target_weights.exterior,
@@ -528,6 +532,16 @@ func _decode_policy_result(policy_result: Dictionary) -> Dictionary:
 	)
 	if not is_equal_approx(float(selected_gain), expected_selected_gain):
 		return {"accepted": false, "reason": &"policy_gain_contract_mismatch"}
+	var ambient_wind: Variant = intensity.get("ambient_wind_unitless")
+	if not _finite_range(ambient_wind, 0.0, 1.0):
+		return {"accepted": false, "reason": &"invalid_wind_route"}
+	var wind_active: bool = context == &"exterior" and float(ambient_wind) > 0.0
+	var wind_gain_db := SILENCE_DB
+	if wind_active:
+		wind_gain_db = minf(
+			WIND_BASE_GAIN_DB + linear_to_db(float(ambient_wind)),
+			WIND_BASE_GAIN_DB
+		)
 	return {
 		"accepted": true,
 		"reason": &"decoded",
@@ -537,6 +551,7 @@ func _decode_policy_result(policy_result: Dictionary) -> Dictionary:
 			"intensity_unitless": float(recommended_intensity),
 			"exterior_gain_db": float(exterior_gain),
 			"interior_gain_db": expected_interior_gain,
+			"wind_gain_db": wind_gain_db,
 		}.duplicate(true),
 	}
 
@@ -558,8 +573,10 @@ func _apply_voice_state() -> Dictionary:
 		return {"accepted": true, "reason": &"silent_backend"}
 	var weights := _route_weights()
 	var desired_linear := {
-		&"exterior": _intensity_unitless * db_to_linear(_exterior_gain_db) \
-			* float(weights.exterior),
+		&"exterior": _intensity_unitless * (
+			db_to_linear(_exterior_gain_db)
+			+ (db_to_linear(_wind_gain_db) if _wind_gain_db > SILENCE_DB else 0.0)
+		) * float(weights.exterior),
 		&"interior": _intensity_unitless * db_to_linear(_interior_gain_db) \
 			* float(weights.interior),
 	}
@@ -601,7 +618,12 @@ func _voice_snapshot() -> Dictionary:
 		var voice := _voice_for_route(route)
 		var base_gain := _exterior_gain_db if route == &"exterior" else _interior_gain_db
 		var weight := float(weights.get(route, 0.0))
-		var effective_linear := _intensity_unitless * db_to_linear(base_gain) * weight
+		var effective_linear := _intensity_unitless * (
+			db_to_linear(base_gain) + (
+				db_to_linear(_wind_gain_db)
+				if route == &"exterior" and _wind_gain_db > SILENCE_DB else 0.0
+		)
+		) * weight
 		report[route] = {
 			"node_name": voice.name if voice != null else &"",
 			"node_path": str(voice.get_path()) if voice != null and voice.is_inside_tree() else "",
@@ -730,6 +752,7 @@ func _reset_fade_state() -> void:
 	_target_intensity_unitless = 0.0
 	_exterior_gain_db = SILENCE_DB
 	_interior_gain_db = SILENCE_DB
+	_wind_gain_db = SILENCE_DB
 
 
 func _stop_and_detach_all_voices() -> void:
@@ -767,6 +790,7 @@ func _attachment_values_are_clear() -> bool:
 			"route": 0.0, "target_route": 0.0,
 			"intensity": 0.0, "target_intensity": 0.0,
 			"exterior_gain": SILENCE_DB, "interior_gain": SILENCE_DB,
+			"wind_gain": SILENCE_DB,
 		}
 
 
@@ -778,6 +802,7 @@ func _fade_value_snapshot() -> Dictionary:
 		"target_intensity": _target_intensity_unitless,
 		"exterior_gain": _exterior_gain_db,
 		"interior_gain": _interior_gain_db,
+		"wind_gain": _wind_gain_db,
 	}
 
 
@@ -787,7 +812,8 @@ func _fade_state_is_bounded() -> bool:
 		and _finite_range(_intensity_unitless, 0.0, 1.0) \
 		and _finite_range(_target_intensity_unitless, 0.0, 1.0) \
 		and _finite_range(_exterior_gain_db, SILENCE_DB, MAX_GAIN_DB) \
-		and _finite_range(_interior_gain_db, SILENCE_DB, MAX_GAIN_DB)
+		and _finite_range(_interior_gain_db, SILENCE_DB, MAX_GAIN_DB) \
+		and _finite_range(_wind_gain_db, SILENCE_DB, 0.0)
 
 
 func _authority_contract_is_exact() -> bool:
