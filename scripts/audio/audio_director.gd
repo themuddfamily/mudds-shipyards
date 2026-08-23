@@ -186,6 +186,13 @@ func bind_semantic_audio_source(source: Node, source_id: StringName) -> Dictiona
 	return _semantic_router.bind_source(source, source_id)
 
 
+## Removes one exact semantic source while retaining every other registration.
+func unbind_semantic_audio_source(source: Node, source_id: StringName) -> Dictionary:
+	if not is_instance_valid(_semantic_router):
+		return {"accepted": false, "reason": &"router_unavailable"}
+	return _semantic_router.unbind_source(source, source_id)
+
+
 ## Clears semantic source bindings for detach/re-entry without changing playback.
 func detach_semantic_audio_sources() -> Dictionary:
 	if not is_instance_valid(_semantic_router):

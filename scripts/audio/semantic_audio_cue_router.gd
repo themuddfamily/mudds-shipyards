@@ -58,8 +58,29 @@ func bind_source(source: Node, source_id: StringName) -> Dictionary:
 	var error := source.connect(signal_name, callback)
 	if error != OK:
 		return _result(false, &"signal_connect_failed")
-	_bindings.append({"source": source, "signal": signal_name, "callback": callback})
+	_bindings.append({"source": source, "source_id": source_id, "signal": signal_name, "callback": callback})
 	return _result(true, &"bound")
+
+
+## Removes exactly one caller-owned source without disturbing other bindings.
+func unbind_source(source: Node, source_id: StringName) -> Dictionary:
+	if source == null or not is_instance_valid(source):
+		return _result(false, &"invalid_source")
+	if not SOURCE_SIGNALS.has(source_id):
+		return _result(false, &"unknown_source")
+	for index in range(_bindings.size()):
+		var binding: Dictionary = _bindings[index]
+		if binding.get("source") != source:
+			continue
+		if binding.get("source_id", &"") != source_id:
+			return _result(false, &"source_kind_mismatch")
+		var signal_name: StringName = binding.signal
+		var callback: Callable = binding.callback
+		if source.is_connected(signal_name, callback):
+			source.disconnect(signal_name, callback)
+		_bindings.remove_at(index)
+		return _result(true, &"unbound")
+	return _result(false, &"source_not_bound")
 
 
 ## Disconnects all sources and clears deduplication state for a fresh lifecycle.
