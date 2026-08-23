@@ -785,8 +785,14 @@ func _evaluate_termination(delta: float) -> StringName:
 		return OUTCOME_ABORTED
 	if _scenario == SCENARIO_CONVOY_INTERDICTION and not _is_protected_anchor_alive():
 		return OUTCOME_ABORTED
-	if _scenario == SCENARIO_HEAVY_BREACH and not _is_protected_anchor_alive():
-		return OUTCOME_ABORTED
+	if _scenario == SCENARIO_HEAVY_BREACH:
+		if not _is_protected_anchor_alive() or not _is_breach_picket_present():
+			return OUTCOME_ABORTED
+		# Destruction is the breach objective and remains CLEARED below. A healthy
+		# craft that was externally stood down is instead a failed/invalid scenario.
+		if not _is_breach_picket_destroyed() \
+				and not _is_participant_active(_breach_picket):
+			return OUTCOME_ABORTED
 	# 2. The host left the authorized phase.
 	if not _is_phase_authorized():
 		return OUTCOME_WITHDRAWN
@@ -1288,7 +1294,17 @@ func _is_convoy_interdiction_live() -> bool:
 
 func _is_heavy_breach_live() -> bool:
 	return _is_target_alive() and _is_protected_anchor_alive() \
-		and is_instance_valid(_breach_picket) and not _is_breach_picket_destroyed()
+		and _is_breach_picket_present() \
+		and _is_participant_active(_breach_picket) \
+		and not _is_breach_picket_destroyed()
+
+
+func _is_breach_picket_present() -> bool:
+	return (
+		is_instance_valid(_breach_picket)
+		and not _breach_picket.is_queued_for_deletion()
+		and _breach_picket.is_inside_tree()
+	)
 
 
 func _is_breach_picket_destroyed() -> bool:

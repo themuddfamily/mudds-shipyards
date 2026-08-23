@@ -38,7 +38,6 @@ func _run() -> void:
 	host.add_child(target)
 	var picket := PICKET_SCENE.instantiate() as StandoffPicketOpponent
 	picket.name = "StandoffPicket"
-	picket.escort_enabled = false
 	_wire(picket)
 	host.add_child(picket)
 	var screen := SKIRMISHER_SCENE.instantiate() as FlankingSkirmisherOpponent
@@ -142,6 +141,7 @@ func _run() -> void:
 	var started: bool = board.interact(target, generation)
 	var started_snapshot: Dictionary = board.get_snapshot()
 	var receipt := director.get_heavy_breach_receipt(director.get_scenario_generation())
+	var picket_dispatch := picket.get_audit_report().lifecycle as Dictionary
 	_check(
 		started
 			and started_snapshot.director.scenario == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
@@ -149,12 +149,18 @@ func _run() -> void:
 			and bool(receipt.get("accepted", false))
 			and int(receipt.get("protected_objective_instance_id", 0)) == objective.get_instance_id()
 			and picket.is_active()
+			and picket.escort_enabled
+			and bool(picket_dispatch.get("escort_fire_authorized", false))
+			and int(picket_dispatch.get("dispatch_owner_instance_id", 0))
+				== director.get_instance_id()
+			and int(picket_dispatch.get("dispatch_owner_generation", 0))
+				== director.get_scenario_generation()
 			and screen.is_active()
 			and director.get_member_tactic_intent(picket).action
 				== EncounterScenarioDirector.TACTIC_BREACH
 			and director.get_member_tactic_intent(screen).action
 				== EncounterScenarioDirector.TACTIC_SCREEN_GUARD,
-		"board admission launches the real Standoff picket and one screening wing member"
+		"board admission launches the default escort-mode picket with explicit director authority and one screen"
 	)
 	picket.apply_damage(picket.maximum_health, picket.global_position)
 	for _frame in 8:

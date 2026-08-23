@@ -868,6 +868,57 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 	protected.queue_free()
 	await _free_fixture(fixture)
 
+	var inactive_fixture := await _make_fixture()
+	var inactive_director: EncounterScenarioDirector = inactive_fixture.director
+	var inactive_objective := EncounterTarget.new()
+	(inactive_fixture.host as Node3D).add_child(inactive_objective)
+	inactive_objective.global_position = Vector3(0.0, 0.0, -180.0)
+	_check(
+		inactive_director.begin_heavy_breach(inactive_fixture.target, inactive_objective),
+		"an externally-inactive picket regression starts a live breach roster"
+	)
+	var inactive_picket: StandoffPicketOpponent = inactive_fixture.picket
+	var inactive_screen: FlankingSkirmisherOpponent = inactive_fixture.skirmishers[0]
+	inactive_picket.deactivate()
+	var inactive_fire_denied := not inactive_director.is_fire_authorized(inactive_picket)
+	inactive_director._physics_process(0.01)
+	_check(
+		inactive_fire_denied
+			and inactive_director.is_concluded()
+			and inactive_director.get_outcome() == EncounterScenarioDirector.OUTCOME_ABORTED
+			and inactive_director.get_roster().is_empty()
+			and not inactive_screen.is_active(),
+		"RED: external picket deactivation aborts immediately, denies fire, and stands down its screen"
+	)
+	inactive_objective.queue_free()
+	await _free_fixture(inactive_fixture)
+
+	var removed_fixture := await _make_fixture()
+	var removed_director: EncounterScenarioDirector = removed_fixture.director
+	var removed_objective := EncounterTarget.new()
+	(removed_fixture.host as Node3D).add_child(removed_objective)
+	removed_objective.global_position = Vector3(0.0, 0.0, -180.0)
+	_check(
+		removed_director.begin_heavy_breach(removed_fixture.target, removed_objective),
+		"a removed-picket regression starts a live breach roster"
+	)
+	var removed_picket: StandoffPicketOpponent = removed_fixture.picket
+	var removed_screen: FlankingSkirmisherOpponent = removed_fixture.skirmishers[0]
+	(removed_fixture.host as Node3D).remove_child(removed_picket)
+	var removed_fire_denied := not removed_director.is_fire_authorized(removed_picket)
+	removed_director._physics_process(0.01)
+	_check(
+		removed_fire_denied
+			and removed_director.is_concluded()
+			and removed_director.get_outcome() == EncounterScenarioDirector.OUTCOME_ABORTED
+			and removed_director.get_roster().is_empty()
+			and not removed_screen.is_active(),
+		"RED: a detached picket aborts immediately, denies fire, and stands down its screen"
+	)
+	removed_picket.queue_free()
+	removed_objective.queue_free()
+	await _free_fixture(removed_fixture)
+
 	var protected_loss_fixture := await _make_fixture()
 	var protected_loss_director: EncounterScenarioDirector = protected_loss_fixture.director
 	var protected_loss_objective := EncounterTarget.new()
