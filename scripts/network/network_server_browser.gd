@@ -62,6 +62,7 @@ func publish_snapshot(source_peer_id: int, directory_generation: int, server_tic
 	_sessions = replacement
 	_directory_generation = directory_generation
 	_directory_tick = server_tick
+	_expire_stale_entries()
 	return _remember(_result(true, &"snapshot_published", {
 		"directory_generation": _directory_generation,
 		"server_tick": _directory_tick,
@@ -75,7 +76,26 @@ func advance_clock(source_peer_id: int, server_tick: int) -> Dictionary:
 	if not _valid_nonnegative(server_tick) or server_tick < _directory_tick:
 		return _remember(_result(false, &"stale_directory_tick"))
 	_directory_tick = server_tick
-	return _remember(_result(true, &"clock_advanced", {"server_tick": _directory_tick}))
+	var expired := _expire_stale_entries()
+	return _remember(_result(true, &"clock_advanced", {
+		"server_tick": _directory_tick,
+		"expired_session_ids": expired,
+		"session_count": _sessions.size(),
+	}))
+
+
+## Caller-driven expiry; no timer or network polling is owned here.
+func expire_stale(source_peer_id: int, server_tick: int) -> Dictionary:
+	return advance_clock(source_peer_id, server_tick)
+
+
+## Detach clears all presentation records before a reconnect or migration.
+func detach(source_peer_id: int) -> Dictionary:
+	if source_peer_id != _directory_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	var removed := _sessions.keys()
+	_sessions.clear()
+	return _remember(_result(true, &"detached", {"removed_session_ids": removed}))
 
 
 ## Returns only fresh entries. Filtering is presentation-only and does not
@@ -161,6 +181,17 @@ func _validate_entry(raw: Dictionary, generation: int, tick: int) -> Dictionary:
 
 func _is_stale(entry: Dictionary) -> bool:
 	return _directory_tick - int(entry["last_seen_tick"]) > _stale_after_ticks
+
+
+func _expire_stale_entries() -> Array:
+	var expired: Array = []
+	for session_id_variant in _sessions.keys():
+		var session_id := StringName(session_id_variant)
+		if _is_stale(_sessions[session_id] as Dictionary):
+			expired.append(session_id)
+			_sessions.erase(session_id)
+	expired.sort_custom(func(left: StringName, right: StringName) -> bool: return String(left) < String(right))
+	return expired
 
 
 func _ping_label(ping_ms: int) -> StringName:
