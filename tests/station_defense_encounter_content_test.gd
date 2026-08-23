@@ -321,6 +321,8 @@ func _test_checked_in_encounter_content() -> void:
 	var presentation_budget := safe_presentation.budget as Dictionary
 	_check(
 		safe_presentation.state_id == &"safe"
+		and safe_presentation.wave_state_id == &"idle"
+		and safe_presentation.effective_state_id == &"idle"
 		and bool(safe_presentation.ring_visible)
 		and bool(safe_presentation.core_visible)
 		and bool(safe_presentation.light_visible)
@@ -330,6 +332,26 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(float(safe_presentation.light_energy), 2.4),
 		"caller-supplied healthy snapshot presents the perimeter asset as a steady cyan full-form beacon"
 	)
+	var approaching_activity := (
+		content.get_snapshot().host.activity as Dictionary
+	).duplicate(true)
+	approaching_activity["state_id"] = &"active"
+	approaching_activity["current_wave_index"] = 0
+	approaching_activity["wave_active"] = false
+	approaching_activity["wave_delay_remaining_seconds"] = 0.5
+	var approaching_result := asset.apply_activity_presentation_snapshot(approaching_activity)
+	var approaching_presentation := asset.get_protected_asset_presentation_snapshot()
+	_check(
+		approaching_result.accepted
+		and approaching_presentation.wave_state_id == &"approaching"
+		and approaching_presentation.effective_state_id == &"approaching"
+		and is_equal_approx(float(approaching_presentation.ring_scale), 0.86)
+		and is_equal_approx(float(approaching_presentation.core_scale), 1.08)
+		and (approaching_presentation.light_color as Color).is_equal_approx(Color("6ba9ff"))
+		and is_equal_approx(float(approaching_presentation.light_energy), 1.8),
+		"a detached pre-wave activity snapshot contracts the same beacon into a distinct approach cue"
+	)
+	asset.apply_activity_presentation_snapshot(content.get_snapshot().host.activity)
 	_check(
 		int(presentation_budget.presentation_nodes) == 4
 		and int(presentation_budget.mesh_instances) == 2
@@ -440,13 +462,28 @@ func _test_checked_in_encounter_content() -> void:
 
 	var started := content.start(0)
 	var generation := int(started.activity.generation)
+	var active_presentation := asset.get_protected_asset_presentation_snapshot()
 	_check(
 		started.accepted and generation == 1
-		and alpha.is_active() and not beta.is_active() and not gamma.is_active(),
+		and alpha.is_active() and not beta.is_active() and not gamma.is_active()
+		and active_presentation.wave_state_id == &"active"
+		and active_presentation.effective_state_id == &"active"
+		and is_equal_approx(float(active_presentation.ring_scale), 1.18)
+		and is_equal_approx(float(active_presentation.light_energy), 3.0),
 		"start activates only the ordered production opponent"
 	)
 	var alpha_hostile_shot := await _emit_hostile_projectile(alpha, asset, content)
 	var alpha_terminal := await _shoot(authority, attacker, alpha)
+	var recovery_presentation := asset.get_protected_asset_presentation_snapshot()
+	_check(
+		recovery_presentation.wave_state_id == &"recovery"
+		and recovery_presentation.effective_state_id == &"recovery"
+		and is_equal_approx(float(recovery_presentation.ring_scale), 0.94)
+		and is_equal_approx(float(recovery_presentation.core_scale), 0.86)
+		and (recovery_presentation.light_color as Color).is_equal_approx(Color("4fb9a7"))
+		and is_equal_approx(float(recovery_presentation.light_energy), 1.4),
+		"the caller-owned inter-wave delay softens the fixed beacon into a recovery cue"
+	)
 	var relief := content.advance_physics(0.5, generation)
 	await physics_frame
 	_check(
@@ -467,9 +504,15 @@ func _test_checked_in_encounter_content() -> void:
 	var beta_terminal := await _shoot(authority, attacker, beta)
 	var gamma_terminal := await _shoot(authority, attacker, gamma)
 	var completed := content.get_snapshot()
+	var completed_presentation := asset.get_protected_asset_presentation_snapshot()
 	_check(
 		beta_terminal.destroyed and gamma_terminal.destroyed
 		and completed.host.activity.state_id == &"completed"
+		and completed_presentation.wave_state_id == &"completed"
+		and completed_presentation.effective_state_id == &"completed"
+		and is_equal_approx(float(completed_presentation.ring_scale), 1.32)
+		and (completed_presentation.light_color as Color).is_equal_approx(Color("77e69a"))
+		and is_equal_approx(float(completed_presentation.light_energy), 3.4)
 		and int(completed.host.destroyed_entity_count) == 3
 		and int(completed.host.active_entity_count) == 0
 		and resolver.get_registered_source_count() == 1,
@@ -562,6 +605,8 @@ func _test_checked_in_encounter_content() -> void:
 	_check(
 		first_asset_hit.damaged
 		and danger_presentation.state_id == &"danger"
+		and danger_presentation.wave_state_id == &"active"
+		and danger_presentation.effective_state_id == &"danger"
 		and bool(danger_presentation.ring_visible)
 		and is_equal_approx(float(danger_presentation.ring_scale), 1.12)
 		and is_equal_approx(float(danger_presentation.core_scale), 0.92)
@@ -574,6 +619,7 @@ func _test_checked_in_encounter_content() -> void:
 	_check(
 		second_asset_hit.damaged
 		and critical_presentation.state_id == &"critical"
+		and critical_presentation.effective_state_id == &"critical"
 		and bool(critical_presentation.ring_visible)
 		and is_equal_approx(float(critical_presentation.ring_scale), 1.28)
 		and is_equal_approx(float(critical_presentation.core_scale), 0.78)
@@ -595,6 +641,8 @@ func _test_checked_in_encounter_content() -> void:
 	)
 	_check(
 		destroyed_presentation.state_id == &"destroyed"
+		and destroyed_presentation.wave_state_id == &"recovery"
+		and destroyed_presentation.effective_state_id == &"destroyed"
 		and not bool(destroyed_presentation.ring_visible)
 		and not bool(destroyed_presentation.core_visible)
 		and not bool(destroyed_presentation.light_visible)
@@ -629,6 +677,8 @@ func _test_checked_in_encounter_content() -> void:
 	)
 	_check(
 		renewed_presentation.state_id == &"safe"
+		and renewed_presentation.wave_state_id == &"idle"
+		and renewed_presentation.effective_state_id == &"idle"
 		and bool(renewed_presentation.ring_visible)
 		and bool(renewed_presentation.core_visible)
 		and is_equal_approx(float(renewed_presentation.ring_scale), 1.0)

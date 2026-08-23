@@ -54,6 +54,9 @@ var _signal_core: MeshInstance3D
 var _signal_light: OmniLight3D
 var _presentation_state: StringName = &"safe"
 var _presentation_source_snapshot: Dictionary = {}
+var _wave_presentation_state: StringName = &"idle"
+var _wave_presentation_source_snapshot: Dictionary = {}
+var _effective_presentation_state: StringName = &"idle"
 
 
 func _ready() -> void:
@@ -129,7 +132,8 @@ func apply_authority_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		next_state = &"critical"
 	elif ratio <= PRESENTATION_SAFE_THRESHOLD:
 		next_state = &"danger"
-	_apply_presentation_state(next_state)
+	_presentation_state = next_state
+	_apply_composed_presentation_state()
 	_presentation_source_snapshot = {
 		"asset_handle": handle.duplicate(true),
 		"health": health,
@@ -145,10 +149,70 @@ func apply_authority_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 	}.duplicate(true)
 
 
+## Consumes the detached activity snapshot already published by the encounter
+## host. It selects presentation only; wave timing, progression and objectives
+## remain wholly caller-owned.
+func apply_activity_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
+	if not _presentation_nodes_valid():
+		return _result(false, &"presentation_unavailable")
+	var state_id := StringName(snapshot.get("state_id", &""))
+	if state_id not in [&"idle", &"active", &"completed", &"failed", &"aborted", &"timed_out"]:
+		return _result(false, &"invalid_activity_presentation_snapshot")
+	var wave_index_value: Variant = snapshot.get("current_wave_index", null)
+	var wave_count_value: Variant = snapshot.get("wave_count", null)
+	var wave_active_value: Variant = snapshot.get("wave_active", null)
+	var delay_value: Variant = snapshot.get("wave_delay_remaining_seconds", null)
+	if (
+		not wave_index_value is int
+		or not wave_count_value is int
+		or not wave_active_value is bool
+		or not (delay_value is float or delay_value is int)
+	):
+		return _result(false, &"invalid_activity_presentation_snapshot")
+	var wave_index := int(wave_index_value)
+	var wave_count := int(wave_count_value)
+	var delay := float(delay_value)
+	if wave_index < 0 or wave_count < 0 or wave_index > wave_count or not is_finite(delay) or delay < 0.0:
+		return _result(false, &"invalid_activity_presentation_snapshot")
+
+	var next_wave_state: StringName = &"idle"
+	match state_id:
+		&"active":
+			if bool(wave_active_value):
+				next_wave_state = &"active"
+			elif wave_index == 0:
+				next_wave_state = &"approaching"
+			else:
+				next_wave_state = &"recovery"
+		&"completed":
+			next_wave_state = &"completed"
+		&"failed", &"aborted", &"timed_out":
+			next_wave_state = &"recovery"
+		_:
+			next_wave_state = &"idle"
+	_wave_presentation_state = next_wave_state
+	_wave_presentation_source_snapshot = {
+		"state_id": state_id,
+		"current_wave_index": wave_index,
+		"wave_count": wave_count,
+		"wave_active": bool(wave_active_value),
+		"wave_delay_remaining_seconds": delay,
+	}.duplicate(true)
+	_apply_composed_presentation_state()
+	return {
+		"accepted": true,
+		"reason": &"activity_presentation_snapshot_applied",
+		"presentation": get_protected_asset_presentation_snapshot(),
+	}.duplicate(true)
+
+
 func get_protected_asset_presentation_snapshot() -> Dictionary:
 	return {
 		"state_id": _presentation_state,
 		"source": _presentation_source_snapshot.duplicate(true),
+		"wave_state_id": _wave_presentation_state,
+		"wave_source": _wave_presentation_source_snapshot.duplicate(true),
+		"effective_state_id": _effective_presentation_state,
 		"ring_visible": _signal_ring.visible if is_instance_valid(_signal_ring) else false,
 		"ring_scale": _signal_ring.scale.x if is_instance_valid(_signal_ring) else 0.0,
 		"core_visible": _signal_core.visible if is_instance_valid(_signal_core) else false,
@@ -292,8 +356,11 @@ func _presentation_nodes_valid() -> bool:
 	)
 
 
-func _apply_presentation_state(state_id: StringName) -> void:
-	_presentation_state = state_id
+func _apply_composed_presentation_state() -> void:
+	var state_id := _wave_presentation_state
+	if _presentation_state in [&"danger", &"critical", &"destroyed"]:
+		state_id = _presentation_state
+	_effective_presentation_state = state_id
 	_signal_ring.visible = state_id != &"destroyed"
 	_signal_core.visible = state_id != &"destroyed"
 	_signal_light.visible = state_id != &"destroyed"
@@ -316,6 +383,30 @@ func _apply_presentation_state(state_id: StringName) -> void:
 			_signal_light.light_color = Color("ff3b35")
 			_signal_light.light_energy = 0.0
 			_signal_light.omni_range = 0.0
+		&"approaching":
+			_signal_ring.scale = Vector3.ONE * 0.86
+			_signal_core.scale = Vector3.ONE * 1.08
+			_signal_light.light_color = Color("6ba9ff")
+			_signal_light.light_energy = 1.8
+			_signal_light.omni_range = 8.0
+		&"active":
+			_signal_ring.scale = Vector3.ONE * 1.18
+			_signal_core.scale = Vector3.ONE
+			_signal_light.light_color = Color("9beeff")
+			_signal_light.light_energy = 3.0
+			_signal_light.omni_range = 9.5
+		&"recovery":
+			_signal_ring.scale = Vector3.ONE * 0.94
+			_signal_core.scale = Vector3.ONE * 0.86
+			_signal_light.light_color = Color("4fb9a7")
+			_signal_light.light_energy = 1.4
+			_signal_light.omni_range = 7.5
+		&"completed":
+			_signal_ring.scale = Vector3.ONE * 1.32
+			_signal_core.scale = Vector3.ONE * 1.16
+			_signal_light.light_color = Color("77e69a")
+			_signal_light.light_energy = 3.4
+			_signal_light.omni_range = 10.0
 		_:
 			_signal_ring.scale = Vector3.ONE * PRESENTATION_RING_SCALE_SAFE
 			_signal_core.scale = Vector3.ONE

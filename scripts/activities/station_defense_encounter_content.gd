@@ -692,9 +692,13 @@ func _wire_protected_asset() -> void:
 func _apply_protected_asset_presentation() -> Dictionary:
 	if not is_instance_valid(_protected_asset):
 		return _content_result(false, &"protected_asset_unavailable")
-	return _protected_asset.apply_authority_presentation_snapshot(
+	var asset_result := _protected_asset.apply_authority_presentation_snapshot(
 		_protected_asset.get_snapshot()
 	)
+	if is_instance_valid(_host):
+		var activity := _host.get_snapshot().get("activity", {}) as Dictionary
+		_protected_asset.apply_activity_presentation_snapshot(activity)
+	return asset_result
 
 
 func _acquire_hostile_sources_atomically(errors: PackedStringArray) -> void:
@@ -936,6 +940,8 @@ func _detached_shot_result(result: Dictionary) -> Dictionary:
 
 func _on_host_snapshot_changed(host_snapshot: Dictionary) -> void:
 	var activity := host_snapshot.get("activity", {}) as Dictionary
+	if is_instance_valid(_protected_asset):
+		_protected_asset.apply_activity_presentation_snapshot(activity)
 	if StringName(activity.get("state_id", &"")) in [
 		&"completed", &"failed", &"aborted", &"timed_out",
 	]:
