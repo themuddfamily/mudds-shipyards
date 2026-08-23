@@ -93,6 +93,11 @@ func _test_victory_is_not_completion_and_return_loss_retries() -> void:
 	opponent.apply_damage(opponent.maximum_health + 1.0, opponent.global_position)
 	await process_frame
 	_check(game.phase == GameFlow.Phase.RETURN_TO_YARD, "defender victory begins the guided return leg")
+	_check(
+		game.get("_first_sortie_tutorial_active_step") == &"return_land"
+		and _label_text(hud.get("_runtime_status_title")) == "Return and land",
+		"the return-and-land tutorial is visible before landing assist is requested or completed"
+	)
 	_check(not game.is_guided_activity_complete(), "defender victory does not complete the guided sortie")
 	_check(
 		bool(game.get("_guided_return_ready_for_completion")),

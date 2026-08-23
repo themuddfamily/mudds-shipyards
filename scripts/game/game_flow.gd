@@ -5183,7 +5183,6 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 	_record_session_lifecycle_transition(
 		_DIAGNOSTIC_RETURN, _diagnostic_ship_code(active_ship), true
 	)
-	publish_first_sortie_tutorial_phase(&"return_land", _first_sortie_tutorial_generation)
 	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
 
@@ -6097,6 +6096,7 @@ func _begin_return_to_yard() -> void:
 		_DIAGNOSTIC_COMBAT_EXIT, _diagnostic_ship_code(active_ship), false
 	)
 	phase = Phase.RETURN_TO_YARD
+	publish_first_sortie_tutorial_phase(&"return_land", _first_sortie_tutorial_generation)
 	hud.set_enemy_status("", 0.0, 1.0, false)
 	hud.set_objective("Return to the regeneration deck and land on the illuminated pad")
 	hud.toast("Interceptor destroyed", "Debris field clear — return vector and landing assist available")
