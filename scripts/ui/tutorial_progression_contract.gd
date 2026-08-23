@@ -17,6 +17,7 @@ var _current_index := -1
 var _generation := 0
 var _started := false
 var _preferred_input_family: StringName = INPUT_CONTROLLER
+var _controller_glyphs: Dictionary = {&"confirm": "A"}
 
 
 func configure(step_definitions: Array) -> Dictionary:
@@ -70,6 +71,20 @@ func set_preferred_input_family(input_family: StringName) -> Dictionary:
 	return {"accepted": true, "reason": &"input_family_updated", "input_family": input_family, "generation": _generation}
 
 
+## The active device observer supplies semantic labels; this contract only
+## substitutes them into authored controller prompts and never reads InputMap.
+func set_controller_glyphs(glyphs: Dictionary) -> Dictionary:
+	var next := {}
+	for raw_key: Variant in glyphs:
+		var key := StringName(str(raw_key))
+		var value := str(glyphs[raw_key]).strip_edges()
+		if key == &"" or value.is_empty() or value.length() > 24:
+			return _reject(&"invalid_controller_glyph")
+		next[key] = value
+	_controller_glyphs = next
+	return {"accepted": true, "reason": &"controller_glyphs_updated", "glyphs": _controller_glyphs.duplicate(true)}
+
+
 func current_step() -> Dictionary:
 	if not _started or _current_index < 0 or _current_index >= _steps.size():
 		return {}
@@ -83,7 +98,41 @@ func current_prompt(accessible: bool = false, input_family: StringName = &"") ->
 	if accessible:
 		return str(step["accessible_prompt"])
 	var family := _preferred_input_family if input_family == &"" else input_family
-	return str(step["controller_prompt"] if family == INPUT_CONTROLLER else step["keyboard_prompt"])
+	if family != INPUT_CONTROLLER:
+		return str(step["keyboard_prompt"])
+	var prompt := str(step["controller_prompt"])
+	for raw_key: Variant in _controller_glyphs:
+		prompt = prompt.replace("{%s}" % String(raw_key), str(_controller_glyphs[raw_key]))
+	return prompt
+
+
+func get_current_prompt_bundle(accessible: bool = false) -> Dictionary:
+	var step := current_step()
+	if step.is_empty():
+		return {}
+	return {
+		"step_id": step.id,
+		"title": step.title,
+		"prompt": current_prompt(accessible),
+		"accessible_prompt": str(step.accessible_prompt),
+		"actions": [
+			{"id": &"next", "label": "Next tutorial step", "focusable": true},
+			{"id": &"repeat", "label": "Repeat current instruction", "focusable": true},
+		],
+		"presentation_only": true,
+	}.duplicate(true)
+
+
+func request_next() -> Dictionary:
+	if current_step().is_empty():
+		return {"accepted": false, "reason": &"tutorial_complete", "presentation_only": true}
+	return {"accepted": true, "reason": &"next_requested", "step_id": current_step().id, "presentation_only": true}
+
+
+func request_repeat() -> Dictionary:
+	if current_step().is_empty():
+		return {"accepted": false, "reason": &"tutorial_complete", "presentation_only": true}
+	return {"accepted": true, "reason": &"repeat_requested", "step_id": current_step().id, "presentation_only": true}
 
 
 func checkpoint(step_id: StringName) -> Dictionary:
