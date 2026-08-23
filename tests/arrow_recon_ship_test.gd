@@ -28,7 +28,6 @@ func _run() -> void:
 
 	_test_definition_and_evidence(arrow)
 	_test_distinct_presentation(arrow)
-	_test_recon_pulse_emitter_assemblies(arrow)
 	await _test_entry_heat_attachment(arrow)
 	_test_visual_performance_batch(arrow)
 	_test_boarding_step_mesh_sharing(arrow)
@@ -114,85 +113,6 @@ func _test_distinct_presentation(arrow: ArrowReconShip) -> void:
 	_check(visual.get_node_or_null("PortSensorWing") is MeshInstance3D, "port sensor wing is a smooth authored planform mesh")
 	_check(visual.get_node_or_null("StarboardSensorWing") is MeshInstance3D, "starboard sensor wing is a smooth authored planform mesh")
 	_check(visual.get_node_or_null("DorsalSurveySpine") is MeshInstance3D, "dorsal survey spine is a curved loft")
-
-
-func _test_recon_pulse_emitter_assemblies(arrow: ArrowReconShip) -> void:
-	var visual := arrow.get_arrow_visual_root()
-	var report := arrow.get_arrow_visual_performance_report().recon_pulse_emitters as Dictionary
-	_check(
-		bool(report.valid)
-		and Array(report.assembly_roster) == [
-			"PortReconPulseEmitter", "StarboardReconPulseEmitter",
-		]
-		and report.component_roster == [
-			"RecessedGraphiteMount", "CompactGraphiteShroud",
-			"LightPulseBarrel", "CyanMuzzleLens",
-		]
-		and int(report.assembly_nodes) == 2
-		and int(report.renderer_nodes) == 8
-		and int(report.unique_mesh_resource_allocations) == 4,
-		"Arrow exposes an exact mirrored two-by-four light recon pulse-emitter roster sharing four meshes"
-	)
-	var muzzle_names := PackedStringArray(["LeftMuzzle", "RightMuzzle"])
-	for index in ArrowReconShip.RECON_PULSE_EMITTER_NAMES.size():
-		var emitter := visual.get_node_or_null(
-			ArrowReconShip.RECON_PULSE_EMITTER_NAMES[index]
-		) as Node3D
-		var muzzle := arrow.get_node_or_null(muzzle_names[index]) as Marker3D
-		_check(
-			emitter != null and muzzle != null
-			and emitter.position == ArrowReconShip.RECON_PULSE_EMITTER_POSITIONS[index]
-			and emitter.position == muzzle.position
-			and emitter.rotation == Vector3.ZERO
-			and emitter.scale == Vector3.ONE,
-			"%s is exactly aligned to its unchanged gameplay muzzle transform" % ArrowReconShip.RECON_PULSE_EMITTER_NAMES[index]
-		)
-		if emitter == null:
-			continue
-		_check(
-			emitter.get_meta("presentation_status", &"") == &"modern_provisional"
-			and emitter.get_meta("geometry_status", &"") == &"provisional"
-			and not bool(emitter.get_meta("authenticated_historical_weapon", true))
-			and bool(emitter.get_meta("visual_only", false))
-			and not bool(emitter.get_meta("gameplay_authority", true))
-			and emitter.find_children("*", "CollisionObject3D", true, false).is_empty(),
-			"%s is explicitly modern/provisional visual presentation with no gameplay or collision authority" % emitter.name
-		)
-		var mount := emitter.get_node_or_null("RecessedGraphiteMount") as MeshInstance3D
-		var shroud := emitter.get_node_or_null("CompactGraphiteShroud") as MeshInstance3D
-		var barrel := emitter.get_node_or_null("LightPulseBarrel") as MeshInstance3D
-		var lens := emitter.get_node_or_null("CyanMuzzleLens") as MeshInstance3D
-		_check(
-			mount != null and mount.mesh is BoxMesh
-			and (mount.mesh as BoxMesh).size == Vector3(0.38, 0.22, 0.62)
-			and shroud != null and shroud.mesh is TorusMesh
-			and is_equal_approx((shroud.mesh as TorusMesh).outer_radius, 0.155),
-			"%s uses a compact recessed mount and shroud envelope" % emitter.name
-		)
-		_check(
-			barrel != null and barrel.mesh != null
-			and is_equal_approx(float(report.barrel_radius), 0.09)
-			and is_equal_approx(barrel.mesh.get_aabb().size.x, 0.18)
-			and is_equal_approx(barrel.mesh.get_aabb().size.y, 0.4)
-			and float(report.barrel_radius) < 0.13
-			and float(report.barrel_radius) < 0.19,
-			"%s freezes a 0.09m barrel, visibly smaller than the Torrent 0.13m and Jovian 0.19m barrels" % emitter.name
-		)
-		_check(
-			lens != null and lens.position == Vector3.ZERO
-			and lens.mesh != null
-			and is_equal_approx(lens.mesh.get_aabb().size.x, 0.15)
-			and lens.mesh.surface_get_material(0) == arrow.get_variant_materials().sensor
-			and muzzle != null
-			and lens.global_position.is_equal_approx(muzzle.global_position),
-			"%s terminates in a compact cyan lens centred on the gameplay muzzle" % emitter.name
-		)
-	_check(
-		visual.get_node_or_null("VentralSensorGimbal") is MeshInstance3D
-		and visual.get_node_or_null("VentralSensorLens") is MeshInstance3D
-		and visual.get_node("VentralSensorGimbal").get_parent() == visual,
-		"the separate ventral optical/spectral sensor remains intact and is not repurposed as a weapon"
-	)
 
 
 func _test_entry_heat_attachment(arrow: ArrowReconShip) -> void:
@@ -563,15 +483,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 189,
-			"mesh_instance_nodes": 166,
+			"nodes": 179,
+			"mesh_instance_nodes": 158,
 			"multi_mesh_instance_nodes": 1,
-			"geometry_submissions": 167,
-			"visible_geometry_copies": 168,
-			"unique_mesh_resource_allocations": 127,
+			"geometry_submissions": 159,
+			"visible_geometry_copies": 160,
+			"unique_mesh_resource_allocations": 123,
 			"auto_fallback_names": 23,
 		},
-		"weapon-complete Arrow freezes the exact 189-node, 167-submission, 127-mesh census with all 168 copies"
+		"whole Arrow visual freezes the exact Stage-2 179-node, 159-submission, 123-mesh census with all 160 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -592,19 +512,12 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"unique_mesh_resource_allocations": 1,
 			"exclusive_material_allocations": 1,
 		}
-		and report.recon_pulse_emitter_delta == {
-			"assembly_nodes": 2,
-			"renderer_nodes": 8,
-			"geometry_submissions": 8,
-			"visible_geometry_copies": 8,
-			"unique_mesh_resource_allocations": 4,
-		}
 		and report.reductions == {
-			"nodes": -12,
-			"geometry_submissions": -8,
-			"unique_mesh_resource_allocations": 15,
+			"nodes": -2,
+			"geometry_submissions": 0,
+			"unique_mesh_resource_allocations": 19,
 			"auto_fallback_names": 1,
-			"visible_geometry_copies": -9,
+			"visible_geometry_copies": -1,
 		}
 		and report.phase9_reductions_before_entry_heat == {
 			"nodes": 1,
@@ -613,7 +526,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"auto_fallback_names": 1,
 			"visible_geometry_copies": 0,
 		},
-		"performance evidence isolates the exact recon-emitter and entry-heat deltas from the frozen Phase-9 visual"
+		"Stage-2 evidence isolates the exact entry-heat delta from the frozen Phase-9 optimized visual"
 	)
 	_check(
 		report.wing_root_rib_batch.legacy == {
@@ -705,16 +618,17 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and int(report.fuselage_panel_band_mesh_sharing.visible_geometry_copies) == 5
 		and int(report.fuselage_panel_band_mesh_sharing.primitive_mesh_allocations) == 1
 		and int(report.fuselage_panel_band_mesh_sharing.resource_allocation_reduction) == 4
-		and not bool(report.fuselage_panel_band_mesh_sharing.normalised_by_torus_budget)
-		and report.fuselage_panel_band_mesh_sharing.authored_tessellation == Vector2i(64, 18)
-		and report.fuselage_panel_band_mesh_sharing.current_tessellation == Vector2i(64, 18)
+		and StringName(report.fuselage_panel_band_mesh_sharing.mesh_kind) == &"BoxMesh"
+		and (report.fuselage_panel_band_mesh_sharing.mesh_size as Vector3).is_equal_approx(
+			Vector3(2.0, 0.045, 0.11)
+		)
 		and (report.fuselage_panel_band_mesh_sharing.node_paths as PackedStringArray).size() == 5
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[0]) == "FuselagePanelBand"
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[1]).begins_with("@MeshInstance3D@")
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[2]).begins_with("@MeshInstance3D@")
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[3]).begins_with("@MeshInstance3D@")
 		and str(report.fuselage_panel_band_mesh_sharing.node_paths[4]).begins_with("@MeshInstance3D@"),
-		"five ordinary named panel-band nodes/submissions/copies retain one exact authored TorusMesh instead of five"
+		"five ordinary dorsal panel seams retain one shallow BoxMesh instead of hollow full-circumference loops"
 	)
 	var visual := arrow.get_arrow_visual_root()
 	var batch := visual.get_node_or_null("WingRootRibBatch") as MultiMeshInstance3D
@@ -733,7 +647,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	_check(
 		visual.get_node_or_null("FuselagePanelBand") is MeshInstance3D,
-		"the torus-smoothness evidence node remains independently addressable"
+		"the first dorsal panel-seam evidence node remains independently addressable"
 	)
 
 	# Detached report and structured-red mutations cover the whole census,
@@ -754,7 +668,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 189
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 179
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
@@ -801,11 +715,9 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	_check(
 		bool(budgeted_panel_report.valid)
-		and bool(budgeted_panel_report.normalised_by_torus_budget)
-		and budgeted_panel_report.authored_tessellation == Vector2i(64, 18)
-		and budgeted_panel_report.current_tessellation == Vector2i(41, 12)
-		and int(torus_budget_report.tori) == 16,
-		"production torus budget includes both compact emitter shrouds while retaining the panel band's exact 64x18 authored and 41x12 live recipes"
+		and StringName(budgeted_panel_report.mesh_kind) == &"BoxMesh"
+		and int(torus_budget_report.tori) == 9,
+		"production torus budget leaves the Arrow's shallow dorsal seams outside torus normalization"
 	)
 	var injected := Node3D.new()
 	injected.name = "ForbiddenVisualAllocation"
@@ -1061,8 +973,8 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	var last_panel_band := (
 		visual.get_node(NodePath(panel_band_paths[-1])) as MeshInstance3D
 	)
-	var shared_panel_band_mesh := first_panel_band.mesh as TorusMesh
-	last_panel_band.mesh = shared_panel_band_mesh.duplicate() as TorusMesh
+	var shared_panel_band_mesh := first_panel_band.mesh as BoxMesh
+	last_panel_band.mesh = shared_panel_band_mesh.duplicate() as BoxMesh
 	_check(
 		not bool(arrow.get_arrow_audit_report().valid)
 		and _report_has_error(
@@ -1072,8 +984,8 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		"structured-red: one private panel-band mesh fails shared-allocation identity"
 	)
 	last_panel_band.mesh = shared_panel_band_mesh
-	var budgeted_ring_segments := shared_panel_band_mesh.ring_segments
-	shared_panel_band_mesh.ring_segments -= 1
+	var authored_panel_size := shared_panel_band_mesh.size
+	shared_panel_band_mesh.size.x -= 0.1
 	_check(
 		not bool(arrow.get_arrow_audit_report().valid)
 		and _report_has_error(
@@ -1082,25 +994,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		),
 		"structured-red: shared panel-band live recipe mutation fails presentation audit"
 	)
-	shared_panel_band_mesh.ring_segments = budgeted_ring_segments
-	var authored_panel_tessellation: Vector2i = shared_panel_band_mesh.get_meta(
-		TorusGeometryBudget.AUTHORED_META
-	)
-	shared_panel_band_mesh.set_meta(
-		TorusGeometryBudget.AUTHORED_META,
-		Vector2i(authored_panel_tessellation.x - 1, authored_panel_tessellation.y)
-	)
-	_check(
-		not bool(arrow.get_arrow_audit_report().valid)
-		and _report_has_error(
-			arrow.get_arrow_visual_performance_report(),
-			"fuselage panel-band authored budget metadata drift"
-		),
-		"structured-red: panel-band authored-budget metadata mutation fails its 64x18 provenance gate"
-	)
-	shared_panel_band_mesh.set_meta(
-		TorusGeometryBudget.AUTHORED_META, authored_panel_tessellation
-	)
+	shared_panel_band_mesh.size = authored_panel_size
 	var authored_panel_material := shared_panel_band_mesh.material
 	shared_panel_band_mesh.material = null
 	_check(
