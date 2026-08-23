@@ -4,6 +4,8 @@ const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd"
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 const JovianScene := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const PlayerScene := preload("res://scenes/player/player.tscn")
+const CinderBomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
+const PayloadProjectile := preload("res://scripts/combat/bomber_payload_projectile.gd")
 
 var _role := ""
 var _port := 29140
@@ -12,6 +14,8 @@ var _adapter: Adapter
 var _jovian: Node3D
 var _player: Node3D
 var _passenger_player: Node3D
+var _cinder: Node3D
+var _projectile_logged := false
 
 
 func _init() -> void:
@@ -30,8 +34,13 @@ func _init() -> void:
 	_passenger_player.name = &"SecondPassengerAvatar"
 	_passenger_player.position = Vector3(1.0, 9.0, 0.0)
 	root.add_child(_passenger_player)
+	_cinder = CinderBomber.new()
+	_cinder.name = &"CinderAuthorityBomber"
+	_cinder.position = Vector3(20.0, 8.0, 0.0)
+	root.add_child(_cinder)
 	_adapter.moving_interior_result.connect(_on_moving_interior_result)
 	_adapter.damage_respawn_result.connect(_on_damage_respawn_result)
+	_adapter.projectile_replica_result.connect(_on_projectile_replica_result)
 	_adapter.seat_occupancy_result.connect(_on_seat_result)
 	_adapter.landing_intent_result.connect(_on_landing_result)
 	call_deferred(&"_start")
@@ -189,6 +198,38 @@ func _server_loop() -> void:
 						)
 						if bool(respawn_delivery.get("accepted", false)):
 							_log("RESPAWN_AUTHORITATIVE_DELIVERED")
+						var bomber_generation: Dictionary = _cinder.begin_payload_generation(1)
+						var release: Dictionary = _cinder.request_payload_release(
+							1, &"pilot_b", 1, 1, 0, Vector3(0.0, 0.0, -30.0)
+						)
+						var payload_projectile := PayloadProjectile.new(
+							1, Vector3(0.0, -9.81, 0.0), 30.0, 500.0, 100_000.0
+						)
+						var projectile_started: Dictionary = payload_projectile.begin_generation(1)
+						var release_record := release.get("record", {}) as Dictionary
+						var consumed: Dictionary = payload_projectile.consume_release_record(1, release_record)
+						var release_wire := _projectile_wire(payload_projectile.get_snapshot(), false)
+						var release_published := _adapter.publish_projectile_snapshot(release_wire, peer_ids, false, 55)
+						var impact: Dictionary = payload_projectile.submit_impact(
+							1, payload_projectile.get_snapshot().get("position", Vector3.ZERO), Vector3.UP,
+							&"jovian_authority_craft", 3
+						)
+						var terminal_wire := _projectile_wire(payload_projectile.get_snapshot(), true)
+						var terminal_published := _adapter.publish_projectile_snapshot(terminal_wire, peer_ids, true, 56)
+						var terminal_record := payload_projectile.get_terminal_intent()
+						var terminal_presented: Dictionary = _cinder.present_payload_terminal_record(terminal_record)
+						_log("PROJECTILE_STATUS %s %s" % [release_published.get("status", &"unknown"), terminal_published.get("status", &"unknown")])
+						if bool(bomber_generation.get("accepted", false)) \
+							and bool(release.get("accepted", false)) \
+							and bool(projectile_started.get("accepted", false)) \
+							and bool(consumed.get("accepted", false)) \
+							and bool(release_published.get("accepted", false)) \
+							and bool(impact.get("accepted", false)) \
+							and bool(terminal_published.get("accepted", false)) \
+							and bool(terminal_presented.get("accepted", false)):
+							_log("REAL_PAYLOAD_RELEASED")
+							_log("REAL_PAYLOAD_TERMINAL_RESOLVED")
+							_log("DAMAGE_ONCE_SERVER_ONLY")
 						_jovian.set_piloted(true)
 						var before_position := _jovian.global_position
 						_jovian.velocity = Vector3(0.0, 0.0, -4.0)
@@ -300,6 +341,13 @@ func _server_loop() -> void:
 func _client_loop() -> void:
 	for _frame in 300:
 		await process_frame
+		if not _projectile_logged and (
+			not _adapter._projectile_replica_generations.is_empty()
+			or StringName(_adapter._last_result.get("status", &"")) == &"projectile_terminal_applied"
+		):
+			_projectile_logged = true
+			_log("PROJECTILE_PRESENTED")
+			_log("PROJECTILE_TERMINAL_PRESENTED")
 		if not _adapter._server_offer.is_empty():
 			_log("ADMITTED")
 			await create_timer(8.0).timeout
@@ -321,6 +369,22 @@ func _movement_command(
 		"entity_generation": generation, "stream_id": stream, "sequence": sequence, "client_tick": client_tick,
 		"move_axis": [0.5, 0.0], "board_request": false,
 		"boarding_target_id": &"", "disembark_request": false,
+}
+
+
+func _projectile_wire(snapshot: Dictionary, terminal: bool) -> Dictionary:
+	var release_record := snapshot.get("release_record", {}) as Dictionary
+	var terminal_record := snapshot.get("terminal_intent", {}) as Dictionary
+	return {
+		"projectile_id": StringName(release_record.get("record_id", &"")),
+		"projectile_generation": int(snapshot.get("generation", 0)),
+		"source_entity_id": &"cinder_long_range_bomber",
+		"source_generation": 1,
+		"owner_peer_id": 1,
+		"position": snapshot.get("position", Vector3.ZERO),
+		"last_update_tick": 55 if not terminal else 56,
+		"state": &"terminal" if terminal else &"flying",
+		"terminal": terminal_record if terminal else {},
 	}
 
 
@@ -343,6 +407,14 @@ func _on_damage_respawn_result(result: Dictionary) -> void:
 		_log("DAMAGE_DESTROYED_PRESENTED")
 	elif state == &"active":
 		_log("DAMAGE_RESPAWN_PRESENTED")
+
+
+func _on_projectile_replica_result(result: Dictionary) -> void:
+	var status := StringName(result.get("status", &""))
+	if status == &"projectile_presented":
+		_log("PROJECTILE_PRESENTED")
+	elif status == &"projectile_terminal_applied":
+		_log("PROJECTILE_TERMINAL_PRESENTED")
 
 
 func _on_seat_result(result: Dictionary) -> void:

@@ -64,11 +64,14 @@ func _evidence_complete() -> bool:
 		"LANDED_OCCUPIED", "SEATS_RELEASED", "LANDING_EXIT_CLEAN", "TRANSFER_CLEAN_DISCONNECT",
 		"REAL_JOVIAN_MOVED", "REAL_PASSENGER_ATTACHED", "REAL_PASSENGER_RELEASED",
 		"REAL_PLAYERS_BOARDING", "REAL_BOARDING_RELEASED",
+		"REAL_PAYLOAD_RELEASED", "REAL_PAYLOAD_TERMINAL_RESOLVED", "DAMAGE_ONCE_SERVER_ONLY",
 	]:
 		if not server_log.contains(marker):
 			return false
 	for client_log in [client_a_log, client_b_log]:
 		if not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \
+			or not client_log.contains("PROJECTILE_PRESENTED") \
+			or not client_log.contains("PROJECTILE_TERMINAL_PRESENTED") \
 			or not client_log.contains("RELATIONSHIP_RELEASED") \
 			or not client_log.contains("DAMAGE_DESTROYED_PRESENTED") \
 			or not client_log.contains("DAMAGE_RESPAWN_PRESENTED") \
