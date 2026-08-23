@@ -397,6 +397,7 @@ var _throttle_label: Label
 var _throttle_bar: ProgressBar
 var _hull_bar: ProgressBar
 var _damage_status_label: Label
+var _hull_frame_profile: Dictionary = {}
 var _component_status_label: Label
 var _telemetry_panel: PanelContainer
 var _target_label: Label
@@ -576,6 +577,7 @@ func _exit_tree() -> void:
 	clear_nearby_activity_snapshot()
 	clear_semantic_caption_transcript()
 	clear_runtime_settings_repair_report()
+	_apply_hull_frame_stage(&"healthy", 1.0)
 	if _pause == null or not _pause.visible:
 		return
 	var viewport := get_viewport()
@@ -927,6 +929,8 @@ func _refresh_mode_readouts() -> void:
 	if _hero_component_hud_binding != null:
 		_hero_component_hud_binding.set_presenting(piloting)
 	_reticle.visible = piloting
+	if not piloting:
+		_apply_hull_frame_stage(&"healthy", 1.0)
 	if _flight_cue_layer != null:
 		_flight_cue_layer.set_piloting(piloting)
 	_set_help_text(_help_rows_with_role_context(_state_mode))
@@ -1414,6 +1418,10 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	var maximum_hull: float = maxf(0.001, float(data.get("maximum_hull", 100.0)))
 	var hull: float = clampf(float(data.get("hull", maximum_hull)), 0.0, maximum_hull)
 	var damage_status := str(data.get("damage_status", "healthy")).to_upper()
+	_apply_hull_frame_stage(
+		_hull_frame_stage(damage_status, hull / maximum_hull),
+		hull / maximum_hull
+	)
 	_state_damage = damage_status
 	_state_throttle_reverse = throttle < -0.04
 	var engine_power := clampf(float(data.get("engine_power", 1.0)), 0.0, 1.0)
@@ -1438,6 +1446,104 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
 	if _flight_cue_layer != null:
 		_flight_cue_layer.update_from_telemetry(data)
+
+
+## Static geometry on the existing hull-telemetry frame. HeroShip remains the
+## sole hull authority; this presenter consumes only its detached telemetry and
+## never changes panel bounds, content margins, controls, or the damage flash.
+func _apply_hull_frame_stage(stage: StringName, health_ratio: float) -> void:
+	if not is_instance_valid(_telemetry_panel):
+		return
+	var frame := _telemetry_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	if frame == null:
+		return
+	var horizontal_width := 1
+	var vertical_width := 1
+	var corner_radius := 8
+	match stage:
+		&"damaged":
+			horizontal_width = 3
+			vertical_width = 3
+			corner_radius = 4
+		&"critical":
+			horizontal_width = 6
+			vertical_width = 2
+			corner_radius = 0
+		&"destroyed":
+			horizontal_width = 0
+			vertical_width = 0
+			corner_radius = 0
+		_:
+			stage = &"healthy"
+	frame.border_width_left = horizontal_width
+	frame.border_width_right = horizontal_width
+	frame.border_width_top = vertical_width
+	frame.border_width_bottom = vertical_width
+	# StyleBoxFlat otherwise derives content padding from border thickness. Keep
+	# the authored one-pixel inset stable so the heavier rails never shift or
+	# crowd the telemetry controls they surround.
+	frame.content_margin_left = 1.0
+	frame.content_margin_right = 1.0
+	frame.content_margin_top = 1.0
+	frame.content_margin_bottom = 1.0
+	frame.corner_radius_top_left = corner_radius
+	frame.corner_radius_top_right = corner_radius
+	frame.corner_radius_bottom_left = corner_radius
+	frame.corner_radius_bottom_right = corner_radius
+	_hull_frame_profile = {
+		"stage": stage,
+		"health_ratio": clampf(health_ratio, 0.0, 1.0),
+		"horizontal_border_width": horizontal_width,
+		"vertical_border_width": vertical_width,
+		"corner_radius": corner_radius,
+		"panel_size": _telemetry_panel.size,
+		"panel_offsets": Vector4(
+			_telemetry_panel.offset_left,
+			_telemetry_panel.offset_top,
+			_telemetry_panel.offset_right,
+			_telemetry_panel.offset_bottom
+		),
+		"content_margins": Vector4(
+			frame.content_margin_left,
+			frame.content_margin_top,
+			frame.content_margin_right,
+			frame.content_margin_bottom
+		),
+		"frame_node_count": 1,
+		"added_nodes": 0,
+		"changes_panel_bounds": false,
+		"changes_content_margins": false,
+		"geometry_policy": &"static",
+		"flashing": false,
+		"reduced_flash_safe": true,
+		"presentation_only": true,
+		"authority": false,
+	}.duplicate(true)
+
+
+func get_hull_frame_damage_snapshot() -> Dictionary:
+	var snapshot := _hull_frame_profile.duplicate(true)
+	snapshot["telemetry_panel_instance_id"] = (
+		_telemetry_panel.get_instance_id() if is_instance_valid(_telemetry_panel) else 0
+	)
+	snapshot["damage_flash_instance_id"] = (
+		_damage_flash.get_instance_id() if is_instance_valid(_damage_flash) else 0
+	)
+	snapshot["damage_flash_modulate"] = (
+		_damage_flash.modulate if is_instance_valid(_damage_flash) else Color.TRANSPARENT
+	)
+	snapshot["reticle_snapshot"] = get_sensor_reticle_component_snapshot()
+	return snapshot
+
+
+func _hull_frame_stage(damage_status: String, health_ratio: float) -> StringName:
+	if health_ratio <= 0.0 or damage_status == "DESTROYED":
+		return &"destroyed"
+	if damage_status == "CRITICAL":
+		return &"critical"
+	if damage_status == "DAMAGED":
+		return &"damaged"
+	return &"healthy"
 
 
 ## Displays caller-published copilot support only; this HUD never owns helm,
@@ -3480,6 +3586,7 @@ func _build_telemetry() -> void:
 	_telemetry_panel.offset_bottom = -PANEL_MARGIN
 	_telemetry_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
 	_hud_panels.add_child(_telemetry_panel)
+	_apply_hull_frame_stage(&"healthy", 1.0)
 	var margin := _margin(18, 15, 18, 15)
 	_telemetry_panel.add_child(margin)
 	var stack := VBoxContainer.new()
