@@ -20,6 +20,9 @@ const HALYARD_FLEET_DOCK_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
 const BULWARK_FLEET_DOCK_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
 const COMPONENT_DAMAGE_AUDIO_BINDING := preload("res://scripts/audio/component_damage_audio_binding.gd")
 const FLEET_EXPANSION_BINDING := preload("res://scripts/world/fleet_expansion_production_binding.gd")
+const STATION_SOLAR_READABILITY_SCRIPT := preload(
+	"res://scripts/world/station_solar_readability_presentation.gd"
+)
 const STATION_DEFENSE_CONTENT_SCENE := preload("res://scenes/activities/station_defense_encounter.tscn")
 const STATION_DEFENSE_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/station_defense_activity_board.gd")
 const HEAVY_BREACH_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/heavy_breach_activity_board.gd")
@@ -907,7 +910,8 @@ const SKY_ZENITH_COLOR := Color("0b1018")
 const SKY_NADIR_COLOR := Color("0c0c0e")
 const SKY_SUN_COLOR := Color("3c606f")
 const SKY_SUN_FOCUS := 260.0
-const SKY_SUN_HALO := 0.55
+const SKY_SUN_HALO := 0.18
+const SKY_SUN_HALO_FOCUS := 48.0
 const SKY_DUST_SCALE := 3.4
 
 @export_category("Landing")
@@ -986,6 +990,10 @@ var _station_defense_content: StationDefenseEncounterContent
 var _station_defense_activity_board: Area3D
 var _heavy_breach_activity_board: Area3D
 var _heavy_breach_protected_objective: Node3D
+var _station_solar_readability_presentation: RefCounted
+var _last_station_solar_readability_result: Dictionary = {}
+var _station_solar_readability_attach_count := 0
+var _station_solar_readability_detach_count := 0
 
 
 func _enter_tree() -> void:
@@ -996,9 +1004,11 @@ func _enter_tree() -> void:
 		call_deferred("_bind_station_defense_external_owners")
 		call_deferred("_bind_heavy_breach_external_owners")
 		call_deferred("_restore_range_targets_after_reentry")
+		call_deferred("_restore_station_solar_readability_after_reentry")
 
 
 func _exit_tree() -> void:
+	_retire_station_solar_readability(&"station_detached")
 	# Door signals target this long-lived world object. Explicitly remove the
 	# bound instance-ID callables so a streamed world never retains stale hooks.
 	_disconnect_operational_lattice_audio()
@@ -4504,6 +4514,19 @@ func get_visual_quality_report() -> Dictionary:
 	return _visual_quality_report.duplicate(true)
 
 
+func get_station_solar_readability_report() -> Dictionary:
+	return {
+		"active": _station_solar_readability_presentation != null,
+		"attach_count": _station_solar_readability_attach_count,
+		"detach_count": _station_solar_readability_detach_count,
+		"last_result": _last_station_solar_readability_result.duplicate(true),
+		"presentation": (
+			_station_solar_readability_presentation.call(&"get_snapshot")
+			if _station_solar_readability_presentation != null else {}
+		),
+	}.duplicate(true)
+
+
 func get_space_backdrop_evidence_metadata() -> Dictionary:
 	return {
 		"schema_version": SPACE_BACKDROP_SCHEMA_VERSION,
@@ -4596,6 +4619,9 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			not _sky_vector_matches(sky_material, &"sun_direction", sky_sun_direction())
 			or not _sky_scalar_matches(sky_material, &"sun_focus", SKY_SUN_FOCUS)
 			or not _sky_scalar_matches(sky_material, &"sun_halo", SKY_SUN_HALO)
+			or not _sky_scalar_matches(
+				sky_material, &"sun_halo_focus", SKY_SUN_HALO_FOCUS
+			)
 		):
 			errors.append("deep-space sky sun disagrees with the key light aim")
 		var cover := sky_material.get_shader_parameter(&"nebula_cover") as Texture2D
@@ -4607,6 +4633,12 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			)
 		):
 			errors.append("faint legacy-nebula cover contract drifted")
+	var solar_readability_audit := (
+		_station_solar_readability_presentation.call(&"audit") as Dictionary
+		if _station_solar_readability_presentation != null else {}
+	)
+	if not bool(solar_readability_audit.get("valid", false)):
+		errors.append("station solar readability presentation is unavailable")
 	if (
 		stars == null
 		or stars.multimesh == null
@@ -4910,6 +4942,10 @@ func _get_central_feature_counts(hero_root: Node3D) -> Dictionary:
 func apply_visual_quality(quality_level: int) -> Dictionary:
 	if not _can_apply_visual_quality():
 		return get_visual_quality_report()
+	# Restore the previous profile's exact source values before selecting another
+	# one; the station-specific caps are always derived from the new profile, never
+	# compounded across settings changes.
+	_retire_station_solar_readability(&"visual_quality_reselected")
 	visual_quality_level = clampi(quality_level, 0, 2)
 	_apply_operational_dressing_quality()
 	var world_environment := get_node_or_null("ShipyardEnvironment") as WorldEnvironment
@@ -4925,7 +4961,55 @@ func apply_visual_quality(quality_level: int) -> Dictionary:
 		get_viewport(),
 		visual_quality_level
 	)
+	_present_station_solar_readability()
 	return get_visual_quality_report()
+
+
+func _present_station_solar_readability() -> Dictionary:
+	if _station_solar_readability_presentation != null:
+		return _last_station_solar_readability_result.duplicate(true)
+	var world_environment := get_node_or_null(^"ShipyardEnvironment") as WorldEnvironment
+	var environment := (
+		world_environment.environment if world_environment != null else null
+	)
+	var sky_material: ShaderMaterial = null
+	if environment != null and environment.sky != null:
+		sky_material = environment.sky.sky_material as ShaderMaterial
+	if environment == null or sky_material == null:
+		_last_station_solar_readability_result = {
+			"accepted": false,
+			"reason": &"station_environment_unavailable",
+		}
+		return _last_station_solar_readability_result.duplicate(true)
+	var candidate := STATION_SOLAR_READABILITY_SCRIPT.new() as RefCounted
+	var configured := candidate.call(
+		&"configure", environment, sky_material
+	) as Dictionary
+	_last_station_solar_readability_result = configured.duplicate(true)
+	if not bool(configured.get("accepted", false)):
+		return configured.duplicate(true)
+	_station_solar_readability_presentation = candidate
+	_station_solar_readability_attach_count += 1
+	return configured.duplicate(true)
+
+
+func _retire_station_solar_readability(reason: StringName) -> void:
+	if _station_solar_readability_presentation == null:
+		return
+	var result := _station_solar_readability_presentation.call(
+		&"detach", reason,
+		_station_solar_readability_presentation.call(&"get_generation")
+	) as Dictionary
+	_last_station_solar_readability_result = result.duplicate(true)
+	if bool(result.get("accepted", false)):
+		_station_solar_readability_presentation = null
+		_station_solar_readability_detach_count += 1
+
+
+func _restore_station_solar_readability_after_reentry() -> void:
+	if _built and is_inside_tree() \
+			and _station_solar_readability_presentation == null:
+		_present_station_solar_readability()
 
 
 func _can_apply_visual_quality() -> bool:
@@ -5143,6 +5227,7 @@ func _build_environment() -> void:
 	sky_material.set_shader_parameter(&"sun_color", SKY_SUN_COLOR)
 	sky_material.set_shader_parameter(&"sun_focus", SKY_SUN_FOCUS)
 	sky_material.set_shader_parameter(&"sun_halo", SKY_SUN_HALO)
+	sky_material.set_shader_parameter(&"sun_halo_focus", SKY_SUN_HALO_FOCUS)
 	sky_material.set_shader_parameter(&"dust_scale", SKY_DUST_SCALE)
 	sky_material.set_shader_parameter(
 		&"nebula_cover",
@@ -5270,6 +5355,7 @@ func _build_environment() -> void:
 		get_viewport(),
 		visual_quality_level
 	)
+	_present_station_solar_readability()
 
 	# Key and counter-fill pair. A single grazing key gave every object exactly one
 	# lit face and one dead face, which is the strongest "flat primitive" tell

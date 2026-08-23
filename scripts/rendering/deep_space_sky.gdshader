@@ -48,7 +48,8 @@ uniform vec3 nadir_color : source_color = vec3(0.0);
 uniform vec3 sun_direction = vec3(0.0, 0.0, 1.0);
 uniform vec3 sun_color : source_color = vec3(0.0);
 uniform float sun_focus : hint_range(4.0, 4096.0) = 260.0;
-uniform float sun_halo : hint_range(0.0, 4.0) = 0.5;
+uniform float sun_halo : hint_range(0.0, 4.0) = 0.18;
+uniform float sun_halo_focus : hint_range(4.0, 256.0) = 48.0;
 
 // Project-original nebula, retained as faint modern atmosphere. Mapped
 // equirectangularly over the whole sphere and faded out at both poles, so it
@@ -115,7 +116,13 @@ void sky() {
 	color += band * structure * (band_color + core_color * core);
 
 	float sun_offset = max(dot(direction, normalize(sun_direction)), 0.0);
-	color += sun_color * (pow(sun_offset, sun_focus) + sun_halo * pow(sun_offset, 5.0));
+	// Keep the bright, tightly focused sun silhouette, but do not let its
+	// secondary lobe become a large full-screen exposure wash. The former fixed
+	// fifth-power halo still contributed almost half strength thirty degrees away.
+	color += sun_color * (
+		pow(sun_offset, sun_focus)
+		+ sun_halo * pow(sun_offset, sun_halo_focus)
+	);
 
 	vec2 cover_uv = vec2(
 		atan(direction.z, direction.x) / (2.0 * PI) + 0.5,
