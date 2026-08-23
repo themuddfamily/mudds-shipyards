@@ -7,6 +7,7 @@ extends HeroShip
 const PayloadAuthority := preload("res://scripts/combat/bomber_payload_authority.gd")
 const PayloadPresentation := preload("res://scripts/effects/bomber_payload_presentation.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
+const BomberPayloadAudioBindingType := preload("res://scripts/audio/bomber_payload_audio_binding.gd")
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"cinder-long-range-bomber"
@@ -31,6 +32,7 @@ var _bomber_built := false
 var _payload_authority: BomberPayloadAuthority
 var _payload_presentation
 var _ship_perspective_audio_binding: RefCounted
+var _payload_audio_binding: Node
 
 
 func _init() -> void:
@@ -49,6 +51,8 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	if _ship_perspective_audio_binding != null:
 		call_deferred("_rebind_cinder_perspective_audio")
+	if _payload_audio_binding != null:
+		call_deferred("_rebind_cinder_payload_audio")
 
 
 func _ready() -> void:
@@ -68,6 +72,7 @@ func _ready() -> void:
 	if not _bomber_built:
 		_bomber_built = rebuild_variant_presentation(_build_bomber_variant)
 	_build_payload_presentation()
+	_build_payload_audio_binding()
 
 
 func _exit_tree() -> void:
@@ -75,7 +80,16 @@ func _exit_tree() -> void:
 		if camera_view_changed.is_connected(_on_cinder_camera_view_changed):
 			camera_view_changed.disconnect(_on_cinder_camera_view_changed)
 		_ship_perspective_audio_binding.detach()
+	if _payload_audio_binding != null:
+		_payload_audio_binding.detach()
 	super._exit_tree()
+
+func _rebind_cinder_payload_audio() -> void:
+	if not is_inside_tree() or _payload_audio_binding == null:
+		return
+	var snapshot: Dictionary = _payload_audio_binding.get_snapshot()
+	if not bool(snapshot.get("attached", false)):
+		_payload_audio_binding.attach(int(snapshot.get("generation", 0)))
 
 
 func _rebind_cinder_perspective_audio() -> void:
@@ -154,7 +168,10 @@ func get_payload_hardpoints() -> Array[Marker3D]:
 ## Starts the caller-owned payload admission lifecycle. Cinder does not infer a
 ## generation from scene entry; its session/shipyard owner must provide one.
 func begin_payload_generation(generation: int) -> Dictionary:
-	return _payload_authority.begin_generation(generation)
+	var result := _payload_authority.begin_generation(generation)
+	if bool(result.get("accepted", false)):
+		_sync_payload_audio_generation(generation)
+	return result
 
 
 ## Re-enters payload admission after explicit detach or HeroShip reuse cleanup.
@@ -162,6 +179,8 @@ func reset_payload_for_reuse(generation: int) -> Dictionary:
 	var result := _payload_authority.reset_for_reuse(generation)
 	if bool(result.get("accepted", false)) and is_instance_valid(_payload_presentation):
 		_payload_presentation.reset_for_reuse()
+	if bool(result.get("accepted", false)):
+		_sync_payload_audio_generation(generation)
 	return result
 
 
@@ -169,6 +188,8 @@ func detach_payload_authority(reason: StringName = &"detached") -> Dictionary:
 	var result := _payload_authority.detach(reason)
 	if bool(result.get("accepted", false)) and is_instance_valid(_payload_presentation):
 		_payload_presentation.detach()
+	if bool(result.get("accepted", false)) and _payload_audio_binding != null:
+		_payload_audio_binding.detach()
 	return result
 
 
@@ -182,6 +203,9 @@ func get_payload_authority_snapshot() -> Dictionary:
 
 func get_payload_presentation():
 	return _payload_presentation
+
+func get_payload_audio_binding() -> Node:
+	return _payload_audio_binding
 
 
 ## Presentation-only caller seam for graphics/accessibility composition. The
@@ -201,7 +225,10 @@ func set_payload_presentation_profile(
 func present_payload_terminal_record(terminal_record: Dictionary) -> Dictionary:
 	if not is_instance_valid(_payload_presentation):
 		return {"accepted": false, "reason": &"payload_presentation_unavailable"}
-	return _payload_presentation.consume_terminal_record(terminal_record)
+	var result: Dictionary = _payload_presentation.consume_terminal_record(terminal_record)
+	if bool(result.get("accepted", false)) and _payload_audio_binding != null:
+		result["audio"] = _payload_audio_binding.present_projectile_terminal(terminal_record)
+	return result
 
 
 ## Maps one authored hardpoint to a finite release pose and delegates all
@@ -246,6 +273,8 @@ func request_payload_release(
 			if is_instance_valid(_payload_presentation)
 			else {"accepted": false, "reason": &"payload_presentation_unavailable"}
 		)
+		if _payload_audio_binding != null:
+			result["audio"] = _payload_audio_binding.present_release_record(result.get("record", {}) as Dictionary)
 	return result.duplicate(true)
 
 
@@ -298,6 +327,29 @@ func _build_payload_presentation() -> void:
 	_payload_presentation = PayloadPresentation.new()
 	_payload_presentation.name = "BomberPayloadPresentation"
 	add_child(_payload_presentation)
+
+func _build_payload_audio_binding() -> void:
+	if is_instance_valid(_payload_audio_binding):
+		return
+	_payload_audio_binding = BomberPayloadAudioBindingType.new()
+	_payload_audio_binding.name = "BomberPayloadAudioBinding"
+	add_child(_payload_audio_binding)
+	_payload_audio_binding.attach(0)
+
+func _sync_payload_audio_generation(generation: int) -> void:
+	if _payload_audio_binding == null:
+		return
+	var snapshot: Dictionary = _payload_audio_binding.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		_payload_audio_binding.detach()
+		snapshot = _payload_audio_binding.get_snapshot()
+	var current := int(snapshot.get("generation", 0))
+	while current < generation:
+		_payload_audio_binding.attach(current)
+		_payload_audio_binding.detach()
+		current = int(_payload_audio_binding.get_snapshot().get("generation", current + 1))
+	if current == generation:
+		_payload_audio_binding.attach(current)
 
 
 func _build_collision() -> void:
