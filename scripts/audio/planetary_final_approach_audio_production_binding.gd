@@ -75,9 +75,12 @@ func _on_engagement_changed(snapshot: Dictionary) -> void:
 func _on_tick_committed(receipt: Dictionary) -> void:
 	if not _attached:
 		return
-	if not bool(receipt.get("accepted", false)):
+	if not bool(receipt.get("accepted", false)) and receipt.has("target_generation"):
+		var target_generation: Variant = receipt.get("target_generation", -1)
+		if not target_generation is int or int(target_generation) < 0:
+			return
 		var reason := StringName(receipt.get("reason", &""))
-		_audio.present_snapshot({"generation": int(receipt.get("generation", _generation)), "final_approach": {"target_generation": int(receipt.get("target_generation", receipt.get("generation", 0))), "state_id": &"failed", "reason": reason}})
+		_audio.present_snapshot({"generation": int(receipt.get("generation", _generation)), "final_approach": {"target_generation": int(target_generation), "state_id": &"failed", "reason": reason}})
 
 func _on_completed(receipt: Dictionary) -> void:
 	if _attached:
