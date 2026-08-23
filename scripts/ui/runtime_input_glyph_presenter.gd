@@ -13,6 +13,7 @@ const DEVICE_FAMILY_KEYBOARD: StringName = &"keyboard"
 const DEVICE_FAMILY_XBOX: StringName = &"gamepad_xbox"
 const DEVICE_FAMILY_PLAYSTATION: StringName = &"gamepad_playstation"
 const DEVICE_FAMILY_NINTENDO: StringName = &"gamepad_nintendo"
+const DEVICE_FAMILY_STEAM: StringName = &"gamepad_steam"
 const DEVICE_FAMILY_GENERIC_GAMEPAD: StringName = &"gamepad_generic"
 const SUPPORTED_DEVICE_FAMILIES: Array[StringName] = [
 	DEVICE_FAMILY_KEYBOARD,
@@ -21,6 +22,7 @@ const SUPPORTED_DEVICE_FAMILIES: Array[StringName] = [
 	DEVICE_FAMILY_XBOX,
 	DEVICE_FAMILY_PLAYSTATION,
 	DEVICE_FAMILY_NINTENDO,
+	DEVICE_FAMILY_STEAM,
 ]
 const CORE_ACTIONS: Array[StringName] = [
 	&"move_forward", &"interact", &"jump", &"sprint_boost", &"fire", &"pause",

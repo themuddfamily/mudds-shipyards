@@ -4149,7 +4149,7 @@ func _add_controller_glyph_family_setting(parent: VBoxContainer) -> void:
 	_tint_theme_color(selector, &"font_color", PRIMARY)
 	selector.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
 	selector.add_theme_stylebox_override("hover", _border_box(Color("173044"), 4, NOMINAL))
-	for option: String in ["Automatic", "Generic", "Xbox", "PlayStation", "Nintendo"]:
+	for option: String in ["Automatic", "Generic", "Xbox", "PlayStation", "Nintendo", "Steam Deck"]:
 		selector.add_item(option)
 	selector.select(0)
 	selector.item_selected.connect(_on_controller_glyph_family_selected)
@@ -4232,6 +4232,7 @@ func _on_controller_glyph_family_selected(index: int) -> void:
 		InputGlyphResolverType.FAMILY_GAMEPAD_XBOX,
 		InputGlyphResolverType.FAMILY_GAMEPAD_PLAYSTATION,
 		InputGlyphResolverType.FAMILY_GAMEPAD_NINTENDO,
+		InputGlyphResolverType.FAMILY_GAMEPAD_STEAM,
 	]
 	if index < 0 or index >= families.size():
 		return

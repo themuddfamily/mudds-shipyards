@@ -10,12 +10,14 @@ const FAMILY_GAMEPAD_GENERIC := &"gamepad_generic"
 const FAMILY_GAMEPAD_XBOX := &"gamepad_xbox"
 const FAMILY_GAMEPAD_PLAYSTATION := &"gamepad_playstation"
 const FAMILY_GAMEPAD_NINTENDO := &"gamepad_nintendo"
+const FAMILY_GAMEPAD_STEAM := &"gamepad_steam"
 
 const GAMEPAD_FAMILIES := [
 	FAMILY_GAMEPAD_GENERIC,
 	FAMILY_GAMEPAD_XBOX,
 	FAMILY_GAMEPAD_PLAYSTATION,
 	FAMILY_GAMEPAD_NINTENDO,
+	FAMILY_GAMEPAD_STEAM,
 ]
 const VALID_FAMILIES := [
 	FAMILY_KEYBOARD,
@@ -24,6 +26,7 @@ const VALID_FAMILIES := [
 	FAMILY_GAMEPAD_XBOX,
 	FAMILY_GAMEPAD_PLAYSTATION,
 	FAMILY_GAMEPAD_NINTENDO,
+	FAMILY_GAMEPAD_STEAM,
 ]
 
 const _KEY_NAMES := {
@@ -112,6 +115,15 @@ const _NINTENDO_FACE := {
 	JOY_BUTTON_LEFT_STICK: [&"left_stick", "Left Stick"],
 	JOY_BUTTON_RIGHT_STICK: [&"right_stick", "Right Stick"],
 	JOY_BUTTON_LEFT_SHOULDER: [&"l", "L"], JOY_BUTTON_RIGHT_SHOULDER: [&"r", "R"],
+}
+
+const _STEAM_FACE := {
+	JOY_BUTTON_A: [&"a", "A"], JOY_BUTTON_B: [&"b", "B"],
+	JOY_BUTTON_X: [&"x", "X"], JOY_BUTTON_Y: [&"y", "Y"],
+	JOY_BUTTON_BACK: [&"view", "View"], JOY_BUTTON_GUIDE: [&"steam", "Steam"],
+	JOY_BUTTON_START: [&"menu", "Menu"],
+	JOY_BUTTON_LEFT_STICK: [&"ls", "LS"], JOY_BUTTON_RIGHT_STICK: [&"rs", "RS"],
+	JOY_BUTTON_LEFT_SHOULDER: [&"lb", "LB"], JOY_BUTTON_RIGHT_SHOULDER: [&"rb", "RB"],
 }
 
 var _last_active_family: StringName = FAMILY_KEYBOARD
@@ -302,6 +314,7 @@ static func gamepad_family_from_metadata(metadata: Dictionary) -> StringName:
 		"xbox": return FAMILY_GAMEPAD_XBOX
 		"playstation", "ps": return FAMILY_GAMEPAD_PLAYSTATION
 		"nintendo", "switch": return FAMILY_GAMEPAD_NINTENDO
+		"steam", "steam_input", "steam_deck", "deck": return FAMILY_GAMEPAD_STEAM
 	return FAMILY_GAMEPAD_GENERIC
 
 
@@ -375,6 +388,8 @@ static func _resolve_joy_button(binding: Dictionary, family: StringName) -> Dict
 		entry = _PLAYSTATION_FACE[button] as Array
 	elif family == FAMILY_GAMEPAD_NINTENDO and _NINTENDO_FACE.has(button):
 		entry = _NINTENDO_FACE[button] as Array
+	elif family == FAMILY_GAMEPAD_STEAM and _STEAM_FACE.has(button):
+		entry = _STEAM_FACE[button] as Array
 	elif _GENERIC_BUTTONS.has(button):
 		entry = _GENERIC_BUTTONS[button] as Array
 	if entry.is_empty():
@@ -421,6 +436,8 @@ static func _trigger_text(family: StringName, left: bool) -> String:
 		return "L2" if left else "R2"
 	if family == FAMILY_GAMEPAD_NINTENDO:
 		return "ZL" if left else "ZR"
+	if family == FAMILY_GAMEPAD_STEAM:
+		return "LT" if left else "RT"
 	return "Left Trigger" if left else "Right Trigger"
 
 
@@ -429,6 +446,7 @@ static func _family_slug(family: StringName) -> String:
 		FAMILY_GAMEPAD_XBOX: return "xbox"
 		FAMILY_GAMEPAD_PLAYSTATION: return "playstation"
 		FAMILY_GAMEPAD_NINTENDO: return "nintendo"
+		FAMILY_GAMEPAD_STEAM: return "steam"
 	return "generic"
 
 
