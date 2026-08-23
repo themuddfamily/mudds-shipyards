@@ -2080,6 +2080,16 @@ func _on_server_browser_result(result: Dictionary) -> void:
 	hud.call(&"apply_server_browser_result", presentation)
 
 
+func _publish_server_browser_feedback(result: Dictionary) -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_server_browser_feedback"):
+		return
+	var feedback := result.duplicate(true)
+	if not feedback.has("message"):
+		var status := StringName(str(feedback.get("status", &"unknown")))
+		feedback["message"] = "Session request accepted." if bool(feedback.get("accepted", false)) else "Session request failed: %s" % status
+	hud.call(&"apply_server_browser_feedback", feedback)
+
+
 func _handle_server_browser_intent(payload: Dictionary) -> void:
 	var action := StringName(str(payload.get("action", &"")))
 	var session = network_session if is_instance_valid(network_session) else _ensure_network_session()
@@ -2103,6 +2113,15 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 				_network_session_port
 			)
 			_publish_network_session_result(started, &"client")
+		&"host_session":
+			var host_port := int(payload.get("port", runtime_settings.network_default_port if runtime_settings != null else NetworkSessionAdapterType.DEFAULT_PORT))
+			var hosted := host_network_session(host_port)
+			_publish_server_browser_feedback(hosted)
+		&"manual_join":
+			var address := str(payload.get("address", "")).strip_edges()
+			var join_port := int(payload.get("port", runtime_settings.network_default_port if runtime_settings != null else NetworkSessionAdapterType.DEFAULT_PORT))
+			var joined := join_network_session(address, join_port)
+			_publish_server_browser_feedback(joined)
 
 
 func _connect_flyable_ship_signals(candidate: HeroShip) -> void:
