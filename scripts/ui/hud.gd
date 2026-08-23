@@ -5509,8 +5509,8 @@ func preview_caption() -> bool:
 		"revision": _caption_preview_revision,
 		"visible": true,
 		"captions_enabled": true,
-		"reduced_flash": _reduced_motion,
-		"transition_policy": &"steady_no_flash" if _reduced_motion else &"consumer_standard",
+		"reduced_flash": _reduced_flash,
+		"transition_policy": &"steady_no_flash" if _reduced_flash else &"consumer_standard",
 		"caption": {
 			"stable_id": &"settings.caption-preview",
 			"category": 1,

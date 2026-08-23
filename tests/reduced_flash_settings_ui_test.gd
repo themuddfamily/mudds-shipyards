@@ -14,9 +14,10 @@ func _run() -> void:
 	var settings := Settings.new(_path)
 	_check(not settings.reduced_flash, "reduced flash defaults off")
 	settings.reduced_flash = true
+	settings.captions_enabled = true
 	_check(settings.reduced_flash and settings.save_to_file() == OK, "reduced flash accepts and persists the setting")
 	var restored := Settings.new(_path)
-	_check(restored.load_from_file() == OK and restored.reduced_flash, "reduced flash round-trips through the settings store")
+	_check(restored.load_from_file() == OK and restored.reduced_flash and restored.captions_enabled, "reduced flash round-trips through the settings store")
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame
@@ -25,6 +26,14 @@ func _run() -> void:
 	_check(control != null and control.focus_mode == Control.FOCUS_ALL, "reduced flash is a labelled controller-focusable setting")
 	hud.set_settings_snapshot({"reduced_flash": true})
 	_check(bool(control.button_pressed) and is_equal_approx(hud.get_damage_flash_alpha(), HudType.REDUCED_DAMAGE_FLASH_ALPHA), "snapshot enables reduced flash without removing semantic cues")
+	hud.set_accessibility(restored.get_accessibility_descriptor())
+	_check(hud.preview_caption(), "the retained settings HUD accepts a caption preview under the restored accessibility preset")
+	var caption_preview := hud.get_caption_presentation_snapshot()
+	_check(
+		bool(caption_preview.get("reduced_flash", false))
+		and caption_preview.get("transition_policy") == &"steady_no_flash",
+		"reduced flash keeps the live caption preview steady even when reduced motion is off"
+	)
 	hud.queue_free()
 	await process_frame
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(_path))
