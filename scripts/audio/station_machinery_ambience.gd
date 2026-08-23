@@ -65,6 +65,8 @@ var _built_reference_distance := 0.0
 var _built_loop_volume_db := 0.0
 var _built_cue_volume_db := 0.0
 var _expected_cue_volume_db := 0.0
+var _caller_distance := 0.0
+var _room_exposure := 0.0
 
 
 func _enter_tree() -> void:
@@ -127,6 +129,26 @@ func is_ambience_enabled() -> bool:
 	return ambience_enabled
 
 
+## Caller-owned normalized distance and room exposure. Zero distance is near;
+## one is at the authored range edge. Exposure zero is fully occluded.
+func set_room_mix(distance: float, exposure: float) -> bool:
+	if not is_finite(distance) or not is_finite(exposure) \
+			or distance < 0.0 or distance > 1.0 or exposure < 0.0 or exposure > 1.0:
+		return false
+	_caller_distance = distance
+	_room_exposure = exposure
+	_apply_room_mix()
+	return true
+
+
+func get_room_mix_snapshot() -> Dictionary:
+	return {
+		"caller_distance": _caller_distance,
+		"room_exposure": _room_exposure,
+		"presentation_only": true,
+	}.duplicate(true)
+
+
 ## Plays one bounded machinery cue through the component's single transient
 ## voice. A new cue deliberately replaces an older one. Returns true only when a
 ## real audio driver accepted playback; deterministic/headless calls return false.
@@ -157,6 +179,7 @@ func play_cue(cue_id: StringName = CUE_SERVO, intensity: float = 1.0) -> bool:
 		_stop_and_detach(_cue_player)
 		return false
 	_expected_cue_volume_db = requested_cue_volume_db
+	_apply_room_mix()
 	return true
 
 
@@ -368,6 +391,8 @@ func get_audit_report() -> Dictionary:
 		"enabled": ambience_enabled,
 		"loop_playing": is_instance_valid(_loop_player) and _loop_player.playing,
 		"cue_playing": is_instance_valid(_cue_player) and _cue_player.playing,
+		"caller_distance": _caller_distance,
+		"room_exposure": _room_exposure,
 	}
 
 
@@ -384,6 +409,19 @@ func _apply_enabled_state() -> void:
 		_loop_player.stream = _loop_stream
 	if not _loop_player.playing:
 		_loop_player.play()
+	_apply_room_mix()
+
+
+func _apply_room_mix() -> void:
+	if not is_instance_valid(_loop_player) or not is_instance_valid(_cue_player):
+		return
+	var distance_db := lerpf(0.0, -12.0, _caller_distance)
+	var occlusion_db := lerpf(-18.0, 0.0, _room_exposure)
+	var loop_base := _built_loop_volume_db if _has_player_configuration_snapshot else loop_volume_db
+	var cue_base := _built_cue_volume_db if _has_player_configuration_snapshot else cue_volume_db
+	_loop_player.volume_db = loop_base + distance_db + occlusion_db
+	if _cue_player.playing:
+		_cue_player.volume_db = _expected_cue_volume_db + distance_db + occlusion_db
 
 
 func _restore_after_enter_tree() -> void:
