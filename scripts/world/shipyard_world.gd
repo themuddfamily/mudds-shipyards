@@ -6934,7 +6934,7 @@ func _build_catwalks_and_control_room() -> void:
 	# frontage presented a 0.40 m vertical face to anyone walking up to it — a wall,
 	# not a step, for a CharacterBody3D. The pod keeps its authored placement; a
 	# rendered threshold apron closes the seam across the whole frontage.
-	_approach_threshold(
+	var operations_threshold := _approach_threshold(
 		upper,
 		"OperationsPodThreshold",
 		Vector3(43.0, -0.02, 21.85),
@@ -6942,6 +6942,12 @@ func _build_catwalks_and_control_room() -> void:
 		12.0,
 		_materials["deck_light"]
 	)
+	# The threshold remains the full-width approach apron, but its centreline is
+	# the pod's sole ingress.  Publishing the opening on the rendered threshold
+	# keeps route consumers aligned with the actual gap in the frontage below.
+	operations_threshold.set_meta("station_doorway", true)
+	operations_threshold.set_meta("open_bay_center_x", 43.0)
+	operations_threshold.set_meta("open_bay_clear_width", 3.34)
 	_box(upper, "OperationsPodRoof", Vector3(43.0, 5.9, 27.0), Vector3(12.0, 0.55, 8.0), _materials["ivory"])
 	_box(upper, "OperationsPodBack", Vector3(43.0, 3.0, 30.8), Vector3(12.0, 5.5, 0.5), _materials["steel_blue"])
 	for x_position in [37.5, 41.2, 44.8, 48.5]:
@@ -6962,19 +6968,23 @@ func _build_catwalks_and_control_room() -> void:
 	#   sheet of glass stood in open space past the corner of the pod.
 	#
 	# The four mullions stay exactly where they were — they carry this roof, which
-	# is why this pod never had the cantilever its mirror image did. The glazing is
-	# now three panes, one per real bay, each 0.2 m wider than its bay so it beds
-	# into the frame on both sides. The two 0.5 m stubs between the outer mullions
-	# and the pod corners stay open, matching the registry pod's open frontage.
-	for bay in [[39.35, 3.9], [43.0, 3.8], [46.65, 3.9]]:
-		_box(
+	# is why this pod never had the cantilever its mirror image did. The two outer
+	# bays retain the same glass material and 0.1 m bedding into each frame, now as
+	# real World-layer pressure barriers. The 3.34 m clear middle bay is the one
+	# explicit entrance, centred at x=43 on OperationsPodThreshold and on the
+	# production controller's no-jump approach. Making all three old panes solid
+	# would have fixed glass by sealing the room.
+	for bay in [["OperationsWindow", 39.35, 3.9], ["OperationsWindow03", 46.65, 3.9]]:
+		var pane := _box(
 			upper,
-			"OperationsWindow",
-			Vector3(float(bay[0]), 3.0, 22.8),
-			Vector3(float(bay[1]), 4.7, 0.08),
-			_materials["glass"],
-			false
+			String(bay[0]),
+			Vector3(float(bay[1]), 3.0, 22.8),
+			Vector3(float(bay[2]), 4.7, 0.08),
+			_materials["glass"]
 		)
+		pane.set_meta("station_glazing", true)
+		pane.set_meta("physical_pressure_barrier", true)
+		pane.set_meta("frontage_role", &"side_glazing")
 	# REGEN-DECK-002's mirror image, and measured the same way: the DOCK OPERATIONS
 	# legend occupied y = 5.003 … 5.268 at z = 22.674, touching nothing. Same
 	# fascia, sized to meet these glyphs where they already stand (fascia face

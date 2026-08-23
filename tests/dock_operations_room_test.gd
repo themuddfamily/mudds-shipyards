@@ -38,6 +38,73 @@ func _run() -> void:
 		"room has a seated status board and a collision-backed dispatch plot"
 	)
 
+	var upper := world.get_node_or_null(^"UpperOperations") as Node3D
+	var threshold := upper.get_node_or_null(^"OperationsPodThreshold") as StaticBody3D if upper != null else null
+	_check(
+		threshold != null
+		and bool(threshold.get_meta("station_doorway", false))
+		and is_equal_approx(float(threshold.get_meta("open_bay_center_x", 0.0)), 43.0)
+		and is_equal_approx(float(threshold.get_meta("open_bay_clear_width", 0.0)), 3.34),
+		"the full-width approach publishes one 3.34 m central doorway at x=43"
+	)
+
+	var glazing_specs := [
+		["OperationsWindow", Vector3(39.35, 3.0, 22.8), Vector3(3.9, 4.7, 0.08)],
+		["OperationsWindow03", Vector3(46.65, 3.0, 22.8), Vector3(3.9, 4.7, 0.08)],
+	]
+	var glazing_exact := upper != null
+	for spec in glazing_specs:
+		var pane := upper.get_node_or_null(NodePath(spec[0] as String)) as StaticBody3D if upper != null else null
+		var mesh_instance := pane.get_node_or_null(^"Mesh") as MeshInstance3D if pane != null else null
+		var collision := pane.get_node_or_null(^"Collision") as CollisionShape3D if pane != null else null
+		var box_shape := collision.shape as BoxShape3D if collision != null else null
+		glazing_exact = glazing_exact \
+			and pane != null \
+			and pane.position.is_equal_approx(spec[1] as Vector3) \
+			and pane.collision_layer == PhysicsLayers.WORLD \
+			and pane.collision_mask == PhysicsLayers.NONE \
+			and bool(pane.get_meta("station_glazing", false)) \
+			and bool(pane.get_meta("physical_pressure_barrier", false)) \
+			and pane.get_meta("frontage_role", &"") == &"side_glazing" \
+			and mesh_instance != null \
+			and mesh_instance.visible \
+			and mesh_instance.mesh != null \
+			and mesh_instance.mesh.get_aabb().size.is_equal_approx(spec[2] as Vector3) \
+			and box_shape != null \
+			and box_shape.size.is_equal_approx(spec[2] as Vector3)
+	var physical_glazing := upper.find_children(
+		"OperationsWindow*", "StaticBody3D", false, false
+	).filter(func(candidate: Node) -> bool: return bool(candidate.get_meta("station_glazing", false))) if upper != null else []
+	_check(
+		glazing_exact
+		and physical_glazing.size() == 2
+		and upper.find_children("OperationsWindow*", "MeshInstance3D", false, false).is_empty(),
+		"the two visible side panes have exact matching World collision and pressure-glazing metadata"
+	)
+
+	await physics_frame
+	var space := world.get_world_3d().direct_space_state
+	var side_rays_hit_glass := true
+	for pane_x in [39.35, 46.65]:
+		var side_query := PhysicsRayQueryParameters3D.create(
+			Vector3(float(pane_x), 2.0, 22.2),
+			Vector3(float(pane_x), 2.0, 23.4),
+			PhysicsLayers.WORLD
+		)
+		var side_hit := space.intersect_ray(side_query)
+		side_rays_hit_glass = side_rays_hit_glass \
+			and not side_hit.is_empty() \
+			and bool((side_hit.collider as Node).get_meta("station_glazing", false))
+	var doorway_query := PhysicsRayQueryParameters3D.create(
+		Vector3(43.0, 2.0, 22.2),
+		Vector3(43.0, 2.0, 23.4),
+		PhysicsLayers.WORLD
+	)
+	_check(
+		side_rays_hit_glass and space.intersect_ray(doorway_query).is_empty(),
+		"frontage rays stop on visible side glazing while the central doorway has no orphan collision"
+	)
+
 	var console_count := 0
 	var seat_count := 0
 	for station_index in 3:

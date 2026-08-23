@@ -128,7 +128,7 @@ const REQUIRED_ROUTE_SURFACES := [
 ## frontage; the lip being crossed is identical.
 const POD_WALK_INS := [
 	["UpperOperations/OperationsPodFloor", Vector3(43.0, 0.18, 21.0), 23.5,
-		"inside the operations pod, past its glazed frontage"],
+		"inside the operations pod through its threshold-aligned central doorway"],
 	["ModernFleetRegistry/RegistryPodDeck", Vector3(-46.5, 0.18, 21.0), 26.0,
 		"onto the fleet registry pod deck, whose terminal interaction MAP-002 made unreachable"],
 	["JovianFreightBerth/ConnectionLattice/ConnectionDeckA", Vector3(-47.0, 0.18, 21.0), 26.0,
@@ -478,7 +478,7 @@ func _test_pod_decks_can_be_walked_into(player: PlayerController) -> void:
 	print("BLOCKED_POD_WALK_INS: ", blocked)
 	_check(
 		blocked.is_empty(),
-		"continuous move_forward from the lattice deck walks up into the operations pod, the fleet registry pod, and the freight branch without a jump"
+		"continuous move_forward through the operations pod doorway, onto the fleet registry pod, and into the freight branch succeeds without a jump"
 	)
 	player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 500.0, 0.0)))
 	await physics_frame
