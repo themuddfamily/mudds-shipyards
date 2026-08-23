@@ -13,6 +13,9 @@ const ComponentDamageModelType := preload(
 )
 
 const HULL_COMPONENT_ID: StringName = &"hull"
+const ENGINE_COMPONENT_ID: StringName = &"engine"
+const WEAPON_COMPONENT_ID: StringName = &"weapon"
+const SENSOR_COMPONENT_ID: StringName = &"sensor"
 const STAGE_NOMINAL: StringName = &"nominal"
 const STAGE_DAMAGED: StringName = &"damaged"
 const STAGE_CRITICAL: StringName = &"critical"
@@ -44,6 +47,84 @@ const DAMAGE_STAGES := [
 		"performance_multiplier": 0.0,
 	},
 ]
+const ENGINE_DAMAGE_STAGES := [
+	{
+		"stage_id": STAGE_NOMINAL,
+		"health_ratio_at_or_below": 1.0,
+		"disabled": false,
+		"performance_multiplier": 1.0,
+	},
+	{
+		"stage_id": STAGE_DAMAGED,
+		"health_ratio_at_or_below": 0.67,
+		"disabled": false,
+		"performance_multiplier": 0.72,
+	},
+	{
+		"stage_id": STAGE_CRITICAL,
+		"health_ratio_at_or_below": 0.34,
+		"disabled": false,
+		"performance_multiplier": 0.42,
+	},
+	{
+		"stage_id": STAGE_DESTROYED,
+		"health_ratio_at_or_below": 0.0,
+		"disabled": true,
+		"performance_multiplier": 0.0,
+	},
+]
+const WEAPON_DAMAGE_STAGES := [
+	{
+		"stage_id": STAGE_NOMINAL,
+		"health_ratio_at_or_below": 1.0,
+		"disabled": false,
+		"performance_multiplier": 1.0,
+	},
+	{
+		"stage_id": STAGE_DAMAGED,
+		"health_ratio_at_or_below": 0.67,
+		"disabled": false,
+		"performance_multiplier": 0.78,
+	},
+	{
+		"stage_id": STAGE_CRITICAL,
+		"health_ratio_at_or_below": 0.34,
+		"disabled": false,
+		"performance_multiplier": 0.50,
+	},
+	{
+		"stage_id": STAGE_DESTROYED,
+		"health_ratio_at_or_below": 0.0,
+		"disabled": true,
+		"performance_multiplier": 0.0,
+	},
+]
+const SENSOR_DAMAGE_STAGES := [
+	{
+		"stage_id": STAGE_NOMINAL,
+		"health_ratio_at_or_below": 1.0,
+		"disabled": false,
+		"performance_multiplier": 1.0,
+	},
+	{
+		"stage_id": STAGE_DAMAGED,
+		"health_ratio_at_or_below": 0.67,
+		"disabled": false,
+		"performance_multiplier": 0.82,
+	},
+	{
+		"stage_id": STAGE_CRITICAL,
+		"health_ratio_at_or_below": 0.34,
+		"disabled": false,
+		"performance_multiplier": 0.58,
+	},
+	{
+		"stage_id": STAGE_DESTROYED,
+		"health_ratio_at_or_below": 0.0,
+		"disabled": true,
+		"performance_multiplier": 0.0,
+	},
+]
 
 var _captured_maximum_health := NAN
 var _model: ComponentDamageModel
@@ -53,11 +134,10 @@ var _next_damage_sequence := 0
 func _init(maximum_health: float) -> void:
 	_captured_maximum_health = maximum_health
 	_model = ComponentDamageModelType.new([
-		{
-			"component_id": HULL_COMPONENT_ID,
-			"maximum_health": maximum_health,
-			"damage_stages": DAMAGE_STAGES.duplicate(true),
-		},
+		_component_definition(HULL_COMPONENT_ID, maximum_health, DAMAGE_STAGES),
+		_component_definition(ENGINE_COMPONENT_ID, maximum_health, ENGINE_DAMAGE_STAGES),
+		_component_definition(WEAPON_COMPONENT_ID, maximum_health, WEAPON_DAMAGE_STAGES),
+		_component_definition(SENSOR_COMPONENT_ID, maximum_health, SENSOR_DAMAGE_STAGES),
 	]) as ComponentDamageModel
 
 
@@ -96,15 +176,25 @@ func apply_hull_damage(amount: float, maximum_health: float) -> Dictionary:
 		return _adapter_result(false, &"maximum_health_drift")
 	if not is_configuration_valid():
 		return _adapter_result(false, &"invalid_configuration")
-	var result := _model.apply_component_damage({
-		"component_id": HULL_COMPONENT_ID,
-		"damage": amount,
-		"generation": _model.get_generation(),
-		"sequence": _next_damage_sequence,
-	})
-	if bool(result.get("accepted", false)):
-		_next_damage_sequence += 1
-	return result.duplicate(true)
+	var contexts: Array[Dictionary] = []
+	for component_id in [
+		HULL_COMPONENT_ID,
+		ENGINE_COMPONENT_ID,
+		WEAPON_COMPONENT_ID,
+		SENSOR_COMPONENT_ID,
+	]:
+		contexts.append({
+			"component_id": component_id,
+			"damage": amount,
+			"generation": _model.get_generation(),
+			"sequence": _next_damage_sequence + contexts.size(),
+		})
+	var batch := _model.apply_component_damage_batch(contexts)
+	if not bool(batch.get("accepted", false)):
+		return batch.duplicate(true)
+	_next_damage_sequence += contexts.size()
+	var operations := batch.get("operations", []) as Array
+	return (operations[0] as Dictionary).duplicate(true)
 
 
 func get_health() -> float:
@@ -125,6 +215,18 @@ func get_component_state() -> Dictionary:
 	)
 
 
+func get_operational_modifiers() -> Dictionary:
+	return (
+		_model.get_operational_modifiers(
+			ENGINE_COMPONENT_ID,
+			WEAPON_COMPONENT_ID,
+			SENSOR_COMPONENT_ID
+		)
+		if _model != null
+		else {}
+	)
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"configuration_valid": is_configuration_valid(),
@@ -132,9 +234,22 @@ func get_snapshot() -> Dictionary:
 		"captured_maximum_health": _captured_maximum_health,
 		"configuration_current": configuration_matches(_captured_maximum_health),
 		"next_damage_sequence": _next_damage_sequence,
+		"operational_modifiers": get_operational_modifiers(),
 		"definition": _model.get_definition_snapshot() if _model != null else {},
 		"model": _model.get_snapshot() if _model != null else {},
 	}.duplicate(true)
+
+
+static func _component_definition(
+		component_id: StringName,
+		maximum_health: float,
+		stages: Array
+	) -> Dictionary:
+	return {
+		"component_id": component_id,
+		"maximum_health": maximum_health,
+		"damage_stages": stages.duplicate(true),
+	}
 
 
 func _adapter_result(accepted: bool, reason: StringName) -> Dictionary:

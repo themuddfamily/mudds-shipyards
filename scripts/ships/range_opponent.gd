@@ -164,12 +164,14 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if not _active:
 		return
+	var modifiers := get_operational_modifiers()
+	var mobility := clampf(float(modifiers.get("mobility_multiplier", 0.0)), 0.0, 1.0)
 	_elapsed += delta
 	_cooldown_remaining = maxf(0.0, _cooldown_remaining - delta)
 	var valid_target := _has_current_target()
 	if not valid_target:
 		_telegraph_remaining = 0.0
-		velocity = velocity.move_toward(Vector3.ZERO, acceleration * 0.45 * delta)
+		velocity = velocity.move_toward(Vector3.ZERO, acceleration * mobility * 0.45 * delta)
 		move_and_slide()
 		return
 
@@ -183,7 +185,11 @@ func _physics_process(delta: float) -> void:
 	desired_direction = _avoid_world_geometry(desired_direction)
 	_last_motion_direction = desired_direction
 	var desired_speed := chase_speed if distance > preferred_range * 1.65 else cruise_speed
-	velocity = velocity.move_toward(desired_direction * desired_speed, acceleration * delta)
+	desired_speed *= mobility
+	velocity = velocity.move_toward(
+		desired_direction * desired_speed,
+		acceleration * mobility * delta
+	)
 	_update_attitude(target_direction, delta)
 	move_and_slide()
 	_resolve_slide_collisions()
@@ -374,6 +380,12 @@ func get_component_damage_snapshot() -> Dictionary:
 	var snapshot := _hull_damage.get_snapshot()
 	snapshot["configuration_current"] = _hull_damage.configuration_matches(maximum_health)
 	return snapshot.duplicate(true)
+
+
+## Detached component consequences for this craft's existing movement, weapon,
+## and aim authorities to consume. The damage model never performs those acts.
+func get_operational_modifiers() -> Dictionary:
+	return _hull_damage.get_operational_modifiers() if _hull_damage != null else {}
 
 
 func is_active() -> bool:
@@ -744,7 +756,9 @@ func _update_attitude(target_direction: Vector3, delta: float) -> void:
 	var bank_target := clampf(lateral_speed / maxf(cruise_speed, 1.0), -0.18, 0.18)
 	_bank_angle = lerpf(_bank_angle, bank_target, 1.0 - exp(-5.0 * delta))
 	desired_basis = (desired_basis * Basis(Vector3.BACK, _bank_angle)).orthonormalized()
-	var blend := 1.0 - exp(-deg_to_rad(turn_speed_degrees) * delta)
+	var modifiers := get_operational_modifiers()
+	var mobility := clampf(float(modifiers.get("mobility_multiplier", 0.0)), 0.0, 1.0)
+	var blend := 1.0 - exp(-deg_to_rad(turn_speed_degrees) * mobility * delta)
 	global_basis = Basis(Quaternion(global_basis.orthonormalized()).slerp(
 		Quaternion(desired_basis),
 		blend
@@ -758,10 +772,23 @@ func _resolve_slide_collisions() -> void:
 
 
 func _update_weapon(target_position: Vector3, target_direction: Vector3, distance: float, delta: float) -> void:
+	var modifiers := get_operational_modifiers()
+	var fire_modifier := clampf(float(modifiers.get("fire_multiplier", 0.0)), 0.0, 1.0)
+	var targeting_modifier := clampf(
+		float(modifiers.get("targeting_multiplier", 0.0)),
+		0.0,
+		1.0
+	)
+	if fire_modifier <= 0.0 or bool(modifiers.get("fire_disabled", true)):
+		_telegraph_remaining = 0.0
+		return
 	if _telegraph_remaining > 0.0:
 		# Charging is a visible commitment, not a guaranteed hit. A player who
 		# breaks line of sight, range, or the defender's firing cone cancels it.
-		var still_aimed := (-global_basis.z).dot(target_direction) >= 0.86
+		var still_aimed := (-global_basis.z).dot(target_direction) >= _aim_acceptance_dot(
+			0.86,
+			targeting_modifier
+		)
 		if distance > engagement_range or not still_aimed or not _has_line_of_sight(target_position):
 			_telegraph_remaining = 0.0
 			_cooldown_remaining = maxf(_cooldown_remaining, 0.28)
@@ -773,9 +800,18 @@ func _update_weapon(target_position: Vector3, target_direction: Vector3, distanc
 	if _cooldown_remaining > 0.0 or distance > engagement_range:
 		return
 	var forward := -global_basis.z
-	if forward.dot(target_direction) < 0.94 or not _has_line_of_sight(target_position):
+	if forward.dot(target_direction) < _aim_acceptance_dot(0.94, targeting_modifier) \
+			or not _has_line_of_sight(target_position):
 		return
 	_telegraph_remaining = telegraph_time
+
+
+func _aim_acceptance_dot(nominal_dot: float, targeting_modifier: float) -> float:
+	return clampf(
+		lerpf(0.995, nominal_dot, clampf(targeting_modifier, 0.0, 1.0)),
+		nominal_dot,
+		0.995
+	)
 
 
 func _has_line_of_sight(target_position: Vector3) -> bool:
@@ -793,6 +829,10 @@ func _has_line_of_sight(target_position: Vector3) -> bool:
 func _fire_at_target(target_position: Vector3) -> void:
 	if not _active or not _has_current_target():
 		return
+	var modifiers := get_operational_modifiers()
+	var fire_modifier := clampf(float(modifiers.get("fire_multiplier", 0.0)), 0.0, 1.0)
+	if fire_modifier <= 0.0 or bool(modifiers.get("fire_disabled", true)):
+		return
 	var muzzle := _muzzle_starboard if _alternate_muzzle else _muzzle_port
 	_alternate_muzzle = not _alternate_muzzle
 	var target_velocity := Vector3.ZERO
@@ -806,7 +846,7 @@ func _fire_at_target(target_position: Vector3) -> void:
 		direction = -global_basis.z
 	projectile_fired.emit(muzzle.global_position, direction)
 	_spawn_muzzle_flash(muzzle.global_position)
-	_cooldown_remaining = weapon_cooldown
+	_cooldown_remaining = weapon_cooldown / fire_modifier
 
 
 func _set_damage_stage() -> void:

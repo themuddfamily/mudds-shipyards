@@ -22,6 +22,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_detached_adapter_contract()
+	await _test_runtime_modifier_consumption()
 	await _test_production_lifecycle()
 	_finish()
 
@@ -33,7 +34,7 @@ func _test_detached_adapter_contract() -> void:
 	var components := definition.get("components", []) as Array
 	var stages := (
 		(components[0] as Dictionary).get("damage_stages", []) as Array
-		if components.size() == 1
+		if components.size() == 4
 		else []
 	)
 	_check(
@@ -42,7 +43,7 @@ func _test_detached_adapter_contract() -> void:
 		and is_equal_approx(adapter.get_maximum_health(), 85.0)
 		and int((dormant.get("model", {}) as Dictionary).get("generation", -1)) == 0
 		and adapter.get_health() == 0.0,
-		"the production adapter captures one valid dormant 85-health hull model"
+		"the production adapter captures one valid dormant hull and operational model"
 	)
 	var expected_stages := [
 		[&"nominal", 1.0, false, 1.0],
@@ -60,10 +61,13 @@ func _test_detached_adapter_contract() -> void:
 			and bool(stage.get("disabled", false)) == bool(expected[2]) \
 			and float(stage.get("performance_multiplier", -1.0)) == float(expected[3])
 	_check(
-		components.size() == 1
+		components.size() == 4
 		and (components[0] as Dictionary).get("component_id", &"") == &"hull"
+		and (components[1] as Dictionary).get("component_id", &"") == &"engine"
+		and (components[2] as Dictionary).get("component_id", &"") == &"weapon"
+		and (components[3] as Dictionary).get("component_id", &"") == &"sensor"
 		and stages_exact,
-		"the sole hull component freezes the exact nominal/damaged/critical/destroyed data stages"
+		"one ledger freezes the hull authority plus engine, weapon, and sensor consequence roster"
 	)
 	var authority := definition.get("authority", {}) as Dictionary
 	var zero_authority := authority.size() == 12
@@ -79,6 +83,108 @@ func _test_detached_adapter_contract() -> void:
 		and source_text.contains("var _hull_damage: RangeOpponentComponentDamageAdapter"),
 		"RangeOpponent owns the typed model adapter instead of a mirrored scalar health ledger"
 	)
+
+
+func _test_runtime_modifier_consumption() -> void:
+	var host := Node3D.new()
+	host.name = "RangeOpponentOperationalModifierWorld"
+	root.add_child(host)
+	var target := Node3D.new()
+	target.name = "OperationalTarget"
+	target.position = Vector3(0.0, 0.0, -120.0)
+	host.add_child(target)
+	var opponent := OPPONENT_SCENE.instantiate() as RangeOpponent
+	host.add_child(opponent)
+	opponent.set_physics_process(false)
+	opponent.set_target(target)
+	var shots: Array[Vector3] = []
+	opponent.projectile_fired.connect(
+		func(_origin: Vector3, direction: Vector3) -> void: shots.append(direction)
+	)
+	await process_frame
+	opponent.activate(Transform3D.IDENTITY)
+	var nominal := opponent.get_operational_modifiers()
+	_check(
+		is_equal_approx(float(nominal.mobility_multiplier), 1.0)
+		and is_equal_approx(float(nominal.fire_multiplier), 1.0)
+		and is_equal_approx(float(nominal.targeting_multiplier), 1.0),
+		"activation publishes nominal operational modifiers from the real component ledger"
+	)
+	opponent.velocity = Vector3.ZERO
+	opponent.call("_physics_process", 0.1)
+	var nominal_response := opponent.velocity.length()
+	var target_direction := (target.global_position - opponent.global_position).normalized()
+	var marginal_forward := target_direction.rotated(Vector3.UP, acos(0.945))
+	opponent.global_basis = Basis.looking_at(marginal_forward, Vector3.UP)
+	opponent.set("_cooldown_remaining", 0.0)
+	opponent.set("_telegraph_remaining", 0.0)
+	opponent.call(
+		"_update_weapon",
+		target.global_position,
+		target_direction,
+		opponent.global_position.distance_to(target.global_position),
+		0.0
+	)
+	var nominal_accepts_marginal_aim := float(opponent.get("_telegraph_remaining")) > 0.0
+	opponent.call("_fire_at_target", target.global_position)
+	var nominal_cooldown := float(opponent.get("_cooldown_remaining"))
+
+	opponent.global_transform = Transform3D.IDENTITY
+	opponent.velocity = Vector3.ZERO
+	opponent.apply_damage(34.0, opponent.global_position)
+	var degraded := opponent.get_operational_modifiers()
+	opponent.set("_telegraph_remaining", 0.0)
+	opponent.set("_cooldown_remaining", 0.0)
+	opponent.call("_physics_process", 0.1)
+	var degraded_response := opponent.velocity.length()
+	target_direction = (target.global_position - opponent.global_position).normalized()
+	marginal_forward = target_direction.rotated(Vector3.UP, acos(0.945))
+	opponent.global_basis = Basis.looking_at(marginal_forward, Vector3.UP)
+	opponent.set("_cooldown_remaining", 0.0)
+	opponent.set("_telegraph_remaining", 0.0)
+	opponent.call(
+		"_update_weapon",
+		target.global_position,
+		target_direction,
+		opponent.global_position.distance_to(target.global_position),
+		0.0
+	)
+	var degraded_rejects_marginal_aim := is_zero_approx(
+		float(opponent.get("_telegraph_remaining"))
+	)
+	opponent.call("_fire_at_target", target.global_position)
+	var degraded_cooldown := float(opponent.get("_cooldown_remaining"))
+	_check(
+		is_equal_approx(float(degraded.mobility_multiplier), 0.72)
+		and degraded_response < nominal_response
+		and nominal_response > 0.0,
+		"resolved engine damage scales the real maneuver response without moving authority into the model"
+	)
+	_check(
+		nominal_accepts_marginal_aim and degraded_rejects_marginal_aim,
+		"resolved sensor damage tightens the real aim-acceptance gate"
+	)
+	_check(
+		shots.size() == 2
+		and is_equal_approx(nominal_cooldown, opponent.weapon_cooldown)
+		and degraded_cooldown > nominal_cooldown
+		and is_equal_approx(
+			degraded_cooldown,
+			opponent.weapon_cooldown / float(degraded.fire_multiplier)
+		),
+		"resolved weapon damage lengthens cadence on actual projectile dispatch"
+	)
+	opponent.deactivate()
+	opponent.activate(Transform3D.IDENTITY)
+	var restored := opponent.get_operational_modifiers()
+	_check(
+		is_equal_approx(float(restored.mobility_multiplier), 1.0)
+		and is_equal_approx(float(restored.fire_multiplier), 1.0)
+		and is_equal_approx(float(restored.targeting_multiplier), 1.0),
+		"reuse repair restores all runtime operational modifiers through the same model"
+	)
+	host.queue_free()
+	await process_frame
 
 
 func _test_production_lifecycle() -> void:
@@ -148,8 +254,8 @@ func _test_production_lifecycle() -> void:
 		and (critical.get("stage", {}) as Dictionary).get("stage_id", &"") == &"critical"
 		and int(opponent.get_pending_damage_presentation_count()) == 1
 		and not smoke.emitting
-		and int((critical_snapshot.get("model", {}) as Dictionary).get("last_damage_sequence", -1)) == 1
-		and int(critical_snapshot.get("next_damage_sequence", -1)) == 2,
+		and int((critical_snapshot.get("model", {}) as Dictionary).get("last_damage_sequence", -1)) == 7
+		and int(critical_snapshot.get("next_damage_sequence", -1)) == 8,
 		"authoritative critical state advances on its private sequence while deferred smoke remains receipt-timed"
 	)
 	_check(
@@ -266,7 +372,7 @@ func _hull_state(opponent: RangeOpponent) -> Dictionary:
 	var snapshot := opponent.get_component_damage_snapshot()
 	var model := snapshot.get("model", {}) as Dictionary
 	var components := model.get("components", []) as Array
-	return (components[0] as Dictionary).duplicate(true) if components.size() == 1 else {}
+	return (components[0] as Dictionary).duplicate(true) if components.size() == 4 else {}
 
 
 func _on_health_changed(current: float, maximum: float) -> void:
