@@ -17,8 +17,10 @@ const CARGO_CAPACITY := 8
 const HULL_SIZE := Vector3(6.4, 3.2, 12.0)
 const WEAPON_ID: StringName = &"cinder_cargo_mass_driver"
 const LOADMASTER_STATION_SEAT_ID: StringName = &"cinder_loadmaster_station"
+const NAVIGATOR_STATION_SEAT_ID: StringName = &"cinder_navigator_station"
 const INTERIOR_BOUNDS := AABB(Vector3(-2.55, -0.95, -2.80), Vector3(5.10, 2.10, 5.60))
 const CABIN_ROUTE_ID: StringName = &"cinder_cargo_port_aperture"
+const NAVIGATOR_ROUTE_ID: StringName = &"cinder_navigator_console"
 const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 const LOADMASTER_INTERACTION_REACH := 1.20
 
@@ -155,6 +157,139 @@ class CinderLoadmasterInteraction:
 		_avatar_id = &""
 		_claim_request_sequence = -1
 
+
+class CinderNavigatorInteraction:
+	extends Area3D
+
+	var _craft: CinderCargoHauler
+	var _seat_id: StringName
+	var _seat_generation := 1
+	var _reach_meters := 1.20
+	var _actor: Node
+	var _source_peer_id := 0
+	var _occupant_peer_id := 0
+	var _avatar_id: StringName = &""
+	var _claim_request_sequence := -1
+
+
+	func configure(
+			craft: CinderCargoHauler,
+			seat_id: StringName,
+			seat_generation: int,
+			reach_meters: float
+	) -> void:
+		_craft = craft
+		_seat_id = seat_id
+		_seat_generation = seat_generation
+		_reach_meters = reach_meters
+		collision_layer = PhysicsLayers.INTERACTABLE_AREA_LAYER
+		collision_mask = 0
+		monitoring = false
+		monitorable = true
+		var shape := CollisionShape3D.new()
+		shape.name = "InteractionShape"
+		var sphere := SphereShape3D.new()
+		sphere.radius = reach_meters
+		shape.shape = sphere
+		add_child(shape)
+
+
+	func get_interaction_prompt() -> String:
+		return "[ E ]  SIT  // NAVIGATOR" if is_available() else ""
+
+
+	func get_seat_id() -> StringName:
+		return _seat_id
+
+
+	func get_seat_generation() -> int:
+		return _seat_generation
+
+
+	func is_available() -> bool:
+		return is_inside_tree() and _actor == null and _craft != null \
+			and _craft.is_navigator_station_available()
+
+
+	func try_claim(
+			actor: Node,
+			source_peer_id: int,
+			occupant_peer_id: int,
+			avatar_id: StringName,
+			request_sequence: int
+	) -> Dictionary:
+		if not is_instance_valid(actor) or not is_available():
+			return {"accepted": false, "status": &"interaction_unavailable"}
+		if not actor is Node3D or global_position.distance_to((actor as Node3D).global_position) > _reach_meters:
+			return {"accepted": false, "status": &"interaction_out_of_range"}
+		var result: Dictionary = _craft.claim_navigator_station(
+			actor, source_peer_id, occupant_peer_id, avatar_id, request_sequence, _seat_generation
+		)
+		if bool(result.get("accepted", false)):
+			_actor = actor
+			_source_peer_id = source_peer_id
+			_occupant_peer_id = occupant_peer_id
+			_avatar_id = avatar_id
+			_claim_request_sequence = request_sequence
+			_apply_availability(false)
+		return result
+
+
+	func release(
+			actor: Node,
+			source_peer_id: int,
+			occupant_peer_id: int,
+			avatar_id: StringName,
+			request_sequence: int
+	) -> Dictionary:
+		if _actor != actor:
+			return {"accepted": false, "status": &"interaction_actor_mismatch"}
+		var result: Dictionary = _craft.release_navigator_station(
+			actor, source_peer_id, occupant_peer_id, avatar_id, request_sequence, _seat_generation
+		)
+		if bool(result.get("accepted", false)):
+			_actor = null
+			_clear_assignment_tracking()
+			_apply_availability(true)
+		return result
+
+
+	func clear_for_detach() -> void:
+		if _actor != null and _craft != null and _craft.get_crew_role_authority() != null:
+			_craft.release_navigator_station(
+				_actor,
+				_source_peer_id,
+				_occupant_peer_id,
+				_avatar_id,
+				_claim_request_sequence + 1,
+				_seat_generation
+			)
+		_actor = null
+		_clear_assignment_tracking()
+		_apply_availability(false)
+
+
+	func refresh_availability() -> void:
+		_apply_availability(true)
+
+
+	func _apply_availability(enabled: bool) -> void:
+		monitorable = enabled and _craft != null and _craft.is_navigator_station_available()
+		for child in get_children():
+			if child is CollisionShape3D:
+				(child as CollisionShape3D).set_deferred(&"disabled", not monitorable)
+
+
+	func record_request_sequence(request_sequence: int) -> void:
+		_claim_request_sequence = maxi(_claim_request_sequence, request_sequence)
+
+
+	func _clear_assignment_tracking() -> void:
+		_source_peer_id = 0
+		_occupant_peer_id = 0
+		_avatar_id = &""
+		_claim_request_sequence = -1
+
 var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
 var _cargo_access_sign: Label3D
@@ -168,6 +303,11 @@ var _occupant_volume: Area3D
 var _loadmaster_station_anchor: Marker3D
 var _loadmaster_console: MeshInstance3D
 var _loadmaster_interaction: CinderLoadmasterInteraction
+var _navigator_station_anchor: Marker3D
+var _navigator_console: MeshInstance3D
+var _navigator_interaction: CinderNavigatorInteraction
+var _navigator_ping_receipt: Dictionary = {}
+var _navigator_ping_generation := 1
 var _loadmaster_status_panel: MeshInstance3D
 var _loadmaster_status_display: Label3D
 var _loadmaster_status_snapshot: Dictionary = {}
@@ -217,6 +357,9 @@ func _exit_tree() -> void:
 	_clear_loadmaster_manifest(&"ship_detached")
 	if _loadmaster_interaction != null:
 		_loadmaster_interaction.clear_for_detach()
+	if _navigator_interaction != null:
+		_navigator_interaction.clear_for_detach()
+	_clear_navigator_ping(&"ship_detached")
 	if _moving_interior_component != null and is_instance_valid(_moving_interior_component):
 		_moving_interior_component.clear_occupants(false, &"ship_detached")
 	if _ship_perspective_audio_binding != null:
@@ -272,6 +415,9 @@ func apply_damage(
 		_clear_loadmaster_manifest(&"ship_destroyed")
 		if _loadmaster_interaction != null:
 			_loadmaster_interaction.clear_for_detach()
+		if _navigator_interaction != null:
+			_navigator_interaction.clear_for_detach()
+		_clear_navigator_ping(&"ship_destroyed")
 		if _moving_interior_component != null:
 			_moving_interior_component.clear_occupants(true, &"ship_destroyed")
 
@@ -439,6 +585,108 @@ func get_loadmaster_interaction() -> CinderLoadmasterInteraction:
 	return _loadmaster_interaction
 
 
+func get_navigator_station_anchor() -> Marker3D:
+	return _navigator_station_anchor
+
+
+func get_navigator_interaction() -> CinderNavigatorInteraction:
+	return _navigator_interaction
+
+
+func is_navigator_station_available() -> bool:
+	if _crew_role_authority == null or not is_instance_valid(_navigator_station_anchor) \
+			or not _has_navigator_seat_registration():
+		return false
+	for assignment_variant in _crew_role_authority.get_snapshot().get("assignments", []) as Array:
+		if StringName((assignment_variant as Dictionary).get("seat_id", &"")) == NAVIGATOR_STATION_SEAT_ID:
+			return false
+	return true
+
+
+func _has_navigator_seat_registration() -> bool:
+	if _crew_role_authority == null:
+		return false
+	for seat_variant in _crew_role_authority.get_snapshot().get("seats", []) as Array:
+		if not seat_variant is Dictionary:
+			continue
+		var seat := seat_variant as Dictionary
+		if StringName(seat.get("vessel_id", &"")) == get_ship_id() \
+				and StringName(seat.get("seat_id", &"")) == NAVIGATOR_STATION_SEAT_ID \
+				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PASSENGER:
+			return true
+	return false
+
+
+func claim_navigator_station(
+		actor: Node,
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		request_sequence: int,
+		seat_generation: int
+) -> Dictionary:
+	if not is_instance_valid(actor) or not actor is Node3D:
+		return {"accepted": false, "status": &"invalid_interaction_actor"}
+	if _navigator_interaction == null \
+			or _navigator_interaction.global_position.distance_to((actor as Node3D).global_position) > LOADMASTER_INTERACTION_REACH:
+		return {"accepted": false, "status": &"interaction_out_of_range"}
+	if not is_navigator_station_available():
+		return {"accepted": false, "status": &"station_occupied"}
+	var expected_generation := int(_navigator_station_anchor.get_meta(&"seat_generation", 1))
+	if seat_generation != expected_generation:
+		return {"accepted": false, "status": &"stale_seat_generation"}
+	return _crew_role_authority.claim(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		NAVIGATOR_STATION_SEAT_ID,
+		CrewRoleGameplayProfileType.ROLE_PASSENGER,
+		request_sequence
+	)
+
+
+func release_navigator_station(
+		actor: Node,
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		request_sequence: int,
+		seat_generation: int
+) -> Dictionary:
+	if _navigator_interaction == null or _crew_role_authority == null or not is_instance_valid(actor):
+		return {"accepted": false, "status": &"invalid_interaction_actor"}
+	var result := _crew_role_authority.release(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		NAVIGATOR_STATION_SEAT_ID,
+		request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_navigator_ping(&"role_released")
+	return result
+
+
+func get_navigator_ping_snapshot() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"station_id": NAVIGATOR_STATION_SEAT_ID,
+		"route_id": NAVIGATOR_ROUTE_ID,
+		"ping_generation": _navigator_ping_generation,
+		"receipt": _navigator_ping_receipt.duplicate(true),
+		"movement_authority": false,
+		"cargo_authority": false,
+		"combat_authority": false,
+	}.duplicate(true)
+
+
+func _clear_navigator_ping(_reason: StringName, advance_generation: bool = true) -> void:
+	_navigator_ping_receipt = {}
+	if advance_generation:
+		_navigator_ping_generation += 1
+
+
 func is_loadmaster_station_available() -> bool:
 	if _crew_role_authority == null or not is_instance_valid(_loadmaster_station_anchor):
 		return false
@@ -562,6 +810,8 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 	_crew_role_authority = authority
 	if _loadmaster_interaction != null:
 		_loadmaster_interaction.refresh_availability()
+	if _navigator_interaction != null:
+		_navigator_interaction.refresh_availability()
 	refresh_loadmaster_status_display()
 	return _crew_role_result(true, &"authority_attached")
 
@@ -583,9 +833,13 @@ func submit_crew_intent(
 		return _crew_role_result(false, &"assignment_not_found")
 	if StringName(assignment.get("vessel_id", &"")) != get_ship_id():
 		return _crew_role_result(false, &"foreign_vessel")
-	if StringName(assignment.get("seat_id", &"")) != LOADMASTER_STATION_SEAT_ID \
-			or StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_PASSENGER \
-			or action != CrewRoleGameplayProfileType.ACTION_PASSENGER_CARGO_MANIFEST:
+	var assignment_seat := StringName(assignment.get("seat_id", &""))
+	var is_loadmaster := assignment_seat == LOADMASTER_STATION_SEAT_ID \
+			and action == CrewRoleGameplayProfileType.ACTION_PASSENGER_CARGO_MANIFEST
+	var is_navigator := assignment_seat == NAVIGATOR_STATION_SEAT_ID \
+			and action == CrewRoleGameplayProfileType.ACTION_PASSENGER_PING
+	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_PASSENGER \
+			or (not is_loadmaster and not is_navigator):
 		return _crew_role_result(false, &"unsupported_cinder_role_action")
 	var admission := _crew_role_authority.submit_intent(
 		source_peer_id, occupant_peer_id, avatar_id, action, payload, request_sequence
@@ -596,6 +850,28 @@ func submit_crew_intent(
 	var normalized := intent.get("payload", {}) as Dictionary
 	if normalized.is_empty():
 		return _crew_role_result(false, &"invalid_manifest_intent")
+	if is_navigator:
+		var ping_receipt := {
+			"channel": StringName(normalized.get("channel", &"")),
+			"marker_id": StringName(normalized.get("marker_id", &"")),
+			"occupant_peer_id": occupant_peer_id,
+			"avatar_id": avatar_id,
+			"seat_generation": int(assignment.get("seat_generation", 0)),
+			"request_sequence": request_sequence,
+			"ping_generation": _navigator_ping_generation,
+		}
+		_navigator_ping_receipt = ping_receipt
+		if _navigator_interaction != null:
+			_navigator_interaction.record_request_sequence(request_sequence)
+		var ping_result := admission.duplicate(true)
+		ping_result["status"] = &"intent_consumed"
+		ping_result["consumed"] = true
+		ping_result["effect"] = {
+			"accepted": true,
+			"reason": &"navigator_ping_recorded",
+			"receipt": ping_receipt.duplicate(true),
+		}
+		return ping_result
 	var receipt := {
 		"manifest_id": StringName(normalized.get("manifest_id", &"")),
 		"route_id": StringName(normalized.get("route_id", &"")),
@@ -826,6 +1102,51 @@ func _build_cargo_interior() -> void:
 	_loadmaster_interaction.set_meta(&"route_id", CABIN_ROUTE_ID)
 	_loadmaster_interaction.set_meta(&"authority_owner", &"CrewSeatRoleAuthority")
 	_cargo_cabin.add_child(_loadmaster_interaction)
+	_add_interior_box(
+		_cargo_cabin,
+		"NavigatorSeatBase",
+		Vector3(-0.95, -0.55, 1.10),
+		Vector3(0.86, 0.18, 0.82),
+		ACCENT_COLOR
+	)
+	_add_interior_box(
+		_cargo_cabin,
+		"NavigatorSeatBack",
+		Vector3(-0.95, 0.08, 1.42),
+		Vector3(0.86, 1.0, 0.14),
+		ACCENT_COLOR
+	)
+	_navigator_console = _add_interior_box(
+		_cargo_cabin,
+		"NavigatorConsole",
+		Vector3(-0.95, 0.20, 0.42),
+		Vector3(0.92, 0.58, 0.08),
+		ACCENT_COLOR
+	)
+	_navigator_console.set_meta(&"presentation_only", true)
+	_navigator_console.set_meta(&"station_id", NAVIGATOR_STATION_SEAT_ID)
+	_navigator_station_anchor = Marker3D.new()
+	_navigator_station_anchor.name = "NavigatorStationAnchor"
+	_navigator_station_anchor.position = Vector3(-0.95, -0.30, 1.10)
+	_navigator_station_anchor.set_meta(&"seat_id", NAVIGATOR_STATION_SEAT_ID)
+	_navigator_station_anchor.set_meta(&"role", CrewRoleGameplayProfileType.ROLE_PASSENGER)
+	_navigator_station_anchor.set_meta(&"seat_type", &"physical")
+	_navigator_station_anchor.set_meta(&"route_id", NAVIGATOR_ROUTE_ID)
+	_navigator_station_anchor.set_meta(&"seat_generation", 1)
+	_cargo_cabin.add_child(_navigator_station_anchor)
+	_navigator_interaction = CinderNavigatorInteraction.new()
+	_navigator_interaction.name = "NavigatorStationInteraction"
+	_navigator_interaction.position = _navigator_station_anchor.position + Vector3(0.0, 0.0, -0.72)
+	_navigator_interaction.configure(
+		self,
+		NAVIGATOR_STATION_SEAT_ID,
+		1,
+		LOADMASTER_INTERACTION_REACH
+	)
+	_navigator_interaction.set_meta(&"station_id", NAVIGATOR_STATION_SEAT_ID)
+	_navigator_interaction.set_meta(&"route_id", NAVIGATOR_ROUTE_ID)
+	_navigator_interaction.set_meta(&"authority_owner", &"CrewSeatRoleAuthority")
+	_cargo_cabin.add_child(_navigator_interaction)
 	var access := Marker3D.new()
 	access.name = "CargoCabinAccessMarker"
 	access.position = Vector3(-2.20, -0.30, 0.0)
@@ -916,6 +1237,10 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	if _loadmaster_interaction != null:
 		_loadmaster_interaction.clear_for_detach()
 		_loadmaster_interaction.refresh_availability()
+	if _navigator_interaction != null:
+		_navigator_interaction.clear_for_detach()
+		_navigator_interaction.refresh_availability()
+	_clear_navigator_ping(&"ship_reused")
 	_sync_interior_occupant_collision()
 
 
