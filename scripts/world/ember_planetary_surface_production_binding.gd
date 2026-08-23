@@ -171,6 +171,38 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_session_snapshot() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"host_generation": _host_generation,
+		"attachment_generation": _attachment_generation,
+		"composition_generation": _composition_generation,
+		"surface": _adapter.call(&"get_session_snapshot") if _adapter != null else {},
+		"authority": {"save": false, "movement": false, "reward": false, "doors": false},
+	}.duplicate(true)
+
+
+func restore_session_snapshot(snapshot: Variant) -> Dictionary:
+	if _state != State.BOUND or not snapshot is Dictionary:
+		return _result(false, &"invalid_planetary_session_snapshot")
+	var saved := snapshot as Dictionary
+	if int(saved.get("schema_version", -1)) != 1:
+		return _result(false, &"unsupported_planetary_session_schema")
+	if int(saved.get("host_generation", -1)) != _host_generation:
+		return _result(false, &"stale_planetary_host_generation")
+	if int(saved.get("attachment_generation", -1)) >= _attachment_generation:
+		return _result(false, &"stale_planetary_attachment_generation")
+	var surface := saved.get("surface", {}) as Dictionary
+	if surface.is_empty():
+		return _result(false, &"invalid_planetary_session_snapshot")
+	var restored: Dictionary = _adapter.call(
+		&"restore_session_snapshot", surface, _navigation, _hazard, _landmarks, _settlement
+	)
+	if not bool(restored.get("accepted", false)):
+		return _result(false, restored.get("reason", &"planetary_session_restore_rejected") as StringName)
+	return _result(true, &"planetary_session_restored")
+
+
 func _live() -> bool:
 	return _state == State.BOUND and _host_current()
 

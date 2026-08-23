@@ -267,6 +267,17 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_planetary_surface_snapshot().settlement.state == &"inside",
 		"real Ember production owner consumes authored planetary settlement entry"
 	)
+	var planetary_session := production.get_planetary_surface_session_snapshot()
+	var malformed_session := planetary_session.duplicate(true)
+	malformed_session.schema_version = 99
+	var stale_session := planetary_session.duplicate(true)
+	stale_session.attachment_generation = host.get_attachment_generation()
+	_check(
+		planetary_session.schema_version == 1
+			and production.restore_planetary_surface_session_snapshot(malformed_session).reason == &"unsupported_planetary_session_schema"
+			and production.restore_planetary_surface_session_snapshot(stale_session).reason == &"stale_planetary_attachment_generation",
+		"planetary session snapshots validate schema and attachment fencing"
+	)
 	_check(
 		production.detach_planetary_surface().accepted
 			and production.get_planetary_surface_snapshot().state == &"detached",
