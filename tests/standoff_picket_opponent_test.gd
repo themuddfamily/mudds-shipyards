@@ -740,6 +740,14 @@ func _test_standoff_tactics() -> void:
 		FIRE_FRAME_BUDGET
 	)
 	_check(charging, "the picket visibly commits to a long lance charge before firing")
+	var charge_snapshot := picket.get_lance_charge_snapshot()
+	_check(
+		bool(charge_snapshot.get("active", false))
+			and float(charge_snapshot.get("progress", -1.0)) >= 0.0
+			and int(charge_snapshot.get("target_instance_id", 0)) == target.get_instance_id()
+			and int(charge_snapshot.get("target_generation", 0)) > 0,
+		"the lance exposes bounded caller-physics charge progress and target generation"
+	)
 	_place_target(target, Vector3(0.0, 0.0, -(picket.minimum_arming_range - 6.0)))
 	await _advance_physics(2)
 	var audit: Dictionary = picket.get_audit_report()
@@ -752,6 +760,12 @@ func _test_standoff_tactics() -> void:
 	_check(
 		float(picket.get("_cooldown_remaining")) >= picket.lance_abort_recovery - 0.05,
 		"an aborted charge costs the picket its full recovery window"
+	)
+	var aborted_charge := picket.get_lance_charge_snapshot()
+	_check(
+		not bool(aborted_charge.get("active", true))
+			and aborted_charge.get("cancel_reason", &"") == &"counterplay",
+		"counterplay clears the inspectable lance charge before dispatch"
 	)
 
 	# --- structured red D1: removing the arming radius lets the picket shoot

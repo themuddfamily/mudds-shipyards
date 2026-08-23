@@ -42,6 +42,7 @@ const BULWARK_CREW_WEAPON_ID: StringName = &"picket_siege_lance"
 const BULWARK_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
 const MAX_GUNNER_AMMUNITION := 8
+const GUNNER_SIEGE_CHARGE_TIME := 0.45
 const GUNNER_SEAT_ID: StringName = &"gunner_station"
 const PILOT_SEAT_ID: StringName = &"pilot_station"
 
@@ -60,12 +61,14 @@ var _gunner_combat_authority: LiveCombatAuthority
 var _gunner_weapon_definition: WeaponDefinition
 var _gunner_role_cooldowns: Dictionary = {}
 var _gunner_role_ammunition: Dictionary = {}
+var _gunner_role_charges: Dictionary = {}
 var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
 var _siege_lance_audio_sequence := 0
 
 signal gunner_target_selected(target_id: StringName, target_generation: int, receipt: Dictionary)
 signal gunner_target_cleared(target_id: StringName, target_generation: int, reason: StringName)
+signal gunner_charge_changed(actor_key: StringName, target_generation: int, progress: float, reason: StringName)
 signal siege_lance_audio_record(record: Dictionary)
 
 
@@ -146,6 +149,7 @@ func _physics_process(delta: float) -> void:
 	if _reset_for_reuse_mutation_blocked():
 		return
 	_advance_gunner_role_cooldowns(maxf(delta, 0.0))
+	_advance_gunner_role_charges(maxf(delta, 0.0))
 	_cleanup_detached_gunner_state()
 
 
@@ -153,6 +157,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	_gunner_role_cooldowns.clear()
 	_gunner_role_ammunition.clear()
+	_clear_all_gunner_charges(&"ship_reused")
 	_clear_gunner_target_selection(&"ship_reused", false)
 	_gunner_target_generation = 1
 
@@ -174,6 +179,7 @@ func apply_damage(
 	if is_destroyed():
 		_gunner_role_cooldowns.clear()
 		_gunner_role_ammunition.clear()
+		_clear_all_gunner_charges(&"ship_destroyed")
 		_clear_gunner_target_selection(&"ship_destroyed")
 
 
@@ -487,6 +493,7 @@ func get_gunner_gameplay_state() -> Dictionary:
 		"weapon_ready": ready,
 		"role_cooldowns": _gunner_role_cooldowns.duplicate(true),
 		"role_ammunition": _gunner_role_ammunition.duplicate(true),
+		"role_charges": _gunner_role_charges.duplicate(true),
 	}.duplicate(true)
 
 
@@ -504,16 +511,26 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	var selection := _select_gunner_target(intent, target_id, target_generation)
 	if not bool(selection.get("accepted", false)):
 		return selection
-	if not bool(payload.get("trigger", false)):
-		return selection
 	var telemetry := get_telemetry()
 	if bool(telemetry.get("destroyed", false)):
 		return _crew_role_result(false, &"ship_destroyed")
 	if StringName(telemetry.get("engine_state", &"")) != ENGINE_ONLINE:
 		return _crew_role_result(false, &"engine_not_online")
 	var actor_key := _gunner_role_actor_key(intent)
+	if not bool(payload.get("trigger", false)):
+		return selection
 	if float(_gunner_role_cooldowns.get(actor_key, 0.0)) > 0.0:
 		return _crew_role_result(false, &"role_cooldown")
+	if not _gunner_role_charges.has(actor_key):
+		_start_gunner_charge(intent, target_id, target_generation)
+		return _gunner_charge_result(actor_key, &"charge_started", selection)
+	var charge := _gunner_role_charges.get(actor_key, {}) as Dictionary
+	if not _is_gunner_charge_authorized(intent, charge):
+		_cancel_gunner_charge(actor_key, &"charge_revalidated_failed")
+		return _crew_role_result(false, &"stale_charge_authorization")
+	var charge_progress := float(charge.get("elapsed", 0.0)) / GUNNER_SIEGE_CHARGE_TIME
+	if charge_progress < 1.0:
+		return _gunner_charge_result(actor_key, &"charge_progress", selection)
 	var ammunition := mini(int(_gunner_role_ammunition.get(actor_key, 2)), MAX_GUNNER_AMMUNITION)
 	if ammunition <= 0:
 		return _crew_role_result(false, &"ammunition_depleted")
@@ -549,6 +566,7 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	effect["ammunition_remaining"] = ammunition - 1
 	_gunner_role_cooldowns[actor_key] = cooldown
 	_gunner_role_ammunition[actor_key] = ammunition - 1
+	_cancel_gunner_charge(actor_key, &"dispatched")
 	return effect
 
 
@@ -569,6 +587,13 @@ func _select_gunner_target(
 		target_id: StringName,
 		target_generation: int
 ) -> Dictionary:
+	var actor_key := _gunner_role_actor_key(intent)
+	var prior := _gunner_target_selection
+	if not prior.is_empty() and (
+		StringName(prior.get("target_id", &"")) != target_id
+		or int(prior.get("target_generation", 0)) != target_generation
+	):
+		_cancel_gunner_charge(actor_key, &"target_changed")
 	var selection := {
 		"target_id": target_id,
 		"target_generation": target_generation,
@@ -585,9 +610,10 @@ func _select_gunner_target(
 
 
 func _cleanup_detached_gunner_state() -> void:
-	if _gunner_target_selection.is_empty():
+	if _gunner_target_selection.is_empty() and _gunner_role_charges.is_empty():
 		return
 	if _crew_role_authority == null:
+		_clear_all_gunner_charges(&"authority_detached")
 		_clear_gunner_target_selection(&"authority_detached")
 		_gunner_role_cooldowns.clear()
 		return
@@ -610,6 +636,9 @@ func _clear_gunner_role_state(
 ) -> void:
 	_gunner_role_cooldowns.erase(_gunner_role_actor_key_from_values(occupant_peer_id, avatar_id))
 	_gunner_role_ammunition.erase(_gunner_role_actor_key_from_values(occupant_peer_id, avatar_id))
+	_cancel_gunner_charge(
+		_gunner_role_actor_key_from_values(occupant_peer_id, avatar_id), reason
+	)
 	if not _gunner_target_selection.is_empty() \
 			and int(_gunner_target_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
 			and StringName(_gunner_target_selection.get("avatar_id", &"")) == avatar_id:
@@ -646,6 +675,108 @@ func _advance_gunner_role_cooldowns(delta: float) -> void:
 			_gunner_role_cooldowns[key] = remaining
 	for key in expired:
 		_gunner_role_cooldowns.erase(key)
+
+
+func _start_gunner_charge(
+		intent: Dictionary,
+		target_id: StringName,
+		target_generation: int
+) -> void:
+	var actor_key := _gunner_role_actor_key(intent)
+	_gunner_role_charges[actor_key] = {
+		"elapsed": 0.0,
+		"target_id": target_id,
+		"target_generation": target_generation,
+		"seat_generation": int(intent.get("seat_generation", 0)),
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+	}.duplicate(true)
+	gunner_charge_changed.emit(actor_key, target_generation, 0.0, &"charge_started")
+
+
+func _gunner_charge_result(
+		actor_key: StringName,
+		status: StringName,
+		selection: Dictionary
+) -> Dictionary:
+	var charge := _gunner_role_charges.get(actor_key, {}) as Dictionary
+	var progress := clampf(
+		float(charge.get("elapsed", 0.0)) / GUNNER_SIEGE_CHARGE_TIME,
+		0.0,
+		1.0
+	)
+	var result := _crew_role_result(true, status)
+	result["selection"] = selection.get("selection", selection).duplicate(true)
+	result["charge_progress"] = progress
+	result["charge_remaining"] = maxf(
+		GUNNER_SIEGE_CHARGE_TIME - float(charge.get("elapsed", 0.0)),
+		0.0
+	)
+	return result
+
+
+func _is_gunner_charge_authorized(intent: Dictionary, charge: Dictionary) -> bool:
+	if charge.is_empty() or _crew_role_authority == null:
+		return false
+	if int(charge.get("target_generation", 0)) != _gunner_target_generation:
+		return false
+	if StringName(charge.get("target_id", &"")) != StringName(
+			_gunner_target_selection.get("target_id", &"")
+	):
+		return false
+	var assignment := _crew_role_authority.get_assignment(
+		int(intent.get("occupant_peer_id", 0)),
+		StringName(intent.get("avatar_id", &""))
+	)
+	return (
+		not assignment.is_empty()
+		and int(assignment.get("seat_generation", 0)) == int(charge.get("seat_generation", 0))
+		and StringName(assignment.get("seat_id", &"")) == GUNNER_SEAT_ID
+		and StringName(assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_GUNNER
+	)
+
+
+func _advance_gunner_role_charges(delta: float) -> void:
+	for key_variant in _gunner_role_charges.keys().duplicate():
+		var key := StringName(key_variant)
+		var charge := _gunner_role_charges.get(key, {}) as Dictionary
+		var intent := {
+			"occupant_peer_id": int(charge.get("occupant_peer_id", 0)),
+			"avatar_id": StringName(charge.get("avatar_id", &"")),
+		}
+		if not _is_gunner_charge_authorized(intent, charge):
+			_cancel_gunner_charge(key, &"charge_authorization_lost")
+			continue
+		charge["elapsed"] = minf(
+			GUNNER_SIEGE_CHARGE_TIME,
+			float(charge.get("elapsed", 0.0)) + delta
+		)
+		_gunner_role_charges[key] = charge
+		gunner_charge_changed.emit(
+			key,
+			int(charge.get("target_generation", 0)),
+			clampf(float(charge.get("elapsed", 0.0)) / GUNNER_SIEGE_CHARGE_TIME, 0.0, 1.0),
+			&"charge_progress"
+		)
+
+
+func _cancel_gunner_charge(actor_key: StringName, reason: StringName) -> void:
+	if not _gunner_role_charges.has(actor_key):
+		return
+	var charge := _gunner_role_charges.get(actor_key, {}) as Dictionary
+	_gunner_role_charges.erase(actor_key)
+	gunner_charge_changed.emit(
+		actor_key,
+		int(charge.get("target_generation", 0)),
+		0.0,
+		reason
+	)
+
+
+func _clear_all_gunner_charges(reason: StringName) -> void:
+	for key_variant in _gunner_role_charges.keys().duplicate():
+		_cancel_gunner_charge(StringName(key_variant), reason)
 
 
 func _gunner_role_actor_key(intent: Dictionary) -> StringName:

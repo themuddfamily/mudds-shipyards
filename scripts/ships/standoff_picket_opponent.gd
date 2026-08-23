@@ -480,6 +480,8 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_shots_fired = 0
 	_shots_aborted = 0
 	_cancel_lance_charge(&"activation_reset", false)
+	_lance_charge_generation = 0
+	_lance_charge_target_instance_id = 0
 	_discard_lance_receipts()
 	_register_combat_source()
 	_set_engagement_state(STATE_CLOSING)
@@ -488,6 +490,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 
 func deactivate() -> void:
 	_cancel_lance_charge(&"deactivated", false)
+	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
 	_discard_lance_receipts()
 	super()
@@ -496,6 +499,7 @@ func deactivate() -> void:
 
 func _destroy_interceptor(death_position: Vector3) -> void:
 	_cancel_lance_charge(&"destroyed", false)
+	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
 	# The engagement latch stays claimed so a destroyed picket is not re-dispatched
 	# while the same defender wave is still live.
@@ -718,16 +722,22 @@ func _fire_at_target(target_position: Vector3) -> void:
 	# condition at the irreversible resolver seam so a RETURN_TO_YARD transition
 	# cannot accept one stale lance shot.
 	if not _encounter_authorizes_dispatch():
+		_cancel_lance_charge(&"authorization_lost", false)
+		return
+	if _lance_charge_armed and not _is_lance_charge_authorized():
+		_cancel_lance_charge(&"charge_revalidated_failed", false)
 		return
 	var authority := _get_combat_authority()
 	var resolver: CombatResolver = (
 		authority.get_resolver() as CombatResolver if is_instance_valid(authority) else null
 	)
 	if not is_instance_valid(resolver) or not _registered:
+		_cancel_lance_charge(&"authority_unavailable", false)
 		_cooldown_remaining = weapon_cooldown
 		return
 	var definition := _weapon_definition
 	if definition == null or not definition.is_definition_valid():
+		_cancel_lance_charge(&"weapon_definition_invalid", false)
 		_cooldown_remaining = weapon_cooldown
 		_last_shot_result = {"accepted": false, "status": &"weapon_definition_invalid"}
 		return
@@ -759,6 +769,8 @@ func _fire_at_target(target_position: Vector3) -> void:
 		receipt_id
 	)
 	var result := resolver.resolve_hitscan(request)
+	_lance_charge_armed = false
+	_lance_charge_cancel_reason = &""
 	_emit_siege_lance_audio(&"dispatch", bool(result.get("accepted", false)))
 	_cooldown_remaining = weapon_cooldown
 	_last_shot_result = result.duplicate(true)

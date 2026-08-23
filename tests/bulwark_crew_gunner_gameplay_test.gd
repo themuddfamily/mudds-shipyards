@@ -80,16 +80,44 @@ func _run() -> void:
 		bool(fired.get("accepted", false))
 			and bool(fired.get("consumed", false))
 			and fired.get("status", &"") == &"intent_consumed"
-			and effect.get("status", &"") == &"siege_lance_resolved"
-			and bool((effect.get("resolution", {}) as Dictionary).get("accepted", false)),
-		"admitted gunner receipt reaches the shared siege-lance resolver"
+			and effect.get("status", &"") == &"charge_started"
+			and is_equal_approx(float(effect.get("charge_progress", -1.0)), 0.0),
+		"admitted gunner receipt starts the bounded siege-lance charge"
 	)
 	_check(emitted[0] == 0, "gunner dispatch does not take over the pilot projectile seam")
 	_check(selected[0] == 1 and selected_generation[0] == 1, "fire selects the bounded target generation")
 	_check(
-		effect.get("source_id", 0) == Bulwark.COMBAT_SOURCE_ID
-			and effect.get("faction_id", &"") == Bulwark.BULWARK_CREW_FACTION_ID
-			and effect.get("weapon_id", &"") == Bulwark.BULWARK_CREW_WEAPON_ID,
+		(craft.get_gunner_gameplay_state().get("role_charges", {}) as Dictionary).size() == 1,
+		"charge progress remains detached and inspectable while physics advances"
+	)
+	for _frame in 30:
+		await physics_frame
+
+	var resolved = craft.submit_crew_intent(
+		1,
+		88,
+		&"bulwark_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": Bulwark.BULWARK_CREW_WEAPON_ID,
+			"target_id": &"range_target_00",
+			"trigger": true,
+			"target_generation": 1,
+		},
+		3
+	)
+	var resolved_effect := resolved.get("effect", {}) as Dictionary
+	_check(
+		bool(resolved.get("accepted", false))
+			and bool(resolved.get("consumed", false))
+			and resolved_effect.get("status", &"") == &"siege_lance_resolved"
+			and bool((resolved_effect.get("resolution", {}) as Dictionary).get("accepted", false)),
+		"the charged gunner receipt reaches the shared siege-lance resolver"
+	)
+	_check(
+		resolved_effect.get("source_id", 0) == Bulwark.COMBAT_SOURCE_ID
+			and resolved_effect.get("faction_id", &"") == Bulwark.BULWARK_CREW_FACTION_ID
+			and resolved_effect.get("weapon_id", &"") == Bulwark.BULWARK_CREW_WEAPON_ID,
 		"request carries Bulwark source, faction, and weapon identity"
 	)
 
@@ -104,13 +132,13 @@ func _run() -> void:
 			"trigger": false,
 			"target_generation": 1,
 		},
-		3
+		4
 	)
 	_check(
 		bool(selection_only.get("accepted", false))
 			and bool(selection_only.get("consumed", false))
 			and (selection_only.get("effect", {}) as Dictionary).get("status", &"") == &"target_selected"
-			and selected[0] == 2
+			and selected[0] == 3
 			and emitted[0] == 0,
 		"target selection is consumable independently of fire cadence"
 	)
@@ -126,7 +154,7 @@ func _run() -> void:
 			"trigger": true,
 			"target_generation": 1,
 		},
-		4
+		5
 	)
 	_check(
 		bool(cooldown.get("accepted", false))
@@ -141,11 +169,11 @@ func _run() -> void:
 		88,
 		&"bulwark_gunner",
 		&"gunner_station",
-		5,
+		6,
 		99,
 		&"replacement_gunner",
 		Authority.ROLE_GUNNER,
-		6
+		7
 	)
 	_check(
 		bool(handoff.get("accepted", false))
@@ -165,7 +193,7 @@ func _run() -> void:
 			"trigger": false,
 			"target_generation": 1,
 		},
-		7
+		8
 	)
 	_check(
 		bool(stale.get("accepted", false))
@@ -185,7 +213,7 @@ func _run() -> void:
 			"trigger": false,
 			"target_generation": 2,
 		},
-		8
+		9
 	)
 	_check(
 		bool(replacement.get("accepted", false))
@@ -194,6 +222,28 @@ func _run() -> void:
 		"replacement gunner selects against the fresh generation"
 	)
 
+	var replacement_charge = craft.submit_crew_intent(
+		1,
+		99,
+		&"replacement_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": Bulwark.BULWARK_CREW_WEAPON_ID,
+			"target_id": &"range_target_02",
+			"trigger": true,
+			"target_generation": 2,
+		},
+		10
+	)
+	var replacement_charge_effect := replacement_charge.get("effect", {}) as Dictionary
+	_check(
+		bool(replacement_charge.get("accepted", false))
+			and bool(replacement_charge.get("consumed", false))
+			and replacement_charge_effect.get("status", &"") == &"charge_started",
+		"replacement gunner starts without inheriting the old charge"
+	)
+	for _frame in 30:
+		await physics_frame
 	var replacement_fire = craft.submit_crew_intent(
 		1,
 		99,
@@ -205,7 +255,7 @@ func _run() -> void:
 			"trigger": true,
 			"target_generation": 2,
 		},
-		9
+		11
 	)
 	var replacement_effect := replacement_fire.get("effect", {}) as Dictionary
 	_check(
@@ -213,7 +263,7 @@ func _run() -> void:
 			and bool(replacement_fire.get("consumed", false))
 			and replacement_effect.get("status", &"") == &"siege_lance_resolved"
 			and replacement_effect.get("ammunition_remaining", -1) == 1,
-		"replacement gunner acts with fresh cooldown and ammunition state"
+		"replacement gunner dispatches with fresh cooldown and ammunition state"
 	)
 
 	var released = craft.release_crew_role(
@@ -221,7 +271,7 @@ func _run() -> void:
 		99,
 		&"replacement_gunner",
 		&"gunner_station",
-		10
+		12
 	)
 	_check(bool(released.get("accepted", false)), "replacement gunner releases through the same authority")
 	await physics_frame
