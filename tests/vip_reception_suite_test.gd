@@ -121,6 +121,7 @@ func _run() -> void:
 	_test_armchair_arm_batch(suite)
 	_test_roof_cassette_batch(suite)
 	_test_port_shell_rib_head_batch(suite)
+	_test_perimeter_downlight_lens_batch(suite)
 	_test_outboard_mullion_fillet_batch(suite)
 	_test_outboard_mullion_batch(suite)
 	_test_servery_shelf_batch(suite)
@@ -313,20 +314,20 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	var render := suite.get_render_batch_contract()
 	_check(
 		int(render.baseline_descendant_nodes) == 468
-		and int(render.descendant_nodes) == 458
+		and int(render.descendant_nodes) == 459
 		and int(render.baseline_mesh_instances) == 264
 		and int(render.mesh_instances) == 244
 		and int(render.baseline_multimesh_batches) == 1
-		and int(render.multimesh_batches) == 8,
-		"cumulative visual batching freezes descendants 468 -> 458, MeshInstances 264 -> 244, and batches 1 -> 8"
+		and int(render.multimesh_batches) == 9,
+		"cumulative visual batching freezes descendants 468 -> 459, MeshInstances 264 -> 244, and batches 1 -> 9"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
 		and int(render.drawn_copies) == 278
 		and int(render.baseline_geometry_submissions) == 265
-		and int(render.geometry_submissions) == 233
+		and int(render.geometry_submissions) == 230
 		and int(render.banquette_joint_copies) == 14,
-		"drawn copies remain 278 while batched families lower submissions 265 -> 233"
+		"drawn copies remain 278 while batched families lower submissions 265 -> 230"
 	)
 	_check(
 		int(render.banquette_renderer_buffer_floats) == 168
@@ -414,7 +415,7 @@ func _test_banquette_cushion_batch(suite: VipReceptionSuite) -> void:
 		int(render.banquette_cushion_baseline_submissions) == 7
 		and int(render.banquette_cushion_submissions) == 1
 		and int(render.pre_banquette_cushion_geometry_submissions) == 249
-		and int(render.geometry_submissions) == 233
+		and int(render.geometry_submissions) == 230
 		and int(render.banquette_cushion_geometry_submissions_removed) == 6
 		and int(render.drawn_copies) == 278,
 		"banquette cushions measure 7 -> 1 submissions while all seven visible copies remain"
@@ -522,7 +523,7 @@ func _test_armchair_arm_batch(suite: VipReceptionSuite) -> void:
 		and int(render.armchair_arm_baseline_submissions) == 8
 		and int(render.armchair_arm_submissions) == 1
 		and int(render.pre_armchair_arm_geometry_submissions) == 243
-		and int(render.geometry_submissions) == 233
+		and int(render.geometry_submissions) == 230
 		and int(render.armchair_arm_geometry_submissions_removed) == 7
 		and int(render.drawn_copies) == 278,
 		"armchair arms reduce submissions 8 -> 1 before the later rib-head batch"
@@ -670,7 +671,7 @@ func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
 	_check(
 		int(render.roof_cassette_copies) == 5
 		and int(render.roof_cassette_renderer_buffer_floats) == 60
-		and int(render.renderer_buffer_floats) == 600
+		and int(render.renderer_buffer_floats) == 648
 		and bool(render.roof_cassette_renderer_buffer_matches_authored)
 		and bool(render.roof_cassette_bounds_match_authored)
 		and bool(render.renderer_buffer_matches_authored)
@@ -755,13 +756,13 @@ func _test_port_shell_rib_head_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_port_shell_rib_head_geometry_submissions) == 236
-		and int(render.geometry_submissions) == 233
+		and int(render.geometry_submissions) == 230
 		and int(render.port_shell_rib_head_baseline_submissions) == 4
 		and int(render.port_shell_rib_head_submissions) == 1
-		and int(render.port_shell_rib_head_geometry_submissions_removed) == 3
+		and int(render.port_shell_rib_head_geometry_submissions_removed) == 6
 		and int(render.drawn_copies) == 278
 		and bool(render.exact_counts),
-		"four retained copies reduce suite submissions 236 -> 233 without changing the drawn-copy roster"
+		"four retained copies reduce suite submissions 236 -> 230 after later visual trims"
 	)
 	var original_buffer := multi.buffer.duplicate()
 	var mutated_buffer := original_buffer.duplicate()
@@ -775,6 +776,74 @@ func _test_port_shell_rib_head_batch(suite: VipReceptionSuite) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the rib-head payload restores a clean module audit")
+
+
+func _test_perimeter_downlight_lens_batch(suite: VipReceptionSuite) -> void:
+	var lighting := suite.get_node_or_null(^"Structure/Lighting") as Node3D
+	var batch := lighting.get_node_or_null(^"PerimeterDownlightLenses") as MultiMeshInstance3D if lighting != null else null
+	_check(
+		lighting != null and batch != null and batch.multimesh != null,
+		"four visual-only perimeter downlight lenses resolve through one lighting batch"
+	)
+	if lighting == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	var anchors_intact := true
+	for fixture in [
+		["DownlightPortForward", Vector3(-5.6, 4.5, 6.1)],
+		["DownlightPortAft", Vector3(-5.6, 4.5, 11.2)],
+		["DownlightStarboardForward", Vector3(2.9, 4.5, 6.4)],
+		["DownlightStarboardAft", Vector3(2.9, 4.5, 11.0)],
+	]:
+		var lens := lighting.get_node_or_null(NodePath("%sLens" % str(fixture[0]))) as MeshInstance3D
+		var expected_transform := Transform3D(Basis.IDENTITY, fixture[1] as Vector3)
+		expected.append(expected_transform)
+		anchors_intact = anchors_intact and lens != null \
+			and lens.transform.is_equal_approx(expected_transform) \
+			and not lens.visible \
+			and lens.material_override == batch.material_override \
+			and lens.mesh != null \
+			and lens.mesh.get_aabb().size.is_equal_approx(Vector3(0.24, 0.03, 0.24)) \
+			and lens.get_child_count() == 0 \
+			and lens.get_script() == null
+	_check(anchors_intact, "named downlight lens paths retain their exact hidden visual inspection anchors")
+	var render := suite.get_render_batch_contract()
+	_check(
+		batch.multimesh.instance_count == VipReceptionSuite.PERIMETER_DOWNLIGHT_LENS_COPY_COUNT
+		and batch.multimesh.visible_instance_count == -1
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.24, 0.03, 0.24))
+		and batch.multimesh.mesh.get_surface_count() == 1
+		and batch.material_override == (lighting.get_node_or_null(^"LanternCoveFront") as MeshInstance3D).material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and batch.layers == 1
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and (render.authored_perimeter_downlight_lens_transforms as Array) == expected
+		and int(render.perimeter_downlight_lens_renderer_buffer_floats) == 48
+		and bool(render.perimeter_downlight_lens_renderer_buffer_matches_authored)
+		and bool(render.perimeter_downlight_lens_bounds_match_authored)
+		and bool(render.perimeter_downlight_lens_visual_contract_matches),
+		"one exact emission-lens batch preserves transforms, material, names, copies and collision-free authority"
+	)
+	_check(
+		int(render.geometry_submissions) == VipReceptionSuite.RENDER_GEOMETRY_SUBMISSION_COUNT
+		and int(render.drawn_copies) == VipReceptionSuite.RENDER_DRAWN_COPY_COUNT
+		and bool(render.exact_counts),
+		"the four lenses retain all drawn copies while their visual submissions fall 4 -> 1"
+	)
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	batch.multimesh.buffer = mutated_buffer
+	_check(
+		suite.get_validation_errors().has(
+			"VIP perimeter-downlight-lens renderer buffer drifted from its authored roster"
+		),
+		"mutating one live downlight-lens pose is rejected by the module audit"
+	)
+	batch.multimesh.buffer = original_buffer
+	_check(suite.get_validation_errors().is_empty(), "restoring the downlight-lens payload restores a clean module audit")
 
 
 func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
@@ -824,13 +893,13 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_mullion_descendant_nodes) == 464
-		and int(render.descendant_nodes) == 458
+		and int(render.descendant_nodes) == 459
 		and int(render.pre_mullion_mesh_instances) == 259
 		and int(render.mesh_instances) == 244
 		and int(render.pre_mullion_multimesh_batches) == 2
-		and int(render.multimesh_batches) == 8
+		and int(render.multimesh_batches) == 9
 		and int(render.pre_mullion_geometry_submissions) == 261
-		and int(render.geometry_submissions) == 233
+		and int(render.geometry_submissions) == 230
 		and int(render.drawn_copies) == 278,
 		"fillet family cuts six renderer nodes/submissions to one while preserving all drawn copies"
 	)
@@ -914,13 +983,13 @@ func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_outboard_mullion_descendant_nodes) == 460
-		and int(render.descendant_nodes) == 458
+		and int(render.descendant_nodes) == 459
 		and int(render.pre_outboard_mullion_mesh_instances) == 250
 		and int(render.mesh_instances) == 244
 		and int(render.pre_outboard_mullion_multimesh_batches) == 4
-		and int(render.multimesh_batches) == 8
+		and int(render.multimesh_batches) == 9
 		and int(render.pre_outboard_mullion_geometry_submissions) == 254
-		and int(render.geometry_submissions) == 233
+		and int(render.geometry_submissions) == 230
 		and int(render.drawn_copies) == 278,
 		"mullion batching removes five renderer submissions while preserving all 278 copies"
 	)
