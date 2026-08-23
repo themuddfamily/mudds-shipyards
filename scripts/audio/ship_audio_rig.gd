@@ -231,6 +231,7 @@ var _built_reference_distance := 0.0
 var _engine_running := false
 var _throttle := 0.0
 var _engine_degradation := 0.0
+var _reduced_dynamic_range := false
 var _engine_velocity := 0.0
 var _last_degradation_band := 0
 var _last_velocity_high := false
@@ -416,6 +417,22 @@ func set_engine_degradation(degradation: float) -> bool:
 
 func get_engine_degradation() -> float:
 	return _engine_degradation
+
+
+## Applies caller-owned accessibility attenuation to damage presentation only.
+## Cue thresholds and IDs remain unchanged; the rig still owns six fixed voices.
+func set_reduced_dynamic_range(enabled: bool) -> bool:
+	if not _can_mutate_runtime_state() or _reduced_dynamic_range == enabled:
+		return false
+	_reduced_dynamic_range = enabled
+	_update_expected_mix(_get_built_profile_spec())
+	if is_inside_tree():
+		_apply_runtime_state()
+	return true
+
+
+func is_reduced_dynamic_range() -> bool:
+	return _reduced_dynamic_range
 
 
 ## Applies caller-owned velocity/load response independently of flight state.
@@ -640,6 +657,8 @@ func get_state_snapshot() -> Dictionary:
 		"engine_running": _engine_running,
 		"throttle": _throttle,
 		"engine_degradation": _engine_degradation,
+		"reduced_dynamic_range": _reduced_dynamic_range,
+		"damage_mix": get_damage_mix_snapshot(),
 		"engine_velocity": _engine_velocity,
 		"boost_requested": _boost_requested,
 		"boost_active": _engine_running and _boost_requested and _throttle >= MINIMUM_BOOST_THROTTLE,
@@ -970,14 +989,17 @@ func _is_loop_desired(loop_id: StringName) -> bool:
 
 func _update_expected_mix(profile: Dictionary) -> void:
 	var engine_pitch := float(profile.get("engine_pitch_scale", 1.0))
-	var degradation_gain_db := -6.0 * _engine_degradation
+	var reduced_damage_attenuation_db := -3.0 if _reduced_dynamic_range else 0.0
+	var degradation_gain_db := -6.0 * _engine_degradation \
+			+ reduced_damage_attenuation_db * _engine_degradation
 	var degradation_pitch := lerpf(1.0, 0.86, _engine_degradation)
 	var velocity_gain_db := lerpf(0.0, 3.0, _engine_velocity)
 	var velocity_pitch := lerpf(1.0, 1.12, _engine_velocity)
 	_expected_volumes[VOICE_IDLE] = float(profile.get("idle_volume_db", -15.0)) + lerpf(-1.0, 1.0, _throttle) + degradation_gain_db + velocity_gain_db
 	_expected_volumes[VOICE_LOAD] = float(profile.get("load_volume_db", -10.5)) + linear_to_db(maxf(_throttle, 0.05)) + degradation_gain_db + velocity_gain_db
 	_expected_volumes[VOICE_BOOST] = float(profile.get("boost_volume_db", -7.0)) + degradation_gain_db + velocity_gain_db
-	_expected_volumes[VOICE_ALARM] = float(profile.get("alarm_volume_db", -8.5))
+	_expected_volumes[VOICE_ALARM] = float(profile.get("alarm_volume_db", -8.5)) \
+			+ reduced_damage_attenuation_db if _damage_alarm_active else float(profile.get("alarm_volume_db", -8.5))
 	_expected_pitches[VOICE_IDLE] = engine_pitch * lerpf(0.92, 1.06, _throttle) * degradation_pitch * velocity_pitch
 	_expected_pitches[VOICE_LOAD] = engine_pitch * lerpf(0.84, 1.22, _throttle) * degradation_pitch * velocity_pitch
 	_expected_pitches[VOICE_BOOST] = engine_pitch * lerpf(1.08, 1.18, _throttle) * degradation_pitch * velocity_pitch
@@ -996,6 +1018,16 @@ func _update_expected_mix(profile: Dictionary) -> void:
 		if is_instance_valid(player):
 			player.volume_db = float(_expected_volumes[voice_id])
 			player.pitch_scale = float(_expected_pitches[voice_id])
+
+
+func get_damage_mix_snapshot() -> Dictionary:
+	var attenuation_db := -3.0 if _reduced_dynamic_range else 0.0
+	return {
+		"reduced_dynamic_range": _reduced_dynamic_range,
+		"degradation_gain_db": -6.0 * _engine_degradation + attenuation_db * _engine_degradation,
+		"alarm_attenuation_db": attenuation_db if _damage_alarm_active else 0.0,
+		"alarm_signalled": _damage_alarm_active,
+	}.duplicate(true)
 
 
 func _base_volume_for_voice(voice_id: StringName, profile: Dictionary) -> float:
