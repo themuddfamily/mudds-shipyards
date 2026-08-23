@@ -117,6 +117,14 @@ func _run() -> void:
 	)
 	hud.set_reduced_motion(false)
 	_check((controls[&"captions_enabled"] as CheckButton).button_pressed, "caption snapshot reaches its toggle")
+	_check(hud.has_signal("presentation_intent_requested"), "HUD exposes presentation-only runtime status intents")
+	hud.update_network_session_status({"state": &"failed", "detail": "Admission refused.", "retryable": true})
+	var runtime_status := hud.get("_runtime_status_panel") as Control
+	var runtime_actions := hud.get("_runtime_status_actions") as HBoxContainer
+	_check(runtime_status.visible and runtime_actions.get_child_count() == 2, "network status renders focusable retry and cancel actions")
+	hud.update_surface_route_status({"waypoints": [{"label": "North Relay", "distance_m": 50.0}], "hazard": {"state": &"storm", "exposure": 0.9, "recovery_available": true}})
+	_check((hud.get("_runtime_status_detail") as Label).text.contains("!! HIGH EXPOSURE !!"), "surface hazard status remains textually readable")
+	hud.clear_runtime_status()
 	_check(hud.are_captions_enabled(), "caption snapshot enables the HUD caption gate")
 	var caption_preview := (hud.get("_settings_page") as Control).find_child("CaptionPreviewButton", true, false) as Button
 	_check(caption_preview != null and caption_preview.focus_mode == Control.FOCUS_ALL, "settings exposes a controller-focusable caption preview")

@@ -11,6 +11,10 @@ const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.g
 const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
 const DebugOverlayType := preload("res://scripts/ui/debug_overlay.gd")
 const MinimapType := preload("res://scripts/ui/minimap.gd")
+const NetworkSessionStatusPresenterType := preload("res://scripts/ui/network_session_status_presenter.gd")
+const CrewRoleSeatPresenterType := preload("res://scripts/ui/crew_role_seat_presenter.gd")
+const SurfaceRouteHazardPresenterType := preload("res://scripts/ui/surface_route_hazard_presenter.gd")
+const AtmosphericEntryGuidancePresenterType := preload("res://scripts/ui/atmospheric_entry_guidance_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -20,6 +24,7 @@ signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
 signal orderly_shutdown_requested
+signal presentation_intent_requested(kind: StringName, payload: Dictionary)
 
 const INK := Color("07111d")
 const PANEL := Color("101c2bd9")
@@ -297,6 +302,15 @@ var _caption_preview_revision := 0
 var _scaled_layers: Array[Control] = []
 var _layout_effective_ui_scale := 1.0
 var _caption_presenter: CaptionPresenter
+var _network_status_presenter := NetworkSessionStatusPresenterType.new()
+var _crew_role_presenter := CrewRoleSeatPresenterType.new()
+var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
+var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
+var _runtime_status_panel: PanelContainer
+var _runtime_status_title: Label
+var _runtime_status_detail: Label
+var _runtime_status_rows: VBoxContainer
+var _runtime_status_actions: HBoxContainer
 ## Request-only route into the GameFlow-owned service. The HUD stores no queue,
 ## timer, event ID, or parallel visible-caption state.
 var _caption_event_submitter := Callable()
@@ -1948,6 +1962,7 @@ func _build_hud() -> void:
 	_build_telemetry()
 	_build_enemy_status()
 	_build_toast()
+	_build_runtime_status_panel()
 	_attach_caption_presenter()
 	_build_damage_flash()
 
@@ -2035,6 +2050,89 @@ func _build_toast() -> void:
 	_toast_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(_toast_detail)
 	_toast_panel.visible = false
+
+
+func _build_runtime_status_panel() -> void:
+	_runtime_status_panel = PanelContainer.new()
+	_runtime_status_panel.name = "RuntimeStatusPanel"
+	_runtime_status_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_runtime_status_panel.position = Vector2(-250.0, -150.0)
+	_runtime_status_panel.size = Vector2(500.0, 300.0)
+	_runtime_status_panel.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 8, NOMINAL))
+	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_hud_panels.add_child(_runtime_status_panel)
+	var margin := _margin(18, 16, 18, 16)
+	_runtime_status_panel.add_child(margin)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 8)
+	margin.add_child(stack)
+	_runtime_status_title = _label("STATUS", 18, PRIMARY)
+	stack.add_child(_runtime_status_title)
+	_runtime_status_detail = _label("", 11, NOMINAL_SOFT)
+	_runtime_status_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(_runtime_status_detail)
+	_runtime_status_rows = VBoxContainer.new()
+	_runtime_status_rows.add_theme_constant_override("separation", 4)
+	stack.add_child(_runtime_status_rows)
+	_runtime_status_actions = HBoxContainer.new()
+	_runtime_status_actions.add_theme_constant_override("separation", 8)
+	stack.add_child(_runtime_status_actions)
+	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_runtime_status_panel.visible = false
+
+
+func update_network_session_status(snapshot: Dictionary) -> void:
+	_render_runtime_status(_network_status_presenter.present_snapshot(snapshot), &"network")
+
+
+func update_crew_role_status(snapshot: Dictionary) -> void:
+	_render_runtime_status(_crew_role_presenter.present_snapshot(snapshot), &"crew")
+
+
+func update_surface_route_status(snapshot: Dictionary) -> void:
+	_render_runtime_status(_surface_route_presenter.present_snapshot(snapshot), &"surface")
+
+
+func update_atmospheric_entry_status(snapshot: Dictionary) -> void:
+	_render_runtime_status(_entry_guidance_presenter.present_snapshot(snapshot), &"entry")
+
+
+func clear_runtime_status() -> void:
+	if is_instance_valid(_runtime_status_panel):
+		_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for child in _runtime_status_panel.find_children("*", "Control", true, false):
+			(child as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_runtime_status_panel.visible = false
+
+
+func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
+	if not is_instance_valid(_runtime_status_panel):
+		return
+	_runtime_status_title.text = str(snapshot.get("title", "STATUS"))
+	_runtime_status_detail.text = str(snapshot.get("message", snapshot.get("guidance", "")))
+	for child in _runtime_status_rows.get_children():
+		child.queue_free()
+	for child in _runtime_status_actions.get_children():
+		child.queue_free()
+	var detail := _runtime_status_detail.text
+	if snapshot.has("exposure_marker"):
+		detail += "\n" + str(snapshot.exposure_marker)
+	if snapshot.has("next_landmark"):
+		detail += "\nNEXT // %s // %.1f M" % [snapshot.next_landmark, float(snapshot.distance_m)]
+	if snapshot.has("state"):
+		detail += "\nSTATE // " + str(snapshot.state).to_upper()
+	_runtime_status_detail.text = detail
+	for action: Dictionary in snapshot.get("actions", []):
+		var button := _menu_button(str(action.get("label", "Action")), NOMINAL)
+		button.name = "RuntimeStatus" + String(action.get("id", &"Action")).to_pascal_case() + "Button"
+		button.focus_mode = Control.FOCUS_ALL
+		var action_id := StringName(str(action.get("id", &"")))
+		button.pressed.connect(func() -> void:
+			presentation_intent_requested.emit(kind, {"action": action_id, "snapshot": snapshot.duplicate(true)})
+		)
+		_runtime_status_actions.add_child(button)
+	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_runtime_status_panel.visible = true
 
 
 func _build_enemy_status() -> void:
