@@ -274,6 +274,9 @@ func _run() -> void:
 		"source-current capture scope has a complete frozen start snapshot"
 	)
 
+	if not _capture_output_ancestors_are_safe():
+		_finish()
+		return
 	var output_absolute := ProjectSettings.globalize_path(OUTPUT_DIR)
 	var directory_error := DirAccess.make_dir_recursive_absolute(output_absolute)
 	_check(
@@ -2393,13 +2396,16 @@ func _write_evidence_manifest() -> void:
 
 
 func _reset_capture_transaction() -> bool:
-	# A run invalidates any prior claim immediately. If the process crashes later,
-	# old PNGs may remain for diagnosis but no stale manifest can authenticate them.
-	_invalidate_published_claims("prior published claim")
 	# Always attempt the bounded removal: dir_exists_absolute() follows links and
 	# also reports false for a broken link, while cleanup must unlink either kind.
+	# This check precedes published-claim removal so a linked OUTPUT_DIR ancestor
+	# cannot redirect either cleanup operation outside the project.
 	if not _remove_directory_tree(TRANSACTION_DIR):
 		return false
+	# A run invalidates any prior claim immediately after its output ancestry is
+	# known safe. If the process crashes later, old PNGs may remain for diagnosis
+	# but no stale manifest can authenticate them.
+	_invalidate_published_claims("prior published claim")
 	var error := DirAccess.make_dir_recursive_absolute(
 		ProjectSettings.globalize_path(TRANSACTION_DIR)
 	)
@@ -2679,6 +2685,28 @@ func _is_strict_transaction_path(path: String) -> bool:
 	return path == TRANSACTION_DIR or path.begins_with(TRANSACTION_DIR + "/")
 
 
+func _capture_output_ancestors_are_safe() -> bool:
+	# res:// is the trusted anchor. Inspect each existing component from its
+	# already-open parent so neither `artifacts` nor `hero_cell` can redirect the
+	# bounded transaction cleanup. A missing component is safe for later creation.
+	var current_path := "res://"
+	for component in OUTPUT_DIR.trim_prefix("res://").split("/", false):
+		var parent_directory := DirAccess.open(current_path)
+		if parent_directory == null:
+			_fail("transaction cleanup cannot inspect output ancestor: %s" % current_path)
+			return false
+		if parent_directory.is_link(component):
+			_fail(
+				"refusing transaction cleanup through linked output ancestor: %s"
+				% current_path.path_join(component)
+			)
+			return false
+		if not parent_directory.dir_exists(component):
+			return true
+		current_path = current_path.path_join(component)
+	return true
+
+
 func _path_is_link(path: String) -> bool:
 	# Query the containing directory, not the candidate path. Opening the candidate
 	# first would follow a directory link; this also detects broken root links.
@@ -2691,6 +2719,9 @@ func _path_is_link(path: String) -> bool:
 
 
 func _remove_transaction_leaf(path: String, kind: String) -> bool:
+	if not _is_strict_transaction_path(path):
+		_fail("refusing broad transaction leaf cleanup outside %s: %s" % [TRANSACTION_DIR, path])
+		return false
 	var error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	if error != OK:
 		_fail("transaction %s cleanup failed: %s" % [kind, path])
@@ -2701,6 +2732,8 @@ func _remove_transaction_leaf(path: String, kind: String) -> bool:
 func _remove_directory_tree(path: String) -> bool:
 	if not _is_strict_transaction_path(path):
 		_fail("refusing broad transaction cleanup outside %s: %s" % [TRANSACTION_DIR, path])
+		return false
+	if not _capture_output_ancestors_are_safe():
 		return false
 	var absolute_path := ProjectSettings.globalize_path(path)
 	if _path_is_link(path):
