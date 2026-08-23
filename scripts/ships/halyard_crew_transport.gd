@@ -48,6 +48,8 @@ const COMBAT_SOURCE_ID := 1105
 const INTERIOR_SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
+const HALYARD_CREW_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
+const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 
 const DESIGN_NOTE := (
 	"The Halyard is an original modern design created for this remake. It is not "
@@ -352,10 +354,10 @@ func get_crew_role_authority() -> CrewSeatRoleAuthority:
 
 
 ## Admits and immediately consumes the one currently implemented non-pilot
-## action: an engineer repair pulse. Admission is server-owned by
+## actions: an engineer repair pulse or a gunner weapon request. Admission is
+## server-owned by
 ## CrewSeatRoleAuthority; mutation is still owner-owned by ShipComponentDamage.
-## Other role actions are intentionally left to their downstream authorities
-## and are not accepted here until those consumers exist.
+## Other role actions are intentionally left to their downstream authorities.
 func submit_crew_intent(
 		source_peer_id: int,
 		occupant_peer_id: int,
@@ -369,8 +371,15 @@ func submit_crew_intent(
 	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
 	if assignment.is_empty():
 		return _crew_role_result(false, &"assignment_not_found")
-	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_ENGINEER \
-			or action != CrewRoleGameplayProfileType.ACTION_ENGINEER_REPAIR:
+	var role := StringName(assignment.get("role", &""))
+	var supported := (
+		role == CrewRoleGameplayProfileType.ROLE_ENGINEER
+			and action == CrewRoleGameplayProfileType.ACTION_ENGINEER_REPAIR
+	) or (
+		role == CrewRoleGameplayProfileType.ROLE_GUNNER
+			and action == CrewRoleGameplayProfileType.ACTION_GUNNER_FIRE
+	)
+	if not supported:
 		return _crew_role_result(false, &"unsupported_halyard_role_action")
 	var admission := _crew_role_authority.submit_intent(
 		source_peer_id,
@@ -383,11 +392,50 @@ func submit_crew_intent(
 	if not bool(admission.get("accepted", false)):
 		return admission
 	var intent := admission.get("intent", {}) as Dictionary
-	var effect := _consume_engineer_repair_intent(intent)
+	var effect := (
+		_consume_engineer_repair_intent(intent)
+		if role == CrewRoleGameplayProfileType.ROLE_ENGINEER
+		else _consume_gunner_fire_intent(intent)
+	)
 	var result := admission.duplicate(true)
 	result["status"] = &"intent_consumed" if bool(effect.get("accepted", false)) else &"intent_effect_rejected"
 	result["consumed"] = bool(effect.get("accepted", false))
 	result["effect"] = effect
+	return result
+
+
+## Hands one admitted gunner receipt to HeroShip's existing weapon request
+## seam. `_fire_weapon()` only emits `projectile_fired`; GameFlow's registered
+## live combat authority remains responsible for source faction, weapon profile,
+## target resolution, and damage. This method never mutates damage state.
+func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	var weapon_id := StringName(payload.get("weapon_id", &""))
+	var target_id := StringName(payload.get("target_id", &""))
+	if weapon_id != HALYARD_CREW_WEAPON_ID:
+		return _crew_role_result(false, &"weapon_not_authorized")
+	if not bool(payload.get("trigger", false)):
+		return _crew_role_result(false, &"trigger_not_pressed")
+	var telemetry := get_telemetry()
+	if bool(telemetry.get("destroyed", false)):
+		return _crew_role_result(false, &"ship_destroyed")
+	if StringName(telemetry.get("engine_state", &"")) != ENGINE_ONLINE:
+		return _crew_role_result(false, &"engine_not_online")
+	if bool(telemetry.get("landing_active", false)):
+		return _crew_role_result(false, &"weapon_blocked_during_landing")
+	if _weapon_timer > 0.0:
+		return _crew_role_result(false, &"weapon_cooldown")
+	var previous_timer := _weapon_timer
+	_fire_weapon()
+	if _weapon_timer <= previous_timer:
+		return _crew_role_result(false, &"weapon_request_rejected")
+	var result := _crew_role_result(true, &"weapon_request_emitted")
+	result["source_id"] = COMBAT_SOURCE_ID
+	result["faction_id"] = HALYARD_CREW_FACTION_ID
+	result["weapon_id"] = weapon_id
+	result["target_id"] = target_id
+	result["request_sequence"] = int(intent.get("request_sequence", -1))
+	result["cooldown_remaining"] = _weapon_timer
 	return result
 
 
