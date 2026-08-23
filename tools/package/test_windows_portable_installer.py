@@ -7,9 +7,9 @@ from io import StringIO
 from pathlib import Path
 
 try:
-    from .windows_portable_installer import InstallError, install_package, main, rollback_package, uninstall_package
+    from .windows_portable_installer import InstallError, install_package, main, recover_install, rollback_package, uninstall_package
 except ImportError:
-    from windows_portable_installer import InstallError, install_package, main, rollback_package, uninstall_package
+    from windows_portable_installer import InstallError, install_package, main, recover_install, rollback_package, uninstall_package
 
 
 class WindowsPortableInstallerTests(unittest.TestCase):
@@ -82,6 +82,28 @@ class WindowsPortableInstallerTests(unittest.TestCase):
                 self.assertEqual(main(["status", str(destination)]), 0)
                 self.assertEqual(main(["uninstall", str(destination), "--dry-run"]), 0)
             self.assertEqual((destination / "MuddsShipyards.exe").read_bytes(), before)
+
+    def test_interrupted_staging_requires_explicit_resume_or_discard(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            destination = root / "MuddsShipyards"
+            install_package(self._package(root), destination)
+            (destination / "user-created.txt").write_text("keep", encoding="utf-8")
+            staging = destination.parent / ".MuddsShipyards.staging"
+            destination.rename(staging)
+            status = recover_install(destination, "status")
+            self.assertTrue(status["staging_present"] and status["resume_available"])
+            with self.assertRaises(InstallError):
+                install_package(self._package(root, "MuddsShipyards-v1.2.4-fedcba9"), destination)
+            resumed = recover_install(destination, "resume")
+            self.assertEqual(resumed["reason"], "staging_resumed")
+            self.assertTrue((destination / "user-created.txt").is_file())
+            staging = destination.parent / ".MuddsShipyards.staging"
+            destination.rename(staging)
+            discarded = recover_install(destination, "discard")
+            self.assertEqual(discarded["reason"], "staging_discarded")
+            self.assertFalse(staging.exists())
+            self.assertFalse(destination.exists())
 
     def test_checksum_and_traversal_rejected_before_install(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

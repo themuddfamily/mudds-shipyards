@@ -353,6 +353,44 @@ def package_status(destination: Path) -> dict[str, object]:
     }
 
 
+def recover_install(destination: Path, action: str = "status") -> dict[str, object]:
+    """Inspect or explicitly resume/discard a fixed-path install transaction."""
+    destination = _destination(destination)
+    staging = destination.parent / f".{destination.name}{STAGING_SUFFIX}"
+    rollback = destination.parent / f".{destination.name}{ROLLBACK_SUFFIX}"
+    if action not in {"status", "resume", "discard"}:
+        raise InstallError("recovery action must be status, resume, or discard")
+    if action == "status":
+        return {
+            "destination": destination,
+            "staging_present": staging.is_dir(),
+            "rollback_present": rollback.is_dir(),
+            "resume_available": staging.is_dir() and not destination.exists() or rollback.is_dir() and not destination.exists(),
+        }
+    if action == "discard":
+        if not staging.exists():
+            return {"destination": destination, "reason": "no_staging"}
+        if not staging.is_dir():
+            raise InstallError("staging path is not a directory")
+        _ownership_files(staging)
+        _validate_directory_checksums(staging)
+        _remove_tree(staging)
+        return {"destination": destination, "reason": "staging_discarded"}
+    if destination.exists():
+        raise InstallError("destination is present; resume would overwrite it")
+    if staging.is_dir():
+        _ownership_files(staging)
+        _validate_directory_checksums(staging)
+        os.replace(staging, destination)
+        return {"destination": destination, "reason": "staging_resumed"}
+    if rollback.is_dir():
+        _ownership_files(rollback)
+        _validate_directory_checksums(rollback)
+        os.replace(rollback, destination)
+        return {"destination": destination, "reason": "rollback_restored"}
+    raise InstallError("no recoverable staging or rollback artifact")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -374,6 +412,9 @@ def main(argv: list[str] | None = None) -> int:
     rollback.add_argument("--dry-run", action="store_true")
     status = subparsers.add_parser("status")
     status.add_argument("destination", type=Path)
+    recover = subparsers.add_parser("recover")
+    recover.add_argument("destination", type=Path)
+    recover.add_argument("action", choices=["status", "resume", "discard"])
     args = parser.parse_args(argv)
     try:
         if args.command == "install":
@@ -413,6 +454,8 @@ def main(argv: list[str] | None = None) -> int:
                 result = install_package(args.package, args.destination, force=args.force)
         elif args.command == "status":
             result = package_status(args.destination)
+        elif args.command == "recover":
+            result = recover_install(args.destination, args.action)
         elif args.command == "rollback":
             if args.dry_run:
                 result = package_status(args.destination)
