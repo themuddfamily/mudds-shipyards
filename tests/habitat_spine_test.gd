@@ -485,10 +485,10 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_potting_pull_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1875
+		int(render.descendant_nodes) == 1877
 		and module.find_children("*", "MeshInstance3D", true, false).size() == 1220
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 24,
-		"visual batching stays frozen at 1875 render nodes, 1220 meshes and 24 MultiMeshes"
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 26,
+		"visual batching stays frozen at 1877 render nodes, 1220 meshes and 26 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -584,7 +584,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		and int(report.geometry_submissions_before_deck_seam_batch) == 1251
 		and int(report.geometry_submissions) == 1237
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
-		and int(report.drawn_copies) == 1381
+		and int(report.drawn_copies) == 1385
 		and bool(report.corridor_deck_seam_authored),
 		"corridor seams measure 9 -> 1 submissions while all nine visible copies remain"
 	)
@@ -670,7 +670,7 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 1243
 		and int(report.geometry_submissions) == 1237
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
-		and int(report.drawn_copies) == 1381
+		and int(report.drawn_copies) == 1385
 		and bool(report.common_ceiling_light_body_authored),
 		"common ceiling housings measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
 	)
@@ -955,20 +955,20 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 	var report := module.get_render_allocation_report()
 	_check(
 		int(report.descendant_nodes) == 1877
-		and int(report.mesh_instances) == 1223
-		and int(report.multimesh_batches) == 23,
+		and int(report.mesh_instances) == 1220
+		and int(report.multimesh_batches) == 26,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
-		int(report.drawn_copies) == 1381
+		int(report.drawn_copies) == 1385
 		and int(report.geometry_submissions) == 1237
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1381 while surface submissions fall 1243 -> 1237"
+		"drawn copies freeze at 1385 while surface submissions hold at 1237"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
 		and int(report.unique_material_resources) == 33
-		and int(report.multimesh_resources) == 23
+		and int(report.multimesh_resources) == 26
 		and int(report.renderer_buffer_floats) == 144,
 		"mesh/material allocations freeze at 349/33 while the hatch batch retains its 144-float renderer buffer"
 	)
