@@ -69,9 +69,27 @@ func _run() -> void:
 	var safe_cockpit := (airless_snapshot.entry_presentation as Dictionary).get(
 		"cockpit_readout", {}
 	) as Dictionary
+	var safe_exterior := (airless_snapshot.entry_presentation as Dictionary).get(
+		"exterior_envelope", {}
+	) as Dictionary
 	var physical_entry_readout := arrow.get_arrow_visual_root().get_node_or_null(
 		^"CockpitInterior/InstrumentCluster/EntryDescentReadout"
 	) as Label3D
+	var physical_exterior := arrow.get_arrow_visual_root().get_node_or_null(
+		^"ArrowEntryExteriorEnvelope"
+	) as Node3D
+	var physical_segments := physical_exterior.get_node_or_null(
+		^"EnvelopeSegments"
+	) as MultiMeshInstance3D if physical_exterior != null else null
+	var physical_recovery_ring := physical_exterior.get_node_or_null(
+		^"RecoveryRing"
+	) as MeshInstance3D if physical_exterior != null else null
+	var physical_exterior_marker := physical_exterior.get_node_or_null(
+		^"EnvelopeMarker"
+	) as Label3D if physical_exterior != null else null
+	var chase_camera := arrow.get_node_or_null(
+		^"CameraRig/CameraCollisionArm/CameraBoundaryMount/ShipCamera"
+	) as Camera3D
 	var entry_presenter := hud.get("_entry_guidance_presenter") as RefCounted
 	var safe_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
 	_check(
@@ -104,8 +122,28 @@ func _run() -> void:
 		and safe_cockpit.get("landing_authority") == false
 		and physical_entry_readout != null
 		and physical_entry_readout.text == safe_cockpit.get("text")
+		and safe_exterior.get("visible_segment_count") == 1
+		and safe_exterior.get("marker_text") == "AIRLESS SINK 1/5"
+		and safe_exterior.get("color_independent") == true
+		and physical_exterior != null and physical_exterior.visible
+		and physical_segments != null
+		and physical_segments.multimesh.visible_instance_count == 1
+		and physical_exterior_marker != null
+		and physical_exterior_marker.text == "AIRLESS SINK 1/5"
+		and physical_exterior_marker.billboard \
+			== BaseMaterial3D.BILLBOARD_ENABLED
+		and chase_camera != null
+		and chase_camera.is_position_in_frustum(
+			physical_exterior_marker.global_position
+		)
+		and (safe_exterior.get("node_budget", {}) as Dictionary).get(
+			"total_nodes"
+		) == 4
+		and (safe_exterior.get("node_budget", {}) as Dictionary).get(
+			"particle_nodes"
+		) == 0
 		and hud.get("_runtime_status_kind") == &"entry",
-		"low Ember descent reaches HUD, landing wash, and the physical cockpit readout",
+		"low Ember descent reaches the HUD, cockpit, wash, and chase silhouette",
 	)
 
 	hud.set_reduced_flash(true)
@@ -121,6 +159,9 @@ func _run() -> void:
 	var reduced_cockpit := (
 		production.get_snapshot().entry_presentation as Dictionary
 	).get("cockpit_readout", {}) as Dictionary
+	var reduced_exterior := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("exterior_envelope", {}) as Dictionary
 	_check(
 		bool(reduced.get("accepted", false))
 		and float(reduced_wash.get("intensity", 0.0)) \
@@ -132,7 +173,13 @@ func _run() -> void:
 		and reduced_cockpit.get("reduced_motion") == true
 		and reduced_cockpit.get("steady") == true
 		and reduced_cockpit.get("color_independent") == true
-		and str(reduced_cockpit.get("text", "")).contains("E[#----] 1/5"),
+		and str(reduced_cockpit.get("text", "")).contains("E[#----] 1/5")
+		and reduced_exterior.get("reduced_flash") == true
+		and reduced_exterior.get("reduced_motion") == true
+		and reduced_exterior.get("steady") == true
+		and reduced_exterior.get("visible_segment_count") == 1
+		and float(reduced_exterior.get("visual_intensity_scale", 1.0)) \
+			< float(safe_exterior.get("visual_intensity_scale", 0.0)),
 		"reduced settings lower the wash and retain steady emission",
 	)
 
@@ -144,6 +191,9 @@ func _run() -> void:
 	var high_sink_cockpit := (
 		production.get_snapshot().entry_presentation as Dictionary
 	).get("cockpit_readout", {}) as Dictionary
+	var high_sink_exterior := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("exterior_envelope", {}) as Dictionary
 	_check(
 		bool(high_sink_airless.get("accepted", false))
 		and high_sink_cockpit.get("text") \
@@ -153,8 +203,11 @@ func _run() -> void:
 			"filled_segments"
 		) == 4
 		and high_sink_cockpit.get("steady") == true
-		and physical_entry_readout.text == high_sink_cockpit.get("text"),
-		"high sink is legible on the physical display without relying on color",
+		and physical_entry_readout.text == high_sink_cockpit.get("text")
+		and high_sink_exterior.get("visible_segment_count") == 4
+		and high_sink_exterior.get("marker_text") == "AIRLESS SINK 4/5"
+		and physical_segments.multimesh.visible_instance_count == 4,
+		"high sink is legible in cockpit and chase views without relying on color",
 	)
 
 	var climbing_airless := production.advance_from_caller_sample(
@@ -168,6 +221,9 @@ func _run() -> void:
 	var climb_cockpit := (
 		production.get_snapshot().entry_presentation as Dictionary
 	).get("cockpit_readout", {}) as Dictionary
+	var climb_exterior := (
+		production.get_snapshot().entry_presentation as Dictionary
+	).get("exterior_envelope", {}) as Dictionary
 	_check(
 		bool(climbing_airless.get("accepted", false))
 		and is_zero_approx(float(climb_zero.get("intensity", -1.0)))
@@ -177,7 +233,13 @@ func _run() -> void:
 			== "AIRLESS | [^] CLIMB / EXIT | E[-----] 0/5 RECOVER"
 		and (climb_cockpit.get("envelope_gauge", {}) as Dictionary).get(
 			"recovery"
-		) == true,
+		) == true
+		and climb_exterior.get("visible_segment_count") == 0
+		and climb_exterior.get("recovery") == true
+		and climb_exterior.get("recovery_ring_visible") == true
+		and climb_exterior.get("marker_text") == "ENTRY RECOVER 0/5"
+		and physical_recovery_ring != null and physical_recovery_ring.visible
+		and physical_exterior_marker.text == "ENTRY RECOVER 0/5",
 		"climb clears the wash and shows a non-color-only recovery envelope",
 	)
 
@@ -215,6 +277,7 @@ func _run() -> void:
 	var detail := hud.get("_runtime_status_detail") as Label
 	var high_sink_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
 	var atmospheric_cockpit := bridge.get("cockpit_readout", {}) as Dictionary
+	var atmospheric_exterior := bridge.get("exterior_envelope", {}) as Dictionary
 	_check(
 		bool(atmospheric.get("accepted", false))
 		and source.get("branch_id") == &"atmospheric"
@@ -236,7 +299,11 @@ func _run() -> void:
 		and (atmospheric_cockpit.get(
 			"envelope_gauge", {}
 		) as Dictionary).get("severity_id") == &"critical"
-		and atmospheric_cockpit.get("steady") == true,
+		and atmospheric_cockpit.get("steady") == true
+		and atmospheric_exterior.get("visible_segment_count") == 5
+		and atmospheric_exterior.get("marker_text") == "ATM ENTRY 5/5"
+		and atmospheric_exterior.get("recovery_ring_visible") == false
+		and physical_segments.multimesh.visible_instance_count == 5,
 		"atmospheric altitude and Arrow speed drive visible steady reduced-flash heat guidance",
 	)
 
@@ -278,6 +345,25 @@ func _run() -> void:
 	var cockpit_after_fence := physical_entry_readout.call(
 		&"get_snapshot"
 	) as Dictionary
+	var exterior_before_fence := physical_exterior.call(
+		&"get_snapshot"
+	) as Dictionary
+	var exterior_generation := int(physical_exterior.call(&"get_generation"))
+	var physical_exterior_id := physical_exterior.get_instance_id()
+	var last_exterior_serial := int(exterior_before_fence.get(
+		"last_observation_serial", -1
+	))
+	var stale_exterior := physical_exterior.call(
+		&"present_envelope", atmospheric_cockpit, &"atmospheric", true, true,
+		last_exterior_serial + 1, exterior_generation - 1
+	) as Dictionary
+	var replayed_exterior := physical_exterior.call(
+		&"present_envelope", atmospheric_cockpit, &"atmospheric", true, true,
+		last_exterior_serial, exterior_generation
+	) as Dictionary
+	var exterior_after_fence := physical_exterior.call(
+		&"get_snapshot"
+	) as Dictionary
 	_check(
 		not bool(stale_generation.get("accepted", true))
 		and stale_generation.get("reason") == &"stale_generation"
@@ -286,12 +372,22 @@ func _run() -> void:
 			== &"observation_serial_replayed"
 		and cockpit_after_fence.get("text") == cockpit_before_fence.get("text")
 		and cockpit_after_fence.get("envelope_gauge") \
-			== cockpit_before_fence.get("envelope_gauge"),
-		"stale generations and replayed samples cannot mutate the cockpit envelope",
+			== cockpit_before_fence.get("envelope_gauge")
+		and not bool(stale_exterior.get("accepted", true))
+		and stale_exterior.get("reason") == &"stale_generation"
+		and not bool(replayed_exterior.get("accepted", true))
+		and replayed_exterior.get("reason") \
+			== &"observation_serial_replayed"
+		and exterior_after_fence.get("marker_text") \
+			== exterior_before_fence.get("marker_text")
+		and exterior_after_fence.get("visible_segment_count") \
+			== exterior_before_fence.get("visible_segment_count"),
+		"stale generations and replays cannot mutate either retained envelope",
 	)
 	var entry_binding := production.get("_entry_presentation_binding") as RefCounted
 	var detached := entry_binding.call(&"detach") as Dictionary
 	var cleared_physical := physical_entry_readout.call(&"get_snapshot") as Dictionary
+	var cleared_exterior := physical_exterior.call(&"get_snapshot") as Dictionary
 	var detached_wash := entry_binding.call(&"get_snapshot").get(
 		"landing_wash", {}
 	) as Dictionary
@@ -311,8 +407,13 @@ func _run() -> void:
 			== cockpit_generation + 1
 		and int((cleared_physical.get(
 			"envelope_gauge", {}
-		) as Dictionary).get("filled_segments", -1)) == 0,
-		"detaching clears both wash and generation-fenced physical envelope",
+		) as Dictionary).get("filled_segments", -1)) == 0
+		and cleared_exterior.get("visible") == false
+		and cleared_exterior.get("visible_segment_count") == 0
+		and cleared_exterior.get("recovery_ring_visible") == false
+		and int(cleared_exterior.get("generation", -1)) \
+			== exterior_generation + 1,
+		"detach clears wash and both generation-fenced physical envelopes",
 	)
 	await process_frame
 	var reattached := entry_binding.call(&"attach", arrow, hud) as Dictionary
@@ -324,6 +425,12 @@ func _run() -> void:
 	) as Label3D
 	var reentry_snapshot := reentry_readout.call(&"get_snapshot") as Dictionary \
 		if reentry_readout != null else {}
+	var reentry_exterior := arrow.get_arrow_visual_root().get_node_or_null(
+		^"ArrowEntryExteriorEnvelope"
+	) as Node3D
+	var reentry_exterior_snapshot := reentry_exterior.call(
+		&"get_snapshot"
+	) as Dictionary if reentry_exterior != null else {}
 	_check(
 		bool(reattached.get("accepted", false))
 		and bool(reentered.get("accepted", false))
@@ -334,7 +441,12 @@ func _run() -> void:
 		and (reentry_snapshot.get("envelope_gauge", {}) as Dictionary).get(
 			"recovery"
 		) == false
-		and int(reentry_snapshot.get("generation", -1)) == 1,
+		and int(reentry_snapshot.get("generation", -1)) == 1
+		and reentry_exterior != null
+		and reentry_exterior.get_instance_id() != physical_exterior_id
+		and reentry_exterior_snapshot.get("visible_segment_count") == 5
+		and reentry_exterior_snapshot.get("recovery") == false
+		and int(reentry_exterior_snapshot.get("generation", -1)) == 1,
 		"re-entry creates a clean envelope generation without inherited recovery",
 	)
 	entry_binding.call(&"detach")

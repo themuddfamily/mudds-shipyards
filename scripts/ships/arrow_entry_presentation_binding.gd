@@ -13,12 +13,17 @@ const LandingDustWashScript := preload(
 const CockpitReadoutScript := preload(
 	"res://scripts/effects/arrow_entry_cockpit_readout_presentation.gd"
 )
+const ExteriorEnvelopeScript := preload(
+	"res://scripts/effects/arrow_entry_exterior_envelope_presentation.gd"
+)
 
 var _arrow_ref: WeakRef
 var _hud_ref: WeakRef
 var _landing_wash: Node3D
 var _cockpit_readout: Label3D
 var _cockpit_generation := 0
+var _exterior_envelope: Node3D
+var _exterior_generation := 0
 var _attached := false
 var _atmospheric := false
 var _generation := 0
@@ -58,6 +63,10 @@ func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
 	_cockpit_readout.name = "EntryDescentReadout"
 	cockpit_cluster.add_child(_cockpit_readout)
 	_cockpit_generation = int(_cockpit_readout.call(&"get_generation"))
+	_exterior_envelope = ExteriorEnvelopeScript.new() as Node3D
+	_exterior_envelope.name = "ArrowEntryExteriorEnvelope"
+	arrow.get_arrow_visual_root().add_child(_exterior_envelope)
+	_exterior_generation = int(_exterior_envelope.call(&"get_generation"))
 	_attached = true
 	_generation += 1
 	return _result(true, &"attached")
@@ -155,18 +164,38 @@ func present_observation(
 			&"present_source", source, _observation_count + 1,
 			_cockpit_generation
 		) as Dictionary
+	var exterior_result: Dictionary = {
+		"accepted": false, "reason": &"exterior_envelope_unavailable",
+	}
+	if _exterior_envelope != null \
+			and bool(cockpit_result.get("accepted", false)):
+		exterior_result = _exterior_envelope.call(
+			&"present_envelope", cockpit_result.get("snapshot", {}),
+			StringName(source.branch_id),
+			bool(accessibility.get("reduced_flash", false)),
+			bool(accessibility.get("reduced_motion", false)),
+			_observation_count + 1, _exterior_generation
+		) as Dictionary
 	_observation_count += 1
 	_last_result = _result(true, &"entry_presented", {
 		"source": source.duplicate(true),
 		"heat": heat_result.duplicate(true),
 		"landing_wash": wash_result.duplicate(true),
 		"cockpit_readout": cockpit_result.duplicate(true),
+		"exterior_envelope": exterior_result.duplicate(true),
 		"entry_intensity": intensity,
 	})
 	return _last_result.duplicate(true)
 
 
 func detach() -> Dictionary:
+	if _exterior_envelope != null:
+		_exterior_envelope.call(
+			&"clear", &"detached", _exterior_generation
+		)
+		_exterior_envelope.queue_free()
+		_exterior_envelope = null
+	_exterior_generation = 0
 	if _cockpit_readout != null:
 		_cockpit_readout.call(
 			&"clear", &"detached", _cockpit_generation
@@ -208,6 +237,11 @@ func get_snapshot() -> Dictionary:
 		"cockpit_readout": _cockpit_readout.call(&"get_snapshot") \
 			if _cockpit_readout != null else {
 				"visible": false, "text": "", "state": &"detached",
+			},
+		"exterior_envelope": _exterior_envelope.call(&"get_snapshot") \
+			if _exterior_envelope != null else {
+				"visible": false, "visible_segment_count": 0,
+				"state": &"detached",
 			},
 		"presentation_only": true,
 		"physics_authority": false,
