@@ -281,6 +281,7 @@ var _bomber_payload_request_sequence := 0
 var _bomber_payload_projectiles: Array[BomberPayloadProjectile] = []
 var _bomber_payload_adapter: BomberPayloadCombatAdapter
 var _last_bomber_payload_result: Dictionary = {}
+var _bomber_payload_server_tick := 0
 var nearby_activity_persistence_store: RefCounted
 var nearby_activity_persistence_slot: StringName = &"nearby_activity"
 var _nearby_activity_persistence_commit_serial := 0
@@ -1727,7 +1728,9 @@ func _advance_bomber_payload_loop(delta: float) -> void:
 				_consume_bomber_payload_terminal(projectile)
 				continue
 			if bool(advanced.get("accepted", false)):
+				_publish_bomber_payload_network(projectile, false)
 				_try_submit_bomber_payload_collision(projectile, previous_position)
+		_bomber_payload_server_tick += 1
 		_publish_bomber_payload_snapshot(bomber)
 		return
 	var had_payload_session := _bomber_payload_ship != null
@@ -1749,6 +1752,7 @@ func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
 		return _bomber_payload_adapter != null
 	_bomber_payload_generation += 1
 	_bomber_payload_request_sequence = 0
+	_bomber_payload_server_tick = 0
 	var started := bomber.begin_payload_generation(_bomber_payload_generation)
 	if not bool(started.get("accepted", false)):
 		return false
@@ -1793,6 +1797,7 @@ func _consume_bomber_payload_release() -> Dictionary:
 		_last_bomber_payload_result = {"accepted": false, "reason": &"projectile_admission_failed"}
 		return _last_bomber_payload_result.duplicate(true)
 	_bomber_payload_projectiles.append(projectile)
+	_publish_bomber_payload_network(projectile, false)
 	_present_bomber_payload_audio(&"present_payload_release", record)
 	_present_bomber_payload_audio(&"present_projectile_launch", record)
 	_last_bomber_payload_result = result.duplicate(true)
@@ -1811,6 +1816,7 @@ func _consume_bomber_payload_terminal(projectile: BomberPayloadProjectile) -> vo
 		1, projectile, _bomber_payload_ship,
 		int(PLAYER_SOURCE_IDS.get(CINDER_BOMBER_SHIP_ID, 0)), combat_authority,
 	)
+	_publish_bomber_payload_network(projectile, true)
 	_bomber_payload_ship.present_payload_terminal_record(terminal)
 	_present_bomber_payload_audio(&"present_projectile_terminal", terminal)
 	_last_bomber_payload_result = combat_result.duplicate(true)
@@ -1876,6 +1882,41 @@ func _present_bomber_payload_audio(method: StringName, payload: Dictionary) -> v
 		binding.call(method, &"cinder_long_range_bomber", payload)
 
 
+func _publish_bomber_payload_network(
+	projectile: BomberPayloadProjectile,
+	terminal: bool,
+) -> Dictionary:
+	if (
+		projectile == null
+		or not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or _bomber_payload_ship == null
+	):
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var snapshot := projectile.get_snapshot()
+	var release_record := snapshot.get("release_record", {}) as Dictionary
+	var projectile_id := StringName(release_record.get("record_id", &""))
+	if projectile_id.is_empty():
+		return {"accepted": false, "status": &"network_projectile_identity_missing"}
+	var velocity: Vector3 = snapshot.get("velocity", Vector3.FORWARD)
+	var direction := velocity.normalized() if velocity.is_finite() and velocity.length_squared() > 0.000001 else Vector3.FORWARD
+	var state := StringName(snapshot.get("state", &"flying"))
+	if terminal and state == &"flying":
+		state = &"terminal"
+	var packet := {
+		"projectile_id": projectile_id,
+		"projectile_generation": int(snapshot.get("generation", _bomber_payload_generation)),
+		"source_entity_id": CINDER_BOMBER_SHIP_ID,
+		"source_generation": _bomber_payload_generation,
+		"owner_peer_id": 1,
+		"position": snapshot.get("position", Vector3.ZERO),
+		"direction": direction,
+		"last_update_tick": _bomber_payload_server_tick,
+		"state": state,
+	}
+	return network_session.publish_projectile_snapshot(packet, [], terminal, _bomber_payload_server_tick)
+
+
 func _clear_bomber_payload_loop(reason: StringName) -> void:
 	for projectile in _bomber_payload_projectiles:
 		if projectile != null:
@@ -1895,6 +1936,7 @@ func _clear_bomber_payload_loop(reason: StringName) -> void:
 	_bomber_payload_adapter = null
 	_bomber_payload_ship = null
 	_bomber_payload_request_sequence = 0
+	_bomber_payload_server_tick = 0
 	_last_bomber_payload_result = {"accepted": true, "reason": reason, "cleared": true}
 
 
