@@ -7,6 +7,7 @@ extends RefCounted
 
 const Coordinator := preload("res://scripts/diagnostics/crash_recovery_coordinator.gd")
 const Record := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
+const SessionDiagnosticEvent := preload("res://scripts/diagnostics/session_diagnostic_event.gd")
 
 const STATE_IDLE := "idle"
 const STATE_STARTING := "starting"
@@ -20,6 +21,7 @@ var _state := STATE_IDLE
 var _session_id := 0
 var _recovery_flush_pending := false
 var _last_status: Dictionary = {}
+var _network_generation := 0
 
 
 func _init(
@@ -124,6 +126,44 @@ func get_snapshot() -> Dictionary:
 		"coordinator": _coordinator.get_snapshot() if _coordinator != null else {},
 		"record": _record.get_snapshot() if _record != null else {},
 	}.duplicate(true)
+
+
+## Records a privacy-safe network observation supplied by the network adapter.
+## Only bounded numeric fields enter SessionDiagnosticRecord; addresses, tokens,
+## packet payloads, and transport authority never cross this seam.
+func record_network_observation(
+		session_id: int,
+		physics_tick: int,
+		elapsed_physics_seconds: float,
+		generation: int,
+		reason_code: int,
+		quality: Dictionary
+) -> Dictionary:
+	if _state not in [STATE_STARTING, STATE_STABLE]:
+		return _status(false, &"session_not_open")
+	if generation <= 0 or (_network_generation > 0 and generation < _network_generation):
+		return _status(false, &"stale_network_generation")
+	_network_generation = generation
+	var event := SessionDiagnosticEvent.new(
+		SessionDiagnosticEvent.Code.SESSION_ENDED,
+		SessionDiagnosticEvent.Severity.INFO,
+		session_id,
+		physics_tick,
+		elapsed_physics_seconds,
+		{
+			"error_code": maxi(0, reason_code),
+			"attempt_count": maxi(0, generation),
+			"entity_count": clampi(int(quality.get("accepted_count", 0)), 0, 1000000),
+			"peer_count": clampi(int(quality.get("released_count", 0)), 0, 4096),
+			"recovered": int(quality.get("pending_depth", 0)) == 0,
+		}
+	)
+	var recorded := _record.record(event)
+	_last_status = _status(bool(recorded.accepted), &"network_recorded" if bool(recorded.accepted) else &"network_record_failed", {
+		"record_status": recorded,
+		"generation": generation,
+	})
+	return _last_status.duplicate(true)
 
 
 func _status(accepted: bool, reason: StringName, details: Dictionary = {}) -> Dictionary:
