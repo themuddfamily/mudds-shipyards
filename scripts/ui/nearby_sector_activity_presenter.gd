@@ -163,12 +163,12 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		else _progress_text(activity_id, state)
 	)
 	var recovery := (
-		"" if not station_defense_feedback.is_empty() or not beacon_feedback.is_empty() or not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
+		"" if not cargo_progress.is_empty() or not station_defense_feedback.is_empty() or not beacon_feedback.is_empty() or not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
 		or not mining_feedback.is_empty() else _recovery_text(state)
 	)
 	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
 	var status_suffix := ""
-	if reward_pending and station_defense_feedback.is_empty() and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
+	if reward_pending and cargo_progress.is_empty() and station_defense_feedback.is_empty() and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
 			and mining_feedback.is_empty():
 		status_suffix += "  REWARD PENDING"
 	if not recovery.is_empty():
@@ -182,7 +182,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"selected": activity_id == _selected_activity,
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
-		"recovery_text": recovery,
+		"recovery_text": str(cargo_progress.get("recovery_text", recovery)),
 		"objective_text": str(station_defense_feedback.get(
 			"objective_text", beacon_feedback.get(
 			"objective_text", patrol_feedback.get(
@@ -697,22 +697,45 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 
 	var terminal := numeric_state in [CargoDeliveryActivity.State.COMPLETED,
 		CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]
+	var recovery_text := ""
 	if numeric_state == CargoDeliveryActivity.State.COMPLETED:
 		stage_id = &"delivered"
-		objective = "CARGO TRANSFER CONFIRMED"
-	elif numeric_state in [CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
-		stage_id = &"failure"
-		objective = "DELIVERY FAILED DURING %s" % _cargo_stage_label(
-			_stage_for_phase(next_phase_id, next_phase_index, phase_count)
+		objective = (
+			"AWAIT CARGO REWARD HANDOFF"
+			if bool(state.get("reward_pending", false))
+			else "CARGO TRANSFER CONFIRMED"
 		)
+	elif numeric_state in [CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
+		var failed_stage := _stage_for_phase(next_phase_id, next_phase_index, phase_count)
+		stage_id = &"expired" if numeric_state == CargoDeliveryActivity.State.EXPIRED else &"lost"
+		var stage_label := _cargo_stage_label(failed_stage)
+		objective = "%s DURING %s" % [
+			"DEADLINE EXPIRED" if stage_id == &"expired" else "CARGO RUN LOST", stage_label,
+		]
+		recovery_text = _cargo_recovery_text(failed_stage, stage_id)
 
 	var step_number := mini(next_phase_index + 1, phase_count) if phase_count > 0 else 0
 	var remaining := maxf(float(state.get("deadline_remaining_seconds", 0.0)), 0.0)
+	var deadline := maxf(float(state.get("deadline_seconds", 0.0)), 0.0)
+	var deadline_ratio := remaining / deadline if deadline > 0.0 else 1.0
+	var deadline_state: StringName = &"normal"
+	if numeric_state == CargoDeliveryActivity.State.EXPIRED:
+		deadline_state = &"expired"
+	elif numeric_state == CargoDeliveryActivity.State.ACTIVE and deadline_ratio <= 0.1:
+		deadline_state = &"critical"
+	elif numeric_state == CargoDeliveryActivity.State.ACTIVE and deadline_ratio <= 0.25:
+		deadline_state = &"warning"
 	var summary := "%s %d/%d: %s" % [
 		_cargo_stage_label(stage_id), step_number, phase_count, objective
 	]
 	if numeric_state == CargoDeliveryActivity.State.ACTIVE:
-		summary += "  //  %.1fs LEFT" % remaining
+		summary += "  //  TIME %s: %.1fs LEFT" % [str(deadline_state).to_upper(), remaining]
+	elif numeric_state == CargoDeliveryActivity.State.COMPLETED:
+		summary += "  //  %s" % (
+			"REWARD PENDING" if bool(state.get("reward_pending", false)) else "DELIVERY CONFIRMED"
+		)
+	elif not recovery_text.is_empty():
+		summary += "  //  " + recovery_text
 	return {
 		"stage_id": stage_id,
 		"stage_label": _cargo_stage_label(stage_id),
@@ -722,6 +745,11 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		"phase_count": phase_count,
 		"step_number": step_number,
 		"deadline_remaining_seconds": remaining,
+		"deadline_seconds": deadline,
+		"deadline_ratio": deadline_ratio,
+		"deadline_state": deadline_state,
+		"reward_pending": bool(state.get("reward_pending", false)),
+		"recovery_text": recovery_text,
 		"terminal": terminal,
 		"summary": summary,
 		"activity_authority": false,
@@ -744,8 +772,18 @@ func _cargo_stage_label(stage_id: StringName) -> String:
 		&"transit": "TRANSIT",
 		&"delivery": "DELIVERY",
 		&"delivered": "DELIVERED",
-		&"failure": "FAILED",
+		&"lost": "LOST",
+		&"expired": "EXPIRED",
 	}.get(stage_id, "PICKUP")
+
+
+func _cargo_recovery_text(stage_id: StringName, terminal_id: StringName) -> String:
+	var prefix := "RECOVER EXPIRED RUN" if terminal_id == &"expired" else "RECOVER LOST CARGO"
+	return {
+		&"pickup": "%s: RELOAD AT THE CINDER BERTH" % prefix,
+		&"transit": "%s: RETURN TO THE CINDER BERTH" % prefix,
+		&"delivery": "%s: RESET AT THE PLATFORM TERMINAL" % prefix,
+	}.get(stage_id, "%s: RESET THE SUPPLY RUN" % prefix)
 
 
 func _state_label(state: Dictionary) -> String:

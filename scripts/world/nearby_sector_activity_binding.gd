@@ -1062,7 +1062,7 @@ func get_snapshot() -> Dictionary:
 		"race_activity_id": RACE_ACTIVITY_ID,
 		"race": _race_presentation_snapshot(),
 		"patrol": _patrol_presentation_snapshot(),
-		"cargo": _cargo_activity.get_snapshot() if is_instance_valid(_cargo_activity) else {},
+		"cargo": _cargo_presentation_snapshot(),
 		"cargo_reward_handoff": get_cargo_reward_handoff_snapshot(),
 		"cargo_binding": {
 			"access_bound": is_instance_valid(_cargo_access),
@@ -1139,6 +1139,21 @@ func _race_presentation_snapshot() -> Dictionary:
 		return {}
 	var snapshot := _race_session.get_presentation_snapshot() as Dictionary
 	snapshot["presentation_reason"] = _last_race_feedback_reason
+	return snapshot.duplicate(true)
+
+
+func _cargo_presentation_snapshot() -> Dictionary:
+	if not is_instance_valid(_cargo_activity):
+		return {}
+	var snapshot := _cargo_activity.get_snapshot().duplicate(true)
+	var handoff := get_cargo_reward_handoff_snapshot()
+	var result := handoff.get("last_result", {}) as Dictionary
+	snapshot["reward_pending"] = (
+		int(snapshot.get("state", -1)) == CARGO_ACTIVITY.State.COMPLETED
+		and int(handoff.get("completion_generation", -1)) == int(snapshot.get("generation", 0))
+		and bool(result.get("accepted", false))
+	)
+	snapshot["reward_handoff_reason"] = StringName(result.get("reason", &""))
 	return snapshot.duplicate(true)
 
 
