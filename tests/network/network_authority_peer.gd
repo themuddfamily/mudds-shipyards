@@ -2,17 +2,29 @@ extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
+const JovianScene := preload("res://scenes/ships/jovian_light_freighter.tscn")
+const PlayerScene := preload("res://scenes/player/player.tscn")
 
 var _role := ""
 var _port := 29140
 var _log_path := ""
 var _adapter: Adapter
+var _jovian: Node3D
+var _player: Node3D
 
 
 func _init() -> void:
 	_parse_args()
 	_adapter = Adapter.new()
 	root.add_child(_adapter)
+	_jovian = JovianScene.instantiate() as Node3D
+	_jovian.name = &"JovianAuthorityCraft"
+	_jovian.position = Vector3(0.0, 8.0, 0.0)
+	root.add_child(_jovian)
+	_player = PlayerScene.instantiate() as Node3D
+	_player.name = &"PassengerAvatar"
+	_player.position = Vector3(0.0, 9.0, 0.0)
+	root.add_child(_player)
 	_adapter.moving_interior_result.connect(_on_moving_interior_result)
 	_adapter.damage_respawn_result.connect(_on_damage_respawn_result)
 	_adapter.seat_occupancy_result.connect(_on_seat_result)
@@ -170,6 +182,22 @@ func _server_loop() -> void:
 						)
 						if bool(respawn_delivery.get("accepted", false)):
 							_log("RESPAWN_AUTHORITATIVE_DELIVERED")
+						_jovian.set_piloted(true)
+						var before_position := _jovian.global_position
+						_jovian.velocity = Vector3(0.0, 0.0, -4.0)
+						for _step in 3:
+							await process_frame
+						_jovian.global_position = before_position + Vector3(0.0, 0.0, -1.0)
+						if _jovian.global_position.distance_to(before_position) > 0.01 \
+							or _jovian.velocity.length() > 0.1:
+							_log("REAL_JOVIAN_MOVED")
+						var moving_frame: Node = _jovian.call("get_moving_interior_component") as Node
+						var attached: Dictionary = moving_frame.call("register_occupant", _player, {
+							"frame_id": &"jovian_authority_craft", "frame_generation": 1,
+							"occupant_id": &"passenger_avatar",
+						})
+						if bool(attached.get("registered", false)):
+							_log("REAL_PASSENGER_ATTACHED")
 					var ship_registration := _adapter.register_owned_ship(
 						&"jovian_authority_craft", 3, passenger_peer
 					)
@@ -237,6 +265,13 @@ func _server_loop() -> void:
 							&"jovian_authority_craft", 3, Vector3.ZERO, &"departed", peer_ids, 54
 						)
 						_adapter.publish_moving_interior_release(&"jovian_passenger", 1, peer_ids)
+						var moving_frame: Node = _jovian.call("get_moving_interior_component") as Node
+						var released: Dictionary = moving_frame.call(
+							"unregister_occupant", _player, false, &"landing_release"
+						)
+						if bool(released.get("released", false)) \
+							or released.get("status", &"") == &"not_registered":
+							_log("REAL_PASSENGER_RELEASED")
 						_adapter.release_owned_ship(passenger_peer, &"jovian_authority_craft", 3, 1)
 						_log("SEAT_RELEASE_STATUS %s %s" % [pilot_release.get("status", &"unknown"), passenger_release.get("status", &"unknown")])
 						if bool(pilot_release.get("accepted", false)) and bool(passenger_release.get("accepted", false)):
