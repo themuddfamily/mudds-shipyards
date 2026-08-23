@@ -114,6 +114,12 @@ func _test_runtime_modifier_consumption() -> void:
 		and is_equal_approx(float(nominal.targeting_multiplier), 1.0),
 		"activation publishes nominal operational modifiers from the real component ledger"
 	)
+	target.position = Vector3(0.0, 0.0, -320.0)
+	_check(
+		bool(opponent.call("_has_target_awareness", nominal)),
+		"nominal sensors preserve the established coordinator-owned distant target"
+	)
+	target.position = Vector3(0.0, 0.0, -120.0)
 	opponent.velocity = Vector3.ZERO
 	opponent.call("_physics_process", 0.1)
 	var nominal_response := opponent.velocity.length()
@@ -168,6 +174,17 @@ func _test_runtime_modifier_consumption() -> void:
 		nominal_accepts_marginal_aim and degraded_rejects_marginal_aim,
 		"resolved sensor damage tightens the real aim-acceptance gate"
 	)
+	target.position = Vector3(0.0, 0.0, -320.0)
+	opponent.global_transform = Transform3D.IDENTITY
+	opponent.velocity = Vector3.ZERO
+	opponent.set("_telegraph_remaining", opponent.telegraph_time)
+	opponent.call("_physics_process", 0.1)
+	_check(
+		not bool(opponent.call("_has_target_awareness", degraded))
+		and opponent.velocity.is_zero_approx()
+		and is_zero_approx(float(opponent.get("_telegraph_remaining"))),
+		"damaged sensors drop distant pursuit and cancel weapon commitment without clearing target identity"
+	)
 	_check(
 		shots.size() == 2
 		and is_equal_approx(nominal_cooldown, opponent.weapon_cooldown)
@@ -178,13 +195,34 @@ func _test_runtime_modifier_consumption() -> void:
 		),
 		"resolved weapon damage lengthens cadence on actual projectile dispatch"
 	)
+	var damaged_generation := int(
+		(opponent.get_component_damage_snapshot().get("model", {}) as Dictionary).get(
+			"generation",
+			-1
+		)
+	)
+	host.remove_child(opponent)
+	await process_frame
+	host.add_child(opponent)
+	await process_frame
+	_check(
+		int(
+			(opponent.get_component_damage_snapshot().get("model", {}) as Dictionary).get(
+				"generation",
+				-1
+			)
+		) == damaged_generation
+		and not bool(opponent.call("_has_target_awareness", opponent.get_operational_modifiers())),
+		"whole-owner re-entry preserves the degraded sensor generation and awareness consequence"
+	)
 	opponent.deactivate()
 	opponent.activate(Transform3D.IDENTITY)
 	var restored := opponent.get_operational_modifiers()
 	_check(
 		is_equal_approx(float(restored.mobility_multiplier), 1.0)
 		and is_equal_approx(float(restored.fire_multiplier), 1.0)
-		and is_equal_approx(float(restored.targeting_multiplier), 1.0),
+		and is_equal_approx(float(restored.targeting_multiplier), 1.0)
+		and bool(opponent.call("_has_target_awareness", restored)),
 		"reuse repair restores all runtime operational modifiers through the same model"
 	)
 	host.queue_free()

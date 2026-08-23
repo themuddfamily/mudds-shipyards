@@ -206,8 +206,8 @@ func _physics_process(delta: float) -> void:
 	var mobility := clampf(float(modifiers.get("mobility_multiplier", 0.0)), 0.0, 1.0)
 	_elapsed += delta
 	_cooldown_remaining = maxf(0.0, _cooldown_remaining - delta)
-	var valid_target := _has_current_target()
-	if not valid_target:
+	var aware_target := _has_target_awareness(modifiers)
+	if not aware_target:
 		_telegraph_remaining = 0.0
 		velocity = velocity.move_toward(Vector3.ZERO, acceleration * mobility * 0.45 * delta)
 		move_and_slide()
@@ -280,6 +280,27 @@ func _get_target_aim_position() -> Vector3:
 
 func _has_current_target() -> bool:
 	return _is_live_target(_target)
+
+
+## Nominal sensors preserve the established coordinator-owned target assignment.
+## Once damaged, awareness becomes a bounded range consequence: the opponent
+## retains target identity but cannot pursue or fire until that craft returns to
+## its degraded detection envelope. ComponentDamageModel remains data-only.
+func _has_target_awareness(modifiers: Dictionary = {}) -> bool:
+	if not _has_current_target():
+		return false
+	var resolved_modifiers := modifiers if not modifiers.is_empty() else get_operational_modifiers()
+	var targeting_modifier := clampf(
+		float(resolved_modifiers.get("targeting_multiplier", 0.0)),
+		0.0,
+		1.0
+	)
+	if targeting_modifier <= 0.0 or bool(resolved_modifiers.get("targeting_disabled", true)):
+		return false
+	if is_equal_approx(targeting_modifier, 1.0):
+		return true
+	var awareness_range := engagement_range * lerpf(0.75, 1.75, targeting_modifier)
+	return global_position.distance_squared_to(_get_target_aim_position()) <= awareness_range * awareness_range
 
 
 func _is_live_target(target: Node3D) -> bool:
@@ -895,6 +916,8 @@ func _fire_at_target(target_position: Vector3) -> void:
 	if not _active or not _has_current_target():
 		return
 	var modifiers := get_operational_modifiers()
+	if not _has_target_awareness(modifiers):
+		return
 	var fire_modifier := clampf(float(modifiers.get("fire_multiplier", 0.0)), 0.0, 1.0)
 	if fire_modifier <= 0.0 or bool(modifiers.get("fire_disabled", true)):
 		return
