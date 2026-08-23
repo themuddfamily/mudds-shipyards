@@ -16,12 +16,18 @@ const HOST_PATH := NodePath("EmberlineSupplyTenderHost")
 const RACE_ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const RACE_SESSION := preload("res://scripts/activities/cinder_timed_race_session.gd")
 const PATROL_ACTIVITY := preload("res://scripts/activities/patrol_activity.gd")
+const CARGO_ACTIVITY := preload("res://scripts/cargo/cargo_delivery_activity.gd")
+const CARGO_CONTRACT := preload("res://scripts/cargo/cargo_delivery_contract.gd")
 
 var _host: CinderConvoyEscortHost
 var _race_director: ActivityDirector
 var _race_session: CinderTimedRaceSession
 var _patrol_director: ActivityDirector
 var _patrol: PatrolActivity
+var _cargo_authority: CargoTransferAuthority
+var _cargo_activity: CargoDeliveryActivity
+var _cargo_source_handle: Dictionary
+var _cargo_destination_handle: Dictionary
 
 
 func _ready() -> void:
@@ -42,6 +48,35 @@ func _ready() -> void:
 	_patrol_director.register_definition(RACE_ROUTE)
 	_patrol = PATROL_ACTIVITY.new(RACE_ROUTE, 0.0) as PatrolActivity
 	_patrol.attach(_patrol_director, _patrol.get_generation())
+	_cargo_authority = CargoTransferAuthority.new()
+	_cargo_authority.name = "CinderCargoTransferAuthority"
+	add_child(_cargo_authority)
+	var cargo_item := CargoItemDefinition.new()
+	cargo_item.item_id = &"cinder_supply_crates"
+	cargo_item.display_name = "Cinder supply crates"
+	cargo_item.unit_capacity = 1
+	_cargo_authority.register_item(cargo_item)
+	var source := Node.new()
+	source.name = "CinderCargoSource"
+	add_child(source)
+	var destination := Node.new()
+	destination.name = "CinderCargoDestination"
+	add_child(destination)
+	var source_registration := _cargo_authority.register_entity(
+		source, &"cinder_supply_tender", &"cinder_supply_manifest", 8,
+		{&"cinder_supply_crates": 2}
+	)
+	var destination_registration := _cargo_authority.register_entity(
+		destination, &"cinder_platform", &"cinder_platform_manifest", 8
+	)
+	_cargo_source_handle = source_registration.get("handle", {}).duplicate(true)
+	_cargo_destination_handle = destination_registration.get("handle", {}).duplicate(true)
+	var cargo_contract := CARGO_CONTRACT.new(
+		&"cinder_platform_supply_run", _cargo_source_handle,
+		_cargo_destination_handle, &"cinder_supply_crates", 1,
+		[&"load_crate", &"clear_gate", &"dock_platform"], 120.0
+	)
+	_cargo_activity = CARGO_ACTIVITY.new(_cargo_authority, cargo_contract) as CargoDeliveryActivity
 
 
 func start_convoy() -> Dictionary:
@@ -104,6 +139,30 @@ func reset_patrol() -> Dictionary:
 	return _patrol.reset(_patrol.get_generation())
 
 
+func start_cargo_run() -> Dictionary:
+	if not is_inside_tree() or _cargo_activity == null:
+		return _result(false, &"not_ready")
+	return _cargo_activity.start(_cargo_activity.get_generation())
+
+
+func advance_cargo_run(delta: float) -> Dictionary:
+	if not is_inside_tree() or _cargo_activity == null:
+		return _result(false, &"not_ready")
+	return _cargo_activity.advance_physics(delta, _cargo_activity.get_generation())
+
+
+func submit_cargo_phase(phase_id: StringName) -> Dictionary:
+	if not is_inside_tree() or _cargo_activity == null:
+		return _result(false, &"not_ready")
+	return _cargo_activity.submit_phase(phase_id, _cargo_activity.get_generation())
+
+
+func reset_cargo_run() -> Dictionary:
+	if not is_inside_tree() or _cargo_activity == null:
+		return _result(false, &"not_ready")
+	return _cargo_activity.reset(_cargo_activity.get_generation())
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -113,6 +172,7 @@ func get_snapshot() -> Dictionary:
 		"race_activity_id": RACE_ACTIVITY_ID,
 		"race": _race_session.get_presentation_snapshot() if is_instance_valid(_race_session) else {},
 		"patrol": _patrol.get_presentation_snapshot() if is_instance_valid(_patrol) else {},
+		"cargo": _cargo_activity.get_snapshot() if is_instance_valid(_cargo_activity) else {},
 		"production_owner": true,
 		"gameplay_authority": false,
 		"game_flow_authority": false,
@@ -137,6 +197,8 @@ func audit() -> Dictionary:
 		errors.append("authored beacon race audit failed")
 	if not is_instance_valid(_patrol) or not bool(_patrol.audit().get("valid", false)):
 		errors.append("authored beacon patrol audit failed")
+	if not is_instance_valid(_cargo_activity) or not _cargo_activity.is_configuration_valid():
+		errors.append("authored platform cargo run audit failed")
 	for point in RACE_ROUTE.checkpoint_positions:
 		if not point.is_finite() or point.length() > NearbySectorCluster.MAXIMUM_CONTENT_DISTANCE:
 			errors.append("beacon race route leaves the authored cluster envelope")
