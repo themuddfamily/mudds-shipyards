@@ -34,6 +34,8 @@ const RECOMMENDATION_PRESERVED_KEYS := [
 	"captions_enabled",
 	"input_binding_profile",
 ]
+const SAFE_AUDIO_MASTER_VOLUME := 0.5
+const SAFE_AUDIO_MUSIC_VOLUME := 0.0
 
 var _settings: RuntimeSettings
 var _store: UserDataStore
@@ -56,6 +58,7 @@ var _last_commit_id := ""
 var _begin_attempted_before_first_apply := false
 var _starting_before_first_apply := false
 var _graphics_recovery_receipt: Dictionary = {}
+var _audio_recovery_receipt: Dictionary = {}
 
 
 func _init(
@@ -277,6 +280,103 @@ func restore_prior_graphics_profile(persist_settings: Callable) -> Dictionary:
 	})
 
 
+## Applies a caller-authorized device-neutral audio fallback after the policy
+## recommends safe start. The prior master/music levels become a one-shot
+## receipt for explicit post-stability restoration.
+func apply_audio_recovery_fallback(persist_settings: Callable) -> Dictionary:
+	if _policy == null or not _initialized:
+		return _local_status(false, &"policy_unavailable")
+	if not bool(_policy.get_snapshot().get("recommendation_available", false)):
+		return _local_status(false, &"audio_fallback_not_recommended")
+	if not _audio_recovery_receipt.is_empty():
+		return _local_status(false, &"audio_fallback_already_applied")
+	if not persist_settings.is_valid():
+		return _local_status(false, &"settings_persistence_unavailable")
+	var before_payload := _settings.to_user_data_payload()
+	var before_values := before_payload.get("values", {}) as Dictionary
+	if not before_values.has("master_volume") or not before_values.has("music_volume"):
+		return _local_status(false, &"audio_receipt_invalid")
+	var merged_payload := before_payload.duplicate(true)
+	var merged_values := merged_payload.get("values", {}) as Dictionary
+	merged_values["master_volume"] = SAFE_AUDIO_MASTER_VOLUME
+	merged_values["music_volume"] = SAFE_AUDIO_MUSIC_VOLUME
+	merged_payload["values"] = merged_values
+	var merged_validation := _settings.validate_user_data_payload(merged_payload)
+	if not bool(merged_validation.get("accepted", false)):
+		return _local_status(false, &"audio_fallback_invalid")
+	var applied := _settings.apply_user_data_payload(merged_payload)
+	if not bool(applied.get("accepted", false)):
+		return _local_status(false, &"audio_fallback_apply_failed", {"apply_status": applied})
+	var generation_before := _store.get_generation()
+	var saved := persist_settings.call() as Dictionary
+	if not bool(saved.get("accepted", false)):
+		_settings.apply_user_data_payload(before_payload)
+		return _local_status(false, &"audio_fallback_save_failed", {
+			"save_status": saved,
+			"rolled_back_live_settings": true,
+		})
+	_audio_recovery_receipt = {
+		"consumed": false,
+		"source_store_generation": _store.get_generation(),
+		"prior_values": {
+			"master_volume": before_values.get("master_volume"),
+			"music_volume": before_values.get("music_volume"),
+		},
+	}
+	return _local_status(true, &"audio_fallback_applied", {
+		"save_status": saved,
+		"store_generation_changed": _store.get_generation() != generation_before,
+	})
+
+
+## Restores the audio levels captured by apply_audio_recovery_fallback(), only
+## after STABLE and only once. User changes made in the interim are preserved.
+func restore_prior_audio_profile(persist_settings: Callable) -> Dictionary:
+	if _policy == null or not _initialized:
+		return _local_status(false, &"policy_unavailable")
+	if _audio_recovery_receipt.is_empty():
+		return _local_status(false, &"no_audio_recovery_receipt")
+	if bool(_audio_recovery_receipt.get("consumed", false)):
+		return _local_status(false, &"audio_recovery_receipt_consumed")
+	if _policy.get_snapshot().get("state") != Record.STATE_STABLE \
+		or _stable_status.get("reason") not in [&"startup_stable", &"already_stable"]:
+		return _local_status(false, &"stability_not_confirmed")
+	if not persist_settings.is_valid():
+		return _local_status(false, &"settings_persistence_unavailable")
+	var before_payload := _settings.to_user_data_payload()
+	var before_values := before_payload.get("values", {}) as Dictionary
+	if before_values.get("master_volume") != SAFE_AUDIO_MASTER_VOLUME \
+		or before_values.get("music_volume") != SAFE_AUDIO_MUSIC_VOLUME:
+		return _local_status(false, &"live_audio_changed")
+	var prior_values := _audio_recovery_receipt.get("prior_values", {}) as Dictionary
+	if not prior_values.has("master_volume") or not prior_values.has("music_volume"):
+		return _local_status(false, &"audio_receipt_invalid")
+	var merged_payload := before_payload.duplicate(true)
+	var merged_values := merged_payload.get("values", {}) as Dictionary
+	merged_values["master_volume"] = prior_values.master_volume
+	merged_values["music_volume"] = prior_values.music_volume
+	merged_payload["values"] = merged_values
+	var merged_validation := _settings.validate_user_data_payload(merged_payload)
+	if not bool(merged_validation.get("accepted", false)):
+		return _local_status(false, &"restored_audio_invalid")
+	var applied := _settings.apply_user_data_payload(merged_payload)
+	if not bool(applied.get("accepted", false)):
+		return _local_status(false, &"restored_audio_apply_failed", {"apply_status": applied})
+	var generation_before := _store.get_generation()
+	var saved := persist_settings.call() as Dictionary
+	if not bool(saved.get("accepted", false)):
+		_settings.apply_user_data_payload(before_payload)
+		return _local_status(false, &"restored_audio_save_failed", {
+			"save_status": saved,
+			"rolled_back_live_settings": true,
+		})
+	_audio_recovery_receipt["consumed"] = true
+	return _local_status(true, &"prior_audio_profile_restored", {
+		"save_status": saved,
+		"store_generation_changed": _store.get_generation() != generation_before,
+	})
+
+
 func validate_recommendation(recommendation: Dictionary) -> Dictionary:
 	var expected_keys := [
 		"schema_version",
@@ -349,6 +449,7 @@ func get_report() -> Dictionary:
 		"orderly_shutdown_status": _orderly_shutdown_status.duplicate(true),
 		"recommendation_status": _recommendation_status.duplicate(true),
 		"graphics_recovery_receipt": _graphics_recovery_receipt.duplicate(true),
+		"audio_recovery_receipt": _audio_recovery_receipt.duplicate(true),
 		"policy_snapshot": policy_snapshot.duplicate(true),
 		"last_commit_id": _last_commit_id,
 		"commit_clock": &"store_generation_successor",

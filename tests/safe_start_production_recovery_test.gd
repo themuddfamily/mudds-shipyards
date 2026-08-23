@@ -320,13 +320,26 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		and report.policy_snapshot.store_generation == 3,
 		"recommendation preserves bindings/controls/accessibility/audio/camera and adjacent namespaces"
 	)
+	var audio_fallback := flow._safe_start_production_recovery.apply_audio_recovery_fallback(
+		Callable(flow, "_persist_runtime_settings")
+	)
+	_check(
+		bool(audio_fallback.accepted)
+		and audio_fallback.reason == &"audio_fallback_applied"
+		and is_equal_approx(flow.get_runtime_settings().master_volume, 0.5)
+		and is_equal_approx(flow.get_runtime_settings().music_volume, 0.0),
+		"caller-authorized safe-start audio fallback applies validated neutral levels"
+	)
+	var fallback_payload := (
+		store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY] as Dictionary
+	).duplicate(true)
 	flow.set("_initialized", true)
 	flow._physics_process(GameFlow.SAFE_START_STABILITY_PHYSICS_SECONDS)
 	_check(
 		flow.get_safe_start_recovery_report().policy_snapshot.state
 			== Record.STATE_STABLE
-		and store.get_generation() == 4
-		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY] == settings_payload,
+		and store.get_generation() == 5
+		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY] == fallback_payload,
 		"STABLE refreshes the policy after the adapter's shared-store recommendation commit"
 	)
 	var restored_profile := flow._safe_start_production_recovery.restore_prior_graphics_profile(
@@ -341,6 +354,16 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY].values.window_mode == "fullscreen",
 		"stable safe-start recovery explicitly restores the one-time prior graphics profile"
 	)
+	var restored_audio := flow._safe_start_production_recovery.restore_prior_audio_profile(
+		Callable(flow, "_persist_runtime_settings")
+	)
+	_check(
+		bool(restored_audio.accepted)
+		and restored_audio.reason == &"prior_audio_profile_restored"
+		and is_equal_approx(flow.get_runtime_settings().master_volume, 0.71)
+		and is_equal_approx(flow.get_runtime_settings().music_volume, 0.26),
+		"stable safe-start recovery restores the one-time prior audio profile"
+	)
 	var repeated_restore := flow._safe_start_production_recovery.restore_prior_graphics_profile(
 		Callable(flow, "_persist_runtime_settings")
 	)
@@ -348,6 +371,14 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		not bool(repeated_restore.accepted)
 		and repeated_restore.reason == &"recovery_receipt_consumed",
 		"the graphics recovery receipt cannot be replayed"
+	)
+	var repeated_audio_restore := flow._safe_start_production_recovery.restore_prior_audio_profile(
+		Callable(flow, "_persist_runtime_settings")
+	)
+	_check(
+		not bool(repeated_audio_restore.accepted)
+		and repeated_audio_restore.reason == &"audio_recovery_receipt_consumed",
+		"the audio recovery receipt cannot be replayed"
 	)
 	flow.free()
 
