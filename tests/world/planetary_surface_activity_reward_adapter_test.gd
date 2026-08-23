@@ -43,6 +43,7 @@ func _init() -> void:
 func _run() -> void:
 	await _test_real_host_identity_bind()
 	await _test_host_activity_reward_path()
+	await _test_detached_reward_recovery()
 	_finish()
 
 
@@ -100,6 +101,32 @@ func _test_host_activity_reward_path() -> void:
 	_check(
 		adapter.commit_activity_reward().reason == &"adapter_activity_not_active",
 		"a completed adapter rejects reward replay"
+	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_detached_reward_recovery() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.begin_activity(&"ember_beacon_survey")
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	_check(
+		adapter.detach().accepted,
+		"completed surface work can detach while its reward receipt remains pending"
+	)
+	host.attachment_generation = 3
+	var recovered := adapter.recover_pending_reward()
+	_check(
+		recovered.accepted
+			and recovered.reason == &"reward_committed"
+			and recovered.adapter.state == &"completed"
+			and _reward_calls == 2,
+		"returning on a fresh host attachment recovers and commits the preserved reward once"
 	)
 	director.queue_free()
 	await process_frame

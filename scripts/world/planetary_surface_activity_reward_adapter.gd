@@ -143,6 +143,26 @@ func reenter() -> Dictionary:
 	return _with_adapter(result, bool(result.get("accepted", false)), result.get("reason", &"reentry_rejected") as StringName)
 
 
+## Re-enters the current Ember attachment and commits a reward receipt that was
+## preserved while the player returned to the ship. The Host remains the
+## lifecycle owner; this only composes its new attachment generation with the
+## runtime's detached pending receipt.
+func recover_pending_reward() -> Dictionary:
+	if _state != State.DETACHED:
+		return _reject(&"recovery_unavailable")
+	var reentered := reenter()
+	if not bool(reentered.get("accepted", false)):
+		return reentered
+	var committed := commit_activity_reward()
+	if bool(committed.get("accepted", false)):
+		return committed
+	return _with_adapter(
+		committed,
+		false,
+		committed.get("reason", &"reward_recovery_rejected") as StringName
+	)
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": 1,
