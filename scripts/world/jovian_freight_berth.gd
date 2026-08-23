@@ -102,6 +102,15 @@ const LASHING_RING_BASELINE_MESH_RESOURCES := 8
 const LASHING_RING_BASELINE_MATERIAL_RESOURCES := 1
 const LASHING_RING_BASELINE_SUBMISSIONS := 8
 
+## Four visual-only safety hoops keep the gantry ladder readable around its two
+## physical stringers. Nodes, transforms and submissions stay separate; only
+## their identical immutable TorusMesh allocation is shared.
+const CATWALK_LADDER_HOOP_COPY_COUNT := 4
+const CATWALK_LADDER_HOOP_INNER_RADIUS := 0.42
+const CATWALK_LADDER_HOOP_OUTER_RADIUS := 0.52
+const CATWALK_LADDER_HOOP_RINGS := 48
+const CATWALK_LADDER_HOOP_RING_SEGMENTS := 12
+
 ## Eighteen named, light-owning guide lenses keep their authored transforms and
 ## individual colour materials. Only their identical, one-surface sphere mesh is
 ## shared; this is not batching or a light/material consolidation.
@@ -205,6 +214,7 @@ var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
+var _catwalk_ladder_hoop_mesh: TorusMesh
 var _guide_lens_mesh: SphereMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
@@ -653,6 +663,170 @@ func get_dock_guide_batch_contract() -> Dictionary:
 	}
 
 
+## Renderer-independent retained-resource audit for the four childless gantry
+## ladder safety hoops. They remain separately addressable visual copies; only
+## the identical torus allocation changes from four resources to one.
+func get_catwalk_ladder_hoop_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var access := get_node_or_null(^"GantryAccess") as Node3D
+	var mesh_ids: Dictionary = {}
+	var material_ids: Dictionary = {}
+	var node_paths := PackedStringArray()
+	var transforms: Array[Transform3D] = []
+	var structural_submissions := 0
+	var visible_copies := 0
+	var authority_nodes := 0
+	for index in CATWALK_LADDER_HOOP_COPY_COUNT:
+		var node_name := "CatwalkLadderHoop%02d" % (index + 1)
+		var hoop := (
+			access.get_node_or_null(NodePath(node_name)) as MeshInstance3D
+			if access != null else null
+		)
+		if hoop == null:
+			errors.append("catwalk_ladder_hoop_missing:%s" % node_name)
+			continue
+		node_paths.append(String(get_path_to(hoop)))
+		transforms.append(hoop.transform)
+		visible_copies += 1 if hoop.visible else 0
+		if hoop.mesh != null:
+			mesh_ids[hoop.mesh.get_instance_id()] = true
+			structural_submissions += hoop.mesh.get_surface_count()
+		if hoop.material_override != null:
+			material_ids[hoop.material_override.get_instance_id()] = true
+		var expected_transform := Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0))),
+			Vector3(
+				-14.62,
+				3.0 + float(index) * 3.0,
+				CATWALK_CENTER_Z + 0.05
+			)
+		)
+		if not hoop.transform.is_equal_approx(expected_transform) \
+				or not hoop.visible \
+				or hoop.layers != 1 \
+				or hoop.cast_shadow \
+					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("catwalk_ladder_hoop_transform_or_render_state_drift:%s" % node_name)
+		if hoop.mesh != _catwalk_ladder_hoop_mesh:
+			errors.append("catwalk_ladder_hoop_mesh_identity_not_shared:%s" % node_name)
+		if hoop.material_override != _materials.get("steel_blue"):
+			errors.append("catwalk_ladder_hoop_material_identity_drift:%s" % node_name)
+		if hoop.get_child_count() != 0 \
+				or hoop.get_script() != null \
+				or not hoop.get_groups().is_empty() \
+				or not hoop.get_meta_list().is_empty():
+			errors.append("catwalk_ladder_hoop_gained_semantic_authority:%s" % node_name)
+		authority_nodes += hoop.find_children(
+			"*", "CollisionObject3D", true, false
+		).size()
+		authority_nodes += hoop.find_children(
+			"*", "CollisionShape3D", true, false
+		).size()
+	var mesh := _catwalk_ladder_hoop_mesh
+	var authored_tessellation := Vector2i(
+		CATWALK_LADDER_HOOP_RINGS,
+		CATWALK_LADDER_HOOP_RING_SEGMENTS
+	)
+	var normalised := mesh != null and mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	if normalised:
+		var authored_value: Variant = mesh.get_meta(
+			TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO
+		)
+		if authored_value is Vector2i:
+			authored_tessellation = authored_value
+	var expected_live_tessellation := authored_tessellation
+	if normalised and mesh != null:
+		var planned := TorusGeometryBudget.plan(
+			CATWALK_LADDER_HOOP_OUTER_RADIUS,
+			CATWALK_LADDER_HOOP_INNER_RADIUS
+		)
+		var candidate := Vector2i(
+			mini(authored_tessellation.x, int(planned.rings)),
+			mini(authored_tessellation.y, int(planned.ring_segments))
+		)
+		var authored_quads := authored_tessellation.x * authored_tessellation.y
+		if authored_quads - candidate.x * candidate.y >= int(ceil(
+			TorusGeometryBudget.MINIMUM_SAVING_FRACTION * float(authored_quads)
+		)):
+			expected_live_tessellation = candidate
+	var expected_aabb := AABB(
+		Vector3(-0.52, -0.05, -0.52),
+		Vector3(1.04, 0.10, 1.04)
+	)
+	if mesh == null \
+			or not is_equal_approx(mesh.inner_radius, CATWALK_LADDER_HOOP_INNER_RADIUS) \
+			or not is_equal_approx(mesh.outer_radius, CATWALK_LADDER_HOOP_OUTER_RADIUS) \
+			or authored_tessellation != Vector2i(
+				CATWALK_LADDER_HOOP_RINGS,
+				CATWALK_LADDER_HOOP_RING_SEGMENTS
+			) \
+			or Vector2i(mesh.rings, mesh.ring_segments) != expected_live_tessellation \
+			or mesh.get_surface_count() != 1 \
+			or not mesh.get_aabb().is_equal_approx(expected_aabb):
+		errors.append("catwalk_ladder_hoop_mesh_recipe_drift")
+	if node_paths.size() != CATWALK_LADDER_HOOP_COPY_COUNT:
+		errors.append("catwalk_ladder_hoop_node_roster_drift")
+	if mesh_ids.size() != 1:
+		errors.append("catwalk_ladder_hoop_mesh_identity_count_drift")
+	if material_ids.size() != 1:
+		errors.append("catwalk_ladder_hoop_material_identity_count_drift")
+	if structural_submissions != CATWALK_LADDER_HOOP_COPY_COUNT:
+		errors.append("catwalk_ladder_hoop_submission_count_drift")
+	if authority_nodes != 0:
+		errors.append("catwalk_ladder_hoop_gained_collision_authority")
+	if access == null \
+			or access.find_children(
+				"CatwalkLadderStringer*", "StaticBody3D", false, false
+			).size() != 2 \
+			or access.find_children(
+				"CatwalkLadderRung*", "MeshInstance3D", false, false
+			).size() != 12:
+		errors.append("catwalk_ladder_collision_or_readability_roster_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_freight_berth_catwalk_ladder_hoops",
+		"legacy": {
+			"renderer_nodes": 4,
+			"drawn_copies": 4,
+			"surface_submissions": 4,
+			"mesh_resource_allocations": 4,
+			"material_resource_allocations": 1,
+		},
+		"current": {
+			"renderer_nodes": node_paths.size(),
+			"drawn_copies": visible_copies,
+			"surface_submissions": structural_submissions,
+			"mesh_resource_allocations": mesh_ids.size(),
+			"material_resource_allocations": material_ids.size(),
+		},
+		"reductions": {
+			"renderer_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 3,
+			"material_resource_allocations": 0,
+		},
+		"node_paths": node_paths,
+		"authored_transforms": transforms,
+		"authored_tessellation": authored_tessellation,
+		"live_tessellation": Vector2i(
+			mesh.rings, mesh.ring_segments
+		) if mesh != null else Vector2i.ZERO,
+		"normalised": normalised,
+		"collision_authority_count": authority_nodes,
+		"interaction_authority_added": false,
+		"route_authority_added": false,
+		"evidence_authority_added": false,
+		"lifecycle_authority_added": false,
+		"batched": false,
+		"renderer_values_changed": false,
+		"frame_time_claimed": false,
+		"gpu_draw_call_claimed": false,
+		"vram_claimed": false,
+	}.duplicate(true)
+
+
 ## Renderer-independent retained-resource audit for the eight childless freight
 ## tie-down rings. Their stable nodes, paths, transforms and one-surface
 ## submissions remain separate; only the identical TorusMesh allocation is
@@ -996,6 +1170,9 @@ func get_performance_contract() -> Dictionary:
 		"physics_process_loops": 1,
 	})
 	contract["schema_version"] = SCHEMA_VERSION
+	var hoop_sharing := get_catwalk_ladder_hoop_visual_allocation_audit()
+	contract["catwalk_ladder_hoop_visual_sharing"] = hoop_sharing
+	contract["within_budget"] = bool(contract.within_budget) and bool(hoop_sharing.valid)
 	return contract
 
 
@@ -2057,15 +2234,22 @@ func _build_gantry_access() -> void:
 			_materials["ceramic"],
 			false
 		)
-	for hoop_index in 4:
+	_catwalk_ladder_hoop_mesh = _torus_mesh(
+		CATWALK_LADDER_HOOP_INNER_RADIUS,
+		CATWALK_LADDER_HOOP_OUTER_RADIUS,
+		CATWALK_LADDER_HOOP_RINGS,
+		CATWALK_LADDER_HOOP_RING_SEGMENTS
+	)
+	for hoop_index in CATWALK_LADDER_HOOP_COPY_COUNT:
 		_torus(
 			access,
 			"CatwalkLadderHoop%02d" % (hoop_index + 1),
 			Vector3(-14.62, 3.0 + float(hoop_index) * 3.0, CATWALK_CENTER_Z + 0.05),
-			0.42,
-			0.52,
+			CATWALK_LADDER_HOOP_INNER_RADIUS,
+			CATWALK_LADDER_HOOP_OUTER_RADIUS,
 			_materials["steel_blue"],
-			Vector3(0, 0, 90)
+			Vector3(0, 0, 90),
+			_catwalk_ladder_hoop_mesh
 		)
 
 	# Crane cab, bracketed off the outboard face of the port gantry leg. Kept

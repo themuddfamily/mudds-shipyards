@@ -50,6 +50,7 @@ func _run() -> void:
 	_test_handling_infrastructure(module)
 	_test_recessed_lashing_ring_profile(module)
 	_test_lashing_ring_visual_allocation(module)
+	_test_catwalk_ladder_hoop_visual_allocation(module)
 	_test_nothing_drawn_floats(module)
 	await _test_handling_fixtures_are_solid(module)
 	_test_collision_contract(module)
@@ -537,6 +538,135 @@ func _test_handling_infrastructure(module: JovianFreightBerth) -> void:
 	)
 
 
+func _test_catwalk_ladder_hoop_visual_allocation(
+		module: JovianFreightBerth
+	) -> void:
+	var audit := module.get_catwalk_ladder_hoop_visual_allocation_audit()
+	if not bool(audit.valid):
+		print("JOVIAN_CATWALK_LADDER_HOOP_ERRORS: ", audit.errors)
+	print(
+		(
+			"JOVIAN_CATWALK_LADDER_HOOPS: nodes %d->%d submissions %d->%d "
+			+ "mesh_resources %d->%d copies %d->%d"
+		) % [
+			int(audit.legacy.renderer_nodes),
+			int(audit.current.renderer_nodes),
+			int(audit.legacy.surface_submissions),
+			int(audit.current.surface_submissions),
+			int(audit.legacy.mesh_resource_allocations),
+			int(audit.current.mesh_resource_allocations),
+			int(audit.legacy.drawn_copies),
+			int(audit.current.drawn_copies),
+		]
+	)
+	_check(
+		bool(audit.valid)
+		and audit.legacy == {
+			"renderer_nodes": 4,
+			"drawn_copies": 4,
+			"surface_submissions": 4,
+			"mesh_resource_allocations": 4,
+			"material_resource_allocations": 1,
+		}
+		and audit.current == {
+			"renderer_nodes": 4,
+			"drawn_copies": 4,
+			"surface_submissions": 4,
+			"mesh_resource_allocations": 1,
+			"material_resource_allocations": 1,
+		}
+		and audit.reductions == {
+			"renderer_nodes": 0,
+			"drawn_copies": 0,
+			"surface_submissions": 0,
+			"mesh_resource_allocations": 3,
+			"material_resource_allocations": 0,
+		}
+		and not bool(audit.batched)
+		and not bool(audit.renderer_values_changed),
+		"four named ladder hoops retain nodes/submissions/copies while TorusMesh allocations fall 4 -> 1"
+	)
+	var paths := audit.node_paths as PackedStringArray
+	var transforms := audit.authored_transforms as Array
+	var hoops: Array[MeshInstance3D] = []
+	for path in paths:
+		hoops.append(module.get_node(NodePath(path)) as MeshInstance3D)
+	var exact := hoops.size() == 4 and transforms.size() == 4
+	var shared_mesh := hoops[0].mesh as TorusMesh if not hoops.is_empty() else null
+	for index in hoops.size():
+		var hoop := hoops[index]
+		exact = (
+			exact
+			and hoop.mesh == shared_mesh
+			and hoop.transform.is_equal_approx(transforms[index] as Transform3D)
+			and hoop.material_override == hoops[0].material_override
+			and hoop.get_child_count() == 0
+			and hoop.get_script() == null
+			and hoop.get_meta_list().is_empty()
+		)
+	var access := module.get_node_or_null(^"GantryAccess") as Node3D
+	_check(
+		exact
+		and shared_mesh != null
+		and is_equal_approx(
+			shared_mesh.inner_radius,
+			JovianFreightBerth.CATWALK_LADDER_HOOP_INNER_RADIUS
+		)
+		and is_equal_approx(
+			shared_mesh.outer_radius,
+			JovianFreightBerth.CATWALK_LADDER_HOOP_OUTER_RADIUS
+		)
+		and audit.authored_tessellation == Vector2i(48, 12)
+		and audit.live_tessellation == Vector2i(
+			shared_mesh.rings, shared_mesh.ring_segments
+		)
+		and access.find_children(
+			"CatwalkLadderStringer*", "StaticBody3D", false, false
+		).size() == 2
+		and access.find_children(
+			"CatwalkLadderRung*", "MeshInstance3D", false, false
+		).size() == 12,
+		"shared hoop recipe preserves exact paths/transforms/material plus physical stringers and twelve-rung readability"
+	)
+	_check(
+		int(audit.collision_authority_count) == 0
+		and not bool(audit.interaction_authority_added)
+		and not bool(audit.route_authority_added)
+		and not bool(audit.evidence_authority_added)
+		and not bool(audit.lifecycle_authority_added)
+		and module.get_route_ids().size() == 7,
+		"resource sharing adds no authority and preserves the route/evidence boundary"
+	)
+	(audit.current as Dictionary)["mesh_resource_allocations"] = -1
+	(audit.authored_transforms as Array).clear()
+	var detached := module.get_catwalk_ladder_hoop_visual_allocation_audit()
+	_check(
+		int(detached.current.mesh_resource_allocations) == 1
+		and (detached.authored_transforms as Array).size() == 4,
+		"ladder-hoop allocation, path and transform evidence is deeply detached"
+	)
+	var baseline_errors := module.get_validation_errors()
+	var second_original_mesh := hoops[1].mesh
+	hoops[1].mesh = shared_mesh.duplicate() as Mesh
+	var identity_red := module.get_catwalk_ladder_hoop_visual_allocation_audit()
+	_check(
+		not bool(identity_red.valid)
+		and (identity_red.errors as PackedStringArray).has(
+			"catwalk_ladder_hoop_mesh_identity_not_shared:CatwalkLadderHoop02"
+		)
+		and module.get_validation_errors().has(
+			"module component counts exceed the declared quality budget"
+		),
+		"RED private hoop mesh turns both the allocation and module validators red"
+	)
+	hoops[1].mesh = second_original_mesh
+	_check(
+		bool(module.get_catwalk_ladder_hoop_visual_allocation_audit().valid)
+		and module.get_validation_errors() == baseline_errors,
+		"restoring the shared hoop identity returns the pre-mutation validator state"
+	)
+
+
 func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	var rings: Array[MeshInstance3D] = []
 	for candidate in module.find_children("*", "MeshInstance3D", true, false):
@@ -671,14 +801,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 909,
-			"mesh_instance_nodes": 427,
+			"descendant_nodes": 906,
+			"mesh_instance_nodes": 426,
 			"multimesh_nodes": 1,
-			"surfaces": 428,
-			"visible_copies": 439,
+			"surfaces": 427,
+			"visible_copies": 438,
 		}
 		and _renderer_census(module) == renderer_before,
-		"module renderer census stays exact at 909 descendants, 428 renderer nodes/surfaces, and 439 visible copies"
+		"module renderer census stays exact at 906 descendants, 427 renderer nodes/surfaces, and 438 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before
