@@ -9,6 +9,7 @@ const Berths := preload("res://scripts/world/fleet_expansion_berths.gd")
 const Cargo := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const Bomber := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const Interceptor := preload("res://scripts/ships/cinder_light_interceptor.gd")
+const CargoActivityBridge := preload("res://scripts/ships/cinder_cargo_activity_bridge.gd")
 const ShipAudioRigScene := preload("res://scenes/audio/ship_audio_rig.tscn")
 const FleetAudioBinding := preload("res://scripts/audio/fleet_expansion_audio_binding.gd")
 const CRAFT_SPECS: Array[Dictionary] = [
@@ -33,6 +34,8 @@ var _built := false
 var _composition_error: StringName = &""
 var _audio_bindings: Dictionary = {}
 var _reduced_dynamic_range := false
+var _cargo_activity_bridge: RefCounted
+var _cargo_activity_binding: Node
 
 
 func _ready() -> void:
@@ -98,6 +101,12 @@ func detach_craft(craft_id: StringName) -> Dictionary:
 		return {"accepted": false, "reason": &"unknown_craft"}
 	for spec in CRAFT_SPECS:
 		if spec.craft_id == craft_id:
+			if craft_id == &"cinder_cargo_hauler" and _cargo_activity_bridge != null:
+				var activity_detach: Dictionary = _cargo_activity_bridge.detach()
+				if not bool(activity_detach.get("accepted", false)):
+					return activity_detach
+				_cargo_activity_bridge = null
+				_cargo_activity_binding = null
 			var result: Dictionary = _berths.call("detach_craft", spec.pad_id, _craft_by_id[craft_id])
 			if bool(result.get("accepted", false)) and _audio_bindings.has(craft_id):
 				(_audio_bindings[craft_id] as RefCounted).detach()
@@ -172,6 +181,46 @@ func reset_craft_for_reuse(craft_id: StringName) -> Dictionary:
 	return result
 
 
+## Binds the caller's existing NearbySectorActivityBinding to the real Dock04
+## hauler. This owner only forwards intents; the activity retains cargo,
+## reward, movement, and generation authority.
+func bind_cargo_activity(activity_binding: Node) -> Dictionary:
+	if not _built or not _craft_by_id.has(&"cinder_cargo_hauler"):
+		return {"accepted": false, "reason": &"not_ready"}
+	if _cargo_activity_bridge != null:
+		return {"accepted": false, "reason": &"already_bound"}
+	if activity_binding == null or not activity_binding.is_inside_tree():
+		return {"accepted": false, "reason": &"invalid_activity_binding"}
+	var bridge := CargoActivityBridge.new() as RefCounted
+	var result: Dictionary = bridge.bind(_craft_by_id[&"cinder_cargo_hauler"], activity_binding)
+	if bool(result.get("accepted", false)):
+		_cargo_activity_bridge = bridge
+		_cargo_activity_binding = activity_binding
+	return result
+
+
+func start_cargo_activity(anchor_id: StringName, cargo_id: StringName = &"cinder_supply_crates") -> Dictionary:
+	if _cargo_activity_bridge == null:
+		return {"accepted": false, "reason": &"cargo_activity_unbound"}
+	return _cargo_activity_bridge.start(anchor_id, cargo_id)
+
+
+func submit_cargo_activity_phase(phase_id: StringName, anchor_id: StringName, cargo_id: StringName = &"cinder_supply_crates") -> Dictionary:
+	if _cargo_activity_bridge == null:
+		return {"accepted": false, "reason": &"cargo_activity_unbound"}
+	return _cargo_activity_bridge.submit_phase(phase_id, anchor_id, cargo_id)
+
+
+func detach_cargo_activity() -> Dictionary:
+	if _cargo_activity_bridge == null:
+		return {"accepted": false, "reason": &"cargo_activity_unbound"}
+	var result: Dictionary = _cargo_activity_bridge.detach()
+	if bool(result.get("accepted", false)):
+		_cargo_activity_bridge = null
+		_cargo_activity_binding = null
+	return result
+
+
 func get_fleet_snapshot() -> Dictionary:
 	var craft_snapshots: Array[Dictionary] = []
 	for spec in CRAFT_SPECS:
@@ -184,7 +233,12 @@ func get_fleet_snapshot() -> Dictionary:
 			"boarding_anchor": craft.call("get_boarding_marker").global_position if is_instance_valid(craft) else Vector3.INF,
 			"audio": (_audio_bindings[spec.craft_id] as RefCounted).get_snapshot() if _audio_bindings.has(spec.craft_id) else {},
 		})
-	return {"built": _built, "composition_error": _composition_error, "craft": craft_snapshots}.duplicate(true)
+	return {
+		"built": _built,
+		"composition_error": _composition_error,
+		"craft": craft_snapshots,
+		"cargo_activity": _cargo_activity_bridge.get_snapshot() if _cargo_activity_bridge != null else {"bound": false},
+	}.duplicate(true)
 
 
 func get_audit_report() -> Dictionary:
