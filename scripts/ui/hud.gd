@@ -22,6 +22,7 @@ const SemanticAudioCuePresenterType := preload("res://scripts/ui/semantic_audio_
 const FirstSortieTutorialPresenterType := preload("res://scripts/ui/first_sortie_tutorial_presenter.gd")
 const ServerBrowserPresenterType := preload("res://scripts/ui/server_browser_presenter.gd")
 const NearbySectorActivityPresenterType := preload("res://scripts/ui/nearby_sector_activity_presenter.gd")
+const BomberPayloadPresenterType := preload("res://scripts/ui/bomber_payload_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -258,6 +259,7 @@ var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
 var _activity_selection_locked := false
 var _nearby_activity_presenter: RefCounted
+var _bomber_payload_presenter: RefCounted
 var _nearby_activity_page: Control
 var _nearby_activity_rows: VBoxContainer
 var _nearby_activity_feedback: Label
@@ -447,6 +449,8 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
+	_bomber_payload_presenter = BomberPayloadPresenterType.new()
+	_bomber_payload_presenter.attach()
 	_caption_presenter = get_node_or_null(^"CaptionPresenter") as CaptionPresenter
 	if not is_instance_valid(_caption_presenter):
 		_caption_presenter = CaptionPresenterScene.instantiate() as CaptionPresenter
@@ -2390,6 +2394,33 @@ func update_surface_route_status(snapshot: Dictionary) -> void:
 
 func update_atmospheric_entry_status(snapshot: Dictionary) -> void:
 	_render_runtime_status(_entry_guidance_presenter.present_snapshot(snapshot), &"entry")
+
+
+func apply_bomber_payload_snapshot(snapshot: Dictionary) -> bool:
+	if _bomber_payload_presenter == null:
+		_bomber_payload_presenter = BomberPayloadPresenterType.new()
+		_bomber_payload_presenter.attach()
+	var presentation: Dictionary = _bomber_payload_presenter.present_snapshot(snapshot)
+	if not bool(presentation.get("attached", false)):
+		return false
+	presentation["message"] = "%s  %s" % [presentation.get("marker", ""), presentation.get("message", "")]
+	_render_runtime_status(presentation, &"bomber")
+	return true
+
+
+func request_bomber_payload_release() -> Dictionary:
+	if _bomber_payload_presenter == null:
+		return {"accepted": false, "reason": &"detached", "presentation_only": true, "input_authority": false}
+	var result: Dictionary = _bomber_payload_presenter.request(&"release_payload")
+	if bool(result.get("accepted", false)):
+		presentation_intent_requested.emit(&"bomber", result)
+	return result
+
+
+func clear_bomber_payload_status() -> void:
+	if _bomber_payload_presenter != null:
+		_bomber_payload_presenter.detach()
+	clear_runtime_status()
 
 
 func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
