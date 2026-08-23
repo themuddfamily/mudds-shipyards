@@ -295,6 +295,10 @@ var _last_tractor_recovery_reason: StringName = &""
 var _last_engine_state := "OFFLINE"
 var _launch_registered := false
 var _return_registered := false
+var _first_sortie_tutorial_generation := 0
+var _first_sortie_tutorial_completed_steps: Dictionary = {}
+var _first_sortie_tutorial_dismissed_generation := -1
+var _first_sortie_tutorial_active_step: StringName = &""
 var _transition_busy := false
 ## Every awaited boarding/disembarking coroutine captures this generation. A
 ## destructive recovery advances it before restoring the player, so stale
@@ -1950,6 +1954,9 @@ func _on_network_crew_role_result(result: Dictionary) -> void:
 
 
 func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary) -> void:
+	if kind == &"tutorial":
+		_handle_first_sortie_tutorial_intent(payload)
+		return
 	if kind == &"server_browser":
 		_handle_server_browser_intent(payload)
 		return
@@ -1974,6 +1981,39 @@ func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
 	var caller_snapshot := snapshot.duplicate(true)
 	caller_snapshot["show_tutorials"] = true if runtime_settings == null else runtime_settings.show_tutorials
 	return bool(hud.call(&"apply_first_sortie_tutorial_snapshot", caller_snapshot))
+
+
+func publish_first_sortie_tutorial_phase(step_id: StringName, generation: int = -1) -> bool:
+	if step_id not in [
+		&"walk_interact", &"board", &"take_seat", &"launch", &"fire", &"return_land", &"exit"
+	]:
+		return false
+	if generation >= 0 and generation != _first_sortie_tutorial_generation:
+		return false
+	if _first_sortie_tutorial_dismissed_generation == _first_sortie_tutorial_generation:
+		return false
+	var snapshot := {
+		"step_id": step_id,
+		"generation": _first_sortie_tutorial_generation,
+		"show_tutorials": true if runtime_settings == null else runtime_settings.show_tutorials,
+	}
+	var accepted := apply_first_sortie_tutorial_snapshot(snapshot)
+	if accepted:
+		_first_sortie_tutorial_active_step = step_id
+	return accepted
+
+
+func _handle_first_sortie_tutorial_intent(payload: Dictionary) -> void:
+	var completion := payload.get("completion_intent", {}) as Dictionary
+	var generation := int(completion.get("generation", _first_sortie_tutorial_generation))
+	if generation != _first_sortie_tutorial_generation:
+		return
+	var step_id := StringName(str(completion.get("step_id", &"")))
+	if step_id == &"" or step_id != _first_sortie_tutorial_active_step:
+		return
+	_first_sortie_tutorial_completed_steps[step_id] = generation
+	if StringName(str(payload.get("action", &""))) == &"dismiss":
+		_first_sortie_tutorial_dismissed_generation = generation
 
 
 func _on_server_browser_result(result: Dictionary) -> void:
@@ -2164,6 +2204,7 @@ func start_shift() -> void:
 	hud.set_objective(
 		"Board the Torrent interceptor for the guided test — other berthed craft are available for free sorties"
 	)
+	publish_first_sortie_tutorial_phase(&"walk_interact", _first_sortie_tutorial_generation)
 	hud.toast("Shipyard access granted", "Guided Torrent test and free-flight fleet access are available")
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
@@ -2457,6 +2498,7 @@ func _update_pilot_flow() -> void:
 				_start_default_free_flight_activity()
 			else:
 				phase = Phase.LAUNCH
+				publish_first_sortie_tutorial_phase(&"launch", _first_sortie_tutorial_generation)
 				hud.set_objective("Launch through the illuminated bay aperture")
 				hud.toast("Departure confirmed", "Flight surfaces and inertial dampers responding")
 	elif phase == Phase.LAUNCH:
@@ -2666,6 +2708,7 @@ func _on_interact_requested() -> void:
 	# selected here and there is no walk-away-and-back-again cost.
 	if phase == Phase.IN_FLIGHT_CABIN and boarding_candidate != _cabin_ship:
 		return
+	publish_first_sortie_tutorial_phase(&"board", _first_sortie_tutorial_generation)
 	_board_ship(boarding_candidate)
 
 
@@ -2831,6 +2874,9 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	if _selected_activity_is_running() and candidate != active_ship:
 		_fail_active_activity(&"active_ship_replaced")
 	active_ship = candidate
+	_first_sortie_tutorial_generation += 1
+	_first_sortie_tutorial_active_step = &""
+	_first_sortie_tutorial_dismissed_generation = -1
 	_reset_lifecycle_command_cursor()
 	_boarding_area = candidate_area
 	# The Torrent alias is the one explicitly guided vertical slice. Any other
@@ -2904,6 +2950,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	active_ship.set_piloted(true)
 	active_ship.get_camera().current = true
 	phase = Phase.START_ENGINES
+	publish_first_sortie_tutorial_phase(&"take_seat", _first_sortie_tutorial_generation)
 	hud.set_mode("piloting")
 	hud.set_objective("Apply thrust to launch %s from its physical pilot seat" % active_ship.get_display_name())
 	hud.set_interaction("[ W/S / LEFT STICK ]  APPLY THRUST")
@@ -3006,6 +3053,7 @@ func _try_exit_ship() -> void:
 			"GUIDED TEST PENDING"
 		)
 		hud.toast("Safe exit complete", "The pending Torrent guided test remains ready")
+	publish_first_sortie_tutorial_phase(&"exit", _first_sortie_tutorial_generation)
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
 	_transition_busy = false
@@ -3185,6 +3233,7 @@ func _on_projectile_fired(origin: Vector3, direction: Vector3, source_ship: Hero
 	var firing_ship := source_ship if is_instance_valid(source_ship) else active_ship
 	if not is_instance_valid(firing_ship) or firing_ship != active_ship:
 		return
+	publish_first_sortie_tutorial_phase(&"fire", _first_sortie_tutorial_generation)
 	# Fleet weapons are free-play equipment: the pending guided Torrent activity
 	# does not safe another hull or suppress valid fire before its completion.
 	# Torrent keeps the fixed range profile during the two tutorial range phases;
@@ -3441,6 +3490,7 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		_fail_active_activity(&"returned_to_shipyard")
 	_return_registered = true
 	phase = Phase.SHUT_DOWN
+	publish_first_sortie_tutorial_phase(&"return_land", _first_sortie_tutorial_generation)
 	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
 
