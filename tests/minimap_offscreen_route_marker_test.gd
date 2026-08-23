@@ -6,6 +6,13 @@ var _assertions := 0
 var _failures: PackedStringArray = []
 
 
+class EmptySnapshotDrawWitness extends Minimap:
+	var offscreen_draw_count := 0
+
+	func _draw_offscreen_marker(_center: Vector2, _radius: float) -> void:
+		offscreen_draw_count += 1
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -30,6 +37,17 @@ func _run() -> void:
 			== &"invalid_distance",
 		"negative distance is rejected"
 	)
+	var draw_witness := EmptySnapshotDrawWitness.new()
+	draw_witness.size = Vector2(180.0, 180.0)
+	root.add_child(draw_witness)
+	draw_witness.present_offscreen_route_marker(Vector2.DOWN, 275.0, &"surface_route", true)
+	await process_frame
+	_check(
+		draw_witness.get_snapshot().is_empty() and draw_witness.offscreen_draw_count > 0,
+		"retained offscreen guidance draws even while the topology snapshot is empty"
+	)
+	draw_witness.queue_free()
+	await process_frame
 	if _failures.is_empty():
 		print("MINIMAP_OFFSCREEN_ROUTE_MARKER_TEST_OK (%d assertions)" % _assertions)
 		quit(0)

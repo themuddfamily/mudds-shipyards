@@ -186,6 +186,10 @@ func _draw() -> void:
 	draw_line(center + Vector2(0.0, -radius), center + Vector2(0.0, radius), GRID, 1.0)
 	if _snapshot.is_empty():
 		_draw_frame(center, radius)
+		# Retained route guidance must survive a topology snapshot gap. The
+		# marker is caller-owned presentation state and needs only this safe
+		# frame; withholding it here made accepted guidance silently invisible.
+		_draw_offscreen_marker(center, radius)
 		return
 
 	var projected_nodes: Dictionary = {}
