@@ -384,9 +384,15 @@ func set_thrust_state(throttle: float, boosting: bool = false) -> bool:
 		return false
 	var safe_throttle := clampf(throttle, 0.0, 1.0)
 	var changed := not is_equal_approx(_throttle, safe_throttle) or _boost_requested != boosting
+	var boost_changed := _boost_requested != boosting
 	_throttle = safe_throttle
 	_boost_requested = boosting
 	_apply_runtime_state()
+	if boost_changed:
+		semantic_engine_cue_emitted.emit(
+			&"boost_engaged" if boosting else &"boost_released",
+			1.0 if boosting else 0.0
+		)
 	if changed:
 		_emit_state_changed()
 	return true
