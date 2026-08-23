@@ -44,6 +44,7 @@ func _run() -> void:
 	await _test_real_host_identity_bind()
 	await _test_host_activity_reward_path()
 	await _test_detached_reward_recovery()
+	await _test_failed_activity_requires_fresh_reentry()
 	_finish()
 
 
@@ -128,6 +129,38 @@ func _test_detached_reward_recovery() -> void:
 			and _reward_calls == 2,
 		"returning on a fresh host attachment recovers and commits the preserved reward once"
 	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_failed_activity_requires_fresh_reentry() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.begin_activity(&"ember_beacon_survey")
+	var aborted := adapter.abort_activity(&"surface_route_lost")
+	_check(
+		aborted.accepted and aborted.adapter.state == &"failed"
+			and aborted.adapter.activity_reward.failure_reason == &"surface_route_lost",
+		"an active surface activity records a bounded failure without issuing a reward"
+	)
+	_check(
+		adapter.retry_activity(&"ember_beacon_survey").reason
+			== &"stale_attachment_generation",
+		"failed activity cannot retry on the retired surface attachment"
+	)
+	host.attachment_generation = 4
+	var retried := adapter.retry_activity(&"ember_beacon_survey")
+	_check(
+		retried.accepted and retried.adapter.state == &"active"
+			and retried.adapter.activity_reward.activity_generation == 2,
+		"a fresh surface attachment starts a new fenced activity generation"
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	_check(adapter.commit_activity_reward().accepted and _reward_calls == 3, "retried activity can complete and reward normally")
 	director.queue_free()
 	await process_frame
 

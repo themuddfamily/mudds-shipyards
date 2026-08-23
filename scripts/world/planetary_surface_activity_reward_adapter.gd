@@ -123,6 +123,42 @@ func commit_activity_reward() -> Dictionary:
 	return _with_adapter(result, bool(result.get("accepted", false)), result.get("reason", &"reward_commit_rejected") as StringName)
 
 
+## Records a player-visible activity failure without manufacturing a reward.
+## Retry is intentionally fenced to a newer host attachment generation so a
+## detached surface run cannot silently resume on stale world state.
+func abort_activity(reason: StringName = &"player_aborted") -> Dictionary:
+	var rejection := _live_activity_rejection()
+	if not rejection.is_empty():
+		return _reject(rejection)
+	if _state != State.ACTIVE:
+		return _reject(&"adapter_activity_not_active")
+	var runtime_state := StringName(_runtime.get_snapshot().get("state", &""))
+	if runtime_state != &"active":
+		return _reject(&"activity_failure_not_available")
+	var generations := _host_generations()
+	var result := _runtime.fail(reason, generations.run, generations.attachment)
+	if bool(result.get("accepted", false)):
+		_state = State.FAILED
+	return _with_adapter(result, bool(result.get("accepted", false)), result.get("reason", &"activity_failure_rejected") as StringName)
+
+
+## Starts a fresh activity after an aborted run. The host attachment generation
+## must advance first, proving that the player has re-entered a current surface.
+func retry_activity(activity_id: StringName) -> Dictionary:
+	if _state != State.FAILED or not _host_is_current():
+		return _reject(&"retry_unavailable")
+	var generations := _host_generations()
+	var reentered := _runtime.begin_visit(generations.run, generations.attachment)
+	if not bool(reentered.get("accepted", false)):
+		return _with_adapter(reentered, false, reentered.get("reason", &"retry_reentry_rejected") as StringName)
+	_state = State.READY
+	var started := _runtime.start_activity(activity_id, generations.run, generations.attachment)
+	if bool(started.get("accepted", false)):
+		_state = State.ACTIVE
+		return _with_adapter(started, true, &"activity_started")
+	return _with_adapter(started, false, started.get("reason", &"retry_start_rejected") as StringName)
+
+
 func detach() -> Dictionary:
 	if not _bound or _state in [State.IDLE, State.DETACHED]:
 		return _reject(&"adapter_not_active")

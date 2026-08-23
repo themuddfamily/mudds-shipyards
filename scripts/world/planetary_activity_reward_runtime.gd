@@ -90,12 +90,17 @@ func bind(
 
 
 func begin_visit(run_generation: int, attachment_generation: int) -> Dictionary:
-	if _state not in [State.READY, State.DETACHED]:
+	if _state not in [State.READY, State.DETACHED, State.FAILED]:
 		return _reject(&"not_ready")
 	if not _valid_generation(run_generation) or not _valid_generation(attachment_generation):
 		return _reject(&"invalid_generation")
-	if _state == State.DETACHED and attachment_generation <= _attachment_generation:
+	if _state in [State.DETACHED, State.FAILED] and attachment_generation <= _attachment_generation:
 		return _reject(&"stale_attachment_generation")
+	if _state == State.FAILED:
+		_active_activity_id = &""
+		_completed_activity_id = &""
+		_pending_reward = {}
+		_committed_reward = {}
 	_run_generation = run_generation
 	_attachment_generation = attachment_generation
 	_failure_reason = &""
@@ -202,6 +207,9 @@ func fail(reason: StringName, expected_run_generation: int, expected_attachment_
 		return _reject(rejection)
 	if _state in [State.COMPLETED, State.FAILED]:
 		return _reject(&"terminal_state")
+	if _state == State.ACTIVE and _active_activity_id != &"":
+		if not _director.fail_activity(_active_activity_id, reason, _activity_generation):
+			return _reject(&"activity_failure_rejected")
 	_failure_reason = reason if not reason.is_empty() else &"planetary_activity_failed"
 	_state = State.FAILED
 	return _accept(_failure_reason)
