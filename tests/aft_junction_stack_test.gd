@@ -49,6 +49,7 @@ func _run() -> void:
 	_test_roof_vent_collar_visual_resource_sharing(module)
 	_test_rack_cable_tray_clamp_visual_resource_sharing(module)
 	_test_console_shock_collar_visual_resource_sharing(module)
+	_test_cabinet_fastener_batch(module)
 	_test_pedestal_bearing_visual_resource_sharing(module)
 	_test_conduit_collar_visual_resource_sharing(module)
 	_test_interface_collar_profile(module)
@@ -327,10 +328,10 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1172,
-			"renderer_nodes": 828,
+			"descendant_nodes": 1173,
+			"renderer_nodes": 817,
 			"drawn_copies": 856,
-			"surface_submissions": 828,
+			"surface_submissions": 817,
 			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
@@ -338,7 +339,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus VIP trim, rack-card, arc-tile and console-collar batching freeze 1172 descendants, 828 renderers/submissions, 856 copies, and 296 mesh allocations"
+		"shared collar families plus visual batching freeze 1173 descendants, 817 renderers/submissions, 856 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -856,6 +857,82 @@ func _test_rack_cable_tray_clamp_visual_resource_sharing(
 		bool(module.get_rack_cable_tray_clamp_visual_allocation_audit().valid)
 		and module.get_validation_errors() == baseline_errors,
 		"restoring rack-clamp identity, recipe, budget metadata, material, renderer and authority returns the exact validator state"
+	)
+
+
+func _test_cabinet_fastener_batch(module: AftJunctionStack) -> void:
+	var report := module.get_cabinet_fastener_batch_audit()
+	var service := module.get_node_or_null(
+		^"Structure/OperationsRoom/ServiceWall"
+	) as Node3D
+	var batch := service.get_node_or_null(
+		^"CabinetFastenerRenderBatch"
+	) as MultiMeshInstance3D if service != null else null
+	_check(
+		bool(report.valid)
+		and int(report.legacy_renderer_nodes) == 12
+		and int(report.renderer_nodes) == 1
+		and int(report.legacy_surface_submissions) == 12
+		and int(report.surface_submissions) == 1
+		and int(report.drawn_copies) == 12
+		and int(report.stable_anchor_nodes) == 12
+		and int(report.collision_authority_count) == 0
+		and int(report.interaction_authority_count) == 0,
+		"cabinet fasteners measure 12 -> 1 submissions while retaining twelve stable visible copies"
+	)
+	_check(
+		batch != null
+		and batch.multimesh != null
+		and batch.multimesh.mesh != null
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.07, 0.028, 0.07)
+		)
+		and batch.multimesh.buffer == (report.renderer_buffer as PackedFloat32Array)
+		and batch.multimesh.custom_aabb.is_equal_approx(report.culling_bounds as AABB)
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.get_child_count() == 0,
+		"cabinet fastener mesh, transform buffer, culling union and inert batch root remain exact"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var drifted_buffer := original_buffer.duplicate()
+	drifted_buffer[3] += 0.25
+	batch.multimesh.buffer = drifted_buffer
+	var buffer_red := module.get_cabinet_fastener_batch_audit()
+	_check(
+		not bool(buffer_red.valid)
+		and (buffer_red.errors as PackedStringArray).has(
+			"cabinet_fastener_renderer_buffer_drift"
+		),
+		"structured red: cabinet-fastener renderer-buffer drift fails its audit"
+	)
+	batch.multimesh.buffer = original_buffer
+	var original_bounds := batch.multimesh.custom_aabb
+	batch.multimesh.custom_aabb = original_bounds.grow(0.25)
+	var bounds_red := module.get_cabinet_fastener_batch_audit()
+	_check(
+		not bool(bounds_red.valid)
+		and (bounds_red.errors as PackedStringArray).has(
+			"cabinet_fastener_culling_bounds_drift"
+		),
+		"structured red: cabinet-fastener culling drift fails its audit"
+	)
+	batch.multimesh.custom_aabb = original_bounds
+	var original_batch_transform := batch.transform
+	batch.position += Vector3(0.0, 0.25, 0.0)
+	var root_red := module.get_cabinet_fastener_batch_audit()
+	_check(
+		not bool(root_red.valid)
+		and (root_red.errors as PackedStringArray).has(
+			"cabinet_fastener_renderer_state_drift"
+		),
+		"structured red: cabinet-fastener batch-root drift fails its audit"
+	)
+	batch.transform = original_batch_transform
+	_check(
+		bool(module.get_cabinet_fastener_batch_audit().valid),
+		"restoring renderer buffer and culling union repairs the cabinet-fastener audit"
 	)
 
 

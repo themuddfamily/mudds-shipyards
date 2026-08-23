@@ -161,13 +161,13 @@ const RACK_CARD_SIZE := Vector3(0.02, 0.24, 0.10)
 const RACK_CARD_COPY_COUNT := 14
 const JUNCTION_ARC_TILE_COPY_COUNT := 8
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1172
+const RENDER_DESCENDANT_NODE_COUNT := 1173
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 828
+const RENDERER_NODE_COUNT := 817
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 856
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 828
+const SURFACE_SUBMISSION_COUNT := 817
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -241,6 +241,7 @@ var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _rack_card_batch: MultiMeshInstance3D
 var _junction_arc_tile_batch: MultiMeshInstance3D
 var _console_shock_collar_batch: MultiMeshInstance3D
+var _cabinet_fastener_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
@@ -673,6 +674,7 @@ func get_performance_contract() -> Dictionary:
 	var spine_sharing := get_spine_clamp_visual_allocation_audit()
 	var tray_clamp_sharing := get_rack_cable_tray_clamp_visual_allocation_audit()
 	var console_collar_sharing := get_console_shock_collar_visual_allocation_audit()
+	var cabinet_fastener_batch := get_cabinet_fastener_batch_audit()
 	var pedestal_bearing_sharing := get_pedestal_bearing_visual_allocation_audit()
 	var conduit_collar_sharing := get_conduit_collar_visual_allocation_audit()
 	var roof_vent_collar_sharing := get_roof_vent_collar_visual_allocation_audit()
@@ -682,6 +684,7 @@ func get_performance_contract() -> Dictionary:
 	contract["spine_clamp_visual_sharing"] = spine_sharing
 	contract["rack_cable_tray_clamp_visual_sharing"] = tray_clamp_sharing
 	contract["console_shock_collar_visual_sharing"] = console_collar_sharing
+	contract["cabinet_fastener_batch"] = cabinet_fastener_batch
 	contract["pedestal_bearing_visual_sharing"] = pedestal_bearing_sharing
 	contract["conduit_collar_visual_sharing"] = conduit_collar_sharing
 	contract["roof_vent_collar_visual_sharing"] = roof_vent_collar_sharing
@@ -693,6 +696,7 @@ func get_performance_contract() -> Dictionary:
 		and bool(spine_sharing.valid)
 		and bool(tray_clamp_sharing.valid)
 		and bool(console_collar_sharing.valid)
+		and bool(cabinet_fastener_batch.valid)
 		and bool(pedestal_bearing_sharing.valid)
 		and bool(conduit_collar_sharing.valid)
 		and bool(roof_vent_collar_sharing.valid)
@@ -1372,6 +1376,83 @@ func get_rack_cable_tray_clamp_visual_allocation_audit() -> Dictionary:
 		"semantic_authority_count": authority_nodes,
 		"batched": false,
 		"renderer_values_changed": false,
+	}.duplicate(true)
+
+
+## Detached proof for the twelve decorative service-cabinet fasteners. Stable
+## Marker3D anchors preserve paths/poses while one inert renderer owns the copies.
+func get_cabinet_fastener_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var service := get_node_or_null(
+		^"Structure/OperationsRoom/ServiceWall"
+	) as Node3D
+	var expected := _cabinet_fastener_transforms()
+	var anchors: Array[Marker3D] = []
+	if service != null:
+		for child in service.get_children():
+			if child is Marker3D and str(child.name).begins_with("CabinetFastener"):
+				anchors.append(child as Marker3D)
+	var anchors_exact := anchors.size() == expected.size()
+	for index in mini(anchors.size(), expected.size()):
+		anchors_exact = anchors_exact \
+			and anchors[index].transform.is_equal_approx(expected[index]) \
+			and anchors[index].get_child_count() == 0 \
+			and anchors[index].get_script() == null \
+			and anchors[index].get_groups().is_empty() \
+			and anchors[index].get_meta_list().is_empty()
+	if not anchors_exact:
+		errors.append("cabinet_fastener_anchor_roster_or_transform_drift")
+	var batch := _cabinet_fastener_batch
+	var multimesh := batch.multimesh if batch != null else null
+	var expected_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.035, 0.035, 0.028, 32, _chamfered_cylinder_cache
+	)
+	var expected_buffer := _encode_multimesh_transforms(expected)
+	if batch == null or multimesh == null:
+		errors.append("cabinet_fastener_batch_missing")
+	else:
+		if batch.get_parent() != service or batch.name != &"CabinetFastenerRenderBatch":
+			errors.append("cabinet_fastener_batch_path_drift")
+		if multimesh.mesh != expected_mesh:
+			errors.append("cabinet_fastener_mesh_identity_drift")
+		if multimesh.instance_count != 12 or multimesh.visible_instance_count != 12:
+			errors.append("cabinet_fastener_copy_count_drift")
+		if multimesh.buffer != expected_buffer:
+			errors.append("cabinet_fastener_renderer_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(expected_mesh.get_aabb(), expected)
+		):
+			errors.append("cabinet_fastener_culling_bounds_drift")
+		if batch.material_override != _materials.get("brass") \
+				or not batch.transform.is_equal_approx(Transform3D.IDENTITY) \
+				or not batch.visible or batch.layers != 1 \
+				or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("cabinet_fastener_renderer_state_drift")
+		if batch.get_child_count() != 0 or batch.get_script() != null \
+				or not batch.get_groups().is_empty() \
+				or batch.get_meta_list().size() != 2 \
+				or not bool(batch.get_meta("visual_detail_only", false)) \
+				or not _transform_arrays_match(
+					batch.get_meta("authored_instance_transforms", []) as Array, expected
+				):
+			errors.append("cabinet_fastener_gained_authority_or_lifecycle")
+	if service != null and not service.find_children(
+		"CabinetFastener*", "MeshInstance3D", false, false
+	).is_empty():
+		errors.append("cabinet_fastener_legacy_renderer_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"legacy_renderer_nodes": 12,
+		"renderer_nodes": 1 if batch != null else 0,
+		"legacy_surface_submissions": 12,
+		"surface_submissions": 1 if multimesh != null else 0,
+		"drawn_copies": multimesh.visible_instance_count if multimesh != null else 0,
+		"stable_anchor_nodes": anchors.size(),
+		"renderer_buffer": expected_buffer.duplicate(),
+		"culling_bounds": multimesh.custom_aabb if multimesh != null else AABB(),
+		"collision_authority_count": 0,
+		"interaction_authority_count": 0,
 	}.duplicate(true)
 
 
@@ -4136,6 +4217,8 @@ func _build_service_wall(room: Node3D) -> void:
 	room.add_child(service)
 
 	_box(service, "ServiceWallBody", Vector3(0, 2.35, 0), Vector3(0.42, 4.7, 6.2), _materials["warm_grey"])
+	var fastener_transforms := _cabinet_fastener_transforms()
+	var fastener_index := 0
 	for cabinet_index in 3:
 		var z_position := -2.05 + float(cabinet_index) * 2.05
 		_box(service, "ServiceCabinet%02d" % cabinet_index, Vector3(-0.3, 1.72, z_position), Vector3(0.35, 2.75, 1.55), _materials["off_white"], false)
@@ -4143,7 +4226,21 @@ func _build_service_wall(room: Node3D) -> void:
 		_box(service, "CabinetStatus", Vector3(-0.49, 2.38, z_position), Vector3(0.04, 0.18, 0.8), _materials["cyan"] if cabinet_index != 1 else _materials["gold"], false)
 		for fastener_y in [0.67, 2.77]:
 			for fastener_z in [-0.53, 0.53]:
-				_cylinder(service, "CabinetFastener", Vector3(-0.535, float(fastener_y), z_position + float(fastener_z)), 0.035, 0.028, _materials["brass"], false, Vector3(0, 0, 90))
+				var anchor := Marker3D.new()
+				anchor.name = "CabinetFastener" if fastener_index == 0 \
+					else "CabinetFastener%02d" % (fastener_index + 1)
+				anchor.transform = fastener_transforms[fastener_index]
+				service.add_child(anchor, true)
+				fastener_index += 1
+	_cabinet_fastener_batch = _multimesh_mesh(
+		service,
+		"CabinetFastenerRenderBatch",
+		StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.035, 0.035, 0.028, 32, _chamfered_cylinder_cache
+		),
+		_materials["brass"],
+		fastener_transforms
+	)
 	_conduit_collar_mesh = _torus_mesh(
 		CONDUIT_COLLAR_INNER_RADIUS,
 		CONDUIT_COLLAR_OUTER_RADIUS,
@@ -4667,6 +4764,16 @@ func _multimesh_rounded_box(
 		transforms: Array[Transform3D]
 	) -> MultiMeshInstance3D:
 	var mesh := _rounded_box_mesh(size)
+	return _multimesh_mesh(parent, node_name, mesh, material, transforms)
+
+
+func _multimesh_mesh(
+		parent: Node3D,
+		node_name: String,
+		mesh: Mesh,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = mesh
@@ -4715,6 +4822,20 @@ static func _console_shock_collar_transforms() -> Array[Transform3D]:
 				collar_basis,
 				bay_origin + Vector3(float(support_x), 0.08, 0.34),
 			))
+	return transforms
+
+
+static func _cabinet_fastener_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var fastener_basis := Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0)))
+	for cabinet_index in 3:
+		var cabinet_z := -2.05 + float(cabinet_index) * 2.05
+		for fastener_y in [0.67, 2.77]:
+			for fastener_z in [-0.53, 0.53]:
+				transforms.append(Transform3D(
+					fastener_basis,
+					Vector3(-0.535, float(fastener_y), cabinet_z + float(fastener_z))
+				))
 	return transforms
 
 
