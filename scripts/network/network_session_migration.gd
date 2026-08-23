@@ -221,6 +221,24 @@ func rebind_peer(source_peer_id: int, packet: Dictionary) -> Dictionary:
 	}))
 
 
+func disconnect_peer(source_peer_id: int, peer_id: int, peer_generation: int) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	var peer_status := _require_active_peer(peer_id, peer_generation)
+	if not peer_status.is_empty():
+		return _remember(_result(false, peer_status))
+	var peer := _peers[peer_id] as Dictionary
+	peer["active"] = false
+	peer["rebind_required"] = true
+	peer["last_packet_sequence"] = -1
+	_event_sequence += 1
+	return _remember(_result(true, &"peer_disconnected", {
+		"peer_id": peer_id,
+		"peer_generation": peer_generation,
+		"attachment": (peer.get("attachment", {}) as Dictionary).duplicate(true),
+	}))
+
+
 ## Accepts a current-epoch gameplay packet and advances its peer stream. All
 ## epoch checks happen before sequence mutation, so stale packets cannot burn
 ## a sequence or alter a retained attachment.

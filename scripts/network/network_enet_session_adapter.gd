@@ -69,6 +69,7 @@ var _server_offer: Dictionary = {}
 var _bound_port := 0
 var _latest_snapshot_revision := 0
 var _prediction_entities: Dictionary = {}
+var _next_peer_generation := 1
 
 
 func _init() -> void:
@@ -158,6 +159,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 				_moving_occupants.erase(peer_id)
 			_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
+			_migration.disconnect_peer(AUTHORITY_PEER_ID, peer_id, int(_peer_generations.get(peer_id, 0)))
 			for prediction_id_variant in _prediction_entities.keys():
 				var prediction_id := StringName(prediction_id_variant)
 				var prediction_entity := _prediction_entities[prediction_id] as Dictionary
@@ -889,6 +891,11 @@ func _receive_hello(wire: Dictionary) -> void:
 	var migration_registered: Dictionary = _migration.register_peer(
 		AUTHORITY_PEER_ID, peer_id, peer_generation
 	)
+	if not bool(migration_registered.get("accepted", false)) \
+		and migration_registered.get("status") == &"peer_already_registered":
+		migration_registered = _migration.rebind_peer(
+			peer_id, _migration.make_packet(peer_id, peer_generation, 0, &"rebind")
+		)
 	if not bool(migration_registered.get("accepted", false)):
 		_lifecycle.disconnect_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 		_peer_generations.erase(peer_id)
@@ -948,8 +955,9 @@ func _on_peer_connected(peer_id: int) -> void:
 	if is_server() or peer_id != AUTHORITY_PEER_ID:
 		return
 	var hello := LifecycleAdapter.create_hello(
-		multiplayer.get_unique_id(), 1, 1, 1, 1
+		multiplayer.get_unique_id(), _next_peer_generation, 1, 1, 1
 	)
+	_next_peer_generation += 1
 	_receive_hello.rpc_id(AUTHORITY_PEER_ID, hello)
 
 
@@ -962,6 +970,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	var receipt: Dictionary = _lifecycle.disconnect_peer(
 		AUTHORITY_PEER_ID, peer_id, peer_generation
 	)
+	_migration.disconnect_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 	for prediction_id_variant in _prediction_entities.keys():

@@ -18,6 +18,7 @@ func _run() -> void:
 	_test_server_owned_registration_and_attachment()
 	_test_rotation_and_stale_packet_fences()
 	_test_rebind_restores_all_authoritative_attachments()
+	_test_disconnect_reconnect_requires_fresh_generation()
 	if _failures.is_empty():
 		print("OK: network session migration (%d assertions)" % _assertions)
 		quit(0)
@@ -193,6 +194,34 @@ func _test_rebind_restores_all_authoritative_attachments() -> void:
 		and bool(audit.stale_packets_rejected)
 		and not bool(audit.client_can_mutate_attachment),
 		"audit exposes server ownership and stale-packet boundaries"
+	)
+
+
+func _test_disconnect_reconnect_requires_fresh_generation() -> void:
+	var migration := _new_migration()
+	_check(migration.register_peer(99, 7, 1).accepted, "reconnect fixture registers the original peer")
+	_check(
+		migration.bind_attachment(99, 7, 1, &"pilot", 2, &"ship", 3, Vector3.ZERO, 25.0).accepted,
+		"reconnect fixture retains the authoritative attachment"
+	)
+	_check(
+		migration.disconnect_peer(99, 7, 1).accepted
+		and bool(migration.get_peer(7).get("rebind_required", false)),
+		"server disconnect marks the old transport for rebind without dropping attachment"
+	)
+	var stale := migration.make_packet(7, 1, 0, &"rebind")
+	_check(
+		not migration.rebind_peer(7, stale).accepted
+		and migration.get_last_result().status == &"stale_peer_generation",
+		"reconnect cannot reuse the retired peer generation"
+	)
+	var fresh := migration.make_packet(7, 2, 0, &"rebind")
+	var rebound := migration.rebind_peer(7, fresh)
+	_check(
+		rebound.accepted
+		and rebound.status == &"peer_rebound"
+		and rebound.attachment.ship.ship_id == &"ship",
+		"fresh peer generation rebinds the retained ownership attachment"
 	)
 
 
