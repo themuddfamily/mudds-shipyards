@@ -50,7 +50,7 @@ const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 4
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 5
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -96,6 +96,9 @@ const DEFAULT_MULTIPLAYER_DISPLAY_NAME := "Pilot"
 const MIN_NETWORK_DEFAULT_PORT := 1
 const MAX_NETWORK_DEFAULT_PORT := 65535
 const DEFAULT_NETWORK_DEFAULT_PORT := 27101
+const MIN_MULTIPLAYER_MAX_PLAYERS := 1
+const MAX_MULTIPLAYER_MAX_PLAYERS := 32
+const DEFAULT_MULTIPLAYER_MAX_PLAYERS := 8
 
 const _SECTION_META := "meta"
 const _SECTION_CONTROLS := "controls"
@@ -131,7 +134,17 @@ const _USER_DATA_VALUE_KEYS := [
 	"show_tutorials",
 	"multiplayer_display_name",
 	"network_default_port",
+	"multiplayer_max_players",
 	"input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V4 := [
+	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
+	"invert_on_foot_y", "camera_fov", "master_volume", "ambience_volume",
+	"engine_volume", "weapons_volume", "ui_volume", "music_volume",
+	"graphics_profile", "window_mode", "control_preset", "ui_scale",
+	"colorblind_palette", "reduced_motion", "captions_enabled",
+	"reduced_dynamic_range", "show_tutorials", "multiplayer_display_name",
+	"network_default_port", "input_binding_profile",
 ]
 const _USER_DATA_VALUE_KEYS_V3 := [
 	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
@@ -407,6 +420,14 @@ var network_default_port := DEFAULT_NETWORK_DEFAULT_PORT:
 		network_default_port = validated
 		_queue_change(&"network_default_port", validated)
 
+var multiplayer_max_players := DEFAULT_MULTIPLAYER_MAX_PLAYERS:
+	set(value):
+		var validated := clampi(int(value), MIN_MULTIPLAYER_MAX_PLAYERS, MAX_MULTIPLAYER_MAX_PLAYERS)
+		if multiplayer_max_players == validated:
+			return
+		multiplayer_max_players = validated
+		_queue_change(&"multiplayer_max_players", validated)
+
 ## Detached on read and validated on write. Callers cannot mutate the canonical
 ## profile through an aliased Resource; use [method set_input_binding_profile]
 ## and then explicitly call [method apply_input_bindings].
@@ -463,6 +484,7 @@ func to_dictionary() -> Dictionary:
 		"show_tutorials": show_tutorials,
 		"multiplayer_display_name": multiplayer_display_name,
 		"network_default_port": network_default_port,
+		"multiplayer_max_players": multiplayer_max_players,
 		"input_binding_profile": _input_binding_profile.to_dictionary(),
 	}
 
@@ -497,6 +519,7 @@ func to_user_data_payload() -> Dictionary:
 			"show_tutorials": show_tutorials,
 			"multiplayer_display_name": multiplayer_display_name,
 			"network_default_port": network_default_port,
+			"multiplayer_max_players": multiplayer_max_players,
 			"input_binding_profile": _input_profile_to_json_dictionary(
 				_input_binding_profile
 			),
@@ -547,6 +570,7 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	show_tutorials = bool(values.show_tutorials)
 	multiplayer_display_name = String(values.multiplayer_display_name)
 	network_default_port = int(values.network_default_port)
+	multiplayer_max_players = int(values.multiplayer_max_players)
 	# Compatibility was proven by the decoder against this same service.
 	set_input_binding_profile(profile)
 	_end_batch()
@@ -578,6 +602,7 @@ func reset_to_defaults() -> void:
 	show_tutorials = DEFAULT_SHOW_TUTORIALS
 	multiplayer_display_name = DEFAULT_MULTIPLAYER_DISPLAY_NAME
 	network_default_port = DEFAULT_NETWORK_DEFAULT_PORT
+	multiplayer_max_players = DEFAULT_MULTIPLAYER_MAX_PLAYERS
 	input_binding_profile = _input_rebind_service.reset_to_defaults()
 	_end_batch()
 
@@ -647,6 +672,7 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_ACCESSIBILITY, "show_tutorials", show_tutorials)
 	config.set_value(_SECTION_NETWORK, "multiplayer_display_name", multiplayer_display_name)
 	config.set_value(_SECTION_NETWORK, "default_port", network_default_port)
+	config.set_value(_SECTION_NETWORK, "max_players", multiplayer_max_players)
 
 	var save_error := config.save(staging_path)
 	if save_error != OK:
@@ -738,6 +764,10 @@ func load_from_file(path_override: String = "") -> Error:
 		config, _SECTION_NETWORK, "default_port", DEFAULT_NETWORK_DEFAULT_PORT,
 		MIN_NETWORK_DEFAULT_PORT, MAX_NETWORK_DEFAULT_PORT
 	)
+	var loaded_max_players := _read_int_bounded(
+		config, _SECTION_NETWORK, "max_players", DEFAULT_MULTIPLAYER_MAX_PLAYERS,
+		MIN_MULTIPLAYER_MAX_PLAYERS, MAX_MULTIPLAYER_MAX_PLAYERS
+	)
 
 	_begin_batch()
 	ship_mouse_sensitivity = loaded_ship_sensitivity
@@ -785,6 +815,7 @@ func load_from_file(path_override: String = "") -> Error:
 	)
 	multiplayer_display_name = loaded_display_name
 	network_default_port = loaded_default_port
+	multiplayer_max_players = loaded_max_players
 	input_binding_profile = loaded_input_profile
 	_end_batch()
 	return OK
@@ -961,7 +992,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
 	var expected_value_keys := _USER_DATA_VALUE_KEYS
-	if schema == 3:
+	if schema == 4:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V4
+	elif schema == 3:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V3
 	elif schema == 2:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V2
@@ -975,10 +1008,12 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if schema <= 2:
 		raw_values = raw_values.duplicate()
 		raw_values["show_tutorials"] = DEFAULT_SHOW_TUTORIALS
-	if schema <= 3:
+	if schema <= 4:
 		raw_values = raw_values.duplicate()
-		raw_values["multiplayer_display_name"] = DEFAULT_MULTIPLAYER_DISPLAY_NAME
-		raw_values["network_default_port"] = DEFAULT_NETWORK_DEFAULT_PORT
+		if schema <= 3:
+			raw_values["multiplayer_display_name"] = DEFAULT_MULTIPLAYER_DISPLAY_NAME
+			raw_values["network_default_port"] = DEFAULT_NETWORK_DEFAULT_PORT
+		raw_values["multiplayer_max_players"] = DEFAULT_MULTIPLAYER_MAX_PLAYERS
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -1011,6 +1046,12 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if decoded_port < MIN_NETWORK_DEFAULT_PORT or decoded_port > MAX_NETWORK_DEFAULT_PORT:
 		return {"accepted": false, "reason": &"invalid_network_default_port"}
 	decoded["network_default_port"] = decoded_port
+	if not _is_integral_json_number(raw_values.multiplayer_max_players):
+		return {"accepted": false, "reason": &"invalid_multiplayer_max_players"}
+	var decoded_max_players := int(raw_values.multiplayer_max_players)
+	if decoded_max_players < MIN_MULTIPLAYER_MAX_PLAYERS or decoded_max_players > MAX_MULTIPLAYER_MAX_PLAYERS:
+		return {"accepted": false, "reason": &"invalid_multiplayer_max_players"}
+	decoded["multiplayer_max_players"] = decoded_max_players
 	for key: String in [
 		"invert_ship_y",
 		"invert_on_foot_y",

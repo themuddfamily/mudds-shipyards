@@ -3115,6 +3115,7 @@ func _build_settings_page() -> void:
 	var network_group := _settings_group(left_column, "MULTIPLAYER", "Defaults for the server browser; joining remains caller-owned.")
 	_add_text_setting(network_group, &"multiplayer_display_name", "Display name", "Pilot")
 	_add_spin_setting(network_group, &"network_default_port", "Default host/join port", 1, 65535, 1, 27101)
+	_add_spin_setting(network_group, &"multiplayer_max_players", "Host player capacity", 1, 32, 1, 8)
 
 	var audio_group := _settings_group(right_column, "AUDIO MIX", "Independent linear volume controls.")
 	_add_slider_setting(audio_group, &"master_volume", "Master", 0.0, 1.0, 0.01, 1.0)
