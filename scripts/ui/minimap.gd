@@ -92,6 +92,13 @@ func get_offscreen_route_marker() -> Dictionary:
 	return _offscreen_marker.duplicate(true)
 
 
+func get_objective_marker_legend() -> Array[Dictionary]:
+	return [
+		{"id": &"cinder_cargo_terminal", "glyph": "▣", "pattern": &"double_square", "label": "CARGO TERMINAL", "focus_label": "Cargo terminal objective"},
+		{"id": &"station_defense_activity_board", "glyph": "◆", "pattern": &"diamond", "label": "DEFENSE BOARD", "focus_label": "Station defense activity board"},
+	]
+
+
 func get_snapshot() -> Dictionary:
 	return _snapshot.duplicate(true)
 
@@ -145,6 +152,7 @@ func get_audit_report() -> Dictionary:
 	"contact_glyphs": {"friendly": &"circle_cross", "hostile": &"diamond"},
 		"objective_marker_count": (_snapshot.get("objective_markers", []) as Array).size(),
 		"objective_marker_glyphs": {&"cinder_cargo_terminal": "▣", &"station_defense_activity_board": "◆"},
+		"objective_marker_legend": get_objective_marker_legend(),
 		"contact_state_has_shape_cue": true,
 		"bounded": true,
 		"bounds": {
@@ -234,6 +242,10 @@ func _draw() -> void:
 		var label := str(marker.get("label", marker_id)).to_upper()
 		var distance: float = marker.position.distance_to(_snapshot.center_position as Vector2)
 		draw_string(ThemeDB.fallback_font, point + Vector2(7.0, 4.0), glyph + " " + label + "  %.0fM" % distance, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
+	var legend_y := size.y - 12.0
+	for legend in get_objective_marker_legend():
+		draw_string(ThemeDB.fallback_font, Vector2(10.0, legend_y), "%s %s" % [legend.get("glyph", ""), legend.get("label", "")], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, _muted_color)
+		legend_y -= 11.0
 
 	if _snapshot.has("active_ship"):
 		var ship := _snapshot.active_ship as Dictionary
@@ -472,6 +484,7 @@ func _sanitize_snapshot(raw: Dictionary) -> Dictionary:
 				"id": marker_id, "position": marker_position, "generation": generation,
 				"active": bool(marker.get("active", true)),
 				"glyph": "▣" if marker_id == &"cinder_cargo_terminal" else "◆",
+				"pattern": &"double_square" if marker_id == &"cinder_cargo_terminal" else &"diamond",
 				"label": "CARGO TERMINAL" if marker_id == &"cinder_cargo_terminal" else "DEFENSE BOARD",
 			})
 	return {"accepted": true, "snapshot": sanitized, "warnings": warnings}

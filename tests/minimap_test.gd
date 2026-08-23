@@ -64,6 +64,9 @@ func _run() -> void:
 	_check(minimap.apply_snapshot(marked), "live activity marker snapshot is accepted")
 	audit = minimap.get_audit_report()
 	_check(int(audit.get("objective_marker_count", 0)) == 2, "cargo terminal and defense board markers are retained")
+	var legend: Array[Dictionary] = minimap.get_objective_marker_legend()
+	_check(legend.size() == 2 and legend[0].pattern != legend[1].pattern, "objective legend uses distinct non-color patterns")
+	_check(str(legend[0].get("focus_label", "")).length() > 0 and str(legend[1].get("focus_label", "")).length() > 0, "objective legend exposes controller-readable focus labels")
 	var stale := marked.duplicate(true)
 	(stale["objective_markers"] as Array)[0]["generation"] = 3
 	_check(minimap.apply_snapshot(stale), "stale marker snapshot remains structurally valid")

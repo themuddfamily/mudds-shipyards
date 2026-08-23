@@ -645,6 +645,12 @@ func get_minimap_report() -> Dictionary:
 	return _minimap.get_audit_report()
 
 
+func get_minimap_objective_marker_legend() -> Array[Dictionary]:
+	if not is_instance_valid(_minimap):
+		return []
+	return _minimap.get_objective_marker_legend()
+
+
 func _refresh_debug_overlay_from_host() -> void:
 	var host := get_parent()
 	if host != null and host.has_method(&"get_debug_overlay_snapshot"):
