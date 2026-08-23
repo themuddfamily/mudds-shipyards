@@ -10,6 +10,7 @@ const MAX_TRANSCRIPT_ENTRIES := 8
 const REGISTERED_CUES := {
 	&"ui_confirm": {"caption": "Action confirmed", "default_severity": &"low"},
 	&"combat_alert": {"caption": "Combat alert", "default_severity": &"high"},
+	&"siege_lance_charge": {"caption": "Siege lance charging", "default_severity": &"high"},
 	&"target_destroyed": {"caption": "Target destroyed", "default_severity": &"medium"},
 	&"hull_impact_light": {"caption": "Light hull impact", "default_severity": &"low"},
 	&"hull_impact_medium": {"caption": "Hull impact detected", "default_severity": &"medium"},

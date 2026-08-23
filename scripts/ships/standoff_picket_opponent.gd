@@ -1025,6 +1025,24 @@ func _emit_siege_lance_audio(event_id: StringName, accepted: bool) -> void:
 		"event_id": event_id,
 		"accepted": accepted,
 	}.duplicate(true))
+	if accepted and event_id == &"charge_started":
+		_present_siege_lance_charge_caption()
+
+
+## Mirrors the already-armed charge event into the retained accessible caption
+## ingress. This is presentation-only: it performs no target query, changes no
+## charge state, and never submits a shot or damage request.
+func _present_siege_lance_charge_caption() -> void:
+	var hud := get_node_or_null(hud_path)
+	if not is_instance_valid(hud) or not hud.has_method(&"present_semantic_audio_cue"):
+		return
+	hud.call(
+		&"present_semantic_audio_cue",
+		&"siege_lance_charge",
+		&"threat_warning",
+		1.0,
+		global_position,
+	)
 
 
 ## Directional hit feedback. The coordinator owns this cue for the defender it
