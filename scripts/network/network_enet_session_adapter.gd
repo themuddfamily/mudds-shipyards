@@ -881,8 +881,11 @@ func consume_moving_interior_snapshot(
 			var prior_transform: Transform3D = prior.get("local_transform", Transform3D.IDENTITY)
 			local_transform = prior_transform.interpolate_with(local_transform, clampf(alpha, 0.0, 1.0))
 		_moving_replica_samples[entity_id] = {
+			"revision": int(ready.get("revision", 0)),
 			"server_tick": relationship.get_server_tick(),
-			"local_transform": relationship.get_frame_local_transform(),
+			"parent_frame_id": relationship.get_parent_frame_id(),
+			"parent_frame_generation": relationship.get_parent_frame_generation(),
+			"local_transform": local_transform,
 		}
 		presented.append({
 			"revision": int(ready.get("revision", 0)),
@@ -892,10 +895,32 @@ func consume_moving_interior_snapshot(
 			"parent_frame_generation": relationship.get_parent_frame_generation(),
 			"world_transform": frame_world_transform * local_transform,
 		})
+	if presented.is_empty():
+		return _remember(_result(true, &"moving_interior_waiting_for_gap", {
+			"samples": _frozen_moving_interior_samples(frame_world_transform),
+			"buffered_revision": int(buffered.get("revision", 0)),
+			"frozen": true,
+		}))
 	return _remember(_result(true, &"moving_interior_presented", {
 		"samples": presented,
 		"buffered_revision": int(buffered.get("revision", 0)),
 	}))
+
+
+func _frozen_moving_interior_samples(frame_world_transform: Transform3D) -> Array:
+	var frozen: Array = []
+	for entity_variant in _moving_replica_samples.keys():
+		var entity_id := StringName(entity_variant)
+		var sample: Dictionary = _moving_replica_samples[entity_id] as Dictionary
+		frozen.append({
+			"revision": int(sample.get("revision", 0)),
+			"server_tick": int(sample.get("server_tick", 0)),
+			"entity_id": entity_id,
+			"parent_frame_id": StringName(sample.get("parent_frame_id", &"")),
+			"parent_frame_generation": int(sample.get("parent_frame_generation", 0)),
+			"world_transform": frame_world_transform * (sample.get("local_transform", Transform3D.IDENTITY) as Transform3D),
+		})
+	return frozen
 
 
 func get_snapshot_jitter_state() -> Dictionary:

@@ -47,6 +47,29 @@ func _run() -> void:
 	_check(adapter.consume_moving_interior_snapshot({
 		"revision": 4, "server_tick": 1199, "relationship": first,
 	}, frame_transform).status == &"stale_server_tick", "stale delayed sample is rejected")
+	var dropped := adapter.consume_moving_interior_snapshot({
+		"revision": 5, "server_tick": 1204,
+		"relationship": Relationship.create(
+			1204, &"pilot_7", 1, &"jovian_frame", 3,
+			Transform3D(Basis.IDENTITY, Vector3(10.0, 0.0, 0.0))
+		).get_snapshot(),
+	}, frame_transform, 1.0)
+	_check(dropped.accepted and dropped.status == &"moving_interior_waiting_for_gap"
+		and bool(dropped.frozen) and dropped.samples.size() == 1
+		and is_equal_approx((dropped.samples[0] as Dictionary).world_transform.origin.x, 105.0),
+		"dropped snapshot freezes the last presentation while a gap is pending")
+	var recovered := adapter.consume_moving_interior_snapshot({
+		"revision": 4, "server_tick": 1203,
+		"relationship": Relationship.create(
+			1203, &"pilot_7", 1, &"jovian_frame", 3,
+			Transform3D(Basis.IDENTITY, Vector3(8.0, 0.0, 0.0))
+		).get_snapshot(),
+	}, frame_transform, 1.0)
+	_check(recovered.accepted and recovered.samples.size() == 2,
+		"missing predecessor resumes ordered presentation without replay")
+	_check(adapter.reset_snapshot_jitter(8).accepted
+		and adapter.get_snapshot_jitter_state().next_revision == 1,
+		"migration reset clears the loss gap and presentation cursor")
 	if _failures.is_empty():
 		print("OK: ENet moving interior consumer (%d assertions)" % _assertions)
 		quit(0)
