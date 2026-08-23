@@ -169,6 +169,100 @@ func get_combat_authority() -> LiveCombatAuthority:
 	return _combat_authority if is_instance_valid(_combat_authority) else null
 
 
+## Detached exact roster proof for the three production-composed hostile combat
+## sources. The content owns their authored identity mapping but not the shared
+## authority; callers can include this bounded roster in a wider authority census
+## without reaching into private nodes or accepting count-only substitutions.
+func get_live_source_registration_contract() -> Dictionary:
+	var errors := PackedStringArray()
+	var rows: Array[Dictionary] = []
+	var expected_keys: Dictionary = {}
+	var exact_registration_count := 0
+	if not _initialized:
+		errors.append("station-defense content is not initialized")
+	if not is_instance_valid(_combat_authority):
+		errors.append("station-defense external combat authority is unavailable")
+	elif is_ancestor_of(_combat_authority):
+		errors.append("station-defense combat authority must remain external")
+	elif not is_instance_valid(_combat_authority.get_resolver()):
+		errors.append("station-defense external combat resolver is unavailable")
+	if contract_definition == null:
+		errors.append("station-defense contract definition is unavailable")
+	else:
+		for handle in contract_definition.get_ordered_hostile_handles():
+			var hostile_id := StringName(handle.get("hostile_id", &""))
+			var key := StationDefenseContract.handle_key(handle, "hostile_id")
+			var entity := _entity_by_key.get(key) as RangeOpponent
+			var source_id := int(HOSTILE_SOURCE_ID_BY_ID.get(hostile_id, 0))
+			var retained_source_id := int(_registered_source_keys.get(key, 0))
+			var exact := (
+				is_instance_valid(entity)
+				and entity.is_inside_tree()
+				and not entity.is_queued_for_deletion()
+				and source_id > 0
+				and retained_source_id == source_id
+				and _hostile_source_registration_is_exact(entity, source_id)
+			)
+			expected_keys[key] = true
+			if exact:
+				exact_registration_count += 1
+			else:
+				errors.append("station-defense hostile source registration is not exact: %s" % key)
+			rows.append({
+				"hostile_id": hostile_id,
+				"handle_generation": int(handle.get("generation", -1)),
+				"source_id": source_id,
+				"retained_source_id": retained_source_id,
+				"entity_instance_id": entity.get_instance_id() if is_instance_valid(entity) else 0,
+				"faction_id": (
+					_combat_authority.get_source_faction(entity)
+					if is_instance_valid(_combat_authority) and is_instance_valid(entity)
+					else &""
+				),
+				"weapon_profile": (
+					_combat_authority.get_weapon_profile(entity, HOSTILE_WEAPON_ID)
+					if is_instance_valid(_combat_authority) and is_instance_valid(entity)
+					else {}
+				),
+				"exact": exact,
+			})
+	for retained_key in _registered_source_keys:
+		if not expected_keys.has(retained_key):
+			errors.append("station-defense retained an unauthored hostile source key: %s" % retained_key)
+	if _registered_source_keys.size() != HOSTILE_SOURCE_ID_BY_ID.size():
+		errors.append("station-defense hostile source key count is not exact")
+	if rows.size() != HOSTILE_SOURCE_ID_BY_ID.size():
+		errors.append("station-defense hostile source row count is not exact")
+	errors.sort()
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"component_id": COMPONENT_ID,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"authority_instance_id": (
+			_combat_authority.get_instance_id()
+			if is_instance_valid(_combat_authority) else 0
+		),
+		"resolver_instance_id": (
+			_combat_authority.get_resolver().get_instance_id()
+			if is_instance_valid(_combat_authority)
+			and is_instance_valid(_combat_authority.get_resolver()) else 0
+		),
+		"expected_source_count": HOSTILE_SOURCE_ID_BY_ID.size(),
+		"registered_source_key_count": _registered_source_keys.size(),
+		"exact_registration_count": exact_registration_count,
+		"faction_id": (
+			contract_definition.hostile_faction_id
+			if contract_definition != null else &""
+		),
+		"weapon_id": HOSTILE_WEAPON_ID,
+		"expected_weapon_profile": (
+			HOSTILE_WEAPON_PROFILES[HOSTILE_WEAPON_ID] as Dictionary
+		).duplicate(true),
+		"sources": rows,
+	}.duplicate(true)
+
+
 func get_generation() -> int:
 	return _host.get_generation() if is_instance_valid(_host) else 0
 

@@ -92,8 +92,71 @@ func _initialize() -> void:
 	_check(registered.any(func(candidate: HeroShip) -> bool:
 		return candidate.get_ship_id() == &"cinder-cargo-hauler"
 	), "cargo hauler is available as a switch target")
+	flow._initialize_live_combat()
+	var authority := flow.get_combat_authority()
+	var resolver := authority.get_resolver() if authority != null else null
+	var live_roster := flow.get_live_combat_source_roster_audit()
+	_check(
+		authority != null and resolver != null
+		and bool(live_roster.valid)
+		and int(live_roster.expected_player_source_count) == 6
+		and int(live_roster.expected_opponent_source_count) == 1
+		and int(live_roster.expected_station_defense_source_count) == 3
+		and int(live_roster.expected_source_count) == 10
+		and int(live_roster.actual_source_count) == 10
+		and bool(live_roster.station_defense_ready)
+		and bool((live_roster.station_defense_sources as Dictionary).valid),
+		"strict production roster composes six player, one range-opponent and three exact station-defense sources"
+	)
+	var arbitrary := Node3D.new()
+	arbitrary.name = "ArbitraryLiveCombatSource"
+	flow.add_child(arbitrary)
+	var arbitrary_profiles := {
+		&"arbitrary_pulse": {
+			"range": 10.0,
+			"damage": 1.0,
+			"origin_tolerance": 1.0,
+		},
+	}
+	_check(
+		authority.register_source(arbitrary, 9901, &"arbitrary", arbitrary_profiles)
+		and not bool(flow.get_live_combat_source_roster_audit().valid)
+		and int(flow.get_live_combat_source_roster_audit().actual_source_count) == 11,
+		"strict equality rejects one arbitrary extra source"
+	)
+	authority.forget_source(arbitrary, 9901)
+	var content: StationDefenseEncounterContent = flow.world.get_station_defense_content()
+	var alpha := content.get_node(
+		^"OpponentRoster/PerimeterRaiderAlpha"
+	) as RangeOpponent
+	authority.forget_source(alpha, 2121)
+	var same_count_registered := authority.register_source(
+		arbitrary, 9901, &"arbitrary", arbitrary_profiles
+	)
+	var same_count_red := flow.get_live_combat_source_roster_audit()
+	_check(
+		same_count_registered
+		and int(same_count_red.actual_source_count) == 10
+		and int(same_count_red.expected_source_count) == 10
+		and not bool(same_count_red.valid)
+		and not bool((same_count_red.station_defense_sources as Dictionary).valid),
+		"an arbitrary source cannot substitute for an authored hostile even when total count remains ten"
+	)
+	authority.forget_source(arbitrary, 9901)
+	_check(
+		authority.register_source(
+			alpha,
+			2121,
+			content.contract_definition.hostile_faction_id,
+			StationDefenseEncounterContent.HOSTILE_WEAPON_PROFILES
+		)
+		and bool(flow.get_live_combat_source_roster_audit().valid),
+		"restoring the exact alpha source restores the strict ten-source roster"
+	)
+	arbitrary.queue_free()
 	flow.queue_free()
-	await process_frame
+	for _cleanup_frame in 10:
+		await process_frame
 	if _failures.is_empty():
 		print("PASS game_flow_fleet_expansion_registration_test (%d assertions)" % _assertions)
 		quit(0)

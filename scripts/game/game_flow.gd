@@ -4917,15 +4917,127 @@ func _initialize_live_combat() -> void:
 			% [adapted_target_count, expected_target_count]
 		)
 	var resolver := combat_authority.get_resolver()
-	var expected_source_count := expected_player_sources + 1
-	if resolver == null or resolver.get_registered_source_count() != expected_source_count:
+	var roster_audit := get_live_combat_source_roster_audit()
+	var expected_source_count := int(
+		roster_audit.get("expected_source_count", expected_player_sources + 1)
+	)
+	if not bool(roster_audit.get("valid", false)):
 		push_error(
-			"Live combat authority owns %d of %d expected source registrations"
+			"Live combat source roster is invalid: %s"
+			% "; ".join(roster_audit.get("errors", PackedStringArray()))
+		)
+	elif resolver == null or resolver.get_registered_source_count() != expected_source_count:
+		push_error(
+			"Live combat authority owns %d of %d exact source registrations"
 			% [
 				resolver.get_registered_source_count() if resolver != null else 0,
 				expected_source_count,
 			]
 		)
+
+
+## Detached exact census of every source this production composition is allowed
+## to own. Fleet and range-opponent identities remain GameFlow-owned; the
+## station-defense content proves its private three-source roster through its
+## bounded contract. Exact total equality rejects arbitrary additional sources.
+func get_live_combat_source_roster_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var player_rows: Array[Dictionary] = []
+	var seen_source_ids: Dictionary = {}
+	for fleet_ship in ships:
+		var source_id := int(PLAYER_SOURCE_IDS.get(fleet_ship.get_ship_id(), 0))
+		if source_id <= 0:
+			continue
+		var profiles := _get_player_weapon_profiles(fleet_ship)
+		var exact := _combat_registration_matches(
+			fleet_ship, source_id, PLAYER_FACTION, profiles
+		)
+		if seen_source_ids.has(source_id):
+			errors.append("duplicate expected player source ID: %d" % source_id)
+		seen_source_ids[source_id] = true
+		if not exact:
+			errors.append(
+				"player combat source registration is not exact: %s"
+				% fleet_ship.get_ship_id()
+			)
+		player_rows.append({
+			"ship_id": fleet_ship.get_ship_id(),
+			"entity_instance_id": fleet_ship.get_instance_id(),
+			"source_id": source_id,
+			"faction_id": PLAYER_FACTION,
+			"weapon_ids": profiles.keys(),
+			"exact": exact,
+		})
+	var opponent_exact := _combat_registration_matches(
+		opponent, OPPONENT_SOURCE_ID, OPPONENT_FACTION, OPPONENT_WEAPON_PROFILES
+	)
+	if not opponent_exact:
+		errors.append("range-opponent combat source registration is not exact")
+	if seen_source_ids.has(OPPONENT_SOURCE_ID):
+		errors.append("range-opponent source ID collides with a player source")
+	seen_source_ids[OPPONENT_SOURCE_ID] = true
+
+	var encounter_present := false
+	var encounter_ready := false
+	var encounter_contract: Dictionary = {}
+	if is_instance_valid(world) and world.has_method(&"get_station_defense_content"):
+		var encounter_content := world.call(&"get_station_defense_content") as Node
+		encounter_present = is_instance_valid(encounter_content)
+		encounter_ready = encounter_present \
+			and bool(encounter_content.call(&"is_content_ready"))
+		if encounter_ready:
+			encounter_contract = encounter_content.call(
+				&"get_live_source_registration_contract"
+			) as Dictionary
+			if int(encounter_contract.get("authority_instance_id", 0)) \
+					!= combat_authority.get_instance_id():
+				errors.append("station-defense sources use a different combat authority")
+			if not bool(encounter_contract.get("valid", false)):
+				for error in encounter_contract.get("errors", PackedStringArray()):
+					errors.append("station defense: %s" % error)
+	var expected_encounter_sources := int(
+		encounter_contract.get("expected_source_count", 0)
+	) if encounter_ready else 0
+	if encounter_ready and expected_encounter_sources != 3:
+		errors.append("station-defense source roster must contain exactly three hostiles")
+	var resolver := combat_authority.get_resolver() if is_instance_valid(combat_authority) else null
+	var actual_source_count := (
+		resolver.get_registered_source_count() if is_instance_valid(resolver) else 0
+	)
+	var expected_source_count := player_rows.size() + 1 + expected_encounter_sources
+	if actual_source_count != expected_source_count:
+		errors.append(
+			"live source count differs from exact composed roster: %d != %d"
+			% [actual_source_count, expected_source_count]
+		)
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"authority_instance_id": (
+			combat_authority.get_instance_id()
+			if is_instance_valid(combat_authority) else 0
+		),
+		"resolver_instance_id": (
+			resolver.get_instance_id() if is_instance_valid(resolver) else 0
+		),
+		"expected_source_count": expected_source_count,
+		"actual_source_count": actual_source_count,
+		"expected_player_source_count": player_rows.size(),
+		"expected_opponent_source_count": 1,
+		"expected_station_defense_source_count": expected_encounter_sources,
+		"player_sources": player_rows,
+		"opponent_source": {
+			"entity_instance_id": opponent.get_instance_id() if is_instance_valid(opponent) else 0,
+			"source_id": OPPONENT_SOURCE_ID,
+			"faction_id": OPPONENT_FACTION,
+			"weapon_ids": OPPONENT_WEAPON_PROFILES.keys(),
+			"exact": opponent_exact,
+		},
+		"station_defense_present": encounter_present,
+		"station_defense_ready": encounter_ready,
+		"station_defense_sources": encounter_contract,
+	}.duplicate(true)
 
 
 func _combat_registration_matches(
