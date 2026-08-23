@@ -26,6 +26,7 @@ const ServerBrowserPresenterType := preload("res://scripts/ui/server_browser_pre
 const NearbySectorActivityPresenterType := preload("res://scripts/ui/nearby_sector_activity_presenter.gd")
 const BomberPayloadPresenterType := preload("res://scripts/ui/bomber_payload_presenter.gd")
 const SafeStartRecoveryPresenterType := preload("res://scripts/ui/safe_start_recovery_presenter.gd")
+const CopilotNavigationSupportPresenterType := preload("res://scripts/ui/copilot_navigation_support_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -410,6 +411,7 @@ var _network_status_presenter := NetworkSessionStatusPresenterType.new()
 var _crew_role_presenter := CrewRoleSeatPresenterType.new()
 var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
+var _copilot_navigation_presenter := CopilotNavigationSupportPresenterType.new()
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
 var _semantic_transcript_panel: PanelContainer
 var _semantic_transcript_body: Label
@@ -1310,6 +1312,17 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	set_engine_state(str(data.get("engine_state", "OFFLINE")))
 	if _flight_cue_layer != null:
 		_flight_cue_layer.update_from_telemetry(data)
+
+
+## Displays caller-published copilot support only; this HUD never owns helm,
+## route, cargo, or berth authority.
+func update_copilot_navigation_support(snapshot: Dictionary) -> void:
+	_render_runtime_status(_copilot_navigation_presenter.present_snapshot(snapshot), &"copilot")
+
+
+func clear_copilot_navigation_support() -> void:
+	_copilot_navigation_presenter.detach()
+	clear_runtime_status()
 
 
 func get_flight_cue_report() -> Dictionary:
