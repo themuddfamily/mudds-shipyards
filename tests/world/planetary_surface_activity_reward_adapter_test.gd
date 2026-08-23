@@ -9,6 +9,8 @@ const LocationScript := preload("res://scripts/world/definitions/world_location_
 const NavigationScript := preload("res://scripts/world/planetary_surface_navigation_runtime.gd")
 const NavigationContractScript := preload("res://scripts/world/planetary_surface_navigation_contract.gd")
 const HazardScript := preload("res://scripts/world/planetary_surface_hazard_runtime.gd")
+const WaterScript := preload("res://scripts/world/planetary_water_contact_runtime.gd")
+const WaterContractScript := preload("res://scripts/world/planetary_water_surface_material_contract.gd")
 
 class FakeHost:
 	var generation := 7
@@ -55,6 +57,7 @@ func _run() -> void:
 	await _test_surface_hazard_interrupts_and_recovers_route()
 	await _test_surface_session_restore_fences_reentry()
 	await _test_surface_origin_rebase_preserves_absolute_identity()
+	await _test_surface_water_recovery_preserves_route()
 	_finish()
 
 
@@ -479,6 +482,56 @@ func _test_surface_origin_rebase_preserves_absolute_identity() -> void:
 	_check(
 		adapter.accept_origin_rebase(receipt).reason == &"origin_generation_not_advanced",
 		"the same origin receipt cannot be replayed"
+	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_surface_water_recovery_preserves_route() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	var navigation := NavigationScript.new()
+	var water := WaterScript.new()
+	navigation.configure(NavigationContractScript.new())
+	water.configure(WaterContractScript.new())
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.bind_surface_water(water)
+	adapter.start_surface_activity_sequence(
+		[&"ember_beacon_survey", &"ember_caldera_patrol"] as Array[StringName],
+		navigation,
+		{"surface_staging_gate": &"ridge_relay"}
+	)
+	water.enter_water(Vector3(180.0, 120000.0, -240.0), 2)
+	var safe := adapter.submit_surface_water_contact(
+		Vector3(180.0, 120000.0, -240.0), 2.0, Vector3(1.0, 0.0, 0.0), 0.1
+	)
+	_check(
+		safe.accepted and safe.reason == &"water_contact_sampled"
+			and safe.adapter.surface_route.state == &"active",
+		"safe water contact leaves route progress active"
+	)
+	var unsafe := adapter.submit_surface_water_contact(
+		Vector3(180.0, 120000.0, -240.0), 20.0, Vector3(2.0, 0.0, 0.0), 0.1
+	)
+	_check(
+		unsafe.accepted and unsafe.reason == &"shoreline_recovery_required"
+			and unsafe.water.recovery_request.recovery_id == &"return_to_landed_ship"
+			and unsafe.adapter.state == &"failed"
+			and unsafe.adapter.surface_route.state == &"interrupted",
+		"unsafe water contact interrupts route and emits authored shoreline recovery"
+	)
+	water.detach()
+	host.attachment_generation = 3
+	var recovered := adapter.recover_surface_water(
+		Vector3(180.0, 120000.0, -240.0), 3
+	)
+	_check(
+		recovered.accepted and recovered.reason == &"shoreline_recovered"
+			and recovered.adapter.surface_route.state == &"active"
+			and recovered.adapter.surface_route.waypoint_index == 0,
+		"new water attachment resumes the current waypoint without replaying progress"
 	)
 	director.queue_free()
 	await process_frame

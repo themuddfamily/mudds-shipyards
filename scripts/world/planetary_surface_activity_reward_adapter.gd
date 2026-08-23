@@ -36,6 +36,7 @@ var _sequence_index := -1
 var _navigation: RefCounted
 var _route_activity_landmarks: Dictionary = {}
 var _hazard: RefCounted
+var _water: RefCounted
 var _coordinate_frame_generation := 0
 var _location_generation := 0
 var _last_origin_receipt: Dictionary = {}
@@ -142,6 +143,64 @@ func bind_surface_hazard(hazard: RefCounted) -> Dictionary:
 		return _reject(&"hazard_unavailable")
 	_hazard = hazard
 	return _accept(&"hazard_bound")
+
+
+func bind_surface_water(water: RefCounted) -> Dictionary:
+	if water == null or not bool(water.get_snapshot().get("state", &"idle") == &"idle"):
+		return _reject(&"water_unavailable")
+	_water = water
+	return _accept(&"water_bound")
+
+
+## Unsafe water contact interrupts the current route/activity; safe contact
+## remains a caller-owned sample and does not alter progress.
+func submit_surface_water_contact(
+		position: Variant,
+		depth_m: Variant,
+		velocity_mps: Variant,
+		delta_seconds: Variant
+	) -> Dictionary:
+	if _water == null:
+		return _reject(&"water_unavailable")
+	var generations := _host_generations()
+	var sampled: Dictionary = _water.call(
+		&"sample_contact", depth_m, velocity_mps, delta_seconds, generations.attachment
+	)
+	if not bool(sampled.get("accepted", false)):
+		return _with_adapter(sampled, false, sampled.get("reason", &"water_rejected") as StringName)
+	var recovery := sampled.get("recovery_request", {}) as Dictionary
+	if not bool(recovery.get("requested", false)):
+		return _with_adapter(sampled, true, &"water_contact_sampled")
+	if _navigation != null:
+		var interrupted: Dictionary = _navigation.call(&"interrupt", &"shoreline_recovery")
+		if not bool(interrupted.get("accepted", false)):
+			return _with_adapter(interrupted, false, &"route_interrupt_rejected")
+	var aborted := abort_activity(&"shoreline_recovery")
+	return _with_adapter({"water": sampled, "activity": aborted, "position": position}, bool(aborted.get("accepted", false)), &"shoreline_recovery_required")
+
+
+func exit_surface_water() -> Dictionary:
+	if _water == null:
+		return _reject(&"water_unavailable")
+	var generations := _host_generations()
+	var result: Dictionary = _water.call(&"exit_water", generations.attachment)
+	return _with_adapter(result, bool(result.get("accepted", false)), result.get("reason", &"water_exit_rejected") as StringName)
+
+
+func recover_surface_water(position: Variant, new_attachment_generation: int) -> Dictionary:
+	if _water == null or _navigation == null or _state != State.FAILED:
+		return _reject(&"water_recovery_unavailable")
+	var reentered: Dictionary = _water.call(&"reenter", new_attachment_generation)
+	if not bool(reentered.get("accepted", false)):
+		return _with_adapter(reentered, false, reentered.get("reason", &"water_reentry_rejected") as StringName)
+	var activity_id := _sequence_ids[_sequence_index] if _sequence_index >= 0 else StringName(_runtime.get_snapshot().get("activity_id", &""))
+	var retried := retry_activity(activity_id)
+	if not bool(retried.get("accepted", false)):
+		return retried
+	var resumed: Dictionary = _navigation.call(&"resume_route", position)
+	if not bool(resumed.get("accepted", false)):
+		return _with_adapter(resumed, false, &"route_resume_rejected")
+	return _with_adapter({"water": reentered, "activity": retried, "route": resumed}, true, &"shoreline_recovered")
 
 
 ## Accepts an external atomic origin receipt as a frame witness only. Absolute
@@ -411,6 +470,7 @@ func get_snapshot() -> Dictionary:
 		},
 		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
 		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
+		"surface_water": _water.get_snapshot() if _water != null else {},
 		"authority": {
 			"host_mutation": false,
 			"activity_authority": false,
@@ -435,6 +495,7 @@ func get_session_snapshot() -> Dictionary:
 		},
 		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
 		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
+		"surface_water": _water.get_snapshot() if _water != null else {},
 		"coordinate_frame_generation": _coordinate_frame_generation,
 		"location_generation": _location_generation,
 		"last_origin_receipt": _last_origin_receipt.duplicate(true),
