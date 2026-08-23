@@ -915,6 +915,10 @@ func _help_rows_with_role_context(mode: StringName) -> Array:
 	rows.append(["STATUS", "CONNECTING  //  RECONNECTING  //  CONNECTED"])
 	rows.append(["RECOVERY", "REJECTED / DISCONNECTED  //  RETRY OR CANCEL"])
 	rows.append(["LEAVE", "CONNECTED  //  DISCONNECT  //  FOLLOW THE FOCUSED ACTION"])
+	rows.append(["CINDER CARGO HAULER", "BOARD FROM THE STATION  //  WALK THE CABIN  //  CARGO CREW ROLE"])
+	rows.append(["LOADMASTER CABIN", "%s  WALK TO THE LOADMASTER SEAT / CONSOLE" % _action_prompts([&"move_forward", &"move_back", &"move_left", &"move_right"])])
+	rows.append(["MANIFEST / ROUTE", "%s  REVIEW PUBLISHED READINESS  //  NO INVENTORY AUTHORITY" % _action_prompts([&"interact"])])
+	rows.append(["RELEASE / DISEMBARK", "%s  LEAVE THE LOADMASTER SEAT  //  RETURN TO CABIN" % _action_prompts([&"interact"])])
 	if not _copilot_help_snapshot.is_empty():
 		rows.append(["COPILOT ROLE", "TARGET / ROUTE REVIEW"])
 		rows.append(["CLAIM / RELEASE", "REQUEST ONLY  //  NO HELM AUTHORITY"])
