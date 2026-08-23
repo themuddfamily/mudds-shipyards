@@ -334,6 +334,8 @@ var _bomber_payload_projectiles: Array[BomberPayloadProjectile] = []
 var _bomber_payload_adapter: BomberPayloadCombatAdapter
 var _last_bomber_payload_result: Dictionary = {}
 var _bomber_payload_server_tick := 0
+var _bomber_payload_replica_migration_generation := 0
+var _bomber_payload_replica_generations: Dictionary = {}
 var nearby_activity_persistence_store: RefCounted
 var nearby_activity_persistence_slot: StringName = &"nearby_activity"
 var _nearby_activity_persistence_commit_serial := 0
@@ -630,6 +632,7 @@ func _exit_tree() -> void:
 	if _runtime_settings_repair_binding != null:
 		_runtime_settings_repair_binding.set_attached(false)
 	_clear_bomber_payload_loop(&"game_flow_exit")
+	_clear_bomber_payload_replica_presentation()
 	_cancel_station_seat_for_detach()
 	if is_instance_valid(network_session):
 		network_session.shutdown(&"game_flow_exit")
@@ -734,6 +737,8 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
 	_connect_signal_once(network_session, &"crew_role_result", _on_network_crew_role_result)
 	_connect_signal_once(network_session, &"crew_command_result", _on_network_crew_command_result)
+	_connect_signal_once(network_session, &"projectile_replica_packet", _on_projectile_replica_packet)
+	_connect_signal_once(network_session, &"migration_result", _on_network_migration_result)
 	_connect_signal_once(network_session, &"server_browser_result", _on_server_browser_result)
 	_attach_network_halyard_command_bridge()
 	_attach_network_ship_authority_composition()
@@ -2261,6 +2266,12 @@ func _physics_process(delta: float) -> void:
 
 
 func _advance_bomber_payload_loop(delta: float) -> void:
+	if _network_session_mode == &"client":
+		# A multiplayer client may present server snapshots, but never advances a
+		# payload, queries collision, or reaches CombatResolver locally.
+		if _bomber_payload_ship != null:
+			_clear_bomber_payload_loop(&"client_projectile_authority_released")
+		return
 	var bomber := active_ship as CinderLongRangeBomber if active_ship is CinderLongRangeBomber else null
 	var should_run := is_instance_valid(bomber) and _piloting and bomber.is_piloted()
 	if should_run:
@@ -2268,6 +2279,7 @@ func _advance_bomber_payload_loop(delta: float) -> void:
 			if is_instance_valid(hud) and hud.has_method(&"clear_bomber_payload_status"):
 				hud.call(&"clear_bomber_payload_status")
 			return
+		_bomber_payload_server_tick += 1
 		for projectile_variant: Variant in _bomber_payload_projectiles.duplicate():
 			var projectile := projectile_variant as BomberPayloadProjectile
 			if projectile == null:
@@ -2278,9 +2290,9 @@ func _advance_bomber_payload_loop(delta: float) -> void:
 				_consume_bomber_payload_terminal(projectile)
 				continue
 			if bool(advanced.get("accepted", false)):
-				_publish_bomber_payload_network(projectile, false)
 				_try_submit_bomber_payload_collision(projectile, previous_position)
-		_bomber_payload_server_tick += 1
+				if _bomber_payload_projectiles.has(projectile):
+					_publish_bomber_payload_network(projectile, false)
 		_publish_bomber_payload_snapshot(bomber)
 		return
 	var had_payload_session := _bomber_payload_ship != null
@@ -2303,7 +2315,6 @@ func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
 		return _bomber_payload_adapter != null
 	_bomber_payload_generation += 1
 	_bomber_payload_request_sequence = 0
-	_bomber_payload_server_tick = 0
 	var started := bomber.begin_payload_generation(_bomber_payload_generation)
 	if not bool(started.get("accepted", false)):
 		return false
@@ -2321,6 +2332,12 @@ func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
 
 
 func _consume_bomber_payload_release() -> Dictionary:
+	if _network_session_mode == &"client":
+		_last_bomber_payload_result = {
+			"accepted": false,
+			"reason": &"client_projectile_authority_forbidden",
+		}
+		return _last_bomber_payload_result.duplicate(true)
 	if _bomber_payload_ship == null or _bomber_payload_adapter == null:
 		_last_bomber_payload_result = {"accepted": false, "reason": &"payload_session_unavailable"}
 		return _last_bomber_payload_result.duplicate(true)
@@ -2348,6 +2365,7 @@ func _consume_bomber_payload_release() -> Dictionary:
 		_last_bomber_payload_result = {"accepted": false, "reason": &"projectile_admission_failed"}
 		return _last_bomber_payload_result.duplicate(true)
 	_bomber_payload_projectiles.append(projectile)
+	_bomber_payload_server_tick += 1
 	_publish_bomber_payload_network(projectile, false)
 	_present_bomber_payload_audio(&"present_payload_release", record)
 	_present_bomber_payload_audio(&"present_projectile_launch", record)
@@ -2356,7 +2374,8 @@ func _consume_bomber_payload_release() -> Dictionary:
 
 
 func _consume_bomber_payload_terminal(projectile: BomberPayloadProjectile) -> void:
-	if projectile == null or _bomber_payload_ship == null or _bomber_payload_adapter == null:
+	if _network_session_mode == &"client" \
+			or projectile == null or _bomber_payload_ship == null or _bomber_payload_adapter == null:
 		return
 	var terminal := projectile.get_terminal_intent()
 	if terminal.is_empty():
@@ -2379,7 +2398,8 @@ func _try_submit_bomber_payload_collision(
 	projectile: BomberPayloadProjectile,
 	previous_position: Vector3,
 ) -> void:
-	if _bomber_payload_ship == null or get_world_3d() == null:
+	if _network_session_mode == &"client" \
+			or _bomber_payload_ship == null or not is_inside_tree() or get_world_3d() == null:
 		return
 	var current_position: Vector3 = projectile.get_snapshot().get("position", Vector3.INF)
 	if not previous_position.is_finite() or not current_position.is_finite() \
@@ -2436,6 +2456,7 @@ func _present_bomber_payload_audio(method: StringName, payload: Dictionary) -> v
 func _publish_bomber_payload_network(
 	projectile: BomberPayloadProjectile,
 	terminal: bool,
+	recipients: Array = [],
 ) -> Dictionary:
 	if (
 		projectile == null
@@ -2464,14 +2485,97 @@ func _publish_bomber_payload_network(
 		"direction": direction,
 		"last_update_tick": _bomber_payload_server_tick,
 		"state": state,
+		"release_record": release_record.duplicate(true),
+		"terminal_intent": (
+			(snapshot.get("terminal_intent", {}) as Dictionary).duplicate(true)
+			if terminal else {}
+		),
 	}
-	return network_session.publish_projectile_snapshot(packet, [], terminal, _bomber_payload_server_tick)
+	return network_session.publish_projectile_snapshot(
+		packet, recipients, terminal, _bomber_payload_server_tick
+	)
+
+
+func _republish_bomber_payloads_for_peer(peer_id: int) -> Dictionary:
+	if not is_instance_valid(network_session) or not network_session.is_server():
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var published := 0
+	for projectile in _bomber_payload_projectiles:
+		if projectile == null:
+			continue
+		var result := _publish_bomber_payload_network(projectile, false, [peer_id])
+		if not bool(result.get("accepted", false)):
+			return result
+		published += 1
+	return {
+		"accepted": true,
+		"status": &"game_flow_projectile_resync_published",
+		"peer_id": peer_id,
+		"projectile_count": published,
+	}.duplicate(true)
+
+
+func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> void:
+	if _network_session_mode != &"client" or not bool(result.get("accepted", false)):
+		return
+	var projectile := packet.get("projectile", {}) as Dictionary
+	if StringName(projectile.get("source_entity_id", &"")) != CINDER_BOMBER_SHIP_ID:
+		return
+	var migration_generation := int(packet.get("migration_generation", 0))
+	if migration_generation <= 0:
+		return
+	if migration_generation != _bomber_payload_replica_migration_generation:
+		_clear_bomber_payload_replica_presentation(migration_generation)
+	var bomber := _find_flyable_ship_by_id(CINDER_BOMBER_SHIP_ID) as CinderLongRangeBomber
+	if not is_instance_valid(bomber):
+		return
+	var projectile_id := StringName(projectile.get("projectile_id", &""))
+	var generation := int(projectile.get("projectile_generation", 0))
+	if projectile_id.is_empty() or generation <= 0:
+		return
+	var status := StringName(result.get("status", &""))
+	if status == &"projectile_terminal_applied":
+		var terminal_intent := projectile.get("terminal_intent", {}) as Dictionary
+		if terminal_intent.is_empty():
+			_clear_bomber_payload_replica_presentation(migration_generation)
+			return
+		bomber.present_payload_terminal_record(terminal_intent)
+		_bomber_payload_replica_generations[projectile_id] = generation
+		return
+	if status != &"projectile_presented":
+		return
+	var prior_generation := int(_bomber_payload_replica_generations.get(projectile_id, 0))
+	if prior_generation == generation:
+		return
+	if prior_generation > 0:
+		_clear_bomber_payload_replica_presentation(migration_generation)
+	var release_record := projectile.get("release_record", {}) as Dictionary
+	var presentation = bomber.get_payload_presentation()
+	if not is_instance_valid(presentation):
+		return
+	var presented: Dictionary = presentation.consume_release_record(release_record)
+	if bool(presented.get("accepted", false)):
+		_bomber_payload_replica_generations[projectile_id] = generation
+
+
+func _clear_bomber_payload_replica_presentation(migration_generation: int = 0) -> void:
+	var bomber := _find_flyable_ship_by_id(CINDER_BOMBER_SHIP_ID) as CinderLongRangeBomber
+	if is_instance_valid(bomber):
+		var presentation = bomber.get_payload_presentation()
+		if is_instance_valid(presentation):
+			presentation.detach()
+			presentation.reset_for_reuse()
+	_bomber_payload_replica_generations.clear()
+	_bomber_payload_replica_migration_generation = maxi(0, migration_generation)
 
 
 func _clear_bomber_payload_loop(reason: StringName) -> void:
 	for projectile in _bomber_payload_projectiles:
 		if projectile != null:
 			var release_record := projectile.get_snapshot().get("release_record", {}) as Dictionary
+			if is_instance_valid(network_session) and network_session.is_server():
+				_bomber_payload_server_tick += 1
+				_publish_bomber_payload_network(projectile, true)
 			if not release_record.is_empty():
 				_present_bomber_payload_audio(&"present_payload_abort", release_record)
 				_present_bomber_payload_audio(&"present_projectile_abort", release_record)
@@ -2487,7 +2591,6 @@ func _clear_bomber_payload_loop(reason: StringName) -> void:
 	_bomber_payload_adapter = null
 	_bomber_payload_ship = null
 	_bomber_payload_request_sequence = 0
-	_bomber_payload_server_tick = 0
 	_last_bomber_payload_result = {"accepted": true, "reason": reason, "cleared": true}
 
 
@@ -2990,6 +3093,8 @@ func _on_network_session_started(mode: StringName) -> void:
 
 func _on_network_session_stopped(reason: StringName) -> void:
 	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_STOP, 0, false)
+	if _network_session_mode == &"client":
+		_clear_bomber_payload_replica_presentation()
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
@@ -2999,10 +3104,24 @@ func _on_network_session_stopped(reason: StringName) -> void:
 
 
 func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
+	if _network_session_mode == &"server":
+		_republish_bomber_payloads_for_peer(peer_id)
+		return
 	if _network_session_mode == &"client":
 		_publish_network_session_snapshot(
 			&"connected", &"client", "Session host accepted peer %d." % peer_id, false
 		)
+
+
+func _on_network_migration_result(result: Dictionary) -> void:
+	if _network_session_mode != &"client" or not bool(result.get("accepted", false)) \
+			or not is_instance_valid(network_session):
+		return
+	var generation := int(
+		network_session.get_migration_snapshot().get("migration_generation", 0)
+	)
+	if generation > 0 and generation != _bomber_payload_replica_migration_generation:
+		_clear_bomber_payload_replica_presentation(generation)
 
 
 func _on_network_peer_disconnected(peer_id: int, _receipt: Dictionary) -> void:
