@@ -197,6 +197,14 @@ const FLIGHT_PATH_SAFE_VERTICAL_VIEWPORT_RATIO := 0.18
 const BOARDING_FALLBACK_REACH := 7.0
 const STATION_SEAT_MAX_REACH := 3.25
 const OPPONENT_SOURCE_ID := 2101
+const RANGE_OPPONENT_NETWORK_ID: StringName = &"range_defence_interceptor"
+const STATION_DEFENSE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
+const STATION_DEFENSE_NETWORK_PREFIX := "station_defense_"
+const STATION_DEFENSE_SOURCE_IDS := {
+	&"perimeter_raider_alpha": 2121,
+	&"perimeter_raider_beta": 2122,
+	&"perimeter_raider_gamma": 2123,
+}
 const PLAYER_FACTION: StringName = &"shipyard_flight_test"
 const OPPONENT_FACTION: StringName = &"range_defence"
 const RANGE_WEAPON_ID: StringName = &"range_pulse_cannon"
@@ -360,6 +368,10 @@ var _last_player_pulse_network_result: Dictionary = {}
 var _last_player_pulse_canonical_result: Dictionary = {}
 var _player_pulse_replica_migration_generation := 0
 var _player_pulse_replica_generations: Dictionary = {}
+var _opponent_pulse_network_generation := 0
+var _opponent_pulse_network_sequence := 0
+var _opponent_pulse_network_context: Dictionary = {}
+var _opponent_pulse_replica_generations: Dictionary = {}
 var nearby_activity_persistence_store: RefCounted
 var nearby_activity_persistence_slot: StringName = &"nearby_activity"
 var _nearby_activity_persistence_commit_serial := 0
@@ -772,6 +784,7 @@ func host_network_session(
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
 	_network_session_mode = &"server"
+	_set_station_defense_network_presentation_only(false)
 	_network_session_port = port
 	_network_session_max_clients = max_clients
 	var result := session.host(port, max_clients)
@@ -787,6 +800,7 @@ func join_network_session(
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
 	_network_session_mode = &"client"
+	_set_station_defense_network_presentation_only(true)
 	_network_session_address = address
 	_network_session_port = port
 	var result := session.join(address, port)
@@ -2897,7 +2911,107 @@ func _prepare_player_pulse_network_context(
 			"hit": bool(result.get("hit", false)),
 		},
 		"terminal_intent": {},
+		"presentation_source_instance_id": request.source_entity.get_instance_id(),
 	}
+
+
+func _prepare_opponent_pulse_network_context(
+	request: ShotRequestType,
+	endpoint: Vector3,
+	style_id: StringName,
+	result: Dictionary,
+) -> void:
+	_opponent_pulse_network_context.clear()
+	var identity := _get_opponent_pulse_network_identity(request)
+	if (
+		_network_session_mode != &"server"
+		or not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or identity.is_empty()
+	):
+		return
+	_opponent_pulse_network_sequence += 1
+	var generation := int(identity.get("source_generation", 0))
+	var source_entity_id := StringName(identity.get("source_entity_id", &""))
+	var projectile_id := StringName(
+		"%s_pulse_g%06d_s%06d"
+		% [String(source_entity_id), generation, _opponent_pulse_network_sequence]
+	)
+	_opponent_pulse_network_context = {
+		"projectile_id": projectile_id,
+		"projectile_generation": generation,
+		"source_entity_id": source_entity_id,
+		"source_generation": generation,
+		"owner_peer_id": 1,
+		"position": request.origin,
+		"direction": request.get_normalized_direction(),
+		"state": &"flying",
+		"opponent_pulse_record": {
+			"projectile_id": projectile_id,
+			"projectile_generation": generation,
+			"source_entity_id": source_entity_id,
+			"source_generation": generation,
+			"source_id": int(identity.get("source_id", 0)),
+			"weapon_id": request.weapon_id,
+			"hostile_id": identity.get("hostile_id", &""),
+			"handle_generation": int(identity.get("handle_generation", 0)),
+			"activity_generation": int(identity.get("activity_generation", 0)),
+			"origin": request.origin,
+			"endpoint": endpoint,
+			"style_id": style_id,
+			"hit": bool(result.get("hit", false)),
+		},
+		"terminal_intent": {},
+		"presentation_source_instance_id": request.source_entity.get_instance_id(),
+	}
+
+
+func _get_opponent_pulse_network_identity(request: ShotRequestType) -> Dictionary:
+	if (
+		is_instance_valid(opponent)
+		and request.source_entity == opponent
+		and request.source_id == OPPONENT_SOURCE_ID
+		and request.weapon_id == OPPONENT_WEAPON_ID
+		and _opponent_pulse_network_generation > 0
+	):
+		return {
+			"source_entity_id": RANGE_OPPONENT_NETWORK_ID,
+			"source_generation": _opponent_pulse_network_generation,
+			"source_id": OPPONENT_SOURCE_ID,
+		}.duplicate(true)
+	if (
+		not request.source_entity is RangeOpponent
+		or request.weapon_id != STATION_DEFENSE_WEAPON_ID
+	):
+		return {}
+	var content := _get_station_defense_content()
+	var source := request.source_entity as RangeOpponent
+	if not is_instance_valid(content) or not content.is_ancestor_of(source):
+		return {}
+	var hostile_id := StringName(source.get_meta("hostile_id", &""))
+	var handle_generation := int(source.get_meta("handle_generation", 0))
+	var activity_generation := int(content.get_generation())
+	if (
+		hostile_id.is_empty()
+		or handle_generation <= 0
+		or activity_generation <= 0
+		or request.source_id <= 0
+	):
+		return {}
+	return {
+		"source_entity_id": StringName(STATION_DEFENSE_NETWORK_PREFIX + String(hostile_id)),
+		"source_generation": activity_generation,
+		"source_id": request.source_id,
+		"hostile_id": hostile_id,
+		"handle_generation": handle_generation,
+		"activity_generation": activity_generation,
+	}.duplicate(true)
+
+
+func _get_station_defense_content() -> StationDefenseEncounterContent:
+	if not is_instance_valid(world) or not world.has_method(&"get_station_defense_content"):
+		return null
+	return world.call(&"get_station_defense_content") as StationDefenseEncounterContent
 
 
 func _on_pulse_shot_presented(
@@ -2906,12 +3020,19 @@ func _on_pulse_shot_presented(
 	source_instance_id: int,
 	_hit: bool,
 ) -> void:
-	if _player_pulse_network_context.is_empty() or shot_id <= 0:
+	var context := (
+		_player_pulse_network_context
+		if not _player_pulse_network_context.is_empty()
+		else _opponent_pulse_network_context
+	)
+	if context.is_empty() or shot_id <= 0:
 		return
-	if source_instance_id != active_ship.get_instance_id():
+	if source_instance_id != int(context.get("presentation_source_instance_id", 0)):
 		_player_pulse_network_context.clear()
+		_opponent_pulse_network_context.clear()
 		return
-	var record := _player_pulse_network_context.duplicate(true)
+	var record := context.duplicate(true)
+	record.erase("presentation_source_instance_id")
 	_player_pulse_network_server_tick += 1
 	record["last_update_tick"] = _player_pulse_network_server_tick
 	_player_pulse_network_active_shots[shot_id] = record.duplicate(true)
@@ -2946,6 +3067,7 @@ func _on_pulse_effects_cleared() -> void:
 			_terminalize_player_pulse_network_shot(int(shot_id_variant), &"abort")
 	elif _network_session_mode == &"client":
 		_player_pulse_replica_generations.clear()
+		_opponent_pulse_replica_generations.clear()
 
 
 func _terminalize_player_pulse_network_shot(
@@ -2958,7 +3080,10 @@ func _terminalize_player_pulse_network_shot(
 		return
 	_player_pulse_network_active_shots.erase(shot_id)
 	var terminal := active.duplicate(true)
-	var pulse_record := terminal.get("pulse_record", {}) as Dictionary
+	var pulse_record_key := (
+		"pulse_record" if terminal.has("pulse_record") else "opponent_pulse_record"
+	)
+	var pulse_record := terminal.get(pulse_record_key, {}) as Dictionary
 	var endpoint := pulse_record.get("endpoint", terminal.get("position", Vector3.ZERO)) as Vector3
 	terminal["position"] = position if position.is_finite() else endpoint
 	terminal["state"] = &"expired" if kind == &"expiry" else (&"aborted" if kind == &"abort" else &"resolved")
@@ -2973,7 +3098,7 @@ func _terminalize_player_pulse_network_shot(
 		}
 	)
 	pulse_record["terminal_kind"] = kind
-	terminal["pulse_record"] = pulse_record
+	terminal[pulse_record_key] = pulse_record
 	_player_pulse_network_server_tick += 1
 	terminal["last_update_tick"] = _player_pulse_network_server_tick
 	_queue_player_pulse_network_publication(terminal, true)
@@ -3105,8 +3230,91 @@ func _on_player_pulse_replica_packet(packet: Dictionary, result: Dictionary) -> 
 	return {"accepted": true, "status": &"player_pulse_presented"}
 
 
+func _on_opponent_pulse_replica_packet(packet: Dictionary, result: Dictionary) -> Dictionary:
+	var projectile := packet.get("projectile", {}) as Dictionary
+	var projectile_id := StringName(projectile.get("projectile_id", &""))
+	var generation := int(projectile.get("projectile_generation", 0))
+	var migration_generation := int(packet.get("migration_generation", 0))
+	var status := StringName(result.get("status", &""))
+	var lifecycle := network_session.get_projectile_replica_lifecycle_snapshot()
+	var admitted := lifecycle.get("generations", {}) as Dictionary
+	var terminals := lifecycle.get("terminal_generations", {}) as Dictionary
+	if (
+		projectile_id.is_empty()
+		or generation <= 0
+		or migration_generation <= 0
+		or int(lifecycle.get("migration_generation", 0)) != migration_generation
+		or int(admitted.get(projectile_id, 0)) != generation
+		or status not in [&"projectile_presented", &"projectile_terminal_applied"]
+		or (
+			status == &"projectile_terminal_applied"
+			and int(terminals.get(projectile_id, 0)) != generation
+		)
+	):
+		return {"accepted": false, "status": &"projectile_lifecycle_receipt_mismatch"}
+	var pulse_record := projectile.get("opponent_pulse_record", {}) as Dictionary
+	var origin_variant: Variant = pulse_record.get("origin")
+	var endpoint_variant: Variant = pulse_record.get("endpoint")
+	if (
+		int(projectile.get("source_generation", 0)) != generation
+		or StringName(pulse_record.get("projectile_id", &"")) != projectile_id
+		or int(pulse_record.get("projectile_generation", 0)) != generation
+		or int(pulse_record.get("source_generation", 0)) != generation
+		or StringName(pulse_record.get("source_entity_id", &""))
+			!= StringName(projectile.get("source_entity_id", &""))
+		or not _opponent_pulse_record_identity_is_valid(projectile, pulse_record, generation)
+		or StringName(pulse_record.get("style_id", &"")) != &"amber"
+		or not origin_variant is Vector3
+		or not (origin_variant as Vector3).is_finite()
+		or not endpoint_variant is Vector3
+		or not (endpoint_variant as Vector3).is_finite()
+	):
+		return {"accepted": false, "status": &"invalid_opponent_pulse_record"}
+	if migration_generation != _player_pulse_replica_migration_generation:
+		_clear_player_pulse_replica_presentation(migration_generation)
+	if status == &"projectile_terminal_applied":
+		_opponent_pulse_replica_generations.erase(projectile_id)
+		return {"accepted": true, "status": &"opponent_pulse_terminal_presented"}
+	if int(_opponent_pulse_replica_generations.get(projectile_id, 0)) == generation:
+		return {"accepted": true, "status": &"opponent_pulse_already_presented"}
+	var presented := _present_pulse_shot(
+		origin_variant as Vector3,
+		endpoint_variant as Vector3,
+		&"amber",
+		null,
+		bool(pulse_record.get("hit", false)),
+	)
+	if not presented:
+		return {"accepted": false, "status": &"opponent_pulse_presentation_rejected"}
+	_opponent_pulse_replica_generations[projectile_id] = generation
+	return {"accepted": true, "status": &"opponent_pulse_presented"}
+
+
+func _opponent_pulse_record_identity_is_valid(
+	projectile: Dictionary,
+	pulse_record: Dictionary,
+	generation: int,
+) -> bool:
+	var source_entity_id := StringName(projectile.get("source_entity_id", &""))
+	var source_id := int(pulse_record.get("source_id", 0))
+	var weapon_id := StringName(pulse_record.get("weapon_id", &""))
+	if source_entity_id == RANGE_OPPONENT_NETWORK_ID:
+		return source_id == OPPONENT_SOURCE_ID and weapon_id == OPPONENT_WEAPON_ID
+	var hostile_id := StringName(pulse_record.get("hostile_id", &""))
+	return (
+		not hostile_id.is_empty()
+		and source_entity_id
+			== StringName(STATION_DEFENSE_NETWORK_PREFIX + String(hostile_id))
+		and weapon_id == STATION_DEFENSE_WEAPON_ID
+		and source_id == int(STATION_DEFENSE_SOURCE_IDS.get(hostile_id, 0))
+		and int(pulse_record.get("handle_generation", 0)) > 0
+		and int(pulse_record.get("activity_generation", 0)) == generation
+	)
+
+
 func _clear_player_pulse_replica_presentation(migration_generation: int = 0) -> void:
 	_player_pulse_replica_generations.clear()
+	_opponent_pulse_replica_generations.clear()
 	_player_pulse_replica_migration_generation = maxi(0, migration_generation)
 	if is_instance_valid(pulse_presentation):
 		pulse_presentation.clear_effects()
@@ -3119,6 +3327,8 @@ func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> Di
 	var projectile := packet.get("projectile", {}) as Dictionary
 	if StringName(projectile.get("source_entity_id", &"")) == TORRENT_SHIP_ID:
 		return _on_player_pulse_replica_packet(packet, result)
+	if projectile.has("opponent_pulse_record"):
+		return _on_opponent_pulse_replica_packet(packet, result)
 	if StringName(projectile.get("source_entity_id", &"")) != CINDER_BOMBER_SHIP_ID:
 		return {"accepted": false, "status": &"unrelated_projectile"}
 	var migration_generation := int(packet.get("migration_generation", 0))
@@ -3681,6 +3891,12 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(opponent, &"projectile_fired", _on_opponent_projectile_fired)
 	_connect_signal_once(opponent, &"health_changed", _on_opponent_health_changed)
 	_connect_signal_once(opponent, &"destroyed", _on_opponent_destroyed)
+	var station_defense_content := _get_station_defense_content()
+	_connect_signal_once(
+		station_defense_content,
+		&"snapshot_changed",
+		_on_station_defense_network_snapshot_changed
+	)
 	_connect_signal_once(world, &"target_destroyed", _on_target_destroyed)
 	_connect_signal_once(audio, &"cue_started", _on_audio_cue_started)
 	_connect_signal_once(audio, &"semantic_cue_emitted", _on_semantic_audio_cue_emitted)
@@ -3846,6 +4062,7 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 func _on_network_session_started(mode: StringName) -> void:
 	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_START)
+	_set_station_defense_network_presentation_only(mode == &"client")
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -3860,6 +4077,7 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_player_pulse_canonical_publish_pending = false
 	_player_pulse_network_pending.clear()
 	_player_pulse_network_active_shots.clear()
+	_set_station_defense_network_presentation_only(false)
 	if _network_session_mode == &"client":
 		_clear_bomber_payload_replica_presentation()
 		_clear_player_pulse_replica_presentation()
@@ -3869,6 +4087,13 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_publish_network_session_snapshot(
 		&"disconnected", _network_session_mode, "Session closed: %s" % reason, true
 	)
+
+
+func _set_station_defense_network_presentation_only(enabled: bool) -> Dictionary:
+	var content := _get_station_defense_content()
+	if not is_instance_valid(content):
+		return {"accepted": false, "status": &"station_defense_content_unavailable"}
+	return content.set_network_presentation_only(enabled)
 
 
 func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
@@ -5417,12 +5642,21 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 		if is_instance_valid(request.source_entity)
 		else maxi(request.source_id, 0)
 	)
-	if bool(result.get("damaged", false)) and request.presentation_receipt_id < 0:
+	var opponent_pulse_identity := _get_opponent_pulse_network_identity(request)
+	var network_opponent_pulse := (
+		_network_session_mode == &"server"
+		and is_instance_valid(network_session)
+		and network_session.is_server()
+		and not opponent_pulse_identity.is_empty()
+	)
+	if bool(result.get("damaged", false)) and request.presentation_receipt_id < 0 \
+			and not network_opponent_pulse:
 		# submit_hitscan() is the explicit authority/component-presentation API used
 		# by deterministic probes and non-travelling integrations. The target has
 		# already reacted synchronously; do not append a late fire/pulse/impact cue.
 		return
-	if request.source_entity == opponent:
+	var opponent_fire := request.source_entity == opponent or network_opponent_pulse
+	if opponent_fire:
 		combat_audio.play_defender_fire(request.origin, source_instance_id)
 	else:
 		combat_audio.play_player_fire(request.origin, source_instance_id)
@@ -5431,7 +5665,7 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 		var resolved_position: Variant = result.get("position", endpoint)
 		if resolved_position is Vector3 and (resolved_position as Vector3).is_finite():
 			endpoint = resolved_position as Vector3
-	var style_id: StringName = &"amber" if request.source_entity == opponent else &"cyan"
+	var style_id: StringName = &"amber" if opponent_fire else &"cyan"
 	var receipt_id := request.presentation_receipt_id
 	if bool(result.get("damaged", false)) and receipt_id >= 0:
 		var target_entity: Variant = result.get("target_entity")
@@ -5452,6 +5686,7 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 			"source_instance_id": source_instance_id,
 		}
 	_prepare_player_pulse_network_context(request, endpoint, style_id, result)
+	_prepare_opponent_pulse_network_context(request, endpoint, style_id, result)
 	var presented := _present_pulse_shot(
 		request.origin,
 		endpoint,
@@ -5461,6 +5696,7 @@ func _on_authoritative_shot_submitted(request: ShotRequestType, result: Dictiona
 		receipt_id
 	)
 	_player_pulse_network_context.clear()
+	_opponent_pulse_network_context.clear()
 	if bool(result.get("damaged", false)) and receipt_id >= 0 and not presented:
 		var impact_weight := 0.45 if style_id == &"amber" else 0.9
 		combat_audio.play_impact(endpoint, impact_weight, maxi(source_instance_id, 0))
@@ -6941,6 +7177,15 @@ func _begin_interceptor_engagement() -> void:
 		or _guided_return_ready_for_completion
 	):
 		return
+	# A reused defender generation cannot inherit any visual still crossing the
+	# shared pool from its predecessor. Retire those records before advancing the
+	# source fence; damage for each shot was already resolved at dispatch time.
+	for shot_id_variant: Variant in _player_pulse_network_active_shots.keys():
+		var live_record := _player_pulse_network_active_shots.get(shot_id_variant, {}) as Dictionary
+		if StringName(live_record.get("source_entity_id", &"")) == RANGE_OPPONENT_NETWORK_ID:
+			_terminalize_player_pulse_network_shot(int(shot_id_variant), &"abort")
+	if _opponent_pulse_network_generation < NETWORK_MAX_SAFE_GENERATION:
+		_opponent_pulse_network_generation += 1
 	_opponent_spawned = true
 	phase = Phase.INTERCEPTOR_ENGAGEMENT
 	_record_session_lifecycle_transition(
@@ -6988,6 +7233,13 @@ func _on_opponent_destroyed(position: Vector3) -> void:
 ## `phase` is idle-written and this handler runs in the defender's physics pass.
 ## `tests/combat_encounter_authority_gate_test.gd` locks that coupling.
 func _on_opponent_projectile_fired(origin: Vector3, direction: Vector3) -> void:
+	if _network_session_mode == &"client":
+		_last_opponent_shot_result = {
+			"accepted": false,
+			"resolved": false,
+			"reason": &"client_projectile_authority_forbidden",
+		}
+		return
 	var ray_end := origin + direction.normalized() * ENEMY_WEAPON_RANGE
 	var result: Dictionary = combat_authority.submit_hitscan_with_deferred_presentation(
 		opponent,
@@ -7005,6 +7257,28 @@ func _on_opponent_projectile_fired(origin: Vector3, direction: Vector3) -> void:
 		var applied_damage := float(result.get("applied_damage", ENEMY_HIT_DAMAGE))
 		var local_source := active_ship.global_basis.inverse() * (origin - active_ship.global_position)
 		hud.flash_damage(applied_damage / 20.0, Vector2(local_source.x, local_source.z))
+
+
+func _on_station_defense_network_snapshot_changed(snapshot: Dictionary) -> void:
+	if (
+		_network_session_mode != &"server"
+		or not is_instance_valid(network_session)
+		or not network_session.is_server()
+	):
+		return
+	var host := snapshot.get("host", {}) as Dictionary
+	var activity := host.get("activity", {}) as Dictionary
+	if StringName(activity.get("state_id", &"idle")) == &"active":
+		return
+	# The encounter has withdrawn every hostile's dispatch authority. Any visual
+	# still crossing the bounded pulse pool is now an abort tombstone; its damage
+	# result, if any, was already final before this presentation transition.
+	for shot_id_variant: Variant in _player_pulse_network_active_shots.keys():
+		var record := _player_pulse_network_active_shots.get(shot_id_variant, {}) as Dictionary
+		if String(record.get("source_entity_id", &"")).begins_with(
+			STATION_DEFENSE_NETWORK_PREFIX
+		):
+			_terminalize_player_pulse_network_shot(int(shot_id_variant), &"abort")
 
 
 func _publish_network_damage_state(

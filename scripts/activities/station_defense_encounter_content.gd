@@ -124,6 +124,7 @@ var _nominal_tactic_configuration_by_key: Dictionary = {}
 var _breaker_feint_state: StringName = &"idle"
 var _breaker_feint_generation := 0
 var _breaker_feint_elapsed_seconds := 0.0
+var _network_presentation_only := false
 
 
 func _enter_tree() -> void:
@@ -308,6 +309,16 @@ func get_live_source_registration_contract() -> Dictionary:
 
 func get_generation() -> int:
 	return _host.get_generation() if is_instance_valid(_host) else 0
+
+
+## GameFlow owns the network role. A connected client may retain this authored
+## scene for snapshot presentation, but cannot dispatch its local pattern clock
+## into CombatResolver or protected-asset damage.
+func set_network_presentation_only(enabled: bool) -> Dictionary:
+	_network_presentation_only = enabled
+	var result := _content_result(true, &"network_presentation_mode_applied")
+	result["presentation_only"] = _network_presentation_only
+	return result.duplicate(true)
 
 
 func get_protected_asset() -> StationDefensePerimeterAsset:
@@ -616,6 +627,7 @@ func get_snapshot() -> Dictionary:
 		"owns_combat_authority": false,
 		"registered_hostile_source_count": _registered_source_keys.size(),
 		"hostile_weapon_id": HOSTILE_WEAPON_ID,
+		"network_presentation_only": _network_presentation_only,
 		"last_hostile_shot": _last_hostile_shot.duplicate(true),
 		"last_leash_exit": _last_leash_exit.duplicate(true),
 		"later_wave_tactic": tactic_feedback,
@@ -1631,6 +1643,14 @@ func _on_hostile_projectile_fired(
 	direction: Vector3,
 	entity: RangeOpponent
 	) -> void:
+	if _network_presentation_only:
+		_last_hostile_shot = {
+			"accepted": false,
+			"resolved": false,
+			"status": &"client_projectile_authority_forbidden",
+		}.duplicate(true)
+		_publish_snapshot()
+		return
 	if _content_mutation_active \
 		or not _initialized \
 		or not is_instance_valid(entity) \
