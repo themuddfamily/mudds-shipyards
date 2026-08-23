@@ -6,6 +6,7 @@ extends RefCounted
 
 const Profile := preload("res://scripts/audio/fleet_expansion_audio_profile.gd")
 const ComponentDamageBinding := preload("res://scripts/audio/component_damage_audio_binding.gd")
+const BomberPayloadBinding := preload("res://scripts/audio/bomber_payload_audio_binding.gd")
 const RIG_PROFILE_BY_RECIPE := {
 	&"bulwark_heavy_gunship": &"heavy_quad_freighter",
 	&"cargo_craft": &"heavy_quad_freighter",
@@ -27,6 +28,9 @@ var _plan_apply_count := 0
 var _baseline_player_count := -1
 var _baseline_synthesis_generation := -1
 var _damage_binding: RefCounted
+var _payload_binding: Node
+
+signal semantic_engine_cue_emitted(cue_id: StringName, intensity: float)
 
 
 func bind(ship_id: StringName, rig: Node) -> Dictionary:
@@ -63,6 +67,26 @@ func bind(ship_id: StringName, rig: Node) -> Dictionary:
 		_profile_id = &""
 		_applied_plan.clear()
 		return _result(false, &"damage_binding_failed")
+	var payload_created := _payload_binding == null
+	if payload_created:
+		_payload_binding = BomberPayloadBinding.new()
+		_payload_binding.semantic_engine_cue_emitted.connect(_on_payload_engine_cue)
+	var payload_result: Dictionary = _payload_binding.attach(0 if payload_created else _generation)
+	if payload_created and bool(payload_result.get("accepted", false)):
+		for expected_generation in range(_generation):
+			_payload_binding.detach()
+			payload_result = _payload_binding.attach(expected_generation + 1)
+	if not bool(payload_result.get("accepted", false)):
+		_payload_binding.queue_free()
+		_payload_binding = null
+		_damage_binding.detach()
+		_damage_binding = null
+		_attached = false
+		_rig = null
+		_ship_id = &""
+		_profile_id = &""
+		_applied_plan.clear()
+		return _result(false, &"payload_binding_failed")
 	return _result(true, &"bound")
 
 
@@ -73,6 +97,8 @@ func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 		return _result(true, &"mix_unchanged")
 	_reduced_dynamic_range = enabled
 	_apply_plan()
+	if _payload_binding != null:
+		_payload_binding.set_reduced_dynamic_range(enabled)
 	return _result(true, &"mix_updated")
 
 
@@ -83,7 +109,11 @@ func detach() -> Dictionary:
 	_generation += 1
 	if _damage_binding != null:
 		_damage_binding.detach()
-	_damage_binding = null
+		_damage_binding = null
+	if _payload_binding != null:
+		_payload_binding.detach()
+		_payload_binding.free()
+		_payload_binding = null
 	_rig = null
 	_ship_id = &""
 	_profile_id = &""
@@ -105,6 +135,7 @@ func get_snapshot() -> Dictionary:
 		"plan_build_count": _plan_build_count,
 		"plan_apply_count": _plan_apply_count,
 		"component_damage": _damage_binding.get_snapshot() if _damage_binding != null else {},
+		"payload_audio": _payload_binding.get_snapshot() if _payload_binding != null else {},
 		"audit": get_audit(),
 		"authority": {"flight": false, "engine_state": false, "audio_playback": false},
 	}.duplicate(true)
@@ -114,6 +145,18 @@ func present_component_damage(snapshot: Dictionary) -> Dictionary:
 	if _damage_binding == null:
 		return _result(false, &"not_bound")
 	return _damage_binding.present_damage_snapshot(snapshot)
+
+
+func present_payload_release(record: Dictionary) -> Dictionary:
+	if _ship_id != &"bomber" or _payload_binding == null:
+		return _result(false, &"payload_audio_not_supported")
+	return _payload_binding.present_release_record(record)
+
+
+func present_payload_abort(record: Dictionary) -> Dictionary:
+	if _ship_id != &"bomber" or _payload_binding == null:
+		return _result(false, &"payload_audio_not_supported")
+	return _payload_binding.present_abort_record(record)
 
 
 func _apply_plan() -> void:
@@ -155,6 +198,10 @@ func get_audit() -> Dictionary:
 		"baseline_synthesis_generation": _baseline_synthesis_generation,
 		"current_synthesis_generation": current_synthesis_generation,
 	}.duplicate(true)
+
+
+func _on_payload_engine_cue(cue_id: StringName, intensity: float) -> void:
+	semantic_engine_cue_emitted.emit(cue_id, intensity)
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
