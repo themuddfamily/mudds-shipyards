@@ -10,6 +10,7 @@ extends Node
 ## or decides which world/profile is current.
 
 signal state_committed(reason: StringName, snapshot: Dictionary)
+signal semantic_surface_cue_emitted(cue_id: StringName, intensity: float)
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"planetary-surface-audio-playback-binding"
@@ -30,6 +31,7 @@ const WIND_BASE_GAIN_DB := -9.0
 const ENTRY_MAX_GAIN_DB := 3.0
 const MAX_GAIN_DB := 24.0
 const MIN_AUDIBLE_LINEAR := 0.0001
+const SEMANTIC_THRESHOLD := 0.25
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const DETACH_REASONS: Array[StringName] = [
 	&"caller_detached",
@@ -121,6 +123,9 @@ var _accepted_submission_count := 0
 var _revision := 0
 var _mutation_active := false
 var _signal_dispatch_active := false
+var _last_semantic_wind := 0.0
+var _last_semantic_entry := 0.0
+var _last_semantic_interior := false
 var _lifecycle_active := false
 
 
@@ -304,6 +309,7 @@ func present_policy_result(
 		_commit(&"playback_backend_failed")
 		return _result(false, &"playback_backend_failed")
 	_accepted_submission_count += 1
+	_emit_semantic_surface_cues(targets)
 	_mutation_active = false
 	var reason: StringName = (
 		&"target_accepted" if before == _fade_value_snapshot() else &"fade_advanced"
@@ -777,6 +783,9 @@ func _reset_fade_state() -> void:
 	_target_intensity_unitless = 0.0
 	_wind_intensity_unitless = 0.0
 	_target_wind_intensity_unitless = 0.0
+	_last_semantic_wind = 0.0
+	_last_semantic_entry = 0.0
+	_last_semantic_interior = false
 	_entry_intensity_unitless = 0.0
 	_target_entry_intensity_unitless = 0.0
 	_exterior_gain_db = SILENCE_DB
@@ -858,6 +867,24 @@ func _wind_gain_db_for_intensity(intensity: float) -> float:
 	return SILENCE_DB if intensity <= 0.0 else minf(
 		WIND_BASE_GAIN_DB + linear_to_db(intensity), WIND_BASE_GAIN_DB
 	)
+
+
+func _emit_semantic_surface_cues(targets: Dictionary) -> void:
+	var wind := float(targets.get("wind_intensity_unitless", 0.0))
+	var entry := float(targets.get("entry_intensity_unitless", 0.0))
+	var interior := float(targets.get("route_mix_unitless", 0.0)) >= 1.0
+	if wind >= SEMANTIC_THRESHOLD and _last_semantic_wind < SEMANTIC_THRESHOLD:
+		semantic_surface_cue_emitted.emit(&"surface_wind_severe", wind)
+	if entry >= SEMANTIC_THRESHOLD and _last_semantic_entry < SEMANTIC_THRESHOLD:
+		semantic_surface_cue_emitted.emit(&"surface_entry_severe", entry)
+	if interior != _last_semantic_interior:
+		semantic_surface_cue_emitted.emit(
+			&"surface_cabin_entered" if interior else &"surface_cabin_exited",
+			1.0
+		)
+	_last_semantic_wind = wind
+	_last_semantic_entry = entry
+	_last_semantic_interior = interior
 
 
 func _entry_gain_db_for_intensity(intensity: float) -> float:
