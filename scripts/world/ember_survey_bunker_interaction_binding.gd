@@ -22,6 +22,10 @@ const ALCOVE_RUNTIME_NODE_COUNT := 7
 const ALCOVE_MESH_INSTANCE_COUNT := 3
 const ALCOVE_COLLISION_SHAPE_COUNT := 3
 const ALCOVE_TRIANGLE_COUNT := 36
+const WAYFINDING_READY_SCALE := Vector3(0.48, 1.9, 2.2)
+const WAYFINDING_COMPLETE_SCALE := Vector3(2.2, 0.22, 0.7)
+const WAYFINDING_READY_POSITION := Vector3(0.0, 1.1, 0.0)
+const WAYFINDING_COMPLETE_HEIGHT_M := 2.35
 
 var _host: Object
 var _host_generation := -1
@@ -41,6 +45,7 @@ var _response_center_body_local_m := Vector3.ZERO
 var _response_width_m := 0.0
 var _response_height_m := 0.0
 var _response_length_m := 0.0
+var _wayfinding_direction := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -225,6 +230,7 @@ func restore_persistence_snapshot(snapshot: Variant) -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
+	_apply_presentation()
 	return {
 		"configured": _configured,
 		"attached": _attached,
@@ -256,6 +262,7 @@ func get_snapshot() -> Dictionary:
 			"collision_shapes": ALCOVE_COLLISION_SHAPE_COUNT,
 			"triangles": ALCOVE_TRIANGLE_COUNT,
 		},
+		"wayfinding": _wayfinding_snapshot(),
 		"evidence": {
 			"content_class": &"NEW",
 			"status": &"modern_interpretation",
@@ -286,9 +293,17 @@ func _actor_is_current(actor: Node) -> bool:
 
 
 func _apply_presentation() -> void:
-	collision_layer = INTERACTION_LAYER if _configured and _attached else 0
+	var presentation_active := _presentation_is_current()
+	collision_layer = INTERACTION_LAYER if presentation_active else 0
 	if _marker != null:
-		_marker.visible = _configured and _attached
+		_marker.visible = presentation_active
+		if _completed:
+			_marker.position = _wayfinding_direction * ALCOVE_FRONT_CLEARANCE_M \
+				+ Vector3.UP * WAYFINDING_COMPLETE_HEIGHT_M
+			_marker.scale = WAYFINDING_COMPLETE_SCALE
+		else:
+			_marker.position = WAYFINDING_READY_POSITION
+			_marker.scale = WAYFINDING_READY_SCALE
 	if _material != null:
 		_material.albedo_color = Color(0.32, 0.86, 0.78, 1.0) if _completed \
 			else Color(0.95, 0.52, 0.18, 1.0)
@@ -311,6 +326,9 @@ func _build_completion_response(
 	direction.y = 0.0
 	var total_distance := direction.length()
 	direction /= total_distance
+	_wayfinding_direction = direction
+	if _marker != null:
+		_marker.basis = Basis.looking_at(direction, Vector3.UP)
 	_response_length_m = total_distance - ALCOVE_FRONT_CLEARANCE_M - ALCOVE_DOOR_CLEARANCE_M
 	_response_width_m = corridor_width_m
 	_response_height_m = headroom_m
@@ -368,7 +386,44 @@ func _add_alcove_part(part_name: String, size: Vector3, local_position: Vector3)
 
 
 func _response_is_active() -> bool:
-	return _configured and _attached and _completed
+	return _presentation_is_current() and _completed
+
+
+func _presentation_is_current() -> bool:
+	if not _configured or not _attached or _host == null or not is_instance_valid(_host):
+		return false
+	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	return int(_host.call(&"get_generation")) == _host_generation \
+		and int(_host.call(&"get_attachment_generation")) == _attachment_generation \
+		and bool(host_snapshot.get("attached", false)) \
+		and StringName(host_snapshot.get("phase_id", &"")) == &"on_foot"
+
+
+func _wayfinding_snapshot() -> Dictionary:
+	var visible := _marker != null and _marker.visible
+	return {
+		"visible": visible,
+		"state": (&"service_entry_lintel" if _completed else &"survey_access_blade") \
+			if visible else &"hidden",
+		"target_id": &"ember_survey_service_bunker_door",
+		"direction_body_local": _wayfinding_direction,
+		"marker_local_position": _marker.position if _marker != null else Vector3.ZERO,
+		"marker_scale": _marker.scale if _marker != null else Vector3.ONE,
+		"silhouette": &"elongated_directional_blade" if not _completed \
+			else &"overhead_service_entry_lintel",
+		"color_independent": true,
+		"gameplay_readability_distance_m": 24.0,
+		"reused_node": &"SurveyLogPedestal",
+		"host_generation": _host_generation,
+		"incremental_budget": {
+			"nodes": 0, "mesh_instances": 0, "materials": 0,
+			"triangles": 0, "collision_shapes": 0,
+		},
+		"authority": {
+			"navigation": false, "movement": false, "collision": false,
+			"activity": false, "reward": false,
+		},
+	}.duplicate(true)
 
 
 func _valid_generation(value: int) -> bool:
