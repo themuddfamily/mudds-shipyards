@@ -249,6 +249,7 @@ var _server_browser_page: Control
 var _server_browser_title: Label
 var _server_browser_detail: Label
 var _server_browser_feedback: Label
+var _server_browser_focus_target: Control
 var _server_browser_address: LineEdit
 var _server_browser_port: LineEdit
 var _server_browser_player_name: LineEdit
@@ -498,6 +499,8 @@ func _on_viewport_gui_focus_changed(control: Control) -> void:
 		_pause_reentry_focus_target = control
 		if _settings_page != null and _settings_page.visible and _settings_page.is_ancestor_of(control):
 			_settings_focus_target = control
+		if _server_browser_page != null and _server_browser_page.visible and _server_browser_page.is_ancestor_of(control):
+			_server_browser_focus_target = control
 
 
 func _input(event: InputEvent) -> void:
@@ -2997,7 +3000,19 @@ func _build_server_browser_page() -> void:
 	back.name = "ServerBrowserBackButton"
 	back.pressed.connect(_show_pause_main)
 	_server_browser_actions.add_child(back)
+	_configure_server_browser_focus_order(refresh, host, manual_join, back)
 	_server_browser_page.visible = false
+
+
+func _configure_server_browser_focus_order(
+	refresh: Control, host: Control, manual_join: Control, back: Control
+) -> void:
+	var ordered: Array[Control] = [_server_browser_address, _server_browser_port, _server_browser_player_name, refresh, host, manual_join, back]
+	for index in ordered.size():
+		var control := ordered[index]
+		control.focus_mode = Control.FOCUS_ALL
+		control.focus_neighbor_top = control.get_path_to(ordered[maxi(0, index - 1)])
+		control.focus_neighbor_bottom = control.get_path_to(ordered[mini(ordered.size() - 1, index + 1)])
 
 
 func _show_server_browser_page() -> void:
@@ -3005,9 +3020,16 @@ func _show_server_browser_page() -> void:
 	_activity_selection_page.visible = false
 	_settings_page.visible = false
 	_server_browser_page.visible = true
-	var refresh := _server_browser_page.find_child("ServerBrowserRefreshButton", true, false) as Button
-	if refresh != null:
-		refresh.grab_focus()
+	var target := _server_browser_focus_target
+	if (
+		not is_instance_valid(target)
+		or not _server_browser_page.is_ancestor_of(target)
+		or not target.is_visible_in_tree()
+		or target.focus_mode == Control.FOCUS_NONE
+	):
+		target = _server_browser_page.find_child("ServerBrowserRefreshButton", true, false) as Button
+	if target != null:
+		target.grab_focus()
 
 
 ## Applies a caller-owned discovery result to the pause browser surface. The
