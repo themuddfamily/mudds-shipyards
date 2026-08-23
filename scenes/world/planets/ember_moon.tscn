@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3 uid="uid://dtembermoonworld"]
+[gd_scene load_steps=47 format=3 uid="uid://dtembermoonworld"]
 
 [ext_resource type="Script" path="res://scripts/world/ember_moon_authored_scene.gd" id="1_scene"]
 
@@ -157,6 +157,56 @@ size = Vector3(2.6, 0.45, 1.2)
 
 [sub_resource type="BoxShape3D" id="BoxShape_gantry_sensor"]
 size = Vector3(2.6, 0.45, 1.2)
+
+[sub_resource type="StandardMaterial3D" id="Material_bunker_shell"]
+shading_mode = 0
+albedo_color = Color(0.435294, 0.34902, 0.27451, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Material_bunker_door"]
+shading_mode = 0
+albedo_color = Color(0.741176, 0.458824, 0.278431, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="Box_bunker_base"]
+material = SubResource("Material_derelict_alloy")
+size = Vector3(9, 0.4, 7)
+
+[sub_resource type="BoxShape3D" id="BoxShape_bunker_base"]
+size = Vector3(9, 0.4, 7)
+
+[sub_resource type="BoxMesh" id="Box_bunker_shell"]
+material = SubResource("Material_bunker_shell")
+size = Vector3(7.4, 2.8, 5.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape_bunker_shell"]
+size = Vector3(7.4, 2.8, 5.6)
+
+[sub_resource type="BoxMesh" id="Box_bunker_roof"]
+material = SubResource("Material_derelict_alloy")
+size = Vector3(8.4, 0.5, 6.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape_bunker_roof"]
+size = Vector3(8.4, 0.5, 6.6)
+
+[sub_resource type="BoxMesh" id="Box_bunker_door"]
+material = SubResource("Material_bunker_door")
+size = Vector3(0.3, 2.1, 2.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape_bunker_door"]
+size = Vector3(0.3, 2.1, 2.2)
+
+[sub_resource type="CylinderMesh" id="Cylinder_bunker_vent"]
+material = SubResource("Material_derelict_alloy")
+top_radius = 0.28
+bottom_radius = 0.28
+height = 1.1
+radial_segments = 12
+rings = 1
+
+[sub_resource type="CylinderShape3D" id="CylinderShape_bunker_vent"]
+radius = 0.28
+height = 1.1
 
 [node name="EmberMoon" type="Node3D"]
 script = ExtResource("1_scene")
@@ -422,6 +472,84 @@ position = Vector3(0.36, 10.95, -1.9)
 rotation = Vector3(-0.12, 0, 0)
 shape = SubResource("BoxShape_gantry_sensor")
 
+[node name="SurveyServiceBunker" type="StaticBody3D" parent="LandingRegion/SurfaceLandmarks"]
+position = Vector3(-24, 0, -24)
+rotation = Vector3(0, -0.785398, 0)
+collision_layer = 1
+collision_mask = 0
+metadata/landmark_id = &"ember_survey_service_bunker"
+metadata/content_class = &"NEW"
+metadata/status = &"modern_interpretation"
+metadata/solid_visual_collision = true
+metadata/historical_geometry_authenticated = false
+metadata/evidence_note = "Original airless survey service-bunker interpretation; no authenticated historical geometry."
+
+[node name="BaseVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(0, 0.2, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_bunker_base")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="BaseCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(0, 0.2, 0)
+shape = SubResource("BoxShape_bunker_base")
+
+[node name="ShellVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(0, 1.75, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_bunker_shell")
+material_override = SubResource("Material_bunker_shell")
+
+[node name="ShellCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(0, 1.75, 0)
+shape = SubResource("BoxShape_bunker_shell")
+
+[node name="RoofVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(0, 3.4, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_bunker_roof")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="RoofCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(0, 3.4, 0)
+shape = SubResource("BoxShape_bunker_roof")
+
+[node name="DoorVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(3.82, 1.55, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_bunker_door")
+material_override = SubResource("Material_bunker_door")
+
+[node name="DoorCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(3.82, 1.55, 0)
+shape = SubResource("BoxShape_bunker_door")
+
+[node name="PortVentVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(-2, 4.2, -1.6)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Cylinder_bunker_vent")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="PortVentCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(-2, 4.2, -1.6)
+shape = SubResource("CylinderShape_bunker_vent")
+
+[node name="StarboardVentVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(-2, 4.2, 1.6)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Cylinder_bunker_vent")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="StarboardVentCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/SurveyServiceBunker"]
+position = Vector3(-2, 4.2, 1.6)
+shape = SubResource("CylinderShape_bunker_vent")
+
 [node name="RouteMarkers" type="Node3D" parent="LandingRegion/SurfaceLandmarks"]
 
 [node name="PadGuidanceThreshold" type="Marker3D" parent="LandingRegion/SurfaceLandmarks/RouteMarkers"]
@@ -439,3 +567,7 @@ metadata/marker_id = &"ember_staging_relay_access"
 [node name="DerelictSurveyGantryAccess" type="Marker3D" parent="LandingRegion/SurfaceLandmarks/RouteMarkers"]
 position = Vector3(34, 0, -7)
 metadata/marker_id = &"ember_derelict_survey_gantry_access"
+
+[node name="SurveyServiceBunkerAccess" type="Marker3D" parent="LandingRegion/SurfaceLandmarks/RouteMarkers"]
+position = Vector3(-17.5, 0, -17.5)
+metadata/marker_id = &"ember_survey_service_bunker_access"

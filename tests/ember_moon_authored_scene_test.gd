@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 53
+const EXPECTED_ASSERTIONS := 55
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -71,12 +71,12 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 50
-			and audit.performance.mesh_instances == 15
+		audit.performance.node_count == 64
+			and audit.performance.mesh_instances == 21
 			and audit.performance.multi_mesh_instances == 3
 			and audit.performance.multi_mesh_copies == 13
-			and audit.performance.static_bodies == 6
-			and audit.performance.collision_shapes == 13
+			and audit.performance.static_bodies == 7
+			and audit.performance.collision_shapes == 19
 			and audit.performance.triangle_count <= 8192,
 		"live topology and primitive triangles stay inside the exact bounded budget",
 	)
@@ -128,21 +128,23 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 			"ember_pad_guidance_starboard",
 			"ember_sample_rack",
 			"ember_staging_relay",
+			"ember_survey_service_bunker",
 		]),
 		"surface snapshot publishes the exact stable modern landmark roster",
 	)
 	var surface_markers := scene.get_surface_landmark_marker_transforms()
 	_check(
-		surface_markers.size() == 4
+		surface_markers.size() == 5
 			and (surface_markers.ember_pad_guidance_threshold as Transform3D).origin == Vector3(14.0, 120_000.0, 0.0)
 			and (surface_markers.ember_sample_rack_access as Transform3D).origin == Vector3(28.0, 120_000.0, -4.8)
 			and (surface_markers.ember_staging_relay_access as Transform3D).origin == Vector3(42.0, 120_000.0, 4.4)
-			and (surface_markers.ember_derelict_survey_gantry_access as Transform3D).origin == Vector3(34.0, 120_000.0, -7.0),
-		"four stable access markers compose through the body-local landing frame",
+			and (surface_markers.ember_derelict_survey_gantry_access as Transform3D).origin == Vector3(34.0, 120_000.0, -7.0)
+			and (surface_markers.ember_survey_service_bunker_access as Transform3D).origin == Vector3(-17.5, 120_000.0, -17.5),
+		"five stable access markers compose through the body-local landing frame",
 	)
 	surface_markers.clear()
 	_check(
-		scene.get_surface_landmark_marker_transforms().size() == 4,
+		scene.get_surface_landmark_marker_transforms().size() == 5,
 		"returned surface-landmark marker dictionaries are detached",
 	)
 	var route_visual := scene.get_node(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
@@ -172,6 +174,27 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 			and not bool(gantry.get_meta("historical_geometry_authenticated", true))
 			and not str(gantry.get_meta("evidence_note", "")).is_empty(),
 		"the derelict is explicitly a modern interpretation with no historical-geometry claim",
+	)
+	var bunker := scene.get_node(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker") as StaticBody3D
+	var bunker_shell := bunker.get_node_or_null(^"ShellVisual") as MeshInstance3D if bunker != null else null
+	var bunker_door := bunker.get_node_or_null(^"DoorVisual") as MeshInstance3D if bunker != null else null
+	_check(
+		bunker != null and bunker.position == Vector3(-24.0, 0.0, -24.0)
+			and bunker_shell != null and (bunker_shell.mesh as BoxMesh).size == Vector3(7.4, 2.8, 5.6)
+			and bunker_door != null and (bunker_door.mesh as BoxMesh).size == Vector3(0.3, 2.1, 2.2)
+			and snapshot.geometry.survey_bunker_footprint_m == Vector2(9.0, 7.0)
+			and is_equal_approx(float(snapshot.geometry.survey_bunker_height_m), 4.75)
+			and float(snapshot.geometry.survey_bunker_minimum_pad_clearance_m) >= 2.3,
+		"the low survey bunker is a distinct on-foot landmark outside the landing-pad footprint",
+	)
+	_check(
+		bunker != null
+			and StringName(bunker.get_meta("landmark_id", &"")) == &"ember_survey_service_bunker"
+			and StringName(bunker.get_meta("content_class", &"")) == &"NEW"
+			and StringName(bunker.get_meta("status", &"")) == &"modern_interpretation"
+			and not bool(bunker.get_meta("historical_geometry_authenticated", true))
+			and not str(bunker.get_meta("evidence_note", "")).is_empty(),
+		"the service bunker is explicitly modern authored content with no historical-geometry claim",
 	)
 	var cues := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/LandingApproachCues"
@@ -297,6 +320,7 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 		^"LandingRegion/SurfaceLandmarks/SampleRack",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker",
 	]
 	var solid_centres := [
 		Vector3(14.8, 120_003.0, -5.0),
@@ -304,6 +328,7 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 		Vector3(28.0, 120_003.0, -7.0),
 		Vector3(42.0, 120_005.0, 7.0),
 		Vector3(34.0, 120_009.0, -5.2),
+		Vector3(-24.0, 120_006.0, -24.0),
 	]
 	var all_solids_collide := true
 	for index in landmark_paths.size():
@@ -312,7 +337,7 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 		all_solids_collide = all_solids_collide \
 			and expected_body != null and not hit.is_empty() \
 			and hit.collider == expected_body
-	_check(all_solids_collide, "every visually solid guide, rack, relay, and gantry owns matching World collision")
+	_check(all_solids_collide, "every visually solid guide, rack, relay, gantry, and bunker owns matching World collision")
 	var corridor_clear := true
 	for x in [14.8, 28.0, 34.0, 42.0]:
 		var route_hit := _ray_hit(space, Vector3(x, 120_002.0, 0.0))
@@ -321,10 +346,10 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 	_check(corridor_clear, "negative-space probes hit only the walkable patch through every landmark station")
 	var collision_snapshot := scene.get_snapshot().collision as Dictionary
 	_check(
-		int(collision_snapshot.landmark_static_body_count) == 5
-			and int(collision_snapshot.solid_landmark_collision_shape_count) == 12
+		int(collision_snapshot.landmark_static_body_count) == 6
+			and int(collision_snapshot.solid_landmark_collision_shape_count) == 18
 			and is_equal_approx(float(collision_snapshot.route_clear_half_width_m), 2.0),
-		"surface collision snapshot freezes five landmark bodies and twelve solid shapes",
+		"surface collision snapshot freezes six landmark bodies and eighteen solid shapes",
 	)
 
 

@@ -84,6 +84,23 @@ const GANTRY_SENSOR_POSITION_M := Vector3(0.36, 10.95, -1.9)
 const GANTRY_SENSOR_TILT_RADIANS := -0.12
 const GANTRY_ACCESS_POSITION_M := Vector3(34.0, 0.0, -7.0)
 const GANTRY_PYLON_MIN_ROUTE_CLEARANCE_M := 4.2
+const BUNKER_ROOT_POSITION_M := Vector3(-24.0, 0.0, -24.0)
+const BUNKER_YAW_RADIANS := -PI * 0.25
+const BUNKER_BASE_SIZE_M := Vector3(9.0, 0.4, 7.0)
+const BUNKER_BASE_POSITION_M := Vector3(0.0, 0.2, 0.0)
+const BUNKER_SHELL_SIZE_M := Vector3(7.4, 2.8, 5.6)
+const BUNKER_SHELL_POSITION_M := Vector3(0.0, 1.75, 0.0)
+const BUNKER_ROOF_SIZE_M := Vector3(8.4, 0.5, 6.6)
+const BUNKER_ROOF_POSITION_M := Vector3(0.0, 3.4, 0.0)
+const BUNKER_DOOR_SIZE_M := Vector3(0.3, 2.1, 2.2)
+const BUNKER_DOOR_POSITION_M := Vector3(3.82, 1.55, 0.0)
+const BUNKER_VENT_RADIUS_M := 0.28
+const BUNKER_VENT_HEIGHT_M := 1.1
+const BUNKER_PORT_VENT_POSITION_M := Vector3(-2.0, 4.2, -1.6)
+const BUNKER_STARBOARD_VENT_POSITION_M := Vector3(-2.0, 4.2, 1.6)
+const BUNKER_ACCESS_POSITION_M := Vector3(-17.5, 0.0, -17.5)
+const BUNKER_MIN_PAD_CLEARANCE_M := 2.3
+const BUNKER_MIN_ROUTE_CLEARANCE_M := 18.3
 
 const BODY_COLOR := Color("552817")
 const FLOOR_COLOR := Color("292421")
@@ -95,13 +112,15 @@ const EQUIPMENT_COLOR := Color("4f4942")
 const RELAY_COLOR := Color("e1a458")
 const DERELICT_ALLOY_COLOR := Color("353a38")
 const DERELICT_OXIDE_COLOR := Color("8c462c")
+const BUNKER_SHELL_COLOR := Color("6f5946")
+const BUNKER_DOOR_COLOR := Color("bd7547")
 
-const EXPECTED_NODE_COUNT := 50
-const EXPECTED_MESH_INSTANCE_COUNT := 15
+const EXPECTED_NODE_COUNT := 64
+const EXPECTED_MESH_INSTANCE_COUNT := 21
 const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 3
 const EXPECTED_MULTI_MESH_COPY_COUNT := 13
-const EXPECTED_STATIC_BODY_COUNT := 6
-const EXPECTED_COLLISION_SHAPE_COUNT := 13
+const EXPECTED_STATIC_BODY_COUNT := 7
+const EXPECTED_COLLISION_SHAPE_COUNT := 19
 const MAXIMUM_TRIANGLE_COUNT := 8192
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const WORLD_MASK := PhysicsLayers.WORLD_BODY_MASK
@@ -118,12 +137,14 @@ const SURFACE_LANDMARK_NODE_PATHS := {
 	&"ember_sample_rack": ^"LandingRegion/SurfaceLandmarks/SampleRack",
 	&"ember_staging_relay": ^"LandingRegion/SurfaceLandmarks/StagingRelay",
 	&"ember_derelict_survey_gantry": ^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry",
+	&"ember_survey_service_bunker": ^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker",
 }
 const SURFACE_MARKER_NODE_PATHS := {
 	&"ember_pad_guidance_threshold": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold",
 	&"ember_sample_rack_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/SampleRackAccess",
 	&"ember_staging_relay_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess",
 	&"ember_derelict_survey_gantry_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/DerelictSurveyGantryAccess",
+	&"ember_survey_service_bunker_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/SurveyServiceBunkerAccess",
 }
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
@@ -262,6 +283,10 @@ func get_snapshot() -> Dictionary:
 			"derelict_gantry_height_m": GANTRY_SENSOR_POSITION_M.y + GANTRY_SENSOR_SIZE_M.y * 0.5,
 			"derelict_gantry_span_m": GANTRY_STARBOARD_PYLON_POSITION_M.z
 				- GANTRY_PORT_PYLON_POSITION_M.z + GANTRY_PYLON_SIZE_M.z,
+			"survey_bunker_position_m": BUNKER_ROOT_POSITION_M,
+			"survey_bunker_footprint_m": Vector2(BUNKER_BASE_SIZE_M.x, BUNKER_BASE_SIZE_M.z),
+			"survey_bunker_height_m": BUNKER_PORT_VENT_POSITION_M.y + BUNKER_VENT_HEIGHT_M * 0.5,
+			"survey_bunker_minimum_pad_clearance_m": BUNKER_MIN_PAD_CLEARANCE_M,
 		},
 		"collision": {
 			"shape": &"box",
@@ -270,8 +295,8 @@ func get_snapshot() -> Dictionary:
 			"top_surface_region_local_y_m": 0.0,
 			"layer": WORLD_LAYER,
 			"mask": WORLD_MASK,
-			"landmark_static_body_count": 5,
-			"solid_landmark_collision_shape_count": 12,
+			"landmark_static_body_count": 6,
+			"solid_landmark_collision_shape_count": 18,
 			"route_clear_half_width_m": SURFACE_ROUTE_WIDTH_M * 0.5,
 		},
 		"terrain_lod_policy": lod_snapshot,
@@ -412,11 +437,25 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/SensorBoomCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker": "StaticBody3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/BaseVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/BaseCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/ShellVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/ShellCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/RoofVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/RoofCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/PortVentVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/PortVentCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/StarboardVentVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/StarboardVentCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers": "Node3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/SampleRackAccess": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/DerelictSurveyGantryAccess": "Marker3D",
+		^"LandingRegion/SurfaceLandmarks/RouteMarkers/SurveyServiceBunkerAccess": "Marker3D",
 	}
 	for path: NodePath in expected:
 		var node := get_node_or_null(path)
@@ -431,14 +470,16 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 	var route_markers := get_node_or_null(^"LandingRegion/SurfaceLandmarks/RouteMarkers")
 	var relay := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay")
 	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry")
+	var bunker := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker")
 	if get_child_count() != 2 \
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
-			or landmarks == null or landmarks.get_child_count() != 10 \
-			or route_markers == null or route_markers.get_child_count() != 4 \
+			or landmarks == null or landmarks.get_child_count() != 11 \
+			or route_markers == null or route_markers.get_child_count() != 5 \
 			or relay == null or relay.get_child_count() != 6 \
-			or gantry == null or gantry.get_child_count() != 12:
+			or gantry == null or gantry.get_child_count() != 12 \
+			or bunker == null or bunker.get_child_count() != 12:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
 
 
@@ -467,6 +508,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var relay_mast := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual") as MeshInstance3D
 	var relay_head := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual") as MeshInstance3D
 	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
+	var bunker := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker") as StaticBody3D
 	var body_mesh := body.mesh as SphereMesh if body != null else null
 	var floor_mesh := floor.mesh as CylinderMesh if floor != null else null
 	var rim_mesh := rim.mesh as TorusMesh if rim != null else null
@@ -515,6 +557,8 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		_append_error(errors, &"staging_relay_visual_drift", &"StagingRelay", "solid staging-relay recipe drifted")
 	if not _derelict_gantry_geometry_is_exact(gantry):
 		_append_error(errors, &"derelict_gantry_visual_drift", &"DerelictSurveyGantry", "derelict survey-gantry silhouette or passive material recipe drifted")
+	if not _survey_bunker_geometry_is_exact(bunker):
+		_append_error(errors, &"survey_bunker_visual_drift", &"SurveyServiceBunker", "survey service-bunker silhouette or passive material recipe drifted")
 	var material_specs := {
 		body: BODY_COLOR,
 		floor: FLOOR_COLOR,
@@ -530,6 +574,11 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		for node_name in [&"PortPylonVisual", &"StarboardPylonVisual", &"PortBeamVisual", &"StarboardBeamVisual", &"SensorBoomVisual"]:
 			material_specs[gantry.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = DERELICT_ALLOY_COLOR
 		material_specs[gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D] = DERELICT_OXIDE_COLOR
+	if bunker != null:
+		for node_name in [&"BaseVisual", &"RoofVisual", &"PortVentVisual", &"StarboardVentVisual"]:
+			material_specs[bunker.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = DERELICT_ALLOY_COLOR
+		material_specs[bunker.get_node_or_null(^"ShellVisual") as MeshInstance3D] = BUNKER_SHELL_COLOR
+		material_specs[bunker.get_node_or_null(^"DoorVisual") as MeshInstance3D] = BUNKER_DOOR_COLOR
 	for instance: MeshInstance3D in material_specs:
 		var material := instance.material_override as StandardMaterial3D if instance != null else null
 		if material == null \
@@ -550,6 +599,18 @@ func _derelict_gantry_geometry_is_exact(gantry: StaticBody3D) -> bool:
 		and _box_visual_is_exact(gantry, &"StarboardBeamVisual", GANTRY_BEAM_SIZE_M, GANTRY_STARBOARD_BEAM_POSITION_M, GANTRY_STARBOARD_BEAM_TILT_RADIANS) \
 		and _cylinder_visual_is_exact(gantry, &"SensorBoomVisual", GANTRY_BOOM_RADIUS_M, GANTRY_BOOM_HEIGHT_M, GANTRY_BOOM_POSITION_M, GANTRY_BOOM_TILT_RADIANS) \
 		and _box_visual_is_exact(gantry, &"DeadSensorVisual", GANTRY_SENSOR_SIZE_M, GANTRY_SENSOR_POSITION_M, GANTRY_SENSOR_TILT_RADIANS)
+
+
+func _survey_bunker_geometry_is_exact(bunker: StaticBody3D) -> bool:
+	if bunker == null or bunker.position != BUNKER_ROOT_POSITION_M \
+			or not bunker.rotation.is_equal_approx(Vector3(0.0, BUNKER_YAW_RADIANS, 0.0)):
+		return false
+	return _box_visual_is_exact(bunker, &"BaseVisual", BUNKER_BASE_SIZE_M, BUNKER_BASE_POSITION_M, 0.0) \
+		and _box_visual_is_exact(bunker, &"ShellVisual", BUNKER_SHELL_SIZE_M, BUNKER_SHELL_POSITION_M, 0.0) \
+		and _box_visual_is_exact(bunker, &"RoofVisual", BUNKER_ROOF_SIZE_M, BUNKER_ROOF_POSITION_M, 0.0) \
+		and _box_visual_is_exact(bunker, &"DoorVisual", BUNKER_DOOR_SIZE_M, BUNKER_DOOR_POSITION_M, 0.0) \
+		and _cylinder_visual_is_exact(bunker, &"PortVentVisual", BUNKER_VENT_RADIUS_M, BUNKER_VENT_HEIGHT_M, BUNKER_PORT_VENT_POSITION_M, 0.0) \
+		and _cylinder_visual_is_exact(bunker, &"StarboardVentVisual", BUNKER_VENT_RADIUS_M, BUNKER_VENT_HEIGHT_M, BUNKER_STARBOARD_VENT_POSITION_M, 0.0)
 
 
 func _box_visual_is_exact(
@@ -600,6 +661,7 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/SampleRack": SAMPLE_RACK_POSITION_M,
 		^"LandingRegion/SurfaceLandmarks/StagingRelay": RELAY_ROOT_POSITION_M,
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry": GANTRY_ROOT_POSITION_M,
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker": BUNKER_ROOT_POSITION_M,
 	}
 	for body_path: NodePath in body_specs:
 		var landmark_body := get_node_or_null(body_path) as StaticBody3D
@@ -633,6 +695,9 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
 	if not _derelict_gantry_collision_is_exact(gantry):
 		_append_error(errors, &"derelict_gantry_collision_drift", &"DerelictSurveyGantry", "derelict gantry visual-solid collision recipe drifted")
+	var bunker := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker") as StaticBody3D
+	if not _survey_bunker_collision_is_exact(bunker):
+		_append_error(errors, &"survey_bunker_collision_drift", &"SurveyServiceBunker", "survey bunker visual-solid collision recipe drifted")
 
 
 func _derelict_gantry_collision_is_exact(gantry: StaticBody3D) -> bool:
@@ -644,6 +709,17 @@ func _derelict_gantry_collision_is_exact(gantry: StaticBody3D) -> bool:
 		and _box_collision_is_exact(gantry, &"StarboardBeamCollision", GANTRY_BEAM_SIZE_M, GANTRY_STARBOARD_BEAM_POSITION_M, GANTRY_STARBOARD_BEAM_TILT_RADIANS) \
 		and _cylinder_collision_is_exact(gantry, &"SensorBoomCollision", GANTRY_BOOM_RADIUS_M, GANTRY_BOOM_HEIGHT_M, GANTRY_BOOM_POSITION_M, GANTRY_BOOM_TILT_RADIANS) \
 		and _box_collision_is_exact(gantry, &"DeadSensorCollision", GANTRY_SENSOR_SIZE_M, GANTRY_SENSOR_POSITION_M, GANTRY_SENSOR_TILT_RADIANS)
+
+
+func _survey_bunker_collision_is_exact(bunker: StaticBody3D) -> bool:
+	if bunker == null:
+		return false
+	return _box_collision_is_exact(bunker, &"BaseCollision", BUNKER_BASE_SIZE_M, BUNKER_BASE_POSITION_M, 0.0) \
+		and _box_collision_is_exact(bunker, &"ShellCollision", BUNKER_SHELL_SIZE_M, BUNKER_SHELL_POSITION_M, 0.0) \
+		and _box_collision_is_exact(bunker, &"RoofCollision", BUNKER_ROOF_SIZE_M, BUNKER_ROOF_POSITION_M, 0.0) \
+		and _box_collision_is_exact(bunker, &"DoorCollision", BUNKER_DOOR_SIZE_M, BUNKER_DOOR_POSITION_M, 0.0) \
+		and _cylinder_collision_is_exact(bunker, &"PortVentCollision", BUNKER_VENT_RADIUS_M, BUNKER_VENT_HEIGHT_M, BUNKER_PORT_VENT_POSITION_M, 0.0) \
+		and _cylinder_collision_is_exact(bunker, &"StarboardVentCollision", BUNKER_VENT_RADIUS_M, BUNKER_VENT_HEIGHT_M, BUNKER_STARBOARD_VENT_POSITION_M, 0.0)
 
 
 func _box_collision_is_exact(parent: Node, child_name: StringName, size: Vector3, position: Vector3, rotation_x: float) -> bool:
@@ -683,6 +759,11 @@ func _validate_surface_content(errors: Array[Dictionary]) -> void:
 			or bool(gantry.get_meta("historical_geometry_authenticated", true)) \
 			or str(gantry.get_meta("evidence_note", "")).is_empty():
 		_append_error(errors, &"derelict_gantry_evidence_drift", &"ember_derelict_survey_gantry", "modern derelict interpretation must not claim historical geometry")
+	var bunker := get_node_or_null(SURFACE_LANDMARK_NODE_PATHS[&"ember_survey_service_bunker"]) as StaticBody3D
+	if bunker == null \
+			or bool(bunker.get_meta("historical_geometry_authenticated", true)) \
+			or str(bunker.get_meta("evidence_note", "")).is_empty():
+		_append_error(errors, &"survey_bunker_evidence_drift", &"ember_survey_service_bunker", "modern survey bunker interpretation must not claim historical geometry")
 	for marker_id: StringName in SURFACE_MARKER_NODE_PATHS:
 		var marker := get_node_or_null(SURFACE_MARKER_NODE_PATHS[marker_id]) as Marker3D
 		if marker == null \
@@ -704,11 +785,16 @@ func _validate_surface_content(errors: Array[Dictionary]) -> void:
 		absf(SAMPLE_RACK_POSITION_M.z) - SAMPLE_RACK_SIZE_M.z * 0.5,
 		absf(RELAY_ROOT_POSITION_M.z) - RELAY_BASE_SIZE_M.z * 0.5,
 		GANTRY_PYLON_MIN_ROUTE_CLEARANCE_M,
+		BUNKER_MIN_ROUTE_CLEARANCE_M,
 	])
 	for clearance: float in solid_clearances:
 		if clearance <= SURFACE_ROUTE_WIDTH_M * 0.5 + 0.38:
 			_append_error(errors, &"surface_route_obstructed", SURFACE_ROUTE_ID, "solid landmark intrudes into production Player clearance")
 			break
+	var rotated_base_half_extent := (BUNKER_BASE_SIZE_M.x + BUNKER_BASE_SIZE_M.z) * 0.5 * sqrt(0.5)
+	if BUNKER_ROOT_POSITION_M.z + rotated_base_half_extent \
+			> -PAD_VISUAL_SIZE_M.z * 0.5 - BUNKER_MIN_PAD_CLEARANCE_M:
+		_append_error(errors, &"survey_bunker_pad_clearance_drift", &"ember_survey_service_bunker", "survey bunker must remain outside the landing-pad footprint and clearance")
 
 
 func _validate_forbidden_nodes(errors: Array[Dictionary]) -> void:
@@ -1077,6 +1163,8 @@ static func _expected_surface_marker_transform(marker_id: StringName) -> Transfo
 			return Transform3D(Basis.IDENTITY, Vector3(42.0, 0.0, 4.4))
 		&"ember_derelict_survey_gantry_access":
 			return Transform3D(Basis.IDENTITY, GANTRY_ACCESS_POSITION_M)
+		&"ember_survey_service_bunker_access":
+			return Transform3D(Basis.IDENTITY, BUNKER_ACCESS_POSITION_M)
 		_:
 			return Transform3D.IDENTITY
 
@@ -1091,7 +1179,7 @@ func _evidence_report() -> Dictionary:
 		"authenticated": false,
 		"space_backdrop_palette_inspiration_only": true,
 		"space_backdrop_physical_reuse": false,
-		"notes": "Original Ember Moon visual proxy, bounded static pad collision, traversable surface route, and modern landmarks including a derelict survey gantry; no historical or production-placement claim.",
+		"notes": "Original Ember Moon visual proxy, bounded static pad collision, traversable surface route, and modern landmarks including a derelict gantry and survey service bunker; no historical or production-placement claim.",
 	}.duplicate(true)
 
 
