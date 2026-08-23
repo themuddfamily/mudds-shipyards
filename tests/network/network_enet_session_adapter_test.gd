@@ -238,6 +238,22 @@ func _initialize() -> void:
 		_client.handoff_moving_interior_sample({}).get("status") == &"authority_required",
 		"client cannot mutate moving-interior occupancy or relationship state"
 	)
+	_check(
+		bool(_server.register_owned_ship(&"ownership-1", 1).get("accepted", false)),
+		"server registers an unowned ship generation"
+	)
+	_check(
+		bool(_server.claim_ship_for_peer(client_peer_id, &"ownership-1", 1, 0).get("accepted", false)),
+		"server claims the ship for the admitted peer"
+	)
+	_check(
+		_server.claim_ship_for_peer(client_peer_id, &"ownership-1", 1, 0).get("status") == &"stale_request_sequence",
+		"replayed ship ownership requests are rejected"
+	)
+	_check(
+		_client.claim_ship_for_peer(client_peer_id, &"ownership-1", 1, 1).get("status") == &"authority_required",
+		"client cannot mutate ship ownership"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -279,6 +295,10 @@ func _initialize() -> void:
 	_check(
 		_server.get_moving_interior_occupancy(&"avatar-1").is_empty(),
 		"server disconnect cleanup releases peer-owned interior occupancy"
+	)
+	_check(
+		int(_server.get_owned_ship(&"ownership-1").get("owner_peer_id", -1)) == 0,
+		"server disconnect cleanup releases peer-owned ship ownership"
 	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),

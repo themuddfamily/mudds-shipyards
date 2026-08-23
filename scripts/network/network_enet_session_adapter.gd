@@ -17,6 +17,7 @@ const ProjectileAuthority := preload("res://scripts/network/network_projectile_a
 const LandingAuthority := preload("res://scripts/network/network_landing_authority.gd")
 const DamageRespawnIntegration := preload("res://scripts/network/network_damage_respawn_integration.gd")
 const MovingInteriorAuthority := preload("res://scripts/network/network_moving_interior_authority.gd")
+const ShipOwnershipAuthority := preload("res://scripts/network/network_ship_ownership_authority.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -31,6 +32,7 @@ signal projectile_intent_result(result: Dictionary)
 signal landing_intent_result(result: Dictionary)
 signal damage_respawn_result(result: Dictionary)
 signal moving_interior_result(result: Dictionary)
+signal ship_ownership_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -45,6 +47,7 @@ var _projectile
 var _landing
 var _damage_respawn
 var _moving_interior
+var _ship_ownership
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -66,6 +69,7 @@ func _init() -> void:
 	_landing = LandingAuthority.new(AUTHORITY_PEER_ID)
 	_damage_respawn = DamageRespawnIntegration.new(AUTHORITY_PEER_ID)
 	_moving_interior = MovingInteriorAuthority.new(AUTHORITY_PEER_ID)
+	_ship_ownership = ShipOwnershipAuthority.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -138,6 +142,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 			if _moving_occupants.has(peer_id):
 				_moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
 				_moving_occupants.erase(peer_id)
+			_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -490,6 +495,78 @@ func get_moving_interior_occupancy(entity_id: StringName) -> Dictionary:
 	return _moving_interior.get_occupancy(entity_id)
 
 
+func register_owned_ship(
+	ship_id: StringName,
+	ship_generation: int,
+	owner_peer_id: int = 0
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if owner_peer_id > 0 and not _peer_generations.has(owner_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _ship_ownership.register_ship(
+		AUTHORITY_PEER_ID, ship_id, ship_generation, owner_peer_id
+	)
+	ship_ownership_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func claim_ship_for_peer(
+	claimant_peer_id: int,
+	ship_id: StringName,
+	ship_generation: int,
+	request_sequence: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(claimant_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _ship_ownership.claim(
+		AUTHORITY_PEER_ID, claimant_peer_id, ship_id, ship_generation, request_sequence
+	)
+	ship_ownership_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func transfer_owned_ship(
+	from_peer_id: int,
+	to_peer_id: int,
+	ship_id: StringName,
+	ship_generation: int,
+	request_sequence: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(from_peer_id) or not _peer_generations.has(to_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _ship_ownership.transfer(
+		AUTHORITY_PEER_ID, from_peer_id, to_peer_id, ship_id, ship_generation, request_sequence
+	)
+	ship_ownership_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func release_owned_ship(
+	owner_peer_id: int,
+	ship_id: StringName,
+	ship_generation: int,
+	request_sequence: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(owner_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _ship_ownership.release(
+		AUTHORITY_PEER_ID, owner_peer_id, ship_id, ship_generation, request_sequence
+	)
+	ship_ownership_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func get_owned_ship(ship_id: StringName) -> Dictionary:
+	return _ship_ownership.get_ship_snapshot(ship_id)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -663,6 +740,8 @@ func _on_peer_disconnected(peer_id: int) -> void:
 func _on_server_disconnected() -> void:
 	if not is_server():
 		shutdown(&"server_disconnected")
+
+
 
 
 func _result(accepted: bool, status: StringName, payload: Dictionary = {}) -> Dictionary:
