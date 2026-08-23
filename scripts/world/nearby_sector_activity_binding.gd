@@ -54,6 +54,7 @@ var _station_defense_snapshot_provider: Callable
 var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
+var _race_presentation_consumers: Array[Callable] = []
 var _mining_presentation_consumers: Array[Callable] = []
 var _structure_scan_presentation_consumers: Array[Callable] = []
 var _beacon_traversal_presentation_consumers: Array[Callable] = []
@@ -153,6 +154,7 @@ func _bind_audio_presentation_observers() -> void:
 
 
 func _clear_presentation_observers() -> void:
+	_race_presentation_consumers.clear()
 	_mining_presentation_consumers.clear()
 	_structure_scan_presentation_consumers.clear()
 	_beacon_traversal_presentation_consumers.clear()
@@ -423,6 +425,7 @@ func start_race() -> Dictionary:
 	var result: Dictionary = _race_session.start(_race_session.get_session_generation())
 	if bool(result.get("accepted", false)):
 		_last_race_feedback_reason = &""
+	_publish_race_presentation()
 	_publish_cinder_route_audio()
 	return result
 
@@ -431,6 +434,7 @@ func advance_race(delta: float) -> Dictionary:
 	if not is_inside_tree() or _race_session == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _race_session.advance_physics(delta, _race_session.get_session_generation())
+	_publish_race_presentation()
 	_publish_cinder_route_audio()
 	return result
 
@@ -445,6 +449,7 @@ func submit_race_position(position: Vector3) -> Dictionary:
 		&"" if bool(result.get("accepted", false))
 		else StringName(result.get("reason", &""))
 	)
+	_publish_race_presentation()
 	return result
 
 
@@ -454,6 +459,7 @@ func reset_race() -> Dictionary:
 	var result: Dictionary = _race_session.reset(_race_session.get_session_generation())
 	if bool(result.get("accepted", false)):
 		_last_race_feedback_reason = &""
+	_publish_race_presentation()
 	_publish_cinder_route_audio()
 	return result
 
@@ -787,6 +793,29 @@ func reset_mining_activity() -> Dictionary:
 	return result
 
 
+## Presentation-only observer seam for the existing retained Cinder race gates.
+## The timed race remains the sole checkpoint/order owner; consumers receive a
+## detached current snapshot on registration and after every race state commit.
+func bind_race_presentation(consumer: Callable) -> Dictionary:
+	return _bind_presentation_observer(
+		_race_presentation_consumers, consumer, _race_presentation_snapshot(), &"race"
+	)
+
+
+func unbind_race_presentation(consumer: Callable) -> Dictionary:
+	return _unbind_presentation_observer(
+		_race_presentation_consumers, consumer, &"race"
+	)
+
+
+func _publish_race_presentation() -> void:
+	if _race_session == null:
+		return
+	_publish_presentation_observers(
+		_race_presentation_consumers, _race_presentation_snapshot()
+	)
+
+
 ## Presentation-only observer seam. MiningActivity remains the sole state and
 ## reward-request owner; each bounded observer receives one detached current
 ## snapshot on registration and one detached snapshot after every state commit.
@@ -945,11 +974,13 @@ func _publish_beacon_traversal_presentation(authority_record: Dictionary = {}) -
 
 
 func get_presentation_observer_snapshot() -> Dictionary:
+	_prune_invalid_presentation_observers(_race_presentation_consumers)
 	_prune_invalid_presentation_observers(_mining_presentation_consumers)
 	_prune_invalid_presentation_observers(_structure_scan_presentation_consumers)
 	_prune_invalid_presentation_observers(_beacon_traversal_presentation_consumers)
 	return {
 		"observer_limit": PRESENTATION_OBSERVER_LIMIT,
+		"race_observers": _race_presentation_consumers.size(),
 		"mining_observers": _mining_presentation_consumers.size(),
 		"structure_scan_observers": _structure_scan_presentation_consumers.size(),
 		"beacon_traversal_observers": _beacon_traversal_presentation_consumers.size(),

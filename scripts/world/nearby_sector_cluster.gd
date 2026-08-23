@@ -89,6 +89,19 @@ const ROUTE_BEACON_SPECS: Array[Dictionary] = [
 	{"name": "RouteBeaconCharlie", "position": Vector3(46.0, -44.0, -498.0), "index": 3},
 	{"name": "RouteBeaconDelta", "position": Vector3(30.0, -46.0, -600.0), "index": 4},
 ]
+const RACE_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
+const RACE_CHECKPOINT_COUNT := 5
+const RACE_GATE_RING_CENTER := Vector3(0.0, 12.0, 0.0)
+const RACE_GATE_CLEARED_SCALE := Vector3.ONE * 0.72
+const RACE_GATE_PENDING_SCALE := Vector3.ONE * 0.84
+const RACE_GATE_NEXT_SCALE := Vector3.ONE * 1.28
+const RACE_GATE_MISSED_SIGNAL_SCALE := Vector3.ONE * 1.52
+const RACE_GATE_MISSED_TRIM_SCALE := Vector3.ONE * 0.64
+const RACE_GATE_COMPLETE_SCALE := Vector3.ONE * 1.22
+const RACE_GATE_MISSED_SIGNAL_POSITION := Vector3(0.0, 15.0, 0.0)
+const RACE_GATE_MISSED_TRIM_POSITION := Vector3(0.0, 9.0, 0.0)
+const RACE_GATE_COMPLETE_SIGNAL_POSITION := Vector3(0.0, 13.5, 0.0)
+const RACE_GATE_COMPLETE_TRIM_POSITION := Vector3(0.0, 10.5, 0.0)
 
 ## Debris field: an ellipsoid flattened in Y so it reads as a drift rather than a
 ## ball, centred on the platform.
@@ -295,6 +308,7 @@ var _cargo_destination_terminal: CargoTransferTerminal
 var _mining_presentation_snapshot: Dictionary = {}
 var _structure_scan_presentation_snapshot: Dictionary = {}
 var _beacon_traversal_presentation_snapshot: Dictionary = {}
+var _race_gate_presentation_snapshot: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -309,6 +323,10 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if not _built or not is_instance_valid(_activity_binding):
 		return
+	_activity_binding.call(
+		"unbind_race_presentation",
+		Callable(self, "_apply_race_gate_presentation")
+	)
 	_activity_binding.call(
 		"unbind_mining_presentation",
 		Callable(self, "_apply_mining_activity_presentation")
@@ -339,6 +357,10 @@ func _restore_cluster_enabled_after_reentry() -> void:
 			_cargo_access.get_attachment_generation()
 		)
 	_activity_binding.call(
+		"bind_race_presentation",
+		Callable(self, "_apply_race_gate_presentation")
+	)
+	_activity_binding.call(
 		"bind_mining_presentation",
 		Callable(self, "_apply_mining_activity_presentation")
 	)
@@ -364,6 +386,10 @@ func _ready() -> void:
 	_activity_binding.call(
 		"bind_beacon_traversal_presentation",
 		Callable(self, "_apply_beacon_traversal_activity_presentation")
+	)
+	_activity_binding.call(
+		"bind_race_presentation",
+		Callable(self, "_apply_race_gate_presentation")
 	)
 	_build_landmarks()
 	_build_debris_field()
@@ -539,6 +565,114 @@ func get_route_beacon_positions() -> Array[Vector3]:
 	for spec in ROUTE_BEACON_SPECS:
 		positions.append(spec["position"] as Vector3)
 	return positions
+
+
+## Maps only authority-produced race order and rejection state onto the retained
+## route rings. The fifth checkpoint remains the existing platform return; this
+## presenter neither creates a gate nor decides whether a ship passed one.
+func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
+	if StringName(snapshot.get("activity_id", &"")) != RACE_ACTIVITY_ID:
+		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
+	var generation := int(snapshot.get("session_generation", -1))
+	var state_id := StringName(snapshot.get("state_id", &""))
+	var next_checkpoint := int(snapshot.get("next_checkpoint_index", -1))
+	var checkpoint_count := int(snapshot.get("checkpoint_count", -1))
+	if generation < 0 or state_id not in [
+		&"idle", &"countdown", &"active", &"completed", &"failed"
+	] or next_checkpoint < 0 or next_checkpoint > checkpoint_count \
+			or checkpoint_count != RACE_CHECKPOINT_COUNT:
+		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
+	var route_root := get_node_or_null(^"RouteBeacons") as Node3D
+	if route_root == null:
+		return {"accepted": false, "reason": &"presentation_unavailable"}
+	var reset := state_id == &"idle" and int(snapshot.get("reset_serial", 0)) > 0
+	var missed_gate := state_id == &"active" and (
+		StringName(snapshot.get("presentation_reason", &"")) == &"outside_checkpoint"
+		or StringName(snapshot.get("checkpoint_id", &"")) == &"race_missed_gate"
+	)
+	var gate_states: Array[Dictionary] = []
+	for gate_index in ROUTE_BEACON_SPECS.size():
+		var gate := route_root.get_node_or_null(
+			NodePath(String(ROUTE_BEACON_SPECS[gate_index]["name"]))
+		) as Node3D
+		if gate == null:
+			return {"accepted": false, "reason": &"presentation_roster_incomplete"}
+		var signal_ring := gate.get_node_or_null(^"SignalRing") as MeshInstance3D
+		var trim_ring := gate.get_node_or_null(^"TrimRing") as MeshInstance3D
+		if signal_ring == null or trim_ring == null:
+			return {"accepted": false, "reason": &"presentation_roster_incomplete"}
+		var status_id: StringName = &"available"
+		var signal_scale := Vector3.ONE
+		var trim_scale := Vector3.ONE
+		var signal_position := RACE_GATE_RING_CENTER
+		var trim_position := RACE_GATE_RING_CENTER
+		if reset:
+			status_id = &"reset"
+		elif state_id == &"countdown":
+			status_id = &"next_gate" if gate_index == 0 else &"pending"
+			signal_scale = RACE_GATE_NEXT_SCALE \
+				if gate_index == 0 else RACE_GATE_PENDING_SCALE
+			trim_scale = RACE_GATE_PENDING_SCALE
+		elif state_id == &"active":
+			if gate_index < next_checkpoint:
+				status_id = &"cleared"
+				signal_scale = RACE_GATE_CLEARED_SCALE
+				trim_scale = RACE_GATE_CLEARED_SCALE
+			elif gate_index == next_checkpoint:
+				if missed_gate:
+					status_id = &"missed_expected_gate"
+					signal_scale = RACE_GATE_MISSED_SIGNAL_SCALE
+					trim_scale = RACE_GATE_MISSED_TRIM_SCALE
+					signal_position = RACE_GATE_MISSED_SIGNAL_POSITION
+					trim_position = RACE_GATE_MISSED_TRIM_POSITION
+				else:
+					status_id = &"next_gate"
+					signal_scale = RACE_GATE_NEXT_SCALE
+			else:
+				status_id = &"pending"
+				signal_scale = RACE_GATE_PENDING_SCALE
+				trim_scale = RACE_GATE_PENDING_SCALE
+		elif state_id == &"completed":
+			status_id = &"completed"
+			signal_scale = RACE_GATE_COMPLETE_SCALE
+			trim_scale = RACE_GATE_COMPLETE_SCALE
+			signal_position = RACE_GATE_COMPLETE_SIGNAL_POSITION
+			trim_position = RACE_GATE_COMPLETE_TRIM_POSITION
+		elif state_id == &"failed":
+			status_id = &"failed"
+			signal_scale = RACE_GATE_CLEARED_SCALE
+			trim_scale = RACE_GATE_CLEARED_SCALE
+		signal_ring.scale = signal_scale
+		signal_ring.position = signal_position
+		trim_ring.scale = trim_scale
+		trim_ring.position = trim_position
+		gate_states.append({
+			"index": gate_index,
+			"status_id": status_id,
+			"signal_scale": signal_scale,
+			"trim_scale": trim_scale,
+			"signal_position": signal_position,
+			"trim_position": trim_position,
+		})
+	_race_gate_presentation_snapshot = {
+		"activity_id": RACE_ACTIVITY_ID,
+		"state_id": &"reset" if reset else state_id,
+		"generation": generation,
+		"next_checkpoint_index": next_checkpoint,
+		"checkpoint_count": checkpoint_count,
+		"missed_gate_recovery": missed_gate,
+		"gates": gate_states,
+		"node_delta": 0,
+		"collision_delta": 0,
+		"checkpoint_authority": false,
+		"gameplay_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"race_gate_presentation_applied"}
+
+
+func get_race_gate_presentation_state() -> Dictionary:
+	return _race_gate_presentation_snapshot.duplicate(true)
 
 
 ## Detached proof that the ordered traversal is visually expressed by the four
