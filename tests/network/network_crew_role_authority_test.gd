@@ -21,6 +21,7 @@ func _run() -> void:
 	_check(accepted.accepted and accepted.role.role == &"pilot", "seated peer can claim its assigned role")
 	_check(crew.accept_role_intent(1, 7, 4, &"avatar_7", &"pilot", 1).status == &"stale_request_sequence", "role replay is rejected")
 	_check(crew.accept_role_intent(1, 7, 4, &"avatar_7", &"gunner", 2).status == &"role_escalation_rejected", "cross-seat role escalation is rejected")
+	_check(crew.accept_role_intent(1, 7, 4, &"avatar_7", &"pilot", 2, &"other_ship", 1).status == &"ship_identity_mismatch", "cross-ship role identity is rejected")
 	_check(crew.release_peer(1, 7, 4).accepted and crew.get_snapshot().role_count == 0, "disconnect cleanup releases crew roles")
 	_check(crew.admit_peer(1, 7, 5).accepted and crew.reset_migration(1, 2).accepted
 		and crew.get_snapshot().admitted_peer_count == 1 and crew.get_snapshot().role_count == 0,

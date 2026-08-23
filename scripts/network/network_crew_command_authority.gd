@@ -38,9 +38,11 @@ func accept_command(
 		peer_generation: int,
 		avatar_id: StringName,
 		action: StringName,
-		request_sequence: int,
-		server_tick: int,
-		payload: Dictionary
+	request_sequence: int,
+	server_tick: int,
+	payload: Dictionary,
+	ship_id: StringName = &"",
+	ship_generation: int = 0
 ) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
 		return _remember(_result(false, &"unauthorized_source"))
@@ -51,6 +53,15 @@ func accept_command(
 	if role_record.is_empty() or int(role_record.get("peer_generation", 0)) != peer_generation:
 		return _remember(_result(false, &"role_not_admitted"))
 	var role := StringName(role_record.get("role", &""))
+	var assigned_ship_id := StringName(role_record.get("ship_id", &""))
+	var assigned_ship_generation := int(role_record.get("ship_generation", 0))
+	if ship_id.is_empty():
+		ship_id = assigned_ship_id
+	if ship_generation <= 0:
+		ship_generation = assigned_ship_generation
+	if ship_id.is_empty() or ship_generation <= 0 \
+		or ship_id != assigned_ship_id or ship_generation != assigned_ship_generation:
+		return _remember(_result(false, &"ship_identity_mismatch"))
 	if StringName(ROLE_ACTIONS.get(role, &"")) != action:
 		return _remember(_result(false, &"role_action_mismatch"))
 	var stream_key := _key(peer_id, avatar_id)
@@ -72,6 +83,8 @@ func accept_command(
 		"avatar_id": avatar_id,
 		"seat_id": StringName(role_record.get("seat_id", &"")),
 		"seat_generation": int(role_record.get("seat_generation", 0)),
+		"ship_id": ship_id,
+		"ship_generation": ship_generation,
 		"role": role,
 		"action": action,
 		"request_sequence": request_sequence,

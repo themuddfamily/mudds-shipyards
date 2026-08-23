@@ -21,6 +21,9 @@ func _run() -> void:
 	var commands := CommandAuthority.new(roles, 1)
 	var accepted := commands.accept_command(1, 7, 3, &"avatar_7", &"flight_command", 1, 100, {"thrust_x": 0.5, "thrust_y": -0.25})
 	_check(accepted.accepted and accepted.receipt.action == &"flight_command", "pilot command produces a detached receipt")
+	_check(commands.accept_command(1, 7, 3, &"avatar_7", &"flight_command", 2, 100,
+		{"thrust_x": 0.0, "thrust_y": 0.0}, &"other_ship", 3).status == &"ship_identity_mismatch",
+		"cross-ship command identity is rejected")
 	_check(commands.accept_command(1, 7, 3, &"avatar_7", &"flight_command", 1, 101, {"thrust_x": 0.0, "thrust_y": 0.0}).status == &"stale_command_sequence", "command replay is rejected")
 	_check(commands.accept_command(1, 7, 3, &"avatar_7", &"fire", 2, 102, {"weapon_id": "laser"}).status == &"role_action_mismatch", "cross-role action is rejected")
 	_check(commands.accept_command(1, 7, 3, &"avatar_7", &"flight_command", 2, 103, {"thrust_x": 2.0, "thrust_y": 0.0}).status == &"invalid_flight_payload", "out-of-bounds payload is rejected")

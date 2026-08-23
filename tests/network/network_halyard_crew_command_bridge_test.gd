@@ -4,6 +4,10 @@ const Bridge := preload("res://scripts/network/network_halyard_crew_command_brid
 
 class FakeHalyard extends RefCounted:
 	var calls: Array = []
+	var authority := FakeRoleAuthority.new()
+
+	func get_crew_role_authority() -> Object:
+		return authority
 
 	func submit_crew_intent(source_peer_id: int, peer_id: int, avatar_id: StringName,
 		action: StringName, payload: Dictionary, request_sequence: int) -> Dictionary:
@@ -11,6 +15,13 @@ class FakeHalyard extends RefCounted:
 			"avatar_id": avatar_id, "action": action, "payload": payload,
 			"request_sequence": request_sequence})
 		return {"accepted": true, "status": &"intent_consumed"}
+
+
+class FakeRoleAuthority extends RefCounted:
+	func get_assignment(peer_id: int, avatar_id: StringName) -> Dictionary:
+		if peer_id == 7 and avatar_id == &"avatar_7":
+			return {"seat_id": &"pilot_seat", "vessel_id": &"ship_7", "seat_generation": 2}
+		return {}
 
 
 class FakeAdapter extends RefCounted:
@@ -31,6 +42,7 @@ func _run() -> void:
 	var receipt := {"accepted": true, "status": &"command_accepted", "receipt": {
 		"peer_id": 7, "peer_generation": 3, "avatar_id": &"avatar_7", "seat_id": &"pilot_seat",
 		"seat_generation": 2, "role": &"pilot", "action": &"flight_command",
+		"ship_id": &"ship_7", "ship_generation": 2,
 		"request_sequence": 4, "migration_generation": 1,
 		"payload": {"thrust_x": 0.25, "thrust_y": -0.5},
 	}}

@@ -781,12 +781,15 @@ func accept_crew_role_intent(
 	peer_generation: int,
 	avatar_id: StringName,
 	requested_role: StringName,
-	request_sequence: int
+	request_sequence: int,
+	ship_id: StringName = &"",
+	ship_generation: int = 0
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	var result: Dictionary = _crew_roles.accept_role_intent(
-		AUTHORITY_PEER_ID, peer_id, peer_generation, avatar_id, requested_role, request_sequence
+		AUTHORITY_PEER_ID, peer_id, peer_generation, avatar_id, requested_role, request_sequence,
+		ship_id, ship_generation
 	)
 	crew_role_result.emit(result.duplicate(true))
 	return _remember(result)
@@ -799,7 +802,9 @@ func get_crew_role_snapshot() -> Dictionary:
 func send_crew_role_intent(
 	avatar_id: StringName,
 	requested_role: StringName,
-	request_sequence: int
+	request_sequence: int,
+	ship_id: StringName = &"",
+	ship_generation: int = 0
 ) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
@@ -809,6 +814,8 @@ func send_crew_role_intent(
 		"avatar_id": avatar_id,
 		"requested_role": requested_role,
 		"request_sequence": request_sequence,
+		"ship_id": ship_id,
+		"ship_generation": ship_generation,
 	}))
 	return _remember(_result(true, &"queued"))
 
@@ -820,13 +827,15 @@ func accept_crew_command(
 	action: StringName,
 	request_sequence: int,
 	server_tick: int,
-	payload: Dictionary
+	payload: Dictionary,
+	ship_id: StringName = &"",
+	ship_generation: int = 0
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	var result: Dictionary = _crew_commands.accept_command(
 		AUTHORITY_PEER_ID, peer_id, peer_generation, avatar_id, action,
-		request_sequence, server_tick, payload
+		request_sequence, server_tick, payload, ship_id, ship_generation
 	)
 	crew_command_result.emit(result.duplicate(true))
 	return _remember(result)
@@ -841,7 +850,9 @@ func send_crew_command(
 	action: StringName,
 	request_sequence: int,
 	server_tick: int,
-	payload: Dictionary
+	payload: Dictionary,
+	ship_id: StringName = &"",
+	ship_generation: int = 0
 ) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
@@ -853,6 +864,8 @@ func send_crew_command(
 		"action": action,
 		"request_sequence": request_sequence,
 		"server_tick": server_tick,
+		"ship_id": ship_id,
+		"ship_generation": ship_generation,
 		"payload": payload.duplicate(true),
 	}))
 	return _remember(_result(true, &"queued"))
@@ -1926,7 +1939,9 @@ func _receive_crew_role_intent(wire: Dictionary) -> void:
 		peer_generation,
 		StringName(payload.get("avatar_id", &"")),
 		StringName(payload.get("requested_role", &"")),
-		int(payload.get("request_sequence", 0))
+		int(payload.get("request_sequence", 0)),
+		StringName(payload.get("ship_id", &"")),
+		int(payload.get("ship_generation", 0))
 	)
 	crew_role_result.emit(result.duplicate(true))
 
@@ -1948,7 +1963,9 @@ func _receive_crew_command(wire: Dictionary) -> void:
 		StringName(payload.get("action", &"")),
 		int(payload.get("request_sequence", 0)),
 		int(payload.get("server_tick", -1)),
-		command_payload
+		command_payload,
+		StringName(payload.get("ship_id", &"")),
+		int(payload.get("ship_generation", 0))
 	)
 	crew_command_result.emit(result.duplicate(true))
 

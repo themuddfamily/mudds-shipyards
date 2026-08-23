@@ -46,9 +46,11 @@ func accept_role_intent(
 		source_peer_id: int,
 		peer_id: int,
 		peer_generation: int,
-		avatar_id: StringName,
-		requested_role: StringName,
-		request_sequence: int
+	avatar_id: StringName,
+	requested_role: StringName,
+	request_sequence: int,
+	ship_id: StringName = &"",
+	ship_generation: int = 0
 ) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
 		return _remember(_result(false, &"unauthorized_source"))
@@ -64,12 +66,22 @@ func accept_role_intent(
 		return _remember(_result(false, &"peer_not_seated"))
 	if StringName(assignment.get("role", &"")) != requested_role:
 		return _remember(_result(false, &"role_escalation_rejected"))
+	var assigned_ship_id := StringName(assignment.get("vessel_id", &""))
+	var assigned_ship_generation := int(assignment.get("seat_generation", 0))
+	if ship_id.is_empty():
+		ship_id = assigned_ship_id
+	if ship_generation <= 0:
+		ship_generation = assigned_ship_generation
+	if ship_id != assigned_ship_id or ship_generation != assigned_ship_generation:
+		return _remember(_result(false, &"ship_identity_mismatch"))
 	var record := {
 		"peer_id": peer_id,
 		"peer_generation": peer_generation,
 		"avatar_id": avatar_id,
 		"seat_id": StringName(assignment.get("seat_id", &"")),
 		"seat_generation": int(assignment.get("seat_generation", 0)),
+		"ship_id": ship_id,
+		"ship_generation": ship_generation,
 		"role": requested_role,
 		"request_sequence": request_sequence,
 		"migration_generation": _migration_generation,

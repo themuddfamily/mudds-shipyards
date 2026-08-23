@@ -18,7 +18,9 @@ var _halyard: Object
 func attach(adapter: Object, halyard: Object) -> Dictionary:
 	if adapter == null or not is_instance_valid(adapter) or not adapter.has_signal(&"crew_command_result"):
 		return _result(false, &"adapter_unavailable")
-	if halyard == null or not is_instance_valid(halyard) or not halyard.has_method(&"submit_crew_intent"):
+	if halyard == null or not is_instance_valid(halyard) \
+		or not halyard.has_method(&"submit_crew_intent") \
+		or not halyard.has_method(&"get_crew_role_authority"):
 		return _result(false, &"halyard_unavailable")
 	if _adapter != null and is_instance_valid(_adapter):
 		var callback := Callable(self, &"_on_command_result")
@@ -61,10 +63,21 @@ func dispatch(source_peer_id: int, receipt: Dictionary, halyard: Object) -> Dict
 	var avatar_id := StringName(command.get("avatar_id", &""))
 	var action := StringName(command.get("action", &""))
 	var seat_id := StringName(command.get("seat_id", &""))
+	var ship_id := StringName(command.get("ship_id", &""))
+	var ship_generation := int(command.get("ship_generation", 0))
 	if peer_id <= 0 or peer_generation <= 0 or seat_generation <= 0 or request_sequence <= 0 \
 		or migration_generation != _migration_generation or avatar_id.is_empty() \
-		or seat_id.is_empty() or action.is_empty():
+		or seat_id.is_empty() or ship_id.is_empty() or ship_generation <= 0 or action.is_empty():
 		return _result(false, &"invalid_receipt_identity")
+	var role_authority: Object = halyard.get_crew_role_authority()
+	if role_authority == null or not is_instance_valid(role_authority) \
+		or not role_authority.has_method(&"get_assignment"):
+		return _result(false, &"halyard_identity_unavailable")
+	var assignment: Dictionary = role_authority.get_assignment(peer_id, avatar_id)
+	if assignment.is_empty() or StringName(assignment.get("seat_id", &"")) != seat_id \
+		or StringName(assignment.get("vessel_id", &"")) != ship_id \
+		or int(assignment.get("seat_generation", 0)) != seat_generation:
+		return _result(false, &"ship_identity_mismatch")
 	var stream_key := "%d:%s:%s" % [peer_id, str(avatar_id), str(action)]
 	if request_sequence <= int(_last_sequence.get(stream_key, 0)):
 		return _result(false, &"stale_receipt_sequence")
@@ -82,6 +95,8 @@ func dispatch(source_peer_id: int, receipt: Dictionary, halyard: Object) -> Dict
 		"peer_generation": peer_generation,
 		"seat_id": seat_id,
 		"seat_generation": seat_generation,
+		"ship_id": ship_id,
+		"ship_generation": ship_generation,
 		"effect": result.duplicate(true),
 	})
 
