@@ -32,6 +32,7 @@ func _run() -> void:
 	await _test_collision_backed_comb_and_voids(module)
 	_test_trunk_expansion_joint_batch(module)
 	_test_slab_corner_beacon_batch(module)
+	_test_slab_support_batch(module)
 	_test_performance_contract(module)
 	_test_dock_arm_service_hardware(module)
 	await _test_reversible_lifecycle(module)
@@ -257,24 +258,24 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 134
+		int(render.descendant_nodes) == 135
 		and int(render.mesh_instances) == 89
-		and int(render.multimesh_batches) == 2,
-		"renderer census includes one trunk batch and one slab-corner batch"
+		and int(render.multimesh_batches) == 3,
+		"renderer census includes trunk, slab-corner and slab-support batches"
 	)
 	_check(
 		int(render.drawn_copies) == 101
-		and int(render.geometry_submissions) == 79
+		and int(render.geometry_submissions) == 74
 		and int(render.trunk_expansion_joint_copies) == 12,
-		"drawn copies remain 101 while surface submissions become 79"
+		"drawn copies remain 101 while surface submissions become 74"
 	)
 	_check(
 		int(render.trunk_renderer_buffer_floats) == 144
-		and int(render.renderer_buffer_floats) == 288
+		and int(render.renderer_buffer_floats) == 360
 		and bool(render.renderer_buffer_matches_authored)
 		and bool(render.bounds_match_authored)
 		and bool(render.exact_counts),
-		"both renderer buffers freeze at 144 floats with exact authored culling unions"
+		"all renderer buffers freeze at 360 floats with exact authored culling unions"
 	)
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
@@ -390,10 +391,10 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 		int(render.slab_corner_beacon_submissions_before) == 12
 		and int(render.slab_corner_beacon_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_beacon_batch) == 90
-		and int(render.geometry_submissions) == 79
-		and int(render.geometry_submissions_removed) == 11
+		and int(render.geometry_submissions) == 74
+		and int(render.geometry_submissions_removed) == 16
 		and int(render.slab_corner_beacon_renderer_buffer_floats) == 144,
-		"corner-beacon batching measures 12 -> 1 family submissions and 90 -> 79 overall"
+		"corner-beacon and support batching preserve the 12 -> 1 beacon reduction and reach 74 overall"
 	)
 	_check(
 		bool(render.slab_corner_beacon_renderer_buffer_matches_authored)
@@ -422,6 +423,112 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(module.get_validation_errors().is_empty(), "restoring the exact beacon batch restores a clean module audit")
+
+
+func _test_slab_support_batch(module: FleetDockComb) -> void:
+	var underframe := module.get_node_or_null(
+		^"GeneratedComb/VisualUnderframe"
+	) as Node3D
+	var batch := module.get_node_or_null(
+		^"GeneratedComb/VisualUnderframe/SlabSupports"
+	) as MultiMeshInstance3D
+	_check(
+		underframe != null and batch != null and batch.multimesh != null,
+		"six slab underframe supports resolve as one VisualUnderframe MultiMesh"
+	)
+	if underframe == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for slab_spec in [[8.5, -1.75], [25.0, -1.75], [40.0, 0.65]]:
+		for support_x in [11.0, 19.0]:
+			expected.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(float(support_x), float(slab_spec[1]), float(slab_spec[0]))
+			))
+	var anchors: Array[MeshInstance3D] = []
+	for raw_node in underframe.get_children():
+		var instance := raw_node as MeshInstance3D
+		if (
+			instance != null
+			and instance.mesh != null
+			and instance.mesh.get_aabb().size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
+			and not instance.visible
+		):
+			anchors.append(instance)
+	var anchors_exact := anchors.size() == expected.size()
+	for index in mini(anchors.size(), expected.size()):
+		anchors_exact = (
+			anchors_exact
+			and anchors[index].transform.is_equal_approx(expected[index])
+			and anchors[index].mesh != null
+			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
+			and not anchors[index].visible
+			and anchors[index].get_child_count() == 0
+			and anchors[index].get_script() == null
+		)
+	_check(
+		anchors_exact,
+		"all six slab-support MeshInstance anchors retain exact transforms and geometry"
+	)
+	var multi := batch.multimesh
+	var render := module.get_render_batch_contract()
+	_check(
+		multi.instance_count == FleetDockComb.SLAB_SUPPORT_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
+		and multi.mesh.get_surface_count() == 1
+		and anchors.size() == FleetDockComb.SLAB_SUPPORT_COPY_COUNT
+		and (anchors.is_empty() or batch.material_override == anchors[0].material_override)
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"support batch preserves copies, frame material, root transform and collision-free ownership"
+	)
+	_check(
+		int(render.slab_support_submissions_before) == 6
+		and int(render.slab_support_submissions_after) == 1
+		and int(render.geometry_submissions_before_slab_support_batch) == 79
+		and int(render.geometry_submissions) == 74
+		and int(render.slab_support_renderer_buffer_floats) == 72
+		and bool(render.slab_support_renderer_buffer_matches_authored)
+		and bool(render.slab_support_bounds_match_authored)
+		and bool(render.slab_support_contract_matches)
+		and bool(render.exact_counts),
+		"support family measures 6 -> 1 submissions and freezes its exact buffer and culling union"
+	)
+	var detached := render.authored_slab_support_transforms as Array
+	if not detached.is_empty():
+		detached[0] = Transform3D.IDENTITY
+	_check(
+		detached.is_empty() or not ((module.get_render_batch_contract().authored_slab_support_transforms as Array)[0] as Transform3D).is_equal_approx(
+			Transform3D.IDENTITY
+		),
+		"support render contract returns a detached authored-transform roster"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has("comb slab-support renderer buffer drifted from its authored roster"),
+		"mutating one live support transform is rejected by the production audit"
+	)
+	multi.buffer = original_buffer
+	var original_bounds := multi.custom_aabb
+	multi.custom_aabb = original_bounds.grow(0.25)
+	_check(
+		module.get_validation_errors().has("comb slab-support batch bounds drifted from its authored copies"),
+		"mutating support culling bounds is rejected by the production audit"
+	)
+	multi.custom_aabb = original_bounds
+	var original_transform := batch.transform
+	batch.position.x += 0.25
+	_check(
+		module.get_validation_errors().has("comb slab-support renderer contract drifted"),
+		"moving the batch root away from stable anchors is rejected by the production audit"
+	)
+	batch.transform = original_transform
+	_check(module.get_validation_errors().is_empty(), "restoring the support batch restores a clean module audit")
 
 
 ## Re-frozen in the open twice: light count 0 -> 4, then 4 -> 7, everything else
