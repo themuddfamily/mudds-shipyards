@@ -555,7 +555,9 @@ It does not close a Phase umbrella item or claim percentage progress:
   above it with 2.320 m player headroom. The pad, graph waypoints, berth clearance and task,
   interaction, collision and lifecycle ownership remain unchanged. Standoff escort fire also
   revokes synchronously when its defender stands down, so a committed lance cannot resolve in
-  `RETURN_TO_YARD`.
+  `RETURN_TO_YARD`. Retained-`Main` combat restoration now waits for the station-defence child
+  to restore alpha, beta and gamma before auditing the exact ten-source live roster, eliminating
+  the transient seven-source re-entry error without weakening source identity or teardown.
 - Reviewed presentation-only sharing/batching preserves authored transforms, materials, named
   anchors, visible copies and separate physical authority across Cinder extraction/beacon trim,
   Jovian restraint/cabinet detail, Arrow and Bulwark cockpit detail, Halyard dampers, Fleet Dock
@@ -563,7 +565,10 @@ It does not close a Phase umbrella item or claim percentage progress:
   hulls, exterior target lamps, Salvage Terrace rails and DockMast collars. Salvage rails retain
   their two perpendicular recipes with exact visual-to-collision AABB checks; DockMast collars
   retain authored 48x16 metadata and the existing normalized 40x16 live recipe. These are local
-  allocation/submission facts, not whole-scene or driver timing evidence.
+  allocation/submission facts, not whole-scene or driver timing evidence. Cinder's streamed
+  transition contract now reconciles the collar conversion's exact `223/225 -> 219/221`
+  pre-bind/bound renderer counts and freezes the two collar, aperture-lens and beacon-ring batch
+  roster together, so the hidden-first-draw/fade lifecycle accepts the current production graph.
 
 Focused production coverage for these paths includes
 `game_flow_planetary_return_approach_test.gd`, `game_flow_planetary_return_test.gd`,
