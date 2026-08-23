@@ -55,6 +55,24 @@ const MAX_PASSENGER_PING_MARKERS := 8
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
 const CREW_ROLE_GAMEPLAY_SNAPSHOT_SCHEMA_VERSION := 1
 
+
+class HalyardPilotCommandSource:
+	extends ShipCommandSource
+
+	var _held_controls: Dictionary = {}
+
+
+	func set_held_controls(controls: Dictionary) -> void:
+		_held_controls = controls.duplicate(true)
+
+
+	func clear_held_controls() -> void:
+		_held_controls.clear()
+
+
+	func _sample_controls() -> Dictionary:
+		return _held_controls.duplicate(true)
+
 signal passenger_cabin_ping_emitted(
 	marker_id: StringName,
 	channel: StringName,
@@ -298,6 +316,10 @@ var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
 var _engineer_component_selection: Dictionary = {}
 var _engineer_component_generation := 1
+var _pilot_command_source: HalyardPilotCommandSource
+var _pilot_command_state: Dictionary = {}
+var _pilot_last_request_sequence := -1
+var _pilot_command_seat_generation := 0
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -355,6 +377,9 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_gunner_target_generation = 1
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
+	_clear_pilot_command(&"ship_reused")
+	_pilot_last_request_sequence = -1
+	_pilot_command_seat_generation = 0
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
@@ -406,8 +431,14 @@ func get_crew_role_authority() -> CrewSeatRoleAuthority:
 	return _crew_role_authority
 
 
-## Admits and immediately consumes the one currently implemented non-pilot
-## actions: an engineer repair pulse or a gunner weapon request. Admission is
+## Returns the detached pilot receipt currently held by the Halyard command
+## source. The command source itself remains private to HeroShip's seam.
+func get_crew_pilot_command_state() -> Dictionary:
+	return _pilot_command_state.duplicate(true)
+
+
+## Admits and immediately consumes the currently implemented Halyard role
+## actions: pilot flight, engineer repair, gunner weapon, and passenger ping. Admission is
 ## server-owned by
 ## CrewSeatRoleAuthority; mutation is still owner-owned by ShipComponentDamage.
 ## Other role actions are intentionally left to their downstream authorities.
@@ -426,6 +457,9 @@ func submit_crew_intent(
 		return _crew_role_result(false, &"assignment_not_found")
 	var role := StringName(assignment.get("role", &""))
 	var supported := (
+		role == CrewRoleGameplayProfileType.ROLE_PILOT
+			and action == CrewRoleGameplayProfileType.ACTION_FLIGHT_COMMAND
+	) or (
 		role == CrewRoleGameplayProfileType.ROLE_ENGINEER
 			and action == CrewRoleGameplayProfileType.ACTION_ENGINEER_REPAIR
 	) or (
@@ -449,18 +483,72 @@ func submit_crew_intent(
 		return admission
 	var intent := admission.get("intent", {}) as Dictionary
 	var effect := (
-		_consume_engineer_repair_intent(intent)
-		if role == CrewRoleGameplayProfileType.ROLE_ENGINEER
+		_consume_pilot_flight_intent(intent)
+		if role == CrewRoleGameplayProfileType.ROLE_PILOT
 		else (
-			_consume_gunner_fire_intent(intent)
-			if role == CrewRoleGameplayProfileType.ROLE_GUNNER
-			else _consume_passenger_ping_intent(intent)
+			_consume_engineer_repair_intent(intent)
+			if role == CrewRoleGameplayProfileType.ROLE_ENGINEER
+			else (
+				_consume_gunner_fire_intent(intent)
+				if role == CrewRoleGameplayProfileType.ROLE_GUNNER
+				else _consume_passenger_ping_intent(intent)
+			)
 		)
 	)
 	var result := admission.duplicate(true)
 	result["status"] = &"intent_consumed" if bool(effect.get("accepted", false)) else &"intent_effect_rejected"
 	result["consumed"] = bool(effect.get("accepted", false))
 	result["effect"] = effect
+	return result
+
+
+func _consume_pilot_flight_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	var request_sequence := int(intent.get("request_sequence", -1))
+	var seat_generation := int(intent.get("seat_generation", 0))
+	var occupant_peer_id := int(intent.get("occupant_peer_id", 0))
+	var avatar_id := StringName(intent.get("avatar_id", &""))
+	if seat_generation <= 0:
+		return _crew_role_result(false, &"invalid_pilot_generation")
+	if not _pilot_command_state.is_empty():
+		var current_peer_id := int(_pilot_command_state.get("occupant_peer_id", 0))
+		var current_avatar_id := StringName(_pilot_command_state.get("avatar_id", &""))
+		if current_peer_id != occupant_peer_id or current_avatar_id != avatar_id:
+			return _crew_role_result(false, &"pilot_authority_busy")
+		if seat_generation != _pilot_command_seat_generation:
+			return _crew_role_result(false, &"stale_pilot_generation")
+		if request_sequence <= _pilot_last_request_sequence:
+			return _crew_role_result(false, &"stale_pilot_sequence")
+	var telemetry := get_telemetry()
+	if bool(telemetry.get("destroyed", false)):
+		return _crew_role_result(false, &"ship_destroyed")
+	if bool(telemetry.get("landing_active", false)):
+		return _crew_role_result(false, &"pilot_blocked_during_landing")
+	if _pilot_command_source == null or not is_instance_valid(_pilot_command_source):
+		_pilot_command_source = HalyardPilotCommandSource.new()
+		add_child(_pilot_command_source)
+		var authority_snapshot := _crew_role_authority.get_snapshot()
+		var authority_peer_id := int(authority_snapshot.get("authority_peer_id", 1))
+		_pilot_command_source.set_authority_peer_id(authority_peer_id)
+		_pilot_command_source.set_local_peer_id_override(authority_peer_id)
+	if not _piloted:
+		set_piloted(true)
+	if get_command_source() != _pilot_command_source:
+		set_command_source(_pilot_command_source)
+	_pilot_command_source.set_held_controls(payload)
+	_pilot_command_state = {
+		"occupant_peer_id": occupant_peer_id,
+		"avatar_id": avatar_id,
+		"seat_generation": seat_generation,
+		"request_sequence": request_sequence,
+		"command": payload.duplicate(true),
+	}
+	_pilot_command_seat_generation = seat_generation
+	_pilot_last_request_sequence = request_sequence
+	var result := _crew_role_result(true, &"pilot_command_applied")
+	result["command"] = payload.duplicate(true)
+	result["seat_generation"] = seat_generation
+	result["request_sequence"] = request_sequence
 	return result
 
 
@@ -2029,6 +2117,7 @@ func _set_interior_operational(enabled: bool) -> void:
 		_gunner_role_cooldowns.clear()
 		_clear_gunner_target_selection(&"interior_unavailable")
 		_clear_engineer_component_selection(&"interior_unavailable")
+		_clear_pilot_command(&"interior_unavailable")
 	if _walkable_interior != null:
 		_walkable_interior.visible = enabled
 	if _occupant_volume != null:
@@ -2044,12 +2133,14 @@ func _set_interior_operational(enabled: bool) -> void:
 func _cleanup_detached_passenger_pings() -> void:
 	if _passenger_ping_markers.is_empty() \
 			and _gunner_target_selection.is_empty() \
-			and _engineer_component_selection.is_empty():
+			and _engineer_component_selection.is_empty() \
+			and _pilot_command_state.is_empty():
 		return
 	if _crew_role_authority == null:
 		_clear_passenger_ping_markers(&"authority_detached")
 		_clear_gunner_target_selection(&"authority_detached")
 		_clear_engineer_component_selection(&"authority_detached")
+		_clear_pilot_command(&"authority_detached")
 		return
 	var detached: Array[Dictionary] = []
 	for marker_variant in _passenger_ping_markers.values():
@@ -2086,6 +2177,17 @@ func _cleanup_detached_passenger_pings() -> void:
 			_clear_crew_role_state(
 				int(_engineer_component_selection.get("occupant_peer_id", 0)),
 				StringName(_engineer_component_selection.get("avatar_id", &"")),
+				&"role_detached"
+			)
+	if not _pilot_command_state.is_empty():
+		var pilot_assignment := _crew_role_authority.get_assignment(
+			int(_pilot_command_state.get("occupant_peer_id", 0)),
+			StringName(_pilot_command_state.get("avatar_id", &""))
+		)
+		if pilot_assignment.is_empty():
+			_clear_crew_role_state(
+				int(_pilot_command_state.get("occupant_peer_id", 0)),
+				StringName(_pilot_command_state.get("avatar_id", &"")),
 				&"role_detached"
 			)
 
@@ -2125,6 +2227,10 @@ func _clear_crew_role_state(
 			and int(_engineer_component_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
 			and StringName(_engineer_component_selection.get("avatar_id", &"")) == avatar_id:
 		_clear_engineer_component_selection(reason)
+	if not _pilot_command_state.is_empty() \
+			and int(_pilot_command_state.get("occupant_peer_id", 0)) == occupant_peer_id \
+			and StringName(_pilot_command_state.get("avatar_id", &"")) == avatar_id:
+		_clear_pilot_command(reason)
 
 
 func _advance_crew_role_cooldowns(delta: float) -> void:
@@ -2194,6 +2300,16 @@ func _clear_engineer_component_selection(
 			_engineer_component_generation + 1,
 			MAX_GUNNER_TARGET_GENERATION
 		)
+
+
+func _clear_pilot_command(_reason: StringName) -> void:
+	if _pilot_command_source != null and is_instance_valid(_pilot_command_source):
+		_pilot_command_source.clear_held_controls()
+	_pilot_command_state.clear()
+	_pilot_last_request_sequence = -1
+	_pilot_command_seat_generation = 0
+	if _piloted:
+		set_piloted(false)
 
 
 static func _passenger_ping_actor_key(occupant_peer_id: int, avatar_id: StringName) -> StringName:

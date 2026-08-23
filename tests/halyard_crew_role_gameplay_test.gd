@@ -185,6 +185,104 @@ func _run() -> void:
 		StringName(((fresh_snapshot.get("occupants", []) as Array)[0] as Dictionary).get("avatar_id", &"")) != &"tampered",
 		"snapshot consumers receive detached copies rather than mutable Halyard internals"
 	)
+	craft.set("_landed", false)
+	var pilot_intent := craft.submit_crew_intent(
+		1,
+		71,
+		&"pilot_avatar",
+		Authority.ACTION_FLIGHT_COMMAND,
+		{
+			"throttle": 0.8,
+			"pitch": 0.25,
+			"yaw": -0.35,
+			"roll": 0.1,
+			"boost": true,
+			"brake": false,
+		},
+		2
+	)
+	var pilot_effect := pilot_intent.get("effect", {}) as Dictionary
+	_check(
+		bool(pilot_intent.get("accepted", false))
+			and bool(pilot_intent.get("consumed", false))
+			and pilot_effect.get("status", &"") == &"pilot_command_applied",
+		"the admitted pilot receipt reaches the Halyard command source"
+	)
+	await physics_frame
+	var pilot_command := craft.get_last_ship_command()
+	_check(
+		is_equal_approx(pilot_command.throttle, 0.8)
+			and is_equal_approx(pilot_command.pitch, 0.25)
+			and is_equal_approx(pilot_command.yaw, -0.35)
+			and pilot_command.boost,
+		"the existing HeroShip seam consumes bounded pilot thrust and rotation"
+	)
+	var pilot_replay := craft.submit_crew_intent(
+		1,
+		71,
+		&"pilot_avatar",
+		Authority.ACTION_FLIGHT_COMMAND,
+		{
+			"throttle": 1.0,
+			"pitch": 0.0,
+			"yaw": 0.0,
+			"roll": 0.0,
+			"boost": true,
+			"brake": false,
+		},
+		2
+	)
+	_check(
+		not bool(pilot_replay.get("accepted", false))
+			and pilot_replay.get("status", &"") == &"stale_request_sequence",
+		"the pilot authority rejects a replayed command sequence"
+	)
+	var pilot_handoff := craft.handoff_crew_role(
+		1,
+		71,
+		&"pilot_avatar",
+		&"pilot_station",
+		3,
+		74,
+		&"replacement_pilot",
+		Authority.ROLE_PILOT,
+		4
+	)
+	_check(
+		bool(pilot_handoff.get("accepted", false))
+			and not bool(craft.get("_piloted")),
+		"pilot handoff neutralizes the outgoing held controls"
+	)
+	await physics_frame
+	var neutral_after_handoff := craft.get_last_ship_command()
+	_check(
+		neutral_after_handoff.is_neutral(),
+		"the outgoing pilot command cannot steer after handoff"
+	)
+	var replacement_pilot_intent := craft.submit_crew_intent(
+		1,
+		74,
+		&"replacement_pilot",
+		Authority.ACTION_FLIGHT_COMMAND,
+		{
+			"throttle": 0.3,
+			"pitch": 0.0,
+			"yaw": 0.0,
+			"roll": 0.0,
+			"boost": false,
+			"brake": true,
+		},
+		5
+	)
+	_check(
+		bool(replacement_pilot_intent.get("consumed", false)),
+		"the replacement pilot starts a fresh admitted command stream"
+	)
+	var pilot_release := craft.release_crew_role(
+		1, 74, &"replacement_pilot", &"pilot_station", 6
+	)
+	_check(bool(pilot_release.get("accepted", false)) and not bool(craft.get("_piloted")), "pilot release neutralizes controls")
+	craft.set("_landed", true)
 
 	var handoff := craft.handoff_crew_role(
 		1,
