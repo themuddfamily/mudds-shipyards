@@ -30,6 +30,9 @@ const NearbySectorActivityAudioBindingType := preload(
 const NearbySectorActivityMusicAdapterType := preload(
 	"res://scripts/audio/nearby_sector_activity_music_adapter.gd"
 )
+const HalyardCrewSemanticAudioBindingType := preload(
+	"res://scripts/audio/halyard_crew_semantic_audio_binding.gd"
+)
 
 ## First production nearby activity. It is a modern interpretation and remains
 ## a progress-only route: the director and this integration own no rewards,
@@ -258,6 +261,9 @@ var audio: Node
 var music_bed: StationMusicBed
 var nearby_activity_audio_binding: Node
 var nearby_activity_music_adapter: Node
+var halyard_crew_semantic_audio_binding: Node
+var _halyard_crew_semantic_bound := false
+var _last_halyard_crew_event_sequence := -2
 var nearby_activity_persistence_store: RefCounted
 var nearby_activity_persistence_slot: StringName = &"nearby_activity"
 var _nearby_activity_persistence_commit_serial := 0
@@ -475,6 +481,7 @@ func _exit_tree() -> void:
 	_detach_cinder_race_session()
 	_detach_caption_presentation()
 	_detach_nearby_activity_audio()
+	_detach_halyard_crew_semantic_audio()
 	# Travelling pulse slots are presentation-only and are cleared by their own
 	# exit transaction. Their target-side records are likewise invalidated by the
 	# relevant lifecycle components.
@@ -1063,6 +1070,7 @@ func _start_up() -> void:
 	_initialize_caption_presentation()
 	_initialize_live_combat()
 	_initialize_nearby_activity_audio()
+	_initialize_halyard_crew_semantic_audio()
 	# The atomic load above is complete before the first global, player, ship or
 	# HUD settings consumer sees a snapshot. In particular, the complete binding
 	# profile reaches InputMap and all retained local ship banks before gameplay
@@ -1077,6 +1085,7 @@ func _start_up() -> void:
 	hud.set_interaction("", false)
 	hud.set_enemy_status("", 0.0, 1.0, false)
 	_update_music_bed_state()
+	_sync_halyard_crew_semantic_audio()
 	_apply_torus_geometry_budget()
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
@@ -1115,6 +1124,7 @@ func _process(delta: float) -> void:
 	_update_debug_overlay()
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
+	_sync_halyard_crew_semantic_audio()
 	if phase == Phase.INTRO:
 		return
 	if _piloting:
@@ -1809,6 +1819,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_connect_runtime_signals()
 	_initialize_live_combat()
 	_initialize_nearby_activity_audio()
+	_initialize_halyard_crew_semantic_audio()
 	# Part of the settings snapshot is process-wide rather than node-local: the
 	# `AudioServer` bus levels and the window mode belong to whatever is on screen,
 	# so while this subtree is detached another scene legitimately owns them.
@@ -1963,6 +1974,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 func _on_network_session_stopped(reason: StringName) -> void:
 	_detach_network_halyard_command_bridge()
+	_detach_halyard_crew_semantic_audio()
 	_publish_network_session_snapshot(
 		&"disconnected", _network_session_mode, "Session closed: %s" % reason, true
 	)
@@ -5160,6 +5172,55 @@ func _sync_nearby_activity_hud() -> void:
 	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):
 		hud.call(&"set_nearby_activity_snapshot", snapshot)
+
+
+func _initialize_halyard_crew_semantic_audio() -> void:
+	if not is_instance_valid(audio):
+		return
+	if not is_instance_valid(halyard_crew_semantic_audio_binding):
+		halyard_crew_semantic_audio_binding = HalyardCrewSemanticAudioBindingType.new()
+		halyard_crew_semantic_audio_binding.name = "HalyardCrewSemanticAudioBinding"
+		add_child(halyard_crew_semantic_audio_binding)
+	if not bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
+		halyard_crew_semantic_audio_binding.attach(
+			int(halyard_crew_semantic_audio_binding.get_snapshot().get("generation", 0))
+		)
+	if not _halyard_crew_semantic_bound and audio.has_method(&"bind_semantic_audio_source"):
+		var result := audio.call(
+			&"bind_semantic_audio_source", halyard_crew_semantic_audio_binding, &"crew"
+		) as Dictionary
+		_halyard_crew_semantic_bound = bool(result.get("accepted", false))
+
+
+func _sync_halyard_crew_semantic_audio() -> void:
+	if not is_instance_valid(halyard_crew_semantic_audio_binding):
+		return
+	if not is_instance_valid(active_ship) or active_ship.get_ship_id() != HALYARD_SHIP_ID \
+			or not active_ship.has_method(&"get_crew_role_gameplay_snapshot"):
+		if bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
+			halyard_crew_semantic_audio_binding.detach()
+		_last_halyard_crew_event_sequence = -2
+		return
+	if not bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
+		halyard_crew_semantic_audio_binding.attach(
+			int(halyard_crew_semantic_audio_binding.get_snapshot().get("generation", 0))
+		)
+	var snapshot := active_ship.call(&"get_crew_role_gameplay_snapshot") as Dictionary
+	var event_sequence := int(snapshot.get("authority_event_sequence", -1))
+	if event_sequence == _last_halyard_crew_event_sequence:
+		return
+	_last_halyard_crew_event_sequence = event_sequence
+	halyard_crew_semantic_audio_binding.present_crew_snapshot(snapshot)
+
+
+func _detach_halyard_crew_semantic_audio() -> void:
+	if is_instance_valid(halyard_crew_semantic_audio_binding):
+		halyard_crew_semantic_audio_binding.detach()
+	if _halyard_crew_semantic_bound and is_instance_valid(audio) \
+			and audio.has_method(&"detach_semantic_audio_sources"):
+		audio.call(&"detach_semantic_audio_sources")
+	_halyard_crew_semantic_bound = false
+	_last_halyard_crew_event_sequence = -2
 
 
 func _initialize_nearby_activity_audio() -> void:
