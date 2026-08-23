@@ -58,6 +58,7 @@ const REGISTERED_CUES := {
 	&"station_defense_wave_started": {"caption": "Station defense wave started", "default_severity": &"medium"},
 	&"station_defense_asset_danger": {"caption": "Station defense asset in danger", "default_severity": &"high"},
 	&"station_defense_asset_critical": {"caption": "Station defense asset critical", "default_severity": &"high"},
+	&"station_defense_asset_destroyed": {"caption": "Station defense asset destroyed", "default_severity": &"high"},
 	&"station_defense_completed": {"caption": "Station defense completed", "default_severity": &"low"},
 	&"station_defense_aborted": {"caption": "Station defense aborted", "default_severity": &"high"},
 	&"cargo_transfer_pickup_accepted": {"caption": "Cargo pickup accepted", "default_severity": &"low"},
