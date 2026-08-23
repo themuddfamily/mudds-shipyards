@@ -206,7 +206,10 @@ func _validate_sections(raw_sections: Dictionary) -> Dictionary:
 func _valid_entry_generations(entry: Dictionary, section_name: StringName) -> bool:
 	for key in entry.keys():
 		var field := StringName(key)
-		if field.ends_with("_generation") or field == &"component_generation":
+		if field == &"ownership_generation":
+			if not _valid_nonnegative_integer(entry.get(key)):
+				return false
+		elif field.ends_with("_generation") or field == &"component_generation":
 			if not _valid_positive_integer(entry.get(key)):
 				return false
 	for key in [&"owner_peer_id", &"occupant_peer_id"]:
