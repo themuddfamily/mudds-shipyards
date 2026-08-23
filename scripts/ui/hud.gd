@@ -903,6 +903,11 @@ func _help_rows_for_mode(mode: StringName) -> Array:
 
 func _help_rows_with_role_context(mode: StringName) -> Array:
 	var rows := _help_rows_for_mode(mode)
+	rows.append(["ACTIVITY BOARD", "PAUSE > ACTIVITY BOARD  //  BROWSE PUBLISHED ACTIVITIES"])
+	rows.append(["START ACTIVITY", "[ %s ] INTERACT  //  SELECT A BOARD OR START CONTROL" % _action_prompts([&"interact"])])
+	rows.append(["READ OBJECTIVE", "CURRENT OBJECTIVE  //  PROGRESS  //  REWARD PENDING"])
+	rows.append(["RECOVER", "FAILURE REASON  //  FOLLOW THE PUBLISHED RECOVERY STEP"])
+	rows.append(["VOCABULARY", "STATION DEFENSE  //  HEAVY BREACH  //  CINDER CARGO"])
 	if not _copilot_help_snapshot.is_empty():
 		rows.append(["COPILOT ROLE", "TARGET / ROUTE REVIEW"])
 		rows.append(["CLAIM / RELEASE", "REQUEST ONLY  //  NO HELM AUTHORITY"])

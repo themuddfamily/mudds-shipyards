@@ -36,6 +36,10 @@ func _run() -> void:
 	hud.call("_previous_help_page")
 	_check(page.text == "PAGE 1 / 3", "previous page returns deterministically")
 	_check(not str((rows[0] as Dictionary).key.text).is_empty() and not str((rows[0] as Dictionary).detail.text).is_empty(), "help rows retain published device glyph/text pairs")
+	var activity_rows := hud.call("_help_rows_with_role_context", &"piloting") as Array
+	var activity_text := " ".join(activity_rows.map(func(row: Variant) -> String: return "%s %s" % [str((row as Array)[0]), str((row as Array)[1])]))
+	_check("ACTIVITY BOARD" in activity_text and "INTERACT" in activity_text, "F1 help explains locating and starting activities")
+	_check("REWARD PENDING" in activity_text and "FAILURE REASON" in activity_text and "HEAVY BREACH" in activity_text, "F1 help explains static activity outcomes and vocabulary")
 	hud.update_copilot_navigation_support({"role": "copilot", "selected_target": "BERTH", "selected_route": "ROUTE-1", "request_state": "READY"})
 	hud.update_loadmaster_telemetry({"role": "loadmaster", "manifest_state": "READY", "readiness_receipt": "SEALED"})
 	hud.call("_set_help_text", hud.call("_help_rows_with_role_context", &"piloting"))
