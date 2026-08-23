@@ -97,6 +97,11 @@ func _run() -> void:
 		"shared snapshot jitter remains independent of projectile migration")
 	_check(ordering_client._projectile_jitter.get_snapshot().migration_generation == 2,
 		"projectile jitter adopts the new migration generation")
+	var malformed_migration := _packet(_projectile(2, &"flying", Vector3.INF), 2, 2, 3)
+	_check(ordering_client._apply_projectile_replica_snapshot(malformed_migration).get("status") == &"invalid_projectile_snapshot"
+		and ordering_client._projectile_replica_migration_generation == 2
+		and int(ordering_client.get_presentation_cursor_audit().get("projectile_count", 0)) == 1,
+		"malformed higher-migration payload cannot wipe the accepted replica state")
 	ordering_client._configured = true
 	_check(ordering_client.shutdown(&"replication_test").accepted,
 		"client shutdown is accepted")
@@ -105,10 +110,26 @@ func _run() -> void:
 		and ordering_client._projectile_replica_terminal_generations.is_empty()
 		and ordering_client._projectile_jitter.get_snapshot().next_revision == 1,
 		"shutdown clears projectile samples, replay fences, tombstones, and jitter")
-	server._projectile._projectiles[projectile.get("projectile_id")] = projectile.duplicate(true)
+	server._projectile_recipient_budgets.clear()
+	server._projectile_recipient_pending.clear()
+	server._projectile_published_generations.clear()
+	for projectile_index in 40:
+		var resync_projectile := projectile.duplicate(true)
+		resync_projectile["projectile_id"] = StringName("projectile_resync_%02d" % projectile_index)
+		server._projectile._projectiles[resync_projectile.projectile_id] = resync_projectile
 	var resync: Dictionary = server.publish_projectile_resync(2, 11)
-	_check(bool(resync.get("accepted", false)) and int(resync.get("projectile_count", 0)) == 1,
-		"late-join resync enumerates active authority projectiles")
+	var resync_budget := server.get_projectile_replication_budget(2)
+	_check(bool(resync.get("accepted", false))
+		and int(resync.get("projectile_count", 0)) == 40
+		and int(resync_budget.get("snapshot_count", 0)) <= Adapter.PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW
+		and int(resync_budget.get("forced_transition_count", 0)) == 0
+		and int(resync_budget.get("pending_count", 0)) == 24,
+		"late-join resync enumerates authority projectiles without bypassing its bounded window")
+	server.publish_projectile_snapshot(
+		server.get_projectile(&"projectile_resync_39"), [2], false, 21, false
+	)
+	_check(int(server.get_projectile_replication_budget(2).get("pending_count", 0)) == 8,
+		"a new budget window drains deferred snapshots by projectile identity exactly once")
 	_check(server.publish_projectile_snapshot(projectile, [9]).get("status") == &"peer_not_admitted",
 		"server rejects unknown recipient")
 	server._projectile_replica_packet_revisions[&"disconnect_probe"] = 4

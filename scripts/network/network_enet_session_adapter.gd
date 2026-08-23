@@ -645,7 +645,8 @@ func publish_projectile_snapshot(
 	projectile: Dictionary,
 	recipients: Array = [],
 	terminal: bool = false,
-	budget_tick: int = -1
+	budget_tick: int = -1,
+	initial_transition: bool = true
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -675,8 +676,10 @@ func publish_projectile_snapshot(
 		var peer_id := int(peer_variant)
 		var published: Dictionary = _projectile_published_generations.get(peer_id, {}) as Dictionary
 		var projectile_id := StringName(projectile.get("projectile_id", &""))
-		var transition := terminal or not published.has(projectile_id) \
-				or int(published.get(projectile_id, 0)) != int(projectile.get("projectile_generation", 0))
+		var transition := terminal or (initial_transition and (
+			not published.has(projectile_id)
+			or int(published.get(projectile_id, 0)) != int(projectile.get("projectile_generation", 0))
+		))
 		var budget := _projectile_budget_decision(peer_id, packet, logical_tick, transition)
 		if bool(budget.get("accepted", false)) and _peer != null:
 			_send_projectile_snapshot.rpc_id(peer_id, packet)
@@ -710,7 +713,7 @@ func publish_projectile_resync(peer_id: int, budget_tick: int = -1) -> Dictionar
 	var coalesced_count := 0
 	for projectile_variant in _projectile.get_projectiles_snapshot():
 		var result: Dictionary = publish_projectile_snapshot(
-			projectile_variant as Dictionary, [peer_id], false, budget_tick
+			projectile_variant as Dictionary, [peer_id], false, budget_tick, false
 		)
 		if not bool(result.get("accepted", false)):
 			return _remember(result)
@@ -759,8 +762,8 @@ func _projectile_budget_decision(
 		state.snapshot_count = 0
 		state.byte_count = 0
 		var pending: Dictionary = _projectile_recipient_pending.get(peer_id, {}) as Dictionary
-		for pending_variant in pending.values():
-			var pending_packet := pending_variant as Dictionary
+		for pending_id_variant in pending.keys():
+			var pending_packet := pending[pending_id_variant] as Dictionary
 			var pending_size := Marshalls.variant_to_base64(pending_packet).to_utf8_buffer().size()
 			if int(state.snapshot_count) >= PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW \
 					or int(state.byte_count) + pending_size > PROJECTILE_MAX_BYTES_PER_WINDOW:
@@ -769,8 +772,9 @@ func _projectile_budget_decision(
 				_send_projectile_snapshot.rpc_id(peer_id, pending_packet)
 			state.snapshot_count = int(state.snapshot_count) + 1
 			state.byte_count = int(state.byte_count) + pending_size
-			pending.erase(pending_variant)
+			pending.erase(pending_id_variant)
 		_projectile_recipient_pending[peer_id] = pending
+		state.pending_count = pending.size()
 	if int(state.snapshot_count) >= PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW \
 			or int(state.byte_count) + size_bytes > PROJECTILE_MAX_BYTES_PER_WINDOW:
 		if transition:
@@ -3114,15 +3118,15 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"invalid_projectile_snapshot"))
 	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_PROJECTILE_REPLICATION_PACKET_BYTES:
 		return _remember(_result(false, &"projectile_packet_too_large"))
+	var projectile: Dictionary = packet.get("projectile", {}) as Dictionary
+	var validation := _validate_projectile_replica_snapshot(projectile)
+	if not bool(validation.get("accepted", false)):
+		return _remember(validation)
 	var migration_generation := int(packet.get("migration_generation", 0))
 	if migration_generation < _projectile_replica_migration_generation:
 		return _remember(_result(false, &"stale_migration_generation"))
 	if migration_generation > _projectile_replica_migration_generation:
 		_reset_projectile_replica_state(migration_generation)
-	var projectile: Dictionary = packet.get("projectile", {}) as Dictionary
-	var validation := _validate_projectile_replica_snapshot(projectile)
-	if not bool(validation.get("accepted", false)):
-		return _remember(validation)
 	var projectile_id := StringName(projectile.get("projectile_id", &""))
 	var generation := int(projectile.get("projectile_generation", 0))
 	var prior_generation := int(_projectile_replica_generations.get(projectile_id, 0))
