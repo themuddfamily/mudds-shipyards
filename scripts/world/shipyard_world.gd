@@ -754,6 +754,10 @@ const DOCK_OPERATIONS_KEYLINE_POSITIONS := [
 ## resource is shared.
 const DOCK_MAST_COLLAR_INNER_RADIUS := 0.55
 const DOCK_MAST_COLLAR_OUTER_RADIUS := 0.74
+const DOCK_MAST_COLLAR_RINGS := 48
+const DOCK_MAST_COLLAR_RING_SEGMENTS := 16
+const DOCK_MAST_COLLAR_BUDGETED_RINGS := 40
+const DOCK_MAST_COLLAR_BUDGETED_RING_SEGMENTS := 16
 const DOCK_MAST_COLLAR_COPY_COUNT := 3
 const DOCK_MAST_COLLAR_POSITIONS := [
 	Vector3(11.0, 1.0, 10.0),
@@ -1599,9 +1603,14 @@ func get_dock_mast_collar_allocation_audit() -> Dictionary:
 		errors.append("dock_mast_collar_material_identity_drift")
 	if authority_nodes != 0:
 		errors.append("dock_mast_collar_gained_collision_authority")
+	var normalised := _dock_mast_collar_mesh != null and _dock_mast_collar_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	var expected_live_tessellation := Vector2i(DOCK_MAST_COLLAR_BUDGETED_RINGS, DOCK_MAST_COLLAR_BUDGETED_RING_SEGMENTS) if normalised else Vector2i(DOCK_MAST_COLLAR_RINGS, DOCK_MAST_COLLAR_RING_SEGMENTS)
 	if _dock_mast_collar_mesh == null \
 			or not is_equal_approx(_dock_mast_collar_mesh.inner_radius, DOCK_MAST_COLLAR_INNER_RADIUS) \
 			or not is_equal_approx(_dock_mast_collar_mesh.outer_radius, DOCK_MAST_COLLAR_OUTER_RADIUS) \
+			or _dock_mast_collar_mesh.rings != expected_live_tessellation.x \
+			or _dock_mast_collar_mesh.ring_segments != expected_live_tessellation.y \
+			or (normalised and _dock_mast_collar_mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) != Vector2i(DOCK_MAST_COLLAR_RINGS, DOCK_MAST_COLLAR_RING_SEGMENTS)) \
 			or _dock_mast_collar_mesh.get_surface_count() != 1:
 		errors.append("dock_mast_collar_mesh_recipe_drift")
 	return {
@@ -1611,6 +1620,15 @@ func get_dock_mast_collar_allocation_audit() -> Dictionary:
 		"current": {"visual_nodes": collars.size(), "drawn_copies": collars.size(), "surface_submissions": collars.size(), "mesh_resource_allocations": mesh_ids.size(), "material_resource_allocations": material_ids.size()},
 		"reductions": {"visual_nodes": 0, "drawn_copies": 0, "surface_submissions": 0, "mesh_resource_allocations": 2, "material_resource_allocations": 0},
 		"collision_authority_count": authority_nodes,
+		"mesh_recipe": {
+			"inner_radius": _dock_mast_collar_mesh.inner_radius if _dock_mast_collar_mesh != null else 0.0,
+			"outer_radius": _dock_mast_collar_mesh.outer_radius if _dock_mast_collar_mesh != null else 0.0,
+			"rings": _dock_mast_collar_mesh.rings if _dock_mast_collar_mesh != null else 0,
+			"ring_segments": _dock_mast_collar_mesh.ring_segments if _dock_mast_collar_mesh != null else 0,
+		},
+		"authored_tessellation": _dock_mast_collar_mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i(DOCK_MAST_COLLAR_RINGS, DOCK_MAST_COLLAR_RING_SEGMENTS)) if _dock_mast_collar_mesh != null else Vector2i.ZERO,
+		"live_tessellation": Vector2i(_dock_mast_collar_mesh.rings, _dock_mast_collar_mesh.ring_segments) if _dock_mast_collar_mesh != null else Vector2i.ZERO,
+		"normalised": normalised,
 		"batched": false,
 	}.duplicate(true)
 
@@ -5601,8 +5619,8 @@ func _build_architecture() -> void:
 	_dock_mast_collar_mesh = TorusMesh.new()
 	_dock_mast_collar_mesh.inner_radius = DOCK_MAST_COLLAR_INNER_RADIUS
 	_dock_mast_collar_mesh.outer_radius = DOCK_MAST_COLLAR_OUTER_RADIUS
-	_dock_mast_collar_mesh.rings = 64
-	_dock_mast_collar_mesh.ring_segments = 16
+	_dock_mast_collar_mesh.rings = DOCK_MAST_COLLAR_RINGS
+	_dock_mast_collar_mesh.ring_segments = DOCK_MAST_COLLAR_RING_SEGMENTS
 	for mast_position in DOCK_MAST_COLLAR_POSITIONS:
 		var mast_base_position: Vector3 = (mast_position as Vector3) - Vector3.UP
 		_cylinder(shell, "DockMast", mast_base_position + Vector3(0, 5.2, 0), 0.46, 10.4, _materials["steel_blue"], true)

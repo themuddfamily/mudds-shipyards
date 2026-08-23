@@ -495,6 +495,7 @@ func _test_the_cue_adds_no_collision(world: ShipyardWorld, hulls: Dictionary) ->
 
 func _test_dock_mast_collar_allocation(world: ShipyardWorld) -> void:
 	var audit := world.get_dock_mast_collar_allocation_audit()
+	var recipe := audit.get("mesh_recipe", {}) as Dictionary
 	var collars: Array[MeshInstance3D] = []
 	for raw_node in world.find_children("*", "MeshInstance3D", true, false):
 		var candidate := raw_node as MeshInstance3D
@@ -519,8 +520,12 @@ func _test_dock_mast_collar_allocation(world: ShipyardWorld) -> void:
 		and int((audit.get("current", {}) as Dictionary).get("mesh_resource_allocations", 0)) == 1
 		and int((audit.get("reductions", {}) as Dictionary).get("mesh_resource_allocations", 0)) == 2
 		and int(audit.get("collision_authority_count", -1)) == 0
+		and is_equal_approx(float(recipe.get("inner_radius", 0.0)), ShipyardWorld.DOCK_MAST_COLLAR_INNER_RADIUS)
+		and is_equal_approx(float(recipe.get("outer_radius", 0.0)), ShipyardWorld.DOCK_MAST_COLLAR_OUTER_RADIUS)
+		and audit.get("authored_tessellation", Vector2i.ZERO) == Vector2i(ShipyardWorld.DOCK_MAST_COLLAR_RINGS, ShipyardWorld.DOCK_MAST_COLLAR_RING_SEGMENTS)
+		and audit.get("live_tessellation", Vector2i.ZERO) == Vector2i(ShipyardWorld.DOCK_MAST_COLLAR_BUDGETED_RINGS, ShipyardWorld.DOCK_MAST_COLLAR_BUDGETED_RING_SEGMENTS)
 		and exact_roster,
-		"three visual-only dock-mast collars retain their named poses and orange material while immutable mesh allocations fall 3 -> 1"
+		"three visual-only dock-mast collars retain named poses, orange material and the exact 48x16 recipe while immutable mesh allocations fall 3 -> 1"
 	)
 	if shared_mesh == null:
 		return
@@ -535,6 +540,17 @@ func _test_dock_mast_collar_allocation(world: ShipyardWorld) -> void:
 		"an exact-looking private dock-mast collar mesh turns the allocation audit red"
 	)
 	(collars[1] as MeshInstance3D).mesh = original_second_mesh
+	var original_rings := shared_mesh.rings
+	shared_mesh.rings += 1
+	var recipe_red := world.get_dock_mast_collar_allocation_audit()
+	_check(
+		not bool(recipe_red.get("valid", true))
+		and (recipe_red.get("errors", PackedStringArray()) as PackedStringArray).has(
+			"dock_mast_collar_mesh_recipe_drift"
+		),
+		"a dock-mast collar tessellation mutation turns the exact recipe audit red"
+	)
+	shared_mesh.rings = original_rings
 
 
 func _test_target_core_allocation(world: ShipyardWorld) -> void:
