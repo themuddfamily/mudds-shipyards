@@ -22,6 +22,24 @@ const CUE_IMPACT_MEDIUM: StringName = &"hull_impact_medium"
 const CUE_IMPACT_HEAVY: StringName = &"hull_impact_heavy"
 const CUE_EXPLOSION: StringName = &"ship_explosion"
 
+const WEAPON_PROFILE_STANDARD: StringName = &"standard"
+const WEAPON_PROFILE_SIEGE_LANCE: StringName = &"siege_lance"
+const WEAPON_PROFILE_TAIL_TURRET: StringName = &"tail_turret"
+const WEAPON_PROFILE_REPEATER: StringName = &"repeater"
+const WEAPON_PROFILE_IDS: Array[StringName] = [
+	WEAPON_PROFILE_STANDARD,
+	WEAPON_PROFILE_SIEGE_LANCE,
+	WEAPON_PROFILE_TAIL_TURRET,
+	WEAPON_PROFILE_REPEATER,
+]
+const MAX_PROFILED_SOURCES := 16
+const SEMANTIC_SIEGE_LANCE_FIRE: StringName = &"siege_lance_fire_heavy"
+const SEMANTIC_TAIL_TURRET_FIRE: StringName = &"tail_turret_fire_broad"
+const SEMANTIC_REPEATER_FIRE: StringName = &"repeater_fire_light"
+const SEMANTIC_SIEGE_LANCE_IMPACT: StringName = &"siege_lance_impact_heavy"
+const SEMANTIC_TAIL_TURRET_IMPACT: StringName = &"tail_turret_impact_broad"
+const SEMANTIC_REPEATER_IMPACT: StringName = &"repeater_impact_light"
+
 const STREAM_PATHS := {
 	CUE_PLAYER_FIRE: "res://assets/audio/combat/player_pulse_fire_v1.wav",
 	CUE_DEFENDER_FIRE: "res://assets/audio/combat/defender_pulse_fire_v1.wav",
@@ -65,6 +83,14 @@ var _last_cue_pitch_scale := 1.0
 var _last_cue_volume_db := -80.0
 var _occlusion := 0.0
 var _last_semantic_intensity := 0.0
+var _last_semantic_cue_id: StringName = &""
+var _last_weapon_profile_id: StringName = WEAPON_PROFILE_STANDARD
+## A bounded presentation association lets the later pulse-arrival callback use
+## the same weapon voice without owning the shot, receipt, or source lifecycle.
+## Instance IDs are generation-safe for the life of a source node; tree exit
+## clears the association before any new world can reuse this audio bank.
+var _profiled_sources: Dictionary = {}
+var _profiled_source_order: Array[int] = []
 var _target_lock_active := false
 var _target_lock_position := Vector3.ZERO
 var _weapon_ready_announced := true
@@ -106,6 +132,9 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_stop_all_players()
+	_profiled_sources.clear()
+	_profiled_source_order.clear()
+	_last_weapon_profile_id = WEAPON_PROFILE_STANDARD
 
 
 func play_player_fire(world_position: Vector3, source_instance_id: int) -> bool:
@@ -117,7 +146,48 @@ func play_player_fire(world_position: Vector3, source_instance_id: int) -> bool:
 
 
 func play_defender_fire(world_position: Vector3, source_instance_id: int) -> bool:
-	return _play(CUE_DEFENDER_FIRE, &"fire", world_position, source_instance_id, -1.0, 1.0)
+	return play_opponent_weapon_fire(
+		world_position, source_instance_id, WEAPON_PROFILE_STANDARD
+	)
+
+
+## Uses the existing defender-fire asset and fixed fire pool with a deterministic
+## cadence-matched pitch/level profile. No firing or damage decision is made.
+func play_opponent_weapon_fire(
+		world_position: Vector3,
+		source_instance_id: int,
+		profile_id: StringName
+	) -> bool:
+	if not WEAPON_PROFILE_IDS.has(profile_id):
+		return false
+	var volume_db := -1.0
+	var pitch_scale := 1.0
+	var semantic_intensity := 0.75
+	match profile_id:
+		WEAPON_PROFILE_SIEGE_LANCE:
+			pitch_scale = 0.78
+			semantic_intensity = 1.0
+		WEAPON_PROFILE_TAIL_TURRET:
+			pitch_scale = 0.93
+			semantic_intensity = 0.78
+		WEAPON_PROFILE_REPEATER:
+			volume_db = -2.5
+			pitch_scale = 1.20
+			semantic_intensity = 0.58
+	var accepted := _play(
+		CUE_DEFENDER_FIRE,
+		&"fire",
+		world_position,
+		source_instance_id,
+		volume_db,
+		pitch_scale,
+		semantic_intensity,
+		profile_id,
+		_fire_semantic_cue(profile_id)
+	)
+	if accepted:
+		_remember_source_profile(source_instance_id, profile_id)
+	return accepted
 
 
 func play_dry_fire(world_position: Vector3, source_instance_id: int) -> bool:
@@ -131,6 +201,11 @@ func play_dry_fire(world_position: Vector3, source_instance_id: int) -> bool:
 func play_impact(world_position: Vector3, intensity: float, source_instance_id: int) -> bool:
 	if not is_finite(intensity) or intensity < 0.0:
 		return false
+	var profile_id := StringName(
+		_profiled_sources.get(source_instance_id, WEAPON_PROFILE_STANDARD)
+	)
+	if profile_id != WEAPON_PROFILE_STANDARD:
+		return _play_profiled_opponent_impact(world_position, source_instance_id, profile_id)
 	var severity := clampf(intensity, 0.0, 1.5) / 1.5
 	var cue_id := CUE_IMPACT_LIGHT
 	if intensity >= 1.2:
@@ -140,6 +215,10 @@ func play_impact(world_position: Vector3, intensity: float, source_instance_id: 
 	var volume_db := lerpf(-5.0, -1.0, severity)
 	var pitch_scale := lerpf(1.08, 0.88, severity)
 	return _play(cue_id, &"impact", world_position, source_instance_id, volume_db, pitch_scale, severity)
+
+
+func get_supported_weapon_profile_ids() -> Array[StringName]:
+	return WEAPON_PROFILE_IDS.duplicate()
 
 
 func play_explosion(world_position: Vector3, source_instance_id: int) -> bool:
@@ -203,6 +282,9 @@ func get_state_snapshot() -> Dictionary:
 		"last_cue_volume_db": _last_cue_volume_db,
 		"occlusion": _occlusion,
 		"last_semantic_intensity": _last_semantic_intensity,
+		"last_semantic_cue_id": _last_semantic_cue_id,
+		"last_weapon_profile_id": _last_weapon_profile_id,
+		"profiled_source_count": _profiled_sources.size(),
 		"active_voice_names": active_voices,
 		"voice_count": _voice_ids.size(),
 	}.duplicate(true)
@@ -283,8 +365,11 @@ func _play(
 		pool_id: StringName,
 		world_position: Vector3,
 		source_instance_id: int,
-		volume_db: float
-		, pitch_scale: float = 1.0, semantic_intensity: float = 1.0
+		volume_db: float,
+		pitch_scale: float = 1.0,
+		semantic_intensity: float = 1.0,
+		weapon_profile_id: StringName = WEAPON_PROFILE_STANDARD,
+		semantic_cue_id: StringName = &""
 	) -> bool:
 	if is_queued_for_deletion() or not is_inside_tree() \
 			or not world_position.is_finite() or source_instance_id < 0:
@@ -330,9 +415,85 @@ func _play(
 	_last_cue_pitch_scale = occluded_pitch_scale
 	_last_cue_volume_db = occluded_volume_db
 	_last_semantic_intensity = clampf(semantic_intensity, 0.0, 1.0)
+	_last_weapon_profile_id = weapon_profile_id
+	_last_semantic_cue_id = cue_id if semantic_cue_id.is_empty() else semantic_cue_id
 	cue_started.emit(cue_id, StringName(player.name), world_position, source_instance_id)
-	semantic_cue_emitted.emit(cue_id, world_position, _last_semantic_intensity)
+	semantic_cue_emitted.emit(_last_semantic_cue_id, world_position, _last_semantic_intensity)
 	return true
+
+
+func _play_profiled_opponent_impact(
+		world_position: Vector3,
+		source_instance_id: int,
+		profile_id: StringName
+	) -> bool:
+	var cue_id := CUE_IMPACT_MEDIUM
+	var volume_db := -2.0
+	var pitch_scale := 0.95
+	var semantic_intensity := 0.72
+	match profile_id:
+		WEAPON_PROFILE_SIEGE_LANCE:
+			cue_id = CUE_IMPACT_HEAVY
+			volume_db = -1.0
+			pitch_scale = 0.80
+			semantic_intensity = 1.0
+		WEAPON_PROFILE_TAIL_TURRET:
+			cue_id = CUE_IMPACT_MEDIUM
+			volume_db = -2.0
+			pitch_scale = 0.95
+			semantic_intensity = 0.72
+		WEAPON_PROFILE_REPEATER:
+			cue_id = CUE_IMPACT_LIGHT
+			volume_db = -4.0
+			pitch_scale = 1.16
+			semantic_intensity = 0.48
+		_:
+			return false
+	return _play(
+		cue_id,
+		&"impact",
+		world_position,
+		source_instance_id,
+		volume_db,
+		pitch_scale,
+		semantic_intensity,
+		profile_id,
+		_impact_semantic_cue(profile_id)
+	)
+
+
+func _fire_semantic_cue(profile_id: StringName) -> StringName:
+	match profile_id:
+		WEAPON_PROFILE_SIEGE_LANCE:
+			return SEMANTIC_SIEGE_LANCE_FIRE
+		WEAPON_PROFILE_TAIL_TURRET:
+			return SEMANTIC_TAIL_TURRET_FIRE
+		WEAPON_PROFILE_REPEATER:
+			return SEMANTIC_REPEATER_FIRE
+	return CUE_DEFENDER_FIRE
+
+
+func _impact_semantic_cue(profile_id: StringName) -> StringName:
+	match profile_id:
+		WEAPON_PROFILE_SIEGE_LANCE:
+			return SEMANTIC_SIEGE_LANCE_IMPACT
+		WEAPON_PROFILE_TAIL_TURRET:
+			return SEMANTIC_TAIL_TURRET_IMPACT
+		WEAPON_PROFILE_REPEATER:
+			return SEMANTIC_REPEATER_IMPACT
+	return CUE_IMPACT_MEDIUM
+
+
+func _remember_source_profile(source_instance_id: int, profile_id: StringName) -> void:
+	_profiled_sources.erase(source_instance_id)
+	_profiled_source_order.erase(source_instance_id)
+	if profile_id == WEAPON_PROFILE_STANDARD:
+		return
+	_profiled_sources[source_instance_id] = profile_id
+	_profiled_source_order.append(source_instance_id)
+	while _profiled_source_order.size() > MAX_PROFILED_SOURCES:
+		var retired_source_id: int = _profiled_source_order.pop_front()
+		_profiled_sources.erase(retired_source_id)
 
 
 func _get_pool(pool_id: StringName) -> Array[AudioStreamPlayer3D]:

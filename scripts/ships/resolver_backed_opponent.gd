@@ -156,6 +156,10 @@ func get_pulse_profile_id() -> StringName:
 	return PulseWeaponPresentation.PROFILE_STANDARD
 
 
+func get_combat_audio_profile_id() -> StringName:
+	return CombatAudioPresentation.WEAPON_PROFILE_STANDARD
+
+
 func get_weapon_id() -> StringName:
 	return &"resolver_backed_cannon"
 
@@ -243,6 +247,8 @@ func get_resolver_backed_errors() -> PackedStringArray:
 		errors.append("pulse style must be one of the pooled presentation's frozen styles")
 	if not PulseWeaponPresentation.PROFILE_IDS.has(get_pulse_profile_id()):
 		errors.append("pulse profile must be one of the pooled presentation's frozen silhouettes")
+	if not CombatAudioPresentation.WEAPON_PROFILE_IDS.has(get_combat_audio_profile_id()):
+		errors.append("combat audio profile must be one of the fixed voice bank's profiles")
 	if _registered and not is_instance_valid(_get_combat_authority()):
 		errors.append("registration is claimed without a live combat authority")
 	if _shot_receipts.size() > MAX_PENDING_SHOT_RECEIPTS:
@@ -350,7 +356,9 @@ func _present_resolved_shot(
 			endpoint = resolved_position as Vector3
 	var audio := _get_combat_audio()
 	if is_instance_valid(audio):
-		audio.play_defender_fire(origin, get_instance_id())
+		audio.play_opponent_weapon_fire(
+			origin, get_instance_id(), get_combat_audio_profile_id()
+		)
 	var damaged := bool(result.get("damaged", false))
 	if damaged:
 		_record_shot_receipt(receipt_id, result, endpoint)

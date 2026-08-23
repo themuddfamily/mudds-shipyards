@@ -56,6 +56,7 @@ const SKIRMISHER_WEAPON_ID: StringName = &"skirmisher_repeater"
 ## fixed pool, and this craft's gun is an ordinary opponent gun.
 const SKIRMISHER_PULSE_STYLE: StringName = &"amber"
 const SKIRMISHER_PULSE_PROFILE: StringName = PulseWeaponPresentation.PROFILE_REPEATER
+const SKIRMISHER_AUDIO_PROFILE: StringName = CombatAudioPresentation.WEAPON_PROFILE_REPEATER
 
 ## A compact dark delta. Neither the defender's broad ivory dart nor the
 ## picket's long graphite spine: this reads small and close-in at a glance.
@@ -178,6 +179,10 @@ func get_pulse_profile_id() -> StringName:
 	return SKIRMISHER_PULSE_PROFILE
 
 
+func get_combat_audio_profile_id() -> StringName:
+	return SKIRMISHER_AUDIO_PROFILE
+
+
 ## Called by `WingCoordinator`. The craft stores and presents the role; it never
 ## chooses it, so two skirmishers can never both believe they are the anchor.
 func assign_wing_role(role: StringName) -> void:
@@ -250,6 +255,7 @@ func get_audit_report() -> Dictionary:
 			"weapon_id": SKIRMISHER_WEAPON_ID,
 			"pulse_style_id": SKIRMISHER_PULSE_STYLE,
 			"pulse_profile_id": SKIRMISHER_PULSE_PROFILE,
+			"combat_audio_profile_id": SKIRMISHER_AUDIO_PROFILE,
 		},
 		"lifecycle": {
 			"inside_tree": is_inside_tree(),

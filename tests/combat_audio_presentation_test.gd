@@ -1,6 +1,9 @@
 extends SceneTree
 
 const COMBAT_AUDIO_PRESENTATION := preload("res://scenes/audio/combat_audio_presentation.tscn")
+const COURIER_SCENE := preload("res://scenes/ships/courier_runner_opponent.tscn")
+const SKIRMISHER_SCENE := preload("res://scenes/ships/flanking_skirmisher_opponent.tscn")
+const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
 
 
 class RejectingCombatAudioPresentation extends CombatAudioPresentation:
@@ -35,6 +38,7 @@ func _run() -> void:
 	await _test_default_playback_accepts_and_counts()
 	await _test_rejection_is_atomic_and_detached()
 	await _test_first_reject_then_accept_keeps_pool()
+	await _test_derived_opponent_weapon_profiles()
 	await _test_queued_reentry_restore_is_inert()
 
 	_test_root.queue_free()
@@ -136,6 +140,115 @@ func _test_first_reject_then_accept_keeps_pool() -> void:
 		int(after.get("last_source_instance_id", -1)) == 303,
 		"recovered playback records source instance id"
 	)
+	presentation.queue_free()
+	await process_frame
+
+
+func _test_derived_opponent_weapon_profiles() -> void:
+	var presentation := await _make_presentation()
+	if presentation == null:
+		return
+	var courier := COURIER_SCENE.instantiate() as CourierRunnerOpponent
+	var skirmisher := SKIRMISHER_SCENE.instantiate() as FlankingSkirmisherOpponent
+	var picket := PICKET_SCENE.instantiate() as StandoffPicketOpponent
+	for craft in [courier, skirmisher, picket]:
+		craft.set("combat_audio_path", NodePath("../CombatAudioPresentationUnderTest"))
+		_test_root.add_child(craft)
+	await process_frame
+
+	var resolved_miss := {
+		"accepted": true,
+		"resolved": true,
+		"hit": false,
+		"damaged": false,
+	}
+	picket.call("_present_lance_shot", Vector3(-12.0, 3.0, 8.0), Vector3.FORWARD, 1, resolved_miss)
+	var lance_fire := presentation.get_state_snapshot()
+	courier.call("_present_resolved_shot", Vector3.ZERO, Vector3.FORWARD, 2, resolved_miss)
+	var turret_fire := presentation.get_state_snapshot()
+	skirmisher.call("_present_resolved_shot", Vector3(12.0, 3.0, 8.0), Vector3.FORWARD, 3, resolved_miss)
+	var repeater_fire := presentation.get_state_snapshot()
+	_check(
+		lance_fire.last_cue_id == CombatAudioPresentation.CUE_DEFENDER_FIRE
+		and lance_fire.last_weapon_profile_id
+			== CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
+		and lance_fire.last_semantic_cue_id
+			== CombatAudioPresentation.SEMANTIC_SIEGE_LANCE_FIRE
+		and is_equal_approx(float(lance_fire.last_cue_pitch_scale), 0.78)
+		and turret_fire.last_weapon_profile_id
+			== CombatAudioPresentation.WEAPON_PROFILE_TAIL_TURRET
+		and turret_fire.last_semantic_cue_id
+			== CombatAudioPresentation.SEMANTIC_TAIL_TURRET_FIRE
+		and is_equal_approx(float(turret_fire.last_cue_pitch_scale), 0.93)
+		and repeater_fire.last_weapon_profile_id
+			== CombatAudioPresentation.WEAPON_PROFILE_REPEATER
+		and repeater_fire.last_semantic_cue_id
+			== CombatAudioPresentation.SEMANTIC_REPEATER_FIRE
+		and is_equal_approx(float(repeater_fire.last_cue_pitch_scale), 1.20),
+		"live lance, tail turret, and repeater dispatches select low, broad, and fast fire profiles"
+	)
+	_check(
+		int(repeater_fire.profiled_source_count) == 3
+		and int(repeater_fire.voice_count) == 10
+		and int((presentation.get_audit_report() as Dictionary).maximum_simultaneous_voices) == 10,
+		"profile association adds no voices and stays inside the existing ten-voice bank"
+	)
+
+	presentation.play_impact(Vector3(-12.0, 3.0, -30.0), 0.9, picket.get_instance_id())
+	var lance_impact := presentation.get_state_snapshot()
+	presentation.play_impact(Vector3(0.0, 3.0, -30.0), 0.9, courier.get_instance_id())
+	var turret_impact := presentation.get_state_snapshot()
+	presentation.play_impact(Vector3(12.0, 3.0, -30.0), 0.9, skirmisher.get_instance_id())
+	var repeater_impact := presentation.get_state_snapshot()
+	_check(
+		lance_impact.last_cue_id == CombatAudioPresentation.CUE_IMPACT_HEAVY
+		and lance_impact.last_semantic_cue_id
+			== CombatAudioPresentation.SEMANTIC_SIEGE_LANCE_IMPACT
+		and is_equal_approx(float(lance_impact.last_cue_pitch_scale), 0.80)
+		and turret_impact.last_cue_id == CombatAudioPresentation.CUE_IMPACT_MEDIUM
+		and turret_impact.last_semantic_cue_id
+			== CombatAudioPresentation.SEMANTIC_TAIL_TURRET_IMPACT
+		and is_equal_approx(float(turret_impact.last_cue_pitch_scale), 0.95)
+		and repeater_impact.last_cue_id == CombatAudioPresentation.CUE_IMPACT_LIGHT
+		and repeater_impact.last_semantic_cue_id
+			== CombatAudioPresentation.SEMANTIC_REPEATER_IMPACT
+		and is_equal_approx(float(repeater_impact.last_cue_pitch_scale), 1.16),
+		"the unchanged source-ID arrival seam resolves heavy, broad, and light impact profiles"
+	)
+	_check(
+		float(lance_impact.last_cue_volume_db) <= -1.0
+		and float(turret_impact.last_cue_volume_db) <= -1.0
+		and float(repeater_impact.last_cue_volume_db) <= -1.0
+		and float(lance_impact.last_semantic_intensity)
+			> float(turret_impact.last_semantic_intensity)
+		and float(turret_impact.last_semantic_intensity)
+			> float(repeater_impact.last_semantic_intensity),
+		"profile levels remain bounded for the shared reduced-range Weapons mix while retaining semantic weight"
+	)
+
+	_test_root.remove_child(presentation)
+	await process_frame
+	_test_root.add_child(presentation)
+	await process_frame
+	var reentered := presentation.get_state_snapshot()
+	presentation.play_impact(Vector3.ZERO, 0.9, picket.get_instance_id())
+	var unmapped_impact := presentation.get_state_snapshot()
+	_check(
+		int(reentered.profiled_source_count) == 0
+		and unmapped_impact.last_cue_id == CombatAudioPresentation.CUE_IMPACT_MEDIUM
+		and unmapped_impact.last_weapon_profile_id
+			== CombatAudioPresentation.WEAPON_PROFILE_STANDARD,
+		"audio-bank re-entry clears stale source profiles and cannot replay a pre-detach heavy impact"
+	)
+	picket.call("_present_lance_shot", Vector3.ZERO, Vector3.FORWARD, 4, resolved_miss)
+	_check(
+		presentation.get_state_snapshot().last_weapon_profile_id
+			== CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE,
+		"one fresh post-reentry lance dispatch restores only its current source profile"
+	)
+
+	for craft in [courier, skirmisher, picket]:
+		craft.queue_free()
 	presentation.queue_free()
 	await process_frame
 

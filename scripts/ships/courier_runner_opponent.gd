@@ -45,6 +45,7 @@ const COURIER_WEAPON_ID: StringName = &"courier_tail_deterrent"
 ## for the picket's heavy charged lance.
 const COURIER_PULSE_STYLE: StringName = &"amber"
 const COURIER_PULSE_PROFILE: StringName = PulseWeaponPresentation.PROFILE_TAIL_TURRET
+const COURIER_AUDIO_PROFILE: StringName = CombatAudioPresentation.WEAPON_PROFILE_TAIL_TURRET
 
 ## A pale sand hull with a warm cargo stripe. Deliberately the brightest and
 ## most civilian-looking opponent in the roster: at the distance you first see
@@ -148,6 +149,10 @@ func get_pulse_style_id() -> StringName:
 
 func get_pulse_profile_id() -> StringName:
 	return COURIER_PULSE_PROFILE
+
+
+func get_combat_audio_profile_id() -> StringName:
+	return COURIER_AUDIO_PROFILE
 
 
 ## Fixes the boundary run. Called by the scenario that dispatched the courier so
@@ -256,6 +261,7 @@ func get_audit_report() -> Dictionary:
 			"weapon_id": COURIER_WEAPON_ID,
 			"pulse_style_id": COURIER_PULSE_STYLE,
 			"pulse_profile_id": COURIER_PULSE_PROFILE,
+			"combat_audio_profile_id": COURIER_AUDIO_PROFILE,
 		},
 		"escape": {
 			"run_set": _escape_run_set,

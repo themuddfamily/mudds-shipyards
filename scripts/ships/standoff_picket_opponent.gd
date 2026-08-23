@@ -52,6 +52,7 @@ const DEFAULT_FACTION: StringName = &"range_defence"
 const LANCE_WEAPON_ID: StringName = &"picket_siege_lance"
 const LANCE_PULSE_STYLE: StringName = &"magenta"
 const LANCE_PULSE_PROFILE: StringName = PulseWeaponPresentation.PROFILE_SIEGE_LANCE
+const LANCE_AUDIO_PROFILE: StringName = CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
 
 const STATE_DORMANT: StringName = &"dormant"
 const STATE_CLOSING: StringName = &"closing"
@@ -475,6 +476,7 @@ func get_audit_report() -> Dictionary:
 			"weapon_id": LANCE_WEAPON_ID,
 			"pulse_style_id": LANCE_PULSE_STYLE,
 			"pulse_profile_id": LANCE_PULSE_PROFILE,
+			"combat_audio_profile_id": LANCE_AUDIO_PROFILE,
 		},
 		"weapon_definition": (
 			_weapon_definition.get_definition_snapshot()
@@ -1086,7 +1088,9 @@ func _present_lance_shot(
 			endpoint = resolved_position as Vector3
 	var audio := _get_combat_audio()
 	if is_instance_valid(audio):
-		audio.play_defender_fire(origin, get_instance_id())
+		audio.play_opponent_weapon_fire(
+			origin, get_instance_id(), LANCE_AUDIO_PROFILE
+		)
 	var damaged := bool(result.get("damaged", false))
 	if damaged:
 		_record_lance_receipt(receipt_id, result, endpoint)
