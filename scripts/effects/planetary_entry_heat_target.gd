@@ -10,6 +10,7 @@ extends Node3D
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"planetary-entry-heat-target"
 const OVERLAY_NODE_NAME: StringName = &"Overlay"
+const COMPRESSION_NODE_NAME: StringName = &"CompressionBow"
 const PRESENTATION_NODE_NAME: StringName = &"Presentation"
 const OWNED_PARAMETER: StringName = &"entry_effect_intensity_unitless"
 const AUTHORED_SHADER := preload(
@@ -42,6 +43,11 @@ const EXPECTED_AUTHORED_VISUAL_BOUNDS := AABB(
 const EXPECTED_STANDOFF_M := 0.25
 const EXPECTED_RADIAL_SEGMENTS := 32
 const EXPECTED_RINGS := 16
+const EXPECTED_COMPRESSION_INNER_RADIUS := 0.82
+const EXPECTED_COMPRESSION_OUTER_RADIUS := 1.0
+const EXPECTED_COMPRESSION_RINGS := 32
+const EXPECTED_COMPRESSION_RING_SEGMENTS := 12
+const EXPECTED_COMPRESSION_SCALE := Vector3(3.1, 1.0, 1.45)
 const AUTHORITY := {
 	"renderer": true,
 	"gameplay": false,
@@ -84,6 +90,7 @@ const EVIDENCE := {
 @export_range(0.0, 10.0, 0.01) var overlay_standoff_m := EXPECTED_STANDOFF_M
 
 var _authored_mesh_instance_id := 0
+var _authored_compression_mesh_instance_id := 0
 var _authored_material_instance_id := 0
 var _authored_shader_instance_id := 0
 
@@ -91,9 +98,14 @@ var _authored_shader_instance_id := 0
 func _ready() -> void:
 	var overlay := get_overlay()
 	var material := get_material()
+	var compression := _ensure_compression_bow(material)
 	var mesh := overlay.mesh if overlay != null else null
+	var compression_mesh := compression.mesh if compression != null else null
 	var shader := material.shader if material != null else null
 	_authored_mesh_instance_id = mesh.get_instance_id() if mesh != null else 0
+	_authored_compression_mesh_instance_id = (
+		compression_mesh.get_instance_id() if compression_mesh != null else 0
+	)
 	_authored_material_instance_id = (
 		material.get_instance_id() if material != null else 0
 	)
@@ -113,6 +125,12 @@ func get_material() -> ShaderMaterial:
 	return overlay.material_override as ShaderMaterial
 
 
+func get_compression_bow() -> MeshInstance3D:
+	return get_node_or_null(
+		NodePath(String(COMPRESSION_NODE_NAME))
+	) as MeshInstance3D
+
+
 func get_presentation() -> PlanetaryEntryHeatPresentation:
 	return get_node_or_null(
 		NodePath(String(PRESENTATION_NODE_NAME))
@@ -130,11 +148,14 @@ func is_contract_valid() -> bool:
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var overlay := get_overlay()
+	var compression := get_compression_bow()
 	var presentation := get_presentation()
-	if get_child_count() != 2:
-		errors.append("exactly_two_direct_children_required")
+	if get_child_count() != 3:
+		errors.append("exactly_three_direct_children_required")
 	if overlay == null:
 		errors.append("overlay_missing")
+	if compression == null:
+		errors.append("compression_bow_missing")
 	if presentation == null:
 		errors.append("presentation_missing")
 	if authored_visual_bounds != EXPECTED_AUTHORED_VISUAL_BOUNDS \
@@ -143,11 +164,14 @@ func audit() -> Dictionary:
 	if not _aabb_is_finite_and_bounded(authored_visual_bounds):
 		errors.append("authored_bounds_invalid")
 	if _authored_mesh_instance_id == 0 \
+			or _authored_compression_mesh_instance_id == 0 \
 			or _authored_material_instance_id == 0 \
 			or _authored_shader_instance_id == 0:
 		errors.append("authored_resource_identity_not_captured")
 	if overlay != null:
 		_validate_overlay(errors, overlay)
+	if compression != null:
+		_validate_compression_bow(errors, compression)
 	if _contains_forbidden_authority_node(self):
 		errors.append("forbidden_authority_node_present")
 	if not _evidence_contract_is_valid(EVIDENCE):
@@ -159,6 +183,7 @@ func audit() -> Dictionary:
 	var material := get_material()
 	var shader := material.shader if material != null else null
 	var mesh := overlay.mesh if overlay != null else null
+	var compression_mesh := compression.mesh if compression != null else null
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -179,6 +204,9 @@ func audit() -> Dictionary:
 		"renderer": {
 			"overlay_available": overlay != null,
 			"mesh_resource_instance_id": mesh.get_instance_id() if mesh != null else 0,
+			"compression_mesh_resource_instance_id": (
+				compression_mesh.get_instance_id() if compression_mesh != null else 0
+			),
 			"material_instance_id": material.get_instance_id() if material != null else 0,
 			"shader_instance_id": shader.get_instance_id() if shader != null else 0,
 			"surface_count": mesh.get_surface_count() if mesh != null else 0,
@@ -186,10 +214,11 @@ func audit() -> Dictionary:
 			"intensity_baseline": material.get_shader_parameter(OWNED_PARAMETER) if material != null else null,
 		},
 		"performance": {
-			"renderer_node_count": 1,
-			"surface_count": 1,
-			"submission_hint_count": 1,
+			"renderer_node_count": 2,
+			"surface_count": 2,
+			"submission_hint_count": 2,
 			"live_material_count_per_target": 1,
+			"live_mesh_resource_count_per_target": 2,
 			"shared_mesh_resource_count": 1,
 			"shared_shader_resource_count": 1,
 			"process_loop_count": 0,
@@ -202,7 +231,7 @@ func audit() -> Dictionary:
 			"bounded_overlay_geometry": true,
 			"high_low_same_target_contract": true,
 			"physical_bow_shock": false,
-			"directional_airflow_shape": false,
+			"directional_airflow_shape": true,
 			"ship_integration": false,
 		},
 		"evidence": EVIDENCE.duplicate(true),
@@ -263,8 +292,69 @@ func _validate_overlay(errors: PackedStringArray, overlay: MeshInstance3D) -> vo
 			errors.append("entry_intensity_out_of_bounds")
 		elif get_presentation() != null \
 				and not bool(get_presentation().get_state_snapshot().configured) \
-				and float(intensity) != 0.0:
-			errors.append("authored_entry_intensity_baseline_not_zero")
+			and float(intensity) != 0.0:
+				errors.append("authored_entry_intensity_baseline_not_zero")
+
+
+func _ensure_compression_bow(material: ShaderMaterial) -> MeshInstance3D:
+	var existing := get_compression_bow()
+	if existing != null or material == null:
+		return existing
+	var compression := MeshInstance3D.new()
+	compression.name = COMPRESSION_NODE_NAME
+	var ring := TorusMesh.new()
+	ring.outer_radius = EXPECTED_COMPRESSION_OUTER_RADIUS
+	ring.inner_radius = EXPECTED_COMPRESSION_INNER_RADIUS
+	ring.rings = EXPECTED_COMPRESSION_RINGS
+	ring.ring_segments = EXPECTED_COMPRESSION_RING_SEGMENTS
+	compression.mesh = ring
+	compression.material_override = material
+	var expanded := get_expanded_visual_bounds()
+	compression.position = Vector3(
+		expanded.get_center().x,
+		expanded.get_center().y,
+		expanded.position.z - 0.18
+	)
+	compression.rotation_degrees.x = 90.0
+	compression.scale = EXPECTED_COMPRESSION_SCALE
+	compression.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	compression.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	add_child(compression)
+	move_child(compression, 1)
+	return compression
+
+
+func _validate_compression_bow(
+		errors: PackedStringArray,
+		compression: MeshInstance3D
+	) -> void:
+	var expanded := get_expanded_visual_bounds()
+	var expected_position := Vector3(
+		expanded.get_center().x,
+		expanded.get_center().y,
+		expanded.position.z - 0.18
+	)
+	if compression.position != expected_position \
+			or compression.rotation_degrees != Vector3(90.0, 0.0, 0.0) \
+			or compression.scale != EXPECTED_COMPRESSION_SCALE:
+		errors.append("compression_bow_transform_drift")
+	if compression.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or compression.gi_mode != GeometryInstance3D.GI_MODE_DISABLED:
+		errors.append("compression_bow_renderer_contract_drift")
+	if not compression.mesh is TorusMesh:
+		errors.append("compression_bow_mesh_type_invalid")
+	else:
+		var ring := compression.mesh as TorusMesh
+		if ring.get_instance_id() != _authored_compression_mesh_instance_id:
+			errors.append("compression_bow_mesh_identity_drift")
+		if not is_equal_approx(ring.inner_radius, EXPECTED_COMPRESSION_INNER_RADIUS) \
+				or not is_equal_approx(ring.outer_radius, EXPECTED_COMPRESSION_OUTER_RADIUS) \
+				or ring.rings != EXPECTED_COMPRESSION_RINGS \
+				or ring.ring_segments != EXPECTED_COMPRESSION_RING_SEGMENTS \
+				or ring.get_surface_count() != 1:
+			errors.append("compression_bow_mesh_recipe_drift")
+	if compression.material_override != get_material():
+		errors.append("compression_bow_material_identity_drift")
 
 
 func _shader_has_exact_parameter_contract(shader: Shader) -> bool:

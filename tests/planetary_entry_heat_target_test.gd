@@ -6,7 +6,7 @@ const TARGET_SCENE := preload(
 const ProfileScript := preload(
 	"res://scripts/world/definitions/planetary_atmosphere_profile.gd"
 )
-const EXPECTED_ASSERTIONS := 34
+const EXPECTED_ASSERTIONS := 35
 const EXPECTED_BOUNDS := AABB(
 	Vector3(-4.0, -2.0, -7.0), Vector3(8.0, 4.0, 14.0)
 )
@@ -55,18 +55,20 @@ func _test_authored_contract(
 		second: PlanetaryEntryHeatTarget
 	) -> void:
 	var overlay := first.get_overlay()
+	var compression := first.get_compression_bow()
 	var material := first.get_material()
 	var presentation := first.get_presentation()
 	var audit := first.audit()
 	_check(
 		first != null and second != null and bool(audit.valid),
-		"real authored target instantiates twice with green contract"
+		"real authored target instantiates twice with green contract: %s" % [audit.errors]
 	)
 	_check(
-		first.get_child_count() == 2
+		first.get_child_count() == 3
 		and first.get_node("Overlay") == overlay
+		and first.get_node("CompressionBow") == compression
 		and first.get_node("Presentation") == presentation,
-		"target direct roster is exactly Overlay plus Presentation"
+		"target direct roster is exactly Overlay, CompressionBow, plus Presentation"
 	)
 	_check(
 		first.authored_visual_bounds == EXPECTED_BOUNDS
@@ -81,6 +83,7 @@ func _test_authored_contract(
 		"one unit sphere is deterministically scaled to the bounded AABB"
 	)
 	var sphere := overlay.mesh as SphereMesh
+	var compression_ring := compression.mesh as TorusMesh
 	_check(
 		sphere != null and sphere.radius == 1.0 and sphere.height == 2.0
 		and sphere.radial_segments == 32 and sphere.rings == 16
@@ -91,8 +94,15 @@ func _test_authored_contract(
 		overlay.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		and overlay.gi_mode == GeometryInstance3D.GI_MODE_DISABLED
 		and overlay.visibility_range_begin == 0.0
-		and overlay.visibility_range_end == 0.0,
-		"overlay has no shadows, GI, or hidden distance policy"
+		and overlay.visibility_range_end == 0.0
+		and compression_ring != null
+		and is_equal_approx(compression_ring.inner_radius, 0.82)
+		and is_equal_approx(compression_ring.outer_radius, 1.0)
+		and compression_ring.rings == 32
+		and compression_ring.ring_segments == 12
+		and compression.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and compression.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
+		"overlay and bounded compression bow have no shadows, GI, or hidden distance policy"
 	)
 	_check(
 		material != null and material.resource_local_to_scene
@@ -102,13 +112,13 @@ func _test_authored_contract(
 		"exclusive material starts at the exact invisible zero baseline"
 	)
 	_check(
-		audit.nodes.mesh_instance_count == 1
+		audit.nodes.mesh_instance_count == 2
 		and audit.nodes.collision_object_count == 0
 		and audit.nodes.collision_shape_count == 0
 		and audit.nodes.light_count == 0
 		and audit.nodes.particle_count == 0
 		and audit.nodes.audio_count == 0,
-		"target owns one renderer and no collision/light/particle/audio nodes"
+		"target owns two bounded renderers and no collision/light/particle/audio nodes"
 	)
 	_check(
 		not first.is_processing() and not first.is_physics_processing()
@@ -125,12 +135,17 @@ func _test_exclusive_material_and_shared_immutable_resources(
 	) -> void:
 	var first_overlay := first.get_overlay()
 	var second_overlay := second.get_overlay()
+	var first_compression := first.get_compression_bow()
+	var second_compression := second.get_compression_bow()
 	var first_material := first.get_material()
 	var second_material := second.get_material()
 	_check(
 		first_overlay.mesh == second_overlay.mesh
-		and first_material.shader == second_material.shader,
-		"live targets share the immutable mesh and shader resources"
+		and first_material.shader == second_material.shader
+		and first_compression.mesh != second_compression.mesh
+		and first_compression.material_override == first_material
+		and second_compression.material_override == second_material,
+		"live targets share immutable authored resources while each bounded bow uses its target material"
 	)
 	_check(
 		first_material != second_material
@@ -146,10 +161,11 @@ func _test_exclusive_material_and_shared_immutable_resources(
 	first_material.set_shader_parameter(OWNED_PARAMETER, 0.0)
 	var audit := first.audit()
 	_check(
-		audit.performance.renderer_node_count == 1
-		and audit.performance.surface_count == 1
-		and audit.performance.submission_hint_count == 1
+		audit.performance.renderer_node_count == 2
+		and audit.performance.surface_count == 2
+		and audit.performance.submission_hint_count == 2
 		and audit.performance.live_material_count_per_target == 1
+		and audit.performance.live_mesh_resource_count_per_target == 2
 		and audit.performance.shared_mesh_resource_count == 1
 		and audit.performance.shared_shader_resource_count == 1,
 		"allocation/submission audit freezes the bounded Stage-1 target"
@@ -161,7 +177,7 @@ func _test_exclusive_material_and_shared_immutable_resources(
 		and audit.capabilities.immutable_shared_shader
 		and audit.capabilities.high_low_same_target_contract
 		and not audit.capabilities.physical_bow_shock
-		and not audit.capabilities.directional_airflow_shape
+		and audit.capabilities.directional_airflow_shape
 		and not audit.capabilities.ship_integration,
 		"capabilities state the visual proxy and production deferrals exactly"
 	)
@@ -297,6 +313,7 @@ func _test_audit_mutations(target: PlanetaryEntryHeatTarget) -> void:
 func _test_adapter_lifecycle(target: PlanetaryEntryHeatTarget) -> void:
 	var presentation := target.get_presentation()
 	var material := target.get_material()
+	var compression := target.get_compression_bow()
 	var profile := ProfileScript.new() as PlanetaryAtmosphereProfile
 	var configured := presentation.configure(profile, material)
 	var full := presentation.present_observation(10000.0, 340.0, 1)
@@ -306,11 +323,20 @@ func _test_adapter_lifecycle(target: PlanetaryEntryHeatTarget) -> void:
 		and bool(target.audit().valid),
 		"real target composes with adapter at full sampler intensity"
 	)
+	var midpoint := presentation.present_observation(14000.0, 250.0, 1)
+	_check(
+		midpoint.accepted
+		and is_equal_approx(material.get_shader_parameter(OWNED_PARAMETER), 0.25)
+		and compression.material_override == material,
+		"one resolved intensity continuously drives both hull heat and compression bow"
+	)
+	presentation.present_observation(10000.0, 340.0, 1)
 	var generation := presentation.get_generation()
 	var revision: int = int(presentation.get_state_snapshot().revision)
 	root.remove_child(target)
 	_check(
 		material.get_shader_parameter(OWNED_PARAMETER) == 0.0
+		and compression.material_override == material
 		and presentation.get_generation() == generation
 		and presentation.get_state_snapshot().revision == revision,
 		"whole-target exit restores zero without changing identity"
@@ -328,6 +354,7 @@ func _test_adapter_lifecycle(target: PlanetaryEntryHeatTarget) -> void:
 	await process_frame
 	_check(
 		material.get_shader_parameter(OWNED_PARAMETER) == 1.0
+		and compression.material_override == material
 		and presentation.get_generation() == generation
 		and presentation.get_state_snapshot().revision == revision
 		and bool(target.audit().valid),
