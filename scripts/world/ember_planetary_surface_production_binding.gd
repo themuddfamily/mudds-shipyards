@@ -203,6 +203,10 @@ func commit_relay_survey_reward() -> Dictionary:
 	_apply_relay_survey_presentation()
 	return result
 
+func abort_relay_survey(reason: StringName = &"caller_evidence_lost") -> Dictionary:
+	if not _live(): return _result(false, &"composition_detached")
+	return _adapter.call(&"abort_activity", reason)
+
 
 func discover_settlements(position: Variant, radius_m: Variant) -> Dictionary:
 	if not _live():

@@ -382,6 +382,7 @@ func prepare_early_tick(
 		return _finish(false, &"stale_location_generation")
 	var sample_validation := _validate_actor_sample(actor_sample)
 	if not bool(sample_validation.get("accepted", false)):
+		_abort_active_relay_survey(&"actor_evidence_lost")
 		return _finish(false, sample_validation.get("reason", &"invalid_actor_sample") as StringName)
 	var sample := (actor_sample as Dictionary).duplicate(true)
 	var origin_validation := _validate_origin_result(
@@ -655,6 +656,7 @@ func _physics_process(_engine_delta: float) -> void:
 	if int(envelope.get("host_generation", -1)) != _host.get_generation() \
 			or int(envelope.get("host_attachment_generation", -1)) \
 				!= _host.get_attachment_generation():
+		_abort_active_relay_survey(&"host_generation_drift")
 		_fail_late(&"host_generation_drift")
 		return
 	if int(envelope.get("coordinate_frame_generation", 0)) != _frame.get_generation():
@@ -731,6 +733,15 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 		&"submit_relay_survey_position", position
 	)
 	return &"relay_position_forward_rejected" if not bool(forwarded.get("accepted", false)) else &""
+
+
+func _abort_active_relay_survey(reason: StringName) -> void:
+	if _planetary_composition == null:
+		return
+	var snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
+	var activity: Dictionary = snapshot.get("adapter", {}).get("activity_reward", {}) as Dictionary
+	if StringName(activity.get("state", &"")) in [&"active", &"awaiting_reward"]:
+		_planetary_composition.call(&"abort_relay_survey", reason)
 
 
 func _complete_handback_late() -> void:
