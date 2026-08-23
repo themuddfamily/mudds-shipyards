@@ -58,6 +58,8 @@ signal server_browser_result(result: Dictionary)
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
 const AUTHORITY_PEER_ID := 1
+const NETWORK_PROTOCOL_VERSION := 1
+const NETWORK_BUILD_VERSION := 1
 const MAX_SECURE_PACKETS_PER_WINDOW := 32
 const SECURE_WINDOW_MILLISECONDS := 1000
 const RECONNECT_BACKOFF_BASE_MILLISECONDS := 250
@@ -1861,6 +1863,8 @@ func _decorate_hosted_directory(entries: Array) -> Array:
 			entry["max_players"] = int(capacity.get("max_players", 0))
 			entry["available_slots"] = int(capacity.get("available_slots", 0))
 			entry["capacity_generation"] = capacity_generation
+			entry["protocol_version"] = NETWORK_PROTOCOL_VERSION
+			entry["build_version"] = NETWORK_BUILD_VERSION
 		decorated.append(entry)
 	return decorated
 
@@ -1905,6 +1909,30 @@ func query_server_directory(region_filter: StringName = &"", max_ping_ms: int = 
 	return _server_browser.query(region_filter, max_ping_ms, include_full)
 
 
+func query_compatible_server_directory(region_filter: StringName = &"", max_ping_ms: int = -1, include_full: bool = true) -> Dictionary:
+	var compatible: Array = []
+	var incompatible: Array = []
+	for entry in _server_browser.query(region_filter, max_ping_ms, include_full):
+		var checked := _check_directory_compatibility(entry)
+		if bool(checked.get("compatible", false)):
+			compatible.append(entry)
+		else:
+			var rejected: Dictionary = entry.duplicate(true)
+			rejected["incompatible_reason"] = checked.get("reason", &"unknown_protocol")
+			incompatible.append(rejected)
+	return {"compatible": compatible, "incompatible": incompatible}
+
+
+func _check_directory_compatibility(entry: Dictionary) -> Dictionary:
+	if not entry.has("protocol_version") or not entry.has("build_version"):
+		return {"compatible": false, "reason": &"unknown_protocol"}
+	if int(entry.get("protocol_version", 0)) != NETWORK_PROTOCOL_VERSION:
+		return {"compatible": false, "reason": &"protocol_mismatch"}
+	if int(entry.get("build_version", 0)) != NETWORK_BUILD_VERSION:
+		return {"compatible": false, "reason": &"build_mismatch"}
+	return {"compatible": true, "reason": &"compatible"}
+
+
 func detach_server_directory() -> Dictionary:
 	var result: Dictionary = _server_browser.detach(AUTHORITY_PEER_ID)
 	server_browser_result.emit(result.duplicate(true))
@@ -1915,6 +1943,9 @@ func create_join_intent(session_id: StringName) -> Dictionary:
 	var entry: Dictionary = _server_browser.get_session(session_id)
 	if entry.is_empty():
 		return _remember(_result(false, &"session_not_found"))
+	var compatibility := _check_directory_compatibility(entry)
+	if not bool(compatibility.get("compatible", false)):
+		return _remember(_result(false, compatibility.get("reason", &"unknown_protocol")))
 	if int(entry.get("player_count", 0)) >= int(entry.get("max_players", 0)):
 		return _remember(_result(false, &"session_full"))
 	var sequence := _next_join_intent_sequence
@@ -1942,6 +1973,9 @@ func consume_join_intent(intent: Dictionary, address: String = "127.0.0.1", port
 	var entry: Dictionary = _server_browser.get_session(session_id)
 	if entry.is_empty():
 		return _remember(_result(false, &"session_not_found"))
+	var compatibility := _check_directory_compatibility(entry)
+	if not bool(compatibility.get("compatible", false)):
+		return _remember(_result(false, compatibility.get("reason", &"unknown_protocol")))
 	if generation != int(entry.get("directory_generation", 0)):
 		return _remember(_result(false, &"stale_join_intent_generation"))
 	_last_join_intent_sequence = sequence
@@ -1958,6 +1992,9 @@ func request_join_advertised_session(
 	var entry: Dictionary = _server_browser.get_session(session_id)
 	if entry.is_empty():
 		return _remember(_result(false, &"session_not_found"))
+	var compatibility := _check_directory_compatibility(entry)
+	if not bool(compatibility.get("compatible", false)):
+		return _remember(_result(false, compatibility.get("reason", &"unknown_protocol")))
 	if int(entry.get("player_count", 0)) >= int(entry.get("max_players", 0)):
 		return _remember(_result(false, &"session_full"))
 	var started: Dictionary = join(address, port)
