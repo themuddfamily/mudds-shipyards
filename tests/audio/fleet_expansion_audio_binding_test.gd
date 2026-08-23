@@ -5,6 +5,7 @@ const RigScene := preload("res://scenes/audio/ship_audio_rig.tscn")
 
 var _assertions := 0
 var _failures := PackedStringArray()
+var _events: Array[StringName] = []
 
 
 func _init() -> void:
@@ -30,11 +31,19 @@ func _run() -> void:
 	_check(bool(hot_path_audit.player_count_stable), "repeated updates allocate no new rig players")
 	_check(bool(hot_path_audit.resource_generation_stable), "repeated updates synthesize no new resources")
 	_check((binding.get_snapshot().authority as Dictionary).flight == false, "binding owns no flight authority")
+	rig.semantic_engine_cue_emitted.connect(_on_cue)
+	_check(bool(binding.present_component_damage({"stage": &"degraded", "health_ratio": 0.7}).accepted), "degraded component damage reaches rig")
+	_check(bool(binding.present_component_damage({"stage": &"critical", "health_ratio": 0.2}).accepted), "critical component damage reaches rig")
+	_check(_events.has(&"engine_critical"), "critical damage emits the existing engine cue")
+	_check(bool(binding.present_component_damage({"stage": &"repaired", "health_ratio": 1.0}).accepted), "repair reset reaches rig")
+	_check(_events.has(&"engine_recovered"), "repair emits the existing recovery cue")
 	_check(binding.bind(&"cargo_craft", rig).reason == &"already_bound", "rebind cannot replace active caller binding")
 	_check(bool(binding.detach().accepted), "detach releases rig association")
 	_check(binding.get_snapshot().generation == 1, "detach advances binding generation")
+	_check((binding.get_snapshot().component_damage as Dictionary).is_empty(), "detach clears component damage binding")
 	_check(bool(binding.bind(&"lightweight_interceptor", rig).accepted), "detached binding can reuse the same rig")
 	_check(not bool(binding.get_snapshot().reduced_dynamic_range), "re-entry resets caller mix policy")
+	_check(bool((binding.get_snapshot().component_damage as Dictionary).attached), "re-entry restores component damage binding")
 	_check(int(binding.get_snapshot().plan_build_count) == 2, "detach and reuse keep cached plans")
 	_check(bool(binding.detach().accepted), "reused binding detaches cleanly")
 	var foreign := Node.new()
@@ -51,3 +60,7 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _on_cue(cue_id: StringName, _intensity: float) -> void:
+	_events.append(cue_id)

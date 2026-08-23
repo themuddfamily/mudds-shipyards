@@ -5,6 +5,7 @@ extends RefCounted
 ## identity and the existing rig; this binding never owns flight or engine state.
 
 const Profile := preload("res://scripts/audio/fleet_expansion_audio_profile.gd")
+const ComponentDamageBinding := preload("res://scripts/audio/component_damage_audio_binding.gd")
 const RIG_PROFILE_BY_RECIPE := {
 	&"bulwark_heavy_gunship": &"heavy_quad_freighter",
 	&"cargo_craft": &"heavy_quad_freighter",
@@ -25,6 +26,7 @@ var _plan_build_count := 0
 var _plan_apply_count := 0
 var _baseline_player_count := -1
 var _baseline_synthesis_generation := -1
+var _damage_binding: RefCounted
 
 
 func bind(ship_id: StringName, rig: Node) -> Dictionary:
@@ -51,6 +53,16 @@ func bind(ship_id: StringName, rig: Node) -> Dictionary:
 	if _baseline_synthesis_generation < 0 and rig.has_method(&"get_synthesis_report"):
 		_baseline_synthesis_generation = int(rig.call(&"get_synthesis_report").get("generation_count", -1))
 	_apply_plan()
+	_damage_binding = ComponentDamageBinding.new()
+	var damage_result: Dictionary = _damage_binding.bind(rig)
+	if not bool(damage_result.get("accepted", false)):
+		_damage_binding = null
+		_attached = false
+		_rig = null
+		_ship_id = &""
+		_profile_id = &""
+		_applied_plan.clear()
+		return _result(false, &"damage_binding_failed")
 	return _result(true, &"bound")
 
 
@@ -69,6 +81,9 @@ func detach() -> Dictionary:
 		return _result(false, &"not_bound")
 	_attached = false
 	_generation += 1
+	if _damage_binding != null:
+		_damage_binding.detach()
+	_damage_binding = null
 	_rig = null
 	_ship_id = &""
 	_profile_id = &""
@@ -89,9 +104,16 @@ func get_snapshot() -> Dictionary:
 		"plan_cache_entries": _plan_cache.size(),
 		"plan_build_count": _plan_build_count,
 		"plan_apply_count": _plan_apply_count,
+		"component_damage": _damage_binding.get_snapshot() if _damage_binding != null else {},
 		"audit": get_audit(),
 		"authority": {"flight": false, "engine_state": false, "audio_playback": false},
 	}.duplicate(true)
+
+
+func present_component_damage(snapshot: Dictionary) -> Dictionary:
+	if _damage_binding == null:
+		return _result(false, &"not_bound")
+	return _damage_binding.present_damage_snapshot(snapshot)
 
 
 func _apply_plan() -> void:
