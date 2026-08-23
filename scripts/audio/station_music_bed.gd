@@ -145,6 +145,7 @@ const PRESENTATION_LAYER_TARGETS := {
 const FADE_IN_RATE_PER_SECOND := 0.25
 const FADE_OUT_RATE_PER_SECOND := 0.5
 const COMBAT_DUCK_RATE_PER_SECOND := 1.25
+const MAX_COMBAT_MIX_INTENSITY := 1.0
 ## After combat ends the bed stays out for this long before it starts returning.
 const COMBAT_RECOVERY_HOLD_SECONDS := 4.0
 ## Below this the layer is stopped and detached instead of held at a silent
@@ -173,6 +174,7 @@ var _active: Dictionary = {}
 var _session_state: StringName = STATE_REST
 var _presentation_state: StringName = PRESENTATION_STATION
 var _combat_recovery_remaining := 0.0
+var _combat_mix_intensity := 0.0
 var _resident_sample_bytes := 0
 var _resources_ready := false
 var _audio_available := false
@@ -303,6 +305,20 @@ func notify_music_phase(phase: StringName) -> bool:
 	return accepted
 
 
+## Accepts a caller-owned combat presentation intensity. Zero retains the
+## original hard yield; nonzero values let a presentation caller keep a quiet
+## resident tension bed without granting the bed gameplay authority.
+func set_combat_mix_intensity(intensity: float) -> bool:
+	if not _can_mutate_live_bed() or not is_finite(intensity) \
+			or intensity < 0.0 or intensity > MAX_COMBAT_MIX_INTENSITY:
+		return false
+	_combat_mix_intensity = intensity
+	_apply_session_targets()
+	if is_inside_tree() and not _tearing_down:
+		_apply_playback_state()
+	return true
+
+
 func get_session_state() -> StringName:
 	return _session_state
 
@@ -369,6 +385,7 @@ func reset_bed() -> void:
 	_session_state = STATE_REST
 	_presentation_state = PRESENTATION_STATION
 	_combat_recovery_remaining = 0.0
+	_combat_mix_intensity = 0.0
 	_bed_paused = false
 	_elapsed_bed_seconds = 0.0
 	_apply_session_targets()
@@ -457,6 +474,7 @@ func get_state_snapshot() -> Dictionary:
 		"bed_enabled": bed_enabled,
 		"bed_paused": _bed_paused,
 		"combat_recovery_remaining": _combat_recovery_remaining,
+		"combat_mix_intensity": _combat_mix_intensity,
 		"elapsed_bed_seconds": _elapsed_bed_seconds,
 		"layer_gains": gains,
 		"layer_targets": targets,
@@ -630,6 +648,12 @@ func _resolve_targets() -> Dictionary:
 		effective_state,
 		PRESENTATION_LAYER_TARGETS[STATE_COMBAT]
 	) as Dictionary
+	if effective_state == STATE_COMBAT and _combat_mix_intensity > 0.0:
+		table = {
+			LAYER_DRONE: 0.12 * _combat_mix_intensity,
+			LAYER_HARMONICS: 0.06 * _combat_mix_intensity,
+			LAYER_MOTIF: 0.0,
+		}
 	for layer_id in LAYER_IDS:
 		resolved[layer_id] = (
 			0.0 if not bed_enabled else float(table.get(layer_id, 0.0))
