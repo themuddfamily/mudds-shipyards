@@ -84,6 +84,9 @@ var _boarding_replica_samples: Dictionary = {}
 var _migration_jitter
 var _migration_replica_generation := 0
 var _migration_replica_samples: Dictionary = {}
+var _interest_jitter
+var _interest_replica_samples: Dictionary = {}
+var _interest_retired_revisions: Dictionary = {}
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -128,6 +131,7 @@ func _init() -> void:
 	_damage_jitter = SnapshotJitterBuffer.new()
 	_boarding_jitter = SnapshotJitterBuffer.new()
 	_migration_jitter = SnapshotJitterBuffer.new()
+	_interest_jitter = SnapshotJitterBuffer.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -871,6 +875,9 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_migration_replica_generation = migration_generation
 	_migration_replica_samples.clear()
 	_migration_jitter.reset(migration_generation)
+	_interest_replica_samples.clear()
+	_interest_retired_revisions.clear()
+	_interest_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
@@ -1020,6 +1027,55 @@ func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dict
 
 func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
+
+
+## Tracks replica presentation lifetime for interest entries. This cache never
+## grants replication authority and retired revisions cannot resurrect state.
+func consume_interest_snapshot(packet: Dictionary) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("interest"):
+		return _remember(_result(false, &"invalid_interest_snapshot"))
+	var interest_variant: Variant = packet.get("interest")
+	if not interest_variant is Dictionary:
+		return _remember(_result(false, &"invalid_interest_snapshot"))
+	var buffered: Dictionary = _interest_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+	var presented: Array = []
+	while true:
+		var ready: Dictionary = _interest_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var ready_interest := ready.get("interest", {}) as Dictionary
+		var entity_id := StringName(ready_interest.get("entity_id", &""))
+		var state_revision := int(ready_interest.get("state_revision", 0))
+		if entity_id.is_empty() or state_revision <= 0:
+			return _remember(_result(false, &"invalid_interest_snapshot"))
+		var revision := int(ready.get("revision", 0))
+		var retired_revision := int(_interest_retired_revisions.get(entity_id, -1))
+		if revision <= retired_revision:
+			return _remember(_result(false, &"stale_interest_entity"))
+		var in_interest := bool(ready_interest.get("in_interest", false))
+		if not in_interest:
+			_interest_replica_samples.erase(entity_id)
+			_interest_retired_revisions[entity_id] = revision
+			presented.append({"revision": revision, "entity_id": entity_id, "in_interest": false})
+			continue
+		var entered := not _interest_replica_samples.has(entity_id)
+		var record := {
+			"revision": revision,
+			"server_tick": int(ready.get("server_tick", 0)),
+			"state_revision": state_revision,
+			"entity_id": entity_id,
+			"in_interest": true,
+			"entered": entered,
+			"state": (ready_interest.get("state", {}) as Dictionary).duplicate(true),
+		}
+		_interest_replica_samples[entity_id] = record.duplicate(true)
+		presented.append(record)
+	if presented.is_empty():
+		return _remember(_result(true, &"interest_waiting_for_gap", {"samples": [], "frozen": true}))
+	return _remember(_result(true, &"interest_presented", {"samples": presented}))
 
 
 ## Presents migration/session metadata only. A new generation retires all
