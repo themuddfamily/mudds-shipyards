@@ -26,6 +26,20 @@ $OwnershipName = '.mudds-owned.json'
 $ChecksumName = 'SHA256SUMS.txt'
 $LauncherName = 'Start Mudds Shipyards.cmd'
 $UninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MuddsShipyardsPortable'
+$InstallerLog = Join-Path $env:APPDATA 'Godot\app_userdata\Mudds Shipyards\installer-operation.log'
+
+function Write-OperationLog([string]$Action, [string]$Version, [string]$Result) {
+    try {
+        $parent = Split-Path -Parent $InstallerLog
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+        $safeAction = $Action -replace '[^A-Za-z0-9_-]', '_'
+        $safeVersion = $Version -replace '[^A-Za-z0-9_.+-]', '_'
+        $safeResult = $Result -replace '[^A-Za-z0-9_.-]', '_'
+        $line = "action=$safeAction version=$safeVersion result=$safeResult"
+        $lines = if (Test-Path -LiteralPath $InstallerLog) { @(Get-Content -LiteralPath $InstallerLog) } else { @() }
+        @($lines + $line | Select-Object -Last 8) | Set-Content -LiteralPath $InstallerLog -Encoding UTF8
+    } catch { }
+}
 
 function Resolve-SafeDestination([string]$Path) {
     $resolved = [IO.Path]::GetFullPath($Path)
@@ -216,23 +230,29 @@ $destination = Resolve-SafeDestination $Destination
 $rollback = "$destination.rollback"
 $staging = "$destination.staging"
 $createdShortcuts = @()
+$operationVersion = 'unknown'
 try {
     switch ($Command) {
         'status' {
             if (-not (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Installed package is missing' }
+            $operationVersion = [string](Read-DistributionManifest $destination).version
             $owned = Read-Owned $destination
             Get-ChecksumEntries $destination | Out-Null
+            Write-OperationLog $Command $operationVersion 'ok'
             [pscustomobject]@{ destination = $destination; owned_file_count = $owned.Count; rollback_present = Test-Path -LiteralPath $rollback -PathType Container } | ConvertTo-Json -Compress
         }
         'uninstall' {
             if (-not (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Installed package is missing' }
+            $operationVersion = [string](Read-DistributionManifest $destination).version
             Remove-AddRemovePrograms
             Remove-Owned $destination
+            Write-OperationLog $Command $operationVersion 'ok'
             [pscustomobject]@{ destination = $destination; reason = 'uninstalled' } | ConvertTo-Json -Compress
         }
         'rollback' {
             if (-not (Test-Path -LiteralPath $rollback -PathType Container)) { throw 'Rollback package is missing' }
             Get-ChecksumEntries $rollback | Out-Null
+            $operationVersion = [string](Read-DistributionManifest $rollback).version
             $rollbackAddRemove = Read-AddRemoveOwned $rollback
             Remove-AddRemovePrograms
             $currentExternal = Read-ExternalShortcuts $destination
@@ -242,18 +262,22 @@ try {
             Move-Item -LiteralPath $rollback -Destination $destination -Force
             if ($rollbackAddRemove) { Set-AddRemovePrograms $destination }
             foreach ($shortcut in $rollbackExternal) { New-LauncherShortcut $shortcut (Join-Path $destination $LauncherName) }
+            Write-OperationLog $Command $operationVersion 'ok'
             [pscustomobject]@{ destination = $destination; reason = 'rolled_back' } | ConvertTo-Json -Compress
         }
         'repair' {
             if (-not (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Installed package is missing' }
             if (-not (Test-Path -LiteralPath $Source -PathType Container)) { throw 'Repair source distribution is missing' }
             $repaired = Repair-Owned $destination ([IO.Path]::GetFullPath($Source))
+            $operationVersion = [string](Read-DistributionManifest $destination).version
+            Write-OperationLog $Command $operationVersion 'ok'
             [pscustomobject]@{ destination = $destination; reason = 'repaired'; owned_files_checked = $repaired } | ConvertTo-Json -Compress
         }
         default {
             $source = [IO.Path]::GetFullPath($Source)
             if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw 'Source distribution directory is missing' }
             $sourceManifest = Read-DistributionManifest $source
+            $operationVersion = [string]$sourceManifest.version
             $entries = Get-ChecksumEntries $source
             if (-not $entries.ContainsKey($LauncherName)) { throw 'Package launcher is missing' }
             if (Test-Path -LiteralPath $staging) { throw 'Staging directory already exists' }
@@ -288,12 +312,14 @@ try {
             if (Test-Path -LiteralPath $destination) { Move-Item -LiteralPath $destination -Destination $rollback }
             Move-Item -LiteralPath $staging -Destination $destination
             if ($AddRemovePrograms) { Set-AddRemovePrograms $destination }
+            Write-OperationLog $Command $operationVersion 'ok'
             [pscustomobject]@{ destination = $destination; reason = 'installed' } | ConvertTo-Json -Compress
         }
     }
 } catch {
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     Remove-ExternalShortcuts $createdShortcuts
+    Write-OperationLog $Command $operationVersion 'failed'
     Write-Error $_
     exit 2
 }

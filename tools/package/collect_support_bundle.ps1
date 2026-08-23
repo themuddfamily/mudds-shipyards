@@ -14,7 +14,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$Allowed = @('crash-log.json', 'crash-log.json.previous', 'settings.json', 'settings.cfg', 'session-diagnostics.json')
+$Allowed = @('crash-log.json', 'crash-log.json.previous', 'settings.json', 'settings.cfg', 'session-diagnostics.json', 'installer-operation.log')
 function Redact([string]$Text) {
     $redacted = [regex]::Replace($Text, '(?im)(["'']?(?:password|token|secret|api[_-]?key)["'']?\s*[:=]\s*["'']?)[^\s,"''}]+', '$1[REDACTED]')
     return [regex]::Replace($redacted, '(?im)(Authorization\s*:\s*Bearer\s+)[^\s]+', '$1[REDACTED]')

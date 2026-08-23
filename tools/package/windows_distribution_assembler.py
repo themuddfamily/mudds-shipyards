@@ -104,6 +104,7 @@ def _install_instructions(manifest: dict[str, object]) -> str:
         "Compare the result with the MuddsShipyards.exe line in SHA256SUMS.txt.\n\n"
         "Save data: Godot user:// (Windows: %APPDATA%\\Godot\\app_userdata\\Mudds Shipyards).\n"
         "Do not delete that directory when uninstalling the portable distribution.\n\n"
+        "The installer writes a bounded action/version/result log there; support collection allowlists only that filename.\n\n"
         f"Signing: {manifest['signing']} (this package is unsigned).\n"
         f"Native validation: {manifest['native_validation']}. Human playtest: {manifest['human_playtest']}.\n"
     )
