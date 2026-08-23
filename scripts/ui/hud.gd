@@ -62,6 +62,8 @@ const CAPTION_CUES := {
 	&"engine_damage_alarm": [&"system", "Engine monitor", "[ engine damage alarm ]", 95],
 	&"engine_damage_alarm_cleared": [&"system", "Engine monitor", "[ engine damage alarm cleared ]", 45],
 	&"ship_landing_contact": [&"ambient", "Landing sensors", "[ landing contact ]", 70],
+	&"station_machinery_available": [&"system", "Station machinery", "[ station machinery available ]", 45],
+	&"station_machinery_offline": [&"system", "Station machinery", "[ station machinery offline ]", 85],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4

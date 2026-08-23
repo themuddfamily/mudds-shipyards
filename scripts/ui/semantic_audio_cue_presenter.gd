@@ -17,6 +17,8 @@ const REGISTERED_CUES := {
 	&"engine_damage_alarm": {"caption": "Engine damage alarm", "default_severity": &"high"},
 	&"engine_damage_alarm_cleared": {"caption": "Engine damage alarm cleared", "default_severity": &"low"},
 	&"ship_landing_contact": {"caption": "Landing contact", "default_severity": &"medium"},
+	&"station_machinery_available": {"caption": "Station machinery available", "default_severity": &"low"},
+	&"station_machinery_offline": {"caption": "Station machinery offline", "default_severity": &"high"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
