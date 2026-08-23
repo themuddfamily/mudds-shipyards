@@ -120,7 +120,19 @@ func _projectiles() -> Array:
 
 
 func _respawn() -> Array:
-	return [{"entity_id": &"jovian_a", "entity_generation": 4, "component_generation": 1, "state": &"active"}]
+	return [{
+		"entity_id": &"jovian_a",
+		"entity_generation": 4,
+		"component_generation": 1,
+		"damage_revision": 2,
+		"damage_server_tick": 20,
+		"health": 100.0,
+		"maximum_health": 100.0,
+		"destroyed": false,
+		"recovery_generation": 0,
+		"damage_event_count": 0,
+		"state": &"active",
+	}]
 
 
 func _landing() -> Array:

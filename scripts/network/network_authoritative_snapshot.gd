@@ -10,11 +10,15 @@ extends RefCounted
 ## spawn projectiles, or call RPC; server adapters publish here and replicas
 ## consume the copied result.
 
-const SCHEMA_VERSION := 2
-const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v2"
+const SCHEMA_VERSION := 3
+const POLICY_VERSION: StringName = &"network_authoritative_snapshot_v3"
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const MAX_ENTRIES_PER_SECTION := 256
 const LANDING_STATES := [&"flying", &"landing_pending", &"landed"]
+const DAMAGE_RESPAWN_STATES := [
+	&"active", &"healthy", &"damaged", &"destroyed", &"recovering",
+	&"recovery_ready", &"ready", &"respawn_pending", &"respawning",
+]
 const SECTION_NAMES := [
 	&"movement", &"ownership", &"projectiles", &"boarding", &"respawn", &"landing",
 ]
@@ -38,7 +42,9 @@ const SECTION_REQUIRED_FIELDS := {
 		&"vessel_id", &"role",
 	],
 	&"respawn": [
-		&"entity_id", &"entity_generation", &"component_generation", &"state",
+		&"entity_id", &"entity_generation", &"component_generation",
+		&"damage_revision", &"damage_server_tick", &"health", &"destroyed",
+		&"recovery_generation", &"damage_event_count", &"state",
 	],
 	&"landing": [
 		&"entity_id", &"entity_generation", &"landing_revision",
@@ -54,6 +60,7 @@ var _event_sequence := -1
 var _revision := 0
 var _sections: Dictionary = {}
 var _landing_high_water: Dictionary = {}
+var _damage_high_water: Dictionary = {}
 var _last_result: Dictionary = {}
 
 
@@ -101,11 +108,15 @@ func publish(
 	var landing_status := _validate_landing_progress(landing)
 	if not bool(landing_status.get("valid", false)):
 		return _remember(_result(false, landing_status.get("status", &"stale_landing_snapshot")))
+	var damage_status := _validate_damage_progress(respawn)
+	if not bool(damage_status.get("valid", false)):
+		return _remember(_result(false, damage_status.get("status", &"stale_damage_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision += 1
 	_sections = _copy_sections(incoming)
 	_remember_landing_progress(landing)
+	_remember_damage_progress(respawn)
 	return _remember(_result(true, &"published", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -143,11 +154,16 @@ func apply_replica(source_peer_id: int, packet: Dictionary) -> Dictionary:
 	var landing_status := _validate_landing_progress(landing)
 	if not bool(landing_status.get("valid", false)):
 		return _remember(_result(false, landing_status.get("status", &"stale_landing_snapshot")))
+	var respawn := (incoming_variant as Dictionary).get(&"respawn", []) as Array
+	var damage_status := _validate_damage_progress(respawn)
+	if not bool(damage_status.get("valid", false)):
+		return _remember(_result(false, damage_status.get("status", &"stale_damage_snapshot")))
 	_server_tick = server_tick
 	_event_sequence = event_sequence
 	_revision = revision
 	_sections = _copy_sections(incoming_variant as Dictionary)
 	_remember_landing_progress(landing)
+	_remember_damage_progress(respawn)
 	return _remember(_result(true, &"replica_applied", {
 		"revision": _revision,
 		"snapshot": get_snapshot(),
@@ -180,6 +196,7 @@ func audit() -> Dictionary:
 		"server_owns_projectile_snapshot": true,
 		"server_owns_boarding_snapshot": true,
 		"server_owns_respawn_snapshot": true,
+		"damage_respawn_records_are_presentation_only": true,
 		"server_owns_landing_snapshot": true,
 		"landing_records_are_presentation_only": true,
 		"client_can_mutate_snapshot": false,
@@ -229,6 +246,8 @@ func _validate_sections(raw_sections: Dictionary) -> Dictionary:
 				return {"valid": false, "status": &"invalid_component_modifiers"}
 			if section_name == &"landing" and not _valid_landing_entry(entry):
 				return {"valid": false, "status": &"invalid_landing_record"}
+			if section_name == &"respawn" and not _valid_damage_entry(entry):
+				return {"valid": false, "status": &"invalid_damage_record"}
 	return {"valid": true}
 
 
@@ -239,6 +258,36 @@ func _valid_landing_entry(entry: Dictionary) -> bool:
 		and position_variant is Vector3 \
 		and (position_variant as Vector3).is_finite() \
 		and StringName(entry.get("state", &"")) in LANDING_STATES
+
+
+func _valid_damage_entry(entry: Dictionary) -> bool:
+	var health_variant: Variant = entry.get("health")
+	if not (health_variant is float or health_variant is int) \
+			or not is_finite(float(health_variant)) or float(health_variant) < 0.0:
+		return false
+	var state := StringName(entry.get("state", &""))
+	var destroyed := bool(entry.get("destroyed", false))
+	if not entry.get("destroyed") is bool \
+			or not _valid_positive_integer(entry.get("damage_revision")) \
+			or not _valid_nonnegative_integer(entry.get("damage_server_tick")) \
+			or not _valid_nonnegative_integer(entry.get("recovery_generation")) \
+			or not _valid_nonnegative_integer(entry.get("damage_event_count")) \
+			or not state in DAMAGE_RESPAWN_STATES:
+		return false
+	if state == &"destroyed" and (not destroyed or float(health_variant) > 0.0):
+		return false
+	if state in [&"active", &"healthy", &"damaged"] and destroyed:
+		return false
+	if destroyed and int(entry.get("recovery_generation", 0)) <= 0:
+		return false
+	if entry.has("maximum_health"):
+		var maximum_variant: Variant = entry.get("maximum_health")
+		if not (maximum_variant is float or maximum_variant is int) \
+				or not is_finite(float(maximum_variant)) \
+				or float(maximum_variant) <= 0.0 \
+				or float(health_variant) > float(maximum_variant):
+			return false
+	return true
 
 
 ## A newer canonical envelope cannot regress one landing entity's own
@@ -280,6 +329,49 @@ func _remember_landing_progress(records: Array) -> void:
 		}
 
 
+func _validate_damage_progress(records: Array) -> Dictionary:
+	for record_variant in records:
+		var record := record_variant as Dictionary
+		var entity_id := StringName(record.get("entity_id", &""))
+		var prior := _damage_high_water.get(entity_id, {}) as Dictionary
+		if prior.is_empty():
+			continue
+		var entity_generation := int(record.get("entity_generation", 0))
+		var prior_entity_generation := int(prior.get("entity_generation", 0))
+		var component_generation := int(record.get("component_generation", 0))
+		var prior_component_generation := int(prior.get("component_generation", 0))
+		var damage_revision := int(record.get("damage_revision", 0))
+		var prior_revision := int(prior.get("damage_revision", 0))
+		if entity_generation < prior_entity_generation:
+			return {"valid": false, "status": &"stale_damage_entity_generation"}
+		if component_generation < prior_component_generation:
+			return {"valid": false, "status": &"stale_damage_component_generation"}
+		if damage_revision < prior_revision \
+				or (entity_generation > prior_entity_generation and damage_revision <= prior_revision):
+			return {"valid": false, "status": &"stale_damage_revision"}
+		if int(record.get("damage_server_tick", 0)) \
+				< int(prior.get("damage_server_tick", 0)):
+			return {"valid": false, "status": &"stale_damage_server_tick"}
+		if entity_generation == prior_entity_generation \
+				and component_generation == prior_component_generation \
+				and damage_revision == prior_revision \
+				and record != (prior.get("record", {}) as Dictionary):
+			return {"valid": false, "status": &"stale_damage_revision"}
+	return {"valid": true}
+
+
+func _remember_damage_progress(records: Array) -> void:
+	for record_variant in records:
+		var record := (record_variant as Dictionary).duplicate(true)
+		_damage_high_water[StringName(record.get("entity_id", &""))] = {
+			"entity_generation": int(record.get("entity_generation", 0)),
+			"component_generation": int(record.get("component_generation", 0)),
+			"damage_revision": int(record.get("damage_revision", 0)),
+			"damage_server_tick": int(record.get("damage_server_tick", 0)),
+			"record": record,
+		}
+
+
 func _valid_component_modifiers(entry: Dictionary) -> bool:
 	for field_variant in COMPONENT_MODIFIER_FIELDS:
 		var field: StringName = field_variant
@@ -299,7 +391,7 @@ func _valid_component_modifiers(entry: Dictionary) -> bool:
 func _valid_entry_generations(entry: Dictionary, section_name: StringName) -> bool:
 	for key in entry.keys():
 		var field := StringName(key)
-		if field == &"ownership_generation":
+		if field in [&"ownership_generation", &"recovery_generation"]:
 			if not _valid_nonnegative_integer(entry.get(key)):
 				return false
 		elif field.ends_with("_generation") or field == &"component_generation":

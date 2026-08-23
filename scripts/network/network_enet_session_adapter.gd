@@ -86,6 +86,19 @@ const PROJECTILE_MAX_BYTES_PER_WINDOW := 24000
 const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
 const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
 const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
+const DAMAGE_PRESENTATION_STATES := [
+	&"active", &"healthy", &"damaged", &"destroyed", &"recovering",
+	&"recovery_ready", &"ready", &"respawn_pending", &"respawning",
+	# Existing station-defense publications remain valid standalone records;
+	# their canonical cache form is normalized by _canonical_damage_state().
+	&"active_wave", &"critical",
+]
+const DAMAGE_COMPONENT_FLOAT_FIELDS := [
+	&"maximum_health", &"engine_power", &"weapon_power", &"targeting_power",
+]
+const DAMAGE_COMPONENT_BOOL_FIELDS := [
+	&"engine_disabled", &"weapon_disabled", &"targeting_disabled",
+]
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -147,6 +160,7 @@ var _landing_authoritative_records: Dictionary = {}
 var _damage_jitter
 var _damage_replica_samples: Dictionary = {}
 var _damage_snapshot_revision := 0
+var _damage_authoritative_records: Dictionary = {}
 var _boarding_jitter
 var _boarding_replica_samples: Dictionary = {}
 var _boarding_snapshot_revision := 0
@@ -375,6 +389,8 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_reset_projectile_replica_state(1)
 	_landing_snapshot_revision = 0
 	_landing_authoritative_records.clear()
+	_damage_snapshot_revision = 0
+	_damage_authoritative_records.clear()
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -1093,12 +1109,27 @@ func publish_damage_respawn_snapshot(
 	destroyed: bool = false,
 	recovery_generation: int = 0,
 	recipients: Array = [],
-	server_tick: int = 0
+	server_tick: int = 0,
+	component_summary: Dictionary = {}
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	if entity_id.is_empty() or entity_generation <= 0 or not is_finite(health) or health < 0.0:
 		return _remember(_result(false, &"invalid_damage_snapshot"))
+	var authoritative_entity: Dictionary = _damage_respawn.get_entity_snapshot(entity_id)
+	if authoritative_entity.is_empty() \
+			or int(authoritative_entity.get("entity_generation", 0)) != entity_generation:
+		return _remember(_result(false, &"stale_damage_entity"))
+	var canonical_state := _canonical_damage_state(state)
+	if state not in DAMAGE_PRESENTATION_STATES or recovery_generation < 0 \
+			or (canonical_state == &"destroyed" and (not destroyed or health > 0.0)) \
+			or (canonical_state in [&"active", &"healthy", &"damaged"] and destroyed) \
+			or not _valid_damage_component_summary(component_summary, health):
+		return _remember(_result(false, &"invalid_damage_snapshot"))
+	var prior := _damage_authoritative_records.get(entity_id, {}) as Dictionary
+	if not prior.is_empty() \
+			and maxi(0, server_tick) < int(prior.get("damage_server_tick", 0)):
+		return _remember(_result(false, &"stale_damage_server_tick"))
 	var target_peers: Array = recipients.duplicate()
 	if target_peers.is_empty():
 		target_peers = _peer_generations.keys()
@@ -1106,18 +1137,30 @@ func publish_damage_respawn_snapshot(
 		if not _peer_generations.has(int(peer_variant)):
 			return _remember(_result(false, &"peer_not_admitted"))
 	_damage_snapshot_revision += 1
+	var component_generation := int(authoritative_entity.get("component_generation", 0))
+	var damage_event_count := int(authoritative_entity.get("damage_event_count", 0))
+	var damage_record := {
+		"entity_id": entity_id,
+		"entity_generation": entity_generation,
+		"component_generation": component_generation,
+		"damage_revision": _damage_snapshot_revision,
+		"damage_server_tick": maxi(0, server_tick),
+		"health": health,
+		"state": canonical_state,
+		"destroyed": destroyed,
+		"recovery_generation": recovery_generation,
+		"damage_event_count": damage_event_count,
+	}
+	for field_variant in component_summary.keys():
+		damage_record[StringName(field_variant)] = component_summary[field_variant]
+	var presentation_record := damage_record.duplicate(true)
+	presentation_record["state"] = state
 	var packet := {
 		"revision": _damage_snapshot_revision,
 		"server_tick": maxi(0, server_tick),
-		"damage": {
-			"entity_id": entity_id,
-			"entity_generation": entity_generation,
-			"health": health,
-			"state": state,
-			"destroyed": destroyed,
-			"recovery_generation": recovery_generation,
-		},
+		"damage": presentation_record,
 	}
+	_damage_authoritative_records[entity_id] = damage_record.duplicate(true)
 	for peer_variant in target_peers:
 		if _peer != null:
 			_send_damage_respawn_snapshot.rpc_id(int(peer_variant), packet)
@@ -1903,6 +1946,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_landing_jitter.reset(migration_generation)
 	_damage_replica_samples.clear()
 	_damage_snapshot_revision = 0
+	_damage_authoritative_records.clear()
 	_damage_jitter.reset(migration_generation)
 	_boarding_replica_samples.clear()
 	_boarding_snapshot_revision = 0
@@ -2884,7 +2928,8 @@ func publish_snapshot(
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	var published: Dictionary = _lifecycle.publish_authority_snapshot(
-		AUTHORITY_PEER_ID, server_tick, movement, projectiles, respawn,
+		AUTHORITY_PEER_ID, server_tick, movement, projectiles,
+		_canonical_damage_respawn_records(respawn),
 		_canonical_landing_records()
 	)
 	if not bool(published.get("accepted", false)):
@@ -2911,6 +2956,51 @@ func _canonical_landing_records() -> Array:
 		return str(left.get("entity_id", "")) < str(right.get("entity_id", ""))
 	)
 	return records
+
+
+func _canonical_damage_respawn_records(fallback_records: Array) -> Array:
+	var records_by_entity: Dictionary = {}
+	for record_variant in fallback_records:
+		if not record_variant is Dictionary:
+			continue
+		var record := record_variant as Dictionary
+		records_by_entity[StringName(record.get("entity_id", &""))] = record.duplicate(true)
+	for entity_id_variant in _damage_authoritative_records.keys():
+		records_by_entity[StringName(entity_id_variant)] = (
+			_damage_authoritative_records[entity_id_variant] as Dictionary
+		).duplicate(true)
+	var records: Array = records_by_entity.values()
+	records.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("entity_id", "")) < str(right.get("entity_id", ""))
+	)
+	return records
+
+
+func _valid_damage_component_summary(summary: Dictionary, health: float) -> bool:
+	for field_variant in summary.keys():
+		var field := StringName(field_variant)
+		var value: Variant = summary[field_variant]
+		if field in DAMAGE_COMPONENT_FLOAT_FIELDS:
+			if not (value is float or value is int) or not is_finite(float(value)):
+				return false
+			if field == &"maximum_health":
+				if float(value) <= 0.0 or health > float(value):
+					return false
+			elif float(value) < 0.0 or float(value) > 1.0:
+				return false
+		elif field in DAMAGE_COMPONENT_BOOL_FIELDS:
+			if not value is bool:
+				return false
+		else:
+			return false
+	return true
+
+
+func _canonical_damage_state(state: StringName) -> StringName:
+	match state:
+		&"active_wave": return &"active"
+		&"critical": return &"damaged"
+		_: return state
 
 
 func publish_cargo_manifest_snapshot(
@@ -3572,6 +3662,7 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 				AUTHORITY_PEER_ID, damage_id, int(damage_entity.get("entity_generation", 0))
 			)
 			_damage_entities.erase(damage_id)
+			_damage_authoritative_records.erase(damage_id)
 	if _moving_occupants.has(peer_id):
 		_moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
 		_moving_occupants.erase(peer_id)

@@ -18,6 +18,7 @@ func _run() -> void:
 	_test_server_publication_and_detachment()
 	_test_order_and_generation_guards()
 	_test_landing_lifecycle_guards()
+	_test_damage_respawn_lifecycle_guards()
 	_test_replica_server_boundary()
 	if _failures.is_empty():
 		print("OK: network authoritative snapshot synchronization (%d assertions)" % _assertions)
@@ -116,6 +117,12 @@ func _test_order_and_generation_guards() -> void:
 		authority.publish(99, 41, 13, invalid_landing.movement, invalid_landing.ownership, invalid_landing.projectiles, invalid_landing.boarding, invalid_landing.respawn, invalid_landing.landing).status == &"invalid_landing_record",
 		"canonical landing records require a finite server-published pose"
 	)
+	var invalid_damage := _sections()
+	(invalid_damage.respawn[0] as Dictionary).health = 101.0
+	_check(
+		authority.publish(99, 41, 13, invalid_damage.movement, invalid_damage.ownership, invalid_damage.projectiles, invalid_damage.boarding, invalid_damage.respawn, invalid_damage.landing).status == &"invalid_damage_record",
+		"canonical damage records reject hull health beyond the bounded maximum"
+	)
 
 
 func _test_landing_lifecycle_guards() -> void:
@@ -170,6 +177,65 @@ func _test_landing_lifecycle_guards() -> void:
 		authority.publish(99, 45, 17, stale_revision.movement, stale_revision.ownership, stale_revision.projectiles, stale_revision.boarding, stale_revision.respawn, stale_revision.landing).status == &"stale_landing_revision",
 		"a newer envelope cannot reorder an older landing record"
 	)
+
+
+func _test_damage_respawn_lifecycle_guards() -> void:
+	var authority := Authority.new(99)
+	var sections := _sections()
+	_check(authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing).accepted,
+		"damage fixture publishes its active hull generation")
+	var damaged := _sections()
+	(damaged.respawn[0] as Dictionary).state = &"damaged"
+	(damaged.respawn[0] as Dictionary).health = 60.0
+	(damaged.respawn[0] as Dictionary).engine_power = 0.7
+	(damaged.respawn[0] as Dictionary).damage_revision = 5
+	(damaged.respawn[0] as Dictionary).damage_server_tick = 41
+	_check(authority.publish(99, 41, 13, damaged.movement, damaged.ownership, damaged.projectiles, damaged.boarding, damaged.respawn, damaged.landing).accepted,
+		"newer damage revision updates bounded hull and component presentation")
+	var destroyed := damaged.duplicate(true)
+	(destroyed.respawn[0] as Dictionary).state = &"destroyed"
+	(destroyed.respawn[0] as Dictionary).health = 0.0
+	(destroyed.respawn[0] as Dictionary).destroyed = true
+	(destroyed.respawn[0] as Dictionary).recovery_generation = 4
+	(destroyed.respawn[0] as Dictionary).damage_revision = 6
+	(destroyed.respawn[0] as Dictionary).damage_server_tick = 42
+	_check(authority.publish(99, 42, 14, destroyed.movement, destroyed.ownership, destroyed.projectiles, destroyed.boarding, destroyed.respawn, destroyed.landing).accepted,
+		"destroyed hull enters the canonical recovery generation")
+	var respawning := destroyed.duplicate(true)
+	(respawning.respawn[0] as Dictionary).state = &"respawn_pending"
+	(respawning.respawn[0] as Dictionary).damage_revision = 7
+	(respawning.respawn[0] as Dictionary).damage_server_tick = 43
+	_check(authority.publish(99, 43, 15, respawning.movement, respawning.ownership, respawning.projectiles, respawning.boarding, respawning.respawn, respawning.landing).accepted,
+		"server-owned respawn reservation advances presentation without changing generation")
+	var respawned := _sections()
+	(respawned.respawn[0] as Dictionary).entity_generation = 5
+	(respawned.respawn[0] as Dictionary).component_generation = 3
+	(respawned.respawn[0] as Dictionary).damage_revision = 8
+	(respawned.respawn[0] as Dictionary).damage_server_tick = 44
+	_check(authority.publish(99, 44, 16, respawned.movement, respawned.ownership, respawned.projectiles, respawned.boarding, respawned.respawn, respawned.landing).accepted,
+		"respawn advances both entity and component generations before active presentation")
+	var stale_entity := respawned.duplicate(true)
+	(stale_entity.respawn[0] as Dictionary).entity_generation = 4
+	(stale_entity.respawn[0] as Dictionary).damage_revision = 9
+	(stale_entity.respawn[0] as Dictionary).damage_server_tick = 45
+	_check(authority.publish(99, 45, 17, stale_entity.movement, stale_entity.ownership, stale_entity.projectiles, stale_entity.boarding, stale_entity.respawn, stale_entity.landing).status == &"stale_damage_entity_generation",
+		"newer envelope cannot regress the respawned entity generation")
+	var stale_component := respawned.duplicate(true)
+	(stale_component.respawn[0] as Dictionary).component_generation = 2
+	(stale_component.respawn[0] as Dictionary).damage_revision = 9
+	(stale_component.respawn[0] as Dictionary).damage_server_tick = 45
+	_check(authority.publish(99, 45, 17, stale_component.movement, stale_component.ownership, stale_component.projectiles, stale_component.boarding, stale_component.respawn, stale_component.landing).status == &"stale_damage_component_generation",
+		"newer envelope cannot regress component lifecycle generation")
+	var stale_revision := respawned.duplicate(true)
+	(stale_revision.respawn[0] as Dictionary).damage_revision = 7
+	(stale_revision.respawn[0] as Dictionary).damage_server_tick = 45
+	_check(authority.publish(99, 45, 17, stale_revision.movement, stale_revision.ownership, stale_revision.projectiles, stale_revision.boarding, stale_revision.respawn, stale_revision.landing).status == &"stale_damage_revision",
+		"newer envelope cannot reorder an older damage lifecycle record")
+	var stale_tick := respawned.duplicate(true)
+	(stale_tick.respawn[0] as Dictionary).damage_revision = 9
+	(stale_tick.respawn[0] as Dictionary).damage_server_tick = 43
+	_check(authority.publish(99, 45, 17, stale_tick.movement, stale_tick.ownership, stale_tick.projectiles, stale_tick.boarding, stale_tick.respawn, stale_tick.landing).status == &"stale_damage_server_tick",
+		"newer envelope cannot regress the per-entity damage server tick")
 
 
 func _test_replica_server_boundary() -> void:
@@ -242,6 +308,13 @@ func _sections() -> Dictionary:
 			"entity_id": &"jovian_a",
 			"entity_generation": 4,
 			"component_generation": 2,
+			"damage_revision": 4,
+			"damage_server_tick": 40,
+			"health": 100.0,
+			"maximum_health": 100.0,
+			"destroyed": false,
+			"recovery_generation": 0,
+			"damage_event_count": 0,
 			"state": &"active",
 		}],
 		"landing": [{
