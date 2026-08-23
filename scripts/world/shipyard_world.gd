@@ -6975,16 +6975,30 @@ func _build_catwalks_and_control_room() -> void:
 	# production controller's no-jump approach. Making all three old panes solid
 	# would have fixed glass by sealing the room.
 	for bay in [["OperationsWindow", 39.35, 3.9], ["OperationsWindow03", 46.65, 3.9]]:
-		var pane := _box(
+		var pane_visual := _box(
 			upper,
 			String(bay[0]),
 			Vector3(float(bay[1]), 3.0, 22.8),
 			Vector3(float(bay[2]), 4.7, 0.08),
-			_materials["glass"]
-		)
-		pane.set_meta("station_glazing", true)
-		pane.set_meta("physical_pressure_barrier", true)
-		pane.set_meta("frontage_role", &"side_glazing")
+			_materials["glass"],
+			false
+		) as MeshInstance3D
+		pane_visual.set_meta("station_glazing", true)
+		pane_visual.set_meta("frontage_role", &"side_glazing")
+		var pane_body := StaticBody3D.new()
+		pane_body.name = "PressureBarrier"
+		pane_body.collision_layer = WORLD_LAYER
+		pane_body.collision_mask = PhysicsLayers.NONE
+		pane_body.set_meta("station_glazing", true)
+		pane_body.set_meta("physical_pressure_barrier", true)
+		pane_body.set_meta("frontage_role", &"side_glazing")
+		pane_visual.add_child(pane_body)
+		var pane_collision := CollisionShape3D.new()
+		pane_collision.name = "Collision"
+		var pane_shape := BoxShape3D.new()
+		pane_shape.size = Vector3(float(bay[2]), 4.7, 0.08)
+		pane_collision.shape = pane_shape
+		pane_body.add_child(pane_collision)
 	# REGEN-DECK-002's mirror image, and measured the same way: the DOCK OPERATIONS
 	# legend occupied y = 5.003 … 5.268 at z = 22.674, touching nothing. Same
 	# fascia, sized to meet these glyphs where they already stand (fascia face

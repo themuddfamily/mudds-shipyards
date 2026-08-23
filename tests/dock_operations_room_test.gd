@@ -54,31 +54,33 @@ func _run() -> void:
 	]
 	var glazing_exact := upper != null
 	for spec in glazing_specs:
-		var pane := upper.get_node_or_null(NodePath(spec[0] as String)) as StaticBody3D if upper != null else null
-		var mesh_instance := pane.get_node_or_null(^"Mesh") as MeshInstance3D if pane != null else null
+		var mesh_instance := upper.get_node_or_null(NodePath(spec[0] as String)) as MeshInstance3D if upper != null else null
+		var pane := mesh_instance.get_node_or_null(^"PressureBarrier") as StaticBody3D if mesh_instance != null else null
 		var collision := pane.get_node_or_null(^"Collision") as CollisionShape3D if pane != null else null
 		var box_shape := collision.shape as BoxShape3D if collision != null else null
 		glazing_exact = glazing_exact \
+			and mesh_instance != null \
+			and mesh_instance.position.is_equal_approx(spec[1] as Vector3) \
+			and bool(mesh_instance.get_meta("station_glazing", false)) \
+			and mesh_instance.get_meta("frontage_role", &"") == &"side_glazing" \
 			and pane != null \
-			and pane.position.is_equal_approx(spec[1] as Vector3) \
 			and pane.collision_layer == PhysicsLayers.WORLD \
 			and pane.collision_mask == PhysicsLayers.NONE \
 			and bool(pane.get_meta("station_glazing", false)) \
 			and bool(pane.get_meta("physical_pressure_barrier", false)) \
 			and pane.get_meta("frontage_role", &"") == &"side_glazing" \
-			and mesh_instance != null \
 			and mesh_instance.visible \
 			and mesh_instance.mesh != null \
 			and mesh_instance.mesh.get_aabb().size.is_equal_approx(spec[2] as Vector3) \
 			and box_shape != null \
 			and box_shape.size.is_equal_approx(spec[2] as Vector3)
 	var physical_glazing := upper.find_children(
-		"OperationsWindow*", "StaticBody3D", false, false
+		"PressureBarrier", "StaticBody3D", true, false
 	).filter(func(candidate: Node) -> bool: return bool(candidate.get_meta("station_glazing", false))) if upper != null else []
 	_check(
 		glazing_exact
 		and physical_glazing.size() == 2
-		and upper.find_children("OperationsWindow*", "MeshInstance3D", false, false).is_empty(),
+		and upper.find_children("OperationsWindow*", "MeshInstance3D", false, false).size() == 2,
 		"the two visible side panes have exact matching World collision and pressure-glazing metadata"
 	)
 
