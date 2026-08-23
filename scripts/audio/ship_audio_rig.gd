@@ -190,6 +190,13 @@ const TRANSIENT_VOICE_COUNT := 2
 const MAXIMUM_SIMULTANEOUS_VOICES := 6
 const ATTENUATION_FILTER_CUTOFF_HZ := 7000.0
 const ATTENUATION_FILTER_DB := -18.0
+const PERSPECTIVE_EXTERIOR: StringName = &"exterior"
+const PERSPECTIVE_COCKPIT: StringName = &"cockpit"
+const DECLARED_PERSPECTIVE_IDS := [PERSPECTIVE_EXTERIOR, PERSPECTIVE_COCKPIT]
+const COCKPIT_MIX_GAIN_DB := -4.0
+const COCKPIT_PITCH_SCALE := 0.96
+const COCKPIT_FILTER_CUTOFF_HZ := 4200.0
+const COCKPIT_FILTER_DB := -22.0
 const MINIMUM_LOAD_THROTTLE := 0.02
 const MINIMUM_BOOST_THROTTLE := 0.10
 const CUE_CLEANUP_MARGIN_SECONDS := 0.12
@@ -233,6 +240,7 @@ var _throttle := 0.0
 var _engine_degradation := 0.0
 var _reduced_dynamic_range := false
 var _engine_velocity := 0.0
+var _audio_perspective: StringName = PERSPECTIVE_EXTERIOR
 var _last_degradation_band := 0
 var _last_velocity_high := false
 var _last_load_active := false
@@ -433,6 +441,30 @@ func set_reduced_dynamic_range(enabled: bool) -> bool:
 
 func is_reduced_dynamic_range() -> bool:
 	return _reduced_dynamic_range
+
+
+## Applies caller-owned cockpit/exterior presentation without owning camera state.
+## The same resident voices are retained; only their bounded mix/filter plan changes.
+func set_audio_perspective(perspective: StringName) -> bool:
+	if not _can_mutate_runtime_state() or not DECLARED_PERSPECTIVE_IDS.has(perspective):
+		return false
+	if _audio_perspective == perspective:
+		return false
+	_audio_perspective = perspective
+	_update_expected_mix(_get_built_profile_spec())
+	if is_inside_tree():
+		_configure_players_from_snapshot()
+		_apply_runtime_state()
+	_emit_state_changed()
+	return true
+
+
+func get_audio_perspective() -> StringName:
+	return _audio_perspective
+
+
+static func get_declared_audio_perspectives() -> PackedStringArray:
+	return PackedStringArray(DECLARED_PERSPECTIVE_IDS)
 
 
 ## Applies caller-owned velocity/load response independently of flight state.
@@ -660,6 +692,8 @@ func get_state_snapshot() -> Dictionary:
 		"reduced_dynamic_range": _reduced_dynamic_range,
 		"damage_mix": get_damage_mix_snapshot(),
 		"engine_velocity": _engine_velocity,
+		"audio_perspective": _audio_perspective,
+		"perspective_mix": get_perspective_mix_snapshot(),
 		"boost_requested": _boost_requested,
 		"boost_active": _engine_running and _boost_requested and _throttle >= MINIMUM_BOOST_THROTTLE,
 		"damage_alarm_active": _damage_alarm_active,
@@ -711,6 +745,17 @@ func get_cue_contract() -> Dictionary:
 
 func get_priority_audit() -> Dictionary:
 	return _last_priority_audit.duplicate(true)
+
+
+func get_perspective_mix_snapshot() -> Dictionary:
+	var cockpit := _audio_perspective == PERSPECTIVE_COCKPIT
+	return {
+		"perspective": _audio_perspective,
+		"gain_db": COCKPIT_MIX_GAIN_DB if cockpit else 0.0,
+		"pitch_scale": COCKPIT_PITCH_SCALE if cockpit else 1.0,
+		"filter_cutoff_hz": COCKPIT_FILTER_CUTOFF_HZ if cockpit else ATTENUATION_FILTER_CUTOFF_HZ,
+		"filter_db": COCKPIT_FILTER_DB if cockpit else ATTENUATION_FILTER_DB,
+	}.duplicate(true)
 
 
 func get_spatial_contract() -> Dictionary:
@@ -876,8 +921,9 @@ func _configure_players_from_snapshot() -> void:
 		player.volume_db = float(_expected_volumes.get(voice_id, -12.0))
 		player.pitch_scale = float(_expected_pitches.get(voice_id, 1.0))
 		player.position = Vector3.ZERO
-		player.attenuation_filter_cutoff_hz = ATTENUATION_FILTER_CUTOFF_HZ
-		player.attenuation_filter_db = ATTENUATION_FILTER_DB
+		var perspective_mix := get_perspective_mix_snapshot()
+		player.attenuation_filter_cutoff_hz = float(perspective_mix.filter_cutoff_hz)
+		player.attenuation_filter_db = float(perspective_mix.filter_db)
 		player.stream_paused = false
 	set_process(false)
 	set_physics_process(false)
@@ -1018,6 +1064,18 @@ func _update_expected_mix(profile: Dictionary) -> void:
 		if is_instance_valid(player):
 			player.volume_db = float(_expected_volumes[voice_id])
 			player.pitch_scale = float(_expected_pitches[voice_id])
+	var perspective_mix := get_perspective_mix_snapshot()
+	var perspective_gain_db := float(perspective_mix.gain_db)
+	var perspective_pitch := float(perspective_mix.pitch_scale)
+	for voice_id in ALL_VOICE_IDS:
+		_expected_volumes[voice_id] = float(_expected_volumes.get(voice_id, -12.0)) + perspective_gain_db
+		_expected_pitches[voice_id] = float(_expected_pitches.get(voice_id, 1.0)) * perspective_pitch
+		var player := _players.get(voice_id) as AudioStreamPlayer3D
+		if is_instance_valid(player):
+			player.volume_db = float(_expected_volumes[voice_id])
+			player.pitch_scale = float(_expected_pitches[voice_id])
+			player.attenuation_filter_cutoff_hz = float(perspective_mix.filter_cutoff_hz)
+			player.attenuation_filter_db = float(perspective_mix.filter_db)
 
 
 func get_damage_mix_snapshot() -> Dictionary:
@@ -1684,7 +1742,8 @@ func _append_player_errors(
 		errors.append("%s maximum output level changed" % voice_id)
 	if not player.position.is_equal_approx(Vector3.ZERO):
 		errors.append("%s moved away from the ship-local acoustic origin" % voice_id)
-	if not is_equal_approx(player.attenuation_filter_cutoff_hz, ATTENUATION_FILTER_CUTOFF_HZ) or not is_equal_approx(player.attenuation_filter_db, ATTENUATION_FILTER_DB):
+	var perspective_mix := get_perspective_mix_snapshot()
+	if not is_equal_approx(player.attenuation_filter_cutoff_hz, float(perspective_mix.filter_cutoff_hz)) or not is_equal_approx(player.attenuation_filter_db, float(perspective_mix.filter_db)):
 		errors.append("%s attenuation filter changed" % voice_id)
 	if player.stream_paused:
 		errors.append("%s cannot claim active playback while paused" % voice_id)
