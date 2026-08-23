@@ -828,7 +828,19 @@ func advance_from_caller_sample(
 		"takeoff": takeoff,
 	}.duplicate(true)
 	_last_prepared_evidence = _pending_envelope.duplicate(true)
-	return {"accepted": true, "reason": &"caller_sample_advanced", "envelope": _pending_envelope.duplicate(true)}
+	var transition := {"accepted": true, "reason": &"no_transition"}
+	var host_phase := get_host_phase()
+	if reboarded:
+		if host_phase != EmberSurfaceLoopHost.Phase.ON_FOOT:
+			return _reject(&"caller_reboard_phase_mismatch")
+		transition = queue_reboard_intent(_last_intent_serial + 1, expected_generation)
+	elif takeoff:
+		if host_phase != EmberSurfaceLoopHost.Phase.REBOARDED:
+			return _reject(&"caller_takeoff_phase_mismatch")
+		transition = queue_takeoff_intent(_last_intent_serial + 1, expected_generation)
+	if not bool(transition.get("accepted", false)):
+		return transition
+	return {"accepted": true, "reason": &"caller_sample_advanced", "transition": transition, "envelope": _pending_envelope.duplicate(true)}
 
 
 ## Queue a disembark intent against the prepared early envelope. The priority-2
