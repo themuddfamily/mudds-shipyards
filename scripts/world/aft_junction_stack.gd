@@ -142,6 +142,17 @@ const CONDUIT_COLLAR_POSITIONS := [
 	Vector3(-0.55, 2.95, 0.0),
 	Vector3(-0.55, 2.95, 2.05),
 ]
+const EXTERIOR_PIPE_CLAMP_INNER_RADIUS := 0.065
+const EXTERIOR_PIPE_CLAMP_OUTER_RADIUS := 0.1
+const EXTERIOR_PIPE_CLAMP_RINGS := 48
+const EXTERIOR_PIPE_CLAMP_RING_SEGMENTS := 16
+const EXTERIOR_PIPE_CLAMP_COPY_COUNT := 4
+const EXTERIOR_PIPE_CLAMP_POSITIONS := [
+	Vector3(11.18, 0.82, 10.2),
+	Vector3(11.18, 0.82, 12.2),
+	Vector3(11.18, 0.82, 14.2),
+	Vector3(11.18, 0.82, 16.2),
+]
 ## Two childless roof-vent collars retain their authored visual nodes and one
 ## surface each; only their identical immutable TorusMesh allocation is shared.
 const ROOF_VENT_COLLAR_INNER_RADIUS := 0.34
@@ -190,7 +201,7 @@ const LOW_ROUTE_LIGHT_POSITIONS := [
 	Vector3(0.0, 0.088, 8.9),
 ]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1180
+const RENDER_DESCENDANT_NODE_COUNT := 1182
 const BASELINE_RENDERER_NODE_COUNT := 855
 const RENDERER_NODE_COUNT := 800
 const BASELINE_DRAWN_COPY_COUNT := 855
@@ -198,7 +209,7 @@ const DRAWN_COPY_COUNT := 864
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
 const SURFACE_SUBMISSION_COUNT := 800
 const BASELINE_MESH_RESOURCE_COUNT := 319
-const MESH_RESOURCE_COUNT := 296
+const MESH_RESOURCE_COUNT := 293
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -273,6 +284,7 @@ var _stair_tread_batch: MultiMeshInstance3D
 var _console_shock_collar_batch: MultiMeshInstance3D
 var _cabinet_fastener_batch: MultiMeshInstance3D
 var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
+var _exterior_pipe_clamp_mesh: TorusMesh
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
@@ -521,6 +533,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("shared chair-pedestal-bearing visual allocation contract drifted")
 	if not bool(performance.conduit_collar_visual_sharing.valid):
 		errors.append("shared service-wall-conduit-collar visual allocation contract drifted")
+	if not bool(performance.exterior_pipe_clamp_visual_sharing.valid):
+		errors.append("shared exterior-pipe-clamp visual allocation contract drifted")
 	if not bool(performance.roof_vent_collar_visual_sharing.valid):
 		errors.append("shared roof-vent collar visual allocation contract drifted")
 	var lifecycle := get_lifecycle_contract()
@@ -708,6 +722,7 @@ func get_performance_contract() -> Dictionary:
 	var cabinet_fastener_batch := get_cabinet_fastener_batch_audit()
 	var pedestal_bearing_sharing := get_pedestal_bearing_visual_allocation_audit()
 	var conduit_collar_sharing := get_conduit_collar_visual_allocation_audit()
+	var exterior_pipe_clamp_sharing := get_exterior_pipe_clamp_visual_allocation_audit()
 	var roof_vent_collar_sharing := get_roof_vent_collar_visual_allocation_audit()
 	var ceiling_lens_batch := get_ceiling_luminaire_lens_batch_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
@@ -719,6 +734,7 @@ func get_performance_contract() -> Dictionary:
 	contract["cabinet_fastener_batch"] = cabinet_fastener_batch
 	contract["pedestal_bearing_visual_sharing"] = pedestal_bearing_sharing
 	contract["conduit_collar_visual_sharing"] = conduit_collar_sharing
+	contract["exterior_pipe_clamp_visual_sharing"] = exterior_pipe_clamp_sharing
 	contract["roof_vent_collar_visual_sharing"] = roof_vent_collar_sharing
 	contract["ceiling_luminaire_lens_batch"] = ceiling_lens_batch
 	contract["within_budget"] = (
@@ -732,6 +748,7 @@ func get_performance_contract() -> Dictionary:
 		and bool(cabinet_fastener_batch.valid)
 		and bool(pedestal_bearing_sharing.valid)
 		and bool(conduit_collar_sharing.valid)
+		and bool(exterior_pipe_clamp_sharing.valid)
 		and bool(roof_vent_collar_sharing.valid)
 		and bool(ceiling_lens_batch.valid)
 	)
@@ -1032,11 +1049,11 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": -9,
+			"descendant_nodes": -11,
 			"renderer_nodes": 55,
 			"drawn_copies": -9,
 			"surface_submissions": 55,
-			"mesh_resource_allocations": 23,
+			"mesh_resource_allocations": 26,
 			"material_resource_allocations": 0,
 		},
 		"mesh_recipe": {
@@ -2042,6 +2059,81 @@ func get_pedestal_bearing_visual_allocation_audit() -> Dictionary:
 ## renderers. Repository eligibility found no path/name consumer beyond the
 ## generic interface profile; sharing therefore changes resource identity only,
 ## while all ordinary nodes, submissions and renderer values remain authored.
+## Detached allocation proof for the four exterior utility-feed clamps. The
+## copper feed remains the authored visual run; these childless collars add no
+## collision, interaction, door, traversal, console, or lifecycle authority.
+func get_exterior_pipe_clamp_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var clamps: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var collisions := 0
+	var expected_parent := get_node_or_null(
+		^"Structure/OperationsRoom/VisualPressureEnvelope"
+	) as Node3D
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var clamp := raw_node as MeshInstance3D
+		if StringName(clamp.get_meta(INTERFACE_COLLAR_KIND_META, &"")) != &"ExteriorPipeClamp":
+			continue
+		clamps.append(clamp)
+		if clamp.mesh != null:
+			mesh_ids[clamp.mesh.get_instance_id()] = true
+		if clamp.material_override != null:
+			material_ids[clamp.material_override.get_instance_id()] = true
+		var index := clamps.size() - 1
+		if clamp.mesh != _exterior_pipe_clamp_mesh:
+			errors.append("exterior_pipe_clamp_mesh_identity_not_shared")
+		if index >= EXTERIOR_PIPE_CLAMP_POSITIONS.size() \
+				or clamp.material_override != _materials.get("graphite") \
+				or not clamp.position.is_equal_approx(EXTERIOR_PIPE_CLAMP_POSITIONS[index] as Vector3) \
+				or not clamp.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0)) \
+				or clamp.scale != Vector3.ONE \
+				or not clamp.visible \
+				or clamp.layers != 1 \
+				or clamp.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or clamp.material_overlay != null \
+				or not is_zero_approx(clamp.transparency) \
+				or clamp.get_parent() != expected_parent \
+				or clamp.get_child_count() != 0 \
+				or clamp.get_script() != null \
+				or not clamp.get_groups().is_empty():
+			errors.append("exterior_pipe_clamp_render_or_authority_drift")
+		collisions += clamp.find_children("*", "CollisionObject3D", true, false).size()
+		collisions += clamp.find_children("*", "CollisionShape3D", true, false).size()
+	if clamps.size() != EXTERIOR_PIPE_CLAMP_COPY_COUNT:
+		errors.append("exterior_pipe_clamp_copy_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("exterior_pipe_clamp_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("exterior_pipe_clamp_material_identity_drift")
+	if collisions != 0:
+		errors.append("exterior_pipe_clamp_gained_collision_authority")
+	var normalised := _exterior_pipe_clamp_mesh != null and _exterior_pipe_clamp_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
+	var expected_tessellation := Vector2i(32, TorusGeometryBudget.AFT_INTERFACE_COLLAR_RING_SEGMENTS) if normalised else Vector2i(EXTERIOR_PIPE_CLAMP_RINGS, EXTERIOR_PIPE_CLAMP_RING_SEGMENTS)
+	if _exterior_pipe_clamp_mesh == null \
+			or not is_equal_approx(_exterior_pipe_clamp_mesh.inner_radius, EXTERIOR_PIPE_CLAMP_INNER_RADIUS) \
+			or not is_equal_approx(_exterior_pipe_clamp_mesh.outer_radius, EXTERIOR_PIPE_CLAMP_OUTER_RADIUS) \
+			or _exterior_pipe_clamp_mesh.rings != expected_tessellation.x \
+			or _exterior_pipe_clamp_mesh.ring_segments != expected_tessellation.y \
+			or _exterior_pipe_clamp_mesh.get_surface_count() != 1:
+		errors.append("exterior_pipe_clamp_torus_recipe_drift")
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"aft_junction_stack_exterior_pipe_clamps",
+		"legacy": {"visual_nodes": 4, "drawn_copies": 4, "surface_submissions": 4, "mesh_resource_allocations": 4, "material_resource_allocations": 1},
+		"current": {"visual_nodes": clamps.size(), "drawn_copies": clamps.size(), "surface_submissions": clamps.size(), "mesh_resource_allocations": mesh_ids.size(), "material_resource_allocations": material_ids.size()},
+		"reductions": {"visual_nodes": 0, "drawn_copies": 0, "surface_submissions": 0, "mesh_resource_allocations": 3, "material_resource_allocations": 0},
+		"authored_tessellation": Vector2i(EXTERIOR_PIPE_CLAMP_RINGS, EXTERIOR_PIPE_CLAMP_RING_SEGMENTS),
+		"live_tessellation": Vector2i(_exterior_pipe_clamp_mesh.rings, _exterior_pipe_clamp_mesh.ring_segments) if _exterior_pipe_clamp_mesh != null else Vector2i.ZERO,
+		"normalised": normalised,
+		"collision_authority_count": collisions,
+		"batched": false,
+		"renderer_values_changed": false,
+	}.duplicate(true)
+
+
 func get_conduit_collar_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var family_nodes: Array[MeshInstance3D] = []
@@ -3411,8 +3503,23 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 
 	# A restrained exterior utility run adds scale and material contrast.
 	_beam_between(envelope, "ExteriorCopperFeed", Vector3(11.18, 0.82, 10.0), Vector3(11.18, 0.82, 16.25), 0.06, _materials["copper"], false)
-	for pipe_z in [10.2, 12.2, 14.2, 16.2]:
-		_interface_collar(envelope, "ExteriorPipeClamp", Vector3(11.18, 0.82, float(pipe_z)), 0.065, 0.1, _materials["graphite"], Vector3(90, 0, 0))
+	_exterior_pipe_clamp_mesh = _torus_mesh(
+		EXTERIOR_PIPE_CLAMP_INNER_RADIUS,
+		EXTERIOR_PIPE_CLAMP_OUTER_RADIUS,
+		EXTERIOR_PIPE_CLAMP_RINGS,
+		EXTERIOR_PIPE_CLAMP_RING_SEGMENTS
+	)
+	for pipe_position in EXTERIOR_PIPE_CLAMP_POSITIONS:
+		_interface_collar(
+			envelope,
+			"ExteriorPipeClamp",
+			pipe_position as Vector3,
+			EXTERIOR_PIPE_CLAMP_INNER_RADIUS,
+			EXTERIOR_PIPE_CLAMP_OUTER_RADIUS,
+			_materials["graphite"],
+			Vector3(90, 0, 0),
+			_exterior_pipe_clamp_mesh
+		)
 	# Four cowled amber worklights on the operations envelope. The cowl and lens
 	# geometry was already here; what was missing is that none of them lit the
 	# plate they are bolted to, so from outside the module read as cool plating

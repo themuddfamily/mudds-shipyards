@@ -55,6 +55,7 @@ func _run() -> void:
 	_test_cabinet_fastener_batch(module)
 	_test_pedestal_bearing_visual_resource_sharing(module)
 	_test_conduit_collar_visual_resource_sharing(module)
+	_test_exterior_pipe_clamp_visual_resource_sharing(module)
 	_test_interface_collar_profile(module)
 	_test_vip_landmark(module)
 	await _test_negative_space(module)
@@ -511,26 +512,26 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1180,
+			"descendant_nodes": 1182,
 			"renderer_nodes": 800,
 			"drawn_copies": 864,
 			"surface_submissions": 800,
-			"mesh_resource_allocations": 296,
+			"mesh_resource_allocations": 293,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus visual batching freeze 1180 descendants, 800 renderers/submissions, 864 copies, and 296 mesh allocations"
+		"shared collar families plus visual batching freeze 1182 descendants, 800 renderers/submissions, 864 copies, and 293 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": -9,
+			"descendant_nodes": -11,
 			"renderer_nodes": 55,
 			"drawn_copies": -9,
 			"surface_submissions": 55,
-			"mesh_resource_allocations": 23,
+			"mesh_resource_allocations": 26,
 			"material_resource_allocations": 0,
 		}
 		and not bool(report.batched)
@@ -602,7 +603,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 296
+		int(detached.current.mesh_resource_allocations) == 293
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -644,7 +645,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 297
+		and int(identity_red.current.mesh_resource_allocations) == 294
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -2032,7 +2033,7 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
 		and int(collision.body_count) == 106
-		and int(collision.shape_count) == 116
+		and int(collision.shape_count) == 117
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null
@@ -2138,6 +2139,54 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 	)
 
 
+func _test_exterior_pipe_clamp_visual_resource_sharing(module: AftJunctionStack) -> void:
+	var report := module.get_exterior_pipe_clamp_visual_allocation_audit()
+	var clamps: Array[MeshInstance3D] = []
+	for raw_node in module.find_children("*", "MeshInstance3D", true, false):
+		var instance := raw_node as MeshInstance3D
+		if StringName(instance.get_meta(
+			AftJunctionStack.INTERFACE_COLLAR_KIND_META, &""
+		)) == &"ExteriorPipeClamp":
+			clamps.append(instance)
+	var shared_mesh := clamps[0].mesh as TorusMesh if not clamps.is_empty() else null
+	var exact_family := clamps.size() == AftJunctionStack.EXTERIOR_PIPE_CLAMP_COPY_COUNT
+	for index in clamps.size():
+		var clamp := clamps[index]
+		exact_family = exact_family \
+			and clamp.mesh == shared_mesh \
+			and clamp.position.is_equal_approx(
+				AftJunctionStack.EXTERIOR_PIPE_CLAMP_POSITIONS[index] as Vector3
+			) \
+			and clamp.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0)) \
+			and clamp.material_override != null \
+			and clamp.get_child_count() == 0
+	_check(
+		bool(report.valid)
+		and report.legacy.mesh_resource_allocations == 4
+		and report.current.mesh_resource_allocations == 1
+		and report.reductions.mesh_resource_allocations == 3
+		and int(report.collision_authority_count) == 0
+		and exact_family
+		and shared_mesh != null,
+		"four visual-only exterior pipe clamps preserve their authored nodes, transforms and graphite material while sharing one immutable mesh"
+	)
+	var original_second_mesh := clamps[1].mesh
+	clamps[1].mesh = shared_mesh.duplicate() as TorusMesh
+	var identity_red := module.get_exterior_pipe_clamp_visual_allocation_audit()
+	_check(
+		not bool(identity_red.valid)
+		and (identity_red.errors as PackedStringArray).has(
+			"exterior_pipe_clamp_mesh_identity_not_shared"
+		),
+		"RED identity mutation rejects a private exact-looking exterior pipe-clamp mesh"
+	)
+	clamps[1].mesh = original_second_mesh
+	_check(
+		bool(module.get_exterior_pipe_clamp_visual_allocation_audit().valid),
+		"restoring the shared exterior pipe-clamp mesh returns its allocation contract green"
+	)
+
+
 func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 	var expected_counts := {
 		&"SpineClamp": 5,
@@ -2170,7 +2219,7 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		})
 
 	_check(observed_counts == expected_counts, "Aft profile selects the exact 20 ordinary interface-collar renderers; the six-copy console batch is audited separately")
-	_check(mesh_ids.size() == 8, "20 ordinary profiled collars retain 8 TorusMesh resources; the console batch retains one separately profiled shared resource")
+	_check(mesh_ids.size() == 5, "20 ordinary profiled collars retain 5 TorusMesh resources; the console batch retains one separately profiled shared resource")
 	# The operations test deliberately leaves the door open. Production performs
 	# the geometry pass at startup with this portal closed, so restore that real
 	# lifecycle state before asserting the complete module contract below.
@@ -2208,10 +2257,10 @@ func _test_interface_collar_profile(module: AftJunctionStack) -> void:
 		TorusGeometryBudget.PROFILE_AFT_INTERFACE_COLLAR, {}
 	) as Dictionary
 	_check(
-		int(profile_report.get("resources", 0)) == 8
+		int(profile_report.get("resources", 0)) == 5
 		and int(profile_report.get("instances", 0)) == 20
 		and int(profile_report.get("surfaces", 0)) == 20,
-		"profile report freezes 8 ordinary resources, 20 visible instances, and 20 surfaces"
+		"profile report freezes 5 ordinary resources, 20 visible instances, and 20 surfaces"
 	)
 	_check(
 		int(profile_report.get("triangles_baseline", 0)) == 15360
