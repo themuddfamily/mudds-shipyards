@@ -158,6 +158,11 @@ const MIN_LOGICAL_HEIGHT := 690.0
 ## it into a neighbour.
 const PANEL_MARGIN := 28.0
 const PANEL_LEFT_COLUMN_WIDTH := 350.0
+## Autowrapped labels otherwise report a one-pixel minimum width while the HUD
+## is hidden during construction. A safe-area position update can make the
+## PanelContainer cache that narrow measurement, producing a viewport-tall
+## objective card before the first visible layout pass.
+const PANEL_OBJECTIVE_CONTENT_WIDTH := PANEL_LEFT_COLUMN_WIDTH - 38.0
 const PANEL_BRAND_WIDTH := 262.0
 const PANEL_TELEMETRY_WIDTH := 312.0
 const PANEL_HELP_WIDTH := 272.0
@@ -286,6 +291,10 @@ const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
 var _settings_status_label: Label
 var _display_confirmation_panel: PanelContainer
 var _display_confirmation_label: Label
+var _display_confirmation_summary_label: Label
+var _display_confirmation_result_label: Label
+var _display_confirmation_keep_button: Button
+var _display_confirmation_revert_button: Button
 var _display_confirmation_generation := -1
 var _settings_dirty := false
 var _settings_reset_confirmation: PanelContainer
@@ -932,6 +941,7 @@ func set_ship_identity(display_name: String, role: String = "") -> void:
 func set_objective(text: String, kicker: String = "CURRENT OBJECTIVE") -> void:
 	_objective_kicker.text = kicker
 	_objective_label.text = text
+	_queue_objective_panel_fit()
 
 
 ## Consumes the session's detached snapshot as presentation only. The HUD never
@@ -1196,6 +1206,12 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	if is_instance_valid(_activity_objective_label):
 		_activity_objective_label.text = activity_text
 		_activity_objective_label.visible = visible
+		_queue_objective_panel_fit()
+
+
+func _queue_objective_panel_fit() -> void:
+	if is_instance_valid(_objective_panel):
+		_objective_panel.call_deferred(&"reset_size")
 
 
 func _format_activity_time(seconds: float) -> String:
@@ -1600,14 +1616,44 @@ func set_settings_status(text: String, success: bool = true) -> void:
 func show_display_settings_confirmation(generation: int, seconds_remaining: float) -> void:
 	if _display_confirmation_panel == null:
 		return
+	var was_visible := _display_confirmation_panel.visible
 	_display_confirmation_generation = generation
 	_display_confirmation_panel.visible = true
-	_display_confirmation_label.text = "KEEP DISPLAY CHANGE?  REVERTS IN %.0f S" % maxf(seconds_remaining, 0.0)
+	_display_confirmation_result_label.visible = false
+	_display_confirmation_label.visible = true
+	var snapshot := (_runtime_display_settings_presenter.get_snapshot() as Dictionary) if _runtime_display_settings_presenter != null else {}
+	var resolution := str(snapshot.get("display_resolution", "unknown")).replace("x", " × ")
+	var window_mode := str(snapshot.get("window_mode", "unknown")).capitalize()
+	_display_confirmation_summary_label.text = "PENDING DISPLAY  //  %s  //  %s" % [resolution, window_mode]
+	_display_confirmation_label.text = "KEEP DISPLAY CHANGE  //  REVERT IN: %.0f SECONDS" % maxf(seconds_remaining, 0.0)
+	if is_instance_valid(_display_confirmation_keep_button):
+		_display_confirmation_keep_button.visible = true
+	if is_instance_valid(_display_confirmation_revert_button):
+		_display_confirmation_revert_button.visible = true
+	if not was_visible and is_instance_valid(_display_confirmation_keep_button):
+		_display_confirmation_keep_button.grab_focus()
 
 
-func clear_display_settings_confirmation() -> void:
+func present_display_settings_result(message: String) -> void:
+	if _display_confirmation_panel == null:
+		return
+	_display_confirmation_generation = -1
+	_display_confirmation_panel.visible = true
+	_display_confirmation_label.visible = false
+	_display_confirmation_result_label.text = message.strip_edges()
+	_display_confirmation_result_label.visible = not _display_confirmation_result_label.text.is_empty()
+	if is_instance_valid(_display_confirmation_keep_button):
+		_display_confirmation_keep_button.visible = false
+	if is_instance_valid(_display_confirmation_revert_button):
+		_display_confirmation_revert_button.visible = false
+
+
+func clear_display_settings_confirmation(result_message: String = "") -> void:
 	if _display_confirmation_panel != null:
-		_display_confirmation_panel.visible = false
+		if not result_message.strip_edges().is_empty():
+			present_display_settings_result(result_message)
+		else:
+			_display_confirmation_panel.visible = false
 	_display_confirmation_generation = -1
 
 
@@ -2480,10 +2526,12 @@ func _build_hud() -> void:
 	objective_stack.add_child(_objective_kicker)
 	_objective_label = _label("Approach the Torrent-class interceptor", 17, PRIMARY)
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_label.custom_minimum_size.x = PANEL_OBJECTIVE_CONTENT_WIDTH
 	objective_stack.add_child(_objective_label)
 	_activity_objective_label = _label("", 10, NOMINAL_SOFT)
 	_activity_objective_label.name = "ActivityObjectiveLabel"
 	_activity_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_activity_objective_label.custom_minimum_size.x = PANEL_OBJECTIVE_CONTENT_WIDTH
 	_activity_objective_label.visible = false
 	objective_stack.add_child(_activity_objective_label)
 	_target_label = _label("RANGE TARGETS  0 / 3", 11, MUTED)
@@ -4583,7 +4631,7 @@ func _display_settings_intent(key: StringName, value: Variant) -> Dictionary:
 		)
 	if key == &"display_resolution":
 		return _runtime_display_settings_presenter.select_resolution(
-			StringName(RuntimeSettingsType.SUPPORTED_DISPLAY_RESOLUTION_IDS[clampi(int(value), 0, 3)]), generation
+			StringName(str(RuntimeSettingsType.SUPPORTED_DISPLAY_RESOLUTION_IDS[clampi(int(value), 0, 3)])), generation
 		)
 	if key == &"vsync_mode":
 		return _runtime_display_settings_presenter.select_vsync(
@@ -4594,11 +4642,11 @@ func _display_settings_intent(key: StringName, value: Variant) -> Dictionary:
 
 func _display_option_index(key: StringName, value: Variant) -> int:
 	if key == &"window_mode":
-		return [&"windowed", &"borderless", &"fullscreen"].find(StringName(value))
+		return int(value) if value is int else [&"windowed", &"borderless", &"fullscreen"].find(StringName(str(value)))
 	if key == &"display_resolution":
 		return RuntimeSettingsType.SUPPORTED_DISPLAY_RESOLUTION_IDS.find(String(value))
 	if key == &"vsync_mode":
-		return [&"off", &"on", &"adaptive"].find(StringName(value))
+		return int(value) if value is int else [&"off", &"on", &"adaptive"].find(StringName(str(value)))
 	return int(value)
 
 

@@ -30,8 +30,8 @@ func attach_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not snapshot is Dictionary:
 		return _reject(&"snapshot_invalid")
 	var resolution := String(snapshot.get("display_resolution", Settings.DEFAULT_DISPLAY_RESOLUTION_ID))
-	var vsync := StringName(snapshot.get("vsync_mode", &"on"))
-	var window_mode := StringName(snapshot.get("window_mode", &"windowed"))
+	var vsync := _stable_id(snapshot.get("vsync_mode", &"on"), [&"off", &"on", &"adaptive"])
+	var window_mode := _stable_id(snapshot.get("window_mode", &"windowed"), [&"windowed", &"borderless", &"fullscreen"])
 	if not Settings.SUPPORTED_DISPLAY_RESOLUTION_IDS.has(resolution):
 		return _reject(&"unsupported_resolution")
 	if not [&"off", &"on", &"adaptive"].has(vsync):
@@ -86,7 +86,7 @@ func get_snapshot() -> Dictionary:
 	var resolutions: Array[Dictionary] = []
 	for resolution_id: String in Settings.SUPPORTED_DISPLAY_RESOLUTION_IDS:
 		resolutions.append({
-			"id": StringName(resolution_id),
+			"id": StringName(str(resolution_id)),
 			"label": resolution_id.replace("x", " × "),
 			"selected": resolution_id == _resolution_id,
 			"focusable": true,
@@ -119,7 +119,7 @@ func get_snapshot() -> Dictionary:
 		],
 		"focus_order": [&"window_mode", &"display_resolution", &"vsync_mode"],
 		"window_mode": _window_mode_id,
-		"display_resolution": StringName(_resolution_id),
+		"display_resolution": StringName(str(_resolution_id)),
 		"vsync_mode": _vsync_id,
 		"presentation_only": true,
 		"settings_authority": false,
@@ -134,6 +134,12 @@ func _validate(expected_generation: int) -> Dictionary:
 	if expected_generation >= 0 and expected_generation != _generation:
 		return _reject(&"stale_generation")
 	return {}
+
+
+func _stable_id(value: Variant, ids: Array[StringName]) -> StringName:
+	if value is int:
+		return ids[clampi(int(value), 0, ids.size() - 1)]
+	return StringName(str(value))
 
 
 func _intent(intent: StringName, values: Dictionary) -> Dictionary:
