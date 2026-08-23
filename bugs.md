@@ -1,4 +1,6 @@
-# Review candidates
+# Bug ledger
+
+## Addressed review candidates
 
 Previously identified candidates were reproduced and addressed in the current branch:
 
@@ -12,7 +14,7 @@ Previously identified candidates were reproduced and addressed in the current br
   and `scripts/world/shipyard_world.gd`: whole-Main teardown now clears owner-side
   deferred presentation queues to prevent stale replay after re-entry.
 
-## Open candidates — 2026-08-16 human playtest intake — **ALL FOUR CLOSED**
+## 2026-08-16 human playtest intake — **ALL FOUR CLOSED**
 
 Reporter: project owner, 2026-08-16, verbatim, four
 reports across two messages:
@@ -257,7 +259,7 @@ physics and geometry probes, `xvfb-run -a -s "-screen 0 1920x1080x24" ...
 
 ---
 
-## Open candidates — 2026-08-16 human playtest intake, second pass (Halyard) — **BOTH CLOSED**
+## 2026-08-16 human playtest intake, second pass (Halyard) — **BOTH CLOSED**
 
 Reporter: project owner, 2026-08-16, verbatim, one
 report containing two defects:
@@ -439,7 +441,7 @@ is recorded under COMB-DOCK-02-001 below.
 
 ---
 
-## Open candidates — 2026-08-15 human playtest intake
+## 2026-08-15 human playtest intake — **ALL SIX CLOSED; OBSERVATIONS ADJUDICATED**
 
 Reporter: project owner, 2026-08-15, verbatim report:
 *"there's so many places that are difficult to get to, random objects floating in
@@ -770,10 +772,21 @@ the glyphs are not reflected. What the overview frames actually showed is a 180�
 one travelling +Z. That is inherent to floor text, which can only be upright for
 one of two travel directions. Verified in frame: "BERTH F-01" photographs
 upside-down from the station-side approach — rotated, with unreflected letter
-forms. Residual, recorded not fixed because the intended reading direction is a
-design choice nobody has made: `BERTH F-01` and `KEEP TRANSFER LANE CLEAR` are
-upright for someone walking *back* toward the station, while the freight apron's
-primary travel is outbound.
+forms.
+
+**Outbound orientation fixed 2026-08-23.** The freight module itself establishes
+local +Z as the primary station-to-apron route, so `BERTH F-01` no longer has an
+undecided reader direction. Its floor-plane rotation is now `(-90, 0, 180)`:
+face normal remains +Y, glyph-up points outbound +Z, and determinant remains +1.
+Position, physical size, amber treatment, and collision-free presentation are
+unchanged. A focused transform regression is red under the old rotation and green
+at `c383968d4`.
+
+The old record incorrectly grouped `KEEP TRANSFER LANE CLEAR` with that defect.
+Its existing `(-90, 0, 90)` rotation points glyph-up along local -X, across the
+lateral transfer lane rather than back toward the station. It remains unchanged;
+no source-current reader-direction evidence justifies rotating it with the berth
+legend.
 **However**, the third item in the same bullet, "AFT JUNCTION // MODERN
 INTERPRETATION", is **not a floor decal at all** — it is a vertical `TextMesh`
 plaque at `(0, 1.23, 57.82)` on `AftJunctionStack/Structure/OpenStructureDetails`,
@@ -1058,6 +1071,19 @@ with **95 assertions** in `standoff_picket_opponent_test.gd`, **139** in
 `encounter_scenario_director_test.gd`, and **11** in
 `heavy_breach_activity_board_production_test.gd`. The final implementation spans
 `102901a3f`, `34155c721`, `835b2d727`, `abeb4b9b5`, and `23fd198a4`.
+
+**Withdrawal lifecycle follow-up.** A later production-integration audit found
+one state-ordering hole after the fire fence: the defender's terminal callback
+revoked authority and cleared `_escort_dispatched`, then the next physics pass
+conditioned deactivation on that already-cleared flag. No late shot could land,
+but an escort could remain active and resolver-registered after its wave ended.
+`173668f8e` makes defender-backed stand-down one synchronous transaction: revoke
+authority, deactivate, retire registration, clear charge/receipts, and preserve
+the terminal cancellation reason. The unit suite remains green at **95
+assertions**, production lifecycle assertions prove no late sequence, hull, pulse,
+or receipt change, and independent review found manual mode, director-owned heavy
+breach, destroyed-picket `CLEARED`, owner replacement, and detach/re-entry
+behavior intact.
 
 ## RENDER-001 — Seven `Texture` RIDs leak at `RenderingDevice::finalize()` on every rendered run — **ACCEPTED_RISK**
 
