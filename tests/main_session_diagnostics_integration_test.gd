@@ -58,6 +58,7 @@ func _run() -> void:
 	_check(bool(store.load().get("accepted", false)), "isolated diagnostics store loads empty")
 	var flow := GameFlowType.new()
 	flow.set("_runtime_settings_user_data_store", store)
+	flow.set_session_diagnostics_filesystem(filesystem)
 	flow._initialize_session_diagnostics()
 	var started := flow.get_session_diagnostics_snapshot()
 	_check(

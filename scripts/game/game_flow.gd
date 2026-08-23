@@ -391,6 +391,7 @@ var _runtime_settings_transaction_active := false
 var _runtime_settings_reentrant_rejection_count := 0
 var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
 var _session_diagnostics_last_status: Dictionary = {}
+var _session_diagnostics_filesystem: UserDataFilesystem
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
 var _runtime_settings_persistence_injected := false
@@ -1131,7 +1132,9 @@ func _initialize_session_diagnostics() -> void:
 		return
 	var coordinator := CrashRecoveryCoordinatorType.new(_runtime_settings_user_data_store)
 	var record := SessionDiagnosticRecordType.new(_runtime_settings_user_data_store)
-	var sink := SessionDiagnosticFileSinkType.new("user://diagnostics")
+	var sink := SessionDiagnosticFileSinkType.new(
+		"user://diagnostics", _session_diagnostics_filesystem
+	)
 	var restored := coordinator.restore()
 	if not bool(restored.accepted):
 		_session_diagnostics_last_status = {"accepted": false, "reason": &"restore_failed", "status": restored}
@@ -1146,6 +1149,13 @@ func get_session_diagnostics_snapshot() -> Dictionary:
 		"last_status": _session_diagnostics_last_status.duplicate(true),
 		"bridge": _session_diagnostics_bridge.get_snapshot() if _session_diagnostics_bridge != null else {},
 	}.duplicate(true)
+
+
+## Test/platform seam: production defaults to the user filesystem, while an
+## injected adapter keeps the marker store and diagnostic sink in one namespace.
+func set_session_diagnostics_filesystem(filesystem: UserDataFilesystem) -> void:
+	if _session_diagnostics_bridge == null:
+		_session_diagnostics_filesystem = filesystem
 
 
 func mark_orderly_session_shutdown() -> Dictionary:
