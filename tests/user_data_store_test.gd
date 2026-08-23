@@ -266,10 +266,19 @@ func _test_valid_temp_blocks_recovery_and_overwrite() -> void:
 	filesystem.files[PATH + ".tmp"] = primary_bytes.duplicate()
 	var temp_bytes := (filesystem.files[PATH + ".tmp"] as PackedByteArray).duplicate()
 
-	var blocked_load := Store.new(PATH, filesystem).load()
+	var blocked_store := Store.new(PATH, filesystem)
+	var blocked_load := blocked_store.load()
 	_check(
 		not bool(blocked_load.accepted) and blocked_load.reason == &"interrupted_transaction",
 		"a valid temporary transaction fails closed instead of being treated as stale or empty"
+	)
+	var interrupted_receipt := blocked_store.get_recovery_receipt()
+	_check(
+		bool(interrupted_receipt.available)
+		and interrupted_receipt.kind == &"interrupted_transaction"
+		and bool(interrupted_receipt.requires_explicit_action)
+		and interrupted_receipt.path == PATH + ".tmp",
+		"interrupted transaction exposes a detached receipt while preserving fail-closed load"
 	)
 	_check(
 		filesystem.files[PATH] == primary_bytes and filesystem.files[PATH + ".tmp"] == temp_bytes,
