@@ -16,6 +16,7 @@ const BoardingAuthority := preload("res://scripts/network/network_boarding_autho
 const ProjectileAuthority := preload("res://scripts/network/network_projectile_authority.gd")
 const LandingAuthority := preload("res://scripts/network/network_landing_authority.gd")
 const DamageRespawnIntegration := preload("res://scripts/network/network_damage_respawn_integration.gd")
+const MovingInteriorAuthority := preload("res://scripts/network/network_moving_interior_authority.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -29,6 +30,7 @@ signal boarding_intent_result(result: Dictionary)
 signal projectile_intent_result(result: Dictionary)
 signal landing_intent_result(result: Dictionary)
 signal damage_respawn_result(result: Dictionary)
+signal moving_interior_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -42,12 +44,14 @@ var _boarding
 var _projectile
 var _landing
 var _damage_respawn
+var _moving_interior
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
 var _projectile_sources: Dictionary = {}
 var _landing_entities: Dictionary = {}
 var _damage_entities: Dictionary = {}
+var _moving_occupants: Dictionary = {}
 var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
@@ -61,6 +65,7 @@ func _init() -> void:
 	_projectile = ProjectileAuthority.new(AUTHORITY_PEER_ID)
 	_landing = LandingAuthority.new(AUTHORITY_PEER_ID)
 	_damage_respawn = DamageRespawnIntegration.new(AUTHORITY_PEER_ID)
+	_moving_interior = MovingInteriorAuthority.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -130,6 +135,9 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 						AUTHORITY_PEER_ID, damage_id, int(damage_entity.get("entity_generation", 0))
 					)
 					_damage_entities.erase(damage_id)
+			if _moving_occupants.has(peer_id):
+				_moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
+				_moving_occupants.erase(peer_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -412,6 +420,76 @@ func get_damage_entity(entity_id: StringName) -> Dictionary:
 	return _damage_respawn.get_entity_snapshot(entity_id)
 
 
+func register_moving_interior_frame(frame_id: StringName, frame_generation: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _moving_interior.register_frame(
+		AUTHORITY_PEER_ID, frame_id, frame_generation
+	)
+	moving_interior_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func retire_moving_interior_frame(frame_id: StringName, frame_generation: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _moving_interior.retire_frame(
+		AUTHORITY_PEER_ID, frame_id, frame_generation
+	)
+	if bool(result.get("accepted", false)):
+		for peer_id_variant in _moving_occupants.keys():
+			var peer_id := int(peer_id_variant)
+			for released in result.get("released_occupancies", []) as Array:
+				if int((released as Dictionary).get("peer_id", 0)) == peer_id:
+					_moving_occupants.erase(peer_id)
+					break
+		moving_interior_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func set_moving_interior_server_tick(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _moving_interior.set_server_tick(AUTHORITY_PEER_ID, server_tick)
+	moving_interior_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func register_moving_interior_occupancy(
+	owner_peer_id: int,
+	entity_id: StringName,
+	entity_generation: int,
+	frame_id: StringName,
+	frame_generation: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(owner_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _moving_interior.register_occupancy(
+		AUTHORITY_PEER_ID, owner_peer_id, entity_id, entity_generation,
+		frame_id, frame_generation
+	)
+	if bool(result.get("accepted", false)):
+		_moving_occupants[owner_peer_id] = true
+	moving_interior_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func handoff_moving_interior_sample(sample: Dictionary) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _moving_interior.handoff_latency_sample(
+		AUTHORITY_PEER_ID, sample
+	)
+	moving_interior_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func get_moving_interior_occupancy(entity_id: StringName) -> Dictionary:
+	return _moving_interior.get_occupancy(entity_id)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -576,6 +654,9 @@ func _on_peer_disconnected(peer_id: int) -> void:
 				AUTHORITY_PEER_ID, damage_id, int(damage_entity.get("entity_generation", 0))
 			)
 			_damage_entities.erase(damage_id)
+	if _moving_occupants.has(peer_id):
+		_moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
+		_moving_occupants.erase(peer_id)
 	peer_disconnected.emit(peer_id, receipt.duplicate(true))
 
 

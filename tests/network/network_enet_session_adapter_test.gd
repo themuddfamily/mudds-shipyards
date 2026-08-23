@@ -5,6 +5,7 @@ const MovementIntent := preload("res://scripts/network/network_movement_intent.g
 const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 const ProjectileIntent := preload("res://scripts/network/network_projectile_intent.gd")
 const LandingIntent := preload("res://scripts/network/network_landing_intent.gd")
+const MovingInteriorRelationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
 var _failures: Array[String] = []
 var _server: Adapter
@@ -209,6 +210,34 @@ func _initialize() -> void:
 		_client.record_damage(&"target-1", 1, damage_event, component_receipt, false).get("status") == &"authority_required",
 		"client cannot mutate the damage/respawn ledger"
 	)
+	_check(
+		bool(_server.register_moving_interior_frame(&"frame-1", 1).get("accepted", false)),
+		"server registers the authoritative moving-interior frame generation"
+	)
+	_check(
+		bool(_server.register_moving_interior_occupancy(client_peer_id, &"avatar-1", 1, &"frame-1", 1).get("accepted", false)),
+		"server binds admitted ownership to the frame generation"
+	)
+	_check(
+		bool(_server.set_moving_interior_server_tick(10).get("accepted", false)),
+		"server opens the moving-interior tick window"
+	)
+	var relationship := MovingInteriorRelationship.create(
+		10, &"avatar-1", 1, &"frame-1", 1,
+		Transform3D(Basis.IDENTITY, Vector3(1.0, 0.0, 0.0)), Vector3.ZERO, Vector3.ZERO, 1
+	)
+	var handoff := _server.handoff_moving_interior_sample({
+		"snapshot": relationship.get_snapshot(),
+		"arrival_time_seconds": 1.5,
+	})
+	_check(
+		bool(handoff.get("accepted", false)) and handoff.get("status") == &"sample_handed_off",
+		"server hands off an ordered frame-local relationship sample"
+	)
+	_check(
+		_client.handoff_moving_interior_sample({}).get("status") == &"authority_required",
+		"client cannot mutate moving-interior occupancy or relationship state"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -246,6 +275,10 @@ func _initialize() -> void:
 	_check(
 		_server.get_damage_entity(&"target-1").is_empty(),
 		"server disconnect cleanup retires the peer-owned damage lifecycle"
+	)
+	_check(
+		_server.get_moving_interior_occupancy(&"avatar-1").is_empty(),
+		"server disconnect cleanup releases peer-owned interior occupancy"
 	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),
