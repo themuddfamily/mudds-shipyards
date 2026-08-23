@@ -25,6 +25,12 @@ enum WindowMode {
 	FULLSCREEN,
 }
 
+enum VSyncMode {
+	OFF,
+	ON,
+	ADAPTIVE,
+}
+
 enum ControlPreset {
 	MODERN,
 	CLASSIC,
@@ -45,12 +51,12 @@ enum ColorblindPalette {
 ## [constant MINIMUM_SUPPORTED_SCHEMA_VERSION]..[constant SCHEMA_VERSION] load
 ## and are upgraded in memory; keys a older writer never stored fall back to
 ## their authored defaults. Anything outside that range still fails closed.
-const SCHEMA_VERSION := 5
+const SCHEMA_VERSION := 6
 const MINIMUM_SUPPORTED_SCHEMA_VERSION := 1
 ## Version of the typed RuntimeSettings section stored inside UserDataStore's
 ## independently versioned envelope. This starts at one because ConfigFile
 ## schema versions describe a different wire format and migration history.
-const USER_DATA_PAYLOAD_SCHEMA_VERSION := 7
+const USER_DATA_PAYLOAD_SCHEMA_VERSION := 8
 const _MAX_SAFE_JSON_INTEGER := 9_007_199_254_740_991
 const DEFAULT_CONFIG_PATH := "user://settings.cfg"
 const _STAGING_SUFFIX := ".tmp"
@@ -84,6 +90,9 @@ const DEFAULT_UI_SCALE := 1.0
 
 const DEFAULT_GRAPHICS_PROFILE := GraphicsProfile.HIGH
 const DEFAULT_WINDOW_MODE := WindowMode.WINDOWED
+const DEFAULT_DISPLAY_RESOLUTION_ID := "1920x1080"
+const DEFAULT_VSYNC_MODE := VSyncMode.ON
+const SUPPORTED_DISPLAY_RESOLUTION_IDS := ["1280x720", "1600x900", "1920x1080", "2560x1440"]
 const DEFAULT_CONTROL_PRESET := ControlPreset.MODERN
 const DEFAULT_COLORBLIND_PALETTE := ColorblindPalette.NONE
 const DEFAULT_REDUCED_MOTION := false
@@ -129,6 +138,8 @@ const _USER_DATA_VALUE_KEYS := [
 	"music_volume",
 	"graphics_profile",
 	"window_mode",
+	"display_resolution",
+	"vsync_mode",
 	"control_preset",
 	"ui_scale",
 	"colorblind_palette",
@@ -160,6 +171,16 @@ const _USER_DATA_VALUE_KEYS_V6 := [
 	"colorblind_palette", "reduced_motion", "captions_enabled",
 	"reduced_dynamic_range", "reduced_flash", "show_tutorials", "multiplayer_display_name",
 	"network_default_port", "multiplayer_max_players", "input_binding_profile",
+]
+const _USER_DATA_VALUE_KEYS_V7 := [
+	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
+	"invert_on_foot_y", "camera_fov", "master_volume", "ambience_volume",
+	"engine_volume", "weapons_volume", "ui_volume", "music_volume",
+	"graphics_profile", "window_mode", "control_preset", "ui_scale",
+	"colorblind_palette", "reduced_motion", "captions_enabled",
+	"reduced_dynamic_range", "reduced_flash", "payload_visual_intensity",
+	"show_tutorials", "multiplayer_display_name", "network_default_port",
+	"multiplayer_max_players", "input_binding_profile",
 ]
 const _USER_DATA_VALUE_KEYS_V4 := [
 	"ship_mouse_sensitivity", "on_foot_mouse_sensitivity", "invert_ship_y",
@@ -374,6 +395,22 @@ var window_mode: int = DEFAULT_WINDOW_MODE:
 		window_mode = validated
 		_queue_change(&"window_mode", validated)
 
+var display_resolution: String = DEFAULT_DISPLAY_RESOLUTION_ID:
+	set(value):
+		var validated := _validated_display_resolution(value)
+		if display_resolution == validated:
+			return
+		display_resolution = validated
+		_queue_change(&"display_resolution", validated)
+
+var vsync_mode: int = DEFAULT_VSYNC_MODE:
+	set(value):
+		var validated := _validated_vsync_mode(value)
+		if vsync_mode == validated:
+			return
+		vsync_mode = validated
+		_queue_change(&"vsync_mode", validated)
+
 var control_preset: int = DEFAULT_CONTROL_PRESET:
 	set(value):
 		var validated := _validated_control_preset(value)
@@ -515,6 +552,8 @@ func to_dictionary() -> Dictionary:
 		"music_volume": music_volume,
 		"graphics_profile": graphics_profile,
 		"window_mode": window_mode,
+		"display_resolution": display_resolution,
+		"vsync_mode": vsync_mode,
 		"control_preset": control_preset,
 		"ui_scale": ui_scale,
 		"colorblind_palette": colorblind_palette,
@@ -552,6 +591,8 @@ func to_user_data_payload() -> Dictionary:
 			"music_volume": music_volume,
 			"graphics_profile": String(get_graphics_profile_id()),
 			"window_mode": String(get_window_mode_id()),
+			"display_resolution": display_resolution,
+			"vsync_mode": String(get_vsync_mode_id()),
 			"control_preset": String(get_control_preset_id()),
 			"ui_scale": ui_scale,
 			"colorblind_palette": String(get_colorblind_palette_id()),
@@ -605,6 +646,8 @@ func apply_user_data_payload(candidate: Variant) -> Dictionary:
 	music_volume = float(values.music_volume)
 	graphics_profile = int(values.graphics_profile)
 	window_mode = int(values.window_mode)
+	display_resolution = String(values.display_resolution)
+	vsync_mode = int(values.vsync_mode)
 	control_preset = int(values.control_preset)
 	ui_scale = float(values.ui_scale)
 	colorblind_palette = int(values.colorblind_palette)
@@ -639,6 +682,8 @@ func reset_to_defaults() -> void:
 	music_volume = DEFAULT_MUSIC_VOLUME
 	graphics_profile = DEFAULT_GRAPHICS_PROFILE
 	window_mode = DEFAULT_WINDOW_MODE
+	display_resolution = DEFAULT_DISPLAY_RESOLUTION_ID
+	vsync_mode = DEFAULT_VSYNC_MODE
 	control_preset = DEFAULT_CONTROL_PRESET
 	ui_scale = DEFAULT_UI_SCALE
 	colorblind_palette = DEFAULT_COLORBLIND_PALETTE
@@ -708,6 +753,8 @@ func save_to_file(path_override: String = "") -> Error:
 	config.set_value(_SECTION_AUDIO, "music", music_volume)
 	config.set_value(_SECTION_GRAPHICS, "profile", String(_graphics_profile_id(graphics_profile)))
 	config.set_value(_SECTION_DISPLAY, "window_mode", String(_window_mode_id(window_mode)))
+	config.set_value(_SECTION_DISPLAY, "resolution", display_resolution)
+	config.set_value(_SECTION_DISPLAY, "vsync", String(_vsync_mode_id(vsync_mode)))
 	config.set_value(_SECTION_ACCESSIBILITY, "ui_scale", ui_scale)
 	config.set_value(
 		_SECTION_ACCESSIBILITY,
@@ -840,6 +887,12 @@ func load_from_file(path_override: String = "") -> Error:
 	window_mode = _parse_window_mode(
 		config.get_value(_SECTION_DISPLAY, "window_mode", _window_mode_id(DEFAULT_WINDOW_MODE))
 	)
+	display_resolution = _parse_display_resolution(
+		config.get_value(_SECTION_DISPLAY, "resolution", DEFAULT_DISPLAY_RESOLUTION_ID)
+	)
+	vsync_mode = _parse_vsync_mode(
+		config.get_value(_SECTION_DISPLAY, "vsync", _vsync_mode_id(DEFAULT_VSYNC_MODE))
+	)
 	ui_scale = loaded_ui_scale
 	colorblind_palette = _parse_colorblind_palette(
 		config.get_value(
@@ -892,6 +945,28 @@ func get_graphics_profile_id() -> StringName:
 
 func get_window_mode_id() -> StringName:
 	return _window_mode_id(window_mode)
+
+
+func get_vsync_mode_id() -> StringName:
+	return _vsync_mode_id(vsync_mode)
+
+
+func get_display_resolution_descriptor() -> Dictionary:
+	var parts := display_resolution.split("x")
+	return {
+		"id": StringName(display_resolution),
+		"width": int(parts[0]),
+		"height": int(parts[1]),
+		"supported_ids": PackedStringArray(SUPPORTED_DISPLAY_RESOLUTION_IDS),
+	}
+
+
+func get_vsync_descriptor() -> Dictionary:
+	return {
+		"id": get_vsync_mode_id(),
+		"supported_ids": PackedStringArray(["off", "on", "adaptive"]),
+		"backend_mode": _vsync_backend_mode(vsync_mode),
+	}
 
 
 func get_control_preset_id() -> StringName:
@@ -1032,6 +1107,24 @@ func apply_window_mode(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Diction
 	return {"applied": true, "reason": &"", "window_mode": descriptor["id"]}
 
 
+func apply_display_settings(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Dictionary:
+	var resolution := get_display_resolution_descriptor()
+	var vsync := get_vsync_descriptor()
+	var report := {
+		"applied": false,
+		"reason": &"",
+		"resolution": resolution,
+		"vsync": vsync,
+	}
+	if DisplayServer.get_name() == "headless":
+		report.reason = &"headless"
+		return report
+	DisplayServer.window_set_size(Vector2i(int(resolution.width), int(resolution.height)), window_id)
+	DisplayServer.window_set_vsync_mode(int(vsync.backend_mode), window_id)
+	report.applied = true
+	return report
+
+
 func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if not candidate is Dictionary:
 		return {"accepted": false, "reason": &"payload_not_dictionary"}
@@ -1050,7 +1143,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"values_not_dictionary"}
 	var raw_values := section.values as Dictionary
 	var expected_value_keys := _USER_DATA_VALUE_KEYS
-	if schema == 6:
+	if schema == 7:
+		expected_value_keys = _USER_DATA_VALUE_KEYS_V7
+	elif schema == 6:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V6
 	elif schema == 5:
 		expected_value_keys = _USER_DATA_VALUE_KEYS_V5
@@ -1082,6 +1177,10 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 	if schema <= 6:
 		raw_values = raw_values.duplicate()
 		raw_values["payload_visual_intensity"] = DEFAULT_PAYLOAD_VISUAL_INTENSITY
+	if schema <= 7:
+		raw_values = raw_values.duplicate()
+		raw_values["display_resolution"] = DEFAULT_DISPLAY_RESOLUTION_ID
+		raw_values["vsync_mode"] = String(_vsync_mode_id(DEFAULT_VSYNC_MODE))
 
 	var decoded := {}
 	var bounded_numbers := {
@@ -1150,6 +1249,11 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 			"borderless": WindowMode.BORDERLESS,
 			"fullscreen": WindowMode.FULLSCREEN,
 		},
+		"vsync_mode": {
+			"off": VSyncMode.OFF,
+			"on": VSyncMode.ON,
+			"adaptive": VSyncMode.ADAPTIVE,
+		},
 		"control_preset": {
 			"modern": ControlPreset.MODERN,
 			"classic": ControlPreset.CLASSIC,
@@ -1167,6 +1271,9 @@ func _decode_user_data_payload(candidate: Variant) -> Dictionary:
 		if not raw_id is String or not choices.has(raw_id):
 			return {"accepted": false, "reason": StringName("invalid_%s" % key)}
 		decoded[key] = int(choices[raw_id])
+	if not raw_values.display_resolution is String or not SUPPORTED_DISPLAY_RESOLUTION_IDS.has(raw_values.display_resolution):
+		return {"accepted": false, "reason": &"invalid_display_resolution"}
+	decoded["display_resolution"] = String(raw_values.display_resolution)
 
 	var profile_result := _decode_input_profile_json(raw_values.input_binding_profile)
 	if not bool(profile_result.accepted):
@@ -1405,6 +1512,14 @@ static func _validated_window_mode(value: int) -> int:
 	return value if value in [WindowMode.WINDOWED, WindowMode.BORDERLESS, WindowMode.FULLSCREEN] else DEFAULT_WINDOW_MODE
 
 
+static func _validated_display_resolution(value: String) -> String:
+	return value if SUPPORTED_DISPLAY_RESOLUTION_IDS.has(value) else DEFAULT_DISPLAY_RESOLUTION_ID
+
+
+static func _validated_vsync_mode(value: int) -> int:
+	return value if value in [VSyncMode.OFF, VSyncMode.ON, VSyncMode.ADAPTIVE] else DEFAULT_VSYNC_MODE
+
+
 static func _validated_control_preset(value: int) -> int:
 	return value if value in [ControlPreset.MODERN, ControlPreset.CLASSIC] else DEFAULT_CONTROL_PRESET
 
@@ -1495,6 +1610,24 @@ static func _window_mode_id(value: int) -> StringName:
 	return &"windowed"
 
 
+static func _vsync_mode_id(value: int) -> StringName:
+	match value:
+		VSyncMode.OFF:
+			return &"off"
+		VSyncMode.ADAPTIVE:
+			return &"adaptive"
+	return &"on"
+
+
+static func _vsync_backend_mode(value: int) -> int:
+	match value:
+		VSyncMode.OFF:
+			return DisplayServer.VSYNC_DISABLED
+		VSyncMode.ADAPTIVE:
+			return DisplayServer.VSYNC_ADAPTIVE
+	return DisplayServer.VSYNC_ENABLED
+
+
 static func _control_preset_id(value: int) -> StringName:
 	return &"classic" if value == ControlPreset.CLASSIC else &"modern"
 
@@ -1523,6 +1656,21 @@ static func _parse_window_mode(value: Variant) -> int:
 		"fullscreen":
 			return WindowMode.FULLSCREEN
 	return DEFAULT_WINDOW_MODE
+
+
+static func _parse_display_resolution(value: Variant) -> String:
+	return _validated_display_resolution(String(value)) if value is String else DEFAULT_DISPLAY_RESOLUTION_ID
+
+
+static func _parse_vsync_mode(value: Variant) -> int:
+	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
+		return DEFAULT_VSYNC_MODE
+	match String(value).to_lower():
+		"off":
+			return VSyncMode.OFF
+		"adaptive":
+			return VSyncMode.ADAPTIVE
+	return DEFAULT_VSYNC_MODE
 
 
 static func _parse_control_preset(value: Variant) -> int:

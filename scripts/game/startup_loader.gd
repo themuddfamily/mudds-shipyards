@@ -67,6 +67,7 @@ var _last_stage_usec := 0
 var _mouse_was_free := true
 var _worst_frame_ms := 0.0
 var _last_frame_usec := 0
+var _display_settings_report: Dictionary = {}
 
 
 func _ready() -> void:
@@ -316,6 +317,33 @@ func _read_accessibility_descriptor() -> Dictionary:
 	var error := settings.load_from_file()
 	if error != OK and error != ERR_FILE_NOT_FOUND:
 		push_warning("Startup could not read stored settings: %s" % error_string(error))
+		_display_settings_report = {"applied": false, "reason": &"settings_load_failed"}
 		return {}
-	settings.apply_window_mode()
+	var window_report := settings.apply_window_mode()
+	var display_report := settings.apply_display_settings()
+	_display_settings_report = {
+		"applied": bool(window_report.get("applied", false)) or bool(display_report.get("applied", false)),
+		"window": window_report,
+		"display": display_report,
+		"headless": display_report.get("reason", &"") == &"headless",
+	}
 	return settings.get_accessibility_descriptor()
+
+
+func get_display_settings_report() -> Dictionary:
+	return _display_settings_report.duplicate(true)
+
+
+## Applies a validated snapshot at the startup boundary and retains only a
+## detached report. Tests and alternate boot owners can provide their already
+## loaded settings without coupling this loader to persistence.
+func apply_runtime_settings(settings: RuntimeSettings) -> Dictionary:
+	var window_report := settings.apply_window_mode()
+	var display_report := settings.apply_display_settings()
+	_display_settings_report = {
+		"applied": bool(window_report.get("applied", false)) or bool(display_report.get("applied", false)),
+		"window": window_report,
+		"display": display_report,
+		"headless": display_report.get("reason", &"") == &"headless",
+	}
+	return get_display_settings_report()
