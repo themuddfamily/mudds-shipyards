@@ -130,15 +130,15 @@ const OBSERVATION_LENS_POSITIONS := [
 	Vector3(-11.05, 0.76, 34.2),
 ]
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 133
-const VISUAL_DESCENDANT_NODE_COUNT := 140
+const VISUAL_DESCENDANT_NODE_COUNT := 141
 const BASELINE_RENDERER_NODE_COUNT := 46
-const RENDERER_NODE_COUNT := 53
+const RENDERER_NODE_COUNT := 48
 const BASELINE_DRAWN_COPY_COUNT := 232
 const DRAWN_COPY_COUNT := 270
 const BASELINE_SURFACE_SUBMISSION_COUNT := 46
-const SURFACE_SUBMISSION_COUNT := 53
+const SURFACE_SUBMISSION_COUNT := 48
 const BASELINE_MESH_RESOURCE_COUNT := 46
-const MESH_RESOURCE_COUNT := 41
+const MESH_RESOURCE_COUNT := 36
 const BASELINE_MATERIAL_RESOURCE_COUNT := 9
 const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
@@ -150,6 +150,20 @@ const PRACTICAL_LENS_MESH_RESOURCE_COUNT := 1
 const LOGISTICS_CASE_SIZE := Vector3(2.1, 0.52, 1.28)
 const LOGISTICS_CASE_COPY_COUNT := 6
 const LOGISTICS_CASE_MESH_RESOURCE_COUNT := 1
+const LIGHT_MAST_SIZE := Vector3(0.16, 2.8, 0.16)
+const LIGHT_MAST_POSITIONS := [
+	Vector3(2.32, 1.4, 7.0),
+	Vector3(-2.32, 1.4, 18.0),
+	Vector3(-9.55, 1.4, 23.5),
+	Vector3(-12.72, 1.4, 32.0),
+	Vector3(12.72, 1.4, 32.0),
+	Vector3(2.72, 1.4, 38.0),
+]
+const LIGHT_MAST_COPY_COUNT := 6
+const BASELINE_LIGHT_MAST_RENDERER_NODE_COUNT := 6
+const LIGHT_MAST_RENDERER_NODE_COUNT := 1
+const BASELINE_LIGHT_MAST_MESH_RESOURCE_COUNT := 6
+const LIGHT_MAST_MESH_RESOURCE_COUNT := 1
 
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
@@ -304,8 +318,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 140 descendant
-	# nodes, 33 MeshInstance3D nodes plus twenty visual-only MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 141 descendant
+	# nodes, 27 MeshInstance3D nodes plus twenty-one visual-only MultiMesh batches,
 	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
@@ -313,7 +327,7 @@ func get_performance_contract() -> Dictionary:
 	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 33,
+		"mesh_instances": 27,
 		"static_bodies": 33,
 		"collision_shapes": 33,
 		"labels": 4,
@@ -326,9 +340,9 @@ func get_performance_contract() -> Dictionary:
 	return contract
 
 
-## Headless-safe component-local allocation census. Resource identity is the
-## only optimized dimension: authored nodes, copies, submissions, materials,
-## transforms, collision and lifecycle behavior remain unchanged.
+## Headless-safe component-local allocation census. Stable authored paths,
+## visible copies/transforms, materials, collision and lifecycle behavior stay
+## fixed while repeated presentation-only renderers may be batched.
 func get_visual_resource_contract() -> Dictionary:
 	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
 	var batch_nodes := find_children("*", "MultiMeshInstance3D", true, false)
@@ -417,6 +431,48 @@ func get_visual_resource_contract() -> Dictionary:
 			and case_body.get_node_or_null("CollisionShape3D") is CollisionShape3D
 		)
 
+	var light_mast_batch := get_node_or_null(
+		^"Structure/Dressing/LightMastRenderBatch"
+	) as MultiMeshInstance3D
+	var light_mast_identities_exact := light_mast_batch != null
+	var light_mast_mesh_resource_ids := {}
+	var authored_mast_transforms: Array = []
+	if light_mast_batch != null and light_mast_batch.multimesh != null:
+		var mast_mesh := light_mast_batch.multimesh.mesh as BoxMesh
+		if mast_mesh != null:
+			light_mast_mesh_resource_ids[mast_mesh.get_instance_id()] = true
+		authored_mast_transforms = light_mast_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
+		light_mast_identities_exact = (
+			light_mast_identities_exact
+			and mast_mesh != null
+			and mast_mesh.size.is_equal_approx(LIGHT_MAST_SIZE)
+			and light_mast_batch.material_override == _materials.get("rail")
+			and light_mast_batch.multimesh.instance_count == LIGHT_MAST_COPY_COUNT
+			and authored_mast_transforms.size() == LIGHT_MAST_COPY_COUNT
+			and bool(light_mast_batch.get_meta("visual_detail_only", false))
+		)
+	else:
+		light_mast_identities_exact = false
+	for mast_index in LIGHT_MAST_COPY_COUNT:
+		var mast_anchor := get_node_or_null(NodePath(
+			"Structure/Dressing/LightMast%02d" % (mast_index + 1)
+		)) as Marker3D
+		var expected_transform := Transform3D(Basis.IDENTITY, LIGHT_MAST_POSITIONS[mast_index])
+		light_mast_identities_exact = (
+			light_mast_identities_exact
+			and mast_anchor != null
+			and mast_anchor.position.is_equal_approx(LIGHT_MAST_POSITIONS[mast_index])
+			and mast_anchor.get_child_count() == 0
+			and bool(mast_anchor.get_meta("visual_detail_only", false))
+			and bool(mast_anchor.get_meta("batched_visual_anchor", false))
+			and authored_mast_transforms[mast_index] is Transform3D
+			and (authored_mast_transforms[mast_index] as Transform3D).is_equal_approx(
+				expected_transform
+			)
+		)
+
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	var exact := (
@@ -432,12 +488,14 @@ func get_visual_resource_contract() -> Dictionary:
 		and practical_lens_identities_exact
 		and logistics_case_mesh_resource_ids.size() == LOGISTICS_CASE_MESH_RESOURCE_COUNT
 		and logistics_case_identities_exact
+		and light_mast_mesh_resource_ids.size() == LIGHT_MAST_MESH_RESOURCE_COUNT
+		and light_mast_identities_exact
 	)
 	return {
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"observation_lenses_and_logistics_cases",
+		"selected_family": &"light_mast_render_batch",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -465,6 +523,18 @@ func get_visual_resource_contract() -> Dictionary:
 		"logistics_case_copies": LOGISTICS_CASE_COPY_COUNT,
 		"logistics_case_mesh_resources": logistics_case_mesh_resource_ids.size(),
 		"logistics_case_identities_exact": logistics_case_identities_exact,
+		"baseline_light_mast_renderer_nodes": BASELINE_LIGHT_MAST_RENDERER_NODE_COUNT,
+		"light_mast_renderer_nodes": LIGHT_MAST_RENDERER_NODE_COUNT,
+		"light_mast_renderer_delta": (
+			LIGHT_MAST_RENDERER_NODE_COUNT - BASELINE_LIGHT_MAST_RENDERER_NODE_COUNT
+		),
+		"light_mast_copies": LIGHT_MAST_COPY_COUNT,
+		"baseline_light_mast_mesh_resources": BASELINE_LIGHT_MAST_MESH_RESOURCE_COUNT,
+		"light_mast_mesh_resources": light_mast_mesh_resource_ids.size(),
+		"light_mast_mesh_resource_delta": (
+			light_mast_mesh_resource_ids.size() - BASELINE_LIGHT_MAST_MESH_RESOURCE_COUNT
+		),
+		"light_mast_identities_exact": light_mast_identities_exact,
 	}.duplicate(true)
 
 
@@ -619,7 +689,7 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module exceeds its frozen performance budgets")
 	if not bool(get_visual_resource_contract().exact):
-		errors.append("observation lens or logistics-case visual-resource sharing drifted")
+		errors.append("static visual resource or batching contract drifted")
 	var materials := get_material_retention_contract()
 	if int(materials.catalog_entry_count) != 10 \
 			or int(materials.retained_unique_materials) != 10 \
@@ -975,12 +1045,20 @@ func _build_lighting(parent: Node3D) -> void:
 		[Vector3(12.72, 2.8, 32.0), Color("f4bf72"), "practical_amber"],
 		[Vector3(2.72, 2.8, 38.0), Color("dbe8e4"), "practical_white"],
 	]
+	var mast_transforms: Array[Transform3D] = []
 	for fixture_index in fixtures.size():
 		var fixture := fixtures[fixture_index] as Array
 		var fixture_position := fixture[0] as Vector3
 		var fixture_color := fixture[1] as Color
 		var fixture_material_key := str(fixture[2])
-		_box(parent, "LightMast%02d" % (fixture_index + 1), fixture_position + Vector3(0, -1.4, 0), Vector3(0.16, 2.8, 0.16), _materials["rail"], false)
+		var mast_position := fixture_position + Vector3(0, -1.4, 0)
+		var mast_anchor := Marker3D.new()
+		mast_anchor.name = "LightMast%02d" % (fixture_index + 1)
+		mast_anchor.position = mast_position
+		mast_anchor.set_meta("visual_detail_only", true)
+		mast_anchor.set_meta("batched_visual_anchor", true)
+		parent.add_child(mast_anchor)
+		mast_transforms.append(Transform3D(Basis.IDENTITY, mast_position))
 		_box(parent, "LightLens%02d" % (fixture_index + 1), fixture_position, PRACTICAL_LENS_SIZE, _materials[fixture_material_key], false, _practical_lens_mesh)
 		var light := OmniLight3D.new()
 		light.name = "Practical%02d" % (fixture_index + 1)
@@ -994,6 +1072,13 @@ func _build_lighting(parent: Node3D) -> void:
 		light.distance_fade_begin = 55.0
 		light.distance_fade_length = 18.0
 		parent.add_child(light)
+	_multimesh_boxes(
+		parent,
+		"LightMastRenderBatch",
+		LIGHT_MAST_SIZE,
+		_materials["rail"],
+		mast_transforms
+	)
 
 
 func _apply_metadata() -> void:

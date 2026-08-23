@@ -178,11 +178,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 33
+		and int(performance.mesh_instances) == 27
 		and int(performance.static_bodies) == 33
 		and int(performance.collision_shapes) == 33
-		and module.find_children("*", "Node", true, false).size() == 140,
-		"finished district freezes 140 nodes, 33 meshes and 33 body/shape pairs"
+		and module.find_children("*", "Node", true, false).size() == 141,
+		"finished district freezes 141 nodes, 27 meshes and 33 body/shape pairs"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -205,6 +205,7 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"PadPavilionPlinths": 6,
 		"PadCanopyTaskStrips": 6,
 		"DistrictSignBacks": 4,
+		"LightMastRenderBatch": 6,
 	}
 	var finishing_exact := true
 	for batch_name in finishing_batches:
@@ -268,21 +269,21 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"observation_lenses_and_logistics_cases"
+		and StringName(performance.selected_family) == &"light_mast_render_batch"
 		and int(performance.baseline_descendant_nodes) == 133
-		and int(performance.descendant_nodes) == 140
+		and int(performance.descendant_nodes) == 141
 		and int(performance.baseline_renderer_nodes) == 46
-		and int(performance.renderer_nodes) == 53
+		and int(performance.renderer_nodes) == 48
 		and int(performance.baseline_drawn_copies) == 232
 		and int(performance.drawn_copies) == 270
 		and int(performance.baseline_surface_submissions) == 46
-		and int(performance.surface_submissions) == 53,
-		"perimeter pavilions keep the finished district bounded to 140 nodes and 53 renderers"
+		and int(performance.surface_submissions) == 48,
+		"the finished district stays bounded to 141 nodes and 48 renderers"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 46
-		and int(performance.mesh_resources) == 41
-		and int(performance.mesh_resource_delta) == -5
+		and int(performance.mesh_resources) == 36
+		and int(performance.mesh_resource_delta) == -10
 		and int(performance.baseline_material_resources) == 9
 		and int(performance.material_resources) == 10
 		and int(performance.baseline_family_nodes) == 3
@@ -291,8 +292,63 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_submissions) == 3
 		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"open rails and pavilion batching keep the finished district to 41 mesh resources"
+		"open rails, pavilions and light-mast batching keep the district to 36 mesh resources"
 	)
+	var mast_batch := module.get_node_or_null(
+		^"Structure/Dressing/LightMastRenderBatch"
+	) as MultiMeshInstance3D
+	var mast_family_exact := mast_batch != null
+	var authored_mast_transforms := (
+		mast_batch.get_meta("authored_instance_transforms", []) as Array
+		if mast_batch != null else []
+	)
+	for mast_index in ObservationLogisticsSpur.LIGHT_MAST_COPY_COUNT:
+		var mast_anchor := module.get_node_or_null(NodePath(
+			"Structure/Dressing/LightMast%02d" % (mast_index + 1)
+		)) as Marker3D
+		mast_family_exact = (
+			mast_family_exact
+			and mast_anchor != null
+			and mast_anchor.position.is_equal_approx(
+				ObservationLogisticsSpur.LIGHT_MAST_POSITIONS[mast_index]
+			)
+			and mast_anchor.get_child_count() == 0
+			and bool(mast_anchor.get_meta("batched_visual_anchor", false))
+			and authored_mast_transforms.size() == ObservationLogisticsSpur.LIGHT_MAST_COPY_COUNT
+			and (authored_mast_transforms[mast_index] as Transform3D).is_equal_approx(
+				Transform3D(
+					Basis.IDENTITY,
+					ObservationLogisticsSpur.LIGHT_MAST_POSITIONS[mast_index]
+				)
+			)
+		)
+	_check(
+		mast_family_exact
+		and int(performance.baseline_light_mast_renderer_nodes) == 6
+		and int(performance.light_mast_renderer_nodes) == 1
+		and int(performance.light_mast_renderer_delta) == -5
+		and int(performance.light_mast_copies) == 6
+		and int(performance.baseline_light_mast_mesh_resources) == 6
+		and int(performance.light_mast_mesh_resources) == 1
+		and int(performance.light_mast_mesh_resource_delta) == -5
+		and bool(performance.light_mast_identities_exact),
+		"six stable mast anchors keep exact visible poses while one renderer/resource draws them"
+	)
+	if mast_batch != null:
+		var authored_transforms := mast_batch.get_meta("authored_instance_transforms", []) as Array
+		var drifted_transforms := authored_transforms.duplicate()
+		drifted_transforms[0] = (drifted_transforms[0] as Transform3D).translated_local(
+			Vector3(0.25, 0.0, 0.0)
+		)
+		mast_batch.set_meta("authored_instance_transforms", drifted_transforms)
+		var mast_red := module.get_visual_resource_contract()
+		mast_batch.set_meta("authored_instance_transforms", authored_transforms)
+		_check(
+			not bool(mast_red.exact)
+			and not bool(mast_red.light_mast_identities_exact)
+			and bool(module.get_visual_resource_contract().exact),
+			"red mutation: moving one batched mast copy fails the pose contract and restores cleanly"
+		)
 	var practical_lenses: Array[MeshInstance3D] = []
 	for lens_index in ObservationLogisticsSpur.PRACTICAL_LENS_COPY_COUNT:
 		practical_lenses.append(module.get_node_or_null(NodePath(
@@ -312,7 +368,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		practical_lenses[1].mesh = practical_mesh
 		_check(
 			not bool(practical_red.exact)
-			and int(practical_red.mesh_resources) == 42
+			and int(practical_red.mesh_resources) == 37
 			and int(practical_red.practical_lens_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one practical lens mesh fails the resource contract and restores cleanly"
@@ -361,7 +417,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		case_meshes[1].mesh = case_mesh
 		_check(
 			not bool(case_red.exact)
-			and int(case_red.mesh_resources) == 42
+			and int(case_red.mesh_resources) == 37
 			and int(case_red.logistics_case_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one logistics-case mesh fails the resource contract and restores cleanly"
@@ -403,10 +459,10 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	var red := module.get_visual_resource_contract()
 	_check(
 		not bool(red.exact)
-		and int(red.mesh_resources) == 42
+		and int(red.mesh_resources) == 37
 		and int(red.family_mesh_resources) == 2
 		and module.get_validation_errors().has(
-			"observation lens or logistics-case visual-resource sharing drifted"
+			"static visual resource or batching contract drifted"
 		),
 		"red mutation: splitting one observation lens resource turns the component-local allocation contract red"
 	)
@@ -713,4 +769,4 @@ func _count_assertions() -> int:
 	# Kept explicit in output by counting anchored call sites from this suite is not
 	# available at runtime; successful and failed assertions together equal this
 	# frozen suite total.
-	return 69
+	return 71
