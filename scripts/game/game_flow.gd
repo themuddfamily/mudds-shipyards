@@ -557,6 +557,7 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	_connect_signal_once(network_session, &"peer_admitted", _on_network_peer_admitted)
 	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
 	_connect_signal_once(network_session, &"crew_role_result", _on_network_crew_role_result)
+	_connect_signal_once(network_session, &"crew_command_result", _on_network_crew_command_result)
 	_connect_signal_once(network_session, &"server_browser_result", _on_server_browser_result)
 	_attach_network_halyard_command_bridge()
 	return network_session
@@ -1994,6 +1995,15 @@ func _on_network_crew_role_result(result: Dictionary) -> void:
 		int(role_record.get("seat_generation", 0)),
 		int(role_record.get("request_sequence", 0))
 	)
+
+
+func _on_network_crew_command_result(result: Dictionary) -> void:
+	if _network_session_mode != &"server" or not bool(result.get("accepted", false)):
+		return
+	if not _attach_network_halyard_command_bridge().get("accepted", false):
+		return
+	if is_instance_valid(active_ship):
+		_network_halyard_command_bridge.dispatch(1, result, active_ship)
 
 
 func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary) -> void:

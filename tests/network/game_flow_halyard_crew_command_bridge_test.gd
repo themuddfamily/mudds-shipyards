@@ -24,14 +24,15 @@ func _run() -> void:
 		"server role admission establishes Halyard assignment")
 	flow.network_session = session
 	flow.active_ship = halyard
+	flow._network_session_mode = &"server"
 	_check(flow._attach_network_halyard_command_bridge().accepted, "GameFlow attaches command bridge")
 	var receipt := {"accepted": true, "status": &"command_accepted", "receipt": {
 		"peer_id": 7, "peer_generation": 3, "avatar_id": &"avatar_7", "seat_id": &"pilot_station",
 		"seat_generation": 1, "role": &"pilot", "action": &"flight_command", "ship_id": &"halyard_new_design",
-		"ship_generation": 1, "request_sequence": 1, "server_tick": 4, "migration_generation": 1,
-		"payload": {"thrust_x": 0.2, "thrust_y": -0.1},
+		"ship_generation": 1, "request_sequence": 2, "server_tick": 4, "migration_generation": 1,
+		"payload": {"throttle": 0.2, "pitch": -0.1, "yaw": 0.0, "roll": 0.0, "boost": false, "brake": false},
 	}}
-	session.crew_command_result.emit(receipt)
+	flow._on_network_crew_command_result(receipt)
 	_check(flow._network_halyard_command_bridge.get_snapshot().dispatch_sequence == 1,
 		"server receipt reaches real Halyard command bridge")
 	flow._on_network_session_stopped(&"migration")
