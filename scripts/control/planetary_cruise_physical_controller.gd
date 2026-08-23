@@ -770,11 +770,10 @@ func _clear_binding(reason: StringName, advance_generation: bool) -> void:
 	_sequence = 0
 	_attached = false
 	_last_envelope = {}
-	if _final_approach_state in [
-		FinalApproachState.ARMED, FinalApproachState.ACTIVE,
-	]:
-		_final_approach_state = FinalApproachState.ABORTED
-		_last_final_approach_reason = reason
+	_final_approach_state = FinalApproachState.NONE
+	_final_approach_generation = 0
+	_last_final_approach_reason = reason
+	_last_final_approach_receipt.clear()
 	_final_approach_target = null
 	_last_result = {
 		"accepted": true,

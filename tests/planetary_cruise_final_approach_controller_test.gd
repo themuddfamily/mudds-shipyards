@@ -100,6 +100,29 @@ func _run() -> void:
 			and not (snapshot.get("last_completion_receipt", {}) as Dictionary).is_empty(),
 		"controller retains a detached completion receipt for the binding handoff",
 	)
+	var released := controller.disengage(controller.get_generation(), false)
+	var detached_final := controller.get_snapshot().get("final_approach", {}) as Dictionary
+	_check(
+		bool(released.get("accepted", false))
+			and detached_final.get("state_id") == &"none"
+			and int(detached_final.get("target_generation", -1)) == 0
+			and (detached_final.get("last_completion_receipt", {}) as Dictionary).is_empty(),
+		"completed release clears terminal target state and the controller-local receipt",
+	)
+	var rebound := controller.bind_ship(
+		ship, FRAME_GENERATION, controller.get_generation()
+	)
+	target.target_generation = 2
+	var rearmed := controller.arm_final_approach(
+		target, FRAME_GENERATION, controller.get_generation()
+	) if bool(rebound.get("accepted", false)) else {}
+	_check(
+		bool(rebound.get("accepted", false))
+			and bool(rearmed.get("accepted", false))
+			and ((rearmed.get("final_approach", {}) as Dictionary)
+				.get("state_id", &"")) == &"armed",
+		"complete-detach-rebind admits one fresh generation-fenced target",
+	)
 
 	stage.queue_free()
 	await process_frame
