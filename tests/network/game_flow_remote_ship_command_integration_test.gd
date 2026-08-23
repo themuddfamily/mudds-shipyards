@@ -14,6 +14,7 @@ func _run() -> void:
 	var server := Adapter.new()
 	server._is_server = true
 	server._configured = true
+	server._peer_generations[2] = 1
 	var registered := server.register_remote_ship_pilot(2, &"cinder-long-range-bomber", 1)
 	_check(bool(registered.get("accepted", false)), "server admits current pilot owner")
 	var valid := {
@@ -52,7 +53,18 @@ func _run() -> void:
 		"disconnect reset retires command source")
 	_check(int(server.get_remote_ship_command_snapshot().get("pilot_count", -1)) == 0,
 		"retired pilot cannot retain command state")
+	server.register_remote_ship_pilot(2, &"cinder-long-range-bomber", 2)
+	var resync := server.publish_remote_ship_pilot_resync(2)
+	_check(bool(resync.get("accepted", false)), "late join receives current pilot stream")
+	var client := Adapter.new()
+	client._send_remote_ship_pilot_resync(resync.get("packet", {}) as Dictionary)
+	_check(bool(client.get_remote_pilot_replica().get("presentation_only", false)),
+		"late-join pilot snapshot is presentation-only")
+	client._send_remote_ship_pilot_resync({"migration_generation": 0, "pilot": {}})
+	_check(StringName(client.get_remote_pilot_replica().get("pilot", {}).get("authority", &"")) == &"server_only",
+		"invalid migration cannot replace pilot replica")
 	server.free()
+	client.free()
 	if _failures.is_empty():
 		print("OK: GameFlow remote ship command integration (%d assertions)" % _assertions)
 		quit(0)

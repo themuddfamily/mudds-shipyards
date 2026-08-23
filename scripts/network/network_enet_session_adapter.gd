@@ -88,6 +88,7 @@ var _lifecycle
 var _transport
 var _movement
 var _remote_ship_commands
+var _remote_pilot_replica: Dictionary = {}
 var _boarding
 var _projectile
 var _landing
@@ -553,6 +554,24 @@ func reset_remote_ship_pilot(ship_id: StringName, reason: StringName = &"reset")
 
 func get_remote_ship_command_snapshot() -> Dictionary:
 	return _remote_ship_commands.get_snapshot()
+
+
+func publish_remote_ship_pilot_resync(peer_id: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var packet := {
+		"migration_generation": int(_migration.get_snapshot().get("migration_generation", 1)),
+		"pilot": _remote_ship_commands.get_snapshot(),
+	}
+	if _peer != null:
+		_send_remote_ship_pilot_resync.rpc_id(peer_id, packet)
+	return _remember(_result(true, &"remote_pilot_resync_published", {"packet": packet}))
+
+
+func get_remote_pilot_replica() -> Dictionary:
+	return _remote_pilot_replica.duplicate(true)
 
 
 func get_boarding_snapshot() -> Dictionary:
@@ -1656,6 +1675,7 @@ func get_prediction_entity(entity_id: StringName) -> Dictionary:
 
 
 func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
+	_remote_pilot_replica.clear()
 	if is_server():
 		return _remember(_result(false, &"client_required"))
 	mark_reconnect_succeeded()
@@ -3055,6 +3075,23 @@ func _send_boarding_snapshot(packet: Dictionary) -> void:
 	var applied := consume_boarding_ownership_snapshot(packet)
 	seat_occupancy_result.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _send_remote_ship_pilot_resync(packet: Dictionary) -> void:
+	if is_server():
+		return
+	var generation := int(packet.get("migration_generation", 0))
+	if generation <= 0 or not packet.get("pilot", {}) is Dictionary:
+		return
+	var current := int(_remote_pilot_replica.get("migration_generation", 0))
+	if generation < current:
+		return
+	_remote_pilot_replica = {
+		"migration_generation": generation,
+		"pilot": (packet.get("pilot", {}) as Dictionary).duplicate(true),
+		"presentation_only": true,
+	}
 
 
 @rpc("authority", "call_remote", "reliable")
