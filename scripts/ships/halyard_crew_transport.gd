@@ -1617,7 +1617,11 @@ func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
 	if requested_repair <= 0.0:
 		return selection
 	var rate := maxf(float(report.get("repair_rate_per_second", 0.0)), 0.05)
-	var repair_result := model.tick_repair(requested_repair / rate, true)
+	var repair_result := model.tick_component_repair(
+		system_id,
+		requested_repair / rate,
+		true
+	)
 	var after := model.get_component_integrity(system_id)
 	if not bool(repair_result.get("accepted", false)) or after <= before:
 		var rejected := _crew_role_result(false, StringName(repair_result.get("reason", &"system_not_repaired")))

@@ -220,6 +220,26 @@ func record_damage(amount: float, local_hit_position: Vector3 = Vector3.INF) -> 
 
 
 func tick_repair(delta: float, repairing: bool) -> Dictionary:
+	return _tick_repair_components(COMPONENT_ORDER, delta, repairing)
+
+
+## Applies an authorized repair pulse to one named component. Engineer-role
+## consumers use this seam so their validated selection cannot mutate adjacent
+## damaged systems; passive berth recovery continues to use `tick_repair()`.
+func tick_component_repair(
+	component_id: StringName,
+	delta: float,
+	repairing: bool
+) -> Dictionary:
+	var component_ids: Array[StringName] = [component_id]
+	return _tick_repair_components(component_ids, delta, repairing)
+
+
+func _tick_repair_components(
+	component_ids: Array[StringName],
+	delta: float,
+	repairing: bool
+) -> Dictionary:
 	var report := {
 		"accepted": false,
 		"reason": &"",
@@ -238,6 +258,10 @@ func tick_repair(delta: float, repairing: bool) -> Dictionary:
 	if not is_configured():
 		report["reason"] = &"not_configured"
 		return report
+	for component_id: StringName in component_ids:
+		if not COMPONENT_ORDER.has(component_id):
+			report["reason"] = &"unknown_component"
+			return report
 	if not is_finite(delta) or delta <= 0.0:
 		report["reason"] = &"invalid_delta"
 		return report
@@ -247,7 +271,7 @@ func tick_repair(delta: float, repairing: bool) -> Dictionary:
 
 	var step := repair_rate_per_second * delta
 	var contexts: Array[Dictionary] = []
-	for component_id: StringName in COMPONENT_ORDER:
+	for component_id: StringName in component_ids:
 		var before := get_component_integrity(component_id)
 		var requested := minf(step, 1.0 - before)
 		if before >= 1.0 or requested <= 0.0 or is_equal_approx(before + requested, before):

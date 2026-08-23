@@ -51,11 +51,19 @@ func _run() -> void:
 	)
 
 	var model := craft.get_component_damage()
-	var damaged := model.record_damage(70.0, Vector3.ZERO)
+	# An unlocated hit distributes damage across the roster, giving the live
+	# engineer consumer both a selected target and an adjacent damaged system.
+	var damaged := model.record_damage(70.0, Vector3.INF)
 	_check(bool(damaged.get("accepted", false)), "existing Jovian component owner accepts live damage")
 	var component_id := _first_damaged_component(model)
+	var adjacent_component_id := _other_damaged_component(model, component_id)
 	var integrity_before := model.get_component_integrity(component_id)
+	var adjacent_integrity_before := model.get_component_integrity(adjacent_component_id)
 	_check(integrity_before >= 0.0 and integrity_before < 1.0, "engineer has a damaged component target")
+	_check(
+		adjacent_integrity_before >= 0.0 and adjacent_integrity_before < 1.0,
+		"engineer repair scenario retains a second damaged component"
+	)
 	craft.set("_landed", true)
 
 	var foreign = craft.submit_crew_intent(
@@ -90,6 +98,13 @@ func _run() -> void:
 		"admitted engineer receipt is consumed as a bounded repair pulse"
 	)
 	_check(model.get_component_integrity(component_id) > integrity_before, "repair delegates mutation to ShipComponentDamage")
+	_check(
+		is_equal_approx(
+			model.get_component_integrity(adjacent_component_id),
+			adjacent_integrity_before
+		),
+		"selected repair leaves adjacent damaged systems unchanged"
+	)
 	_check(selected[0] == 1 and selected_generation[0] == 1, "repair receipt selects the generation-fenced component")
 
 	var replay = craft.submit_crew_intent(
@@ -187,6 +202,7 @@ func _build_authority():
 	for seat in [
 		[&"pilot_station", Authority.ROLE_PILOT, &"pilot_seat_anchor"],
 		[&"passenger_port_01", Authority.ROLE_ENGINEER, &"passenger_port_01"],
+		[&"co_pilot_station", Authority.ROLE_PASSENGER, &"co_pilot_station"],
 		[&"passenger_port_00", Authority.ROLE_PASSENGER, &"passenger_port_00"],
 		[&"freight_defense_slot", Authority.ROLE_GUNNER, &""],
 	]:
@@ -213,6 +229,17 @@ func _first_damaged_component(model: ShipComponentDamage) -> StringName:
 		if model.get_component_integrity(component_id) < 1.0:
 			return component_id
 	return ShipComponentDamageType.COMPONENT_FORWARD_HULL
+
+
+func _other_damaged_component(
+	model: ShipComponentDamage,
+	selected_component_id: StringName
+) -> StringName:
+	for component_id: StringName in ShipComponentDamageType.COMPONENT_ORDER:
+		if component_id != selected_component_id \
+				and model.get_component_integrity(component_id) < 1.0:
+			return component_id
+	return &""
 
 
 func _finish() -> void:
