@@ -320,6 +320,20 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 ## structure. Its one sibling body must remain an exact physical copy of all eight
 ## cap instances, and the registered glass oculus must itself be a real barrier.
 func _test_garden_pressure_shell(module: HabitatSpine) -> void:
+	var garden_volume := module.get_room_volume(&"garden-cupola")
+	_check(
+		(garden_volume.half_extents as Vector3).is_equal_approx(Vector3(5.265, 2.5, 7.41)),
+		"garden room occupancy is 30 percent wider and longer without gaining height"
+	)
+	var garden_floor := module.get_node_or_null(
+		^"Structure/SideBranchGarden/GardenShell/GardenFloor"
+	) as StaticBody3D
+	var floor_collision := garden_floor.get_node_or_null(^"Collision") as CollisionShape3D if garden_floor != null else null
+	var floor_shape := floor_collision.shape as BoxShape3D if floor_collision != null else null
+	_check(
+		floor_shape != null and floor_shape.size.is_equal_approx(Vector3(11.18, 0.5, 15.60)),
+		"garden floor dimensions are exactly 130 percent of the original shell"
+	)
 	var caps := module.get_node_or_null(
 		^"Structure/SideBranchGarden/GardenShell/CupolaCaps"
 	) as MultiMeshInstance3D
@@ -621,11 +635,11 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 		"drawn copies freeze at 1377 while surface submissions fall 1286 -> 1259"
 	)
 	_check(
-		int(report.unique_mesh_resources) == 348
+		int(report.unique_mesh_resources) == 349
 		and int(report.unique_material_resources) == 31
 		and int(report.multimesh_resources) == 14
 		and int(report.renderer_buffer_floats) == 144,
-		"mesh/material allocations freeze at 348/31 while the hatch batch retains its 144-float renderer buffer"
+		"mesh/material allocations freeze at 349/31 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
