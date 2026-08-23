@@ -268,8 +268,6 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_server_browser.detach(AUTHORITY_PEER_ID)
 	_next_join_intent_sequence = 1
 	_last_join_intent_sequence = 0
-	_next_join_intent_sequence = 1
-	_last_join_intent_sequence = 0
 	session_stopped.emit(reason)
 	return _remember(_result(true, &"stopped", {"reason": reason}))
 
