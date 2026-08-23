@@ -146,7 +146,7 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 		and hidden.get("phase") == &"fading_in"
 		and is_zero_approx(float(hidden.get("opacity", -1.0)))
 		and not cluster.visible
-		and renderers.size() == 166
+		and renderers.size() == 163
 		and lights.size() == 23,
 		"a streamed generation commits fully hidden before its first draw"
 	)

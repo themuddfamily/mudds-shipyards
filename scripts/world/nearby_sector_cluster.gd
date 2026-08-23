@@ -139,6 +139,8 @@ const SPINE_CENTER_Z := -6.0
 const PROCESSING_SPINE_RIB_SIZE := Vector3(13.0, 9.5, 1.6)
 const PROCESSING_SPINE_RIB_Z_POSITIONS: Array[float] = [-24.0, -14.0, 0.0, 12.0]
 const PROCESSING_SPINE_RIB_FAMILY_ID: StringName = &"nearby-processing-spine-ribs"
+const GANTRY_RAIL_SIZE := Vector3(1.2, 1.2, GANTRY_NEAR_Z - GANTRY_FAR_Z)
+const GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
 const LAMP_LENS_RADIUS := 0.45
 const LAMP_LENS_HEIGHT := 0.9
 const LAMP_LENS_RADIAL_SEGMENTS := 12
@@ -152,9 +154,9 @@ const TORUS_MESH_RESOURCE_ALLOCATIONS := 12
 const PERFORMANCE_BUDGET := {
 	"static_bodies": 44,
 	"mesh_instances": 200,
-	# 1 -> 2: the second batch replaces four visual-only processing-spine rib
-	# submissions with one while retaining the original debris-shell batch.
-	"multimesh_instances": 2,
+	# Three bounded visual batches retain the debris shell, processing-spine ribs,
+	# and gantry rails without increasing gameplay or collision ownership.
+	"multimesh_instances": 3,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -1191,21 +1193,7 @@ func _build_gantry(platform: Node3D) -> void:
 				)
 
 	# Rails linking the two frames into a short tunnel rather than two loose rings.
-	for side in [-1.0, 1.0]:
-		for rail_y in [-1.0, 1.0]:
-			_box(
-				platform,
-				"GantryRail",
-				Vector3(
-					side * (half_width + 1.5),
-					GANTRY_CENTER_Y + rail_y * (half_height + 1.5),
-					(GANTRY_NEAR_Z + GANTRY_FAR_Z) * 0.5
-				),
-				Vector3(1.2, 1.2, GANTRY_NEAR_Z - GANTRY_FAR_Z),
-				_materials["steel"],
-				false
-			)
-
+	_build_gantry_rails(platform, half_width, half_height)
 	_sign(
 		platform,
 		"CINDER REACH DOCK GATE",
@@ -1225,6 +1213,41 @@ func _build_gantry(platform: Node3D) -> void:
 		2.2,
 		_materials["cyan_glow"]
 	)
+
+
+## The four rails have one exact rounded-box recipe, material and no gameplay or
+## collision authority. One MultiMesh retains the authored four-copy tunnel while
+## removing three renderer nodes and submissions from the nearby-sector cluster.
+func _build_gantry_rails(platform: Node3D, half_width: float, half_height: float) -> void:
+	var transforms: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		for rail_y in [-1.0, 1.0]:
+			transforms.append(
+				Transform3D(
+					Basis.IDENTITY,
+					Vector3(
+						side * (half_width + 1.5),
+						GANTRY_CENTER_Y + rail_y * (half_height + 1.5),
+						(GANTRY_NEAR_Z + GANTRY_FAR_Z) * 0.5
+					)
+				)
+			)
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = StationSurfaceKit.rounded_box_mesh_cached(GANTRY_RAIL_SIZE, _box_cache)
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = -1
+	multimesh.buffer = _encode_multimesh_transforms(transforms)
+	multimesh.custom_aabb = _transformed_mesh_bounds(multimesh.mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "GantryRails"
+	batch.multimesh = multimesh
+	batch.material_override = _materials["steel"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", GANTRY_RAIL_FAMILY_ID)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	platform.add_child(batch)
 
 
 func _build_extraction_arms(platform: Node3D) -> void:
