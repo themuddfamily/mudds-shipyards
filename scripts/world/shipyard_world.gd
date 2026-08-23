@@ -972,6 +972,7 @@ func _enter_tree() -> void:
 		call_deferred("_restore_operational_lattice_after_reentry")
 		call_deferred("_bind_station_defense_external_owners")
 		call_deferred("_bind_heavy_breach_external_owners")
+		call_deferred("_restore_range_targets_after_reentry")
 
 
 func _exit_tree() -> void:
@@ -4298,6 +4299,39 @@ func get_target_count() -> int:
 
 func get_destroyed_target_count() -> int:
 	return _destroyed_target_count
+
+
+## Re-arms only surviving targets when this same built world returns to the
+## tree. Already-authorized destructions stay retired, preserving the mission's
+## exactly-once count and preventing a disabled body from being resurrected.
+func _restore_range_targets_after_reentry() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	for target in _targets:
+		if not is_instance_valid(target) or bool(target.get_meta("destroyed", false)):
+			continue
+		reset_range_target_for_reuse(target)
+
+
+func reset_range_target_for_reuse(target: StaticBody3D) -> Dictionary:
+	if (
+		not is_instance_valid(target)
+		or not _targets.has(target)
+		or not target.get_meta("is_shipyard_target", false)
+		or bool(target.get_meta("destroyed", false))
+	):
+		return {"accepted": false, "reason": &"target_unavailable"}.duplicate(true)
+	var adapter := target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	if adapter == null:
+		return {"accepted": false, "reason": &"component_adapter_unavailable"}.duplicate(true)
+	var snapshot := adapter.get_component_snapshot()
+	var expected_generation := int(snapshot.get("generation", 0))
+	var reset_result := adapter.reset_for_reuse(expected_generation)
+	if not bool(reset_result.get("accepted", false)):
+		return reset_result.duplicate(true)
+	target.set_meta("health", adapter.get_maximum_health())
+	target.set_meta("destroyed", false)
+	return reset_result.duplicate(true)
 
 
 ## Consumes detached component condition for the four authored range drones.

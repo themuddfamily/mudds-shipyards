@@ -55,6 +55,9 @@ func _run() -> void:
 	var frame := visual.get_node("OuterRing") as MeshInstance3D
 	var nominal_core_material := core.material_override
 	var nominal_frame_material := frame.material_override
+	var original_component_model := adapter.get("_component_damage_model") as ComponentDamageModel
+	var original_model_instance_id := original_component_model.get_instance_id()
+	var original_generation := int(adapter.get_component_snapshot().get("generation", 0))
 	var maximum_health := float(target.get_meta("health", 0.0))
 	var nonlethal_damage := maximum_health * 0.34
 	var first_result := adapter.apply_damage(
@@ -81,6 +84,34 @@ func _run() -> void:
 		"a nonlethal live hit visibly stages damage at the authored frame and core"
 	)
 
+	root.remove_child(world)
+	await process_frame
+	root.add_child(world)
+	await process_frame
+	await process_frame
+	var restored_snapshot := adapter.get_component_snapshot()
+	var restored_model := adapter.get("_component_damage_model") as ComponentDamageModel
+	_check(
+		adapter.is_inside_tree()
+		and restored_model.get_instance_id() == original_model_instance_id
+		and int(restored_snapshot.get("generation", 0)) == original_generation + 1
+		and is_equal_approx(float(target.get_meta("health", -1.0)), maximum_health)
+		and frame.get_meta("component_stage", &"") == &"nominal"
+		and core.get_meta("component_stage", &"") == &"nominal"
+		and frame.material_override == nominal_frame_material
+		and core.material_override == nominal_core_material
+		and world.get_destroyed_target_count() == 0,
+		"whole-world re-entry reuses one model, advances generation, and clears staged damage"
+	)
+	var stale_reset := adapter.reset_for_reuse(original_generation)
+	_check(
+		not bool(stale_reset.get("accepted", true))
+		and stale_reset.get("reason") == &"stale_generation"
+		and adapter.get("_component_damage_model") == restored_model
+		and int(adapter.get_component_snapshot().get("generation", 0)) == original_generation + 1,
+		"a stale component lifecycle event cannot replace or advance the reused model"
+	)
+
 	var lethal_result := adapter.apply_damage(
 		maximum_health,
 		target.global_position,
@@ -101,6 +132,18 @@ func _run() -> void:
 		and not bool(duplicate_result.get("accepted", true))
 		and world.get_destroyed_target_count() == 1,
 		"existing world destruction and mission count remain authoritative exactly once"
+	)
+	root.remove_child(world)
+	await process_frame
+	root.add_child(world)
+	await process_frame
+	await process_frame
+	_check(
+		bool(target.get_meta("destroyed", false))
+		and world.get_destroyed_target_count() == 1
+		and adapter.get("_component_damage_model") == restored_model
+		and int(adapter.get_component_snapshot().get("generation", 0)) == original_generation + 1,
+		"re-entry never resurrects an authorized target or duplicates its model and mission count"
 	)
 
 	world.queue_free()

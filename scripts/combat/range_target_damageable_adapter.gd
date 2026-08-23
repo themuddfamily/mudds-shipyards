@@ -121,6 +121,27 @@ func get_component_snapshot() -> Dictionary:
 	).duplicate(true)
 
 
+## Reuses the existing model at the world-owned lifecycle boundary. The caller
+## supplies its observed generation so duplicate/stale restores cannot advance
+## the ledger or clear presentation a second time.
+func reset_for_reuse(expected_generation: int) -> Dictionary:
+	if _component_damage_model == null:
+		return {
+			"accepted": false,
+			"reason": &"component_model_unavailable",
+			"generation": 0,
+		}.duplicate(true)
+	var reset_result := _component_damage_model.reset_for_reuse(expected_generation)
+	if not bool(reset_result.get("accepted", false)):
+		return reset_result.duplicate(true)
+	_next_component_damage_sequence = 0
+	_last_proxy_hit_position = Vector3.INF
+	_last_proxy_hit_normal = Vector3.ZERO
+	_last_proxy_source_context.clear()
+	_present_component_snapshot()
+	return reset_result.duplicate(true)
+
+
 func apply_damage(
 	amount: float,
 	hit_position: Vector3 = Vector3.INF,
