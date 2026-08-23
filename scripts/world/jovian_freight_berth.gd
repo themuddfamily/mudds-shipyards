@@ -108,8 +108,9 @@ const LASHING_RING_BASELINE_MATERIAL_RESOURCES := 1
 const LASHING_RING_BASELINE_SUBMISSIONS := 8
 
 ## Four visual-only safety hoops keep the gantry ladder readable around its two
-## physical stringers. Nodes, transforms and submissions stay separate; only
-## their identical immutable TorusMesh allocation is shared.
+## physical stringers. Their stable paths remain as hidden, authority-free
+## inspection anchors while the identical torus/material/render-state family is
+## emitted as one MultiMesh submission.
 const CATWALK_LADDER_HOOP_COPY_COUNT := 4
 const CATWALK_LADDER_HOOP_INNER_RADIUS := 0.42
 const CATWALK_LADDER_HOOP_OUTER_RADIUS := 0.52
@@ -223,6 +224,8 @@ var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
 var _catwalk_ladder_hoop_mesh: TorusMesh
+var _catwalk_ladder_hoop_batch: MultiMeshInstance3D
+var _catwalk_ladder_hoop_transforms: Array[Transform3D] = []
 var _catwalk_ladder_rung_batch: MultiMeshInstance3D
 var _catwalk_ladder_rung_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
@@ -758,37 +761,18 @@ func get_catwalk_ladder_rung_batch_contract() -> Dictionary:
 	}.duplicate(true)
 
 
-## Renderer-independent retained-resource audit for the four childless gantry
-## ladder safety hoops. They remain separately addressable visual copies; only
-## the identical torus allocation changes from four resources to one.
+## Renderer-independent audit for the four visual-only gantry ladder hoops.
+## Their exact transforms are retained beside the MultiMesh because headless
+## RenderingServer readback is not a reliable transform witness.
 func get_catwalk_ladder_hoop_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var access := get_node_or_null(^"GantryAccess") as Node3D
-	var mesh_ids: Dictionary = {}
-	var material_ids: Dictionary = {}
-	var node_paths := PackedStringArray()
-	var transforms: Array[Transform3D] = []
-	var structural_submissions := 0
-	var visible_copies := 0
 	var authority_nodes := 0
+	var anchor_paths := PackedStringArray()
+	var anchors_exact := access != null
+	var expected_transforms: Array[Transform3D] = []
 	for index in CATWALK_LADDER_HOOP_COPY_COUNT:
-		var node_name := "CatwalkLadderHoop%02d" % (index + 1)
-		var hoop := (
-			access.get_node_or_null(NodePath(node_name)) as MeshInstance3D
-			if access != null else null
-		)
-		if hoop == null:
-			errors.append("catwalk_ladder_hoop_missing:%s" % node_name)
-			continue
-		node_paths.append(String(get_path_to(hoop)))
-		transforms.append(hoop.transform)
-		visible_copies += 1 if hoop.visible else 0
-		if hoop.mesh != null:
-			mesh_ids[hoop.mesh.get_instance_id()] = true
-			structural_submissions += hoop.mesh.get_surface_count()
-		if hoop.material_override != null:
-			material_ids[hoop.material_override.get_instance_id()] = true
-		var expected_transform := Transform3D(
+		var expected := Transform3D(
 			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0))),
 			Vector3(
 				-14.62,
@@ -796,27 +780,75 @@ func get_catwalk_ladder_hoop_visual_allocation_audit() -> Dictionary:
 				CATWALK_CENTER_Z + 0.05
 			)
 		)
-		if not hoop.transform.is_equal_approx(expected_transform) \
-				or not hoop.visible \
-				or hoop.layers != 1 \
-				or hoop.cast_shadow \
-					!= GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
-			errors.append("catwalk_ladder_hoop_transform_or_render_state_drift:%s" % node_name)
-		if hoop.mesh != _catwalk_ladder_hoop_mesh:
-			errors.append("catwalk_ladder_hoop_mesh_identity_not_shared:%s" % node_name)
-		if hoop.material_override != _materials.get("steel_blue"):
-			errors.append("catwalk_ladder_hoop_material_identity_drift:%s" % node_name)
-		if hoop.get_child_count() != 0 \
-				or hoop.get_script() != null \
-				or not hoop.get_groups().is_empty() \
-				or not hoop.get_meta_list().is_empty():
-			errors.append("catwalk_ladder_hoop_gained_semantic_authority:%s" % node_name)
-		authority_nodes += hoop.find_children(
+		expected_transforms.append(expected)
+		var anchor := (
+			access.get_node_or_null(NodePath("CatwalkLadderHoop%02d" % (index + 1)))
+				as MeshInstance3D if access != null else null
+		)
+		if anchor == null:
+			anchors_exact = false
+			continue
+		anchor_paths.append(String(get_path_to(anchor)))
+		anchors_exact = (
+			anchors_exact
+			and anchor.transform.is_equal_approx(expected)
+			and not anchor.visible
+			and anchor.layers == 1
+			and anchor.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and anchor.mesh == _catwalk_ladder_hoop_mesh
+			and anchor.material_override == _materials.get("steel_blue")
+			and anchor.get_child_count() == 0
+			and anchor.get_script() == null
+			and anchor.get_groups().is_empty()
+			and anchor.get_meta_list().is_empty()
+		)
+		authority_nodes += anchor.find_children(
 			"*", "CollisionObject3D", true, false
 		).size()
-		authority_nodes += hoop.find_children(
-			"*", "CollisionShape3D", true, false
-		).size()
+	anchors_exact = anchors_exact and anchor_paths.size() == CATWALK_LADDER_HOOP_COPY_COUNT
+	var authored := (
+		_catwalk_ladder_hoop_batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(_catwalk_ladder_hoop_batch) else []
+	)
+	var transforms_exact := authored.size() == expected_transforms.size()
+	for index in mini(authored.size(), expected_transforms.size()):
+		transforms_exact = transforms_exact and (
+			authored[index] as Transform3D
+		).is_equal_approx(expected_transforms[index])
+	var multi: MultiMesh = (
+		_catwalk_ladder_hoop_batch.multimesh
+		if is_instance_valid(_catwalk_ladder_hoop_batch) else null
+	)
+	var batch_exact: bool = (
+		access != null
+		and is_instance_valid(_catwalk_ladder_hoop_batch)
+		and _catwalk_ladder_hoop_batch.get_parent() == access
+		and _catwalk_ladder_hoop_batch.name == &"CatwalkLadderHoops"
+		and multi != null
+		and multi.instance_count == CATWALK_LADDER_HOOP_COPY_COUNT
+		and multi.visible_instance_count in [-1, CATWALK_LADDER_HOOP_COPY_COUNT]
+		and multi.mesh == _catwalk_ladder_hoop_mesh
+		and _catwalk_ladder_hoop_batch.material_override == _materials.get("steel_blue")
+		and _catwalk_ladder_hoop_batch.visible
+		and _catwalk_ladder_hoop_batch.layers == 1
+		and _catwalk_ladder_hoop_batch.cast_shadow
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _catwalk_ladder_hoop_batch.get_child_count() == 0
+		and _catwalk_ladder_hoop_batch.get_script() == null
+		and _catwalk_ladder_hoop_batch.get_groups().is_empty()
+		and bool(_catwalk_ladder_hoop_batch.get_meta("visual_detail_only", false))
+		and StringName(_catwalk_ladder_hoop_batch.get_meta("visual_batch_family_id", &""))
+			== &"catwalk-ladder-hoops"
+		and transforms_exact
+	)
+	if not anchors_exact:
+		errors.append("catwalk_ladder_hoop_anchor_roster_drift")
+	if not batch_exact:
+		errors.append("catwalk_ladder_hoop_batch_payload_drift")
+	if access != null:
+		authority_nodes += _catwalk_ladder_hoop_batch.find_children(
+			"*", "CollisionObject3D", true, false
+		).size() if is_instance_valid(_catwalk_ladder_hoop_batch) else 0
 	var mesh := _catwalk_ladder_hoop_mesh
 	var authored_tessellation := Vector2i(
 		CATWALK_LADDER_HOOP_RINGS,
@@ -859,14 +891,6 @@ func get_catwalk_ladder_hoop_visual_allocation_audit() -> Dictionary:
 			or mesh.get_surface_count() != 1 \
 			or not mesh.get_aabb().is_equal_approx(expected_aabb):
 		errors.append("catwalk_ladder_hoop_mesh_recipe_drift")
-	if node_paths.size() != CATWALK_LADDER_HOOP_COPY_COUNT:
-		errors.append("catwalk_ladder_hoop_node_roster_drift")
-	if mesh_ids.size() != 1:
-		errors.append("catwalk_ladder_hoop_mesh_identity_count_drift")
-	if material_ids.size() != 1:
-		errors.append("catwalk_ladder_hoop_material_identity_count_drift")
-	if structural_submissions != CATWALK_LADDER_HOOP_COPY_COUNT:
-		errors.append("catwalk_ladder_hoop_submission_count_drift")
 	if authority_nodes != 0:
 		errors.append("catwalk_ladder_hoop_gained_collision_authority")
 	if access == null \
@@ -883,27 +907,32 @@ func get_catwalk_ladder_hoop_visual_allocation_audit() -> Dictionary:
 		"scope": &"jovian_freight_berth_catwalk_ladder_hoops",
 		"legacy": {
 			"renderer_nodes": 4,
+			"anchor_nodes": CATWALK_LADDER_HOOP_COPY_COUNT,
 			"drawn_copies": 4,
 			"surface_submissions": 4,
 			"mesh_resource_allocations": 4,
 			"material_resource_allocations": 1,
 		},
 		"current": {
-			"renderer_nodes": node_paths.size(),
-			"drawn_copies": visible_copies,
-			"surface_submissions": structural_submissions,
-			"mesh_resource_allocations": mesh_ids.size(),
-			"material_resource_allocations": material_ids.size(),
+			"renderer_nodes": 1 if batch_exact else 0,
+			"anchor_nodes": anchor_paths.size(),
+			"drawn_copies": CATWALK_LADDER_HOOP_COPY_COUNT if batch_exact else 0,
+			"surface_submissions": 1 if batch_exact else 0,
+			"mesh_resource_allocations": 1 if _catwalk_ladder_hoop_mesh != null else 0,
+			"material_resource_allocations": 1 if batch_exact else 0,
 		},
 		"reductions": {
-			"renderer_nodes": 0,
+			"renderer_nodes": 3,
+			"anchor_nodes": 0,
 			"drawn_copies": 0,
-			"surface_submissions": 0,
+			"surface_submissions": 3,
 			"mesh_resource_allocations": 3,
 			"material_resource_allocations": 0,
 		},
-		"node_paths": node_paths,
-		"authored_transforms": transforms,
+		"node_paths": anchor_paths,
+		"batch_path": String(get_path_to(_catwalk_ladder_hoop_batch)) \
+			if is_instance_valid(_catwalk_ladder_hoop_batch) else "",
+		"authored_transforms": authored.duplicate(),
 		"authored_tessellation": authored_tessellation,
 		"live_tessellation": Vector2i(
 			mesh.rings, mesh.ring_segments
@@ -914,7 +943,7 @@ func get_catwalk_ladder_hoop_visual_allocation_audit() -> Dictionary:
 		"route_authority_added": false,
 		"evidence_authority_added": false,
 		"lifecycle_authority_added": false,
-		"batched": false,
+		"batched": true,
 		"renderer_values_changed": false,
 		"frame_time_claimed": false,
 		"gpu_draw_call_claimed": false,
@@ -2366,8 +2395,9 @@ func _build_gantry_access() -> void:
 		CATWALK_LADDER_HOOP_RINGS,
 		CATWALK_LADDER_HOOP_RING_SEGMENTS
 	)
+	_catwalk_ladder_hoop_transforms.clear()
 	for hoop_index in CATWALK_LADDER_HOOP_COPY_COUNT:
-		_torus(
+		var hoop_anchor := _torus(
 			access,
 			"CatwalkLadderHoop%02d" % (hoop_index + 1),
 			Vector3(-14.62, 3.0 + float(hoop_index) * 3.0, CATWALK_CENTER_Z + 0.05),
@@ -2377,6 +2407,18 @@ func _build_gantry_access() -> void:
 			Vector3(0, 0, 90),
 			_catwalk_ladder_hoop_mesh
 		)
+		_catwalk_ladder_hoop_transforms.append(hoop_anchor.transform)
+		# Stable inspection paths remain as hidden, authority-free anchors. Only
+		# the MultiMesh below owns visible hoop geometry.
+		hoop_anchor.visible = false
+	_catwalk_ladder_hoop_batch = _multimesh_visuals(
+		access,
+		"CatwalkLadderHoops",
+		_catwalk_ladder_hoop_mesh,
+		_materials["steel_blue"],
+		_catwalk_ladder_hoop_transforms,
+		&"catwalk-ladder-hoops"
+	)
 
 	# Crane cab, bracketed off the outboard face of the port gantry leg. Kept
 	# forward of the leg and below the knee brace: the knee runs diagonally from
@@ -2673,10 +2715,37 @@ func _transparent_material(color: Color, metallic: float, roughness: float) -> S
 	return result
 
 
-## One renderer submission for repeated visual-only copies of the berth's exact
-## cached chamfered box. Transforms are in `parent` space and retained as a
+## One renderer submission for repeated visual-only copies of an exact shared
+## mesh/material family. Transforms are in `parent` space and retained as a
 ## detached audit roster because headless RenderingServer readback can expose
 ## identity transforms even when Forward+ draws the authored MultiMesh buffer.
+func _multimesh_visuals(
+		parent: Node3D,
+		node_name: String,
+		mesh: Mesh,
+		material: Material,
+		transforms: Array[Transform3D],
+		family_id: StringName
+		) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	for transform_index in transforms.size():
+		multi.set_instance_transform(transform_index, transforms[transform_index])
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.layers = 1
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("visual_batch_family_id", family_id)
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch, true)
+	return batch
+
+
 func _multimesh_rounded_boxes(
 		parent: Node3D,
 		node_name: String,
@@ -2685,21 +2754,14 @@ func _multimesh_rounded_boxes(
 		transforms: Array[Transform3D],
 		family_id: StringName
 	) -> MultiMeshInstance3D:
-	var multi := MultiMesh.new()
-	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.mesh = _rounded_box_mesh(size)
-	multi.instance_count = transforms.size()
-	for transform_index in transforms.size():
-		multi.set_instance_transform(transform_index, transforms[transform_index])
-	var batch := MultiMeshInstance3D.new()
-	batch.name = node_name
-	batch.multimesh = multi
-	batch.material_override = material
-	batch.set_meta("visual_detail_only", true)
-	batch.set_meta("visual_batch_family_id", family_id)
-	batch.set_meta("authored_instance_transforms", transforms.duplicate())
-	parent.add_child(batch, true)
-	return batch
+	return _multimesh_visuals(
+		parent,
+		node_name,
+		_rounded_box_mesh(size),
+		material,
+		transforms,
+		family_id
+	)
 
 
 func _rounded_box(

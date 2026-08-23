@@ -586,51 +586,75 @@ func _test_catwalk_ladder_hoop_visual_allocation(
 		bool(audit.valid)
 		and audit.legacy == {
 			"renderer_nodes": 4,
+			"anchor_nodes": 4,
 			"drawn_copies": 4,
 			"surface_submissions": 4,
 			"mesh_resource_allocations": 4,
 			"material_resource_allocations": 1,
 		}
 		and audit.current == {
-			"renderer_nodes": 4,
+			"renderer_nodes": 1,
+			"anchor_nodes": 4,
 			"drawn_copies": 4,
-			"surface_submissions": 4,
+			"surface_submissions": 1,
 			"mesh_resource_allocations": 1,
 			"material_resource_allocations": 1,
 		}
 		and audit.reductions == {
-			"renderer_nodes": 0,
+			"renderer_nodes": 3,
+			"anchor_nodes": 0,
 			"drawn_copies": 0,
-			"surface_submissions": 0,
+			"surface_submissions": 3,
 			"mesh_resource_allocations": 3,
 			"material_resource_allocations": 0,
 		}
-		and not bool(audit.batched)
+		and bool(audit.batched)
 		and not bool(audit.renderer_values_changed),
-		"four named ladder hoops retain nodes/submissions/copies while TorusMesh allocations fall 4 -> 1"
+		"four visual-only ladder hoops retain stable anchors and copies while visible renderers, submissions, and TorusMesh allocations fall 4 -> 1"
 	)
 	var paths := audit.node_paths as PackedStringArray
 	var transforms := audit.authored_transforms as Array
-	var hoops: Array[MeshInstance3D] = []
-	for path in paths:
-		hoops.append(module.get_node(NodePath(path)) as MeshInstance3D)
-	var exact := hoops.size() == 4 and transforms.size() == 4
-	var shared_mesh := hoops[0].mesh as TorusMesh if not hoops.is_empty() else null
-	for index in hoops.size():
-		var hoop := hoops[index]
+	var batch := (
+		module.get_node_or_null(NodePath(str(audit.batch_path))) as MultiMeshInstance3D
+		if not str(audit.batch_path).is_empty() else null
+	)
+	var shared_mesh := (
+		batch.multimesh.mesh as TorusMesh
+		if batch != null and batch.multimesh != null else null
+	)
+	var exact := batch != null and paths.size() == 4 and transforms.size() == 4
+	for index in mini(transforms.size(), paths.size()):
+		var expected := Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0))),
+			Vector3(-14.62, 3.0 + float(index) * 3.0, 28.05)
+		)
+		var anchor := module.get_node_or_null(NodePath(paths[index])) as MeshInstance3D
 		exact = (
 			exact
-			and hoop.mesh == shared_mesh
-			and hoop.transform.is_equal_approx(transforms[index] as Transform3D)
-			and hoop.material_override == hoops[0].material_override
-			and hoop.get_child_count() == 0
-			and hoop.get_script() == null
-			and hoop.get_meta_list().is_empty()
+			and (transforms[index] as Transform3D).is_equal_approx(expected)
+			and anchor != null
+			and anchor.transform.is_equal_approx(expected)
+			and not anchor.visible
+			and anchor.mesh == shared_mesh
+			and anchor.material_override == batch.material_override
+			and anchor.layers == batch.layers
+			and anchor.cast_shadow == batch.cast_shadow
+			and anchor.get_child_count() == 0
+			and anchor.get_script() == null
+			and anchor.get_meta_list().is_empty()
 		)
 	var access := module.get_node_or_null(^"GantryAccess") as Node3D
 	_check(
 		exact
 		and shared_mesh != null
+		and batch.multimesh.instance_count == 4
+		and batch.material_override != null
+		and batch.layers == 1
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.get_child_count() == 0
+		and access.find_children(
+			"CatwalkLadderHoop*", "MeshInstance3D", false, false
+		).size() == 4
 		and is_equal_approx(
 			shared_mesh.inner_radius,
 			JovianFreightBerth.CATWALK_LADDER_HOOP_INNER_RADIUS
@@ -649,7 +673,7 @@ func _test_catwalk_ladder_hoop_visual_allocation(
 		and access.find_children(
 			"CatwalkLadderRung*", "MeshInstance3D", false, false
 		).size() == 12,
-		"shared hoop recipe preserves exact paths/transforms/material plus physical stringers and twelve-rung readability"
+		"hoop batch preserves exact transforms, mesh, material, layers, culling/shadows, physical stringers and rung readability"
 	)
 	_check(
 		int(audit.collision_authority_count) == 0
@@ -666,27 +690,27 @@ func _test_catwalk_ladder_hoop_visual_allocation(
 	_check(
 		int(detached.current.mesh_resource_allocations) == 1
 		and (detached.authored_transforms as Array).size() == 4,
-		"ladder-hoop allocation, path and transform evidence is deeply detached"
+		"ladder-hoop batch allocation, path and transform snapshot is deeply detached"
 	)
 	var baseline_errors := module.get_validation_errors()
-	var second_original_mesh := hoops[1].mesh
-	hoops[1].mesh = shared_mesh.duplicate() as Mesh
+	var original_mesh := batch.multimesh.mesh
+	batch.multimesh.mesh = shared_mesh.duplicate() as Mesh
 	var identity_red := module.get_catwalk_ladder_hoop_visual_allocation_audit()
 	_check(
 		not bool(identity_red.valid)
 		and (identity_red.errors as PackedStringArray).has(
-			"catwalk_ladder_hoop_mesh_identity_not_shared:CatwalkLadderHoop02"
+			"catwalk_ladder_hoop_batch_payload_drift"
 		)
 		and module.get_validation_errors().has(
 			"module component counts exceed the declared quality budget"
 		),
-		"RED private hoop mesh turns both the allocation and module validators red"
+		"RED private hoop batch mesh turns both the local and module validators red"
 	)
-	hoops[1].mesh = second_original_mesh
+	batch.multimesh.mesh = original_mesh
 	_check(
 		bool(module.get_catwalk_ladder_hoop_visual_allocation_audit().valid)
 		and module.get_validation_errors() == baseline_errors,
-		"restoring the shared hoop identity returns the pre-mutation validator state"
+		"restoring the hoop batch mesh returns the pre-mutation validator state"
 	)
 
 
