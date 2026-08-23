@@ -108,7 +108,7 @@ shading_mode = 0
 albedo_color = Color(0.882353, 0.643137, 0.345098, 1)
 roughness = 1.0
 
-[sub_resource type="BoxMesh" id="Box_relay_head"]
+[sub_resource type="PrismMesh" id="Prism_relay_head"]
 material = SubResource("Material_relay")
 size = Vector3(0.9, 0.45, 0.9)
 
@@ -376,7 +376,7 @@ shape = SubResource("CylinderShape_relay_mast")
 position = Vector3(0, 3.25, 0)
 cast_shadow = 0
 gi_mode = 0
-mesh = SubResource("Box_relay_head")
+mesh = SubResource("Prism_relay_head")
 material_override = SubResource("Material_relay")
 
 [node name="HeadCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/StagingRelay"]

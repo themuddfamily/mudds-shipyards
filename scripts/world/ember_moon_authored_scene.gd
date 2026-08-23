@@ -540,7 +540,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var rack_mesh := rack.mesh as BoxMesh if rack != null else null
 	var relay_base_mesh := relay_base.mesh as BoxMesh if relay_base != null else null
 	var relay_mast_mesh := relay_mast.mesh as CylinderMesh if relay_mast != null else null
-	var relay_head_mesh := relay_head.mesh as BoxMesh if relay_head != null else null
+	var relay_head_mesh := relay_head.mesh as PrismMesh if relay_head != null else null
 	if body_mesh == null or body_mesh.radius != BODY_VISUAL_RADIUS_M \
 			or body_mesh.height != BODY_VISUAL_RADIUS_M * 2.0 \
 			or body_mesh.radial_segments != 64 or body_mesh.rings != 32 \
@@ -576,7 +576,8 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 			or not is_equal_approx(relay_mast_mesh.bottom_radius, RELAY_MAST_RADIUS_M) \
 			or relay_mast_mesh.height != RELAY_MAST_HEIGHT_M \
 			or relay_mast_mesh.radial_segments != 12 \
-			or relay_head_mesh == null or relay_head_mesh.size != RELAY_HEAD_SIZE_M:
+			or relay_head_mesh == null or relay_head_mesh.size != RELAY_HEAD_SIZE_M \
+			or int(relay_head_mesh.get_faces().size() / 3) != 8:
 		_append_error(errors, &"staging_relay_visual_drift", &"StagingRelay", "solid staging-relay recipe drifted")
 	if not _derelict_gantry_geometry_is_exact(gantry):
 		_append_error(errors, &"derelict_gantry_visual_drift", &"DerelictSurveyGantry", "derelict survey-gantry silhouette or passive material recipe drifted")
