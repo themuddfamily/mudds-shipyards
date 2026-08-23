@@ -690,6 +690,7 @@ func request_structure_scan_reward() -> Dictionary:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _scan_activity.call("request_reward")
 	_publish_structure_scan_presentation()
+	_cinder_field_audio.present_reward_result(result)
 	return result
 
 
@@ -738,6 +739,7 @@ func request_beacon_traversal_reward() -> Dictionary:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _beacon_activity.call("request_reward")
 	_publish_beacon_traversal_presentation(result)
+	_cinder_field_audio.present_reward_result(result)
 	return result
 
 

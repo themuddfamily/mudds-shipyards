@@ -20,6 +20,8 @@ func _run() -> void:
 	_check(_has(&"cinder_activity_started") and _has(&"cinder_activity_progress") and _has(&"cinder_activity_complete"), "mining start/progress/completion cues emit")
 	_check(bool(audio.present_beacon_result({"activity_id": &"cinder_debris_beacon_traversal", "generation": 1, "reason": &"out_of_order_beacon"}).accepted), "wrong-order beacon result accepted")
 	_check(_has(&"cinder_beacon_wrong_order"), "wrong-order beacon cue emits")
+	_check(bool(audio.present_reward_result({"accepted": true, "reason": &"reward_request_ready", "activity_id": &"cinder_derelict_structure_scan", "reward_request": {"generation": 1}}).accepted), "scan reward-ready receipt is accepted")
+	_check(_has(&"cinder_activity_reward_pending"), "reward-ready cue emits")
 	_check(bool(audio.detach().accepted), "Cinder field audio detaches")
 
 	var production := ActivityBinding.new()

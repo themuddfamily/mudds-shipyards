@@ -85,6 +85,21 @@ func present_beacon_result(result: Dictionary) -> Dictionary:
 	_emit(&"cinder_beacon_wrong_order", activity_id, 1.0, "%s:%d:wrong-order" % [activity_id, source_generation])
 	return _result(true, &"result_presented")
 
+func present_reward_result(result: Dictionary) -> Dictionary:
+	if not _attached:
+		return _result(false, &"not_attached")
+	var activity_id := StringName(result.get("activity_id", &""))
+	if activity_id not in [&"cinder_derelict_structure_scan", &"cinder_debris_beacon_traversal"]:
+		return _result(false, &"foreign_activity")
+	if not bool(result.get("accepted", false)) or StringName(result.get("reason", &"")) != &"reward_request_ready":
+		return _result(false, &"reward_not_ready")
+	var reward_request := result.get("reward_request", {}) as Dictionary
+	var generation := int(reward_request.get("generation", result.get("generation", -1)))
+	if generation < 0 or generation > MAX_SAFE_GENERATION:
+		return _result(false, &"invalid_generation")
+	_emit(&"cinder_activity_reward_pending", activity_id, 1.0, "%s:%d:reward" % [activity_id, generation])
+	return _result(true, &"reward_presented")
+
 func get_snapshot() -> Dictionary:
 	return {"attached": _attached, "generation": _generation, "emitted_cue_count": _emitted_count,
 		"active_cue_slots": _slots.duplicate(true), "maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES,
