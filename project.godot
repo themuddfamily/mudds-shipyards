@@ -6,6 +6,7 @@ config_version=5
 [application]
 
 config/name="Mudds Shipyards"
+config/version="0.12.0"
 config/description="A modern standalone fan remake inspired by ZolarKeth's original Keth Shipyards."
 run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
