@@ -150,6 +150,88 @@ func recover_interrupted_transaction() -> Dictionary:
 	return _commit_result(true, &"recovered")
 
 
+## Explicitly restores a verified backup to a missing or corrupt primary. A
+## corrupt primary is quarantined as the temporary sibling so its bytes remain
+## available; valid or newer authorities are never overwritten.
+func restore_backup_to_primary() -> Dictionary:
+	if _path.is_empty():
+		return _commit_result(false, &"invalid_path")
+	for collision_path in [_path, _temp_path(), _backup_path()]:
+		if _filesystem.directory_exists(collision_path):
+			return _commit_result(false, &"transaction_path_is_directory")
+	var primary := _read_document(_path)
+	var temporary := _read_document(_temp_path())
+	var backup := _read_document(_backup_path())
+	if _has_newer_schema([primary, temporary, backup]):
+		return _commit_result(false, &"newer_schema")
+	if not bool(backup.valid):
+		return _commit_result(false, &"no_valid_backup")
+	if bool(primary.valid):
+		return _commit_result(false, &"primary_valid")
+	if bool(temporary.exists):
+		return _commit_result(false, &"temporary_exists")
+	var backup_read := _filesystem.read_bytes(_backup_path(), MAX_DOCUMENT_BYTES)
+	if int(backup_read.get("error", FAILED)) != OK:
+		return _commit_result(false, &"backup_read_failed")
+	var backup_bytes := backup_read.get("bytes", PackedByteArray()) as PackedByteArray
+	if backup_bytes.is_empty() or backup_bytes.size() > MAX_DOCUMENT_BYTES:
+		return _commit_result(false, &"backup_read_failed")
+	var primary_bytes := PackedByteArray()
+	if bool(primary.exists):
+		var primary_read := _filesystem.read_bytes(_path, MAX_DOCUMENT_BYTES)
+		if int(primary_read.get("error", FAILED)) != OK:
+			return _commit_result(false, &"primary_quarantine_failed")
+		primary_bytes = primary_read.get("bytes", PackedByteArray()) as PackedByteArray
+		if primary_bytes.is_empty():
+			return _commit_result(false, &"primary_quarantine_failed")
+		var quarantine_error: Error = _filesystem.write_bytes_and_flush(_temp_path(), primary_bytes)
+		if quarantine_error != OK:
+			return _commit_result(false, &"primary_quarantine_failed")
+		var staged_quarantine := _filesystem.read_bytes(_temp_path(), MAX_DOCUMENT_BYTES)
+		if int(staged_quarantine.get("error", FAILED)) != OK \
+			or (staged_quarantine.get("bytes", PackedByteArray()) as PackedByteArray) != primary_bytes:
+			return _commit_result(false, &"primary_quarantine_failed")
+		var remove_error: Error = _filesystem.remove_path(_path)
+		if remove_error != OK:
+			return _commit_result(false, &"primary_quarantine_failed")
+	var publish_error: Error = _filesystem.write_bytes_and_flush(_path, backup_bytes)
+	if publish_error != OK:
+		return _commit_result(false, &"primary_restore_failed")
+	var restored := _read_document(_path)
+	if not bool(restored.valid) or (restored.document as Dictionary) != (backup.document as Dictionary):
+		return _commit_result(false, &"primary_restore_failed")
+	_install_document(restored.document as Dictionary, &"primary")
+	return _commit_result(true, &"backup_restored")
+
+
+## Explicitly discards a verified interrupted transaction so a caller can
+## re-enter from the published primary/backup state. Normal load and commit
+## never take this destructive step implicitly.
+func discard_interrupted_transaction() -> Dictionary:
+	if _path.is_empty():
+		return _commit_result(false, &"invalid_path")
+	for collision_path in [_path, _temp_path(), _backup_path()]:
+		if _filesystem.directory_exists(collision_path):
+			return _commit_result(false, &"transaction_path_is_directory")
+	var primary := _read_document(_path)
+	var temporary := _read_document(_temp_path())
+	var backup := _read_document(_backup_path())
+	if _has_newer_schema([primary, temporary, backup]):
+		return _commit_result(false, &"newer_schema")
+	if not bool(temporary.valid):
+		return _commit_result(false, &"no_interrupted_transaction")
+	if (bool(primary.exists) and not bool(primary.valid)) or (bool(backup.exists) and not bool(backup.valid)):
+		return _commit_result(false, &"unsafe_authority")
+	if bool(primary.valid) and bool(backup.valid) and not _documents_form_chain(
+		primary.document as Dictionary, backup.document as Dictionary
+	):
+		return _commit_result(false, &"incoherent_primary_backup")
+	var remove_error: Error = _filesystem.remove_path(_temp_path())
+	if remove_error != OK:
+		return _commit_result(false, &"transaction_discard_failed")
+	return _commit_result(true, &"discarded")
+
+
 ## Commits only against the generation most recently returned by load/commit.
 ## The caller supplies a stable commit ID; no wall-clock value enters the file.
 func commit(payload: Variant, expected_generation: int, commit_id: String) -> Dictionary:

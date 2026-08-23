@@ -95,6 +95,8 @@ func _run() -> void:
 	_test_stale_temp_and_interrupted_write()
 	_test_valid_temp_blocks_recovery_and_overwrite()
 	_test_explicit_interrupted_transaction_recovery()
+	_test_explicit_backup_restoration()
+	_test_explicit_interrupted_transaction_discard()
 	_test_rename_rollback_and_cleanup_failures()
 	_test_exact_authority_concurrency()
 	_test_payload_and_document_bounds()
@@ -304,6 +306,64 @@ func _test_explicit_interrupted_transaction_recovery() -> void:
 	unsafe.load()
 	var refused := unsafe.recover_interrupted_transaction()
 	_check(not bool(refused.accepted) and refused.reason == &"unsafe_transaction_parent" and unsafe_fs.files == unsafe_before, "recovery rejects a staged document with an unsafe parent without mutation")
+
+
+func _test_explicit_backup_restoration() -> void:
+	var filesystem := FakeFilesystem.new()
+	_two_commit_store(filesystem)
+	var backup_bytes := (filesystem.files[PATH + ".bak"] as PackedByteArray).duplicate()
+	filesystem.files.erase(PATH)
+	var missing := Store.new(PATH, filesystem)
+	_check(bool(missing.load().accepted) and missing.get_loaded_source() == &"backup", "missing primary loads the verified backup before explicit restoration")
+	var restored := missing.restore_backup_to_primary()
+	_check(bool(restored.accepted) and restored.reason == &"backup_restored" and missing.get_loaded_source() == &"primary", "explicit restoration publishes the verified backup as primary")
+	_check(filesystem.files[PATH] == backup_bytes and filesystem.files[PATH + ".bak"] == backup_bytes, "backup restoration preserves exact backup bytes and the backup copy")
+
+	filesystem = FakeFilesystem.new()
+	_two_commit_store(filesystem)
+	var corrupt_bytes := "corrupt-primary".to_utf8_buffer()
+	filesystem.files[PATH] = corrupt_bytes
+	var corrupt := Store.new(PATH, filesystem)
+	corrupt.load()
+	var corrupt_restore := corrupt.restore_backup_to_primary()
+	_check(bool(corrupt_restore.accepted) and corrupt_restore.reason == &"backup_restored", "explicit restoration repairs a corrupt primary")
+	_check(filesystem.files[PATH] == backup_bytes and filesystem.files[PATH + ".tmp"] == corrupt_bytes, "corrupt primary bytes are quarantined instead of discarded")
+
+	filesystem = FakeFilesystem.new()
+	_two_commit_store(filesystem)
+	var newer := _decode(filesystem, PATH)
+	newer.schema_version = Store.SCHEMA_VERSION + 1
+	filesystem.files[PATH] = JSON.stringify(newer).to_utf8_buffer()
+	var frozen := _copy_files(filesystem.files)
+	var newer_store := Store.new(PATH, filesystem)
+	var newer_restore := newer_store.restore_backup_to_primary()
+	_check(not bool(newer_restore.accepted) and newer_restore.reason == &"newer_schema" and filesystem.files == frozen, "newer primary blocks backup restoration without mutation")
+
+
+func _test_explicit_interrupted_transaction_discard() -> void:
+	var filesystem := FakeFilesystem.new()
+	_one_commit_store(filesystem)
+	var staged_fs := FakeFilesystem.new()
+	_two_commit_store(staged_fs)
+	var staged_bytes := (staged_fs.files[PATH] as PackedByteArray).duplicate()
+	filesystem.files[PATH + ".tmp"] = staged_bytes
+	var store := Store.new(PATH, filesystem)
+	var blocked := store.load()
+	_check(not bool(blocked.accepted) and blocked.reason == &"interrupted_transaction", "discard requires an explicitly failed-closed re-entry")
+	var discarded := store.discard_interrupted_transaction()
+	_check(bool(discarded.accepted) and discarded.reason == &"discarded" and not filesystem.files.has(PATH + ".tmp"), "explicit discard removes only the verified interrupted stage")
+	var reloaded := store.load()
+	_check(bool(reloaded.accepted) and reloaded.source == &"primary" and int(reloaded.generation) == 1, "discarded re-entry returns to the last published safe generation")
+
+	filesystem = FakeFilesystem.new()
+	_one_commit_store(filesystem)
+	filesystem.files[PATH + ".tmp"] = staged_bytes
+	var newer := _decode(filesystem, PATH)
+	newer.schema_version = Store.SCHEMA_VERSION + 1
+	filesystem.files[PATH] = JSON.stringify(newer).to_utf8_buffer()
+	var frozen := _copy_files(filesystem.files)
+	var refused := Store.new(PATH, filesystem).discard_interrupted_transaction()
+	_check(not bool(refused.accepted) and refused.reason == &"newer_schema" and filesystem.files == frozen, "newer authority blocks explicit discard without mutation")
 
 
 func _test_rename_rollback_and_cleanup_failures() -> void:
