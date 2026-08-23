@@ -80,9 +80,9 @@ const LOCAL_BUDGET := {
 	"ship_berths": 1,
 	"static_bodies": 21,
 	"collision_shapes": 21,
-	"mesh_instances": 21,
-	"multimesh_instances": 2,
-	"geometry_submissions": 23,
+	"mesh_instances": 19,
+	"multimesh_instances": 3,
+	"geometry_submissions": 22,
 	"marker_nodes": 9,
 	"label_nodes": 1,
 	"lights": 0,
@@ -141,6 +141,12 @@ const ROUTE_CUE_CURRENT_ALLOCATION := {
 	"mesh_resource_allocations": 1,
 	"material_resource_allocations": 2,
 }
+const TERMINAL_APPROACH_SUPPORT_COUNT := 2
+const TERMINAL_APPROACH_SUPPORT_SIZE := Vector3(0.18, 0.61, 0.18)
+const TERMINAL_APPROACH_SUPPORT_NODE_NAMES: Array[String] = [
+	"TerminalApproachSupportPort",
+	"TerminalApproachSupportStarboard",
+]
 const STATIC_BOX_VIEW_COUNT := 21
 const STATIC_BOX_MESH_RESOURCE_ALLOCATIONS := 16
 const STATIC_BOX_COLLISION_RESOURCE_ALLOCATIONS := 21
@@ -589,23 +595,36 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var mesh_resource_ids := {}
 	var collision_resource_ids := {}
-	var views := 0
+	var ordinary_views := 0
 	for body_node in find_children("*", "StaticBody3D", true, false):
 		var body := body_node as StaticBody3D
 		var view := body.get_node_or_null(^"Mesh") as MeshInstance3D
 		var mesh := view.mesh as BoxMesh if view != null else null
 		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
 		var shape := collision.shape as BoxShape3D if collision != null else null
-		if mesh == null:
+		if mesh == null and body.name not in TERMINAL_APPROACH_SUPPORT_NODE_NAMES:
 			errors.append("static_box_mesh_missing_%s" % body.name)
-		else:
-			views += 1
+		elif mesh != null:
+			ordinary_views += 1
 			mesh_resource_ids[mesh.get_instance_id()] = true
 		if shape == null:
 			errors.append("static_box_collision_missing_%s" % body.name)
 		else:
 			collision_resource_ids[shape.get_instance_id()] = true
-	if views != STATIC_BOX_VIEW_COUNT:
+	var support_audit := get_terminal_approach_support_visual_audit()
+	for support_error in support_audit.errors:
+		errors.append(String(support_error))
+	var support_batch := get_node_or_null(
+		^"Structure/TerminalApproachSupportBatch"
+	) as MultiMeshInstance3D
+	var support_mesh := (
+		support_batch.multimesh.mesh as BoxMesh
+		if support_batch != null and support_batch.multimesh != null else null
+	)
+	if support_mesh != null:
+		mesh_resource_ids[support_mesh.get_instance_id()] = true
+	var views := ordinary_views + int(support_audit.visible_copy_count)
+	if views != STATIC_BOX_VIEW_COUNT or ordinary_views != 19:
 		errors.append("static_box_view_count_drift")
 	if mesh_resource_ids.size() != STATIC_BOX_MESH_RESOURCE_ALLOCATIONS:
 		errors.append("static_box_mesh_resource_count_drift")
@@ -613,12 +632,6 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 		errors.append("static_box_collision_resource_count_drift")
 	if _static_box_mesh_cache.size() != STATIC_BOX_MESH_RESOURCE_ALLOCATIONS:
 		errors.append("static_box_cache_recipe_count_drift")
-	_validate_shared_static_box_family(
-		[
-			^"Structure/TerminalApproachSupportPort",
-			^"Structure/TerminalApproachSupportStarboard",
-		], errors
-	)
 	_validate_shared_static_box_family(
 		[^"Rails/StairRailPort", ^"Rails/StairRailStarboard"], errors
 	)
@@ -644,6 +657,75 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 			STATIC_BOX_MESH_RESOURCE_ALLOCATIONS
 			- int(STATIC_BOX_LEGACY_ALLOCATION.mesh_resource_allocations)
 		),
+	}.duplicate(true)
+
+
+## The support bodies keep their authored names, transforms, and private
+## collision shapes. Only their identical childless rail-box renderers are
+## represented by this structure-local batch.
+func get_terminal_approach_support_visual_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_transforms: Array[Transform3D] = []
+	for support_name in TERMINAL_APPROACH_SUPPORT_NODE_NAMES:
+		var body := get_node_or_null(
+			NodePath("Structure/%s" % support_name)
+		) as StaticBody3D
+		if body == null:
+			errors.append("terminal_approach_support_body_missing_%s" % support_name)
+			continue
+		if body.get_node_or_null(^"Mesh") != null:
+			errors.append("terminal_approach_support_legacy_renderer_%s" % support_name)
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		if shape == null or not shape.size.is_equal_approx(TERMINAL_APPROACH_SUPPORT_SIZE):
+			errors.append("terminal_approach_support_collision_drift_%s" % support_name)
+		expected_transforms.append(body.transform)
+	var batch := get_node_or_null(
+		^"Structure/TerminalApproachSupportBatch"
+	) as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null:
+		errors.append("terminal_approach_support_batch_missing")
+		return {
+			"valid": false,
+			"errors": errors,
+			"visible_copy_count": 0,
+		}.duplicate(true)
+	var mesh := batch.multimesh.mesh as BoxMesh
+	if mesh == null or not mesh.size.is_equal_approx(TERMINAL_APPROACH_SUPPORT_SIZE) \
+			or mesh.material != null or mesh.get_surface_count() != 1:
+		errors.append("terminal_approach_support_mesh_recipe_drift")
+	if batch.material_override != _materials.rail \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or batch.material_overlay != null or batch.layers != 1 \
+			or not is_zero_approx(batch.extra_cull_margin) \
+			or not is_zero_approx(batch.visibility_range_begin) \
+			or not is_zero_approx(batch.visibility_range_end):
+		errors.append("terminal_approach_support_renderer_state_drift")
+	if batch.get_child_count() != 0 or batch.get_script() != null \
+			or not bool(batch.get_meta("presentation_only", false)) \
+			or bool(batch.get_meta("collision_authority", true)) \
+			or bool(batch.get_meta("interaction_authority", true)):
+		errors.append("terminal_approach_support_authority_drift")
+	if batch.multimesh.instance_count != TERMINAL_APPROACH_SUPPORT_COUNT \
+			or batch.multimesh.visible_instance_count != TERMINAL_APPROACH_SUPPORT_COUNT:
+		errors.append("terminal_approach_support_copy_count_drift")
+	if batch.multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
+		errors.append("terminal_approach_support_transform_buffer_drift")
+	if mesh != null and not batch.multimesh.custom_aabb.is_equal_approx(
+		_transformed_bounds(mesh.get_aabb(), expected_transforms)
+	):
+		errors.append("terminal_approach_support_culling_bounds_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family_id": &"terminal_approach_support_boxes",
+		"body_node_names": TERMINAL_APPROACH_SUPPORT_NODE_NAMES.duplicate(),
+		"authored_transforms": expected_transforms.duplicate(true),
+		"visible_copy_count": batch.multimesh.visible_instance_count,
+		"renderer_submissions": mesh.get_surface_count() if mesh != null else 0,
+		"before_renderer_submissions": TERMINAL_APPROACH_SUPPORT_COUNT,
+		"renderer_submission_delta": 1 - TERMINAL_APPROACH_SUPPORT_COUNT,
+		"collision_shape_count": TERMINAL_APPROACH_SUPPORT_COUNT,
 	}.duplicate(true)
 
 
@@ -930,15 +1012,25 @@ func _build_structure() -> void:
 		_materials.deck,
 		true
 	)
+	var support_transforms: Array[Transform3D] = []
 	for support_side in [-1.0, 1.0]:
-		_static_box(
+		var support := _static_box(
 			structure,
 			"TerminalApproachSupport%s" % ("Port" if support_side < 0.0 else "Starboard"),
 			Vector3(support_side * 0.56, 4.105, 15.1),
-			Vector3(0.18, 0.61, 0.18),
+			TERMINAL_APPROACH_SUPPORT_SIZE,
 			_materials.rail,
+			false,
 			false
 		)
+		support_transforms.append(support.transform)
+	_visual_multimesh_boxes(
+		structure,
+		"TerminalApproachSupportBatch",
+		_shared_static_box_mesh(TERMINAL_APPROACH_SUPPORT_SIZE),
+		_materials.rail,
+		support_transforms
+	)
 
 	var rails := Node3D.new()
 	rails.name = "Rails"
@@ -1078,7 +1170,8 @@ func _static_box(
 		position_value: Vector3,
 		size: Vector3,
 		material: Material,
-		walkable: bool
+		walkable: bool,
+		create_visual: bool = true
 	) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = node_name
@@ -1094,13 +1187,14 @@ func _static_box(
 		body.set_meta("walkable_surface_kind", &"level")
 		body.set_meta("walkable_surface_owner", COMPONENT_ID)
 	parent.add_child(body)
-	var visible := MeshInstance3D.new()
-	visible.name = "Mesh"
-	var mesh := _shared_static_box_mesh(size)
-	visible.mesh = mesh
-	visible.material_override = material
-	visible.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	body.add_child(visible)
+	if create_visual:
+		var visible := MeshInstance3D.new()
+		visible.name = "Mesh"
+		var mesh := _shared_static_box_mesh(size)
+		visible.mesh = mesh
+		visible.material_override = material
+		visible.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		body.add_child(visible)
 	var collision := CollisionShape3D.new()
 	collision.name = "Collision"
 	var shape := BoxShape3D.new()
