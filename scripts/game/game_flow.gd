@@ -537,6 +537,7 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	_connect_signal_once(network_session, &"session_stopped", _on_network_session_stopped)
 	_connect_signal_once(network_session, &"peer_admitted", _on_network_peer_admitted)
 	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
+	_connect_signal_once(network_session, &"server_browser_result", _on_server_browser_result)
 	return network_session
 
 
@@ -1927,6 +1928,9 @@ func _on_network_transport_rejected(status: StringName) -> void:
 
 
 func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary) -> void:
+	if kind == &"server_browser":
+		_handle_server_browser_intent(payload)
+		return
 	if kind != &"network":
 		return
 	match StringName(str(payload.get("action", &""))):
@@ -1937,6 +1941,40 @@ func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary
 				join_network_session(_network_session_address, _network_session_port)
 		&"cancel", &"disconnect":
 			shutdown_network_session(&"ui_%s" % payload.get("action", &"cancel"))
+
+
+func _on_server_browser_result(result: Dictionary) -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_server_browser_result"):
+		return
+	var presentation := result.duplicate(true)
+	if bool(result.get("accepted", false)) and is_instance_valid(network_session):
+		presentation["rows"] = network_session.query_server_directory()
+	hud.call(&"apply_server_browser_result", presentation)
+
+
+func _handle_server_browser_intent(payload: Dictionary) -> void:
+	var action := StringName(str(payload.get("action", &"")))
+	var session = network_session if is_instance_valid(network_session) else _ensure_network_session()
+	if session == null:
+		return
+	match action:
+		&"refresh":
+			_on_server_browser_result({"accepted": true, "status": &"snapshot_refreshed"})
+		&"join":
+			var session_id := StringName(str(payload.get("session_id", &"")))
+			var intent := session.create_join_intent(session_id)
+			if not bool(intent.get("accepted", false)):
+				_publish_network_session_snapshot(
+					&"failed", &"client", "Unable to join advertised session: %s" % intent.get("status", &"unknown"), false
+				)
+				return
+			_network_session_mode = &"client"
+			var started := session.consume_join_intent(
+				intent.get("intent", {}) as Dictionary,
+				_network_session_address,
+				_network_session_port
+			)
+			_publish_network_session_result(started, &"client")
 
 
 func _connect_flyable_ship_signals(candidate: HeroShip) -> void:
