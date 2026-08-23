@@ -345,7 +345,9 @@ ms** to first presented frame with the mouse no longer captured during load.
   already exist.
 - **MATRIX-001**: four suites emit run-to-run-variable numeric evidence, so the per-log
   aggregate SHA quoted as release evidence is not reproducible. None of them flakes;
-  `results-canonical.tsv` is the artifact that is stable and should replace it.
+  `results-canonical.tsv` is the stable comparison artifact and has replaced it in the
+  current matrix and release-candidate contract. Historical checkpoint hashes below
+  remain historical records, not current cross-run reproducibility anchors.
 
 ## Session handoff — 2026-08-15
 

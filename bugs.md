@@ -1550,9 +1550,9 @@ box, on `graphite_background_delta` and on both exterior comparisons.
 
 ---
 
-## MATRIX-001 — four suites emit run-to-run-variable numeric evidence, so per-suite log hashes are not reproducible — **RECORDED, NOT FIXED**
+## MATRIX-001 — four suites emit run-to-run-variable numeric evidence, so per-suite log hashes are not reproducible — **CLOSED**
 
-- Status: `OPEN (recorded)`. Severity **P3** — no suite ever changes status, and no
+- Status: `CLOSED` (fixed 2026-08-16, ledger reconciled 2026-08-23). Severity **P3** — no suite ever changes status, and no
   assertion is near its bound. What is not reproducible is the *evidence text* in
   the logs, and therefore the per-suite `log_sha256` column and any aggregate built
   from it.
@@ -1604,23 +1604,32 @@ at the seventh significant figure, does look like ordinary float noise.
 0/6 as a *test* failure. 3 suites out of 107 varied 3/3 rounds at 0% idle; all
 three rounds returned identical canonical results and exit `0`.
 
-### Why this matters here
+### Why this mattered here
 
-`ROADMAP.md` records "the aggregate SHA-256 of the ordered per-suite log hashes" as
-release evidence. That aggregate is **not reproducible** for any run that includes
+Historical checkpoints in `ROADMAP.md` record "the aggregate SHA-256 of the ordered
+per-suite log hashes" as release evidence. That aggregate is **not reproducible** for any run that includes
 these four suites, at any `--jobs` value, and was already not reproducible serially
 for `player_step_up_assist_test`. Comparisons should use
 `artifacts/test-matrix/<run>/results-canonical.tsv` — statuses, exit codes,
 sentinels, assertion and diagnostic counts, no durations, no absolute paths — which
 *is* byte-stable across every configuration measured.
 
-### What would close this record
+### Resolution
 
-1. An owner decision on whether these four suites should be deterministic. If yes,
-   the repair is in the suites' own time-stepping, which is game-adjacent test code
-   and was deliberately not touched here.
-2. Otherwise, replace the per-suite-log-hash aggregate in the release evidence with
-   the canonical results hash, and say so where the aggregate is quoted.
+The second closure path was chosen. `tools/release/run_test_matrix.sh` now publishes
+and hashes sorted `results-canonical.tsv` as the comparison record, and
+`tools/release/release_candidate.py` requires and verifies that artifact and hash for
+release admission. Raw suite logs, `results.tsv`, their per-log hashes, and
+`result-file-hashes.csv` remain useful same-run integrity and diagnostic records, but
+are not cross-run reproducibility anchors. The four suites retain their strict
+assertions and useful measured values; no physics behavior was weakened merely to
+make prose byte-identical.
+
+`tools/release/test_run_test_matrix_canonical.sh` proves that differing metric prose
+and raw log hashes produce identical canonical evidence while assertion-count or
+diagnostic changes remain visible. The release-candidate unit suite separately proves
+that the canonical artifact is required and hash-verified. Both checks passed again on
+2026-08-23.
 
 ## BOOT-001 / BOOT-002 — the packaged build opened on a frozen window that had already taken the mouse — **FIXED**
 
