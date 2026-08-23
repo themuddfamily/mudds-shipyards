@@ -861,23 +861,23 @@ func _test_render_allocations(craft: HeroShip) -> void:
 
 	var report := craft.call("get_halyard_render_allocation_report") as Dictionary
 	_check(
-		int(report.descendant_nodes) == 124
-		and int(report.mesh_instances) == 116
-		and int(report.multimesh_batches) == 3,
-		"exterior renderer nodes freeze at 124, MeshInstances at 116, batches at 3"
+		int(report.descendant_nodes) == 121
+		and int(report.mesh_instances) == 112
+		and int(report.multimesh_batches) == 4,
+		"current exterior freezes at 121 descendants, 112 MeshInstances, and four batches after damper batching"
 	)
 	_check(
 		int(report.drawn_copies) == 163
-		and int(report.geometry_submissions) == 119
+		and int(report.geometry_submissions) == 116
 		and int(report.spine_rib_copies) == 7,
-		"exterior drawn copies freeze at 163 and surface submissions at 119"
+		"current exterior preserves 163 drawn copies while reducing surface submissions from 119 to 116"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 65
 		and int(report.unique_material_resources) == 14
-		and int(report.multimesh_resources) == 3
+		and int(report.multimesh_resources) == 4
 		and int(report.renderer_buffer_floats) == 84,
-		"exterior mesh/material allocations freeze at 65/14 with three MultiMesh resources"
+		"current exterior keeps 65/14 mesh/material allocations with four MultiMesh resources and 84 buffer floats"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
@@ -1413,7 +1413,7 @@ func _test_berth_and_production_roster() -> void:
 		transport != null,
 		"the transport is accepted into the production flyable roster (%d craft)" % fleet.size()
 	)
-	_check(fleet.size() == 5, "the production roster is the expanded five-craft fleet")
+	_check(fleet.size() == 8, "the current production roster expands the former five-craft fleet to eight")
 	if transport == null:
 		await _clean_up(game)
 		return
@@ -1470,9 +1470,9 @@ func _test_berth_and_production_roster() -> void:
 	# The comb's bookkeeping moved with the craft rather than after it.
 	var comb_audit := world.get_fleet_dock_comb_integration_audit_report()
 	_check(
-		int(comb_audit.get("external_assignment_count", 0)) == 2
-		and int(comb_audit.get("deferred_empty_dock_count", 0)) == 1,
-		"the fleet dock comb reports two assigned docks and one still genuinely empty"
+		int(comb_audit.get("external_assignment_count", 0)) == 3
+		and int(comb_audit.get("deferred_empty_dock_count", 0)) == 0,
+		"the current fleet dock comb reports three assigned docks and no deferred empty after Bulwark promotion"
 	)
 	_check(
 		bool(comb_audit.get("valid", false)),
