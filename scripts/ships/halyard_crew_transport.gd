@@ -2485,6 +2485,8 @@ func _build_crew_cabin() -> void:
 	_box(_crew_cabin, "CabinDeck", Vector3(0.0, 0.41, -3.65), Vector3(4.86, 0.18, 12.50), _halyard_materials.deck)
 	_box(_crew_cabin, "CabinAisleInlay", Vector3(0.0, 0.51, -3.65), Vector3(1.00, 0.03, 12.20), _halyard_materials.accent)
 	_box(_crew_cabin, "CabinCeiling", Vector3(0.0, 3.34, -3.65), Vector3(4.86, 0.16, 12.50), _halyard_materials.trim)
+	var cabin_window_pane_transforms: Array[Transform3D] = []
+	var cabin_window_pane_names := PackedStringArray()
 	var crew_seat_leg_transforms: Array[Transform3D] = []
 	var crew_seat_leg_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
@@ -2499,7 +2501,11 @@ func _build_crew_cabin() -> void:
 			if window_z < -9.30 or window_z > 2.10:
 				continue
 			_box(_crew_cabin, side_name + "CabinWindowSurround%02d" % window_index, Vector3(side * 2.40, 2.35, window_z), Vector3(0.09, 0.68, 1.20), _halyard_materials.trim)
-			_box(_crew_cabin, side_name + "CabinWindowPane%02d" % window_index, Vector3(side * 2.34, 2.35, window_z), Vector3(0.05, 0.48, 1.00), _halyard_materials.window_glow)
+			cabin_window_pane_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(side * 2.34, 2.35, window_z)
+			))
+			cabin_window_pane_names.append(side_name + "CabinWindowPane%02d" % window_index)
 		_box(_crew_cabin, side_name + "CabinHandrail", Vector3(side * 2.28, 2.72, -3.65), Vector3(0.09, 0.09, 11.20), _halyard_materials.trim)
 		# Six forward-facing crew seats, three a side, either side of a 1.0 m
 		# aisle. Anchors are explicit contracts for the multi-crew work.
@@ -2525,6 +2531,22 @@ func _build_crew_cabin() -> void:
 			_crew_seat_anchors.append(anchor)
 		# Overhead stowage above the seat rows.
 		_box(_crew_cabin, side_name + "OverheadStowage", Vector3(side * 1.86, 2.98, -5.40), Vector3(1.10, 0.52, 7.20), _halyard_materials.locker)
+	# These inboard panes are repeated cabin illumination only. Keeping their
+	# batch beneath CrewCabin preserves the moving-interior transform while
+	# removing thirteen renderer submissions; the surrounding frames and every
+	# physical/semantic cabin node remain independent.
+	var cabin_window_pane_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(0.05, 0.48, 1.00),
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_crew_cabin,
+		"CabinInteriorWindowPaneBatch",
+		cabin_window_pane_mesh,
+		_halyard_materials.window_glow,
+		cabin_window_pane_transforms,
+		cabin_window_pane_names
+	)
 	var seat_leg_mesh := StationSurfaceKit.rounded_box_mesh_cached(
 		Vector3(0.20, 0.28, 0.20),
 		_box_mesh_cache

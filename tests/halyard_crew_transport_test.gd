@@ -29,8 +29,9 @@ extends SceneTree
 ##   D1. bow docking arch — the nose hardware remains legible as a docking
 ##      target while its lower half stays open rather than forming a hollow wheel.
 ##   D2. render allocations — the seven childless dorsal ribs retain their exact
-##      copies, mesh, material and culling union through one renderer batch.
-##      Red: a mutated renderer buffer and a mutated culling box are rejected.
+##      copies, mesh, material and culling union through one renderer batch, and
+##      the fourteen visual-only inboard window panes share one moving-cabin
+##      batch. Red: a mutated renderer buffer and culling box are rejected.
 ##   D3. weapons — two compact dorsal self-defence mounts remain aligned to the
 ##      unchanged combat muzzles, smaller than the Jovian fit, and explicitly
 ##      registered as modern visual presentation rather than historical evidence.
@@ -758,6 +759,58 @@ func _test_bow_docking_arch(craft: HeroShip) -> void:
 func _test_render_allocations(craft: HeroShip) -> void:
 	var visual := craft.call("get_halyard_visual_root") as Node3D
 	var batch := visual.get_node_or_null(^"SpineRibs") as MultiMeshInstance3D if visual != null else null
+	var cabin := craft.get_node_or_null(^"WalkableInterior/CrewCabin") as Node3D
+	var cabin_panes := cabin.get_node_or_null(^"CabinInteriorWindowPaneBatch") as MultiMeshInstance3D \
+		if cabin != null else null
+	_check(
+		cabin_panes != null and cabin_panes.multimesh != null,
+		"fourteen inboard cabin window panes resolve as one moving-interior MultiMesh"
+	)
+	if cabin_panes != null and cabin_panes.multimesh != null:
+		var expected_cabin_panes: Array[Transform3D] = []
+		var expected_cabin_names := PackedStringArray()
+		for side in [-1.0, 1.0]:
+			var side_name := "Port" if side < 0.0 else "Starboard"
+			for window_index in HalyardCrewTransport.CABIN_WINDOW_COUNT:
+				var window_z := (
+					HalyardCrewTransport.CABIN_WINDOW_FIRST_Z
+					+ float(window_index) * HalyardCrewTransport.CABIN_WINDOW_PITCH
+				)
+				if window_z < -9.30 or window_z > 2.10:
+					continue
+				expected_cabin_panes.append(Transform3D(
+					Basis.IDENTITY,
+					Vector3(side * 2.34, 2.35, window_z)
+				))
+				expected_cabin_names.append(side_name + "CabinWindowPane%02d" % window_index)
+		var cabin_authored := cabin_panes.get_meta("authored_instance_transforms", []) as Array
+		var cabin_transforms_exact := cabin_authored.size() == expected_cabin_panes.size()
+		for index in mini(cabin_authored.size(), expected_cabin_panes.size()):
+			cabin_transforms_exact = cabin_transforms_exact and (cabin_authored[index] as Transform3D).is_equal_approx(expected_cabin_panes[index])
+		var expected_cabin_bounds := AABB()
+		for index in expected_cabin_panes.size():
+			var transformed_bounds := (
+				expected_cabin_panes[index] * cabin_panes.multimesh.mesh.get_aabb()
+			).abs()
+			expected_cabin_bounds = (
+				transformed_bounds
+				if index == 0
+				else expected_cabin_bounds.merge(transformed_bounds)
+			)
+		_check(
+			cabin_panes.multimesh.instance_count == 14
+			and cabin_panes.multimesh.visible_instance_count == -1
+			and cabin_transforms_exact
+			and cabin_panes.get_meta("authored_visual_names", PackedStringArray()) == expected_cabin_names
+			and cabin_panes.material_override == craft.get_variant_materials().get("window_glow")
+			and cabin_panes.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and cabin_panes.layers == 1
+			and cabin_panes.multimesh.custom_aabb.is_equal_approx(expected_cabin_bounds)
+			and cabin_panes.find_children("*", "CollisionObject3D", true, false).is_empty()
+			and cabin_panes.find_children("*", "Area3D", true, false).is_empty()
+			and cabin.find_children("*CabinWindowPane*", "MeshInstance3D", true, false).is_empty(),
+			"the cabin pane batch preserves exact transforms, identities, material, culling, shadows and collision-free presentation"
+		)
 	_check(
 		batch != null and batch.multimesh != null,
 		"seven dorsal service ribs resolve as one visual-only MultiMesh"
@@ -808,23 +861,23 @@ func _test_render_allocations(craft: HeroShip) -> void:
 
 	var report := craft.call("get_halyard_render_allocation_report") as Dictionary
 	_check(
-		int(report.descendant_nodes) == 162
-		and int(report.mesh_instances) == 156
-		and int(report.multimesh_batches) == 1,
-		"weapon-complete open-arch renderer nodes freeze at 162, MeshInstances at 156, batches at 1"
+		int(report.descendant_nodes) == 124
+		and int(report.mesh_instances) == 116
+		and int(report.multimesh_batches) == 3,
+		"exterior renderer nodes freeze at 124, MeshInstances at 116, batches at 3"
 	)
 	_check(
 		int(report.drawn_copies) == 163
-		and int(report.geometry_submissions) == 157
+		and int(report.geometry_submissions) == 119
 		and int(report.spine_rib_copies) == 7,
-		"weapon-complete open-arch drawn copies freeze at 163 and surface submissions at 157"
+		"exterior drawn copies freeze at 163 and surface submissions at 119"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 65
 		and int(report.unique_material_resources) == 14
-		and int(report.multimesh_resources) == 1
+		and int(report.multimesh_resources) == 3
 		and int(report.renderer_buffer_floats) == 84,
-		"weapon-complete mesh/material allocations freeze at 65/14 with one 84-float MultiMesh resource"
+		"exterior mesh/material allocations freeze at 65/14 with three MultiMesh resources"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
