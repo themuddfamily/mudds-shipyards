@@ -251,6 +251,34 @@ func _test_real_scheduler_complete_loop() -> void:
 	world.add_child(early)
 	await process_frame
 	_check(production.configure(host, 0).accepted, "real bound Host configures exactly once")
+	var nested_probe: Dictionary = {}
+	production.state_changed.connect(func(_snapshot: Dictionary) -> void:
+		var nested := production.queue_disembark_intent(1, production.get_generation())
+		nested_probe["reason"] = nested.get("reason", &"") as StringName
+		early.nested_probe_finished.emit()
+	)
+	var streaming_before := int((fixture.origin_binding as EmberMoonStreamingProductionBinding).get_snapshot().accepted_sample_count)
+	early.enabled = true
+	await early.nested_probe_finished
+	early.enabled = false
+	var start_snapshot := production.get_snapshot()
+	_check(
+		early.last_prepare.accepted and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
+			and int(start_snapshot.start_count) == 1 and int(start_snapshot.advance_count) == 0
+			and int(start_snapshot.late_consume_count) == 1
+			and int(start_snapshot.last_consumed_caller_serial) == 1
+			and int(start_snapshot.last_prepared_physics_frame) == int(start_snapshot.last_consumed_physics_frame),
+		"one same-frame early serial starts late exactly once and skips advance",
+	)
+	_check(
+		ship.get_command_source() != original_source
+			and int((host.get_snapshot().command_source as Dictionary).sample_count) == 0,
+		"late S installs the Host command after the real Hero sampled S",
+	)
+	_check(
+		nested_probe.get("reason", &"") == &"reentrant_call",
+		"Host-call state signal rejects nested binding mutation",
+	)
 	var planetary_director := ActivityDirector.new()
 	world.add_child(planetary_director)
 	var atmosphere := ATMOSPHERE_SCENE.instantiate() as PlanetaryAtmosphereComposition
@@ -344,11 +372,6 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.restore_planetary_surface_session_snapshot(stale_session).reason == &"stale_planetary_attachment_generation",
 		"planetary session snapshots validate schema and attachment fencing"
 	)
-	_check(
-		production.detach_planetary_surface().accepted
-			and production.get_planetary_surface_snapshot().state == &"detached",
-		"real Ember production owner publishes planetary detach state",
-	)
 	var audit := production.audit()
 	_check(
 		early.process_physics_priority == -100 and ship.process_physics_priority == 0
@@ -361,33 +384,7 @@ func _test_real_scheduler_complete_loop() -> void:
 			and bool(audit.snapshot.automatic_late_physics_process),
 		"binding owns only its audited late physics callback",
 	)
-	var nested_probe: Dictionary = {}
-	production.state_changed.connect(func(_snapshot: Dictionary) -> void:
-		var nested := production.queue_disembark_intent(1, production.get_generation())
-		nested_probe["reason"] = nested.get("reason", &"") as StringName
-		early.nested_probe_finished.emit()
-	)
-	var streaming_before := int((fixture.origin_binding as EmberMoonStreamingProductionBinding).get_snapshot().accepted_sample_count)
 	early.enabled = true
-	await early.nested_probe_finished
-	var start_snapshot := production.get_snapshot()
-	_check(
-		early.last_prepare.accepted and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
-			and int(start_snapshot.start_count) == 1 and int(start_snapshot.advance_count) == 0
-			and int(start_snapshot.late_consume_count) == 1
-			and int(start_snapshot.last_consumed_caller_serial) == 1
-			and int(start_snapshot.last_prepared_physics_frame) == int(start_snapshot.last_consumed_physics_frame),
-		"one same-frame early serial starts late exactly once and skips advance",
-	)
-	_check(
-		ship.get_command_source() != original_source
-			and int((host.get_snapshot().command_source as Dictionary).sample_count) == 0,
-		"late S installs the Host command after the real Hero sampled S",
-	)
-	_check(
-		nested_probe.get("reason", &"") == &"reentrant_call",
-		"Host-call state signal rejects nested binding mutation",
-	)
 	await _one_physics()
 	_check(
 		int((host.get_snapshot().command_source as Dictionary).sample_count) >= 1
@@ -501,11 +498,26 @@ func _test_real_scheduler_complete_loop() -> void:
 		"real exact Host receipt restores command while retaining the seated Player token",
 	)
 	var planetary_return := production.consume_planetary_orbit_return(receipt)
+	var planetary_return_replay := production.consume_planetary_orbit_return(receipt)
 	_check(
 		planetary_return.accepted
 			and planetary_return.reason == &"planetary_orbit_return_consumed"
-			and production.get_planetary_surface_snapshot().state == &"detached",
-		"planetary composition consumes the caller-owned orbit return handback once",
+			and production.get_planetary_surface_snapshot().state == &"detached"
+			and production.get_planetary_relay_survey_return_snapshot().state == &"detached"
+			and planetary_return_replay.reason == &"orbit_return_unavailable",
+		"planetary orbit return detaches the composition and return travel exactly once",
+	)
+	var planetary_reentry := production.reenter_planetary_surface()
+	var planetary_redetach := production.detach_planetary_surface()
+	_check(
+		planetary_reentry.accepted
+			and planetary_reentry.reason == &"composition_reentered"
+			and int(planetary_reentry.runtime.attachment_generation)
+				== int(receipt.current_attachment_generation)
+			and planetary_redetach.accepted
+			and production.get_planetary_surface_snapshot().state == &"detached"
+			and production.get_planetary_relay_survey_return_snapshot().state == &"detached",
+		"Host handback generation permits one fenced re-entry before explicit retirement",
 	)
 	early.take_handback_after_completion = true
 	await _one_physics(false)

@@ -267,7 +267,12 @@ func restore_planetary_surface_session_snapshot(snapshot: Variant) -> Dictionary
 func consume_planetary_orbit_return(handback: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
-	return _planetary_composition.call(&"consume_orbit_return_handback", handback)
+	var result: Dictionary = _planetary_composition.call(
+		&"consume_orbit_return_handback", handback
+	)
+	if bool(result.get("accepted", false)) and _relay_return_travel != null:
+		_relay_return_travel.call(&"detach")
+	return result
 
 
 func accept_planetary_origin_rebase(receipt: Variant) -> Dictionary:
