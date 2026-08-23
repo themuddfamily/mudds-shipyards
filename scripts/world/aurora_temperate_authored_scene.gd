@@ -3,6 +3,7 @@ extends Node3D
 
 const AuroraSurfaceAudioBindingType := preload("res://scripts/audio/aurora_surface_audio_binding.gd")
 const WaterContactAudioBindingType := preload("res://scripts/audio/water_contact_audio_binding.gd")
+const SettlementInteractionAudioBindingType := preload("res://scripts/audio/settlement_interaction_audio_binding.gd")
 
 const WORLD_PATH := "res://assets/world/planets/aurora_temperate_world.tres"
 const ATMOSPHERE_PATH := "res://assets/world/planets/aurora_temperate_atmosphere.tres"
@@ -23,6 +24,7 @@ const SURFACE_LANDMARK_MARKER_PATHS := {
 
 var _surface_audio_binding: RefCounted
 var _water_contact_audio_binding: RefCounted
+var _settlement_audio_binding: RefCounted
 
 func _ready() -> void:
 	set_process(false)
@@ -31,6 +33,8 @@ func _ready() -> void:
 	_surface_audio_binding.attach(0)
 	_water_contact_audio_binding = WaterContactAudioBindingType.new()
 	_water_contact_audio_binding.attach(0)
+	_settlement_audio_binding = SettlementInteractionAudioBindingType.new()
+	_settlement_audio_binding.attach(0)
 
 func _exit_tree() -> void:
 	if _surface_audio_binding != null:
@@ -39,6 +43,9 @@ func _exit_tree() -> void:
 	if _water_contact_audio_binding != null:
 		_water_contact_audio_binding.detach()
 		_water_contact_audio_binding = null
+	if _settlement_audio_binding != null:
+		_settlement_audio_binding.detach()
+		_settlement_audio_binding = null
 
 func present_surface_audio_snapshot(snapshot: Dictionary) -> Dictionary:
 	if _surface_audio_binding == null:
@@ -65,6 +72,19 @@ func set_water_contact_audio_perspective(perspective: StringName) -> Dictionary:
 
 func get_water_contact_audio_snapshot() -> Dictionary:
 	return _water_contact_audio_binding.get_snapshot() if _water_contact_audio_binding != null else {"attached": false}
+
+func present_settlement_interaction_audio_receipt(receipt: Dictionary) -> Dictionary:
+	if _settlement_audio_binding == null:
+		return {"accepted": false, "reason": &"settlement_audio_binding_unavailable"}
+	return _settlement_audio_binding.present_receipt(receipt)
+
+func set_settlement_audio_perspective(perspective: StringName) -> Dictionary:
+	if _settlement_audio_binding == null:
+		return {"accepted": false, "reason": &"settlement_audio_binding_unavailable"}
+	return _settlement_audio_binding.set_perspective(perspective)
+
+func get_settlement_audio_snapshot() -> Dictionary:
+	return _settlement_audio_binding.get_snapshot() if _settlement_audio_binding != null else {"attached": false}
 
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
