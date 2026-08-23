@@ -5,7 +5,7 @@ extends RefCounted
 ## admission, host/join authority, and all lifecycle transitions.
 
 const COMPONENT_ID: StringName = &"network-session-status-presenter"
-const STATES := [&"connecting", &"connected", &"failed", &"disconnected"]
+const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"disconnected"]
 
 var _snapshot: Dictionary = {}
 
@@ -17,9 +17,12 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var role := StringName(str(source.get("role", &"client")))
 	var detail := str(source.get("detail", "" )).strip_edges()
 	var retryable := bool(source.get("retryable", state == &"failed"))
+	var attempt := clampi(int(source.get("attempt", 0)), 0, 99)
+	var seconds_remaining := clampf(float(source.get("seconds_remaining", 0.0)), 0.0, 300.0)
 	var actions: Array = []
 	match state:
 		&"connecting": actions.append({"id": &"cancel", "label": "Cancel Connection", "focusable": true})
+		&"reconnecting": actions.append({"id": &"cancel", "label": "Cancel Reconnect", "focusable": true})
 		&"connected": actions.append({"id": &"disconnect", "label": "Disconnect", "focusable": true})
 		&"failed":
 			if retryable:
@@ -30,6 +33,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 				actions.append({"id": &"retry", "label": "Retry Connection", "focusable": true})
 	var title: String = {
 		&"connecting": "Connecting",
+		&"reconnecting": "Reconnecting",
 		&"connected": "Connected",
 		&"failed": "Connection Failed",
 		&"disconnected": "Disconnected",
@@ -41,6 +45,9 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"title": title,
 		"message": detail if not detail.is_empty() else _default_message(state),
 		"retryable": retryable,
+		"attempt": attempt if state == &"reconnecting" else 0,
+		"seconds_remaining": seconds_remaining if state == &"reconnecting" else 0.0,
+		"backoff_active": state == &"reconnecting",
 		"actions": actions,
 		"presentation_only": true,
 	}
@@ -88,6 +95,7 @@ func _invalid_snapshot(reason: StringName) -> Dictionary:
 func _default_message(state: StringName) -> String:
 	return {
 		&"connecting": "Contacting the session host.",
+		&"reconnecting": "Retrying the session connection.",
 		&"connected": "Session is ready.",
 		&"failed": "The session could not be established.",
 		&"disconnected": "No active session.",
