@@ -221,6 +221,7 @@ var _engine_degradation := 0.0
 var _engine_velocity := 0.0
 var _last_degradation_band := 0
 var _last_velocity_high := false
+var _last_load_active := false
 var _boost_requested := false
 var _damage_alarm_active := false
 var _last_cue_id: StringName = &""
@@ -385,9 +386,17 @@ func set_thrust_state(throttle: float, boosting: bool = false) -> bool:
 	var safe_throttle := clampf(throttle, 0.0, 1.0)
 	var changed := not is_equal_approx(_throttle, safe_throttle) or _boost_requested != boosting
 	var boost_changed := _boost_requested != boosting
+	var load_active := safe_throttle >= MINIMUM_LOAD_THROTTLE
+	var load_changed := load_active != _last_load_active
 	_throttle = safe_throttle
 	_boost_requested = boosting
 	_apply_runtime_state()
+	if load_changed:
+		semantic_engine_cue_emitted.emit(
+			&"thrust_load_engaged" if load_active else &"thrust_load_released",
+			safe_throttle if load_active else 0.0
+		)
+		_last_load_active = load_active
 	if boost_changed:
 		semantic_engine_cue_emitted.emit(
 			&"boost_engaged" if boosting else &"boost_released",
