@@ -13,7 +13,7 @@ const FADE_IN_SECONDS := 0.5
 const FADE_OUT_SECONDS := 0.5
 const MAX_RETAINED_DISTANCE_METERS := 725.0
 const EXPECTED_AUTHORED_RENDERER_COUNT := 223
-const EXPECTED_BOUND_RENDERER_COUNT := 224
+const EXPECTED_BOUND_RENDERER_COUNT := 225
 const EXPECTED_LIGHT_COUNT := 27
 const EPSILON := 0.000001
 const APERTURE_LENS_BATCH_NAME: StringName = &"StreamingApertureLensBatch"
@@ -21,6 +21,14 @@ const APERTURE_LENS_FAMILY_ID: StringName = &"cinder-streaming-aperture-lenses"
 const APERTURE_FRAME_PATHS: Array[NodePath] = [
 	^"ExtractionPlatform/CinderReachPlatform/GantryFrame1",
 	^"ExtractionPlatform/CinderReachPlatform/GantryFrame2",
+]
+const BEACON_TRIM_RING_BATCH_NAME: StringName = &"StreamingBeaconTrimRingBatch"
+const BEACON_TRIM_RING_FAMILY_ID: StringName = &"cinder-streaming-beacon-trim-rings"
+const BEACON_TRIM_RING_PATHS: Array[NodePath] = [
+	^"RouteBeacons/RouteBeaconAlpha/TrimRing",
+	^"RouteBeacons/RouteBeaconBravo/TrimRing",
+	^"RouteBeacons/RouteBeaconCharlie/TrimRing",
+	^"RouteBeacons/RouteBeaconDelta/TrimRing",
 ]
 
 var _content_root: Node3D
@@ -65,12 +73,20 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	if aperture_lens_family.is_empty():
 		content_root.visible = false
 		return _result(false, &"aperture_lens_family_mismatch")
+	var beacon_trim_ring_family := _validate_beacon_trim_ring_family(content_root)
+	if beacon_trim_ring_family.is_empty():
+		content_root.visible = false
+		return _result(false, &"beacon_trim_ring_family_mismatch")
 
 	_mutation_active = true
 	var aperture_lens_batch := _build_aperture_lens_batch(
 		content_root, aperture_lens_family
 	)
+	var beacon_trim_ring_batch := _build_beacon_trim_ring_batch(
+		content_root, beacon_trim_ring_family
+	)
 	renderers.append(aperture_lens_batch)
+	renderers.append(beacon_trim_ring_batch)
 	_content_root = content_root
 	_generation = generation
 	_renderers.clear()
@@ -389,6 +405,88 @@ func _build_aperture_lens_batch(
 	platform.add_child(batch)
 	for lens in family:
 		lens.visible = false
+	return batch
+
+
+## The four beacon trim rings are static orange presentation trim. Signal rings
+## remain separate because their material expresses activity state; trim rings
+## retain hidden named source paths while this batch draws every exact copy.
+func _validate_beacon_trim_ring_family(content_root: Node3D) -> Array[MeshInstance3D]:
+	var family: Array[MeshInstance3D] = []
+	var exemplar: MeshInstance3D
+	for trim_path in BEACON_TRIM_RING_PATHS:
+		var trim_ring := content_root.get_node_or_null(trim_path) as MeshInstance3D
+		if trim_ring == null or trim_ring.mesh == null or not trim_ring.get_children().is_empty():
+			return []
+		if exemplar == null:
+			exemplar = trim_ring
+		elif trim_ring.mesh != exemplar.mesh \
+				or trim_ring.material_override != exemplar.material_override \
+				or trim_ring.material_overlay != exemplar.material_overlay \
+				or trim_ring.cast_shadow != exemplar.cast_shadow \
+				or trim_ring.layers != exemplar.layers \
+				or trim_ring.transparency != exemplar.transparency \
+				or trim_ring.visibility_range_begin != exemplar.visibility_range_begin \
+				or trim_ring.visibility_range_end != exemplar.visibility_range_end \
+				or trim_ring.visibility_range_begin_margin != exemplar.visibility_range_begin_margin \
+				or trim_ring.visibility_range_end_margin != exemplar.visibility_range_end_margin \
+				or trim_ring.visibility_range_fade_mode != exemplar.visibility_range_fade_mode \
+				or trim_ring.extra_cull_margin != exemplar.extra_cull_margin \
+				or trim_ring.ignore_occlusion_culling != exemplar.ignore_occlusion_culling \
+				or trim_ring.gi_mode != exemplar.gi_mode \
+				or trim_ring.lod_bias != exemplar.lod_bias:
+			return []
+		family.append(trim_ring)
+	return family
+
+
+func _build_beacon_trim_ring_batch(
+		content_root: Node3D, family: Array[MeshInstance3D]
+	) -> MultiMeshInstance3D:
+	var exemplar := family[0]
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	var has_bounds := false
+	var root_inverse := content_root.global_transform.affine_inverse()
+	for trim_ring in family:
+		var instance_transform := root_inverse * trim_ring.global_transform
+		transforms.append(instance_transform)
+		var instance_bounds := instance_transform * exemplar.mesh.get_aabb()
+		bounds = bounds.merge(instance_bounds) if has_bounds else instance_bounds
+		has_bounds = true
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = exemplar.mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+	multi.custom_aabb = bounds
+
+	var batch := MultiMeshInstance3D.new()
+	batch.name = BEACON_TRIM_RING_BATCH_NAME
+	batch.multimesh = multi
+	batch.material_override = exemplar.material_override
+	batch.material_overlay = exemplar.material_overlay
+	batch.cast_shadow = exemplar.cast_shadow
+	batch.layers = exemplar.layers
+	batch.transparency = exemplar.transparency
+	batch.visibility_range_begin = exemplar.visibility_range_begin
+	batch.visibility_range_end = exemplar.visibility_range_end
+	batch.visibility_range_begin_margin = exemplar.visibility_range_begin_margin
+	batch.visibility_range_end_margin = exemplar.visibility_range_end_margin
+	batch.visibility_range_fade_mode = exemplar.visibility_range_fade_mode
+	batch.extra_cull_margin = exemplar.extra_cull_margin
+	batch.ignore_occlusion_culling = exemplar.ignore_occlusion_culling
+	batch.gi_mode = exemplar.gi_mode
+	batch.lod_bias = exemplar.lod_bias
+	batch.set_meta(&"visual_batch_family_id", BEACON_TRIM_RING_FAMILY_ID)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	batch.set_meta(&"semantic_source_paths", BEACON_TRIM_RING_PATHS.duplicate())
+	content_root.add_child(batch)
+	for trim_ring in family:
+		trim_ring.visible = false
 	return batch
 
 
