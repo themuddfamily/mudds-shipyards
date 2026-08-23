@@ -1148,7 +1148,18 @@ func _clean_up(game: Node) -> void:
 	for action in [&"interact", &"move_forward", &"fire", &"landing_assist"]:
 		Input.action_release(action)
 	await _release_combat_audio_before_main_teardown(game)
-	game.queue_free()
+	var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
+	var expansion := world.get_fleet_expansion_production_binding() if world != null else null
+	if expansion != null:
+		for craft_id: StringName in [
+			&"cinder_cargo_hauler",
+			&"cinder_long_range_bomber",
+			&"cinder_light_interceptor",
+		]:
+			expansion.detach_craft(craft_id)
+	await process_frame
+	if is_instance_valid(game):
+		game.free()
 	await process_frame
 	await physics_frame
 	await process_frame

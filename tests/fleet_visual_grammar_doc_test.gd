@@ -55,7 +55,7 @@ const HALYARD_PATH := "res://scripts/ships/halyard_crew_transport.gd"
 const TORRENT_HERO_PRESENTATION_PATH := "res://scenes/ships/presentation/torrent_hero_presentation.gd"
 const TORRENT_MACROFORM_PATH := "res://scenes/ships/presentation/torrent_authored_macroform.tscn"
 const ZENITH_PRESENTATION_PATH := "res://scenes/ships/presentation/zenith_authored_presentation.gd"
-const SHIPYARD_WORLD_PATH := "res://scripts/world/shipyard_world.gd"
+const FLEET_DOCK_COMB_PATH := "res://scripts/world/fleet_dock_comb.gd"
 
 ## Numeric constants declared in the audit suite. Key in the document -> the
 ## constant identifier that the live audit asserts with.
@@ -109,7 +109,7 @@ const SURFACE_KEYS := {
 		ZENITH_PRESENTATION_PATH,
 		"PaleFacetSecondary\": _hull_material\\(Color\\(\"[0-9a-fA-F]{6}\"\\), [0-9.]+, [0-9.]+, ([0-9.]+)\\)",
 	],
-	"normal_scale_station_panel": [SHIPYARD_WORLD_PATH, "panel_material\\.normal_scale = ([0-9.]+)"],
+	"normal_scale_station_panel": [FLEET_DOCK_COMB_PATH, "panel_material\\.normal_scale = ([0-9.]+)"],
 	"clearcoat_torrent_procedural": [HERO_SHIP_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_torrent_authored_hero": [TORRENT_HERO_PRESENTATION_PATH, "material\\.clearcoat = ([0-9.]+)"],
 	"clearcoat_arrow": [ARROW_PATH, "hull_material\\.clearcoat = ([0-9.]+)"],

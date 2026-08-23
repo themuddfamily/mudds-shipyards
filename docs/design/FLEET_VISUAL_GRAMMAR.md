@@ -290,7 +290,7 @@ standardised on `1.0`. A ship hull authored at `1.0` reads as station plating.
 | `normal_scale_halyard` | 0.46 | `scripts/ships/halyard_crew_transport.gd` |
 | `normal_scale_zenith_hull` | 0.18 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
 | `normal_scale_zenith_secondary` | 0.10 | `scenes/ships/presentation/zenith_authored_presentation.gd` |
-| `normal_scale_station_panel` | 1.0 | `scripts/world/shipyard_world.gd` |
+| `normal_scale_station_panel` | 1.0 | `scripts/world/fleet_dock_comb.gd` |
 | `clearcoat_torrent_procedural` | 0.58 | `scripts/ships/hero_ship.gd` |
 | `clearcoat_torrent_authored_hero` | 0.34 | `scenes/ships/presentation/torrent_hero_presentation.gd` |
 | `clearcoat_arrow` | 0.48 | `scripts/ships/arrow_recon_ship.gd` |
