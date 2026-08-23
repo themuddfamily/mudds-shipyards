@@ -239,6 +239,12 @@ const OPERATIONS_ROOM_CENTER := Vector3(5.6, 2.4, 13.2)
 # 2.35 m half-height began at local Y=0.05 and incorrectly rejected an avatar
 # standing exactly on the physical room floor.
 const OPERATIONS_ROOM_HALF_EXTENTS := Vector3(5.0, 2.45, 3.6)
+## The retained StationDoor authors this exact header and matching collision
+## envelope. A quarter-metre end radius replaces its gameplay-distance box
+## silhouette without changing the door, opening, frame body or panel family.
+const OPERATIONS_ENTRANCE_HEADER_SIZE := Vector3(4.2, 0.5, 0.72)
+const OPERATIONS_ENTRANCE_HEADER_END_RADIUS := 0.25
+const OPERATIONS_ENTRANCE_HEADER_CURVE_SEGMENTS := 8
 const FOOTPRINT_MIN := Vector3(-10.4, -1.5, -2.6)
 const FOOTPRINT_MAX := Vector3(11.2, 8.4, 21.0)
 const OPEN_WALKABLE_AREA_ESTIMATE := 174.0
@@ -310,6 +316,7 @@ func _ready() -> void:
 		_index_routes()
 		_build_structure()
 		_style_access_landmarks()
+		_apply_operations_entrance_header_curve()
 		_apply_metadata()
 	# Reconcile the real node state against `_module_enabled` on every ready, so a
 	# scene-authored or externally drifted layer/visibility cannot survive.
@@ -4697,6 +4704,38 @@ func _style_access_landmarks() -> void:
 			door.call(&"_bind_panel_surface_family")
 
 
+## Give only Aft Operations' retained access header a true curved pressure-frame
+## silhouette. StationDoor keeps the frame collision, moving leaf, interaction
+## and renderer node; this swaps the header's one mesh after the child component
+## has applied its standard manufactured-edge and panel-family treatment.
+func _apply_operations_entrance_header_curve() -> void:
+	if _operations_entrance == null:
+		return
+	var header := _operations_entrance.get_node_or_null(
+		^"FrameVisuals/Header"
+	) as MeshInstance3D
+	var collision := _operations_entrance.get_node_or_null(
+		^"FrameBody/HeaderCollision"
+	) as CollisionShape3D
+	if header == null or collision == null or not collision.shape is BoxShape3D:
+		push_error("Aft Operations entrance lost its retained header render/collision pair")
+		return
+	var shape := collision.shape as BoxShape3D
+	if not shape.size.is_equal_approx(OPERATIONS_ENTRANCE_HEADER_SIZE):
+		push_error("Aft Operations entrance header collision drifted before curve treatment")
+		return
+	header.mesh = _xy_extruded_capsule_mesh(
+		OPERATIONS_ENTRANCE_HEADER_SIZE,
+		OPERATIONS_ENTRANCE_HEADER_END_RADIUS,
+		OPERATIONS_ENTRANCE_HEADER_CURVE_SEGMENTS
+	)
+	header.set_meta("geometry_profile", &"xy_extruded_capsule_header")
+	header.set_meta("end_radius_m", OPERATIONS_ENTRANCE_HEADER_END_RADIUS)
+	header.set_meta("curve_segments_per_end", OPERATIONS_ENTRANCE_HEADER_CURVE_SEGMENTS)
+	header.set_meta("evidence_status", EVIDENCE_STATUS)
+	header.set_meta("authenticated_original_geometry", false)
+
+
 func _apply_door_material(door: StationDoor, panel_material: Material, indicator_material: Material) -> void:
 	var panel := door.get_node_or_null("SlidingPanel/PanelMesh") as MeshInstance3D
 	if panel != null:
@@ -4817,6 +4856,74 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 		_rounded_box_cache,
 		StationSurfaceKit.BevelUV.UNIT_PER_QUAD
 	)
+
+
+## Capsule outline in local X/Y with constant Z extrusion. Eighteen boundary
+## points emit four triangles each: 72 triangles versus the prior chamfered
+## box's 108, while preserving the authored AABB exactly.
+func _xy_extruded_capsule_mesh(
+		size: Vector3,
+		end_radius: float,
+		segments_per_end: int,
+	) -> ArrayMesh:
+	var radius := clampf(end_radius, 0.001, minf(size.x, size.y) * 0.5)
+	var segment_count := maxi(segments_per_end, 2)
+	var straight_half_width := size.x * 0.5 - radius
+	var boundary: Array[Vector2] = []
+	for segment in segment_count + 1:
+		var angle := lerpf(-PI * 0.5, PI * 0.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			straight_half_width + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+	for segment in segment_count + 1:
+		var angle := lerpf(PI * 0.5, PI * 1.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			-straight_half_width + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+
+	var half_depth := size.z * 0.5
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in boundary.size():
+		var current := boundary[index]
+		var next := boundary[(index + 1) % boundary.size()]
+		var current_uv := Vector2(current.x / size.x + 0.5, current.y / size.y + 0.5)
+		var next_uv := Vector2(next.x / size.x + 0.5, next.y / size.y + 0.5)
+		# Approach cap, outward toward local -Z.
+		_emit_operations_header_vertex(surface, Vector3(0.0, 0.0, -half_depth), Vector3.FORWARD, Vector2(0.5, 0.5))
+		_emit_operations_header_vertex(surface, Vector3(next.x, next.y, -half_depth), Vector3.FORWARD, next_uv)
+		_emit_operations_header_vertex(surface, Vector3(current.x, current.y, -half_depth), Vector3.FORWARD, current_uv)
+		# Room-side cap, outward toward local +Z.
+		_emit_operations_header_vertex(surface, Vector3(0.0, 0.0, half_depth), Vector3.BACK, Vector2(0.5, 0.5))
+		_emit_operations_header_vertex(surface, Vector3(current.x, current.y, half_depth), Vector3.BACK, current_uv)
+		_emit_operations_header_vertex(surface, Vector3(next.x, next.y, half_depth), Vector3.BACK, next_uv)
+		# Constant-depth rim following the capsule outline.
+		var rim_normal := Vector3(next.y - current.y, current.x - next.x, 0.0).normalized()
+		var rim_u := float(index) / float(boundary.size())
+		var rim_next_u := float(index + 1) / float(boundary.size())
+		_emit_operations_header_vertex(surface, Vector3(current.x, current.y, -half_depth), rim_normal, Vector2(rim_u, 0.0))
+		_emit_operations_header_vertex(surface, Vector3(next.x, next.y, -half_depth), rim_normal, Vector2(rim_next_u, 0.0))
+		_emit_operations_header_vertex(surface, Vector3(next.x, next.y, half_depth), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_operations_header_vertex(surface, Vector3(current.x, current.y, -half_depth), rim_normal, Vector2(rim_u, 0.0))
+		_emit_operations_header_vertex(surface, Vector3(next.x, next.y, half_depth), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_operations_header_vertex(surface, Vector3(current.x, current.y, half_depth), rim_normal, Vector2(rim_u, 1.0))
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	mesh.resource_name = "aft_operations_capsule_access_header_v1"
+	return mesh
+
+
+func _emit_operations_header_vertex(
+		surface: SurfaceTool,
+		position_value: Vector3,
+		normal: Vector3,
+		uv: Vector2,
+	) -> void:
+	surface.set_normal(normal)
+	surface.set_uv(uv)
+	surface.add_vertex(position_value)
 
 
 func _cylinder(
