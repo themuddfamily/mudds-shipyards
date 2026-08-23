@@ -13,12 +13,17 @@ var _failures: PackedStringArray = []
 class FakeFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
 	var fail_writes := false
+	var sync_directory_calls := 0
+	var fail_sync_directory_on_call := -1
 
 	func file_exists(path: String) -> bool: return files.has(path)
 	func directory_exists(_path: String) -> bool: return false
 	func ensure_parent_directory(_path: String) -> Error: return OK
 	func sync_file(_path: String) -> Error: return OK
-	func sync_directory(_path: String) -> Error: return OK
+	func sync_directory(_path: String) -> Error:
+		sync_directory_calls += 1
+		if sync_directory_calls == fail_sync_directory_on_call: return ERR_FILE_CANT_WRITE
+		return OK
 	func read_bytes(path: String, maximum: int) -> Dictionary:
 		if not files.has(path): return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
 		var bytes := (files[path] as PackedByteArray).duplicate()
@@ -90,6 +95,20 @@ func _run() -> void:
 	retry_fs.fail_writes = true
 	var failed := retry_binding.commit(retry_token)
 	_check(not bool(failed.accepted) and bool(failed.repair_retryable), "atomic write failure remains caller-visible and retryable")
+	retry_fs.fail_writes = false
+	retry_fs.fail_sync_directory_on_call = retry_fs.sync_directory_calls + 2
+	var ambiguous := retry_binding.commit(retry_token)
+	var ambiguous_report := retry_binding.get_report()
+	_check(
+		not bool(ambiguous.accepted)
+		and ambiguous.reason == &"published_directory_sync_failed"
+		and not bool(ambiguous.repair_retryable)
+		and bool(ambiguous.repair_authority_cleared)
+		and bool((ambiguous.repair_reconciliation as Dictionary).accepted)
+		and int(retry_store.get_generation()) == 2
+		and not bool(ambiguous_report.prepared),
+		"published directory-sync ambiguity reloads visible authority and clears retry permission"
+	)
 	retry_binding.set_attached(false)
 	_check(not bool(retry_binding.commit(retry_token).accepted), "detached binding rejects pending repair")
 	_finish()

@@ -9,6 +9,25 @@ extends RefCounted
 const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 
+const _RETRY_SAFE_STORE_REASONS := [
+	&"parent_directory_failed",
+	&"temp_write_failed",
+	&"temp_sync_failed",
+	&"temp_verification_failed",
+	&"stale_temp_cleanup_failed",
+	&"backup_cleanup_failed",
+	&"backup_publication_failed",
+	&"corrupt_primary_cleanup_failed",
+]
+const _RECONCILE_STORE_REASONS := [
+	&"authority_changed",
+	&"authority_changed_during_staging",
+	&"directory_sync_failed",
+	&"atomic_replace_failed",
+	&"published_verification_failed",
+	&"published_directory_sync_failed",
+]
+
 var _adapter: RuntimeSettingsStoreAdapter
 var _store: UserDataStore
 var _attached := false
@@ -104,8 +123,9 @@ func prepare(confirmation: String, commit_id: String) -> Dictionary:
 	return _last_status.duplicate(true)
 
 
-## Publishes through UserDataStore's existing atomic transaction and leaves the
-## plan intact on failure so the caller can retry after the external fault.
+## Publishes through UserDataStore's existing atomic transaction. Only failures
+## known to precede authority changes retain the plan; ambiguous publication or
+## changed topology is reconciled and requires a fresh inspect/prepare decision.
 func commit(confirmation: String) -> Dictionary:
 	if not is_attached():
 		return _remember(_status(false, &"detached"))
@@ -123,7 +143,15 @@ func commit(confirmation: String) -> Dictionary:
 		_prepared_commit_id
 	).duplicate(true)
 	if not bool(result.get("accepted", false)):
-		result["repair_retryable"] = true
+		var reason := StringName(result.get("reason", &""))
+		if reason in _RETRY_SAFE_STORE_REASONS:
+			result["repair_retryable"] = true
+			return _remember(result)
+		result["repair_retryable"] = false
+		result["repair_authority_cleared"] = true
+		if reason in _RECONCILE_STORE_REASONS:
+			result["repair_reconciliation"] = _store.load().duplicate(true)
+		_reset_plan()
 		return _remember(result)
 	_consumed_confirmation = _confirmation
 	_prepared = false
