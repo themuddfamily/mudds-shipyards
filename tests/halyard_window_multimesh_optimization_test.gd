@@ -26,10 +26,10 @@ func _run() -> void:
 
 	var render := craft.get_halyard_render_allocation_report()
 	_check(
-		int(render.get("mesh_instances", -1)) == 136
-			and int(render.get("geometry_submissions", -1)) == 138
-			and int(render.get("multimesh_batches", -1)) == 2,
-		"the 20-pane family removes 20 mesh nodes and 19 geometry submissions into one batch"
+		int(render.get("mesh_instances", -1)) == 116
+			and int(render.get("geometry_submissions", -1)) == 119
+			and int(render.get("multimesh_batches", -1)) == 3,
+		"the pane batch remains intact alongside the later glow batch in the cumulative budget"
 	)
 	_check(
 		int(render.get("drawn_copies", -1)) == 163
