@@ -1,7 +1,6 @@
 extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
-const GameFlow := preload("res://scripts/game/game_flow.gd")
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -40,6 +39,15 @@ func _run() -> void:
 	oversized["move_axis"] = [2.0, 0.0]
 	_check(not bool(server._remote_ship_commands.accept_command(2, oversized).get("accepted", false)),
 		"out-of-bounds axis is rejected")
+	for sequence in range(2, 10):
+		var burst := valid.duplicate(true)
+		burst["sequence"] = sequence
+		burst["client_tick"] = sequence + 1
+		server._remote_ship_commands.accept_command(2, burst)
+	var audit := server.get_remote_ship_command_snapshot().get("audit", {}) as Dictionary
+	_check(int(audit.get("rate_rejected", 0)) >= 1, "pilot command flood is rate limited")
+	_check(int(server._remote_ship_commands.get_snapshot().get("pilot_count", 0)) == 1,
+		"rate limiting retains bounded pilot state")
 	_check(bool(server.reset_remote_ship_pilot(&"cinder-long-range-bomber", &"disconnect").get("accepted", false)),
 		"disconnect reset retires command source")
 	_check(int(server.get_remote_ship_command_snapshot().get("pilot_count", -1)) == 0,
