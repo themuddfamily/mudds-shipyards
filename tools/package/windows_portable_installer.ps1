@@ -73,6 +73,29 @@ function Read-Owned([string]$Root) {
     return $owned
 }
 
+function Read-DistributionManifest([string]$Root) {
+    $path = Join-Path $Root 'distribution-manifest.json'
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'Distribution manifest is missing' }
+    $manifest = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
+    if ($manifest.schema_version -ne 1 -or [string]::IsNullOrWhiteSpace([string]$manifest.version) -or
+        [string]::IsNullOrWhiteSpace([string]$manifest.source_commit)) { throw 'Invalid distribution manifest' }
+    if ([string]$manifest.signing -ne 'NOT_RUN' -or [string]$manifest.native_validation -ne 'NOT_RUN') {
+        throw 'Distribution contains an unverified signing or native-validation claim'
+    }
+    return $manifest
+}
+
+function Compare-DistributionVersion([string]$Left, [string]$Right) {
+    $leftMatch = [regex]::Match($Left, '^v?(\d+)\.(\d+)\.(\d+)')
+    $rightMatch = [regex]::Match($Right, '^v?(\d+)\.(\d+)\.(\d+)')
+    if (-not $leftMatch.Success -or -not $rightMatch.Success) { throw 'Invalid distribution version' }
+    for ($index = 1; $index -le 3; $index++) {
+        $difference = [int]$leftMatch.Groups[$index].Value - [int]$rightMatch.Groups[$index].Value
+        if ($difference -ne 0) { return $difference }
+    }
+    return 0
+}
+
 function Remove-Owned([string]$Root) {
     $owned = Read-Owned $Root
     foreach ($relative in $owned | Sort-Object { $_.Length } -Descending) {
@@ -108,11 +131,16 @@ try {
         default {
             $source = [IO.Path]::GetFullPath($Source)
             if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw 'Source distribution directory is missing' }
+            $sourceManifest = Read-DistributionManifest $source
             $entries = Get-ChecksumEntries $source
             if (-not $entries.ContainsKey($LauncherName)) { throw 'Package launcher is missing' }
             if (Test-Path -LiteralPath $staging) { throw 'Staging directory already exists' }
             New-Item -ItemType Directory -Path $staging | Out-Null
             if (Test-Path -LiteralPath $destination -PathType Container) {
+                $currentManifest = Read-DistributionManifest $destination
+                $versionOrder = Compare-DistributionVersion ([string]$sourceManifest.version) ([string]$currentManifest.version)
+                if (-not $Force -and $versionOrder -lt 0) { throw 'Downgrade requires -Force' }
+                if (-not $Force -and $versionOrder -eq 0) { throw 'Same-version replacement requires -Force' }
                 $existing = Read-Owned $destination
                 foreach ($file in Get-ChildItem -LiteralPath $destination -File -Recurse) {
                     $relative = $file.FullName.Substring($destination.Length + 1).Replace('\', '/')

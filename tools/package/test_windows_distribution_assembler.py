@@ -56,6 +56,8 @@ class WindowsDistributionAssemblerTest(unittest.TestCase):
             powershell = (stage / "install/windows_portable_installer.ps1").read_text(encoding="utf-8")
             self.assertIn("ValidateSet('install', 'upgrade', 'status', 'rollback', 'uninstall')", powershell)
             self.assertIn("Get-FileHash", powershell)
+            self.assertIn("Same-version replacement requires -Force", powershell)
+            self.assertIn("Downgrade requires -Force", powershell)
             self.assertEqual(first["manifest"]["signing"], "NOT_RUN")
             self.assertEqual(first["manifest"]["native_validation"], "NOT_RUN")
             self.assertEqual(first["manifest"]["portable_installer"]["launcher"], "Start Mudds Shipyards.cmd")
