@@ -100,15 +100,22 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	if activity_id == &"cinder_debris_beacon_traversal" \
 			and StringName(state.get("reason", &"")) == &"out_of_order_beacon":
 		state_id = &"wrong_order"
+	if activity_id == &"cinder_platform_mining_run" and int(state.get("state", -1)) == 3:
+		state_id = &"interrupted"
 	var cargo_progress: Dictionary = {}
 	if activity_id == &"cinder_platform_supply_run":
 		cargo_progress = _cargo_progress(state)
 	var convoy_feedback: Dictionary = {}
 	if activity_id == &"cinder_reach_emberline_convoy":
 		convoy_feedback = _convoy_feedback(state)
+	var mining_feedback: Dictionary = {}
+	if activity_id == &"cinder_platform_mining_run":
+		mining_feedback = _mining_feedback(state)
 	var progress := (
 		"  //  %s" % str(convoy_feedback.get("summary", ""))
 		if not convoy_feedback.is_empty()
+		else "  //  %s" % str(mining_feedback.get("summary", ""))
+		if not mining_feedback.is_empty()
 		else "  //  %s" % str(cargo_progress.get("summary", ""))
 		if not cargo_progress.is_empty()
 		else _progress_text(activity_id, state)
@@ -116,7 +123,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var recovery := _recovery_text(state)
 	var reward_pending := bool(state.get("reward_requested", false))
 	var status_suffix := ""
-	if reward_pending:
+	if reward_pending and mining_feedback.is_empty():
 		status_suffix += "  REWARD PENDING"
 	if not recovery.is_empty():
 		status_suffix += "  " + recovery
@@ -130,11 +137,65 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
 		"recovery_text": recovery,
-		"objective_text": str(cargo_progress.get("objective_text", "")),
+		"objective_text": str(mining_feedback.get(
+			"objective_text", cargo_progress.get("objective_text", "")
+		)),
 		"cargo_progress": cargo_progress.duplicate(true),
 		"convoy_feedback": convoy_feedback.duplicate(true),
+		"mining_feedback": mining_feedback.duplicate(true),
 		"semantic_cue_id": StringName(convoy_feedback.get("semantic_cue_id", &"")),
 		"caption_text": str(convoy_feedback.get("caption_text", "")),
+		"activity_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Formats only the mining authority's committed lifecycle and timer values.
+## Reset is the authoritative interruption state; this presenter does not infer
+## platform proximity, damage, ore ownership, or reward acceptance.
+func _mining_feedback(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var authority_state := int(state.get("state", 0))
+	var elapsed := maxf(float(state.get("elapsed_seconds", 0.0)), 0.0)
+	var duration := maxf(float(state.get("extraction_seconds", 0.0)), 0.0)
+	var progress := clampf(elapsed / duration, 0.0, 1.0) if duration > 0.0 else 0.0
+	var percentage := clampi(roundi(progress * 100.0), 0, 100)
+	var remaining := maxf(duration - elapsed, 0.0)
+	var reward_pending := bool(state.get("reward_requested", false))
+	var stage_id: StringName = &"available"
+	var summary := "EXTRACTION READY  //  0%"
+	var objective := "APPROACH THE CINDER EXTRACTION PLATFORM"
+	match authority_state:
+		1:
+			stage_id = &"extracting"
+			summary = "EXTRACTING ORE  //  %d%%  //  %.1fs REMAINING" % [
+				percentage, remaining,
+			]
+			objective = "HOLD EXTRACTION UNTIL 100%"
+		2:
+			stage_id = &"reward_pending" if reward_pending else &"complete"
+			summary = (
+				"EXTRACTION COMPLETE  //  REWARD PENDING"
+				if reward_pending else "EXTRACTION COMPLETE  //  ORE SAMPLE READY"
+			)
+			objective = (
+				"AWAIT ORE REWARD HANDOFF"
+				if reward_pending else "REQUEST THE ORE SAMPLE REWARD"
+			)
+		3:
+			stage_id = &"interrupted"
+			summary = "EXTRACTION INTERRUPTED  //  PROGRESS RESET"
+			objective = "RETURN TO THE APPROACH MARKER AND RESTART"
+	return {
+		"stage_id": stage_id,
+		"progress": progress,
+		"progress_percent": percentage,
+		"elapsed_seconds": elapsed,
+		"remaining_seconds": remaining,
+		"reward_pending": reward_pending,
+		"summary": summary,
+		"objective_text": objective,
 		"activity_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
@@ -343,7 +404,7 @@ func _state_label(state: Dictionary) -> String:
 
 
 func _state_text(state_id: StringName) -> String:
-	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"wrong_order": "WRONG ORDER", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
+	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"wrong_order": "WRONG ORDER", &"completed": "COMPLETED", &"complete": "COMPLETED", &"interrupted": "INTERRUPTED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
 
 
 func _recovery_text(state: Dictionary) -> String:
