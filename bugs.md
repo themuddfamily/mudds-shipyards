@@ -1991,15 +1991,19 @@ also loses exact path/RID provenance. The former aggregate drivable/contact tota
 are consequently removed as acceptance evidence: they count grid candidates, and
 the false Aft/Fleet conclusion demonstrates why they cannot close a route.
 
-### Explicit nonblocking boundaries retained
+### Explicit boundaries and glazing follow-up
 
 - The central berth utility housings, cabinet and control pedestal remain hollow
   inside the Torrent landing envelope. `central_berth_hero_test` freezes that
   deliberate landing-clearance trade; a tractor can still clip them.
-- The three Dock Operations glazing panes remain visual-only. Their corrected
-  placement closes `OPS-GLAZING-001`'s floating/cantilever presentation defect,
-  not the separate fact that a body can pass through the authored glass. This
-  vehicle closure does not claim otherwise.
+- **Dock Operations glazing is physical as of 2026-08-23.** The two visible side
+  panes each own an exact aligned World-layer `PressureBarrier`; live frontage
+  rays hit both shapes. The former centre pane is removed rather than turned into
+  an invisible wall, leaving the published **3.34 m** doorway at `x = 43` between
+  the inner mullions. The production player walks through that opening without a
+  jump, while the side panes no longer permit body pass-through. This closes the
+  retained glazing boundary in reviewed commits `7d7ca89ce` and `c4ab8ecd5`; it
+  does not claim a swept tow-tractor route through the room.
 - Drones, couriers, the service-arm links, cargo sled and hoists remain nonblocking.
   Their transforms are presentation clocks, not continuous physics motion.
 - Activity rail beams/ties (0.23/0.14 m) and pallet decks (0.18 m) retain their
@@ -2022,6 +2026,10 @@ the false Aft/Fleet conclusion demonstrates why they cannot close a route.
 - `tests/station_operations_activity_test.gd` and
   `tests/station_operational_lattice_test.gd` — freeze declaration semantics and
   the exact 7-body/63-shape live roster.
+- `tests/dock_operations_room_test.gd` — freezes the two exact visible/collision
+  pane pairs, World-layer semantics, side-pane physics hits, and collision-free
+  central doorway; **20 assertions** pass. The existing production-controller
+  witness crosses the same doorway at `x = 43` without jumping.
 - `tests/capture_tow_tractor_obstruction.gd` — renders exactly the six passing
   hull/Central/Aft green-stop and red-overlap frames.
 - `tools/vehicle_obstacle_survey.gd` — candidate discovery only, with the limits
