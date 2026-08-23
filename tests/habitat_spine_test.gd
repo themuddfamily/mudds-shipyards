@@ -453,14 +453,15 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_hatch_fastener_batch(module)
 	_test_nutrient_tank_band_batch(module)
 	_test_nutrient_valve_batch(module)
+	_test_garden_bench_leg_batching(module)
 	_test_garden_column_collar_mesh_sharing(module)
 	_test_pipe_collar_mesh_sharing(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1884
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1245
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 14,
-		"visual batching stays frozen at 1884 render nodes, 1245 meshes and 14 MultiMeshes"
+		int(render.descendant_nodes) == 1880
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1239
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 16,
+		"visual batching stays frozen at 1880 render nodes, 1239 meshes and 16 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -624,21 +625,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1884
-		and int(report.mesh_instances) == 1245
-		and int(report.multimesh_batches) == 14,
-		"renderer nodes freeze at 1922 -> 1884, MeshInstances 1275 -> 1245, batches 11 -> 14"
+		int(report.descendant_nodes) == 1880
+		and int(report.mesh_instances) == 1239
+		and int(report.multimesh_batches) == 16,
+		"renderer nodes freeze at 1884 -> 1880, MeshInstances 1245 -> 1239, batches 14 -> 16"
 	)
 	_check(
 		int(report.drawn_copies) == 1377
-		and int(report.geometry_submissions) == 1259
+		and int(report.geometry_submissions) == 1255
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1377 while surface submissions fall 1286 -> 1259"
+		"drawn copies freeze at 1377 while surface submissions fall 1259 -> 1255"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
 		and int(report.unique_material_resources) == 31
-		and int(report.multimesh_resources) == 14
+		and int(report.multimesh_resources) == 16
 		and int(report.renderer_buffer_floats) == 144,
 		"mesh/material allocations freeze at 349/31 while the hatch batch retains its 144-float renderer buffer"
 	)
@@ -1169,6 +1170,67 @@ func _test_pipe_collar_mesh_sharing(module: HabitatSpine) -> void:
 		bool((module.get_render_allocation_report().pipe_collar_mesh_sharing as Dictionary).valid),
 		"restoring pipe-collar provenance metadata returns the allocation audit green"
 	)
+
+
+func _test_garden_bench_leg_batching(module: HabitatSpine) -> void:
+	var report := module.get_render_allocation_report()
+	var batching := report.garden_bench_leg_batching as Dictionary
+	_check(
+		bool(batching.valid)
+		and batching.before == {
+			"family_nodes": 6,
+			"renderer_nodes": 6,
+			"geometry_submissions": 6,
+			"mesh_resources": 2,
+			"material_resources": 1,
+			"drawn_copies": 6,
+		}
+		and batching.current == {
+			"family_nodes": 2,
+			"renderer_nodes": 2,
+			"geometry_submissions": 2,
+			"mesh_resources": 2,
+			"material_resources": 1,
+			"drawn_copies": 6,
+		},
+		"garden bench legs freeze nodes/renderers/submissions 6->2, resources 2->2 and copies 6->6"
+	)
+	var shell := module.get_node_or_null(
+		^"Structure/SideBranchGarden/GardenShell"
+	) as Node3D
+	var longitudinal := shell.get_node_or_null(
+		^"GardenBenchLegsLongitudinal"
+	) as MultiMeshInstance3D if shell != null else null
+	var transverse := shell.get_node_or_null(
+		^"GardenBenchLegsTransverse"
+	) as MultiMeshInstance3D if shell != null else null
+	var benches_exact := shell != null
+	for bench_index in 3:
+		benches_exact = benches_exact and shell.get_node_or_null(NodePath(
+			"GardenBench%02d" % (bench_index + 1)
+		)) is StaticBody3D
+	_check(
+		benches_exact
+		and longitudinal != null and longitudinal.multimesh.instance_count == 4
+		and transverse != null and transverse.multimesh.instance_count == 2
+		and (batching.authored_transforms as Array).size() == 6
+		and int(batching.collision_nodes) == 0
+		and int(batching.interaction_nodes) == 0,
+		"all three physical named benches remain while six exact leg poses move into authority-free batches"
+	)
+	if longitudinal != null:
+		var transforms := longitudinal.get_meta("authored_instance_transforms", []) as Array
+		var drifted := transforms.duplicate()
+		drifted[0] = (drifted[0] as Transform3D).translated_local(Vector3(0.05, 0, 0))
+		longitudinal.set_meta("authored_instance_transforms", drifted)
+		var red := module.get_render_allocation_report()
+		longitudinal.set_meta("authored_instance_transforms", transforms)
+		_check(
+			not bool((red.garden_bench_leg_batching as Dictionary).valid)
+			and not bool(red.exact_counts)
+			and bool(module.get_render_allocation_report().exact_counts),
+			"moving one authored leg transform turns the allocation census red and restores cleanly"
+		)
 
 
 func _test_garden_column_collar_mesh_sharing(module: HabitatSpine) -> void:

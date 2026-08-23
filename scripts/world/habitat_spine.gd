@@ -72,11 +72,14 @@ const PIPE_COLLAR_RING_SEGMENTS := 16
 const PIPE_COLLAR_BUDGETED_RINGS := 32
 const PIPE_COLLAR_BUDGETED_RING_SEGMENTS := 12
 const PIPE_COLLAR_COPY_COUNT := 6
-const RENDER_DESCENDANT_COUNT := 1884
-const RENDER_MESH_INSTANCE_COUNT := 1245
-const RENDER_MULTIMESH_BATCH_COUNT := 14
+const GARDEN_BENCH_LEG_LONGITUDINAL_SIZE := Vector3(0.42, 0.40, 0.14)
+const GARDEN_BENCH_LEG_TRANSVERSE_SIZE := Vector3(0.14, 0.40, 0.42)
+const GARDEN_BENCH_LEG_COPY_COUNT := 6
+const RENDER_DESCENDANT_COUNT := 1880
+const RENDER_MESH_INSTANCE_COUNT := 1239
+const RENDER_MULTIMESH_BATCH_COUNT := 16
 const RENDER_DRAWN_COPY_COUNT := 1377
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1259
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1255
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
@@ -186,6 +189,10 @@ var _nutrient_valve_batch: MultiMeshInstance3D
 var _nutrient_valve_transforms: Array[Transform3D] = []
 var _garden_column_collar_mesh: TorusMesh
 var _pipe_collar_mesh: TorusMesh
+var _garden_bench_leg_longitudinal_transforms: Array[Transform3D] = []
+var _garden_bench_leg_transverse_transforms: Array[Transform3D] = []
+var _garden_bench_leg_longitudinal_batch: MultiMeshInstance3D
+var _garden_bench_leg_transverse_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -916,6 +923,7 @@ func get_render_allocation_report() -> Dictionary:
 		)
 	var collar_sharing := _inspect_garden_column_collar_mesh_sharing()
 	var pipe_collar_sharing := _inspect_pipe_collar_mesh_sharing()
+	var garden_bench_leg_batching := _inspect_garden_bench_leg_batching()
 	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -929,6 +937,7 @@ func get_render_allocation_report() -> Dictionary:
 		and _hatch_fastener_transforms.size() == HATCH_FASTENER_COPY_COUNT
 		and _nutrient_tank_band_transforms.size() == NUTRIENT_TANK_BAND_COPY_COUNT
 		and _nutrient_valve_transforms.size() == NUTRIENT_VALVE_COPY_COUNT
+		and bool(garden_bench_leg_batching.valid)
 	)
 	return {
 		"schema_version": 1,
@@ -1030,6 +1039,7 @@ func get_render_allocation_report() -> Dictionary:
 		"nutrient_valve_renderer_state_matches_authored": valve_renderer_state_matches,
 		"nutrient_valve_authority_clean": valve_authority_clean,
 		"garden_column_collar_mesh_sharing": collar_sharing,
+		"garden_bench_leg_batching": garden_bench_leg_batching,
 		"exact_counts": exact_counts,
 		"authored_hatch_fastener_transforms": _hatch_fastener_transforms.duplicate(),
 		"authored_nutrient_tank_band_transforms": (
@@ -1059,6 +1069,80 @@ func _render_descendant_count() -> int:
 ## resource is shared. This audit deliberately discovers the live direct-child
 ## roster by exact recipe instead of trusting the retained member alone, so a
 ## private duplicate, missing sibling or newly authoritative look-alike is red.
+func _inspect_garden_bench_leg_batching() -> Dictionary:
+	var errors := PackedStringArray()
+	var family_specs := [
+		[
+			_garden_bench_leg_longitudinal_batch,
+			GARDEN_BENCH_LEG_LONGITUDINAL_SIZE,
+			_garden_bench_leg_longitudinal_transforms,
+		],
+		[
+			_garden_bench_leg_transverse_batch,
+			GARDEN_BENCH_LEG_TRANSVERSE_SIZE,
+			_garden_bench_leg_transverse_transforms,
+		],
+	]
+	var drawn_copies := 0
+	var submissions := 0
+	var mesh_resource_ids := {}
+	for family_index in family_specs.size():
+		var spec := family_specs[family_index] as Array
+		var batch := spec[0] as MultiMeshInstance3D
+		var expected_size := spec[1] as Vector3
+		var expected_transforms := spec[2] as Array
+		if batch == null or batch.multimesh == null or batch.multimesh.mesh == null:
+			errors.append("garden bench leg batch missing")
+			continue
+		drawn_copies += batch.multimesh.instance_count
+		submissions += batch.multimesh.mesh.get_surface_count()
+		mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+		if (
+			batch.multimesh.mesh != _rounded_box_mesh(expected_size)
+			or batch.multimesh.instance_count != expected_transforms.size()
+			or (batch.get_meta("authored_instance_transforms", []) as Array)
+				!= expected_transforms
+			or batch.material_override != _materials.get("structural")
+			or not bool(batch.get_meta("visual_detail_only", false))
+			or batch.get_script() != null
+			or batch.get_child_count() != 0
+			or not batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+			or not batch.find_children("*", "Area3D", true, false).is_empty()
+		):
+			errors.append("garden bench leg batch recipe, transform, or authority drift")
+	if drawn_copies != GARDEN_BENCH_LEG_COPY_COUNT or submissions != 2:
+		errors.append("garden bench leg allocation count drift")
+	if mesh_resource_ids.size() != 2:
+		errors.append("garden bench leg mesh resource count drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"garden_bench_visual_legs",
+		"before": {
+			"family_nodes": 6,
+			"renderer_nodes": 6,
+			"geometry_submissions": 6,
+			"mesh_resources": 2,
+			"material_resources": 1,
+			"drawn_copies": 6,
+		},
+		"current": {
+			"family_nodes": 2,
+			"renderer_nodes": 2,
+			"geometry_submissions": submissions,
+			"mesh_resources": mesh_resource_ids.size(),
+			"material_resources": 1,
+			"drawn_copies": drawn_copies,
+		},
+		"authored_transforms": (
+			_garden_bench_leg_longitudinal_transforms
+			+ _garden_bench_leg_transverse_transforms
+		).duplicate(),
+		"collision_nodes": 0,
+		"interaction_nodes": 0,
+	}.duplicate(true)
+
+
 func _inspect_garden_column_collar_mesh_sharing() -> Dictionary:
 	var errors := PackedStringArray()
 	var collars: Array[MeshInstance3D] = []
@@ -2181,6 +2265,8 @@ func _build_garden_shell(branch: Node3D) -> void:
 		[Vector3(17.92, 0.45, 22.10), Vector3(0.56, 0.10, 3.00), true],
 		[Vector3(14.40, 0.45, 14.92), Vector3(3.20, 0.10, 0.56), false],
 	]
+	_garden_bench_leg_longitudinal_transforms.clear()
+	_garden_bench_leg_transverse_transforms.clear()
 	for bench_index in bench_runs.size():
 		var bench: Array = bench_runs[bench_index]
 		var bench_center := bench[0] as Vector3
@@ -2193,14 +2279,11 @@ func _build_garden_shell(branch: Node3D) -> void:
 				Vector3(0, 0, float(leg_sign) * leg_offset) if along_z else Vector3(float(leg_sign) * leg_offset, 0, 0)
 			)
 			leg_position.y = 0.20
-			_box(
-				shell,
-				"GardenBenchLeg",
-				leg_position,
-				Vector3(0.42, 0.40, 0.14) if along_z else Vector3(0.14, 0.40, 0.42),
-				_materials["structural"],
-				false
-			)
+			var leg_transform := Transform3D(Basis.IDENTITY, leg_position)
+			if along_z:
+				_garden_bench_leg_longitudinal_transforms.append(leg_transform)
+			else:
+				_garden_bench_leg_transverse_transforms.append(leg_transform)
 		_box(
 			shell,
 			"GardenBenchPad",
@@ -2209,6 +2292,20 @@ func _build_garden_shell(branch: Node3D) -> void:
 			_materials["fabric"],
 			false
 		)
+	_garden_bench_leg_longitudinal_batch = _multimesh_boxes(
+		shell,
+		"GardenBenchLegsLongitudinal",
+		GARDEN_BENCH_LEG_LONGITUDINAL_SIZE,
+		_materials["structural"],
+		_garden_bench_leg_longitudinal_transforms
+	)
+	_garden_bench_leg_transverse_batch = _multimesh_boxes(
+		shell,
+		"GardenBenchLegsTransverse",
+		GARDEN_BENCH_LEG_TRANSVERSE_SIZE,
+		_materials["structural"],
+		_garden_bench_leg_transverse_transforms
+	)
 
 
 ## The nutrient column on the room's axis and the planting bed around its foot.
