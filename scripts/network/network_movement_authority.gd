@@ -50,7 +50,7 @@ func register_avatar(
 		return _remember(_result(false, &"unauthorized_source"))
 	if owner_peer_id <= 0 or not _valid_entity_id(entity_id) or entity_generation <= 0:
 		return _remember(_result(false, &"invalid_avatar_identity"))
-	if mode != &"on_foot" and mode != &"seated":
+	if mode != &"on_foot" and mode != &"seated" and mode != &"pilot":
 		return _remember(_result(false, &"invalid_avatar_mode"))
 	if _avatars.has(entity_id):
 		return _remember(_result(false, &"duplicate_avatar"))
@@ -105,7 +105,7 @@ func set_avatar_mode(
 	var avatar := _avatars[entity_id] as Dictionary
 	if int(avatar.entity_generation) != entity_generation:
 		return _remember(_result(false, &"stale_avatar_generation"))
-	if mode != &"on_foot" and mode != &"seated":
+	if mode != &"on_foot" and mode != &"seated" and mode != &"pilot":
 		return _remember(_result(false, &"invalid_avatar_mode"))
 	avatar.mode = mode
 	return _remember(_result(true, &"mode_updated", {"mode": mode}))

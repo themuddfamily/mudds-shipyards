@@ -33,6 +33,7 @@ const MovingInteriorRelationship := preload("res://scripts/network/moving_interi
 const MovingInteriorRelationshipStream := preload("res://scripts/network/moving_interior_relationship_stream.gd")
 const MovingInteriorReplica := preload("res://scripts/network/network_moving_interior_replica.gd")
 const MovingInteriorReplicaBinding := preload("res://scripts/network/network_moving_interior_replica_binding.gd")
+const RemoteShipCommandSource := preload("res://scripts/network/network_remote_ship_command_source.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -86,6 +87,7 @@ var _peer: ENetMultiplayerPeer
 var _lifecycle
 var _transport
 var _movement
+var _remote_ship_commands
 var _boarding
 var _projectile
 var _landing
@@ -191,6 +193,7 @@ func _init() -> void:
 	_lifecycle = LifecycleAdapter.new(AUTHORITY_PEER_ID)
 	_transport = TransportSecurity.new(AUTHORITY_PEER_ID)
 	_movement = MovementAuthority.new(AUTHORITY_PEER_ID)
+	_remote_ship_commands = RemoteShipCommandSource.new()
 	_boarding = BoardingAuthority.new(AUTHORITY_PEER_ID)
 	_projectile = ProjectileAuthority.new(AUTHORITY_PEER_ID)
 	_landing = LandingAuthority.new(AUTHORITY_PEER_ID)
@@ -528,6 +531,28 @@ func send_boarding_intent(wire: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"not_started"))
 	_receive_boarding_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"boarding", wire))
 	return _remember(_result(true, &"queued"))
+
+
+func register_remote_ship_pilot(peer_id: int, ship_id: StringName, generation: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_remote_ship_commands.register_pilot(peer_id, ship_id, generation))
+
+
+func consume_remote_ship_command(ship_id: StringName, server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_remote_ship_commands.consume(ship_id, server_tick))
+
+
+func reset_remote_ship_pilot(ship_id: StringName, reason: StringName = &"reset") -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_remote_ship_commands.reset(ship_id, reason))
+
+
+func get_remote_ship_command_snapshot() -> Dictionary:
+	return _remote_ship_commands.get_snapshot()
 
 
 func get_boarding_snapshot() -> Dictionary:
@@ -2734,6 +2759,10 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 	var source_peer_id := multiplayer.get_remote_sender_id()
 	var payload := _accept_secure_rpc(source_peer_id, wire, &"movement")
 	if payload.is_empty():
+		return
+	if not (_remote_ship_commands.get_snapshot().get("pilots", []) as Array).is_empty():
+		var remote_result: Dictionary = _remote_ship_commands.accept_command(source_peer_id, payload)
+		movement_intent_result.emit(remote_result.duplicate(true))
 		return
 	var result: Dictionary = _movement.accept_intent(source_peer_id, payload)
 	movement_intent_result.emit(result.duplicate(true))

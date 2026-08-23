@@ -3318,6 +3318,8 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
 			return
 	_piloting = true
+	if is_instance_valid(network_session) and network_session.is_server():
+		network_session.register_remote_ship_pilot(1, active_ship.get_ship_id(), 1)
 	_publish_network_boarding_state(active_ship, true)
 	_publish_network_moving_interior_state(active_ship, true)
 	player.set_camera_active(false)
@@ -3540,6 +3542,8 @@ func _leave_seat_into_cabin() -> void:
 	if _selected_activity_is_running():
 		_fail_active_activity(&"pilot_unseated")
 	transition_ship.set_piloted(false)
+	if is_instance_valid(network_session) and network_session.is_server():
+		network_session.reset_remote_ship_pilot(transition_ship.get_ship_id(), &"pilot_released")
 	_publish_network_boarding_state(transition_ship, false)
 	_publish_network_moving_interior_state(transition_ship, false)
 	if transition_ship.get_camera() != null:
