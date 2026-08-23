@@ -137,30 +137,35 @@ static var _shared_material_catalog: Dictionary = {}
 ## `node_count` -3, `mesh_instances` -4, `multimesh_batches` +1 and
 ## `multimesh_instances` +4. Four visible copies and their shared cached mesh
 ## remain; submissions fall by three.
+##
+## The rail-fastener pass then replaces eight childless decorative leaves with
+## one fixed batch. FULL/GANTRY each move by `node_count` -7,
+## `mesh_instances` -8, `multimesh_batches` +1 and
+## `multimesh_instances` +8. Submissions fall by seven more.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
-		"node_count": 93,
-		"mesh_instances": 75,
+		"node_count": 86,
+		"mesh_instances": 67,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 1,
-		"multimesh_instances": 4,
-		"geometry_submissions": 76,
+		"multimesh_batches": 2,
+		"multimesh_instances": 12,
+		"geometry_submissions": 69,
 		"drawn_copies": 79,
 		"animated_assemblies": 5,
 	},
 	ActivityProfile.GANTRY: {
-		"node_count": 56,
-		"mesh_instances": 44,
+		"node_count": 49,
+		"mesh_instances": 36,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 1,
-		"multimesh_instances": 4,
-		"geometry_submissions": 45,
+		"multimesh_batches": 2,
+		"multimesh_instances": 12,
+		"geometry_submissions": 38,
 		"drawn_copies": 48,
 		"animated_assemblies": 1,
 	},
@@ -283,17 +288,21 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## delta twice: nodes 527 -> 521, MeshInstances 399 -> 391, batches 13 -> 15,
 ## batched copies 62 -> 70, and submissions 412 -> 406. Total drawn copies stay
 ## 461; collision declarations, movers, lenses and materials do not change.
+##
+## The two gantry placements then batch eight rail fasteners each: nodes
+## 521 -> 507, MeshInstances 391 -> 375, batches 15 -> 17, batched copies
+## 70 -> 86, and submissions 406 -> 392. Drawn copies remain exactly 461.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 521,
-	"mesh_instances": 391,
+	"node_count": 507,
+	"mesh_instances": 375,
 	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
-	"multimesh_batches": 15,
-	"multimesh_instances": 70,
-	"geometry_submissions": 406,
+	"multimesh_batches": 17,
+	"multimesh_instances": 86,
+	"geometry_submissions": 392,
 	"drawn_copies": 461,
 	"animated_assemblies": 21,
 }

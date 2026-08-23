@@ -66,6 +66,7 @@ func _run() -> void:
 	_check(int(counts.lights) == 0 and int(counts.particle_emitters) == 0, "beacons use bounded emissive meshes without dynamic lights or particles")
 	_check(not bool(performance.uses_external_assets), "component requires no external art assets")
 	_check_gantry_safety_band_batch(activity, false)
+	_check_gantry_rail_fastener_batch(activity, false)
 	_check(
 		int((activity.get_performance_audit(6).aggregate_counts as Dictionary).unique_materials) == 17,
 		"aggregate performance audit counts the shared catalog once across six placements"
@@ -212,6 +213,7 @@ func _run() -> void:
 			_check_crew_workpost_hung_tool_batch(profiled)
 		if profile == StationOperationsActivity.ActivityProfile.GANTRY:
 			_check_gantry_safety_band_batch(profiled, true)
+			_check_gantry_rail_fastener_batch(profiled, true)
 		var first_seek := profiled.set_activity_time(6.75)
 		var seek_state := profiled.get_activity_state()
 		profiled.set_activity_time(14.0)
@@ -246,10 +248,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 406
+		int(roster_catalog.bound_material_references) == 392
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 406 renderer bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing leaves all 392 renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -282,17 +284,19 @@ func _run() -> void:
 	# The two gantry-bearing placements then batch four safety-band leaves each:
 	# nodes 527 -> 521, MeshInstances 399 -> 391, batches 13 -> 15 and batched
 	# copies 62 -> 70. Submissions fall 412 -> 406 while drawn copies stay 461.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 521, "ten production placements have the exact 521-node aggregate")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 391, "ten production placements have the exact 391 MeshInstance aggregate")
+	# The rail-fastener batch then moves nodes 521 -> 507, MeshInstances
+	# 391 -> 375, batches 15 -> 17, copies 70 -> 86, submissions 406 -> 392.
+	_check(int((roster_audit.counts as Dictionary).node_count) == 507, "ten production placements have the exact 507-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 375, "ten production placements have the exact 375 MeshInstance aggregate")
 	_check(
-		int((roster_audit.counts as Dictionary).multimesh_batches) == 15
-		and int((roster_audit.counts as Dictionary).multimesh_instances) == 70,
+		int((roster_audit.counts as Dictionary).multimesh_batches) == 17
+		and int((roster_audit.counts as Dictionary).multimesh_instances) == 86,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(
-		int((roster_audit.counts as Dictionary).geometry_submissions) == 406
+		int((roster_audit.counts as Dictionary).geometry_submissions) == 392
 		and int((roster_audit.counts as Dictionary).drawn_copies) == 461,
-		"production submissions fall 412 -> 406 while all 461 visible geometry copies remain"
+		"production submissions fall 406 -> 392 while all 461 visible geometry copies remain"
 	)
 	_check(int((roster_audit.counts as Dictionary).instance_count) == 10, "the recommended production roster is exactly ten placements")
 	var mutated_profile := profile_instances[1] as StationOperationsActivity
@@ -865,7 +869,7 @@ func _check_gantry_safety_band_batch(
 		^"PresentationRoot/MaintenanceGantry"
 	) as Node3D
 	var batch := gantry.get_node_or_null("SafetyBands") as MultiMeshInstance3D if gantry != null else null
-	var orange_peer := gantry.get_node_or_null("RailFastener") as MeshInstance3D if gantry != null else null
+	var orange_peer := gantry.get_node_or_null("RailFasteners") as MultiMeshInstance3D if gantry != null else null
 	var expected: Array[Transform3D] = []
 	for x_side in [-1.0, 1.0]:
 		for z_side in [-1.0, 1.0]:
@@ -923,11 +927,11 @@ func _check_gantry_safety_band_batch(
 	var counts := performance.counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (93 if is_full else 56)
-		and int(counts.mesh_instances) == (75 if is_full else 44)
-		and int(counts.multimesh_batches) == 1
-		and int(counts.multimesh_instances) == 4
-		and int(counts.geometry_submissions) == (76 if is_full else 45)
+		int(counts.node_count) == (86 if is_full else 49)
+		and int(counts.mesh_instances) == (67 if is_full else 36)
+		and int(counts.multimesh_batches) == 2
+		and int(counts.multimesh_instances) == 12
+		and int(counts.geometry_submissions) == (69 if is_full else 38)
 		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s freezes nodes -3, MeshInstances -4, batches +1 and submissions -3 without dropping a copy" % activity.get_activity_profile_id()
 	)
@@ -964,6 +968,110 @@ func _check_gantry_safety_band_batch(
 	_check(
 		bool(activity.get_audit_report().valid),
 		"restoring the exact safety-band culling union restores the complete component audit"
+	)
+
+
+func _check_gantry_rail_fastener_batch(
+		activity: StationOperationsActivity,
+		mutate_live_contract: bool
+	) -> void:
+	var gantry := activity.get_node_or_null(
+		^"PresentationRoot/MaintenanceGantry"
+	) as Node3D
+	var batch := gantry.get_node_or_null("RailFasteners") as MultiMeshInstance3D if gantry != null else null
+	var expected: Array[Transform3D] = []
+	for z_side in [-1.0, 1.0]:
+		for x in [-3.15, -1.05, 1.05, 3.15]:
+			expected.append(Transform3D(
+				Basis.IDENTITY, Vector3(x, 5.83, z_side * 2.42)
+			))
+	var authored := (
+		batch.get_meta("authored_instance_transforms", []) as Array
+		if batch != null else []
+	)
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (
+			authored[index] as Transform3D
+		).is_equal_approx(expected[index])
+	_check(
+		batch != null
+		and batch.multimesh != null
+		and batch.multimesh.mesh != null
+		and batch.multimesh.instance_count == 8
+		and batch.multimesh.visible_instance_count == -1
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.13, 0.13, 0.07))
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and authored_exact,
+		"gantry rail-fastener batch preserves all eight copies, transforms, dimensions, material, shadows and layer"
+	)
+	if batch == null or batch.multimesh == null or batch.multimesh.mesh == null:
+		return
+	_check(
+		batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(batch.multimesh.mesh.get_aabb(), expected)
+		)
+		and bool(batch.get_meta("explicit_authored_bounds", false))
+		and batch.get_meta("authored_visual_names", PackedStringArray()) == PackedStringArray([
+			"RailFastener", "RailFastener2", "RailFastener3", "RailFastener4",
+			"RailFastener5", "RailFastener6", "RailFastener7", "RailFastener8",
+		]),
+		"gantry rail-fastener batch publishes the exact transformed culling union and retired visual-name roster"
+	)
+	_check(
+		gantry.find_children("RailFastener*", "MeshInstance3D", false, false).is_empty()
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and batch.get_groups().is_empty()
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty(),
+		"only eight childless visual leaves retire; stable gantry anchors and all authority remain separate"
+	)
+	var counts := activity.get_performance_audit().counts as Dictionary
+	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
+	_check(
+		int(counts.node_count) == (86 if is_full else 49)
+		and int(counts.mesh_instances) == (67 if is_full else 36)
+		and int(counts.multimesh_batches) == 2
+		and int(counts.multimesh_instances) == 12
+		and int(counts.geometry_submissions) == (69 if is_full else 38)
+		and int(counts.drawn_copies) == (79 if is_full else 48),
+		"%s freezes rail fasteners at 8 -> 1 submissions while retaining all eight visible copies" % activity.get_activity_profile_id()
+	)
+	if not RenderingServer.get_video_adapter_name().is_empty():
+		var live_exact := true
+		for index in expected.size():
+			live_exact = live_exact and batch.multimesh.get_instance_transform(index).is_equal_approx(
+				expected[index]
+			)
+		_check(live_exact, "Forward+ MultiMesh buffer exactly matches the eight-copy rail-fastener roster")
+		if mutate_live_contract:
+			var original := batch.multimesh.get_instance_transform(0)
+			batch.multimesh.set_instance_transform(
+				0, original.translated(Vector3(0.25, 0.0, 0.0))
+			)
+			_check(
+				not bool(activity.get_audit_report().valid),
+				"RED: live rail-fastener renderer-buffer drift fails the component audit"
+			)
+			batch.multimesh.set_instance_transform(0, original)
+			_check(
+				bool(activity.get_audit_report().valid),
+				"restoring the exact rail-fastener renderer buffer restores the component audit"
+			)
+	if not mutate_live_contract:
+		return
+	var original_bounds := batch.multimesh.custom_aabb
+	batch.multimesh.custom_aabb = original_bounds.grow(0.25)
+	_check(
+		not bool(activity.get_audit_report().valid),
+		"RED: rail-fastener culling drift fails the complete component audit"
+	)
+	batch.multimesh.custom_aabb = original_bounds
+	_check(
+		bool(activity.get_audit_report().valid),
+		"restoring the exact rail-fastener culling union restores the complete component audit"
 	)
 
 

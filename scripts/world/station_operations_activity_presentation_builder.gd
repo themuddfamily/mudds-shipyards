@@ -257,8 +257,27 @@ func _build_gantry() -> void:
 	for z_side in [-1.0, 1.0]:
 		_box(gantry, "OverheadRail", Vector3(0.0, 5.82, z_side * 2.72), Vector3(9.08, 0.42, 0.48), _materials["frame"])
 		_box(gantry, "RailFace", Vector3(0.0, 5.83, z_side * 2.46), Vector3(8.55, 0.17, 0.055), _materials["frame_edge"])
+	var rail_fastener_transforms: Array[Transform3D] = []
+	for z_side in [-1.0, 1.0]:
 		for x in [-3.15, -1.05, 1.05, 3.15]:
-			_box(gantry, "RailFastener", Vector3(x, 5.83, z_side * 2.42), Vector3(0.13, 0.13, 0.07), _materials["orange"])
+			rail_fastener_transforms.append(Transform3D(
+				Basis.IDENTITY, Vector3(x, 5.83, z_side * 2.42)
+			))
+	# These eight childless decorative fasteners share one exact mesh, material,
+	# layer and shadow contract. The stable MaintenanceGantry/OverheadRail anchors
+	# remain ordinary nodes; only their unaddressed visual leaves become one draw.
+	var rail_fasteners := _box_batch(
+		gantry, "RailFasteners", Vector3(0.13, 0.13, 0.07),
+		rail_fastener_transforms, _materials["orange"]
+	)
+	rail_fasteners.multimesh.custom_aabb = _transformed_mesh_bounds(
+		rail_fasteners.multimesh.mesh.get_aabb(), rail_fastener_transforms
+	)
+	rail_fasteners.set_meta("explicit_authored_bounds", true)
+	rail_fasteners.set_meta("authored_visual_names", PackedStringArray([
+		"RailFastener", "RailFastener2", "RailFastener3", "RailFastener4",
+		"RailFastener5", "RailFastener6", "RailFastener7", "RailFastener8",
+	]))
 	_box(gantry, "BridgeBeam", Vector3(0.0, 5.65, 0.0), Vector3(0.34, 0.32, 5.25), _materials["frame_edge"])
 
 	_gantry_carriage = Node3D.new()
