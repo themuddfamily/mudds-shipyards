@@ -74,6 +74,10 @@ const KEEPALIVE_DEFAULT_TIMEOUT_MILLISECONDS := 10000
 const KEEPALIVE_MAX_TIMEOUT_MILLISECONDS := 60000
 const MAX_PRESENTATION_ENTITIES := 256
 const MAX_MOVING_INTERIOR_PACKET_BYTES := 12000
+const MAX_PROJECTILE_REPLICATION_PACKET_BYTES := 6000
+const PROJECTILE_BUDGET_WINDOW_TICKS := 10
+const PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW := 16
+const PROJECTILE_MAX_BYTES_PER_WINDOW := 24000
 const MOVING_INTERIOR_BUDGET_WINDOW_TICKS := 10
 const MOVING_INTERIOR_MAX_SNAPSHOTS_PER_WINDOW := 8
 const MOVING_INTERIOR_MAX_BYTES_PER_WINDOW := 24000
@@ -115,6 +119,13 @@ var _moving_recipient_entities: Dictionary = {}
 var _moving_recipient_pending: Dictionary = {}
 var _projectile_jitter
 var _projectile_replica_samples: Dictionary = {}
+var _projectile_snapshot_revision := 0
+var _projectile_recipient_budgets: Dictionary = {}
+var _projectile_recipient_pending: Dictionary = {}
+var _projectile_published_generations: Dictionary = {}
+var _projectile_replica_generations: Dictionary = {}
+var _projectile_replica_ticks: Dictionary = {}
+var _projectile_replica_revision := 0
 var _landing_jitter
 var _landing_replica_samples: Dictionary = {}
 var _damage_jitter
@@ -312,6 +323,13 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_moving_recipient_budgets.clear()
 	_moving_recipient_entities.clear()
 	_moving_recipient_pending.clear()
+	_projectile_snapshot_revision = 0
+	_projectile_recipient_budgets.clear()
+	_projectile_recipient_pending.clear()
+	_projectile_published_generations.clear()
+	_projectile_replica_generations.clear()
+	_projectile_replica_ticks.clear()
+	_projectile_replica_revision = 0
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -494,6 +512,134 @@ func set_projectile_server_tick(server_tick: int) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	return _remember(_projectile.set_server_tick(AUTHORITY_PEER_ID, server_tick))
+
+
+func publish_projectile_snapshot(
+	projectile: Dictionary,
+	recipients: Array = [],
+	terminal: bool = false,
+	budget_tick: int = -1
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var validation := _validate_projectile_replica_snapshot(projectile)
+	if not bool(validation.get("accepted", false)):
+		return _remember(validation)
+	var target_peers: Array = recipients.duplicate()
+	if target_peers.is_empty():
+		target_peers = _peer_generations.keys()
+	for peer_variant in target_peers:
+		if not _peer_generations.has(int(peer_variant)):
+			return _remember(_result(false, &"peer_not_admitted"))
+	_projectile_snapshot_revision += 1
+	var logical_tick := int(projectile.get("last_update_tick", 0)) if budget_tick < 0 else budget_tick
+	var packet := {
+		"revision": _projectile_snapshot_revision,
+		"server_tick": logical_tick,
+		"projectile": projectile.duplicate(true),
+		"terminal": terminal,
+	}
+	var encoded_size := Marshalls.variant_to_base64(packet).to_utf8_buffer().size()
+	if encoded_size > MAX_PROJECTILE_REPLICATION_PACKET_BYTES:
+		return _remember(_result(false, &"projectile_packet_too_large"))
+	var coalesced := 0
+	for peer_variant in target_peers:
+		var peer_id := int(peer_variant)
+		var published: Dictionary = _projectile_published_generations.get(peer_id, {}) as Dictionary
+		var projectile_id := StringName(projectile.get("projectile_id", &""))
+		var transition := terminal or not published.has(projectile_id) \
+				or int(published.get(projectile_id, 0)) != int(projectile.get("projectile_generation", 0))
+		var budget := _projectile_budget_decision(peer_id, packet, logical_tick, transition)
+		if bool(budget.get("accepted", false)) and _peer != null:
+			_send_projectile_snapshot.rpc_id(peer_id, packet)
+		elif budget.get("status") == &"coalesced":
+			coalesced += 1
+		if bool(budget.get("accepted", false)):
+			published[projectile_id] = int(projectile.get("projectile_generation", 0))
+			_projectile_published_generations[peer_id] = published
+	var status: StringName = &"projectile_snapshot_coalesced" if coalesced == target_peers.size() and not target_peers.is_empty() else &"projectile_snapshot_published"
+	return _remember(_result(true, status, {
+		"revision": _projectile_snapshot_revision,
+		"recipients": target_peers.size(),
+		"coalesced": coalesced,
+		"terminal": terminal,
+		"packet": packet,
+	}))
+
+
+func get_projectile_replication_budget(peer_id: int = 0) -> Dictionary:
+	if peer_id > 0:
+		return (_projectile_recipient_budgets.get(peer_id, {}) as Dictionary).duplicate(true)
+	return _projectile_recipient_budgets.duplicate(true)
+
+
+func _validate_projectile_replica_snapshot(projectile: Dictionary) -> Dictionary:
+	for key in ["projectile_id", "projectile_generation", "source_entity_id", "source_generation",
+			"owner_peer_id", "position", "last_update_tick", "state"]:
+		if not projectile.has(key):
+			return _result(false, &"invalid_projectile_snapshot")
+	var position_variant: Variant = projectile.get("position")
+	if not position_variant is Vector3 or not (position_variant as Vector3).is_finite():
+		return _result(false, &"invalid_projectile_snapshot")
+	if StringName(projectile.get("projectile_id", &"")).is_empty() \
+			or int(projectile.get("projectile_generation", 0)) <= 0 \
+			or StringName(projectile.get("source_entity_id", &"")).is_empty() \
+			or int(projectile.get("source_generation", 0)) <= 0 \
+			or int(projectile.get("owner_peer_id", 0)) <= 0 \
+			or int(projectile.get("last_update_tick", -1)) < 0:
+		return _result(false, &"invalid_projectile_snapshot")
+	return _result(true, &"valid_projectile_snapshot")
+
+
+func _projectile_budget_decision(
+	peer_id: int,
+	packet: Dictionary,
+	logical_tick: int,
+	transition: bool
+) -> Dictionary:
+	var size_bytes := Marshalls.variant_to_base64(packet).to_utf8_buffer().size()
+	var state: Dictionary = _projectile_recipient_budgets.get(peer_id, {}) as Dictionary
+	if state.is_empty():
+		state = {"window_tick": logical_tick, "snapshot_count": 0, "byte_count": 0,
+			"coalesced_count": 0, "transition_count": 0, "forced_transition_count": 0, "pending_count": 0}
+	elif logical_tick < int(state.get("window_tick", logical_tick)):
+		return _result(false, &"stale_projectile_budget_tick")
+	elif logical_tick >= int(state.get("window_tick", logical_tick)) + PROJECTILE_BUDGET_WINDOW_TICKS:
+		state.window_tick = logical_tick
+		state.snapshot_count = 0
+		state.byte_count = 0
+		var pending: Dictionary = _projectile_recipient_pending.get(peer_id, {}) as Dictionary
+		for pending_variant in pending.values():
+			var pending_packet := pending_variant as Dictionary
+			var pending_size := Marshalls.variant_to_base64(pending_packet).to_utf8_buffer().size()
+			if int(state.snapshot_count) >= PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW \
+					or int(state.byte_count) + pending_size > PROJECTILE_MAX_BYTES_PER_WINDOW:
+				break
+			if _peer != null:
+				_send_projectile_snapshot.rpc_id(peer_id, pending_packet)
+			state.snapshot_count = int(state.snapshot_count) + 1
+			state.byte_count = int(state.byte_count) + pending_size
+			pending.erase(pending_variant)
+		_projectile_recipient_pending[peer_id] = pending
+	if int(state.snapshot_count) >= PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW \
+			or int(state.byte_count) + size_bytes > PROJECTILE_MAX_BYTES_PER_WINDOW:
+		if transition:
+			state.forced_transition_count = int(state.get("forced_transition_count", 0)) + 1
+		else:
+			var pending: Dictionary = _projectile_recipient_pending.get(peer_id, {}) as Dictionary
+			var projectile_id := StringName((packet.get("projectile", {}) as Dictionary).get("projectile_id", &""))
+			pending[projectile_id] = packet.duplicate(true)
+			_projectile_recipient_pending[peer_id] = pending
+			state.coalesced_count = int(state.get("coalesced_count", 0)) + 1
+			state.pending_count = pending.size()
+			_projectile_recipient_budgets[peer_id] = state
+			return _result(false, &"coalesced", {"pending_count": pending.size()})
+	if transition:
+		state.transition_count = int(state.get("transition_count", 0)) + 1
+	state.snapshot_count = int(state.snapshot_count) + 1
+	state.byte_count = int(state.byte_count) + size_bytes
+	_projectile_recipient_budgets[peer_id] = state
+	return _result(true, &"sent", {"bytes": size_bytes})
 
 
 func send_projectile_intent(wire: Dictionary) -> Dictionary:
@@ -1177,6 +1323,13 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 		_moving_recipient_budgets.clear()
 		_moving_recipient_entities.clear()
 		_moving_recipient_pending.clear()
+		_projectile_snapshot_revision = 0
+		_projectile_recipient_budgets.clear()
+		_projectile_recipient_pending.clear()
+		_projectile_published_generations.clear()
+		_projectile_replica_generations.clear()
+		_projectile_replica_ticks.clear()
+		_projectile_replica_revision = 0
 		_reset_peer_keepalive_deadlines(Time.get_ticks_msec())
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
@@ -1332,6 +1485,13 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_moving_recipient_budgets.clear()
 	_moving_recipient_entities.clear()
 	_moving_recipient_pending.clear()
+	_projectile_snapshot_revision = 0
+	_projectile_recipient_budgets.clear()
+	_projectile_recipient_pending.clear()
+	_projectile_published_generations.clear()
+	_projectile_replica_generations.clear()
+	_projectile_replica_ticks.clear()
+	_projectile_replica_revision = 0
 	for entity_variant in _moving_replica_binding_ids.keys():
 		_moving_replica_binding.detach(StringName(entity_variant))
 	_moving_replica_binding_ids.clear()
@@ -2599,6 +2759,51 @@ func _broadcast_moving_interior_snapshot(packet: Dictionary) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
+func _send_projectile_snapshot(packet: Dictionary) -> void:
+	if is_server():
+		return
+	_apply_projectile_replica_snapshot(packet)
+
+
+func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("projectile") or not packet.has("terminal"):
+		return _remember(_result(false, &"invalid_projectile_snapshot"))
+	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_PROJECTILE_REPLICATION_PACKET_BYTES:
+		return _remember(_result(false, &"projectile_packet_too_large"))
+	var projectile: Dictionary = packet.get("projectile", {}) as Dictionary
+	var validation := _validate_projectile_replica_snapshot(projectile)
+	if not bool(validation.get("accepted", false)):
+		return _remember(validation)
+	var projectile_id := StringName(projectile.get("projectile_id", &""))
+	var generation := int(projectile.get("projectile_generation", 0))
+	var prior_generation := int(_projectile_replica_generations.get(projectile_id, 0))
+	if generation < prior_generation:
+		return _remember(_result(false, &"stale_projectile_generation"))
+	if generation > prior_generation:
+		_projectile_replica_samples.erase(projectile_id)
+		_projectile_replica_generations[projectile_id] = generation
+	var server_tick := int(projectile.get("last_update_tick", 0))
+	if server_tick < int(_projectile_replica_ticks.get(projectile_id, -1)):
+		return _remember(_result(false, &"stale_projectile_tick"))
+	_projectile_replica_ticks[projectile_id] = server_tick
+	if bool(packet.get("terminal", false)) or StringName(projectile.get("state", &"")) != &"flying":
+		_projectile_replica_samples.erase(projectile_id)
+		_projectile_replica_revision += 1
+		return _remember(_result(true, &"projectile_terminal_applied", {
+			"projectile_id": projectile_id,
+			"state": StringName(projectile.get("state", &"")),
+		}))
+	var local_packet := packet.duplicate(true)
+	_projectile_replica_revision += 1
+	local_packet["revision"] = _projectile_replica_revision
+	var applied := consume_projectile_snapshot(local_packet)
+	return _remember(applied)
+
+
+@rpc("authority", "call_remote", "reliable")
 func _send_moving_interior_resync(packet: Dictionary) -> void:
 	_apply_moving_interior_resync(packet)
 
@@ -2750,6 +2955,13 @@ func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> 
 	_moving_recipient_budgets.erase(peer_id)
 	_moving_recipient_entities.erase(peer_id)
 	_moving_recipient_pending.erase(peer_id)
+	_projectile_recipient_budgets.erase(peer_id)
+	_projectile_recipient_pending.erase(peer_id)
+	_projectile_published_generations.erase(peer_id)
+	_projectile_replica_samples.clear()
+	_projectile_replica_generations.clear()
+	_projectile_replica_ticks.clear()
+	_projectile_replica_revision = 0
 	_refresh_hosted_directory()
 	for source_id_variant in _projectile_sources.keys():
 		var source_id := StringName(source_id_variant)
