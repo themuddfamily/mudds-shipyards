@@ -4695,7 +4695,7 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			or not _sky_scalar_matches(sky_material, &"sun_focus", SKY_SUN_FOCUS)
 			or not _sky_scalar_matches(
 				sky_material, &"sun_halo",
-				StationSolarReadabilityPresentation.REDUCED_FLASH_SUN_HALO_STRENGTH
+				STATION_SOLAR_READABILITY_SCRIPT.REDUCED_FLASH_SUN_HALO_STRENGTH
 				if _station_solar_reduced_flash else SKY_SUN_HALO
 			)
 			or not _sky_scalar_matches(
