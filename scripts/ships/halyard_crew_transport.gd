@@ -53,6 +53,7 @@ const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
 const MAX_PASSENGER_PING_MARKERS := 8
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
+const ENGINEER_POWER_ROUTE_BONUS := 0.15
 const CREW_ROLE_GAMEPLAY_SNAPSHOT_SCHEMA_VERSION := 1
 const HALYARD_CREW_ROLE_OCCUPANT_META: StringName = &"_halyard_crew_role_occupant"
 
@@ -105,6 +106,12 @@ signal engineer_component_cleared(
 	component_id: StringName,
 	component_generation: int,
 	reason: StringName
+)
+signal engineer_power_route_changed(
+	component_id: StringName,
+	route: StringName,
+	bonus: float,
+	receipt: Dictionary
 )
 
 const DESIGN_NOTE := (
@@ -841,6 +848,30 @@ func get_crew_role_gameplay_snapshot() -> Dictionary:
 	return snapshot.duplicate(true)
 
 
+## Halyard-local power routing derived from the authoritative engineer
+## selection. The component-damage owner still decides the base modifier; this
+## route only gives an admitted engineer receipt a bounded priority on the
+## matching live ship channel; a nominal channel naturally caps at 1.0.
+func get_operational_modifiers() -> Dictionary:
+	var modifiers := super.get_operational_modifiers()
+	if modifiers.is_empty() or _engineer_component_selection.is_empty():
+		return modifiers
+	var route := StringName(_engineer_component_selection.get("power_route", &""))
+	if route.is_empty() or route == &"none":
+		return modifiers
+	var base_value := clampf(float(modifiers.get(route, 1.0)), 0.0, 1.0)
+	if base_value <= 0.0:
+		return modifiers
+	modifiers[route] = minf(base_value + ENGINEER_POWER_ROUTE_BONUS, 1.0)
+	modifiers["engineer_power_route"] = {
+		"component_id": StringName(_engineer_component_selection.get("component_id", &"")),
+		"component_generation": int(_engineer_component_selection.get("component_generation", 0)),
+		"channel": route,
+		"bonus": ENGINEER_POWER_ROUTE_BONUS,
+	}.duplicate(true)
+	return modifiers
+
+
 ## Hands one admitted gunner receipt to HeroShip's existing weapon request
 ## seam. `_fire_weapon()` only emits `projectile_fired`; GameFlow's registered
 ## live combat authority remains responsible for source faction, weapon profile,
@@ -1008,9 +1039,12 @@ func _select_engineer_component(
 	component_id: StringName,
 	component_generation: int
 ) -> Dictionary:
+	var power_route := _engineer_power_route_for_component(component_id)
 	var selection := {
 		"component_id": component_id,
 		"component_generation": component_generation,
+		"power_route": power_route,
+		"power_route_bonus": ENGINEER_POWER_ROUTE_BONUS if power_route != &"none" else 0.0,
 		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
 		"avatar_id": StringName(intent.get("avatar_id", &"")),
 		"request_sequence": int(intent.get("request_sequence", -1)),
@@ -1021,9 +1055,27 @@ func _select_engineer_component(
 		component_generation,
 		selection.duplicate(true)
 	)
+	engineer_power_route_changed.emit(
+		component_id,
+		power_route,
+		float(selection.get("power_route_bonus", 0.0)),
+		selection.duplicate(true)
+	)
 	var result := _crew_role_result(true, &"component_selected")
 	result["selection"] = selection.duplicate(true)
 	return result
+
+
+func _engineer_power_route_for_component(component_id: StringName) -> StringName:
+	match component_id:
+		ShipComponentDamage.COMPONENT_ENGINE_BAY:
+			return &"mobility_multiplier"
+		ShipComponentDamage.COMPONENT_PORT_WING, ShipComponentDamage.COMPONENT_STARBOARD_WING:
+			return &"fire_multiplier"
+		ShipComponentDamage.COMPONENT_CORE_SYSTEMS:
+			return &"targeting_multiplier"
+		_:
+			return &"none"
 
 
 static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
@@ -2442,8 +2494,20 @@ func _clear_engineer_component_selection(
 	var component_generation := int(
 		_engineer_component_selection.get("component_generation", 0)
 	)
+	var route := StringName(_engineer_component_selection.get("power_route", &"none"))
 	_engineer_component_selection.clear()
 	engineer_component_cleared.emit(component_id, component_generation, reason)
+	engineer_power_route_changed.emit(
+		component_id,
+		&"none",
+		0.0,
+		{
+			"component_id": component_id,
+			"component_generation": component_generation,
+			"previous_route": route,
+			"reason": reason,
+		}.duplicate(true)
+	)
 	if advance_generation:
 		_engineer_component_generation = mini(
 			_engineer_component_generation + 1,

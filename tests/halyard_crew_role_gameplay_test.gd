@@ -80,6 +80,8 @@ func _run() -> void:
 	var cleared := [0]
 	var selected_generation := [0]
 	var clear_reason := [StringName(&"")]
+	var route_changes := [0]
+	var last_route := [StringName(&"")]
 	craft.engineer_component_selected.connect(
 		func(_component_id: StringName, generation: int, _receipt: Dictionary) -> void:
 			selected[0] += 1
@@ -90,12 +92,19 @@ func _run() -> void:
 			cleared[0] += 1
 			clear_reason[0] = reason
 	)
+	craft.engineer_power_route_changed.connect(
+		func(_component_id: StringName, route: StringName, _bonus: float, _receipt: Dictionary) -> void:
+			route_changes[0] += 1
+			last_route[0] = route
+	)
 	var damaged := model.record_damage(70.0, Vector3.ZERO)
 	_check(bool(damaged.get("accepted", false)), "the existing Halyard component owner accepts a live damage observation")
 	model.tick_repair(10.0, true)
 	var targeted_damage := model.record_damage(70.0, Vector3(0.0, 2.88, 0.325))
 	_check(bool(targeted_damage.get("accepted", false)), "the component owner can isolate one damaged systems target")
-	var system_id := _first_damaged_system(model)
+	var system_id := ShipComponentDamageType.COMPONENT_ENGINE_BAY
+	if model.get_component_integrity(system_id) >= 1.0:
+		system_id = _first_damaged_system(model)
 	var integrity_before := model.get_component_integrity(system_id)
 	_check(integrity_before >= 0.0 and integrity_before < 1.0, "the engineer has a damaged system to repair")
 	var foreign := craft.submit_crew_intent(
@@ -130,6 +139,23 @@ func _run() -> void:
 		"the consumed engineer receipt delegates a bounded repair pulse to the component owner"
 	)
 	_check(selected[0] == 1 and selected_generation[0] == 1, "the repair receipt selects its component target")
+	var selection_result := effect.get("selection", {}) as Dictionary
+	var selection := selection_result.get("selection", {}) as Dictionary
+	var route_modifiers := craft.get_operational_modifiers()
+	var route := route_modifiers.get("engineer_power_route", {}) as Dictionary
+	_check(
+		StringName(selection.get("power_route", &"none")) == &"mobility_multiplier"
+			and StringName(route.get("channel", &"")) == &"mobility_multiplier"
+			and int(route.get("component_generation", 0)) == 1,
+		"the generation-fenced engineer selection activates the Halyard engine power route"
+	)
+	_check(
+		is_equal_approx(float(route.get("bonus", 0.0)), HalyardCrewTransport.ENGINEER_POWER_ROUTE_BONUS)
+			and float(route_modifiers.get("mobility_multiplier", 0.0)) > 0.0
+			and route_changes[0] == 1
+			and last_route[0] == &"mobility_multiplier",
+		"the engineer route adds a bounded live mobility priority without mutating damage"
+	)
 	var healthy := craft.submit_crew_intent(
 		1, 77, &"engineer_avatar", Authority.ACTION_ENGINEER_REPAIR,
 		{"system_id": system_id, "repair": 0.0, "system_generation": 1}, 4
@@ -366,6 +392,12 @@ func _run() -> void:
 	_check(bool(released.get("accepted", false)), "the replacement engineer can be detached")
 	await physics_frame
 	_check(cleared[0] == 2 and clear_reason[0] == &"role_detached", "detach clears the replacement component selection")
+	_check(
+		route_changes[0] == 4
+			and last_route[0] == &"none"
+			and not craft.get_operational_modifiers().has("engineer_power_route"),
+		"handoff and detach clear the engineer power route before a new occupant acts"
+	)
 	var after_detach := craft.get_crew_role_gameplay_snapshot()
 	_check(
 		(after_detach.get("role_occupancy", {}).get(Authority.ROLE_ENGINEER, []) as Array).is_empty()
