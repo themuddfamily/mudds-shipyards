@@ -27,6 +27,7 @@ func _run() -> void:
 	_check(not mismatch.accepted and mismatch.status == &"network_seat_mismatch", "cross-seat network escalation is rejected")
 	var released := halyard.release_network_crew_role(7, 4, &"avatar_7", &"pilot_station", 1, 2)
 	_check(released.accepted and authority.get_assignment(7, &"avatar_7").is_empty(), "detach/release clears the physical role assignment")
+	halyard.free()
 	if _failures.is_empty():
 		print("OK: GameFlow/Halyard crew role bridge (%d assertions)" % _assertions)
 		quit(0)
