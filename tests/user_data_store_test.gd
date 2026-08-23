@@ -94,6 +94,7 @@ func _run() -> void:
 	_test_future_schema_and_unknown_fields()
 	_test_stale_temp_and_interrupted_write()
 	_test_valid_temp_blocks_recovery_and_overwrite()
+	_test_explicit_interrupted_transaction_recovery()
 	_test_rename_rollback_and_cleanup_failures()
 	_test_exact_authority_concurrency()
 	_test_payload_and_document_bounds()
@@ -274,6 +275,35 @@ func _test_valid_temp_blocks_recovery_and_overwrite() -> void:
 		filesystem.files[PATH] == primary_bytes and filesystem.files[PATH + ".tmp"] == temp_bytes,
 		"interrupted-transaction commit rejection performs no mutation"
 	)
+
+
+func _test_explicit_interrupted_transaction_recovery() -> void:
+	var filesystem := FakeFilesystem.new()
+	_one_commit_store(filesystem)
+	var staged_fs := FakeFilesystem.new()
+	_two_commit_store(staged_fs)
+	filesystem.files[PATH + ".tmp"] = (staged_fs.files[PATH] as PackedByteArray).duplicate()
+	var blocked := Store.new(PATH, filesystem)
+	var blocked_load := blocked.load()
+	_check(not bool(blocked_load.accepted) and blocked_load.reason == &"interrupted_transaction", "explicit recovery starts from fail-closed load")
+	var recovered := blocked.recover_interrupted_transaction()
+	_check(bool(recovered.accepted) and recovered.reason == &"recovered" and int(recovered.generation) == 2, "explicit recovery promotes only a verified next transaction")
+	_check(float(blocked.get_snapshot().value) == 2.0 and not filesystem.files.has(PATH + ".tmp"), "recovered transaction installs its payload and clears the stage")
+	_check(int(_decode(filesystem, PATH + ".bak").generation) == 1, "recovery retains the prior primary as backup")
+
+	var unsafe_fs := FakeFilesystem.new()
+	_one_commit_store(unsafe_fs)
+	var unsafe_source_fs := FakeFilesystem.new()
+	_two_commit_store(unsafe_source_fs)
+	var unsafe_temp := _decode(unsafe_source_fs, PATH)
+	unsafe_temp.generation = 3
+	(unsafe_temp.commit as Dictionary).parent_generation = 2
+	unsafe_fs.files[PATH + ".tmp"] = JSON.stringify(unsafe_temp).to_utf8_buffer()
+	var unsafe_before := _copy_files(unsafe_fs.files)
+	var unsafe := Store.new(PATH, unsafe_fs)
+	unsafe.load()
+	var refused := unsafe.recover_interrupted_transaction()
+	_check(not bool(refused.accepted) and refused.reason == &"unsafe_transaction_parent" and unsafe_fs.files == unsafe_before, "recovery rejects a staged document with an unsafe parent without mutation")
 
 
 func _test_rename_rollback_and_cleanup_failures() -> void:

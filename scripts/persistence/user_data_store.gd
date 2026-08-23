@@ -78,6 +78,78 @@ func load() -> Dictionary:
 	return _load_result(false, &"no_valid_document", &"none", primary, backup)
 
 
+## Explicitly promotes a verified interrupted transaction. Normal load never
+## performs this action implicitly because the staged document was not yet
+## published when the previous process stopped.
+func recover_interrupted_transaction() -> Dictionary:
+	if _path.is_empty():
+		return _commit_result(false, &"invalid_path")
+	for collision_path in [_path, _temp_path(), _backup_path()]:
+		if _filesystem.directory_exists(collision_path):
+			return _commit_result(false, &"transaction_path_is_directory")
+	var primary := _read_document(_path)
+	var temporary := _read_document(_temp_path())
+	var backup := _read_document(_backup_path())
+	if _has_newer_schema([primary, temporary, backup]):
+		return _commit_result(false, &"newer_schema")
+	if not bool(temporary.valid):
+		return _commit_result(false, &"no_interrupted_transaction")
+	# Never consume a corrupt/unreadable artifact as part of recovery.
+	if bool(primary.exists) and not bool(primary.valid):
+		return _commit_result(false, &"invalid_primary")
+	if bool(backup.exists) and not bool(backup.valid):
+		return _commit_result(false, &"invalid_backup")
+	if bool(primary.valid) and bool(backup.valid) and not _documents_form_chain(
+		primary.document as Dictionary, backup.document as Dictionary
+	):
+		return _commit_result(false, &"incoherent_primary_backup")
+	var staged := temporary.document as Dictionary
+	var authority: Dictionary = {}
+	if bool(primary.valid):
+		authority = primary.document as Dictionary
+	elif bool(backup.valid):
+		authority = backup.document as Dictionary
+	if authority.is_empty():
+		if int(staged.generation) != 1 or int((staged.commit as Dictionary).parent_generation) != 0 \
+			or str((staged.commit as Dictionary).parent_id) != "":
+			return _commit_result(false, &"unsafe_transaction_parent")
+	else:
+		var staged_commit := staged.commit as Dictionary
+		var authority_commit := authority.commit as Dictionary
+		if int(staged.generation) != int(authority.generation) + 1 \
+			or int(staged_commit.parent_generation) != int(authority.generation) \
+			or str(staged_commit.parent_id) != str(authority_commit.id):
+			return _commit_result(false, &"unsafe_transaction_parent")
+	var encoded := JSON.stringify(staged).to_utf8_buffer()
+	var moved_primary := false
+	if bool(primary.valid):
+		if _filesystem.file_exists(_backup_path()):
+			var remove_backup_error: Error = _filesystem.remove_path(_backup_path())
+			if remove_backup_error != OK:
+				return _commit_result(false, &"backup_cleanup_failed")
+		var backup_error: Error = _filesystem.rename_path(_path, _backup_path())
+		if backup_error != OK:
+			return _commit_result(false, &"backup_publication_failed")
+		moved_primary = true
+	var publish_error: Error = _filesystem.rename_path(_temp_path(), _path)
+	if publish_error != OK:
+		if moved_primary and not _filesystem.file_exists(_path):
+			_filesystem.rename_path(_backup_path(), _path)
+		return _commit_result(false, &"atomic_replace_failed")
+	var published := _read_document(_path)
+	if not bool(published.valid) or (published.document as Dictionary) != staged:
+		if _filesystem.file_exists(_path):
+			_filesystem.remove_path(_path)
+		if moved_primary and _filesystem.file_exists(_backup_path()):
+			_filesystem.rename_path(_backup_path(), _path)
+		# Keep the staged bytes available for another explicit attempt even when
+		# publication verification fails after rotating the old authority.
+		_filesystem.write_bytes_and_flush(_temp_path(), encoded)
+		return _commit_result(false, &"published_verification_failed")
+	_install_document(published.document as Dictionary, &"primary")
+	return _commit_result(true, &"recovered")
+
+
 ## Commits only against the generation most recently returned by load/commit.
 ## The caller supplies a stable commit ID; no wall-clock value enters the file.
 func commit(payload: Variant, expected_generation: int, commit_id: String) -> Dictionary:
