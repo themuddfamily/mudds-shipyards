@@ -6,7 +6,7 @@ const PolicyScript := preload(
 const ProfileScript := preload(
 	"res://scripts/world/definitions/planetary_atmosphere_profile.gd"
 )
-const EXPECTED_ASSERTIONS := 32
+const EXPECTED_ASSERTIONS := 33
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -309,8 +309,12 @@ func _test_grounded_speed_wind_equation() -> void:
 			== 1.0
 		and float((grounded_fast.intensity as Dictionary).movement_airflow_unitless)
 			== 0.0
+		and float(
+			(grounded_fast.atmosphere_sample as Dictionary)
+				.entry_effect_intensity
+		) == 1.0
 		and bool((grounded_fast.intensity as Dictionary).silence_recommended),
-		"grounded truth suppresses movement airflow even when raw speed is at its bound"
+		"grounded truth suppresses movement airflow while entry sampling retains caller speed"
 	)
 	var half_speed: Dictionary = policy.evaluate(
 		_observation(&"exterior", 0.0, false, 50.0, 0.0)
@@ -342,6 +346,11 @@ func _test_grounded_speed_wind_equation() -> void:
 		and float((ambient.intensity as Dictionary).recommended_intensity_unitless)
 			== 0.35,
 		"full caller wind retains the authored weather intensity at reference density"
+	)
+	_check(
+		float((ambient.atmosphere_sample as Dictionary).entry_effect_intensity)
+			== 0.0,
+		"neutral speed keeps the sampler entry effect at zero"
 	)
 	var ambient_dominates: Dictionary = policy.evaluate(
 		_observation(&"exterior", 0.0, false, 20.0, 1.0)

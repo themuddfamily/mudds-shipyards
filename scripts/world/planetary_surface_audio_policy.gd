@@ -169,7 +169,7 @@ func evaluate(observation: Variant) -> Dictionary:
 	var sample := _sampler.sample(
 		altitude,
 		0.0,
-		0.0,
+		float(input.get("speed_mps", 0.0)),
 		float(input.get("ambient_wind_scalar_unitless", 0.0)),
 		0.0
 	)
