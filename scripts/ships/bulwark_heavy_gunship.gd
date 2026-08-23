@@ -10,8 +10,11 @@ extends HeroShip
 ## differentiated armored presentation and a physical gunner station contract.
 
 const ModernRoleProfile := preload("res://scripts/fleet/modern_role_profile.gd")
+const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
+const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 
 const SCHEMA_VERSION := 1
+const COMBAT_SOURCE_ID := 1106
 const EVIDENCE_STATUS: StringName = &"new"
 const EVIDENCE_STATUS_ENUM: int = ShipDefinition.EvidenceStatus.NEW
 const EVIDENCE_SCOPE: StringName = &"original_modern_design"
@@ -31,6 +34,11 @@ const ARMOR_HIGHLIGHT := Color("416b88")
 const IDENTITY_AMBER := Color("e2a63c")
 const GUNNER_CYAN := Color("58d8df")
 const BOARDING_LIGHT := Color("8ae8bd")
+const BULWARK_CREW_WEAPON_ID: StringName = &"bulwark_twin_heavy_cannon"
+const BULWARK_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
+const MAX_GUNNER_TARGET_GENERATION := 1_000_000
+const GUNNER_SEAT_ID: StringName = &"gunner_station"
+const PILOT_SEAT_ID: StringName = &"pilot_station"
 
 const HULL_COLLISION_SIZE := Vector3(6.9, 3.1, 10.8)
 const SHOULDER_COLLISION_SIZE := Vector3(11.6, 2.1, 5.8)
@@ -42,6 +50,13 @@ var _bulwark_visual: Node3D
 var _gunner_station: Node3D
 var _gunner_station_anchor: Marker3D
 var _boarding_area: Area3D
+var _crew_role_authority: CrewSeatRoleAuthority
+var _gunner_role_cooldowns: Dictionary = {}
+var _gunner_target_selection: Dictionary = {}
+var _gunner_target_generation := 1
+
+signal gunner_target_selected(target_id: StringName, target_generation: int, receipt: Dictionary)
+signal gunner_target_cleared(target_id: StringName, target_generation: int, reason: StringName)
 
 
 func _init() -> void:
@@ -106,6 +121,40 @@ func _ready() -> void:
 	if not _bulwark_built:
 		_bulwark_built = rebuild_variant_presentation(_build_bulwark_variant)
 	_apply_bulwark_metadata()
+
+
+func _physics_process(delta: float) -> void:
+	super._physics_process(delta)
+	if _reset_for_reuse_mutation_blocked():
+		return
+	_advance_gunner_role_cooldowns(maxf(delta, 0.0))
+	_cleanup_detached_gunner_state()
+
+
+func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
+	super._commit_variant_reset_for_reuse(context)
+	_gunner_role_cooldowns.clear()
+	_clear_gunner_target_selection(&"ship_reused", false)
+	_gunner_target_generation = 1
+
+
+func apply_damage(
+		amount: float,
+		world_hit_position: Vector3 = Vector3.INF,
+		world_hit_normal: Vector3 = Vector3.ZERO,
+		presentation_receipt_id: int = -1,
+		defer_presentation: bool = false
+) -> void:
+	super.apply_damage(
+		amount,
+		world_hit_position,
+		world_hit_normal,
+		presentation_receipt_id,
+		defer_presentation
+	)
+	if is_destroyed():
+		_gunner_role_cooldowns.clear()
+		_clear_gunner_target_selection(&"ship_destroyed")
 
 
 func _build_bulwark_variant(_controller: HeroShip) -> bool:
@@ -231,6 +280,300 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 
 func get_gunner_station_anchor() -> Marker3D:
 	return _gunner_station_anchor
+
+
+## Stable local combat registry identity for this craft. The shared combat
+## authority remains the owner of actual source registration and damage.
+func get_combat_source_id() -> int:
+	return COMBAT_SOURCE_ID
+
+
+## Binds the injected server-owned role ledger. Bulwark consumes only the
+## physical pilot and gunner entries; the authority may carry other role slots
+## for a shared vessel policy, but this ship never creates a second ledger.
+func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
+	if authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	if _crew_role_authority != null and _crew_role_authority != authority:
+		return _crew_role_result(false, &"authority_already_attached")
+	var snapshot := authority.get_snapshot()
+	if not bool(snapshot.get("roster_sealed", false)):
+		return _crew_role_result(false, &"roster_not_sealed")
+	var has_pilot := false
+	var has_gunner := false
+	for seat_variant in snapshot.get("seats", []) as Array:
+		if not seat_variant is Dictionary:
+			continue
+		var seat := seat_variant as Dictionary
+		if StringName(seat.get("vessel_id", &"")) != get_ship_id():
+			continue
+		if StringName(seat.get("seat_id", &"")) == PILOT_SEAT_ID \
+				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_PILOT:
+			has_pilot = true
+		if StringName(seat.get("seat_id", &"")) == GUNNER_SEAT_ID \
+				and StringName(seat.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_GUNNER:
+			has_gunner = true
+	if not has_pilot or not has_gunner:
+		return _crew_role_result(false, &"bulwark_roster_mismatch")
+	_crew_role_authority = authority
+	var result := _crew_role_result(true, &"authority_attached")
+	result["role_count"] = (snapshot.get("seats", []) as Array).size()
+	return result
+
+
+func get_crew_role_authority() -> CrewSeatRoleAuthority:
+	return _crew_role_authority
+
+
+## Admits one authority receipt and immediately routes the bounded gunner edge
+## into HeroShip's existing projectile request seam. Pilot control remains the
+## normal HeroShip path and is never gated by this optional station.
+func submit_crew_intent(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		action: StringName,
+		payload: Dictionary,
+		request_sequence: int
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if assignment.is_empty():
+		return _crew_role_result(false, &"assignment_not_found")
+	if StringName(assignment.get("vessel_id", &"")) != get_ship_id():
+		return _crew_role_result(false, &"foreign_vessel")
+	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_GUNNER \
+			or StringName(assignment.get("seat_id", &"")) != GUNNER_SEAT_ID \
+			or action != CrewRoleGameplayProfileType.ACTION_GUNNER_FIRE:
+		return _crew_role_result(false, &"unsupported_bulwark_role_action")
+	var admission := _crew_role_authority.submit_intent(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		action,
+		payload,
+		request_sequence
+	)
+	if not bool(admission.get("accepted", false)):
+		return admission
+	var effect := _consume_gunner_fire_intent(admission.get("intent", {}) as Dictionary)
+	var result := admission.duplicate(true)
+	result["status"] = &"intent_consumed" if bool(effect.get("accepted", false)) else &"intent_effect_rejected"
+	result["consumed"] = bool(effect.get("accepted", false))
+	result["effect"] = effect
+	return result
+
+
+func release_crew_role(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		seat_id: StringName,
+		request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var result := _crew_role_authority.release(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		seat_id,
+		request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_gunner_role_state(occupant_peer_id, avatar_id, &"role_released")
+	return result
+
+
+func handoff_crew_role(
+		source_peer_id: int,
+		previous_occupant_peer_id: int,
+		previous_avatar_id: StringName,
+		seat_id: StringName,
+		release_request_sequence: int,
+		new_occupant_peer_id: int,
+		new_avatar_id: StringName,
+		requested_role: StringName,
+		claim_request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var result := _crew_role_authority.handoff(
+		source_peer_id,
+		previous_occupant_peer_id,
+		previous_avatar_id,
+		seat_id,
+		release_request_sequence,
+		new_occupant_peer_id,
+		new_avatar_id,
+		requested_role,
+		claim_request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_gunner_role_state(previous_occupant_peer_id, previous_avatar_id, &"role_handoff")
+	return result
+
+
+func get_gunner_gameplay_state() -> Dictionary:
+	var ready := _weapon_timer <= 0.0 and not is_destroyed()
+	return {
+		"schema_version": 1,
+		"authority_attached": _crew_role_authority != null,
+		"target_generation": _gunner_target_generation,
+		"target_selection": _gunner_target_selection.duplicate(true),
+		"weapon_ready": ready,
+		"role_cooldowns": _gunner_role_cooldowns.duplicate(true),
+	}.duplicate(true)
+
+
+func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	var weapon_id := StringName(payload.get("weapon_id", &""))
+	var target_id := StringName(payload.get("target_id", &""))
+	var target_generation := int(payload.get("target_generation", 0))
+	if weapon_id != BULWARK_CREW_WEAPON_ID:
+		return _crew_role_result(false, &"weapon_not_authorized")
+	if target_generation != _gunner_target_generation:
+		return _crew_role_result(false, &"stale_target_generation")
+	if target_id.is_empty() or str(target_id).length() > 64:
+		return _crew_role_result(false, &"invalid_target_identity")
+	var selection := _select_gunner_target(intent, target_id, target_generation)
+	if not bool(selection.get("accepted", false)):
+		return selection
+	if not bool(payload.get("trigger", false)):
+		return selection
+	var telemetry := get_telemetry()
+	if bool(telemetry.get("destroyed", false)):
+		return _crew_role_result(false, &"ship_destroyed")
+	if StringName(telemetry.get("engine_state", &"")) != ENGINE_ONLINE:
+		return _crew_role_result(false, &"engine_not_online")
+	if _weapon_timer > 0.0:
+		return _crew_role_result(false, &"weapon_cooldown")
+	var actor_key := _gunner_role_actor_key(intent)
+	if float(_gunner_role_cooldowns.get(actor_key, 0.0)) > 0.0:
+		return _crew_role_result(false, &"role_cooldown")
+	var previous_timer := _weapon_timer
+	_fire_weapon()
+	if _weapon_timer <= previous_timer:
+		return _crew_role_result(false, &"weapon_request_rejected")
+	var result := _crew_role_result(true, &"weapon_request_emitted")
+	result["source_id"] = get_combat_source_id()
+	result["faction_id"] = BULWARK_CREW_FACTION_ID
+	result["weapon_id"] = weapon_id
+	result["target_id"] = target_id
+	result["target_generation"] = target_generation
+	result["selection"] = selection
+	result["request_sequence"] = int(intent.get("request_sequence", -1))
+	result["seat_generation"] = int(intent.get("seat_generation", 0))
+	result["cooldown_remaining"] = _weapon_timer
+	_gunner_role_cooldowns[actor_key] = weapon_cooldown
+	return result
+
+
+func _select_gunner_target(
+		intent: Dictionary,
+		target_id: StringName,
+		target_generation: int
+) -> Dictionary:
+	var selection := {
+		"target_id": target_id,
+		"target_generation": target_generation,
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"seat_generation": int(intent.get("seat_generation", 0)),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+	}
+	_gunner_target_selection = selection
+	gunner_target_selected.emit(target_id, target_generation, selection.duplicate(true))
+	var result := _crew_role_result(true, &"target_selected")
+	result["selection"] = selection.duplicate(true)
+	return result
+
+
+func _cleanup_detached_gunner_state() -> void:
+	if _gunner_target_selection.is_empty():
+		return
+	if _crew_role_authority == null:
+		_clear_gunner_target_selection(&"authority_detached")
+		_gunner_role_cooldowns.clear()
+		return
+	var assignment := _crew_role_authority.get_assignment(
+		int(_gunner_target_selection.get("occupant_peer_id", 0)),
+		StringName(_gunner_target_selection.get("avatar_id", &""))
+	)
+	if assignment.is_empty():
+		_clear_gunner_role_state(
+			int(_gunner_target_selection.get("occupant_peer_id", 0)),
+			StringName(_gunner_target_selection.get("avatar_id", &"")),
+			&"role_detached"
+		)
+
+
+func _clear_gunner_role_state(
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		reason: StringName
+) -> void:
+	_gunner_role_cooldowns.erase(_gunner_role_actor_key_from_values(occupant_peer_id, avatar_id))
+	if not _gunner_target_selection.is_empty() \
+			and int(_gunner_target_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
+			and StringName(_gunner_target_selection.get("avatar_id", &"")) == avatar_id:
+		_clear_gunner_target_selection(reason)
+
+
+func _clear_gunner_target_selection(reason: StringName, advance_generation: bool = true) -> void:
+	if _gunner_target_selection.is_empty():
+		if advance_generation:
+			_gunner_target_generation = mini(
+				_gunner_target_generation + 1,
+				MAX_GUNNER_TARGET_GENERATION
+			)
+		return
+	var target_id := StringName(_gunner_target_selection.get("target_id", &""))
+	var target_generation := int(_gunner_target_selection.get("target_generation", 0))
+	_gunner_target_selection.clear()
+	gunner_target_cleared.emit(target_id, target_generation, reason)
+	if advance_generation:
+		_gunner_target_generation = mini(
+			_gunner_target_generation + 1,
+			MAX_GUNNER_TARGET_GENERATION
+		)
+
+
+func _advance_gunner_role_cooldowns(delta: float) -> void:
+	var expired: Array[StringName] = []
+	for key_variant in _gunner_role_cooldowns.keys():
+		var key := StringName(key_variant)
+		var remaining := maxf(0.0, float(_gunner_role_cooldowns[key]) - delta)
+		if remaining <= 0.0:
+			expired.append(key)
+		else:
+			_gunner_role_cooldowns[key] = remaining
+	for key in expired:
+		_gunner_role_cooldowns.erase(key)
+
+
+func _gunner_role_actor_key(intent: Dictionary) -> StringName:
+	return _gunner_role_actor_key_from_values(
+		int(intent.get("occupant_peer_id", 0)),
+		StringName(intent.get("avatar_id", &""))
+	)
+
+
+static func _gunner_role_actor_key_from_values(
+		occupant_peer_id: int,
+		avatar_id: StringName
+) -> StringName:
+	return StringName("%d:%s" % [occupant_peer_id, avatar_id])
+
+
+static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
+	return {"accepted": accepted, "status": status}
 
 
 func get_berth_clearance_report() -> Dictionary:
