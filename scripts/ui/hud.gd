@@ -247,6 +247,7 @@ var _activity_selection_locked := false
 var _nearby_activity_presenter: RefCounted
 var _nearby_activity_page: Control
 var _nearby_activity_rows: VBoxContainer
+var _nearby_activity_feedback: Label
 var _nearby_activity_snapshot: Dictionary = {}
 var _planetary_cruise_button: Button
 var _planetary_cruise_status_label: Label
@@ -2688,6 +2689,23 @@ func _build_nearby_activity_page() -> void:
 	_nearby_activity_rows = VBoxContainer.new()
 	_nearby_activity_rows.add_theme_constant_override("separation", 4)
 	stack.add_child(_nearby_activity_rows)
+	_nearby_activity_feedback = _label("No progress result received.", 10, MUTED)
+	_nearby_activity_feedback.name = "NearbyActivityPersistenceFeedback"
+	_nearby_activity_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_nearby_activity_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(_nearby_activity_feedback)
+	var persistence_row := HBoxContainer.new()
+	persistence_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	persistence_row.add_theme_constant_override("separation", 8)
+	stack.add_child(persistence_row)
+	var save := _menu_button("SAVE PROGRESS", MUTED)
+	save.name = "NearbyActivitySaveButton"
+	save.pressed.connect(_forward_nearby_activity_intent.bind(&"save", &""))
+	persistence_row.add_child(save)
+	var load := _menu_button("LOAD PROGRESS", MUTED)
+	load.name = "NearbyActivityLoadButton"
+	load.pressed.connect(_forward_nearby_activity_intent.bind(&"load", &""))
+	persistence_row.add_child(load)
 	var back := _menu_button("BACK", MUTED)
 	back.name = "NearbyActivityBackButton"
 	back.pressed.connect(_show_pause_main)
@@ -2700,16 +2718,32 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	if _nearby_activity_presenter == null:
 		_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
 	var view: Dictionary = _nearby_activity_presenter.call("present", _nearby_activity_snapshot)
+	_render_nearby_activity_view(view)
+	return view
+
+
+func apply_nearby_activity_persistence_result(result: Dictionary) -> Dictionary:
+	if _nearby_activity_presenter == null:
+		_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
+	var view: Dictionary = _nearby_activity_presenter.call("present_persistence_result", result)
+	_render_nearby_activity_view(view)
+	return view
+
+
+func _render_nearby_activity_view(view: Dictionary) -> void:
 	if _nearby_activity_rows != null:
 		for child in _nearby_activity_rows.get_children():
 			child.queue_free()
 		for card in view.get("cards", []) as Array:
 			_add_nearby_activity_row(card as Dictionary)
-	return view
+	if _nearby_activity_feedback != null:
+		_nearby_activity_feedback.text = str((view.get("persistence_feedback", {}) as Dictionary).get("text", ""))
 
 
 func clear_nearby_activity_snapshot() -> void:
 	_nearby_activity_snapshot.clear()
+	if _nearby_activity_feedback != null:
+		_nearby_activity_feedback.text = "No progress result received."
 	if _nearby_activity_rows != null:
 		for child in _nearby_activity_rows.get_children():
 			child.queue_free()
@@ -2753,8 +2787,12 @@ func _forward_nearby_activity_intent(action: StringName, activity_id: StringName
 		intent = _nearby_activity_presenter.call("select", activity_id)
 	elif action == &"start":
 		intent = _nearby_activity_presenter.call("start_intent", activity_id)
-	else:
+	elif action == &"reset":
 		intent = _nearby_activity_presenter.call("reset_intent", activity_id)
+	elif action == &"save":
+		intent = _nearby_activity_presenter.call("save_progress_intent")
+	else:
+		intent = _nearby_activity_presenter.call("load_progress_intent")
 	nearby_activity_intent_requested.emit(intent.duplicate(true))
 
 
