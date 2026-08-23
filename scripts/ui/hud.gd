@@ -8,6 +8,7 @@ const InputRebindServiceType := preload("res://scripts/settings/input_rebind_ser
 const RuntimeInputRemappingControllerType := preload("res://scripts/settings/runtime_input_remapping_controller.gd")
 const RuntimeInputRemappingPresenterType := preload("res://scripts/ui/runtime_input_remapping_presenter.gd")
 const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
+const RuntimeInputGlyphPresenterType := preload("res://scripts/ui/runtime_input_glyph_presenter.gd")
 const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
 const DebugOverlayType := preload("res://scripts/ui/debug_overlay.gd")
 const MinimapType := preload("res://scripts/ui/minimap.gd")
@@ -286,6 +287,7 @@ var _input_remapping_presenter: RuntimeInputRemappingPresenter
 var _input_binding_profile: InputBindingProfile
 var _input_binding_defaults: InputBindingProfile
 var _input_glyph_resolver: InputGlyphResolver
+var _runtime_input_glyph_presenter
 var _safe_area_insets := Rect2()
 var _binding_rows: Dictionary = {}
 var _binding_buttons: Dictionary = {}
@@ -451,6 +453,8 @@ func _ready() -> void:
 	_input_binding_defaults = _input_rebind_service.get_defaults()
 	_input_binding_profile = _input_binding_defaults.duplicate_profile()
 	_input_glyph_resolver = InputGlyphResolverType.new()
+	_runtime_input_glyph_presenter = RuntimeInputGlyphPresenterType.new(_input_glyph_resolver)
+	_runtime_input_glyph_presenter.attach(_input_binding_profile)
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_build_interface()
 	set_process_input(true)
@@ -819,7 +823,7 @@ func _action_prompts(actions: Array[StringName]) -> String:
 	var parts := PackedStringArray()
 	var shared_stick := ""
 	for action in actions:
-		var resolved := _input_glyph_resolver.resolve_action(_input_binding_profile, action)
+		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(action)
 		if bool(resolved.get("valid", false)):
 			var text := str(resolved.get("text", "Unbound Input"))
 			if text not in parts:
@@ -1397,6 +1401,7 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			and _input_rebind_service.is_profile_compatible_with_defaults(parsed_profile)
 		):
 			_input_binding_profile = parsed_profile.duplicate_profile()
+			_runtime_input_glyph_presenter.refresh(_input_binding_profile)
 			_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 			_refresh_input_prompts()
 	for raw_key: Variant in snapshot:
@@ -1443,6 +1448,8 @@ func set_input_binding_defaults(defaults: InputBindingProfile) -> bool:
 		or not _input_rebind_service.is_profile_compatible_with_defaults(_input_binding_profile)
 	):
 		_input_binding_profile = _input_binding_defaults.duplicate_profile()
+	if _runtime_input_glyph_presenter != null:
+		_runtime_input_glyph_presenter.refresh(_input_binding_profile)
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_refresh_input_prompts()
 	return true
@@ -3621,6 +3628,7 @@ func _commit_input_remapping_snapshot(status: String) -> void:
 		set_settings_status("INVALID BINDING PROFILE REJECTED", false)
 		return
 	_input_binding_profile = profile.duplicate_profile()
+	_runtime_input_glyph_presenter.refresh(_input_binding_profile)
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_refresh_input_prompts()
 	_refresh_binding_option_controls()
@@ -3636,6 +3644,7 @@ func _commit_input_binding_profile(profile: InputBindingProfile, status: String)
 		set_settings_status("INVALID BINDING PROFILE REJECTED", false)
 		return
 	_input_binding_profile = profile.duplicate_profile()
+	_runtime_input_glyph_presenter.refresh(_input_binding_profile)
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_refresh_input_prompts()
 	_refresh_binding_option_controls()
@@ -3718,7 +3727,7 @@ func _action_bindings_text(action: StringName) -> String:
 	# read a desktop prompt and makes a remap appear not to take effect until
 	# another screen refreshes.  The editor still retains every family in the
 	# profile; this is presentation-only selection.
-	var resolved := _input_glyph_resolver.resolve_action(_input_binding_profile, action)
+	var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(action)
 	if bool(resolved.get("valid", false)):
 		return str(resolved.get("text", "Unbound Input"))
 	return "UNBOUND  //  SELECT TO ADD"
