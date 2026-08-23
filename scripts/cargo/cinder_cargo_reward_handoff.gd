@@ -7,6 +7,8 @@ extends RefCounted
 const ACTIVITY_ID: StringName = &"cinder_kit_cargo_run"
 const REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 
+signal completion_committed(activity_snapshot: Dictionary, reward_result: Dictionary)
+
 var _activity: CargoDeliveryActivity
 var _adapter: RefCounted
 var _last_result: Dictionary = {}
@@ -72,7 +74,10 @@ func _route_completion(cargo: Dictionary, expected_generation: int) -> Dictionar
 	var result := _adapter.call("consume", normalized, expected_generation) as Dictionary
 	if bool(result.get("accepted", false)):
 		_completion_generation = generation
-	return _retain(result)
+	var retained := _retain(result)
+	if bool(retained.get("accepted", false)):
+		completion_committed.emit(cargo.duplicate(true), retained.duplicate(true))
+	return retained
 
 
 ## Clears only handoff presentation after the activity authority has reset.

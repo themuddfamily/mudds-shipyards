@@ -762,6 +762,7 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 	if state.is_empty():
 		return {}
 	var numeric_state := int(state.get("state", -1))
+	var delivery_persisted := bool(state.get("delivery_persisted", false))
 	var next_phase_index := maxi(int(state.get("next_phase_index", 0)), 0)
 	var phase_count := maxi(int(state.get("phase_count", 0)), 0)
 	var contract := state.get("contract", {}) as Dictionary
@@ -792,11 +793,14 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]
 	var recovery_text := ""
 	if numeric_state == CargoDeliveryActivity.State.COMPLETED:
-		stage_id = &"delivered"
+		stage_id = &"delivery_recorded" if delivery_persisted else &"delivered"
 		objective = (
-			"AWAIT CARGO REWARD HANDOFF"
-			if bool(state.get("reward_pending", false))
-			else "CARGO TRANSFER CONFIRMED"
+			"DELIVERY RECEIPT RETAINED"
+			if delivery_persisted else (
+				"AWAIT CARGO REWARD HANDOFF"
+				if bool(state.get("reward_pending", false))
+				else "CARGO TRANSFER CONFIRMED"
+			)
 		)
 	elif numeric_state in [CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
 		var failed_stage := _stage_for_phase(next_phase_id, next_phase_index, phase_count)
@@ -825,7 +829,10 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		summary += "  //  TIME %s: %.1fs LEFT" % [str(deadline_state).to_upper(), remaining]
 	elif numeric_state == CargoDeliveryActivity.State.COMPLETED:
 		summary += "  //  %s" % (
-			"REWARD PENDING" if bool(state.get("reward_pending", false)) else "DELIVERY CONFIRMED"
+			"DELIVERY RECEIPT SAVED" if delivery_persisted else (
+				"REWARD PENDING" if bool(state.get("reward_pending", false)) \
+				else "DELIVERY CONFIRMED"
+			)
 		)
 	elif not recovery_text.is_empty():
 		summary += "  //  " + recovery_text
@@ -842,6 +849,7 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		"deadline_ratio": deadline_ratio,
 		"deadline_state": deadline_state,
 		"reward_pending": bool(state.get("reward_pending", false)),
+		"delivery_persisted": delivery_persisted,
 		"recovery_text": recovery_text,
 		"terminal": terminal,
 		"summary": summary,
@@ -865,6 +873,7 @@ func _cargo_stage_label(stage_id: StringName) -> String:
 		&"transit": "TRANSIT",
 		&"delivery": "DELIVERY",
 		&"delivered": "DELIVERED",
+		&"delivery_recorded": "DELIVERED",
 		&"lost": "LOST",
 		&"expired": "EXPIRED",
 	}.get(stage_id, "PICKUP")

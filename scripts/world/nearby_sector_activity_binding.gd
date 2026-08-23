@@ -31,6 +31,9 @@ const RACE_BEST_PERSISTENCE := preload("res://scripts/persistence/cinder_race_be
 const SCAN_DISCOVERY_PERSISTENCE := preload(
 	"res://scripts/persistence/cinder_scan_discovery_persistence.gd"
 )
+const CARGO_DELIVERY_PERSISTENCE := preload(
+	"res://scripts/persistence/cinder_cargo_delivery_persistence.gd"
+)
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 const PRESENTATION_OBSERVER_LIMIT := 3
 const CINDER_PATROL_DWELL_SECONDS := 2.0
@@ -72,6 +75,9 @@ var _last_race_best_persistence_result: Dictionary = {}
 var _scan_discovery_persistence: RefCounted
 var _restored_scan_discovery: Dictionary = {}
 var _last_scan_discovery_persistence_result: Dictionary = {}
+var _cargo_delivery_persistence: RefCounted
+var _restored_cargo_delivery: Dictionary = {}
+var _last_cargo_delivery_persistence_result: Dictionary = {}
 var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
@@ -356,12 +362,11 @@ func get_last_cargo_terminal_request() -> Dictionary:
 func _publish_cargo_presentation(authority_record: Dictionary = {}) -> void:
 	if not is_instance_valid(_cargo_access) or not is_instance_valid(_cargo_terminal):
 		return
-	var activity := (
-		_cargo_activity.get_snapshot().duplicate(true)
-		if is_instance_valid(_cargo_activity) else {}
-	)
+	var activity := _cargo_presentation_snapshot()
 	var state_id: StringName = &"unavailable"
-	if is_instance_valid(_cargo_source_entity) and not activity.is_empty():
+	if bool(activity.get("delivery_persisted", false)):
+		state_id = &"committed"
+	elif is_instance_valid(_cargo_source_entity) and not activity.is_empty():
 		var activity_state := int(activity.get("state", CARGO_ACTIVITY.State.IDLE))
 		if not authority_record.is_empty() and not bool(authority_record.get("accepted", true)):
 			state_id = &"stale_rejected"
@@ -745,6 +750,71 @@ func _bind_cargo_reward_handoff() -> void:
 	)
 	if bool(attached.get("accepted", false)):
 		_cargo_reward_handoff = handoff
+		if handoff.has_signal(&"completion_committed"):
+			handoff.connect(
+				&"completion_committed", Callable(self, &"_on_cargo_reward_committed")
+			)
+
+
+func _on_cargo_reward_committed(cargo: Dictionary, reward_result: Dictionary) -> void:
+	if _cargo_delivery_persistence == null or not is_instance_valid(_cargo_activity) \
+			or _cargo_reward_handoff == null:
+		return
+	var current := _cargo_activity.get_snapshot() as Dictionary
+	var handoff := _cargo_reward_handoff.get_snapshot() as Dictionary
+	if current != cargo \
+			or (handoff.get("last_result", {}) as Dictionary) != reward_result \
+			or int(handoff.get("completion_generation", -1)) \
+				!= int(cargo.get("generation", 0)):
+		return
+	var commit_id := "cinder-cargo-delivery-%010d" % (
+		int(_cargo_delivery_persistence.call(&"get_store_generation")) + 1
+	)
+	_last_cargo_delivery_persistence_result = _cargo_delivery_persistence.call(
+		&"save", cargo, reward_result, commit_id
+	) as Dictionary
+	if bool(_last_cargo_delivery_persistence_result.get("accepted", false)):
+		var loaded := _cargo_delivery_persistence.call(&"load") as Dictionary
+		if bool(loaded.get("accepted", false)):
+			_restored_cargo_delivery = (
+				loaded.get("delivery", {}) as Dictionary
+			).duplicate(true)
+	_publish_cargo_presentation()
+
+
+## Restores a delivered presentation and terminal receipt only. No manifest,
+## inventory handle, active deadline, or cargo activity generation is restored.
+func configure_cinder_cargo_delivery_persistence(
+		store: RefCounted, slot_id: StringName = &"cinder_cargo_delivery"
+	) -> Dictionary:
+	if _cargo_delivery_persistence != null:
+		return _result(true, &"cargo_delivery_persistence_already_configured")
+	var persistence := CARGO_DELIVERY_PERSISTENCE.new() as RefCounted
+	var configured := persistence.call(&"configure", store, slot_id) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		return configured
+	_cargo_delivery_persistence = persistence
+	var restored := persistence.call(&"load") as Dictionary
+	if bool(restored.get("accepted", false)):
+		_restored_cargo_delivery = (
+			restored.get("delivery", {}) as Dictionary
+		).duplicate(true)
+		_last_cargo_delivery_persistence_result = restored.duplicate(true)
+		_publish_cargo_presentation()
+	elif StringName(restored.get("reason", &"")) != &"cargo_delivery_not_found":
+		_last_cargo_delivery_persistence_result = restored.duplicate(true)
+		return restored
+	return configured
+
+
+func get_cinder_cargo_delivery_persistence_snapshot() -> Dictionary:
+	return {
+		"configured": _cargo_delivery_persistence != null,
+		"delivery": _restored_cargo_delivery.duplicate(true),
+		"last_result": _last_cargo_delivery_persistence_result.duplicate(true),
+		"restores_inventory_authority": false,
+		"restores_reward_authority": false,
+	}.duplicate(true)
 
 
 func request_patrol_reward(expected_generation: int) -> Dictionary:
@@ -1405,9 +1475,40 @@ func _structure_scan_presentation_snapshot() -> Dictionary:
 
 
 func _cargo_presentation_snapshot() -> Dictionary:
-	if not is_instance_valid(_cargo_activity):
-		return {}
-	var snapshot := _cargo_activity.get_snapshot().duplicate(true)
+	var snapshot := (
+		_cargo_activity.get_snapshot().duplicate(true)
+		if is_instance_valid(_cargo_activity) else {}
+	)
+	if not _restored_cargo_delivery.is_empty():
+		var state := int(snapshot.get("state", CARGO_ACTIVITY.State.IDLE))
+		var generation := int(snapshot.get("generation", 0))
+		if snapshot.is_empty() or (state == CARGO_ACTIVITY.State.IDLE and generation == 0):
+			var phase_count := int(_restored_cargo_delivery.get("phase_count", 0))
+			snapshot = {
+				"contract": {
+					"contract_id": String(_restored_cargo_delivery.get("contract_id", "")),
+					"item_id": String(_restored_cargo_delivery.get("item_id", "")),
+					"quantity": int(_restored_cargo_delivery.get("quantity", 0)),
+				},
+				"contract_id": String(_restored_cargo_delivery.get("contract_id", "")),
+				"state": CARGO_ACTIVITY.State.COMPLETED,
+				"generation": 0,
+				"next_phase_index": phase_count,
+				"phase_count": phase_count,
+				"phases_complete": true,
+				"elapsed_seconds": float(
+					_restored_cargo_delivery.get("elapsed_seconds", 0.0)
+				),
+				"deadline_seconds": 0.0,
+				"deadline_remaining_seconds": 0.0,
+				"accepted_receipt": {},
+			}.duplicate(true)
+		elif state != CARGO_ACTIVITY.State.COMPLETED:
+			return snapshot.duplicate(true)
+		if int(snapshot.get("state", -1)) == CARGO_ACTIVITY.State.COMPLETED:
+			snapshot["delivery_persisted"] = true
+			snapshot["delivery_receipt"] = _restored_cargo_delivery.duplicate(true)
+			snapshot["receipt_replay_allowed"] = false
 	var handoff := get_cargo_reward_handoff_snapshot()
 	var result := handoff.get("last_result", {}) as Dictionary
 	snapshot["reward_pending"] = (
@@ -1416,6 +1517,9 @@ func _cargo_presentation_snapshot() -> Dictionary:
 		and bool(result.get("accepted", false))
 	)
 	snapshot["reward_handoff_reason"] = StringName(result.get("reason", &""))
+	if bool(snapshot.get("delivery_persisted", false)):
+		snapshot["reward_pending"] = false
+		snapshot["reward_handoff_reason"] = &"delivery_receipt_restored"
 	return snapshot.duplicate(true)
 
 
