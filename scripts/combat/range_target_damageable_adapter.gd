@@ -6,17 +6,50 @@ extends Damageable
 ## ShipyardWorld's established burst/signal/cleanup lifecycle.
 
 const MAXIMUM_HEALTH_META: StringName = &"combat_maximum_health"
+const ComponentDamageModelType := preload("res://scripts/combat/component_damage_model.gd")
+
+const FRAME_COMPONENT_ID: StringName = &"frame"
+const CORE_COMPONENT_ID: StringName = &"core"
+const COMPONENT_STAGES := [
+	{
+		"stage_id": &"nominal",
+		"health_ratio_at_or_below": 1.0,
+		"disabled": false,
+		"performance_multiplier": 1.0,
+	},
+	{
+		"stage_id": &"damaged",
+		"health_ratio_at_or_below": 0.67,
+		"disabled": false,
+		"performance_multiplier": 0.72,
+	},
+	{
+		"stage_id": &"critical",
+		"health_ratio_at_or_below": 0.34,
+		"disabled": false,
+		"performance_multiplier": 0.38,
+	},
+	{
+		"stage_id": &"destroyed",
+		"health_ratio_at_or_below": 0.0,
+		"disabled": true,
+		"performance_multiplier": 0.0,
+	},
+]
 
 var _world_reference: WeakRef
 var _last_proxy_hit_position := Vector3.INF
 var _last_proxy_hit_normal := Vector3.ZERO
 var _last_proxy_source_context: Dictionary = {}
+var _component_damage_model: ComponentDamageModel
+var _next_component_damage_sequence := 0
 
 
 func _ready() -> void:
 	var target := get_target_entity()
 	if is_instance_valid(target) and not target.has_meta(MAXIMUM_HEALTH_META):
 		target.set_meta(MAXIMUM_HEALTH_META, maxf(0.001, float(target.get_meta("health", 1.0))))
+	_initialize_component_damage()
 
 
 func configure(world_owner: Node, target_faction: StringName = &"range_target") -> void:
@@ -78,6 +111,16 @@ func get_last_hit_context() -> Dictionary:
 	}
 
 
+## Detached component condition only. Target metadata remains the sole health,
+## destruction, collision, and mission-count authority.
+func get_component_snapshot() -> Dictionary:
+	return (
+		_component_damage_model.get_snapshot()
+		if _component_damage_model != null
+		else {}
+	).duplicate(true)
+
+
 func apply_damage(
 	amount: float,
 	hit_position: Vector3 = Vector3.INF,
@@ -114,6 +157,7 @@ func apply_damage(
 	var applied := minf(amount, before)
 	var after := maxf(0.0, before - applied)
 	target.set_meta("health", after)
+	_apply_component_damage(applied)
 	var safe_position := hit_position if hit_position.is_finite() else (target as Node3D).global_position
 	var safe_normal := hit_normal
 	if not safe_normal.is_finite() or safe_normal.length_squared() <= 0.000001:
@@ -182,6 +226,73 @@ func apply_damage(
 	if after <= 0.0:
 		destroyed.emit(safe_position, safe_normal, safe_context.duplicate(true))
 	return result
+
+
+func _initialize_component_damage() -> void:
+	var maximum := get_maximum_health()
+	_component_damage_model = ComponentDamageModelType.new([
+		{
+			"component_id": FRAME_COMPONENT_ID,
+			"maximum_health": maximum * 0.45,
+			"damage_stages": COMPONENT_STAGES.duplicate(true),
+		},
+		{
+			"component_id": CORE_COMPONENT_ID,
+			"maximum_health": maximum * 0.60,
+			"damage_stages": COMPONENT_STAGES.duplicate(true),
+		},
+	]) as ComponentDamageModel
+	if _component_damage_model == null or not _component_damage_model.is_configuration_valid():
+		_component_damage_model = null
+		return
+	var reset_result := _component_damage_model.reset_for_reuse(0)
+	if not bool(reset_result.get("accepted", false)):
+		_component_damage_model = null
+		return
+	_present_component_snapshot()
+
+
+func _apply_component_damage(applied_hull_damage: float) -> void:
+	if _component_damage_model == null or applied_hull_damage <= 0.0:
+		return
+	var contexts: Array[Dictionary] = []
+	for component_spec in [
+		{"component_id": FRAME_COMPONENT_ID, "exposure": 0.5},
+		{"component_id": CORE_COMPONENT_ID, "exposure": 1.0},
+	]:
+		var component_id := StringName(component_spec.component_id)
+		var state := _component_damage_model.get_component_state(component_id)
+		var requested_damage := applied_hull_damage * float(component_spec.exposure)
+		if float(state.get("current_health", 0.0)) <= 0.0 or requested_damage <= 0.0:
+			continue
+		contexts.append({
+			"component_id": component_id,
+			"damage": requested_damage,
+			"generation": _component_damage_model.get_generation(),
+			"sequence": _next_component_damage_sequence + contexts.size(),
+		})
+	if contexts.is_empty():
+		return
+	var component_result := _component_damage_model.apply_component_damage_batch(contexts)
+	if not bool(component_result.get("accepted", false)):
+		return
+	_next_component_damage_sequence += contexts.size()
+	_present_component_snapshot()
+
+
+func _present_component_snapshot() -> void:
+	var world_owner := _get_world_owner()
+	var target := get_target_entity()
+	if (
+		is_instance_valid(world_owner)
+		and is_instance_valid(target)
+		and world_owner.has_method("apply_range_target_component_presentation")
+	):
+		world_owner.call(
+			"apply_range_target_component_presentation",
+			target,
+			get_component_snapshot()
+		)
 
 
 func _is_damage_target_current(target: Node) -> bool:

@@ -4300,6 +4300,60 @@ func get_destroyed_target_count() -> int:
 	return _destroyed_target_count
 
 
+## Consumes detached component condition for the four authored range drones.
+## This presentation seam deliberately has no health, collision, destruction,
+## or mission authority; those remain in the target metadata lifecycle below.
+func apply_range_target_component_presentation(
+		target: StaticBody3D,
+		component_snapshot: Dictionary
+	) -> bool:
+	if not is_instance_valid(target) or not target.get_meta("is_shipyard_target", false):
+		return false
+	var visual := target.get_node_or_null("DroneVisual") as Node3D
+	if visual == null:
+		return false
+	var stages: Dictionary = {}
+	for raw_state in component_snapshot.get("components", []) as Array:
+		if not raw_state is Dictionary:
+			continue
+		var state := raw_state as Dictionary
+		var stage := state.get("stage", {}) as Dictionary
+		stages[StringName(state.get("component_id", &""))] = StringName(
+			stage.get("stage_id", &"nominal")
+		)
+	var frame_stage := StringName(stages.get(&"frame", &"nominal"))
+	var core_stage := StringName(stages.get(&"core", &"nominal"))
+	var outer_ring := visual.get_node_or_null("OuterRing") as MeshInstance3D
+	var core := visual.get_node_or_null("Core") as MeshInstance3D
+	if outer_ring != null:
+		outer_ring.set_meta("component_stage", frame_stage)
+		outer_ring.material_override = _range_target_frame_material(frame_stage)
+	if core != null:
+		core.set_meta("component_stage", core_stage)
+		core.material_override = _range_target_core_material(core_stage)
+	return outer_ring != null and core != null
+
+
+func _range_target_frame_material(stage: StringName) -> Material:
+	match stage:
+		&"damaged":
+			return _materials["orange"]
+		&"critical", &"destroyed":
+			return _materials["red"]
+		_:
+			return _materials["ivory"]
+
+
+func _range_target_core_material(stage: StringName) -> Material:
+	match stage:
+		&"damaged", &"critical":
+			return _materials["red_glow"]
+		&"destroyed":
+			return _materials["black"]
+		_:
+			return _materials["orange_glow"]
+
+
 func defer_target_damage_presentation(
 		receipt_id: int,
 		target: StaticBody3D,
