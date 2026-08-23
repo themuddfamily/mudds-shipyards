@@ -54,6 +54,7 @@ var _last_origin_receipt := {}
 var _completed_activity_id: StringName = &""
 var _last_evidence := {}
 var _failure_reason: StringName = &""
+var _failed_phase := Phase.IDLE
 
 
 func _init(
@@ -101,6 +102,7 @@ func begin(
 	_location_generation = location_generation
 	_phase = Phase.ORBIT_APPROACH
 	_failure_reason = &""
+	_failed_phase = Phase.IDLE
 	_completed_activity_id = &""
 	_last_evidence = {}
 	_last_origin_receipt = {}
@@ -263,8 +265,39 @@ func fail(reason: StringName) -> Dictionary:
 	if String(reason).is_empty():
 		return _reject(&"failure_reason_required")
 	_failure_reason = reason
+	_failed_phase = _phase
 	_phase = Phase.FAILED
 	return _accept(&"failed")
+
+
+## Recovers a stranded surface visit to the landed ship without moving either
+## actor. Only failures after landing and before takeoff may use this handoff;
+## the caller must prove the return anchor and landed-ship state at current
+## generations before normal reboard/takeoff/orbit-return progression resumes.
+func recover_to_landed_ship(
+		player_at_return_anchor: bool,
+		ship_still_landed: bool,
+		run_generation: int,
+		attachment_generation: int
+	) -> Dictionary:
+	if _phase != Phase.FAILED:
+		return _reject(&"recovery_unavailable")
+	if _failed_phase not in [Phase.LANDED, Phase.ON_FOOT, Phase.REBOARDED]:
+		return _reject(&"recovery_window_closed")
+	if run_generation != _run_generation:
+		return _reject(&"stale_generation")
+	if attachment_generation != _attachment_generation:
+		return _reject(&"stale_attachment_generation")
+	if not player_at_return_anchor or not ship_still_landed:
+		return _reject(&"landed_ship_recovery_prerequisites_not_met")
+	_phase = Phase.ON_FOOT
+	_failure_reason = &""
+	_last_evidence = {
+		"recovery": &"return_to_landed_ship",
+		"player_at_return_anchor": true,
+		"ship_still_landed": true,
+	}
+	return _accept(&"recovered_to_landed_ship")
 
 
 func get_phase() -> int:
@@ -304,6 +337,7 @@ func get_snapshot() -> Dictionary:
 		"last_origin_receipt": _last_origin_receipt.duplicate(true),
 		"last_evidence": _last_evidence.duplicate(true),
 		"failure_reason": _failure_reason,
+		"failed_phase": _failed_phase,
 		"authority": {
 			"movement": false, "landing": false, "streaming": false,
 			"origin_shift": false, "activity": false, "reward": false,

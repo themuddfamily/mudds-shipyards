@@ -107,6 +107,34 @@ func _run() -> void:
 		).reason == &"terminal_state",
 		"completion is emitted once and terminal state is replay-safe",
 	)
+	var stranded := ContractScript.new()
+	_check(stranded.begin(1, 1, 1, 1).accepted, "a second visit can begin for recovery coverage")
+	stranded.confirm_orbit_approach(true, _observation(), 1, 1)
+	stranded.confirm_landing(
+		true, &"ember_caldera",
+		{"world_id": &"ember_moon", "region_id": &"ember_caldera", "landing_confirmed": true},
+		true, 1, 1
+	)
+	stranded.confirm_on_foot(&"pad_alpha_egress", &"caldera_relay_scan", true, 1, 1)
+	_check(stranded.fail(&"surface_support_lost").accepted, "a surface support loss becomes recoverable failure")
+	_check(
+		stranded.recover_to_landed_ship(false, true, 1, 1).reason
+			== &"landed_ship_recovery_prerequisites_not_met",
+		"recovery requires the player to reach the return anchor"
+	)
+	_check(
+		stranded.recover_to_landed_ship(true, true, 0, 1).reason == &"stale_generation",
+		"recovery rejects stale run generations"
+	)
+	_check(
+		stranded.recover_to_landed_ship(true, true, 1, 1).accepted
+			and stranded.get_phase_id() == &"on_foot",
+		"a stranded player safely recovers to the landed ship without moving actors"
+	)
+	_check(
+		stranded.confirm_reboarded(true, true, 1, 1).accepted,
+		"recovered player can resume the normal reboard handoff"
+	)
 	var invalid := ContractScript.new(
 		&"Bad World", &"ember_caldera", &"mudds_shipyards",
 		PackedStringArray(["pad_alpha_egress"]), PackedStringArray(["activity"]),
