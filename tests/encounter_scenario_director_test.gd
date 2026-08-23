@@ -818,9 +818,11 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 	_check(
 		picket_intent.action == EncounterScenarioDirector.TACTIC_BREACH
 			and bool(picket_intent.fire_authorized)
+			and director.is_picket_dispatch_authorized(picket, generation)
+			and not director.is_picket_dispatch_authorized(picket, generation + 1)
 			and screen_intent.action == EncounterScenarioDirector.TACTIC_SCREEN_GUARD
 			and bool(screen_intent.fire_authorized),
-		"the picket charges the protected objective while its paired wing screens the caller"
+		"the generation-owned picket charges the protected objective while its paired wing screens the caller"
 	)
 	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
 	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
@@ -857,8 +859,9 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 	await _advance_until(func() -> bool: return director.is_concluded(), 60)
 	_check(
 		director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
-			and director.get_roster().is_empty(),
-		"resolver destruction of the heavy picket clears and stands down the breach"
+			and director.get_roster().is_empty()
+			and not director.is_picket_dispatch_authorized(picket, generation),
+		"resolver destruction clears the breach and makes its old picket generation stale"
 	)
 	await _assert_fully_terminated(fixture, "heavy breach picket destroyed")
 	protected.deactivate()
