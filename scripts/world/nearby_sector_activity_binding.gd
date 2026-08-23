@@ -235,6 +235,10 @@ func configure_station_defense_reward(
 			"register_activity", &"cinder_kit_cargo_run",
 			&"return_fabrication_kits_to_shipyard"
 		)
+		_station_reward_adapter.call(
+			"register_activity", &"cinder_relay_patrol",
+			&"return_patrol_log_to_shipyard"
+		)
 	return result
 
 
@@ -276,6 +280,19 @@ func request_cargo_reward(expected_generation: int) -> Dictionary:
 		"state_id": &"completed" if int(cargo.get("state", -1)) == CargoDeliveryActivity.State.COMPLETED else &"",
 		"outcome": &"cleared" if int(cargo.get("state", -1)) == CargoDeliveryActivity.State.COMPLETED else &"",
 		"generation": cargo.get("generation", 0),
+	}.duplicate(true)
+	return _station_reward_adapter.call("consume", normalized, expected_generation)
+
+
+func request_patrol_reward(expected_generation: int) -> Dictionary:
+	if _patrol == null or _station_reward_adapter == null:
+		return _result(false, &"patrol_reward_unavailable")
+	var patrol := _patrol.get_presentation_snapshot()
+	var normalized := {
+		"activity_id": &"cinder_relay_patrol",
+		"state_id": patrol.get("state_id", &""),
+		"outcome": &"cleared" if patrol.get("state_id", &"") == &"completed" else &"",
+		"generation": patrol.get("generation", 0),
 	}.duplicate(true)
 	return _station_reward_adapter.call("consume", normalized, expected_generation)
 
