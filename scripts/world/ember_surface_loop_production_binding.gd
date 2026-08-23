@@ -53,6 +53,7 @@ const PlanetaryCompositionScript := preload("res://scripts/world/ember_planetary
 const ReturnManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
 const ReturnTravelAdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
 const ReturnBerthAdapterScript := preload("res://scripts/world/planetary_return_berth_adapter.gd")
+const PlanetaryTravelAudioBindingScript := preload("res://scripts/audio/planetary_travel_audio_binding.gd")
 
 var _state := State.IDLE
 var _generation := 0
@@ -86,6 +87,7 @@ var _last_planetary_altitude_m := 0.0
 var _relay_return_manifest: RefCounted
 var _relay_return_travel: RefCounted
 var _return_berth_adapter: RefCounted
+var _travel_audio_binding: RefCounted
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -123,6 +125,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _travel_audio_binding != null:
+		_travel_audio_binding.detach()
+		_travel_audio_binding = null
 	# A staged early envelope belongs to exactly one live tree epoch. Never replay
 	# it after a whole composition detach/re-entry.
 	_pending_envelope.clear()
@@ -171,6 +176,31 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	process_physics_priority = PHYSICS_PRIORITY
 	set_physics_process(is_inside_tree())
 	return _finish(true, &"configured")
+
+
+## Composes presentation cues from the caller-owned travel session. This hook
+## observes detached snapshots only and never advances or validates travel.
+func bind_planetary_travel_audio(travel_session: Object) -> Dictionary:
+	if _travel_audio_binding != null:
+		return _reject(&"travel_audio_already_bound")
+	var binding := PlanetaryTravelAudioBindingScript.new() as RefCounted
+	var result: Dictionary = binding.attach(travel_session)
+	if not bool(result.get("accepted", false)):
+		return result
+	_travel_audio_binding = binding
+	return _result(true, &"travel_audio_bound")
+
+
+func detach_planetary_travel_audio() -> Dictionary:
+	if _travel_audio_binding == null:
+		return _reject(&"travel_audio_unbound")
+	var result: Dictionary = _travel_audio_binding.detach()
+	_travel_audio_binding = null
+	return result
+
+
+func get_planetary_travel_audio_snapshot() -> Dictionary:
+	return _travel_audio_binding.get_snapshot() if _travel_audio_binding != null else {"attached": false}
 
 
 ## Instantiates the retained planetary surface composition under this real
