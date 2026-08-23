@@ -277,6 +277,8 @@ var _help_heading: Label
 ## would violate whole-Main identity even though the displayed copy is the same.
 var _help_row_controls: Array[Dictionary] = []
 var _reticle: Control
+var _reticle_state_label: Label
+var _reticle_state: StringName = &"searching"
 var _flight_cue_layer: FlightPathCue
 var _toast_serial := 0
 var _toast_tween: Tween
@@ -1105,6 +1107,30 @@ func set_target_count(destroyed: int, total: int) -> void:
 	_target_label.text = "RANGE TARGETS  %d / %d" % [destroyed, total]
 
 
+## Updates the lock readout with shape and text semantics; palette colour is
+## only a supporting cue and never the state itself.
+func set_target_lock_state(state: StringName, target_name: String = "") -> void:
+	var presentation := get_target_lock_presentation(state, target_name)
+	_reticle_state = presentation.state
+	if not is_instance_valid(_reticle_state_label):
+		return
+	_reticle_state_label.text = "%s  %s" % [presentation.marker, presentation.label]
+	_reticle_state_label.modulate = _c(presentation.role)
+
+
+static func get_target_lock_presentation(state: StringName, target_name: String = "") -> Dictionary:
+	var safe_target := target_name.strip_edges().to_upper()
+	match state:
+		&"acquired":
+			return {"state": &"acquired", "marker": "[+]", "label": "LOCKED  %s" % safe_target if not safe_target.is_empty() else "LOCKED", "role": NOMINAL}
+		&"friendly_blocked":
+			return {"state": &"friendly_blocked", "marker": "[=]", "label": "FRIENDLY  HOLD FIRE", "role": CAUTION}
+		&"invalid":
+			return {"state": &"invalid", "marker": "[?]", "label": "INVALID TARGET", "role": MUTED}
+		_:
+			return {"state": &"searching", "marker": "[...]", "label": "SEARCHING", "role": NOMINAL_SOFT}
+
+
 func set_enemy_status(display_name: String, current: float, maximum: float, visible: bool = true) -> void:
 	_enemy_panel.visible = visible
 	if not visible:
@@ -1446,6 +1472,10 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		layer.position = Vector2.ZERO
 		layer.size = logical
 		layer.scale = Vector2(effective, effective)
+	if is_instance_valid(_reticle):
+		# The reticle remains camera-centred, but its state label follows the same
+		# authored UI scale ceiling as the surrounding HUD.
+		_reticle.scale = Vector2.ONE * effective
 	if is_instance_valid(_caption_presenter):
 		_caption_presenter.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_caption_presenter.position = Vector2(CAPTION_HOST_LEFT_LOGICAL * effective, 0.0)
@@ -1974,6 +2004,7 @@ func _build_hud() -> void:
 	_reticle.position = Vector2(-22.0, -22.0)
 	_reticle.size = Vector2(44.0, 44.0)
 	_reticle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reticle.pivot_offset = Vector2(22.0, 22.0)
 	_hud.add_child(_reticle)
 	for rect_data: Array in [
 		[Vector2(20, 0), Vector2(4, 12)], [Vector2(20, 32), Vector2(4, 12)],
@@ -1984,6 +2015,12 @@ func _build_hud() -> void:
 		mark.size = rect_data[1]
 		_tint_rect(mark, NOMINAL)
 		_reticle.add_child(mark)
+	_reticle_state_label = _label("[...]  SEARCHING", 10, NOMINAL_SOFT)
+	_reticle_state_label.position = Vector2(-46.0, 48.0)
+	_reticle_state_label.size = Vector2(136.0, 22.0)
+	_reticle_state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_reticle_state_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reticle.add_child(_reticle_state_label)
 	_reticle.visible = false
 
 	_build_telemetry()
