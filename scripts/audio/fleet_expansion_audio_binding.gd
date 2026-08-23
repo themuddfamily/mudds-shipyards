@@ -159,6 +159,24 @@ func present_payload_abort(record: Dictionary) -> Dictionary:
 	return _payload_binding.present_abort_record(record)
 
 
+func present_projectile_launch(record: Dictionary) -> Dictionary:
+	if _ship_id != &"bomber" or _payload_binding == null:
+		return _result(false, &"payload_audio_not_supported")
+	return _payload_binding.present_projectile_launch(record)
+
+
+func present_projectile_terminal(intent: Dictionary) -> Dictionary:
+	if _ship_id != &"bomber" or _payload_binding == null:
+		return _result(false, &"payload_audio_not_supported")
+	return _payload_binding.present_projectile_terminal(intent)
+
+
+func present_projectile_abort(record: Dictionary) -> Dictionary:
+	if _ship_id != &"bomber" or _payload_binding == null:
+		return _result(false, &"payload_audio_not_supported")
+	return _payload_binding.present_projectile_abort(record)
+
+
 func _apply_plan() -> void:
 	var cache_key := "%s|%s" % [_profile_id, "reduced" if _reduced_dynamic_range else "nominal"]
 	if not _plan_cache.has(cache_key):

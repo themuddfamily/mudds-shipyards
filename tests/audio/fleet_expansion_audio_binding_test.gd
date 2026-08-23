@@ -62,6 +62,8 @@ func _run() -> void:
 	_check(bool(bomber_binding.present_payload_release({"generation": 0, "request_sequence": 1, "payload_id": &"cinder_payload_alpha"}).accepted), "accepted bomber release reaches composed audio")
 	_check(bool(bomber_binding.present_payload_abort({"generation": 0, "request_sequence": 2, "payload_id": &"cinder_payload_alpha"}).accepted), "accepted bomber abort reaches composed audio")
 	_check(_events.has(&"bomber_payload_release") and _events.has(&"bomber_payload_abort"), "composed payload cues reach the fleet audio signal")
+	_check(bool(bomber_binding.present_projectile_launch({"generation": 0, "request_sequence": 1, "payload_id": &"cinder_payload_alpha"}).accepted), "projectile launch reaches fleet payload audio")
+	_check(bool(bomber_binding.present_projectile_terminal({"generation": 0, "terminal_sequence": 1, "kind": &"impact", "payload_id": &"cinder_payload_alpha", "position": Vector3.ZERO}).accepted), "projectile impact reaches fleet payload audio")
 	_check(bomber_binding.present_payload_release({"generation": 0, "request_sequence": 2, "payload_id": &"cinder_payload_alpha"}).reason == &"duplicate_sequence", "payload sequence fence rejects duplicates")
 	_check(bool(bomber_binding.detach().accepted), "bomber payload composition detaches")
 	_check(bool(bomber_binding.bind(&"bomber", bomber_rig).accepted), "bomber payload composition re-enters")
