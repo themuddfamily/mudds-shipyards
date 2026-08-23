@@ -127,6 +127,7 @@ const FLIGHT_PATH_SAFE_HORIZONTAL_VIEWPORT_RATIO := 0.27
 const FLIGHT_PATH_SAFE_HORIZONTAL_ASPECT_LIMIT := 0.52
 const FLIGHT_PATH_SAFE_VERTICAL_VIEWPORT_RATIO := 0.18
 const BOARDING_FALLBACK_REACH := 7.0
+const STATION_SEAT_MAX_REACH := 3.25
 const OPPONENT_SOURCE_ID := 2101
 const PLAYER_FACTION: StringName = &"shipyard_flight_test"
 const OPPONENT_FACTION: StringName = &"range_defence"
@@ -276,6 +277,11 @@ var _piloting := false
 ## must never reach the flight, berth, landing, combat or regeneration paths that
 ## `_piloting` gates. `tests/fleet_lifecycle_safety_test.gd` freezes that roster.
 var _driving := false
+## Fixed station furniture uses the Player's camera and seated animation but
+## acquires no driving, piloting, berth, or network authority.
+var _station_seated := false
+var _active_station_seat: StationSeat
+var _station_seat_recovery_transform := Transform3D.IDENTITY
 ## Which of the tow tractor's two independent safety guards last recalled the
 ## driver. Diagnostic only; nothing gameplay-facing reads it.
 var _last_tractor_recovery_reason: StringName = &""
@@ -432,6 +438,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_cancel_station_seat_for_detach()
 	if is_instance_valid(network_session):
 		network_session.shutdown(&"game_flow_exit")
 		network_session = null
@@ -1048,6 +1055,8 @@ func _process(delta: float) -> void:
 		# station prompts the seated player cannot reach and, worse, would let the
 		# walking fall-recall below teleport the avatar out of a live seat.
 		_update_drive_flow()
+	elif _station_seated:
+		_update_station_seat_flow()
 	else:
 		_update_on_foot_flow()
 		# The below-deck recall is a station-floor backstop expressed in world
@@ -2470,10 +2479,16 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_interact_requested() -> void:
 	if _piloting or _transition_busy:
 		return
+	if _station_seated:
+		_stand_from_station_seat()
+		return
 	# Physics-emitted signal, idle-refreshed selection: recompute before deciding.
 	# See `_refresh_interaction_targets()`.
 	_refresh_interaction_targets()
 	if is_instance_valid(station_interaction_candidate):
+		if station_interaction_candidate is StationSeat:
+			_sit_in_station_seat(station_interaction_candidate as StationSeat)
+			return
 		var accepted := bool(station_interaction_candidate.call("interact", player))
 		if accepted:
 			audio.play_ui_confirm()
@@ -2486,6 +2501,125 @@ func _on_interact_requested() -> void:
 	if phase == Phase.IN_FLIGHT_CABIN and boarding_candidate != _cabin_ship:
 		return
 	_board_ship(boarding_candidate)
+
+
+func _update_station_seat_flow() -> void:
+	if not is_instance_valid(_active_station_seat):
+		_recover_from_station_seat()
+		return
+	if _transition_busy:
+		hud.set_interaction("", false)
+		return
+	hud.set_interaction(_active_station_seat.get_seated_prompt())
+
+
+func _sit_in_station_seat(seat: StationSeat) -> void:
+	if (
+		_transition_busy
+		or _station_seated
+		or not is_instance_valid(seat)
+		or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]
+		or player.get_interaction_origin().distance_to(seat.get_entry_transform().origin) \
+			> STATION_SEAT_MAX_REACH
+		or not seat.try_reserve(player)
+	):
+		return
+	_transition_busy = true
+	_active_station_seat = seat
+	_station_seat_recovery_transform = seat.get_exit_transform()
+	var generation := _begin_transition_generation()
+	player.set_control_enabled(false)
+	hud.set_interaction("", false)
+	if not player.begin_boarding(
+		seat.get_entry_transform(), seat.get_seat_anchor(), minf(boarding_motion_time, 0.75)
+	):
+		seat.cancel_reservation(player)
+		_active_station_seat = null
+		_transition_busy = false
+		player.set_control_enabled(true)
+		return
+	await player.boarding_completed
+	if generation != _transition_generation:
+		return
+	if (
+		not _transition_busy
+		or _active_station_seat != seat
+		or not is_instance_valid(seat)
+		or not seat.is_reserved_for(player)
+		or not player.is_seated()
+	):
+		_recover_from_station_seat()
+		return
+	seat.finish_transition(player)
+	_station_seated = true
+	player.set_station_seated_context(true)
+	player.set_control_enabled(true)
+	_transition_busy = false
+	audio.play_ui_confirm()
+
+
+func _stand_from_station_seat() -> void:
+	var seat := _active_station_seat
+	if (
+		_transition_busy
+		or not _station_seated
+		or not is_instance_valid(seat)
+		or not seat.begin_release(player)
+	):
+		return
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	player.set_control_enabled(false)
+	player.set_station_seated_context(false)
+	hud.set_interaction("", false)
+	if not player.begin_disembark(seat.get_exit_transform(), minf(disembarking_motion_time, 0.65)):
+		seat.finish_transition(player)
+		player.set_station_seated_context(true)
+		player.set_control_enabled(true)
+		_transition_busy = false
+		return
+	await player.disembarking_completed
+	if generation != _transition_generation:
+		return
+	if _active_station_seat != seat:
+		_recover_from_station_seat()
+		return
+	if is_instance_valid(seat):
+		seat.release(player)
+	_active_station_seat = null
+	_station_seated = false
+	_transition_busy = false
+	player.set_control_enabled(true)
+	hud.set_interaction("", false)
+	audio.play_ui_confirm()
+
+
+func _cancel_station_seat_for_detach() -> void:
+	if not _station_seated and not is_instance_valid(_active_station_seat):
+		return
+	_invalidate_transition_generation()
+	if is_instance_valid(_active_station_seat) and is_instance_valid(player):
+		_active_station_seat.cancel_reservation(player)
+	_active_station_seat = null
+	_station_seated = false
+	_transition_busy = false
+	if is_instance_valid(player):
+		player.force_recovery_to_on_foot(_station_seat_recovery_transform)
+		player.set_control_enabled(true)
+
+
+func _recover_from_station_seat() -> void:
+	_invalidate_transition_generation()
+	if is_instance_valid(_active_station_seat) and is_instance_valid(player):
+		_active_station_seat.cancel_reservation(player)
+	_active_station_seat = null
+	_station_seated = false
+	_transition_busy = false
+	if is_instance_valid(player):
+		player.force_recovery_to_on_foot(_station_seat_recovery_transform)
+		player.set_control_enabled(true)
+	if is_instance_valid(hud):
+		hud.set_interaction("", false)
 
 
 func _begin_transition_generation() -> int:

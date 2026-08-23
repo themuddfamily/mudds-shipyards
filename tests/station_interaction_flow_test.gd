@@ -74,7 +74,6 @@ func _run() -> void:
 	await physics_frame
 	await process_frame
 	await process_frame
-	print("SEAT_STAND_STATE: ", player.is_control_enabled(), " / ", seat.is_available(), " / ", seat.is_reserved_for(player), " / ", game.get("_transition_generation"), " / ", game.get("_transition_busy"), " / ", game.get("_station_seated"))
 	_check(
 		game.station_interaction_candidate == null,
 		"a nearby station door behind the camera does not consume interaction"
@@ -137,14 +136,10 @@ func _test_production_station_seat(game: GameFlow, player: PlayerController) -> 
 	)
 	game.call("_on_interact_requested")
 	var stood := await _wait_for_physics_frames(
-		func() -> bool: return not player.is_seated(),
+		func() -> bool: return player.is_control_enabled() and seat.is_available(),
 		60
 	)
 	_check(stood, "a second embodied interaction stands up onto the authored clear floor pose")
-	# PlayerController defers its completion signal until collision restoration is
-	# queued; allow the coordinator continuation to release the seat and controls.
-	await process_frame
-	await process_frame
 	_check(
 		player.is_control_enabled() and seat.is_available() and not seat.is_reserved_for(player),
 		"standing restores locomotion and releases the chair for reuse"

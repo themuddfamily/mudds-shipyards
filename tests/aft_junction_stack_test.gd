@@ -1591,7 +1591,7 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
 		and int(collision.body_count) == 106
-		and int(collision.shape_count) == 112
+		and int(collision.shape_count) == 116
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null
@@ -1601,7 +1601,7 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and vip.find_children(
 			"VIPFacadeColumnCrown", "MeshInstance3D", false, false
 		).is_empty(),
-		"batch adds zero collision, interaction, evidence or lifecycle authority and preserves both doors plus 106 bodies and 112 shapes"
+		"batch adds zero authority and preserves both doors plus four chair interactions beside the solid roster"
 	)
 
 	(report.current as Dictionary)["renderer_nodes"] = -1
