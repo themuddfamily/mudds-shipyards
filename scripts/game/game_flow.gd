@@ -39,6 +39,10 @@ const NearbySectorActivityMusicAdapterType := preload(
 const HalyardCrewSemanticAudioBindingType := preload(
 	"res://scripts/audio/halyard_crew_semantic_audio_binding.gd"
 )
+const CrashRecoveryCoordinatorType := preload("res://scripts/diagnostics/crash_recovery_coordinator.gd")
+const SessionDiagnosticRecordType := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
+const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
+const SessionDiagnosticLifecycleBridgeType := preload("res://scripts/diagnostics/session_diagnostic_lifecycle_bridge.gd")
 
 ## First production nearby activity. It is a modern interpretation and remains
 ## a progress-only route: the director and this integration own no rewards,
@@ -311,6 +315,7 @@ var _network_session_mode: StringName = &""
 var _network_session_address := "127.0.0.1"
 var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
 var _network_session_max_clients := NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
+var _network_hud_snapshot_generation := 0
 var _network_damage_entities: Dictionary = {}
 var _network_damage_server_tick := 0
 var _network_landing_entities: Dictionary = {}
@@ -384,6 +389,8 @@ var _runtime_settings_last_commit_id := ""
 var _runtime_settings_unsaved_changes := false
 var _runtime_settings_transaction_active := false
 var _runtime_settings_reentrant_rejection_count := 0
+var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
+var _session_diagnostics_last_status: Dictionary = {}
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
 var _runtime_settings_persistence_injected := false
@@ -408,6 +415,10 @@ var _guided_activity_complete := false
 ## completion. This latch survives landing and shutdown, then is consumed only
 ## after the same pilot finishes the generation-guarded physical disembark.
 var _guided_return_ready_for_completion := false
+## A planetary return receipt is terminal only after GameFlow verifies the live
+## station berth.  This latch prevents a detached/replayed receipt from
+## re-entering the ordinary yard shutdown path.
+var _planetary_return_receipt_consumed := false
 var _sandbox_sortie := false
 ## A parked craft begins with `landed == true`. Free-flight return handling must
 ## not interpret that initial state as a completed sortie before the first
@@ -502,6 +513,10 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if is_queued_for_deletion() and _session_diagnostics_bridge != null:
+		_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(
+			0, 0.0, "runtime"
+		)
 	_clear_bomber_payload_loop(&"game_flow_exit")
 	_cancel_station_seat_for_detach()
 	if is_instance_valid(network_session):
@@ -1088,6 +1103,7 @@ func _get_startup_stager() -> MainStartupStagerType:
 ## difference is when the authored subtree became complete.
 func _start_up() -> void:
 	_initialize_runtime_settings()
+	_initialize_session_diagnostics()
 	player.teleport_to(world.get_player_spawn())
 	player.set_control_enabled(false)
 	player.set_camera_active(false)
@@ -1108,6 +1124,35 @@ func _start_up() -> void:
 	# signals can sample it.
 	_apply_all_runtime_settings()
 	_connect_runtime_signals()
+
+
+func _initialize_session_diagnostics() -> void:
+	if _session_diagnostics_bridge != null or _runtime_settings_user_data_store == null:
+		return
+	var coordinator := CrashRecoveryCoordinatorType.new(_runtime_settings_user_data_store)
+	var record := SessionDiagnosticRecordType.new(_runtime_settings_user_data_store)
+	var sink := SessionDiagnosticFileSinkType.new("user://diagnostics")
+	var restored := coordinator.restore()
+	if not bool(restored.accepted):
+		_session_diagnostics_last_status = {"accepted": false, "reason": &"restore_failed", "status": restored}
+		return
+	_session_diagnostics_bridge = SessionDiagnosticLifecycleBridgeType.new(coordinator, record, sink)
+	_session_diagnostics_last_status = _session_diagnostics_bridge.begin_session(1, "main-session-start", 0, 0.0)
+
+
+func get_session_diagnostics_snapshot() -> Dictionary:
+	return {
+		"available": _session_diagnostics_bridge != null,
+		"last_status": _session_diagnostics_last_status.duplicate(true),
+		"bridge": _session_diagnostics_bridge.get_snapshot() if _session_diagnostics_bridge != null else {},
+	}.duplicate(true)
+
+
+func mark_orderly_session_shutdown() -> Dictionary:
+	if _session_diagnostics_bridge == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(0, 0.0, "main-session-clean")
+	return _session_diagnostics_last_status.duplicate(true)
 	opponent.set_target(active_ship)
 	opponent.deactivate()
 	total_targets = world.get_target_count()
@@ -2221,10 +2266,36 @@ func _publish_network_session_snapshot(
 ) -> void:
 	if not is_instance_valid(hud) or not hud.has_method(&"update_network_session_status"):
 		return
+	_network_hud_snapshot_generation += 1
+	var presentation := _network_local_role_presentation()
+	presentation["generation"] = _network_hud_snapshot_generation
+	presentation["state"] = state
+	presentation["role"] = role
+	presentation["detail"] = detail
+	presentation["retryable"] = retryable
 	hud.call(
 		&"update_network_session_status",
-		{"state": state, "role": role, "detail": detail, "retryable": retryable}
+		presentation
 	)
+
+
+func _network_local_role_presentation() -> Dictionary:
+	var local_role: StringName = &"pilot" if _piloting else &"observer"
+	var craft_name := ""
+	if is_instance_valid(active_ship):
+		craft_name = active_ship.get_display_name()
+		if not _piloting and is_instance_valid(network_session) and network_session.has_method(&"get_crew_role_snapshot"):
+			var role_snapshot := network_session.get_crew_role_snapshot() as Dictionary
+			var roles := role_snapshot.get("roles", {}) as Dictionary
+			for record_variant in roles.values():
+				if not record_variant is Dictionary:
+					continue
+				var record := record_variant as Dictionary
+				if int(record.get("peer_id", 0)) == 1:
+					var admitted_role := StringName(str(record.get("role", &"observer")))
+					local_role = admitted_role if admitted_role in [&"pilot", &"passenger"] else &"observer"
+					break
+	return {"local_role": local_role, "controlled_craft": craft_name}
 
 
 func _publish_network_session_result(result: Dictionary, role: StringName) -> void:
@@ -3951,6 +4022,72 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 	publish_first_sortie_tutorial_phase(&"return_land", _first_sortie_tutorial_generation)
 	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
+
+
+## Consumes the detached Ember return receipt at the normal GameFlow boundary.
+## The berth remains the sole occupancy authority: this method never reserves,
+## occupies, moves, or teleports a craft.  The optional arguments are an
+## explicit test/production handoff; normal Main callers may omit them and use
+## the currently piloted craft, player, and registered world berth.
+func consume_planetary_return_receipt(
+		receipt: Variant, planetary_binding: Object = null,
+		return_berth: ShipBerth = null, return_craft: Node = null,
+		return_actor: Node = null
+	) -> Dictionary:
+	if _planetary_return_receipt_consumed:
+		return {"accepted": false, "reason": &"planetary_return_receipt_replayed"}
+	if phase != Phase.RETURN_TO_YARD:
+		return {"accepted": false, "reason": &"planetary_return_phase_mismatch"}
+	if not receipt is Dictionary:
+		return {"accepted": false, "reason": &"planetary_return_receipt_invalid"}
+	var returned := receipt as Dictionary
+	if not bool(returned.get("accepted", false)) \
+			or StringName(returned.get("reason", &"")) != &"returned_to_station":
+		return {"accepted": false, "reason": &"planetary_return_receipt_invalid"}
+	var berth_receipt := returned.get("berth_receipt", {}) as Dictionary
+	var contract_receipt := returned.get("contract_receipt", {}) as Dictionary
+	if not bool(berth_receipt.get("accepted", false)) \
+			or StringName(berth_receipt.get("reason", &"")) != &"return_berth_occupied" \
+			or not bool(contract_receipt.get("accepted", false)):
+		return {"accepted": false, "reason": &"planetary_return_receipt_invalid"}
+	var craft: Node = return_craft if return_craft != null else active_ship
+	var actor: Node = return_actor if return_actor != null else player
+	if craft == null or actor == null or not is_instance_valid(craft) \
+			or not is_instance_valid(actor):
+		return {"accepted": false, "reason": &"planetary_return_actor_unavailable"}
+	var craft_id := int(berth_receipt.get("craft_instance_id", 0))
+	var actor_id := int(berth_receipt.get("actor_instance_id", 0))
+	if craft_id < 1 or actor_id < 1 \
+			or craft.get_instance_id() != craft_id \
+			or actor.get_instance_id() != actor_id:
+		return {"accepted": false, "reason": &"planetary_return_actor_mismatch"}
+	if craft.has_method(&"is_piloted") and not bool(craft.call(&"is_piloted")):
+		return {"accepted": false, "reason": &"planetary_return_craft_not_piloted"}
+	var berth := return_berth
+	if berth == null and is_instance_valid(world) and world.has_method(&"get_berth_node"):
+		berth = world.call(&"get_berth_node", StringName(berth_receipt.get("berth_id", &""))) as ShipBerth
+	if berth == null or not is_instance_valid(berth) \
+			or not berth.is_occupied() \
+			or berth.get_occupant() != craft:
+		return {"accepted": false, "reason": &"planetary_return_berth_not_occupied"}
+	var ship_id := StringName(craft.call(&"get_ship_id")) if craft.has_method(&"get_ship_id") else &""
+	var token := StringName(berth_receipt.get("token", &""))
+	if ship_id.is_empty() or token.is_empty() \
+			or not berth.has_valid_lease(craft, token, ship_id):
+		return {"accepted": false, "reason": &"planetary_return_berth_lease_invalid"}
+	if planetary_binding != null and planetary_binding.has_method(&"detach_planetary_surface"):
+		var detached := planetary_binding.call(&"detach_planetary_surface") as Dictionary
+		if not bool(detached.get("accepted", false)):
+			return {"accepted": false, "reason": &"planetary_return_attachment_detach_rejected"}
+	_planetary_return_receipt_consumed = true
+	_landing_request_active = false
+	_active_landing_berth_id = &""
+	_return_registered = true
+	phase = Phase.SHUT_DOWN
+	if is_instance_valid(hud):
+		hud.set_objective("Hold controls neutral, then exit %s" % craft.name)
+		hud.toast("Return complete", "Authoritative Mudds Shipyards berth occupied — propulsion will idle offline")
+	return {"accepted": true, "reason": &"planetary_return_consumed", "phase": Phase.SHUT_DOWN, "berth_id": berth.get_berth_id(), "craft_instance_id": craft_id, "actor_instance_id": actor_id}
 
 
 func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> void:
