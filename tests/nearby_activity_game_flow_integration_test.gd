@@ -72,6 +72,11 @@ func _run() -> void:
 	flow.world = null
 	flow._sync_nearby_activity_hud()
 	_check(hud.cleared == 1, "unloaded nearby cluster clears stale HUD snapshot")
+	flow.hud = null
+	hud.free()
+	world.free()
+	flow.free()
+	await process_frame
 	if _failures.is_empty():
 		print("NEARBY_ACTIVITY_GAME_FLOW_INTEGRATION_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
