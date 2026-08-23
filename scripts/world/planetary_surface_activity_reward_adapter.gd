@@ -35,6 +35,7 @@ var _sequence_ids: Array[StringName] = []
 var _sequence_index := -1
 var _navigation: RefCounted
 var _route_activity_landmarks: Dictionary = {}
+var _hazard: RefCounted
 
 
 func is_configuration_valid() -> bool:
@@ -131,6 +132,56 @@ func start_surface_activity_sequence(
 		_navigation = null
 		_route_activity_landmarks = {}
 	return started
+
+
+func bind_surface_hazard(hazard: RefCounted) -> Dictionary:
+	if hazard == null or not bool(hazard.get_snapshot().get("configured", false)):
+		return _reject(&"hazard_unavailable")
+	_hazard = hazard
+	return _accept(&"hazard_bound")
+
+
+## Severe authored exposure interrupts the current activity and route. The
+## caller remains responsible for applying the returned damage/recovery data.
+func submit_surface_hazard_exposure(
+		hazard_id: StringName,
+		position: Variant,
+		exposure_scalar: Variant,
+		delta_seconds: Variant
+	) -> Dictionary:
+	if _hazard == null:
+		return _reject(&"hazard_unavailable")
+	var sampled: Dictionary = _hazard.call(
+		&"submit_exposure", hazard_id, position, exposure_scalar, delta_seconds
+	)
+	if not bool(sampled.get("accepted", false)):
+		return _with_adapter(sampled, false, sampled.get("reason", &"hazard_rejected") as StringName)
+	var recovery := sampled.get("recovery_request", {}) as Dictionary
+	if not bool(recovery.get("requested", false)):
+		return _with_adapter(sampled, true, &"hazard_exposure_sampled")
+	if _navigation != null:
+		var interrupted: Dictionary = _navigation.call(&"interrupt", &"surface_hazard_recovery")
+		if not bool(interrupted.get("accepted", false)):
+			return _with_adapter(interrupted, false, &"route_interrupt_rejected")
+	var aborted := abort_activity(&"surface_hazard_recovery")
+	return _with_adapter({"hazard": sampled, "activity": aborted}, bool(aborted.get("accepted", false)), &"surface_hazard_recovery_required")
+
+
+## Fresh attachment recovery resumes the preserved route waypoint and retries
+## the failed activity without replaying its prior reward.
+func recover_surface_hazard(position: Variant) -> Dictionary:
+	if _hazard == null or _navigation == null or _state != State.FAILED:
+		return _reject(&"hazard_recovery_unavailable")
+	if position is not Vector3 or not (position as Vector3).is_finite():
+		return _reject(&"invalid_position")
+	var activity_id := _sequence_ids[_sequence_index] if _sequence_index >= 0 else StringName(_runtime.get_snapshot().get("activity_id", &""))
+	var retried := retry_activity(activity_id)
+	if not bool(retried.get("accepted", false)):
+		return retried
+	var resumed: Dictionary = _navigation.call(&"resume_route", position)
+	if not bool(resumed.get("accepted", false)):
+		return _with_adapter(resumed, false, &"route_resume_rejected")
+	return _with_adapter({"activity": retried, "route": resumed}, true, &"surface_hazard_recovered")
 
 
 ## Accepts the current authored route landmark after the preceding activity
@@ -331,6 +382,7 @@ func get_snapshot() -> Dictionary:
 			"complete": _sequence_index >= 0 and _sequence_index + 1 >= _sequence_ids.size(),
 		},
 		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
+		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"authority": {
 			"host_mutation": false,
 			"activity_authority": false,

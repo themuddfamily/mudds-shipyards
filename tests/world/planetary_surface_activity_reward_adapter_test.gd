@@ -8,6 +8,7 @@ const ActivityDefinitionScript := preload("res://scripts/activities/activity_def
 const LocationScript := preload("res://scripts/world/definitions/world_location_definition.gd")
 const NavigationScript := preload("res://scripts/world/planetary_surface_navigation_runtime.gd")
 const NavigationContractScript := preload("res://scripts/world/planetary_surface_navigation_contract.gd")
+const HazardScript := preload("res://scripts/world/planetary_surface_hazard_runtime.gd")
 
 class FakeHost:
 	var generation := 7
@@ -51,6 +52,7 @@ func _run() -> void:
 	await _test_ordered_activity_sequence()
 	await _test_sequence_failure_recovery()
 	await _test_surface_route_admits_activity_sequence()
+	await _test_surface_hazard_interrupts_and_recovers_route()
 	_finish()
 
 
@@ -335,6 +337,46 @@ func _test_surface_route_admits_activity_sequence() -> void:
 			&"caldera_overlook", Vector3(420.0, 120025.0, -180.0)
 		).reason == &"route_completed",
 		"the final authored route landmark closes the already rewarded sequence"
+	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_surface_hazard_interrupts_and_recovers_route() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	var navigation := NavigationScript.new()
+	var hazard := HazardScript.new()
+	navigation.configure(NavigationContractScript.new())
+	hazard.configure(NavigationContractScript.new())
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.bind_surface_hazard(hazard)
+	adapter.start_surface_activity_sequence(
+		[&"ember_beacon_survey", &"ember_caldera_patrol"] as Array[StringName],
+		navigation,
+		{"surface_staging_gate": &"ridge_relay"}
+	)
+	var reward_before := _reward_calls
+	var exposure := adapter.submit_surface_hazard_exposure(
+		&"caldera_thermal_vent", Vector3(58.0, 120000.0, -4.0), 1.0, 8.0
+	)
+	_check(
+		exposure.accepted and exposure.reason == &"surface_hazard_recovery_required"
+			and exposure.adapter.state == &"failed"
+			and exposure.adapter.surface_route.state == &"interrupted"
+			and _reward_calls == reward_before,
+		"severe authored exposure interrupts activity and route without issuing a reward"
+	)
+	host.attachment_generation = 3
+	var recovered := adapter.recover_surface_hazard(Vector3(58.0, 120000.0, -4.0))
+	_check(
+		recovered.accepted and recovered.reason == &"surface_hazard_recovered"
+			and recovered.adapter.surface_route.state == &"active"
+			and recovered.adapter.surface_route.waypoint_index == 0
+			and _reward_calls == reward_before,
+		"fresh re-entry resumes the current waypoint and does not duplicate rewards"
 	)
 	director.queue_free()
 	await process_frame
