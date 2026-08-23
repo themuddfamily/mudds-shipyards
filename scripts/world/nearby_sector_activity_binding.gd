@@ -18,6 +18,7 @@ const RACE_SESSION := preload("res://scripts/activities/cinder_timed_race_sessio
 const PATROL_ACTIVITY := preload("res://scripts/activities/patrol_activity.gd")
 const CARGO_ACTIVITY := preload("res://scripts/cargo/cargo_delivery_activity.gd")
 const CARGO_CONTRACT := preload("res://scripts/cargo/cargo_delivery_contract.gd")
+const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 
 var _host: CinderConvoyEscortHost
 var _race_director: ActivityDirector
@@ -28,6 +29,9 @@ var _cargo_authority: CargoTransferAuthority
 var _cargo_activity: CargoDeliveryActivity
 var _cargo_source_handle: Dictionary
 var _cargo_destination_handle: Dictionary
+var _station_director: Node
+var _station_target: Node3D
+var _station_anchor: Node3D
 
 
 func _ready() -> void:
@@ -163,6 +167,34 @@ func reset_cargo_run() -> Dictionary:
 	return _cargo_activity.reset(_cargo_activity.get_generation())
 
 
+## Binds the existing EncounterScenarioDirector and caller-owned station anchor.
+## The nearby cluster never creates combat sources or opponents; Main's existing
+## encounter roster remains the sole station-defense authority.
+func bind_station_defense(director: Node, target: Node3D, protected_anchor: Node3D) -> Dictionary:
+	if not is_inside_tree() or director == null or target == null or protected_anchor == null:
+		return _result(false, &"invalid_station_defense_binding")
+	if director.get_script() == null or director.get_script().resource_path != ENCOUNTER_DIRECTOR_SCRIPT_PATH:
+		return _result(false, &"wrong_encounter_authority")
+	_station_director = director
+	_station_target = target
+	_station_anchor = protected_anchor
+	return _result(true, &"station_defense_bound")
+
+
+func start_station_defense() -> Dictionary:
+	if not _station_binding_current():
+		return _result(false, &"station_defense_unbound")
+	var accepted := bool(_station_director.call("begin_station_defense", _station_target, _station_anchor))
+	return _result(accepted, &"station_defense_started" if accepted else &"station_defense_rejected")
+
+
+func reset_station_defense() -> Dictionary:
+	if not _station_binding_current():
+		return _result(false, &"station_defense_unbound")
+	_station_director.call("abort")
+	return _result(true, &"station_defense_reset")
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -173,6 +205,10 @@ func get_snapshot() -> Dictionary:
 		"race": _race_session.get_presentation_snapshot() if is_instance_valid(_race_session) else {},
 		"patrol": _patrol.get_presentation_snapshot() if is_instance_valid(_patrol) else {},
 		"cargo": _cargo_activity.get_snapshot() if is_instance_valid(_cargo_activity) else {},
+		"station_defense_bound": _station_binding_current(),
+		"station_defense_state": (
+			_station_director.call("get_state") if _station_binding_current() else &"unbound"
+		),
 		"production_owner": true,
 		"gameplay_authority": false,
 		"game_flow_authority": false,
@@ -199,6 +235,8 @@ func audit() -> Dictionary:
 		errors.append("authored beacon patrol audit failed")
 	if not is_instance_valid(_cargo_activity) or not _cargo_activity.is_configuration_valid():
 		errors.append("authored platform cargo run audit failed")
+	if _station_binding_current() and not _station_director.has_method("begin_station_defense"):
+		errors.append("station defense authority contract is incomplete")
 	for point in RACE_ROUTE.checkpoint_positions:
 		if not point.is_finite() or point.length() > NearbySectorCluster.MAXIMUM_CONTENT_DISTANCE:
 			errors.append("beacon race route leaves the authored cluster envelope")
@@ -221,3 +259,14 @@ func audit() -> Dictionary:
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason, "snapshot": get_snapshot()}
+
+
+func _station_binding_current() -> bool:
+	return (
+		is_instance_valid(_station_director)
+		and is_instance_valid(_station_target)
+		and is_instance_valid(_station_anchor)
+		and _station_director.is_inside_tree()
+		and _station_target.is_inside_tree()
+		and _station_anchor.is_inside_tree()
+	)

@@ -54,6 +54,26 @@ func _run() -> void:
 		_check(bool(cargo_docked.get("accepted", false)), "the cargo run accepts the platform docking phase")
 		var cargo_reset: Dictionary = binding.call("reset_cargo_run")
 		_check(bool(cargo_reset.get("accepted", false)), "the owner resets cargo without changing authored phases")
+		var station_unbound: Dictionary = binding.call("start_station_defense")
+		_check(
+			not bool(station_unbound.get("accepted", true))
+			and station_unbound.get("reason", &"") == &"station_defense_unbound",
+			"station defense remains fail-closed until Main injects its existing encounter authority"
+		)
+		var fake_director := Node.new()
+		var fake_target := Node3D.new()
+		var fake_anchor := Node3D.new()
+		cluster.add_child(fake_director)
+		cluster.add_child(fake_target)
+		cluster.add_child(fake_anchor)
+		var rejected_binding: Dictionary = binding.call(
+			"bind_station_defense", fake_director, fake_target, fake_anchor
+		)
+		_check(
+			not bool(rejected_binding.get("accepted", true))
+			and rejected_binding.get("reason", &"") == &"wrong_encounter_authority",
+			"the binding refuses to replace the existing EncounterScenarioDirector authority"
+		)
 	cluster.queue_free()
 	await process_frame
 	_finish()
