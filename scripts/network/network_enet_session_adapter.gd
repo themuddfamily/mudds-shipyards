@@ -110,6 +110,12 @@ var _secure_window_started := 0
 var _secure_window_counts: Dictionary = {}
 var _reconnect_attempts := 0
 var _reconnect_next_allowed_milliseconds := 0
+var _session_end_reason: Dictionary = {
+	"reason": &"unknown",
+	"peer_generation": 0,
+	"migration_generation": 0,
+	"sequence": 0,
+}
 
 
 func _init() -> void:
@@ -150,6 +156,7 @@ func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> D
 		return _remember(_result(false, &"listen_failed", {"error": status}))
 	_is_server = true
 	_configure_multiplayer()
+	_reset_session_end_reason()
 	session_started.emit(&"server")
 	_bound_port = maxi(1, port)
 	return _remember(_result(true, &"server_started", {"port": _bound_port}))
@@ -167,6 +174,7 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 		return _remember(_result(false, &"connect_failed", {"error": status}))
 	_is_server = false
 	_configure_multiplayer()
+	_reset_session_end_reason()
 	session_started.emit(&"client")
 	_bound_port = maxi(1, port)
 	return _remember(_result(true, &"client_started", {"address": address, "port": _bound_port}))
@@ -232,6 +240,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_peer_generations.clear()
 	_server_offer.clear()
 	mark_reconnect_succeeded()
+	record_session_end(reason)
 	session_stopped.emit(reason)
 	return _remember(_result(true, &"stopped", {"reason": reason}))
 
@@ -868,6 +877,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
 	mark_reconnect_succeeded()
+	_reset_session_end_reason()
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
 	_moving_replica_samples.clear()
@@ -922,6 +932,51 @@ func get_reconnect_backoff_state() -> Dictionary:
 		"max_delay_milliseconds": RECONNECT_BACKOFF_MAX_MILLISECONDS,
 		"max_attempts": RECONNECT_BACKOFF_MAX_ATTEMPTS,
 	}.duplicate(true)
+
+
+func record_session_end(
+		raw_reason: StringName,
+		peer_generation: int = 0,
+		migration_generation: int = 0
+) -> Dictionary:
+	var normalized := &"unknown"
+	if raw_reason in [&"timeout", &"timed_out", &"connection_timeout"]:
+		normalized = &"timeout"
+	elif raw_reason in [&"rejected", &"admission_rejected", &"transport_rejected"]:
+		normalized = &"rejected"
+	elif raw_reason in [&"protocol_mismatch", &"incompatible_protocol"]:
+		normalized = &"protocol_mismatch"
+	elif raw_reason in [&"host_migration", &"migration"]:
+		normalized = &"host_migration"
+	elif raw_reason in [&"manual_leave", &"requested", &"probe_complete"]:
+		normalized = &"manual_leave"
+	var current_migration := int(_session_end_reason.get("migration_generation", 0))
+	if migration_generation > 0 and current_migration > 0 and migration_generation < current_migration:
+		return _remember(_result(false, &"stale_session_end_generation", {
+			"snapshot": _session_end_reason.duplicate(true),
+		}))
+	_session_end_reason = {
+		"reason": normalized,
+		"peer_generation": maxi(0, peer_generation),
+		"migration_generation": maxi(0, migration_generation),
+		"sequence": int(_session_end_reason.get("sequence", 0)) + 1,
+	}
+	return _remember(_result(true, &"session_end_recorded", {
+		"snapshot": _session_end_reason.duplicate(true),
+	}))
+
+
+func get_session_end_reason_snapshot() -> Dictionary:
+	return _session_end_reason.duplicate(true)
+
+
+func _reset_session_end_reason() -> void:
+	_session_end_reason = {
+		"reason": &"unknown",
+		"peer_generation": 0,
+		"migration_generation": 0,
+		"sequence": 0,
+	}
 
 
 ## Presents a released authoritative moving-interior relationship without
