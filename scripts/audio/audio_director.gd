@@ -2,6 +2,7 @@ class_name AudioDirector
 extends Node
 
 const SemanticCueRouter := preload("res://scripts/audio/semantic_audio_cue_router.gd")
+const DynamicMix := preload("res://scripts/audio/dynamic_audio_mix.gd")
 
 ## Global non-positional audio used by the legacy game-flow cues.
 ##
@@ -119,6 +120,7 @@ var _initialized := false
 # scene cannot silently revert the mode on re-entry.
 var _desired_ambience_volume_db := -13.0
 var _semantic_router
+var _dynamic_mix := DynamicMix.new()
 
 
 func _enter_tree() -> void:
@@ -190,6 +192,15 @@ func detach_semantic_audio_sources() -> Dictionary:
 
 func get_semantic_audio_binding_count() -> int:
 	return _semantic_router.get_binding_count() if is_instance_valid(_semantic_router) else 0
+
+
+## Applies the caller-owned reduced-range policy without changing voice limits.
+func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	return _dynamic_mix.set_reduced_dynamic_range(enabled)
+
+
+func get_dynamic_mix_plan() -> Dictionary:
+	return _dynamic_mix.get_mix_plan()
 
 
 func _exit_tree() -> void:

@@ -270,6 +270,7 @@ var _caption_event_serial := 0
 var _caption_request_count := 0
 var _caption_accepted_count := 0
 var _caption_rejected_count := 0
+var _reduced_dynamic_range := false
 
 var phase := Phase.INTRO
 var destroyed_targets := 0
@@ -6040,6 +6041,8 @@ func _apply_all_runtime_settings() -> void:
 		tow_tractor.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
 		tow_tractor.set_camera_fov(runtime_settings.camera_fov)
 	runtime_settings.apply_audio_settings()
+	if is_instance_valid(audio) and audio.has_method(&"set_reduced_dynamic_range"):
+		audio.call(&"set_reduced_dynamic_range", _reduced_dynamic_range)
 	runtime_settings.apply_window_mode()
 	if world.has_method("apply_visual_quality"):
 		world.apply_visual_quality(runtime_settings.graphics_profile)
@@ -6174,6 +6177,15 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 		&"ui_scale", &"colorblind_palette", &"reduced_motion", &"captions_enabled"
 	]:
 		_apply_accessibility_settings()
+
+
+## Caller-owned accessibility seam; RuntimeSettings remains the authority for
+## persisted settings until it exposes this policy as a validated key.
+func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	_reduced_dynamic_range = enabled
+	if is_instance_valid(audio) and audio.has_method(&"set_reduced_dynamic_range"):
+		return audio.call(&"set_reduced_dynamic_range", enabled)
+	return {"accepted": true, "reason": &"retained_until_audio_ready"}
 
 
 ## Applies one validated RuntimeSettings profile to InputMap and every retained
