@@ -28,27 +28,13 @@ extends CharacterBody3D
 ##
 ## ## Why the player cannot be stranded
 ##
-## The station is full of deliberate voids, so a vehicle that can drive into one
-## is a P0 soft-lock. Two independent guards close that, and the second does not
-## depend on the first being correct:
-##
-## 1. **The deck-edge interlock refuses to leave the deck.** Every tick, before
-##    the body moves, a ray is cast from a point one vehicle-length-plus-margin
-##    ahead *along the current deck tangent* — so it follows a ramp instead of
-##    shooting off into space above one. If nothing solid is within
-##    [constant EDGE_PROBE_DROP] below that point, the drive component is dropped
-##    to zero for the tick. The tractor stops short of the lip; it does not fall.
-## 2. **The recovery net catches everything else.** Independently of the
-##    interlock, of geometry, and of how the vehicle got there, falling below
-##    [constant RECOVERY_FLOOR_Y] or staying off the floor for longer than
-##    [constant MAXIMUM_AIRBORNE_SECONDS] raises [signal deck_recovery_required]
-##    exactly once. `GameFlow` then recalls the driver to the on-foot spawn and
-##    resets this vehicle to its authored parking spot. Both thresholds are
-##    accumulated from the physics delta; no wall clock participates.
-##
-## The second guard is what makes the claim provable rather than probable: it
-## fires from the vehicle's own pose, so a bug in the first guard degrades the
-## experience (an unintended fall) without ever costing the player their body.
+## The station is full of deliberate voids, and driving off one is intentional:
+## the recovery net catches the vehicle after its fall. Falling below
+## [constant RECOVERY_FLOOR_Y] or staying off the floor for longer than
+## [constant MAXIMUM_AIRBORNE_SECONDS] raises [signal deck_recovery_required]
+## exactly once. `GameFlow` then recalls the driver to the on-foot spawn and
+## resets this vehicle to its authored parking spot. Both thresholds are
+## accumulated from the physics delta; no wall clock participates.
 ##
 ## ## Step-up rule
 ##
@@ -152,14 +138,6 @@ const FLOOR_MAXIMUM_ANGLE_DEGREES := 46.0
 const FLOOR_SNAP_LENGTH := 0.6
 const DECK_ALIGNMENT_RATE := 9.0
 
-## Deck-edge interlock. `EDGE_PROBE_DROP` is the deepest step down that still
-## counts as "there is deck there": generous enough to enter a down-ramp or a
-## kerb-height change, far short of the station's actual voids, which have no
-## floor beneath them at any depth.
-const EDGE_PROBE_LOOKAHEAD := 1.15
-const EDGE_PROBE_RISE := 0.9
-const EDGE_PROBE_DROP := 2.2
-
 ## Recovery net. Mirrors the on-foot floor `GameFlow` already uses for a walking
 ## player who falls off the station.
 const RECOVERY_FLOOR_Y := -24.0
@@ -192,10 +170,6 @@ var _forward_speed := 0.0
 var _airborne_seconds := 0.0
 var _vertical_speed := 0.0
 var _recovery_reported := false
-var _edge_interlock_engaged := false
-## Sign of the drive input the driver is currently holding, used so the deck-edge
-## interlock probes an intent the interlock itself has already zeroed.
-var _throttle_direction := 0.0
 var _deck_normal := Vector3.UP
 var _home_transform := Transform3D.IDENTITY
 var _camera_yaw_offset := 0.0
@@ -251,7 +225,6 @@ func _physics_process(delta: float) -> void:
 		_read_drive_input(delta)
 	else:
 		_forward_speed = move_toward(_forward_speed, 0.0, brake_deceleration * delta)
-		_throttle_direction = 0.0
 
 	var plane_forward := _deck_tangent_forward()
 	# Vertical motion is held as its own state rather than read back out of
@@ -268,23 +241,10 @@ func _physics_process(delta: float) -> void:
 	if is_on_ceiling() and _vertical_speed > 0.0:
 		_vertical_speed = 0.0
 
-	# Probe the direction the driver is *asking* for, not only the one already
-	# being travelled. Once the interlock has zeroed the drive speed there is no
-	# travel left to probe, so a speed-only test would report the edge clear on
-	# the next tick and let the throttle push the tractor over it one tick at a
-	# time. Held throttle therefore keeps the interlock engaged and the prompt
-	# steady, while releasing it — or selecting reverse — clears it immediately.
-	var probe_speed := _forward_speed
-	if is_zero_approx(probe_speed):
-		probe_speed = _throttle_direction
-	_edge_interlock_engaged = _blocked_by_deck_edge(plane_forward * probe_speed)
-	if _edge_interlock_engaged:
-		_forward_speed = 0.0
-
 	velocity = plane_forward * _forward_speed + Vector3.UP * _vertical_speed
 	move_and_slide()
-	# A wall or a refused edge takes the drive speed with it; without this the
-	# stored speed keeps the tractor pinned against geometry at full throttle.
+	# A wall takes the drive speed with it; without this the stored speed keeps
+	# the tractor pinned against geometry at full throttle.
 	if is_on_wall() and absf(_forward_speed) > 0.0:
 		_forward_speed = move_toward(_forward_speed, 0.0, brake_deceleration * delta)
 	_check_recovery_conditions()
@@ -322,8 +282,6 @@ func set_driven(value: bool) -> void:
 	_camera.current = value
 	if not value:
 		_forward_speed = 0.0
-		_throttle_direction = 0.0
-		_edge_interlock_engaged = false
 	else:
 		_camera_yaw_offset = 0.0
 		_camera_yaw.rotation.y = 0.0
@@ -343,10 +301,6 @@ func is_boardable() -> bool:
 ## True when the seat may be released: standing on real floor, at rest.
 func can_release_driver() -> bool:
 	return is_on_floor() and absf(_forward_speed) <= EXIT_MAXIMUM_SPEED
-
-
-func is_edge_interlock_engaged() -> bool:
-	return _edge_interlock_engaged
 
 
 func get_drive_speed() -> float:
@@ -621,8 +575,6 @@ func recover_to_home_transform() -> void:
 	_vertical_speed = 0.0
 	_airborne_seconds = 0.0
 	_recovery_reported = false
-	_throttle_direction = 0.0
-	_edge_interlock_engaged = false
 	_deck_normal = Vector3.UP
 	_camera_yaw_offset = 0.0
 	_camera_yaw.rotation.y = 0.0
@@ -694,7 +646,6 @@ func _refresh_driver_station_availability() -> void:
 
 func _read_drive_input(delta: float) -> void:
 	var throttle := Input.get_axis(&"move_back", &"move_forward")
-	_throttle_direction = signf(throttle)
 	var braking := Input.is_action_pressed(&"brake") or Input.is_action_pressed(&"jump")
 	if Input.is_action_just_pressed(&"interact"):
 		exit_requested.emit()
@@ -782,16 +733,6 @@ func _align_to_deck(forward: Vector3) -> void:
 	global_basis = Basis.looking_at(forward, _deck_normal)
 
 
-## The deck-edge interlock. See the class documentation for why this is the
-## first of two independent guards rather than the only one.
-func _blocked_by_deck_edge(travel: Vector3) -> bool:
-	if not is_on_floor() or travel.length_squared() < 0.000001:
-		return false
-	var direction := travel.normalized()
-	var probe_point := global_position + direction * (BODY_PROBE_RADIUS + EDGE_PROBE_LOOKAHEAD)
-	return not _probe_ground(probe_point, EDGE_PROBE_RISE, EDGE_PROBE_DROP).is_finite()
-
-
 ## Solid world geometry beneath `point`, or `Vector3.INF` when there is none.
 ## The ray runs along the deck normal rather than world down so it follows a
 ## ramp the tractor is already standing on.
@@ -813,8 +754,8 @@ func _probe_ground(point: Vector3, rise: float, drop: float) -> Vector3:
 	return hit.get("position", Vector3.INF) as Vector3
 
 
-## The recovery net. Independent of the interlock, of geometry, and of how the
-## vehicle reached this pose.
+## The recovery net is independent of geometry and of how the vehicle reached
+## this pose.
 func _check_recovery_conditions() -> void:
 	if _recovery_reported:
 		return

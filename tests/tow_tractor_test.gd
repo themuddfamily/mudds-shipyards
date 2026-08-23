@@ -6,7 +6,7 @@ extends SceneTree
 ## every handling and safety assertion here runs against a synthetic deck this
 ## suite builds itself: a flat slab with one genuine void edge, one 0.25 m kerb,
 ## and one 22° ramp. That keeps the *rules* under test — climbs slope, is stopped
-## by a kerb, refuses a void, recovers from a fall — independent of where the
+## by a kerb, drives into a void, recovers from a fall — independent of where the
 ## live station happens to put its edges this week.
 ##
 ## Every behaviour group carries a red witness: a paired case that the assertion
@@ -17,7 +17,7 @@ extends SceneTree
 const TRACTOR_SCENE := preload("res://scenes/world/tow_tractor.tscn")
 
 ## Synthetic deck plan. The obstacle course sits in its own lane so the open-deck
-## handling and deck-edge cases are never accidentally measuring a kerb.
+## handling and fall-recovery cases are never accidentally measuring a kerb.
 const DECK_HALF_LENGTH := 40.0
 const DECK_HALF_WIDTH := 20.0
 const OPEN_LANE_Z := -10.0
@@ -47,7 +47,7 @@ func _run() -> void:
 	_check_wheel_batch_contract()
 	_check_authority_exclusions()
 	await _check_handling()
-	await _check_deck_edge_interlock()
+	await _check_drives_off_edge_and_recovers()
 	await _check_slope_and_kerb()
 	await _check_seat_contract()
 	await _check_recovery_net()
@@ -464,70 +464,44 @@ func _check_handling() -> void:
 	_tractor.set_driven(false)
 
 
-# ------------------------------------------------------------ safety interlock
+# ------------------------------------------------------------- edge recovery
 
 
-func _check_deck_edge_interlock() -> void:
-	# Green: aimed at the deck's real void edge.
+func _check_drives_off_edge_and_recovers() -> void:
+	# Driving into the synthetic deck's real void edge must be possible. The
+	# vehicle then reports its loss so GameFlow can perform the player recall and
+	# return the tractor to its parking spot.
+	var reasons: Array[StringName] = []
+	_tractor.deck_recovery_required.connect(func(reason: StringName) -> void:
+		reasons.append(reason)
+	)
 	_place(Vector3(-28.0, 0.2, OPEN_LANE_Z), 90.0)
 	_tractor.set_driven(true)
 	await _settle(6)
-	await _hold(&"move_forward", 150)
-	_check(
-		_tractor.global_position.x > -DECK_HALF_LENGTH,
-		"the tractor never crosses the deck's void edge"
-	)
-	_check(
-		_tractor.is_on_floor(),
-		"the tractor is still standing on the deck after driving at the edge"
-	)
-	_check(
-		not _tractor.has_reported_recovery(),
-		"stopping at the edge is not a fall and raises no recovery"
-	)
-
 	Input.action_press(&"move_forward")
-	await _advance(10)
-	_check(
-		_tractor.is_edge_interlock_engaged(),
-		"held throttle at the lip keeps the deck-edge interlock engaged rather than flickering"
+	var crossed_edge := await _wait_until(
+		func() -> bool: return _tractor.global_position.x < -DECK_HALF_LENGTH,
+		4.0
 	)
 	_check(
-		is_zero_approx(_tractor.get_drive_speed()),
-		"the engaged interlock holds the drive speed at zero"
-	)
-	var pinned := _tractor.global_position
-	await _advance(90)
-	_check(
-		_tractor.global_position.distance_to(pinned) < 0.05,
-		"the interlock does not leak one tick of travel at a time under held throttle"
+		crossed_edge,
+		"held throttle lets the tractor drive beyond the deck's void edge"
 	)
 	Input.action_release(&"move_forward")
-
-	# The interlock must not be a wall: reverse away from the same lip works.
-	await _hold(&"move_back", 60)
-	_check(
-		_tractor.global_position.x > pinned.x + 0.5,
-		"reversing away from the edge is allowed while the forward lip is refused"
+	var recovered := await _wait_until(
+		func() -> bool: return not reasons.is_empty(),
+		TowTractor.MAXIMUM_AIRBORNE_SECONDS + 0.5
 	)
-	await _hold(&"brake", 60)
-
-	# Red witness: the identical drive in open deck must engage nothing and cover
-	# real ground, so "stops at the edge" is not "always stops".
-	_place(Vector3(0.0, 0.2, OPEN_LANE_Z), 90.0)
+	_check(
+		recovered and reasons.size() == 1,
+		"a tractor driven off the edge reports exactly one recovery"
+	)
+	_check(
+		not reasons.is_empty() and reasons[0] in [&"fell_below_station", &"airborne_beyond_limit"],
+		"the edge fall reports a supported recovery reason"
+	)
+	_tractor.recover_to_home_transform()
 	await _settle(6)
-	var open_start := _tractor.global_position
-	await _hold(&"move_forward", 60)
-	_check(
-		not _tractor.is_edge_interlock_engaged(),
-		"red witness: the interlock stays clear in open deck"
-	)
-	_check(
-		_tractor.global_position.distance_to(open_start) > 5.0,
-		"red witness: the same held throttle covers real ground away from the edge"
-	)
-	await _hold(&"brake", 60)
-	_tractor.set_driven(false)
 
 
 func _check_slope_and_kerb() -> void:
@@ -537,12 +511,17 @@ func _check_slope_and_kerb() -> void:
 	_tractor.set_driven(true)
 	await _settle(6)
 	var base_height := _tractor.global_position.y
-	await _hold(&"move_forward", 110)
+	# Stop while the tractor is on the ramp. It may now drive off the raised ramp
+	# just as it can drive off the deck, so this is no longer an edge-stop test.
+	await _hold(&"move_forward", 80)
 	_check(
 		_tractor.global_position.y > base_height + 1.0,
 		"the tractor climbs the %.0f° ramp under its own drive" % RAMP_ANGLE_DEGREES
 	)
-	_check(_tractor.is_on_floor(), "the tractor stays in contact while climbing")
+	_check(
+		not _tractor.has_reported_recovery(),
+		"climbing the ramp does not trigger the fall-recovery lifecycle"
+	)
 	_check(
 		_tractor.global_basis.y.dot(Vector3.UP) < 0.999,
 		"the tractor pitches onto the ramp instead of driving up it flat"
@@ -694,7 +673,7 @@ func _check_recovery_net() -> void:
 	)
 
 	# Falling off the station, driver aboard. This is the stranding case, and the
-	# vehicle reports it from its own pose without help from the interlock.
+	# vehicle reports it from its own pose.
 	_tractor.set_driven(true)
 	_tractor.global_position = Vector3(0.0, 0.0, 400.0)
 	_tractor.velocity = Vector3.ZERO
@@ -967,9 +946,7 @@ func _tractor_mutator_snapshot(tractor: TowTractor) -> Dictionary:
 		"drive_speed": tractor.get_drive_speed(),
 		"airborne_seconds": tractor.get_airborne_seconds(),
 		"recovery_reported": tractor.has_reported_recovery(),
-		"edge_interlock": tractor.is_edge_interlock_engaged(),
 		"vertical_speed": tractor.get("_vertical_speed"),
-		"throttle_direction": tractor.get("_throttle_direction"),
 		"deck_normal": tractor.get("_deck_normal"),
 		"camera_yaw_offset": tractor.get("_camera_yaw_offset"),
 		"camera_yaw_rotation": camera_yaw.rotation if camera_yaw != null else Vector3.INF,
