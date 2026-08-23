@@ -39,6 +39,18 @@ const REGISTERED_CUES := {
 	&"boost_released": {"caption": "Boost released", "default_severity": &"low"},
 	&"thrust_load_engaged": {"caption": "Thrust load engaged", "default_severity": &"medium"},
 	&"thrust_load_released": {"caption": "Thrust load released", "default_severity": &"low"},
+	&"crew_pilot_joined": {"caption": "Pilot joined crew", "default_severity": &"low"},
+	&"crew_gunner_joined": {"caption": "Gunner joined crew", "default_severity": &"low"},
+	&"crew_engineer_joined": {"caption": "Engineer joined crew", "default_severity": &"low"},
+	&"crew_passenger_joined": {"caption": "Passenger joined crew", "default_severity": &"low"},
+	&"crew_pilot_left": {"caption": "Pilot left crew", "default_severity": &"medium"},
+	&"crew_gunner_left": {"caption": "Gunner left crew", "default_severity": &"medium"},
+	&"crew_engineer_left": {"caption": "Engineer left crew", "default_severity": &"medium"},
+	&"crew_passenger_left": {"caption": "Passenger left crew", "default_severity": &"low"},
+	&"crew_engineer_route_changed": {"caption": "Engineer power route changed", "default_severity": &"medium"},
+	&"crew_departure_ready": {"caption": "Crew departure ready", "default_severity": &"medium"},
+	&"crew_emergency_pilot_handoff": {"caption": "Emergency pilot handoff", "default_severity": &"high"},
+	&"crew_emergency_handoff": {"caption": "Emergency pilot handoff", "default_severity": &"high"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
