@@ -11,6 +11,7 @@ signal semantic_cue_emitted(
 		intensity: float,
 		world_position: Vector3,
 	)
+signal semantic_crew_cue_emitted(cue_id: StringName, role: StringName, intensity: float)
 
 const AUDIO_BINDING := preload("res://scripts/audio/cinder_loadmaster_audio_binding.gd")
 const SOURCE_ID: StringName = &"cinder_loadmaster"
@@ -94,6 +95,7 @@ func _on_manifest_cleared(generation: int, reason: StringName) -> void:
 
 func _on_audio_cue(cue_id: StringName, intensity: float, _perspective: StringName) -> void:
 	semantic_cue_emitted.emit(SOURCE_ID, cue_id, clampf(intensity, 0.0, 1.0), Vector3.ZERO)
+	semantic_crew_cue_emitted.emit(cue_id, &"passenger", clampf(intensity, 0.0, 1.0))
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason, "generation": _generation}.duplicate(true)

@@ -24,6 +24,11 @@ const SOURCE_SIGNALS := {
 	&"crew": &"semantic_crew_cue_emitted",
 }
 const CREW_CUE_LABELS := {
+	&"cinder_loadmaster_seat_occupied": {&"passenger": &"cinder_loadmaster_seat_occupied"},
+	&"cinder_loadmaster_manifest_ready": {&"passenger": &"cinder_loadmaster_manifest_ready"},
+	&"cinder_loadmaster_route_ready": {&"passenger": &"cinder_loadmaster_route_ready"},
+	&"cinder_loadmaster_rejected": {&"passenger": &"cinder_loadmaster_rejected"},
+	&"cinder_loadmaster_released": {&"passenger": &"cinder_loadmaster_released"},
 	&"crew_role_joined": {&"pilot": &"crew_pilot_joined", &"gunner": &"crew_gunner_joined", &"engineer": &"crew_engineer_joined", &"passenger": &"crew_passenger_joined"},
 	&"crew_role_left": {&"pilot": &"crew_pilot_left", &"gunner": &"crew_gunner_left", &"engineer": &"crew_engineer_left", &"passenger": &"crew_passenger_left"},
 	&"crew_engineer_route_changed": {&"engineer": &"crew_engineer_route_changed"},
