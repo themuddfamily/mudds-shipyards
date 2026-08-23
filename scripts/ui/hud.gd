@@ -2405,6 +2405,12 @@ func apply_bomber_payload_snapshot(snapshot: Dictionary) -> bool:
 	var presentation: Dictionary = _bomber_payload_presenter.present_snapshot(snapshot)
 	if not bool(presentation.get("attached", false)):
 		return false
+	var release_action := StringName(str(snapshot.get("action_id", &"fire")))
+	var resolved_action: Dictionary = _runtime_input_glyph_presenter.resolve_action(release_action)
+	if bool(resolved_action.get("valid", false)):
+		var action_rows := presentation.get("actions", []) as Array
+		if not action_rows.is_empty():
+			(action_rows[0] as Dictionary)["label"] = "[%s] RELEASE PAYLOAD" % str(resolved_action.get("text", "INPUT"))
 	presentation["message"] = "%s  %s" % [presentation.get("marker", ""), presentation.get("message", "")]
 	_render_runtime_status(presentation, &"bomber")
 	return true
@@ -2483,9 +2489,12 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 		button.name = "RuntimeStatus" + String(action.get("id", &"Action")).to_pascal_case() + "Button"
 		button.focus_mode = Control.FOCUS_ALL
 		var action_id := StringName(str(action.get("id", &"")))
-		button.pressed.connect(func() -> void:
-			presentation_intent_requested.emit(kind, {"action": action_id, "snapshot": snapshot.duplicate(true)})
-		)
+		if kind == &"bomber" and action_id == &"release_payload":
+			button.pressed.connect(request_bomber_payload_release)
+		else:
+			button.pressed.connect(func() -> void:
+				presentation_intent_requested.emit(kind, {"action": action_id, "snapshot": snapshot.duplicate(true)})
+			)
 		_runtime_status_actions.add_child(button)
 	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_runtime_status_panel.visible = true

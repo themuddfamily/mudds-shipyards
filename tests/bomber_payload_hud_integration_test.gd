@@ -16,9 +16,12 @@ func _run() -> void:
 	_check(hud.apply_bomber_payload_snapshot({"generation": 1, "active": true, "ammo": 2, "cooldown_remaining": 0.0, "action_glyph": "A"}), "ready bomber snapshot renders")
 	var panel := hud.get("_runtime_status_panel") as PanelContainer
 	_check(panel.visible and (hud.get("_runtime_status_title") as Label).text == "BOMBER PAYLOAD", "bomber status uses the retained runtime panel")
-	_check((hud.get("_runtime_status_detail") as Label).text.contains("[READY]") and (hud.get("_runtime_status_actions") as HBoxContainer).get_child_count() == 1, "ready state is readable with a glyph action")
+	var action_button := (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) as Button
+	_check((hud.get("_runtime_status_detail") as Label).text.contains("[READY]") and action_button.text.contains("RELEASE PAYLOAD") and action_button.focus_mode == Control.FOCUS_ALL, "ready state is readable with a mapped glyph action")
 	var release := hud.request_bomber_payload_release()
 	_check(bool(release.accepted) and _intents.size() == 1 and _intents[0].kind == &"bomber", "release emits a caller-owned presentation intent")
+	action_button.pressed.emit()
+	_check(_intents.size() == 2 and _intents[1].kind == &"bomber", "focused action row routes through the same release intent")
 	hud.apply_bomber_payload_snapshot({"generation": 2, "active": true, "ammo": 1, "cooldown_remaining": 1.5, "action_glyph": "Cross", "reduced_motion": true})
 	await process_frame
 	_check((hud.get("_runtime_status_detail") as Label).text.contains("[WAIT]") and (hud.get("_runtime_status_actions") as HBoxContainer).get_child_count() == 0, "cooldown state removes release action")
