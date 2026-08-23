@@ -149,6 +149,15 @@ const TRAVERSAL_DEBRIS_BATCH_BUDGET := 1
 const BEACON_TRAVERSAL_STATE_NODE_DELTA := 0
 const BEACON_TRAVERSAL_STATE_LIGHT_DELTA := 0
 const BEACON_TRAVERSAL_STATE_SUBMISSION_DELTA := 0
+const TRAVERSAL_VANE_BASE_POSITION := Vector3(0.0, -11.0, 0.0)
+const TRAVERSAL_CLEARED_COUNTER_SCALE := Vector3(0.72, 0.45, 0.72)
+const TRAVERSAL_CLEARED_SPAR_SCALE := Vector3(0.7, 0.7, 0.7)
+const TRAVERSAL_PENDING_SCALE := Vector3.ONE * 0.65
+const TRAVERSAL_TARGET_COUNTER_SCALE := Vector3(1.5, 0.35, 1.5)
+const TRAVERSAL_TARGET_SPAR_SCALE := Vector3(0.45, 2.0, 0.45)
+const TRAVERSAL_WRONG_COUNTER_SCALE := Vector3(1.8, 0.3, 0.55)
+const TRAVERSAL_WRONG_SPAR_SCALE := Vector3(0.55, 1.8, 0.55)
+const TRAVERSAL_COMPLETE_SCALE := Vector3(1.6, 0.28, 1.6)
 
 ## Rocks take a much heavier chamfer than station stock. The kit's box rule caps
 ## at 0.18 m, which on a 30 m boulder is invisible, so the chamfer is proportional
@@ -873,8 +882,12 @@ func _apply_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dict
 	var state_id: StringName = &"available"
 	if authority_state == CinderBeaconTraversalActivity.State.ACTIVE:
 		state_id = &"traversing"
-		if not bool(snapshot.get("accepted", true)) \
-				and StringName(snapshot.get("reason", &"")) == &"out_of_order_beacon":
+		if (
+			(not bool(snapshot.get("accepted", true))
+			and StringName(snapshot.get("reason", &"")) == &"out_of_order_beacon")
+			or StringName(snapshot.get("presentation_reason", &"")) \
+			== &"out_of_order_beacon"
+		):
 			state_id = &"wrong_order"
 	elif authority_state == CinderBeaconTraversalActivity.State.COMPLETE:
 		state_id = &"completed"
@@ -892,6 +905,10 @@ func _apply_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dict
 		var outbound_energy := 1.2
 		var foot_energy := 0.7
 		var status_color := KETH_ORANGE
+		var counter_scale := Vector3.ONE
+		var spar_scale := Vector3.ONE
+		var counter_position := TRAVERSAL_VANE_BASE_POSITION
+		var spar_position := TRAVERSAL_VANE_BASE_POSITION
 		if state_id == &"traversing" or state_id == &"wrong_order":
 			if index < next_index:
 				status_id = &"cleared"
@@ -899,22 +916,41 @@ func _apply_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dict
 				outbound_energy = 0.5
 				foot_energy = 1.4
 				status_color = KETH_CYAN
+				counter_scale = TRAVERSAL_CLEARED_COUNTER_SCALE
+				spar_scale = TRAVERSAL_CLEARED_SPAR_SCALE
+				counter_position = Vector3(0.0, -13.0, 0.0)
 			elif index == next_index:
 				status_id = &"next_target" if state_id == &"traversing" else &"wrong_order_no_progress"
 				home_energy = 1.0
 				outbound_energy = 4.6 if state_id == &"traversing" else 2.2
 				foot_energy = 3.0 if state_id == &"traversing" else 4.2
+				if state_id == &"wrong_order":
+					counter_scale = TRAVERSAL_WRONG_COUNTER_SCALE
+					spar_scale = TRAVERSAL_WRONG_SPAR_SCALE
+					counter_position = Vector3(-3.5, -7.5, 0.0)
+					spar_position = Vector3(3.5, -10.5, 0.0)
+				else:
+					counter_scale = TRAVERSAL_TARGET_COUNTER_SCALE
+					spar_scale = TRAVERSAL_TARGET_SPAR_SCALE
+					counter_position = Vector3(0.0, -7.5, 0.0)
+					spar_position = Vector3(0.0, -10.5, 0.0)
 			else:
 				status_id = &"pending"
 				home_energy = 0.35
 				outbound_energy = 0.35
 				foot_energy = 0.25
+				counter_scale = TRAVERSAL_PENDING_SCALE
+				spar_scale = TRAVERSAL_PENDING_SCALE
 		elif state_id == &"completed":
 			status_id = &"cleared"
 			home_energy = 2.8
 			outbound_energy = 2.8
 			foot_energy = 2.0
 			status_color = KETH_CYAN
+			counter_scale = TRAVERSAL_COMPLETE_SCALE
+			spar_scale = TRAVERSAL_COMPLETE_SCALE
+			counter_position = Vector3(0.0, -7.5, 0.0)
+			spar_position = Vector3(0.0, -10.5, 0.0)
 		elif state_id == &"reset":
 			status_id = &"reset"
 			home_energy = 0.2
@@ -923,20 +959,32 @@ func _apply_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dict
 		_apply_beacon_visual_state(
 			beacon, home_energy, outbound_energy, foot_energy, status_color
 		)
+		_apply_beacon_traversal_geometry(
+			beacon, counter_scale, spar_scale, counter_position, spar_position
+		)
 		beacon_states.append({
 			"index": index,
 			"status_id": status_id,
 			"home_energy": home_energy,
 			"outbound_energy": outbound_energy,
 			"foot_energy": foot_energy,
+			"counter_scale": counter_scale,
+			"spar_scale": spar_scale,
+			"counter_position": counter_position,
+			"spar_position": spar_position,
 		})
+	var expected_beacon_name: StringName = &""
+	if next_index >= 0 and next_index < ROUTE_BEACON_SPECS.size():
+		expected_beacon_name = StringName(ROUTE_BEACON_SPECS[next_index]["name"])
 	_beacon_traversal_presentation_snapshot = {
 		"activity_id": BEACON_TRAVERSAL_ACTIVITY_ID,
 		"state_id": state_id,
 		"authority_state": authority_state,
 		"generation": generation,
 		"next_beacon_index": next_index,
+		"expected_beacon_name": expected_beacon_name,
 		"beacons": beacon_states,
+		"static_geometry_only": true,
 		"node_delta": BEACON_TRAVERSAL_STATE_NODE_DELTA,
 		"light_delta": BEACON_TRAVERSAL_STATE_LIGHT_DELTA,
 		"submission_delta": BEACON_TRAVERSAL_STATE_SUBMISSION_DELTA,
@@ -944,6 +992,21 @@ func _apply_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dict
 		"reward_authority": false,
 	}.duplicate(true)
 	return {"accepted": true, "reason": &"beacon_traversal_presentation_applied"}
+
+
+func _apply_beacon_traversal_geometry(
+	beacon: Node3D,
+	counter_scale: Vector3,
+	spar_scale: Vector3,
+	counter_position: Vector3,
+	spar_position: Vector3
+	) -> void:
+	var counter := beacon.get_node(^"CounterVane") as MeshInstance3D
+	var spar := beacon.get_node(^"VaneSpar") as MeshInstance3D
+	counter.scale = counter_scale
+	counter.position = counter_position
+	spar.scale = spar_scale
+	spar.position = spar_position
 
 
 func _apply_beacon_visual_state(

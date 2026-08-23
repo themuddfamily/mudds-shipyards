@@ -948,7 +948,7 @@ func reset_beacon_traversal() -> Dictionary:
 
 func bind_beacon_traversal_presentation(consumer: Callable) -> Dictionary:
 	var current := (
-		(_beacon_activity.call("get_snapshot") as Dictionary).duplicate(true)
+		_beacon_traversal_presentation_snapshot()
 		if _beacon_activity != null else {}
 	)
 	return _bind_presentation_observer(
