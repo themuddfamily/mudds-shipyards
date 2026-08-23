@@ -50,6 +50,21 @@ const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_a
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 const HALYARD_CREW_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
 const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
+const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
+const MAX_PASSENGER_PING_MARKERS := 8
+
+signal passenger_cabin_ping_emitted(
+	marker_id: StringName,
+	channel: StringName,
+	world_position: Vector3,
+	receipt: Dictionary
+)
+signal passenger_cabin_ping_cleared(
+	marker_id: StringName,
+	reason: StringName,
+	occupant_peer_id: int,
+	avatar_id: StringName
+)
 
 const DESIGN_NOTE := (
 	"The Halyard is an original modern design created for this remake. It is not "
@@ -254,6 +269,8 @@ var _spine_rib_mesh: Mesh
 var _spine_rib_batch: MultiMeshInstance3D
 var _spine_rib_transforms: Array[Transform3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
+var _passenger_ping_cooldown_remaining := 0.0
+var _passenger_ping_markers: Dictionary = {}
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -274,6 +291,10 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	if _reset_for_reuse_mutation_blocked():
 		return
+	_passenger_ping_cooldown_remaining = maxf(
+		0.0, _passenger_ping_cooldown_remaining - maxf(delta, 0.0)
+	)
+	_cleanup_detached_passenger_pings()
 	_elapsed_halyard += delta
 	_update_halyard_presentation(delta)
 
@@ -302,6 +323,8 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	_clear_passenger_ping_markers(&"ship_reused")
+	_passenger_ping_cooldown_remaining = 0.0
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
@@ -378,6 +401,9 @@ func submit_crew_intent(
 	) or (
 		role == CrewRoleGameplayProfileType.ROLE_GUNNER
 			and action == CrewRoleGameplayProfileType.ACTION_GUNNER_FIRE
+	) or (
+		role == CrewRoleGameplayProfileType.ROLE_PASSENGER
+			and action == CrewRoleGameplayProfileType.ACTION_PASSENGER_PING
 	)
 	if not supported:
 		return _crew_role_result(false, &"unsupported_halyard_role_action")
@@ -395,13 +421,54 @@ func submit_crew_intent(
 	var effect := (
 		_consume_engineer_repair_intent(intent)
 		if role == CrewRoleGameplayProfileType.ROLE_ENGINEER
-		else _consume_gunner_fire_intent(intent)
+		else (
+			_consume_gunner_fire_intent(intent)
+			if role == CrewRoleGameplayProfileType.ROLE_GUNNER
+			else _consume_passenger_ping_intent(intent)
+		)
 	)
 	var result := admission.duplicate(true)
 	result["status"] = &"intent_consumed" if bool(effect.get("accepted", false)) else &"intent_effect_rejected"
 	result["consumed"] = bool(effect.get("accepted", false))
 	result["effect"] = effect
 	return result
+
+
+## Releases a session assignment through the same authority that owns the claim,
+## then lets the ship clear any passenger markers owned by that avatar. Calling
+## the authority directly remains safe: the physics cleanup pass observes the
+## missing assignment and performs the same detach cleanup.
+func release_crew_role(
+		source_peer_id: int,
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		seat_id: StringName,
+		request_sequence: int,
+		seat_generation: int = 0
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var result := _crew_role_authority.release(
+		source_peer_id,
+		occupant_peer_id,
+		avatar_id,
+		seat_id,
+		request_sequence,
+		seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		_clear_passenger_ping_for_actor(occupant_peer_id, avatar_id, &"role_released")
+	return result
+
+
+func get_passenger_ping_markers() -> Array[Dictionary]:
+	var markers: Array[Dictionary] = []
+	for marker_variant in _passenger_ping_markers.values():
+		markers.append((marker_variant as Dictionary).duplicate(true))
+	markers.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("marker_id", "")) < str(right.get("marker_id", ""))
+	)
+	return markers
 
 
 ## Hands one admitted gunner receipt to HeroShip's existing weapon request
@@ -436,6 +503,52 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	result["target_id"] = target_id
 	result["request_sequence"] = int(intent.get("request_sequence", -1))
 	result["cooldown_remaining"] = _weapon_timer
+	return result
+
+
+## Passenger pings are ship-local navigation markers, not UI state. The marker
+## position comes from the real moving cabin deck marker, while the caller only
+## supplies the bounded channel/marker identifiers admitted by the role profile.
+func _consume_passenger_ping_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	var marker_id := StringName(payload.get("marker_id", &""))
+	var channel := StringName(payload.get("channel", &""))
+	if _passenger_ping_cooldown_remaining > 0.0:
+		return _crew_role_result(false, &"passenger_ping_cooldown")
+	var cabin := get_in_flight_cabin_report()
+	var deck_frame: MovingInteriorFrame = cabin.get("frame", null) as MovingInteriorFrame
+	if not bool(cabin.get("supported", false)) \
+			or not is_instance_valid(_interior_deck_marker) \
+			or not is_instance_valid(deck_frame):
+		return _crew_role_result(false, &"cabin_unavailable")
+	var world_position := _interior_deck_marker.global_position
+	if not world_position.is_finite():
+		return _crew_role_result(false, &"marker_position_unavailable")
+	var occupant_peer_id := int(intent.get("occupant_peer_id", 0))
+	var avatar_id := StringName(intent.get("avatar_id", &""))
+	var actor_key := _passenger_ping_actor_key(occupant_peer_id, avatar_id)
+	if not _passenger_ping_markers.has(actor_key) \
+			and _passenger_ping_markers.size() >= MAX_PASSENGER_PING_MARKERS:
+		return _crew_role_result(false, &"passenger_ping_limit")
+	var marker := {
+		"marker_id": marker_id,
+		"channel": channel,
+		"world_position": world_position,
+		"occupant_peer_id": occupant_peer_id,
+		"avatar_id": avatar_id,
+		"request_sequence": int(intent.get("request_sequence", -1)),
+	}
+	_passenger_ping_markers[actor_key] = marker
+	_passenger_ping_cooldown_remaining = PASSENGER_PING_COOLDOWN_SECONDS
+	passenger_cabin_ping_emitted.emit(
+		marker_id,
+		channel,
+		world_position,
+		marker.duplicate(true)
+	)
+	var result := _crew_role_result(true, &"passenger_ping_emitted")
+	result["marker"] = marker.duplicate(true)
+	result["cooldown_remaining"] = _passenger_ping_cooldown_remaining
 	return result
 
 
@@ -1689,6 +1802,9 @@ func _sync_interior_occupant_collision() -> void:
 
 
 func _set_interior_operational(enabled: bool) -> void:
+	if not enabled:
+		_clear_passenger_ping_markers(&"interior_unavailable")
+		_passenger_ping_cooldown_remaining = 0.0
 	if _walkable_interior != null:
 		_walkable_interior.visible = enabled
 	if _occupant_volume != null:
@@ -1699,6 +1815,63 @@ func _set_interior_operational(enabled: bool) -> void:
 	if not enabled and _moving_interior_component != null:
 		_moving_interior_component.clear_occupants(true, &"ship_destroyed")
 	_sync_interior_occupant_collision()
+
+
+func _cleanup_detached_passenger_pings() -> void:
+	if _passenger_ping_markers.is_empty():
+		return
+	if _crew_role_authority == null:
+		_clear_passenger_ping_markers(&"authority_detached")
+		return
+	var detached: Array[Dictionary] = []
+	for marker_variant in _passenger_ping_markers.values():
+		var marker := marker_variant as Dictionary
+		var assignment := _crew_role_authority.get_assignment(
+			int(marker.get("occupant_peer_id", 0)),
+			StringName(marker.get("avatar_id", &""))
+		)
+		if assignment.is_empty():
+			detached.append(marker)
+	for marker in detached:
+		_clear_passenger_ping_for_actor(
+			int(marker.get("occupant_peer_id", 0)),
+			StringName(marker.get("avatar_id", &"")),
+			&"role_detached"
+		)
+
+
+func _clear_passenger_ping_for_actor(
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		reason: StringName
+) -> void:
+	var key := _passenger_ping_actor_key(occupant_peer_id, avatar_id)
+	if not _passenger_ping_markers.has(key):
+		return
+	var marker := _passenger_ping_markers[key] as Dictionary
+	_passenger_ping_markers.erase(key)
+	passenger_cabin_ping_cleared.emit(
+		StringName(marker.get("marker_id", &"")),
+		reason,
+		occupant_peer_id,
+		avatar_id
+	)
+
+
+func _clear_passenger_ping_markers(reason: StringName) -> void:
+	var actors: Array[Dictionary] = []
+	for marker_variant in _passenger_ping_markers.values():
+		actors.append(marker_variant as Dictionary)
+	for marker in actors:
+		_clear_passenger_ping_for_actor(
+			int(marker.get("occupant_peer_id", 0)),
+			StringName(marker.get("avatar_id", &"")),
+			reason
+		)
+
+
+static func _passenger_ping_actor_key(occupant_peer_id: int, avatar_id: StringName) -> StringName:
+	return StringName("%d:%s" % [occupant_peer_id, str(avatar_id)])
 
 
 # ---------------------------------------------------------- presentation ----
