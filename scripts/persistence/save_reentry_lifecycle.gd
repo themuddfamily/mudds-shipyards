@@ -132,6 +132,25 @@ func reenter_session(
 	return result
 
 
+## Retries recovery of the last safe checkpoint after an interrupted detach or
+## re-entry handoff. A detached session advances exactly once; an already
+## active session is an idempotent success so a lost response cannot strand it.
+func recover_last_safe_checkpoint(
+		slot_id: String,
+		session_id: int,
+		attachment_generation: int,
+		commit_id: String
+		) -> Dictionary:
+	if _operation_active:
+		return _result(false, &"reentrant_call")
+	_operation_active = true
+	var result := _recover_last_safe_checkpoint(
+		slot_id, session_id, attachment_generation, commit_id
+	)
+	_operation_active = false
+	return result
+
+
 ## Closes the logical session without discarding its last checkpoint. A later
 ## process can inspect the closed payload and explicitly open a new session.
 func close_session(
@@ -330,6 +349,22 @@ func _reenter_session(
 	candidate["state"] = STATE_ACTIVE
 	candidate["attachment_generation"] = attachment_generation
 	return _commit_candidate(candidate, commit_id, &"reentered")
+
+
+func _recover_last_safe_checkpoint(
+		slot_id: String,
+		session_id: int,
+		attachment_generation: int,
+		commit_id: String
+		) -> Dictionary:
+	if _state == STATE_ACTIVE:
+		var active_identity := _check_identity(slot_id, session_id, attachment_generation, true)
+		if not bool(active_identity.accepted):
+			return active_identity
+		return _result(true, &"already_active")
+	if _state == STATE_DETACHED:
+		return _reenter_session(slot_id, session_id, attachment_generation, commit_id)
+	return _result(false, &"session_not_recoverable")
 
 
 func _close_session(

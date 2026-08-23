@@ -101,13 +101,30 @@ func _run() -> void:
 		and stale_reentry.reason == &"stale_attachment_generation",
 		"duplicate attachment generation cannot re-enter a detached session"
 	)
-	var reentered := lifecycle.reenter_session("slot-a", 41, 2, "save-reenter-001")
+	var reentered := lifecycle.recover_last_safe_checkpoint("slot-a", 41, 2, "save-reenter-001")
 	_check(
 		bool(reentered.accepted) and reentered.reason == &"reentered"
 		and reentered.state == Lifecycle.STATE_ACTIVE
 		and int(reentered.checkpoint_generation) == 1
 		and int(reentered.physics_tick) == 120,
 		"next attachment generation restores exact checkpoint progress"
+	)
+	var recovered_retry := lifecycle.recover_last_safe_checkpoint(
+		"slot-a", 41, 2, "save-reentry-retry"
+	)
+	_check(
+		bool(recovered_retry.accepted) and recovered_retry.reason == &"already_active"
+		and int(recovered_retry.checkpoint_generation) == 1
+		and int(recovered_retry.physics_tick) == 120,
+		"re-entry recovery is idempotent after a lost successful handoff response"
+	)
+	var stale_recovery := lifecycle.recover_last_safe_checkpoint(
+		"slot-a", 41, 1, "save-reentry-stale-recovery"
+	)
+	_check(
+		not bool(stale_recovery.accepted)
+		and stale_recovery.reason == &"stale_attachment_generation",
+		"re-entry recovery rejects a stale attachment without rewinding the checkpoint"
 	)
 	var post_reentry := lifecycle.save_checkpoint(
 		"slot-a", 41, 2, 121, {"location": "flight_lane", "ship": {"id": "torrent"}},
