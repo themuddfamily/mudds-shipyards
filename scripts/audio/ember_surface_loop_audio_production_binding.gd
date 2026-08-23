@@ -26,6 +26,9 @@ const PERSPECTIVES := [&"interior", &"exterior"]
 const MAXIMUM_SIMULTANEOUS_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const EMBER_WORLD := preload("res://assets/world/planets/ember_moon_world.tres")
+const EntryGuidancePresenterScript := preload(
+	"res://scripts/ui/atmospheric_entry_guidance_presenter.gd"
+)
 const ALTITUDE_LOOP_NAME: StringName = &"AirlessAltitudeHullResonance"
 const ALTITUDE_TRANSITION_CEILING_M := 20_000.0
 const ALTITUDE_FADE_SECONDS := 0.35
@@ -33,6 +36,21 @@ const ALTITUDE_LOOP_SAMPLE_RATE := 22_050
 const ALTITUDE_LOOP_SECONDS := 1.0
 const ALTITUDE_LOOP_GAIN_DB := -9.0
 const MIN_AUDIBLE_INTENSITY := 0.0001
+const ENTRY_ALERT_STATES := [
+	&"atmospheric_rising", &"atmospheric_critical", &"airless_high_sink",
+]
+const ENTRY_CUE_BY_STATE := {
+	&"atmospheric_rising": &"planetary_atmospheric_entry",
+	&"atmospheric_critical": &"surface_entry_severe",
+	&"airless_high_sink": &"surface_entry_severe",
+	&"clear": &"surface_entry_clear",
+}
+const ENTRY_CUE_INTENSITY := {
+	&"atmospheric_rising": 0.65,
+	&"atmospheric_critical": 1.0,
+	&"airless_high_sink": 0.9,
+	&"clear": 0.25,
+}
 
 var _owner: Node
 var _attached := false
@@ -51,6 +69,15 @@ var _altitude_target_intensity_unitless := 0.0
 var _altitude_intensity_unitless := 0.0
 var _altitude_playback_requested := false
 var _last_altitude_input: Dictionary = {}
+var _reduced_dynamic_range := false
+var _last_entry_owner_generation := -1
+var _last_entry_binding_generation := -1
+var _last_entry_observation_count := -1
+var _last_entry_state: StringName = &""
+var _last_entry_cue: StringName = &""
+var _entry_cue_count := 0
+var _last_entry_result: Dictionary = {}
+var _entry_guidance_presenter := EntryGuidancePresenterScript.new() as RefCounted
 
 
 func _ready() -> void:
@@ -73,6 +100,7 @@ func attach(owner: Node, perspective: StringName = &"exterior") -> Dictionary:
 	_slots.clear()
 	_last_owner_generation = -1
 	_last_key = ""
+	_reset_entry_transition()
 	present_snapshot(owner.get_snapshot())
 	return _result(true, &"attached")
 
@@ -86,6 +114,11 @@ func set_perspective(perspective: StringName) -> Dictionary:
 		_apply_decoded_altitude_transition(_last_altitude_input, 0.0)
 	return _result(true, &"perspective_updated")
 
+
+func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	_reduced_dynamic_range = enabled
+	return _result(true, &"dynamic_range_updated")
+
 func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_attached")
@@ -95,6 +128,7 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		return _result(false, &"invalid_generation")
 	if int(owner_generation) < _last_owner_generation:
 		return _result(false, &"stale_generation")
+	_last_entry_result = _present_entry_transition(snapshot, int(owner_generation))
 	_apply_altitude_transition(snapshot, _phase_delta(snapshot))
 	var phase_id := StringName(snapshot.get("phase_id", snapshot.get("state_id", &"")))
 	if _owner != null and _owner.has_method(&"get_host_phase"):
@@ -133,6 +167,7 @@ func detach() -> Dictionary:
 	_seen.clear()
 	_slots.clear()
 	_last_altitude_input.clear()
+	_reset_entry_transition()
 	_reset_altitude_transition()
 	return _result(true, &"detached")
 
@@ -141,6 +176,16 @@ func get_snapshot() -> Dictionary:
 		"last_owner_generation": _last_owner_generation, "last_key": _last_key,
 		"emitted_cue_count": _emitted_count, "active_cue_slots": _slots.duplicate(),
 		"maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES,
+		"reduced_dynamic_range": _reduced_dynamic_range,
+		"entry_transition": {
+			"last_owner_generation": _last_entry_owner_generation,
+			"last_binding_generation": _last_entry_binding_generation,
+			"last_observation_count": _last_entry_observation_count,
+			"last_state": _last_entry_state,
+			"last_cue": _last_entry_cue,
+			"emitted_cue_count": _entry_cue_count,
+			"last_result": _last_entry_result.duplicate(true),
+		}.duplicate(true),
 		"altitude_transition": {
 			"world_id": EMBER_WORLD.world_id,
 			"has_atmosphere": EMBER_WORLD.has_atmosphere,
@@ -176,12 +221,106 @@ func _host_phase_id(host_phase: int) -> StringName:
 		15: return &"failed"
 		_: return &""
 
-func _emit(cue_id: StringName) -> void:
+func _emit(cue_id: StringName, intensity: float = 1.0) -> void:
 	if _slots.size() >= MAXIMUM_SIMULTANEOUS_VOICES:
 		_slots.pop_front()
 	_slots.append(cue_id)
 	_emitted_count += 1
-	semantic_surface_cue_emitted.emit(cue_id, 1.0)
+	semantic_surface_cue_emitted.emit(cue_id, clampf(intensity, 0.0, 1.0))
+
+
+## Consumes only the retained Arrow presentation result already accepted by the
+## production owner. It never samples the ship or changes entry/landing state.
+func _present_entry_transition(
+		snapshot: Dictionary, owner_generation: int
+	) -> Dictionary:
+	var bridge := snapshot.get("entry_presentation", {}) as Dictionary
+	var retained := snapshot.get("last_entry_presentation_result", {}) as Dictionary
+	if retained.is_empty():
+		retained = bridge.get("last_result", {}) as Dictionary
+	var source := retained.get("source", {}) as Dictionary
+	if bridge.is_empty() or source.is_empty():
+		return _entry_result(true, &"entry_observation_unavailable")
+	var binding_generation: Variant = bridge.get("generation", -1)
+	var observation_count: Variant = bridge.get("observation_count", -1)
+	if not binding_generation is int or int(binding_generation) < 0 \
+			or int(binding_generation) > MAX_SAFE_GENERATION \
+			or not observation_count is int or int(observation_count) < 1 \
+			or int(observation_count) > MAX_SAFE_GENERATION:
+		return _entry_result(false, &"invalid_entry_generation")
+	if owner_generation < _last_entry_owner_generation:
+		return _entry_result(false, &"stale_entry_owner_generation")
+	var lifecycle_changed := owner_generation > _last_entry_owner_generation
+	if not lifecycle_changed:
+		if int(binding_generation) < _last_entry_binding_generation:
+			return _entry_result(false, &"stale_entry_binding_generation")
+		lifecycle_changed = int(binding_generation) > _last_entry_binding_generation
+	if not lifecycle_changed and int(observation_count) <= _last_entry_observation_count:
+		return _entry_result(
+			false, &"duplicate_entry_observation" \
+				if int(observation_count) == _last_entry_observation_count \
+				else &"stale_entry_observation"
+		)
+	if lifecycle_changed:
+		_last_entry_state = &""
+		_last_entry_observation_count = -1
+	_last_entry_owner_generation = owner_generation
+	_last_entry_binding_generation = int(binding_generation)
+	_last_entry_observation_count = int(observation_count)
+	var state := _entry_semantic_state(source)
+	if state == _last_entry_state:
+		return _entry_result(true, &"entry_state_unchanged")
+	var previous := _last_entry_state
+	_last_entry_state = state
+	var cue_state := state
+	if state == &"clear" and previous not in ENTRY_ALERT_STATES:
+		return _entry_result(true, &"entry_clear_without_alert")
+	var cue_id: StringName = ENTRY_CUE_BY_STATE.get(cue_state, &"")
+	if cue_id.is_empty():
+		return _entry_result(true, &"entry_state_presented")
+	var intensity := float(ENTRY_CUE_INTENSITY.get(cue_state, 1.0))
+	if _reduced_dynamic_range:
+		intensity *= 0.75
+	_emit(cue_id, intensity)
+	_entry_cue_count += 1
+	_last_entry_cue = cue_id
+	return _entry_result(true, &"entry_transition_cue_emitted", {
+		"cue_id": cue_id, "intensity": intensity,
+	})
+
+
+func _entry_semantic_state(source: Dictionary) -> StringName:
+	var guidance := _entry_guidance_presenter.call(
+		&"present_snapshot", source
+	) as Dictionary
+	var state := StringName(guidance.get("state", &""))
+	if state == &"critical_entry":
+		return &"atmospheric_critical"
+	if state == &"entry_watch":
+		return &"atmospheric_rising"
+	if state == &"airless_descent" and StringName(guidance.get(
+		"descent_advisory_id", &""
+	)) == &"high_sink_rate":
+		return &"airless_high_sink"
+	return &"clear"
+
+
+func _reset_entry_transition() -> void:
+	_last_entry_owner_generation = -1
+	_last_entry_binding_generation = -1
+	_last_entry_observation_count = -1
+	_last_entry_state = &""
+	_last_entry_cue = &""
+	_last_entry_result = {}
+
+
+func _entry_result(
+		accepted: bool, reason: StringName, extra: Dictionary = {}
+	) -> Dictionary:
+	var result := {"accepted": accepted, "reason": reason}
+	for key: Variant in extra:
+		result[key] = extra[key]
+	return result.duplicate(true)
 
 
 ## Consumes the production scheduler's already-adjusted actor sample. The

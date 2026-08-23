@@ -29,6 +29,12 @@ func attach(audio_director: Node, owner: Node, perspective: StringName = &"exter
 	if not bool(attached.get("accepted", false)):
 		detach()
 		return attached
+	if audio_director.has_method(&"get_dynamic_mix_plan"):
+		var mix := audio_director.call(&"get_dynamic_mix_plan") as Dictionary
+		_binding.call(
+			&"set_reduced_dynamic_range",
+			bool(mix.get("reduced_dynamic_range", false))
+		)
 	var bound: Dictionary = _audio_director.bind_semantic_audio_source(_binding, SOURCE_ID)
 	if not bool(bound.get("accepted", false)):
 		detach()
