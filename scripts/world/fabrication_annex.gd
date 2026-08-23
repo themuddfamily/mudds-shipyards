@@ -14,6 +14,18 @@ const GROSS_HORIZONTAL_AREA_M2 := 480.0
 const FIXED_EQUIPMENT_FOOTPRINT_M2 := 69.30
 const FLOOR_AFTER_FIXED_EQUIPMENT_M2 := 410.70
 const LUMINAIRE_SIZE := Vector3(1.8, 0.12, 0.3)
+const ROOF_COLUMN_SIZE := Vector3(0.45, 5.6, 0.45)
+const ROOF_COLUMN_POSITIONS := [
+	Vector3(-11.0, 2.8, 4.5),
+	Vector3(-11.0, 2.8, 19.0),
+	Vector3(-3.0, 2.8, 4.5),
+	Vector3(-3.0, 2.8, 19.0),
+	Vector3(3.0, 2.8, 4.5),
+	Vector3(3.0, 2.8, 19.0),
+	Vector3(11.0, 2.8, 4.5),
+	Vector3(11.0, 2.8, 19.0),
+]
+const ROOF_COLUMN_BATCH_KEY := "structure:0.450:5.600:0.450"
 const SOURCE_PRACTICAL_RANGE_M := 8.0
 const PAIRED_POOL_RANGE_M := 11.75
 const SOURCE_PRACTICAL_ENERGY := 3.2
@@ -66,32 +78,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 27,
-	"multi_mesh_instances": 31,
-	"geometry_instances": 58,
+	"mesh_instances": 19,
+	"multi_mesh_instances": 32,
+	"geometry_instances": 51,
 	"visible_geometry_copies": 203,
-	"multi_mesh_drawn_copies": 176,
+	"multi_mesh_drawn_copies": 184,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 144,
+	"nodes": 137,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 27,
-	"multi_mesh_instances": 31,
-	"geometry_instances": 58,
+	"mesh_instances": 19,
+	"multi_mesh_instances": 32,
+	"geometry_instances": 51,
 	"visible_geometry_copies": 204,
-	"multi_mesh_drawn_copies": 177,
+	"multi_mesh_drawn_copies": 185,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 146,
+	"nodes": 139,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -279,9 +291,13 @@ func _build_work_bays() -> void:
 
 
 func _build_structure_and_dressing() -> void:
-	for x in [-11.0, -3.0, 3.0, 11.0]:
-		for z in [4.5, 19.0]:
-			_add_fixed_equipment("RoofColumn", Vector3(0.45, 5.6, 0.45), Vector3(x, 2.8, z), &"structure")
+	for column_position in ROOF_COLUMN_POSITIONS:
+		_add_batched_fixed_equipment(
+			"RoofColumn",
+			ROOF_COLUMN_SIZE,
+			column_position as Vector3,
+			&"structure"
+		)
 	for z in [5.0, 11.0, 17.0]:
 		_add_mesh("OverheadCrossbeam", Vector3(27.0, 0.45, 0.5), Vector3(0.0, 5.35, z), &"structure")
 	# Deep ceiling coffers and longitudinal spines turn the former open frame
@@ -390,6 +406,25 @@ func _add_fixed_equipment(label: String, size: Vector3, at: Vector3, material_id
 	var body := _add_solid(label, size, at, material_id)
 	body.set_meta(&"fixed_equipment_footprint", true)
 	body.set_meta(&"fixed_equipment_id", StringName("%s_%0.2f_%0.2f" % [label.to_snake_case(), at.x, at.z]))
+	return body
+
+
+func _add_batched_fixed_equipment(
+		label: String,
+		size: Vector3,
+		at: Vector3,
+		material_id: StringName
+	) -> StaticBody3D:
+	# Collision identity remains one body/shape per physical column. Only its
+	# identical, presentation-only child renderer moves into the existing batch
+	# path, preserving the same cached mesh, material and local visible pose.
+	var body := _add_collision_only(label, size, at)
+	body.set_meta(&"fixed_equipment_footprint", true)
+	body.set_meta(
+		&"fixed_equipment_id",
+		StringName("%s_%0.2f_%0.2f" % [label.to_snake_case(), at.x, at.z])
+	)
+	_add_mesh(label, size, at, material_id)
 	return body
 
 
@@ -588,6 +623,88 @@ func get_render_submission_contract() -> Dictionary:
 		"batch_keys": live_batch_keys,
 		"authored_batch_transforms": _authored_batch_transforms.duplicate(true),
 	}
+
+
+func get_roof_column_render_optimization_contract() -> Dictionary:
+	var batch: MultiMeshInstance3D = null
+	for raw_batch in find_children("*", "MultiMeshInstance3D", true, false):
+		var candidate := raw_batch as MultiMeshInstance3D
+		if str(candidate.get_meta(&"fabrication_annex_batch_key", "")) \
+				== ROOF_COLUMN_BATCH_KEY:
+			batch = candidate
+			break
+	var authored := _authored_batch_transforms.get(ROOF_COLUMN_BATCH_KEY, []) as Array
+	var transforms_exact := authored.size() == ROOF_COLUMN_POSITIONS.size()
+	for index in mini(authored.size(), ROOF_COLUMN_POSITIONS.size()):
+		var transform := authored[index] as Transform3D
+		transforms_exact = transforms_exact \
+			and transform.basis.is_equal_approx(Basis.IDENTITY) \
+			and transform.origin.is_equal_approx(ROOF_COLUMN_POSITIONS[index] as Vector3)
+	var collision_bodies: Array[StaticBody3D] = []
+	for raw_body in StationModuleContract.collect_static_bodies(self):
+		var body := raw_body as StaticBody3D
+		if str(body.get_meta(&"fixed_equipment_id", "")).begins_with("roof_column_"):
+			collision_bodies.append(body)
+	collision_bodies.sort_custom(
+		func(first: StaticBody3D, second: StaticBody3D) -> bool:
+			return str(first.name) < str(second.name)
+	)
+	var collision_exact := collision_bodies.size() == ROOF_COLUMN_POSITIONS.size()
+	for index in mini(collision_bodies.size(), ROOF_COLUMN_POSITIONS.size()):
+		var body := collision_bodies[index]
+		var shape := _body_box_shape(body)
+		var expected_name := "RoofColumn" if index == 0 else "RoofColumn%02d" % index
+		collision_exact = collision_exact \
+			and str(body.name) == expected_name \
+			and body.position.is_equal_approx(ROOF_COLUMN_POSITIONS[index] as Vector3) \
+			and shape != null \
+			and shape.size.is_equal_approx(ROOF_COLUMN_SIZE) \
+			and body.find_children("*", "MeshInstance3D", false, false).is_empty()
+	var batch_exact: bool = (
+		batch != null
+		and batch.name == &"RoofColumnBatch"
+		and batch.multimesh != null
+		and batch.multimesh.instance_count == ROOF_COLUMN_POSITIONS.size()
+		and batch.multimesh.mesh != null
+		and batch.material_override == _materials[&"structure"]
+	)
+	return {
+		"valid": batch_exact and transforms_exact and collision_exact,
+		"family": &"physical_roof_column_presentation",
+		"before": {
+			"mesh_instance_nodes": 8,
+			"multi_mesh_instance_nodes": 0,
+			"renderer_submissions": 8,
+			"visible_geometry_copies": 8,
+			"primitive_mesh_resources": 1,
+			"presentation_nodes": 8,
+		},
+		"after": {
+			"mesh_instance_nodes": 0,
+			"multi_mesh_instance_nodes": 1 if batch != null else 0,
+			"renderer_submissions": 1 if batch != null else 0,
+			"visible_geometry_copies": (
+				batch.multimesh.instance_count
+				if batch != null and batch.multimesh != null
+				else 0
+			),
+			"primitive_mesh_resources": (
+				1
+				if batch != null and batch.multimesh != null and batch.multimesh.mesh != null
+				else 0
+			),
+			"presentation_nodes": 1 if batch != null else 0,
+		},
+		"delta": {
+			"renderer_submissions": -7,
+			"presentation_nodes": -7,
+			"primitive_mesh_resources": 0,
+		},
+		"authored_transforms": authored.duplicate(true),
+		"visual_transforms_exact": transforms_exact,
+		"collision_body_count": collision_bodies.size(),
+		"collision_names_transforms_and_shapes_exact": collision_exact,
+	}.duplicate(true)
 
 
 func get_lighting_contract() -> Dictionary:
@@ -863,8 +980,10 @@ func get_validation_errors() -> PackedStringArray:
 	var render := get_render_submission_contract()
 	if not bool(render.forward_plus_buffers_match_authored) or int(render.authored_transform_count) != int(render.multi_mesh_drawn_copies):
 		errors.append("Forward+ MultiMesh buffers drifted from authored transforms")
+	if not bool(get_roof_column_render_optimization_contract().valid):
+		errors.append("roof-column presentation batch or physical roster drifted")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 66 if observation_rear_gate_open else 65
+	var expected_name_allocations := 67 if observation_rear_gate_open else 66
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()
