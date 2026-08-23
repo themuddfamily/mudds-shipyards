@@ -258,6 +258,9 @@ var audio: Node
 var music_bed: StationMusicBed
 var nearby_activity_audio_binding: Node
 var nearby_activity_music_adapter: Node
+var nearby_activity_persistence_store: RefCounted
+var nearby_activity_persistence_slot: StringName = &"nearby_activity"
+var _nearby_activity_persistence_commit_serial := 0
 var activity_director: ActivityDirector
 var cinder_race_session: CinderTimedRaceSession
 var patrol_activity: PatrolActivity
@@ -5268,6 +5271,11 @@ func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
 		return
 	var activity_id := StringName(str(intent.get("activity_id", &"")))
 	var action := StringName(str(intent.get("reason", &"")))
+	if action in [&"save_progress", &"load_progress"]:
+		var persistence_result := _handle_nearby_activity_persistence(binding, action, intent)
+		if hud.has_method(&"apply_nearby_activity_persistence_result"):
+			hud.call(&"apply_nearby_activity_persistence_result", persistence_result)
+		return
 	var result: Dictionary
 	match action:
 		&"selected":
@@ -5281,6 +5289,29 @@ func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
 			return
 	if bool(result.get("accepted", false)):
 		_sync_nearby_activity_hud()
+
+
+func configure_nearby_activity_persistence(store: RefCounted, slot_id: StringName = &"nearby_activity") -> bool:
+	if store == null or slot_id.is_empty():
+		return false
+	nearby_activity_persistence_store = store
+	nearby_activity_persistence_slot = slot_id
+	var binding := _get_nearby_activity_binding()
+	return is_instance_valid(binding) and bool(binding.call(&"configure_activity_persistence", store, slot_id))
+
+
+func _handle_nearby_activity_persistence(binding: Node, action: StringName, intent: Dictionary) -> Dictionary:
+	if nearby_activity_persistence_store == null:
+		return {"accepted": false, "reason": &"persistence_unconfigured", "status": &"unconfigured"}
+	if not bool(binding.call(&"configure_activity_persistence", nearby_activity_persistence_store, nearby_activity_persistence_slot)):
+		return {"accepted": false, "reason": &"persistence_unconfigured", "status": &"unconfigured"}
+	if action == &"load_progress":
+		return binding.call(&"load_activity_session")
+	var snapshot := binding.call(&"get_snapshot") as Dictionary
+	var generation := maxi(int(intent.get("expected_generation", snapshot.get("generation", 0))), 0)
+	_nearby_activity_persistence_commit_serial += 1
+	var commit_id := "nearby-activity-%010d" % _nearby_activity_persistence_commit_serial
+	return binding.call(&"save_activity_session", generation, commit_id)
 
 
 func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionary:
