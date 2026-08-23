@@ -21,6 +21,7 @@ const CARGO_CONTRACT := preload("res://scripts/cargo/cargo_delivery_contract.gd"
 const MINING_ACTIVITY := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const SCAN_ACTIVITY := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const BEACON_ACTIVITY := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
+const CINDER_FIELD_AUDIO := preload("res://scripts/audio/cinder_field_activity_audio_binding.gd")
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
 const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activity_session_adapter.gd")
 const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
@@ -53,6 +54,7 @@ var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
 var _station_reward_adapter: RefCounted
+var _cinder_field_audio: RefCounted
 
 
 func _ready() -> void:
@@ -86,6 +88,36 @@ func _ready() -> void:
 	_scan_activity = SCAN_ACTIVITY.new() as RefCounted
 	_beacon_activity = BEACON_ACTIVITY.new() as RefCounted
 	_session_adapter = SESSION_ADAPTER.new() as RefCounted
+	_cinder_field_audio = CINDER_FIELD_AUDIO.new() as RefCounted
+	_cinder_field_audio.attach()
+	bind_mining_presentation(Callable(self, "_on_mining_audio_snapshot"))
+	bind_structure_scan_presentation(Callable(self, "_on_structure_scan_audio_snapshot"))
+	bind_beacon_traversal_presentation(Callable(self, "_on_beacon_audio_snapshot"))
+
+
+func _exit_tree() -> void:
+	if _cinder_field_audio != null:
+		_cinder_field_audio.detach()
+
+
+func get_cinder_field_audio_binding_snapshot() -> Dictionary:
+	return _cinder_field_audio.get_snapshot() if _cinder_field_audio != null else {}
+
+
+func _on_mining_audio_snapshot(snapshot: Dictionary) -> void:
+	_cinder_field_audio.present_activity_snapshot(snapshot)
+
+
+func _on_structure_scan_audio_snapshot(snapshot: Dictionary) -> void:
+	_cinder_field_audio.present_activity_snapshot(snapshot)
+
+
+func _on_beacon_audio_snapshot(snapshot: Dictionary) -> void:
+	_cinder_field_audio.present_activity_snapshot(snapshot)
+
+
+func _on_beacon_audio_result(result: Dictionary) -> void:
+	_cinder_field_audio.present_beacon_result(result)
 
 
 ## Binds the production physical adapters to the one existing cargo authority.
@@ -695,6 +727,8 @@ func _publish_beacon_traversal_presentation(authority_record: Dictionary = {}) -
 	if detached.is_empty():
 		detached = (_beacon_activity.call("get_snapshot") as Dictionary).duplicate(true)
 	_beacon_traversal_presentation_consumer.call(detached)
+	if not authority_record.is_empty():
+		_on_beacon_audio_result(authority_record)
 
 
 ## Caller-owned persistence seam. Configuration does not read or write files;
