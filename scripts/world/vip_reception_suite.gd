@@ -121,11 +121,12 @@ const SERVERY_STOOL_FOOT_RING_RINGS := 32
 const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 
 ## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
-## exterior roof cassettes and six bronze outboard mullion fillets still draw,
-## but three MultiMeshes own their visual-only submissions.
+## exterior roof cassettes, six bronze outboard mullion fillets, and three
+## servery shelves still draw, but four MultiMeshes own their visual-only submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const ROOF_CASSETTE_COPY_COUNT := 5
 const OUTBOARD_MULLION_FILLET_COPY_COUNT := 6
+const SERVERY_SHELF_COPY_COUNT := 3
 const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
 const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
@@ -135,11 +136,11 @@ const PRE_MULLION_RENDER_DESCENDANT_COUNT := 464
 const PRE_MULLION_RENDER_MESH_INSTANCE_COUNT := 259
 const PRE_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 2
 const PRE_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 261
-const RENDER_DESCENDANT_COUNT := 459
-const RENDER_MESH_INSTANCE_COUNT := 253
-const RENDER_MULTIMESH_BATCH_COUNT := 3
+const RENDER_DESCENDANT_COUNT := 460
+const RENDER_MESH_INSTANCE_COUNT := 250
+const RENDER_MULTIMESH_BATCH_COUNT := 4
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 256
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 254
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -180,6 +181,7 @@ var _roof_cassette_transforms: Array[Transform3D] = []
 var _roof_cassette_batch: MultiMeshInstance3D = null
 var _outboard_mullion_fillet_transforms: Array[Transform3D] = []
 var _outboard_mullion_fillet_batch: MultiMeshInstance3D = null
+var _servery_shelf_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
 
@@ -1268,10 +1270,26 @@ func _build_reception_furnishing(structure: Node3D) -> void:
 	_box(fitout, "ServeryCounterFillet", Vector3(-5.69, 1.0, 9.0), Vector3(0.05, 0.05, 4.6), _materials["bronze"], false)
 	_box(fitout, "ServeryToeRail", Vector3(-5.88, 0.16, 9.0), Vector3(0.06, 0.06, 4.3), _materials["bronze"], false)
 	_box(fitout, "ServeryNiche", Vector3(-6.79, 1.95, 9.0), Vector3(0.16, 1.5, 4.2), _materials["lacquer"], false)
-	for shelf_index in 3:
+	var servery_shelf_transforms: Array[Transform3D] = []
+	for shelf_index in SERVERY_SHELF_COPY_COUNT:
 		var shelf_y := 1.44 + float(shelf_index) * 0.48
-		_box(fitout, "ServeryShelf%02d" % (shelf_index + 1), Vector3(-6.72, shelf_y, 9.0), Vector3(0.28, 0.05, 4.0), _materials["bronze"], false)
+		var shelf_anchor := Marker3D.new()
+		shelf_anchor.name = "ServeryShelf%02d" % (shelf_index + 1)
+		shelf_anchor.position = Vector3(-6.72, shelf_y, 9.0)
+		shelf_anchor.set_meta("presentation_only", true)
+		shelf_anchor.set_meta("collision_free", true)
+		shelf_anchor.set_meta("detail_role", &"servery_shelf")
+		fitout.add_child(shelf_anchor)
+		servery_shelf_transforms.append(Transform3D(Basis.IDENTITY, shelf_anchor.position))
 		_box(fitout, "ServeryShelfLens%02d" % (shelf_index + 1), Vector3(-6.7, shelf_y - 0.06, 9.0), Vector3(0.03, 0.05, 3.9), _materials["cove_lens"], false)
+	_servery_shelf_batch = _multimesh_boxes(
+		fitout,
+		"ServeryShelfBatch",
+		Vector3(0.28, 0.05, 4.0),
+		_materials["bronze"],
+		servery_shelf_transforms,
+		false
+	)
 
 	for stool_index in 3:
 		_build_stool(fitout, stool_index, Vector3(-5.35, 0.0, 7.7 + float(stool_index) * 1.3))

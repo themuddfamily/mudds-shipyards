@@ -119,6 +119,7 @@ func _run() -> void:
 	_test_banquette_joint_batch(suite)
 	_test_roof_cassette_batch(suite)
 	_test_outboard_mullion_fillet_batch(suite)
+	_test_servery_shelf_batch(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
 	_test_nothing_floats(world, suite)
@@ -308,20 +309,20 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	var render := suite.get_render_batch_contract()
 	_check(
 		int(render.baseline_descendant_nodes) == 468
-		and int(render.descendant_nodes) == 459
+		and int(render.descendant_nodes) == 460
 		and int(render.baseline_mesh_instances) == 264
-		and int(render.mesh_instances) == 253
+		and int(render.mesh_instances) == 250
 		and int(render.baseline_multimesh_batches) == 1
-		and int(render.multimesh_batches) == 3,
-		"cumulative visual batching freezes descendants 468 -> 459, MeshInstances 264 -> 253, and batches 1 -> 3"
+		and int(render.multimesh_batches) == 4,
+		"cumulative visual batching freezes descendants 468 -> 460, MeshInstances 264 -> 250, and batches 1 -> 4"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
 		and int(render.drawn_copies) == 278
 		and int(render.baseline_geometry_submissions) == 265
-		and int(render.geometry_submissions) == 256
+		and int(render.geometry_submissions) == 254
 		and int(render.banquette_joint_copies) == 14,
-		"drawn copies remain 278 while batched families lower submissions 265 -> 256"
+		"drawn copies remain 278 while batched families lower submissions 265 -> 254"
 	)
 	_check(
 		int(render.banquette_renderer_buffer_floats) == 168
@@ -350,6 +351,34 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the exact buffer restores a clean module audit")
+
+
+func _test_servery_shelf_batch(suite: VipReceptionSuite) -> void:
+	var fitout := suite.get_node_or_null(^"Structure/Fitout") as Node3D
+	var batch := fitout.get_node_or_null(^"ServeryShelfBatch") as MultiMeshInstance3D if fitout != null else null
+	var anchors: Array[Node3D] = []
+	if fitout != null:
+		for index in VipReceptionSuite.SERVERY_SHELF_COPY_COUNT:
+			anchors.append(fitout.get_node_or_null(NodePath("ServeryShelf%02d" % (index + 1))) as Node3D)
+	_check(
+		fitout != null
+		and batch != null
+		and batch.multimesh != null
+		and batch.multimesh.instance_count == VipReceptionSuite.SERVERY_SHELF_COPY_COUNT
+		and batch.multimesh.mesh != null
+		and anchors.all(func(anchor: Node3D) -> bool: return anchor is Marker3D),
+		"three servery shelf paths remain stable anchors under one shared mesh resource"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var render := suite.get_render_batch_contract()
+	_check(
+		int(render.mesh_instances) == VipReceptionSuite.RENDER_MESH_INSTANCE_COUNT
+		and int(render.multimesh_batches) == VipReceptionSuite.RENDER_MULTIMESH_BATCH_COUNT
+		and int(render.geometry_submissions) == VipReceptionSuite.RENDER_GEOMETRY_SUBMISSION_COUNT
+		and int(render.drawn_copies) == VipReceptionSuite.RENDER_DRAWN_COPY_COUNT,
+		"servery shelf batching preserves all drawn copies while reducing renderer submissions"
+	)
 
 
 func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
@@ -524,13 +553,13 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_mullion_descendant_nodes) == 464
-		and int(render.descendant_nodes) == 459
+		and int(render.descendant_nodes) == 460
 		and int(render.pre_mullion_mesh_instances) == 259
-		and int(render.mesh_instances) == 253
+		and int(render.mesh_instances) == 250
 		and int(render.pre_mullion_multimesh_batches) == 2
-		and int(render.multimesh_batches) == 3
+		and int(render.multimesh_batches) == 4
 		and int(render.pre_mullion_geometry_submissions) == 261
-		and int(render.geometry_submissions) == 256
+		and int(render.geometry_submissions) == 254
 		and int(render.drawn_copies) == 278,
 		"fillet family cuts six renderer nodes/submissions to one while preserving all drawn copies"
 	)
