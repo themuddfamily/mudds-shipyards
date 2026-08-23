@@ -178,11 +178,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 24
+		and int(performance.mesh_instances) == 21
 		and int(performance.static_bodies) == 33
 		and int(performance.collision_shapes) == 33
-		and module.find_children("*", "Node", true, false).size() == 142,
-		"finished district freezes 142 nodes, 24 meshes and 33 body/shape pairs"
+		and module.find_children("*", "Node", true, false).size() == 143,
+		"finished district freezes 143 nodes, 21 meshes and 33 body/shape pairs"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -206,6 +206,7 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"PadCanopyTaskStrips": 6,
 		"DistrictSignBacks": 4,
 		"LightMastRenderBatch": 6,
+		"ObservationConsoleRenderBatch": 3,
 		"ObservationLensRenderBatch": 3,
 	}
 	var finishing_exact := true
@@ -242,7 +243,7 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 		"finished pavilions retain ten shared material recipes including their dark view band"
 	)
 	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
-	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsole01/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
+	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsoleRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	_check(
 		deck_material.uv1_triplanar and deck_material.uv1_world_triplanar
 		and deck_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
@@ -270,21 +271,21 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"observation_lens_render_batch"
+		and StringName(performance.selected_family) == &"observation_console_render_batch"
 		and int(performance.baseline_descendant_nodes) == 133
-		and int(performance.descendant_nodes) == 142
+		and int(performance.descendant_nodes) == 143
 		and int(performance.baseline_renderer_nodes) == 46
-		and int(performance.renderer_nodes) == 46
+		and int(performance.renderer_nodes) == 44
 		and int(performance.baseline_drawn_copies) == 232
 		and int(performance.drawn_copies) == 270
 		and int(performance.baseline_surface_submissions) == 46
-		and int(performance.surface_submissions) == 46,
-		"three observation lenses preserve 270 visible copies while reducing the district to 46 submissions"
+		and int(performance.surface_submissions) == 44,
+		"three observation consoles preserve 270 visible copies while reducing the district to 44 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 46
-		and int(performance.mesh_resources) == 36
-		and int(performance.mesh_resource_delta) == -10
+		and int(performance.mesh_resources) == 34
+		and int(performance.mesh_resource_delta) == -12
 		and int(performance.baseline_material_resources) == 9
 		and int(performance.material_resources) == 10
 		and int(performance.baseline_family_nodes) == 3
@@ -293,8 +294,72 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_submissions) == 1
 		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"observation-lens batching retains one lens mesh resource and cuts its submissions from three to one"
+		"observation-console batching retains one shell mesh resource and cuts its submissions from three to one"
 	)
+	var console_batch := module.get_node_or_null(
+		^"Structure/Dressing/ObservationConsoleRenderBatch"
+	) as MultiMeshInstance3D
+	var console_family_exact := console_batch != null and console_batch.multimesh != null
+	var authored_console_transforms := (
+		console_batch.get_meta("authored_instance_transforms", []) as Array
+		if console_batch != null else []
+	)
+	for console_index in ObservationLogisticsSpur.OBSERVATION_CONSOLE_COPY_COUNT:
+		var console_body := module.get_node_or_null(NodePath(
+			"Structure/Dressing/ObservationConsole%02d" % (console_index + 1)
+		)) as StaticBody3D
+		var anchor := console_body.get_node_or_null(^"Mesh") as Marker3D if console_body != null else null
+		var collision := console_body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D if console_body != null else null
+		console_family_exact = (
+			console_family_exact
+			and console_body != null
+			and console_body.position.is_equal_approx(
+				ObservationLogisticsSpur.OBSERVATION_CONSOLE_POSITIONS[console_index]
+			)
+			and anchor != null
+			and anchor.transform.is_equal_approx(Transform3D.IDENTITY)
+			and bool(anchor.get_meta("batched_visual_anchor", false))
+			and collision != null
+			and collision.shape is BoxShape3D
+			and (collision.shape as BoxShape3D).size.is_equal_approx(
+				ObservationLogisticsSpur.OBSERVATION_CONSOLE_SIZE
+			)
+			and authored_console_transforms.size()
+				== ObservationLogisticsSpur.OBSERVATION_CONSOLE_COPY_COUNT
+			and (authored_console_transforms[console_index] as Transform3D).is_equal_approx(
+				Transform3D(
+					Basis.IDENTITY,
+					ObservationLogisticsSpur.OBSERVATION_CONSOLE_POSITIONS[console_index]
+				)
+			)
+		)
+	_check(
+		console_family_exact
+		and (console_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(
+			ObservationLogisticsSpur.OBSERVATION_CONSOLE_SIZE
+		)
+		and console_batch.multimesh.custom_aabb.is_equal_approx(
+			ObservationLogisticsSpur.OBSERVATION_CONSOLE_CULLING_BOUNDS
+		)
+		and console_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and console_batch.layers == 1
+		and is_zero_approx(console_batch.extra_cull_margin)
+		and not console_batch.ignore_occlusion_culling
+		and is_zero_approx(console_batch.visibility_range_begin)
+		and is_zero_approx(console_batch.visibility_range_end)
+		and int(performance.observation_console_renderer_delta) == -2
+		and int(performance.observation_console_mesh_resources) == 1
+		and bool(performance.observation_console_identities_exact),
+		"three collidable console identities keep exact shells, poses and collision while one bounded renderer draws them"
+	)
+	var original_console_bounds := console_batch.multimesh.custom_aabb
+	console_batch.multimesh.custom_aabb = original_console_bounds.grow(0.2)
+	_check(
+		not bool(module.get_visual_resource_contract().exact),
+		"red mutation: changing console batch culling bounds fails the visual contract"
+	)
+	console_batch.multimesh.custom_aabb = original_console_bounds
+	_check(bool(module.get_visual_resource_contract().exact), "restoring console culling bounds returns the contract green")
 	var mast_batch := module.get_node_or_null(
 		^"Structure/Dressing/LightMastRenderBatch"
 	) as MultiMeshInstance3D
@@ -369,7 +434,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		practical_lenses[1].mesh = practical_mesh
 		_check(
 			not bool(practical_red.exact)
-			and int(practical_red.mesh_resources) == 37
+			and int(practical_red.mesh_resources) == 35
 			and int(practical_red.practical_lens_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one practical lens mesh fails the resource contract and restores cleanly"
@@ -418,7 +483,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		case_meshes[1].mesh = case_mesh
 		_check(
 			not bool(case_red.exact)
-			and int(case_red.mesh_resources) == 37
+			and int(case_red.mesh_resources) == 35
 			and int(case_red.logistics_case_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one logistics-case mesh fails the resource contract and restores cleanly"
@@ -494,7 +559,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	var red := module.get_visual_resource_contract()
 	_check(
 		not bool(red.exact)
-		and not bool(red.family_identities_exact)
+		and not bool(red.observation_lens_identities_exact)
 		and module.get_validation_errors().has(
 			"static visual resource or batching contract drifted"
 		),
