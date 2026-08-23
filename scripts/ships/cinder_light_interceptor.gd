@@ -16,11 +16,25 @@ const HULL_COLOR := Color("e0a43d")
 const CANOPY_COLOR := Color("55d5dc")
 const WING_COLOR := Color("8b4a38")
 const WEAPON_ID: StringName = &"cinder_light_repeater"
+const CONSOLE_TOGGLE_VISIBLE_COPIES := 8
+const CONSOLE_TOGGLE_LEGACY_SUBMISSIONS := 8
+const CONSOLE_TOGGLE_BATCH_SUBMISSIONS := 1
+const CONSOLE_TOGGLE_NAMES := [
+	"PortConsoleToggle00",
+	"PortConsoleToggle01",
+	"PortConsoleToggle02",
+	"PortConsoleToggle03",
+	"StarboardConsoleToggle00",
+	"StarboardConsoleToggle01",
+	"StarboardConsoleToggle02",
+	"StarboardConsoleToggle03",
+]
 
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
 var _weapon_definition: WeaponDefinition
 var _ship_perspective_audio_binding: RefCounted
+var _console_toggle_batch: MultiMeshInstance3D
 
 func _enter_tree() -> void:
 	super._enter_tree()
@@ -85,6 +99,7 @@ func _build_interceptor_variant(_controller: HeroShip) -> bool:
 	visual.name = "CinderInterceptorVisual"
 	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
 	visual.set_meta(&"historically_supported", false)
+	_batch_console_toggles(visual)
 	_build_hull(visual)
 	_build_boarding_marker(visual)
 	return true
@@ -184,6 +199,108 @@ func _build_hull(visual: Node3D) -> void:
 	canopy.position = Vector3(0.0, 1.1, -2.1)
 	canopy.material_override = _material(CANOPY_COLOR, 0.15, 0.36, CANOPY_COLOR, 2.0)
 	visual.add_child(canopy)
+
+
+## The inherited cockpit's eight toggles are childless visual dressing. Their
+## authored names and local transforms remain inspectable on the one batch;
+## functional cockpit, command, canopy, weapon, and damage nodes are untouched.
+func _batch_console_toggles(visual: Node3D) -> void:
+	var cockpit := visual.get_node_or_null("CockpitInterior") as Node3D
+	if cockpit == null:
+		return
+	var toggles: Array[MeshInstance3D] = []
+	for toggle_name in CONSOLE_TOGGLE_NAMES:
+		var toggle := cockpit.get_node_or_null(toggle_name) as MeshInstance3D
+		if toggle == null or toggle.get_child_count() != 0 or toggle.mesh == null:
+			return
+		toggles.append(toggle)
+	var source := toggles[0]
+	var source_mesh := source.mesh
+	var source_material := _renderer_material(source)
+	for toggle in toggles:
+		if (
+			toggle.mesh.get_class() != source_mesh.get_class()
+			or toggle.mesh.get_aabb() != source_mesh.get_aabb()
+			or toggle.mesh.get_surface_count() != source_mesh.get_surface_count()
+			or _renderer_material(toggle) != source_material
+			or toggle.cast_shadow != source.cast_shadow
+			or toggle.layers != source.layers
+			or toggle.extra_cull_margin != source.extra_cull_margin
+			or toggle.visibility_range_begin != source.visibility_range_begin
+			or toggle.visibility_range_end != source.visibility_range_end
+			or toggle.visibility_range_begin_margin != source.visibility_range_begin_margin
+			or toggle.visibility_range_end_margin != source.visibility_range_end_margin
+			or toggle.visibility_range_fade_mode != source.visibility_range_fade_mode
+		):
+			return
+	var transforms: Array[Transform3D] = []
+	for toggle in toggles:
+		transforms.append(toggle.transform)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = source_mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	multi.buffer = _encode_console_toggle_transforms(transforms)
+	multi.custom_aabb = _console_toggle_bounds(source_mesh.get_aabb(), transforms)
+	_console_toggle_batch = MultiMeshInstance3D.new()
+	_console_toggle_batch.name = "CinderConsoleToggleBatch"
+	_console_toggle_batch.multimesh = multi
+	_console_toggle_batch.material_override = source.material_override
+	_console_toggle_batch.cast_shadow = source.cast_shadow
+	_console_toggle_batch.layers = source.layers
+	_console_toggle_batch.extra_cull_margin = source.extra_cull_margin
+	_console_toggle_batch.visibility_range_begin = source.visibility_range_begin
+	_console_toggle_batch.visibility_range_end = source.visibility_range_end
+	_console_toggle_batch.visibility_range_begin_margin = source.visibility_range_begin_margin
+	_console_toggle_batch.visibility_range_end_margin = source.visibility_range_end_margin
+	_console_toggle_batch.visibility_range_fade_mode = source.visibility_range_fade_mode
+	_console_toggle_batch.set_meta(&"visual_detail_only", true)
+	_console_toggle_batch.set_meta(&"authored_visual_names", PackedStringArray(CONSOLE_TOGGLE_NAMES))
+	_console_toggle_batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	for toggle in toggles:
+		toggle.free()
+	cockpit.add_child(_console_toggle_batch)
+
+
+static func _renderer_material(instance: MeshInstance3D) -> Material:
+	if instance.material_override != null:
+		return instance.material_override
+	return instance.mesh.surface_get_material(0) if instance.mesh.get_surface_count() > 0 else null
+
+
+static func _encode_console_toggle_transforms(
+	transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
+
+
+static func _console_toggle_bounds(
+	mesh_bounds: AABB,
+	transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	for index in transforms.size():
+		var transformed := (transforms[index] * mesh_bounds).abs()
+		result = transformed if index == 0 else result.merge(transformed)
+	return result
 
 
 func _build_boarding_marker(visual: Node3D) -> void:
