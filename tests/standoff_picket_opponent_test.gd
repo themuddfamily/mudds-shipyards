@@ -10,6 +10,7 @@ extends SceneTree
 ##   C. combat-authority identity lifecycle (register / retire / re-entry / replay)
 ##   D. standoff tactics: arming band, committed-charge abort, engagement state
 ##   E. lance firing through the one live resolver and the pooled presentation
+##   F. accepted lance dispatch alternates bounded lateral firing positions
 ##
 ## Every wait is a bounded frame budget on a fixed physics step. Nothing in this
 ## suite reads a wall clock, and no craft handling, weapon, or balance value of
@@ -55,6 +56,7 @@ func _run() -> void:
 	await _test_standoff_tactics()
 	await _test_synchronous_escort_stand_down_fence()
 	await _test_lance_firing_and_receipts()
+	await _test_post_shot_relocation()
 	_check(
 		root.get_child_count() == original_root_child_count,
 		"every picket fixture cleans up without leaving scene nodes behind"
@@ -770,8 +772,8 @@ func _test_standoff_tactics() -> void:
 	)
 	_check(fired, "a picket holding its standoff band charges and fires its lance")
 	_check(
-		picket.get_engagement_state() == StandoffPicketOpponent.STATE_HOLDING,
-		"the picket reports the holding engagement state inside its standoff band"
+		picket.get_engagement_state() == StandoffPicketOpponent.STATE_RELOCATING,
+		"after firing inside its standoff band, the picket reports its relocation commitment"
 	)
 	picket.deactivate()
 	_lance_events.clear()
@@ -1081,6 +1083,91 @@ func _test_lance_firing_and_receipts() -> void:
 
 	picket.deactivate()
 	pulse.set_auto_advance_enabled(true)
+	await _free_fixture(fixture)
+
+
+# ------------------------------------------ F. post-shot relocation tactic --
+
+func _test_post_shot_relocation() -> void:
+	var fixture := await _make_fixture()
+	var picket: StandoffPicketOpponent = fixture.picket
+	var target: RangeOpponent = fixture.target
+	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
+
+	_place(picket, Vector3.ZERO, Vector3(0.0, 0.0, -120.0))
+	_place_target(target, Vector3(0.0, 0.0, -120.0))
+	picket.activate(picket.global_transform)
+	picket.set_target(target)
+	await _advance_physics(2)
+
+	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
+	var health_before := target.get_health()
+	picket._fire_at_target(target.global_position)
+	var first_result := picket.get_last_shot_result()
+	var first_break := picket.get_post_shot_relocation_snapshot()
+	var to_target := (target.global_position - picket.global_position).normalized()
+	var first_direction := picket._choose_motion_direction(
+		to_target,
+		picket.global_position.distance_to(target.global_position)
+	)
+	var lateral := Vector3.UP.cross(to_target).normalized()
+	_check(
+		bool(first_result.get("accepted", false))
+		and bool(first_result.get("resolved", false))
+		and resolver.get_last_sequence(picket, picket.source_id) == sequence_before + 1
+		and is_equal_approx(target.get_health(), health_before - picket.lance_damage),
+		"the relocation begins only after one accepted resolver-owned lance damage commit"
+	)
+	_check(
+		bool(first_break.get("active", false))
+		and is_equal_approx(
+			float(first_break.get("remaining", 0.0)),
+			picket.post_shot_relocation_duration
+		)
+		and signf(first_direction.dot(lateral))
+			== signf(float(first_break.get("direction_sign", 0.0))),
+		"an accepted lance immediately commits the picket to a bounded lateral firing-position break"
+	)
+
+	var live_lateral_break := await _advance_until(
+		func() -> bool:
+			return (
+				picket.get_engagement_state() == StandoffPicketOpponent.STATE_RELOCATING
+				and absf(picket.velocity.dot(lateral)) > absf(picket.velocity.dot(to_target))
+			),
+		30
+	)
+	_check(
+		live_lateral_break,
+		"the live production movement loop publishes relocation and drives mostly sideways"
+	)
+
+	# Dispatch a second accepted shot through the same authority seam. Direct
+	# dispatch isolates the alternating tactic from the normal weapon cooldown.
+	picket._fire_at_target(target.global_position)
+	var second_break := picket.get_post_shot_relocation_snapshot()
+	var second_direction := picket._choose_motion_direction(
+		to_target,
+		picket.global_position.distance_to(target.global_position)
+	)
+	_check(
+		bool(second_break.get("active", false))
+		and signf(float(first_break.get("direction_sign", 0.0)))
+			== -signf(float(second_break.get("direction_sign", 0.0)))
+		and first_direction.dot(second_direction) < -0.75,
+		"successive lance shots relocate to opposite sides instead of repeating one bearing"
+	)
+
+	var remaining := float(second_break.get("remaining", 0.0))
+	picket.deactivate()
+	var dormant_break := picket.get_post_shot_relocation_snapshot()
+	_check(
+		remaining > 0.0
+		and not bool(dormant_break.get("active", true))
+		and is_zero_approx(float(dormant_break.get("remaining", -1.0))),
+		"withdrawal clears the bounded relocation state so redeployment cannot inherit it"
+	)
+
 	await _free_fixture(fixture)
 
 

@@ -12,10 +12,11 @@ const SiegeLanceAudioBindingType := preload("res://scripts/audio/siege_lance_aud
 ##
 ## Where `RangeOpponent` is a close orbiting dogfighter that leans on cadence,
 ## this craft is a fragile long-reach marksman. It holds a wide standoff band,
-## charges a long, loud lance telegraph, and lands one heavy shot. Closing the
-## distance is the whole counterplay: inside `minimum_arming_range` its lance
-## cannot arm, an in-progress charge is aborted with a recovery penalty, and its
-## slow hull and slow turn rate cannot re-open the gap against a hero craft.
+## charges a long, loud lance telegraph, lands one heavy shot, then relocates
+## laterally to the opposite firing bearing. Closing the distance is the whole
+## counterplay: inside `minimum_arming_range` its lance cannot arm, an in-progress
+## charge is aborted with a recovery penalty, and its slow hull and slow turn
+## rate cannot re-open the gap against a hero craft.
 ##
 ## Authority reuse (nothing here owns a second damage path):
 ##   * identity, faction and weapon envelope    -> LiveCombatAuthority.register_source
@@ -55,6 +56,7 @@ const STATE_DORMANT: StringName = &"dormant"
 const STATE_CLOSING: StringName = &"closing"
 const STATE_HOLDING: StringName = &"holding"
 const STATE_BREAKING: StringName = &"breaking"
+const STATE_RELOCATING: StringName = &"relocating"
 
 ## Deliberately darker and cooler than the defender's ivory dart so the two
 ## opponent archetypes separate at a glance, but light enough to hold a readable
@@ -93,7 +95,8 @@ const LANCE_RAIL_COPY_COUNT := 2
 
 const CONTENT_NOTE := (
 	"The picket silhouette, palette, lance telegraph, standoff band, minimum arming "
-	+ "range, and every balance value are an original modern interpretation. They do "
+	+ "range, alternating relocation, and every balance value are an original modern "
+	+ "interpretation. They do "
 	+ "not reproduce or claim any authenticated historical Keth Shipyards craft, "
 	+ "weapon, tactic, or class name."
 )
@@ -119,6 +122,10 @@ const CONTENT_NOTE := (
 @export_range(0.0, 8.0, 0.05) var lance_abort_recovery := 0.9
 ## Cooldown applied on dispatch so the picket never opens instantly.
 @export_range(0.0, 12.0, 0.05) var initial_arming_delay := 1.6
+## After an accepted lance dispatch, break laterally before settling for the
+## next charge. Successive shots alternate sides so the marksman cannot remain
+## parked on one firing bearing.
+@export_range(0.1, 5.0, 0.05) var post_shot_relocation_duration := 1.15
 
 @export_category("Escort dispatch")
 ## The picket is dispatched as the defender's second wave and withdraws with it.
@@ -153,6 +160,8 @@ var _lance_charge_cancel_reason: StringName = &""
 var _audio_sequence := 0
 var _siege_lance_audio_binding: RefCounted
 var _bound_escort_defender: RangeOpponent
+var _post_shot_relocation_remaining := 0.0
+var _post_shot_relocation_sign := 1.0
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -196,6 +205,11 @@ func _exit_tree() -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_escort_dispatch(delta)
+	if _active and is_finite(delta) and delta >= 0.0:
+		_post_shot_relocation_remaining = maxf(
+			0.0,
+			_post_shot_relocation_remaining - delta
+		)
 	super(delta)
 	if _lance_charge_armed and not _has_current_target():
 		_cancel_lance_charge(&"target_lost", false)
@@ -230,6 +244,17 @@ func get_pending_lance_receipt_count() -> int:
 
 func get_last_shot_result() -> Dictionary:
 	return _last_shot_result.duplicate(true)
+
+
+## Detached tactical state for HUD, encounter and regression consumers. The
+## sign selects one of the two lateral directions around the current target;
+## no mutable target reference escapes the snapshot.
+func get_post_shot_relocation_snapshot() -> Dictionary:
+	return {
+		"active": _post_shot_relocation_remaining > 0.0,
+		"remaining": maxf(_post_shot_relocation_remaining, 0.0),
+		"direction_sign": _post_shot_relocation_sign,
+	}.duplicate(true)
 
 
 func set_target(target: Node3D) -> void:
@@ -325,7 +350,7 @@ func get_evidence_metadata() -> Dictionary:
 		"modern_interpretations": PackedStringArray([
 			"graphite standoff picket silhouette with a forward lance barrel",
 			"magenta lance telegraph, charge lens, and pooled magenta pulse style",
-			"standoff band, minimum arming range, and abort-recovery tactic",
+			"standoff band, minimum arming range, and alternating post-shot relocation",
 			"every balance, cadence, range, and damage value",
 		]),
 		"explicit_unknowns": PackedStringArray([
@@ -454,6 +479,7 @@ func get_audit_report() -> Dictionary:
 			"pending_lance_receipts": _lance_receipts.size(),
 			"shots_fired": _shots_fired,
 			"shots_aborted": _shots_aborted,
+			"post_shot_relocation": get_post_shot_relocation_snapshot(),
 		},
 	}.duplicate(true)
 
@@ -491,6 +517,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("standoff band must sit inside the engagement range")
 	if lance_hold_tolerance > lance_aim_tolerance:
 		errors.append("charge hold cone must not be narrower than the arming cone")
+	if not is_finite(post_shot_relocation_duration) or post_shot_relocation_duration <= 0.0:
+		errors.append("post-shot relocation duration must be finite and positive")
 	if _registered and not is_instance_valid(_get_combat_authority()):
 		errors.append("registration is claimed without a live combat authority")
 	if _lance_receipts.size() > MAX_PENDING_LANCE_RECEIPTS:
@@ -519,6 +547,8 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_cooldown_remaining = maxf(_cooldown_remaining, initial_arming_delay)
 	_shots_fired = 0
 	_shots_aborted = 0
+	_post_shot_relocation_remaining = 0.0
+	_post_shot_relocation_sign = 1.0
 	_cancel_lance_charge(&"activation_reset", false)
 	_lance_charge_generation = 0
 	_lance_charge_target_instance_id = 0
@@ -532,6 +562,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 
 func deactivate() -> void:
 	_escort_fire_authorized = false
+	_post_shot_relocation_remaining = 0.0
 	_cancel_lance_charge(&"deactivated", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -558,6 +589,7 @@ func _unbind_siege_lance_audio() -> void:
 
 func _destroy_interceptor(death_position: Vector3) -> void:
 	_escort_fire_authorized = false
+	_post_shot_relocation_remaining = 0.0
 	_cancel_lance_charge(&"destroyed", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -723,7 +755,16 @@ func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vec
 	var lateral := Vector3.UP.cross(target_direction)
 	if lateral.length_squared() <= 0.001:
 		lateral = Vector3.RIGHT
-	lateral = lateral.normalized() * _orbit_sign
+	lateral = lateral.normalized()
+	if _post_shot_relocation_remaining > 0.0:
+		# Preserve a shallow outward component so this is a firing-position break,
+		# not a tight orbit. Geometry avoidance remains inherited and authoritative
+		# movement still resolves through CharacterBody3D.move_and_slide().
+		return (
+			lateral * _post_shot_relocation_sign * 0.94
+			- target_direction * 0.24
+		).normalized()
+	lateral *= _orbit_sign
 	var weave := Vector3.UP * sin(_elapsed * 0.41 + 1.3) * 0.12
 	var desired := Vector3.ZERO
 	if distance < minimum_arming_range:
@@ -789,6 +830,9 @@ func _update_engagement_state() -> void:
 		return
 	if not is_instance_valid(_target):
 		_set_engagement_state(STATE_CLOSING)
+		return
+	if _post_shot_relocation_remaining > 0.0:
+		_set_engagement_state(STATE_RELOCATING)
 		return
 	var distance := global_position.distance_to(_get_target_aim_position())
 	if distance < minimum_arming_range:
@@ -892,6 +936,8 @@ func _fire_at_target(target_position: Vector3) -> void:
 	_cooldown_remaining = weapon_cooldown
 	_last_shot_result = result.duplicate(true)
 	_shots_fired += 1
+	if bool(result.get("accepted", false)) and bool(result.get("resolved", false)):
+		_begin_post_shot_relocation()
 	# `projectile_fired` is deliberately NOT raised. On the defender that signal is
 	# a request for the coordinator to submit a shot; this craft has already
 	# resolved its own, so re-raising it could produce a second submission.
@@ -901,6 +947,11 @@ func _fire_at_target(target_position: Vector3) -> void:
 	_emit_siege_lance_audio(&"impact", true)
 	_spawn_muzzle_flash(origin)
 	_present_lance_shot(origin, direction, receipt_id, result)
+
+
+func _begin_post_shot_relocation() -> void:
+	_post_shot_relocation_sign *= -1.0
+	_post_shot_relocation_remaining = post_shot_relocation_duration
 
 
 func _present_lance_shot(
