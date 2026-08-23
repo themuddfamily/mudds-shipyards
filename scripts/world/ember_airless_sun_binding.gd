@@ -308,6 +308,7 @@ func present_post_rebase_observation(
 	_last_body_local_observer_m = observer
 	_last_presentation_result = presented.duplicate(true)
 	_accepted_observation_count += 1
+	get_directional_light().visible = true
 	_mutation_active = false
 	return _result(true, presented.get("reason", &"observation_presented") as StringName, {
 		"evaluation": (
@@ -371,7 +372,7 @@ func get_snapshot() -> Dictionary:
 		),
 		"authority": AUTHORITY.duplicate(true),
 		"adjacent_authority": ADJACENT_AUTHORITY.duplicate(true),
-		"capabilities": CAPABILITIES.duplicate(true),
+		"capabilities": _capabilities(),
 		"evidence": _evidence(),
 	}.duplicate(true)
 
@@ -419,13 +420,13 @@ func audit() -> Dictionary:
 			"DirectionalLight3D.light_color",
 			"DirectionalLight3D.light_energy",
 		]),
-		"production_caller_wired": false,
+		"production_caller_wired": _is_production_composed(),
 		"automatic_process": false,
 		"runtime_target_creation": false,
 		"runtime_transform_or_orientation_writes": false,
 		"authority": AUTHORITY.duplicate(true),
 		"adjacent_authority": ADJACENT_AUTHORITY.duplicate(true),
-		"capabilities": CAPABILITIES.duplicate(true),
+		"capabilities": _capabilities(),
 		"evidence": _evidence(),
 	}.duplicate(true)
 
@@ -461,7 +462,7 @@ func _configuration_preflight(
 		return _result(false, &"loaded_root_unavailable")
 	if coordinate_frame == null or not is_instance_valid(coordinate_frame):
 		return _result(false, &"coordinate_frame_unavailable")
-	if get_parent() == null or get_parent() != bootstrap.get_parent():
+	if not _has_valid_composition_parent(bootstrap, loaded_root):
 		return _result(false, &"rig_bootstrap_composition_mismatch")
 	var rig_reason := _rig_contract_reason(true)
 	if not rig_reason.is_empty():
@@ -515,7 +516,7 @@ func _live_composition_reason(
 	if loaded_root == null \
 			or loaded_root.get_instance_id() != _loaded_root_instance_id:
 		return &"loaded_root_unavailable"
-	if get_parent() == null or get_parent() != bootstrap.get_parent():
+	if not _has_valid_composition_parent(bootstrap, loaded_root):
 		return &"rig_bootstrap_composition_drift"
 	if _coordinate_frame == null \
 			or _coordinate_frame.get_instance_id() != _coordinate_frame_instance_id \
@@ -653,6 +654,23 @@ func _rig_contract_reason(require_authored_baseline: bool) -> StringName:
 	return &""
 
 
+func _has_valid_composition_parent(
+		bootstrap: EmberMoonStreamingBootstrap,
+		loaded_root: EmberMoonAuthoredScene,
+	) -> bool:
+	if get_parent() == null:
+		return false
+	# Standalone verification composes the passive rig beside the bootstrap.
+	if get_parent() == bootstrap.get_parent():
+		return true
+	# Production composition places the rig beside the exact streamed root under
+	# the bootstrap's private coordinator, preserving one body-centred frame and
+	# one light owner without modifying the authored terrain scene.
+	return loaded_root != null \
+		and get_parent() == loaded_root.get_parent() \
+		and get_parent() == bootstrap.get_node_or_null(^"WorldStreamingCoordinator")
+
+
 func _resolve_bootstrap() -> EmberMoonStreamingBootstrap:
 	if _bootstrap_ref == null:
 		return null
@@ -739,6 +757,22 @@ func _capability_contract_is_valid() -> bool:
 		if bool(CAPABILITIES[key]) != expected:
 			return false
 	return true
+
+
+func _capabilities() -> Dictionary:
+	var capabilities := CAPABILITIES.duplicate(true)
+	capabilities["production_caller_wired"] = _is_production_composed()
+	return capabilities
+
+
+func _is_production_composed() -> bool:
+	if not _configured:
+		return false
+	var bootstrap := _resolve_bootstrap()
+	var loaded_root := _resolve_loaded_root()
+	return bootstrap != null and loaded_root != null \
+		and get_parent() == loaded_root.get_parent() \
+		and get_parent() == bootstrap.get_node_or_null(^"WorldStreamingCoordinator")
 
 
 func _evidence_contract_is_valid() -> bool:

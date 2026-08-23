@@ -11,6 +11,7 @@ transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0)
 light_color = Color(1, 0.75, 0.5, 1)
 light_energy = 1.5
 shadow_enabled = false
+visible = false
 
 [node name="Presentation" type="Node" parent="."]
 script = ExtResource("2_presentation")

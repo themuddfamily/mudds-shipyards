@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/ember_moon_streaming_bootstrap.gd" id="1_bootstrap"]
+[ext_resource type="PackedScene" path="res://scenes/world/components/ember_airless_sun_rig.tscn" id="2_airless_sun"]
 
 [node name="EmberMoonStreamingBootstrap" type="Node3D"]
 script = ExtResource("1_bootstrap")
+airless_sun_rig_scene = ExtResource("2_airless_sun")

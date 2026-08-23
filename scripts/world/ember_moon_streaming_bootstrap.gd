@@ -22,8 +22,16 @@ const INITIAL_BODY_CENTER_WORLD_POSITION := Vector3(0.0, 0.0, -8_000_000.0)
 
 const LOCATION_RESOURCE_PATH := "res://assets/world/locations/ember_moon.tres"
 const SCENE_RESOURCE_PATH := "res://scenes/world/planets/ember_moon.tscn"
+const AIRLESS_SUN_RIG_SCENE_PATH := \
+	"res://scenes/world/components/ember_airless_sun_rig.tscn"
+const EMBER_WORLD_RESOURCE_PATH := \
+	"res://assets/world/planets/ember_moon_world.tres"
 const _LOCATION_DEFINITION := preload(LOCATION_RESOURCE_PATH)
 const _LOCATION_SCENE := preload(SCENE_RESOURCE_PATH)
+const _EMBER_WORLD_DEFINITION := preload(EMBER_WORLD_RESOURCE_PATH)
+const _AIRLESS_SUN_RIG_SCENE := preload(AIRLESS_SUN_RIG_SCENE_PATH)
+
+@export var airless_sun_rig_scene: PackedScene = _AIRLESS_SUN_RIG_SCENE
 
 const OWNED_CAPABILITY_KEYS := [
 	"absolute_orbital_datum",
@@ -61,6 +69,12 @@ var _update_count := 0
 var _load_attempt_count := 0
 var _unload_attempt_count := 0
 var _last_update_result: Dictionary = {}
+var _airless_sun_rig: Node3D
+var _last_sun_result: Dictionary = {}
+var _last_body_local_focus := Vector3.ZERO
+var _last_focus_frame_generation := 0
+var _sun_attach_count := 0
+var _sun_detach_count := 0
 
 
 func _init() -> void:
@@ -70,6 +84,9 @@ func _init() -> void:
 	_coordinator = WorldStreamingCoordinator.new()
 	_coordinator.name = "WorldStreamingCoordinator"
 	add_child(_coordinator)
+	_coordinator.location_loaded.connect(_on_ember_location_loaded)
+	_coordinator.location_load_failed.connect(_on_ember_location_load_failed)
+	_coordinator.location_unloaded.connect(_on_ember_location_unloaded)
 	_configure_checked_contract()
 
 
@@ -87,6 +104,13 @@ func get_registry_snapshot() -> Dictionary:
 func get_loaded_instance() -> Node3D:
 	return _coordinator.get_loaded_instance(LOCATION_ID) \
 		if _configured and is_instance_valid(_coordinator) else null
+
+
+## Returns the single generation-bound renderer rig while Ember is resident.
+## The bootstrap owns its lifetime; callers receive no creation or streaming
+## authority through this read-only identity seam.
+func get_airless_sun_rig() -> Node3D:
+	return _airless_sun_rig if is_instance_valid(_airless_sun_rig) else null
 
 
 ## Test/integration seam matching WorldStreamingCoordinator. Replacement is
@@ -147,6 +171,8 @@ func update_absolute_focus(
 	var body_center_distance := body_world.length()
 	if not is_finite(body_center_distance):
 		return _finish_update(false, &"body_center_out_of_bounds")
+	_last_body_local_focus = body_local
+	_last_focus_frame_generation = expected_coordinate_frame_generation
 
 	var loaded := get_loaded_instance() != null
 	var loading := _coordinator.get_loading_ids().has(str(LOCATION_ID))
@@ -159,12 +185,18 @@ func update_absolute_focus(
 				unload, &"unload", radial_distance, body_center_distance,
 				expected_coordinate_frame_generation
 			)
+		var sun_result := _present_airless_sun(
+			body_local,
+			expected_coordinate_frame_generation,
+			_current_location_generation(),
+		)
 		return _finish_update(true, &"within_unload_hysteresis", {
 			"action": &"none",
 			"radial_distance_meters": radial_distance,
 			"body_center_world_distance_meters": body_center_distance,
 			"coordinate_frame_generation": expected_coordinate_frame_generation,
 			"location_generation": _current_location_generation(),
+			"sun_presentation": sun_result.duplicate(true),
 		})
 
 	if radial_distance <= LOAD_RADIUS_METERS:
@@ -292,6 +324,17 @@ func get_snapshot() -> Dictionary:
 		"load_attempt_count": _load_attempt_count,
 		"unload_attempt_count": _unload_attempt_count,
 		"last_update_result": _last_update_result.duplicate(true),
+		"airless_sun": {
+			"scene_path": AIRLESS_SUN_RIG_SCENE_PATH,
+			"active": is_instance_valid(_airless_sun_rig),
+			"rig_instance_id": _airless_sun_rig.get_instance_id() \
+				if is_instance_valid(_airless_sun_rig) else 0,
+			"last_body_local_focus_meters": _last_body_local_focus,
+			"last_focus_frame_generation": _last_focus_frame_generation,
+			"attach_count": _sun_attach_count,
+			"detach_count": _sun_detach_count,
+			"last_result": _last_sun_result.duplicate(true),
+		},
 	}.duplicate(true)
 
 
@@ -324,8 +367,27 @@ func audit() -> Dictionary:
 	if generation > 0 and not _root_is_aligned(generation):
 		errors.append("bootstrap root is not aligned to the current streaming origin")
 	var loaded_instance := get_loaded_instance()
+	var directional_lights := find_children(
+		"*", "DirectionalLight3D", true, false
+	)
 	if is_instance_valid(loaded_instance) and loaded_instance.transform != Transform3D.IDENTITY:
 		errors.append("loaded Ember scene root must remain body-centred and locally identity")
+	var sun_rig := get_airless_sun_rig()
+	if is_instance_valid(sun_rig):
+		if not is_instance_valid(loaded_instance) \
+				or sun_rig.get_parent() != _coordinator \
+				or sun_rig.scene_file_path != AIRLESS_SUN_RIG_SCENE_PATH \
+				or sun_rig.find_children("*", "DirectionalLight3D", true, false).size() != 1 \
+				or directional_lights.size() != 1:
+			errors.append("airless sun rig is not bound to the one live Ember generation")
+	elif is_instance_valid(loaded_instance):
+		# A location-loaded signal composes the rig synchronously, so no stable
+		# resident snapshot may omit its sole light owner.
+		errors.append("loaded Ember generation is missing its airless sun rig")
+	elif not directional_lights.is_empty():
+		errors.append("unloaded Ember retains a directional light")
+	if airless_sun_rig_scene != _AIRLESS_SUN_RIG_SCENE:
+		errors.append("airless sun scene binding diverged")
 	var owned_capabilities := {}
 	for key in OWNED_CAPABILITY_KEYS:
 		owned_capabilities[key] = true
@@ -378,6 +440,10 @@ func _configure_checked_contract() -> void:
 		return
 	var definition := _LOCATION_DEFINITION as WorldLocationDefinition
 	var scene := _LOCATION_SCENE as PackedScene
+	if airless_sun_rig_scene == null \
+			or airless_sun_rig_scene != _AIRLESS_SUN_RIG_SCENE:
+		_configuration_error = &"airless_sun_rig_scene_mismatch"
+		return
 	if definition == null or not definition.is_definition_valid() \
 			or definition.location_id != LOCATION_ID \
 			or definition.get_anchor_position() != Vector3(0.0, 130_000.0, 0.0) \
@@ -388,6 +454,117 @@ func _configure_checked_contract() -> void:
 		_configuration_error = &"location_registration_failed"
 		return
 	_configured = true
+
+
+func _on_ember_location_loaded(
+		location_id: StringName,
+		generation: int,
+		instance: Node3D,
+	) -> void:
+	if location_id != LOCATION_ID or not instance is EmberMoonAuthoredScene:
+		return
+	_retire_airless_sun(&"replacement_before_attach")
+	var candidate := _AIRLESS_SUN_RIG_SCENE.instantiate()
+	if candidate is not Node3D:
+		if candidate != null:
+			candidate.queue_free()
+		_last_sun_result = _sun_result(false, &"sun_rig_instantiation_failed")
+		return
+	_airless_sun_rig = candidate as Node3D
+	_coordinator.add_child(_airless_sun_rig)
+	var frame_generation := _coordinate_frame.get_generation()
+	var configured := _airless_sun_rig.call(
+		&"configure",
+		_EMBER_WORLD_DEFINITION,
+		self,
+		_coordinate_frame,
+		instance,
+		frame_generation,
+		generation,
+	) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		var failed_result := _sun_result(false, &"sun_binding_configuration_failed", {
+			"binding_reason": configured.get("reason", &"unknown"),
+		})
+		_retire_airless_sun(&"configuration_failed")
+		_last_sun_result = failed_result
+		return
+	_sun_attach_count += 1
+	if _last_focus_frame_generation == frame_generation:
+		_present_airless_sun(
+			_last_body_local_focus,
+			frame_generation,
+			generation,
+		)
+	else:
+		_last_sun_result = _sun_result(true, &"awaiting_current_focus")
+
+
+func _on_ember_location_load_failed(
+		location_id: StringName,
+		_generation: int,
+		reason: StringName,
+	) -> void:
+	if location_id == LOCATION_ID:
+		_retire_airless_sun(&"load_failed")
+		_last_sun_result = _sun_result(false, &"ember_load_failed", {
+			"streaming_reason": reason,
+		})
+
+
+func _on_ember_location_unloaded(
+		location_id: StringName,
+		_generation: int,
+	) -> void:
+	if location_id == LOCATION_ID:
+		_retire_airless_sun(&"ember_unloaded")
+
+
+func _present_airless_sun(
+		body_local_observer: Vector3,
+		frame_generation: int,
+		location_generation: int,
+	) -> Dictionary:
+	if not is_instance_valid(_airless_sun_rig):
+		_last_sun_result = _sun_result(false, &"sun_rig_unavailable")
+		return _last_sun_result.duplicate(true)
+	var binding_generation := int(_airless_sun_rig.call(&"get_generation"))
+	var result := _airless_sun_rig.call(
+		&"present_post_rebase_observation",
+		body_local_observer,
+		frame_generation,
+		location_generation,
+		binding_generation,
+	) as Dictionary
+	_last_sun_result = result.duplicate(true)
+	return result.duplicate(true)
+
+
+func _retire_airless_sun(reason: StringName) -> void:
+	if not is_instance_valid(_airless_sun_rig):
+		_airless_sun_rig = null
+		return
+	var retired_id := _airless_sun_rig.get_instance_id()
+	if _airless_sun_rig.get_parent() == _coordinator:
+		_coordinator.remove_child(_airless_sun_rig)
+	if not _airless_sun_rig.is_queued_for_deletion():
+		_airless_sun_rig.queue_free()
+	_airless_sun_rig = null
+	_sun_detach_count += 1
+	_last_sun_result = _sun_result(true, reason, {
+		"retired_rig_instance_id": retired_id,
+	})
+
+
+func _sun_result(
+		accepted: bool,
+		reason: StringName,
+		extra: Dictionary = {},
+	) -> Dictionary:
+	var result := {"accepted": accepted, "reason": reason}
+	for key: Variant in extra:
+		result[key] = extra[key]
+	return result.duplicate(true)
 
 
 func _body_center_world_position(expected_generation: int) -> Dictionary:
