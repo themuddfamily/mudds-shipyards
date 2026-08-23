@@ -11,7 +11,8 @@ func _initialize() -> void:
 	var view := presenter.present({
 		"host": {"activity": {"state_id": "active"}},
 		"race": {"state_id": "completed"},
-		"mining": {"state": 2, "elapsed_seconds": 6.0, "extraction_seconds": 6.0, "reward_requested": true},
+		"mining": {"state": 2, "elapsed_seconds": 6.0, "extraction_seconds": 6.0, "reward_requested": true, "reason": "completed"},
+		"structure_scan": {"state": 1, "elapsed_seconds": 1.0, "scan_seconds": 4.0, "reason": "outside_scan_approach"},
 		"beacon_traversal": {"state": 1, "next_beacon_index": 1, "beacon_count": 4, "reason": "out_of_order_beacon"},
 		"cargo": {"state": 3, "next_phase_index": 1, "phase_count": 3, "deadline_remaining_seconds": 0.0, "failure_reason": "deadline_expired"},
 	})
@@ -20,6 +21,8 @@ func _initialize() -> void:
 	_check((view.get("cards", []) as Array).size() == 7, "the presenter renders all integrated activity slots")
 	var mining_card := (view.get("cards", []) as Array)[2] as Dictionary
 	_check("COMPLETED" in str(mining_card.get("text", "")) and bool(mining_card.get("reward_pending", false)), "completed mining text includes state and pending reward")
+	var scan_card := (view.get("cards", []) as Array)[3] as Dictionary
+	_check("ACTIVE" in str(scan_card.get("text", "")) and "RECOVER: OUTSIDE SCAN APPROACH" in str(scan_card.get("text", "")), "scan rejection exposes progress and recovery reason")
 	var cargo_card := (view.get("cards", []) as Array)[5] as Dictionary
 	_check("FAILED" in str(cargo_card.get("text", "")) and "RECOVER: DEADLINE EXPIRED" in str(cargo_card.get("text", "")), "cargo failure exposes state and recovery reason")
 	_check("PHASE 1/3" in str(cargo_card.get("text", "")), "cargo snapshot exposes ordered phase progress")

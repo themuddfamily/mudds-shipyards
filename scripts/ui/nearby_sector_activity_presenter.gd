@@ -159,9 +159,12 @@ func _recovery_text(state: Dictionary) -> String:
 	var failure := StringName(state.get("failure_reason", &""))
 	if StringName(state.get("reason", &"")) == &"out_of_order_beacon":
 		return "RECOVER: FOLLOW BEACON ORDER"
-	if failure.is_empty():
+	if not failure.is_empty():
+		return "RECOVER: " + str(failure).replace("_", " ").to_upper()
+	var reason := StringName(state.get("reason", &""))
+	if reason in [&"", &"started", &"progressed", &"completed", &"reward_requested", &"reset"]:
 		return ""
-	return "RECOVER: " + str(failure).replace("_", " ").to_upper()
+	return "RECOVER: " + str(reason).replace("_", " ").to_upper()
 
 
 func _title(activity_id: StringName) -> String:
