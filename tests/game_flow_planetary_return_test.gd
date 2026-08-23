@@ -73,6 +73,7 @@ func _run() -> void:
 	var occupied := berth.occupy(craft, token)
 	var flow := GameFlowScript.new()
 	flow.phase = GameFlowScript.Phase.RETURN_TO_YARD
+	var begin_rejected := flow.begin_ember_surface_journey(null, null, Callable(), 1)
 	var binding := ReturnBinding.new()
 	var store := StoreScript.new("user://game_flow_planetary_return_test.json", MemoryFilesystem.new())
 	flow.set("_runtime_settings_user_data_store", store)
@@ -110,6 +111,7 @@ func _run() -> void:
 		receipt, binding, berth, craft, actor
 	)
 	var valid: bool = authored_binding_count == 1 \
+			and begin_rejected.reason == &"ember_surface_request_invalid" \
 			and occupied and not rejected.accepted \
 			and not stale_result.accepted \
 			and accepted.accepted \

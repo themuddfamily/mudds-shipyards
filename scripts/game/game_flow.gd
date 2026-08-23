@@ -4200,6 +4200,41 @@ func restore_planetary_return_persistence() -> Dictionary:
 	return _planetary_return_persistence_binding.call(&"restore_planetary_return_persistence")
 
 
+## Caller-facing Ember surface admission. The host and activity/reward callback
+## remain caller-owned; this seam only binds the retained production composition
+## and queues the existing disembark intent. It never moves a craft or starts a
+## second travel/landing authority.
+func begin_ember_surface_journey(
+		host: Object, director: ActivityDirector, reward_sink: Callable,
+		caller_serial: int
+	) -> Dictionary:
+	if host == null or director == null or not reward_sink.is_valid() or caller_serial < 1:
+		return {"accepted": false, "reason": &"ember_surface_request_invalid"}
+	if not is_instance_valid(active_ship) or not active_ship.is_piloted() \
+			or phase in [Phase.INTERCEPTOR_ENGAGEMENT, Phase.FAILED, Phase.SHUT_DOWN]:
+		return {"accepted": false, "reason": &"ember_surface_actor_unavailable"}
+	if not is_instance_valid(ember_streaming_binding):
+		return {"accepted": false, "reason": &"ember_streaming_binding_unavailable"}
+	var streaming := ember_streaming_binding.get_snapshot()
+	if not bool(streaming.get("activated", false)) \
+			or int(streaming.get("bound_coordinate_frame_generation", 0)) \
+			!= int(streaming.get("current_coordinate_frame_generation", -1)):
+		return {"accepted": false, "reason": &"ember_streaming_generation_not_ready"}
+	if not is_instance_valid(ember_surface_loop_production_binding):
+		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
+	var binding := ember_surface_loop_production_binding
+	var configured: Dictionary = binding.configure(host, binding.get_generation())
+	if not bool(configured.get("accepted", false)):
+		return configured
+	var composed: Dictionary = binding.configure_planetary_surface(director, reward_sink)
+	if not bool(composed.get("accepted", false)):
+		return composed
+	var intent := binding.queue_disembark_intent(caller_serial, binding.get_generation())
+	if not bool(intent.get("accepted", false)):
+		return intent
+	return {"accepted": true, "reason": &"ember_surface_journey_admitted", "binding_generation": binding.get_generation(), "intent": intent}
+
+
 ## Consumes the detached Ember return receipt at the normal GameFlow boundary.
 ## The berth remains the sole occupancy authority: this method never reserves,
 ## occupies, moves, or teleports a craft.  The optional arguments are an
