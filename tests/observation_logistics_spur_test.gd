@@ -178,11 +178,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 27
+		and int(performance.mesh_instances) == 24
 		and int(performance.static_bodies) == 33
 		and int(performance.collision_shapes) == 33
-		and module.find_children("*", "Node", true, false).size() == 141,
-		"finished district freezes 141 nodes, 27 meshes and 33 body/shape pairs"
+		and module.find_children("*", "Node", true, false).size() == 142,
+		"finished district freezes 142 nodes, 24 meshes and 33 body/shape pairs"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -206,6 +206,7 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"PadCanopyTaskStrips": 6,
 		"DistrictSignBacks": 4,
 		"LightMastRenderBatch": 6,
+		"ObservationLensRenderBatch": 3,
 	}
 	var finishing_exact := true
 	for batch_name in finishing_batches:
@@ -269,16 +270,16 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"light_mast_render_batch"
+		and StringName(performance.selected_family) == &"observation_lens_render_batch"
 		and int(performance.baseline_descendant_nodes) == 133
-		and int(performance.descendant_nodes) == 141
+		and int(performance.descendant_nodes) == 142
 		and int(performance.baseline_renderer_nodes) == 46
-		and int(performance.renderer_nodes) == 48
+		and int(performance.renderer_nodes) == 46
 		and int(performance.baseline_drawn_copies) == 232
 		and int(performance.drawn_copies) == 270
 		and int(performance.baseline_surface_submissions) == 46
-		and int(performance.surface_submissions) == 48,
-		"the finished district stays bounded to 141 nodes and 48 renderers"
+		and int(performance.surface_submissions) == 46,
+		"three observation lenses preserve 270 visible copies while reducing the district to 46 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 46
@@ -287,12 +288,12 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.baseline_material_resources) == 9
 		and int(performance.material_resources) == 10
 		and int(performance.baseline_family_nodes) == 3
-		and int(performance.family_nodes) == 3
+		and int(performance.family_nodes) == 1
 		and int(performance.baseline_family_submissions) == 3
-		and int(performance.family_submissions) == 3
+		and int(performance.family_submissions) == 1
 		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"open rails, pavilions and light-mast batching keep the district to 36 mesh resources"
+		"observation-lens batching retains one lens mesh resource and cuts its submissions from three to one"
 	)
 	var mast_batch := module.get_node_or_null(
 		^"Structure/Dressing/LightMastRenderBatch"
@@ -423,54 +424,87 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 			"red mutation: splitting one logistics-case mesh fails the resource contract and restores cleanly"
 		)
 
-	var lenses: Array[MeshInstance3D] = []
-	var exact_family := true
+	var lens_batch := module.get_node_or_null(
+		^"Structure/Dressing/ObservationLensRenderBatch"
+	) as MultiMeshInstance3D
+	var exact_family := lens_batch != null and lens_batch.multimesh != null
+	var authored_lens_transforms := (
+		lens_batch.get_meta("authored_instance_transforms", []) as Array
+		if lens_batch != null else []
+	)
+	var lens_buffer := lens_batch.multimesh.buffer if lens_batch != null else PackedFloat32Array()
 	for lens_index in ObservationLogisticsSpur.OBSERVATION_LENS_COPY_COUNT:
-		var lens := module.get_node_or_null(NodePath(
+		var lens_anchor := module.get_node_or_null(NodePath(
 			"Structure/Dressing/ObservationLens%02d" % (lens_index + 1)
-		)) as MeshInstance3D
-		lenses.append(lens)
+		)) as Marker3D
 		exact_family = (
 			exact_family
-			and lens != null
-			and lens.mesh is BoxMesh
-			and (lens.mesh as BoxMesh).size.is_equal_approx(
-				ObservationLogisticsSpur.OBSERVATION_LENS_SIZE
-			)
-			and lens.position.is_equal_approx(
+			and lens_anchor != null
+			and lens_anchor.position.is_equal_approx(
 				ObservationLogisticsSpur.OBSERVATION_LENS_POSITIONS[lens_index]
 			)
-			and lens.scale == Vector3.ONE
-			and lens.get_child_count() == 0
-			and bool(lens.get_meta("visual_detail_only", false))
-			and lens.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and lens_anchor.scale == Vector3.ONE
+			and lens_anchor.get_child_count() == 0
+			and bool(lens_anchor.get_meta("visual_detail_only", false))
+			and bool(lens_anchor.get_meta("batched_visual_anchor", false))
+			and authored_lens_transforms.size()
+				== ObservationLogisticsSpur.OBSERVATION_LENS_COPY_COUNT
+			and (authored_lens_transforms[lens_index] as Transform3D).is_equal_approx(
+				Transform3D(
+					Basis.IDENTITY,
+					ObservationLogisticsSpur.OBSERVATION_LENS_POSITIONS[lens_index]
+				)
+			)
+			and lens_buffer.size() == ObservationLogisticsSpur.OBSERVATION_LENS_COPY_COUNT * 12
+			and Vector3(
+				lens_buffer[lens_index * 12 + 3],
+				lens_buffer[lens_index * 12 + 7],
+				lens_buffer[lens_index * 12 + 11]
+			).is_equal_approx(ObservationLogisticsSpur.OBSERVATION_LENS_POSITIONS[lens_index])
 		)
 	_check(
 		exact_family
-		and lenses[0].mesh == lenses[1].mesh
-		and lenses[1].mesh == lenses[2].mesh
-		and lenses[0].material_override == lenses[1].material_override
-		and lenses[1].material_override == lenses[2].material_override,
-		"all three named observation lenses retain exact transforms, extent, material, shadow policy and visual-only identity"
+		and lens_batch.multimesh.mesh is BoxMesh
+		and (lens_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(
+			ObservationLogisticsSpur.OBSERVATION_LENS_SIZE
+		)
+		and lens_batch.multimesh.instance_count == 3
+		and lens_batch.multimesh.visible_instance_count == 3
+		and lens_batch.multimesh.custom_aabb.is_equal_approx(
+			ObservationLogisticsSpur.OBSERVATION_LENS_CULLING_BOUNDS
+		)
+		and lens_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and lens_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and lens_batch.layers == 1
+		and is_zero_approx(lens_batch.extra_cull_margin)
+		and not lens_batch.ignore_occlusion_culling
+		and is_zero_approx(lens_batch.visibility_range_begin)
+		and is_zero_approx(lens_batch.visibility_range_end)
+		and lens_batch.visibility_range_fade_mode
+			== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		and int(performance.baseline_observation_lens_renderer_nodes) == 3
+		and int(performance.observation_lens_renderer_nodes) == 1
+		and int(performance.observation_lens_renderer_delta) == -2
+		and int(performance.observation_lens_anchor_nodes) == 3,
+		"three stable observation-lens anchors retain exact visible transforms, extent, material, shadow and culling with one renderer"
 	)
 
-	var shared_mesh := lenses[2].mesh
-	lenses[2].mesh = shared_mesh.duplicate() as Mesh
+	var original_bounds := lens_batch.multimesh.custom_aabb
+	lens_batch.multimesh.custom_aabb = original_bounds.grow(0.25)
 	var red := module.get_visual_resource_contract()
 	_check(
 		not bool(red.exact)
-		and int(red.mesh_resources) == 37
-		and int(red.family_mesh_resources) == 2
+		and not bool(red.family_identities_exact)
 		and module.get_validation_errors().has(
 			"static visual resource or batching contract drifted"
 		),
-		"red mutation: splitting one observation lens resource turns the component-local allocation contract red"
+		"red mutation: changing the observation-lens batch culling bound turns the component-local contract red"
 	)
-	lenses[2].mesh = shared_mesh
+	lens_batch.multimesh.custom_aabb = original_bounds
 	_check(
 		bool(module.get_visual_resource_contract().exact)
 		and bool(module.get_audit_report().valid),
-		"restoring the shared observation-lens mesh returns the complete module audit green"
+		"restoring the exact observation-lens culling bound returns the complete module audit green"
 	)
 
 

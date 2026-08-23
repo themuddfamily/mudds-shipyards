@@ -119,24 +119,25 @@ const INDEXED_RUNTIME_CHILD_PATHS := [
 	"Structure/Dressing/LightLens06",
 ]
 
-## First visual-only repeated family after the structural/collision roster. The
-## three observation lenses are childless boxes with one exact size/material
-## recipe. They keep their authored nodes and renderer submissions, but share
-## the immutable mesh resource instead of retaining three identical BoxMeshes.
+## Visual-only observation lenses retain their stable authored paths as empty
+## anchors while one bounded renderer draws the three exact copies.
 const OBSERVATION_LENS_SIZE := Vector3(0.035, 0.26, 0.92)
 const OBSERVATION_LENS_POSITIONS := [
 	Vector3(-11.05, 0.76, 28.6),
 	Vector3(-11.05, 0.76, 31.4),
 	Vector3(-11.05, 0.76, 34.2),
 ]
+const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
+	Vector3(-11.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
+)
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 133
-const VISUAL_DESCENDANT_NODE_COUNT := 141
+const VISUAL_DESCENDANT_NODE_COUNT := 142
 const BASELINE_RENDERER_NODE_COUNT := 46
-const RENDERER_NODE_COUNT := 48
+const RENDERER_NODE_COUNT := 46
 const BASELINE_DRAWN_COPY_COUNT := 232
 const DRAWN_COPY_COUNT := 270
 const BASELINE_SURFACE_SUBMISSION_COUNT := 46
-const SURFACE_SUBMISSION_COUNT := 48
+const SURFACE_SUBMISSION_COUNT := 46
 const BASELINE_MESH_RESOURCE_COUNT := 46
 const MESH_RESOURCE_COUNT := 36
 const BASELINE_MATERIAL_RESOURCE_COUNT := 9
@@ -144,6 +145,8 @@ const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
 const OBSERVATION_LENS_MESH_RESOURCE_COUNT := 1
 const OBSERVATION_LENS_COPY_COUNT := 3
+const BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT := 3
+const OBSERVATION_LENS_RENDERER_NODE_COUNT := 1
 const PRACTICAL_LENS_SIZE := Vector3(0.28, 0.12, 0.28)
 const PRACTICAL_LENS_COPY_COUNT := 6
 const PRACTICAL_LENS_MESH_RESOURCE_COUNT := 1
@@ -318,8 +321,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 141 descendant
-	# nodes, 27 MeshInstance3D nodes plus twenty-one visual-only MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 142 descendant
+	# nodes, 24 MeshInstance3D nodes plus twenty-two visual-only MultiMesh batches,
 	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
@@ -327,7 +330,7 @@ func get_performance_contract() -> Dictionary:
 	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 27,
+		"mesh_instances": 24,
 		"static_bodies": 33,
 		"collision_shapes": 33,
 		"labels": 4,
@@ -372,24 +375,68 @@ func get_visual_resource_contract() -> Dictionary:
 		if batch.material_override != null:
 			material_resource_ids[batch.material_override.get_instance_id()] = true
 
+	var lens_batch := get_node_or_null(
+		^"Structure/Dressing/ObservationLensRenderBatch"
+	) as MultiMeshInstance3D
 	var lens_mesh_resource_ids := {}
-	var lens_identities_exact := is_instance_valid(_observation_lens_mesh)
-	for lens_index in OBSERVATION_LENS_COPY_COUNT:
-		var lens := get_node_or_null(NodePath(
-			"Structure/Dressing/ObservationLens%02d" % (lens_index + 1)
-		)) as MeshInstance3D
-		if lens == null or lens.mesh == null:
-			lens_identities_exact = false
-			continue
-		lens_mesh_resource_ids[lens.mesh.get_instance_id()] = true
+	var lens_identities_exact := lens_batch != null and is_instance_valid(_observation_lens_mesh)
+	var authored_lens_transforms: Array = []
+	var expected_lens_transforms: Array[Transform3D] = []
+	for lens_position in OBSERVATION_LENS_POSITIONS:
+		expected_lens_transforms.append(Transform3D(Basis.IDENTITY, lens_position))
+	if lens_batch != null and lens_batch.multimesh != null:
+		var lens_mesh := lens_batch.multimesh.mesh as BoxMesh
+		if lens_mesh != null:
+			lens_mesh_resource_ids[lens_mesh.get_instance_id()] = true
+		authored_lens_transforms = lens_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
 		lens_identities_exact = (
 			lens_identities_exact
-			and lens.mesh == _observation_lens_mesh
-			and (lens.mesh as BoxMesh).size.is_equal_approx(OBSERVATION_LENS_SIZE)
-			and lens.position.is_equal_approx(OBSERVATION_LENS_POSITIONS[lens_index])
-			and lens.material_override == _materials.get("cyan")
-			and lens.get_child_count() == 0
-			and bool(lens.get_meta("visual_detail_only", false))
+			and lens_mesh == _observation_lens_mesh
+			and lens_mesh.size.is_equal_approx(OBSERVATION_LENS_SIZE)
+			and lens_batch.material_override == _materials.get("cyan")
+			and lens_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and lens_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and lens_batch.layers == 1
+			and is_zero_approx(lens_batch.extra_cull_margin)
+			and not lens_batch.ignore_occlusion_culling
+			and is_zero_approx(lens_batch.visibility_range_begin)
+			and is_zero_approx(lens_batch.visibility_range_end)
+			and lens_batch.visibility_range_fade_mode
+				== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+			and lens_batch.multimesh.transform_format == MultiMesh.TRANSFORM_3D
+			and lens_batch.multimesh.instance_count == OBSERVATION_LENS_COPY_COUNT
+			and lens_batch.multimesh.visible_instance_count == OBSERVATION_LENS_COPY_COUNT
+			and lens_batch.multimesh.buffer == _encode_multimesh_transforms(
+				expected_lens_transforms
+			)
+			and lens_batch.multimesh.custom_aabb.is_equal_approx(
+				OBSERVATION_LENS_CULLING_BOUNDS
+			)
+			and authored_lens_transforms.size() == OBSERVATION_LENS_COPY_COUNT
+			and bool(lens_batch.get_meta("visual_detail_only", false))
+		)
+	else:
+		lens_identities_exact = false
+	for lens_index in OBSERVATION_LENS_COPY_COUNT:
+		var lens_anchor := get_node_or_null(NodePath(
+			"Structure/Dressing/ObservationLens%02d" % (lens_index + 1)
+		)) as Marker3D
+		var expected_transform := Transform3D(
+			Basis.IDENTITY, OBSERVATION_LENS_POSITIONS[lens_index]
+		)
+		lens_identities_exact = (
+			lens_identities_exact
+			and lens_anchor != null
+			and lens_anchor.position.is_equal_approx(OBSERVATION_LENS_POSITIONS[lens_index])
+			and lens_anchor.get_child_count() == 0
+			and bool(lens_anchor.get_meta("visual_detail_only", false))
+			and bool(lens_anchor.get_meta("batched_visual_anchor", false))
+			and authored_lens_transforms[lens_index] is Transform3D
+			and (authored_lens_transforms[lens_index] as Transform3D).is_equal_approx(
+				expected_transform
+			)
 		)
 	var practical_lens_mesh_resource_ids := {}
 	var practical_lens_identities_exact := is_instance_valid(_practical_lens_mesh)
@@ -495,7 +542,7 @@ func get_visual_resource_contract() -> Dictionary:
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"light_mast_render_batch",
+		"selected_family": &"observation_lens_render_batch",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -510,13 +557,24 @@ func get_visual_resource_contract() -> Dictionary:
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
 		"baseline_family_nodes": OBSERVATION_LENS_COPY_COUNT,
-		"family_nodes": OBSERVATION_LENS_COPY_COUNT,
+		"family_nodes": OBSERVATION_LENS_RENDERER_NODE_COUNT,
 		"baseline_family_submissions": OBSERVATION_LENS_COPY_COUNT,
-		"family_submissions": OBSERVATION_LENS_COPY_COUNT,
+		"family_submissions": OBSERVATION_LENS_RENDERER_NODE_COUNT,
 		"baseline_family_mesh_resources": BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT,
 		"family_mesh_resources": lens_mesh_resource_ids.size(),
 		"family_copies": OBSERVATION_LENS_COPY_COUNT,
 		"family_identities_exact": lens_identities_exact,
+		"observation_lens_anchor_nodes": OBSERVATION_LENS_COPY_COUNT,
+		"baseline_observation_lens_renderer_nodes": BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT,
+		"observation_lens_renderer_nodes": OBSERVATION_LENS_RENDERER_NODE_COUNT,
+		"observation_lens_renderer_delta": (
+			OBSERVATION_LENS_RENDERER_NODE_COUNT
+			- BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT
+		),
+		"observation_lens_culling_bounds": (
+			lens_batch.multimesh.custom_aabb
+			if lens_batch != null and lens_batch.multimesh != null else AABB()
+		),
 		"practical_lens_copies": PRACTICAL_LENS_COPY_COUNT,
 		"practical_lens_mesh_resources": practical_lens_mesh_resource_ids.size(),
 		"practical_lens_identities_exact": practical_lens_identities_exact,
@@ -863,10 +921,31 @@ func _build_dressing(parent: Node3D) -> void:
 	# centre and inner edge stay clear for the alternate-return circulation.
 	_observation_lens_mesh = BoxMesh.new()
 	_observation_lens_mesh.size = OBSERVATION_LENS_SIZE
+	var observation_lens_transforms: Array[Transform3D] = []
 	for console_index in 3:
 		var console_z := 28.6 + float(console_index) * 2.8
 		_box(parent, "ObservationConsole%02d" % (console_index + 1), Vector3(-11.45, 0.48, console_z), Vector3(0.72, 0.96, 1.35), _materials["shell"], true)
-		_box(parent, "ObservationLens%02d" % (console_index + 1), Vector3(-11.05, 0.76, console_z), OBSERVATION_LENS_SIZE, _materials["cyan"], false, _observation_lens_mesh)
+		var lens_position: Vector3 = OBSERVATION_LENS_POSITIONS[console_index]
+		var lens_anchor := Marker3D.new()
+		lens_anchor.name = "ObservationLens%02d" % (console_index + 1)
+		lens_anchor.position = lens_position
+		lens_anchor.set_meta("visual_detail_only", true)
+		lens_anchor.set_meta("batched_visual_anchor", true)
+		parent.add_child(lens_anchor)
+		observation_lens_transforms.append(Transform3D(Basis.IDENTITY, lens_position))
+	var observation_lens_batch := _multimesh_boxes(
+		parent,
+		"ObservationLensRenderBatch",
+		OBSERVATION_LENS_SIZE,
+		_materials["cyan"],
+		observation_lens_transforms,
+		_observation_lens_mesh
+	)
+	observation_lens_batch.multimesh.visible_instance_count = OBSERVATION_LENS_COPY_COUNT
+	observation_lens_batch.multimesh.buffer = _encode_multimesh_transforms(
+		observation_lens_transforms
+	)
+	observation_lens_batch.multimesh.custom_aabb = OBSERVATION_LENS_CULLING_BOUNDS
 	_box(parent, "ObservationBench", Vector3(-5.0, 0.30, 28.0), Vector3(2.6, 0.60, 0.62), _materials["shell"], true)
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
 	_logistics_case_mesh = BoxMesh.new()
@@ -1178,10 +1257,13 @@ func _multimesh_boxes(
 		node_name: String,
 		size: Vector3,
 		material: Material,
-		transforms: Array[Transform3D]
+		transforms: Array[Transform3D],
+		shared_mesh: BoxMesh = null
 	) -> MultiMeshInstance3D:
-	var box := BoxMesh.new()
-	box.size = size
+	var box := shared_mesh
+	if box == null:
+		box = BoxMesh.new()
+		box.size = size
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = box
@@ -1236,3 +1318,26 @@ func _label(parent: Node3D, node_name: String, text: String, position: Vector3, 
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = false
 	parent.add_child(label)
+
+
+static func _encode_multimesh_transforms(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for transform_index in transforms.size():
+		var transform_value := transforms[transform_index]
+		var offset := transform_index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
