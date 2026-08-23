@@ -123,7 +123,7 @@ const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 ## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
 ## exterior roof cassettes, six bronze outboard mullion fillets, three servery
 ## shelves, six collision-backed outboard mullions, seven banquette cushions,
-## and eight armchair arms still draw, but seven MultiMeshes own their
+## eight armchair arms and four port-shell rib heads still draw, but eight MultiMeshes own their
 ## visual-only submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const BANQUETTE_CUSHION_COPY_COUNT := 7
@@ -132,6 +132,7 @@ const OUTBOARD_MULLION_FILLET_COPY_COUNT := 6
 const OUTBOARD_MULLION_COPY_COUNT := 6
 const SERVERY_SHELF_COPY_COUNT := 3
 const ARMCHAIR_ARM_COPY_COUNT := 8
+const PORT_SHELL_RIB_HEAD_COPY_COUNT := 4
 const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
 const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
@@ -147,11 +148,12 @@ const PRE_OUTBOARD_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 4
 const PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
 const PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT := 249
 const PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT := 243
-const RENDER_DESCENDANT_COUNT := 457
+const PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT := 236
+const RENDER_DESCENDANT_COUNT := 458
 const RENDER_MESH_INSTANCE_COUNT := 244
-const RENDER_MULTIMESH_BATCH_COUNT := 7
+const RENDER_MULTIMESH_BATCH_COUNT := 8
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 236
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 233
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -199,6 +201,8 @@ var _outboard_mullion_batch: MultiMeshInstance3D = null
 var _servery_shelf_batch: MultiMeshInstance3D = null
 var _armchair_arm_transforms: Array[Transform3D] = []
 var _armchair_arm_batch: MultiMeshInstance3D = null
+var _port_shell_rib_head_transforms: Array[Transform3D] = []
+var _port_shell_rib_head_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
 
@@ -525,6 +529,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP armchair-arm batch bounds drifted from its authored copies")
 	if not bool(rendering.armchair_arm_visual_contract_matches):
 		errors.append("VIP armchair-arm visual contract drifted")
+	if not bool(rendering.port_shell_rib_head_renderer_buffer_matches_authored):
+		errors.append("VIP port-shell-rib-head renderer buffer drifted from its authored roster")
+	if not bool(rendering.port_shell_rib_head_bounds_match_authored):
+		errors.append("VIP port-shell-rib-head batch bounds drifted from its authored copies")
+	if not bool(rendering.port_shell_rib_head_visual_contract_matches):
+		errors.append("VIP port-shell-rib-head visual contract drifted")
 	return errors
 
 
@@ -776,6 +786,41 @@ func get_render_batch_contract() -> Dictionary:
 			and _armchair_arm_batch.get_child_count() == 0
 			and _armchair_arm_batch.get_script() == null
 		)
+	var expected_port_shell_rib_head_buffer := _encode_multimesh_transforms(
+		_port_shell_rib_head_transforms
+	)
+	var port_shell_rib_head_renderer_buffer_matches := (
+		is_instance_valid(_port_shell_rib_head_batch)
+		and _port_shell_rib_head_batch.multimesh != null
+		and _port_shell_rib_head_batch.multimesh.buffer == expected_port_shell_rib_head_buffer
+	)
+	var port_shell_rib_head_bounds_match := false
+	var port_shell_rib_head_visual_contract_matches := false
+	if is_instance_valid(_port_shell_rib_head_batch) \
+			and _port_shell_rib_head_batch.multimesh != null:
+		var expected_port_shell_rib_head_bounds := _transformed_mesh_bounds(
+			_port_shell_rib_head_batch.multimesh.mesh.get_aabb(),
+			_port_shell_rib_head_transforms
+		)
+		port_shell_rib_head_bounds_match = \
+			_port_shell_rib_head_batch.multimesh.custom_aabb.is_equal_approx(
+				expected_port_shell_rib_head_bounds
+			)
+		port_shell_rib_head_visual_contract_matches = (
+			_port_shell_rib_head_batch.multimesh.instance_count == PORT_SHELL_RIB_HEAD_COPY_COUNT
+			and _port_shell_rib_head_batch.multimesh.visible_instance_count == -1
+			and _port_shell_rib_head_batch.multimesh.mesh.get_surface_count() == 1
+			and _port_shell_rib_head_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.14, 0.8, 0.34)
+			)
+			and _port_shell_rib_head_batch.material_override == _materials.get("pearl_deep")
+			and _port_shell_rib_head_batch.cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _port_shell_rib_head_batch.layers == 1
+			and _port_shell_rib_head_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _port_shell_rib_head_batch.get_child_count() == 0
+			and _port_shell_rib_head_batch.get_script() == null
+		)
 	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -785,6 +830,7 @@ func get_render_batch_contract() -> Dictionary:
 		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
 		and _banquette_cushion_transforms.size() == BANQUETTE_CUSHION_COPY_COUNT
 		and _armchair_arm_transforms.size() == ARMCHAIR_ARM_COPY_COUNT
+		and _port_shell_rib_head_transforms.size() == PORT_SHELL_RIB_HEAD_COPY_COUNT
 	)
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -817,11 +863,19 @@ func get_render_batch_contract() -> Dictionary:
 		"banquette_cushion_submissions": 1 if cushion_visual_contract_matches else 0,
 		"pre_armchair_arm_geometry_submissions": PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT,
 		"armchair_arm_geometry_submissions_removed": (
-			PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT - submissions
+			PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT
+			- PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT
 		),
 		"armchair_arm_copies": _armchair_arm_transforms.size(),
 		"armchair_arm_baseline_submissions": ARMCHAIR_ARM_COPY_COUNT,
 		"armchair_arm_submissions": 1 if armchair_arm_visual_contract_matches else 0,
+		"port_shell_rib_head_copies": _port_shell_rib_head_transforms.size(),
+		"port_shell_rib_head_baseline_submissions": PORT_SHELL_RIB_HEAD_COPY_COUNT,
+		"port_shell_rib_head_submissions": 1 if port_shell_rib_head_visual_contract_matches else 0,
+		"pre_port_shell_rib_head_geometry_submissions": PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT,
+		"port_shell_rib_head_geometry_submissions_removed": (
+			PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
 		"roof_cassette_copies": _roof_cassette_transforms.size(),
 		"outboard_mullion_fillet_copies": _outboard_mullion_fillet_transforms.size(),
 		"outboard_mullion_copies": _outboard_mullion_transforms.size(),
@@ -855,6 +909,11 @@ func get_render_batch_contract() -> Dictionary:
 			if is_instance_valid(_armchair_arm_batch)
 			and _armchair_arm_batch.multimesh != null else 0
 		),
+		"port_shell_rib_head_renderer_buffer_floats": (
+			_port_shell_rib_head_batch.multimesh.buffer.size()
+			if is_instance_valid(_port_shell_rib_head_batch)
+			and _port_shell_rib_head_batch.multimesh != null else 0
+		),
 		"renderer_buffer_floats": (
 			(_banquette_joint_batch.multimesh.buffer.size()
 				if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -874,6 +933,9 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_armchair_arm_batch.multimesh.buffer.size()
 				if is_instance_valid(_armchair_arm_batch)
 				and _armchair_arm_batch.multimesh != null else 0)
+			+ (_port_shell_rib_head_batch.multimesh.buffer.size()
+				if is_instance_valid(_port_shell_rib_head_batch)
+				and _port_shell_rib_head_batch.multimesh != null else 0)
 		),
 		"banquette_renderer_buffer_matches_authored": joint_renderer_buffer_matches,
 		"banquette_bounds_match_authored": joint_bounds_match,
@@ -891,6 +953,9 @@ func get_render_batch_contract() -> Dictionary:
 		"armchair_arm_renderer_buffer_matches_authored": armchair_arm_renderer_buffer_matches,
 		"armchair_arm_bounds_match_authored": armchair_arm_bounds_match,
 		"armchair_arm_visual_contract_matches": armchair_arm_visual_contract_matches,
+		"port_shell_rib_head_renderer_buffer_matches_authored": port_shell_rib_head_renderer_buffer_matches,
+		"port_shell_rib_head_bounds_match_authored": port_shell_rib_head_bounds_match,
+		"port_shell_rib_head_visual_contract_matches": port_shell_rib_head_visual_contract_matches,
 		"renderer_buffer_matches_authored": (
 			joint_renderer_buffer_matches
 			and roof_renderer_buffer_matches
@@ -900,10 +965,13 @@ func get_render_batch_contract() -> Dictionary:
 			and cushion_visual_contract_matches
 			and armchair_arm_renderer_buffer_matches
 			and armchair_arm_visual_contract_matches
+			and port_shell_rib_head_renderer_buffer_matches
+			and port_shell_rib_head_visual_contract_matches
 		),
 		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
 			and mullion_bounds_match and structural_mullion_bounds_match \
-			and cushion_bounds_match and armchair_arm_bounds_match,
+			and cushion_bounds_match and armchair_arm_bounds_match \
+			and port_shell_rib_head_bounds_match,
 		"outboard_mullion_baseline_mesh_instances": OUTBOARD_MULLION_COPY_COUNT,
 		"outboard_mullion_mesh_instances": 0,
 		"outboard_mullion_multimesh_resources": (
@@ -981,6 +1049,7 @@ func get_render_batch_contract() -> Dictionary:
 		),
 		"authored_outboard_mullion_transforms": _outboard_mullion_transforms.duplicate(),
 		"authored_armchair_arm_transforms": _armchair_arm_transforms.duplicate(),
+		"authored_port_shell_rib_head_transforms": _port_shell_rib_head_transforms.duplicate(),
 	}
 
 
@@ -1762,12 +1831,31 @@ func _build_exterior_dressing(structure: Node3D) -> void:
 		_roof_cassette_transforms
 	)
 	_beam_between(exterior, "RoofServiceSpine", Vector3(-6.4, 5.58, 3.4), Vector3(-6.4, 5.58, 13.8), 0.11, _materials["graphite"], false)
-	for rib_index in 4:
+	var port_shell_rib_head_transforms: Array[Transform3D] = []
+	for rib_index in PORT_SHELL_RIB_HEAD_COPY_COUNT:
 		var rib_z := 4.6 + float(rib_index) * 2.8
 		# Stopped at the clerestory sill: run full height they barred the only
 		# windows on the station-facing flank.
 		_box(exterior, "PortShellRib%02d" % (rib_index + 1), Vector3(-7.36, 1.15, rib_z), Vector3(0.14, 3.5, 0.34), _materials["pearl_deep"], false)
-		_box(exterior, "PortShellRibHead%02d" % (rib_index + 1), Vector3(-7.36, 4.2, rib_z), Vector3(0.14, 0.8, 0.34), _materials["pearl_deep"], false)
+		var rib_head_anchor := _box(
+			exterior,
+			"PortShellRibHead%02d" % (rib_index + 1),
+			Vector3(-7.36, 4.2, rib_z),
+			Vector3(0.14, 0.8, 0.34),
+			_materials["pearl_deep"],
+			false
+		) as MeshInstance3D
+		port_shell_rib_head_transforms.append(rib_head_anchor.transform)
+		# Keep the four named authored paths as visual-only inspection anchors.
+		rib_head_anchor.visible = false
+	_port_shell_rib_head_transforms.assign(port_shell_rib_head_transforms)
+	_port_shell_rib_head_batch = _multimesh_boxes(
+		exterior,
+		"PortShellRibHeads",
+		Vector3(0.14, 0.8, 0.34),
+		_materials["pearl_deep"],
+		_port_shell_rib_head_transforms
+	)
 	_box(exterior, "OutboardFascia", Vector3(-1.3, 5.02, 14.36), Vector3(12.0, 0.72, 0.14), _materials["bronze_panel"], false)
 	# The landmark's red, carried outside as a single crown line so the suite is
 	# recognisably the same piece of architecture as the door it stands behind.
