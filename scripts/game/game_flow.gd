@@ -3808,7 +3808,18 @@ func _register_flyable_ships() -> void:
 
 func _refresh_production_flyable_registry() -> void:
 	_production_registry_refresh_queued = false
-	await get_tree().process_frame
+	var expansion_binding: Node = (
+		world.call(&"get_fleet_expansion_production_binding") as Node
+		if is_instance_valid(world) and world.has_method(&"get_fleet_expansion_production_binding")
+		else null
+	)
+	for _attempt in 120:
+		if is_instance_valid(expansion_binding) and expansion_binding.has_method(&"get_fleet_snapshot"):
+			var snapshot := expansion_binding.call(&"get_fleet_snapshot") as Dictionary
+			if bool(snapshot.get("built", false)):
+				_register_flyable_ships()
+				return
+		await get_tree().process_frame
 	_register_flyable_ships()
 
 
@@ -5904,6 +5915,19 @@ func _can_ship_use_berth(candidate: HeroShip, berth_id: StringName) -> bool:
 func _ensure_landed_berth_occupancy(candidate: HeroShip) -> bool:
 	if not is_instance_valid(candidate):
 		return false
+	# FleetExpansionBerths owns Dock04-06 attachment instead of ShipBerth's
+	# lease/token table. A production craft that is still attached under that
+	# binding already has the exact occupied landing contract required for a
+	# physical pilot-seat exit; forcing it through the legacy berth registry
+	# would reject every expansion craft despite its live pad occupancy.
+	var expansion_binding: Node = (
+		world.call(&"get_fleet_expansion_production_binding") as Node
+		if is_instance_valid(world) and world.has_method(&"get_fleet_expansion_production_binding")
+		else null
+	)
+	var expansion_contract := _get_expansion_flyable_contract(candidate, expansion_binding)
+	if bool(expansion_contract.get("accepted", false)):
+		return bool(expansion_contract.get("valid", false))
 	if _occupy_reserved_berth(candidate):
 		return true
 	var berth_id := _find_active_landing_berth()

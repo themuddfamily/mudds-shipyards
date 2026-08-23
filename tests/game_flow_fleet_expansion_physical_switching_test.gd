@@ -7,7 +7,7 @@ const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.
 const BUTTON_X := 2
 const AXIS_LEFT_X := 0
 const AXIS_LEFT_Y := 1
-const WALK_FRAME_BUDGET := 720
+const WALK_FRAME_BUDGET := 240
 
 
 class IsolatedFilesystem extends UserDataFilesystem:
@@ -56,12 +56,18 @@ func _initialize() -> void:
 	for _settle in 8:
 		await physics_frame
 		await process_frame
+	game.start_shift()
+	game.boarding_motion_time = 0.08
+	game.canopy_motion_time = 0.08
+	game.disembarking_motion_time = 0.08
+	await physics_frame
+	await process_frame
 	var player := game.get_node_or_null(^"Player") as PlayerController
 	_check(player != null and game.get_flyable_ships().size() == 8, "GameFlow exposes baseline and all three nested craft")
 	if player == null:
 		_finish(game)
 		return
-	var expansion_ids := [&"cinder_cargo_hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"]
+	var expansion_ids := [&"cinder-cargo-hauler", &"cinder-long-range-bomber", &"cinder-light-interceptor"]
 	for craft_id: StringName in expansion_ids:
 		var craft := _find_craft(game.get_flyable_ships(), craft_id)
 		_check(craft != null, "%s is registered for physical switching" % craft_id)
@@ -83,14 +89,14 @@ func _find_craft(fleet: Array[HeroShip], craft_id: StringName) -> HeroShip:
 
 
 func _approach_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) -> bool:
-	var start := craft.get_boarding_position() + craft.global_basis * Vector3(0.0, 0.0, 14.0)
+	var start := craft.get_boarding_position() + craft.global_basis * Vector3(0.0, 0.0, 5.0)
 	var direction := (craft.get_boarding_position() - start).slide(Vector3.UP).normalized()
 	player.teleport_to(Transform3D(Basis.looking_at(direction, Vector3.UP).orthonormalized(), start))
-	for _settle in 20:
+	for _settle in 8:
 		await physics_frame
 		await process_frame
 	if game.boarding_candidate == craft:
-		return await _tap_until(func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES, 8)
+		return await _tap_until(func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES, 4)
 	_set_button(7, true)
 	var walked := 0
 	while walked < WALK_FRAME_BUDGET and game.boarding_candidate != craft:
@@ -108,7 +114,7 @@ func _approach_and_board(game: GameFlow, player: PlayerController, craft: HeroSh
 	_release_input()
 	if game.boarding_candidate != craft:
 		return false
-	return await _tap_until(func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES, 8)
+	return await _tap_until(func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES, 4)
 
 
 func _disembark(game: GameFlow, player: PlayerController) -> bool:
@@ -132,7 +138,7 @@ func _tap_until(predicate: Callable, attempts: int) -> bool:
 		_set_button(BUTTON_X, true)
 		await physics_frame
 		_set_button(BUTTON_X, false)
-		for _frame in 60:
+		for _frame in 30:
 			if predicate.call(): return true
 			await physics_frame
 			await process_frame
@@ -164,7 +170,17 @@ func _release_input() -> void:
 func _finish(game: GameFlow) -> void:
 	_release_input()
 	if is_instance_valid(game):
-		game.free()
+		var world := game.get_node_or_null(^"ShipyardWorld") as ShipyardWorld
+		var production := world.get_fleet_expansion_production_binding() if world != null else null
+		if production != null:
+			for craft_id: StringName in [
+				&"cinder_cargo_hauler",
+				&"cinder_long_range_bomber",
+				&"cinder_light_interceptor",
+			]:
+				production.detach_craft(craft_id)
+		game.queue_free()
+	await process_frame
 	await process_frame
 	if _failures.is_empty():
 		print("PASS game_flow_fleet_expansion_physical_switching_test (%d assertions)" % _assertions)
