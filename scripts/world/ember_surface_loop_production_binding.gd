@@ -399,6 +399,63 @@ func admit_planetary_relay_survey_return(
 	return {"accepted": true, "reason": &"return_travel_intent_admitted", "intent": intent}.duplicate(true)
 
 
+func submit_planetary_return_reboard(
+		travel_session: Object, actor_instance_id: int, craft_instance_id: int,
+		player_reboarded: bool, ship_still_landed: bool
+	) -> Dictionary:
+	return _submit_authorized_return_sample(
+		travel_session, &"submit_authorized_return_reboard", actor_instance_id,
+		craft_instance_id, [player_reboarded, ship_still_landed]
+	)
+
+
+func submit_planetary_return_takeoff(
+		travel_session: Object, actor_instance_id: int, craft_instance_id: int,
+		takeoff_started: bool, ship_still_landed: bool
+	) -> Dictionary:
+	return _submit_authorized_return_sample(
+		travel_session, &"submit_authorized_return_takeoff", actor_instance_id,
+		craft_instance_id, [takeoff_started, ship_still_landed]
+	)
+
+
+func submit_planetary_return_ascent(
+		travel_session: Object, actor_instance_id: int, craft_instance_id: int,
+		surface_clear_confirmed: bool, orbital_coordinate: Dictionary,
+		speed_meters_per_second: float, expected_coordinate_frame_generation: int
+	) -> Dictionary:
+	return _submit_authorized_return_sample(
+		travel_session, &"submit_authorized_return_ascent", actor_instance_id,
+		craft_instance_id, [surface_clear_confirmed, orbital_coordinate,
+		 speed_meters_per_second, expected_coordinate_frame_generation]
+	)
+
+
+func submit_planetary_return_orbit(
+		travel_session: Object, actor_instance_id: int, craft_instance_id: int,
+		orbital_coordinate: Dictionary, speed_meters_per_second: float,
+		expected_coordinate_frame_generation: int
+	) -> Dictionary:
+	return _submit_authorized_return_sample(
+		travel_session, &"submit_authorized_return_orbit", actor_instance_id,
+		craft_instance_id, [orbital_coordinate, speed_meters_per_second,
+		 expected_coordinate_frame_generation]
+	)
+
+
+func _submit_authorized_return_sample(
+		travel_session: Object, method: StringName, actor_instance_id: int,
+		craft_instance_id: int, sample_args: Array
+	) -> Dictionary:
+	if _host == null or travel_session == null or not travel_session.has_method(method):
+		return _reject(&"return_travel_session_unavailable")
+	var args: Array = [actor_instance_id, craft_instance_id]
+	args.append_array(sample_args)
+	args.append(_host.get_generation())
+	args.append(_host.get_attachment_generation())
+	return travel_session.callv(method, args)
+
+
 func abort_planetary_relay_survey_return(reason: StringName = &"caller_aborted") -> Dictionary:
 	if _relay_return_travel == null:
 		return _reject(&"planetary_composition_unavailable")

@@ -363,6 +363,79 @@ func admit_return_travel_intent(
 	return result
 
 
+func submit_authorized_return_reboard(
+		actor_instance_id: int,
+		craft_instance_id: int,
+		player_reboarded: bool,
+		ship_still_landed: bool,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
+	if not identity_rejection.is_empty():
+		return _result(false, identity_rejection)
+	return submit_reboard_sample(
+		player_reboarded, ship_still_landed,
+		expected_generation, expected_attachment_generation
+	)
+
+
+func submit_authorized_return_takeoff(
+		actor_instance_id: int,
+		craft_instance_id: int,
+		takeoff_started: bool,
+		ship_still_landed: bool,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
+	if not identity_rejection.is_empty():
+		return _result(false, identity_rejection)
+	return submit_takeoff_sample(
+		takeoff_started, ship_still_landed,
+		expected_generation, expected_attachment_generation
+	)
+
+
+func submit_authorized_return_ascent(
+		actor_instance_id: int,
+		craft_instance_id: int,
+		surface_clear_confirmed: bool,
+		orbital_coordinate: Dictionary,
+		speed_meters_per_second: float,
+		expected_coordinate_frame_generation: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
+	if not identity_rejection.is_empty():
+		return _result(false, identity_rejection)
+	return submit_ascent_sample(
+		surface_clear_confirmed, orbital_coordinate, speed_meters_per_second,
+		expected_coordinate_frame_generation, expected_generation,
+		expected_attachment_generation
+	)
+
+
+func submit_authorized_return_orbit(
+		actor_instance_id: int,
+		craft_instance_id: int,
+		orbital_coordinate: Dictionary,
+		speed_meters_per_second: float,
+		expected_coordinate_frame_generation: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
+	if not identity_rejection.is_empty():
+		return _result(false, identity_rejection)
+	return submit_orbit_return_sample(
+		orbital_coordinate, speed_meters_per_second,
+		expected_coordinate_frame_generation, expected_generation,
+		expected_attachment_generation
+	)
+
+
 func advance_physics(
 		delta: float,
 		expected_generation: int,
@@ -1162,6 +1235,17 @@ func _coordinate_frame_rejection(expected_generation: int) -> StringName:
 
 func _is_running() -> bool:
 	return _state >= State.ORBIT_APPROACH and _state <= State.ORBIT_RETURN
+
+
+func _return_identity_rejection(actor_instance_id: int, craft_instance_id: int) -> StringName:
+	if _last_return_intent.is_empty():
+		return &"return_travel_intent_required"
+	if actor_instance_id < 1 or craft_instance_id < 1:
+		return &"invalid_return_travel_identity"
+	if int(_last_return_intent.get("actor_instance_id", 0)) != actor_instance_id \
+			or int(_last_return_intent.get("craft_instance_id", 0)) != craft_instance_id:
+		return &"return_travel_identity_mismatch"
+	return &""
 
 
 func _is_reentrant() -> bool:
