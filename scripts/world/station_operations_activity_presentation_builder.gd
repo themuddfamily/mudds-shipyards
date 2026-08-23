@@ -285,9 +285,27 @@ func _build_gantry() -> void:
 	gantry.add_child(_gantry_carriage)
 	_box(_gantry_carriage, "CarriageBody", Vector3.ZERO, Vector3(1.45, 0.48, 1.16), _materials["ceramic"])
 	_box(_gantry_carriage, "CarriageCore", Vector3(0.0, -0.28, 0.0), Vector3(0.78, 0.3, 0.72), _materials["graphite"])
+	var guide_wheel_transforms: Array[Transform3D] = []
 	for x_side in [-1.0, 1.0]:
 		for z_side in [-1.0, 1.0]:
-			_cylinder(_gantry_carriage, "GuideWheel", Vector3(x_side * 0.58, 0.22, z_side * 0.52), 0.16, 0.12, _materials["rubber"], Vector3(90, 0, 0))
+			guide_wheel_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
+				Vector3(x_side * 0.58, 0.22, z_side * 0.52)
+			))
+	# These four childless rubber wheels are visual carriage trim. Keeping the
+	# batch below AnimatedGantryCarriage preserves their complete motion while
+	# replacing four identical renderer submissions with one.
+	var guide_wheels := _cylinder_batch(
+		_gantry_carriage, "GuideWheels", 0.16, 0.12,
+		guide_wheel_transforms, _materials["rubber"]
+	)
+	guide_wheels.multimesh.custom_aabb = _transformed_mesh_bounds(
+		guide_wheels.multimesh.mesh.get_aabb(), guide_wheel_transforms
+	)
+	guide_wheels.set_meta("explicit_authored_bounds", true)
+	guide_wheels.set_meta("authored_visual_names", PackedStringArray([
+		"GuideWheel", "GuideWheel2", "GuideWheel3", "GuideWheel4",
+	]))
 
 	_gantry_tool = Node3D.new()
 	_gantry_tool.name = "TelescopingServiceTool"
