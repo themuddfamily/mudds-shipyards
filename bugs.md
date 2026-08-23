@@ -420,16 +420,22 @@ Configuration as recorded above. Failure frequency 10/10 deterministic.
   That is a stronger fixture than the one it replaces — it is the real route, and
   it exercises the walk-up boundary the box was cut to leave.
 
-**Two presentation defects observed at this site and deliberately not touched**,
-because `scripts/world/fleet_dock_comb.gd` is being revised concurrently:
-1. Dock 02 still carries the red `deferred` cross and long stripes and the
+**Two presentation defects observed at this site — both subsequently fixed by
+COMB-DOCK-02-001.** The Halyard berth pass deliberately did not touch them because
+`scripts/world/fleet_dock_comb.gd` was being revised concurrently:
+
+1. Dock 02 then carried the red `deferred` cross and long stripes and the
    `DEFERRED DOCK 02` label at comb-local `(15.0, 0.18, 19.55)`, under a craft the
    module's own `ASSIGNED_DOCK_COUNT := 2` already counts as assigned. Visible in
    `artifacts/halyard-apron/apron_plan.png`.
-2. The comb's `DockEdgeKerb02` stands 0.130 m proud at `z ≈ 47.3`, which was the
-   slab's edge and is now an interior lip across the middle of the pad. The
-   production capsule crosses it (the loop walk above records 0 stuck frames), but
-   it is an edge guard that no longer guards an edge.
+2. The comb's `DockEdgeKerb02` stood 0.130 m proud at `z ≈ 47.3`; what had been
+   the slab's edge had become an interior lip across the middle of the pad. The
+   production capsule crossed it (the loop walk above records 0 stuck frames), but
+   it was an edge guard that no longer guarded an edge.
+
+The later closure makes Dock 02 derive its assigned presentation from the live
+dock registry and removes that obsolete kerb; the detailed current-state evidence
+is recorded under COMB-DOCK-02-001 below.
 
 ---
 
@@ -775,8 +781,8 @@ and it really was mirrored, for the ordinary MAP-004 reason. Rendered from the
 aft connection deck at `(0, 2.4, 52)` it read backwards. Fixed with the rest of
 the MAP-004 family and added to the witness roster.
 
-**3. Arrow berth cue strips overhang the structure they mark — CONFIRMED and
-visible, deliberately NOT fixed.** All four `Boundary_*` corners return no
+**3. Arrow berth cue strips overhung the structure they marked — HISTORICAL
+FINDING, FIXED LATER BY PORT-DECK-001.** All four `Boundary_*` corners returned no
 downward hit within 400 m, and a deck grid sampled at 1 m over
 `x = -52 … -34`, `z = 9 … 22` shows why: the port node deck spans roughly
 `x = -49.5 … -36.5` at the cue's `z` extremes, while the cue rectangle's corners
@@ -785,16 +791,17 @@ sit at `x = ±7.02` and `z = ±4.977` from `(-43, 15.5)`, i.e. at `x = -50.02` a
 three sibling berths, whose strips hover a benign 0.19-0.36 m over their pads;
 here they hang over the void, and frame `13_arrow_berth_cue` shows the outboard
 strips glowing in open space beyond the deck outline.
-Not fixed here because every available fix leaves this pass's remit: the
-rectangle's size comes from `cue_half_width = 6.3` / `cue_half_length = 7.2` in
+It was not fixed in that presentation pass because every available repair left
+that pass's remit. The rectangle's size comes from `cue_half_width = 6.3` /
+`cue_half_length = 7.2` in
 `SHIP_BERTH_SPECS`, which `get_ship_berth_feedback_audit_report()` verifies as a
 **module contract** (`feedback_cue_half_width_drift_*`), and the cue honestly
 advertises the Arrow's `landing_half_extents (8.0, 4.5, 9.0)` envelope — shrinking
-it would make the cue lie about where the ship lands. The other repair, widening
-the port node deck, is **walkable geometry**, explicitly out of scope for a
-presentation pass. Owner needed for one of: enlarge the port node deck to cover
-the envelope it advertises, or shrink the Arrow's berth envelope and cue together
-and re-freeze the contract.
+it would make the cue lie about where the ship lands. PORT-DECK-001 subsequently
+chose the structural repair: `PortBerthNode` widened from 12.0 to 16.8 m without
+moving the cue contract. The strips now land 1.300 m inside each deck edge, the
+parked craft is fully supported, and the current regressions are green; the owner
+choice requested by this historical note is no longer open.
 
 **4. `Sign_ACTIVE_BERTH__--__CENTRE_SPINE` is a floating sign — CONFIRMED, FIXED,
 and it was mirrored as well.** Its intended mount was not "unclear": the legend
