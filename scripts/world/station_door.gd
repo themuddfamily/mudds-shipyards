@@ -70,6 +70,11 @@ const INDICATOR_MESH_PATHS: Array[NodePath] = [
 	^"SlidingPanel/RightIndicator",
 ]
 const INDICATOR_BATCH_NAME := &"IndicatorRenderBatch"
+const FRAME_POST_MESH_PATHS: Array[NodePath] = [
+	^"FrameVisuals/LeftPost",
+	^"FrameVisuals/RightPost",
+]
+const FRAME_POST_BATCH_NAME := &"FramePostRenderBatch"
 ## Frozen station panel family scale used by the module shells these doors are
 ## set into, so a door frame and the wall it pierces share one grain size.
 const PANEL_SURFACE_SCALE := 0.28
@@ -97,6 +102,7 @@ var _ready_completed := false
 
 func _ready() -> void:
 	_apply_manufactured_edges()
+	_batch_frame_post_renderers()
 	_batch_indicator_renderers()
 	_closed_panel_transform = _sliding_panel.transform
 	_motion_progress = 1.0 if starts_open else 0.0
@@ -314,6 +320,77 @@ func _apply_manufactured_edges() -> void:
 			authored_box.size,
 			_rounded_box_cache
 		)
+
+
+## The two static frame posts are identical visual-only stock under the same
+## parent. Their authored mesh paths remain addressable, and their separate
+## collision shapes under FrameBody retain full authority over door physics.
+func _batch_frame_post_renderers() -> void:
+	var frame_visuals := get_node_or_null(^"FrameVisuals") as Node3D
+	if frame_visuals == null:
+		return
+	var sources: Array[MeshInstance3D] = []
+	for source_path in FRAME_POST_MESH_PATHS:
+		var source := get_node_or_null(source_path) as MeshInstance3D
+		if source == null or source.mesh == null or source.get_parent() != frame_visuals:
+			return
+		sources.append(source)
+	var reference := sources[0]
+	for source in sources:
+		if source.mesh != reference.mesh \
+				or source.material_override != reference.material_override \
+				or source.cast_shadow != reference.cast_shadow \
+				or source.layers != reference.layers \
+				or not is_equal_approx(source.extra_cull_margin, reference.extra_cull_margin) \
+				or source.ignore_occlusion_culling != reference.ignore_occlusion_culling \
+				or source.gi_mode != reference.gi_mode \
+				or source.visibility_range_begin != reference.visibility_range_begin \
+				or source.visibility_range_end != reference.visibility_range_end \
+				or source.visibility_range_begin_margin != reference.visibility_range_begin_margin \
+				or source.visibility_range_end_margin != reference.visibility_range_end_margin \
+				or source.visibility_range_fade_mode != reference.visibility_range_fade_mode:
+			return
+
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	var mesh_bounds := reference.mesh.get_aabb()
+	for source_index in sources.size():
+		var source_transform := sources[source_index].transform
+		transforms.append(source_transform)
+		var source_bounds := (source_transform * mesh_bounds).abs()
+		bounds = source_bounds if source_index == 0 else bounds.merge(source_bounds)
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = reference.mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	for transform_index in transforms.size():
+		multi.set_instance_transform(transform_index, transforms[transform_index])
+	multi.custom_aabb = bounds
+
+	var batch := MultiMeshInstance3D.new()
+	batch.name = FRAME_POST_BATCH_NAME
+	batch.multimesh = multi
+	batch.material_override = reference.material_override
+	batch.cast_shadow = reference.cast_shadow
+	batch.layers = reference.layers
+	batch.extra_cull_margin = reference.extra_cull_margin
+	batch.ignore_occlusion_culling = reference.ignore_occlusion_culling
+	batch.gi_mode = reference.gi_mode
+	batch.visibility_range_begin = reference.visibility_range_begin
+	batch.visibility_range_end = reference.visibility_range_end
+	batch.visibility_range_begin_margin = reference.visibility_range_begin_margin
+	batch.visibility_range_end_margin = reference.visibility_range_end_margin
+	batch.visibility_range_fade_mode = reference.visibility_range_fade_mode
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"authored_visual_paths", FRAME_POST_MESH_PATHS.duplicate())
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	frame_visuals.add_child(batch)
+	for source in sources:
+		# Preserve the authored semantic nodes while suppressing only their
+		# duplicate renderer submissions.
+		source.layers = 0
 
 
 ## The two indicator strips are identical visual-only stock under the same

@@ -32,6 +32,7 @@ func _run() -> void:
 	_test_root.add_child(door)
 	await process_frame
 	await physics_frame
+	_test_frame_post_renderer_batch(door)
 	_test_indicator_renderer_batch(door)
 	await _test_deferred_panel_binding_currentness()
 	await _test_access_policy_currentness()
@@ -244,6 +245,42 @@ func _test_indicator_renderer_batch(door: StationDoor) -> void:
 		and batch.ignore_occlusion_culling == left.ignore_occlusion_culling
 		and batch.gi_mode == left.gi_mode,
 		"two authored indicator paths retain exact transforms in one bounded renderer submission"
+	)
+
+
+func _test_frame_post_renderer_batch(door: StationDoor) -> void:
+	var left := door.get_node(^"FrameVisuals/LeftPost") as MeshInstance3D
+	var right := door.get_node(^"FrameVisuals/RightPost") as MeshInstance3D
+	var batch := door.get_node_or_null(
+		^"FrameVisuals/FramePostRenderBatch"
+	) as MultiMeshInstance3D
+	var multi := batch.multimesh if batch != null else null
+	var expected_transforms: Array[Transform3D] = [left.transform, right.transform]
+	var expected_bounds := (left.transform * left.mesh.get_aabb()).abs().merge(
+		(right.transform * right.mesh.get_aabb()).abs()
+	)
+	var frame_body := door.get_node(^"FrameBody") as StaticBody3D
+	_check(
+		batch != null
+		and multi != null
+		and multi.transform_format == MultiMesh.TRANSFORM_3D
+		and multi.instance_count == 2
+		and multi.visible_instance_count == -1
+		and multi.mesh == left.mesh
+		and batch.material_override == left.material_override
+		and batch.cast_shadow == left.cast_shadow
+		and batch.layers == 1
+		and left.layers == 0
+		and right.layers == 0
+		and left.visible
+		and right.visible
+		and multi.custom_aabb.is_equal_approx(expected_bounds)
+		and batch.get_meta(&"authored_instance_transforms", []) == expected_transforms
+		and batch.ignore_occlusion_culling == left.ignore_occlusion_culling
+		and batch.gi_mode == left.gi_mode
+		and frame_body.get_node(^"LeftPostCollision") is CollisionShape3D
+		and frame_body.get_node(^"RightPostCollision") is CollisionShape3D,
+		"two authored frame-post paths retain exact transforms and collision in one bounded renderer submission"
 	)
 
 
