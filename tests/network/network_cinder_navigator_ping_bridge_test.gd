@@ -18,6 +18,8 @@ func _run() -> void:
 	root.add_child(adapter)
 	var hosted := adapter.host(29207, 1)
 	_check(bool(hosted.get("accepted", false)), "the real network session starts for navigator publication")
+	var rotated: Dictionary = adapter._migration.rotate_server(1)
+	_check(bool(rotated.get("accepted", false)) and int(rotated.get("migration_generation", 0)) == 2, "the authoritative network session advances its migration generation")
 
 	var cinder := Cinder.new()
 	root.add_child(cinder)
@@ -60,35 +62,64 @@ func _run() -> void:
 		&"navigator_avatar",
 		1,
 		2,
-		{"channel": &"sensor", "marker_id": &"route_beacon"}
+		{"channel": &"sensor", "marker_id": &"route_beacon"},
+		12,
+		2
 	)
 	_check(bool(accepted.get("accepted", false)), "bridge publishes the accepted navigator ping")
 	var wire_receipt := accepted.get("wire_receipt", {}) as Dictionary
 	_check(
 		StringName(wire_receipt.get("seat_id", &"")) == Cinder.NAVIGATOR_STATION_SEAT_ID
-			and StringName(wire_receipt.get("role", &"")) == Authority.ROLE_PASSENGER
+		and StringName(wire_receipt.get("role", &"")) == Authority.ROLE_PASSENGER
 			and int(wire_receipt.get("seat_generation", 0)) == 1
-			and int(wire_receipt.get("peer_id", 0)) == 62,
+			and int(wire_receipt.get("peer_id", 0)) == 62
+			and int(wire_receipt.get("server_tick", 0)) == 12
+			and int(wire_receipt.get("migration_generation", 0)) == 2,
 		"publication carries exact navigator actor and generation identity"
 	)
 	_check(bool((accepted.get("publication", {}) as Dictionary).get("accepted", false)), "network session accepts the detached crew snapshot")
-	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 2, {}).get("status", &"") == &"stale_request_sequence", "replayed navigator request is rejected")
-	_check(bridge.submit_ping(62, 2, &"navigator_avatar", 1, 3, {}).get("status", &"") == &"stale_peer_generation", "stale network generation is rejected")
-	_check(bridge.submit_ping(62, 3, &"wrong_avatar", 1, 3, {}).get("status", &"") == &"navigator_identity_mismatch", "foreign navigator actor is rejected")
+	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 2, {}, 13, 2).get("status", &"") == &"stale_request_sequence", "replayed navigator request is rejected")
+	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 3, {}, 13, 1).get("status", &"") == &"stale_migration_generation", "stale migration generation is rejected")
+	_check(bridge.submit_ping(62, 2, &"navigator_avatar", 1, 3, {}, 13, 2).get("status", &"") == &"stale_peer_generation", "stale network generation is rejected")
+	_check(bridge.submit_ping(62, 3, &"wrong_avatar", 1, 3, {}, 13, 2).get("status", &"") == &"navigator_identity_mismatch", "foreign navigator actor is rejected")
+	var released_peer := bridge.release_peer(62)
+	_check(bool(released_peer.get("tombstone_publication", {}).get("accepted", false)) and int(released_peer.get("tombstone_count", 0)) == 1, "peer release publishes a bounded navigator clear tombstone")
+	var release_tombstones := released_peer.get("tombstones", []) as Array
+	var release_tombstone := (release_tombstones[0] as Dictionary).get("receipt", {}) as Dictionary
+	_check(
+		StringName(release_tombstone.get("action", &"")) == &"passenger_ping_clear"
+			and int(release_tombstone.get("request_sequence", 0)) == 3
+			and int(release_tombstone.get("migration_generation", 0)) == 2,
+		"peer release tombstone is generation-fenced and advances the receipt sequence"
+	)
 
+	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 3, {}, 14, 2).get("status", &"") == &"cinder_rejected", "peer release still respects the Cinder authority sequence")
 	bridge.detach()
-	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 3, {}).get("status", &"") == &"detached", "detach closes navigator publication")
+	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 3, {}, 14, 2).get("status", &"") == &"detached", "detach closes navigator publication")
 	_check(bool(bridge.attach(adapter, cinder).get("accepted", false)), "re-entry reattaches the bridge without stale bridge cursors")
-	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 2, {}).get("status", &"") == &"cinder_rejected", "re-entry still respects the Cinder authority sequence")
+	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 2, {}, 14, 2).get("status", &"") == &"cinder_rejected", "re-entry still respects the Cinder authority sequence")
 	var reentry := bridge.submit_ping(
 		62,
 		3,
 		&"navigator_avatar",
 		1,
 		3,
-		{"channel": &"sensor", "marker_id": &"fresh_beacon"}
+		{"channel": &"sensor", "marker_id": &"fresh_beacon"},
+		15,
+		2
 	)
 	_check(bool(reentry.get("accepted", false)), "fresh post-reentry sequence publishes")
+	var detached := bridge.detach()
+	_check(bool(detached.get("tombstone_publication", {}).get("accepted", false)) and int(detached.get("tombstone_count", 0)) == 1, "bridge detach publishes a generation-fenced navigator clear tombstone")
+	var detach_tombstones := detached.get("tombstones", []) as Array
+	var detach_tombstone := (detach_tombstones[0] as Dictionary).get("receipt", {}) as Dictionary
+	_check(
+		StringName(detach_tombstone.get("action", &"")) == &"passenger_ping_clear"
+			and int(detach_tombstone.get("request_sequence", 0)) == 4
+			and int(detach_tombstone.get("migration_generation", 0)) == 2,
+		"detach tombstone is generation-fenced and advances the receipt sequence"
+	)
+	_check(bridge.submit_ping(62, 3, &"navigator_avatar", 1, 4, {}, 16, 2).get("status", &"") == &"detached", "detach closes navigator publication")
 	var released := interaction.release(actor, 1, 62, &"navigator_avatar", 4)
 	_check(bool(released.get("accepted", false)), "physical navigator actor releases cleanly")
 	_check(authority.get_assignment(62, &"navigator_avatar").is_empty(), "release clears the shared navigator assignment")
