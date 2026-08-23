@@ -8739,7 +8739,7 @@ func _normalize_nearby_activity_audio_snapshot(snapshot: Dictionary) -> Dictiona
 				state = {
 					0: &"idle", 1: &"active", 2: &"completed", 3: &"reset",
 				}.get(int(raw_state), &"")
-		if state in [&"idle", &"selected", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
+		if state in [&"idle", &"selected", &"countdown", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
 			if state in [&"idle", &"selected"]:
 				if fallback.is_empty():
 					fallback = {"candidate": candidate, "state": state}
@@ -8761,14 +8761,14 @@ func _build_nearby_activity_audio_snapshot(
 ) -> Dictionary:
 	if candidate.is_empty():
 		return {}
-	if state in [&"idle", &"selected", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
+	if state in [&"idle", &"selected", &"countdown", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
 		var activity_id := StringName(value.get("activity_id", source.get("activity_id", &"nearby_activity")))
 		var generation := int(value.get("generation", value.get("session_generation", 0)))
-		var normalized_state: StringName = &"active" if state == &"active" else (
+		var normalized_state: StringName = &"countdown" if state == &"countdown" else (&"active" if state == &"active" else (
 			&"complete" if state in [&"complete", &"completed", &"failed", &"aborted", &"expired"] else (
-			&"reset" if state == &"reset" else &"idle"
+				&"reset" if state == &"reset" else &"idle"
 			)
-		)
+		))
 		var normalized := {
 			"generation": maxi(generation, 0),
 			"activity_kind": candidate.get("kind", &"patrol"),

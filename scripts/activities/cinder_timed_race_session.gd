@@ -33,6 +33,7 @@ var _pending_activity_completion := false
 var _pending_race_completion := false
 var _pending_race_failure: StringName = &""
 var _authority_desynchronized := false
+var _presentation_reason: StringName = &""
 
 
 func _init(
@@ -115,6 +116,7 @@ func start(expected_session_generation: int) -> Dictionary:
 	_pending_race_completion = false
 	_pending_race_failure = &""
 	_authority_desynchronized = false
+	_presentation_reason = &""
 	var result := _finish(true, &"started")
 	_emit_snapshot_signal(session_started)
 	_emit_presentation_changed()
@@ -157,10 +159,14 @@ func submit_position(position: Vector3, expected_session_generation: int) -> Dic
 		_terminalize_authority_desynchronization()
 		return _finish(false, &"authority_desynchronized")
 	if not bool(activity_result.get("accepted", false)):
+		_presentation_reason = StringName(
+			activity_result.get("reason", &"activity_rejected")
+		)
 		return _finish(
 			false,
-			StringName(activity_result.get("reason", &"activity_rejected"))
+			_presentation_reason
 		)
+	_presentation_reason = &""
 	if _pending_activity_completion and not _pending_race_completion:
 		if not _start_next_activity_lap():
 			return _finish(false, &"authority_desynchronized")
@@ -240,6 +246,7 @@ func reset(expected_session_generation: int) -> Dictionary:
 	_pending_race_completion = false
 	_pending_race_failure = &""
 	_authority_desynchronized = false
+	_presentation_reason = &""
 	var result := _finish(true, &"reset")
 	_emit_snapshot_signal(session_reset)
 	_emit_presentation_changed()
@@ -272,6 +279,23 @@ func get_presentation_snapshot() -> Dictionary:
 	var race_state := int(race_snapshot.get("state", TimedCheckpointRace.State.IDLE))
 	var current_lap := int(race_snapshot.get("current_lap", 0))
 	var laps := int(race_snapshot.get("lap_count", 0))
+	var checkpoint_count := ROUTE.get_checkpoint_count()
+	var next_checkpoint := int(race_snapshot.get("next_checkpoint_index", 0))
+	var total_checkpoint_count := laps * checkpoint_count
+	var completed_checkpoint_count := current_lap * checkpoint_count + next_checkpoint
+	if race_state == TimedCheckpointRace.State.COMPLETED:
+		completed_checkpoint_count = total_checkpoint_count
+	var progress := (
+		clampf(float(completed_checkpoint_count) / float(total_checkpoint_count), 0.0, 1.0)
+		if total_checkpoint_count > 0 else 0.0
+	)
+	var semantic_checkpoint: StringName = &""
+	if race_state == TimedCheckpointRace.State.FAILED:
+		semantic_checkpoint = &"race_failed"
+	elif _presentation_reason == &"outside_checkpoint":
+		semantic_checkpoint = &"race_missed_gate"
+	elif completed_checkpoint_count > 0:
+		semantic_checkpoint = StringName("race_gate_%d" % completed_checkpoint_count)
 	return {
 		"activity_id": ROUTE.activity_id,
 		"display_name": ROUTE.display_name,
@@ -288,8 +312,16 @@ func get_presentation_snapshot() -> Dictionary:
 		],
 		"lap_number": mini(current_lap + 1, laps) if laps > 0 else 0,
 		"lap_count": laps,
-		"next_checkpoint_index": int(race_snapshot.get("next_checkpoint_index", 0)),
-		"checkpoint_count": ROUTE.get_checkpoint_count(),
+		"next_checkpoint_index": next_checkpoint,
+		"checkpoint_count": checkpoint_count,
+		"progress_unitless": progress,
+		"checkpoint_id": semantic_checkpoint,
+		"reset_serial": (
+			_session_generation
+			if race_state == TimedCheckpointRace.State.IDLE and _session_started_once else 0
+		),
+		"presentation_reason": _presentation_reason,
+		"reward_pending": false,
 		"countdown_remaining_seconds": float(race_snapshot.get("countdown_remaining", 0.0)),
 		"current_time_seconds": float(race_snapshot.get("current_time_seconds", 0.0)),
 		"last_time_seconds": float(race_snapshot.get("last_time_seconds", -1.0)),
