@@ -456,12 +456,13 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_garden_bench_leg_batching(module)
 	_test_garden_column_collar_mesh_sharing(module)
 	_test_pipe_collar_mesh_sharing(module)
+	_test_cupola_downlight_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1880
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1239
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 16,
-		"visual batching stays frozen at 1880 render nodes, 1239 meshes and 16 MultiMeshes"
+		int(render.descendant_nodes) == 1882
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1233
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 18,
+		"visual batching stays frozen at 1882 render nodes, 1233 meshes and 18 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -496,6 +497,27 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	var material_sample := (module.find_child("ConnectorFloor", true, false) as StaticBody3D).get_node("Mesh") as MeshInstance3D
 	var pbr := material_sample.material_override as StandardMaterial3D
 	_check(pbr != null and pbr.clearcoat_enabled and pbr.roughness > 0.0 and pbr.metallic > 0.0, "primary shell uses layered PBR response rather than flat unlit colour")
+
+
+func _test_cupola_downlight_batch(module: HabitatSpine) -> void:
+	var shell := module.get_node_or_null(^"Structure/SideBranchGarden/GardenShell") as Node3D
+	var bodies := shell.get_node_or_null(^"CupolaDownlightBodies") as MultiMeshInstance3D if shell != null else null
+	var lenses := shell.get_node_or_null(^"CupolaDownlightLenses") as MultiMeshInstance3D if shell != null else null
+	var anchors_intact := shell != null
+	if shell != null:
+		for index in HabitatSpine.CUPOLA_DOWNLIGHT_COPY_COUNT:
+			anchors_intact = anchors_intact and shell.get_node_or_null(NodePath("CupolaDownlightBody%02d" % (index + 1))) is Marker3D
+			anchors_intact = anchors_intact and shell.get_node_or_null(NodePath("CupolaDownlightLens%02d" % (index + 1))) is Marker3D
+	_check(
+		anchors_intact
+		and bodies != null and lenses != null
+		and bodies.multimesh != null and lenses.multimesh != null
+		and bodies.multimesh.instance_count == HabitatSpine.CUPOLA_DOWNLIGHT_COPY_COUNT
+		and lenses.multimesh.instance_count == HabitatSpine.CUPOLA_DOWNLIGHT_COPY_COUNT
+		and bodies.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and lenses.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"three cupola downlight body/lens paths retain stable anchors under two inert visual batches"
+	)
 
 
 func _test_cabinet_louvre_batch(module: HabitatSpine) -> void:
@@ -625,21 +647,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1880
-		and int(report.mesh_instances) == 1239
-		and int(report.multimesh_batches) == 16,
-		"renderer nodes freeze at 1884 -> 1880, MeshInstances 1245 -> 1239, batches 14 -> 16"
+		int(report.descendant_nodes) == 1882
+		and int(report.mesh_instances) == 1233
+		and int(report.multimesh_batches) == 18,
+		"renderer nodes freeze at 1886 -> 1882, MeshInstances 1245 -> 1233, batches 14 -> 18"
 	)
 	_check(
 		int(report.drawn_copies) == 1377
-		and int(report.geometry_submissions) == 1255
+		and int(report.geometry_submissions) == 1251
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1377 while surface submissions fall 1259 -> 1255"
+		"drawn copies freeze at 1377 while surface submissions fall 1259 -> 1251"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
 		and int(report.unique_material_resources) == 31
-		and int(report.multimesh_resources) == 16
+		and int(report.multimesh_resources) == 18
 		and int(report.renderer_buffer_floats) == 144,
 		"mesh/material allocations freeze at 349/31 while the hatch batch retains its 144-float renderer buffer"
 	)

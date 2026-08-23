@@ -75,11 +75,12 @@ const PIPE_COLLAR_COPY_COUNT := 6
 const GARDEN_BENCH_LEG_LONGITUDINAL_SIZE := Vector3(0.42, 0.40, 0.14)
 const GARDEN_BENCH_LEG_TRANSVERSE_SIZE := Vector3(0.14, 0.40, 0.42)
 const GARDEN_BENCH_LEG_COPY_COUNT := 6
-const RENDER_DESCENDANT_COUNT := 1880
-const RENDER_MESH_INSTANCE_COUNT := 1239
-const RENDER_MULTIMESH_BATCH_COUNT := 16
+const CUPOLA_DOWNLIGHT_COPY_COUNT := 3
+const RENDER_DESCENDANT_COUNT := 1882
+const RENDER_MESH_INSTANCE_COUNT := 1233
+const RENDER_MULTIMESH_BATCH_COUNT := 18
 const RENDER_DRAWN_COPY_COUNT := 1377
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1255
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1251
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
@@ -2251,12 +2252,33 @@ func _build_garden_shell(branch: Node3D) -> void:
 	# every one of them and the pools they would have cast overlap almost
 	# completely — the room reads the same and the census is two lights lighter.
 	# Same call `aft_junction_stack` makes for its eight-tile arc.
-	for downlight_angle in [30.0, 150.0, 270.0]:
+	var cupola_downlight_body_transforms: Array[Transform3D] = []
+	var cupola_downlight_lens_transforms: Array[Transform3D] = []
+	for downlight_index in CUPOLA_DOWNLIGHT_COPY_COUNT:
+		var downlight_angle: float = [30.0, 150.0, 270.0][downlight_index]
 		var down_radians := deg_to_rad(float(downlight_angle))
 		var down_x := 14.4 + sin(down_radians) * 2.70
 		var down_z := 20.2 + cos(down_radians) * 2.70
-		_box(shell, "CupolaDownlightBody", Vector3(down_x, 4.98, down_z), Vector3(0.40, 0.14, 0.40), _materials["graphite"], false)
-		_box(shell, "CupolaDownlightLens", Vector3(down_x, 4.88, down_z), Vector3(0.30, 0.035, 0.30), _materials["warm_light"], false)
+		var body_transform := Transform3D(Basis.IDENTITY, Vector3(down_x, 4.98, down_z))
+		var lens_transform := Transform3D(Basis.IDENTITY, Vector3(down_x, 4.88, down_z))
+		var body_anchor := Marker3D.new()
+		body_anchor.name = "CupolaDownlightBody%02d" % (downlight_index + 1)
+		body_anchor.transform = body_transform
+		body_anchor.set_meta("presentation_only", true)
+		body_anchor.set_meta("collision_free", true)
+		shell.add_child(body_anchor)
+		var lens_anchor := Marker3D.new()
+		lens_anchor.name = "CupolaDownlightLens%02d" % (downlight_index + 1)
+		lens_anchor.transform = lens_transform
+		lens_anchor.set_meta("presentation_only", true)
+		lens_anchor.set_meta("collision_free", true)
+		shell.add_child(lens_anchor)
+		cupola_downlight_body_transforms.append(body_transform)
+		cupola_downlight_lens_transforms.append(lens_transform)
+	var cupola_downlight_bodies := _multimesh_boxes(shell, "CupolaDownlightBodies", Vector3(0.40, 0.14, 0.40), _materials["graphite"], cupola_downlight_body_transforms)
+	cupola_downlight_bodies.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var cupola_downlight_lenses := _multimesh_boxes(shell, "CupolaDownlightLenses", Vector3(0.30, 0.035, 0.30), _materials["warm_light"], cupola_downlight_lens_transforms)
+	cupola_downlight_lenses.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_fixture_practical(shell, "CupolaDownlight", Vector3(14.4, 4.70, 20.2), Color("ffe0b4"), 0.72, 7.2)
 
 	# Bench ring under the glazing. Three runs, each on its own four legs.
