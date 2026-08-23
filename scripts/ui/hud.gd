@@ -1175,6 +1175,8 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	_state_damage = damage_status
 	_state_throttle_reverse = throttle < -0.04
 	var engine_power := clampf(float(data.get("engine_power", 1.0)), 0.0, 1.0)
+	var weapon_power := clampf(float(data.get("weapon_power", 1.0)), 0.0, 1.0)
+	var targeting_power := clampf(float(data.get("targeting_power", 1.0)), 0.0, 1.0)
 	_speed_label.text = "%03d" % roundi(speed)
 	_altitude_label.text = "%04d M" % roundi(altitude)
 	_throttle_bar.value = absf(throttle) * 100.0
@@ -1183,9 +1185,11 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	)
 	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
-	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%    HULL INTEGRITY  %03d%%" % [
+	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%    WEAPONS  %03d%%    TARGETING  %03d%%    HULL INTEGRITY  %03d%%" % [
 		_damage_status_accessible_text(damage_status),
 		roundi(engine_power * 100.0),
+		roundi(weapon_power * 100.0),
+		roundi(targeting_power * 100.0),
 		roundi(clampf(hull / maximum_hull, 0.0, 1.0) * 100.0),
 	]
 	_damage_status_label.modulate = _damage_status_color(damage_status)
