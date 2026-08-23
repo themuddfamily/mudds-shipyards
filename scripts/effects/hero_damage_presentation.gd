@@ -55,6 +55,12 @@ const IMPACT_FLASH_MINIMUM_SCALE := 0.18
 const IMPACT_FLASH_MAXIMUM_SCALE := 1.05
 const IMPACT_LIGHT_MINIMUM_RANGE := 2.8
 const IMPACT_LIGHT_MAXIMUM_RANGE := 5.6
+const HULL_SPARK_DAMAGED_AMOUNT := 18
+const HULL_SPARK_CRITICAL_AMOUNT := 34
+const ENGINE_SPARK_CRITICAL_AMOUNT := 11
+const ENGINE_SPARK_SEVERE_AMOUNT := 24
+const ENGINE_SMOKE_CRITICAL_AMOUNT := 18
+const ENGINE_SMOKE_SEVERE_AMOUNT := 34
 
 @export_category("Damage thresholds")
 @export_range(0.05, 0.95, 0.01) var damaged_threshold := 0.68
@@ -894,6 +900,7 @@ func _apply_stage_visuals() -> void:
 		return
 	var visible_damage := _ship_state != STATE_HIDDEN and _stage != DamageStage.DESTROYED
 	_apply_component_effect_visibility()
+	_apply_resolved_damage_severity()
 	_damage_sparks.emitting = visible_damage and _stage >= DamageStage.DAMAGED
 	_engine_failure_sparks.emitting = visible_damage and _stage >= DamageStage.CRITICAL
 	_engine_smoke.emitting = visible_damage and _stage >= DamageStage.CRITICAL
@@ -930,6 +937,50 @@ func _apply_stage_visuals() -> void:
 	if not visible_damage:
 		_warning_light.light_energy = 0.0
 		_engine_failure_light.light_energy = 0.0
+
+
+## Scales only authored particle presentation inside stages the caller already
+## resolved. This component never promotes a stage or infers a failure: health
+## supplies a continuous visual grade so a worsening craft does not look frozen
+## between the damaged, critical, and terminal boundaries.
+func _apply_resolved_damage_severity() -> void:
+	var safe_damaged := clampf(damaged_threshold, 0.05, 0.95)
+	var safe_critical := clampf(critical_threshold, 0.01, safe_damaged)
+	var hull_severity := clampf(
+		(safe_damaged - _health_ratio) / maxf(safe_damaged - safe_critical, 0.001),
+		0.0,
+		1.0
+	)
+	_damage_sparks.amount = roundi(lerpf(
+		float(HULL_SPARK_DAMAGED_AMOUNT),
+		float(HULL_SPARK_CRITICAL_AMOUNT),
+		hull_severity
+	))
+	_damage_sparks.lifetime = lerpf(0.72, 1.02, hull_severity)
+	_damage_sparks.initial_velocity_min = lerpf(2.2, 3.6, hull_severity)
+	_damage_sparks.initial_velocity_max = lerpf(4.6, 7.4, hull_severity)
+
+	var failure_severity := clampf(
+		inverse_lerp(safe_critical, 0.0, _health_ratio),
+		0.0,
+		1.0
+	)
+	_engine_failure_sparks.amount = roundi(lerpf(
+		float(ENGINE_SPARK_CRITICAL_AMOUNT),
+		float(ENGINE_SPARK_SEVERE_AMOUNT),
+		failure_severity
+	))
+	_engine_failure_sparks.lifetime = lerpf(0.46, 0.72, failure_severity)
+	_engine_failure_sparks.initial_velocity_min = lerpf(1.72, 2.8, failure_severity)
+	_engine_failure_sparks.initial_velocity_max = lerpf(3.6, 5.8, failure_severity)
+	_engine_smoke.amount = roundi(lerpf(
+		float(ENGINE_SMOKE_CRITICAL_AMOUNT),
+		float(ENGINE_SMOKE_SEVERE_AMOUNT),
+		failure_severity
+	))
+	_engine_smoke.lifetime = lerpf(1.65, 2.25, failure_severity)
+	_engine_smoke.initial_velocity_max = lerpf(1.9, 2.8, failure_severity)
+	_engine_smoke.scale_amount_max = lerpf(1.45, 2.05, failure_severity)
 
 
 func _is_powered_active() -> bool:
@@ -1174,13 +1225,13 @@ func _ensure_built() -> void:
 	_built = true
 	_create_materials()
 	_create_shared_meshes()
-	_damage_sparks = _make_sparks(18, 0.72, 4.6, false)
+	_damage_sparks = _make_sparks(HULL_SPARK_DAMAGED_AMOUNT, 0.72, 4.6, false)
 	_damage_sparks.name = "DamageSparks"
 	_damage_sparks.position = spark_anchor
 	_damage_sparks.emitting = false
 	add_child(_damage_sparks)
 
-	_engine_failure_sparks = _make_sparks(11, 0.46, 3.6, false)
+	_engine_failure_sparks = _make_sparks(ENGINE_SPARK_CRITICAL_AMOUNT, 0.46, 3.6, false)
 	_engine_failure_sparks.name = "EngineFailureSparks"
 	_engine_failure_sparks.position = smoke_anchor
 	_engine_failure_sparks.direction = Vector3(0.0, 0.15, 1.0)
