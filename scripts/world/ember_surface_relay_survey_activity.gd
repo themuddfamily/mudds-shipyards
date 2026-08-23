@@ -18,6 +18,7 @@ var _optional_activity_generation := -1
 var _optional_run_generation := -1
 var _optional_attachment_generation := -1
 var _optional_receipt: Dictionary = {}
+var _mandatory_route_progress: Dictionary = {}
 
 func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 	if adapter == null:
@@ -33,6 +34,7 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 	if not restarted.is_empty():
 		if bool(restarted.get("accepted", false)):
 			_reconcile_optional_checkpoint_generation(adapter)
+			_apply_authoritative_route_result(restarted)
 		return restarted
 	var ids: Array[StringName] = [ACTIVITY_ID]
 	var started: Dictionary
@@ -44,6 +46,7 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
 	if bool(started.get("accepted", false)):
 		_reconcile_optional_checkpoint_generation(adapter)
+		_apply_authoritative_route_result(started)
 	return started
 
 func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3) -> Dictionary:
@@ -55,7 +58,10 @@ func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3
 func submit_position(adapter: Object, position: Vector3) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"submit_activity_position") or not position.is_finite():
 		return {"accepted": false, "reason": &"invalid_relay_survey_position"}
-	return adapter.call(&"submit_activity_position", position)
+	var result := adapter.call(&"submit_activity_position", position) as Dictionary
+	if bool(result.get("accepted", false)):
+		_apply_authoritative_route_result(result)
+	return result
 
 func commit_reward(adapter: Object) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"commit_activity_reward"):
@@ -157,6 +163,7 @@ func get_snapshot(adapter: Object = null) -> Dictionary:
 		"finish_landmark_id": FINISH_LANDMARK_ID,
 		"reward_id": REWARD_ID,
 		"optional_checkpoint": _optional_checkpoint_snapshot(adapter),
+		"mandatory_route": _mandatory_route_progress.duplicate(true),
 		"authority": {
 			"activity": false, "reward": false, "movement": false, "save": false,
 			"optional_checkpoint_receipt": true,
@@ -219,6 +226,28 @@ func _reconcile_optional_checkpoint_generation(adapter: Object) -> void:
 	_optional_run_generation = -1
 	_optional_attachment_generation = -1
 	_optional_receipt = {}
+
+
+func _apply_authoritative_route_result(result: Dictionary) -> void:
+	var runtime := result.get("runtime", {}) as Dictionary
+	var activity_generation := int(runtime.get("activity_generation", -1))
+	var next_checkpoint_index := int(result.get("next_checkpoint_index", -1))
+	var checkpoint_count := int(result.get("checkpoint_count", -1))
+	if StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID \
+			or activity_generation < 1 or checkpoint_count != 2 \
+			or next_checkpoint_index < 0 or next_checkpoint_index > checkpoint_count:
+		return
+	_mandatory_route_progress = {
+		"source": &"activity_director_checkpoint_result",
+		"activity_id": ACTIVITY_ID,
+		"activity_generation": activity_generation,
+		"next_checkpoint_index": next_checkpoint_index,
+		"checkpoint_count": checkpoint_count,
+		"next_objective_id": START_LANDMARK_ID if next_checkpoint_index == 0 \
+			else (FINISH_LANDMARK_ID if next_checkpoint_index == 1 else &""),
+		"complete": next_checkpoint_index == checkpoint_count,
+		"authority": {"navigation": false, "movement": false, "reward": false},
+	}.duplicate(true)
 
 
 func _checkpoint_result(accepted: bool, reason: StringName, adapter: Object) -> Dictionary:

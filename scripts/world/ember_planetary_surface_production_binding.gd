@@ -774,11 +774,12 @@ func _apply_relay_survey_presentation() -> void:
 	if _relay_survey_presentation == null or _adapter == null:
 		return
 	var activity_snapshot: Dictionary = _adapter.get_snapshot().get("activity_reward", {}) as Dictionary
-	var checkpoint_snapshot := (
-		_relay_survey.get_snapshot(_adapter).get("optional_checkpoint", {}) as Dictionary
-	)
+	var survey_snapshot := _relay_survey.get_snapshot(_adapter) as Dictionary
+	var checkpoint_snapshot := survey_snapshot.get("optional_checkpoint", {}) as Dictionary
+	var mandatory_route := survey_snapshot.get("mandatory_route", {}) as Dictionary
 	_relay_survey_presentation.call(
-		&"apply_activity_snapshot", activity_snapshot, checkpoint_snapshot
+		&"apply_activity_snapshot", activity_snapshot, checkpoint_snapshot,
+		mandatory_route
 	)
 
 
