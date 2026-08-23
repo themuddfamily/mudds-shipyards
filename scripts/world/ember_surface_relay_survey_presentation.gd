@@ -21,6 +21,8 @@ var _return_marker: MeshInstance3D
 var _completion_seal: MeshInstance3D
 var _state: StringName = &"idle"
 var _cue_mode: StringName = &"hidden"
+var _optional_checkpoint: Dictionary = {}
+var _attached := true
 
 func _ready() -> void:
 	set_process(false)
@@ -33,18 +35,30 @@ func _ready() -> void:
 	add_child(_completion_seal)
 	_apply_state(&"idle")
 
-func apply_activity_snapshot(snapshot: Variant) -> Dictionary:
+func apply_activity_snapshot(snapshot: Variant, optional_checkpoint: Variant = {}) -> Dictionary:
 	if not snapshot is Dictionary:
 		return {"accepted": false, "reason": &"invalid_survey_snapshot"}
 	var activity := snapshot as Dictionary
 	var state := StringName(activity.get("state", &"idle"))
 	if state not in [&"idle", &"ready", &"active", &"awaiting_reward", &"completed", &"failed", &"detached"]:
 		return {"accepted": false, "reason": &"invalid_survey_state"}
+	if not optional_checkpoint is Dictionary:
+		return {"accepted": false, "reason": &"invalid_optional_checkpoint_snapshot"}
+	var checkpoint := optional_checkpoint as Dictionary
+	if not checkpoint.is_empty() and (
+			StringName(checkpoint.get("checkpoint_id", &"")) != &"ember_bunker_gantry_log" \
+			or StringName(checkpoint.get("status", &"")) not in [&"inactive", &"available", &"completed"] \
+			or checkpoint.get("completed") is not bool
+	):
+		return {"accepted": false, "reason": &"invalid_optional_checkpoint_snapshot"}
 	_state = state
+	_optional_checkpoint = checkpoint.duplicate(true)
+	_attached = true
 	_apply_state(state)
 	return {"accepted": true, "reason": &"survey_presentation_applied", "state": _state}
 
 func detach() -> Dictionary:
+	_attached = false
 	_relay_marker.visible = false
 	_return_marker.visible = false
 	_completion_seal.visible = false
@@ -57,6 +71,7 @@ func reenter(snapshot: Variant) -> Dictionary:
 func get_snapshot() -> Dictionary:
 	return {
 		"state": _state,
+		"attached": _attached,
 		"cue_mode": _cue_mode,
 		"relay_anchor": RELAY_ANCHOR,
 		"return_anchor": RETURN_ANCHOR,
@@ -67,6 +82,7 @@ func get_snapshot() -> Dictionary:
 		"return_silhouette": &"return_ring",
 		"completion_silhouette": &"diamond_reward_seal",
 		"reward_confirmation_persistent": true,
+		"hud": _checkpoint_hud_snapshot(),
 		"reduced_flash_safe": true,
 		"renderer_budget": {
 			"mesh_instances": 3,
@@ -106,6 +122,28 @@ func _apply_state(state: StringName) -> void:
 		_cue_mode = &"reward_confirmed"
 	else:
 		_cue_mode = &"hidden"
+
+
+func _checkpoint_hud_snapshot() -> Dictionary:
+	var completed := bool(_optional_checkpoint.get("completed", false))
+	var activity_visible := _state in [&"active", &"awaiting_reward", &"completed"]
+	return {
+		"visible": _attached and activity_visible and not _optional_checkpoint.is_empty(),
+		"title": "RELAY SURVEY — OPTIONAL CHECKPOINT",
+		"progress_text": _optional_checkpoint.get(
+			"progress_text", "OPTIONAL BUNKER LOG  0 / 1"
+		),
+		"status_text": _optional_checkpoint.get(
+			"status_text", "Optional log inactive"
+		),
+		"checkpoint_id": _optional_checkpoint.get("checkpoint_id", &""),
+		"completed": completed,
+		"optional": true,
+		"color_independent": true,
+		"historical_claim": false,
+		"interpretation_status": &"modern_interpretation",
+		"authority": {"activity": false, "reward": false, "hud_core": false},
+	}.duplicate(true)
 
 
 func _make_relay_marker() -> MeshInstance3D:

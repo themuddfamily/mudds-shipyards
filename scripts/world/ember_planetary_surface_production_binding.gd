@@ -204,6 +204,7 @@ func configure(
 	_survey_interaction = SurveyInteractionScript.new() as Area3D
 	_survey_interaction.name = "OwnedSurveyBunkerInteraction"
 	add_child(_survey_interaction)
+	_survey_interaction.connect(&"survey_completed", _on_survey_interaction_completed)
 	configured = _survey_interaction.call(
 		&"configure", host, EmberAuthoredSceneScript.get_survey_interaction_definition()
 	)
@@ -576,7 +577,7 @@ func get_snapshot() -> Dictionary:
 		"landing_markers": _landing_marker_snapshot(),
 		"orbital_ring": _orbital_ring.call(&"get_snapshot") if _orbital_ring != null else {},
 		"route_trail": _route_trail.call(&"get_snapshot") if _route_trail != null else {},
-		"relay_survey": _relay_survey.get_snapshot() if _relay_survey != null else {},
+		"relay_survey": _relay_survey.get_snapshot(_adapter) if _relay_survey != null else {},
 		"relay_survey_presentation": _relay_survey_presentation.call(&"get_snapshot") if _relay_survey_presentation != null else {},
 		"survey_interaction": _survey_interaction.call(&"get_snapshot") if _survey_interaction != null else {},
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
@@ -773,7 +774,19 @@ func _apply_relay_survey_presentation() -> void:
 	if _relay_survey_presentation == null or _adapter == null:
 		return
 	var activity_snapshot: Dictionary = _adapter.get_snapshot().get("activity_reward", {}) as Dictionary
-	_relay_survey_presentation.call(&"apply_activity_snapshot", activity_snapshot)
+	var checkpoint_snapshot := (
+		_relay_survey.get_snapshot(_adapter).get("optional_checkpoint", {}) as Dictionary
+	)
+	_relay_survey_presentation.call(
+		&"apply_activity_snapshot", activity_snapshot, checkpoint_snapshot
+	)
+
+
+func _on_survey_interaction_completed(receipt: Dictionary) -> void:
+	if _relay_survey == null or _adapter == null:
+		return
+	_relay_survey.call(&"submit_optional_checkpoint", _adapter, receipt)
+	_apply_relay_survey_presentation()
 
 
 func get_session_snapshot() -> Dictionary:
@@ -784,6 +797,9 @@ func get_session_snapshot() -> Dictionary:
 		"composition_generation": _composition_generation,
 		"surface": _adapter.call(&"get_session_snapshot") if _adapter != null else {},
 		"survey_interaction": _survey_interaction.call(&"get_persistence_snapshot") if _survey_interaction != null else {},
+		"relay_survey_optional_checkpoint": _relay_survey.call(
+			&"get_persistence_snapshot", _adapter
+		) if _relay_survey != null else {},
 		"authority": {"save": false, "movement": false, "reward": false, "doors": false},
 	}.duplicate(true)
 
@@ -802,12 +818,19 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 	if surface.is_empty():
 		return _result(false, &"invalid_planetary_session_snapshot")
 	var survey_saved := saved.get("survey_interaction", {}) as Dictionary
+	var checkpoint_saved := saved.get("relay_survey_optional_checkpoint", {}) as Dictionary
 	if _survey_interaction != null and not survey_saved.is_empty():
 		var survey_validation: Dictionary = _survey_interaction.call(
 			&"validate_persistence_snapshot", survey_saved
 		)
 		if not bool(survey_validation.get("accepted", false)):
 			return _result(false, &"survey_interaction_restore_rejected")
+	if _relay_survey != null and not checkpoint_saved.is_empty():
+		var checkpoint_validation: Dictionary = _relay_survey.call(
+			&"validate_persistence_snapshot", checkpoint_saved, _adapter
+		)
+		if not bool(checkpoint_validation.get("accepted", false)):
+			return _result(false, &"relay_survey_checkpoint_restore_rejected")
 	if not _surface_session_is_pristine(surface):
 		var restored: Dictionary = _adapter.call(
 			&"restore_session_snapshot", surface, _navigation, _hazard, _landmarks, _settlement
@@ -820,6 +843,13 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 		)
 		if not bool(survey_restored.get("accepted", false)):
 			return _result(false, &"survey_interaction_restore_rejected")
+	if _relay_survey != null and not checkpoint_saved.is_empty():
+		var checkpoint_restored: Dictionary = _relay_survey.call(
+			&"restore_persistence_snapshot", checkpoint_saved, _adapter
+		)
+		if not bool(checkpoint_restored.get("accepted", false)):
+			return _result(false, &"relay_survey_checkpoint_restore_rejected")
+	_apply_relay_survey_presentation()
 	return _result(true, &"planetary_session_restored")
 
 
