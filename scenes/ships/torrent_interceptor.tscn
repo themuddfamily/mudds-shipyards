@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/ships/hero_ship.gd" id="1_ship"]
 [ext_resource type="PackedScene" path="res://scenes/effects/hero_damage_presentation.tscn" id="2_damage"]
 [ext_resource type="PackedScene" path="res://scenes/interaction/ship_boarding_area.tscn" id="3_boarding"]
 [ext_resource type="PackedScene" path="res://scenes/audio/ship_audio_rig.tscn" id="4_ship_audio"]
+[ext_resource type="Script" path="res://scripts/audio/ship_perspective_audio_scene_adapter.gd" id="5_perspective_audio"]
 
 [node name="TorrentInterceptor" type="CharacterBody3D"]
 collision_layer = 4
@@ -20,3 +21,6 @@ warning_anchor = Vector3(0, 2.75, -0.6)
 position = Vector3(-3.2, 0.55, 0.65)
 
 [node name="ShipAudioRig" parent="." instance=ExtResource("4_ship_audio")]
+
+[node name="ShipPerspectiveAudioAdapter" type="Node" parent="."]
+script = ExtResource("5_perspective_audio")
