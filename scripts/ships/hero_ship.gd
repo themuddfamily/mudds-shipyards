@@ -52,6 +52,13 @@ const TARGET_LAYER := PhysicsLayers.TARGET
 const WEAPON_AIM_MASK := PhysicsLayers.HITSCAN_QUERY_MASK
 const WEAPON_AIM_DISTANCE := 1000.0
 const FAILED_SENSOR_MANUAL_AIM_DISTANCE_FACTOR := 0.30
+## The pulse cannons reward short bursts without turning ordinary taps into
+## resource management. Heat is presentation/gameplay state on this existing
+## fire gate; projectile damage remains owned by the existing resolver path.
+const WEAPON_HEAT_PER_SHOT := 0.28
+const WEAPON_HEAT_COOLING_PER_SECOND := 0.50
+const WEAPON_OVERHEAT_DURATION := 1.0
+const WEAPON_RECOVERY_HEAT := 0.35
 const DEPARTURE_SPEED_THRESHOLD := 0.25
 const DEPARTURE_MOTION_EPSILON_SQUARED := 0.000001
 const PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION := 1
@@ -284,6 +291,9 @@ var _landing_last_abort_reason: StringName = &""
 var _engine_timer := 0.0
 var _automatic_engine_idle_elapsed := 0.0
 var _weapon_timer := 0.0
+var _weapon_heat := 0.0
+var _weapon_overheated := false
+var _weapon_overheat_remaining := 0.0
 var _throttle := 0.0
 var _hull := 100.0
 var _critical_damage_emitted := false
@@ -453,6 +463,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_elapsed += delta
 	_weapon_timer = maxf(0.0, _weapon_timer - delta)
+	_update_weapon_heat(maxf(delta, 0.0))
 	_impact_cooldown_remaining = maxf(0.0, _impact_cooldown_remaining - delta)
 	# One immutable command is sampled for this entire simulation tick. Flight,
 	# weapon, camera, and presentation consumers all observe the same snapshot.
@@ -1847,6 +1858,9 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 	_engine_timer = 0.0
 	_automatic_engine_idle_elapsed = 0.0
 	_weapon_timer = 0.0
+	_weapon_heat = 0.0
+	_weapon_overheated = false
+	_weapon_overheat_remaining = 0.0
 	_throttle = 0.0
 	_hull = maximum_hull
 	_critical_damage_emitted = false
@@ -2059,6 +2073,7 @@ func get_telemetry() -> Dictionary:
 	if is_inside_tree():
 		flight_forward_world = -global_basis.z.normalized()
 		altitude = maxf(0.0, global_position.y - 1.15)
+	var weapon_status := get_weapon_fire_status()
 	return {
 		"speed": velocity.length(),
 		"velocity_world": velocity,
@@ -2083,6 +2098,14 @@ func get_telemetry() -> Dictionary:
 		),
 		"engine_power": _get_damage_engine_multiplier(),
 		"weapon_power": _get_damage_weapon_multiplier(),
+		"weapon_heat": _weapon_heat,
+		"weapon_heat_percent": roundi(_weapon_heat * 100.0),
+		"weapon_overheated": _weapon_overheated,
+		"weapon_ready": bool(weapon_status.get("ready", false)),
+		"weapon_status": StringName(weapon_status.get("status", &"unavailable")),
+		"weapon_unavailable_reason": StringName(weapon_status.get("reason", &"weapon_unavailable")),
+		"weapon_cooldown_remaining": _weapon_timer,
+		"weapon_recovery_remaining": _weapon_overheat_remaining,
 		"targeting_power": _get_damage_targeting_multiplier(),
 		"engine_state": _engine_state,
 		"automatic_engine_idle_remaining": (
@@ -3422,15 +3445,71 @@ func _clear_landing_authority_snapshot() -> void:
 	_landing_capture_maximum_tilt_snapshot = 0.0
 
 
+## Detached availability snapshot for the existing weapon consumer and HUD
+## telemetry. It does not reserve a shot or resolve damage.
+func get_weapon_fire_status() -> Dictionary:
+	var reason := _get_weapon_unavailable_reason()
+	var status: StringName = &"ready"
+	if reason == &"weapon_overheated":
+		status = &"overheated"
+	elif reason == &"weapon_cooldown":
+		status = &"cooldown"
+	elif reason == &"engine_not_online":
+		status = &"offline"
+	elif not reason.is_empty():
+		status = &"unavailable"
+	return {
+		"ready": reason.is_empty(),
+		"status": status,
+		"reason": reason,
+		"heat": _weapon_heat,
+		"cooldown_remaining": _weapon_timer,
+		"recovery_remaining": _weapon_overheat_remaining,
+	}.duplicate(true)
+
+
+func _get_weapon_unavailable_reason() -> StringName:
+	if _reset_for_reuse_mutation_blocked():
+		return &"reset_for_reuse_pending"
+	if _destroyed or _hull <= 0.0:
+		return &"ship_destroyed"
+	if _engine_state != ENGINE_ONLINE:
+		return &"engine_not_online"
+	var modifiers := get_operational_modifiers()
+	if _get_damage_weapon_multiplier() <= 0.0 or bool(modifiers.get("fire_disabled", false)):
+		return &"weapon_component_failed"
+	if _weapon_overheated:
+		return &"weapon_overheated"
+	if _weapon_timer > 0.0:
+		return &"weapon_cooldown"
+	return &""
+
+
+func _update_weapon_heat(delta: float) -> void:
+	_weapon_heat = move_toward(
+		_weapon_heat,
+		0.0,
+		WEAPON_HEAT_COOLING_PER_SECOND * delta
+	)
+	if not _weapon_overheated:
+		_weapon_overheat_remaining = 0.0
+		return
+	_weapon_overheat_remaining = maxf(0.0, _weapon_overheat_remaining - delta)
+	if _weapon_overheat_remaining <= 0.0:
+		_weapon_overheated = false
+		_weapon_heat = minf(_weapon_heat, WEAPON_RECOVERY_HEAT)
+
+
 func _fire_weapon() -> void:
 	var modifiers := get_operational_modifiers()
 	var fire_power := _get_damage_weapon_multiplier()
-	if _weapon_timer > 0.0 \
-			or _engine_state != ENGINE_ONLINE \
-			or fire_power <= 0.0 \
-			or bool(modifiers.get("fire_disabled", false)):
+	if not bool(get_weapon_fire_status().get("ready", false)):
 		return
 	_weapon_timer = weapon_cooldown / fire_power
+	_weapon_heat = clampf(_weapon_heat + WEAPON_HEAT_PER_SHOT, 0.0, 1.0)
+	if _weapon_heat >= 1.0:
+		_weapon_overheated = true
+		_weapon_overheat_remaining = WEAPON_OVERHEAT_DURATION
 	var muzzle := _muzzle_left if _fire_from_left else _muzzle_right
 	_fire_from_left = not _fire_from_left
 	var aiming_camera := get_camera()
@@ -3527,12 +3606,28 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 			continue
 		light.light_energy = engine_level * 2.6
 	if _cockpit_readout != null:
-		_cockpit_readout.text = "SPD %03d   THR %+03d\n%s  //  %s" % [
+		var weapon_status := get_weapon_fire_status()
+		var weapon_line := "WPN READY  //  HEAT %03d%%" % roundi(_weapon_heat * 100.0)
+		match StringName(weapon_status.get("status", &"unavailable")):
+			&"overheated":
+				weapon_line = "! WPN OVERHEAT  //  %.1fs" % _weapon_overheat_remaining
+			&"cooldown":
+				weapon_line = "WPN CYCLING  //  HEAT %03d%%" % roundi(_weapon_heat * 100.0)
+			&"offline":
+				weapon_line = "WPN SAFE  //  ENGINE OFFLINE"
+			&"unavailable":
+				weapon_line = "! WPN UNAVAILABLE"
+		_cockpit_readout.text = "SPD %03d   THR %+03d\n%s  //  %s\n%s" % [
 			roundi(velocity.length()),
 			roundi(_throttle * 100.0),
 			str(_engine_state),
 			"PATH" if velocity.length() >= 1.5 else "HOLD",
+			weapon_line,
 		]
+		_cockpit_readout.modulate = (
+			Color("ff6b5f") if _weapon_overheated
+			else (Color("ffb85c") if _weapon_heat >= 0.70 else Color("8de8e4"))
+		)
 	if _cockpit_practical_light != null:
 		var practical_energy := 0.04
 		if _engine_state == ENGINE_STARTING:
