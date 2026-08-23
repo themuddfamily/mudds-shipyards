@@ -102,6 +102,17 @@ func _run() -> void:
 		)
 		var scan_reset: Dictionary = binding.call("reset_structure_scan")
 		_check(bool(scan_reset.get("accepted", false)), "the scan resets without changing the authored anchor")
+		var beacon_start: Dictionary = binding.call("start_beacon_traversal", Vector3(16.0, -9.0, -240.0))
+		_check(bool(beacon_start.get("accepted", false)), "the owner starts the authored beacon traversal")
+		for index in 4:
+			var beacon_positions: Array[Vector3] = [Vector3(16.0, -9.0, -240.0), Vector3(32.0, -26.0, -372.0), Vector3(46.0, -44.0, -498.0), Vector3(30.0, -46.0, -600.0)]
+			var beacon_position: Vector3 = beacon_positions[index]
+			var beacon_step: Dictionary = binding.call("submit_beacon_traversal", index, beacon_position)
+			_check(bool(beacon_step.get("accepted", false)), "the traversal accepts authored beacon %d" % (index + 1))
+		var beacon_reward: Dictionary = binding.call("request_beacon_traversal_reward")
+		_check(bool(beacon_reward.get("accepted", false)), "the completed traversal emits a reward request")
+		var beacon_reset: Dictionary = binding.call("reset_beacon_traversal")
+		_check(bool(beacon_reset.get("accepted", false)), "the traversal resets without changing beacon anchors")
 	cluster.queue_free()
 	await process_frame
 	_finish()
