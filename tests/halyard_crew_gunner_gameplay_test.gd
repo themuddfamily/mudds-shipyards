@@ -39,12 +39,26 @@ func _run() -> void:
 	)
 
 	var emitted := [0]
+	var selected := [0]
+	var cleared := [0]
 	var last_origin := [Vector3.INF]
 	var last_direction := [Vector3.ZERO]
+	var selected_generation := [0]
+	var clear_reason := [StringName(&"")]
 	craft.projectile_fired.connect(func(origin: Vector3, direction: Vector3) -> void:
 		emitted[0] += 1
 		last_origin[0] = origin
 		last_direction[0] = direction
+	)
+	craft.gunner_target_selected.connect(
+		func(_target_id: StringName, generation: int, _receipt: Dictionary) -> void:
+			selected[0] += 1
+			selected_generation[0] = generation
+	)
+	craft.gunner_target_cleared.connect(
+		func(_target_id: StringName, _generation: int, reason: StringName) -> void:
+			cleared[0] += 1
+			clear_reason[0] = reason
 	)
 	craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
 	var fired := craft.submit_crew_intent(
@@ -56,6 +70,7 @@ func _run() -> void:
 			"weapon_id": HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
 			"target_id": &"range_target_00",
 			"trigger": true,
+			"target_generation": 1,
 		},
 		2
 	)
@@ -75,10 +90,36 @@ func _run() -> void:
 		"the existing projectile request seam emits one normalized shot"
 	)
 	_check(
+		selected[0] == 1 and selected_generation[0] == 1,
+		"the gunner receipt selects a bounded target independently of fire cadence"
+	)
+	_check(
 		effect.get("source_id", 0) == HalyardCrewTransport.COMBAT_SOURCE_ID
 			and effect.get("faction_id", &"") == HalyardCrewTransport.HALYARD_CREW_FACTION_ID
 			and effect.get("weapon_id", &"") == HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
 		"the request carries the Halyard's bounded source, faction, and weapon identity"
+	)
+
+	var selection_only := craft.submit_crew_intent(
+		1,
+		88,
+		&"gunner_avatar",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
+			"target_id": &"range_target_01",
+			"trigger": false,
+			"target_generation": 1,
+		},
+		3
+	)
+	_check(
+		bool(selection_only.get("accepted", false))
+			and bool(selection_only.get("consumed", false))
+			and (selection_only.get("effect", {}) as Dictionary).get("status", &"") == &"target_selected"
+			and selected[0] == 2
+			and emitted[0] == 1,
+		"target selection remains usable when fire is not requested"
 	)
 
 	var cooldown := craft.submit_crew_intent(
@@ -88,10 +129,11 @@ func _run() -> void:
 		Authority.ACTION_GUNNER_FIRE,
 		{
 			"weapon_id": HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
-			"target_id": &"range_target_00",
+			"target_id": &"range_target_01",
 			"trigger": true,
+			"target_generation": 1,
 		},
-		3
+		4
 	)
 	_check(
 		bool(cooldown.get("accepted", false))
@@ -110,6 +152,7 @@ func _run() -> void:
 			"weapon_id": HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
 			"target_id": &"range_target_00",
 			"trigger": true,
+			"target_generation": 1,
 		},
 		2
 	)
@@ -118,6 +161,67 @@ func _run() -> void:
 			and replay.get("status", &"") == &"stale_request_sequence",
 		"a replayed gunner receipt cannot emit a duplicate request"
 	)
+
+	var handoff := craft.handoff_crew_role(
+		1,
+		88,
+		&"gunner_avatar",
+		&"co_pilot_station",
+		5,
+		99,
+		&"replacement_gunner",
+		Authority.ROLE_GUNNER,
+		6
+	)
+	_check(
+		bool(handoff.get("accepted", false))
+			and cleared[0] == 1
+			and clear_reason[0] == &"role_handoff",
+		"gunner handoff clears the outgoing target selection exactly once"
+	)
+	var stale_generation := craft.submit_crew_intent(
+		1,
+		99,
+		&"replacement_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
+			"target_id": &"range_target_02",
+			"trigger": false,
+			"target_generation": 1,
+		},
+		7
+	)
+	_check(
+		bool(stale_generation.get("accepted", false))
+			and not bool(stale_generation.get("consumed", false))
+			and (stale_generation.get("effect", {}) as Dictionary).get("status", &"")
+			== &"stale_target_generation",
+		"a stale gunner target generation cannot select a target after handoff"
+	)
+	var replacement := craft.submit_crew_intent(
+		1,
+		99,
+		&"replacement_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": HalyardCrewTransport.HALYARD_CREW_WEAPON_ID,
+			"target_id": &"range_target_02",
+			"trigger": false,
+			"target_generation": 2,
+		},
+		8
+	)
+	_check(
+		bool(replacement.get("accepted", false))
+			and bool(replacement.get("consumed", false))
+			and selected_generation[0] == 2,
+		"the replacement gunner selects against the fresh target generation"
+	)
+	var released := authority.release(1, 99, &"replacement_gunner", &"co_pilot_station", 9)
+	_check(bool(released.get("accepted", false)), "the replacement gunner can be detached")
+	await physics_frame
+	_check(cleared[0] == 2 and clear_reason[0] == &"role_detached", "detach clears the replacement target selection")
 
 	craft.queue_free()
 	await process_frame

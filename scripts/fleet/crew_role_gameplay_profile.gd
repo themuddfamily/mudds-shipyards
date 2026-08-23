@@ -116,16 +116,25 @@ static func _flight_command(payload: Dictionary) -> Dictionary:
 
 
 static func _gunner_fire(payload: Dictionary) -> Dictionary:
-	if not _exact_keys(payload, ["weapon_id", "target_id", "trigger"]):
+	var base_schema := _exact_keys(payload, ["weapon_id", "target_id", "trigger"])
+	var generation_schema := _exact_keys(
+		payload, ["weapon_id", "target_id", "trigger", "target_generation"]
+	)
+	if not base_schema and not generation_schema:
 		return _rejected(&"invalid_gunner_fire_schema")
 	var weapon_id := StringName(str(payload.get("weapon_id", "")))
 	var target_id := StringName(str(payload.get("target_id", "")))
-	if not _valid_id(weapon_id) or not _valid_id(target_id) or not payload.get("trigger", false) is bool:
+	var target_generation: Variant = payload.get("target_generation", 1)
+	if not _valid_id(weapon_id) or not _valid_id(target_id) \
+			or not payload.get("trigger", false) is bool \
+			or not target_generation is int \
+			or int(target_generation) <= 0 or int(target_generation) > 1_000_000:
 		return _rejected(&"invalid_gunner_fire_payload")
 	return _accepted({
 		"weapon_id": weapon_id,
 		"target_id": target_id,
 		"trigger": bool(payload.get("trigger", false)),
+		"target_generation": int(target_generation),
 	})
 
 

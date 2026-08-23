@@ -52,6 +52,7 @@ const HALYARD_CREW_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
 const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
 const MAX_PASSENGER_PING_MARKERS := 8
+const MAX_GUNNER_TARGET_GENERATION := 1_000_000
 
 signal passenger_cabin_ping_emitted(
 	marker_id: StringName,
@@ -64,6 +65,16 @@ signal passenger_cabin_ping_cleared(
 	reason: StringName,
 	occupant_peer_id: int,
 	avatar_id: StringName
+)
+signal gunner_target_selected(
+	target_id: StringName,
+	target_generation: int,
+	receipt: Dictionary
+)
+signal gunner_target_cleared(
+	target_id: StringName,
+	target_generation: int,
+	reason: StringName
 )
 
 const DESIGN_NOTE := (
@@ -272,6 +283,8 @@ var _crew_role_authority: CrewSeatRoleAuthority
 var _passenger_ping_cooldowns: Dictionary = {}
 var _gunner_role_cooldowns: Dictionary = {}
 var _passenger_ping_markers: Dictionary = {}
+var _gunner_target_selection: Dictionary = {}
+var _gunner_target_generation := 1
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -325,6 +338,8 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_clear_passenger_ping_markers(&"ship_reused")
 	_passenger_ping_cooldowns.clear()
 	_gunner_role_cooldowns.clear()
+	_clear_gunner_target_selection(&"ship_reused", false)
+	_gunner_target_generation = 1
 	_set_interior_operational(true)
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
@@ -517,10 +532,16 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	var weapon_id := StringName(payload.get("weapon_id", &""))
 	var target_id := StringName(payload.get("target_id", &""))
 	var actor_key := _crew_role_actor_key(intent)
+	var target_generation := int(payload.get("target_generation", 0))
 	if weapon_id != HALYARD_CREW_WEAPON_ID:
 		return _crew_role_result(false, &"weapon_not_authorized")
+	if target_generation != _gunner_target_generation:
+		return _crew_role_result(false, &"stale_target_generation")
+	var selection := _select_gunner_target(intent, target_id, target_generation)
+	if not bool(selection.get("accepted", false)):
+		return selection
 	if not bool(payload.get("trigger", false)):
-		return _crew_role_result(false, &"trigger_not_pressed")
+		return selection
 	var telemetry := get_telemetry()
 	if bool(telemetry.get("destroyed", false)):
 		return _crew_role_result(false, &"ship_destroyed")
@@ -541,9 +562,34 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	result["faction_id"] = HALYARD_CREW_FACTION_ID
 	result["weapon_id"] = weapon_id
 	result["target_id"] = target_id
+	result["target_generation"] = target_generation
+	result["selection"] = selection
 	result["request_sequence"] = int(intent.get("request_sequence", -1))
 	result["cooldown_remaining"] = _weapon_timer
 	_gunner_role_cooldowns[actor_key] = weapon_cooldown
+	return result
+
+
+func _select_gunner_target(
+	intent: Dictionary,
+	target_id: StringName,
+	target_generation: int
+) -> Dictionary:
+	if target_id.is_empty() or str(target_id).length() > 64:
+		return _crew_role_result(false, &"invalid_target_identity")
+	var actor_key := _crew_role_actor_key(intent)
+	var selection := {
+		"target_id": target_id,
+		"target_generation": target_generation,
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+	}
+	_gunner_target_selection = selection
+	gunner_target_selected.emit(target_id, target_generation, selection.duplicate(true))
+	var result := _crew_role_result(true, &"target_selected")
+	result["selection"] = selection.duplicate(true)
+	result["actor_key"] = actor_key
 	return result
 
 
@@ -1847,6 +1893,7 @@ func _set_interior_operational(enabled: bool) -> void:
 		_clear_passenger_ping_markers(&"interior_unavailable")
 		_passenger_ping_cooldowns.clear()
 		_gunner_role_cooldowns.clear()
+		_clear_gunner_target_selection(&"interior_unavailable")
 	if _walkable_interior != null:
 		_walkable_interior.visible = enabled
 	if _occupant_volume != null:
@@ -1860,10 +1907,11 @@ func _set_interior_operational(enabled: bool) -> void:
 
 
 func _cleanup_detached_passenger_pings() -> void:
-	if _passenger_ping_markers.is_empty():
+	if _passenger_ping_markers.is_empty() and _gunner_target_selection.is_empty():
 		return
 	if _crew_role_authority == null:
 		_clear_passenger_ping_markers(&"authority_detached")
+		_clear_gunner_target_selection(&"authority_detached")
 		return
 	var detached: Array[Dictionary] = []
 	for marker_variant in _passenger_ping_markers.values():
@@ -1880,6 +1928,17 @@ func _cleanup_detached_passenger_pings() -> void:
 			StringName(marker.get("avatar_id", &"")),
 			&"role_detached"
 		)
+	if not _gunner_target_selection.is_empty():
+		var target_assignment := _crew_role_authority.get_assignment(
+			int(_gunner_target_selection.get("occupant_peer_id", 0)),
+			StringName(_gunner_target_selection.get("avatar_id", &""))
+		)
+		if target_assignment.is_empty():
+			_clear_crew_role_state(
+				int(_gunner_target_selection.get("occupant_peer_id", 0)),
+				StringName(_gunner_target_selection.get("avatar_id", &"")),
+				&"role_detached"
+			)
 
 
 func _clear_passenger_ping_for_actor(
@@ -1909,6 +1968,10 @@ func _clear_crew_role_state(
 	_passenger_ping_cooldowns.erase(actor_key)
 	_gunner_role_cooldowns.erase(actor_key)
 	_clear_passenger_ping_for_actor(occupant_peer_id, avatar_id, reason)
+	if not _gunner_target_selection.is_empty() \
+			and int(_gunner_target_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
+			and StringName(_gunner_target_selection.get("avatar_id", &"")) == avatar_id:
+		_clear_gunner_target_selection(reason)
 
 
 func _advance_crew_role_cooldowns(delta: float) -> void:
@@ -1934,6 +1997,25 @@ func _clear_passenger_ping_markers(reason: StringName) -> void:
 			int(marker.get("occupant_peer_id", 0)),
 			StringName(marker.get("avatar_id", &"")),
 			reason
+		)
+
+
+func _clear_gunner_target_selection(reason: StringName, advance_generation: bool = true) -> void:
+	if _gunner_target_selection.is_empty():
+		if advance_generation:
+			_gunner_target_generation = mini(
+				_gunner_target_generation + 1,
+				MAX_GUNNER_TARGET_GENERATION
+			)
+		return
+	var target_id := StringName(_gunner_target_selection.get("target_id", &""))
+	var target_generation := int(_gunner_target_selection.get("target_generation", 0))
+	_gunner_target_selection.clear()
+	gunner_target_cleared.emit(target_id, target_generation, reason)
+	if advance_generation:
+		_gunner_target_generation = mini(
+			_gunner_target_generation + 1,
+			MAX_GUNNER_TARGET_GENERATION
 		)
 
 
