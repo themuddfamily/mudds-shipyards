@@ -12,6 +12,7 @@ const Interceptor := preload("res://scripts/ships/cinder_light_interceptor.gd")
 const CargoActivityBridge := preload("res://scripts/ships/cinder_cargo_activity_bridge.gd")
 const ShipAudioRigScene := preload("res://scenes/audio/ship_audio_rig.tscn")
 const FleetAudioBinding := preload("res://scripts/audio/fleet_expansion_audio_binding.gd")
+const FleetBerthAudioBinding := preload("res://scripts/audio/fleet_expansion_berth_audio_binding.gd")
 const CRAFT_SPECS: Array[Dictionary] = [
 	{"pad_id": &"dock_04_cargo", "craft_id": &"cinder_cargo_hauler", "script": Cargo},
 	{"pad_id": &"dock_05_bomber", "craft_id": &"cinder_long_range_bomber", "script": Bomber},
@@ -36,6 +37,7 @@ var _audio_bindings: Dictionary = {}
 var _reduced_dynamic_range := false
 var _cargo_activity_bridge: RefCounted
 var _cargo_activity_binding: Node
+var _berth_audio_binding: RefCounted
 
 
 func _ready() -> void:
@@ -50,6 +52,8 @@ func _assemble() -> void:
 	_berths = Berths.new()
 	_berths.name = "FleetExpansionBerths"
 	add_child(_berths)
+	_berth_audio_binding = FleetBerthAudioBinding.new() as RefCounted
+	_berth_audio_binding.attach()
 	for spec in CRAFT_SPECS:
 		var craft := (spec.get("script") as GDScript).new() as Node3D
 		craft.name = String(spec.craft_id)
@@ -71,6 +75,7 @@ func _assemble() -> void:
 		if not bool(audio_result.get("accepted", false)):
 			_composition_error = StringName(audio_result.get("reason", &"audio_binding_failed"))
 			return
+		_berth_audio_binding.present_pad_snapshot(_berths.get_attachment_snapshot(spec.pad_id))
 	_built = true
 
 
@@ -110,6 +115,8 @@ func detach_craft(craft_id: StringName) -> Dictionary:
 			var result: Dictionary = _berths.call("detach_craft", spec.pad_id, _craft_by_id[craft_id])
 			if bool(result.get("accepted", false)) and _audio_bindings.has(craft_id):
 				(_audio_bindings[craft_id] as RefCounted).detach()
+			if bool(result.get("accepted", false)) and _berth_audio_binding != null:
+				_berth_audio_binding.present_release(spec.pad_id, int(_berth_audio_binding.get_snapshot().get("generation", 0)))
 			return result
 	return {"accepted": false, "reason": &"unknown_craft"}
 
@@ -280,6 +287,7 @@ func get_fleet_snapshot() -> Dictionary:
 	return {
 		"built": _built,
 		"composition_error": _composition_error,
+		"berth_audio": _berth_audio_binding.get_snapshot() if _berth_audio_binding != null else {},
 		"craft": craft_snapshots,
 		"cargo_activity": _cargo_activity_bridge.get_snapshot() if _cargo_activity_bridge != null else {"bound": false},
 	}.duplicate(true)
