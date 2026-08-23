@@ -40,7 +40,7 @@ func _run() -> void:
 	_check(
 		bool(synchronous_audit.get("valid", false))
 		and bool(synchronous_render.get("exact_counts", false))
-		and int(synchronous_render.get("unique_material_resources", -1)) == 31,
+		and int(synchronous_render.get("unique_material_resources", -1)) == 32,
 		"Habitat is allocation-green synchronously before its ShipyardWorld parent can validate it"
 	)
 	await process_frame
@@ -255,6 +255,28 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 		all_chairs_tagged = all_chairs_tagged and bool(chair.get_meta("station_chair", false))
 		all_chairs_tagged = all_chairs_tagged and chair.get_node_or_null("Seat") is StaticBody3D
 	_check(all_chairs_tagged, "every common chair is tagged and collision-backed")
+	var material_audit := module.get_observation_chair_material_audit()
+	var render_before_material_probe := module.get_render_allocation_report()
+	_check(
+		bool(material_audit.valid)
+		and StringName(material_audit.evidence_status) == &"modern_interpretation"
+		and int(material_audit.backrest_count) == 8
+		and int(material_audit.collision_count) == 8
+		and (material_audit.albedo as Color).is_equal_approx(
+			HabitatSpine.OBSERVATION_BACKREST_COLOR
+		)
+		and is_equal_approx(
+			float(material_audit.roughness),
+			HabitatSpine.OBSERVATION_BACKREST_ROUGHNESS
+		)
+		and int(material_audit.node_delta) == 0
+		and int(material_audit.light_delta) == 0
+		and int(material_audit.geometry_submission_delta) == 0
+		and int(material_audit.material_resource_delta) == 1
+		and int(render_before_material_probe.unique_material_resources) == 32
+		and bool(render_before_material_probe.exact_counts),
+		"eight chair-only modern backrests lift albedo/response with no geometry, collision, light, or submission growth"
+	)
 	var bearing_material: Material = null
 	var bearings_exact := true
 	var bearing_triangles_before := 0
@@ -660,10 +682,10 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
-		and int(report.unique_material_resources) == 31
+		and int(report.unique_material_resources) == 32
 		and int(report.multimesh_resources) == 18
 		and int(report.renderer_buffer_floats) == 144,
-		"mesh/material allocations freeze at 349/31 while the hatch batch retains its 144-float renderer buffer"
+		"mesh/material allocations freeze at 349/32 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)

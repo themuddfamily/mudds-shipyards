@@ -82,7 +82,10 @@ const RENDER_MULTIMESH_BATCH_COUNT := 18
 const RENDER_DRAWN_COPY_COUNT := 1377
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 1251
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
-const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 32
+const OBSERVATION_BACKREST_COLOR := Color("365c63")
+const OBSERVATION_BACKREST_METALLIC := 0.02
+const OBSERVATION_BACKREST_ROUGHNESS := 0.80
 
 ## Which of the six berths are currently taken, in alcove order.
 ##
@@ -355,6 +358,58 @@ func get_bunk_markers() -> Array[Marker3D]:
 
 func get_chair_count() -> int:
 	return _chair_nodes.size()
+
+
+## Component-local material proof for the eight observation backrests. The
+## brighter modern upholstery is deliberately not shared with bunks or arm pads.
+func get_observation_chair_material_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var backrest_material := _materials.get("observation_backrest") as StandardMaterial3D
+	var fabric_material := _materials.get("fabric") as StandardMaterial3D
+	var dark_material := _materials.get("fabric_dark") as StandardMaterial3D
+	var backrest_count := 0
+	var collision_count := 0
+	for chair in _chair_nodes:
+		var back := chair.get_node_or_null(^"Back") as StaticBody3D
+		var back_mesh := back.get_node_or_null(^"Mesh") as MeshInstance3D if back != null else null
+		var collision := back.get_node_or_null(^"Collision") as CollisionShape3D if back != null else null
+		var seat := chair.get_node_or_null(^"Seat") as StaticBody3D
+		var seat_mesh := seat.get_node_or_null(^"Mesh") as MeshInstance3D if seat != null else null
+		if back_mesh == null or back_mesh.material_override != backrest_material:
+			errors.append("observation backrest material scope drift")
+		else:
+			backrest_count += 1
+		if collision == null or collision.shape == null:
+			errors.append("observation backrest collision drift")
+		else:
+			collision_count += 1
+		if seat_mesh == null or seat_mesh.material_override != fabric_material:
+			errors.append("observation seat material hierarchy drift")
+		for arm in chair.find_children("ArmPad", "MeshInstance3D", false, false):
+			if (arm as MeshInstance3D).material_override != dark_material:
+				errors.append("observation arm material hierarchy drift")
+	if backrest_material == null \
+			or not backrest_material.albedo_color.is_equal_approx(OBSERVATION_BACKREST_COLOR) \
+			or not is_equal_approx(backrest_material.metallic, OBSERVATION_BACKREST_METALLIC) \
+			or not is_equal_approx(backrest_material.roughness, OBSERVATION_BACKREST_ROUGHNESS) \
+			or backrest_material.emission_enabled:
+		errors.append("observation backrest material recipe drift")
+	if dark_material == null or backrest_material == dark_material:
+		errors.append("observation backrest material is not locally scoped")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"evidence_status": &"modern_interpretation",
+		"backrest_count": backrest_count,
+		"collision_count": collision_count,
+		"albedo": backrest_material.albedo_color if backrest_material != null else Color.BLACK,
+		"roughness": backrest_material.roughness if backrest_material != null else -1.0,
+		"node_delta": 0,
+		"light_delta": 0,
+		"geometry_submission_delta": 0,
+		"material_resource_delta": 1,
+	}.duplicate(true)
 
 
 func get_service_detail_count() -> int:
@@ -1461,10 +1516,18 @@ func _create_materials() -> void:
 	# the specular term on a vertical face, and 0.86 matches the `fabric` family it
 	# is supposed to belong to.
 	#
-	# Not a lighting change: no lamp moved, no energy changed. `fabric_dark` is
-	# also the bunk pillows and the chair arm pads, which rendered as the same
-	# black slabs, so all three are fixed by the one albedo.
+	# Not a lighting change: no lamp moved, no energy changed. This shared step
+	# remains on bunk pillows and chair arm pads; the away-facing observation
+	# backrests receive their own final bounded lift below.
 	_materials["fabric_dark"] = _material(Color("2c5158"), 0.02, 0.86)
+	# Chair-only modern interpretation: a modest reflectance lift keeps the
+	# away-facing backrests shaped without relighting the glazed room. Bunk
+	# pillows and arm pads retain the existing darker upholstery hierarchy.
+	_materials["observation_backrest"] = _material(
+		OBSERVATION_BACKREST_COLOR,
+		OBSERVATION_BACKREST_METALLIC,
+		OBSERVATION_BACKREST_ROUGHNESS
+	)
 	# Emission 1.35 -> 1.05. Measured off `habitat_common_room.png`: the common
 	# table display rendered as a solid 255 white rectangle on a table that
 	# received nothing from it — the single clearest instance of the bimodal frame
@@ -1948,7 +2011,7 @@ func _build_common_chair(parent: Node3D, index: int, chair_position: Vector3, ya
 		TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING
 	)
 	_box(chair, "Seat", Vector3(0, 0.84, 0), Vector3(0.94, 0.2, 0.9), _materials["fabric"], true)
-	_box(chair, "Back", Vector3(0, 1.43, -0.38), Vector3(0.92, 1.28, 0.2), _materials["fabric_dark"], true, Vector3(-6, 0, 0))
+	_box(chair, "Back", Vector3(0, 1.43, -0.38), Vector3(0.92, 1.28, 0.2), _materials["observation_backrest"], true, Vector3(-6, 0, 0))
 	for side in [-1.0, 1.0]:
 		var arm_x := float(side) * 0.54
 		_beam_between(chair, "ArmSupport", Vector3(arm_x, 0.83, -0.05), Vector3(arm_x, 1.17, -0.05), 0.045, _materials["structural"], false)
