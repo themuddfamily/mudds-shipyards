@@ -21,6 +21,12 @@ const SafeStartProductionRecoveryType := preload(
 const NetworkSessionAdapterType := preload(
 	"res://scripts/network/network_enet_session_adapter.gd"
 )
+const NearbySectorActivityAudioBindingType := preload(
+	"res://scripts/audio/nearby_sector_activity_audio_binding.gd"
+)
+const NearbySectorActivityMusicAdapterType := preload(
+	"res://scripts/audio/nearby_sector_activity_music_adapter.gd"
+)
 
 ## First production nearby activity. It is a modern interpretation and remains
 ## a progress-only route: the director and this integration own no rewards,
@@ -245,6 +251,8 @@ var combat_audio: CombatAudioPresentation
 var hud: CanvasLayer
 var audio: Node
 var music_bed: StationMusicBed
+var nearby_activity_audio_binding: Node
+var nearby_activity_music_adapter: Node
 var activity_director: ActivityDirector
 var cinder_race_session: CinderTimedRaceSession
 var patrol_activity: PatrolActivity
@@ -456,6 +464,7 @@ func _exit_tree() -> void:
 	_cancel_ground_transition_for_detach()
 	_detach_cinder_race_session()
 	_detach_caption_presentation()
+	_detach_nearby_activity_audio()
 	# Travelling pulse slots are presentation-only and are cleared by their own
 	# exit transaction. Their target-side records are likewise invalidated by the
 	# relevant lifecycle components.
@@ -1022,6 +1031,7 @@ func _start_up() -> void:
 	_initialize_cinder_convoy_host()
 	_initialize_caption_presentation()
 	_initialize_live_combat()
+	_initialize_nearby_activity_audio()
 	# The atomic load above is complete before the first global, player, ship or
 	# HUD settings consumer sees a snapshot. In particular, the complete binding
 	# profile reaches InputMap and all retained local ship banks before gameplay
@@ -1767,6 +1777,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_restore_caption_presentation()
 	_connect_runtime_signals()
 	_initialize_live_combat()
+	_initialize_nearby_activity_audio()
 	# Part of the settings snapshot is process-wide rather than node-local: the
 	# `AudioServer` bus levels and the window mode belong to whatever is on screen,
 	# so while this subtree is detached another scene legitimately owns them.
@@ -5080,11 +5091,117 @@ func _sync_nearby_activity_hud() -> void:
 		return
 	var binding := _get_nearby_activity_binding()
 	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+		_detach_nearby_activity_audio()
 		if hud.has_method(&"clear_nearby_activity_snapshot"):
 			hud.call(&"clear_nearby_activity_snapshot")
 		return
+	var snapshot := binding.call(&"get_snapshot") as Dictionary
+	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):
-		hud.call(&"set_nearby_activity_snapshot", binding.call(&"get_snapshot"))
+		hud.call(&"set_nearby_activity_snapshot", snapshot)
+
+
+func _initialize_nearby_activity_audio() -> void:
+	if not is_instance_valid(music_bed):
+		return
+	if not is_instance_valid(nearby_activity_audio_binding):
+		nearby_activity_audio_binding = NearbySectorActivityAudioBindingType.new()
+		nearby_activity_audio_binding.name = "NearbySectorActivityAudioBinding"
+		add_child(nearby_activity_audio_binding)
+	if not bool(nearby_activity_audio_binding.get_snapshot().get("attached", false)):
+		nearby_activity_audio_binding.attach(
+			int(nearby_activity_audio_binding.get_snapshot().get("generation", 0))
+		)
+	if not is_instance_valid(nearby_activity_music_adapter):
+		nearby_activity_music_adapter = NearbySectorActivityMusicAdapterType.new()
+		nearby_activity_music_adapter.name = "NearbySectorActivityMusicAdapter"
+		add_child(nearby_activity_music_adapter)
+		nearby_activity_music_adapter.configure(music_bed)
+	if not bool(nearby_activity_music_adapter.get_snapshot().get("attached", false)):
+		nearby_activity_music_adapter.attach(
+			int(nearby_activity_music_adapter.get_snapshot().get("generation", 0))
+		)
+
+
+func _detach_nearby_activity_audio() -> void:
+	if is_instance_valid(nearby_activity_audio_binding):
+		nearby_activity_audio_binding.detach()
+	if is_instance_valid(nearby_activity_music_adapter):
+		nearby_activity_music_adapter.detach()
+
+
+func _sync_nearby_activity_audio(snapshot: Dictionary) -> void:
+	_initialize_nearby_activity_audio()
+	var normalized := _normalize_nearby_activity_audio_snapshot(snapshot)
+	if normalized.is_empty():
+		return
+	if is_instance_valid(nearby_activity_audio_binding):
+		nearby_activity_audio_binding.present_activity_snapshot(normalized)
+	if is_instance_valid(nearby_activity_music_adapter):
+		nearby_activity_music_adapter.present_activity_snapshot(normalized)
+
+
+func _normalize_nearby_activity_audio_snapshot(snapshot: Dictionary) -> Dictionary:
+	var candidates: Array[Dictionary] = []
+	for candidate: Dictionary in [
+		{"key": &"host", "kind": &"convoy"},
+		{"key": &"race", "kind": &"race"},
+		{"key": &"patrol", "kind": &"patrol"},
+		{"key": &"cargo", "kind": &"cargo"},
+		{"key": &"station_defense_state", "kind": &"defense"},
+		{"key": &"mining", "kind": &"mining"},
+		{"key": &"structure_scan", "kind": &"salvage"},
+		{"key": &"beacon_traversal", "kind": &"beacon"},
+	]:
+		var value: Variant = snapshot.get(candidate.key, {})
+		if value is Dictionary:
+			candidates.append({"value": value, "kind": candidate.kind})
+	var fallback: Dictionary = {}
+	for candidate: Dictionary in candidates:
+		var value := candidate.value as Dictionary
+		var state := StringName(value.get("state_id", value.get("state", &"idle")))
+		if state in [&"idle", &"selected", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
+			if state in [&"idle", &"selected"]:
+				if fallback.is_empty():
+					fallback = {"candidate": candidate, "state": state}
+				continue
+			return _build_nearby_activity_audio_snapshot(candidate, value, state, snapshot)
+	if fallback.is_empty():
+		return {}
+	var fallback_candidate := fallback.get("candidate", {}) as Dictionary
+	return _build_nearby_activity_audio_snapshot(
+		fallback_candidate,
+		fallback_candidate.get("value", {}) as Dictionary,
+		StringName(fallback.get("state", &"idle")),
+		snapshot
+	)
+
+
+func _build_nearby_activity_audio_snapshot(
+	candidate: Dictionary, value: Dictionary, state: StringName, source: Dictionary
+) -> Dictionary:
+	if candidate.is_empty():
+		return {}
+	if state in [&"idle", &"selected", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
+		var activity_id := StringName(value.get("activity_id", source.get("activity_id", &"nearby_activity")))
+		var generation := int(value.get("generation", value.get("session_generation", 0)))
+		var normalized_state: StringName = &"active" if state == &"active" else (
+			&"complete" if state in [&"complete", &"completed", &"failed", &"aborted", &"expired"] else (
+			&"reset" if state == &"reset" else &"idle"
+			)
+		)
+		return {
+			"generation": maxi(generation, 0),
+			"activity_kind": candidate.get("kind", &"patrol"),
+			"activity_state": normalized_state,
+			"activity_id": activity_id,
+			"state": normalized_state,
+			"progress_unitless": clampf(float(value.get("progress_unitless", 0.0)), 0.0, 1.0),
+			"checkpoint_id": StringName(value.get("checkpoint_id", &"")),
+			"reward_pending": bool(value.get("reward_pending", false)),
+			"reset_serial": maxi(int(value.get("reset_serial", 0)), 0),
+		}.duplicate(true)
+	return {}
 
 
 func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
