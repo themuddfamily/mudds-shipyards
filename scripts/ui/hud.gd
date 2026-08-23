@@ -18,6 +18,7 @@ const AtmosphericEntryGuidancePresenterType := preload("res://scripts/ui/atmosph
 const SemanticAudioCuePresenterType := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
 const FirstSortieTutorialPresenterType := preload("res://scripts/ui/first_sortie_tutorial_presenter.gd")
 const ServerBrowserPresenterType := preload("res://scripts/ui/server_browser_presenter.gd")
+const NearbySectorActivityPresenterType := preload("res://scripts/ui/nearby_sector_activity_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -28,6 +29,7 @@ signal settings_save_requested
 signal settings_reset_requested
 signal orderly_shutdown_requested
 signal presentation_intent_requested(kind: StringName, payload: Dictionary)
+signal nearby_activity_intent_requested(intent: Dictionary)
 
 const INK := Color("07111d")
 const PANEL := Color("101c2bd9")
@@ -235,6 +237,10 @@ var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
 var _activity_selection_locked := false
+var _nearby_activity_presenter: RefCounted
+var _nearby_activity_page: Control
+var _nearby_activity_rows: VBoxContainer
+var _nearby_activity_snapshot: Dictionary = {}
 var _planetary_cruise_button: Button
 var _planetary_cruise_status_label: Label
 var _planetary_cruise_status_id: StringName = &"unavailable"
@@ -406,6 +412,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	clear_nearby_activity_snapshot()
 	if _pause == null or not _pause.visible:
 		return
 	var viewport := get_viewport()
@@ -416,6 +423,7 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
 	_caption_presenter = get_node_or_null(^"CaptionPresenter") as CaptionPresenter
 	if not is_instance_valid(_caption_presenter):
 		_caption_presenter = CaptionPresenterScene.instantiate() as CaptionPresenter
@@ -2466,6 +2474,7 @@ func _build_pause() -> void:
 	_scaled_layers.append(_pause_panels)
 	_build_pause_main_page()
 	_build_activity_selection_page()
+	_build_nearby_activity_page()
 	_build_server_browser_page()
 	_build_settings_page()
 	_show_pause_main()
@@ -2627,6 +2636,99 @@ func _build_activity_selection_page() -> void:
 	back.pressed.connect(_show_pause_main)
 	stack.add_child(back)
 	_refresh_activity_selection_page(&"")
+
+
+func _build_nearby_activity_page() -> void:
+	_nearby_activity_page = PanelContainer.new()
+	_nearby_activity_page.name = "NearbyActivityPage"
+	_nearby_activity_page.set_anchors_preset(Control.PRESET_CENTER)
+	_nearby_activity_page.position = Vector2(-390.0, -330.0)
+	_nearby_activity_page.size = Vector2(780.0, 660.0)
+	_nearby_activity_page.mouse_filter = Control.MOUSE_FILTER_STOP
+	_nearby_activity_page.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 10, NOMINAL))
+	_pause_panels.add_child(_nearby_activity_page)
+	var margin := _margin(24, 20, 24, 20)
+	_nearby_activity_page.add_child(margin)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 6)
+	margin.add_child(stack)
+	var title := _label("CINDER ACTIVITY STATUS", 22, PRIMARY)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(title)
+	var subtitle := _label("Select an activity, then forward an explicit start or reset intent.", 11, MUTED)
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(subtitle)
+	_nearby_activity_rows = VBoxContainer.new()
+	_nearby_activity_rows.add_theme_constant_override("separation", 4)
+	stack.add_child(_nearby_activity_rows)
+	var back := _menu_button("BACK", MUTED)
+	back.name = "NearbyActivityBackButton"
+	back.pressed.connect(_show_pause_main)
+	stack.add_child(back)
+	_nearby_activity_page.visible = false
+
+
+func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
+	_nearby_activity_snapshot = snapshot.duplicate(true)
+	if _nearby_activity_presenter == null:
+		_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
+	var view: Dictionary = _nearby_activity_presenter.call("present", _nearby_activity_snapshot)
+	if _nearby_activity_rows != null:
+		for child in _nearby_activity_rows.get_children():
+			child.queue_free()
+		for card in view.get("cards", []) as Array:
+			_add_nearby_activity_row(card as Dictionary)
+	return view
+
+
+func clear_nearby_activity_snapshot() -> void:
+	_nearby_activity_snapshot.clear()
+	if _nearby_activity_rows != null:
+		for child in _nearby_activity_rows.get_children():
+			child.queue_free()
+
+
+func show_nearby_activity_page() -> void:
+	if _nearby_activity_page == null:
+		return
+	_nearby_activity_page.visible = true
+	var first := _nearby_activity_rows.get_child(0) as Control if _nearby_activity_rows.get_child_count() > 0 else null
+	if first != null:
+		first.grab_focus()
+
+
+func get_nearby_activity_report() -> Dictionary:
+	return {"visible": _nearby_activity_page != null and _nearby_activity_page.visible, "snapshot": _nearby_activity_snapshot.duplicate(true), "row_count": _nearby_activity_rows.get_child_count() if _nearby_activity_rows != null else 0}
+
+
+func _add_nearby_activity_row(card: Dictionary) -> void:
+	var row := HBoxContainer.new()
+	row.name = "NearbyActivityRow_%s" % str(card.get("activity_id", "activity"))
+	row.add_theme_constant_override("separation", 6)
+	var label := _label(str(card.get("text", "ACTIVITY — AVAILABLE")), 10, NOMINAL_SOFT)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(label)
+	var activity_id := StringName(card.get("activity_id", &""))
+	for action in [&"select", &"start", &"reset"]:
+		var button := _menu_button(str(action).to_upper(), MUTED)
+		button.focus_mode = Control.FOCUS_ALL
+		button.pressed.connect(_forward_nearby_activity_intent.bind(action, activity_id))
+		row.add_child(button)
+	_nearby_activity_rows.add_child(row)
+
+
+func _forward_nearby_activity_intent(action: StringName, activity_id: StringName) -> void:
+	if _nearby_activity_presenter == null:
+		return
+	var intent: Dictionary
+	if action == &"select":
+		intent = _nearby_activity_presenter.call("select", activity_id)
+	elif action == &"start":
+		intent = _nearby_activity_presenter.call("start_intent", activity_id)
+	else:
+		intent = _nearby_activity_presenter.call("reset_intent", activity_id)
+	nearby_activity_intent_requested.emit(intent.duplicate(true))
 
 
 func _build_server_browser_page() -> void:
