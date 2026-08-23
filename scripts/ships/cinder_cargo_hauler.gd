@@ -35,6 +35,9 @@ var _moving_interior_component: MovingInteriorFrame
 var _occupant_volume: Area3D
 var _loadmaster_station_anchor: Marker3D
 var _loadmaster_console: MeshInstance3D
+var _loadmaster_status_panel: MeshInstance3D
+var _loadmaster_status_display: Label3D
+var _loadmaster_status_snapshot: Dictionary = {}
 var _crew_role_authority: CrewSeatRoleAuthority
 var _loadmaster_manifest_receipt: Dictionary = {}
 var _loadmaster_manifest_generation := 1
@@ -243,6 +246,29 @@ func get_loadmaster_manifest_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_loadmaster_status_snapshot() -> Dictionary:
+	return _loadmaster_status_snapshot.duplicate(true)
+
+
+## Presentation refresh is an explicit event seam for seat/session presenters;
+## it never polls gameplay state from a per-frame callback.
+func refresh_loadmaster_status_display() -> Dictionary:
+	var state: StringName = &"available"
+	var route_id: StringName = &""
+	var manifest_id: StringName = &""
+	if not _loadmaster_manifest_receipt.is_empty():
+		manifest_id = StringName(_loadmaster_manifest_receipt.get("manifest_id", &""))
+		route_id = StringName(_loadmaster_manifest_receipt.get("route_id", &""))
+		state = &"manifest_ready" if bool(_loadmaster_manifest_receipt.get("ready", false)) else &"occupied"
+	elif _crew_role_authority != null:
+		for assignment_variant in _crew_role_authority.get_snapshot().get("assignments", []) as Array:
+			if StringName((assignment_variant as Dictionary).get("seat_id", &"")) == LOADMASTER_STATION_SEAT_ID:
+				state = &"occupied"
+				break
+	_update_loadmaster_status_display(state, manifest_id, route_id)
+	return _loadmaster_status_snapshot.duplicate(true)
+
+
 func get_crew_role_authority() -> CrewSeatRoleAuthority:
 	return _crew_role_authority
 
@@ -268,6 +294,7 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 	if not station_found or not is_instance_valid(_loadmaster_station_anchor):
 		return _crew_role_result(false, &"cinder_loadmaster_roster_mismatch")
 	_crew_role_authority = authority
+	refresh_loadmaster_status_display()
 	return _crew_role_result(true, &"authority_attached")
 
 
@@ -313,6 +340,7 @@ func submit_crew_intent(
 	}
 	_loadmaster_manifest_receipt = receipt
 	loadmaster_manifest_intent_accepted.emit(receipt.duplicate(true))
+	refresh_loadmaster_status_display()
 	var result := admission.duplicate(true)
 	result["status"] = &"intent_consumed"
 	result["consumed"] = true
@@ -485,6 +513,29 @@ func _build_cargo_interior() -> void:
 	)
 	_loadmaster_console.set_meta(&"presentation_only", true)
 	_loadmaster_console.set_meta(&"station_id", LOADMASTER_STATION_SEAT_ID)
+	_loadmaster_status_panel = _add_interior_box(
+		_cargo_cabin,
+		"LoadmasterStatusPanel",
+		Vector3(-0.15, 0.42, -2.28),
+		Vector3(1.45, 0.72, 0.06),
+		ACCENT_COLOR
+	)
+	_loadmaster_status_panel.set_meta(&"presentation_only", true)
+	_loadmaster_status_panel.set_meta(&"color_independent", true)
+	_loadmaster_status_display = Label3D.new()
+	_loadmaster_status_display.name = "LoadmasterStatusDisplay"
+	_loadmaster_status_display.position = Vector3(-0.15, 0.43, -2.33)
+	_loadmaster_status_display.font_size = 24
+	_loadmaster_status_display.pixel_size = 0.0012
+	_loadmaster_status_display.modulate = Color("f2ffff")
+	_loadmaster_status_display.outline_modulate = Color("07111d")
+	_loadmaster_status_display.outline_size = 8
+	_loadmaster_status_display.no_depth_test = true
+	_loadmaster_status_display.set_meta(&"presentation_only", true)
+	_loadmaster_status_display.set_meta(&"color_independent", true)
+	_loadmaster_status_display.set_meta(&"station_id", LOADMASTER_STATION_SEAT_ID)
+	_cargo_cabin.add_child(_loadmaster_status_display)
+	_update_loadmaster_status_display(&"available", &"", &"")
 	_loadmaster_station_anchor = Marker3D.new()
 	_loadmaster_station_anchor.name = "LoadmasterStationAnchor"
 	_loadmaster_station_anchor.position = Vector3(0.95, -0.30, 1.10)
@@ -607,6 +658,38 @@ func _clear_loadmaster_manifest(reason: StringName, advance_generation: bool = t
 			LOADMASTER_MANIFEST_GENERATION_MAX
 		)
 	loadmaster_manifest_cleared.emit(_loadmaster_manifest_generation, reason)
+	var state: StringName = &"released" if reason in [&"role_released", &"role_detached"] else &"available"
+	_update_loadmaster_status_display(state, &"", &"")
+
+
+func _update_loadmaster_status_display(
+		state: StringName,
+		manifest_id: StringName,
+		route_id: StringName
+) -> void:
+	_loadmaster_status_snapshot = {
+		"schema_version": 1,
+		"state": state,
+		"manifest_id": manifest_id,
+		"route_id": route_id,
+		"generation": _loadmaster_manifest_generation,
+		"presentation_only": true,
+		"color_independent": true,
+	}
+	if not is_instance_valid(_loadmaster_status_display):
+		return
+	var state_text := "AVAILABLE"
+	match state:
+		&"occupied":
+			state_text = "OCCUPIED"
+		&"manifest_ready":
+			state_text = "MANIFEST READY"
+		&"released":
+			state_text = "RELEASED"
+	_loadmaster_status_display.text = (
+		"LOADMASTER\n[%s]\nMANIFEST %s\nROUTE %s"
+		% [state_text, str(manifest_id) if not manifest_id.is_empty() else "--", str(route_id) if not route_id.is_empty() else "--"]
+	)
 
 
 func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
