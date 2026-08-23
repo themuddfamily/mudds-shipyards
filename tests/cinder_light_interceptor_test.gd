@@ -16,6 +16,7 @@ func _initialize() -> void:
 	_check(craft.get_cockpit_seat_anchor() != null and craft.get_boarding_marker() != null, "the interceptor exposes physical cockpit and boarding anchors")
 	_check(bool(craft is HeroShip) and bool(audit.get("flight_authority", false)) and not bool(audit.get("combat_authority", true)) and not bool(audit.get("weapon_authority", true)), "HeroShip owns flight while the component adds no duplicate combat or weapon authority")
 	_test_console_toggle_batch(craft)
+	_test_console_key_batch(craft)
 	craft.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -88,4 +89,71 @@ func _test_console_toggle_batch(craft: CinderLightInterceptor) -> void:
 		and is_equal_approx(batch.extra_cull_margin, 0.0)
 		and batch.multimesh.custom_aabb.is_equal_approx(expected_bounds),
 		"toggle material, shadow, layers, and exact aggregate culling bounds are unchanged"
+	)
+
+
+func _test_console_key_batch(craft: CinderLightInterceptor) -> void:
+	var cockpit := craft.get_variant_visual_root().get_node_or_null("CockpitInterior") as Node3D
+	var batch := cockpit.get_node_or_null("CinderConsoleKeyBatch") as MultiMeshInstance3D if cockpit != null else null
+	var authored_names := PackedStringArray()
+	var authored_transforms: Array = []
+	if batch != null:
+		authored_names = batch.get_meta(&"authored_visual_names", PackedStringArray())
+		authored_transforms = batch.get_meta(&"authored_instance_transforms", [])
+	var expected_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(-0.76, 2.41, -0.88)),
+		Transform3D(Basis.IDENTITY, Vector3(-0.67, 2.41, -0.24)),
+		Transform3D(Basis.IDENTITY, Vector3(0.76, 2.41, -0.88)),
+		Transform3D(Basis.IDENTITY, Vector3(0.85, 2.41, -0.24)),
+	]
+	var transforms_match := authored_transforms.size() == expected_transforms.size()
+	if transforms_match:
+		for index in expected_transforms.size():
+			if not (authored_transforms[index] as Transform3D).is_equal_approx(expected_transforms[index]):
+				transforms_match = false
+				break
+	var material: StandardMaterial3D = null
+	if batch != null and batch.multimesh != null and batch.multimesh.mesh != null:
+		material = batch.multimesh.mesh.surface_get_material(0) as StandardMaterial3D
+	var key_mesh_bounds := AABB(Vector3(-0.06, -0.0175, -0.06), Vector3(0.12, 0.035, 0.12))
+	var expected_bounds := AABB()
+	for index in expected_transforms.size():
+		var transformed := (expected_transforms[index] * key_mesh_bounds).abs()
+		expected_bounds = transformed if index == 0 else expected_bounds.merge(transformed)
+	_check(
+		batch != null
+		and batch.multimesh != null
+		and batch.multimesh.instance_count == Interceptor.CONSOLE_KEY_VISIBLE_COPIES
+		and batch.multimesh.visible_instance_count == Interceptor.CONSOLE_KEY_VISIBLE_COPIES
+		and batch.multimesh.mesh.get_surface_count() == Interceptor.CONSOLE_KEY_BATCH_SUBMISSIONS
+		and Interceptor.CONSOLE_KEY_LEGACY_SUBMISSIONS == 4,
+		"four cyan console-key copies reduce their exact 4 -> 1 structural submissions through one bounded batch"
+	)
+	_check(
+		authored_names == PackedStringArray(Interceptor.CONSOLE_KEY_NAMES)
+		and transforms_match
+		and bool(batch.get_meta(&"visual_detail_only", false))
+		and cockpit.get_node_or_null("PortConsoleKey00") == null
+		and cockpit.get_node_or_null("PortConsoleKey02") == null
+		and cockpit.get_node_or_null("StarboardConsoleKey00") == null
+		and cockpit.get_node_or_null("StarboardConsoleKey02") == null
+		and cockpit.get_node_or_null("PortConsoleKey01") is MeshInstance3D
+		and cockpit.get_node_or_null("StarboardConsoleKey01") is MeshInstance3D,
+		"the visual-only batch retains four authored key identities/transforms while gold centre keys stay independent"
+	)
+	_check(
+		material != null
+		and material.albedo_color.is_equal_approx(Color("16383e"))
+		and is_equal_approx(material.metallic, 0.16)
+		and is_equal_approx(material.roughness, 0.25)
+		and material.emission.is_equal_approx(Color("48dbe2"))
+		and is_equal_approx(material.emission_energy_multiplier, 2.8)
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.visible
+		and not batch.ignore_occlusion_culling
+		and is_equal_approx(batch.lod_bias, 1.0)
+		and is_equal_approx(batch.extra_cull_margin, 0.0)
+		and batch.multimesh.custom_aabb.is_equal_approx(expected_bounds),
+		"cyan key material, shadow, layers, and exact aggregate culling bounds are unchanged"
 	)

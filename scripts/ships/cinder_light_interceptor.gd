@@ -29,12 +29,22 @@ const CONSOLE_TOGGLE_NAMES := [
 	"StarboardConsoleToggle02",
 	"StarboardConsoleToggle03",
 ]
+const CONSOLE_KEY_VISIBLE_COPIES := 4
+const CONSOLE_KEY_LEGACY_SUBMISSIONS := 4
+const CONSOLE_KEY_BATCH_SUBMISSIONS := 1
+const CONSOLE_KEY_NAMES := [
+	"PortConsoleKey00",
+	"PortConsoleKey02",
+	"StarboardConsoleKey00",
+	"StarboardConsoleKey02",
+]
 
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
 var _weapon_definition: WeaponDefinition
 var _ship_perspective_audio_binding: RefCounted
 var _console_toggle_batch: MultiMeshInstance3D
+var _console_key_batch: MultiMeshInstance3D
 
 func _enter_tree() -> void:
 	super._enter_tree()
@@ -100,6 +110,7 @@ func _build_interceptor_variant(_controller: HeroShip) -> bool:
 	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
 	visual.set_meta(&"historically_supported", false)
 	_batch_console_toggles(visual)
+	_batch_console_keys(visual)
 	_build_hull(visual)
 	_build_boarding_marker(visual)
 	return true
@@ -241,8 +252,8 @@ func _batch_console_toggles(visual: Node3D) -> void:
 	multi.mesh = source_mesh
 	multi.instance_count = transforms.size()
 	multi.visible_instance_count = transforms.size()
-	multi.buffer = _encode_console_toggle_transforms(transforms)
-	multi.custom_aabb = _console_toggle_bounds(source_mesh.get_aabb(), transforms)
+	multi.buffer = _encode_visual_transforms(transforms)
+	multi.custom_aabb = _visual_bounds(source_mesh.get_aabb(), transforms)
 	_console_toggle_batch = MultiMeshInstance3D.new()
 	_console_toggle_batch.name = "CinderConsoleToggleBatch"
 	_console_toggle_batch.multimesh = multi
@@ -263,13 +274,89 @@ func _batch_console_toggles(visual: Node3D) -> void:
 	cockpit.add_child(_console_toggle_batch)
 
 
+## Four cyan console keys are childless visual dressing. The two gold centre
+## keys and every functional cockpit/command node remain individually authored.
+func _batch_console_keys(visual: Node3D) -> void:
+	var cockpit := visual.get_node_or_null("CockpitInterior") as Node3D
+	if cockpit == null:
+		return
+	var keys: Array[MeshInstance3D] = []
+	for key_name in CONSOLE_KEY_NAMES:
+		var key := cockpit.get_node_or_null(key_name) as MeshInstance3D
+		if (
+			key == null
+			or key.get_child_count() != 0
+			or key.mesh == null
+			or key.get_script() != null
+			or not key.get_groups().is_empty()
+			or not key.get_meta_list().is_empty()
+		):
+			return
+		keys.append(key)
+	var source := keys[0]
+	var source_mesh := source.mesh
+	var source_material := _renderer_material(source)
+	for key in keys:
+		if (
+			key.mesh.get_class() != source_mesh.get_class()
+			or key.mesh.get_aabb() != source_mesh.get_aabb()
+			or key.mesh.get_surface_count() != source_mesh.get_surface_count()
+			or _renderer_material(key) != source_material
+			or key.material_overlay != source.material_overlay
+			or key.visible != source.visible
+			or key.cast_shadow != source.cast_shadow
+			or key.layers != source.layers
+			or key.extra_cull_margin != source.extra_cull_margin
+			or key.ignore_occlusion_culling != source.ignore_occlusion_culling
+			or key.lod_bias != source.lod_bias
+			or key.visibility_range_begin != source.visibility_range_begin
+			or key.visibility_range_end != source.visibility_range_end
+			or key.visibility_range_begin_margin != source.visibility_range_begin_margin
+			or key.visibility_range_end_margin != source.visibility_range_end_margin
+			or key.visibility_range_fade_mode != source.visibility_range_fade_mode
+		):
+			return
+	var transforms: Array[Transform3D] = []
+	for key in keys:
+		transforms.append(key.transform)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = source_mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	multi.buffer = _encode_visual_transforms(transforms)
+	multi.custom_aabb = _visual_bounds(source_mesh.get_aabb(), transforms)
+	_console_key_batch = MultiMeshInstance3D.new()
+	_console_key_batch.name = "CinderConsoleKeyBatch"
+	_console_key_batch.multimesh = multi
+	_console_key_batch.material_override = source.material_override
+	_console_key_batch.material_overlay = source.material_overlay
+	_console_key_batch.visible = source.visible
+	_console_key_batch.cast_shadow = source.cast_shadow
+	_console_key_batch.layers = source.layers
+	_console_key_batch.extra_cull_margin = source.extra_cull_margin
+	_console_key_batch.ignore_occlusion_culling = source.ignore_occlusion_culling
+	_console_key_batch.lod_bias = source.lod_bias
+	_console_key_batch.visibility_range_begin = source.visibility_range_begin
+	_console_key_batch.visibility_range_end = source.visibility_range_end
+	_console_key_batch.visibility_range_begin_margin = source.visibility_range_begin_margin
+	_console_key_batch.visibility_range_end_margin = source.visibility_range_end_margin
+	_console_key_batch.visibility_range_fade_mode = source.visibility_range_fade_mode
+	_console_key_batch.set_meta(&"visual_detail_only", true)
+	_console_key_batch.set_meta(&"authored_visual_names", PackedStringArray(CONSOLE_KEY_NAMES))
+	_console_key_batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	for key in keys:
+		key.free()
+	cockpit.add_child(_console_key_batch)
+
+
 static func _renderer_material(instance: MeshInstance3D) -> Material:
 	if instance.material_override != null:
 		return instance.material_override
 	return instance.mesh.surface_get_material(0) if instance.mesh.get_surface_count() > 0 else null
 
 
-static func _encode_console_toggle_transforms(
+static func _encode_visual_transforms(
 	transforms: Array[Transform3D]
 	) -> PackedFloat32Array:
 	var buffer := PackedFloat32Array()
@@ -292,7 +379,7 @@ static func _encode_console_toggle_transforms(
 	return buffer
 
 
-static func _console_toggle_bounds(
+static func _visual_bounds(
 	mesh_bounds: AABB,
 	transforms: Array[Transform3D]
 	) -> AABB:
