@@ -133,6 +133,7 @@ const CONTENT_NOTE := (
 
 var _registered := false
 var _escort_dispatched := false
+var _escort_fire_authorized := false
 var _escort_elapsed := 0.0
 var _engagement_state: StringName = STATE_DORMANT
 var _last_shot_result: Dictionary = {}
@@ -151,6 +152,7 @@ var _lance_charge_armed := false
 var _lance_charge_cancel_reason: StringName = &""
 var _audio_sequence := 0
 var _siege_lance_audio_binding: RefCounted
+var _bound_escort_defender: RangeOpponent
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -174,11 +176,13 @@ func _ready() -> void:
 	set_meta("modern_interpretation", &"standoff_picket_opponent")
 	_attach_damage_proxy()
 	_connect_pulse_signals()
+	_bind_escort_defender_signal()
 	_bind_siege_lance_audio()
 
 
 func _exit_tree() -> void:
 	_unbind_siege_lance_audio()
+	_unbind_escort_defender_signal()
 	_disconnect_pulse_signals()
 	# Damage authority is already final; only queued presentation is dropped so a
 	# streamed teardown can never resurrect a transient on re-entry.
@@ -445,6 +449,7 @@ func get_audit_report() -> Dictionary:
 			"active": is_active(),
 			"escort_enabled": escort_enabled,
 			"escort_dispatched": _escort_dispatched,
+			"escort_fire_authorized": _escort_fire_authorized,
 			"engagement_state": _engagement_state,
 			"pending_lance_receipts": _lance_receipts.size(),
 			"shots_fired": _shots_fired,
@@ -526,6 +531,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 
 
 func deactivate() -> void:
+	_escort_fire_authorized = false
 	_cancel_lance_charge(&"deactivated", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -551,6 +557,7 @@ func _unbind_siege_lance_audio() -> void:
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
+	_escort_fire_authorized = false
 	_cancel_lance_charge(&"destroyed", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -565,6 +572,7 @@ func _restore_after_reentry() -> void:
 	if is_queued_for_deletion() or not is_inside_tree():
 		return
 	_connect_pulse_signals()
+	_bind_escort_defender_signal()
 	_attach_damage_proxy()
 	if _active:
 		_register_combat_source()
@@ -577,6 +585,7 @@ func _restore_after_reentry() -> void:
 func _update_escort_dispatch(delta: float) -> void:
 	if not escort_enabled or not is_inside_tree():
 		return
+	_bind_escort_defender_signal()
 	var defender := get_node_or_null(defender_path)
 	var defender_active := (
 		is_instance_valid(defender)
@@ -584,6 +593,7 @@ func _update_escort_dispatch(delta: float) -> void:
 		and bool(defender.call(&"is_active"))
 	)
 	if not defender_active:
+		_escort_fire_authorized = false
 		_escort_elapsed = 0.0
 		if _escort_dispatched:
 			_escort_dispatched = false
@@ -601,7 +611,12 @@ func _update_escort_dispatch(delta: float) -> void:
 	if not is_instance_valid(target):
 		return
 	_escort_dispatched = true
-	activate(_compute_dispatch_transform(defender as Node3D, target))
+	var activation := activate(_compute_dispatch_transform(defender as Node3D, target))
+	if not bool(activation.get("accepted", false)):
+		_escort_dispatched = false
+		_escort_fire_authorized = false
+		return
+	_escort_fire_authorized = true
 	set_target(target)
 
 
@@ -615,6 +630,54 @@ func _encounter_authorizes_dispatch() -> bool:
 	if host is GameFlow:
 		return (host as GameFlow).phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
 	return true
+
+
+## Fire rights belong to this escort dispatch, not to GameFlow. The explicit
+## latch is granted only after a successful dispatch, synchronously revoked by
+## the defender's terminal signal, and re-checked against the defender's public
+## lifecycle state at the irreversible shot seam. Isolated/manual fixtures that
+## disable escort dispatch retain the component's established direct-fire use.
+func _is_fire_authorized() -> bool:
+	if not _active or not is_inside_tree():
+		return false
+	if not escort_enabled:
+		return true
+	if not _escort_dispatched or not _escort_fire_authorized:
+		return false
+	var defender := get_node_or_null(defender_path)
+	return (
+		is_instance_valid(defender)
+		and defender.has_method(&"is_active")
+		and bool(defender.call(&"is_active"))
+	)
+
+
+func _bind_escort_defender_signal() -> void:
+	var defender := get_node_or_null(defender_path) as RangeOpponent
+	if defender == _bound_escort_defender:
+		return
+	_unbind_escort_defender_signal()
+	_bound_escort_defender = defender
+	if (
+		is_instance_valid(_bound_escort_defender)
+		and not _bound_escort_defender.destroyed.is_connected(_on_escort_defender_destroyed)
+	):
+		_bound_escort_defender.destroyed.connect(_on_escort_defender_destroyed)
+
+
+func _unbind_escort_defender_signal() -> void:
+	if (
+		is_instance_valid(_bound_escort_defender)
+		and _bound_escort_defender.destroyed.is_connected(_on_escort_defender_destroyed)
+	):
+		_bound_escort_defender.destroyed.disconnect(_on_escort_defender_destroyed)
+	_bound_escort_defender = null
+
+
+func _on_escort_defender_destroyed(_death_position: Vector3) -> void:
+	_escort_fire_authorized = false
+	if _lance_charge_armed or _telegraph_remaining > 0.0:
+		_cancel_lance_charge(&"escort_stood_down", false)
 
 
 func _resolve_encounter_target() -> Node3D:
@@ -769,13 +832,14 @@ func _set_engagement_state(state: StringName) -> void:
 func _fire_at_target(target_position: Vector3) -> void:
 	if not _active or not is_inside_tree():
 		return
-	# Dispatch is checked only on the escort's physics cadence, but a committed
-	# charge can complete before that next cadence after the defender synchronously
-	# concludes the coordinator encounter. Re-check the same live coordinator
-	# condition at the irreversible resolver seam so a RETURN_TO_YARD transition
-	# cannot accept one stale lance shot.
-	if not _encounter_authorizes_dispatch():
-		_cancel_lance_charge(&"authorization_lost", false)
+	# A charge can finish before the next escort physics pass after its defender
+	# stands down. Re-ask this dispatch's own authorization here, as the shared
+	# resolver-backed opponents do, before allocating a receipt or sequence.
+	if not _is_fire_authorized():
+		if _lance_charge_armed or _telegraph_remaining > 0.0:
+			_cancel_lance_charge(&"authorization_lost", false)
+		_cooldown_remaining = maxf(_cooldown_remaining, weapon_cooldown)
+		_last_shot_result = {"accepted": false, "status": &"fire_unauthorized"}
 		return
 	if _lance_charge_armed and not _is_lance_charge_authorized():
 		_cancel_lance_charge(&"charge_revalidated_failed", false)

@@ -53,6 +53,7 @@ func _run() -> void:
 	await _test_role_differentiation()
 	await _test_authority_identity_lifecycle()
 	await _test_standoff_tactics()
+	await _test_synchronous_escort_stand_down_fence()
 	await _test_lance_firing_and_receipts()
 	_check(
 		root.get_child_count() == original_root_child_count,
@@ -865,6 +866,76 @@ func _test_standoff_tactics() -> void:
 	)
 	picket.deactivate()
 	_lance_events.clear()
+
+	await _free_fixture(fixture)
+
+
+## A defender's terminal lifecycle signal and a lance dispatch can share one
+## call stack. This reproduces that exact window without GameFlow: the picket is
+## still active until its next physics pass, but its committed charge has already
+## lost the explicit authorization granted by escort dispatch.
+func _test_synchronous_escort_stand_down_fence() -> void:
+	var fixture := await _make_fixture()
+	var picket: StandoffPicketOpponent = fixture.picket
+	var defender: RangeOpponent = fixture.defender
+	var target: RangeOpponent = fixture.target
+	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
+
+	picket.escort_enabled = true
+	picket.escort_launch_delay = 0.0
+	picket.acceleration = 0.0
+	_place_target(target, Vector3(0.0, 0.0, -110.0))
+	defender.activate(Transform3D(Basis.IDENTITY, Vector3(180.0, 0.0, 0.0)))
+	picket.set_target(target)
+	picket._update_escort_dispatch(0.0)
+	_place(picket, Vector3.ZERO, target.global_position)
+	await _advance_physics(2)
+
+	_check(
+		picket.is_active()
+		and picket.is_escort_dispatched()
+		and bool((picket.get_audit_report().lifecycle as Dictionary).escort_fire_authorized),
+		"escort dispatch explicitly grants fire authorization while its defender is active"
+	)
+	picket._cooldown_remaining = 0.0
+	var target_offset := target.global_position - picket.global_position
+	picket._update_weapon(
+		target.global_position,
+		target_offset.normalized(),
+		target_offset.length(),
+		0.0
+	)
+	var committed := picket.get_lance_charge_snapshot()
+	_check(
+		bool(committed.get("active", false)) and bool(committed.get("armed", false)),
+		"the isolated escort commits a real lance charge before stand-down"
+	)
+
+	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
+	var health_before := target.get_health()
+	var lance_events_before := _lance_events.size()
+	defender.apply_damage(defender.maximum_health + 1.0, defender.global_position)
+	_check(
+		not defender.is_active()
+		and picket.is_active()
+		and not bool((picket.get_audit_report().lifecycle as Dictionary).escort_fire_authorized),
+		"defender destruction synchronously revokes the picket-owned fire fence before withdrawal"
+	)
+	picket._fire_at_target(target.global_position)
+	var withheld := picket.get_last_shot_result()
+	_check(
+		resolver.get_last_sequence(picket, picket.source_id) == sequence_before
+		and is_equal_approx(target.get_health(), health_before)
+		and _lance_events.size() == lance_events_before
+		and StringName(withheld.get("status", &"")) == &"fire_unauthorized",
+		"RED D2: a committed charge cannot consume sequence, damage, or fire events after synchronous stand-down"
+	)
+	var cancelled := picket.get_lance_charge_snapshot()
+	_check(
+		not bool(cancelled.get("active", true))
+		and cancelled.get("cancel_reason", &"") == &"escort_stood_down",
+		"the synchronous stand-down clears the committed charge with an inspectable reason"
+	)
 
 	await _free_fixture(fixture)
 
