@@ -14,9 +14,12 @@ const _LOG_NAME := "crash-log.json"
 const _PREVIOUS_NAME := "crash-log.previous.json"
 const _TEMP_SUFFIX := ".tmp"
 const _REJECTED_SUFFIX := ".rejected"
-const _EXPORT_NAME := "diagnostics-support.json"
+const _EXPORT_INDEX_NAME := "diagnostics-support-index.json"
+const _EXPORT_BUNDLE_PREFIX := "diagnostics-support-"
+const _EXPORT_BUNDLE_SUFFIX := ".json"
 const _EXPORT_TEMP_SUFFIX := ".tmp"
 const MAX_EXPORT_BYTES := 256 * 1024
+const MAX_EXPORT_BUNDLES := 3
 
 var _root_path := ""
 var _filesystem: UserDataFilesystem
@@ -112,13 +115,15 @@ func export_support_bundle(export_root: String, expected_generation: int) -> Dic
 		return {"accepted": false, "reason": &"export_root_invalid"}
 	if expected_generation < 1:
 		return {"accepted": false, "reason": &"export_generation_invalid"}
-	var export_path := export_root + "/" + _EXPORT_NAME
-	if _filesystem.file_exists(export_path):
-		var prior := _read_export_generation(export_path)
-		if not bool(prior.accepted):
-			return prior
-		if expected_generation <= int(prior.generation):
-			return {"accepted": false, "reason": &"export_generation_stale"}
+	var index_path := export_root + "/" + _EXPORT_INDEX_NAME
+	var index := _read_export_index(index_path)
+	if not bool(index.accepted):
+		return index
+	var entries := index.entries as Array
+	var prior_entries := entries.duplicate(true)
+	if not entries.is_empty() and expected_generation <= int((entries[-1] as Dictionary).generation):
+		return {"accepted": false, "reason": &"export_generation_stale"}
+	var export_path := export_root + "/" + _EXPORT_BUNDLE_PREFIX + ("%08d" % expected_generation) + _EXPORT_BUNDLE_SUFFIX
 	var current := _read_log_at(_log_path()) if _filesystem.file_exists(_log_path()) else {"accepted": true, "snapshots": []}
 	var previous := _read_log_at(_previous_path()) if _filesystem.file_exists(_previous_path()) else {"accepted": true, "snapshots": []}
 	var bundle := {
@@ -148,10 +153,48 @@ func export_support_bundle(export_root: String, expected_generation: int) -> Dic
 	var publish_error := _filesystem.rename_path(temp_path, export_path)
 	if publish_error != OK:
 		return {"accepted": false, "reason": &"export_publish_failed", "error": publish_error}
-	return {"accepted": true, "reason": &"exported", "generation": expected_generation, "path": export_path}
+	entries.append({"generation": expected_generation, "path": export_path})
+	while entries.size() > MAX_EXPORT_BUNDLES:
+		entries.pop_front()
+	var index_payload := {"schema_version": 1, "entries": entries}
+	var index_encoded := JSON.stringify(index_payload).to_utf8_buffer()
+	if index_encoded.size() > MAX_EXPORT_BYTES:
+		_filesystem.remove_path(export_path)
+		return {"accepted": false, "reason": &"export_index_too_large"}
+	var index_temp := index_path + _EXPORT_TEMP_SUFFIX
+	var index_write := _filesystem.write_bytes_and_flush(index_temp, index_encoded)
+	if index_write != OK:
+		_filesystem.remove_path(export_path)
+		return {"accepted": false, "reason": &"export_index_stage_failed", "error": index_write}
+	var index_staged := _filesystem.read_bytes(index_temp, MAX_EXPORT_BYTES)
+	if int(index_staged.get("error", FAILED)) != OK \
+		or (index_staged.get("bytes", PackedByteArray()) as PackedByteArray) != index_encoded:
+		_filesystem.remove_path(export_path)
+		return {"accepted": false, "reason": &"export_index_verification_failed"}
+	if _filesystem.file_exists(index_path):
+		var remove_index := _filesystem.remove_path(index_path)
+		if remove_index != OK:
+			_filesystem.remove_path(export_path)
+			return {"accepted": false, "reason": &"export_index_replace_failed", "error": remove_index}
+	var index_publish := _filesystem.rename_path(index_temp, index_path)
+	if index_publish != OK:
+		_filesystem.remove_path(export_path)
+		return {"accepted": false, "reason": &"export_index_publish_failed", "error": index_publish}
+	for entry in prior_entries:
+		var prior_path := str((entry as Dictionary).get("path", ""))
+		var retained := false
+		for kept in entries:
+			if str((kept as Dictionary).get("path", "")) == prior_path:
+				retained = true
+				break
+		if not retained and prior_path.begins_with(export_root + "/") and _filesystem.file_exists(prior_path):
+			_filesystem.remove_path(prior_path)
+	return {"accepted": true, "reason": &"exported", "generation": expected_generation, "path": export_path, "index_path": index_path}
 
 
-func _read_export_generation(path: String) -> Dictionary:
+func _read_export_index(path: String) -> Dictionary:
+	if not _filesystem.file_exists(path):
+		return {"accepted": true, "entries": []}
 	var read := _filesystem.read_bytes(path, MAX_EXPORT_BYTES)
 	if int(read.get("error", FAILED)) != OK:
 		return {"accepted": false, "reason": &"export_read_failed"}
@@ -159,12 +202,31 @@ func _read_export_generation(path: String) -> Dictionary:
 	if parser.parse((read.bytes as PackedByteArray).get_string_from_utf8()) != OK or not parser.data is Dictionary:
 		return {"accepted": false, "reason": &"export_invalid"}
 	var document := parser.data as Dictionary
-	var raw_generation: Variant = document.get("generation")
-	if document.get("schema_version") != 1 \
-		or (not raw_generation is int and not raw_generation is float) \
-		or int(raw_generation) < 1 or float(raw_generation) != float(int(raw_generation)):
+	var raw_entries: Variant = document.get("entries")
+	if document.get("schema_version") != 1 or not raw_entries is Array \
+		or (raw_entries as Array).size() > MAX_EXPORT_BUNDLES:
 		return {"accepted": false, "reason": &"export_invalid"}
-	return {"accepted": true, "generation": int(document.generation)}
+	return {"accepted": true, "entries": (raw_entries as Array).duplicate(true)}
+
+
+func delete_all_support_exports(export_root: String) -> Dictionary:
+	if not _valid_export_root(export_root):
+		return {"accepted": false, "reason": &"export_root_invalid"}
+	var index_path := export_root + "/" + _EXPORT_INDEX_NAME
+	var index := _read_export_index(index_path)
+	if not bool(index.accepted):
+		return index
+	for entry in index.entries as Array:
+		var path := str((entry as Dictionary).get("path", ""))
+		if path.begins_with(export_root + "/") and _filesystem.file_exists(path):
+			var removed := _filesystem.remove_path(path)
+			if removed != OK:
+				return {"accepted": false, "reason": &"export_delete_failed", "error": removed}
+	if _filesystem.file_exists(index_path):
+		var remove_index := _filesystem.remove_path(index_path)
+		if remove_index != OK:
+			return {"accepted": false, "reason": &"export_delete_failed", "error": remove_index}
+	return {"accepted": true, "reason": &"exports_deleted"}
 
 
 func _valid_export_root(path: String) -> bool:

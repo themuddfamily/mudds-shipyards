@@ -86,6 +86,12 @@ func export_support_bundle(export_root: String, expected_generation: int) -> Dic
 	return _sink.call(&"export_support_bundle", export_root, expected_generation)
 
 
+func delete_all_support_exports(export_root: String) -> Dictionary:
+	if _sink == null or not _sink.has_method(&"delete_all_support_exports"):
+		return {"accepted": false, "reason": &"support_export_unavailable"}
+	return _sink.call(&"delete_all_support_exports", export_root)
+
+
 ## Explicit caller acknowledgement retires only the detached recovery receipt.
 func acknowledge_recovery() -> Dictionary:
 	if _recovery_available_snapshot.is_empty():
