@@ -63,6 +63,7 @@ func _init() -> void:
 	_adapter.projectile_replica_packet.connect(_on_projectile_replica_packet)
 	_adapter.cargo_manifest_result.connect(_on_cargo_manifest_result)
 	_adapter.transport_rejected.connect(_on_transport_rejected)
+	_adapter.crew_snapshot_applied.connect(_on_crew_snapshot_applied)
 	_adapter.seat_occupancy_result.connect(_on_seat_result)
 	_adapter.landing_intent_result.connect(_on_landing_result)
 	call_deferred(&"_start")
@@ -108,6 +109,45 @@ func _server_loop() -> void:
 			_log("PILOT_%s" % ("ADMITTED" if pilot.get("accepted", false) else "FAILED"))
 			var passenger := _adapter.register_remote_ship_pilot(passenger_peer, &"jovian_passenger_craft", 1)
 			_log("PASSENGER_%s" % ("ADMITTED" if passenger.get("accepted", false) else "FAILED"))
+			var copilot_ship := _adapter.register_owned_ship(&"jovian_authority_craft", 1, passenger_peer)
+			var copilot_seat := _adapter.register_crew_seat(
+				&"jovian_copilot_seat", &"jovian_authority_craft", &"passenger", &"", 1
+			)
+			var copilot_claim := _adapter.claim_crew_seat(
+				passenger_peer, &"jovian_copilot", &"jovian_copilot_seat", &"passenger", 1
+			)
+			var copilot_role := _adapter.accept_crew_role_intent(
+				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
+				&"jovian_copilot", &"passenger", 1, &"jovian_authority_craft", 1
+			)
+			var copilot_nav := _adapter.accept_crew_command(
+				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
+				&"jovian_copilot", &"ping", 1, 1,
+				{"marker_id": "station_route_a"},
+				&"jovian_authority_craft", 1
+			)
+			var copilot_stale := _adapter.accept_crew_command(
+				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
+				&"jovian_copilot", &"ping", 1, 1, {"marker_id": "station_route_a"},
+				&"jovian_authority_craft", 1
+			)
+			var copilot_helm := _adapter.accept_crew_command(
+				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
+				&"jovian_copilot", &"flight_command", 2, 2, {"move_axis": [1.0, 0.0]},
+				&"jovian_authority_craft", 1
+			)
+			var copilot_published := _adapter.publish_crew_snapshot([copilot_nav.get("receipt", {})])
+			_log("COPILOT_STATUS %s %s %s %s %s %s" % [copilot_ship.get("status", &"unknown"), copilot_seat.get("status", &"unknown"), copilot_claim.get("status", &"unknown"), copilot_role.get("status", &"unknown"), copilot_nav.get("status", &"unknown"), copilot_published.get("status", &"unknown")])
+			if bool(copilot_ship.get("accepted", false)) and bool(copilot_seat.get("accepted", false)) \
+				and bool(copilot_claim.get("accepted", false)) and bool(copilot_role.get("accepted", false)) \
+				and bool(copilot_nav.get("accepted", false)) and bool(copilot_published.get("accepted", false)):
+				_log("COPILOT_ADMITTED")
+				_log("COPILOT_NAV_ACCEPTED")
+				_log("COPILOT_NAV_REPLICATED")
+			if not bool(copilot_stale.get("accepted", false)):
+				_log("COPILOT_STALE_SEQUENCE_REJECTED")
+			if not bool(copilot_helm.get("accepted", false)):
+				_log("COPILOT_HELM_MUTATION_REJECTED")
 			var relationship := Relationship.create(
 				1, &"jovian_passenger", 1, &"jovian_authority_craft", 1,
 				Transform3D.IDENTITY, Vector3(1.0, 0.0, 0.0), Vector3.ZERO, 1
@@ -464,6 +504,18 @@ func _server_loop() -> void:
 					)
 					if not bool(stale_command.get("accepted", false)):
 						_log("RECONNECT_OLD_COMMAND_REJECTED")
+					var stale_copilot := _adapter.accept_crew_role_intent(
+						reconnect_peer, _initial_peer_generation, &"jovian_copilot", &"passenger", 1,
+						&"jovian_authority_craft", 1
+					)
+					if not bool(stale_copilot.get("accepted", false)):
+						_log("COPILOT_STALE_GENERATION_REJECTED")
+					var role_cleanup := true
+					for role_variant in (_adapter.get_crew_role_snapshot().get("roles", {}) as Dictionary).values():
+						if int((role_variant as Dictionary).get("peer_id", 0)) == reconnect_peer:
+							role_cleanup = false
+					if role_cleanup:
+						_log("COPILOT_DISCONNECT_CLEAN")
 					var current_peers: Array = _adapter._peer_generations.keys()
 					for current_peer_variant in current_peers:
 						var current_peer := int(current_peer_variant)
@@ -700,6 +752,16 @@ func _on_cargo_manifest_result(result: Dictionary) -> void:
 func _on_transport_rejected(status: StringName) -> void:
 	if _role == "server" and status == &"protocol_mismatch":
 		_log("HANDSHAKE_MISMATCH_REJECTED")
+
+
+func _on_crew_snapshot_applied(result: Dictionary) -> void:
+	if StringName(result.get("status", &"")) != &"crew_snapshot_applied":
+		return
+	var snapshot := result.get("snapshot", {}) as Dictionary
+	for receipt_variant in snapshot.get("commands", []) as Array:
+		var receipt := receipt_variant as Dictionary
+		if StringName(receipt.get("action", &"")) == &"ping":
+			_log("COPILOT_NAV_PRESENTED")
 
 
 func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> void:
