@@ -3590,17 +3590,25 @@ func _sync_halyard_engine_presentation_immediately() -> void:
 
 
 func _apply_engine_level(engine_level: float) -> void:
+	var engine_state := StringName(get_telemetry().get("engine_state", &"OFFLINE"))
+	var engine_active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
+	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
+	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
+	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for plume in _engine_plumes:
 		if not is_instance_valid(plume):
 			continue
 		plume.visible = engine_level > 0.02
-		plume.scale = Vector3(1.0, 0.35 + engine_level * 1.55, 1.0)
+		plume.scale = Vector3(1.0, 0.35 + engine_level * 1.55 * exhaust_geometry, 1.0)
 	for core in _engine_cores:
 		if is_instance_valid(core):
 			core.visible = engine_level > 0.01
 	for light in _halyard_engine_lights:
 		if is_instance_valid(light):
 			light.light_energy = engine_level * 2.4
+	_apply_engine_exhaust_damage_presentation(
+		_engine_plumes, _halyard_engine_lights, engine_active, exhaust_profile
+	)
 
 
 func _sync_variant_engine_presentation_immediately() -> void:

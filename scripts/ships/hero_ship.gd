@@ -341,6 +341,9 @@ var _muzzle_right: Marker3D
 var _engine_glows: Array[MeshInstance3D] = []
 var _engine_core_glows: Array[MeshInstance3D] = []
 var _engine_lights: Array[OmniLight3D] = []
+var _engine_exhaust_damage_overlay: StandardMaterial3D
+var _engine_exhaust_original_overlays: Dictionary = {}
+var _engine_exhaust_original_light_colors: Dictionary = {}
 var _materials: Dictionary = {}
 var _fire_from_left := true
 var _damage_presentation: HeroDamagePresentation
@@ -1916,6 +1919,9 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 		):
 			push_error("HeroShip component owner reset invariant failed after accepted preflight")
 		_last_component_damage_revision = _component_damage.get_revision()
+		# Component reset is the point where the exhaust grade becomes nominal;
+		# restore its shared overlay and geometry before reuse observers run.
+		_sync_engine_visuals_immediately()
 	_set_camera_current(false)
 	engine_state_changed.emit(_engine_state)
 	hull_changed.emit(_hull, maximum_hull)
@@ -3600,14 +3606,25 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 		if _camera != null:
 			_camera.global_basis = ship_basis * bank_basis
 	var engine_level := 0.0
+	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	if _engine_state == ENGINE_STARTING:
 		engine_level = 0.25 + 0.15 * sin(_elapsed * 18.0)
 	elif _engine_state == ENGINE_ONLINE:
-		engine_level = (0.42 + absf(_throttle) * 0.58) * _get_damage_engine_multiplier()
+		engine_level = 0.42 + absf(_throttle) * 0.58
+		if _damage_presentation != null:
+			engine_level *= clampf(
+				_damage_presentation.get_engine_power_multiplier(), 0.0, 1.0
+			)
+	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
+	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for glow in _engine_glows:
 		if not is_instance_valid(glow):
 			continue
-		glow.scale.z = lerpf(glow.scale.z, 0.45 + engine_level * 1.4, 1.0 - exp(-9.0 * delta))
+		glow.scale.z = lerpf(
+			glow.scale.z,
+			0.45 + engine_level * 1.4 * exhaust_geometry,
+			1.0 - exp(-9.0 * delta)
+		)
 		glow.visible = engine_level > 0.01
 	for core in _engine_core_glows:
 		if is_instance_valid(core):
@@ -3622,6 +3639,12 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 		if not is_instance_valid(light):
 			continue
 		light.light_energy = engine_level * 2.6
+	_apply_engine_exhaust_damage_presentation(
+		_engine_glows,
+		_engine_lights,
+		_engine_state in [ENGINE_STARTING, ENGINE_ONLINE] and not _destroyed,
+		exhaust_profile
+	)
 	if _cockpit_readout != null:
 		var weapon_status := get_weapon_fire_status()
 		var weapon_line := "WPN READY  //  HEAT %03d%%" % roundi(_weapon_heat * 100.0)
@@ -5332,21 +5355,31 @@ func _add_box_collision_shape(shape_name: String, position_value: Vector3, size:
 
 func _sync_engine_visuals_immediately() -> void:
 	var engine_active := not _destroyed and _engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
+	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var engine_level := 0.0
 	if _engine_state == ENGINE_STARTING:
 		engine_level = 0.25
 	elif _engine_state == ENGINE_ONLINE:
-		engine_level = (0.42 + absf(_throttle) * 0.58) * _get_damage_engine_multiplier()
+		engine_level = 0.42 + absf(_throttle) * 0.58
+		if _damage_presentation != null:
+			engine_level *= clampf(
+				_damage_presentation.get_engine_power_multiplier(), 0.0, 1.0
+			)
+	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
+	var geometry_multiplier := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for glow in _engine_glows:
 		if is_instance_valid(glow):
 			glow.visible = engine_active
-			glow.scale.z = 0.45 + engine_level * 1.4
+			glow.scale.z = 0.45 + engine_level * 1.4 * geometry_multiplier
 	for core in _engine_core_glows:
 		if is_instance_valid(core):
 			core.visible = engine_active
 	for light in _engine_lights:
 		if is_instance_valid(light):
 			light.light_energy = engine_level * 2.6
+	_apply_engine_exhaust_damage_presentation(
+		_engine_glows, _engine_lights, engine_active, exhaust_profile
+	)
 	_sync_variant_engine_presentation_immediately()
 
 
@@ -5355,6 +5388,124 @@ func _sync_engine_visuals_immediately() -> void:
 ## engine-state signal, so no derived craft waits for its next presentation tick.
 func _sync_variant_engine_presentation_immediately() -> void:
 	pass
+
+
+## Presentation-only grading of the existing propulsion output. Component
+## integrity remains owned by ShipComponentDamage and actual thrust continues to
+## use `_get_damage_engine_multiplier()` in the flight integrator.
+func get_engine_exhaust_damage_presentation_profile() -> Dictionary:
+	var integrity := 1.0
+	var authoritative_state := ShipComponentDamage.ComponentState.NOMINAL
+	if _component_damage != null and _component_damage.is_configured():
+		integrity = clampf(_component_damage.get_component_integrity(
+			ShipComponentDamage.COMPONENT_ENGINE_BAY
+		), 0.0, 1.0)
+		authoritative_state = _component_damage.get_component_state(
+			ShipComponentDamage.COMPONENT_ENGINE_BAY
+		)
+	var stage: StringName = &"nominal"
+	var geometry_multiplier := 1.0
+	var intensity_multiplier := 1.0
+	var visible_fraction := 1.0
+	var overlay_color := Color.TRANSPARENT
+	if authoritative_state >= ShipComponentDamage.ComponentState.FAILED:
+		stage = &"failed"
+		geometry_multiplier = 0.0
+		intensity_multiplier = 0.0
+		visible_fraction = 0.0
+		overlay_color = Color("ff3b35")
+	elif integrity <= 0.40:
+		stage = &"critical"
+		geometry_multiplier = 0.48
+		intensity_multiplier = 0.42
+		visible_fraction = 0.5
+		overlay_color = Color("ff653a")
+	elif authoritative_state >= ShipComponentDamage.ComponentState.IMPAIRED:
+		stage = &"degraded"
+		geometry_multiplier = 0.78
+		intensity_multiplier = 0.72
+		overlay_color = Color("ffd166")
+	return {
+		"stage": stage,
+		"engine_integrity": integrity,
+		"authoritative_state": authoritative_state,
+		"geometry_multiplier": geometry_multiplier,
+		"intensity_multiplier": intensity_multiplier,
+		"visible_fraction": visible_fraction,
+		"overlay_color": overlay_color,
+		"overlay_material_resources_allocated": (
+			1 if _engine_exhaust_damage_overlay != null else 0
+		),
+		"maximum_overlay_material_resources_per_ship": 1,
+		"active_overlay_passes_per_visible_plume": (
+			1 if stage in [&"degraded", &"critical"] else 0
+		),
+		"added_nodes": 0,
+		"added_meshes": 0,
+		"collision_shapes": 0,
+		"transition_policy": &"static",
+		"flashing": false,
+		"motion_animation_added": false,
+		"gameplay_authority": false,
+	}.duplicate(true)
+
+
+func _apply_engine_exhaust_damage_presentation(
+		plumes: Array,
+		lights: Array,
+		engine_active: bool,
+		profile: Dictionary
+	) -> void:
+	var stage := StringName(profile.get("stage", &"nominal"))
+	var overlay: Material = null
+	if stage in [&"degraded", &"critical"]:
+		_ensure_engine_exhaust_damage_overlay()
+		var color := profile.get("overlay_color", Color.WHITE) as Color
+		_engine_exhaust_damage_overlay.albedo_color = Color(color, 0.58)
+		_engine_exhaust_damage_overlay.emission = color
+		_engine_exhaust_damage_overlay.emission_energy_multiplier = (
+			1.8 if stage == &"critical" else 1.2
+		)
+		overlay = _engine_exhaust_damage_overlay
+	for index in plumes.size():
+		var plume := plumes[index] as MeshInstance3D
+		if not is_instance_valid(plume):
+			continue
+		var instance_id := plume.get_instance_id()
+		if not _engine_exhaust_original_overlays.has(instance_id):
+			_engine_exhaust_original_overlays[instance_id] = plume.material_overlay
+		plume.material_overlay = (
+			overlay
+			if overlay != null
+			else _engine_exhaust_original_overlays.get(instance_id) as Material
+		)
+		var stage_visible := stage not in [&"failed"]
+		if stage == &"critical":
+			stage_visible = index % 2 == 0
+		plume.visible = engine_active and stage_visible
+	for light_value in lights:
+		var light := light_value as OmniLight3D
+		if not is_instance_valid(light):
+			continue
+		var light_id := light.get_instance_id()
+		if not _engine_exhaust_original_light_colors.has(light_id):
+			_engine_exhaust_original_light_colors[light_id] = light.light_color
+		light.light_color = (
+			profile.get("overlay_color", light.light_color) as Color
+			if stage in [&"degraded", &"critical"]
+			else _engine_exhaust_original_light_colors.get(light_id, light.light_color) as Color
+		)
+
+
+func _ensure_engine_exhaust_damage_overlay() -> void:
+	if _engine_exhaust_damage_overlay != null:
+		return
+	_engine_exhaust_damage_overlay = StandardMaterial3D.new()
+	_engine_exhaust_damage_overlay.resource_name = "EngineExhaustDamageOverlay"
+	_engine_exhaust_damage_overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_engine_exhaust_damage_overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_engine_exhaust_damage_overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_engine_exhaust_damage_overlay.emission_enabled = true
 
 
 func _sync_imported_canopy_immediately() -> void:

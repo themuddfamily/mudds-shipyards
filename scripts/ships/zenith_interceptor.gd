@@ -3806,6 +3806,7 @@ func _sync_close_plume_batch() -> void:
 			or _close_plume_batch.multimesh == null or _close_plume_sources.size() != 2:
 		return
 	var any_visible := false
+	var visible_count := 0
 	var authored_transforms: Array[Transform3D] = []
 	var batch_bounds := AABB()
 	var batch_mesh := _close_plume_batch.multimesh.mesh
@@ -3818,10 +3819,14 @@ func _sync_close_plume_batch() -> void:
 		var instance_bounds := _transformed_aabb(batch_mesh.get_aabb(), source.transform)
 		batch_bounds = instance_bounds if index == 0 else batch_bounds.merge(instance_bounds)
 		any_visible = any_visible or source.visible
+		if source.visible:
+			visible_count += 1
 	# Headless rendering has no readable MultiMesh buffer, so retain the exact
 	# CPU-authored transforms beside the renderer resource for focused checks.
 	_close_plume_batch.set_meta("authored_instance_transforms", authored_transforms)
 	_close_plume_batch.multimesh.custom_aabb = batch_bounds
+	_close_plume_batch.multimesh.visible_instance_count = visible_count
+	_close_plume_batch.material_overlay = _close_plume_sources[0].material_overlay
 	_close_plume_batch.visible = any_visible
 
 
@@ -3876,6 +3881,7 @@ func _update_zenith_engine_presentation(delta: float) -> void:
 	var telemetry := get_telemetry()
 	var engine_state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
 	var active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
+	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var target_level := 0.0
 	if engine_state == ENGINE_STARTING:
 		target_level = 0.28
@@ -3884,14 +3890,20 @@ func _update_zenith_engine_presentation(delta: float) -> void:
 		var damage := get_damage_presentation()
 		if damage != null:
 			target_level *= clampf(damage.get_engine_power_multiplier(), 0.0, 1.0)
+	target_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
+	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for plume in _engine_plumes:
 		if not is_instance_valid(plume):
 			continue
 		plume.visible = active
 		var base_scale := _plume_base_scales.get(plume.get_instance_id(), Vector3.ONE) as Vector3
 		var target_scale := base_scale
-		target_scale.z = base_scale.z * (0.55 + target_level * 1.25) if active else base_scale.z
+		target_scale.z = (
+			base_scale.z * (0.55 + target_level * 1.25 * exhaust_geometry)
+			if active else base_scale.z
+		)
 		plume.scale = plume.scale.lerp(target_scale, 1.0 - exp(-10.0 * maxf(delta, 0.0)))
+	_apply_engine_exhaust_damage_presentation(_engine_plumes, [], active, exhaust_profile)
 	_sync_close_plume_batch()
 
 
@@ -3899,14 +3911,22 @@ func _sync_zenith_engine_presentation_immediately() -> void:
 	var telemetry := get_telemetry()
 	var engine_state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
 	var active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
+	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
+	var target_level := 0.28 if engine_state == ENGINE_STARTING else (0.48 if engine_state == ENGINE_ONLINE else 0.0)
+	target_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
+	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for plume in _engine_plumes:
 		if not is_instance_valid(plume):
 			continue
 		plume.visible = active
 		var base_scale := _plume_base_scales.get(plume.get_instance_id(), Vector3.ONE) as Vector3
 		var scale_value := base_scale
-		scale_value.z = base_scale.z * (0.90 if active else 1.0)
+		scale_value.z = (
+			base_scale.z * (0.55 + target_level * 1.25 * exhaust_geometry)
+			if active else base_scale.z
+		)
 		plume.scale = scale_value
+	_apply_engine_exhaust_damage_presentation(_engine_plumes, [], active, exhaust_profile)
 	_sync_close_plume_batch()
 
 

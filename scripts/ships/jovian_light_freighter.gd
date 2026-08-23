@@ -3634,6 +3634,8 @@ func _set_interior_operational(enabled: bool) -> void:
 func _update_jovian_presentation(delta: float) -> void:
 	var telemetry := get_telemetry()
 	var engine_state := StringName(telemetry.get("engine_state", &"OFFLINE"))
+	var engine_active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
+	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var engine_level := 0.0
 	if engine_state == ENGINE_STARTING:
 		engine_level = 0.22 + 0.08 * sin(_elapsed_jovian * 10.0)
@@ -3642,25 +3644,40 @@ func _update_jovian_presentation(delta: float) -> void:
 	var damage_presentation := get_damage_presentation()
 	if is_instance_valid(damage_presentation):
 		engine_level *= clampf(damage_presentation.get_engine_power_multiplier(), 0.0, 1.0)
+	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
+	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for plume in _engine_plumes:
 		plume.visible = engine_level > 0.01
-		plume.scale.z = lerpf(plume.scale.z, 0.5 + engine_level * 1.25, 1.0 - exp(-6.0 * delta))
+		plume.scale.z = lerpf(
+			plume.scale.z,
+			0.5 + engine_level * 1.25 * exhaust_geometry,
+			1.0 - exp(-6.0 * delta)
+		)
 	for light in _jovian_engine_lights:
 		light.light_energy = engine_level * 2.6
+	_apply_engine_exhaust_damage_presentation(
+		_engine_plumes, _jovian_engine_lights, engine_active, exhaust_profile
+	)
 
 
 func _sync_jovian_engine_presentation_immediately() -> void:
 	var telemetry := get_telemetry()
 	var state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
 	var active := not is_destroyed() and state in [ENGINE_STARTING, ENGINE_ONLINE]
+	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
+	var engine_level := 0.22 if state == ENGINE_STARTING else (0.46 if state == ENGINE_ONLINE else 0.0)
+	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
+	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for plume in _engine_plumes:
 		if is_instance_valid(plume):
 			plume.visible = active
-			if not active:
-				plume.scale.z = 0.5
+			plume.scale.z = 0.5 + engine_level * 1.25 * exhaust_geometry if active else 0.5
 	for light in _jovian_engine_lights:
 		if is_instance_valid(light):
-			light.light_energy = 0.6 if active and state == ENGINE_STARTING else (1.2 if active else 0.0)
+			light.light_energy = engine_level * 2.6 if active else 0.0
+	_apply_engine_exhaust_damage_presentation(
+		_engine_plumes, _jovian_engine_lights, active, exhaust_profile
+	)
 
 
 func _sync_variant_engine_presentation_immediately() -> void:
