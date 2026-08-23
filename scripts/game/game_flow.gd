@@ -3133,6 +3133,14 @@ func _consume_ember_surface_reboard_interaction() -> bool:
 				!= EmberSurfaceLoopHost.Phase.ON_FOOT:
 		return false
 	var host_snapshot := ember_surface_loop_host.get_snapshot()
+	# The authored bunker survey uses the existing generic nearby-interaction
+	# seam. Let that exact Ember-owned point pass through before this handler
+	# reserves all other ON_FOOT presses for the return-to-ship lifecycle.
+	var nearby_surface_interaction := _find_station_interaction_candidate()
+	if is_instance_valid(nearby_surface_interaction) and bool(
+		nearby_surface_interaction.get_meta("ember_surface_survey_interaction", false)
+	):
+		return false
 	if not bool(
 		(host_snapshot.get("surface_route", {}) as Dictionary).get(
 			"return_complete", false

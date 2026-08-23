@@ -27,6 +27,8 @@ const RelaySurveyScript := preload("res://scripts/world/ember_surface_relay_surv
 const ActivityDefinitionScript := preload("res://scripts/activities/activity_definition.gd")
 const LocationDefinitionScript := preload("res://scripts/world/definitions/world_location_definition.gd")
 const RelaySurveyPresentationScript := preload("res://scripts/world/ember_surface_relay_survey_presentation.gd")
+const SurveyInteractionScript := preload("res://scripts/world/ember_survey_bunker_interaction_binding.gd")
+const EmberAuthoredSceneScript := preload("res://scripts/world/ember_moon_authored_scene.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
 const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
@@ -66,6 +68,7 @@ var _orbital_ring: Node
 var _route_trail: Node
 var _relay_survey: RefCounted
 var _relay_survey_presentation: Node
+var _survey_interaction: Area3D
 var _settlement: RefCounted
 var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
@@ -198,6 +201,14 @@ func configure(
 	]:
 		if not bool(binding.get("accepted", false)):
 			return _result(false, binding.get("reason", &"runtime_binding_rejected") as StringName)
+	_survey_interaction = SurveyInteractionScript.new() as Area3D
+	_survey_interaction.name = "OwnedSurveyBunkerInteraction"
+	add_child(_survey_interaction)
+	configured = _survey_interaction.call(
+		&"configure", host, EmberAuthoredSceneScript.get_survey_interaction_definition()
+	)
+	if not bool(configured.get("accepted", false)):
+		return _result(false, &"survey_interaction_configuration_rejected")
 	var audio_attach: Dictionary = _surface_audio_adapter.call(
 		&"attach", _surface_audio_policy.get_snapshot().get("profile_id", &""),
 		maxi(1, absi(host.get_instance_id())), 1, 1,
@@ -463,6 +474,8 @@ func detach() -> Dictionary:
 		beacon.call(&"detach")
 	if _hazard_zone_presentation != null:
 		_hazard_zone_presentation.call(&"detach")
+	if _survey_interaction != null:
+		_survey_interaction.call(&"detach")
 	_clear_authored_hazard_runtime_exposure()
 	_set_hazard_semantic_clear(&"composition_detached")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
@@ -498,6 +511,10 @@ func reenter() -> Dictionary:
 	_route_trail.call(&"reenter")
 	if _hazard_zone_presentation != null:
 		_hazard_zone_presentation.call(&"reenter")
+	if _survey_interaction != null:
+		var survey_reentry: Dictionary = _survey_interaction.call(&"reenter", next_attachment)
+		if not bool(survey_reentry.get("accepted", false)):
+			return _result(false, &"survey_interaction_reentry_rejected")
 	_set_hazard_semantic_clear(&"composition_reentered")
 	_apply_relay_survey_presentation()
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
@@ -561,6 +578,7 @@ func get_snapshot() -> Dictionary:
 		"route_trail": _route_trail.call(&"get_snapshot") if _route_trail != null else {},
 		"relay_survey": _relay_survey.get_snapshot() if _relay_survey != null else {},
 		"relay_survey_presentation": _relay_survey_presentation.call(&"get_snapshot") if _relay_survey_presentation != null else {},
+		"survey_interaction": _survey_interaction.call(&"get_snapshot") if _survey_interaction != null else {},
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
 
@@ -765,6 +783,7 @@ func get_session_snapshot() -> Dictionary:
 		"attachment_generation": _attachment_generation,
 		"composition_generation": _composition_generation,
 		"surface": _adapter.call(&"get_session_snapshot") if _adapter != null else {},
+		"survey_interaction": _survey_interaction.call(&"get_persistence_snapshot") if _survey_interaction != null else {},
 		"authority": {"save": false, "movement": false, "reward": false, "doors": false},
 	}.duplicate(true)
 
@@ -782,12 +801,43 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 	var surface := saved.get("surface", {}) as Dictionary
 	if surface.is_empty():
 		return _result(false, &"invalid_planetary_session_snapshot")
-	var restored: Dictionary = _adapter.call(
-		&"restore_session_snapshot", surface, _navigation, _hazard, _landmarks, _settlement
-	)
-	if not bool(restored.get("accepted", false)):
-		return _result(false, restored.get("reason", &"planetary_session_restore_rejected") as StringName)
+	var survey_saved := saved.get("survey_interaction", {}) as Dictionary
+	if _survey_interaction != null and not survey_saved.is_empty():
+		var survey_validation: Dictionary = _survey_interaction.call(
+			&"validate_persistence_snapshot", survey_saved
+		)
+		if not bool(survey_validation.get("accepted", false)):
+			return _result(false, &"survey_interaction_restore_rejected")
+	if not _surface_session_is_pristine(surface):
+		var restored: Dictionary = _adapter.call(
+			&"restore_session_snapshot", surface, _navigation, _hazard, _landmarks, _settlement
+		)
+		if not bool(restored.get("accepted", false)):
+			return _result(false, restored.get("reason", &"planetary_session_restore_rejected") as StringName)
+	if _survey_interaction != null and not survey_saved.is_empty():
+		var survey_restored: Dictionary = _survey_interaction.call(
+			&"restore_persistence_snapshot", survey_saved
+		)
+		if not bool(survey_restored.get("accepted", false)):
+			return _result(false, &"survey_interaction_restore_rejected")
 	return _result(true, &"planetary_session_restored")
+
+
+func _surface_session_is_pristine(surface: Dictionary) -> bool:
+	var route := surface.get("surface_route", {}) as Dictionary
+	if StringName(surface.get("state", &"")) != &"ready" \
+			or (not route.is_empty() and StringName(route.get("state", &"")) != &"idle") \
+			or StringName((surface.get("surface_water", {}) as Dictionary).get("state", &"")) != &"idle" \
+			or not (surface.get("settlement_entries", {}) as Dictionary).is_empty():
+		return false
+	var exposure := (surface.get("surface_hazard", {}) as Dictionary).get("exposure", {}) as Dictionary
+	for value in exposure.values():
+		if not is_zero_approx(float(value)):
+			return false
+	var landmarks := surface.get("activity_landmarks", {}) as Dictionary
+	var settlement := surface.get("settlement", {}) as Dictionary
+	return int(landmarks.get("sequence_index", -1)) == -1 \
+		and StringName(settlement.get("state", &"")) == &"idle"
 
 
 func _configure_settlement_practicals(contract_snapshot: Dictionary) -> void:

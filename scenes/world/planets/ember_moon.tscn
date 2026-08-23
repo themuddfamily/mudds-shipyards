@@ -571,3 +571,6 @@ metadata/marker_id = &"ember_derelict_survey_gantry_access"
 [node name="SurveyServiceBunkerAccess" type="Marker3D" parent="LandingRegion/SurfaceLandmarks/RouteMarkers"]
 position = Vector3(-17.5, 0, -17.5)
 metadata/marker_id = &"ember_survey_service_bunker_access"
+metadata/interaction_id = &"ember_bunker_gantry_survey"
+metadata/interaction_prompt = "LOG BUNKER / GANTRY SURVEY"
+metadata/historical_claim = false

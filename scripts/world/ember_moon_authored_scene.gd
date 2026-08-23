@@ -160,6 +160,19 @@ var _terrain_lod_policy: PlanetaryTerrainLodPolicy
 var _initialized := false
 
 
+static func get_survey_interaction_definition() -> Dictionary:
+	return {
+		"interaction_id": &"ember_bunker_gantry_survey",
+		"world_id": WORLD_ID,
+		"position_body_local_m": BUNKER_ACCESS_POSITION_M + Vector3.UP * BODY_RADIUS_M,
+		"landmark_ids": PackedStringArray([
+			"ember_survey_service_bunker", "ember_derelict_survey_gantry",
+		]),
+		"historical_claim": false,
+		"status": &"modern_interpretation",
+	}.duplicate(true)
+
+
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
