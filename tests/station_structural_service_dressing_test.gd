@@ -86,11 +86,24 @@ func _run() -> void:
 	print("STATION_STRUCTURAL_DRESSING_PERFORMANCE: ", performance)
 	_check(bool(performance["within_budget"]), "maximum-detail component remains within every explicit budget")
 	_check(
-		int(counts["mesh_instances"]) == 35
-		and int(counts["multimesh_batches"]) == 1
-		and int(counts["geometry_submissions"]) == 36
+		int(counts["mesh_instances"]) == 33
+		and int(counts["multimesh_batches"]) == 2
+		and int(counts["geometry_submissions"]) == 35
 		and int(counts["visible_primitives"]) == 41,
-		"high quality preserves 41 visible copies through 36 renderer submissions"
+		"high quality preserves 41 visible copies through 35 renderer submissions"
+	)
+	var task_batch := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStripBatch") as MultiMeshInstance3D
+	var task_anchor_01 := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStrip01") as Marker3D
+	var task_anchor_02 := dressing.get_node_or_null(^"PresentationRoot/HighDetailRoot/TaskStrip02") as Marker3D
+	_check(
+		task_batch != null
+		and task_batch.multimesh != null
+		and task_batch.multimesh.instance_count == 2
+		and task_batch.multimesh.visible_instance_count == 2
+		and task_anchor_01 != null
+		and task_anchor_02 != null
+		and not task_anchor_01.position.is_equal_approx(task_anchor_02.position),
+		"two stable task-strip anchors retain distinct authored positions under one visual batch"
 	)
 	var vent_batch_audit := dressing.get_radiator_vent_batch_audit()
 	print("STATION_STRUCTURAL_RADIATOR_VENT_BATCH: ", vent_batch_audit)
@@ -244,7 +257,7 @@ func _run() -> void:
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
 	performance = dressing.get_performance_audit()
 	counts = performance["counts"] as Dictionary
-	_check(int(counts["mesh_instances"]) == 35 and int(counts["visible_primitives"]) == 33, "medium quality keeps 35 allocated meshes plus one batch and exposes 33 copies")
+	_check(int(counts["mesh_instances"]) == 33 and int(counts["visible_primitives"]) == 33, "medium quality keeps 33 allocated meshes plus two batches and exposes 33 copies")
 	_check(int(counts["visible_lights"]) == 0, "medium quality hides the high-tier task light")
 	_check(int(counts["node_count"]) == high_node_count, "medium quality performs no structural allocation")
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.LOW), "quality API accepts low")
@@ -350,7 +363,7 @@ func _run() -> void:
 	(detached_audit["evidence"] as Dictionary).clear()
 	(detached_audit["node_contract"] as Dictionary).clear()
 	var fresh_audit := dressing.audit()
-	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 35, "deep-copy audit protects nested performance counts")
+	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 33, "deep-copy audit protects nested performance counts")
 	_check(not (fresh_audit["integration"] as Dictionary).is_empty(), "deep-copy audit protects integration state")
 	_check(not (fresh_audit["evidence"] as Dictionary).is_empty(), "deep-copy audit protects evidence state")
 	_check(not (fresh_audit["node_contract"] as Dictionary).is_empty(), "deep-copy audit protects semantic node paths")

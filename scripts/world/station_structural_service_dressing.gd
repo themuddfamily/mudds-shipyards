@@ -42,8 +42,8 @@ const RADIATOR_VENT_COUNT := 6
 const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
-const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT
-const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 1
+const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT
+const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 2
 
 ## The four resident dressing instances all publish this one material-free,
 ## immutable fastener recipe. It intentionally lives for the session rather
@@ -55,7 +55,7 @@ const PERFORMANCE_BUDGET := {
 	"node_count": 56,
 	"visible_primitives": 45,
 	"mesh_instances": 45,
-	"multimesh_batches": 1,
+	"multimesh_batches": 2,
 	"geometry_submissions": 40,
 	"unique_materials": 10,
 	"lights": 1,
@@ -98,6 +98,7 @@ var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _task_light: OmniLight3D
 var _radiator_vent_batch: MultiMeshInstance3D
+var _task_strip_batch: MultiMeshInstance3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _built := false
@@ -557,7 +558,7 @@ func get_validation_errors() -> PackedStringArray:
 	var counts := performance["counts"] as Dictionary
 	if (
 		int(counts["mesh_instances"]) != BATCHED_MESH_INSTANCE_COUNT
-		or int(counts["multimesh_batches"]) != 1
+		or int(counts["multimesh_batches"]) != 2
 		or int(counts["geometry_submissions"]) != RENDERER_NODE_COUNT
 	):
 		errors.append("stable maximum-detail primitive contract changed")
@@ -811,20 +812,30 @@ func _build_high_detail(dimensions: Dictionary) -> void:
 	var depth := float(dimensions["outward_depth"])
 	var thickness := float(dimensions["frame_thickness"])
 	var strip_length := minf(1.4, length * 0.14)
+	var task_strip_transforms: Array[Transform3D] = []
 	for strip_index in TASK_STRIP_COUNT:
 		var side := -1.0 if strip_index == 0 else 1.0
-		_tag_visual_detail(
-			_box(
-				_high_detail_root,
-				"TaskStrip%02d" % (strip_index + 1),
-				Vector3(side * length * 0.3, -thickness * 0.78, thickness * 1.54),
-				Vector3(strip_length, 0.05, 0.025),
-				_materials["task_strip"],
-				false
-			),
-			&"task_strip",
-			DetailQuality.HIGH
-		)
+		var strip_position := Vector3(side * length * 0.3, -thickness * 0.78, thickness * 1.54)
+		var strip_anchor := Marker3D.new()
+		strip_anchor.name = "TaskStrip%02d" % (strip_index + 1)
+		strip_anchor.position = strip_position
+		strip_anchor.set_meta("component_id", COMPONENT_ID)
+		strip_anchor.set_meta("evidence_status", EVIDENCE_STATUS)
+		strip_anchor.set_meta("presentation_only", true)
+		strip_anchor.set_meta("collision_free", true)
+		strip_anchor.set_meta("detail_role", &"task_strip")
+		strip_anchor.set_meta("quality_tier", DetailQuality.HIGH)
+		_high_detail_root.add_child(strip_anchor)
+		task_strip_transforms.append(Transform3D(Basis.IDENTITY, strip_position))
+	_task_strip_batch = _multimesh_rounded_box(
+		_high_detail_root,
+		"TaskStripBatch",
+		StationSurfaceKit.rounded_box_mesh_cached(Vector3(strip_length, 0.05, 0.025), _rounded_box_cache),
+		_materials["task_strip"],
+		task_strip_transforms
+	)
+	_task_strip_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_tag_visual_batch(_task_strip_batch, &"task_strip", DetailQuality.HIGH)
 	for fastener_index in FASCIA_FASTENER_COUNT:
 		var progress := float(fastener_index + 1) / float(FASCIA_FASTENER_COUNT + 1)
 		_tag_visual_detail(
@@ -930,7 +941,7 @@ func _get_feature_counts() -> Dictionary:
 		"manifold_couplers": _service_detail_root.find_children("ManifoldCoupler*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"radiator_backplates": _service_detail_root.find_children("RadiatorBackplate", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"radiator_vents": _radiator_vent_batch.multimesh.instance_count if is_instance_valid(_radiator_vent_batch) and _radiator_vent_batch.multimesh != null else 0,
-		"task_strips": _high_detail_root.find_children("TaskStrip*", "MeshInstance3D", true, false).size() if _high_detail_root != null else 0,
+		"task_strips": _high_detail_root.find_children("TaskStrip*", "Marker3D", true, false).size() if _high_detail_root != null else 0,
 		"fascia_fasteners": _high_detail_root.find_children("FasciaFastener*", "MeshInstance3D", true, false).size() if _high_detail_root != null else 0,
 		"task_lights": 1 if is_instance_valid(_task_light) and is_ancestor_of(_task_light) else 0,
 	}.duplicate(true)
