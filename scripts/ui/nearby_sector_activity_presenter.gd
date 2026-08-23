@@ -21,10 +21,13 @@ const ACTIVITY_IDS: Array[StringName] = [
 
 var _snapshot: Dictionary = {}
 var _selected_activity: StringName = &""
+var _reset_confirmation_activity: StringName = &""
+var _reset_confirmation_generation := -1
 
 
 func present(snapshot: Dictionary) -> Dictionary:
 	_snapshot = snapshot.duplicate(true)
+	_reconcile_reset_confirmation()
 	var cards: Array[Dictionary] = []
 	for activity_id in ACTIVITY_IDS:
 		var state := _activity_state(activity_id)
@@ -74,6 +77,9 @@ func _priority_id(rank: int) -> StringName:
 func select(activity_id: StringName) -> Dictionary:
 	if not ACTIVITY_IDS.has(activity_id):
 		return {"accepted": false, "reason": &"unknown_activity", "activity_id": activity_id}
+	if not _reset_confirmation_activity.is_empty() \
+			and _reset_confirmation_activity != activity_id:
+		_clear_reset_confirmation()
 	_selected_activity = activity_id
 	return _intent_result(&"selected", activity_id)
 
@@ -83,6 +89,25 @@ func start_intent(activity_id: StringName = _selected_activity) -> Dictionary:
 
 
 func reset_intent(activity_id: StringName = _selected_activity) -> Dictionary:
+	if not ACTIVITY_IDS.has(activity_id):
+		return _intent_result(&"reset_requested", activity_id)
+	var generation := _activity_generation(activity_id)
+	if _reset_confirmation_activity == activity_id \
+			and _reset_confirmation_generation == generation:
+		_clear_reset_confirmation()
+		return _intent_result(&"reset_requested", activity_id)
+	var card := _card(activity_id, _activity_state(activity_id))
+	if _priority_rank(card) in [0, 2]:
+		_reset_confirmation_activity = activity_id
+		_reset_confirmation_generation = generation
+		return {
+			"accepted": false,
+			"reason": &"reset_confirmation_requested",
+			"action": &"confirm_reset",
+			"activity_id": activity_id,
+			"authority": false,
+			"emit_intent": false,
+		}.duplicate(true)
 	return _intent_result(&"reset_requested", activity_id)
 
 
@@ -127,6 +152,25 @@ func _activity_state(activity_id: StringName) -> Dictionary:
 	if activity_id == &"station_defense":
 		return _snapshot.get("station_defense", {}) as Dictionary
 	return {"state_id": "available"}
+
+
+func _activity_generation(activity_id: StringName) -> int:
+	return int(_activity_state(activity_id).get("generation", 0))
+
+
+func _reconcile_reset_confirmation() -> void:
+	if _reset_confirmation_activity.is_empty():
+		return
+	var state := _activity_state(_reset_confirmation_activity)
+	var state_id := StringName(state.get("state_id", _state_label(state)))
+	if _activity_generation(_reset_confirmation_activity) != _reset_confirmation_generation \
+			or state_id in [&"completed", &"complete"]:
+		_clear_reset_confirmation()
+
+
+func _clear_reset_confirmation() -> void:
+	_reset_confirmation_activity = &""
+	_reset_confirmation_generation = -1
 
 
 func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
@@ -210,6 +254,10 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"focusable": true,
 		"selected": activity_id == _selected_activity,
 		"intents": ["select", "start", "reset"],
+		"reset_label": (
+			"CONFIRM RESET" if _reset_confirmation_activity == activity_id else "RESET"
+		),
+		"reset_confirmation_pending": _reset_confirmation_activity == activity_id,
 		"reward_pending": reward_pending,
 		"recovery_text": str(cargo_progress.get("recovery_text", recovery)),
 		"objective_text": str(station_defense_feedback.get(

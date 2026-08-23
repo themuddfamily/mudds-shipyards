@@ -4028,7 +4028,9 @@ func _add_nearby_activity_row(card: Dictionary) -> void:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(label)
 	for action in [&"select", &"start", &"reset"]:
-		var button := _menu_button(str(action).to_upper(), MUTED)
+		var action_label := str(card.get("reset_label", "RESET")) \
+			if action == &"reset" else str(action).to_upper()
+		var button := _menu_button(action_label, MUTED)
 		button.focus_mode = Control.FOCUS_ALL
 		button.pressed.connect(_forward_nearby_activity_intent.bind(action, activity_id))
 		row.add_child(button)
@@ -4039,6 +4041,8 @@ func _update_nearby_activity_row(row: Control, card: Dictionary) -> void:
 	if row.get_child_count() == 0 or not row.get_child(0) is Label:
 		return
 	(row.get_child(0) as Label).text = str(card.get("text", "ACTIVITY — AVAILABLE"))
+	if row.get_child_count() > 3 and row.get_child(3) is Button:
+		(row.get_child(3) as Button).text = str(card.get("reset_label", "RESET"))
 
 
 func _forward_nearby_activity_intent(action: StringName, activity_id: StringName) -> void:
@@ -4055,6 +4059,13 @@ func _forward_nearby_activity_intent(action: StringName, activity_id: StringName
 		intent = _nearby_activity_presenter.call("save_progress_intent")
 	else:
 		intent = _nearby_activity_presenter.call("load_progress_intent")
+	if action in [&"select", &"reset"]:
+		var view := _nearby_activity_presenter.call(
+			"present", _nearby_activity_snapshot
+		) as Dictionary
+		_render_nearby_activity_view(view)
+	if not bool(intent.get("emit_intent", true)):
+		return
 	nearby_activity_intent_requested.emit(intent.duplicate(true))
 
 
