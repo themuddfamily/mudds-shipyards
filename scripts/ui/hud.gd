@@ -21,6 +21,7 @@ const CrewRoleSeatPresenterType := preload("res://scripts/ui/crew_role_seat_pres
 const SurfaceRouteHazardPresenterType := preload("res://scripts/ui/surface_route_hazard_presenter.gd")
 const AtmosphericEntryGuidancePresenterType := preload("res://scripts/ui/atmospheric_entry_guidance_presenter.gd")
 const SemanticAudioCuePresenterType := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
+const HeavyBreachActivityPresenterType := preload("res://scripts/ui/heavy_breach_activity_presenter.gd")
 const FirstSortieTutorialPresenterType := preload("res://scripts/ui/first_sortie_tutorial_presenter.gd")
 const ServerBrowserPresenterType := preload("res://scripts/ui/server_browser_presenter.gd")
 const NearbySectorActivityPresenterType := preload("res://scripts/ui/nearby_sector_activity_presenter.gd")
@@ -419,6 +420,7 @@ var _loadmaster_telemetry_presenter := LoadmasterTelemetryPresenterType.new()
 var _copilot_help_snapshot: Dictionary = {}
 var _loadmaster_help_snapshot: Dictionary = {}
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
+var _heavy_breach_activity_presenter := HeavyBreachActivityPresenterType.new()
 var _semantic_transcript_panel: PanelContainer
 var _semantic_transcript_body: Label
 var _semantic_transcript_heading: Label
@@ -1035,7 +1037,13 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	if short_name.is_empty():
 		short_name = str(activity_id).replace("_", " ").to_upper()
 	var activity_text := ""
-	if activity_kind == &"convoy_escort":
+	if activity_id == &"shipyard_heavy_breach":
+		var heavy_breach := _heavy_breach_activity_presenter.present(snapshot)
+		activity_text = str(heavy_breach.get("text", ""))
+		state_id = StringName(heavy_breach.get("state_id", state_id))
+		phase_id = StringName(heavy_breach.get("phase_id", phase_id))
+		terminal_reason = StringName(heavy_breach.get("outcome", terminal_reason))
+	elif activity_kind == &"convoy_escort":
 		match state_id:
 			&"idle":
 				activity_text = "CONVOY  RENDEZVOUS %s  SAFE LANE +20M" % (
@@ -1250,6 +1258,8 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 		"terminal_result_id": terminal_result_id,
 		"text": activity_text,
 	}
+	if activity_id == &"shipyard_heavy_breach":
+		_activity_objective_report["heavy_breach"] = _heavy_breach_activity_presenter.present(snapshot)
 	if is_instance_valid(_activity_objective_label):
 		_activity_objective_label.text = activity_text
 		_activity_objective_label.visible = visible
