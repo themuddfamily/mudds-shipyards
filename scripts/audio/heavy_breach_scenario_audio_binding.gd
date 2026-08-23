@@ -14,6 +14,9 @@ const CUES := {
 	&"wing_screen": &"heavy_breach_wing_screen",
 	&"suppression": &"heavy_breach_suppression",
 	&"objective_danger": &"heavy_breach_objective_danger",
+	&"objective_critical": &"heavy_breach_objective_critical",
+	&"objective_destroyed": &"heavy_breach_objective_destroyed",
+	&"objective_recovered": &"heavy_breach_objective_recovered",
 	&"success": &"heavy_breach_success",
 	&"failure": &"heavy_breach_failure",
 	&"timeout": &"heavy_breach_timeout",
@@ -25,6 +28,9 @@ const PRIORITIES := {
 	&"heavy_breach_wing_screen": 55,
 	&"heavy_breach_suppression": 60,
 	&"heavy_breach_objective_danger": 85,
+	&"heavy_breach_objective_critical": 92,
+	&"heavy_breach_objective_destroyed": 100,
+	&"heavy_breach_objective_recovered": 88,
 	&"heavy_breach_success": 100,
 	&"heavy_breach_failure": 95,
 	&"heavy_breach_timeout": 95,
@@ -34,6 +40,7 @@ var _attached := false
 var _generation := 0
 var _last_state: StringName = &""
 var _last_outcome: StringName = &""
+var _last_objective_phase: StringName = &""
 var _seen: Dictionary = {}
 var _slots: Array[Dictionary] = []
 var _emitted_count := 0
@@ -44,6 +51,7 @@ func attach(expected_generation: int = 0) -> Dictionary:
 	_attached = true
 	_last_state = &""
 	_last_outcome = &""
+	_last_objective_phase = &""
 	_seen.clear()
 	_slots.clear()
 	return _result(true, &"attached")
@@ -55,6 +63,7 @@ func detach() -> Dictionary:
 	_generation += 1
 	_last_state = &""
 	_last_outcome = &""
+	_last_objective_phase = &""
 	_seen.clear()
 	_slots.clear()
 	return _result(true, &"detached")
@@ -73,8 +82,18 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	if state == &"running" and _last_state != &"running":
 		_emit_once(&"started", "state")
 	var ratio: Variant = snapshot.get("objective_health_ratio", 1.0)
-	if (ratio is float or ratio is int) and float(ratio) <= 0.34:
-		_emit_once(&"objective_danger", "objective")
+	if ratio is float or ratio is int:
+		var objective_phase := _objective_phase(float(ratio))
+		if objective_phase != _last_objective_phase:
+			if objective_phase == &"danger":
+				_emit_once(&"objective_danger", "objective:%s" % objective_phase)
+			elif objective_phase == &"critical":
+				_emit_once(&"objective_critical", "objective:%s" % objective_phase)
+			elif objective_phase == &"destroyed":
+				_emit_once(&"objective_destroyed", "objective:%s" % objective_phase)
+			elif objective_phase == &"safe" and _last_objective_phase in [&"danger", &"critical"]:
+				_emit_once(&"objective_recovered", "objective:recovered:%d" % _generation)
+			_last_objective_phase = objective_phase
 	if outcome in [&"cleared", &"success"] and outcome != _last_outcome:
 		_emit_once(&"success", "outcome")
 	elif outcome in [&"failed", &"failure", &"escaped"] and outcome != _last_outcome:
@@ -111,7 +130,16 @@ func present_weapon_event(event: Dictionary) -> Dictionary:
 	return _result(true, &"weapon_event_presented")
 
 func get_snapshot() -> Dictionary:
-	return {"attached": _attached, "generation": _generation, "last_state": _last_state, "last_outcome": _last_outcome, "emitted_cue_count": _emitted_count, "active_cue_slots": _slots.duplicate(true), "maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES, "authority": {"combat": false, "objective": false, "wing": false, "audio_cues": true}}.duplicate(true)
+	return {"attached": _attached, "generation": _generation, "last_state": _last_state, "last_outcome": _last_outcome, "last_objective_phase": _last_objective_phase, "emitted_cue_count": _emitted_count, "active_cue_slots": _slots.duplicate(true), "maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES, "authority": {"combat": false, "objective": false, "wing": false, "audio_cues": true}}.duplicate(true)
+
+func _objective_phase(ratio: float) -> StringName:
+	if not is_finite(ratio) or ratio <= 0.0:
+		return &"destroyed"
+	if ratio <= 0.34:
+		return &"critical"
+	if ratio < 0.67:
+		return &"danger"
+	return &"safe"
 
 func _emit_once(event_id: StringName, key_suffix: String) -> void:
 	var key := "%d:%s" % [_generation, key_suffix]

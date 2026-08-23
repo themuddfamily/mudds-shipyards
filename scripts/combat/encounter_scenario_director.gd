@@ -901,7 +901,25 @@ func _get_heavy_breach_audio_snapshot() -> Dictionary:
 		"scenario": _scenario,
 		"state": _state,
 		"outcome": _outcome,
+		"objective_health_ratio": _protected_objective_health_ratio(),
 	}.duplicate(true)
+
+
+func _protected_objective_health_ratio() -> float:
+	if not is_instance_valid(_protected_anchor):
+		return 0.0 if _state == STATE_CONCLUDED else 1.0
+	if _protected_anchor.has_method(&"is_destroyed") and bool(_protected_anchor.call(&"is_destroyed")):
+		return 0.0
+	if not _protected_anchor.has_method(&"get_health"):
+		return 1.0
+	var maximum := 1.0
+	if _protected_anchor.has_method(&"get_maximum_health"):
+		maximum = maxf(0.001, float(_protected_anchor.call(&"get_maximum_health")))
+	else:
+		var declared: Variant = _protected_anchor.get(&"maximum_health")
+		if declared is float or declared is int:
+			maximum = maxf(0.001, float(declared))
+	return clampf(float(_protected_anchor.call(&"get_health")) / maximum, 0.0, 1.0)
 
 
 func _stand_down() -> void:

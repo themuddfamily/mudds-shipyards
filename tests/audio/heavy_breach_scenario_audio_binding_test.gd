@@ -22,13 +22,22 @@ func _run() -> void:
 	_check(bool(binding.present_weapon_event({"generation": 1, "event_id": &"picket_fire", "sequence": 1, "accepted": true}).accepted), "accepted picket fire emits cue")
 	_check(bool(binding.present_tactic_intent({"generation": 1, "action": &"screen_guard", "suppression_active": true}).accepted), "wing screen and suppression intent emits cues")
 	var danger := base.duplicate(true)
-	danger.objective_health_ratio = 0.2
+	danger.objective_health_ratio = 0.5
 	_check(bool(binding.present_snapshot(danger).accepted), "objective danger snapshot is accepted")
+	var critical := base.duplicate(true)
+	critical.objective_health_ratio = 0.2
+	_check(bool(binding.present_snapshot(critical).accepted), "objective critical snapshot is accepted")
+	var recovered := base.duplicate(true)
+	recovered.objective_health_ratio = 0.8
+	_check(bool(binding.present_snapshot(recovered).accepted), "objective recovery snapshot is accepted")
+	var destroyed := base.duplicate(true)
+	destroyed.objective_health_ratio = 0.0
+	_check(bool(binding.present_snapshot(destroyed).accepted), "objective destroyed snapshot is accepted")
 	var success := base.duplicate(true)
 	success.state = &"concluded"
 	success.outcome = &"cleared"
 	_check(bool(binding.present_snapshot(success).accepted), "success snapshot is accepted")
-	_check(cues.has(&"heavy_breach_picket_windup") and cues.has(&"heavy_breach_picket_fire") and cues.has(&"heavy_breach_wing_screen") and cues.has(&"heavy_breach_suppression") and cues.has(&"heavy_breach_objective_danger") and cues.has(&"heavy_breach_success"), "all bounded heavy-breach semantic cues are emitted")
+	_check(cues.has(&"heavy_breach_picket_windup") and cues.has(&"heavy_breach_picket_fire") and cues.has(&"heavy_breach_wing_screen") and cues.has(&"heavy_breach_suppression") and cues.has(&"heavy_breach_objective_danger") and cues.has(&"heavy_breach_objective_critical") and cues.has(&"heavy_breach_objective_recovered") and cues.has(&"heavy_breach_objective_destroyed") and cues.has(&"heavy_breach_success"), "all bounded heavy-breach semantic cues are emitted")
 	_check(int(binding.get_snapshot().maximum_simultaneous_voices) == 2, "heavy-breach audio remains bounded to two voices")
 	var director := Director.new()
 	root.add_child(director)
