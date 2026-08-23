@@ -6709,6 +6709,11 @@ func _on_runtime_setting_changed(setting: StringName, _value: Variant) -> void:
 			runtime_settings.apply_window_mode()
 	elif setting == &"input_binding_profile":
 		_apply_runtime_input_bindings_and_options()
+		# Re-apply the canonical profile to the retained HUD after the settings
+		# transaction. This keeps a caller-owned remap, InputMap, and glyph rows
+		# on the same accepted snapshot even when the request came from a detached
+		# settings owner rather than the currently visible HUD.
+		_sync_runtime_settings_hud()
 	elif setting in [&"multiplayer_display_name", &"network_default_port"]:
 		_sync_server_browser_defaults()
 	elif setting == &"reduced_dynamic_range":
