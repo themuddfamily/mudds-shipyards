@@ -43,6 +43,7 @@ func _run() -> void:
 	_check(not bool(director.get_audit_report().gameplay_authority), "director cannot own gameplay")
 	print("music_director_test: %d assertions passed" % _assertions)
 	director.queue_free()
+	await process_frame
 	quit(0 if _failures.is_empty() else 1)
 
 

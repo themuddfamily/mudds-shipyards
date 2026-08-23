@@ -58,6 +58,7 @@ func _run() -> void:
 	await _test_dummy_backend_seam()
 	await _test_rejecting_backend_seam()
 	await _test_combat_yield_and_recovery()
+	await _test_phase_crossfade()
 	await _test_frame_rate_equivalence()
 	await _test_pause_disable_and_reset()
 	await _test_no_gameplay_authority()
@@ -393,6 +394,47 @@ func _test_combat_yield_and_recovery() -> void:
 	_check(not _layer_events.is_empty(), "layer transitions are announced for observers")
 
 	bed.layer_state_changed.disconnect(_on_layer_state_changed)
+	_release(bed)
+	await process_frame
+
+
+func _test_phase_crossfade() -> void:
+	var bed := _make_manual_bed("PhaseCrossfadeBed", AcceptingMusicBed)
+	if bed == null:
+		return
+	await process_frame
+	_advance(bed, 6.0, 60)
+	_check(bed.notify_music_phase(&"landing"), "landing phase reaches the production music bed")
+	var landing := bed.get_state_snapshot() as Dictionary
+	_check(
+		landing.presentation_state == &"landing"
+		and is_equal_approx(float((landing.layer_targets as Dictionary)[&"motif"]), 0.28),
+		"landing selects a restrained crossfade profile using the resident authored loops"
+	)
+	var landing_position := float((landing.layer_positions as Dictionary)[&"drone"])
+	_advance(bed, 2.0, 60)
+	var settled_landing := bed.get_state_snapshot() as Dictionary
+	_check(
+		float((settled_landing.layer_gains as Dictionary)[&"motif"]) > 0.2
+		and int(settled_landing.active_layer_count) == StationMusicBed.MAXIMUM_SIMULTANEOUS_VOICES,
+		"landing crossfade raises the motif without creating another voice"
+	)
+	_check(
+		float((settled_landing.layer_positions as Dictionary)[&"drone"]) > landing_position,
+		"landing keeps the resident loop clock continuous"
+	)
+	_check(bed.notify_music_phase(&"planetary"), "planetary phase is accepted after landing")
+	_advance(bed, 1.0, 60)
+	var planetary := bed.get_state_snapshot() as Dictionary
+	_check(
+		float((planetary.layer_gains as Dictionary)[&"motif"])
+		< float((settled_landing.layer_gains as Dictionary)[&"motif"]),
+		"leaving landing fades the motif back out"
+	)
+	_check(
+		bool(bed.get_audit_report().valid),
+		"phase crossfade remains inside the production bed audit"
+	)
 	_release(bed)
 	await process_frame
 

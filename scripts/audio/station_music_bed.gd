@@ -85,6 +85,15 @@ const STATE_REST: StringName = &"rest"
 const STATE_FLIGHT: StringName = &"flight"
 const STATE_COMBAT: StringName = &"combat"
 const SESSION_STATES: Array[StringName] = [STATE_REST, STATE_FLIGHT, STATE_COMBAT]
+const PRESENTATION_STATION: StringName = &"station"
+const PRESENTATION_PLANETARY: StringName = &"planetary"
+const PRESENTATION_LANDING: StringName = &"landing"
+const PRESENTATION_STATES: Array[StringName] = [
+	PRESENTATION_STATION,
+	PRESENTATION_PLANETARY,
+	PRESENTATION_LANDING,
+	STATE_COMBAT,
+]
 
 ## Target layer gains per observed session state. Combat silences the bed
 ## outright: the score yields to the fight rather than trying to score it.
@@ -98,6 +107,31 @@ const STATE_LAYER_TARGETS := {
 		LAYER_DRONE: 0.85,
 		LAYER_HARMONICS: 0.55,
 		LAYER_MOTIF: 0.0,
+	},
+	STATE_COMBAT: {
+		LAYER_DRONE: 0.0,
+		LAYER_HARMONICS: 0.0,
+		LAYER_MOTIF: 0.0,
+	},
+}
+## Phase-specific target profiles reuse the resident authored loops. Landing is
+## intentionally a crossfade profile: it brings back a restrained motif while
+## keeping the sustaining bed present, without adding a fourth voice or asset.
+const PRESENTATION_LAYER_TARGETS := {
+	PRESENTATION_STATION: {
+		LAYER_DRONE: 1.0,
+		LAYER_HARMONICS: 1.0,
+		LAYER_MOTIF: 1.0,
+	},
+	PRESENTATION_PLANETARY: {
+		LAYER_DRONE: 0.85,
+		LAYER_HARMONICS: 0.55,
+		LAYER_MOTIF: 0.0,
+	},
+	PRESENTATION_LANDING: {
+		LAYER_DRONE: 0.65,
+		LAYER_HARMONICS: 0.8,
+		LAYER_MOTIF: 0.28,
 	},
 	STATE_COMBAT: {
 		LAYER_DRONE: 0.0,
@@ -137,6 +171,7 @@ var _targets: Dictionary = {}
 var _positions: Dictionary = {}
 var _active: Dictionary = {}
 var _session_state: StringName = STATE_REST
+var _presentation_state: StringName = PRESENTATION_STATION
 var _combat_recovery_remaining := 0.0
 var _resident_sample_bytes := 0
 var _resources_ready := false
@@ -229,7 +264,8 @@ func notify_session_state(state: StringName) -> bool:
 		return false
 	if not SESSION_STATES.has(state):
 		return false
-	if state != _session_state:
+	var state_changed := state != _session_state
+	if state_changed:
 		if _session_state == STATE_COMBAT:
 			# Leaving combat starts a hold, so the bed does not swell back in on
 			# top of a debris field the moment the last shot lands.
@@ -237,8 +273,9 @@ func notify_session_state(state: StringName) -> bool:
 		else:
 			_combat_recovery_remaining = 0.0
 		_session_state = state
+		_presentation_state = _presentation_for_session_state(state)
 		_state_change_count += 1
-	if is_instance_valid(_music_director):
+	if is_instance_valid(_music_director) and state_changed:
 		_music_director.observe_session_state(state)
 	_apply_session_targets()
 	if is_inside_tree() and not _tearing_down:
@@ -254,11 +291,24 @@ func notify_music_phase(phase: StringName) -> bool:
 	var observation := _music_director.observe_phase(phase)
 	if not bool(observation.get("accepted", false)):
 		return false
-	return notify_session_state(StringName(observation.get("session_state", &"")))
+	var accepted := notify_session_state(StringName(observation.get("session_state", &"")))
+	if accepted:
+		_presentation_state = StringName(observation.get("state", PRESENTATION_STATION))
+		# The session compatibility call above may have restated the narrower
+		# station/flight vocabulary; restore the phase-level presentation record.
+		_music_director.observe_phase(phase)
+		_apply_session_targets()
+		if is_inside_tree() and not _tearing_down:
+			_apply_playback_state()
+	return accepted
 
 
 func get_session_state() -> StringName:
 	return _session_state
+
+
+func get_presentation_state() -> StringName:
+	return _presentation_state
 
 
 func get_music_director() -> MusicDirectorType:
@@ -317,6 +367,7 @@ func reset_bed() -> void:
 		_gains[layer_id] = 0.0
 		_positions[layer_id] = 0.0
 	_session_state = STATE_REST
+	_presentation_state = PRESENTATION_STATION
 	_combat_recovery_remaining = 0.0
 	_bed_paused = false
 	_elapsed_bed_seconds = 0.0
@@ -379,6 +430,7 @@ func get_music_contract() -> Dictionary:
 		"layer_volume_db": volumes,
 		"combined_cycle_seconds": COMBINED_CYCLE_SECONDS,
 		"session_states": PackedStringArray(SESSION_STATES),
+		"presentation_states": PackedStringArray(PRESENTATION_STATES),
 		"fade_in_rate_per_second": FADE_IN_RATE_PER_SECOND,
 		"fade_out_rate_per_second": FADE_OUT_RATE_PER_SECOND,
 		"combat_duck_rate_per_second": COMBAT_DUCK_RATE_PER_SECOND,
@@ -401,6 +453,7 @@ func get_state_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"session_state": _session_state,
+		"presentation_state": _presentation_state,
 		"bed_enabled": bed_enabled,
 		"bed_paused": _bed_paused,
 		"combat_recovery_remaining": _combat_recovery_remaining,
@@ -527,6 +580,8 @@ func get_audit_report() -> Dictionary:
 
 	if not SESSION_STATES.has(_session_state):
 		errors.append("music bed holds an unknown session state")
+	if not PRESENTATION_STATES.has(_presentation_state):
+		errors.append("music bed holds an unknown presentation state")
 	var expected_targets := _resolve_targets()
 	for layer_id in LAYER_IDS:
 		var gain := float(_gains.get(layer_id, -1.0))
@@ -568,17 +623,27 @@ func _apply_session_targets() -> void:
 func _resolve_targets() -> Dictionary:
 	var resolved := {}
 	# The recovery hold keeps combat's silence in force after the encounter ends.
-	var effective_state := (
-		STATE_COMBAT
-		if (_combat_recovery_remaining > 0.0 and _session_state != STATE_COMBAT)
-		else _session_state
-	)
-	var table := STATE_LAYER_TARGETS.get(effective_state, STATE_LAYER_TARGETS[STATE_COMBAT]) as Dictionary
+	var effective_state := _presentation_state
+	if _combat_recovery_remaining > 0.0 and _session_state != STATE_COMBAT:
+		effective_state = STATE_COMBAT
+	var table := PRESENTATION_LAYER_TARGETS.get(
+		effective_state,
+		PRESENTATION_LAYER_TARGETS[STATE_COMBAT]
+	) as Dictionary
 	for layer_id in LAYER_IDS:
 		resolved[layer_id] = (
 			0.0 if not bed_enabled else float(table.get(layer_id, 0.0))
 		)
 	return resolved
+
+
+func _presentation_for_session_state(state: StringName) -> StringName:
+	match state:
+		STATE_FLIGHT:
+			return PRESENTATION_PLANETARY
+		STATE_COMBAT:
+			return STATE_COMBAT
+	return PRESENTATION_STATION
 
 
 func _advance_gains(delta: float) -> void:
