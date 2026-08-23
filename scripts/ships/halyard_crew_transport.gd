@@ -48,6 +48,7 @@ const COMBAT_SOURCE_ID := 1105
 const INTERIOR_SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
+const HalyardCrewStatusDisplayType := preload("res://scripts/ships/halyard_crew_status_display.gd")
 const HALYARD_CREW_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
 const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
@@ -317,6 +318,7 @@ var _spine_rib_mesh: Mesh
 var _spine_rib_batch: MultiMeshInstance3D
 var _spine_rib_transforms: Array[Transform3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
+var _crew_status_display: HalyardCrewStatusDisplay
 var _passenger_ping_cooldowns: Dictionary = {}
 var _gunner_role_cooldowns: Dictionary = {}
 var _passenger_ping_markers: Dictionary = {}
@@ -379,6 +381,8 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	if _crew_status_display != null and is_instance_valid(_crew_status_display):
+		_crew_status_display.clear_for_detach()
 	_clear_passenger_ping_markers(&"ship_reused")
 	_passenger_ping_cooldowns.clear()
 	_gunner_role_cooldowns.clear()
@@ -393,6 +397,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
 		_moving_interior_component.reset_frame_tracking(true)
+	refresh_crew_status_display()
 
 
 # ------------------------------------------------------------- contracts ----
@@ -431,6 +436,7 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 				or StringName(seat.get("frame_id", &"")) != &"halyard_walkable_interior":
 			return _crew_role_result(false, &"halyard_roster_mismatch")
 	_crew_role_authority = authority
+	refresh_crew_status_display()
 	var result := _crew_role_result(true, &"authority_attached")
 	result["role_count"] = seats.size()
 	return result
@@ -438,6 +444,76 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 
 func get_crew_role_authority() -> CrewSeatRoleAuthority:
 	return _crew_role_authority
+
+
+## Explicit presentation refresh from one detached gameplay snapshot. This is
+## caller-driven and never polls authority or gameplay state.
+func refresh_crew_status_display() -> Dictionary:
+	if _crew_status_display == null or not is_instance_valid(_crew_status_display):
+		return {}
+	return _crew_status_display.present_crew_snapshot(get_crew_role_gameplay_snapshot())
+
+
+func get_crew_status_display() -> HalyardCrewStatusDisplay:
+	return _crew_status_display
+
+
+## Server-only bridge for the network session's already-admitted role receipt.
+## The Halyard authority remains the final physical roster gate.
+func admit_network_crew_role(
+	occupant_peer_id: int,
+	peer_generation: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	role: StringName,
+	seat_generation: int,
+	request_sequence: int
+) -> Dictionary:
+	if peer_generation <= 0 or seat_generation <= 0 or request_sequence <= 0:
+		return _crew_role_result(false, &"invalid_network_generation")
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if not assignment.is_empty():
+		if StringName(assignment.get("seat_id", &"")) != seat_id \
+				or StringName(assignment.get("role", &"")) != role:
+			return _crew_role_result(false, &"network_seat_mismatch")
+		var already := _crew_role_result(true, &"network_role_already_admitted")
+		already["assignment"] = assignment.duplicate(true)
+		return already
+	var authority_snapshot := _crew_role_authority.get_snapshot()
+	var authority_peer_id := int(authority_snapshot.get("authority_peer_id", 1))
+	var result := _crew_role_authority.claim(
+		authority_peer_id, occupant_peer_id, avatar_id, seat_id, role, request_sequence
+	)
+	if bool(result.get("accepted", false)):
+		refresh_crew_status_display()
+	return result
+
+
+func release_network_crew_role(
+	occupant_peer_id: int,
+	peer_generation: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	seat_generation: int,
+	request_sequence: int
+) -> Dictionary:
+	if _crew_role_authority == null:
+		return _crew_role_result(false, &"authority_unavailable")
+	var assignment := _crew_role_authority.get_assignment(occupant_peer_id, avatar_id)
+	if assignment.is_empty():
+		return _crew_role_result(true, &"network_role_already_released")
+	if peer_generation <= 0 or StringName(assignment.get("seat_id", &"")) != seat_id \
+			or int(assignment.get("seat_generation", 0)) != seat_generation:
+		return _crew_role_result(false, &"network_seat_mismatch")
+	var authority_peer_id := int(_crew_role_authority.get_snapshot().get("authority_peer_id", 1))
+	var result := _crew_role_authority.release(
+		authority_peer_id, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
+	)
+	if bool(result.get("accepted", false)):
+		refresh_crew_status_display()
+	return result
 
 
 ## Returns the detached pilot receipt currently held by the Halyard command
@@ -508,6 +584,7 @@ func submit_crew_intent(
 	result["status"] = &"intent_consumed" if bool(effect.get("accepted", false)) else &"intent_effect_rejected"
 	result["consumed"] = bool(effect.get("accepted", false))
 	result["effect"] = effect
+	refresh_crew_status_display()
 	return result
 
 
@@ -610,6 +687,7 @@ func attach_crew_role_occupant(
 	var result := _crew_role_result(true, StringName(registration.get("status", &"registered")))
 	result["assignment"] = assignment.duplicate(true)
 	result["registration"] = registration.duplicate(true)
+	refresh_crew_status_display()
 	return result
 
 
@@ -660,6 +738,7 @@ func release_crew_role_occupant(
 	_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
 	var result := release.duplicate(true)
 	result["occupancy"] = unregistration.duplicate(true)
+	refresh_crew_status_display()
 	return result
 
 
@@ -706,6 +785,7 @@ func release_crew_role(
 	if bool(result.get("accepted", false)):
 		_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
 		_release_tagged_crew_role_occupants(occupant_peer_id, avatar_id, &"role_released")
+		refresh_crew_status_display()
 	return result
 
 
@@ -749,6 +829,7 @@ func handoff_crew_role(
 			previous_avatar_id,
 			&"role_handoff"
 		)
+		refresh_crew_status_display()
 	return result
 
 
@@ -867,6 +948,7 @@ func request_emergency_pilot_handoff(
 	result["released_assignment"] = release.get("assignment", {}).duplicate(true)
 	result["occupancy_preserved"] = true
 	result["pilot_assignment"] = pilot_assignment.duplicate(true)
+	refresh_crew_status_display()
 	return result
 
 
@@ -2116,7 +2198,16 @@ func _build_crew_cabin() -> void:
 			_box(_crew_cabin, "CabinPortalUpright", Vector3(side * 1.28, 1.90, portal_z), Vector3(0.18, 2.80, 0.22), _halyard_materials.accent)
 		_box(_crew_cabin, "CabinPortalHeader", Vector3(0.0, 3.16, portal_z), Vector3(2.74, 0.22, 0.22), _halyard_materials.accent)
 	_box(_crew_cabin, "CabinFoldingTable", Vector3(0.0, 1.06, -5.40), Vector3(0.90, 0.09, 1.50), _halyard_materials.trim)
-	_box(_crew_cabin, "CabinStatusPanel", Vector3(0.0, 2.35, 2.62), Vector3(1.00, 0.54, 0.05), _halyard_materials.display)
+	var status_panel := _box(
+		_crew_cabin,
+		"CabinStatusPanel",
+		Vector3(0.0, 2.35, 2.62),
+		Vector3(1.00, 0.54, 0.05),
+		_halyard_materials.display
+	)
+	_crew_status_display = HalyardCrewStatusDisplayType.new()
+	_crew_status_display.name = "HalyardCrewStatusDisplay"
+	status_panel.add_child(_crew_status_display)
 	# Threshold plate inside the port hatch. Kept clear of the port seat row.
 	_box(_crew_cabin, "AirstairInnerLanding", Vector3(-1.98, 0.52, AIRSTAIR_Z), Vector3(0.86, 0.06, 1.70), _halyard_materials.accent)
 	_box(_crew_cabin, "PortHatchDoor", Vector3(-2.36, 1.55, AIRSTAIR_Z), Vector3(0.10, 2.00, 1.80), _halyard_materials.dark)
@@ -2503,6 +2594,8 @@ func _set_interior_operational(enabled: bool) -> void:
 		_clear_gunner_target_selection(&"interior_unavailable")
 		_clear_engineer_component_selection(&"interior_unavailable")
 		_clear_pilot_command(&"interior_unavailable")
+		if _crew_status_display != null and is_instance_valid(_crew_status_display):
+			_crew_status_display.clear_for_detach()
 	if _walkable_interior != null:
 		_walkable_interior.visible = enabled
 	if _occupant_volume != null:
@@ -2513,6 +2606,8 @@ func _set_interior_operational(enabled: bool) -> void:
 	if not enabled and _moving_interior_component != null:
 		_moving_interior_component.clear_occupants(true, &"ship_destroyed")
 	_sync_interior_occupant_collision()
+	if enabled:
+		refresh_crew_status_display()
 
 
 func _cleanup_detached_passenger_pings() -> void:
@@ -2642,6 +2737,7 @@ func _clear_crew_role_state(
 			and int(_emergency_pilot_handoff_state.get("occupant_peer_id", 0)) == occupant_peer_id \
 			and StringName(_emergency_pilot_handoff_state.get("avatar_id", &"")) == avatar_id:
 		_clear_emergency_pilot_handoff_state()
+	refresh_crew_status_display()
 
 
 func _advance_crew_role_cooldowns(delta: float) -> void:

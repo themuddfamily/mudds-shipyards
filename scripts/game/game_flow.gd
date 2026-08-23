@@ -537,6 +537,7 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	_connect_signal_once(network_session, &"session_stopped", _on_network_session_stopped)
 	_connect_signal_once(network_session, &"peer_admitted", _on_network_peer_admitted)
 	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
+	_connect_signal_once(network_session, &"crew_role_result", _on_network_crew_role_result)
 	_connect_signal_once(network_session, &"server_browser_result", _on_server_browser_result)
 	return network_session
 
@@ -1924,6 +1925,26 @@ func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
 func _on_network_transport_rejected(status: StringName) -> void:
 	_publish_network_session_snapshot(
 		&"failed", _network_session_mode, "Network transport rejected: %s" % status, true
+	)
+
+
+func _on_network_crew_role_result(result: Dictionary) -> void:
+	if _network_session_mode != &"server" or not bool(result.get("accepted", false)):
+		return
+	var role_record: Dictionary = result.get("role", {}) as Dictionary
+	if role_record.is_empty() or not is_instance_valid(active_ship):
+		return
+	if not active_ship.has_method(&"admit_network_crew_role"):
+		return
+	active_ship.call(
+		&"admit_network_crew_role",
+		int(role_record.get("peer_id", 0)),
+		int(role_record.get("peer_generation", 0)),
+		StringName(role_record.get("avatar_id", &"")),
+		StringName(role_record.get("seat_id", &"")),
+		StringName(role_record.get("role", &"")),
+		int(role_record.get("seat_generation", 0)),
+		int(role_record.get("request_sequence", 0))
 	)
 
 
