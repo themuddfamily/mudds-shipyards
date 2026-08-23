@@ -32,16 +32,23 @@ func _run() -> void:
 	var returned := adapter.complete_return_contract(occupied, contract, {"position": Vector3.ZERO})
 	var returned_duplicate := adapter.complete_return_contract(occupied, contract, {"position": Vector3.ZERO})
 	var reset := adapter.reset()
+	var retired := adapter.retire(5)
+	var second_request := adapter.request(receipt, berth, ship, ARROW_DEFINITION, 11, 22, 5, 7)
+	var second_occupied := adapter.confirm_occupied({"accepted": true, "strict_dock_acceptance": true})
+	var stale_first_receipt := adapter.complete_return_contract(occupied, contract, {"position": Vector3.ZERO})
 	var binding := BindingScript.new()
 	var valid: bool = requested.accepted and occupied.accepted \
 			and not duplicate.accepted and reset.accepted \
 			and not foreign_result.accepted and returned.accepted \
 			and not returned_duplicate.accepted and contract.calls == 1 \
-			and berth.is_occupied() == false \
+			and retired.accepted and second_request.accepted and second_occupied.accepted \
+			and not stale_first_receipt.accepted \
+			and berth.is_occupied() == true \
 			and occupied.berth_id == &"mudds_return_berth" \
 			and binding.has_method(&"request_planetary_return_berth") \
 			and binding.has_method(&"confirm_planetary_return_berth_occupied") \
-			and binding.has_method(&"complete_planetary_return_contract")
+			and binding.has_method(&"complete_planetary_return_contract") \
+			and binding.has_method(&"retire_planetary_return")
 	if not valid:
 		push_error("planetary return berth adapter failed")
 		binding.free()

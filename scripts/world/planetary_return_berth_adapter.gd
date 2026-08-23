@@ -105,6 +105,16 @@ func reset() -> Dictionary:
 	_contract_completed = false
 	return {"accepted": true, "reason": &"return_berth_reset"}
 
+func retire(next_session_generation: int) -> Dictionary:
+	if next_session_generation <= _session_generation:
+		return _reject(&"stale_return_retire_generation")
+	var released := reset()
+	if not bool(released.get("accepted", false)):
+		return released
+	_session_generation = next_session_generation
+	_attachment_generation += 1
+	return {"accepted": true, "reason": &"return_berth_retired", "session_generation": _session_generation, "attachment_generation": _attachment_generation}
+
 func get_snapshot() -> Dictionary:
 	return {"state": _state, "berth_id": _berth.get_berth_id() if _berth != null else &"", "token": _token, "actor_instance_id": _actor_instance_id, "craft_instance_id": _craft_instance_id, "session_generation": _session_generation, "attachment_generation": _attachment_generation, "contract_completed": _contract_completed, "authority": {"movement": false, "teleport": false, "game_flow": false, "reward": false}}.duplicate(true)
 

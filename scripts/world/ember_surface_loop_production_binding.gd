@@ -525,6 +525,12 @@ func reset_planetary_return_berth() -> Dictionary:
 	return _return_berth_adapter.call(&"reset")
 
 
+func retire_planetary_return(next_session_generation: int) -> Dictionary:
+	if _return_berth_adapter == null:
+		return _reject(&"return_berth_adapter_unavailable")
+	return _return_berth_adapter.call(&"retire", next_session_generation)
+
+
 func _submit_authorized_return_sample(
 		travel_session: Object, method: StringName, actor_instance_id: int,
 		craft_instance_id: int, sample_args: Array
