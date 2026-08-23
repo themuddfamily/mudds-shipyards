@@ -39,6 +39,15 @@ const EXPECTED_GATE_WIDTH := 28.0
 const EXPECTED_GATE_HEIGHT := 23.0
 const EXPECTED_GATE_NEAR_Z := 95.0
 const EXPECTED_GATE_FAR_Z := 77.0
+const EXPECTED_MINING_ACTIVITY_ID: StringName = &"cinder_platform_mining_run"
+const EXPECTED_MINING_APPROACH_ANCHOR := Vector3(60.0, -66.0, -605.0)
+const EXPECTED_MINING_APPROACH_LOCAL := Vector3(0.0, 4.0, 95.0)
+const EXPECTED_MINING_PRESENTATION_LOCAL_BOUNDS := AABB(
+	Vector3(-17.0, -1.0, -13.0), Vector3(34.0, 36.0, 34.0)
+)
+const EXPECTED_MINING_PRESENTATION_MESH_NODES := 18
+const EXPECTED_MINING_PRESENTATION_LIGHT_NODES := 2
+const EXPECTED_MINING_PRESENTATION_DESCENDANTS := 21
 const EXPECTED_SPINE_RIB_AABB := AABB(
 	Vector3(-6.5, -4.75, -0.8), Vector3(13.0, 9.5, 1.6)
 )
@@ -60,15 +69,15 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 167
+const EXPECTED_LOCAL_MESH_NODES := 185
 const EXPECTED_LOCAL_MULTIMESH_NODES := 3
-const EXPECTED_LOCAL_RENDERER_NODES := 170
-const EXPECTED_LOCAL_VISIBLE_COPIES := 695
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 170
-const EXPECTED_LOCAL_TRIANGLES := 117541
+const EXPECTED_LOCAL_RENDERER_NODES := 188
+const EXPECTED_LOCAL_VISIBLE_COPIES := 713
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 188
+const EXPECTED_LOCAL_TRIANGLES := 122010
 const EXPECTED_LOCAL_STATIC_BODIES := 38
 const EXPECTED_LOCAL_COLLISION_SHAPES := 38
-const EXPECTED_LAMP_LENS_COPY_COUNT := 22
+const EXPECTED_LAMP_LENS_COPY_COUNT := 24
 const EXPECTED_LAMP_LENS_RADIUS := 0.45
 const EXPECTED_LAMP_LENS_HEIGHT := 0.9
 const EXPECTED_LAMP_LENS_RADIAL_SEGMENTS := 12
@@ -114,6 +123,7 @@ func _run() -> void:
 
 	_test_frozen_contract()
 	_test_identity_and_authority(world, cluster)
+	_test_mining_platform_activity_presentation(cluster)
 	_test_processing_spine_rib_batch(cluster)
 	_test_gantry_rail_batch(cluster)
 	_test_lamp_lens_mesh_sharing(cluster)
@@ -218,6 +228,111 @@ func _test_identity_and_authority(world: ShipyardWorld, cluster: NearbySectorClu
 	)
 
 
+# --- Mining-platform presentation binding -----------------------------------
+
+
+func _test_mining_platform_activity_presentation(cluster: NearbySectorCluster) -> void:
+	var audit := cluster.get_mining_platform_presentation_audit()
+	var presentation := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/MiningActivityPresentation"
+	) as Node3D
+	var approach := presentation.get_node_or_null(^"MiningApproachAnchor") as Marker3D \
+		if presentation != null else null
+	var bounds := audit.get("presentation_local_bounds", AABB()) as AABB
+	var counts := audit.get("counts", {}) as Dictionary
+	var budgets := audit.get("budgets", {}) as Dictionary
+	_check(
+		bool(audit.get("valid", false))
+		and (audit.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
+		and StringName(audit.get("activity_id", &"")) == EXPECTED_MINING_ACTIVITY_ID
+		and StringName(audit.get("content_class", &"")) == &"NEW"
+		and StringName(audit.get("evidence_status", &"")) == EXPECTED_EVIDENCE_STATUS,
+		"the live Cinder activity ID terminates on one valid original-modern platform presentation"
+	)
+	_check(
+		(audit.get("platform_anchor", Vector3.ZERO) as Vector3).is_equal_approx(
+			EXPECTED_PLATFORM_ANCHOR
+		)
+		and (audit.get("approach_anchor", Vector3.ZERO) as Vector3).is_equal_approx(
+			EXPECTED_MINING_APPROACH_ANCHOR
+		)
+		and approach != null
+		and approach.position.is_equal_approx(EXPECTED_MINING_APPROACH_LOCAL),
+		"the activity's fixed platform and approach anchors bind to the existing platform and dock gate"
+	)
+	_check(
+		presentation != null
+		and int(counts.get("mesh_nodes", -1)) == EXPECTED_MINING_PRESENTATION_MESH_NODES
+		and int(counts.get("light_nodes", -1)) == EXPECTED_MINING_PRESENTATION_LIGHT_NODES
+		and int(counts.get("descendant_nodes", -1)) == EXPECTED_MINING_PRESENTATION_DESCENDANTS
+		and int(budgets.get("mesh_nodes", -1)) == EXPECTED_MINING_PRESENTATION_MESH_NODES
+		and int(budgets.get("light_nodes", -1)) == EXPECTED_MINING_PRESENTATION_LIGHT_NODES
+		and int(budgets.get("descendant_nodes", -1)) == EXPECTED_MINING_PRESENTATION_DESCENDANTS,
+		"the mining silhouette freezes at 18 meshes, 2 lights, and 21 descendants"
+	)
+	_check(
+		EXPECTED_MINING_PRESENTATION_LOCAL_BOUNDS.encloses(bounds)
+		and bounds.size.x >= 28.0 and bounds.size.y >= 32.0
+		and bounds.get_center().z < EXPECTED_MINING_APPROACH_LOCAL.z
+		and bool(audit.get("approach_readable", false))
+		and presentation.get_node_or_null(^"HeadframeLegPort") != null
+		and presentation.get_node_or_null(^"HeadframeLegStarboard") != null
+		and presentation.get_node_or_null(^"OreSeparatorHopper") != null
+		and presentation.get_node_or_null(^"OreBufferBin01") != null
+		and presentation.get_node_or_null(^"OreBufferBin02") != null
+		and presentation.get_node_or_null(^"OreBufferBin03") != null
+		and presentation.get_node_or_null(^"Sign_ORE_EXTRACTION") != null,
+		"the dock approach reads as a wide headframe, central hopper, three ore bins, and signed destination"
+	)
+	var port_light := presentation.get_node_or_null(^"MiningCrownLampPort") as OmniLight3D \
+		if presentation != null else null
+	var starboard_light := presentation.get_node_or_null(^"MiningCrownLampStarboard") as OmniLight3D \
+		if presentation != null else null
+	_check(
+		port_light != null and starboard_light != null
+		and not port_light.shadow_enabled and not starboard_light.shadow_enabled
+		and absf(port_light.position.x - starboard_light.position.x) >= 24.0,
+		"two shadowless crown practicals bracket the silhouette for approach recognition"
+	)
+	_check(
+		not bool(audit.get("activity_authority", true))
+		and not bool(audit.get("interaction_authority", true))
+		and not bool(audit.get("collision_authority", true))
+		and not bool(audit.get("reward_authority", true))
+		and presentation.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and presentation.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and presentation.find_children("*", "Area3D", true, false).is_empty(),
+		"the silhouette stays presentation-only with no collision, interaction, progress, or reward authority"
+	)
+	var detached := cluster.get_mining_platform_presentation_audit()
+	detached["activity_authority"] = true
+	(detached["errors"] as PackedStringArray).append("injected")
+	_check(
+		bool(cluster.get_mining_platform_presentation_audit().valid),
+		"the mining presentation audit is detached from caller mutation"
+	)
+	if approach == null:
+		return
+	approach.position.z += 1.0
+	var anchor_drift := cluster.get_mining_platform_presentation_audit()
+	_check(
+		not bool(anchor_drift.valid)
+		and (anchor_drift.errors as PackedStringArray).has("mining_approach_marker_drift"),
+		"moving the presentation marker away from the fixed dock gate is structured red"
+	)
+	approach.position = EXPECTED_MINING_APPROACH_LOCAL
+	_check(
+		bool(cluster.get_mining_platform_presentation_audit().valid),
+		"restoring the fixed approach marker returns the presentation audit green"
+	)
+	print(
+		"CINDER_MINING_PRESENTATION: meshes=%d lights=%d descendants=%d bounds=%s" % [
+			int(counts.get("mesh_nodes", -1)), int(counts.get("light_nodes", -1)),
+			int(counts.get("descendant_nodes", -1)), str(bounds),
+		]
+	)
+
+
 # --- Bounded renderer batch --------------------------------------------------
 
 
@@ -302,17 +417,18 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 	)
 
 	var geometry := _local_geometry_counts(cluster)
+	print("CINDER_CLUSTER_GEOMETRY: %s" % [geometry])
 	_check(
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster renderer nodes include the one authored convoy owner at 167 Mesh + 3 MultiMesh = 170"
+		"NearbySectorCluster owns 185 Mesh + 3 MultiMesh renderers after the bounded mining silhouette"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local batches keep 688 copies and 117457 triangles while submissions fall 166 -> 163"
+		"the local census includes the mining silhouette at 713 copies, 188 submissions, and 122010 triangles"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
@@ -377,7 +493,7 @@ func _test_lamp_lens_mesh_sharing(cluster: NearbySectorCluster) -> void:
 		and is_equal_approx(shared_mesh.height, EXPECTED_LAMP_LENS_HEIGHT)
 		and shared_mesh.radial_segments == EXPECTED_LAMP_LENS_RADIAL_SEGMENTS
 		and shared_mesh.rings == EXPECTED_LAMP_LENS_RINGS,
-		"all 22 named presentation-only lamp lenses share one exact immutable sphere mesh"
+		"all 24 named presentation-only lamp lenses share one exact immutable sphere mesh"
 	)
 	if shared_mesh == null or second_lens == null:
 		return

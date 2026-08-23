@@ -145,11 +145,23 @@ const LAMP_LENS_RADIUS := 0.45
 const LAMP_LENS_HEIGHT := 0.9
 const LAMP_LENS_RADIAL_SEGMENTS := 12
 const LAMP_LENS_RINGS := 6
-const LAMP_LENS_COPY_COUNT := 22
+const LAMP_LENS_COPY_COUNT := 24
 const TORUS_RINGS := 40
 const TORUS_RING_SEGMENTS := 14
 const TORUS_COPY_COUNT := 19
 const TORUS_MESH_RESOURCE_ALLOCATIONS := 12
+
+## Activity-specific silhouette behind the existing dock gate. The fixed mining
+## approach anchor remains the gate centre; this bounded, collision-free stock
+## gives that activity a headframe/hopper read without duplicating authority.
+const MINING_ACTIVITY_ID: StringName = &"cinder_platform_mining_run"
+const MINING_APPROACH_LOCAL := Vector3(0.0, GANTRY_CENTER_Y, GANTRY_NEAR_Z)
+const MINING_PRESENTATION_LOCAL_BOUNDS := AABB(
+	Vector3(-17.0, -1.0, -13.0), Vector3(34.0, 36.0, 34.0)
+)
+const MINING_PRESENTATION_MESH_BUDGET := 18
+const MINING_PRESENTATION_LIGHT_BUDGET := 2
+const MINING_PRESENTATION_DESCENDANT_BUDGET := 21
 
 const PERFORMANCE_BUDGET := {
 	"static_bodies": 44,
@@ -418,6 +430,125 @@ func get_cluster_audit_report() -> Dictionary:
 	return _audit_report.duplicate(true)
 
 
+## Detached proof that the mining activity's fixed IDs/anchors terminate on one
+## bounded, approach-readable presentation family without acquiring authority.
+func get_mining_platform_presentation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var platform := get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var presentation := get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/MiningActivityPresentation"
+	) as Node3D
+	var approach := (
+		presentation.get_node_or_null(^"MiningApproachAnchor") as Marker3D
+		if presentation != null else null
+	)
+	var mining_snapshot: Dictionary = {}
+	if is_instance_valid(_activity_binding):
+		mining_snapshot = (
+			_activity_binding.call("get_snapshot").get("mining", {}) as Dictionary
+		).duplicate(true)
+	if StringName(mining_snapshot.get("activity_id", &"")) != MINING_ACTIVITY_ID:
+		errors.append("mining_activity_id_not_bound")
+	if (mining_snapshot.get("platform_anchor", Vector3(999999.0, 999999.0, 999999.0)) as Vector3) \
+			.distance_to(PLATFORM_ANCHOR) > 0.001:
+		errors.append("mining_platform_anchor_not_bound")
+	if (mining_snapshot.get("approach_anchor", Vector3(999999.0, 999999.0, 999999.0)) as Vector3) \
+			.distance_to(get_dock_gate_center()) > 0.001:
+		errors.append("mining_approach_anchor_not_bound_to_gate")
+	if platform == null or presentation == null or approach == null:
+		errors.append("mining_presentation_roster_missing")
+	var mesh_nodes: Array[Node] = []
+	var light_nodes: Array[Node] = []
+	var descendant_count := 0
+	var material_ids: Dictionary = {}
+	var local_bounds := AABB()
+	var first_bound := true
+	if presentation != null:
+		descendant_count = presentation.find_children("*", "", true, false).size()
+		mesh_nodes = presentation.find_children("*", "MeshInstance3D", true, false)
+		light_nodes = presentation.find_children("*", "Light3D", true, false)
+		var presentation_inverse := presentation.global_transform.affine_inverse()
+		for raw_node in mesh_nodes:
+			var instance := raw_node as MeshInstance3D
+			if instance.mesh == null:
+				errors.append("mining_presentation_mesh_missing")
+				continue
+			if instance.material_override != null:
+				material_ids[instance.material_override.get_instance_id()] = true
+			var bounds := (
+				presentation_inverse * instance.global_transform * instance.mesh.get_aabb()
+			).abs()
+			if first_bound:
+				local_bounds = bounds
+				first_bound = false
+			else:
+				local_bounds = local_bounds.merge(bounds)
+		if presentation.get_parent() != platform \
+				or not presentation.transform.is_equal_approx(Transform3D.IDENTITY) \
+				or not bool(presentation.get_meta(&"presentation_only", false)) \
+				or StringName(presentation.get_meta(&"activity_id", &"")) \
+					!= MINING_ACTIVITY_ID:
+			errors.append("mining_presentation_root_drift")
+	if approach == null \
+			or not approach.position.is_equal_approx(MINING_APPROACH_LOCAL) \
+			or approach.get_child_count() != 0:
+		errors.append("mining_approach_marker_drift")
+	if mesh_nodes.size() != MINING_PRESENTATION_MESH_BUDGET:
+		errors.append("mining_presentation_mesh_budget_drift")
+	if light_nodes.size() != MINING_PRESENTATION_LIGHT_BUDGET:
+		errors.append("mining_presentation_light_budget_drift")
+	if descendant_count != MINING_PRESENTATION_DESCENDANT_BUDGET:
+		errors.append("mining_presentation_node_budget_drift")
+	if not MINING_PRESENTATION_LOCAL_BOUNDS.encloses(local_bounds):
+		errors.append("mining_presentation_left_local_bounds")
+	if local_bounds.size.x < 28.0 or local_bounds.size.y < 32.0 \
+			or presentation == null \
+			or presentation.get_node_or_null(^"Sign_ORE_EXTRACTION") == null:
+		errors.append("mining_presentation_approach_readability_drift")
+	for raw_light in light_nodes:
+		var light := raw_light as Light3D
+		if light.shadow_enabled:
+			errors.append("mining_presentation_shadow_light_added")
+	if presentation != null \
+			and (not presentation.find_children(
+				"*", "CollisionObject3D", true, false
+			).is_empty() \
+			or not presentation.find_children("*", "CollisionShape3D", true, false).is_empty() \
+			or not presentation.find_children("*", "Area3D", true, false).is_empty()):
+		errors.append("mining_presentation_gained_collision_or_interaction_authority")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"activity_id": MINING_ACTIVITY_ID,
+		"content_class": &"NEW",
+		"evidence_status": EVIDENCE_STATUS,
+		"platform_anchor": PLATFORM_ANCHOR,
+		"approach_anchor": get_dock_gate_center(),
+		"presentation_local_bounds": local_bounds,
+		"maximum_local_bounds": MINING_PRESENTATION_LOCAL_BOUNDS,
+		"counts": {
+			"mesh_nodes": mesh_nodes.size(),
+			"light_nodes": light_nodes.size(),
+			"descendant_nodes": descendant_count,
+			"material_resources": material_ids.size(),
+		},
+		"budgets": {
+			"mesh_nodes": MINING_PRESENTATION_MESH_BUDGET,
+			"light_nodes": MINING_PRESENTATION_LIGHT_BUDGET,
+			"descendant_nodes": MINING_PRESENTATION_DESCENDANT_BUDGET,
+		},
+		"approach_readable": local_bounds.size.x >= 28.0 \
+			and local_bounds.size.y >= 32.0,
+		"activity_authority": false,
+		"interaction_authority": false,
+		"collision_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
 ## One immutable primitive serves every visual-only lamp lens. The individual
 ## MeshInstance3D nodes retain their authored paths, transforms, materials and
 ## light siblings; only indistinguishable resource allocation is shared.
@@ -584,6 +715,10 @@ func _compose_audit_report() -> Dictionary:
 			errors.append(
 				"%s count %d exceeds budget %d" % [key, int(counts[key]), int(PERFORMANCE_BUDGET[key])]
 			)
+	var mining_presentation := get_mining_platform_presentation_audit()
+	if not bool(mining_presentation.valid):
+		for presentation_error in (mining_presentation.get("errors", PackedStringArray()) as PackedStringArray):
+			errors.append("mining presentation: %s" % presentation_error)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -613,6 +748,7 @@ func _compose_audit_report() -> Dictionary:
 		"debris_chip_seed": DEBRIS_CHIP_SEED,
 		"gantry_clear_width": GANTRY_CLEAR_WIDTH,
 		"gantry_clear_height": GANTRY_CLEAR_HEIGHT,
+		"mining_platform_presentation": mining_presentation,
 		"counts": counts,
 		"budget": PERFORMANCE_BUDGET.duplicate(true),
 		"errors": errors,
@@ -1067,6 +1203,41 @@ func _build_extraction_platform() -> void:
 	_build_extraction_arms(platform)
 	_build_derelict_hardware(platform)
 	_build_platform_mast(platform)
+	_build_mining_activity_presentation(platform)
+
+
+## Original-modern activity silhouette. Every child is presentation-only:
+## existing platform bodies remain the collision owner and the RefCounted
+## mining activity remains the only progress/reward-request authority.
+func _build_mining_activity_presentation(platform: Node3D) -> void:
+	var presentation := Node3D.new()
+	presentation.name = "MiningActivityPresentation"
+	presentation.set_meta(&"presentation_only", true)
+	presentation.set_meta(&"activity_id", MINING_ACTIVITY_ID)
+	platform.add_child(presentation)
+
+	var approach := Marker3D.new()
+	approach.name = "MiningApproachAnchor"
+	approach.position = MINING_APPROACH_LOCAL
+	presentation.add_child(approach)
+
+	_box(presentation, "HeadframeHeader", Vector3(0.0, 31.0, -4.0), Vector3(28.0, 2.0, 4.0), _materials["hull"], false)
+	for side in [-1.0, 1.0]:
+		var side_tag := "Port" if side < 0.0 else "Starboard"
+		_box(presentation, "HeadframeLeg%s" % side_tag, Vector3(side * 12.0, 20.0, -4.0), Vector3(3.0, 22.0, 3.0), _materials["steel"], false)
+		_box(presentation, "HeadframeBrace%s" % side_tag, Vector3(side * 6.2, 23.0, -4.0), Vector3(15.0, 1.2, 2.0), _materials["orange"], false, Vector3(0.0, 0.0, side * 48.0))
+		_box(presentation, "FeedChute%s" % side_tag, Vector3(side * 7.0, 11.0, -2.0), Vector3(3.0, 13.0, 3.0), _materials["hull_shadow"], false, Vector3(0.0, 0.0, side * 24.0))
+
+	_cylinder(presentation, "OreSeparatorHopper", Vector3(0.0, 19.0, -4.0), 5.5, 2.0, 9.0, _materials["hull"], false)
+	_cylinder(presentation, "HopperServiceBand", Vector3(0.0, 15.0, -4.0), 5.8, 5.8, 0.7, _materials["orange"], false)
+	for bin_index in 3:
+		var bin_x := -8.0 + float(bin_index) * 8.0
+		_cylinder(presentation, "OreBufferBin%02d" % (bin_index + 1), Vector3(bin_x, 4.0, 11.0), 2.6, 3.2, 7.0, _materials["hull_shadow"], false)
+		_box(presentation, "OreBufferBand%02d" % (bin_index + 1), Vector3(bin_x, 4.0, 11.0), Vector3(6.6, 0.8, 6.6), _materials["steel"], false)
+
+	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
+	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
+	_sign(presentation, "ORE EXTRACTION", Vector3(0.0, 27.0, 18.0), Vector3.ZERO, 2.4, _materials["orange_glow"])
 
 
 ## Four identical visual-only ribs use the exact cached bevel mesh, steel
