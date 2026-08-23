@@ -117,6 +117,7 @@ var _moving_occupants: Dictionary = {}
 var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
+var _session_max_clients := DEFAULT_MAX_CLIENTS
 var _latest_snapshot_revision := 0
 var _prediction_entities: Dictionary = {}
 var _next_peer_generation := 1
@@ -185,6 +186,7 @@ func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> D
 		_peer = null
 		return _remember(_result(false, &"listen_failed", {"error": status}))
 	_is_server = true
+	_session_max_clients = maxi(1, max_clients)
 	_configure_multiplayer()
 	_reset_session_end_reason()
 	_reset_handshake_deadline()
@@ -192,7 +194,7 @@ func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> D
 	_last_join_intent_sequence = 0
 	session_started.emit(&"server")
 	_bound_port = maxi(1, port)
-	return _remember(_result(true, &"server_started", {"port": _bound_port}))
+	return _remember(_result(true, &"server_started", {"port": _bound_port, "capacity": get_session_capacity_snapshot()}))
 
 
 func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary:
@@ -206,6 +208,7 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 		_peer = null
 		return _remember(_result(false, &"connect_failed", {"error": status}))
 	_is_server = false
+	_session_max_clients = 0
 	_configure_multiplayer()
 	_reset_session_end_reason()
 	_reset_handshake_deadline()
@@ -275,6 +278,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_configured = false
 	_is_server = false
 	_peer_generations.clear()
+	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
 	_crew_snapshot_fragmenter.reset()
 	_crew_snapshot_revision = 0
@@ -299,6 +303,14 @@ func get_local_port() -> int:
 
 func get_server_offer() -> Dictionary:
 	return _server_offer.duplicate(true)
+
+
+func get_session_capacity_snapshot() -> Dictionary:
+	return {
+		"occupancy": _peer_generations.size(),
+		"max_players": _session_max_clients,
+		"available_slots": maxi(0, _session_max_clients - _peer_generations.size()),
+	}.duplicate(true)
 
 
 func get_snapshot() -> Dictionary:
@@ -2051,6 +2063,9 @@ func _receive_hello(wire: Dictionary) -> void:
 	if not is_server():
 		return
 	var source_peer_id := multiplayer.get_remote_sender_id()
+	if not _peer_generations.has(source_peer_id) and _peer_generations.size() >= _session_max_clients:
+		transport_rejected.emit(&"session_full")
+		return
 	var admitted: Dictionary = _lifecycle.admit_peer(source_peer_id, wire)
 	if not bool(admitted.get("accepted", false)):
 		transport_rejected.emit(StringName(admitted.get("status", &"admission_rejected")))
@@ -2087,6 +2102,7 @@ func _receive_hello(wire: Dictionary) -> void:
 			"peer_generation": peer_generation,
 			"auth_token": registered.get("auth_token", ""),
 		},
+		"capacity": get_session_capacity_snapshot(),
 	}
 	_send_server_offer.rpc_id(source_peer_id, offer)
 	peer_admitted.emit(peer_id, offer.duplicate(true))
