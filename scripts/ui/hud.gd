@@ -15,6 +15,7 @@ const NetworkSessionStatusPresenterType := preload("res://scripts/ui/network_ses
 const CrewRoleSeatPresenterType := preload("res://scripts/ui/crew_role_seat_presenter.gd")
 const SurfaceRouteHazardPresenterType := preload("res://scripts/ui/surface_route_hazard_presenter.gd")
 const AtmosphericEntryGuidancePresenterType := preload("res://scripts/ui/atmospheric_entry_guidance_presenter.gd")
+const SemanticAudioCuePresenterType := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -306,6 +307,7 @@ var _network_status_presenter := NetworkSessionStatusPresenterType.new()
 var _crew_role_presenter := CrewRoleSeatPresenterType.new()
 var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
+var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
 var _runtime_status_panel: PanelContainer
 var _runtime_status_title: Label
 var _runtime_status_detail: Label
@@ -1571,6 +1573,31 @@ func caption_cue(cue_id: StringName) -> bool:
 		"text": str(cue[2]),
 		"duration_physics_seconds": CAPTION_DURATION_PHYSICS_SECONDS,
 		"priority": int(cue[3]),
+	})
+
+
+## Translates an already-emitted semantic audio event into the one authoritative
+## caption request path. This does not play audio or retain a second caption
+## queue; CaptionPresenter continues to own scale, safe-area, and motion policy.
+func present_semantic_audio_cue(
+	cue_id: StringName, source: StringName, intensity: float, world_position: Vector3
+) -> bool:
+	if not _captions_enabled:
+		return false
+	var presentation := _semantic_audio_cue_presenter.present_cue(
+		cue_id, source, intensity, world_position
+	)
+	if not bool(presentation.get("accepted", false)):
+		return false
+	var severity := StringName(presentation.get("severity", &"low"))
+	var priority: int = int({&"low": 45, &"medium": 70, &"high": 90}.get(severity, 45))
+	var text := "%s %s" % [presentation.get("severity_marker", "○"), presentation.caption]
+	return _submit_caption_request({
+		"category_id": &"system",
+		"speaker": str(presentation.source),
+		"text": text,
+		"duration_physics_seconds": CAPTION_DURATION_PHYSICS_SECONDS,
+		"priority": priority,
 	})
 
 
