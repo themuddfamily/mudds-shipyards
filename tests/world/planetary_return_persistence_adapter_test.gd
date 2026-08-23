@@ -160,6 +160,15 @@ func _run() -> void:
 		AdapterScript.new().restore(nested_identity_red).reason == &"return_persistence_receipt_corrupt",
 		"nested contract identity must match the occupied berth receipt",
 	)
+	var nested_reason_red := saved.duplicate(true)
+	nested_reason_red.completed_return.returned_receipt.contract_receipt.reason = "unexpected_completion"
+	nested_reason_red.receipt_sha256 = AdapterScript.new().call(
+		"_digest", nested_reason_red.completed_return
+	)
+	_check(
+		AdapterScript.new().restore(nested_reason_red).reason == &"return_persistence_receipt_corrupt",
+		"nested contract receipts must state a known terminal completion",
+	)
 	var stale_runtime := FakeRuntime.new()
 	stale_runtime.travel.generation = 8
 	_check(

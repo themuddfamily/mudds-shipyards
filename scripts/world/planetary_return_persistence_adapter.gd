@@ -27,6 +27,9 @@ const AUTHORITY_MAP_KEYS := [
 	"reward", "movement", "ship_movement", "teleport", "reparent", "berth",
 	"reservation", "occupancy", "lease", "attachment",
 ]
+const CONTRACT_RECEIPT_REASONS := [
+	"returned_to_station", "physical_station_arrival_completed",
+]
 
 var _restored_generation := -1
 var _retired_generation := -1
@@ -255,6 +258,7 @@ func _completed_evidence_rejection(
 			or int(berth.get("actor_instance_id", 0)) != expected_actor_instance_id \
 			or int(berth.get("craft_instance_id", 0)) != expected_craft_instance_id \
 			or not bool(contract_receipt.get("accepted", false)) \
+			or StringName(contract_receipt.get("reason", &"")) not in CONTRACT_RECEIPT_REASONS \
 			or StringName(contract_receipt.get("return_target_id", &"")) != RETURN_TARGET_ID \
 			or int(contract_receipt.get("session_generation", 0)) != expected_run_generation \
 			or int(contract_receipt.get("attachment_generation", 0)) != expected_attachment_generation \
