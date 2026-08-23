@@ -21,6 +21,14 @@ const SOURCE_SIGNALS := {
 	&"planetary": &"semantic_surface_cue_emitted",
 	&"station": &"semantic_maintenance_cue_emitted",
 	&"activity": &"semantic_activity_cue_emitted",
+	&"crew": &"semantic_crew_cue_emitted",
+}
+const CREW_CUE_LABELS := {
+	&"crew_role_joined": {&"pilot": &"crew_pilot_joined", &"gunner": &"crew_gunner_joined", &"engineer": &"crew_engineer_joined", &"passenger": &"crew_passenger_joined"},
+	&"crew_role_left": {&"pilot": &"crew_pilot_left", &"gunner": &"crew_gunner_left", &"engineer": &"crew_engineer_left", &"passenger": &"crew_passenger_left"},
+	&"crew_engineer_route_changed": {&"engineer": &"crew_engineer_route_changed"},
+	&"crew_departure_ready": {&"pilot": &"crew_departure_ready"},
+	&"crew_emergency_pilot_handoff": {&"pilot": &"crew_emergency_pilot_handoff"},
 }
 
 var _bindings: Array[Dictionary] = []
@@ -39,7 +47,8 @@ func bind_source(source: Node, source_id: StringName) -> Dictionary:
 	if not source.has_signal(signal_name):
 		return _result(false, &"missing_semantic_signal")
 	var callback_name := "_on_combat_cue" if source_id == &"combat" \
-			else ("_on_activity_cue" if source_id == &"activity" else "_on_scalar_cue")
+			else ("_on_activity_cue" if source_id == &"activity" \
+			else ("_on_crew_cue" if source_id == &"crew" else "_on_scalar_cue"))
 	var callback := Callable(self, callback_name).bind(source_id)
 	var error := source.connect(signal_name, callback)
 	if error != OK:
@@ -78,6 +87,19 @@ func _on_activity_cue(
 		source_id: StringName
 	) -> void:
 	_emit_normalized(source_id, cue_id, intensity, Vector3.ZERO)
+
+
+func _on_crew_cue(
+		cue_id: StringName,
+		role: StringName,
+		intensity: float,
+		source_id: StringName
+	) -> void:
+	var labels: Dictionary = CREW_CUE_LABELS.get(cue_id, {})
+	var normalized_cue: StringName = labels.get(role, &"")
+	if normalized_cue.is_empty():
+		return
+	_emit_normalized(source_id, normalized_cue, intensity, Vector3.ZERO)
 
 
 func _emit_normalized(source_id: StringName, cue_id: StringName, intensity: float, world_position: Vector3) -> void:
