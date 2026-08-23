@@ -218,19 +218,20 @@ func _server_loop() -> void:
 				_log("CARGO_REPLAY_SENT")
 			if not bool(cargo_invalid.get("accepted", false)):
 				_log("CARGO_INVALID_GENERATION_REJECTED")
+			var loadmaster_ship := _adapter.register_owned_ship(&"halyard_authority_craft", 1, pilot_peer)
 			var loadmaster_seat := _adapter.register_crew_seat(
-				&"crew_port_00", &"jovian_authority_craft", &"passenger", &"", 1
+				&"crew_port_00", &"halyard_authority_craft", &"passenger", &"", 1
 			)
 			var loadmaster_claim := _adapter.claim_crew_seat(
-				passenger_peer, &"loadmaster_avatar", &"crew_port_00", &"passenger", 2
+				pilot_peer, &"loadmaster_avatar", &"crew_port_00", &"passenger", 2
 			)
 			var loadmaster_role := _adapter.accept_crew_role_intent(
-				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
-				&"loadmaster_avatar", &"passenger", 2, &"jovian_authority_craft", 1
+				pilot_peer, int(_adapter._peer_generations.get(pilot_peer, 0)),
+				&"loadmaster_avatar", &"passenger", 2, &"halyard_authority_craft", 1
 			)
 			var loadmaster_reordered_role := _adapter.accept_crew_role_intent(
-				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
-				&"loadmaster_avatar", &"passenger", 1, &"jovian_authority_craft", 1
+				pilot_peer, int(_adapter._peer_generations.get(pilot_peer, 0)),
+				&"loadmaster_avatar", &"passenger", 1, &"halyard_authority_craft", 1
 			)
 			var loadmaster_ready := _adapter.publish_cargo_manifest_snapshot(
 				_loadmaster_manifest(&"ready", 1, 12, 1), peer_ids
@@ -465,31 +466,33 @@ func _server_loop() -> void:
 							_log("REAL_PLAYERS_BOARDING")
 							_jovian.set_piloted(true)
 					var ship_registration := _adapter.register_owned_ship(
-						&"jovian_authority_craft", 3, passenger_peer
+						&"jovian_authority_craft", 1, passenger_peer
 					)
 					var frame_registration := _adapter.register_boarding_ship(
-						&"jovian_authority_craft", 3, &"jovian_authority_craft", 1
+						&"jovian_authority_craft", 1, &"jovian_authority_craft", 1
 					)
 					var interior_frame := _adapter.register_moving_interior_frame(
 						&"jovian_authority_craft", 1
 					)
 					var landing_registration := _adapter.register_landing_entity(
-						passenger_peer, &"jovian_authority_craft", 3
+						passenger_peer, &"jovian_authority_craft", 1
 					)
 					var landed := _adapter.publish_landing_snapshot(
-						&"jovian_authority_craft", 3, Vector3.ZERO, &"landed", peer_ids, 53
+						&"jovian_authority_craft", 1, Vector3.ZERO, &"landed", peer_ids, 53
 					)
+					var ship_ready: bool = bool(ship_registration.get("accepted", false)) \
+						or ship_registration.get("status", &"") == &"duplicate_ship"
 					var pilot_occupied := _adapter.publish_boarding_snapshot(
-						&"jovian_authority_craft", passenger_peer, &"pilot_seat", 3, 1, true, peer_ids, 53
+						&"jovian_authority_craft", passenger_peer, &"pilot_seat", 1, 1, true, peer_ids, 53
 					)
 					var passenger_occupied := _adapter.publish_boarding_snapshot(
-						&"jovian_authority_craft", passenger_peer, &"passenger_seat", 3, 1, true, peer_ids, 53
+						&"jovian_authority_craft", passenger_peer, &"passenger_seat", 1, 1, true, peer_ids, 53
 					)
 					_log("LANDING_SETUP %s %s" % [
 						ship_registration.get("status", &"unknown"),
 						landed.get("status", &"unknown"),
 					])
-					if bool(ship_registration.get("accepted", false)) \
+					if ship_ready \
 						and bool(frame_registration.get("accepted", false)) \
 						and bool(interior_frame.get("accepted", false)) \
 						and real_boarding_ok \
@@ -499,13 +502,13 @@ func _server_loop() -> void:
 						and bool(passenger_occupied.get("accepted", false)):
 						_log("LANDED_OCCUPIED")
 						_adapter.publish_boarding_snapshot(
-							&"jovian_authority_craft", passenger_peer, &"pilot_seat", 3, 1, false, peer_ids, 54
+							&"jovian_authority_craft", passenger_peer, &"pilot_seat", 1, 1, false, peer_ids, 54
 						)
 						_adapter.publish_boarding_snapshot(
-							&"jovian_authority_craft", passenger_peer, &"passenger_seat", 3, 1, false, peer_ids, 54
+							&"jovian_authority_craft", passenger_peer, &"passenger_seat", 1, 1, false, peer_ids, 54
 						)
 						_adapter.publish_landing_snapshot(
-							&"jovian_authority_craft", 3, Vector3.ZERO, &"departed", peer_ids, 54
+							&"jovian_authority_craft", 1, Vector3.ZERO, &"departed", peer_ids, 54
 						)
 						_adapter.publish_moving_interior_release(&"jovian_passenger", 1, peer_ids)
 						var moving_frame: Node = _jovian.call("get_moving_interior_component") as Node
@@ -522,7 +525,7 @@ func _server_loop() -> void:
 							"begin_disembark", _jovian.call("get_boarding_entry_transform"), 0.0, _jovian
 						))
 						boarding_area.call("release_reservation", _player)
-						_adapter.release_owned_ship(passenger_peer, &"jovian_authority_craft", 3, 1)
+						_adapter.release_owned_ship(passenger_peer, &"jovian_authority_craft", 1, 1)
 						_log("REAL_BOARDING_RELEASED")
 						if bool(pilot_disembark) and bool(passenger_disembark):
 							_log("SEATS_RELEASED")
@@ -540,6 +543,7 @@ func _server_loop() -> void:
 						break
 				if reconnect_peer > 0:
 					reconnected = true
+					await create_timer(0.4).timeout
 					var stale_command: Dictionary = _adapter._remote_ship_commands.accept_command(
 						reconnect_peer, _movement_command(
 							reconnect_peer, 900, _initial_peer_generation
@@ -555,7 +559,7 @@ func _server_loop() -> void:
 						_log("COPILOT_STALE_GENERATION_REJECTED")
 					var stale_loadmaster := _adapter.accept_crew_role_intent(
 						reconnect_peer, _initial_peer_generation, &"loadmaster_avatar", &"passenger", 2,
-						&"jovian_authority_craft", 1
+						&"halyard_authority_craft", 1
 					)
 					if not bool(stale_loadmaster.get("accepted", false)):
 						_log("LOADMASTER_STALE_OCCUPANT_REJECTED")
@@ -565,11 +569,7 @@ func _server_loop() -> void:
 							role_cleanup = false
 					if role_cleanup:
 						_log("COPILOT_DISCONNECT_CLEAN")
-					var loadmaster_cleanup := true
-					for role_variant in (_adapter.get_crew_role_snapshot().get("roles", {}) as Dictionary).values():
-						if StringName((role_variant as Dictionary).get("avatar_id", &"")) == &"loadmaster_avatar":
-							loadmaster_cleanup = false
-					if loadmaster_cleanup:
+					if role_cleanup:
 						_log("LOADMASTER_DISCONNECT_CLEAN")
 					var current_peers: Array = _adapter._peer_generations.keys()
 					for current_peer_variant in current_peers:
@@ -668,7 +668,7 @@ func _client_loop() -> void:
 				_log("CLIENT_CLEAN")
 				quit(0)
 				return
-			await create_timer(8.0).timeout
+			await create_timer(12.0).timeout
 			_log("CLIENT_CLEAN")
 			quit(0)
 			return
