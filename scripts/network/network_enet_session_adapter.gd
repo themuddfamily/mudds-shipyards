@@ -20,6 +20,7 @@ const MovingInteriorAuthority := preload("res://scripts/network/network_moving_i
 const ShipOwnershipAuthority := preload("res://scripts/network/network_ship_ownership_authority.gd")
 const SeatAuthority := preload("res://scripts/network/network_seat_authority.gd")
 const CrewRoleAuthority := preload("res://scripts/network/network_crew_role_authority.gd")
+const CrewCommandAuthority := preload("res://scripts/network/network_crew_command_authority.gd")
 const SessionMigration := preload("res://scripts/network/network_session_migration.gd")
 const PredictionGuard := preload("res://scripts/network/network_prediction_correction_guard.gd")
 const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
@@ -45,6 +46,7 @@ signal moving_interior_result(result: Dictionary)
 signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
 signal crew_role_result(result: Dictionary)
+signal crew_command_result(result: Dictionary)
 signal migration_result(result: Dictionary)
 signal prediction_correction_result(result: Dictionary)
 signal server_browser_result(result: Dictionary)
@@ -73,6 +75,7 @@ var _moving_interior
 var _ship_ownership
 var _seat_authority
 var _crew_roles
+var _crew_commands
 var _migration
 var _prediction
 var _server_browser
@@ -146,6 +149,7 @@ func _init() -> void:
 	_ship_ownership = ShipOwnershipAuthority.new(AUTHORITY_PEER_ID)
 	_seat_authority = SeatAuthority.new(AUTHORITY_PEER_ID)
 	_crew_roles = CrewRoleAuthority.new(_seat_authority, AUTHORITY_PEER_ID)
+	_crew_commands = CrewCommandAuthority.new(_crew_roles, AUTHORITY_PEER_ID)
 	_migration = SessionMigration.new(AUTHORITY_PEER_ID)
 	_prediction = PredictionGuard.new(AUTHORITY_PEER_ID)
 	_server_browser = ServerBrowser.new(AUTHORITY_PEER_ID)
@@ -243,6 +247,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 			_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 			_migration.disconnect_peer(AUTHORITY_PEER_ID, peer_id, int(_peer_generations.get(peer_id, 0)))
+			_crew_commands.release_peer(AUTHORITY_PEER_ID, peer_id, int(_peer_generations.get(peer_id, 0)))
 			_security_strikes.erase(peer_id)
 			_secure_window_counts.erase(peer_id)
 			for prediction_id_variant in _prediction_entities.keys():
@@ -808,6 +813,51 @@ func send_crew_role_intent(
 	return _remember(_result(true, &"queued"))
 
 
+func accept_crew_command(
+	peer_id: int,
+	peer_generation: int,
+	avatar_id: StringName,
+	action: StringName,
+	request_sequence: int,
+	server_tick: int,
+	payload: Dictionary
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _crew_commands.accept_command(
+		AUTHORITY_PEER_ID, peer_id, peer_generation, avatar_id, action,
+		request_sequence, server_tick, payload
+	)
+	crew_command_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func get_crew_command_snapshot() -> Dictionary:
+	return _crew_commands.get_snapshot()
+
+
+func send_crew_command(
+	avatar_id: StringName,
+	action: StringName,
+	request_sequence: int,
+	server_tick: int,
+	payload: Dictionary
+) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	if not _configured or avatar_id.is_empty() or action.is_empty() \
+		or request_sequence <= 0 or server_tick < 0:
+		return _remember(_result(false, &"invalid_crew_command"))
+	_receive_crew_command.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"crew_command", {
+		"avatar_id": avatar_id,
+		"action": action,
+		"request_sequence": request_sequence,
+		"server_tick": server_tick,
+		"payload": payload.duplicate(true),
+	}))
+	return _remember(_result(true, &"queued"))
+
+
 func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -943,6 +993,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	mark_reconnect_succeeded()
 	if migration_generation > 1:
 		_crew_roles.reset_migration(AUTHORITY_PEER_ID, migration_generation)
+		_crew_commands.reset_migration(AUTHORITY_PEER_ID, migration_generation)
 	_reset_session_end_reason()
 	_reset_handshake_deadline()
 	_server_browser.detach(AUTHORITY_PEER_ID)
@@ -1881,6 +1932,28 @@ func _receive_crew_role_intent(wire: Dictionary) -> void:
 
 
 @rpc("any_peer", "reliable")
+func _receive_crew_command(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var source_peer_id := multiplayer.get_remote_sender_id()
+	var payload := _accept_secure_rpc(source_peer_id, wire, &"crew_command")
+	if payload.is_empty():
+		return
+	var command_payload: Dictionary = payload.get("payload", {}) as Dictionary
+	var result: Dictionary = _crew_commands.accept_command(
+		AUTHORITY_PEER_ID,
+		source_peer_id,
+		int(_peer_generations.get(source_peer_id, 0)),
+		StringName(payload.get("avatar_id", &"")),
+		StringName(payload.get("action", &"")),
+		int(payload.get("request_sequence", 0)),
+		int(payload.get("server_tick", -1)),
+		command_payload
+	)
+	crew_command_result.emit(result.duplicate(true))
+
+
+@rpc("any_peer", "reliable")
 func _receive_hello(wire: Dictionary) -> void:
 	if not is_server():
 		return
@@ -2008,6 +2081,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	_secure_window_counts.erase(peer_id)
 	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_crew_roles.release_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
+	_crew_commands.release_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 	for prediction_id_variant in _prediction_entities.keys():
 		var prediction_id := StringName(prediction_id_variant)
