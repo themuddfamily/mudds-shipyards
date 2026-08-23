@@ -48,9 +48,14 @@ const EXPECTED_MINING_APPROACH_LOCAL := Vector3(0.0, 4.0, 95.0)
 const EXPECTED_MINING_PRESENTATION_LOCAL_BOUNDS := AABB(
 	Vector3(-17.0, -1.0, -13.0), Vector3(34.0, 36.0, 34.0)
 )
-const EXPECTED_MINING_PRESENTATION_MESH_NODES := 18
+const EXPECTED_MINING_PRESENTATION_MESH_NODES := 6
+const EXPECTED_MINING_PRESENTATION_MULTIMESH_NODES := 5
+const EXPECTED_MINING_PRESENTATION_RENDERER_NODES := 11
+const EXPECTED_MINING_PRESENTATION_VISIBLE_COPIES := 18
+const EXPECTED_MINING_PRESENTATION_SUBMISSIONS := 11
+const EXPECTED_MINING_PRESENTATION_MESH_RESOURCES := 10
 const EXPECTED_MINING_PRESENTATION_LIGHT_NODES := 2
-const EXPECTED_MINING_PRESENTATION_DESCENDANTS := 21
+const EXPECTED_MINING_PRESENTATION_DESCENDANTS := 14
 const EXPECTED_STRUCTURE_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
 const EXPECTED_STRUCTURE_SCAN_APPROACH_ANCHOR := Vector3(60.0, -66.0, -680.0)
 const EXPECTED_STRUCTURE_SCAN_APPROACH_LOCAL := Vector3(0.0, 4.0, 20.0)
@@ -91,11 +96,11 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 200
-const EXPECTED_LOCAL_MULTIMESH_NODES := 3
-const EXPECTED_LOCAL_RENDERER_NODES := 203
+const EXPECTED_LOCAL_MESH_NODES := 188
+const EXPECTED_LOCAL_MULTIMESH_NODES := 8
+const EXPECTED_LOCAL_RENDERER_NODES := 196
 const EXPECTED_LOCAL_VISIBLE_COPIES := 728
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 203
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 196
 const EXPECTED_LOCAL_TRIANGLES := 125346
 const EXPECTED_LOCAL_STATIC_BODIES := 38
 const EXPECTED_LOCAL_COLLISION_SHAPES := 38
@@ -265,6 +270,7 @@ func _test_mining_platform_activity_presentation(cluster: NearbySectorCluster) -
 	var bounds := audit.get("presentation_local_bounds", AABB()) as AABB
 	var counts := audit.get("counts", {}) as Dictionary
 	var budgets := audit.get("budgets", {}) as Dictionary
+	var optimization := audit.get("optimization_delta", {}) as Dictionary
 	_check(
 		bool(audit.get("valid", false))
 		and (audit.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
@@ -287,24 +293,105 @@ func _test_mining_platform_activity_presentation(cluster: NearbySectorCluster) -
 	_check(
 		presentation != null
 		and int(counts.get("mesh_nodes", -1)) == EXPECTED_MINING_PRESENTATION_MESH_NODES
+		and int(counts.get("multimesh_nodes", -1)) == EXPECTED_MINING_PRESENTATION_MULTIMESH_NODES
+		and int(counts.get("renderer_nodes", -1)) == EXPECTED_MINING_PRESENTATION_RENDERER_NODES
+		and int(counts.get("visible_copies", -1)) == EXPECTED_MINING_PRESENTATION_VISIBLE_COPIES
+		and int(counts.get("surface_submissions", -1)) == EXPECTED_MINING_PRESENTATION_SUBMISSIONS
+		and int(counts.get("mesh_resource_allocations", -1)) == EXPECTED_MINING_PRESENTATION_MESH_RESOURCES
 		and int(counts.get("light_nodes", -1)) == EXPECTED_MINING_PRESENTATION_LIGHT_NODES
 		and int(counts.get("descendant_nodes", -1)) == EXPECTED_MINING_PRESENTATION_DESCENDANTS
 		and int(budgets.get("mesh_nodes", -1)) == EXPECTED_MINING_PRESENTATION_MESH_NODES
+		and int(budgets.get("multimesh_nodes", -1)) == EXPECTED_MINING_PRESENTATION_MULTIMESH_NODES
+		and int(budgets.get("renderer_nodes", -1)) == EXPECTED_MINING_PRESENTATION_RENDERER_NODES
+		and int(budgets.get("visible_copies", -1)) == EXPECTED_MINING_PRESENTATION_VISIBLE_COPIES
+		and int(budgets.get("surface_submissions", -1)) == EXPECTED_MINING_PRESENTATION_SUBMISSIONS
+		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_MINING_PRESENTATION_MESH_RESOURCES
 		and int(budgets.get("light_nodes", -1)) == EXPECTED_MINING_PRESENTATION_LIGHT_NODES
 		and int(budgets.get("descendant_nodes", -1)) == EXPECTED_MINING_PRESENTATION_DESCENDANTS,
-		"the mining silhouette freezes at 18 meshes, 2 lights, and 21 descendants"
+		"five exact batches preserve 18 copies in 11 renderers/submissions, 10 mesh resources, and 14 descendants"
+	)
+	_check(
+		int(optimization.get("renderer_nodes_before", -1)) == 18
+		and int(optimization.get("renderer_nodes_after", -1)) == 11
+		and int(optimization.get("surface_submissions_before", -1)) == 18
+		and int(optimization.get("surface_submissions_after", -1)) == 11
+		and int(optimization.get("descendant_nodes_before", -1)) == 21
+		and int(optimization.get("descendant_nodes_after", -1)) == 14
+		and int(optimization.get("mesh_resource_allocations_before", -1)) == 10
+		and int(optimization.get("mesh_resource_allocations_after", -1)) == 10
+		and int(optimization.get("visible_copies_before", -1)) == 18
+		and int(optimization.get("visible_copies_after", -1)) == 18,
+		"the frozen optimization delta is 18 -> 11 submissions/renderers and 21 -> 14 nodes with resources/copies unchanged"
+	)
+	var batch_specs := {
+		"MiningHeadframeLegs": {
+			"family": &"mining-headframe-legs", "mesh_aabb": AABB(Vector3(-1.5, -11.0, -1.5), Vector3(3.0, 22.0, 3.0)),
+			"material": "steel", "transforms": [
+				Transform3D(Basis.IDENTITY, Vector3(-12.0, 20.0, -4.0)),
+				Transform3D(Basis.IDENTITY, Vector3(12.0, 20.0, -4.0)),
+			],
+		},
+		"MiningHeadframeBraces": {
+			"family": &"mining-headframe-braces", "mesh_aabb": AABB(Vector3(-7.5, -0.6, -1.0), Vector3(15.0, 1.2, 2.0)),
+			"material": "orange", "transforms": [
+				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-48.0))), Vector3(-6.2, 23.0, -4.0)),
+				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(48.0))), Vector3(6.2, 23.0, -4.0)),
+			],
+		},
+		"MiningFeedChutes": {
+			"family": &"mining-feed-chutes", "mesh_aabb": AABB(Vector3(-1.5, -6.5, -1.5), Vector3(3.0, 13.0, 3.0)),
+			"material": "hull_shadow", "transforms": [
+				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-24.0))), Vector3(-7.0, 11.0, -2.0)),
+				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(24.0))), Vector3(7.0, 11.0, -2.0)),
+			],
+		},
+		"MiningOreBufferBins": {
+			"family": &"mining-ore-buffer-bins", "mesh_aabb": AABB(Vector3(-3.2, -3.5, -3.2), Vector3(6.4, 7.0, 6.4)),
+			"material": "hull_shadow", "transforms": [
+				Transform3D(Basis.IDENTITY, Vector3(-8.0, 4.0, 11.0)),
+				Transform3D(Basis.IDENTITY, Vector3(0.0, 4.0, 11.0)),
+				Transform3D(Basis.IDENTITY, Vector3(8.0, 4.0, 11.0)),
+			],
+		},
+		"MiningOreBufferBands": {
+			"family": &"mining-ore-buffer-bands", "mesh_aabb": AABB(Vector3(-3.3, -0.4, -3.3), Vector3(6.6, 0.8, 6.6)),
+			"material": "steel", "transforms": [
+				Transform3D(Basis.IDENTITY, Vector3(-8.0, 4.0, 11.0)),
+				Transform3D(Basis.IDENTITY, Vector3(0.0, 4.0, 11.0)),
+				Transform3D(Basis.IDENTITY, Vector3(8.0, 4.0, 11.0)),
+			],
+		},
+	}
+	var batch_contracts_match := true
+	var batch_mesh_ids := {}
+	for batch_name in batch_specs:
+		var spec := batch_specs[batch_name] as Dictionary
+		var batch := presentation.get_node_or_null(NodePath(batch_name)) as MultiMeshInstance3D
+		var transforms := spec["transforms"] as Array
+		batch_contracts_match = batch_contracts_match and batch != null and batch.multimesh != null
+		if batch == null or batch.multimesh == null:
+			continue
+		batch_mesh_ids[batch.multimesh.mesh.get_instance_id()] = true
+		batch_contracts_match = batch_contracts_match \
+			and batch.multimesh.instance_count == transforms.size() \
+			and batch.multimesh.buffer == _encode_multimesh_transforms(transforms) \
+			and (batch.get_meta(&"authored_instance_transforms", []) as Array) == transforms \
+			and StringName(batch.get_meta(&"visual_batch_family_id", &"")) == spec["family"] \
+			and bool(batch.get_meta(&"presentation_only", false)) \
+			and batch.multimesh.mesh.get_aabb().is_equal_approx(spec["mesh_aabb"] as AABB) \
+			and batch.material_override == cluster._materials[spec["material"]]
+	_check(
+		batch_contracts_match and batch_mesh_ids.size() == 5,
+		"the five batches retain every frozen transform/material/mesh recipe with five exact shared resources"
 	)
 	_check(
 		EXPECTED_MINING_PRESENTATION_LOCAL_BOUNDS.encloses(bounds)
 		and bounds.size.x >= 28.0 and bounds.size.y >= 32.0
 		and bounds.get_center().z < EXPECTED_MINING_APPROACH_LOCAL.z
 		and bool(audit.get("approach_readable", false))
-		and presentation.get_node_or_null(^"HeadframeLegPort") != null
-		and presentation.get_node_or_null(^"HeadframeLegStarboard") != null
+		and presentation.get_node_or_null(^"MiningHeadframeLegs") != null
 		and presentation.get_node_or_null(^"OreSeparatorHopper") != null
-		and presentation.get_node_or_null(^"OreBufferBin01") != null
-		and presentation.get_node_or_null(^"OreBufferBin02") != null
-		and presentation.get_node_or_null(^"OreBufferBin03") != null
+		and presentation.get_node_or_null(^"MiningOreBufferBins") != null
 		and presentation.get_node_or_null(^"Sign_ORE_EXTRACTION") != null,
 		"the dock approach reads as a wide headframe, central hopper, three ore bins, and signed destination"
 	)
@@ -350,8 +437,9 @@ func _test_mining_platform_activity_presentation(cluster: NearbySectorCluster) -
 		"restoring the fixed approach marker returns the presentation audit green"
 	)
 	print(
-		"CINDER_MINING_PRESENTATION: meshes=%d lights=%d descendants=%d bounds=%s" % [
-			int(counts.get("mesh_nodes", -1)), int(counts.get("light_nodes", -1)),
+		"CINDER_MINING_PRESENTATION: renderers=%d copies=%d submissions=%d resources=%d descendants=%d bounds=%s" % [
+			int(counts.get("renderer_nodes", -1)), int(counts.get("visible_copies", -1)),
+			int(counts.get("surface_submissions", -1)), int(counts.get("mesh_resource_allocations", -1)),
 			int(counts.get("descendant_nodes", -1)), str(bounds),
 		]
 	)
@@ -678,13 +766,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 200 Mesh + 3 MultiMesh renderers after both bounded activity silhouettes"
+		"NearbySectorCluster owns 188 Mesh + 8 MultiMesh renderers after mining-family batching"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census includes both activity silhouettes at 728 copies, 203 submissions, and 125346 triangles"
+		"the local census preserves 728 copies and 125346 triangles while submissions fall 203 -> 196"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
@@ -909,11 +997,11 @@ func _mesh_triangle_count(mesh: Mesh) -> int:
 	return triangles
 
 
-func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+func _encode_multimesh_transforms(transforms: Array) -> PackedFloat32Array:
 	var buffer := PackedFloat32Array()
 	buffer.resize(transforms.size() * 12)
 	for index in transforms.size():
-		var transform_value := transforms[index]
+		var transform_value: Transform3D = transforms[index]
 		var offset := index * 12
 		buffer[offset + 0] = transform_value.basis.x.x
 		buffer[offset + 1] = transform_value.basis.y.x

@@ -183,9 +183,17 @@ const MINING_APPROACH_LOCAL := Vector3(0.0, GANTRY_CENTER_Y, GANTRY_NEAR_Z)
 const MINING_PRESENTATION_LOCAL_BOUNDS := AABB(
 	Vector3(-17.0, -1.0, -13.0), Vector3(34.0, 36.0, 34.0)
 )
-const MINING_PRESENTATION_MESH_BUDGET := 18
+const MINING_PRESENTATION_MESH_BUDGET := 6
+const MINING_PRESENTATION_MULTIMESH_BUDGET := 5
+const MINING_PRESENTATION_RENDERER_BUDGET := 11
+const MINING_PRESENTATION_VISIBLE_COPY_BUDGET := 18
+const MINING_PRESENTATION_SUBMISSION_BUDGET := 11
+const MINING_PRESENTATION_MESH_RESOURCE_BUDGET := 10
 const MINING_PRESENTATION_LIGHT_BUDGET := 2
-const MINING_PRESENTATION_DESCENDANT_BUDGET := 21
+const MINING_PRESENTATION_DESCENDANT_BUDGET := 14
+const MINING_PRESENTATION_PREBATCH_RENDERERS := 18
+const MINING_PRESENTATION_PREBATCH_SUBMISSIONS := 18
+const MINING_PRESENTATION_PREBATCH_DESCENDANTS := 21
 
 ## The scan begins twenty metres in front of the platform centre. A fractured
 ## datum frame gathers the existing torn habitat and collapsed solar wing into
@@ -204,7 +212,7 @@ const PERFORMANCE_BUDGET := {
 	"mesh_instances": 200,
 	# Three bounded visual batches retain the debris shell, processing-spine ribs,
 	# and gantry rails without increasing gameplay or collision ownership.
-	"multimesh_instances": 3,
+	"multimesh_instances": 8,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -661,15 +669,21 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 	if platform == null or presentation == null or approach == null:
 		errors.append("mining_presentation_roster_missing")
 	var mesh_nodes: Array[Node] = []
+	var multimesh_nodes: Array[Node] = []
 	var light_nodes: Array[Node] = []
 	var descendant_count := 0
 	var material_ids: Dictionary = {}
+	var mesh_resource_ids: Dictionary = {}
 	var local_bounds := AABB()
 	var first_bound := true
+	var visible_copies := 0
+	var surface_submissions := 0
 	if presentation != null:
 		descendant_count = presentation.find_children("*", "", true, false).size()
 		mesh_nodes = presentation.find_children("*", "MeshInstance3D", true, false)
+		multimesh_nodes = presentation.find_children("*", "MultiMeshInstance3D", true, false)
 		light_nodes = presentation.find_children("*", "Light3D", true, false)
+		visible_copies = mesh_nodes.size()
 		var presentation_inverse := presentation.global_transform.affine_inverse()
 		for raw_node in mesh_nodes:
 			var instance := raw_node as MeshInstance3D
@@ -678,6 +692,8 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 				continue
 			if instance.material_override != null:
 				material_ids[instance.material_override.get_instance_id()] = true
+			mesh_resource_ids[instance.mesh.get_instance_id()] = true
+			surface_submissions += instance.mesh.get_surface_count()
 			var bounds := (
 				presentation_inverse * instance.global_transform * instance.mesh.get_aabb()
 			).abs()
@@ -686,6 +702,31 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 				first_bound = false
 			else:
 				local_bounds = local_bounds.merge(bounds)
+		for raw_node in multimesh_nodes:
+			var batch := raw_node as MultiMeshInstance3D
+			if batch.multimesh == null or batch.multimesh.mesh == null:
+				errors.append("mining_presentation_batch_mesh_missing")
+				continue
+			var copy_count := batch.multimesh.visible_instance_count
+			if copy_count < 0:
+				copy_count = batch.multimesh.instance_count
+			visible_copies += copy_count
+			surface_submissions += batch.multimesh.mesh.get_surface_count()
+			mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+			if batch.material_override != null:
+				material_ids[batch.material_override.get_instance_id()] = true
+			var bounds := (
+				presentation_inverse * batch.global_transform * batch.custom_aabb
+			).abs()
+			if first_bound:
+				local_bounds = bounds
+				first_bound = false
+			else:
+				local_bounds = local_bounds.merge(bounds)
+			if not bool(batch.get_meta(&"presentation_only", false)) \
+					or (batch.get_meta(&"authored_instance_transforms", []) as Array).size() \
+						!= copy_count:
+				errors.append("mining_presentation_batch_contract_drift")
 		if presentation.get_parent() != platform \
 				or not presentation.transform.is_equal_approx(Transform3D.IDENTITY) \
 				or not bool(presentation.get_meta(&"presentation_only", false)) \
@@ -698,6 +739,16 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 		errors.append("mining_approach_marker_drift")
 	if mesh_nodes.size() != MINING_PRESENTATION_MESH_BUDGET:
 		errors.append("mining_presentation_mesh_budget_drift")
+	if multimesh_nodes.size() != MINING_PRESENTATION_MULTIMESH_BUDGET:
+		errors.append("mining_presentation_multimesh_budget_drift")
+	if mesh_nodes.size() + multimesh_nodes.size() != MINING_PRESENTATION_RENDERER_BUDGET:
+		errors.append("mining_presentation_renderer_budget_drift")
+	if visible_copies != MINING_PRESENTATION_VISIBLE_COPY_BUDGET:
+		errors.append("mining_presentation_visible_copy_drift")
+	if surface_submissions != MINING_PRESENTATION_SUBMISSION_BUDGET:
+		errors.append("mining_presentation_submission_budget_drift")
+	if mesh_resource_ids.size() != MINING_PRESENTATION_MESH_RESOURCE_BUDGET:
+		errors.append("mining_presentation_mesh_resource_budget_drift")
 	if light_nodes.size() != MINING_PRESENTATION_LIGHT_BUDGET:
 		errors.append("mining_presentation_light_budget_drift")
 	if descendant_count != MINING_PRESENTATION_DESCENDANT_BUDGET:
@@ -732,14 +783,36 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 		"maximum_local_bounds": MINING_PRESENTATION_LOCAL_BOUNDS,
 		"counts": {
 			"mesh_nodes": mesh_nodes.size(),
+			"multimesh_nodes": multimesh_nodes.size(),
+			"renderer_nodes": mesh_nodes.size() + multimesh_nodes.size(),
+			"visible_copies": visible_copies,
+			"surface_submissions": surface_submissions,
+			"mesh_resource_allocations": mesh_resource_ids.size(),
 			"light_nodes": light_nodes.size(),
 			"descendant_nodes": descendant_count,
 			"material_resources": material_ids.size(),
 		},
 		"budgets": {
 			"mesh_nodes": MINING_PRESENTATION_MESH_BUDGET,
+			"multimesh_nodes": MINING_PRESENTATION_MULTIMESH_BUDGET,
+			"renderer_nodes": MINING_PRESENTATION_RENDERER_BUDGET,
+			"visible_copies": MINING_PRESENTATION_VISIBLE_COPY_BUDGET,
+			"surface_submissions": MINING_PRESENTATION_SUBMISSION_BUDGET,
+			"mesh_resource_allocations": MINING_PRESENTATION_MESH_RESOURCE_BUDGET,
 			"light_nodes": MINING_PRESENTATION_LIGHT_BUDGET,
 			"descendant_nodes": MINING_PRESENTATION_DESCENDANT_BUDGET,
+		},
+		"optimization_delta": {
+			"renderer_nodes_before": MINING_PRESENTATION_PREBATCH_RENDERERS,
+			"renderer_nodes_after": mesh_nodes.size() + multimesh_nodes.size(),
+			"surface_submissions_before": MINING_PRESENTATION_PREBATCH_SUBMISSIONS,
+			"surface_submissions_after": surface_submissions,
+			"descendant_nodes_before": MINING_PRESENTATION_PREBATCH_DESCENDANTS,
+			"descendant_nodes_after": descendant_count,
+			"mesh_resource_allocations_before": MINING_PRESENTATION_MESH_RESOURCE_BUDGET,
+			"mesh_resource_allocations_after": mesh_resource_ids.size(),
+			"visible_copies_before": MINING_PRESENTATION_VISIBLE_COPY_BUDGET,
+			"visible_copies_after": visible_copies,
 		},
 		"approach_readable": local_bounds.size.x >= 28.0 \
 			and local_bounds.size.y >= 32.0,
@@ -1620,18 +1693,54 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	presentation.add_child(approach)
 
 	_box(presentation, "HeadframeHeader", Vector3(0.0, 31.0, -4.0), Vector3(28.0, 2.0, 4.0), _materials["hull"], false)
+	var leg_transforms: Array[Transform3D] = []
+	var brace_transforms: Array[Transform3D] = []
+	var chute_transforms: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
-		var side_tag := "Port" if side < 0.0 else "Starboard"
-		_box(presentation, "HeadframeLeg%s" % side_tag, Vector3(side * 12.0, 20.0, -4.0), Vector3(3.0, 22.0, 3.0), _materials["steel"], false)
-		_box(presentation, "HeadframeBrace%s" % side_tag, Vector3(side * 6.2, 23.0, -4.0), Vector3(15.0, 1.2, 2.0), _materials["orange"], false, Vector3(0.0, 0.0, side * 48.0))
-		_box(presentation, "FeedChute%s" % side_tag, Vector3(side * 7.0, 11.0, -2.0), Vector3(3.0, 13.0, 3.0), _materials["hull_shadow"], false, Vector3(0.0, 0.0, side * 24.0))
+		leg_transforms.append(Transform3D(Basis.IDENTITY, Vector3(side * 12.0, 20.0, -4.0)))
+		brace_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(side * 48.0))),
+			Vector3(side * 6.2, 23.0, -4.0)
+		))
+		chute_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(side * 24.0))),
+			Vector3(side * 7.0, 11.0, -2.0)
+		))
+	_presentation_multimesh_batch(
+		presentation, "MiningHeadframeLegs",
+		StationSurfaceKit.rounded_box_mesh_cached(Vector3(3.0, 22.0, 3.0), _box_cache),
+		_materials["steel"], leg_transforms, &"mining-headframe-legs"
+	)
+	_presentation_multimesh_batch(
+		presentation, "MiningHeadframeBraces",
+		StationSurfaceKit.rounded_box_mesh_cached(Vector3(15.0, 1.2, 2.0), _box_cache),
+		_materials["orange"], brace_transforms, &"mining-headframe-braces"
+	)
+	_presentation_multimesh_batch(
+		presentation, "MiningFeedChutes",
+		StationSurfaceKit.rounded_box_mesh_cached(Vector3(3.0, 13.0, 3.0), _box_cache),
+		_materials["hull_shadow"], chute_transforms, &"mining-feed-chutes"
+	)
 
 	_cylinder(presentation, "OreSeparatorHopper", Vector3(0.0, 19.0, -4.0), 5.5, 2.0, 9.0, _materials["hull"], false)
 	_cylinder(presentation, "HopperServiceBand", Vector3(0.0, 15.0, -4.0), 5.8, 5.8, 0.7, _materials["orange"], false)
+	var bin_transforms: Array[Transform3D] = []
+	var bin_band_transforms: Array[Transform3D] = []
 	for bin_index in 3:
 		var bin_x := -8.0 + float(bin_index) * 8.0
-		_cylinder(presentation, "OreBufferBin%02d" % (bin_index + 1), Vector3(bin_x, 4.0, 11.0), 2.6, 3.2, 7.0, _materials["hull_shadow"], false)
-		_box(presentation, "OreBufferBand%02d" % (bin_index + 1), Vector3(bin_x, 4.0, 11.0), Vector3(6.6, 0.8, 6.6), _materials["steel"], false)
+		bin_transforms.append(Transform3D(Basis.IDENTITY, Vector3(bin_x, 4.0, 11.0)))
+		bin_band_transforms.append(Transform3D(Basis.IDENTITY, Vector3(bin_x, 4.0, 11.0)))
+	_presentation_multimesh_batch(
+		presentation, "MiningOreBufferBins",
+		StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			2.6, 3.2, 7.0, 24, _cylinder_cache, 4, true, true
+		), _materials["hull_shadow"], bin_transforms, &"mining-ore-buffer-bins"
+	)
+	_presentation_multimesh_batch(
+		presentation, "MiningOreBufferBands",
+		StationSurfaceKit.rounded_box_mesh_cached(Vector3(6.6, 0.8, 6.6), _box_cache),
+		_materials["steel"], bin_band_transforms, &"mining-ore-buffer-bands"
+	)
 
 	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
 	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
@@ -2022,6 +2131,57 @@ func _shared_lamp_lens_mesh() -> SphereMesh:
 		_lamp_lens_mesh.radial_segments = LAMP_LENS_RADIAL_SEGMENTS
 		_lamp_lens_mesh.rings = LAMP_LENS_RINGS
 	return _lamp_lens_mesh
+
+
+func _presentation_multimesh_batch(
+		parent: Node3D,
+		node_name: String,
+		mesh: Mesh,
+		material: Material,
+		transforms: Array[Transform3D],
+		family_id: StringName
+	) -> MultiMeshInstance3D:
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	var bounds := AABB()
+	var first_bound := true
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+		var instance_bounds := (transform_value * mesh.get_aabb()).abs()
+		if first_bound:
+			bounds = instance_bounds
+			first_bound = false
+		else:
+			bounds = bounds.merge(instance_bounds)
+	multimesh.buffer = buffer
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multimesh
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.custom_aabb = bounds
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"visual_batch_family_id", family_id)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
 
 
 func _box(
