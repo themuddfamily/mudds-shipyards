@@ -55,6 +55,8 @@ const SECURE_WINDOW_MILLISECONDS := 1000
 const RECONNECT_BACKOFF_BASE_MILLISECONDS := 250
 const RECONNECT_BACKOFF_MAX_MILLISECONDS := 5000
 const RECONNECT_BACKOFF_MAX_ATTEMPTS := 6
+const HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS := 5000
+const HANDSHAKE_MAX_TIMEOUT_MILLISECONDS := 30000
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -116,6 +118,13 @@ var _session_end_reason: Dictionary = {
 	"migration_generation": 0,
 	"sequence": 0,
 }
+var _handshake_deadline: Dictionary = {
+	"active": false,
+	"deadline_milliseconds": 0,
+	"peer_generation": 0,
+	"migration_generation": 0,
+	"timeout_milliseconds": HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS,
+}
 
 
 func _init() -> void:
@@ -157,6 +166,7 @@ func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> D
 	_is_server = true
 	_configure_multiplayer()
 	_reset_session_end_reason()
+	_reset_handshake_deadline()
 	session_started.emit(&"server")
 	_bound_port = maxi(1, port)
 	return _remember(_result(true, &"server_started", {"port": _bound_port}))
@@ -175,6 +185,7 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 	_is_server = false
 	_configure_multiplayer()
 	_reset_session_end_reason()
+	_reset_handshake_deadline()
 	session_started.emit(&"client")
 	_bound_port = maxi(1, port)
 	return _remember(_result(true, &"client_started", {"address": address, "port": _bound_port}))
@@ -241,6 +252,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_server_offer.clear()
 	mark_reconnect_succeeded()
 	record_session_end(reason)
+	_reset_handshake_deadline()
 	session_stopped.emit(reason)
 	return _remember(_result(true, &"stopped", {"reason": reason}))
 
@@ -878,6 +890,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 		return _remember(_result(false, &"client_required"))
 	mark_reconnect_succeeded()
 	_reset_session_end_reason()
+	_reset_handshake_deadline()
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
 	_moving_replica_samples.clear()
@@ -970,12 +983,80 @@ func get_session_end_reason_snapshot() -> Dictionary:
 	return _session_end_reason.duplicate(true)
 
 
+func begin_handshake(
+		now_milliseconds: int,
+		peer_generation: int,
+		migration_generation: int,
+		timeout_milliseconds: int = HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS
+) -> Dictionary:
+	if now_milliseconds < 0 or peer_generation <= 0 or migration_generation <= 0 \
+			or timeout_milliseconds <= 0 or timeout_milliseconds > HANDSHAKE_MAX_TIMEOUT_MILLISECONDS:
+		return _remember(_result(false, &"invalid_handshake_deadline"))
+	_handshake_deadline = {
+		"active": true,
+		"deadline_milliseconds": now_milliseconds + timeout_milliseconds,
+		"peer_generation": peer_generation,
+		"migration_generation": migration_generation,
+		"timeout_milliseconds": timeout_milliseconds,
+	}
+	return _remember(_result(true, &"handshake_deadline_started", {
+		"deadline": _handshake_deadline.duplicate(true),
+	}))
+
+
+func check_handshake_deadline(
+		now_milliseconds: int,
+		peer_generation: int,
+		migration_generation: int
+) -> Dictionary:
+	if now_milliseconds < 0 or peer_generation <= 0 or migration_generation <= 0:
+		return _remember(_result(false, &"invalid_handshake_deadline"))
+	if not bool(_handshake_deadline.get("active", false)):
+		return _remember(_result(true, &"handshake_inactive"))
+	if peer_generation != int(_handshake_deadline.peer_generation) \
+			or migration_generation != int(_handshake_deadline.migration_generation):
+		return _remember(_result(false, &"stale_handshake_generation"))
+	if now_milliseconds < int(_handshake_deadline.deadline_milliseconds):
+		return _remember(_result(true, &"handshake_pending", {
+			"remaining_milliseconds": int(_handshake_deadline.deadline_milliseconds) - now_milliseconds,
+		}))
+	_handshake_deadline.active = false
+	record_session_end(&"timeout", peer_generation, migration_generation)
+	return _remember(_result(false, &"handshake_timeout", {
+		"generation": {"peer_generation": peer_generation, "migration_generation": migration_generation},
+	}))
+
+
+func accept_handshake(peer_generation: int, migration_generation: int) -> Dictionary:
+	if not bool(_handshake_deadline.get("active", false)):
+		return _remember(_result(false, &"handshake_inactive"))
+	if peer_generation != int(_handshake_deadline.peer_generation) \
+			or migration_generation != int(_handshake_deadline.migration_generation):
+		return _remember(_result(false, &"stale_handshake_generation"))
+	_reset_handshake_deadline()
+	return _remember(_result(true, &"handshake_accepted"))
+
+
+func get_handshake_deadline_state() -> Dictionary:
+	return _handshake_deadline.duplicate(true)
+
+
 func _reset_session_end_reason() -> void:
 	_session_end_reason = {
 		"reason": &"unknown",
 		"peer_generation": 0,
 		"migration_generation": 0,
 		"sequence": 0,
+	}
+
+
+func _reset_handshake_deadline() -> void:
+	_handshake_deadline = {
+		"active": false,
+		"deadline_milliseconds": 0,
+		"peer_generation": 0,
+		"migration_generation": 0,
+		"timeout_milliseconds": HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS,
 	}
 
 
