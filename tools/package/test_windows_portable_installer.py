@@ -5,14 +5,14 @@ import zipfile
 from pathlib import Path
 
 try:
-    from .windows_portable_installer import InstallError, install_package, uninstall_package
+    from .windows_portable_installer import InstallError, install_package, rollback_package, uninstall_package
 except ImportError:
-    from windows_portable_installer import InstallError, install_package, uninstall_package
+    from windows_portable_installer import InstallError, install_package, rollback_package, uninstall_package
 
 
 class WindowsPortableInstallerTests(unittest.TestCase):
     def _package(self, root: Path, version: str = "MuddsShipyards-v1.2.3-abcdef1") -> Path:
-        payload = {"MuddsShipyards.exe": b"exe", "README.md": b"readme", "LICENSE.txt": b"license"}
+        payload = {"MuddsShipyards.exe": version.encode(), "README.md": b"readme", "LICENSE.txt": b"license"}
         sums = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in sorted(payload.items()))
         package = root / f"{version}.zip"
         with zipfile.ZipFile(package, "w") as archive:
@@ -32,11 +32,24 @@ class WindowsPortableInstallerTests(unittest.TestCase):
             upgraded = self._package(root, "MuddsShipyards-v1.2.4-fedcba9")
             result = install_package(upgraded, destination)
             self.assertTrue(Path(result["rollback"]).is_dir())
-            self.assertEqual((Path(result["rollback"]) / "MuddsShipyards.exe").read_bytes(), b"exe")
+            self.assertEqual((Path(result["rollback"]) / "MuddsShipyards.exe").read_bytes(), b"MuddsShipyards-v1.2.3-abcdef1")
+            rolled = rollback_package(destination)
+            self.assertEqual((destination / "MuddsShipyards.exe").read_bytes(), b"MuddsShipyards-v1.2.3-abcdef1")
+            self.assertEqual((Path(rolled["rollback"]) / "MuddsShipyards.exe").read_bytes(), b"MuddsShipyards-v1.2.4-fedcba9")
             uninstalled = uninstall_package(destination)
             self.assertIn("MuddsShipyards.exe", uninstalled["removed"])
             self.assertTrue((destination / "user-created.txt").is_file())
             self.assertFalse((destination / ".mudds-owned.json").exists())
+
+    def test_rollback_rejects_tampered_preserved_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            destination = root / "MuddsShipyards"
+            install_package(self._package(root, "MuddsShipyards-v1.2.3-abcdef1"), destination)
+            install_package(self._package(root, "MuddsShipyards-v1.2.4-fedcba9"), destination)
+            (destination.parent / ".MuddsShipyards.rollback" / "MuddsShipyards.exe").write_bytes(b"tampered")
+            with self.assertRaises(InstallError):
+                rollback_package(destination)
 
     def test_checksum_and_traversal_rejected_before_install(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

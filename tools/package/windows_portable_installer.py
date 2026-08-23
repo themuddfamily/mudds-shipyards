@@ -104,6 +104,41 @@ def _remove_tree(path: Path) -> None:
         shutil.rmtree(path)
 
 
+def _ownership_files(directory: Path) -> set[str]:
+    manifest_path = directory / OWNERSHIP_NAME
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        files = manifest["files"]
+        if manifest.get("schema_version") != 1 or not isinstance(files, list):
+            raise ValueError
+        owned = {_relative_name(item) for item in files}
+        if len(owned) != len(files) or OWNERSHIP_NAME not in owned:
+            raise ValueError
+        return owned
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise InstallError(f"invalid ownership manifest: {directory}") from error
+
+
+def _validate_directory_checksums(directory: Path) -> None:
+    checksum_path = directory / "SHA256SUMS.txt"
+    if not checksum_path.is_file():
+        raise InstallError(f"installed package is missing SHA256SUMS.txt: {directory}")
+    try:
+        lines = checksum_path.read_text(encoding="utf-8").splitlines()
+    except OSError as error:
+        raise InstallError("cannot read installed checksums") from error
+    listed: set[str] = set()
+    for line in lines:
+        fields = line.split("  ", 1)
+        if len(fields) != 2 or len(fields[0]) != 64 or any(c not in "0123456789abcdef" for c in fields[0]):
+            raise InstallError("invalid installed SHA256SUMS.txt entry")
+        relative = _relative_name(fields[1])
+        target = directory / relative
+        if not target.is_file() or _sha256_bytes(target.read_bytes()) != fields[0]:
+            raise InstallError(f"installed checksum mismatch: {relative}")
+        listed.add(relative)
+
+
 def install_package(package: Path, destination: Path) -> dict[str, object]:
     """Validate and atomically install *package* into explicit *destination*."""
     root, entries = _read_archive(package.resolve())
@@ -195,6 +230,54 @@ def uninstall_package(destination: Path) -> dict[str, object]:
     return {"destination": destination, "removed": removed}
 
 
+def rollback_package(destination: Path) -> dict[str, object]:
+    """Atomically make the preserved rollback version current."""
+    destination = _destination(destination)
+    rollback = destination.parent / f".{destination.name}{ROLLBACK_SUFFIX}"
+    staging = destination.parent / f".{destination.name}{STAGING_SUFFIX}"
+    if not destination.is_dir() or not rollback.is_dir():
+        raise InstallError("current package or rollback version is missing")
+    current_owned = _ownership_files(destination)
+    rollback_owned = _ownership_files(rollback)
+    _validate_directory_checksums(destination)
+    _validate_directory_checksums(rollback)
+    if staging.exists():
+        raise InstallError(f"staging path already exists: {staging}")
+    staging.mkdir(parents=True)
+    try:
+        for source in rollback.rglob("*"):
+            relative = source.relative_to(rollback)
+            target = staging / relative
+            if source.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+            elif source.is_file():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, target)
+        for source in destination.rglob("*"):
+            if not source.is_file():
+                continue
+            relative = source.relative_to(destination).as_posix()
+            if relative not in current_owned:
+                target = staging / relative
+                if not target.exists():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(source, target)
+        if rollback.exists():
+            _remove_tree(rollback)
+        os.replace(destination, rollback)
+        try:
+            os.replace(staging, destination)
+        except OSError:
+            if not destination.exists() and rollback.exists():
+                os.replace(rollback, destination)
+            raise
+    except Exception:
+        if staging.exists():
+            _remove_tree(staging)
+        raise
+    return {"destination": destination, "rollback": rollback, "files": sorted(rollback_owned)}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -203,9 +286,16 @@ def main(argv: list[str] | None = None) -> int:
     install.add_argument("destination", type=Path)
     uninstall = subparsers.add_parser("uninstall")
     uninstall.add_argument("destination", type=Path)
+    rollback = subparsers.add_parser("rollback")
+    rollback.add_argument("destination", type=Path)
     args = parser.parse_args(argv)
     try:
-        result = install_package(args.package, args.destination) if args.command == "install" else uninstall_package(args.destination)
+        if args.command == "install":
+            result = install_package(args.package, args.destination)
+        elif args.command == "rollback":
+            result = rollback_package(args.destination)
+        else:
+            result = uninstall_package(args.destination)
     except (InstallError, OSError, zipfile.BadZipFile) as error:
         print(f"windows-portable-installer: ERROR: {error}")
         return 2
