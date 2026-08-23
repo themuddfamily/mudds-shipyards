@@ -81,6 +81,8 @@ func _run() -> void:
 	var closed := bridge.mark_orderly_shutdown(3, 0.04, "clean-11")
 	_check(bool(closed.accepted) and closed.reason == &"orderly_shutdown" and bridge.get_snapshot().state == Bridge.STATE_CLEAN, "explicit orderly shutdown closes the bridge")
 	_check(sink_filesystem.files.has("memory://diag/crash-log.json"), "diagnostic sink retains the privacy-safe recovery snapshot")
+	var exported := bridge.export_support_bundle("user://diagnostics/exports", 1)
+	_check(bool(exported.accepted), "bridge exposes explicit bounded support export")
 	_finish()
 
 

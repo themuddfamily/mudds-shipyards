@@ -65,6 +65,12 @@ func _run() -> void:
 	_check(filesystem.files.has("memory://diagnostics/crash-log.json") and not filesystem.files.has("memory://diagnostics/crash-log.json.tmp"), "atomic publication leaves no temporary sibling")
 	var second := sink.append_snapshot(snapshot)
 	_check(bool(second.accepted) and filesystem.files.has("memory://diagnostics/crash-log.previous.json"), "publication rotates exactly one bounded previous generation")
+	var exported := sink.export_support_bundle("user://diagnostics/exports", 1)
+	_check(bool(exported.accepted) and filesystem.files.has("user://diagnostics/exports/diagnostics-support.json"), "caller-authorized export publishes bounded current/previous snapshots")
+	var stale_export := sink.export_support_bundle("user://diagnostics/exports", 1)
+	_check(not bool(stale_export.accepted) and stale_export.reason == &"export_generation_stale", "support export rejects generation replay")
+	var unsafe_export := sink.export_support_bundle("user://diagnostics/free", 2)
+	_check(not bool(unsafe_export.accepted), "support export rejects an unapproved destination root")
 	for index in 8:
 		var appended := sink.append_snapshot(snapshot)
 		_check(bool(appended.accepted), "bounded sink accepts redacted snapshot %d" % index)

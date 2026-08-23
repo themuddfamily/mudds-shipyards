@@ -80,6 +80,12 @@ func get_recovery_available_snapshot() -> Dictionary:
 	return _recovery_available_snapshot.duplicate(true)
 
 
+func export_support_bundle(export_root: String, expected_generation: int) -> Dictionary:
+	if _sink == null or not _sink.has_method(&"export_support_bundle"):
+		return {"accepted": false, "reason": &"support_export_unavailable"}
+	return _sink.call(&"export_support_bundle", export_root, expected_generation)
+
+
 ## Explicit caller acknowledgement retires only the detached recovery receipt.
 func acknowledge_recovery() -> Dictionary:
 	if _recovery_available_snapshot.is_empty():

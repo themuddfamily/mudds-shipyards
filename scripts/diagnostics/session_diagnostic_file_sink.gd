@@ -14,6 +14,9 @@ const _LOG_NAME := "crash-log.json"
 const _PREVIOUS_NAME := "crash-log.previous.json"
 const _TEMP_SUFFIX := ".tmp"
 const _REJECTED_SUFFIX := ".rejected"
+const _EXPORT_NAME := "diagnostics-support.json"
+const _EXPORT_TEMP_SUFFIX := ".tmp"
+const MAX_EXPORT_BYTES := 256 * 1024
 
 var _root_path := ""
 var _filesystem: UserDataFilesystem
@@ -99,6 +102,75 @@ func recover_prior_log() -> Dictionary:
 
 func get_log_path() -> String:
 	return _log_path() if bool(_validate_root().accepted) else ""
+
+
+## Explicitly exports only validated current/previous diagnostic snapshots.
+## The destination is fixed beneath the caller-authorized diagnostics export
+## root; no upload, arbitrary filename, or gameplay data crosses this seam.
+func export_support_bundle(export_root: String, expected_generation: int) -> Dictionary:
+	if not _valid_export_root(export_root):
+		return {"accepted": false, "reason": &"export_root_invalid"}
+	if expected_generation < 1:
+		return {"accepted": false, "reason": &"export_generation_invalid"}
+	var export_path := export_root + "/" + _EXPORT_NAME
+	if _filesystem.file_exists(export_path):
+		var prior := _read_export_generation(export_path)
+		if not bool(prior.accepted):
+			return prior
+		if expected_generation <= int(prior.generation):
+			return {"accepted": false, "reason": &"export_generation_stale"}
+	var current := _read_log_at(_log_path()) if _filesystem.file_exists(_log_path()) else {"accepted": true, "snapshots": []}
+	var previous := _read_log_at(_previous_path()) if _filesystem.file_exists(_previous_path()) else {"accepted": true, "snapshots": []}
+	var bundle := {
+		"schema_version": 1,
+		"generation": expected_generation,
+		"current": current.snapshots if bool(current.accepted) else [],
+		"previous": previous.snapshots if bool(previous.accepted) else [],
+	}
+	var encoded := JSON.stringify(bundle).to_utf8_buffer()
+	if encoded.size() > MAX_EXPORT_BYTES:
+		return {"accepted": false, "reason": &"export_too_large"}
+	var parent_error := _filesystem.ensure_parent_directory(export_path)
+	if parent_error != OK:
+		return {"accepted": false, "reason": &"export_directory_failed", "error": parent_error}
+	var temp_path := export_path + _EXPORT_TEMP_SUFFIX
+	var write_error := _filesystem.write_bytes_and_flush(temp_path, encoded)
+	if write_error != OK:
+		return {"accepted": false, "reason": &"export_stage_failed", "error": write_error}
+	var staged := _filesystem.read_bytes(temp_path, MAX_EXPORT_BYTES)
+	if int(staged.get("error", FAILED)) != OK \
+		or (staged.get("bytes", PackedByteArray()) as PackedByteArray) != encoded:
+		return {"accepted": false, "reason": &"export_stage_verification_failed"}
+	if _filesystem.file_exists(export_path):
+		var remove_error := _filesystem.remove_path(export_path)
+		if remove_error != OK:
+			return {"accepted": false, "reason": &"export_replace_failed", "error": remove_error}
+	var publish_error := _filesystem.rename_path(temp_path, export_path)
+	if publish_error != OK:
+		return {"accepted": false, "reason": &"export_publish_failed", "error": publish_error}
+	return {"accepted": true, "reason": &"exported", "generation": expected_generation, "path": export_path}
+
+
+func _read_export_generation(path: String) -> Dictionary:
+	var read := _filesystem.read_bytes(path, MAX_EXPORT_BYTES)
+	if int(read.get("error", FAILED)) != OK:
+		return {"accepted": false, "reason": &"export_read_failed"}
+	var parser := JSON.new()
+	if parser.parse((read.bytes as PackedByteArray).get_string_from_utf8()) != OK or not parser.data is Dictionary:
+		return {"accepted": false, "reason": &"export_invalid"}
+	var document := parser.data as Dictionary
+	var raw_generation: Variant = document.get("generation")
+	if document.get("schema_version") != 1 \
+		or (not raw_generation is int and not raw_generation is float) \
+		or int(raw_generation) < 1 or float(raw_generation) != float(int(raw_generation)):
+		return {"accepted": false, "reason": &"export_invalid"}
+	return {"accepted": true, "generation": int(document.generation)}
+
+
+func _valid_export_root(path: String) -> bool:
+	return (path == "user://diagnostics/exports" or path.begins_with("user://diagnostics/exports/")) \
+		and not path.contains("..") and not path.contains("\\") \
+		and not path.contains("\n") and not path.contains("\r")
 
 
 func _read_log() -> Dictionary:
