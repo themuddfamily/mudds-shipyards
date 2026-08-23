@@ -409,6 +409,45 @@ were stale when this tree resumed. Current evidence is:
   format-4 PCK tables and rejects forbidden release paths, but the current exported EXE's
   `GDSC`/zstd chunked TOC is explicitly unsupported and produces no manifest.
 
+### Wave 8 integration checkpoint — 2026-08-23
+
+Wave 8 closes several source-level composition gaps without claiming the remaining
+native, multi-process, packaged-route, or human gates:
+
+- The real `GameFlow` network session now publishes server-owned bomber projectile,
+  damage/respawn, landing, boarding, and moving-interior transitions. A bounded
+  `NetworkRemoteShipCommandSource` admits only the current pilot's generation-fenced,
+  rate-limited finite commands and publishes presentation-only pilot ownership for
+  late join. Clients still cannot mutate ship physics, damage, leases, seats, or combat.
+  The exact focused integration tests pass, but the required three-process latency/loss
+  run, 30-minute soak, and native-Windows two-client playtest remain `NOT_RUN`; Phase 7
+  therefore remains open.
+- Ember's caller-owned return samples now reach `ORBIT_RETURN`, validate the existing
+  Mudds landing-return contract, and emit exactly-once approach/arrival-ready receipts.
+  The contract deliberately stops before station occupancy because its next existing
+  transition is terminal; no parallel berth, teleport, movement, reward, or `GameFlow`
+  authority was invented.
+- `NearbyActivityRewardAdapter` gives checkpoint race, cargo, patrol, convoy,
+  station-defence, and debris-beacon completion a shared generation-fenced handoff to a
+  caller-owned reward callback/store. It owns no wallet or save data, so this is a real
+  exactly-once integration seam rather than proof of a packaged payout or return route.
+- Station defence now communicates wave state, protected-asset danger, and hostile
+  approach bearing through one fixed presentation budget. Expanded encounter tactics
+  add convoy interdiction, heavy standoff, and damaged-wing regrouping while retaining
+  critical-disengage and station-defence priority.
+- Runtime settings now persist Reduced Flash and low/medium/high Payload Visual
+  Intensity controls with deterministic keyboard/gamepad focus and accessible labels.
+  Bomber terminal/trail presentation consumes the matching profile vocabulary, while
+  the HUD exposes remaining payload, cooldown, and explicit unavailable reasons.
+- Caller-driven cockpit/exterior audio perspective is composed into Halyard, Jovian,
+  Cinder, Torrent, Arrow, and Zenith production craft. Reduced dynamic range updates
+  active director voices, and component destruction emits one deduplicated cue. Native
+  listening remains `NOT_RUN`.
+- Five bounded renderer/resource trims preserve exact visible copies and stable paths:
+  Fleet Expansion cargo containers, station task strips, VIP servery shelves, Aft
+  Junction arc tiles, and Habitat cupola downlights. These are deterministic source
+  improvements, not native frame-time/GPU/VRAM evidence.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
