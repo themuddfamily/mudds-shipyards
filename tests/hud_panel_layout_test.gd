@@ -141,8 +141,8 @@ func _seed_worst_case_content() -> void:
 	await process_frame
 	var rects := _hud.get_hud_panel_rects()
 	_check(
-		rects.size() == 8,
-		"seven legacy HUD panels plus the snapshot presenter are laid out and measurable (found %d)" % rects.size()
+		rects.size() == 9,
+		"seven legacy HUD panels, the minimap, and the snapshot presenter are laid out and measurable (found %d)" % rects.size()
 	)
 
 

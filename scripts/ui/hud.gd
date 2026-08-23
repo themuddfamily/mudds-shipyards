@@ -5,9 +5,12 @@ const FlightPathCueType := preload("res://scripts/ui/flight_path_cue.gd")
 const PaletteType := preload("res://scripts/ui/hud_palette.gd")
 const InputBindingProfileType := preload("res://scripts/settings/input_binding_profile.gd")
 const InputRebindServiceType := preload("res://scripts/settings/input_rebind_service.gd")
+const RuntimeInputRemappingControllerType := preload("res://scripts/settings/runtime_input_remapping_controller.gd")
+const RuntimeInputRemappingPresenterType := preload("res://scripts/ui/runtime_input_remapping_presenter.gd")
 const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
 const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
 const DebugOverlayType := preload("res://scripts/ui/debug_overlay.gd")
+const MinimapType := preload("res://scripts/ui/minimap.gd")
 
 signal start_requested
 signal restart_requested
@@ -182,6 +185,7 @@ const MODE_DRIVING: StringName = &"driving"
 
 var _root: Control
 var _debug_overlay: DebugOverlay
+var _minimap: Minimap
 var _intro: Control
 var _hud: Control
 var _hud_panels: Control
@@ -212,6 +216,8 @@ var _settings_status_label: Label
 var _pause_reentry_focus_target: Control
 var _updating_settings := false
 var _input_rebind_service: InputRebindService
+var _input_remapping_controller: RuntimeInputRemappingController
+var _input_remapping_presenter: RuntimeInputRemappingPresenter
 var _input_binding_profile: InputBindingProfile
 var _input_binding_defaults: InputBindingProfile
 var _input_glyph_resolver: InputGlyphResolver
@@ -361,6 +367,7 @@ func _ready() -> void:
 	_input_binding_defaults = _input_rebind_service.get_defaults()
 	_input_binding_profile = _input_binding_defaults.duplicate_profile()
 	_input_glyph_resolver = InputGlyphResolverType.new()
+	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_build_interface()
 	set_process_input(true)
 	set_process_unhandled_input(true)
@@ -471,6 +478,26 @@ func get_debug_overlay_report() -> Dictionary:
 			"snapshot": {},
 		}
 	return _debug_overlay.get_report()
+
+
+## Presentation-only map input. GameFlow remains the sole owner of live actor,
+## contact, and topology observations; the HUD retains only the detached,
+## validated snapshot that the custom-drawn minimap accepted.
+func update_minimap(snapshot: Dictionary) -> bool:
+	if not is_instance_valid(_minimap):
+		return false
+	return _minimap.apply_snapshot(snapshot)
+
+
+func get_minimap_report() -> Dictionary:
+	if not is_instance_valid(_minimap):
+		return {
+			"schema_version": Minimap.SNAPSHOT_SCHEMA_VERSION,
+			"valid": false,
+			"visible": false,
+			"errors": PackedStringArray(["minimap is unavailable"]),
+		}
+	return _minimap.get_audit_report()
 
 
 func _refresh_debug_overlay_from_host() -> void:
@@ -1208,6 +1235,7 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			and _input_rebind_service.is_profile_compatible_with_defaults(parsed_profile)
 		):
 			_input_binding_profile = parsed_profile.duplicate_profile()
+			_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 			_refresh_input_prompts()
 	for raw_key: Variant in snapshot:
 		var key := StringName(str(raw_key))
@@ -1243,8 +1271,28 @@ func set_input_binding_defaults(defaults: InputBindingProfile) -> bool:
 		or not _input_rebind_service.is_profile_compatible_with_defaults(_input_binding_profile)
 	):
 		_input_binding_profile = _input_binding_defaults.duplicate_profile()
+	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_refresh_input_prompts()
 	return true
+
+
+func _rebuild_input_remapping_presenter(
+	defaults: InputBindingProfile,
+	initial: InputBindingProfile
+	) -> void:
+	if defaults == null:
+		_input_remapping_controller = null
+		_input_remapping_presenter = null
+		return
+	_input_remapping_controller = RuntimeInputRemappingControllerType.new(
+		defaults,
+		initial,
+		_input_glyph_resolver.get_preferred_device_family()
+		if _input_glyph_resolver != null else &"unknown"
+	)
+	_input_remapping_presenter = RuntimeInputRemappingPresenterType.new(
+		_input_remapping_controller
+	)
 
 
 func set_settings_status(text: String, success: bool = true) -> void:
@@ -1283,6 +1331,8 @@ func set_hud_palette(mode_id: StringName) -> void:
 		if _apply_palette_target(entry):
 			live.append(entry)
 	_palette_targets = live
+	if is_instance_valid(_minimap):
+		_minimap.set_palette(_palette)
 	_refresh_state_tints()
 
 
@@ -1318,6 +1368,7 @@ func get_hud_panel_rects() -> Dictionary:
 	var sources := {
 		"brand": _brand_block,
 		"objective": _objective_panel,
+		"minimap": _minimap,
 		"help": _help_panel,
 		"interaction": _interaction_panel,
 		"telemetry": _telemetry_panel,
@@ -1806,6 +1857,8 @@ func _build_hud() -> void:
 	interaction_margin.add_child(_interaction_label)
 	_interaction_panel.visible = false
 
+	_build_minimap()
+
 	_flight_cue_layer = FlightPathCueType.new() as FlightPathCue
 	_flight_cue_layer.name = "FlightPathCue"
 	_flight_cue_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1833,6 +1886,19 @@ func _build_hud() -> void:
 	_build_toast()
 	_attach_caption_presenter()
 	_build_damage_flash()
+
+
+func _build_minimap() -> void:
+	_minimap = MinimapType.new() as Minimap
+	_minimap.name = "Minimap"
+	_minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_minimap.offset_left = PANEL_MARGIN
+	_minimap.offset_right = PANEL_MARGIN + 240.0
+	_minimap.offset_top = -270.0
+	_minimap.offset_bottom = -PANEL_MARGIN
+	_minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_minimap.set_palette(_palette)
+	_hud_panels.add_child(_minimap)
 
 
 func _build_telemetry() -> void:
@@ -2318,10 +2384,14 @@ func _settings_group(parent: VBoxContainer, title: String, detail: String) -> VB
 func _build_input_binding_rows(parent: VBoxContainer) -> void:
 	var actions := PackedStringArray()
 	for action: StringName in _input_binding_profile.bindings:
+		if action == SCREENSHOT_ACTION:
+			continue
 		actions.append(String(action))
 	actions.sort()
 	for raw_action: String in actions:
 		var action := StringName(raw_action)
+		if action == SCREENSHOT_ACTION:
+			continue
 		var row := HBoxContainer.new()
 		row.name = String(action).to_pascal_case() + "BindingRow"
 		row.add_theme_constant_override("separation", 6)
@@ -2502,23 +2572,18 @@ func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
 		action,
 		_binding_device_family(candidate)
 	)
-	var result := _input_rebind_service.rebind(
-		replacement_base,
-		action,
-		candidate,
-		InputRebindServiceType.CONFLICT_REJECT
-	)
-	if bool(result.get("ok", false)):
-		_commit_input_binding_profile(
-			result.get("profile") as InputBindingProfile,
+	_rebuild_input_remapping_presenter(_input_binding_defaults, replacement_base)
+	var snapshot := _input_remapping_presenter.submit_binding(action, candidate)
+	if snapshot.status == &"committed":
+		_commit_input_remapping_snapshot(
 			"BOUND  //  %s  //  %s" % [
 				_input_action_label(action).to_upper(),
 				_binding_text(candidate).to_upper(),
 			]
 		)
 		return
-	var conflicts := result.get("conflicts", []) as Array
-	if conflicts.is_empty():
+	var conflicts := snapshot.pending_conflict.get("conflicts", []) as Array
+	if snapshot.status != &"conflict" or conflicts.is_empty():
 		set_settings_status("BINDING REJECTED", false)
 		_refresh_all_binding_rows()
 		return
@@ -2526,7 +2591,6 @@ func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
 		"action": action,
 		"candidate": candidate.duplicate(true),
 		"conflicts": conflicts.duplicate(true),
-		"replacement_base": replacement_base,
 	}
 	var conflict_names := PackedStringArray()
 	for conflict: Dictionary in conflicts:
@@ -2542,20 +2606,12 @@ func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
 
 
 func _replace_pending_input_conflict() -> void:
-	if _pending_binding_conflict.is_empty():
+	if _pending_binding_conflict.is_empty() or _input_remapping_presenter == null:
 		return
 	var action := StringName(_pending_binding_conflict.action)
-	var candidate := (_pending_binding_conflict.candidate as Dictionary).duplicate(true)
-	var replacement_base := _pending_binding_conflict.replacement_base as InputBindingProfile
-	var result := _input_rebind_service.rebind(
-		replacement_base,
-		action,
-		candidate,
-		InputRebindServiceType.CONFLICT_REPLACE
-	)
-	if bool(result.get("ok", false)):
-		_commit_input_binding_profile(
-			result.get("profile") as InputBindingProfile,
+	var snapshot := _input_remapping_presenter.replace_pending_conflict()
+	if snapshot.status == &"committed":
+		_commit_input_remapping_snapshot(
 			"CONFLICT REPLACED  //  %s" % _input_action_label(action).to_upper()
 		)
 	else:
@@ -2566,6 +2622,8 @@ func _replace_pending_input_conflict() -> void:
 func _cancel_pending_input_conflict(clear_status: bool = true) -> void:
 	var return_action := StringName(_pending_binding_conflict.get("action", &""))
 	_pending_binding_conflict.clear()
+	if _input_remapping_presenter != null:
+		_input_remapping_presenter.cancel_pending_conflict()
 	if _binding_conflict_panel != null:
 		_binding_conflict_panel.visible = false
 	if clear_status:
@@ -2600,10 +2658,13 @@ func _reset_input_action(action: StringName) -> void:
 
 
 func _reset_all_input_bindings() -> void:
-	_commit_input_binding_profile(
-		_input_rebind_service.reset_to_defaults(),
-		"ALL INPUT BINDINGS RESTORED"
-	)
+	if _input_remapping_presenter == null:
+		return
+	var snapshot := _input_remapping_presenter.reset()
+	if snapshot.status == &"committed":
+		_commit_input_remapping_snapshot("ALL INPUT BINDINGS RESTORED")
+	else:
+		set_settings_status("ALL INPUT BINDINGS RESET FAILED", false)
 
 
 func _profile_without_binding_family(
@@ -2628,6 +2689,21 @@ func _binding_device_family(binding: Dictionary) -> StringName:
 	)
 
 
+func _commit_input_remapping_snapshot(status: String) -> void:
+	if _input_remapping_controller == null:
+		set_settings_status("INVALID BINDING CONTROLLER", false)
+		return
+	var profile := _input_remapping_controller.get_profile()
+	if profile == null or not _input_rebind_service.is_profile_compatible_with_defaults(profile):
+		set_settings_status("INVALID BINDING PROFILE REJECTED", false)
+		return
+	_input_binding_profile = profile.duplicate_profile()
+	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
+	_refresh_input_prompts()
+	set_settings_status(status, true)
+	setting_change_requested.emit(&"input_binding_profile", _input_binding_profile.duplicate_profile())
+
+
 func _commit_input_binding_profile(profile: InputBindingProfile, status: String) -> void:
 	if (
 		profile == null
@@ -2636,6 +2712,7 @@ func _commit_input_binding_profile(profile: InputBindingProfile, status: String)
 		set_settings_status("INVALID BINDING PROFILE REJECTED", false)
 		return
 	_input_binding_profile = profile.duplicate_profile()
+	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_refresh_input_prompts()
 	set_settings_status(status, true)
 	setting_change_requested.emit(
@@ -2745,10 +2822,14 @@ func get_input_binding_report() -> Dictionary:
 	var actions := PackedStringArray()
 	var bindings := {}
 	for action: StringName in _input_binding_profile.bindings:
+		if action == SCREENSHOT_ACTION:
+			continue
 		actions.append(String(action))
 	actions.sort()
 	for raw_action: String in actions:
 		var action := StringName(raw_action)
+		if action == SCREENSHOT_ACTION:
+			continue
 		bindings[action] = _input_binding_profile.get_bindings(action)
 	return {
 		"actions": actions,

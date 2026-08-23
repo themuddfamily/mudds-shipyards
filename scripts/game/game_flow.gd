@@ -73,6 +73,8 @@ const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
 const PLANETARY_CRUISE_MAX_CALLER_TICK := 9_007_199_254_740_991
 const PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL := 9_007_199_254_740_991
 const DEBUG_AIM_DISTANCE_METERS := 10_000.0
+const MINIMAP_STATION_RANGE_METERS := 180.0
+const MINIMAP_FLIGHT_RANGE_METERS := 900.0
 
 ## Production Main can be destroyed and rebuilt by the shift-restart loader
 ## without ending the OS process. Keep the atomic composition root here so that
@@ -406,6 +408,11 @@ var _planetary_cruise_caller_tick := 0
 ## survives whole-Main detach/re-entry with the HUD's matching serial.
 var _last_hud_planetary_cruise_toggle_serial := 0
 var _planetary_cruise_hud_toggle_active := false
+## Station topology is captured in ShipyardWorld-local coordinates. A common
+## floating-origin rebase can then translate the live world root without leaving
+## the presentation snapshot pinned to its pre-rebase global coordinates.
+var _minimap_topology_nodes_local: Array[Dictionary] = []
+var _minimap_topology_edges: Array[Dictionary] = []
 
 
 func _enter_tree() -> void:
@@ -921,6 +928,7 @@ func _start_up() -> void:
 	_register_flyable_ships()
 	_resolve_ground_vehicle()
 	active_ship = ship
+	_initialize_minimap_topology()
 	_initialize_cargo_delivery_composition()
 	_initialize_cinder_race_session()
 	_initialize_cinder_convoy_host()
@@ -1180,6 +1188,239 @@ func _debug_cardinal(forward: Vector3) -> String:
 	return names[posmod(roundi(heading / 45.0), names.size())]
 
 
+func _update_minimap(actor_sample: Dictionary) -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"update_minimap"):
+		return
+	hud.call(&"update_minimap", get_minimap_snapshot(actor_sample))
+
+
+## Detached presentation snapshot over the one actor observation already taken
+## for this physics tick. The map detects nothing and grants no targeting or
+## navigation authority; it only formats world-owned topology and live nodes.
+func get_minimap_snapshot(actor_sample: Dictionary = {}) -> Dictionary:
+	var actor := _get_debug_actor()
+	var center_position := Vector3.ZERO
+	var has_actor_position := false
+	var sampled_position: Variant = actor_sample.get("position", null)
+	if (
+		bool(actor_sample.get("available", false))
+		and sampled_position is Vector3
+		and (sampled_position as Vector3).is_finite()
+	):
+		center_position = sampled_position as Vector3
+		has_actor_position = true
+	elif is_instance_valid(actor) and actor.global_position.is_finite():
+		center_position = actor.global_position
+		has_actor_position = true
+
+	var forward := _minimap_actor_forward(actor)
+	var heading_radians := 0.0
+	if forward.is_finite() and Vector2(forward.x, forward.z).length_squared() > 0.000001:
+		heading_radians = atan2(forward.x, -forward.z)
+	var snapshot := {
+		"schema_version": 1,
+		"range_meters": (
+			MINIMAP_FLIGHT_RANGE_METERS if _piloting else MINIMAP_STATION_RANGE_METERS
+		),
+		"center_position": center_position,
+		"heading_radians": heading_radians,
+		"topology_nodes": _get_minimap_topology_nodes_world(),
+		"topology_edges": _minimap_topology_edges.duplicate(true),
+		"contacts": _get_minimap_contacts(),
+		"mode": _get_debug_mode(),
+	}
+	# The cyan marker represents the embodied pilot. While seated, its map
+	# position is therefore the active craft rather than the hidden Player root.
+	if has_actor_position:
+		snapshot["player_position"] = center_position
+	if (
+		is_instance_valid(active_ship)
+		and active_ship.is_inside_tree()
+		and not active_ship.is_destroyed()
+		and active_ship.global_position.is_finite()
+	):
+		snapshot["active_ship"] = {
+			"id": active_ship.get_ship_id(),
+			"position": active_ship.global_position,
+		}
+	return snapshot.duplicate(true)
+
+
+func _minimap_actor_forward(actor: Node3D) -> Vector3:
+	if not is_instance_valid(actor):
+		return Vector3.FORWARD
+	if actor == player and player.has_method(&"get_pilot_visual_forward_direction"):
+		var visual_forward := player.call(&"get_pilot_visual_forward_direction") as Vector3
+		if visual_forward.is_finite() and visual_forward.length_squared() > 0.000001:
+			return visual_forward.normalized()
+	if actor == player and player.has_method(&"get_interaction_direction"):
+		var interaction_forward := player.call(&"get_interaction_direction") as Vector3
+		if interaction_forward.is_finite() and interaction_forward.length_squared() > 0.000001:
+			return interaction_forward.normalized()
+	return -actor.global_basis.orthonormalized().z.normalized()
+
+
+func _initialize_minimap_topology() -> void:
+	_minimap_topology_nodes_local.clear()
+	_minimap_topology_edges.clear()
+	if not is_instance_valid(world) or not world.is_inside_tree():
+		return
+	var world_inverse := world.global_transform.affine_inverse()
+	var node_ids: Dictionary = {}
+	var graph := world.call(&"get_station_navigation_graph_report") as Dictionary
+	if bool(graph.get("valid", false)):
+		var graph_nodes := graph.get("nodes", {}) as Dictionary
+		var graph_node_ids := graph_nodes.keys()
+		graph_node_ids.sort_custom(func(left: Variant, right: Variant) -> bool:
+			return str(left) < str(right)
+		)
+		for raw_node_id in graph_node_ids:
+			var node_id := StringName(raw_node_id)
+			var record := graph_nodes[raw_node_id] as Dictionary
+			var transform_value: Variant = record.get("transform", null)
+			if not (transform_value is Transform3D):
+				continue
+			var position := (transform_value as Transform3D).origin
+			if not position.is_finite():
+				continue
+			_append_minimap_topology_node(
+				node_ids,
+				node_id,
+				world_inverse * position,
+				&"connection",
+			)
+		var graph_edges := graph.get("edges", {}) as Dictionary
+		var graph_edge_ids := graph_edges.keys()
+		graph_edge_ids.sort_custom(func(left: Variant, right: Variant) -> bool:
+			return str(left) < str(right)
+		)
+		for raw_edge_id in graph_edge_ids:
+			var edge := graph_edges[raw_edge_id] as Dictionary
+			var endpoints_value: Variant = edge.get("node_ids", null)
+			var endpoints := PackedStringArray()
+			if endpoints_value is PackedStringArray:
+				endpoints = (endpoints_value as PackedStringArray).duplicate()
+			elif endpoints_value is Array:
+				for endpoint in endpoints_value as Array:
+					endpoints.append(str(endpoint))
+			if endpoints.size() == 2:
+				_minimap_topology_edges.append({
+					"from": StringName(endpoints[0]),
+					"to": StringName(endpoints[1]),
+				})
+
+	# The declared graph contains connection claims only. Retain every module's
+	# published internal route marker as a map landmark without inventing edges
+	# between them; physical route authority remains outside the minimap.
+	for candidate in world.find_children("*", "", true, false):
+		if (
+			not candidate.is_in_group(&"station_modules")
+			or not candidate.has_method(&"get_module_id")
+			or not candidate.has_method(&"get_route_transforms")
+		):
+			continue
+		var module_id := StringName(candidate.call(&"get_module_id"))
+		var route_transforms := candidate.call(&"get_route_transforms") as Dictionary
+		var route_ids := route_transforms.keys()
+		route_ids.sort_custom(func(left: Variant, right: Variant) -> bool:
+			return str(left) < str(right)
+		)
+		for raw_route_id in route_ids:
+			var transform_value: Variant = route_transforms[raw_route_id]
+			if not (transform_value is Transform3D):
+				continue
+			var position := (transform_value as Transform3D).origin
+			if not position.is_finite():
+				continue
+			_append_minimap_topology_node(
+				node_ids,
+				StringName("route:%s:%s" % [module_id, str(raw_route_id)]),
+				world_inverse * position,
+				&"route",
+			)
+
+	var berth_ids: Variant = world.call(&"get_berth_ids")
+	if berth_ids is Array:
+		for raw_berth_id in berth_ids as Array:
+			var berth_id := StringName(raw_berth_id)
+			var berth_transform := world.call(&"get_berth_transform", berth_id) as Transform3D
+			if not berth_transform.origin.is_finite():
+				continue
+			_append_minimap_topology_node(
+				node_ids,
+				StringName("berth:%s" % berth_id),
+				world_inverse * berth_transform.origin,
+				&"berth",
+			)
+
+
+func _append_minimap_topology_node(
+		node_ids: Dictionary,
+		node_id: StringName,
+		local_position: Vector3,
+		kind: StringName,
+	) -> void:
+	if node_id.is_empty() or node_ids.has(node_id) or not local_position.is_finite():
+		return
+	node_ids[node_id] = true
+	_minimap_topology_nodes_local.append({
+		"id": node_id,
+		"local_position": local_position,
+		"kind": kind,
+	})
+
+
+func _get_minimap_topology_nodes_world() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if not is_instance_valid(world):
+		return result
+	for local_record in _minimap_topology_nodes_local:
+		var local_position := local_record.get("local_position", Vector3.ZERO) as Vector3
+		result.append({
+			"id": local_record.get("id", &"") as StringName,
+			"position": world.global_transform * local_position,
+			"kind": local_record.get("kind", &"route") as StringName,
+		})
+	return result
+
+
+func _get_minimap_contacts() -> Array[Dictionary]:
+	var contacts: Array[Dictionary] = []
+	for fleet_ship in ships:
+		if (
+			not is_instance_valid(fleet_ship)
+			or not fleet_ship.is_inside_tree()
+			or fleet_ship == active_ship
+			or fleet_ship.is_destroyed()
+			or not fleet_ship.global_position.is_finite()
+		):
+			continue
+		contacts.append({
+			"id": fleet_ship.get_ship_id(),
+			"position": fleet_ship.global_position,
+			"kind": &"ship",
+			"hostile": false,
+		})
+	for candidate in get_children():
+		if (
+			candidate is not Node3D
+			or candidate == active_ship
+			or not candidate.has_method(&"is_active")
+			or not bool(candidate.call(&"is_active"))
+		):
+			continue
+		var contact := candidate as Node3D
+		if not contact.global_position.is_finite():
+			continue
+		contacts.append({
+			"id": StringName(contact.name),
+			"position": contact.global_position,
+			"kind": &"ship",
+			"hostile": true,
+		})
+	return contacts
+
+
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
@@ -1284,6 +1525,7 @@ func _physics_process(delta: float) -> void:
 		_fail_active_activity(&"cinder_streaming_unavailable")
 	if _convoy_is_running() and not _convoy_lifecycle_accepts_sample(actor_sample):
 		_fail_active_activity(_convoy_lifecycle_failure_reason(actor_sample))
+	_update_minimap(actor_sample)
 	if not _piloting:
 		return
 	if not is_instance_valid(active_ship):
@@ -1773,9 +2015,7 @@ func _update_drive_flow() -> void:
 		# outcome that strands them. Recall through the same path a lost craft uses.
 		_recover_from_lost_tractor(&"vehicle_unavailable")
 		return
-	if tow_tractor.is_edge_interlock_engaged():
-		hud.set_interaction("DECK EDGE  //  SAFETY INTERLOCK")
-	elif tow_tractor.can_release_driver():
+	if tow_tractor.can_release_driver():
 		hud.set_interaction("[ E ]  HOP OUT")
 	else:
 		hud.set_interaction("[ E ]  HOP OUT  //  COME TO A STOP")
@@ -1923,8 +2163,8 @@ func _cancel_ground_transition_for_detach() -> void:
 ## The tow tractor's half of the crash-recovery contract.
 ##
 ## The vehicle raises this at most once per departure, from its own pose, so it
-## fires whatever the reason — an interlock that missed an edge, a launch off a
-## ramp, geometry that changed underneath it. The pilot recall is the *same*
+## fires whatever the reason — a drive off an edge, a launch off a ramp, or
+## geometry that changed underneath it. The pilot recall is the *same*
 ## `_recall_pilot_to_deck()` a destroyed craft performs; only the vehicle-side
 ## reset differs, because a tractor owns no berth to regenerate into.
 func _recover_from_lost_tractor(reason: StringName) -> void:
@@ -5289,25 +5529,32 @@ func get_music_bed() -> StationMusicBed:
 	return music_bed
 
 
-## Reports the already decided session state to the bounded music bed.
+## Reports the already decided phase to the bounded music bed.
 ##
-## This is a one-way observation seam. The bed receives the state the flow has
+## This is a one-way observation seam. The bed receives the phase the flow has
 ## already reached and can only change its own three voices; it never sets a
 ## phase, spawns or clears an opponent, or touches combat authority. An active
 ## encounter always resolves to `combat`, so an authored bed can never play over
-## a live fight.
+## a live fight. Landing phases take priority over ordinary flight so the
+## production landing crossfade is reached by the normal return path.
 func _update_music_bed_state() -> void:
 	if not is_instance_valid(music_bed):
 		return
-	var state := StationMusicBed.STATE_REST
+	var presentation_state: StringName = &"station"
 	if (
 		phase == Phase.INTERCEPTOR_ENGAGEMENT
 		or (is_instance_valid(opponent) and opponent.is_active())
 	):
-		state = StationMusicBed.STATE_COMBAT
+		presentation_state = &"combat"
+	elif (
+		_landing_request_active
+		or phase == Phase.RETURN_TO_YARD
+		or phase == Phase.SHUT_DOWN
+	):
+		presentation_state = &"landing"
 	elif _piloting:
-		state = StationMusicBed.STATE_FLIGHT
-	music_bed.notify_session_state(state)
+		presentation_state = &"planetary"
+	music_bed.notify_music_phase(presentation_state)
 
 
 func get_last_player_shot_result() -> Dictionary:

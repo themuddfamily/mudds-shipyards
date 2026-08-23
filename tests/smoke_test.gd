@@ -223,8 +223,21 @@ func _run() -> void:
 	if hud != null:
 		_check(hud.has_method("set_enemy_status"), "HUD exposes opposing craft status")
 		_check(hud.has_method("flash_damage"), "HUD exposes directional hull feedback")
+		_check(hud.has_method("update_minimap"), "HUD exposes detached minimap presentation")
+		_check(hud.has_method("get_minimap_report"), "HUD exposes minimap audit evidence")
 		_check(hud.has_method("set_settings_snapshot"), "HUD exposes guarded settings population")
 		_check(hud.has_signal("setting_change_requested"), "HUD exposes live setting requests")
+		var minimap_report := hud.call("get_minimap_report") as Dictionary
+		_check(
+			bool(minimap_report.get("valid", false))
+			and bool(minimap_report.get("has_snapshot", false))
+			and int(minimap_report.get("node_count", 0)) >= 30
+			and int(minimap_report.get("edge_count", 0)) >= 4
+			and int(minimap_report.get("contact_count", 0)) == 4
+			and bool(minimap_report.get("player_visible", false))
+			and bool(minimap_report.get("active_ship_visible", false)),
+			"production minimap starts with station topology, the pilot, active craft, and four friendly contacts"
+		)
 		if jovian_ship != null:
 			hud.call("update_ship_telemetry", jovian_ship.call("get_telemetry"))
 			var hull_bar := hud.get("_hull_bar") as ProgressBar
@@ -232,6 +245,24 @@ func _run() -> void:
 				hull_bar != null and is_equal_approx(hull_bar.value, 100.0),
 				"HUD normalizes full hull correctly for craft with more than 100 durability"
 			)
+	if opponent != null and player != null and hud != null:
+		opponent.call(
+			"activate",
+			Transform3D(Basis.IDENTITY, player.global_position + Vector3(24.0, 8.0, -36.0))
+		)
+		await physics_frame
+		var active_contacts := (main.get_minimap_snapshot().get("contacts", []) as Array)
+		_check(
+			_count_hostile_contacts(active_contacts) == 1,
+			"an active production opponent appears once as a hostile minimap contact"
+		)
+		opponent.call("deactivate")
+		await physics_frame
+		var retired_contacts := (main.get_minimap_snapshot().get("contacts", []) as Array)
+		_check(
+			_count_hostile_contacts(retired_contacts) == 0,
+			"deactivating the opponent retires its minimap contact on the next physics update"
+		)
 
 	var settings: RuntimeSettings = null
 	if main.has_method("get_runtime_settings"):
@@ -268,6 +299,10 @@ func _run() -> void:
 				_has_visible_label_text(hud, "INTERACT / BOARD"),
 				"on-foot mode populates the controls panel instead of leaving an empty frame"
 			)
+			_check(
+				bool((hud.call("get_minimap_report") as Dictionary).get("visible", false)),
+				"the production minimap remains enabled when the shift begins"
+			)
 	if player != null:
 		_check(player.has_method("begin_boarding"), "player supports visible boarding transitions")
 		_check(player.has_method("begin_disembark"), "player supports visible disembarking transitions")
@@ -287,6 +322,14 @@ func _has_visible_label_text(search_root: Node, text_fragment: String) -> bool:
 		if label != null and text_fragment in label.text:
 			return true
 	return false
+
+
+func _count_hostile_contacts(contacts: Array) -> int:
+	var count := 0
+	for contact in contacts:
+		if contact is Dictionary and bool((contact as Dictionary).get("hostile", false)):
+			count += 1
+	return count
 
 
 func _production_store_snapshot() -> Dictionary:
