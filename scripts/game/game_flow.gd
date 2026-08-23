@@ -3163,7 +3163,12 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_sync_cinder_convoy_stream_presence()
 	_restore_caption_presentation()
 	_connect_runtime_signals()
-	_initialize_live_combat()
+	# Station-defense content owns three private hostile source identities. Its
+	# retained subtree can only re-register them after all of its descendants have
+	# re-entered, so its deferred restore is already queued behind this parent
+	# callback. Audit the shared authority in the following deferred turn; doing it
+	# here observes the valid transient player-only roster and reports 7/10.
+	call_deferred(&"_restore_live_combat_after_reentry")
 	_initialize_nearby_activity_audio()
 	_initialize_halyard_crew_semantic_audio()
 	_initialize_optional_semantic_audio()
@@ -3188,6 +3193,12 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_sync_planetary_cruise_hud()
 	_publish_runtime_settings_repair_to_hud()
 	_restore_session_recovery_hud_after_reentry()
+
+
+func _restore_live_combat_after_reentry() -> void:
+	if not _initialized or is_queued_for_deletion() or not is_inside_tree():
+		return
+	_initialize_live_combat()
 
 
 func _connect_runtime_signals() -> void:

@@ -181,17 +181,50 @@ func _test_activity_board_console(game: GameFlow, player: PlayerController) -> v
 		"opening the console changes no selection, start, generation, or reward authority"
 	)
 	hud.set_paused(false)
+	var combat_authority := game.get_combat_authority()
+	var combat_resolver := game.get_combat_resolver()
+	var startup_roster := game.get_live_combat_source_roster_audit()
+	_check(
+		is_instance_valid(combat_authority)
+		and is_instance_valid(combat_resolver)
+		and bool(startup_roster.get("valid", false))
+		and int(startup_roster.get("actual_source_count", -1)) == 10
+		and int(startup_roster.get("expected_source_count", -1)) == 10
+		and int(startup_roster.get("expected_station_defense_source_count", -1)) == 3,
+		"startup owns the exact composed player, range, and station-defense source roster"
+	)
+	var authority_instance_id := combat_authority.get_instance_id()
+	var resolver_instance_id := combat_resolver.get_instance_id()
 	root.remove_child(game)
 	await process_frame
+	_check(
+		combat_resolver.get_registered_source_count() == 0,
+		"Main detach retires every live source registration while retaining combat identity"
+	)
 	root.add_child(game)
 	await process_frame
 	await physics_frame
+	await process_frame
 	var rebound_console := game.world.call(&"get_activity_board_console") as Area3D
+	var rebound_roster := game.get_live_combat_source_roster_audit()
 	_check(
 		rebound_console == console
 		and rebound_console.get_signal_connection_list(&"open_requested").size()
 		== console_connections.size(),
 		"Main detach/reentry retains one console and one GameFlow signal binding"
+	)
+	_check(
+		game.get_combat_authority().get_instance_id() == authority_instance_id
+		and game.get_combat_resolver().get_instance_id() == resolver_instance_id
+		and bool(rebound_roster.get("valid", false))
+		and int(rebound_roster.get("actual_source_count", -1)) == 10
+		and int(rebound_roster.get("expected_source_count", -1)) == 10
+		and int(rebound_roster.get("expected_station_defense_source_count", -1)) == 3
+		and int(
+			(rebound_roster.get("station_defense_sources", {}) as Dictionary)
+				.get("exact_registration_count", -1)
+		) == 3,
+		"retained Main restores ten exact sources once on the same combat authority and resolver"
 	)
 
 
