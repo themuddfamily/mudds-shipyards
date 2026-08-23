@@ -17,6 +17,10 @@ const CUE_PRIORITIES := {
 	&"activity_complete": 80,
 	&"activity_reset": 85,
 	&"activity_reward_pending": 90,
+	&"cargo_deadline_warning": 60,
+	&"cargo_deadline_critical": 95,
+	&"cargo_deadline_recovered": 70,
+	&"cargo_delivery_completed": 90,
 }
 
 var _attached := false
@@ -95,11 +99,18 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var reward_pending := bool(decoded.reward_pending)
 	var reset_serial := int(decoded.reset_serial)
 	var source_generation := int(decoded.generation)
+	var activity_kind := StringName(decoded.activity_kind)
+	var source_time := float(decoded.source_time_seconds)
 	var previous := _activity_ledger.get(activity_id, {}) as Dictionary
 	var previous_generation := int(previous.get("generation", -1))
 	if source_generation < previous_generation:
 		return _result(false, &"stale_activity_generation")
-	if source_generation > previous_generation:
+	if source_generation == previous_generation \
+			and source_time < float(previous.get("source_time_seconds", 0.0)):
+		return _result(false, &"stale_activity_time")
+	var generation_changed := source_generation > previous_generation
+	var prior_generation_urgency := StringName(previous.get("urgency", &"normal"))
+	if generation_changed:
 		previous = {}
 	var previous_state := StringName(previous.get("state", &"idle"))
 	var previous_checkpoint := StringName(previous.get("checkpoint_id", &""))
@@ -107,6 +118,10 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var previous_reward_pending := bool(previous.get("reward_pending", false))
 	var previous_reset_serial := int(previous.get("reset_serial", 0))
 	var thresholds := previous.get("progress_thresholds", {}) as Dictionary
+	var urgency := _cargo_urgency(decoded) if activity_kind == &"cargo" else &"normal"
+	var previous_urgency := StringName(previous.get("urgency", &"normal"))
+	if generation_changed and urgency == &"normal":
+		previous_urgency = prior_generation_urgency
 	if previous.is_empty():
 		_emit_cue(&"activity_selected", activity_id, 1.0)
 	if state == &"active" and previous_state != &"active":
@@ -118,8 +133,18 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 				and not thresholds.has(threshold):
 			thresholds[threshold] = true
 			_emit_cue(&"activity_progress", activity_id, threshold)
+	if activity_kind == &"cargo":
+		if urgency == &"warning" and previous_urgency not in [&"warning", &"critical"]:
+			_emit_cue(&"cargo_deadline_warning", activity_id, 0.8)
+		elif urgency == &"critical" and previous_urgency != &"critical":
+			_emit_cue(&"cargo_deadline_critical", activity_id, 1.0)
+		elif urgency == &"normal" and previous_urgency in [&"warning", &"critical"]:
+			_emit_cue(&"cargo_deadline_recovered", activity_id, 0.75)
 	if state == &"complete" and previous_state != &"complete":
-		_emit_cue(&"activity_complete", activity_id, 1.0)
+		if activity_kind != &"cargo":
+			_emit_cue(&"activity_complete", activity_id, 1.0)
+		elif StringName(decoded.cargo_outcome) == &"delivered":
+			_emit_cue(&"cargo_delivery_completed", activity_id, 1.0)
 	if reward_pending and not previous_reward_pending:
 		_emit_cue(&"activity_reward_pending", activity_id, 1.0)
 	if state == &"reset" and previous_state != &"reset" \
@@ -127,6 +152,9 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		_emit_cue(&"activity_reset", activity_id, 1.0)
 	_activity_ledger[activity_id] = {
 		"generation": source_generation,
+		"activity_kind": activity_kind,
+		"source_time_seconds": source_time,
+		"urgency": urgency,
 		"state": state,
 		"checkpoint_id": checkpoint_id,
 		"progress": progress,
@@ -195,18 +223,23 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 	var checkpoint: Variant = snapshot.get("checkpoint_id", &"")
 	var reset_serial: Variant = snapshot.get("reset_serial", 0)
 	var generation: Variant = snapshot.get("generation", 0)
+	var activity_kind: Variant = snapshot.get("activity_kind", &"")
+	var source_time: Variant = snapshot.get("source_time_seconds", 0.0)
 	if activity_id is not StringName or (activity_id as StringName).is_empty() \
 			or state is not StringName or not ACTIVITY_STATES.has(state as StringName) \
 			or not _finite_range(progress, 0.0, 1.0) \
 			or checkpoint is not StringName or not (reset_serial is int) \
 			or not (generation is int) or int(generation) < 0 \
 			or int(generation) > MAX_SAFE_GENERATION \
+			or not (activity_kind is StringName) \
+			or not (source_time is float or source_time is int) \
+			or not is_finite(float(source_time)) or float(source_time) < 0.0 \
 			or int(reset_serial) < 0 or int(reset_serial) > MAX_SAFE_GENERATION:
 		return _result(false, &"invalid_snapshot")
 	var reward_pending: Variant = snapshot.get("reward_pending", false)
 	if reward_pending is not bool:
 		return _result(false, &"invalid_reward_state")
-	return {
+	var decoded := {
 		"accepted": true,
 		"activity_id": activity_id,
 		"state": state,
@@ -215,7 +248,25 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 		"reward_pending": reward_pending,
 		"reset_serial": int(reset_serial),
 		"generation": int(generation),
+		"activity_kind": activity_kind,
+		"source_time_seconds": float(source_time),
 	}.duplicate(true)
+	if activity_kind == &"cargo":
+		var deadline: Variant = snapshot.get("deadline_seconds", null)
+		var remaining: Variant = snapshot.get("deadline_remaining_seconds", null)
+		var cargo_outcome: Variant = snapshot.get("cargo_outcome", &"active")
+		if not (deadline is float or deadline is int) or not is_finite(float(deadline)) \
+				or float(deadline) <= 0.0 \
+				or not (remaining is float or remaining is int) or not is_finite(float(remaining)) \
+				or float(remaining) < 0.0 or float(remaining) > float(deadline):
+			return _result(false, &"invalid_cargo_deadline")
+		if not cargo_outcome is StringName \
+				or cargo_outcome not in [&"active", &"delivered", &"failed"]:
+			return _result(false, &"invalid_cargo_outcome")
+		decoded["deadline_seconds"] = float(deadline)
+		decoded["deadline_remaining_seconds"] = float(remaining)
+		decoded["cargo_outcome"] = cargo_outcome
+	return decoded
 
 
 func _emit_cue(cue_id: StringName, activity_id: StringName, intensity: float) -> void:
@@ -286,6 +337,19 @@ func _refresh_reduced_dynamic_range() -> void:
 		return
 	var mix := _audio_director.call(&"get_dynamic_mix_plan") as Dictionary
 	_reduced_dynamic_range = bool(mix.get("reduced_dynamic_range", false))
+
+
+func _cargo_urgency(decoded: Dictionary) -> StringName:
+	if StringName(decoded.get("state", &"")) == &"complete":
+		return &"terminal"
+	var deadline := float(decoded.get("deadline_seconds", 1.0))
+	var remaining := float(decoded.get("deadline_remaining_seconds", deadline))
+	var ratio := remaining / deadline
+	if ratio <= 0.1:
+		return &"critical"
+	if ratio <= 0.25:
+		return &"warning"
+	return &"normal"
 
 
 func _finite_range(value: Variant, minimum: float, maximum: float) -> bool:

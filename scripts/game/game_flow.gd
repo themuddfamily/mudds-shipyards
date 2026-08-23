@@ -8710,7 +8710,15 @@ func _normalize_nearby_activity_audio_snapshot(snapshot: Dictionary) -> Dictiona
 	var fallback: Dictionary = {}
 	for candidate: Dictionary in candidates:
 		var value := candidate.value as Dictionary
-		var state := StringName(value.get("state_id", value.get("state", &"idle")))
+		var raw_state: Variant = value.get("state_id", value.get("state", &"idle"))
+		var state: StringName = &""
+		if raw_state is StringName or raw_state is String:
+			state = StringName(raw_state)
+		elif raw_state is int and StringName(candidate.kind) == &"cargo":
+			state = {
+				0: &"idle", 1: &"active", 2: &"completed",
+				3: &"failed", 4: &"expired",
+			}.get(int(raw_state), &"")
 		if state in [&"idle", &"selected", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
 			if state in [&"idle", &"selected"]:
 				if fallback.is_empty():
@@ -8741,7 +8749,7 @@ func _build_nearby_activity_audio_snapshot(
 			&"reset" if state == &"reset" else &"idle"
 			)
 		)
-		return {
+		var normalized := {
 			"generation": maxi(generation, 0),
 			"activity_kind": candidate.get("kind", &"patrol"),
 			"activity_state": normalized_state,
@@ -8752,6 +8760,29 @@ func _build_nearby_activity_audio_snapshot(
 			"reward_pending": bool(value.get("reward_pending", false)),
 			"reset_serial": maxi(int(value.get("reset_serial", 0)), 0),
 		}.duplicate(true)
+		if StringName(candidate.get("kind", &"")) == &"cargo":
+			normalized["cargo_outcome"] = (
+				&"delivered" if state in [&"complete", &"completed"] else (
+					&"failed" if state in [&"failed", &"aborted", &"expired"] else &"active"
+				)
+			)
+			var contract := value.get("contract", {}) as Dictionary
+			normalized["activity_id"] = StringName(value.get(
+				"contract_id", contract.get("contract_id", &"cinder_platform_supply_run")
+			))
+			var elapsed: Variant = value.get("elapsed_seconds", null)
+			var deadline: Variant = value.get("deadline_seconds", null)
+			var remaining: Variant = value.get("deadline_remaining_seconds", null)
+			if (elapsed is float or elapsed is int) and is_finite(float(elapsed)) \
+					and float(elapsed) >= 0.0 \
+					and (deadline is float or deadline is int) and is_finite(float(deadline)) \
+					and float(deadline) > 0.0 \
+					and (remaining is float or remaining is int) and is_finite(float(remaining)) \
+					and float(remaining) >= 0.0 and float(remaining) <= float(deadline):
+				normalized["source_time_seconds"] = float(elapsed)
+				normalized["deadline_seconds"] = float(deadline)
+				normalized["deadline_remaining_seconds"] = float(remaining)
+		return normalized
 	return {}
 
 
