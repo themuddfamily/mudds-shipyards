@@ -1497,6 +1497,12 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		layer.position = Vector2.ZERO
 		layer.size = logical
 		layer.scale = Vector2(effective, effective)
+	if is_instance_valid(_runtime_status_panel):
+		var status_rect := compute_runtime_status_panel_rect(
+			viewport_size, _safe_area_insets, effective
+		)
+		_runtime_status_panel.position = status_rect.position - logical * 0.5
+		_runtime_status_panel.size = status_rect.size
 	if is_instance_valid(_reticle):
 		# The reticle remains camera-centred, but its state label follows the same
 		# authored UI scale ceiling as the surrounding HUD.
@@ -1517,6 +1523,19 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 			CAPTION_BOTTOM_SAFE_LOGICAL * effective
 		)
 	return effective
+
+
+static func compute_runtime_status_panel_rect(
+	viewport_size: Vector2, safe_insets: Rect2, effective_scale: float
+) -> Rect2:
+	var scale := maxf(effective_scale, 0.01)
+	var logical := viewport_size / scale
+	var left := maxf(safe_insets.position.x, 0.0) / scale
+	var right := maxf(safe_insets.size.x, 0.0) / scale
+	var available := maxf(360.0, logical.x - left - right - PANEL_MARGIN * 2.0)
+	var width := clampf(available * 0.32, 460.0, 680.0)
+	var center_x := left + (logical.x - left - right) * 0.5
+	return Rect2(Vector2(center_x - width * 0.5, -150.0), Vector2(width, 300.0))
 
 
 ## Applies physical-pixel display cutout/overscan insets to edge-anchored HUD
