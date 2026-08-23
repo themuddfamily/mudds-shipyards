@@ -291,9 +291,17 @@ func restore_relay_survey_persistence() -> Dictionary:
 	var runtime := _adapter.get_snapshot().get("activity_reward", {}) as Dictionary
 	if StringName(runtime.get("state", &"")) != &"ready":
 		return _result(false, &"survey_persistence_live_activity_present")
-	_restored_relay_survey_completion = (
+	var completion := (
 		loaded.get("completion", {}) as Dictionary
 	).duplicate(true)
+	var optional := completion.get("optional_checkpoint", {}) as Dictionary
+	if bool(optional.get("completed", false)):
+		var bunker_restored := _survey_interaction.call(
+			&"restore_terminal_completion_presentation", optional
+		) as Dictionary
+		if not bool(bunker_restored.get("accepted", false)):
+			return _result(false, &"survey_bunker_presentation_restore_rejected")
+	_restored_relay_survey_completion = completion
 	_apply_relay_survey_presentation()
 	return {
 		"accepted": true,
@@ -846,7 +854,16 @@ func _apply_relay_survey_presentation() -> void:
 				_restored_relay_survey_completion.get("activity_generation", -1)
 			),
 		}
-		checkpoint_snapshot = {}
+		var restored_optional := _restored_relay_survey_completion.get(
+			"optional_checkpoint", {}
+		) as Dictionary
+		checkpoint_snapshot = {
+			"checkpoint_id": &"ember_bunker_gantry_log",
+			"status": &"completed",
+			"completed": true,
+			"progress_text": "OPTIONAL BUNKER LOG  1 / 1",
+			"status_text": "Bunker / gantry log recorded",
+		} if bool(restored_optional.get("completed", false)) else {}
 		mandatory_route = (
 			_restored_relay_survey_completion.get("mandatory_route", {}) as Dictionary
 		).duplicate(true)

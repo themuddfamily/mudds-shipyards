@@ -233,6 +233,51 @@ func restore_persistence_snapshot(snapshot: Variant) -> Dictionary:
 	return _result(true, &"survey_interaction_restored")
 
 
+## Applies an already validated terminal relay-survey observation to this
+## binding's physical presentation. It deliberately emits no interaction event
+## and creates no activity or reward receipt.
+func restore_terminal_completion_presentation(completion: Variant) -> Dictionary:
+	if not _current() or _completed or not completion is Dictionary:
+		return _result(false, &"terminal_survey_presentation_restore_invalid")
+	var saved := completion as Dictionary
+	if saved.get("completed") is not bool or not bool(saved.completed) \
+			or saved.size() != 11 \
+			or StringName(saved.get("checkpoint_id", &"")) \
+				!= &"ember_bunker_gantry_log" \
+			or StringName(saved.get("interaction_id", &"")) != INTERACTION_ID \
+			or StringName(saved.get("completion_response_id", &"")) \
+				!= COMPLETION_RESPONSE_ID \
+			or int(saved.get("activity_generation", -1)) < 1 \
+			or int(saved.get("source_run_generation", -1)) < 1 \
+			or int(saved.get("source_attachment_generation", -1)) < 1 \
+			or StringName(saved.get("content_class", &"")) != &"NEW" \
+			or StringName(saved.get("interpretation_status", &"")) \
+				!= &"modern_interpretation" \
+			or bool(saved.get("historical_claim", true)) \
+			or bool(saved.get("replay_allowed", true)):
+		return _result(false, &"terminal_survey_presentation_restore_invalid")
+	_completed = true
+	_completion_attachment_generation = _attachment_generation
+	_last_receipt = {
+		"interaction_id": INTERACTION_ID,
+		"world_id": &"ember_moon",
+		"host_generation": _host_generation,
+		"attachment_generation": _attachment_generation,
+		"activity_started": false,
+		"reward_granted": false,
+		"historical_claim": false,
+		"completion_response_id": COMPLETION_RESPONSE_ID,
+		"restored_terminal_presentation": true,
+	}.duplicate(true)
+	_apply_presentation()
+	return {
+		"accepted": true,
+		"reason": &"terminal_survey_presentation_restored",
+		"interaction_replayed": false,
+		"reward_replayed": false,
+	}.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	_apply_presentation()
 	return {

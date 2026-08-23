@@ -12,6 +12,9 @@ const WORLD_ID := "ember_moon"
 const REWARD_ID := "ember_beacon_data"
 const REWARD_STORE_ID := "game_flow_reward_store"
 const REWARD_AUTHORITY_ID := "game_flow_reward_authority"
+const OPTIONAL_CHECKPOINT_ID := "ember_bunker_gantry_log"
+const OPTIONAL_INTERACTION_ID := "ember_bunker_gantry_survey"
+const OPTIONAL_RESPONSE_ID := "ember_bunker_service_alcove"
 
 var _store: RefCounted
 var _slot_id: StringName = &""
@@ -81,6 +84,8 @@ func capture(surface_snapshot: Variant) -> Dictionary:
 	var runtime := adapter.get("activity_reward", {}) as Dictionary
 	var survey := surface.get("relay_survey", {}) as Dictionary
 	var route := survey.get("mandatory_route", {}) as Dictionary
+	var optional := survey.get("optional_checkpoint", {}) as Dictionary
+	var interaction := surface.get("survey_interaction", {}) as Dictionary
 	var committed := runtime.get("committed_reward", {}) as Dictionary
 	var authority_result := committed.get("authority_result", {}) as Dictionary
 	if StringName(runtime.get("state", &"")) != &"completed" \
@@ -100,7 +105,13 @@ func capture(surface_snapshot: Variant) -> Dictionary:
 			or int(route.get("activity_generation", -1)) \
 				!= int(committed.get("activity_generation", -2)):
 		return _result(false, &"survey_completion_not_committed")
-	var completion := _wire_copy({
+	var optional_completion := _capture_optional_completion(
+		optional, interaction, int(committed.get("activity_generation", -1))
+	)
+	if bool(optional.get("completed", false)) \
+			and not bool(optional_completion.get("accepted", false)):
+		return optional_completion
+	var completion_payload := {
 		"world_id": WORLD_ID,
 		"activity_id": ACTIVITY_ID,
 		"activity_generation": int(committed.get("activity_generation", 0)),
@@ -111,7 +122,11 @@ func capture(surface_snapshot: Variant) -> Dictionary:
 		"mandatory_route": route,
 		"presentation_state": "reward_confirmed",
 		"reward_replay_allowed": false,
-	}) as Dictionary
+	}
+	completion_payload["optional_checkpoint"] = (
+		optional_completion.get("completion", {"completed": false}) as Dictionary
+	).duplicate(true)
+	var completion := _wire_copy(completion_payload) as Dictionary
 	var record := {
 		"schema_version": float(SCHEMA_VERSION),
 		"payload_kind": PAYLOAD_KIND,
@@ -165,7 +180,90 @@ func validate_record(candidate: Variant) -> Dictionary:
 			or int(route.get("next_checkpoint_index", 0)) != 2 \
 			or route.get("complete") is not bool or not bool(route.get("complete", false)):
 		return _result(false, &"survey_persistence_payload_corrupt")
+	# Records written before optional checkpoint persistence remain valid terminal
+	# receipts and simply restore without the bunker response.
+	var optional: Variant = completion.get(
+		"optional_checkpoint", {"completed": false, "replay_allowed": false}
+	)
+	if not optional is Dictionary or not _validate_optional_completion(
+		optional as Dictionary, int(completion.get("activity_generation", -1))
+	):
+		return _result(false, &"survey_persistence_payload_corrupt")
 	return _result(true, &"survey_persistence_payload_valid")
+
+
+func _capture_optional_completion(
+		checkpoint: Dictionary, interaction: Dictionary, activity_generation: int
+	) -> Dictionary:
+	if not bool(checkpoint.get("completed", false)):
+		return {
+			"accepted": true,
+			"completion": {"completed": false, "replay_allowed": false},
+		}
+	var receipt := interaction.get("last_receipt", {}) as Dictionary
+	if StringName(checkpoint.get("checkpoint_id", &"")) != OPTIONAL_CHECKPOINT_ID \
+			or StringName(checkpoint.get("interaction_id", &"")) != OPTIONAL_INTERACTION_ID \
+			or int(checkpoint.get("activity_generation", -1)) != activity_generation \
+			or int(checkpoint.get("current_activity_generation", -1)) != activity_generation \
+			or int(checkpoint.get("run_generation", -1)) < 1 \
+			or int(checkpoint.get("attachment_generation", -1)) < 1 \
+			or bool(checkpoint.get("historical_claim", true)) \
+			or StringName(checkpoint.get("content_class", &"")) != &"NEW" \
+			or StringName(checkpoint.get("interpretation_status", &"")) \
+				!= &"modern_interpretation" \
+			or not bool(interaction.get("completed", false)) \
+			or StringName(interaction.get("interaction_id", &"")) != OPTIONAL_INTERACTION_ID \
+			or StringName(receipt.get("interaction_id", &"")) != OPTIONAL_INTERACTION_ID \
+			or StringName(receipt.get("world_id", &"")) != WORLD_ID \
+			or StringName(receipt.get("completion_response_id", &"")) != OPTIONAL_RESPONSE_ID \
+			or int(receipt.get("host_generation", -2)) \
+				!= int(checkpoint.get("run_generation", -1)) \
+			or int(receipt.get("attachment_generation", -2)) \
+				!= int(checkpoint.get("attachment_generation", -1)) \
+			or bool(receipt.get("activity_started", true)) \
+			or bool(receipt.get("reward_granted", true)) \
+			or bool(receipt.get("historical_claim", true)):
+		return _result(false, &"survey_optional_completion_not_committed")
+	return {
+		"accepted": true,
+		"completion": {
+			"completed": true,
+			"checkpoint_id": OPTIONAL_CHECKPOINT_ID,
+			"interaction_id": OPTIONAL_INTERACTION_ID,
+			"completion_response_id": OPTIONAL_RESPONSE_ID,
+			"activity_generation": activity_generation,
+			"source_run_generation": int(checkpoint.get("run_generation", -1)),
+			"source_attachment_generation": int(
+				checkpoint.get("attachment_generation", -1)
+			),
+			"content_class": "NEW",
+			"interpretation_status": "modern_interpretation",
+			"historical_claim": false,
+			"replay_allowed": false,
+		},
+	}.duplicate(true)
+
+
+func _validate_optional_completion(optional: Dictionary, activity_generation: int) -> bool:
+	if optional.get("completed") is not bool \
+			or optional.get("replay_allowed") is not bool \
+			or bool(optional.get("replay_allowed", true)):
+		return false
+	if not bool(optional.completed):
+		return optional.size() == 2
+	return str(optional.get("checkpoint_id", "")) == OPTIONAL_CHECKPOINT_ID \
+		and str(optional.get("interaction_id", "")) == OPTIONAL_INTERACTION_ID \
+		and str(optional.get("completion_response_id", "")) == OPTIONAL_RESPONSE_ID \
+		and _integral(optional.get("activity_generation")) \
+		and int(optional.get("activity_generation", -1)) == activity_generation \
+		and _integral(optional.get("source_run_generation")) \
+		and int(optional.get("source_run_generation", -1)) >= 1 \
+		and _integral(optional.get("source_attachment_generation")) \
+		and int(optional.get("source_attachment_generation", -1)) >= 1 \
+		and str(optional.get("content_class", "")) == "NEW" \
+		and str(optional.get("interpretation_status", "")) == "modern_interpretation" \
+		and optional.get("historical_claim") is bool \
+		and not bool(optional.get("historical_claim", true))
 
 
 func _configured() -> bool:
