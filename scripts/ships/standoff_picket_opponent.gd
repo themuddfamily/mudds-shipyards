@@ -72,9 +72,14 @@ const MAX_PENDING_LANCE_RECEIPTS := 8
 # BoxMesh for each of fourteen box nodes. Five mirrored recipes are immutable
 # and exact duplicates, so the cache reduces only retained mesh resources:
 # nodes, visible copies, surfaces/submissions, materials and transforms stay put.
-const PRESENTATION_VISUAL_NODE_COUNT := 33
-const PRESENTATION_MESH_INSTANCE_COUNT := 31
-const PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
+const BASELINE_PRESENTATION_VISUAL_NODE_COUNT := 33
+const PRESENTATION_VISUAL_NODE_COUNT := 32
+const BASELINE_PRESENTATION_MESH_INSTANCE_COUNT := 31
+const PRESENTATION_MESH_INSTANCE_COUNT := 29
+const PRESENTATION_RENDERER_NODE_COUNT := 30
+const PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT := 31
+const BASELINE_PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 30
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
 const PRESENTATION_MESH_RESOURCE_COUNT := 22
@@ -82,6 +87,8 @@ const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
 const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 9
 const PRESENTATION_BOX_INSTANCE_COUNT := 14
 const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 5
+const PRESENTATION_MULTIMESH_BATCH_COUNT := 1
+const ENGINE_POD_COPY_COUNT := 2
 
 const CONTENT_NOTE := (
 	"The picket silhouette, palette, lance telegraph, standoff band, minimum arming "
@@ -335,9 +342,26 @@ func get_presentation_performance_contract() -> Dictionary:
 	var box_mesh_resources := {}
 	var material_resources := {}
 	var visual_nodes := 0
+	var multimesh_batches := 0
+	var visible_geometry_copies := 0
 	if is_instance_valid(_visual_root):
 		visual_nodes = _visual_root.get_child_count()
 		for candidate: Node in _visual_root.get_children():
+			if candidate is MultiMeshInstance3D:
+				var batch := candidate as MultiMeshInstance3D
+				var multi := batch.multimesh
+				if multi == null or multi.mesh == null:
+					continue
+				multimesh_batches += 1
+				var visible_count := multi.visible_instance_count
+				visible_geometry_copies += multi.instance_count if visible_count < 0 else visible_count
+				mesh_resources[multi.mesh.get_instance_id()] = true
+				submissions += multi.mesh.get_surface_count()
+				for surface_index in multi.mesh.get_surface_count():
+					var batch_material := multi.mesh.surface_get_material(surface_index)
+					if batch_material != null:
+						material_resources[batch_material.get_instance_id()] = true
+				continue
 			if candidate is not MeshInstance3D:
 				continue
 			var instance := candidate as MeshInstance3D
@@ -345,6 +369,7 @@ func get_presentation_performance_contract() -> Dictionary:
 			if mesh == null:
 				continue
 			mesh_instances += 1
+			visible_geometry_copies += 1
 			mesh_resources[mesh.get_instance_id()] = true
 			if mesh is BoxMesh:
 				box_instances += 1
@@ -357,23 +382,27 @@ func get_presentation_performance_contract() -> Dictionary:
 	var valid := (
 		visual_nodes == PRESENTATION_VISUAL_NODE_COUNT
 		and mesh_instances == PRESENTATION_MESH_INSTANCE_COUNT
+		and mesh_instances + multimesh_batches == PRESENTATION_RENDERER_NODE_COUNT
+		and visible_geometry_copies == PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT
 		and submissions == PRESENTATION_SURFACE_SUBMISSION_COUNT
 		and mesh_resources.size() == PRESENTATION_MESH_RESOURCE_COUNT
 		and box_instances == PRESENTATION_BOX_INSTANCE_COUNT
 		and box_mesh_resources.size() == PRESENTATION_BOX_MESH_RESOURCE_COUNT
 		and _picket_box_mesh_cache.size() == PRESENTATION_BOX_MESH_RESOURCE_COUNT
 		and material_resources.size() == PRESENTATION_MATERIAL_RESOURCE_COUNT
+		and multimesh_batches == PRESENTATION_MULTIMESH_BATCH_COUNT
 	)
 	return {
 		"valid": valid,
 		"headless_safe": true,
 		"scope": &"StandoffPicketVisual_static_geometry",
-		"baseline_visual_nodes": PRESENTATION_VISUAL_NODE_COUNT,
+		"baseline_visual_nodes": BASELINE_PRESENTATION_VISUAL_NODE_COUNT,
 		"visual_nodes": visual_nodes,
-		"baseline_mesh_instances": PRESENTATION_MESH_INSTANCE_COUNT,
+		"baseline_mesh_instances": BASELINE_PRESENTATION_MESH_INSTANCE_COUNT,
 		"mesh_instances": mesh_instances,
-		"visible_geometry_copies": mesh_instances,
-		"baseline_surface_submissions": PRESENTATION_SURFACE_SUBMISSION_COUNT,
+		"renderer_nodes": mesh_instances + multimesh_batches,
+		"visible_geometry_copies": visible_geometry_copies,
+		"baseline_surface_submissions": BASELINE_PRESENTATION_SURFACE_SUBMISSION_COUNT,
 		"surface_submissions": submissions,
 		"baseline_mesh_resources": BASELINE_PRESENTATION_MESH_RESOURCE_COUNT,
 		"mesh_resources": mesh_resources.size(),
@@ -383,7 +412,7 @@ func get_presentation_performance_contract() -> Dictionary:
 		"box_instances": box_instances,
 		"shared_box_families": PRESENTATION_SHARED_BOX_FAMILY_COUNT,
 		"material_resources": material_resources.size(),
-		"multimesh_batches": 0,
+		"multimesh_batches": multimesh_batches,
 	}.duplicate(true)
 
 
@@ -1082,6 +1111,7 @@ func _build_interceptor() -> void:
 	_warning_lenses.append(_lance_lens)
 	var spine_lens := _sphere(_visual_root, "LanceSpineLens", Vector3(0.0, 0.34, -3.4), 0.15, _materials.picket_magenta_emissive)
 	_warning_lenses.append(spine_lens)
+	_add_engine_pod_batch(_visual_root)
 
 	for side in [-1.0, 1.0]:
 		# Swept radiator vanes replace the defender's forward prongs entirely.
@@ -1090,7 +1120,6 @@ func _build_interceptor() -> void:
 		_picket_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
 		_picket_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
 
-		_cylinder(_visual_root, "EnginePod", Vector3(side * 0.86, -0.02, 4.3), 0.4, 1.5, _materials.picket_deep, Vector3(90.0, 0.0, 0.0))
 		_cylinder(_visual_root, "EngineCore", Vector3(side * 0.86, -0.02, 5.02), 0.27, 0.16, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
 		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 0.86, -0.02, 5.42), 0.17, 0.7, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
@@ -1123,6 +1152,39 @@ func _build_interceptor() -> void:
 
 	_build_collision()
 	_build_damage_effects()
+
+
+## The mirrored pod shells are immutable presentation only. Their animated core
+## and plume peers remain independent MeshInstance3Ds in the engine-glow arrays.
+func _add_engine_pod_batch(parent: Node3D) -> MultiMeshInstance3D:
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.4, 0.4, 1.5, 28, _chamfered_cylinder_cache,
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.picket_deep
+	)
+	var transforms: Array[Transform3D] = [
+		Transform3D(Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)), Vector3(-0.86, -0.02, 4.3)),
+		Transform3D(Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)), Vector3(0.86, -0.02, 4.3)),
+	]
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = ENGINE_POD_COPY_COUNT
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in ENGINE_POD_COPY_COUNT:
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "EnginePodBatch"
+	batch.multimesh = multi
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", PackedStringArray(["PortEnginePod", "StarboardEnginePod"]))
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
 
 
 ## Component-owned immutable primitive cache. Size and bound surface material

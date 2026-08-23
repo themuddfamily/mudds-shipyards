@@ -123,12 +123,13 @@ func _test_contract_and_evidence() -> void:
 		bool(performance.valid)
 		and bool(performance.headless_safe)
 		and int(performance.baseline_visual_nodes) == 33
-		and int(performance.visual_nodes) == 33
+		and int(performance.visual_nodes) == 32
 		and int(performance.baseline_mesh_instances) == 31
-		and int(performance.mesh_instances) == 31
+		and int(performance.mesh_instances) == 29
+		and int(performance.renderer_nodes) == 30
 		and int(performance.visible_geometry_copies) == 31
 		and int(performance.baseline_surface_submissions) == 31
-		and int(performance.surface_submissions) == 31
+		and int(performance.surface_submissions) == 30
 		and int(performance.baseline_mesh_resources) == 27
 		and int(performance.mesh_resources) == 22
 		and int(performance.mesh_resource_delta) == -5
@@ -137,8 +138,46 @@ func _test_contract_and_evidence() -> void:
 		and int(performance.box_instances) == 14
 		and int(performance.shared_box_families) == 5
 		and int(performance.material_resources) == 8
-		and int(performance.multimesh_batches) == 0,
-		"five immutable mirrored box families reduce static mesh resources 27 -> 22 while nodes, copies and submissions stay 33/31/31"
+		and int(performance.multimesh_batches) == 1,
+		"the engine-pod batch preserves 31 visible copies while renderer nodes/submissions fall 31 -> 30"
+	)
+
+	var engine_pods := visual.get_node_or_null("EnginePodBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var pod_multi := engine_pods.multimesh if engine_pods != null else null
+	var pod_transforms: Array = engine_pods.get_meta(&"authored_instance_transforms", []) as Array \
+		if engine_pods != null else []
+	var pod_names := engine_pods.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray \
+		if engine_pods != null else PackedStringArray()
+	var expected_pod_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var expected_pod_transforms: Array[Transform3D] = [
+		Transform3D(expected_pod_basis, Vector3(-0.86, -0.02, 4.3)),
+		Transform3D(expected_pod_basis, Vector3(0.86, -0.02, 4.3)),
+	]
+	var expected_pod_bounds := AABB()
+	if pod_multi != null and pod_multi.mesh != null:
+		for index in expected_pod_transforms.size():
+			var instance_bounds := (expected_pod_transforms[index] * pod_multi.mesh.get_aabb()).abs()
+			expected_pod_bounds = instance_bounds if index == 0 else expected_pod_bounds.merge(instance_bounds)
+	var pod_material := pod_multi.mesh.surface_get_material(0) as StandardMaterial3D \
+		if pod_multi != null and pod_multi.mesh != null else null
+	_check(
+		pod_multi != null
+		and pod_multi.transform_format == MultiMesh.TRANSFORM_3D
+		and pod_multi.instance_count == 2
+		and pod_multi.visible_instance_count == -1
+		and pod_multi.mesh != null
+		and pod_multi.mesh.get_surface_count() == 1
+		and pod_transforms == expected_pod_transforms
+		and pod_names == PackedStringArray(["PortEnginePod", "StarboardEnginePod"])
+		and pod_multi.custom_aabb.is_equal_approx(expected_pod_bounds)
+		and engine_pods.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and pod_material != null
+		and pod_material.albedo_color.is_equal_approx(Color("2a3038"))
+		and is_equal_approx(pod_material.metallic, 0.55)
+		and is_equal_approx(pod_material.roughness, 0.32)
+		and bool(engine_pods.get_meta(&"presentation_only", false)),
+		"engine-pod batching preserves exact transforms, authored identities, bounds, material mesh and shadow policy"
 	)
 
 	var pair_specs: Array[Dictionary] = [
