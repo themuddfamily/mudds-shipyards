@@ -74,6 +74,8 @@ const CAPTION_CUES := {
 	&"ship_audio_recovery_ready": [&"system", "Audio recovery", "[ ship audio recovery ready ]", 50],
 	&"station_service_servo": [&"ambient", "Station service", "[ station service servo ]", 40],
 	&"station_service_latch": [&"system", "Station service", "[ station service latch ]", 65],
+	&"target_lock_acquired": [&"system", "Targeting computer", "[ target lock acquired ]", 75],
+	&"target_lock_lost": [&"system", "Targeting computer", "[ target lock lost ]", 50],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4

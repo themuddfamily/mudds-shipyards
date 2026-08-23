@@ -29,6 +29,8 @@ const REGISTERED_CUES := {
 	&"ship_audio_recovery_ready": {"caption": "Ship audio recovery ready", "default_severity": &"low"},
 	&"station_service_servo": {"caption": "Station service servo", "default_severity": &"low"},
 	&"station_service_latch": {"caption": "Station service latch", "default_severity": &"medium"},
+	&"target_lock_acquired": {"caption": "Target lock acquired", "default_severity": &"medium"},
+	&"target_lock_lost": {"caption": "Target lock lost", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
