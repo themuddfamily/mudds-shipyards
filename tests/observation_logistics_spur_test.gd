@@ -181,8 +181,8 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		and int(performance.mesh_instances) == 33
 		and int(performance.static_bodies) == 33
 		and int(performance.collision_shapes) == 33
-		and module.find_children("*", "Node", true, false).size() == 133,
-		"finished district freezes 133 nodes, 33 meshes and 33 body/shape pairs"
+		and module.find_children("*", "Node", true, false).size() == 140,
+		"finished district freezes 140 nodes, 33 meshes and 33 body/shape pairs"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -198,6 +198,13 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"ObservationZoneTicks": 6,
 		"LogisticsZoneTicks": 6,
 		"ReturnBridgeChevrons": 5,
+		"PadPavilionBulkheads": 6,
+		"PadPavilionWindows": 6,
+		"PadPavilionMullions": 8,
+		"PadPavilionFascias": 2,
+		"PadPavilionPlinths": 6,
+		"PadCanopyTaskStrips": 6,
+		"DistrictSignBacks": 4,
 	}
 	var finishing_exact := true
 	for batch_name in finishing_batches:
@@ -228,9 +235,9 @@ func _test_deterministic_runtime_names(module: ObservationLogisticsSpur) -> void
 func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 	var materials := module.get_material_retention_contract()
 	_check(
-		int(materials.catalog_entry_count) == 9
-		and int(materials.retained_unique_materials) == 9,
-		"practical recipe sharing reduces retained material resources exactly 12 -> 9"
+		int(materials.catalog_entry_count) == 10
+		and int(materials.retained_unique_materials) == 10,
+		"finished pavilions retain ten shared material recipes including their dark view band"
 	)
 	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
 	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsole01/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
@@ -263,28 +270,28 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and bool(performance.headless_safe)
 		and StringName(performance.selected_family) == &"observation_lenses_and_logistics_cases"
 		and int(performance.baseline_descendant_nodes) == 133
-		and int(performance.descendant_nodes) == 133
+		and int(performance.descendant_nodes) == 140
 		and int(performance.baseline_renderer_nodes) == 46
-		and int(performance.renderer_nodes) == 46
+		and int(performance.renderer_nodes) == 53
 		and int(performance.baseline_drawn_copies) == 232
-		and int(performance.drawn_copies) == 232
+		and int(performance.drawn_copies) == 270
 		and int(performance.baseline_surface_submissions) == 46
-		and int(performance.surface_submissions) == 46,
-		"open rails and shared dressing preserve the finished 133-node, 46-renderer district census"
+		and int(performance.surface_submissions) == 53,
+		"perimeter pavilions keep the finished district bounded to 140 nodes and 53 renderers"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 46
-		and int(performance.mesh_resources) == 34
-		and int(performance.mesh_resource_delta) == -12
+		and int(performance.mesh_resources) == 41
+		and int(performance.mesh_resource_delta) == -5
 		and int(performance.baseline_material_resources) == 9
-		and int(performance.material_resources) == 9
+		and int(performance.material_resources) == 10
 		and int(performance.baseline_family_nodes) == 3
 		and int(performance.family_nodes) == 3
 		and int(performance.baseline_family_submissions) == 3
 		and int(performance.family_submissions) == 3
 		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"open rails and dressing sharing reduce the finished district's mesh resources 46 -> 34"
+		"open rails and pavilion batching keep the finished district to 41 mesh resources"
 	)
 	var practical_lenses: Array[MeshInstance3D] = []
 	for lens_index in ObservationLogisticsSpur.PRACTICAL_LENS_COPY_COUNT:
@@ -305,7 +312,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		practical_lenses[1].mesh = practical_mesh
 		_check(
 			not bool(practical_red.exact)
-			and int(practical_red.mesh_resources) == 35
+			and int(practical_red.mesh_resources) == 42
 			and int(practical_red.practical_lens_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one practical lens mesh fails the resource contract and restores cleanly"
@@ -354,7 +361,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		case_meshes[1].mesh = case_mesh
 		_check(
 			not bool(case_red.exact)
-			and int(case_red.mesh_resources) == 35
+			and int(case_red.mesh_resources) == 42
 			and int(case_red.logistics_case_mesh_resources) == 2
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: splitting one logistics-case mesh fails the resource contract and restores cleanly"
@@ -396,7 +403,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	var red := module.get_visual_resource_contract()
 	_check(
 		not bool(red.exact)
-		and int(red.mesh_resources) == 35
+		and int(red.mesh_resources) == 42
 		and int(red.family_mesh_resources) == 2
 		and module.get_validation_errors().has(
 			"observation lens or logistics-case visual-resource sharing drifted"
@@ -657,10 +664,13 @@ func _capture_forward_plus() -> void:
 	capture_root.add_child(moon)
 	var camera := Camera3D.new()
 	camera.current = true
-	camera.fov = 62.0
-	camera.position = Vector3(23.0, 17.0, -13.0)
+	# Review the district from the same low approach that exposed the unfinished
+	# scaffold read in production, rather than letting an aerial composition hide
+	# mast glare, floating signs, or empty pavilion edges.
+	camera.fov = 64.0
+	camera.position = Vector3(0.0, 2.25, 18.0)
 	capture_root.add_child(camera)
-	camera.look_at(Vector3(0.0, 0.0, 25.0), Vector3.UP)
+	camera.look_at(Vector3(0.0, 1.35, 32.0), Vector3.UP)
 	for _frame in 10:
 		await process_frame
 	await RenderingServer.frame_post_draw

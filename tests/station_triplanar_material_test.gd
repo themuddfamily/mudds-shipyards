@@ -676,8 +676,8 @@ func _test_instanced_station_family(
 	# maintenance-gantry SafetyBands and the rubber TowTractor wheel batch. Those
 	# three visual-only families are intentionally outside the station plate maps.
 	_check(
-		batches == 86 and mapped == 34,
-		"instanced station structure is exactly eighty-six batches, thirty-four of them mapped"
+		batches == 93 and mapped == 35,
+		"instanced station structure is exactly ninety-three batches, thirty-five of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -695,7 +695,7 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 		"FabricationAnnex": [27, 27, 31, 12],
 		"ExposedDockLattice/FabricationAnnexConnector": [10, 10, 0, 0],
 		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
-		"ObservationLogisticsSpur": [33, 9, 13, 2],
+		"ObservationLogisticsSpur": [33, 9, 20, 3],
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
 		"SalvageTerrace": [40, 33, 6, 5],

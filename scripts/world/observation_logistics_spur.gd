@@ -130,21 +130,21 @@ const OBSERVATION_LENS_POSITIONS := [
 	Vector3(-11.05, 0.76, 34.2),
 ]
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 133
-const VISUAL_DESCENDANT_NODE_COUNT := 133
+const VISUAL_DESCENDANT_NODE_COUNT := 140
 const BASELINE_RENDERER_NODE_COUNT := 46
-const RENDERER_NODE_COUNT := 46
+const RENDERER_NODE_COUNT := 53
 const BASELINE_DRAWN_COPY_COUNT := 232
-const DRAWN_COPY_COUNT := 232
+const DRAWN_COPY_COUNT := 270
 const BASELINE_SURFACE_SUBMISSION_COUNT := 46
-const SURFACE_SUBMISSION_COUNT := 46
+const SURFACE_SUBMISSION_COUNT := 53
 const BASELINE_MESH_RESOURCE_COUNT := 46
-const MESH_RESOURCE_COUNT := 34
+const MESH_RESOURCE_COUNT := 41
 const BASELINE_MATERIAL_RESOURCE_COUNT := 9
-const MATERIAL_RESOURCE_COUNT := 9
+const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
 const OBSERVATION_LENS_MESH_RESOURCE_COUNT := 1
 const OBSERVATION_LENS_COPY_COUNT := 3
-const PRACTICAL_LENS_SIZE := Vector3(0.42, 0.18, 0.42)
+const PRACTICAL_LENS_SIZE := Vector3(0.28, 0.12, 0.28)
 const PRACTICAL_LENS_COPY_COUNT := 6
 const PRACTICAL_LENS_MESH_RESOURCE_COUNT := 1
 const LOGISTICS_CASE_SIZE := Vector3(2.1, 0.52, 1.28)
@@ -304,12 +304,13 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 133 descendant
-	# nodes, 33 MeshInstance3D nodes plus thirteen visual-only MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 140 descendant
+	# nodes, 33 MeshInstance3D nodes plus twenty visual-only MultiMesh batches,
 	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
-	# reducing retained materials 12 -> 9 without changing a visible parameter.
+	# reducing repeated practical recipes while retaining one dedicated dark view
+	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 33,
@@ -620,8 +621,8 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(get_visual_resource_contract().exact):
 		errors.append("observation lens or logistics-case visual-resource sharing drifted")
 	var materials := get_material_retention_contract()
-	if int(materials.catalog_entry_count) != 9 \
-			or int(materials.retained_unique_materials) != 9 \
+	if int(materials.catalog_entry_count) != 10 \
+			or int(materials.retained_unique_materials) != 10 \
 			or int(materials.practical_lens_recipe_count) != 3 \
 			or not bool(materials.practical_lens_identities_exact):
 		errors.append("retained material or shared practical-lens identity drifted")
@@ -817,7 +818,9 @@ func _build_dressing(parent: Node3D) -> void:
 	_multimesh_boxes(
 		parent, "ConnectorMarkers", Vector3(0.10, 0.44, 0.62), _materials["amber"], connector_marker_transforms
 	)
-	_label(parent, "AreaIdentity", "OBSERVATION  //  LOGISTICS", Vector3(0.0, 1.65, 26.25), Color("dbe8e4"))
+	# The district identity belongs to the final connector portal rather than
+	# floating at eye height across the cross-landing sightline.
+	_label(parent, "AreaIdentity", "OBSERVATION  //  LOGISTICS", Vector3(0.0, 3.18, 21.82), Color("dbe8e4"))
 	_build_finishing_details(parent)
 
 
@@ -856,6 +859,76 @@ func _build_finishing_details(parent: Node3D) -> void:
 	_multimesh_boxes(parent, "PadCanopyRibs", Vector3(9.35, 0.20, 0.24), _materials["rail"], canopy_ribs)
 	_multimesh_boxes(parent, "PadCanopySupports", Vector3(0.20, 3.56, 0.20), _materials["rail"], canopy_supports)
 
+	# The two pads terminate in compact perimeter pavilions. Their wall panels sit
+	# between each outboard safety rail and the footprint boundary, so they add a
+	# convincing enclosed destination without consuming or faking walkable area.
+	# Dark view bands and repeated mullions distinguish the observation gallery
+	# from the cargo wall while keeping both sides in one manufactured family.
+	var pavilion_panels: Array[Transform3D] = []
+	var pavilion_windows: Array[Transform3D] = []
+	var pavilion_mullions: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		for panel_z in [28.45, 31.95, 35.45]:
+			pavilion_panels.append(Transform3D(
+				Basis.from_scale(Vector3(0.24, 3.25, 2.75)),
+				Vector3(side * 13.27, 1.63, panel_z)
+			))
+			pavilion_windows.append(Transform3D(
+				Basis.from_scale(Vector3(0.04, 0.92, 2.18)),
+				Vector3(side * 13.135, 2.03, panel_z)
+			))
+		for mullion_z in [27.05, 29.85, 33.35, 36.85]:
+			pavilion_mullions.append(Transform3D(
+				Basis.from_scale(Vector3(0.08, 1.12, 0.10)),
+				Vector3(side * 13.10, 2.03, mullion_z)
+			))
+	_multimesh_scaled_boxes(parent, "PadPavilionBulkheads", _materials["shell"], pavilion_panels)
+	_multimesh_scaled_boxes(parent, "PadPavilionWindows", _materials["window"], pavilion_windows)
+	_multimesh_scaled_boxes(parent, "PadPavilionMullions", _materials["rail"], pavilion_mullions)
+
+	# Deep fascia and a low service plinth visually join each slatted canopy to its
+	# pavilion. All pieces are overhead or outboard of the conservative rail, so
+	# the clear loop remains exactly the one validated by the player traversal.
+	var pavilion_fascias: Array[Transform3D] = []
+	var pavilion_plinths: Array[Transform3D] = []
+	for pad_x in [-8.0, 8.0]:
+		pavilion_fascias.append(Transform3D(
+			Basis.from_scale(Vector3(9.75, 0.48, 0.22)),
+			Vector3(pad_x, 3.34, 27.92)
+		))
+	var plinth_side := -1.0
+	for _side_index in 2:
+		for plinth_z in [29.0, 32.0, 35.0]:
+			pavilion_plinths.append(Transform3D(
+				Basis.from_scale(Vector3(0.42, 0.72, 2.15)),
+				Vector3(plinth_side * 13.16, 0.36, plinth_z)
+			))
+		plinth_side *= -1.0
+	_multimesh_scaled_boxes(parent, "PadPavilionFascias", _materials["rail"], pavilion_fascias)
+	_multimesh_scaled_boxes(parent, "PadPavilionPlinths", _materials["rail"], pavilion_plinths)
+
+	# Recessed canopy strips give each pad a readable pool and reduce dependence
+	# on the formerly over-bright mast lenses. They are fixture presentation only;
+	# the six bounded practical lights remain the sole illumination nodes.
+	var canopy_task_strips: Array[Transform3D] = []
+	for pad_x in [-8.0, 8.0]:
+		for strip_z in [29.4, 32.0, 34.6]:
+			canopy_task_strips.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(pad_x, 3.49, strip_z)
+			))
+	_multimesh_boxes(parent, "PadCanopyTaskStrips", Vector3(1.55, 0.045, 0.16), _materials["practical_white"], canopy_task_strips)
+
+	# Backing plates bind every label to architecture and stop white text from
+	# tangling with rails, stars and cargo when read from player height.
+	var sign_backs: Array[Transform3D] = [
+		Transform3D(Basis.from_scale(Vector3(5.20, 0.64, 0.12)), Vector3(0.0, 3.18, 21.96)),
+		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(-8.0, 2.98, 27.96)),
+		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(8.0, 2.98, 27.96)),
+		Transform3D(Basis.from_scale(Vector3(2.75, 0.50, 0.12)), Vector3(0.0, 2.84, 37.84)),
+	]
+	_multimesh_scaled_boxes(parent, "DistrictSignBacks", _materials["rail"], sign_backs)
+
 	# Small functional accents resolve the existing consoles and cargo stacks at
 	# player distance while staying visual-only and out of the circulation lane.
 	var console_trim: Array[Transform3D] = []
@@ -886,21 +959,21 @@ func _build_finishing_details(parent: Node3D) -> void:
 		return_chevrons.append(Transform3D(Basis.IDENTITY, Vector3(-2.0 + float(chevron_index), 0.025, 38.0)))
 	_multimesh_boxes(parent, "ReturnBridgeChevrons", Vector3(0.48, 0.035, 0.12), _materials["practical_white"], return_chevrons)
 
-	_label(parent, "ObservationArraySign", "OBS  //  ARRAY  04", Vector3(-8.0, 2.78, 27.82), Color("8fe8ef"))
-	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(8.0, 2.78, 27.82), Color("f4bf72"))
-	_label(parent, "ReturnLoopSign", "RETURN LOOP", Vector3(0.0, 2.62, 37.70), Color("dbe8e4"))
+	_label(parent, "ObservationArraySign", "OBS  //  ARRAY  04", Vector3(-8.0, 2.98, 27.82), Color("8fe8ef"))
+	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(8.0, 2.98, 27.82), Color("f4bf72"))
+	_label(parent, "ReturnLoopSign", "RETURN LOOP", Vector3(0.0, 2.84, 37.70), Color("dbe8e4"))
 
 
 func _build_lighting(parent: Node3D) -> void:
 	_practical_lens_mesh = BoxMesh.new()
 	_practical_lens_mesh.size = PRACTICAL_LENS_SIZE
 	var fixtures := [
-		[Vector3(0.0, 2.8, 7.0), Color("8fe8ef"), "practical_cyan"],
-		[Vector3(0.0, 2.8, 18.0), Color("8fe8ef"), "practical_cyan"],
-		[Vector3(0.0, 2.8, 23.5), Color("dbe8e4"), "practical_white"],
-		[Vector3(-8.0, 2.8, 32.0), Color("8fe8ef"), "practical_cyan"],
-		[Vector3(8.0, 2.8, 32.0), Color("f4bf72"), "practical_amber"],
-		[Vector3(0.0, 2.8, 38.0), Color("dbe8e4"), "practical_white"],
+		[Vector3(2.32, 2.8, 7.0), Color("8fe8ef"), "practical_cyan"],
+		[Vector3(-2.32, 2.8, 18.0), Color("8fe8ef"), "practical_cyan"],
+		[Vector3(-9.55, 2.8, 23.5), Color("dbe8e4"), "practical_white"],
+		[Vector3(-12.72, 2.8, 32.0), Color("8fe8ef"), "practical_cyan"],
+		[Vector3(12.72, 2.8, 32.0), Color("f4bf72"), "practical_amber"],
+		[Vector3(2.72, 2.8, 38.0), Color("dbe8e4"), "practical_white"],
 	]
 	for fixture_index in fixtures.size():
 		var fixture := fixtures[fixture_index] as Array
@@ -913,9 +986,9 @@ func _build_lighting(parent: Node3D) -> void:
 		light.name = "Practical%02d" % (fixture_index + 1)
 		light.position = fixture_position + Vector3(0, -0.16, 0)
 		light.light_color = fixture_color
-		light.light_energy = 0.72
-		light.omni_range = 8.0
-		light.omni_attenuation = 1.8
+		light.light_energy = 0.48
+		light.omni_range = 7.5
+		light.omni_attenuation = 1.2
 		light.shadow_enabled = false
 		light.distance_fade_enabled = true
 		light.distance_fade_begin = 55.0
@@ -935,7 +1008,7 @@ func _apply_metadata() -> void:
 
 func _create_materials() -> void:
 	_materials["deck"] = _material(Color("59666b"), 0.34, 0.46)
-	_materials["rail"] = _material(Color("263238"), 0.54, 0.62)
+	_materials["rail"] = _material(Color("60767d"), 0.54, 0.46)
 	_materials["shell"] = _material(Color("9ca7a6"), 0.42, 0.30)
 	_materials["cargo"] = _material(Color("735c3d"), 0.66, 0.18)
 	_materials["cyan"] = _emissive_material(Color("58dce5"))
@@ -943,6 +1016,12 @@ func _create_materials() -> void:
 	_materials["practical_cyan"] = _emissive_material(Color("8fe8ef"))
 	_materials["practical_white"] = _emissive_material(Color("dbe8e4"))
 	_materials["practical_amber"] = _emissive_material(Color("f4bf72"))
+	_materials["window"] = _material(Color("10272e"), 0.18, 0.22)
+	(_materials["window"] as StandardMaterial3D).emission_enabled = true
+	(_materials["window"] as StandardMaterial3D).emission = Color("103b43")
+	(_materials["window"] as StandardMaterial3D).emission_energy_multiplier = 0.32
+	for practical_key in ["practical_cyan", "practical_white", "practical_amber"]:
+		(_materials[practical_key] as StandardMaterial3D).emission_energy_multiplier = 0.9
 	StationSurfaceKit.apply_panel_triplanar(
 		_materials["deck"] as StandardMaterial3D,
 		0.30,
@@ -1066,9 +1145,9 @@ func _label(parent: Node3D, node_name: String, text: String, position: Vector3, 
 	label.text = text
 	label.position = position
 	label.rotation_degrees = Vector3(0, 180, 0)
-	label.font_size = 52
+	label.font_size = 36
 	label.modulate = color
-	label.outline_size = 8
+	label.outline_size = 6
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = false
 	parent.add_child(label)
