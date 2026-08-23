@@ -253,12 +253,23 @@ func _test_derived_archetype_component_presentation() -> void:
 		)
 		var weapon_sparks := opponent.get_node_or_null("WeaponDamageSparks") as CPUParticles3D
 		var sensor_light := opponent.get_node_or_null("SensorDamageLight") as OmniLight3D
+		var engine_lights := opponent.get("_engine_lights") as Array
+		var engine_glows := opponent.get("_engine_glows") as Array
+		opponent.call("_update_presentation", 0.1)
+		var nominal_engine_energies: Array[float] = []
+		for light_variant in engine_lights:
+			var engine_light := light_variant as OmniLight3D
+			nominal_engine_energies.append(
+				engine_light.light_energy if engine_light != null else 0.0
+			)
 		_check(
 			bool(activated.get("accepted", false))
 				and weapon_sparks != null
 				and not weapon_sparks.emitting
 				and sensor_light != null
-				and is_zero_approx(sensor_light.light_energy),
+				and is_zero_approx(sensor_light.light_energy)
+				and engine_lights.size() == 2
+				and engine_glows.size() == 2,
 			"%s activation starts with clean localized component presentation" % archetype_id
 		)
 		var presentation_sequence := 1000 + archetype_index
@@ -274,6 +285,7 @@ func _test_derived_archetype_component_presentation() -> void:
 				and opponent.commit_deferred_damage_presentation(presentation_sequence),
 			"%s local component effects remain receipt-timed" % archetype_id
 		)
+		opponent.call("_update_presentation", 0.1)
 		var muzzle := opponent.call("_get_firing_muzzle") as Node3D
 		_check(
 			weapon_sparks.emitting
@@ -290,11 +302,47 @@ func _test_derived_archetype_component_presentation() -> void:
 				and sensor_light.global_position.is_equal_approx(sensor_anchor.global_position),
 			"%s sensor degradation lights its authored sensor/mast location" % archetype_id
 		)
+		var engine_state := _component_state(opponent, &"engine")
+		var all_propulsion_mounts_dimmed := engine_lights.size() == nominal_engine_energies.size()
+		for engine_index in engine_lights.size():
+			var engine_light := engine_lights[engine_index] as OmniLight3D
+			all_propulsion_mounts_dimmed = all_propulsion_mounts_dimmed \
+				and engine_light != null \
+				and engine_light.light_energy > 0.0 \
+				and engine_light.light_energy < nominal_engine_energies[engine_index]
+		_check(
+			(engine_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"damaged"
+				and all_propulsion_mounts_dimmed,
+			"%s engine degradation dims both authored propulsion mounts" % archetype_id
+		)
+		opponent.apply_damage(
+			opponent.get_maximum_health() * 0.3,
+			opponent.global_position
+		)
+		opponent.call("_update_presentation", 0.1)
+		var engine_smoke := opponent.get("_damage_smoke") as CPUParticles3D
+		var port_engine := engine_glows[0] as MeshInstance3D
+		engine_state = _component_state(opponent, &"engine")
+		_check(
+			(engine_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"critical"
+				and engine_smoke != null
+				and engine_smoke.emitting
+				and port_engine != null
+				and engine_smoke.global_position.distance_to(port_engine.global_position) < 1.2,
+			"%s critical engine stage reuses smoke at the authored port propulsion mount" % archetype_id
+		)
 		opponent.apply_damage(opponent.get_health(), opponent.global_position)
+		var propulsion_presentation_cleared := not engine_smoke.emitting
+		for light_variant in engine_lights:
+			var engine_light := light_variant as OmniLight3D
+			propulsion_presentation_cleared = propulsion_presentation_cleared \
+				and engine_light != null \
+				and is_zero_approx(engine_light.light_energy)
 		_check(
 			not opponent.is_active()
 				and not weapon_sparks.emitting
-				and is_zero_approx(sensor_light.light_energy),
+				and is_zero_approx(sensor_light.light_energy)
+				and propulsion_presentation_cleared,
 			"%s destruction clears localized component presentation" % archetype_id
 		)
 		opponent.deactivate()

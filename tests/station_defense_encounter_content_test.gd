@@ -133,6 +133,53 @@ func _test_range_opponent_firing_patterns() -> void:
 	var degraded_burst_snapshot := opponent.get_firing_pattern_snapshot()
 	var degraded_burst_count := shots.size()
 
+	opponent.deactivate()
+	opponent.activate(Transform3D.IDENTITY)
+	opponent.set_target(target)
+	opponent.set("_orbit_sign", -1.0)
+	var maneuver_started := opponent.configure_evasive_maneuver(
+		RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
+	)
+	var maneuver_start := opponent.get_evasive_maneuver_snapshot()
+	var maneuver_modifiers := opponent.get_operational_modifiers()
+	opponent.call("_update_evasive_maneuver_state", 0.3, maneuver_modifiers)
+	var target_direction := (target.global_position - opponent.global_position).normalized()
+	var maneuver_direction := opponent.call(
+		"_choose_motion_direction", target_direction, opponent.global_position.distance_to(target.global_position)
+	) as Vector3
+	var lateral_direction := Vector3.UP.cross(target_direction).normalized() * -1.0
+	var maneuver_mid := opponent.get_evasive_maneuver_snapshot()
+	root.remove_child(opponent)
+	await process_frame
+	var detached_maneuver := opponent.get_evasive_maneuver_snapshot()
+	root.add_child(opponent)
+	await process_frame
+	var reentered_maneuver := opponent.get_evasive_maneuver_snapshot()
+	var repeated_maneuver := opponent.configure_evasive_maneuver(
+		RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
+	)
+	var after_repeat := opponent.get_evasive_maneuver_snapshot()
+	opponent.call("_update_evasive_maneuver_state", 0.55, maneuver_modifiers)
+	var completed_maneuver := opponent.get_evasive_maneuver_snapshot()
+	var completed_repeat := opponent.configure_evasive_maneuver(
+		RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
+	)
+
+	opponent.deactivate()
+	opponent.activate(Transform3D.IDENTITY)
+	opponent.set_target(target)
+	opponent.set("_orbit_sign", -1.0)
+	opponent.apply_damage(34.0, opponent.global_position)
+	var damaged_maneuver_modifiers := opponent.get_operational_modifiers()
+	var damaged_maneuver_start := opponent.configure_evasive_maneuver(
+		RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
+	)
+	opponent.call("_update_evasive_maneuver_state", 0.1, damaged_maneuver_modifiers)
+	var damaged_maneuver := opponent.get_evasive_maneuver_snapshot()
+	opponent.set_target(null)
+	opponent.call("_update_evasive_maneuver_state", 0.1, damaged_maneuver_modifiers)
+	var cancelled_maneuver := opponent.get_evasive_maneuver_snapshot()
+
 	_check(
 		single_result.accepted
 		and single_count == 1
@@ -184,6 +231,28 @@ func _test_range_opponent_firing_patterns() -> void:
 			opponent.weapon_cooldown / degraded_fire_multiplier
 		),
 		"existing weapon degradation scales both burst spacing and post-cycle cooldown without changing its three-shot cap"
+	)
+	_check(
+		maneuver_started.accepted and maneuver_started.reason == &"evasive_maneuver_started"
+		and maneuver_start.state_id == &"active"
+		and is_equal_approx(float(maneuver_start.direction_sign), -1.0)
+		and maneuver_mid.state_id == &"active"
+		and is_equal_approx(float(maneuver_mid.elapsed_seconds), 0.3)
+		and maneuver_direction.dot(lateral_direction) > 0.9
+		and detached_maneuver == reentered_maneuver
+		and repeated_maneuver.reason == &"evasive_maneuver_already_consumed"
+		and after_repeat == reentered_maneuver
+		and completed_maneuver.state_id == &"completed"
+		and completed_repeat.reason == &"evasive_maneuver_already_consumed",
+		"one deterministic lateral-outward break completes once without detach/re-entry or repeated-role replay"
+	)
+	_check(
+		damaged_maneuver_start.accepted
+		and damaged_maneuver.state_id == &"active"
+		and float(damaged_maneuver.last_mobility_multiplier) < 1.0
+		and float(damaged_maneuver.last_mobility_multiplier) > 0.0
+		and cancelled_maneuver.state_id == &"cancelled",
+		"the existing engine mobility stage scales the break while loss of target awareness cancels it"
 	)
 
 	opponent.deactivate()
@@ -750,6 +819,7 @@ func _test_checked_in_encounter_content() -> void:
 	var breaker_roles := breaker_feedback.roles as Array
 	var beta_breaker_pattern := beta.get_firing_pattern_snapshot()
 	var gamma_feint_pattern := gamma.get_firing_pattern_snapshot()
+	var gamma_feint_maneuver := gamma.get_evasive_maneuver_snapshot()
 	_check(
 		alpha_terminal.destroyed and relief.accepted
 		and beta.is_active() and gamma.is_active()
@@ -766,6 +836,8 @@ func _test_checked_in_encounter_content() -> void:
 		and (breaker_roles[1] as Dictionary).approach == &"slow_counter_orbit"
 		and (breaker_roles[1] as Dictionary).firing_pattern_id \
 			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and (breaker_roles[1] as Dictionary).evasive_maneuver_id \
+			== RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
 		and is_equal_approx(beta.preferred_range, StationDefenseEncounterContent.BREAKER_PREFERRED_RANGE)
 		and is_equal_approx(beta.cruise_speed, StationDefenseEncounterContent.BREAKER_CRUISE_SPEED)
 		and is_equal_approx(beta.chase_speed, StationDefenseEncounterContent.BREAKER_CHASE_SPEED)
@@ -781,6 +853,10 @@ func _test_checked_in_encounter_content() -> void:
 			float(gamma_feint_pattern.cooldown_multiplier),
 			RangeOpponent.SUPPRESSION_COOLDOWN_MULTIPLIER
 		)
+		and gamma_feint_maneuver.maneuver_id \
+			== RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
+		and gamma_feint_maneuver.state_id == &"active"
+		and is_equal_approx(float(gamma_feint_maneuver.direction_sign), -1.0)
 		and str(breaker_snapshot.host.activity.next_step).contains(
 			"STOP BETA BREAKER // GAMMA IS THE FEINT"
 		),
@@ -794,12 +870,15 @@ func _test_checked_in_encounter_content() -> void:
 	var gamma_feint_motion := gamma.velocity.dot(
 		Vector3.UP.cross(gamma_radius_during_feint).normalized()
 	)
+	var gamma_maneuver_after_motion := gamma.get_evasive_maneuver_snapshot()
 	_check(
 		beta_closing_motion > 4.0
 		and gamma_feint_motion > 2.0
 		and beta_closing_motion > absf(
 			gamma.velocity.dot((asset.global_position - gamma.global_position).normalized())
-		),
+		)
+		and gamma_maneuver_after_motion.state_id == &"active"
+		and float(gamma_maneuver_after_motion.elapsed_seconds) > 0.25,
 		"live motion separates Beta's zero-orbit core rush from Gamma's slower tangential feint"
 	)
 	var stale_breaker := content.advance_physics(0.4, generation + 1)
@@ -827,6 +906,7 @@ func _test_checked_in_encounter_content() -> void:
 	var active_activity := content.get_snapshot().host.activity as Dictionary
 	var beta_pincer_pattern := beta.get_firing_pattern_snapshot()
 	var gamma_pincer_pattern := gamma.get_firing_pattern_snapshot()
+	var gamma_pincer_maneuver := gamma.get_evasive_maneuver_snapshot()
 	var close_role := (active_tactic.formation as Array)[0] as Dictionary
 	var outer_role := (active_tactic.formation as Array)[1] as Dictionary
 	_check(
@@ -845,6 +925,8 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(gamma.chase_speed, gamma_nominal_chase_speed)
 		and beta_pincer_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
 		and gamma_pincer_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and gamma_pincer_maneuver.maneuver_id == RangeOpponent.EVASIVE_MANEUVER_NONE
+		and gamma_pincer_maneuver.state_id == &"cancelled"
 		and close_role.telegraph_identity == &"compact_pair"
 		and close_role.identity_pattern == "><"
 		and bool(close_role.presentation_active)

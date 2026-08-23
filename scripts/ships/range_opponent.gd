@@ -120,6 +120,12 @@ const FIRE_PATTERN_PROFILES := {
 		"opening_delay_seconds": SUPPRESSION_OPENING_DELAY_SECONDS,
 	},
 }
+const EVASIVE_MANEUVER_NONE: StringName = &"none"
+const EVASIVE_MANEUVER_LATERAL_BREAK: StringName = &"lateral_break"
+const LATERAL_BREAK_DURATION_SECONDS := 0.85
+const LATERAL_BREAK_SPEED_MULTIPLIER := 1.3
+const LATERAL_BREAK_LATERAL_WEIGHT := 0.92
+const LATERAL_BREAK_RETREAT_WEIGHT := 0.28
 
 ## The paired gun housings are immutable presentation shells. Weapon authority
 ## remains on the root and its two muzzle markers; charge animation remains on
@@ -169,6 +175,13 @@ var _telegraph_remaining := 0.0
 var _firing_pattern_id: StringName = FIRE_PATTERN_SINGLE_SHOT
 var _pattern_projectiles_remaining := 0
 var _pattern_interval_remaining := 0.0
+var _activation_generation := 0
+var _evasive_maneuver_id: StringName = EVASIVE_MANEUVER_NONE
+var _evasive_maneuver_state: StringName = &"idle"
+var _evasive_maneuver_elapsed_seconds := 0.0
+var _evasive_maneuver_direction_sign := 1.0
+var _evasive_maneuver_consumed_generation := -1
+var _evasive_maneuver_last_mobility := 1.0
 var _orbit_sign := 1.0
 var _target: Node3D
 var _alternate_muzzle := false
@@ -195,6 +208,8 @@ var _damage_smoke: CPUParticles3D
 var _weapon_damage_sparks: CPUParticles3D
 var _sensor_damage_light: OmniLight3D
 var _presented_sensor_damage_stage: StringName = &"nominal"
+var _presented_engine_damage_stage: StringName = &"nominal"
+var _presented_engine_performance_multiplier := 1.0
 var _destruction_root: Node3D
 var _destruction_light: OmniLight3D
 var _debris: Dictionary = {}
@@ -242,6 +257,7 @@ func _physics_process(delta: float) -> void:
 	if not aware_target:
 		_telegraph_remaining = 0.0
 		_clear_pending_pattern_projectiles()
+		_cancel_evasive_maneuver(&"target_awareness_lost")
 		velocity = velocity.move_toward(Vector3.ZERO, acceleration * mobility * 0.45 * delta)
 		move_and_slide()
 		return
@@ -252,10 +268,13 @@ func _physics_process(delta: float) -> void:
 	if distance <= 0.001:
 		return
 	var target_direction := offset / distance
+	_update_evasive_maneuver_state(delta, modifiers)
 	var desired_direction := _choose_motion_direction(target_direction, distance)
 	desired_direction = _avoid_world_geometry(desired_direction)
 	_last_motion_direction = desired_direction
 	var desired_speed := chase_speed if distance > preferred_range * 1.65 else cruise_speed
+	if _evasive_maneuver_state == &"active":
+		desired_speed = maxf(cruise_speed, chase_speed * 0.8) * LATERAL_BREAK_SPEED_MULTIPLIER
 	desired_speed *= mobility
 	velocity = velocity.move_toward(
 		desired_direction * desired_speed,
@@ -374,6 +393,11 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 		_apply_spawn_on_ready = true
 	velocity = Vector3.ZERO
 	_active = true
+	_activation_generation += 1
+	_evasive_maneuver_id = EVASIVE_MANEUVER_NONE
+	_evasive_maneuver_state = &"idle"
+	_evasive_maneuver_elapsed_seconds = 0.0
+	_evasive_maneuver_last_mobility = 1.0
 	visible = true
 	_visual_root.visible = true
 	# The interceptor is both a physical ship body and a damageable hitscan target.
@@ -394,6 +418,8 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_weapon_damage_sparks.emitting = false
 	_sensor_damage_light.light_energy = 0.0
 	_presented_sensor_damage_stage = &"nominal"
+	_presented_engine_damage_stage = &"nominal"
+	_presented_engine_performance_multiplier = 1.0
 	_restart_particles_cleared(_damage_sparks)
 	_restart_particles_cleared(_damage_smoke)
 	_restart_particles_cleared(_weapon_damage_sparks)
@@ -417,6 +443,7 @@ func deactivate() -> void:
 	_telegraph_remaining = 0.0
 	_cooldown_remaining = 0.0
 	_clear_pending_pattern_projectiles()
+	_clear_evasive_maneuver_configuration(&"deactivated")
 	if _damage_sparks != null:
 		_damage_sparks.emitting = false
 		_restart_particles_cleared(_damage_sparks)
@@ -429,6 +456,7 @@ func deactivate() -> void:
 	if _sensor_damage_light != null:
 		_sensor_damage_light.light_energy = 0.0
 	_presented_sensor_damage_stage = &"nominal"
+	_clear_engine_component_damage_presentation()
 	if _visual_root != null:
 		_visual_root.visible = true
 	_clear_destruction_effects()
@@ -558,6 +586,73 @@ func get_firing_pattern_snapshot() -> Dictionary:
 		"pending_interval_seconds": _pattern_interval_remaining,
 		"cooldown_remaining_seconds": _cooldown_remaining,
 		"uses_existing_projectile_signal": true,
+		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
+## Arms one deterministic role maneuver for the current activation only. The
+## activation ledger prevents repeated snapshots or tree re-entry from replaying
+## movement that the player has already read and responded to.
+func configure_evasive_maneuver(maneuver_id: StringName) -> Dictionary:
+	if maneuver_id not in [EVASIVE_MANEUVER_NONE, EVASIVE_MANEUVER_LATERAL_BREAK]:
+		return {
+			"accepted": false,
+			"reason": &"unknown_evasive_maneuver",
+			"maneuver_id": _evasive_maneuver_id,
+		}.duplicate(true)
+	if maneuver_id == EVASIVE_MANEUVER_NONE:
+		_clear_evasive_maneuver_configuration(&"role_cleared")
+		return {
+			"accepted": true,
+			"reason": &"evasive_maneuver_cleared",
+			"maneuver_id": _evasive_maneuver_id,
+		}.duplicate(true)
+	if not _active:
+		return {
+			"accepted": false,
+			"reason": &"opponent_inactive",
+			"maneuver_id": _evasive_maneuver_id,
+		}.duplicate(true)
+	if _evasive_maneuver_consumed_generation == _activation_generation:
+		return {
+			"accepted": true,
+			"reason": &"evasive_maneuver_already_consumed",
+			"maneuver_id": _evasive_maneuver_id,
+		}.duplicate(true)
+	_evasive_maneuver_id = maneuver_id
+	_evasive_maneuver_state = &"active"
+	_evasive_maneuver_elapsed_seconds = 0.0
+	_evasive_maneuver_direction_sign = 1.0 if _orbit_sign >= 0.0 else -1.0
+	_evasive_maneuver_consumed_generation = _activation_generation
+	_evasive_maneuver_last_mobility = clampf(
+		float(get_operational_modifiers().get("mobility_multiplier", 0.0)),
+		0.0,
+		1.0
+	)
+	return {
+		"accepted": true,
+		"reason": &"evasive_maneuver_started",
+		"maneuver_id": _evasive_maneuver_id,
+	}.duplicate(true)
+
+
+func get_evasive_maneuver_snapshot() -> Dictionary:
+	return {
+		"maneuver_id": _evasive_maneuver_id,
+		"state_id": _evasive_maneuver_state,
+		"activation_generation": _activation_generation,
+		"consumed_activation_generation": _evasive_maneuver_consumed_generation,
+		"elapsed_seconds": _evasive_maneuver_elapsed_seconds,
+		"duration_seconds": LATERAL_BREAK_DURATION_SECONDS,
+		"remaining_seconds": maxf(
+			0.0,
+			LATERAL_BREAK_DURATION_SECONDS - _evasive_maneuver_elapsed_seconds
+		),
+		"direction_sign": _evasive_maneuver_direction_sign,
+		"last_mobility_multiplier": _evasive_maneuver_last_mobility,
+		"speed_multiplier": LATERAL_BREAK_SPEED_MULTIPLIER,
+		"uses_existing_movement_authority": true,
 		"combat_authority": false,
 		"damage_authority": false,
 	}.duplicate(true)
@@ -881,6 +976,21 @@ func commit_deferred_damage_presentation(sequence: int) -> bool:
 
 
 func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vector3:
+	if (
+		_evasive_maneuver_id == EVASIVE_MANEUVER_LATERAL_BREAK
+		and _evasive_maneuver_state == &"active"
+	):
+		var lateral_break := (
+			Vector3.UP.cross(target_direction).normalized()
+			* _evasive_maneuver_direction_sign
+		)
+		var break_direction := (
+			lateral_break * LATERAL_BREAK_LATERAL_WEIGHT
+			- target_direction * LATERAL_BREAK_RETREAT_WEIGHT
+			+ Vector3.UP * 0.08
+		)
+		if break_direction.length_squared() > 0.001:
+			return break_direction.normalized()
 	var orbit_direction := Vector3.UP.cross(target_direction).normalized() * _orbit_sign
 	var vertical_weave := Vector3.UP * sin(_elapsed * 0.83 + 0.7) * 0.25
 	var radial_weight := clampf((distance - preferred_range) / maxf(preferred_range, 1.0), -1.0, 1.0)
@@ -892,6 +1002,42 @@ func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vec
 	if desired.length_squared() <= 0.001:
 		return target_direction
 	return desired.normalized()
+
+
+func _update_evasive_maneuver_state(delta: float, modifiers: Dictionary) -> void:
+	if _evasive_maneuver_state != &"active":
+		return
+	var mobility := clampf(
+		float(modifiers.get("mobility_multiplier", 0.0)),
+		0.0,
+		1.0
+	)
+	_evasive_maneuver_last_mobility = mobility
+	if mobility <= 0.0 or bool(modifiers.get("mobility_disabled", true)):
+		_cancel_evasive_maneuver(&"engine_mobility_lost")
+		return
+	if not _has_target_awareness(modifiers):
+		_cancel_evasive_maneuver(&"target_awareness_lost")
+		return
+	_evasive_maneuver_elapsed_seconds = minf(
+		LATERAL_BREAK_DURATION_SECONDS,
+		_evasive_maneuver_elapsed_seconds + maxf(delta, 0.0)
+	)
+	if _evasive_maneuver_elapsed_seconds >= LATERAL_BREAK_DURATION_SECONDS:
+		_evasive_maneuver_state = &"completed"
+
+
+func _cancel_evasive_maneuver(_reason: StringName) -> void:
+	if _evasive_maneuver_state == &"active":
+		_evasive_maneuver_state = &"cancelled"
+
+
+func _clear_evasive_maneuver_configuration(_reason: StringName) -> void:
+	if _evasive_maneuver_state == &"active":
+		_evasive_maneuver_state = &"cancelled"
+	elif _evasive_maneuver_state not in [&"completed", &"cancelled"]:
+		_evasive_maneuver_state = &"idle"
+	_evasive_maneuver_id = EVASIVE_MANEUVER_NONE
 
 
 func _avoid_world_geometry(desired_direction: Vector3) -> Vector3:
@@ -1113,7 +1259,7 @@ func _set_damage_stage_for_health(presented_health: float, presentation_active: 
 		return
 	var ratio := presented_health / maxf(get_maximum_health(), 0.001)
 	_damage_sparks.emitting = presentation_active and ratio <= 0.67
-	_damage_smoke.emitting = presentation_active and ratio <= 0.34
+	_set_engine_component_damage_presentation(presentation_active)
 	_set_weapon_component_damage_presentation(presentation_active)
 	_set_sensor_component_damage_presentation(presentation_active)
 
@@ -1123,15 +1269,15 @@ func _update_presentation(delta: float) -> void:
 		return
 	_sync_weapon_damage_anchor()
 	_sync_sensor_damage_anchor()
-	var ratio := clampf(get_health() / maxf(get_maximum_health(), 0.001), 0.0, 1.0)
 	var engine_strength := 0.0
 	if _active:
 		engine_strength = 0.78 + clampf(velocity.length() / maxf(chase_speed, 1.0), 0.0, 1.0) * 0.4
-		if ratio <= 0.34:
-			engine_strength *= 0.42 + 0.28 * maxf(0.0, sin(_elapsed * 23.0))
+		engine_strength *= clampf(_presented_engine_performance_multiplier, 0.0, 1.0)
 	for index in _engine_glows.size():
 		var glow := _engine_glows[index]
-		var side_damage := 0.42 if ratio <= 0.34 and index == 0 else 1.0
+		var side_damage := 1.0
+		if _presented_engine_damage_stage == &"critical" and index == 0:
+			side_damage = 0.55 + 0.25 * maxf(0.0, sin(_elapsed * 23.0))
 		# CylinderMesh length is local Y even after the visual node is rotated.
 		glow.scale.y = lerpf(glow.scale.y, 0.55 + engine_strength * side_damage, 1.0 - exp(-9.0 * delta))
 		glow.visible = _active
@@ -1158,6 +1304,7 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 	_telegraph_remaining = 0.0
 	_cooldown_remaining = 0.0
 	_clear_pending_pattern_projectiles()
+	_clear_evasive_maneuver_configuration(&"destroyed")
 	destroyed.emit(death_position)
 
 
@@ -1185,6 +1332,7 @@ func _present_damage_record(presentation: Dictionary) -> void:
 		_restart_particles_cleared(_weapon_damage_sparks)
 		_sensor_damage_light.light_energy = 0.0
 		_presented_sensor_damage_stage = &"nominal"
+		_clear_engine_component_damage_presentation()
 		_visual_root.visible = false
 		_pending_terminal_presentation_sequence = -1
 		var effect_pose: Transform3D = presentation.get("effect_pose", global_transform)
@@ -1201,6 +1349,43 @@ func _ensure_hull_damage_adapter() -> void:
 	if _hull_damage == null:
 		_hull_damage = RangeOpponentDamageAdapterType.new(maximum_health) \
 			as RangeOpponentComponentDamageAdapter
+
+
+## The authored engine plumes/lights and existing port-engine smoke remain the
+## only propulsion presentation. Their stage comes from the shared engine
+## component snapshot; movement still consumes the model's mobility modifier.
+func _set_engine_component_damage_presentation(presentation_active: bool) -> void:
+	var engine_state := _get_component_damage_state(
+		RangeOpponentComponentDamageAdapter.ENGINE_COMPONENT_ID
+	)
+	var stage := engine_state.get("stage", {}) as Dictionary
+	_presented_engine_damage_stage = (
+		StringName(stage.get("stage_id", &"nominal"))
+		if presentation_active else &"nominal"
+	)
+	_presented_engine_performance_multiplier = (
+		clampf(float(stage.get("performance_multiplier", 1.0)), 0.0, 1.0)
+		if presentation_active else 1.0
+	)
+	if _damage_smoke != null:
+		_damage_smoke.emitting = presentation_active and (
+			_presented_engine_damage_stage == &"critical"
+			or _presented_engine_damage_stage == &"destroyed"
+		)
+
+
+func _clear_engine_component_damage_presentation() -> void:
+	_presented_engine_damage_stage = &"nominal"
+	_presented_engine_performance_multiplier = 1.0
+	if _damage_smoke != null:
+		_damage_smoke.emitting = false
+		_restart_particles_cleared(_damage_smoke)
+	for glow in _engine_glows:
+		if glow != null and is_instance_valid(glow):
+			glow.visible = false
+	for engine_light in _engine_lights:
+		if engine_light != null and is_instance_valid(engine_light):
+			engine_light.light_energy = 0.0
 
 
 ## Persistent, component-local damage feedback. Every production derivative

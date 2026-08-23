@@ -46,6 +46,7 @@ const FEINT_CHASE_SPEED := 18.0
 const FEINT_ORBIT_SIGN := -1.0
 const BREAKER_FIRE_PATTERN: StringName = RangeOpponent.FIRE_PATTERN_SHORT_BURST
 const FEINT_FIRE_PATTERN: StringName = RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+const FEINT_EVASIVE_MANEUVER: StringName = RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
 const INTEGRITY_STATE_STABLE: StringName = &"stable"
 const INTEGRITY_STATE_UNDER_FIRE: StringName = &"under_fire"
 const INTEGRITY_STATE_CRITICAL: StringName = &"critical"
@@ -988,6 +989,7 @@ func _capture_nominal_tactic_configuration() -> void:
 			"chase_speed": entity.chase_speed,
 			"orbit_sign": float(entity.get("_orbit_sign")),
 			"firing_pattern_id": entity.get_firing_pattern_snapshot().pattern_id,
+			"evasive_maneuver_id": entity.get_evasive_maneuver_snapshot().maneuver_id,
 			"telegraph_node_paths": (
 				entity.get_weapon_telegraph_mesh_allocation_audit().get(
 					"node_paths", PackedStringArray()
@@ -1097,7 +1099,12 @@ func _apply_breaker_feint_configuration() -> void:
 	feint.set("_orbit_sign", FEINT_ORBIT_SIGN)
 	var breaker_pattern := breaker.configure_firing_pattern(BREAKER_FIRE_PATTERN)
 	var feint_pattern := feint.configure_firing_pattern(FEINT_FIRE_PATTERN)
-	if not bool(breaker_pattern.accepted) or not bool(feint_pattern.accepted):
+	var feint_maneuver := feint.configure_evasive_maneuver(FEINT_EVASIVE_MANEUVER)
+	if (
+		not bool(breaker_pattern.accepted)
+		or not bool(feint_pattern.accepted)
+		or not bool(feint_maneuver.accepted)
+	):
 		_restore_later_wave_tactic_configuration()
 
 
@@ -1116,6 +1123,9 @@ func _restore_later_wave_tactic_configuration() -> void:
 		entity.set("_orbit_sign", float(nominal.get("orbit_sign", 1.0)))
 		entity.configure_firing_pattern(StringName(
 			nominal.get("firing_pattern_id", RangeOpponent.FIRE_PATTERN_SINGLE_SHOT)
+		))
+		entity.configure_evasive_maneuver(StringName(
+			nominal.get("evasive_maneuver_id", RangeOpponent.EVASIVE_MANEUVER_NONE)
 		))
 		var telegraphs := _get_tactic_telegraph_nodes(
 			entity,
@@ -1311,6 +1321,9 @@ func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
 				"firing_pattern_id": FEINT_FIRE_PATTERN,
 				"projectile_count_per_cycle": 1,
 				"cooldown_multiplier": RangeOpponent.SUPPRESSION_COOLDOWN_MULTIPLIER,
+				"evasive_maneuver_id": FEINT_EVASIVE_MANEUVER,
+				"evasive_duration_seconds": RangeOpponent.LATERAL_BREAK_DURATION_SECONDS,
+				"evasive_speed_multiplier": RangeOpponent.LATERAL_BREAK_SPEED_MULTIPLIER,
 			},
 		],
 		"uses_caller_physics_delta": true,
