@@ -97,6 +97,9 @@ func _activity_state(activity_id: StringName) -> Dictionary:
 
 func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var state_id := StringName(state.get("state_id", _state_label(state)))
+	if activity_id == &"cinder_debris_beacon_traversal" \
+			and StringName(state.get("reason", &"")) == &"out_of_order_beacon":
+		state_id = &"wrong_order"
 	var progress := _progress_text(activity_id, state)
 	var recovery := _recovery_text(state)
 	var reward_pending := bool(state.get("reward_requested", false))
@@ -120,7 +123,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 
 func _progress_text(activity_id: StringName, state: Dictionary) -> String:
 	if activity_id == &"cinder_debris_beacon_traversal":
-		return " (%d/%d beacons)" % [int(state.get("next_beacon_index", 0)), int(state.get("beacon_count", 4))]
+		return " (NEXT BEACON %d/%d)" % [int(state.get("next_beacon_index", 0)) + 1, int(state.get("beacon_count", 4))]
 	if activity_id == &"cinder_platform_mining_run":
 		return " (%.1f/%.1f s)" % [float(state.get("elapsed_seconds", 0.0)), float(state.get("extraction_seconds", 0.0))]
 	if activity_id == &"cinder_derelict_structure_scan":
@@ -149,11 +152,13 @@ func _state_label(state: Dictionary) -> String:
 
 
 func _state_text(state_id: StringName) -> String:
-	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
+	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"wrong_order": "WRONG ORDER", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
 
 
 func _recovery_text(state: Dictionary) -> String:
 	var failure := StringName(state.get("failure_reason", &""))
+	if StringName(state.get("reason", &"")) == &"out_of_order_beacon":
+		return "RECOVER: FOLLOW BEACON ORDER"
 	if failure.is_empty():
 		return ""
 	return "RECOVER: " + str(failure).replace("_", " ").to_upper()
