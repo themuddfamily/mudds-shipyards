@@ -36,6 +36,7 @@ func _run() -> void:
 	_test_slab_support_batch(module)
 	_test_rung_edge_cue_batch(module)
 	_test_mooring_cleat_pad_batch(module)
+	_test_dock_mast_cap_batch(module)
 	_test_performance_contract(module)
 	_test_dock_arm_service_hardware(module)
 	await _test_reversible_lifecycle(module)
@@ -261,24 +262,24 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 138
+		int(render.descendant_nodes) == 139
 		and int(render.mesh_instances) == 89
-		and int(render.multimesh_batches) == 6,
-		"renderer census includes all six bounded visual-detail batches"
+		and int(render.multimesh_batches) == 7,
+		"renderer census includes all seven bounded visual-detail batches"
 	)
 	_check(
 		int(render.drawn_copies) == 101
-		and int(render.geometry_submissions) == 64
+		and int(render.geometry_submissions) == 62
 		and int(render.trunk_expansion_joint_copies) == 12,
-		"drawn copies remain 101 while surface submissions become 64"
+		"drawn copies remain 101 while surface submissions become 62"
 	)
 	_check(
 		int(render.trunk_renderer_buffer_floats) == 144
-		and int(render.renderer_buffer_floats) == 516
+		and int(render.renderer_buffer_floats) == 552
 		and bool(render.renderer_buffer_matches_authored)
 		and bool(render.bounds_match_authored)
 		and bool(render.exact_counts),
-		"all renderer buffers freeze at 516 floats with exact authored culling unions"
+		"all renderer buffers freeze at 552 floats with exact authored culling unions"
 	)
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
@@ -390,7 +391,7 @@ func _test_trunk_route_light_batch(module: FleetDockComb) -> void:
 		int(render.trunk_route_light_submissions_before) == 3
 		and int(render.trunk_route_light_submissions_after) == 1
 		and int(render.geometry_submissions_before_trunk_route_light_batch) == 66
-		and int(render.geometry_submissions) == 64
+		and int(render.geometry_submissions) == 62
 		and int(render.drawn_copies) == 101
 		and int(render.trunk_route_light_renderer_buffer_floats) == 36
 		and bool(render.trunk_route_light_renderer_buffer_matches_authored)
@@ -482,10 +483,10 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 		int(render.slab_corner_beacon_submissions_before) == 12
 		and int(render.slab_corner_beacon_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_beacon_batch) == 90
-		and int(render.geometry_submissions) == 64
-		and int(render.geometry_submissions_removed) == 26
+		and int(render.geometry_submissions) == 62
+		and int(render.geometry_submissions_removed) == 28
 		and int(render.slab_corner_beacon_renderer_buffer_floats) == 144,
-		"corner-beacon and later batches preserve the 12 -> 1 beacon reduction and reach 64 overall"
+		"corner-beacon and later batches preserve the 12 -> 1 beacon reduction and reach 62 overall"
 	)
 	_check(
 		bool(render.slab_corner_beacon_renderer_buffer_matches_authored)
@@ -579,7 +580,7 @@ func _test_slab_support_batch(module: FleetDockComb) -> void:
 		int(render.slab_support_submissions_before) == 6
 		and int(render.slab_support_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_support_batch) == 79
-		and int(render.geometry_submissions) == 64
+		and int(render.geometry_submissions) == 62
 		and int(render.slab_support_renderer_buffer_floats) == 72
 		and bool(render.slab_support_renderer_buffer_matches_authored)
 		and bool(render.slab_support_bounds_match_authored)
@@ -679,7 +680,7 @@ func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
 		int(render.rung_edge_cue_submissions_before) == 4
 		and int(render.rung_edge_cue_submissions_after) == 1
 		and int(render.geometry_submissions_before_rung_edge_cue_batch) == 74
-		and int(render.geometry_submissions) == 64
+		and int(render.geometry_submissions) == 62
 		and int(render.drawn_copies) == 101
 		and int(render.rung_edge_cue_renderer_buffer_floats) == 48
 		and bool(render.rung_edge_cue_renderer_buffer_matches_authored)
@@ -771,7 +772,7 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 		int(render.mooring_cleat_pad_submissions_before) == 6
 		and int(render.mooring_cleat_pad_submissions_after) == 1
 		and int(render.geometry_submissions_before_mooring_cleat_pad_batch) == 71
-		and int(render.geometry_submissions) == 64
+		and int(render.geometry_submissions) == 62
 		and int(render.drawn_copies) == 101
 		and int(render.mooring_cleat_pad_renderer_buffer_floats) == 72
 		and bool(render.mooring_cleat_pad_renderer_buffer_matches_authored)
@@ -793,6 +794,74 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(module.get_validation_errors().is_empty(), "restoring the cleat-pad batch restores a clean module audit")
+
+
+func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
+	var service := module.get_node_or_null(^"GeneratedComb/SurfaceDetail/DockArmService") as Node3D
+	var batch := module.get_node_or_null(
+		^"GeneratedComb/SurfaceDetail/DockArmService/DockMastCaps"
+	) as MultiMeshInstance3D
+	_check(service != null and batch != null and batch.multimesh != null, "three dock mast caps resolve as one service MultiMesh")
+	if service == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for cap_spec in [[8.5, 3.98], [25.0, 3.98], [40.0, 6.38]]:
+		expected.append(Transform3D(Basis.IDENTITY, Vector3(21.9, float(cap_spec[1]), float(cap_spec[0]))))
+	var anchors: Array[MeshInstance3D] = []
+	for raw_node in service.get_children():
+		if str(raw_node.name).begins_with("DockMastCap"):
+			var anchor := raw_node as MeshInstance3D
+			if anchor != null:
+				anchors.append(anchor)
+	var anchors_exact := anchors.size() == expected.size()
+	for index in mini(anchors.size(), expected.size()):
+		anchors_exact = (
+			anchors_exact
+			and str(anchors[index].name) == "DockMastCap%02d" % (index + 1)
+			and anchors[index].transform.is_equal_approx(expected[index])
+			and not anchors[index].visible
+			and anchors[index].mesh != null
+			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 0.22, 0.86))
+			and anchors[index].get_child_count() == 0
+			and anchors[index].get_script() == null
+		)
+	var multi := batch.multimesh
+	var render := module.get_render_batch_contract()
+	_check(
+		anchors_exact
+		and multi.instance_count == FleetDockComb.DOCK_MAST_CAP_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 0.22, 0.86))
+		and multi.mesh.get_surface_count() == 1
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.material_override == anchors[0].material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.get_child_count() == 0
+		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and service.find_children("*", "Area3D", true, false).is_empty(),
+		"mast-cap batch preserves exact transforms, deck-light material, shadows, culling layer and visual-only ownership"
+	)
+	_check(
+		int(render.dock_mast_cap_copies) == 3
+		and int(render.dock_mast_cap_renderer_buffer_floats) == 36
+		and int(render.geometry_submissions) == 62
+		and int(render.drawn_copies) == 101
+		and bool(render.dock_mast_cap_renderer_buffer_matches_authored)
+		and bool(render.dock_mast_cap_bounds_match_authored)
+		and bool(render.dock_mast_cap_contract_matches),
+		"mast caps reduce three visual submissions to one without changing rendered copies"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has("comb dock-mast-cap renderer buffer drifted from its authored roster"),
+		"mutating one mast-cap transform is rejected by the production audit"
+	)
+	multi.buffer = original_buffer
+	_check(module.get_validation_errors().is_empty(), "restoring the mast-cap batch restores a clean module audit")
 
 
 ## Re-frozen in the open twice: light count 0 -> 4, then 4 -> 7, everything else

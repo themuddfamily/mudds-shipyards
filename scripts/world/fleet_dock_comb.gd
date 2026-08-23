@@ -51,16 +51,17 @@ const SLAB_SUPPORT_COPY_COUNT := 6
 const RUNG_EDGE_CUE_COPY_COUNT := 4
 const MOORING_CLEAT_PAD_COPY_COUNT := 6
 const TRUNK_ROUTE_LIGHT_COPY_COUNT := 3
+const DOCK_MAST_CAP_COPY_COUNT := 3
 const PRE_TRUNK_ROUTE_LIGHT_GEOMETRY_SUBMISSION_COUNT := 66
 const PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT := 90
 const PRE_SLAB_SUPPORT_GEOMETRY_SUBMISSION_COUNT := 79
 const PRE_RUNG_EDGE_CUE_GEOMETRY_SUBMISSION_COUNT := 74
 const PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT := 71
-const RENDER_DESCENDANT_COUNT := 138
+const RENDER_DESCENDANT_COUNT := 139
 const RENDER_MESH_INSTANCE_COUNT := 89
-const RENDER_MULTIMESH_BATCH_COUNT := 6
+const RENDER_MULTIMESH_BATCH_COUNT := 7
 const RENDER_DRAWN_COPY_COUNT := 101
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 64
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 62
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -237,6 +238,8 @@ var _mooring_cleat_pad_transforms: Array[Transform3D] = []
 var _mooring_cleat_pad_batch: MultiMeshInstance3D = null
 var _trunk_route_light_transforms: Array[Transform3D] = []
 var _trunk_route_light_batch: MultiMeshInstance3D = null
+var _dock_mast_cap_transforms: Array[Transform3D] = []
+var _dock_mast_cap_batch: MultiMeshInstance3D = null
 
 
 func _ready() -> void:
@@ -642,6 +645,31 @@ func get_render_batch_contract() -> Dictionary:
 			and _trunk_route_light_batch.get_child_count() == 0
 			and _trunk_route_light_batch.get_script() == null
 		)
+	var expected_mast_cap_buffer := _encode_multimesh_transforms(_dock_mast_cap_transforms)
+	var mast_cap_buffer_matches := (
+		is_instance_valid(_dock_mast_cap_batch)
+		and _dock_mast_cap_batch.multimesh != null
+		and _dock_mast_cap_batch.multimesh.buffer == expected_mast_cap_buffer
+	)
+	var mast_cap_bounds_match := false
+	var mast_cap_contract_matches := false
+	if is_instance_valid(_dock_mast_cap_batch) and _dock_mast_cap_batch.multimesh != null:
+		var mast_cap_multi := _dock_mast_cap_batch.multimesh
+		mast_cap_bounds_match = mast_cap_multi.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(mast_cap_multi.mesh.get_aabb(), _dock_mast_cap_transforms)
+		)
+		mast_cap_contract_matches = (
+			_dock_mast_cap_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and mast_cap_multi.instance_count == DOCK_MAST_CAP_COPY_COUNT
+			and mast_cap_multi.visible_instance_count == -1
+			and mast_cap_multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 0.22, 0.86))
+			and mast_cap_multi.mesh.get_surface_count() == 1
+			and _dock_mast_cap_batch.material_override == _materials.get("deck_light")
+			and _dock_mast_cap_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _dock_mast_cap_batch.layers == 1
+			and _dock_mast_cap_batch.get_child_count() == 0
+			and _dock_mast_cap_batch.get_script() == null
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -655,10 +683,12 @@ func get_render_batch_contract() -> Dictionary:
 		and _rung_edge_cue_transforms.size() == RUNG_EDGE_CUE_COPY_COUNT
 		and _mooring_cleat_pad_transforms.size() == MOORING_CLEAT_PAD_COPY_COUNT
 		and _trunk_route_light_transforms.size() == TRUNK_ROUTE_LIGHT_COPY_COUNT
+		and _dock_mast_cap_transforms.size() == DOCK_MAST_CAP_COPY_COUNT
 		and support_contract_matches
 		and rung_cue_contract_matches
 		and cleat_pad_contract_matches
 		and route_light_contract_matches
+		and mast_cap_contract_matches
 	)
 	var joint_buffer_floats := (
 		_trunk_expansion_joint_batch.multimesh.buffer.size()
@@ -690,6 +720,11 @@ func get_render_batch_contract() -> Dictionary:
 		if is_instance_valid(_trunk_route_light_batch) and _trunk_route_light_batch.multimesh != null
 		else 0
 	)
+	var mast_cap_buffer_floats := (
+		_dock_mast_cap_batch.multimesh.buffer.size()
+		if is_instance_valid(_dock_mast_cap_batch) and _dock_mast_cap_batch.multimesh != null
+		else 0
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"descendant_nodes": descendant_count,
@@ -703,6 +738,7 @@ func get_render_batch_contract() -> Dictionary:
 		"rung_edge_cue_copies": _rung_edge_cue_transforms.size(),
 		"mooring_cleat_pad_copies": _mooring_cleat_pad_transforms.size(),
 		"trunk_route_light_copies": _trunk_route_light_transforms.size(),
+		"dock_mast_cap_copies": _dock_mast_cap_transforms.size(),
 		"trunk_route_light_submissions_before": TRUNK_ROUTE_LIGHT_COPY_COUNT,
 		"trunk_route_light_submissions_after": 1,
 		"geometry_submissions_before_trunk_route_light_batch": PRE_TRUNK_ROUTE_LIGHT_GEOMETRY_SUBMISSION_COUNT,
@@ -725,25 +761,29 @@ func get_render_batch_contract() -> Dictionary:
 		"rung_edge_cue_renderer_buffer_floats": rung_cue_buffer_floats,
 		"mooring_cleat_pad_renderer_buffer_floats": cleat_pad_buffer_floats,
 		"trunk_route_light_renderer_buffer_floats": route_light_buffer_floats,
-		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + route_light_buffer_floats,
-		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and route_light_buffer_matches,
+		"dock_mast_cap_renderer_buffer_floats": mast_cap_buffer_floats,
+		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + route_light_buffer_floats + mast_cap_buffer_floats,
+		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and route_light_buffer_matches and mast_cap_buffer_matches,
 		"trunk_renderer_buffer_matches_authored": joint_buffer_matches,
 		"slab_corner_beacon_renderer_buffer_matches_authored": beacon_buffer_matches,
 		"slab_support_renderer_buffer_matches_authored": support_buffer_matches,
 		"rung_edge_cue_renderer_buffer_matches_authored": rung_cue_buffer_matches,
 		"mooring_cleat_pad_renderer_buffer_matches_authored": cleat_pad_buffer_matches,
 		"trunk_route_light_renderer_buffer_matches_authored": route_light_buffer_matches,
-		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and route_light_bounds_match,
+		"dock_mast_cap_renderer_buffer_matches_authored": mast_cap_buffer_matches,
+		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and route_light_bounds_match and mast_cap_bounds_match,
 		"trunk_bounds_match_authored": joint_bounds_match,
 		"slab_corner_beacon_bounds_match_authored": beacon_bounds_match,
 		"slab_support_bounds_match_authored": support_bounds_match,
 		"rung_edge_cue_bounds_match_authored": rung_cue_bounds_match,
 		"mooring_cleat_pad_bounds_match_authored": cleat_pad_bounds_match,
 		"trunk_route_light_bounds_match_authored": route_light_bounds_match,
+		"dock_mast_cap_bounds_match_authored": mast_cap_bounds_match,
 		"slab_support_contract_matches": support_contract_matches,
 		"rung_edge_cue_contract_matches": rung_cue_contract_matches,
 		"mooring_cleat_pad_contract_matches": cleat_pad_contract_matches,
 		"trunk_route_light_contract_matches": route_light_contract_matches,
+		"dock_mast_cap_contract_matches": mast_cap_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _trunk_expansion_joint_transforms.duplicate(),
 		"authored_slab_corner_beacon_transforms": _slab_corner_beacon_transforms.duplicate(),
@@ -751,6 +791,7 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_rung_edge_cue_transforms": _rung_edge_cue_transforms.duplicate(),
 		"authored_mooring_cleat_pad_transforms": _mooring_cleat_pad_transforms.duplicate(),
 		"authored_trunk_route_light_transforms": _trunk_route_light_transforms.duplicate(),
+		"authored_dock_mast_cap_transforms": _dock_mast_cap_transforms.duplicate(),
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
 		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
 		"route_markers": get_route_ids().size(),
@@ -925,6 +966,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("comb trunk-route-light batch bounds drifted from its authored copies")
 	if not bool(rendering.trunk_route_light_contract_matches):
 		errors.append("comb trunk-route-light renderer contract drifted")
+	if not bool(rendering.dock_mast_cap_renderer_buffer_matches_authored):
+		errors.append("comb dock-mast-cap renderer buffer drifted from its authored roster")
+	if not bool(rendering.dock_mast_cap_bounds_match_authored):
+		errors.append("comb dock-mast-cap batch bounds drifted from its authored copies")
+	if not bool(rendering.dock_mast_cap_contract_matches):
+		errors.append("comb dock-mast-cap renderer contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -1313,6 +1360,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 	service.set_meta("visual_detail_only", true)
 	detail.add_child(service)
 	_mooring_cleat_pad_transforms.clear()
+	_dock_mast_cap_transforms.clear()
 
 	for index in DOCK_SLAB_IDS.size():
 		var elevation := 0.0 if index < 2 else UPPER_DECK_ELEVATION
@@ -1367,7 +1415,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			_materials["underframe"],
 			"umbilical head carried on a dock service mast"
 		)
-		_service_box(
+		var mast_cap_anchor := _service_box(
 			service,
 			"DockMastCap" + suffix,
 			Vector3(21.9, elevation + 3.98, slab_z),
@@ -1375,6 +1423,10 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			_materials["deck_light"],
 			"mast head cap over open void outboard of the slab"
 		)
+		_dock_mast_cap_transforms.append(mast_cap_anchor.transform)
+		# Keep each named mast-cap node as a stable inspection anchor; the shared
+		# batch owns its visible copy.
+		mast_cap_anchor.visible = false
 		# Mass under the mast foot. Without it the arm's outboard edge is a plate
 		# with a stick on it; the pod is what makes the mast read as the top of a
 		# service riser rather than as a pole. It hangs off the bracket below the
@@ -1491,6 +1543,13 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		Vector3(0.66, 0.05, 0.66),
 		_materials["grip"],
 		_mooring_cleat_pad_transforms
+	)
+	_dock_mast_cap_batch = _multimesh_boxes(
+		service,
+		"DockMastCaps",
+		Vector3(0.86, 0.22, 0.86),
+		_materials["deck_light"],
+		_dock_mast_cap_transforms
 	)
 
 	# The service run that ties the arms back to the trunk. Two conduits down the
