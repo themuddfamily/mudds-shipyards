@@ -7,6 +7,10 @@ extends RefCounted
 
 const COMPONENT_ID: StringName = &"crew-role-seat-presenter"
 const ROLE_ORDER := [&"pilot", &"gunner", &"engineer", &"passenger"]
+const POWER_ROUTES := [&"offline", &"auxiliary", &"primary"]
+const MOBILITY_STATES := [&"immobile", &"limited", &"mobile"]
+const FIRE_STATES := [&"blocked", &"restricted", &"available"]
+const TARGETING_STATES := [&"unavailable", &"degraded", &"available"]
 
 var _snapshot: Dictionary = {}
 
@@ -27,6 +31,18 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			"status": occupant if not occupant.is_empty() else ("Available" if bool(record.get("available", true)) else "Unavailable"),
 			"focusable": true,
 		})
+	var detached := bool(source.get("detached", false)) or bool(source.get("handoff", false))
+	var engineer_route: Dictionary = {}
+	if not detached:
+		var engineer := raw_roles.get(&"engineer", {}) as Dictionary
+		engineer_route = {
+			"power_route": _bounded_state(engineer.get("power_route", &"offline"), POWER_ROUTES, &"offline"),
+			"mobility": _bounded_state(engineer.get("mobility", &"immobile"), MOBILITY_STATES, &"immobile"),
+			"fire": _bounded_state(engineer.get("fire", &"blocked"), FIRE_STATES, &"blocked"),
+			"targeting": _bounded_state(engineer.get("targeting", &"unavailable"), TARGETING_STATES, &"unavailable"),
+			"power_marker": "●" if StringName(engineer.get("power_route", &"offline")) == &"primary" else "○",
+			"presentation_only": true,
+		}
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"actor_id": str(source.get("actor_id", "")),
@@ -37,6 +53,8 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			{"id": &"release", "label": "Release your seat", "focusable": true},
 			{"id": &"transfer", "label": "Transfer role", "focusable": true},
 		],
+		"engineer_route": engineer_route,
+		"engineer_route_attached": not detached,
 		"presentation_only": true,
 	}
 	return _snapshot.duplicate(true)
@@ -74,3 +92,8 @@ func _role_intent(action: StringName, role: StringName, reason: StringName) -> D
 
 func _known_role(role: StringName) -> bool:
 	return ROLE_ORDER.has(role)
+
+
+func _bounded_state(raw: Variant, allowed: Array, fallback: StringName) -> StringName:
+	var value := StringName(str(raw).strip_edges().to_lower())
+	return value if allowed.has(value) else fallback
