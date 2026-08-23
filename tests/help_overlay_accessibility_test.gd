@@ -36,6 +36,13 @@ func _run() -> void:
 	hud.call("_previous_help_page")
 	_check(page.text == "PAGE 1 / 3", "previous page returns deterministically")
 	_check(not str((rows[0] as Dictionary).key.text).is_empty() and not str((rows[0] as Dictionary).detail.text).is_empty(), "help rows retain published device glyph/text pairs")
+	hud.update_copilot_navigation_support({"role": "copilot", "selected_target": "BERTH", "selected_route": "ROUTE-1", "request_state": "READY"})
+	hud.update_loadmaster_telemetry({"role": "loadmaster", "manifest_state": "READY", "readiness_receipt": "SEALED"})
+	hud.call("_set_help_text", hud.call("_help_rows_with_role_context", &"piloting"))
+	var role_rows := hud.get("_help_rows") as Array
+	var role_text := " ".join(role_rows.map(func(row: Variant) -> String: return "%s %s" % [str((row as Array)[0]), str((row as Array)[1])]))
+	_check("COPILOT ROLE" in role_text and "LOADMASTER ROLE" in role_text, "F1 help includes published copilot and loadmaster role pages")
+	_check("NO HELM AUTHORITY" in role_text and "NO INVENTORY TRANSFER" in role_text and "NO REWARD AUTHORITY" in role_text, "role help states nonvisual authority boundaries")
 	hud.call("_close_help_panel")
 	_check(not panel.visible, "close control dismisses help without animation dependency")
 	hud.queue_free()

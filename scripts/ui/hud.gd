@@ -416,6 +416,8 @@ var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _copilot_navigation_presenter := CopilotNavigationSupportPresenterType.new()
 var _component_degradation_presenter := ComponentDegradationPresenterType.new()
 var _loadmaster_telemetry_presenter := LoadmasterTelemetryPresenterType.new()
+var _copilot_help_snapshot: Dictionary = {}
+var _loadmaster_help_snapshot: Dictionary = {}
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
 var _semantic_transcript_panel: PanelContainer
 var _semantic_transcript_body: Label
@@ -841,7 +843,7 @@ func _refresh_mode_readouts() -> void:
 	_reticle.visible = piloting
 	if _flight_cue_layer != null:
 		_flight_cue_layer.set_piloting(piloting)
-	_set_help_text(_help_rows_for_mode(_state_mode))
+	_set_help_text(_help_rows_with_role_context(_state_mode))
 
 
 ## The controls card for one embodiment. Every row here names a binding that is
@@ -897,6 +899,19 @@ func _help_rows_for_mode(mode: StringName) -> Array:
 				[_action_prompts([&"toggle_first_person"]), "1ST / 3RD PERSON"],
 				[_action_prompts([&"toggle_controls_overlay"]), "CONTROLS"],
 			]
+
+
+func _help_rows_with_role_context(mode: StringName) -> Array:
+	var rows := _help_rows_for_mode(mode)
+	if not _copilot_help_snapshot.is_empty():
+		rows.append(["COPILOT ROLE", "TARGET / ROUTE REVIEW"])
+		rows.append(["CLAIM / RELEASE", "REQUEST ONLY  //  NO HELM AUTHORITY"])
+		rows.append(["COPILOT READINESS", "%s  //  NO CARGO AUTHORITY" % str(_copilot_help_snapshot.get("request_state", "UNAVAILABLE"))])
+	if not _loadmaster_help_snapshot.is_empty():
+		rows.append(["LOADMASTER ROLE", "MANIFEST / ROUTE REVIEW"])
+		rows.append(["READINESS", str(_loadmaster_help_snapshot.get("readiness_receipt", "NOT PUBLISHED"))])
+		rows.append(["TRANSFER / REWARD", "NO INVENTORY TRANSFER  //  NO REWARD AUTHORITY"])
+	return rows
 
 
 func _action_prompts(actions: Array[StringName]) -> String:
@@ -1321,12 +1336,16 @@ func update_ship_telemetry(data: Dictionary) -> void:
 ## Displays caller-published copilot support only; this HUD never owns helm,
 ## route, cargo, or berth authority.
 func update_copilot_navigation_support(snapshot: Dictionary) -> void:
+	_copilot_help_snapshot = snapshot.duplicate(true)
 	_render_runtime_status(_copilot_navigation_presenter.present_snapshot(snapshot), &"copilot")
+	_refresh_input_prompts()
 
 
 func clear_copilot_navigation_support() -> void:
+	_copilot_help_snapshot = {}
 	_copilot_navigation_presenter.detach()
 	clear_runtime_status()
+	_refresh_input_prompts()
 
 
 func update_component_degradation(snapshot: Dictionary) -> void:
@@ -1339,12 +1358,16 @@ func clear_component_degradation() -> void:
 
 
 func update_loadmaster_telemetry(snapshot: Dictionary) -> void:
+	_loadmaster_help_snapshot = snapshot.duplicate(true)
 	_render_runtime_status(_loadmaster_telemetry_presenter.present_snapshot(snapshot), &"loadmaster")
+	_refresh_input_prompts()
 
 
 func clear_loadmaster_telemetry() -> void:
+	_loadmaster_help_snapshot = {}
 	_loadmaster_telemetry_presenter.detach()
 	clear_runtime_status()
+	_refresh_input_prompts()
 
 
 func get_flight_cue_report() -> Dictionary:
@@ -4476,7 +4499,7 @@ func _matching_axis_deadzone(event: InputEventJoypadMotion) -> float:
 func _refresh_input_prompts() -> void:
 	_refresh_all_binding_rows()
 	if is_instance_valid(_help_panel):
-		_set_help_text(_help_rows_for_mode(_state_mode))
+		_set_help_text(_help_rows_with_role_context(_state_mode))
 
 
 func _refresh_all_binding_rows() -> void:
