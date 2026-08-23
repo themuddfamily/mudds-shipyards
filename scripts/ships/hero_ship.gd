@@ -309,6 +309,10 @@ var _roll_animation := 0.0
 var _visual_bank := 0.0
 var _elapsed := 0.0
 var _impact_cooldown_remaining := 0.0
+## Synchronous scope flag used only while a resolved CharacterBody collision is
+## passing through the ordinary virtual apply_damage chain. Derived craft keep
+## their destruction hooks without needing a second damage entry point.
+var _collision_component_routing_active := false
 var _destroyed := false
 var _destruction_serial := 0
 var _built := false
@@ -1905,6 +1909,7 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 	_docked_latch = true
 	_piloted = false
 	_impact_cooldown_remaining = 0.0
+	_collision_component_routing_active = false
 	if _ship_audio_rig != null:
 		_ship_audio_rig.set_engine_running(false, false)
 		_ship_audio_rig.set_thrust_state(0.0, false)
@@ -2287,7 +2292,7 @@ func apply_damage(
 	_hull = maxf(0.0, _hull - amount)
 	# The component roster observes the hull loss that has just been decided. It
 	# cannot veto, refund, or re-apply it; hull authority is settled above.
-	_record_component_damage(amount, world_hit_position)
+	_record_component_damage(amount, world_hit_position, _collision_component_routing_active)
 	# Apply stage/alarm/engine-power state immediately. Terminal explosion is the
 	# only part withheld when a travelling-pulse receipt owns presentation.
 	if _damage_presentation != null and _hull > 0.0:
@@ -3784,13 +3789,20 @@ func _sync_component_damage(delta: float) -> void:
 
 ## Records an already-applied hull loss against the component roster. This is an
 ## observation: the hull value is decided before this runs and is not read back.
-func _record_component_damage(amount: float, world_hit_position: Vector3) -> void:
+func _record_component_damage(
+	amount: float,
+	world_hit_position: Vector3,
+	collision_contact: bool = false
+	) -> void:
 	if _component_damage == null or not _component_damage.is_configured():
 		return
 	var local_hit_position := Vector3.INF
 	if is_inside_tree() and world_hit_position.is_finite():
 		local_hit_position = to_local(world_hit_position)
-	_component_damage.record_damage(amount, local_hit_position)
+	if collision_contact:
+		_component_damage.record_collision_damage(amount, local_hit_position)
+	else:
+		_component_damage.record_damage(amount, local_hit_position)
 
 
 func get_component_damage() -> ShipComponentDamage:
@@ -3860,22 +3872,50 @@ func _apply_collision_damage(pre_collision_velocity: Vector3) -> void:
 	var strongest_normal := Vector3.UP
 	for collision_index in get_slide_collision_count():
 		var collision := get_slide_collision(collision_index)
-		var collision_normal := collision.get_normal().normalized()
+		var collision_position := collision.get_position()
+		var collision_normal := collision.get_normal()
+		if (
+			not collision_position.is_finite()
+			or not collision_normal.is_finite()
+			or collision_normal.is_zero_approx()
+		):
+			continue
+		collision_normal = collision_normal.normalized()
 		var closing_speed := maxf(0.0, -pre_collision_velocity.dot(collision_normal))
 		if closing_speed > strongest_closing_speed:
 			strongest_closing_speed = closing_speed
-			strongest_position = collision.get_position()
+			strongest_position = collision_position
 			strongest_normal = collision_normal
 	if strongest_closing_speed <= impact_damage_threshold:
 		return
 	_impact_cooldown_remaining = impact_damage_cooldown
 	var impact_damage := (strongest_closing_speed - impact_damage_threshold) * impact_damage_scale
-	apply_damage(impact_damage, strongest_position, strongest_normal)
+	_apply_resolved_collision_damage(impact_damage, strongest_position, strongest_normal)
 	# Collision damage has no travelling pulse endpoint. Keep the bounded local
 	# operational thud for surviving hulls; combat hits are exclusively routed by
 	# GameFlow into the authored positional impact bank.
 	if not _destroyed and _ship_audio_rig != null:
 		_ship_audio_rig.play_hull_hit(clampf(impact_damage / 18.0, 0.35, 1.5))
+
+
+## Keeps collision routing inside the existing virtual damage chain so every
+## retained craft preserves its destruction cleanup. The scope is synchronous;
+## component generation and replay fencing remain in ShipComponentDamage.
+func _apply_resolved_collision_damage(
+	amount: float,
+	world_hit_position: Vector3,
+	world_hit_normal: Vector3
+	) -> bool:
+	if (
+		not world_hit_position.is_finite()
+		or not world_hit_normal.is_finite()
+		or world_hit_normal.is_zero_approx()
+	):
+		return false
+	_collision_component_routing_active = true
+	apply_damage(amount, world_hit_position, world_hit_normal.normalized())
+	_collision_component_routing_active = false
+	return true
 
 
 func _hide_destroyed_hull(destruction_serial: int) -> void:

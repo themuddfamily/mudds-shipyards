@@ -36,6 +36,17 @@ const COMPONENT_ORDER: Array[StringName] = [
 	COMPONENT_ENGINE_BAY,
 ]
 
+## Collision contacts are deliberately mapped onto the three functional
+## channels Hero can expose to a pilot. Forward hull remains available to the
+## existing projectile/splash attribution path, but cannot swallow a resolved
+## impact that has trustworthy ship-local contact evidence.
+const COLLISION_FUNCTIONAL_COMPONENTS: Array[StringName] = [
+	COMPONENT_PORT_WING,
+	COMPONENT_STARBOARD_WING,
+	COMPONENT_CORE_SYSTEMS,
+	COMPONENT_ENGINE_BAY,
+]
+
 const IMPAIRED_THRESHOLD := 0.62
 const FAILED_THRESHOLD := 0.24
 const ATTRIBUTION_GAIN := 4.0
@@ -151,6 +162,42 @@ func is_reset_for_reuse_available() -> bool:
 
 
 func record_damage(amount: float, local_hit_position: Vector3 = Vector3.INF) -> Dictionary:
+	var located := local_hit_position.is_finite()
+	var weights := _attribution_weights(local_hit_position) if located else _uniform_weights()
+	return _record_weighted_damage(amount, weights, located)
+
+
+## Records one already-authorized collision loss against the nearest functional
+## region. The resolved contact point is mandatory: collision callers must not
+## invent a section from velocity alone. This remains an adapter into the same
+## ledger and therefore cannot add hull loss or create a second health owner.
+func record_collision_damage(amount: float, local_hit_position: Vector3) -> Dictionary:
+	if not local_hit_position.is_finite():
+		return {
+			"accepted": false,
+			"reason": &"invalid_collision_contact",
+			"located": false,
+			"normalized_damage": 0.0,
+			"revision": _revision,
+			"components": {},
+		}
+	var nearest_id := _nearest_component(local_hit_position, COLLISION_FUNCTIONAL_COMPONENTS)
+	if nearest_id == &"":
+		return {
+			"accepted": false,
+			"reason": &"collision_region_unavailable",
+			"located": true,
+			"normalized_damage": 0.0,
+			"revision": _revision,
+			"components": {},
+		}
+	var weights: Dictionary = {}
+	for component_id: StringName in COMPONENT_ORDER:
+		weights[component_id] = 1.0 if component_id == nearest_id else 0.0
+	return _record_weighted_damage(amount, weights, true)
+
+
+func _record_weighted_damage(amount: float, weights: Dictionary, located: bool) -> Dictionary:
 	var report := {
 		"accepted": false,
 		"reason": &"",
@@ -176,8 +223,6 @@ func record_damage(amount: float, local_hit_position: Vector3 = Vector3.INF) -> 
 		return report
 
 	var normalized := clampf(amount / _maximum_hull, 0.0, 1.0)
-	var located := local_hit_position.is_finite()
-	var weights := _attribution_weights(local_hit_position) if located else _uniform_weights()
 	var contexts: Array[Dictionary] = []
 	for component_id: StringName in COMPONENT_ORDER:
 		var weight := float(weights.get(component_id, 0.0))
@@ -599,6 +644,22 @@ func _attribution_weights(local_hit_position: Vector3) -> Dictionary:
 	for component_id: StringName in COMPONENT_ORDER:
 		raw[component_id] = float(raw[component_id]) / total
 	return raw
+
+
+func _nearest_component(local_hit_position: Vector3, candidates: Array[StringName]) -> StringName:
+	var nearest_id: StringName = &""
+	var nearest_distance := INF
+	for component_id: StringName in candidates:
+		var placement := _layout.get(component_id, {}) as Dictionary
+		if placement.is_empty():
+			continue
+		var distance := (placement.get("local_position", Vector3.ZERO) as Vector3).distance_squared_to(
+			local_hit_position
+		)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_id = component_id
+	return nearest_id
 
 
 func _derive_layout(local_bounds: AABB) -> Dictionary:
