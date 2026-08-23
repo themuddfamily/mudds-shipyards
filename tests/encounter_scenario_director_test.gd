@@ -48,6 +48,8 @@ class EncounterTarget:
 	extends CharacterBody3D
 
 	var destroyed := false
+	var health := 100.0
+	var maximum_health := 100.0
 
 	func _ready() -> void:
 		var shape := CollisionShape3D.new()
@@ -59,6 +61,9 @@ class EncounterTarget:
 
 	func is_destroyed() -> bool:
 		return destroyed
+
+	func get_health() -> float:
+		return health
 
 
 func _init() -> void:
@@ -79,6 +84,7 @@ func _run() -> void:
 	await _test_paired_wing_suppression_opens_crossfire()
 	await _test_station_defense_guard_opens_intercept_crossfire()
 	await _test_convoy_interdiction_generation_and_screen_guard()
+	await _test_heavy_standoff_advances_on_range_or_health()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
 	await _test_production_bounds_and_audit()
@@ -694,6 +700,61 @@ func _test_convoy_interdiction_generation_and_screen_guard() -> void:
 	)
 	cargo.queue_free()
 	escort.queue_free()
+	await _free_fixture(fixture)
+
+
+func _test_heavy_standoff_advances_on_range_or_health() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var coordinator: WingCoordinator = fixture.coordinator
+	var target: EncounterTarget = fixture.target
+	_check(
+		director.begin_heavy_standoff(target, 60.0, 0.35),
+		"caller-supplied heavy range and hull threshold admit the bounded posture"
+	)
+	var anchor := coordinator.get_anchor() as FlankingSkirmisherOpponent
+	var flank: FlankingSkirmisherOpponent
+	if fixture.skirmishers[0] != anchor:
+		flank = fixture.skirmishers[0]
+	else:
+		flank = fixture.skirmishers[1]
+	var standoff_intent := director.get_member_tactic_intent(anchor)
+	_check(
+		standoff_intent.action == EncounterScenarioDirector.TACTIC_STANDOFF
+			and bool(standoff_intent.fire_authorized)
+			and is_equal_approx(float(anchor.get("anchor_station_range")), 60.0)
+			and standoff_intent.role == WingCoordinator.ROLE_ANCHOR,
+		"the existing anchor role consumes the caller range as a heavy stand-off station"
+	)
+	target.health = 25.0
+	director._physics_process(0.01)
+	var advance_intent := director.get_member_tactic_intent(anchor)
+	_check(
+		advance_intent.action == EncounterScenarioDirector.TACTIC_ADVANCE
+			and is_equal_approx(float(anchor.get("anchor_station_range")), 33.0)
+			and director.get_member_tactic_intent(flank).action
+			== EncounterScenarioDirector.TACTIC_FLANK_UNDER_COVER,
+		"caller hull pressure changes only the anchor to the existing advance posture"
+	)
+	anchor.apply_damage(
+		anchor.maximum_health * (1.0 - coordinator.critical_disengage_ratio + 0.01),
+		anchor.global_position,
+	)
+	coordinator.update_assignments(0.0)
+	var critical_intent := director.get_member_tactic_intent(anchor)
+	_check(
+		critical_intent.action == EncounterScenarioDirector.TACTIC_DISENGAGE
+			and not bool(critical_intent.fire_authorized),
+		"critical disengage overrides heavy advance and safes the damaged anchor"
+	)
+	for member in fixture.skirmishers as Array[FlankingSkirmisherOpponent]:
+		member.apply_damage(member.maximum_health, member.global_position)
+	await _advance_until(func() -> bool: return director.is_concluded(), 60)
+	_check(
+		director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+			and director.get_roster().is_empty(),
+		"destroying the heavy wing concludes and releases its existing roster"
+	)
 	await _free_fixture(fixture)
 
 

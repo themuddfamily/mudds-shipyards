@@ -73,9 +73,12 @@ const SCENARIO_STATION_DEFENSE: StringName = &"station_defense"
 ## A caller-owned cargo target is the objective while an escort anchor is the
 ## protected reference for the paired interdictor/guard wing.
 const SCENARIO_CONVOY_INTERDICTION: StringName = &"convoy_interdiction"
+## A heavy contact holds a caller-supplied stand-off station until range or
+## caller hull pressure authorizes the existing anchor craft to advance.
+const SCENARIO_HEAVY_STANDOFF: StringName = &"heavy_standoff"
 const SCENARIO_IDS: Array[StringName] = [
 	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_STATION_DEFENSE,
-	SCENARIO_CONVOY_INTERDICTION,
+	SCENARIO_CONVOY_INTERDICTION, SCENARIO_HEAVY_STANDOFF,
 ]
 
 const STATE_IDLE: StringName = &"idle"
@@ -109,10 +112,16 @@ const TACTIC_INTERCEPT: StringName = &"intercept"
 const TACTIC_DEFEND: StringName = &"defend"
 const TACTIC_INTERDICT: StringName = &"interdict"
 const TACTIC_SCREEN_GUARD: StringName = &"screen_guard"
+const TACTIC_STANDOFF: StringName = &"standoff"
+const TACTIC_ADVANCE: StringName = &"advance"
+
+const DEFAULT_HEAVY_STANDOFF_RANGE := 120.0
+const DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO := 0.35
 
 const CONTENT_NOTE := (
 	"The scenario roster, objectives, boundary distances, escort trigger, paired-wing "
-	+ "suppression opening, caller-owned protected-anchor defense, and every timing "
+	+ "suppression opening, caller-owned protected-anchor defense, heavy stand-off/advance "
+	+ "posture, and every timing "
 	+ "value are an original modern interpretation. They do not "
 	+ "reproduce or claim any authenticated historical Keth Shipyards mission, "
 	+ "patrol, objective, or scenario."
@@ -179,6 +188,8 @@ var _courier_launch_origin := Vector3.ZERO
 var _target: Node3D
 var _protected_anchor: Node3D
 var _cargo_target: Node3D
+var _heavy_standoff_range := DEFAULT_HEAVY_STANDOFF_RANGE
+var _heavy_advance_health_ratio := DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 var _scenario_generation := 0
 var _roster: Array[Node3D] = []
 var _completed_runs := 0
@@ -197,6 +208,8 @@ func _physics_process(delta: float) -> void:
 	_elapsed += delta
 	if _scenario == SCENARIO_COURIER_INTERCEPT:
 		_update_courier_scenario(delta)
+	if _scenario == SCENARIO_HEAVY_STANDOFF:
+		_update_heavy_posture()
 	var outcome := _evaluate_termination(delta)
 	if outcome != OUTCOME_PENDING:
 		_conclude(outcome)
@@ -328,6 +341,8 @@ func is_fire_authorized(member: Node) -> bool:
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR \
 				or not coordinator.is_member_disengaging(member as Node3D)
 		return true
+	if _scenario == SCENARIO_HEAVY_STANDOFF:
+		return _is_target_alive()
 	if _paired_wing_suppression_active():
 		if is_instance_valid(coordinator):
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
@@ -366,6 +381,15 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 			action = TACTIC_DEFEND
 		else:
 			action = TACTIC_GUARD
+	elif _scenario == SCENARIO_HEAVY_STANDOFF and _is_target_alive():
+		if role == WingCoordinator.ROLE_ANCHOR:
+			action = (
+				TACTIC_ADVANCE
+				if _heavy_should_advance(member as Node3D)
+				else TACTIC_STANDOFF
+			)
+		elif role == WingCoordinator.ROLE_FLANKER:
+			action = TACTIC_FLANK_UNDER_COVER
 	elif _paired_wing_suppression_active():
 		action = (
 			TACTIC_SUPPRESS
@@ -387,6 +411,8 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 		"cargo_target": (
 			String(_cargo_target.name) if is_instance_valid(_cargo_target) else ""
 		),
+		"heavy_standoff_range": _heavy_standoff_range,
+		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
 		"generation": _scenario_generation,
 	}.duplicate(true)
 
@@ -434,11 +460,42 @@ func begin_convoy_interdiction(
 	)
 
 
+## Admits one bounded heavy-contact posture. The director only publishes the
+## stand-off/advance intent; the existing skirmisher role consumers retain
+## movement, fire, and damage authority.
+func begin_heavy_standoff(
+		target: Node3D,
+		standoff_range: float,
+		advance_health_ratio: float
+	) -> bool:
+	if (
+		not is_finite(standoff_range)
+		or standoff_range < 25.0
+		or standoff_range > 160.0
+		or not is_finite(advance_health_ratio)
+		or advance_health_ratio < 0.0
+		or advance_health_ratio > 1.0
+	):
+		return false
+	if _state == STATE_RUNNING:
+		return false
+	return _begin_scenario(
+		SCENARIO_HEAVY_STANDOFF,
+		target,
+		null,
+		null,
+		standoff_range,
+		advance_health_ratio,
+	)
+
+
 func _begin_scenario(
 		scenario_id: StringName,
 		target: Node3D,
 		protected_anchor: Node3D,
-		cargo_target: Node3D = null
+		cargo_target: Node3D = null,
+		heavy_standoff_range: float = DEFAULT_HEAVY_STANDOFF_RANGE,
+		heavy_advance_health_ratio: float = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 	) -> bool:
 	if not _is_current():
 		return false
@@ -468,6 +525,12 @@ func _begin_scenario(
 		_cargo_target = cargo_target
 	else:
 		_cargo_target = null
+	if scenario_id == SCENARIO_HEAVY_STANDOFF:
+		_heavy_standoff_range = heavy_standoff_range
+		_heavy_advance_health_ratio = heavy_advance_health_ratio
+	else:
+		_heavy_standoff_range = DEFAULT_HEAVY_STANDOFF_RANGE
+		_heavy_advance_health_ratio = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 	_scenario = scenario_id
 	_target = target
 	_scenario_generation += 1
@@ -483,6 +546,10 @@ func _begin_scenario(
 			_launch_wing(_protected_anchor.global_position)
 		SCENARIO_CONVOY_INTERDICTION:
 			_launch_wing(_protected_anchor.global_position)
+		SCENARIO_HEAVY_STANDOFF:
+			_launch_wing()
+	if scenario_id == SCENARIO_HEAVY_STANDOFF:
+		_update_heavy_posture()
 	if _roster.is_empty():
 		# Nothing could be staged. Terminating immediately is the only honest
 		# result; leaving the director RUNNING with an empty roster is precisely
@@ -625,6 +692,9 @@ func _evaluate_objective() -> StringName:
 				return OUTCOME_CLEARED
 			if _cargo_target.global_position.distance_to(_scenario_origin) >= escape_distance:
 				return OUTCOME_ESCAPED
+		SCENARIO_HEAVY_STANDOFF:
+			if _active_roster_count() == 0:
+				return OUTCOME_CLEARED
 	return OUTCOME_PENDING
 
 
@@ -667,6 +737,8 @@ func _reset_run_state() -> void:
 	_escort_launched = false
 	_distress_broadcast = false
 	_halfway_warned = false
+	_heavy_standoff_range = DEFAULT_HEAVY_STANDOFF_RANGE
+	_heavy_advance_health_ratio = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 	_outcome = OUTCOME_PENDING
 
 
@@ -775,6 +847,36 @@ func _update_courier_scenario(delta: float) -> void:
 	if not _halfway_warned and get_escape_progress() >= 0.5:
 		_halfway_warned = true
 		_toast("Courier at half boundary range", "Close now or lose it", 3.0)
+
+
+## Existing skirmisher motion consumes its station fields. This posture update
+## only changes those caller-approved inputs; it never moves, fires, or damages
+## a craft itself.
+func _update_heavy_posture() -> void:
+	var coordinator := _get_wing_coordinator()
+	if not is_instance_valid(coordinator):
+		return
+	var anchor := coordinator.get_anchor()
+	if not is_instance_valid(anchor):
+		return
+	var desired_range := _heavy_standoff_range
+	if _heavy_should_advance(anchor):
+		desired_range = maxf(25.0, _heavy_standoff_range * 0.55)
+	if anchor.get(&"anchor_station_range") != null:
+		anchor.set("anchor_station_range", desired_range)
+	if anchor.get(&"preferred_range") != null:
+		anchor.set("preferred_range", desired_range)
+	if anchor.get(&"retreat_range") != null:
+		anchor.set("retreat_range", maxf(12.0, desired_range * 0.5))
+
+
+func _heavy_should_advance(member: Node3D) -> bool:
+	if not is_instance_valid(member) or not _is_target_alive():
+		return false
+	return (
+		member.global_position.distance_to(_target.global_position) <= _heavy_standoff_range
+		or _participant_health_ratio(_target) <= _heavy_advance_health_ratio
+	)
 
 
 # ---------------------------------------------------------- host access ----
@@ -960,6 +1062,7 @@ func get_evidence_metadata() -> Dictionary:
 			"coordinated pair objective and its split entry",
 			"anchor suppression opening while its flanker maneuvers under cover",
 			"generation-fenced convoy cargo interdiction with escort screening",
+			"caller-bounded heavy stand-off and health-triggered anchor advance",
 			"distress broadcast and escort response timing",
 			"every scenario duration, radius, and delay",
 		]),
@@ -1006,11 +1109,15 @@ func get_audit_report() -> Dictionary:
 			"start_delay": start_delay,
 			"suppression_lead_time": suppression_lead_time,
 			"defense_trigger_radius": defense_trigger_radius,
+			"heavy_standoff_range": _heavy_standoff_range,
+			"heavy_advance_health_ratio": _heavy_advance_health_ratio,
 		},
 		"protected_anchor": (
 			String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else ""
 		),
 		"cargo_target": String(_cargo_target.name) if is_instance_valid(_cargo_target) else "",
+		"heavy_standoff_range": _heavy_standoff_range,
+		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
 	}.duplicate(true)
 
 
@@ -1031,6 +1138,14 @@ func get_validation_errors() -> PackedStringArray:
 	if not is_finite(defense_trigger_radius) \
 			or defense_trigger_radius < 25.0 or defense_trigger_radius > 1000.0:
 		errors.append("the defense trigger radius must stay inside its finite 25..1000 metre bound")
+	if _state == STATE_RUNNING and _scenario == SCENARIO_HEAVY_STANDOFF:
+		if not is_finite(_heavy_standoff_range) \
+				or _heavy_standoff_range < 25.0 or _heavy_standoff_range > 160.0:
+			errors.append("a running heavy stand-off must retain a finite 25..160 metre range")
+		if not is_finite(_heavy_advance_health_ratio) \
+				or _heavy_advance_health_ratio < 0.0 \
+				or _heavy_advance_health_ratio > 1.0:
+			errors.append("a running heavy stand-off must retain a 0..1 hull threshold")
 	if _state == STATE_RUNNING and _scenario == SCENARIO_STATION_DEFENSE \
 			and not _is_protected_anchor_alive():
 		errors.append("a running station defense must retain its caller-owned protected anchor")
