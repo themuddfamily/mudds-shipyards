@@ -63,6 +63,8 @@ var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
 var _last_race_feedback_reason: StringName = &""
+var _last_patrol_feedback_reason: StringName = &""
+var _last_patrol_reward_result: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -456,6 +458,9 @@ func start_patrol() -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _patrol.start(_patrol.get_generation())
+	if bool(result.get("accepted", false)):
+		_last_patrol_feedback_reason = &""
+		_last_patrol_reward_result.clear()
 	_publish_cinder_route_audio()
 	return result
 
@@ -471,6 +476,13 @@ func advance_patrol(delta: float, position: Vector3) -> Dictionary:
 		and before.get("phase_id", &"") == &"travel":
 		_patrol.submit_position(position, _patrol.get_generation())
 	var result: Dictionary = _patrol.advance_physics(delta, position, _patrol.get_generation())
+	var reason := StringName(result.get("reason", &""))
+	var after := _patrol.get_presentation_snapshot()
+	if reason == &"dwell_interrupted":
+		_last_patrol_feedback_reason = reason
+	elif bool(after.get("checkpoint_occupied", false)) \
+			or reason == &"dwell_completed" or after.get("phase_id", &"") == &"travel":
+		_last_patrol_feedback_reason = &""
 	_publish_cinder_route_audio()
 	return result
 
@@ -479,6 +491,9 @@ func reset_patrol() -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _patrol.reset(_patrol.get_generation())
+	if bool(result.get("accepted", false)):
+		_last_patrol_feedback_reason = &""
+		_last_patrol_reward_result.clear()
 	_publish_cinder_route_audio()
 	return result
 
@@ -663,7 +678,9 @@ func request_patrol_reward(expected_generation: int) -> Dictionary:
 		"outcome": &"cleared" if patrol.get("state_id", &"") == &"completed" else &"",
 		"generation": patrol.get("generation", 0),
 	}.duplicate(true)
-	return _station_reward_adapter.call("consume", normalized, expected_generation)
+	var result := _station_reward_adapter.call("consume", normalized, expected_generation) as Dictionary
+	_last_patrol_reward_result = result.duplicate(true)
+	return result
 
 
 func request_race_reward(expected_generation: int) -> Dictionary:
@@ -999,7 +1016,7 @@ func get_snapshot() -> Dictionary:
 		"host": _host.get_snapshot() if is_instance_valid(_host) else {},
 		"race_activity_id": RACE_ACTIVITY_ID,
 		"race": _race_presentation_snapshot(),
-		"patrol": _patrol.get_presentation_snapshot() if is_instance_valid(_patrol) else {},
+		"patrol": _patrol_presentation_snapshot(),
 		"cargo": _cargo_activity.get_snapshot() if is_instance_valid(_cargo_activity) else {},
 		"cargo_reward_handoff": get_cargo_reward_handoff_snapshot(),
 		"cargo_binding": {
@@ -1049,6 +1066,25 @@ func _race_presentation_snapshot() -> Dictionary:
 		return {}
 	var snapshot := _race_session.get_presentation_snapshot() as Dictionary
 	snapshot["presentation_reason"] = _last_race_feedback_reason
+	return snapshot.duplicate(true)
+
+
+func _patrol_presentation_snapshot() -> Dictionary:
+	if not is_instance_valid(_patrol):
+		return {}
+	var snapshot := _patrol.get_presentation_snapshot() as Dictionary
+	var request := _last_patrol_reward_result.get("reward_request", {}) as Dictionary
+	var request_matches := (
+		StringName(request.get("activity_id", &"")) == &"cinder_relay_patrol"
+		and int(request.get("activity_generation", -1)) == int(snapshot.get("generation", 0))
+	)
+	snapshot["presentation_reason"] = _last_patrol_feedback_reason
+	snapshot["reward_pending"] = (
+		bool(_last_patrol_reward_result.get("accepted", false)) and request_matches
+	)
+	snapshot["reward_handoff_reason"] = StringName(
+		_last_patrol_reward_result.get("reason", &"")
+	)
 	return snapshot.duplicate(true)
 
 

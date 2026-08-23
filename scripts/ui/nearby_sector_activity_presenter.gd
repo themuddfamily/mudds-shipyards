@@ -11,6 +11,7 @@ const SCHEMA_VERSION := 1
 const ACTIVITY_IDS: Array[StringName] = [
 	&"cinder_reach_emberline_convoy",
 	&"cinder_reach_checkpoint_route",
+	&"cinder_relay_patrol",
 	&"cinder_platform_mining_run",
 	&"cinder_derelict_structure_scan",
 	&"cinder_debris_beacon_traversal",
@@ -84,6 +85,8 @@ func _activity_state(activity_id: StringName) -> Dictionary:
 		return source.get("activity", {}) as Dictionary
 	if activity_id == &"cinder_reach_checkpoint_route":
 		return _snapshot.get("race", {}) as Dictionary
+	if activity_id == &"cinder_relay_patrol":
+		return _snapshot.get("patrol", {}) as Dictionary
 	if activity_id == &"cinder_platform_mining_run":
 		return _snapshot.get("mining", {}) as Dictionary
 	if activity_id == &"cinder_derelict_structure_scan":
@@ -125,6 +128,9 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var race_feedback: Dictionary = {}
 	if activity_id == &"cinder_reach_checkpoint_route":
 		race_feedback = _race_feedback(state)
+	var patrol_feedback: Dictionary = {}
+	if activity_id == &"cinder_relay_patrol":
+		patrol_feedback = _patrol_feedback(state)
 	var progress := (
 		"  //  %s" % str(convoy_feedback.get("summary", ""))
 		if not convoy_feedback.is_empty()
@@ -134,17 +140,19 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		if not mining_feedback.is_empty()
 		else "  //  %s" % str(race_feedback.get("summary", ""))
 		if not race_feedback.is_empty()
+		else "  //  %s" % str(patrol_feedback.get("summary", ""))
+		if not patrol_feedback.is_empty()
 		else "  //  %s" % str(cargo_progress.get("summary", ""))
 		if not cargo_progress.is_empty()
 		else _progress_text(activity_id, state)
 	)
 	var recovery := (
-		"" if not race_feedback.is_empty() or not scan_feedback.is_empty()
+		"" if not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
 		or not mining_feedback.is_empty() else _recovery_text(state)
 	)
 	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
 	var status_suffix := ""
-	if reward_pending and race_feedback.is_empty() and scan_feedback.is_empty() \
+	if reward_pending and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
 			and mining_feedback.is_empty():
 		status_suffix += "  REWARD PENDING"
 	if not recovery.is_empty():
@@ -159,10 +167,12 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
 		"recovery_text": recovery,
-		"objective_text": str(race_feedback.get(
-			"objective_text", scan_feedback.get(
+		"objective_text": str(patrol_feedback.get(
+			"objective_text", race_feedback.get(
+				"objective_text", scan_feedback.get(
 				"objective_text", mining_feedback.get(
 					"objective_text", cargo_progress.get("objective_text", "")
+				)
 				)
 			)
 		)),
@@ -171,9 +181,82 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"mining_feedback": mining_feedback.duplicate(true),
 		"scan_feedback": scan_feedback.duplicate(true),
 		"race_feedback": race_feedback.duplicate(true),
+		"patrol_feedback": patrol_feedback.duplicate(true),
 		"semantic_cue_id": StringName(convoy_feedback.get("semantic_cue_id", &"")),
 		"caption_text": str(convoy_feedback.get("caption_text", "")),
 		"activity_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Formats the patrol authority's travel/dwell/terminal snapshot plus the
+## binding's retained interruption and reward-handoff presentation state.
+func _patrol_feedback(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var state_id := StringName(state.get("state_id", &"idle"))
+	var phase_id := StringName(state.get("phase_id", &"idle"))
+	var presentation_reason := StringName(state.get("presentation_reason", &""))
+	var next_checkpoint := maxi(int(state.get("next_checkpoint_index", 0)), 0)
+	var completed := maxi(int(state.get("completed_checkpoint_count", 0)), 0)
+	var checkpoint_count := maxi(int(state.get("checkpoint_count", 0)), 0)
+	var beacon_number := mini(next_checkpoint + 1, checkpoint_count) if checkpoint_count > 0 else 0
+	var reward_pending := bool(state.get("reward_pending", false))
+	var stage_id: StringName = &"approach"
+	var summary := "PATROL READY  //  APPROACH BEACON %d/%d" % [beacon_number, checkpoint_count]
+	var objective := "START THE CINDER RELAY PATROL"
+	if state_id == &"active" and phase_id == &"dwell" \
+			and presentation_reason == &"dwell_interrupted":
+		stage_id = &"interrupted"
+		summary = "HOLD INTERRUPTED  //  RE-ENTER BEACON %d/%d" % [
+			beacon_number, checkpoint_count,
+		]
+		objective = "RETURN TO THE BEACON AND RESTART THE HOLD"
+	else:
+		match state_id:
+			&"active":
+				if phase_id == &"dwell":
+					stage_id = &"dwell"
+					var dwell_elapsed := maxf(float(state.get("dwell_elapsed_seconds", 0.0)), 0.0)
+					var dwell_seconds := maxf(float(state.get("dwell_seconds", 0.0)), 0.0)
+					var dwell_remaining := maxf(float(state.get("dwell_remaining_seconds", 0.0)), 0.0)
+					summary = "HOLD BEACON %d/%d  //  %.1f/%.1fs  //  %.1fs LEFT" % [
+						beacon_number, checkpoint_count, dwell_elapsed, dwell_seconds, dwell_remaining,
+					]
+					objective = "MAINTAIN POSITION UNTIL THE HOLD COMPLETES"
+				else:
+					stage_id = &"travel"
+					summary = "APPROACH BEACON %d/%d  //  %d/%d SECURED  //  %.1fs" % [
+						beacon_number, checkpoint_count, completed, checkpoint_count,
+						maxf(float(state.get("current_time_seconds", 0.0)), 0.0),
+					]
+					objective = "ENTER THE NEXT MARKED BEACON"
+			&"completed":
+				stage_id = &"reward_pending" if reward_pending else &"complete"
+				summary = "PATROL COMPLETE  //  %s  //  %.1fs" % [
+					"REWARD PENDING" if reward_pending else "PATROL LOG READY",
+					maxf(float(state.get("last_duration_seconds", 0.0)), 0.0),
+				]
+				objective = "AWAIT PATROL REWARD HANDOFF" if reward_pending else "REQUEST PATROL LOG REWARD"
+			&"failed", &"aborted":
+				stage_id = state_id
+				var reason := StringName(state.get("terminal_reason", &""))
+				var reason_text := str(reason).replace("_", " ").to_upper()
+				summary = "%s%s" % [
+					"PATROL FAILED" if state_id == &"failed" else "PATROL INTERRUPTED",
+					("  //  " + reason_text) if not reason_text.is_empty() else "",
+				]
+				objective = "RESET THE PATROL TO TRY AGAIN"
+	return {
+		"stage_id": stage_id,
+		"phase_id": phase_id,
+		"next_checkpoint_index": next_checkpoint,
+		"completed_checkpoint_count": completed,
+		"checkpoint_count": checkpoint_count,
+		"reward_pending": reward_pending,
+		"summary": summary,
+		"objective_text": objective,
+		"patrol_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
 
@@ -569,6 +652,7 @@ func _title(activity_id: StringName) -> String:
 	return {
 		&"cinder_reach_emberline_convoy": "EMBERLINE CONVOY",
 		&"cinder_reach_checkpoint_route": "BEACON RACE",
+		&"cinder_relay_patrol": "RELAY PATROL",
 		&"cinder_platform_mining_run": "PLATFORM EXTRACTION",
 		&"cinder_derelict_structure_scan": "DERELICT SCAN",
 		&"cinder_debris_beacon_traversal": "DEBRIS BEACON RUN",
