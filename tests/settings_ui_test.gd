@@ -95,6 +95,15 @@ func _run() -> void:
 	_check(is_equal_approx((controls[&"music_volume"] as HSlider).value, 0.35), "Music snapshot reaches its dedicated slider")
 	_check(is_equal_approx((controls[&"ui_scale"] as HSlider).value, 1.25), "UI scale snapshot reaches its slider")
 	_check(is_equal_approx(hud.get_ui_scale(), 1.25), "UI scale snapshot applies the accessibility preview immediately")
+	hud.update_ship_telemetry({"hull": 18.0, "maximum_hull": 100.0, "damage_status": "critical", "engine_power": 0.42})
+	var damage_status := hud.get("_damage_status_label") as Label
+	_check(
+		damage_status.text.begins_with("HULL  //  !! CRITICAL !!")
+		and damage_status.text.contains("ENGINE OUTPUT  042%"),
+		"critical hull state remains textually legible without relying on colour"
+	)
+	hud.update_ship_telemetry({"hull": 76.0, "maximum_hull": 100.0, "damage_status": "healthy", "engine_power": 1.0})
+	_check((hud.get("_damage_status_label") as Label).text.begins_with("HULL  //  OK"), "healthy hull state uses a stable text marker")
 	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
 	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
 	_check((controls[&"captions_enabled"] as CheckButton).button_pressed, "caption snapshot reaches its toggle")

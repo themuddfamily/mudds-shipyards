@@ -1041,8 +1041,8 @@ func update_ship_telemetry(data: Dictionary) -> void:
 	)
 	_throttle_label.modulate = _c(CAUTION) if throttle < -0.04 else _c(MUTED)
 	_hull_bar.value = clampf(hull / maximum_hull, 0.0, 1.0) * 100.0
-	_damage_status_label.text = "HULL  //  %s    ENGINE OUTPUT  %03d%%" % [
-		damage_status,
+	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%" % [
+		_damage_status_accessible_text(damage_status),
 		roundi(engine_power * 100.0),
 	]
 	_damage_status_label.modulate = _damage_status_color(damage_status)
@@ -1998,7 +1998,7 @@ func _build_telemetry() -> void:
 	_hull_bar = _bar(CAUTION)
 	_hull_bar.value = 100.0
 	stack.add_child(_hull_bar)
-	_damage_status_label = _label("HULL  //  HEALTHY    ENGINE OUTPUT  100%", 9, MUTED)
+	_damage_status_label = _label("HULL  //  OK    ENGINE OUTPUT  100%", 9, MUTED)
 	stack.add_child(_damage_status_label)
 	_telemetry_panel.visible = false
 
@@ -3504,6 +3504,16 @@ func _damage_status_color(damage_status: String) -> Color:
 	if damage_status == "CRITICAL":
 		return _c(DANGER)
 	return _c(CAUTION) if damage_status == "DAMAGED" else _c(MUTED)
+
+
+func _damage_status_accessible_text(damage_status: String) -> String:
+	match damage_status:
+		"CRITICAL":
+			return "HULL  //  !! CRITICAL !!"
+		"DAMAGED":
+			return "HULL  //  ! DAMAGED !"
+		_:
+			return "HULL  //  OK"
 
 
 func _register_palette_target(entry: Dictionary) -> void:
