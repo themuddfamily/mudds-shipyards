@@ -18,15 +18,20 @@ const MAX_STATIC_BODIES := 10
 const MAX_MESH_INSTANCES := 30
 const EXPECTED_STATIC_BODIES := 3
 const EXPECTED_COLLISION_SHAPES := 3
-const EXPECTED_MESH_INSTANCES := 19
-const EXPECTED_SERVICE_MESH_INSTANCES := 16
-const EXPECTED_MESH_RESOURCE_ALLOCATIONS := 14
-const EXPECTED_GUIDE_LIGHTS := 6
-const EXPECTED_DESCENDANTS := 46
+const EXPECTED_MESH_INSTANCES := 17
+const EXPECTED_SERVICE_MESH_INSTANCES := 14
+const EXPECTED_MESH_RESOURCE_ALLOCATIONS := 12
+const EXPECTED_GUIDE_LIGHTS := 5
+const EXPECTED_DESCENDANTS := 43
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
-	&"dock_05_bomber": 5,
+	&"dock_05_bomber": 3,
 	&"dock_06_interceptor": 5,
+}
+const SERVICE_LIGHT_COUNTS := {
+	&"dock_04_cargo": 2,
+	&"dock_05_bomber": 1,
+	&"dock_06_interceptor": 2,
 }
 const SERVICE_ROLES := {
 	&"dock_04_cargo": &"cargo_crane_and_container_apron",
@@ -40,12 +45,31 @@ const SERVICE_LOCAL_BOUNDS := {
 }
 const LANDING_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, -14.0), Vector3(20.0, 8.0, 28.0))
 const APPROACH_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, 21.0), Vector3(20.0, 8.0, 15.0))
+const PAD_ROLE_LABELS := {
+	&"dock_04_cargo": "CARGO",
+	&"dock_05_bomber": "BOMBER",
+	&"dock_06_interceptor": "INTERCEPTOR",
+}
+const PAD_MARKER_MATERIAL_KEYS := {
+	&"dock_04_cargo": "cargo_marker",
+	&"dock_05_bomber": "bomber_marker",
+	&"dock_06_interceptor": "interceptor_marker",
+}
+const PRESENTATION_NODE_DELTA := 0
+const PRESENTATION_LIGHT_DELTA := 0
+const PRESENTATION_SUBMISSION_DELTA := 0
 
 var _pads: Dictionary = {}
 var _attachments: Dictionary = {}
 var _service_materials: Dictionary = {}
 var _cargo_container_mesh: BoxMesh
 var _built := false
+var _pad_presentation_states: Dictionary = {}
+
+
+func _enter_tree() -> void:
+	if _built:
+		call_deferred("_restore_pad_presentations_after_reentry")
 
 
 func _ready() -> void:
@@ -58,6 +82,7 @@ func _ready() -> void:
 	_build_service_materials()
 	for index in PAD_IDS.size():
 		_build_pad(PAD_IDS[index], PAD_POSITIONS[index], index)
+		_publish_pad_presentation(PAD_IDS[index])
 
 
 func get_pad_ids() -> Array[StringName]:
@@ -101,6 +126,7 @@ func attach_craft(pad_id: StringName, craft: Node3D, craft_id: StringName) -> Di
 	var anchor: Vector3 = _pads[pad_id].get("landing_anchor", Vector3.INF)
 	craft.global_transform = Transform3D(craft.global_transform.basis, anchor)
 	_attachments[pad_id] = {"craft": weakref(craft), "craft_id": craft_id, "landing_anchor": anchor}
+	_publish_pad_presentation(pad_id)
 	return {"accepted": true, "reason": &"attached", "pad_id": pad_id, "craft_id": craft_id, "landing_anchor": anchor}
 
 
@@ -112,14 +138,110 @@ func detach_craft(pad_id: StringName, craft: Node3D) -> Dictionary:
 	if owner != craft:
 		return {"accepted": false, "reason": &"foreign_craft"}
 	_attachments.erase(pad_id)
+	_publish_pad_presentation(pad_id)
 	return {"accepted": true, "reason": &"detached", "pad_id": pad_id}
 
 
 func get_attachment_snapshot(pad_id: StringName) -> Dictionary:
 	var attachment := _attachments.get(pad_id, {}) as Dictionary
 	if attachment.is_empty():
-		return {"attached": false, "pad_id": pad_id}
-	return {"attached": true, "pad_id": pad_id, "craft_id": attachment.get("craft_id", &""), "landing_anchor": attachment.get("landing_anchor", Vector3.INF)}
+		return {
+			"attached": false,
+			"pad_id": pad_id,
+			"lease_state_id": &"available",
+			"approach_anchor": (_pads.get(pad_id, {}) as Dictionary).get(
+				"approach_anchor", Vector3.INF
+			),
+		}.duplicate(true)
+	return {
+		"attached": true,
+		"pad_id": pad_id,
+		"lease_state_id": &"occupied",
+		"craft_id": attachment.get("craft_id", &""),
+		"landing_anchor": attachment.get("landing_anchor", Vector3.INF),
+		"approach_anchor": (_pads.get(pad_id, {}) as Dictionary).get(
+			"approach_anchor", Vector3.INF
+		),
+	}.duplicate(true)
+
+
+## Presentation consumes the attachment owner's detached lease snapshot only.
+## It reuses the authored guide-light roster, role marker material, and pad sign.
+func _apply_detached_berth_snapshot(snapshot: Dictionary) -> Dictionary:
+	var pad_id := StringName(snapshot.get("pad_id", &""))
+	if pad_id not in PAD_IDS or not _pads.has(pad_id):
+		return {"accepted": false, "reason": &"unknown_pad"}
+	var attached := bool(snapshot.get("attached", false))
+	var lease_state_id := StringName(snapshot.get("lease_state_id", &""))
+	if lease_state_id != (&"occupied" if attached else &"available"):
+		return {"accepted": false, "reason": &"invalid_lease_snapshot"}
+	if not (snapshot.get("approach_anchor", Vector3.INF) as Vector3).is_equal_approx(
+		(_pads[pad_id] as Dictionary).get("approach_anchor", Vector3.INF)
+	):
+		return {"accepted": false, "reason": &"approach_anchor_drift"}
+	if attached and (
+		not _is_stable_craft_id(StringName(snapshot.get("craft_id", &"")))
+		or not (snapshot.get("landing_anchor", Vector3.INF) as Vector3).is_equal_approx(
+			(_pads[pad_id] as Dictionary).get("landing_anchor", Vector3.INF)
+		)
+	):
+		return {"accepted": false, "reason": &"occupied_lease_snapshot_invalid"}
+	var pad := get_node(NodePath(String(pad_id))) as Node3D
+	var service := pad.get_node(^"ServicePresentation") as Node3D
+	var sign := pad.get_node(^"PadSign") as Label3D
+	var lights := service.find_children("*", "OmniLight3D", true, false)
+	if lights.size() != int(SERVICE_LIGHT_COUNTS[pad_id]):
+		return {"accepted": false, "reason": &"guide_light_roster_drift"}
+	var role_color: Color = (lights[0] as OmniLight3D).get_meta(
+		&"authored_role_color", (lights[0] as OmniLight3D).light_color
+	)
+	var light_energy := 2.3 if not attached else 0.38
+	var marker_energy := 2.0 if not attached else 0.24
+	var cue_color := role_color if not attached else Color("f6a13b")
+	for raw_light in lights:
+		var light := raw_light as OmniLight3D
+		light.light_color = cue_color
+		light.light_energy = light_energy
+	var marker_material := _service_materials[PAD_MARKER_MATERIAL_KEYS[pad_id]] \
+		as StandardMaterial3D
+	marker_material.emission_energy_multiplier = marker_energy
+	var dock_number := PAD_IDS.find(pad_id) + 4
+	sign.text = "DOCK %02d  %s  //  %s" % [
+		dock_number,
+		String(PAD_ROLE_LABELS[pad_id]),
+		"OCCUPIED" if attached else "APPROACH CLEAR",
+	]
+	sign.modulate = cue_color
+	_pad_presentation_states[pad_id] = {
+		"pad_id": pad_id,
+		"state_id": &"occupied" if attached else &"approach_available",
+		"lease_snapshot": snapshot.duplicate(true),
+		"guide_energy": light_energy,
+		"marker_energy": marker_energy,
+		"sign_text": sign.text,
+		"node_delta": PRESENTATION_NODE_DELTA,
+		"light_delta": PRESENTATION_LIGHT_DELTA,
+		"submission_delta": PRESENTATION_SUBMISSION_DELTA,
+		"ship_authority": false,
+		"berth_lease_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"berth_presentation_applied"}
+
+
+func get_pad_presentation_state(pad_id: StringName) -> Dictionary:
+	return (_pad_presentation_states.get(pad_id, {}) as Dictionary).duplicate(true)
+
+
+func _publish_pad_presentation(pad_id: StringName) -> void:
+	_apply_detached_berth_snapshot(get_attachment_snapshot(pad_id))
+
+
+func _restore_pad_presentations_after_reentry() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	for pad_id in PAD_IDS:
+		_publish_pad_presentation(pad_id)
 
 
 func get_service_presentation_audit() -> Dictionary:
@@ -167,13 +289,14 @@ func get_service_presentation_audit() -> Dictionary:
 				errors.append("service presentation gained collision or interaction: %s" % pad_id)
 		if meshes.size() != int(SERVICE_MESH_COUNTS[pad_id]):
 			errors.append("service mesh budget drift: %s" % pad_id)
-		if lights.size() != 2:
+		if lights.size() != int(SERVICE_LIGHT_COUNTS[pad_id]):
 			errors.append("service light budget drift: %s" % pad_id)
 		if not (SERVICE_LOCAL_BOUNDS[pad_id] as AABB).encloses(local_bounds):
 			errors.append("service silhouette left local bounds: %s" % pad_id)
 		if not landing_clear or not approach_clear:
 			errors.append("service silhouette entered landing or approach clearance: %s" % pad_id)
-		var readable := not first_bound and local_bounds.size.x >= 33.0 \
+		var minimum_readable_width := 31.0 if pad_id == &"dock_05_bomber" else 33.0
+		var readable := not first_bound and local_bounds.size.x >= minimum_readable_width \
 			and local_bounds.size.y >= 10.0
 		if pad_id == &"dock_06_interceptor":
 			readable = readable and local_bounds.size.z >= 40.0
@@ -194,6 +317,7 @@ func get_service_presentation_audit() -> Dictionary:
 			"landing_clear": landing_clear,
 			"approach_clear": approach_clear,
 			"readable": readable,
+			"state_feedback": get_pad_presentation_state(pad_id),
 		}.duplicate(true)
 	errors.sort()
 	return {
@@ -347,13 +471,13 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 			_guide_light(service, "CargoApronGuidePort", Vector3(-18.0, 1.2, 12.0), Color("56d8de"))
 			_guide_light(service, "CargoApronGuideStarboard", Vector3(18.0, 1.2, 14.0), Color("56d8de"))
 		&"dock_05_bomber":
+			# The former starboard copy sat beyond the elevated pad edge after the
+			# production transform, hanging over the lower Central walkway. Keep the
+			# supported port marker and the flush blast datum as the bay's clear cue.
 			_visual_box(service, "OrdnanceGantryPort", Vector3(-18.0, 5.0, -5.0), Vector3(2.0, 10.0, 2.0), _service_materials["bomber_frame"])
-			_visual_box(service, "OrdnanceGantryStarboard", Vector3(18.0, 5.0, -5.0), Vector3(2.0, 10.0, 2.0), _service_materials["bomber_frame"])
 			_visual_box(service, "OrdnanceMarkerPort", Vector3(-18.0, 10.5, -5.0), Vector3(3.0, 1.0, 6.0), _service_materials["bomber_marker"])
-			_visual_box(service, "OrdnanceMarkerStarboard", Vector3(18.0, 10.5, -5.0), Vector3(3.0, 1.0, 6.0), _service_materials["bomber_marker"])
 			_visual_box(service, "BlastSafetyDatum", Vector3(0.0, 0.4, -18.0), Vector3(24.0, 0.5, 2.0), _service_materials["bomber_marker"])
 			_guide_light(service, "OrdnanceGuidePort", Vector3(-18.0, 10.5, -1.5), Color("ff9b4a"))
-			_guide_light(service, "OrdnanceGuideStarboard", Vector3(18.0, 10.5, -1.5), Color("ff9b4a"))
 		&"dock_06_interceptor":
 			_visual_box(service, "LaunchRailPort", Vector3(-16.0, 0.5, 5.0), Vector3(1.0, 1.0, 38.0), _service_materials["interceptor_marker"])
 			_visual_box(service, "LaunchRailStarboard", Vector3(16.0, 0.5, 5.0), Vector3(1.0, 1.0, 38.0), _service_materials["interceptor_marker"])
@@ -390,6 +514,7 @@ func _guide_light(
 	light.name = node_name
 	light.position = position_value
 	light.light_color = color
+	light.set_meta(&"authored_role_color", color)
 	light.light_energy = 1.15
 	light.omni_range = 12.0
 	light.shadow_enabled = false

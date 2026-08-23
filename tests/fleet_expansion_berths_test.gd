@@ -8,8 +8,9 @@ const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
 	Vector3(-34.0, 0.0, -18.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
 ]
 const EXPECTED_PAD_SIZE := Vector3(28.0, 0.6, 42.0)
-const EXPECTED_SERVICE_MESHES := [6, 5, 5]
-const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 14
+const EXPECTED_SERVICE_MESHES := [6, 3, 5]
+const EXPECTED_SERVICE_LIGHTS := [2, 1, 2]
+const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
 const EXPECTED_SERVICE_ROLES: Array[StringName] = [
 	&"cargo_crane_and_container_apron",
 	&"ordnance_safe_gantry_markers",
@@ -40,7 +41,24 @@ func _initialize() -> void:
 	root.add_child(craft)
 	await process_frame
 	var attached := berths.attach_craft(&"dock_04_cargo", craft, &"cinder_cargo_hauler")
-	_check(bool(attached.get("accepted", false)) and craft.global_position == attached.get("landing_anchor", Vector3.INF), "Dock 04 accepts a NEW craft at its exact landing anchor")
+	var occupied_state := berths.get_pad_presentation_state(&"dock_04_cargo")
+	_check(
+		bool(attached.get("accepted", false))
+		and craft.global_position == attached.get("landing_anchor", Vector3.INF)
+		and occupied_state.state_id == &"occupied"
+		and float(occupied_state.guide_energy) < 0.4
+		and "OCCUPIED" in String(occupied_state.sign_text),
+		"Dock 04 accepts a NEW craft and its detached lease snapshot resolves the fixed roster to occupied"
+	)
+	root.remove_child(berths)
+	await process_frame
+	root.add_child(berths)
+	await process_frame
+	await process_frame
+	_check(
+		berths.get_pad_presentation_state(&"dock_04_cargo") == occupied_state,
+		"detach/re-entry restores Dock 04 from the same detached occupied lease snapshot"
+	)
 	var duplicate := berths.attach_craft(&"dock_05_bomber", craft, &"cinder_cargo_hauler")
 	_check(not bool(duplicate.get("accepted", true)) and duplicate.get("reason", &"") == &"craft_already_attached", "one craft cannot occupy multiple expansion pads")
 	var foreign := Node3D.new()
@@ -50,7 +68,18 @@ func _initialize() -> void:
 	var foreign_detach := berths.detach_craft(&"dock_04_cargo", foreign)
 	_check(not bool(foreign_detach.get("accepted", true)) and foreign_detach.get("reason", &"") == &"foreign_craft", "foreign detach requests fail closed")
 	var detached := berths.detach_craft(&"dock_04_cargo", craft)
-	_check(bool(detached.get("accepted", false)) and not bool(berths.get_attachment_snapshot(&"dock_04_cargo").get("attached", true)), "the owner detaches and clears a reusable pad")
+	var available_again := berths.get_pad_presentation_state(&"dock_04_cargo")
+	_check(
+		bool(detached.get("accepted", false))
+		and not bool(berths.get_attachment_snapshot(&"dock_04_cargo").get("attached", true))
+		and available_again.state_id == &"approach_available"
+		and float(available_again.guide_energy) > 2.2
+		and "APPROACH CLEAR" in String(available_again.sign_text)
+		and int(available_again.node_delta) == 0
+		and int(available_again.light_delta) == 0
+		and int(available_again.submission_delta) == 0,
+		"the owner detaches and restores the bright approach-clear cue with zero roster growth"
+	)
 	craft.queue_free()
 	foreign.queue_free()
 	berths.queue_free()
@@ -72,26 +101,26 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
 		and int(audit.get("static_bodies", -1)) == 3
 		and int(audit.get("collision_shapes", -1)) == 3
-		and int(audit.get("mesh_instances", -1)) == 19
+		and int(audit.get("mesh_instances", -1)) == 17
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
-		and int(audit.get("guide_lights", -1)) == 6
-		and int(audit.get("descendants", -1)) == 46
+		and int(audit.get("guide_lights", -1)) == 5
+		and int(audit.get("descendants", -1)) == 43
 		and int(budgets.get("static_bodies", -1)) == 3
 		and int(budgets.get("collision_shapes", -1)) == 3
-		and int(budgets.get("mesh_instances", -1)) == 19
+		and int(budgets.get("mesh_instances", -1)) == 17
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
-		and int(budgets.get("guide_lights", -1)) == 6
-		and int(budgets.get("descendants", -1)) == 46,
-		"the three service silhouettes freeze at 19 world renderers, 14 service mesh resources (16 -> 14), 6 guide lights, 46 descendants, and the original 3 pad bodies/shapes"
+		and int(budgets.get("guide_lights", -1)) == 5
+		and int(budgets.get("descendants", -1)) == 43,
+		"the three service silhouettes freeze at 17 world renderers, 12 service mesh resources, 5 guide lights, 43 descendants, and the original 3 pad bodies/shapes"
 	)
 	var expected_bounds: Array[AABB] = [
 		AABB(Vector3(-18.75, 0.0, -13.5), Vector3(40.25, 12.0, 27.0)),
-		AABB(Vector3(-19.5, 0.0, -19.0), Vector3(39.0, 11.0, 17.0)),
+		AABB(Vector3(-19.5, 0.0, -19.0), Vector3(31.5, 11.0, 17.0)),
 		AABB(Vector3(-16.75, 0.0, -16.75), Vector3(33.5, 10.5, 40.75)),
 	]
 	var required_nodes := [
 		["CargoCraneMast", "CargoCraneJib", "CargoContainer01", "CargoContainer02", "CargoContainer03"],
-		["OrdnanceGantryPort", "OrdnanceGantryStarboard", "OrdnanceMarkerPort", "BlastSafetyDatum"],
+		["OrdnanceGantryPort", "OrdnanceMarkerPort", "BlastSafetyDatum"],
 		["LaunchRailPort", "LaunchRailStarboard", "LaunchFramePort", "LaunchFrameHeader"],
 	]
 	var material_signatures := PackedStringArray()
@@ -105,14 +134,19 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		var expected_landing := EXPECTED_PAD_POSITIONS[pad_index] + Vector3(0.0, 4.0, 0.0)
 		var expected_approach := EXPECTED_PAD_POSITIONS[pad_index] + Vector3(0.0, 0.0, 30.0)
 		var sign := pad.get_node_or_null(^"PadSign") as Label3D if pad != null else null
-		var expected_sign := "DOCK %02d  %s" % [pad_index + 4, ["CARGO", "BOMBER", "INTERCEPTOR"][pad_index]]
+		var expected_sign := "DOCK %02d  %s  //  APPROACH CLEAR" % [
+			pad_index + 4, ["CARGO", "BOMBER", "INTERCEPTOR"][pad_index]
+		]
+		var state: Dictionary = berths.call("get_pad_presentation_state", pad_id)
 		_check(
 			pad != null and service != null
 			and pad.position.is_equal_approx(EXPECTED_PAD_POSITIONS[pad_index])
 			and (contract.get("landing_anchor", Vector3.INF) as Vector3).is_equal_approx(expected_landing)
 			and (contract.get("approach_anchor", Vector3.INF) as Vector3).is_equal_approx(expected_approach)
 			and sign != null and sign.text == expected_sign
-			and StringName(service.get_meta(&"service_role", &"")) == EXPECTED_SERVICE_ROLES[pad_index],
+			and StringName(service.get_meta(&"service_role", &"")) == EXPECTED_SERVICE_ROLES[pad_index]
+			and state.state_id == &"approach_available"
+			and StringName((state.lease_snapshot as Dictionary).lease_state_id) == &"available",
 			"%s retains its frozen pad, landing, approach, sign, and distinct service-role identity" % pad_id
 		)
 		var meshes := service.find_children("*", "MeshInstance3D", true, false)
@@ -122,7 +156,7 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 			roster_complete = roster_complete and service.get_node_or_null(NodePath(node_name)) != null
 		_check(
 			meshes.size() == EXPECTED_SERVICE_MESHES[pad_index]
-			and lights.size() == 2 and roster_complete
+			and lights.size() == EXPECTED_SERVICE_LIGHTS[pad_index] and roster_complete
 			and (pad_report.get("local_bounds", AABB()) as AABB).is_equal_approx(expected_bounds[pad_index])
 			and bool(pad_report.get("landing_clear", false))
 			and bool(pad_report.get("approach_clear", false))
@@ -133,9 +167,9 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		for raw_light in lights:
 			var light := raw_light as OmniLight3D
 			lights_safe = lights_safe and not light.shadow_enabled \
-				and is_equal_approx(light.light_energy, 1.15) \
+				and is_equal_approx(light.light_energy, 2.3) \
 				and is_equal_approx(light.omni_range, 12.0)
-		_check(lights_safe, "%s uses exactly two bounded shadowless service guides" % pad_id)
+		_check(lights_safe, "%s uses its exact bounded shadowless service-guide roster" % pad_id)
 		var first_material := (meshes[0] as MeshInstance3D).material_override as StandardMaterial3D
 		material_signatures.append(first_material.albedo_color.to_html(false))
 		var body := pad.get_node_or_null(^"WalkablePadCollision") as StaticBody3D
@@ -153,6 +187,16 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		and material_signatures[1] != material_signatures[2]
 		and material_signatures[0] != material_signatures[2],
 		"cargo ochre, bomber charcoal, and interceptor teal remain visually distinct material families"
+	)
+	var bomber_service := berths.get_node_or_null(
+		^"dock_05_bomber/ServicePresentation"
+	) as Node3D
+	_check(
+		bomber_service != null
+		and bomber_service.get_node_or_null(^"OrdnanceGantryStarboard") == null
+		and bomber_service.get_node_or_null(^"OrdnanceMarkerStarboard") == null
+		and bomber_service.get_node_or_null(^"OrdnanceGuideStarboard") == null,
+		"Dock 05 omits the outer starboard ordnance assembly over the central walkway"
 	)
 	_check(
 		not bool(presentation.get("ship_authority", true))
