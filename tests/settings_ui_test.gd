@@ -94,6 +94,7 @@ func _run() -> void:
 	_check((controls[&"control_preset"] as OptionButton).selected == 1, "control-hint descriptor snapshot reaches its selector")
 	_check(is_equal_approx((controls[&"music_volume"] as HSlider).value, 0.35), "Music snapshot reaches its dedicated slider")
 	_check(is_equal_approx((controls[&"ui_scale"] as HSlider).value, 1.25), "UI scale snapshot reaches its slider")
+	_check(is_equal_approx(hud.get_ui_scale(), 1.25), "UI scale snapshot applies the accessibility preview immediately")
 	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
 	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
 	_check((controls[&"captions_enabled"] as CheckButton).button_pressed, "caption snapshot reaches its toggle")
@@ -155,6 +156,9 @@ func _run() -> void:
 		and is_equal_approx(float(_change_events[4].value), 0.3),
 		"a player Music edit emits its typed live volume request"
 	)
+	var ui_scale := controls[&"ui_scale"] as HSlider
+	ui_scale.value = 1.4
+	_check(is_equal_approx(hud.get_ui_scale(), 1.4), "a live text-scale edit applies immediately to the HUD preview")
 
 	hud.set("_started", true)
 	var help_panel := hud.get("_help_panel") as Control

@@ -1251,6 +1251,8 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 		if control is Range:
 			(control as Range).value = float(value)
 			_update_setting_value_label(key, float(value))
+			if key == &"ui_scale":
+				set_ui_scale(float(value))
 		elif control is CheckButton:
 			(control as CheckButton).button_pressed = bool(value)
 		elif control is OptionButton:
@@ -2989,6 +2991,11 @@ func _on_controller_glyph_family_selected(index: int) -> void:
 func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 	if value is float:
 		_update_setting_value_label(key, float(value))
+		if key == &"ui_scale":
+			# Apply the preview locally before the settings owner persists it. This
+			# keeps an in-progress accessibility adjustment visible even when the
+			# HUD is detached or the owner responds on a later frame.
+			set_ui_scale(float(value))
 	if not _updating_settings:
 		setting_change_requested.emit(key, value)
 
