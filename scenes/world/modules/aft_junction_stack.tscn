@@ -35,7 +35,7 @@ position = Vector3(-5.2, 4.35, 16.2)
 
 [node name="VIPAccessAnchor" type="Marker3D" parent="."]
 unique_name_in_owner = true
-position = Vector3(-5.15, 4.35, 18.9)
+position = Vector3(-5.15, 4.35, 20.9)
 
 [node name="OperationsEntrance" parent="." instance=ExtResource("2_door")]
 unique_name_in_owner = true
@@ -48,7 +48,7 @@ content_note = "Cyan operated access is source-bounded; this door's exact form, 
 
 [node name="VIPAccess" parent="." instance=ExtResource("2_door")]
 unique_name_in_owner = true
-position = Vector3(-5.15, 4.2, 20.08)
+position = Vector3(-5.15, 4.2, 22.08)
 motion_duration = 0.65
 interaction_label = "VIP RECEPTION"
 locked_prompt = "CLEARANCE REQUIRED"

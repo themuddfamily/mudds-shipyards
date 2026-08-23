@@ -136,4 +136,4 @@ cue_half_width = 11.6
 cue_half_length = 16.5
 
 [node name="VipReceptionSuite" parent="." instance=ExtResource("9_vip_reception")]
-position = Vector3(-5.15, 4.2, 68.6)
+position = Vector3(-5.15, 4.2, 70.6)

@@ -72,11 +72,11 @@ const PIPE_COLLAR_RING_SEGMENTS := 16
 const PIPE_COLLAR_BUDGETED_RINGS := 32
 const PIPE_COLLAR_BUDGETED_RING_SEGMENTS := 12
 const PIPE_COLLAR_COPY_COUNT := 6
-const RENDER_DESCENDANT_COUNT := 1907
-const RENDER_MESH_INSTANCE_COUNT := 1257
+const RENDER_DESCENDANT_COUNT := 1884
+const RENDER_MESH_INSTANCE_COUNT := 1245
 const RENDER_MULTIMESH_BATCH_COUNT := 14
-const RENDER_DRAWN_COPY_COUNT := 1400
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1271
+const RENDER_DRAWN_COPY_COUNT := 1377
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1259
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 348
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 31
 
@@ -592,12 +592,12 @@ func get_performance_contract() -> Dictionary:
 	# its size: a link passage and an 8.6 x 12 m floor, four walled runs with their
 	# glazing, eight glazed cupola facets that are a pressure barrier like every
 	# other pane in this module, a nutrient column, an eight-segment planting kerb,
-	# six grow racks with two uprights and three trays each, three benches, a
+	# five grow racks with two uprights and three trays each, three benches, a
 	# potting bench and three nutrient tanks. Everything a player can walk into in
 	# that room is solid, which is the whole reason the number moved.
 	#
 	# Collision closure re-measured the built counts while retaining the 260/270
-	# ceilings: static bodies 247 -> 250 and shapes 253 -> 263. The oculus and soil
+	# ceilings: the clear entry leaves 245 static bodies and 258 shapes. The oculus and soil
 	# each add one matching body/shape; the eight batched cap visuals add one sibling
 	# body with eight exact shapes. Meshes remain 1,284 and lights remain 35.
 	#
@@ -606,8 +606,8 @@ func get_performance_contract() -> Dictionary:
 	#   all descendant nodes       1930 -> 1922 (-8)
 	#   MeshInstance3D nodes       1284 -> 1275 (-9)
 	#   MultiMeshInstance3D nodes    10 ->   11 (+1)
-	#   static bodies               250 ->  250 (unchanged)
-	#   collision shapes            263 ->  263 (unchanged)
+	#   static bodies               245 ->  245 (unchanged)
+	#   collision shapes            258 ->  258 (unchanged)
 	#
 	# The authored louvre roster, material, box extent and all nine transforms are
 	# unchanged. Nine individual renderer nodes become one existing-path batch;
@@ -668,9 +668,8 @@ func get_performance_contract() -> Dictionary:
 		#
 		# 21 -> 28 -> 35. The first delta is +7 for the rooms, the second +7 for the
 		# side branch garden: 1 cupola lantern on the drum axis, 3 magenta grow
-		# lamps between the six racks (not six — adjacent racks are 3.05 m apart on a
-		# 3.05 m radius and one lamp between two of them lights both, which is the
-		# call `aft_junction_stack` already made for its eight-tile arc), 1 spill off
+		# lamps around the five racks; the entry-side rack position is deliberately
+		# open, and the remaining lamps maintain the room's perimeter read; 1 spill off
 		# the nutrient column's own glow tube, 1 potting-bench task light, and 1 cove
 		# in the link passage.
 		#
@@ -1975,7 +1974,7 @@ func _register_service(node: Node3D, service_class: StringName) -> void:
 ## provenance would not be.
 ##
 ## What it is. A hydroponic garden under a glazed cupola: a nutrient column on
-## the axis, a raised planting bed around its foot, six grow racks in a ring
+## the axis, a raised planting bed around its foot, five grow racks around it
 ## under magenta lamps, a potting bench, a nutrient tank cluster, and a bench ring
 ## under the perimeter glazing. Greenery is the strongest single statement a
 ## station interior can make that people live in it, and this module is the one
@@ -2292,18 +2291,17 @@ func _build_garden_column(branch: Node3D) -> void:
 		)
 
 
-## Six hydroponic grow racks in a ring, facing the column.
+## Five hydroponic grow racks around the column, leaving the entry clear.
 ##
-## Three practicals for six racks, not six. Adjacent racks stand 3.05 m apart on
-## a 3.05 m radius, so a lamp between two of them lights both; six would have been
-## three redundant copies of the same pool, which is the call `aft_junction_stack`
-## already made for its eight-tile arc.
+## Three practicals cover the five racks. The entrance-side position is
+## intentionally empty: the old 270-degree rack stood in the doorway's walking
+## line, so it is omitted rather than merely having its collision disabled.
 func _build_garden_racks(branch: Node3D) -> void:
 	var racks := Node3D.new()
 	racks.name = "GardenGrowRacks"
 	branch.add_child(racks)
 
-	# 54 canopies and 12 grow strips are the single largest block of repeated
+	# 45 canopies and 10 grow strips are the single largest block of repeated
 	# visual-only stock in the module, so they are batched rather than authored one
 	# node at a time. Transforms are composed with each rack's own transform because
 	# the batch lives on the ring parent, not inside a rack.
@@ -2311,6 +2309,10 @@ func _build_garden_racks(branch: Node3D) -> void:
 	var canopy_deep_transforms: Array[Transform3D] = []
 	var grow_strip_transforms: Array[Transform3D] = []
 	for rack_index in 6:
+		# Index four is GrowRack05 at x = 11.35, z = 20.2: directly beyond
+		# the branch-link opening at x = 10.31, z = 20.2.
+		if rack_index == 4:
+			continue
 		var rack_angle := float(rack_index) * 60.0 + 30.0
 		var rack_radians := deg_to_rad(rack_angle)
 		var rack := Node3D.new()
@@ -3166,8 +3168,8 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 ##
 ## Added under whole-scene budget pressure: the live scene census is at its mesh
 ## instance ceiling, and this module's living quarters and garden bay are full of
-## items that are literally the same box drawn many times — 54 canopies on six
-## grow racks, 12 grow strips, 11 planting clumps, 10 fronds, 16 cupola facets
+## items that are literally the same box drawn many times — 45 canopies on five
+## grow racks, 10 grow strips, 11 planting clumps, 10 fronds, 16 cupola facets
 ## and caps, 5 notice cards, 4 hand tools, 4 spare trays. Batching those into
 ## `MultiMeshInstance3D` is pixel-identical and takes 106 mesh instances out.
 ##

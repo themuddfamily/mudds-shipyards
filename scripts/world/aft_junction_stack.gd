@@ -154,16 +154,16 @@ const ROOF_VENT_COLLAR_COPY_COUNT := 2
 const ROOF_VENT_COLLAR_POSITIONS := [Vector3(3.05, 5.31, 13.0), Vector3(8.1, 5.31, 13.0)]
 const ROOF_VENT_COLLAR_FAMILY_META: StringName = &"aft_roof_vent_collar_family"
 const ROOF_VENT_COLLAR_FAMILY_ID: StringName = &"roof_vent_collars"
-const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1162
-const RENDER_DESCENDANT_NODE_COUNT := 1159
-const BASELINE_RENDERER_NODE_COUNT := 852
-const RENDERER_NODE_COUNT := 849
-const BASELINE_DRAWN_COPY_COUNT := 852
-const DRAWN_COPY_COUNT := 852
-const BASELINE_SURFACE_SUBMISSION_COUNT := 852
-const SURFACE_SUBMISSION_COUNT := 849
-const BASELINE_MESH_RESOURCE_COUNT := 318
-const MESH_RESOURCE_COUNT := 294
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
+const RENDER_DESCENDANT_NODE_COUNT := 1169
+const BASELINE_RENDERER_NODE_COUNT := 855
+const RENDERER_NODE_COUNT := 853
+const BASELINE_DRAWN_COPY_COUNT := 855
+const DRAWN_COPY_COUNT := 856
+const BASELINE_SURFACE_SUBMISSION_COUNT := 855
+const SURFACE_SUBMISSION_COUNT := 853
+const BASELINE_MESH_RESOURCE_COUNT := 319
+const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -550,7 +550,7 @@ func get_performance_contract() -> Dictionary:
 		# Mesh ceiling re-frozen in the open, 170 -> 600 -> 848, and it is now the
 		# exact built count rather than the previous ~13% of headroom, for the same
 		# reason the light ceiling already was: a ceiling with slack in it lets the
-		# next content pass land without declaring itself. 600 -> 852 is the content
+		# next content pass land without declaring itself. 600 -> 853 is the content
 		# pass and every one of the 320 is in this file. Measured per assembly
 		# against the live tree:
 		#
@@ -583,7 +583,7 @@ func get_performance_contract() -> Dictionary:
 		# llvmpipe. What is measured is that every one of these is a chamfered kit
 		# primitive sharing this module's two mesh caches, so the added *unique*
 		# mesh resources are far fewer than the added instances.
-		"mesh_instances": 852,
+        "mesh_instances": 853,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -855,10 +855,10 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": 3,
-			"renderer_nodes": 3,
-			"drawn_copies": 0,
-			"surface_submissions": 3,
+			"descendant_nodes": 2,
+			"renderer_nodes": 2,
+			"drawn_copies": -1,
+			"surface_submissions": 2,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		},
@@ -2391,8 +2391,21 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 		Vector3(landing_west + 0.06, 0.0, 2.85),
 		"StairBaseWestRail"
 	)
-	_add_rail(lower, Vector3(3.35, 0.0, 0.25), Vector3(3.35, 0.0, 3.3), "ApproachStarboardRail")
+	# Continue the starboard guard to the junction corner. The former run ended
+	# at z = 3.3 while the ConnectionDeck continues to z = 5.0, leaving its last
+	# exposed stretch beside OPERATIONS ACCESS unprotected. It still stops short
+	# of the widening JunctionDeck, so the operations approach remains open.
+	_add_rail(lower, Vector3(3.35, 0.0, 0.25), Vector3(3.35, 0.0, 4.95), "ApproachStarboardRail")
 	_add_rail(lower, Vector3(5.35, 0.0, 5.15), Vector3(5.35, 0.0, 8.8), "JunctionEastRail")
+	# The two outer guard runs meet at a stepped deck corner beside Operations
+	# Access. Bridge their endpoints: the diagonal is entirely outside the
+	# walkable floor, so it closes the fall hazard without closing a route.
+	_add_rail(
+		lower,
+		Vector3(3.35, 0.0, 4.95),
+		Vector3(5.35, 0.0, 5.15),
+		"JunctionCornerRail"
+	)
 
 	# A separate, non-colliding service envelope breaks up the slab while leaving
 	# the tested floor plane and open circulation samples completely unchanged.
@@ -2570,10 +2583,14 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	var upper := Node3D.new()
 	upper.name = "UpperOpenDeck"
 	structure.add_child(upper)
-	_box(upper, "UpperFloor", Vector3(-5.15, 3.88, 16.55), Vector3(10.3, 0.64, 8.1), _materials["off_white_floor"])
+	# Carry the public upper-deck route past the relocated VIP facade. Keeping this
+	# as a full-width deck, rather than a narrow threshold slab, leaves the route
+	# visibly open beside the reception entrance.
+	_box(upper, "UpperFloor", Vector3(-5.15, 3.88, 17.55), Vector3(10.3, 0.64, 10.1), _materials["off_white_floor"])
 	_box(upper, "UpperFloorInset", Vector3(-5.15, 4.225, 16.4), Vector3(7.7, 0.05, 5.8), _materials["warm_grey_floor"], false)
-	_box(upper, "UpperRouteStripe", Vector3(-5.15, 4.26, 16.2), Vector3(0.16, 0.05, 6.5), _materials["red"], false)
-	_add_rail(upper, Vector3(-10.1, 4.2, 12.7), Vector3(-10.1, 4.2, 20.25), "UpperWestRail")
+	_box(upper, "VIPAccessApronInset", Vector3(-5.15, 4.225, 20.95), Vector3(7.7, 0.05, 3.3), _materials["warm_grey_floor"], false)
+	_box(upper, "UpperRouteStripe", Vector3(-5.15, 4.26, 17.2), Vector3(0.16, 0.05, 8.5), _materials["red"], false)
+	_add_rail(upper, Vector3(-10.1, 4.2, 12.7), Vector3(-10.1, 4.2, 22.25), "UpperWestRail")
 	_add_rail(upper, Vector3(-9.8, 4.2, 12.55), Vector3(-7.45, 4.2, 12.55), "UpperSouthRail")
 	_add_rail(upper, Vector3(-3.9, 4.2, 12.55), Vector3(-0.25, 4.2, 12.55), "UpperSouthReturnRail")
 	for z_position in [13.25, 16.5, 19.75]:
@@ -3956,6 +3973,9 @@ func _build_service_wall(room: Node3D) -> void:
 func _build_vip_landmark(structure: Node3D) -> void:
 	var vip := Node3D.new()
 	vip.name = "VIPLandmark"
+	# The VIP frontage sits beyond the widened upper deck, freeing the route that
+	# previously terminated against the reception facade.
+	vip.position.z = 2.0
 	structure.add_child(vip)
 	# The facade is split around the real door so its red panel remains visible.
 	#

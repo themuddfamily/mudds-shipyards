@@ -398,16 +398,17 @@ func _test_garden_pressure_shell(module: HabitatSpine) -> void:
 	_check(every_kerb_tangent, "all eight planting-bed kerbs form a tangent ring without diagonal gaps")
 
 	var every_rack_faces_inward := true
-	for rack_index in 6:
+	for rack_number in [1, 2, 3, 4, 6]:
 		var rack := module.get_node_or_null(
-			NodePath("Structure/SideBranchGarden/GardenGrowRacks/GrowRack%02d" % (rack_index + 1))
+			NodePath("Structure/SideBranchGarden/GardenGrowRacks/GrowRack%02d" % rack_number)
 		) as Node3D
 		if rack == null:
 			every_rack_faces_inward = false
 			continue
 		var outward := Vector3(rack.position.x - 14.4, 0.0, rack.position.z - 20.2).normalized()
 		every_rack_faces_inward = every_rack_faces_inward and rack.basis.x.normalized().dot(outward) >= 0.999
-	_check(every_rack_faces_inward, "all six rack label faces point inward toward the nutrient column")
+	_check(module.get_node_or_null(^"Structure/SideBranchGarden/GardenGrowRacks/GrowRack05") == null, "entry-side grow rack is absent so it cannot obstruct the garden threshold")
+	_check(every_rack_faces_inward, "all five remaining rack label faces point inward toward the nutrient column")
 
 	var soil := module.get_node_or_null(
 		^"Structure/SideBranchGarden/GardenColumn/BedSoil"
@@ -441,17 +442,17 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_garden_column_collar_mesh_sharing(module)
 	_test_pipe_collar_mesh_sharing(module)
 	_check(
-		module.find_children("*", "Node", true, false).size() == 1907
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1257
+		module.find_children("*", "Node", true, false).size() == 1884
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1245
 		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 14,
-		"visual batching re-freezes the Habitat census at 1907 nodes, 1257 meshes and 14 MultiMeshes"
+		"visual batching re-freezes the Habitat census at 1884 nodes, 1245 meshes and 14 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
-		int(performance.static_bodies) == 250
-		and int(performance.collision_shapes) == 263
+		int(performance.static_bodies) == 245
+		and int(performance.collision_shapes) == 258
 		and bool(performance.within_budget),
-		"visual-only batching preserves the exact 250-body/263-shape collision census and performance contract"
+		"visual-only batching preserves the exact 245-body/258-shape collision census and performance contract"
 	)
 
 	var pressure_ribs := module.find_children("*", "Node3D", true, false).filter(
@@ -608,16 +609,16 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1907
-		and int(report.mesh_instances) == 1257
+		int(report.descendant_nodes) == 1884
+		and int(report.mesh_instances) == 1245
 		and int(report.multimesh_batches) == 14,
-		"renderer nodes freeze at 1922 -> 1907, MeshInstances 1275 -> 1257, batches 11 -> 14"
+		"renderer nodes freeze at 1922 -> 1884, MeshInstances 1275 -> 1245, batches 11 -> 14"
 	)
 	_check(
-		int(report.drawn_copies) == 1400
-		and int(report.geometry_submissions) == 1271
+		int(report.drawn_copies) == 1377
+		and int(report.geometry_submissions) == 1259
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies remain 1400 while surface submissions fall 1286 -> 1271"
+		"drawn copies freeze at 1377 while surface submissions fall 1286 -> 1259"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 348

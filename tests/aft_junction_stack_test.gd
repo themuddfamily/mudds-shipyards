@@ -177,6 +177,37 @@ func _test_collision_backed_surfaces(module: AftJunctionStack) -> void:
 	if not upper_hit.is_empty():
 		_check(absf(module.to_local(upper_hit.position).y - 4.2) < 0.02, "upper collision surface matches its declared elevation")
 
+	var operations_access_rail := module.get_node_or_null(
+		^"Structure/LowerOpenDeck/ApproachStarboardRail"
+	) as StaticBody3D
+	var operations_access_rail_shapes := (
+		operations_access_rail.find_children("*", "CollisionShape3D", true, false)
+		if operations_access_rail != null
+		else []
+	)
+	var operations_access_rail_shape := (
+		operations_access_rail_shapes[0] as CollisionShape3D
+		if operations_access_rail_shapes.size() == 1
+		else null
+	)
+	_check(
+		operations_access_rail != null
+		and operations_access_rail_shape != null
+		and is_equal_approx(operations_access_rail.position.z, 2.6)
+		and operations_access_rail_shape.shape is CylinderShape3D
+		and is_equal_approx((operations_access_rail_shape.shape as CylinderShape3D).height, 4.7),
+		"starboard approach edge beside operations access has a continuous physical guard rail"
+	)
+	var corner_rail := module.get_node_or_null(
+		^"Structure/LowerOpenDeck/JunctionCornerRail"
+	) as StaticBody3D
+	_check(
+		corner_rail != null
+		and corner_rail.collision_layer == WORLD_LAYER
+		and corner_rail.collision_mask == 0,
+		"Operations Access corner gap is closed by a physical guard rail"
+	)
+
 
 func _test_stair_circulation(module: AftJunctionStack) -> void:
 	var profile := module.get_stair_profile()
@@ -282,11 +313,11 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
 		and report.legacy == {
-			"descendant_nodes": 1162,
-			"renderer_nodes": 852,
-			"drawn_copies": 852,
-			"surface_submissions": 852,
-			"mesh_resource_allocations": 318,
+			"descendant_nodes": 1171,
+			"renderer_nodes": 855,
+			"drawn_copies": 855,
+			"surface_submissions": 855,
+			"mesh_resource_allocations": 319,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
@@ -294,25 +325,25 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1159,
-			"renderer_nodes": 849,
-			"drawn_copies": 852,
-			"surface_submissions": 849,
-			"mesh_resource_allocations": 294,
+			"descendant_nodes": 1169,
+			"renderer_nodes": 853,
+			"drawn_copies": 856,
+			"surface_submissions": 853,
+			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"pod, spine, roof-vent, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1159 descendants, 849 renderers/submissions, 852 copies, and 294 mesh allocations"
+		"pod, spine, roof-vent, rack, console, chair-bearing and conduit sharing plus the VIP trim batch freeze 1169 descendants, 853 renderers/submissions, 856 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": 3,
-			"renderer_nodes": 3,
-			"drawn_copies": 0,
-			"surface_submissions": 3,
+			"descendant_nodes": 2,
+			"renderer_nodes": 2,
+			"drawn_copies": -1,
+			"surface_submissions": 2,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
 		}
@@ -385,7 +416,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 294
+		int(detached.current.mesh_resource_allocations) == 296
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -427,7 +458,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 295
+		and int(identity_red.current.mesh_resource_allocations) == 297
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -1559,8 +1590,8 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.lease_authority_count) == 0
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
-		and int(collision.body_count) == 103
-		and int(collision.shape_count) == 109
+		and int(collision.body_count) == 106
+		and int(collision.shape_count) == 112
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null
@@ -1570,7 +1601,7 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and vip.find_children(
 			"VIPFacadeColumnCrown", "MeshInstance3D", false, false
 		).is_empty(),
-		"batch adds zero collision, interaction, evidence or lifecycle authority and preserves both doors plus 103 bodies and 109 shapes"
+		"batch adds zero collision, interaction, evidence or lifecycle authority and preserves both doors plus 106 bodies and 112 shapes"
 	)
 
 	(report.current as Dictionary)["renderer_nodes"] = -1

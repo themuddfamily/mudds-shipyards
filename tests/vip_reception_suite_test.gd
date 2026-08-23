@@ -70,6 +70,7 @@ func _run() -> void:
 	_test_colliders_have_drawn_geometry(suite)
 	_test_well_is_enterable_without_a_jump(suite)
 	_test_does_not_penetrate_the_aft_module(world, suite)
+	_test_relocated_entrance_uses_the_extended_upper_deck(world, suite)
 	await _test_landmark_opens_onto_the_room(world, suite)
 	await _test_lifecycle(suite)
 
@@ -572,6 +573,32 @@ func _test_does_not_penetrate_the_aft_module(world: ShipyardWorld, suite: VipRec
 				offenders.append("%s <-> AftJunctionStack/%s" % [body.name, neighbour_body.name])
 	print("VIP_SUITE_NEIGHBOUR_PENETRATION: ", offenders)
 	_check(offenders.is_empty(), "the suite's solid shell does not penetrate the module it hangs off")
+
+
+## The reception is deliberately set back from the upper deck to restore the
+## route around the landmark. The widened public deck must meet the relocated
+## threshold directly: a narrow add-on here reads as furniture, not circulation.
+func _test_relocated_entrance_uses_the_extended_upper_deck(world: ShipyardWorld, suite: VipReceptionSuite) -> void:
+	var upper_floor := world.get_node_or_null(
+		^"AftJunctionStack/Structure/UpperOpenDeck/UpperFloor"
+	) as StaticBody3D
+	var threshold_floor := suite.get_node_or_null(^"Structure/Threshold/ThresholdFloor") as StaticBody3D
+	_check(
+		upper_floor != null and threshold_floor != null,
+		"the set-back VIP entrance retains its widened deck and threshold floors"
+	)
+	if upper_floor == null or threshold_floor == null:
+		return
+	var deck_bounds := _body_world_box(upper_floor)
+	var threshold_bounds := _body_world_box(threshold_floor)
+	_check(
+		is_equal_approx(deck_bounds.end.z, threshold_bounds.position.z),
+		"the widened upper deck reaches the relocated reception threshold without a gap"
+	)
+	_check(
+		is_equal_approx(deck_bounds.end.y, threshold_bounds.end.y),
+		"the widened deck preserves its walkable elevation into VIP reception"
+	)
 
 
 func _test_landmark_opens_onto_the_room(world: ShipyardWorld, suite: VipReceptionSuite) -> void:

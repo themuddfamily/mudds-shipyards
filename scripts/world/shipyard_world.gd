@@ -5056,6 +5056,22 @@ func _build_architecture() -> void:
 		_box(shell, "AftConnectorRail", Vector3(side * 3.35, 1.15, 43.5), Vector3(0.18, 0.18, 9.0), _materials["ivory"])
 		for z_position in [40.0, 44.0, 47.5]:
 			_box(shell, "AftConnectorRailPost", Vector3(side * 3.35, 0.55, z_position), Vector3(0.18, 1.3, 0.18), _materials["orange"])
+		# The spine is 8 m wide while the module connector is 7 m wide.  Their
+		# floor slabs meet at z=39, but the former independently-ended rails made
+		# that safe, continuous handoff read as two disconnected walkways.  These
+		# two short mitres visibly and physically carry each outer guard into the
+		# narrowed connector without reducing the player-clear route.
+		_beam_between(
+			shell,
+			"AftConnectorTransitionRail",
+			Vector3(side * 4.0, 1.15, 39.5),
+			Vector3(side * 3.35, 1.15, 39.0),
+			0.09,
+			_materials["ivory"],
+			true
+		)
+		for join_position in [Vector3(side * 4.0, 0.55, 39.5), Vector3(side * 3.35, 0.55, 39.0)]:
+			_cylinder(shell, "AftConnectorTransitionPost", join_position, 0.09, 1.3, _materials["orange"], true)
 
 	# Freestanding rounded mast pairs establish several readable heights without
 	# becoming a roof cage.
@@ -6405,6 +6421,69 @@ func _build_catwalks_and_control_room() -> void:
 		0.48,
 		_materials["cyan_glow"]
 	)
+	_build_dock_operations_room(upper)
+
+
+## The glass-fronted Dock Operations pod is a modern, non-authoritative traffic
+## workspace.  It deliberately stays separate from the Aft Operations module:
+## this is a readable destination and staging space, not another route, berth,
+## or activity owner.  The outer 0.9 m of the east side remains clear because
+## the production walk to Fabrication Annex passes through that aisle.
+func _build_dock_operations_room(upper: Node3D) -> void:
+	var room := Node3D.new()
+	room.name = "DockOperationsRoom"
+	room.set_meta("presentation_only", true)
+	room.set_meta("historical_form_identified", false)
+	upper.add_child(room)
+
+	# A shallow inset breaks up the otherwise empty deck without adding a raised
+	# edge to the approach path.
+	_box(room, "OperationsDeckInset", Vector3(42.35, 0.391, 27.55), Vector3(8.3, 0.022, 5.0), _materials["deck"], false)
+
+	# The back-wall board supplies the room's at-a-glance purpose from the open
+	# frontage.  It is seated against the structural back wall, not suspended in
+	# the glazed volume.
+	_box(room, "DockStatusBoard", Vector3(42.4, 3.35, 30.52), Vector3(7.4, 2.45, 0.12), _materials["navy"], false)
+	_box(room, "DockStatusField", Vector3(42.4, 3.35, 30.44), Vector3(6.85, 1.78, 0.035), _materials["cyan_glow"], false)
+	_text_sign(room, "TRAFFIC BOARD", Vector3(42.4, 4.18, 30.405), Vector3(0.0, 180.0, 0.0), 0.20, _materials["black"])
+	_text_sign(room, "DOCK 01  CLEAR", Vector3(42.4, 3.62, 30.40), Vector3(0.0, 180.0, 0.0), 0.16, _materials["black"])
+	_text_sign(room, "DOCK 02  TRANSFER", Vector3(42.4, 3.24, 30.40), Vector3(0.0, 180.0, 0.0), 0.14, _materials["black"])
+	_text_sign(room, "DOCK 03  STANDBY", Vector3(42.4, 2.88, 30.40), Vector3(0.0, 180.0, 0.0), 0.14, _materials["black"])
+
+	# A compact dispatch island faces the glazed front, with three independently
+	# legible posts. The east aisle beyond x=47.0 is intentionally left open for
+	# the Annex route and for a clear view through the right-hand window bay.
+	for station_index in 3:
+		var station_x := 39.15 + float(station_index) * 2.25
+		_box(room, "DispatchConsole%02d" % (station_index + 1), Vector3(station_x, 1.02, 28.72), Vector3(1.82, 1.22, 0.88), _materials["navy"])
+		_box(room, "DispatchScreen%02d" % (station_index + 1), Vector3(station_x, 1.48, 28.25), Vector3(1.48, 0.56, 0.045), _materials["cyan_glow"], false, Vector3(-20.0, 0.0, 0.0))
+		_box(room, "DispatchKeyline%02d" % (station_index + 1), Vector3(station_x, 1.67, 28.79), Vector3(1.26, 0.035, 0.31), _materials["steel_blue"], false, Vector3(-20.0, 0.0, 0.0))
+		_text_sign(room, "BAY %02d" % (station_index + 1), Vector3(station_x, 1.49, 28.215), Vector3(-20.0, 180.0, 0.0), 0.12, _materials["black"])
+		# Stools stay on the rear side of their consoles, so none intrude on the
+		# player-facing approach lane.
+		_cylinder(room, "DispatchStool%02d" % (station_index + 1), Vector3(station_x, 0.73, 29.52), 0.32, 0.62, _materials["steel_blue"], true)
+		_box(room, "DispatchSeat%02d" % (station_index + 1), Vector3(station_x, 1.06, 29.52), Vector3(0.76, 0.16, 0.70), _materials["ivory"])
+
+	# A shared plotting surface adds a foreground read from outside without
+	# sealing the pod's centre. It is low enough to read as equipment rather than
+	# a second wall between the player and the room.
+	_box(room, "DockPlotTable", Vector3(42.45, 0.78, 26.38), Vector3(2.55, 0.76, 1.35), _materials["steel_blue"])
+	_box(room, "DockPlotDisplay", Vector3(42.45, 1.175, 26.38), Vector3(2.12, 0.035, 0.96), _materials["cyan_glow"], false)
+	_torus(room, "DockPlotLocatorRing", Vector3(42.45, 1.21, 26.38), 0.25, 0.42, _materials["orange_glow"])
+
+	# Small equipment lockers give the blank west wall a working-scale anchor;
+	# they are fully inside the deck and clear of both the frontage and annex
+	# handoff.
+	for locker_index in 2:
+		var locker_z := 25.15 + float(locker_index) * 2.08
+		_box(room, "DockEquipmentLocker%02d" % (locker_index + 1), Vector3(37.72, 1.40, locker_z), Vector3(0.62, 2.38, 1.54), _materials["deck_light"])
+		_box(room, "DockLockerStripe%02d" % (locker_index + 1), Vector3(37.385, 1.40, locker_z), Vector3(0.025, 1.55, 0.92), _materials["orange"], false)
+
+	# Narrow ceiling ribs make the interior read as an occupied room from the
+	# exterior, while leaving lighting ownership with the world's frozen practical
+	# allocation.
+	for x_position in [39.2, 43.0, 46.8]:
+		_box(room, "OperationsCeilingRib", Vector3(x_position, 5.59, 27.0), Vector3(0.16, 0.08, 6.9), _materials["steel_blue"], false)
 
 
 ## Why anyone climbs the ramp.
