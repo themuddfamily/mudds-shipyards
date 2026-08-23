@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/ships/arrow_recon_ship.gd" id="1_arrow"]
 [ext_resource type="Resource" path="res://assets/ships/arrow_provisional.tres" id="2_definition"]
 [ext_resource type="PackedScene" path="res://scenes/effects/hero_damage_presentation.tscn" id="3_damage"]
 [ext_resource type="PackedScene" path="res://scenes/interaction/ship_boarding_area.tscn" id="4_boarding"]
 [ext_resource type="PackedScene" path="res://scenes/audio/ship_audio_rig.tscn" id="5_ship_audio"]
+[ext_resource type="Script" path="res://scripts/audio/ship_perspective_audio_scene_adapter.gd" id="6_perspective_audio"]
 
 [node name="ArrowReconShip" type="CharacterBody3D"]
 collision_layer = 4
@@ -34,3 +35,6 @@ position = Vector3(-2.45, 0.48, 0.15)
 prompt_text = "[ E ]  BOARD ARROW RECON SHIP"
 
 [node name="ShipAudioRig" parent="." instance=ExtResource("5_ship_audio")]
+
+[node name="ShipPerspectiveAudioAdapter" type="Node" parent="."]
+script = ExtResource("6_perspective_audio")
