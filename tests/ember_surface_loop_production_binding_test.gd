@@ -497,6 +497,43 @@ func _test_real_scheduler_complete_loop() -> void:
 			and area.get_reservation_token() == player,
 		"real exact Host receipt restores command while retaining the seated Player token",
 	)
+	var forged_planetary_return := production.consume_planetary_orbit_return({
+		"reason": &"runtime_ownership_returned",
+		"host_id": &"ember_surface_loop",
+		"host_attached": false,
+	})
+	var stale_planetary_receipt := receipt.duplicate(true)
+	stale_planetary_receipt.current_attachment_generation = (
+		int(stale_planetary_receipt.current_attachment_generation) - 1
+	)
+	var stale_planetary_return := production.consume_planetary_orbit_return(
+		stale_planetary_receipt
+	)
+	var forged_actor_receipt := receipt.duplicate(true)
+	forged_actor_receipt.player_instance_id = int(receipt.player_instance_id) + 1
+	var forged_actor_return := production.consume_planetary_orbit_return(
+		forged_actor_receipt
+	)
+	var forged_capability_receipt := receipt.duplicate(true)
+	forged_capability_receipt.restored_command_source_instance_id = 0
+	var forged_capability_return := production.consume_planetary_orbit_return(
+		forged_capability_receipt
+	)
+	var forged_ownership_receipt := receipt.duplicate(true)
+	forged_ownership_receipt.boarding_reservation_retained = false
+	var forged_ownership_return := production.consume_planetary_orbit_return(
+		forged_ownership_receipt
+	)
+	_check(
+		forged_planetary_return.reason == &"planetary_orbit_return_handback_mismatch"
+			and stale_planetary_return.reason == &"planetary_orbit_return_handback_mismatch"
+			and forged_actor_return.reason == &"planetary_orbit_return_handback_mismatch"
+			and forged_capability_return.reason == &"planetary_orbit_return_handback_mismatch"
+			and forged_ownership_return.reason == &"planetary_orbit_return_handback_mismatch"
+			and production.get_planetary_surface_snapshot().state == &"bound"
+			and production.get_planetary_relay_survey_return_snapshot().state == &"ready",
+		"forged, stale, actor, capability, and ownership handbacks cannot detach planetary state",
+	)
 	var planetary_return := production.consume_planetary_orbit_return(receipt)
 	var planetary_return_replay := production.consume_planetary_orbit_return(receipt)
 	_check(
@@ -504,16 +541,20 @@ func _test_real_scheduler_complete_loop() -> void:
 			and planetary_return.reason == &"planetary_orbit_return_consumed"
 			and production.get_planetary_surface_snapshot().state == &"detached"
 			and production.get_planetary_relay_survey_return_snapshot().state == &"detached"
-			and planetary_return_replay.reason == &"orbit_return_unavailable",
+			and planetary_return_replay.reason == &"planetary_orbit_return_already_consumed"
+			and production.get_snapshot().planetary_orbit_return_consumed,
 		"planetary orbit return detaches the composition and return travel exactly once",
 	)
 	var planetary_reentry := production.reenter_planetary_surface()
+	var planetary_return_after_reentry := production.consume_planetary_orbit_return(receipt)
 	var planetary_redetach := production.detach_planetary_surface()
 	_check(
 		planetary_reentry.accepted
 			and planetary_reentry.reason == &"composition_reentered"
 			and int(planetary_reentry.runtime.attachment_generation)
 				== int(receipt.current_attachment_generation)
+			and planetary_return_after_reentry.reason
+				== &"planetary_orbit_return_already_consumed"
 			and planetary_redetach.accepted
 			and production.get_planetary_surface_snapshot().state == &"detached"
 			and production.get_planetary_relay_survey_return_snapshot().state == &"detached",
@@ -636,6 +677,38 @@ func _test_stale_frame_and_partial_handback_reds() -> void:
 			and production.get_snapshot().last_late_result.reason
 				== &"runtime_ownership_return_live_reservation_mismatch",
 		"full-shaped forged handback cannot substitute a non-boarding live reservation",
+	)
+	await _cleanup(fixture.world as Node)
+
+	fixture = await _partial_fixture()
+	if fixture.is_empty():
+		return
+	forged_host = fixture.host as PartialReceiptHost
+	forged_host.forged_live_receipt = true
+	forged_host.forged_boarding_area_instance_id = (
+		fixture.area as ShipBoardingArea
+	).get_instance_id()
+	forged_host.fake_ship_instance_id = (fixture.ship as ArrowReconShip).get_instance_id()
+	forged_host.fake_player_instance_id = (fixture.player as PlayerController).get_instance_id()
+	forged_host.fake_restored_command_source_instance_id = (
+		fixture.original_source as ShipCommandSource
+	).get_instance_id()
+	production = fixture.production
+	early = fixture.early
+	early.enabled = true
+	await _one_physics()
+	await _one_physics()
+	var late_director := ActivityDirector.new()
+	(fixture.world as Node).add_child(late_director)
+	var late_surface_configuration := production.configure_planetary_surface(
+		late_director, Callable(self, "_planetary_reward_sink")
+	)
+	_check(
+		production.get_state() == EmberSurfaceLoopProductionBinding.State.HANDOFF_PENDING
+			and late_surface_configuration.reason
+				== &"planetary_composition_lifecycle_unavailable"
+			and production.get_planetary_surface_snapshot().is_empty(),
+		"first planetary composition bind rejects after Host ownership retirement",
 	)
 	await _cleanup(fixture.world as Node)
 

@@ -116,6 +116,7 @@ var _last_prepared_evidence: Dictionary = {}
 var _last_late_result: Dictionary = {}
 var _completion_handback: Dictionary = {}
 var _completion_handback_delivered := false
+var _planetary_orbit_return_consumed := false
 
 
 func _enter_tree() -> void:
@@ -225,6 +226,13 @@ func configure_planetary_surface(
 		return _reject(&"production_binding_unavailable")
 	if _planetary_composition != null:
 		return _reject(&"planetary_composition_already_bound")
+	var host_snapshot := _host.get_snapshot() if _host != null else {}
+	if _state != State.RUNNING \
+			or not bool(host_snapshot.get("attached", false)) \
+			or int(host_snapshot.get("generation", -1)) != _generation \
+			or int(host_snapshot.get("attachment_generation", -1)) \
+				!= _host.get_attachment_generation():
+		return _reject(&"planetary_composition_lifecycle_unavailable")
 	_planetary_composition = PlanetaryCompositionScript.new() as Node
 	_planetary_composition.name = "EmberPlanetarySurfaceProductionBinding"
 	_composition_root.add_child(_planetary_composition)
@@ -267,11 +275,25 @@ func restore_planetary_surface_session_snapshot(snapshot: Variant) -> Dictionary
 func consume_planetary_orbit_return(handback: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
-	var result: Dictionary = _planetary_composition.call(
-		&"consume_orbit_return_handback", handback
+	if _state != State.HANDOFF_PENDING or _completion_handback.is_empty():
+		return _reject(&"planetary_orbit_return_not_pending")
+	if _planetary_orbit_return_consumed:
+		return _reject(&"planetary_orbit_return_already_consumed")
+	if not handback is Dictionary or handback != _completion_handback:
+		return _reject(&"planetary_orbit_return_handback_mismatch")
+	var receipt := handback as Dictionary
+	var receipt_rejection := _handback_receipt_rejection(
+		receipt, int(receipt.retired_attachment_generation)
 	)
-	if bool(result.get("accepted", false)) and _relay_return_travel != null:
-		_relay_return_travel.call(&"detach")
+	if not receipt_rejection.is_empty():
+		return _reject(receipt_rejection)
+	var result: Dictionary = _planetary_composition.call(
+		&"consume_orbit_return_handback", receipt
+	)
+	if bool(result.get("accepted", false)):
+		if _relay_return_travel != null:
+			_relay_return_travel.call(&"detach")
+		_planetary_orbit_return_consumed = true
 	return result
 
 
@@ -1023,6 +1045,7 @@ func get_snapshot() -> Dictionary:
 		"completion_handback_pending": not _completion_handback.is_empty(),
 		"completion_handback_delivered": _completion_handback_delivered,
 		"completion_handback": _completion_handback.duplicate(true),
+		"planetary_orbit_return_consumed": _planetary_orbit_return_consumed,
 		"planetary_surface": get_planetary_surface_snapshot(),
 	}.duplicate(true)
 
