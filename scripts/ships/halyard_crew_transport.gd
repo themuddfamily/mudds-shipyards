@@ -2485,6 +2485,8 @@ func _build_crew_cabin() -> void:
 	_box(_crew_cabin, "CabinDeck", Vector3(0.0, 0.41, -3.65), Vector3(4.86, 0.18, 12.50), _halyard_materials.deck)
 	_box(_crew_cabin, "CabinAisleInlay", Vector3(0.0, 0.51, -3.65), Vector3(1.00, 0.03, 12.20), _halyard_materials.accent)
 	_box(_crew_cabin, "CabinCeiling", Vector3(0.0, 3.34, -3.65), Vector3(4.86, 0.16, 12.50), _halyard_materials.trim)
+	var crew_seat_leg_transforms: Array[Transform3D] = []
+	var crew_seat_leg_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_crew_cabin, side_name + "CabinSidewall", Vector3(side * 2.46, 1.92, -3.65), Vector3(0.18, 2.86, 12.50), _halyard_materials.structure)
@@ -2510,7 +2512,11 @@ func _build_crew_cabin() -> void:
 			_box(seat_root, "SeatBack", Vector3(0.0, 1.46, 0.40), Vector3(0.68, 0.92, 0.15), _halyard_materials.cloth, Vector3(deg_to_rad(8.0), 0.0, 0.0))
 			_box(seat_root, "SeatHeadrest", Vector3(0.0, 1.98, 0.44), Vector3(0.48, 0.26, 0.18), _halyard_materials.trim)
 			_box(seat_root, "SeatHarness", Vector3(0.0, 1.44, 0.28), Vector3(0.11, 0.66, 0.05), _halyard_materials.accent)
-			_box(seat_root, "SeatLeg", Vector3(0.0, 0.70, 0.10), Vector3(0.20, 0.28, 0.20), _halyard_materials.structure)
+			crew_seat_leg_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				seat_root.position + Vector3(0.0, 0.70, 0.10)
+			))
+			crew_seat_leg_names.append(seat_root.name + "/SeatLeg")
 			var anchor := Marker3D.new()
 			anchor.name = "CrewSeatAnchor"
 			anchor.position = Vector3(0.0, 0.20, -0.04)
@@ -2519,6 +2525,18 @@ func _build_crew_cabin() -> void:
 			_crew_seat_anchors.append(anchor)
 		# Overhead stowage above the seat rows.
 		_box(_crew_cabin, side_name + "OverheadStowage", Vector3(side * 1.86, 2.98, -5.40), Vector3(1.10, 0.52, 7.20), _halyard_materials.locker)
+	var seat_leg_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(0.20, 0.28, 0.20),
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_crew_cabin,
+		"CrewSeatLegBatch",
+		seat_leg_mesh,
+		_halyard_materials.structure,
+		crew_seat_leg_transforms,
+		crew_seat_leg_names
+	)
 	# Open pressure frames make the forward and aft connections explicit rather
 	# than leaving two blank bulkheads.
 	for portal_z in [-9.70, 2.50]:
