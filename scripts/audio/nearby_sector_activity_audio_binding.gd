@@ -15,6 +15,11 @@ const BEACON_TRANSITION_CUES := [
 	&"beacon_gate_acquired", &"beacon_route_interrupted", &"beacon_route_recovered",
 	&"beacon_final_gate", &"beacon_route_completed",
 ]
+const CONVOY_TRANSITION_CUES := [
+	&"convoy_escort_secure", &"convoy_escort_separation_warning",
+	&"convoy_escort_separation_critical", &"convoy_escort_recovered",
+	&"convoy_escort_arrived", &"convoy_escort_lost",
+]
 const CUE_PRIORITIES := {
 	&"activity_progress": 10,
 	&"activity_checkpoint": 20,
@@ -30,6 +35,12 @@ const CUE_PRIORITIES := {
 	&"beacon_route_recovered": 70,
 	&"beacon_final_gate": 90,
 	&"beacon_route_completed": 100,
+	&"convoy_escort_secure": 40,
+	&"convoy_escort_separation_warning": 70,
+	&"convoy_escort_separation_critical": 95,
+	&"convoy_escort_recovered": 75,
+	&"convoy_escort_arrived": 90,
+	&"convoy_escort_lost": 100,
 }
 
 var _attached := false
@@ -134,6 +145,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var previous_urgency := StringName(previous.get("urgency", &"normal"))
 	var previous_beacon_index := int(previous.get("next_beacon_index", 0))
 	var previous_beacon_reason := StringName(previous.get("beacon_interruption_reason", &""))
+	var previous_convoy_threat := StringName(previous.get("convoy_threat", &"none"))
 	if generation_changed and urgency == &"normal":
 		previous_urgency = prior_generation_urgency
 	if previous.is_empty():
@@ -167,8 +179,25 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			_emit_cue(&"beacon_route_recovered", activity_id, 0.7)
 		if beacon_index == beacon_count and previous_beacon_index < beacon_count:
 			_emit_cue(&"beacon_final_gate", activity_id, 1.0)
+	elif activity_kind == &"convoy":
+		_retire_activity_transition_slots(activity_id, CONVOY_TRANSITION_CUES)
+		var convoy_threat := _convoy_threat(decoded)
+		if convoy_threat == &"stable" and previous_convoy_threat == &"none":
+			_emit_cue(&"convoy_escort_secure", activity_id, 0.65)
+		elif convoy_threat == &"stable" \
+				and previous_convoy_threat in [&"warning", &"critical"]:
+			_emit_cue(&"convoy_escort_recovered", activity_id, 0.8)
+		elif convoy_threat == &"warning" and previous_convoy_threat != &"warning":
+			_emit_cue(&"convoy_escort_separation_warning", activity_id, 0.8)
+		elif convoy_threat == &"critical" and previous_convoy_threat != &"critical":
+			_emit_cue(&"convoy_escort_separation_critical", activity_id, 1.0)
 	if state == &"complete" and previous_state != &"complete":
-		if activity_kind == &"beacon":
+		if activity_kind == &"convoy":
+			if StringName(decoded.convoy_outcome) == &"arrived":
+				_emit_cue(&"convoy_escort_arrived", activity_id, 1.0)
+			elif StringName(decoded.convoy_outcome) == &"failed":
+				_emit_cue(&"convoy_escort_lost", activity_id, 1.0)
+		elif activity_kind == &"beacon":
 			_emit_cue(&"beacon_route_completed", activity_id, 1.0)
 		elif activity_kind != &"cargo":
 			_emit_cue(&"activity_complete", activity_id, 1.0)
@@ -186,6 +215,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		"urgency": urgency,
 		"next_beacon_index": int(decoded.get("next_beacon_index", 0)),
 		"beacon_interruption_reason": StringName(decoded.get("beacon_interruption_reason", &"")),
+		"convoy_threat": _convoy_threat(decoded) if activity_kind == &"convoy" else &"none",
 		"state": state,
 		"checkpoint_id": checkpoint_id,
 		"progress": progress,
@@ -311,6 +341,37 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 		decoded["next_beacon_index"] = int(next_index)
 		decoded["beacon_count"] = int(beacon_count)
 		decoded["beacon_interruption_reason"] = interruption
+	elif activity_kind == &"convoy":
+		var has_sample: Variant = snapshot.get("convoy_has_sample", null)
+		var escort_distance: Variant = snapshot.get("convoy_escort_distance", null)
+		var proximity_radius: Variant = snapshot.get("convoy_proximity_radius", null)
+		var within_proximity: Variant = snapshot.get("convoy_within_proximity", null)
+		var maximum_separation: Variant = snapshot.get("convoy_maximum_separation_seconds", null)
+		var separation_remaining: Variant = snapshot.get("convoy_separation_remaining_seconds", null)
+		var convoy_status: Variant = snapshot.get("convoy_status", &"")
+		var convoy_outcome: Variant = snapshot.get("convoy_outcome", &"")
+		var terminal_reason: Variant = snapshot.get("convoy_terminal_reason", &"")
+		if has_sample is not bool or within_proximity is not bool \
+				or not _finite_range(escort_distance, -1.0, 1_000_000.0) \
+				or not _finite_range(proximity_radius, 0.001, 1_000_000.0) \
+				or not _finite_range(maximum_separation, 0.001, 86_400.0) \
+				or not _finite_range(separation_remaining, 0.0, float(maximum_separation)):
+			return _result(false, &"invalid_convoy_separation")
+		if convoy_status is not StringName \
+				or convoy_status not in [&"active", &"destroyed", &"lost"] \
+				or convoy_outcome is not StringName \
+				or convoy_outcome not in [&"active", &"arrived", &"failed"] \
+				or terminal_reason is not StringName:
+			return _result(false, &"invalid_convoy_status")
+		decoded["convoy_has_sample"] = has_sample
+		decoded["convoy_escort_distance"] = float(escort_distance)
+		decoded["convoy_proximity_radius"] = float(proximity_radius)
+		decoded["convoy_within_proximity"] = within_proximity
+		decoded["convoy_maximum_separation_seconds"] = float(maximum_separation)
+		decoded["convoy_separation_remaining_seconds"] = float(separation_remaining)
+		decoded["convoy_status"] = convoy_status
+		decoded["convoy_outcome"] = convoy_outcome
+		decoded["convoy_terminal_reason"] = terminal_reason
 	return decoded
 
 
@@ -346,11 +407,26 @@ func _admit_cue(cue_id: StringName, activity_id: StringName) -> bool:
 
 
 func _retire_beacon_transition_slots(activity_id: StringName) -> void:
+	_retire_activity_transition_slots(activity_id, BEACON_TRANSITION_CUES)
+
+
+func _retire_activity_transition_slots(activity_id: StringName, cue_ids: Array) -> void:
 	for index in range(_active_cue_slots.size() - 1, -1, -1):
 		var slot := _active_cue_slots[index] as Dictionary
 		if StringName(slot.get("activity_id", &"")) == activity_id \
-				and StringName(slot.get("cue_id", &"")) in BEACON_TRANSITION_CUES:
+				and StringName(slot.get("cue_id", &"")) in cue_ids:
 			_active_cue_slots.remove_at(index)
+
+
+func _convoy_threat(decoded: Dictionary) -> StringName:
+	if StringName(decoded.get("state", &"")) != &"active" \
+			or not bool(decoded.get("convoy_has_sample", false)):
+		return &"none"
+	if bool(decoded.get("convoy_within_proximity", false)):
+		return &"stable"
+	var maximum := float(decoded.get("convoy_maximum_separation_seconds", 1.0))
+	var remaining := float(decoded.get("convoy_separation_remaining_seconds", maximum))
+	return &"critical" if remaining / maximum <= 0.25 else &"warning"
 
 
 func _bind_authored_semantic_output() -> void:

@@ -8712,6 +8712,10 @@ func _normalize_nearby_activity_audio_snapshot(snapshot: Dictionary) -> Dictiona
 	]:
 		var value: Variant = snapshot.get(candidate.key, {})
 		if value is Dictionary:
+			if StringName(candidate.kind) == &"convoy":
+				var activity: Variant = (value as Dictionary).get("activity", {})
+				if activity is Dictionary:
+					value = activity
 			candidates.append({"value": value, "kind": candidate.kind})
 	var fallback: Dictionary = {}
 	for candidate: Dictionary in candidates:
@@ -8806,6 +8810,46 @@ func _build_nearby_activity_audio_snapshot(
 				normalized["next_beacon_index"] = int(next_index)
 				normalized["beacon_count"] = int(beacon_count)
 				normalized["beacon_interruption_reason"] = reason
+		elif StringName(candidate.get("kind", &"")) == &"convoy":
+			var has_sample: Variant = value.get("has_entity_sample", null)
+			var escort_distance: Variant = value.get("escort_distance", null)
+			var proximity_radius: Variant = value.get("escort_proximity_radius", null)
+			var within_proximity: Variant = value.get("escort_within_proximity", null)
+			var maximum_separation: Variant = value.get("maximum_separation_seconds", null)
+			var separation_remaining: Variant = value.get("separation_remaining_seconds", null)
+			var elapsed: Variant = value.get("elapsed_seconds", null)
+			var convoy_status: Variant = value.get("convoy_status_id", &"active")
+			var terminal_reason: Variant = value.get("terminal_reason", &"")
+			if has_sample is bool \
+					and (escort_distance is float or escort_distance is int) \
+					and is_finite(float(escort_distance)) and float(escort_distance) >= -1.0 \
+					and (proximity_radius is float or proximity_radius is int) \
+					and is_finite(float(proximity_radius)) and float(proximity_radius) > 0.0 \
+					and within_proximity is bool \
+					and (maximum_separation is float or maximum_separation is int) \
+					and is_finite(float(maximum_separation)) and float(maximum_separation) > 0.0 \
+					and (separation_remaining is float or separation_remaining is int) \
+					and is_finite(float(separation_remaining)) \
+					and float(separation_remaining) >= 0.0 \
+					and float(separation_remaining) <= float(maximum_separation) \
+					and (elapsed is float or elapsed is int) and is_finite(float(elapsed)) \
+					and float(elapsed) >= 0.0 and convoy_status is StringName \
+					and convoy_status in [&"active", &"destroyed", &"lost"] \
+					and terminal_reason is StringName:
+				normalized["source_time_seconds"] = float(elapsed)
+				normalized["convoy_has_sample"] = has_sample
+				normalized["convoy_escort_distance"] = float(escort_distance)
+				normalized["convoy_proximity_radius"] = float(proximity_radius)
+				normalized["convoy_within_proximity"] = within_proximity
+				normalized["convoy_maximum_separation_seconds"] = float(maximum_separation)
+				normalized["convoy_separation_remaining_seconds"] = float(separation_remaining)
+				normalized["convoy_status"] = convoy_status
+				normalized["convoy_terminal_reason"] = terminal_reason
+				normalized["convoy_outcome"] = (
+					&"arrived" if state in [&"complete", &"completed"] else (
+						&"failed" if state in [&"failed", &"aborted", &"expired"] else &"active"
+					)
+				)
 		return normalized
 	return {}
 
