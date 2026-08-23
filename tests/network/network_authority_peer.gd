@@ -99,8 +99,34 @@ func _server_loop() -> void:
 			_log("QUEUE_MAX_%d" % max_queue_depth)
 			_log("CORRECTION_BOUNDED")
 			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
+			_log("PILOT_A_RELEASED")
+			var transfer := _adapter.register_remote_ship_pilot(
+				passenger_peer, &"jovian_authority_craft", 2
+			)
+			_log("PILOT_B_%s" % ("CLAIMED" if transfer.get("accepted", false) else "FAILED"))
+			if bool(transfer.get("accepted", false)):
+				_log("PILOT_TRANSFER_ATOMIC")
+			var stale_a: Dictionary = _adapter._remote_ship_commands.accept_command(
+				pilot_peer, _movement_command(pilot_peer, 50, 1, 0)
+			)
+			if not bool(stale_a.get("accepted", false)):
+				_log("STALE_A_REJECTED")
+				_adapter._remote_ship_commands._authority.set_server_tick(1, 50)
+				var fresh_b: Dictionary = _adapter._remote_ship_commands.accept_command(
+					passenger_peer, _movement_command(passenger_peer, 0, 2, 0, 50)
+				)
+				if bool(fresh_b.get("accepted", false)):
+					_log("TRANSFER_COMMAND_ACCEPTED")
+					var transfer_delivery := _adapter.consume_remote_ship_command(
+						&"jovian_authority_craft", 50
+					)
+					if bool(transfer_delivery.get("accepted", false)):
+						_log("TRANSFER_AUTHORITATIVE_DELIVERED")
+				else:
+					_log("TRANSFER_COMMAND_REJECTED_%s" % fresh_b.get("status", &"unknown"))
+			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			_adapter.reset_remote_ship_pilot(&"jovian_passenger_craft", &"disconnect")
-			_log("CLEAN_DISCONNECT")
+			_log("TRANSFER_CLEAN_DISCONNECT")
 			await create_timer(0.8).timeout
 			quit(0)
 			return
@@ -124,10 +150,14 @@ func _client_loop() -> void:
 	quit(1)
 
 
-func _movement_command(peer_id: int, sequence: int) -> Dictionary:
+func _movement_command(
+	peer_id: int, sequence: int, generation: int = 1, stream: int = 0, client_tick: int = -1
+) -> Dictionary:
+	if client_tick < 0:
+		client_tick = sequence
 	return {
 		"schema_version": 1, "peer_id": peer_id, "entity_id": &"jovian_authority_craft",
-		"entity_generation": 1, "stream_id": 0, "sequence": sequence, "client_tick": sequence,
+		"entity_generation": generation, "stream_id": stream, "sequence": sequence, "client_tick": client_tick,
 		"move_axis": [0.5, 0.0], "board_request": false,
 		"boarding_target_id": &"", "disembark_request": false,
 	}
