@@ -2,6 +2,7 @@ extends SceneTree
 
 const BindingScript := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
 const ManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
+const TravelAdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
 
 func _init() -> void:
 	call_deferred("_run")
@@ -9,6 +10,7 @@ func _init() -> void:
 func _run() -> void:
 	var binding := BindingScript.new()
 	var manifest := ManifestScript.new()
+	var travel := TravelAdapterScript.new()
 	var not_ready := manifest.issue(
 		{"state": &"active", "activity_generation": 17}, 4
 	)
@@ -24,6 +26,13 @@ func _run() -> void:
 	var payload: Dictionary = issued.get("manifest", {})
 	var reset := manifest.reset()
 	var snapshot := manifest.get_snapshot()
+	var intent := travel.consume(issued, 101, 202, 4)
+	var duplicate_intent := travel.consume(issued, 101, 202, 4)
+	var detached := travel.detach()
+	var reentered := travel.reenter(5)
+	var retained_duplicate := travel.consume(issued, 101, 202, 5)
+	var aborted := travel.abort()
+	var travel_reset := travel.reset()
 	var valid: bool = not not_ready.accepted and issued.accepted and not duplicate.accepted \
 			and next_generation.accepted and reset.accepted \
 			and payload.destination_id == &"mudds_shipyards" \
@@ -38,17 +47,27 @@ func _run() -> void:
 			and not payload.berth_authority \
 			and not payload.reward_authority \
 			and snapshot.issued_generation == -1 \
+			and intent.accepted and not duplicate_intent.accepted \
+			and intent.intent.actor_instance_id == 101 \
+			and intent.intent.craft_instance_id == 202 \
+			and intent.intent.destination_id == &"mudds_shipyards" \
+			and detached.accepted and reentered.accepted \
+			and not retained_duplicate.accepted and aborted.accepted \
+			and travel_reset.accepted \
 			and binding.has_method(&"issue_planetary_relay_survey_return_manifest") \
-			and binding.has_method(&"reset_planetary_relay_survey_return_manifest")
+			and binding.has_method(&"reset_planetary_relay_survey_return_manifest") \
+			and binding.has_method(&"consume_planetary_relay_survey_return")
 	if not valid:
 		push_error("relay survey return manifest failed")
 		binding.free()
 		manifest = null
+		travel = null
 		await process_frame
 		quit(1)
 		return
 	print("EMBER_SURFACE_LOOP_RELAY_RETURN_MANIFEST_TEST_OK: fenced caller-routed home intent")
 	binding.free()
 	manifest = null
+	travel = null
 	await process_frame
 	quit(0)

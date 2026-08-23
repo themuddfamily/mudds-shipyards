@@ -51,6 +51,7 @@ const ADJACENT_AUTHORITY_KEYS := [
 ]
 const PlanetaryCompositionScript := preload("res://scripts/world/ember_planetary_surface_production_binding.gd")
 const ReturnManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
+const ReturnTravelAdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
 
 var _state := State.IDLE
 var _generation := 0
@@ -82,6 +83,7 @@ var _planetary_composition: Node
 var _atmosphere_composition: Node
 var _last_planetary_altitude_m := 0.0
 var _relay_return_manifest: RefCounted
+var _relay_return_travel: RefCounted
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -191,6 +193,7 @@ func configure_planetary_surface(
 		_planetary_composition = null
 	else:
 		_relay_return_manifest = ReturnManifestScript.new()
+		_relay_return_travel = ReturnTravelAdapterScript.new()
 	_atmosphere_composition = atmosphere_composition
 	return result
 
@@ -344,7 +347,10 @@ func issue_planetary_relay_survey_return_manifest() -> Dictionary:
 func reset_planetary_relay_survey_return_manifest() -> Dictionary:
 	if _relay_return_manifest == null:
 		return _reject(&"planetary_composition_unavailable")
-	return _relay_return_manifest.reset()
+	var manifest_reset: Dictionary = _relay_return_manifest.reset()
+	if _relay_return_travel != null:
+		_relay_return_travel.call(&"reset")
+	return manifest_reset
 
 
 func get_planetary_relay_survey_return_manifest_snapshot() -> Dictionary:
@@ -353,16 +359,49 @@ func get_planetary_relay_survey_return_manifest_snapshot() -> Dictionary:
 	return _relay_return_manifest.get_snapshot()
 
 
+func consume_planetary_relay_survey_return(
+		manifest_result: Variant, actor_instance_id: int, craft_instance_id: int
+	) -> Dictionary:
+	if _relay_return_travel == null or _host == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _relay_return_travel.call(
+		&"consume", manifest_result, actor_instance_id, craft_instance_id,
+		_host.get_attachment_generation()
+	)
+
+
+func abort_planetary_relay_survey_return(reason: StringName = &"caller_aborted") -> Dictionary:
+	if _relay_return_travel == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _relay_return_travel.call(&"abort", reason)
+
+
+func get_planetary_relay_survey_return_snapshot() -> Dictionary:
+	if _relay_return_travel == null:
+		return {}
+	return _relay_return_travel.get_snapshot()
+
+
 func detach_planetary_surface() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
-	return _planetary_composition.call(&"detach")
+	var result: Dictionary = _planetary_composition.call(&"detach")
+	if bool(result.get("accepted", false)) and _relay_return_travel != null:
+		_relay_return_travel.call(&"detach")
+	return result
 
 
 func reenter_planetary_surface() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
-	return _planetary_composition.call(&"reenter")
+	var result: Dictionary = _planetary_composition.call(&"reenter")
+	if bool(result.get("accepted", false)) and _relay_return_travel != null:
+		var travel_result: Dictionary = _relay_return_travel.call(
+			&"reenter", _host.get_attachment_generation()
+		)
+		if not bool(travel_result.get("accepted", false)):
+			return travel_result
+	return result
 
 
 ## Called once at the future Main/GameFlow priority -100 boundary. The origin
