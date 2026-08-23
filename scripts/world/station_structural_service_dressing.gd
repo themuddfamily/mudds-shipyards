@@ -42,8 +42,8 @@ const RADIATOR_VENT_COUNT := 6
 const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
-const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT - CROSS_BRACE_COUNT
-const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 4
+const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT - CROSS_BRACE_COUNT - STRUCTURAL_POST_COUNT
+const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 5
 
 ## The four resident dressing instances all publish this one material-free,
 ## immutable fastener recipe. It intentionally lives for the session rather
@@ -52,11 +52,11 @@ const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 4
 static var _fascia_fastener_mesh_cache: Dictionary = {}
 
 const PERFORMANCE_BUDGET := {
-	"node_count": 47,
+	"node_count": 48,
 	"visible_primitives": 41,
-	"mesh_instances": 19,
-	"multimesh_batches": 4,
-	"geometry_submissions": 23,
+	"mesh_instances": 14,
+	"multimesh_batches": 5,
+	"geometry_submissions": 19,
 	"unique_materials": 8,
 	"lights": 1,
 	"visible_lights": 1,
@@ -101,6 +101,7 @@ var _radiator_vent_batch: MultiMeshInstance3D
 var _task_strip_batch: MultiMeshInstance3D
 var _fascia_fastener_batch: MultiMeshInstance3D
 var _cross_brace_batch: MultiMeshInstance3D
+var _keel_post_batch: MultiMeshInstance3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _built := false
@@ -572,6 +573,68 @@ func get_cross_brace_batch_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_keel_post_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_transforms := _keel_post_transforms()
+	var expected_mesh := _keel_post_mesh()
+	var multimesh := _keel_post_batch.multimesh if is_instance_valid(_keel_post_batch) else null
+	if (
+		not is_instance_valid(_keel_post_batch)
+		or _structural_core_root.get_node_or_null(^"KeelPostBatch") != _keel_post_batch
+		or multimesh == null
+	):
+		errors.append("keel_post_batch_missing")
+	else:
+		if multimesh.mesh != expected_mesh:
+			errors.append("keel_post_mesh_identity_drift")
+		if multimesh.instance_count != STRUCTURAL_POST_COUNT or multimesh.visible_instance_count != STRUCTURAL_POST_COUNT:
+			errors.append("keel_post_copy_count_drift")
+		if multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
+			errors.append("keel_post_transform_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(expected_mesh.get_aabb(), expected_transforms)
+		):
+			errors.append("keel_post_culling_bounds_drift")
+	if is_instance_valid(_keel_post_batch) and (
+		_keel_post_batch.material_override != _materials.get("frame_edge")
+		or _keel_post_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		or _keel_post_batch.layers != 1
+		or not _keel_post_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		or _keel_post_batch.get_child_count() != 0
+		or _keel_post_batch.get_script() != null
+		or not _keel_post_batch.get_groups().is_empty()
+	):
+		errors.append("keel_post_visual_contract_drift")
+	for post_index in STRUCTURAL_POST_COUNT:
+		var anchor := _structural_core_root.get_node_or_null(
+			NodePath("KeelPost%02d" % (post_index + 1))
+		) as Marker3D
+		if (
+			anchor == null
+			or not anchor.transform.is_equal_approx(expected_transforms[post_index])
+			or anchor.get_child_count() != 0
+			or anchor.get_script() != null
+			or not anchor.get_groups().is_empty()
+		):
+			errors.append("keel_post_anchor_drift:%02d" % (post_index + 1))
+	if not _structural_core_root.find_children(
+		"KeelPost*", "MeshInstance3D", true, false
+	).is_empty():
+		errors.append("keel_post_legacy_renderer_nodes_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"copy_count": STRUCTURAL_POST_COUNT,
+		"baseline_renderer_nodes": STRUCTURAL_POST_COUNT,
+		"renderer_nodes": 1 if multimesh != null else 0,
+		"baseline_geometry_submissions": STRUCTURAL_POST_COUNT,
+		"geometry_submissions": 1 if multimesh != null else 0,
+		"drawn_copies": multimesh.instance_count if multimesh != null else 0,
+		"collision_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
+
+
 func get_validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if (
@@ -629,7 +692,7 @@ func get_validation_errors() -> PackedStringArray:
 	var counts := performance["counts"] as Dictionary
 	if (
 		int(counts["mesh_instances"]) != BATCHED_MESH_INSTANCE_COUNT
-		or int(counts["multimesh_batches"]) != 4
+		or int(counts["multimesh_batches"]) != 5
 		or int(counts["geometry_submissions"]) != RENDERER_NODE_COUNT
 	):
 		errors.append("stable maximum-detail primitive contract changed")
@@ -654,6 +717,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("radiator vent batch contract diverged")
 	if not bool(get_cross_brace_batch_audit().get("valid", false)):
 		errors.append("cross-brace batch contract diverged")
+	if not bool(get_keel_post_batch_audit().get("valid", false)):
+		errors.append("keel-post batch contract diverged")
 	if not _all_live_meshes_fit_published_footprint():
 		errors.append("live dressing mesh geometry exceeds the immutable published footprint")
 	return errors
@@ -737,25 +802,26 @@ func _build_structural_core(dimensions: Dictionary) -> void:
 		&"keel_chord",
 		DetailQuality.LOW
 	)
-	var first_x := -length * 0.5 + thickness
-	var last_x := length * 0.5 - thickness
-	var top_y := -thickness * 1.35
-	var lower_y := -crossface_span + thickness * 1.3
-	var brace_z := depth * 0.58
+	var post_transforms := _keel_post_transforms()
 	for post_index in STRUCTURAL_POST_COUNT:
-		var progress := float(post_index) / float(STRUCTURAL_POST_COUNT - 1)
-		var post_x := lerpf(first_x, last_x, progress)
-		_tag_visual_detail(
-			_box(
-				_structural_core_root,
-				"KeelPost%02d" % (post_index + 1),
-				Vector3(post_x, (top_y + lower_y) * 0.5, brace_z),
-				Vector3(thickness, top_y - lower_y, thickness),
-				_materials["frame_edge"]
-			),
-			&"keel_post",
-			DetailQuality.LOW
-		)
+		var anchor := Marker3D.new()
+		anchor.name = "KeelPost%02d" % (post_index + 1)
+		anchor.transform = post_transforms[post_index]
+		anchor.set_meta("component_id", COMPONENT_ID)
+		anchor.set_meta("evidence_status", EVIDENCE_STATUS)
+		anchor.set_meta("presentation_only", true)
+		anchor.set_meta("collision_free", true)
+		anchor.set_meta("detail_role", &"keel_post")
+		anchor.set_meta("quality_tier", DetailQuality.LOW)
+		_structural_core_root.add_child(anchor)
+	_keel_post_batch = _multimesh_rounded_box(
+		_structural_core_root,
+		"KeelPostBatch",
+		_keel_post_mesh(),
+		_materials["frame_edge"],
+		post_transforms
+	)
+	_tag_visual_batch(_keel_post_batch, &"keel_post", DetailQuality.LOW)
 	var cross_brace_transforms := _cross_brace_transforms()
 	for brace_index in CROSS_BRACE_COUNT:
 		var anchor := Marker3D.new()
@@ -1015,7 +1081,7 @@ func _apply_evidence_metadata() -> void:
 
 func _get_feature_counts() -> Dictionary:
 	return {
-		"structural_posts": _structural_core_root.find_children("KeelPost*", "MeshInstance3D", true, false).size() if _structural_core_root != null else 0,
+		"structural_posts": _structural_core_root.find_children("KeelPost??", "Marker3D", true, false).size() if _structural_core_root != null else 0,
 		"cross_braces": _structural_core_root.find_children("CrossBrace?*", "Marker3D", true, false).size() if _structural_core_root != null else 0,
 		"conduits": _service_detail_root.find_children("Conduit??", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"conduit_clamps": _service_detail_root.find_children("ConduitClamp*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
@@ -1511,6 +1577,41 @@ func _get_quality_name(value: int) -> StringName:
 			return &"medium"
 		_:
 			return &"high"
+
+
+func _keel_post_transforms() -> Array[Transform3D]:
+	var dimensions := _get_profile_dimensions()
+	var length := _get_effective_segment_length()
+	var crossface_span := float(dimensions["crossface_span"])
+	var depth := float(dimensions["outward_depth"])
+	var thickness := float(dimensions["frame_thickness"])
+	var first_x := -length * 0.5 + thickness
+	var last_x := length * 0.5 - thickness
+	var top_y := -thickness * 1.35
+	var lower_y := -crossface_span + thickness * 1.3
+	var transforms: Array[Transform3D] = []
+	for post_index in STRUCTURAL_POST_COUNT:
+		var progress := float(post_index) / float(STRUCTURAL_POST_COUNT - 1)
+		transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				lerpf(first_x, last_x, progress),
+				(top_y + lower_y) * 0.5,
+				depth * 0.58
+			)
+		))
+	return transforms
+
+
+func _keel_post_mesh() -> ArrayMesh:
+	var dimensions := _get_profile_dimensions()
+	var crossface_span := float(dimensions["crossface_span"])
+	var thickness := float(dimensions["frame_thickness"])
+	var top_y := -thickness * 1.35
+	var lower_y := -crossface_span + thickness * 1.3
+	return StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(thickness, top_y - lower_y, thickness), _rounded_box_cache
+	)
 
 
 func _radiator_vent_mesh() -> ArrayMesh:

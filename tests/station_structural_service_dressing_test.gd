@@ -86,12 +86,58 @@ func _run() -> void:
 	print("STATION_STRUCTURAL_DRESSING_PERFORMANCE: ", performance)
 	_check(bool(performance["within_budget"]), "maximum-detail component remains within every explicit budget")
 	_check(
-		int(counts["mesh_instances"]) == 19
-		and int(counts["multimesh_batches"]) == 4
-		and int(counts["geometry_submissions"]) == 23
+		int(counts["mesh_instances"]) == 14
+		and int(counts["multimesh_batches"]) == 5
+		and int(counts["geometry_submissions"]) == 19
 		and int(counts["visible_primitives"]) == 41,
-		"high quality preserves 41 visible copies through 23 renderer submissions"
+		"high quality preserves 41 visible copies through 19 renderer submissions"
 	)
+	var post_batch := dressing.get_node_or_null(
+		^"PresentationRoot/StructuralCoreRoot/KeelPostBatch"
+	) as MultiMeshInstance3D
+	var post_audit := dressing.get_keel_post_batch_audit()
+	var expected_post_positions := [
+		Vector3(-6.86, -0.5435, 0.4524),
+		Vector3(-3.43, -0.5435, 0.4524),
+		Vector3(0.0, -0.5435, 0.4524),
+		Vector3(3.43, -0.5435, 0.4524),
+		Vector3(6.86, -0.5435, 0.4524),
+	]
+	var exact_post_anchors := true
+	for post_index in expected_post_positions.size():
+		var post_anchor := dressing.get_node_or_null(NodePath(
+			"PresentationRoot/StructuralCoreRoot/KeelPost%02d" % (post_index + 1)
+		)) as Marker3D
+		exact_post_anchors = exact_post_anchors and (
+			post_anchor != null
+			and post_anchor.position.is_equal_approx(expected_post_positions[post_index])
+			and post_anchor.get_child_count() == 0
+		)
+	_check(
+		bool(post_audit["valid"])
+		and int(post_audit["baseline_renderer_nodes"]) == 5
+		and int(post_audit["renderer_nodes"]) == 1
+		and int(post_audit["drawn_copies"]) == 5
+		and post_batch != null
+		and post_batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.14, 0.709, 0.14))
+		and exact_post_anchors
+		and dressing.find_children("KeelPost*", "MeshInstance3D", true, false).is_empty(),
+		"five named keel posts retain exact geometry and transforms through one inert visual batch"
+	)
+	if post_batch != null and post_batch.multimesh != null:
+		var original_post_buffer := post_batch.multimesh.buffer.duplicate()
+		var drifted_post_buffer := original_post_buffer.duplicate()
+		drifted_post_buffer[3] += 0.25
+		post_batch.multimesh.buffer = drifted_post_buffer
+		_check(
+			not bool(dressing.get_keel_post_batch_audit()["valid"]),
+			"structured red: keel-post renderer-buffer drift fails the batch audit"
+		)
+		post_batch.multimesh.buffer = original_post_buffer
+		_check(
+			bool(dressing.get_keel_post_batch_audit()["valid"]),
+			"restoring the exact keel-post buffer repairs the batch audit"
+		)
 	var brace_batch := dressing.get_node_or_null(
 		^"PresentationRoot/StructuralCoreRoot/CrossBraceBatch"
 	) as MultiMeshInstance3D
@@ -158,9 +204,9 @@ func _run() -> void:
 		"eight stable cross-brace paths retain exact geometry and transforms through one inert visual batch"
 	)
 	_check(
-		int(counts["mesh_instances"]) == 27 - 8
-		and int(counts["multimesh_batches"]) == 3 + 1
-		and int(counts["geometry_submissions"]) == 30 - 7,
+		int(counts["mesh_instances"]) == 27 - 8 - 5
+		and int(counts["multimesh_batches"]) == 3 + 1 + 1
+		and int(counts["geometry_submissions"]) == 30 - 7 - 4,
 		"cross-brace family records 8 -> 1 renderer submissions with all eight copies preserved"
 	)
 	if brace_batch != null and brace_batch.multimesh != null:
@@ -356,7 +402,7 @@ func _run() -> void:
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
 	performance = dressing.get_performance_audit()
 	counts = performance["counts"] as Dictionary
-	_check(int(counts["mesh_instances"]) == 19 and int(counts["visible_primitives"]) == 33, "medium quality keeps 19 allocated meshes plus four batches and exposes 33 copies")
+	_check(int(counts["mesh_instances"]) == 14 and int(counts["visible_primitives"]) == 33, "medium quality keeps 14 allocated meshes plus five batches and exposes 33 copies")
 	_check(int(counts["visible_lights"]) == 0, "medium quality hides the high-tier task light")
 	_check(int(counts["node_count"]) == high_node_count, "medium quality performs no structural allocation")
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.LOW), "quality API accepts low")
@@ -462,7 +508,7 @@ func _run() -> void:
 	(detached_audit["evidence"] as Dictionary).clear()
 	(detached_audit["node_contract"] as Dictionary).clear()
 	var fresh_audit := dressing.audit()
-	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 19, "deep-copy audit protects nested performance counts")
+	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 14, "deep-copy audit protects nested performance counts")
 	_check(not (fresh_audit["integration"] as Dictionary).is_empty(), "deep-copy audit protects integration state")
 	_check(not (fresh_audit["evidence"] as Dictionary).is_empty(), "deep-copy audit protects evidence state")
 	_check(not (fresh_audit["node_contract"] as Dictionary).is_empty(), "deep-copy audit protects semantic node paths")
