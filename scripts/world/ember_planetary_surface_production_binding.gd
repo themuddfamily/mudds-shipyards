@@ -141,7 +141,15 @@ func submit_weather_exposure(
 func submit_water_contact(position: Variant, depth_m: float, velocity_mps: Variant, delta_seconds: float) -> Dictionary:
 	if not _live():
 		return _result(false, &"composition_detached")
-	return _adapter.call(&"submit_surface_water_contact", position, depth_m, velocity_mps, delta_seconds)
+	return _water.call(
+		&"sample_contact", depth_m, velocity_mps, delta_seconds, _attachment_generation
+	)
+
+
+func enter_water(position: Variant) -> Dictionary:
+	if not _live():
+		return _result(false, &"composition_detached")
+	return _water.call(&"enter_water", position, _attachment_generation)
 
 
 func detach() -> Dictionary:

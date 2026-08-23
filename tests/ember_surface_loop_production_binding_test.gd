@@ -290,6 +290,19 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_planetary_surface_snapshot().weather.valid,
 		"retained Ember hazard samples authored weather and shelter without damage authority"
 	)
+	var water_entered := production.enter_planetary_water(
+		Vector3(20.0, 120000.0, 0.0)
+	)
+	var water_contact := production.submit_planetary_water_contact(
+		Vector3(20.0, 120000.0, 0.0), 25.0, Vector3(3.0, 0.0, 0.0), 1.0
+	)
+	_check(
+		water_entered.accepted and water_contact.accepted
+			and water_contact.reason == &"water_contact_sampled"
+			and water_contact.recovery_request.requested
+			and water_contact.recovery_request.movement_mutation == false,
+		"caller-owned deep-water contact publishes a bounded shoreline recovery request"
+	)
 	var planetary_session := production.get_planetary_surface_session_snapshot()
 	var malformed_session := planetary_session.duplicate(true)
 	malformed_session.schema_version = 99

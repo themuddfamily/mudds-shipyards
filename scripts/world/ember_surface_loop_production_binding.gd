@@ -233,6 +233,22 @@ func submit_planetary_weather_exposure(
 	)
 
 
+func enter_planetary_water(position: Variant) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"enter_water", position)
+
+
+func submit_planetary_water_contact(
+		position: Variant, depth_m: float, velocity_mps: Variant, delta_seconds: float
+	) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"submit_water_contact", position, depth_m, velocity_mps, delta_seconds
+	)
+
+
 func discover_planetary_settlements(position: Variant, radius_m: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
