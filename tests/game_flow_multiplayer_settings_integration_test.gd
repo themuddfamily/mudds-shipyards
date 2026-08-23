@@ -50,6 +50,16 @@ func _run() -> void:
 	_check(reentered_hud._server_browser_player_name.text == "Captain", "re-entry reapplies retained display name")
 	_check(reentered_hud._server_browser_port.text == "29001", "re-entry reapplies retained default port")
 	_check(first_hud.snapshots.size() == 1 and reentered_hud.snapshots.size() == 1, "settings snapshots remain caller-owned across re-entry")
+	settings.setting_changed.disconnect(flow._on_runtime_setting_changed)
+	first_hud._server_browser_port.free()
+	first_hud._server_browser_player_name.free()
+	reentered_hud._server_browser_port.free()
+	reentered_hud._server_browser_player_name.free()
+	first_hud.free()
+	reentered_hud.free()
+	flow.free()
+	settings = null
+	await process_frame
 	if _failures.is_empty():
 		print("GAME_FLOW_MULTIPLAYER_SETTINGS_INTEGRATION_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
