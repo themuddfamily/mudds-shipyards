@@ -43,19 +43,42 @@ func _run() -> void:
 	_check(
 		lenses.size() == 50 and lights.size() == 50
 		and int(audit.lens_node_count) == 50 and int(audit.light_node_count) == 50,
-		"exactly 50 childless lens/light pairs remain in the production world"
+		"exactly 50 childless lens-anchor/light pairs remain in the production world"
 	)
 	_check(
-		int(audit.scope_node_count) == 100
+		int(audit.scope_node_count) == 104
 		and int(audit.baseline_scope_node_count) == 100
-		and int(audit.node_delta) == 0,
-		"resource sharing retains all 100 guide-light scope nodes with zero node delta"
+		and int(audit.node_delta) == 4
+		and int(audit.baseline_renderer_node_count) == 50
+		and int(audit.renderer_node_count) == 4
+		and int(audit.renderer_node_delta) == -46,
+		"four batch nodes retain all 100 stable guide nodes while renderers drop 50 -> 4"
 	)
 	_check(
-		int(audit.structural_submission_count) == 50
+		int(audit.structural_submission_count) == 4
 		and int(audit.baseline_structural_submission_count) == 50
-		and int(audit.submission_delta) == 0,
-		"50 one-surface structural submissions remain; the trim does not claim batching"
+		and int(audit.submission_delta) == -46
+		and int(audit.drawn_copy_count) == 50
+		and int(audit.drawn_copy_delta) == 0,
+		"color batching reduces structural submissions 50 -> 4 while retaining 50 copies"
+	)
+	_check(
+		audit.before == {
+			"scope_nodes": 100,
+			"renderer_nodes": 50,
+			"structural_submissions": 50,
+			"drawn_copies": 50,
+			"retained_visual_resources": 5,
+		}
+		and audit.current == {
+			"scope_nodes": 104,
+			"renderer_nodes": 4,
+			"structural_submissions": 4,
+			"drawn_copies": 50,
+			"retained_visual_resources": 5,
+		}
+		and (audit.batch_instance_counts as Dictionary) == EXPECTED_COLOR_COUNTS,
+		"allocation evidence freezes nodes, renderers, submissions, resources, and copies before/after"
 	)
 	_check(
 		int(audit.mesh_resource_identity_count) == 1
@@ -83,10 +106,10 @@ func _run() -> void:
 		int(audit.authority_node_count) == 0
 		and int(audit.scripted_node_count) == 0
 		and int(audit.child_node_count) == 0
-		and not bool(audit.batched)
+		and bool(audit.batched)
 		and not bool(audit.frame_time_claimed)
 		and not bool(audit.gpu_draw_call_claimed),
-		"guide stock remains childless presentation with no collision, script, lifecycle, batching, or GPU-performance claim"
+		"guide stock remains childless presentation with no collision, script, lifecycle, or GPU-performance claim"
 	)
 
 	_test_upper_operations_identity(world, lenses, lights)
@@ -102,11 +125,11 @@ func _run() -> void:
 
 func _test_upper_operations_identity(
 	world: ShipyardWorld,
-	lenses: Array[MeshInstance3D],
+	lenses: Array[Marker3D],
 	lights: Array[OmniLight3D]
 ) -> void:
 	var upper := world.get_node_or_null("UpperOperations") as Node3D
-	var upper_lenses: Array[MeshInstance3D] = []
+	var upper_lenses: Array[Marker3D] = []
 	var upper_lights: Array[OmniLight3D] = []
 	for lens in lenses:
 		if upper != null and upper.is_ancestor_of(lens):
@@ -137,14 +160,21 @@ func _test_upper_operations_identity(
 		and not light.has_meta("pulse_phase"),
 		"UpperOperations light keeps its exact color, energy, range, shadow, and non-pulsing behavior"
 	)
-	var sphere := lens.mesh as SphereMesh
-	var material := lens.material_override as StandardMaterial3D
+	var cyan_batch: MultiMeshInstance3D = null
+	for batch in _guide_batches(world):
+		if (batch.material_override as StandardMaterial3D).albedo_color.is_equal_approx(
+			Color("48dbe2")
+		):
+			cyan_batch = batch
+			break
+	var sphere := cyan_batch.multimesh.mesh as SphereMesh if cyan_batch != null else null
+	var material := cyan_batch.material_override as StandardMaterial3D if cyan_batch != null else null
 	_check(
 		sphere != null
 		and is_equal_approx(sphere.radius, 0.16)
 		and is_equal_approx(sphere.height, 0.32)
 		and sphere.radial_segments == 24 and sphere.rings == 12,
-		"shared guide geometry is pixel-equivalent to the former per-node SphereMesh recipe"
+		"batched guide geometry retains the exact former SphereMesh recipe"
 	)
 	_check(
 		material != null
@@ -154,7 +184,7 @@ func _test_upper_operations_identity(
 		and material.emission_enabled
 		and material.emission.is_equal_approx(Color("48dbe2"))
 		and is_equal_approx(material.emission_energy_multiplier, 1.35),
-		"shared cyan material is pixel-equivalent to the former immutable material recipe"
+		"batched cyan material retains the exact immutable material recipe"
 	)
 
 
@@ -171,54 +201,59 @@ func _test_detached_report(world: ShipyardWorld) -> void:
 	)
 
 
-func _test_resource_mutations(world: ShipyardWorld, lenses: Array[MeshInstance3D]) -> void:
-	var shared_mesh := lenses[0].mesh as SphereMesh
+func _test_resource_mutations(world: ShipyardWorld, lenses: Array[Marker3D]) -> void:
+	var batches := _guide_batches(world)
+	var shared_mesh := batches[0].multimesh.mesh as SphereMesh
 	var original_radius := shared_mesh.radius
 	shared_mesh.radius = 0.19
 	var mesh_mutation := world.get_guide_light_allocation_audit()
-	var all_lenses_observe_mesh_mutation := true
-	for lens in lenses:
-		all_lenses_observe_mesh_mutation = all_lenses_observe_mesh_mutation \
-			and is_equal_approx((lens.mesh as SphereMesh).radius, 0.19)
+	var all_batches_observe_mesh_mutation := true
+	for batch in batches:
+		all_batches_observe_mesh_mutation = all_batches_observe_mesh_mutation \
+			and is_equal_approx((batch.multimesh.mesh as SphereMesh).radius, 0.19)
 	_check(
 		not bool(mesh_mutation.valid)
 		and _has_error(mesh_mutation, "guide_lens_mesh_recipe_drift")
-		and all_lenses_observe_mesh_mutation,
-		"in-place shared-mesh mutation propagates by identity and turns the audit red"
+		and all_batches_observe_mesh_mutation,
+		"in-place shared-mesh mutation reaches all four batches and turns the audit red"
 	)
 	shared_mesh.radius = original_radius
 	_check(bool(world.get_guide_light_allocation_audit().valid), "restoring the exact mesh recipe returns the audit green")
 
-	var shared_material := lenses[0].material_override as StandardMaterial3D
+	var shared_material := batches[0].material_override as StandardMaterial3D
 	var original_roughness := shared_material.roughness
 	shared_material.roughness = 0.61
 	var material_mutation := world.get_guide_light_allocation_audit()
-	var affected_recipe_bindings := 0
-	for lens in lenses:
-		if lens.material_override == shared_material and is_equal_approx(
-			(lens.material_override as StandardMaterial3D).roughness, 0.61
-		):
-			affected_recipe_bindings += 1
 	_check(
 		not bool(material_mutation.valid)
 		and _has_error(material_mutation, "guide_lens_material_recipe_drift")
-		and affected_recipe_bindings == int(EXPECTED_COLOR_COUNTS[shared_material.albedo_color.to_html(true)]),
-		"in-place shared-material mutation reaches exactly its recipe bindings and turns the audit red"
+		and is_equal_approx((batches[0].material_override as StandardMaterial3D).roughness, 0.61),
+		"in-place batch-material mutation turns the exact recipe audit red"
 	)
 	shared_material.roughness = original_roughness
 	_check(bool(world.get_guide_light_allocation_audit().valid), "restoring the exact material recipe returns the audit green")
 
-	var original_material := lenses[0].material_override
-	lenses[0].material_override = original_material.duplicate(true) as Material
+	var original_material := batches[0].material_override
+	batches[0].material_override = original_material.duplicate(true) as Material
 	var identity_mutation := world.get_guide_light_allocation_audit()
 	_check(
 		not bool(identity_mutation.valid)
-		and _has_error(identity_mutation, "guide_lens_material_identity_count_drift")
-		and _has_error(identity_mutation, "guide_light_pair_or_resource_identity_drift"),
-		"an exact-looking private material copy is rejected as retained-resource identity drift"
+		and _has_error(identity_mutation, "guide_lens_batch_recipe_or_transform_drift"),
+		"an exact-looking private material copy is rejected as batch recipe identity drift"
 	)
-	lenses[0].material_override = original_material
+	batches[0].material_override = original_material
 	_check(bool(world.get_guide_light_allocation_audit().valid), "restoring the shared material identity returns the audit green")
+
+	var original_anchor_transform := lenses[0].transform
+	lenses[0].position.x += 0.03
+	var transform_mutation := world.get_guide_light_allocation_audit()
+	_check(
+		not bool(transform_mutation.valid)
+		and _has_error(transform_mutation, "guide_lens_batch_recipe_or_transform_drift"),
+		"moving one stable lens anchor turns the exact batched-transform audit red"
+	)
+	lenses[0].transform = original_anchor_transform
+	_check(bool(world.get_guide_light_allocation_audit().valid), "restoring the exact lens-anchor transform returns the audit green")
 
 	var rogue_authority := Area3D.new()
 	lenses[0].add_child(rogue_authority)
@@ -234,11 +269,12 @@ func _test_resource_mutations(world: ShipyardWorld, lenses: Array[MeshInstance3D
 	_check(bool(world.get_guide_light_allocation_audit().valid), "removing rogue authority restores the exact green allocation audit")
 
 
-func _test_detach_reentry(world: ShipyardWorld, lenses: Array[MeshInstance3D]) -> void:
-	var mesh_id := lenses[0].mesh.get_instance_id()
+func _test_detach_reentry(world: ShipyardWorld, lenses: Array[Marker3D]) -> void:
+	var batches := _guide_batches(world)
+	var mesh_id := batches[0].multimesh.mesh.get_instance_id()
 	var material_ids: Dictionary = {}
-	for lens in lenses:
-		material_ids[lens.material_override.get_instance_id()] = true
+	for batch in batches:
+		material_ids[batch.material_override.get_instance_id()] = true
 	root.remove_child(world)
 	await process_frame
 	_check(
@@ -249,26 +285,28 @@ func _test_detach_reentry(world: ShipyardWorld, lenses: Array[MeshInstance3D]) -
 	await process_frame
 	await process_frame
 	var reentered_lenses := _guide_lenses(world)
+	var reentered_batches := _guide_batches(world)
 	var reentered_material_ids: Dictionary = {}
-	for lens in reentered_lenses:
-		reentered_material_ids[lens.material_override.get_instance_id()] = true
+	for batch in reentered_batches:
+		reentered_material_ids[batch.material_override.get_instance_id()] = true
 	var reentered_audit := world.get_guide_light_allocation_audit()
 	_check(
 		reentered_lenses.size() == 50
-		and reentered_lenses[0].mesh.get_instance_id() == mesh_id
+		and reentered_batches.size() == 4
+		and reentered_batches[0].multimesh.mesh.get_instance_id() == mesh_id
 		and reentered_material_ids == material_ids
 		and bool(reentered_audit.valid),
-		"detach/re-entry retains exact mesh/material identities, node count, behavior, and audit validity: count=%d mesh=%s materials=%s errors=%s" % [
+		"detach/re-entry retains exact batch mesh/material identities, node count, behavior, and audit validity: count=%d mesh=%s materials=%s errors=%s" % [
 			reentered_lenses.size(),
-			str(reentered_lenses[0].mesh.get_instance_id() == mesh_id),
+			str(reentered_batches[0].multimesh.mesh.get_instance_id() == mesh_id),
 			str(reentered_material_ids == material_ids),
 			reentered_audit.errors,
 		]
 	)
 
 
-func _guide_lenses(world: ShipyardWorld) -> Array[MeshInstance3D]:
-	var lenses: Array[MeshInstance3D] = []
+func _guide_lenses(world: ShipyardWorld) -> Array[Marker3D]:
+	var lenses: Array[Marker3D] = []
 	for light in _guide_lights(world):
 		var lens := _guide_lens_for(light)
 		if lens != null:
@@ -285,30 +323,34 @@ func _guide_lights(world: ShipyardWorld) -> Array[OmniLight3D]:
 	return lights
 
 
-func _guide_lens_for(light: OmniLight3D) -> MeshInstance3D:
+func _guide_lens_for(light: OmniLight3D) -> Marker3D:
 	var parent := light.get_parent()
 	var index := light.get_index()
 	if parent == null or index <= 0:
 		return null
-	var lens := parent.get_child(index - 1) as MeshInstance3D
+	var lens := parent.get_child(index - 1) as Marker3D
 	if lens == null or not lens.position.is_equal_approx(light.position):
 		return null
-	var sphere := lens.mesh as SphereMesh
-	var material := lens.material_override as StandardMaterial3D
 	if (
-		sphere == null
-		or not is_equal_approx(sphere.radius, 0.16)
-		or not is_equal_approx(sphere.height, 0.32)
-		or sphere.radial_segments != 24
-		or sphere.rings != 12
-		or material == null
-		or not material.albedo_color.is_equal_approx(light.light_color)
-		or not material.emission_enabled
-		or not material.emission.is_equal_approx(light.light_color)
-		or not is_equal_approx(material.emission_energy_multiplier, 1.35)
+		not bool(lens.get_meta("batched_visual_anchor", false))
+		or not (lens.get_meta("guide_lens_color", Color.TRANSPARENT) as Color).is_equal_approx(
+			light.light_color
+		)
 	):
 		return null
 	return lens
+
+
+func _guide_batches(world: ShipyardWorld) -> Array[MultiMeshInstance3D]:
+	var batches: Array[MultiMeshInstance3D] = []
+	for candidate in world.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if bool(batch.get_meta("guide_lens_batch", false)):
+			batches.append(batch)
+	batches.sort_custom(func(a: MultiMeshInstance3D, b: MultiMeshInstance3D) -> bool:
+		return str(a.name) < str(b.name)
+	)
+	return batches
 
 
 func _guide_light_behavior_rows(world: ShipyardWorld, lights: Array[OmniLight3D]) -> Array[Dictionary]:

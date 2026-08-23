@@ -678,10 +678,9 @@ const HAZARD_AMBER := Color("8f6530")
 const GLASS := Color(0.24, 0.86, 0.93, 0.24)
 
 ## All 50 world-built guide lenses are the same childless 0.16 m sphere and use
-## one of four immutable emissive recipes. Before this cache every call retained
-## a private SphereMesh and StandardMaterial3D: 100 resource identities for 50
-## identical-geometry nodes. Sharing changes only retained resource identity;
-## every MeshInstance3D, OmniLight3D and one-surface render submission remains.
+## one of four immutable emissive recipes. Their stable sibling paths remain as
+## childless markers beside each OmniLight3D, while four color-specific batches
+## draw the exact authored transforms with one shared SphereMesh.
 const GUIDE_LENS_RADIUS := 0.16
 const GUIDE_LENS_HEIGHT := 0.32
 const GUIDE_LENS_RADIAL_SEGMENTS := 24
@@ -691,6 +690,9 @@ const GUIDE_LENS_EXPECTED_RECIPE_COUNT := 4
 const GUIDE_LENS_BASELINE_RETAINED_RESOURCES := 100
 const GUIDE_LENS_BASELINE_SCOPE_NODES := 100
 const GUIDE_LENS_BASELINE_SUBMISSIONS := 50
+const GUIDE_LENS_BATCH_COUNT := 4
+const GUIDE_LENS_BATCHED_SCOPE_NODES := 104
+const GUIDE_LENS_BATCHED_SUBMISSIONS := 4
 const GUIDE_LIGHT_BEHAVIOR_FINGERPRINT := "790d4162ba1c9e4369d79c69afe066390d4f34c65780068d3cf6f6a88f867f3a"
 const GUIDE_LENS_COLOR_COUNTS := {
 	"48dbe2ff": 16,
@@ -835,8 +837,9 @@ var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _guide_lens_mesh: SphereMesh
 var _guide_lens_material_cache: Dictionary = {}
-var _guide_lens_nodes: Array[MeshInstance3D] = []
+var _guide_lens_nodes: Array[Marker3D] = []
 var _guide_light_nodes: Array[OmniLight3D] = []
+var _guide_lens_batches: Dictionary = {}
 var _landing_pad_deck_connector_mesh: TorusMesh
 var _tie_down_socket_mesh: TorusMesh
 var _exterior_target_core_mesh: SphereMesh
@@ -1031,6 +1034,7 @@ func run_staged_construction(on_stage: Callable = Callable()) -> void:
 ## colourblind-safe cue palette cannot be affected by it.
 func _apply_sign_geometry_budget() -> void:
 	SignGeometryBudget.normalise_tree(self)
+	_finalize_guide_lens_batches()
 
 
 func _process(delta: float) -> void:
@@ -1084,12 +1088,11 @@ func get_outbound_clearance_band() -> Dictionary:
 ## Renderer-independent retention audit for the world guide-light stock.
 ##
 ## "Submission" here is deliberately the structural mesh-surface submission
-## count, not a driver draw-call claim: 51 visible MeshInstance3D nodes retain
-## one surface each before and after sharing. The report proves the resource win
-## without claiming batching, frame-time, VRAM, or GPU evidence.
+## count, not a driver draw-call claim. Four color-specific MultiMeshes retain
+## all 50 visible copies while stable per-light paths remain childless markers.
 func get_guide_light_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
-	var lenses: Array[MeshInstance3D] = []
+	var lenses: Array[Marker3D] = []
 	var lights: Array[OmniLight3D] = []
 	for lens in _guide_lens_nodes:
 		if is_instance_valid(lens):
@@ -1102,19 +1105,16 @@ func get_guide_light_allocation_audit() -> Dictionary:
 	var material_ids: Dictionary = {}
 	var color_counts: Dictionary = {}
 	var structural_submissions := 0
+	var drawn_copies := 0
 	var authority_node_count := 0
 	var scripted_node_count := 0
 	var child_node_count := 0
 	for lens in lenses:
-		if lens.mesh != null:
-			mesh_ids[lens.mesh.get_instance_id()] = true
-			structural_submissions += lens.mesh.get_surface_count()
-		if lens.material_override != null:
-			material_ids[lens.material_override.get_instance_id()] = true
-			var material := lens.material_override as StandardMaterial3D
-			if material != null:
-				var color_key := material.albedo_color.to_html(true)
-				color_counts[color_key] = int(color_counts.get(color_key, 0)) + 1
+		var color := lens.get_meta("guide_lens_color", Color.TRANSPARENT) as Color
+		var color_key := color.to_html(true)
+		color_counts[color_key] = int(color_counts.get(color_key, 0)) + 1
+		if not bool(lens.get_meta("batched_visual_anchor", false)):
+			errors.append("guide_lens_anchor_state_drift")
 		if lens.get_script() != null:
 			scripted_node_count += 1
 		child_node_count += lens.get_child_count()
@@ -1123,6 +1123,36 @@ func get_guide_light_allocation_audit() -> Dictionary:
 				scripted_node_count += 1
 			if child is CollisionObject3D or child is NavigationRegion3D:
 				authority_node_count += 1
+	for color_variant in _guide_lens_batches:
+		var color_key := str(color_variant)
+		var color := Color(color_key)
+		var batch := _guide_lens_batches[color_variant] as MultiMeshInstance3D
+		if not is_instance_valid(batch) or batch.multimesh == null:
+			errors.append("guide_lens_batch_missing")
+			continue
+		var mesh := batch.multimesh.mesh as SphereMesh
+		var material := batch.material_override as StandardMaterial3D
+		if mesh != null:
+			mesh_ids[mesh.get_instance_id()] = true
+			structural_submissions += mesh.get_surface_count()
+		if material != null:
+			material_ids[material.get_instance_id()] = true
+		drawn_copies += batch.multimesh.instance_count
+		var expected_transforms: Array[Transform3D] = []
+		for lens in lenses:
+			if (lens.get_meta("guide_lens_color", Color.TRANSPARENT) as Color).to_html(true) == color_key:
+				expected_transforms.append(_transform_relative_to(self, lens))
+		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		if (
+			mesh != _guide_lens_mesh
+			or material != _guide_lens_material_cache.get(color)
+			or batch.multimesh.instance_count != expected_transforms.size()
+			or batch.multimesh.buffer != _encode_multimesh_transforms(expected_transforms)
+			or authored_transforms != expected_transforms
+			or not bool(batch.get_meta("guide_lens_batch", false))
+		):
+			errors.append("guide_lens_batch_recipe_or_transform_drift")
+		child_node_count += batch.get_child_count()
 	for light in lights:
 		if light.get_script() != null:
 			scripted_node_count += 1
@@ -1137,6 +1167,8 @@ func get_guide_light_allocation_audit() -> Dictionary:
 		errors.append("guide_lens_node_count_drift")
 	if lights.size() != GUIDE_LENS_EXPECTED_COUNT:
 		errors.append("guide_light_node_count_drift")
+	if _guide_lens_batches.size() != GUIDE_LENS_BATCH_COUNT:
+		errors.append("guide_lens_batch_count_drift")
 	if mesh_ids.size() != 1 or not is_instance_valid(_guide_lens_mesh):
 		errors.append("guide_lens_mesh_identity_not_shared")
 	if material_ids.size() != GUIDE_LENS_EXPECTED_RECIPE_COUNT \
@@ -1154,17 +1186,17 @@ func get_guide_light_allocation_audit() -> Dictionary:
 			break
 
 	for light in lights:
-		var lens: MeshInstance3D = null
+		var lens: Marker3D = null
 		if light.get_index() > 0:
-			lens = light.get_parent().get_child(light.get_index() - 1) as MeshInstance3D
-		var expected_material := _guide_lens_material_cache.get(light.light_color) as StandardMaterial3D
+			lens = light.get_parent().get_child(light.get_index() - 1) as Marker3D
 		if (
 			lens == null
 			or not is_ancestor_of(lens)
 			or not is_ancestor_of(light)
 			or not lens.position.is_equal_approx(light.position)
-			or lens.mesh != _guide_lens_mesh
-			or lens.material_override != expected_material
+			or not (lens.get_meta("guide_lens_color", Color.TRANSPARENT) as Color).is_equal_approx(
+				light.light_color
+			)
 		):
 			errors.append("guide_light_pair_or_resource_identity_drift")
 			break
@@ -1173,13 +1205,15 @@ func get_guide_light_allocation_audit() -> Dictionary:
 	var behavior_fingerprint := JSON.stringify(behavior_rows).sha256_text()
 	if behavior_fingerprint != GUIDE_LIGHT_BEHAVIOR_FINGERPRINT:
 		errors.append("guide_light_behavior_drift")
-	if structural_submissions != GUIDE_LENS_BASELINE_SUBMISSIONS:
+	if structural_submissions != GUIDE_LENS_BATCHED_SUBMISSIONS:
 		errors.append("guide_lens_submission_count_drift")
+	if drawn_copies != GUIDE_LENS_EXPECTED_COUNT:
+		errors.append("guide_lens_copy_count_drift")
 	if authority_node_count != 0 or scripted_node_count != 0 or child_node_count != 0:
 		errors.append("guide_light_stock_gained_authority_or_lifecycle_children")
 
 	var retained_resource_count := mesh_ids.size() + material_ids.size()
-	var scope_node_count := lenses.size() + lights.size()
+	var scope_node_count := lenses.size() + lights.size() + _guide_lens_batches.size()
 	var upper_operations := get_node_or_null("UpperOperations") as Node3D
 	var upper_operations_lens_count := 0
 	if upper_operations != null:
@@ -1188,6 +1222,12 @@ func get_guide_light_allocation_audit() -> Dictionary:
 				upper_operations_lens_count += 1
 	if upper_operations_lens_count != 1:
 		errors.append("upper_operations_guide_lens_roster_drift")
+	var batch_instance_counts := {}
+	for color_variant in _guide_lens_batches:
+		var batch := _guide_lens_batches[color_variant] as MultiMeshInstance3D
+		batch_instance_counts[str(color_variant)] = (
+			batch.multimesh.instance_count if is_instance_valid(batch) and batch.multimesh != null else -1
+		)
 
 	return {
 		"valid": errors.is_empty(),
@@ -1199,9 +1239,16 @@ func get_guide_light_allocation_audit() -> Dictionary:
 		"scope_node_count": scope_node_count,
 		"baseline_scope_node_count": GUIDE_LENS_BASELINE_SCOPE_NODES,
 		"node_delta": scope_node_count - GUIDE_LENS_BASELINE_SCOPE_NODES,
+		"renderer_node_count": _guide_lens_batches.size(),
+		"baseline_renderer_node_count": GUIDE_LENS_EXPECTED_COUNT,
+		"renderer_node_delta": _guide_lens_batches.size() - GUIDE_LENS_EXPECTED_COUNT,
 		"structural_submission_count": structural_submissions,
 		"baseline_structural_submission_count": GUIDE_LENS_BASELINE_SUBMISSIONS,
 		"submission_delta": structural_submissions - GUIDE_LENS_BASELINE_SUBMISSIONS,
+		"drawn_copy_count": drawn_copies,
+		"baseline_drawn_copy_count": GUIDE_LENS_EXPECTED_COUNT,
+		"drawn_copy_delta": drawn_copies - GUIDE_LENS_EXPECTED_COUNT,
+		"batch_instance_counts": batch_instance_counts,
 		"mesh_resource_identity_count": mesh_ids.size(),
 		"material_resource_identity_count": material_ids.size(),
 		"retained_visual_resource_identity_count": retained_resource_count,
@@ -1213,7 +1260,21 @@ func get_guide_light_allocation_audit() -> Dictionary:
 		"authority_node_count": authority_node_count,
 		"scripted_node_count": scripted_node_count,
 		"child_node_count": child_node_count,
-		"batched": false,
+		"before": {
+			"scope_nodes": GUIDE_LENS_BASELINE_SCOPE_NODES,
+			"renderer_nodes": GUIDE_LENS_EXPECTED_COUNT,
+			"structural_submissions": GUIDE_LENS_BASELINE_SUBMISSIONS,
+			"drawn_copies": GUIDE_LENS_EXPECTED_COUNT,
+			"retained_visual_resources": 5,
+		},
+		"current": {
+			"scope_nodes": scope_node_count,
+			"renderer_nodes": _guide_lens_batches.size(),
+			"structural_submissions": structural_submissions,
+			"drawn_copies": drawn_copies,
+			"retained_visual_resources": retained_resource_count,
+		},
+		"batched": true,
 		"frame_time_claimed": false,
 		"gpu_draw_call_claimed": false,
 	}
@@ -7276,8 +7337,6 @@ func _build_range_gate_clearance_cue(exterior: Node3D) -> void:
 			2.6,
 			9.0
 		)
-
-
 func _build_space_backdrop() -> void:
 	var backdrop := Node3D.new()
 	backdrop.name = "SpaceBackdrop"
@@ -7579,15 +7638,13 @@ func _add_guide_light(
 	energy: float = 1.7,
 	range_value: float = 7.0
 ) -> void:
-	# These lenses never carry collision, scripts, per-instance material mutation,
-	# or children. Retain one exact sphere and one exact material per signal color
-	# while keeping the same MeshInstance3D node and one-surface submission per
-	# light. This is resource sharing, not renderer batching.
-	var lens := MeshInstance3D.new()
+	# Stable per-light paths remain local to their authored parents. Rendering is
+	# finalized once all lights exist, in one batch per immutable color recipe.
+	var lens := Marker3D.new()
 	lens.name = "GuideLens"
 	lens.position = light_position
-	lens.mesh = _shared_guide_lens_mesh()
-	lens.material_override = _shared_guide_lens_material(color)
+	lens.set_meta("guide_lens_color", color)
+	lens.set_meta("batched_visual_anchor", true)
 	parent.add_child(lens)
 	_guide_lens_nodes.append(lens)
 	var light := OmniLight3D.new()
@@ -7603,6 +7660,52 @@ func _add_guide_light(
 		light.set_meta("pulse_phase", float(_warning_lights.size()) * 0.83)
 		light.set_meta("base_energy", energy)
 		_warning_lights.append(light)
+
+
+func _finalize_guide_lens_batches() -> void:
+	if not _guide_lens_batches.is_empty():
+		return
+	var batch_names := {
+		KETH_CYAN.to_html(true): "GuideLensBatchCyan",
+		KETH_ORANGE.to_html(true): "GuideLensBatchOrange",
+		ALERT_RED.to_html(true): "GuideLensBatchRed",
+		Color("cfe6ee").to_html(true): "GuideLensBatchNeutral",
+	}
+	for color_variant in batch_names:
+		var color_key := str(color_variant)
+		var color := Color(color_key)
+		var transforms: Array[Transform3D] = []
+		for lens in _guide_lens_nodes:
+			var lens_color := lens.get_meta("guide_lens_color", Color.TRANSPARENT) as Color
+			if lens_color.to_html(true) == color_key:
+				transforms.append(_transform_relative_to(self, lens))
+		var multi := MultiMesh.new()
+		multi.transform_format = MultiMesh.TRANSFORM_3D
+		multi.mesh = _shared_guide_lens_mesh()
+		multi.instance_count = transforms.size()
+		multi.visible_instance_count = -1
+		multi.buffer = _encode_multimesh_transforms(transforms)
+		multi.custom_aabb = _transformed_mesh_bounds(multi.mesh.get_aabb(), transforms)
+		var batch := MultiMeshInstance3D.new()
+		batch.name = str(batch_names[color_variant])
+		batch.multimesh = multi
+		batch.material_override = _shared_guide_lens_material(color)
+		batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		batch.set_meta("guide_lens_batch", true)
+		batch.set_meta("guide_lens_color", color)
+		batch.set_meta("authored_instance_transforms", transforms.duplicate())
+		add_child(batch)
+		_guide_lens_batches[color_key] = batch
+
+
+static func _transform_relative_to(ancestor: Node3D, node: Node3D) -> Transform3D:
+	var result := node.transform
+	var cursor := node.get_parent()
+	while cursor != null and cursor != ancestor:
+		if cursor is Node3D:
+			result = (cursor as Node3D).transform * result
+		cursor = cursor.get_parent()
+	return result if cursor == ancestor else Transform3D.IDENTITY
 
 
 func _shared_guide_lens_mesh() -> SphereMesh:
