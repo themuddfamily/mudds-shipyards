@@ -296,6 +296,8 @@ func reset(expected_generation: int) -> Dictionary:
 		_flush_publish()
 		return _content_result(false, &"protected_asset_handle_renewal_failed")
 	var renewed_asset := _protected_asset.renew(int(old_handle.generation))
+	if bool(renewed_asset.get("accepted", false)):
+		_apply_protected_asset_presentation()
 	_content_mutation_active = false
 	_flush_publish()
 	if not bool(renewed_asset.get("accepted", false)):
@@ -684,6 +686,15 @@ func _wire_protected_asset() -> void:
 		_protected_asset.asset_damaged.connect(_on_protected_asset_damaged)
 	if not _protected_asset.asset_destroyed.is_connected(_on_protected_asset_destroyed):
 		_protected_asset.asset_destroyed.connect(_on_protected_asset_destroyed)
+	_apply_protected_asset_presentation()
+
+
+func _apply_protected_asset_presentation() -> Dictionary:
+	if not is_instance_valid(_protected_asset):
+		return _content_result(false, &"protected_asset_unavailable")
+	return _protected_asset.apply_authority_presentation_snapshot(
+		_protected_asset.get_snapshot()
+	)
 
 
 func _acquire_hostile_sources_atomically(errors: PackedStringArray) -> void:
@@ -877,6 +888,7 @@ func _on_protected_asset_damaged(
 		return
 	_content_mutation_active = true
 	_host.protected_asset_damaged(asset_handle, event_handle, get_generation())
+	_apply_protected_asset_presentation()
 	_content_mutation_active = false
 	_flush_publish()
 
@@ -889,6 +901,7 @@ func _on_protected_asset_destroyed(
 		return
 	_content_mutation_active = true
 	_host.protected_asset_destroyed(asset_handle, event_handle, get_generation())
+	_apply_protected_asset_presentation()
 	_content_mutation_active = false
 	_flush_publish()
 

@@ -284,6 +284,14 @@ func _test_checked_in_encounter_content() -> void:
 	var opponents: Array[RangeOpponent] = [alpha, beta, gamma]
 	var asset := content.get_protected_asset()
 	var damageable := asset.get_damageable_component() if asset != null else null
+	var signal_ring := asset.get_node(^"Presentation/SignalRing") as MeshInstance3D if asset != null else null
+	var signal_core := asset.get_node(^"Presentation/Core") as MeshInstance3D if asset != null else null
+	var signal_light := asset.get_node(^"Presentation/SignalLight") as OmniLight3D if asset != null else null
+	var signal_ring_id := signal_ring.get_instance_id() if signal_ring != null else 0
+	var signal_core_id := signal_core.get_instance_id() if signal_core != null else 0
+	var signal_light_id := signal_light.get_instance_id() if signal_light != null else 0
+	var signal_ring_mesh_id := signal_ring.mesh.get_instance_id() if signal_ring != null else 0
+	var signal_core_mesh_id := signal_core.mesh.get_instance_id() if signal_core != null else 0
 	_check(
 		alpha != null and beta != null and gamma != null
 		and _count_direct_opponents(roster) == 3
@@ -308,6 +316,40 @@ func _test_checked_in_encounter_content() -> void:
 		and int(asset.get_asset_handle().generation) == 1
 		and asset.audit().valid,
 		"the dedicated modern perimeter asset has one existing Damageable as its sole health store"
+	)
+	var safe_presentation := asset.get_protected_asset_presentation_snapshot()
+	var presentation_budget := safe_presentation.budget as Dictionary
+	_check(
+		safe_presentation.state_id == &"safe"
+		and bool(safe_presentation.ring_visible)
+		and bool(safe_presentation.core_visible)
+		and bool(safe_presentation.light_visible)
+		and is_equal_approx(float(safe_presentation.ring_scale), 1.0)
+		and is_equal_approx(float(safe_presentation.core_scale), 1.0)
+		and (safe_presentation.light_color as Color).is_equal_approx(Color(0.282, 0.859, 0.886, 1.0))
+		and is_equal_approx(float(safe_presentation.light_energy), 2.4),
+		"caller-supplied healthy snapshot presents the perimeter asset as a steady cyan full-form beacon"
+	)
+	_check(
+		int(presentation_budget.presentation_nodes) == 4
+		and int(presentation_budget.mesh_instances) == 2
+		and int(presentation_budget.lights) == 1
+		and not bool(presentation_budget.runtime_node_allocation)
+		and not bool(presentation_budget.runtime_resource_allocation)
+		and int(presentation_budget.process_callbacks) == 0
+		and not bool(safe_presentation.authority.health)
+		and not bool(safe_presentation.authority.damage)
+		and not bool(safe_presentation.authority.objective)
+		and not bool(safe_presentation.authority.rewards),
+		"asset danger presentation reuses the exact fixed 4-node/2-mesh/1-light authority-free budget"
+	)
+	var forged_presentation := asset.get_snapshot()
+	(forged_presentation.asset_handle as Dictionary)["generation"] = 999
+	var before_forged_presentation := asset.get_protected_asset_presentation_snapshot()
+	_check(
+		asset.apply_authority_presentation_snapshot(forged_presentation).reason == &"stale_presentation_snapshot"
+		and asset.get_protected_asset_presentation_snapshot() == before_forged_presentation,
+		"stale caller snapshot rejects without changing visible protected-asset state"
 	)
 	var physical_before_preflight := asset.get_snapshot()
 	_check(
@@ -516,9 +558,32 @@ func _test_checked_in_encounter_content() -> void:
 			renewal_reentry["snapshot_unchanged"] = content.get_snapshot() == before_reset
 	)
 	var first_asset_hit := await _shoot(authority, attacker, asset)
+	var danger_presentation := asset.get_protected_asset_presentation_snapshot()
+	_check(
+		first_asset_hit.damaged
+		and danger_presentation.state_id == &"danger"
+		and bool(danger_presentation.ring_visible)
+		and is_equal_approx(float(danger_presentation.ring_scale), 1.12)
+		and is_equal_approx(float(danger_presentation.core_scale), 0.92)
+		and (danger_presentation.light_color as Color).is_equal_approx(Color("ffb14e"))
+		and is_equal_approx(float(danger_presentation.light_energy), 3.1),
+		"real authoritative damage expands the ring and warms the practical into a readable danger state"
+	)
 	var second_asset_hit := await _shoot(authority, attacker, asset)
+	var critical_presentation := asset.get_protected_asset_presentation_snapshot()
+	_check(
+		second_asset_hit.damaged
+		and critical_presentation.state_id == &"critical"
+		and bool(critical_presentation.ring_visible)
+		and is_equal_approx(float(critical_presentation.ring_scale), 1.28)
+		and is_equal_approx(float(critical_presentation.core_scale), 0.78)
+		and (critical_presentation.light_color as Color).is_equal_approx(Color("ff3b35"))
+		and is_equal_approx(float(critical_presentation.light_energy), 4.2),
+		"second real hit widens the silhouette and turns its bounded practical critical red"
+	)
 	var terminal_asset_hit := await _shoot(authority, attacker, asset)
 	var asset_failure := content.get_snapshot()
+	var destroyed_presentation := asset.get_protected_asset_presentation_snapshot()
 	_check(
 		first_asset_hit.damaged and second_asset_hit.damaged
 		and terminal_asset_hit.destroyed and damageable.is_destroyed()
@@ -527,6 +592,14 @@ func _test_checked_in_encounter_content() -> void:
 		and asset_failure.host.activity.failure_reason == &"protected_asset_destroyed"
 		and resolver.get_registered_source_count() == 1,
 		"only AuthoritativeDamageable health emits protected destruction, which the host observes and terminalizes"
+	)
+	_check(
+		destroyed_presentation.state_id == &"destroyed"
+		and not bool(destroyed_presentation.ring_visible)
+		and not bool(destroyed_presentation.core_visible)
+		and not bool(destroyed_presentation.light_visible)
+		and is_zero_approx(float(destroyed_presentation.light_energy)),
+		"authoritative destruction darkens the beacon without presentation mutating collision or objective state"
 	)
 	var renewal_reentry_result := renewal_reentry.get("result", {}) as Dictionary
 	_check(
@@ -539,6 +612,7 @@ func _test_checked_in_encounter_content() -> void:
 
 	var reset_after_asset_failure := content.reset(reentry_generation)
 	var renewed_generation := int(asset.get_asset_handle().generation)
+	var renewed_presentation := asset.get_protected_asset_presentation_snapshot()
 	var leash_start := content.start(int(reset_after_asset_failure.activity.generation))
 	var leash_generation := int(leash_start.activity.generation)
 	_check(
@@ -552,6 +626,19 @@ func _test_checked_in_encounter_content() -> void:
 			leash_generation
 		).reason == &"stale_protected_asset_generation",
 		"reset renews exact generation plus one and stale physical callbacks cannot mutate the new activity"
+	)
+	_check(
+		renewed_presentation.state_id == &"safe"
+		and bool(renewed_presentation.ring_visible)
+		and bool(renewed_presentation.core_visible)
+		and is_equal_approx(float(renewed_presentation.ring_scale), 1.0)
+		and is_equal_approx(float(renewed_presentation.light_energy), 2.4)
+		and signal_ring.get_instance_id() == signal_ring_id
+		and signal_core.get_instance_id() == signal_core_id
+		and signal_light.get_instance_id() == signal_light_id
+		and signal_ring.mesh.get_instance_id() == signal_ring_mesh_id
+		and signal_core.mesh.get_instance_id() == signal_core_mesh_id,
+		"renewal restores the cyan full-form beacon on the same fixed nodes and resources"
 	)
 	alpha.global_position = content.to_global(Vector3(40.0, 8.0, -60.0))
 	var leash_result := content.advance_physics(0.0, leash_generation)
@@ -625,6 +712,14 @@ func _test_checked_in_encounter_content() -> void:
 	attacker.queue_free()
 	root.remove_child(authority)
 	authority.queue_free()
+	var fleet_expansion := world.get_fleet_expansion_production_binding()
+	if fleet_expansion != null:
+		for craft_id: StringName in [
+			&"cinder_cargo_hauler",
+			&"cinder_long_range_bomber",
+			&"cinder_light_interceptor",
+		]:
+			fleet_expansion.detach_craft(craft_id)
 	root.remove_child(world)
 	world.queue_free()
 	for _frame in 10:
