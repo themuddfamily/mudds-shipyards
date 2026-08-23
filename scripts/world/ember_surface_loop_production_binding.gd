@@ -179,6 +179,11 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	_configured = true
 	_configuration_error = &""
 	_state = State.IDLE
+	# The host owns the retained session; audio observes its detached
+	# presentation signal without advancing travel or claiming movement authority.
+	var retained_session: Variant = _host.get("_session")
+	if retained_session is Object:
+		bind_planetary_travel_audio(retained_session as Object)
 	process_physics_priority = PHYSICS_PRIORITY
 	set_physics_process(is_inside_tree())
 	return _finish(true, &"configured")
