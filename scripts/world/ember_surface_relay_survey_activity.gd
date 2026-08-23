@@ -10,10 +10,14 @@ const START_LANDMARK_ID: StringName = &"ember_relay_tower"
 const FINISH_LANDMARK_ID: StringName = &"ember_return_beacon"
 const REWARD_ID: StringName = &"ember_beacon_data"
 
-func begin(adapter: Object) -> Dictionary:
-	if adapter == null or not adapter.has_method(&"start_activity_sequence"):
+func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
+	if adapter == null:
 		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
 	var ids: Array[StringName] = [ACTIVITY_ID]
+	if navigation != null and adapter.has_method(&"start_surface_activity_sequence"):
+		return adapter.call(&"start_surface_activity_sequence", ids, navigation)
+	if not adapter.has_method(&"start_activity_sequence"):
+		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
 	return adapter.call(&"start_activity_sequence", ids)
 
 func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3) -> Dictionary:

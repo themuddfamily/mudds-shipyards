@@ -178,7 +178,7 @@ func start_surface_activity_sequence(activity_ids: Array[StringName]) -> Diction
 
 func start_relay_survey() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
-	return _relay_survey.begin(_adapter)
+	return _relay_survey.begin(_adapter, _navigation)
 
 func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")

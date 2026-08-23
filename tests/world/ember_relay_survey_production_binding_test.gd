@@ -18,12 +18,16 @@ func _run() -> void:
 	var configured := binding.configure(host, director, Callable(self, "_reward_sink"), 10)
 	var started := binding.start_relay_survey()
 	var progressed := binding.submit_relay_survey_position(Vector3(180.0, 120009.0, -44.0))
+	var saved: Dictionary = binding.get_session_snapshot()
 	var detached := binding.detach()
 	host.attachment_generation = 2
 	var reentered := binding.reenter()
+	var restored := binding.restore_session_snapshot(saved)
+	var corrupt := binding.restore_session_snapshot({"schema_version": 999})
 	var snapshot: Dictionary = binding.get_snapshot().relay_survey
 	if not configured.accepted or not started.accepted or not progressed.accepted or not detached.accepted \
-			or not reentered.accepted or snapshot.activity_id != &"ember_beacon_survey" or snapshot.authority.reward:
+			or not reentered.accepted or not restored.accepted or corrupt.accepted \
+			or snapshot.activity_id != &"ember_beacon_survey" or snapshot.authority.reward:
 		push_error("relay survey production binding lifecycle failed")
 		quit(1)
 		return
