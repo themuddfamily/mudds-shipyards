@@ -364,6 +364,7 @@ var _safe_start_production_recovery: SafeStartProductionRecovery
 ## it, so turning the preset back off restores the exact authored feel.
 var _authored_chase_camera_lag: Dictionary = {}
 var ships: Array[HeroShip] = []
+var _production_registry_refresh_queued := false
 ## The station's one drivable ground vehicle, resolved from the world subtree
 ## rather than a global group so a second world instance in a test cannot be
 ## mistaken for this one. It is never appended to `ships`.
@@ -3727,26 +3728,56 @@ func _register_flyable_ships() -> void:
 	ships.clear()
 	var seen_ship_ids: Dictionary = {}
 	var seen_home_berths: Dictionary = {}
+	var registration_candidates: Array[HeroShip] = []
 	for child in get_children():
-		if child is not HeroShip:
-			continue
-		var candidate := child as HeroShip
+		if child is HeroShip:
+			registration_candidates.append(child as HeroShip)
+	# ShipyardWorld owns the production composition, so the three authored
+	# expansion craft are deliberately discovered through its typed binding
+	# query instead of making GameFlow depend on that binding's scene layout.
+	var expansion_binding: Node = null
+	if is_instance_valid(world) and world.has_method(&"get_fleet_expansion_production_binding"):
+		expansion_binding = world.call(&"get_fleet_expansion_production_binding") as Node
+	if is_instance_valid(expansion_binding) and expansion_binding.has_method(&"get_fleet_snapshot"):
+		var pending_snapshot := expansion_binding.call(&"get_fleet_snapshot") as Dictionary
+		if not bool(pending_snapshot.get("built", false)) and not _production_registry_refresh_queued:
+			_production_registry_refresh_queued = true
+			call_deferred(&"_refresh_production_flyable_registry")
+	if is_instance_valid(expansion_binding) and expansion_binding.has_method(&"get_fleet_snapshot"):
+		var fleet_snapshot := expansion_binding.call(&"get_fleet_snapshot") as Dictionary
+		for row_variant: Variant in fleet_snapshot.get("craft", []) as Array:
+			var row := row_variant as Dictionary
+			var craft_id := StringName(row.get("craft_id", &""))
+			if craft_id.is_empty() or not bool(row.get("attached", false)):
+				continue
+			var nested := expansion_binding.get_node_or_null(NodePath(String(craft_id))) as HeroShip
+			if is_instance_valid(nested) and not registration_candidates.has(nested):
+				registration_candidates.append(nested)
+	for candidate in registration_candidates:
+		var production_contract := _get_expansion_flyable_contract(candidate, expansion_binding)
+		var is_production_candidate := bool(production_contract.get("accepted", false))
 		var definition := candidate.get_ship_definition()
 		var ship_audio_rig := candidate.get_ship_audio_rig()
 		var candidate_id := candidate.get_ship_id()
 		var berth_id := candidate.get_home_berth_id()
+		if is_production_candidate:
+			# Expansion pads are owned by FleetExpansionBerths, not ShipBerth.
+			# Keep the GameFlow identity/uniqueness contract while retaining that
+			# binding's attachment and reservation authority.
+			berth_id = StringName(production_contract.get("pad_id", &""))
+			candidate.home_berth_id = berth_id
 		var invalid_reason := ""
-		if definition == null or not definition.is_definition_valid():
+		if not is_production_candidate and (definition == null or not definition.is_definition_valid()):
 			invalid_reason = "missing or invalid ShipDefinition"
 		elif ship_audio_rig == null \
 				or not bool(ship_audio_rig.get_audit_report().get("valid", false)) \
-				or ship_audio_rig.get_profile_id() != definition.audio_profile_id:
+				or (definition != null and ship_audio_rig.get_profile_id() != definition.audio_profile_id):
 			invalid_reason = "missing, invalid, or mismatched ship-local audio profile"
 		elif candidate_id.is_empty() or seen_ship_ids.has(candidate_id):
 			invalid_reason = "empty or duplicate ship ID %s" % candidate_id
 		elif berth_id.is_empty() or seen_home_berths.has(berth_id):
 			invalid_reason = "empty or duplicate home berth ID %s" % berth_id
-		elif not world.has_method("has_berth") or not bool(world.call("has_berth", berth_id)):
+		elif not is_production_candidate and (not world.has_method("has_berth") or not bool(world.call("has_berth", berth_id))):
 			invalid_reason = "unregistered home berth %s" % berth_id
 		if not invalid_reason.is_empty():
 			_disable_invalid_fleet_candidate(candidate)
@@ -3754,11 +3785,15 @@ func _register_flyable_ships() -> void:
 			continue
 		seen_ship_ids[candidate_id] = candidate
 		seen_home_berths[berth_id] = candidate
-		if not _reserve_berth_for_ship(candidate, berth_id, true):
+		if not is_production_candidate and not _reserve_berth_for_ship(candidate, berth_id, true):
 			_disable_invalid_fleet_candidate(candidate)
 			push_error("Flyable ship %s could not occupy home berth %s" % [candidate.name, berth_id])
 			continue
-		var berth_transform := world.call("get_berth_transform", berth_id) as Transform3D
+		var berth_transform := (
+			Transform3D(candidate.global_basis, production_contract.get("landing_anchor", candidate.global_position))
+			if is_production_candidate
+			else world.call("get_berth_transform", berth_id) as Transform3D
+		)
 		candidate.global_transform = berth_transform
 		candidate.set_piloted(false)
 		ships.append(candidate)
@@ -3769,6 +3804,30 @@ func _register_flyable_ships() -> void:
 	)
 	if not ships.has(ship):
 		push_error("The guided Torrent craft was rejected from the physical fleet registry")
+
+
+func _refresh_production_flyable_registry() -> void:
+	_production_registry_refresh_queued = false
+	await get_tree().process_frame
+	_register_flyable_ships()
+
+
+func _get_expansion_flyable_contract(candidate: HeroShip, binding: Node) -> Dictionary:
+	if not is_instance_valid(candidate) or not is_instance_valid(binding):
+		return {}
+	if not binding.has_method(&"get_fleet_snapshot") or not binding.has_method(&"get_craft_compatibility_contract"):
+		return {}
+	var snapshot := binding.call(&"get_fleet_snapshot") as Dictionary
+	for row_variant: Variant in snapshot.get("craft", []) as Array:
+		var row := row_variant as Dictionary
+		var craft_id := StringName(row.get("craft_id", &""))
+		if binding.get_node_or_null(NodePath(String(craft_id))) != candidate:
+			continue
+		var contract := binding.call(&"get_craft_compatibility_contract", craft_id) as Dictionary
+		if bool(contract.get("accepted", false)) and bool(contract.get("valid", false)):
+			contract["attached"] = bool(row.get("attached", false))
+			return contract if bool(contract.get("attached", false)) else {}
+	return {}
 
 
 func _disable_invalid_fleet_candidate(candidate: HeroShip) -> void:
@@ -3788,14 +3847,15 @@ func _initialize_live_combat() -> void:
 		push_error("Main scene is missing its live combat authority")
 		return
 	var source_owners: Dictionary = {}
+	var expected_player_sources := 0
 	for fleet_ship in ships:
 		var source_id := int(PLAYER_SOURCE_IDS.get(fleet_ship.get_ship_id(), 0))
 		if source_id <= 0:
-			push_error(
-				"No stable combat source ID is registered for ship ID %s"
-				% fleet_ship.get_ship_id()
-			)
+			# Production expansion craft are flyable/boardable HeroShips, but
+			# explicitly do not own combat authority until their combat contract is
+			# authored. Keep them in switching while leaving live combat fail-closed.
 			continue
+		expected_player_sources += 1
 		if source_owners.has(source_id):
 			push_error(
 				"Combat source ID %d is duplicated by %s and %s"
@@ -3846,7 +3906,7 @@ func _initialize_live_combat() -> void:
 			% [adapted_target_count, expected_target_count]
 		)
 	var resolver := combat_authority.get_resolver()
-	var expected_source_count := ships.size() + 1
+	var expected_source_count := expected_player_sources + 1
 	if resolver == null or resolver.get_registered_source_count() != expected_source_count:
 		push_error(
 			"Live combat authority owns %d of %d expected source registrations"
