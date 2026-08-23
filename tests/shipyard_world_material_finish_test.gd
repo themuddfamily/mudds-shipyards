@@ -57,6 +57,31 @@ func _run() -> void:
 			and _surface_material(toolbox) == materials.get("red"),
 			"paired catwalk guards and service equipment use the coherent safety-paint family",
 		)
+		var berth := world.get_central_berth_hero_presentation()
+		var structure := (
+			berth.get_runtime_material(&"StructuralAlloy")
+			if berth != null else null
+		)
+		_check(
+			structure != null and structure.uv1_triplanar and structure.uv1_world_triplanar
+			and structure.uv1_scale.is_equal_approx(Vector3.ONE * 0.3)
+			and _finish_matches(structure, 0.18, 0.38),
+			"central-berth structural alloy uses the shared world-metric alloy finish",
+		)
+		var primary := berth.get_semantic_root(&"primary_structure") if berth != null else null
+		var secondary := berth.get_semantic_root(&"secondary_structure") if berth != null else null
+		_check(
+			_role_root_uses_material(primary, &"StructuralAlloy", structure)
+			and _role_root_uses_material(secondary, &"StructuralAlloy", structure),
+			"both authored central-berth beam/frame batches use the mapped structural alloy",
+		)
+		var berth_audit := berth.get_asset_audit_report() if berth != null else {}
+		_check(
+			bool(berth_audit.get("valid", false))
+			and int(berth_audit.get("runtime_mesh_count", 0)) == 8
+			and int(berth_audit.get("runtime_triangle_count", 0)) == 11508,
+			"material-only berth finish preserves the authored mesh and triangle contract",
+		)
 	world.queue_free()
 	await process_frame
 	_finish()
@@ -74,6 +99,20 @@ func _surface_material(body: StaticBody3D) -> Material:
 		return null
 	var mesh := body.get_node_or_null(^"Mesh") as MeshInstance3D
 	return mesh.material_override if mesh != null else null
+
+
+func _role_root_uses_material(root_node: Node3D, role: StringName, material: Material) -> bool:
+	if root_node == null or material == null:
+		return false
+	var matched := false
+	for candidate in root_node.find_children("*", "MeshInstance3D", true, false):
+		var mesh := candidate as MeshInstance3D
+		if StringName(mesh.get_meta("central_berth_material_role", &"")) != role:
+			continue
+		matched = true
+		if mesh.material_override != material:
+			return false
+	return matched
 
 
 func _check(condition: bool, message: String) -> void:

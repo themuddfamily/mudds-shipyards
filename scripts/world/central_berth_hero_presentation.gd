@@ -12,6 +12,7 @@ const ASSET_ID := &"mudds.station.central_berth_hero.v1"
 const DECK_ALBEDO_PATH := "res://assets/materials/shipyard-deck-albedo-v1.png"
 const DECK_NORMAL_PATH := "res://assets/materials/shipyard-deck-normal-v1.png"
 const DECK_ROUGHNESS_PATH := "res://assets/materials/shipyard-deck-roughness-v1.png"
+const STRUCTURAL_TRIPLANAR_SCALE := 0.3
 const REQUIRED_ROOTS := [
 	"deck_panels",
 	"edge_fascia",
@@ -77,10 +78,16 @@ func _build_once() -> void:
 
 
 func _configure_runtime_materials() -> void:
+	var structural_alloy := _pbr_material(Color("213843"), 0.72, 0.29)
+	StationSurfaceKit.apply_panel_triplanar(
+		structural_alloy,
+		STRUCTURAL_TRIPLANAR_SCALE,
+		StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+	)
 	_runtime_materials = {
 		&"DeckComposite": _deck_material(),
 		&"EdgeIvory": _pbr_material(Color("b4b8a9"), 0.18, 0.34),
-		&"StructuralAlloy": _pbr_material(Color("213843"), 0.72, 0.29),
+		&"StructuralAlloy": structural_alloy,
 		&"ServiceGraphite": _pbr_material(Color("081014"), 0.42, 0.48),
 		&"GuidanceCyan": _emissive_material(Color("045c6b"), Color("04bacd"), 2.1),
 	}
@@ -422,6 +429,26 @@ func _append_material_role_errors(errors: PackedStringArray) -> void:
 		or guidance == null or not guidance.emission_enabled or not is_equal_approx(guidance.emission_energy_multiplier, 2.1)
 	):
 		errors.append("physically_distinct_material_role_contract_drift")
+	if (
+		structure == null
+		or structure.albedo_texture == null
+		or structure.albedo_texture.resource_path != StationSurfaceKit.PANEL_ALBEDO_PATH
+		or not structure.normal_enabled
+		or structure.normal_texture == null
+		or structure.normal_texture.resource_path != StationSurfaceKit.PANEL_NORMAL_PATH
+		or structure.roughness_texture == null
+		or structure.roughness_texture.resource_path != StationSurfaceKit.PANEL_ROUGHNESS_PATH
+		or not structure.uv1_triplanar
+		or not structure.uv1_world_triplanar
+		or not structure.uv1_scale.is_equal_approx(Vector3.ONE * STRUCTURAL_TRIPLANAR_SCALE)
+		or not structure.clearcoat_enabled
+		or not is_equal_approx(structure.clearcoat, StationSurfaceKit.STRUCTURAL_CLEARCOAT)
+		or not is_equal_approx(
+			structure.clearcoat_roughness,
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS,
+		)
+	):
+		errors.append("structural_alloy_world_metric_finish_drift")
 
 
 func _capture_integrity_contract() -> void:
