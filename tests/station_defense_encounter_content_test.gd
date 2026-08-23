@@ -244,6 +244,20 @@ func _test_checked_in_encounter_content() -> void:
 	root.add_child(authority)
 	await process_frame
 	await physics_frame
+	# ShipyardWorld now production-composes this encounter at the same audited
+	# transform. This component test intentionally injects and drives its own
+	# isolated content instance below, so retire the world's copy first; otherwise
+	# both protected assets overlap exactly and a resolver ray can hit the fixture
+	# this test is not observing.
+	var production_content := world.get_station_defense_content()
+	if production_content != null:
+		production_content.queue_free()
+	await process_frame
+	_check(
+		not is_instance_valid(production_content)
+		and authority.get_resolver().get_registered_source_count() == 0,
+		"isolated content fixture retires the production-composed duplicate before exact-pose combat assertions"
+	)
 
 	var content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
 	root.add_child(content)
