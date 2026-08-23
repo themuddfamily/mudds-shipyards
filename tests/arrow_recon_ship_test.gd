@@ -224,17 +224,17 @@ func _test_entry_heat_attachment(arrow: ArrowReconShip) -> void:
 		"attachment audit freezes the authored and 0.25m-standoff Arrow-local bounds"
 	)
 	_check(
-		int(attachment.target_subtree_nodes) == 3
-		and int(attachment.renderer_nodes) == 1
-		and int(attachment.surface_count) == 1
-		and int(attachment.geometry_submissions) == 1
-		and int(attachment.visible_geometry_copies) == 1
-		and int(attachment.unique_mesh_resource_allocations) == 1
+		int(attachment.target_subtree_nodes) == 4
+		and int(attachment.renderer_nodes) == 2
+		and int(attachment.surface_count) == 2
+		and int(attachment.geometry_submissions) == 2
+		and int(attachment.visible_geometry_copies) == 2
+		and int(attachment.unique_mesh_resource_allocations) == 2
 		and int(attachment.exclusive_material_allocations) == 1
 		and not bool(attachment.presentation_configured)
 		and float(attachment.intensity_baseline) == 0.0
 		and float(attachment.live_intensity) == 0.0,
-		"attachment contributes exactly one three-node target subtree, renderer, surface/submission, visible copy, mesh allocation, and exclusive material"
+		"attachment contributes one four-node target subtree with overlay and compression renderers sharing one exclusive material"
 	)
 	var presentation := target.get_presentation() if target != null else null
 	var state := presentation.get_state_snapshot() if presentation != null else {}
@@ -563,15 +563,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 189,
-			"mesh_instance_nodes": 166,
+			"nodes": 190,
+			"mesh_instance_nodes": 167,
 			"multi_mesh_instance_nodes": 1,
-			"geometry_submissions": 167,
-			"visible_geometry_copies": 168,
-			"unique_mesh_resource_allocations": 127,
+			"geometry_submissions": 168,
+			"visible_geometry_copies": 169,
+			"unique_mesh_resource_allocations": 128,
 			"auto_fallback_names": 23,
 		},
-		"weapon-complete Arrow freezes the exact 189-node, 167-submission, 127-mesh census with all 168 copies"
+		"entry-complete Arrow freezes the exact 190-node, 168-submission, 128-mesh census with all 169 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -584,12 +584,12 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"auto_fallback_names": 23,
 		}
 		and report.entry_heat_target_delta == {
-			"target_subtree_nodes": 3,
-			"renderer_nodes": 1,
-			"surface_count": 1,
-			"geometry_submissions": 1,
-			"visible_geometry_copies": 1,
-			"unique_mesh_resource_allocations": 1,
+			"target_subtree_nodes": 4,
+			"renderer_nodes": 2,
+			"surface_count": 2,
+			"geometry_submissions": 2,
+			"visible_geometry_copies": 2,
+			"unique_mesh_resource_allocations": 2,
 			"exclusive_material_allocations": 1,
 		}
 		and report.recon_pulse_emitter_delta == {
@@ -600,11 +600,11 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"unique_mesh_resource_allocations": 4,
 		}
 		and report.reductions == {
-			"nodes": -12,
-			"geometry_submissions": -8,
-			"unique_mesh_resource_allocations": 15,
+			"nodes": -13,
+			"geometry_submissions": -9,
+			"unique_mesh_resource_allocations": 14,
 			"auto_fallback_names": 1,
-			"visible_geometry_copies": -9,
+			"visible_geometry_copies": -10,
 		}
 		and report.phase9_reductions_before_entry_heat == {
 			"nodes": 1,
@@ -755,7 +755,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 189
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 190
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
@@ -763,7 +763,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.entry_heat_target.target_subtree_nodes
-		) == 3,
+		) == 4,
 		"caller mutation cannot alter the detached visual or entry-heat performance evidence"
 	)
 	_check(
@@ -803,8 +803,8 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	_check(
 		bool(budgeted_panel_report.valid)
 		and StringName(budgeted_panel_report.mesh_kind) == &"BoxMesh"
-		and int(torus_budget_report.tori) == 11,
-		"production torus budget retains both compact emitter shrouds while leaving the Arrow's shallow dorsal seams outside torus normalization"
+		and int(torus_budget_report.tori) == 12,
+		"production torus budget retains the compact emitter shrouds and bounded compression bow while leaving shallow dorsal seams outside torus normalization"
 	)
 	var injected := Node3D.new()
 	injected.name = "ForbiddenVisualAllocation"

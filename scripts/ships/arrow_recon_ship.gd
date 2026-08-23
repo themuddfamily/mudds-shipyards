@@ -155,12 +155,12 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 189,
-	"mesh_instance_nodes": 166,
+	"nodes": 190,
+	"mesh_instance_nodes": 167,
 	"multi_mesh_instance_nodes": 1,
-	"geometry_submissions": 167,
-	"visible_geometry_copies": 168,
-	"unique_mesh_resource_allocations": 127,
+	"geometry_submissions": 168,
+	"visible_geometry_copies": 169,
+	"unique_mesh_resource_allocations": 128,
 	"auto_fallback_names": 23,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -171,12 +171,12 @@ const RECON_PULSE_EMITTER_VISUAL_DELTA := {
 	"unique_mesh_resource_allocations": 4,
 }
 const ENTRY_HEAT_TARGET_VISUAL_DELTA := {
-	"target_subtree_nodes": 3,
-	"renderer_nodes": 1,
-	"surface_count": 1,
-	"geometry_submissions": 1,
-	"visible_geometry_copies": 1,
-	"unique_mesh_resource_allocations": 1,
+	"target_subtree_nodes": 4,
+	"renderer_nodes": 2,
+	"surface_count": 2,
+	"geometry_submissions": 2,
+	"visible_geometry_copies": 2,
+	"unique_mesh_resource_allocations": 2,
 	"exclusive_material_allocations": 1,
 }
 
@@ -373,11 +373,11 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"current": current,
 		"entry_heat_target_delta": ENTRY_HEAT_TARGET_VISUAL_DELTA.duplicate(true),
 		"reductions": {
-			"nodes": -12,
-			"geometry_submissions": -8,
-			"unique_mesh_resource_allocations": 15,
+			"nodes": -13,
+			"geometry_submissions": -9,
+			"unique_mesh_resource_allocations": 14,
 			"auto_fallback_names": 1,
-			"visible_geometry_copies": -9,
+			"visible_geometry_copies": -10,
 		},
 		"phase9_reductions_before_entry_heat": {
 			"nodes": 1,
@@ -1182,7 +1182,9 @@ func _inspect_entry_heat_attachment() -> Dictionary:
 	var state := presentation.get_state_snapshot() if presentation != null else {}
 	var material := target.get_material()
 	var overlay := target.get_overlay()
+	var compression := target.get_compression_bow()
 	var mesh := overlay.mesh if overlay != null else null
+	var compression_mesh := compression.mesh if compression != null else null
 	var shader := material.shader if material != null else null
 	var renderer := presentation.get_renderer_snapshot() if presentation != null else {}
 	var configured := bool(state.get("configured", false))
@@ -1223,13 +1225,24 @@ func _inspect_entry_heat_attachment() -> Dictionary:
 		"authored_local_bounds": authored_bounds,
 		"expanded_local_bounds": expanded_bounds,
 		"target_subtree_nodes": _count_visual_nodes(target),
-		"renderer_nodes": 1 if overlay != null else 0,
-		"surface_count": mesh.get_surface_count() if mesh != null else 0,
-		"geometry_submissions": mesh.get_surface_count() if mesh != null else 0,
-		"visible_geometry_copies": 1 if overlay != null else 0,
-		"unique_mesh_resource_allocations": 1 if mesh != null else 0,
+		"renderer_nodes": (1 if overlay != null else 0) + (1 if compression != null else 0),
+		"surface_count": (mesh.get_surface_count() if mesh != null else 0) + (
+			compression_mesh.get_surface_count() if compression_mesh != null else 0
+		),
+		"geometry_submissions": (mesh.get_surface_count() if mesh != null else 0) + (
+			compression_mesh.get_surface_count() if compression_mesh != null else 0
+		),
+		"visible_geometry_copies": (1 if overlay != null else 0) + (
+			1 if compression != null else 0
+		),
+		"unique_mesh_resource_allocations": (
+			(1 if mesh != null else 0) + (1 if compression_mesh != null and compression_mesh != mesh else 0)
+		),
 		"exclusive_material_allocations": 1 if material != null else 0,
 		"mesh_resource_instance_id": mesh.get_instance_id() if mesh != null else 0,
+		"compression_mesh_resource_instance_id": (
+			compression_mesh.get_instance_id() if compression_mesh != null else 0
+		),
 		"material_instance_id": material.get_instance_id() if material != null else 0,
 		"shader_instance_id": shader.get_instance_id() if shader != null else 0,
 		"material_local_to_scene": (
