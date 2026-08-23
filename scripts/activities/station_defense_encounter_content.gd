@@ -17,6 +17,14 @@ const MAX_AUTHORED_NODE_COUNT := 24
 const MIN_KEEP_CLEAR_RADIUS := 8.0
 const MIN_KEEP_CLEAR_GAP := 4.0
 const HOSTILE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
+const LATER_WAVE_TACTIC_ID: StringName = &"dockside_crossfire_pincer"
+const LATER_WAVE_ID: StringName = &"dockside_relief"
+const PINCER_CLOSE_HOSTILE_ID: StringName = &"perimeter_raider_beta"
+const PINCER_OUTER_HOSTILE_ID: StringName = &"perimeter_raider_gamma"
+const PINCER_CLOSE_PREFERRED_RANGE := 22.0
+const PINCER_OUTER_PREFERRED_RANGE := 74.0
+const PINCER_CLOSE_ORBIT_SIGN := -1.0
+const PINCER_OUTER_ORBIT_SIGN := 1.0
 const HOSTILE_WEAPON_PROFILES := {
 	HOSTILE_WEAPON_ID: {
 		"range": 170.0,
@@ -82,6 +90,10 @@ var _last_hostile_shot: Dictionary = {}
 var _last_leash_exit: Dictionary = {}
 var _configuration_state: StringName = &"awaiting_external_authority"
 var _last_live_world_transform := AUDITED_WORLD_TRANSFORM
+var _later_wave_tactic_state: StringName = &"idle"
+var _later_wave_tactic_generation := 0
+var _later_wave_tactic_applied := false
+var _nominal_tactic_configuration_by_key: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -485,6 +497,13 @@ func get_snapshot() -> Dictionary:
 			"spawn_roster": [],
 		}
 	)
+	var activity := (host_snapshot.get("activity", {}) as Dictionary).duplicate(true)
+	var tactic_feedback := _get_later_wave_tactic_feedback(activity)
+	activity["tactic_id"] = tactic_feedback.get("tactic_id", &"")
+	activity["tactic_state_id"] = tactic_feedback.get("state_id", &"idle")
+	activity["next_step"] = tactic_feedback.get("objective", "DEFEND PERIMETER BEACON")
+	activity["objective_text"] = tactic_feedback.get("objective", "DEFEND PERIMETER BEACON")
+	host_snapshot["activity"] = activity
 	var contract_snapshot: Dictionary = (
 		contract_definition.instantiate_contract().get_snapshot()
 		if contract_definition != null
@@ -520,6 +539,7 @@ func get_snapshot() -> Dictionary:
 		"hostile_weapon_id": HOSTILE_WEAPON_ID,
 		"last_hostile_shot": _last_hostile_shot.duplicate(true),
 		"last_leash_exit": _last_leash_exit.duplicate(true),
+		"later_wave_tactic": tactic_feedback,
 		"engagement": {
 			"required_world_transform": AUDITED_WORLD_TRANSFORM,
 			"live_world_transform": _get_live_world_transform(),
@@ -617,6 +637,7 @@ func _initialize_checked_in_content() -> void:
 					key, String(registered.get("reason", &"unknown")),
 				]
 				)
+	_capture_nominal_tactic_configuration()
 	_wire_protected_asset()
 	var combat_errors := PackedStringArray()
 	_wire_hostile_combat(combat_errors)
@@ -871,6 +892,146 @@ func _apply_active_hostile_bearing(activity: Dictionary) -> Dictionary:
 	})
 
 
+func _capture_nominal_tactic_configuration() -> void:
+	if not _nominal_tactic_configuration_by_key.is_empty():
+		return
+	for key_variant in _entity_by_key:
+		var key := str(key_variant)
+		var entity := _entity_by_key.get(key) as RangeOpponent
+		if not is_instance_valid(entity) or StringName(
+			entity.get_meta("hostile_id", &"")
+		) not in [PINCER_CLOSE_HOSTILE_ID, PINCER_OUTER_HOSTILE_ID]:
+			continue
+		_nominal_tactic_configuration_by_key[key] = {
+			"preferred_range": entity.preferred_range,
+			"orbit_sign": float(entity.get("_orbit_sign")),
+		}.duplicate(true)
+
+
+func _sync_later_wave_tactic(activity: Dictionary) -> void:
+	var state_id := StringName(activity.get("state_id", &"idle"))
+	var generation := int(activity.get("generation", 0))
+	var wave_id := StringName(activity.get("wave_id", &""))
+	var wave_active := bool(activity.get("wave_active", false))
+	if state_id == &"idle":
+		_restore_later_wave_tactic_configuration()
+		_later_wave_tactic_state = &"idle"
+		_later_wave_tactic_generation = 0
+		return
+	if state_id in [&"completed", &"failed", &"aborted", &"timed_out"]:
+		_restore_later_wave_tactic_configuration()
+		_later_wave_tactic_state = state_id
+		return
+	if state_id != &"active" or wave_id != LATER_WAVE_ID:
+		_restore_later_wave_tactic_configuration()
+		_later_wave_tactic_state = &"standby"
+		return
+
+	_later_wave_tactic_generation = generation
+	if not wave_active:
+		_restore_later_wave_tactic_configuration()
+		_later_wave_tactic_state = &"forming"
+		return
+	var active_ids: Array[StringName] = []
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		active_ids.append(StringName(handle.get("hostile_id", &"")))
+	if PINCER_CLOSE_HOSTILE_ID in active_ids and PINCER_OUTER_HOSTILE_ID in active_ids:
+		_apply_later_wave_tactic_configuration()
+		_later_wave_tactic_state = &"active"
+		return
+	_restore_later_wave_tactic_configuration()
+	_later_wave_tactic_state = &"broken"
+
+
+func _apply_later_wave_tactic_configuration() -> void:
+	var close_entity := _get_tactic_entity(PINCER_CLOSE_HOSTILE_ID)
+	var outer_entity := _get_tactic_entity(PINCER_OUTER_HOSTILE_ID)
+	if not is_instance_valid(close_entity) or not is_instance_valid(outer_entity):
+		_restore_later_wave_tactic_configuration()
+		return
+	close_entity.preferred_range = PINCER_CLOSE_PREFERRED_RANGE
+	close_entity.set("_orbit_sign", PINCER_CLOSE_ORBIT_SIGN)
+	outer_entity.preferred_range = PINCER_OUTER_PREFERRED_RANGE
+	outer_entity.set("_orbit_sign", PINCER_OUTER_ORBIT_SIGN)
+	_later_wave_tactic_applied = true
+
+
+func _restore_later_wave_tactic_configuration() -> void:
+	if not _later_wave_tactic_applied:
+		return
+	for key_variant in _nominal_tactic_configuration_by_key:
+		var key := str(key_variant)
+		var entity := _entity_by_key.get(key) as RangeOpponent
+		var nominal := _nominal_tactic_configuration_by_key.get(key, {}) as Dictionary
+		if not is_instance_valid(entity) or nominal.is_empty():
+			continue
+		entity.preferred_range = float(nominal.get("preferred_range", entity.preferred_range))
+		entity.set("_orbit_sign", float(nominal.get("orbit_sign", 1.0)))
+	_later_wave_tactic_applied = false
+
+
+func _get_tactic_entity(hostile_id: StringName) -> RangeOpponent:
+	for entity_variant in _entity_by_key.values():
+		var entity := entity_variant as RangeOpponent
+		if is_instance_valid(entity) and StringName(
+			entity.get_meta("hostile_id", &"")
+		) == hostile_id:
+			return entity
+	return null
+
+
+func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
+	var state := _later_wave_tactic_state
+	var objective := "CLEAR APPROACH RAIDER // DEFEND PERIMETER BEACON"
+	var status := "CROSSFIRE PINCER // STANDBY"
+	match state:
+		&"idle":
+			objective = "START PERIMETER DEFENSE"
+			status = "CROSSFIRE PINCER // IDLE"
+		&"forming":
+			objective = "PINCER INBOUND // HOLD PERIMETER BEACON"
+			status = "WAVE 2 // CROSSFIRE FORMING"
+		&"active":
+			objective = "BREAK CROSSFIRE PINCER // PROTECT BEACON"
+			status = "BETA CLOSE // GAMMA OUTER"
+		&"broken":
+			objective = "PINCER BROKEN // FINISH REMAINING RAIDER"
+			status = "CROSSFIRE BROKEN // NOMINAL PURSUIT"
+		&"completed":
+			objective = "PERIMETER SECURE // RECOVER AT DEFENSE BOARD"
+			status = "CROSSFIRE DEFEATED"
+		&"failed", &"aborted", &"timed_out":
+			objective = "DEFENSE ENDED // RECOVER AT DEFENSE BOARD"
+			status = "CROSSFIRE RETIRED"
+	return {
+		"tactic_id": LATER_WAVE_TACTIC_ID,
+		"wave_id": LATER_WAVE_ID,
+		"state_id": state,
+		"generation": _later_wave_tactic_generation,
+		"active": state == &"active",
+		"applied": _later_wave_tactic_applied,
+		"status": status,
+		"objective": objective,
+		"formation": [
+			{
+				"hostile_id": PINCER_CLOSE_HOSTILE_ID,
+				"role": &"close_pressure",
+				"preferred_range": PINCER_CLOSE_PREFERRED_RANGE,
+				"orbit_sign": PINCER_CLOSE_ORBIT_SIGN,
+			},
+			{
+				"hostile_id": PINCER_OUTER_HOSTILE_ID,
+				"role": &"outer_crossfire",
+				"preferred_range": PINCER_OUTER_PREFERRED_RANGE,
+				"orbit_sign": PINCER_OUTER_ORBIT_SIGN,
+			},
+		],
+		"terminal_or_break_restores_nominal": true,
+		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
 func _acquire_hostile_sources_atomically(errors: PackedStringArray) -> void:
 	if not is_instance_valid(_combat_authority):
 		_append_unique(errors, "external combat authority is required")
@@ -1089,6 +1250,10 @@ func _restore_after_reentry() -> void:
 	if not errors.is_empty():
 		for error in errors:
 			_append_unique(_initialization_errors, error)
+	if is_instance_valid(_host):
+		_sync_later_wave_tactic(
+			_host.get_snapshot().get("activity", {}) as Dictionary
+		)
 	_publish_snapshot()
 
 
@@ -1110,6 +1275,7 @@ func _detached_shot_result(result: Dictionary) -> Dictionary:
 
 func _on_host_snapshot_changed(host_snapshot: Dictionary) -> void:
 	var activity := host_snapshot.get("activity", {}) as Dictionary
+	_sync_later_wave_tactic(activity)
 	if is_instance_valid(_protected_asset):
 		_protected_asset.apply_activity_presentation_snapshot(activity)
 		_apply_active_hostile_bearing(activity)

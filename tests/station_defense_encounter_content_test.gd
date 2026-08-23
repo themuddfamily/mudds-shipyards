@@ -295,6 +295,9 @@ func _test_checked_in_encounter_content() -> void:
 	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
 	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
 	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
+	var beta_nominal_preferred_range := beta.preferred_range
+	var gamma_nominal_preferred_range := gamma.preferred_range
+	var gamma_nominal_orbit_sign := float(gamma.get("_orbit_sign"))
 	var opponents: Array[RangeOpponent] = [alpha, beta, gamma]
 	var asset := content.get_protected_asset()
 	var damageable := asset.get_damageable_component() if asset != null else null
@@ -514,6 +517,7 @@ func _test_checked_in_encounter_content() -> void:
 	var alpha_hostile_shot := await _emit_hostile_projectile(alpha, asset, content)
 	var alpha_terminal := await _shoot(authority, attacker, alpha)
 	var recovery_presentation := asset.get_protected_asset_presentation_snapshot()
+	var forming_tactic := content.get_snapshot().later_wave_tactic as Dictionary
 	_check(
 		recovery_presentation.wave_state_id == &"recovery"
 		and recovery_presentation.effective_state_id == &"recovery"
@@ -527,12 +531,42 @@ func _test_checked_in_encounter_content() -> void:
 		),
 		"the caller-owned inter-wave delay softens the fixed beacon into a recovery cue"
 	)
+	_check(
+		forming_tactic.tactic_id == StationDefenseEncounterContent.LATER_WAVE_TACTIC_ID
+		and forming_tactic.state_id == &"forming"
+		and not bool(forming_tactic.active)
+		and str(forming_tactic.objective).contains("PINCER INBOUND")
+		and content.get_snapshot().host.activity.next_step == forming_tactic.objective,
+		"inter-wave feedback clearly warns that the retained later-wave pincer is forming"
+	)
 	var relief := content.advance_physics(0.5, generation)
 	await physics_frame
+	var active_tactic := content.get_snapshot().later_wave_tactic as Dictionary
+	var active_activity := content.get_snapshot().host.activity as Dictionary
 	_check(
 		alpha_terminal.destroyed and relief.accepted
-		and beta.is_active() and gamma.is_active(),
-		"resolver terminal authority and exact caller delta activate the simultaneous relief wave"
+		and beta.is_active() and gamma.is_active()
+		and active_tactic.state_id == &"active"
+		and bool(active_tactic.applied)
+		and (active_tactic.formation as Array).size() == 2
+		and is_equal_approx(beta.preferred_range, StationDefenseEncounterContent.PINCER_CLOSE_PREFERRED_RANGE)
+		and is_equal_approx(gamma.preferred_range, StationDefenseEncounterContent.PINCER_OUTER_PREFERRED_RANGE)
+		and float(beta.get("_orbit_sign")) == StationDefenseEncounterContent.PINCER_CLOSE_ORBIT_SIGN
+		and float(gamma.get("_orbit_sign")) == StationDefenseEncounterContent.PINCER_OUTER_ORBIT_SIGN
+		and str(active_activity.next_step).contains("BREAK CROSSFIRE PINCER"),
+		"the later relief wave activates distinct close and outer counter-orbit roles with retained objective feedback"
+	)
+	for _frame in 18:
+		await physics_frame
+	var beta_radius := beta.global_position - asset.global_position
+	var gamma_radius := gamma.global_position - asset.global_position
+	var beta_orbit_motion := beta.velocity.dot(Vector3.UP.cross(beta_radius).normalized())
+	var gamma_orbit_motion := gamma.velocity.dot(Vector3.UP.cross(gamma_radius).normalized())
+	_check(
+		absf(beta_orbit_motion) > 0.5
+		and absf(gamma_orbit_motion) > 0.5
+		and signf(beta_orbit_motion) != signf(gamma_orbit_motion),
+		"the two live registered opponents apply visible counter-orbit pressure instead of one repeated approach"
 	)
 	var beta_hostile_shot := await _emit_hostile_projectile(beta, asset, content)
 	var gamma_hostile_shot := await _emit_hostile_projectile(gamma, asset, content)
@@ -545,6 +579,17 @@ func _test_checked_in_encounter_content() -> void:
 		"all three production projectile signals resolve through their exact injected-authority source identities"
 	)
 	var beta_terminal := await _shoot(authority, attacker, beta)
+	var broken_tactic := content.get_snapshot().later_wave_tactic as Dictionary
+	_check(
+		beta_terminal.destroyed
+		and broken_tactic.state_id == &"broken"
+		and not bool(broken_tactic.applied)
+		and str(broken_tactic.objective).contains("FINISH REMAINING RAIDER")
+		and is_equal_approx(gamma.preferred_range, gamma_nominal_preferred_range)
+		and float(gamma.get("_orbit_sign")) == gamma_nominal_orbit_sign
+		and beta_nominal_preferred_range == gamma_nominal_preferred_range,
+		"destroying either pincer wing breaks the tactic and restores bounded nominal pursuit"
+	)
 	var gamma_terminal := await _shoot(authority, attacker, gamma)
 	var completed := content.get_snapshot()
 	var completed_presentation := asset.get_protected_asset_presentation_snapshot()
@@ -559,6 +604,9 @@ func _test_checked_in_encounter_content() -> void:
 		and not bool(completed_presentation.hostile_bearing_active)
 		and int(completed.host.destroyed_entity_count) == 3
 		and int(completed.host.active_entity_count) == 0
+		and completed.later_wave_tactic.state_id == &"completed"
+		and str(completed.host.activity.next_step).contains("RECOVER AT DEFENSE BOARD")
+		and not bool(completed.later_wave_tactic.applied)
 		and resolver.get_registered_source_count() == 1,
 		"three real resolver terminal results complete exactly once and retire every hostile source"
 	)
