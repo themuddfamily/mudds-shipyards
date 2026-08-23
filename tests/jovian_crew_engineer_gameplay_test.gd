@@ -34,6 +34,10 @@ func _run() -> void:
 	)
 	_check(craft.get_pilot_seat_anchor() != null, "pilot remains immediately available")
 	_check(craft.get_engineer_seat_anchor() != null, "engineer maps to a physical passenger-cabin seat")
+	_check(
+		craft.get_engineer_status_text().contains("[READY]"),
+		"the physical cabin status panel boots with engineer repair ready"
+	)
 
 	var selected := [0]
 	var cleared := [0]
@@ -94,26 +98,101 @@ func _run() -> void:
 		bool(consumed.get("accepted", false))
 			and bool(consumed.get("consumed", false))
 			and consumed.get("status", &"") == &"intent_consumed"
-			and effect.get("status", &"") == &"repair_applied",
-		"admitted engineer receipt is consumed as a bounded repair pulse"
+			and effect.get("status", &"") == &"repair_started",
+		"admitted engineer receipt reserves one shared-authority repair action"
 	)
-	_check(model.get_component_integrity(component_id) > integrity_before, "repair delegates mutation to ShipComponentDamage")
 	_check(
-		is_equal_approx(
-			model.get_component_integrity(adjacent_component_id),
-			adjacent_integrity_before
-		),
-		"selected repair leaves adjacent damaged systems unchanged"
+		is_equal_approx(model.get_component_integrity(component_id), integrity_before)
+			and is_equal_approx(
+				model.get_component_integrity(adjacent_component_id),
+				adjacent_integrity_before
+			)
+			and craft.get_engineer_status_text().contains("[WORK"),
+		"pending work mutates no component and is visible on the physical cabin panel"
 	)
-	_check(selected[0] == 1 and selected_generation[0] == 1, "repair receipt selects the generation-fenced component")
+	await physics_frame
+	await physics_frame
+	var integrity_at_departure := model.get_component_integrity(component_id)
+	_check(
+		integrity_at_departure > integrity_before,
+		"passive berth repair continues while engineer work is pending"
+	)
+	craft.set("_landed", false)
+	await physics_frame
+	var interrupted: Dictionary = craft.get_engineer_repair_state()
+	_check(
+		StringName(interrupted.get("status", &"")) == &"interrupted"
+			and StringName(interrupted.get("reason", &"")) == &"left_berth"
+			and is_equal_approx(
+				model.get_component_integrity(component_id), integrity_at_departure
+			)
+			and is_zero_approx(float(interrupted.get("cooldown_remaining", -1.0)))
+			and craft.get_engineer_status_text().contains("[INTERRUPTED]"),
+		"departing the berth visibly interrupts without repair commit or cooldown"
+	)
+	craft.set("_landed", true)
+	_check(
+		bool(model.record_damage(70.0, Vector3.INF).get("accepted", false)),
+		"the interrupted Jovian systems can receive fresh damage before retry"
+	)
+	var restart_before := model.get_component_integrity(component_id)
+	var adjacent_restart_before := model.get_component_integrity(adjacent_component_id)
+	var restarted = craft.submit_crew_intent(
+		1,
+		77,
+		&"jovian_engineer",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
+		4
+	)
+	_check(
+		bool(restarted.get("consumed", false))
+			and (restarted.get("effect", {}) as Dictionary).get("status", &"") == &"repair_started",
+		"interruption preserves the resource so the engineer can retry"
+	)
+	for _frame in 60:
+		if StringName(craft.get_engineer_repair_state().get("status", &"")) == &"completed":
+			break
+		await physics_frame
+	var completed: Dictionary = craft.get_engineer_repair_state()
+	var completion_receipt := completed.get("receipt", {}) as Dictionary
+	var completion_operation := completion_receipt.get("operation", {}) as Dictionary
+	var selected_gain := model.get_component_integrity(component_id) - restart_before
+	var adjacent_gain := (
+		model.get_component_integrity(adjacent_component_id) - adjacent_restart_before
+	)
+	_check(
+		StringName(completed.get("status", &"")) == &"completed"
+			and int(completion_operation.get("repaired_components", 0)) == 1
+			and selected_gain > adjacent_gain
+			and float(completed.get("cooldown_remaining", 0.0)) > 0.0
+			and craft.get_engineer_status_text().contains("[COOLDOWN"),
+		"completion targets one component and exposes the shared physics-time cooldown"
+	)
+	_check(selected[0] == 2 and selected_generation[0] == 1, "repair retry retains the generation-fenced target")
+	model.record_damage(20.0, Vector3.INF)
+	var cooldown_attempt = craft.submit_crew_intent(
+		1,
+		77,
+		&"jovian_engineer",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
+		5
+	)
+	_check(
+		bool(cooldown_attempt.get("accepted", false))
+			and not bool(cooldown_attempt.get("consumed", false))
+			and (cooldown_attempt.get("effect", {}) as Dictionary).get("status", &"") == &"cooldown",
+		"a second Jovian repair is rejected until the visible cooldown expires"
+	)
 
 	var replay = craft.submit_crew_intent(
 		1,
 		77,
 		&"jovian_engineer",
 		Authority.ACTION_ENGINEER_REPAIR,
-		{"system_id": component_id, "repair": 0.5, "system_generation": 1},
-		3
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
+		5
 	)
 	_check(
 		not bool(replay.get("accepted", false))
@@ -126,11 +205,11 @@ func _run() -> void:
 		77,
 		&"jovian_engineer",
 		&"passenger_port_01",
-		4,
+		6,
 		99,
 		&"replacement_engineer",
 		Authority.ROLE_ENGINEER,
-		5
+		7
 	)
 	_check(
 		bool(handoff.get("accepted", false))
@@ -147,7 +226,7 @@ func _run() -> void:
 		&"replacement_engineer",
 		Authority.ACTION_ENGINEER_REPAIR,
 		{"system_id": component_id, "repair": 0.0, "system_generation": 1},
-		6
+		8
 	)
 	_check(
 		bool(stale.get("accepted", false))
@@ -162,12 +241,12 @@ func _run() -> void:
 		&"replacement_engineer",
 		Authority.ACTION_ENGINEER_REPAIR,
 		{"system_id": component_id, "repair": 0.0, "system_generation": 2},
-		7
+		9
 	)
 	_check(
 		bool(fresh.get("accepted", false))
 			and bool(fresh.get("consumed", false))
-			and selected[0] == 2
+			and selected[0] == 3
 			and selected_generation[0] == 2,
 		"replacement engineer selects against the fresh component generation"
 	)
@@ -177,7 +256,7 @@ func _run() -> void:
 		99,
 		&"replacement_engineer",
 		&"passenger_port_01",
-		8
+		10
 	)
 	_check(bool(released.get("accepted", false)), "replacement engineer releases through the same authority")
 	await physics_frame
@@ -188,7 +267,9 @@ func _run() -> void:
 	var state: Dictionary = craft.get_engineer_gameplay_state()
 	_check(
 		(state.get("selection", {}) as Dictionary).is_empty()
-			and int(state.get("component_generation", 0)) == 1,
+			and int(state.get("component_generation", 0)) == 1
+			and StringName((state.get("repair", {}) as Dictionary).get("status", &"")) == &"idle"
+			and craft.get_engineer_status_text().contains("[READY]"),
 		"reuse resets engineer selection and component generation"
 	)
 

@@ -15,6 +15,7 @@ extends HeroShip
 const SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
+const RepairAuthorityType := preload("res://scripts/combat/repair_authority.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const JovianCopilotNavigationAudioBindingType := preload("res://scripts/audio/jovian_copilot_navigation_audio_binding.gd")
 const EVIDENCE_STATUS: StringName = &"provisional"
@@ -28,6 +29,9 @@ const COPILOT_SEAT_ID: StringName = &"co_pilot_station"
 const COPILOT_ROLE_ID: StringName = &"copilot_navigation_support"
 const COPILOT_NAVIGATION_CHANNEL: StringName = &"navigation_route"
 const MAX_ENGINEER_COMPONENT_GENERATION := 1_000_000
+const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
+const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
+const ENGINEER_REPAIR_RESOURCE_ID: StringName = &"jovian_repair_tool"
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 ## Ship-local envelope a crew member may occupy while the freighter is under way.
 ##
@@ -247,6 +251,17 @@ var _elapsed_jovian := 0.0
 var _crew_role_authority: CrewSeatRoleAuthority
 var _engineer_component_selection: Dictionary = {}
 var _engineer_component_generation := 1
+var _engineer_repair_authority: RepairAuthority
+var _engineer_repair_actor_id: StringName = &""
+var _engineer_repair_elapsed := 0.0
+var _engineer_repair_state: Dictionary = {
+	"status": &"idle",
+	"reason": &"",
+	"component_id": &"",
+	"component_generation": 0,
+	"progress": 0.0,
+}
+var _engineer_status_readout: Label3D
 var _copilot_navigation_receipt: Dictionary = {}
 var _copilot_navigation_generation := 1
 var _ship_perspective_audio_binding: RefCounted
@@ -254,6 +269,7 @@ var _copilot_navigation_audio_binding: RefCounted
 
 signal engineer_component_selected(component_id: StringName, component_generation: int, receipt: Dictionary)
 signal engineer_component_cleared(component_id: StringName, component_generation: int, reason: StringName)
+signal engineer_repair_state_changed(snapshot: Dictionary)
 signal copilot_navigation_intent_accepted(receipt: Dictionary)
 signal copilot_navigation_intent_cleared(generation: int, reason: StringName)
 
@@ -291,6 +307,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_interrupt_engineer_repair(&"ship_detached")
 	_clear_copilot_navigation_state(&"ship_detached")
 	if _ship_perspective_audio_binding != null:
 		if camera_view_changed.is_connected(_on_jovian_camera_view_changed):
@@ -367,6 +384,7 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	if _reset_for_reuse_mutation_blocked():
 		return
+	_advance_engineer_repair(maxf(delta, 0.0))
 	_cleanup_detached_engineer_state()
 	_elapsed_jovian += delta
 	_update_jovian_presentation(delta)
@@ -400,6 +418,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
+	_reset_engineer_repair_state()
 	_clear_copilot_navigation_state(&"ship_reused")
 	_copilot_navigation_generation = 1
 	_set_interior_operational(true)
@@ -715,15 +734,19 @@ func handoff_crew_role(
 
 
 func get_engineer_gameplay_state() -> Dictionary:
+	var repair := get_engineer_repair_state()
 	return {
 		"schema_version": 1,
 		"authority_attached": _crew_role_authority != null,
 		"component_generation": _engineer_component_generation,
 		"selection": _engineer_component_selection.duplicate(true),
+		"repair": repair,
 		"repair_ready": not is_destroyed()
 			and bool(get_telemetry().get("landed", false))
 			and not bool(get_telemetry().get("landing_active", false))
-			and not _engineer_component_selection.is_empty(),
+			and not _engineer_component_selection.is_empty()
+			and bool(repair.get("cooldown_ready", false))
+			and not bool(repair.get("active", false)),
 	}.duplicate(true)
 
 
@@ -828,29 +851,48 @@ func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
 		return _crew_role_result(false, &"foreign_component")
 	if before >= 1.0:
 		return _crew_role_result(false, &"healthy_component")
+	if requested_repair <= 0.0:
+		return _select_engineer_component(intent, component_id, component_generation)
+	var prepared := _prepare_engineer_repair_authority(intent, model)
+	if not bool(prepared.get("accepted", false)):
+		return prepared
+	var repair_request := _engineer_repair_authority.request_repair({
+		"actor_id": _engineer_repair_actor_id,
+		"target_id": get_ship_id(),
+		"component_id": component_id,
+		"generation": model.get_ledger_generation(),
+		"distance_meters": 0.0,
+		"seated": true,
+		"resource_id": ENGINEER_REPAIR_RESOURCE_ID,
+		"interrupted": false,
+		"repair": requested_repair,
+	})
+	if not bool(repair_request.get("accepted", false)):
+		var rejected := _crew_role_result(
+			false,
+			StringName(repair_request.get("reason", &"repair_not_started"))
+		)
+		rejected["repair"] = repair_request
+		return rejected
 	var selection := _select_engineer_component(intent, component_id, component_generation)
 	if not bool(selection.get("accepted", false)):
+		_engineer_repair_authority.interrupt(&"selection_rejected")
 		return selection
-	if requested_repair <= 0.0:
-		return selection
-	var rate := maxf(float(report.get("repair_rate_per_second", 0.0)), 0.05)
-	var repair_result := model.tick_component_repair(
-		component_id,
-		requested_repair / rate,
-		true
-	)
-	var after := model.get_component_integrity(component_id)
-	if not bool(repair_result.get("accepted", false)) or after <= before:
-		var rejected := _crew_role_result(false, StringName(repair_result.get("reason", &"system_not_repaired")))
-		rejected["repair"] = repair_result
-		rejected["selection"] = selection
-		return rejected
-	var result := _crew_role_result(true, &"repair_applied")
+	_engineer_repair_elapsed = 0.0
+	_set_engineer_repair_state({
+		"status": &"repairing",
+		"reason": &"",
+		"component_id": component_id,
+		"component_generation": component_generation,
+		"progress": 0.0,
+		"token": int(repair_request.get("token", -1)),
+	})
+	var result := _crew_role_result(true, &"repair_started")
 	result["component_id"] = component_id
 	result["integrity_before"] = before
-	result["integrity_after"] = after
-	result["repair"] = repair_result
+	result["repair"] = repair_request
 	result["selection"] = selection
+	result["repair_state"] = get_engineer_repair_state()
 	return result
 
 
@@ -876,6 +918,212 @@ func _select_engineer_component(
 	var result := _crew_role_result(true, &"component_selected")
 	result["selection"] = selection.duplicate(true)
 	return result
+
+
+func _prepare_engineer_repair_authority(
+	intent: Dictionary,
+	model: ShipComponentDamage
+) -> Dictionary:
+	var actor_id := StringName("peer_%d" % int(intent.get("occupant_peer_id", 0)))
+	var ledger_generation := model.get_ledger_generation()
+	if _engineer_repair_authority != null \
+			and _engineer_repair_actor_id == actor_id \
+			and _engineer_repair_authority.get_generation() == ledger_generation:
+		return _crew_role_result(true, &"repair_authority_ready")
+	if _engineer_repair_authority != null \
+			and _engineer_repair_authority.has_active_repair():
+		_interrupt_engineer_repair(&"repair_actor_changed")
+	_engineer_repair_authority = RepairAuthorityType.new(
+		actor_id,
+		get_ship_id(),
+		ENGINEER_REPAIR_RESOURCE_ID,
+		1.0,
+		ENGINEER_REPAIR_COOLDOWN_SECONDS,
+		1.0,
+		RepairAuthority.MAX_RESOURCE_UNITS
+	) as RepairAuthority
+	_engineer_repair_actor_id = actor_id
+	if _engineer_repair_authority == null \
+			or not _engineer_repair_authority.is_configuration_valid():
+		_reset_engineer_repair_state()
+		return _crew_role_result(false, &"repair_authority_unavailable")
+	var begun := _engineer_repair_authority.begin_generation(ledger_generation)
+	if not bool(begun.get("accepted", false)):
+		_reset_engineer_repair_state()
+		return _crew_role_result(
+			false,
+			StringName(begun.get("reason", &"repair_generation_rejected"))
+		)
+	return _crew_role_result(true, &"repair_authority_ready")
+
+
+func _advance_engineer_repair(delta: float) -> void:
+	if _engineer_repair_authority == null:
+		return
+	var had_cooldown := _engineer_repair_authority.get_cooldown_remaining() > 0.0
+	_engineer_repair_authority.advance(delta)
+	if not _engineer_repair_authority.has_active_repair():
+		if had_cooldown:
+			_refresh_engineer_status_readout()
+		return
+	var interruption := _engineer_repair_interruption_reason()
+	if not interruption.is_empty():
+		_interrupt_engineer_repair(interruption)
+		return
+	_engineer_repair_elapsed = minf(
+		_engineer_repair_elapsed + delta,
+		ENGINEER_REPAIR_DURATION_SECONDS
+	)
+	var progress := clampf(
+		_engineer_repair_elapsed / ENGINEER_REPAIR_DURATION_SECONDS,
+		0.0,
+		1.0
+	)
+	_engineer_repair_state["progress"] = progress
+	if progress < 1.0:
+		engineer_repair_state_changed.emit(get_engineer_repair_state())
+		_refresh_engineer_status_readout()
+		return
+	var model := get_component_damage()
+	var token := int(_engineer_repair_state.get("token", -1))
+	var committed := _engineer_repair_authority.commit_component_repair(model, token)
+	if not bool(committed.get("accepted", false)):
+		var commit_reason := StringName(
+			committed.get("reason", &"repair_commit_rejected")
+		)
+		if commit_reason == &"component_not_damaged":
+			_set_engineer_repair_state({
+				"status": &"completed",
+				"reason": &"berth_repair_completed",
+				"component_id": StringName(
+					_engineer_repair_state.get("component_id", &"")
+				),
+				"component_generation": int(
+					_engineer_repair_state.get("component_generation", 0)
+				),
+				"progress": 1.0,
+			})
+			return
+		_set_engineer_repair_state({
+			"status": &"interrupted",
+			"reason": commit_reason,
+			"component_id": StringName(_engineer_repair_state.get("component_id", &"")),
+			"component_generation": int(
+				_engineer_repair_state.get("component_generation", 0)
+			),
+			"progress": progress,
+		})
+		return
+	_set_engineer_repair_state({
+		"status": &"completed",
+		"reason": &"repair_committed",
+		"component_id": StringName(_engineer_repair_state.get("component_id", &"")),
+		"component_generation": int(_engineer_repair_state.get("component_generation", 0)),
+		"progress": 1.0,
+		"receipt": committed.duplicate(true),
+	})
+
+
+func _engineer_repair_interruption_reason() -> StringName:
+	var telemetry := get_telemetry()
+	if bool(telemetry.get("destroyed", false)):
+		return &"ship_destroyed"
+	if not bool(telemetry.get("landed", false)) \
+			or bool(telemetry.get("landing_active", false)):
+		return &"left_berth"
+	if _engineer_component_selection.is_empty():
+		return &"selection_lost"
+	if StringName(_engineer_component_selection.get("component_id", &"")) \
+			!= StringName(_engineer_repair_state.get("component_id", &"")) \
+			or int(_engineer_component_selection.get("component_generation", 0)) \
+			!= int(_engineer_repair_state.get("component_generation", 0)):
+		return &"selection_changed"
+	if _crew_role_authority == null:
+		return &"authority_detached"
+	var assignment := _crew_role_authority.get_assignment(
+		int(_engineer_component_selection.get("occupant_peer_id", 0)),
+		StringName(_engineer_component_selection.get("avatar_id", &""))
+	)
+	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_ENGINEER \
+			or StringName(assignment.get("seat_id", &"")) != ENGINEER_SEAT_ID:
+		return &"engineer_seat_lost"
+	var model := get_component_damage()
+	if model == null \
+			or model.get_ledger_generation() != _engineer_repair_authority.get_generation():
+		return &"component_generation_changed"
+	return &""
+
+
+func _interrupt_engineer_repair(reason: StringName) -> void:
+	if _engineer_repair_authority == null \
+			or not _engineer_repair_authority.has_active_repair():
+		return
+	_engineer_repair_authority.interrupt(reason)
+	_set_engineer_repair_state({
+		"status": &"interrupted",
+		"reason": reason,
+		"component_id": StringName(_engineer_repair_state.get("component_id", &"")),
+		"component_generation": int(_engineer_repair_state.get("component_generation", 0)),
+		"progress": float(_engineer_repair_state.get("progress", 0.0)),
+	})
+
+
+func _set_engineer_repair_state(state: Dictionary) -> void:
+	_engineer_repair_state = state.duplicate(true)
+	engineer_repair_state_changed.emit(get_engineer_repair_state())
+	_refresh_engineer_status_readout()
+
+
+func _reset_engineer_repair_state() -> void:
+	_engineer_repair_authority = null
+	_engineer_repair_actor_id = &""
+	_engineer_repair_elapsed = 0.0
+	_engineer_repair_state = {
+		"status": &"idle",
+		"reason": &"",
+		"component_id": &"",
+		"component_generation": 0,
+		"progress": 0.0,
+	}
+	_refresh_engineer_status_readout()
+
+
+func get_engineer_repair_state() -> Dictionary:
+	var snapshot := _engineer_repair_state.duplicate(true)
+	var cooldown := (
+		_engineer_repair_authority.get_cooldown_remaining()
+		if _engineer_repair_authority != null else 0.0
+	)
+	snapshot["duration_seconds"] = ENGINEER_REPAIR_DURATION_SECONDS
+	snapshot["cooldown_seconds"] = ENGINEER_REPAIR_COOLDOWN_SECONDS
+	snapshot["cooldown_remaining"] = cooldown
+	snapshot["cooldown_ready"] = cooldown <= 0.0
+	snapshot["active"] = _engineer_repair_authority != null \
+		and _engineer_repair_authority.has_active_repair()
+	return snapshot.duplicate(true)
+
+
+func get_engineer_status_text() -> String:
+	return _engineer_status_readout.text \
+		if _engineer_status_readout != null and is_instance_valid(_engineer_status_readout) \
+		else ""
+
+
+func _refresh_engineer_status_readout() -> void:
+	if _engineer_status_readout == null or not is_instance_valid(_engineer_status_readout):
+		return
+	var repair := get_engineer_repair_state()
+	var status := StringName(repair.get("status", &"idle"))
+	var token := "[READY]"
+	if status == &"repairing":
+		token = "[WORK %d%%]" % int(round(
+			clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0
+		))
+	elif status == &"interrupted":
+		token = "[INTERRUPTED]"
+	elif float(repair.get("cooldown_remaining", 0.0)) > 0.0:
+		token = "[COOLDOWN %.1fs]" % float(repair.get("cooldown_remaining", 0.0))
+	_engineer_status_readout.text = "ENGINEER REPAIR\n%s" % token
 
 
 func _cleanup_detached_engineer_state() -> void:
@@ -908,12 +1156,16 @@ func _clear_engineer_component_state(
 
 
 func _clear_engineer_component_selection(reason: StringName, advance_generation: bool = true) -> void:
+	_interrupt_engineer_repair(reason)
 	if _engineer_component_selection.is_empty():
 		if advance_generation:
 			_engineer_component_generation = mini(
 				_engineer_component_generation + 1,
 				MAX_ENGINEER_COMPONENT_GENERATION
 			)
+			_engineer_repair_authority = null
+			_engineer_repair_actor_id = &""
+			_engineer_repair_elapsed = 0.0
 		return
 	var component_id := StringName(_engineer_component_selection.get("component_id", &""))
 	var component_generation := int(_engineer_component_selection.get("component_generation", 0))
@@ -924,6 +1176,9 @@ func _clear_engineer_component_selection(reason: StringName, advance_generation:
 			_engineer_component_generation + 1,
 			MAX_ENGINEER_COMPONENT_GENERATION
 		)
+		_engineer_repair_authority = null
+		_engineer_repair_actor_id = &""
+		_engineer_repair_elapsed = 0.0
 
 
 static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
@@ -2978,6 +3233,19 @@ func _build_passenger_cabin() -> void:
 			_box(_passenger_cabin, "CabinPortalUpright", Vector3(side * 1.45, 2.1, bulkhead_z), Vector3(0.18, 3.25, 0.2), _jovian_materials.amber)
 		_box(_passenger_cabin, "CabinPortalHeader", Vector3(0.0, 3.68, bulkhead_z), Vector3(3.05, 0.18, 0.2), _jovian_materials.amber)
 	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.13), Vector3(1.05, 0.58, 0.04), _jovian_materials.display)
+	_engineer_status_readout = Label3D.new()
+	_engineer_status_readout.name = "EngineerRepairReadout"
+	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.16)
+	_engineer_status_readout.rotation.y = PI
+	_engineer_status_readout.font_size = 28
+	_engineer_status_readout.pixel_size = 0.001
+	_engineer_status_readout.modulate = Color("b9f1e4")
+	_engineer_status_readout.outline_modulate = Color("07111d")
+	_engineer_status_readout.outline_size = 7
+	_engineer_status_readout.no_depth_test = true
+	_engineer_status_readout.set_meta("presentation_only", true)
+	_passenger_cabin.add_child(_engineer_status_readout)
+	_refresh_engineer_status_readout()
 	var cabin_light := OmniLight3D.new()
 	cabin_light.name = "PassengerPracticalLight"
 	cabin_light.position = Vector3(0.0, 3.52, -5.25)
