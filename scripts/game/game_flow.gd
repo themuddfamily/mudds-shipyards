@@ -42,6 +42,9 @@ const NearbySectorActivityMusicAdapterType := preload(
 const HalyardCrewSemanticAudioBindingType := preload(
 	"res://scripts/audio/halyard_crew_semantic_audio_binding.gd"
 )
+const OptionalSemanticAudioCompositionType := preload(
+	"res://scripts/audio/optional_semantic_audio_composition.gd"
+)
 const CrashRecoveryCoordinatorType := preload("res://scripts/diagnostics/crash_recovery_coordinator.gd")
 const SessionDiagnosticRecordType := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
 const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
@@ -289,6 +292,7 @@ var nearby_activity_music_adapter: Node
 var halyard_crew_semantic_audio_binding: Node
 var _halyard_crew_semantic_bound := false
 var _last_halyard_crew_event_sequence := -2
+var optional_semantic_audio_composition: Node
 var _bomber_payload_ship: CinderLongRangeBomber
 var _bomber_payload_generation := 0
 var _bomber_payload_request_sequence := 0
@@ -571,6 +575,7 @@ func _exit_tree() -> void:
 	_detach_final_approach_hud_composition()
 	_detach_caption_presentation()
 	_detach_nearby_activity_audio()
+	_detach_optional_semantic_audio()
 	_detach_halyard_crew_semantic_audio()
 	# Travelling pulse slots are presentation-only and are cleared by their own
 	# exit transaction. Their target-side records are likewise invalidated by the
@@ -1214,6 +1219,7 @@ func _start_up() -> void:
 	_initialize_live_combat()
 	_initialize_nearby_activity_audio()
 	_initialize_halyard_crew_semantic_audio()
+	_initialize_optional_semantic_audio()
 	# The atomic load above is complete before the first global, player, ship or
 	# HUD settings consumer sees a snapshot. In particular, the complete binding
 	# profile reaches InputMap and all retained local ship banks before gameplay
@@ -1231,6 +1237,7 @@ func _start_up() -> void:
 	hud.set_enemy_status("", 0.0, 1.0, false)
 	_update_music_bed_state()
 	_sync_halyard_crew_semantic_audio()
+	_sync_optional_semantic_audio()
 	_apply_torus_geometry_budget()
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
@@ -2499,6 +2506,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_initialize_live_combat()
 	_initialize_nearby_activity_audio()
 	_initialize_halyard_crew_semantic_audio()
+	_initialize_optional_semantic_audio()
 	# Part of the settings snapshot is process-wide rather than node-local: the
 	# `AudioServer` bus levels and the window mode belong to whatever is on screen,
 	# so while this subtree is detached another scene legitimately owns them.
@@ -2726,6 +2734,11 @@ func _on_network_crew_role_result(result: Dictionary) -> void:
 
 
 func _on_network_crew_command_result(result: Dictionary) -> void:
+	if is_instance_valid(optional_semantic_audio_composition) \
+			and is_instance_valid(active_ship) \
+			and active_ship is CinderCargoHaulerType \
+			and not bool(result.get("accepted", false)):
+		optional_semantic_audio_composition.present_cinder_rejected(result)
 	if _network_session_mode != &"server" or not bool(result.get("accepted", false)):
 		return
 	if not _attach_network_halyard_command_bridge().get("accepted", false):
@@ -3690,6 +3703,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		_clear_bomber_payload_loop(&"active_ship_replaced")
 		_detach_cinder_loadmaster_hud_binding()
 	active_ship = candidate
+	_sync_optional_semantic_audio()
 	_sync_cinder_loadmaster_hud_binding()
 	_first_sortie_tutorial_generation += 1
 	_first_sortie_tutorial_active_step = &""
@@ -6597,6 +6611,35 @@ func _initialize_halyard_crew_semantic_audio() -> void:
 			&"bind_semantic_audio_source", halyard_crew_semantic_audio_binding, &"crew"
 		) as Dictionary
 		_halyard_crew_semantic_bound = bool(result.get("accepted", false))
+
+
+func _initialize_optional_semantic_audio() -> void:
+	if not is_instance_valid(audio):
+		return
+	if not is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition = OptionalSemanticAudioCompositionType.new()
+		optional_semantic_audio_composition.name = "OptionalSemanticAudioComposition"
+		add_child(optional_semantic_audio_composition)
+	var cinder: Node = active_ship if active_ship is CinderCargoHaulerType else null
+	if not bool(optional_semantic_audio_composition.get_snapshot().get("attached", false)):
+		optional_semantic_audio_composition.attach(audio, cinder, planetary_cruise_binding)
+	else:
+		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
+
+
+func _sync_optional_semantic_audio() -> void:
+	if not is_instance_valid(optional_semantic_audio_composition):
+		_initialize_optional_semantic_audio()
+		return
+	if is_instance_valid(audio):
+		var cinder: Node = active_ship if active_ship is CinderCargoHaulerType else null
+		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
+
+
+func _detach_optional_semantic_audio() -> void:
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.detach()
+
 
 
 func _sync_halyard_crew_semantic_audio() -> void:
