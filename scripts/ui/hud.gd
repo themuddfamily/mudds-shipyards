@@ -44,6 +44,9 @@ signal display_settings_revert_requested(generation: int)
 signal orderly_shutdown_requested
 signal presentation_intent_requested(kind: StringName, payload: Dictionary)
 signal nearby_activity_intent_requested(intent: Dictionary)
+signal session_recovery_safe_requested(recovery_token: int, recovery_generation: int)
+signal session_recovery_continue_requested(recovery_token: int, recovery_generation: int)
+signal session_recovery_discard_requested(recovery_token: int, recovery_generation: int)
 
 const INK := Color("07111d")
 const PANEL := Color("101c2bd9")
@@ -175,6 +178,12 @@ const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
 const GAMEPAD_CAPTURE_THRESHOLD := 0.75
 const MAX_PLANETARY_CRUISE_TOGGLE_SERIAL := 9_007_199_254_740_991
+const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991
+const SESSION_RECOVERY_CHOICES := [
+	&"normal_start",
+	&"safe_graphics_windowed",
+	&"discard",
+]
 const PLANETARY_CRUISE_STATUS_IDS := [
 	&"ready",
 	&"queued",
@@ -436,9 +445,15 @@ var _semantic_transcript_scroll := 0
 var _semantic_transcript_tick := 0
 var _safe_start_recovery_presenter := SafeStartRecoveryPresenterType.new()
 var _recovery_prompt_panel: PanelContainer
+var _recovery_prompt_title: Label
 var _recovery_prompt_detail: Label
 var _recovery_prompt_actions: HBoxContainer
 var _recovery_prompt_dismiss_button: Button
+var _session_recovery_snapshot: Dictionary = {}
+var _session_recovery_recommendation: Dictionary = {}
+var _session_recovery_token := 0
+var _session_recovery_generation := 0
+var _session_recovery_action_buttons: Dictionary = {}
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
@@ -500,6 +515,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	clear_session_recovery_notice()
 	clear_nearby_activity_snapshot()
 	clear_semantic_caption_transcript()
 	clear_runtime_settings_repair_report()
@@ -2102,6 +2118,17 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		status_rect = _clamp_rect_to_safe_area(status_rect, readable_safe)
 		_runtime_status_panel.position = status_rect.position - logical * 0.5
 		_runtime_status_panel.size = status_rect.size
+	if is_instance_valid(_recovery_prompt_panel):
+		var recovery_rect := compute_session_recovery_panel_rect(
+			viewport_size, _safe_area_insets, effective
+		)
+		var recovery_safe := Rect2(
+			contract_safe.position / maxf(effective, 0.01),
+			contract_safe.size / maxf(effective, 0.01)
+		)
+		recovery_rect = _clamp_rect_to_safe_area(recovery_rect, recovery_safe)
+		_recovery_prompt_panel.position = recovery_rect.position - logical * 0.5
+		_recovery_prompt_panel.size = recovery_rect.size
 	if is_instance_valid(_reticle):
 		# The reticle remains camera-centred, but its state label follows the same
 		# authored UI scale ceiling as the surrounding HUD.
@@ -2138,6 +2165,28 @@ static func compute_runtime_status_panel_rect(
 	var center_x := left + (logical.x - left - right) * 0.5
 	var center_y := top + (logical.y - top - bottom) * 0.5
 	return Rect2(Vector2(center_x - width * 0.5, center_y - 150.0), Vector2(width, 300.0))
+
+
+## Keeps the recovery decision in the readable centre band on 16:9 through
+## 32:9 viewports. Insets are caller-provided display cutouts, never settings.
+static func compute_session_recovery_panel_rect(
+	viewport_size: Vector2, safe_insets: Rect2, effective_scale: float
+) -> Rect2:
+	var scale := maxf(effective_scale, 0.01)
+	var logical := viewport_size / scale
+	var left := maxf(safe_insets.position.x, 0.0) / scale
+	var right := maxf(safe_insets.size.x, 0.0) / scale
+	var top := maxf(safe_insets.position.y, 0.0) / scale
+	var bottom := maxf(safe_insets.size.y, 0.0) / scale
+	var available_width := maxf(360.0, logical.x - left - right - PANEL_MARGIN * 2.0)
+	var available_height := maxf(220.0, logical.y - top - bottom - PANEL_MARGIN * 2.0)
+	var width := minf(680.0, available_width)
+	var height := minf(280.0, available_height)
+	var center := Vector2(
+		left + (logical.x - left - right) * 0.5,
+		top + (logical.y - top - bottom) * 0.5
+	)
+	return Rect2(center - Vector2(width, height) * 0.5, Vector2(width, height))
 
 
 static func _clamp_rect_to_safe_area(rect: Rect2, safe: Rect2) -> Rect2:
@@ -2409,16 +2458,202 @@ func _build_semantic_transcript_panel() -> void:
 	up.focus_previous = clear.get_path()
 
 
+## Presents detached output from SessionDiagnosticLifecycleBridge. The HUD
+## neither queries that bridge nor applies a recommendation: it only retains a
+## deep copy and emits a fenced request after an explicit player choice.
+func present_session_recovery_notice(
+	recovery_snapshot: Dictionary,
+	recommendation: Dictionary
+) -> Dictionary:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return {"accepted": false, "reason": &"hud_detached"}
+	var validated := _validate_session_recovery_notice(recovery_snapshot, recommendation)
+	if not bool(validated.get("accepted", false)):
+		return validated.duplicate(true)
+	var token := int(recovery_snapshot.get("session_id", 0))
+	var generation := int(recovery_snapshot.get("startup_generation", 0))
+	if _session_recovery_generation > generation:
+		return {"accepted": false, "reason": &"stale_recovery_generation"}
+	if (
+		_session_recovery_generation == generation
+		and _session_recovery_token > 0
+		and _session_recovery_token != token
+	):
+		return {"accepted": false, "reason": &"recovery_token_mismatch"}
+	_session_recovery_snapshot = recovery_snapshot.duplicate(true)
+	_session_recovery_recommendation = recommendation.duplicate(true)
+	_session_recovery_token = token
+	_session_recovery_generation = generation
+	_render_session_recovery_notice()
+	return {
+		"accepted": true,
+		"reason": &"recovery_notice_presented",
+		"recovery_token": token,
+		"recovery_generation": generation,
+		"automatic_choice": false,
+		"presentation_only": true,
+	}.duplicate(true)
+
+
+func _validate_session_recovery_notice(
+	recovery_snapshot: Dictionary,
+	recommendation: Dictionary
+) -> Dictionary:
+	var token := int(recovery_snapshot.get("session_id", 0))
+	var generation := int(recovery_snapshot.get("startup_generation", 0))
+	if (
+		StringName(str(recovery_snapshot.get("state", &""))) != &"running"
+		or token <= 0
+		or token > MAX_SESSION_RECOVERY_TOKEN
+		or generation <= 0
+		or generation > MAX_SESSION_RECOVERY_TOKEN
+	):
+		return {"accepted": false, "reason": &"recovery_snapshot_invalid"}
+	if (
+		recommendation.get("available") != true
+		or recommendation.get("requires_caller_choice") != true
+		or recommendation.get("applies_settings", false) != false
+		or recommendation.get("persists_settings", false) != false
+	):
+		return {"accepted": false, "reason": &"recovery_recommendation_invalid"}
+	var choices := recommendation.get("choices", []) as Array
+	if choices.size() != SESSION_RECOVERY_CHOICES.size():
+		return {"accepted": false, "reason": &"recovery_choices_invalid"}
+	for index in SESSION_RECOVERY_CHOICES.size():
+		if StringName(str(choices[index])) != SESSION_RECOVERY_CHOICES[index]:
+			return {"accepted": false, "reason": &"recovery_choices_invalid"}
+	return {"accepted": true, "reason": &"recovery_notice_valid"}
+
+
+func _render_session_recovery_notice() -> void:
+	if not is_instance_valid(_recovery_prompt_panel):
+		return
+	_recovery_prompt_title.text = "INTERRUPTED SESSION"
+	var ticks := maxi(0, int(_session_recovery_snapshot.get("last_physics_tick", 0)))
+	var elapsed := maxf(0.0, float(_session_recovery_snapshot.get("last_elapsed_physics_seconds", 0.0)))
+	var unfinished := maxi(0, int(_session_recovery_snapshot.get("unclean_start_count", 0)))
+	var advice := StringName(str(_session_recovery_recommendation.get("severity", &"review_prior_session")))
+	_recovery_prompt_detail.text = (
+		"Session %d did not close cleanly after %d physics ticks (%.2f seconds).\n"
+		+ "Unfinished starts: %d  //  Guidance: %s\n"
+		+ "Nothing will change until you choose an action."
+	) % [
+		_session_recovery_token,
+		ticks,
+		elapsed,
+		unfinished,
+		str(advice).replace("_", " ").to_upper(),
+	]
+	_clear_recovery_action_controls()
+	for action_data: Dictionary in [
+		{"id": &"safe", "label": "Safe Recovery", "role": CAUTION},
+		{"id": &"continue", "label": "Continue", "role": NOMINAL},
+		{"id": &"discard", "label": "Discard", "role": MUTED},
+	]:
+		var action := StringName(action_data.id)
+		var button := _menu_button(str(action_data.label), StringName(action_data.role))
+		button.name = "%sSessionRecoveryButton" % str(action).to_pascal_case()
+		button.focus_mode = Control.FOCUS_ALL
+		button.tooltip_text = "%s interrupted session %d" % [str(action_data.label), _session_recovery_token]
+		button.pressed.connect(
+			_request_session_recovery_action.bind(
+				action, _session_recovery_token, _session_recovery_generation
+			)
+		)
+		_recovery_prompt_actions.add_child(button)
+		_session_recovery_action_buttons[action] = button
+	var ordered: Array[Button] = [
+		_session_recovery_action_buttons[&"safe"] as Button,
+		_session_recovery_action_buttons[&"continue"] as Button,
+		_session_recovery_action_buttons[&"discard"] as Button,
+	]
+	for index in ordered.size():
+		ordered[index].focus_neighbor_left = ordered[index].get_path_to(ordered[maxi(0, index - 1)])
+		ordered[index].focus_neighbor_right = ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)])
+	_recovery_prompt_dismiss_button.visible = false
+	_recovery_prompt_panel.visible = true
+	ordered[0].grab_focus()
+
+
+func _request_session_recovery_action(
+	action: StringName,
+	recovery_token: int,
+	recovery_generation: int
+) -> bool:
+	if (
+		not is_inside_tree()
+		or is_queued_for_deletion()
+		or not is_instance_valid(_recovery_prompt_panel)
+		or not _recovery_prompt_panel.visible
+		or recovery_token != _session_recovery_token
+		or recovery_generation != _session_recovery_generation
+	):
+		return false
+	match action:
+		&"safe":
+			session_recovery_safe_requested.emit(recovery_token, recovery_generation)
+		&"continue":
+			session_recovery_continue_requested.emit(recovery_token, recovery_generation)
+		&"discard":
+			session_recovery_discard_requested.emit(recovery_token, recovery_generation)
+		_:
+			return false
+	return true
+
+
+func clear_session_recovery_notice() -> void:
+	_session_recovery_snapshot.clear()
+	_session_recovery_recommendation.clear()
+	_session_recovery_token = 0
+	_session_recovery_generation = 0
+	_clear_recovery_action_controls()
+	if is_instance_valid(_recovery_prompt_dismiss_button):
+		_recovery_prompt_dismiss_button.visible = true
+	if is_instance_valid(_recovery_prompt_panel):
+		_recovery_prompt_panel.visible = false
+
+
+func reset_session_recovery_notice() -> void:
+	clear_session_recovery_notice()
+
+
+func _clear_recovery_action_controls() -> void:
+	_session_recovery_action_buttons.clear()
+	if not is_instance_valid(_recovery_prompt_actions):
+		return
+	for child in _recovery_prompt_actions.get_children():
+		_recovery_prompt_actions.remove_child(child)
+		child.free()
+
+
+func get_session_recovery_notice_snapshot() -> Dictionary:
+	return {
+		"active": _session_recovery_token > 0 and _session_recovery_generation > 0,
+		"recovery_token": _session_recovery_token,
+		"recovery_generation": _session_recovery_generation,
+		"recovery_snapshot": _session_recovery_snapshot.duplicate(true),
+		"recommendation": _session_recovery_recommendation.duplicate(true),
+		"reduced_motion": _reduced_motion,
+		"automatic_choice": false,
+		"authority": {
+			"filesystem": false,
+			"diagnostic_store": false,
+			"settings": false,
+			"gameplay": false,
+		},
+	}.duplicate(true)
+
+
 func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:
+	clear_session_recovery_notice()
 	var presentation := _safe_start_recovery_presenter.present_recovery_choice(snapshot)
 	if not is_instance_valid(_recovery_prompt_panel):
 		return presentation
 	_recovery_prompt_panel.visible = presentation.get("status", &"hidden") == &"choice_required"
 	if not _recovery_prompt_panel.visible:
 		return presentation
+	_recovery_prompt_title.text = "RECOVERY CHOICE REQUIRED"
 	_recovery_prompt_detail.text = "%s\n%s" % [presentation.get("message", ""), presentation.get("summary", "")]
-	for child in _recovery_prompt_actions.get_children():
-		child.queue_free()
 	var action_buttons: Array[Button] = []
 	for action_variant in presentation.get("actions", []) as Array:
 		var action := action_variant as Dictionary
@@ -2436,6 +2671,7 @@ func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:
 			button.focus_neighbor_right = button.get_path_to(action_buttons[mini(action_buttons.size() - 1, index + 1)])
 		action_buttons[0].grab_focus()
 	if is_instance_valid(_recovery_prompt_dismiss_button) and not action_buttons.is_empty():
+		_recovery_prompt_dismiss_button.visible = true
 		_recovery_prompt_dismiss_button.focus_neighbor_left = _recovery_prompt_dismiss_button.get_path_to(action_buttons.back())
 		action_buttons.back().focus_neighbor_right = action_buttons.back().get_path_to(_recovery_prompt_dismiss_button)
 	return presentation
@@ -2468,7 +2704,8 @@ func _build_recovery_prompt_panel() -> void:
 	_recovery_prompt_panel.add_child(margin)
 	var stack := VBoxContainer.new()
 	margin.add_child(stack)
-	stack.add_child(_label("RECOVERY CHOICE REQUIRED", 16, PRIMARY))
+	_recovery_prompt_title = _label("RECOVERY CHOICE REQUIRED", 16, PRIMARY)
+	stack.add_child(_recovery_prompt_title)
 	_recovery_prompt_detail = _label("", 12, NOMINAL_SOFT)
 	_recovery_prompt_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_recovery_prompt_detail.custom_minimum_size = Vector2(550.0, 70.0)
