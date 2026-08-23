@@ -5830,10 +5830,9 @@ func _update_music_bed_state() -> void:
 	elif (
 		_landing_request_active
 		or phase == Phase.RETURN_TO_YARD
+		or phase == Phase.SHUT_DOWN
 	):
 		presentation_state = &"landing"
-	elif phase == Phase.SHUT_DOWN:
-		presentation_state = &"surface"
 	elif _piloting:
 		presentation_state = &"orbit"
 	music_bed.notify_music_phase(presentation_state)

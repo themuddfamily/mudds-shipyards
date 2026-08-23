@@ -50,13 +50,21 @@ func _run() -> void:
 	)
 
 	game.set("_landing_request_active", false)
+	game.set("phase", GameFlowType.Phase.RETURN_TO_YARD)
+	game.call("_update_music_bed_state")
+	_check(
+		bed.get_presentation_state() == &"landing",
+		"the authoritative return phase retains the landing crossfade"
+	)
+
 	game.set("phase", GameFlowType.Phase.SHUT_DOWN)
 	game.call("_update_music_bed_state")
 	_check(
-		bed.get_presentation_state() == &"surface",
-		"the authoritative shutdown phase selects the surface music profile"
+		bed.get_presentation_state() == &"landing",
+		"docked shutdown remains in the landing profile rather than inventing a planetary surface phase"
 	)
 
+	game.set("_landing_request_active", true)
 	game.set("phase", GameFlowType.Phase.INTERCEPTOR_ENGAGEMENT)
 	game.call("_update_music_bed_state")
 	_check(
