@@ -85,7 +85,75 @@ func _run() -> void:
 	var counts := performance["counts"] as Dictionary
 	print("STATION_STRUCTURAL_DRESSING_PERFORMANCE: ", performance)
 	_check(bool(performance["within_budget"]), "maximum-detail component remains within every explicit budget")
-	_check(int(counts["mesh_instances"]) == 41 and int(counts["visible_primitives"]) == 41, "high quality exposes exactly 41 of at most 45 primitives")
+	_check(
+		int(counts["mesh_instances"]) == 35
+		and int(counts["multimesh_batches"]) == 1
+		and int(counts["geometry_submissions"]) == 36
+		and int(counts["visible_primitives"]) == 41,
+		"high quality preserves 41 visible copies through 36 renderer submissions"
+	)
+	var vent_batch_audit := dressing.get_radiator_vent_batch_audit()
+	print("STATION_STRUCTURAL_RADIATOR_VENT_BATCH: ", vent_batch_audit)
+	_check(
+		bool(vent_batch_audit["valid"])
+		and int(vent_batch_audit["baseline_renderer_nodes"]) == 6
+		and int(vent_batch_audit["renderer_nodes"]) == 1
+		and int(vent_batch_audit["baseline_geometry_submissions"]) == 6
+		and int(vent_batch_audit["geometry_submissions"]) == 1
+		and int(vent_batch_audit["baseline_mesh_resource_count"]) == 1
+		and int(vent_batch_audit["mesh_resource_count"]) == 1
+		and int(vent_batch_audit["baseline_drawn_copies"]) == 6
+		and int(vent_batch_audit["drawn_copies"]) == 6
+		and bool(vent_batch_audit["exact_transforms_preserved"])
+		and not bool(vent_batch_audit["collision_authority"])
+		and not bool(vent_batch_audit["interaction_authority"]),
+		"six exact radiator blades use one inert renderer batch and one unchanged mesh resource"
+	)
+	var vent_batch := dressing.get_node(
+		"PresentationRoot/ServiceDetailRoot/RadiatorVentBlades"
+	) as MultiMeshInstance3D
+	var expected_vent_transforms: Array[Transform3D] = []
+	for expected_x in [1.832857, 2.275714, 2.718571, 3.161429, 3.604286, 4.047143]:
+		expected_vent_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(float(expected_x), -0.6156, 0.792)
+		))
+	var authored_vent_transforms := vent_batch.get_meta("authored_instance_transforms", []) as Array
+	var exact_vent_transforms := authored_vent_transforms.size() == expected_vent_transforms.size()
+	for vent_index in expected_vent_transforms.size():
+		exact_vent_transforms = exact_vent_transforms and (
+			authored_vent_transforms[vent_index] is Transform3D
+			and (authored_vent_transforms[vent_index] as Transform3D).is_equal_approx(
+				expected_vent_transforms[vent_index]
+			)
+		)
+	var conduit_clamp := dressing.get_node(
+		"PresentationRoot/ServiceDetailRoot/ConduitClamp01"
+	) as MeshInstance3D
+	_check(
+		vent_batch != null
+		and vent_batch.multimesh != null
+		and vent_batch.multimesh.instance_count == 6
+		and exact_vent_transforms
+		and vent_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.075, 0.425088, 0.045)
+		)
+		and vent_batch.material_override == conduit_clamp.material_override
+		and vent_batch.get_child_count() == 0
+		and dressing.find_children("RadiatorVentBlade*", "MeshInstance3D", true, false).is_empty(),
+		"batch replaces only the six legacy renderer nodes without changing their copies or material"
+	)
+	var authored_vent_buffer := vent_batch.multimesh.buffer.duplicate()
+	var drifted_vent_buffer := authored_vent_buffer.duplicate()
+	drifted_vent_buffer[3] = 99.0
+	vent_batch.multimesh.buffer = drifted_vent_buffer
+	var vent_red := dressing.get_radiator_vent_batch_audit()
+	_check(
+		not bool(vent_red["valid"])
+		and _has_error(vent_red, "radiator_vent_transform_buffer_drift"),
+		"structured red: radiator batch rejects transformed-copy drift"
+	)
+	vent_batch.multimesh.buffer = authored_vent_buffer
+	_check(bool(dressing.get_radiator_vent_batch_audit()["valid"]), "restoring the exact blade buffer repairs the batch contract")
 	_check(int(counts["lights"]) == 1 and int(counts["visible_lights"]) == 1, "high quality uses exactly one visible bounded light")
 	_check(int(counts["shadow_casting_lights"]) == 0, "task light never enables shadows")
 	_check(int(counts["collision_nodes"]) == 0, "component contains no body, area, shape, or collision polygon")
@@ -176,7 +244,7 @@ func _run() -> void:
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
 	performance = dressing.get_performance_audit()
 	counts = performance["counts"] as Dictionary
-	_check(int(counts["mesh_instances"]) == 41 and int(counts["visible_primitives"]) == 33, "medium quality keeps 41 allocated meshes but exposes only 33")
+	_check(int(counts["mesh_instances"]) == 35 and int(counts["visible_primitives"]) == 33, "medium quality keeps 35 allocated meshes plus one batch and exposes 33 copies")
 	_check(int(counts["visible_lights"]) == 0, "medium quality hides the high-tier task light")
 	_check(int(counts["node_count"]) == high_node_count, "medium quality performs no structural allocation")
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.LOW), "quality API accepts low")
@@ -282,7 +350,7 @@ func _run() -> void:
 	(detached_audit["evidence"] as Dictionary).clear()
 	(detached_audit["node_contract"] as Dictionary).clear()
 	var fresh_audit := dressing.audit()
-	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 41, "deep-copy audit protects nested performance counts")
+	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 35, "deep-copy audit protects nested performance counts")
 	_check(not (fresh_audit["integration"] as Dictionary).is_empty(), "deep-copy audit protects integration state")
 	_check(not (fresh_audit["evidence"] as Dictionary).is_empty(), "deep-copy audit protects evidence state")
 	_check(not (fresh_audit["node_contract"] as Dictionary).is_empty(), "deep-copy audit protects semantic node paths")
@@ -565,6 +633,20 @@ func _subtree_meshes_fit_footprint(
 		)
 		if not padded.encloses(local_aabb):
 			return false
+	for candidate in dressing.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			return false
+		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		if authored_transforms.size() != batch.multimesh.instance_count:
+			return false
+		for instance_index in authored_transforms.size():
+			var local_aabb := _transform_aabb(
+				inverse * batch.global_transform * (authored_transforms[instance_index] as Transform3D),
+				batch.multimesh.mesh.get_aabb()
+			)
+			if not padded.encloses(local_aabb):
+				return false
 	return true
 
 
@@ -618,6 +700,30 @@ func _subtree_mesh_corner_aabb(dressing: StationStructuralServiceDressing) -> AA
 						has_corner = true
 					else:
 						combined = combined.expand(transformed_corner)
+	for candidate in dressing.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			continue
+		var mesh_aabb := batch.multimesh.mesh.get_aabb()
+		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		for instance_index in authored_transforms.size():
+			var mesh_to_component := (
+				inverse * batch.global_transform * (authored_transforms[instance_index] as Transform3D)
+			)
+			for x_index in 2:
+				for y_index in 2:
+					for z_index in 2:
+						var corner := mesh_aabb.position + Vector3(
+							mesh_aabb.size.x * float(x_index),
+							mesh_aabb.size.y * float(y_index),
+							mesh_aabb.size.z * float(z_index)
+						)
+						var transformed_corner := mesh_to_component * corner
+						if not has_corner:
+							combined = AABB(transformed_corner, Vector3.ZERO)
+							has_corner = true
+						else:
+							combined = combined.expand(transformed_corner)
 	return combined
 
 

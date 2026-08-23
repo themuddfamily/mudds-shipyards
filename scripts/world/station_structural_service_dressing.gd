@@ -42,6 +42,8 @@ const RADIATOR_VENT_COUNT := 6
 const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
+const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT
+const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + 1
 
 ## The four resident dressing instances all publish this one material-free,
 ## immutable fastener recipe. It intentionally lives for the session rather
@@ -53,6 +55,8 @@ const PERFORMANCE_BUDGET := {
 	"node_count": 56,
 	"visible_primitives": 45,
 	"mesh_instances": 45,
+	"multimesh_batches": 1,
+	"geometry_submissions": 40,
 	"unique_materials": 10,
 	"lights": 1,
 	"visible_lights": 1,
@@ -93,6 +97,7 @@ var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _task_light: OmniLight3D
+var _radiator_vent_batch: MultiMeshInstance3D
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _built := false
@@ -313,6 +318,8 @@ func get_performance_audit() -> Dictionary:
 		"node_count": 0,
 		"visible_primitives": 0,
 		"mesh_instances": 0,
+		"multimesh_batches": 0,
+		"geometry_submissions": 0,
 		"unique_materials": 0,
 		"lights": 0,
 		"visible_lights": 0,
@@ -414,6 +421,85 @@ func get_fascia_fastener_resource_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## Frozen renderer-cost and visual-equivalence contract for the six repeated
+## radiator blades. Their authored copies remain independently transformed in
+## the MultiMesh buffer; only their renderer nodes/submissions are consolidated.
+func get_radiator_vent_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_transforms := _radiator_vent_transforms()
+	var expected_mesh := _radiator_vent_mesh()
+	var multimesh: MultiMesh = null
+	if (
+		not is_instance_valid(_radiator_vent_batch)
+		or not is_instance_valid(_service_detail_root)
+		or _service_detail_root.get_node_or_null(^"RadiatorVentBlades") != _radiator_vent_batch
+		or not _service_detail_root.is_ancestor_of(_radiator_vent_batch)
+	):
+		errors.append("radiator_vent_batch_missing")
+	else:
+		multimesh = _radiator_vent_batch.multimesh
+	if multimesh == null:
+		errors.append("radiator_vent_multimesh_missing")
+	else:
+		if multimesh.mesh != expected_mesh:
+			errors.append("radiator_vent_mesh_identity_drift")
+		if multimesh.instance_count != RADIATOR_VENT_COUNT or multimesh.visible_instance_count != RADIATOR_VENT_COUNT:
+			errors.append("radiator_vent_copy_count_drift")
+		if multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
+			errors.append("radiator_vent_transform_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(expected_mesh.get_aabb(), expected_transforms)
+		):
+			errors.append("radiator_vent_culling_bounds_drift")
+	if is_instance_valid(_radiator_vent_batch) and (
+		_radiator_vent_batch.material_override != _materials.get("frame_edge")
+		or _radiator_vent_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		or _radiator_vent_batch.layers != 1
+		or not _radiator_vent_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		or _radiator_vent_batch.get_child_count() != 0
+		or _radiator_vent_batch.get_script() != null
+		or not _radiator_vent_batch.get_groups().is_empty()
+	):
+		errors.append("radiator_vent_visual_contract_drift")
+	if is_instance_valid(_radiator_vent_batch):
+		var authored_transforms := _radiator_vent_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
+		if authored_transforms.size() != expected_transforms.size():
+			errors.append("radiator_vent_authored_transform_metadata_drift")
+		else:
+			for transform_index in expected_transforms.size():
+				if (
+					not authored_transforms[transform_index] is Transform3D
+					or not (authored_transforms[transform_index] as Transform3D).is_equal_approx(
+						expected_transforms[transform_index]
+					)
+				):
+					errors.append("radiator_vent_authored_transform_metadata_drift")
+					break
+	if is_instance_valid(_service_detail_root) and not _service_detail_root.find_children(
+		"RadiatorVentBlade*", "MeshInstance3D", true, false
+	).is_empty():
+		errors.append("radiator_vent_legacy_renderer_nodes_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"station_structural_radiator_vent_blades",
+		"copy_count": RADIATOR_VENT_COUNT,
+		"baseline_renderer_nodes": RADIATOR_VENT_COUNT,
+		"renderer_nodes": 1 if is_instance_valid(_radiator_vent_batch) else 0,
+		"baseline_geometry_submissions": RADIATOR_VENT_COUNT,
+		"geometry_submissions": 1 if multimesh != null else 0,
+		"baseline_mesh_resource_count": 1,
+		"mesh_resource_count": 1 if multimesh != null and multimesh.mesh != null else 0,
+		"baseline_drawn_copies": RADIATOR_VENT_COUNT,
+		"drawn_copies": multimesh.instance_count if multimesh != null else 0,
+		"exact_transforms_preserved": multimesh != null and multimesh.buffer == _encode_multimesh_transforms(expected_transforms),
+		"collision_authority": false,
+		"interaction_authority": false,
+	}.duplicate(true)
+
+
 func get_validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if (
@@ -469,7 +555,11 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(performance["within_budget"]):
 		errors.append_array(performance["errors"] as PackedStringArray)
 	var counts := performance["counts"] as Dictionary
-	if int(counts["mesh_instances"]) != TOTAL_VISIBLE_PRIMITIVE_COUNT:
+	if (
+		int(counts["mesh_instances"]) != BATCHED_MESH_INSTANCE_COUNT
+		or int(counts["multimesh_batches"]) != 1
+		or int(counts["geometry_submissions"]) != RENDERER_NODE_COUNT
+	):
 		errors.append("stable maximum-detail primitive contract changed")
 	if int(counts["lights"]) != 1:
 		errors.append("component must retain exactly one live bounded task light")
@@ -488,6 +578,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("quality-tier visibility diverged from enabled and quality lifecycle state")
 	if not bool(get_fascia_fastener_resource_audit().get("valid", false)):
 		errors.append("fascia fastener shared-resource contract diverged")
+	if not bool(get_radiator_vent_batch_audit().get("valid", false)):
+		errors.append("radiator vent batch contract diverged")
 	if not _all_live_meshes_fit_published_footprint():
 		errors.append("live dressing mesh geometry exceeds the immutable published footprint")
 	return errors
@@ -703,23 +795,14 @@ func _build_service_detail(dimensions: Dictionary) -> void:
 		&"radiator_backplate",
 		DetailQuality.MEDIUM
 	)
-	for vent_index in RADIATOR_VENT_COUNT:
-		var vent_progress := float(vent_index + 1) / float(RADIATOR_VENT_COUNT + 1)
-		_tag_visual_detail(
-			_box(
-				_service_detail_root,
-				"RadiatorVentBlade%02d" % (vent_index + 1),
-				Vector3(
-					radiator_center.x + lerpf(-radiator_width * 0.5, radiator_width * 0.5, vent_progress),
-					radiator_center.y,
-					depth + 0.012
-				),
-				Vector3(0.075, radiator_height * 0.82, 0.045),
-				_materials["frame_edge"]
-			),
-			&"radiator_vent",
-			DetailQuality.MEDIUM
-		)
+	_radiator_vent_batch = _multimesh_rounded_box(
+		_service_detail_root,
+		"RadiatorVentBlades",
+		_radiator_vent_mesh(),
+		_materials["frame_edge"],
+		_radiator_vent_transforms()
+	)
+	_tag_visual_batch(_radiator_vent_batch, &"radiator_vent", DetailQuality.MEDIUM)
 
 
 func _build_high_detail(dimensions: Dictionary) -> void:
@@ -846,7 +929,7 @@ func _get_feature_counts() -> Dictionary:
 		"conduit_clamps": _service_detail_root.find_children("ConduitClamp*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"manifold_couplers": _service_detail_root.find_children("ManifoldCoupler*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"radiator_backplates": _service_detail_root.find_children("RadiatorBackplate", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
-		"radiator_vents": _service_detail_root.find_children("RadiatorVentBlade*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
+		"radiator_vents": _radiator_vent_batch.multimesh.instance_count if is_instance_valid(_radiator_vent_batch) and _radiator_vent_batch.multimesh != null else 0,
 		"task_strips": _high_detail_root.find_children("TaskStrip*", "MeshInstance3D", true, false).size() if _high_detail_root != null else 0,
 		"fascia_fasteners": _high_detail_root.find_children("FasciaFastener*", "MeshInstance3D", true, false).size() if _high_detail_root != null else 0,
 		"task_lights": 1 if is_instance_valid(_task_light) and is_ancestor_of(_task_light) else 0,
@@ -1135,6 +1218,31 @@ func _all_live_meshes_fit_published_footprint() -> bool:
 			if not footprint.has_point(relative_transform * corner):
 				return false
 		mesh_count += 1
+	for candidate in find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		if batch.multimesh == null or batch.multimesh.mesh == null:
+			return false
+		var relative_transform_value: Variant = _node_transform_relative_to_component(batch)
+		if not relative_transform_value is Transform3D:
+			return false
+		var relative_transform := relative_transform_value as Transform3D
+		var mesh_bounds := batch.multimesh.mesh.get_aabb()
+		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		if authored_transforms.size() != batch.multimesh.instance_count:
+			return false
+		for instance_index in batch.multimesh.instance_count:
+			if not authored_transforms[instance_index] is Transform3D:
+				return false
+			var instance_transform := authored_transforms[instance_index] as Transform3D
+			for corner_index in 8:
+				var corner := mesh_bounds.position + Vector3(
+					mesh_bounds.size.x if corner_index & 1 else 0.0,
+					mesh_bounds.size.y if corner_index & 2 else 0.0,
+					mesh_bounds.size.z if corner_index & 4 else 0.0
+				)
+				if not footprint.has_point(relative_transform * instance_transform * corner):
+					return false
+		mesh_count += batch.multimesh.instance_count
 	return mesh_count == TOTAL_VISIBLE_PRIMITIVE_COUNT
 
 
@@ -1157,11 +1265,20 @@ func _count_runtime_resources(node: Node, counts: Dictionary, material_ids: Dict
 	counts["node_count"] = int(counts["node_count"]) + 1
 	if node is MeshInstance3D:
 		counts["mesh_instances"] = int(counts["mesh_instances"]) + 1
+		counts["geometry_submissions"] = int(counts["geometry_submissions"]) + 1
 		if (node as MeshInstance3D).is_visible_in_tree():
 			counts["visible_primitives"] = int(counts["visible_primitives"]) + 1
 		var material := (node as MeshInstance3D).material_override
 		if material != null:
 			material_ids[material.get_instance_id()] = true
+	if node is MultiMeshInstance3D:
+		var batch := node as MultiMeshInstance3D
+		counts["multimesh_batches"] = int(counts["multimesh_batches"]) + 1
+		counts["geometry_submissions"] = int(counts["geometry_submissions"]) + 1
+		if batch.is_visible_in_tree() and batch.multimesh != null:
+			counts["visible_primitives"] = int(counts["visible_primitives"]) + batch.multimesh.visible_instance_count
+		if batch.material_override != null:
+			material_ids[batch.material_override.get_instance_id()] = true
 	if node is Light3D:
 		counts["lights"] = int(counts["lights"]) + 1
 		if (node as Light3D).is_visible_in_tree():
@@ -1302,6 +1419,105 @@ func _get_quality_name(value: int) -> StringName:
 			return &"medium"
 		_:
 			return &"high"
+
+
+func _radiator_vent_mesh() -> ArrayMesh:
+	var dimensions := _get_profile_dimensions()
+	return StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(0.075, float(dimensions["crossface_span"]) * 0.48 * 0.82, 0.045),
+		_rounded_box_cache
+	)
+
+
+func _radiator_vent_transforms() -> Array[Transform3D]:
+	var dimensions := _get_profile_dimensions()
+	var length := _get_effective_segment_length()
+	var crossface_span := float(dimensions["crossface_span"])
+	var depth := float(dimensions["outward_depth"])
+	var radiator_width := minf(3.1, maxf(1.8, length * 0.28))
+	var radiator_center := Vector3(length * 0.21, -crossface_span * 0.57, depth - 0.035)
+	var transforms: Array[Transform3D] = []
+	for vent_index in RADIATOR_VENT_COUNT:
+		var vent_progress := float(vent_index + 1) / float(RADIATOR_VENT_COUNT + 1)
+		transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				radiator_center.x + lerpf(-radiator_width * 0.5, radiator_width * 0.5, vent_progress),
+				radiator_center.y,
+				depth + 0.012
+			)
+		))
+	return transforms
+
+
+func _multimesh_rounded_box(
+		parent: Node3D,
+		node_name: String,
+		mesh: ArrayMesh,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	multimesh.visible_instance_count = transforms.size()
+	multimesh.buffer = _encode_multimesh_transforms(transforms)
+	multimesh.custom_aabb = _transformed_mesh_bounds(mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = node_name
+	batch.multimesh = multimesh
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _tag_visual_batch(node: MultiMeshInstance3D, role: StringName, quality_tier: int) -> void:
+	node.set_meta("component_id", COMPONENT_ID)
+	node.set_meta("evidence_status", EVIDENCE_STATUS)
+	node.set_meta("presentation_only", true)
+	node.set_meta("collision_free", true)
+	node.set_meta("detail_role", role)
+	node.set_meta("quality_tier", quality_tier)
+
+
+static func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	var offset := 0
+	for transform_value in transforms:
+		for row in 3:
+			buffer[offset] = transform_value.basis.x[row]
+			buffer[offset + 1] = transform_value.basis.y[row]
+			buffer[offset + 2] = transform_value.basis.z[row]
+			buffer[offset + 3] = transform_value.origin[row]
+			offset += 4
+	return buffer
+
+
+static func _transformed_mesh_bounds(
+		mesh_bounds: AABB,
+		transforms: Array[Transform3D]
+	) -> AABB:
+	var bounds := AABB()
+	var initialized := false
+	for transform_value in transforms:
+		for corner_index in 8:
+			var corner := mesh_bounds.position + Vector3(
+				mesh_bounds.size.x if corner_index & 1 else 0.0,
+				mesh_bounds.size.y if corner_index & 2 else 0.0,
+				mesh_bounds.size.z if corner_index & 4 else 0.0
+			)
+			var point := transform_value * corner
+			if initialized:
+				bounds = bounds.expand(point)
+			else:
+				bounds = AABB(point, Vector3.ZERO)
+				initialized = true
+	return bounds
 
 
 func _tag_visual_detail(node: MeshInstance3D, role: StringName, quality_tier: int) -> void:
