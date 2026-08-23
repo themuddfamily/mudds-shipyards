@@ -11,6 +11,7 @@ extends Node
 
 const LifecycleAdapter := preload("res://scripts/network/network_snapshot_lifecycle_adapter.gd")
 const TransportSecurity := preload("res://scripts/network/network_transport_security.gd")
+const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -19,6 +20,7 @@ signal peer_disconnected(peer_id: int, receipt: Dictionary)
 signal snapshot_published(packet: Dictionary)
 signal snapshot_applied(result: Dictionary)
 signal transport_rejected(status: StringName)
+signal movement_intent_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -27,6 +29,7 @@ const AUTHORITY_PEER_ID := 1
 var _peer: ENetMultiplayerPeer
 var _lifecycle
 var _transport
+var _movement
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -38,6 +41,7 @@ var _bound_port := 0
 func _init() -> void:
 	_lifecycle = LifecycleAdapter.new(AUTHORITY_PEER_ID)
 	_transport = TransportSecurity.new(AUTHORITY_PEER_ID)
+	_movement = MovementAuthority.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -115,6 +119,34 @@ func get_authoritative_snapshot() -> Dictionary:
 	return _lifecycle.get_authoritative_snapshot()
 
 
+func register_avatar(
+	owner_peer_id: int,
+	entity_id: StringName,
+	entity_generation: int,
+	mode: StringName = &"on_foot"
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_movement.register_avatar(
+		AUTHORITY_PEER_ID, owner_peer_id, entity_id, entity_generation, mode
+	))
+
+
+func set_movement_server_tick(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_movement.set_server_tick(AUTHORITY_PEER_ID, server_tick))
+
+
+func send_movement_intent(wire: Dictionary) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	if not _configured:
+		return _remember(_result(false, &"not_started"))
+	_receive_movement_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	return _remember(_result(true, &"queued"))
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -135,6 +167,15 @@ func publish_snapshot(
 		"revision": int(packet.get("revision", 0)),
 		"packet": packet,
 	}))
+
+
+@rpc("any_peer", "reliable")
+func _receive_movement_intent(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var source_peer_id := multiplayer.get_remote_sender_id()
+	var result: Dictionary = _movement.accept_intent(source_peer_id, wire)
+	movement_intent_result.emit(result.duplicate(true))
 
 
 @rpc("any_peer", "reliable")

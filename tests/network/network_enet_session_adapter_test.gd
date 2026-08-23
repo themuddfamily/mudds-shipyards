@@ -1,12 +1,14 @@
 extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
+const MovementIntent := preload("res://scripts/network/network_movement_intent.gd")
 
 var _failures: Array[String] = []
 var _server: Adapter
 var _client: Adapter
 var _server_admissions: Array[Dictionary] = []
 var _client_applies: Array[Dictionary] = []
+var _movement_results: Array[Dictionary] = []
 var _branches: Array[Dictionary] = []
 
 
@@ -36,6 +38,9 @@ func _initialize() -> void:
 	_server.peer_admitted.connect(func(peer_id: int, receipt: Dictionary) -> void:
 		_server_admissions.append({"peer_id": peer_id, "receipt": receipt})
 	)
+	_server.movement_intent_result.connect(func(result: Dictionary) -> void:
+		_movement_results.append(result)
+	)
 	_client.snapshot_applied.connect(func(result: Dictionary) -> void:
 		_client_applies.append(result)
 	)
@@ -52,6 +57,36 @@ func _initialize() -> void:
 			"admission is bound to the transport peer identity"
 		)
 		_check(not _client.get_server_offer().is_empty(), "client receives the server admission offer")
+	var client_peer_id := _client.multiplayer.get_unique_id()
+	_check(
+		bool(_server.register_avatar(client_peer_id, &"avatar-1", 1).get("accepted", false)),
+		"server registers the admitted client's movement avatar"
+	)
+	_check(bool(_server.set_movement_server_tick(1).get("accepted", false)), "server opens the movement tick window")
+	var intent = MovementIntent.create(
+		client_peer_id, &"avatar-1", 1, 1, 0, 1, Vector2.RIGHT
+	)
+	_check(bool(_client.send_movement_intent(intent.to_dictionary()).get("accepted", false)), "client queues movement intent over RPC")
+	await _pump_until(func() -> bool: return _movement_results.size() == 1, 3.0)
+	_check(
+		_movement_results.size() == 1 and bool(_movement_results[0].get("accepted", false)),
+		"server accepts the owner-bound movement intent"
+	)
+	_client.send_movement_intent(intent.to_dictionary())
+	await _pump_until(func() -> bool: return _movement_results.size() == 2, 3.0)
+	_check(
+		_movement_results.size() == 2 and _movement_results[1].get("status") == &"stale_sequence",
+		"server rejects a replayed movement sequence"
+	)
+	var spoofed_intent = MovementIntent.create(
+		client_peer_id + 1, &"avatar-1", 1, 1, 1, 1, Vector2.LEFT
+	)
+	_client.send_movement_intent(spoofed_intent.to_dictionary())
+	await _pump_until(func() -> bool: return _movement_results.size() == 3, 3.0)
+	_check(
+		_movement_results.size() == 3 and _movement_results[2].get("status") == &"spoofed_peer",
+		"server rejects a movement packet that spoofs its peer identity"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
