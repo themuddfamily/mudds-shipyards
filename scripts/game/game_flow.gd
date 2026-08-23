@@ -4061,6 +4061,19 @@ func consume_planetary_return_receipt(
 			or craft.get_instance_id() != craft_id \
 			or actor.get_instance_id() != actor_id:
 		return {"accepted": false, "reason": &"planetary_return_actor_mismatch"}
+	var session_generation := int(berth_receipt.get("session_generation", 0))
+	var attachment_generation := int(berth_receipt.get("attachment_generation", 0))
+	if session_generation < 1 or attachment_generation < 1:
+		return {"accepted": false, "reason": &"planetary_return_generation_invalid"}
+	if planetary_binding != null:
+		if planetary_binding.has_method(&"get_generation") \
+				and int(planetary_binding.call(&"get_generation")) != session_generation:
+			return {"accepted": false, "reason": &"planetary_return_stale_generation"}
+		if planetary_binding.has_method(&"get_planetary_surface_snapshot"):
+			var surface_snapshot := planetary_binding.call(&"get_planetary_surface_snapshot") as Dictionary
+			var current_attachment := int(surface_snapshot.get("attachment_generation", attachment_generation))
+			if current_attachment != attachment_generation:
+				return {"accepted": false, "reason": &"planetary_return_stale_attachment"}
 	if craft.has_method(&"is_piloted") and not bool(craft.call(&"is_piloted")):
 		return {"accepted": false, "reason": &"planetary_return_craft_not_piloted"}
 	var berth := return_berth
