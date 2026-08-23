@@ -11,6 +11,10 @@ const MAXIMUM_SIMULTANEOUS_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const PROGRESS_THRESHOLDS := [0.25, 0.5, 0.75]
 const ACTIVITY_STATES := [&"idle", &"selected", &"active", &"complete", &"reset"]
+const BEACON_TRANSITION_CUES := [
+	&"beacon_gate_acquired", &"beacon_route_interrupted", &"beacon_route_recovered",
+	&"beacon_final_gate", &"beacon_route_completed",
+]
 const CUE_PRIORITIES := {
 	&"activity_progress": 10,
 	&"activity_checkpoint": 20,
@@ -21,6 +25,11 @@ const CUE_PRIORITIES := {
 	&"cargo_deadline_critical": 95,
 	&"cargo_deadline_recovered": 70,
 	&"cargo_delivery_completed": 90,
+	&"beacon_gate_acquired": 40,
+	&"beacon_route_interrupted": 95,
+	&"beacon_route_recovered": 70,
+	&"beacon_final_gate": 90,
+	&"beacon_route_completed": 100,
 }
 
 var _attached := false
@@ -108,6 +117,9 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	if source_generation == previous_generation \
 			and source_time < float(previous.get("source_time_seconds", 0.0)):
 		return _result(false, &"stale_activity_time")
+	if activity_kind == &"beacon" and source_generation == previous_generation \
+			and int(decoded.next_beacon_index) < int(previous.get("next_beacon_index", 0)):
+		return _result(false, &"stale_beacon_checkpoint")
 	var generation_changed := source_generation > previous_generation
 	var prior_generation_urgency := StringName(previous.get("urgency", &"normal"))
 	if generation_changed:
@@ -120,6 +132,8 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var thresholds := previous.get("progress_thresholds", {}) as Dictionary
 	var urgency := _cargo_urgency(decoded) if activity_kind == &"cargo" else &"normal"
 	var previous_urgency := StringName(previous.get("urgency", &"normal"))
+	var previous_beacon_index := int(previous.get("next_beacon_index", 0))
+	var previous_beacon_reason := StringName(previous.get("beacon_interruption_reason", &""))
 	if generation_changed and urgency == &"normal":
 		previous_urgency = prior_generation_urgency
 	if previous.is_empty():
@@ -140,8 +154,23 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			_emit_cue(&"cargo_deadline_critical", activity_id, 1.0)
 		elif urgency == &"normal" and previous_urgency in [&"warning", &"critical"]:
 			_emit_cue(&"cargo_deadline_recovered", activity_id, 0.75)
+	elif activity_kind == &"beacon":
+		_retire_beacon_transition_slots(activity_id)
+		var beacon_index := int(decoded.next_beacon_index)
+		var beacon_count := int(decoded.beacon_count)
+		var beacon_reason := StringName(decoded.beacon_interruption_reason)
+		if beacon_index > previous_beacon_index and beacon_index < beacon_count:
+			_emit_cue(&"beacon_gate_acquired", activity_id, 0.8)
+		if not beacon_reason.is_empty() and previous_beacon_reason.is_empty():
+			_emit_cue(&"beacon_route_interrupted", activity_id, 1.0)
+		elif beacon_reason.is_empty() and not previous_beacon_reason.is_empty():
+			_emit_cue(&"beacon_route_recovered", activity_id, 0.7)
+		if beacon_index == beacon_count and previous_beacon_index < beacon_count:
+			_emit_cue(&"beacon_final_gate", activity_id, 1.0)
 	if state == &"complete" and previous_state != &"complete":
-		if activity_kind != &"cargo":
+		if activity_kind == &"beacon":
+			_emit_cue(&"beacon_route_completed", activity_id, 1.0)
+		elif activity_kind != &"cargo":
 			_emit_cue(&"activity_complete", activity_id, 1.0)
 		elif StringName(decoded.cargo_outcome) == &"delivered":
 			_emit_cue(&"cargo_delivery_completed", activity_id, 1.0)
@@ -155,6 +184,8 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		"activity_kind": activity_kind,
 		"source_time_seconds": source_time,
 		"urgency": urgency,
+		"next_beacon_index": int(decoded.get("next_beacon_index", 0)),
+		"beacon_interruption_reason": StringName(decoded.get("beacon_interruption_reason", &"")),
 		"state": state,
 		"checkpoint_id": checkpoint_id,
 		"progress": progress,
@@ -266,6 +297,20 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 		decoded["deadline_seconds"] = float(deadline)
 		decoded["deadline_remaining_seconds"] = float(remaining)
 		decoded["cargo_outcome"] = cargo_outcome
+	elif activity_kind == &"beacon":
+		var next_index: Variant = snapshot.get("next_beacon_index", null)
+		var beacon_count: Variant = snapshot.get("beacon_count", null)
+		var interruption: Variant = snapshot.get("beacon_interruption_reason", &"")
+		if not next_index is int or not beacon_count is int \
+				or int(beacon_count) <= 0 or int(beacon_count) > 1024 \
+				or int(next_index) < 0 or int(next_index) > int(beacon_count):
+			return _result(false, &"invalid_beacon_cursor")
+		if not interruption is StringName \
+				or interruption not in [&"", &"out_of_order_beacon", &"outside_beacon"]:
+			return _result(false, &"invalid_beacon_interruption")
+		decoded["next_beacon_index"] = int(next_index)
+		decoded["beacon_count"] = int(beacon_count)
+		decoded["beacon_interruption_reason"] = interruption
 	return decoded
 
 
@@ -298,6 +343,14 @@ func _admit_cue(cue_id: StringName, activity_id: StringName) -> bool:
 		"cue_id": cue_id, "activity_id": activity_id, "priority": priority,
 	}
 	return true
+
+
+func _retire_beacon_transition_slots(activity_id: StringName) -> void:
+	for index in range(_active_cue_slots.size() - 1, -1, -1):
+		var slot := _active_cue_slots[index] as Dictionary
+		if StringName(slot.get("activity_id", &"")) == activity_id \
+				and StringName(slot.get("cue_id", &"")) in BEACON_TRANSITION_CUES:
+			_active_cue_slots.remove_at(index)
 
 
 func _bind_authored_semantic_output() -> void:

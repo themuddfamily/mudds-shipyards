@@ -8720,11 +8720,17 @@ func _normalize_nearby_activity_audio_snapshot(snapshot: Dictionary) -> Dictiona
 		var state: StringName = &""
 		if raw_state is StringName or raw_state is String:
 			state = StringName(raw_state)
-		elif raw_state is int and StringName(candidate.kind) == &"cargo":
-			state = {
-				0: &"idle", 1: &"active", 2: &"completed",
-				3: &"failed", 4: &"expired",
-			}.get(int(raw_state), &"")
+		elif raw_state is int:
+			var kind := StringName(candidate.kind)
+			if kind == &"cargo":
+				state = {
+					0: &"idle", 1: &"active", 2: &"completed",
+					3: &"failed", 4: &"expired",
+				}.get(int(raw_state), &"")
+			elif kind == &"beacon":
+				state = {
+					0: &"idle", 1: &"active", 2: &"completed", 3: &"reset",
+				}.get(int(raw_state), &"")
 		if state in [&"idle", &"selected", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
 			if state in [&"idle", &"selected"]:
 				if fallback.is_empty():
@@ -8788,6 +8794,18 @@ func _build_nearby_activity_audio_snapshot(
 				normalized["source_time_seconds"] = float(elapsed)
 				normalized["deadline_seconds"] = float(deadline)
 				normalized["deadline_remaining_seconds"] = float(remaining)
+		elif StringName(candidate.get("kind", &"")) == &"beacon":
+			var next_index: Variant = value.get("next_beacon_index", null)
+			var beacon_count: Variant = value.get("beacon_count", null)
+			var reason: Variant = value.get("presentation_reason", &"")
+			if next_index is int and beacon_count is int \
+					and int(beacon_count) > 0 and int(beacon_count) <= 1024 \
+					and int(next_index) >= 0 and int(next_index) <= int(beacon_count) \
+					and reason is StringName \
+					and reason in [&"", &"out_of_order_beacon", &"outside_beacon"]:
+				normalized["next_beacon_index"] = int(next_index)
+				normalized["beacon_count"] = int(beacon_count)
+				normalized["beacon_interruption_reason"] = reason
 		return normalized
 	return {}
 
