@@ -34,6 +34,8 @@ signal planetary_cruise_toggle_requested(request_serial: int)
 signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
+signal display_settings_keep_requested(generation: int)
+signal display_settings_revert_requested(generation: int)
 signal orderly_shutdown_requested
 signal presentation_intent_requested(kind: StringName, payload: Dictionary)
 signal nearby_activity_intent_requested(intent: Dictionary)
@@ -282,6 +284,9 @@ var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
 var _settings_status_label: Label
+var _display_confirmation_panel: PanelContainer
+var _display_confirmation_label: Label
+var _display_confirmation_generation := -1
 var _settings_dirty := false
 var _settings_reset_confirmation: PanelContainer
 ## The pause overlay survives a whole-Main detach, but Viewport focus does not.
@@ -1590,6 +1595,20 @@ func set_settings_status(text: String, success: bool = true) -> void:
 	_settings_status_label.text = text
 	_settings_status_label.modulate = _c(NOMINAL_SOFT) if success else _c(DANGER)
 	_settings_status_label.visible = not text.is_empty()
+
+
+func show_display_settings_confirmation(generation: int, seconds_remaining: float) -> void:
+	if _display_confirmation_panel == null:
+		return
+	_display_confirmation_generation = generation
+	_display_confirmation_panel.visible = true
+	_display_confirmation_label.text = "KEEP DISPLAY CHANGE?  REVERTS IN %.0f S" % maxf(seconds_remaining, 0.0)
+
+
+func clear_display_settings_confirmation() -> void:
+	if _display_confirmation_panel != null:
+		_display_confirmation_panel.visible = false
+	_display_confirmation_generation = -1
 
 
 ## Caller-owned persistence result. The HUD never writes settings; it only
@@ -3613,6 +3632,26 @@ func _build_settings_page() -> void:
 	_settings_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_status_label.visible = false
 	page_stack.add_child(_settings_status_label)
+	_display_confirmation_panel = PanelContainer.new()
+	_display_confirmation_panel.name = "DisplaySettingsConfirmation"
+	_display_confirmation_panel.visible = false
+	var display_confirmation_stack := VBoxContainer.new()
+	_display_confirmation_panel.add_child(display_confirmation_stack)
+	_display_confirmation_label = _label("DISPLAY CHANGE PENDING", 10, CAUTION)
+	_display_confirmation_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	display_confirmation_stack.add_child(_display_confirmation_label)
+	var display_confirmation_actions := HBoxContainer.new()
+	display_confirmation_actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	display_confirmation_stack.add_child(display_confirmation_actions)
+	var keep_display := _binding_button("KEEP DISPLAY")
+	keep_display.name = "KeepDisplaySettingsButton"
+	keep_display.pressed.connect(func() -> void: display_settings_keep_requested.emit(_display_confirmation_generation))
+	display_confirmation_actions.add_child(keep_display)
+	var revert_display := _binding_button("REVERT DISPLAY")
+	revert_display.name = "RevertDisplaySettingsButton"
+	revert_display.pressed.connect(func() -> void: display_settings_revert_requested.emit(_display_confirmation_generation))
+	display_confirmation_actions.add_child(revert_display)
+	page_stack.add_child(_display_confirmation_panel)
 	_settings_reset_confirmation = PanelContainer.new()
 	_settings_reset_confirmation.name = "SettingsResetConfirmation"
 	_settings_reset_confirmation.visible = false

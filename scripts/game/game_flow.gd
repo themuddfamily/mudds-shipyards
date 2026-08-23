@@ -410,6 +410,8 @@ const _DIAGNOSTIC_NETWORK_STOP := 9
 const _DIAGNOSTIC_SHUTDOWN := 10
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
+var _pending_display_confirmation: Dictionary = {}
+var _display_confirmation_generation := 0
 var _runtime_settings_persistence_injected := false
 ## Retained safe-start composition over the exact same process-lifetime store.
 var _safe_start_production_recovery: SafeStartProductionRecovery
@@ -533,6 +535,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if not _pending_display_confirmation.is_empty() and runtime_settings != null:
+		_revert_display_settings(int(_pending_display_confirmation.generation), &"detach")
 	if is_queued_for_deletion() and _session_diagnostics_bridge != null:
 		_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(
 			0, 0.0, "runtime"
@@ -1355,6 +1359,7 @@ func _process(delta: float) -> void:
 	# gameplay startup tail has run.
 	if not _initialized:
 		return
+	_update_display_confirmation(delta)
 	_update_debug_overlay()
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
@@ -2458,6 +2463,8 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
 	_connect_signal_once(hud, &"settings_reset_requested", _on_settings_reset_requested)
+	_connect_signal_once(hud, &"display_settings_keep_requested", _on_display_settings_keep_requested)
+	_connect_signal_once(hud, &"display_settings_revert_requested", _on_display_settings_revert_requested)
 	_connect_signal_once(
 		hud,
 		&"presentation_intent_requested",
@@ -4350,12 +4357,15 @@ func begin_ember_surface_journey(
 	if not is_instance_valid(ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
 	var binding := ember_surface_loop_production_binding
-	var configured: Dictionary = binding.configure(host, binding.get_generation())
-	if not bool(configured.get("accepted", false)):
-		return configured
-	var composed: Dictionary = binding.configure_planetary_surface(director, reward_sink)
-	if not bool(composed.get("accepted", false)):
-		return composed
+	var binding_snapshot := binding.get_snapshot()
+	if not bool(binding_snapshot.get("configured", false)):
+		var configured: Dictionary = binding.configure(host, binding.get_generation())
+		if not bool(configured.get("accepted", false)):
+			return configured
+	if binding.get_planetary_surface_snapshot().is_empty():
+		var composed: Dictionary = binding.configure_planetary_surface(director, reward_sink)
+		if not bool(composed.get("accepted", false)):
+			return composed
 	var intent := binding.queue_disembark_intent(caller_serial, binding.get_generation())
 	if not bool(intent.get("accepted", false)):
 		return intent
@@ -7619,11 +7629,84 @@ func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
 	runtime_settings.set(setting, value)
 	var changed := runtime_settings.to_dictionary() != before
 	if changed:
+		if setting in [&"window_mode", &"display_resolution"]:
+			var display_report := runtime_settings.apply_display_settings()
+			if display_report.get("reason", &"") == &"headless":
+				runtime_settings.window_mode = int(before.window_mode)
+				runtime_settings.display_resolution = String(before.display_resolution)
+				if is_instance_valid(hud):
+					hud.set_settings_snapshot(before)
+					hud.set_settings_status("DISPLAY PREVIEW UNAVAILABLE", false)
+				_runtime_settings_transaction_active = false
+				_sync_production_runtime_settings_state()
+				return
+			_display_confirmation_generation += 1
+			_pending_display_confirmation = {
+				"generation": _display_confirmation_generation,
+				"remaining": 15.0,
+				"prior": before.duplicate(true),
+				"candidate": runtime_settings.to_dictionary(),
+			}
+			if is_instance_valid(hud):
+				hud.show_display_settings_confirmation(_display_confirmation_generation, 15.0)
+			_runtime_settings_transaction_active = false
+			_sync_production_runtime_settings_state()
+			return
 		_runtime_settings_transaction_count += 1
 		_runtime_settings_unsaved_changes = true
 		var status := _persist_runtime_settings()
 		_present_runtime_settings_save_status(status, &"change")
 	_runtime_settings_transaction_active = false
+	_sync_production_runtime_settings_state()
+
+
+func _update_display_confirmation(delta: float) -> void:
+	if _pending_display_confirmation.is_empty():
+		return
+	_pending_display_confirmation.remaining = maxf(
+		float(_pending_display_confirmation.remaining) - maxf(delta, 0.0), 0.0
+	)
+	if is_instance_valid(hud):
+		hud.show_display_settings_confirmation(
+			int(_pending_display_confirmation.generation),
+			float(_pending_display_confirmation.remaining)
+		)
+	if float(_pending_display_confirmation.remaining) <= 0.0:
+		_revert_display_settings(int(_pending_display_confirmation.generation), &"timeout")
+
+
+func _on_display_settings_keep_requested(generation: int) -> void:
+	if _pending_display_confirmation.is_empty() or int(_pending_display_confirmation.generation) != generation:
+		return
+	var status := _persist_runtime_settings()
+	if bool(status.get("accepted", false)):
+		_runtime_settings_unsaved_changes = false
+		_pending_display_confirmation = {}
+		if is_instance_valid(hud):
+			hud.clear_display_settings_confirmation()
+			hud.set_settings_status("DISPLAY CHANGE KEPT", true)
+	else:
+		_revert_display_settings(generation, &"save_failed")
+	_sync_production_runtime_settings_state()
+
+
+func _on_display_settings_revert_requested(generation: int) -> void:
+	_revert_display_settings(generation, &"caller_reverted")
+
+
+func _revert_display_settings(generation: int, reason: StringName) -> void:
+	if _pending_display_confirmation.is_empty() or int(_pending_display_confirmation.generation) != generation:
+		return
+	var prior := _pending_display_confirmation.prior as Dictionary
+	_pending_display_confirmation = {}
+	runtime_settings.window_mode = int(prior.get("window_mode", RuntimeSettings.DEFAULT_WINDOW_MODE))
+	runtime_settings.display_resolution = String(prior.get("display_resolution", RuntimeSettings.DEFAULT_DISPLAY_RESOLUTION_ID))
+	runtime_settings.apply_window_mode()
+	runtime_settings.apply_display_settings()
+	if is_instance_valid(hud):
+		hud.clear_display_settings_confirmation()
+		hud.set_settings_snapshot(prior)
+		hud.set_settings_status("DISPLAY CHANGE REVERTED // %s" % String(reason).to_upper(), false)
 	_sync_production_runtime_settings_state()
 
 

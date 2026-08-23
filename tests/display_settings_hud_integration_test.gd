@@ -35,6 +35,11 @@ func _run() -> void:
 	hud.call("_on_setting_value_changed", &"vsync_mode", 0)
 	_check(_events.size() == 3, "display controls route exactly one transaction intent each")
 	_check(_events[0].value == &"fullscreen" and _events[1].value == "1280x720" and _events[2].value == &"off", "display intents use stable persisted IDs")
+	hud.call("show_display_settings_confirmation", 7, 15.0)
+	var confirmation := hud.get("_display_confirmation_panel") as Control
+	_check(confirmation.visible and str((hud.get("_display_confirmation_label") as Label).text).contains("15"), "display preview exposes a bounded keep/revert confirmation")
+	hud.call("clear_display_settings_confirmation")
+	_check(not confirmation.visible, "display confirmation clears on keep/revert completion")
 	hud.queue_free()
 	await process_frame
 	for failure in _failures:
