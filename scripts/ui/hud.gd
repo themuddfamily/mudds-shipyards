@@ -17,6 +17,7 @@ const SurfaceRouteHazardPresenterType := preload("res://scripts/ui/surface_route
 const AtmosphericEntryGuidancePresenterType := preload("res://scripts/ui/atmospheric_entry_guidance_presenter.gd")
 const SemanticAudioCuePresenterType := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
 const FirstSortieTutorialPresenterType := preload("res://scripts/ui/first_sortie_tutorial_presenter.gd")
+const ServerBrowserPresenterType := preload("res://scripts/ui/server_browser_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -225,6 +226,11 @@ var _pause: Control
 var _pause_panels: Control
 var _pause_main_page: Control
 var _activity_selection_page: Control
+var _server_browser_page: Control
+var _server_browser_title: Label
+var _server_browser_detail: Label
+var _server_browser_rows: VBoxContainer
+var _server_browser_actions: HBoxContainer
 var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
@@ -340,6 +346,7 @@ var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
+var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
 var _runtime_status_title: Label
 var _runtime_status_detail: Label
@@ -2459,6 +2466,7 @@ func _build_pause() -> void:
 	_scaled_layers.append(_pause_panels)
 	_build_pause_main_page()
 	_build_activity_selection_page()
+	_build_server_browser_page()
 	_build_settings_page()
 	_show_pause_main()
 
@@ -2500,6 +2508,10 @@ func _build_pause_main_page() -> void:
 	activity_board.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	activity_board.pressed.connect(_show_activity_selection_page)
 	menu_row.add_child(activity_board)
+	var server_browser := _menu_button("SERVER BROWSER", NOMINAL_SOFT)
+	server_browser.name = "ServerBrowserButton"
+	server_browser.pressed.connect(_show_server_browser_page)
+	stack.add_child(server_browser)
 	var cruise_row := VBoxContainer.new()
 	cruise_row.name = "PlanetaryCruiseRow"
 	cruise_row.add_theme_constant_override("separation", 4)
@@ -2615,6 +2627,143 @@ func _build_activity_selection_page() -> void:
 	back.pressed.connect(_show_pause_main)
 	stack.add_child(back)
 	_refresh_activity_selection_page(&"")
+
+
+func _build_server_browser_page() -> void:
+	_server_browser_page = PanelContainer.new()
+	_server_browser_page.name = "ServerBrowserPage"
+	_server_browser_page.set_anchors_preset(Control.PRESET_CENTER)
+	_server_browser_page.position = Vector2(-360.0, -300.0)
+	_server_browser_page.size = Vector2(720.0, 600.0)
+	_server_browser_page.mouse_filter = Control.MOUSE_FILTER_STOP
+	_server_browser_page.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 10, NOMINAL))
+	_pause_panels.add_child(_server_browser_page)
+	var margin := _margin(28, 24, 28, 24)
+	_server_browser_page.add_child(margin)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 10)
+	margin.add_child(stack)
+	_server_browser_title = _label("SERVER BROWSER", 26, PRIMARY)
+	_server_browser_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(_server_browser_title)
+	_server_browser_detail = _label("Select refresh to request a detached directory snapshot.", 12, MUTED)
+	_server_browser_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_server_browser_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(_server_browser_detail)
+	_server_browser_rows = VBoxContainer.new()
+	_server_browser_rows.name = "ServerBrowserRows"
+	_server_browser_rows.add_theme_constant_override("separation", 6)
+	_server_browser_rows.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.add_child(_server_browser_rows)
+	_server_browser_actions = HBoxContainer.new()
+	_server_browser_actions.name = "ServerBrowserActions"
+	_server_browser_actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	_server_browser_actions.add_theme_constant_override("separation", 10)
+	stack.add_child(_server_browser_actions)
+	var refresh := _menu_button("REFRESH", NOMINAL)
+	refresh.name = "ServerBrowserRefreshButton"
+	refresh.pressed.connect(request_server_browser_refresh)
+	_server_browser_actions.add_child(refresh)
+	var back := _menu_button("BACK", MUTED)
+	back.name = "ServerBrowserBackButton"
+	back.pressed.connect(_show_pause_main)
+	_server_browser_actions.add_child(back)
+	_server_browser_page.visible = false
+
+
+func _show_server_browser_page() -> void:
+	_pause_main_page.visible = false
+	_activity_selection_page.visible = false
+	_settings_page.visible = false
+	_server_browser_page.visible = true
+	var refresh := _server_browser_page.find_child("ServerBrowserRefreshButton", true, false) as Button
+	if refresh != null:
+		refresh.grab_focus()
+
+
+## Applies a caller-owned discovery result to the pause browser surface. The
+## presenter owns only textual shaping; refresh and join remain external
+## intents, so this UI never queries a directory or opens a transport.
+func apply_server_browser_result(result: Dictionary) -> bool:
+	if not is_instance_valid(_server_browser_page):
+		return false
+	var presentation: Dictionary
+	var requested_status := StringName(str(result.get("status", &"")))
+	if requested_status == &"loading":
+		presentation = {
+			"status": &"loading",
+			"rows": [],
+			"error_message": "Searching for available sessions…",
+			"actions": [],
+		}
+	else:
+		presentation = _server_browser_presenter.present_result(result)
+		if presentation.get("status", &"") == &"ready":
+			var rows: Array = presentation.get("rows", [])
+			if not rows.is_empty() and rows.all(func(row: Variant) -> bool: return bool((row as Dictionary).get("full", false))):
+				presentation["status"] = &"full"
+	_render_server_browser(presentation)
+	return true
+
+
+func request_server_browser_refresh() -> Dictionary:
+	var request := _server_browser_presenter.request_retry()
+	if not bool(request.get("accepted", false)):
+		request = {"accepted": true, "reason": &"refresh_requested", "presentation_only": true}
+	presentation_intent_requested.emit(&"server_browser", {"action": &"refresh", "request": request})
+	return request
+
+
+func request_server_browser_join(session_id: StringName) -> Dictionary:
+	if session_id == &"":
+		return {"accepted": false, "reason": &"missing_session_id", "presentation_only": true}
+	var request := {"accepted": true, "reason": &"join_requested", "presentation_only": true}
+	presentation_intent_requested.emit(&"server_browser", {
+		"action": &"join",
+		"session_id": session_id,
+		"request": request,
+	})
+	return request
+
+
+func _render_server_browser(presentation: Dictionary) -> void:
+	var status := StringName(str(presentation.get("status", &"empty")))
+	var status_title: String = {
+		&"loading": "SEARCHING…",
+		&"empty": "NO SESSIONS FOUND",
+		&"error": "SERVER LIST UNAVAILABLE",
+		&"full": "ALL SESSIONS FULL",
+		&"ready": "AVAILABLE SESSIONS",
+	}.get(status, "SERVER BROWSER")
+	_server_browser_title.text = status_title
+	_server_browser_detail.text = str(presentation.get("error_message", "Select a session to request joining."))
+	for child in _server_browser_rows.get_children():
+		child.queue_free()
+	var rows: Array = presentation.get("rows", [])
+	for row_value in rows:
+		if not row_value is Dictionary:
+			continue
+		var row := row_value as Dictionary
+		var button := _menu_button(
+			"%s  //  %s  //  %s  //  %s" % [
+				str(row.get("title", "Unnamed session")),
+				str(row.get("region_label", "UNKNOWN")),
+				str(row.get("ping_label", "Unavailable")),
+				str(row.get("occupancy_label", "0/0 players")),
+			],
+			MUTED if bool(row.get("full", false)) else NOMINAL_SOFT
+		)
+		button.focus_mode = Control.FOCUS_ALL
+		button.disabled = bool(row.get("full", false))
+		button.tooltip_text = "Session full" if button.disabled else "Request joining this session"
+		button.pressed.connect(request_server_browser_join.bind(StringName(str(row.get("session_id", &"")))))
+		_server_browser_rows.add_child(button)
+	if status == &"error":
+		var retry := _menu_button("RETRY SERVER LIST", NOMINAL)
+		retry.name = "ServerBrowserRetryButton"
+		retry.pressed.connect(request_server_browser_refresh)
+		_server_browser_rows.add_child(retry)
+	_server_browser_page.visible = true
 
 
 func _add_activity_selection_row(
@@ -3594,6 +3743,7 @@ func _update_setting_value_label(key: StringName, value: float) -> void:
 func _show_settings_page() -> void:
 	_pause_main_page.visible = false
 	_activity_selection_page.visible = false
+	_server_browser_page.visible = false
 	_settings_page.visible = true
 	var first_control := _settings_controls.get(&"ship_mouse_sensitivity") as Control
 	if first_control != null:
@@ -3612,6 +3762,7 @@ func _show_pause_main() -> void:
 	_cancel_pending_input_conflict(false)
 	_pause_main_page.visible = true
 	_activity_selection_page.visible = false
+	_server_browser_page.visible = false
 	_settings_page.visible = false
 	var focus_button := _pause_main_page.find_child(
 		"ActivityBoardButton" if returning_from_activity else "SettingsOpenButton",
@@ -3625,6 +3776,7 @@ func _show_pause_main() -> void:
 func _show_activity_selection_page() -> void:
 	_pause_main_page.visible = false
 	_settings_page.visible = false
+	_server_browser_page.visible = false
 	_activity_selection_page.visible = true
 	_refresh_activity_selection_page(&"")
 	var selected_button := _activity_selection_buttons.get(
