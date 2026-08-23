@@ -67,6 +67,23 @@ func _run() -> void:
 		and StringName(started.last_status.reason) == &"started",
 		"Main composition publishes a running privacy-safe session marker"
 	)
+	for transition_code in [2, 4, 5, 6, 7, 8, 9]:
+		flow.record_session_lifecycle_transition(transition_code, 6, transition_code != 5)
+	var events := flow.get_session_diagnostics_snapshot().bridge.record.events as Array
+	var observed_codes := {}
+	var bounded := true
+	for event in events:
+		var fields := event.fields as Dictionary
+		observed_codes[int(fields.input_device_code)] = true
+		bounded = bounded and event.event_code == "control_source_changed" \
+			and fields.size() == 3 \
+			and not fields.has("name") and not fields.has("path")
+	_check(
+		 events.size() == 8
+		 and observed_codes.size() == 8
+		 and bounded,
+		"GameFlow lifecycle transitions retain only bounded numeric diagnostic fields"
+	)
 	var closed := flow.mark_orderly_session_shutdown()
 	var finished := flow.get_session_diagnostics_snapshot()
 	_check(

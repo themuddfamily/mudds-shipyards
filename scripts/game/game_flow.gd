@@ -392,6 +392,16 @@ var _runtime_settings_reentrant_rejection_count := 0
 var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
 var _session_diagnostics_last_status: Dictionary = {}
 var _session_diagnostics_filesystem: UserDataFilesystem
+const _DIAGNOSTIC_STARTUP := 1
+const _DIAGNOSTIC_BOARD := 2
+const _DIAGNOSTIC_DISEMBARK := 3
+const _DIAGNOSTIC_COMBAT_ENTER := 4
+const _DIAGNOSTIC_COMBAT_EXIT := 5
+const _DIAGNOSTIC_LANDING := 6
+const _DIAGNOSTIC_RETURN := 7
+const _DIAGNOSTIC_NETWORK_START := 8
+const _DIAGNOSTIC_NETWORK_STOP := 9
+const _DIAGNOSTIC_SHUTDOWN := 10
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
 var _runtime_settings_persistence_injected := false
@@ -1141,6 +1151,7 @@ func _initialize_session_diagnostics() -> void:
 		return
 	_session_diagnostics_bridge = SessionDiagnosticLifecycleBridgeType.new(coordinator, record, sink)
 	_session_diagnostics_last_status = _session_diagnostics_bridge.begin_session(1, "main-session-start", 0, 0.0)
+	_record_session_lifecycle_transition(_DIAGNOSTIC_STARTUP)
 
 
 func get_session_diagnostics_snapshot() -> Dictionary:
@@ -1161,8 +1172,49 @@ func set_session_diagnostics_filesystem(filesystem: UserDataFilesystem) -> void:
 func mark_orderly_session_shutdown() -> Dictionary:
 	if _session_diagnostics_bridge == null:
 		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	_record_session_lifecycle_transition(_DIAGNOSTIC_SHUTDOWN)
 	_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(0, 0.0, "main-session-clean")
 	return _session_diagnostics_last_status.duplicate(true)
+
+
+func record_session_lifecycle_transition(transition_code: int, entity_code: int = 0, active: bool = true) -> Dictionary:
+	return _record_session_lifecycle_transition(transition_code, entity_code, active)
+
+
+func _record_session_lifecycle_transition(
+		transition_code: int,
+		entity_code: int = 0,
+		active: bool = true
+		) -> Dictionary:
+	if _session_diagnostics_bridge == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	return _session_diagnostics_bridge.record_lifecycle_transition(
+		transition_code, entity_code, active
+	)
+
+
+func _diagnostic_ship_code(candidate: HeroShip) -> int:
+	if not is_instance_valid(candidate):
+		return 0
+	match candidate.get_ship_id():
+		&"torrent_provisional":
+			return 1
+		&"arrow_provisional":
+			return 2
+		&"jovian_provisional":
+			return 3
+		&"zenith_b7_observed":
+			return 4
+		&"halyard_new_design":
+			return 5
+		&"cinder-cargo-hauler":
+			return 6
+		&"cinder-long-range-bomber":
+			return 7
+		&"cinder-light-interceptor":
+			return 8
+		_:
+			return 0
 	opponent.set_target(active_ship)
 	opponent.deactivate()
 	total_targets = world.get_target_count()
@@ -2324,6 +2376,7 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 
 func _on_network_session_started(mode: StringName) -> void:
+	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_START)
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -2333,6 +2386,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_STOP, 0, false)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
 	_publish_network_session_snapshot(
@@ -3402,6 +3456,9 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
 			return
 	_piloting = true
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_BOARD, _diagnostic_ship_code(active_ship), true
+	)
 	if is_instance_valid(network_session) and network_session.is_server():
 		network_session.register_remote_ship_pilot(1, active_ship.get_ship_id(), 1)
 	_publish_network_boarding_state(active_ship, true)
@@ -3484,6 +3541,9 @@ func _try_exit_ship() -> void:
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
 		return
 	_piloting = false
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_DISEMBARK, _diagnostic_ship_code(transition_ship), false
+	)
 	_landing_request_active = false
 	player.set_control_enabled(true)
 	_reboard_blocked_ship = active_ship
@@ -4029,6 +4089,12 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		_fail_active_activity(&"returned_to_shipyard")
 	_return_registered = true
 	phase = Phase.SHUT_DOWN
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_LANDING, _diagnostic_ship_code(active_ship), true
+	)
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_RETURN, _diagnostic_ship_code(active_ship), true
+	)
 	publish_first_sortie_tutorial_phase(&"return_land", _first_sortie_tutorial_generation)
 	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
@@ -4149,6 +4215,9 @@ func _begin_return_to_yard() -> void:
 	):
 		return
 	_guided_return_ready_for_completion = true
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_COMBAT_EXIT, _diagnostic_ship_code(active_ship), false
+	)
 	phase = Phase.RETURN_TO_YARD
 	hud.set_enemy_status("", 0.0, 1.0, false)
 	hud.set_objective("Return to the regeneration deck and land on the illuminated pad")
@@ -4165,6 +4234,9 @@ func _begin_interceptor_engagement() -> void:
 		return
 	_opponent_spawned = true
 	phase = Phase.INTERCEPTOR_ENGAGEMENT
+	_record_session_lifecycle_transition(
+		_DIAGNOSTIC_COMBAT_ENTER, _diagnostic_ship_code(active_ship), true
+	)
 	var spawn_direction := (active_ship.global_position - ENEMY_SPAWN).normalized()
 	var spawn_up := Vector3.FORWARD if absf(spawn_direction.dot(Vector3.UP)) > 0.98 else Vector3.UP
 	var spawn_basis := Basis.looking_at(spawn_direction, spawn_up)

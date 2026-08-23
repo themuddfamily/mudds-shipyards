@@ -166,6 +166,40 @@ func record_network_observation(
 	return _last_status.duplicate(true)
 
 
+## Records a bounded GameFlow lifecycle transition. Numeric codes are caller
+## owned enums; no names, paths, coordinates, or free text cross the boundary.
+func record_lifecycle_transition(
+		transition_code: int,
+		entity_code: int = 0,
+		active: bool = true
+		) -> Dictionary:
+	if _state not in [STATE_STARTING, STATE_STABLE]:
+		return _status(false, &"session_not_open")
+	if transition_code < 1 or transition_code > 32:
+		return _status(false, &"invalid_transition_code")
+	if entity_code < 0 or entity_code > 1000000:
+		return _status(false, &"invalid_entity_code")
+	var event := SessionDiagnosticEvent.new(
+		SessionDiagnosticEvent.Code.CONTROL_SOURCE_CHANGED,
+		SessionDiagnosticEvent.Severity.INFO,
+		_session_id,
+		0,
+		0.0,
+		{
+			"input_device_code": transition_code,
+			"entity_count": entity_code,
+			"recovered": active,
+		}
+	)
+	var recorded := _record.record(event)
+	_last_status = _status(
+		bool(recorded.accepted),
+		&"lifecycle_recorded" if bool(recorded.accepted) else &"lifecycle_record_failed",
+		{"record_status": recorded}
+	)
+	return _last_status.duplicate(true)
+
+
 func _status(accepted: bool, reason: StringName, details: Dictionary = {}) -> Dictionary:
 	var result := {
 		"accepted": accepted,
