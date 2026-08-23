@@ -663,15 +663,53 @@ func _attach_network_halyard_command_bridge() -> Dictionary:
 		return {"accepted": false, "status": &"halyard_unavailable"}
 	if _network_halyard_command_bridge == null:
 		_network_halyard_command_bridge = NetworkHalyardCrewCommandBridgeType.new(1)
-	return _network_halyard_command_bridge.attach(network_session, active_ship)
+	var result: Dictionary = _network_halyard_command_bridge.attach(network_session, active_ship)
+	if bool(result.get("accepted", false)):
+		_connect_signal_once(
+			active_ship, &"loadmaster_manifest_intent_accepted",
+			Callable(self, "_on_halyard_loadmaster_manifest_accepted")
+		)
+	return result
 
 
 func _detach_network_halyard_command_bridge() -> Dictionary:
+	if is_instance_valid(active_ship) and active_ship.has_signal(&"loadmaster_manifest_intent_accepted"):
+		var callback := Callable(self, "_on_halyard_loadmaster_manifest_accepted")
+		if active_ship.is_connected(&"loadmaster_manifest_intent_accepted", callback):
+			active_ship.disconnect(&"loadmaster_manifest_intent_accepted", callback)
 	if _network_halyard_command_bridge == null:
 		return {"accepted": true, "status": &"already_detached"}
 	var result: Dictionary = _network_halyard_command_bridge.detach()
 	_network_halyard_command_bridge = null
 	return result
+
+
+func _on_halyard_loadmaster_manifest_accepted(receipt: Dictionary) -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session):
+		return
+	if not bool(receipt.get("ready", false)) or int(receipt.get("manifest_generation", 0)) <= 0:
+		return
+	var manifest := {
+		"manifest_generation": int(receipt.get("manifest_generation", 0)),
+		"terminal_generation": 1,
+		"state": &"route_ready",
+		"source_id": &"halyard_loadmaster_manifest",
+		"destination_id": &"halyard_freight_berth",
+		"berth_id": &"crew_port_00",
+		"quantity": 1,
+		"role": &"loadmaster",
+		"seat_id": receipt.get("seat_id", &"crew_port_00"),
+		"occupant_peer_id": int(receipt.get("occupant_peer_id", 0)),
+		"occupant_avatar_id": receipt.get("avatar_id", &""),
+		"manifest_id": receipt.get("manifest_id", &""),
+		"route_id": receipt.get("route_id", &""),
+		"ready": true,
+		"inventory_mutation_authority": false,
+		"reward_authority": false,
+		"helm_authority": false,
+	}
+	if network_session.has_method(&"publish_cargo_manifest_snapshot"):
+		network_session.publish_cargo_manifest_snapshot(manifest)
 
 
 func _ready() -> void:
