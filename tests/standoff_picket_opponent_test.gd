@@ -55,6 +55,7 @@ func _run() -> void:
 	await _test_authority_identity_lifecycle()
 	await _test_standoff_tactics()
 	await _test_synchronous_escort_stand_down_fence()
+	await _test_dispatch_authority_modes_and_stale_owners()
 	await _test_lance_firing_and_receipts()
 	await _test_post_shot_relocation()
 	_check(
@@ -940,6 +941,139 @@ func _test_synchronous_escort_stand_down_fence() -> void:
 	)
 
 	await _free_fixture(fixture)
+
+
+func _test_dispatch_authority_modes_and_stale_owners() -> void:
+	# Direct/manual mode is intentionally independent of the ambient defender.
+	# It neither subscribes to the defender nor loses a committed charge when
+	# that unrelated craft reaches its terminal lifecycle.
+	var manual_fixture := await _make_fixture()
+	var manual: StandoffPicketOpponent = manual_fixture.picket
+	var manual_defender: RangeOpponent = manual_fixture.defender
+	var manual_target: RangeOpponent = manual_fixture.target
+	var manual_resolver: CombatResolver = (
+		manual_fixture.authority as LiveCombatAuthority
+	).get_resolver()
+	manual.acceleration = 0.0
+	_place(manual, Vector3.ZERO, Vector3(0.0, 0.0, -110.0))
+	_place_target(manual_target, Vector3(0.0, 0.0, -110.0))
+	manual_defender.activate(Transform3D(Basis.IDENTITY, Vector3(180.0, 0.0, 0.0)))
+	manual.activate(manual.global_transform)
+	manual.set_target(manual_target)
+	manual._cooldown_remaining = 0.0
+	var manual_offset := manual_target.global_position - manual.global_position
+	manual._update_weapon(
+		manual_target.global_position,
+		manual_offset.normalized(),
+		manual_offset.length(),
+		0.0,
+	)
+	var manual_charge_before := manual.get_lance_charge_snapshot()
+	manual_defender.apply_damage(
+		manual_defender.maximum_health + 1.0, manual_defender.global_position
+	)
+	var manual_sequence_before := manual_resolver.get_last_sequence(manual, manual.source_id)
+	manual._fire_at_target(manual_target.global_position)
+	_check(
+		not manual_defender.destroyed.is_connected(manual._on_escort_defender_destroyed)
+			and bool(manual_charge_before.get("armed", false))
+			and manual_resolver.get_last_sequence(manual, manual.source_id)
+				== manual_sequence_before + 1
+			and bool(manual.get_last_shot_result().get("resolved", false)),
+		"direct/manual mode never binds to or inherits cancellation from defender signals"
+	)
+	await _free_fixture(manual_fixture)
+
+	# In escort mode ordinary activation is deliberately insufficient. No
+	# receipt, replay sequence, or damage may be produced without the explicit
+	# authorized-dispatch API.
+	var closed_fixture := await _make_fixture()
+	var closed: StandoffPicketOpponent = closed_fixture.picket
+	var closed_target: RangeOpponent = closed_fixture.target
+	var closed_resolver: CombatResolver = (
+		closed_fixture.authority as LiveCombatAuthority
+	).get_resolver()
+	closed.escort_enabled = true
+	closed.escort_launch_delay = 30.0
+	_place(closed, Vector3.ZERO, Vector3(0.0, 0.0, -110.0))
+	_place_target(closed_target, Vector3(0.0, 0.0, -110.0))
+	closed.activate(closed.global_transform)
+	closed.set_target(closed_target)
+	var closed_sequence := closed_resolver.get_last_sequence(closed, closed.source_id)
+	var closed_health := closed_target.get_health()
+	closed._fire_at_target(closed_target.global_position)
+	_check(
+		closed_resolver.get_last_sequence(closed, closed.source_id) == closed_sequence
+			and is_equal_approx(closed_target.get_health(), closed_health)
+			and closed.get_pending_lance_receipt_count() == 0
+			and StringName(closed.get_last_shot_result().get("status", &""))
+				== &"fire_unauthorized",
+		"RED D3: arbitrary activation in escort mode fails closed before receipt, sequence, or damage"
+	)
+	await _free_fixture(closed_fixture)
+
+	# One real escort grant is invalidated by detach/re-entry, by replacing its
+	# defender node, and by terminal/re-activation of the same defender instance.
+	var stale_fixture := await _make_fixture()
+	var stale: StandoffPicketOpponent = stale_fixture.picket
+	var old_defender: RangeOpponent = stale_fixture.defender
+	var stale_target: RangeOpponent = stale_fixture.target
+	var stale_host := stale_fixture.host as Node3D
+	var stale_resolver: CombatResolver = (
+		stale_fixture.authority as LiveCombatAuthority
+	).get_resolver()
+	stale.escort_enabled = true
+	stale.escort_launch_delay = 0.0
+	_place_target(stale_target, Vector3(0.0, 0.0, -110.0))
+	old_defender.activate(Transform3D(Basis.IDENTITY, Vector3(180.0, 0.0, 0.0)))
+	stale.set_target(stale_target)
+	stale._update_escort_dispatch(0.0)
+	var first_generation := int(
+		(stale.get_audit_report().lifecycle as Dictionary).dispatch_generation
+	)
+	stale_host.remove_child(stale)
+	stale_host.add_child(stale)
+	stale.call("_restore_after_reentry")
+	var stale_sequence := stale_resolver.get_last_sequence(stale, stale.source_id)
+	stale._fire_at_target(stale_target.global_position)
+	var reentry_lifecycle := stale.get_audit_report().lifecycle as Dictionary
+	_check(
+		int(reentry_lifecycle.dispatch_owner_instance_id) == 0
+			and not bool(reentry_lifecycle.escort_fire_authorized)
+			and stale_resolver.get_last_sequence(stale, stale.source_id) == stale_sequence,
+		"RED D4: detach/re-entry cannot restore an old escort dispatch grant"
+	)
+
+	stale._update_escort_dispatch(0.0)
+	var replacement := DEFENDER_SCENE.instantiate() as RangeOpponent
+	replacement.name = "RangeOpponent"
+	stale_host.remove_child(old_defender)
+	stale_host.add_child(replacement)
+	replacement.activate(Transform3D(Basis.IDENTITY, Vector3(180.0, 0.0, 0.0)))
+	stale_sequence = stale_resolver.get_last_sequence(stale, stale.source_id)
+	stale._fire_at_target(stale_target.global_position)
+	_check(
+		stale_resolver.get_last_sequence(stale, stale.source_id) == stale_sequence
+			and not bool(stale.get_last_shot_result().get("accepted", false)),
+		"RED D5: replacing the defender cannot transfer its predecessor's escort grant"
+	)
+	stale._update_escort_dispatch(0.0)
+	stale._update_escort_dispatch(0.0)
+	var replacement_generation := int(
+		(stale.get_audit_report().lifecycle as Dictionary).dispatch_generation
+	)
+	replacement.apply_damage(replacement.maximum_health + 1.0, replacement.global_position)
+	replacement.activate(Transform3D(Basis.IDENTITY, Vector3(180.0, 0.0, 0.0)))
+	stale_sequence = stale_resolver.get_last_sequence(stale, stale.source_id)
+	stale._fire_at_target(stale_target.global_position)
+	_check(
+		replacement_generation > first_generation
+			and stale_resolver.get_last_sequence(stale, stale.source_id) == stale_sequence
+			and not bool((stale.get_audit_report().lifecycle as Dictionary).escort_fire_authorized),
+		"RED D6: reactivating the same defender cannot revive its terminal dispatch generation"
+	)
+	old_defender.queue_free()
+	await _free_fixture(stale_fixture)
 
 
 # ------------------------------- E. lance firing, resolver and receipts ------
