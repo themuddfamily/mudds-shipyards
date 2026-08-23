@@ -286,6 +286,16 @@ func get_projectile(projectile_id: StringName) -> Dictionary:
 	return (_projectiles.get(projectile_id, {}) as Dictionary).duplicate(true)
 
 
+func get_projectiles_snapshot() -> Array:
+	var projectiles: Array = []
+	for projectile_variant in _projectiles.values():
+		projectiles.append((projectile_variant as Dictionary).duplicate(true))
+	projectiles.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return str(left.get("projectile_id", "")) < str(right.get("projectile_id", ""))
+	)
+	return projectiles
+
+
 func audit() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,

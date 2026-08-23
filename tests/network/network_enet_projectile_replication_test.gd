@@ -49,12 +49,31 @@ func _run() -> void:
 	oversized["projectile"] = oversized_projectile
 	_check(client._apply_projectile_replica_snapshot(oversized).get("status") == &"projectile_packet_too_large",
 		"oversized packet is rejected")
+	client._projectile_replica_migration_generation = 2
+	_check(client._apply_projectile_replica_snapshot(published_packet).get("status") == &"stale_migration_generation",
+		"pre-migration packet cannot repopulate the replica")
+	var ordering_client := Adapter.new()
+	var tick_packet := _packet(_projectile(1, &"flying", Vector3.ZERO), 10, 1)
+	_check(ordering_client._apply_projectile_replica_snapshot(tick_packet).accepted, "ordered baseline is accepted")
+	var poisoned := _packet(_projectile(2, &"flying", Vector3.ONE), 9, 2)
+	var poisoned_result: Dictionary = ordering_client._apply_projectile_replica_snapshot(poisoned)
+	_check(poisoned_result.get("status") == &"stale_projectile_tick",
+		"stale tick is rejected before generation mutation")
+	var valid_old_generation := _packet(_projectile(1, &"flying", Vector3.ONE), 11, 3)
+	var valid_old_result: Dictionary = ordering_client._apply_projectile_replica_snapshot(valid_old_generation)
+	_check(bool(valid_old_result.get("accepted", false)),
+		"valid prior generation remains usable after stale rejection")
+	server._projectile._projectiles[projectile.get("projectile_id")] = projectile.duplicate(true)
+	var resync: Dictionary = server.publish_projectile_resync(2, 11)
+	_check(bool(resync.get("accepted", false)) and int(resync.get("projectile_count", 0)) == 1,
+		"late-join resync enumerates active authority projectiles")
 	_check(server.publish_projectile_snapshot(projectile, [9]).get("status") == &"peer_not_admitted",
 		"server rejects unknown recipient")
 	server._on_peer_disconnected(2)
 	_check(server.get_projectile_replication_budget(2).is_empty(), "disconnect clears projectile budget")
 	server.free()
 	client.free()
+	ordering_client.free()
 	if _failures.is_empty():
 		print("OK: ENet projectile replication (%d assertions)" % _assertions)
 		quit(0)
@@ -75,6 +94,18 @@ func _projectile(generation: int, state: StringName, position: Vector3) -> Dicti
 		"direction": Vector3.FORWARD,
 		"last_update_tick": 1,
 		"state": state,
+}
+
+
+func _packet(projectile: Dictionary, tick: int, revision: int) -> Dictionary:
+	var snapshot := projectile.duplicate(true)
+	snapshot["last_update_tick"] = tick
+	return {
+		"revision": revision,
+		"server_tick": tick,
+		"migration_generation": 1,
+		"projectile": snapshot,
+		"terminal": false,
 	}
 
 

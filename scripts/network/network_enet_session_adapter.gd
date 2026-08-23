@@ -126,6 +126,7 @@ var _projectile_published_generations: Dictionary = {}
 var _projectile_replica_generations: Dictionary = {}
 var _projectile_replica_ticks: Dictionary = {}
 var _projectile_replica_revision := 0
+var _projectile_replica_migration_generation := 1
 var _landing_jitter
 var _landing_replica_samples: Dictionary = {}
 var _damage_jitter
@@ -330,6 +331,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_projectile_replica_generations.clear()
 	_projectile_replica_ticks.clear()
 	_projectile_replica_revision = 0
+	_projectile_replica_migration_generation = 1
 	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
@@ -536,6 +538,7 @@ func publish_projectile_snapshot(
 	var packet := {
 		"revision": _projectile_snapshot_revision,
 		"server_tick": logical_tick,
+		"migration_generation": int(_migration.get_snapshot().get("migration_generation", 1)),
 		"projectile": projectile.duplicate(true),
 		"terminal": terminal,
 	}
@@ -571,6 +574,28 @@ func get_projectile_replication_budget(peer_id: int = 0) -> Dictionary:
 	if peer_id > 0:
 		return (_projectile_recipient_budgets.get(peer_id, {}) as Dictionary).duplicate(true)
 	return _projectile_recipient_budgets.duplicate(true)
+
+
+func publish_projectile_resync(peer_id: int, budget_tick: int = -1) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var published_count := 0
+	var coalesced_count := 0
+	for projectile_variant in _projectile.get_projectiles_snapshot():
+		var result: Dictionary = publish_projectile_snapshot(
+			projectile_variant as Dictionary, [peer_id], false, budget_tick
+		)
+		if not bool(result.get("accepted", false)):
+			return _remember(result)
+		published_count += 1
+		coalesced_count += int(result.get("coalesced", 0))
+	return _remember(_result(true, &"projectile_resync_published", {
+		"peer_id": peer_id,
+		"projectile_count": published_count,
+		"coalesced": coalesced_count,
+	}))
 
 
 func _validate_projectile_replica_snapshot(projectile: Dictionary) -> Dictionary:
@@ -1330,6 +1355,7 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 		_projectile_replica_generations.clear()
 		_projectile_replica_ticks.clear()
 		_projectile_replica_revision = 0
+		_projectile_replica_migration_generation = 1
 		_reset_peer_keepalive_deadlines(Time.get_ticks_msec())
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
@@ -1492,6 +1518,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_projectile_replica_generations.clear()
 	_projectile_replica_ticks.clear()
 	_projectile_replica_revision = 0
+	_projectile_replica_migration_generation = migration_generation
 	for entity_variant in _moving_replica_binding_ids.keys():
 		_moving_replica_binding.detach(StringName(entity_variant))
 	_moving_replica_binding_ids.clear()
@@ -2769,10 +2796,21 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"authority_required"))
 	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("migration_generation") \
 			or not packet.has("projectile") or not packet.has("terminal"):
 		return _remember(_result(false, &"invalid_projectile_snapshot"))
 	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_PROJECTILE_REPLICATION_PACKET_BYTES:
 		return _remember(_result(false, &"projectile_packet_too_large"))
+	var migration_generation := int(packet.get("migration_generation", 0))
+	if migration_generation < _projectile_replica_migration_generation:
+		return _remember(_result(false, &"stale_migration_generation"))
+	if migration_generation > _projectile_replica_migration_generation:
+		_projectile_jitter.reset(1)
+		_projectile_replica_samples.clear()
+		_projectile_replica_generations.clear()
+		_projectile_replica_ticks.clear()
+		_projectile_replica_revision = 0
+		_projectile_replica_migration_generation = migration_generation
 	var projectile: Dictionary = packet.get("projectile", {}) as Dictionary
 	var validation := _validate_projectile_replica_snapshot(projectile)
 	if not bool(validation.get("accepted", false)):
@@ -2782,12 +2820,12 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	var prior_generation := int(_projectile_replica_generations.get(projectile_id, 0))
 	if generation < prior_generation:
 		return _remember(_result(false, &"stale_projectile_generation"))
-	if generation > prior_generation:
-		_projectile_replica_samples.erase(projectile_id)
-		_projectile_replica_generations[projectile_id] = generation
 	var server_tick := int(projectile.get("last_update_tick", 0))
 	if server_tick < int(_projectile_replica_ticks.get(projectile_id, -1)):
 		return _remember(_result(false, &"stale_projectile_tick"))
+	if generation > prior_generation:
+		_projectile_replica_samples.erase(projectile_id)
+		_projectile_replica_generations[projectile_id] = generation
 	_projectile_replica_ticks[projectile_id] = server_tick
 	if bool(packet.get("terminal", false)) or StringName(projectile.get("state", &"")) != &"flying":
 		_projectile_replica_samples.erase(projectile_id)
