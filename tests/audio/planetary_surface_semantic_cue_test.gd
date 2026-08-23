@@ -30,6 +30,12 @@ func _run() -> void:
 	_check(count_after_first <= 2, "severe state emits bounded semantic cues")
 	_check(bool(binding.present_policy_result(severe, 0.75, generation, 1001, 7, 11).accepted), "repeated state is accepted")
 	_check(_events.size() == count_after_first, "repeated severe state emits no spam")
+	var touchdown := policy.evaluate(_observation(&"exterior", 0.0, 0.0, true))
+	_check(bool(binding.present_policy_result(touchdown, 0.75, generation, 1001, 7, 11).accepted), "touchdown state is accepted")
+	_check(_has_cue(&"surface_touchdown"), "ground contact emits a touchdown cue")
+	var departure := policy.evaluate(_observation(&"exterior", 2000.0, 0.0, false))
+	_check(bool(binding.present_policy_result(departure, 0.75, generation, 1001, 7, 11).accepted), "departure state is accepted")
+	_check(_has_cue(&"surface_departure"), "ground contact clear emits a departure cue")
 	var cabin := policy.evaluate(_observation(&"cabin", 0.0, 0.0))
 	_check(bool(binding.present_policy_result(cabin, 0.75, generation, 1001, 7, 11).accepted), "cabin transition is accepted")
 	_check(_has_cue(&"surface_cabin_entered"), "cabin entry emits a typed transition cue")
@@ -41,8 +47,8 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 
-func _observation(context: StringName, speed: float, wind: float) -> Dictionary:
-	return {"altitude_m": 0.0, "listener_context": context, "grounded": false, "speed_mps": speed, "ambient_wind_scalar_unitless": wind}
+func _observation(context: StringName, speed: float, wind: float, grounded: bool = false) -> Dictionary:
+	return {"altitude_m": 0.0, "listener_context": context, "grounded": grounded, "speed_mps": speed, "ambient_wind_scalar_unitless": wind}
 
 
 func _on_cue(cue_id: StringName, intensity: float) -> void:

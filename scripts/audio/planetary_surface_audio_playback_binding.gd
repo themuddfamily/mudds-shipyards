@@ -126,6 +126,7 @@ var _signal_dispatch_active := false
 var _last_semantic_wind := 0.0
 var _last_semantic_entry := 0.0
 var _last_semantic_interior := false
+var _last_semantic_grounded := false
 var _lifecycle_active := false
 
 
@@ -309,7 +310,7 @@ func present_policy_result(
 		_commit(&"playback_backend_failed")
 		return _result(false, &"playback_backend_failed")
 	_accepted_submission_count += 1
-	_emit_semantic_surface_cues(targets)
+	_emit_semantic_surface_cues(targets, evaluation)
 	_mutation_active = false
 	var reason: StringName = (
 		&"target_accepted" if before == _fade_value_snapshot() else &"fade_advanced"
@@ -786,6 +787,7 @@ func _reset_fade_state() -> void:
 	_last_semantic_wind = 0.0
 	_last_semantic_entry = 0.0
 	_last_semantic_interior = false
+	_last_semantic_grounded = false
 	_entry_intensity_unitless = 0.0
 	_target_entry_intensity_unitless = 0.0
 	_exterior_gain_db = SILENCE_DB
@@ -869,10 +871,11 @@ func _wind_gain_db_for_intensity(intensity: float) -> float:
 	)
 
 
-func _emit_semantic_surface_cues(targets: Dictionary) -> void:
+func _emit_semantic_surface_cues(targets: Dictionary, evaluation: Dictionary) -> void:
 	var wind := float(targets.get("wind_intensity_unitless", 0.0))
 	var entry := float(targets.get("entry_intensity_unitless", 0.0))
 	var interior := float(targets.get("route_mix_unitless", 0.0)) >= 1.0
+	var grounded := float((evaluation.get("mix", {}) as Dictionary).get("ground_contact_unitless", 0.0)) >= 1.0
 	if wind >= SEMANTIC_THRESHOLD and _last_semantic_wind < SEMANTIC_THRESHOLD:
 		semantic_surface_cue_emitted.emit(&"surface_wind_severe", wind)
 	if entry >= SEMANTIC_THRESHOLD and _last_semantic_entry < SEMANTIC_THRESHOLD:
@@ -884,9 +887,15 @@ func _emit_semantic_surface_cues(targets: Dictionary) -> void:
 			&"surface_cabin_entered" if interior else &"surface_cabin_exited",
 			1.0
 		)
+	if grounded != _last_semantic_grounded:
+		semantic_surface_cue_emitted.emit(
+			&"surface_touchdown" if grounded else &"surface_departure",
+			1.0 if grounded else 0.0
+		)
 	_last_semantic_wind = wind
 	_last_semantic_entry = entry
 	_last_semantic_interior = interior
+	_last_semantic_grounded = grounded
 
 
 func _entry_gain_db_for_intensity(intensity: float) -> float:
