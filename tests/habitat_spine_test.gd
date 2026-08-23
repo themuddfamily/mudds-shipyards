@@ -482,12 +482,13 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_corridor_deck_seam_batch(module)
 	_test_common_ceiling_light_body_batch(module)
 	_test_galley_door_pull_batch(module)
+	_test_potting_pull_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1877
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1223
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 23,
-		"visual batching stays frozen at 1877 render nodes, 1223 meshes and 23 MultiMeshes"
+		int(render.descendant_nodes) == 1875
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1220
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 24,
+		"visual batching stays frozen at 1875 render nodes, 1220 meshes and 24 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -733,6 +734,75 @@ func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
 		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
 		and bool(report.galley_door_pull_authored),
 		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
+	)
+
+
+func _test_potting_pull_batch(module: HabitatSpine) -> void:
+	var service := module.get_node_or_null(
+		^"Structure/SideBranchGarden/GardenService"
+	) as Node3D
+	var batch := service.get_node_or_null(^"PottingPulls") as MultiMeshInstance3D if service != null else null
+	_check(
+		service != null and batch != null and batch.multimesh != null,
+		"three potting-bench pulls resolve through one visual-only MultiMesh"
+	)
+	if service == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for door_index in HabitatSpine.POTTING_PULL_COPY_COUNT:
+		expected.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(11.44 + float(door_index) * 0.86, 0.72, 15.296)
+		))
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var transforms_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		transforms_exact = transforms_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected[index]
+		)
+	var brass_reference := service.get_node_or_null(^"PottingToolRail") as MeshInstance3D
+	_check(
+		transforms_exact
+		and batch.multimesh.instance_count == HabitatSpine.POTTING_PULL_COPY_COUNT
+		and batch.multimesh.visible_instance_count == -1
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.30, 0.045, 0.045))
+		and batch.multimesh.custom_aabb.is_equal_approx(AABB(
+			Vector3(11.29, 0.6975, 15.2735), Vector3(2.02, 0.045, 0.045)
+		))
+		and brass_reference != null
+		and batch.material_override == brass_reference.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"potting pull batch preserves exact transforms, extent, culling, shadows and render layer"
+	)
+	var potting_door_count := 0
+	for child in service.get_children():
+		var mesh_instance := child as MeshInstance3D
+		if (
+			mesh_instance != null
+			and mesh_instance.mesh != null
+			and mesh_instance.mesh.get_aabb().size.is_equal_approx(Vector3(0.80, 0.70, 0.045))
+		):
+			potting_door_count += 1
+	_check(
+		service.find_children("PottingPull", "MeshInstance3D", false, false).is_empty()
+		and potting_door_count == 3
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.get_groups().is_empty()
+		and bool(batch.get_meta("visual_detail_only", false))
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"PottingPull",
+		"only authority-free pull visuals are batched while all three named potting doors remain intact"
+	)
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.potting_pull_legacy_renderer_nodes) == 3
+		and int(report.potting_pull_renderer_nodes) == 1
+		and int(report.potting_pull_legacy_submissions) == 3
+		and int(report.potting_pull_submissions) == 1
+		and int(report.potting_pull_copies) == 3
+		and bool(report.potting_pull_authored),
+		"potting pulls measure renderer nodes/submissions 3 -> 1 while all three visible copies remain"
 	)
 
 

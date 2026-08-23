@@ -79,14 +79,15 @@ const CUPOLA_DOWNLIGHT_COPY_COUNT := 3
 const CORRIDOR_DECK_SEAM_COPY_COUNT := 9
 const COMMON_CEILING_LIGHT_BODY_COPY_COUNT := 6
 const GALLEY_DOOR_PULL_COPY_COUNT := 4
+const POTTING_PULL_COPY_COUNT := 3
 const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
 const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
 const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 1240
-const RENDER_DESCENDANT_COUNT := 1877
-const RENDER_MESH_INSTANCE_COUNT := 1223
-const RENDER_MULTIMESH_BATCH_COUNT := 23
+const RENDER_DESCENDANT_COUNT := 1875
+const RENDER_MESH_INSTANCE_COUNT := 1220
+const RENDER_MULTIMESH_BATCH_COUNT := 24
 const RENDER_DRAWN_COPY_COUNT := 1381
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1237
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1235
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
@@ -209,6 +210,8 @@ var _common_ceiling_light_body_transforms: Array[Transform3D] = []
 var _common_ceiling_light_body_batch: MultiMeshInstance3D
 var _galley_door_pull_transforms: Array[Transform3D] = []
 var _galley_door_pull_batch: MultiMeshInstance3D
+var _potting_pull_transforms: Array[Transform3D] = []
+var _potting_pull_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -1070,6 +1073,34 @@ func get_render_allocation_report() -> Dictionary:
 		and StringName(_galley_door_pull_batch.get_meta("authored_source_name", &""))
 			== &"GalleyDoorPull"
 	)
+	var potting_pull_authored: bool = (
+		is_instance_valid(_potting_pull_batch)
+		and _potting_pull_batch.multimesh != null
+		and _potting_pull_batch.multimesh.instance_count == POTTING_PULL_COPY_COUNT
+		and _potting_pull_batch.multimesh.visible_instance_count == -1
+		and _potting_pull_batch.multimesh.mesh != null
+		and _potting_pull_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.30, 0.045, 0.045)
+		)
+		and _potting_pull_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_potting_pull_transforms
+		)
+		and _potting_pull_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_potting_pull_batch.multimesh.mesh.get_aabb(), _potting_pull_transforms
+			)
+		)
+		and _potting_pull_batch.material_override == _materials.get("brass")
+		and _potting_pull_batch.cast_shadow
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _potting_pull_batch.layers == 1
+		and _potting_pull_batch.get_child_count() == 0
+		and _potting_pull_batch.get_script() == null
+		and _potting_pull_batch.get_groups().is_empty()
+		and bool(_potting_pull_batch.get_meta("visual_detail_only", false))
+		and StringName(_potting_pull_batch.get_meta("authored_source_name", &""))
+			== &"PottingPull"
+	)
 	var descendant_count := _render_descendant_count()
 	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -1091,6 +1122,8 @@ func get_render_allocation_report() -> Dictionary:
 		and deck_seam_authored
 		and _galley_door_pull_transforms.size() == GALLEY_DOOR_PULL_COPY_COUNT
 		and galley_door_pull_authored
+		and _potting_pull_transforms.size() == POTTING_PULL_COPY_COUNT
+		and potting_pull_authored
 	)
 	return {
 		"schema_version": 1,
@@ -1142,6 +1175,13 @@ func get_render_allocation_report() -> Dictionary:
 		"galley_door_pull_copies": _galley_door_pull_transforms.size(),
 		"galley_door_pull_authored": galley_door_pull_authored,
 		"authored_galley_door_pull_transforms": _galley_door_pull_transforms.duplicate(),
+		"potting_pull_legacy_renderer_nodes": POTTING_PULL_COPY_COUNT,
+		"potting_pull_renderer_nodes": 1 if potting_pull_authored else 0,
+		"potting_pull_legacy_submissions": POTTING_PULL_COPY_COUNT,
+		"potting_pull_submissions": 1 if potting_pull_authored else 0,
+		"potting_pull_copies": _potting_pull_transforms.size(),
+		"potting_pull_authored": potting_pull_authored,
+		"authored_potting_pull_transforms": _potting_pull_transforms.duplicate(),
 		"unique_mesh_resources": mesh_resource_ids.size(),
 		"unique_material_resources": material_resource_ids.size(),
 		"hatch_fastener_copies": _hatch_fastener_transforms.size(),
@@ -2766,9 +2806,21 @@ func _build_garden_service(branch: Node3D) -> void:
 	_box(service, "PottingCarcass", Vector3(12.30, 0.43, bench_z), Vector3(2.60, 0.86, 0.64), _materials["shell_mid"])
 	_box(service, "PottingWorktop", Vector3(12.30, 0.89, bench_z), Vector3(2.66, 0.06, 0.70), _materials["steel_bright"])
 	_box(service, "PottingSplash", Vector3(12.30, 1.06, 14.63), Vector3(2.66, 0.32, 0.06), _materials["steel_bright"], false)
+	_potting_pull_transforms.clear()
 	for door_index in 3:
-		_box(service, "PottingDoor", Vector3(11.44 + float(door_index) * 0.86, 0.47, bench_z + 0.33), Vector3(0.80, 0.70, 0.045), _materials["shell_light"], false)
-		_box(service, "PottingPull", Vector3(11.44 + float(door_index) * 0.86, 0.72, bench_z + 0.356), Vector3(0.30, 0.045, 0.045), _materials["brass"], false)
+		var door_x := 11.44 + float(door_index) * 0.86
+		_box(service, "PottingDoor", Vector3(door_x, 0.47, bench_z + 0.33), Vector3(0.80, 0.70, 0.045), _materials["shell_light"], false)
+		_potting_pull_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(door_x, 0.72, bench_z + 0.356))
+		)
+	_potting_pull_batch = _multimesh_visual_stock(
+		service,
+		"PottingPulls",
+		_rounded_box_mesh(Vector3(0.30, 0.045, 0.045)),
+		_materials["brass"],
+		_potting_pull_transforms,
+		&"PottingPull"
+	)
 	for tray_index in 3:
 		_box(service, "PottingTray", Vector3(11.42 + float(tray_index) * 0.72, 0.9425, bench_z + 0.02), Vector3(0.58, 0.045, 0.44), _materials["plastic_pale"], false)
 		_box(service, "PottingSeedling", Vector3(11.42 + float(tray_index) * 0.72, 1.02, bench_z + 0.02), Vector3(0.48, 0.11, 0.36), _materials["greenery"], false)
