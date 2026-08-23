@@ -5,7 +5,7 @@ extends RefCounted
 ## admission, host/join authority, and all lifecycle transitions.
 
 const COMPONENT_ID: StringName = &"network-session-status-presenter"
-const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"disconnected", &"migrating"]
+const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"rejected", &"disconnected", &"migrating"]
 const LOCAL_ROLES := [&"pilot", &"passenger", &"observer"]
 const SESSION_END_MESSAGES := {
 	&"timeout": "Session timed out.",
@@ -38,6 +38,15 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var end_reason := _normalize_end_reason(source.get("end_reason", &""), state)
 	var local_role := _normalize_local_role(source.get("local_role", source.get("player_role", &"observer")))
 	var craft_name := str(source.get("controlled_craft", source.get("craft_name", ""))).strip_edges()
+	var peer_generation := maxi(int(source.get("peer_generation", source.get("peer_gen", 0))), 0)
+	var session_generation := maxi(int(source.get("session_generation", source.get("session_gen", source.get("generation", 0)))), 0)
+	var history: Array[String] = []
+	for item in source.get("history", source.get("lifecycle_history", [])) as Array:
+		var receipt := str(item).strip_edges()
+		if not receipt.is_empty():
+			history.append(receipt.to_upper())
+	if history.size() > 4:
+		history = history.slice(history.size() - 4)
 	if craft_name.length() > 48:
 		craft_name = craft_name.left(48)
 	var actions: Array = []
@@ -50,6 +59,10 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			if retryable:
 				actions.append({"id": &"retry", "label": "Retry Connection", "focusable": true})
 			actions.append({"id": &"cancel", "label": "Cancel", "focusable": true})
+		&"rejected":
+			if retryable:
+				actions.append({"id": &"retry", "label": "Retry Connection", "focusable": true})
+			actions.append({"id": &"cancel", "label": "Cancel", "focusable": true})
 		&"disconnected":
 			if retryable:
 				actions.append({"id": &"retry", "label": "Retry Connection", "focusable": true})
@@ -58,6 +71,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		&"reconnecting": "Reconnecting",
 		&"connected": "Connected",
 		&"failed": "Connection Failed",
+		&"rejected": "Connection Rejected",
 		&"disconnected": "Disconnected",
 		&"migrating": "Host Migration",
 	}[state]
@@ -70,6 +84,10 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"controlled_craft": craft_name,
 		"title": title,
 		"message": detail if not detail.is_empty() else (SESSION_END_MESSAGES[end_reason] if not end_reason.is_empty() else _default_message(state)),
+		"peer_generation": peer_generation,
+		"session_generation": session_generation,
+		"generation_summary": "PEER %d  //  SESSION %d" % [peer_generation, session_generation],
+		"history": history,
 		"end_reason": end_reason,
 		"retryable": retryable,
 		"attempt": attempt if state == &"reconnecting" else 0,
@@ -125,6 +143,7 @@ func _default_message(state: StringName) -> String:
 		&"reconnecting": "Retrying the session connection.",
 		&"connected": "Session is ready.",
 		&"failed": "The session could not be established.",
+		&"rejected": "The session request was rejected.",
 		&"disconnected": "No active session.",
 		&"migrating": "The session host is changing.",
 	}[state]

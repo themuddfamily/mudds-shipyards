@@ -2924,6 +2924,10 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 		var craft_name := str(snapshot.get("controlled_craft", ""))
 		if not craft_name.is_empty():
 			detail += "\nCRAFT // %s" % craft_name
+		if snapshot.has("generation_summary"):
+			detail += "\n%s" % str(snapshot.get("generation_summary"))
+		for receipt in snapshot.get("history", []) as Array:
+			detail += "\nHISTORY // %s" % str(receipt)
 	if kind == &"bomber":
 		detail += "\nPAYLOADS REMAINING // %d" % maxi(0, int(snapshot.get("ammo", 0)))
 		var cooldown := maxf(0.0, float(snapshot.get("cooldown_remaining", 0.0)))
