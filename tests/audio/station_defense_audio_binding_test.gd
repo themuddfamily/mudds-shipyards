@@ -8,6 +8,7 @@ var _assertions := 0
 var _failures := PackedStringArray()
 var _events: Array[StringName] = []
 var _caption_requests: Array[Dictionary] = []
+var _pincer_semantic_events: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -68,6 +69,7 @@ func _run() -> void:
 	_check(bool(binding.detach().accepted), "detach clears station-defense binding")
 	_check(binding.present_snapshot(base).reason == &"not_attached", "detached binding rejects stale snapshots")
 	_check(int(binding.get_snapshot().generation) == 1, "detach advances station-defense generation")
+	_test_generation_fenced_pincer_cues()
 	host.free()
 	hud.free()
 	for failure in _failures:
@@ -76,8 +78,89 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 
-func _snapshot(state: StringName, wave_index: int, wave_active: bool, assets: Array) -> Dictionary:
-	return {"activity_id": &"station_defense_alpha", "state_id": state, "current_wave_index": wave_index, "wave_active": wave_active, "protected_assets": assets}
+func _snapshot(
+	state: StringName,
+	wave_index: int,
+	wave_active: bool,
+	assets: Array,
+	generation: int = 0,
+	wave_id: StringName = &"",
+	active_hostile_handles: Array = []
+	) -> Dictionary:
+	return {
+		"activity_id": &"station_defense_alpha",
+		"state_id": state,
+		"generation": generation,
+		"current_wave_index": wave_index,
+		"wave_id": wave_id,
+		"wave_active": wave_active,
+		"active_hostile_handles": active_hostile_handles,
+		"protected_assets": assets,
+	}
+
+
+func _test_generation_fenced_pincer_cues() -> void:
+	var host := Node.new()
+	host.add_user_signal("snapshot_changed")
+	root.add_child(host)
+	var binding := Binding.new()
+	binding.semantic_cue_emitted.connect(_capture_pincer_semantic_cue)
+	_check(bool(binding.set_reduced_dynamic_range(true).accepted), "pincer cues accept reduced dynamic range")
+	_check(bool(binding.attach(host).accepted), "pincer fixture attaches to the real host snapshot seam")
+	var beta := {"hostile_id": &"perimeter_raider_beta", "generation": 2}
+	var gamma := {"hostile_id": &"perimeter_raider_gamma", "generation": 3}
+	var inbound := _snapshot(&"active", 1, false, [], 7, &"dockside_relief", [])
+	var crossfire := _snapshot(&"active", 1, true, [], 7, &"dockside_relief", [beta, gamma])
+	var broken := _snapshot(&"active", 1, true, [], 7, &"dockside_relief", [gamma])
+	var cleared := _snapshot(&"completed", 1, false, [], 7)
+	binding.present_snapshot(inbound)
+	binding.present_snapshot(inbound)
+	binding.present_snapshot(crossfire)
+	binding.present_snapshot(crossfire)
+	var before_reentry := _count_pincer_cue(&"station_defense_crossfire_active")
+	binding.detach()
+	binding.attach(host)
+	binding.present_snapshot(crossfire)
+	_check(
+		_count_pincer_cue(&"station_defense_crossfire_active") == before_reentry,
+		"same-generation detach/re-entry does not replay the active-crossfire cue"
+	)
+	binding.present_snapshot(broken)
+	binding.present_snapshot(broken)
+	binding.present_snapshot(cleared)
+	binding.present_snapshot(cleared)
+	_check(
+		_count_pincer_cue(&"station_defense_pincer_inbound") == 1
+		and _count_pincer_cue(&"station_defense_crossfire_active") == 1
+		and _count_pincer_cue(&"station_defense_pincer_wing_broken") == 1
+		and _count_pincer_cue(&"station_defense_pincer_cleared") == 1,
+		"inbound, live crossfire, one-wing break, and clear each emit exactly once per generation"
+	)
+	_check(
+		is_equal_approx(_pincer_cue_intensity(&"station_defense_pincer_inbound"), 0.525)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_crossfire_active"), 0.75)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_pincer_wing_broken"), 0.6375)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_pincer_cleared"), 0.4875)
+		and bool(binding.get_snapshot().reduced_dynamic_range),
+		"all pincer semantic intensities follow the retained reduced-range policy"
+	)
+	var before_stale := _pincer_transition_count()
+	binding.present_snapshot(_snapshot(&"idle", 0, false, [], 8))
+	binding.present_snapshot(broken)
+	_check(
+		_pincer_transition_count() == before_stale
+		and int(binding.get_snapshot().tactic_generation_fences.station_defense_alpha) == 8,
+		"reset generation fences stale pre-reset pincer snapshots without replay"
+	)
+	var next_inbound := _snapshot(&"active", 1, false, [], 8, &"dockside_relief", [])
+	binding.present_snapshot(next_inbound)
+	binding.present_snapshot(next_inbound)
+	_check(
+		_count_pincer_cue(&"station_defense_pincer_inbound") == 2,
+		"a fresh activity generation admits one new inbound cue and still deduplicates repeats"
+	)
+	binding.detach()
+	host.free()
 
 
 func _on_cue(cue_id: StringName, _activity_id: StringName, _intensity: float) -> void:
@@ -97,6 +180,44 @@ func _on_semantic_cue(
 func _capture_caption_request(request: Dictionary) -> bool:
 	_caption_requests.append(request.duplicate(true))
 	return true
+
+
+func _capture_pincer_semantic_cue(
+	source_id: StringName,
+	cue_id: StringName,
+	intensity: float,
+	world_position: Vector3
+	) -> void:
+	_pincer_semantic_events.append({
+		"source_id": source_id,
+		"cue_id": cue_id,
+		"intensity": intensity,
+		"world_position": world_position,
+	})
+
+
+func _count_pincer_cue(cue_id: StringName) -> int:
+	var count := 0
+	for event in _pincer_semantic_events:
+		if event.cue_id == cue_id:
+			count += 1
+	return count
+
+
+func _pincer_transition_count() -> int:
+	return (
+		_count_pincer_cue(&"station_defense_pincer_inbound")
+		+ _count_pincer_cue(&"station_defense_crossfire_active")
+		+ _count_pincer_cue(&"station_defense_pincer_wing_broken")
+		+ _count_pincer_cue(&"station_defense_pincer_cleared")
+	)
+
+
+func _pincer_cue_intensity(cue_id: StringName) -> float:
+	for event in _pincer_semantic_events:
+		if event.cue_id == cue_id:
+			return float(event.intensity)
+	return -1.0
 
 
 func _has_caption_text(text: String) -> bool:
