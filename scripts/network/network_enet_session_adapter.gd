@@ -52,6 +52,9 @@ const DEFAULT_MAX_CLIENTS := 8
 const AUTHORITY_PEER_ID := 1
 const MAX_SECURE_PACKETS_PER_WINDOW := 32
 const SECURE_WINDOW_MILLISECONDS := 1000
+const RECONNECT_BACKOFF_BASE_MILLISECONDS := 250
+const RECONNECT_BACKOFF_MAX_MILLISECONDS := 5000
+const RECONNECT_BACKOFF_MAX_ATTEMPTS := 6
 
 var _peer: ENetMultiplayerPeer
 var _lifecycle
@@ -105,6 +108,8 @@ var _secure_sequences: Dictionary = {}
 var _security_strikes: Dictionary = {}
 var _secure_window_started := 0
 var _secure_window_counts: Dictionary = {}
+var _reconnect_attempts := 0
+var _reconnect_next_allowed_milliseconds := 0
 
 
 func _init() -> void:
@@ -226,6 +231,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_is_server = false
 	_peer_generations.clear()
 	_server_offer.clear()
+	mark_reconnect_succeeded()
 	session_stopped.emit(reason)
 	return _remember(_result(true, &"stopped", {"reason": reason}))
 
@@ -861,6 +867,7 @@ func get_prediction_entity(entity_id: StringName) -> Dictionary:
 func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
+	mark_reconnect_succeeded()
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
 	_moving_replica_samples.clear()
@@ -879,6 +886,42 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_interest_retired_revisions.clear()
 	_interest_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
+
+
+## Caller-driven reconnect scheduling. This records a capped delay only; it
+## never starts a timer, process loop, or transport attempt.
+func schedule_reconnect_attempt(now_milliseconds: int) -> Dictionary:
+	if now_milliseconds < 0:
+		return _remember(_result(false, &"invalid_reconnect_clock"))
+	if now_milliseconds < _reconnect_next_allowed_milliseconds:
+		return _remember(_result(false, &"reconnect_backoff_active", {
+			"retry_after_milliseconds": _reconnect_next_allowed_milliseconds - now_milliseconds,
+		}))
+	_reconnect_attempts = mini(_reconnect_attempts + 1, RECONNECT_BACKOFF_MAX_ATTEMPTS)
+	var exponent := mini(_reconnect_attempts - 1, 5)
+	var delay := mini(RECONNECT_BACKOFF_BASE_MILLISECONDS * (1 << exponent), RECONNECT_BACKOFF_MAX_MILLISECONDS)
+	_reconnect_next_allowed_milliseconds = now_milliseconds + delay
+	return _remember(_result(true, &"reconnect_attempt_scheduled", {
+		"attempt": _reconnect_attempts,
+		"delay_milliseconds": delay,
+		"next_allowed_milliseconds": _reconnect_next_allowed_milliseconds,
+	}))
+
+
+func mark_reconnect_succeeded() -> Dictionary:
+	_reconnect_attempts = 0
+	_reconnect_next_allowed_milliseconds = 0
+	return _remember(_result(true, &"reconnect_backoff_reset"))
+
+
+func get_reconnect_backoff_state() -> Dictionary:
+	return {
+		"attempts": _reconnect_attempts,
+		"next_allowed_milliseconds": _reconnect_next_allowed_milliseconds,
+		"base_delay_milliseconds": RECONNECT_BACKOFF_BASE_MILLISECONDS,
+		"max_delay_milliseconds": RECONNECT_BACKOFF_MAX_MILLISECONDS,
+		"max_attempts": RECONNECT_BACKOFF_MAX_ATTEMPTS,
+	}.duplicate(true)
 
 
 ## Presents a released authoritative moving-interior relationship without
