@@ -3896,10 +3896,24 @@ func apply_nearby_activity_persistence_result(result: Dictionary) -> Dictionary:
 
 func _render_nearby_activity_view(view: Dictionary) -> void:
 	if _nearby_activity_rows != null:
+		var retained_rows: Dictionary = {}
 		for child in _nearby_activity_rows.get_children():
-			child.queue_free()
+			var retained_id := StringName(child.get_meta(&"activity_id", &""))
+			if not retained_id.is_empty():
+				retained_rows[retained_id] = child
+		var presented_ids: Array[StringName] = []
 		for card in view.get("cards", []) as Array:
-			_add_nearby_activity_row(card as Dictionary)
+			var detached_card := card as Dictionary
+			var activity_id := StringName(detached_card.get("activity_id", &""))
+			presented_ids.append(activity_id)
+			var retained := retained_rows.get(activity_id) as Control
+			if retained != null:
+				_update_nearby_activity_row(retained, detached_card)
+			else:
+				_add_nearby_activity_row(detached_card)
+		for retained_id in retained_rows:
+			if retained_id not in presented_ids:
+				(retained_rows[retained_id] as Control).queue_free()
 	if _nearby_activity_feedback != null:
 		_nearby_activity_feedback.text = str((view.get("persistence_feedback", {}) as Dictionary).get("text", ""))
 
@@ -3928,19 +3942,26 @@ func get_nearby_activity_report() -> Dictionary:
 
 func _add_nearby_activity_row(card: Dictionary) -> void:
 	var row := HBoxContainer.new()
-	row.name = "NearbyActivityRow_%s" % str(card.get("activity_id", "activity"))
+	var activity_id := StringName(card.get("activity_id", &""))
+	row.name = "NearbyActivityRow_%s" % str(activity_id)
+	row.set_meta(&"activity_id", activity_id)
 	row.add_theme_constant_override("separation", 6)
 	var label := _label(str(card.get("text", "ACTIVITY — AVAILABLE")), 10, NOMINAL_SOFT)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(label)
-	var activity_id := StringName(card.get("activity_id", &""))
 	for action in [&"select", &"start", &"reset"]:
 		var button := _menu_button(str(action).to_upper(), MUTED)
 		button.focus_mode = Control.FOCUS_ALL
 		button.pressed.connect(_forward_nearby_activity_intent.bind(action, activity_id))
 		row.add_child(button)
 	_nearby_activity_rows.add_child(row)
+
+
+func _update_nearby_activity_row(row: Control, card: Dictionary) -> void:
+	if row.get_child_count() == 0 or not row.get_child(0) is Label:
+		return
+	(row.get_child(0) as Label).text = str(card.get("text", "ACTIVITY — AVAILABLE"))
 
 
 func _forward_nearby_activity_intent(action: StringName, activity_id: StringName) -> void:

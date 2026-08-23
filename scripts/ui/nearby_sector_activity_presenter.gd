@@ -100,7 +100,14 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	if activity_id == &"cinder_debris_beacon_traversal" \
 			and StringName(state.get("reason", &"")) == &"out_of_order_beacon":
 		state_id = &"wrong_order"
-	var progress := _progress_text(activity_id, state)
+	var cargo_progress: Dictionary = {}
+	if activity_id == &"cinder_platform_supply_run":
+		cargo_progress = _cargo_progress(state)
+	var progress := (
+		"  //  %s" % str(cargo_progress.get("summary", ""))
+		if not cargo_progress.is_empty()
+		else _progress_text(activity_id, state)
+	)
 	var recovery := _recovery_text(state)
 	var reward_pending := bool(state.get("reward_requested", false))
 	var status_suffix := ""
@@ -118,6 +125,10 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
 		"recovery_text": recovery,
+		"objective_text": str(cargo_progress.get("objective_text", "")),
+		"cargo_progress": cargo_progress.duplicate(true),
+		"activity_authority": false,
+		"reward_authority": false,
 	}.duplicate(true)
 
 
@@ -134,6 +145,91 @@ func _progress_text(activity_id: StringName, state: Dictionary) -> String:
 		var remaining := float(state.get("deadline_remaining_seconds", 0.0))
 		return " (PHASE %d/%d  %.1fs LEFT)" % [next_phase, phase_count, maxf(remaining, 0.0)]
 	return ""
+
+
+## Converts the cargo authority's ordered phase cursor into concise player copy.
+## It does not infer movement, cargo ownership, transfer success, or rewards.
+func _cargo_progress(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var numeric_state := int(state.get("state", -1))
+	var next_phase_index := maxi(int(state.get("next_phase_index", 0)), 0)
+	var phase_count := maxi(int(state.get("phase_count", 0)), 0)
+	var contract := state.get("contract", {}) as Dictionary
+	var ordered_phases := contract.get("ordered_phases", []) as Array
+	if phase_count == 0:
+		phase_count = ordered_phases.size()
+	var next_phase_id: StringName = &""
+	if next_phase_index < ordered_phases.size():
+		next_phase_id = StringName(ordered_phases[next_phase_index])
+
+	var stage_id: StringName = &"pickup"
+	var objective := "LOAD THE CINDER SUPPLY CRATE"
+	match next_phase_id:
+		&"clear_gate":
+			stage_id = &"transit"
+			objective = "CLEAR THE CINDER DEPARTURE GATE"
+		&"dock_platform":
+			stage_id = &"delivery"
+			objective = "DOCK AT THE CINDER PLATFORM"
+		&"load_crate":
+			pass
+		_:
+			if phase_count > 0 and next_phase_index >= phase_count:
+				stage_id = &"delivery"
+				objective = "TRANSFER AT THE PLATFORM CARGO TERMINAL"
+
+	var terminal := numeric_state in [CargoDeliveryActivity.State.COMPLETED,
+		CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]
+	if numeric_state == CargoDeliveryActivity.State.COMPLETED:
+		stage_id = &"delivered"
+		objective = "CARGO TRANSFER CONFIRMED"
+	elif numeric_state in [CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
+		stage_id = &"failure"
+		objective = "DELIVERY FAILED DURING %s" % _cargo_stage_label(
+			_stage_for_phase(next_phase_id, next_phase_index, phase_count)
+		)
+
+	var step_number := mini(next_phase_index + 1, phase_count) if phase_count > 0 else 0
+	var remaining := maxf(float(state.get("deadline_remaining_seconds", 0.0)), 0.0)
+	var summary := "%s %d/%d: %s" % [
+		_cargo_stage_label(stage_id), step_number, phase_count, objective
+	]
+	if numeric_state == CargoDeliveryActivity.State.ACTIVE:
+		summary += "  //  %.1fs LEFT" % remaining
+	return {
+		"stage_id": stage_id,
+		"stage_label": _cargo_stage_label(stage_id),
+		"objective_text": objective,
+		"next_phase_id": next_phase_id,
+		"next_phase_index": next_phase_index,
+		"phase_count": phase_count,
+		"step_number": step_number,
+		"deadline_remaining_seconds": remaining,
+		"terminal": terminal,
+		"summary": summary,
+		"activity_authority": false,
+		"inventory_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+func _stage_for_phase(phase_id: StringName, next_index: int, phase_count: int) -> StringName:
+	if phase_id == &"clear_gate":
+		return &"transit"
+	if phase_id == &"dock_platform" or (phase_count > 0 and next_index >= phase_count):
+		return &"delivery"
+	return &"pickup"
+
+
+func _cargo_stage_label(stage_id: StringName) -> String:
+	return {
+		&"pickup": "PICKUP",
+		&"transit": "TRANSIT",
+		&"delivery": "DELIVERY",
+		&"delivered": "DELIVERED",
+		&"failure": "FAILED",
+	}.get(stage_id, "PICKUP")
 
 
 func _state_label(state: Dictionary) -> String:
