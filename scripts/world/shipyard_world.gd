@@ -791,6 +791,18 @@ const EXTERIOR_TARGET_CORE_PATHS := [
 	NodePath("ExteriorTargetRange/TargetDrone04/DroneVisual/Core"),
 ]
 
+## The four lamps on each of the four independently authoritative range targets
+## retain their 16 named MeshInstance3D nodes and one-surface submissions. Their
+## exact 0.22 m SphereMesh recipe is immutable, so only that resource is shared.
+const EXTERIOR_TARGET_LAMP_RADIUS := 0.22
+const EXTERIOR_TARGET_LAMP_HEIGHT := 0.44
+const EXTERIOR_TARGET_LAMP_RADIAL_SEGMENTS := 24
+const EXTERIOR_TARGET_LAMP_RINGS := 12
+const EXTERIOR_TARGET_LAMP_COUNT := 16
+const EXTERIOR_TARGET_LAMP_BASELINE_MESH_RESOURCES := 16
+const EXTERIOR_TARGET_LAMP_SHARED_MESH_RESOURCES := 1
+const EXTERIOR_TARGET_LAMP_SUBMISSIONS := 16
+
 ## Aim of the station's key light, and of the sky's sun glow.
 ##
 ## One constant serves both. A backdrop whose bright side does not agree with the
@@ -891,6 +903,7 @@ var _guide_lens_batches: Dictionary = {}
 var _landing_pad_deck_connector_mesh: TorusMesh
 var _tie_down_socket_mesh: TorusMesh
 var _exterior_target_core_mesh: SphereMesh
+var _exterior_target_lamp_mesh: SphereMesh
 var _targets: Array[StaticBody3D] = []
 var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
@@ -7886,7 +7899,11 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 		var radians := deg_to_rad(angle)
 		var arm_position := Vector3(cos(radians) * 2.6, sin(radians) * 2.6, 0)
 		_box(visual, "TargetArm", arm_position, Vector3(1.65, 0.36, 0.42), _materials["steel_blue"], false, Vector3(0, 0, angle))
-		_sphere(visual, "TargetLamp", arm_position * 1.22, 0.22, _materials["red_glow"], false)
+		_sphere(
+			visual, "TargetLamp", arm_position * 1.22,
+			EXTERIOR_TARGET_LAMP_RADIUS, _materials["red_glow"], false,
+			_shared_exterior_target_lamp_mesh()
+		)
 	_targets.append(target)
 
 
@@ -7906,6 +7923,16 @@ func _shared_exterior_target_core_mesh() -> SphereMesh:
 		_exterior_target_core_mesh.radial_segments = EXTERIOR_TARGET_CORE_RADIAL_SEGMENTS
 		_exterior_target_core_mesh.rings = EXTERIOR_TARGET_CORE_RINGS
 	return _exterior_target_core_mesh
+
+
+func _shared_exterior_target_lamp_mesh() -> SphereMesh:
+	if not is_instance_valid(_exterior_target_lamp_mesh):
+		_exterior_target_lamp_mesh = SphereMesh.new()
+		_exterior_target_lamp_mesh.radius = EXTERIOR_TARGET_LAMP_RADIUS
+		_exterior_target_lamp_mesh.height = EXTERIOR_TARGET_LAMP_HEIGHT
+		_exterior_target_lamp_mesh.radial_segments = EXTERIOR_TARGET_LAMP_RADIAL_SEGMENTS
+		_exterior_target_lamp_mesh.rings = EXTERIOR_TARGET_LAMP_RINGS
+	return _exterior_target_lamp_mesh
 
 
 func _destroy_target(
@@ -8436,7 +8463,8 @@ func _sphere(
 	sphere_position: Vector3,
 	radius: float,
 	material: Material,
-	collidable: bool = false
+	collidable: bool = false,
+	shared_mesh: SphereMesh = null
 ) -> Node3D:
 	var container: Node3D
 	if collidable:
@@ -8449,11 +8477,13 @@ func _sphere(
 	container.name = node_name
 	container.position = sphere_position
 	parent.add_child(container)
-	var sphere_mesh := SphereMesh.new()
-	sphere_mesh.radius = radius
-	sphere_mesh.height = radius * 2.0
-	sphere_mesh.radial_segments = 24
-	sphere_mesh.rings = 12
+	var sphere_mesh := shared_mesh
+	if sphere_mesh == null:
+		sphere_mesh = SphereMesh.new()
+		sphere_mesh.radius = radius
+		sphere_mesh.height = radius * 2.0
+		sphere_mesh.radial_segments = 24
+		sphere_mesh.rings = 12
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
 		mesh_instance.mesh = sphere_mesh

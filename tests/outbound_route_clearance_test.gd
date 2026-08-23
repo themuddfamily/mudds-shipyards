@@ -122,6 +122,7 @@ func _run() -> void:
 	_test_header_beam_carries_a_clearance_cue(world)
 	_test_the_cue_adds_no_collision(world, hulls)
 	_test_target_core_allocation(world)
+	_test_target_lamp_mesh_sharing(world)
 	await _test_target_core_detach_reentry(world)
 
 	game.queue_free()
@@ -634,6 +635,87 @@ func _test_target_core_allocation(world: ShipyardWorld) -> void:
 	_check(
 		bool(world.get_exterior_target_core_allocation_audit().get("valid", false)),
 		"restoring core recipe, identity, and authority returns the audit green"
+	)
+
+
+func _test_target_lamp_mesh_sharing(world: ShipyardWorld) -> void:
+	var lamps: Array[MeshInstance3D] = []
+	var target_contract_preserved := true
+	for target_index in 4:
+		var target := world.get_node_or_null(
+			"ExteriorTargetRange/TargetDrone%02d" % (target_index + 1)
+		) as StaticBody3D
+		var visual := target.get_node_or_null(^"DroneVisual") as Node3D if target != null else null
+		if target == null or visual == null:
+			target_contract_preserved = false
+			continue
+		target_contract_preserved = target_contract_preserved \
+			and target.get_meta("target_id", &"") \
+				== StringName("DRONE-%02d" % (target_index + 1)) \
+			and target.is_in_group("shipyard_targets") \
+			and _target_collision_shape_count(target) == 1
+		var stable_named_lamps := 0
+		for child in visual.get_children():
+			if not child is MeshInstance3D:
+				continue
+			var candidate := child as MeshInstance3D
+			var candidate_mesh := candidate.mesh as SphereMesh
+			if candidate_mesh != null \
+					and is_equal_approx(candidate_mesh.radius, 0.22) \
+					and is_equal_approx(candidate_mesh.height, 0.44):
+				lamps.append(candidate)
+				if candidate.name == &"TargetLamp":
+					stable_named_lamps += 1
+		target_contract_preserved = target_contract_preserved \
+			and stable_named_lamps == 1
+	_check(
+		lamps.size() == 16 and target_contract_preserved,
+		"all 16 authored target lamps and each stable TargetLamp sibling remain on the four authoritative bodies"
+	)
+	if lamps.size() != 16:
+		return
+	var mesh_ids := {}
+	var material_ids := {}
+	var submissions := 0
+	var visual_contract_preserved := true
+	var expected_positions := [
+		Vector3(3.172, 0.0, 0.0),
+		Vector3(0.0, 3.172, 0.0),
+		Vector3(-3.172, 0.0, 0.0),
+		Vector3(0.0, -3.172, 0.0),
+	]
+	for lamp_index in lamps.size():
+		var lamp := lamps[lamp_index]
+		if lamp.mesh != null:
+			mesh_ids[lamp.mesh.get_instance_id()] = true
+			submissions += lamp.mesh.get_surface_count()
+		if lamp.material_override != null:
+			material_ids[lamp.material_override.get_instance_id()] = true
+		visual_contract_preserved = visual_contract_preserved \
+			and lamp.position.is_equal_approx(expected_positions[lamp_index % 4]) \
+			and lamp.rotation.is_equal_approx(Vector3.ZERO) \
+			and lamp.scale.is_equal_approx(Vector3.ONE) \
+			and lamp.visible and lamp.layers == 1 \
+			and lamp.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			and lamp.material_override == lamps[0].material_override \
+			and lamp.get_script() == null and lamp.get_child_count() == 0 \
+			and lamp.get_meta_list().is_empty() \
+			and not lamp.is_processing() and not lamp.is_physics_processing()
+	var mesh := lamps[0].mesh as SphereMesh
+	_check(
+		mesh != null
+		and is_equal_approx(mesh.radius, 0.22)
+		and is_equal_approx(mesh.height, 0.44)
+		and mesh.radial_segments == 24 and mesh.rings == 12
+		and mesh.get_surface_count() == 1
+		and visual_contract_preserved,
+		"sharing preserves every lamp transform, material, name, visibility, and childless visual-only lifecycle"
+	)
+	_check(
+		mesh_ids.size() == 1
+		and material_ids.size() == 1
+		and submissions == 16,
+		"target lamps trim exact mesh allocations 16 -> 1 while structural submissions remain 16 -> 16"
 	)
 
 
