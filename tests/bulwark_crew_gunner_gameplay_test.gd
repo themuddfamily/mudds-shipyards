@@ -1,12 +1,13 @@
 extends SceneTree
 
 ## Focused Bulwark multicrew coverage. The server-owned seat authority admits
-## the optional gunner, while HeroShip remains the sole projectile request
-## seam; target identity is only a bounded receipt and damage is not mutated.
+## the optional gunner, while HeroShip remains the pilot projectile request
+## seam and the shared CombatResolver remains gunner damage authority.
 
 const BULWARK_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const Bulwark := preload("res://scripts/ships/bulwark_heavy_gunship.gd")
+const LiveCombatAuthority := preload("res://scripts/combat/live_combat_authority.gd")
 
 var _checks := 0
 var _failures: Array[String] = []
@@ -23,6 +24,9 @@ func _run() -> void:
 		_finish()
 		return
 	root.add_child(craft)
+	var combat_authority := LiveCombatAuthority.new()
+	combat_authority.name = "BulwarkCombatAuthority"
+	root.add_child(combat_authority)
 	await process_frame
 	await physics_frame
 	await physics_frame
@@ -33,6 +37,10 @@ func _run() -> void:
 		"Bulwark accepts the sealed server-owned pilot/gunner role roster"
 	)
 	_check(craft.get_pilot_seat_anchor() != null, "pilot seat remains immediately available")
+	_check(
+		bool(craft.attach_gunner_combat_authority(combat_authority).get("accepted", false)),
+		"Bulwark gunner binds the shared resolver authority"
+	)
 
 	var emitted := [0]
 	var selected := [0]
@@ -72,10 +80,11 @@ func _run() -> void:
 		bool(fired.get("accepted", false))
 			and bool(fired.get("consumed", false))
 			and fired.get("status", &"") == &"intent_consumed"
-			and effect.get("status", &"") == &"weapon_request_emitted",
-		"admitted gunner receipt reaches HeroShip's existing weapon request"
+			and effect.get("status", &"") == &"siege_lance_resolved"
+			and bool((effect.get("resolution", {}) as Dictionary).get("accepted", false)),
+		"admitted gunner receipt reaches the shared siege-lance resolver"
 	)
-	_check(emitted[0] == 1, "exactly one projectile request is emitted")
+	_check(emitted[0] == 0, "gunner dispatch does not take over the pilot projectile seam")
 	_check(selected[0] == 1 and selected_generation[0] == 1, "fire selects the bounded target generation")
 	_check(
 		effect.get("source_id", 0) == Bulwark.COMBAT_SOURCE_ID
@@ -102,7 +111,7 @@ func _run() -> void:
 			and bool(selection_only.get("consumed", false))
 			and (selection_only.get("effect", {}) as Dictionary).get("status", &"") == &"target_selected"
 			and selected[0] == 2
-			and emitted[0] == 1,
+			and emitted[0] == 0,
 		"target selection is consumable independently of fire cadence"
 	)
 
@@ -122,9 +131,9 @@ func _run() -> void:
 	_check(
 		bool(cooldown.get("accepted", false))
 			and not bool(cooldown.get("consumed", false))
-			and (cooldown.get("effect", {}) as Dictionary).get("status", &"") == &"weapon_cooldown"
-			and emitted[0] == 1,
-		"HeroShip cadence blocks a second gunner request"
+			and (cooldown.get("effect", {}) as Dictionary).get("status", &"") == &"role_cooldown"
+			and emitted[0] == 0,
+		"gunner siege-lance cadence blocks a second request without affecting pilot fire"
 	)
 
 	var handoff = craft.handoff_crew_role(
@@ -185,12 +194,34 @@ func _run() -> void:
 		"replacement gunner selects against the fresh generation"
 	)
 
+	var replacement_fire = craft.submit_crew_intent(
+		1,
+		99,
+		&"replacement_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": Bulwark.BULWARK_CREW_WEAPON_ID,
+			"target_id": &"range_target_02",
+			"trigger": true,
+			"target_generation": 2,
+		},
+		9
+	)
+	var replacement_effect := replacement_fire.get("effect", {}) as Dictionary
+	_check(
+		bool(replacement_fire.get("accepted", false))
+			and bool(replacement_fire.get("consumed", false))
+			and replacement_effect.get("status", &"") == &"siege_lance_resolved"
+			and replacement_effect.get("ammunition_remaining", -1) == 1,
+		"replacement gunner acts with fresh cooldown and ammunition state"
+	)
+
 	var released = craft.release_crew_role(
 		1,
 		99,
 		&"replacement_gunner",
 		&"gunner_station",
-		9
+		10
 	)
 	_check(bool(released.get("accepted", false)), "replacement gunner releases through the same authority")
 	await physics_frame

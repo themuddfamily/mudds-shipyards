@@ -4,14 +4,18 @@ extends HeroShip
 ## Original-modern heavy gunship component.
 ##
 ## This is a new design, not a reconstruction: it has no historical evidence
-## references and makes no claim about a recovered silhouette.  The common
-## HeroShip controller remains the sole owner of flight, weapon requests,
-## damage, boarding lifecycle, and reuse.  The component only supplies a
-## differentiated armored presentation and a physical gunner station contract.
+## references and makes no claim about a recovered silhouette. The common
+## HeroShip controller remains the sole owner of flight, pilot weapon requests,
+## damage, boarding lifecycle, and reuse; optional gunner fire is admitted by
+## the seat authority and resolved by the shared combat authority.
 
 const ModernRoleProfile := preload("res://scripts/fleet/modern_role_profile.gd")
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
+const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_authority.gd")
+const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
+const WeaponDefinitionResolverProfileType := preload("res://scripts/combat/weapon_definition_resolver_profile.gd")
+const SiegeLanceDefinition := preload("res://assets/weapons/picket_siege_lance.tres")
 
 const SCHEMA_VERSION := 1
 const COMBAT_SOURCE_ID := 1106
@@ -34,9 +38,10 @@ const ARMOR_HIGHLIGHT := Color("416b88")
 const IDENTITY_AMBER := Color("e2a63c")
 const GUNNER_CYAN := Color("58d8df")
 const BOARDING_LIGHT := Color("8ae8bd")
-const BULWARK_CREW_WEAPON_ID: StringName = &"bulwark_twin_heavy_cannon"
+const BULWARK_CREW_WEAPON_ID: StringName = &"picket_siege_lance"
 const BULWARK_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
+const MAX_GUNNER_AMMUNITION := 8
 const GUNNER_SEAT_ID: StringName = &"gunner_station"
 const PILOT_SEAT_ID: StringName = &"pilot_station"
 
@@ -51,7 +56,10 @@ var _gunner_station: Node3D
 var _gunner_station_anchor: Marker3D
 var _boarding_area: Area3D
 var _crew_role_authority: CrewSeatRoleAuthority
+var _gunner_combat_authority: LiveCombatAuthority
+var _gunner_weapon_definition: WeaponDefinition
 var _gunner_role_cooldowns: Dictionary = {}
+var _gunner_role_ammunition: Dictionary = {}
 var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
 
@@ -125,6 +133,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	super._ready()
+	_gunner_weapon_definition = SiegeLanceDefinition.duplicate(true) as WeaponDefinition
 	if not _bulwark_built:
 		_bulwark_built = rebuild_variant_presentation(_build_bulwark_variant)
 	_apply_bulwark_metadata()
@@ -141,6 +150,7 @@ func _physics_process(delta: float) -> void:
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	_gunner_role_cooldowns.clear()
+	_gunner_role_ammunition.clear()
 	_clear_gunner_target_selection(&"ship_reused", false)
 	_gunner_target_generation = 1
 
@@ -161,6 +171,7 @@ func apply_damage(
 	)
 	if is_destroyed():
 		_gunner_role_cooldowns.clear()
+		_gunner_role_ammunition.clear()
 		_clear_gunner_target_selection(&"ship_destroyed")
 
 
@@ -220,13 +231,13 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		_sphere(_bulwark_visual, side_name + "NavigationLamp", Vector3(side * 4.35, 1.8, -2.5), 0.11, boarding if side < 0.0 else amber)
 
 	# Gunner station is physical ship-local presentation and interaction data;
-	# HeroShip's existing weapon request path remains the only combat authority.
+	# its optional siege-lance action is resolved by the shared combat authority.
 	_gunner_station = Node3D.new()
 	_gunner_station.name = "GunnerStation"
 	_gunner_station.position = GUNNER_STATION_LOCAL_POSITION
 	_gunner_station.set_meta("crew_role", &"gunner")
-	_gunner_station.set_meta("authority_owner", &"HeroShip.weapon_request")
-	_gunner_station.set_meta("visual_only_weapon_fit", true)
+	_gunner_station.set_meta("authority_owner", &"LiveCombatAuthority.resolve_hitscan")
+	_gunner_station.set_meta("visual_only_weapon_fit", false)
 	_gunner_station.set_meta("authenticated_historical_role", false)
 	_bulwark_visual.add_child(_gunner_station)
 	_box(_gunner_station, "GunnerSeat", Vector3.ZERO, Vector3(0.95, 0.32, 0.95), armor_dark)
@@ -332,8 +343,46 @@ func get_crew_role_authority() -> CrewSeatRoleAuthority:
 	return _crew_role_authority
 
 
+## Binds the shared server combat authority used by the optional gunner. This
+## does not create a second resolver or damage path; the caller owns the
+## authority lifecycle and may already have registered Bulwark for pilot fire.
+func attach_gunner_combat_authority(authority: LiveCombatAuthority) -> Dictionary:
+	if authority == null or not is_instance_valid(authority):
+		return _crew_role_result(false, &"combat_authority_unavailable")
+	if _gunner_combat_authority != null and _gunner_combat_authority != authority:
+		return _crew_role_result(false, &"combat_authority_already_attached")
+	if _gunner_weapon_definition == null:
+		_gunner_weapon_definition = SiegeLanceDefinition.duplicate(true) as WeaponDefinition
+	var profiles := WeaponDefinitionResolverProfileType.to_resolver_profiles(
+		_gunner_weapon_definition,
+		BULWARK_CREW_FACTION_ID,
+		12.0
+	)
+	if profiles.is_empty():
+		return _crew_role_result(false, &"siege_lance_definition_invalid")
+	_gunner_combat_authority = authority
+	var registered_profile := authority.get_weapon_profile(self, BULWARK_CREW_WEAPON_ID)
+	if registered_profile.is_empty():
+		if not authority.register_source(self, COMBAT_SOURCE_ID, BULWARK_CREW_FACTION_ID, profiles):
+			_gunner_combat_authority = null
+			return _crew_role_result(false, &"combat_source_registration_failed")
+	return {
+		"accepted": true,
+		"status": &"combat_authority_attached",
+		"source_id": COMBAT_SOURCE_ID,
+		"weapon_id": BULWARK_CREW_WEAPON_ID,
+		"weapon_profile": authority.get_weapon_profile(self, BULWARK_CREW_WEAPON_ID),
+	}.duplicate(true)
+
+
+func get_gunner_weapon_definition() -> WeaponDefinition:
+	if _gunner_weapon_definition == null:
+		_gunner_weapon_definition = SiegeLanceDefinition.duplicate(true) as WeaponDefinition
+	return _gunner_weapon_definition.duplicate(true) as WeaponDefinition
+
+
 ## Admits one authority receipt and immediately routes the bounded gunner edge
-## into HeroShip's existing projectile request seam. Pilot control remains the
+## into the shared CombatResolver hitscan seam. Pilot control remains the
 ## normal HeroShip path and is never gated by this optional station.
 func submit_crew_intent(
 		source_peer_id: int,
@@ -435,6 +484,7 @@ func get_gunner_gameplay_state() -> Dictionary:
 		"target_selection": _gunner_target_selection.duplicate(true),
 		"weapon_ready": ready,
 		"role_cooldowns": _gunner_role_cooldowns.duplicate(true),
+		"role_ammunition": _gunner_role_ammunition.duplicate(true),
 	}.duplicate(true)
 
 
@@ -459,27 +509,43 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 		return _crew_role_result(false, &"ship_destroyed")
 	if StringName(telemetry.get("engine_state", &"")) != ENGINE_ONLINE:
 		return _crew_role_result(false, &"engine_not_online")
-	if _weapon_timer > 0.0:
-		return _crew_role_result(false, &"weapon_cooldown")
 	var actor_key := _gunner_role_actor_key(intent)
 	if float(_gunner_role_cooldowns.get(actor_key, 0.0)) > 0.0:
 		return _crew_role_result(false, &"role_cooldown")
-	var previous_timer := _weapon_timer
-	_fire_weapon()
-	if _weapon_timer <= previous_timer:
-		return _crew_role_result(false, &"weapon_request_rejected")
-	var result := _crew_role_result(true, &"weapon_request_emitted")
-	result["source_id"] = get_combat_source_id()
-	result["faction_id"] = BULWARK_CREW_FACTION_ID
-	result["weapon_id"] = weapon_id
-	result["target_id"] = target_id
-	result["target_generation"] = target_generation
-	result["selection"] = selection
-	result["request_sequence"] = int(intent.get("request_sequence", -1))
-	result["seat_generation"] = int(intent.get("seat_generation", 0))
-	result["cooldown_remaining"] = _weapon_timer
-	_gunner_role_cooldowns[actor_key] = weapon_cooldown
-	return result
+	var ammunition := mini(int(_gunner_role_ammunition.get(actor_key, 2)), MAX_GUNNER_AMMUNITION)
+	if ammunition <= 0:
+		return _crew_role_result(false, &"ammunition_depleted")
+	var authority := _gunner_combat_authority
+	if authority == null or not is_instance_valid(authority):
+		return _crew_role_result(false, &"combat_authority_unavailable")
+	if authority.get_weapon_profile(self, weapon_id).is_empty():
+		return _crew_role_result(false, &"weapon_not_registered")
+	var origin: Vector3 = payload.get("origin", global_position)
+	var direction: Vector3 = payload.get("direction", -global_basis.z)
+	if not origin.is_finite() or not direction.is_finite() or direction.length_squared() <= 0.000001:
+		return _crew_role_result(false, &"invalid_fire_vector")
+	var result := authority.submit_hitscan_with_deferred_presentation(
+		self, weapon_id, origin, direction
+	)
+	if not bool(result.get("accepted", false)):
+		return _crew_role_result(false, StringName(result.get("status", &"shot_rejected")))
+	var effect := _crew_role_result(true, &"siege_lance_resolved")
+	effect["resolution"] = result.duplicate(true)
+	effect["source_id"] = get_combat_source_id()
+	effect["faction_id"] = BULWARK_CREW_FACTION_ID
+	effect["weapon_id"] = weapon_id
+	effect["target_id"] = target_id
+	effect["target_generation"] = target_generation
+	effect["selection"] = selection
+	effect["request_sequence"] = int(intent.get("request_sequence", -1))
+	effect["seat_generation"] = int(intent.get("seat_generation", 0))
+	var cadence := maxf(float(_gunner_weapon_definition.cadence_shots_per_second), 0.001)
+	var cooldown := 1.0 / cadence
+	effect["cooldown_remaining"] = cooldown
+	effect["ammunition_remaining"] = ammunition - 1
+	_gunner_role_cooldowns[actor_key] = cooldown
+	_gunner_role_ammunition[actor_key] = ammunition - 1
+	return effect
 
 
 func _select_gunner_target(
@@ -527,6 +593,7 @@ func _clear_gunner_role_state(
 		reason: StringName
 ) -> void:
 	_gunner_role_cooldowns.erase(_gunner_role_actor_key_from_values(occupant_peer_id, avatar_id))
+	_gunner_role_ammunition.erase(_gunner_role_actor_key_from_values(occupant_peer_id, avatar_id))
 	if not _gunner_target_selection.is_empty() \
 			and int(_gunner_target_selection.get("occupant_peer_id", 0)) == occupant_peer_id \
 			and StringName(_gunner_target_selection.get("avatar_id", &"")) == avatar_id:
@@ -604,8 +671,8 @@ func get_gunner_station_role_contract() -> Dictionary:
 		"role": &"gunner",
 		"seat": _gunner_station_anchor,
 		"seat_type": &"physical",
-		"authority_owner": &"HeroShip.weapon_request",
-		"visual_only_weapon_fit": true,
+		"authority_owner": &"LiveCombatAuthority.resolve_hitscan",
+		"visual_only_weapon_fit": false,
 		"historical_claim": false,
 	}
 
