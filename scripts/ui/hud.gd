@@ -1532,10 +1532,13 @@ static func compute_runtime_status_panel_rect(
 	var logical := viewport_size / scale
 	var left := maxf(safe_insets.position.x, 0.0) / scale
 	var right := maxf(safe_insets.size.x, 0.0) / scale
+	var top := maxf(safe_insets.position.y, 0.0) / scale
+	var bottom := maxf(safe_insets.size.y, 0.0) / scale
 	var available := maxf(360.0, logical.x - left - right - PANEL_MARGIN * 2.0)
 	var width := clampf(available * 0.32, 460.0, 680.0)
 	var center_x := left + (logical.x - left - right) * 0.5
-	return Rect2(Vector2(center_x - width * 0.5, -150.0), Vector2(width, 300.0))
+	var center_y := top + (logical.y - top - bottom) * 0.5
+	return Rect2(Vector2(center_x - width * 0.5, center_y - 150.0), Vector2(width, 300.0))
 
 
 ## Applies physical-pixel display cutout/overscan insets to edge-anchored HUD
