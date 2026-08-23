@@ -54,6 +54,7 @@ func _run() -> void:
 	await _test_surface_route_admits_activity_sequence()
 	await _test_surface_hazard_interrupts_and_recovers_route()
 	await _test_surface_session_restore_fences_reentry()
+	await _test_surface_origin_rebase_preserves_absolute_identity()
 	_finish()
 
 
@@ -439,6 +440,47 @@ func _test_surface_session_restore_fences_reentry() -> void:
 	)
 	director.queue_free()
 	restored_director.queue_free()
+	await process_frame
+
+
+func _test_surface_origin_rebase_preserves_absolute_identity() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	var navigation := NavigationScript.new()
+	var hazard := HazardScript.new()
+	navigation.configure(NavigationContractScript.new())
+	hazard.configure(NavigationContractScript.new())
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.bind_surface_hazard(hazard)
+	adapter.start_surface_activity_sequence(
+		[&"ember_beacon_survey", &"ember_caldera_patrol"] as Array[StringName],
+		navigation,
+		{"surface_staging_gate": &"ridge_relay"}
+	)
+	var before := adapter.get_session_snapshot()
+	var receipt := {
+		"accepted": true,
+		"source_generation": 0,
+		"target_generation": 1,
+		"target_location_generation": 2,
+	}
+	var accepted := adapter.accept_origin_rebase(receipt)
+	var after := adapter.get_session_snapshot()
+	_check(
+		accepted.accepted and accepted.reason == &"origin_rebase_accepted"
+			and after.surface_route.next_landmark_id == before.surface_route.next_landmark_id
+			and after.surface_hazard.hazard_ids == before.surface_hazard.hazard_ids
+			and after.coordinate_frame_generation == 1
+			and after.location_generation == 2,
+		"accepted origin receipt updates frame metadata without changing route or hazard identity"
+	)
+	_check(
+		adapter.accept_origin_rebase(receipt).reason == &"origin_generation_not_advanced",
+		"the same origin receipt cannot be replayed"
+	)
+	director.queue_free()
 	await process_frame
 
 

@@ -36,6 +36,9 @@ var _sequence_index := -1
 var _navigation: RefCounted
 var _route_activity_landmarks: Dictionary = {}
 var _hazard: RefCounted
+var _coordinate_frame_generation := 0
+var _location_generation := 0
+var _last_origin_receipt: Dictionary = {}
 
 
 func is_configuration_valid() -> bool:
@@ -139,6 +142,31 @@ func bind_surface_hazard(hazard: RefCounted) -> Dictionary:
 		return _reject(&"hazard_unavailable")
 	_hazard = hazard
 	return _accept(&"hazard_bound")
+
+
+## Accepts an external atomic origin receipt as a frame witness only. Absolute
+## route markers and hazard positions remain unchanged; no actor is moved.
+func accept_origin_rebase(receipt: Variant) -> Dictionary:
+	if not receipt is Dictionary:
+		return _reject(&"invalid_origin_receipt")
+	var candidate := receipt as Dictionary
+	if candidate.get("accepted", true) != true \
+			or candidate.get("source_generation", 0) is not int \
+			or candidate.get("target_generation", 0) is not int:
+		return _reject(&"invalid_origin_receipt")
+	var source := int(candidate.get("source_generation", 0))
+	var target := int(candidate.get("target_generation", 0))
+	if source != _coordinate_frame_generation or target <= source:
+		return _reject(&"origin_generation_not_advanced")
+	_coordinate_frame_generation = target
+	_location_generation = int(candidate.get("target_location_generation", _location_generation))
+	_last_origin_receipt = candidate.duplicate(true)
+	return _with_adapter({
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"location_generation": _location_generation,
+		"route_identity_preserved": true,
+		"hazard_identity_preserved": true,
+	}, true, &"origin_rebase_accepted")
 
 
 ## Severe authored exposure interrupts the current activity and route. The
@@ -407,6 +435,9 @@ func get_session_snapshot() -> Dictionary:
 		},
 		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
 		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"location_generation": _location_generation,
+		"last_origin_receipt": _last_origin_receipt.duplicate(true),
 	}.duplicate(true)
 
 
@@ -439,6 +470,9 @@ func restore_session_snapshot(
 	_sequence_index = int(sequence.get("index", -1))
 	_navigation = navigation
 	_hazard = hazard
+	_coordinate_frame_generation = int(saved.get("coordinate_frame_generation", 0))
+	_location_generation = int(saved.get("location_generation", 0))
+	_last_origin_receipt = saved.get("last_origin_receipt", {}).duplicate(true)
 	_state = State.FAILED
 	return _with_adapter({
 		"route": route_result,
