@@ -15,6 +15,11 @@ const SCENE_PATH := "res://scenes/world/components/aurora_temperate_atmosphere_c
 var _configured := false
 var _generation := 0
 var _baseline_environment: Environment
+var _baseline_sun_energy := 1.0
+var _baseline_sun_color := Color.WHITE
+var _baseline_ambient_energy := 1.0
+var _baseline_cloud_transparency := 0.0
+var _last_recipe: Dictionary = {}
 
 
 func _ready() -> void:
@@ -22,6 +27,17 @@ func _ready() -> void:
 	set_physics_process(false)
 	var target := get_world_environment()
 	_baseline_environment = target.environment if target != null else null
+	var rig := get_atmosphere_rig()
+	if rig != null:
+		var sun := rig.get_sun_light()
+		var cloud := rig.get_cloud_shell()
+		if sun != null:
+			_baseline_sun_energy = sun.light_energy
+			_baseline_sun_color = sun.light_color
+		if target != null and target.environment != null:
+			_baseline_ambient_energy = target.environment.ambient_light_energy
+		if cloud != null:
+			_baseline_cloud_transparency = cloud.transparency
 
 
 func _exit_tree() -> void:
@@ -29,6 +45,17 @@ func _exit_tree() -> void:
 		var target := get_world_environment()
 		if target != null:
 			target.environment = _baseline_environment
+		var rig := get_atmosphere_rig()
+		if rig != null:
+			var sun := rig.get_sun_light()
+			var cloud := rig.get_cloud_shell()
+			if sun != null:
+				sun.light_energy = _baseline_sun_energy
+				sun.light_color = _baseline_sun_color
+			if target != null and target.environment != null:
+				target.environment.ambient_light_energy = _baseline_ambient_energy
+			if cloud != null:
+				cloud.transparency = _baseline_cloud_transparency
 
 
 func _enter_tree() -> void:
@@ -37,6 +64,10 @@ func _enter_tree() -> void:
 		var rig := get_atmosphere_rig()
 		if target != null and rig != null:
 			target.environment = rig.get_scene_environment()
+		if not _last_recipe.is_empty():
+			apply_retained_presentation_recipe(
+				_last_recipe.solar, _last_recipe.weather
+			)
 
 
 func configure() -> Dictionary:
@@ -64,6 +95,33 @@ func present_observation(observation: Dictionary, expected_generation: int) -> D
 	if is_queued_for_deletion() or not is_inside_tree():
 		return {"accepted": false, "reason": &"composition_detached"}
 	return get_atmosphere_rig().present_observation(observation, expected_generation)
+
+
+func apply_retained_presentation_recipe(
+		solar_snapshot: Variant, weather_snapshot: Variant
+	) -> Dictionary:
+	if not _configured or not is_inside_tree():
+		return {"accepted": false, "reason": &"composition_detached"}
+	var rig := get_atmosphere_rig()
+	if rig == null:
+		return {"accepted": false, "reason": &"rig_unavailable"}
+	var solar := rig.get_sky_presentation().present_solar_phase_snapshot(solar_snapshot)
+	if not bool(solar.get("accepted", false)):
+		return solar
+	var weather := rig.get_sky_presentation().present_weather_exposure_snapshot(weather_snapshot)
+	if not bool(weather.get("accepted", false)):
+		return weather
+	var sun := rig.get_sun_light()
+	var cloud := rig.get_cloud_shell()
+	var target := get_world_environment()
+	if sun == null or cloud == null or target == null or target.environment == null:
+		return {"accepted": false, "reason": &"presentation_target_unavailable"}
+	sun.light_energy = clampf(float(solar.get("sun_energy_unitless", 0.0)) * 1.2 + 0.1, 0.1, 1.3)
+	sun.light_color = solar.get("sun_color", _baseline_sun_color) as Color
+	target.environment.ambient_light_energy = clampf(float(solar.get("sky_exposure_unitless", 0.16)), 0.16, 1.0)
+	cloud.transparency = clampf(1.0 - float(weather.get("cloud_opacity_unitless", 0.0)), 0.0, 1.0)
+	_last_recipe = {"solar": solar, "weather": weather}.duplicate(true)
+	return {"accepted": true, "reason": &"presentation_recipe_applied", "solar": solar, "weather": weather}.duplicate(true)
 
 
 func get_world_environment() -> WorldEnvironment:
