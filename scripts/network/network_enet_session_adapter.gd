@@ -24,6 +24,7 @@ const PredictionGuard := preload("res://scripts/network/network_prediction_corre
 const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
 const SnapshotJitterBuffer := preload("res://scripts/network/network_snapshot_jitter_buffer.gd")
 const ReplicationInterest := preload("res://scripts/network/network_replication_interest.gd")
+const SnapshotDeltaCodec := preload("res://scripts/network/network_snapshot_delta_codec.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -66,6 +67,8 @@ var _prediction
 var _server_browser
 var _snapshot_jitter
 var _replication_interest
+var _snapshot_delta_encoder
+var _snapshot_delta_decoder
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -102,6 +105,8 @@ func _init() -> void:
 	_server_browser = ServerBrowser.new(AUTHORITY_PEER_ID)
 	_snapshot_jitter = SnapshotJitterBuffer.new()
 	_replication_interest = ReplicationInterest.new(AUTHORITY_PEER_ID)
+	_snapshot_delta_encoder = SnapshotDeltaCodec.new()
+	_snapshot_delta_decoder = SnapshotDeltaCodec.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -831,6 +836,7 @@ func get_prediction_entity(entity_id: StringName) -> Dictionary:
 func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	if is_server():
 		return _remember(_result(false, &"client_required"))
+	_snapshot_delta_decoder.reset()
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
@@ -997,7 +1003,7 @@ func publish_snapshot(
 		return _remember(published)
 	var packet := (published.get("snapshot", {}) as Dictionary).duplicate(true)
 	_latest_snapshot_revision = int(packet.get("revision", 0))
-	_broadcast_snapshot.rpc(packet)
+	_broadcast_snapshot.rpc(_snapshot_delta_encoder.encode(packet))
 	snapshot_published.emit(packet.duplicate(true))
 	return _remember(_result(true, &"snapshot_published", {
 		"revision": int(packet.get("revision", 0)),
@@ -1117,7 +1123,11 @@ func _send_server_offer(offer: Dictionary) -> void:
 func _broadcast_snapshot(packet: Dictionary) -> void:
 	if is_server():
 		return
-	var buffered: Dictionary = _snapshot_jitter.push(packet)
+	var decoded: Dictionary = _snapshot_delta_decoder.decode(packet)
+	if not bool(decoded.get("accepted", false)):
+		_last_result = decoded.duplicate(true)
+		return
+	var buffered: Dictionary = _snapshot_jitter.push(decoded.get("packet", {}) as Dictionary)
 	if not bool(buffered.get("accepted", false)):
 		_last_result = buffered.duplicate(true)
 		return
