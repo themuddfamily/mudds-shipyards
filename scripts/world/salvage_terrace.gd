@@ -108,10 +108,10 @@ const SHORT_SIDE_RAIL_VISUAL_COUNT := 4
 const LONG_RAIL_VISUAL_SIZE := Vector3(12.0, 1.3, 0.16)
 const LONG_RAIL_NAMES := [&"LowerForward", &"LowerAft", &"UpperForward"]
 const LONG_RAIL_VISUAL_COUNT := 3
-const FOUR_METER_RAIL_VISUAL_SIZE := Vector3(4.0, 1.3, 0.16)
-const FOUR_METER_RAIL_NAMES := [
-	&"EntryFrontPort", &"EntryFrontStarboard", &"TopPort", &"TopStarboard",
-]
+const ENTRY_FRONT_RAIL_VISUAL_SIZE := Vector3(4.0, 1.3, 0.16)
+const ENTRY_FRONT_RAIL_NAMES := [&"EntryFrontPort", &"EntryFrontStarboard"]
+const TOP_SIDE_RAIL_VISUAL_SIZE := Vector3(0.16, 1.3, 4.0)
+const TOP_SIDE_RAIL_NAMES := [&"TopPort", &"TopStarboard"]
 const FOUR_METER_RAIL_VISUAL_COUNT := 4
 
 const CONTENT_NOTE := (
@@ -146,7 +146,8 @@ var _built_multimesh_buffers: Dictionary = {}
 var _built_multimesh_visible_counts: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _long_rail_visual_mesh: BoxMesh
-var _four_meter_rail_visual_mesh: BoxMesh
+var _entry_front_rail_visual_mesh: BoxMesh
+var _top_side_rail_visual_mesh: BoxMesh
 var _rail_detail_transforms: Array[Transform3D] = []
 
 
@@ -562,23 +563,33 @@ func get_long_rail_visual_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-## Four equal, hidden conservative rail renderers retain their individual
-## collision bodies and paths while sharing one immutable visual mesh resource.
+## Four hidden conservative rail renderers retain their individual collision
+## bodies and paths. The two X-oriented and two Z-oriented recipes each share
+## one immutable mesh resource, preserving their exact local visual bounds.
 func get_four_meter_rail_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var mesh_ids := {}
 	var collision_ids := {}
-	for rail_name in FOUR_METER_RAIL_NAMES:
+	var aabb_matches_collision := true
+	for rail_name in ENTRY_FRONT_RAIL_NAMES + TOP_SIDE_RAIL_NAMES:
 		var rail := get_node_or_null(NodePath("GeneratedRoot/%s" % rail_name)) as StaticBody3D
 		var visual := rail.get_node_or_null(^"Mesh") as MeshInstance3D if rail != null else null
 		var collision := rail.get_node_or_null(^"Collision") as CollisionShape3D if rail != null else null
+		var expected_mesh := (
+			_entry_front_rail_visual_mesh
+			if rail_name in ENTRY_FRONT_RAIL_NAMES else _top_side_rail_visual_mesh
+		)
+		var expected_size := (
+			ENTRY_FRONT_RAIL_VISUAL_SIZE
+			if rail_name in ENTRY_FRONT_RAIL_NAMES else TOP_SIDE_RAIL_VISUAL_SIZE
+		)
 		if visual == null or not (visual.mesh is BoxMesh):
 			errors.append("four_meter_rail_visual_missing")
 		else:
 			mesh_ids[visual.mesh.get_instance_id()] = true
 			if (
-				visual.mesh != _four_meter_rail_visual_mesh
-				or not (visual.mesh as BoxMesh).size.is_equal_approx(FOUR_METER_RAIL_VISUAL_SIZE)
+				visual.mesh != expected_mesh
+				or not (visual.mesh as BoxMesh).size.is_equal_approx(expected_size)
 				or visual.material_override != _materials.rail
 			):
 				errors.append("four_meter_rail_visual_identity_or_recipe_drift")
@@ -586,7 +597,15 @@ func get_four_meter_rail_visual_allocation_audit() -> Dictionary:
 			errors.append("four_meter_rail_collision_missing")
 		else:
 			collision_ids[collision.shape.get_instance_id()] = true
-	if mesh_ids.size() != 1:
+			var collision_shape := collision.shape as BoxShape3D
+			var collision_bounds := _transformed_aabb(
+				AABB(-collision_shape.size * 0.5, collision_shape.size), collision.transform
+			)
+			var visual_bounds := _transformed_aabb(visual.mesh.get_aabb(), visual.transform) if visual != null else AABB()
+			if not visual_bounds.is_equal_approx(collision_bounds):
+				aabb_matches_collision = false
+				errors.append("four_meter_rail_visual_aabb_drift")
+	if mesh_ids.size() != 2:
 		errors.append("four_meter_rail_visual_mesh_count_drift")
 	if collision_ids.size() != FOUR_METER_RAIL_VISUAL_COUNT:
 		errors.append("four_meter_rail_collision_identity_drift")
@@ -597,8 +616,21 @@ func get_four_meter_rail_visual_allocation_audit() -> Dictionary:
 		"mesh_resource_allocations": mesh_ids.size(),
 		"collision_resource_allocations": collision_ids.size(),
 		"legacy_mesh_resource_allocations": 4,
-		"mesh_resource_allocation_delta": -3,
+		"mesh_resource_allocation_delta": -2,
+		"visual_aabbs_match_collision": aabb_matches_collision,
 	}.duplicate(true)
+
+
+func _transformed_aabb(bounds: AABB, transform: Transform3D) -> AABB:
+	var minimum := Vector3(INF, INF, INF)
+	var maximum := Vector3(-INF, -INF, -INF)
+	for x_value in [bounds.position.x, bounds.end.x]:
+		for y_value in [bounds.position.y, bounds.end.y]:
+			for z_value in [bounds.position.z, bounds.end.z]:
+				var point := transform * Vector3(x_value, y_value, z_value)
+				minimum = minimum.min(point)
+				maximum = maximum.max(point)
+	return AABB(minimum, maximum - minimum)
 
 
 func set_module_enabled(enabled: bool) -> void:
@@ -851,9 +883,12 @@ func _build_safety_rails() -> void:
 	_long_rail_visual_mesh = BoxMesh.new()
 	_long_rail_visual_mesh.resource_name = "SalvageTerraceLongRailVisualMesh"
 	_long_rail_visual_mesh.size = LONG_RAIL_VISUAL_SIZE
-	_four_meter_rail_visual_mesh = BoxMesh.new()
-	_four_meter_rail_visual_mesh.resource_name = "SalvageTerraceFourMeterRailVisualMesh"
-	_four_meter_rail_visual_mesh.size = FOUR_METER_RAIL_VISUAL_SIZE
+	_entry_front_rail_visual_mesh = BoxMesh.new()
+	_entry_front_rail_visual_mesh.resource_name = "SalvageTerraceEntryFrontRailVisualMesh"
+	_entry_front_rail_visual_mesh.size = ENTRY_FRONT_RAIL_VISUAL_SIZE
+	_top_side_rail_visual_mesh = BoxMesh.new()
+	_top_side_rail_visual_mesh.resource_name = "SalvageTerraceTopSideRailVisualMesh"
+	_top_side_rail_visual_mesh.size = TOP_SIDE_RAIL_VISUAL_SIZE
 	_add_rail("EntryFrontPort", Transform3D(Basis.IDENTITY, Vector3(-4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryFrontStarboard", Transform3D(Basis.IDENTITY, Vector3(4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryPortForward", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 1.0)), Vector3(0.16, 1.3, 2.0))
@@ -885,8 +920,10 @@ func _add_rail(node_name: String, transform: Transform3D, size: Vector3) -> void
 	var omit_hidden_renderer := node_name in SHORT_SIDE_RAIL_NAMES
 	if StringName(node_name) in LONG_RAIL_NAMES:
 		visual_mesh = _long_rail_visual_mesh
-	elif StringName(node_name) in FOUR_METER_RAIL_NAMES:
-		visual_mesh = _four_meter_rail_visual_mesh
+	elif StringName(node_name) in ENTRY_FRONT_RAIL_NAMES:
+		visual_mesh = _entry_front_rail_visual_mesh
+	elif StringName(node_name) in TOP_SIDE_RAIL_NAMES:
+		visual_mesh = _top_side_rail_visual_mesh
 	var rail := _box_body(
 		_build_root, node_name, transform, size, _materials.rail, visual_mesh,
 		omit_hidden_renderer
