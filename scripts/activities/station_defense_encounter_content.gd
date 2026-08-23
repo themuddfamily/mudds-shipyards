@@ -25,6 +25,10 @@ const PINCER_CLOSE_PREFERRED_RANGE := 22.0
 const PINCER_OUTER_PREFERRED_RANGE := 74.0
 const PINCER_CLOSE_ORBIT_SIGN := -1.0
 const PINCER_OUTER_ORBIT_SIGN := 1.0
+const INTEGRITY_STATE_STABLE: StringName = &"stable"
+const INTEGRITY_STATE_UNDER_FIRE: StringName = &"under_fire"
+const INTEGRITY_STATE_CRITICAL: StringName = &"critical"
+const INTEGRITY_STATE_FAILED: StringName = &"failed"
 const HOSTILE_WEAPON_PROFILES := {
 	HOSTILE_WEAPON_ID: {
 		"range": 170.0,
@@ -499,10 +503,35 @@ func get_snapshot() -> Dictionary:
 	)
 	var activity := (host_snapshot.get("activity", {}) as Dictionary).duplicate(true)
 	var tactic_feedback := _get_later_wave_tactic_feedback(activity)
+	var integrity_feedback := _get_protected_asset_integrity_feedback(activity)
+	var objective := str(tactic_feedback.get("objective", "DEFEND PERIMETER BEACON"))
+	if (
+		StringName(integrity_feedback.get("state_id", INTEGRITY_STATE_STABLE))
+		!= INTEGRITY_STATE_STABLE
+		and (
+			StringName(activity.get("state_id", &"idle")) == &"active"
+			or StringName(integrity_feedback.get("state_id", &""))
+			== INTEGRITY_STATE_FAILED
+		)
+	):
+		objective = "%s // %s" % [
+			objective,
+			str(integrity_feedback.get("retained_status", "PERIMETER STATUS UNKNOWN")),
+		]
 	activity["tactic_id"] = tactic_feedback.get("tactic_id", &"")
 	activity["tactic_state_id"] = tactic_feedback.get("state_id", &"idle")
-	activity["next_step"] = tactic_feedback.get("objective", "DEFEND PERIMETER BEACON")
-	activity["objective_text"] = tactic_feedback.get("objective", "DEFEND PERIMETER BEACON")
+	activity["protected_asset_integrity"] = integrity_feedback.duplicate(true)
+	activity["protected_asset_integrity_state"] = integrity_feedback.get(
+		"state_id", INTEGRITY_STATE_STABLE
+	)
+	activity["protected_asset_integrity_percent"] = int(
+		integrity_feedback.get("health_percent", 0)
+	)
+	activity["protected_asset_integrity_text"] = str(
+		integrity_feedback.get("retained_status", "")
+	)
+	activity["next_step"] = objective
+	activity["objective_text"] = objective
 	host_snapshot["activity"] = activity
 	var contract_snapshot: Dictionary = (
 		contract_definition.instantiate_contract().get_snapshot()
@@ -540,6 +569,7 @@ func get_snapshot() -> Dictionary:
 		"last_hostile_shot": _last_hostile_shot.duplicate(true),
 		"last_leash_exit": _last_leash_exit.duplicate(true),
 		"later_wave_tactic": tactic_feedback,
+		"protected_asset_integrity": integrity_feedback,
 		"engagement": {
 			"required_world_transform": AUDITED_WORLD_TRANSFORM,
 			"live_world_transform": _get_live_world_transform(),
@@ -1028,6 +1058,74 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 		],
 		"terminal_or_break_restores_nominal": true,
 		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
+## Retained, HUD-safe accessibility projection of the physical asset's one
+## authoritative health store. Four text/pattern states complement the fixed
+## beacon silhouette and align with the existing station-defense audio cues;
+## this content never emits damage, owns health, or retains a second state.
+func _get_protected_asset_integrity_feedback(activity: Dictionary) -> Dictionary:
+	var asset_snapshot := (
+		_protected_asset.get_snapshot()
+		if is_instance_valid(_protected_asset)
+		else {}
+	)
+	var maximum_health := maxf(float(asset_snapshot.get("maximum_health", 0.0)), 0.0)
+	var health := clampf(
+		float(asset_snapshot.get("health", 0.0)),
+		0.0,
+		maximum_health
+	)
+	var health_ratio := health / maximum_health if maximum_health > 0.0 else 0.0
+	var health_percent := clampi(roundi(health_ratio * 100.0), 0, 100)
+	var damage_event_count := int(asset_snapshot.get("damage_event_count", 0))
+	var state_id := INTEGRITY_STATE_STABLE
+	if bool(asset_snapshot.get("destroyed", true)) or health <= 0.0:
+		state_id = INTEGRITY_STATE_FAILED
+	elif health_ratio <= StationDefensePerimeterAsset.PRESENTATION_CRITICAL_THRESHOLD:
+		state_id = INTEGRITY_STATE_CRITICAL
+	elif (
+		damage_event_count > 0
+		or health_ratio <= StationDefensePerimeterAsset.PRESENTATION_SAFE_THRESHOLD
+	):
+		state_id = INTEGRITY_STATE_UNDER_FIRE
+
+	var label := "PERIMETER CORE STABLE"
+	var pattern := "[||||]"
+	var semantic_cue_id: StringName = &"station_defense_asset_safe"
+	match state_id:
+		INTEGRITY_STATE_UNDER_FIRE:
+			label = "PERIMETER CORE UNDER FIRE"
+			pattern = "[|||!]"
+			semantic_cue_id = &"station_defense_asset_danger"
+		INTEGRITY_STATE_CRITICAL:
+			label = "PERIMETER CORE CRITICAL"
+			pattern = "[|!!!]"
+			semantic_cue_id = &"station_defense_asset_critical"
+		INTEGRITY_STATE_FAILED:
+			label = "PERIMETER CORE FAILED"
+			pattern = "[XXXX]"
+			semantic_cue_id = &"station_defense_asset_destroyed"
+	var retained_status := "%s %d%% %s" % [label, health_percent, pattern]
+	return {
+		"state_id": state_id,
+		"label": label,
+		"health_percent": health_percent,
+		"pattern": pattern,
+		"retained_status": retained_status,
+		"semantic_cue_id": semantic_cue_id,
+		"source_health": health,
+		"source_maximum_health": maximum_health,
+		"source_damage_event_count": damage_event_count,
+		"source_asset_handle": (
+			asset_snapshot.get("asset_handle", {}) as Dictionary
+		).duplicate(true),
+		"source_activity_state_id": StringName(activity.get("state_id", &"idle")),
+		"state_count": 4,
+		"uses_color_only": false,
+		"health_authority": false,
 		"damage_authority": false,
 	}.duplicate(true)
 

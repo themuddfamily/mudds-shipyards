@@ -536,8 +536,13 @@ func _test_checked_in_encounter_content() -> void:
 		and forming_tactic.state_id == &"forming"
 		and not bool(forming_tactic.active)
 		and str(forming_tactic.objective).contains("PINCER INBOUND")
-		and content.get_snapshot().host.activity.next_step == forming_tactic.objective,
-		"inter-wave feedback clearly warns that the retained later-wave pincer is forming"
+		and str(content.get_snapshot().host.activity.next_step).begins_with(
+			str(forming_tactic.objective)
+		)
+		and str(content.get_snapshot().host.activity.next_step).contains(
+			"PERIMETER CORE UNDER FIRE 95% [|||!]"
+		),
+		"inter-wave feedback retains both the forming-pincer objective and non-color-only core pressure"
 	)
 	var relief := content.advance_physics(0.5, generation)
 	await physics_frame
@@ -673,6 +678,7 @@ func _test_checked_in_encounter_content() -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
+	var reentry_integrity := content.get_snapshot().protected_asset_integrity as Dictionary
 	_check(
 		content.get_instance_id() == retained_content_id
 		and asset.get_instance_id() == retained_asset_id
@@ -680,8 +686,11 @@ func _test_checked_in_encounter_content() -> void:
 		and bool(content.get_snapshot().host.activity.attached)
 		and resolver.get_registered_source_count() == 4
 		and int(asset.get_asset_handle().generation) == retained_asset_generation
-		and is_equal_approx(damageable.get_health(), retained_health),
-		"same-instance re-entry restores exact authority/source wiring without rebuilding or healing"
+		and is_equal_approx(damageable.get_health(), retained_health)
+		and reentry_integrity.state_id == &"stable"
+		and int(reentry_integrity.health_percent) == 100
+		and reentry_integrity.pattern == "[||||]",
+		"same-instance re-entry restores exact authority/source wiring and a fresh stable integrity readout without rebuilding or healing"
 	)
 
 	var renewal_reentry := {}
@@ -694,6 +703,7 @@ func _test_checked_in_encounter_content() -> void:
 	)
 	var first_asset_hit := await _shoot(authority, attacker, asset)
 	var danger_presentation := asset.get_protected_asset_presentation_snapshot()
+	var danger_integrity := content.get_snapshot().protected_asset_integrity as Dictionary
 	_check(
 		first_asset_hit.damaged
 		and danger_presentation.state_id == &"danger"
@@ -703,11 +713,19 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(float(danger_presentation.ring_scale), 1.12)
 		and is_equal_approx(float(danger_presentation.core_scale), 0.92)
 		and (danger_presentation.light_color as Color).is_equal_approx(Color("ffb14e"))
-		and is_equal_approx(float(danger_presentation.light_energy), 3.1),
-		"real authoritative damage expands the ring and warms the practical into a readable danger state"
+		and is_equal_approx(float(danger_presentation.light_energy), 3.1)
+		and danger_integrity.state_id == &"under_fire"
+		and int(danger_integrity.health_percent) == 58
+		and danger_integrity.pattern == "[|||!]"
+		and danger_integrity.semantic_cue_id == &"station_defense_asset_danger"
+		and str(content.get_snapshot().host.activity.next_step).contains(
+			"PERIMETER CORE UNDER FIRE 58% [|||!]"
+		),
+		"real authoritative damage adds an explicit under-fire percent/pattern to the retained objective alongside the beacon silhouette"
 	)
 	var second_asset_hit := await _shoot(authority, attacker, asset)
 	var critical_presentation := asset.get_protected_asset_presentation_snapshot()
+	var critical_integrity := content.get_snapshot().protected_asset_integrity as Dictionary
 	_check(
 		second_asset_hit.damaged
 		and critical_presentation.state_id == &"critical"
@@ -716,8 +734,13 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(float(critical_presentation.ring_scale), 1.28)
 		and is_equal_approx(float(critical_presentation.core_scale), 0.78)
 		and (critical_presentation.light_color as Color).is_equal_approx(Color("ff3b35"))
-		and is_equal_approx(float(critical_presentation.light_energy), 4.2),
-		"second real hit widens the silhouette and turns its bounded practical critical red"
+		and is_equal_approx(float(critical_presentation.light_energy), 4.2)
+		and critical_integrity.state_id == &"critical"
+		and int(critical_integrity.health_percent) == 17
+		and critical_integrity.pattern == "[|!!!]"
+		and critical_integrity.semantic_cue_id == &"station_defense_asset_critical"
+		and content.get_snapshot().host.activity.protected_asset_integrity_state == &"critical",
+		"second real hit exposes critical text, percentage, and pattern through the retained HUD-safe activity"
 	)
 	var terminal_asset_hit := await _shoot(authority, attacker, asset)
 	var asset_failure := content.get_snapshot()
@@ -728,8 +751,16 @@ func _test_checked_in_encounter_content() -> void:
 		and asset.collision_layer == PhysicsLayers.NONE
 		and asset_failure.host.activity.state_id == &"failed"
 		and asset_failure.host.activity.failure_reason == &"protected_asset_destroyed"
+		and asset_failure.protected_asset_integrity.state_id == &"failed"
+		and int(asset_failure.protected_asset_integrity.health_percent) == 0
+		and asset_failure.protected_asset_integrity.pattern == "[XXXX]"
+		and asset_failure.protected_asset_integrity.semantic_cue_id \
+			== &"station_defense_asset_destroyed"
+		and str(asset_failure.host.activity.next_step).contains(
+			"PERIMETER CORE FAILED 0% [XXXX]"
+		)
 		and resolver.get_registered_source_count() == 1,
-		"only AuthoritativeDamageable health emits protected destruction, which the host observes and terminalizes"
+		"only AuthoritativeDamageable health terminalizes the activity and retains an explicit failed/recovery readout"
 	)
 	_check(
 		destroyed_presentation.state_id == &"destroyed"
@@ -753,6 +784,7 @@ func _test_checked_in_encounter_content() -> void:
 	var reset_after_asset_failure := content.reset(reentry_generation)
 	var renewed_generation := int(asset.get_asset_handle().generation)
 	var renewed_presentation := asset.get_protected_asset_presentation_snapshot()
+	var renewed_integrity := content.get_snapshot().protected_asset_integrity as Dictionary
 	var leash_start := content.start(int(reset_after_asset_failure.activity.generation))
 	var leash_generation := int(leash_start.activity.generation)
 	_check(
@@ -779,8 +811,15 @@ func _test_checked_in_encounter_content() -> void:
 		and signal_core.get_instance_id() == signal_core_id
 		and signal_light.get_instance_id() == signal_light_id
 		and signal_ring.mesh.get_instance_id() == signal_ring_mesh_id
-		and signal_core.mesh.get_instance_id() == signal_core_mesh_id,
-		"renewal restores the cyan full-form beacon on the same fixed nodes and resources"
+		and signal_core.mesh.get_instance_id() == signal_core_mesh_id
+		and renewed_integrity.state_id == &"stable"
+		and int(renewed_integrity.health_percent) == 100
+		and renewed_integrity.pattern == "[||||]"
+		and renewed_integrity.semantic_cue_id == &"station_defense_asset_safe"
+		and not str(content.get_snapshot().host.activity.next_step).contains("UNDER FIRE")
+		and not str(content.get_snapshot().host.activity.next_step).contains("CRITICAL")
+		and not str(content.get_snapshot().host.activity.next_step).contains("FAILED"),
+		"renewal clears pressure feedback and restores stable text/pattern on the same fixed beacon nodes and resources"
 	)
 	alpha.global_position = content.to_global(Vector3(40.0, 8.0, -60.0))
 	var leash_result := content.advance_physics(0.0, leash_generation)
