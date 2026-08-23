@@ -3201,6 +3201,8 @@ var _functional_cockpit: Node3D
 var _functional_canopy: Node3D
 var _engine_plumes: Array[MeshInstance3D] = []
 var _plume_base_scales: Dictionary = {}
+var _close_plume_batch: MultiMeshInstance3D
+var _close_plume_sources: Array[MeshInstance3D] = []
 var _identity_snapshot: Dictionary = {}
 
 
@@ -3524,6 +3526,7 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 		add_child(collision)
 
 	_collect_engine_plumes()
+	_install_close_plume_batch()
 	for collision in inherited_collisions:
 		collision.queue_free()
 	if inherited_visual.get_parent() != null:
@@ -3721,6 +3724,154 @@ func _collect_engine_plumes() -> void:
 			_plume_base_scales[plume.get_instance_id()] = plume.scale
 
 
+## The imported static families are already joined. The first remaining safe
+## repeated renderer family is the pair of modern close-LOD exhaust plumes.
+## Keep both protected authored nodes alive as the semantic/dynamic authority,
+## but render their exact transforms through one bounded MultiMesh submission.
+func _install_close_plume_batch() -> void:
+	_close_plume_batch = null
+	_close_plume_sources.clear()
+	var port: MeshInstance3D = null
+	var starboard: MeshInstance3D = null
+	for plume in _engine_plumes:
+		if plume.name == &"PortEnginePlume":
+			port = plume
+		elif plume.name == &"StarboardEnginePlume":
+			starboard = plume
+	if (
+		port == null or starboard == null
+		or port.get_parent() != starboard.get_parent()
+		or not port.get_parent() is Node3D
+		or port.mesh == null or starboard.mesh == null
+		or not _meshes_render_identically(
+			port.mesh, starboard.mesh, port.material_override
+		)
+		or port.material_override != starboard.material_override
+		or port.material_overlay != starboard.material_overlay
+		or port.cast_shadow != starboard.cast_shadow
+		or port.layers != starboard.layers
+		or not is_equal_approx(port.extra_cull_margin, starboard.extra_cull_margin)
+		or not is_equal_approx(port.lod_bias, starboard.lod_bias)
+		or port.ignore_occlusion_culling != starboard.ignore_occlusion_culling
+		or port.gi_mode != starboard.gi_mode
+		or not is_equal_approx(port.transparency, starboard.transparency)
+		or port.visibility_range_begin != starboard.visibility_range_begin
+		or port.visibility_range_end != starboard.visibility_range_end
+		or port.visibility_range_begin_margin != starboard.visibility_range_begin_margin
+		or port.visibility_range_end_margin != starboard.visibility_range_end_margin
+		or port.visibility_range_fade_mode != starboard.visibility_range_fade_mode
+	):
+		return
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = port.mesh
+	multi.instance_count = 2
+	multi.visible_instance_count = -1
+	multi.set_instance_transform(0, port.transform)
+	multi.set_instance_transform(1, starboard.transform)
+
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "CloseEnginePlumeBatch"
+	batch.multimesh = multi
+	batch.material_override = port.material_override
+	batch.material_overlay = port.material_overlay
+	batch.cast_shadow = port.cast_shadow
+	batch.layers = port.layers
+	batch.extra_cull_margin = port.extra_cull_margin
+	batch.lod_bias = port.lod_bias
+	batch.ignore_occlusion_culling = port.ignore_occlusion_culling
+	batch.gi_mode = port.gi_mode
+	batch.transparency = port.transparency
+	batch.visibility_range_begin = port.visibility_range_begin
+	batch.visibility_range_end = port.visibility_range_end
+	batch.visibility_range_begin_margin = port.visibility_range_begin_margin
+	batch.visibility_range_end_margin = port.visibility_range_end_margin
+	batch.visibility_range_fade_mode = port.visibility_range_fade_mode
+	batch.set_meta("authored_instance_transforms", [port.transform, starboard.transform])
+	batch.set_meta("visual_only", true)
+	(port.get_parent() as Node3D).add_child(batch)
+	_close_plume_batch = batch
+	_close_plume_sources.assign([port, starboard])
+	# The authored nodes remain live, visible and transform-authoritative; a zero
+	# renderer-layer mask prevents their two legacy submissions from duplicating
+	# the MultiMesh copies.
+	port.layers = 0
+	starboard.layers = 0
+	_sync_close_plume_batch()
+
+
+func _sync_close_plume_batch() -> void:
+	if _close_plume_batch == null or not is_instance_valid(_close_plume_batch) \
+			or _close_plume_batch.multimesh == null or _close_plume_sources.size() != 2:
+		return
+	var any_visible := false
+	var authored_transforms: Array[Transform3D] = []
+	var batch_bounds := AABB()
+	var batch_mesh := _close_plume_batch.multimesh.mesh
+	for index in _close_plume_sources.size():
+		var source := _close_plume_sources[index]
+		if not is_instance_valid(source):
+			return
+		_close_plume_batch.multimesh.set_instance_transform(index, source.transform)
+		authored_transforms.append(source.transform)
+		var instance_bounds := _transformed_aabb(batch_mesh.get_aabb(), source.transform)
+		batch_bounds = instance_bounds if index == 0 else batch_bounds.merge(instance_bounds)
+		any_visible = any_visible or source.visible
+	# Headless rendering has no readable MultiMesh buffer, so retain the exact
+	# CPU-authored transforms beside the renderer resource for focused checks.
+	_close_plume_batch.set_meta("authored_instance_transforms", authored_transforms)
+	_close_plume_batch.multimesh.custom_aabb = batch_bounds
+	_close_plume_batch.visible = any_visible
+
+
+static func _meshes_render_identically(
+	left: Mesh, right: Mesh, material_override: Material
+) -> bool:
+	if left == null or right == null \
+			or left.get_surface_count() != right.get_surface_count() \
+			or not left.get_aabb().is_equal_approx(right.get_aabb()) \
+			or not _material_is_texture_free(material_override):
+		return false
+	for surface_index in left.get_surface_count():
+		if left.surface_get_primitive_type(surface_index) != right.surface_get_primitive_type(surface_index) \
+				or left.surface_get_format(surface_index) != right.surface_get_format(surface_index):
+			return false
+		var left_arrays := left.surface_get_arrays(surface_index)
+		var right_arrays := right.surface_get_arrays(surface_index)
+		if left_arrays.size() != right_arrays.size():
+			return false
+		for array_index in left_arrays.size():
+			if array_index == Mesh.ARRAY_TEX_UV:
+				continue
+			if left_arrays[array_index] != right_arrays[array_index]:
+				return false
+	return true
+
+
+static func _material_is_texture_free(material: Material) -> bool:
+	if not material is StandardMaterial3D:
+		return false
+	for property_value: Variant in material.get_property_list():
+		var property := property_value as Dictionary
+		var property_name := str(property.get("name", ""))
+		if "texture" in property_name and material.get(property_name) is Texture2D:
+			return false
+	return true
+
+
+static func _transformed_aabb(source: AABB, transform_value: Transform3D) -> AABB:
+	var minimum := Vector3.INF
+	var maximum := -Vector3.INF
+	for x in [source.position.x, source.end.x]:
+		for y in [source.position.y, source.end.y]:
+			for z in [source.position.z, source.end.z]:
+				var point := transform_value * Vector3(x, y, z)
+				minimum = minimum.min(point)
+				maximum = maximum.max(point)
+	return AABB(minimum, maximum - minimum)
+
+
 func _update_zenith_engine_presentation(delta: float) -> void:
 	var telemetry := get_telemetry()
 	var engine_state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
@@ -3741,6 +3892,7 @@ func _update_zenith_engine_presentation(delta: float) -> void:
 		var target_scale := base_scale
 		target_scale.z = base_scale.z * (0.55 + target_level * 1.25) if active else base_scale.z
 		plume.scale = plume.scale.lerp(target_scale, 1.0 - exp(-10.0 * maxf(delta, 0.0)))
+	_sync_close_plume_batch()
 
 
 func _sync_zenith_engine_presentation_immediately() -> void:
@@ -3755,6 +3907,7 @@ func _sync_zenith_engine_presentation_immediately() -> void:
 		var scale_value := base_scale
 		scale_value.z = base_scale.z * (0.90 if active else 1.0)
 		plume.scale = scale_value
+	_sync_close_plume_batch()
 
 
 func _sync_zenith_canopy_immediately() -> void:
@@ -3982,6 +4135,15 @@ func _capture_runtime_identities() -> Dictionary:
 		"collision_shape_resource_ids": collision_shape_ids,
 		"plume_node_ids": plume_node_ids,
 		"plume_mesh_resource_ids": plume_mesh_ids,
+		"close_plume_batch_id": (
+			_close_plume_batch.get_instance_id()
+			if _close_plume_batch != null and is_instance_valid(_close_plume_batch) else 0
+		),
+		"close_plume_multimesh_id": (
+			_close_plume_batch.multimesh.get_instance_id()
+			if _close_plume_batch != null and is_instance_valid(_close_plume_batch)
+				and _close_plume_batch.multimesh != null else 0
+		),
 	}
 
 

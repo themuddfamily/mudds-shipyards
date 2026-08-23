@@ -3270,6 +3270,42 @@ func _test_authored_asset_and_runtime_authority(zenith: ZenithInterceptor) -> vo
 	_check(presentation != null and presentation.get_parent() == visual and presentation.transform.is_equal_approx(Transform3D.IDENTITY), "authored presentation is identity-mounted under ZenithVisual")
 	var asset_root := presentation.call("get_asset_root") as Node3D
 	_check(asset_root != null and _direct_names(asset_root) == PackedStringArray(["ModernSystems", "SourceCore"]), "imported asset retains exact source/modern root split")
+	var close_plume_batch := asset_root.get_node_or_null(
+		"ModernSystems/LOD0/CloseEnginePlumeBatch"
+	) as MultiMeshInstance3D if asset_root != null else null
+	var port_plume := asset_root.find_child(
+		"PortEnginePlume", true, false
+	) as MeshInstance3D if asset_root != null else null
+	var starboard_plume := asset_root.find_child(
+		"StarboardEnginePlume", true, false
+	) as MeshInstance3D if asset_root != null else null
+	var close_plume_transforms := close_plume_batch.get_meta(
+		"authored_instance_transforms", []
+	) as Array if close_plume_batch != null else []
+	_check(
+		close_plume_batch != null and close_plume_batch.multimesh != null
+		and close_plume_batch.multimesh.instance_count == 2
+		and port_plume != null and starboard_plume != null
+		and close_plume_batch.multimesh.mesh == port_plume.mesh
+		and close_plume_batch.material_override == port_plume.material_override
+		and close_plume_batch.material_overlay == port_plume.material_overlay
+		and port_plume.material_override == starboard_plume.material_override
+		and close_plume_batch.cast_shadow == port_plume.cast_shadow
+		and close_plume_batch.extra_cull_margin == port_plume.extra_cull_margin
+		and close_plume_batch.lod_bias == port_plume.lod_bias
+		and close_plume_batch.ignore_occlusion_culling == port_plume.ignore_occlusion_culling
+		and close_plume_batch.gi_mode == port_plume.gi_mode
+		and close_plume_batch.transparency == port_plume.transparency
+		and close_plume_batch.layers == 1
+		and port_plume.layers == 0 and starboard_plume.layers == 0
+		and close_plume_transforms.size() == 2
+		and (close_plume_transforms[0] as Transform3D).is_equal_approx(port_plume.transform)
+		and (close_plume_transforms[1] as Transform3D).is_equal_approx(starboard_plume.transform)
+		and close_plume_batch.multimesh.custom_aabb.is_equal_approx(
+			AABB(Vector3(-2.51, 0.07, 4.86), Vector3(5.02, 0.62, 0.44))
+		),
+		"close plumes render as one exactly bounded two-copy MultiMesh while both authored nodes remain live"
+	)
 	var sharing := authored.close_navigation_light_resource_sharing as Dictionary
 	print(
 		"ZENITH_CLOSE_NAV_RESOURCE_SHARING: nodes %d->%d resources %d->%d submissions %d->%d visible_copies %d->%d"
@@ -3514,6 +3550,22 @@ func _test_engine_flight_weapon_damage_reuse(zenith: ZenithInterceptor) -> void:
 		await physics_frame
 	_check(str(zenith.get_telemetry().engine_state) == "ONLINE", "Zenith completes inherited engine startup")
 	_check(_all_plumes_visible(zenith, true), "all close/far plumes remain enabled online")
+	var online_asset_root := zenith.get_zenith_authored_presentation().call("get_asset_root") as Node3D
+	var online_batch := online_asset_root.get_node_or_null(
+		"ModernSystems/LOD0/CloseEnginePlumeBatch"
+	) as MultiMeshInstance3D
+	var online_port := online_asset_root.find_child("PortEnginePlume", true, false) as MeshInstance3D
+	var online_starboard := online_asset_root.find_child("StarboardEnginePlume", true, false) as MeshInstance3D
+	var online_transforms := online_batch.get_meta(
+		"authored_instance_transforms", []
+	) as Array if online_batch != null else []
+	_check(
+		online_batch != null and online_batch.visible
+		and online_transforms.size() == 2
+		and (online_transforms[0] as Transform3D).is_equal_approx(online_port.transform)
+		and (online_transforms[1] as Transform3D).is_equal_approx(online_starboard.transform),
+		"close plume MultiMesh mirrors both live authored scaling transforms online"
+	)
 	var plume_scales_are_finite := true
 	for plume in zenith.get_zenith_engine_plumes():
 		plume_scales_are_finite = plume_scales_are_finite and plume.scale.is_finite() and plume.scale.x >= 0.0 and plume.scale.y >= 0.0 and plume.scale.z >= 0.0
