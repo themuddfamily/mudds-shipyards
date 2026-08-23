@@ -86,6 +86,7 @@ const RECOMMENDED_WORLD_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(-53.0, 
 const DOCK_GUIDE_SIZE := Vector3(1.6, 0.105, 0.22)
 const DOCK_GUIDE_Z_POSITIONS := [13.0, 18.0, 23.0, 34.0, 39.0, 44.0]
 const DOCK_GUIDE_COPY_COUNT := 12
+const LASHING_PLATE_COPY_COUNT := 8
 
 ## Explicit selector for the eight recessed visual-only lashing rings. The
 ## torus budget reads its own profile metadata; this second family tag makes the
@@ -141,14 +142,14 @@ const DOCK_GUIDE_BATCH_CENSUS_BEFORE := {
 	"collision_shapes": 210,
 }
 const DOCK_GUIDE_BATCH_CENSUS_AFTER := {
-	"descendant_nodes": 909,
-	"mesh_instance_nodes": 427,
-	"multimesh_nodes": 1,
-	"geometry_submissions": 428,
-	"visible_geometry_copies": 439,
-	"drawn_triangles": 61252,
-	"static_bodies": 207,
-	"collision_shapes": 210,
+	"descendant_nodes": 907,
+	"mesh_instance_nodes": 418,
+	"multimesh_nodes": 2,
+	"geometry_submissions": 420,
+	"visible_geometry_copies": 438,
+	"drawn_triangles": 61192,
+	"static_bodies": 206,
+	"collision_shapes": 209,
 }
 
 # Full authored-module declaration. The root is the connection plane and local
@@ -1729,18 +1730,19 @@ func _build_handling_zones() -> void:
 	# Securing points. Recessed lashing rings on the hull tie-down line, drawn
 	# flush: a ring standing proud of a working apron is a trip hazard, and one
 	# hovering over it is the defect this module has been clearing all day.
+	var lashing_plate_transforms: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
 		var side_tag := "Port" if side < 0.0 else "Starboard"
 		for index in 4:
 			var z_position := 16.0 + float(index) * 8.0
-			_rounded_box(
-				zones,
-				"LashingPlate%s%02d" % [side_tag, index + 1],
-				Vector3(side * 10.6, 0.025, z_position),
-				Vector3(0.62, 0.05, 0.62),
-				_materials["graphite"],
-				false
-			)
+			var plate_position := Vector3(side * 10.6, 0.025, z_position)
+			var plate_anchor := Marker3D.new()
+			plate_anchor.name = "LashingPlate%s%02d" % [side_tag, index + 1]
+			plate_anchor.position = plate_position
+			plate_anchor.set_meta("presentation_only", true)
+			plate_anchor.set_meta("collision_free", true)
+			zones.add_child(plate_anchor)
+			lashing_plate_transforms.append(Transform3D(Basis.IDENTITY, plate_position))
 			var lashing_ring := _torus(
 				zones,
 				"LashingRing%s%02d" % [side_tag, index + 1],
@@ -1756,6 +1758,15 @@ func _build_handling_zones() -> void:
 				TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING
 			)
 			lashing_ring.set_meta(LASHING_RING_FAMILY_META, LASHING_RING_FAMILY_ID)
+	var lashing_plate_batch := _multimesh_rounded_boxes(
+		zones,
+		"LashingPlateBatch",
+		Vector3(0.62, 0.05, 0.62),
+		_materials["graphite"],
+		lashing_plate_transforms,
+		&"recessed-lashing-plates"
+	)
+	lashing_plate_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	_build_staging_bay(zones, "Port", STAGING_BAY_PORT_CENTER)
 	_build_staging_bay(zones, "Starboard", STAGING_BAY_STARBOARD_CENTER)

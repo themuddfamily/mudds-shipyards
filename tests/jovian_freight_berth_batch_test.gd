@@ -62,8 +62,8 @@ func _run() -> void:
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
 	_check(
-		int(collision.body_count) == 207
-		and int(collision.shape_count) == 210
+		int(collision.body_count) == 206
+		and int(collision.shape_count) == 209
 		and bool(collision.all_layers_match_lifecycle)
 		and bool(collision.all_masks_zero)
 		and bool(collision.all_shapes_present_and_enabled),
