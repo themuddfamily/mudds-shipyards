@@ -277,6 +277,121 @@ func _run() -> void:
 	await physics_frame
 	_check(cleared[0] == 2 and clear_reason[0] == &"role_released", "detach clears replacement target state")
 
+	var component_model := craft.get_component_damage()
+	_check(component_model != null and component_model.is_configured(), "Bulwark exposes the existing component damage ledger")
+	component_model.record_damage(300.0)
+	var failed_component := craft.get_gunner_gameplay_state().get("gunner_component", {}) as Dictionary
+	_check(
+		not bool(failed_component.get("available", true))
+			and failed_component.get("reason", &"") == &"gunner_weapon_component_failed",
+		"a failed weapon component blocks a new gunner charge with an inspectable reason"
+	)
+	_check(
+		bool(authority.claim(1, 88, &"fresh_gunner", &"gunner_station", Authority.ROLE_GUNNER, 13).get("accepted", false)),
+		"server admits a fresh gunner after the previous release"
+	)
+	var blocked = craft.submit_crew_intent(
+		1,
+		88,
+		&"fresh_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": Bulwark.BULWARK_CREW_WEAPON_ID,
+			"target_id": &"failed_target",
+			"trigger": true,
+			"target_generation": 3,
+		},
+		14
+	)
+	_check(
+		bool(blocked.get("accepted", false))
+			and not bool(blocked.get("consumed", false))
+			and (blocked.get("effect", {}) as Dictionary).get("status", &"") == &"gunner_weapon_component_failed",
+		"failed component rejects the authorized gunner dispatch before charge"
+	)
+	craft.set("_landed", true)
+	var repaired_once: Dictionary = craft.submit_crew_intent(
+		1,
+		77,
+		&"bulwark_engineer",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{
+			"system_id": &"port_wing",
+			"repair": 0.1,
+			"system_generation": 1,
+		},
+		2
+	)
+	_check(
+		bool(repaired_once.get("accepted", false))
+			and bool(repaired_once.get("consumed", false))
+			and (repaired_once.get("effect", {}) as Dictionary).get("status", &"") == &"repair_applied",
+		"the authorized engineer restores the same component ledger"
+	)
+	var impaired_component := craft.get_gunner_gameplay_state().get("gunner_component", {}) as Dictionary
+	_check(
+		bool(impaired_component.get("available", false))
+			and float(impaired_component.get("fire_multiplier", 1.0)) < 1.0,
+		"a damaged weapon component exposes a reduced allowed cadence"
+	)
+	# Keep the craft in the damaged flight state while the charge/cooldown
+	# evidence is observed; HeroShip's automatic berth repair remains untouched.
+	craft.set("_landed", false)
+	var impaired_charge: Dictionary = craft.submit_crew_intent(
+		1,
+		88,
+		&"fresh_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": Bulwark.BULWARK_CREW_WEAPON_ID,
+			"target_id": &"impaired_target",
+			"trigger": true,
+			"target_generation": 3,
+		},
+		15
+	)
+	var impaired_effect := impaired_charge.get("effect", {}) as Dictionary
+	_check(
+		bool(impaired_charge.get("accepted", false))
+			and impaired_effect.get("status", &"") == &"charge_started"
+			and float(impaired_effect.get("charge_remaining", 0.0)) > Bulwark.GUNNER_SIEGE_CHARGE_TIME,
+		"impaired weapon component lengthens the siege-lance charge window"
+	)
+	for _frame in 100:
+		await physics_frame
+	var impaired_fire: Dictionary = craft.submit_crew_intent(
+		1,
+		88,
+		&"fresh_gunner",
+		Authority.ACTION_GUNNER_FIRE,
+		{
+			"weapon_id": Bulwark.BULWARK_CREW_WEAPON_ID,
+			"target_id": &"impaired_target",
+			"trigger": true,
+			"target_generation": 3,
+		},
+		16
+	)
+	_check(
+		bool(impaired_fire.get("consumed", false))
+			and float((impaired_fire.get("effect", {}) as Dictionary).get("cooldown_remaining", 0.0)) > 1.0 / 0.2083333,
+		"impaired weapon component lengthens the resolved siege-lance cooldown"
+	)
+	craft.set("_landed", true)
+	var repaired_nominal: Dictionary = craft.submit_crew_intent(
+		1,
+		77,
+		&"bulwark_engineer",
+		Authority.ACTION_ENGINEER_REPAIR,
+		{
+			"system_id": &"port_wing",
+			"repair": 0.1,
+			"system_generation": 1,
+		},
+		3
+	)
+	_check(bool(repaired_nominal.get("consumed", false)), "engineer repair returns the weapon component toward nominal")
+
 	craft.queue_free()
 	await process_frame
 	_finish()
@@ -304,6 +419,10 @@ func _build_authority():
 	_check(
 		bool(authority.claim(1, 88, &"bulwark_gunner", &"gunner_station", Authority.ROLE_GUNNER, 1).get("accepted", false)),
 		"server admits the optional gunner at the physical station"
+	)
+	_check(
+		bool(authority.claim(1, 77, &"bulwark_engineer", &"engineer_slot", Authority.ROLE_ENGINEER, 1).get("accepted", false)),
+		"server admits the optional engineer at the systems station"
 	)
 	return authority
 

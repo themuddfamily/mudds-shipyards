@@ -45,6 +45,7 @@ const MAX_GUNNER_AMMUNITION := 8
 const GUNNER_SIEGE_CHARGE_TIME := 0.45
 const GUNNER_SEAT_ID: StringName = &"gunner_station"
 const PILOT_SEAT_ID: StringName = &"pilot_station"
+const ENGINEER_SEAT_ID: StringName = &"engineer_slot"
 
 const HULL_COLLISION_SIZE := Vector3(6.9, 3.1, 10.8)
 const SHOULDER_COLLISION_SIZE := Vector3(11.6, 2.1, 5.8)
@@ -64,6 +65,8 @@ var _gunner_role_ammunition: Dictionary = {}
 var _gunner_role_charges: Dictionary = {}
 var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
+var _engineer_component_selection: Dictionary = {}
+var _engineer_component_generation := 1
 var _siege_lance_audio_sequence := 0
 
 signal gunner_target_selected(target_id: StringName, target_generation: int, receipt: Dictionary)
@@ -160,6 +163,8 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_clear_all_gunner_charges(&"ship_reused")
 	_clear_gunner_target_selection(&"ship_reused", false)
 	_gunner_target_generation = 1
+	_clear_engineer_component_selection(&"ship_reused", false)
+	_engineer_component_generation = 1
 
 
 func apply_damage(
@@ -181,6 +186,7 @@ func apply_damage(
 		_gunner_role_ammunition.clear()
 		_clear_all_gunner_charges(&"ship_destroyed")
 		_clear_gunner_target_selection(&"ship_destroyed")
+		_clear_engineer_component_selection(&"ship_destroyed")
 
 
 func _build_bulwark_variant(_controller: HeroShip) -> bool:
@@ -389,6 +395,29 @@ func get_gunner_weapon_definition() -> WeaponDefinition:
 	return _gunner_weapon_definition.duplicate(true) as WeaponDefinition
 
 
+func _get_gunner_component_operational_state() -> Dictionary:
+	var modifiers := get_operational_modifiers()
+	if modifiers.is_empty():
+		return {"available": false, "reason": &"component_damage_unavailable"}
+	var fire_multiplier := clampf(float(modifiers.get("fire_multiplier", 0.0)), 0.0, 1.0)
+	if fire_multiplier <= 0.0 or bool(modifiers.get("fire_disabled", true)):
+		return {
+			"available": false,
+			"reason": &"gunner_weapon_component_failed",
+			"fire_multiplier": fire_multiplier,
+			"modifiers": modifiers.duplicate(true),
+		}.duplicate(true)
+	var base_cooldown := 1.0 / maxf(float(_gunner_weapon_definition.cadence_shots_per_second), 0.001)
+	return {
+		"available": true,
+		"reason": &"component_operational",
+		"fire_multiplier": fire_multiplier,
+		"charge_time": GUNNER_SIEGE_CHARGE_TIME / fire_multiplier,
+		"cooldown": base_cooldown / fire_multiplier,
+		"modifiers": modifiers.duplicate(true),
+	}.duplicate(true)
+
+
 ## Admits one authority receipt and immediately routes the bounded gunner edge
 ## into the shared CombatResolver hitscan seam. Pilot control remains the
 ## normal HeroShip path and is never gated by this optional station.
@@ -407,6 +436,30 @@ func submit_crew_intent(
 		return _crew_role_result(false, &"assignment_not_found")
 	if StringName(assignment.get("vessel_id", &"")) != get_ship_id():
 		return _crew_role_result(false, &"foreign_vessel")
+	if StringName(assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_ENGINEER \
+			and StringName(assignment.get("seat_id", &"")) == ENGINEER_SEAT_ID \
+			and action == CrewRoleGameplayProfileType.ACTION_ENGINEER_REPAIR:
+		var repair_admission := _crew_role_authority.submit_intent(
+			source_peer_id,
+			occupant_peer_id,
+			avatar_id,
+			action,
+			payload,
+			request_sequence
+		)
+		if not bool(repair_admission.get("accepted", false)):
+			return repair_admission
+		var repair_effect := _consume_engineer_repair_intent(
+			repair_admission.get("intent", {}) as Dictionary
+		)
+		var repair_result := repair_admission.duplicate(true)
+		repair_result["status"] = (
+			&"intent_consumed" if bool(repair_effect.get("accepted", false))
+			else &"intent_effect_rejected"
+		)
+		repair_result["consumed"] = bool(repair_effect.get("accepted", false))
+		repair_result["effect"] = repair_effect
+		return repair_result
 	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_GUNNER \
 			or StringName(assignment.get("seat_id", &"")) != GUNNER_SEAT_ID \
 			or action != CrewRoleGameplayProfileType.ACTION_GUNNER_FIRE:
@@ -449,6 +502,7 @@ func release_crew_role(
 	)
 	if bool(result.get("accepted", false)):
 		_clear_gunner_role_state(occupant_peer_id, avatar_id, &"role_released")
+		_clear_engineer_component_state(occupant_peer_id, avatar_id, &"role_released")
 	return result
 
 
@@ -480,6 +534,7 @@ func handoff_crew_role(
 	)
 	if bool(result.get("accepted", false)):
 		_clear_gunner_role_state(previous_occupant_peer_id, previous_avatar_id, &"role_handoff")
+		_clear_engineer_component_state(previous_occupant_peer_id, previous_avatar_id, &"role_handoff")
 	return result
 
 
@@ -494,6 +549,9 @@ func get_gunner_gameplay_state() -> Dictionary:
 		"role_cooldowns": _gunner_role_cooldowns.duplicate(true),
 		"role_ammunition": _gunner_role_ammunition.duplicate(true),
 		"role_charges": _gunner_role_charges.duplicate(true),
+		"engineer_component_generation": _engineer_component_generation,
+		"engineer_component_selection": _engineer_component_selection.duplicate(true),
+		"gunner_component": _get_gunner_component_operational_state(),
 	}.duplicate(true)
 
 
@@ -522,13 +580,31 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	if float(_gunner_role_cooldowns.get(actor_key, 0.0)) > 0.0:
 		return _crew_role_result(false, &"role_cooldown")
 	if not _gunner_role_charges.has(actor_key):
-		_start_gunner_charge(intent, target_id, target_generation)
-		return _gunner_charge_result(actor_key, &"charge_started", selection)
+		var component_state := _get_gunner_component_operational_state()
+		if not bool(component_state.get("available", false)):
+			var blocked := _crew_role_result(
+				false,
+				StringName(component_state.get("reason", &"component_damage_unavailable"))
+			)
+			blocked["component"] = component_state.duplicate(true)
+			return blocked
+		_start_gunner_charge(
+			intent,
+			target_id,
+			target_generation,
+			float(component_state.get("charge_time", GUNNER_SIEGE_CHARGE_TIME))
+		)
+		var started := _gunner_charge_result(actor_key, &"charge_started", selection)
+		started["component"] = component_state.duplicate(true)
+		return started
 	var charge := _gunner_role_charges.get(actor_key, {}) as Dictionary
 	if not _is_gunner_charge_authorized(intent, charge):
 		_cancel_gunner_charge(actor_key, &"charge_revalidated_failed")
 		return _crew_role_result(false, &"stale_charge_authorization")
-	var charge_progress := float(charge.get("elapsed", 0.0)) / GUNNER_SIEGE_CHARGE_TIME
+	var charge_progress := float(charge.get("elapsed", 0.0)) / maxf(
+		float(charge.get("charge_time", GUNNER_SIEGE_CHARGE_TIME)),
+		0.001
+	)
 	if charge_progress < 1.0:
 		return _gunner_charge_result(actor_key, &"charge_progress", selection)
 	var ammunition := mini(int(_gunner_role_ammunition.get(actor_key, 2)), MAX_GUNNER_AMMUNITION)
@@ -539,6 +615,12 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 		return _crew_role_result(false, &"combat_authority_unavailable")
 	if authority.get_weapon_profile(self, weapon_id).is_empty():
 		return _crew_role_result(false, &"weapon_not_registered")
+	var component_state := _get_gunner_component_operational_state()
+	if not bool(component_state.get("available", false)):
+		_cancel_gunner_charge(actor_key, StringName(component_state.get("reason", &"component_damage_unavailable")))
+		var blocked := _crew_role_result(false, StringName(component_state.get("reason", &"component_damage_unavailable")))
+		blocked["component"] = component_state.duplicate(true)
+		return blocked
 	var origin: Vector3 = payload.get("origin", global_position)
 	var direction: Vector3 = payload.get("direction", -global_basis.z)
 	if not origin.is_finite() or not direction.is_finite() or direction.length_squared() <= 0.000001:
@@ -560,10 +642,10 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	effect["selection"] = selection
 	effect["request_sequence"] = int(intent.get("request_sequence", -1))
 	effect["seat_generation"] = int(intent.get("seat_generation", 0))
-	var cadence := maxf(float(_gunner_weapon_definition.cadence_shots_per_second), 0.001)
-	var cooldown := 1.0 / cadence
+	var cooldown := float(component_state.get("cooldown", 1.0))
 	effect["cooldown_remaining"] = cooldown
 	effect["ammunition_remaining"] = ammunition - 1
+	effect["component"] = component_state.duplicate(true)
 	_gunner_role_cooldowns[actor_key] = cooldown
 	_gunner_role_ammunition[actor_key] = ammunition - 1
 	_cancel_gunner_charge(actor_key, &"dispatched")
@@ -580,6 +662,89 @@ func _emit_siege_lance_audio(event_id: StringName) -> void:
 		"event_id": event_id,
 		"accepted": true,
 	}.duplicate(true))
+
+
+func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
+	var payload := intent.get("payload", {}) as Dictionary
+	var component_id := StringName(payload.get("system_id", &""))
+	var requested_repair := float(payload.get("repair", 0.0))
+	var component_generation := int(payload.get("system_generation", 0))
+	var model := get_component_damage()
+	if model == null or not model.is_configured():
+		return _crew_role_result(false, &"component_damage_unavailable")
+	var telemetry := get_telemetry()
+	if bool(telemetry.get("destroyed", false)):
+		return _crew_role_result(false, &"ship_destroyed")
+	if not bool(telemetry.get("landed", false)) or bool(telemetry.get("landing_active", false)):
+		return _crew_role_result(false, &"repair_requires_berthed_ship")
+	var report := model.get_component_report()
+	if not (report.get("component_order", []) as Array).has(component_id):
+		return _crew_role_result(false, &"foreign_component")
+	if component_generation != _engineer_component_generation:
+		return _crew_role_result(false, &"stale_component_generation")
+	var before := model.get_component_integrity(component_id)
+	if before < 0.0:
+		return _crew_role_result(false, &"foreign_component")
+	if before >= 1.0:
+		return _crew_role_result(false, &"healthy_component")
+	var selection := _select_engineer_component(intent, component_id, component_generation)
+	if requested_repair <= 0.0:
+		return selection
+	var rate := maxf(float(report.get("repair_rate_per_second", 0.0)), 0.05)
+	var repair_result := model.tick_repair(requested_repair / rate, true)
+	var after := model.get_component_integrity(component_id)
+	if not bool(repair_result.get("accepted", false)) or after <= before:
+		var rejected := _crew_role_result(
+			false,
+			StringName(repair_result.get("reason", &"system_not_repaired"))
+		)
+		rejected["repair"] = repair_result
+		rejected["selection"] = selection
+		return rejected
+	var result := _crew_role_result(true, &"repair_applied")
+	result["component_id"] = component_id
+	result["integrity_before"] = before
+	result["integrity_after"] = after
+	result["repair"] = repair_result
+	result["selection"] = selection
+	return result
+
+
+func _select_engineer_component(
+		intent: Dictionary,
+		component_id: StringName,
+		component_generation: int
+) -> Dictionary:
+	_engineer_component_selection = {
+		"component_id": component_id,
+		"component_generation": component_generation,
+		"occupant_peer_id": int(intent.get("occupant_peer_id", 0)),
+		"avatar_id": StringName(intent.get("avatar_id", &"")),
+		"seat_generation": int(intent.get("seat_generation", 0)),
+		"request_sequence": int(intent.get("request_sequence", -1)),
+	}.duplicate(true)
+	var result := _crew_role_result(true, &"component_selected")
+	result["selection"] = _engineer_component_selection.duplicate(true)
+	return result
+
+
+func _clear_engineer_component_state(
+		occupant_peer_id: int,
+		avatar_id: StringName,
+		reason: StringName
+) -> void:
+	if _engineer_component_selection.is_empty():
+		return
+	if int(_engineer_component_selection.get("occupant_peer_id", 0)) != occupant_peer_id \
+			or StringName(_engineer_component_selection.get("avatar_id", &"")) != avatar_id:
+		return
+	_clear_engineer_component_selection(reason)
+
+
+func _clear_engineer_component_selection(reason: StringName, advance_generation: bool = true) -> void:
+	_engineer_component_selection.clear()
+	if advance_generation:
+		_engineer_component_generation = mini(_engineer_component_generation + 1, MAX_GUNNER_TARGET_GENERATION)
 
 
 func _select_gunner_target(
@@ -680,11 +845,13 @@ func _advance_gunner_role_cooldowns(delta: float) -> void:
 func _start_gunner_charge(
 		intent: Dictionary,
 		target_id: StringName,
-		target_generation: int
+		target_generation: int,
+		charge_time: float
 ) -> void:
 	var actor_key := _gunner_role_actor_key(intent)
 	_gunner_role_charges[actor_key] = {
 		"elapsed": 0.0,
+		"charge_time": maxf(charge_time, GUNNER_SIEGE_CHARGE_TIME),
 		"target_id": target_id,
 		"target_generation": target_generation,
 		"seat_generation": int(intent.get("seat_generation", 0)),
@@ -702,7 +869,7 @@ func _gunner_charge_result(
 ) -> Dictionary:
 	var charge := _gunner_role_charges.get(actor_key, {}) as Dictionary
 	var progress := clampf(
-		float(charge.get("elapsed", 0.0)) / GUNNER_SIEGE_CHARGE_TIME,
+		float(charge.get("elapsed", 0.0)) / maxf(float(charge.get("charge_time", GUNNER_SIEGE_CHARGE_TIME)), 0.001),
 		0.0,
 		1.0
 	)
@@ -710,7 +877,7 @@ func _gunner_charge_result(
 	result["selection"] = selection.get("selection", selection).duplicate(true)
 	result["charge_progress"] = progress
 	result["charge_remaining"] = maxf(
-		GUNNER_SIEGE_CHARGE_TIME - float(charge.get("elapsed", 0.0)),
+		float(charge.get("charge_time", GUNNER_SIEGE_CHARGE_TIME)) - float(charge.get("elapsed", 0.0)),
 		0.0
 	)
 	return result
@@ -748,15 +915,31 @@ func _advance_gunner_role_charges(delta: float) -> void:
 		if not _is_gunner_charge_authorized(intent, charge):
 			_cancel_gunner_charge(key, &"charge_authorization_lost")
 			continue
+		var component_state := _get_gunner_component_operational_state()
+		if not bool(component_state.get("available", false)):
+			_cancel_gunner_charge(
+				key,
+				StringName(component_state.get("reason", &"component_damage_unavailable"))
+			)
+			continue
+		charge["charge_time"] = maxf(
+			float(component_state.get("charge_time", GUNNER_SIEGE_CHARGE_TIME)),
+			GUNNER_SIEGE_CHARGE_TIME
+		)
 		charge["elapsed"] = minf(
-			GUNNER_SIEGE_CHARGE_TIME,
+			float(charge.get("charge_time", GUNNER_SIEGE_CHARGE_TIME)),
 			float(charge.get("elapsed", 0.0)) + delta
 		)
 		_gunner_role_charges[key] = charge
 		gunner_charge_changed.emit(
 			key,
 			int(charge.get("target_generation", 0)),
-			clampf(float(charge.get("elapsed", 0.0)) / GUNNER_SIEGE_CHARGE_TIME, 0.0, 1.0),
+		clampf(
+			float(charge.get("elapsed", 0.0))
+				/ maxf(float(charge.get("charge_time", GUNNER_SIEGE_CHARGE_TIME)), 0.001),
+			0.0,
+			1.0
+		),
 			&"charge_progress"
 		)
 
