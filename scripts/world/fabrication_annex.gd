@@ -42,6 +42,7 @@ const WORK_BENCH_POSITIONS := [
 	Vector3(3.5, 0.45, 15.0),
 ]
 const WORK_BENCH_BATCH_KEY := "structure:1.000:0.900:3.000"
+const MATERIAL_RACK_SIZE := Vector3(0.8, 2.2, 2.4)
 const SOURCE_PRACTICAL_RANGE_M := 8.0
 const PAIRED_POOL_RANGE_M := 11.75
 const SOURCE_PRACTICAL_ENERGY := 3.2
@@ -94,32 +95,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 11,
-	"multi_mesh_instances": 34,
-	"geometry_instances": 45,
+	"mesh_instances": 7,
+	"multi_mesh_instances": 35,
+	"geometry_instances": 42,
 	"visible_geometry_copies": 203,
-	"multi_mesh_drawn_copies": 192,
+	"multi_mesh_drawn_copies": 196,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 131,
+	"nodes": 128,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 11,
-	"multi_mesh_instances": 34,
-	"geometry_instances": 45,
+	"mesh_instances": 7,
+	"multi_mesh_instances": 35,
+	"geometry_instances": 42,
 	"visible_geometry_copies": 204,
-	"multi_mesh_drawn_copies": 193,
+	"multi_mesh_drawn_copies": 197,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 133,
+	"nodes": 130,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -299,7 +300,7 @@ func _build_work_bays() -> void:
 			_add_mesh("BenchBackboard", Vector3(0.16, 1.35, 2.7), Vector3(bench_x + side * 0.42, 1.5, z), &"machine")
 			for tool_z in [-0.72, 0.0, 0.72]:
 				_add_mesh("ToolDock", Vector3(0.12, 0.22, 0.3), Vector3(bench_x - side * 0.1, 1.62, z + tool_z), &"hazard")
-			_add_fixed_equipment("MaterialRack", Vector3(0.8, 2.2, 2.4), Vector3(rack_x, 1.1, z), &"structure")
+			_add_batched_fixed_equipment("MaterialRack", MATERIAL_RACK_SIZE, Vector3(rack_x, 1.1, z), &"structure")
 			for shelf_y in [0.55, 1.15, 1.75]:
 				_add_mesh("RackShelf", Vector3(0.86, 0.08, 2.3), Vector3(rack_x, shelf_y, z), &"hazard")
 			for canister_z in [-0.72, 0.0, 0.72]:
@@ -415,13 +416,6 @@ func _add_solid(label: String, size: Vector3, at: Vector3, material_id: StringNa
 	mesh.material_override = _materials[material_id]
 	body.add_child(mesh)
 	_build_root.add_child(body)
-	return body
-
-
-func _add_fixed_equipment(label: String, size: Vector3, at: Vector3, material_id: StringName) -> StaticBody3D:
-	var body := _add_solid(label, size, at, material_id)
-	body.set_meta(&"fixed_equipment_footprint", true)
-	body.set_meta(&"fixed_equipment_id", StringName("%s_%0.2f_%0.2f" % [label.to_snake_case(), at.x, at.z]))
 	return body
 
 
@@ -1150,7 +1144,7 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(get_work_bench_render_optimization_contract().valid):
 		errors.append("work-bench presentation batch or physical roster drifted")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 69 if observation_rear_gate_open else 68
+	var expected_name_allocations := 70 if observation_rear_gate_open else 69
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()

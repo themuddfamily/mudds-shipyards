@@ -171,10 +171,10 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
-	_check(int(render.multi_mesh_batches) == 34 and int(render.multi_mesh_drawn_copies) == 192, "34 restrained batches store all 192 batched architectural and equipment copies")
-	_check(int(render.geometry_submissions) == 45 and int(render.visible_geometry_copies) == 203, "45 submissions draw the frozen 203 visible geometry copies")
-	_check(int(render.authored_transform_count) == 192, "every MultiMesh copy retains an authored transform")
-	_check(int(render.forward_plus_buffer_float_count) == 2304 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 192 valid 3D transforms")
+	_check(int(render.multi_mesh_batches) == 35 and int(render.multi_mesh_drawn_copies) == 196, "35 restrained batches store all 196 batched architectural and equipment copies")
+	_check(int(render.geometry_submissions) == 42 and int(render.visible_geometry_copies) == 203, "42 submissions draw the frozen 203 visible geometry copies")
+	_check(int(render.authored_transform_count) == 196, "every MultiMesh copy retains an authored transform")
+	_check(int(render.forward_plus_buffer_float_count) == 2352 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 196 valid 3D transforms")
 	var columns := annex.get_roof_column_render_optimization_contract()
 	_check(
 		bool(columns.valid)
@@ -224,9 +224,10 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 		and bool(benches.collision_names_transforms_shapes_and_ids_exact),
 		"work-bench batching preserves all four exact visible poses, render state, collisions, and fixed-equipment identities while reducing submissions 4-to-1"
 	)
+	_test_material_rack_batch(annex)
 	var naming := annex.get_deterministic_naming_contract()
 	print("FABRICATION_ANNEX_NAMING: nodes=%d allocations=%d fallbacks=%d duplicates=%d paths=%s" % [naming.node_count, naming.generated_name_allocation_count, naming.auto_generated_fallback_path_count, naming.duplicate_sibling_name_count, naming.auto_generated_fallback_paths])
-	_check(int(naming.node_count) == 131 and int(naming.generated_name_allocation_count) == 68, "all 131 nodes and 68 generated allocations are frozen deterministically")
+	_check(int(naming.node_count) == 128 and int(naming.generated_name_allocation_count) == 69, "all 128 nodes and 69 generated allocations are frozen deterministically")
 	_check(int(naming.auto_generated_fallback_path_count) == 0 and int(naming.duplicate_sibling_name_count) == 0, "no runtime path contains an auto-generated @ fallback or duplicate sibling name")
 
 	var mapped_materials := {}
@@ -278,6 +279,67 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 	_check(status_material != null and status_material.emission_enabled, "fabricator status strips and aisle guides use a grounded emissive material")
 
 
+func _test_material_rack_batch(annex: FabricationAnnex) -> void:
+	var rack_batch := annex.find_child("MaterialRackBatch", true, false) as MultiMeshInstance3D
+	var expected_positions := [
+		Vector3(-10.6, 1.1, 7.0), Vector3(-10.6, 1.1, 15.0),
+		Vector3(10.6, 1.1, 7.0), Vector3(10.6, 1.1, 15.0),
+	]
+	var visible_poses_exact := rack_batch != null and rack_batch.multimesh != null \
+		and rack_batch.multimesh.instance_count == expected_positions.size()
+	if visible_poses_exact:
+		var render_buffer := RenderingServer.multimesh_get_buffer(rack_batch.multimesh.get_rid())
+		visible_poses_exact = render_buffer.size() == expected_positions.size() * 12
+		for index in expected_positions.size():
+			var offset := index * 12
+			var expected := expected_positions[index] as Vector3
+			visible_poses_exact = visible_poses_exact \
+				and is_equal_approx(render_buffer[offset + 0], 1.0) \
+				and is_zero_approx(render_buffer[offset + 1]) \
+				and is_zero_approx(render_buffer[offset + 2]) \
+				and is_equal_approx(render_buffer[offset + 3], expected.x) \
+				and is_zero_approx(render_buffer[offset + 4]) \
+				and is_equal_approx(render_buffer[offset + 5], 1.0) \
+				and is_zero_approx(render_buffer[offset + 6]) \
+				and is_equal_approx(render_buffer[offset + 7], expected.y) \
+				and is_zero_approx(render_buffer[offset + 8]) \
+				and is_zero_approx(render_buffer[offset + 9]) \
+				and is_equal_approx(render_buffer[offset + 10], 1.0) \
+				and is_equal_approx(render_buffer[offset + 11], expected.z)
+	var rack_bodies := annex.find_children("MaterialRack*", "StaticBody3D", true, false)
+	var structure_reference := annex.find_child("RoofColumnBatch", true, false) as MultiMeshInstance3D
+	var render_state_exact := rack_batch != null and rack_batch.multimesh != null \
+		and rack_batch.multimesh.mesh != null \
+		and rack_batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.8, 2.2, 2.4)) \
+		and structure_reference != null \
+		and rack_batch.material_override == structure_reference.material_override \
+		and rack_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+		and is_zero_approx(rack_batch.visibility_range_begin) \
+		and is_zero_approx(rack_batch.visibility_range_end)
+	var collision_exact := rack_bodies.size() == expected_positions.size()
+	for index in mini(rack_bodies.size(), expected_positions.size()):
+		var body := rack_bodies[index] as StaticBody3D
+		var shape_node := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := shape_node.shape as BoxShape3D if shape_node != null else null
+		collision_exact = collision_exact \
+			and body.position.is_equal_approx(expected_positions[index] as Vector3) \
+			and shape != null and shape.size.is_equal_approx(Vector3(0.8, 2.2, 2.4)) \
+			and body.find_children("*", "MeshInstance3D", false, false).is_empty()
+	print("FABRICATION_MATERIAL_RACK_BATCH: batch=%s copies=%d poses=%s render=%s bodies=%d collision=%s" % [
+		rack_batch != null,
+		rack_batch.multimesh.instance_count if rack_batch != null and rack_batch.multimesh != null else 0,
+		visible_poses_exact,
+		render_state_exact,
+		rack_bodies.size(),
+		collision_exact,
+	])
+	_check(
+		visible_poses_exact and collision_exact,
+		"four material racks keep exact visible poses and physical collision while one batch replaces four renderer nodes"
+	)
+	_check(render_state_exact, "the rack batch retains the exact 0.8 x 2.2 x 2.4 m rounded box, station-structure material, shadows, and unbounded visibility")
+
+
 func _test_observation_gate_variant(stage: Node3D) -> void:
 	var gate_annex := ANNEX_SCENE.instantiate() as FabricationAnnex
 	gate_annex.observation_rear_gate_open = true
@@ -285,10 +347,10 @@ func _test_observation_gate_variant(stage: Node3D) -> void:
 	await process_frame
 	var performance := gate_annex.get_performance_contract()
 	_check(
-		int(performance.mesh_instances) == 11
-		and int(performance.multi_mesh_instances) == 34
+		int(performance.mesh_instances) == 7
+		and int(performance.multi_mesh_instances) == 35
 		and int(performance.visible_geometry_copies) == 204
-		and int(performance.nodes) == 133,
+		and int(performance.nodes) == 130,
 		"the integrated Observation-gate variant retains its exact finished rendering budget"
 	)
 	_check(bool(gate_annex.get_audit_report().valid), "the finished Observation-gate variant retains its production integration contract")
