@@ -224,6 +224,12 @@ const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 18
 const STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA := 0
+const STRUCTURE_SCAN_RECEIVER_IDLE_ROTATION := Vector3(90.0, 0.0, 0.0)
+const STRUCTURE_SCAN_RECEIVER_RESOLVED_ROTATION := Vector3.ZERO
+const STRUCTURE_SCAN_COLLAR_IDLE_POSITION := Vector3(20.0, 15.0, 5.0)
+const STRUCTURE_SCAN_COLLAR_RESOLVED_POSITION := Vector3(20.0, 15.0, 8.0)
+const STRUCTURE_SCAN_COMPLETE_RECEIVER_SCALE := Vector3.ONE * 1.2
+const STRUCTURE_SCAN_COMPLETE_COLLAR_SCALE := Vector3.ONE * 1.35
 
 const PERFORMANCE_BUDGET := {
 	# Includes the production cargo access route (21 bodies/19 meshes/three
@@ -2213,8 +2219,9 @@ func _build_structure_scan_presentation(platform: Node3D) -> void:
 	)
 
 
-## Detached scan state drives only the two existing datum practicals and sign.
-## Collision, scan progression, completion, and reward requests remain external.
+## Detached scan state drives only the existing datum practicals, sign, dead
+## receiver, and receiver collar. Collision, scan progression, completion, and
+## reward requests remain external.
 func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	if StringName(snapshot.get("activity_id", &"")) != STRUCTURE_SCAN_ACTIVITY_ID:
 		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
@@ -2234,9 +2241,23 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 	var port_lens := presentation.get_node_or_null(^"DerelictDatumLampPortLens") as MeshInstance3D
 	var starboard_lens := presentation.get_node_or_null(^"DerelictDatumLampStarboardLens") as MeshInstance3D
 	var sign := presentation.get_node_or_null(^"Sign_DERELICT_SCAN") as MeshInstance3D
-	if port == null or starboard == null or port_lens == null or starboard_lens == null or sign == null:
+	var receiver := presentation.get_node_or_null(^"DeadArrayReceiver") as MeshInstance3D
+	var receiver_collar := presentation.get_node_or_null(^"DeadArrayCollar") as MeshInstance3D
+	if port == null or starboard == null or port_lens == null or starboard_lens == null \
+			or sign == null or receiver == null or receiver_collar == null:
 		return {"accepted": false, "reason": &"presentation_roster_incomplete"}
 	var progress := clampf(elapsed / duration, 0.0, 1.0)
+	var receiver_rotation := STRUCTURE_SCAN_RECEIVER_IDLE_ROTATION.lerp(
+		STRUCTURE_SCAN_RECEIVER_RESOLVED_ROTATION, progress
+	)
+	var collar_position := STRUCTURE_SCAN_COLLAR_IDLE_POSITION.lerp(
+		STRUCTURE_SCAN_COLLAR_RESOLVED_POSITION, progress
+	)
+	receiver.rotation_degrees = receiver_rotation
+	receiver.scale = Vector3.ONE
+	receiver_collar.rotation_degrees = receiver_rotation
+	receiver_collar.position = collar_position
+	receiver_collar.scale = Vector3.ONE
 	var state_id: StringName = &"available"
 	port.light_color = KETH_ORANGE
 	starboard.light_color = MOONLET_TEAL
@@ -2263,6 +2284,8 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 			starboard.light_energy = 2.8
 			sign.material_override = _materials["cyan_glow"]
 			sign.scale = Vector3.ONE * 2.35
+			receiver.scale = STRUCTURE_SCAN_COMPLETE_RECEIVER_SCALE
+			receiver_collar.scale = STRUCTURE_SCAN_COMPLETE_COLLAR_SCALE
 		CinderAbandonedStructureScanActivity.State.RESET:
 			state_id = &"reset"
 			port.light_energy = 0.2
@@ -2280,6 +2303,15 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 		"port_color": port.light_color,
 		"starboard_color": starboard.light_color,
 		"sign_scale": sign.scale.x,
+		"receiver_rotation_degrees": receiver.rotation_degrees,
+		"receiver_scale": receiver.scale,
+		"receiver_collar_position": receiver_collar.position,
+		"receiver_collar_scale": receiver_collar.scale,
+		"complete_geometry": receiver.scale.is_equal_approx(
+			STRUCTURE_SCAN_COMPLETE_RECEIVER_SCALE
+		) and receiver_collar.scale.is_equal_approx(
+			STRUCTURE_SCAN_COMPLETE_COLLAR_SCALE
+		),
 		"node_delta": STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA,
 		"light_delta": STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA,
 		"submission_delta": STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA,
