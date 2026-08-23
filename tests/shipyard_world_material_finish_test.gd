@@ -29,6 +29,11 @@ func _run() -> void:
 		_check(_finish_matches(materials.get("deck_light"), 0.06, 0.72), "light deck uses the restrained matte finish")
 		_check(_finish_matches(materials.get("steel_blue"), 0.30, 0.24), "lattice/control-room trim uses the tight edge finish")
 		_check(_finish_matches(materials.get("navy"), 0.18, 0.38), "control-room structural panels use the alloy finish")
+		for key in ["ivory", "orange", "red"]:
+			_check(
+				_finish_matches(materials.get(key), 0.45, 0.12),
+				"exterior safety-paint %s retains its coated-metal finish" % key,
+			)
 		for key in ["deck", "deck_light", "navy", "steel_blue"]:
 			var material := materials.get(key) as StandardMaterial3D
 			_check(
@@ -36,6 +41,22 @@ func _run() -> void:
 				and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.3),
 				"wide-station %s keeps the shared world-metric panel mapping" % key
 			)
+		for key in ["ivory", "orange", "red"]:
+			var painted := materials.get(key) as StandardMaterial3D
+			_check(
+				painted != null and painted.uv1_triplanar and painted.uv1_world_triplanar
+				and painted.uv1_scale.is_equal_approx(Vector3.ONE * 0.3),
+				"exterior safety-paint %s joins the shared panel family" % key,
+			)
+		var rail := world.find_child("BranchRail", true, false) as StaticBody3D
+		var post := world.find_child("BranchRailPost", true, false) as StaticBody3D
+		var toolbox := world.find_child("StandToolbox", true, false) as StaticBody3D
+		_check(
+			_surface_material(rail) == materials.get("ivory")
+			and _surface_material(post) == materials.get("orange")
+			and _surface_material(toolbox) == materials.get("red"),
+			"paired catwalk guards and service equipment use the coherent safety-paint family",
+		)
 	world.queue_free()
 	await process_frame
 	_finish()
@@ -46,6 +67,13 @@ func _finish_matches(value: Variant, clearcoat: float, roughness: float) -> bool
 	return material != null and material.clearcoat_enabled \
 		and is_equal_approx(material.clearcoat, clearcoat) \
 		and is_equal_approx(material.clearcoat_roughness, roughness)
+
+
+func _surface_material(body: StaticBody3D) -> Material:
+	if body == null:
+		return null
+	var mesh := body.get_node_or_null(^"Mesh") as MeshInstance3D
+	return mesh.material_override if mesh != null else null
 
 
 func _check(condition: bool, message: String) -> void:

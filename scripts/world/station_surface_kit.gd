@@ -39,10 +39,13 @@ const PANEL_TRIPLANAR_SHARPNESS := 4.0
 ## decks and close metal trim from collapsing into one plastic-looking response.
 ## Callers still own the albedo/metalness values; this only owns the clearcoat
 ## hierarchy and therefore cannot rewrite a caller's colour or scalar PBR read.
+## Painted metal keeps the tighter clear layer already authored for exterior
+## safety furniture while sharing the same metric plate maps underneath.
 enum PanelFinish {
 	STRUCTURAL_ALLOY,
 	WALKED_DECK,
 	METAL_TRIM,
+	PAINTED_METAL,
 }
 
 const STRUCTURAL_CLEARCOAT := 0.18
@@ -51,6 +54,8 @@ const WALKED_CLEARCOAT := 0.06
 const WALKED_CLEARCOAT_ROUGHNESS := 0.72
 const TRIM_CLEARCOAT := 0.30
 const TRIM_CLEARCOAT_ROUGHNESS := 0.24
+const PAINTED_CLEARCOAT := 0.45
+const PAINTED_CLEARCOAT_ROUGHNESS := 0.12
 
 ## Bevel rule.
 ##
@@ -613,6 +618,9 @@ static func _apply_panel_finish(material: StandardMaterial3D, finish: PanelFinis
 		PanelFinish.METAL_TRIM:
 			clearcoat = TRIM_CLEARCOAT
 			clearcoat_roughness = TRIM_CLEARCOAT_ROUGHNESS
+		PanelFinish.PAINTED_METAL:
+			clearcoat = PAINTED_CLEARCOAT
+			clearcoat_roughness = PAINTED_CLEARCOAT_ROUGHNESS
 		PanelFinish.STRUCTURAL_ALLOY:
 			pass
 	material.clearcoat_enabled = true

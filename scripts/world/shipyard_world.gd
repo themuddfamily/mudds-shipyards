@@ -4920,8 +4920,17 @@ func _apply_station_panel_family() -> void:
 		"deck": StationSurfaceKit.PanelFinish.WALKED_DECK,
 		"deck_light": StationSurfaceKit.PanelFinish.WALKED_DECK,
 		"steel_blue": StationSurfaceKit.PanelFinish.METAL_TRIM,
+		# Paired guard rails/posts and their red service equipment are one coated
+		# safety-furniture family. Keep the shared panel grain without flattening
+		# their paint into the generic structural-alloy response.
+		"ivory": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"orange": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"red": StationSurfaceKit.PanelFinish.PAINTED_METAL,
 	}
-	for key in ["deck", "deck_light", "navy", "blue", "steel_blue", "ivory", "black", "orange"]:
+	for key in [
+		"deck", "deck_light", "navy", "blue", "steel_blue",
+		"ivory", "black", "orange", "red",
+	]:
 		var panel_material := _materials[key] as StandardMaterial3D
 		StationSurfaceKit.apply_panel_triplanar(
 			panel_material,
