@@ -66,6 +66,34 @@ func _run() -> void:
 		),
 		"weather transition settles at its authored wind target"
 	)
+	var cabin: Dictionary = policy.evaluate({
+		"altitude_m": 0.0,
+		"listener_context": &"cabin",
+		"grounded": false,
+		"speed_mps": 80.0,
+		"ambient_wind_scalar_unitless": 1.0,
+	})
+	var cabin_result: Dictionary = binding.present_policy_result(
+		cabin, 0.1875, generation, 1001, 7, 11
+	)
+	var cabin_fade := binding.get_state_snapshot().fade as Dictionary
+	_check(
+		bool(cabin_result.accepted)
+		and float(cabin_fade.route_mix_unitless) > 0.0
+		and float(cabin_fade.route_mix_unitless) < 1.0
+		and float(cabin_fade.wind_intensity_unitless) < float(windy_fade.target_wind_intensity_unitless),
+		"cabin exposure crossfades out both exterior route and outdoor wind"
+	)
+	var cabin_settled: Dictionary = binding.present_policy_result(
+		cabin, 0.5625, generation, 1001, 7, 11
+	)
+	var cabin_settled_fade := binding.get_state_snapshot().fade as Dictionary
+	_check(
+		bool(cabin_settled.accepted)
+		and is_equal_approx(float(cabin_settled_fade.route_mix_unitless), 1.0)
+		and is_equal_approx(float(cabin_settled_fade.wind_intensity_unitless), 0.0),
+		"cabin handoff settles on interior air with exterior wind occluded"
+	)
 	_check(
 		int((binding.get_audit_report().performance as Dictionary).maximum_simultaneous_voices) == 2,
 		"wind modulation preserves the bounded two-voice playback ceiling"

@@ -559,7 +559,7 @@ func _decode_policy_result(policy_result: Dictionary) -> Dictionary:
 			"exterior_gain_db": float(exterior_gain),
 			"interior_gain_db": expected_interior_gain,
 			"wind_gain_db": wind_gain_db,
-			"wind_intensity_unitless": float(ambient_wind),
+			"wind_intensity_unitless": float(ambient_wind) if not uses_interior else 0.0,
 		}.duplicate(true),
 	}
 
