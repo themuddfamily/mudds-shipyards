@@ -14,7 +14,7 @@ func _initialize() -> void:
 	_check(bool(audit.get("valid", false)), "the interceptor builds a valid collision and lifecycle contract")
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the interceptor makes no historical claim")
 	_check(craft.get_cockpit_seat_anchor() != null and craft.get_boarding_marker() != null, "the interceptor exposes physical cockpit and boarding anchors")
-	_check(not bool(audit.get("flight_authority", true)) and not bool(audit.get("combat_authority", true)) and not bool(audit.get("weapon_authority", true)), "the component adds no duplicate flight, combat, or weapon authority")
+	_check(bool(craft is HeroShip) and bool(audit.get("flight_authority", false)) and not bool(audit.get("combat_authority", true)) and not bool(audit.get("weapon_authority", true)), "HeroShip owns flight while the component adds no duplicate combat or weapon authority")
 	craft.queue_free()
 	await process_frame
 	if _failures.is_empty():
