@@ -308,6 +308,8 @@ var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
 var _network_session_max_clients := NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
 var _network_damage_entities: Dictionary = {}
 var _network_damage_server_tick := 0
+var _network_landing_entities: Dictionary = {}
+var _network_landing_server_tick := 0
 ## One presentation-only caption authority for this Main lifetime. It is a
 ## RefCounted service rather than a scene node and survives whole-Main detach.
 var _caption_presentation_service: CaptionPresentationService
@@ -3828,7 +3830,30 @@ func _on_target_destroyed(_target_id: StringName, _position: Vector3) -> void:
 		hud.toast("Target destroyed", "%d range contacts remain" % (total_targets - destroyed_targets))
 
 
+func _publish_network_landing_state(ship_to_publish: HeroShip, state: StringName) -> Dictionary:
+	if (
+		not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or not is_instance_valid(ship_to_publish)
+	):
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var entity_id := ship_to_publish.get_ship_id()
+	var entity_generation := int(_network_landing_entities.get(entity_id, 0))
+	if entity_generation <= 0:
+		entity_generation = 1
+		var registered := network_session.register_landing_entity(1, entity_id, entity_generation)
+		if not bool(registered.get("accepted", false)) and registered.get("status") != &"duplicate_entity":
+			return registered
+		_network_landing_entities[entity_id] = entity_generation
+	_network_landing_server_tick += 1
+	return network_session.publish_landing_snapshot(
+		entity_id, entity_generation, ship_to_publish.global_position, state, [],
+		_network_landing_server_tick
+	)
+
+
 func _on_landing_completed(source_ship: HeroShip = null) -> void:
+	_publish_network_landing_state(source_ship if source_ship != null else active_ship, &"docked")
 	if source_ship != null and source_ship != active_ship:
 		return
 	if phase not in [Phase.RETURN_TO_YARD, Phase.FREE_FLIGHT] or not _sortie_departed_berth:
@@ -3862,6 +3887,7 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 
 
 func _on_landing_aborted(reason: StringName, source_ship: HeroShip = null) -> void:
+	_publish_network_landing_state(source_ship if source_ship != null else active_ship, &"flying")
 	if source_ship != null and source_ship != active_ship:
 		return
 	if not _landing_request_active or _active_landing_berth_id.is_empty():
