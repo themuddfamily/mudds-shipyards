@@ -20,6 +20,11 @@ const HALYARD_FLEET_DOCK_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
 const BULWARK_FLEET_DOCK_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
 const COMPONENT_DAMAGE_AUDIO_BINDING := preload("res://scripts/audio/component_damage_audio_binding.gd")
 const FLEET_EXPANSION_BINDING := preload("res://scripts/world/fleet_expansion_production_binding.gd")
+const STATION_DEFENSE_CONTENT_SCENE := preload("res://scenes/activities/station_defense_encounter.tscn")
+const STATION_DEFENSE_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/station_defense_activity_board.gd")
+const STATION_DEFENSE_ACTIVITY_BOARD_TRANSFORM := Transform3D(
+	Basis.IDENTITY, Vector3(12.0, 1.0, -26.0)
+)
 const SHIP_BERTH_FEEDBACK_SCHEMA_VERSION := 2
 const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 4
 const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
@@ -914,6 +919,8 @@ var _station_service_agents: Array[StationServiceAgent] = []
 var _station_navigation_graph := STATION_NAVIGATION_GRAPH_SCRIPT.new() as StationNavigationGraph
 var _station_navigation_graph_report: Dictionary = {}
 var _fleet_expansion_production_binding: Node3D
+var _station_defense_content: StationDefenseEncounterContent
+var _station_defense_activity_board: Area3D
 
 
 func _enter_tree() -> void:
@@ -921,6 +928,7 @@ func _enter_tree() -> void:
 	# component lifecycle after every descendant has re-entered the tree.
 	if _built:
 		call_deferred("_restore_operational_lattice_after_reentry")
+		call_deferred("_bind_station_defense_external_owners")
 
 
 func _exit_tree() -> void:
@@ -981,6 +989,7 @@ const BUILD_STAGES: Array[Array] = [
 	[&"_build_exterior_range", "Setting the exterior range"],
 	[&"_build_space_backdrop", "Hanging the sky"],
 	[&"_build_module_reflection_probes", "Baking reflections"],
+	[&"_build_station_defense_production_content", "Placing perimeter defense"],
 	[&"_initialize_station_route_registry", "Routing the station"],
 	[&"_build_station_service_agents", "Dispatching service couriers"],
 	[&"_build_station_activity_collision", "Securing station machinery"],
@@ -1002,6 +1011,44 @@ func _run_build_stages() -> void:
 ## call so both build paths run the identical ordered sequence.
 func _restore_station_activity_state() -> void:
 	set_station_activity_enabled(_station_activity_enabled)
+
+
+func _build_station_defense_production_content() -> void:
+	if is_instance_valid(_station_defense_content) or is_instance_valid(_station_defense_activity_board):
+		return
+	_station_defense_content = (
+		STATION_DEFENSE_CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
+	)
+	_station_defense_content.name = "StationDefenseEncounter"
+	add_child(_station_defense_content)
+	_station_defense_activity_board = (
+		STATION_DEFENSE_ACTIVITY_BOARD_SCRIPT.new() as Area3D
+	)
+	_station_defense_activity_board.name = "StationDefenseActivityBoard"
+	_station_defense_activity_board.transform = STATION_DEFENSE_ACTIVITY_BOARD_TRANSFORM
+	add_child(_station_defense_activity_board)
+	call_deferred("_bind_station_defense_external_owners")
+
+
+func _bind_station_defense_external_owners() -> void:
+	if (
+		is_queued_for_deletion()
+		or not is_inside_tree()
+		or not is_instance_valid(_station_defense_content)
+		or not is_instance_valid(_station_defense_activity_board)
+	):
+		return
+	var host := get_parent()
+	if host == null:
+		return
+	var combat_authority := host.get_node_or_null(^"CombatAuthority") as LiveCombatAuthority
+	var activity_director := host.get_node_or_null(^"ActivityDirector") as ActivityDirector
+	if not is_instance_valid(combat_authority) or not is_instance_valid(activity_director):
+		return
+	_station_defense_activity_board.call(
+		"configure_external_owners",
+		_station_defense_content, combat_authority, activity_director
+	)
 
 
 ## Opt-in staged construction, requested by a boot loader before this world
@@ -1875,6 +1922,17 @@ func get_habitat_spine() -> HabitatSpine:
 
 func get_jovian_freight_berth() -> JovianFreightBerth:
 	return jovian_freight_berth
+
+
+func get_station_defense_content() -> StationDefenseEncounterContent:
+	return _station_defense_content if is_instance_valid(_station_defense_content) else null
+
+
+func get_station_defense_activity_board() -> Area3D:
+	return (
+		_station_defense_activity_board
+		if is_instance_valid(_station_defense_activity_board) else null
+	)
 
 
 ## Resolves the currently committed, coordinator-owned Cinder instance without
