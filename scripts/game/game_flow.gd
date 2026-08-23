@@ -525,6 +525,8 @@ var _pending_ember_surface_serial := 0
 var _last_ember_surface_forward_result: Dictionary = {}
 var _ember_surface_forward_count := 0
 var _ember_surface_journey_active := false
+var _ember_final_approach_handoff_ready := false
+var _ember_final_approach_completion_receipt: Dictionary = {}
 ## Station topology is captured in ShipyardWorld-local coordinates. A common
 ## floating-origin rebase can then translate the live world root without leaving
 ## the presentation snapshot pinned to its pre-rebase global coordinates.
@@ -1990,6 +1992,15 @@ func _physics_process(delta: float) -> void:
 								ember_streaming_accepted
 								and streaming.get("action", &"") == &"load"
 							)
+	if ember_origin_result.is_empty() and ember_streaming_accepted \
+			and not required_origin_rebase_uncommitted \
+			and coordinate_frame_generation > 0:
+		ember_origin_result = {
+			"accepted": true,
+			"actor_sample": actor_sample.duplicate(true),
+			"coordinate_frame_generation": coordinate_frame_generation,
+			"reason": &"no_rebase_required",
+		}.duplicate(true)
 	var ember_host_bind_result := _ensure_ember_surface_loop_host_bound(
 		ember_streaming_accepted and not required_origin_rebase_uncommitted
 	)
@@ -1998,26 +2009,6 @@ func _physics_process(delta: float) -> void:
 		_last_ember_surface_forward_result = _forward_pending_ember_surface_journey()
 		if bool(_last_ember_surface_forward_result.get("accepted", false)):
 			_ember_surface_forward_count += 1
-	if is_instance_valid(ember_surface_loop_production_binding):
-		var surface_binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
-		var surface_state := StringName(surface_binding_snapshot.get("state_id", &""))
-		if _ember_surface_journey_active \
-				and surface_state in [&"idle", &"start_pending", &"running"] \
-				and not ember_origin_result.is_empty() \
-				and is_instance_valid(active_ship) and active_ship.is_piloted():
-			if _ember_surface_caller_serial < EmberSurfaceLoopHost.MAX_SAFE_INTEGER:
-				_ember_surface_caller_serial += 1
-				var telemetry := active_ship.get_telemetry()
-				var host_phase := ember_surface_loop_production_binding.get_host_phase()
-				ember_surface_loop_production_binding.advance_from_caller_sample(
-					_ember_surface_caller_serial, delta, &"ship",
-					active_ship.get_instance_id(), active_ship.get_instance_id(),
-					active_ship.global_position, active_ship.velocity,
-					bool(telemetry.get("landed", false)), host_phase == 10,
-					host_phase >= 11, ember_origin_result,
-					coordinate_frame_generation, int(ember_origin_result.get("location_generation", 1)),
-					ember_surface_loop_production_binding.get_generation()
-				)
 	if is_instance_valid(planetary_cruise_binding):
 		var cruise_gate_reason := _planetary_cruise_gate_reason(false)
 		if required_origin_rebase_uncommitted:
@@ -2038,14 +2029,46 @@ func _physics_process(delta: float) -> void:
 			)
 		else:
 			_planetary_cruise_caller_tick += 1
-			planetary_cruise_binding.physics_tick_from_caller_sample(
+			var location_generation := int(
+				ember_surface_loop_host.get_snapshot().get("location_generation", 0)
+			) if is_instance_valid(ember_surface_loop_host) else 0
+			var cruise_tick := planetary_cruise_binding.physics_tick_from_caller_sample(
 				_planetary_cruise_caller_tick,
 				actor_sample,
 				active_ship,
 				coordinate_frame_generation,
 				_planetary_cruise_combat_active(),
 				cruise_gate_reason,
+				location_generation,
 			)
+			if cruise_tick.get("reason") == &"final_approach_handoff_ready":
+				_consume_ember_final_approach_completion(cruise_tick)
+	# The completing cruise tick releases its Hero attachment before this one
+	# retained late Host envelope is prepared. Keeping both operations in the same
+	# GameFlow callback prevents a new origin transaction from reaching an IDLE
+	# Host between completion and start; the priority-2 surface binding still
+	# performs the one actual Host.start() after Hero's current physics tick.
+	if is_instance_valid(ember_surface_loop_production_binding):
+		var surface_binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
+		var surface_state := StringName(surface_binding_snapshot.get("state_id", &""))
+		if _ember_surface_journey_active \
+				and _ember_final_approach_handoff_ready \
+				and surface_state in [&"idle", &"start_pending", &"running"] \
+				and not ember_origin_result.is_empty() \
+				and is_instance_valid(active_ship) and active_ship.is_piloted():
+			if _ember_surface_caller_serial < EmberSurfaceLoopHost.MAX_SAFE_INTEGER:
+				_ember_surface_caller_serial += 1
+				var telemetry := active_ship.get_telemetry()
+				var host_phase := ember_surface_loop_production_binding.get_host_phase()
+				ember_surface_loop_production_binding.advance_from_caller_sample(
+					_ember_surface_caller_serial, delta, &"ship",
+					active_ship.get_instance_id(), active_ship.get_instance_id(),
+					active_ship.global_position, active_ship.velocity,
+					bool(telemetry.get("landed", false)), host_phase == 10,
+					host_phase >= 11, ember_origin_result,
+					coordinate_frame_generation, int(ember_origin_result.get("location_generation", 1)),
+					ember_surface_loop_production_binding.get_generation()
+				)
 	_sync_planetary_cruise_hud()
 	var cinder_streaming_tick: Dictionary = {
 		"accepted": false,
@@ -4454,11 +4477,16 @@ func begin_ember_surface_journey(
 		var composed: Dictionary = binding.configure_planetary_surface(director, reward_sink)
 		if not bool(composed.get("accepted", false)):
 			return composed
+	var final_approach := _arm_ember_final_approach(host)
+	if not bool(final_approach.get("accepted", false)):
+		return final_approach
 	# Admission starts the retained surface journey. Disembark is a later,
 	# phase-specific caller intent after the Host has actually reached LANDED;
 	# queuing it while the binding is still IDLE necessarily rejects because no
 	# same-frame caller envelope exists yet.
 	_ember_surface_journey_active = true
+	_ember_final_approach_handoff_ready = false
+	_ember_final_approach_completion_receipt.clear()
 	return {
 		"accepted": true,
 		"reason": &"ember_surface_journey_admitted",
@@ -4467,9 +4495,103 @@ func begin_ember_surface_journey(
 	}
 
 
+func _arm_ember_final_approach(host: Object) -> Dictionary:
+	if host != ember_surface_loop_host \
+			or not is_instance_valid(ember_surface_loop_host):
+		return {"accepted": false, "reason": &"ember_surface_host_identity_mismatch"}
+	if not is_instance_valid(planetary_cruise_binding) \
+			or not is_instance_valid(ember_streaming_bootstrap):
+		return {"accepted": false, "reason": &"ember_final_approach_unavailable"}
+	var host_snapshot := ember_surface_loop_host.get_snapshot()
+	if not bool(host_snapshot.get("attached", false)) \
+			or int(host_snapshot.get("phase", -1)) != EmberSurfaceLoopHost.Phase.IDLE:
+		return {"accepted": false, "reason": &"ember_surface_host_not_ready"}
+	var approach := host_snapshot.get("approach_entry", {}) as Dictionary
+	var envelope := approach.get("envelope", {}) as Dictionary
+	if envelope.is_empty():
+		return {"accepted": false, "reason": &"ember_approach_envelope_unavailable"}
+	var loaded_scene := ember_streaming_bootstrap.get_loaded_instance()
+	if not is_instance_valid(loaded_scene):
+		return {"accepted": false, "reason": &"ember_loaded_scene_unavailable"}
+	var landing_root := loaded_scene.get_node_or_null(^"LandingRegion") as Node3D
+	if not is_instance_valid(landing_root):
+		return {"accepted": false, "reason": &"ember_landing_root_unavailable"}
+	var cruise_snapshot := planetary_cruise_binding.get_snapshot()
+	var existing := cruise_snapshot.get("final_approach", {}) as Dictionary
+	if int(existing.get("target_generation", 0)) > 0:
+		return {"accepted": true, "reason": &"final_approach_already_armed"}
+	return planetary_cruise_binding.request_final_approach(
+		ember_surface_loop_host,
+		landing_root,
+		envelope,
+		int(host_snapshot.get("coordinate_frame_generation", 0)),
+		int(host_snapshot.get("location_generation", 0)),
+		int(host_snapshot.get("generation", -1)),
+		int(host_snapshot.get("attachment_generation", 0)),
+		planetary_cruise_binding.get_generation(),
+	)
+
+
+func _ember_final_approach_completion_is_current(receipt: Dictionary) -> bool:
+	if not is_instance_valid(ember_surface_loop_host) \
+			or not is_instance_valid(active_ship) \
+			or not is_instance_valid(planetary_cruise_binding):
+		return false
+	var host_snapshot := ember_surface_loop_host.get_snapshot()
+	if not bool(host_snapshot.get("attached", false)) \
+			or int(host_snapshot.get("phase", -1)) != EmberSurfaceLoopHost.Phase.IDLE \
+			or int(receipt.get("host_instance_id", 0)) \
+				!= ember_surface_loop_host.get_instance_id() \
+			or int(receipt.get("host_generation", -2)) \
+				!= int(host_snapshot.get("generation", -1)) \
+			or int(receipt.get("host_attachment_generation", 0)) \
+				!= int(host_snapshot.get("attachment_generation", -1)) \
+			or int(receipt.get("coordinate_frame_generation", 0)) \
+				!= int(host_snapshot.get("coordinate_frame_generation", -1)) \
+			or int(receipt.get("location_generation", 0)) \
+				!= int(host_snapshot.get("location_generation", -1)) \
+			or int(receipt.get("ship_instance_id", 0)) != active_ship.get_instance_id():
+		return false
+	var release := receipt.get("controller_release", {}) as Dictionary
+	var ship_report := active_ship.get_planetary_cruise_attachment_report()
+	return bool(release.get("accepted", false)) \
+		and int(receipt.get("released_ship_attachment_generation", 0)) \
+			== int(ship_report.get("ship_attachment_generation", -1)) \
+		and int(ship_report.get("controller_instance_id", -1)) == 0
+
+
+func _consume_ember_final_approach_completion(receipt: Dictionary) -> Dictionary:
+	if not is_instance_valid(planetary_cruise_binding):
+		return {"accepted": false, "reason": &"ember_cruise_binding_unavailable"}
+	var target_generation := int(receipt.get("target_generation", 0))
+	if _ember_final_approach_completion_is_current(receipt):
+		var consumed := planetary_cruise_binding.consume_final_approach_completion(
+			target_generation, planetary_cruise_binding.get_generation()
+		)
+		if bool(consumed.get("accepted", false)):
+			_ember_final_approach_completion_receipt = consumed.duplicate(true)
+			_ember_final_approach_handoff_ready = true
+		return consumed
+	var discarded := planetary_cruise_binding.discard_final_approach_completion(
+		target_generation, planetary_cruise_binding.get_generation(),
+		&"final_approach_completion_stale",
+	)
+	_ember_surface_journey_active = false
+	_ember_final_approach_handoff_ready = false
+	_ember_final_approach_completion_receipt.clear()
+	return discarded
+
+
 func cancel_ember_surface_journey() -> Dictionary:
-	if _pending_ember_surface_request.is_empty():
+	if _pending_ember_surface_request.is_empty() \
+			and not _ember_surface_journey_active:
 		return {"accepted": false, "reason": &"ember_surface_request_not_pending"}
+	if is_instance_valid(ember_surface_loop_host) \
+			or is_instance_valid(ember_surface_loop_production_binding):
+		var host_phase := ember_surface_loop_host.get_phase() \
+			if is_instance_valid(ember_surface_loop_host) else -1
+		if host_phase != EmberSurfaceLoopHost.Phase.IDLE:
+			return {"accepted": false, "reason": &"ember_surface_journey_already_started"}
 	if is_instance_valid(planetary_cruise_binding):
 		var cruise_snapshot: Dictionary = planetary_cruise_binding.get_snapshot()
 		if bool(cruise_snapshot.get("engagement_requested", false)):
@@ -4478,11 +4600,25 @@ func cancel_ember_surface_journey() -> Dictionary:
 			)
 			if not bool(disengaged.get("accepted", false)):
 				return disengaged
+		else:
+			var final_snapshot := cruise_snapshot.get("final_approach", {}) as Dictionary
+			var completion := final_snapshot.get("completion_receipt", {}) as Dictionary
+			if not completion.is_empty():
+				var discarded := planetary_cruise_binding.discard_final_approach_completion(
+					int(completion.get("target_generation", 0)),
+					planetary_cruise_binding.get_generation(),
+					&"ember_surface_journey_cancelled",
+				)
+				if not bool(discarded.get("accepted", false)):
+					return discarded
 	_pending_ember_surface_request.clear()
 	_pending_ember_surface_host = null
 	_pending_ember_surface_director = null
 	_pending_ember_surface_reward_sink = Callable()
 	_pending_ember_surface_serial = 0
+	_ember_final_approach_handoff_ready = false
+	_ember_final_approach_completion_receipt.clear()
+	_ember_surface_journey_active = false
 	return {"accepted": true, "reason": &"ember_surface_request_cancelled"}
 
 
