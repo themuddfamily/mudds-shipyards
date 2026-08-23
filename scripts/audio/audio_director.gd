@@ -38,6 +38,8 @@ const RESIDENT_BYTE_BUDGET := 360448
 # counts. Binary float representation rounds the 0.28 s and 0.34 s cues up by
 # one sample each, yielding this exact deterministic total.
 const EXPECTED_RESIDENT_SAMPLE_BYTES := 340020
+const REDUCED_RANGE_AMBIENCE_DB := -6.0
+const REDUCED_RANGE_EFFECT_DB := -12.0
 
 const STREAM_AMBIENCE: StringName = &"ambience"
 const STREAM_UI_CONFIRM: StringName = &"ui_confirm"
@@ -110,6 +112,7 @@ var _bank_generation_count := 0
 var _wave_synthesis_call_count := 0
 var _resources_ready := false
 var _effect_cursor := 0
+var _effect_requested_volumes: Dictionary = {}
 var _footstep_cooldown := 0.0
 var _audio_enabled := true
 var _shutting_down := false
@@ -196,11 +199,25 @@ func get_semantic_audio_binding_count() -> int:
 
 ## Applies the caller-owned reduced-range policy without changing voice limits.
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
-	return _dynamic_mix.set_reduced_dynamic_range(enabled)
+	var result := _dynamic_mix.set_reduced_dynamic_range(enabled)
+	if bool(result.get("accepted", false)):
+		_apply_runtime_mix()
+	return result
 
 
 func get_dynamic_mix_plan() -> Dictionary:
 	return _dynamic_mix.get_mix_plan()
+
+
+func get_runtime_mix_snapshot() -> Dictionary:
+	var reduced := bool(_dynamic_mix.get_mix_plan().get("reduced_dynamic_range", false))
+	return {
+		"reduced_dynamic_range": reduced,
+		"ambience_attenuation_db": REDUCED_RANGE_AMBIENCE_DB if reduced else 0.0,
+		"effect_attenuation_db": REDUCED_RANGE_EFFECT_DB if reduced else 0.0,
+		"ambience_volume_db": _ambience.volume_db if is_instance_valid(_ambience) else NAN,
+		"effect_requested_volumes": _effect_requested_volumes.duplicate(true),
+	}.duplicate(true)
 
 
 func _exit_tree() -> void:
@@ -227,6 +244,7 @@ func _exit_tree() -> void:
 	_resident_sample_bytes = 0
 	_resources_ready = false
 	_effect_cursor = 0
+	_effect_requested_volumes.clear()
 	_footstep_cooldown = 0.0
 	_audio_enabled = false
 
@@ -482,7 +500,8 @@ func _play_resident(stream_id: StringName, bus: StringName, volume_db: float) ->
 	_effect_cursor = (_effect_cursor + 1) % _effects.size()
 	player.stop()
 	player.bus = bus
-	player.volume_db = volume_db
+	_effect_requested_volumes[StringName(player.name)] = volume_db
+	player.volume_db = volume_db + _effect_attenuation_db()
 	player.pitch_scale = 1.0
 	player.stream = stream
 	player.play()
@@ -559,6 +578,7 @@ func _restore_fixed_hierarchy_configuration() -> void:
 	_configure_sequence_timer(_enemy_destroyed_timer, 0.18, _play_enemy_destroyed_tail)
 	_effect_cursor = 0
 	_footstep_cooldown = 0.0
+	_effect_requested_volumes.clear()
 
 
 func _restore_backend_state() -> void:
@@ -572,7 +592,7 @@ func _restore_backend_state() -> void:
 	# backend can play. This keeps detach/re-entry deterministic even under the
 	# Dummy driver and prevents a real backend from reverting to the default
 	# -13 dB while the player remains on foot or in a cockpit.
-	_ambience.volume_db = _desired_ambience_volume_db
+	_apply_runtime_mix()
 	if not _audio_enabled:
 		return
 	_ambience.stream = _get_stream(STREAM_AMBIENCE)
@@ -580,8 +600,25 @@ func _restore_backend_state() -> void:
 	if not _ambience.playing:
 		# A named backend can still reject playback. Fall back to the exact silent
 		# lifecycle instead of retaining a stream handle that never became active.
-		_audio_enabled = false
-		_ambience.stream = null
+			_audio_enabled = false
+			_ambience.stream = null
+
+
+func _apply_runtime_mix() -> void:
+	var reduced := bool(_dynamic_mix.get_mix_plan().get("reduced_dynamic_range", false))
+	if is_instance_valid(_ambience):
+		_ambience.volume_db = _desired_ambience_volume_db + (REDUCED_RANGE_AMBIENCE_DB if reduced else 0.0)
+	var effect_attenuation := REDUCED_RANGE_EFFECT_DB if reduced else 0.0
+	for effect in _effects:
+		if not is_instance_valid(effect):
+			continue
+		var requested: Variant = _effect_requested_volumes.get(StringName(effect.name), effect.volume_db)
+		if requested is float or requested is int:
+			effect.volume_db = float(requested) + effect_attenuation
+
+
+func _effect_attenuation_db() -> float:
+	return REDUCED_RANGE_EFFECT_DB if bool(_dynamic_mix.get_mix_plan().get("reduced_dynamic_range", false)) else 0.0
 
 
 func _configure_sequence_timer(timer: Timer, wait_time: float, callback: Callable) -> void:

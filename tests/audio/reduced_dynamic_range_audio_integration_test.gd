@@ -19,6 +19,14 @@ func _run() -> void:
 	_check(bool(director.get_dynamic_mix_plan().reduced_dynamic_range), "audio director exposes reduced range")
 	root.add_child(director)
 	await process_frame
+	director.set_on_foot(true)
+	var neutral_ambience_db: float = director.get_node("Ambience").volume_db
+	_check(is_equal_approx(neutral_ambience_db, -10.0), "neutral runtime ambience keeps the caller mix")
+	_check(bool(flow.set_reduced_dynamic_range(true).accepted), "runtime accessibility policy updates active players")
+	_check(
+		is_equal_approx(director.get_node("Ambience").volume_db, neutral_ambience_db - 6.0),
+		"reduced range attenuates the active director ambience voice"
+	)
 	root.remove_child(director)
 	await process_frame
 	_check(bool(director.get_dynamic_mix_plan().reduced_dynamic_range), "policy survives audio detach")
