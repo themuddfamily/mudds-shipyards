@@ -23,6 +23,7 @@ func _run() -> void:
 	await _test_shared_composition_and_measured_entry()
 	await _test_committed_origin_receipt_adoption()
 	await _test_normal_public_actor_loop()
+	await _test_queued_host_lifecycle_currentness()
 	await _test_active_command_source_replacement()
 	await _test_exact_generation_and_loaded_root_freshness()
 	await _test_tangent_frame_and_continuous_support_fail_closed()
@@ -268,14 +269,6 @@ func _test_shared_composition_and_measured_entry() -> void:
 	)
 	(fixture.scene as Node).set_meta(EmberSurfaceLoopHost.LOCATION_GENERATION_META, 1)
 
-	ship.reparent(host, true)
-	rejected = _start_host(fixture)
-	_check(
-		rejected.reason == &"approach_entry_composition_root_mismatch",
-		"measured entry rejects a dependency moved below the frozen shared root",
-	)
-	ship.reparent(composition_root, true)
-
 	var prestart_foreign := EmberSurfaceLoopCommandSource.new()
 	prestart_foreign.name = "PrestartForeignCommandSource"
 	composition_root.add_child(prestart_foreign)
@@ -343,6 +336,19 @@ func _test_shared_composition_and_measured_entry() -> void:
 			and ship.get_command_source() == original_source
 			and area.get_reservation_token() == null,
 		"ordinary detach restores command and releases only the reservation cleanup ownership accepted at start",
+	)
+	await _cleanup(fixture)
+
+	fixture = await _fixture(false, true, true)
+	if fixture.is_empty():
+		return
+	host = fixture.host as EmberSurfaceLoopHost
+	ship = fixture.ship as ArrowReconShip
+	ship.reparent(host, true)
+	rejected = _start_host(fixture)
+	_check(
+		rejected.reason == &"approach_entry_composition_root_mismatch",
+		"measured entry rejects a dependency moved below the frozen shared root",
 	)
 	await _cleanup(fixture)
 
@@ -673,6 +679,67 @@ func _test_normal_public_actor_loop() -> void:
 			and ship.get_command_source() == original_source
 			and area.get_reservation_token() == player,
 		"retired attachment cannot repeat or drop an already returned reservation",
+	)
+	await _cleanup(fixture)
+
+
+func _test_queued_host_lifecycle_currentness() -> void:
+	var fixture := await _fixture()
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var reached_landed := await _drive_to_phase(
+		fixture, EmberSurfaceLoopHost.Phase.LANDED, 660
+	)
+	if not reached_landed:
+		_check(false, "queued Host fixture reaches LANDED before lifecycle admission")
+		await _cleanup(fixture)
+		return
+	_check(
+		bool(host.request_disembark(
+			host.get_generation(), host.get_attachment_generation()
+		).get("accepted", false)),
+		"live Host still admits its ordered disembark intent",
+	)
+	await _cleanup(fixture)
+
+	fixture = await _fixture()
+	if fixture.is_empty():
+		return
+	host = fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var area := fixture.area as ShipBoardingArea
+	var berth := fixture.berth as EmberSurfaceBerth
+	reached_landed = await _drive_to_phase(fixture, EmberSurfaceLoopHost.Phase.LANDED, 660)
+	if not reached_landed:
+		_check(false, "queued Host red fixture reaches LANDED before lifecycle admission")
+		await _cleanup(fixture)
+		return
+	var current_source := ship.get_command_source()
+	host.queue_free()
+	var before := host.get_snapshot()
+	var queued_intent := host.request_disembark(
+		host.get_generation(), host.get_attachment_generation()
+	)
+	var queued_advance := host.advance_physics(
+		PHYSICS_DELTA,
+		host.get_generation(),
+		host.get_attachment_generation(),
+		(fixture.frame as PlanetaryCoordinateFrame).get_generation(),
+		1
+	)
+	_check(
+		host.is_inside_tree() and host.is_queued_for_deletion()
+			and queued_intent.get("reason", &"") == &"host_detached"
+			and queued_advance.get("reason", &"") == &"host_detached"
+			and host.get_snapshot() == before
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.LANDED
+			and ship.get_command_source() == current_source
+			and player.is_seated() and not player.is_control_enabled()
+			and area.get_reservation_token() == player
+			and berth.get_occupant() == ship,
+		"queued Host rejects direct intent and physics before consuming lifecycle time or mutating live ownership",
 	)
 	await _cleanup(fixture)
 
