@@ -379,6 +379,14 @@ const HALYARD_APRON_TAIL_MAX_Z := 65.9
 ## aft apron is therefore two wings that butt it, not one slab over it.
 const HALYARD_APRON_RUNG_MIN_X := 35.2
 const HALYARD_APRON_RUNG_MAX_X := 38.8
+## The world-owned bridge into Fleet Dock Comb keeps this exact authored span.
+## Its old shared rounded box used a 0.128 m bevel, driven by the 0.64 m deck
+## thickness, so the twelve-metre threshold still read as a rectangular slab.
+## A broad plan radius makes the gateway visible during normal traversal while
+## leaving the full legacy collider and route-support envelope unchanged.
+const FLEET_DOCK_CONNECTOR_DECK_SIZE := Vector3(12.5, 0.64, 3.6)
+const FLEET_DOCK_CONNECTOR_CORNER_RADIUS := 0.72
+const FLEET_DOCK_CONNECTOR_CURVE_SEGMENTS := 4
 
 const CENTRAL_HERO_SCHEMA_VERSION := 2
 const OPERATIONAL_LATTICE_SCHEMA_VERSION := 1
@@ -5661,12 +5669,14 @@ func _build_architecture() -> void:
 	fleet_comb_connector.set_meta("evidence_status", &"modern_interpretation")
 	fleet_comb_connector.set_meta("connects_station_module", &"fleet-dock-comb")
 	shell.add_child(fleet_comb_connector)
-	_box(
+	_rounded_fleet_connector_deck(
 		fleet_comb_connector,
 		"FleetDockCombConnectorDeck",
 		Vector3(6.0, 3.88, 68.3),
-		Vector3(12.5, 0.64, 3.6),
-		_materials["deck_light"]
+		FLEET_DOCK_CONNECTOR_DECK_SIZE,
+		_materials["deck_light"],
+		FLEET_DOCK_CONNECTOR_CORNER_RADIUS,
+		FLEET_DOCK_CONNECTOR_CURVE_SEGMENTS
 	)
 	_box(
 		fleet_comb_connector,
@@ -8569,6 +8579,48 @@ func _rounded_access_platform(
 	var visual := MeshInstance3D.new()
 	visual.name = "Mesh"
 	visual.mesh = _horizontal_rounded_rectangle_mesh(size, corner_radius, segments_per_corner)
+	visual.material_override = material
+	body.add_child(visual)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+## The Fleet Dock approach bridge uses the same low-cost rounded-plan topology
+## as the central access platform but retains its own evidence and resource
+## identity. This replaces one 108-triangle box with 64 triangles without adding
+## a renderer, body, shape or submission.
+func _rounded_fleet_connector_deck(
+	parent: Node3D,
+	node_name: String,
+	deck_position: Vector3,
+	size: Vector3,
+	material: Material,
+	corner_radius: float,
+	segments_per_corner: int,
+) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = deck_position
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = PhysicsLayers.NONE
+	body.set_meta("geometry_profile", &"horizontal_rounded_gateway")
+	body.set_meta("corner_radius_m", corner_radius)
+	body.set_meta("curve_segments_per_corner", segments_per_corner)
+	body.set_meta("evidence_status", OPERATIONAL_LATTICE_EVIDENCE_STATUS)
+	body.set_meta("historical_form_identified", false)
+	parent.add_child(body)
+
+	var visual := MeshInstance3D.new()
+	visual.name = "Mesh"
+	var mesh := _horizontal_rounded_rectangle_mesh(size, corner_radius, segments_per_corner)
+	mesh.resource_name = "fleet_dock_connector_rounded_gateway_v1"
+	visual.mesh = mesh
 	visual.material_override = material
 	body.add_child(visual)
 
