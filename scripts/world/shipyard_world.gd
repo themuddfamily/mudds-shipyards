@@ -7122,7 +7122,15 @@ func _build_catwalks_and_control_room() -> void:
 	# z = 22.68 against a glyph rear of 22.686) and hung off this roof's leading
 	# edge. The legend's position, rotation, scale and material are untouched, so
 	# its recorded MAP-004 approach-facing expectation still holds.
-	_box(upper, "OperationsPodFascia", Vector3(43.0, 5.35, 22.90), Vector3(12.0, 1.0, 0.44), _materials["steel_blue"])
+	_extruded_capsule_fascia(
+		upper,
+		"OperationsPodFascia",
+		Vector3(43.0, 5.35, 22.90),
+		Vector3(12.0, 1.0, 0.44),
+		_materials["steel_blue"],
+		0.5,
+		8,
+	)
 	# MAP-004. `TextMesh` renders its readable face toward local +Z, so a legend
 	# authored with `Vector3.ZERO` on a structure's -Z frontage reads as mirror
 	# writing to the only person who can see it. The pod is approached from the
@@ -8576,6 +8584,114 @@ func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D])
 		else:
 			result = result.merge(piece)
 	return result
+
+
+## One approach-facing structural fascia with a capsule outline in its broad
+## X/Y face and a constant Z extrusion. The previous chamfered box still read as
+## a twelve-metre rectangular lintel from gameplay distance: its bevel occupied
+## less than ten centimetres at each end. A half-metre radius makes the outer
+## silhouette visibly curve without moving the fascia's authored bounds, sign
+## seat or box collider. Eight segments per end keep that curve smooth at the
+## room's approach distance while reducing this one mesh from 108 to 72 triangles.
+func _extruded_capsule_fascia(
+		parent: Node3D,
+		node_name: String,
+		fascia_position: Vector3,
+		size: Vector3,
+		material: Material,
+		end_radius: float,
+		segments_per_end: int,
+	) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = fascia_position
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = PhysicsLayers.NONE
+	body.set_meta("geometry_profile", &"extruded_capsule")
+	body.set_meta("end_radius_m", end_radius)
+	body.set_meta("curve_segments_per_end", segments_per_end)
+	body.set_meta("evidence_status", OPERATIONAL_LATTICE_EVIDENCE_STATUS)
+	body.set_meta("historical_form_identified", false)
+	parent.add_child(body)
+
+	var visual := MeshInstance3D.new()
+	visual.name = "Mesh"
+	visual.mesh = _extruded_capsule_mesh(size, end_radius, segments_per_end)
+	visual.material_override = material
+	body.add_child(visual)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "Collision"
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+func _extruded_capsule_mesh(
+		size: Vector3,
+		end_radius: float,
+		segments_per_end: int,
+	) -> ArrayMesh:
+	var radius := clampf(end_radius, 0.001, minf(size.x, size.y) * 0.5)
+	var segment_count := maxi(segments_per_end, 2)
+	var straight_half_width := size.x * 0.5 - radius
+	var boundary: Array[Vector2] = []
+	for segment in segment_count + 1:
+		var angle := lerpf(-PI * 0.5, PI * 0.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			straight_half_width + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+	for segment in segment_count + 1:
+		var angle := lerpf(PI * 0.5, PI * 1.5, float(segment) / float(segment_count))
+		boundary.append(Vector2(
+			-straight_half_width + cos(angle) * radius,
+			sin(angle) * radius,
+		))
+
+	var half_depth := size.z * 0.5
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in boundary.size():
+		var current := boundary[index]
+		var next := boundary[(index + 1) % boundary.size()]
+		var current_uv := Vector2(current.x / size.x + 0.5, current.y / size.y + 0.5)
+		var next_uv := Vector2(next.x / size.x + 0.5, next.y / size.y + 0.5)
+		# Approach/front cap, outward toward local -Z.
+		_emit_capsule_vertex(surface, Vector3(0.0, 0.0, -half_depth), Vector3.FORWARD, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(next.x, next.y, -half_depth), Vector3.FORWARD, next_uv)
+		_emit_capsule_vertex(surface, Vector3(current.x, current.y, -half_depth), Vector3.FORWARD, current_uv)
+		# Rear cap, outward toward local +Z.
+		_emit_capsule_vertex(surface, Vector3(0.0, 0.0, half_depth), Vector3.BACK, Vector2(0.5, 0.5))
+		_emit_capsule_vertex(surface, Vector3(current.x, current.y, half_depth), Vector3.BACK, current_uv)
+		_emit_capsule_vertex(surface, Vector3(next.x, next.y, half_depth), Vector3.BACK, next_uv)
+		# Constant-depth rim following the rounded outline.
+		var rim_normal := Vector3(next.y - current.y, current.x - next.x, 0.0).normalized()
+		var rim_u := float(index) / float(boundary.size())
+		var rim_next_u := float(index + 1) / float(boundary.size())
+		_emit_capsule_vertex(surface, Vector3(current.x, current.y, -half_depth), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(next.x, next.y, -half_depth), rim_normal, Vector2(rim_next_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(next.x, next.y, half_depth), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(current.x, current.y, -half_depth), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(next.x, next.y, half_depth), rim_normal, Vector2(rim_next_u, 1.0))
+		_emit_capsule_vertex(surface, Vector3(current.x, current.y, half_depth), rim_normal, Vector2(rim_u, 1.0))
+	surface.generate_tangents()
+	var mesh := surface.commit()
+	mesh.resource_name = "dock_operations_capsule_fascia_v1"
+	return mesh
+
+
+func _emit_capsule_vertex(
+		surface: SurfaceTool,
+		position: Vector3,
+		normal: Vector3,
+		uv: Vector2,
+	) -> void:
+	surface.set_normal(normal)
+	surface.set_uv(uv)
+	surface.add_vertex(position)
 
 
 ## One rendered, colliding threshold ramp between two decks at different heights.

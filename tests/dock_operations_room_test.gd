@@ -47,6 +47,30 @@ func _run() -> void:
 		and is_equal_approx(float(threshold.get_meta("open_bay_clear_width", 0.0)), 3.34),
 		"the full-width approach publishes one 3.34 m central doorway at x=43"
 	)
+	var fascia := upper.get_node_or_null(^"OperationsPodFascia") as StaticBody3D if upper != null else null
+	var fascia_visual := fascia.get_node_or_null(^"Mesh") as MeshInstance3D if fascia != null else null
+	var fascia_collision := fascia.get_node_or_null(^"Collision") as CollisionShape3D if fascia != null else null
+	var fascia_shape := fascia_collision.shape as BoxShape3D if fascia_collision != null else null
+	var pod_back := upper.get_node_or_null(^"OperationsPodBack/Mesh") as MeshInstance3D if upper != null else null
+	_check(
+		fascia != null and fascia.position == Vector3(43.0, 5.35, 22.90)
+			and fascia.get_child_count() == 2
+			and StringName(fascia.get_meta("geometry_profile", &"")) == &"extruded_capsule"
+			and StringName(fascia.get_meta("evidence_status", &"")) == &"modern_interpretation"
+			and not bool(fascia.get_meta("historical_form_identified", true))
+			and is_equal_approx(float(fascia.get_meta("end_radius_m", 0.0)), 0.5)
+			and int(fascia.get_meta("curve_segments_per_end", 0)) == 8
+			and fascia_visual != null and fascia_visual.mesh is ArrayMesh
+			and fascia_visual.mesh.resource_name == "dock_operations_capsule_fascia_v1"
+			and fascia_visual.mesh.get_aabb().is_equal_approx(AABB(
+				Vector3(-6.0, -0.5, -0.22), Vector3(12.0, 1.0, 0.44)
+			))
+			and fascia_visual.mesh.get_faces().size() / 3 == 72
+			and _mesh_normals_follow_winding(fascia_visual.mesh)
+			and pod_back != null and fascia_visual.material_override == pod_back.material_override
+			and fascia_shape != null and fascia_shape.size == Vector3(12.0, 1.0, 0.44),
+		"the approach fascia uses one bounded curved steel-blue mesh over its unchanged collider"
+	)
 
 	var glazing_specs := [
 		["OperationsWindow", Vector3(39.35, 3.0, 22.8), Vector3(3.9, 4.7, 0.08)],
@@ -286,6 +310,26 @@ func _run() -> void:
 	world.queue_free()
 	await process_frame
 	_finish()
+
+
+func _mesh_normals_follow_winding(mesh: Mesh) -> bool:
+	if mesh == null or mesh.get_surface_count() != 1:
+		return false
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var normals := arrays[Mesh.ARRAY_NORMAL] as PackedVector3Array
+	if vertices.size() < 3 or vertices.size() != normals.size() or vertices.size() % 3 != 0:
+		return false
+	for index in range(0, vertices.size(), 3):
+		var geometric := (vertices[index + 1] - vertices[index]).cross(
+			vertices[index + 2] - vertices[index]
+		).normalized()
+		var declared := (
+			normals[index] + normals[index + 1] + normals[index + 2]
+		).normalized()
+		if geometric.dot(declared) < 0.99:
+			return false
+	return true
 
 
 func _check(condition: bool, message: String) -> void:
