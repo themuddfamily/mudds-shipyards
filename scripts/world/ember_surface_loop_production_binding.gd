@@ -668,6 +668,10 @@ func _physics_process(_engine_delta: float) -> void:
 		if not intent_rejection.is_empty():
 			_fail_late(intent_rejection)
 			return
+	var relay_forward_rejection := _forward_active_relay_position(envelope)
+	if not relay_forward_rejection.is_empty():
+		_fail_late(relay_forward_rejection)
+		return
 
 	var phase := _host.get_phase()
 	var operation: Dictionary
@@ -710,6 +714,23 @@ func _physics_process(_engine_delta: float) -> void:
 		_complete_handback_late()
 		return
 	_finish_late_signal(&"host_advanced")
+
+
+func _forward_active_relay_position(envelope: Dictionary) -> StringName:
+	if _planetary_composition == null:
+		return &""
+	var surface_snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
+	var activity: Dictionary = surface_snapshot.get("adapter", {}).get("activity_reward", {}) as Dictionary
+	if StringName(activity.get("state", &"")) not in [&"active", &"awaiting_reward"]:
+		return &""
+	var sample: Dictionary = envelope.get("actor_sample", {}) as Dictionary
+	var position: Variant = sample.get("position", Vector3.INF)
+	if not position is Vector3 or not (position as Vector3).is_finite():
+		return &"invalid_relay_position_sample"
+	var forwarded: Dictionary = _planetary_composition.call(
+		&"submit_relay_survey_position", position
+	)
+	return &"relay_position_forward_rejected" if not bool(forwarded.get("accepted", false)) else &""
 
 
 func _complete_handback_late() -> void:
