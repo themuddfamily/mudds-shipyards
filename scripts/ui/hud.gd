@@ -1452,6 +1452,7 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			option.select(clampi(int(value), 0, option.item_count - 1))
 		elif control is LineEdit:
 			(control as LineEdit).text = str(value)
+	_refresh_accessibility_tooltips()
 	_updating_settings = false
 
 
@@ -2515,6 +2516,8 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 		button.focus_mode = Control.FOCUS_ALL
 		var action_id := StringName(str(action.get("id", &"")))
 		if kind == &"bomber" and action_id == &"release_payload":
+			button.tooltip_text = "Release bomber payload. " + str(snapshot.get("message", "Payload release unavailable."))
+		if kind == &"bomber" and action_id == &"release_payload":
 			button.pressed.connect(request_bomber_payload_release)
 		else:
 			button.pressed.connect(func() -> void:
@@ -3265,6 +3268,7 @@ func _build_settings_page() -> void:
 	_add_caption_preview_setting(accessibility_group)
 	_add_controller_glyph_family_setting(accessibility_group)
 	_configure_accessibility_focus_neighbors()
+	_refresh_accessibility_tooltips()
 
 	var hint_panel := PanelContainer.new()
 	hint_panel.add_theme_stylebox_override("panel", _box(Color("122638"), 5, 1, Color("315367")))
@@ -4200,6 +4204,17 @@ func _on_setting_value_changed(key: StringName, value: Variant) -> void:
 	if not _updating_settings:
 		_settings_dirty = true
 		setting_change_requested.emit(key, value)
+	if key == &"reduced_flash" or key == &"payload_visual_intensity":
+		_refresh_accessibility_tooltips()
+
+
+func _refresh_accessibility_tooltips() -> void:
+	var reduced_flash := _settings_controls.get(&"reduced_flash") as CheckButton
+	if reduced_flash != null:
+		reduced_flash.tooltip_text = "Reduce screen flashes: %s. Text and directional cues remain visible." % ("ON" if reduced_flash.button_pressed else "OFF")
+	var payload_intensity := _settings_controls.get(&"payload_visual_intensity") as OptionButton
+	if payload_intensity != null and payload_intensity.item_count > 0:
+		payload_intensity.tooltip_text = "Payload visual intensity: %s. Choose low, medium, or high." % payload_intensity.get_item_text(payload_intensity.selected)
 
 
 func _update_setting_value_label(key: StringName, value: float) -> void:
