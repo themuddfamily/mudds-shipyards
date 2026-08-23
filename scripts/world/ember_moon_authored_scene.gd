@@ -39,6 +39,10 @@ const SURFACE_ROUTE_POINTS_M := [
 const PAD_GUIDE_SIZE_M := Vector3(0.5, 1.8, 0.5)
 const PORT_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, -5.0)
 const STARBOARD_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, 5.0)
+const APPROACH_CUE_BAR_SIZE_M := Vector3(0.72, 0.03, 4.0)
+const APPROACH_CUE_CENTRE_Z_M := [20.0, 27.0, 34.0, 41.0]
+const APPROACH_CUE_INSTANCE_COUNT := 8
+const APPROACH_CUE_Y_M := 0.035
 const SAMPLE_RACK_SIZE_M := Vector3(4.0, 1.0, 1.4)
 const SAMPLE_RACK_POSITION_M := Vector3(28.0, 0.5, -7.0)
 const RELAY_ROOT_POSITION_M := Vector3(42.0, 0.0, 7.0)
@@ -59,8 +63,10 @@ const GUIDE_COLOR := Color("71d9da")
 const EQUIPMENT_COLOR := Color("4f4942")
 const RELAY_COLOR := Color("e1a458")
 
-const EXPECTED_NODE_COUNT := 35
+const EXPECTED_NODE_COUNT := 36
 const EXPECTED_MESH_INSTANCE_COUNT := 11
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 1
+const EXPECTED_MULTI_MESH_COPY_COUNT := 8
 const EXPECTED_STATIC_BODY_COUNT := 5
 const EXPECTED_COLLISION_SHAPE_COUNT := 7
 const MAXIMUM_TRIANGLE_COUNT := 8192
@@ -101,6 +107,7 @@ var _initialized := false
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
+	_configure_landing_approach_cues()
 	_initialize_contract()
 
 
@@ -203,6 +210,9 @@ func get_snapshot() -> Dictionary:
 			"pad_visual_size_m": PAD_VISUAL_SIZE_M,
 			"surface_route_visual_size_m": SURFACE_ROUTE_VISUAL_SIZE_M,
 			"pad_guide_size_m": PAD_GUIDE_SIZE_M,
+			"approach_cue_bar_size_m": APPROACH_CUE_BAR_SIZE_M,
+			"approach_cue_centres_z_m": APPROACH_CUE_CENTRE_Z_M.duplicate(),
+			"approach_cue_instance_count": APPROACH_CUE_INSTANCE_COUNT,
 			"sample_rack_size_m": SAMPLE_RACK_SIZE_M,
 			"relay_base_size_m": RELAY_BASE_SIZE_M,
 			"relay_mast_radius_m": RELAY_MAST_RADIUS_M,
@@ -327,6 +337,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/Markers/PadEgress": "Marker3D",
 		^"LandingRegion/Markers/StagingGate": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks": "Node3D",
+		^"LandingRegion/SurfaceLandmarks/LandingApproachCues": "MultiMeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort": "StaticBody3D",
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual": "MeshInstance3D",
@@ -354,7 +365,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		if node == null or not node.is_class(expected[path]):
 			_append_error(errors, &"missing_or_wrong_node", StringName(str(path)), "required authored node is missing or has the wrong type")
 	if _count_nodes() != EXPECTED_NODE_COUNT:
-		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-five nodes")
+		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-six nodes")
 	var landing_root := get_node_or_null(^"LandingRegion")
 	var walkable := get_node_or_null(^"LandingRegion/WalkablePatch")
 	var markers := get_node_or_null(^"LandingRegion/Markers")
@@ -365,7 +376,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
-			or landmarks == null or landmarks.get_child_count() != 6 \
+			or landmarks == null or landmarks.get_child_count() != 7 \
 			or route_markers == null or route_markers.get_child_count() != 3 \
 			or relay == null or relay.get_child_count() != 6:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
@@ -388,6 +399,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var rim := get_node_or_null(^"LandingRegion/CalderaRim") as MeshInstance3D
 	var pad := get_node_or_null(^"LandingRegion/PadVisual") as MeshInstance3D
 	var route := get_node_or_null(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
+	var approach_cues := get_node_or_null(^"LandingRegion/SurfaceLandmarks/LandingApproachCues") as MultiMeshInstance3D
 	var port_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual") as MeshInstance3D
 	var starboard_guide := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/GuideVisual") as MeshInstance3D
 	var rack := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual") as MeshInstance3D
@@ -426,6 +438,8 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	if route_mesh == null or route_mesh.size != SURFACE_ROUTE_VISUAL_SIZE_M \
 			or route == null or route.position != SURFACE_ROUTE_VISUAL_POSITION_M:
 		_append_error(errors, &"surface_route_visual_drift", &"EgressRouteVisual", "continuous pad-to-staging route visual drifted")
+	if not _landing_approach_cues_are_exact(approach_cues, port_guide):
+		_append_error(errors, &"landing_approach_cue_drift", &"LandingApproachCues", "batched final-approach chevrons drifted from their bounded passive recipe")
 	if port_guide_mesh == null or port_guide_mesh.size != PAD_GUIDE_SIZE_M \
 			or starboard_guide_mesh == null or starboard_guide_mesh.size != PAD_GUIDE_SIZE_M:
 		_append_error(errors, &"pad_guidance_visual_drift", &"PadGuidance", "paired solid pad guidance recipe drifted")
@@ -565,6 +579,77 @@ func _validate_forbidden_nodes(errors: Array[Dictionary]) -> void:
 			_append_error(errors, &"automatic_process_loop", StringName(node.name), "static scene must not own process or physics callbacks")
 
 
+func _configure_landing_approach_cues() -> void:
+	var cues := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/LandingApproachCues"
+	) as MultiMeshInstance3D
+	var guide := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual"
+	) as MeshInstance3D
+	if cues == null or guide == null:
+		return
+	var bar := BoxMesh.new()
+	bar.size = APPROACH_CUE_BAR_SIZE_M
+	bar.material = guide.material_override
+	var batch := MultiMesh.new()
+	batch.transform_format = MultiMesh.TRANSFORM_3D
+	batch.instance_count = APPROACH_CUE_INSTANCE_COUNT
+	batch.mesh = bar
+	var transforms := _approach_cue_transforms()
+	for index in transforms.size():
+		batch.set_instance_transform(index, transforms[index])
+	cues.multimesh = batch
+	# Headless RenderingServer readback exposes identity transforms even though
+	# Forward+ draws the buffer. Retain the exact CPU-authored roster for audit.
+	cues.set_meta("authored_transforms", transforms.duplicate())
+
+
+func _landing_approach_cues_are_exact(
+		cues: MultiMeshInstance3D,
+		guide: MeshInstance3D,
+	) -> bool:
+	if cues == null or guide == null or cues.multimesh == null \
+			or cues.transform != Transform3D.IDENTITY \
+			or cues.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or cues.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or StringName(cues.get_meta("content_class", &"")) != &"NEW" \
+			or StringName(cues.get_meta("status", &"")) != &"modern_interpretation":
+		return false
+	var batch := cues.multimesh
+	var bar := batch.mesh as BoxMesh
+	if batch.transform_format != MultiMesh.TRANSFORM_3D \
+			or batch.instance_count != APPROACH_CUE_INSTANCE_COUNT \
+			or batch.visible_instance_count not in [-1, APPROACH_CUE_INSTANCE_COUNT] \
+			or bar == null or bar.size != APPROACH_CUE_BAR_SIZE_M \
+			or bar.material != guide.material_override:
+		return false
+	var authored: Variant = cues.get_meta("authored_transforms", [])
+	var expected := _approach_cue_transforms()
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return true
+
+
+static func _approach_cue_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for centre_z: float in APPROACH_CUE_CENTRE_Z_M:
+		# Each pair meets at its -Z tip and opens toward the 300 m approach
+		# marker. The silhouette therefore points unambiguously toward touchdown.
+		transforms.append(Transform3D(
+			Basis(Vector3.UP, -PI * 0.25),
+			Vector3(-1.4, APPROACH_CUE_Y_M, centre_z + 1.4),
+		))
+		transforms.append(Transform3D(
+			Basis(Vector3.UP, PI * 0.25),
+			Vector3(1.4, APPROACH_CUE_Y_M, centre_z + 1.4),
+		))
+	return transforms
+
+
 func _validate_performance(errors: Array[Dictionary], census: Dictionary) -> void:
 	var budget := _performance_budget()
 	for key: String in budget:
@@ -576,6 +661,8 @@ func _validate_performance(errors: Array[Dictionary], census: Dictionary) -> voi
 
 func _performance_census() -> Dictionary:
 	var meshes := 0
+	var multi_meshes := 0
+	var multi_mesh_copies := 0
 	var static_bodies := 0
 	var collision_shapes := 0
 	var triangles := 0
@@ -585,6 +672,13 @@ func _performance_census() -> Dictionary:
 			var mesh := (node as MeshInstance3D).mesh
 			if mesh != null:
 				triangles += mesh.get_faces().size() / 3
+		elif node is MultiMeshInstance3D:
+			multi_meshes += 1
+			var batch := (node as MultiMeshInstance3D).multimesh
+			if batch != null:
+				multi_mesh_copies += batch.instance_count
+				if batch.mesh != null:
+					triangles += batch.mesh.get_faces().size() / 3 * batch.instance_count
 		elif node is StaticBody3D:
 			static_bodies += 1
 		elif node is CollisionShape3D:
@@ -592,6 +686,8 @@ func _performance_census() -> Dictionary:
 	return {
 		"node_count": _count_nodes(),
 		"mesh_instances": meshes,
+		"multi_mesh_instances": multi_meshes,
+		"multi_mesh_copies": multi_mesh_copies,
 		"static_bodies": static_bodies,
 		"collision_shapes": collision_shapes,
 		"triangle_count": triangles,
@@ -602,6 +698,8 @@ func _performance_budget() -> Dictionary:
 	return {
 		"node_count": EXPECTED_NODE_COUNT,
 		"mesh_instances": EXPECTED_MESH_INSTANCE_COUNT,
+		"multi_mesh_instances": EXPECTED_MULTI_MESH_INSTANCE_COUNT,
+		"multi_mesh_copies": EXPECTED_MULTI_MESH_COPY_COUNT,
 		"static_bodies": EXPECTED_STATIC_BODY_COUNT,
 		"collision_shapes": EXPECTED_COLLISION_SHAPE_COUNT,
 	}.duplicate(true)

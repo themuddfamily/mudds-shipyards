@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 46
+const EXPECTED_ASSERTIONS := 48
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -71,8 +71,10 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 35
+		audit.performance.node_count == 36
 			and audit.performance.mesh_instances == 11
+			and audit.performance.multi_mesh_instances == 1
+			and audit.performance.multi_mesh_copies == 8
 			and audit.performance.static_bodies == 5
 			and audit.performance.collision_shapes == 7
 			and audit.performance.triangle_count <= 8192,
@@ -148,6 +150,35 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 			and route_visual.position == Vector3(28.0, 0.01, 0.0)
 			and route_mesh.size == Vector3(28.0, 0.02, 4.0),
 		"the surface stripe touches the pad edge at x=14 and reaches staging at x=42 without a visual gap",
+	)
+	var cues := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/LandingApproachCues"
+	) as MultiMeshInstance3D
+	var guide := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/PadGuidancePort/GuideVisual"
+	) as MeshInstance3D
+	var cue_batch := cues.multimesh if cues != null else null
+	var cue_mesh := cue_batch.mesh as BoxMesh if cue_batch != null else null
+	var authored_transforms: Array = cues.get_meta("authored_transforms", []) as Array \
+		if cues != null else []
+	var cue_family_exact := cues != null and cues.get_child_count() == 0 \
+		and cue_batch != null and cue_batch.instance_count == 8 \
+		and cue_mesh != null and cue_mesh.size == Vector3(0.72, 0.03, 4.0) \
+		and cue_mesh.material == guide.material_override \
+		and authored_transforms.size() == 8 \
+		and StringName(cues.get_meta("content_class", &"")) == &"NEW" \
+		and StringName(cues.get_meta("status", &"")) == &"modern_interpretation"
+	for index in 4:
+		var left := authored_transforms[index * 2] as Transform3D
+		var right := authored_transforms[index * 2 + 1] as Transform3D
+		cue_family_exact = cue_family_exact \
+			and is_equal_approx(left.origin.x, -1.4) \
+			and is_equal_approx(right.origin.x, 1.4) \
+			and is_equal_approx(left.origin.z, 21.4 + float(index) * 7.0) \
+			and left.origin == Vector3(-right.origin.x, right.origin.y, right.origin.z)
+	_check(
+		cue_family_exact,
+		"four paired geometric chevrons share the guide material in one collision-free batch outside the touchdown pad",
 	)
 
 
@@ -326,6 +357,16 @@ func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonA
 	_check(
 		(route_report.error_codes as PackedStringArray).has("surface_route_identity_drift"),
 		"surface route identity drift produces a structured red code",
+	)
+	var drifted_cues := drifted.get_node(
+		^"LandingRegion/SurfaceLandmarks/LandingApproachCues"
+	) as MultiMeshInstance3D
+	var drifted_transforms := drifted_cues.get_meta("authored_transforms", []) as Array
+	drifted_transforms[0] = Transform3D.IDENTITY
+	drifted_cues.set_meta("authored_transforms", drifted_transforms)
+	_check(
+		(drifted.audit().error_codes as PackedStringArray).has("landing_approach_cue_drift"),
+		"approach-chevron transform drift produces a structured red code",
 	)
 	drifted.queue_free()
 	await process_frame

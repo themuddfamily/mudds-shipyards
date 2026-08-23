@@ -170,6 +170,12 @@ position = Vector3(42, 0, 0)
 
 [node name="SurfaceLandmarks" type="Node3D" parent="LandingRegion"]
 
+[node name="LandingApproachCues" type="MultiMeshInstance3D" parent="LandingRegion/SurfaceLandmarks"]
+cast_shadow = 0
+gi_mode = 0
+metadata/content_class = &"NEW"
+metadata/status = &"modern_interpretation"
+
 [node name="EgressRouteVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks"]
 position = Vector3(28, 0.01, 0)
 cast_shadow = 0
