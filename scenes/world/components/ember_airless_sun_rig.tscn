@@ -11,6 +11,11 @@ transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0)
 light_color = Color(1, 0.75, 0.5, 1)
 light_energy = 1.5
 shadow_enabled = false
+shadow_opacity = 0.82
+shadow_bias = 0.06
+shadow_normal_bias = 0.4
+directional_shadow_mode = 2
+directional_shadow_max_distance = 512.0
 visible = false
 
 [node name="Presentation" type="Node" parent="."]

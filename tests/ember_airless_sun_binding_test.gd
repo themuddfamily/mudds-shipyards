@@ -9,7 +9,7 @@ const RIG_SCENE := preload(
 const EMBER_WORLD := preload(
 	"res://assets/world/planets/ember_moon_world.tres"
 )
-const EXPECTED_ASSERTIONS := 41
+const EXPECTED_ASSERTIONS := 42
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -65,8 +65,18 @@ func _test_authored_standalone_rig() -> void:
 	_check(
 		light.light_energy == EmberAirlessSunBinding.AUTHORED_BASELINE_ENERGY
 			and light.light_color == EmberAirlessSunBinding.AUTHORED_BASELINE_COLOR
-			and not light.shadow_enabled,
-		"authored airless display baseline and disabled shadows are exact",
+			and not light.shadow_enabled
+			and is_equal_approx(
+				light.shadow_opacity,
+				EmberAirlessSunBinding.SURFACE_SHADOW_MAX_OPACITY
+			)
+			and light.directional_shadow_mode \
+			== DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+			and is_equal_approx(
+				light.directional_shadow_max_distance,
+				EmberAirlessSunBinding.SURFACE_SHADOW_MAX_DISTANCE_M
+			),
+		"authored airless display and bounded surface-shadow recipe are exact",
 	)
 	_check(
 		not rig.is_processing() and not rig.is_physics_processing()
@@ -164,8 +174,13 @@ func _test_exact_configuration_and_airless_mapping() -> void:
 			"light_energy": EmberAirlessSunBinding.AUTHORED_BASELINE_ENERGY,
 		}
 			and light.light_color == EmberAirlessSunBinding.AUTHORED_BASELINE_COLOR
-			and light.light_energy == EmberAirlessSunBinding.AUTHORED_BASELINE_ENERGY,
-		"north-pole airless daylight preserves the exact authored baseline",
+			and light.light_energy == EmberAirlessSunBinding.AUTHORED_BASELINE_ENERGY
+			and light.shadow_enabled
+			and is_equal_approx(
+				light.shadow_opacity,
+				EmberAirlessSunBinding.SURFACE_SHADOW_MAX_OPACITY
+			),
+		"north-pole airless daylight adds bounded hard surface shadows",
 	)
 	var south_observer := Vector3.DOWN * EmberAirlessSunBinding.BODY_RADIUS_M
 	var night := rig.present_post_rebase_observation(south_observer, 2, 1, 1)
@@ -173,8 +188,41 @@ func _test_exact_configuration_and_airless_mapping() -> void:
 		night.accepted and night.renderer_values.light_energy == 0.0
 			and night.renderer_values.light_color \
 			== EmberAirlessSunBinding.AUTHORED_BASELINE_COLOR
-			and light.light_energy == 0.0,
-		"south-pole airless night is exact zero energy with baseline color metadata",
+			and light.light_energy == 0.0
+			and not light.shadow_enabled and light.shadow_opacity == 0.0,
+		"south-pole airless night is exact zero energy and zero shadow",
+	)
+	var high_day := rig.present_post_rebase_observation(
+		Vector3.UP * (
+			EmberAirlessSunBinding.BODY_RADIUS_M
+			+ EmberAirlessSunBinding.SURFACE_SHADOW_ALTITUDE_CEILING_M
+		), 2, 1, 1
+	)
+	var mid_day := rig.present_post_rebase_observation(
+		Vector3.UP * (
+			EmberAirlessSunBinding.BODY_RADIUS_M
+			+ EmberAirlessSunBinding.SURFACE_SHADOW_ALTITUDE_CEILING_M * 0.5
+		), 2, 1, 1
+	)
+	var hard_horizon := rig.present_post_rebase_observation(
+		Vector3.RIGHT * EmberAirlessSunBinding.BODY_RADIUS_M, 2, 1, 1
+	)
+	_check(
+		high_day.accepted and high_day.renderer_values.light_energy \
+			== EmberAirlessSunBinding.AUTHORED_BASELINE_ENERGY
+			and not bool(high_day.surface_shadow.enabled)
+			and high_day.surface_shadow.opacity == 0.0
+			and mid_day.accepted and bool(mid_day.surface_shadow.enabled)
+			and float(mid_day.surface_shadow.opacity) > 0.0
+			and float(mid_day.surface_shadow.opacity) \
+			< EmberAirlessSunBinding.SURFACE_SHADOW_MAX_OPACITY
+			and hard_horizon.accepted
+			and hard_horizon.renderer_values.light_energy == 0.0
+			and not bool(hard_horizon.surface_shadow.enabled)
+			and hard_horizon.surface_shadow.fog_factor_unitless == 0.0
+			and hard_horizon.surface_shadow.cloud_factor_unitless == 0.0
+			and hard_horizon.surface_shadow.wind_factor_unitless == 0.0,
+		"altitude fade and hard day-angle horizon preserve the airless contract",
 	)
 	var before_rejections := rig.get_snapshot()
 	var before_renderer := _renderer_values(light)
@@ -200,19 +248,23 @@ func _test_exact_configuration_and_airless_mapping() -> void:
 		"rejected observations preserve binding and renderer state exactly",
 	)
 	var authored_transform := light.transform
-	light.shadow_enabled = true
+	light.shadow_enabled = false
+	light.shadow_opacity = 0.125
 	light.light_cull_mask = 0x0000FFFF
 	light.light_indirect_energy = 0.375
-	var caller_shadow := light.shadow_enabled
 	var caller_mask := light.light_cull_mask
 	var caller_indirect := light.light_indirect_energy
 	var day_again := rig.present_post_rebase_observation(north_observer, 2, 1, 1)
 	_check(
 		day_again.accepted and light.transform == authored_transform
-			and light.shadow_enabled == caller_shadow
+			and light.shadow_enabled
+			and is_equal_approx(
+				light.shadow_opacity,
+				EmberAirlessSunBinding.SURFACE_SHADOW_MAX_OPACITY
+			)
 			and light.light_cull_mask == caller_mask
 			and light.light_indirect_energy == caller_indirect,
-		"presentation leaves orientation, shadows, cull mask, and indirect energy untouched",
+		"presentation repairs its shadow envelope without taking adjacent light authority",
 	)
 	light.light_energy = 0.25
 	light.light_color = Color(0.1, 0.2, 0.3, 1.0)
@@ -417,8 +469,8 @@ func _test_unload_replacement_and_reports() -> void:
 			and not bool(capabilities.coordinate_conversion)
 			and not bool(capabilities.clock_or_ephemeris)
 			and not bool(capabilities.atmosphere)
-			and not bool(capabilities.shadow_or_occlusion),
-		"capabilities describe authored target and validation without adjacent implementation claims",
+			and bool(capabilities.shadow_or_occlusion),
+		"capabilities include bounded airless surface shadows without adjacent authority",
 	)
 	var report := replacement_rig.get_audit_report()
 	var mutable_snapshot := replacement_rig.get_snapshot()

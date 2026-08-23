@@ -44,6 +44,14 @@ const AUTHORED_LIGHT_TRANSFORM := Transform3D(
 )
 const AUTHORED_BASELINE_ENERGY := 1.5
 const AUTHORED_BASELINE_COLOR := Color(1.0, 0.75, 0.5, 1.0)
+## Shadow activation follows Ember's checked-in 1,500 m collision/readability
+## envelope. The rendered range stays local to the landing region so an orbital
+## observer never pays for a body-scale directional shadow map.
+const SURFACE_SHADOW_ALTITUDE_CEILING_M := 1_500.0
+const SURFACE_SHADOW_MAX_DISTANCE_M := 512.0
+const SURFACE_SHADOW_MAX_OPACITY := 0.82
+const SURFACE_SHADOW_BIAS := 0.06
+const SURFACE_SHADOW_NORMAL_BIAS := 0.4
 
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
@@ -55,7 +63,7 @@ const ADJACENT_AUTHORITY_KEYS := [
 	"coordinate_conversion", "direction_or_orientation_mutation",
 	"directional_light_runtime_creation", "sun_ephemeris",
 	"time_or_day_night_clock", "absolute_energy_or_lux",
-	"calibrated_colorimetry", "temperature", "angular_distance", "shadows",
+	"calibrated_colorimetry", "temperature", "angular_distance",
 	"occlusion_query", "terrain_horizon", "cloud_or_weather",
 	"environment_or_sky", "origin_or_rebase", "streaming_load_unload",
 	"streaming_generation", "movement", "physics", "gameplay", "save",
@@ -98,7 +106,6 @@ const ADJACENT_AUTHORITY := {
 	"calibrated_colorimetry": false,
 	"temperature": false,
 	"angular_distance": false,
-	"shadows": false,
 	"occlusion_query": false,
 	"terrain_horizon": false,
 	"cloud_or_weather": false,
@@ -126,7 +133,7 @@ const CAPABILITIES := {
 	"coordinate_conversion": false,
 	"clock_or_ephemeris": false,
 	"atmosphere": false,
-	"shadow_or_occlusion": false,
+	"shadow_or_occlusion": true,
 }
 const _EMBER_WORLD_DEFINITION := preload(WORLD_RESOURCE_PATH)
 
@@ -146,6 +153,7 @@ var _light_instance_id := 0
 var _presentation_instance_id := 0
 var _last_body_local_observer_m := Vector3.ZERO
 var _last_presentation_result: Dictionary = {}
+var _last_surface_shadow: Dictionary = {}
 var _accepted_observation_count := 0
 var _mutation_active := false
 
@@ -307,6 +315,9 @@ func present_post_rebase_observation(
 	_last_coordinate_frame_generation = frame_generation
 	_last_body_local_observer_m = observer
 	_last_presentation_result = presented.duplicate(true)
+	_last_surface_shadow = _apply_surface_shadow(
+		presented.get("evaluation", {}) as Dictionary
+	)
 	_accepted_observation_count += 1
 	get_directional_light().visible = true
 	_mutation_active = false
@@ -317,6 +328,7 @@ func present_post_rebase_observation(
 		"renderer_values": (
 			presented.get("renderer_values", {}) as Dictionary
 		).duplicate(true),
+		"surface_shadow": _last_surface_shadow.duplicate(true),
 	})
 
 
@@ -365,6 +377,7 @@ func get_snapshot() -> Dictionary:
 		},
 		"last_body_local_observer_m": _last_body_local_observer_m,
 		"last_presentation_result": _last_presentation_result.duplicate(true),
+		"surface_shadow": _last_surface_shadow.duplicate(true),
 		"accepted_observation_count": _accepted_observation_count,
 		"presentation": (
 			presentation.get_state_snapshot()
@@ -419,6 +432,8 @@ func audit() -> Dictionary:
 		"owned_renderer_properties": PackedStringArray([
 			"DirectionalLight3D.light_color",
 			"DirectionalLight3D.light_energy",
+			"DirectionalLight3D.shadow_enabled",
+			"DirectionalLight3D.shadow_opacity",
 		]),
 		"production_caller_wired": _is_production_composed(),
 		"automatic_process": false,
@@ -641,8 +656,22 @@ func _rig_contract_reason(require_authored_baseline: bool) -> StringName:
 	if require_authored_baseline and (
 		light.light_energy != AUTHORED_BASELINE_ENERGY
 		or light.light_color != AUTHORED_BASELINE_COLOR
+		or light.shadow_enabled
+		or not is_equal_approx(light.shadow_opacity, SURFACE_SHADOW_MAX_OPACITY)
 	):
 		return &"authored_light_baseline_drift"
+	if light.directional_shadow_mode \
+			!= DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS \
+			or not is_equal_approx(
+				light.directional_shadow_max_distance,
+				SURFACE_SHADOW_MAX_DISTANCE_M
+			) \
+			or not is_equal_approx(light.shadow_bias, SURFACE_SHADOW_BIAS) \
+			or not is_equal_approx(
+				light.shadow_normal_bias,
+				SURFACE_SHADOW_NORMAL_BIAS
+			):
+		return &"authored_shadow_recipe_drift"
 	if presentation.get_child_count() != 0 \
 			or presentation.is_processing() \
 			or presentation.is_physics_processing():
@@ -726,6 +755,7 @@ func _clear_binding_state() -> void:
 	_presentation_instance_id = 0
 	_last_body_local_observer_m = Vector3.ZERO
 	_last_presentation_result.clear()
+	_last_surface_shadow.clear()
 	_accepted_observation_count = 0
 
 
@@ -753,7 +783,7 @@ func _capability_contract_is_valid() -> bool:
 		var key := CAPABILITY_KEYS[index] as String
 		if not CAPABILITIES.has(key) or CAPABILITIES[key] is not bool:
 			return false
-		var expected := index < 7
+		var expected := index < 7 or key == "shadow_or_occlusion"
 		if bool(CAPABILITIES[key]) != expected:
 			return false
 	return true
@@ -773,6 +803,40 @@ func _is_production_composed() -> bool:
 	return bootstrap != null and loaded_root != null \
 		and get_parent() == loaded_root.get_parent() \
 		and get_parent() == bootstrap.get_node_or_null(^"WorldStreamingCoordinator")
+
+
+## Applies a presentation-only shadow envelope from the existing sun-policy
+## geometry. Airless direct visibility is a hard horizon gate; altitude then
+## fades local surface shadows to exact zero at the terrain collision ceiling.
+func _apply_surface_shadow(evaluation: Dictionary) -> Dictionary:
+	var geometry := evaluation.get("geometry", {}) as Dictionary
+	var altitude_m := float(geometry.get("observer_altitude_m", NAN))
+	var direct_visible := bool(geometry.get("direct_sun_visible", false))
+	var altitude_coordinate := clampf(
+		(SURFACE_SHADOW_ALTITUDE_CEILING_M - altitude_m)
+			/ SURFACE_SHADOW_ALTITUDE_CEILING_M,
+		0.0,
+		1.0,
+	) if is_finite(altitude_m) else 0.0
+	var altitude_weight := smoothstep(0.0, 1.0, altitude_coordinate)
+	var opacity := SURFACE_SHADOW_MAX_OPACITY * altitude_weight \
+		if direct_visible else 0.0
+	var light := get_directional_light()
+	light.shadow_opacity = opacity
+	light.shadow_enabled = opacity > 0.0
+	return {
+		"enabled": light.shadow_enabled,
+		"opacity": light.shadow_opacity,
+		"observer_altitude_m": altitude_m,
+		"altitude_weight_unitless": altitude_weight,
+		"direct_sun_visible": direct_visible,
+		"altitude_ceiling_m": SURFACE_SHADOW_ALTITUDE_CEILING_M,
+		"maximum_distance_m": SURFACE_SHADOW_MAX_DISTANCE_M,
+		"airless": true,
+		"fog_factor_unitless": 0.0,
+		"cloud_factor_unitless": 0.0,
+		"wind_factor_unitless": 0.0,
+	}.duplicate(true)
 
 
 func _evidence_contract_is_valid() -> bool:
