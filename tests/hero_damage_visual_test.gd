@@ -126,6 +126,32 @@ func _run() -> void:
 	_check(int(presentation.call("get_live_world_effect_count")) == 1, "impact creates one tracked world-space transient")
 	var impact_root := root.get_node_or_null("HeroDamageImpact") as Node3D
 	var impact_sparks := impact_root.get_node_or_null("ImpactSparks") as CPUParticles3D if impact_root != null else null
+	var impact_flash := impact_root.get_node_or_null("ImpactFlash") as MeshInstance3D if impact_root != null else null
+	var impact_light := impact_root.get_node_or_null("ImpactLight") as OmniLight3D if impact_root != null else null
+	_check(
+		impact_flash != null
+		and impact_flash.mesh is SphereMesh
+		and impact_flash.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and impact_light != null
+		and impact_light.light_color.is_equal_approx(Color("ffb14e"))
+		and impact_light.light_energy > 0.0
+		and impact_light.omni_range >= 2.8
+		and impact_light.omni_range <= 5.6
+		and not impact_light.shadow_enabled,
+		"resolved hull impact adds one bounded luminous core and shadowless practical"
+	)
+	var impact_initial_scale := impact_flash.scale.x if impact_flash != null else 0.0
+	var impact_initial_energy := impact_light.light_energy if impact_light != null else 0.0
+	presentation.call("_update_transient_effects", 0.04)
+	_check(
+		impact_flash != null
+		and impact_flash.scale.x > impact_initial_scale
+		and impact_flash.transparency > 0.0
+		and impact_light != null
+		and impact_light.light_energy < impact_initial_energy
+		and impact_light.light_energy > 0.0,
+		"impact core expands and fades while its practical decays over the existing lifetime"
+	)
 	var live_spark_audit := presentation.call("get_spark_mesh_allocation_audit") as Dictionary
 	_check(
 		impact_sparks != null

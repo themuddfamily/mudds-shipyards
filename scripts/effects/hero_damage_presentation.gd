@@ -51,6 +51,10 @@ const DEBRIS_DARK := Color("12242b")
 const DEBRIS_IVORY := Color("dedbd0")
 const SPARK_MESH_SIZE := Vector3(0.035, 0.035, 0.38)
 const SPARK_VISIBILITY_AABB := AABB(Vector3(-12.0, -12.0, -12.0), Vector3.ONE * 24.0)
+const IMPACT_FLASH_MINIMUM_SCALE := 0.18
+const IMPACT_FLASH_MAXIMUM_SCALE := 1.05
+const IMPACT_LIGHT_MINIMUM_RANGE := 2.8
+const IMPACT_LIGHT_MAXIMUM_RANGE := 5.6
 
 @export_category("Damage thresholds")
 @export_range(0.05, 0.95, 0.01) var damaged_threshold := 0.68
@@ -207,9 +211,45 @@ func present_impact(
 	sparks.direction = safe_normal
 	effect_root.add_child(sparks)
 	sparks.emitting = true
+
+	# A resolved hull hit previously produced only thin spark geometry. Against a
+	# bright station deck or at combat distance that could disappear for the exact
+	# frame in which damage landed, while the pulse impact and terminal explosion
+	# both had a luminous contact read. This small core and shadowless practical
+	# supply that missing shared grammar. They consume only the caller's already-
+	# resolved position and intensity and never query collision, health, or damage.
+	var safe_intensity := clampf(intensity, 0.25, 2.5)
+	var flash := MeshInstance3D.new()
+	flash.name = "ImpactFlash"
+	flash.mesh = _meshes.impact_flash
+	flash.scale = Vector3.ONE * (
+		IMPACT_FLASH_MINIMUM_SCALE * lerpf(0.82, 1.22, safe_intensity / 2.5)
+	)
+	flash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effect_root.add_child(flash)
+
+	var practical := OmniLight3D.new()
+	practical.name = "ImpactLight"
+	practical.light_color = DAMAGE_AMBER
+	practical.light_energy = 5.2 * minf(safe_intensity, 1.6)
+	practical.omni_range = lerpf(
+		IMPACT_LIGHT_MINIMUM_RANGE,
+		IMPACT_LIGHT_MAXIMUM_RANGE,
+		clampf(safe_intensity / 2.5, 0.0, 1.0)
+	)
+	practical.omni_attenuation = 1.55
+	practical.shadow_enabled = false
+	effect_root.add_child(practical)
 	_transient_effects.append({
 		"node": effect_root,
 		"remaining": impact_effect_lifetime,
+		"duration": impact_effect_lifetime,
+		"age": 0.0,
+		"intensity": safe_intensity,
+		"flash": flash,
+		"light": practical,
+		"light_peak": practical.light_energy,
+		"light_base_range": practical.omni_range,
 	})
 
 
@@ -1063,7 +1103,31 @@ func _update_transient_effects(delta: float) -> void:
 			_remove_world_node(effect_node)
 			_transient_effects.remove_at(index)
 		else:
+			var duration := maxf(float(effect.get("duration", impact_effect_lifetime)), 0.001)
+			var age := clampf(float(effect.get("age", 0.0)) + delta, 0.0, duration)
+			var progress := age / duration
+			var safe_intensity := float(effect.get("intensity", 1.0))
+			var flash := effect.get("flash") as MeshInstance3D
+			if is_instance_valid(flash):
+				var intensity_scale := lerpf(0.82, 1.22, safe_intensity / 2.5)
+				var scale_value := lerpf(
+					IMPACT_FLASH_MINIMUM_SCALE,
+					IMPACT_FLASH_MAXIMUM_SCALE,
+					progress
+				) * intensity_scale
+				flash.scale = Vector3.ONE * scale_value
+				flash.transparency = smoothstep(0.28, 1.0, progress)
+			var practical := effect.get("light") as OmniLight3D
+			if is_instance_valid(practical):
+				var decay := 1.0 - progress
+				practical.light_energy = float(effect.get("light_peak", 0.0)) * decay * decay
+				practical.omni_range = lerpf(
+					float(effect.get("light_base_range", IMPACT_LIGHT_MINIMUM_RANGE)),
+					IMPACT_LIGHT_MAXIMUM_RANGE,
+					progress
+				)
 			effect["remaining"] = remaining
+			effect["age"] = age
 			_transient_effects[index] = effect
 		index -= 1
 
@@ -1202,6 +1266,7 @@ func _restart_particles_cleared(particles: CPUParticles3D) -> void:
 
 func _create_materials() -> void:
 	_materials.spark = _emissive_material(DAMAGE_ORANGE, 4.6)
+	_materials.impact_flash = _emissive_material(Color("ffd08a"), 4.2)
 	_materials.explosion = _emissive_material(Color("fff0b0"), 6.2)
 	_materials.debris_ivory = _solid_material(DEBRIS_IVORY, 0.24, 0.42)
 	_materials.debris_dark = _solid_material(DEBRIS_DARK, 0.52, 0.3)
@@ -1243,6 +1308,16 @@ func _create_shared_meshes() -> void:
 	spark_mesh.size = SPARK_MESH_SIZE
 	spark_mesh.material = _materials.spark
 	_meshes.spark = spark_mesh
+
+	# Every live impact instance is short-lived but uses the same immutable core
+	# resource, keeping the visible contact read consistent across rapid hits.
+	var impact_flash_mesh := SphereMesh.new()
+	impact_flash_mesh.radius = 0.42
+	impact_flash_mesh.height = 0.84
+	impact_flash_mesh.radial_segments = 16
+	impact_flash_mesh.rings = 8
+	impact_flash_mesh.material = _materials.impact_flash
+	_meshes.impact_flash = impact_flash_mesh
 
 
 func _emissive_material(color: Color, energy: float) -> StandardMaterial3D:
