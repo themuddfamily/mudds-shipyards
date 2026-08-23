@@ -19,6 +19,8 @@ const MAX_MESH_INSTANCES := 30
 const EXPECTED_STATIC_BODIES := 3
 const EXPECTED_COLLISION_SHAPES := 3
 const EXPECTED_MESH_INSTANCES := 19
+const EXPECTED_SERVICE_MESH_INSTANCES := 16
+const EXPECTED_MESH_RESOURCE_ALLOCATIONS := 14
 const EXPECTED_GUIDE_LIGHTS := 6
 const EXPECTED_DESCENDANTS := 46
 const SERVICE_MESH_COUNTS := {
@@ -42,6 +44,7 @@ const APPROACH_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, 21.0), Vector3(20.0,
 var _pads: Dictionary = {}
 var _attachments: Dictionary = {}
 var _service_materials: Dictionary = {}
+var _cargo_container_mesh: BoxMesh
 var _built := false
 
 
@@ -122,6 +125,7 @@ func get_attachment_snapshot(pad_id: StringName) -> Dictionary:
 func get_service_presentation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var pad_reports: Dictionary = {}
+	var mesh_resource_ids: Dictionary = {}
 	for pad_index in PAD_IDS.size():
 		var pad_id := PAD_IDS[pad_index]
 		var pad := get_node_or_null(NodePath(String(pad_id))) as Node3D
@@ -143,6 +147,7 @@ func get_service_presentation_audit() -> Dictionary:
 				if instance.mesh == null:
 					errors.append("service mesh missing: %s" % pad_id)
 					continue
+				mesh_resource_ids[instance.mesh.get_instance_id()] = true
 				var bounds := (instance.transform * instance.mesh.get_aabb()).abs()
 				local_bounds = bounds if first_bound else local_bounds.merge(bounds)
 				first_bound = false
@@ -195,8 +200,14 @@ func get_service_presentation_audit() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"pads": pad_reports,
+		"renderer_nodes_before": EXPECTED_SERVICE_MESH_INSTANCES,
+		"renderer_nodes_after": EXPECTED_SERVICE_MESH_INSTANCES,
+		"mesh_resource_allocations_before": EXPECTED_SERVICE_MESH_INSTANCES,
+		"mesh_resource_allocations_after": mesh_resource_ids.size(),
+		"mesh_resource_delta": mesh_resource_ids.size() - EXPECTED_SERVICE_MESH_INSTANCES,
 		"budgets": {
 			"mesh_instances": EXPECTED_MESH_INSTANCES,
+			"mesh_resource_allocations": EXPECTED_MESH_RESOURCE_ALLOCATIONS,
 			"guide_lights": EXPECTED_GUIDE_LIGHTS,
 			"descendants": EXPECTED_DESCENDANTS,
 			"static_bodies": EXPECTED_STATIC_BODIES,
@@ -248,6 +259,7 @@ func get_audit_report() -> Dictionary:
 		"pad_count": _pads.size(),
 		"static_bodies": bodies,
 		"mesh_instances": meshes,
+		"mesh_resource_allocations": int(service_presentation.get("mesh_resource_allocations_after", -1)),
 		"collision_shapes": collision_shapes,
 		"guide_lights": guide_lights,
 		"descendants": descendants,
@@ -323,12 +335,14 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 			_visual_box(service, "CargoCraneMast", Vector3(-18.0, 6.0, -7.0), Vector3(1.5, 12.0, 1.5), _service_materials["cargo_frame"])
 			_visual_box(service, "CargoCraneJib", Vector3(-12.0, 11.5, -7.0), Vector3(13.5, 1.0, 1.0), _service_materials["cargo_frame"])
 			_visual_box(service, "CargoCraneHoist", Vector3(-7.0, 10.0, -7.0), Vector3(1.0, 3.0, 1.0), _service_materials["cargo_marker"])
+			_cargo_container_mesh = BoxMesh.new()
+			_cargo_container_mesh.size = Vector3(7.0, 3.6, 7.0)
 			for container_index in 3:
 				_visual_box(
 					service, "CargoContainer%02d" % (container_index + 1),
 					Vector3(18.0, 1.8, -10.0 + float(container_index) * 10.0),
 					Vector3(7.0, 3.6, 7.0),
-					_service_materials["cargo_container"]
+					_service_materials["cargo_container"], _cargo_container_mesh
 				)
 			_guide_light(service, "CargoApronGuidePort", Vector3(-18.0, 1.2, 12.0), Color("56d8de"))
 			_guide_light(service, "CargoApronGuideStarboard", Vector3(18.0, 1.2, 14.0), Color("56d8de"))
@@ -352,13 +366,16 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 
 func _visual_box(
 		parent: Node3D, node_name: String, position_value: Vector3,
-		size: Vector3, material: Material
+		size: Vector3, material: Material, shared_mesh: Mesh = null
 	) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = position_value
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	var mesh := shared_mesh
+	if mesh == null:
+		var box := BoxMesh.new()
+		box.size = size
+		mesh = box
 	instance.mesh = mesh
 	instance.material_override = material
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

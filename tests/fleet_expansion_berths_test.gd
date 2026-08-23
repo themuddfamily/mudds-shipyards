@@ -9,6 +9,7 @@ const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
 ]
 const EXPECTED_PAD_SIZE := Vector3(28.0, 0.6, 42.0)
 const EXPECTED_SERVICE_MESHES := [6, 5, 5]
+const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 14
 const EXPECTED_SERVICE_ROLES: Array[StringName] = [
 	&"cargo_crane_and_container_apron",
 	&"ordnance_safe_gantry_markers",
@@ -72,14 +73,16 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		and int(audit.get("static_bodies", -1)) == 3
 		and int(audit.get("collision_shapes", -1)) == 3
 		and int(audit.get("mesh_instances", -1)) == 19
+		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 6
 		and int(audit.get("descendants", -1)) == 46
 		and int(budgets.get("static_bodies", -1)) == 3
 		and int(budgets.get("collision_shapes", -1)) == 3
 		and int(budgets.get("mesh_instances", -1)) == 19
+		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 6
 		and int(budgets.get("descendants", -1)) == 46,
-		"the three service silhouettes freeze at 19 meshes, 6 guide lights, 46 descendants, and the original 3 pad bodies/shapes"
+		"the three service silhouettes freeze at 19 world renderers, 14 service mesh resources (16 -> 14), 6 guide lights, 46 descendants, and the original 3 pad bodies/shapes"
 	)
 	var expected_bounds: Array[AABB] = [
 		AABB(Vector3(-18.75, 0.0, -13.5), Vector3(40.25, 12.0, 27.0)),
@@ -179,8 +182,10 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 	cargo_container.position = original_position
 	_check(bool(berths.get_service_presentation_audit().valid), "restoring the cargo apron returns all three service presentations green")
 	print(
-		"FLEET_EXPANSION_SERVICE_BUDGET: meshes=%d lights=%d descendants=%d bodies=%d shapes=%d" % [
-			int(audit.get("mesh_instances", -1)), int(audit.get("guide_lights", -1)),
+		"FLEET_EXPANSION_SERVICE_BUDGET: world_renderers=%d service_resources=%d (baseline=%d delta=%d) lights=%d descendants=%d bodies=%d shapes=%d" % [
+			int(audit.get("mesh_instances", -1)), int(audit.get("mesh_resource_allocations", -1)),
+			int(presentation.get("mesh_resource_allocations_before", -1)), int(presentation.get("mesh_resource_delta", -1)),
+			int(audit.get("guide_lights", -1)),
 			int(audit.get("descendants", -1)), int(audit.get("static_bodies", -1)),
 			int(audit.get("collision_shapes", -1)),
 		]
