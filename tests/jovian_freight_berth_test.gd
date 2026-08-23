@@ -262,6 +262,28 @@ func _test_physical_walkable_surfaces(module: JovianFreightBerth) -> void:
 			every_side_supported = false
 	_check(every_side_supported, "cargo rack and service-room routes are physically supported")
 
+	# Regression for the reported service-room floor z-fight. This is the F3 hit
+	# location converted to module-local space; the ceramic finish must be the
+	# first surface hit and must remain seated just above the structural shelf.
+	var room_floor_hit := await _ray_local(
+		module,
+		Vector3(18.352, 1.5, 27.813),
+		Vector3(18.352, -1.0, 27.813)
+	)
+	var room_floor_collider := room_floor_hit.get("collider") as Node
+	_check(
+		room_floor_collider != null and room_floor_collider.name == "RoomFloor",
+		"service-room finish owns the visible floor plane above its structural shelf"
+	)
+	_check(
+		not room_floor_hit.is_empty()
+		and is_equal_approx(
+			module.to_local(room_floor_hit.position).y,
+			JovianFreightBerth.ROOM_FLOOR_FINISH_SEAT
+		),
+		"service-room finish keeps the station anti-z-fight seat"
+	)
+
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = PLAYER_RADIUS
 	capsule.height = PLAYER_HEIGHT
@@ -801,14 +823,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 906,
-			"mesh_instance_nodes": 426,
-			"multimesh_nodes": 1,
-			"surfaces": 427,
+			"descendant_nodes": 907,
+			"mesh_instance_nodes": 418,
+			"multimesh_nodes": 2,
+			"surfaces": 420,
 			"visible_copies": 438,
 		}
 		and _renderer_census(module) == renderer_before,
-		"module renderer census stays exact at 906 descendants, 427 renderer nodes/surfaces, and 438 visible copies"
+		"module renderer census stays exact at 907 descendants, 420 surfaces, and 438 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

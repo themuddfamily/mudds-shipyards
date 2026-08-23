@@ -33,6 +33,10 @@ const PRACTICAL_FADE_BEGIN := 60.0
 const PRACTICAL_FADE_LENGTH := 25.0
 
 const DECK_ELEVATION := 0.0
+## Ceramic room finish sits this far above the structural service shelf.
+## A zero offset made the two different materials share 62 m2 of top face and
+## z-fight; 0.010 m is the station's established seated-surface separation.
+const ROOM_FLOOR_FINISH_SEAT := 0.010
 const CONNECTION_CLEAR_WIDTH := 5.8
 const SERVICE_DOOR_CLEAR_WIDTH := 3.1
 const MINIMUM_HEAD_CLEARANCE := 4.1
@@ -1426,7 +1430,9 @@ func _build_service_room() -> void:
 	room.set_meta("evidence_status", EVIDENCE_STATUS)
 	add_child(room)
 
-	_rounded_box(room, "RoomFloor", Vector3(19.25, -0.19, 29.0), Vector3(6.2, 0.38, 10.0), _materials["ceramic_floor"])
+	# The finish remains embedded in the shelf, but its top is 0.010 m above the
+	# shelf's y=0 top so the deck and ceramic faces cannot render coplanar.
+	_rounded_box(room, "RoomFloor", Vector3(19.25, -0.19 + ROOM_FLOOR_FINISH_SEAT, 29.0), Vector3(6.2, 0.38, 10.0), _materials["ceramic_floor"])
 	_rounded_box(room, "RoomRoof", Vector3(19.25, 4.55, 29.0), Vector3(6.2, 0.42, 10.0), _materials["ceramic"])
 	_rounded_box(room, "OuterWallLower", Vector3(22.2, 1.0, 29.0), Vector3(0.42, 2.0, 10.0), _materials["steel_blue"])
 	_rounded_box(room, "OuterWallUpper", Vector3(22.2, 4.0, 29.0), Vector3(0.42, 1.1, 10.0), _materials["ceramic"])
