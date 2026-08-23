@@ -19,6 +19,7 @@ const DamageRespawnIntegration := preload("res://scripts/network/network_damage_
 const MovingInteriorAuthority := preload("res://scripts/network/network_moving_interior_authority.gd")
 const ShipOwnershipAuthority := preload("res://scripts/network/network_ship_ownership_authority.gd")
 const SeatAuthority := preload("res://scripts/network/network_seat_authority.gd")
+const SessionMigration := preload("res://scripts/network/network_session_migration.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -35,6 +36,7 @@ signal damage_respawn_result(result: Dictionary)
 signal moving_interior_result(result: Dictionary)
 signal ship_ownership_result(result: Dictionary)
 signal seat_occupancy_result(result: Dictionary)
+signal migration_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -51,6 +53,7 @@ var _damage_respawn
 var _moving_interior
 var _ship_ownership
 var _seat_authority
+var _migration
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -61,6 +64,7 @@ var _moving_occupants: Dictionary = {}
 var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
+var _latest_snapshot_revision := 0
 
 
 func _init() -> void:
@@ -74,6 +78,7 @@ func _init() -> void:
 	_moving_interior = MovingInteriorAuthority.new(AUTHORITY_PEER_ID)
 	_ship_ownership = ShipOwnershipAuthority.new(AUTHORITY_PEER_ID)
 	_seat_authority = SeatAuthority.new(AUTHORITY_PEER_ID)
+	_migration = SessionMigration.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -660,6 +665,57 @@ func get_crew_assignment(occupant_peer_id: int, avatar_id: StringName) -> Dictio
 	return _seat_authority.get_assignment(occupant_peer_id, avatar_id)
 
 
+func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _migration.rotate_server(AUTHORITY_PEER_ID, next_package_generation)
+	migration_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func accept_migration_packet(source_peer_id: int, packet: Dictionary) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _migration.accept_packet(source_peer_id, packet)
+	migration_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func rebind_migration_peer(source_peer_id: int, packet: Dictionary) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _migration.rebind_peer(source_peer_id, packet)
+	migration_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func bind_migration_attachment(
+	peer_id: int,
+	peer_generation: int,
+	seat_id: StringName,
+	seat_generation: int,
+	ship_id: StringName,
+	ship_generation: int,
+	interest_center: Vector3,
+	interest_radius: float,
+	interest_max_entities: int = 512
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _migration.bind_attachment(
+		AUTHORITY_PEER_ID, peer_id, peer_generation, seat_id, seat_generation,
+		ship_id, ship_generation, interest_center, interest_radius, interest_max_entities
+	)
+	migration_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func get_migration_snapshot() -> Dictionary:
+	var snapshot: Dictionary = _migration.get_snapshot()
+	snapshot["latest_snapshot_revision"] = _latest_snapshot_revision
+	return snapshot.duplicate(true)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -674,6 +730,7 @@ func publish_snapshot(
 	if not bool(published.get("accepted", false)):
 		return _remember(published)
 	var packet := (published.get("snapshot", {}) as Dictionary).duplicate(true)
+	_latest_snapshot_revision = int(packet.get("revision", 0))
 	_broadcast_snapshot.rpc(packet)
 	snapshot_published.emit(packet.duplicate(true))
 	return _remember(_result(true, &"snapshot_published", {
@@ -738,6 +795,14 @@ func _receive_hello(wire: Dictionary) -> void:
 		transport_rejected.emit(StringName(registered.get("status", &"transport_rejected")))
 		return
 	_peer_generations[peer_id] = peer_generation
+	var migration_registered: Dictionary = _migration.register_peer(
+		AUTHORITY_PEER_ID, peer_id, peer_generation
+	)
+	if not bool(migration_registered.get("accepted", false)):
+		_lifecycle.disconnect_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
+		_peer_generations.erase(peer_id)
+		transport_rejected.emit(StringName(migration_registered.get("status", &"migration_rejected")))
+		return
 	var offer := {
 		"admission": admitted,
 		"transport": {

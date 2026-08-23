@@ -274,6 +274,17 @@ func _initialize() -> void:
 		_client.claim_crew_seat(client_peer_id, &"avatar-1", &"ownership-seat", &"pilot", 1).get("status") == &"authority_required",
 		"client cannot mutate crew-seat occupancy"
 	)
+	_check(
+		bool(_server.bind_migration_attachment(
+			client_peer_id, 1, &"ownership-seat", 1, &"ownership-1", 1,
+			Vector3.ZERO, 25.0, 8
+		).get("accepted", false)),
+		"server binds the admitted peer's generation-bearing migration attachment"
+	)
+	_check(
+		_client.rotate_session_migration(2).get("status") == &"authority_required",
+		"client cannot rotate the authoritative migration epoch"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -293,6 +304,19 @@ func _initialize() -> void:
 	_check(
 		not bool(_client.publish_snapshot(2, [], [], []).get("accepted", true)),
 		"client cannot publish an authoritative snapshot"
+	)
+	var migration_before := _server.get_migration_snapshot()
+	_check(
+		(migration_before.get("peers", []) as Array).size() == 1
+		and int(migration_before.get("latest_snapshot_revision", 0)) == 1,
+		"migration state retains the admitted roster and latest snapshot revision"
+	)
+	var rotated_migration := _server.rotate_session_migration(2)
+	_check(
+		bool(rotated_migration.get("accepted", false))
+		and int(_server.get_migration_snapshot().get("latest_snapshot_revision", 0)) == 1
+		and not bool((_server.get_migration_snapshot().peers[0] as Dictionary).get("active", true)),
+		"server rotation preserves snapshot generation while requiring peer rebind"
 	)
 	_server.shutdown()
 	_client.shutdown()
