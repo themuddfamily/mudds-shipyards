@@ -726,6 +726,14 @@ func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void
 	var shoulder := visual.get_node_or_null("PortCargoShoulder") as MeshInstance3D
 	_check(flight_deck != null and flight_deck.mesh is ArrayMesh and flight_deck.mesh.get_faces().size() > 650, "flight deck is a dense smooth loft")
 	_check(shoulder != null and shoulder.mesh is ArrayMesh and shoulder.mesh.get_faces().size() > 500, "split port cargo shoulder is a dense smooth loft")
+	if flight_deck != null and flight_deck.mesh != null:
+		var faces := flight_deck.mesh.get_faces()
+		var first_side_normal := (faces[1] - faces[0]).cross(faces[2] - faces[0]).normalized()
+		var first_side_center := (faces[0] + faces[1] + faces[2]) / 3.0
+		_check(
+			first_side_normal.dot(Vector3(first_side_center.x, first_side_center.y, 0.0)) > 0.0,
+			"flight-deck loft side faces point outward instead of exposing a hollow shell"
+		)
 	_check(visual.get_node_or_null("PortRadiator") is MeshInstance3D and visual.get_node_or_null("StarboardRadiator") is MeshInstance3D, "paired radiator planforms distinguish the utility silhouette")
 	var canopy := visual.get_node_or_null("CanopyHinge") as Node3D
 	var port_hinge_mount := visual.get_node_or_null("PortCanopyHingeMount") as MeshInstance3D

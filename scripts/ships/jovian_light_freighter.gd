@@ -2827,12 +2827,14 @@ func _loft_hull(
 			var current_next := section_index * ring_count + next_ring
 			var following := (section_index + 1) * ring_count + ring_index
 			var following_next := (section_index + 1) * ring_count + next_ring
+			# Keep the radial side facing outward. Reversing these triangles makes
+			# back-face culling hide the near hull and expose the far inner shell.
 			tool.add_index(current)
+			tool.add_index(following_next)
 			tool.add_index(following)
-			tool.add_index(following_next)
 			tool.add_index(current)
-			tool.add_index(following_next)
 			tool.add_index(current_next)
+			tool.add_index(following_next)
 	var front_center := sections.size() * ring_count
 	tool.add_vertex(Vector3(0.0, 0.0, sections[0].z))
 	var rear_center := front_center + 1
