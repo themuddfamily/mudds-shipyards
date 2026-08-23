@@ -59,6 +59,12 @@ const DOCK_MAST_CAP_COPY_COUNT := 3
 const DOCK_03_SERVICE_HEADER_SIZE := Vector3(0.30, 0.26, 3.10)
 const DOCK_03_SERVICE_HEADER_END_RADIUS := 0.13
 const DOCK_03_SERVICE_HEADER_CURVE_SEGMENTS := 8
+## Route-visible trim along Dock 03's raised drop edge. Its former 31 mm shared
+## bevel read as a ten-metre rectangular strip; the half-height capsule profile
+## curves both ends without moving the exact toe-kerb or slab-clearance envelope.
+const DOCK_03_EDGE_TRIM_SIZE := Vector3(0.28, 0.14, 10.4)
+const DOCK_03_EDGE_TRIM_END_RADIUS := 0.07
+const DOCK_03_EDGE_TRIM_CURVE_SEGMENTS := 8
 const PRE_TRUNK_ROUTE_LIGHT_GEOMETRY_SUBMISSION_COUNT := 66
 const PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT := 90
 const PRE_SLAB_SUPPORT_GEOMETRY_SUBMISSION_COUNT := 79
@@ -1513,7 +1519,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		# It is only built where there is still an edge to mark. See
 		# [constant DROP_EDGE_DOCK_INDICES] for the arm that lost one.
 		if index in DROP_EDGE_DOCK_INDICES:
-			_service_box(
+			var edge_trim := _service_box(
 				service,
 				"DockEdgeKerb" + suffix,
 				Vector3(20.86, elevation + 0.06, slab_z),
@@ -1521,6 +1527,19 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 				_materials["frame"],
 				""
 			)
+			if index == 2:
+				edge_trim.mesh = _yz_extruded_capsule_mesh(
+					DOCK_03_EDGE_TRIM_SIZE,
+					DOCK_03_EDGE_TRIM_END_RADIUS,
+					DOCK_03_EDGE_TRIM_CURVE_SEGMENTS
+				)
+				edge_trim.mesh.resource_name = "fleet_dock_03_capsule_edge_trim_v1"
+				edge_trim.set_meta("geometry_profile", &"yz_extruded_capsule_edge_trim")
+				edge_trim.set_meta("end_radius_m", DOCK_03_EDGE_TRIM_END_RADIUS)
+				edge_trim.set_meta("curve_segments_per_end", DOCK_03_EDGE_TRIM_CURVE_SEGMENTS)
+				edge_trim.set_meta("evidence_status", EVIDENCE_STATUS)
+				edge_trim.set_meta("historical_form_identified", false)
+				edge_trim.set_meta("authenticated_original_geometry", false)
 		for side: float in [-1.0, 1.0]:
 			var cleat_z := slab_z + side * 4.4
 			var cleat_pad_anchor := _service_box(
