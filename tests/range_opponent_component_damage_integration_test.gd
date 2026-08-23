@@ -26,7 +26,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_detached_adapter_contract()
 	await _test_runtime_modifier_consumption()
-	await _test_derived_archetype_weapon_damage_presentation()
+	await _test_derived_archetype_component_presentation()
 	await _test_production_lifecycle()
 	_finish()
 
@@ -191,19 +191,20 @@ func _test_runtime_modifier_consumption() -> void:
 	await process_frame
 
 
-func _test_derived_archetype_weapon_damage_presentation() -> void:
+func _test_derived_archetype_component_presentation() -> void:
 	var host := Node3D.new()
 	host.name = "DerivedOpponentComponentPresentationWorld"
 	root.add_child(host)
 	var archetypes := [
-		[&"standoff_picket", PICKET_SCENE],
-		[&"courier_runner", COURIER_SCENE],
-		[&"flanking_skirmisher", SKIRMISHER_SCENE],
+		[&"standoff_picket", PICKET_SCENE, &"SensorBlister"],
+		[&"courier_runner", COURIER_SCENE, &"DistressBeacon"],
+		[&"flanking_skirmisher", SKIRMISHER_SCENE, &"RoleLamp"],
 	]
 	for archetype_index in archetypes.size():
 		var archetype := archetypes[archetype_index] as Array
 		var archetype_id := StringName(archetype[0])
 		var scene := archetype[1] as PackedScene
+		var sensor_anchor_name := StringName(archetype[2])
 		var opponent := scene.instantiate() as RangeOpponent
 		host.add_child(opponent)
 		opponent.set_physics_process(false)
@@ -213,13 +214,28 @@ func _test_derived_archetype_weapon_damage_presentation() -> void:
 			Transform3D(Basis.IDENTITY, Vector3(archetype_index * 20.0, 0.0, 0.0))
 		)
 		var weapon_sparks := opponent.get_node_or_null("WeaponDamageSparks") as CPUParticles3D
+		var sensor_light := opponent.get_node_or_null("SensorDamageLight") as OmniLight3D
 		_check(
 			bool(activated.get("accepted", false))
 				and weapon_sparks != null
-				and not weapon_sparks.emitting,
-			"%s activation starts with a clean localized weapon presentation" % archetype_id
+				and not weapon_sparks.emitting
+				and sensor_light != null
+				and is_zero_approx(sensor_light.light_energy),
+			"%s activation starts with clean localized component presentation" % archetype_id
 		)
-		opponent.apply_damage(opponent.get_maximum_health() * 0.4, opponent.global_position)
+		var presentation_sequence := 1000 + archetype_index
+		opponent.apply_damage(
+			opponent.get_maximum_health() * 0.4,
+			opponent.global_position,
+			presentation_sequence,
+			true
+		)
+		_check(
+			not weapon_sparks.emitting
+				and is_zero_approx(sensor_light.light_energy)
+				and opponent.commit_deferred_damage_presentation(presentation_sequence),
+			"%s local component effects remain receipt-timed" % archetype_id
+		)
 		var muzzle := opponent.call("_get_firing_muzzle") as Node3D
 		_check(
 			weapon_sparks.emitting
@@ -227,14 +243,33 @@ func _test_derived_archetype_weapon_damage_presentation() -> void:
 				and weapon_sparks.global_position.is_equal_approx(muzzle.global_position),
 			"%s weapon degradation sparks at its real archetype muzzle" % archetype_id
 		)
+		var sensor_anchor := opponent.find_child(
+			String(sensor_anchor_name), true, false
+		) as Node3D
+		_check(
+			sensor_light.light_energy > 0.0
+				and sensor_anchor != null
+				and sensor_light.global_position.is_equal_approx(sensor_anchor.global_position),
+			"%s sensor degradation lights its authored sensor/mast location" % archetype_id
+		)
+		opponent.apply_damage(opponent.get_health(), opponent.global_position)
+		_check(
+			not opponent.is_active()
+				and not weapon_sparks.emitting
+				and is_zero_approx(sensor_light.light_energy),
+			"%s destruction clears localized component presentation" % archetype_id
+		)
 		opponent.deactivate()
 		var reused := opponent.activate_with_result(opponent.global_transform)
 		var weapon_state := _component_state(opponent, &"weapon")
+		var sensor_state := _component_state(opponent, &"sensor")
 		_check(
 			bool(reused.get("accepted", false))
 				and not weapon_sparks.emitting
-				and (weapon_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal",
-			"%s reuse clears weapon sparks and restores the shared component stage" % archetype_id
+				and (weapon_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal"
+				and is_zero_approx(sensor_light.light_energy)
+				and (sensor_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal",
+			"%s reuse clears local effects and restores shared component stages" % archetype_id
 		)
 		opponent.queue_free()
 		await process_frame

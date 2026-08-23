@@ -33,6 +33,12 @@ const DAMAGE_ORANGE := Color("ff8b3d")
 const SMOKE_DARK := Color(0.08, 0.12, 0.14, 0.62)
 const DESTRUCTION_EFFECT_LIFETIME := 4.5
 const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
+const SENSOR_DAMAGE_ANCHOR_NAMES := {
+	&"RangeInterceptorVisual": &"AmberCanopy",
+	&"StandoffPicketVisual": &"SensorBlister",
+	&"ContractCourierVisual": &"DistressBeacon",
+	&"WingSkirmisherVisual": &"RoleLamp",
+}
 
 ## Four exact port/starboard box families in the base defender hull. These are
 ## childless presentation stock: authority lives on the craft root, its seven
@@ -155,6 +161,8 @@ var _smoke_particle_mesh: QuadMesh
 var _damage_sparks: CPUParticles3D
 var _damage_smoke: CPUParticles3D
 var _weapon_damage_sparks: CPUParticles3D
+var _sensor_damage_light: OmniLight3D
+var _presented_sensor_damage_stage: StringName = &"nominal"
 var _destruction_root: Node3D
 var _destruction_light: OmniLight3D
 var _debris: Dictionary = {}
@@ -175,6 +183,7 @@ func _ready() -> void:
 	_bind_damage_audio()
 	_build_interceptor()
 	_ensure_weapon_component_damage_presentation()
+	_ensure_sensor_component_damage_presentation()
 	if _active:
 		if _apply_spawn_on_ready:
 			global_transform = _pending_spawn_transform
@@ -297,6 +306,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 		}.duplicate(true)
 	_build_interceptor()
 	_ensure_weapon_component_damage_presentation()
+	_ensure_sensor_component_damage_presentation()
 	_clear_destruction_effects()
 	var clean_spawn := spawn_transform
 	clean_spawn.basis = clean_spawn.basis.orthonormalized()
@@ -327,6 +337,8 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_damage_sparks.emitting = false
 	_damage_smoke.emitting = false
 	_weapon_damage_sparks.emitting = false
+	_sensor_damage_light.light_energy = 0.0
+	_presented_sensor_damage_stage = &"nominal"
 	_restart_particles_cleared(_damage_sparks)
 	_restart_particles_cleared(_damage_smoke)
 	_restart_particles_cleared(_weapon_damage_sparks)
@@ -358,6 +370,9 @@ func deactivate() -> void:
 	if _weapon_damage_sparks != null:
 		_weapon_damage_sparks.emitting = false
 		_restart_particles_cleared(_weapon_damage_sparks)
+	if _sensor_damage_light != null:
+		_sensor_damage_light.light_energy = 0.0
+	_presented_sensor_damage_stage = &"nominal"
 	if _visual_root != null:
 		_visual_root.visible = true
 	_clear_destruction_effects()
@@ -910,12 +925,14 @@ func _set_damage_stage_for_health(presented_health: float, presentation_active: 
 	_damage_sparks.emitting = presentation_active and ratio <= 0.67
 	_damage_smoke.emitting = presentation_active and ratio <= 0.34
 	_set_weapon_component_damage_presentation(presentation_active)
+	_set_sensor_component_damage_presentation(presentation_active)
 
 
 func _update_presentation(delta: float) -> void:
 	if not _built:
 		return
 	_sync_weapon_damage_anchor()
+	_sync_sensor_damage_anchor()
 	var ratio := clampf(get_health() / maxf(get_maximum_health(), 0.001), 0.0, 1.0)
 	var engine_strength := 0.0
 	if _active:
@@ -974,6 +991,8 @@ func _present_damage_record(presentation: Dictionary) -> void:
 		_damage_smoke.emitting = false
 		_weapon_damage_sparks.emitting = false
 		_restart_particles_cleared(_weapon_damage_sparks)
+		_sensor_damage_light.light_energy = 0.0
+		_presented_sensor_damage_stage = &"nominal"
 		_visual_root.visible = false
 		_pending_terminal_presentation_sequence = -1
 		var effect_pose: Transform3D = presentation.get("effect_pose", global_transform)
@@ -1022,6 +1041,64 @@ func _ensure_weapon_component_damage_presentation() -> void:
 	_weapon_damage_sparks.emitting = false
 	add_child(_weapon_damage_sparks)
 	_sync_weapon_damage_anchor()
+
+
+## Sensor degradation remains behaviorally owned by the existing targeting
+## modifier. This inherited light adds only a local read at each authored
+## sensor/mast node, and its presented stage advances with damage receipts.
+func _set_sensor_component_damage_presentation(presentation_active: bool) -> void:
+	if _sensor_damage_light == null:
+		return
+	var sensor_state := _get_component_damage_state(
+		RangeOpponentComponentDamageAdapter.SENSOR_COMPONENT_ID
+	)
+	var stage := sensor_state.get("stage", {}) as Dictionary
+	_presented_sensor_damage_stage = (
+		StringName(stage.get("stage_id", &"nominal"))
+		if presentation_active else &"nominal"
+	)
+	_sync_sensor_damage_anchor()
+	var energy := 0.0
+	if _presented_sensor_damage_stage == &"damaged":
+		energy = 2.4
+	elif _presented_sensor_damage_stage == &"critical":
+		energy = 4.8
+	_sensor_damage_light.light_energy = energy
+
+
+func _ensure_sensor_component_damage_presentation() -> void:
+	if _sensor_damage_light != null and is_instance_valid(_sensor_damage_light):
+		return
+	_sensor_damage_light = OmniLight3D.new()
+	_sensor_damage_light.name = "SensorDamageLight"
+	_sensor_damage_light.light_color = DAMAGE_ORANGE
+	_sensor_damage_light.light_energy = 0.0
+	_sensor_damage_light.omni_range = 5.0
+	_sensor_damage_light.shadow_enabled = false
+	_sensor_damage_light.set_meta(&"presentation_only", true)
+	add_child(_sensor_damage_light)
+	_sync_sensor_damage_anchor()
+
+
+func _sync_sensor_damage_anchor() -> void:
+	if _sensor_damage_light == null or not is_instance_valid(_sensor_damage_light):
+		return
+	var anchor := _get_sensor_component_anchor()
+	if anchor != null and is_instance_valid(anchor) and anchor.is_inside_tree():
+		_sensor_damage_light.global_position = anchor.global_position
+
+
+func _get_sensor_component_anchor() -> Node3D:
+	if _visual_root == null or not is_instance_valid(_visual_root):
+		return self
+	var anchor_name := StringName(
+		SENSOR_DAMAGE_ANCHOR_NAMES.get(StringName(_visual_root.name), &"")
+	)
+	if not anchor_name.is_empty():
+		var anchor := _visual_root.find_child(String(anchor_name), true, false) as Node3D
+		if anchor != null:
+			return anchor
+	return _visual_root
 
 
 func _sync_weapon_damage_anchor() -> void:
