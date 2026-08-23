@@ -36,6 +36,12 @@ const ALTITUDE_LOOP_SAMPLE_RATE := 22_050
 const ALTITUDE_LOOP_SECONDS := 1.0
 const ALTITUDE_LOOP_GAIN_DB := -9.0
 const MIN_AUDIBLE_INTENSITY := 0.0001
+const ENTRY_BED_FADE_SECONDS := 0.35
+const ENTRY_BED_EXTERIOR_GAIN := 0.82
+const ENTRY_BED_INTERIOR_GAIN := 0.42
+const ENTRY_BED_REDUCED_RANGE_GAIN := 0.58
+const ENTRY_BED_MIN_PITCH := 1.08
+const ENTRY_BED_MAX_PITCH := 1.34
 const ENTRY_ALERT_STATES := [
 	&"atmospheric_rising", &"atmospheric_critical", &"airless_high_sink",
 ]
@@ -68,6 +74,7 @@ var _altitude_proximity_unitless := 0.0
 var _altitude_target_intensity_unitless := 0.0
 var _altitude_intensity_unitless := 0.0
 var _altitude_playback_requested := false
+var _continuous_playback_requested := false
 var _last_altitude_input: Dictionary = {}
 var _reduced_dynamic_range := false
 var _last_entry_owner_generation := -1
@@ -77,6 +84,13 @@ var _last_entry_state: StringName = &""
 var _last_entry_cue: StringName = &""
 var _entry_cue_count := 0
 var _last_entry_result: Dictionary = {}
+var _last_entry_observation: Dictionary = {}
+var _entry_bed_branch: StringName = &"unavailable"
+var _entry_bed_craft_id: StringName = &""
+var _entry_bed_accepted_intensity_unitless := 0.0
+var _entry_bed_target_intensity_unitless := 0.0
+var _entry_bed_intensity_unitless := 0.0
+var _entry_bed_phase_is_active := false
 var _entry_guidance_presenter := EntryGuidancePresenterScript.new() as RefCounted
 
 
@@ -112,11 +126,22 @@ func set_perspective(perspective: StringName) -> Dictionary:
 	_perspective = perspective
 	if not _last_altitude_input.is_empty():
 		_apply_decoded_altitude_transition(_last_altitude_input, 0.0)
+	if _entry_bed_phase_is_active and not _last_entry_observation.is_empty():
+		_configure_entry_bed_target(_last_entry_observation)
+		_entry_bed_intensity_unitless = _entry_bed_target_intensity_unitless
+	_apply_altitude_voice()
 	return _result(true, &"perspective_updated")
 
 
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 	_reduced_dynamic_range = enabled
+	if _entry_bed_phase_is_active and not _last_entry_observation.is_empty():
+		_configure_entry_bed_target(_last_entry_observation)
+		_entry_bed_intensity_unitless = minf(
+			_entry_bed_intensity_unitless,
+			_entry_bed_target_intensity_unitless,
+		)
+	_apply_altitude_voice()
 	return _result(true, &"dynamic_range_updated")
 
 func present_snapshot(snapshot: Dictionary) -> Dictionary:
@@ -130,6 +155,7 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		return _result(false, &"stale_generation")
 	_last_entry_result = _present_entry_transition(snapshot, int(owner_generation))
 	_apply_altitude_transition(snapshot, _phase_delta(snapshot))
+	_apply_entry_bed(snapshot, _phase_delta(snapshot))
 	var phase_id := StringName(snapshot.get("phase_id", snapshot.get("state_id", &"")))
 	if _owner != null and _owner.has_method(&"get_host_phase"):
 		var host_phase := int(_owner.get_host_phase())
@@ -186,6 +212,48 @@ func get_snapshot() -> Dictionary:
 			"emitted_cue_count": _entry_cue_count,
 			"last_result": _last_entry_result.duplicate(true),
 		}.duplicate(true),
+		"entry_bed": {
+			"branch_id": _entry_bed_branch,
+			"craft_id": _entry_bed_craft_id,
+			"accepted_entry_intensity_unitless": (
+				_entry_bed_accepted_intensity_unitless
+			),
+			"target_intensity_unitless": _entry_bed_target_intensity_unitless,
+			"intensity_unitless": _entry_bed_intensity_unitless,
+			"playback_requested": _attached \
+				and _entry_bed_intensity_unitless > MIN_AUDIBLE_INTENSITY,
+			"perspective_gain": ENTRY_BED_INTERIOR_GAIN \
+				if _perspective == &"interior" else ENTRY_BED_EXTERIOR_GAIN,
+			"reduced_dynamic_range": _reduced_dynamic_range,
+			"reduced_range_gain_cap": ENTRY_BED_REDUCED_RANGE_GAIN,
+			"airless_exact_silence": _entry_bed_branch == &"airless" \
+				and is_zero_approx(_entry_bed_target_intensity_unitless) \
+				and is_zero_approx(_entry_bed_intensity_unitless),
+			"voice_instance_id": _altitude_voice.get_instance_id() \
+				if is_instance_valid(_altitude_voice) else 0,
+			"stream_instance_id": _altitude_stream.get_instance_id() \
+				if is_instance_valid(_altitude_stream) else 0,
+			"reuses_surface_transition_voice": true,
+			"continuous_intensity_response": true,
+			"entry_phase_active": _entry_bed_phase_is_active,
+			"presentation_only": true,
+		}.duplicate(true),
+		"continuous_voice": {
+			"voice_ceiling": 1,
+			"active_mode": _continuous_voice_mode(),
+			"combined_intensity_unitless": maxf(
+				_altitude_intensity_unitless, _entry_bed_intensity_unitless
+			),
+			"playback_requested": _continuous_playback_requested,
+			"volume_db": _altitude_voice.volume_db \
+				if is_instance_valid(_altitude_voice) else -80.0,
+			"pitch_scale": _altitude_voice.pitch_scale \
+				if is_instance_valid(_altitude_voice) else 1.0,
+			"minimum_entry_pitch": ENTRY_BED_MIN_PITCH,
+			"maximum_entry_pitch": ENTRY_BED_MAX_PITCH,
+			"node_count": 1,
+			"stream_count": 1 if _altitude_stream != null else 0,
+		}.duplicate(true),
 		"altitude_transition": {
 			"world_id": EMBER_WORLD.world_id,
 			"has_atmosphere": EMBER_WORLD.has_atmosphere,
@@ -204,7 +272,9 @@ func get_snapshot() -> Dictionary:
 			"wind_gain_unitless": 0.0,
 			"presentation_kind": &"airless_hull_resonance",
 		}.duplicate(true),
-		"authority": {"host": false, "travel": false, "movement": false, "landing": false, "audio_cues": true}}.duplicate(true)
+		"authority": {"host": false, "travel": false, "movement": false,
+			"landing": false, "flight": false, "atmosphere": false,
+			"heat": false, "audio_cues": true}}.duplicate(true)
 
 func _on_owner_snapshot(snapshot: Dictionary) -> void:
 	present_snapshot(snapshot)
@@ -229,20 +299,22 @@ func _emit(cue_id: StringName, intensity: float = 1.0) -> void:
 	semantic_surface_cue_emitted.emit(cue_id, clampf(intensity, 0.0, 1.0))
 
 
-## Consumes only the retained Arrow presentation result already accepted by the
-## production owner. It never samples the ship or changes entry/landing state.
+## Consumes only the retained entry presentation result already accepted by the
+## production owner. It never samples a ship or changes entry/landing state.
 func _present_entry_transition(
 		snapshot: Dictionary, owner_generation: int
 	) -> Dictionary:
-	var bridge := snapshot.get("entry_presentation", {}) as Dictionary
-	var retained := snapshot.get("last_entry_presentation_result", {}) as Dictionary
-	if retained.is_empty():
-		retained = bridge.get("last_result", {}) as Dictionary
-	var source := retained.get("source", {}) as Dictionary
-	if bridge.is_empty() or source.is_empty():
+	var decoded := _decode_accepted_entry_observation(snapshot)
+	if not bool(decoded.get("available", false)):
+		_last_entry_observation.clear()
 		return _entry_result(true, &"entry_observation_unavailable")
-	var binding_generation: Variant = bridge.get("generation", -1)
-	var observation_count: Variant = bridge.get("observation_count", -1)
+	if not bool(decoded.get("accepted", false)):
+		return _entry_result(
+			false, StringName(decoded.get("reason", &"invalid_entry_observation"))
+		)
+	var source := decoded.get("source", {}) as Dictionary
+	var binding_generation: Variant = decoded.get("binding_generation", -1)
+	var observation_count: Variant = decoded.get("observation_count", -1)
 	if not binding_generation is int or int(binding_generation) < 0 \
 			or int(binding_generation) > MAX_SAFE_GENERATION \
 			or not observation_count is int or int(observation_count) < 1 \
@@ -267,6 +339,7 @@ func _present_entry_transition(
 	_last_entry_owner_generation = owner_generation
 	_last_entry_binding_generation = int(binding_generation)
 	_last_entry_observation_count = int(observation_count)
+	_last_entry_observation = source.duplicate(true)
 	var state := _entry_semantic_state(source)
 	if state == _last_entry_state:
 		return _entry_result(true, &"entry_state_unchanged")
@@ -287,6 +360,71 @@ func _present_entry_transition(
 	return _entry_result(true, &"entry_transition_cue_emitted", {
 		"cue_id": cue_id, "intensity": intensity,
 	})
+
+
+## Normalizes Arrow's cockpit-owned result and the shared non-Arrow envelope
+## result into one accepted audio observation. Both originate in the production
+## entry presenter; no atmosphere or kinematics are sampled again here.
+func _decode_accepted_entry_observation(snapshot: Dictionary) -> Dictionary:
+	var arrow_bridge := snapshot.get("entry_presentation", {}) as Dictionary
+	var arrow_retained := snapshot.get(
+		"last_entry_presentation_result", {}
+	) as Dictionary
+	if arrow_retained.is_empty():
+		arrow_retained = arrow_bridge.get("last_result", {}) as Dictionary
+	var arrow_source := arrow_retained.get("source", {}) as Dictionary
+	if not arrow_bridge.is_empty() and not arrow_source.is_empty():
+		if not bool(arrow_retained.get("accepted", false)):
+			return {
+				"available": true,
+				"accepted": false,
+				"reason": &"entry_presentation_not_accepted",
+			}
+		return {
+			"available": true,
+			"accepted": true,
+			"binding_generation": arrow_bridge.get("generation", -1),
+			"observation_count": arrow_bridge.get("observation_count", -1),
+			"source": arrow_source.duplicate(true),
+		}.duplicate(true)
+
+	var fleet_bridge := snapshot.get(
+		"fleet_entry_envelope_presentation", {}
+	) as Dictionary
+	if fleet_bridge.is_empty() or not bool(fleet_bridge.get("attached", false)):
+		return {"available": false, "accepted": true}
+	var envelope := fleet_bridge.get("envelope", {}) as Dictionary
+	var sample := fleet_bridge.get(
+		"accepted_atmosphere_sample", {}
+	) as Dictionary
+	var branch_id := StringName(envelope.get("branch_id", &""))
+	var sample_intensity: Variant = sample.get("entry_effect_intensity", 0.0)
+	var sample_inputs := sample.get("inputs", {}) as Dictionary
+	if not bool(sample.get("accepted", false)) \
+			or branch_id not in [&"atmospheric", &"airless"] \
+			or not (sample_intensity is float or sample_intensity is int) \
+			or not is_finite(float(sample_intensity)) \
+			or float(sample_intensity) < 0.0 or float(sample_intensity) > 1.0:
+		return {
+			"available": true,
+			"accepted": false,
+			"reason": &"invalid_fleet_entry_observation",
+		}
+	var source := {
+		"branch_id": branch_id,
+		"altitude_m": float(sample_inputs.get("altitude_m", 0.0)),
+		"vertical_speed_mps": 0.0,
+		"entry_intensity": float(sample_intensity),
+		"landing_supported": false,
+		"craft_id": StringName(fleet_bridge.get("craft_id", &"")),
+	}.duplicate(true)
+	return {
+		"available": true,
+		"accepted": true,
+		"binding_generation": fleet_bridge.get("generation", -1),
+		"observation_count": fleet_bridge.get("observation_serial", -1),
+		"source": source,
+	}.duplicate(true)
 
 
 func _entry_semantic_state(source: Dictionary) -> StringName:
@@ -312,6 +450,13 @@ func _reset_entry_transition() -> void:
 	_last_entry_state = &""
 	_last_entry_cue = &""
 	_last_entry_result = {}
+	_last_entry_observation = {}
+	_entry_bed_branch = &"unavailable"
+	_entry_bed_craft_id = &""
+	_entry_bed_accepted_intensity_unitless = 0.0
+	_entry_bed_target_intensity_unitless = 0.0
+	_entry_bed_intensity_unitless = 0.0
+	_entry_bed_phase_is_active = false
 
 
 func _entry_result(
@@ -321,6 +466,82 @@ func _entry_result(
 	for key: Variant in extra:
 		result[key] = extra[key]
 	return result.duplicate(true)
+
+
+func _apply_entry_bed(snapshot: Dictionary, caller_delta: float) -> void:
+	_entry_bed_phase_is_active = _entry_bed_phase_active(snapshot)
+	if _last_entry_observation.is_empty() or not _entry_bed_phase_is_active:
+		_entry_bed_branch = &"unavailable"
+		_entry_bed_craft_id = &""
+		_entry_bed_accepted_intensity_unitless = 0.0
+		_entry_bed_target_intensity_unitless = 0.0
+		var unavailable_step := clampf(
+			caller_delta / ENTRY_BED_FADE_SECONDS, 0.0, 1.0
+		)
+		if caller_delta <= 0.0:
+			unavailable_step = 1.0
+		_entry_bed_intensity_unitless = move_toward(
+			_entry_bed_intensity_unitless, 0.0, unavailable_step
+		)
+		_apply_altitude_voice()
+		return
+	_configure_entry_bed_target(_last_entry_observation)
+	# Entering an explicitly airless world is a semantic boundary, not an audio
+	# crossfade: atmospheric wind/heat must be absent from the first Ember sample.
+	if _entry_bed_branch == &"airless":
+		_entry_bed_intensity_unitless = 0.0
+		_apply_altitude_voice()
+		return
+	var step := clampf(caller_delta / ENTRY_BED_FADE_SECONDS, 0.0, 1.0)
+	if caller_delta <= 0.0:
+		step = 1.0
+	_entry_bed_intensity_unitless = move_toward(
+		_entry_bed_intensity_unitless,
+		_entry_bed_target_intensity_unitless,
+		step,
+	)
+	_apply_altitude_voice()
+
+
+func _entry_bed_phase_active(snapshot: Dictionary) -> bool:
+	var phase_id := StringName(snapshot.get(
+		"phase_id", snapshot.get("state_id", &"")
+	))
+	if _owner != null and _owner.has_method(&"get_host_phase"):
+		var host_phase := int(_owner.get_host_phase())
+		phase_id = _host_altitude_phase_id(host_phase) \
+			if host_phase >= 0 else phase_id
+	phase_id = StringName(PRODUCTION_STATE_ALIASES.get(phase_id, phase_id))
+	return phase_id in [
+		&"orbit_approach", &"descent", &"surface_approach", &"landing_approach",
+	]
+
+
+func _configure_entry_bed_target(source: Dictionary) -> void:
+	_entry_bed_branch = StringName(source.get("branch_id", &"unavailable"))
+	_entry_bed_craft_id = StringName(source.get("craft_id", &"arrow"))
+	_entry_bed_accepted_intensity_unitless = clampf(
+		float(source.get("entry_intensity", 0.0)), 0.0, 1.0
+	)
+	if _entry_bed_branch != &"atmospheric":
+		_entry_bed_target_intensity_unitless = 0.0
+		return
+	var perspective_gain := ENTRY_BED_INTERIOR_GAIN \
+		if _perspective == &"interior" else ENTRY_BED_EXTERIOR_GAIN
+	var range_gain := minf(
+		perspective_gain, ENTRY_BED_REDUCED_RANGE_GAIN
+	) if _reduced_dynamic_range else perspective_gain
+	_entry_bed_target_intensity_unitless = clampf(
+		_entry_bed_accepted_intensity_unitless * range_gain, 0.0, 1.0
+	)
+
+
+func _continuous_voice_mode() -> StringName:
+	if _entry_bed_intensity_unitless > MIN_AUDIBLE_INTENSITY:
+		return &"atmospheric_entry_wind_heat"
+	if _altitude_intensity_unitless > MIN_AUDIBLE_INTENSITY:
+		return &"airless_hull_resonance"
+	return &"silence"
 
 
 ## Consumes the production scheduler's already-adjusted actor sample. The
@@ -485,16 +706,26 @@ func _build_altitude_stream() -> AudioStreamWAV:
 func _apply_altitude_voice() -> void:
 	if not is_instance_valid(_altitude_voice):
 		return
+	var combined_intensity := maxf(
+		_altitude_intensity_unitless, _entry_bed_intensity_unitless
+	)
 	_altitude_playback_requested = _attached \
 		and _altitude_intensity_unitless > MIN_AUDIBLE_INTENSITY
+	_continuous_playback_requested = _attached \
+		and combined_intensity > MIN_AUDIBLE_INTENSITY
 	_altitude_voice.volume_db = (
-		linear_to_db(maxf(_altitude_intensity_unitless, MIN_AUDIBLE_INTENSITY))
+		linear_to_db(maxf(combined_intensity, MIN_AUDIBLE_INTENSITY))
 		+ ALTITUDE_LOOP_GAIN_DB
 	)
+	_altitude_voice.pitch_scale = lerpf(
+		ENTRY_BED_MIN_PITCH,
+		ENTRY_BED_MAX_PITCH,
+		_entry_bed_accepted_intensity_unitless,
+	) if _continuous_voice_mode() == &"atmospheric_entry_wind_heat" else 1.0
 	# Dummy has no output sink and may retain a synthetic WAV playback handle
 	# through process shutdown. Keep the same requested mix evidence without
 	# asking that backend to manufacture a voice it cannot render.
-	if _altitude_playback_requested and AudioServer.get_driver_name() != "Dummy":
+	if _continuous_playback_requested and AudioServer.get_driver_name() != "Dummy":
 		if not _altitude_voice.playing:
 			_altitude_voice.play()
 	elif _altitude_voice.playing:
@@ -507,9 +738,11 @@ func _reset_altitude_transition() -> void:
 	_altitude_target_intensity_unitless = 0.0
 	_altitude_intensity_unitless = 0.0
 	_altitude_playback_requested = false
+	_continuous_playback_requested = false
 	if is_instance_valid(_altitude_voice):
 		_altitude_voice.stop()
 		_altitude_voice.volume_db = -80.0
+		_altitude_voice.pitch_scale = 1.0
 		_altitude_voice.stream = null
 	_altitude_stream = null
 

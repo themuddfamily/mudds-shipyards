@@ -7461,6 +7461,13 @@ func _on_ship_damage_stage_changed(stage: int, status: StringName, source_ship: 
 func _on_camera_view_changed(view: StringName, source_ship: HeroShip = null) -> void:
 	if not _piloting or (source_ship != null and source_ship != active_ship):
 		return
+	if is_instance_valid(_ember_surface_loop_audio_composition) \
+			and bool((_ember_surface_loop_audio_composition.call(
+				&"get_snapshot"
+			) as Dictionary).get("attached", false)):
+		_ember_surface_loop_audio_composition.call(
+			&"set_perspective", &"interior" if view == &"COCKPIT" else &"exterior"
+		)
 	if view == &"COCKPIT":
 		hud.toast("Cockpit view", "Physical pilot-eye camera active", 1.4)
 	else:
@@ -10827,8 +10834,12 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 		)
 	)
 	if not audio_was_attached:
+		var entry_audio_perspective: StringName = &"interior" \
+			if is_instance_valid(active_ship) \
+				and active_ship.get_camera_view() == &"COCKPIT" else &"exterior"
 		var audio_result := _ember_surface_loop_audio_composition.call(
-			&"attach", audio, ember_surface_loop_production_binding
+			&"attach", audio, ember_surface_loop_production_binding,
+			entry_audio_perspective
 		) as Dictionary
 		if not bool(audio_result.get("accepted", false)):
 			return audio_result
@@ -11513,6 +11524,13 @@ func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 func _apply_reduced_dynamic_range_setting() -> Dictionary:
 	if runtime_settings != null:
 		_reduced_dynamic_range = runtime_settings.reduced_dynamic_range
+	if is_instance_valid(_ember_surface_loop_audio_composition) \
+			and bool((_ember_surface_loop_audio_composition.call(
+				&"get_snapshot"
+			) as Dictionary).get("attached", false)):
+		_ember_surface_loop_audio_composition.call(
+			&"set_reduced_dynamic_range", _reduced_dynamic_range
+		)
 	if is_instance_valid(audio) and audio.has_method(&"set_reduced_dynamic_range"):
 		return audio.call(&"set_reduced_dynamic_range", _reduced_dynamic_range)
 	return {"accepted": true, "reason": &"retained_until_audio_ready"}

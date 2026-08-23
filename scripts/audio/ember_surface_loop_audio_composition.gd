@@ -42,6 +42,18 @@ func attach(audio_director: Node, owner: Node, perspective: StringName = &"exter
 	_attached = true
 	return _result(true, &"attached")
 
+
+func set_perspective(perspective: StringName) -> Dictionary:
+	if not _attached or _binding == null:
+		return _result(false, &"not_attached")
+	return _binding.call(&"set_perspective", perspective) as Dictionary
+
+
+func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	if not _attached or _binding == null:
+		return _result(false, &"not_attached")
+	return _binding.call(&"set_reduced_dynamic_range", enabled) as Dictionary
+
 func detach() -> Dictionary:
 	if not _attached and _binding == null:
 		return _result(true, &"already_detached")
