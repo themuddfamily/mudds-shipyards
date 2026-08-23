@@ -56,6 +56,18 @@ func _run() -> void:
 		"audit reports range-bounded topology and rendered contacts"
 	)
 	_check(bool(audit.player_visible) and bool(audit.active_ship_visible), "player and active ship are independently visible")
+	var marked := snapshot.duplicate(true)
+	marked["objective_markers"] = [
+		{"id": &"cinder_cargo_terminal", "position": Vector3(2100.0, 0.0, -200.0), "generation": 4},
+		{"id": &"station_defense_activity_board", "position": Vector3(120.0, 0.0, -210.0), "generation": 4},
+	]
+	_check(minimap.apply_snapshot(marked), "live activity marker snapshot is accepted")
+	audit = minimap.get_audit_report()
+	_check(int(audit.get("objective_marker_count", 0)) == 2, "cargo terminal and defense board markers are retained")
+	var stale := marked.duplicate(true)
+	(stale["objective_markers"] as Array)[0]["generation"] = 3
+	_check(minimap.apply_snapshot(stale), "stale marker snapshot remains structurally valid")
+	_check(int(minimap.get_audit_report().get("objective_marker_count", 0)) == 1, "stale marker generation is removed without retaining old location")
 	_check(
 		not bool((audit.authority as Dictionary).gameplay)
 		and not bool((audit.authority as Dictionary).navigation)

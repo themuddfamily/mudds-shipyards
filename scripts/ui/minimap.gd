@@ -13,6 +13,7 @@ const MAX_RANGE_METERS := 100000.0
 const MAX_TOPOLOGY_NODES := 512
 const MAX_TOPOLOGY_EDGES := 1024
 const MAX_CONTACTS := 256
+const MAX_OBJECTIVE_MARKERS := 32
 
 const INK := Color("07111d")
 const GLASS := Color("0b1c2ae6")
@@ -30,6 +31,7 @@ var _caution_color := AMBER
 var _danger_color := RED
 var _muted_color := MUTED
 var _offscreen_marker: Dictionary = {}
+var _marker_generations: Dictionary = {}
 
 
 func _ready() -> void:
@@ -76,6 +78,7 @@ func clear() -> void:
 	_snapshot.clear()
 	_offscreen_marker.clear()
 	_warnings.clear()
+	_marker_generations.clear()
 	_revision += 1
 	queue_redraw()
 
@@ -139,7 +142,9 @@ func get_audit_report() -> Dictionary:
 		"mouse_passthrough": mouse_filter == Control.MOUSE_FILTER_IGNORE,
 		"snapshot_storage": &"deep_detached_scalar_copy",
 		"projection": &"world_xz_north_negative_z_north_up",
-		"contact_glyphs": {"friendly": &"circle_cross", "hostile": &"diamond"},
+	"contact_glyphs": {"friendly": &"circle_cross", "hostile": &"diamond"},
+		"objective_marker_count": (_snapshot.get("objective_markers", []) as Array).size(),
+		"objective_marker_glyphs": {&"cinder_cargo_terminal": "▣", &"station_defense_activity_board": "◆"},
 		"contact_state_has_shape_cue": true,
 		"bounded": true,
 		"bounds": {
@@ -217,6 +222,18 @@ func _draw() -> void:
 			draw_circle(point, 4.5, _caution_color, false, 2.0, true)
 			draw_line(point - Vector2(2.5, 0.0), point + Vector2(2.5, 0.0), _caution_color, 1.5, true)
 			draw_line(point - Vector2(0.0, 2.5), point + Vector2(0.0, 2.5), _caution_color, 1.5, true)
+
+	for marker_record in (_snapshot.get("objective_markers", []) as Array):
+		var marker := marker_record as Dictionary
+		if not bool(marker.get("active", true)):
+			continue
+		var point := _project(marker.position, center, radius)
+		var marker_id := StringName(marker.id)
+		var marker_color := _caution_color if marker_id == &"station_defense_activity_board" else _nominal_color
+		var glyph := str(marker.get("glyph", "◆"))
+		var label := str(marker.get("label", marker_id)).to_upper()
+		var distance: float = marker.position.distance_to(_snapshot.center_position as Vector2)
+		draw_string(ThemeDB.fallback_font, point + Vector2(7.0, 4.0), glyph + " " + label + "  %.0fM" % distance, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
 
 	if _snapshot.has("active_ship"):
 		var ship := _snapshot.active_ship as Dictionary
@@ -354,6 +371,7 @@ func _sanitize_snapshot(raw: Dictionary) -> Dictionary:
 		"topology_nodes": [],
 		"topology_edges": [],
 		"contacts": [],
+		"objective_markers": [],
 	}
 	var warnings: PackedStringArray = PackedStringArray()
 	var player: Variant = _read_position(raw.get("player_position", null))
@@ -438,6 +456,24 @@ func _sanitize_snapshot(raw: Dictionary) -> Dictionary:
 			warnings.append("contact roster truncated to bounded limit")
 	else:
 		warnings.append("ignored malformed contacts roster")
+	var raw_markers: Variant = raw.get("objective_markers", [])
+	if raw_markers is Array:
+		for raw_marker in (raw_markers as Array).slice(0, MAX_OBJECTIVE_MARKERS):
+			if not raw_marker is Dictionary:
+				continue
+			var marker := raw_marker as Dictionary
+			var marker_id := StringName(marker.get("id", &""))
+			var marker_position: Variant = _read_position(marker.get("position", null))
+			var generation := int(marker.get("generation", raw.get("generation", 0)))
+			if marker_id not in [&"cinder_cargo_terminal", &"station_defense_activity_board"] or marker_position == null or generation < int(_marker_generations.get(marker_id, -1)):
+				continue
+			_marker_generations[marker_id] = generation
+			(sanitized.objective_markers as Array).append({
+				"id": marker_id, "position": marker_position, "generation": generation,
+				"active": bool(marker.get("active", true)),
+				"glyph": "▣" if marker_id == &"cinder_cargo_terminal" else "◆",
+				"label": "CARGO TERMINAL" if marker_id == &"cinder_cargo_terminal" else "DEFENSE BOARD",
+			})
 	return {"accepted": true, "snapshot": sanitized, "warnings": warnings}
 
 
