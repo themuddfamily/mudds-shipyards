@@ -37,6 +37,13 @@ var _emitted_cue_count := 0
 var _preempted_cue_count := 0
 var _last_cue_id: StringName = &""
 var _reduced_dynamic_range := false
+var _wind_gain_unitless := 0.0
+var _rumble_gain_unitless := 0.0
+var _low_pass_hz := 18_000.0
+var _pitch_scale := 1.0
+var _last_mix_key := ""
+var _last_density := 0.0
+var _last_speed := 0.0
 
 func attach(session: Object = null) -> Dictionary:
 	if _attached:
@@ -59,6 +66,7 @@ func attach(session: Object = null) -> Dictionary:
 
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 	_reduced_dynamic_range = enabled
+	_apply_mix(_last_density, _last_speed)
 	return _result(true, &"mix_updated")
 
 func present_snapshot(snapshot: Dictionary) -> Dictionary:
@@ -70,19 +78,25 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		return _result(false, &"invalid_generation")
 	if not state_id is StringName or (state_id as StringName).is_empty():
 		return _result(false, &"invalid_state")
+	var mix := _decode_mix(snapshot)
+	if not bool(mix.get("accepted", false)):
+		return _result(false, StringName(mix.get("reason", &"invalid_mix")))
+	var mix_key := "%s:%s:%s" % [mix.get("density", 0.0), mix.get("speed", 0.0), state_id]
 	if int(generation) < _last_session_generation:
 		return _result(false, &"stale_generation")
-	if int(generation) == _last_session_generation and state_id == _last_state_id:
+	if int(generation) == _last_session_generation and state_id == _last_state_id and mix_key == _last_mix_key:
 		return _result(false, &"duplicate_state")
 	_last_session_generation = int(generation)
-	if CUE_BY_STATE.has(state_id as StringName):
+	var state_changed: bool = state_id != _last_state_id
+	if state_changed and CUE_BY_STATE.has(state_id as StringName):
 		var cue_id: StringName = CUE_BY_STATE[state_id]
-		if not _admit(cue_id):
-			return _result(false, &"voice_budget_rejected")
-		var intensity := 0.75 if _reduced_dynamic_range else 1.0
-		_emitted_cue_count += 1
-		_last_cue_id = cue_id
-		semantic_travel_cue_emitted.emit(cue_id, intensity)
+		if _admit(cue_id):
+			var intensity := 0.75 if _reduced_dynamic_range else 1.0
+			_emitted_cue_count += 1
+			_last_cue_id = cue_id
+			semantic_travel_cue_emitted.emit(cue_id, intensity)
+	_apply_mix(float(mix.density), float(mix.speed))
+	_last_mix_key = mix_key
 	_last_state_id = state_id
 	return _result(true, &"snapshot_presented")
 
@@ -98,14 +112,41 @@ func detach() -> Dictionary:
 	_active_slots.clear()
 	_last_state_id = &""
 	_last_session_generation = -1
+	_last_mix_key = ""
+	_last_density = 0.0
+	_last_speed = 0.0
+	_apply_mix(0.0, 0.0)
 	_generation += 1
 	return _result(true, &"detached")
 
 func get_snapshot() -> Dictionary:
-	return {"attached": _attached, "generation": _generation, "last_session_generation": _last_session_generation, "last_state_id": _last_state_id, "last_cue_id": _last_cue_id, "emitted_cue_count": _emitted_cue_count, "preempted_cue_count": _preempted_cue_count, "active_cue_slots": _active_slots.duplicate(true), "maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES, "reduced_dynamic_range": _reduced_dynamic_range, "authority": {"travel": false, "landing": false, "movement": false, "audio_cues": true}}.duplicate(true)
+	return {"attached": _attached, "generation": _generation, "last_session_generation": _last_session_generation, "last_state_id": _last_state_id, "last_cue_id": _last_cue_id, "emitted_cue_count": _emitted_cue_count, "preempted_cue_count": _preempted_cue_count, "active_cue_slots": _active_slots.duplicate(true), "maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES, "reduced_dynamic_range": _reduced_dynamic_range, "mix": {"wind_gain_unitless": _wind_gain_unitless, "rumble_gain_unitless": _rumble_gain_unitless, "low_pass_hz": _low_pass_hz, "pitch_scale": _pitch_scale}, "authority": {"travel": false, "landing": false, "movement": false, "audio_cues": true}}.duplicate(true)
 
 func _on_session_snapshot(snapshot: Dictionary) -> void:
 	present_snapshot(snapshot)
+
+func _decode_mix(snapshot: Dictionary) -> Dictionary:
+	var sample := snapshot.get("last_sample", {}) as Dictionary
+	var density: Variant = snapshot.get("atmosphere_density_unitless", sample.get("atmosphere_density_unitless", 0.0))
+	var speed: Variant = snapshot.get("speed_unitless", sample.get("speed_unitless", -1.0))
+	if speed is float or speed is int:
+		if float(speed) < 0.0:
+			var speed_mps: Variant = sample.get("speed_meters_per_second", 0.0)
+			speed = clampf(float(speed_mps) / 100_000.0, 0.0, 1.0)
+	if not (density is float or density is int) or not (speed is float or speed is int):
+		return _result(false, &"invalid_mix_inputs")
+	if not is_finite(float(density)) or not is_finite(float(speed)) or float(density) < 0.0 or float(density) > 1.0 or float(speed) < 0.0 or float(speed) > 1.0:
+		return _result(false, &"invalid_mix_inputs")
+	return {"accepted": true, "density": float(density), "speed": float(speed)}
+
+func _apply_mix(density: float, speed: float) -> void:
+	_last_density = density
+	_last_speed = speed
+	var dynamic := 0.75 if _reduced_dynamic_range else 1.0
+	_wind_gain_unitless = clampf((density * 0.7 + speed * 0.3) * dynamic, 0.0, 1.0)
+	_rumble_gain_unitless = clampf((speed * 0.65 + density * 0.35) * dynamic, 0.0, 1.0)
+	_low_pass_hz = lerpf(18_000.0, 2_800.0, density * 0.7 + speed * 0.3)
+	_pitch_scale = lerpf(0.96, 1.08, speed * 0.7 + density * 0.3)
 
 func _admit(cue_id: StringName) -> bool:
 	var priority := int(CUE_PRIORITIES.get(cue_id, 0))

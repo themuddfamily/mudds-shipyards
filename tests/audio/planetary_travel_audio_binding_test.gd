@@ -19,6 +19,10 @@ func _run() -> void:
 	for state_id: StringName in [&"orbit_approach", &"atmospheric_entry", &"landed", &"takeoff", &"ascent", &"orbit_return", &"completed"]:
 		_check(bool(binding.present_snapshot({"generation": 1, "state_id": state_id}).get("accepted", false)), "state emits %s" % state_id)
 	_check(cues.size() == 7, "all travel transitions emit one cue")
+	var mix_update := binding.present_snapshot({"generation": 1, "state_id": &"ascent", "last_sample": {"speed_meters_per_second": 80_000.0, "atmosphere_density_unitless": 0.6}})
+	var mix := binding.get_snapshot().get("mix", {}) as Dictionary
+	_check(bool(mix_update.get("accepted", false)) and float(mix.get("wind_gain_unitless", 0.0)) > 0.0 and float(mix.get("low_pass_hz", 18_000.0)) < 18_000.0, "same-state detached samples update bounded atmospheric mix")
+	_check(bool(binding.present_snapshot({"generation": 1, "state_id": &"completed"}).get("accepted", false)), "returned-to-station transition remains audible after mix update")
 	_check(binding.present_snapshot({"generation": 1, "state_id": &"completed"}).get("reason", &"") == &"duplicate_state", "repeated state is deduplicated")
 	binding.set_reduced_dynamic_range(true)
 	_check(bool(binding.detach().get("accepted", false)), "detach clears travel presentation lifecycle")
