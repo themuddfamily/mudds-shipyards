@@ -81,6 +81,9 @@ var _damage_jitter
 var _damage_replica_samples: Dictionary = {}
 var _boarding_jitter
 var _boarding_replica_samples: Dictionary = {}
+var _migration_jitter
+var _migration_replica_generation := 0
+var _migration_replica_samples: Dictionary = {}
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -124,6 +127,7 @@ func _init() -> void:
 	_landing_jitter = SnapshotJitterBuffer.new()
 	_damage_jitter = SnapshotJitterBuffer.new()
 	_boarding_jitter = SnapshotJitterBuffer.new()
+	_migration_jitter = SnapshotJitterBuffer.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -864,6 +868,9 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_damage_jitter.reset(migration_generation)
 	_boarding_replica_samples.clear()
 	_boarding_jitter.reset(migration_generation)
+	_migration_replica_generation = migration_generation
+	_migration_replica_samples.clear()
+	_migration_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
@@ -1013,6 +1020,49 @@ func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dict
 
 func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
+
+
+## Presents migration/session metadata only. A new generation retires all
+## prior presentation cursors; admission and host authority stay server-owned.
+func consume_migration_session_snapshot(packet: Dictionary) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("migration_generation") or not packet.has("session"):
+		return _remember(_result(false, &"invalid_migration_snapshot"))
+	var generation := int(packet.get("migration_generation", 0))
+	if generation <= 0:
+		return _remember(_result(false, &"invalid_migration_snapshot"))
+	if _migration_replica_generation > 0 and generation < _migration_replica_generation:
+		return _remember(_result(false, &"stale_migration_generation"))
+	if generation != _migration_replica_generation:
+		_migration_replica_generation = generation
+		_migration_replica_samples.clear()
+		_migration_jitter.reset(generation)
+	var session_variant: Variant = packet.get("session")
+	if not session_variant is Dictionary:
+		return _remember(_result(false, &"invalid_migration_snapshot"))
+	var buffered: Dictionary = _migration_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+	var presented: Array = []
+	while true:
+		var ready: Dictionary = _migration_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var ready_session: Variant = ready.get("session")
+		if not ready_session is Dictionary:
+			return _remember(_result(false, &"invalid_migration_snapshot"))
+		var record := (ready_session as Dictionary).duplicate(true)
+		record["revision"] = int(ready.get("revision", 0))
+		record["server_tick"] = int(ready.get("server_tick", 0))
+		record["migration_generation"] = generation
+		_migration_replica_samples = record.duplicate(true)
+		presented.append(record)
+	if presented.is_empty():
+		return _remember(_result(true, &"migration_waiting_for_gap", {
+			"samples": [_migration_replica_samples.duplicate(true)] if not _migration_replica_samples.is_empty() else [],
+			"frozen": true,
+		}))
+	return _remember(_result(true, &"migration_presented", {"samples": presented}))
 
 
 ## Presents occupancy and ownership records only. Seat claims and ship-owner
