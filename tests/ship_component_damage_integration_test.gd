@@ -427,6 +427,40 @@ func _test_operational_control_modifiers() -> void:
 		"engine-bay damage reduces real Hero thrust and handling response"
 	)
 
+	var brake_control := ShipCommandType.new(
+		2, 0, 1,
+		0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		false, true
+	) as ShipCommand
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	_hero.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	_hero.set("_piloted", true)
+	_hero.set("_landed", false)
+	_hero.velocity = Vector3(0.0, 0.0, -50.0)
+	_hero.call("_update_flight", 0.1, brake_control, true)
+	var nominal_braked_speed := _hero.velocity.length()
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	_degrade_hero_component_to_impaired(ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	_hero.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	_hero.set("_piloted", true)
+	_hero.set("_landed", false)
+	_hero.velocity = Vector3(0.0, 0.0, -50.0)
+	_hero.call("_update_flight", 0.1, brake_control, true)
+	var degraded_braked_speed := _hero.velocity.length()
+	var expected_brake_power := lerpf(
+		HeroShip.FAILED_ENGINE_MANUAL_BRAKE_FACTOR,
+		1.0,
+		float(_hero.get_operational_modifiers().mobility_multiplier)
+	)
+	_check(
+		degraded_braked_speed > nominal_braked_speed
+		and is_equal_approx(
+			degraded_braked_speed,
+			50.0 - _hero.brake_acceleration * expected_brake_power * 0.1
+		),
+		"engine-bay damage reduces real pilot braking while retaining the bounded emergency floor"
+	)
+
 	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
 	_degrade_hero_component_to_impaired(ShipComponentDamage.COMPONENT_PORT_WING)
 	_hero.set("_engine_state", HeroShip.ENGINE_ONLINE)

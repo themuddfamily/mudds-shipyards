@@ -59,6 +59,10 @@ const WEAPON_HEAT_PER_SHOT := 0.28
 const WEAPON_HEAT_COOLING_PER_SECOND := 0.50
 const WEAPON_OVERHEAT_DURATION := 1.0
 const WEAPON_RECOVERY_HEAT := 0.35
+## Damaged propulsion reduces pilot-commanded braking, but retained attitude
+## jets preserve a bounded emergency floor even after the main engine fails.
+## Automatic landing/cruise safety braking remains independently authoritative.
+const FAILED_ENGINE_MANUAL_BRAKE_FACTOR := 0.35
 const DEPARTURE_SPEED_THRESHOLD := 0.25
 const DEPARTURE_MOTION_EPSILON_SQUARED := 0.000001
 const PLANETARY_CRUISE_PHYSICAL_SCHEMA_VERSION := 1
@@ -3013,13 +3017,21 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 		return
 	var boosting := command.boost and _throttle > 0.05
 	var damage_power := _get_damage_engine_multiplier()
+	var manual_brake_power := lerpf(
+		FAILED_ENGINE_MANUAL_BRAKE_FACTOR,
+		1.0,
+		damage_power
+	)
 	var speed_limit := (boost_speed if boosting else maximum_speed) * lerpf(0.55, 1.0, damage_power)
 	var acceleration := thrust_acceleration * (boost_multiplier if boosting else 1.0) * damage_power
 	var flight_forward := -global_basis.z.normalized()
 	velocity += flight_forward * _throttle * acceleration * delta
 
 	if command.brake:
-		velocity = velocity.move_toward(Vector3.ZERO, brake_acceleration * delta)
+		velocity = velocity.move_toward(
+			Vector3.ZERO,
+			brake_acceleration * manual_brake_power * delta
+		)
 	else:
 		velocity = velocity.move_toward(Vector3.ZERO, passive_drag * delta)
 	if velocity.length() > speed_limit:
@@ -3078,7 +3090,11 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 		_roll_animation -= roll_step
 
 	if command.hover:
-		velocity.y = move_toward(velocity.y, 0.0, brake_acceleration * delta)
+		velocity.y = move_toward(
+			velocity.y,
+			0.0,
+			brake_acceleration * manual_brake_power * delta
+		)
 		var upright := Quaternion(global_basis).slerp(
 			Quaternion(Basis(Vector3.UP, rotation.y)),
 			1.0 - exp(-2.0 * delta)
