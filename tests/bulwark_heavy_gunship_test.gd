@@ -73,7 +73,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_check(visual != null and visual.get_node_or_null("ArmoredCentralSlab") is MeshInstance3D, "armored central slab is a real visual mesh")
 	_check(visual != null and visual.get_node_or_null("PortArmoredShoulder") is MeshInstance3D, "port armored shoulder differentiates the silhouette")
 	_check(visual != null and visual.get_node_or_null("StarboardArmoredShoulder") is MeshInstance3D, "starboard armored shoulder differentiates the silhouette")
-	_check(visual != null and visual.get_node_or_null("PortIdentityBand") is MeshInstance3D, "amber identity band is present")
+	_test_identity_band_batch(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -83,6 +83,58 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_check(audit.get("lifecycle_authority", &"") == &"HeroShip", "audit preserves one lifecycle authority")
 	_check(not bool(audit.get("world_or_berth_registered", true)), "component remains unregistered with world and berth")
 	_check(not bool(ship.get_meta("authenticated_historical_silhouette", true)), "root metadata denies historical silhouette authentication")
+
+
+func _test_identity_band_batch(visual: Node3D) -> void:
+	var batch := visual.get_node_or_null("IdentityBandBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var multi := batch.multimesh if batch != null else null
+	_check(
+		multi != null
+		and multi.transform_format == MultiMesh.TRANSFORM_3D
+		and multi.instance_count == 2
+		and multi.visible_instance_count == -1
+		and multi.mesh != null
+		and multi.mesh.get_surface_count() == 1,
+		"two amber identity-band copies retain one bounded renderer submission"
+	)
+	if multi == null:
+		return
+	var transforms: Array = batch.get_meta(&"authored_instance_transforms", []) as Array
+	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray
+	_check(
+		transforms == [
+			Transform3D(Basis.IDENTITY, Vector3(-4.18, 1.55, -0.2)),
+			Transform3D(Basis.IDENTITY, Vector3(4.18, 1.55, -0.2)),
+		]
+		and names == PackedStringArray(["PortIdentityBand", "StarboardIdentityBand"]),
+		"identity-band authored transforms and inspection names remain exact"
+	)
+	var material := multi.mesh.surface_get_material(0) as StandardMaterial3D
+	var mesh_bounds := multi.mesh.get_aabb()
+	var first_transform: Transform3D = transforms[0] as Transform3D
+	var second_transform: Transform3D = transforms[1] as Transform3D
+	var expected_bounds: AABB = (first_transform * mesh_bounds).abs().merge(
+		(second_transform * mesh_bounds).abs()
+	)
+	_check(
+		material != null
+		and material.albedo_color.is_equal_approx(Color("e2a63c"))
+		and is_equal_approx(material.metallic, 0.52)
+		and is_equal_approx(material.roughness, 0.31)
+		and mesh_bounds.size.is_equal_approx(Vector3(0.16, 1.25, 3.2))
+		and multi.custom_aabb.is_equal_approx(expected_bounds)
+		and batch.material_override == null
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"identity-band mesh, material, culling bounds/layer, and shadow behavior remain exact"
+	)
+	_check(
+		visual.get_node_or_null("PortIdentityBand") == null
+		and visual.get_node_or_null("StarboardIdentityBand") == null,
+		"legacy identity-band renderer submissions are removed"
+	)
+	print("BULWARK_IDENTITY_BAND_BATCH: visible_copies 2->2 submissions 2->1")
 
 
 func _test_base_lifecycle(ship: HeroShip) -> void:

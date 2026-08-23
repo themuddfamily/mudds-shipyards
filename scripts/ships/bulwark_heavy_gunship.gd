@@ -52,6 +52,8 @@ const HULL_COLLISION_SIZE := Vector3(6.9, 3.1, 10.8)
 const SHOULDER_COLLISION_SIZE := Vector3(11.6, 2.1, 5.8)
 const CHIN_COLLISION_SIZE := Vector3(4.8, 1.1, 4.0)
 const GUNNER_STATION_LOCAL_POSITION := Vector3(2.35, 1.55, 0.55)
+const IDENTITY_BAND_SIZE := Vector3(0.16, 1.25, 3.2)
+const IDENTITY_BAND_COPY_COUNT := 2
 
 var _bulwark_built := false
 var _bulwark_visual: Node3D
@@ -263,13 +265,24 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_wedge(_bulwark_visual, "ArmoredNose", Vector3(0.0, 1.5, -4.65), Vector3(5.8, 2.8, 3.9), armor_highlight, 0.0)
 	_box(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.95, 0.45), Vector3(1.35, 0.38, 8.4), armor_highlight)
 	_box(_bulwark_visual, "ChinArmor", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE, armor_dark)
+	var identity_band_transforms: Array[Transform3D] = []
+	var identity_band_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_bulwark_visual, side_name + "ArmoredShoulder", Vector3(side * 4.15, 1.05, 0.55), Vector3(3.4, 1.9, 5.3), armor_dark)
-		_box(_bulwark_visual, side_name + "IdentityBand", Vector3(side * 4.18, 1.55, -0.2), Vector3(0.16, 1.25, 3.2), amber)
+		identity_band_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(side * 4.18, 1.55, -0.2))
+		)
+		identity_band_names.append(side_name + "IdentityBand")
 		_cylinder(_bulwark_visual, side_name + "GunPodHousing", Vector3(side * 3.25, 1.0, -3.1), 0.42, 2.15, armor_highlight, Vector3(0.0, 90.0, 0.0))
 		_cylinder(_bulwark_visual, side_name + "EngineHousing", Vector3(side * 2.65, 1.15, 4.25), 0.72, 2.8, armor_dark, Vector3(90.0, 0.0, 0.0))
 		_sphere(_bulwark_visual, side_name + "NavigationLamp", Vector3(side * 4.35, 1.8, -2.5), 0.11, boarding if side < 0.0 else amber)
+	_add_identity_band_batch(
+		_bulwark_visual,
+		identity_band_transforms,
+		identity_band_names,
+		amber
+	)
 
 	# Gunner station is physical ship-local presentation and interaction data;
 	# its optional siege-lance action is resolved by the shared combat authority.
@@ -335,6 +348,38 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	add_child(_boarding_area)
 
 	return replace_variant_visual_root(_bulwark_visual)
+
+
+## The mirrored amber bands are childless silhouette paint, with no collision,
+## damage, weapon, or interaction identity. Preserve their exact rounded mesh,
+## material, local transforms, shadow mode, and visible copies in one submission.
+func _add_identity_band_batch(
+		parent: Node3D,
+		transforms: Array[Transform3D],
+		authored_names: PackedStringArray,
+		material: Material
+) -> MultiMeshInstance3D:
+	var mesh := _rounded_box_mesh(IDENTITY_BAND_SIZE, material)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = IDENTITY_BAND_COPY_COUNT
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in IDENTITY_BAND_COPY_COUNT:
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "IdentityBandBatch"
+	batch.multimesh = multi
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", authored_names.duplicate())
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
 
 
 func get_gunner_station_anchor() -> Marker3D:
