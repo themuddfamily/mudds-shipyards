@@ -2279,20 +2279,28 @@ func apply_damage(
 		var radial_normal := world_hit_position - global_position
 		if radial_normal != Vector3.ZERO:
 			safe_normal = radial_normal.normalized()
+	_hull = maxf(0.0, _hull - amount)
+	# The component roster observes the hull loss that has just been decided. It
+	# cannot veto, refund, or re-apply it; hull authority is settled above.
+	var component_damage_result := _record_component_damage(
+		amount,
+		world_hit_position,
+		_collision_component_routing_active
+	)
+	var impact_world_position := _component_impact_world_position(
+		component_damage_result,
+		world_hit_position
+	)
 	if (
 		_damage_presentation != null
 		and has_hit_position
 		and not defer_presentation
 	):
 		_damage_presentation.present_impact(
-			world_hit_position,
+			impact_world_position,
 			safe_normal,
 			clampf(amount / 18.0, 0.35, 2.0)
 		)
-	_hull = maxf(0.0, _hull - amount)
-	# The component roster observes the hull loss that has just been decided. It
-	# cannot veto, refund, or re-apply it; hull authority is settled above.
-	_record_component_damage(amount, world_hit_position, _collision_component_routing_active)
 	# Apply stage/alarm/engine-power state immediately. Terminal explosion is the
 	# only part withheld when a travelling-pulse receipt owns presentation.
 	if _damage_presentation != null and _hull > 0.0:
@@ -2316,7 +2324,7 @@ func apply_damage(
 			_deferred_terminal_presentation_receipt_id = presentation_receipt_id
 			_damage_presentation.defer_damage_presentation(
 				presentation_receipt_id,
-				world_hit_position if world_hit_position.is_finite() else destruction_position,
+				impact_world_position if impact_world_position.is_finite() else destruction_position,
 				safe_normal,
 				clampf(amount / 18.0, 0.35, 2.0),
 				true,
@@ -2359,7 +2367,7 @@ func apply_damage(
 	):
 		_damage_presentation.defer_damage_presentation(
 			presentation_receipt_id,
-			world_hit_position,
+			impact_world_position,
 			safe_normal,
 			clampf(amount / 18.0, 0.35, 2.0),
 			false,
@@ -3793,18 +3801,40 @@ func _record_component_damage(
 	amount: float,
 	world_hit_position: Vector3,
 	collision_contact: bool = false
-	) -> void:
+	) -> Dictionary:
 	if _component_damage == null or not _component_damage.is_configured():
-		return
+		return {}
 	var local_hit_position := Vector3.INF
 	if is_inside_tree() and world_hit_position.is_finite():
 		local_hit_position = to_local(world_hit_position)
 	if collision_contact:
-		_component_damage.record_collision_damage(amount, local_hit_position)
+		return _component_damage.record_collision_damage(amount, local_hit_position)
 	elif local_hit_position.is_finite():
-		_component_damage.record_projectile_damage(amount, local_hit_position)
-	else:
-		_component_damage.record_damage(amount, local_hit_position)
+		return _component_damage.record_projectile_damage(amount, local_hit_position)
+	return _component_damage.record_damage(amount, local_hit_position)
+
+
+## Presentation consumes the component operation that was already accepted; it
+## never performs a parallel region query. A rejected/multi-section operation
+## keeps the caller's exact point, preserving the generic fallback contract.
+func _component_impact_world_position(
+	component_damage_result: Dictionary,
+	fallback_world_position: Vector3
+	) -> Vector3:
+	if not bool(component_damage_result.get("accepted", false)) or _component_damage == null:
+		return fallback_world_position
+	var components := component_damage_result.get("components", {}) as Dictionary
+	if components.size() != 1:
+		return fallback_world_position
+	var component_id := StringName(components.keys()[0])
+	for state: Dictionary in _component_damage.get_component_states():
+		if StringName(state.get("id", &"")) != component_id:
+			continue
+		var local_position := state.get("local_position", Vector3.INF) as Vector3
+		if local_position.is_finite() and is_inside_tree():
+			return to_global(local_position)
+		break
+	return fallback_world_position
 
 
 func get_component_damage() -> ShipComponentDamage:
