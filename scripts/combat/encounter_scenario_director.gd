@@ -57,6 +57,8 @@ signal scenario_began(scenario_id: StringName)
 signal scenario_concluded(scenario_id: StringName, outcome: StringName)
 signal courier_distress_broadcast(position: Vector3)
 
+const HeavyBreachAudioBindingType := preload("res://scripts/audio/heavy_breach_scenario_audio_binding.gd")
+
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"encounter-scenario-director"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
@@ -213,6 +215,16 @@ var _roster: Array[Node3D] = []
 var _completed_runs := 0
 var _outcome_counts: Dictionary = {}
 var _halfway_warned := false
+var _heavy_breach_audio_binding: RefCounted = HeavyBreachAudioBindingType.new()
+
+
+func _enter_tree() -> void:
+	if not bool(_heavy_breach_audio_binding.get_snapshot().get("attached", false)):
+		_heavy_breach_audio_binding.attach(int(_heavy_breach_audio_binding.get_snapshot().get("generation", 0)))
+
+
+func _exit_tree() -> void:
+	_heavy_breach_audio_binding.detach()
 
 
 func _physics_process(delta: float) -> void:
@@ -233,6 +245,7 @@ func _physics_process(delta: float) -> void:
 	var outcome := _evaluate_termination(delta)
 	if outcome != OUTCOME_PENDING:
 		_conclude(outcome)
+	_present_heavy_breach_audio()
 
 
 # --------------------------------------------------------- public state ----
@@ -255,6 +268,9 @@ func get_elapsed() -> float:
 
 func get_scenario_generation() -> int:
 	return _scenario_generation
+
+func get_heavy_breach_audio_binding_snapshot() -> Dictionary:
+	return _heavy_breach_audio_binding.get_snapshot()
 
 
 func get_convoy_interdiction_receipt(expected_generation: int = 0) -> Dictionary:
@@ -658,6 +674,7 @@ func _begin_scenario(
 	_scenario_origin = target.global_position
 	_state = STATE_RUNNING
 	_outcome = OUTCOME_PENDING
+	_sync_heavy_breach_audio_generation(_scenario_generation)
 	match scenario_id:
 		SCENARIO_COURIER_INTERCEPT:
 			_launch_courier()
@@ -845,6 +862,46 @@ func _conclude(outcome: StringName) -> void:
 	_stand_down()
 	_announce_conclusion(outcome)
 	scenario_concluded.emit(_scenario, outcome)
+	_present_heavy_breach_audio()
+
+
+func _sync_heavy_breach_audio_generation(target_generation: int) -> void:
+	var snapshot: Dictionary = _heavy_breach_audio_binding.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		_heavy_breach_audio_binding.detach()
+		snapshot = _heavy_breach_audio_binding.get_snapshot()
+	var current := int(snapshot.get("generation", 0))
+	while current < target_generation:
+		_heavy_breach_audio_binding.attach(current)
+		_heavy_breach_audio_binding.detach()
+		current = int(_heavy_breach_audio_binding.get_snapshot().get("generation", current + 1))
+	if current == target_generation:
+		_heavy_breach_audio_binding.attach(current)
+
+
+func _present_heavy_breach_audio() -> void:
+	if _scenario != SCENARIO_HEAVY_BREACH:
+		return
+	_heavy_breach_audio_binding.present_snapshot(_get_heavy_breach_audio_snapshot())
+	var picket: Node3D = _get_breach_picket()
+	if is_instance_valid(picket):
+		var picket_intent := get_member_tactic_intent(picket)
+		picket_intent["generation"] = _scenario_generation
+		_heavy_breach_audio_binding.present_tactic_intent(picket_intent)
+	for member in _get_skirmishers():
+		if is_instance_valid(member):
+			var screen_intent := get_member_tactic_intent(member)
+			screen_intent["generation"] = _scenario_generation
+			_heavy_breach_audio_binding.present_tactic_intent(screen_intent)
+
+
+func _get_heavy_breach_audio_snapshot() -> Dictionary:
+	return {
+		"scenario_generation": _scenario_generation,
+		"scenario": _scenario,
+		"state": _state,
+		"outcome": _outcome,
+	}.duplicate(true)
 
 
 func _stand_down() -> void:

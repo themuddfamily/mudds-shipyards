@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Binding := preload("res://scripts/audio/heavy_breach_scenario_audio_binding.gd")
+const Director := preload("res://scripts/combat/encounter_scenario_director.gd")
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -29,6 +30,12 @@ func _run() -> void:
 	_check(bool(binding.present_snapshot(success).accepted), "success snapshot is accepted")
 	_check(cues.has(&"heavy_breach_picket_windup") and cues.has(&"heavy_breach_picket_fire") and cues.has(&"heavy_breach_wing_screen") and cues.has(&"heavy_breach_suppression") and cues.has(&"heavy_breach_objective_danger") and cues.has(&"heavy_breach_success"), "all bounded heavy-breach semantic cues are emitted")
 	_check(int(binding.get_snapshot().maximum_simultaneous_voices) == 2, "heavy-breach audio remains bounded to two voices")
+	var director := Director.new()
+	root.add_child(director)
+	await process_frame
+	_check(bool(director.get_heavy_breach_audio_binding_snapshot().attached), "production EncounterScenarioDirector composes the heavy-breach audio binding")
+	director.queue_free()
+	await process_frame
 	_check(bool(binding.detach().accepted) and binding.present_snapshot(base).reason == &"not_attached", "detach clears stale scenario presentation")
 	for failure in _failures:
 		push_error(failure)
