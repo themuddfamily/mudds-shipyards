@@ -27,6 +27,7 @@ const NearbySectorActivityPresenterType := preload("res://scripts/ui/nearby_sect
 const BomberPayloadPresenterType := preload("res://scripts/ui/bomber_payload_presenter.gd")
 const SafeStartRecoveryPresenterType := preload("res://scripts/ui/safe_start_recovery_presenter.gd")
 const CopilotNavigationSupportPresenterType := preload("res://scripts/ui/copilot_navigation_support_presenter.gd")
+const ComponentDegradationPresenterType := preload("res://scripts/ui/component_degradation_presenter.gd")
 
 signal start_requested
 signal restart_requested
@@ -412,6 +413,7 @@ var _crew_role_presenter := CrewRoleSeatPresenterType.new()
 var _surface_route_presenter := SurfaceRouteHazardPresenterType.new()
 var _entry_guidance_presenter := AtmosphericEntryGuidancePresenterType.new()
 var _copilot_navigation_presenter := CopilotNavigationSupportPresenterType.new()
+var _component_degradation_presenter := ComponentDegradationPresenterType.new()
 var _semantic_audio_cue_presenter := SemanticAudioCuePresenterType.new()
 var _semantic_transcript_panel: PanelContainer
 var _semantic_transcript_body: Label
@@ -1322,6 +1324,15 @@ func update_copilot_navigation_support(snapshot: Dictionary) -> void:
 
 func clear_copilot_navigation_support() -> void:
 	_copilot_navigation_presenter.detach()
+	clear_runtime_status()
+
+
+func update_component_degradation(snapshot: Dictionary) -> void:
+	_render_runtime_status(_component_degradation_presenter.present_snapshot(snapshot), &"component")
+
+
+func clear_component_degradation() -> void:
+	_component_degradation_presenter.detach()
 	clear_runtime_status()
 
 
