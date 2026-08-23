@@ -9,6 +9,7 @@ const RuntimeInputRemappingControllerType := preload("res://scripts/settings/run
 const RuntimeInputRemappingPresenterType := preload("res://scripts/ui/runtime_input_remapping_presenter.gd")
 const InputGlyphResolverType := preload("res://scripts/ui/input_glyph_resolver.gd")
 const RuntimeInputGlyphPresenterType := preload("res://scripts/ui/runtime_input_glyph_presenter.gd")
+const UltrawideSafeAreaContractType := preload("res://scripts/ui/ultrawide_safe_area_contract.gd")
 const CaptionPresenterScene := preload("res://scenes/ui/caption_presenter.tscn")
 const DebugOverlayType := preload("res://scripts/ui/debug_overlay.gd")
 const MinimapType := preload("res://scripts/ui/minimap.gd")
@@ -1633,6 +1634,11 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 	var safe_top := maxf(_safe_area_insets.position.y, 0.0) / maxf(effective, 0.01)
 	var safe_right := maxf(_safe_area_insets.size.x, 0.0) / maxf(effective, 0.01)
 	var safe_bottom := maxf(_safe_area_insets.size.y, 0.0) / maxf(effective, 0.01)
+	var contract_safe := UltrawideSafeAreaContractType.safe_rect(viewport_size, effective)
+	safe_left = maxf(safe_left, contract_safe.position.x / maxf(effective, 0.01))
+	safe_top = maxf(safe_top, contract_safe.position.y / maxf(effective, 0.01))
+	safe_right = maxf(safe_right, (viewport_size.x - contract_safe.end.x) / maxf(effective, 0.01))
+	safe_bottom = maxf(safe_bottom, (viewport_size.y - contract_safe.end.y) / maxf(effective, 0.01))
 	_apply_safe_area_offsets(safe_left, safe_top, safe_right, safe_bottom)
 	for layer in _scaled_layers:
 		if not is_instance_valid(layer):
