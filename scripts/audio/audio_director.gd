@@ -264,6 +264,12 @@ func play_combat_alert() -> void:
 func play_canopy(opening: bool) -> void:
 	if not _can_mutate_runtime_state():
 		return
+	semantic_cue_emitted.emit(
+		&"audio_director",
+		&"boarding_confirmed" if opening else &"disembark_confirmed",
+		1.0,
+		Vector3.ZERO
+	)
 	cue_started.emit(CUE_CANOPY_OPEN if opening else CUE_CANOPY_CLOSE)
 	_play_resident(
 		STREAM_CANOPY_OPEN if opening else STREAM_CANOPY_CLOSE,
