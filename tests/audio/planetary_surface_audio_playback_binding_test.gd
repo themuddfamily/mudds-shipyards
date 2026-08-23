@@ -35,6 +35,7 @@ func _run() -> void:
 		"calm exterior policy reaches the playback adapter"
 	)
 	var calm_snapshot: Dictionary = binding.get_state_snapshot()
+	var calm_voice := (calm_snapshot.voices as Dictionary).exterior as Dictionary
 	_check(
 		float((calm_snapshot.fade as Dictionary).wind_gain_db) == -80.0,
 		"calm exterior keeps the wind contribution silent"
@@ -51,8 +52,9 @@ func _run() -> void:
 		float(windy_fade.wind_intensity_unitless) > 0.0
 		and float(windy_fade.wind_intensity_unitless) < float(windy_fade.target_wind_intensity_unitless)
 		and float(windy_fade.wind_gain_db) < -9.0
+		and float(windy_voice.expected_pitch_scale) > float(calm_voice.expected_pitch_scale)
 		and float(windy_voice.effective_linear_gain) > 0.0,
-		"weather change crossfades the authored exterior wind loop at the midpoint"
+		"weather change crossfades and pitches the authored exterior wind loop at the midpoint"
 	)
 	var settled_result: Dictionary = binding.present_policy_result(
 		windy, 0.5625, generation, 1001, 7, 11

@@ -28,6 +28,9 @@ const CROSSFADE_SECONDS := 0.75
 const MAX_CALLER_DELTA_SECONDS := 1.0
 const SILENCE_DB := -80.0
 const WIND_BASE_GAIN_DB := -9.0
+const WIND_MIN_PITCH_SCALE := 1.0
+const WIND_MAX_PITCH_SCALE := 1.12
+const ENTRY_MAX_PITCH_SCALE := 1.08
 const ENTRY_MAX_GAIN_DB := 3.0
 const MAX_GAIN_DB := 24.0
 const MIN_AUDIBLE_LINEAR := 0.0001
@@ -408,6 +411,8 @@ func get_state_snapshot() -> Dictionary:
 			"interior_gain_db": _interior_gain_db,
 			"wind_gain_db": _wind_gain_db_for_intensity(_wind_intensity_unitless),
 			"target_wind_gain_db": _wind_gain_db_for_intensity(_target_wind_intensity_unitless),
+			"wind_pitch_scale": _wind_pitch_for_intensity(_wind_intensity_unitless),
+			"target_wind_pitch_scale": _wind_pitch_for_intensity(_target_wind_intensity_unitless),
 			"entry_gain_db": _entry_gain_db_for_intensity(_entry_intensity_unitless),
 			"target_entry_gain_db": _entry_gain_db_for_intensity(_target_entry_intensity_unitless),
 			"exterior_route_weight_unitless": route_weights.exterior,
@@ -615,6 +620,7 @@ func _apply_voice_state() -> Dictionary:
 		var voice := _voice_for_route(route)
 		var stream := _streams.get(route) as AudioStreamWAV
 		var linear_gain := float(desired_linear.get(route, 0.0))
+		voice.pitch_scale = _pitch_for_route(route)
 		voice.volume_db = (
 			clampf(linear_to_db(linear_gain), SILENCE_DB, MAX_GAIN_DB)
 			if linear_gain > 0.0 else SILENCE_DB
@@ -674,7 +680,9 @@ func _voice_snapshot() -> Dictionary:
 			"expected_volume_db": clampf(
 				linear_to_db(effective_linear), SILENCE_DB, MAX_GAIN_DB
 			) if effective_linear > 0.0 else SILENCE_DB,
+			"expected_pitch_scale": _pitch_for_route(route),
 			"actual_volume_db": voice.volume_db if voice != null else SILENCE_DB,
+			"actual_pitch_scale": voice.pitch_scale if voice != null else 1.0,
 		}.duplicate(true)
 	return report.duplicate(true)
 
@@ -705,6 +713,10 @@ func _restore_voice_hierarchy_after_reentry() -> void:
 		return
 	_lifecycle_active = true
 	_cache_and_configure_voices()
+	for route in VOICE_ROUTES:
+		var voice := _voice_for_route(route)
+		if voice != null:
+			voice.pitch_scale = _pitch_for_route(route)
 	_tree_suspended = false
 	_lifecycle_active = false
 
@@ -722,7 +734,7 @@ func _voice_hierarchy_is_valid() -> bool:
 		var voice := _voice_for_route(route)
 		if voice.get_parent() != self or voice.bus != AUDIO_BUS \
 				or voice.max_polyphony != 1 or voice.autoplay \
-				or not is_equal_approx(voice.pitch_scale, 1.0) \
+				or (_audio_available and not is_equal_approx(voice.pitch_scale, _pitch_for_route(route))) \
 				or int(_voice_instance_ids.get(route, 0)) != voice.get_instance_id():
 			return false
 	return true
@@ -806,6 +818,7 @@ func _stop_and_detach(voice: AudioStreamPlayer) -> void:
 	voice.stream_paused = false
 	voice.stream = null
 	voice.volume_db = SILENCE_DB
+	voice.pitch_scale = 1.0
 
 
 func _voices() -> Array[AudioStreamPlayer]:
@@ -868,6 +881,18 @@ func _fade_state_is_bounded() -> bool:
 func _wind_gain_db_for_intensity(intensity: float) -> float:
 	return SILENCE_DB if intensity <= 0.0 else minf(
 		WIND_BASE_GAIN_DB + linear_to_db(intensity), WIND_BASE_GAIN_DB
+	)
+
+
+func _wind_pitch_for_intensity(intensity: float) -> float:
+	return lerpf(WIND_MIN_PITCH_SCALE, WIND_MAX_PITCH_SCALE, clampf(intensity, 0.0, 1.0))
+
+
+func _pitch_for_route(route: StringName) -> float:
+	if route != &"exterior":
+		return 1.0
+	return _wind_pitch_for_intensity(_wind_intensity_unitless) * lerpf(
+		1.0, ENTRY_MAX_PITCH_SCALE, _entry_intensity_unitless
 	)
 
 
