@@ -1,6 +1,8 @@
 class_name AudioDirector
 extends Node
 
+const SemanticCueRouter := preload("res://scripts/audio/semantic_audio_cue_router.gd")
+
 ## Global non-positional audio used by the legacy game-flow cues.
 ##
 ## Every procedural waveform is generated once into a fixed resident bank when
@@ -12,6 +14,12 @@ extends Node
 ## correct under a Dummy driver or a muted mix. Footsteps deliberately have no
 ## cue ID; they are far too frequent to caption.
 signal cue_started(cue_id: StringName)
+signal semantic_cue_emitted(
+	source_id: StringName,
+	cue_id: StringName,
+	intensity: float,
+	world_position: Vector3
+)
 
 const CUE_UI_CONFIRM: StringName = &"ui_confirm"
 const CUE_IMPACT: StringName = &"impact"
@@ -110,6 +118,7 @@ var _initialized := false
 # volume separate from the transient AudioStreamPlayer so a detached Main
 # scene cannot silently revert the mode on re-entry.
 var _desired_ambience_volume_db := -13.0
+var _semantic_router
 
 
 func _enter_tree() -> void:
@@ -122,6 +131,11 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	if not is_instance_valid(_semantic_router):
+		_semantic_router = SemanticCueRouter.new()
+		_semantic_router.name = "SemanticAudioCueRouter"
+		add_child(_semantic_router)
+		_semantic_router.semantic_cue_emitted.connect(_on_semantic_cue)
 	if _initialized:
 		_restore_after_enter_tree()
 		return
@@ -160,8 +174,28 @@ func _process(delta: float) -> void:
 	_footstep_cooldown = maxf(0.0, _footstep_cooldown - delta)
 
 
+## Binds a caller-owned semantic audio source without taking gameplay authority.
+func bind_semantic_audio_source(source: Node, source_id: StringName) -> Dictionary:
+	if not is_instance_valid(_semantic_router):
+		return {"accepted": false, "reason": &"router_unavailable"}
+	return _semantic_router.bind_source(source, source_id)
+
+
+## Clears semantic source bindings for detach/re-entry without changing playback.
+func detach_semantic_audio_sources() -> Dictionary:
+	if not is_instance_valid(_semantic_router):
+		return {"accepted": true, "reason": &"already_detached"}
+	return _semantic_router.detach()
+
+
+func get_semantic_audio_binding_count() -> int:
+	return _semantic_router.get_binding_count() if is_instance_valid(_semantic_router) else 0
+
+
 func _exit_tree() -> void:
 	_shutting_down = true
+	if is_instance_valid(_semantic_router):
+		_semantic_router.detach()
 	for timer in _get_sequence_timers():
 		if is_instance_valid(timer):
 			timer.stop()
@@ -408,6 +442,15 @@ func get_audit_report() -> Dictionary:
 		"synthesis": get_synthesis_report(),
 		"performance": get_performance_report(),
 	}
+
+
+func _on_semantic_cue(
+	source_id: StringName,
+	cue_id: StringName,
+	intensity: float,
+	world_position: Vector3
+) -> void:
+	semantic_cue_emitted.emit(source_id, cue_id, intensity, world_position)
 
 
 func _play_resident(stream_id: StringName, bus: StringName, volume_db: float) -> bool:
