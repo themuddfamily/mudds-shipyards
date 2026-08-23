@@ -78,15 +78,17 @@ const GARDEN_BENCH_LEG_COPY_COUNT := 6
 const CUPOLA_DOWNLIGHT_COPY_COUNT := 3
 const CORRIDOR_DECK_SEAM_COPY_COUNT := 9
 const COMMON_CEILING_LIGHT_BODY_COPY_COUNT := 6
+const GALLEY_DOOR_PULL_COPY_COUNT := 4
 const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
 const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
-const RENDER_DESCENDANT_COUNT := 1878
-const RENDER_MESH_INSTANCE_COUNT := 1227
-const RENDER_MULTIMESH_BATCH_COUNT := 20
-const RENDER_DRAWN_COPY_COUNT := 1377
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1238
+const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 1240
+const RENDER_DESCENDANT_COUNT := 1877
+const RENDER_MESH_INSTANCE_COUNT := 1223
+const RENDER_MULTIMESH_BATCH_COUNT := 23
+const RENDER_DRAWN_COPY_COUNT := 1381
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1237
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
-const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 32
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
 const OBSERVATION_BACKREST_METALLIC := 0.02
 const OBSERVATION_BACKREST_ROUGHNESS := 0.80
@@ -205,6 +207,8 @@ var _corridor_deck_seam_transforms: Array[Transform3D] = []
 var _corridor_deck_seam_batch: MultiMeshInstance3D
 var _common_ceiling_light_body_transforms: Array[Transform3D] = []
 var _common_ceiling_light_body_batch: MultiMeshInstance3D
+var _galley_door_pull_transforms: Array[Transform3D] = []
+var _galley_door_pull_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -1039,6 +1043,33 @@ func get_render_allocation_report() -> Dictionary:
 		and _corridor_deck_seam_batch.get_child_count() == 0
 		and _corridor_deck_seam_batch.get_script() == null
 	)
+	var galley_door_pull_authored: bool = (
+		is_instance_valid(_galley_door_pull_batch)
+		and _galley_door_pull_batch.multimesh != null
+		and _galley_door_pull_batch.multimesh.instance_count == GALLEY_DOOR_PULL_COPY_COUNT
+		and _galley_door_pull_batch.multimesh.visible_instance_count == -1
+		and _galley_door_pull_batch.multimesh.mesh != null
+		and _galley_door_pull_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.045, 0.045, 0.34)
+		)
+		and _galley_door_pull_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_galley_door_pull_transforms
+		)
+		and _galley_door_pull_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_galley_door_pull_batch.multimesh.mesh.get_aabb(),
+				_galley_door_pull_transforms
+			)
+		)
+		and _galley_door_pull_batch.material_override == _materials.get("brass")
+		and _galley_door_pull_batch.cast_shadow
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _galley_door_pull_batch.layers == 1
+		and _galley_door_pull_batch.get_child_count() == 0
+		and bool(_galley_door_pull_batch.get_meta("visual_detail_only", false))
+		and StringName(_galley_door_pull_batch.get_meta("authored_source_name", &""))
+			== &"GalleyDoorPull"
+	)
 	var descendant_count := _render_descendant_count()
 	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -1058,6 +1089,8 @@ func get_render_allocation_report() -> Dictionary:
 		and common_ceiling_light_body_authored
 		and _corridor_deck_seam_transforms.size() == CORRIDOR_DECK_SEAM_COPY_COUNT
 		and deck_seam_authored
+		and _galley_door_pull_transforms.size() == GALLEY_DOOR_PULL_COPY_COUNT
+		and galley_door_pull_authored
 	)
 	return {
 		"schema_version": 1,
@@ -1071,7 +1104,7 @@ func get_render_allocation_report() -> Dictionary:
 			PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT
 		),
 		"geometry_submissions_removed_by_common_ceiling_light_body_batch": (
-			PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT - submissions
+			COMMON_CEILING_LIGHT_BODY_COPY_COUNT - 1
 		),
 		"common_ceiling_light_body_legacy_renderer_nodes": (
 			COMMON_CEILING_LIGHT_BODY_COPY_COUNT
@@ -1096,6 +1129,19 @@ func get_render_allocation_report() -> Dictionary:
 		"corridor_deck_seam_submissions": 1 if deck_seam_authored else 0,
 		"corridor_deck_seam_copies": _corridor_deck_seam_transforms.size(),
 		"corridor_deck_seam_authored": deck_seam_authored,
+		"geometry_submissions_before_galley_door_pull_batch": (
+			PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT
+		),
+		"geometry_submissions_removed_by_galley_door_pull_batch": (
+			PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
+		"galley_door_pull_legacy_renderer_nodes": GALLEY_DOOR_PULL_COPY_COUNT,
+		"galley_door_pull_renderer_nodes": 1 if galley_door_pull_authored else 0,
+		"galley_door_pull_legacy_submissions": GALLEY_DOOR_PULL_COPY_COUNT,
+		"galley_door_pull_submissions": 1 if galley_door_pull_authored else 0,
+		"galley_door_pull_copies": _galley_door_pull_transforms.size(),
+		"galley_door_pull_authored": galley_door_pull_authored,
+		"authored_galley_door_pull_transforms": _galley_door_pull_transforms.duplicate(),
 		"unique_mesh_resources": mesh_resource_ids.size(),
 		"unique_material_resources": material_resource_ids.size(),
 		"hatch_fastener_copies": _hatch_fastener_transforms.size(),
@@ -3126,10 +3172,21 @@ func _build_common_galley(common: Node3D) -> void:
 	_box(galley, "GalleyToeRecess", Vector3(-6.66, 0.06, run_center_z), Vector3(0.12, 0.12, run_length), _materials["graphite"], false)
 	_box(galley, "GalleyWorktop", Vector3(-6.92, 0.89, run_center_z), Vector3(0.74, 0.06, run_length + 0.04), _materials["steel_bright"])
 	_box(galley, "GalleySplashback", Vector3(-7.255, 1.09, run_center_z), Vector3(0.06, 0.34, run_length + 0.04), _materials["steel_bright"], false)
+	_galley_door_pull_transforms.clear()
 	for door_index in 4:
 		var door_z := 18.62 + float(door_index) * 1.06
 		_box(galley, "GalleyDoor%02d" % (door_index + 1), Vector3(-6.582, 0.47, door_z), Vector3(0.045, 0.70, 0.96), _materials["shell_light"], false)
-		_box(galley, "GalleyDoorPull", Vector3(-6.556, 0.72, door_z), Vector3(0.045, 0.045, 0.34), _materials["brass"], false)
+		_galley_door_pull_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(-6.556, 0.72, door_z))
+		)
+	_galley_door_pull_batch = _multimesh_visual_stock(
+		galley,
+		"GalleyDoorPulls",
+		_rounded_box_mesh(Vector3(0.045, 0.045, 0.34)),
+		_materials["brass"],
+		_galley_door_pull_transforms,
+		&"GalleyDoorPull"
+	)
 
 	# Sink, drawn as an inset rim on the worktop rather than a hole through it, so
 	# the collidable top stays one unbroken box.

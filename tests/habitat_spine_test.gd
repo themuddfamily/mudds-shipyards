@@ -40,7 +40,7 @@ func _run() -> void:
 	_check(
 		bool(synchronous_audit.get("valid", false))
 		and bool(synchronous_render.get("exact_counts", false))
-		and int(synchronous_render.get("unique_material_resources", -1)) == 32,
+		and int(synchronous_render.get("unique_material_resources", -1)) == 33,
 		"Habitat is allocation-green synchronously before its ShipyardWorld parent can validate it"
 	)
 	await process_frame
@@ -273,7 +273,7 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 		and int(material_audit.light_delta) == 0
 		and int(material_audit.geometry_submission_delta) == 0
 		and int(material_audit.material_resource_delta) == 1
-		and int(render_before_material_probe.unique_material_resources) == 32
+		and int(render_before_material_probe.unique_material_resources) == 33
 		and bool(render_before_material_probe.exact_counts),
 		"eight chair-only modern backrests lift albedo/response with no geometry, collision, light, or submission growth"
 	)
@@ -481,12 +481,13 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_cupola_downlight_batch(module)
 	_test_corridor_deck_seam_batch(module)
 	_test_common_ceiling_light_body_batch(module)
+	_test_galley_door_pull_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1878
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1227
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 20,
-		"visual batching stays frozen at 1878 render nodes, 1227 meshes and 20 MultiMeshes"
+		int(render.descendant_nodes) == 1877
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1223
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 23,
+		"visual batching stays frozen at 1877 render nodes, 1223 meshes and 23 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -580,9 +581,9 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
 		and int(report.geometry_submissions_before_deck_seam_batch) == 1251
-		and int(report.geometry_submissions) == 1238
+		and int(report.geometry_submissions) == 1237
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
-		and int(report.drawn_copies) == 1377
+		and int(report.drawn_copies) == 1381
 		and bool(report.corridor_deck_seam_authored),
 		"corridor seams measure 9 -> 1 submissions while all nine visible copies remain"
 	)
@@ -666,11 +667,72 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.common_ceiling_light_body_submissions) == 1
 		and int(report.common_ceiling_light_body_copies) == 6
 		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 1243
-		and int(report.geometry_submissions) == 1238
+		and int(report.geometry_submissions) == 1237
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
-		and int(report.drawn_copies) == 1377
+		and int(report.drawn_copies) == 1381
 		and bool(report.common_ceiling_light_body_authored),
 		"common ceiling housings measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
+	)
+
+
+func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
+	var galley := module.get_node_or_null(
+		^"Structure/ObservationCommon/CommonGalley"
+	) as Node3D
+	var batch := galley.get_node_or_null(^"GalleyDoorPulls") as MultiMeshInstance3D if galley != null else null
+	_check(
+		galley != null and batch != null and batch.multimesh != null,
+		"four galley door pulls resolve through one visual-only MultiMesh"
+	)
+	if galley == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for door_index in HabitatSpine.GALLEY_DOOR_PULL_COPY_COUNT:
+		expected.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(-6.556, 0.72, 18.62 + float(door_index) * 1.06)
+		))
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var transforms_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		transforms_exact = transforms_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected[index]
+		)
+	var tap_lever := galley.get_node_or_null(^"GalleyTapLever") as MeshInstance3D
+	_check(
+		transforms_exact
+		and batch.multimesh.instance_count == HabitatSpine.GALLEY_DOOR_PULL_COPY_COUNT
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.045, 0.045, 0.34))
+		and batch.multimesh.custom_aabb.is_equal_approx(AABB(
+			Vector3(-6.5785, 0.6975, 18.45), Vector3(0.045, 0.045, 3.52)
+		))
+		and tap_lever != null
+		and batch.material_override == tap_lever.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"galley pull batch preserves exact transforms, extent, culling, brass material, shadows and render layer"
+	)
+	_check(
+		galley.find_children("GalleyDoorPull", "MeshInstance3D", false, false).is_empty()
+		and galley.find_children("GalleyDoor*", "MeshInstance3D", false, false).size() == 4
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and bool(batch.get_meta("visual_detail_only", false))
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"GalleyDoorPull",
+		"only authority-free pull visuals are batched while all four named cabinet doors remain intact"
+	)
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.galley_door_pull_legacy_renderer_nodes) == 4
+		and int(report.galley_door_pull_renderer_nodes) == 1
+		and int(report.galley_door_pull_legacy_submissions) == 4
+		and int(report.galley_door_pull_submissions) == 1
+		and int(report.galley_door_pull_copies) == 4
+		and int(report.geometry_submissions_before_galley_door_pull_batch) == 1240
+		and int(report.geometry_submissions) == 1237
+		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
+		and bool(report.galley_door_pull_authored),
+		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
 	)
 
 
@@ -822,23 +884,23 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1878
-		and int(report.mesh_instances) == 1227
-		and int(report.multimesh_batches) == 20,
+		int(report.descendant_nodes) == 1877
+		and int(report.mesh_instances) == 1223
+		and int(report.multimesh_batches) == 23,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
-		int(report.drawn_copies) == 1377
-		and int(report.geometry_submissions) == 1238
+		int(report.drawn_copies) == 1381
+		and int(report.geometry_submissions) == 1237
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1377 while surface submissions fall 1243 -> 1238"
+		"drawn copies freeze at 1381 while surface submissions fall 1243 -> 1237"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 349
-		and int(report.unique_material_resources) == 32
-		and int(report.multimesh_resources) == 20
+		and int(report.unique_material_resources) == 33
+		and int(report.multimesh_resources) == 23
 		and int(report.renderer_buffer_floats) == 144,
-		"mesh/material allocations freeze at 349/32 while the hatch batch retains its 144-float renderer buffer"
+		"mesh/material allocations freeze at 349/33 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
