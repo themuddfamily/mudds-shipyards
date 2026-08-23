@@ -81,6 +81,9 @@ extends SceneTree
 ## No handling value, colour, or geometry is modified anywhere in this suite.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const Settings := preload("res://scripts/settings/runtime_settings.gd")
+const Store := preload("res://scripts/persistence/user_data_store.gd")
+const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 const EXPANDED_DEFINITIONS := {
 	&"cinder-cargo-hauler": preload("res://assets/ships/cinder_cargo_hauler_new_design.tres"),
 	&"cinder-long-range-bomber": preload("res://assets/ships/cinder_long_range_bomber_new_design.tres"),
@@ -295,6 +298,47 @@ const INTERIOR_NODE_NAMES := [
 	"WalkableInterior", "CargoBay", "PassengerCabin", "InteriorOccupantVolume",
 ]
 
+
+class IsolatedFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+
+	func file_exists(path: String) -> bool:
+		return files.has(path)
+
+	func directory_exists(_path: String) -> bool:
+		return false
+
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
+
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		return {
+			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
+			"bytes": bytes,
+		}
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		files[path] = bytes.duplicate()
+		return OK
+
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path):
+			return ERR_FILE_NOT_FOUND
+		if files.has(to_path):
+			return ERR_ALREADY_EXISTS
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
+
 var _failures: Array[String] = []
 var _assertion_count := 0
 var _seat_evidence: Array[String] = []
@@ -311,6 +355,12 @@ func _run() -> void:
 	if game == null:
 		_finish()
 		return
+	var filesystem := IsolatedFilesystem.new()
+	var store := Store.new("memory://fleet-role-audit.json", filesystem)
+	var settings := Settings.new("memory://fleet-role-audit.cfg")
+	store.load()
+	store.commit({Adapter.SETTINGS_PAYLOAD_KEY: settings.to_user_data_payload()}, 0, "fixture")
+	game.configure_runtime_settings_persistence(store, "memory://fleet-role-audit.cfg")
 	root.add_child(game)
 	await process_frame
 	await process_frame
