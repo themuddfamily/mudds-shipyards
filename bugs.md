@@ -1028,33 +1028,29 @@ guided victory still lands. `_on_projectile_fired` and `_on_landing_completed`
 fail closed as described. The previously cleared handlers were re-read and remain
 clear.
 
-### Found, not fixed (owned elsewhere)
+### Picket follow-up — fixed 2026-08-23
 
-`StandoffPicketOpponent` is a second live combat source that resolves its lance
-directly on the shared resolver and is never seen by GameFlow's handlers. Its
-withdrawal is keyed to the defender's `is_active()` and is evaluated in its own
-`_physics_process`, so a charge committed on the frame the defender dies can
-still land one lance during `RETURN_TO_YARD`. The craft's own comments say the
-escort is deliberately not stranded by a phase change, so this is reported rather
-than changed; it lives in `scripts/ships/`, which a sibling owns.
+`StandoffPicketOpponent` was the second live combat source that resolved its lance
+directly on the shared resolver. A charge committed on the frame its defender
+died could therefore land during `RETURN_TO_YARD`. The first synchronous fire
+fence closed that late-shot window, but independent review found that a simple
+defender-active gate also denied the production heavy-breach launch and could
+leave authority stale across detach, re-entry, or owner replacement.
 
-**Update, encounter-variety slice.** Still open, still unchanged, and still in
-the picket. What has changed is that the *shape* of the defect can no longer
-spread. Every opponent added since resolves through
-`scripts/ships/resolver_backed_opponent.gd`, whose `_fire_at_target()` re-asks
-`_is_fire_authorized()` on the frame a shot is dispatched instead of trusting
-the authorization that was true when the charge began, and whose withdrawal is
-owned by `EncounterScenarioDirector` rather than inferred from another craft's
-activity — the director flips its own state and stands its whole roster down
-inside one synchronous call, before that call returns. A charge committed on the
-concluding frame is counted by `get_shots_withheld()` rather than delivered.
-`tests/encounter_scenario_director_test.gd` drives that case directly and
-`tests/varied_encounter_integration_test.gd` reproduces it against the real
-coordinator: the defender is destroyed with three scenario craft holding
-committed charges, the coordinator moves to `RETURN_TO_YARD`, and the recorded
-shot count across all three is unchanged afterwards. Fixing the picket itself
-would mean editing a file this slice does not own; the mitigation above is the
-part that was in scope.
+The final contract is explicit rather than inferred. Escort-mode activation now
+requires `activate_authorized_dispatch(owner, generation)`, and every committed
+lance revalidates that exact live owner/generation at dispatch. Defender-backed
+authority is revoked synchronously on stand-down; the heavy-breach director owns
+its grant for one scenario generation. Detach, queued deletion, owner replacement,
+or healthy external deactivation aborts the encounter and revokes fire, while a
+genuinely destroyed picket still completes it as `CLEARED`. Manual combat mode
+remains intentionally independent and does not bind defender signals.
+
+Independent review found the cumulative fix push-safe. Focused regressions pass
+with **95 assertions** in `standoff_picket_opponent_test.gd`, **139** in
+`encounter_scenario_director_test.gd`, and **11** in
+`heavy_breach_activity_board_production_test.gd`. The final implementation spans
+`102901a3f`, `34155c721`, `835b2d727`, `abeb4b9b5`, and `23fd198a4`.
 
 ## RENDER-001 — Seven `Texture` RIDs leak at `RenderingDevice::finalize()` on every rendered run — **ACCEPTED_RISK**
 
