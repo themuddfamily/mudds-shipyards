@@ -26,6 +26,7 @@ const SnapshotJitterBuffer := preload("res://scripts/network/network_snapshot_ji
 const ReplicationInterest := preload("res://scripts/network/network_replication_interest.gd")
 const SnapshotDeltaCodec := preload("res://scripts/network/network_snapshot_delta_codec.gd")
 const SnapshotFragmenter := preload("res://scripts/network/network_snapshot_fragmenter.gd")
+const MovingInteriorRelationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -71,6 +72,7 @@ var _replication_interest
 var _snapshot_delta_encoder
 var _snapshot_delta_decoder
 var _snapshot_fragmenter
+var _moving_replica_samples: Dictionary = {}
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -841,7 +843,59 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 		return _remember(_result(false, &"client_required"))
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
+	_moving_replica_samples.clear()
 	return _remember(_snapshot_jitter.reset(migration_generation))
+
+
+## Presents a released authoritative moving-interior relationship without
+## mutating authority or scene state. Packets are ordered by the shared jitter
+## buffer before the relationship is interpolated in frame-local coordinates.
+func consume_moving_interior_snapshot(
+	packet: Dictionary,
+	frame_world_transform: Transform3D = Transform3D.IDENTITY,
+	alpha: float = 1.0
+) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("relationship"):
+		return _remember(_result(false, &"invalid_moving_interior_snapshot"))
+	if not is_finite(alpha):
+		return _remember(_result(false, &"invalid_interpolation_alpha"))
+	var buffered: Dictionary = _snapshot_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+	var presented: Array = []
+	while true:
+		var ready: Dictionary = _snapshot_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var raw_relationship: Variant = ready.get("relationship")
+		if not raw_relationship is Dictionary:
+			return _remember(_result(false, &"invalid_moving_interior_relationship"))
+		var relationship := MovingInteriorRelationship.from_dictionary(raw_relationship as Dictionary)
+		if not relationship.is_valid():
+			return _remember(_result(false, &"invalid_moving_interior_relationship"))
+		var entity_id := relationship.get_entity_id()
+		var prior: Dictionary = _moving_replica_samples.get(entity_id, {})
+		var local_transform := relationship.get_frame_local_transform()
+		if not prior.is_empty():
+			var prior_transform: Transform3D = prior.get("local_transform", Transform3D.IDENTITY)
+			local_transform = prior_transform.interpolate_with(local_transform, clampf(alpha, 0.0, 1.0))
+		_moving_replica_samples[entity_id] = {
+			"server_tick": relationship.get_server_tick(),
+			"local_transform": relationship.get_frame_local_transform(),
+		}
+		presented.append({
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": relationship.get_server_tick(),
+			"entity_id": entity_id,
+			"parent_frame_id": relationship.get_parent_frame_id(),
+			"parent_frame_generation": relationship.get_parent_frame_generation(),
+			"world_transform": frame_world_transform * local_transform,
+		})
+	return _remember(_result(true, &"moving_interior_presented", {
+		"samples": presented,
+		"buffered_revision": int(buffered.get("revision", 0)),
+	}))
 
 
 func get_snapshot_jitter_state() -> Dictionary:
