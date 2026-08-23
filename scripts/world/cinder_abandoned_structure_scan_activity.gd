@@ -71,22 +71,32 @@ func reset() -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
+	var progress := clampf(_elapsed / SCAN_SECONDS, 0.0, 1.0)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"activity_id": ACTIVITY_ID,
 		"content_class": CONTENT_CLASS,
 		"evidence_status": EVIDENCE_STATUS,
 		"state": _state,
+		"state_id": _state_id(_state),
 		"generation": _generation,
 		"elapsed_seconds": _elapsed,
 		"scan_seconds": SCAN_SECONDS,
+		"progress_unitless": progress,
+		"checkpoint_id": &"",
+		"reset_serial": _generation if _state == State.RESET else 0,
 		"structure_anchor": STRUCTURE_ANCHOR,
 		"approach_anchor": APPROACH_ANCHOR,
 		"reward_requested": _reward_requested,
+		"reward_pending": _reward_requested,
 		"reward_authority": false,
 		"gameplay_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+static func _state_id(state: int) -> StringName:
+	return [&"idle", &"active", &"complete", &"reset"][clampi(state, State.IDLE, State.RESET)]
 
 
 func audit() -> Dictionary:

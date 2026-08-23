@@ -25,6 +25,10 @@ const MINING_TRANSITION_CUES := [
 	&"cinder_mining_extraction_interrupted", &"cinder_mining_capacity_ready",
 	&"cinder_mining_extraction_completed",
 ]
+const SCAN_TRANSITION_CUES := [
+	&"cinder_scan_started", &"cinder_scan_progress_checkpoint",
+	&"cinder_scan_interrupted", &"cinder_scan_completed",
+]
 const CUE_PRIORITIES := {
 	&"activity_progress": 10,
 	&"activity_checkpoint": 20,
@@ -51,6 +55,10 @@ const CUE_PRIORITIES := {
 	&"cinder_mining_extraction_interrupted": 90,
 	&"cinder_mining_capacity_ready": 85,
 	&"cinder_mining_extraction_completed": 95,
+	&"cinder_scan_started": 50,
+	&"cinder_scan_progress_checkpoint": 40,
+	&"cinder_scan_interrupted": 90,
+	&"cinder_scan_completed": 95,
 }
 
 var _attached := false
@@ -148,6 +156,12 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			and state != &"reset" \
 			and _mining_progress(decoded) < float(previous.get("mining_progress", 0.0)):
 		return _result(false, &"stale_mining_yield")
+	var is_structure_scan := activity_kind == &"salvage" \
+			and activity_id == &"cinder_derelict_structure_scan"
+	if is_structure_scan and source_generation == previous_generation \
+			and state != &"reset" \
+			and progress < float(previous.get("scan_progress", 0.0)):
+		return _result(false, &"stale_scan_progress")
 	var generation_changed := source_generation > previous_generation
 	var prior_generation_urgency := StringName(previous.get("urgency", &"normal"))
 	if generation_changed:
@@ -164,6 +178,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var previous_beacon_reason := StringName(previous.get("beacon_interruption_reason", &""))
 	var previous_convoy_threat := StringName(previous.get("convoy_threat", &"none"))
 	var previous_mining_checkpoint := int(previous.get("mining_yield_checkpoint", 0))
+	var previous_scan_checkpoint := int(previous.get("scan_progress_checkpoint", 0))
 	if generation_changed and urgency == &"normal":
 		previous_urgency = prior_generation_urgency
 	if previous.is_empty():
@@ -221,8 +236,22 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			)
 		if state == &"reset" and previous_state != &"reset":
 			_emit_cue(&"cinder_mining_extraction_interrupted", activity_id, 1.0)
+	elif is_structure_scan:
+		_retire_activity_transition_slots(activity_id, SCAN_TRANSITION_CUES)
+		var scan_checkpoint := _progress_checkpoint(progress)
+		if state == &"active" and previous_state != &"active":
+			_emit_cue(&"cinder_scan_started", activity_id, 0.8)
+		if state == &"active" and scan_checkpoint > previous_scan_checkpoint:
+			_emit_cue(
+				&"cinder_scan_progress_checkpoint", activity_id,
+				[0.0, 0.4, 0.65, 1.0][scan_checkpoint]
+			)
+		if state == &"reset" and previous_state != &"reset":
+			_emit_cue(&"cinder_scan_interrupted", activity_id, 1.0)
 	if state == &"complete" and previous_state != &"complete":
-		if activity_kind == &"mining":
+		if is_structure_scan:
+			_emit_cue(&"cinder_scan_completed", activity_id, 1.0)
+		elif activity_kind == &"mining":
 			_emit_cue(&"cinder_mining_capacity_ready", activity_id, 1.0)
 			_emit_cue(&"cinder_mining_extraction_completed", activity_id, 1.0)
 		elif activity_kind == &"convoy":
@@ -253,6 +282,8 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		"mining_yield_checkpoint": (
 			_mining_yield_checkpoint(decoded) if activity_kind == &"mining" else 0
 		),
+		"scan_progress": progress if is_structure_scan else 0.0,
+		"scan_progress_checkpoint": _progress_checkpoint(progress) if is_structure_scan else 0,
 		"state": state,
 		"checkpoint_id": checkpoint_id,
 		"progress": progress,
@@ -484,7 +515,10 @@ func _mining_progress(decoded: Dictionary) -> float:
 
 
 func _mining_yield_checkpoint(decoded: Dictionary) -> int:
-	var progress := _mining_progress(decoded)
+	return _progress_checkpoint(_mining_progress(decoded))
+
+
+func _progress_checkpoint(progress: float) -> int:
 	if progress >= 0.75:
 		return 3
 	if progress >= 0.5:
