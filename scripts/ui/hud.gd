@@ -284,6 +284,7 @@ var _settings_reset_confirmation: PanelContainer
 ## Retain the exact in-overlay target so controller users return to the same
 ## reachable control instead of an open page with no GUI focus owner.
 var _pause_reentry_focus_target: Control
+var _settings_focus_target: Control
 var _updating_settings := false
 var _input_rebind_service: InputRebindService
 var _input_remapping_controller: RuntimeInputRemappingController
@@ -492,6 +493,8 @@ func _on_viewport_gui_focus_changed(control: Control) -> void:
 		and is_ancestor_of(control)
 	):
 		_pause_reentry_focus_target = control
+		if _settings_page != null and _settings_page.visible and _settings_page.is_ancestor_of(control):
+			_settings_focus_target = control
 
 
 func _input(event: InputEvent) -> void:
@@ -3261,6 +3264,7 @@ func _build_settings_page() -> void:
 	)
 	_add_caption_preview_setting(accessibility_group)
 	_add_controller_glyph_family_setting(accessibility_group)
+	_configure_accessibility_focus_neighbors()
 
 	var hint_panel := PanelContainer.new()
 	hint_panel.add_theme_stylebox_override("panel", _box(Color("122638"), 5, 1, Color("315367")))
@@ -4099,6 +4103,25 @@ func _add_controller_glyph_family_setting(parent: VBoxContainer) -> void:
 	_settings_controls[_CONTROLLER_GLYPH_FAMILY_KEY] = selector
 
 
+func _configure_accessibility_focus_neighbors() -> void:
+	var ordered_keys: Array[StringName] = [
+		&"master_volume", &"ambience_volume", &"music_volume", &"engine_volume",
+		&"weapons_volume", &"ui_volume", &"ui_scale", &"colorblind_palette",
+		&"reduced_motion", &"reduced_flash", &"reduced_dynamic_range",
+		&"payload_visual_intensity", &"captions_enabled", &"show_tutorials",
+		_CONTROLLER_GLYPH_FAMILY_KEY,
+	]
+	var controls: Array[Control] = []
+	for key: StringName in ordered_keys:
+		var control := _settings_controls.get(key) as Control
+		if control != null and control.focus_mode != Control.FOCUS_NONE:
+			controls.append(control)
+	for index in controls.size():
+		var control := controls[index]
+		control.focus_neighbor_top = control.get_path_to(controls[maxi(0, index - 1)])
+		control.focus_neighbor_bottom = control.get_path_to(controls[mini(controls.size() - 1, index + 1)])
+
+
 func _add_caption_preview_setting(parent: VBoxContainer) -> void:
 	var row := VBoxContainer.new()
 	row.name = "CaptionPreviewRow"
@@ -4199,9 +4222,16 @@ func _show_settings_page() -> void:
 	_activity_selection_page.visible = false
 	_server_browser_page.visible = false
 	_settings_page.visible = true
-	var first_control := _settings_controls.get(&"ship_mouse_sensitivity") as Control
-	if first_control != null:
-		first_control.grab_focus()
+	var target := _settings_focus_target
+	if (
+		not is_instance_valid(target)
+		or not _settings_page.is_ancestor_of(target)
+		or not target.is_visible_in_tree()
+		or target.focus_mode == Control.FOCUS_NONE
+	):
+		target = _settings_controls.get(&"ship_mouse_sensitivity") as Control
+	if target != null:
+		target.grab_focus()
 
 
 func _show_pause_main() -> void:
