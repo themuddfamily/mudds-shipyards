@@ -21,6 +21,9 @@ const SafeStartProductionRecoveryType := preload(
 const NetworkSessionAdapterType := preload(
 	"res://scripts/network/network_enet_session_adapter.gd"
 )
+const NetworkHalyardCrewCommandBridgeType := preload(
+	"res://scripts/network/network_halyard_crew_command_bridge.gd"
+)
 const NearbySectorActivityAudioBindingType := preload(
 	"res://scripts/audio/nearby_sector_activity_audio_binding.gd"
 )
@@ -269,6 +272,7 @@ var cargo_delivery_activity: CargoDeliveryActivity
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
 ## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
 var network_session: NetworkSessionAdapterType
+var _network_halyard_command_bridge
 var _network_session_mode: StringName = &""
 var _network_session_address := "127.0.0.1"
 var _network_session_port := NetworkSessionAdapterType.DEFAULT_PORT
@@ -461,6 +465,7 @@ func _exit_tree() -> void:
 	if is_instance_valid(network_session):
 		network_session.shutdown(&"game_flow_exit")
 		network_session = null
+	_detach_network_halyard_command_bridge()
 	_cancel_ground_transition_for_detach()
 	_detach_cinder_race_session()
 	_detach_caption_presentation()
@@ -553,7 +558,27 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 	_connect_signal_once(network_session, &"transport_rejected", _on_network_transport_rejected)
 	_connect_signal_once(network_session, &"crew_role_result", _on_network_crew_role_result)
 	_connect_signal_once(network_session, &"server_browser_result", _on_server_browser_result)
+	_attach_network_halyard_command_bridge()
 	return network_session
+
+
+func _attach_network_halyard_command_bridge() -> Dictionary:
+	if not is_instance_valid(network_session) or not is_instance_valid(active_ship):
+		return {"accepted": false, "status": &"network_or_ship_unavailable"}
+	if not active_ship.has_method(&"submit_crew_intent") \
+		or not active_ship.has_method(&"get_crew_role_authority"):
+		return {"accepted": false, "status": &"halyard_unavailable"}
+	if _network_halyard_command_bridge == null:
+		_network_halyard_command_bridge = NetworkHalyardCrewCommandBridgeType.new(1)
+	return _network_halyard_command_bridge.attach(network_session, active_ship)
+
+
+func _detach_network_halyard_command_bridge() -> Dictionary:
+	if _network_halyard_command_bridge == null:
+		return {"accepted": true, "status": &"already_detached"}
+	var result: Dictionary = _network_halyard_command_bridge.detach()
+	_network_halyard_command_bridge = null
+	return result
 
 
 func _ready() -> void:
@@ -1931,6 +1956,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_detach_network_halyard_command_bridge()
 	_publish_network_session_snapshot(
 		&"disconnected", _network_session_mode, "Session closed: %s" % reason, true
 	)
@@ -1950,6 +1976,7 @@ func _on_network_transport_rejected(status: StringName) -> void:
 
 
 func _on_network_crew_role_result(result: Dictionary) -> void:
+	_attach_network_halyard_command_bridge()
 	if _network_session_mode != &"server" or not bool(result.get("accepted", false)):
 		return
 	var role_record: Dictionary = result.get("role", {}) as Dictionary
