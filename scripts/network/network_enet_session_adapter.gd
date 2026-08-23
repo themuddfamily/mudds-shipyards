@@ -1063,6 +1063,28 @@ func publish_moving_interior_snapshot(
 	return _remember(result)
 
 
+func publish_moving_interior_release(
+	entity_id: StringName,
+	entity_generation: int,
+	recipients: Array = []
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if entity_id.is_empty() or entity_generation <= 0:
+		return _remember(_result(false, &"invalid_moving_interior_release"))
+	var target_peers: Array = recipients.duplicate()
+	if target_peers.is_empty():
+		target_peers = _peer_generations.keys()
+	for peer_variant in target_peers:
+		if not _peer_generations.has(int(peer_variant)):
+			return _remember(_result(false, &"peer_not_admitted"))
+	var packet := {"entity_id": entity_id, "entity_generation": entity_generation}
+	for peer_variant in target_peers:
+		if _peer != null:
+			_broadcast_moving_interior_release.rpc_id(int(peer_variant), packet)
+	return _remember(_result(true, &"moving_interior_release_published", {"packet": packet}))
+
+
 func publish_moving_interior_resync(peer_id: int, budget_tick: int = -1) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -2907,6 +2929,20 @@ func _broadcast_moving_interior_snapshot(packet: Dictionary) -> void:
 	var applied := consume_moving_interior_snapshot(packet)
 	moving_interior_result.emit(applied.duplicate(true))
 	_last_result = applied.duplicate(true)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _broadcast_moving_interior_release(packet: Dictionary) -> void:
+	if is_server():
+		return
+	var entity_id := StringName(packet.get("entity_id", &""))
+	if entity_id.is_empty() or int(packet.get("entity_generation", 0)) <= 0:
+		return
+	_moving_replica.detach_entity(entity_id)
+	_moving_replica_samples.erase(entity_id)
+	_moving_replica_binding.detach(entity_id)
+	_moving_replica_binding_ids.erase(entity_id)
+	moving_interior_result.emit(_result(true, &"moving_interior_release_applied", {"entity_id": entity_id}))
 
 
 @rpc("authority", "call_remote", "reliable")

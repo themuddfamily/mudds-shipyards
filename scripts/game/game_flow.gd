@@ -27,6 +27,9 @@ const NetworkSessionAdapterType := preload(
 const NetworkHalyardCrewCommandBridgeType := preload(
 	"res://scripts/network/network_halyard_crew_command_bridge.gd"
 )
+const MovingInteriorRelationshipType := preload(
+	"res://scripts/network/moving_interior_relationship.gd"
+)
 const NearbySectorActivityAudioBindingType := preload(
 	"res://scripts/audio/nearby_sector_activity_audio_binding.gd"
 )
@@ -3316,6 +3319,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 			return
 	_piloting = true
 	_publish_network_boarding_state(active_ship, true)
+	_publish_network_moving_interior_state(active_ship, true)
 	player.set_camera_active(false)
 	active_ship.set_piloted(true)
 	active_ship.get_camera().current = true
@@ -3476,6 +3480,33 @@ func _publish_network_boarding_state(ship_to_publish: HeroShip, occupied: bool) 
 	)
 
 
+func _publish_network_moving_interior_state(ship_to_publish: HeroShip, occupied: bool) -> Dictionary:
+	if (
+		not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or not is_instance_valid(ship_to_publish)
+	):
+		return {"accepted": false, "status": &"network_publish_unavailable"}
+	var entity_id := StringName("pilot_%s" % String(ship_to_publish.get_ship_id()))
+	var frame_id := StringName("frame_%s" % String(ship_to_publish.get_ship_id()))
+	if not occupied:
+		return network_session.publish_moving_interior_release(entity_id, 1)
+	var relationship := MovingInteriorRelationshipType.create(
+		_network_boarding_server_tick,
+		entity_id,
+		1,
+		frame_id,
+		1,
+		Transform3D.IDENTITY,
+		Vector3.ZERO,
+		Vector3.ZERO,
+		_network_boarding_server_tick
+	)
+	return network_session.publish_moving_interior_snapshot(
+		relationship.get_snapshot(), [], _network_boarding_server_tick
+	)
+
+
 func _leave_seat_into_cabin() -> void:
 	var cabin := active_ship.get_in_flight_cabin_report()
 	var frame := cabin.get("frame") as MovingInteriorFrame
@@ -3510,6 +3541,7 @@ func _leave_seat_into_cabin() -> void:
 		_fail_active_activity(&"pilot_unseated")
 	transition_ship.set_piloted(false)
 	_publish_network_boarding_state(transition_ship, false)
+	_publish_network_moving_interior_state(transition_ship, false)
 	if transition_ship.get_camera() != null:
 		transition_ship.get_camera().current = false
 	player.set_camera_active(true)
