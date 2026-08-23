@@ -21,6 +21,8 @@ const CARGO_CONTRACT := preload("res://scripts/cargo/cargo_delivery_contract.gd"
 const MINING_ACTIVITY := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const SCAN_ACTIVITY := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const BEACON_ACTIVITY := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
+const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activity_session_adapter.gd")
+const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 
 var _host: CinderConvoyEscortHost
@@ -38,6 +40,9 @@ var _station_anchor: Node3D
 var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
+var _session_adapter: RefCounted
+var _persistence_binding: RefCounted
+var _restored_session: Dictionary = {}
 
 
 func _ready() -> void:
@@ -90,6 +95,7 @@ func _ready() -> void:
 	_mining_activity = MINING_ACTIVITY.new() as RefCounted
 	_scan_activity = SCAN_ACTIVITY.new() as RefCounted
 	_beacon_activity = BEACON_ACTIVITY.new() as RefCounted
+	_session_adapter = SESSION_ADAPTER.new() as RefCounted
 
 
 func start_convoy() -> Dictionary:
@@ -276,6 +282,34 @@ func reset_beacon_traversal() -> Dictionary:
 	return _beacon_activity.call("reset")
 
 
+## Caller-owned persistence seam. Configuration does not read or write files;
+## callers explicitly request each transaction through UserDataStore.
+func configure_activity_persistence(store: RefCounted, slot_id: StringName) -> bool:
+	if store == null or _session_adapter == null:
+		return false
+	_persistence_binding = PERSISTENCE_BINDING.new() as RefCounted
+	return bool(_persistence_binding.call("configure", store, _session_adapter, slot_id))
+
+
+func save_activity_session(expected_generation: int, commit_id: String) -> Dictionary:
+	if _persistence_binding == null:
+		return {"accepted": false, "reason": &"persistence_unconfigured"}
+	return _persistence_binding.call("save", get_snapshot(), expected_generation, commit_id)
+
+
+func load_activity_session() -> Dictionary:
+	if _persistence_binding == null:
+		return {"accepted": false, "reason": &"persistence_unconfigured"}
+	var result: Dictionary = _persistence_binding.call("load")
+	if bool(result.get("accepted", false)):
+		_restored_session = (result.get("session", {}) as Dictionary).duplicate(true)
+	return result
+
+
+func get_restored_activity_session() -> Dictionary:
+	return _restored_session.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -293,6 +327,7 @@ func get_snapshot() -> Dictionary:
 		"mining": _mining_activity.call("get_snapshot") if is_instance_valid(_mining_activity) else {},
 		"structure_scan": _scan_activity.call("get_snapshot") if is_instance_valid(_scan_activity) else {},
 		"beacon_traversal": _beacon_activity.call("get_snapshot") if is_instance_valid(_beacon_activity) else {},
+		"restored_session": _restored_session.duplicate(true),
 		"production_owner": true,
 		"gameplay_authority": false,
 		"game_flow_authority": false,
