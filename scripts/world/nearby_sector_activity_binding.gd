@@ -226,6 +226,11 @@ func configure_station_defense_reward(
 	)
 	if not bool(result.get("accepted", false)):
 		_station_reward_adapter = null
+	else:
+		_station_reward_adapter.call(
+			"register_activity", &"cinder_reach_emberline_convoy",
+			&"return_convoy_credit_to_shipyard"
+		)
 	return result
 
 
@@ -243,6 +248,19 @@ func request_station_defense_reward(expected_generation: int) -> Dictionary:
 
 func get_station_defense_reward_snapshot() -> Dictionary:
 	return _station_reward_adapter.call("get_snapshot") if _station_reward_adapter != null else {}
+
+
+func request_convoy_reward(expected_generation: int) -> Dictionary:
+	if _host == null or _station_reward_adapter == null:
+		return _result(false, &"convoy_reward_unavailable")
+	var activity := (_host.get_snapshot().get("activity", {}) as Dictionary)
+	var normalized := {
+		"activity_id": activity.get("activity_id", ACTIVITY_ID),
+		"state_id": activity.get("state_id", &""),
+		"outcome": &"cleared" if activity.get("terminal_result_id", &"") == &"safely_arrived" else &"",
+		"generation": activity.get("generation", 0),
+	}.duplicate(true)
+	return _station_reward_adapter.call("consume", normalized, expected_generation)
 
 
 func detach_station_defense_reward() -> Dictionary:

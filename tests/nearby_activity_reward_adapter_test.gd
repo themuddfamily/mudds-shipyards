@@ -25,6 +25,15 @@ func _run() -> void:
 		"outcome": &"cleared",
 		"generation": 7,
 	}, 7)
+	var registered := adapter.register_activity(
+		&"cinder_reach_emberline_convoy", &"return_convoy_credit_to_shipyard"
+	)
+	var convoy_completed := adapter.consume({
+		"activity_id": &"cinder_reach_emberline_convoy",
+		"state_id": &"completed",
+		"outcome": &"cleared",
+		"generation": 3,
+	}, 3)
 	var duplicate := adapter.consume({
 		"activity_id": &"shipyard_perimeter_defense",
 		"state_id": &"concluded",
@@ -40,11 +49,13 @@ func _run() -> void:
 		"generation": 8,
 	}, 8)
 	var reset := adapter.reset()
-	var valid: bool = configured.accepted and completed.accepted \
+	var valid: bool = configured.accepted and completed.accepted and registered.accepted \
+			and convoy_completed.accepted \
 			and not duplicate.accepted and detached.accepted and reentered.accepted \
-			and not failed_state.accepted and reset.accepted and callback_count == 1 \
+			and not failed_state.accepted and reset.accepted and callback_count == 2 \
 			and binding.has_method(&"configure_station_defense_reward") \
 			and binding.has_method(&"request_station_defense_reward") \
+			and binding.has_method(&"request_convoy_reward") \
 			and binding.has_method(&"detach_station_defense_reward")
 	if not valid:
 		push_error("nearby activity reward adapter failed")

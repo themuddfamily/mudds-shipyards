@@ -8,8 +8,10 @@ extends RefCounted
 var _callback: Callable
 var _activity_id: StringName = &""
 var _reward_id: StringName = &""
+var _activity_rewards: Dictionary = {}
 var _state: StringName = &"unconfigured"
 var _consumed_generation := -1
+var _consumed_generations: Dictionary = {}
 var _attachment_generation := -1
 var _last_request: Dictionary = {}
 
@@ -21,8 +23,15 @@ func configure(callback: Callable, activity_id: StringName, reward_id: StringNam
 	_callback = callback
 	_activity_id = activity_id
 	_reward_id = reward_id
+	_activity_rewards[activity_id] = reward_id
 	_state = &"ready"
 	return _result(true, &"reward_adapter_configured")
+
+func register_activity(activity_id: StringName, reward_id: StringName) -> Dictionary:
+	if _state == &"unconfigured" or activity_id.is_empty() or reward_id.is_empty():
+		return _reject(&"invalid_reward_activity_registration")
+	_activity_rewards[activity_id] = reward_id
+	return _result(true, &"reward_activity_registered")
 
 func consume(activity_snapshot: Variant, expected_generation: int) -> Dictionary:
 	if _state == &"detached":
@@ -31,31 +40,36 @@ func consume(activity_snapshot: Variant, expected_generation: int) -> Dictionary
 		return _reject(&"reward_adapter_unavailable")
 	var snapshot := activity_snapshot as Dictionary
 	var generation := int(snapshot.get("generation", 0))
-	if generation < 1 or generation == _consumed_generation:
+	var activity_id := StringName(snapshot.get("activity_id", &""))
+	if not _activity_rewards.has(activity_id):
+		return _reject(&"unknown_reward_activity")
+	if generation < 1 or generation == int(_consumed_generations.get(activity_id, -1)):
 		return _reject(&"reward_already_consumed")
 	if expected_generation < 1 or generation != expected_generation:
 		return _reject(&"stale_activity_generation")
-	if StringName(snapshot.get("activity_id", &"")) != _activity_id \
-			or StringName(snapshot.get("state_id", &"")) != &"concluded" \
+	if StringName(snapshot.get("state_id", &"")) not in [&"concluded", &"completed"] \
 			or StringName(snapshot.get("outcome", &"")) != &"cleared":
 		return _reject(&"activity_not_reward_complete")
+	var reward_id: StringName = _activity_rewards[activity_id]
 	var request := {
-		"activity_id": _activity_id,
+		"activity_id": activity_id,
 		"activity_generation": generation,
-		"reward_id": _reward_id,
+		"reward_id": reward_id,
 		"reward_authority": false,
 		"granted": false,
 	}.duplicate(true)
 	var callback_result: Variant = _callback.call(request.duplicate(true))
 	if not callback_result is Dictionary or not bool((callback_result as Dictionary).get("accepted", false)):
 		return _reject(&"reward_callback_rejected")
-	_consumed_generation = generation
+	_consumed_generation = generation if activity_id == _activity_id else _consumed_generation
+	_consumed_generations[activity_id] = generation
 	_last_request = request
 	return {"accepted": true, "reason": &"reward_request_committed", "reward_request": request, "callback": callback_result}.duplicate(true)
 
 func reset() -> Dictionary:
 	_state = &"ready" if _callback.is_valid() else &"unconfigured"
 	_consumed_generation = -1
+	_consumed_generations.clear()
 	_last_request.clear()
 	return _result(true, &"reward_adapter_reset")
 
