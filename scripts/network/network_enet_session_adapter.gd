@@ -73,6 +73,8 @@ var _snapshot_delta_encoder
 var _snapshot_delta_decoder
 var _snapshot_fragmenter
 var _moving_replica_samples: Dictionary = {}
+var _projectile_jitter
+var _projectile_replica_samples: Dictionary = {}
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -112,6 +114,7 @@ func _init() -> void:
 	_snapshot_delta_encoder = SnapshotDeltaCodec.new()
 	_snapshot_delta_decoder = SnapshotDeltaCodec.new()
 	_snapshot_fragmenter = SnapshotFragmenter.new()
+	_projectile_jitter = SnapshotJitterBuffer.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -844,6 +847,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_snapshot_delta_decoder.reset()
 	_snapshot_fragmenter.reset()
 	_moving_replica_samples.clear()
+	_projectile_replica_samples.clear()
+	_projectile_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
@@ -921,6 +926,74 @@ func _frozen_moving_interior_samples(frame_world_transform: Transform3D) -> Arra
 			"world_transform": frame_world_transform * (sample.get("local_transform", Transform3D.IDENTITY) as Transform3D),
 		})
 	return frozen
+
+
+## Presents server-owned projectile positions only. This is a replica-side
+## presentation path; hit resolution and damage remain server authority.
+func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("projectile"):
+		return _remember(_result(false, &"invalid_projectile_snapshot"))
+	if not is_finite(alpha):
+		return _remember(_result(false, &"invalid_interpolation_alpha"))
+	var projectile_variant: Variant = packet.get("projectile")
+	if not projectile_variant is Dictionary:
+		return _remember(_result(false, &"invalid_projectile_snapshot"))
+	var projectile := projectile_variant as Dictionary
+	var projectile_id := StringName(projectile.get("projectile_id", &""))
+	var position_variant: Variant = projectile.get("position")
+	if projectile_id.is_empty() or not position_variant is Vector3 \
+			or not (position_variant as Vector3).is_finite():
+		return _remember(_result(false, &"invalid_projectile_snapshot"))
+	var buffered: Dictionary = _projectile_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+	var presented: Array = []
+	while true:
+		var ready: Dictionary = _projectile_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var ready_variant: Variant = ready.get("projectile")
+		if not ready_variant is Dictionary:
+			return _remember(_result(false, &"invalid_projectile_snapshot"))
+		var ready_projectile := ready_variant as Dictionary
+		var ready_id := StringName(ready_projectile.get("projectile_id", &""))
+		var ready_position_variant: Variant = ready_projectile.get("position")
+		if ready_id.is_empty() or not ready_position_variant is Vector3 \
+				or not (ready_position_variant as Vector3).is_finite():
+			return _remember(_result(false, &"invalid_projectile_snapshot"))
+		var position: Vector3 = ready_position_variant as Vector3
+		var prior: Dictionary = _projectile_replica_samples.get(ready_id, {})
+		if not prior.is_empty():
+			position = (prior.get("position", position) as Vector3).lerp(
+				position, clampf(alpha, 0.0, 1.0)
+			)
+		_projectile_replica_samples[ready_id] = {
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": int(ready.get("server_tick", 0)),
+			"position": position,
+		}
+		presented.append({
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": int(ready.get("server_tick", 0)),
+			"projectile_id": ready_id,
+			"position": position,
+		})
+	if presented.is_empty():
+		var frozen: Array = []
+		for projectile_key in _projectile_replica_samples.keys():
+			var sample: Dictionary = _projectile_replica_samples[projectile_key] as Dictionary
+			frozen.append({
+				"revision": int(sample.get("revision", 0)),
+				"server_tick": int(sample.get("server_tick", 0)),
+				"projectile_id": StringName(projectile_key),
+				"position": sample.get("position", Vector3.ZERO),
+			})
+		return _remember(_result(true, &"projectile_waiting_for_gap", {
+			"samples": frozen,
+			"frozen": true,
+		}))
+	return _remember(_result(true, &"projectile_presented", {"samples": presented}))
 
 
 func get_snapshot_jitter_state() -> Dictionary:
