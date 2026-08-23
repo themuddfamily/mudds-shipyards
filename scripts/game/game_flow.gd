@@ -3418,8 +3418,17 @@ func _publish_network_session_snapshot(
 func _network_local_role_presentation() -> Dictionary:
 	var local_role: StringName = &"pilot" if _piloting else &"observer"
 	var craft_name := ""
+	var craft_id: StringName = &""
+	var local_peer_id := 1
+	var authoritative_snapshot: Dictionary = {}
+	if is_instance_valid(network_session):
+		if network_session.multiplayer != null:
+			local_peer_id = maxi(1, network_session.multiplayer.get_unique_id())
+		if network_session.has_method(&"get_authoritative_snapshot"):
+			authoritative_snapshot = network_session.get_authoritative_snapshot() as Dictionary
 	if is_instance_valid(active_ship):
 		craft_name = active_ship.get_display_name()
+		craft_id = active_ship.get_ship_id()
 		if not _piloting and is_instance_valid(network_session) and network_session.has_method(&"get_crew_role_snapshot"):
 			var role_snapshot := network_session.get_crew_role_snapshot() as Dictionary
 			var roles := role_snapshot.get("roles", {}) as Dictionary
@@ -3427,11 +3436,17 @@ func _network_local_role_presentation() -> Dictionary:
 				if not record_variant is Dictionary:
 					continue
 				var record := record_variant as Dictionary
-				if int(record.get("peer_id", 0)) == 1:
+				if int(record.get("peer_id", 0)) == local_peer_id:
 					var admitted_role := StringName(str(record.get("role", &"observer")))
 					local_role = admitted_role if admitted_role in [&"pilot", &"passenger"] else &"observer"
 					break
-	return {"local_role": local_role, "controlled_craft": craft_name}
+	return {
+		"local_role": local_role,
+		"local_peer_id": local_peer_id,
+		"controlled_craft": craft_name,
+		"controlled_craft_id": craft_id,
+		"authoritative_snapshot": authoritative_snapshot.duplicate(true),
+	}
 
 
 func _publish_network_session_result(result: Dictionary, role: StringName) -> void:

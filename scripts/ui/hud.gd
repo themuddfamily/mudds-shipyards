@@ -3561,6 +3561,10 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 			detail += "\nCRAFT // %s" % craft_name
 		if snapshot.has("generation_summary"):
 			detail += "\n%s" % str(snapshot.get("generation_summary"))
+		for ownership_row in snapshot.get("ownership_rows", []) as Array:
+			detail += "\nOWNERSHIP // %s" % str(ownership_row)
+		for ownership_notice in snapshot.get("ownership_notices", []) as Array:
+			detail += "\n%s" % str(ownership_notice)
 		for receipt in snapshot.get("history", []) as Array:
 			detail += "\nHISTORY // %s" % str(receipt)
 	if kind == &"bomber":
