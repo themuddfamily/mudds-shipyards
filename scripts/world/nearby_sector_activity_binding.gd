@@ -48,6 +48,7 @@ var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
 var _mining_presentation_consumer: Callable
 var _structure_scan_presentation_consumer: Callable
+var _beacon_traversal_presentation_consumer: Callable
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
@@ -589,25 +590,50 @@ func _publish_structure_scan_presentation() -> void:
 func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
-	return _beacon_activity.call("start", caller_position)
+	var result: Dictionary = _beacon_activity.call("start", caller_position)
+	_publish_beacon_traversal_presentation(result)
+	return result
 
 
 func submit_beacon_traversal(index: int, caller_position: Vector3) -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
-	return _beacon_activity.call("submit_beacon", index, caller_position)
+	var result: Dictionary = _beacon_activity.call("submit_beacon", index, caller_position)
+	_publish_beacon_traversal_presentation(result)
+	return result
 
 
 func request_beacon_traversal_reward() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
-	return _beacon_activity.call("request_reward")
+	var result: Dictionary = _beacon_activity.call("request_reward")
+	_publish_beacon_traversal_presentation(result)
+	return result
 
 
 func reset_beacon_traversal() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
-	return _beacon_activity.call("reset")
+	var result: Dictionary = _beacon_activity.call("reset")
+	_publish_beacon_traversal_presentation(result)
+	return result
+
+
+func bind_beacon_traversal_presentation(consumer: Callable) -> Dictionary:
+	if not consumer.is_valid() or _beacon_traversal_presentation_consumer.is_valid():
+		return _result(false, &"beacon_traversal_presentation_binding_rejected")
+	_beacon_traversal_presentation_consumer = consumer
+	_publish_beacon_traversal_presentation()
+	return _result(true, &"beacon_traversal_presentation_bound")
+
+
+func _publish_beacon_traversal_presentation(authority_record: Dictionary = {}) -> void:
+	if not _beacon_traversal_presentation_consumer.is_valid() or _beacon_activity == null:
+		return
+	var detached := authority_record.duplicate(true)
+	if detached.is_empty():
+		detached = (_beacon_activity.call("get_snapshot") as Dictionary).duplicate(true)
+	_beacon_traversal_presentation_consumer.call(detached)
 
 
 ## Caller-owned persistence seam. Configuration does not read or write files;

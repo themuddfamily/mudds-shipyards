@@ -133,6 +133,9 @@ const TRAVERSAL_BEACON_MESH_BUDGET := 44
 const TRAVERSAL_BEACON_LIGHT_BUDGET := 12
 const TRAVERSAL_BEACON_DESCENDANT_BUDGET := 60
 const TRAVERSAL_DEBRIS_BATCH_BUDGET := 1
+const BEACON_TRAVERSAL_STATE_NODE_DELTA := 0
+const BEACON_TRAVERSAL_STATE_LIGHT_DELTA := 0
+const BEACON_TRAVERSAL_STATE_SUBMISSION_DELTA := 0
 
 ## Rocks take a much heavier chamfer than station stock. The kit's box rule caps
 ## at 0.18 m, which on a 30 m boulder is invisible, so the chamfer is proportional
@@ -277,6 +280,7 @@ var _cargo_access: CinderCargoAccess
 var _cargo_destination_terminal: CargoTransferTerminal
 var _mining_presentation_snapshot: Dictionary = {}
 var _structure_scan_presentation_snapshot: Dictionary = {}
+var _beacon_traversal_presentation_snapshot: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -314,6 +318,10 @@ func _ready() -> void:
 	_quality_level = clampi(initial_quality, DetailQuality.LOW, DetailQuality.HIGH)
 	_create_materials()
 	_build_route_beacons()
+	_activity_binding.call(
+		"bind_beacon_traversal_presentation",
+		Callable(self, "_apply_beacon_traversal_activity_presentation")
+	)
 	_build_landmarks()
 	_build_debris_field()
 	_build_extraction_platform()
@@ -617,6 +625,18 @@ func get_beacon_traversal_presentation_audit() -> Dictionary:
 			and (not route_root.find_children("*", "CollisionObject3D", true, false).is_empty() \
 			or not route_root.find_children("*", "CollisionShape3D", true, false).is_empty()):
 		errors.append("beacon_traversal_guides_gained_collision_authority")
+	var state_feedback := get_beacon_traversal_presentation_state()
+	if (
+		StringName(state_feedback.get("activity_id", &"")) != BEACON_TRAVERSAL_ACTIVITY_ID
+		or StringName(state_feedback.get("state_id", &"")) \
+			not in [&"available", &"traversing", &"wrong_order", &"completed", &"reset"]
+		or int(state_feedback.get("node_delta", -1)) != 0
+		or int(state_feedback.get("light_delta", -1)) != 0
+		or int(state_feedback.get("submission_delta", -1)) != 0
+		or bool(state_feedback.get("order_authority", true))
+		or bool(state_feedback.get("reward_authority", true))
+	):
+		errors.append("beacon_traversal_state_feedback_contract_drift")
 	errors.sort()
 	return {
 		"valid": errors.is_empty(),
@@ -647,12 +667,142 @@ func get_beacon_traversal_presentation_audit() -> Dictionary:
 			"debris_copies": DEBRIS_CHIP_COUNT,
 			"debris_clusters": TRAVERSAL_DEBRIS_CLUSTER_SPECS.size(),
 		},
+		"state_feedback": state_feedback,
 		"approach_readable": ordered and maximum_leg_length <= 140.0,
 		"activity_authority": false,
 		"order_authority": false,
 		"collision_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
+
+
+## Maps an authority-produced detached traversal record onto the existing four
+## guide rosters. No route order is calculated here: next/cleared status comes
+## directly from the activity's authoritative `next_beacon_index` field.
+func _apply_beacon_traversal_activity_presentation(snapshot: Dictionary) -> Dictionary:
+	if StringName(snapshot.get("activity_id", &"")) != BEACON_TRAVERSAL_ACTIVITY_ID:
+		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
+	var generation := int(snapshot.get("generation", -1))
+	var authority_state := int(snapshot.get("state", -1))
+	var next_index := int(snapshot.get("next_beacon_index", -1))
+	var beacon_count := int(snapshot.get("beacon_count", -1))
+	if generation < 0 or authority_state < 0 or authority_state > 3 \
+			or next_index < 0 or beacon_count != ROUTE_BEACON_SPECS.size() \
+			or next_index > beacon_count:
+		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
+	var route_root := get_node_or_null(^"RouteBeacons") as Node3D
+	if route_root == null:
+		return {"accepted": false, "reason": &"presentation_unavailable"}
+	var state_id: StringName = &"available"
+	if authority_state == CinderBeaconTraversalActivity.State.ACTIVE:
+		state_id = &"traversing"
+		if not bool(snapshot.get("accepted", true)) \
+				and StringName(snapshot.get("reason", &"")) == &"out_of_order_beacon":
+			state_id = &"wrong_order"
+	elif authority_state == CinderBeaconTraversalActivity.State.COMPLETE:
+		state_id = &"completed"
+	elif authority_state == CinderBeaconTraversalActivity.State.RESET:
+		state_id = &"reset"
+	var beacon_states: Array[Dictionary] = []
+	for index in ROUTE_BEACON_SPECS.size():
+		var beacon := route_root.get_node_or_null(
+			NodePath(String(ROUTE_BEACON_SPECS[index]["name"]))
+		) as Node3D
+		if beacon == null:
+			return {"accepted": false, "reason": &"presentation_roster_incomplete"}
+		var status_id: StringName = &"available"
+		var home_energy := 1.2
+		var outbound_energy := 1.2
+		var foot_energy := 0.7
+		var status_color := KETH_ORANGE
+		if state_id == &"traversing" or state_id == &"wrong_order":
+			if index < next_index:
+				status_id = &"cleared"
+				home_energy = 2.0
+				outbound_energy = 0.5
+				foot_energy = 1.4
+				status_color = KETH_CYAN
+			elif index == next_index:
+				status_id = &"next_target" if state_id == &"traversing" else &"wrong_order_no_progress"
+				home_energy = 1.0
+				outbound_energy = 4.6 if state_id == &"traversing" else 2.2
+				foot_energy = 3.0 if state_id == &"traversing" else 4.2
+			else:
+				status_id = &"pending"
+				home_energy = 0.35
+				outbound_energy = 0.35
+				foot_energy = 0.25
+		elif state_id == &"completed":
+			status_id = &"cleared"
+			home_energy = 2.8
+			outbound_energy = 2.8
+			foot_energy = 2.0
+			status_color = KETH_CYAN
+		elif state_id == &"reset":
+			status_id = &"reset"
+			home_energy = 0.2
+			outbound_energy = 0.2
+			foot_energy = 0.2
+		_apply_beacon_visual_state(
+			beacon, home_energy, outbound_energy, foot_energy, status_color
+		)
+		beacon_states.append({
+			"index": index,
+			"status_id": status_id,
+			"home_energy": home_energy,
+			"outbound_energy": outbound_energy,
+			"foot_energy": foot_energy,
+		})
+	_beacon_traversal_presentation_snapshot = {
+		"activity_id": BEACON_TRAVERSAL_ACTIVITY_ID,
+		"state_id": state_id,
+		"authority_state": authority_state,
+		"generation": generation,
+		"next_beacon_index": next_index,
+		"beacons": beacon_states,
+		"node_delta": BEACON_TRAVERSAL_STATE_NODE_DELTA,
+		"light_delta": BEACON_TRAVERSAL_STATE_LIGHT_DELTA,
+		"submission_delta": BEACON_TRAVERSAL_STATE_SUBMISSION_DELTA,
+		"order_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"beacon_traversal_presentation_applied"}
+
+
+func _apply_beacon_visual_state(
+	beacon: Node3D,
+	home_energy: float,
+	outbound_energy: float,
+	foot_energy: float,
+	status_color: Color
+	) -> void:
+	var home := beacon.get_node(^"HomeLamp") as OmniLight3D
+	var outbound := beacon.get_node(^"OutboundLamp") as OmniLight3D
+	var foot := beacon.get_node(^"MastFootLamp") as OmniLight3D
+	var home_lens := beacon.get_node(^"HomeLampLens") as MeshInstance3D
+	var outbound_lens := beacon.get_node(^"OutboundLampLens") as MeshInstance3D
+	var foot_lens := beacon.get_node(^"MastFootLampLens") as MeshInstance3D
+	var lights: Array[OmniLight3D] = [home, outbound, foot]
+	var energies := [home_energy, outbound_energy, foot_energy]
+	for light_index in lights.size():
+		lights[light_index].light_energy = energies[light_index]
+		lights[light_index].set_meta(&"base_energy", energies[light_index])
+	home.light_color = KETH_CYAN if status_color == KETH_ORANGE else status_color
+	outbound.light_color = status_color
+	foot.light_color = status_color
+	home_lens.material_override = _lens_material(home.light_color)
+	outbound_lens.material_override = _lens_material(outbound.light_color)
+	foot_lens.material_override = _lens_material(foot.light_color)
+	var status_material: Material = _materials["cyan_glow"] \
+		if status_color == KETH_CYAN else _materials["orange_glow"]
+	(beacon.get_node(^"SignalRing") as MeshInstance3D).material_override = status_material
+	for raw_child in beacon.get_children():
+		if raw_child is MeshInstance3D and String(raw_child.name).begins_with("Sign_"):
+			(raw_child as MeshInstance3D).material_override = status_material
+
+
+func get_beacon_traversal_presentation_state() -> Dictionary:
+	return _beacon_traversal_presentation_snapshot.duplicate(true)
 
 
 ## Station-relative offsets of the boulders this instance actually placed.
