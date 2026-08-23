@@ -70,8 +70,12 @@ const SCENARIO_COURIER_INTERCEPT: StringName = &"courier_intercept"
 const SCENARIO_PAIRED_WING: StringName = &"paired_wing"
 ## A caller-owned station/convoy anchor is guarded by the same coordinated pair.
 const SCENARIO_STATION_DEFENSE: StringName = &"station_defense"
+## A caller-owned cargo target is the objective while an escort anchor is the
+## protected reference for the paired interdictor/guard wing.
+const SCENARIO_CONVOY_INTERDICTION: StringName = &"convoy_interdiction"
 const SCENARIO_IDS: Array[StringName] = [
 	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_STATION_DEFENSE,
+	SCENARIO_CONVOY_INTERDICTION,
 ]
 
 const STATE_IDLE: StringName = &"idle"
@@ -103,6 +107,8 @@ const TACTIC_DISENGAGE: StringName = &"disengage"
 const TACTIC_GUARD: StringName = &"guard"
 const TACTIC_INTERCEPT: StringName = &"intercept"
 const TACTIC_DEFEND: StringName = &"defend"
+const TACTIC_INTERDICT: StringName = &"interdict"
+const TACTIC_SCREEN_GUARD: StringName = &"screen_guard"
 
 const CONTENT_NOTE := (
 	"The scenario roster, objectives, boundary distances, escort trigger, paired-wing "
@@ -172,6 +178,8 @@ var _scenario_origin := Vector3.ZERO
 var _courier_launch_origin := Vector3.ZERO
 var _target: Node3D
 var _protected_anchor: Node3D
+var _cargo_target: Node3D
+var _scenario_generation := 0
 var _roster: Array[Node3D] = []
 var _completed_runs := 0
 var _outcome_counts: Dictionary = {}
@@ -210,6 +218,29 @@ func get_outcome() -> StringName:
 
 func get_elapsed() -> float:
 	return _elapsed
+
+
+func get_scenario_generation() -> int:
+	return _scenario_generation
+
+
+func get_convoy_interdiction_receipt(expected_generation: int = 0) -> Dictionary:
+	if _scenario != SCENARIO_CONVOY_INTERDICTION or not _is_current():
+		return {"accepted": false, "reason": &"convoy_inactive"}
+	if expected_generation > 0 and expected_generation != _scenario_generation:
+		return {"accepted": false, "reason": &"stale_generation"}
+	return {
+		"accepted": true,
+		"generation": _scenario_generation,
+		"scenario": _scenario,
+		"cargo_target": String(_cargo_target.name) if is_instance_valid(_cargo_target) else "",
+		"cargo_target_instance_id": _cargo_target.get_instance_id()
+			if is_instance_valid(_cargo_target) else 0,
+		"escort_anchor": String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else "",
+		"escort_anchor_instance_id": _protected_anchor.get_instance_id()
+			if is_instance_valid(_protected_anchor) else 0,
+		"authority": {"motion": false, "fire": false, "damage": false},
+	}.duplicate(true)
 
 
 func is_running() -> bool:
@@ -290,6 +321,13 @@ func is_fire_authorized(member: Node) -> bool:
 			return _target.global_position.distance_to(
 				_protected_anchor.global_position
 			) <= defense_trigger_radius
+	if _scenario == SCENARIO_CONVOY_INTERDICTION:
+		if not _is_convoy_interdiction_live():
+			return false
+		if is_instance_valid(coordinator):
+			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR \
+				or not coordinator.is_member_disengaging(member as Node3D)
+		return true
 	if _paired_wing_suppression_active():
 		if is_instance_valid(coordinator):
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
@@ -314,6 +352,11 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 	)
 	if disengaging:
 		action = TACTIC_DISENGAGE
+	elif _scenario == SCENARIO_CONVOY_INTERDICTION and _is_convoy_interdiction_live():
+		if role == WingCoordinator.ROLE_ANCHOR:
+			action = TACTIC_INTERDICT
+		elif role == WingCoordinator.ROLE_FLANKER:
+			action = TACTIC_SCREEN_GUARD
 	elif _scenario == SCENARIO_STATION_DEFENSE and _is_protected_anchor_alive():
 		if role == WingCoordinator.ROLE_ANCHOR:
 			action = TACTIC_INTERCEPT
@@ -341,6 +384,10 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 		"protected_anchor": (
 			String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else ""
 		),
+		"cargo_target": (
+			String(_cargo_target.name) if is_instance_valid(_cargo_target) else ""
+		),
+		"generation": _scenario_generation,
 	}.duplicate(true)
 
 
@@ -369,10 +416,29 @@ func begin_station_defense(target: Node3D, protected_anchor: Node3D) -> bool:
 	return _begin_scenario(SCENARIO_STATION_DEFENSE, target, protected_anchor)
 
 
+## Admits one generation-fenced convoy objective. The caller target remains the
+## disengagement/phase observer; attackers receive the separate cargo target and
+## escort anchor through the existing coordinator target seam.
+func begin_convoy_interdiction(
+		caller_target: Node3D,
+		cargo_target: Node3D,
+		escort_anchor: Node3D
+	) -> bool:
+	if not _is_live_anchor(cargo_target) or not _is_live_anchor(escort_anchor):
+		return false
+	return _begin_scenario(
+		SCENARIO_CONVOY_INTERDICTION,
+		caller_target,
+		escort_anchor,
+		cargo_target,
+	)
+
+
 func _begin_scenario(
 		scenario_id: StringName,
 		target: Node3D,
-		protected_anchor: Node3D
+		protected_anchor: Node3D,
+		cargo_target: Node3D = null
 	) -> bool:
 	if not _is_current():
 		return false
@@ -392,10 +458,19 @@ func _begin_scenario(
 		return false
 	if scenario_id == SCENARIO_STATION_DEFENSE and not _is_live_anchor(protected_anchor):
 		return false
+	if scenario_id == SCENARIO_CONVOY_INTERDICTION \
+			and (not _is_live_anchor(protected_anchor) or not _is_live_anchor(cargo_target)):
+		return false
 	_reset_run_state()
 	_protected_anchor = protected_anchor if scenario_id == SCENARIO_STATION_DEFENSE else null
+	if scenario_id == SCENARIO_CONVOY_INTERDICTION:
+		_protected_anchor = protected_anchor
+		_cargo_target = cargo_target
+	else:
+		_cargo_target = null
 	_scenario = scenario_id
 	_target = target
+	_scenario_generation += 1
 	_scenario_origin = target.global_position
 	_state = STATE_RUNNING
 	_outcome = OUTCOME_PENDING
@@ -405,6 +480,8 @@ func _begin_scenario(
 		SCENARIO_PAIRED_WING:
 			_launch_wing()
 		SCENARIO_STATION_DEFENSE:
+			_launch_wing(_protected_anchor.global_position)
+		SCENARIO_CONVOY_INTERDICTION:
 			_launch_wing(_protected_anchor.global_position)
 	if _roster.is_empty():
 		# Nothing could be staged. Terminating immediately is the only honest
@@ -483,6 +560,8 @@ func _evaluate_termination(delta: float) -> StringName:
 		return OUTCOME_ABORTED
 	if _scenario == SCENARIO_STATION_DEFENSE and not _is_protected_anchor_alive():
 		return OUTCOME_ABORTED
+	if _scenario == SCENARIO_CONVOY_INTERDICTION and not _is_protected_anchor_alive():
+		return OUTCOME_ABORTED
 	# 2. The host left the authorized phase.
 	if not _is_phase_authorized():
 		return OUTCOME_WITHDRAWN
@@ -541,6 +620,11 @@ func _evaluate_objective() -> StringName:
 		SCENARIO_STATION_DEFENSE:
 			if _active_roster_count() == 0:
 				return OUTCOME_CLEARED
+		SCENARIO_CONVOY_INTERDICTION:
+			if not _is_live_objective(_cargo_target):
+				return OUTCOME_CLEARED
+			if _cargo_target.global_position.distance_to(_scenario_origin) >= escape_distance:
+				return OUTCOME_ESCAPED
 	return OUTCOME_PENDING
 
 
@@ -571,6 +655,7 @@ func _stand_down() -> void:
 	_roster.clear()
 	_target = null
 	_protected_anchor = null
+	_cargo_target = null
 
 
 func _reset_run_state() -> void:
@@ -623,11 +708,12 @@ func _launch_courier() -> void:
 
 
 func _launch_wing(anchor_position: Vector3 = Vector3.INF) -> void:
-	if not is_instance_valid(_target):
+	var engagement_target := _cargo_target if _scenario == SCENARIO_CONVOY_INTERDICTION else _target
+	if not is_instance_valid(engagement_target):
 		return
 	var coordinator := _get_wing_coordinator()
 	var origin := anchor_position if anchor_position.is_finite() else _target.global_position
-	var player_forward := -_target.global_basis.z
+	var player_forward := -engagement_target.global_basis.z
 	if player_forward.length_squared() <= 0.001:
 		player_forward = Vector3.FORWARD
 	player_forward = player_forward.normalized()
@@ -647,19 +733,19 @@ func _launch_wing(anchor_position: Vector3 = Vector3.INF) -> void:
 		if not is_instance_valid(member):
 			continue
 		var spawn: Vector3 = placements[index % placements.size()]
-		var facing := _target.global_position - spawn
+		var facing := engagement_target.global_position - spawn
 		if facing.length_squared() <= 0.001:
 			facing = player_forward
 		facing = facing.normalized()
 		var up := Vector3.UP if absf(facing.dot(Vector3.UP)) < 0.965 else Vector3.FORWARD
 		member.activate(Transform3D(Basis.looking_at(facing, up).orthonormalized(), spawn))
-		member.set_target(_target)
+		member.set_target(engagement_target)
 		if is_instance_valid(coordinator):
 			coordinator.enlist(member)
 		_roster.append(member)
 		index += 1
 	if is_instance_valid(coordinator):
-		coordinator.set_target(_target)
+		coordinator.set_target(engagement_target)
 		# One immediate assignment so the pair never spends a frame with two
 		# unassigned craft, which would briefly read as two anchors.
 		coordinator.update_assignments(0.0)
@@ -741,6 +827,17 @@ func _is_protected_anchor_alive() -> bool:
 	return true
 
 
+func _is_live_objective(objective: Node3D) -> bool:
+	if not _is_live_anchor(objective):
+		return false
+	return not objective.has_method(&"is_destroyed") \
+		or not bool(objective.call(&"is_destroyed"))
+
+
+func _is_convoy_interdiction_live() -> bool:
+	return _is_live_objective(_cargo_target) and _is_protected_anchor_alive()
+
+
 func _get_courier() -> Node3D:
 	return get_node_or_null(courier_path) as Node3D
 
@@ -816,6 +913,12 @@ func _announce_begin() -> void:
 				"Break its intercept before closing on the protected anchor",
 				4.0
 			)
+		SCENARIO_CONVOY_INTERDICTION:
+			_toast(
+				"Convoy interdiction wing",
+				"One attacker pressures the cargo while its wing screens the escort",
+				4.0
+			)
 
 
 func _announce_conclusion(outcome: StringName) -> void:
@@ -823,10 +926,16 @@ func _announce_conclusion(outcome: StringName) -> void:
 		OUTCOME_CLEARED:
 			if _scenario == SCENARIO_COURIER_INTERCEPT:
 				_toast("Courier intercepted", "The boundary run is stopped", 3.2)
+			elif _scenario == SCENARIO_CONVOY_INTERDICTION:
+				_toast("Cargo protected", "The interdiction wing is broken", 3.2)
 			else:
 				_toast("Wing broken", "Both contacts are down", 3.2)
 		OUTCOME_ESCAPED:
-			_toast("Courier escaped", "It cleared the perimeter — contact lost", 3.6)
+			_toast(
+				"Cargo escaped" if _scenario == SCENARIO_CONVOY_INTERDICTION else "Courier escaped",
+				"It cleared the perimeter — contact lost",
+				3.6,
+			)
 		OUTCOME_WITHDRAWN:
 			_toast("Contacts disengaged", "The scenario broke off and withdrew", 3.0)
 		OUTCOME_EXPIRED:
@@ -850,6 +959,7 @@ func get_evidence_metadata() -> Dictionary:
 			"intercept-before-it-escapes objective and its boundary distance",
 			"coordinated pair objective and its split entry",
 			"anchor suppression opening while its flanker maneuvers under cover",
+			"generation-fenced convoy cargo interdiction with escort screening",
 			"distress broadcast and escort response timing",
 			"every scenario duration, radius, and delay",
 		]),
@@ -881,6 +991,7 @@ func get_audit_report() -> Dictionary:
 		"roster": roster_names,
 		"active_roster": _active_roster_count(),
 		"completed_runs": _completed_runs,
+		"scenario_generation": _scenario_generation,
 		"outcome_counts": _outcome_counts.duplicate(true),
 		"courier": {
 			"distress_broadcast": _distress_broadcast,
@@ -899,6 +1010,7 @@ func get_audit_report() -> Dictionary:
 		"protected_anchor": (
 			String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else ""
 		),
+		"cargo_target": String(_cargo_target.name) if is_instance_valid(_cargo_target) else "",
 	}.duplicate(true)
 
 
@@ -922,6 +1034,9 @@ func get_validation_errors() -> PackedStringArray:
 	if _state == STATE_RUNNING and _scenario == SCENARIO_STATION_DEFENSE \
 			and not _is_protected_anchor_alive():
 		errors.append("a running station defense must retain its caller-owned protected anchor")
+	if _state == STATE_RUNNING and _scenario == SCENARIO_CONVOY_INTERDICTION \
+			and not _is_convoy_interdiction_live():
+		errors.append("a running convoy interdiction must retain its cargo and escort anchors")
 	if not is_finite(_elapsed) or _elapsed < 0.0:
 		errors.append("scenario elapsed time must be finite and non-negative")
 	if _state == STATE_RUNNING and _elapsed > scenario_time_limit:

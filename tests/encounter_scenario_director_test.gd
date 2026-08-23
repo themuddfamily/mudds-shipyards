@@ -78,6 +78,7 @@ func _run() -> void:
 	await _test_paired_wing_cleared_when_broken()
 	await _test_paired_wing_suppression_opens_crossfire()
 	await _test_station_defense_guard_opens_intercept_crossfire()
+	await _test_convoy_interdiction_generation_and_screen_guard()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
 	await _test_production_bounds_and_audit()
@@ -621,6 +622,78 @@ func _test_station_defense_guard_opens_intercept_crossfire() -> void:
 		and director.get_roster().is_empty(),
 		"loss of the protected anchor terminates and stands down the defense wing"
 	)
+	await _free_fixture(fixture)
+
+
+func _test_convoy_interdiction_generation_and_screen_guard() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var coordinator: WingCoordinator = fixture.coordinator
+	var caller_target: EncounterTarget = fixture.target
+	var cargo := EncounterTarget.new()
+	cargo.name = "ConvoyCargoTarget"
+	(fixture.host as Node3D).add_child(cargo)
+	cargo.global_position = Vector3(0.0, 0.0, -180.0)
+	var escort := EncounterTarget.new()
+	escort.name = "ConvoyEscortAnchor"
+	(fixture.host as Node3D).add_child(escort)
+	escort.global_position = Vector3(0.0, 0.0, -260.0)
+	_check(
+		director.begin_convoy_interdiction(caller_target, cargo, escort),
+		"caller-owned cargo and escort anchors admit the convoy scenario"
+	)
+	var generation := director.get_scenario_generation()
+	var receipt := director.get_convoy_interdiction_receipt(generation)
+	_check(
+		bool(receipt.get("accepted", false))
+			and int(receipt.get("generation", 0)) == generation
+			and int(receipt.get("cargo_target_instance_id", 0)) == cargo.get_instance_id()
+			and int(receipt.get("escort_anchor_instance_id", 0)) == escort.get_instance_id()
+			and not bool(director.get_convoy_interdiction_receipt(generation + 1).get("accepted", false)),
+		"convoy target and escort receipt is generation-fenced and detached"
+	)
+	_check(
+		coordinator.get_target() == cargo,
+		"the existing wing coordinator receives the cargo target without taking ownership"
+	)
+	var interdictor: FlankingSkirmisherOpponent = coordinator.get_anchor()
+	var guard: FlankingSkirmisherOpponent = null
+	for member in fixture.skirmishers as Array[FlankingSkirmisherOpponent]:
+		if member != interdictor:
+			guard = member
+			break
+	guard.global_position = cargo.global_position + Vector3(0.0, 0.0, 36.0)
+	guard.look_at(cargo.global_position, Vector3.UP)
+	var interdict_intent := director.get_member_tactic_intent(interdictor)
+	var guard_intent := director.get_member_tactic_intent(guard)
+	_check(
+		interdict_intent.action == EncounterScenarioDirector.TACTIC_INTERDICT
+			and guard_intent.action == EncounterScenarioDirector.TACTIC_SCREEN_GUARD
+			and bool(interdict_intent.fire_authorized)
+			and bool(guard_intent.fire_authorized),
+		"one wing member pressures cargo while its paired member screens and guards"
+	)
+	guard.apply_damage(
+		guard.maximum_health * (1.0 - coordinator.critical_disengage_ratio + 0.01),
+		guard.global_position,
+	)
+	coordinator.update_assignments(0.0)
+	var critical_intent := director.get_member_tactic_intent(guard)
+	_check(
+		critical_intent.action == EncounterScenarioDirector.TACTIC_DISENGAGE
+			and not bool(critical_intent.fire_authorized),
+		"critical disengage remains higher priority than convoy screen behavior"
+	)
+	cargo.destroyed = true
+	director._physics_process(0.01)
+	_check(
+		director.is_concluded()
+			and director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+			and director.get_roster().is_empty(),
+		"destroying the caller-owned cargo target clears and stands down the convoy wing"
+	)
+	cargo.queue_free()
+	escort.queue_free()
 	await _free_fixture(fixture)
 
 
