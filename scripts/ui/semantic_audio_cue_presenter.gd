@@ -19,6 +19,8 @@ const REGISTERED_CUES := {
 	&"ship_landing_contact": {"caption": "Landing contact", "default_severity": &"medium"},
 	&"station_machinery_available": {"caption": "Station machinery available", "default_severity": &"low"},
 	&"station_machinery_offline": {"caption": "Station machinery offline", "default_severity": &"high"},
+	&"boarding_confirmed": {"caption": "Boarding confirmed", "default_severity": &"low"},
+	&"disembark_confirmed": {"caption": "Disembark confirmed", "default_severity": &"low"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

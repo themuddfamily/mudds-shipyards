@@ -64,6 +64,8 @@ const CAPTION_CUES := {
 	&"ship_landing_contact": [&"ambient", "Landing sensors", "[ landing contact ]", 70],
 	&"station_machinery_available": [&"system", "Station machinery", "[ station machinery available ]", 45],
 	&"station_machinery_offline": [&"system", "Station machinery", "[ station machinery offline ]", 85],
+	&"boarding_confirmed": [&"system", "Boarding computer", "[ boarding confirmed ]", 55],
+	&"disembark_confirmed": [&"system", "Boarding computer", "[ disembark confirmed ]", 55],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4
