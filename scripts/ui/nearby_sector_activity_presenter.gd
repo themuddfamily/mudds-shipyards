@@ -102,6 +102,11 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		state_id = &"wrong_order"
 	if activity_id == &"cinder_platform_mining_run" and int(state.get("state", -1)) == 3:
 		state_id = &"interrupted"
+	if activity_id == &"cinder_derelict_structure_scan":
+		if StringName(state.get("reason", &"")) == &"outside_scan_approach":
+			state_id = &"wrong_position"
+		elif int(state.get("state", -1)) == 3:
+			state_id = &"interrupted"
 	var cargo_progress: Dictionary = {}
 	if activity_id == &"cinder_platform_supply_run":
 		cargo_progress = _cargo_progress(state)
@@ -111,19 +116,24 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var mining_feedback: Dictionary = {}
 	if activity_id == &"cinder_platform_mining_run":
 		mining_feedback = _mining_feedback(state)
+	var scan_feedback: Dictionary = {}
+	if activity_id == &"cinder_derelict_structure_scan":
+		scan_feedback = _scan_feedback(state)
 	var progress := (
 		"  //  %s" % str(convoy_feedback.get("summary", ""))
 		if not convoy_feedback.is_empty()
+		else "  //  %s" % str(scan_feedback.get("summary", ""))
+		if not scan_feedback.is_empty()
 		else "  //  %s" % str(mining_feedback.get("summary", ""))
 		if not mining_feedback.is_empty()
 		else "  //  %s" % str(cargo_progress.get("summary", ""))
 		if not cargo_progress.is_empty()
 		else _progress_text(activity_id, state)
 	)
-	var recovery := _recovery_text(state)
+	var recovery := "" if not scan_feedback.is_empty() or not mining_feedback.is_empty() else _recovery_text(state)
 	var reward_pending := bool(state.get("reward_requested", false))
 	var status_suffix := ""
-	if reward_pending and mining_feedback.is_empty():
+	if reward_pending and scan_feedback.is_empty() and mining_feedback.is_empty():
 		status_suffix += "  REWARD PENDING"
 	if not recovery.is_empty():
 		status_suffix += "  " + recovery
@@ -137,12 +147,15 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
 		"recovery_text": recovery,
-		"objective_text": str(mining_feedback.get(
-			"objective_text", cargo_progress.get("objective_text", "")
+		"objective_text": str(scan_feedback.get(
+			"objective_text", mining_feedback.get(
+				"objective_text", cargo_progress.get("objective_text", "")
+			)
 		)),
 		"cargo_progress": cargo_progress.duplicate(true),
 		"convoy_feedback": convoy_feedback.duplicate(true),
 		"mining_feedback": mining_feedback.duplicate(true),
+		"scan_feedback": scan_feedback.duplicate(true),
 		"semantic_cue_id": StringName(convoy_feedback.get("semantic_cue_id", &"")),
 		"caption_text": str(convoy_feedback.get("caption_text", "")),
 		"activity_authority": false,
@@ -196,6 +209,63 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 		"reward_pending": reward_pending,
 		"summary": summary,
 		"objective_text": objective,
+		"activity_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Turns the scan authority's lifecycle, timer, and rejected-position result
+## into concise retained-HUD copy. It samples no positions and grants nothing.
+func _scan_feedback(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var authority_state := int(state.get("state", 0))
+	var reason := StringName(state.get("reason", &""))
+	var elapsed := maxf(float(state.get("elapsed_seconds", 0.0)), 0.0)
+	var duration := maxf(float(state.get("scan_seconds", 0.0)), 0.0)
+	var progress := clampf(elapsed / duration, 0.0, 1.0) if duration > 0.0 else 0.0
+	var percentage := clampi(roundi(progress * 100.0), 0, 100)
+	var remaining := maxf(duration - elapsed, 0.0)
+	var reward_pending := bool(state.get("reward_requested", false))
+	var stage_id: StringName = &"approach"
+	var summary := "SCAN READY  //  APPROACH DERELICT DATUM"
+	var objective := "ENTER THE MARKED STRUCTURE SCAN APPROACH"
+	if reason == &"outside_scan_approach":
+		stage_id = &"wrong_position"
+		summary = "MOVE TO DERELICT SCAN MARKER"
+		objective = "MOVE TO THE DERELICT SCAN MARKER"
+	else:
+		match authority_state:
+			1:
+				stage_id = &"scanning"
+				summary = "SCANNING STRUCTURE  //  %d%%  //  %.1fs REMAINING" % [
+					percentage, remaining,
+				]
+				objective = "HOLD POSITION UNTIL SCAN REACHES 100%"
+			2:
+				stage_id = &"reward_pending" if reward_pending else &"complete"
+				summary = (
+					"REWARD PENDING"
+					if reward_pending else "MATERIAL SAMPLE READY"
+				)
+				objective = (
+					"AWAIT SCAN REWARD HANDOFF"
+					if reward_pending else "REQUEST THE MATERIAL SAMPLE REWARD"
+				)
+			3:
+				stage_id = &"interrupted"
+				summary = "PROGRESS RESET  //  RETURN TO SCAN MARKER"
+				objective = "RETURN TO THE SCAN MARKER AND RESTART"
+	return {
+		"stage_id": stage_id,
+		"progress": progress,
+		"progress_percent": percentage,
+		"elapsed_seconds": elapsed,
+		"remaining_seconds": remaining,
+		"reward_pending": reward_pending,
+		"summary": summary,
+		"objective_text": objective,
+		"scan_authority": false,
 		"activity_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
@@ -405,7 +475,7 @@ func _state_label(state: Dictionary) -> String:
 
 
 func _state_text(state_id: StringName) -> String:
-	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"wrong_order": "WRONG ORDER", &"completed": "COMPLETED", &"complete": "COMPLETED", &"interrupted": "INTERRUPTED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
+	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"wrong_order": "WRONG ORDER", &"wrong_position": "WRONG POSITION", &"interrupted": "INTERRUPTED", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
 
 
 func _recovery_text(state: Dictionary) -> String:
