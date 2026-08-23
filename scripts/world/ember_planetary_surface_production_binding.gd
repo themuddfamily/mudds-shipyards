@@ -311,6 +311,12 @@ func get_authored_hazard_status() -> Dictionary:
 	return _hazard_semantic_status.duplicate(true)
 
 
+func set_surface_audio_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	if _surface_audio_binding == null:
+		return {"accepted": false, "reason": &"surface_audio_unavailable"}
+	return _surface_audio_binding.call(&"set_reduced_dynamic_range", enabled)
+
+
 func submit_weather_exposure(
 		hazard_id: StringName,
 		position: Variant,
@@ -677,6 +683,7 @@ func _set_hazard_semantic_from_sample(sampled: Dictionary) -> void:
 		"authority": _hazard_zero_authority(),
 	}.duplicate(true)
 	_hazard_zone_presentation.call(&"apply_status", _hazard_semantic_status)
+	_present_hazard_audio_status()
 
 
 func _set_hazard_semantic_clear(reason: StringName) -> void:
@@ -696,6 +703,19 @@ func _set_hazard_semantic_clear(reason: StringName) -> void:
 	if _hazard_zone_presentation != null \
 			and bool((_hazard_zone_presentation.call(&"get_snapshot") as Dictionary).get("attached", false)):
 		_hazard_zone_presentation.call(&"apply_status", _hazard_semantic_status)
+	if reason == &"hazard_zone_exited":
+		_present_hazard_audio_status()
+
+
+func _present_hazard_audio_status() -> void:
+	if _surface_audio_binding == null or _composition_generation < 1 or _host == null:
+		return
+	_surface_audio_binding.call(
+		&"present_semantic_hazard_snapshot", _hazard_semantic_status,
+		_composition_generation,
+		_surface_audio_binding.call(&"get_attachment_generation"),
+		maxi(1, absi(_host.get_instance_id())), 1, 1
+	)
 
 
 func _clear_authored_hazard_runtime_exposure() -> void:

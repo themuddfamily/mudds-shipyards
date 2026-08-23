@@ -130,6 +130,11 @@ var _last_semantic_wind := 0.0
 var _last_semantic_entry := 0.0
 var _last_semantic_interior := false
 var _last_semantic_grounded := false
+var _last_hazard_source_generation := -1
+var _last_hazard_id: StringName = &""
+var _last_hazard_state: StringName = &"clear"
+var _hazard_cue_count := 0
+var _reduced_dynamic_range := false
 var _lifecycle_active := false
 
 
@@ -322,6 +327,87 @@ func present_policy_result(
 	return _result(true, reason)
 
 
+## Emits presentation-only semantic edges from a caller-owned surface hazard
+## snapshot. The hazard runtime retains all damage, movement, and recovery
+## authority; this method only authenticates freshness and publishes cue IDs.
+func present_semantic_hazard_snapshot(
+		hazard_snapshot: Dictionary,
+		source_generation: int,
+		expected_attachment_generation: int,
+		expected_root_instance_id: int,
+		expected_frame_generation: int,
+		expected_location_generation: int
+	) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if not _configured:
+		return _result(false, &"not_configured")
+	if not _attached:
+		return _result(false, &"not_attached")
+	if not _binding_is_available():
+		return _result(false, &"binding_unavailable")
+	var freshness_reason := _freshness_reason(
+		expected_attachment_generation, expected_root_instance_id,
+		expected_frame_generation, expected_location_generation
+	)
+	if freshness_reason != &"current":
+		return _result(false, freshness_reason)
+	if not _valid_upstream_generation(source_generation):
+		return _result(false, &"invalid_hazard_source_generation")
+	if source_generation < _last_hazard_source_generation:
+		return _result(false, &"stale_hazard_source_generation")
+	var decoded := _decode_hazard_snapshot(hazard_snapshot)
+	if not bool(decoded.get("accepted", false)):
+		return _result(false, decoded.get("reason", &"invalid_hazard_snapshot") as StringName)
+	var hazard_id := decoded.get("hazard_id", &"") as StringName
+	var state := decoded.get("state", &"clear") as StringName
+	if source_generation == _last_hazard_source_generation \
+			and hazard_id == _last_hazard_id and state == _last_hazard_state:
+		return _result(false, &"duplicate_hazard_state")
+	var previous_state := _last_hazard_state if source_generation == _last_hazard_source_generation \
+		else &"clear"
+	_mutation_active = true
+	_last_hazard_source_generation = source_generation
+	_last_hazard_id = hazard_id
+	_last_hazard_state = state
+	var cue_id: StringName = &""
+	var intensity := 0.0
+	match state:
+		&"warning":
+			cue_id = &"surface_hazard_warning"
+			intensity = maxf(0.5, float(decoded.get("exposure_unitless", 0.0)))
+		&"recovery_required":
+			cue_id = &"surface_hazard_recovery_required"
+			intensity = 1.0
+		&"clear":
+			if previous_state in [&"warning", &"recovery_required"]:
+				cue_id = &"surface_hazard_clear"
+				intensity = 0.45
+	if cue_id.is_empty():
+		_mutation_active = false
+		_commit(&"hazard_state_retained")
+		return _result(true, &"hazard_state_retained")
+	if _reduced_dynamic_range:
+		intensity *= 0.75
+	_hazard_cue_count += 1
+	semantic_surface_cue_emitted.emit(cue_id, clampf(intensity, 0.0, 1.0))
+	_mutation_active = false
+	_commit(&"hazard_semantic_cue_emitted")
+	return _result(true, &"hazard_semantic_cue_emitted", {"cue_id": cue_id})
+
+
+func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if not _configured:
+		return _result(false, &"not_configured")
+	if _reduced_dynamic_range == enabled:
+		return _result(true, &"unchanged")
+	_reduced_dynamic_range = enabled
+	_commit(&"reduced_dynamic_range_updated")
+	return _result(true, &"reduced_dynamic_range_updated")
+
+
 func set_paused(paused: bool, expected_attachment_generation: int) -> Dictionary:
 	if _is_reentrant():
 		return _result(false, &"reentrant_call")
@@ -426,6 +512,17 @@ func get_state_snapshot() -> Dictionary:
 		}.duplicate(true),
 		"voices": _voice_snapshot(),
 		"accepted_submission_count": _accepted_submission_count,
+		"semantic_hazard": {
+			"last_source_generation": _last_hazard_source_generation,
+			"last_hazard_id": _last_hazard_id,
+			"last_state": _last_hazard_state,
+			"emitted_cue_count": _hazard_cue_count,
+			"reduced_dynamic_range": _reduced_dynamic_range,
+			"authority": {
+				"hazard": false, "damage": false, "health": false,
+				"movement": false, "recovery": false, "audio": true,
+			},
+		}.duplicate(true),
 		"last_policy_evaluation": _last_policy_evaluation.duplicate(true),
 		"catalog": _catalog_snapshot.duplicate(true),
 		"authority": AUTHORITY.duplicate(true),
@@ -589,6 +686,35 @@ func _decode_policy_result(policy_result: Dictionary) -> Dictionary:
 			"entry_intensity_unitless": float(entry_sample) if not uses_interior else 0.0,
 		}.duplicate(true),
 	}
+
+
+func _decode_hazard_snapshot(snapshot: Dictionary) -> Dictionary:
+	var hazard_id: Variant = snapshot.get("hazard_id", &"")
+	var state: Variant = snapshot.get("state", &"")
+	var visible: Variant = snapshot.get("visible", false)
+	var exposure: Variant = snapshot.get("exposure_unitless", NAN)
+	var recovery := snapshot.get("recovery_request", {}) as Dictionary
+	var authority := snapshot.get("authority", {}) as Dictionary
+	if hazard_id is not StringName or (hazard_id as StringName).is_empty() \
+			or state is not StringName or state not in [&"clear", &"warning", &"recovery_required"] \
+			or visible is not bool or not _finite_range(exposure, 0.0, 1.0) \
+			or recovery == null or authority == null:
+		return {"accepted": false, "reason": &"invalid_hazard_snapshot"}
+	if bool(visible) != (state != &"clear"):
+		return {"accepted": false, "reason": &"invalid_hazard_visibility"}
+	var recovery_requested: Variant = recovery.get("requested", false)
+	if recovery_requested is not bool \
+			or bool(recovery_requested) != (state == &"recovery_required"):
+		return {"accepted": false, "reason": &"invalid_hazard_recovery_state"}
+	for key in ["damage", "health", "movement", "recovery", "reward", "lifecycle"]:
+		if authority.get(key, true) is not bool or bool(authority.get(key, true)):
+			return {"accepted": false, "reason": &"hazard_authority_violation"}
+	return {
+		"accepted": true,
+		"hazard_id": hazard_id,
+		"state": state,
+		"exposure_unitless": float(exposure),
+	}.duplicate(true)
 
 
 func _mix_matches_route(mix: Dictionary, uses_interior: bool) -> bool:
@@ -786,7 +912,14 @@ func _internal_detach(reason: StringName, advance_generation: bool) -> void:
 	_location_generation = 0
 	_paused = false
 	_last_policy_evaluation.clear()
+	_reset_hazard_cue_state()
 	_reset_fade_state()
+
+
+func _reset_hazard_cue_state() -> void:
+	_last_hazard_source_generation = -1
+	_last_hazard_id = &""
+	_last_hazard_state = &"clear"
 
 
 func _reset_fade_state() -> void:
