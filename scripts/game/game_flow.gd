@@ -522,6 +522,9 @@ var _pending_ember_surface_host: Object
 var _pending_ember_surface_director: ActivityDirector
 var _pending_ember_surface_reward_sink := Callable()
 var _pending_ember_surface_serial := 0
+var _last_ember_surface_forward_result: Dictionary = {}
+var _ember_surface_forward_count := 0
+var _ember_surface_journey_active := false
 ## Station topology is captured in ShipyardWorld-local coordinates. A common
 ## floating-origin rebase can then translate the live world root without leaving
 ## the presentation snapshot pinned to its pre-rebase global coordinates.
@@ -1954,11 +1957,14 @@ func _physics_process(delta: float) -> void:
 	)
 	if bool(ember_host_bind_result.get("accepted", false)) \
 			and not _pending_ember_surface_request.is_empty():
-		_forward_pending_ember_surface_journey()
+		_last_ember_surface_forward_result = _forward_pending_ember_surface_journey()
+		if bool(_last_ember_surface_forward_result.get("accepted", false)):
+			_ember_surface_forward_count += 1
 	if is_instance_valid(ember_surface_loop_production_binding):
 		var surface_binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
 		var surface_state := StringName(surface_binding_snapshot.get("state_id", &""))
-		if surface_state in [&"start_pending", &"running"] \
+		if _ember_surface_journey_active \
+				and surface_state in [&"idle", &"start_pending", &"running"] \
 				and not ember_origin_result.is_empty() \
 				and is_instance_valid(active_ship) and active_ship.is_piloted():
 			if _ember_surface_caller_serial < EmberSurfaceLoopHost.MAX_SAFE_INTEGER:
@@ -4410,10 +4416,17 @@ func begin_ember_surface_journey(
 		var composed: Dictionary = binding.configure_planetary_surface(director, reward_sink)
 		if not bool(composed.get("accepted", false)):
 			return composed
-	var intent := binding.queue_disembark_intent(caller_serial, binding.get_generation())
-	if not bool(intent.get("accepted", false)):
-		return intent
-	return {"accepted": true, "reason": &"ember_surface_journey_admitted", "binding_generation": binding.get_generation(), "intent": intent}
+	# Admission starts the retained surface journey. Disembark is a later,
+	# phase-specific caller intent after the Host has actually reached LANDED;
+	# queuing it while the binding is still IDLE necessarily rejects because no
+	# same-frame caller envelope exists yet.
+	_ember_surface_journey_active = true
+	return {
+		"accepted": true,
+		"reason": &"ember_surface_journey_admitted",
+		"binding_generation": binding.get_generation(),
+		"caller_serial": caller_serial,
+	}
 
 
 func cancel_ember_surface_journey() -> Dictionary:
@@ -4447,8 +4460,26 @@ func _forward_pending_ember_surface_journey() -> Dictionary:
 	var director := _pending_ember_surface_director
 	var reward_sink := _pending_ember_surface_reward_sink
 	var caller_serial := _pending_ember_surface_serial
-	cancel_ember_surface_journey()
-	return begin_ember_surface_journey(host, director, reward_sink, caller_serial)
+	var retained_request := _pending_ember_surface_request.duplicate(true)
+	# This is an internal handoff, not a caller cancellation. Clearing through
+	# cancel_ember_surface_journey() disengages the cruise binding immediately
+	# before begin_ember_surface_journey() tries to admit the ready surface
+	# composition, losing the retained request if that admission rejects.
+	_pending_ember_surface_request.clear()
+	_pending_ember_surface_host = null
+	_pending_ember_surface_director = null
+	_pending_ember_surface_reward_sink = Callable()
+	_pending_ember_surface_serial = 0
+	var forwarded := begin_ember_surface_journey(
+		host, director, reward_sink, caller_serial
+	)
+	if not bool(forwarded.get("accepted", false)):
+		_pending_ember_surface_request = retained_request
+		_pending_ember_surface_host = host
+		_pending_ember_surface_director = director
+		_pending_ember_surface_reward_sink = reward_sink
+		_pending_ember_surface_serial = caller_serial
+	return forwarded
 
 
 ## Consumes the detached Ember return receipt at the normal GameFlow boundary.
