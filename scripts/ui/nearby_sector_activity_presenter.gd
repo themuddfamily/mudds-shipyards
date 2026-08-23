@@ -600,6 +600,7 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 	var percentage := clampi(roundi(progress * 100.0), 0, 100)
 	var remaining := maxf(duration - elapsed, 0.0)
 	var reward_pending := bool(state.get("reward_requested", false))
+	var discovery_persisted := bool(state.get("discovery_persisted", false))
 	var stage_id: StringName = &"approach"
 	var summary := "SCAN READY  //  APPROACH DERELICT DATUM"
 	var objective := "ENTER THE MARKED STRUCTURE SCAN APPROACH"
@@ -616,14 +617,21 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 				]
 				objective = "HOLD POSITION UNTIL SCAN REACHES 100%"
 			2:
-				stage_id = &"reward_pending" if reward_pending else &"complete"
+				stage_id = &"discovery_recorded" if discovery_persisted else (
+					&"reward_pending" if reward_pending else &"complete"
+				)
 				summary = (
-					"REWARD PENDING"
-					if reward_pending else "MATERIAL SAMPLE READY"
+					"DISCOVERY RECORDED  //  MATERIAL SAMPLE RECEIPT SAVED"
+					if discovery_persisted else (
+						"REWARD PENDING" if reward_pending else "MATERIAL SAMPLE READY"
+					)
 				)
 				objective = (
-					"AWAIT SCAN REWARD HANDOFF"
-					if reward_pending else "REQUEST THE MATERIAL SAMPLE REWARD"
+					"DERELICT DISCOVERY RETAINED"
+					if discovery_persisted else (
+						"AWAIT SCAN REWARD HANDOFF"
+						if reward_pending else "REQUEST THE MATERIAL SAMPLE REWARD"
+					)
 				)
 			3:
 				stage_id = &"interrupted"
@@ -636,6 +644,7 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 		"elapsed_seconds": elapsed,
 		"remaining_seconds": remaining,
 		"reward_pending": reward_pending,
+		"discovery_persisted": discovery_persisted,
 		"summary": summary,
 		"objective_text": objective,
 		"scan_authority": false,

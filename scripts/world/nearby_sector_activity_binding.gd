@@ -28,6 +28,9 @@ const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adap
 const SESSION_ADAPTER := preload("res://scripts/persistence/nearby_sector_activity_session_adapter.gd")
 const PERSISTENCE_BINDING := preload("res://scripts/persistence/nearby_sector_activity_persistence_binding.gd")
 const RACE_BEST_PERSISTENCE := preload("res://scripts/persistence/cinder_race_best_persistence.gd")
+const SCAN_DISCOVERY_PERSISTENCE := preload(
+	"res://scripts/persistence/cinder_scan_discovery_persistence.gd"
+)
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 const PRESENTATION_OBSERVER_LIMIT := 3
 const CINDER_PATROL_DWELL_SECONDS := 2.0
@@ -66,6 +69,9 @@ var _restored_session: Dictionary = {}
 var _race_best_persistence: RefCounted
 var _race_best_result: Dictionary = {}
 var _last_race_best_persistence_result: Dictionary = {}
+var _scan_discovery_persistence: RefCounted
+var _restored_scan_discovery: Dictionary = {}
+var _last_scan_discovery_persistence_result: Dictionary = {}
 var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
@@ -985,6 +991,8 @@ func request_structure_scan_reward() -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _scan_activity.call("request_reward")
+	if bool(result.get("accepted", false)):
+		_persist_structure_scan_discovery(result)
 	_publish_structure_scan_presentation()
 	_cinder_field_audio.present_reward_result(result)
 	return result
@@ -999,12 +1007,9 @@ func reset_structure_scan() -> Dictionary:
 
 
 func bind_structure_scan_presentation(consumer: Callable) -> Dictionary:
-	var current := (
-		(_scan_activity.call("get_snapshot") as Dictionary).duplicate(true)
-		if _scan_activity != null else {}
-	)
 	return _bind_presentation_observer(
-		_structure_scan_presentation_consumers, consumer, current, &"structure_scan"
+		_structure_scan_presentation_consumers, consumer,
+		_structure_scan_presentation_snapshot(), &"structure_scan"
 	)
 
 
@@ -1019,8 +1024,70 @@ func _publish_structure_scan_presentation() -> void:
 		return
 	_publish_presentation_observers(
 		_structure_scan_presentation_consumers,
-		_scan_activity.call("get_snapshot") as Dictionary
+		_structure_scan_presentation_snapshot()
 	)
+
+
+## Restores one terminal discovery receipt into presentation only. The scan
+## authority remains idle after reload, so its one-shot reward request cannot
+## be reconstructed or replayed.
+func configure_cinder_scan_discovery_persistence(
+		store: RefCounted, slot_id: StringName = &"cinder_scan_discovery"
+	) -> Dictionary:
+	if _scan_discovery_persistence != null:
+		return _result(true, &"scan_discovery_persistence_already_configured")
+	var persistence := SCAN_DISCOVERY_PERSISTENCE.new() as RefCounted
+	var configured := persistence.call(&"configure", store, slot_id) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		return configured
+	_scan_discovery_persistence = persistence
+	var restored := persistence.call(&"load") as Dictionary
+	if bool(restored.get("accepted", false)):
+		_restored_scan_discovery = (
+			restored.get("discovery", {}) as Dictionary
+		).duplicate(true)
+		_last_scan_discovery_persistence_result = restored.duplicate(true)
+		_publish_structure_scan_presentation()
+	elif StringName(restored.get("reason", &"")) != &"scan_discovery_not_found":
+		_last_scan_discovery_persistence_result = restored.duplicate(true)
+		return restored
+	return configured
+
+
+func get_cinder_scan_discovery_persistence_snapshot() -> Dictionary:
+	return {
+		"configured": _scan_discovery_persistence != null,
+		"discovery": _restored_scan_discovery.duplicate(true),
+		"last_result": _last_scan_discovery_persistence_result.duplicate(true),
+		"restores_activity_authority": false,
+		"restores_reward_authority": false,
+	}.duplicate(true)
+
+
+func _persist_structure_scan_discovery(reward_result: Dictionary) -> void:
+	if _scan_discovery_persistence == null:
+		return
+	var scan := _scan_activity.call("get_snapshot") as Dictionary
+	var commit_id := "cinder-scan-discovery-%010d" % (
+		int(_scan_discovery_persistence.call(&"get_store_generation")) + 1
+	)
+	_last_scan_discovery_persistence_result = _scan_discovery_persistence.call(
+		&"save", scan, reward_result, commit_id
+	) as Dictionary
+	if bool(_last_scan_discovery_persistence_result.get("accepted", false)):
+		var receipt := reward_result.get("reward_request", {}) as Dictionary
+		_restored_scan_discovery = {
+			"activity_id": String(SCAN_ACTIVITY.ACTIVITY_ID),
+			"content_class": String(SCAN_ACTIVITY.CONTENT_CLASS),
+			"evidence_status": String(SCAN_ACTIVITY.EVIDENCE_STATUS),
+			"scan_seconds": float(scan.get("scan_seconds", 0.0)),
+			"reward_receipt": {
+				"activity_id": String(receipt.get("activity_id", &"")),
+				"reward_id": String(receipt.get("reward_id", &"")),
+				"granted": false,
+				"replay_allowed": false,
+			},
+		}.duplicate(true)
 
 
 func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
@@ -1250,7 +1317,7 @@ func get_snapshot() -> Dictionary:
 		"station_defense_reward": get_station_defense_reward_snapshot(),
 		"station_defense": _station_defense_presentation_snapshot(),
 		"mining": _mining_activity.call("get_snapshot") if is_instance_valid(_mining_activity) else {},
-		"structure_scan": _scan_activity.call("get_snapshot") if is_instance_valid(_scan_activity) else {},
+		"structure_scan": _structure_scan_presentation_snapshot(),
 		"beacon_traversal": _beacon_traversal_presentation_snapshot(),
 		"restored_session": _restored_session.duplicate(true),
 		"production_owner": true,
@@ -1304,6 +1371,36 @@ func _race_presentation_snapshot() -> Dictionary:
 		_race_best_result.get("reward_receipt", {}) as Dictionary
 	).is_empty()
 	snapshot["presentation_reason"] = _last_race_feedback_reason
+	return snapshot.duplicate(true)
+
+
+func _structure_scan_presentation_snapshot() -> Dictionary:
+	if not is_instance_valid(_scan_activity):
+		return {}
+	var snapshot := _scan_activity.call("get_snapshot") as Dictionary
+	if _restored_scan_discovery.is_empty():
+		return snapshot.duplicate(true)
+	var state := int(snapshot.get("state", SCAN_ACTIVITY.State.IDLE))
+	var generation := int(snapshot.get("generation", 0))
+	if state == SCAN_ACTIVITY.State.IDLE and generation == 0:
+		var duration := float(_restored_scan_discovery.get(
+			"scan_seconds", SCAN_ACTIVITY.SCAN_SECONDS
+		))
+		snapshot["state"] = SCAN_ACTIVITY.State.COMPLETE
+		snapshot["state_id"] = &"complete"
+		snapshot["elapsed_seconds"] = duration
+		snapshot["scan_seconds"] = duration
+		snapshot["progress_unitless"] = 1.0
+	elif state != SCAN_ACTIVITY.State.COMPLETE:
+		return snapshot.duplicate(true)
+	snapshot["reward_requested"] = false
+	snapshot["reward_pending"] = false
+	snapshot["discovery_persisted"] = true
+	snapshot["discovery_receipt"] = (
+		_restored_scan_discovery.get("reward_receipt", {}) as Dictionary
+	).duplicate(true)
+	snapshot["receipt_replay_allowed"] = false
+	snapshot["presentation_reason"] = &"discovery_restored"
 	return snapshot.duplicate(true)
 
 
