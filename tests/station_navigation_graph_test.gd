@@ -26,6 +26,9 @@ const SAMPLE_SECONDS := 6.0
 const PLAYER_CAPSULE_HEIGHT := 1.94
 const REQUIRED_DECK_CLEARANCE := 2.3
 const MINIMUM_BERTH_GAP := 0.15
+const AFT_BOMBER_PAD_COLLIDER_PATH := NodePath(
+	"FleetExpansionProductionBinding/FleetExpansionBerths/dock_05_bomber/WalkablePadCollision"
+)
 
 ## The protected launch volume the operational-lattice suite already freezes.
 const PROTECTED_LAUNCH_VOLUME := AABB(Vector3(-10.75, 0.0, -68.0), Vector3(21.5, 12.0, 40.0))
@@ -36,7 +39,7 @@ const EXPECTED_AGENT_SPECS := {
 		"slot_id": &"hub-aft-junction",
 		"from": &"station-hub:hub-aft-junction",
 		"to": &"aft-junction-stack:approach",
-		"seed": 5501, "speed": 0.85, "lift": 3.7,
+		"seed": 5501, "speed": 0.85, "lift": 3.7, "effective_lift": 7.85,
 	},
 	&"fleet-dock-courier": {
 		"node_name": &"FleetDockServiceCourier",
@@ -870,7 +873,11 @@ func _test_production_courier_roster(world: ShipyardWorld) -> void:
 		_check(
 			agent.variation_seed == int(spec.seed)
 			and is_equal_approx(agent.traversal_speed, float(spec.speed))
-			and is_equal_approx(agent.hover_lift, float(spec.lift)),
+			and is_equal_approx(agent.hover_lift, float(spec.lift))
+			and is_equal_approx(
+				float(agent.get_integration_contract().hover_lift),
+				float(spec.get("effective_lift", spec.lift))
+			),
 			"%s locks its deterministic seed, cadence, and hover band" % agent_id
 		)
 		_check(agent.get_route_id() == StringName(spec.slot_id), "%s serves its exact declared connection slot" % agent_id)
@@ -942,6 +949,7 @@ func _test_production_clearance_and_authority(world: ShipyardWorld) -> void:
 	for agent in world.get_station_service_agents():
 		var contract := agent.get_integration_contract()
 		var envelope := _world_aabb(agent.global_transform, contract.local_min as Vector3, contract.local_max as Vector3)
+		var route_points := agent.get_world_route_points()
 
 		var box := BoxShape3D.new()
 		box.size = envelope.size
@@ -955,11 +963,41 @@ func _test_production_clearance_and_authority(world: ShipyardWorld) -> void:
 		var hit_names := PackedStringArray()
 		for hit in hits:
 			var collider := hit.get("collider") as Node
-			if collider != null and not hit_names.has(str(collider.name)):
-				hit_names.append(str(collider.name))
+			if collider != null:
+				var hit_label := "%s (%s)" % [collider.name, collider.get_path()]
+				if not hit_names.has(hit_label):
+					hit_names.append(hit_label)
 		_check(hits.is_empty(), "%s complete service envelope intersects no station collider or volume: %s" % [agent.get_agent_id(), hit_names])
+		if agent.get_agent_id() == &"aft-junction-courier":
+			var pad_body := world.get_node_or_null(AFT_BOMBER_PAD_COLLIDER_PATH) as StaticBody3D
+			var pad_collision := (
+				pad_body.get_child(0) as CollisionShape3D
+				if pad_body != null and pad_body.get_child_count() == 1
+				else null
+			)
+			var pad_shape := pad_collision.shape as BoxShape3D if pad_collision != null else null
+			_check(
+				pad_body != null
+				and pad_body.collision_layer == PhysicsLayers.WORLD
+				and pad_shape != null
+				and pad_shape.size.is_equal_approx(Vector3(28.0, 0.6, 42.0)),
+				"Dock 05 retains its exact player-support collider while the Aft courier clears it"
+			)
+			if pad_shape != null:
+				var pad_half := pad_shape.size * 0.5
+				var pad_bounds := _world_aabb(
+					pad_collision.global_transform,
+					-pad_half,
+					pad_half
+				)
+				var pad_clearance := envelope.position.y - pad_bounds.end.y
+				_check(
+					pad_clearance >= REQUIRED_DECK_CLEARANCE,
+					"aft-junction-courier preserves at least %.2f m player headroom above the walkable Dock 05 pad (%.3f m)" % [
+						REQUIRED_DECK_CLEARANCE, pad_clearance
+					]
+				)
 
-		var route_points := agent.get_world_route_points()
 		var deck_supported := true
 		var agent_clearance := INF
 		for step in 9:

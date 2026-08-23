@@ -50,6 +50,15 @@ const MAXIMUM_HOVER_LIFT := 9.1
 const MAXIMUM_LATERAL_SWAY := 0.5
 const MAXIMUM_VERTICAL_SWAY := 0.45
 
+## The Aft connector passes beneath the independently owned Dock 05 bomber pad.
+## Its authored 3.70 m lift put the courier body through that walkable collider;
+## this presentation-only route floor lifts the visual courier above the pad
+## with full player headroom while leaving the graph waypoints, player support,
+## and all authority untouched.
+const ROUTE_MINIMUM_HOVER_LIFTS := {
+	&"hub-aft-junction": 7.85,
+}
+
 ## Circumscribed half extents of the courier body under any yaw, plus the
 ## vertical half extent. The published envelope always contains this box.
 const BODY_HALF_EXTENTS := Vector3(1.15, 0.55, 1.15)
@@ -1021,7 +1030,11 @@ func _get_effective_traversal_speed() -> float:
 
 
 func _get_effective_hover_lift() -> float:
-	return _built_hover_lift if _built else hover_lift
+	var configured_lift := _built_hover_lift if _built else hover_lift
+	return maxf(
+		configured_lift,
+		float(ROUTE_MINIMUM_HOVER_LIFTS.get(_route_id, configured_lift))
+	)
 
 
 func _get_effective_lateral_sway() -> float:
