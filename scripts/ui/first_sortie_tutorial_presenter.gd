@@ -9,13 +9,13 @@ const STEP_ORDER := [
 	&"walk_interact", &"board", &"take_seat", &"launch", &"fire", &"return_land", &"exit"
 ]
 const STEP_COPY := {
-	&"walk_interact": {"title": "Reach the craft", "controller": "Walk to the craft, then press {interact} to interact.", "keyboard": "Walk to the craft, then press [ E ] to interact.", "accessible": "Walk to the craft and use the interact control."},
-	&"board": {"title": "Board", "controller": "Press {interact} to board the craft.", "keyboard": "Press [ E ] to board the craft.", "accessible": "Use the interact control to board the craft."},
-	&"take_seat": {"title": "Take the pilot seat", "controller": "Press {interact} to take the pilot seat.", "keyboard": "Press [ E ] to take the pilot seat.", "accessible": "Use the interact control to take the pilot seat."},
+	&"walk_interact": {"title": "Reach the craft", "controller": "Walk to the craft, then press {interact} to interact.", "keyboard": "Walk to the craft, then press {interact} to interact.", "accessible": "Walk to the craft and use the interact control."},
+	&"board": {"title": "Board", "controller": "Press {interact} to board the craft.", "keyboard": "Press {interact} to board the craft.", "accessible": "Use the interact control to board the craft."},
+	&"take_seat": {"title": "Take the pilot seat", "controller": "Press {interact} to take the pilot seat.", "keyboard": "Press {interact} to take the pilot seat.", "accessible": "Use the interact control to take the pilot seat."},
 	&"launch": {"title": "Launch", "controller": "Apply thrust to launch when the bay is clear.", "keyboard": "Apply thrust to launch when the bay is clear.", "accessible": "Apply thrust to launch when the bay is clear."},
-	&"fire": {"title": "Fire safely", "controller": "Press {fire} to fire only when the range target is clear.", "keyboard": "Press [ LMB ] to fire only when the range target is clear.", "accessible": "Use the fire control only when the range target is clear."},
+	&"fire": {"title": "Fire safely", "controller": "Press {fire} to fire only when the range target is clear.", "keyboard": "Press {fire} to fire only when the range target is clear.", "accessible": "Use the fire control only when the range target is clear."},
 	&"return_land": {"title": "Return and land", "controller": "Use landing assist, then follow the return vector.", "keyboard": "Use landing assist, then follow the return vector.", "accessible": "Use landing assist and follow the return vector."},
-	&"exit": {"title": "Exit the craft", "controller": "Press {interact} after coming to a complete stop.", "keyboard": "Press [ E ] after coming to a complete stop.", "accessible": "Come to a complete stop, then use the interact control to exit."},
+	&"exit": {"title": "Exit the craft", "controller": "Press {interact} after coming to a complete stop.", "keyboard": "Press {interact} after coming to a complete stop.", "accessible": "Come to a complete stop, then use the interact control to exit."},
 }
 
 var _snapshot: Dictionary = {}

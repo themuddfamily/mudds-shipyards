@@ -478,6 +478,11 @@ var _session_recovery_choice_latched := false
 var _session_recovery_action_buttons: Dictionary = {}
 var _session_recovery_support_export_latched := false
 var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
+## Caller-owned tutorial progress remains in GameFlow. This is only the latest
+## detached source, retained while visible so local glyph presentation can
+## refresh after a device/profile/re-entry change without emitting an intent.
+var _first_sortie_tutorial_source_snapshot: Dictionary = {}
+var _runtime_status_kind: StringName = &""
 var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
 var _runtime_status_title: Label
@@ -3463,9 +3468,13 @@ func clear_bomber_payload_status() -> void:
 
 
 func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
-	var presentation := _first_sortie_tutorial_presenter.present_snapshot(snapshot)
+	var caller_snapshot := snapshot.duplicate(true)
+	caller_snapshot["input_family"] = _tutorial_input_family()
+	caller_snapshot["glyphs"] = _tutorial_glyphs()
+	var presentation := _first_sortie_tutorial_presenter.present_snapshot(caller_snapshot)
 	if not bool(presentation.get("accepted", false)):
 		return false
+	_first_sortie_tutorial_source_snapshot = snapshot.duplicate(true)
 	var runtime_snapshot := presentation.duplicate(true)
 	runtime_snapshot["message"] = presentation.prompt
 	runtime_snapshot["detail"] = presentation.prompt
@@ -3477,6 +3486,7 @@ func dismiss_first_sortie_tutorial() -> Dictionary:
 	var result := _first_sortie_tutorial_presenter.request(&"dismiss")
 	if bool(result.get("accepted", false)):
 		presentation_intent_requested.emit(&"tutorial", result)
+		_first_sortie_tutorial_source_snapshot.clear()
 	clear_runtime_status()
 	return result
 
@@ -3486,11 +3496,13 @@ func request_first_sortie_tutorial_action(action: StringName) -> Dictionary:
 	if bool(result.get("accepted", false)):
 		presentation_intent_requested.emit(&"tutorial", result)
 		if action == &"dismiss":
+			_first_sortie_tutorial_source_snapshot.clear()
 			clear_runtime_status()
 	return result
 
 
 func clear_runtime_status() -> void:
+	_runtime_status_kind = &""
 	if is_instance_valid(_runtime_status_panel):
 		_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		for child in _runtime_status_panel.find_children("*", "Control", true, false):
@@ -3499,6 +3511,9 @@ func clear_runtime_status() -> void:
 
 
 func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
+	_runtime_status_kind = kind
+	if kind != &"tutorial":
+		_first_sortie_tutorial_source_snapshot.clear()
 	if not is_instance_valid(_runtime_status_panel):
 		return
 	_runtime_status_title.text = str(snapshot.get("title", "STATUS"))
@@ -5128,6 +5143,30 @@ func _refresh_input_prompts() -> void:
 	_refresh_all_binding_rows()
 	if is_instance_valid(_help_panel):
 		_set_help_text(_help_rows_with_role_context(_state_mode))
+	if _runtime_status_kind == &"tutorial" and not _first_sortie_tutorial_source_snapshot.is_empty():
+		apply_first_sortie_tutorial_snapshot(_first_sortie_tutorial_source_snapshot)
+
+
+func _tutorial_input_family() -> StringName:
+	if _runtime_input_glyph_presenter == null:
+		return &"keyboard"
+	var family := StringName(str(
+		_runtime_input_glyph_presenter.get_snapshot().get("device_family", &"keyboard")
+	))
+	return &"keyboard" if family in [&"keyboard", &"mouse"] else &"controller"
+
+
+func _tutorial_glyphs() -> Dictionary:
+	var glyphs := {}
+	if _runtime_input_glyph_presenter == null:
+		return glyphs
+	for action: StringName in [&"interact", &"fire"]:
+		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(action)
+		glyphs[action] = (
+			str(resolved.get("text", "INPUT"))
+			if bool(resolved.get("valid", false)) else "INPUT"
+		)
+	return glyphs
 
 
 func _refresh_all_binding_rows() -> void:
