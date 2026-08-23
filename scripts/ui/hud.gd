@@ -232,6 +232,7 @@ var _safe_area_insets := Rect2()
 var _binding_rows: Dictionary = {}
 var _binding_buttons: Dictionary = {}
 var _binding_reset_buttons: Dictionary = {}
+var _binding_option_controls: Dictionary = {}
 var _binding_capture_action: StringName = &""
 var _pending_binding_conflict: Dictionary = {}
 var _binding_conflict_panel: Control
@@ -2641,6 +2642,7 @@ func _settings_group(parent: VBoxContainer, title: String, detail: String) -> VB
 
 
 func _build_input_binding_rows(parent: VBoxContainer) -> void:
+	_binding_option_controls.clear()
 	var actions := PackedStringArray()
 	for action: StringName in _input_binding_profile.bindings:
 		if action == SCREENSHOT_ACTION:
@@ -2678,6 +2680,7 @@ func _build_input_binding_rows(parent: VBoxContainer) -> void:
 		_binding_rows[action] = row
 		_binding_buttons[action] = binding_button
 		_binding_reset_buttons[action] = reset_button
+		_add_binding_option_row(parent, action)
 
 	_binding_conflict_panel = PanelContainer.new()
 	_binding_conflict_panel.name = "InputBindingConflictPanel"
@@ -2707,11 +2710,82 @@ func _build_input_binding_rows(parent: VBoxContainer) -> void:
 	_binding_conflict_cancel_button.name = "InputBindingConflictCancelButton"
 	_binding_conflict_cancel_button.pressed.connect(_cancel_pending_input_conflict)
 	conflict_actions.add_child(_binding_conflict_cancel_button)
-
 	var reset_all := _binding_button("RESET ALL BINDINGS")
 	reset_all.name = "InputBindingsResetAllButton"
 	reset_all.pressed.connect(_reset_all_input_bindings)
 	parent.add_child(reset_all)
+	_refresh_binding_option_controls()
+
+
+func _add_binding_option_row(parent: VBoxContainer, action: StringName) -> void:
+	var row := HBoxContainer.new()
+	row.name = String(action).to_pascal_case() + "OptionsRow"
+	row.add_theme_constant_override("separation", 5)
+	var deadzone := HSlider.new()
+	deadzone.name = String(action).to_pascal_case() + "DeadzoneControl"
+	deadzone.min_value = 0.0
+	deadzone.max_value = 1.0
+	deadzone.step = 0.01
+	deadzone.custom_minimum_size = Vector2(112.0, 22.0)
+	deadzone.focus_mode = Control.FOCUS_ALL
+	deadzone.tooltip_text = "Per-action gamepad deadzone"
+	var curve := OptionButton.new()
+	curve.name = String(action).to_pascal_case() + "CurveControl"
+	curve.add_item("LINEAR")
+	curve.add_item("SQUARED")
+	curve.focus_mode = Control.FOCUS_ALL
+	curve.custom_minimum_size.x = 86.0
+	var hold_mode := OptionButton.new()
+	hold_mode.name = String(action).to_pascal_case() + "HoldModeControl"
+	hold_mode.add_item("HOLD")
+	hold_mode.add_item("TOGGLE")
+	hold_mode.focus_mode = Control.FOCUS_ALL
+	hold_mode.custom_minimum_size.x = 82.0
+	row.add_child(_label("OPTIONS", 9, MUTED))
+	row.add_child(_label("DZ", 9, MUTED))
+	row.add_child(deadzone)
+	row.add_child(curve)
+	row.add_child(hold_mode)
+	parent.add_child(row)
+	_binding_option_controls[action] = {"deadzone": deadzone, "curve": curve, "hold_mode": hold_mode}
+	deadzone.value_changed.connect(func(_value: float) -> void: _commit_binding_options(action))
+	curve.item_selected.connect(func(_index: int) -> void: _commit_binding_options(action))
+	hold_mode.item_selected.connect(func(_index: int) -> void: _commit_binding_options(action))
+
+
+func _refresh_binding_option_controls() -> void:
+	if _input_binding_profile == null:
+		return
+	_updating_settings = true
+	for action: StringName in _binding_option_controls:
+		var controls := _binding_option_controls[action] as Dictionary
+		var options := _input_binding_profile.get_action_options(action)
+		var deadzone := controls.deadzone as HSlider
+		var curve := controls.curve as OptionButton
+		var hold_mode := controls.hold_mode as OptionButton
+		deadzone.set_value_no_signal(float(options.get("deadzone", 0.18)))
+		curve.select(1 if StringName(options.get("curve", &"linear")) == &"squared" else 0)
+		hold_mode.select(1 if StringName(options.get("hold_mode", &"hold")) == &"toggle" else 0)
+	_updating_settings = false
+
+
+func _commit_binding_options(action: StringName) -> void:
+	if _updating_settings or _input_remapping_presenter == null:
+		return
+	var controls := _binding_option_controls.get(action, {}) as Dictionary
+	if controls.is_empty():
+		return
+	var snapshot := _input_remapping_presenter.commit_options(
+		action,
+		(controls.deadzone as HSlider).value,
+		&"squared" if (controls.curve as OptionButton).selected == 1 else &"linear",
+		&"toggle" if (controls.hold_mode as OptionButton).selected == 1 else &"hold"
+	)
+	if snapshot.status == &"committed":
+		_commit_input_remapping_snapshot("OPTIONS UPDATED  //  %s" % _input_action_label(action).to_upper())
+	else:
+		set_settings_status("OPTIONS UPDATE REJECTED", false)
+
 	_refresh_all_binding_rows()
 
 
@@ -2959,6 +3033,7 @@ func _commit_input_remapping_snapshot(status: String) -> void:
 	_input_binding_profile = profile.duplicate_profile()
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_refresh_input_prompts()
+	_refresh_binding_option_controls()
 	set_settings_status(status, true)
 	setting_change_requested.emit(&"input_binding_profile", _input_binding_profile.duplicate_profile())
 
@@ -2973,6 +3048,7 @@ func _commit_input_binding_profile(profile: InputBindingProfile, status: String)
 	_input_binding_profile = profile.duplicate_profile()
 	_rebuild_input_remapping_presenter(_input_binding_defaults, _input_binding_profile)
 	_refresh_input_prompts()
+	_refresh_binding_option_controls()
 	set_settings_status(status, true)
 	setting_change_requested.emit(
 		&"input_binding_profile",
