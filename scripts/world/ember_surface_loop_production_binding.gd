@@ -79,6 +79,7 @@ var _loaded_scene_instance_id := 0
 var _location_generation := 0
 var _planetary_composition: Node
 var _atmosphere_composition: Node
+var _last_planetary_altitude_m := 0.0
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -240,6 +241,8 @@ func submit_planetary_weather_exposure(
 		&"submit_weather_exposure", hazard_id, position, altitude_m,
 		caller_time_seconds, exposure, delta_seconds, shelter_scalar
 	)
+	if bool(result.get("accepted", false)) and is_finite(altitude_m):
+		_last_planetary_altitude_m = altitude_m
 	_apply_planetary_atmosphere_recipe()
 	return result
 
@@ -261,7 +264,8 @@ func _apply_planetary_atmosphere_recipe() -> void:
 		return
 	var snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
 	var solar := snapshot.get("solar_phase", {}) as Dictionary
-	var weather := snapshot.get("weather_observation", {}) as Dictionary
+	var weather := (snapshot.get("weather_observation", {}) as Dictionary).duplicate(true)
+	weather["altitude_m"] = _last_planetary_altitude_m
 	if solar.is_empty() or weather.is_empty():
 		return
 	_atmosphere_composition.call(

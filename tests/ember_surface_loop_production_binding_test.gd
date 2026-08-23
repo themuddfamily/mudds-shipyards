@@ -325,8 +325,9 @@ func _test_real_scheduler_complete_loop() -> void:
 	)
 	_check(
 		production.get_planetary_atmosphere_snapshot().cloud_shadow_visible
-			and production.get_planetary_atmosphere_snapshot().recipe.size() > 0,
-		"real Ember owner publishes the updated live cloud-shadow recipe"
+			and production.get_planetary_atmosphere_snapshot().recipe.size() > 0
+			and production.get_planetary_atmosphere_snapshot().recipe.aerial_factor_unitless > 0.04,
+		"real Ember owner publishes the updated live cloud-shadow and aerial recipe"
 	)
 	_check(
 		production.get_planetary_surface_snapshot().water_presentation.material_instance_id > 0,
