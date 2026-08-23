@@ -2581,6 +2581,13 @@ func _build_settings_page() -> void:
 		0
 	)
 	_add_toggle_setting(accessibility_group, &"reduced_motion", "Reduced motion", false)
+	_add_toggle_setting_with_help(
+		accessibility_group,
+		&"reduced_dynamic_range",
+		"Reduced dynamic range",
+		"Limits extreme brightness and contrast changes while preserving readable state cues.",
+		false
+	)
 	_add_toggle_setting(accessibility_group, &"captions_enabled", "Audio cue captions", false)
 	_add_caption_preview_setting(accessibility_group)
 	_add_controller_glyph_family_setting(accessibility_group)
@@ -3154,6 +3161,30 @@ func _add_toggle_setting(parent: VBoxContainer, key: StringName, title: String, 
 	_tint_theme_color(toggle, &"font_hover_color", NOMINAL_SOFT)
 	toggle.toggled.connect(func(value: bool) -> void: _on_setting_value_changed(key, value))
 	parent.add_child(toggle)
+	_settings_controls[key] = toggle
+
+
+func _add_toggle_setting_with_help(
+	parent: VBoxContainer, key: StringName, title: String, help: String, initial: bool
+) -> void:
+	var row := VBoxContainer.new()
+	row.name = String(key).to_pascal_case() + "Row"
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	var toggle := CheckButton.new()
+	toggle.name = String(key).to_pascal_case() + "Control"
+	toggle.text = title
+	toggle.button_pressed = initial
+	toggle.focus_mode = Control.FOCUS_ALL
+	toggle.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	toggle.add_theme_font_size_override("font_size", 11)
+	_tint_theme_color(toggle, &"font_color", PRIMARY)
+	_tint_theme_color(toggle, &"font_hover_color", NOMINAL_SOFT)
+	toggle.toggled.connect(func(value: bool) -> void: _on_setting_value_changed(key, value))
+	row.add_child(toggle)
+	var hint := _label(help, 10, MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(hint)
 	_settings_controls[key] = toggle
 
 
