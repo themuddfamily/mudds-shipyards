@@ -94,6 +94,18 @@ func _run() -> void:
 			and storm.weather.wind_direction == Vector3.RIGHT,
 		"storm intensity scales exposure and returns authored wind direction"
 	)
+	var sheltered_runtime := RuntimeScript.new()
+	sheltered_runtime.configure(ContractScript.new())
+	sheltered_runtime.bind_weather_field(storm_weather)
+	var sheltered := sheltered_runtime.submit_weather_exposure(
+		&"caldera_thermal_vent", heat_position, 0.0, 0.0, 0.5, 1.0, 1.0
+	)
+	_check(
+		sheltered.accepted
+			and float(sheltered.exposure_unitless) < float(storm.exposure_unitless)
+			and is_equal_approx(float(sheltered.weather.shelter_factor), 0.25),
+		"caller shelter evidence reduces storm exposure without interior authority"
+	)
 	_finish()
 
 

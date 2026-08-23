@@ -51,12 +51,15 @@ func submit_weather_exposure(
 		altitude_m: Variant,
 		caller_time_seconds: Variant,
 		exposure_scalar: Variant,
-		delta_seconds: Variant
+		delta_seconds: Variant,
+		shelter_scalar: Variant = 0.0
 	) -> Dictionary:
 	if _weather_field == null:
 		return _result(false, &"weather_unavailable")
 	if not _finite_number(altitude_m) or not _finite_number(caller_time_seconds):
 		return _result(false, &"invalid_weather_observation")
+	if not _finite_range(shelter_scalar, 0.0, 1.0):
+		return _result(false, &"invalid_shelter_scalar")
 	var weather: Dictionary = _weather_field.call(
 		&"sample", float(altitude_m), position, 0.0, float(caller_time_seconds)
 	)
@@ -65,7 +68,9 @@ func submit_weather_exposure(
 	var intensity := clampf(float(weather.get("weather_intensity_unitless", 0.0)), 0.0, 1.0)
 	var gust := clampf(float(weather.get("weather_gust_factor_unitless", 1.0)), 0.0, 1.25)
 	var multiplier := clampf(1.0 + intensity * gust, 1.0, 2.0)
-	var scaled := clampf(float(exposure_scalar) * multiplier, 0.0, 1.0)
+	var shelter := float(shelter_scalar)
+	var shelter_factor := 1.0 - shelter * 0.75
+	var scaled := clampf(float(exposure_scalar) * multiplier * shelter_factor, 0.0, 1.0)
 	var sampled := submit_exposure(hazard_id, position, scaled, delta_seconds)
 	if bool(sampled.get("accepted", false)):
 		var wind := weather.get("wind_velocity_mps", Vector3.ZERO) as Vector3
@@ -73,6 +78,8 @@ func submit_weather_exposure(
 			"intensity_unitless": intensity,
 			"gust_factor_unitless": gust,
 			"exposure_multiplier": multiplier,
+			"shelter_scalar": shelter,
+			"shelter_factor": shelter_factor,
 			"wind_velocity_mps": wind,
 			"wind_direction": wind.normalized() if wind.length_squared() > 0.0 else Vector3.ZERO,
 		}.duplicate(true)
