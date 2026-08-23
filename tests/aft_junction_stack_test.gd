@@ -42,6 +42,7 @@ func _run() -> void:
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
 	_test_pod_corner_collar_visual_resource_sharing(module)
+	_test_junction_arc_tile_batch(module)
 	_test_rack_card_batch(module)
 	_test_vip_facade_column_trim_batch(module)
 	_test_spine_clamp_visual_resource_sharing(module)
@@ -326,10 +327,10 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1170,
-			"renderer_nodes": 840,
+			"descendant_nodes": 1171,
+			"renderer_nodes": 833,
 			"drawn_copies": 856,
-			"surface_submissions": 840,
+			"surface_submissions": 833,
 			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
@@ -337,7 +338,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus VIP trim and rack-card batching freeze 1170 descendants, 840 renderers/submissions, 856 copies, and 296 mesh allocations"
+		"shared collar families plus VIP trim, rack-card and arc-tile batching freeze 1171 descendants, 833 renderers/submissions, 856 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -1476,6 +1477,34 @@ func _test_conduit_collar_visual_resource_sharing(
 		bool(module.get_conduit_collar_visual_allocation_audit().valid)
 		and module.get_validation_errors() == baseline_errors,
 		"restoring conduit identity, recipe, budget, material, layer and authority returns the exact validator state"
+	)
+
+
+func _test_junction_arc_tile_batch(module: AftJunctionStack) -> void:
+	var lower := module.get_node_or_null(^"Structure/LowerOpenDeck") as Node3D
+	var batch := lower.get_node_or_null(^"JunctionArcTileBatch") as MultiMeshInstance3D if lower != null else null
+	var anchors: Array[Marker3D] = []
+	if lower != null:
+		for index in AftJunctionStack.JUNCTION_ARC_TILE_COPY_COUNT:
+			anchors.append(lower.get_node_or_null(NodePath("JunctionArcTile%02d" % (index + 1))) as Marker3D)
+	_check(
+		lower != null
+		and batch != null
+		and batch.multimesh != null
+		and batch.multimesh.instance_count == AftJunctionStack.JUNCTION_ARC_TILE_COPY_COUNT
+		and batch.multimesh.visible_instance_count == AftJunctionStack.JUNCTION_ARC_TILE_COPY_COUNT
+		and anchors.all(func(anchor: Marker3D) -> bool: return anchor != null),
+		"eight junction arc paths remain stable transform anchors under one visual batch"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var render := module.get_pod_corner_collar_visual_allocation_audit()
+	_check(
+		int(render.current.renderer_nodes) == AftJunctionStack.RENDERER_NODE_COUNT
+		and int(render.current.surface_submissions) == AftJunctionStack.SURFACE_SUBMISSION_COUNT
+		and int(render.current.mesh_resource_allocations) == AftJunctionStack.MESH_RESOURCE_COUNT
+		and int(render.current.drawn_copies) == AftJunctionStack.DRAWN_COPY_COUNT,
+		"arc tile batching preserves all eight drawn copies while reducing renderer, submission and mesh allocations"
 	)
 
 

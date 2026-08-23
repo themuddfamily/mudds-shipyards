@@ -159,14 +159,15 @@ const ROOF_VENT_COLLAR_FAMILY_ID: StringName = &"roof_vent_collars"
 ## MultiMesh submits the same cached rounded-box surface at the authored poses.
 const RACK_CARD_SIZE := Vector3(0.02, 0.24, 0.10)
 const RACK_CARD_COPY_COUNT := 14
+const JUNCTION_ARC_TILE_COPY_COUNT := 8
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1170
+const RENDER_DESCENDANT_NODE_COUNT := 1171
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 840
+const RENDERER_NODE_COUNT := 833
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 856
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 840
+const SURFACE_SUBMISSION_COUNT := 833
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 296
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -238,6 +239,7 @@ var _chamfered_cylinder_cache: Dictionary = {}
 var _pod_corner_collar_mesh: TorusMesh
 var _vip_facade_column_trim_batch: MultiMeshInstance3D
 var _rack_card_batch: MultiMeshInstance3D
+var _junction_arc_tile_batch: MultiMeshInstance3D
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
 var _console_shock_collar_mesh: TorusMesh
@@ -592,7 +594,7 @@ func get_performance_contract() -> Dictionary:
 		# llvmpipe. What is measured is that every one of these is a chamfered kit
 		# primitive sharing this module's two mesh caches, so the added *unique*
 		# mesh resources are far fewer than the added instances.
-        "mesh_instances": 840,
+        "mesh_instances": 833,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -2526,10 +2528,24 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 	# gradient across the whole inset. This is the module's only warm light at
 	# deck level and it is what keeps the junction floor from being the same cyan
 	# as the wall above it.
+	var junction_arc_transforms: Array[Transform3D] = []
+	var junction_arc_index := 0
 	for angle in [-70.0, -35.0, 0.0, 35.0, 70.0, 105.0, 140.0, 175.0]:
 		var radians := deg_to_rad(angle)
 		var ring_position := Vector3(cos(radians) * 3.75, 0.11, 7.45 + sin(radians) * 1.75)
-		_box(lower, "JunctionArcTile", ring_position, Vector3(1.25, 0.08, 0.24), _materials["gold"], false, Vector3(0, -angle + 90.0, 0))
+		var arc_transform := Transform3D(
+			Basis.from_euler(Vector3(0.0, deg_to_rad(-angle + 90.0), 0.0)),
+			ring_position
+		)
+		var arc_anchor := Marker3D.new()
+		arc_anchor.name = "JunctionArcTile%02d" % (junction_arc_index + 1)
+		arc_anchor.transform = arc_transform
+		arc_anchor.set_meta("presentation_only", true)
+		arc_anchor.set_meta("collision_free", true)
+		arc_anchor.set_meta("detail_role", &"junction_arc_tile")
+		lower.add_child(arc_anchor)
+		junction_arc_transforms.append(arc_transform)
+		junction_arc_index += 1
 		if is_equal_approx(angle, -35.0) or is_equal_approx(angle, 140.0):
 			_fixture_practical(
 				lower,
@@ -2539,6 +2555,14 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 				0.46,
 				4.2
 			)
+	_junction_arc_tile_batch = _multimesh_rounded_box(
+		lower,
+		"JunctionArcTileBatch",
+		Vector3(1.25, 0.08, 0.24),
+		_materials["gold"],
+		junction_arc_transforms
+	)
+	_junction_arc_tile_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Sparse rails leave the approach and circulation branches genuinely open.
 	# The port rail guards only the stretch of the connection deck's west edge that
