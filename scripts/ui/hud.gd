@@ -289,6 +289,7 @@ var _palette_targets: Array[Dictionary] = []
 var _ui_scale := 1.0
 var _reduced_motion := false
 var _captions_enabled := false
+var _caption_preview_revision := 0
 ## Containers whose contents scale with the UI-scale preference. The reticle,
 ## flight-path cue, and damage flash are deliberately excluded: they are
 ## registered against camera-space pixels and must stay 1:1 with the viewport.
@@ -1255,6 +1256,8 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 				set_ui_scale(float(value))
 		elif control is CheckButton:
 			(control as CheckButton).button_pressed = bool(value)
+			if key == &"captions_enabled":
+				set_captions_enabled(bool(value))
 		elif control is OptionButton:
 			var option := control as OptionButton
 			option.select(clampi(int(value), 0, option.item_count - 1))
@@ -2339,6 +2342,7 @@ func _build_settings_page() -> void:
 	)
 	_add_toggle_setting(accessibility_group, &"reduced_motion", "Reduced motion", false)
 	_add_toggle_setting(accessibility_group, &"captions_enabled", "Audio cue captions", false)
+	_add_caption_preview_setting(accessibility_group)
 	_add_controller_glyph_family_setting(accessibility_group)
 
 	var hint_panel := PanelContainer.new()
@@ -2965,6 +2969,52 @@ func _add_controller_glyph_family_setting(parent: VBoxContainer) -> void:
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(hint)
 	_settings_controls[_CONTROLLER_GLYPH_FAMILY_KEY] = selector
+
+
+func _add_caption_preview_setting(parent: VBoxContainer) -> void:
+	var row := VBoxContainer.new()
+	row.name = "CaptionPreviewRow"
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+	var preview := _menu_button("PREVIEW CAPTION", NOMINAL)
+	preview.name = "CaptionPreviewButton"
+	preview.custom_minimum_size.y = 34.0
+	preview.pressed.connect(preview_caption)
+	row.add_child(preview)
+	var hint := _label("Shows a sample audio cue as text without playing sound.", 10, MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(hint)
+
+
+func preview_caption() -> bool:
+	if not _captions_enabled or not is_instance_valid(_caption_presenter):
+		set_settings_status("ENABLE AUDIO CUE CAPTIONS TO PREVIEW", false)
+		return false
+	_caption_preview_revision += 1
+	var accepted := apply_caption_presentation_snapshot({
+		"schema_version": 1,
+		"service_id": &"caption-presentation-service",
+		"generation": 0,
+		"revision": _caption_preview_revision,
+		"visible": true,
+		"captions_enabled": true,
+		"reduced_flash": _reduced_motion,
+		"transition_policy": &"steady_no_flash" if _reduced_motion else &"consumer_standard",
+		"caption": {
+			"stable_id": &"settings.caption-preview",
+			"category": 1,
+			"category_id": &"radio",
+			"speaker": "Mudds Controller",
+			"text": "Preview: docking corridor is clear.",
+			"duration_physics_seconds": 4.0,
+			"remaining_physics_seconds": 4.0,
+			"priority": 50,
+			"sequence": _caption_preview_revision,
+		},
+	})
+	if accepted:
+		set_settings_status("CAPTION PREVIEW // TEXT ONLY")
+	return accepted
 
 
 func _on_controller_glyph_family_selected(index: int) -> void:

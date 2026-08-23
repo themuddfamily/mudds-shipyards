@@ -98,6 +98,16 @@ func _run() -> void:
 	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
 	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
 	_check((controls[&"captions_enabled"] as CheckButton).button_pressed, "caption snapshot reaches its toggle")
+	_check(hud.are_captions_enabled(), "caption snapshot enables the HUD caption gate")
+	var caption_preview := (hud.get("_settings_page") as Control).find_child("CaptionPreviewButton", true, false) as Button
+	_check(caption_preview != null and caption_preview.focus_mode == Control.FOCUS_ALL, "settings exposes a controller-focusable caption preview")
+	caption_preview.pressed.emit()
+	var caption_report := hud.get_caption_presentation_report()
+	_check(
+		bool(caption_report.get("visible", false))
+		and caption_report.get("rendered_text", "") == "Preview: docking corridor is clear.",
+		"caption preview renders a readable audio-cue alternative without audio"
+	)
 	var glyph_layout := controls[&"controller_glyph_family"] as OptionButton
 	_check(glyph_layout.selected == 0, "controller glyph layout starts in automatic mode")
 	var value_labels := hud.get("_settings_value_labels") as Dictionary
