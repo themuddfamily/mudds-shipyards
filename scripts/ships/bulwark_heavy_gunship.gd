@@ -51,6 +51,11 @@ const ENGINEER_SEAT_ID: StringName = &"engineer_slot"
 const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
 const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
 const ENGINEER_REPAIR_RESOURCE_ID: StringName = &"bulwark_repair_tool"
+const GUNNER_FEEDBACK_NO_TARGET: StringName = &"no_target"
+const GUNNER_FEEDBACK_READY: StringName = &"ready"
+const GUNNER_FEEDBACK_CHARGING: StringName = &"charging"
+const GUNNER_FEEDBACK_COOLDOWN: StringName = &"cooldown"
+const GUNNER_FEEDBACK_DENIED: StringName = &"denied"
 
 const HULL_COLLISION_SIZE := Vector3(6.9, 3.1, 10.8)
 const SHOULDER_COLLISION_SIZE := Vector3(11.6, 2.1, 5.8)
@@ -66,6 +71,8 @@ var _bulwark_built := false
 var _bulwark_visual: Node3D
 var _gunner_station: Node3D
 var _gunner_station_anchor: Marker3D
+var _gunner_status_readout: Label3D
+var _gunner_station_feedback: Dictionary = {}
 var _boarding_area: Area3D
 var _crew_role_authority: CrewSeatRoleAuthority
 var _gunner_combat_authority: LiveCombatAuthority
@@ -187,6 +194,7 @@ func _physics_process(delta: float) -> void:
 	_advance_engineer_repair(maxf(delta, 0.0))
 	_cleanup_detached_gunner_state()
 	_cleanup_detached_engineer_state()
+	_update_gunner_station_feedback()
 
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
@@ -201,6 +209,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
 	_reset_engineer_repair_state()
+	_update_gunner_station_feedback()
 
 func get_siege_lance_audio_binding() -> RefCounted:
 	return _siege_lance_audio_binding
@@ -239,6 +248,7 @@ func apply_damage(
 		_clear_all_gunner_charges(&"ship_destroyed")
 		_clear_gunner_target_selection(&"ship_destroyed")
 		_clear_engineer_component_selection(&"ship_destroyed")
+	_update_gunner_station_feedback()
 
 
 func _build_bulwark_variant(_controller: HeroShip) -> bool:
@@ -346,12 +356,23 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_engineer_status_readout.set_meta("presentation_only", true)
 	_gunner_station.add_child(_engineer_status_readout)
 	_refresh_engineer_status_readout()
+	_gunner_status_readout = Label3D.new()
+	_gunner_status_readout.name = "GunnerStatusReadout"
+	_gunner_status_readout.position = Vector3(0.0, 0.76, -0.985)
+	_gunner_status_readout.rotation = Vector3(deg_to_rad(-14.0), 0.0, 0.0)
+	_gunner_status_readout.font_size = 28
+	_gunner_status_readout.pixel_size = 0.0018
+	_gunner_status_readout.outline_size = 5
+	_gunner_status_readout.outline_modulate = Color("08121c")
+	_gunner_status_readout.text = "— NO TARGET —"
+	_gunner_station.add_child(_gunner_status_readout)
 	_gunner_station_anchor = Marker3D.new()
 	_gunner_station_anchor.name = "GunnerStationAnchor"
 	_gunner_station_anchor.position = Vector3(0.0, 0.4, 0.0)
 	_gunner_station_anchor.set_meta("crew_role", &"gunner")
 	_gunner_station_anchor.set_meta("seat_type", &"physical")
 	_gunner_station.add_child(_gunner_station_anchor)
+	_update_gunner_station_feedback()
 
 	# The inherited markers are the common combat/entry seams. Move only their
 	# ship-local placement; no replacement weapon or pilot authority is created.
@@ -738,6 +759,119 @@ func get_gunner_gameplay_state() -> Dictionary:
 			and not bool(engineer_repair.get("active", false)),
 		"gunner_component": _get_gunner_component_operational_state(),
 	}.duplicate(true)
+
+
+## Player-facing projection of the already-authoritative gunner state. This is
+## deliberately presentation-only: it never admits an intent or resolves fire.
+func get_gunner_station_feedback_snapshot() -> Dictionary:
+	_update_gunner_station_feedback()
+	return _gunner_station_feedback.duplicate(true)
+
+
+func _update_gunner_station_feedback() -> void:
+	_gunner_station_feedback = _build_gunner_station_feedback()
+	if _gunner_status_readout == null or not is_instance_valid(_gunner_status_readout):
+		return
+	_gunner_status_readout.text = str(_gunner_station_feedback.get("text", "— NO TARGET —"))
+	_gunner_status_readout.modulate = _gunner_station_feedback.get("color", GUNNER_CYAN) as Color
+	_gunner_status_readout.set_meta(
+		"feedback_state", StringName(_gunner_station_feedback.get("state", GUNNER_FEEDBACK_NO_TARGET))
+	)
+	if _gunner_station != null:
+		_gunner_station.set_meta(
+			"gunner_feedback_state",
+			StringName(_gunner_station_feedback.get("state", GUNNER_FEEDBACK_NO_TARGET))
+		)
+
+
+func _build_gunner_station_feedback() -> Dictionary:
+	var feedback := {
+		"state": GUNNER_FEEDBACK_NO_TARGET,
+		"text": "— NO TARGET —",
+		"color": Color("8aa7af"),
+		"target_id": StringName(&""),
+		"charge_progress": 0.0,
+		"cooldown_remaining": 0.0,
+		"denial_reason": StringName(&""),
+	}
+	if is_destroyed():
+		feedback.merge({
+			"state": GUNNER_FEEDBACK_DENIED,
+			"text": "! SHIP DISABLED",
+			"color": Color("ff6b5f"),
+			"denial_reason": StringName(&"ship_destroyed"),
+		}, true)
+		return feedback
+	if _gunner_target_selection.is_empty():
+		return feedback
+
+	var target_id := StringName(_gunner_target_selection.get("target_id", &""))
+	var actor_key := _gunner_role_actor_key_from_values(
+		int(_gunner_target_selection.get("occupant_peer_id", 0)),
+		StringName(_gunner_target_selection.get("avatar_id", &""))
+	)
+	feedback["target_id"] = target_id
+	var component_state := _get_gunner_component_operational_state()
+	if not bool(component_state.get("available", false)):
+		feedback.merge({
+			"state": GUNNER_FEEDBACK_DENIED,
+			"text": "! WEAPON OFFLINE",
+			"color": Color("ff6b5f"),
+			"denial_reason": StringName(
+				component_state.get("reason", &"component_damage_unavailable")
+			),
+		}, true)
+		return feedback
+
+	var charge := _gunner_role_charges.get(actor_key, {}) as Dictionary
+	if not charge.is_empty():
+		var progress := clampf(
+			float(charge.get("elapsed", 0.0))
+				/ maxf(float(charge.get("charge_time", GUNNER_SIEGE_CHARGE_TIME)), 0.001),
+			0.0,
+			1.0
+		)
+		feedback.merge({
+			"state": GUNNER_FEEDBACK_CHARGING,
+			"text": "△ CHARGING %d%%" % int(roundf(progress * 100.0)),
+			"color": Color("ffd166"),
+			"charge_progress": progress,
+		}, true)
+		return feedback
+
+	var cooldown := maxf(float(_gunner_role_cooldowns.get(actor_key, 0.0)), 0.0)
+	if cooldown > 0.0:
+		feedback.merge({
+			"state": GUNNER_FEEDBACK_COOLDOWN,
+			"text": "■ COOLDOWN %.1fs" % cooldown,
+			"color": Color("ffb44b"),
+			"cooldown_remaining": cooldown,
+		}, true)
+		return feedback
+
+	if int(_gunner_role_ammunition.get(actor_key, 2)) <= 0:
+		feedback.merge({
+			"state": GUNNER_FEEDBACK_DENIED,
+			"text": "! AMMUNITION EMPTY",
+			"color": Color("ff6b5f"),
+			"denial_reason": StringName(&"ammunition_depleted"),
+		}, true)
+		return feedback
+	if _gunner_combat_authority == null or not is_instance_valid(_gunner_combat_authority):
+		feedback.merge({
+			"state": GUNNER_FEEDBACK_DENIED,
+			"text": "! COMBAT LINK OFFLINE",
+			"color": Color("ff6b5f"),
+			"denial_reason": StringName(&"combat_authority_unavailable"),
+		}, true)
+		return feedback
+
+	feedback.merge({
+		"state": GUNNER_FEEDBACK_READY,
+		"text": "◇ LOCKED // READY",
+		"color": GUNNER_CYAN,
+	}, true)
+	return feedback
 
 
 func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
