@@ -6,6 +6,14 @@ extends RefCounted
 
 const COMPONENT_ID: StringName = &"network-session-status-presenter"
 const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"disconnected"]
+const SESSION_END_MESSAGES := {
+	&"timeout": "Session timed out.",
+	&"rejected": "Session request was rejected.",
+	&"protocol_mismatch": "Session protocol is incompatible.",
+	&"host_migration": "Session host changed.",
+	&"manual_leave": "You left the session.",
+	&"unknown": "Session ended.",
+}
 
 var _snapshot: Dictionary = {}
 
@@ -19,6 +27,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var retryable := bool(source.get("retryable", state == &"failed"))
 	var attempt := clampi(int(source.get("attempt", 0)), 0, 99)
 	var seconds_remaining := clampf(float(source.get("seconds_remaining", 0.0)), 0.0, 300.0)
+	var end_reason := _normalize_end_reason(source.get("end_reason", &""), state)
 	var actions: Array = []
 	match state:
 		&"connecting": actions.append({"id": &"cancel", "label": "Cancel Connection", "focusable": true})
@@ -43,7 +52,8 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"state": state,
 		"role": role,
 		"title": title,
-		"message": detail if not detail.is_empty() else _default_message(state),
+		"message": detail if not detail.is_empty() else (SESSION_END_MESSAGES[end_reason] if not end_reason.is_empty() else _default_message(state)),
+		"end_reason": end_reason,
 		"retryable": retryable,
 		"attempt": attempt if state == &"reconnecting" else 0,
 		"seconds_remaining": seconds_remaining if state == &"reconnecting" else 0.0,
@@ -100,3 +110,10 @@ func _default_message(state: StringName) -> String:
 		&"failed": "The session could not be established.",
 		&"disconnected": "No active session.",
 	}[state]
+
+
+func _normalize_end_reason(raw_reason: Variant, state: StringName) -> StringName:
+	if state in [&"connecting", &"reconnecting", &"connected"]:
+		return &""
+	var reason := StringName(str(raw_reason).strip_edges().to_lower())
+	return reason if SESSION_END_MESSAGES.has(reason) else (&"unknown" if not reason.is_empty() else &"")
