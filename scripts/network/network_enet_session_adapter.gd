@@ -12,6 +12,7 @@ extends Node
 const LifecycleAdapter := preload("res://scripts/network/network_snapshot_lifecycle_adapter.gd")
 const TransportSecurity := preload("res://scripts/network/network_transport_security.gd")
 const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
+const BoardingAuthority := preload("res://scripts/network/network_boarding_authority.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -21,6 +22,7 @@ signal snapshot_published(packet: Dictionary)
 signal snapshot_applied(result: Dictionary)
 signal transport_rejected(status: StringName)
 signal movement_intent_result(result: Dictionary)
+signal boarding_intent_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -30,6 +32,7 @@ var _peer: ENetMultiplayerPeer
 var _lifecycle
 var _transport
 var _movement
+var _boarding
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -42,6 +45,7 @@ func _init() -> void:
 	_lifecycle = LifecycleAdapter.new(AUTHORITY_PEER_ID)
 	_transport = TransportSecurity.new(AUTHORITY_PEER_ID)
 	_movement = MovementAuthority.new(AUTHORITY_PEER_ID)
+	_boarding = BoardingAuthority.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -86,6 +90,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 			var generation := int(_peer_generations.get(peer_id, 0))
 			if generation > 0:
 				_lifecycle.disconnect_peer(AUTHORITY_PEER_ID, peer_id, generation)
+			_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -147,6 +152,51 @@ func send_movement_intent(wire: Dictionary) -> Dictionary:
 	return _remember(_result(true, &"queued"))
 
 
+func register_boarding_ship(
+	ship_id: StringName,
+	ship_generation: int,
+	frame_id: StringName,
+	frame_generation: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_boarding.register_ship(
+		AUTHORITY_PEER_ID, ship_id, ship_generation, frame_id, frame_generation
+	))
+
+
+func register_boarding_seat(
+	seat_id: StringName,
+	ship_id: StringName,
+	seat_generation: int,
+	role: StringName
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_boarding.register_seat(
+		AUTHORITY_PEER_ID, seat_id, ship_id, seat_generation, role
+	))
+
+
+func set_boarding_server_tick(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_boarding.set_server_tick(AUTHORITY_PEER_ID, server_tick))
+
+
+func send_boarding_intent(wire: Dictionary) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	if not _configured:
+		return _remember(_result(false, &"not_started"))
+	_receive_boarding_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	return _remember(_result(true, &"queued"))
+
+
+func get_boarding_snapshot() -> Dictionary:
+	return _boarding.get_snapshot()
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -176,6 +226,15 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 	var source_peer_id := multiplayer.get_remote_sender_id()
 	var result: Dictionary = _movement.accept_intent(source_peer_id, wire)
 	movement_intent_result.emit(result.duplicate(true))
+
+
+@rpc("any_peer", "reliable")
+func _receive_boarding_intent(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var source_peer_id := multiplayer.get_remote_sender_id()
+	var result: Dictionary = _boarding.accept_intent(source_peer_id, wire)
+	boarding_intent_result.emit(result.duplicate(true))
 
 
 @rpc("any_peer", "reliable")
@@ -258,6 +317,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	var receipt: Dictionary = _lifecycle.disconnect_peer(
 		AUTHORITY_PEER_ID, peer_id, peer_generation
 	)
+	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_peer_generations.erase(peer_id)
 	peer_disconnected.emit(peer_id, receipt.duplicate(true))
 

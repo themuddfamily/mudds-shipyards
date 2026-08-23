@@ -2,6 +2,7 @@ extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const MovementIntent := preload("res://scripts/network/network_movement_intent.gd")
+const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 
 var _failures: Array[String] = []
 var _server: Adapter
@@ -9,6 +10,7 @@ var _client: Adapter
 var _server_admissions: Array[Dictionary] = []
 var _client_applies: Array[Dictionary] = []
 var _movement_results: Array[Dictionary] = []
+var _boarding_results: Array[Dictionary] = []
 var _branches: Array[Dictionary] = []
 
 
@@ -40,6 +42,9 @@ func _initialize() -> void:
 	)
 	_server.movement_intent_result.connect(func(result: Dictionary) -> void:
 		_movement_results.append(result)
+	)
+	_server.boarding_intent_result.connect(func(result: Dictionary) -> void:
+		_boarding_results.append(result)
 	)
 	_client.snapshot_applied.connect(func(result: Dictionary) -> void:
 		_client_applies.append(result)
@@ -87,6 +92,31 @@ func _initialize() -> void:
 		_movement_results.size() == 3 and _movement_results[2].get("status") == &"spoofed_peer",
 		"server rejects a movement packet that spoofs its peer identity"
 	)
+	_check(
+		bool(_server.register_boarding_ship(&"ship-1", 1, &"frame-1", 1).get("accepted", false)),
+		"server registers the boarding ship and moving frame generations"
+	)
+	_check(
+		bool(_server.register_boarding_seat(&"seat-1", &"ship-1", 1, &"pilot").get("accepted", false)),
+		"server registers the authoritative pilot seat"
+	)
+	_check(bool(_server.set_boarding_server_tick(1).get("accepted", false)), "server opens the boarding tick window")
+	var boarding = BoardingIntent.create(
+		client_peer_id, &"avatar-1", &"ship-1", 1, &"frame-1", 1,
+		&"seat-1", 1, &"pilot", 0, 1, BoardingIntent.ACTION_BOARD
+	)
+	_check(bool(_client.send_boarding_intent(boarding.to_dictionary()).get("accepted", false)), "client queues boarding intent over RPC")
+	await _pump_until(func() -> bool: return _boarding_results.size() == 1, 3.0)
+	_check(
+		_boarding_results.size() == 1 and bool(_boarding_results[0].get("accepted", false)),
+		"server accepts the admitted peer's boarding request"
+	)
+	_client.send_boarding_intent(boarding.to_dictionary())
+	await _pump_until(func() -> bool: return _boarding_results.size() == 2, 3.0)
+	_check(
+		_boarding_results.size() == 2 and _boarding_results[1].get("status") == &"stale_sequence",
+		"server rejects a replayed boarding sequence"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -109,6 +139,10 @@ func _initialize() -> void:
 	)
 	_server.shutdown()
 	_client.shutdown()
+	_check(
+		(_server.get_boarding_snapshot().get("occupancies", []) as Array).is_empty(),
+		"server disconnect cleanup releases boarding occupancy"
+	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),
 		"server shutdown leaves no admitted peer records"
