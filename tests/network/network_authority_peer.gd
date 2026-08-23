@@ -14,6 +14,7 @@ func _init() -> void:
 	_adapter = Adapter.new()
 	root.add_child(_adapter)
 	_adapter.moving_interior_result.connect(_on_moving_interior_result)
+	_adapter.damage_respawn_result.connect(_on_damage_respawn_result)
 	call_deferred(&"_start")
 
 
@@ -126,7 +127,49 @@ func _server_loop() -> void:
 					_log("TRANSFER_COMMAND_REJECTED_%s" % fresh_b.get("status", &"unknown"))
 			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			_adapter.reset_remote_ship_pilot(&"jovian_passenger_craft", &"disconnect")
+			var damage_registration := _adapter.register_damage_entity(
+				passenger_peer, &"jovian_authority_craft", 2, 1
+			)
+			var destroyed := _adapter.publish_damage_respawn_snapshot(
+				&"jovian_authority_craft", 2, 0.0, &"destroyed", true, 1, peer_ids, 51
+			)
+			var moving_release := _adapter.publish_moving_interior_release(
+				&"jovian_passenger", 1, peer_ids
+			)
+			if bool(damage_registration.get("accepted", false)) \
+				and bool(destroyed.get("accepted", false)) \
+				and bool(moving_release.get("accepted", false)):
+				_log("CRAFT_DESTROYED")
+				_adapter._damage_respawn.retire_entity(1, &"jovian_authority_craft", 2)
+				_adapter._damage_entities.erase(&"jovian_authority_craft")
+				_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"destroyed")
+				_log("OLD_REPLICAS_CLEARED")
+				var respawn_registration := _adapter.register_damage_entity(
+					passenger_peer, &"jovian_authority_craft", 3, 2
+				)
+				var respawn_pilot := _adapter.register_remote_ship_pilot(
+					passenger_peer, &"jovian_authority_craft", 3
+				)
+				var respawn := _adapter.publish_damage_respawn_snapshot(
+					&"jovian_authority_craft", 3, 100.0, &"active", false, 2, peer_ids, 52
+				)
+				if bool(respawn_registration.get("accepted", false)) \
+					and bool(respawn_pilot.get("accepted", false)) \
+					and bool(respawn.get("accepted", false)):
+					_adapter._remote_ship_commands._authority.set_server_tick(1, 52)
+					var respawn_command: Dictionary = _adapter._remote_ship_commands.accept_command(
+						passenger_peer, _movement_command(passenger_peer, 0, 3, 0, 52)
+					)
+					if bool(respawn_command.get("accepted", false)):
+						_log("CRAFT_RESPAWNED")
+						_log("RESPAWN_COMMAND_ACCEPTED")
+						var respawn_delivery := _adapter.consume_remote_ship_command(
+							&"jovian_authority_craft", 52
+						)
+						if bool(respawn_delivery.get("accepted", false)):
+							_log("RESPAWN_AUTHORITATIVE_DELIVERED")
 			_log("TRANSFER_CLEAN_DISCONNECT")
+			_adapter.reset_remote_ship_pilot(&"jovian_authority_craft", &"disconnect")
 			await create_timer(0.8).timeout
 			quit(0)
 			return
@@ -167,6 +210,21 @@ func _on_moving_interior_result(result: Dictionary) -> void:
 	var status := StringName(result.get("status", &""))
 	if status == &"moving_interior_presented":
 		_log("RELATIONSHIP_STABLE")
+	elif status == &"moving_interior_release_applied":
+		_log("RELATIONSHIP_RELEASED")
+
+
+func _on_damage_respawn_result(result: Dictionary) -> void:
+	if StringName(result.get("status", &"")) != &"damage_presented":
+		return
+	var samples := result.get("samples", []) as Array
+	if samples.is_empty():
+		return
+	var state := StringName((samples[0] as Dictionary).get("state", &""))
+	if state == &"destroyed":
+		_log("DAMAGE_DESTROYED_PRESENTED")
+	elif state == &"active":
+		_log("DAMAGE_RESPAWN_PRESENTED")
 
 
 func _parse_args() -> void:

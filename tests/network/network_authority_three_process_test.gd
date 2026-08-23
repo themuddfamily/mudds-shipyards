@@ -59,12 +59,17 @@ func _evidence_complete() -> bool:
 		"AUTHORITATIVE_DELIVERED", "CORRECTION_BOUNDED", "PILOT_A_RELEASED",
 		"PILOT_B_CLAIMED", "PILOT_TRANSFER_ATOMIC", "STALE_A_REJECTED",
 		"TRANSFER_COMMAND_ACCEPTED", "TRANSFER_AUTHORITATIVE_DELIVERED",
+		"CRAFT_DESTROYED", "OLD_REPLICAS_CLEARED", "CRAFT_RESPAWNED",
+		"RESPAWN_COMMAND_ACCEPTED", "RESPAWN_AUTHORITATIVE_DELIVERED",
 		"TRANSFER_CLEAN_DISCONNECT",
 	]:
 		if not server_log.contains(marker):
 			return false
 	for client_log in [client_a_log, client_b_log]:
 		if not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \
+			or not client_log.contains("RELATIONSHIP_RELEASED") \
+			or not client_log.contains("DAMAGE_DESTROYED_PRESENTED") \
+			or not client_log.contains("DAMAGE_RESPAWN_PRESENTED") \
 			or not client_log.contains("CLIENT_CLEAN"):
 			return false
 	return true
