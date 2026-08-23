@@ -47,6 +47,7 @@ var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
 var _mining_presentation_consumer: Callable
+var _structure_scan_presentation_consumer: Callable
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
@@ -540,25 +541,49 @@ func _publish_mining_presentation() -> void:
 func start_structure_scan(caller_position: Vector3) -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
-	return _scan_activity.call("start", caller_position)
+	var result: Dictionary = _scan_activity.call("start", caller_position)
+	_publish_structure_scan_presentation()
+	return result
 
 
 func advance_structure_scan(delta: float) -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
-	return _scan_activity.call("advance_physics", delta)
+	var result: Dictionary = _scan_activity.call("advance_physics", delta)
+	_publish_structure_scan_presentation()
+	return result
 
 
 func request_structure_scan_reward() -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
-	return _scan_activity.call("request_reward")
+	var result: Dictionary = _scan_activity.call("request_reward")
+	_publish_structure_scan_presentation()
+	return result
 
 
 func reset_structure_scan() -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
-	return _scan_activity.call("reset")
+	var result: Dictionary = _scan_activity.call("reset")
+	_publish_structure_scan_presentation()
+	return result
+
+
+func bind_structure_scan_presentation(consumer: Callable) -> Dictionary:
+	if not consumer.is_valid() or _structure_scan_presentation_consumer.is_valid():
+		return _result(false, &"structure_scan_presentation_binding_rejected")
+	_structure_scan_presentation_consumer = consumer
+	_publish_structure_scan_presentation()
+	return _result(true, &"structure_scan_presentation_bound")
+
+
+func _publish_structure_scan_presentation() -> void:
+	if not _structure_scan_presentation_consumer.is_valid() or _scan_activity == null:
+		return
+	_structure_scan_presentation_consumer.call(
+		(_scan_activity.call("get_snapshot") as Dictionary).duplicate(true)
+	)
 
 
 func start_beacon_traversal(caller_position: Vector3) -> Dictionary:

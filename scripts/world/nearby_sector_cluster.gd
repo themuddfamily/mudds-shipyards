@@ -211,6 +211,9 @@ const STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
 const STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET := 15
 const STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET := 2
 const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 18
+const STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA := 0
+const STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA := 0
+const STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA := 0
 
 const PERFORMANCE_BUDGET := {
 	# Includes the production cargo access route (21 bodies/21 meshes/two
@@ -273,6 +276,7 @@ var _streaming_transition: CinderStreamingTransitionPresentation
 var _cargo_access: CinderCargoAccess
 var _cargo_destination_terminal: CargoTransferTerminal
 var _mining_presentation_snapshot: Dictionary = {}
+var _structure_scan_presentation_snapshot: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -961,6 +965,18 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 			or not presentation.find_children("*", "CollisionShape3D", true, false).is_empty() \
 			or not presentation.find_children("*", "Area3D", true, false).is_empty()):
 		errors.append("structure_scan_gained_collision_or_interaction_authority")
+	var state_feedback := get_structure_scan_presentation_state()
+	if (
+		StringName(state_feedback.get("activity_id", &"")) != STRUCTURE_SCAN_ACTIVITY_ID
+		or StringName(state_feedback.get("state_id", &"")) \
+			not in [&"available", &"scanning", &"completed", &"reset"]
+		or int(state_feedback.get("node_delta", -1)) != 0
+		or int(state_feedback.get("light_delta", -1)) != 0
+		or int(state_feedback.get("submission_delta", -1)) != 0
+		or bool(state_feedback.get("scan_authority", true))
+		or bool(state_feedback.get("reward_authority", true))
+	):
+		errors.append("structure_scan_state_feedback_contract_drift")
 	errors.sort()
 	return {
 		"valid": errors.is_empty(),
@@ -985,6 +1001,7 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 			"light_nodes": STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET,
 			"descendant_nodes": STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET,
 		},
+		"state_feedback": state_feedback,
 		"approach_readable": local_bounds.size.x >= 44.0 \
 			and local_bounds.size.y >= 30.0,
 		"scan_authority": false,
@@ -1922,6 +1939,90 @@ func _build_structure_scan_presentation(platform: Node3D) -> void:
 	_lamp(presentation, "DerelictDatumLampPort", Vector3(-22.0, 28.0, 0.0), KETH_ORANGE, 1.1, 20.0, false)
 	_lamp(presentation, "DerelictDatumLampStarboard", Vector3(22.0, 27.0, 0.0), MOONLET_TEAL, 0.8, 18.0, false)
 	_sign(presentation, "DERELICT SCAN", Vector3(0.0, 23.0, 4.0), Vector3.ZERO, 2.0, _materials["orange_glow"])
+	_activity_binding.call(
+		"bind_structure_scan_presentation",
+		Callable(self, "_apply_structure_scan_activity_presentation")
+	)
+
+
+## Detached scan state drives only the two existing datum practicals and sign.
+## Collision, scan progression, completion, and reward requests remain external.
+func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictionary:
+	if StringName(snapshot.get("activity_id", &"")) != STRUCTURE_SCAN_ACTIVITY_ID:
+		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
+	var generation := int(snapshot.get("generation", -1))
+	var state := int(snapshot.get("state", -1))
+	var elapsed := float(snapshot.get("elapsed_seconds", -1.0))
+	var duration := float(snapshot.get("scan_seconds", 0.0))
+	if generation < 0 or state < 0 or state > 3 or elapsed < 0.0 or duration <= 0.0:
+		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
+	var presentation := get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/AbandonedStructureScanPresentation"
+	) as Node3D
+	if presentation == null:
+		return {"accepted": false, "reason": &"presentation_unavailable"}
+	var port := presentation.get_node_or_null(^"DerelictDatumLampPort") as OmniLight3D
+	var starboard := presentation.get_node_or_null(^"DerelictDatumLampStarboard") as OmniLight3D
+	var port_lens := presentation.get_node_or_null(^"DerelictDatumLampPortLens") as MeshInstance3D
+	var starboard_lens := presentation.get_node_or_null(^"DerelictDatumLampStarboardLens") as MeshInstance3D
+	var sign := presentation.get_node_or_null(^"Sign_DERELICT_SCAN") as MeshInstance3D
+	if port == null or starboard == null or port_lens == null or starboard_lens == null or sign == null:
+		return {"accepted": false, "reason": &"presentation_roster_incomplete"}
+	var progress := clampf(elapsed / duration, 0.0, 1.0)
+	var state_id: StringName = &"available"
+	port.light_color = KETH_ORANGE
+	starboard.light_color = MOONLET_TEAL
+	port_lens.material_override = _lens_material(KETH_ORANGE)
+	starboard_lens.material_override = _lens_material(MOONLET_TEAL)
+	port.light_energy = 0.45
+	starboard.light_energy = 0.45
+	sign.material_override = _materials["orange_glow"]
+	sign.scale = Vector3.ONE * 2.0
+	match state:
+		CinderAbandonedStructureScanActivity.State.SCANNING:
+			state_id = &"scanning"
+			port.light_energy = lerpf(2.6, 0.9, progress)
+			starboard.light_energy = lerpf(0.9, 2.6, progress)
+			sign.material_override = _materials["cyan_glow"]
+			sign.scale = Vector3.ONE * 2.15
+		CinderAbandonedStructureScanActivity.State.COMPLETE:
+			state_id = &"completed"
+			port.light_color = KETH_CYAN
+			starboard.light_color = KETH_CYAN
+			port_lens.material_override = _lens_material(KETH_CYAN)
+			starboard_lens.material_override = _lens_material(KETH_CYAN)
+			port.light_energy = 2.8
+			starboard.light_energy = 2.8
+			sign.material_override = _materials["cyan_glow"]
+			sign.scale = Vector3.ONE * 2.35
+		CinderAbandonedStructureScanActivity.State.RESET:
+			state_id = &"reset"
+			port.light_energy = 0.2
+			starboard.light_energy = 0.2
+		_:
+			pass
+	_structure_scan_presentation_snapshot = {
+		"activity_id": STRUCTURE_SCAN_ACTIVITY_ID,
+		"state_id": state_id,
+		"authority_state": state,
+		"generation": generation,
+		"progress": progress,
+		"port_energy": port.light_energy,
+		"starboard_energy": starboard.light_energy,
+		"port_color": port.light_color,
+		"starboard_color": starboard.light_color,
+		"sign_scale": sign.scale.x,
+		"node_delta": STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA,
+		"light_delta": STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA,
+		"submission_delta": STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA,
+		"scan_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"structure_scan_presentation_applied"}
+
+
+func get_structure_scan_presentation_state() -> Dictionary:
+	return _structure_scan_presentation_snapshot.duplicate(true)
 
 
 ## Four identical visual-only ribs use the exact cached bevel mesh, steel
