@@ -10,6 +10,10 @@ extends Node
 
 signal binding_changed(snapshot: Dictionary)
 signal evaluation_committed(snapshot: Dictionary)
+signal final_approach_changed(snapshot: Dictionary)
+signal final_approach_completed(receipt: Dictionary)
+
+enum FinalApproachState { NONE, ARMED, ACTIVE, COMPLETED, ABORTED }
 
 const SCHEMA_VERSION := 1
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
@@ -17,6 +21,12 @@ const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 ## engagement requirement. Higher current speeds fail closed when this horizon
 ## cannot cover their larger braking envelope.
 const CLEARANCE_PROOF_HORIZON_METERS := 750_000.0
+const FINAL_APPROACH_TARGET_ID: StringName = &"FINAL_APPROACH"
+const FINAL_APPROACH_ACCELERATION_MPS2 := 500.0
+const FINAL_APPROACH_BRAKING_MPS2 := 750.0
+const FINAL_APPROACH_TRANSIT_SPEED_MPS := 5_000.0
+const FINAL_APPROACH_TERMINAL_DISTANCE_M := 500.0
+const FINAL_APPROACH_TERMINAL_SPEED_MPS := 10.0
 const PlanetaryCruisePolicyType := preload(
 	"res://scripts/world/planetary_cruise_policy.gd"
 )
@@ -26,6 +36,84 @@ const _COMMON_AUTHORITY_KEYS := [
 	"world_generation", "terrain_generation", "collision_generation",
 	"origin_shift", "weather_clock", "audio",
 ]
+
+
+class FinalApproachTarget:
+	extends RefCounted
+
+	var target_id: StringName = FINAL_APPROACH_TARGET_ID
+	var target_generation := 0
+	var coordinate_frame_generation := 0
+	var location_generation := 0
+	var landing_root_instance_id := 0
+	var corridor_id: StringName = &""
+	var target_pad_id: StringName = &""
+	var target_world_transform := Transform3D.IDENTITY
+	var corridor_half_extents_m := Vector3.ZERO
+	var entry_position_half_extents_m := Vector3.ZERO
+	var maximum_speed_mps := 0.0
+	var maximum_attitude_degrees := 0.0
+	var hull_margin_m := 0.0
+	var collision_bounds := AABB()
+
+	func validation_reason() -> StringName:
+		if target_id != FINAL_APPROACH_TARGET_ID or target_generation < 1:
+			return &"final_approach_target_identity_invalid"
+		if coordinate_frame_generation < 1 or location_generation < 1 \
+				or landing_root_instance_id < 1:
+			return &"final_approach_target_generation_invalid"
+		if corridor_id.is_empty() or target_pad_id.is_empty():
+			return &"final_approach_corridor_identity_invalid"
+		if not _transform_is_finite(target_world_transform) \
+				or not corridor_half_extents_m.is_finite() \
+				or not entry_position_half_extents_m.is_finite() \
+				or not collision_bounds.position.is_finite() \
+				or not collision_bounds.size.is_finite():
+			return &"final_approach_target_nonfinite"
+		if corridor_half_extents_m.x <= 0.0 \
+				or corridor_half_extents_m.y <= 0.0 \
+				or corridor_half_extents_m.z <= 0.0 \
+				or entry_position_half_extents_m.x <= 0.0 \
+				or entry_position_half_extents_m.y <= 0.0 \
+				or entry_position_half_extents_m.z <= 0.0 \
+				or entry_position_half_extents_m.x > corridor_half_extents_m.x \
+				or entry_position_half_extents_m.y > corridor_half_extents_m.y \
+				or entry_position_half_extents_m.z > corridor_half_extents_m.z \
+				or collision_bounds.size.x <= 0.0 \
+				or collision_bounds.size.y <= 0.0 \
+				or collision_bounds.size.z <= 0.0:
+			return &"final_approach_target_extents_invalid"
+		if not is_finite(maximum_speed_mps) or maximum_speed_mps <= 0.0 \
+				or maximum_speed_mps > 12.0 \
+				or not is_finite(maximum_attitude_degrees) \
+				or maximum_attitude_degrees <= 0.0 \
+				or maximum_attitude_degrees > 12.0 \
+				or not is_finite(hull_margin_m) or hull_margin_m < 0.0:
+			return &"final_approach_target_limits_invalid"
+		return &""
+
+	func get_snapshot() -> Dictionary:
+		return {
+			"target_id": target_id,
+			"target_generation": target_generation,
+			"coordinate_frame_generation": coordinate_frame_generation,
+			"location_generation": location_generation,
+			"landing_root_instance_id": landing_root_instance_id,
+			"corridor_id": corridor_id,
+			"target_pad_id": target_pad_id,
+			"target_world_transform": target_world_transform,
+			"corridor_half_extents_m": corridor_half_extents_m,
+			"entry_position_half_extents_m": entry_position_half_extents_m,
+			"maximum_speed_mps": maximum_speed_mps,
+			"maximum_attitude_degrees": maximum_attitude_degrees,
+			"hull_margin_m": hull_margin_m,
+			"collision_bounds": collision_bounds,
+		}.duplicate(true)
+
+	static func _transform_is_finite(value: Transform3D) -> bool:
+		return value.origin.is_finite() and value.basis.x.is_finite() \
+			and value.basis.y.is_finite() and value.basis.z.is_finite() \
+			and not is_zero_approx(value.basis.determinant())
 
 var _policy := PlanetaryCruisePolicyType.new()
 var _ship_ref: WeakRef
@@ -39,6 +127,11 @@ var _mutation_active := false
 var _signal_dispatch_active := false
 var _last_result: Dictionary = {}
 var _last_envelope: Dictionary = {}
+var _final_approach_target: FinalApproachTarget
+var _final_approach_state := FinalApproachState.NONE
+var _final_approach_generation := 0
+var _last_final_approach_reason: StringName = &"not_requested"
+var _last_final_approach_receipt: Dictionary = {}
 
 
 func _exit_tree() -> void:
@@ -102,6 +195,64 @@ func bind_ship(
 	return _receipt(true, &"attached")
 
 
+func arm_final_approach(
+		target: FinalApproachTarget,
+		expected_coordinate_frame_generation: int,
+		expected_generation: int,
+	) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _receipt(false, &"reentrant_call")
+	var binding_reason := _validate_binding(
+		expected_coordinate_frame_generation, expected_generation
+	)
+	if not binding_reason.is_empty():
+		return _receipt(false, binding_reason)
+	if target == null:
+		return _receipt(false, &"final_approach_target_unavailable")
+	var target_reason := target.validation_reason()
+	if not target_reason.is_empty():
+		return _receipt(false, target_reason)
+	if target.coordinate_frame_generation != _coordinate_frame_generation:
+		return _receipt(false, &"final_approach_frame_generation_mismatch")
+	if _final_approach_state in [
+		FinalApproachState.ARMED, FinalApproachState.ACTIVE,
+		FinalApproachState.COMPLETED,
+	]:
+		return _receipt(false, &"final_approach_already_requested")
+	_mutation_active = true
+	_final_approach_target = target
+	_final_approach_generation = target.target_generation
+	_final_approach_state = FinalApproachState.ARMED
+	_last_final_approach_reason = &"final_approach_armed"
+	_last_final_approach_receipt.clear()
+	_mutation_active = false
+	_emit_final_approach_changed()
+	return _final_approach_result(true, _last_final_approach_reason)
+
+
+func abort_final_approach(
+		reason: StringName,
+		expected_target_generation: int,
+		expected_generation: int,
+	) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _final_approach_result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _final_approach_result(false, &"generation_mismatch")
+	if expected_target_generation != _final_approach_generation:
+		return _final_approach_result(false, &"final_approach_generation_mismatch")
+	if _final_approach_state not in [
+		FinalApproachState.ARMED, FinalApproachState.ACTIVE,
+	]:
+		return _final_approach_result(false, &"final_approach_not_active")
+	_mutation_active = true
+	_final_approach_state = FinalApproachState.ABORTED
+	_last_final_approach_reason = reason
+	_mutation_active = false
+	_emit_final_approach_changed()
+	return _final_approach_result(true, reason)
+
+
 ## Produces and submits exactly one proof-bearing envelope for the next ship
 ## physics tick. Callers must invoke this once per physics tick while cruise is
 ## desired; missing cadence makes HeroShip brake on its next tick.
@@ -125,6 +276,16 @@ func evaluate_and_submit(
 	if ship == null:
 		_clear_binding(&"ship_unavailable", true)
 		return _receipt(false, &"ship_unavailable")
+	if _final_approach_state == FinalApproachState.ACTIVE:
+		var completion := _measure_final_approach(ship)
+		if bool(completion.get("accepted", false)):
+			return _commit_final_approach_completion(completion)
+		var retarget := _final_approach_policy_destination(ship)
+		if not retarget.is_finite():
+			return _commit_evaluation_rejection(
+				&"final_approach_retarget_nonfinite", completion
+			)
+		destination_world = retarget
 	var offset := destination_world - ship.global_position
 	var distance := offset.length()
 	if not is_finite(distance) \
@@ -193,6 +354,28 @@ func evaluate_and_submit(
 				"policy": policy_result.duplicate(true),
 			}
 		)
+	if _final_approach_state == FinalApproachState.ARMED \
+			and not bool(policy_result.get("desired_cruise_participation", false)):
+		var policy_reason := StringName(
+			policy_result.get("reason", &"policy_disengaged")
+		)
+		if policy_reason in [
+			&"destination_braking_envelope", &"insufficient_verified_clearance",
+		]:
+			_mutation_active = true
+			_final_approach_state = FinalApproachState.ACTIVE
+			_last_final_approach_reason = &"final_approach_activated"
+			_mutation_active = false
+			_emit_final_approach_changed()
+			return evaluate_and_submit(
+				destination_world, combat_active,
+				expected_coordinate_frame_generation, expected_generation
+			)
+		_mutation_active = true
+		_final_approach_state = FinalApproachState.ABORTED
+		_last_final_approach_reason = policy_reason
+		_mutation_active = false
+		_emit_final_approach_changed()
 	if _sequence >= MAX_SAFE_INTEGER:
 		return _commit_evaluation_rejection(&"sequence_exhausted", {})
 	var candidate_sequence := _sequence + 1
@@ -343,6 +526,7 @@ func get_snapshot() -> Dictionary:
 		"sequence": _sequence,
 		"last_result": _last_result.duplicate(true),
 		"last_envelope": _last_envelope.duplicate(true),
+		"final_approach": _final_approach_snapshot(),
 	}.duplicate(true)
 
 
@@ -356,12 +540,15 @@ func audit() -> Dictionary:
 		"movement_owner": &"hero_ship",
 		"command_delivery": &"one_detached_envelope_per_physics_tick",
 		"fixed_orientation": true,
+		"final_approach_policy": &"existing_cruise_policy_dynamic_brake_retarget",
 		"common_authority": _zero_authority(),
 		"adjacent_capabilities": {
 			"policy_evaluation": true,
 			"collision_query_request": true,
 			"clearance_proof_request": true,
 			"intent_submission": true,
+			"typed_final_approach_target": true,
+			"final_approach_completion_measurement": true,
 			"input_sampling": false,
 			"velocity_write": false,
 			"move_and_slide": false,
@@ -371,6 +558,148 @@ func audit() -> Dictionary:
 			"combat_decision": false,
 		}.duplicate(true),
 	}.duplicate(true)
+
+
+func _measure_final_approach(ship: HeroShip) -> Dictionary:
+	if _final_approach_target == null:
+		return {"accepted": false, "reason": &"final_approach_target_unavailable"}
+	var target := _final_approach_target
+	var ship_transform := ship.global_transform
+	if not ship_transform.origin.is_finite() \
+			or not ship_transform.basis.x.is_finite() \
+			or not ship.velocity.is_finite():
+		return {"accepted": false, "reason": &"final_approach_actor_nonfinite"}
+	var entry_local := target.target_world_transform.affine_inverse() \
+		* ship_transform.origin
+	var speed := ship.velocity.length()
+	var attitude := rad_to_deg(
+		Quaternion(target.target_world_transform.basis.orthonormalized()).angle_to(
+			Quaternion(ship_transform.basis.orthonormalized())
+		)
+	)
+	var root_inside := _point_inside(
+		entry_local, target.entry_position_half_extents_m, 0.0
+	)
+	var hull_inside := _oriented_bounds_inside(
+		target.target_world_transform, target.corridor_half_extents_m,
+		ship_transform, target.collision_bounds, target.hull_margin_m
+	)
+	var accepted := root_inside and hull_inside \
+		and speed <= target.maximum_speed_mps \
+		and attitude <= target.maximum_attitude_degrees
+	return {
+		"accepted": accepted,
+		"reason": &"final_approach_envelope_accepted" if accepted \
+			else &"final_approach_converging",
+		"target_generation": _final_approach_generation,
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"ship_instance_id": _ship_instance_id,
+		"ship_attachment_generation": _ship_attachment_generation,
+		"position_offset_entry_local_m": entry_local,
+		"speed_mps": speed,
+		"attitude_degrees": attitude,
+		"root_inside_entry_volume": root_inside,
+		"full_hull_inside_authored_corridor": hull_inside,
+	}.duplicate(true)
+
+
+func _final_approach_policy_destination(ship: HeroShip) -> Vector3:
+	if _final_approach_target == null:
+		return Vector3.INF
+	var approach_direction := (
+		-_final_approach_target.target_world_transform.basis.z
+	).normalized()
+	if not approach_direction.is_finite() or approach_direction.is_zero_approx():
+		return Vector3.INF
+	# The existing policy adds response distance and a fixed braking margin to
+	# its physical stopping distance. Placing its ephemeral destination exactly
+	# that far beyond the accepted entry centre makes its unchanged brake-shell
+	# predicate reduce to `distance_to_entry <= physical_stopping_distance`.
+	# The Hero remains the only body that integrates the resulting envelope.
+	var policy_lead := ship.velocity.length() \
+		* PlanetaryCruisePolicyType.BRAKE_RESPONSE_SECONDS \
+		+ PlanetaryCruisePolicyType.BRAKE_FIXED_MARGIN_METERS
+	return _final_approach_target.target_world_transform.origin \
+		+ approach_direction * policy_lead
+
+
+func _commit_final_approach_completion(measurement: Dictionary) -> Dictionary:
+	_mutation_active = true
+	_final_approach_state = FinalApproachState.COMPLETED
+	_last_final_approach_reason = &"final_approach_completed"
+	_last_final_approach_receipt = {
+		"accepted": true,
+		"reason": &"final_approach_completed",
+		"schema_version": SCHEMA_VERSION,
+		"target_id": FINAL_APPROACH_TARGET_ID,
+		"target_generation": _final_approach_generation,
+		"controller_generation": _generation,
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"ship_instance_id": _ship_instance_id,
+		"ship_attachment_generation": _ship_attachment_generation,
+		"target": _final_approach_target.get_snapshot(),
+		"measurement": measurement.duplicate(true),
+	}.duplicate(true)
+	_last_result = {
+		"accepted": true,
+		"reason": &"final_approach_completed",
+		"schema_version": SCHEMA_VERSION,
+		"controller_generation": _generation,
+		"sequence": _sequence,
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"completion_receipt": _last_final_approach_receipt.duplicate(true),
+	}.duplicate(true)
+	_mutation_active = false
+	_emit_final_approach_changed()
+	_emit_final_approach_completed()
+	_emit_evaluation_committed()
+	return _last_result.duplicate(true)
+
+
+func _final_approach_snapshot() -> Dictionary:
+	return {
+		"state": _final_approach_state,
+		"state_id": _final_approach_state_id(_final_approach_state),
+		"target_generation": _final_approach_generation,
+		"reason": _last_final_approach_reason,
+		"target": _final_approach_target.get_snapshot() \
+			if _final_approach_target != null else {},
+		"last_completion_receipt": _last_final_approach_receipt.duplicate(true),
+	}.duplicate(true)
+
+
+static func _final_approach_state_id(state: int) -> StringName:
+	match state:
+		FinalApproachState.ARMED: return &"armed"
+		FinalApproachState.ACTIVE: return &"final_approach"
+		FinalApproachState.COMPLETED: return &"completed"
+		FinalApproachState.ABORTED: return &"aborted"
+		_: return &"none"
+
+
+static func _point_inside(
+		point: Vector3, half_extents: Vector3, margin: float
+	) -> bool:
+	return absf(point.x) <= half_extents.x - margin \
+		and absf(point.y) <= half_extents.y - margin \
+		and absf(point.z) <= half_extents.z - margin
+
+
+static func _oriented_bounds_inside(
+		volume_transform: Transform3D,
+		half_extents: Vector3,
+		body_transform: Transform3D,
+		bounds: AABB,
+		margin: float,
+	) -> bool:
+	var inverse := volume_transform.affine_inverse()
+	for x: float in [bounds.position.x, bounds.end.x]:
+		for y: float in [bounds.position.y, bounds.end.y]:
+			for z: float in [bounds.position.z, bounds.end.z]:
+				var corner := inverse * (body_transform * Vector3(x, y, z))
+				if not _point_inside(corner, half_extents, margin):
+					return false
+	return true
 
 
 func _validate_binding(
@@ -441,6 +770,12 @@ func _clear_binding(reason: StringName, advance_generation: bool) -> void:
 	_sequence = 0
 	_attached = false
 	_last_envelope = {}
+	if _final_approach_state in [
+		FinalApproachState.ARMED, FinalApproachState.ACTIVE,
+	]:
+		_final_approach_state = FinalApproachState.ABORTED
+		_last_final_approach_reason = reason
+	_final_approach_target = null
 	_last_result = {
 		"accepted": true,
 		"reason": reason,
@@ -466,6 +801,30 @@ func _emit_evaluation_committed() -> void:
 	_signal_dispatch_active = true
 	evaluation_committed.emit(_last_result.duplicate(true))
 	_signal_dispatch_active = false
+
+
+func _emit_final_approach_changed() -> void:
+	if _signal_dispatch_active:
+		return
+	_signal_dispatch_active = true
+	final_approach_changed.emit(_final_approach_snapshot())
+	_signal_dispatch_active = false
+
+
+func _emit_final_approach_completed() -> void:
+	if _signal_dispatch_active:
+		return
+	_signal_dispatch_active = true
+	final_approach_completed.emit(_last_final_approach_receipt.duplicate(true))
+	_signal_dispatch_active = false
+
+
+func _final_approach_result(
+		accepted: bool, reason: StringName
+	) -> Dictionary:
+	var result := _receipt(accepted, reason)
+	result["final_approach"] = _final_approach_snapshot()
+	return result.duplicate(true)
 
 
 func _receipt(accepted: bool, reason: StringName) -> Dictionary:
