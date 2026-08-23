@@ -273,6 +273,7 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 	if state_id in [&"active", &"completed"] and leg_count > 0:
 		summary += "  //  LEG %d/%d" % [mini(completed_legs + 1, leg_count), leg_count]
 	return {
+		"generation": maxi(int(state.get("generation", 0)), 0),
 		"threat_id": threat_id,
 		"semantic_cue_id": semantic_cue_id,
 		"caption_text": caption,

@@ -314,6 +314,8 @@ var _nearby_activity_page: Control
 var _nearby_activity_rows: VBoxContainer
 var _nearby_activity_feedback: Label
 var _nearby_activity_snapshot: Dictionary = {}
+var _last_nearby_convoy_semantic_transition := ""
+var _nearby_convoy_semantic_transition_serial := 0
 var _planetary_cruise_button: Button
 var _planetary_cruise_status_label: Label
 var _planetary_cruise_status_id: StringName = &"unavailable"
@@ -3898,7 +3900,44 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
 	var view: Dictionary = _nearby_activity_presenter.call("present", _nearby_activity_snapshot)
 	_render_nearby_activity_view(view)
+	_present_nearby_convoy_semantic_transition(view)
 	return view
+
+
+## Consumes push-driven convoy presenter transitions. Only critical and terminal
+## warnings enter the existing caption seam; activity and audio authority remain
+## with their current owners.
+func _present_nearby_convoy_semantic_transition(view: Dictionary) -> void:
+	for candidate in view.get("cards", []) as Array:
+		var card := candidate as Dictionary
+		if StringName(card.get("activity_id", &"")) != &"cinder_reach_emberline_convoy":
+			continue
+		var feedback := card.get("convoy_feedback", {}) as Dictionary
+		var cue_id := StringName(feedback.get("semantic_cue_id", &""))
+		var generation := maxi(int(feedback.get("generation", 0)), 0)
+		var transition := "%d|%s" % [generation, cue_id]
+		if transition == _last_nearby_convoy_semantic_transition:
+			return
+		_last_nearby_convoy_semantic_transition = transition
+		_nearby_convoy_semantic_transition_serial += 1
+		if cue_id not in [
+			&"convoy_escort_separation_critical",
+			&"convoy_escort_lost",
+		]:
+			return
+		present_semantic_audio_cue(
+			cue_id,
+			&"Cinder convoy",
+			1.0,
+			Vector3.ZERO,
+			{
+				"priority": 95,
+				"transition_id": "%d:%d:%s" % [
+					generation, _nearby_convoy_semantic_transition_serial, cue_id,
+				],
+			},
+		)
+		return
 
 
 func apply_nearby_activity_persistence_result(result: Dictionary) -> Dictionary:

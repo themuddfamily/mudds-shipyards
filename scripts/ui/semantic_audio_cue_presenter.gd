@@ -67,6 +67,8 @@ const REGISTERED_CUES := {
 	&"cargo_transfer_rejected": {"caption": "Cargo transfer rejected", "default_severity": &"high"},
 	&"cargo_transfer_activity_completed": {"caption": "Cargo transfer completed", "default_severity": &"low"},
 	&"cargo_transfer_aborted": {"caption": "Cargo transfer aborted", "default_severity": &"high"},
+	&"convoy_escort_separation_critical": {"caption": "Critical convoy separation. Rejoin now", "default_severity": &"high"},
+	&"convoy_escort_lost": {"caption": "Convoy lost", "default_severity": &"high"},
 	&"planetary_orbit_approach": {"caption": "Approaching planetary orbit", "default_severity": &"medium"},
 	&"planetary_atmospheric_entry": {"caption": "Planetary atmospheric entry", "default_severity": &"high"},
 	&"planetary_landed": {"caption": "Planetary landing complete", "default_severity": &"low"},
@@ -96,7 +98,12 @@ func present_cue(
 	var safe_intensity := clampf(intensity, 0.0, 1.0)
 	var definition := REGISTERED_CUES[cue_id] as Dictionary
 	var severity := _resolve_severity(definition.default_severity as StringName, safe_intensity)
-	var key := "%s|%s|%.3f|%s" % [cue_id, source_text, safe_intensity, world_position]
+	var transition_id := str(metadata.get("transition_id", "")).strip_edges()
+	if transition_id.length() > MAX_SOURCE_LENGTH or transition_id.contains("\n") or transition_id.contains("\r"):
+		return _rejected(&"invalid_transition_id")
+	var key := "%s|%s|%.3f|%s|%s" % [
+		cue_id, source_text, safe_intensity, world_position, transition_id,
+	]
 	if key == _last_key:
 		return _rejected(&"duplicate_cue")
 	_last_key = key
