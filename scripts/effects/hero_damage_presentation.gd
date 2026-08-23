@@ -23,6 +23,10 @@ signal component_effects_changed(active_component_count: int)
 ## by `ShipComponentDamage` and no listener may infer damage authority from them.
 signal component_failure_started(component_id: StringName, local_position: Vector3)
 signal component_failure_cleared(component_id: StringName)
+## A fully repaired, explicitly nominal caller state reuses its retiring damage
+## rig for one bounded cyan cooling cue. This is visual acknowledgement only.
+signal component_repair_cue_started(component_id: StringName, local_position: Vector3)
+signal component_repair_cue_finished(component_id: StringName)
 
 enum DamageStage {
 	HEALTHY,
@@ -105,7 +109,12 @@ const COMPONENT_STATE_IMPAIRED := 1
 const COMPONENT_STATE_FAILED := 2
 const COMPONENT_SPARK_AMOUNT := 28
 const COMPONENT_SMOKE_COLOR := Color(0.24, 0.22, 0.21, 0.46)
+const COMPONENT_REPAIR_CUE_LIFETIME := 0.48
+const COMPONENT_REPAIR_CUE_LIGHT_PEAK := 3.2
+const MAX_COMPONENT_REPAIR_CUES := 4
 var _component_effects: Dictionary = {}
+var _component_repair_cues: Array[Dictionary] = []
+var _component_repair_serial := 0
 
 var _damage_sparks: CPUParticles3D
 var _engine_failure_sparks: CPUParticles3D
@@ -144,12 +153,14 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	_update_local_cues()
 	_update_component_cues()
+	_update_component_repair_cues(delta)
 	_update_transient_effects(delta)
 	_update_destruction_effects(delta)
 
 
 func _exit_tree() -> void:
 	_tearing_down = true
+	_clear_component_repair_cues(false)
 	_clear_all_world_effects(false)
 
 
@@ -279,6 +290,7 @@ func set_component_damage_states(states: Array) -> int:
 	# always applies to the roster the craft is about to show rather than to a
 	# transient union with the previous one.
 	var requested: Dictionary = {}
+	var explicitly_nominal: Dictionary = {}
 	var order: Array[StringName] = []
 	for untyped_state: Variant in states:
 		if not untyped_state is Dictionary:
@@ -292,6 +304,7 @@ func set_component_damage_states(states: Array) -> int:
 			continue
 		var state := int(entry.get("state", COMPONENT_STATE_NOMINAL))
 		if state < COMPONENT_STATE_IMPAIRED:
+			explicitly_nominal[component_id] = local_position as Vector3
 			continue
 		requested[component_id] = {
 			"state": mini(state, COMPONENT_STATE_FAILED),
@@ -302,7 +315,11 @@ func set_component_damage_states(states: Array) -> int:
 	var changed := false
 	for existing_id: StringName in _component_effects.keys():
 		if not requested.has(existing_id):
-			changed = _retire_component_effect(existing_id) or changed
+			changed = _retire_component_effect(
+				existing_id,
+				explicitly_nominal.has(existing_id),
+				explicitly_nominal.get(existing_id, Vector3.ZERO) as Vector3
+			) or changed
 	for component_id: StringName in order:
 		var record: Dictionary = requested[component_id]
 		var state := int(record.state)
@@ -328,7 +345,7 @@ func clear_component_damage_effects() -> void:
 		return
 	var failed_before := _failed_component_ids_set()
 	for component_id: StringName in _component_effects.keys():
-		_retire_component_effect(component_id)
+		_retire_component_effect(component_id, false)
 	_emit_component_failure_clears(failed_before)
 	component_effects_changed.emit(0)
 
@@ -379,6 +396,7 @@ func _create_component_effect(
 		state: int,
 		local_position: Vector3
 	) -> void:
+	_clear_component_repair_cue_for_component(component_id)
 	var rig := Node3D.new()
 	rig.name = "ComponentDamage_%s" % String(component_id)
 	rig.position = local_position
@@ -452,19 +470,140 @@ func _update_component_effect(
 	return true
 
 
-func _retire_component_effect(component_id: StringName) -> bool:
+func _retire_component_effect(
+		component_id: StringName,
+		show_repair_cue := false,
+		repair_local_position := Vector3.ZERO
+) -> bool:
 	var effect: Dictionary = _component_effects.get(component_id, {})
 	if effect.is_empty():
 		return false
 	_component_effects.erase(component_id)
 	var rig := effect.get("root") as Node3D
 	if is_instance_valid(rig):
+		if (
+			show_repair_cue
+			and repair_local_position.is_finite()
+			and not _tearing_down
+			and is_inside_tree()
+			and _ship_state != STATE_HIDDEN
+			and _stage != DamageStage.DESTROYED
+		):
+			rig.position = repair_local_position
+			_start_component_repair_cue(component_id, effect)
+			return true
 		# Synchronous detachment keeps `get_active_component_effect_count()` and the
 		# child roster consistent for reset callers and tests in the same frame.
 		if not _tearing_down and rig.get_parent() != null:
 			rig.get_parent().remove_child(rig)
 		rig.queue_free()
 	return true
+
+
+func _start_component_repair_cue(component_id: StringName, effect: Dictionary) -> void:
+	while _component_repair_cues.size() >= MAX_COMPONENT_REPAIR_CUES:
+		_remove_component_repair_cue(0, true)
+	var rig := effect.get("root") as Node3D
+	var sparks := effect.get("sparks") as CPUParticles3D
+	var smoke := effect.get("smoke") as CPUParticles3D
+	var glow := effect.get("glow") as OmniLight3D
+	if not is_instance_valid(rig) or not is_instance_valid(glow):
+		if is_instance_valid(rig):
+			rig.queue_free()
+		return
+	_component_repair_serial += 1
+	rig.name = "ComponentRepair_%s_%03d" % [String(component_id), _component_repair_serial]
+	if is_instance_valid(sparks):
+		sparks.emitting = false
+	if is_instance_valid(smoke):
+		smoke.emitting = false
+	glow.light_color = ENGINE_CYAN
+	glow.light_energy = COMPONENT_REPAIR_CUE_LIGHT_PEAK
+	glow.omni_range = 3.8
+	_component_repair_cues.append({
+		"component_id": component_id,
+		"root": rig,
+		"glow": glow,
+		"remaining": COMPONENT_REPAIR_CUE_LIFETIME,
+		"duration": COMPONENT_REPAIR_CUE_LIFETIME,
+		"local_position": rig.position,
+	})
+	component_repair_cue_started.emit(component_id, rig.position)
+
+
+func _update_component_repair_cues(delta: float) -> void:
+	var index := _component_repair_cues.size() - 1
+	while index >= 0:
+		var cue := _component_repair_cues[index]
+		var root := cue.get("root") as Node3D
+		var glow := cue.get("glow") as OmniLight3D
+		var remaining := float(cue.get("remaining", 0.0)) - maxf(delta, 0.0)
+		if remaining <= 0.0 or not is_instance_valid(root) or not is_instance_valid(glow):
+			_remove_component_repair_cue(index, true)
+		else:
+			var duration := maxf(float(cue.get("duration", COMPONENT_REPAIR_CUE_LIFETIME)), 0.001)
+			var ratio := clampf(remaining / duration, 0.0, 1.0)
+			glow.light_energy = COMPONENT_REPAIR_CUE_LIGHT_PEAK * ratio * ratio
+			glow.omni_range = lerpf(2.2, 3.8, ratio)
+			cue["remaining"] = remaining
+			_component_repair_cues[index] = cue
+		index -= 1
+
+
+func _remove_component_repair_cue(index: int, emit_finished: bool) -> void:
+	if index < 0 or index >= _component_repair_cues.size():
+		return
+	var cue := _component_repair_cues[index]
+	var component_id := StringName(cue.get("component_id", &""))
+	var rig := cue.get("root") as Node3D
+	_component_repair_cues.remove_at(index)
+	if is_instance_valid(rig):
+		if not _tearing_down and rig.get_parent() != null:
+			rig.get_parent().remove_child(rig)
+		rig.queue_free()
+	if emit_finished:
+		component_repair_cue_finished.emit(component_id)
+
+
+func _clear_component_repair_cues(emit_finished: bool) -> void:
+	for index in range(_component_repair_cues.size() - 1, -1, -1):
+		_remove_component_repair_cue(index, emit_finished)
+
+
+func _clear_component_repair_cue_for_component(component_id: StringName) -> void:
+	for index in range(_component_repair_cues.size() - 1, -1, -1):
+		if StringName(_component_repair_cues[index].get("component_id", &"")) == component_id:
+			_remove_component_repair_cue(index, true)
+
+
+func get_active_component_repair_cue_count() -> int:
+	return _component_repair_cues.size()
+
+
+func get_component_repair_cue_snapshots() -> Array[Dictionary]:
+	var snapshots: Array[Dictionary] = []
+	for cue: Dictionary in _component_repair_cues:
+		var glow := cue.get("glow") as OmniLight3D
+		snapshots.append({
+			"component_id": StringName(cue.get("component_id", &"")),
+			"local_position": cue.get("local_position", Vector3.ZERO),
+			"remaining": float(cue.get("remaining", 0.0)),
+			"light_energy": glow.light_energy if is_instance_valid(glow) else 0.0,
+			"light_color": glow.light_color if is_instance_valid(glow) else Color.TRANSPARENT,
+		})
+	return snapshots.duplicate(true)
+
+
+func get_component_repair_cue_budget() -> Dictionary:
+	return {
+		"maximum_cues": MAX_COMPONENT_REPAIR_CUES,
+		"active_cues": _component_repair_cues.size(),
+		"lifetime_seconds": COMPONENT_REPAIR_CUE_LIFETIME,
+		"nodes_allocated_on_repair": 0,
+		"resources_allocated_on_repair": 0,
+		"reuses_retiring_damage_rig": true,
+		"gameplay_authority": false,
+	}.duplicate(true)
 
 
 func _failed_component_ids_set() -> Dictionary:
@@ -633,6 +772,7 @@ func present_destruction(
 	_ensure_built()
 	if is_queued_for_deletion() or _stage == DamageStage.DESTROYED:
 		return
+	_clear_component_repair_cues(false)
 	_last_world_velocity = world_velocity if world_velocity.is_finite() else Vector3.ZERO
 	_health_ratio = 0.0
 	_ship_state = STATE_DESTROYED
@@ -657,6 +797,7 @@ func reset_for_reuse(
 	_ensure_built()
 	_clear_all_world_effects(false)
 	clear_component_damage_effects()
+	_clear_component_repair_cues(false)
 	_pending_damage_presentations.clear()
 	_pending_damage_presentation_order.clear()
 	_pending_destruction = false
@@ -680,6 +821,7 @@ func reset_for_reuse(
 func dispose_effects() -> void:
 	_clear_all_world_effects(false)
 	clear_component_damage_effects()
+	_clear_component_repair_cues(false)
 	_pending_damage_presentations.clear()
 	_pending_damage_presentation_order.clear()
 	_pending_destruction = false

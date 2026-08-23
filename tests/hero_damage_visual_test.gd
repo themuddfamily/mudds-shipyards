@@ -112,6 +112,129 @@ func _run() -> void:
 		"spark allocation snapshots are deeply detached"
 	)
 
+	# Fully repaired component states reuse their retiring damage rig for one
+	# short cyan confirmation. Missing/malformed entries remain silent cleanup so
+	# presentation never invents a repair from incomplete caller data.
+	var repair_anchor := Vector3(2.4, -0.6, 4.8)
+	presentation.call("set_component_damage_states", [{
+		"id": &"engine",
+		"state": 2,
+		"local_position": repair_anchor,
+	}])
+	var damage_rig := presentation.get_node_or_null("ComponentDamage_engine") as Node3D
+	var damage_rig_id := damage_rig.get_instance_id() if damage_rig != null else 0
+	var damage_glow := damage_rig.get_node_or_null("ComponentGlow") as OmniLight3D if damage_rig != null else null
+	var damage_glow_id := damage_glow.get_instance_id() if damage_glow != null else 0
+	_check(
+		int(presentation.call("get_active_component_effect_count")) == 1
+		and damage_rig != null and damage_glow != null,
+		"resolved failed component creates its existing bounded localized rig"
+	)
+	presentation.call("set_component_damage_states", [])
+	_check(
+		int(presentation.call("get_active_component_effect_count")) == 0
+		and int(presentation.call("get_active_component_repair_cue_count")) == 0,
+		"an omitted component retires silently rather than inventing a repair cue"
+	)
+	await process_frame
+
+	presentation.call("set_component_damage_states", [{
+		"id": &"engine",
+		"state": 2,
+		"local_position": repair_anchor,
+	}])
+	damage_rig = presentation.get_node_or_null("ComponentDamage_engine") as Node3D
+	damage_rig_id = damage_rig.get_instance_id() if damage_rig != null else 0
+	damage_glow = damage_rig.get_node_or_null("ComponentGlow") as OmniLight3D if damage_rig != null else null
+	damage_glow_id = damage_glow.get_instance_id() if damage_glow != null else 0
+	presentation.call("set_component_damage_states", [{
+		"id": &"engine",
+		"state": 0,
+		"local_position": repair_anchor,
+	}])
+	var repair_snapshots := presentation.call("get_component_repair_cue_snapshots") as Array
+	var repair_rig := presentation.get_node_or_null("ComponentRepair_engine_001") as Node3D
+	var repair_glow := repair_rig.get_node_or_null("ComponentGlow") as OmniLight3D if repair_rig != null else null
+	_check(
+		int(presentation.call("get_active_component_effect_count")) == 0
+		and int(presentation.call("get_active_component_repair_cue_count")) == 1
+		and repair_rig != null and repair_rig.get_instance_id() == damage_rig_id
+		and repair_glow != null and repair_glow.get_instance_id() == damage_glow_id,
+		"explicit nominal repair reuses the retiring rig and glow without allocating nodes"
+	)
+	_check(
+		repair_snapshots.size() == 1
+		and repair_snapshots[0].component_id == &"engine"
+		and (repair_snapshots[0].local_position as Vector3).is_equal_approx(repair_anchor)
+		and (repair_snapshots[0].light_color as Color).is_equal_approx(Color("62efff"))
+		and is_equal_approx(float(repair_snapshots[0].light_energy), 3.2),
+		"repair cue appears cyan at the exact caller-owned component anchor"
+	)
+	var repair_budget := presentation.call("get_component_repair_cue_budget") as Dictionary
+	_check(
+		int(repair_budget.maximum_cues) == 4
+		and is_equal_approx(float(repair_budget.lifetime_seconds), 0.48)
+		and int(repair_budget.nodes_allocated_on_repair) == 0
+		and int(repair_budget.resources_allocated_on_repair) == 0
+		and not bool(repair_budget.gameplay_authority),
+		"repair acknowledgement publishes a fixed four-cue zero-allocation authority-free budget"
+	)
+	presentation.call("_update_component_repair_cues", 0.24)
+	repair_snapshots = presentation.call("get_component_repair_cue_snapshots") as Array
+	_check(
+		repair_snapshots.size() == 1
+		and float(repair_snapshots[0].remaining) < 0.48
+		and float(repair_snapshots[0].light_energy) > 0.0
+		and float(repair_snapshots[0].light_energy) < 3.2,
+		"repair light cools smoothly on the presentation clock"
+	)
+	presentation.call("_update_component_repair_cues", 0.25)
+	_check(
+		int(presentation.call("get_active_component_repair_cue_count")) == 0
+		and not is_instance_valid(repair_rig) or not repair_rig.is_inside_tree(),
+		"repair cue self-cleans after its exact 0.48-second lifetime"
+	)
+
+	# Five simultaneous repairs recycle one old cue and never exceed the four-cue
+	# cap; reuse and tree detach then clear all retained repair presentation.
+	var failed_roster: Array[Dictionary] = []
+	var nominal_roster: Array[Dictionary] = []
+	for component_index in 5:
+		var component_id := StringName("section_%d" % component_index)
+		var component_position := Vector3(float(component_index), 0.0, 1.0)
+		failed_roster.append({"id": component_id, "state": 2, "local_position": component_position})
+		nominal_roster.append({"id": component_id, "state": 0, "local_position": component_position})
+	presentation.call("set_component_damage_states", failed_roster)
+	presentation.call("set_component_damage_states", nominal_roster)
+	_check(
+		int(presentation.call("get_active_component_effect_count")) == 0
+		and int(presentation.call("get_active_component_repair_cue_count")) == 4,
+		"simultaneous repairs remain bounded to four reused visual rigs"
+	)
+	presentation.call("reset_for_reuse", 1.0, &"active")
+	_check(
+		int(presentation.call("get_active_component_repair_cue_count")) == 0
+		and presentation.find_children("ComponentRepair_*", "Node3D", true, false).is_empty(),
+		"reuse synchronously removes every repair cue"
+	)
+	presentation.call("set_component_damage_states", [{
+		"id": &"sensor",
+		"state": 2,
+		"local_position": Vector3(-1.0, 0.5, 2.0),
+	}])
+	presentation.call("set_component_damage_states", [{
+		"id": &"sensor",
+		"state": 0,
+		"local_position": Vector3(-1.0, 0.5, 2.0),
+	}])
+	transformed_ship.remove_child(presentation)
+	_check(
+		int(presentation.call("get_active_component_repair_cue_count")) == 0,
+		"tree detach synchronously clears repair acknowledgement"
+	)
+	transformed_ship.add_child(presentation)
+	await process_frame
+
 	# Exact threshold values enter the damaged and critical stages immediately.
 	presentation.call("update_state", 0.68, &"active", Vector3(4.0, 1.0, -7.0))
 	_check(int(presentation.call("get_damage_stage")) == 1, "damaged threshold is inclusive")
