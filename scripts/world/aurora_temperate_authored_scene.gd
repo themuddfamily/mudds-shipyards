@@ -2,6 +2,7 @@ class_name AuroraTemperateAuthoredScene
 extends Node3D
 
 const AuroraSurfaceAudioBindingType := preload("res://scripts/audio/aurora_surface_audio_binding.gd")
+const WaterContactAudioBindingType := preload("res://scripts/audio/water_contact_audio_binding.gd")
 
 const WORLD_PATH := "res://assets/world/planets/aurora_temperate_world.tres"
 const ATMOSPHERE_PATH := "res://assets/world/planets/aurora_temperate_atmosphere.tres"
@@ -21,17 +22,23 @@ const SURFACE_LANDMARK_MARKER_PATHS := {
 }
 
 var _surface_audio_binding: RefCounted
+var _water_contact_audio_binding: RefCounted
 
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
 	_surface_audio_binding = AuroraSurfaceAudioBindingType.new()
 	_surface_audio_binding.attach(0)
+	_water_contact_audio_binding = WaterContactAudioBindingType.new()
+	_water_contact_audio_binding.attach(0)
 
 func _exit_tree() -> void:
 	if _surface_audio_binding != null:
 		_surface_audio_binding.detach()
 		_surface_audio_binding = null
+	if _water_contact_audio_binding != null:
+		_water_contact_audio_binding.detach()
+		_water_contact_audio_binding = null
 
 func present_surface_audio_snapshot(snapshot: Dictionary) -> Dictionary:
 	if _surface_audio_binding == null:
@@ -45,6 +52,19 @@ func set_surface_audio_reduced_dynamic_range(enabled: bool) -> Dictionary:
 
 func get_surface_audio_snapshot() -> Dictionary:
 	return _surface_audio_binding.get_snapshot() if _surface_audio_binding != null else {"attached": false}
+
+func present_water_contact_audio_receipt(receipt: Dictionary) -> Dictionary:
+	if _water_contact_audio_binding == null:
+		return {"accepted": false, "reason": &"water_audio_binding_unavailable"}
+	return _water_contact_audio_binding.present_receipt(receipt)
+
+func set_water_contact_audio_perspective(perspective: StringName) -> Dictionary:
+	if _water_contact_audio_binding == null:
+		return {"accepted": false, "reason": &"water_audio_binding_unavailable"}
+	return _water_contact_audio_binding.set_perspective(perspective)
+
+func get_water_contact_audio_snapshot() -> Dictionary:
+	return _water_contact_audio_binding.get_snapshot() if _water_contact_audio_binding != null else {"attached": false}
 
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
