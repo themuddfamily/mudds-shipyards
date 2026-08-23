@@ -908,6 +908,10 @@ func _help_rows_with_role_context(mode: StringName) -> Array:
 	rows.append(["READ OBJECTIVE", "CURRENT OBJECTIVE  //  PROGRESS  //  REWARD PENDING"])
 	rows.append(["RECOVER", "FAILURE REASON  //  FOLLOW THE PUBLISHED RECOVERY STEP"])
 	rows.append(["VOCABULARY", "STATION DEFENSE  //  HEAVY BREACH  //  CINDER CARGO"])
+	rows.append(["NETWORK", "HOST OR JOIN  //  WAIT FOR THE PUBLISHED SESSION STATUS"])
+	rows.append(["STATUS", "CONNECTING  //  RECONNECTING  //  CONNECTED"])
+	rows.append(["RECOVERY", "REJECTED / DISCONNECTED  //  RETRY OR CANCEL"])
+	rows.append(["LEAVE", "CONNECTED  //  DISCONNECT  //  FOLLOW THE FOCUSED ACTION"])
 	if not _copilot_help_snapshot.is_empty():
 		rows.append(["COPILOT ROLE", "TARGET / ROUTE REVIEW"])
 		rows.append(["CLAIM / RELEASE", "REQUEST ONLY  //  NO HELM AUTHORITY"])

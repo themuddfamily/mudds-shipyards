@@ -40,6 +40,8 @@ func _run() -> void:
 	var activity_text := " ".join(activity_rows.map(func(row: Variant) -> String: return "%s %s" % [str((row as Array)[0]), str((row as Array)[1])]))
 	_check("ACTIVITY BOARD" in activity_text and "INTERACT" in activity_text, "F1 help explains locating and starting activities")
 	_check("REWARD PENDING" in activity_text and "FAILURE REASON" in activity_text and "HEAVY BREACH" in activity_text, "F1 help explains static activity outcomes and vocabulary")
+	_check("HOST OR JOIN" in activity_text and "CONNECTING" in activity_text and "RECONNECTING" in activity_text, "F1 help explains current networking lifecycle states")
+	_check("RETRY OR CANCEL" in activity_text and "DISCONNECT" in activity_text, "F1 help explains bounded network recovery actions")
 	hud.update_copilot_navigation_support({"role": "copilot", "selected_target": "BERTH", "selected_route": "ROUTE-1", "request_state": "READY"})
 	hud.update_loadmaster_telemetry({"role": "loadmaster", "manifest_state": "READY", "readiness_receipt": "SEALED"})
 	hud.call("_set_help_text", hud.call("_help_rows_with_role_context", &"piloting"))
