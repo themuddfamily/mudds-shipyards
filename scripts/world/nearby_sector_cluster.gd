@@ -108,6 +108,30 @@ const APPROACH_CORRIDOR_RADIUS := 30.0
 const APPROACH_CORRIDOR_LENGTH := 200.0
 const BEACON_KEEP_CLEAR_RADIUS := 70.0
 
+## The ordered Alpha -> Delta activity is presented as one flyable polyline,
+## not four unrelated lights. Fine debris is still one MultiMesh submission but
+## is distributed into eight authored flank clusters outside this frozen tube.
+const BEACON_TRAVERSAL_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
+const BEACON_TRAVERSAL_CORRIDOR_RADIUS := 42.0
+const DEBRIS_CHIP_CLEARANCE_MARGIN := 3.0
+const TRAVERSAL_DEBRIS_CLUSTER_SPECS: Array[Dictionary] = [
+	{"center": Vector3(-54.0, 2.0, -245.0), "radii": Vector3(26.0, 14.0, 30.0)},
+	{"center": Vector3(86.0, -22.0, -245.0), "radii": Vector3(26.0, 14.0, 30.0)},
+	{"center": Vector3(-46.0, -3.0, -306.0), "radii": Vector3(26.0, 14.0, 34.0)},
+	{"center": Vector3(94.0, -32.0, -306.0), "radii": Vector3(26.0, 14.0, 34.0)},
+	{"center": Vector3(-31.0, -20.0, -435.0), "radii": Vector3(26.0, 14.0, 36.0)},
+	{"center": Vector3(109.0, -50.0, -435.0), "radii": Vector3(26.0, 14.0, 36.0)},
+	{"center": Vector3(-32.0, -30.0, -558.0), "radii": Vector3(26.0, 14.0, 34.0)},
+	{"center": Vector3(108.0, -61.0, -558.0), "radii": Vector3(26.0, 14.0, 34.0)},
+]
+const TRAVERSAL_DEBRIS_PRESENTATION_BOUNDS := AABB(
+	Vector3(-84.0, -82.0, -596.0), Vector3(224.0, 102.0, 385.0)
+)
+const TRAVERSAL_BEACON_MESH_BUDGET := 44
+const TRAVERSAL_BEACON_LIGHT_BUDGET := 12
+const TRAVERSAL_BEACON_DESCENDANT_BUDGET := 60
+const TRAVERSAL_DEBRIS_BATCH_BUDGET := 1
+
 ## Rocks take a much heavier chamfer than station stock. The kit's box rule caps
 ## at 0.18 m, which on a 30 m boulder is invisible, so the chamfer is proportional
 ## here instead. 0.13 is where the rendered evidence put it: at 0.30 the inset
@@ -427,6 +451,171 @@ func get_route_beacon_positions() -> Array[Vector3]:
 	for spec in ROUTE_BEACON_SPECS:
 		positions.append(spec["position"] as Vector3)
 	return positions
+
+
+## Detached proof that the ordered traversal is visually expressed by the four
+## existing guide beacons and one collision-free batched debris field outside a
+## frozen safe tube. The activity remains the sole order/progress authority.
+func get_beacon_traversal_presentation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var snapshot: Dictionary = {}
+	if is_instance_valid(_activity_binding):
+		snapshot = (
+			_activity_binding.call("get_snapshot").get("beacon_traversal", {}) as Dictionary
+		).duplicate(true)
+	if StringName(snapshot.get("activity_id", &"")) != BEACON_TRAVERSAL_ACTIVITY_ID:
+		errors.append("beacon_traversal_activity_id_not_bound")
+	if int(snapshot.get("beacon_count", -1)) != ROUTE_BEACON_SPECS.size():
+		errors.append("beacon_traversal_order_count_drift")
+	var route_root := get_node_or_null(^"RouteBeacons") as Node3D
+	var chips := get_node_or_null(^"DebrisField/DebrisChips") as MultiMeshInstance3D
+	var beacon_meshes: Array[Node] = []
+	var beacon_lights: Array[Node] = []
+	var route_descendants := 0
+	var ordered := true
+	var maximum_leg_length := 0.0
+	if route_root != null:
+		beacon_meshes = route_root.find_children("*", "MeshInstance3D", true, false)
+		beacon_lights = route_root.find_children("*", "Light3D", true, false)
+		route_descendants = route_root.find_children("*", "", true, false).size()
+		for index in ROUTE_BEACON_SPECS.size():
+			var spec := ROUTE_BEACON_SPECS[index]
+			var beacon := route_root.get_node_or_null(NodePath(String(spec["name"]))) as Node3D
+			if beacon == null \
+					or not beacon.global_position.is_equal_approx(spec["position"] as Vector3) \
+					or int(beacon.get_meta(&"traversal_order_index", -1)) != index \
+					or StringName(beacon.get_meta(&"activity_id", &"")) \
+						!= BEACON_TRAVERSAL_ACTIVITY_ID:
+				ordered = false
+			if index > 0:
+				maximum_leg_length = maxf(
+					maximum_leg_length,
+					(spec["position"] as Vector3).distance_to(
+						ROUTE_BEACON_SPECS[index - 1]["position"] as Vector3
+					)
+				)
+	if not ordered:
+		errors.append("beacon_traversal_visual_order_drift")
+	if beacon_meshes.size() != TRAVERSAL_BEACON_MESH_BUDGET:
+		errors.append("beacon_traversal_mesh_budget_drift")
+	if beacon_lights.size() != TRAVERSAL_BEACON_LIGHT_BUDGET:
+		errors.append("beacon_traversal_light_budget_drift")
+	if route_descendants != TRAVERSAL_BEACON_DESCENDANT_BUDGET:
+		errors.append("beacon_traversal_node_budget_drift")
+	for raw_light in beacon_lights:
+		if (raw_light as Light3D).shadow_enabled:
+			errors.append("beacon_traversal_shadow_light_added")
+	var chip_count := 0
+	var minimum_chip_clearance := INF
+	var cluster_counts := PackedInt32Array()
+	cluster_counts.resize(TRAVERSAL_DEBRIS_CLUSTER_SPECS.size())
+	var chips_inside_bounds := true
+	var chips_inside_content_envelope := true
+	var chips_inside_authored_clusters := true
+	if chips == null or chips.multimesh == null or chips.multimesh.mesh == null:
+		errors.append("beacon_traversal_debris_batch_missing")
+	else:
+		chip_count = chips.multimesh.visible_instance_count
+		if chip_count < 0:
+			chip_count = chips.multimesh.instance_count
+		var authored_positions := chips.get_meta(
+			&"authored_instance_positions", PackedVector3Array()
+		) as PackedVector3Array
+		var authored_cluster_indices := chips.get_meta(
+			&"authored_cluster_indices", PackedInt32Array()
+		) as PackedInt32Array
+		if authored_positions.size() != chip_count \
+				or authored_cluster_indices.size() != chip_count:
+			errors.append("beacon_traversal_debris_recipe_count_drift")
+		for chip_index in mini(authored_positions.size(), authored_cluster_indices.size()):
+			var position := authored_positions[chip_index]
+			minimum_chip_clearance = minf(
+				minimum_chip_clearance,
+				_distance_to_beacon_traversal(position) - DEBRIS_CHIP_CLEARANCE_MARGIN
+			)
+			chips_inside_bounds = chips_inside_bounds \
+				and TRAVERSAL_DEBRIS_PRESENTATION_BOUNDS.has_point(position)
+			chips_inside_content_envelope = chips_inside_content_envelope \
+				and position.length() <= MAXIMUM_CONTENT_DISTANCE
+			var cluster_index := authored_cluster_indices[chip_index]
+			if cluster_index < 0 or cluster_index >= TRAVERSAL_DEBRIS_CLUSTER_SPECS.size():
+				chips_inside_authored_clusters = false
+				continue
+			cluster_counts[cluster_index] += 1
+			var cluster_spec := TRAVERSAL_DEBRIS_CLUSTER_SPECS[cluster_index]
+			var normalised_offset := (position - (cluster_spec["center"] as Vector3)) \
+				/ (cluster_spec["radii"] as Vector3)
+			chips_inside_authored_clusters = chips_inside_authored_clusters \
+				and normalised_offset.length() <= 1.0001
+		if not chips.custom_aabb.is_equal_approx(TRAVERSAL_DEBRIS_PRESENTATION_BOUNDS) \
+				or not bool(chips.get_meta(&"presentation_only", false)) \
+				or int(chips.get_meta(&"authored_cluster_count", -1)) \
+					!= TRAVERSAL_DEBRIS_CLUSTER_SPECS.size() \
+				or StringName(chips.get_meta(&"activity_id", &"")) \
+					!= BEACON_TRAVERSAL_ACTIVITY_ID:
+			errors.append("beacon_traversal_debris_batch_contract_drift")
+	if chip_count != DEBRIS_CHIP_COUNT:
+		errors.append("beacon_traversal_debris_copy_budget_drift")
+	if minimum_chip_clearance < BEACON_TRAVERSAL_CORRIDOR_RADIUS:
+		errors.append("beacon_traversal_debris_entered_safe_corridor")
+	if not chips_inside_bounds or not chips_inside_content_envelope:
+		errors.append("beacon_traversal_debris_left_bounds")
+	if not chips_inside_authored_clusters:
+		errors.append("beacon_traversal_debris_left_authored_clusters")
+	var expected_per_cluster := DEBRIS_CHIP_COUNT / TRAVERSAL_DEBRIS_CLUSTER_SPECS.size()
+	for count in cluster_counts:
+		if count != expected_per_cluster:
+			errors.append("beacon_traversal_debris_cluster_budget_drift")
+			break
+	var minimum_boulder_clearance := INF
+	for offset in _boulder_offsets:
+		minimum_boulder_clearance = minf(
+			minimum_boulder_clearance,
+			_distance_to_beacon_traversal(PLATFORM_ANCHOR + offset)
+				- BOULDER_MAXIMUM_EXTENT * 0.40
+		)
+	if minimum_boulder_clearance < BEACON_TRAVERSAL_CORRIDOR_RADIUS:
+		errors.append("beacon_traversal_collision_entered_safe_corridor")
+	if route_root != null \
+			and (not route_root.find_children("*", "CollisionObject3D", true, false).is_empty() \
+			or not route_root.find_children("*", "CollisionShape3D", true, false).is_empty()):
+		errors.append("beacon_traversal_guides_gained_collision_authority")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"activity_id": BEACON_TRAVERSAL_ACTIVITY_ID,
+		"content_class": &"NEW",
+		"evidence_status": EVIDENCE_STATUS,
+		"beacon_positions": get_route_beacon_positions(),
+		"corridor_radius": BEACON_TRAVERSAL_CORRIDOR_RADIUS,
+		"minimum_chip_clearance": minimum_chip_clearance,
+		"minimum_boulder_clearance": minimum_boulder_clearance,
+		"maximum_leg_length": maximum_leg_length,
+		"debris_bounds": TRAVERSAL_DEBRIS_PRESENTATION_BOUNDS,
+		"cluster_counts": cluster_counts,
+		"counts": {
+			"beacon_meshes": beacon_meshes.size(),
+			"beacon_lights": beacon_lights.size(),
+			"beacon_descendants": route_descendants,
+			"debris_batches": 1 if chips != null else 0,
+			"debris_copies": chip_count,
+			"debris_clusters": TRAVERSAL_DEBRIS_CLUSTER_SPECS.size(),
+		},
+		"budgets": {
+			"beacon_meshes": TRAVERSAL_BEACON_MESH_BUDGET,
+			"beacon_lights": TRAVERSAL_BEACON_LIGHT_BUDGET,
+			"beacon_descendants": TRAVERSAL_BEACON_DESCENDANT_BUDGET,
+			"debris_batches": TRAVERSAL_DEBRIS_BATCH_BUDGET,
+			"debris_copies": DEBRIS_CHIP_COUNT,
+			"debris_clusters": TRAVERSAL_DEBRIS_CLUSTER_SPECS.size(),
+		},
+		"approach_readable": ordered and maximum_leg_length <= 140.0,
+		"activity_authority": false,
+		"order_authority": false,
+		"collision_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
 
 
 ## Station-relative offsets of the boulders this instance actually placed.
@@ -870,6 +1059,12 @@ func _compose_audit_report() -> Dictionary:
 			structure_scan_presentation.get("errors", PackedStringArray()) as PackedStringArray
 		):
 			errors.append("structure scan presentation: %s" % presentation_error)
+	var beacon_traversal_presentation := get_beacon_traversal_presentation_audit()
+	if not bool(beacon_traversal_presentation.valid):
+		for presentation_error in (
+			beacon_traversal_presentation.get("errors", PackedStringArray()) as PackedStringArray
+		):
+			errors.append("beacon traversal presentation: %s" % presentation_error)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -901,6 +1096,7 @@ func _compose_audit_report() -> Dictionary:
 		"gantry_clear_height": GANTRY_CLEAR_HEIGHT,
 		"mining_platform_presentation": mining_presentation,
 		"structure_scan_presentation": structure_scan_presentation,
+		"beacon_traversal_presentation": beacon_traversal_presentation,
 		"counts": counts,
 		"budget": PERFORMANCE_BUDGET.duplicate(true),
 		"errors": errors,
@@ -954,6 +1150,8 @@ func _build_route_beacons() -> void:
 		# node already in the tree; this is exact whatever the world is parented to.
 		beacon.basis = _basis_facing(previous - beacon_position)
 		beacon.set_meta(&"presentation_only", true)
+		beacon.set_meta(&"activity_id", BEACON_TRAVERSAL_ACTIVITY_ID)
+		beacon.set_meta(&"traversal_order_index", index - 1)
 		_route_root.add_child(beacon)
 		previous = beacon_position
 
@@ -1120,9 +1318,9 @@ func _build_debris_field() -> void:
 	_build_debris_chips()
 
 
-## Fine debris as one instanced shell. 720 chips with no nodes, no processing, no
-## collision and no lights: the field needs density to read as a drift, and 720
-## `MeshInstance3D` children would have been an unaffordable way to get it.
+## Fine debris as one instanced set of authored flank clusters. The eight
+## clusters make the ordered route read as a corridor through a field while all
+## 520 chips remain collision-free in one renderer submission.
 func _build_debris_chips() -> void:
 	var chip_material := _material(ROCK_BASALT, 0.04, 0.95)
 	chip_material.vertex_color_use_as_albedo = true
@@ -1140,13 +1338,18 @@ func _build_debris_chips() -> void:
 	random.seed = DEBRIS_CHIP_SEED
 	var placed_chips := 0
 	var chip_attempts := 0
+	var authored_positions := PackedVector3Array()
+	var authored_cluster_indices := PackedInt32Array()
 	while placed_chips < DEBRIS_CHIP_COUNT and chip_attempts < DEBRIS_CHIP_COUNT * 20:
 		chip_attempts += 1
-		var offset := _sample_field_offset(random)
-		if not _is_clear_of_platform_and_lane(offset):
+		var cluster_index := placed_chips % TRAVERSAL_DEBRIS_CLUSTER_SPECS.size()
+		var world_position := _sample_traversal_debris_cluster(random, cluster_index)
+		if not _is_clear_of_beacon_traversal(world_position, DEBRIS_CHIP_CLEARANCE_MARGIN):
 			continue
 		var index := placed_chips
 		placed_chips += 1
+		authored_positions.append(world_position)
+		authored_cluster_indices.append(cluster_index)
 		var scale_value := random.randf_range(0.7, 2.4)
 		var chip_basis := Basis.from_euler(
 			Vector3(
@@ -1161,7 +1364,7 @@ func _build_debris_chips() -> void:
 				scale_value * random.randf_range(0.7, 1.25)
 			)
 		)
-		multimesh.set_instance_transform(index, Transform3D(chip_basis, PLATFORM_ANCHOR + offset))
+		multimesh.set_instance_transform(index, Transform3D(chip_basis, world_position))
 		multimesh.set_instance_color(
 			index,
 			ROCK_BASALT.lerp(ROCK_RUST if index % 3 == 0 else ROCK_PALE, random.randf_range(0.1, 0.85))
@@ -1173,8 +1376,13 @@ func _build_debris_chips() -> void:
 	chips.multimesh = multimesh
 	chips.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	chips.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
-	chips.custom_aabb = AABB(PLATFORM_ANCHOR - FIELD_RADII, FIELD_RADII * 2.0)
+	chips.custom_aabb = TRAVERSAL_DEBRIS_PRESENTATION_BOUNDS
 	chips.visible = _quality_level >= DetailQuality.MEDIUM
+	chips.set_meta(&"presentation_only", true)
+	chips.set_meta(&"activity_id", BEACON_TRAVERSAL_ACTIVITY_ID)
+	chips.set_meta(&"authored_cluster_count", TRAVERSAL_DEBRIS_CLUSTER_SPECS.size())
+	chips.set_meta(&"authored_instance_positions", authored_positions)
+	chips.set_meta(&"authored_cluster_indices", authored_cluster_indices)
 	_field_root.add_child(chips)
 
 
@@ -1186,6 +1394,40 @@ func _sample_field_offset(random: RandomNumberGenerator) -> Vector3:
 	var direction := Vector3(planar * cos(longitude), y, planar * sin(longitude))
 	var radial := pow(random.randf(), 1.0 / 3.0)
 	return direction * radial * FIELD_RADII
+
+
+func _sample_traversal_debris_cluster(
+		random: RandomNumberGenerator, cluster_index: int
+	) -> Vector3:
+	var spec := TRAVERSAL_DEBRIS_CLUSTER_SPECS[cluster_index]
+	var y := random.randf_range(-1.0, 1.0)
+	var longitude := random.randf_range(-PI, PI)
+	var planar := sqrt(maxf(0.0, 1.0 - y * y))
+	var direction := Vector3(planar * cos(longitude), y, planar * sin(longitude))
+	var radial := pow(random.randf(), 1.0 / 3.0)
+	return (spec["center"] as Vector3) + direction * radial * (spec["radii"] as Vector3)
+
+
+func _is_clear_of_beacon_traversal(world_position: Vector3, geometry_margin: float) -> bool:
+	if _distance_to_beacon_traversal(world_position) \
+			< BEACON_TRAVERSAL_CORRIDOR_RADIUS + geometry_margin:
+		return false
+	for spec in ROUTE_BEACON_SPECS:
+		if world_position.distance_to(spec["position"] as Vector3) \
+				< BEACON_KEEP_CLEAR_RADIUS + geometry_margin:
+			return false
+	return true
+
+
+func _distance_to_beacon_traversal(world_position: Vector3) -> float:
+	var nearest := INF
+	for index in ROUTE_BEACON_SPECS.size() - 1:
+		var start := ROUTE_BEACON_SPECS[index]["position"] as Vector3
+		var finish := ROUTE_BEACON_SPECS[index + 1]["position"] as Vector3
+		var segment := finish - start
+		var along := clampf((world_position - start).dot(segment) / segment.length_squared(), 0.0, 1.0)
+		nearest = minf(nearest, world_position.distance_to(start + segment * along))
+	return nearest
 
 
 ## Whether this platform-relative offset is outside both the keep-clear sphere
@@ -1207,6 +1449,9 @@ func _is_placeable_boulder_offset(offset: Vector3) -> bool:
 	if not _is_clear_of_platform_and_lane(offset):
 		return false
 	var world_position := PLATFORM_ANCHOR + offset
+	if _distance_to_beacon_traversal(world_position) \
+			< BEACON_TRAVERSAL_CORRIDOR_RADIUS + BOULDER_MAXIMUM_EXTENT * 0.40:
+		return false
 	for spec in ROUTE_BEACON_SPECS:
 		if world_position.distance_to(spec["position"] as Vector3) < BEACON_KEEP_CLEAR_RADIUS:
 			return false

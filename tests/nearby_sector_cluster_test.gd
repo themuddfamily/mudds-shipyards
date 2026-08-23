@@ -13,6 +13,9 @@ extends SceneTree
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
+const BEACON_TRAVERSAL_ACTIVITY := preload(
+	"res://scripts/world/cinder_beacon_traversal_activity.gd"
+)
 const ENGINE_CALIBRATION_MESHES := ["BoxMesh", "CylinderMesh", "SphereMesh"]
 const EXPECTED_COMPONENT_ID: StringName = &"nearby-sector-cluster"
 const EXPECTED_EVIDENCE_STATUS: StringName = &"modern_interpretation"
@@ -57,6 +60,16 @@ const EXPECTED_STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
 const EXPECTED_STRUCTURE_SCAN_MESH_NODES := 15
 const EXPECTED_STRUCTURE_SCAN_LIGHT_NODES := 2
 const EXPECTED_STRUCTURE_SCAN_DESCENDANTS := 18
+const EXPECTED_BEACON_TRAVERSAL_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
+const EXPECTED_BEACON_TRAVERSAL_CORRIDOR_RADIUS := 42.0
+const EXPECTED_TRAVERSAL_DEBRIS_CLUSTERS := 8
+const EXPECTED_TRAVERSAL_DEBRIS_COPIES := 520
+const EXPECTED_TRAVERSAL_BEACON_MESHES := 44
+const EXPECTED_TRAVERSAL_BEACON_LIGHTS := 12
+const EXPECTED_TRAVERSAL_BEACON_DESCENDANTS := 60
+const EXPECTED_TRAVERSAL_DEBRIS_BOUNDS := AABB(
+	Vector3(-84.0, -82.0, -596.0), Vector3(224.0, 102.0, 385.0)
+)
 const EXPECTED_SPINE_RIB_AABB := AABB(
 	Vector3(-6.5, -4.75, -0.8), Vector3(13.0, 9.5, 1.6)
 )
@@ -134,6 +147,7 @@ func _run() -> void:
 	_test_identity_and_authority(world, cluster)
 	_test_mining_platform_activity_presentation(cluster)
 	_test_structure_scan_activity_presentation(cluster)
+	_test_beacon_traversal_presentation(cluster)
 	_test_processing_spine_rib_batch(cluster)
 	_test_gantry_rail_batch(cluster)
 	_test_lamp_lens_mesh_sharing(cluster)
@@ -448,6 +462,129 @@ func _test_structure_scan_activity_presentation(cluster: NearbySectorCluster) ->
 		"CINDER_STRUCTURE_SCAN_PRESENTATION: meshes=%d lights=%d descendants=%d bounds=%s" % [
 			int(counts.get("mesh_nodes", -1)), int(counts.get("light_nodes", -1)),
 			int(counts.get("descendant_nodes", -1)), str(bounds),
+		]
+	)
+
+
+func _test_beacon_traversal_presentation(cluster: NearbySectorCluster) -> void:
+	var audit := cluster.get_beacon_traversal_presentation_audit()
+	var counts := audit.get("counts", {}) as Dictionary
+	var budgets := audit.get("budgets", {}) as Dictionary
+	var positions := audit.get("beacon_positions", []) as Array
+	var chips := cluster.get_node_or_null(^"DebrisField/DebrisChips") as MultiMeshInstance3D
+	_check(
+		bool(audit.get("valid", false))
+		and (audit.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
+		and StringName(audit.get("activity_id", &"")) == EXPECTED_BEACON_TRAVERSAL_ACTIVITY_ID
+		and StringName(audit.get("content_class", &"")) == &"NEW"
+		and StringName(audit.get("evidence_status", &"")) == EXPECTED_EVIDENCE_STATUS,
+		"the ordered beacon activity terminates on one valid original-modern corridor presentation"
+	)
+	var order_matches := positions.size() == BEACON_TRAVERSAL_ACTIVITY.BEACONS.size()
+	for index in mini(positions.size(), BEACON_TRAVERSAL_ACTIVITY.BEACONS.size()):
+		order_matches = order_matches and (positions[index] as Vector3).is_equal_approx(
+			BEACON_TRAVERSAL_ACTIVITY.BEACONS[index]
+		)
+		var beacon := cluster.get_node_or_null(
+			NodePath("RouteBeacons/RouteBeacon%s" % ["Alpha", "Bravo", "Charlie", "Delta"][index])
+		) as Node3D
+		order_matches = order_matches and beacon != null \
+			and int(beacon.get_meta(&"traversal_order_index", -1)) == index \
+			and StringName(beacon.get_meta(&"activity_id", &"")) \
+				== EXPECTED_BEACON_TRAVERSAL_ACTIVITY_ID
+	_check(order_matches, "the visual Alpha-to-Delta order exactly matches the activity's frozen beacon order")
+	_check(
+		counts == budgets
+		and int(counts.get("beacon_meshes", -1)) == EXPECTED_TRAVERSAL_BEACON_MESHES
+		and int(counts.get("beacon_lights", -1)) == EXPECTED_TRAVERSAL_BEACON_LIGHTS
+		and int(counts.get("beacon_descendants", -1)) == EXPECTED_TRAVERSAL_BEACON_DESCENDANTS
+		and int(counts.get("debris_batches", -1)) == 1
+		and int(counts.get("debris_copies", -1)) == EXPECTED_TRAVERSAL_DEBRIS_COPIES
+		and int(counts.get("debris_clusters", -1)) == EXPECTED_TRAVERSAL_DEBRIS_CLUSTERS,
+		"four guide silhouettes and eight debris clusters stay within 44 meshes, 12 lights, 60 nodes, and one 520-copy batch"
+	)
+	var cluster_counts := audit.get("cluster_counts", PackedInt32Array()) as PackedInt32Array
+	var clusters_balanced := cluster_counts.size() == EXPECTED_TRAVERSAL_DEBRIS_CLUSTERS
+	for count in cluster_counts:
+		clusters_balanced = clusters_balanced \
+			and count == EXPECTED_TRAVERSAL_DEBRIS_COPIES / EXPECTED_TRAVERSAL_DEBRIS_CLUSTERS
+	_check(
+		clusters_balanced
+		and chips != null and chips.multimesh != null
+		and chips.custom_aabb.is_equal_approx(EXPECTED_TRAVERSAL_DEBRIS_BOUNDS)
+		and bool(chips.get_meta(&"presentation_only", false))
+		and StringName(chips.get_meta(&"activity_id", &"")) \
+			== EXPECTED_BEACON_TRAVERSAL_ACTIVITY_ID,
+		"the one presentation-only batch distributes exactly 65 chips into each authored flank cluster"
+	)
+	_check(
+		is_equal_approx(
+			float(audit.get("corridor_radius", 0.0)),
+			EXPECTED_BEACON_TRAVERSAL_CORRIDOR_RADIUS
+		)
+		and float(audit.get("minimum_chip_clearance", 0.0)) \
+			>= EXPECTED_BEACON_TRAVERSAL_CORRIDOR_RADIUS
+		and float(audit.get("minimum_boulder_clearance", 0.0)) \
+			>= EXPECTED_BEACON_TRAVERSAL_CORRIDOR_RADIUS
+		and float(audit.get("maximum_leg_length", INF)) <= 140.0
+		and bool(audit.get("approach_readable", false)),
+		"every visual chip and conservative boulder collider clears the frozen 42 m ordered corridor"
+	)
+	var middle_of_bravo_charlie := (
+		BEACON_TRAVERSAL_ACTIVITY.BEACONS[1] + BEACON_TRAVERSAL_ACTIVITY.BEACONS[2]
+	) * 0.5
+	_check(
+		not bool(cluster.call(
+			"_is_placeable_boulder_offset", middle_of_bravo_charlie - EXPECTED_PLATFORM_ANCHOR
+		)),
+		"the real boulder placement predicate rejects the middle of an ordered traversal leg"
+	)
+	var route_root := cluster.get_node_or_null(^"RouteBeacons") as Node3D
+	_check(
+		route_root != null
+		and chips != null
+		and route_root.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and route_root.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and chips.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and not bool(audit.get("activity_authority", true))
+		and not bool(audit.get("order_authority", true))
+		and not bool(audit.get("collision_authority", true))
+		and not bool(audit.get("reward_authority", true)),
+		"the corridor guides and debris own no collision, traversal order, progress, or reward authority"
+	)
+	var detached := cluster.get_beacon_traversal_presentation_audit()
+	detached["order_authority"] = true
+	(detached["errors"] as PackedStringArray).append("injected")
+	_check(
+		bool(cluster.get_beacon_traversal_presentation_audit().valid),
+		"the beacon traversal presentation audit is detached from caller mutation"
+	)
+	if chips == null or chips.multimesh == null:
+		return
+	var original_positions := chips.get_meta(
+		&"authored_instance_positions", PackedVector3Array()
+	) as PackedVector3Array
+	var drifted_positions := original_positions.duplicate()
+	drifted_positions[0] = middle_of_bravo_charlie
+	chips.set_meta(&"authored_instance_positions", drifted_positions)
+	var corridor_drift := cluster.get_beacon_traversal_presentation_audit()
+	_check(
+		not bool(corridor_drift.valid)
+		and (corridor_drift.errors as PackedStringArray).has(
+			"beacon_traversal_debris_entered_safe_corridor"
+		),
+		"moving one visual chip into an ordered leg is structured corridor red"
+	)
+	chips.set_meta(&"authored_instance_positions", original_positions)
+	_check(
+		bool(cluster.get_beacon_traversal_presentation_audit().valid),
+		"restoring the flank-cluster transform returns the traversal audit green"
+	)
+	print(
+		"CINDER_BEACON_CORRIDOR: radius=%.2f chip_clearance=%.2f boulder_clearance=%.2f clusters=%s" % [
+			float(audit.get("corridor_radius", 0.0)),
+			float(audit.get("minimum_chip_clearance", 0.0)),
+			float(audit.get("minimum_boulder_clearance", 0.0)), str(cluster_counts),
 		]
 	)
 
