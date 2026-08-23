@@ -52,6 +52,7 @@ const ADJACENT_AUTHORITY_KEYS := [
 const PlanetaryCompositionScript := preload("res://scripts/world/ember_planetary_surface_production_binding.gd")
 const ReturnManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
 const ReturnTravelAdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
+const ReturnBerthAdapterScript := preload("res://scripts/world/planetary_return_berth_adapter.gd")
 
 var _state := State.IDLE
 var _generation := 0
@@ -84,6 +85,7 @@ var _atmosphere_composition: Node
 var _last_planetary_altitude_m := 0.0
 var _relay_return_manifest: RefCounted
 var _relay_return_travel: RefCounted
+var _return_berth_adapter: RefCounted
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -484,6 +486,30 @@ func confirm_planetary_return_arrival_ready(
 		actor_instance_id, craft_instance_id, observation,
 		_host.get_generation(), _host.get_attachment_generation()
 	)
+
+
+func request_planetary_return_berth(
+		arrival_receipt: Variant, berth: ShipBerth, ship: Node,
+		definition: ShipDefinition, actor_instance_id: int, craft_instance_id: int
+	) -> Dictionary:
+	if _return_berth_adapter == null:
+		_return_berth_adapter = ReturnBerthAdapterScript.new()
+	return _return_berth_adapter.call(
+		&"request", arrival_receipt, berth, ship, definition,
+		actor_instance_id, craft_instance_id, _generation
+	)
+
+
+func confirm_planetary_return_berth_occupied(landing_evidence: Variant) -> Dictionary:
+	if _return_berth_adapter == null:
+		return _reject(&"return_berth_adapter_unavailable")
+	return _return_berth_adapter.call(&"confirm_occupied", landing_evidence)
+
+
+func reset_planetary_return_berth() -> Dictionary:
+	if _return_berth_adapter == null:
+		return _reject(&"return_berth_adapter_unavailable")
+	return _return_berth_adapter.call(&"reset")
 
 
 func _submit_authorized_return_sample(
