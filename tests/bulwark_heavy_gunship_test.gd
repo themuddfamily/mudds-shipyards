@@ -64,8 +64,8 @@ func _test_physical_crew_contract(ship: HeroShip) -> void:
 	_check(contract.get("role", &"") == &"gunner", "gunner station publishes the gunner role")
 	_check(contract.get("seat_type", &"") == &"physical", "gunner role uses a physical seat anchor")
 	_check(contract.get("seat") == ship.call("get_gunner_station_anchor"), "gunner contract returns its stable anchor")
-	_check(contract.get("authority_owner", &"") == &"HeroShip.weapon_request", "gunner contract delegates weapon authority to HeroShip")
-	_check(bool(contract.get("visual_only_weapon_fit", false)), "gunner geometry cannot become a second combat authority")
+	_check(contract.get("authority_owner", &"") == &"LiveCombatAuthority.resolve_hitscan", "gunner contract delegates weapon resolution to LiveCombatAuthority")
+	_check(not bool(contract.get("visual_only_weapon_fit", true)), "gunner fit participates only through the shared combat authority")
 
 
 func _test_collision_and_authority_audit(ship: HeroShip) -> void:

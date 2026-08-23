@@ -43,8 +43,7 @@ func attach(source: Object = null, expected_generation: int = 0) -> Dictionary:
 		var callback := Callable(self, "_on_weapon_record")
 		if not source.is_connected(&"siege_lance_audio_record", callback):
 			source.connect(&"siege_lance_audio_record", callback)
-	_seen.clear()
-	_slots.clear()
+	_clear_owned_cues()
 	return _result(true, &"attached")
 
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
@@ -92,10 +91,18 @@ func detach() -> Dictionary:
 		if _source.is_connected(&"siege_lance_audio_record", callback):
 			_source.disconnect(&"siege_lance_audio_record", callback)
 	_source = null
-	_seen.clear()
-	_slots.clear()
 	_generation += 1
+	_clear_owned_cues()
 	return _result(true, &"detached")
+
+func reset_for_reuse() -> Dictionary:
+	if not _attached:
+		return _result(false, &"not_attached")
+	if _generation >= MAX_SAFE_GENERATION:
+		return _result(false, &"generation_exhausted")
+	_generation += 1
+	_clear_owned_cues()
+	return _result(true, &"reset")
 
 func get_snapshot() -> Dictionary:
 	return {"attached": _attached, "generation": _generation, "emitted_cue_count": _emitted_count, "last_cue_id": _last_cue, "active_cue_slots": _slots.duplicate(true), "maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES, "reduced_dynamic_range": _reduced_dynamic_range, "authority": {"fire": false, "damage": false, "target": false, "audio_cues": true}}.duplicate(true)
@@ -116,6 +123,11 @@ func _admit(cue_id: StringName, transaction_id: StringName) -> bool:
 
 func _on_weapon_record(record: Dictionary) -> void:
 	present_record(record)
+
+func _clear_owned_cues() -> void:
+	_seen.clear()
+	_slots.clear()
+	_last_cue = &""
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason, "generation": _generation}.duplicate(true)

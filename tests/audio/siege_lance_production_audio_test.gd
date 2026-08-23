@@ -31,6 +31,19 @@ func _run() -> void:
 	bulwark.siege_lance_audio_record.emit(record)
 	_check(standoff_cues == [&"siege_lance_charge"] and bulwark_cues == [&"siege_lance_charge"], "real Standoff and Bulwark signals reach their audio bindings")
 	_check(standoff_binding.present_record(record).get("reason", &"") == &"duplicate_record" and bulwark_binding.present_record(record).get("reason", &"") == &"duplicate_record", "production bindings deduplicate replayed weapon records")
+	standoff_binding.set_reduced_dynamic_range(true)
+	bulwark_binding.set_reduced_dynamic_range(true)
+	_check(bool(standoff_binding.reset_for_reuse().get("accepted", false)) and bool(bulwark_binding.reset_for_reuse().get("accepted", false)), "production bindings reset their attached reuse lifecycle")
+	var standoff_reset: Dictionary = standoff_binding.get_snapshot()
+	var bulwark_reset: Dictionary = bulwark_binding.get_snapshot()
+	_check(int(standoff_reset.generation) == 1 and int(bulwark_reset.generation) == 1 and bool(standoff_reset.attached) and bool(bulwark_reset.attached), "production reuse advances generation without disconnecting weapon sources")
+	_check((standoff_reset.active_cue_slots as Array).is_empty() and (bulwark_reset.active_cue_slots as Array).is_empty() and bool(standoff_reset.reduced_dynamic_range) and bool(bulwark_reset.reduced_dynamic_range), "production reuse clears owned voices and preserves configured mix resources")
+	_check(standoff_binding.present_record(record).get("reason", &"") == &"stale_generation" and bulwark_binding.present_record(record).get("reason", &"") == &"stale_generation", "production reuse fences pre-reset weapon records")
+	var reused_record := record.duplicate(true)
+	reused_record.generation = 1
+	standoff.siege_lance_audio_record.emit(reused_record)
+	bulwark.siege_lance_audio_record.emit(reused_record)
+	_check(standoff_cues.size() == 2 and bulwark_cues.size() == 2, "production sources remain connected after reuse and accept the new generation")
 	var old_standoff := standoff_binding
 	var old_bulwark := bulwark_binding
 	host.remove_child(standoff)
@@ -43,7 +56,7 @@ func _run() -> void:
 	var reentered_standoff: RefCounted = standoff.get_siege_lance_audio_binding()
 	var reentered_bulwark: RefCounted = bulwark.get_siege_lance_audio_binding()
 	_check(bool(reentered_standoff.get_snapshot().attached) and bool(reentered_bulwark.get_snapshot().attached), "production re-entry creates fresh attached bindings")
-	_check(reentered_standoff.present_record(record).get("reason", &"") == &"stale_generation" and reentered_bulwark.present_record(record).get("reason", &"") == &"stale_generation", "pre-detach records cannot replay after re-entry")
+	_check(reentered_standoff.present_record(reused_record).get("reason", &"") == &"stale_generation" and reentered_bulwark.present_record(reused_record).get("reason", &"") == &"stale_generation", "pre-detach records cannot replay after re-entry")
 	host.queue_free()
 	await process_frame
 	if _failures.is_empty():
