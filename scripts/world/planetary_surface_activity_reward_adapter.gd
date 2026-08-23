@@ -37,6 +37,7 @@ var _navigation: RefCounted
 var _route_activity_landmarks: Dictionary = {}
 var _hazard: RefCounted
 var _water: RefCounted
+var _landmark_runtime: RefCounted
 var _coordinate_frame_generation := 0
 var _location_generation := 0
 var _last_origin_receipt: Dictionary = {}
@@ -150,6 +151,39 @@ func bind_surface_water(water: RefCounted) -> Dictionary:
 		return _reject(&"water_unavailable")
 	_water = water
 	return _accept(&"water_bound")
+
+
+func bind_activity_landmarks(landmarks: RefCounted) -> Dictionary:
+	if landmarks == null or not bool(landmarks.get_snapshot().get("configured", false)):
+		return _reject(&"landmarks_unavailable")
+	_landmark_runtime = landmarks
+	return _accept(&"landmarks_bound")
+
+
+## Consumes one authored landmark receipt. If the current activity is already
+## rewarded, the receipt admits the mapped next activity exactly once.
+func submit_activity_landmark_discovery(
+		landmark_id: StringName,
+		position: Variant,
+		activity_landmark_map: Dictionary = {}
+	) -> Dictionary:
+	if _landmark_runtime == null:
+		return _reject(&"landmarks_unavailable")
+	var discovered: Dictionary = _landmark_runtime.call(
+		&"activate_landmark", landmark_id, position
+	)
+	if not bool(discovered.get("accepted", false)):
+		return _with_adapter(discovered, false, discovered.get("reason", &"landmark_rejected") as StringName)
+	if _state != State.COMPLETED or _sequence_index < 0 \
+			or _sequence_index + 1 >= _sequence_ids.size():
+		return _with_adapter(discovered, true, &"landmark_discovered")
+	var next_activity := _sequence_ids[_sequence_index + 1]
+	var expected := _runtime.get_activity_landmark_id(next_activity)
+	var mapped := StringName(activity_landmark_map.get(landmark_id, expected))
+	if mapped != expected:
+		return _reject(&"activity_landmark_mismatch")
+	var advanced := advance_activity_sequence(mapped)
+	return _with_adapter({"discovery": discovered, "activity": advanced}, bool(advanced.get("accepted", false)), &"landmark_activity_admitted")
 
 
 ## Unsafe water contact interrupts the current route/activity; safe contact
@@ -471,6 +505,7 @@ func get_snapshot() -> Dictionary:
 		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
 		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"surface_water": _water.get_snapshot() if _water != null else {},
+		"activity_landmarks": _landmark_runtime.get_snapshot() if _landmark_runtime != null else {},
 		"authority": {
 			"host_mutation": false,
 			"activity_authority": false,
@@ -496,6 +531,7 @@ func get_session_snapshot() -> Dictionary:
 		"surface_route": _navigation.get_snapshot() if _navigation != null else {},
 		"surface_hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"surface_water": _water.get_snapshot() if _water != null else {},
+		"activity_landmarks": _landmark_runtime.get_snapshot() if _landmark_runtime != null else {},
 		"coordinate_frame_generation": _coordinate_frame_generation,
 		"location_generation": _location_generation,
 		"last_origin_receipt": _last_origin_receipt.duplicate(true),
@@ -507,7 +543,8 @@ func get_session_snapshot() -> Dictionary:
 func restore_session_snapshot(
 		snapshot: Variant,
 		navigation: RefCounted,
-		hazard: RefCounted
+		hazard: RefCounted,
+		landmarks: RefCounted = null
 	) -> Dictionary:
 	if not _bound or not snapshot is Dictionary or navigation == null or hazard == null:
 		return _reject(&"invalid_session_snapshot")
@@ -526,6 +563,13 @@ func restore_session_snapshot(
 	)
 	if not bool(hazard_result.get("accepted", false)):
 		return _reject(hazard_result.get("reason", &"hazard_restore_rejected") as StringName)
+	if landmarks != null:
+		var landmark_result: Dictionary = landmarks.call(
+			&"restore_snapshot", saved.get("activity_landmarks", {})
+		)
+		if not bool(landmark_result.get("accepted", false)):
+			return _reject(landmark_result.get("reason", &"landmark_restore_rejected") as StringName)
+		_landmark_runtime = landmarks
 	var sequence := saved.get("activity_sequence", {}) as Dictionary
 	_sequence_ids = sequence.get("activity_ids", []) as Array[StringName]
 	_sequence_index = int(sequence.get("index", -1))

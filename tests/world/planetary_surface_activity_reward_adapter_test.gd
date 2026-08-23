@@ -11,6 +11,8 @@ const NavigationContractScript := preload("res://scripts/world/planetary_surface
 const HazardScript := preload("res://scripts/world/planetary_surface_hazard_runtime.gd")
 const WaterScript := preload("res://scripts/world/planetary_water_contact_runtime.gd")
 const WaterContractScript := preload("res://scripts/world/planetary_water_surface_material_contract.gd")
+const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark_runtime.gd")
+const LandmarkContractScript := preload("res://scripts/world/planetary_activity_landmark_cluster_contract.gd")
 
 class FakeHost:
 	var generation := 7
@@ -58,6 +60,7 @@ func _run() -> void:
 	await _test_surface_session_restore_fences_reentry()
 	await _test_surface_origin_rebase_preserves_absolute_identity()
 	await _test_surface_water_recovery_preserves_route()
+	await _test_landmark_discovery_admits_activity_once()
 	_finish()
 
 
@@ -532,6 +535,50 @@ func _test_surface_water_recovery_preserves_route() -> void:
 			and recovered.adapter.surface_route.state == &"active"
 			and recovered.adapter.surface_route.waypoint_index == 0,
 		"new water attachment resumes the current waypoint without replaying progress"
+	)
+	director.queue_free()
+	await process_frame
+
+
+func _test_landmark_discovery_admits_activity_once() -> void:
+	var host := FakeHost.new()
+	var director := _director_with_activity()
+	var runtime := RuntimeScript.new()
+	var adapter := AdapterScript.new()
+	var navigation := NavigationScript.new()
+	var landmarks := LandmarkScript.new()
+	navigation.configure(NavigationContractScript.new())
+	landmarks.configure(LandmarkContractScript.new())
+	landmarks.begin_activity_sequence([
+		&"ember_beacon_survey", &"ember_kit_cargo_run",
+	] as Array[StringName])
+	adapter.bind(host, runtime, director, Callable(self, "_accept_reward"))
+	adapter.bind_activity_landmarks(landmarks)
+	adapter.start_surface_activity_sequence(
+		[&"ember_beacon_survey", &"ember_caldera_patrol"] as Array[StringName],
+		navigation,
+		{"surface_staging_gate": &"ridge_relay"}
+	)
+	adapter.submit_activity_position(Vector3.ZERO)
+	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
+	adapter.commit_activity_reward()
+	host.attachment_generation = 3
+	var admitted := adapter.submit_activity_landmark_discovery(
+		&"ember_caldera_pad", Vector3(18.0, 0.0, 0.0),
+		{"ember_caldera_pad": &"ridge_relay"}
+	)
+	_check(
+		admitted.accepted and admitted.reason == &"landmark_activity_admitted"
+			and admitted.adapter.activity_sequence.index == 1
+			and admitted.adapter.activity_landmarks.sequence_index == 1,
+		"discovered authored landmark admits exactly the next activity and persists its index"
+	)
+	_check(
+		adapter.submit_activity_landmark_discovery(
+			&"ember_caldera_pad", Vector3(18.0, 0.0, 0.0),
+			{"ember_caldera_pad": &"ridge_relay"}
+		).reason == &"landmark_order_mismatch",
+		"the same discovery receipt cannot replay the activity admission"
 	)
 	director.queue_free()
 	await process_frame

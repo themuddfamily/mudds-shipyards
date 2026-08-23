@@ -102,10 +102,36 @@ func activate_landmark(landmark_id: StringName, position: Variant) -> Dictionary
 func get_snapshot() -> Dictionary:
 	return {
 		"configured": _configured,
+		"sequence_activity_ids": _sequence_activity_ids.duplicate(),
+		"sequence_landmark_ids": _sequence_landmark_ids.duplicate(),
 		"sequence_index": _sequence_index,
 		"next_landmark_id": _sequence_landmark_ids[_sequence_index] if _sequence_index >= 0 and _sequence_index < _sequence_landmark_ids.size() else &"",
 		"authority": {"movement": false, "activity": false, "reward": false, "navigation": false},
 	}.duplicate(true)
+
+
+func restore_snapshot(snapshot: Variant) -> Dictionary:
+	if not _configured or not snapshot is Dictionary:
+		return _result(false, &"invalid_landmark_snapshot")
+	var saved := snapshot as Dictionary
+	var activity_ids := saved.get("sequence_activity_ids", []) as Array
+	var landmark_ids := saved.get("sequence_landmark_ids", []) as Array
+	var index := int(saved.get("sequence_index", -1))
+	if activity_ids.size() != landmark_ids.size() or index < -1 or index > activity_ids.size():
+		return _result(false, &"invalid_landmark_snapshot")
+	var restored_activities: Array[StringName] = []
+	var restored_landmarks: Array[StringName] = []
+	for offset in activity_ids.size():
+		var activity_id := StringName(activity_ids[offset])
+		var landmark_id := StringName(landmark_ids[offset])
+		if not _activities.has(activity_id) or not _landmarks.has(landmark_id):
+			return _result(false, &"invalid_landmark_snapshot")
+		restored_activities.append(activity_id)
+		restored_landmarks.append(landmark_id)
+	_sequence_activity_ids = restored_activities
+	_sequence_landmark_ids = restored_landmarks
+	_sequence_index = index
+	return _result(true, &"landmark_sequence_restored")
 
 
 func _finite_range(value: Variant, minimum: float, maximum: float) -> bool:
