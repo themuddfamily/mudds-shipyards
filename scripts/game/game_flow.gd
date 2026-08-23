@@ -1584,6 +1584,9 @@ func get_minimap_snapshot(actor_sample: Dictionary = {}) -> Dictionary:
 		"topology_nodes": _get_minimap_topology_nodes_world(),
 		"topology_edges": _minimap_topology_edges.duplicate(true),
 		"contacts": _get_minimap_contacts(),
+		"objective_markers": _get_minimap_objective_markers(
+			int(actor_sample.get("coordinate_frame_generation", 0))
+		),
 		"mode": _get_debug_mode(),
 	}
 	# The cyan marker represents the embodied pilot. While seated, its map
@@ -1776,6 +1779,34 @@ func _get_minimap_contacts() -> Array[Dictionary]:
 			"hostile": true,
 		})
 	return contacts
+
+
+## Detached activity destinations only. These markers are authored by the
+## world/streaming owners; the minimap never starts, advances, or rewards an
+## activity. A coordinate-frame generation prevents stale streamed transforms
+## from surviving a rebase or unload.
+func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Array[Dictionary]:
+	var markers: Array[Dictionary] = []
+	if is_instance_valid(world):
+		var board: Area3D = world.get_station_defense_activity_board()
+		if is_instance_valid(board) and board.is_inside_tree() and board.global_position.is_finite():
+			markers.append({
+				"id": &"station_defense_activity_board",
+				"position": board.global_position,
+				"generation": maxi(coordinate_frame_generation, 0),
+				"active": true,
+			})
+		var cluster: NearbySectorCluster = world.get_nearby_sector_cluster()
+		if is_instance_valid(cluster):
+			var terminal: CargoTransferTerminal = cluster.get_cinder_cargo_destination_terminal()
+			if is_instance_valid(terminal) and terminal.is_inside_tree() and terminal.global_position.is_finite():
+				markers.append({
+					"id": &"cinder_cargo_terminal",
+					"position": terminal.global_position,
+					"generation": maxi(coordinate_frame_generation, 0),
+					"active": true,
+				})
+	return markers
 
 
 func _physics_process(delta: float) -> void:
