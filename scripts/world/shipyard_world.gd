@@ -6454,16 +6454,27 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 	# A compact dispatch island faces the glazed front, with three independently
 	# legible posts. The east aisle beyond x=47.0 is intentionally left open for
 	# the Annex route and for a clear view through the right-hand window bay.
-	for station_index in 3:
-		var station_x := 39.15 + float(station_index) * 2.25
-		_box(room, "DispatchConsole%02d" % (station_index + 1), Vector3(station_x, 1.02, 28.72), Vector3(1.82, 1.22, 0.88), _materials["navy"])
-		_box(room, "DispatchScreen%02d" % (station_index + 1), Vector3(station_x, 1.48, 28.25), Vector3(1.48, 0.56, 0.045), _materials["cyan_glow"], false, Vector3(-20.0, 0.0, 0.0))
-		_box(room, "DispatchKeyline%02d" % (station_index + 1), Vector3(station_x, 1.67, 28.79), Vector3(1.26, 0.035, 0.31), _materials["steel_blue"], false, Vector3(-20.0, 0.0, 0.0))
-		_text_sign(room, "BAY %02d" % (station_index + 1), Vector3(station_x, 1.49, 28.215), Vector3(-20.0, 180.0, 0.0), 0.12, _materials["black"])
+	# Station 03 formerly continued the row through the east-west arrival line at
+	# z = 28.5, presenting its broad solid side to anyone entering from the Annex
+	# aisle. It now occupies the open front-right corner; every attached piece
+	# moves with it and the two original stations retain their exact transforms.
+	var dispatch_station_origins := [
+		Vector2(39.15, 28.72),
+		Vector2(41.40, 28.72),
+		Vector2(45.50, 24.75),
+	]
+	for station_index in dispatch_station_origins.size():
+		var station_origin := dispatch_station_origins[station_index] as Vector2
+		var station_x := station_origin.x
+		var station_z := station_origin.y
+		_box(room, "DispatchConsole%02d" % (station_index + 1), Vector3(station_x, 1.02, station_z), Vector3(1.82, 1.22, 0.88), _materials["navy"])
+		_box(room, "DispatchScreen%02d" % (station_index + 1), Vector3(station_x, 1.48, station_z - 0.47), Vector3(1.48, 0.56, 0.045), _materials["cyan_glow"], false, Vector3(-20.0, 0.0, 0.0))
+		_box(room, "DispatchKeyline%02d" % (station_index + 1), Vector3(station_x, 1.67, station_z + 0.07), Vector3(1.26, 0.035, 0.31), _materials["steel_blue"], false, Vector3(-20.0, 0.0, 0.0))
+		_text_sign(room, "BAY %02d" % (station_index + 1), Vector3(station_x, 1.49, station_z - 0.505), Vector3(-20.0, 180.0, 0.0), 0.12, _materials["black"])
 		# Stools stay on the rear side of their consoles, so none intrude on the
 		# player-facing approach lane.
-		_cylinder(room, "DispatchStool%02d" % (station_index + 1), Vector3(station_x, 0.73, 29.52), 0.32, 0.62, _materials["steel_blue"], true)
-		_box(room, "DispatchSeat%02d" % (station_index + 1), Vector3(station_x, 1.06, 29.52), Vector3(0.76, 0.16, 0.70), _materials["ivory"])
+		_cylinder(room, "DispatchStool%02d" % (station_index + 1), Vector3(station_x, 0.73, station_z + 0.80), 0.32, 0.62, _materials["steel_blue"], true)
+		_box(room, "DispatchSeat%02d" % (station_index + 1), Vector3(station_x, 1.06, station_z + 0.80), Vector3(0.76, 0.16, 0.70), _materials["ivory"])
 
 	# A shared plotting surface adds a foreground read from outside without
 	# sealing the pod's centre. It is low enough to read as equipment rather than
@@ -6481,10 +6492,35 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 		_box(room, "DockLockerStripe%02d" % (locker_index + 1), Vector3(37.385, 1.40, locker_z), Vector3(0.025, 1.55, 0.92), _materials["orange"], false)
 
 	# Narrow ceiling ribs make the interior read as an occupied room from the
-	# exterior, while leaving lighting ownership with the world's frozen practical
-	# allocation.
+	# exterior.
 	for x_position in [39.2, 43.0, 46.8]:
 		_box(room, "OperationsCeilingRib", Vector3(x_position, 5.59, 27.0), Vector3(0.16, 0.08, 6.9), _materials["steel_blue"], false)
+
+	# Two visible, local ceiling practicals light the plated floor and furniture.
+	# They are shadowless and tightly ranged so this room gains readable fill
+	# without changing the lighting of the adjoining exterior deck.
+	var room_light_specs := [
+		["OperationsCeilingLightWest", Vector3(40.5, 5.10, 27.0)],
+		["OperationsCeilingLightEast", Vector3(45.5, 5.10, 27.0)],
+	]
+	for light_spec: Array in room_light_specs:
+		var light_name := light_spec[0] as String
+		var light_position := light_spec[1] as Vector3
+		_box(room, light_name + "Body", Vector3(light_position.x, 5.57, light_position.z), Vector3(2.15, 0.11, 0.44), _materials["black"], false)
+		_box(room, light_name + "Lens", Vector3(light_position.x, 5.4975, light_position.z), Vector3(1.85, 0.035, 0.20), _materials["white_glow"], false)
+		var room_light := OmniLight3D.new()
+		room_light.name = light_name
+		room_light.position = light_position
+		room_light.light_color = Color("d9f6f3")
+		room_light.light_energy = 0.82
+		room_light.omni_range = 9.0
+		room_light.omni_attenuation = 1.45
+		room_light.shadow_enabled = false
+		room_light.distance_fade_enabled = true
+		room_light.distance_fade_begin = 28.0
+		room_light.distance_fade_length = 12.0
+		room_light.set_meta("localized_room_practical", true)
+		room.add_child(room_light)
 
 
 ## Why anyone climbs the ramp.
