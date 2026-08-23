@@ -24,6 +24,7 @@ func _run() -> void:
 	var reentered := binding.reenter()
 	var restored: Dictionary = binding.get_snapshot().route_trail
 	if not configured.accepted or trail.point_count != 8 or trail.visible_marker_count == 0 \
+			or not trail.shared_mesh or not trail.shared_material \
 			or not detached.accepted or not reentered.accepted or restored.visible_marker_count == 0 \
 			or restored.authority.navigation:
 		push_error("route trail production lifecycle failed")

@@ -10,25 +10,27 @@ var _markers: Array[MeshInstance3D] = []
 var _profile: StringName = &"high"
 var _solar: Dictionary = {}
 var _weather: Dictionary = {}
+var _shared_mesh: SphereMesh
+var _shared_material: StandardMaterial3D
 
 func configure(points: Array) -> Dictionary:
 	if _configured or points.is_empty():
 		return {"accepted": false, "reason": &"invalid_route_trail_configuration"}
+	_shared_mesh = SphereMesh.new()
+	_shared_mesh.radius = 0.45
+	_shared_mesh.height = 0.9
+	_shared_material = StandardMaterial3D.new()
+	_shared_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_shared_material.emission_enabled = true
+	_shared_material.emission = Color(0.2, 0.7, 1.0, 1.0)
 	for point in points:
 		if not point is Vector3 or not (point as Vector3).is_finite():
 			return {"accepted": false, "reason": &"invalid_route_trail_configuration"}
 		_points.append(point)
 		var marker := MeshInstance3D.new()
 		marker.name = "RouteTrailMarker_%d" % (_points.size() - 1)
-		var mesh := SphereMesh.new()
-		mesh.radius = 0.45
-		mesh.height = 0.9
-		marker.mesh = mesh
-		var material := StandardMaterial3D.new()
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.emission_enabled = true
-		material.emission = Color(0.2, 0.7, 1.0, 1.0)
-		marker.material_override = material
+		marker.mesh = _shared_mesh
+		marker.material_override = _shared_material
 		marker.position = point
 		marker.visible = false
 		add_child(marker)
@@ -47,8 +49,7 @@ func apply_presentation_recipe(solar: Variant, weather: Variant) -> Dictionary:
 	for index in _markers.size():
 		var visible := index % stride == 0
 		_markers[index].visible = visible
-		var material := _markers[index].material_override as StandardMaterial3D
-		material.emission_energy_multiplier = intensity
+		_shared_material.emission_energy_multiplier = intensity
 	return {"accepted": true, "reason": &"route_trail_recipe_applied", "marker_count": _markers.size()}
 
 func apply_graphics_profile(profile: StringName) -> Dictionary:
@@ -70,4 +71,4 @@ func reenter() -> Dictionary:
 func get_snapshot() -> Dictionary:
 	var visible_count := 0
 	for marker in _markers: visible_count += 1 if marker.visible else 0
-	return {"configured": _configured, "point_count": _points.size(), "points_body_local_m": _points.duplicate(), "visible_marker_count": visible_count, "graphics_profile": _profile, "authority": {"navigation": false, "pathfinding": false, "activity": false, "movement": false}}.duplicate(true)
+	return {"configured": _configured, "point_count": _points.size(), "points_body_local_m": _points.duplicate(), "visible_marker_count": visible_count, "graphics_profile": _profile, "shared_mesh": _shared_mesh != null, "shared_material": _shared_material != null, "authority": {"navigation": false, "pathfinding": false, "activity": false, "movement": false}}.duplicate(true)
