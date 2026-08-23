@@ -184,6 +184,7 @@ func configure(
 	_relay_survey_presentation = RelaySurveyPresentationScript.new() as Node
 	_relay_survey_presentation.name = "OwnedRelaySurveyPresentation"
 	add_child(_relay_survey_presentation)
+	_bind_relay_survey_pad_guides(host)
 	_orbital_ring = OrbitalRingScript.new() as Node
 	_orbital_ring.name = "OwnedOrbitalApproachRing"
 	add_child(_orbital_ring)
@@ -219,6 +220,7 @@ func configure(
 		return _result(false, &"surface_audio_attach_rejected")
 	_composition_generation += 1
 	_state = State.BOUND
+	_apply_relay_survey_presentation()
 	return _result(true, &"composition_bound")
 
 
@@ -781,6 +783,29 @@ func _apply_relay_survey_presentation() -> void:
 		&"apply_activity_snapshot", activity_snapshot, checkpoint_snapshot,
 		mandatory_route
 	)
+
+
+func _bind_relay_survey_pad_guides(host: Object) -> void:
+	if _relay_survey_presentation == null or host == null \
+			or not host.has_method(&"get_snapshot"):
+		return
+	var host_snapshot := host.call(&"get_snapshot") as Dictionary
+	var loaded_scene_instance_id := int(
+		host_snapshot.get("loaded_scene_instance_id", 0)
+	)
+	if loaded_scene_instance_id <= 0:
+		return
+	var loaded_scene := instance_from_id(loaded_scene_instance_id) as Node
+	if loaded_scene == null or not is_instance_valid(loaded_scene) \
+			or loaded_scene.get_script() != EmberAuthoredSceneScript:
+		return
+	var pad_guides := loaded_scene.get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/PadGuideVisuals"
+	) as MultiMeshInstance3D
+	if pad_guides != null:
+		_relay_survey_presentation.call(
+			&"bind_landing_pad_guides", pad_guides, loaded_scene_instance_id
+		)
 
 
 func _on_survey_interaction_completed(receipt: Dictionary) -> void:
