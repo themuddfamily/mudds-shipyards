@@ -1811,6 +1811,11 @@ func _connect_runtime_signals() -> void:
 	)
 	_connect_signal_once(
 		hud,
+		&"nearby_activity_intent_requested",
+		_on_hud_nearby_activity_intent_requested
+	)
+	_connect_signal_once(
+		hud,
 		&"planetary_cruise_toggle_requested",
 		_on_hud_planetary_cruise_toggle_requested
 	)
@@ -5028,6 +5033,7 @@ func _on_cargo_delivery_completed(
 
 
 func _sync_activity_hud() -> void:
+	_sync_nearby_activity_hud()
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_CONVOY_ESCORT:
@@ -5058,6 +5064,72 @@ func _sync_activity_hud() -> void:
 			_activity_selection_locked,
 			&""
 		)
+
+
+func _get_nearby_activity_binding() -> Node:
+	if not is_instance_valid(world) or not world.has_method(&"get_nearby_sector_cluster"):
+		return null
+	var cluster := world.call(&"get_nearby_sector_cluster") as Node
+	if not is_instance_valid(cluster):
+		return null
+	return cluster.get_node_or_null(^"ActivityBinding") as Node
+
+
+func _sync_nearby_activity_hud() -> void:
+	if not is_instance_valid(hud):
+		return
+	var binding := _get_nearby_activity_binding()
+	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+		if hud.has_method(&"clear_nearby_activity_snapshot"):
+			hud.call(&"clear_nearby_activity_snapshot")
+		return
+	if hud.has_method(&"set_nearby_activity_snapshot"):
+		hud.call(&"set_nearby_activity_snapshot", binding.call(&"get_snapshot"))
+
+
+func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
+	var binding := _get_nearby_activity_binding()
+	if not is_instance_valid(binding):
+		return
+	var activity_id := StringName(str(intent.get("activity_id", &"")))
+	var action := StringName(str(intent.get("reason", &"")))
+	var result: Dictionary
+	match action:
+		&"selected":
+			_sync_nearby_activity_hud()
+			return
+		&"start_requested":
+			result = _start_nearby_activity(binding, activity_id)
+		&"reset_requested":
+			result = _reset_nearby_activity(binding, activity_id)
+		_:
+			return
+	if bool(result.get("accepted", false)):
+		_sync_nearby_activity_hud()
+
+
+func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionary:
+	match activity_id:
+		&"cinder_reach_emberline_convoy": return binding.call(&"start_convoy")
+		&"cinder_reach_checkpoint_route": return binding.call(&"start_race")
+		&"cinder_platform_mining_run": return binding.call(&"start_mining_activity", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
+		&"cinder_derelict_structure_scan": return binding.call(&"start_structure_scan", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
+		&"cinder_debris_beacon_traversal": return binding.call(&"start_beacon_traversal", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
+		&"cinder_platform_supply_run": return binding.call(&"start_cargo_run")
+		&"station_defense": return binding.call(&"start_station_defense")
+	return {"accepted": false, "reason": &"unknown_activity"}
+
+
+func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionary:
+	match activity_id:
+		&"cinder_reach_emberline_convoy": return binding.call(&"reset_convoy")
+		&"cinder_reach_checkpoint_route": return binding.call(&"reset_race")
+		&"cinder_platform_mining_run": return binding.call(&"reset_mining_activity")
+		&"cinder_derelict_structure_scan": return binding.call(&"reset_structure_scan")
+		&"cinder_debris_beacon_traversal": return binding.call(&"reset_beacon_traversal")
+		&"cinder_platform_supply_run": return binding.call(&"reset_cargo_run")
+		&"station_defense": return binding.call(&"reset_station_defense")
+	return {"accepted": false, "reason": &"unknown_activity"}
 
 
 func _get_selected_activity_snapshot() -> Dictionary:
