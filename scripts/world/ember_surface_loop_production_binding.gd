@@ -496,7 +496,8 @@ func request_planetary_return_berth(
 		_return_berth_adapter = ReturnBerthAdapterScript.new()
 	return _return_berth_adapter.call(
 		&"request", arrival_receipt, berth, ship, definition,
-		actor_instance_id, craft_instance_id, _generation
+		actor_instance_id, craft_instance_id, _generation,
+		_host.get_attachment_generation() if _host != null else 1
 	)
 
 
@@ -504,6 +505,18 @@ func confirm_planetary_return_berth_occupied(landing_evidence: Variant) -> Dicti
 	if _return_berth_adapter == null:
 		return _reject(&"return_berth_adapter_unavailable")
 	return _return_berth_adapter.call(&"confirm_occupied", landing_evidence)
+
+
+func complete_planetary_return_contract(
+		occupied_receipt: Variant, landing_return_contract: Object,
+		observation: Dictionary
+	) -> Dictionary:
+	if _return_berth_adapter == null:
+		return _reject(&"return_berth_adapter_unavailable")
+	return _return_berth_adapter.call(
+		&"complete_return_contract", occupied_receipt,
+		landing_return_contract, observation
+	)
 
 
 func reset_planetary_return_berth() -> Dictionary:
