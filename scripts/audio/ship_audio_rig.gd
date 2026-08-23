@@ -170,6 +170,17 @@ const CUE_DURATIONS := {
 	CUE_LANDING: 0.30,
 	CUE_DOCKING: 0.28,
 }
+const CUE_PRIORITIES := {
+	CUE_STARTUP: 1,
+	CUE_STOP: 1,
+	CUE_FIRE: 2,
+	CUE_IMPACT: 2,
+	CUE_HULL_HIT: 2,
+	CUE_DESTRUCTION: 4,
+	CUE_LANDING: 1,
+	CUE_DOCKING: 1,
+}
+const DAMAGE_ALARM_PRIORITY := 3
 const EXPECTED_RESIDENT_SAMPLE_BYTES := 145680
 const RESIDENT_BYTE_BUDGET := 163840
 const LOOP_VOICE_COUNT := 4
@@ -229,6 +240,13 @@ var _cue_request_count := 0
 var _expected_volumes: Dictionary = {}
 var _expected_pitches: Dictionary = {}
 var _active_cues_by_voice: Dictionary = {}
+var _last_priority_audit: Dictionary = {
+	"incoming_id": &"",
+	"incoming_priority": 0,
+	"preempted_voice_id": &"",
+	"preempted_cue_id": &"",
+	"reason": &"none",
+}
 
 
 func _enter_tree() -> void:
@@ -412,6 +430,8 @@ func set_damage_alarm_active(active: bool) -> bool:
 		return false
 	if _damage_alarm_active == active:
 		return false
+	if active:
+		_preempt_lowest_priority_transient(DAMAGE_ALARM_PRIORITY, &"engine_damage_alarm")
 	_damage_alarm_active = active
 	_apply_runtime_state()
 	semantic_engine_cue_emitted.emit(
@@ -448,6 +468,16 @@ func play_cue(cue_id: StringName, intensity: float = 1.0) -> bool:
 	if stream == null or not is_instance_valid(player):
 		return false
 	var safe_intensity := clampf(intensity, 0.1, 1.5)
+	var previous_cue := _active_cues_by_voice.get(voice_id, &"") as StringName
+	var incoming_priority := int(CUE_PRIORITIES.get(cue_id, 0))
+	var previous_priority := int(CUE_PRIORITIES.get(previous_cue, 0))
+	_last_priority_audit = {
+		"incoming_id": cue_id,
+		"incoming_priority": incoming_priority,
+		"preempted_voice_id": voice_id if previous_priority < incoming_priority else &"",
+		"preempted_cue_id": previous_cue if previous_priority < incoming_priority else &"",
+		"reason": &"critical_preemption" if previous_priority < incoming_priority else &"replacement",
+	}
 	_last_cue_id = cue_id
 	_cue_request_count += 1
 	_active_cues_by_voice.erase(voice_id)
@@ -568,6 +598,7 @@ func get_state_snapshot() -> Dictionary:
 		"desired_loop_layers": desired_layers,
 		"queued_voice_ids": queued_voices,
 		"active_cues_by_voice": _active_cues_by_voice.duplicate(true),
+		"priority_audit": get_priority_audit(),
 		"last_cue_id": _last_cue_id,
 		"cue_request_count": _cue_request_count,
 		"inside_tree": is_inside_tree(),
@@ -595,6 +626,7 @@ func get_cue_contract() -> Dictionary:
 			"effective_duration_seconds": effective_duration,
 			"cleanup_timeout_seconds": effective_duration + CUE_CLEANUP_MARGIN_SECONDS,
 			"replacement_channel": true,
+			"priority": int(CUE_PRIORITIES.get(cue_id, 0)),
 		}
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -604,7 +636,13 @@ func get_cue_contract() -> Dictionary:
 		"combat_channel_voice_id": VOICE_COMBAT_CUE,
 		"maximum_simultaneous_transients": TRANSIENT_VOICE_COUNT,
 		"cleanup_margin_seconds": CUE_CLEANUP_MARGIN_SECONDS,
+		"critical_destruction_priority": int(CUE_PRIORITIES[CUE_DESTRUCTION]),
+		"damage_alarm_priority": DAMAGE_ALARM_PRIORITY,
 	}
+
+
+func get_priority_audit() -> Dictionary:
+	return _last_priority_audit.duplicate(true)
 
 
 func get_spatial_contract() -> Dictionary:
@@ -952,6 +990,38 @@ func _on_transient_finished(voice_id: StringName) -> void:
 	if not is_instance_valid(player) or player.playing:
 		return
 	_complete_transient(voice_id)
+
+
+func _preempt_lowest_priority_transient(incoming_priority: int, incoming_id: StringName) -> void:
+	var victim_voice := &""
+	var victim_cue := &""
+	var victim_priority := incoming_priority
+	for voice_id in TRANSIENT_VOICE_IDS:
+		var cue_id := _active_cues_by_voice.get(voice_id, &"") as StringName
+		if cue_id == &"":
+			continue
+		var priority := int(CUE_PRIORITIES.get(cue_id, 0))
+		if priority < victim_priority:
+			victim_voice = voice_id
+			victim_cue = cue_id
+			victim_priority = priority
+	if victim_voice == &"":
+		_last_priority_audit = {
+			"incoming_id": incoming_id,
+			"incoming_priority": incoming_priority,
+			"preempted_voice_id": &"",
+			"preempted_cue_id": &"",
+			"reason": &"no_lower_priority_voice",
+		}
+		return
+	_complete_transient(victim_voice)
+	_last_priority_audit = {
+		"incoming_id": incoming_id,
+		"incoming_priority": incoming_priority,
+		"preempted_voice_id": victim_voice,
+		"preempted_cue_id": victim_cue,
+		"reason": &"critical_preemption",
+	}
 
 
 func _on_cue_expiry_timeout(voice_id: StringName) -> void:
