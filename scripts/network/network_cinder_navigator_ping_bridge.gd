@@ -17,10 +17,11 @@ var _peer_generations: Dictionary = {}
 var _last_receipts: Dictionary = {}
 var _last_server_ticks: Dictionary = {}
 var _last_migration_generations: Dictionary = {}
+var _ship_generation := 0
 var _detached := true
 
 
-func attach(adapter: Object, cinder: Object) -> Dictionary:
+func attach(adapter: Object, cinder: Object, ship_generation: int = 1) -> Dictionary:
 	if adapter == null or not is_instance_valid(adapter) \
 			or not adapter.has_method(&"publish_crew_snapshot") \
 			or not adapter.has_method(&"get_migration_snapshot"):
@@ -30,6 +31,8 @@ func attach(adapter: Object, cinder: Object) -> Dictionary:
 			or not cinder.has_method(&"get_crew_role_authority") \
 			or not cinder.has_method(&"get_navigator_ping_snapshot"):
 		return _result(false, &"cinder_unavailable")
+	if ship_generation <= 0:
+		return _result(false, &"invalid_ship_generation")
 	if not _detached:
 		detach(&"reattached")
 	_adapter = adapter
@@ -39,8 +42,9 @@ func attach(adapter: Object, cinder: Object) -> Dictionary:
 	_last_receipts.clear()
 	_last_server_ticks.clear()
 	_last_migration_generations.clear()
+	_ship_generation = ship_generation
 	_detached = false
-	return _result(true, &"attached")
+	return _result(true, &"attached", {"ship_generation": _ship_generation})
 
 
 func detach(reason: StringName = &"detached") -> Dictionary:
@@ -52,6 +56,7 @@ func detach(reason: StringName = &"detached") -> Dictionary:
 	_last_receipts.clear()
 	_last_server_ticks.clear()
 	_last_migration_generations.clear()
+	_ship_generation = 0
 	_detached = true
 	var result := _result(true, reason)
 	result["tombstone_count"] = int(publication.get("count", 0))
@@ -63,6 +68,10 @@ func detach(reason: StringName = &"detached") -> Dictionary:
 func release_peer(peer_id: int) -> Dictionary:
 	if peer_id <= 0:
 		return _result(false, &"invalid_peer")
+	if _detached or _adapter == null:
+		return _result(false, &"detached")
+	if _adapter.has_method(&"is_server") and not bool(_adapter.is_server()):
+		return _result(false, &"server_authority_required")
 	var keys := _keys_for_peer(peer_id)
 	var publication := _publish_tombstones(keys, &"peer_released")
 	for key in keys:
@@ -90,6 +99,11 @@ func submit_ping(
 ) -> Dictionary:
 	if _detached or _adapter == null or _cinder == null:
 		return _result(false, &"detached")
+	# The composition is intentionally allowed to attach before ENet starts so
+	# it survives host setup and re-entry. Authority is checked immediately
+	# before any Cinder intent can be consumed.
+	if _adapter.has_method(&"is_server") and not bool(_adapter.is_server()):
+		return _result(false, &"server_authority_required")
 	if peer_id <= 0 or peer_generation <= 0 or seat_generation <= 0 \
 			or request_sequence <= 0 or server_tick <= 0 \
 			or migration_generation <= 0 or avatar_id.is_empty():
@@ -149,7 +163,7 @@ func submit_ping(
 		"seat_generation": seat_generation,
 		"role": RoleProfile.ROLE_PASSENGER,
 		"ship_id": CinderType.COMPONENT_ID,
-		"ship_generation": 1,
+		"ship_generation": _ship_generation,
 		"request_sequence": request_sequence,
 		"server_tick": server_tick,
 		"migration_generation": migration_generation,
@@ -178,6 +192,7 @@ func get_snapshot() -> Dictionary:
 		"tracked_actor_count": _last_sequence.size(),
 		"peer_generations": _peer_generations.duplicate(true),
 		"last_receipt_count": _last_receipts.size(),
+		"ship_generation": _ship_generation,
 	}.duplicate(true)
 
 
