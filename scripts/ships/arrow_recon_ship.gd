@@ -53,7 +53,9 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # resources under the paired lateral arrays, sensor-wing leading edges and
 # three-point dorsal data conduit are shared within their exact family. All
 # retained nodes, paths, transforms, materials, shadows, copies and submissions
-# remain ordinary independent renderers.
+# remain ordinary independent renderers. The later boarding-step batch preserves
+# the family's sole stable path and three exact visual copies while removing two
+# fallback-name renderers and two submissions.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
 const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
@@ -99,6 +101,9 @@ const ARRAY_RECEIVER_RADIUS := 0.15
 const ARRAY_RECEIVER_VISIBLE_COPIES := 2
 const BOARDING_STEP_SIZE := Vector3(0.58, 0.1, 0.62)
 const BOARDING_STEP_VISIBLE_COPIES := 3
+# Retain the only stable renderer path from the former three-node family; the
+# two duplicate siblings had engine-generated fallback names and no authority.
+const BOARDING_STEP_BATCH_NAME := "BoardingStep"
 const RECON_PULSE_EMITTER_NAMES := [
 	"PortReconPulseEmitter",
 	"StarboardReconPulseEmitter",
@@ -155,13 +160,13 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 190,
-	"mesh_instance_nodes": 167,
-	"multi_mesh_instance_nodes": 1,
-	"geometry_submissions": 168,
+	"nodes": 188,
+	"mesh_instance_nodes": 164,
+	"multi_mesh_instance_nodes": 2,
+	"geometry_submissions": 166,
 	"visible_geometry_copies": 169,
 	"unique_mesh_resource_allocations": 128,
-	"auto_fallback_names": 23,
+	"auto_fallback_names": 21,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
 	"assembly_nodes": 2,
@@ -373,10 +378,10 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"current": current,
 		"entry_heat_target_delta": ENTRY_HEAT_TARGET_VISUAL_DELTA.duplicate(true),
 		"reductions": {
-			"nodes": -13,
-			"geometry_submissions": -9,
+			"nodes": -11,
+			"geometry_submissions": -7,
 			"unique_mesh_resource_allocations": 14,
-			"auto_fallback_names": 1,
+			"auto_fallback_names": 3,
 			"visible_geometry_copies": -10,
 		},
 		"phase9_reductions_before_entry_heat": {
@@ -850,14 +855,23 @@ func _build_engines_and_landing_gear() -> void:
 		_torus(_arrow_visual, "MainGearFoot", Vector3(side * 1.7, -0.64, 2.25), 0.22, 0.34, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.4, 0.55, 1.0))
 	_cylinder(_arrow_visual, "NoseGearStrut", Vector3(0, -0.02, -4.2), 0.065, 1.12, _arrow_materials.graphite)
 	_torus(_arrow_visual, "NoseGearFoot", Vector3(0, -0.56, -4.2), 0.18, 0.29, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.4, 0.55, 1.0))
-	for step_index in 3:
-		if _boarding_step_mesh == null:
-			_boarding_step_mesh = _rounded_box_mesh(BOARDING_STEP_SIZE, _arrow_materials.pod)
-		var step := MeshInstance3D.new()
-		step.name = "BoardingStep"
-		step.position = Vector3(-1.65 - float(step_index) * 0.32, -0.12 + float(step_index) * 0.28, 0.05)
-		step.mesh = _boarding_step_mesh
-		_arrow_visual.add_child(step)
+	_boarding_step_mesh = _rounded_box_mesh(BOARDING_STEP_SIZE, _arrow_materials.pod)
+	var boarding_step_transforms: Array[Transform3D] = []
+	for step_index in BOARDING_STEP_VISIBLE_COPIES:
+		boarding_step_transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				-1.65 - float(step_index) * 0.32,
+				-0.12 + float(step_index) * 0.28,
+				0.05
+			)
+		))
+	_multi_mesh_from_mesh(
+		_arrow_visual,
+		BOARDING_STEP_BATCH_NAME,
+		_boarding_step_mesh,
+		boarding_step_transforms
+	)
 
 
 func _restyle_inherited_cockpit(cockpit: Node3D, canopy: Node3D) -> void:
@@ -1797,6 +1811,15 @@ func _multi_mesh_box(
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	mesh.material = material
+	return _multi_mesh_from_mesh(parent, node_name, mesh, transforms)
+
+
+func _multi_mesh_from_mesh(
+	parent: Node3D,
+	node_name: String,
+	mesh: Mesh,
+	transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = mesh

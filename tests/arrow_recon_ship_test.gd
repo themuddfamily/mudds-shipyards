@@ -40,36 +40,73 @@ func _run() -> void:
 
 
 func _test_boarding_step_mesh_sharing(arrow: ArrowReconShip) -> void:
-	var steps: Array[MeshInstance3D] = []
-	for child in arrow.get_arrow_visual_root().get_children():
-		var step := child as MeshInstance3D
-		if step != null and step.position.y >= -0.13 and step.position.y <= 0.45 \
-			and step.position.x <= -1.64 and step.position.x >= -2.30 \
-			and is_equal_approx(step.position.z, 0.05):
-			steps.append(step)
-	var meshes: Dictionary = {}
-	for step in steps:
-		if step.mesh != null:
-			meshes[step.mesh.get_instance_id()] = true
-	_check(
-		steps.size() == ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES
-		and meshes.size() == 1
-		and steps[0].mesh is ArrayMesh
-		and (steps[0].mesh as ArrayMesh).surface_get_material(0) != null
-		and steps[0].mesh == steps[2].mesh,
-		"three named visual-only boarding steps share one exact inherited rounded ArrayMesh while retaining all copies"
+	var visual := arrow.get_arrow_visual_root()
+	var batch := visual.get_node_or_null(
+		ArrowReconShip.BOARDING_STEP_BATCH_NAME
+	) as MultiMeshInstance3D
+	var expected: Array[Transform3D] = []
+	for step_index in ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES:
+		expected.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				-1.65 - float(step_index) * 0.32,
+				-0.12 + float(step_index) * 0.28,
+				0.05
+			)
+		))
+	var authored := (
+		batch.get_meta("authored_instance_transforms", []) as Array
+		if batch != null else []
 	)
-	var retained := steps[0].mesh
-	steps[2].mesh = (retained as ArrayMesh).duplicate() as ArrayMesh
-	var split: Dictionary = {}
-	for step in steps:
-		split[step.mesh.get_instance_id()] = true
-	_check(split.size() == 2, "RED: a private boarding-step mesh breaks the exact 3 -> 1 sharing contract")
-	steps[2].mesh = retained
-	meshes.clear()
-	for step in steps:
-		meshes[step.mesh.get_instance_id()] = true
-	_check(meshes.size() == 1, "restoring the boarding-step mesh returns its sharing contract green")
+	var transforms_match := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		transforms_match = transforms_match and (
+			(authored[index] as Transform3D).is_equal_approx(expected[index])
+		)
+	var expected_bounds := AABB()
+	var ordinary_step_renderers := 0
+	for child in visual.get_children():
+		if child is MeshInstance3D \
+				and (child as MeshInstance3D).mesh is ArrayMesh \
+				and (child as MeshInstance3D).mesh.get_aabb().size.is_equal_approx(
+					ArrowReconShip.BOARDING_STEP_SIZE
+				):
+			ordinary_step_renderers += 1
+	if batch != null and batch.multimesh != null and batch.multimesh.mesh != null:
+		for index in expected.size():
+			var piece := (expected[index] * batch.multimesh.mesh.get_aabb()).abs()
+			expected_bounds = piece if index == 0 else expected_bounds.merge(piece)
+	_check(
+		batch != null and batch.multimesh != null
+		and batch.multimesh.mesh is ArrayMesh
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			ArrowReconShip.BOARDING_STEP_SIZE
+		)
+		and batch.multimesh.mesh.surface_get_material(0) \
+			== arrow.get_variant_materials().pod
+		and batch.multimesh.transform_format == MultiMesh.TRANSFORM_3D
+		and not batch.multimesh.use_colors
+		and not batch.multimesh.use_custom_data
+		and batch.multimesh.instance_count == ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES
+		and batch.multimesh.visible_instance_count == ArrowReconShip.BOARDING_STEP_VISIBLE_COPIES
+		and transforms_match
+		and batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.visible
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.material_override == null
+		and batch.material_overlay == null
+		and batch.layers == 1
+		and is_zero_approx(batch.transparency)
+		and bool(batch.get_meta("visual_detail_only", false))
+		and batch.get_meta_list().size() == 2
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and batch.get_groups().is_empty()
+		and visual.get_node_or_null("BoardingStep") == batch
+		and ordinary_step_renderers == 0,
+		"three visual-only boarding steps retain their exact mesh, transforms, culling, material and shadow state in one bounded batch"
+	)
 
 
 func _test_definition_and_evidence(arrow: ArrowReconShip) -> void:
@@ -563,15 +600,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 190,
-			"mesh_instance_nodes": 167,
-			"multi_mesh_instance_nodes": 1,
-			"geometry_submissions": 168,
+			"nodes": 188,
+			"mesh_instance_nodes": 164,
+			"multi_mesh_instance_nodes": 2,
+			"geometry_submissions": 166,
 			"visible_geometry_copies": 169,
 			"unique_mesh_resource_allocations": 128,
-			"auto_fallback_names": 23,
+			"auto_fallback_names": 21,
 		},
-		"entry-complete Arrow freezes the exact 190-node, 168-submission, 128-mesh census with all 169 copies"
+		"entry-complete Arrow freezes the exact 188-node, 166-submission, 128-mesh census with all 169 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -600,10 +637,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"unique_mesh_resource_allocations": 4,
 		}
 		and report.reductions == {
-			"nodes": -13,
-			"geometry_submissions": -9,
+			"nodes": -11,
+			"geometry_submissions": -7,
 			"unique_mesh_resource_allocations": 14,
-			"auto_fallback_names": 1,
+			"auto_fallback_names": 3,
 			"visible_geometry_copies": -10,
 		}
 		and report.phase9_reductions_before_entry_heat == {
@@ -755,7 +792,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 190
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 188
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
