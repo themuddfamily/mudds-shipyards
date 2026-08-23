@@ -171,10 +171,10 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
-	_check(int(render.multi_mesh_batches) == 33 and int(render.multi_mesh_drawn_copies) == 188, "33 restrained batches store all 188 batched architectural and equipment copies")
-	_check(int(render.geometry_submissions) == 48 and int(render.visible_geometry_copies) == 203, "48 submissions draw the frozen 203 visible geometry copies")
-	_check(int(render.authored_transform_count) == 188, "every MultiMesh copy retains an authored transform")
-	_check(int(render.forward_plus_buffer_float_count) == 2256 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 188 valid 3D transforms")
+	_check(int(render.multi_mesh_batches) == 34 and int(render.multi_mesh_drawn_copies) == 192, "34 restrained batches store all 192 batched architectural and equipment copies")
+	_check(int(render.geometry_submissions) == 45 and int(render.visible_geometry_copies) == 203, "45 submissions draw the frozen 203 visible geometry copies")
+	_check(int(render.authored_transform_count) == 192, "every MultiMesh copy retains an authored transform")
+	_check(int(render.forward_plus_buffer_float_count) == 2304 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 192 valid 3D transforms")
 	var columns := annex.get_roof_column_render_optimization_contract()
 	_check(
 		bool(columns.valid)
@@ -211,9 +211,22 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 		and bool(bases.collision_names_transforms_and_shapes_exact),
 		"all four base transforms, cached mesh, material, culling, shadows, and physical identities remain exact"
 	)
+	var benches := annex.get_work_bench_render_optimization_contract()
+	_check(
+		bool(benches.valid)
+		and int(benches.before.renderer_submissions) == 4
+		and int(benches.after.renderer_submissions) == 1
+		and int(benches.delta.renderer_submissions) == -3
+		and int(benches.before.visible_geometry_copies) == 4
+		and int(benches.after.visible_geometry_copies) == 4
+		and bool(benches.visual_transforms_exact)
+		and bool(benches.render_state_exact)
+		and bool(benches.collision_names_transforms_shapes_and_ids_exact),
+		"work-bench batching preserves all four exact visible poses, render state, collisions, and fixed-equipment identities while reducing submissions 4-to-1"
+	)
 	var naming := annex.get_deterministic_naming_contract()
 	print("FABRICATION_ANNEX_NAMING: nodes=%d allocations=%d fallbacks=%d duplicates=%d paths=%s" % [naming.node_count, naming.generated_name_allocation_count, naming.auto_generated_fallback_path_count, naming.duplicate_sibling_name_count, naming.auto_generated_fallback_paths])
-	_check(int(naming.node_count) == 134 and int(naming.generated_name_allocation_count) == 67, "all 134 nodes and 67 generated allocations are frozen deterministically")
+	_check(int(naming.node_count) == 131 and int(naming.generated_name_allocation_count) == 68, "all 131 nodes and 68 generated allocations are frozen deterministically")
 	_check(int(naming.auto_generated_fallback_path_count) == 0 and int(naming.duplicate_sibling_name_count) == 0, "no runtime path contains an auto-generated @ fallback or duplicate sibling name")
 
 	var mapped_materials := {}
@@ -272,10 +285,10 @@ func _test_observation_gate_variant(stage: Node3D) -> void:
 	await process_frame
 	var performance := gate_annex.get_performance_contract()
 	_check(
-		int(performance.mesh_instances) == 15
-		and int(performance.multi_mesh_instances) == 33
+		int(performance.mesh_instances) == 11
+		and int(performance.multi_mesh_instances) == 34
 		and int(performance.visible_geometry_copies) == 204
-		and int(performance.nodes) == 136,
+		and int(performance.nodes) == 133,
 		"the integrated Observation-gate variant retains its exact finished rendering budget"
 	)
 	_check(bool(gate_annex.get_audit_report().valid), "the finished Observation-gate variant retains its production integration contract")
