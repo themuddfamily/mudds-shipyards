@@ -1209,8 +1209,11 @@ func advance_from_caller_sample(
 		EmberSurfaceLoopHost.Phase.SURFACE_APPROACH,
 		EmberSurfaceLoopHost.Phase.LANDING_APPROACH,
 	]:
+		# The retained planetary compositions author local +Y as surface-up.
+		# This is a display observation only; no velocity is written back.
 		_present_entry_observation(
 			velocity_mps.length(),
+			velocity_mps.y,
 			host_phase == EmberSurfaceLoopHost.Phase.LANDING_APPROACH,
 		)
 	if reboarded:
@@ -1430,7 +1433,9 @@ func _configure_entry_atmosphere(atmosphere_composition: Node) -> Dictionary:
 	return _entry_presentation_binding.call(&"configure_atmosphere", profile)
 
 
-func _present_entry_observation(speed_mps: float, landing_supported: bool) -> void:
+func _present_entry_observation(
+		speed_mps: float, vertical_speed_mps: float, landing_supported: bool
+	) -> void:
 	var attached := _attach_entry_presentation()
 	if not bool(attached.get("accepted", false)):
 		_last_entry_presentation_result = attached.duplicate(true)
@@ -1444,7 +1449,7 @@ func _present_entry_observation(speed_mps: float, landing_supported: bool) -> vo
 				return
 	_last_entry_presentation_result = _entry_presentation_binding.call(
 		&"present_observation", _last_planetary_altitude_m, speed_mps,
-		landing_supported
+		vertical_speed_mps, landing_supported
 	) as Dictionary
 
 

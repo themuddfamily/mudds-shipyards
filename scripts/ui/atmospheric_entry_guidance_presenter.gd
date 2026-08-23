@@ -5,6 +5,10 @@ extends RefCounted
 ## landing, support, recovery, and accessibility authority remain external.
 
 const COMPONENT_ID: StringName = &"atmospheric-entry-guidance-presenter"
+const LOW_ALTITUDE_SINK_LIMIT_MPS := 18.0
+const HIGH_ALTITUDE_SINK_LIMIT_MPS := 45.0
+const HIGH_ALTITUDE_THRESHOLD_M := 3_000.0
+const CLIMB_EXIT_THRESHOLD_MPS := 3.0
 
 var _snapshot: Dictionary = {}
 
@@ -18,6 +22,10 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var landing_supported := bool(source.get("landing_supported", false))
 	var reduced_flash := bool(source.get("reduced_flash", false))
 	var reduced_motion := bool(source.get("reduced_motion", false))
+	var vertical_speed_mps := float(source.get("vertical_speed_mps", 0.0))
+	if not is_finite(vertical_speed_mps):
+		vertical_speed_mps = 0.0
+	var descent_advisory := _descent_advisory(altitude, vertical_speed_mps)
 	var recovery := source.get("recovery_receipt", {}) as Dictionary
 	var state: StringName
 	if not has_atmosphere:
@@ -38,12 +46,19 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"component_id": COMPONENT_ID,
 		"state": state,
 		"title": _title(state),
-		"guidance": "%s\n%s" % [marker, _guidance(state)],
+		"guidance": "%s\n%s\n%s" % [
+			marker, descent_advisory.copy, _guidance(state),
+		],
 		"altitude_m": altitude,
 		"branch_id": branch_id,
 		"has_atmosphere": has_atmosphere,
 		"entry_intensity": intensity,
 		"intensity_marker": marker,
+		"vertical_speed_mps": vertical_speed_mps,
+		"descent_advisory_id": descent_advisory.id,
+		"descent_advisory_copy": descent_advisory.copy,
+		"descent_sink_limit_mps": descent_advisory.sink_limit_mps,
+		"descent_advisory_color_independent": true,
 		"reduced_flash": reduced_flash,
 		"reduced_motion": reduced_motion,
 		"attention_cue_policy": &"steady_text_no_flash" \
@@ -55,9 +70,40 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"actions": actions,
 		"presentation_only": true,
 		"physics_authority": false,
+		"movement_authority": false,
 		"damage_authority": false,
+		"landing_authority": false,
 	}
 	return _snapshot.duplicate(true)
+
+
+func _descent_advisory(altitude_m: float, vertical_speed_mps: float) -> Dictionary:
+	var altitude_weight := clampf(
+		altitude_m / HIGH_ALTITUDE_THRESHOLD_M, 0.0, 1.0
+	)
+	var sink_limit := lerpf(
+		LOW_ALTITUDE_SINK_LIMIT_MPS, HIGH_ALTITUDE_SINK_LIMIT_MPS,
+		altitude_weight
+	)
+	var advisory_id := &"safe_descent"
+	var copy := "[ DESCENT SPEED SAFE // %d M/S DOWN // ALT %d M ]" % [
+		roundi(maxf(0.0, -vertical_speed_mps)), roundi(altitude_m),
+	]
+	if vertical_speed_mps >= CLIMB_EXIT_THRESHOLD_MPS:
+		advisory_id = &"climb_exit"
+		copy = "[ CLIMB / EXIT // %d M/S UP // ALT %d M ]" % [
+			roundi(vertical_speed_mps), roundi(altitude_m),
+		]
+	elif vertical_speed_mps < -sink_limit:
+		advisory_id = &"high_sink_rate"
+		copy = "[ HIGH SINK RATE // %d M/S DOWN // ALT %d M ]" % [
+			roundi(-vertical_speed_mps), roundi(altitude_m),
+		]
+	return {
+		"id": advisory_id,
+		"copy": copy,
+		"sink_limit_mps": sink_limit,
+	}.duplicate(true)
 
 
 func get_snapshot() -> Dictionary:

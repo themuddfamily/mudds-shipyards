@@ -69,11 +69,13 @@ func configure_atmosphere(profile: PlanetaryAtmosphereProfile) -> Dictionary:
 
 
 func present_observation(
-		altitude_m: float, speed_mps: float, landing_supported: bool
+		altitude_m: float, speed_mps: float, vertical_speed_mps: float,
+		landing_supported: bool
 	) -> Dictionary:
 	if not _attached:
 		return _reject(&"detached")
 	if not is_finite(altitude_m) or not is_finite(speed_mps) \
+			or not is_finite(vertical_speed_mps) \
 			or altitude_m < 0.0 or speed_mps < 0.0:
 		return _reject(&"invalid_observation")
 	var arrow := _arrow()
@@ -103,6 +105,7 @@ func present_observation(
 		"world_id": &"aurora_temperate" if _atmospheric else &"ember_moon",
 		"branch_id": &"atmospheric" if _atmospheric else &"airless",
 		"altitude_m": altitude_m,
+		"vertical_speed_mps": vertical_speed_mps,
 		"entry_intensity": intensity,
 		"landing_supported": landing_supported,
 		"reduced_flash": bool(accessibility.get("reduced_flash", false)),

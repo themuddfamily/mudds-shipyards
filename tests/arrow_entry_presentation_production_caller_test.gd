@@ -56,16 +56,20 @@ func _run() -> void:
 	production.set("_ship_instance_id", arrow.get_instance_id())
 	var airless := production.advance_from_caller_sample(
 		1, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
-		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 0.0, 340.0),
+		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -12.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
 	var airless_snapshot := production.get_snapshot()
 	var airless_entry := airless_snapshot.last_entry_presentation_result as Dictionary
 	var airless_source := airless_entry.get("source", {}) as Dictionary
+	var entry_presenter := hud.get("_entry_guidance_presenter") as RefCounted
+	var safe_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
 	_check(
 		bool(airless.get("accepted", false))
 		and airless_source.get("branch_id") == &"airless"
 		and is_zero_approx(float(airless_source.get("entry_intensity", -1.0)))
+		and airless_source.get("vertical_speed_mps") == -12.0
+		and safe_presentation.get("descent_advisory_id") == &"safe_descent"
 		and hud.get("_runtime_status_kind") == &"entry",
 		"the real caller sample presents Ember's airless zero-heat descent on HUD",
 	)
@@ -79,7 +83,7 @@ func _run() -> void:
 	hud.set_reduced_motion(true)
 	var atmospheric := production.advance_from_caller_sample(
 		2, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
-		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 0.0, 340.0),
+		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, -60.0, 340.0),
 		false, false, false, {}, 1, 1, 0
 	)
 	var snapshot := production.get_snapshot()
@@ -88,6 +92,7 @@ func _run() -> void:
 	var bridge := snapshot.entry_presentation as Dictionary
 	var title := hud.get("_runtime_status_title") as Label
 	var detail := hud.get("_runtime_status_detail") as Label
+	var high_sink_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
 	_check(
 		bool(atmospheric.get("accepted", false))
 		and source.get("branch_id") == &"atmospheric"
@@ -95,8 +100,29 @@ func _run() -> void:
 		and title != null and title.text == "Critical Atmospheric Entry"
 		and detail != null and detail.text.begins_with(
 			"[ STEADY ENTRY LOAD CRITICAL ]"
-		),
+		)
+		and high_sink_presentation.get("descent_advisory_id") \
+			== &"high_sink_rate"
+		and high_sink_presentation.get("transition_policy") == &"static"
+		and high_sink_presentation.get(
+			"descent_advisory_color_independent"
+		) == true
+		and detail.text.contains("[ HIGH SINK RATE // 60 M/S DOWN"),
 		"atmospheric altitude and Arrow speed drive visible steady reduced-flash heat guidance",
+	)
+
+	var climb := production.advance_from_caller_sample(
+		3, 1.0 / 60.0, &"ship", arrow.get_instance_id(),
+		arrow.get_instance_id(), Vector3.ZERO, Vector3(0.0, 15.0, 340.0),
+		false, false, false, {}, 1, 1, 0
+	)
+	var climb_presentation := entry_presenter.call(&"get_snapshot") as Dictionary
+	_check(
+		bool(climb.get("accepted", false))
+		and climb_presentation.get("descent_advisory_id") == &"climb_exit"
+		and str(climb_presentation.get("descent_advisory_copy", "")) \
+			== "[ CLIMB / EXIT // 15 M/S UP // ALT 10000 M ]",
+		"the same production sample visibly distinguishes climb or exit",
 	)
 	_check(
 		bridge.get("physics_authority") == false
@@ -109,7 +135,7 @@ func _run() -> void:
 	composition.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 3 assertions")
+		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 4 assertions")
 		quit(0)
 		return
 	for failure in _failures:
