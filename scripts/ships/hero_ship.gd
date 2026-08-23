@@ -22,6 +22,23 @@ signal component_damage_changed(component_id: StringName, state: int, integrity:
 signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
 signal planetary_cruise_state_changed(snapshot: Dictionary)
 
+
+## SpringArm3D resolves its sweep after the ship's own physics callback. Keeping
+## the boundary correction on its direct child makes the ordering explicit: the
+## arm owns obstruction distance first, then this mount moves only the one chase
+## camera far enough above the owning collision envelope to keep its near plane
+## out of the hull. It adds no camera or input authority.
+class ChaseCameraBoundaryMount:
+	extends Node3D
+
+	var controller: Node
+
+
+	func _physics_process(_delta: float) -> void:
+		if controller != null and controller.is_inside_tree():
+			controller.call(&"_enforce_chase_camera_self_hull_boundary")
+
+
 const ENGINE_OFFLINE: StringName = &"OFFLINE"
 const ENGINE_STARTING: StringName = &"STARTING"
 const ENGINE_ONLINE: StringName = &"ONLINE"
@@ -137,6 +154,8 @@ const LANDING_PHASE_DOCKED: StringName = &"docked"
 const LANDING_PHASE_ABORTED: StringName = &"aborted"
 const CHASE_CAMERA_OFFSET := Vector3(0.0, 5.0, 14.5)
 const CHASE_CAMERA_PITCH := 0.0
+const CHASE_CAMERA_SELF_HULL_CLEARANCE := 0.02
+const CHASE_CAMERA_BOUNDARY_EPSILON := 0.0001
 const CANOPY_OPEN_ANGLE := deg_to_rad(63.0)
 const CAMERA_VIEW_ACTION: StringName = &"toggle_ship_camera_view"
 const CAMERA_VIEW_CHASE: StringName = &"CHASE"
@@ -297,6 +316,7 @@ var _pilot_seat_anchor: Marker3D
 var _boarding_entry_marker: Marker3D
 var _camera_pivot: Node3D
 var _camera_spring_arm: SpringArm3D
+var _camera_boundary_mount: Node3D
 var _camera: Camera3D
 var _cockpit_camera: Camera3D
 var _boarding_marker: Marker3D
@@ -846,6 +866,52 @@ func get_chase_camera_distance() -> float:
 ## its camera closer than this value when level geometry blocks the sweep.
 func get_current_chase_camera_distance() -> float:
 	return _camera_spring_arm.spring_length if _camera_spring_arm != null else 0.0
+
+
+## Structured witness for the collision-safe chase rig. The SpringArm owns
+## external obstruction distance; this report proves that its resolved endpoint
+## and all four near-plane corners also remain outside this craft's enabled root
+## collision envelope after the self-hull correction is applied.
+func get_chase_camera_self_hull_boundary_report() -> Dictionary:
+	var collision := get_landing_collision_report()
+	var bounds := collision.get("local_bounds", AABB()) as AABB
+	if _camera == null or _camera_boundary_mount == null \
+			or not bool(collision.get("valid", false)) or not bounds.has_volume():
+		return {
+			"valid": false,
+			"reason": &"camera_or_collision_boundary_unavailable",
+			"sample_count": 0,
+			"required_clearance_m": CHASE_CAMERA_SELF_HULL_CLEARANCE,
+			"base_signed_clearance_m": -INF,
+			"signed_clearance_m": -INF,
+			"correction_m": 0.0,
+			"collision_bounds": bounds,
+			"samples_local": {},
+		}
+	var base_samples := _chase_camera_boundary_samples(_camera_boundary_mount.global_position)
+	var live_samples := _chase_camera_boundary_samples(_camera.global_position)
+	var base_clearance := _minimum_signed_aabb_clearance(base_samples, bounds)
+	var live_clearance := _minimum_signed_aabb_clearance(live_samples, bounds)
+	var correction := (
+		_camera.global_position - _camera_boundary_mount.global_position
+	).dot(global_basis.y.normalized())
+	var samples_local := {}
+	for sample_name: StringName in live_samples:
+		samples_local[sample_name] = to_local(live_samples[sample_name] as Vector3)
+	return {
+		"valid": live_clearance \
+			>= CHASE_CAMERA_SELF_HULL_CLEARANCE - CHASE_CAMERA_BOUNDARY_EPSILON,
+		"reason": &"clear" if live_clearance \
+			>= CHASE_CAMERA_SELF_HULL_CLEARANCE - CHASE_CAMERA_BOUNDARY_EPSILON \
+			else &"near_plane_intersects_own_hull",
+		"sample_count": live_samples.size(),
+		"required_clearance_m": CHASE_CAMERA_SELF_HULL_CLEARANCE,
+		"base_signed_clearance_m": base_clearance,
+		"signed_clearance_m": live_clearance,
+		"correction_m": correction,
+		"collision_bounds": bounds,
+		"samples_local": samples_local,
+	}
 
 
 ## Angular separation between the chase boom's softened orbit and the physical
@@ -4991,7 +5057,15 @@ func _build_markers_and_camera() -> void:
 	_camera.fov = 72.0
 	_camera.near = 0.15
 	_camera.far = 1800.0
-	_camera_spring_arm.add_child(_camera)
+	_camera_boundary_mount = ChaseCameraBoundaryMount.new()
+	_camera_boundary_mount.name = "CameraBoundaryMount"
+	_camera_boundary_mount.controller = self
+	# SpringArm moves this direct child after its sweep. The mount's later physics
+	# priority then offsets only the camera, leaving arm distance and collision
+	# ownership unchanged.
+	_camera_boundary_mount.process_physics_priority = 100
+	_camera_spring_arm.add_child(_camera_boundary_mount)
+	_camera_boundary_mount.add_child(_camera)
 
 	# The first-person camera shares the cockpit's presentation-only bank, but
 	# keeps local -Z as its exact aiming axis. A short near plane lets the modelled
@@ -5007,6 +5081,80 @@ func _build_markers_and_camera() -> void:
 	_set_camera_current(_piloted)
 
 
+func _enforce_chase_camera_self_hull_boundary() -> void:
+	if _camera == null or _camera_boundary_mount == null:
+		return
+	var collision := get_landing_collision_report()
+	var bounds := collision.get("local_bounds", AABB()) as AABB
+	var mount_position := _camera_boundary_mount.global_position
+	if not bool(collision.get("valid", false)) or not bounds.has_volume():
+		_camera.global_position = mount_position
+		return
+	var base_samples := _chase_camera_boundary_samples(mount_position)
+	var lowest_local_y := INF
+	for sample_name: StringName in base_samples:
+		var local_sample := to_local(base_samples[sample_name] as Vector3)
+		lowest_local_y = minf(lowest_local_y, local_sample.y)
+	var correction := 0.0
+	if _minimum_signed_aabb_clearance(base_samples, bounds) \
+			< CHASE_CAMERA_SELF_HULL_CLEARANCE:
+		correction = maxf(
+			bounds.end.y + CHASE_CAMERA_SELF_HULL_CLEARANCE - lowest_local_y,
+			0.0
+		)
+	_camera.global_position = mount_position + global_basis.y.normalized() * correction
+
+
+func _chase_camera_boundary_samples(camera_position: Vector3) -> Dictionary:
+	var viewport_size := _camera.get_viewport().get_visible_rect().size
+	var aspect := (
+		viewport_size.x / viewport_size.y
+		if viewport_size.x > 0.0 and viewport_size.y > 0.0 else 16.0 / 9.0
+	)
+	var tangent := tan(deg_to_rad(_camera.fov * 0.5))
+	var half_width := _camera.near * tangent
+	var half_height := half_width / aspect
+	if _camera.keep_aspect == Camera3D.KEEP_HEIGHT:
+		half_height = _camera.near * tangent
+		half_width = half_height * aspect
+	var forward := -_camera.global_basis.z.normalized()
+	var right := _camera.global_basis.x.normalized()
+	var up := _camera.global_basis.y.normalized()
+	var near_centre := camera_position + forward * _camera.near
+	return {
+		&"camera_point": camera_position,
+		&"near_top_left": near_centre - right * half_width + up * half_height,
+		&"near_top_right": near_centre + right * half_width + up * half_height,
+		&"near_bottom_left": near_centre - right * half_width - up * half_height,
+		&"near_bottom_right": near_centre + right * half_width - up * half_height,
+	}
+
+
+func _minimum_signed_aabb_clearance(samples: Dictionary, bounds: AABB) -> float:
+	var result := INF
+	for sample_name: StringName in samples:
+		result = minf(
+			result,
+			_signed_point_aabb_clearance(to_local(samples[sample_name] as Vector3), bounds)
+		)
+	return result
+
+
+func _signed_point_aabb_clearance(point: Vector3, bounds: AABB) -> float:
+	var outside := Vector3(
+		maxf(maxf(bounds.position.x - point.x, point.x - bounds.end.x), 0.0),
+		maxf(maxf(bounds.position.y - point.y, point.y - bounds.end.y), 0.0),
+		maxf(maxf(bounds.position.z - point.z, point.z - bounds.end.z), 0.0)
+	)
+	if not outside.is_zero_approx():
+		return outside.length()
+	return -minf(
+		minf(
+			minf(point.x - bounds.position.x, bounds.end.x - point.x),
+			minf(point.y - bounds.position.y, bounds.end.y - point.y)
+		),
+		minf(point.z - bounds.position.z, bounds.end.z - point.z)
+	)
 func _snap_chase_camera_response() -> void:
 	var ship_basis := global_basis.orthonormalized()
 	_chase_follow_rotation = Quaternion(ship_basis).normalized()

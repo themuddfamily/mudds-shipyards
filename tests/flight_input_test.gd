@@ -72,6 +72,7 @@ func _run() -> void:
 	var stage := Node3D.new()
 	root.add_child(stage)
 	await _test_variant_launch_thresholds(stage)
+	await _test_fleet_chase_camera_boundaries(stage)
 	await _test_controller_only_command_path(stage, ship_scene)
 	var ship := ship_scene.instantiate() as CharacterBody3D
 	stage.add_child(ship)
@@ -219,6 +220,69 @@ func _run() -> void:
 		await physics_frame
 	var restored_distance := chase_camera.global_position.distance_to(camera_pivot.global_position)
 	_check(restored_distance > obstructed_distance + 2.0, "chase camera restores after an obstruction clears")
+
+	# Exact self-hull regression: a wall whose front face is five centimetres
+	# behind Torrent's enabled aft collision is a valid non-overlapping world
+	# placement. The arm must still retract, but neither its camera point nor any
+	# of the four near-plane corners may enter the owning hull envelope.
+	var hull_bounds := (
+		ship.call("get_landing_collision_report") as Dictionary
+	).get("local_bounds", AABB()) as AABB
+	var near_wall_front_z := hull_bounds.end.z + 0.05
+	var near_wall := _camera_test_wall(
+		"NearAftCameraWall",
+		ship.to_global(Vector3(0.0, hull_bounds.get_center().y, near_wall_front_z + 0.30))
+	)
+	stage.add_child(near_wall)
+	for _step in 6:
+		await physics_frame
+	var boundary := ship.call("get_chase_camera_self_hull_boundary_report") as Dictionary
+	var boundary_samples := boundary.get("samples_local", {}) as Dictionary
+	var near_wall_clear := boundary_samples.size() == 5
+	for sample_name: StringName in boundary_samples:
+		near_wall_clear = near_wall_clear \
+			and (boundary_samples[sample_name] as Vector3).z < near_wall_front_z
+	print(
+		"CHASE_CAMERA_SELF_HULL_CLEARANCE: before=%.6f after=%.6f correction=%.6f"
+		% [
+			float(boundary.get("base_signed_clearance_m", -INF)),
+			float(boundary.get("signed_clearance_m", -INF)),
+			float(boundary.get("correction_m", 0.0)),
+		]
+	)
+	_check(
+		float(boundary.get("base_signed_clearance_m", 0.0)) < 0.0,
+		"near-aft wall reproduces the uncorrected chase camera inside its own hull"
+	)
+	_check(
+		bool(boundary.get("valid", false))
+		and int(boundary.get("sample_count", 0)) == 5
+		and float(boundary.get("signed_clearance_m", 0.0)) >= 0.019
+		and float(boundary.get("correction_m", 0.0)) > 0.0,
+		"structured boundary keeps the camera point and four near-plane corners outside the owning hull"
+	)
+	_check(
+		near_wall_clear
+		and (collision_arm.get_child(0) as Node3D).global_position.distance_to(
+			camera_pivot.global_position
+		) < float(ship.call("get_current_chase_camera_distance")) - 2.0,
+		"self-hull correction preserves SpringArm retraction before the exact external wall"
+	)
+	_check(
+		is_equal_approx(float(ship.call("get_chase_camera_distance")), middle_zoom),
+		"near-aft correction leaves caller-owned chase distance unchanged"
+	)
+	near_wall.queue_free()
+	for _step in 6:
+		await physics_frame
+	var cleared_boundary := ship.call("get_chase_camera_self_hull_boundary_report") as Dictionary
+	_check(
+		bool(cleared_boundary.get("valid", false))
+		and absf(float(cleared_boundary.get("correction_m", 1.0))) < 0.001
+		and chase_camera.global_position.distance_to(camera_pivot.global_position)
+			> restored_distance - 0.5,
+		"unobstructed chase restores its ordinary boom position with no residual correction"
+	)
 
 	var parked_basis: Basis = ship.global_basis
 	ship.call("apply_look_motion", Vector2(900.0, -900.0))
@@ -438,6 +502,106 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 	controller_ship.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _camera_test_wall(wall_name: String, world_position: Vector3) -> StaticBody3D:
+	var wall := StaticBody3D.new()
+	wall.name = wall_name
+	wall.collision_layer = PhysicsLayers.WORLD
+	wall.collision_mask = PhysicsLayers.NONE
+	# The fixture's parent stage is identity; local assignment avoids asking an
+	# out-of-tree Node3D for a global transform before ownership is established.
+	wall.position = world_position
+	var shape := CollisionShape3D.new()
+	shape.name = "Collision"
+	var box := BoxShape3D.new()
+	box.size = Vector3(24.0, 18.0, 0.6)
+	shape.shape = box
+	wall.add_child(shape)
+	return wall
+
+
+func _test_fleet_chase_camera_boundaries(stage: Node3D) -> void:
+	var fleet_sources := [
+		["Torrent", "res://scenes/ships/torrent_interceptor.tscn"],
+		["Arrow", "res://scenes/ships/arrow_recon_ship.tscn"],
+		["Jovian", "res://scenes/ships/jovian_light_freighter.tscn"],
+		["Zenith", "res://scenes/ships/zenith_interceptor.tscn"],
+		["Halyard", "res://scenes/ships/halyard_crew_transport.tscn"],
+		["Cinder cargo", "res://scripts/ships/cinder_cargo_hauler.gd"],
+		["Cinder bomber", "res://scripts/ships/cinder_long_range_bomber.gd"],
+		["Cinder interceptor", "res://scripts/ships/cinder_light_interceptor.gd"],
+	]
+	for fleet_index in fleet_sources.size():
+		var specification: Array = fleet_sources[fleet_index]
+		var label := str(specification[0])
+		var source := load(str(specification[1]))
+		var craft: HeroShip = null
+		if source is PackedScene:
+			craft = (source as PackedScene).instantiate() as HeroShip
+		elif source is Script:
+			craft = (source as Script).new() as HeroShip
+		_check(craft != null, "%s chase-boundary production craft instantiates" % label)
+		if craft == null:
+			continue
+		stage.add_child(craft)
+		craft.global_position = Vector3(400.0 + float(fleet_index) * 80.0, 20.0, 0.0)
+		for _settle in 3:
+			await physics_frame
+		var collision_before := craft.get_landing_collision_report()
+		var collision_layer_before := craft.collision_layer
+		var collision_mask_before := craft.collision_mask
+		var bounds := collision_before.get("local_bounds", AABB()) as AABB
+		var wall_front_z := bounds.end.z + 0.05
+		var wall := _camera_test_wall(
+			"%sNearAftCameraWall" % label.replace(" ", ""),
+			craft.to_global(Vector3(0.0, bounds.get_center().y, wall_front_z + 0.30))
+		)
+		stage.add_child(wall)
+		for _settle in 6:
+			await physics_frame
+		var report := craft.get_chase_camera_self_hull_boundary_report()
+		var samples := report.get("samples_local", {}) as Dictionary
+		var wall_clear := samples.size() == 5
+		for sample_name: StringName in samples:
+			wall_clear = wall_clear and (samples[sample_name] as Vector3).z < wall_front_z
+		_check(
+			bool(report.get("valid", false))
+			and int(report.get("sample_count", 0)) == 5
+			and float(report.get("signed_clearance_m", 0.0)) >= 0.019,
+			"%s near-aft retraction keeps the camera point and near plane outside its own hull"
+				% label
+		)
+		_check(
+			wall_clear,
+			"%s self-hull boundary remains on the craft side of the external wall" % label
+		)
+		var collision_after := craft.get_landing_collision_report()
+		_check(
+			collision_after.get("local_bounds", AABB()) == collision_before.get("local_bounds", AABB())
+			and int(collision_after.get("shape_count", -1))
+				== int(collision_before.get("shape_count", -2))
+			and craft.collision_layer == collision_layer_before
+			and craft.collision_mask == collision_mask_before,
+			"%s camera correction leaves physical hull authority unchanged" % label
+		)
+		craft.set_cockpit_view(true)
+		_check(
+			craft.is_cockpit_view() and craft.get_camera().name == &"CockpitCamera",
+			"%s boundary mount leaves cockpit mode on the production pilot-eye camera" % label
+		)
+		craft.set_cockpit_view(false)
+		wall.queue_free()
+		for _settle in 6:
+			await physics_frame
+		var restored := craft.get_chase_camera_self_hull_boundary_report()
+		_check(
+			bool(restored.get("valid", false))
+			and absf(float(restored.get("correction_m", 1.0))) < 0.001,
+			"%s unobstructed chase restores without a residual hull correction" % label
+		)
+		craft.queue_free()
+		await process_frame
 
 
 func _check(condition: bool, description: String) -> void:
