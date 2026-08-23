@@ -520,6 +520,65 @@ The full matrix, source-current package, native-Windows execution, uninterrupted
 playthrough, audibility review, representative native frame/GPU timing, and VRAM gates all
 remain `NOT_RUN` for this checkpoint.
 
+### Wave 14/15 production reconciliation checkpoint — 2026-08-23
+
+This additive checkpoint records landed runtime and player-visible source outcomes only.
+It does not close a Phase umbrella item or claim percentage progress:
+
+- Ember's terminal return now uses the current craft's real registered home berth, existing
+  lease token, `HeroShip` landing lifecycle and live occupancy before consuming one physical
+  arrival receipt. Abort, destruction, detach/re-entry and replay fail closed without adding
+  movement, berth or reward authority. The terminal persistence record now rejects actual
+  movement/release/GameFlow authority, correlates complete nested evidence, and is retired
+  exactly once on a fresh station startup; a failed atomic retirement remains retryable.
+- The Aft operations room now contains one physical, on-foot Activity Board console. It opens
+  and focuses the existing paused selection page but owns no activity selection, start,
+  generation or reward state. Halyard's visible port airstair now crosses a real 1.90 m hull
+  aperture into the cabin, leaving 1.14 m clearance around the production Player capsule and
+  preserving the wall collision outside the hatch.
+- On-foot first/third-person choice now persists through the existing settings store and fresh
+  restart, including schema migration and retained-tree re-entry, while ship chase/cockpit
+  camera authority remains separate. The chase SpringArm also keeps its camera point and four
+  near-plane corners outside every production craft's own enabled hull when an obstacle forces
+  maximum retraction; the reproduced Torrent case moved from 0.692 m inside its hull to 0.020 m
+  clear without weakening external obstruction avoidance.
+- Guided Torrent return publishes the existing landing tutorial when `RETURN_TO_YARD` begins,
+  rather than after landing. Active tutorial glyphs now follow the current input device and
+  remapped profile, refresh after retained HUD re-entry with the same generation, and remain
+  dismissed after later device changes.
+- Interrupted-session recovery now offers a fenced **Save Support Summary** action through the
+  existing privacy-safe bounded local export sink. It does not upload, use the clipboard,
+  acknowledge recovery, or change settings/gameplay. Explicit HUD Exit and Windows close now
+  independently clean both existing safe-start and session-diagnostic markers; ordinary
+  detach/free and forced termination remain intentionally dirty for next-start recovery.
+- A service courier that intersected the complete Dock 05 walkable-pad thickness now flies
+  above it with 2.320 m player headroom. The pad, graph waypoints, berth clearance and task,
+  interaction, collision and lifecycle ownership remain unchanged. Standoff escort fire also
+  revokes synchronously when its defender stands down, so a committed lance cannot resolve in
+  `RETURN_TO_YARD`.
+- Reviewed presentation-only sharing/batching preserves authored transforms, materials, named
+  anchors, visible copies and separate physical authority across Cinder extraction/beacon trim,
+  Jovian restraint/cabinet detail, Arrow and Bulwark cockpit detail, Halyard dampers, Fleet Dock
+  mast caps, Habitat mess legs, Observation/VIP practical lenses, Aft pipe clamps, service-agent
+  hulls, exterior target lamps, Salvage Terrace rails and DockMast collars. Salvage rails retain
+  their two perpendicular recipes with exact visual-to-collision AABB checks; DockMast collars
+  retain authored 48x16 metadata and the existing normalized 40x16 live recipe. These are local
+  allocation/submission facts, not whole-scene or driver timing evidence.
+
+Focused production coverage for these paths includes
+`game_flow_planetary_return_approach_test.gd`, `game_flow_planetary_return_test.gd`,
+`planetary_return_persistence_adapter_test.gd`, `station_interaction_flow_test.gd`,
+`halyard_airstair_cabin_traversal_test.gd`, `on_foot_camera_mode_persistence_test.gd`,
+`flight_input_test.gd`, `torrent_sortie_completion_test.gd`,
+`first_sortie_tutorial_hud_integration_test.gd`,
+`game_flow_session_recovery_hud_integration_test.gd`,
+`main_session_diagnostics_integration_test.gd`, `station_navigation_graph_test.gd`,
+`outbound_route_clearance_test.gd`, and each changed presentation component's focused test.
+
+The full isolated-process matrix, source-current package review, native-Windows execution,
+uninterrupted human playthrough, audibility review, representative native frame/GPU timing and
+VRAM gates remain `NOT_RUN` at this source checkpoint.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
