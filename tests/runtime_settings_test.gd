@@ -64,8 +64,9 @@ func _test_defaults_and_descriptors() -> void:
 			"colorblind_palette_id": &"none",
 			"reduced_motion": false,
 			"captions_enabled": false,
+			"reduced_dynamic_range": false,
 		},
-		"the accessibility descriptor exposes exactly the four presentation presets"
+		"the accessibility descriptor exposes the five presentation presets"
 	)
 
 	var modern: Dictionary = settings.get_control_preset_descriptor(Settings.ControlPreset.MODERN)
