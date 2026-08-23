@@ -156,6 +156,20 @@ func reenter() -> Dictionary:
 	return _result(true, &"composition_reentered")
 
 
+func consume_orbit_return_handback(handback: Variant) -> Dictionary:
+	if _state != State.BOUND or not handback is Dictionary:
+		return _result(false, &"orbit_return_unavailable")
+	var receipt := handback as Dictionary
+	if StringName(receipt.get("reason", &"")) != &"runtime_ownership_returned" \
+			or StringName(receipt.get("host_id", &"")) != &"ember_surface_loop" \
+			or bool(receipt.get("host_attached", true)):
+		return _result(false, &"invalid_orbit_return_handback")
+	var detached := detach()
+	if not bool(detached.get("accepted", false)):
+		return detached
+	return _result(true, &"planetary_orbit_return_consumed")
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"state": [&"idle", &"bound", &"detached"][_state],

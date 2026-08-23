@@ -204,6 +204,12 @@ func restore_planetary_surface_session_snapshot(snapshot: Variant) -> Dictionary
 	return _planetary_composition.call(&"restore_session_snapshot", snapshot)
 
 
+func consume_planetary_orbit_return(handback: Variant) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"consume_orbit_return_handback", handback)
+
+
 func discover_planetary_settlements(position: Variant, radius_m: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")

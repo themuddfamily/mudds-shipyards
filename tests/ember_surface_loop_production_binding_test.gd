@@ -434,6 +434,13 @@ func _test_real_scheduler_complete_loop() -> void:
 			and area.get_reservation_token() == player,
 		"real exact Host receipt restores command while retaining the seated Player token",
 	)
+	var planetary_return := production.consume_planetary_orbit_return(receipt)
+	_check(
+		planetary_return.accepted
+			and planetary_return.reason == &"planetary_orbit_return_consumed"
+			and production.get_planetary_surface_snapshot().state == &"detached",
+		"planetary composition consumes the caller-owned orbit return handback once",
+	)
 	early.take_handback_after_completion = true
 	await _one_physics(false)
 	var taken := early.last_handback
