@@ -405,9 +405,10 @@ were stale when this tree resumed. Current evidence is:
   partially fixed: the neutral crop uses a controlled ship-material reference and the
   harness fails closed without a renderer, but cockpit exterior noise still needs a
   real-GPU qualification.
-- `tools/release/package_inventory.py` is deliberately partial. It parses conventional
-  format-4 PCK tables and rejects forbidden release paths, but the current exported EXE's
-  `GDSC`/zstd chunked TOC is explicitly unsupported and produces no manifest.
+- `tools/release/package_inventory.py` now parses the current format-4 export and validates
+  its bounded `GDSC`/zstd payloads. The current exported EXE produced a deterministic
+  inventory of 1,008 entries, including 328 compiled-script entries; forbidden release
+  paths remain rejected. Native Windows execution and human package review remain open.
 
 ### Wave 8 integration checkpoint — 2026-08-23
 
@@ -419,9 +420,10 @@ native, multi-process, packaged-route, or human gates:
   `NetworkRemoteShipCommandSource` admits only the current pilot's generation-fenced,
   rate-limited finite commands and publishes presentation-only pilot ownership for
   late join. Clients still cannot mutate ship physics, damage, leases, seats, or combat.
-  The exact focused integration tests pass, but the required three-process latency/loss
-  run, 30-minute soak, and native-Windows two-client playtest remain `NOT_RUN`; Phase 7
-  therefore remains open.
+  The exact focused integration tests and the three-process host/join authority harness
+  now pass, including its impairment/reordering and lifecycle markers. The 30-minute
+  soak and native-Windows two-client playtest remain `NOT_RUN`; Phase 7 therefore remains
+  open.
 - Ember's caller-owned return samples now reach `ORBIT_RETURN`, validate the existing
   Mudds landing-return contract, and emit exactly-once approach/arrival-ready receipts.
   The contract deliberately stops before station occupancy because its next existing
@@ -1116,14 +1118,14 @@ its braking contract intentionally completes about 55 km before the surface
 host's approach envelope; no owner yet flies that bounded low-speed final leg.
 The Host now exposes the required atomic ownership-return and exact committed
 origin-adoption primitives. A focused 37-assertion standalone
-`EmberSurfaceLoopProductionBinding` foundation now proves the required two-phase
-cadence: receipt adoption occurs in an early caller phase before Arrow moves and
-one Host start/advance occurs at priority 2 after Arrow and Player, with
-same-frame fencing, typed intent forwarding and exact handback validation. It
-is not yet composed into Main or GameFlow. GameFlow still needs the exclusive
-embodiment handoff, early receipt ingress, completion handback routing, and a
-cruise retirement gate before it can start the Host. Whole-Main detach remains
-a terminal standalone visit rather than proven production continuity. Production
+`EmberSurfaceLoopProductionBinding` is now composed into Main/GameFlow and proves the
+required two-phase cadence: receipt adoption occurs in an early caller phase before
+Arrow moves and one Host start/advance occurs at priority 2 after Arrow and Player,
+with same-frame fencing, typed intent forwarding and exact handback validation. The
+production visit remains blocked at the host-composition/boarding handoff: GameFlow
+still needs the exclusive embodiment handoff, completion handback routing, and a
+cruise retirement gate before it can start the Host. Whole-Main detach remains a
+terminal standalone visit rather than proven production continuity. Production
 must satisfy those contracts without reparenting Main's retained actors,
 teleporting final approach, adding a second mover/origin owner or travel
 session, or polling raw Input in the binding. The audited station
