@@ -102,6 +102,11 @@ func _run() -> void:
 		and ordering_client._projectile_replica_migration_generation == 2
 		and int(ordering_client.get_presentation_cursor_audit().get("projectile_count", 0)) == 1,
 		"malformed higher-migration payload cannot wipe the accepted replica state")
+	var invalid_revision_migration := _packet(_projectile(2, &"flying", Vector3.ZERO), 2, 0, 3)
+	_check(ordering_client._apply_projectile_replica_snapshot(invalid_revision_migration).get("status") == &"invalid_projectile_snapshot"
+		and ordering_client._projectile_replica_migration_generation == 2
+		and int(ordering_client.get_presentation_cursor_audit().get("projectile_count", 0)) == 1,
+		"invalid higher-migration envelope cannot reset an accepted replica")
 	ordering_client._configured = true
 	_check(ordering_client.shutdown(&"replication_test").accepted,
 		"client shutdown is accepted")
@@ -130,6 +135,11 @@ func _run() -> void:
 	)
 	_check(int(server.get_projectile_replication_budget(2).get("pending_count", 0)) == 8,
 		"a new budget window drains deferred snapshots by projectile identity exactly once")
+	server.publish_projectile_snapshot(
+		server.get_projectile(&"projectile_resync_00"), [2], false, 21
+	)
+	_check(int(server.get_projectile_replication_budget(2).get("forced_transition_count", 0)) == 0,
+		"a drained resync records publication generation and cannot regain transition bypass")
 	_check(server.publish_projectile_snapshot(projectile, [9]).get("status") == &"peer_not_admitted",
 		"server rejects unknown recipient")
 	server._projectile_replica_packet_revisions[&"disconnect_probe"] = 4

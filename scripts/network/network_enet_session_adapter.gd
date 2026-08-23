@@ -762,6 +762,7 @@ func _projectile_budget_decision(
 		state.snapshot_count = 0
 		state.byte_count = 0
 		var pending: Dictionary = _projectile_recipient_pending.get(peer_id, {}) as Dictionary
+		var published: Dictionary = _projectile_published_generations.get(peer_id, {}) as Dictionary
 		for pending_id_variant in pending.keys():
 			var pending_packet := pending[pending_id_variant] as Dictionary
 			var pending_size := Marshalls.variant_to_base64(pending_packet).to_utf8_buffer().size()
@@ -772,8 +773,13 @@ func _projectile_budget_decision(
 				_send_projectile_snapshot.rpc_id(peer_id, pending_packet)
 			state.snapshot_count = int(state.snapshot_count) + 1
 			state.byte_count = int(state.byte_count) + pending_size
+			var pending_projectile := pending_packet.get("projectile", {}) as Dictionary
+			published[StringName(pending_projectile.get("projectile_id", &""))] = int(
+				pending_projectile.get("projectile_generation", 0)
+			)
 			pending.erase(pending_id_variant)
 		_projectile_recipient_pending[peer_id] = pending
+		_projectile_published_generations[peer_id] = published
 		state.pending_count = pending.size()
 	if int(state.snapshot_count) >= PROJECTILE_MAX_SNAPSHOTS_PER_WINDOW \
 			or int(state.byte_count) + size_bytes > PROJECTILE_MAX_BYTES_PER_WINDOW:
@@ -3118,6 +3124,15 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 		return _remember(_result(false, &"invalid_projectile_snapshot"))
 	if Marshalls.variant_to_base64(packet).to_utf8_buffer().size() > MAX_PROJECTILE_REPLICATION_PACKET_BYTES:
 		return _remember(_result(false, &"projectile_packet_too_large"))
+	var packet_revision_variant: Variant = packet.get("revision")
+	var packet_tick_variant: Variant = packet.get("server_tick")
+	var migration_variant: Variant = packet.get("migration_generation")
+	var terminal_variant: Variant = packet.get("terminal")
+	if not packet_revision_variant is int or int(packet_revision_variant) <= 0 \
+			or not packet_tick_variant is int or int(packet_tick_variant) < 0 \
+			or not migration_variant is int or int(migration_variant) <= 0 \
+			or not terminal_variant is bool:
+		return _remember(_result(false, &"invalid_projectile_snapshot"))
 	var projectile: Dictionary = packet.get("projectile", {}) as Dictionary
 	var validation := _validate_projectile_replica_snapshot(projectile)
 	if not bool(validation.get("accepted", false)):
@@ -3132,7 +3147,7 @@ func _apply_projectile_replica_snapshot(packet: Dictionary) -> Dictionary:
 	var prior_generation := int(_projectile_replica_generations.get(projectile_id, 0))
 	if generation < prior_generation:
 		return _remember(_result(false, &"stale_projectile_generation"))
-	var packet_revision := int(packet.get("revision", 0))
+	var packet_revision := int(packet_revision_variant)
 	if packet_revision <= int(_projectile_replica_packet_revisions.get(projectile_id, 0)):
 		return _remember(_result(false, &"stale_projectile_revision"))
 	var server_tick := int(projectile.get("last_update_tick", 0))
