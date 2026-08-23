@@ -78,6 +78,8 @@ const CAPTION_CUES := {
 	&"target_lock_lost": [&"system", "Targeting computer", "[ target lock lost ]", 50],
 	&"weapon_not_ready": [&"system", "Weapons computer", "[ weapon not ready ]", 70],
 	&"weapon_ready": [&"system", "Weapons computer", "[ weapon ready ]", 45],
+	&"engine_started": [&"system", "Engine monitor", "[ engine started ]", 45],
+	&"engine_stopped": [&"system", "Engine monitor", "[ engine stopped ]", 70],
 }
 
 const CAPTION_DURATION_PHYSICS_SECONDS := 3.4

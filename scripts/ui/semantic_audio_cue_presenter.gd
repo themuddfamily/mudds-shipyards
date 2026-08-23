@@ -33,6 +33,8 @@ const REGISTERED_CUES := {
 	&"target_lock_lost": {"caption": "Target lock lost", "default_severity": &"low"},
 	&"weapon_not_ready": {"caption": "Weapon not ready", "default_severity": &"medium"},
 	&"weapon_ready": {"caption": "Weapon ready", "default_severity": &"low"},
+	&"engine_started": {"caption": "Engine started", "default_severity": &"low"},
+	&"engine_stopped": {"caption": "Engine stopped", "default_severity": &"medium"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 
