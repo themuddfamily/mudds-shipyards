@@ -119,6 +119,7 @@ func _run() -> void:
 	_test_banquette_joint_batch(suite)
 	_test_roof_cassette_batch(suite)
 	_test_outboard_mullion_fillet_batch(suite)
+	_test_outboard_mullion_batch(suite)
 	_test_servery_shelf_batch(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
@@ -309,20 +310,20 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	var render := suite.get_render_batch_contract()
 	_check(
 		int(render.baseline_descendant_nodes) == 468
-		and int(render.descendant_nodes) == 460
+		and int(render.descendant_nodes) == 455
 		and int(render.baseline_mesh_instances) == 264
-		and int(render.mesh_instances) == 250
+		and int(render.mesh_instances) == 244
 		and int(render.baseline_multimesh_batches) == 1
-		and int(render.multimesh_batches) == 4,
-		"cumulative visual batching freezes descendants 468 -> 460, MeshInstances 264 -> 250, and batches 1 -> 4"
+		and int(render.multimesh_batches) == 5,
+		"cumulative visual batching freezes descendants 468 -> 455, MeshInstances 264 -> 244, and batches 1 -> 5"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
 		and int(render.drawn_copies) == 278
 		and int(render.baseline_geometry_submissions) == 265
-		and int(render.geometry_submissions) == 254
+		and int(render.geometry_submissions) == 249
 		and int(render.banquette_joint_copies) == 14,
-		"drawn copies remain 278 while batched families lower submissions 265 -> 254"
+		"drawn copies remain 278 while batched families lower submissions 265 -> 249"
 	)
 	_check(
 		int(render.banquette_renderer_buffer_floats) == 168
@@ -476,7 +477,7 @@ func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
 	_check(
 		int(render.roof_cassette_copies) == 5
 		and int(render.roof_cassette_renderer_buffer_floats) == 60
-		and int(render.renderer_buffer_floats) == 300
+		and int(render.renderer_buffer_floats) == 372
 		and bool(render.roof_cassette_renderer_buffer_matches_authored)
 		and bool(render.roof_cassette_bounds_match_authored)
 		and bool(render.renderer_buffer_matches_authored)
@@ -553,13 +554,13 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_mullion_descendant_nodes) == 464
-		and int(render.descendant_nodes) == 460
+		and int(render.descendant_nodes) == 455
 		and int(render.pre_mullion_mesh_instances) == 259
-		and int(render.mesh_instances) == 250
+		and int(render.mesh_instances) == 244
 		and int(render.pre_mullion_multimesh_batches) == 2
-		and int(render.multimesh_batches) == 4
+		and int(render.multimesh_batches) == 5
 		and int(render.pre_mullion_geometry_submissions) == 261
-		and int(render.geometry_submissions) == 254
+		and int(render.geometry_submissions) == 249
 		and int(render.drawn_copies) == 278,
 		"fillet family cuts six renderer nodes/submissions to one while preserving all drawn copies"
 	)
@@ -585,6 +586,99 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the fillet buffer restores a clean module audit")
+
+
+func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
+	var glazing := suite.get_node_or_null(^"Structure/OutboardGlazing") as Node3D
+	var batch := suite.get_node_or_null(
+		^"Structure/OutboardGlazing/OutboardMullions"
+	) as MultiMeshInstance3D
+	_check(
+		glazing != null and batch != null and batch.multimesh != null,
+		"six collision-backed outboard mullions resolve through one glazing renderer"
+	)
+	if glazing == null or batch == null or batch.multimesh == null:
+		return
+	var anchors: Array[StaticBody3D] = []
+	var expected_transforms: Array[Transform3D] = []
+	var stable_collision := true
+	for mullion_index in VipReceptionSuite.OUTBOARD_MULLION_COPY_COUNT:
+		var expected_position := Vector3(
+			-6.9 + float(mullion_index) * 2.24, 2.225, 14.2
+		)
+		var anchor := glazing.get_node_or_null(NodePath(
+			"OutboardMullion%02d" % (mullion_index + 1)
+		)) as StaticBody3D
+		anchors.append(anchor)
+		expected_transforms.append(Transform3D(Basis.IDENTITY, expected_position))
+		var collision := anchor.get_node_or_null(^"Collision") as CollisionShape3D \
+			if anchor != null else null
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		stable_collision = stable_collision and anchor != null \
+			and anchor.position.is_equal_approx(expected_position) \
+			and anchor.get_node_or_null(^"Mesh") == null \
+			and shape != null \
+			and shape.size.is_equal_approx(Vector3(0.22, 3.35, 0.42)) \
+			and anchor.collision_layer == VipReceptionSuite.WORLD_LAYER \
+			and anchor.collision_mask == 0
+	_check(
+		stable_collision and anchors.size() == 6,
+		"all six named body anchors retain exact transforms, collision extents and World-layer authority"
+	)
+	var multi := batch.multimesh
+	var render := suite.get_render_batch_contract()
+	_check(
+		multi.instance_count == 6
+		and multi.visible_instance_count == -1
+		and (render.authored_outboard_mullion_transforms as Array) \
+			== expected_transforms
+		and int(render.outboard_mullion_renderer_buffer_floats) == 72
+		and bool(render.outboard_mullion_renderer_buffer_matches_authored)
+		and bool(render.outboard_mullion_bounds_match_authored)
+		and bool(render.outboard_mullion_visual_contract_matches)
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.22, 3.35, 0.42))
+		and batch.material_override == suite.get_node(
+			^"Structure/OutboardGlazing/ClerestoryMullion01/Mesh"
+		).material_override,
+		"one exact buffer preserves six pearl-deep mullion copies, transforms, bounds and material"
+	)
+	_check(
+		int(render.pre_outboard_mullion_descendant_nodes) == 460
+		and int(render.descendant_nodes) == 455
+		and int(render.pre_outboard_mullion_mesh_instances) == 250
+		and int(render.mesh_instances) == 244
+		and int(render.pre_outboard_mullion_multimesh_batches) == 4
+		and int(render.multimesh_batches) == 5
+		and int(render.pre_outboard_mullion_geometry_submissions) == 254
+		and int(render.geometry_submissions) == 249
+		and int(render.drawn_copies) == 278,
+		"mullion batching removes five renderer submissions while preserving all 278 copies"
+	)
+	_check(
+		int(render.outboard_mullion_baseline_mesh_instances) == 6
+		and int(render.outboard_mullion_mesh_instances) == 0
+		and int(render.outboard_mullion_multimesh_resources) == 1
+		and int(render.outboard_mullion_mesh_resources) == 1
+		and int(render.outboard_mullion_material_resources) == 1
+		and int(render.outboard_mullion_baseline_submissions) == 6
+		and int(render.outboard_mullion_submissions) == 1,
+		"family audit freezes renderers/submissions at 6 -> 1 with one shared mesh and material"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		suite.get_validation_errors().has(
+			"VIP outboard-mullion renderer buffer drifted from its authored roster"
+		),
+		"mutating one structural mullion transform turns the component audit red"
+	)
+	multi.buffer = original_buffer
+	_check(
+		suite.get_validation_errors().is_empty(),
+		"restoring the structural mullion buffer restores a clean module audit"
+	)
 
 
 func _test_evidence_label(suite: VipReceptionSuite) -> void:
@@ -694,17 +788,36 @@ func _test_colliders_have_drawn_geometry(suite: VipReceptionSuite) -> void:
 
 	var orphans := PackedStringArray()
 	var mismatched := PackedStringArray()
+	var mullion_batch := suite.get_node_or_null(
+		^"Structure/OutboardGlazing/OutboardMullions"
+	) as MultiMeshInstance3D
+	var mullion_transforms := (
+		suite.get_render_batch_contract().authored_outboard_mullion_transforms
+		as Array
+	)
 	for candidate in suite.find_children("*", "StaticBody3D", true, false):
 		var body := candidate as StaticBody3D
 		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
-		if mesh_instance == null or mesh_instance.mesh == null:
-			orphans.append(str(body.name))
-			continue
 		var shape := body.get_node_or_null(^"Collision") as CollisionShape3D
 		if shape == null or shape.shape == null:
 			orphans.append(str(body.name))
 			continue
-		var drawn: Vector3 = mesh_instance.mesh.get_aabb().size
+		var drawn := Vector3.ZERO
+		if mesh_instance != null and mesh_instance.mesh != null:
+			drawn = mesh_instance.mesh.get_aabb().size
+		elif str(body.name).begins_with("OutboardMullion") \
+				and mullion_batch != null and mullion_batch.multimesh != null:
+			var mullion_index := int(str(body.name).trim_prefix("OutboardMullion")) - 1
+			if mullion_index < 0 or mullion_index >= mullion_transforms.size() \
+					or not (mullion_transforms[mullion_index] as Transform3D).origin.is_equal_approx(
+						body.position
+					):
+				orphans.append(str(body.name))
+				continue
+			drawn = mullion_batch.multimesh.mesh.get_aabb().size
+		else:
+			orphans.append(str(body.name))
+			continue
 		var solid := Vector3.ZERO
 		if shape.shape is BoxShape3D:
 			solid = (shape.shape as BoxShape3D).size

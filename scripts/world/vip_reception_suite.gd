@@ -121,11 +121,13 @@ const SERVERY_STOOL_FOOT_RING_RINGS := 32
 const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 
 ## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
-## exterior roof cassettes, six bronze outboard mullion fillets, and three
-## servery shelves still draw, but four MultiMeshes own their visual-only submissions.
+## exterior roof cassettes, six bronze outboard mullion fillets, three servery
+## shelves, and six collision-backed outboard mullions still draw, but five
+## MultiMeshes own their visual-only submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const ROOF_CASSETTE_COPY_COUNT := 5
 const OUTBOARD_MULLION_FILLET_COPY_COUNT := 6
+const OUTBOARD_MULLION_COPY_COUNT := 6
 const SERVERY_SHELF_COPY_COUNT := 3
 const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
@@ -136,11 +138,15 @@ const PRE_MULLION_RENDER_DESCENDANT_COUNT := 464
 const PRE_MULLION_RENDER_MESH_INSTANCE_COUNT := 259
 const PRE_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 2
 const PRE_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 261
-const RENDER_DESCENDANT_COUNT := 460
-const RENDER_MESH_INSTANCE_COUNT := 250
-const RENDER_MULTIMESH_BATCH_COUNT := 4
+const PRE_OUTBOARD_MULLION_RENDER_DESCENDANT_COUNT := 460
+const PRE_OUTBOARD_MULLION_RENDER_MESH_INSTANCE_COUNT := 250
+const PRE_OUTBOARD_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 4
+const PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
+const RENDER_DESCENDANT_COUNT := 455
+const RENDER_MESH_INSTANCE_COUNT := 244
+const RENDER_MULTIMESH_BATCH_COUNT := 5
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 254
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 249
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -181,6 +187,8 @@ var _roof_cassette_transforms: Array[Transform3D] = []
 var _roof_cassette_batch: MultiMeshInstance3D = null
 var _outboard_mullion_fillet_transforms: Array[Transform3D] = []
 var _outboard_mullion_fillet_batch: MultiMeshInstance3D = null
+var _outboard_mullion_transforms: Array[Transform3D] = []
+var _outboard_mullion_batch: MultiMeshInstance3D = null
 var _servery_shelf_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
@@ -490,6 +498,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP outboard-mullion-fillet batch bounds drifted from its authored copies")
 	if not bool(rendering.outboard_mullion_fillet_visual_contract_matches):
 		errors.append("VIP outboard-mullion-fillet visual contract drifted")
+	if not bool(rendering.outboard_mullion_renderer_buffer_matches_authored):
+		errors.append("VIP outboard-mullion renderer buffer drifted from its authored roster")
+	if not bool(rendering.outboard_mullion_bounds_match_authored):
+		errors.append("VIP outboard-mullion batch bounds drifted from its authored copies")
+	if not bool(rendering.outboard_mullion_visual_contract_matches):
+		errors.append("VIP outboard-mullion visual contract drifted")
 	return errors
 
 
@@ -643,6 +657,41 @@ func get_render_batch_contract() -> Dictionary:
 			and _outboard_mullion_fillet_batch.get_child_count() == 0
 			and _outboard_mullion_fillet_batch.get_script() == null
 		)
+	var expected_structural_mullion_buffer := _encode_multimesh_transforms(
+		_outboard_mullion_transforms
+	)
+	var structural_mullion_renderer_buffer_matches := (
+		is_instance_valid(_outboard_mullion_batch)
+		and _outboard_mullion_batch.multimesh != null
+		and _outboard_mullion_batch.multimesh.buffer \
+			== expected_structural_mullion_buffer
+	)
+	var structural_mullion_bounds_match := false
+	var structural_mullion_visual_contract_matches := false
+	if is_instance_valid(_outboard_mullion_batch) \
+			and _outboard_mullion_batch.multimesh != null:
+		var expected_structural_mullion_bounds := _transformed_mesh_bounds(
+			_outboard_mullion_batch.multimesh.mesh.get_aabb(),
+			_outboard_mullion_transforms
+		)
+		structural_mullion_bounds_match = _outboard_mullion_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_structural_mullion_bounds
+		)
+		structural_mullion_visual_contract_matches = (
+			_outboard_mullion_batch.multimesh.instance_count == OUTBOARD_MULLION_COPY_COUNT
+			and _outboard_mullion_batch.multimesh.visible_instance_count == -1
+			and _outboard_mullion_batch.multimesh.mesh.get_surface_count() == 1
+			and _outboard_mullion_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.22, 3.35, 0.42)
+			)
+			and _outboard_mullion_batch.material_override == _materials.get("pearl_deep")
+			and _outboard_mullion_batch.cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _outboard_mullion_batch.layers == 1
+			and _outboard_mullion_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _outboard_mullion_batch.get_child_count() == 0
+			and _outboard_mullion_batch.get_script() == null
+		)
 	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -667,9 +716,14 @@ func get_render_batch_contract() -> Dictionary:
 		"pre_mullion_mesh_instances": PRE_MULLION_RENDER_MESH_INSTANCE_COUNT,
 		"pre_mullion_multimesh_batches": PRE_MULLION_RENDER_MULTIMESH_BATCH_COUNT,
 		"pre_mullion_geometry_submissions": PRE_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT,
+		"pre_outboard_mullion_descendant_nodes": PRE_OUTBOARD_MULLION_RENDER_DESCENDANT_COUNT,
+		"pre_outboard_mullion_mesh_instances": PRE_OUTBOARD_MULLION_RENDER_MESH_INSTANCE_COUNT,
+		"pre_outboard_mullion_multimesh_batches": PRE_OUTBOARD_MULLION_RENDER_MULTIMESH_BATCH_COUNT,
+		"pre_outboard_mullion_geometry_submissions": PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT,
 		"banquette_joint_copies": _banquette_joint_transforms.size(),
 		"roof_cassette_copies": _roof_cassette_transforms.size(),
 		"outboard_mullion_fillet_copies": _outboard_mullion_fillet_transforms.size(),
+		"outboard_mullion_copies": _outboard_mullion_transforms.size(),
 		"banquette_renderer_buffer_floats": (
 			_banquette_joint_batch.multimesh.buffer.size()
 			if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -685,6 +739,11 @@ func get_render_batch_contract() -> Dictionary:
 			if is_instance_valid(_outboard_mullion_fillet_batch)
 			and _outboard_mullion_fillet_batch.multimesh != null else 0
 		),
+		"outboard_mullion_renderer_buffer_floats": (
+			_outboard_mullion_batch.multimesh.buffer.size()
+			if is_instance_valid(_outboard_mullion_batch)
+			and _outboard_mullion_batch.multimesh != null else 0
+		),
 		"renderer_buffer_floats": (
 			(_banquette_joint_batch.multimesh.buffer.size()
 				if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -695,6 +754,9 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_outboard_mullion_fillet_batch.multimesh.buffer.size()
 				if is_instance_valid(_outboard_mullion_fillet_batch)
 				and _outboard_mullion_fillet_batch.multimesh != null else 0)
+			+ (_outboard_mullion_batch.multimesh.buffer.size()
+				if is_instance_valid(_outboard_mullion_batch)
+				and _outboard_mullion_batch.multimesh != null else 0)
 		),
 		"banquette_renderer_buffer_matches_authored": joint_renderer_buffer_matches,
 		"banquette_bounds_match_authored": joint_bounds_match,
@@ -703,12 +765,38 @@ func get_render_batch_contract() -> Dictionary:
 		"outboard_mullion_fillet_renderer_buffer_matches_authored": mullion_renderer_buffer_matches,
 		"outboard_mullion_fillet_bounds_match_authored": mullion_bounds_match,
 		"outboard_mullion_fillet_visual_contract_matches": mullion_visual_contract_matches,
+		"outboard_mullion_renderer_buffer_matches_authored": structural_mullion_renderer_buffer_matches,
+		"outboard_mullion_bounds_match_authored": structural_mullion_bounds_match,
+		"outboard_mullion_visual_contract_matches": structural_mullion_visual_contract_matches,
 		"renderer_buffer_matches_authored": (
 			joint_renderer_buffer_matches
 			and roof_renderer_buffer_matches
 			and mullion_renderer_buffer_matches
+			and structural_mullion_renderer_buffer_matches
 		),
-		"bounds_match_authored": joint_bounds_match and roof_bounds_match and mullion_bounds_match,
+		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
+			and mullion_bounds_match and structural_mullion_bounds_match,
+		"outboard_mullion_baseline_mesh_instances": OUTBOARD_MULLION_COPY_COUNT,
+		"outboard_mullion_mesh_instances": 0,
+		"outboard_mullion_multimesh_resources": (
+			1 if is_instance_valid(_outboard_mullion_batch) else 0
+		),
+		"outboard_mullion_mesh_resources": (
+			1 if is_instance_valid(_outboard_mullion_batch)
+			and _outboard_mullion_batch.multimesh != null
+			and _outboard_mullion_batch.multimesh.mesh != null else 0
+		),
+		"outboard_mullion_material_resources": (
+			1 if is_instance_valid(_outboard_mullion_batch)
+			and _outboard_mullion_batch.material_override != null else 0
+		),
+		"outboard_mullion_baseline_submissions": OUTBOARD_MULLION_COPY_COUNT,
+		"outboard_mullion_submissions": (
+			_outboard_mullion_batch.multimesh.mesh.get_surface_count()
+			if is_instance_valid(_outboard_mullion_batch)
+			and _outboard_mullion_batch.multimesh != null
+			and _outboard_mullion_batch.multimesh.mesh != null else 0
+		),
 		"outboard_mullion_fillet_baseline_mesh_instances": OUTBOARD_MULLION_FILLET_COPY_COUNT,
 		"outboard_mullion_fillet_mesh_instances": 0,
 		"outboard_mullion_fillet_multimesh_resources": (
@@ -762,6 +850,7 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_outboard_mullion_fillet_transforms": (
 			_outboard_mullion_fillet_transforms.duplicate()
 		),
+		"authored_outboard_mullion_transforms": _outboard_mullion_transforms.duplicate(),
 	}
 
 
@@ -1146,10 +1235,29 @@ func _build_outboard_glazing(structure: Node3D) -> void:
 	_box(glazing, "OutboardHeader", Vector3(-1.3, 4.25, 14.2), Vector3(12.0, 0.7, WALL_THICKNESS), _materials["pearl"])
 	for mullion_index in 6:
 		var mullion_x := -6.9 + float(mullion_index) * 2.24
-		_box(glazing, "OutboardMullion%02d" % (mullion_index + 1), Vector3(mullion_x, 2.225, 14.2), Vector3(0.22, 3.35, 0.42), _materials["pearl_deep"])
+		_box(
+			glazing,
+			"OutboardMullion%02d" % (mullion_index + 1),
+			Vector3(mullion_x, 2.225, 14.2),
+			Vector3(0.22, 3.35, 0.42),
+			_materials["pearl_deep"],
+			true,
+			Vector3.ZERO,
+			false
+		)
+		_outboard_mullion_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(mullion_x, 2.225, 14.2)
+		))
 		_outboard_mullion_fillet_transforms.append(Transform3D(
 			Basis.IDENTITY, Vector3(mullion_x, 2.225, 13.97)
 		))
+	_outboard_mullion_batch = _multimesh_boxes(
+		glazing,
+		"OutboardMullions",
+		Vector3(0.22, 3.35, 0.42),
+		_materials["pearl_deep"],
+		_outboard_mullion_transforms
+	)
 	_outboard_mullion_fillet_batch = _multimesh_boxes(
 		glazing,
 		"OutboardMullionFillets",
@@ -1651,7 +1759,8 @@ func _box(
 		size: Vector3,
 		material: Material,
 		collidable: bool = true,
-		box_rotation_degrees: Vector3 = Vector3.ZERO
+		box_rotation_degrees: Vector3 = Vector3.ZERO,
+		render_individually: bool = true
 	) -> Node3D:
 	var container: Node3D
 	if collidable:
@@ -1667,11 +1776,12 @@ func _box(
 	parent.add_child(container)
 	var mesh := _rounded_box_mesh(size)
 	if collidable:
-		var mesh_instance := MeshInstance3D.new()
-		mesh_instance.name = "Mesh"
-		mesh_instance.mesh = mesh
-		mesh_instance.material_override = material
-		container.add_child(mesh_instance)
+		if render_individually:
+			var mesh_instance := MeshInstance3D.new()
+			mesh_instance.name = "Mesh"
+			mesh_instance.mesh = mesh
+			mesh_instance.material_override = material
+			container.add_child(mesh_instance)
 		var collision := CollisionShape3D.new()
 		collision.name = "Collision"
 		var shape := BoxShape3D.new()
