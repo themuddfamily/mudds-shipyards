@@ -13,6 +13,8 @@ extends Area3D
 signal availability_changed(available: bool)
 signal reservation_changed(reserved: bool, token: Variant)
 
+const BoardingSeatAudioBindingType := preload("res://scripts/audio/boarding_seat_audio_binding.gd")
+
 const INTERACTABLE_LAYER := PhysicsLayers.INTERACTABLE_AREA_LAYER
 
 @export var interaction_id: StringName = &"board_ship"
@@ -38,6 +40,7 @@ var _reservation_token: Variant = null
 var _last_reported_availability := false
 var _detaching := false
 var _initialized := false
+var _audio_binding: RefCounted
 
 
 func _enter_tree() -> void:
@@ -50,6 +53,7 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	_apply_enabled_state()
 	_last_reported_availability = is_available()
+	_bind_audio()
 	_initialized = true
 
 
@@ -62,6 +66,20 @@ func _exit_tree() -> void:
 	_detaching = true
 	clear_reservation()
 	_emit_availability_if_changed()
+	_unbind_audio()
+
+func get_audio_binding() -> RefCounted:
+	return _audio_binding
+
+func _bind_audio() -> void:
+	_unbind_audio()
+	_audio_binding = BoardingSeatAudioBindingType.new()
+	_audio_binding.attach(self, interaction_id)
+
+func _unbind_audio() -> void:
+	if _audio_binding != null:
+		_audio_binding.detach()
+	_audio_binding = null
 
 
 func _publish_availability_after_reentry() -> void:

@@ -99,6 +99,11 @@ func _run() -> void:
 	_check(area.get_ship() == ship, "default relative owner path resolves the compatible parent ship")
 	_check(area.get_interaction_id() == &"board_test_ship", "exported interaction identifier is exposed exactly")
 	_check(area.get_prompt() == "[ E ]  BOARD TEST SHIP", "exported boarding prompt is exposed exactly")
+	var boarding_audio: RefCounted = area.get_audio_binding()
+	var boarding_cues: Array[StringName] = []
+	boarding_audio.semantic_boarding_cue_emitted.connect(func(cue_id: StringName, _seat_id: StringName, _intensity: float) -> void: boarding_cues.append(cue_id))
+	_check(bool(boarding_audio.get_snapshot().attached), "boarding area composes an attached seat audio binding")
+	_check(int(boarding_audio.get_snapshot().maximum_simultaneous_voices) == 2, "boarding audio stays within a two-voice ceiling")
 	_check(area.is_available(), "unoccupied boardable ship begins available")
 	_check(_player_discovers(player, area), "production player interaction area discovers the layer-4 boarding point")
 
@@ -115,6 +120,7 @@ func _run() -> void:
 	host.add_child(second_player_token)
 
 	_check(area.try_reserve(first_player_token), "first contender atomically reserves the seat")
+	_check(boarding_cues == [&"boarding_seat_reserved", &"boarding_started"], "accepted reservation emits reserve and boarding-start cues")
 	_check(area.is_reserved(), "reservation state is observable")
 	_check(area.get_reservation_token() == first_player_token, "reservation retains the exact occupant token")
 	_check(not area.is_available(), "reserved seat is unavailable to unqualified callers")
@@ -124,6 +130,13 @@ func _run() -> void:
 	_check(not area.try_reserve(second_player_token), "second contender cannot steal the reservation")
 	_check(not area.release_reservation(second_player_token), "non-owner cannot release another player's seat")
 	_check(area.release_reservation(first_player_token), "reservation owner releases the seat")
+	_check(boarding_cues == [&"boarding_seat_reserved", &"boarding_started", &"boarding_release"], "release emits one boarding-release cue")
+	_check(bool(boarding_audio.present_event({"event_id": &"seated", "generation": int(boarding_audio.get_snapshot().generation), "sequence": 10, "accepted": true}).accepted), "seated transition accepts the matching generation")
+	_check(not bool(boarding_audio.present_event({"event_id": &"seated", "generation": int(boarding_audio.get_snapshot().generation), "sequence": 10, "accepted": true}).accepted), "duplicate seat transition is suppressed")
+	_check(bool(boarding_audio.present_event({"event_id": &"controls_ready", "generation": int(boarding_audio.get_snapshot().generation), "sequence": 11, "accepted": true}).accepted), "controls-ready transition emits a semantic cue")
+	_check(bool(boarding_audio.present_event({"event_id": &"disembark", "generation": int(boarding_audio.get_snapshot().generation), "sequence": 12, "accepted": true}).accepted), "disembark transition emits a semantic cue")
+	_check(bool(boarding_audio.present_event({"event_id": &"rejected", "generation": int(boarding_audio.get_snapshot().generation), "sequence": 13, "accepted": true}).accepted), "rejected boarding transition emits a semantic cue")
+	_check(not bool(boarding_audio.present_event({"event_id": &"release", "generation": int(boarding_audio.get_snapshot().generation) - 1, "sequence": 14, "accepted": true}).accepted), "stale boarding generation is rejected")
 	_check(area.is_available(), "released seat becomes available again")
 
 	_check(area.try_reserve(first_player_token), "seat can be reserved again before disabling")
@@ -154,6 +167,7 @@ func _run() -> void:
 	)
 	host.remove_child(ship)
 	await process_frame
+	_check(not bool(boarding_audio.get_snapshot().attached), "boarding-area detach clears seat audio lifecycle")
 	_check(
 		bool(detach_reentry_probe.attempted)
 		and not bool(detach_reentry_probe.accepted)
