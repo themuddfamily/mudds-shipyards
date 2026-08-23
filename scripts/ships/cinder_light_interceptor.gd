@@ -2,6 +2,7 @@ class_name CinderLightInterceptor
 extends HeroShip
 
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
+const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 
 ## Original-modern lightweight interceptor. No historical craft, weapon, or
 ## combat claim is authenticated here.
@@ -19,6 +20,12 @@ const WEAPON_ID: StringName = &"cinder_light_repeater"
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
 var _weapon_definition: WeaponDefinition
+var _ship_perspective_audio_binding: RefCounted
+
+func _enter_tree() -> void:
+	super._enter_tree()
+	if _ship_perspective_audio_binding != null:
+		call_deferred("_rebind_cinder_interceptor_perspective_audio")
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -34,8 +41,41 @@ func _ready() -> void:
 	set_meta(&"evidence_status", EVIDENCE_STATUS)
 	set_meta(&"historically_supported", false)
 	super._ready()
+	_ship_perspective_audio_binding = ShipPerspectiveAudioBindingType.new()
+	var perspective_result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(perspective_result.get("accepted", false)):
+		camera_view_changed.connect(_on_cinder_interceptor_camera_view_changed)
+	else:
+		_ship_perspective_audio_binding = null
 	if not _interceptor_built:
 		_interceptor_built = rebuild_variant_presentation(_build_interceptor_variant)
+
+func _exit_tree() -> void:
+	if _ship_perspective_audio_binding != null:
+		if camera_view_changed.is_connected(_on_cinder_interceptor_camera_view_changed):
+			camera_view_changed.disconnect(_on_cinder_interceptor_camera_view_changed)
+		_ship_perspective_audio_binding.detach()
+	super._exit_tree()
+
+func _rebind_cinder_interceptor_perspective_audio() -> void:
+	if not is_inside_tree() or _ship_perspective_audio_binding == null or _ship_audio_rig == null:
+		return
+	var snapshot: Dictionary = _ship_perspective_audio_binding.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		return
+	var result: Dictionary = _ship_perspective_audio_binding.bind(_ship_audio_rig)
+	if bool(result.get("accepted", false)) and not camera_view_changed.is_connected(_on_cinder_interceptor_camera_view_changed):
+		camera_view_changed.connect(_on_cinder_interceptor_camera_view_changed)
+
+func _on_cinder_interceptor_camera_view_changed(view: StringName) -> void:
+	if _ship_perspective_audio_binding == null:
+		return
+	var perspective: StringName = &"cockpit" if view == CAMERA_VIEW_COCKPIT else &"exterior"
+	var generation := int(_ship_perspective_audio_binding.get_snapshot().get("generation", -1))
+	_ship_perspective_audio_binding.present_perspective(perspective, generation)
+
+func get_ship_perspective_audio_snapshot() -> Dictionary:
+	return _ship_perspective_audio_binding.get_snapshot() if _ship_perspective_audio_binding != null else {"attached": false}
 
 
 func _build_interceptor_variant(_controller: HeroShip) -> bool:
