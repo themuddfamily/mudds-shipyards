@@ -38,7 +38,7 @@ var _patrol_director: ActivityDirector
 var _patrol: PatrolActivity
 var _cargo_authority: CargoTransferAuthority
 var _cargo_activity: CargoDeliveryActivity
-var _cargo_reward_handoff: CinderCargoRewardHandoff
+var _cargo_reward_handoff: RefCounted
 var _cargo_source_handle: Dictionary
 var _cargo_destination_handle: Dictionary
 var _cargo_access: CinderCargoAccess
@@ -630,8 +630,10 @@ func _bind_cargo_reward_handoff() -> void:
 	if _cargo_reward_handoff != null or _cargo_activity == null \
 			or _station_reward_adapter == null:
 		return
-	var handoff := CARGO_REWARD_HANDOFF.new() as CinderCargoRewardHandoff
-	var attached := handoff.attach(_cargo_activity, _station_reward_adapter)
+	var handoff := CARGO_REWARD_HANDOFF.new() as RefCounted
+	var attached: Dictionary = handoff.call(
+		&"attach", _cargo_activity, _station_reward_adapter
+	)
 	if bool(attached.get("accepted", false)):
 		_cargo_reward_handoff = handoff
 

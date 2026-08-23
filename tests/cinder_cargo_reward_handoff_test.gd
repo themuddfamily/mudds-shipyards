@@ -21,7 +21,7 @@ func _run() -> void:
 		Callable(self, "_reward_callback"), &"station", &"station_reward"
 	)
 	adapter.register_activity(HANDOFF.ACTIVITY_ID, HANDOFF.REWARD_ID)
-	var handoff := HANDOFF.new() as CinderCargoRewardHandoff
+	var handoff = HANDOFF.new()
 	_check(
 		handoff.attach(activity, adapter).accepted,
 		"cargo completion attaches to the existing nearby reward adapter"
@@ -66,7 +66,7 @@ func _run() -> void:
 		Callable(self, "_reward_callback"), &"station", &"station_reward"
 	)
 	rejected_adapter.register_activity(HANDOFF.ACTIVITY_ID, HANDOFF.REWARD_ID)
-	var rejected_handoff := HANDOFF.new() as CinderCargoRewardHandoff
+	var rejected_handoff = HANDOFF.new()
 	rejected_handoff.attach(rejected_activity, rejected_adapter)
 	_reject_next = true
 	var rejected_generation := _complete(rejected_activity)
