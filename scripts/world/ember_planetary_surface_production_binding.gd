@@ -19,6 +19,7 @@ const LandmarkScript := preload("res://scripts/world/planetary_activity_landmark
 const LandmarkContractScript := preload("res://scripts/world/planetary_activity_landmark_cluster_contract.gd")
 const SettlementScript := preload("res://scripts/world/planetary_settlement_interaction_runtime.gd")
 const SettlementContractScript := preload("res://scripts/world/planetary_settlement_structure_contract.gd")
+const SettlementPracticalScript := preload("res://scripts/world/planetary_settlement_practical_presentation.gd")
 const SurfaceAudioBindingScene := preload("res://scenes/audio/planetary_surface_audio_playback_binding.tscn")
 const SurfaceAudioAdapterScript := preload("res://scripts/audio/planetary_surface_audio_environment_adapter.gd")
 const SurfaceAudioPolicyScript := preload("res://scripts/world/planetary_surface_audio_policy.gd")
@@ -41,6 +42,7 @@ var _water_presentation: Node
 var _water: RefCounted
 var _landmarks: RefCounted
 var _settlement: RefCounted
+var _settlement_practicals: Dictionary = {}
 var _surface_audio_binding: Node
 var _surface_audio_adapter: Node
 var _surface_audio_policy: RefCounted
@@ -111,9 +113,11 @@ func configure(
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"landmark_configuration_rejected")
 	_settlement = SettlementScript.new()
-	configured = _settlement.call(&"configure", SettlementContractScript.new())
+	var settlement_contract := SettlementContractScript.new()
+	configured = _settlement.call(&"configure", settlement_contract)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"settlement_configuration_rejected")
+	_configure_settlement_practicals(settlement_contract.get_snapshot())
 	_adapter = AdapterScript.new()
 	var runtime := ActivityRuntimeScript.new()
 	var bound: Dictionary = _adapter.call(&"bind", host, runtime, director, reward_sink)
@@ -212,6 +216,7 @@ func submit_solar_observation(
 		"twilight_factor_unitless": twilight,
 		"caller_time_seconds": caller_time_seconds,
 	}.duplicate(true)
+	_apply_settlement_practicals()
 	_surface_audio_generation += 1
 	_present_surface_audio()
 	_apply_water_presentation()
@@ -280,6 +285,8 @@ func detach() -> Dictionary:
 	var settlement_snapshot := _settlement.call(&"get_snapshot") as Dictionary
 	if settlement_snapshot.get("state", &"idle") == &"inside":
 		_settlement.call(&"detach")
+	for practical: Node in _settlement_practicals.values():
+		practical.call(&"detach")
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"in_water":
 		_water.call(&"detach")
@@ -306,6 +313,7 @@ func reenter() -> Dictionary:
 	var settlement_snapshot := _settlement.call(&"get_snapshot") as Dictionary
 	if settlement_snapshot.get("state", &"idle") == &"detached":
 		_settlement.call(&"reenter", next_attachment)
+	_apply_settlement_practicals()
 	var water_snapshot := _water.call(&"get_snapshot") as Dictionary
 	if water_snapshot.get("state", &"idle") == &"detached":
 		_water.call(&"reenter", next_attachment)
@@ -356,6 +364,7 @@ func get_snapshot() -> Dictionary:
 		"water": _water.get_snapshot() if _water != null else {},
 		"landmarks": _landmarks.get_snapshot() if _landmarks != null else {},
 		"settlement": _settlement.get_snapshot() if _settlement != null else {},
+		"settlement_practicals": _settlement_practical_snapshot(),
 		"surface_audio": _surface_audio_adapter.call(&"get_snapshot") if _surface_audio_adapter != null else {},
 	}.duplicate(true)
 
@@ -390,6 +399,37 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 	if not bool(restored.get("accepted", false)):
 		return _result(false, restored.get("reason", &"planetary_session_restore_rejected") as StringName)
 	return _result(true, &"planetary_session_restored")
+
+
+func _configure_settlement_practicals(contract_snapshot: Dictionary) -> void:
+	_settlement_practicals.clear()
+	for item in contract_snapshot.get("structures", []) as Array:
+		var structure := item as Dictionary
+		var structure_id := StringName(structure.get("id", &""))
+		if structure_id.is_empty() or _settlement_practicals.size() >= 4:
+			continue
+		var practical := SettlementPracticalScript.new() as Node3D
+		practical.name = "SettlementPractical_%s" % structure_id
+		practical.position = structure.get("position_body_local_m", Vector3.ZERO)
+		add_child(practical)
+		var result: Dictionary = practical.call(&"configure", structure_id)
+		if bool(result.get("accepted", false)):
+			_settlement_practicals[structure_id] = practical
+
+
+func _apply_settlement_practicals() -> void:
+	if _solar_phase.is_empty():
+		return
+	for practical: Node in _settlement_practicals.values():
+		practical.call(&"apply_solar_phase", _solar_phase)
+
+
+func _settlement_practical_snapshot() -> Dictionary:
+	var snapshot := {}
+	for structure_id: StringName in _settlement_practicals:
+		var practical: Node = _settlement_practicals[structure_id]
+		snapshot[structure_id] = practical.call(&"get_snapshot")
+	return snapshot
 
 
 func _live() -> bool:
