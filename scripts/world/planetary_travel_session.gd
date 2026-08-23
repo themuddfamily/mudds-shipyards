@@ -154,6 +154,8 @@ var _last_duration_seconds := -1.0
 var _transition_count := 0
 var _terminal_reason: StringName = &""
 var _last_sample: Dictionary = {}
+var _last_return_intent: Dictionary = {}
+var _last_return_activity_generation := -1
 var _landing_composition_report: Dictionary = {}
 var _last_coordinate_frame_generation := 0
 var _mutation_active := false
@@ -322,6 +324,41 @@ func start(
 	_last_sample = {}
 	var result := _finish(true, &"started")
 	_emit_snapshot_signal(session_started)
+	_emit_snapshot_signal(presentation_changed)
+	return result
+
+
+## Admit a caller-authorized return request without advancing movement state.
+## The caller must still drive the existing reboard/takeoff/orbit samples.
+func admit_return_travel_intent(
+		intent: Variant,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _attachment_rejection(expected_generation, expected_attachment_generation)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if not intent is Dictionary or actor_instance_id < 1 or craft_instance_id < 1:
+		return _finish(false, &"invalid_return_travel_intent")
+	var request := intent as Dictionary
+	var activity_generation := int(request.get("activity_generation", 0))
+	if activity_generation < 1 or activity_generation == _last_return_activity_generation:
+		return _finish(false, &"return_travel_intent_already_admitted")
+	if StringName(request.get("destination_id", &"")) != &"mudds_shipyards":
+		return _finish(false, &"return_travel_destination_mismatch")
+	if _state not in [State.ON_FOOT, State.REBOARDED]:
+		return _finish(false, &"return_travel_out_of_order")
+	_last_return_activity_generation = activity_generation
+	_last_return_intent = request.duplicate(true)
+	_last_return_intent["actor_instance_id"] = actor_instance_id
+	_last_return_intent["craft_instance_id"] = craft_instance_id
+	_last_sample["return_travel_intent"] = _last_return_intent.duplicate(true)
+	var result := _finish(true, &"return_travel_intent_admitted")
 	_emit_snapshot_signal(presentation_changed)
 	return result
 
@@ -685,6 +722,8 @@ func reset(
 	_transition_count = 0
 	_terminal_reason = &""
 	_last_sample = {}
+	_last_return_intent = {}
+	_last_return_activity_generation = -1
 	_landing_composition_report = {}
 	var result := _finish(true, &"reset")
 	_emit_snapshot_signal(session_reset)
@@ -738,6 +777,8 @@ func get_presentation_snapshot() -> Dictionary:
 		"last_duration_seconds": _last_duration_seconds,
 		"terminal_reason": _terminal_reason,
 		"last_sample": _last_sample.duplicate(true),
+		"last_return_intent": _last_return_intent.duplicate(true),
+		"last_return_activity_generation": _last_return_activity_generation,
 		"landing_composition": _landing_composition_report.duplicate(true),
 		"landing_composition_bound": not _landing_composition_report.is_empty(),
 		"presentation": presentation,

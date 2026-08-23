@@ -370,6 +370,35 @@ func consume_planetary_relay_survey_return(
 	)
 
 
+## Feeds the accepted caller intent into an existing travel session. The
+## session admits the request but remains responsible for its normal reboard,
+## takeoff, ascent, and orbit-return evidence.
+func admit_planetary_relay_survey_return(
+		manifest_result: Variant,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		travel_session: Object
+	) -> Dictionary:
+	if _relay_return_travel == null or _host == null or travel_session == null \
+			or not travel_session.has_method(&"admit_return_travel_intent"):
+		return _reject(&"return_travel_session_unavailable")
+	var consumed: Dictionary = _relay_return_travel.call(
+		&"consume", manifest_result, actor_instance_id, craft_instance_id,
+		_host.get_attachment_generation()
+	)
+	if not bool(consumed.get("accepted", false)):
+		return consumed
+	var intent := consumed.get("intent", {}) as Dictionary
+	var admitted: Dictionary = travel_session.call(
+		&"admit_return_travel_intent", intent, actor_instance_id,
+		craft_instance_id, _host.get_generation(), _host.get_attachment_generation()
+	)
+	if not bool(admitted.get("accepted", false)):
+		_relay_return_travel.call(&"reset")
+		return admitted
+	return {"accepted": true, "reason": &"return_travel_intent_admitted", "intent": intent}.duplicate(true)
+
+
 func abort_planetary_relay_survey_return(reason: StringName = &"caller_aborted") -> Dictionary:
 	if _relay_return_travel == null:
 		return _reject(&"planetary_composition_unavailable")

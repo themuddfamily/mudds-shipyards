@@ -3,6 +3,7 @@ extends SceneTree
 const BindingScript := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
 const ManifestScript := preload("res://scripts/world/ember_relay_survey_return_manifest.gd")
 const TravelAdapterScript := preload("res://scripts/world/ember_relay_survey_return_travel_adapter.gd")
+const TravelSessionScript := preload("res://scripts/world/planetary_travel_session.gd")
 
 func _init() -> void:
 	call_deferred("_run")
@@ -26,6 +27,9 @@ func _run() -> void:
 	var payload: Dictionary = issued.get("manifest", {})
 	var reset := manifest.reset()
 	var snapshot := manifest.get_snapshot()
+	var wrong_manifest := issued.duplicate(true)
+	(wrong_manifest.manifest as Dictionary).destination_id = &"wrong_destination"
+	var wrong_destination := travel.consume(wrong_manifest, 101, 202, 4)
 	var intent := travel.consume(issued, 101, 202, 4)
 	var duplicate_intent := travel.consume(issued, 101, 202, 4)
 	var detached := travel.detach()
@@ -48,6 +52,7 @@ func _run() -> void:
 			and not payload.reward_authority \
 			and snapshot.issued_generation == -1 \
 			and intent.accepted and not duplicate_intent.accepted \
+			and not wrong_destination.accepted \
 			and intent.intent.actor_instance_id == 101 \
 			and intent.intent.craft_instance_id == 202 \
 			and intent.intent.destination_id == &"mudds_shipyards" \
@@ -56,7 +61,8 @@ func _run() -> void:
 			and travel_reset.accepted \
 			and binding.has_method(&"issue_planetary_relay_survey_return_manifest") \
 			and binding.has_method(&"reset_planetary_relay_survey_return_manifest") \
-			and binding.has_method(&"consume_planetary_relay_survey_return")
+			and binding.has_method(&"consume_planetary_relay_survey_return") \
+			and TravelSessionScript.new().has_method(&"admit_return_travel_intent")
 	if not valid:
 		push_error("relay survey return manifest failed")
 		binding.free()
