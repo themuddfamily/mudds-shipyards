@@ -238,6 +238,10 @@ var _activity_selection_page: Control
 var _server_browser_page: Control
 var _server_browser_title: Label
 var _server_browser_detail: Label
+var _server_browser_feedback: Label
+var _server_browser_address: LineEdit
+var _server_browser_port: LineEdit
+var _server_browser_player_name: LineEdit
 var _server_browser_rows: VBoxContainer
 var _server_browser_actions: HBoxContainer
 var _activity_selection_buttons: Dictionary = {}
@@ -2817,6 +2821,35 @@ func _build_server_browser_page() -> void:
 	_server_browser_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_server_browser_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(_server_browser_detail)
+	var join_fields := HBoxContainer.new()
+	join_fields.add_theme_constant_override("separation", 6)
+	stack.add_child(join_fields)
+	_server_browser_address = LineEdit.new()
+	_server_browser_address.name = "ServerBrowserAddress"
+	_server_browser_address.placeholder_text = "Address for manual join"
+	_server_browser_address.text = "127.0.0.1"
+	_server_browser_address.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_server_browser_address.focus_mode = Control.FOCUS_ALL
+	join_fields.add_child(_server_browser_address)
+	_server_browser_port = LineEdit.new()
+	_server_browser_port.name = "ServerBrowserPort"
+	_server_browser_port.placeholder_text = "Port"
+	_server_browser_port.text = "27101"
+	_server_browser_port.custom_minimum_size.x = 100.0
+	_server_browser_port.focus_mode = Control.FOCUS_ALL
+	join_fields.add_child(_server_browser_port)
+	_server_browser_player_name = LineEdit.new()
+	_server_browser_player_name.name = "ServerBrowserPlayerName"
+	_server_browser_player_name.placeholder_text = "Player name"
+	_server_browser_player_name.text = "Pilot"
+	_server_browser_player_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_server_browser_player_name.focus_mode = Control.FOCUS_ALL
+	join_fields.add_child(_server_browser_player_name)
+	_server_browser_feedback = _label("", 10, MUTED)
+	_server_browser_feedback.name = "ServerBrowserFeedback"
+	_server_browser_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_server_browser_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(_server_browser_feedback)
 	_server_browser_rows = VBoxContainer.new()
 	_server_browser_rows.name = "ServerBrowserRows"
 	_server_browser_rows.add_theme_constant_override("separation", 6)
@@ -2831,6 +2864,14 @@ func _build_server_browser_page() -> void:
 	refresh.name = "ServerBrowserRefreshButton"
 	refresh.pressed.connect(request_server_browser_refresh)
 	_server_browser_actions.add_child(refresh)
+	var host := _menu_button("HOST SESSION", NOMINAL)
+	host.name = "ServerBrowserHostButton"
+	host.pressed.connect(request_server_browser_host)
+	_server_browser_actions.add_child(host)
+	var manual_join := _menu_button("MANUAL JOIN", NOMINAL_SOFT)
+	manual_join.name = "ServerBrowserManualJoinButton"
+	manual_join.pressed.connect(request_server_browser_manual_join)
+	_server_browser_actions.add_child(manual_join)
 	var back := _menu_button("BACK", MUTED)
 	back.name = "ServerBrowserBackButton"
 	back.pressed.connect(_show_pause_main)
@@ -2870,7 +2911,41 @@ func apply_server_browser_result(result: Dictionary) -> bool:
 			if not rows.is_empty() and rows.all(func(row: Variant) -> bool: return bool((row as Dictionary).get("full", false))):
 				presentation["status"] = &"full"
 	_render_server_browser(presentation)
+	if _server_browser_feedback != null:
+		_server_browser_feedback.text = ""
 	return true
+
+
+func apply_server_browser_feedback(result: Dictionary) -> Dictionary:
+	if not is_instance_valid(_server_browser_feedback):
+		return result.duplicate(true)
+	var message := str(result.get("validation_error", result.get("message", "")))
+	if message.is_empty():
+		message = "Session request accepted by caller." if bool(result.get("accepted", false)) else "Session request was not accepted."
+	_server_browser_feedback.text = message
+	return result.duplicate(true)
+
+
+func request_server_browser_host() -> Dictionary:
+	var request := _server_browser_presenter.host_session_intent(
+		int(_server_browser_port.text.to_int()), _server_browser_player_name.text
+	)
+	if not bool(request.get("accepted", false)):
+		return apply_server_browser_feedback(request)
+	presentation_intent_requested.emit(&"server_browser", request.duplicate(true))
+	return request
+
+
+func request_server_browser_manual_join() -> Dictionary:
+	var request := _server_browser_presenter.manual_join_intent(
+		_server_browser_address.text,
+		int(_server_browser_port.text.to_int()),
+		_server_browser_player_name.text
+	)
+	if not bool(request.get("accepted", false)):
+		return apply_server_browser_feedback(request)
+	presentation_intent_requested.emit(&"server_browser", request.duplicate(true))
+	return request
 
 
 func request_server_browser_refresh() -> Dictionary:
