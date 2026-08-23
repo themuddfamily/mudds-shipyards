@@ -11,14 +11,16 @@ except ImportError:
 
 
 class WindowsPortableInstallerTests(unittest.TestCase):
-    def _package(self, root: Path, version: str = "MuddsShipyards-v1.2.3-abcdef1") -> Path:
-        payload = {"MuddsShipyards.exe": version.encode(), "README.md": b"readme", "LICENSE.txt": b"license"}
+    def _package(self, root: Path, version: str = "MuddsShipyards-v1.2.3-abcdef1", readme: bytes = b"readme", tag: str = "") -> Path:
+        payload = {"MuddsShipyards.exe": version.encode(), "README.md": readme, "LICENSE.txt": b"license"}
         sums = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in sorted(payload.items()))
-        package = root / f"{version}.zip"
+        package = root / f"{version}{tag}.zip"
         with zipfile.ZipFile(package, "w") as archive:
             for name, data in payload.items():
                 archive.writestr(f"{version}/{name}", data)
             archive.writestr(f"{version}/SHA256SUMS.txt", sums)
+            release_version = version.split("-", 2)[1]
+            archive.writestr(f"{version}/distribution-manifest.json", '{"version": "%s", "source_commit": "%s"}' % (release_version, "a" * 40))
         return package
 
     def test_install_upgrade_rollback_and_owned_uninstall(self) -> None:
@@ -50,6 +52,19 @@ class WindowsPortableInstallerTests(unittest.TestCase):
             (destination.parent / ".MuddsShipyards.rollback" / "MuddsShipyards.exe").write_bytes(b"tampered")
             with self.assertRaises(InstallError):
                 rollback_package(destination)
+
+    def test_upgrade_policy_requires_force_for_downgrade_or_same_version_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            destination = root / "MuddsShipyards"
+            install_package(self._package(root, "MuddsShipyards-v1.2.4-fedcba9"), destination)
+            with self.assertRaises(InstallError):
+                install_package(self._package(root, "MuddsShipyards-v1.2.3-abcdef1"), destination)
+            same_version = self._package(root, "MuddsShipyards-v1.2.4-fedcba9", b"changed", "-changed")
+            with self.assertRaises(InstallError):
+                install_package(same_version, destination)
+            install_package(same_version, destination, force=True)
+            self.assertEqual((destination / "README.md").read_bytes(), b"changed")
 
     def test_checksum_and_traversal_rejected_before_install(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

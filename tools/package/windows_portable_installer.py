@@ -15,6 +15,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+import re
 from pathlib import Path, PurePosixPath
 
 
@@ -22,6 +23,7 @@ OWNERSHIP_NAME = ".mudds-owned.json"
 ROLLBACK_SUFFIX = ".rollback"
 STAGING_SUFFIX = ".staging"
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
+VERSION_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 
 
 class InstallError(ValueError):
@@ -50,6 +52,24 @@ def _destination(path: Path) -> Path:
 
 def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _sha256_file(path: Path) -> str:
+    return _sha256_bytes(path.read_bytes())
+
+
+def _version_key(version: str) -> tuple[tuple[int, int, int], tuple[tuple[int, object], ...]]:
+    match = VERSION_RE.fullmatch(version)
+    if not match:
+        raise InstallError(f"invalid distribution version: {version!r}")
+    base = tuple(int(match.group(index)) for index in range(1, 4))
+    prerelease = match.group(4)
+    if prerelease is None:
+        return base, ((1, ""),)
+    parts: list[tuple[int, object]] = [(0, "")]
+    for part in prerelease.split("."):
+        parts.append((0, int(part)) if part.isdigit() else (1, part))
+    return base, tuple(parts)
 
 
 def _read_checksums(entries: dict[str, bytes], root: str) -> list[str]:
@@ -99,6 +119,19 @@ def _read_archive(package: Path) -> tuple[str, dict[str, bytes]]:
         return root, entries
 
 
+def _archive_metadata(entries: dict[str, bytes], root: str) -> tuple[str, str]:
+    try:
+        manifest = json.loads(entries[f"{root}/distribution-manifest.json"].decode("utf-8"))
+        version = str(manifest["version"])
+        source_commit = str(manifest["source_commit"])
+        _version_key(version)
+        if not re.fullmatch(r"[0-9a-f]{40,64}", source_commit):
+            raise ValueError
+        return version, source_commit
+    except (KeyError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise InstallError("distribution-manifest metadata is invalid") from error
+
+
 def _remove_tree(path: Path) -> None:
     if path.exists():
         shutil.rmtree(path)
@@ -139,9 +172,12 @@ def _validate_directory_checksums(directory: Path) -> None:
         listed.add(relative)
 
 
-def install_package(package: Path, destination: Path) -> dict[str, object]:
+def install_package(package: Path, destination: Path, *, force: bool = False) -> dict[str, object]:
     """Validate and atomically install *package* into explicit *destination*."""
-    root, entries = _read_archive(package.resolve())
+    package = package.resolve()
+    root, entries = _read_archive(package)
+    version, source_commit = _archive_metadata(entries, root)
+    package_sha256 = _sha256_file(package)
     destination = _destination(destination)
     parent = destination.parent
     staging = parent / f".{destination.name}{STAGING_SUFFIX}"
@@ -157,7 +193,17 @@ def install_package(package: Path, destination: Path) -> dict[str, object]:
             existing_owned: set[str] = set()
             if manifest_path.is_file():
                 try:
-                    existing_owned = set(json.loads(manifest_path.read_text(encoding="utf-8"))["files"])
+                    current_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    existing_owned = set(current_manifest["files"])
+                    current_version = str(current_manifest["version"])
+                    if not force and _version_key(version) < _version_key(current_version):
+                        raise InstallError("downgrade requires force=True")
+                    if not force and _version_key(version) == _version_key(current_version):
+                        if current_manifest.get("package_sha256") == package_sha256:
+                            return {"destination": destination, "reason": "already_installed", "files": []}
+                        raise InstallError("same-version replacement requires force=True")
+                except InstallError:
+                    raise
                 except (OSError, ValueError, KeyError, TypeError):
                     raise InstallError("existing ownership manifest is invalid")
             for existing in destination.rglob("*"):
@@ -179,7 +225,13 @@ def install_package(package: Path, destination: Path) -> dict[str, object]:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(existing, target)
         (staging / OWNERSHIP_NAME).write_text(
-            json.dumps({"schema_version": 1, "files": sorted(owned + [OWNERSHIP_NAME])}, sort_keys=True) + "\n",
+            json.dumps({
+                "schema_version": 1,
+                "version": version,
+                "source_commit": source_commit,
+                "package_sha256": package_sha256,
+                "files": sorted(owned + [OWNERSHIP_NAME]),
+            }, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         if rollback.exists():
@@ -284,6 +336,7 @@ def main(argv: list[str] | None = None) -> int:
     install = subparsers.add_parser("install")
     install.add_argument("package", type=Path)
     install.add_argument("destination", type=Path)
+    install.add_argument("--force", action="store_true")
     uninstall = subparsers.add_parser("uninstall")
     uninstall.add_argument("destination", type=Path)
     rollback = subparsers.add_parser("rollback")
@@ -291,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "install":
-            result = install_package(args.package, args.destination)
+            result = install_package(args.package, args.destination, force=args.force)
         elif args.command == "rollback":
             result = rollback_package(args.destination)
         else:
