@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_trunk_expansion_joint_batch(module)
 	_test_slab_corner_beacon_batch(module)
 	_test_slab_support_batch(module)
+	_test_rung_edge_cue_batch(module)
 	_test_performance_contract(module)
 	_test_dock_arm_service_hardware(module)
 	await _test_reversible_lifecycle(module)
@@ -258,24 +259,24 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 135
+		int(render.descendant_nodes) == 136
 		and int(render.mesh_instances) == 89
-		and int(render.multimesh_batches) == 3,
-		"renderer census includes trunk, slab-corner and slab-support batches"
+		and int(render.multimesh_batches) == 4,
+		"renderer census includes trunk, slab-corner, slab-support and rung-edge batches"
 	)
 	_check(
 		int(render.drawn_copies) == 101
-		and int(render.geometry_submissions) == 74
+		and int(render.geometry_submissions) == 71
 		and int(render.trunk_expansion_joint_copies) == 12,
-		"drawn copies remain 101 while surface submissions become 74"
+		"drawn copies remain 101 while surface submissions become 71"
 	)
 	_check(
 		int(render.trunk_renderer_buffer_floats) == 144
-		and int(render.renderer_buffer_floats) == 360
+		and int(render.renderer_buffer_floats) == 408
 		and bool(render.renderer_buffer_matches_authored)
 		and bool(render.bounds_match_authored)
 		and bool(render.exact_counts),
-		"all renderer buffers freeze at 360 floats with exact authored culling unions"
+		"all renderer buffers freeze at 408 floats with exact authored culling unions"
 	)
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
@@ -391,10 +392,10 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 		int(render.slab_corner_beacon_submissions_before) == 12
 		and int(render.slab_corner_beacon_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_beacon_batch) == 90
-		and int(render.geometry_submissions) == 74
-		and int(render.geometry_submissions_removed) == 16
+		and int(render.geometry_submissions) == 71
+		and int(render.geometry_submissions_removed) == 19
 		and int(render.slab_corner_beacon_renderer_buffer_floats) == 144,
-		"corner-beacon and support batching preserve the 12 -> 1 beacon reduction and reach 74 overall"
+		"corner-beacon and later batches preserve the 12 -> 1 beacon reduction and reach 71 overall"
 	)
 	_check(
 		bool(render.slab_corner_beacon_renderer_buffer_matches_authored)
@@ -488,7 +489,7 @@ func _test_slab_support_batch(module: FleetDockComb) -> void:
 		int(render.slab_support_submissions_before) == 6
 		and int(render.slab_support_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_support_batch) == 79
-		and int(render.geometry_submissions) == 74
+		and int(render.geometry_submissions) == 71
 		and int(render.slab_support_renderer_buffer_floats) == 72
 		and bool(render.slab_support_renderer_buffer_matches_authored)
 		and bool(render.slab_support_bounds_match_authored)
@@ -529,6 +530,92 @@ func _test_slab_support_batch(module: FleetDockComb) -> void:
 	)
 	batch.transform = original_transform
 	_check(module.get_validation_errors().is_empty(), "restoring the support batch restores a clean module audit")
+
+
+func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
+	var detail := module.get_node_or_null(^"GeneratedComb/SurfaceDetail") as Node3D
+	var batch := module.get_node_or_null(
+		^"GeneratedComb/SurfaceDetail/RungEdgeCues"
+	) as MultiMeshInstance3D
+	_check(
+		detail != null and batch != null and batch.multimesh != null,
+		"four rung edge cues resolve as one SurfaceDetail MultiMesh"
+	)
+	if detail == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for rung_z in [10.0, 25.0]:
+		for side in [-1.0, 1.0]:
+			expected.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(5.5, 0.025, float(rung_z) + float(side) * 1.62)
+			))
+	var anchors: Array[MeshInstance3D] = []
+	for raw_node in detail.get_children():
+		var instance := raw_node as MeshInstance3D
+		if (
+			instance != null
+			and instance.mesh != null
+			and instance.mesh.get_aabb().size.is_equal_approx(Vector3(6.7, 0.06, 0.1))
+			and not instance.visible
+		):
+			anchors.append(instance)
+	var anchors_exact := anchors.size() == expected.size()
+	for index in mini(anchors.size(), expected.size()):
+		anchors_exact = (
+			anchors_exact
+			and anchors[index].transform.is_equal_approx(expected[index])
+			and anchors[index].get_child_count() == 0
+			and anchors[index].get_script() == null
+		)
+	var multi := batch.multimesh
+	var render := module.get_render_batch_contract()
+	_check(
+		anchors_exact
+		and multi.instance_count == FleetDockComb.RUNG_EDGE_CUE_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(6.7, 0.06, 0.1))
+		and multi.mesh.get_surface_count() == 1
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and (anchors.is_empty() or batch.material_override == anchors[0].material_override)
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty(),
+		"batch preserves all four transforms, amber material, culling/shadow state, and visual-only ownership"
+	)
+	_check(
+		int(render.rung_edge_cue_submissions_before) == 4
+		and int(render.rung_edge_cue_submissions_after) == 1
+		and int(render.geometry_submissions_before_rung_edge_cue_batch) == 74
+		and int(render.geometry_submissions) == 71
+		and int(render.drawn_copies) == 101
+		and int(render.rung_edge_cue_renderer_buffer_floats) == 48
+		and bool(render.rung_edge_cue_renderer_buffer_matches_authored)
+		and bool(render.rung_edge_cue_bounds_match_authored)
+		and bool(render.rung_edge_cue_contract_matches)
+		and int(render.static_bodies) == 7
+		and int(render.collision_shapes) == 7
+		and int(render.route_markers) == 9
+		and int(render.dock_landmarks) == 3,
+		"rung cues measure 4 -> 1 submissions with exact visible count and unchanged physics/semantics"
+	)
+	var authored := render.authored_rung_edge_cue_transforms as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(authored_exact, "rung cue render contract exposes the exact detached authored transform roster")
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		module.get_validation_errors().has("comb rung-edge-cue renderer buffer drifted from its authored roster"),
+		"mutating one live rung-cue transform is rejected by the production audit"
+	)
+	multi.buffer = original_buffer
+	_check(module.get_validation_errors().is_empty(), "restoring the rung-cue batch restores a clean module audit")
 
 
 ## Re-frozen in the open twice: light count 0 -> 4, then 4 -> 7, everything else

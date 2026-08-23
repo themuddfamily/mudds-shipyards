@@ -40,20 +40,22 @@ const DEFERRED_DOCK_COUNT := 0
 const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
-## Exact post-batch renderer census. The visual-only trunk expansion strips and
-## slab corner beacons still draw at their authored transforms, while one
-## MultiMesh per family owns each family's submission. The beacon nodes remain
-## hidden as stable named inspection anchors.
+## Exact post-batch renderer census. The visual-only trunk expansion strips,
+## slab corner beacons, slab supports and rung edge cues still draw at their
+## authored transforms, while one MultiMesh per family owns each family's
+## submission. The legacy MeshInstance nodes remain hidden inspection anchors.
 const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
 const SLAB_CORNER_BEACON_COPY_COUNT := 12
 const SLAB_SUPPORT_COPY_COUNT := 6
+const RUNG_EDGE_CUE_COPY_COUNT := 4
 const PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT := 90
 const PRE_SLAB_SUPPORT_GEOMETRY_SUBMISSION_COUNT := 79
-const RENDER_DESCENDANT_COUNT := 135
+const PRE_RUNG_EDGE_CUE_GEOMETRY_SUBMISSION_COUNT := 74
+const RENDER_DESCENDANT_COUNT := 136
 const RENDER_MESH_INSTANCE_COUNT := 89
-const RENDER_MULTIMESH_BATCH_COUNT := 3
+const RENDER_MULTIMESH_BATCH_COUNT := 4
 const RENDER_DRAWN_COPY_COUNT := 101
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 74
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 71
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -224,6 +226,8 @@ var _slab_corner_beacon_transforms: Array[Transform3D] = []
 var _slab_corner_beacon_batch: MultiMeshInstance3D = null
 var _slab_support_transforms: Array[Transform3D] = []
 var _slab_support_batch: MultiMeshInstance3D = null
+var _rung_edge_cue_transforms: Array[Transform3D] = []
+var _rung_edge_cue_batch: MultiMeshInstance3D = null
 
 
 func _ready() -> void:
@@ -551,6 +555,32 @@ func get_render_batch_contract() -> Dictionary:
 			and _slab_support_batch.get_child_count() == 0
 			and _slab_support_batch.get_script() == null
 		)
+	var expected_rung_cue_buffer := _encode_multimesh_transforms(_rung_edge_cue_transforms)
+	var rung_cue_buffer_matches := (
+		is_instance_valid(_rung_edge_cue_batch)
+		and _rung_edge_cue_batch.multimesh != null
+		and _rung_edge_cue_batch.multimesh.buffer == expected_rung_cue_buffer
+	)
+	var rung_cue_bounds_match := false
+	var rung_cue_contract_matches := false
+	if is_instance_valid(_rung_edge_cue_batch) and _rung_edge_cue_batch.multimesh != null:
+		var rung_cue_multi := _rung_edge_cue_batch.multimesh
+		var expected_rung_cue_bounds := _transformed_mesh_bounds(
+			rung_cue_multi.mesh.get_aabb(), _rung_edge_cue_transforms
+		)
+		rung_cue_bounds_match = rung_cue_multi.custom_aabb.is_equal_approx(expected_rung_cue_bounds)
+		rung_cue_contract_matches = (
+			_rung_edge_cue_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and rung_cue_multi.instance_count == RUNG_EDGE_CUE_COPY_COUNT
+			and rung_cue_multi.visible_instance_count == -1
+			and rung_cue_multi.mesh.get_aabb().size.is_equal_approx(Vector3(6.7, 0.06, 0.1))
+			and rung_cue_multi.mesh.get_surface_count() == 1
+			and _rung_edge_cue_batch.material_override == _materials.get("amber")
+			and _rung_edge_cue_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _rung_edge_cue_batch.layers == 1
+			and _rung_edge_cue_batch.get_child_count() == 0
+			and _rung_edge_cue_batch.get_script() == null
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -561,7 +591,9 @@ func get_render_batch_contract() -> Dictionary:
 		and _trunk_expansion_joint_transforms.size() == TRUNK_EXPANSION_JOINT_COPY_COUNT
 		and _slab_corner_beacon_transforms.size() == SLAB_CORNER_BEACON_COPY_COUNT
 		and _slab_support_transforms.size() == SLAB_SUPPORT_COPY_COUNT
+		and _rung_edge_cue_transforms.size() == RUNG_EDGE_CUE_COPY_COUNT
 		and support_contract_matches
+		and rung_cue_contract_matches
 	)
 	var joint_buffer_floats := (
 		_trunk_expansion_joint_batch.multimesh.buffer.size()
@@ -578,6 +610,11 @@ func get_render_batch_contract() -> Dictionary:
 		if is_instance_valid(_slab_support_batch) and _slab_support_batch.multimesh != null
 		else 0
 	)
+	var rung_cue_buffer_floats := (
+		_rung_edge_cue_batch.multimesh.buffer.size()
+		if is_instance_valid(_rung_edge_cue_batch) and _rung_edge_cue_batch.multimesh != null
+		else 0
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"descendant_nodes": descendant_count,
@@ -588,6 +625,10 @@ func get_render_batch_contract() -> Dictionary:
 		"trunk_expansion_joint_copies": _trunk_expansion_joint_transforms.size(),
 		"slab_corner_beacon_copies": _slab_corner_beacon_transforms.size(),
 		"slab_support_copies": _slab_support_transforms.size(),
+		"rung_edge_cue_copies": _rung_edge_cue_transforms.size(),
+		"rung_edge_cue_submissions_before": RUNG_EDGE_CUE_COPY_COUNT,
+		"rung_edge_cue_submissions_after": 1,
+		"geometry_submissions_before_rung_edge_cue_batch": PRE_RUNG_EDGE_CUE_GEOMETRY_SUBMISSION_COUNT,
 		"slab_support_submissions_before": SLAB_SUPPORT_COPY_COUNT,
 		"slab_support_submissions_after": 1,
 		"geometry_submissions_before_slab_support_batch": PRE_SLAB_SUPPORT_GEOMETRY_SUBMISSION_COUNT,
@@ -598,20 +639,25 @@ func get_render_batch_contract() -> Dictionary:
 		"trunk_renderer_buffer_floats": joint_buffer_floats,
 		"slab_corner_beacon_renderer_buffer_floats": beacon_buffer_floats,
 		"slab_support_renderer_buffer_floats": support_buffer_floats,
-		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats,
-		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches,
+		"rung_edge_cue_renderer_buffer_floats": rung_cue_buffer_floats,
+		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats,
+		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches,
 		"trunk_renderer_buffer_matches_authored": joint_buffer_matches,
 		"slab_corner_beacon_renderer_buffer_matches_authored": beacon_buffer_matches,
 		"slab_support_renderer_buffer_matches_authored": support_buffer_matches,
-		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match,
+		"rung_edge_cue_renderer_buffer_matches_authored": rung_cue_buffer_matches,
+		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match,
 		"trunk_bounds_match_authored": joint_bounds_match,
 		"slab_corner_beacon_bounds_match_authored": beacon_bounds_match,
 		"slab_support_bounds_match_authored": support_bounds_match,
+		"rung_edge_cue_bounds_match_authored": rung_cue_bounds_match,
 		"slab_support_contract_matches": support_contract_matches,
+		"rung_edge_cue_contract_matches": rung_cue_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _trunk_expansion_joint_transforms.duplicate(),
 		"authored_slab_corner_beacon_transforms": _slab_corner_beacon_transforms.duplicate(),
 		"authored_slab_support_transforms": _slab_support_transforms.duplicate(),
+		"authored_rung_edge_cue_transforms": _rung_edge_cue_transforms.duplicate(),
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
 		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
 		"route_markers": get_route_ids().size(),
@@ -768,6 +814,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("comb slab-support batch bounds drifted from its authored copies")
 	if not bool(rendering.slab_support_contract_matches):
 		errors.append("comb slab-support renderer contract drifted")
+	if not bool(rendering.rung_edge_cue_renderer_buffer_matches_authored):
+		errors.append("comb rung-edge-cue renderer buffer drifted from its authored roster")
+	if not bool(rendering.rung_edge_cue_bounds_match_authored):
+		errors.append("comb rung-edge-cue batch bounds drifted from its authored copies")
+	if not bool(rendering.rung_edge_cue_contract_matches):
+		errors.append("comb rung-edge-cue renderer contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -1058,9 +1110,27 @@ func _build_surface_detail() -> void:
 	# authored at y = 0.055 with a 0.06 m section, all four spanned y = 0.025 …
 	# 0.085 over a rung deck whose top is y = 0, so every one of them hovered
 	# 0.025 m clear and touched nothing. Centre moved 0.055 -> 0.025.
+	_rung_edge_cue_transforms.clear()
 	for rung_z in [10.0, 25.0]:
 		for side in [-1.0, 1.0]:
-			_visual_box(detail, "RungEdgeCue", Vector3(5.5, 0.025, float(rung_z) + float(side) * 1.62), Vector3(6.7, 0.06, 0.1), _materials["amber"])
+			var cue_anchor := _visual_box(
+				detail,
+				"RungEdgeCue",
+				Vector3(5.5, 0.025, float(rung_z) + float(side) * 1.62),
+				Vector3(6.7, 0.06, 0.1),
+				_materials["amber"]
+			)
+			_rung_edge_cue_transforms.append(cue_anchor.transform)
+			# Preserve the existing MeshInstance nodes as stable transform/material
+			# inspection anchors. The batch alone owns their four visible draws.
+			cue_anchor.visible = false
+	_rung_edge_cue_batch = _multimesh_boxes(
+		detail,
+		"RungEdgeCues",
+		Vector3(6.7, 0.06, 0.1),
+		_materials["amber"],
+		_rung_edge_cue_transforms
+	)
 
 	_build_dock_arm_service(detail)
 
