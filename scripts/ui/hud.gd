@@ -230,6 +230,7 @@ var _settings_value_labels: Dictionary = {}
 const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
 var _settings_status_label: Label
 var _settings_dirty := false
+var _settings_reset_confirmation: PanelContainer
 ## The pause overlay survives a whole-Main detach, but Viewport focus does not.
 ## Retain the exact in-overlay target so controller users return to the same
 ## reachable control instead of an open page with no GUI focus owner.
@@ -1425,6 +1426,34 @@ func present_settings_persistence_result(result: Dictionary, operation: StringNa
 
 func has_unsaved_settings() -> bool:
 	return _settings_dirty
+
+
+func _request_settings_reset() -> void:
+	if not _settings_dirty:
+		settings_reset_requested.emit()
+		return
+	if not is_instance_valid(_settings_reset_confirmation):
+		return
+	_settings_reset_confirmation.visible = true
+	var confirm_button := _settings_reset_confirmation.find_child("ConfirmSettingsResetButton", true, false) as Button
+	if is_instance_valid(confirm_button):
+		confirm_button.grab_focus()
+
+
+func _confirm_settings_reset() -> void:
+	if is_instance_valid(_settings_reset_confirmation):
+		_settings_reset_confirmation.visible = false
+	settings_reset_requested.emit()
+	set_settings_status("RESET REQUESTED", true)
+
+
+func _cancel_settings_reset() -> void:
+	if is_instance_valid(_settings_reset_confirmation):
+		_settings_reset_confirmation.visible = false
+	var reset_button := _settings_page.find_child("SettingsResetButton", true, false) as Button
+	if is_instance_valid(reset_button):
+		reset_button.grab_focus()
+	set_settings_status("RESET CANCELLED", true)
 
 
 ## Applies a complete accessibility descriptor from
@@ -2672,7 +2701,7 @@ func _build_settings_page() -> void:
 	var reset := _menu_button("RESET DEFAULTS", CAUTION)
 	reset.name = "SettingsResetButton"
 	reset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	reset.pressed.connect(func() -> void: settings_reset_requested.emit())
+	reset.pressed.connect(_request_settings_reset)
 	footer.add_child(reset)
 	var back := _menu_button("BACK", MUTED)
 	back.name = "SettingsBackButton"
@@ -2683,6 +2712,32 @@ func _build_settings_page() -> void:
 	_settings_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_settings_status_label.visible = false
 	page_stack.add_child(_settings_status_label)
+	_settings_reset_confirmation = PanelContainer.new()
+	_settings_reset_confirmation.name = "SettingsResetConfirmation"
+	_settings_reset_confirmation.visible = false
+	_settings_reset_confirmation.add_theme_stylebox_override("panel", _border_box(Color("301820"), 6, CAUTION))
+	var confirmation_margin := _margin(14, 10, 14, 10)
+	_settings_reset_confirmation.add_child(confirmation_margin)
+	var confirmation_stack := VBoxContainer.new()
+	confirmation_stack.add_theme_constant_override("separation", 6)
+	confirmation_margin.add_child(confirmation_stack)
+	var confirmation_label := _label("RESET CHANGED SETTINGS?  YOUR UNSAVED EDITS WILL BE DISCARDED.", 10, CAUTION)
+	confirmation_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	confirmation_stack.add_child(confirmation_label)
+	var confirmation_actions := HBoxContainer.new()
+	confirmation_actions.add_theme_constant_override("separation", 6)
+	confirmation_stack.add_child(confirmation_actions)
+	var confirm_reset := _binding_button("CONFIRM RESET")
+	confirm_reset.name = "ConfirmSettingsResetButton"
+	confirm_reset.focus_mode = Control.FOCUS_ALL
+	confirm_reset.pressed.connect(_confirm_settings_reset)
+	confirmation_actions.add_child(confirm_reset)
+	var cancel_reset := _binding_button("CANCEL")
+	cancel_reset.name = "CancelSettingsResetButton"
+	cancel_reset.focus_mode = Control.FOCUS_ALL
+	cancel_reset.pressed.connect(_cancel_settings_reset)
+	confirmation_actions.add_child(cancel_reset)
+	page_stack.add_child(_settings_reset_confirmation)
 
 
 func _settings_group(parent: VBoxContainer, title: String, detail: String) -> VBoxContainer:
