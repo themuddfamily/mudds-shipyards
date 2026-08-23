@@ -4362,9 +4362,11 @@ func apply_range_target_component_presentation(
 	if outer_ring != null:
 		outer_ring.set_meta("component_stage", frame_stage)
 		outer_ring.material_override = _range_target_frame_material(frame_stage)
+		outer_ring.scale = _range_target_frame_scale(frame_stage)
 	if core != null:
 		core.set_meta("component_stage", core_stage)
 		core.material_override = _range_target_core_material(core_stage)
+		core.scale = _range_target_core_scale(core_stage)
 	return outer_ring != null and core != null
 
 
@@ -4386,6 +4388,33 @@ func _range_target_core_material(stage: StringName) -> Material:
 			return _materials["black"]
 		_:
 			return _materials["orange_glow"]
+
+
+## Static silhouette changes keep component state legible without relying on
+## hue or flashing. These transforms affect visual children only; the target's
+## collision sphere and authoritative aim point never move or resize.
+func _range_target_frame_scale(stage: StringName) -> Vector3:
+	match stage:
+		&"damaged":
+			return Vector3.ONE * 0.86
+		&"critical":
+			return Vector3.ONE * 0.68
+		&"destroyed":
+			return Vector3.ONE * 0.50
+		_:
+			return Vector3.ONE
+
+
+func _range_target_core_scale(stage: StringName) -> Vector3:
+	match stage:
+		&"damaged":
+			return Vector3.ONE * 0.78
+		&"critical":
+			return Vector3.ONE * 0.52
+		&"destroyed":
+			return Vector3.ONE * 0.30
+		_:
+			return Vector3.ONE
 
 
 func defer_target_damage_presentation(

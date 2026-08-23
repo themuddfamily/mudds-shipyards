@@ -55,6 +55,10 @@ func _run() -> void:
 	var frame := visual.get_node("OuterRing") as MeshInstance3D
 	var nominal_core_material := core.material_override
 	var nominal_frame_material := frame.material_override
+	var nominal_core_scale := core.scale
+	var nominal_frame_scale := frame.scale
+	var collision_shape := target.find_children("*", "CollisionShape3D", false, false)[0] as CollisionShape3D
+	var nominal_collision_transform := collision_shape.transform
 	var original_component_model := adapter.get("_component_damage_model") as ComponentDamageModel
 	var original_model_instance_id := original_component_model.get_instance_id()
 	var original_generation := int(adapter.get_component_snapshot().get("generation", 0))
@@ -80,8 +84,27 @@ func _run() -> void:
 		and frame.get_meta("component_stage", &"nominal") != &"nominal"
 		and core.get_meta("component_stage", &"nominal") != &"nominal"
 		and frame.material_override != nominal_frame_material
-		and core.material_override != nominal_core_material,
-		"a nonlethal live hit visibly stages damage at the authored frame and core"
+		and core.material_override != nominal_core_material
+		and not frame.scale.is_equal_approx(nominal_frame_scale)
+		and not core.scale.is_equal_approx(nominal_core_scale)
+		and collision_shape.transform.is_equal_approx(nominal_collision_transform),
+		"a nonlethal live hit stages color-independent frame/core silhouettes without changing collision"
+	)
+	var damaged_core_scale := core.scale
+	var second_nonlethal_result := adapter.apply_damage(
+		maximum_health * 0.20,
+		target.global_position,
+		Vector3.FORWARD,
+		{"source_id": 1101, "sequence": 1}
+	)
+	var critical_by_id := _component_states_by_id(adapter.get_component_snapshot())
+	_check(
+		bool(second_nonlethal_result.get("accepted", false))
+		and not bool(second_nonlethal_result.get("destroyed", true))
+		and _component_stage(critical_by_id, &"core") == &"critical"
+		and not core.scale.is_equal_approx(damaged_core_scale)
+		and collision_shape.transform.is_equal_approx(nominal_collision_transform),
+		"critical core damage has a second static silhouette distinct from damaged and nominal"
 	)
 
 	root.remove_child(world)
@@ -100,8 +123,11 @@ func _run() -> void:
 		and core.get_meta("component_stage", &"") == &"nominal"
 		and frame.material_override == nominal_frame_material
 		and core.material_override == nominal_core_material
+		and frame.scale.is_equal_approx(nominal_frame_scale)
+		and core.scale.is_equal_approx(nominal_core_scale)
+		and collision_shape.transform.is_equal_approx(nominal_collision_transform)
 		and world.get_destroyed_target_count() == 0,
-		"whole-world re-entry reuses one model, advances generation, and clears staged damage"
+		"whole-world re-entry reuses one model and restores nominal material and silhouette"
 	)
 	var stale_reset := adapter.reset_for_reuse(original_generation)
 	_check(
@@ -116,13 +142,13 @@ func _run() -> void:
 		maximum_health,
 		target.global_position,
 		Vector3.FORWARD,
-		{"source_id": 1101, "sequence": 1}
+		{"source_id": 1101, "sequence": 2}
 	)
 	var duplicate_result := adapter.apply_damage(
 		maximum_health,
 		target.global_position,
 		Vector3.FORWARD,
-		{"source_id": 1101, "sequence": 2}
+		{"source_id": 1101, "sequence": 3}
 	)
 	_check(
 		bool(lethal_result.get("destroyed", false))
