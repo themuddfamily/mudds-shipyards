@@ -31,6 +31,7 @@ var _station_terminal_seen := false
 var _cargo_completed_seen := false
 var _handshake_retry_started := false
 var _handshake_wait_frames := 0
+var _direct_mismatch_checked := false
 
 
 func _init() -> void:
@@ -75,8 +76,13 @@ func _start() -> void:
 		call_deferred(&"_server_loop")
 	else:
 		if _role == "client_b":
-			_adapter.configure_handshake_versions(99, 1)
-		var joined := _adapter.join("127.0.0.1", _port)
+			var bad_port := _adapter.consume_direct_connect_intent({"address": "127.0.0.1", "port": 0})
+			_log("DIRECT_CONNECT_BAD_PORT_REJECTED" if not bad_port.get("accepted", false) else "DIRECT_CONNECT_BAD_PORT_ACCEPTED")
+		var joined := _adapter.consume_direct_connect_intent({
+			"address": "127.0.0.1", "port": _port,
+		})
+		if _role == "client_b":
+			_handshake_retry_started = true
 		_log("JOIN_%s" % ("STARTED" if joined.get("accepted", false) else "FAILED"))
 		call_deferred(&"_client_loop")
 
@@ -505,7 +511,10 @@ func _client_loop() -> void:
 				_handshake_retry_started = true
 				_adapter.shutdown(&"protocol_mismatch")
 				_adapter.configure_handshake_versions(1, 1)
-				var retry := _adapter.join("127.0.0.1", _port)
+				var retry := _adapter.consume_direct_connect_intent({
+					"address": "127.0.0.1", "port": _port,
+					"protocol_version": 1, "package_generation": 1,
+				})
 				_log("HANDSHAKE_MISMATCH_REJECTED" if retry.get("accepted", false) else "HANDSHAKE_RETRY_FAILED")
 		if not _projectile_logged and (
 			not _adapter._projectile_replica_generations.is_empty()
@@ -516,6 +525,14 @@ func _client_loop() -> void:
 			_log("PROJECTILE_TERMINAL_PRESENTED")
 		if not _adapter._server_offer.is_empty():
 			_log("ADMITTED")
+			if _role == "client_b" and not _direct_mismatch_checked:
+				_direct_mismatch_checked = true
+				var mismatch := _adapter.consume_direct_connect_intent({
+					"address": "127.0.0.1", "port": _port,
+					"protocol_version": 99, "package_generation": 1,
+				})
+				if not bool(mismatch.get("accepted", false)):
+					_log("HANDSHAKE_MISMATCH_REJECTED")
 			var offered_generation := int(
 				((_adapter._server_offer.get("admission", {}) as Dictionary)
 				.get("peer", {}) as Dictionary).get("peer_generation", 0)

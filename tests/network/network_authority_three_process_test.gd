@@ -90,6 +90,8 @@ func _evidence_complete() -> bool:
 		return false
 	if not client_b_log.contains("HANDSHAKE_MISMATCH_REJECTED"):
 		return false
+	if not client_b_log.contains("DIRECT_CONNECT_BAD_PORT_REJECTED"):
+		return false
 	for cargo_marker in [
 		"CARGO_READY_PRESENTED", "CARGO_TRANSIT_PRESENTED", "CARGO_COMMIT_PRESENTED",
 		"CARGO_COMPLETED_PRESENTED", "CARGO_REPLAY_REJECTED",

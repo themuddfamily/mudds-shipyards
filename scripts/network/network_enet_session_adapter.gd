@@ -285,6 +285,22 @@ func configure_handshake_versions(protocol_version: int, package_generation: int
 	return _remember(_result(true, &"handshake_versions_configured"))
 
 
+func consume_direct_connect_intent(intent: Dictionary) -> Dictionary:
+	var address := String(intent.get("address", "")).strip_edges()
+	var port := int(intent.get("port", 0))
+	var protocol_version := int(intent.get("protocol_version", NETWORK_PROTOCOL_VERSION))
+	var package_generation := int(intent.get("package_generation", NETWORK_BUILD_VERSION))
+	if address.is_empty() or port <= 0 or port > 65535:
+		return _remember(_result(false, &"invalid_direct_connect_port"))
+	if protocol_version != NETWORK_PROTOCOL_VERSION or package_generation != NETWORK_BUILD_VERSION:
+		return _remember(_result(false, &"direct_connect_protocol_mismatch"))
+	return join(address, port)
+
+
+func cancel_direct_connect() -> Dictionary:
+	return shutdown(&"manual_cancel")
+
+
 func shutdown(reason: StringName = &"requested") -> Dictionary:
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
