@@ -28,7 +28,17 @@ func present(snapshot: Dictionary) -> Dictionary:
 	var cards: Array[Dictionary] = []
 	for activity_id in ACTIVITY_IDS:
 		var state := _activity_state(activity_id)
-		cards.append(_card(activity_id, state))
+		var card := _card(activity_id, state)
+		card["priority_rank"] = _priority_rank(card)
+		card["priority_id"] = _priority_id(int(card.priority_rank))
+		cards.append(card)
+	cards.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_key := int(left.get("priority_rank", 3)) * ACTIVITY_IDS.size() \
+			+ ACTIVITY_IDS.find(StringName(left.get("activity_id", &"")))
+		var right_key := int(right.get("priority_rank", 3)) * ACTIVITY_IDS.size() \
+			+ ACTIVITY_IDS.find(StringName(right.get("activity_id", &"")))
+		return left_key < right_key
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"selected_activity": _selected_activity,
@@ -40,6 +50,25 @@ func present(snapshot: Dictionary) -> Dictionary:
 		"actions": _persistence_actions(),
 		"persistence_feedback": {"status": &"none", "text": "No progress result received."},
 	}.duplicate(true)
+
+
+func _priority_rank(card: Dictionary) -> int:
+	var state_id := StringName(card.get("state_id", &"available"))
+	var convoy := card.get("convoy_feedback", {}) as Dictionary
+	var cargo := card.get("cargo_progress", {}) as Dictionary
+	if state_id in [&"failed", &"expired", &"interrupted", &"wrong_order", &"wrong_position", &"missed_gate"] \
+			or StringName(convoy.get("threat_id", &"")) in [&"critical", &"lost", &"separated"] \
+			or StringName(cargo.get("deadline_state", &"")) == &"critical":
+		return 0
+	if bool(card.get("reward_pending", false)):
+		return 1
+	if state_id in [&"active", &"started", &"traversing", &"countdown"]:
+		return 2
+	return 3
+
+
+func _priority_id(rank: int) -> StringName:
+	return [&"critical", &"reward_pending", &"active", &"standard"][clampi(rank, 0, 3)]
 
 
 func select(activity_id: StringName) -> Dictionary:

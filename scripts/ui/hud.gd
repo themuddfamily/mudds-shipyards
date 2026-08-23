@@ -3972,6 +3972,7 @@ func _render_nearby_activity_view(view: Dictionary) -> void:
 			if not retained_id.is_empty():
 				retained_rows[retained_id] = child
 		var presented_ids: Array[StringName] = []
+		var presentation_index := 0
 		for card in view.get("cards", []) as Array:
 			var detached_card := card as Dictionary
 			var activity_id := StringName(detached_card.get("activity_id", &""))
@@ -3981,6 +3982,12 @@ func _render_nearby_activity_view(view: Dictionary) -> void:
 				_update_nearby_activity_row(retained, detached_card)
 			else:
 				_add_nearby_activity_row(detached_card)
+				retained = _nearby_activity_rows.get_child(
+					_nearby_activity_rows.get_child_count() - 1
+				) as Control
+			if retained != null and retained.get_index() != presentation_index:
+				_nearby_activity_rows.move_child(retained, presentation_index)
+			presentation_index += 1
 		for retained_id in retained_rows:
 			if retained_id not in presented_ids:
 				(retained_rows[retained_id] as Control).queue_free()
