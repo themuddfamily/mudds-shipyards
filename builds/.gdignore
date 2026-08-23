@@ -1,0 +1,2 @@
+# Exported EXE/PCK files and versioned distributions are generated artifacts,
+# not project resources. Keep Godot from scanning prior outputs as a project.

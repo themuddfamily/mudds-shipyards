@@ -1,5 +1,9 @@
 .godot/
-builds/
+# Keep generated exports/distributions ignored while tracking the Godot import
+# boundary that prevents prior outputs from being scanned as nested projects.
+builds/*
+!builds/
+!builds/.gdignore
 artifacts/
 *.log
 __pycache__/
