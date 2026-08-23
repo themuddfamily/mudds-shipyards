@@ -701,6 +701,14 @@ const GUIDE_LENS_COLOR_COUNTS := {
 	"cfe6eeff": 1,
 }
 
+const DOCK_OPERATIONS_KEYLINE_SIZE := Vector3(1.26, 0.035, 0.31)
+const DOCK_OPERATIONS_KEYLINE_ROTATION_DEGREES := Vector3(-20.0, -90.0, 0.0)
+const DOCK_OPERATIONS_KEYLINE_POSITIONS := [
+	Vector3(38.18, 1.67, 24.5),
+	Vector3(38.18, 1.67, 27.0),
+	Vector3(38.18, 1.67, 29.5),
+]
+
 ## The three parked LandingPad utility hoses end in the same childless visual
 ## torus. They retain separate nodes, names, parents, transforms and one-surface
 ## submissions because the hoses are separately identified presentation
@@ -1083,6 +1091,93 @@ func get_outbound_clearance_band() -> Dictionary:
 		"ceiling": OUTBOUND_CLEARANCE_CEILING,
 		"aim_y": LAUNCH_GATE_AIM_Y,
 	}
+
+
+func get_dock_operations_keyline_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var room := get_node_or_null(^"UpperOperations/DockOperationsRoom") as Node3D
+	var anchors: Array[Marker3D] = []
+	var expected_transforms: Array[Transform3D] = []
+	for keyline_index in DOCK_OPERATIONS_KEYLINE_POSITIONS.size():
+		var expected_transform := Transform3D(
+			Basis.from_euler(Vector3(
+				deg_to_rad(DOCK_OPERATIONS_KEYLINE_ROTATION_DEGREES.x),
+				deg_to_rad(DOCK_OPERATIONS_KEYLINE_ROTATION_DEGREES.y),
+				deg_to_rad(DOCK_OPERATIONS_KEYLINE_ROTATION_DEGREES.z)
+			)),
+			DOCK_OPERATIONS_KEYLINE_POSITIONS[keyline_index]
+		)
+		expected_transforms.append(expected_transform)
+		var anchor := room.get_node_or_null(NodePath(
+			"DispatchKeyline%02d" % (keyline_index + 1)
+		)) as Marker3D if room != null else null
+		if anchor == null:
+			errors.append("dock_operations_keyline_anchor_missing")
+			continue
+		anchors.append(anchor)
+		if (
+			not anchor.transform.is_equal_approx(expected_transform)
+			or not bool(anchor.get_meta("batched_visual_anchor", false))
+			or anchor.get_child_count() != 0
+			or anchor.get_script() != null
+		):
+			errors.append("dock_operations_keyline_anchor_state_drift")
+	var batch := room.get_node_or_null(
+		^"DispatchKeylineRenderBatch"
+	) as MultiMeshInstance3D if room != null else null
+	var mesh_resource_count := 0
+	var material_resource_count := 0
+	var structural_submissions := 0
+	var drawn_copies := 0
+	if batch == null or batch.multimesh == null or batch.multimesh.mesh == null:
+		errors.append("dock_operations_keyline_batch_missing")
+	else:
+		mesh_resource_count = 1
+		material_resource_count = 1 if batch.material_override != null else 0
+		structural_submissions = batch.multimesh.mesh.get_surface_count()
+		drawn_copies = batch.multimesh.instance_count
+		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		if (
+			batch.multimesh.mesh != _rounded_box_mesh(DOCK_OPERATIONS_KEYLINE_SIZE)
+			or batch.material_override != _materials.get("steel_blue")
+			or batch.multimesh.instance_count != expected_transforms.size()
+			or batch.multimesh.buffer != _encode_multimesh_transforms(expected_transforms)
+			or authored_transforms != expected_transforms
+			or not bool(batch.get_meta("visual_detail_only", false))
+			or batch.get_child_count() != 0
+			or batch.get_script() != null
+		):
+			errors.append("dock_operations_keyline_batch_recipe_or_transform_drift")
+	if anchors.size() != 3:
+		errors.append("dock_operations_keyline_anchor_count_drift")
+	if structural_submissions != 1 or drawn_copies != 3:
+		errors.append("dock_operations_keyline_allocation_count_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"dock_operations_dispatch_keylines",
+		"before": {
+			"family_nodes": 3,
+			"renderer_nodes": 3,
+			"structural_submissions": 3,
+			"mesh_resources": 1,
+			"material_resources": 1,
+			"drawn_copies": 3,
+		},
+		"current": {
+			"family_nodes": anchors.size() + (1 if batch != null else 0),
+			"renderer_nodes": 1 if batch != null else 0,
+			"structural_submissions": structural_submissions,
+			"mesh_resources": mesh_resource_count,
+			"material_resources": material_resource_count,
+			"drawn_copies": drawn_copies,
+		},
+		"stable_paths_exact": anchors.size() == 3,
+		"transforms_exact": not errors.has("dock_operations_keyline_anchor_state_drift")
+			and not errors.has("dock_operations_keyline_batch_recipe_or_transform_drift"),
+		"collision_nodes": 0,
+		"interaction_nodes": 0,
+	}.duplicate(true)
 
 
 ## Renderer-independent retention audit for the world guide-light stock.
@@ -6527,14 +6622,28 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 	# All three stations now form a west-wall bank, rotated toward the open room;
 	# the centre and the full east/Annex arrival aisle remain unobstructed.
 	var dispatch_station_z_positions := [24.50, 27.00, 29.50]
+	var keyline_transforms: Array[Transform3D] = []
 	for station_index in dispatch_station_z_positions.size():
 		var station_z := float(dispatch_station_z_positions[station_index])
 		_box(room, "DispatchConsole%02d" % (station_index + 1), Vector3(38.25, 1.02, station_z), Vector3(1.82, 1.22, 0.88), _materials["navy"], true, Vector3(0.0, -90.0, 0.0))
 		_box(room, "DispatchScreen%02d" % (station_index + 1), Vector3(38.72, 1.48, station_z), Vector3(1.48, 0.56, 0.045), room_screen_material, false, Vector3(-20.0, -90.0, 0.0))
-		_box(room, "DispatchKeyline%02d" % (station_index + 1), Vector3(38.18, 1.67, station_z), Vector3(1.26, 0.035, 0.31), _materials["steel_blue"], false, Vector3(-20.0, -90.0, 0.0))
+		var keyline_anchor := Marker3D.new()
+		keyline_anchor.name = "DispatchKeyline%02d" % (station_index + 1)
+		keyline_anchor.position = DOCK_OPERATIONS_KEYLINE_POSITIONS[station_index]
+		keyline_anchor.rotation_degrees = DOCK_OPERATIONS_KEYLINE_ROTATION_DEGREES
+		keyline_anchor.set_meta("batched_visual_anchor", true)
+		room.add_child(keyline_anchor)
+		keyline_transforms.append(keyline_anchor.transform)
 		_text_sign(room, "BAY %02d" % (station_index + 1), Vector3(38.755, 1.49, station_z), Vector3(-20.0, 90.0, 0.0), 0.12, _materials["ivory"])
 		_cylinder(room, "DispatchStool%02d" % (station_index + 1), Vector3(37.45, 0.73, station_z), 0.32, 0.62, _materials["steel_blue"], true)
 		_box(room, "DispatchSeat%02d" % (station_index + 1), Vector3(37.45, 1.06, station_z), Vector3(0.76, 0.16, 0.70), _materials["ivory"], true, Vector3(0.0, -90.0, 0.0))
+	_multimesh_visual_boxes(
+		room,
+		"DispatchKeylineRenderBatch",
+		DOCK_OPERATIONS_KEYLINE_SIZE,
+		_materials["steel_blue"],
+		keyline_transforms
+	)
 
 	# A shared plotting surface adds a foreground read from outside without
 	# sealing the pod's centre. It is low enough to read as equipment rather than

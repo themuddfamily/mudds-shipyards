@@ -61,6 +61,69 @@ func _run() -> void:
 			and stool != null \
 			and stool.position.is_equal_approx(Vector3(37.45, 0.73, expected_z))
 	_check(west_wall_bank_exact, "all three dispatch stations form one exact west-wall bank")
+	var keyline_audit := world.get_dock_operations_keyline_allocation_audit()
+	_check(
+		bool(keyline_audit.valid)
+		and keyline_audit.before == {
+			"family_nodes": 3,
+			"renderer_nodes": 3,
+			"structural_submissions": 3,
+			"mesh_resources": 1,
+			"material_resources": 1,
+			"drawn_copies": 3,
+		}
+		and keyline_audit.current == {
+			"family_nodes": 4,
+			"renderer_nodes": 1,
+			"structural_submissions": 1,
+			"mesh_resources": 1,
+			"material_resources": 1,
+			"drawn_copies": 3,
+		},
+		"dispatch keylines record nodes 3->4, renderers/submissions 3->1, resources 1->1, and copies 3->3"
+	)
+	var keyline_paths_exact := room != null
+	for keyline_index in 3:
+		var anchor := room.get_node_or_null(NodePath(
+			"DispatchKeyline%02d" % (keyline_index + 1)
+		)) as Marker3D if room != null else null
+		keyline_paths_exact = (
+			keyline_paths_exact
+			and anchor != null
+			and anchor.position.is_equal_approx(Vector3(
+				38.18, 1.67, 24.5 + float(keyline_index) * 2.5
+			))
+			and anchor.rotation_degrees.is_equal_approx(Vector3(-20.0, -90.0, 0.0))
+			and anchor.get_child_count() == 0
+			and bool(anchor.get_meta("batched_visual_anchor", false))
+		)
+	var keyline_batch := room.get_node_or_null(
+		^"DispatchKeylineRenderBatch"
+	) as MultiMeshInstance3D if room != null else null
+	_check(
+		keyline_paths_exact
+		and keyline_batch != null
+		and keyline_batch.multimesh.instance_count == 3
+		and bool(keyline_audit.stable_paths_exact)
+		and bool(keyline_audit.transforms_exact)
+		and int(keyline_audit.collision_nodes) == 0
+		and int(keyline_audit.interaction_nodes) == 0,
+		"three stable keyline paths retain exact rotated poses while one authority-free batch draws them"
+	)
+	if room != null:
+		var first_keyline := room.get_node(^"DispatchKeyline01") as Marker3D
+		var original_transform := first_keyline.transform
+		first_keyline.position.x += 0.04
+		var red_keyline_audit := world.get_dock_operations_keyline_allocation_audit()
+		first_keyline.transform = original_transform
+		_check(
+			not bool(red_keyline_audit.valid)
+			and (red_keyline_audit.errors as PackedStringArray).has(
+				"dock_operations_keyline_anchor_state_drift"
+			)
+			and bool(world.get_dock_operations_keyline_allocation_audit().valid),
+			"moving one stable keyline anchor turns the transform audit red and restores cleanly"
+		)
 	var east_west_arrival_clear := true
 	if room != null:
 		for body in room.find_children("*", "StaticBody3D", true, false):
