@@ -95,6 +95,7 @@ def _install_instructions(manifest: dict[str, object]) -> str:
         "Optional shortcuts (PowerShell, opt in explicitly):\n"
         f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} install -Destination "$env:LOCALAPPDATA\\MuddsShipyards" -StartMenuShortcut\n'
         f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} install -Destination "$env:LOCALAPPDATA\\MuddsShipyards" -DesktopShortcut\n\n'
+        f'  powershell -NoProfile -ExecutionPolicy Bypass -File .\\{powershell_path.replace("/", "\\")} install -Destination "$env:LOCALAPPDATA\\MuddsShipyards" -AddRemovePrograms\n\n'
         "Portable run (no installation):\n"
         f'  .\\{launcher}\n\n'
         "Verify the exported executable before use:\n"

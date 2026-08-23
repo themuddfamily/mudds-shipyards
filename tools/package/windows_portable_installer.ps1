@@ -16,7 +16,8 @@ param(
     [string]$Source = (Split-Path -Parent $PSScriptRoot),
     [switch]$Force,
     [switch]$StartMenuShortcut,
-    [switch]$DesktopShortcut
+    [switch]$DesktopShortcut,
+    [switch]$AddRemovePrograms
 )
 
 Set-StrictMode -Version Latest
@@ -24,6 +25,7 @@ $ErrorActionPreference = 'Stop'
 $OwnershipName = '.mudds-owned.json'
 $ChecksumName = 'SHA256SUMS.txt'
 $LauncherName = 'Start Mudds Shipyards.cmd'
+$UninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MuddsShipyardsPortable'
 
 function Resolve-SafeDestination([string]$Path) {
     $resolved = [IO.Path]::GetFullPath($Path)
@@ -83,6 +85,13 @@ function Read-ExternalShortcuts([string]$Root) {
     return @($manifest.external_shortcuts | ForEach-Object { [IO.Path]::GetFullPath([string]$_) })
 }
 
+function Read-AddRemoveOwned([string]$Root) {
+    $path = Join-Path $Root $OwnershipName
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $false }
+    $manifest = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
+    return [bool]$manifest.add_remove_programs
+}
+
 function Requested-Shortcuts {
     $paths = @()
     if ($StartMenuShortcut) { $paths += Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Mudds Shipyards.lnk' }
@@ -104,6 +113,29 @@ function Remove-ExternalShortcuts([object[]]$Paths) {
     foreach ($path in @($Paths)) {
         if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path -Force }
     }
+}
+
+function Set-AddRemovePrograms([string]$Root) {
+    $manifest = Read-DistributionManifest $Root
+    if (Test-Path -LiteralPath $UninstallKey) {
+        $existing = Get-ItemProperty -LiteralPath $UninstallKey
+        if ([int]$existing.MuddsOwned -ne 1) { throw 'Add/Remove Programs key is owned by another application' }
+    } else {
+        New-Item -Path $UninstallKey -Force | Out-Null
+    }
+    New-ItemProperty -LiteralPath $UninstallKey -Name MuddsOwned -PropertyType DWord -Value 1 -Force | Out-Null
+    New-ItemProperty -LiteralPath $UninstallKey -Name DisplayName -PropertyType String -Value 'Mudds Shipyards (Portable)' -Force | Out-Null
+    New-ItemProperty -LiteralPath $UninstallKey -Name DisplayVersion -PropertyType String -Value ([string]$manifest.version) -Force | Out-Null
+    New-ItemProperty -LiteralPath $UninstallKey -Name InstallLocation -PropertyType String -Value $Root -Force | Out-Null
+    $uninstall = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$Root\install\windows_portable_installer.ps1`" uninstall -Destination `"$Root`""
+    New-ItemProperty -LiteralPath $UninstallKey -Name UninstallString -PropertyType String -Value $uninstall -Force | Out-Null
+}
+
+function Remove-AddRemovePrograms {
+    if (-not (Test-Path -LiteralPath $UninstallKey)) { return }
+    $existing = Get-ItemProperty -LiteralPath $UninstallKey
+    if ([int]$existing.MuddsOwned -ne 1) { throw 'Add/Remove Programs key is owned by another application' }
+    Remove-Item -LiteralPath $UninstallKey -Recurse -Force
 }
 
 function Read-DistributionManifest([string]$Root) {
@@ -154,17 +186,21 @@ try {
         }
         'uninstall' {
             if (-not (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Installed package is missing' }
+            Remove-AddRemovePrograms
             Remove-Owned $destination
             [pscustomobject]@{ destination = $destination; reason = 'uninstalled' } | ConvertTo-Json -Compress
         }
         'rollback' {
             if (-not (Test-Path -LiteralPath $rollback -PathType Container)) { throw 'Rollback package is missing' }
             Get-ChecksumEntries $rollback | Out-Null
+            $rollbackAddRemove = Read-AddRemoveOwned $rollback
+            Remove-AddRemovePrograms
             $currentExternal = Read-ExternalShortcuts $destination
             $rollbackExternal = Read-ExternalShortcuts $rollback
             Remove-ExternalShortcuts $currentExternal
             if (Test-Path -LiteralPath $destination) { Move-Item -LiteralPath $destination -Destination "$destination.current" -Force; Move-Item -LiteralPath "$destination.current" -Destination $rollback -Force }
             Move-Item -LiteralPath $rollback -Destination $destination -Force
+            if ($rollbackAddRemove) { Set-AddRemovePrograms $destination }
             foreach ($shortcut in $rollbackExternal) { New-LauncherShortcut $shortcut (Join-Path $destination $LauncherName) }
             [pscustomobject]@{ destination = $destination; reason = 'rolled_back' } | ConvertTo-Json -Compress
         }
@@ -196,6 +232,7 @@ try {
             $ownershipPath = Join-Path $staging $OwnershipName
             $ownership = Get-Content -Raw -LiteralPath $ownershipPath | ConvertFrom-Json
             $ownership | Add-Member -NotePropertyName external_shortcuts -NotePropertyValue @($requestedShortcuts) -Force
+            $ownership | Add-Member -NotePropertyName add_remove_programs -NotePropertyValue ([bool]$AddRemovePrograms) -Force
             $ownership | ConvertTo-Json -Compress | Set-Content -LiteralPath $ownershipPath -Encoding UTF8
             foreach ($shortcut in @($requestedShortcuts | Where-Object { $existingShortcuts -notcontains $_ })) {
                 New-LauncherShortcut $shortcut (Join-Path $destination $LauncherName)
@@ -204,6 +241,7 @@ try {
             if (Test-Path -LiteralPath $rollback) { Remove-Item -LiteralPath $rollback -Recurse -Force }
             if (Test-Path -LiteralPath $destination) { Move-Item -LiteralPath $destination -Destination $rollback }
             Move-Item -LiteralPath $staging -Destination $destination
+            if ($AddRemovePrograms) { Set-AddRemovePrograms $destination }
             [pscustomobject]@{ destination = $destination; reason = 'installed' } | ConvertTo-Json -Compress
         }
     }
