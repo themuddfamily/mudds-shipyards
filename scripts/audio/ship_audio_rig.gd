@@ -475,6 +475,7 @@ func play_destruction(intensity: float = 1.0) -> bool:
 	_damage_alarm_active = false
 	_apply_runtime_state()
 	_emit_state_changed()
+	semantic_engine_cue_emitted.emit(&"ship_destroyed", clampf(intensity, 0.0, 1.0))
 	return play_cue(CUE_DESTRUCTION, intensity)
 
 
