@@ -1,0 +1,69 @@
+class_name NetworkShipAuthorityComposition
+extends Node
+
+## Caller-driven owner for the two detached ship-network bridges. It does not
+## schedule ticks, admit peers, mutate ships, or own transport authority.
+
+const TelemetryBridge := preload("res://scripts/network/network_ship_telemetry_snapshot_bridge.gd")
+const CinderBridge := preload("res://scripts/network/network_cinder_loadmaster_manifest_bridge.gd")
+
+var _session: Object
+var _ship: Object
+var _telemetry_bridge: RefCounted
+var _cinder_bridge: RefCounted
+var _ship_generation := 0
+
+
+func attach(session: Object, ship: Object, ship_generation: int = 1) -> Dictionary:
+	if session == null or not is_instance_valid(session):
+		return _result(false, &"session_unavailable")
+	if ship == null or not is_instance_valid(ship):
+		return _result(false, &"ship_unavailable")
+	if ship_generation <= 0:
+		return _result(false, &"invalid_ship_generation")
+	detach(&"replacement")
+	var telemetry := TelemetryBridge.new()
+	var telemetry_result: Dictionary = telemetry.attach(session, ship)
+	if not bool(telemetry_result.get("accepted", false)):
+		return telemetry_result
+	_session = session
+	_ship = ship
+	_ship_generation = ship_generation
+	_telemetry_bridge = telemetry
+	if ship.has_method(&"submit_crew_intent") and ship.has_method(&"get_crew_role_authority"):
+		var cinder := CinderBridge.new()
+		var cinder_result: Dictionary = cinder.attach(session, ship)
+		if bool(cinder_result.get("accepted", false)):
+			_cinder_bridge = cinder
+	return _result(true, &"attached", {"ship_generation": _ship_generation, "cinder_attached": _cinder_bridge != null})
+
+
+func detach(reason: StringName = &"detached") -> Dictionary:
+	if _telemetry_bridge != null:
+		_telemetry_bridge.detach(reason)
+	if _cinder_bridge != null:
+		_cinder_bridge.detach(reason)
+	_telemetry_bridge = null
+	_cinder_bridge = null
+	_session = null
+	_ship = null
+	_ship_generation = 0
+	return _result(true, reason)
+
+
+func submit_server_physics_tick(server_tick: int, event_sequence: int) -> Dictionary:
+	if _telemetry_bridge == null:
+		return _result(false, &"detached")
+	return _telemetry_bridge.submit(server_tick, _ship_generation, event_sequence)
+
+
+func submit_cinder_manifest(peer_id: int, peer_generation: int, avatar_id: StringName, seat_generation: int, request_sequence: int, payload: Dictionary) -> Dictionary:
+	if _cinder_bridge == null:
+		return _result(false, &"cinder_unavailable")
+	return _cinder_bridge.submit_manifest(peer_id, peer_generation, avatar_id, seat_generation, request_sequence, payload)
+
+
+func _result(accepted: bool, status: StringName, extra: Dictionary = {}) -> Dictionary:
+	var result := {"accepted": accepted, "status": status}
+	result.merge(extra)
+	return result
