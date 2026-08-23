@@ -111,6 +111,7 @@ const CAPTION_CATEGORY_BY_ID := {
 }
 const RUNTIME_SETTINGS_COMMIT_PREFIX := "runtime-settings-"
 const RUNTIME_SETTINGS_COMMIT_DIGITS := 10
+const RUNTIME_SETTINGS_REPAIR_COMMIT_PREFIX := "runtime-settings-repair-"
 ## Five seconds of successful physics callbacks is long enough to cross the
 ## staged Main construction and first embodied simulation ticks without making
 ## wall-clock, idle-frame, or scene-tree attachment time authoritative.
@@ -453,6 +454,7 @@ var _runtime_settings_last_commit_id := ""
 var _runtime_settings_unsaved_changes := false
 var _runtime_settings_transaction_active := false
 var _runtime_settings_reentrant_rejection_count := 0
+var _runtime_settings_repair_request_active := false
 var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
 var _session_diagnostics_last_status: Dictionary = {}
 var _session_diagnostics_filesystem: UserDataFilesystem
@@ -631,6 +633,8 @@ func _exit_tree() -> void:
 		)
 	if _runtime_settings_repair_binding != null:
 		_runtime_settings_repair_binding.set_attached(false)
+	if is_instance_valid(hud) and hud.has_method(&"clear_runtime_settings_repair_report"):
+		hud.clear_runtime_settings_repair_report()
 	_clear_bomber_payload_loop(&"game_flow_exit")
 	_clear_bomber_payload_replica_presentation()
 	_cancel_station_seat_for_detach()
@@ -1371,6 +1375,7 @@ func _start_up() -> void:
 	_apply_torus_geometry_budget()
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
+	_publish_runtime_settings_repair_to_hud()
 	_initialized = true
 
 
@@ -2926,6 +2931,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_ensure_ember_surface_presentations()
 	_sync_activity_hud()
 	_sync_planetary_cruise_hud()
+	_publish_runtime_settings_repair_to_hud()
 
 
 func _connect_runtime_signals() -> void:
@@ -2965,6 +2971,7 @@ func _connect_runtime_signals() -> void:
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
 	_connect_signal_once(hud, &"settings_reset_requested", _on_settings_reset_requested)
+	_connect_runtime_settings_repair_hud()
 	_connect_signal_once(hud, &"display_settings_keep_requested", _on_display_settings_keep_requested)
 	_connect_signal_once(hud, &"display_settings_revert_requested", _on_display_settings_revert_requested)
 	_connect_signal_once(
@@ -8347,6 +8354,106 @@ func get_runtime_settings_repair_report() -> Dictionary:
 		"attached": false,
 		"reason": &"repair_unavailable",
 	}.duplicate(true)
+
+
+func _connect_runtime_settings_repair_hud() -> void:
+	_connect_signal_once(
+		hud,
+		&"settings_repair_confirmation_requested",
+		_on_settings_repair_confirmation_requested
+	)
+
+
+## Publishes only the result of this owner's authentic retained-startup
+## inspection. Normal primary loads keep the conditional HUD surface clear;
+## repairable and fail-closed recovery states remain explicit.
+func _publish_runtime_settings_repair_to_hud() -> Dictionary:
+	if not is_instance_valid(hud):
+		return {"accepted": false, "reason": &"hud_unavailable"}
+	var inspected := inspect_runtime_settings_repair()
+	var reason := StringName(inspected.get("reason", &""))
+	if bool(inspected.get("accepted", false)) or reason in [
+		&"unsupported_newer_schema", &"load_not_repairable",
+		&"settings_payload_missing", &"stale_load_generation",
+	]:
+		if hud.has_method(&"present_runtime_settings_repair_report"):
+			hud.present_runtime_settings_repair_report(
+				get_runtime_settings_repair_report()
+			)
+		return inspected.duplicate(true)
+	if hud.has_method(&"clear_runtime_settings_repair_report"):
+		hud.clear_runtime_settings_repair_report()
+	return inspected.duplicate(true)
+
+
+## Sole mutation ingress for the HUD confirmation. GameFlow owns the bounded
+## commit ID and calls the existing binding's prepare/commit fence; the HUD owns
+## neither persistence nor an inference that the request succeeded.
+func _on_settings_repair_confirmation_requested(confirmation: String) -> void:
+	if _runtime_settings_repair_request_active:
+		_present_runtime_settings_repair_result({
+			"accepted": false,
+			"reason": &"repair_request_active",
+		})
+		return
+	if (
+		confirmation.is_empty()
+		or _runtime_settings_user_data_store == null
+		or _runtime_settings_repair_binding == null
+	):
+		_present_runtime_settings_repair_result({
+			"accepted": false,
+			"reason": &"repair_unavailable",
+		})
+		return
+	var next_generation := _runtime_settings_user_data_store.get_generation() + 1
+	if next_generation <= 0 or next_generation > UserDataStoreType.MAX_GENERATION:
+		if is_instance_valid(hud):
+			if hud.has_method(&"clear_runtime_settings_repair_report"):
+				hud.clear_runtime_settings_repair_report()
+			if hud.has_method(&"set_settings_status"):
+				hud.set_settings_status("BACKUP REPAIR FAILED  //  COMMIT ID EXHAUSTED", false)
+		return
+	var commit_id := "%s%010d" % [
+		RUNTIME_SETTINGS_REPAIR_COMMIT_PREFIX,
+		next_generation,
+	]
+	_runtime_settings_repair_request_active = true
+	var prepared := prepare_runtime_settings_repair(confirmation, commit_id)
+	if not bool(prepared.get("accepted", false)):
+		_runtime_settings_repair_request_active = false
+		_present_runtime_settings_repair_result(prepared)
+		return
+	var committed := commit_runtime_settings_repair(confirmation)
+	_runtime_settings_repair_request_active = false
+	if bool(committed.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(
+			_runtime_settings_commit_serial,
+			_runtime_settings_user_data_store.get_generation()
+		)
+		_sync_production_runtime_settings_state()
+	_present_runtime_settings_repair_result(committed)
+
+
+func _present_runtime_settings_repair_result(result: Dictionary) -> void:
+	if not is_instance_valid(hud):
+		return
+	var accepted: bool = bool(result.get("accepted", false)) \
+		and result.get("reason", &"") == &"repair_committed"
+	if accepted:
+		if hud.has_method(&"clear_runtime_settings_repair_report"):
+			hud.clear_runtime_settings_repair_report()
+		if hud.has_method(&"set_settings_status"):
+			hud.set_settings_status("SETTINGS BACKUP REPAIRED", true)
+		return
+	if hud.has_method(&"present_runtime_settings_repair_report"):
+		hud.present_runtime_settings_repair_report(get_runtime_settings_repair_report())
+	if hud.has_method(&"set_settings_status"):
+		hud.set_settings_status(
+			"BACKUP REPAIR FAILED  //  %s"
+			% str(result.get("reason", &"unknown")).to_upper(),
+			false
+		)
 
 
 ## Detached diagnostics for the process startup marker and caller-owned
