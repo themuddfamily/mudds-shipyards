@@ -254,6 +254,26 @@ func _initialize() -> void:
 		_client.claim_ship_for_peer(client_peer_id, &"ownership-1", 1, 1).get("status") == &"authority_required",
 		"client cannot mutate ship ownership"
 	)
+	_check(
+		bool(_server.register_crew_seat(&"ownership-seat", &"ownership-1", &"pilot", &"frame-1", 1).get("accepted", false)),
+		"server registers a seat on the owned ship generation"
+	)
+	_check(
+		bool(_server.claim_crew_seat(client_peer_id, &"avatar-1", &"ownership-seat", &"pilot", 0).get("accepted", false)),
+		"server claims a crew seat for the admitted ship owner"
+	)
+	_check(
+		_server.claim_crew_seat(client_peer_id, &"avatar-1", &"ownership-seat", &"pilot", 0).get("status") == &"stale_request_sequence",
+		"replayed crew-seat claims are rejected"
+	)
+	_check(
+		_server.transfer_crew_seat(client_peer_id, 99, &"avatar-1", &"ownership-seat", 1, 1).get("status") == &"peer_not_admitted",
+		"crew-seat transfer requires an admitted destination peer"
+	)
+	_check(
+		_client.claim_crew_seat(client_peer_id, &"avatar-1", &"ownership-seat", &"pilot", 1).get("status") == &"authority_required",
+		"client cannot mutate crew-seat occupancy"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -299,6 +319,10 @@ func _initialize() -> void:
 	_check(
 		int(_server.get_owned_ship(&"ownership-1").get("owner_peer_id", -1)) == 0,
 		"server disconnect cleanup releases peer-owned ship ownership"
+	)
+	_check(
+		_server.get_crew_assignment(client_peer_id, &"avatar-1").is_empty(),
+		"server disconnect cleanup releases peer-owned crew seats"
 	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),

@@ -18,6 +18,7 @@ const LandingAuthority := preload("res://scripts/network/network_landing_authori
 const DamageRespawnIntegration := preload("res://scripts/network/network_damage_respawn_integration.gd")
 const MovingInteriorAuthority := preload("res://scripts/network/network_moving_interior_authority.gd")
 const ShipOwnershipAuthority := preload("res://scripts/network/network_ship_ownership_authority.gd")
+const SeatAuthority := preload("res://scripts/network/network_seat_authority.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -33,6 +34,7 @@ signal landing_intent_result(result: Dictionary)
 signal damage_respawn_result(result: Dictionary)
 signal moving_interior_result(result: Dictionary)
 signal ship_ownership_result(result: Dictionary)
+signal seat_occupancy_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -48,6 +50,7 @@ var _landing
 var _damage_respawn
 var _moving_interior
 var _ship_ownership
+var _seat_authority
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -70,6 +73,7 @@ func _init() -> void:
 	_damage_respawn = DamageRespawnIntegration.new(AUTHORITY_PEER_ID)
 	_moving_interior = MovingInteriorAuthority.new(AUTHORITY_PEER_ID)
 	_ship_ownership = ShipOwnershipAuthority.new(AUTHORITY_PEER_ID)
+	_seat_authority = SeatAuthority.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -143,6 +147,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 				_moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
 				_moving_occupants.erase(peer_id)
 			_ship_ownership.release_peer(AUTHORITY_PEER_ID, peer_id)
+			_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -567,6 +572,94 @@ func get_owned_ship(ship_id: StringName) -> Dictionary:
 	return _ship_ownership.get_ship_snapshot(ship_id)
 
 
+func register_crew_seat(
+	seat_id: StringName,
+	vessel_id: StringName,
+	role: StringName,
+	frame_id: StringName = &"",
+	seat_generation: int = 1
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if _ship_ownership.get_ship_snapshot(vessel_id).is_empty():
+		return _remember(_result(false, &"unknown_ship"))
+	var result: Dictionary = _seat_authority.register_seat(
+		seat_id, vessel_id, role, frame_id, seat_generation
+	)
+	seat_occupancy_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func claim_crew_seat(
+	occupant_peer_id: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	requested_role: StringName,
+	request_sequence: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(occupant_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var seat: Dictionary = _seat_authority.get_snapshot()
+	var seat_record: Dictionary = {}
+	for candidate in seat.get("seats", []) as Array:
+		if StringName((candidate as Dictionary).get("seat_id", &"")) == seat_id:
+			seat_record = candidate as Dictionary
+			break
+	if seat_record.is_empty():
+		return _remember(_result(false, &"unknown_seat"))
+	var ship: Dictionary = _ship_ownership.get_ship_snapshot(StringName(seat_record.get("vessel_id", &"")))
+	if int(ship.get("owner_peer_id", 0)) != occupant_peer_id:
+		return _remember(_result(false, &"ship_owner_mismatch"))
+	var result: Dictionary = _seat_authority.claim(
+		AUTHORITY_PEER_ID, occupant_peer_id, avatar_id, seat_id, requested_role, request_sequence
+	)
+	seat_occupancy_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func release_crew_seat(
+	occupant_peer_id: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	request_sequence: int,
+	seat_generation: int = 0
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(occupant_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _seat_authority.release(
+		AUTHORITY_PEER_ID, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
+	)
+	seat_occupancy_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func transfer_crew_seat(
+	from_peer_id: int,
+	to_peer_id: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	request_sequence: int,
+	seat_generation: int = 0
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	if not _peer_generations.has(from_peer_id) or not _peer_generations.has(to_peer_id):
+		return _remember(_result(false, &"peer_not_admitted"))
+	var result: Dictionary = _seat_authority.transfer(
+		AUTHORITY_PEER_ID, from_peer_id, to_peer_id, avatar_id, seat_id, request_sequence, seat_generation
+	)
+	seat_occupancy_result.emit(result.duplicate(true))
+	return _remember(result)
+
+
+func get_crew_assignment(occupant_peer_id: int, avatar_id: StringName) -> Dictionary:
+	return _seat_authority.get_assignment(occupant_peer_id, avatar_id)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -706,6 +799,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 		AUTHORITY_PEER_ID, peer_id, peer_generation
 	)
 	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
+	_seat_authority.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_peer_generations.erase(peer_id)
 	for source_id_variant in _projectile_sources.keys():
 		var source_id := StringName(source_id_variant)

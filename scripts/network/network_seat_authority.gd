@@ -135,6 +135,48 @@ func release(
 	return _remember(_result(true, &"released", {"assignment": assignment}))
 
 
+func transfer(
+	source_peer_id: int,
+	from_peer_id: int,
+	to_peer_id: int,
+	avatar_id: StringName,
+	seat_id: StringName,
+	request_sequence: int,
+	seat_generation: int = 0
+) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	if from_peer_id <= 0 or to_peer_id <= 0 or not _valid_id(avatar_id) \
+		or not _valid_nonnegative_integer(request_sequence):
+		return _remember(_result(false, &"invalid_transfer_request"))
+	if from_peer_id == to_peer_id:
+		return _remember(_result(false, &"same_occupant"))
+	var source_key := _assignment_key(from_peer_id, avatar_id)
+	if not _assignments.has(source_key):
+		return _remember(_result(false, &"assignment_not_found"))
+	var assignment := _assignments[source_key] as Dictionary
+	if StringName(assignment.get("seat_id", &"")) != seat_id:
+		return _remember(_result(false, &"seat_mismatch"))
+	if seat_generation > 0 and int(assignment.get("seat_generation", 0)) != seat_generation:
+		return _remember(_result(false, &"stale_seat_generation"))
+	if not _accept_sequence(from_peer_id, request_sequence):
+		return _remember(_result(false, &"stale_request_sequence"))
+	var destination_key := _assignment_key(to_peer_id, avatar_id)
+	if _assignments.has(destination_key):
+		return _remember(_result(false, &"avatar_already_seated"))
+	_assignments.erase(source_key)
+	assignment.occupant_peer_id = to_peer_id
+	assignment.claim_sequence = request_sequence
+	_assignments[destination_key] = assignment
+	_last_request_sequence_by_peer[from_peer_id] = request_sequence
+	_event_sequence += 1
+	return _remember(_result(true, &"transferred", {
+		"assignment": assignment.duplicate(true),
+		"from_peer_id": from_peer_id,
+		"to_peer_id": to_peer_id,
+	}))
+
+
 ## Disconnect cleanup is server lifecycle authority, not a client request.
 func release_peer(source_peer_id: int, occupant_peer_id: int) -> Dictionary:
 	if source_peer_id != _authority_peer_id:
