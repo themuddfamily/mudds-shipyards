@@ -18,6 +18,7 @@ var _arrow_ref: WeakRef
 var _hud_ref: WeakRef
 var _landing_wash: Node3D
 var _cockpit_readout: Label3D
+var _cockpit_generation := 0
 var _attached := false
 var _atmospheric := false
 var _generation := 0
@@ -56,6 +57,7 @@ func attach(arrow: ArrowReconShip, hud: GameHUD) -> Dictionary:
 	_cockpit_readout = CockpitReadoutScript.new() as Label3D
 	_cockpit_readout.name = "EntryDescentReadout"
 	cockpit_cluster.add_child(_cockpit_readout)
+	_cockpit_generation = int(_cockpit_readout.call(&"get_generation"))
 	_attached = true
 	_generation += 1
 	return _result(true, &"attached")
@@ -150,7 +152,8 @@ func present_observation(
 	}
 	if _cockpit_readout != null:
 		cockpit_result = _cockpit_readout.call(
-			&"present_source", source
+			&"present_source", source, _observation_count + 1,
+			_cockpit_generation
 		) as Dictionary
 	_observation_count += 1
 	_last_result = _result(true, &"entry_presented", {
@@ -165,9 +168,12 @@ func present_observation(
 
 func detach() -> Dictionary:
 	if _cockpit_readout != null:
-		_cockpit_readout.call(&"clear", &"detached")
+		_cockpit_readout.call(
+			&"clear", &"detached", _cockpit_generation
+		)
 		_cockpit_readout.queue_free()
 		_cockpit_readout = null
+	_cockpit_generation = 0
 	if _landing_wash != null:
 		_landing_wash.call(&"clear", &"detached_zero")
 		_landing_wash.queue_free()

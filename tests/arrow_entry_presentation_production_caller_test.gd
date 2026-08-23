@@ -88,8 +88,15 @@ func _run() -> void:
 		and normal_wash.get("damage_authority") == false
 		and normal_wash.get("atmosphere_authority") == false
 		and normal_wash.get("landing_authority") == false
-		and safe_cockpit.get("text") == "AIRLESS | [v] DESCENT SAFE"
+		and safe_cockpit.get("text") \
+			== "AIRLESS | [v] DESCENT SAFE | E[#----] 1/5"
 		and safe_cockpit.get("symbol") == &"[v]"
+		and (safe_cockpit.get("envelope_gauge", {}) as Dictionary).get(
+			"ascii_silhouette"
+		) == "[#----]"
+		and (safe_cockpit.get("envelope_gauge", {}) as Dictionary).get(
+			"bounded"
+		) == true
 		and safe_cockpit.get("color_independent") == true
 		and safe_cockpit.get("collision_authority") == false
 		and safe_cockpit.get("movement_authority") == false
@@ -123,7 +130,9 @@ func _run() -> void:
 		and reduced_wash.get("steady_emission") == true
 		and reduced_cockpit.get("reduced_flash") == true
 		and reduced_cockpit.get("reduced_motion") == true
-		and reduced_cockpit.get("steady") == true,
+		and reduced_cockpit.get("steady") == true
+		and reduced_cockpit.get("color_independent") == true
+		and str(reduced_cockpit.get("text", "")).contains("E[#----] 1/5"),
 		"reduced settings lower the wash and retain steady emission",
 	)
 
@@ -137,8 +146,12 @@ func _run() -> void:
 	).get("cockpit_readout", {}) as Dictionary
 	_check(
 		bool(high_sink_airless.get("accepted", false))
-		and high_sink_cockpit.get("text") == "AIRLESS | [!!] HIGH SINK"
+		and high_sink_cockpit.get("text") \
+			== "AIRLESS | [!!] HIGH SINK | E[####-] 4/5"
 		and high_sink_cockpit.get("symbol") == &"[!!]"
+		and (high_sink_cockpit.get("envelope_gauge", {}) as Dictionary).get(
+			"filled_segments"
+		) == 4
 		and high_sink_cockpit.get("steady") == true
 		and physical_entry_readout.text == high_sink_cockpit.get("text"),
 		"high sink is legible on the physical display without relying on color",
@@ -160,8 +173,12 @@ func _run() -> void:
 		and is_zero_approx(float(climb_zero.get("intensity", -1.0)))
 		and climb_zero.get("dust_emitting") == false
 		and climb_zero.get("last_reason") == &"climb_or_level_zero"
-		and climb_cockpit.get("text") == "AIRLESS | [^] CLIMB / EXIT",
-		"climb immediately clears the landing wash to exact zero",
+		and climb_cockpit.get("text") \
+			== "AIRLESS | [^] CLIMB / EXIT | E[-----] 0/5 RECOVER"
+		and (climb_cockpit.get("envelope_gauge", {}) as Dictionary).get(
+			"recovery"
+		) == true,
+		"climb clears the wash and shows a non-color-only recovery envelope",
 	)
 
 	production.set("_last_planetary_altitude_m", 500.0)
@@ -214,8 +231,11 @@ func _run() -> void:
 		) == true
 		and detail.text.contains("[ HIGH SINK RATE // 60 M/S DOWN")
 		and atmospheric_cockpit.get("text") \
-			== "ATM HEAT | [!!] CRITICAL"
+			== "ATM HEAT | [!!] CRITICAL | E[#####] 5/5"
 		and atmospheric_cockpit.get("symbol") == &"[!!]"
+		and (atmospheric_cockpit.get(
+			"envelope_gauge", {}
+		) as Dictionary).get("severity_id") == &"critical"
 		and atmospheric_cockpit.get("steady") == true,
 		"atmospheric altitude and Arrow speed drive visible steady reduced-flash heat guidance",
 	)
@@ -240,8 +260,38 @@ func _run() -> void:
 		and bridge.get("landing_authority") == false,
 		"the production bridge reports presentation-only authority",
 	)
+	var cockpit_before_fence := physical_entry_readout.call(
+		&"get_snapshot"
+	) as Dictionary
+	var cockpit_generation := int(physical_entry_readout.call(&"get_generation"))
+	var physical_readout_id := physical_entry_readout.get_instance_id()
+	var last_cockpit_serial := int(cockpit_before_fence.get(
+		"last_observation_serial", -1
+	))
+	var stale_generation := physical_entry_readout.call(
+		&"present_source", source, last_cockpit_serial + 1,
+		cockpit_generation - 1
+	) as Dictionary
+	var replayed_observation := physical_entry_readout.call(
+		&"present_source", source, last_cockpit_serial, cockpit_generation
+	) as Dictionary
+	var cockpit_after_fence := physical_entry_readout.call(
+		&"get_snapshot"
+	) as Dictionary
+	_check(
+		not bool(stale_generation.get("accepted", true))
+		and stale_generation.get("reason") == &"stale_generation"
+		and not bool(replayed_observation.get("accepted", true))
+		and replayed_observation.get("reason") \
+			== &"observation_serial_replayed"
+		and cockpit_after_fence.get("text") == cockpit_before_fence.get("text")
+		and cockpit_after_fence.get("envelope_gauge") \
+			== cockpit_before_fence.get("envelope_gauge"),
+		"stale generations and replayed samples cannot mutate the cockpit envelope",
+	)
 	var entry_binding := production.get("_entry_presentation_binding") as RefCounted
 	var detached := entry_binding.call(&"detach") as Dictionary
+	var cleared_physical := physical_entry_readout.call(&"get_snapshot") as Dictionary
 	var detached_wash := entry_binding.call(&"get_snapshot").get(
 		"landing_wash", {}
 	) as Dictionary
@@ -254,14 +304,45 @@ func _run() -> void:
 		and detached_wash.get("visible") == false
 		and detached_wash.get("last_reason") == &"detached_zero"
 		and detached_cockpit.get("visible") == false
-		and detached_cockpit.get("text") == "",
-		"detaching the production bridge clears the wash to exact zero",
+		and detached_cockpit.get("text") == ""
+		and cleared_physical.get("visible") == false
+		and cleared_physical.get("text") == ""
+		and int(cleared_physical.get("generation", -1)) \
+			== cockpit_generation + 1
+		and int((cleared_physical.get(
+			"envelope_gauge", {}
+		) as Dictionary).get("filled_segments", -1)) == 0,
+		"detaching clears both wash and generation-fenced physical envelope",
 	)
+	await process_frame
+	var reattached := entry_binding.call(&"attach", arrow, hud) as Dictionary
+	var reentered := entry_binding.call(
+		&"present_observation", 100.0, 340.0, -12.0, false
+	) as Dictionary
+	var reentry_readout := arrow.get_arrow_visual_root().get_node_or_null(
+		^"CockpitInterior/InstrumentCluster/EntryDescentReadout"
+	) as Label3D
+	var reentry_snapshot := reentry_readout.call(&"get_snapshot") as Dictionary \
+		if reentry_readout != null else {}
+	_check(
+		bool(reattached.get("accepted", false))
+		and bool(reentered.get("accepted", false))
+		and reentry_readout != null
+		and reentry_readout.get_instance_id() != physical_readout_id
+		and reentry_snapshot.get("text") \
+			== "ATM HEAT | [!!] CRITICAL | E[#####] 5/5"
+		and (reentry_snapshot.get("envelope_gauge", {}) as Dictionary).get(
+			"recovery"
+		) == false
+		and int(reentry_snapshot.get("generation", -1)) == 1,
+		"re-entry creates a clean envelope generation without inherited recovery",
+	)
+	entry_binding.call(&"detach")
 
 	composition.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 9 assertions")
+		print("ARROW_ENTRY_PRESENTATION_PRODUCTION_CALLER_TEST_OK: 11 assertions")
 		quit(0)
 		return
 	for failure in _failures:
