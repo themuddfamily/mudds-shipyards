@@ -387,6 +387,12 @@ const HALYARD_APRON_RUNG_MAX_X := 38.8
 const FLEET_DOCK_CONNECTOR_DECK_SIZE := Vector3(12.5, 0.64, 3.6)
 const FLEET_DOCK_CONNECTOR_CORNER_RADIUS := 0.72
 const FLEET_DOCK_CONNECTOR_CURVE_SEGMENTS := 4
+## Habitat's world-facing pressure facade keeps its component-owned body,
+## collider, material, sign and door. The world replaces only this lintel's
+## shallow 108-triangle box render mesh with a 72-triangle capsule silhouette.
+const HABITAT_ENTRY_HEADER_SIZE := Vector3(4.2, 0.72, 0.48)
+const HABITAT_ENTRY_HEADER_END_RADIUS := 0.36
+const HABITAT_ENTRY_HEADER_CURVE_SEGMENTS := 8
 
 const CENTRAL_HERO_SCHEMA_VERSION := 2
 const OPERATIONAL_LATTICE_SCHEMA_VERSION := 1
@@ -5812,6 +5818,8 @@ func _build_architecture() -> void:
 		_materials["orange_glow"]
 	)
 
+	_apply_habitat_entry_curve()
+
 
 ## HALYARD-DECK-001. The walkable apron that makes Fleet Dock 02 big enough for
 ## the craft standing on it. See the `HALYARD_APRON_*` constants for the measured
@@ -8790,6 +8798,39 @@ func _extruded_capsule_fascia(
 	collision.shape = shape
 	body.add_child(collision)
 	return body
+
+
+## Give the normal Habitat walk route a true curved pressure-lintel silhouette
+## without taking ownership away from HabitatSpine. The existing StaticBody,
+## BoxShape, shell-light material and children remain in place; only the render
+## resource changes. This also leaves the separately authored amber sign at x=4
+## and the live StationDoor below the lintel wholly untouched.
+func _apply_habitat_entry_curve() -> void:
+	var header := habitat_spine.get_node_or_null(
+		^"Structure/PlayerClearConnector/EntryFacadeHeader"
+	) as StaticBody3D
+	if header == null:
+		push_error("Habitat entry header is missing from the production world")
+		return
+	var visual := header.get_node_or_null(^"Mesh") as MeshInstance3D
+	var collision := header.get_node_or_null(^"Collision") as CollisionShape3D
+	if visual == null or collision == null or not collision.shape is BoxShape3D:
+		push_error("Habitat entry header lost its matched render/collision pair")
+		return
+	var shape := collision.shape as BoxShape3D
+	if not shape.size.is_equal_approx(HABITAT_ENTRY_HEADER_SIZE):
+		push_error("Habitat entry header collision envelope drifted before curve treatment")
+		return
+	var mesh := _extruded_capsule_mesh(
+		HABITAT_ENTRY_HEADER_SIZE,
+		HABITAT_ENTRY_HEADER_END_RADIUS,
+		HABITAT_ENTRY_HEADER_CURVE_SEGMENTS
+	)
+	mesh.resource_name = "habitat_entry_capsule_header_v1"
+	visual.mesh = mesh
+	header.set_meta("geometry_profile", &"extruded_capsule_header")
+	header.set_meta("end_radius_m", HABITAT_ENTRY_HEADER_END_RADIUS)
+	header.set_meta("curve_segments_per_end", HABITAT_ENTRY_HEADER_CURVE_SEGMENTS)
 
 
 func _extruded_capsule_mesh(
