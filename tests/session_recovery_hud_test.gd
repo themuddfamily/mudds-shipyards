@@ -92,13 +92,15 @@ func _run() -> void:
 	var replayed_recovery := authentic_recovery.duplicate(true)
 	replayed_recovery["last_physics_tick"] = 999
 	var replayed_recommendation := authentic_recommendation.duplicate(true)
-	replayed_recommendation["severity"] = &"safe_graphics_recommended"
+	((replayed_recommendation.safe_start_patch as Dictionary).values_patch as Dictionary)[
+		"graphics_profile"
+	] = "medium"
 	_check(
 		hud.present_session_recovery_notice(
 			replayed_recovery, replayed_recommendation
 		).reason == &"replayed_recovery_notice"
 		and int(hud.get_session_recovery_notice_snapshot().recovery_snapshot.last_physics_tick) == 125
-		and hud.get_session_recovery_notice_snapshot().recommendation.severity == &"review_prior_session",
+		and hud.get_session_recovery_notice_snapshot().recommendation.safe_start_patch.values_patch.graphics_profile == "low",
 		"same-token same-generation replay is rejected without overwriting retained state"
 	)
 	var malformed_cases: Array[Dictionary] = []
@@ -123,6 +125,12 @@ func _run() -> void:
 	var bad_severity := authentic_recommendation.duplicate(true)
 	bad_severity["severity"] = &"automatic_repair"
 	malformed_cases.append({"snapshot": authentic_recovery, "recommendation": bad_severity})
+	var early_safe_severity := authentic_recommendation.duplicate(true)
+	early_safe_severity["severity"] = &"safe_graphics_recommended"
+	malformed_cases.append({"snapshot": authentic_recovery, "recommendation": early_safe_severity})
+	var threshold_recovery := authentic_recovery.duplicate(true)
+	threshold_recovery["unclean_start_count"] = 3
+	malformed_cases.append({"snapshot": threshold_recovery, "recommendation": authentic_recommendation})
 	var bad_authority := authentic_recommendation.duplicate(true)
 	bad_authority["applies_settings"] = true
 	malformed_cases.append({"snapshot": authentic_recovery, "recommendation": bad_authority})
@@ -138,7 +146,7 @@ func _run() -> void:
 		all_malformed_rejected
 		and detail.text.contains("125 physics ticks (12.50 seconds)")
 		and int(hud.get_session_recovery_notice_snapshot().recovery_token) == 41,
-		"malformed schema, types, progress, count, severity, and authority flags never render clamped data"
+		"malformed schema, types, progress, count, severity thresholds, and authority flags never render clamped data"
 	)
 	var stale := authentic_recovery.duplicate(true)
 	stale["session_id"] = 40

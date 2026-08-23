@@ -2594,6 +2594,14 @@ func _validate_session_recovery_notice(
 		available != true
 		or caller_choice != true
 		or severity not in [&"review_prior_session", &"safe_graphics_recommended"]
+		or (
+			severity == &"safe_graphics_recommended"
+			and count < MAX_SESSION_RECOVERY_UNCLEAN_STARTS
+		)
+		or (
+			severity == &"review_prior_session"
+			and count >= MAX_SESSION_RECOVERY_UNCLEAN_STARTS
+		)
 		or applies != false
 		or persists != false
 	):
