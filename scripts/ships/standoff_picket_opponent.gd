@@ -37,6 +37,7 @@ const SIEGE_LANCE_DEFINITION := preload("res://assets/weapons/picket_siege_lance
 ## weapon, tactic, or class name is authenticated or claimed by this archetype.
 
 signal lance_fired(origin: Vector3, direction: Vector3, result: Dictionary)
+signal siege_lance_audio_record(record: Dictionary)
 signal engagement_state_changed(state: StringName)
 
 const SCHEMA_VERSION := 1
@@ -135,6 +136,11 @@ var _picket_box_mesh_cache: Dictionary = {}
 var _shots_fired := 0
 var _shots_aborted := 0
 var _weapon_definition: WeaponDefinition
+var _lance_charge_generation := 0
+var _lance_charge_target_instance_id := 0
+var _lance_charge_armed := false
+var _lance_charge_cancel_reason: StringName = &""
+var _audio_sequence := 0
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -174,6 +180,8 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	_update_escort_dispatch(delta)
 	super(delta)
+	if _lance_charge_armed and not _has_current_target():
+		_cancel_lance_charge(&"target_lost", false)
 	_update_engagement_state()
 
 
@@ -205,6 +213,41 @@ func get_pending_lance_receipt_count() -> int:
 
 func get_last_shot_result() -> Dictionary:
 	return _last_shot_result.duplicate(true)
+
+
+func set_target(target: Node3D) -> void:
+	var next_id := target.get_instance_id() if is_instance_valid(target) else 0
+	var previous_id := _target.get_instance_id() if is_instance_valid(_target) else 0
+	if next_id != previous_id:
+		if _telegraph_remaining > 0.0:
+			_cancel_lance_charge(&"target_changed", false)
+		_lance_charge_generation += 1
+	_lance_charge_target_instance_id = next_id
+	super.set_target(target)
+
+
+## Detached caller-physics charge state for HUD/counterplay consumers. The
+## target object is represented only by its instance identity and generation;
+## no mutable target reference escapes this snapshot.
+func get_lance_charge_snapshot() -> Dictionary:
+	var progress := 0.0
+	if _telegraph_remaining > 0.0:
+		progress = clampf(1.0 - _telegraph_remaining / maxf(telegraph_time, 0.001), 0.0, 1.0)
+	return {
+		"active": _telegraph_remaining > 0.0,
+		"progress": progress,
+		"remaining": maxf(_telegraph_remaining, 0.0),
+		"target_generation": _lance_charge_generation,
+		"target_instance_id": _lance_charge_target_instance_id,
+		"armed": _lance_charge_armed,
+		"cancel_reason": _lance_charge_cancel_reason,
+	}.duplicate(true)
+
+
+## Explicit lifecycle cancel used by an owner transferring or withdrawing the
+## picket. It never changes resolver state because no shot has been dispatched.
+func cancel_lance_charge(reason: StringName = &"cancelled") -> void:
+	_cancel_lance_charge(reason, false)
 
 
 ## Defensive copy of the checked-in heavy/standoff weapon authoring profile.
@@ -436,6 +479,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_cooldown_remaining = maxf(_cooldown_remaining, initial_arming_delay)
 	_shots_fired = 0
 	_shots_aborted = 0
+	_cancel_lance_charge(&"activation_reset", false)
 	_discard_lance_receipts()
 	_register_combat_source()
 	_set_engagement_state(STATE_CLOSING)
@@ -443,6 +487,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 
 
 func deactivate() -> void:
+	_cancel_lance_charge(&"deactivated", false)
 	_release_combat_registration()
 	_discard_lance_receipts()
 	super()
@@ -450,6 +495,7 @@ func deactivate() -> void:
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
+	_cancel_lance_charge(&"destroyed", false)
 	_release_combat_registration()
 	# The engagement latch stays claimed so a destroyed picket is not re-dispatched
 	# while the same defender wave is still live.
@@ -592,9 +638,10 @@ func _update_weapon(
 		if not in_band or not aim_held or not _has_line_of_sight(target_position):
 			# Closing the gap, breaking the cone, or breaking line of sight all
 			# cancel a committed charge and cost the picket real time.
-			_telegraph_remaining = 0.0
+			_cancel_lance_charge(&"counterplay", true)
 			_cooldown_remaining = maxf(_cooldown_remaining, lance_abort_recovery)
 			_shots_aborted += 1
+			_emit_siege_lance_audio(&"aborted", true)
 			return
 		_telegraph_remaining = maxf(0.0, _telegraph_remaining - delta)
 		if _telegraph_remaining <= 0.0:
@@ -608,7 +655,12 @@ func _update_weapon(
 		return
 	if not _has_line_of_sight(target_position):
 		return
+	_lance_charge_target_instance_id = _target.get_instance_id()
+	_lance_charge_generation = maxi(_lance_charge_generation, 1)
+	_lance_charge_armed = true
+	_lance_charge_cancel_reason = &""
 	_telegraph_remaining = telegraph_time
+	_emit_siege_lance_audio(&"charge_started", true)
 
 
 func _update_engagement_state() -> void:
@@ -625,6 +677,24 @@ func _update_engagement_state() -> void:
 		_set_engagement_state(STATE_CLOSING)
 	else:
 		_set_engagement_state(STATE_HOLDING)
+
+
+func _cancel_lance_charge(reason: StringName, count_abort: bool) -> void:
+	if _telegraph_remaining > 0.0 and count_abort:
+		_shots_aborted += 1
+	if _telegraph_remaining > 0.0:
+		_telegraph_remaining = 0.0
+	_lance_charge_armed = false
+	_lance_charge_cancel_reason = reason
+
+
+func _is_lance_charge_authorized() -> bool:
+	return (
+		_lance_charge_armed
+		and _has_current_target()
+		and _target.get_instance_id() == _lance_charge_target_instance_id
+		and _lance_charge_generation > 0
+	)
 
 
 func _set_engagement_state(state: StringName) -> void:
@@ -689,6 +759,7 @@ func _fire_at_target(target_position: Vector3) -> void:
 		receipt_id
 	)
 	var result := resolver.resolve_hitscan(request)
+	_emit_siege_lance_audio(&"dispatch", bool(result.get("accepted", false)))
 	_cooldown_remaining = weapon_cooldown
 	_last_shot_result = result.duplicate(true)
 	_shots_fired += 1
@@ -698,6 +769,7 @@ func _fire_at_target(target_position: Vector3) -> void:
 	lance_fired.emit(origin, direction, result.duplicate(true))
 	if not bool(result.get("accepted", false)) or not bool(result.get("resolved", false)):
 		return
+	_emit_siege_lance_audio(&"impact", true)
 	_spawn_muzzle_flash(origin)
 	_present_lance_shot(origin, direction, receipt_id, result)
 
@@ -761,6 +833,18 @@ func _record_lance_receipt(receipt_id: int, result: Dictionary, endpoint: Vector
 	while _lance_receipt_order.size() > MAX_PENDING_LANCE_RECEIPTS:
 		var evicted: int = _lance_receipt_order.pop_front()
 		_lance_receipts.erase(evicted)
+
+
+func _emit_siege_lance_audio(event_id: StringName, accepted: bool) -> void:
+	_audio_sequence += 1
+	siege_lance_audio_record.emit({
+		"generation": 0,
+		"sequence": _audio_sequence,
+		"transaction_id": StringName("picket_siege_lance_%d" % _audio_sequence),
+		"weapon_id": LANCE_WEAPON_ID,
+		"event_id": event_id,
+		"accepted": accepted,
+	}.duplicate(true))
 
 
 ## Directional hit feedback. The coordinator owns this cue for the defender it

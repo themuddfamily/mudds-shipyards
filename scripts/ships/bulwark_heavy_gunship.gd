@@ -62,9 +62,11 @@ var _gunner_role_cooldowns: Dictionary = {}
 var _gunner_role_ammunition: Dictionary = {}
 var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
+var _siege_lance_audio_sequence := 0
 
 signal gunner_target_selected(target_id: StringName, target_generation: int, receipt: Dictionary)
 signal gunner_target_cleared(target_id: StringName, target_generation: int, reason: StringName)
+signal siege_lance_audio_record(record: Dictionary)
 
 
 func _init() -> void:
@@ -529,6 +531,8 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	)
 	if not bool(result.get("accepted", false)):
 		return _crew_role_result(false, StringName(result.get("status", &"shot_rejected")))
+	_emit_siege_lance_audio(&"dispatch")
+	_emit_siege_lance_audio(&"impact")
 	var effect := _crew_role_result(true, &"siege_lance_resolved")
 	effect["resolution"] = result.duplicate(true)
 	effect["source_id"] = get_combat_source_id()
@@ -546,6 +550,18 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	_gunner_role_cooldowns[actor_key] = cooldown
 	_gunner_role_ammunition[actor_key] = ammunition - 1
 	return effect
+
+
+func _emit_siege_lance_audio(event_id: StringName) -> void:
+	_siege_lance_audio_sequence += 1
+	siege_lance_audio_record.emit({
+		"generation": 0,
+		"sequence": _siege_lance_audio_sequence,
+		"transaction_id": StringName("bulwark_siege_lance_%d" % _siege_lance_audio_sequence),
+		"weapon_id": BULWARK_CREW_WEAPON_ID,
+		"event_id": event_id,
+		"accepted": true,
+	}.duplicate(true))
 
 
 func _select_gunner_target(
