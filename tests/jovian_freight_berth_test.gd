@@ -47,6 +47,7 @@ func _run() -> void:
 	await _test_animated_equipment(module)
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
+	_test_floor_label_orientation(module)
 	_test_handling_infrastructure(module)
 	_test_recessed_lashing_ring_profile(module)
 	_test_lashing_ring_visual_allocation(module)
@@ -496,6 +497,33 @@ func _test_materials_signage_and_detail(module: JovianFreightBerth) -> void:
 	_check(visual != null and visual.mesh is ArrayMesh, "load-bearing deck renders custom chamfered geometry")
 	_check(module.find_children("*", "CylinderMesh", true, false).is_empty(), "scene does not mistake resources for nodes")
 	_check(module.find_children("*", "MeshInstance3D", true, false).size() >= 150, "module has a high-detail rendered assembly rather than a generic blockout")
+
+
+## The berth extends from the station connection toward local +Z. A player
+## approaching the freight apron along that primary outbound route therefore
+## needs the floor legend's glyph-up axis to point +Z while its face stays +Y.
+func _test_floor_label_orientation(module: JovianFreightBerth) -> void:
+	var matching_labels: Array[Label3D] = []
+	for candidate in module.find_children("*", "Label3D", true, false):
+		var label := candidate as Label3D
+		if label != null and label.text == "BERTH F-01":
+			matching_labels.append(label)
+	_check(matching_labels.size() == 1, "exactly one BERTH F-01 floor legend is present")
+	if matching_labels.size() != 1:
+		return
+	var berth_label := matching_labels[0]
+	var basis := berth_label.transform.basis
+	_check(
+		berth_label.position.is_equal_approx(Vector3(0.0, 0.14, 9.8))
+		and berth_label.font_size == 32
+		and is_equal_approx(berth_label.pixel_size, 0.46 / 32.0)
+		and berth_label.modulate.is_equal_approx(Color("ffb45b")),
+		"BERTH F-01 preserves its authored position, physical size, and amber colour"
+	)
+	_check(basis.z.is_equal_approx(Vector3.UP), "BERTH F-01 remains painted face-up on the floor plane")
+	_check(basis.y.is_equal_approx(Vector3.BACK), "BERTH F-01 glyph-up follows the documented local +Z outbound reader direction")
+	_check(is_equal_approx(basis.determinant(), 1.0), "BERTH F-01 rotation remains a proper orientation with determinant +1")
+	_check(berth_label.find_children("*", "CollisionObject3D", true, false).is_empty(), "BERTH F-01 remains presentation-only and collision-free")
 
 
 ## The freight-handling infrastructure a berth this size has to own before it

@@ -2862,7 +2862,7 @@ func _build_lighting_and_signage() -> void:
 	# legends were always painted on the apron and do not move.
 	_label(presentation, "MUDDS FREIGHT NODE  //  JOVIAN", Vector3(0, 4.92, PORTAL_Z - 0.20), 0.62, Color("bffff6"), Vector3(0, 180, 0))
 	_sign_practical(presentation, "FreightNodeSignWash", Vector3(0.0, 4.35, PORTAL_Z - 0.55), Color("8fe6dd"), 0.5, 5.0)
-	_label(presentation, "BERTH F-01", Vector3(0, 0.14, 9.8), 0.46, Color("ffb45b"), Vector3(-90, 0, 0))
+	_label(presentation, "BERTH F-01", Vector3(0, 0.14, 9.8), 0.46, Color("ffb45b"), Vector3(-90, 0, 180))
 	_sign_practical(presentation, "BerthLegendWash", Vector3(0.0, 0.55, 9.8), Color("f7b866"), 0.44, 4.4)
 	_label(presentation, "FREIGHT CONTROL", Vector3(16.05, 3.95, 29.0), 0.42, Color("8df2ed"), Vector3(0, -90, 0))
 	_sign_practical(presentation, "ControlSignWash", Vector3(15.62, 3.7, 29.0), Color("8df2ed"), 0.4, 3.6)
