@@ -101,8 +101,12 @@ func _activity_state(activity_id: StringName) -> Dictionary:
 func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var state_id := StringName(state.get("state_id", _state_label(state)))
 	if activity_id == &"cinder_debris_beacon_traversal" \
-			and StringName(state.get("reason", &"")) == &"out_of_order_beacon":
+			and StringName(state.get("presentation_reason", state.get("reason", &""))) \
+			== &"out_of_order_beacon":
 		state_id = &"wrong_order"
+	elif activity_id == &"cinder_debris_beacon_traversal" \
+			and int(state.get("state", -1)) == 3:
+		state_id = &"reset"
 	if activity_id == &"cinder_reach_checkpoint_route" \
 			and StringName(state.get("presentation_reason", &"")) == &"outside_checkpoint":
 		state_id = &"missed_gate"
@@ -131,6 +135,9 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var patrol_feedback: Dictionary = {}
 	if activity_id == &"cinder_relay_patrol":
 		patrol_feedback = _patrol_feedback(state)
+	var beacon_feedback: Dictionary = {}
+	if activity_id == &"cinder_debris_beacon_traversal":
+		beacon_feedback = _beacon_feedback(state)
 	var progress := (
 		"  //  %s" % str(convoy_feedback.get("summary", ""))
 		if not convoy_feedback.is_empty()
@@ -142,17 +149,19 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		if not race_feedback.is_empty()
 		else "  //  %s" % str(patrol_feedback.get("summary", ""))
 		if not patrol_feedback.is_empty()
+		else "  //  %s" % str(beacon_feedback.get("summary", ""))
+		if not beacon_feedback.is_empty()
 		else "  //  %s" % str(cargo_progress.get("summary", ""))
 		if not cargo_progress.is_empty()
 		else _progress_text(activity_id, state)
 	)
 	var recovery := (
-		"" if not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
+		"" if not beacon_feedback.is_empty() or not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
 		or not mining_feedback.is_empty() else _recovery_text(state)
 	)
 	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
 	var status_suffix := ""
-	if reward_pending and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
+	if reward_pending and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
 			and mining_feedback.is_empty():
 		status_suffix += "  REWARD PENDING"
 	if not recovery.is_empty():
@@ -167,13 +176,15 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
 		"recovery_text": recovery,
-		"objective_text": str(patrol_feedback.get(
-			"objective_text", race_feedback.get(
+		"objective_text": str(beacon_feedback.get(
+			"objective_text", patrol_feedback.get(
+				"objective_text", race_feedback.get(
 				"objective_text", scan_feedback.get(
 				"objective_text", mining_feedback.get(
 					"objective_text", cargo_progress.get("objective_text", "")
 				)
 				)
+			)
 			)
 		)),
 		"cargo_progress": cargo_progress.duplicate(true),
@@ -182,8 +193,62 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"scan_feedback": scan_feedback.duplicate(true),
 		"race_feedback": race_feedback.duplicate(true),
 		"patrol_feedback": patrol_feedback.duplicate(true),
+		"beacon_feedback": beacon_feedback.duplicate(true),
 		"semantic_cue_id": StringName(convoy_feedback.get("semantic_cue_id", &"")),
 		"caption_text": str(convoy_feedback.get("caption_text", "")),
+		"activity_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Formats the traversal authority's ordered cursor plus generation-matched
+## result/reward records retained by the production binding.
+func _beacon_feedback(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var authority_state := int(state.get("state", 0))
+	var next_index := maxi(int(state.get("next_beacon_index", 0)), 0)
+	var beacon_count := maxi(int(state.get("beacon_count", 0)), 0)
+	var expected_number := mini(next_index + 1, beacon_count) if beacon_count > 0 else 0
+	var presentation_reason := StringName(
+		state.get("presentation_reason", state.get("reason", &""))
+	)
+	var reward_pending := bool(state.get("reward_pending", false))
+	var stage_id: StringName = &"approach"
+	var summary := "RUN READY  //  START AT BEACON 1/%d" % beacon_count
+	var objective := "ENTER THE FIRST DEBRIS BEACON"
+	if presentation_reason == &"out_of_order_beacon":
+		stage_id = &"wrong_order"
+		summary = "EXPECTED BEACON %d/%d  //  %d/%d CLEARED" % [
+			expected_number, beacon_count, next_index, beacon_count,
+		]
+		objective = "RETURN TO EXPECTED BEACON %d" % expected_number
+	else:
+		match authority_state:
+			1:
+				stage_id = &"active"
+				summary = "NEXT BEACON %d/%d  //  %d/%d CLEARED" % [
+					expected_number, beacon_count, next_index, beacon_count,
+				]
+				objective = "ENTER EXPECTED BEACON %d" % expected_number
+			2:
+				stage_id = &"reward_pending" if reward_pending else &"complete"
+				summary = "ROUTE COMPLETE  //  %s" % (
+					"REWARD PENDING" if reward_pending else "NAVIGATION DATA READY"
+				)
+				objective = "AWAIT NAVIGATION DATA HANDOFF" if reward_pending else "REQUEST NAVIGATION DATA REWARD"
+			3:
+				stage_id = &"reset"
+				summary = "TRAVERSAL RESET  //  START AGAIN AT BEACON 1/%d" % beacon_count
+				objective = "RETURN TO THE FIRST DEBRIS BEACON"
+	return {
+		"stage_id": stage_id,
+		"next_beacon_index": next_index,
+		"beacon_count": beacon_count,
+		"expected_beacon_number": expected_number,
+		"reward_pending": reward_pending,
+		"summary": summary,
+		"objective_text": objective,
 		"activity_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)

@@ -65,6 +65,8 @@ var _cinder_cargo_terminal_audio: RefCounted
 var _last_race_feedback_reason: StringName = &""
 var _last_patrol_feedback_reason: StringName = &""
 var _last_patrol_reward_result: Dictionary = {}
+var _last_beacon_feedback_reason: StringName = &""
+var _last_beacon_reward_result: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -843,6 +845,9 @@ func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _beacon_activity.call("start", caller_position)
+	if bool(result.get("accepted", false)):
+		_last_beacon_feedback_reason = &""
+		_last_beacon_reward_result.clear()
 	_publish_beacon_traversal_presentation(result)
 	return result
 
@@ -851,6 +856,10 @@ func submit_beacon_traversal(index: int, caller_position: Vector3) -> Dictionary
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _beacon_activity.call("submit_beacon", index, caller_position)
+	_last_beacon_feedback_reason = (
+		&"" if bool(result.get("accepted", false))
+		else StringName(result.get("reason", &""))
+	)
 	_publish_beacon_traversal_presentation(result)
 	return result
 
@@ -859,6 +868,7 @@ func request_beacon_traversal_reward() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _beacon_activity.call("request_reward")
+	_last_beacon_reward_result = result.duplicate(true)
 	_publish_beacon_traversal_presentation(result)
 	_cinder_field_audio.present_reward_result(result)
 	return result
@@ -868,6 +878,9 @@ func reset_beacon_traversal() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _beacon_activity.call("reset")
+	if bool(result.get("accepted", false)):
+		_last_beacon_feedback_reason = &""
+		_last_beacon_reward_result.clear()
 	_publish_beacon_traversal_presentation(result)
 	return result
 
@@ -1051,7 +1064,7 @@ func get_snapshot() -> Dictionary:
 		"station_defense_reward": get_station_defense_reward_snapshot(),
 		"mining": _mining_activity.call("get_snapshot") if is_instance_valid(_mining_activity) else {},
 		"structure_scan": _scan_activity.call("get_snapshot") if is_instance_valid(_scan_activity) else {},
-		"beacon_traversal": _beacon_activity.call("get_snapshot") if is_instance_valid(_beacon_activity) else {},
+		"beacon_traversal": _beacon_traversal_presentation_snapshot(),
 		"restored_session": _restored_session.duplicate(true),
 		"production_owner": true,
 		"gameplay_authority": false,
@@ -1084,6 +1097,23 @@ func _patrol_presentation_snapshot() -> Dictionary:
 	)
 	snapshot["reward_handoff_reason"] = StringName(
 		_last_patrol_reward_result.get("reason", &"")
+	)
+	return snapshot.duplicate(true)
+
+
+func _beacon_traversal_presentation_snapshot() -> Dictionary:
+	if not is_instance_valid(_beacon_activity):
+		return {}
+	var snapshot := _beacon_activity.call("get_snapshot") as Dictionary
+	var request := _last_beacon_reward_result.get("reward_request", {}) as Dictionary
+	var request_matches := (
+		StringName(request.get("activity_id", &"")) == BEACON_ACTIVITY.ACTIVITY_ID
+		and int(request.get("generation", -1)) == int(snapshot.get("generation", 0))
+	)
+	snapshot["presentation_reason"] = _last_beacon_feedback_reason
+	snapshot["reward_pending"] = (
+		bool(_last_beacon_reward_result.get("accepted", false))
+		and bool(snapshot.get("reward_requested", false)) and request_matches
 	)
 	return snapshot.duplicate(true)
 
