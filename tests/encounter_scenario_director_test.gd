@@ -85,6 +85,7 @@ func _run() -> void:
 	await _test_station_defense_guard_opens_intercept_crossfire()
 	await _test_convoy_interdiction_generation_and_screen_guard()
 	await _test_heavy_standoff_advances_on_range_or_health()
+	await _test_wing_regroup_recovers_before_critical_breakaway()
 	await _test_time_backstop_with_an_unreachable_objective()
 	await _test_fire_authorization_is_withdrawn_on_the_concluding_frame()
 	await _test_production_bounds_and_audit()
@@ -754,6 +755,56 @@ func _test_heavy_standoff_advances_on_range_or_health() -> void:
 		director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
 			and director.get_roster().is_empty(),
 		"destroying the heavy wing concludes and releases its existing roster"
+	)
+	await _free_fixture(fixture)
+
+
+func _test_wing_regroup_recovers_before_critical_breakaway() -> void:
+	var fixture := await _make_fixture()
+	var director: EncounterScenarioDirector = fixture.director
+	var coordinator: WingCoordinator = fixture.coordinator
+	var target: EncounterTarget = fixture.target
+	_check(
+		director.begin_wing_regroup(target, 90.0, 0.65),
+		"caller-supplied regroup range and health threshold admit the recovery wing"
+	)
+	var anchor := coordinator.get_anchor() as FlankingSkirmisherOpponent
+	var damaged: FlankingSkirmisherOpponent = null
+	for member in fixture.skirmishers as Array[FlankingSkirmisherOpponent]:
+		if member != anchor:
+			damaged = member
+			break
+	var original_flank_range := float(damaged.get("flank_station_range"))
+	damaged.apply_damage(damaged.maximum_health * 0.5, damaged.global_position)
+	coordinator.update_assignments(0.0)
+	director._physics_process(0.01)
+	var regroup_intent := director.get_member_tactic_intent(damaged)
+	var cover_intent := director.get_member_tactic_intent(anchor)
+	_check(
+		regroup_intent.action == EncounterScenarioDirector.TACTIC_REGROUP
+			and not bool(regroup_intent.fire_authorized)
+			and is_equal_approx(float(damaged.get("flank_station_range")), 90.0)
+			and cover_intent.action == EncounterScenarioDirector.TACTIC_COVER_RECOVERY
+			and bool(cover_intent.fire_authorized)
+			and coordinator.get_role(damaged) == WingCoordinator.ROLE_FLANKER,
+		"a damaged non-critical flanker regroups at the caller range while its anchor covers"
+	)
+	damaged.apply_damage(damaged.maximum_health * 0.35, damaged.global_position)
+	coordinator.update_assignments(0.0)
+	var critical_intent := director.get_member_tactic_intent(damaged)
+	_check(
+		critical_intent.action == EncounterScenarioDirector.TACTIC_DISENGAGE
+			and not bool(critical_intent.fire_authorized),
+		"critical disengage overrides regroup recovery without changing role authority"
+	)
+	for member in fixture.skirmishers as Array[FlankingSkirmisherOpponent]:
+		member.apply_damage(member.maximum_health, member.global_position)
+	await _advance_until(func() -> bool: return director.is_concluded(), 60)
+	_check(
+		director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+			and director.get_roster().is_empty()
+			and is_equal_approx(float(damaged.get("flank_station_range")), original_flank_range),
+		"regroup posture restores the existing flanker station on stand-down"
 	)
 	await _free_fixture(fixture)
 

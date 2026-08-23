@@ -76,9 +76,12 @@ const SCENARIO_CONVOY_INTERDICTION: StringName = &"convoy_interdiction"
 ## A heavy contact holds a caller-supplied stand-off station until range or
 ## caller hull pressure authorizes the existing anchor craft to advance.
 const SCENARIO_HEAVY_STANDOFF: StringName = &"heavy_standoff"
+## A damaged-but-not-critical paired wing creates room for one craft to regroup
+## while its existing peer covers the recovery window.
+const SCENARIO_WING_REGROUP: StringName = &"wing_regroup"
 const SCENARIO_IDS: Array[StringName] = [
 	SCENARIO_COURIER_INTERCEPT, SCENARIO_PAIRED_WING, SCENARIO_STATION_DEFENSE,
-	SCENARIO_CONVOY_INTERDICTION, SCENARIO_HEAVY_STANDOFF,
+	SCENARIO_CONVOY_INTERDICTION, SCENARIO_HEAVY_STANDOFF, SCENARIO_WING_REGROUP,
 ]
 
 const STATE_IDLE: StringName = &"idle"
@@ -114,14 +117,18 @@ const TACTIC_INTERDICT: StringName = &"interdict"
 const TACTIC_SCREEN_GUARD: StringName = &"screen_guard"
 const TACTIC_STANDOFF: StringName = &"standoff"
 const TACTIC_ADVANCE: StringName = &"advance"
+const TACTIC_REGROUP: StringName = &"regroup"
+const TACTIC_COVER_RECOVERY: StringName = &"cover_recovery"
 
 const DEFAULT_HEAVY_STANDOFF_RANGE := 120.0
 const DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO := 0.35
+const DEFAULT_REGROUP_RANGE := 90.0
+const DEFAULT_REGROUP_HEALTH_RATIO := 0.65
 
 const CONTENT_NOTE := (
 	"The scenario roster, objectives, boundary distances, escort trigger, paired-wing "
 	+ "suppression opening, caller-owned protected-anchor defense, heavy stand-off/advance "
-	+ "posture, and every timing "
+	+ "posture, damaged-wing regroup/recovery posture, and every timing "
 	+ "value are an original modern interpretation. They do not "
 	+ "reproduce or claim any authenticated historical Keth Shipyards mission, "
 	+ "patrol, objective, or scenario."
@@ -190,6 +197,9 @@ var _protected_anchor: Node3D
 var _cargo_target: Node3D
 var _heavy_standoff_range := DEFAULT_HEAVY_STANDOFF_RANGE
 var _heavy_advance_health_ratio := DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
+var _regroup_range := DEFAULT_REGROUP_RANGE
+var _regroup_health_ratio := DEFAULT_REGROUP_HEALTH_RATIO
+var _regroup_original_postures: Dictionary = {}
 var _scenario_generation := 0
 var _roster: Array[Node3D] = []
 var _completed_runs := 0
@@ -210,6 +220,8 @@ func _physics_process(delta: float) -> void:
 		_update_courier_scenario(delta)
 	if _scenario == SCENARIO_HEAVY_STANDOFF:
 		_update_heavy_posture()
+	if _scenario == SCENARIO_WING_REGROUP:
+		_update_regroup_posture()
 	var outcome := _evaluate_termination(delta)
 	if outcome != OUTCOME_PENDING:
 		_conclude(outcome)
@@ -343,6 +355,8 @@ func is_fire_authorized(member: Node) -> bool:
 		return true
 	if _scenario == SCENARIO_HEAVY_STANDOFF:
 		return _is_target_alive()
+	if _scenario == SCENARIO_WING_REGROUP:
+		return _is_target_alive() and not _is_regrouping_member(member as Node3D)
 	if _paired_wing_suppression_active():
 		if is_instance_valid(coordinator):
 			return coordinator.get_role(member as Node3D) == WingCoordinator.ROLE_ANCHOR
@@ -390,6 +404,11 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 			)
 		elif role == WingCoordinator.ROLE_FLANKER:
 			action = TACTIC_FLANK_UNDER_COVER
+	elif _scenario == SCENARIO_WING_REGROUP and _has_regrouping_member():
+		if _is_regrouping_member(member as Node3D):
+			action = TACTIC_REGROUP
+		elif role != WingCoordinator.ROLE_UNASSIGNED:
+			action = TACTIC_COVER_RECOVERY
 	elif _paired_wing_suppression_active():
 		action = (
 			TACTIC_SUPPRESS
@@ -413,6 +432,8 @@ func get_member_tactic_intent(member: Node) -> Dictionary:
 		),
 		"heavy_standoff_range": _heavy_standoff_range,
 		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
+		"regroup_range": _regroup_range,
+		"regroup_health_ratio": _regroup_health_ratio,
 		"generation": _scenario_generation,
 	}.duplicate(true)
 
@@ -489,13 +510,46 @@ func begin_heavy_standoff(
 	)
 
 
+## Admits one paired-wing recovery window. The damaged member remains above the
+## coordinator's critical breakaway threshold, so the existing role assignment
+## stays authoritative while posture inputs create room to regroup.
+func begin_wing_regroup(
+		target: Node3D,
+		regroup_range: float,
+		recovery_health_ratio: float
+	) -> bool:
+	if (
+		not is_finite(regroup_range)
+		or regroup_range < 25.0
+		or regroup_range > 160.0
+		or not is_finite(recovery_health_ratio)
+		or recovery_health_ratio <= 0.0
+		or recovery_health_ratio > 1.0
+	):
+		return false
+	if _state == STATE_RUNNING:
+		return false
+	return _begin_scenario(
+		SCENARIO_WING_REGROUP,
+		target,
+		null,
+		null,
+		DEFAULT_HEAVY_STANDOFF_RANGE,
+		DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO,
+		regroup_range,
+		recovery_health_ratio,
+	)
+
+
 func _begin_scenario(
 		scenario_id: StringName,
 		target: Node3D,
 		protected_anchor: Node3D,
 		cargo_target: Node3D = null,
 		heavy_standoff_range: float = DEFAULT_HEAVY_STANDOFF_RANGE,
-		heavy_advance_health_ratio: float = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
+		heavy_advance_health_ratio: float = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO,
+		regroup_range: float = DEFAULT_REGROUP_RANGE,
+		regroup_health_ratio: float = DEFAULT_REGROUP_HEALTH_RATIO
 	) -> bool:
 	if not _is_current():
 		return false
@@ -531,6 +585,12 @@ func _begin_scenario(
 	else:
 		_heavy_standoff_range = DEFAULT_HEAVY_STANDOFF_RANGE
 		_heavy_advance_health_ratio = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
+	if scenario_id == SCENARIO_WING_REGROUP:
+		_regroup_range = regroup_range
+		_regroup_health_ratio = regroup_health_ratio
+	else:
+		_regroup_range = DEFAULT_REGROUP_RANGE
+		_regroup_health_ratio = DEFAULT_REGROUP_HEALTH_RATIO
 	_scenario = scenario_id
 	_target = target
 	_scenario_generation += 1
@@ -548,8 +608,12 @@ func _begin_scenario(
 			_launch_wing(_protected_anchor.global_position)
 		SCENARIO_HEAVY_STANDOFF:
 			_launch_wing()
+		SCENARIO_WING_REGROUP:
+			_launch_wing()
 	if scenario_id == SCENARIO_HEAVY_STANDOFF:
 		_update_heavy_posture()
+	if scenario_id == SCENARIO_WING_REGROUP:
+		_update_regroup_posture()
 	if _roster.is_empty():
 		# Nothing could be staged. Terminating immediately is the only honest
 		# result; leaving the director RUNNING with an empty roster is precisely
@@ -695,6 +759,9 @@ func _evaluate_objective() -> StringName:
 		SCENARIO_HEAVY_STANDOFF:
 			if _active_roster_count() == 0:
 				return OUTCOME_CLEARED
+		SCENARIO_WING_REGROUP:
+			if _active_roster_count() == 0:
+				return OUTCOME_CLEARED
 	return OUTCOME_PENDING
 
 
@@ -713,6 +780,7 @@ func _conclude(outcome: StringName) -> void:
 
 
 func _stand_down() -> void:
+	_restore_regroup_postures()
 	var coordinator := _get_wing_coordinator()
 	if is_instance_valid(coordinator):
 		coordinator.set_target(null)
@@ -726,6 +794,7 @@ func _stand_down() -> void:
 	_target = null
 	_protected_anchor = null
 	_cargo_target = null
+	_regroup_original_postures.clear()
 
 
 func _reset_run_state() -> void:
@@ -739,6 +808,8 @@ func _reset_run_state() -> void:
 	_halfway_warned = false
 	_heavy_standoff_range = DEFAULT_HEAVY_STANDOFF_RANGE
 	_heavy_advance_health_ratio = DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
+	_regroup_range = DEFAULT_REGROUP_RANGE
+	_regroup_health_ratio = DEFAULT_REGROUP_HEALTH_RATIO
 	_outcome = OUTCOME_PENDING
 
 
@@ -877,6 +948,76 @@ func _heavy_should_advance(member: Node3D) -> bool:
 		member.global_position.distance_to(_target.global_position) <= _heavy_standoff_range
 		or _participant_health_ratio(_target) <= _heavy_advance_health_ratio
 	)
+
+
+func _has_regrouping_member() -> bool:
+	for member in _roster:
+		if _is_regrouping_member(member):
+			return true
+	return false
+
+
+func _is_regrouping_member(member: Node3D) -> bool:
+	if not _is_participant_active(member):
+		return false
+	var coordinator := _get_wing_coordinator()
+	var critical_ratio := 0.22
+	if is_instance_valid(coordinator):
+		critical_ratio = coordinator.critical_disengage_ratio
+	var health_ratio := _participant_health_ratio(member)
+	return health_ratio <= _regroup_health_ratio and health_ratio > critical_ratio
+
+
+func _update_regroup_posture() -> void:
+	if not _has_regrouping_member():
+		return
+	var coordinator := _get_wing_coordinator()
+	if not is_instance_valid(coordinator):
+		return
+	for member in _roster:
+		if not is_instance_valid(member) or not _is_regrouping_member(member):
+			continue
+		_capture_regroup_posture(member)
+		var role := coordinator.get_role(member)
+		if role == WingCoordinator.ROLE_ANCHOR:
+			_set_member_property(member, &"anchor_station_range", _regroup_range)
+			_set_member_property(member, &"preferred_range", _regroup_range)
+			_set_member_property(member, &"retreat_range", maxf(12.0, _regroup_range * 0.5))
+		elif role == WingCoordinator.ROLE_FLANKER:
+			_set_member_property(member, &"flank_station_range", _regroup_range)
+			_set_member_property(member, &"preferred_range", _regroup_range)
+			_set_member_property(member, &"retreat_range", maxf(12.0, _regroup_range * 0.5))
+
+
+func _capture_regroup_posture(member: Node3D) -> void:
+	if not is_instance_valid(member):
+		return
+	var key := member.get_instance_id()
+	if _regroup_original_postures.has(key):
+		return
+	_regroup_original_postures[key] = {
+		"member": member,
+		"anchor_station_range": member.get(&"anchor_station_range"),
+		"flank_station_range": member.get(&"flank_station_range"),
+		"preferred_range": member.get(&"preferred_range"),
+		"retreat_range": member.get(&"retreat_range"),
+	}
+
+
+func _set_member_property(member: Node3D, property: StringName, value: float) -> void:
+	if member.get(property) != null:
+		member.set(property, value)
+
+
+func _restore_regroup_postures() -> void:
+	for posture in _regroup_original_postures.values():
+		var member := posture.get("member") as Node3D
+		if not is_instance_valid(member):
+			continue
+		for property in [&"anchor_station_range", &"flank_station_range", &"preferred_range", &"retreat_range"]:
+			var value: Variant = posture.get(property)
+			if value != null:
+				member.set(property, value)
 
 
 # ---------------------------------------------------------- host access ----
@@ -1063,6 +1204,7 @@ func get_evidence_metadata() -> Dictionary:
 			"anchor suppression opening while its flanker maneuvers under cover",
 			"generation-fenced convoy cargo interdiction with escort screening",
 			"caller-bounded heavy stand-off and health-triggered anchor advance",
+			"caller-bounded damaged-wing regroup and cover-recovery posture",
 			"distress broadcast and escort response timing",
 			"every scenario duration, radius, and delay",
 		]),
@@ -1111,6 +1253,8 @@ func get_audit_report() -> Dictionary:
 			"defense_trigger_radius": defense_trigger_radius,
 			"heavy_standoff_range": _heavy_standoff_range,
 			"heavy_advance_health_ratio": _heavy_advance_health_ratio,
+			"regroup_range": _regroup_range,
+			"regroup_health_ratio": _regroup_health_ratio,
 		},
 		"protected_anchor": (
 			String(_protected_anchor.name) if is_instance_valid(_protected_anchor) else ""
@@ -1118,6 +1262,8 @@ func get_audit_report() -> Dictionary:
 		"cargo_target": String(_cargo_target.name) if is_instance_valid(_cargo_target) else "",
 		"heavy_standoff_range": _heavy_standoff_range,
 		"heavy_advance_health_ratio": _heavy_advance_health_ratio,
+		"regroup_range": _regroup_range,
+		"regroup_health_ratio": _regroup_health_ratio,
 	}.duplicate(true)
 
 
@@ -1146,6 +1292,14 @@ func get_validation_errors() -> PackedStringArray:
 				or _heavy_advance_health_ratio < 0.0 \
 				or _heavy_advance_health_ratio > 1.0:
 			errors.append("a running heavy stand-off must retain a 0..1 hull threshold")
+	if _state == STATE_RUNNING and _scenario == SCENARIO_WING_REGROUP:
+		if not is_finite(_regroup_range) \
+				or _regroup_range < 25.0 or _regroup_range > 160.0:
+			errors.append("a running wing regroup must retain a finite 25..160 metre range")
+		if not is_finite(_regroup_health_ratio) \
+				or _regroup_health_ratio <= 0.0 \
+				or _regroup_health_ratio > 1.0:
+			errors.append("a running wing regroup must retain a 0..1 health threshold")
 	if _state == STATE_RUNNING and _scenario == SCENARIO_STATION_DEFENSE \
 			and not _is_protected_anchor_alive():
 		errors.append("a running station defense must retain its caller-owned protected anchor")
