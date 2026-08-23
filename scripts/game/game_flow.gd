@@ -220,6 +220,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 	&"reduced_motion",
 	&"captions_enabled",
 	&"reduced_dynamic_range",
+	&"show_tutorials",
 	&"input_binding_profile",
 ]
 
@@ -1962,6 +1963,17 @@ func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary
 				join_network_session(_network_session_address, _network_session_port)
 		&"cancel", &"disconnect":
 			shutdown_network_session(&"ui_%s" % payload.get("action", &"cancel"))
+
+
+## Applies the live, validated tutorial policy at the production caller boundary
+## before a retained HUD presenter formats any prompt. The HUD remains a
+## presentation owner; GameFlow supplies no gameplay progress or persistence.
+func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_first_sortie_tutorial_snapshot"):
+		return false
+	var caller_snapshot := snapshot.duplicate(true)
+	caller_snapshot["show_tutorials"] = true if runtime_settings == null else runtime_settings.show_tutorials
+	return bool(hud.call(&"apply_first_sortie_tutorial_snapshot", caller_snapshot))
 
 
 func _on_server_browser_result(result: Dictionary) -> void:
