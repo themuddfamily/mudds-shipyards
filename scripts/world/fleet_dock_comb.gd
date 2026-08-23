@@ -41,24 +41,26 @@ const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
 ## Exact post-batch renderer census. The visual-only trunk expansion strips,
-## slab corner beacons, slab supports, rung edge cues and mooring cleat pads
-## still draw at their authored transforms, while one MultiMesh per family owns
-## each family's submission. The legacy MeshInstance nodes remain hidden
-## inspection anchors.
+## slab corner beacons, slab supports, rung edge cues, mooring cleat pads and
+## trunk route lights still draw at their authored transforms, while one
+## MultiMesh per family owns each family's submission. The legacy MeshInstance
+## nodes remain hidden inspection anchors.
 const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
 const SLAB_CORNER_BEACON_COPY_COUNT := 12
 const SLAB_SUPPORT_COPY_COUNT := 6
 const RUNG_EDGE_CUE_COPY_COUNT := 4
 const MOORING_CLEAT_PAD_COPY_COUNT := 6
+const TRUNK_ROUTE_LIGHT_COPY_COUNT := 3
+const PRE_TRUNK_ROUTE_LIGHT_GEOMETRY_SUBMISSION_COUNT := 66
 const PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT := 90
 const PRE_SLAB_SUPPORT_GEOMETRY_SUBMISSION_COUNT := 79
 const PRE_RUNG_EDGE_CUE_GEOMETRY_SUBMISSION_COUNT := 74
 const PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT := 71
-const RENDER_DESCENDANT_COUNT := 137
+const RENDER_DESCENDANT_COUNT := 138
 const RENDER_MESH_INSTANCE_COUNT := 89
-const RENDER_MULTIMESH_BATCH_COUNT := 5
+const RENDER_MULTIMESH_BATCH_COUNT := 6
 const RENDER_DRAWN_COPY_COUNT := 101
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 66
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 64
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -233,6 +235,8 @@ var _rung_edge_cue_transforms: Array[Transform3D] = []
 var _rung_edge_cue_batch: MultiMeshInstance3D = null
 var _mooring_cleat_pad_transforms: Array[Transform3D] = []
 var _mooring_cleat_pad_batch: MultiMeshInstance3D = null
+var _trunk_route_light_transforms: Array[Transform3D] = []
+var _trunk_route_light_batch: MultiMeshInstance3D = null
 
 
 func _ready() -> void:
@@ -612,6 +616,32 @@ func get_render_batch_contract() -> Dictionary:
 			and _mooring_cleat_pad_batch.get_child_count() == 0
 			and _mooring_cleat_pad_batch.get_script() == null
 		)
+	var expected_route_light_buffer := _encode_multimesh_transforms(_trunk_route_light_transforms)
+	var route_light_buffer_matches := (
+		is_instance_valid(_trunk_route_light_batch)
+		and _trunk_route_light_batch.multimesh != null
+		and _trunk_route_light_batch.multimesh.buffer == expected_route_light_buffer
+	)
+	var route_light_bounds_match := false
+	var route_light_contract_matches := false
+	if is_instance_valid(_trunk_route_light_batch) and _trunk_route_light_batch.multimesh != null:
+		var route_light_multi := _trunk_route_light_batch.multimesh
+		var expected_route_light_bounds := _transformed_mesh_bounds(
+			route_light_multi.mesh.get_aabb(), _trunk_route_light_transforms
+		)
+		route_light_bounds_match = route_light_multi.custom_aabb.is_equal_approx(expected_route_light_bounds)
+		route_light_contract_matches = (
+			_trunk_route_light_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and route_light_multi.instance_count == TRUNK_ROUTE_LIGHT_COPY_COUNT
+			and route_light_multi.visible_instance_count == -1
+			and route_light_multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.22, 0.05, 1.25))
+			and route_light_multi.mesh.get_surface_count() == 1
+			and _trunk_route_light_batch.material_override == _materials.get("cyan")
+			and _trunk_route_light_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _trunk_route_light_batch.layers == 1
+			and _trunk_route_light_batch.get_child_count() == 0
+			and _trunk_route_light_batch.get_script() == null
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -624,9 +654,11 @@ func get_render_batch_contract() -> Dictionary:
 		and _slab_support_transforms.size() == SLAB_SUPPORT_COPY_COUNT
 		and _rung_edge_cue_transforms.size() == RUNG_EDGE_CUE_COPY_COUNT
 		and _mooring_cleat_pad_transforms.size() == MOORING_CLEAT_PAD_COPY_COUNT
+		and _trunk_route_light_transforms.size() == TRUNK_ROUTE_LIGHT_COPY_COUNT
 		and support_contract_matches
 		and rung_cue_contract_matches
 		and cleat_pad_contract_matches
+		and route_light_contract_matches
 	)
 	var joint_buffer_floats := (
 		_trunk_expansion_joint_batch.multimesh.buffer.size()
@@ -653,6 +685,11 @@ func get_render_batch_contract() -> Dictionary:
 		if is_instance_valid(_mooring_cleat_pad_batch) and _mooring_cleat_pad_batch.multimesh != null
 		else 0
 	)
+	var route_light_buffer_floats := (
+		_trunk_route_light_batch.multimesh.buffer.size()
+		if is_instance_valid(_trunk_route_light_batch) and _trunk_route_light_batch.multimesh != null
+		else 0
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"descendant_nodes": descendant_count,
@@ -665,6 +702,10 @@ func get_render_batch_contract() -> Dictionary:
 		"slab_support_copies": _slab_support_transforms.size(),
 		"rung_edge_cue_copies": _rung_edge_cue_transforms.size(),
 		"mooring_cleat_pad_copies": _mooring_cleat_pad_transforms.size(),
+		"trunk_route_light_copies": _trunk_route_light_transforms.size(),
+		"trunk_route_light_submissions_before": TRUNK_ROUTE_LIGHT_COPY_COUNT,
+		"trunk_route_light_submissions_after": 1,
+		"geometry_submissions_before_trunk_route_light_batch": PRE_TRUNK_ROUTE_LIGHT_GEOMETRY_SUBMISSION_COUNT,
 		"mooring_cleat_pad_submissions_before": MOORING_CLEAT_PAD_COPY_COUNT,
 		"mooring_cleat_pad_submissions_after": 1,
 		"geometry_submissions_before_mooring_cleat_pad_batch": PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT,
@@ -683,28 +724,33 @@ func get_render_batch_contract() -> Dictionary:
 		"slab_support_renderer_buffer_floats": support_buffer_floats,
 		"rung_edge_cue_renderer_buffer_floats": rung_cue_buffer_floats,
 		"mooring_cleat_pad_renderer_buffer_floats": cleat_pad_buffer_floats,
-		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats,
-		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches,
+		"trunk_route_light_renderer_buffer_floats": route_light_buffer_floats,
+		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + route_light_buffer_floats,
+		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and route_light_buffer_matches,
 		"trunk_renderer_buffer_matches_authored": joint_buffer_matches,
 		"slab_corner_beacon_renderer_buffer_matches_authored": beacon_buffer_matches,
 		"slab_support_renderer_buffer_matches_authored": support_buffer_matches,
 		"rung_edge_cue_renderer_buffer_matches_authored": rung_cue_buffer_matches,
 		"mooring_cleat_pad_renderer_buffer_matches_authored": cleat_pad_buffer_matches,
-		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match,
+		"trunk_route_light_renderer_buffer_matches_authored": route_light_buffer_matches,
+		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and route_light_bounds_match,
 		"trunk_bounds_match_authored": joint_bounds_match,
 		"slab_corner_beacon_bounds_match_authored": beacon_bounds_match,
 		"slab_support_bounds_match_authored": support_bounds_match,
 		"rung_edge_cue_bounds_match_authored": rung_cue_bounds_match,
 		"mooring_cleat_pad_bounds_match_authored": cleat_pad_bounds_match,
+		"trunk_route_light_bounds_match_authored": route_light_bounds_match,
 		"slab_support_contract_matches": support_contract_matches,
 		"rung_edge_cue_contract_matches": rung_cue_contract_matches,
 		"mooring_cleat_pad_contract_matches": cleat_pad_contract_matches,
+		"trunk_route_light_contract_matches": route_light_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _trunk_expansion_joint_transforms.duplicate(),
 		"authored_slab_corner_beacon_transforms": _slab_corner_beacon_transforms.duplicate(),
 		"authored_slab_support_transforms": _slab_support_transforms.duplicate(),
 		"authored_rung_edge_cue_transforms": _rung_edge_cue_transforms.duplicate(),
 		"authored_mooring_cleat_pad_transforms": _mooring_cleat_pad_transforms.duplicate(),
+		"authored_trunk_route_light_transforms": _trunk_route_light_transforms.duplicate(),
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
 		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
 		"route_markers": get_route_ids().size(),
@@ -873,6 +919,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("comb mooring-cleat-pad batch bounds drifted from its authored copies")
 	if not bool(rendering.mooring_cleat_pad_contract_matches):
 		errors.append("comb mooring-cleat-pad renderer contract drifted")
+	if not bool(rendering.trunk_route_light_renderer_buffer_matches_authored):
+		errors.append("comb trunk-route-light renderer buffer drifted from its authored roster")
+	if not bool(rendering.trunk_route_light_bounds_match_authored):
+		errors.append("comb trunk-route-light batch bounds drifted from its authored copies")
+	if not bool(rendering.trunk_route_light_contract_matches):
+		errors.append("comb trunk-route-light renderer contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -1084,6 +1136,7 @@ func _build_surface_detail() -> void:
 		_materials["grip"],
 		_trunk_expansion_joint_transforms
 	)
+	_trunk_route_light_transforms.clear()
 	for z_position in [5.0, 20.0, 35.0]:
 		# COMB-DECK-CUE-001, found by measuring rather than by reading. Every trunk
 		# route light was authored at y = 0.045 with a 0.05 m section, so it spanned
@@ -1094,7 +1147,24 @@ func _build_surface_detail() -> void:
 		# small enough to have been missed. Centre moved 0.045 -> 0.020 so the cue
 		# enters the deck by 0.005 m. Length, width, section, spacing, colour and
 		# the practical above it are untouched.
-		_visual_box(detail, "TrunkRouteLight", Vector3(0, 0.020, float(z_position)), Vector3(0.22, 0.05, 1.25), _materials["cyan"])
+		var route_light_anchor := _visual_box(
+			detail,
+			"TrunkRouteLight",
+			Vector3(0, 0.020, float(z_position)),
+			Vector3(0.22, 0.05, 1.25),
+			_materials["cyan"]
+		)
+		_trunk_route_light_transforms.append(route_light_anchor.transform)
+		# Preserve the authored named MeshInstance as an inspection anchor. The
+		# shared batch owns only this family's three visible copies.
+		route_light_anchor.visible = false
+	_trunk_route_light_batch = _multimesh_boxes(
+		detail,
+		"TrunkRouteLights",
+		Vector3(0.22, 0.05, 1.25),
+		_materials["cyan"],
+		_trunk_route_light_transforms
+	)
 	# One of the three trunk route lights actually lights the trunk. Three would
 	# be three copies of the same 4 m pool down a 2 m wide walkway; the middle one
 	# alone puts a gradient along the trunk that reads as a lit route rather than
