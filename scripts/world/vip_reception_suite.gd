@@ -120,21 +120,26 @@ const SERVERY_STOOL_FOOT_RING_OUTER_RADIUS := 0.22
 const SERVERY_STOOL_FOOT_RING_RINGS := 32
 const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 
-## Exact post-batch presentation census. Fourteen childless lacquer joint blocks
-## and five childless exterior roof cassettes still draw, but two MultiMeshes own
-## their submissions instead of nineteen individual MeshInstance3D nodes.
+## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
+## exterior roof cassettes and six bronze outboard mullion fillets still draw,
+## but three MultiMeshes own their visual-only submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const ROOF_CASSETTE_COPY_COUNT := 5
+const OUTBOARD_MULLION_FILLET_COPY_COUNT := 6
 const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
 const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
 const BASELINE_RENDER_DRAWN_COPY_COUNT := 278
 const BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT := 265
-const RENDER_DESCENDANT_COUNT := 464
-const RENDER_MESH_INSTANCE_COUNT := 259
-const RENDER_MULTIMESH_BATCH_COUNT := 2
+const PRE_MULLION_RENDER_DESCENDANT_COUNT := 464
+const PRE_MULLION_RENDER_MESH_INSTANCE_COUNT := 259
+const PRE_MULLION_RENDER_MULTIMESH_BATCH_COUNT := 2
+const PRE_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 261
+const RENDER_DESCENDANT_COUNT := 459
+const RENDER_MESH_INSTANCE_COUNT := 253
+const RENDER_MULTIMESH_BATCH_COUNT := 3
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 261
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 256
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -173,6 +178,8 @@ var _banquette_joint_transforms: Array[Transform3D] = []
 var _banquette_joint_batch: MultiMeshInstance3D = null
 var _roof_cassette_transforms: Array[Transform3D] = []
 var _roof_cassette_batch: MultiMeshInstance3D = null
+var _outboard_mullion_fillet_transforms: Array[Transform3D] = []
+var _outboard_mullion_fillet_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
 
@@ -475,6 +482,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP roof-cassette renderer buffer drifted from its authored roster")
 	if not bool(rendering.roof_cassette_bounds_match_authored):
 		errors.append("VIP roof-cassette batch bounds drifted from its authored copies")
+	if not bool(rendering.outboard_mullion_fillet_renderer_buffer_matches_authored):
+		errors.append("VIP outboard-mullion-fillet renderer buffer drifted from its authored roster")
+	if not bool(rendering.outboard_mullion_fillet_bounds_match_authored):
+		errors.append("VIP outboard-mullion-fillet batch bounds drifted from its authored copies")
+	if not bool(rendering.outboard_mullion_fillet_visual_contract_matches):
+		errors.append("VIP outboard-mullion-fillet visual contract drifted")
 	return errors
 
 
@@ -591,6 +604,43 @@ func get_render_batch_contract() -> Dictionary:
 		roof_bounds_match = _roof_cassette_batch.multimesh.custom_aabb.is_equal_approx(
 			expected_roof_bounds
 		)
+	var expected_mullion_buffer := _encode_multimesh_transforms(
+		_outboard_mullion_fillet_transforms
+	)
+	var mullion_renderer_buffer_matches := (
+		is_instance_valid(_outboard_mullion_fillet_batch)
+		and _outboard_mullion_fillet_batch.multimesh != null
+		and _outboard_mullion_fillet_batch.multimesh.buffer == expected_mullion_buffer
+	)
+	var mullion_bounds_match := false
+	var mullion_visual_contract_matches := false
+	if (
+		is_instance_valid(_outboard_mullion_fillet_batch)
+		and _outboard_mullion_fillet_batch.multimesh != null
+	):
+		var expected_mullion_bounds := _transformed_mesh_bounds(
+			_outboard_mullion_fillet_batch.multimesh.mesh.get_aabb(),
+			_outboard_mullion_fillet_transforms
+		)
+		mullion_bounds_match = _outboard_mullion_fillet_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_mullion_bounds
+		)
+		mullion_visual_contract_matches = (
+			_outboard_mullion_fillet_batch.multimesh.instance_count
+				== OUTBOARD_MULLION_FILLET_COPY_COUNT
+			and _outboard_mullion_fillet_batch.multimesh.visible_instance_count == -1
+			and _outboard_mullion_fillet_batch.multimesh.mesh.get_surface_count() == 1
+			and _outboard_mullion_fillet_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.07, 3.35, 0.05)
+			)
+			and _outboard_mullion_fillet_batch.material_override == _materials.get("bronze")
+			and _outboard_mullion_fillet_batch.cast_shadow
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			and _outboard_mullion_fillet_batch.layers == 1
+			and _outboard_mullion_fillet_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _outboard_mullion_fillet_batch.get_child_count() == 0
+			and _outboard_mullion_fillet_batch.get_script() == null
+		)
 	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -611,8 +661,13 @@ func get_render_batch_contract() -> Dictionary:
 		"drawn_copies": drawn_copies,
 		"baseline_geometry_submissions": BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT,
 		"geometry_submissions": submissions,
+		"pre_mullion_descendant_nodes": PRE_MULLION_RENDER_DESCENDANT_COUNT,
+		"pre_mullion_mesh_instances": PRE_MULLION_RENDER_MESH_INSTANCE_COUNT,
+		"pre_mullion_multimesh_batches": PRE_MULLION_RENDER_MULTIMESH_BATCH_COUNT,
+		"pre_mullion_geometry_submissions": PRE_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT,
 		"banquette_joint_copies": _banquette_joint_transforms.size(),
 		"roof_cassette_copies": _roof_cassette_transforms.size(),
+		"outboard_mullion_fillet_copies": _outboard_mullion_fillet_transforms.size(),
 		"banquette_renderer_buffer_floats": (
 			_banquette_joint_batch.multimesh.buffer.size()
 			if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -623,6 +678,11 @@ func get_render_batch_contract() -> Dictionary:
 			if is_instance_valid(_roof_cassette_batch) and _roof_cassette_batch.multimesh != null
 			else 0
 		),
+		"outboard_mullion_fillet_renderer_buffer_floats": (
+			_outboard_mullion_fillet_batch.multimesh.buffer.size()
+			if is_instance_valid(_outboard_mullion_fillet_batch)
+			and _outboard_mullion_fillet_batch.multimesh != null else 0
+		),
 		"renderer_buffer_floats": (
 			(_banquette_joint_batch.multimesh.buffer.size()
 				if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -630,15 +690,44 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_roof_cassette_batch.multimesh.buffer.size()
 				if is_instance_valid(_roof_cassette_batch) and _roof_cassette_batch.multimesh != null
 				else 0)
+			+ (_outboard_mullion_fillet_batch.multimesh.buffer.size()
+				if is_instance_valid(_outboard_mullion_fillet_batch)
+				and _outboard_mullion_fillet_batch.multimesh != null else 0)
 		),
 		"banquette_renderer_buffer_matches_authored": joint_renderer_buffer_matches,
 		"banquette_bounds_match_authored": joint_bounds_match,
 		"roof_cassette_renderer_buffer_matches_authored": roof_renderer_buffer_matches,
 		"roof_cassette_bounds_match_authored": roof_bounds_match,
+		"outboard_mullion_fillet_renderer_buffer_matches_authored": mullion_renderer_buffer_matches,
+		"outboard_mullion_fillet_bounds_match_authored": mullion_bounds_match,
+		"outboard_mullion_fillet_visual_contract_matches": mullion_visual_contract_matches,
 		"renderer_buffer_matches_authored": (
-			joint_renderer_buffer_matches and roof_renderer_buffer_matches
+			joint_renderer_buffer_matches
+			and roof_renderer_buffer_matches
+			and mullion_renderer_buffer_matches
 		),
-		"bounds_match_authored": joint_bounds_match and roof_bounds_match,
+		"bounds_match_authored": joint_bounds_match and roof_bounds_match and mullion_bounds_match,
+		"outboard_mullion_fillet_baseline_mesh_instances": OUTBOARD_MULLION_FILLET_COPY_COUNT,
+		"outboard_mullion_fillet_mesh_instances": 0,
+		"outboard_mullion_fillet_multimesh_resources": (
+			1 if is_instance_valid(_outboard_mullion_fillet_batch) else 0
+		),
+		"outboard_mullion_fillet_mesh_resources": (
+			1 if is_instance_valid(_outboard_mullion_fillet_batch)
+			and _outboard_mullion_fillet_batch.multimesh != null
+			and _outboard_mullion_fillet_batch.multimesh.mesh != null else 0
+		),
+		"outboard_mullion_fillet_material_resources": (
+			1 if is_instance_valid(_outboard_mullion_fillet_batch)
+			and _outboard_mullion_fillet_batch.material_override != null else 0
+		),
+		"outboard_mullion_fillet_baseline_submissions": OUTBOARD_MULLION_FILLET_COPY_COUNT,
+		"outboard_mullion_fillet_submissions": (
+			_outboard_mullion_fillet_batch.multimesh.mesh.get_surface_count()
+			if is_instance_valid(_outboard_mullion_fillet_batch)
+			and _outboard_mullion_fillet_batch.multimesh != null
+			and _outboard_mullion_fillet_batch.multimesh.mesh != null else 0
+		),
 		"roof_cassette_baseline_mesh_instances": ROOF_CASSETTE_COPY_COUNT,
 		"roof_cassette_mesh_instances": 0,
 		"roof_cassette_baseline_multimesh_resources": 0,
@@ -668,6 +757,9 @@ func get_render_batch_contract() -> Dictionary:
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _banquette_joint_transforms.duplicate(),
 		"authored_roof_cassette_transforms": _roof_cassette_transforms.duplicate(),
+		"authored_outboard_mullion_fillet_transforms": (
+			_outboard_mullion_fillet_transforms.duplicate()
+		),
 	}
 
 
@@ -1053,7 +1145,17 @@ func _build_outboard_glazing(structure: Node3D) -> void:
 	for mullion_index in 6:
 		var mullion_x := -6.9 + float(mullion_index) * 2.24
 		_box(glazing, "OutboardMullion%02d" % (mullion_index + 1), Vector3(mullion_x, 2.225, 14.2), Vector3(0.22, 3.35, 0.42), _materials["pearl_deep"])
-		_box(glazing, "OutboardMullionFillet%02d" % (mullion_index + 1), Vector3(mullion_x, 2.225, 13.97), Vector3(0.07, 3.35, 0.05), _materials["bronze"], false)
+		_outboard_mullion_fillet_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(mullion_x, 2.225, 13.97)
+		))
+	_outboard_mullion_fillet_batch = _multimesh_boxes(
+		glazing,
+		"OutboardMullionFillets",
+		Vector3(0.07, 3.35, 0.05),
+		_materials["bronze"],
+		_outboard_mullion_fillet_transforms,
+		false
+	)
 	for pane_index in 5:
 		var pane_x := -5.78 + float(pane_index) * 2.24
 		# 2.10 wide against a 2.02 opening, so each sheet is glazed *into* its
@@ -1417,7 +1519,8 @@ func _multimesh_boxes(
 		node_name: String,
 		size: Vector3,
 		material: Material,
-		transforms: Array[Transform3D]
+		transforms: Array[Transform3D],
+		cast_shadow: bool = true
 	) -> MultiMeshInstance3D:
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
@@ -1434,7 +1537,10 @@ func _multimesh_boxes(
 	batch.name = node_name
 	batch.multimesh = multi
 	batch.material_override = material
-	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.cast_shadow = (
+		GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		if cast_shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	)
 	batch.layers = 1
 	batch.set_meta("visual_detail_only", true)
 	batch.set_meta("authored_instance_transforms", transforms.duplicate())

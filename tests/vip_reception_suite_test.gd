@@ -64,6 +64,7 @@ func _run() -> void:
 	_test_contract(suite)
 	_test_banquette_joint_batch(suite)
 	_test_roof_cassette_batch(suite)
+	_test_outboard_mullion_fillet_batch(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
 	_test_nothing_floats(world, suite)
@@ -75,6 +76,7 @@ func _run() -> void:
 	await _test_lifecycle(suite)
 
 	game.queue_free()
+	await process_frame
 	await process_frame
 	_finish()
 
@@ -235,20 +237,20 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	var render := suite.get_render_batch_contract()
 	_check(
 		int(render.baseline_descendant_nodes) == 468
-		and int(render.descendant_nodes) == 464
+		and int(render.descendant_nodes) == 459
 		and int(render.baseline_mesh_instances) == 264
-		and int(render.mesh_instances) == 259
+		and int(render.mesh_instances) == 253
 		and int(render.baseline_multimesh_batches) == 1
-		and int(render.multimesh_batches) == 2,
-		"the sill-light slice freezes descendants 468 -> 464, MeshInstances 264 -> 259, and batches 1 -> 2"
+		and int(render.multimesh_batches) == 3,
+		"cumulative visual batching freezes descendants 468 -> 459, MeshInstances 264 -> 253, and batches 1 -> 3"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
 		and int(render.drawn_copies) == 278
 		and int(render.baseline_geometry_submissions) == 265
-		and int(render.geometry_submissions) == 261
+		and int(render.geometry_submissions) == 256
 		and int(render.banquette_joint_copies) == 14,
-		"drawn copies remain 278 while the new family lowers submissions 265 -> 261"
+		"drawn copies remain 278 while batched families lower submissions 265 -> 256"
 	)
 	_check(
 		int(render.banquette_renderer_buffer_floats) == 168
@@ -374,7 +376,7 @@ func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
 	_check(
 		int(render.roof_cassette_copies) == 5
 		and int(render.roof_cassette_renderer_buffer_floats) == 60
-		and int(render.renderer_buffer_floats) == 228
+		and int(render.renderer_buffer_floats) == 300
 		and bool(render.roof_cassette_renderer_buffer_matches_authored)
 		and bool(render.roof_cassette_bounds_match_authored)
 		and bool(render.renderer_buffer_matches_authored)
@@ -402,6 +404,87 @@ func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the roof buffer restores a clean module audit")
+
+
+func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
+	var glazing := suite.get_node_or_null(^"Structure/OutboardGlazing") as Node3D
+	var batch := suite.get_node_or_null(
+		^"Structure/OutboardGlazing/OutboardMullionFillets"
+	) as MultiMeshInstance3D
+	_check(glazing != null and batch != null, "six outboard mullion fillets resolve as one glazing-level batch")
+	if glazing == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	_check(
+		glazing.find_children("OutboardMullionFillet*", "MeshInstance3D", true, false).is_empty()
+		and multi.instance_count == 6
+		and multi.visible_instance_count == -1,
+		"the glazing batch retains six visible fillet copies without legacy renderer nodes"
+	)
+	var expected_transforms: Array[Transform3D] = []
+	for mullion_index in 6:
+		expected_transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(-6.9 + float(mullion_index) * 2.24, 2.225, 13.97)
+		))
+	var render := suite.get_render_batch_contract()
+	_check(
+		(render.authored_outboard_mullion_fillet_transforms as Array) == expected_transforms
+		and int(render.outboard_mullion_fillet_copies) == 6
+		and int(render.outboard_mullion_fillet_renderer_buffer_floats) == 72
+		and bool(render.outboard_mullion_fillet_renderer_buffer_matches_authored)
+		and bool(render.outboard_mullion_fillet_bounds_match_authored)
+		and bool(render.outboard_mullion_fillet_visual_contract_matches),
+		"batch preserves all six exact bronze-fillet transforms, buffer and culling bounds"
+	)
+	var bronze_reference := suite.get_node(
+		^"Structure/OutboardGlazing/OutboardSillCap"
+	) as MeshInstance3D
+	_check(
+		multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.07, 3.35, 0.05))
+		and multi.mesh.get_surface_count() == 1
+		and batch.material_override == bronze_reference.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and batch.layers == 1
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"fillet batching preserves the bronze recipe, non-shadow state and zero collision/interaction ownership"
+	)
+	_check(
+		int(render.pre_mullion_descendant_nodes) == 464
+		and int(render.descendant_nodes) == 459
+		and int(render.pre_mullion_mesh_instances) == 259
+		and int(render.mesh_instances) == 253
+		and int(render.pre_mullion_multimesh_batches) == 2
+		and int(render.multimesh_batches) == 3
+		and int(render.pre_mullion_geometry_submissions) == 261
+		and int(render.geometry_submissions) == 256
+		and int(render.drawn_copies) == 278,
+		"fillet family cuts six renderer nodes/submissions to one while preserving all drawn copies"
+	)
+	_check(
+		int(render.outboard_mullion_fillet_baseline_mesh_instances) == 6
+		and int(render.outboard_mullion_fillet_mesh_instances) == 0
+		and int(render.outboard_mullion_fillet_multimesh_resources) == 1
+		and int(render.outboard_mullion_fillet_mesh_resources) == 1
+		and int(render.outboard_mullion_fillet_material_resources) == 1
+		and int(render.outboard_mullion_fillet_baseline_submissions) == 6
+		and int(render.outboard_mullion_fillet_submissions) == 1,
+		"fillet resources remain one mesh/one material while submissions fall 6 -> 1"
+	)
+	var original_buffer := multi.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	multi.buffer = mutated_buffer
+	_check(
+		suite.get_validation_errors().has(
+			"VIP outboard-mullion-fillet renderer buffer drifted from its authored roster"
+		),
+		"mutating one batched fillet transform turns the exact component audit red"
+	)
+	multi.buffer = original_buffer
+	_check(suite.get_validation_errors().is_empty(), "restoring the fillet buffer restores a clean module audit")
 
 
 func _test_evidence_label(suite: VipReceptionSuite) -> void:
