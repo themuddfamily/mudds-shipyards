@@ -196,13 +196,18 @@ func repeat_activity(activity_id: StringName) -> Dictionary:
 	return _with_adapter(started, true, &"activity_repeated")
 
 
-func advance_activity_sequence() -> Dictionary:
+func advance_activity_sequence(landmark_id: StringName = &"") -> Dictionary:
 	if _sequence_index < 0 or _sequence_index + 1 >= _sequence_ids.size():
 		return _reject(&"activity_sequence_complete")
 	if _state != State.COMPLETED:
 		return _reject(&"activity_sequence_not_ready")
 	var next_index := _sequence_index + 1
 	var next_activity := _sequence_ids[next_index]
+	if landmark_id.is_empty():
+		return _reject(&"activity_landmark_required")
+	var expected_landmark := _runtime.get_activity_landmark_id(next_activity)
+	if expected_landmark.is_empty() or landmark_id != expected_landmark:
+		return _reject(&"activity_landmark_mismatch")
 	var repeated := repeat_activity(next_activity)
 	if bool(repeated.get("accepted", false)):
 		_sequence_index = next_index

@@ -58,6 +58,15 @@ func get_configuration_errors() -> PackedStringArray:
 	return _configuration_errors.duplicate()
 
 
+func get_activity_landmark_id(activity_id: StringName) -> StringName:
+	if _director == null or not is_instance_valid(_director):
+		return &""
+	var definition := _director.get_definition(activity_id)
+	if definition == null or definition.location == null:
+		return &""
+	return definition.location.anchor_source_id
+
+
 ## Binds the already-existing ActivityDirector and GameFlow reward callback.
 ## The callback must return {"accepted": bool, "reason": StringName} and is
 ## called only after a real ActivityDirector completion snapshot is observed.

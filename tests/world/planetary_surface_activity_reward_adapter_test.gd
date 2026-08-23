@@ -215,11 +215,20 @@ func _test_ordered_activity_sequence() -> void:
 	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
 	adapter.commit_activity_reward()
 	_check(
-		adapter.advance_activity_sequence().reason == &"stale_attachment_generation",
+		adapter.advance_activity_sequence(&"wrong_relay").reason == &"activity_landmark_mismatch",
+		"the next landmark rejects an unrelated authored anchor"
+	)
+	_check(
+		adapter.advance_activity_sequence(&"ridge_relay").reason == &"stale_attachment_generation",
 		"the next landmark cannot advance on the completed attachment"
 	)
 	host.attachment_generation = 6
-	var advanced := adapter.advance_activity_sequence()
+	var advanced := adapter.advance_activity_sequence(&"wrong_relay")
+	_check(
+		advanced.reason == &"activity_landmark_mismatch",
+		"a fresh attachment still requires the correct next landmark"
+	)
+	advanced = adapter.advance_activity_sequence(&"ridge_relay")
 	_check(
 		advanced.accepted and advanced.reason == &"activity_sequence_advanced"
 			and advanced.adapter.activity_reward.activity_id == &"ember_caldera_patrol"
@@ -230,7 +239,7 @@ func _test_ordered_activity_sequence() -> void:
 	adapter.submit_activity_position(Vector3(10.0, 0.0, 0.0))
 	adapter.commit_activity_reward()
 	_check(
-		adapter.advance_activity_sequence().reason == &"activity_sequence_complete"
+		adapter.advance_activity_sequence(&"ridge_relay").reason == &"activity_sequence_complete"
 			and _reward_calls == 7,
 		"the ordered sequence closes after each landmark earns its own reward"
 	)
