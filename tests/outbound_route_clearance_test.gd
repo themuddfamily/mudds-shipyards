@@ -121,6 +121,7 @@ func _run() -> void:
 	_test_whole_outbound_route_is_flyable(world, hulls)
 	_test_header_beam_carries_a_clearance_cue(world)
 	_test_the_cue_adds_no_collision(world, hulls)
+	_test_dock_mast_collar_allocation(world)
 	_test_target_core_allocation(world)
 	_test_target_lamp_mesh_sharing(world)
 	await _test_target_core_detach_reentry(world)
@@ -491,6 +492,50 @@ func _test_the_cue_adds_no_collision(world: ShipyardWorld, hulls: Dictionary) ->
 
 
 # ----------------------------------------------------- core allocation ----
+
+func _test_dock_mast_collar_allocation(world: ShipyardWorld) -> void:
+	var audit := world.get_dock_mast_collar_allocation_audit()
+	var collars: Array[MeshInstance3D] = []
+	for raw_node in world.find_children("*", "MeshInstance3D", true, false):
+		var candidate := raw_node as MeshInstance3D
+		for position in ShipyardWorld.DOCK_MAST_COLLAR_POSITIONS:
+			if candidate.position.is_equal_approx(position as Vector3):
+				collars.append(candidate)
+				break
+	var shared_mesh := (collars[0] as MeshInstance3D).mesh as TorusMesh if collars.size() == 3 else null
+	var exact_roster := collars.size() == ShipyardWorld.DOCK_MAST_COLLAR_COPY_COUNT
+	for index in collars.size():
+		var collar := collars[index] as MeshInstance3D
+		exact_roster = exact_roster \
+			and collar.mesh == shared_mesh \
+			and collar.position.is_equal_approx(
+				ShipyardWorld.DOCK_MAST_COLLAR_POSITIONS[index] as Vector3
+			) \
+			and collar.material_override != null \
+			and collar.get_child_count() == 0
+	_check(
+		bool(audit.get("valid", false))
+		and audit.get("legacy", {}) == {"visual_nodes": 3, "drawn_copies": 3, "surface_submissions": 3, "mesh_resource_allocations": 3, "material_resource_allocations": 1}
+		and int((audit.get("current", {}) as Dictionary).get("mesh_resource_allocations", 0)) == 1
+		and int((audit.get("reductions", {}) as Dictionary).get("mesh_resource_allocations", 0)) == 2
+		and int(audit.get("collision_authority_count", -1)) == 0
+		and exact_roster,
+		"three visual-only dock-mast collars retain their named poses and orange material while immutable mesh allocations fall 3 -> 1"
+	)
+	if shared_mesh == null:
+		return
+	var original_second_mesh := (collars[1] as MeshInstance3D).mesh
+	(collars[1] as MeshInstance3D).mesh = shared_mesh.duplicate() as TorusMesh
+	var identity_red := world.get_dock_mast_collar_allocation_audit()
+	_check(
+		not bool(identity_red.get("valid", true))
+		and (identity_red.get("errors", PackedStringArray()) as PackedStringArray).has(
+			"dock_mast_collar_mesh_identity_not_shared"
+		),
+		"an exact-looking private dock-mast collar mesh turns the allocation audit red"
+	)
+	(collars[1] as MeshInstance3D).mesh = original_second_mesh
+
 
 func _test_target_core_allocation(world: ShipyardWorld) -> void:
 	_check(

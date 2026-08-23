@@ -749,6 +749,18 @@ const DOCK_OPERATIONS_KEYLINE_POSITIONS := [
 	Vector3(38.18, 1.67, 29.5),
 ]
 
+## The three freestanding mast collars are presentation trim around collidable
+## mast bodies. Their authored nodes remain separate; only the immutable torus
+## resource is shared.
+const DOCK_MAST_COLLAR_INNER_RADIUS := 0.55
+const DOCK_MAST_COLLAR_OUTER_RADIUS := 0.74
+const DOCK_MAST_COLLAR_COPY_COUNT := 3
+const DOCK_MAST_COLLAR_POSITIONS := [
+	Vector3(11.0, 1.0, 10.0),
+	Vector3(-11.0, 1.0, -23.0),
+	Vector3(11.0, 1.0, -23.0),
+]
+
 ## The three parked LandingPad utility hoses end in the same childless visual
 ## torus. They retain separate nodes, names, parents, transforms and one-surface
 ## submissions because the hoses are separately identified presentation
@@ -902,6 +914,7 @@ var _guide_light_nodes: Array[OmniLight3D] = []
 var _guide_lens_batches: Dictionary = {}
 var _landing_pad_deck_connector_mesh: TorusMesh
 var _tie_down_socket_mesh: TorusMesh
+var _dock_mast_collar_mesh: TorusMesh
 var _exterior_target_core_mesh: SphereMesh
 var _exterior_target_lamp_mesh: SphereMesh
 var _targets: Array[StaticBody3D] = []
@@ -1539,6 +1552,67 @@ func get_guide_light_allocation_audit() -> Dictionary:
 		"frame_time_claimed": false,
 		"gpu_draw_call_claimed": false,
 	}
+
+
+## Allocation-only proof for the three visual DockMast collars. Masts retain
+## their separate collision bodies, route clearance, lights, and lifecycle.
+func get_dock_mast_collar_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var collars: Array[MeshInstance3D] = []
+	var mesh_ids := {}
+	var material_ids := {}
+	var authority_nodes := 0
+	for raw_node in find_children("*", "MeshInstance3D", true, false):
+		var collar := raw_node as MeshInstance3D
+		var is_authored_position := false
+		for expected_position in DOCK_MAST_COLLAR_POSITIONS:
+			if collar.position.is_equal_approx(expected_position as Vector3):
+				is_authored_position = true
+				break
+		if not is_authored_position or collar.material_override != _materials.get("orange"):
+			continue
+		collars.append(collar)
+		if collar.mesh != null:
+			mesh_ids[collar.mesh.get_instance_id()] = true
+		if collar.material_override != null:
+			material_ids[collar.material_override.get_instance_id()] = true
+		var index := collars.size() - 1
+		if collar.mesh != _dock_mast_collar_mesh:
+			errors.append("dock_mast_collar_mesh_identity_not_shared")
+		if index >= DOCK_MAST_COLLAR_POSITIONS.size() \
+				or not collar.position.is_equal_approx(DOCK_MAST_COLLAR_POSITIONS[index] as Vector3) \
+				or not collar.rotation.is_equal_approx(Vector3.ZERO) \
+				or collar.scale != Vector3.ONE \
+				or collar.material_override != _materials.get("orange") \
+				or not collar.visible \
+				or collar.get_child_count() != 0 \
+				or collar.get_script() != null \
+				or not collar.get_groups().is_empty():
+			errors.append("dock_mast_collar_visual_or_authority_drift")
+		authority_nodes += collar.find_children("*", "CollisionObject3D", true, false).size()
+		authority_nodes += collar.find_children("*", "CollisionShape3D", true, false).size()
+	if collars.size() != DOCK_MAST_COLLAR_COPY_COUNT:
+		errors.append("dock_mast_collar_copy_count_drift")
+	if mesh_ids.size() != 1:
+		errors.append("dock_mast_collar_mesh_identity_not_shared")
+	if material_ids.size() != 1:
+		errors.append("dock_mast_collar_material_identity_drift")
+	if authority_nodes != 0:
+		errors.append("dock_mast_collar_gained_collision_authority")
+	if _dock_mast_collar_mesh == null \
+			or not is_equal_approx(_dock_mast_collar_mesh.inner_radius, DOCK_MAST_COLLAR_INNER_RADIUS) \
+			or not is_equal_approx(_dock_mast_collar_mesh.outer_radius, DOCK_MAST_COLLAR_OUTER_RADIUS) \
+			or _dock_mast_collar_mesh.get_surface_count() != 1:
+		errors.append("dock_mast_collar_mesh_recipe_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"legacy": {"visual_nodes": 3, "drawn_copies": 3, "surface_submissions": 3, "mesh_resource_allocations": 3, "material_resource_allocations": 1},
+		"current": {"visual_nodes": collars.size(), "drawn_copies": collars.size(), "surface_submissions": collars.size(), "mesh_resource_allocations": mesh_ids.size(), "material_resource_allocations": material_ids.size()},
+		"reductions": {"visual_nodes": 0, "drawn_copies": 0, "surface_submissions": 0, "mesh_resource_allocations": 2, "material_resource_allocations": 0},
+		"collision_authority_count": authority_nodes,
+		"batched": false,
+	}.duplicate(true)
 
 
 func get_tie_down_socket_allocation_audit() -> Dictionary:
@@ -5524,11 +5598,17 @@ func _build_architecture() -> void:
 	# The former port mast at (-11, 0, 14) stood directly in the live junction
 	# walkway beside the player spawn. Keep that route open; the remaining three
 	# masts retain the height markers without narrowing circulation.
-	for mast_position in [Vector3(11.0, 0.0, 10.0), Vector3(-11.0, 0.0, -23.0), Vector3(11.0, 0.0, -23.0)]:
-		_cylinder(shell, "DockMast", mast_position + Vector3(0, 5.2, 0), 0.46, 10.4, _materials["steel_blue"], true)
-		_torus(shell, "DockMastCollar", mast_position + Vector3(0, 1.0, 0), 0.55, 0.74, _materials["orange"])
-		_box(shell, "MastCap", mast_position + Vector3(0, 10.15, 0), Vector3(2.4, 0.55, 1.6), _materials["ivory"], false)
-		_add_guide_light(shell, mast_position + Vector3(0, 9.5, -0.55), KETH_CYAN, false, 2.2, 9.0)
+	_dock_mast_collar_mesh = TorusMesh.new()
+	_dock_mast_collar_mesh.inner_radius = DOCK_MAST_COLLAR_INNER_RADIUS
+	_dock_mast_collar_mesh.outer_radius = DOCK_MAST_COLLAR_OUTER_RADIUS
+	_dock_mast_collar_mesh.rings = 64
+	_dock_mast_collar_mesh.ring_segments = 16
+	for mast_position in DOCK_MAST_COLLAR_POSITIONS:
+		var mast_base_position: Vector3 = (mast_position as Vector3) - Vector3.UP
+		_cylinder(shell, "DockMast", mast_base_position + Vector3(0, 5.2, 0), 0.46, 10.4, _materials["steel_blue"], true)
+		_torus(shell, "DockMastCollar", mast_position, DOCK_MAST_COLLAR_INNER_RADIUS, DOCK_MAST_COLLAR_OUTER_RADIUS, _materials["orange"], Vector3.ZERO, _dock_mast_collar_mesh)
+		_box(shell, "MastCap", mast_base_position + Vector3(0, 10.15, 0), Vector3(2.4, 0.55, 1.6), _materials["ivory"], false)
+		_add_guide_light(shell, mast_base_position + Vector3(0, 9.5, -0.55), KETH_CYAN, false, 2.2, 9.0)
 
 	# Modern navigation pylon; text describes this slice's deck, not a recovered
 	# historical bay number or original structure.
