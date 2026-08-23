@@ -31,6 +31,8 @@ var _dust_scale := 1.0
 var _thruster_opacity := 0.0
 var _thruster_scale := 1.0
 var _landing_supported := false
+var _footprint_lateral_scale := 1.0
+var _footprint_longitudinal_scale := 1.0
 var _observation_count := 0
 var _last_reason: StringName = &"not_presented"
 var _reduced_flash := false
@@ -44,6 +46,22 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_reset_visuals()
+
+
+## Optional pre-tree footprint configuration for larger HeroShip variants.
+## Arrow never calls this seam, so its authored positions remain exact.
+func configure_footprint(
+		lateral_scale: float, longitudinal_scale: float
+	) -> Dictionary:
+	if is_inside_tree() or _dust != null:
+		return _result(false, &"footprint_already_built")
+	if not is_finite(lateral_scale) or not is_finite(longitudinal_scale) \
+			or lateral_scale < 0.75 or lateral_scale > 2.5 \
+			or longitudinal_scale < 0.75 or longitudinal_scale > 3.0:
+		return _result(false, &"invalid_footprint")
+	_footprint_lateral_scale = lateral_scale
+	_footprint_longitudinal_scale = longitudinal_scale
+	return _result(true, &"footprint_configured")
 
 
 func present_observation(
@@ -102,6 +120,8 @@ func get_snapshot() -> Dictionary:
 		"thruster_opacity": _thruster_opacity,
 		"thruster_scale": _thruster_scale,
 		"landing_supported": _landing_supported,
+		"footprint_lateral_scale": _footprint_lateral_scale,
+		"footprint_longitudinal_scale": _footprint_longitudinal_scale,
 		"visible": _intensity > 0.0,
 		"dust_emitting": _dust != null and _dust.emitting,
 		"thruster_visible_count": _visible_thruster_count(),
@@ -161,7 +181,11 @@ func _build_visuals() -> void:
 		var thruster := MeshInstance3D.new()
 		thruster.name = "PortLandingThruster" if index == 0 \
 			else "StarboardLandingThruster"
-		thruster.position = Vector3(-0.92 if index == 0 else 0.92, -0.76, 2.2)
+		thruster.position = Vector3(
+			(-0.92 if index == 0 else 0.92) * _footprint_lateral_scale,
+			-0.76,
+			1.25 + 0.95 * _footprint_longitudinal_scale,
+		)
 		var cone := CylinderMesh.new()
 		cone.top_radius = 0.08
 		cone.bottom_radius = 0.28
@@ -224,7 +248,11 @@ func _apply_load(
 		_dust.emitting = _intensity > 0.0 and is_inside_tree()
 		_dust.amount = maxi(1, roundi(6.0 + 18.0 * _presentation_load))
 		_dust.color = Color(1.0, 1.0, 1.0, _dust_opacity)
-		_dust.scale = Vector3.ONE * _dust_scale
+		_dust.scale = Vector3(
+			_dust_scale * _footprint_lateral_scale,
+			_dust_scale,
+			_dust_scale * _footprint_longitudinal_scale,
+		)
 		# A fixed stream avoids flicker; accessibility settings only lower the
 		# bounded opacity or geometry expansion computed above.
 		_dust.randomness = 0.0

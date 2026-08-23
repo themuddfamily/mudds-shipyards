@@ -56,6 +56,9 @@ const ReturnBerthAdapterScript := preload("res://scripts/world/planetary_return_
 const ReturnPersistenceAdapterScript := preload("res://scripts/world/planetary_return_persistence_adapter.gd")
 const PlanetaryTravelAudioBindingScript := preload("res://scripts/audio/planetary_travel_audio_binding.gd")
 const ArrowEntryPresentationBindingScript := preload("res://scripts/ships/arrow_entry_presentation_binding.gd")
+const HeroAirlessLandingWashBindingScript := preload(
+	"res://scripts/ships/hero_airless_landing_wash_binding.gd"
+)
 const RETURN_PERSISTENCE_SCHEMA_VERSION := 1
 const RETURN_PERSISTENCE_PAYLOAD_KIND: StringName = &"ember_planetary_return"
 const RETURN_PERSISTENCE_RECORD_KEYS := [
@@ -104,6 +107,8 @@ var _return_persistence_retired_generation := -1
 var _travel_audio_binding: RefCounted
 var _entry_presentation_binding: RefCounted
 var _last_entry_presentation_result: Dictionary = {}
+var _fleet_landing_wash_binding: RefCounted
+var _last_fleet_landing_wash_result: Dictionary = {}
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -145,6 +150,10 @@ func _exit_tree() -> void:
 	if _travel_audio_binding != null:
 		_travel_audio_binding.detach()
 		_travel_audio_binding = null
+	if _fleet_landing_wash_binding != null:
+		_fleet_landing_wash_binding.call(&"detach")
+		_fleet_landing_wash_binding = null
+	_last_fleet_landing_wash_result = {}
 	# A staged early envelope belongs to exactly one live tree epoch. Never replay
 	# it after a whole composition detach/re-entry.
 	_pending_envelope.clear()
@@ -195,6 +204,7 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	var retained_session: Variant = _host.get_travel_session_observation_source()
 	if retained_session is Object:
 		bind_planetary_travel_audio(retained_session as Object)
+	_attach_fleet_landing_wash_presentation()
 	_attach_entry_presentation()
 	process_physics_priority = PHYSICS_PRIORITY
 	set_physics_process(is_inside_tree())
@@ -1401,7 +1411,39 @@ func get_snapshot() -> Dictionary:
 		"entry_presentation": _entry_presentation_binding.get_snapshot() \
 			if _entry_presentation_binding != null else {"attached": false},
 		"last_entry_presentation_result": _last_entry_presentation_result.duplicate(true),
+		"fleet_landing_wash_presentation": (
+			_fleet_landing_wash_binding.call(&"get_snapshot")
+			if _fleet_landing_wash_binding != null else {
+				"attached": false,
+				"delegated_to_arrow_entry": _ship is ArrowReconShip,
+			}
+		),
+		"last_fleet_landing_wash_result": (
+			_last_fleet_landing_wash_result.duplicate(true)
+		),
 	}.duplicate(true)
+
+
+## Attaches one shared non-Arrow wash to the accepted HeroShip visual root.
+## Arrow keeps its existing entry-owned presenter, so no craft receives two.
+func _attach_fleet_landing_wash_presentation() -> Dictionary:
+	if _ship is ArrowReconShip:
+		return {
+			"accepted": true,
+			"reason": &"delegated_to_arrow_entry",
+		}
+	if _fleet_landing_wash_binding != null:
+		return {"accepted": true, "reason": &"landing_wash_retained"}
+	if _ship == null or _composition_root == null:
+		return {"accepted": false, "reason": &"landing_wash_unavailable"}
+	var hud := _composition_root.get_node_or_null(^"HUD") as GameHUD
+	if hud == null:
+		return {"accepted": false, "reason": &"entry_hud_unavailable"}
+	var binding := HeroAirlessLandingWashBindingScript.new() as RefCounted
+	var result := binding.call(&"attach", _ship, hud) as Dictionary
+	if bool(result.get("accepted", false)):
+		_fleet_landing_wash_binding = binding
+	return result
 
 
 ## Resolves the retained gameplay HUD beside this production owner. Failure is
@@ -1436,6 +1478,16 @@ func _configure_entry_atmosphere(atmosphere_composition: Node) -> Dictionary:
 func _present_entry_observation(
 		speed_mps: float, vertical_speed_mps: float, landing_supported: bool
 	) -> void:
+	var wash_attached := _attach_fleet_landing_wash_presentation()
+	if bool(wash_attached.get("accepted", false)) \
+			and _fleet_landing_wash_binding != null:
+		_last_fleet_landing_wash_result = _fleet_landing_wash_binding.call(
+			&"present_observation", _last_planetary_altitude_m,
+			vertical_speed_mps, _atmosphere_composition == null,
+			landing_supported
+		) as Dictionary
+	else:
+		_last_fleet_landing_wash_result = wash_attached.duplicate(true)
 	var attached := _attach_entry_presentation()
 	if not bool(attached.get("accepted", false)):
 		_last_entry_presentation_result = attached.duplicate(true)
