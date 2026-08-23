@@ -128,6 +128,14 @@ const TROLLEY_WHEEL_RADIUS := 0.2
 const TROLLEY_WHEEL_HEIGHT := 0.18
 const TROLLEY_WHEEL_SUBMISSIONS_BEFORE := 4
 
+## Six named cabinet indicators are static visual readouts on the two existing
+## fuel/power cabinets. Their path anchors stay in place for service-detail
+## inspection while one cyan-dim batch owns the visible copies.
+const CABINET_INDICATOR_COPY_COUNT := 6
+const CABINET_INDICATOR_SIZE := Vector3(0.05, 0.13, 1.25)
+const CABINET_INDICATOR_FAMILY_ID: StringName = &"cargo-service-cabinet-indicators"
+const CABINET_INDICATOR_SUBMISSIONS_BEFORE := 6
+
 ## Eighteen named, light-owning guide lenses keep their authored transforms and
 ## individual colour materials. Only their identical, one-surface sphere mesh is
 ## shared; this is not batching or a light/material consolidation.
@@ -238,6 +246,8 @@ var _catwalk_ladder_rung_batch: MultiMeshInstance3D
 var _catwalk_ladder_rung_transforms: Array[Transform3D] = []
 var _trolley_wheel_batch: MultiMeshInstance3D
 var _trolley_wheel_transforms: Array[Transform3D] = []
+var _cabinet_indicator_batch: MultiMeshInstance3D
+var _cabinet_indicator_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
@@ -863,6 +873,97 @@ func get_trolley_wheel_batch_contract() -> Dictionary:
 		"route_authority": false,
 		"interaction_authority": false,
 		"equipment_identity_retained": true,
+	}.duplicate(true)
+
+
+func get_cabinet_indicator_batch_contract() -> Dictionary:
+	var errors := PackedStringArray()
+	var cargo_root := get_node_or_null(^"CargoInfrastructure") as Node3D
+	var expected_transforms: Array[Transform3D] = []
+	for z_position in [21.0, 36.8]:
+		for y_position in [0.75, 1.25, 1.75]:
+			expected_transforms.append(Transform3D(
+				Basis.IDENTITY, Vector3(12.96, y_position, z_position)
+			))
+	var anchors := cargo_root.find_children("CabinetIndicator*", "MeshInstance3D", false, false) \
+		if cargo_root != null else []
+	var anchors_exact := anchors.size() == CABINET_INDICATOR_COPY_COUNT
+	for index in mini(anchors.size(), expected_transforms.size()):
+		var anchor := anchors[index] as MeshInstance3D
+		anchors_exact = anchors_exact \
+			and anchor.transform.is_equal_approx(expected_transforms[index]) \
+			and not anchor.visible \
+			and anchor.mesh != null \
+			and anchor.mesh.get_aabb().size.is_equal_approx(CABINET_INDICATOR_SIZE) \
+			and anchor.material_override == _materials.get("cyan_dim") \
+			and anchor.get_child_count() == 0 \
+			and anchor.get_script() == null \
+			and anchor.get_groups().is_empty()
+	var authored := (
+		_cabinet_indicator_batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(_cabinet_indicator_batch) else []
+	)
+	var transforms_exact := authored.size() == expected_transforms.size() \
+		and _cabinet_indicator_transforms.size() == expected_transforms.size()
+	for index in mini(authored.size(), expected_transforms.size()):
+		transforms_exact = transforms_exact \
+			and (authored[index] as Transform3D).is_equal_approx(expected_transforms[index]) \
+			and _cabinet_indicator_transforms[index].is_equal_approx(expected_transforms[index])
+	var multi: MultiMesh = (
+		_cabinet_indicator_batch.multimesh
+		if is_instance_valid(_cabinet_indicator_batch) else null
+	)
+	var batch_exact: bool = (
+		cargo_root != null
+		and is_instance_valid(_cabinet_indicator_batch)
+		and _cabinet_indicator_batch.get_parent() == cargo_root
+		and _cabinet_indicator_batch.name == &"CabinetIndicatorBatch"
+		and multi != null
+		and multi.instance_count == CABINET_INDICATOR_COPY_COUNT
+		and multi.visible_instance_count in [-1, CABINET_INDICATOR_COPY_COUNT]
+		and multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(CABINET_INDICATOR_SIZE)
+		and _cabinet_indicator_batch.material_override == _materials.get("cyan_dim")
+		and _cabinet_indicator_batch.visible
+		and _cabinet_indicator_batch.layers == 1
+		and _cabinet_indicator_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _cabinet_indicator_batch.get_child_count() == 0
+		and _cabinet_indicator_batch.get_script() == null
+		and _cabinet_indicator_batch.get_groups().is_empty()
+		and bool(_cabinet_indicator_batch.get_meta("visual_detail_only", false))
+		and StringName(_cabinet_indicator_batch.get_meta("visual_batch_family_id", &"")) \
+			== CABINET_INDICATOR_FAMILY_ID
+		and transforms_exact
+	)
+	if not anchors_exact:
+		errors.append("cabinet_indicator_anchor_roster_drift")
+	if not batch_exact:
+		errors.append("cabinet_indicator_batch_payload_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"jovian_freight_berth_cabinet_indicators",
+		"legacy": {
+			"renderer_submissions": CABINET_INDICATOR_SUBMISSIONS_BEFORE,
+			"visible_copies": CABINET_INDICATOR_COPY_COUNT,
+			"anchor_nodes": CABINET_INDICATOR_COPY_COUNT,
+		},
+		"current": {
+			"renderer_submissions": 1 if batch_exact else 0,
+			"visible_copies": _cabinet_indicator_transforms.size(),
+			"anchor_nodes": anchors.size(),
+		},
+		"reductions": {
+			"renderer_submissions": CABINET_INDICATOR_SUBMISSIONS_BEFORE - 1,
+			"visible_copies": 0,
+			"anchor_nodes": 0,
+		},
+		"authored_transforms": _cabinet_indicator_transforms.duplicate(),
+		"collision_authority": false,
+		"traversal_authority": false,
+		"cargo_authority": false,
+		"berth_authority": false,
+		"lifecycle_authority": false,
 	}.duplicate(true)
 
 
@@ -1755,6 +1856,7 @@ func _build_cargo_infrastructure() -> void:
 
 	# Two dock power/fuel cabinets sit near the ramp staging route without
 	# obstructing the 3.4 m transfer lane.
+	_cabinet_indicator_transforms.clear()
 	for index in 2:
 		var z_position := 21.0 + float(index) * 15.8
 		var cabinet := _rounded_box(cargo_root, "ServiceCabinet%02d" % (index + 1), Vector3(13.55, 1.25, z_position), Vector3(1.2, 2.5, 2.0), _materials["ceramic"])
@@ -1763,8 +1865,20 @@ func _build_cargo_infrastructure() -> void:
 		# The cabinet's front face is x = 12.95; the indicator strip stood 0.005 m
 		# clear of it. It is now bedded 0.015 m into the panel it reads from.
 		for y_position in [0.75, 1.25, 1.75]:
-			var indicator := _rounded_box(cargo_root, "CabinetIndicator", Vector3(12.96, y_position, z_position), Vector3(0.05, 0.13, 1.25), _materials["cyan_dim"], false)
+			var indicator := _rounded_box(cargo_root, "CabinetIndicator", Vector3(12.96, y_position, z_position), CABINET_INDICATOR_SIZE, _materials["cyan_dim"], false)
 			_service_details.append(indicator)
+			_cabinet_indicator_transforms.append(indicator.transform)
+			# Keep the named service-detail anchors as inspection-only nodes; the
+			# shared batch below remains the sole visible representation.
+			indicator.visible = false
+	_cabinet_indicator_batch = _multimesh_rounded_boxes(
+		cargo_root,
+		"CabinetIndicatorBatch",
+		CABINET_INDICATOR_SIZE,
+		_materials["cyan_dim"],
+		_cabinet_indicator_transforms,
+		CABINET_INDICATOR_FAMILY_ID
+	)
 
 
 func _build_crane() -> void:

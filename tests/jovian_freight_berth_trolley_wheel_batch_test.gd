@@ -80,6 +80,52 @@ func _run() -> void:
 		"the batched wheels still inherit the existing animated trolley identity and motion"
 	)
 
+	var indicator_contract := module.get_cabinet_indicator_batch_contract()
+	_check(
+		bool(indicator_contract.valid)
+		and int(indicator_contract.legacy.renderer_submissions) == 6
+		and int(indicator_contract.current.renderer_submissions) == 1
+		and int(indicator_contract.current.visible_copies) == 6
+		and int(indicator_contract.current.anchor_nodes) == 6
+		and int(indicator_contract.reductions.renderer_submissions) == 5
+		and not bool(indicator_contract.collision_authority)
+		and not bool(indicator_contract.traversal_authority)
+		and not bool(indicator_contract.cargo_authority)
+		and not bool(indicator_contract.berth_authority)
+		and not bool(indicator_contract.lifecycle_authority),
+		"six cabinet indicators collapse to one visual-only submission without berth authority"
+	)
+	var cargo_root := module.get_node_or_null(^"CargoInfrastructure") as Node3D
+	var indicator_batch := cargo_root.get_node_or_null(^"CabinetIndicatorBatch") as MultiMeshInstance3D \
+		if cargo_root != null else null
+	var indicator_anchors := cargo_root.find_children("CabinetIndicator*", "MeshInstance3D", false, false) \
+		if cargo_root != null else []
+	_check(
+		indicator_batch != null
+		and indicator_batch.multimesh != null
+		and indicator_batch.multimesh.instance_count == 6
+		and indicator_batch.multimesh.visible_instance_count in [-1, 6]
+		and indicator_batch.material_override != null
+		and bool(indicator_batch.get_meta("visual_detail_only", false))
+		and StringName(indicator_batch.get_meta("visual_batch_family_id", &"")) \
+			== &"cargo-service-cabinet-indicators"
+		and indicator_anchors.size() == 6
+		and _transforms_match(
+			indicator_batch.get_meta("authored_instance_transforms", []) as Array,
+			indicator_contract.authored_transforms as Array
+		),
+		"the named indicator anchors and one batch retain all authored transforms and material"
+	)
+	var anchors_hidden := indicator_anchors.size() == 6
+	for anchor in indicator_anchors:
+		anchors_hidden = anchors_hidden and not (anchor as MeshInstance3D).visible
+	_check(
+		anchors_hidden
+		and module.get_cargo_unit_count() == 8
+		and module.get_route_ids().size() == 7,
+		"hidden anchors preserve the service-detail roster while cargo and routes remain unchanged"
+	)
+
 	module.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -91,7 +137,7 @@ func _run() -> void:
 
 
 func _transforms_match(left: Array, right: Array) -> bool:
-	if left.size() != JovianFreightBerth.TROLLEY_WHEEL_COPY_COUNT or left.size() != right.size():
+	if left.is_empty() or left.size() != right.size():
 		return false
 	for index in left.size():
 		if not (left[index] as Transform3D).is_equal_approx(right[index] as Transform3D):
