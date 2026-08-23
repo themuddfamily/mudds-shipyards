@@ -760,6 +760,12 @@ func _attach_network_ship_authority_composition() -> Dictionary:
 	if _network_composition_ship == active_ship:
 		_sync_cinder_navigator_presentations()
 		return {"accepted": true, "status": &"already_attached", "ship_generation": _network_ship_generation}
+	# A replacement must retire the old generation while its Cinder assignment is
+	# still the presentation authority. NetworkShipAuthorityComposition.attach()
+	# also defensively detaches, but waiting until that call would advance the
+	# GameFlow generation first and make the old tombstone look stale.
+	if _network_composition_ship != null:
+		_detach_network_ship_authority_composition(&"replacement")
 	if _network_ship_generation >= NETWORK_MAX_SAFE_GENERATION:
 		return {"accepted": false, "status": &"generation_exhausted", "ship_generation": _network_ship_generation}
 	_network_ship_generation += 1
@@ -7286,7 +7292,17 @@ func _forward_cinder_navigator_presentation(
 	if _cinder_navigator_ping_hud_composition == null \
 			or _cinder_navigator_presentation_ship_generation != navigator_generation:
 		return
-	var crew_snapshot := _get_cinder_navigator_crew_snapshot()
+	var identity_receipts: Array[Dictionary] = []
+	var wire_receipt := result.get("wire_receipt", {}) as Dictionary
+	if not wire_receipt.is_empty():
+		identity_receipts.append(wire_receipt)
+	if tombstone_envelope:
+		for item_variant in result.get("tombstones", []) as Array:
+			if item_variant is Dictionary:
+				identity_receipts.append(
+					((item_variant as Dictionary).get("receipt", {}) as Dictionary)
+				)
+	var crew_snapshot := _get_cinder_navigator_crew_snapshot(identity_receipts)
 	# A ping receipt is never sufficient evidence of passenger occupancy. The
 	# HUD receives only the exact retained physical assignment; without it, the
 	# presentation fails closed instead of synthesizing a passenger row.
@@ -7317,7 +7333,9 @@ func _cinder_navigator_result_matches_generation(
 	return true
 
 
-func _get_cinder_navigator_crew_snapshot() -> Dictionary:
+func _get_cinder_navigator_crew_snapshot(
+		expected_receipts: Array[Dictionary] = []
+	) -> Dictionary:
 	if not is_instance_valid(_network_composition_ship) \
 			or not _network_composition_ship is CinderCargoHaulerType \
 			or not _network_composition_ship.has_method(&"get_crew_role_authority"):
@@ -7343,6 +7361,20 @@ func _get_cinder_navigator_crew_snapshot() -> Dictionary:
 			or int(assignment.get("seat_generation", 0)) <= 0
 			or avatar_id.is_empty()
 		):
+			continue
+		# The base row and the overlay must describe the same physical occupant.
+		# In particular, an old actor's delayed clear may not decorate a navigator
+		# who took the seat after that ping was published.
+		var assignment_matches_receipts := true
+		for receipt in expected_receipts:
+			if int(assignment.get("occupant_peer_id", 0)) \
+					!= int(receipt.get("peer_id", 0)) \
+					or avatar_id != StringName(receipt.get("avatar_id", &"")) \
+					or int(assignment.get("seat_generation", 0)) \
+						!= int(receipt.get("seat_generation", 0)):
+				assignment_matches_receipts = false
+				break
+		if not assignment_matches_receipts:
 			continue
 		return {
 			"actor_id": CinderCargoHaulerType.COMPONENT_ID,

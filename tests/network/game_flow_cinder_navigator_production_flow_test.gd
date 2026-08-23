@@ -25,10 +25,12 @@ func _init() -> void:
 func _run() -> void:
 	var session := NetworkAdapter.new()
 	var cinder := Cinder.new()
+	var replacement_cinder := Cinder.new()
 	var director := Director.new()
 	var hud := HudProbe.new()
 	root.add_child(session)
 	root.add_child(cinder)
+	root.add_child(replacement_cinder)
 	root.add_child(director)
 	root.add_child(hud)
 	await process_frame
@@ -87,21 +89,36 @@ func _run() -> void:
 	_check(str(active_hud.get("roles", {}).get("passenger", {}).get("occupant", "")).begins_with("navigator_avatar // PING ACTIVE"), "HUD overlay starts from the exact physical passenger assignment")
 	_check(active_hud.get("cinder_navigator_ping", {}).get("ship_generation", 0) == first_generation, "HUD receives the current composition generation receipt")
 
-	var detached: Dictionary = flow._detach_network_ship_authority_composition(&"production_reentry")
-	var navigator_detach := detached.get("cinder_navigator_ping", {}) as Dictionary
-	_check(not observed_tombstones.is_empty() and observed_tombstones.back() == navigator_detach, "GameFlow forwards the real detach tombstone envelope unchanged")
-	_check(_cues.has(&"cinder_navigator_ping_cleared"), "detach tombstone reaches retained optional semantic audio before unbind")
-	_check(hud.crew_snapshots.back().get("cinder_navigator_ping", {}).get("state") == &"cleared", "detach tombstone reaches retained navigator HUD before unbind")
-	_check(not bool(flow.optional_semantic_audio_composition.get_snapshot().get("navigator", {}).get("attached", true)) and not bool(flow._cinder_navigator_ping_hud_composition.get_snapshot().get("attached", true)), "targeted detach unbinds navigator audio and HUD without discarding their owners")
+	flow.active_ship = replacement_cinder
+	var replacement: Dictionary = flow._attach_network_ship_authority_composition()
+	var replacement_generation := int(flow._network_ship_generation)
+	_check(bool(replacement.get("accepted", false)) and replacement_generation == first_generation + 1, "ship replacement advances exactly one network generation")
+	_check(not observed_tombstones.is_empty() and int(observed_tombstones.back().get("tombstones", [])[0].get("receipt", {}).get("ship_generation", 0)) == first_generation, "replacement forwards the old generation's real detach tombstone before advancing presentation authority")
+	_check(_cues.has(&"cinder_navigator_ping_cleared"), "replacement tombstone reaches retained optional semantic audio")
+	_check(hud.crew_snapshots.back().get("cinder_navigator_ping", {}).get("state") == &"cleared", "replacement tombstone reaches retained navigator HUD")
 
-	_check(bool(authority.release(1, 62, &"navigator_avatar", Cinder.NAVIGATOR_STATION_SEAT_ID, 3, 1).get("accepted", false)), "physical navigator passenger releases before re-entry rejection")
+	flow.active_ship = cinder
 	var reattached: Dictionary = flow._attach_network_ship_authority_composition()
 	var reentry_generation := int(flow._network_ship_generation)
-	_check(bool(reattached.get("accepted", false)) and reentry_generation == first_generation + 1, "network composition re-entry advances one ship generation")
+	_check(bool(reattached.get("accepted", false)) and reentry_generation == first_generation + 2, "network composition re-entry advances once from the replacement generation")
 	_check(int(flow.optional_semantic_audio_composition.get_snapshot().get("navigator", {}).get("generation", 0)) == reentry_generation and flow._cinder_navigator_presentation_ship_generation == reentry_generation, "retained consumers rebind the exact re-entry generation")
+	var fresh: Dictionary = composition.submit_cinder_navigator_ping(
+		62, 3, &"navigator_avatar", 1, 3,
+		{"channel": &"sensor", "marker_id": &"reentry_beacon"}, 13, 1
+	)
+	_check(bool(fresh.get("accepted", false)), "re-entry publishes a fresh navigator receipt")
+	_check(bool(authority.handoff(
+		1, 62, &"navigator_avatar", Cinder.NAVIGATOR_STATION_SEAT_ID, 4,
+		63, &"replacement_navigator", Authority.ROLE_PASSENGER, 1, 1
+	).get("accepted", false)), "physical navigator authority hands the seat to a new passenger")
+	var hud_count_before_old_clear := hud.crew_snapshots.size()
+	var old_peer_release: Dictionary = composition.release_peer(62)
+	_check(bool(old_peer_release.get("accepted", false)) and not (old_peer_release.get("cinder_navigator_ping", {}).get("tombstones", []) as Array).is_empty(), "old navigator peer publishes its real clear tombstone after handoff")
+	_check(hud.crew_snapshots.size() == hud_count_before_old_clear and str(flow._get_cinder_navigator_crew_snapshot().get("roles", {}).get("passenger", {}).get("occupant", "")) == "replacement_navigator", "old navigator clear cannot decorate the new physical passenger")
+	_check(bool(authority.release(1, 63, &"replacement_navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, 2, 1).get("accepted", false)), "replacement navigator releases before the unoccupied rejection")
 	var hud_count_before_unoccupied_rejection := hud.crew_snapshots.size()
 	var rejected: Dictionary = composition.submit_cinder_navigator_ping(
-		62, 3, &"navigator_avatar", 1, 4, {}, 13, 1
+		62, 3, &"navigator_avatar", 1, 5, {}, 14, 1
 	)
 	_check(rejected.get("status", &"") == &"navigator_identity_mismatch" and observed_results.back() == rejected and _cues.has(&"cinder_navigator_ping_rejected"), "real re-entry rejection forwards unchanged to semantic audio")
 	_check(hud.crew_snapshots.size() == hud_count_before_unoccupied_rejection and flow._get_cinder_navigator_crew_snapshot().is_empty(), "GameFlow never fabricates passenger occupancy from an unoccupied ping rejection")
@@ -112,6 +129,7 @@ func _run() -> void:
 	session.shutdown(&"test_complete")
 	session.queue_free()
 	cinder.queue_free()
+	replacement_cinder.queue_free()
 	director.queue_free()
 	hud.queue_free()
 	await process_frame
