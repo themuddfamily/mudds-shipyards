@@ -20,7 +20,7 @@ func attach(director: Node, generation: int = 0) -> Dictionary:
 		_binding = null
 		_director = null
 		return attached
-	var bound: Dictionary = _director.bind_semantic_audio_source(_binding, &"crew")
+	var bound: Dictionary = _director.bind_semantic_audio_source(_binding, &"navigator")
 	if not bool(bound.get("accepted", false)):
 		_binding.detach()
 		_binding.queue_free()
@@ -39,10 +39,21 @@ func present_tombstones(tombstones: Array) -> Dictionary:
 func detach() -> Dictionary:
 	if not _attached:
 		return {"accepted": true, "reason": &"already_detached"}
-	_director.unbind_semantic_audio_source(_binding, &"crew")
-	_binding.detach()
-	_binding.queue_free()
+	_detach_internal(true)
+	return {"accepted": true, "reason": &"detached"}
+
+func _exit_tree() -> void:
+	_detach_internal(false)
+
+func _detach_internal(free_binding: bool) -> void:
+	if not _attached:
+		return
+	if _director != null and is_instance_valid(_director) and _binding != null and is_instance_valid(_binding):
+		_director.unbind_semantic_audio_source(_binding, &"navigator")
+	if _binding != null and is_instance_valid(_binding):
+		_binding.detach()
+		if free_binding:
+			_binding.queue_free()
 	_binding = null
 	_director = null
 	_attached = false
-	return {"accepted": true, "reason": &"detached"}

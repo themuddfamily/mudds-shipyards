@@ -22,6 +22,7 @@ const SOURCE_SIGNALS := {
 	&"station": &"semantic_maintenance_cue_emitted",
 	&"activity": &"semantic_activity_cue_emitted",
 	&"crew": &"semantic_crew_cue_emitted",
+	&"navigator": &"semantic_navigator_ping_cue_emitted",
 }
 const CREW_CUE_LABELS := {
 	&"cinder_loadmaster_seat_occupied": {&"passenger": &"cinder_loadmaster_seat_occupied"},
