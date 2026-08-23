@@ -43,6 +43,8 @@ var _last_elapsed_physics_seconds := 0.0
 var _state := _STATE_CLEAN
 var _last_begin_recovered := false
 var _recovery_event_recorded := false
+var _recovery_event_published := false
+var _recovery_event_snapshot: Dictionary = {}
 var _last_status: Dictionary = {}
 
 
@@ -107,6 +109,8 @@ func begin_session(session_id: int, commit_id: String) -> Dictionary:
 	_active = true
 	_last_begin_recovered = _unclean_start_count > 0
 	_recovery_event_recorded = false
+	_recovery_event_published = false
+	_recovery_event_snapshot = {}
 	return _status(
 		true,
 		&"recovered_previous_session" if _last_begin_recovered else &"started",
@@ -236,12 +240,51 @@ func record_recovery_event(
 	}
 
 
+## Records and publishes one accepted recovery event through the injected
+## privacy-safe sink. Recording is retained when publication fails so the
+## caller can retry without creating a duplicate event.
+func publish_recovery_event(
+		diagnostic_record: SessionDiagnosticRecord,
+		file_sink: RefCounted,
+		physics_tick: int,
+		elapsed_physics_seconds: float
+		) -> Dictionary:
+	if file_sink == null or not file_sink.has_method("append_snapshot"):
+		return {"accepted": false, "reason": &"diagnostic_sink_unavailable"}
+	if _recovery_event_published:
+		return {"accepted": true, "reason": &"recovery_event_already_published"}
+	if not _recovery_event_recorded:
+		var recorded := record_recovery_event(
+			diagnostic_record, physics_tick, elapsed_physics_seconds
+		)
+		if not bool(recorded.accepted):
+			return recorded
+	if _recovery_event_snapshot.is_empty():
+		if diagnostic_record == null:
+			return {"accepted": false, "reason": &"diagnostic_record_unavailable"}
+		_recovery_event_snapshot = diagnostic_record.get_snapshot()
+	var published: Dictionary = file_sink.call("append_snapshot", _recovery_event_snapshot)
+	if not bool(published.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": &"diagnostic_sink_publish_failed",
+			"sink_status": published.duplicate(true),
+		}
+	_recovery_event_published = true
+	return {
+		"accepted": true,
+		"reason": &"recovery_event_published",
+		"sink_status": published.duplicate(true),
+	}
+
+
 func get_snapshot() -> Dictionary:
 	var snapshot := _snapshot()
 	snapshot["restored"] = _restored
 	snapshot["active"] = _active
 	snapshot["last_begin_recovered"] = _last_begin_recovered
 	snapshot["recovery_event_recorded"] = _recovery_event_recorded
+	snapshot["recovery_event_published"] = _recovery_event_published
 	return snapshot.duplicate(true)
 
 

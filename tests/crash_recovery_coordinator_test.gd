@@ -4,6 +4,7 @@ const Coordinator := preload("res://scripts/diagnostics/crash_recovery_coordinat
 const Event := preload("res://scripts/diagnostics/session_diagnostic_event.gd")
 const Record := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
+const Sink := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
 
 const STORE_PATH := "memory://crash_recovery_coordinator.json"
 
@@ -13,6 +14,7 @@ var _failures := PackedStringArray()
 
 class FakeFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
+	var fail_write := false
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -32,6 +34,8 @@ class FakeFilesystem extends UserDataFilesystem:
 		return {"error": OK, "bytes": bytes}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if fail_write:
+			return ERR_FILE_CANT_WRITE
 		files[path] = bytes.duplicate()
 		return OK
 
@@ -128,6 +132,36 @@ func _run() -> void:
 		and duplicate_recovery.reason == &"recovery_event_already_recorded"
 		and diagnostic_record.get_snapshot().events.size() == 1,
 		"one recovered startup cannot duplicate its crash diagnostic event"
+	)
+	var sink_filesystem := FakeFilesystem.new()
+	var sink := Sink.new("memory://coordinator-diagnostics", sink_filesystem)
+	sink_filesystem.fail_write = true
+	var publish_failed := restarted.publish_recovery_event(
+		diagnostic_record, sink, 2, 0.02
+	)
+	_check(
+		not bool(publish_failed.accepted)
+		and publish_failed.reason == &"diagnostic_sink_publish_failed"
+		and diagnostic_record.get_snapshot().events.size() == 1,
+		"sink failure preserves the accepted recovery event for retry"
+	)
+	sink_filesystem.fail_write = false
+	var published := restarted.publish_recovery_event(
+		diagnostic_record, sink, 3, 0.03
+	)
+	_check(
+		bool(published.accepted)
+		and published.reason == &"recovery_event_published"
+		and sink_filesystem.files.has("memory://coordinator-diagnostics/crash-log.json"),
+		"retry publishes the same redacted recovery snapshot atomically"
+	)
+	var duplicate_publish := restarted.publish_recovery_event(
+		diagnostic_record, sink, 4, 0.04
+	)
+	_check(
+		bool(duplicate_publish.accepted)
+		and duplicate_publish.reason == &"recovery_event_already_published",
+		"published recovery events cannot be duplicated"
 	)
 	_check(
 		restarted.mark_clean_shutdown(42, 4, 0.1, "crash-clean-2").accepted,
