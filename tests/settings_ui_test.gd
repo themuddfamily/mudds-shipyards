@@ -53,7 +53,12 @@ func _run() -> void:
 		&"ui_scale",
 		&"colorblind_palette",
 		&"reduced_motion",
+		&"reduced_dynamic_range",
 		&"captions_enabled",
+		&"show_tutorials",
+		&"multiplayer_display_name",
+		&"network_default_port",
+		&"multiplayer_max_players",
 		&"controller_glyph_family",
 	]
 	var controls := hud.get("_settings_controls") as Dictionary
@@ -255,6 +260,9 @@ func _run() -> void:
 	var back_button := settings_page.find_child("SettingsBackButton", true, false) as Button
 	save_button.pressed.emit()
 	reset_button.pressed.emit()
+	var confirm_reset := settings_page.find_child("ConfirmSettingsResetButton", true, false) as Button
+	if confirm_reset.visible:
+		confirm_reset.pressed.emit()
 	_check(_save_events == 1, "Apply and Save emits one persistence request")
 	_check(_reset_events == 1, "Reset Defaults emits one reset request")
 	back_button.pressed.emit()
