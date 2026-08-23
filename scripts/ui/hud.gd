@@ -1006,6 +1006,51 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 				]
 			_:
 				activity_text = ""
+	elif activity_id in [&"cargo_transfer", &"cinder_platform_supply_run"] or activity_kind == &"cargo_transfer":
+		var transfer_phase := StringName(snapshot.get("phase_id", snapshot.get("phase", &"board")))
+		var transfer_progress := maxi(int(snapshot.get("completed_checkpoint_count", snapshot.get("completed_steps", snapshot.get("step_index", 0)))), 0)
+		var transfer_total := maxi(int(snapshot.get("checkpoint_count", snapshot.get("total_steps", 4))), 1)
+		var transfer_state := state_id if not state_id.is_empty() else &"available"
+		var transfer_step := str(snapshot.get("next_step", "")).strip_edges()
+		if transfer_step.is_empty():
+			transfer_step = {
+				&"board": "BOARD JOVIAN",
+				&"land": "LAND AT TERMINAL",
+				&"disembark": "DISEMBARK",
+				&"terminal": "USE CARGO TERMINAL",
+				&"return": "RETURN TO BERTH",
+			}.get(transfer_phase, "FOLLOW CARGO ROUTE")
+		var transfer_prefix := "[ %s ] " % _action_prompts([&"interact"])
+		match transfer_state:
+			&"active", &"started":
+				activity_text = "CARGO  %s%s  %d/%d" % [transfer_prefix, transfer_step.to_upper(), transfer_progress, transfer_total]
+			&"completed", &"complete":
+				activity_text = "CARGO  COMPLETE  %d/%d  REWARD PENDING" % [transfer_progress, transfer_total] if bool(snapshot.get("reward_pending", snapshot.get("reward_requested", false))) else "CARGO  COMPLETE  %d/%d" % [transfer_progress, transfer_total]
+			&"failed", &"aborted", &"expired":
+				activity_text = "CARGO  %s — %s  RECOVER: RETURN TO TERMINAL" % [transfer_state.to_upper(), str(snapshot.get("failure_reason", snapshot.get("terminal_reason", "RETRY"))).replace("_", " ").to_upper()]
+			_:
+				activity_text = "CARGO  %s%s" % [transfer_prefix, transfer_step.to_upper()]
+	elif activity_id == &"station_defense" or activity_kind == &"station_defense":
+		var defense_state := state_id if not state_id.is_empty() else &"available"
+		var wave := maxi(int(snapshot.get("current_wave_index", snapshot.get("wave_index", 0))), 0)
+		var waves := maxi(int(snapshot.get("wave_count", snapshot.get("total_waves", 1))), 1)
+		var assets := snapshot.get("protected_assets", []) as Array
+		var damaged := maxi(int(snapshot.get("damaged_asset_count", 0)), 0)
+		var destroyed := maxi(int(snapshot.get("destroyed_asset_count", 0)), 0)
+		for asset_variant in assets:
+			if asset_variant is Dictionary:
+				damaged += 1 if int((asset_variant as Dictionary).get("damage_event_count", 0)) > 0 else 0
+				destroyed += 1 if bool((asset_variant as Dictionary).get("destroyed", false)) else 0
+		var defense_step := str(snapshot.get("next_step", "START DEFENSE WAVE")).strip_edges()
+		match defense_state:
+			&"active", &"started":
+				activity_text = "DEFENSE  WAVE %d/%d  %s  ASSETS DAMAGED %d  DESTROYED %d" % [mini(wave + 1, waves), waves, defense_step.to_upper(), damaged, destroyed]
+			&"completed", &"complete":
+				activity_text = "DEFENSE  COMPLETE  %d/%d  REWARD %s" % [waves, waves, "PENDING" if bool(snapshot.get("reward_pending", snapshot.get("reward_requested", false))) else "READY"]
+			&"failed", &"aborted", &"timed_out":
+				activity_text = "DEFENSE  %s — %s  RECOVER: REPAIR PROTECTED ASSETS" % [defense_state.to_upper(), str(snapshot.get("failure_reason", snapshot.get("terminal_reason", "RETRY"))).replace("_", " ").to_upper()]
+			_:
+				activity_text = "[ %s ] DEFENSE  START WAVE" % _action_prompts([&"interact"])
 	elif activity_kind == &"patrol":
 		var gate_number := mini(next_index + 1, checkpoint_count)
 		match state_id:
