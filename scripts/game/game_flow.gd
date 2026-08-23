@@ -517,6 +517,11 @@ var _planetary_cruise_caller_tick := 0
 var _last_hud_planetary_cruise_toggle_serial := 0
 var _planetary_cruise_hud_toggle_active := false
 var _ember_surface_caller_serial := 0
+var _pending_ember_surface_request: Dictionary = {}
+var _pending_ember_surface_host: Object
+var _pending_ember_surface_director: ActivityDirector
+var _pending_ember_surface_reward_sink := Callable()
+var _pending_ember_surface_serial := 0
 ## Station topology is captured in ShipyardWorld-local coordinates. A common
 ## floating-origin rebase can then translate the live world root without leaving
 ## the presentation snapshot pinned to its pre-rebase global coordinates.
@@ -535,6 +540,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if not _pending_ember_surface_request.is_empty():
+		cancel_ember_surface_journey()
 	if not _pending_display_confirmation.is_empty() and runtime_settings != null:
 		_revert_display_settings(int(_pending_display_confirmation.generation), &"detach")
 	if is_queued_for_deletion() and _session_diagnostics_bridge != null:
@@ -1938,9 +1945,12 @@ func _physics_process(delta: float) -> void:
 								ember_streaming_accepted
 								and streaming.get("action", &"") == &"load"
 							)
-	_ensure_ember_surface_loop_host_bound(
+	var ember_host_bind_result := _ensure_ember_surface_loop_host_bound(
 		ember_streaming_accepted and not required_origin_rebase_uncommitted
 	)
+	if bool(ember_host_bind_result.get("accepted", false)) \
+			and not _pending_ember_surface_request.is_empty():
+		_forward_pending_ember_surface_journey()
 	if is_instance_valid(ember_surface_loop_production_binding):
 		var surface_binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
 		var surface_state := StringName(surface_binding_snapshot.get("state_id", &""))
@@ -4353,7 +4363,16 @@ func begin_ember_surface_journey(
 	if not bool(streaming.get("activated", false)) \
 			or int(streaming.get("bound_coordinate_frame_generation", 0)) \
 			!= int(streaming.get("current_coordinate_frame_generation", -1)):
-		return {"accepted": false, "reason": &"ember_streaming_generation_not_ready"}
+		_pending_ember_surface_host = host
+		_pending_ember_surface_director = director
+		_pending_ember_surface_reward_sink = reward_sink
+		_pending_ember_surface_serial = caller_serial
+		_pending_ember_surface_request = {
+			"host_instance_id": host.get_instance_id(),
+			"caller_serial": caller_serial,
+			"streaming_generation": int(streaming.get("current_coordinate_frame_generation", -1)),
+		}.duplicate(true)
+		return {"accepted": true, "reason": &"ember_surface_journey_pending_stream", "pending": _pending_ember_surface_request.duplicate(true)}
 	if not is_instance_valid(ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
 	var binding := ember_surface_loop_production_binding
@@ -4370,6 +4389,33 @@ func begin_ember_surface_journey(
 	if not bool(intent.get("accepted", false)):
 		return intent
 	return {"accepted": true, "reason": &"ember_surface_journey_admitted", "binding_generation": binding.get_generation(), "intent": intent}
+
+
+func cancel_ember_surface_journey() -> Dictionary:
+	if _pending_ember_surface_request.is_empty():
+		return {"accepted": false, "reason": &"ember_surface_request_not_pending"}
+	_pending_ember_surface_request.clear()
+	_pending_ember_surface_host = null
+	_pending_ember_surface_director = null
+	_pending_ember_surface_reward_sink = Callable()
+	_pending_ember_surface_serial = 0
+	return {"accepted": true, "reason": &"ember_surface_request_cancelled"}
+
+
+func _forward_pending_ember_surface_journey() -> Dictionary:
+	if _pending_ember_surface_request.is_empty():
+		return {"accepted": false, "reason": &"ember_surface_request_not_pending"}
+	if not is_instance_valid(_pending_ember_surface_host) \
+			or not is_instance_valid(_pending_ember_surface_director) \
+			or not _pending_ember_surface_reward_sink.is_valid():
+		cancel_ember_surface_journey()
+		return {"accepted": false, "reason": &"ember_surface_request_stale"}
+	var host := _pending_ember_surface_host
+	var director := _pending_ember_surface_director
+	var reward_sink := _pending_ember_surface_reward_sink
+	var caller_serial := _pending_ember_surface_serial
+	cancel_ember_surface_journey()
+	return begin_ember_surface_journey(host, director, reward_sink, caller_serial)
 
 
 ## Consumes the detached Ember return receipt at the normal GameFlow boundary.
