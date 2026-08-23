@@ -2218,19 +2218,17 @@ func apply_damage(
 		return
 	if amount <= 0.0 or _hull <= 0.0 or _destroyed:
 		return
-	var safe_normal := world_hit_normal.normalized()
-	if safe_normal.length_squared() <= 0.001 or not safe_normal.is_finite():
-		# A position-less damage call leaves `world_hit_position` at its
-		# `Vector3.INF` default. Normalising that produces a non-finite vector
-		# and an engine diagnostic on every such call; the result was already
-		# discarded downstream by the `is_finite()` guards below, so the
-		# derivation is simply skipped rather than performed and thrown away.
-		safe_normal = Vector3.ZERO
-		if world_hit_position.is_finite():
-			safe_normal = (world_hit_position - global_position).normalized()
+	var has_hit_position := world_hit_position.is_finite()
+	var safe_normal := Vector3.ZERO
+	if world_hit_normal.is_finite() and world_hit_normal.length_squared() > 0.001:
+		safe_normal = world_hit_normal.normalized()
+	elif has_hit_position:
+		var radial_normal := world_hit_position - global_position
+		if radial_normal.length_squared() > 0.001:
+			safe_normal = radial_normal.normalized()
 	if (
 		_damage_presentation != null
-		and world_hit_position.is_finite()
+		and has_hit_position
 		and not defer_presentation
 	):
 		_damage_presentation.present_impact(

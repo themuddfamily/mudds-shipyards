@@ -295,10 +295,39 @@ func _test_fleet_reset_geometry_stability() -> void:
 
 func _test_hull_authority_is_untouched() -> void:
 	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
+	var presentation := _hero.get_damage_presentation()
+	var positionless_hull_before := float(_hero.get_telemetry().get("hull", 0.0))
+	var positionless_effects_before := presentation.get_live_world_effect_count()
+	_hero.apply_damage(1.0)
+	_check(
+		is_equal_approx(
+			float(_hero.get_telemetry().get("hull", 0.0)),
+			positionless_hull_before - 1.0
+		)
+		and presentation.get_live_world_effect_count() == positionless_effects_before,
+		"position-less damage changes hull without creating a non-finite impact effect"
+	)
+	_hero.reset_for_reuse(Transform3D(Basis.IDENTITY, ARENA_ORIGIN))
 	var hull_before := float(_hero.get_telemetry().get("hull", 0.0))
 	var engine_position := _world_component_position(_hero, ShipComponentDamage.COMPONENT_ENGINE_BAY)
-	_hero.call("apply_damage", 20.0, engine_position, Vector3.UP, -1, false)
+	var expected_radial_normal := (engine_position - _hero.global_position).normalized()
+	var finite_effects_before := presentation.get_live_world_effect_count()
+	_hero.call("apply_damage", 20.0, engine_position, Vector3.ZERO, -1, false)
 	var hull_after := float(_hero.get_telemetry().get("hull", 0.0))
+	var impact_root := root.get_node_or_null("HeroDamageImpact") as Node3D
+	var impact_sparks := (
+		impact_root.get_node_or_null("ImpactSparks") as CPUParticles3D
+		if impact_root != null
+		else null
+	)
+	_check(
+		presentation.get_live_world_effect_count() == finite_effects_before + 1
+		and impact_root != null
+		and impact_root.global_position.is_equal_approx(engine_position)
+		and impact_sparks != null
+		and impact_sparks.direction.is_equal_approx(expected_radial_normal),
+		"finite positioned damage preserves its exact impact position and derived normal"
+	)
 	_check(
 		is_equal_approx(hull_after, hull_before - 20.0),
 		"the component model observes a resolved hit without changing a single unit of hull"
