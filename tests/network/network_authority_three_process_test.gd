@@ -72,6 +72,9 @@ func _evidence_complete() -> bool:
 		"COPILOT_ADMITTED", "COPILOT_NAV_ACCEPTED", "COPILOT_NAV_REPLICATED",
 		"COPILOT_STALE_SEQUENCE_REJECTED", "COPILOT_HELM_MUTATION_REJECTED",
 		"COPILOT_STALE_GENERATION_REJECTED", "COPILOT_DISCONNECT_CLEAN",
+		"LOADMASTER_ADMITTED", "LOADMASTER_MANIFEST_READY", "LOADMASTER_ROUTE_REPLICATED",
+		"LOADMASTER_STALE_GENERATION_REJECTED", "LOADMASTER_REORDER_REJECTED",
+		"LOADMASTER_STALE_OCCUPANT_REJECTED", "LOADMASTER_DISCONNECT_CLEAN",
 		"RECONNECT_OLD_COMMAND_REJECTED", "RECONNECT_RESYNC_PUBLISHED", "RECONNECT_GENERATION_FRESH",
 	]:
 		if not server_log.contains(marker):
@@ -102,6 +105,9 @@ func _evidence_complete() -> bool:
 		if not client_a_log.contains(cargo_marker) or not client_b_log.contains(cargo_marker):
 			return false
 	if not client_a_log.contains("COPILOT_NAV_PRESENTED") and not client_b_log.contains("COPILOT_NAV_PRESENTED"):
+		return false
+	if not client_a_log.contains("LOADMASTER_READY_PRESENTED") \
+		or not client_a_log.contains("LOADMASTER_ROUTE_PRESENTED"):
 		return false
 	if not client_a_log.contains("CARGO_TERMINAL_RESYNC_PRESENTED"):
 		return false

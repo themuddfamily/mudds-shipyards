@@ -218,6 +218,49 @@ func _server_loop() -> void:
 				_log("CARGO_REPLAY_SENT")
 			if not bool(cargo_invalid.get("accepted", false)):
 				_log("CARGO_INVALID_GENERATION_REJECTED")
+			var loadmaster_seat := _adapter.register_crew_seat(
+				&"crew_port_00", &"jovian_authority_craft", &"passenger", &"", 1
+			)
+			var loadmaster_claim := _adapter.claim_crew_seat(
+				passenger_peer, &"loadmaster_avatar", &"crew_port_00", &"passenger", 2
+			)
+			var loadmaster_role := _adapter.accept_crew_role_intent(
+				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
+				&"loadmaster_avatar", &"passenger", 2, &"jovian_authority_craft", 1
+			)
+			var loadmaster_reordered_role := _adapter.accept_crew_role_intent(
+				passenger_peer, int(_adapter._peer_generations.get(passenger_peer, 0)),
+				&"loadmaster_avatar", &"passenger", 1, &"jovian_authority_craft", 1
+			)
+			var loadmaster_ready := _adapter.publish_cargo_manifest_snapshot(
+				_loadmaster_manifest(&"ready", 1, 12, 1), peer_ids
+			)
+			var loadmaster_route := _adapter.publish_cargo_manifest_snapshot(
+				_loadmaster_manifest(&"route_ready", 1, 12, 2), peer_ids
+			)
+			var loadmaster_replay := _adapter.publish_cargo_manifest_snapshot(
+				_loadmaster_manifest(&"route_ready", 1, 12, 2), peer_ids
+			)
+			var loadmaster_invalid := _adapter.publish_cargo_manifest_snapshot(
+				_loadmaster_manifest(&"ready", 0, 12, 3), peer_ids
+			)
+			_log("LOADMASTER_STATUS %s %s %s %s %s %s" % [
+				loadmaster_seat.get("status", &"unknown"), loadmaster_claim.get("status", &"unknown"),
+				loadmaster_role.get("status", &"unknown"), loadmaster_ready.get("status", &"unknown"),
+				loadmaster_route.get("status", &"unknown"), loadmaster_replay.get("status", &"unknown")
+			])
+			if bool(loadmaster_seat.get("accepted", false)) and bool(loadmaster_claim.get("accepted", false)) \
+				and bool(loadmaster_role.get("accepted", false)) and bool(loadmaster_ready.get("accepted", false)) \
+				and bool(loadmaster_route.get("accepted", false)):
+				_log("LOADMASTER_ADMITTED")
+				_log("LOADMASTER_MANIFEST_READY")
+				_log("LOADMASTER_ROUTE_REPLICATED")
+			if bool(loadmaster_replay.get("accepted", false)):
+				_log("LOADMASTER_REPLAY_SENT")
+			if not bool(loadmaster_invalid.get("accepted", false)):
+				_log("LOADMASTER_STALE_GENERATION_REJECTED")
+			if not bool(loadmaster_reordered_role.get("accepted", false)):
+				_log("LOADMASTER_REORDER_REJECTED")
 			if not bool(relationship_result.get("accepted", false)):
 				_log("RELATIONSHIP_STATUS_%s" % relationship_result.get("status", &"unknown"))
 			var accepted_count := 0
@@ -510,12 +553,24 @@ func _server_loop() -> void:
 					)
 					if not bool(stale_copilot.get("accepted", false)):
 						_log("COPILOT_STALE_GENERATION_REJECTED")
+					var stale_loadmaster := _adapter.accept_crew_role_intent(
+						reconnect_peer, _initial_peer_generation, &"loadmaster_avatar", &"passenger", 2,
+						&"jovian_authority_craft", 1
+					)
+					if not bool(stale_loadmaster.get("accepted", false)):
+						_log("LOADMASTER_STALE_OCCUPANT_REJECTED")
 					var role_cleanup := true
 					for role_variant in (_adapter.get_crew_role_snapshot().get("roles", {}) as Dictionary).values():
 						if int((role_variant as Dictionary).get("peer_id", 0)) == reconnect_peer:
 							role_cleanup = false
 					if role_cleanup:
 						_log("COPILOT_DISCONNECT_CLEAN")
+					var loadmaster_cleanup := true
+					for role_variant in (_adapter.get_crew_role_snapshot().get("roles", {}) as Dictionary).values():
+						if StringName((role_variant as Dictionary).get("avatar_id", &"")) == &"loadmaster_avatar":
+							loadmaster_cleanup = false
+					if loadmaster_cleanup:
+						_log("LOADMASTER_DISCONNECT_CLEAN")
 					var current_peers: Array = _adapter._peer_generations.keys()
 					for current_peer_variant in current_peers:
 						var current_peer := int(current_peer_variant)
@@ -654,6 +709,21 @@ func _cargo_manifest(state: StringName, terminal_generation: int, quantity: int)
 	}
 
 
+func _loadmaster_manifest(state: StringName, manifest_generation: int, quantity: int, route_sequence: int) -> Dictionary:
+	var manifest := _cargo_manifest(state, 1, quantity)
+	manifest["manifest_generation"] = manifest_generation
+	manifest["role"] = &"loadmaster"
+	manifest["seat_id"] = &"crew_port_00"
+	manifest["occupant_avatar_id"] = &"loadmaster_avatar"
+	manifest["route_id"] = &"halyard_route_alpha"
+	manifest["route_sequence"] = route_sequence
+	manifest["ready"] = state == &"ready" or state == &"route_ready"
+	manifest["inventory_mutation_authority"] = false
+	manifest["reward_authority"] = false
+	manifest["helm_authority"] = false
+	return manifest
+
+
 func _projectile_wire(snapshot: Dictionary, terminal: bool) -> Dictionary:
 	var release_record := snapshot.get("release_record", {}) as Dictionary
 	var terminal_record := snapshot.get("terminal_intent", {}) as Dictionary
@@ -734,6 +804,12 @@ func _on_cargo_manifest_result(result: Dictionary) -> void:
 	if status == &"cargo_manifest_presented":
 		var manifest := result.get("manifest", {}) as Dictionary
 		var state := StringName(manifest.get("state", &""))
+		if StringName(manifest.get("role", &"")) == &"loadmaster":
+			if state == &"ready":
+				_log("LOADMASTER_READY_PRESENTED")
+			elif state == &"route_ready":
+				_log("LOADMASTER_ROUTE_PRESENTED")
+			return
 		if state == &"ready":
 			_log("CARGO_READY_PRESENTED")
 		elif state == &"in_transit":
