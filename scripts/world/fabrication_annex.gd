@@ -26,6 +26,14 @@ const ROOF_COLUMN_POSITIONS := [
 	Vector3(11.0, 2.8, 19.0),
 ]
 const ROOF_COLUMN_BATCH_KEY := "structure:0.450:5.600:0.450"
+const FABRICATOR_BASE_SIZE := Vector3(4.0, 0.4, 3.0)
+const FABRICATOR_BASE_POSITIONS := [
+	Vector3(-7.0, 0.2, 7.0),
+	Vector3(-7.0, 0.2, 15.0),
+	Vector3(7.0, 0.2, 7.0),
+	Vector3(7.0, 0.2, 15.0),
+]
+const FABRICATOR_BASE_BATCH_KEY := "machine:4.000:0.400:3.000"
 const SOURCE_PRACTICAL_RANGE_M := 8.0
 const PAIRED_POOL_RANGE_M := 11.75
 const SOURCE_PRACTICAL_ENERGY := 3.2
@@ -78,32 +86,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 19,
-	"multi_mesh_instances": 32,
-	"geometry_instances": 51,
+	"mesh_instances": 15,
+	"multi_mesh_instances": 33,
+	"geometry_instances": 48,
 	"visible_geometry_copies": 203,
-	"multi_mesh_drawn_copies": 184,
+	"multi_mesh_drawn_copies": 188,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 137,
+	"nodes": 134,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 19,
-	"multi_mesh_instances": 32,
-	"geometry_instances": 51,
+	"mesh_instances": 15,
+	"multi_mesh_instances": 33,
+	"geometry_instances": 48,
 	"visible_geometry_copies": 204,
-	"multi_mesh_drawn_copies": 185,
+	"multi_mesh_drawn_copies": 189,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 139,
+	"nodes": 136,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -270,7 +278,7 @@ func _build_work_bays() -> void:
 		var bench_x: float = side * 3.5
 		var rack_x: float = side * 10.6
 		for z in [7.0, 15.0]:
-			_add_fixed_equipment("FabricatorBase", Vector3(4.0, 0.4, 3.0), Vector3(bay_x, 0.2, z), &"machine")
+			_add_batched_fixed_equipment("FabricatorBase", FABRICATOR_BASE_SIZE, Vector3(bay_x, 0.2, z), &"machine")
 			_add_mesh("FabricatorDeck", Vector3(3.55, 0.1, 2.55), Vector3(bay_x, 0.45, z), &"floor_inlay")
 			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x - side * 1.45, 1.8, z - 1.0), &"structure")
 			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x + side * 1.45, 1.8, z - 1.0), &"structure")
@@ -707,6 +715,78 @@ func get_roof_column_render_optimization_contract() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_fabricator_base_render_optimization_contract() -> Dictionary:
+	var batch: MultiMeshInstance3D = null
+	for raw_batch in find_children("*", "MultiMeshInstance3D", true, false):
+		var candidate := raw_batch as MultiMeshInstance3D
+		if str(candidate.get_meta(&"fabrication_annex_batch_key", "")) == FABRICATOR_BASE_BATCH_KEY:
+			batch = candidate
+			break
+	var authored := _authored_batch_transforms.get(FABRICATOR_BASE_BATCH_KEY, []) as Array
+	var transforms_exact := authored.size() == FABRICATOR_BASE_POSITIONS.size()
+	for index in mini(authored.size(), FABRICATOR_BASE_POSITIONS.size()):
+		var transform := authored[index] as Transform3D
+		transforms_exact = transforms_exact \
+			and transform.basis.is_equal_approx(Basis.IDENTITY) \
+			and transform.origin.is_equal_approx(FABRICATOR_BASE_POSITIONS[index] as Vector3)
+	var collision_bodies: Array[StaticBody3D] = []
+	for raw_body in StationModuleContract.collect_static_bodies(self):
+		var body := raw_body as StaticBody3D
+		if str(body.get_meta(&"fixed_equipment_id", "")).begins_with("fabricator_base_"):
+			collision_bodies.append(body)
+	collision_bodies.sort_custom(
+		func(first: StaticBody3D, second: StaticBody3D) -> bool:
+			return str(first.name) < str(second.name)
+	)
+	var collision_exact := collision_bodies.size() == FABRICATOR_BASE_POSITIONS.size()
+	for index in mini(collision_bodies.size(), FABRICATOR_BASE_POSITIONS.size()):
+		var body := collision_bodies[index]
+		var shape := _body_box_shape(body)
+		var expected_name := "FabricatorBase" if index == 0 else "FabricatorBase%02d" % index
+		collision_exact = collision_exact \
+			and str(body.name) == expected_name \
+			and body.position.is_equal_approx(FABRICATOR_BASE_POSITIONS[index] as Vector3) \
+			and shape != null \
+			and shape.size.is_equal_approx(FABRICATOR_BASE_SIZE) \
+			and body.find_children("*", "MeshInstance3D", false, false).is_empty()
+	var batch_exact: bool = (
+		batch != null
+		and batch.name == &"FabricatorBaseBatch"
+		and batch.multimesh != null
+		and batch.multimesh.instance_count == FABRICATOR_BASE_POSITIONS.size()
+		and batch.multimesh.mesh == StationSurfaceKit.rounded_box_mesh_cached(FABRICATOR_BASE_SIZE, _mesh_cache)
+		and batch.material_override == _materials[&"machine"]
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(batch.visibility_range_begin)
+		and is_zero_approx(batch.visibility_range_end)
+		and is_zero_approx(batch.extra_cull_margin)
+	)
+	return {
+		"valid": batch_exact and transforms_exact and collision_exact,
+		"family": &"physical_fabricator_base_presentation",
+		"before": {
+			"renderer_submissions": 4,
+			"visible_geometry_copies": 4,
+			"presentation_nodes": 4,
+		},
+		"after": {
+			"renderer_submissions": 1 if batch != null else 0,
+			"visible_geometry_copies": (
+				batch.multimesh.instance_count
+				if batch != null and batch.multimesh != null
+				else 0
+			),
+			"presentation_nodes": 1 if batch != null else 0,
+		},
+		"delta": {"renderer_submissions": -3, "presentation_nodes": -3},
+		"authored_transforms": authored.duplicate(true),
+		"visual_transforms_exact": transforms_exact,
+		"render_state_exact": batch_exact,
+		"collision_body_count": collision_bodies.size(),
+		"collision_names_transforms_and_shapes_exact": collision_exact,
+	}.duplicate(true)
+
+
 func get_lighting_contract() -> Dictionary:
 	var pools: Array[Dictionary] = []
 	var exact_pool_roster := true
@@ -982,8 +1062,10 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("Forward+ MultiMesh buffers drifted from authored transforms")
 	if not bool(get_roof_column_render_optimization_contract().valid):
 		errors.append("roof-column presentation batch or physical roster drifted")
+	if not bool(get_fabricator_base_render_optimization_contract().valid):
+		errors.append("fabricator-base presentation batch or physical roster drifted")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 67 if observation_rear_gate_open else 66
+	var expected_name_allocations := 68 if observation_rear_gate_open else 67
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()
