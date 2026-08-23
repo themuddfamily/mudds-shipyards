@@ -2209,27 +2209,9 @@ func _physics_process(delta: float) -> void:
 	# GameFlow callback prevents a new origin transaction from reaching an IDLE
 	# Host between completion and start; the priority-2 surface binding still
 	# performs the one actual Host.start() after Hero's current physics tick.
-	if is_instance_valid(ember_surface_loop_production_binding):
-		var surface_binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
-		var surface_state := StringName(surface_binding_snapshot.get("state_id", &""))
-		if _ember_surface_journey_active \
-				and _ember_final_approach_handoff_ready \
-				and surface_state in [&"idle", &"start_pending", &"running"] \
-				and not ember_origin_result.is_empty() \
-				and is_instance_valid(active_ship) and active_ship.is_piloted():
-			if _ember_surface_caller_serial < EmberSurfaceLoopHost.MAX_SAFE_INTEGER:
-				_ember_surface_caller_serial += 1
-				var telemetry := active_ship.get_telemetry()
-				var host_phase := ember_surface_loop_production_binding.get_host_phase()
-				ember_surface_loop_production_binding.advance_from_caller_sample(
-					_ember_surface_caller_serial, delta, &"ship",
-					active_ship.get_instance_id(), active_ship.get_instance_id(),
-					active_ship.global_position, active_ship.velocity,
-					bool(telemetry.get("landed", false)), host_phase == 10,
-					host_phase >= 11, ember_origin_result,
-					coordinate_frame_generation, int(ember_origin_result.get("location_generation", 1)),
-					ember_surface_loop_production_binding.get_generation()
-				)
+	_advance_ember_surface_loop_cadence(
+		delta, actor_sample, ember_origin_result, coordinate_frame_generation
+	)
 	_sync_planetary_cruise_hud()
 	var cinder_streaming_tick: Dictionary = {
 		"accepted": false,
@@ -2520,6 +2502,33 @@ func get_bomber_payload_loop_snapshot() -> Dictionary:
 
 
 func _capture_cinder_actor_sample() -> Dictionary:
+	# The retained surface Host temporarily owns embodiment without rewriting
+	# GameFlow's sortie-level `_piloting` latch. Once it begins disembarkation the
+	# Player is the common-origin observation, including during the two public
+	# boarding transitions; selecting the ship from `_piloting` here would freeze
+	# the on-foot route at its first frame.
+	var ember_surface_phase := (
+		ember_surface_loop_production_binding.get_host_phase()
+		if _ember_surface_journey_active
+			and is_instance_valid(ember_surface_loop_production_binding)
+		else -1
+	)
+	if ember_surface_phase in [
+		EmberSurfaceLoopHost.Phase.DISEMBARKING,
+		EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND,
+		EmberSurfaceLoopHost.Phase.ON_FOOT,
+		EmberSurfaceLoopHost.Phase.BOARDING,
+	] and is_instance_valid(player) and player.is_inside_tree():
+		var surface_player_position := player.global_position
+		_cinder_actor_sample_count += 1
+		if surface_player_position.is_finite():
+			return {
+				"available": true,
+				"position": surface_player_position,
+				"actor_kind": &"player",
+				"actor_instance_id": player.get_instance_id(),
+			}
+		return {"available": false, "reason": &"nonfinite_player_position"}
 	if (
 		is_instance_valid(active_ship)
 		and active_ship.is_inside_tree()
@@ -2548,6 +2557,142 @@ func _capture_cinder_actor_sample() -> Dictionary:
 			}
 		return {"available": false, "reason": &"nonfinite_player_position"}
 	return {"available": false, "reason": &"no_tracked_production_actor"}
+
+
+## Forwards the one already-adjusted common-origin observation to the retained
+## surface scheduler. GameFlow selects the embodied actor and phase-specific
+## intents, while the binding remains the sole same-frame Host advancement
+## owner and the actors remain the sole physical movers.
+func _advance_ember_surface_loop_cadence(
+	delta: float,
+	actor_sample: Dictionary,
+	origin_result: Dictionary,
+	coordinate_frame_generation: int,
+) -> Dictionary:
+	if not _ember_surface_journey_active \
+			or not _ember_final_approach_handoff_ready \
+			or not is_instance_valid(ember_surface_loop_production_binding) \
+			or not is_instance_valid(active_ship) \
+			or not is_instance_valid(player):
+		return {"accepted": false, "reason": &"ember_surface_cadence_unavailable"}
+	var binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
+	if StringName(binding_snapshot.get("state_id", &"")) \
+			not in [&"idle", &"start_pending", &"running"]:
+		return {"accepted": false, "reason": &"ember_surface_cadence_inactive"}
+	if origin_result.is_empty() or not bool(origin_result.get("accepted", false)) \
+			or not bool(actor_sample.get("available", false)) \
+			or coordinate_frame_generation < 1:
+		return {"accepted": false, "reason": &"ember_surface_observation_unavailable"}
+	var actor_kind := StringName(actor_sample.get("actor_kind", &""))
+	var actor_instance_id := int(actor_sample.get("actor_instance_id", 0))
+	var actor_position_value: Variant = actor_sample.get("position", Vector3.INF)
+	if actor_kind not in [&"ship", &"player"] \
+			or not actor_position_value is Vector3 \
+			or not (actor_position_value as Vector3).is_finite() \
+			or (actor_kind == &"ship" and actor_instance_id != active_ship.get_instance_id()) \
+			or (actor_kind == &"player" and actor_instance_id != player.get_instance_id()):
+		return {"accepted": false, "reason": &"ember_surface_actor_sample_mismatch"}
+	var location_generation := int(
+		(binding_snapshot.get("identities", {}) as Dictionary).get(
+			"location_generation", 0
+		)
+	)
+	if location_generation < 1 \
+			or _ember_surface_caller_serial >= EmberSurfaceLoopHost.MAX_SAFE_INTEGER:
+		return {"accepted": false, "reason": &"ember_surface_generation_unavailable"}
+	_ember_surface_caller_serial += 1
+	var telemetry := active_ship.get_telemetry()
+	var host_phase := ember_surface_loop_production_binding.get_host_phase()
+	var advanced := ember_surface_loop_production_binding.advance_from_caller_sample(
+		_ember_surface_caller_serial,
+		delta,
+		actor_kind,
+		actor_instance_id,
+		active_ship.get_instance_id(),
+		actor_position_value as Vector3,
+		active_ship.velocity,
+		bool(telemetry.get("landed", false)),
+		false,
+		false,
+		origin_result,
+		coordinate_frame_generation,
+		location_generation,
+		ember_surface_loop_production_binding.get_generation(),
+	)
+	if not bool(advanced.get("accepted", false)):
+		return advanced
+	var intent_result: Dictionary = {}
+	if host_phase == EmberSurfaceLoopHost.Phase.LANDED \
+			and str(telemetry.get("engine_state", "ONLINE")) == "OFFLINE":
+		intent_result = _queue_ember_surface_intent(&"disembark")
+	elif host_phase == EmberSurfaceLoopHost.Phase.REBOARDED:
+		intent_result = _queue_ember_surface_intent(&"takeoff")
+	if not intent_result.is_empty():
+		advanced["intent"] = intent_result.duplicate(true)
+	return advanced.duplicate(true)
+
+
+## Queues one lifecycle intent against the exact early envelope prepared in the
+## current physics frame. Re-entry drops that envelope in the production
+## binding, so no GameFlow latch can replay an intent into a later tree epoch.
+func _queue_ember_surface_intent(intent_id: StringName) -> Dictionary:
+	if not is_instance_valid(ember_surface_loop_production_binding):
+		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
+	var snapshot := ember_surface_loop_production_binding.get_snapshot()
+	if StringName(snapshot.get("state_id", &"")) != &"running":
+		return {"accepted": false, "reason": &"ember_surface_intent_out_of_order"}
+	var pending := snapshot.get("pending_envelope", {}) as Dictionary
+	if pending.is_empty() \
+			or int(pending.get("physics_frame", -1)) != int(Engine.get_physics_frames()) \
+			or not (snapshot.get("pending_intent", {}) as Dictionary).is_empty():
+		return {"accepted": false, "reason": &"ember_surface_intent_without_current_tick"}
+	var intent_serial := int(snapshot.get("last_intent_serial", 0)) + 1
+	match intent_id:
+		&"disembark":
+			return ember_surface_loop_production_binding.queue_disembark_intent(
+				intent_serial, ember_surface_loop_production_binding.get_generation()
+			)
+		&"reboard":
+			return ember_surface_loop_production_binding.queue_reboard_intent(
+				intent_serial, ember_surface_loop_production_binding.get_generation()
+			)
+		&"takeoff":
+			return ember_surface_loop_production_binding.queue_takeoff_intent(
+				intent_serial, ember_surface_loop_production_binding.get_generation()
+			)
+	return {"accepted": false, "reason": &"ember_surface_intent_invalid"}
+
+
+## PlayerController already owns normal on-foot Input sampling. This handler
+## only turns its public interaction signal into the binding's typed reboard
+## intent after the Host has proven the complete return walk and the exact live
+## boarding area is physically nearby.
+func _consume_ember_surface_reboard_interaction() -> bool:
+	if not _ember_surface_journey_active \
+			or not is_instance_valid(ember_surface_loop_host) \
+			or not is_instance_valid(ember_surface_loop_production_binding) \
+			or ember_surface_loop_production_binding.get_host_phase() \
+				!= EmberSurfaceLoopHost.Phase.ON_FOOT:
+		return false
+	var host_snapshot := ember_surface_loop_host.get_snapshot()
+	if not bool(
+		(host_snapshot.get("surface_route", {}) as Dictionary).get(
+			"return_complete", false
+		)
+	):
+		return true
+	var boarding_area := active_ship.get_node_or_null(^"ShipBoardingArea") \
+		as ShipBoardingArea if is_instance_valid(active_ship) else null
+	if not is_instance_valid(boarding_area) or not is_instance_valid(player):
+		return true
+	var boarding_area_nearby := false
+	for nearby in player.get_nearby_interactables():
+		if nearby == boarding_area:
+			boarding_area_nearby = true
+			break
+	if boarding_area_nearby:
+		_queue_ember_surface_intent(&"reboard")
+	return true
 
 
 ## Returns the first production-owned reason that prevents an Ember cruise
@@ -3664,6 +3809,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_interact_requested() -> void:
+	if _consume_ember_surface_reboard_interaction():
+		return
 	if _piloting or _transition_busy:
 		return
 	if _station_seated:
