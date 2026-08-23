@@ -301,6 +301,30 @@ func enter_planetary_settlement(structure_id: StringName, position: Variant) -> 
 	return _planetary_composition.call(&"enter_settlement", structure_id, position)
 
 
+func start_planetary_relay_survey() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"start_relay_survey")
+
+
+func submit_planetary_relay_survey_position(position: Vector3) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"submit_relay_survey_position", position)
+
+
+func submit_planetary_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"submit_relay_survey_landmark", landmark_id, position)
+
+
+func commit_planetary_relay_survey_reward() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"commit_relay_survey_reward")
+
+
 func detach_planetary_surface() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
