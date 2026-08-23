@@ -297,6 +297,10 @@ func _test_checked_in_encounter_content() -> void:
 	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
 	var beta_nominal_preferred_range := beta.preferred_range
 	var gamma_nominal_preferred_range := gamma.preferred_range
+	var beta_nominal_cruise_speed := beta.cruise_speed
+	var beta_nominal_chase_speed := beta.chase_speed
+	var gamma_nominal_cruise_speed := gamma.cruise_speed
+	var gamma_nominal_chase_speed := gamma.chase_speed
 	var gamma_nominal_orbit_sign := float(gamma.get("_orbit_sign"))
 	var beta_role_lamps := _weapon_telegraph_nodes(beta)
 	var gamma_role_lamps := _weapon_telegraph_nodes(gamma)
@@ -425,6 +429,11 @@ func _test_checked_in_encounter_content() -> void:
 		and int(definition_audit.get("wave_count", 0)) == 2
 		and int(definition_audit.get("hostile_count", 0)) == 3
 		and int(definition_audit.get("protected_asset_count", 0)) == 1
+		and is_equal_approx(definition.later_wave_opening_duration_seconds, 1.25)
+		and is_equal_approx(
+			float((definition_audit.limits as Dictionary).later_wave_opening_duration_seconds),
+			1.25
+		)
 		and waves.size() == 2
 		and waves[0].wave_id == &"yard_approach"
 		and int(waves[0].mode) == StationDefenseContract.WaveMode.ORDERED
@@ -432,7 +441,7 @@ func _test_checked_in_encounter_content() -> void:
 		and int(waves[1].mode) == StationDefenseContract.WaveMode.SIMULTANEOUS
 		and is_equal_approx(float(waves[1].delay_seconds), 0.5)
 		and is_equal_approx(float(contract_snapshot.timeout_seconds), 12.0),
-		"the original bounded contract still freezes one ordered and one simultaneous wave"
+		"the bounded contract freezes two waves plus the authored 1.25 s relief-wave opening"
 	)
 
 	var initial := content.get_snapshot()
@@ -447,11 +456,11 @@ func _test_checked_in_encounter_content() -> void:
 		and resolver.get_registered_source_count() == 3
 		and staging.size() == 3
 		and staging[0].local_position == Vector3(-24.0, 6.0, -52.0)
-		and staging[1].local_position == Vector3(24.0, 6.0, -52.0)
-		and staging[2].local_position == Vector3(0.0, 10.0, -86.0)
+		and staging[1].local_position == Vector3(0.0, 6.0, -38.0)
+		and staging[2].local_position == Vector3(26.0, 10.0, -84.0)
 		and _staging_rows_valid(staging)
 		and _minimum_keep_clear_gap(staging) > StationDefenseEncounterContent.MIN_KEEP_CLEAR_GAP,
-		"checked-in content keeps exact bounded nodes, sources, staging identities, and 9 m volumes"
+		"checked-in content authors a distinct core breach lane and lateral feint lane within the bounded staging roster"
 	)
 	_check(
 		content.global_transform.is_equal_approx(AUDITED_WORLD_TRANSFORM)
@@ -543,24 +552,90 @@ func _test_checked_in_encounter_content() -> void:
 		forming_tactic.tactic_id == StationDefenseEncounterContent.LATER_WAVE_TACTIC_ID
 		and forming_tactic.state_id == &"forming"
 		and not bool(forming_tactic.active)
-		and str(forming_tactic.objective).contains("PINCER INBOUND")
+		and content.get_snapshot().breaker_feint.state_id == &"inbound"
+		and str(forming_tactic.objective).contains("BREAKER INBOUND")
 		and str(content.get_snapshot().host.activity.next_step).begins_with(
 			str(forming_tactic.objective)
 		)
 		and str(content.get_snapshot().host.activity.next_step).contains(
 			"PERIMETER CORE UNDER FIRE 95% [|||!]"
 		),
-		"inter-wave feedback retains both the forming-pincer objective and non-color-only core pressure"
+		"inter-wave feedback warns of the breaker and outer feint while retaining non-color-only core pressure"
 	)
 	var relief := content.advance_physics(0.5, generation)
 	await physics_frame
+	var breaker_snapshot := content.get_snapshot()
+	var breaker_feedback := breaker_snapshot.breaker_feint as Dictionary
+	var breaker_roles := breaker_feedback.roles as Array
+	_check(
+		alpha_terminal.destroyed and relief.accepted
+		and beta.is_active() and gamma.is_active()
+		and breaker_feedback.tactic_id == StationDefenseEncounterContent.BREAKER_FEINT_TACTIC_ID
+		and breaker_feedback.state_id == &"active"
+		and bool(breaker_feedback.active)
+		and is_zero_approx(float(breaker_feedback.elapsed_seconds))
+		and is_equal_approx(float(breaker_feedback.duration_seconds), 1.25)
+		and (breaker_roles[0] as Dictionary).role == &"core_breaker"
+		and (breaker_roles[0] as Dictionary).approach == &"direct_zero_orbit"
+		and (breaker_roles[1] as Dictionary).role == &"outer_feint"
+		and (breaker_roles[1] as Dictionary).approach == &"slow_counter_orbit"
+		and is_equal_approx(beta.preferred_range, StationDefenseEncounterContent.BREAKER_PREFERRED_RANGE)
+		and is_equal_approx(beta.cruise_speed, StationDefenseEncounterContent.BREAKER_CRUISE_SPEED)
+		and is_equal_approx(beta.chase_speed, StationDefenseEncounterContent.BREAKER_CHASE_SPEED)
+		and is_zero_approx(float(beta.get("_orbit_sign")))
+		and is_equal_approx(gamma.preferred_range, StationDefenseEncounterContent.FEINT_PREFERRED_RANGE)
+		and is_equal_approx(gamma.cruise_speed, StationDefenseEncounterContent.FEINT_CRUISE_SPEED)
+		and is_equal_approx(gamma.chase_speed, StationDefenseEncounterContent.FEINT_CHASE_SPEED)
+		and float(gamma.get("_orbit_sign")) == StationDefenseEncounterContent.FEINT_ORBIT_SIGN
+		and str(breaker_snapshot.host.activity.next_step).contains(
+			"STOP BETA BREAKER // GAMMA IS THE FEINT"
+		),
+		"the relief wave opens with a direct fast core breaker and a slower lateral feint on authored lanes"
+	)
+	for _frame in 18:
+		await physics_frame
+	var beta_to_core := (asset.global_position - beta.global_position).normalized()
+	var gamma_radius_during_feint := gamma.global_position - asset.global_position
+	var beta_closing_motion := beta.velocity.dot(beta_to_core)
+	var gamma_feint_motion := gamma.velocity.dot(
+		Vector3.UP.cross(gamma_radius_during_feint).normalized()
+	)
+	_check(
+		beta_closing_motion > 4.0
+		and gamma_feint_motion > 2.0
+		and beta_closing_motion > absf(
+			gamma.velocity.dot((asset.global_position - gamma.global_position).normalized())
+		),
+		"live motion separates Beta's zero-orbit core rush from Gamma's slower tangential feint"
+	)
+	var stale_breaker := content.advance_physics(0.4, generation + 1)
+	var after_stale_breaker := content.get_snapshot().breaker_feint as Dictionary
+	_check(
+		not stale_breaker.accepted and stale_breaker.reason == &"stale_generation"
+		and after_stale_breaker.state_id == &"active"
+		and is_zero_approx(float(after_stale_breaker.elapsed_seconds))
+		and is_equal_approx(beta.chase_speed, StationDefenseEncounterContent.BREAKER_CHASE_SPEED)
+		and is_equal_approx(gamma.chase_speed, StationDefenseEncounterContent.FEINT_CHASE_SPEED),
+		"a stale generation cannot consume breaker time or disturb the authored live roles"
+	)
+	var partial_breaker := content.advance_physics(0.6, generation)
+	var partial_feedback := content.get_snapshot().breaker_feint as Dictionary
+	_check(
+		partial_breaker.accepted
+		and partial_feedback.state_id == &"active"
+		and is_equal_approx(float(partial_feedback.elapsed_seconds), 0.6)
+		and is_equal_approx(float(partial_feedback.remaining_seconds), 0.65)
+		and is_equal_approx(beta.chase_speed, StationDefenseEncounterContent.BREAKER_CHASE_SPEED),
+		"only accepted caller physics advances the bounded breaker window while its live roles remain applied"
+	)
+	var pincer_transition := content.advance_physics(0.65, generation)
 	var active_tactic := content.get_snapshot().later_wave_tactic as Dictionary
 	var active_activity := content.get_snapshot().host.activity as Dictionary
 	var close_role := (active_tactic.formation as Array)[0] as Dictionary
 	var outer_role := (active_tactic.formation as Array)[1] as Dictionary
 	_check(
-		alpha_terminal.destroyed and relief.accepted
-		and beta.is_active() and gamma.is_active()
+		pincer_transition.accepted and beta.is_active() and gamma.is_active()
+		and content.get_snapshot().breaker_feint.state_id == &"transitioned"
 		and active_tactic.state_id == &"active"
 		and bool(active_tactic.applied)
 		and (active_tactic.formation as Array).size() == 2
@@ -568,6 +643,10 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(gamma.preferred_range, StationDefenseEncounterContent.PINCER_OUTER_PREFERRED_RANGE)
 		and float(beta.get("_orbit_sign")) == StationDefenseEncounterContent.PINCER_CLOSE_ORBIT_SIGN
 		and float(gamma.get("_orbit_sign")) == StationDefenseEncounterContent.PINCER_OUTER_ORBIT_SIGN
+		and is_equal_approx(beta.cruise_speed, beta_nominal_cruise_speed)
+		and is_equal_approx(beta.chase_speed, beta_nominal_chase_speed)
+		and is_equal_approx(gamma.cruise_speed, gamma_nominal_cruise_speed)
+		and is_equal_approx(gamma.chase_speed, gamma_nominal_chase_speed)
 		and close_role.telegraph_identity == &"compact_pair"
 		and close_role.identity_pattern == "><"
 		and bool(close_role.presentation_active)
@@ -591,9 +670,9 @@ func _test_checked_in_encounter_content() -> void:
 			StationDefenseEncounterContent.PINCER_OUTER_TELEGRAPH_RADIUS
 		)
 		and str(active_activity.next_step).contains("BREAK CROSSFIRE PINCER"),
-		"the later relief wave gives close and outer counter-orbit roles distinct compact and guard lamp silhouettes"
+		"the bounded opening restores nominal speeds before handing the same opponents to the sustained pincer"
 	)
-	for _frame in 18:
+	for _frame in 42:
 		await physics_frame
 	var beta_radius := beta.global_position - asset.global_position
 	var gamma_radius := gamma.global_position - asset.global_position
@@ -627,6 +706,10 @@ func _test_checked_in_encounter_content() -> void:
 		and str(broken_tactic.objective).contains("FINISH REMAINING RAIDER")
 		and is_equal_approx(gamma.preferred_range, gamma_nominal_preferred_range)
 		and float(gamma.get("_orbit_sign")) == gamma_nominal_orbit_sign
+		and is_equal_approx(beta.cruise_speed, beta_nominal_cruise_speed)
+		and is_equal_approx(beta.chase_speed, beta_nominal_chase_speed)
+		and is_equal_approx(gamma.cruise_speed, gamma_nominal_cruise_speed)
+		and is_equal_approx(gamma.chase_speed, gamma_nominal_chase_speed)
 		and _telegraph_positions_match(beta_role_lamps, beta_nominal_lamp_positions)
 		and _telegraph_positions_match(gamma_role_lamps, gamma_nominal_lamp_positions)
 		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
@@ -661,6 +744,8 @@ func _test_checked_in_encounter_content() -> void:
 	var idle_generation := int(reset_after_completion.activity.generation)
 	_check(
 		reset_after_completion.accepted and idle_generation == 2
+		and content.get_snapshot().breaker_feint.state_id == &"idle"
+		and is_zero_approx(float(content.get_snapshot().breaker_feint.elapsed_seconds))
 		and int(asset.get_asset_handle().generation) == 2
 		and int(reset_after_completion.activity.protected_assets[0].handle.generation) == 2
 		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
@@ -736,6 +821,8 @@ func _test_checked_in_encounter_content() -> void:
 		and _telegraph_positions_match(gamma_role_lamps, gamma_nominal_lamp_positions)
 		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
 		and is_equal_approx(_telegraph_radius(gamma_role_lamps), gamma_nominal_lamp_radius)
+		and content.get_snapshot().breaker_feint.state_id == &"standby"
+		and is_zero_approx(float(content.get_snapshot().breaker_feint.elapsed_seconds))
 		and reentry_integrity.state_id == &"stable"
 		and int(reentry_integrity.health_percent) == 100
 		and reentry_integrity.pattern == "[||||]",

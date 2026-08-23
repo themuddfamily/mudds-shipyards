@@ -19,6 +19,7 @@ const MIN_KEEP_CLEAR_GAP := 4.0
 const HOSTILE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
 const LATER_WAVE_TACTIC_ID: StringName = &"dockside_crossfire_pincer"
 const LATER_WAVE_ID: StringName = &"dockside_relief"
+const BREAKER_FEINT_TACTIC_ID: StringName = &"core_breaker_outer_feint"
 const PINCER_CLOSE_HOSTILE_ID: StringName = &"perimeter_raider_beta"
 const PINCER_OUTER_HOSTILE_ID: StringName = &"perimeter_raider_gamma"
 const PINCER_CLOSE_PREFERRED_RANGE := 22.0
@@ -35,6 +36,14 @@ const PINCER_OUTER_TELEGRAPH_POSITIONS := [
 	Vector3(-3.55, 0.58, -4.30),
 	Vector3(3.55, 0.58, -4.30),
 ]
+const BREAKER_PREFERRED_RANGE := 10.0
+const BREAKER_CRUISE_SPEED := 32.0
+const BREAKER_CHASE_SPEED := 42.0
+const BREAKER_ORBIT_SIGN := 0.0
+const FEINT_PREFERRED_RANGE := 58.0
+const FEINT_CRUISE_SPEED := 14.0
+const FEINT_CHASE_SPEED := 18.0
+const FEINT_ORBIT_SIGN := -1.0
 const INTEGRITY_STATE_STABLE: StringName = &"stable"
 const INTEGRITY_STATE_UNDER_FIRE: StringName = &"under_fire"
 const INTEGRITY_STATE_CRITICAL: StringName = &"critical"
@@ -107,7 +116,11 @@ var _last_live_world_transform := AUDITED_WORLD_TRANSFORM
 var _later_wave_tactic_state: StringName = &"idle"
 var _later_wave_tactic_generation := 0
 var _later_wave_tactic_applied := false
+var _later_wave_tactic_mode: StringName = &"idle"
 var _nominal_tactic_configuration_by_key: Dictionary = {}
+var _breaker_feint_state: StringName = &"idle"
+var _breaker_feint_generation := 0
+var _breaker_feint_elapsed_seconds := 0.0
 
 
 func _enter_tree() -> void:
@@ -347,7 +360,21 @@ func advance_physics(delta: float, expected_generation: int) -> Dictionary:
 		if bool(aborted.get("accepted", false)):
 			return _content_result(false, &"engagement_leash_exited")
 		return aborted
-	return _host.advance_physics(delta, expected_generation)
+	var activity_before := _host.get_snapshot().get("activity", {}) as Dictionary
+	var breaker_advanceable := _breaker_feint_phase_is_advanceable(
+		activity_before, expected_generation
+	)
+	var result := _host.advance_physics(delta, expected_generation)
+	if bool(result.get("accepted", false)) and breaker_advanceable:
+		_breaker_feint_elapsed_seconds = minf(
+			_get_breaker_feint_duration_seconds(),
+			_breaker_feint_elapsed_seconds + delta
+		)
+		_sync_later_wave_tactic(
+			_host.get_snapshot().get("activity", {}) as Dictionary
+		)
+		_publish_snapshot()
+	return result
 
 
 func protected_asset_damaged(
@@ -514,8 +541,13 @@ func get_snapshot() -> Dictionary:
 	)
 	var activity := (host_snapshot.get("activity", {}) as Dictionary).duplicate(true)
 	var tactic_feedback := _get_later_wave_tactic_feedback(activity)
+	var breaker_feint_feedback := _get_breaker_feint_feedback(activity)
 	var integrity_feedback := _get_protected_asset_integrity_feedback(activity)
 	var objective := str(tactic_feedback.get("objective", "DEFEND PERIMETER BEACON"))
+	if StringName(breaker_feint_feedback.get("state_id", &"idle")) in [
+		&"inbound", &"active",
+	]:
+		objective = str(breaker_feint_feedback.get("objective", objective))
 	if (
 		StringName(integrity_feedback.get("state_id", INTEGRITY_STATE_STABLE))
 		!= INTEGRITY_STATE_STABLE
@@ -531,6 +563,10 @@ func get_snapshot() -> Dictionary:
 		]
 	activity["tactic_id"] = tactic_feedback.get("tactic_id", &"")
 	activity["tactic_state_id"] = tactic_feedback.get("state_id", &"idle")
+	activity["opening_tactic_id"] = BREAKER_FEINT_TACTIC_ID
+	activity["opening_tactic_state_id"] = breaker_feint_feedback.get(
+		"state_id", &"idle"
+	)
 	activity["protected_asset_integrity"] = integrity_feedback.duplicate(true)
 	activity["protected_asset_integrity_state"] = integrity_feedback.get(
 		"state_id", INTEGRITY_STATE_STABLE
@@ -580,6 +616,7 @@ func get_snapshot() -> Dictionary:
 		"last_hostile_shot": _last_hostile_shot.duplicate(true),
 		"last_leash_exit": _last_leash_exit.duplicate(true),
 		"later_wave_tactic": tactic_feedback,
+		"breaker_feint": breaker_feint_feedback,
 		"protected_asset_integrity": integrity_feedback,
 		"engagement": {
 			"required_world_transform": AUDITED_WORLD_TRANSFORM,
@@ -945,6 +982,8 @@ func _capture_nominal_tactic_configuration() -> void:
 			continue
 		_nominal_tactic_configuration_by_key[key] = {
 			"preferred_range": entity.preferred_range,
+			"cruise_speed": entity.cruise_speed,
+			"chase_speed": entity.chase_speed,
 			"orbit_sign": float(entity.get("_orbit_sign")),
 			"telegraph_node_paths": (
 				entity.get_weapon_telegraph_mesh_allocation_audit().get(
@@ -963,31 +1002,44 @@ func _sync_later_wave_tactic(activity: Dictionary) -> void:
 	var wave_active := bool(activity.get("wave_active", false))
 	if state_id == &"idle":
 		_restore_later_wave_tactic_configuration()
+		_reset_breaker_feint_phase(&"idle", 0)
 		_later_wave_tactic_state = &"idle"
 		_later_wave_tactic_generation = 0
 		return
 	if state_id in [&"completed", &"failed", &"aborted", &"timed_out"]:
 		_restore_later_wave_tactic_configuration()
+		_reset_breaker_feint_phase(state_id, generation)
 		_later_wave_tactic_state = state_id
 		return
 	if state_id != &"active" or wave_id != LATER_WAVE_ID:
 		_restore_later_wave_tactic_configuration()
+		_reset_breaker_feint_phase(&"standby", generation)
 		_later_wave_tactic_state = &"standby"
 		return
 
 	_later_wave_tactic_generation = generation
+	if _breaker_feint_generation != generation:
+		_reset_breaker_feint_phase(&"inbound", generation)
 	if not wave_active:
 		_restore_later_wave_tactic_configuration()
+		_breaker_feint_state = &"inbound"
 		_later_wave_tactic_state = &"forming"
 		return
 	var active_ids: Array[StringName] = []
 	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
 		active_ids.append(StringName(handle.get("hostile_id", &"")))
 	if PINCER_CLOSE_HOSTILE_ID in active_ids and PINCER_OUTER_HOSTILE_ID in active_ids:
-		_apply_later_wave_tactic_configuration()
-		_later_wave_tactic_state = &"active"
+		if _breaker_feint_elapsed_seconds < _get_breaker_feint_duration_seconds():
+			_apply_breaker_feint_configuration()
+			_breaker_feint_state = &"active"
+			_later_wave_tactic_state = &"breaker_feint"
+		else:
+			_apply_later_wave_tactic_configuration()
+			_breaker_feint_state = &"transitioned"
+			_later_wave_tactic_state = &"active"
 		return
 	_restore_later_wave_tactic_configuration()
+	_breaker_feint_state = &"interrupted"
 	_later_wave_tactic_state = &"broken"
 
 
@@ -997,7 +1049,11 @@ func _apply_later_wave_tactic_configuration() -> void:
 	if not is_instance_valid(close_entity) or not is_instance_valid(outer_entity):
 		_restore_later_wave_tactic_configuration()
 		return
+	if _later_wave_tactic_applied and _later_wave_tactic_mode == &"pincer":
+		return
+	_restore_later_wave_tactic_configuration()
 	_later_wave_tactic_applied = true
+	_later_wave_tactic_mode = &"pincer"
 	close_entity.preferred_range = PINCER_CLOSE_PREFERRED_RANGE
 	close_entity.set("_orbit_sign", PINCER_CLOSE_ORBIT_SIGN)
 	outer_entity.preferred_range = PINCER_OUTER_PREFERRED_RANGE
@@ -1017,6 +1073,27 @@ func _apply_later_wave_tactic_configuration() -> void:
 		_restore_later_wave_tactic_configuration()
 
 
+func _apply_breaker_feint_configuration() -> void:
+	var breaker := _get_tactic_entity(PINCER_CLOSE_HOSTILE_ID)
+	var feint := _get_tactic_entity(PINCER_OUTER_HOSTILE_ID)
+	if not is_instance_valid(breaker) or not is_instance_valid(feint):
+		_restore_later_wave_tactic_configuration()
+		return
+	if _later_wave_tactic_applied and _later_wave_tactic_mode == &"breaker_feint":
+		return
+	_restore_later_wave_tactic_configuration()
+	_later_wave_tactic_applied = true
+	_later_wave_tactic_mode = &"breaker_feint"
+	breaker.preferred_range = BREAKER_PREFERRED_RANGE
+	breaker.cruise_speed = BREAKER_CRUISE_SPEED
+	breaker.chase_speed = BREAKER_CHASE_SPEED
+	breaker.set("_orbit_sign", BREAKER_ORBIT_SIGN)
+	feint.preferred_range = FEINT_PREFERRED_RANGE
+	feint.cruise_speed = FEINT_CRUISE_SPEED
+	feint.chase_speed = FEINT_CHASE_SPEED
+	feint.set("_orbit_sign", FEINT_ORBIT_SIGN)
+
+
 func _restore_later_wave_tactic_configuration() -> void:
 	if not _later_wave_tactic_applied:
 		return
@@ -1027,6 +1104,8 @@ func _restore_later_wave_tactic_configuration() -> void:
 		if not is_instance_valid(entity) or nominal.is_empty():
 			continue
 		entity.preferred_range = float(nominal.get("preferred_range", entity.preferred_range))
+		entity.cruise_speed = float(nominal.get("cruise_speed", entity.cruise_speed))
+		entity.chase_speed = float(nominal.get("chase_speed", entity.chase_speed))
 		entity.set("_orbit_sign", float(nominal.get("orbit_sign", 1.0)))
 		var telegraphs := _get_tactic_telegraph_nodes(
 			entity,
@@ -1043,6 +1122,45 @@ func _restore_later_wave_tactic_configuration() -> void:
 					sphere.radius = nominal_radius
 					sphere.height = nominal_radius * 2.0
 	_later_wave_tactic_applied = false
+	_later_wave_tactic_mode = &"idle"
+
+
+func _reset_breaker_feint_phase(state_id: StringName, generation: int) -> void:
+	_breaker_feint_state = state_id
+	_breaker_feint_generation = generation
+	_breaker_feint_elapsed_seconds = 0.0
+
+
+func _get_breaker_feint_duration_seconds() -> float:
+	if contract_definition == null:
+		return 1.25
+	return clampf(
+		contract_definition.later_wave_opening_duration_seconds,
+		0.25,
+		3.0
+	)
+
+
+func _breaker_feint_phase_is_advanceable(
+	activity: Dictionary,
+	expected_generation: int
+	) -> bool:
+	if (
+		StringName(activity.get("state_id", &"")) != &"active"
+		or int(activity.get("generation", -1)) != expected_generation
+		or StringName(activity.get("wave_id", &"")) != LATER_WAVE_ID
+		or not bool(activity.get("wave_active", false))
+		or _breaker_feint_generation != expected_generation
+		or _breaker_feint_elapsed_seconds >= _get_breaker_feint_duration_seconds()
+	):
+		return false
+	var active_ids: Array[StringName] = []
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		active_ids.append(StringName(handle.get("hostile_id", &"")))
+	return (
+		PINCER_CLOSE_HOSTILE_ID in active_ids
+		and PINCER_OUTER_HOSTILE_ID in active_ids
+	)
 
 
 func _get_tactic_telegraph_nodes(
@@ -1125,6 +1243,66 @@ func _get_tactic_entity(hostile_id: StringName) -> RangeOpponent:
 	return null
 
 
+func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
+	var duration := _get_breaker_feint_duration_seconds()
+	var remaining := maxf(0.0, duration - _breaker_feint_elapsed_seconds)
+	var objective := "CLEAR APPROACH RAIDER // DEFEND PERIMETER BEACON"
+	var status := "BREAKER / FEINT // STANDBY"
+	match _breaker_feint_state:
+		&"idle":
+			objective = "START PERIMETER DEFENSE"
+			status = "BREAKER / FEINT // IDLE"
+		&"inbound":
+			objective = "BREAKER INBOUND // WATCH OUTER FEINT"
+			status = "BETA BREACH LANE // GAMMA WIDE"
+		&"active":
+			objective = "STOP BETA BREAKER // GAMMA IS THE FEINT"
+			status = "CORE RUSH // FEINT SWEEP // %.1f S" % remaining
+		&"transitioned":
+			objective = "FEINT EXPOSED // BREAK CROSSFIRE PINCER"
+			status = "BREAKER PHASE CLEARED"
+		&"interrupted":
+			objective = "BREAKER STOPPED // FINISH RELIEF WAVE"
+			status = "OPENING TACTIC BROKEN"
+		&"completed":
+			objective = "PERIMETER SECURE // RECOVER AT DEFENSE BOARD"
+			status = "BREAKER / FEINT DEFEATED"
+		&"failed", &"aborted", &"timed_out":
+			objective = "DEFENSE ENDED // RECOVER AT DEFENSE BOARD"
+			status = "BREAKER / FEINT RETIRED"
+	return {
+		"tactic_id": BREAKER_FEINT_TACTIC_ID,
+		"wave_id": LATER_WAVE_ID,
+		"state_id": _breaker_feint_state,
+		"generation": _breaker_feint_generation,
+		"active": _breaker_feint_state == &"active",
+		"elapsed_seconds": _breaker_feint_elapsed_seconds,
+		"duration_seconds": duration,
+		"remaining_seconds": remaining,
+		"status": status,
+		"objective": objective,
+		"roles": [
+			{
+				"hostile_id": PINCER_CLOSE_HOSTILE_ID,
+				"role": &"core_breaker",
+				"approach": &"direct_zero_orbit",
+				"preferred_range": BREAKER_PREFERRED_RANGE,
+				"chase_speed": BREAKER_CHASE_SPEED,
+			},
+			{
+				"hostile_id": PINCER_OUTER_HOSTILE_ID,
+				"role": &"outer_feint",
+				"approach": &"slow_counter_orbit",
+				"preferred_range": FEINT_PREFERRED_RANGE,
+				"chase_speed": FEINT_CHASE_SPEED,
+			},
+		],
+		"uses_caller_physics_delta": true,
+		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
 func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 	var state := _later_wave_tactic_state
 	var objective := "CLEAR APPROACH RAIDER // DEFEND PERIMETER BEACON"
@@ -1134,8 +1312,11 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 			objective = "START PERIMETER DEFENSE"
 			status = "CROSSFIRE PINCER // IDLE"
 		&"forming":
-			objective = "PINCER INBOUND // HOLD PERIMETER BEACON"
-			status = "WAVE 2 // CROSSFIRE FORMING"
+			objective = "BREAKER INBOUND // WATCH OUTER FEINT"
+			status = "WAVE 2 // BREAKER / FEINT FORMING"
+		&"breaker_feint":
+			objective = "STOP BETA BREAKER // GAMMA IS THE FEINT"
+			status = "BREAKER / FEINT ACTIVE"
 		&"active":
 			objective = "BREAK CROSSFIRE PINCER // PROTECT BEACON"
 			status = "BETA CLOSE // GAMMA OUTER"

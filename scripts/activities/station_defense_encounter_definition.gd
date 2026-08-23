@@ -50,6 +50,7 @@ const _AUTHORITY_EXCLUSIONS := {
 
 @export_category("Timing")
 @export_range(0.1, 86400.0, 0.1) var timeout_seconds := 60.0
+@export_range(0.25, 3.0, 0.05) var later_wave_opening_duration_seconds := 1.25
 
 
 func instantiate_contract() -> StationDefenseContract:
@@ -108,6 +109,12 @@ func get_validation_errors() -> PackedStringArray:
 		partition_total += maxi(0, count)
 	if partition_total != hostile_ids.size():
 		errors.append("wave hostile counts must partition the exact hostile roster")
+	if (
+		not is_finite(later_wave_opening_duration_seconds)
+		or later_wave_opening_duration_seconds < 0.25
+		or later_wave_opening_duration_seconds > 3.0
+	):
+		errors.append("later-wave opening duration must remain within 0.25 and 3 seconds")
 
 	# Reuse the production contract's exact ID, generation, mode, delay, duplicate,
 	# and timeout validation rather than maintaining a second interpretation.
@@ -133,7 +140,7 @@ func get_evidence_metadata() -> Dictionary:
 		"claims_historical_wave_plan": false,
 		"modern_interpretations": PackedStringArray([
 			"station perimeter defense objective",
-			"ordered probe followed by a simultaneous relief wave",
+			"ordered probe followed by a breaker-and-feint relief opening",
 			"spawn positions, keep-clear radii, delay, and timeout",
 		]),
 		"explicit_unknowns": PackedStringArray([
@@ -160,6 +167,7 @@ func audit() -> Dictionary:
 			"maximum_content_hostiles": MAX_CONTENT_HOSTILES,
 			"maximum_waves": StationDefenseContract.MAX_WAVES,
 			"maximum_hostiles_per_wave": StationDefenseContract.MAX_HOSTILES_PER_WAVE,
+			"later_wave_opening_duration_seconds": later_wave_opening_duration_seconds,
 		},
 		"evidence": get_evidence_metadata(),
 		"authority_exclusions": _AUTHORITY_EXCLUSIONS.duplicate(true),

@@ -6,7 +6,7 @@
 script = ExtResource("1_definition")
 activity_id = &"shipyard_perimeter_defense"
 display_name = "Shipyard perimeter defense"
-content_note = "A bounded original encounter composition for the modern prototype; it authenticates no historical mission, wave plan, hostile identity, or spawn geometry."
+content_note = "A bounded original encounter composition with a short breaker-and-feint opening before the relief-wave crossfire; it authenticates no historical mission, wave plan, hostile identity, or spawn geometry."
 hostile_faction_id = &"perimeter_raiders"
 wave_ids = PackedStringArray("yard_approach", "dockside_relief")
 wave_modes = PackedInt32Array(0, 1)
@@ -17,3 +17,4 @@ hostile_generations = PackedInt32Array(1, 2, 3)
 protected_asset_ids = PackedStringArray("station_perimeter_core")
 protected_asset_generations = PackedInt32Array(1)
 timeout_seconds = 12.0
+later_wave_opening_duration_seconds = 1.25
