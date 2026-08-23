@@ -54,12 +54,15 @@ func _evidence_complete() -> bool:
 	var client_b_log := _read_log("client_b")
 	for marker in [
 		"HOST_READY", "PILOT_ADMITTED", "PASSENGER_ADMITTED", "COMMAND_ACCEPTED",
-		"AUTHORITATIVE_DELIVERED", "CLEAN_DISCONNECT",
+		"RELATIONSHIP_PUBLISHED", "IMPAIRMENT", "IMPAIRMENT_DROP sequence=17",
+		"STALE_REJECTED sequence=23", "COMMANDS_ACCEPTED_40", "COMMANDS_DROPPED_1", "QUEUE_MAX_0",
+		"AUTHORITATIVE_DELIVERED", "CORRECTION_BOUNDED", "CLEAN_DISCONNECT",
 	]:
 		if not server_log.contains(marker):
 			return false
 	for client_log in [client_a_log, client_b_log]:
-		if not client_log.contains("ADMITTED") or not client_log.contains("CLIENT_CLEAN"):
+		if not client_log.contains("ADMITTED") or not client_log.contains("RELATIONSHIP_STABLE") \
+			or not client_log.contains("CLIENT_CLEAN"):
 			return false
 	return true
 
