@@ -119,6 +119,59 @@ func reattach_craft(craft_id: StringName) -> Dictionary:
 	return {"accepted": false, "reason": &"unknown_craft"}
 
 
+## Returns the fixed production compatibility and physical access contract for
+## one composed craft. The binding reports the contract; it does not lease the
+## pad or take flight/boarding authority from the craft.
+func get_craft_compatibility_contract(craft_id: StringName) -> Dictionary:
+	if not _built or not _craft_by_id.has(craft_id):
+		return {"accepted": false, "reason": &"unknown_craft"}
+	for spec in CRAFT_SPECS:
+		if spec.craft_id != craft_id:
+			continue
+		var craft := _craft_by_id[craft_id] as Node3D
+		var berth_contract: Dictionary = _berths.call("get_landing_contract", spec.pad_id)
+		var collision: Dictionary = craft.call("get_landing_collision_report")
+		var seat := craft.call("get_pilot_seat_anchor") as Node3D
+		var boarding := craft.call("get_boarding_marker") as Node3D
+		var valid := bool(berth_contract.get("accepted", false)) \
+			and bool(collision.get("valid", false)) \
+			and is_instance_valid(seat) and is_instance_valid(boarding) \
+			and seat.global_position.is_finite() and boarding.global_position.is_finite() \
+			and float(berth_contract.get("approach_radius", 0.0)) >= 12.0
+		return {
+			"accepted": true,
+			"valid": valid,
+			"craft_id": craft_id,
+			"pad_id": spec.pad_id,
+			"landing_anchor": berth_contract.get("landing_anchor", Vector3.INF),
+			"approach_anchor": berth_contract.get("approach_anchor", Vector3.INF),
+			"approach_radius": berth_contract.get("approach_radius", 0.0),
+			"seat_anchor": seat.global_position if is_instance_valid(seat) else Vector3.INF,
+			"boarding_anchor": boarding.global_position if is_instance_valid(boarding) else Vector3.INF,
+			"flight_authority": false,
+			"berth_lease_authority": false,
+		}.duplicate(true)
+	return {"accepted": false, "reason": &"unknown_craft"}
+
+
+## Performs one caller-requested HeroShip reset at the current authored landing
+## transform. The berth attachment remains in place; the returned HeroShip
+## receipt is the sole lifecycle evidence and can be fenced by the caller.
+func reset_craft_for_reuse(craft_id: StringName) -> Dictionary:
+	var contract := get_craft_compatibility_contract(craft_id)
+	if not bool(contract.get("accepted", false)):
+		return contract
+	if not bool(contract.get("valid", false)):
+		return {"accepted": false, "reason": &"compatibility_contract_invalid"}
+	var craft := _craft_by_id[craft_id] as Node3D
+	var spawn := Transform3D(craft.global_transform.basis, contract.landing_anchor)
+	var result: Dictionary = craft.call("reset_for_reuse", spawn)
+	result["craft_id"] = craft_id
+	result["pad_id"] = contract.pad_id
+	result["attachment_preserved"] = bool(_berths.call("get_attachment_snapshot", contract.pad_id).get("attached", false))
+	return result
+
+
 func get_fleet_snapshot() -> Dictionary:
 	var craft_snapshots: Array[Dictionary] = []
 	for spec in CRAFT_SPECS:
