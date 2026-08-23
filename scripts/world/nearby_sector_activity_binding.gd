@@ -15,10 +15,13 @@ const RACE_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
 const HOST_PATH := NodePath("EmberlineSupplyTenderHost")
 const RACE_ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const RACE_SESSION := preload("res://scripts/activities/cinder_timed_race_session.gd")
+const PATROL_ACTIVITY := preload("res://scripts/activities/patrol_activity.gd")
 
 var _host: CinderConvoyEscortHost
 var _race_director: ActivityDirector
 var _race_session: CinderTimedRaceSession
+var _patrol_director: ActivityDirector
+var _patrol: PatrolActivity
 
 
 func _ready() -> void:
@@ -33,6 +36,12 @@ func _ready() -> void:
 	_race_director.register_definition(RACE_ROUTE)
 	_race_session = RACE_SESSION.new(1, 0.0, 120.0) as CinderTimedRaceSession
 	_race_session.attach(_race_director, _race_session.get_session_generation())
+	_patrol_director = ActivityDirector.new()
+	_patrol_director.name = "CinderBeaconPatrolDirector"
+	add_child(_patrol_director)
+	_patrol_director.register_definition(RACE_ROUTE)
+	_patrol = PATROL_ACTIVITY.new(RACE_ROUTE, 0.0) as PatrolActivity
+	_patrol.attach(_patrol_director, _patrol.get_generation())
 
 
 func start_convoy() -> Dictionary:
@@ -77,6 +86,24 @@ func reset_race() -> Dictionary:
 	return _race_session.reset(_race_session.get_session_generation())
 
 
+func start_patrol() -> Dictionary:
+	if not is_inside_tree() or _patrol == null:
+		return _result(false, &"not_ready")
+	return _patrol.start(_patrol.get_generation())
+
+
+func advance_patrol(delta: float, position: Vector3) -> Dictionary:
+	if not is_inside_tree() or _patrol == null:
+		return _result(false, &"not_ready")
+	return _patrol.advance_physics(delta, position, _patrol.get_generation())
+
+
+func reset_patrol() -> Dictionary:
+	if not is_inside_tree() or _patrol == null:
+		return _result(false, &"not_ready")
+	return _patrol.reset(_patrol.get_generation())
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -85,6 +112,7 @@ func get_snapshot() -> Dictionary:
 		"host": _host.get_snapshot() if is_instance_valid(_host) else {},
 		"race_activity_id": RACE_ACTIVITY_ID,
 		"race": _race_session.get_presentation_snapshot() if is_instance_valid(_race_session) else {},
+		"patrol": _patrol.get_presentation_snapshot() if is_instance_valid(_patrol) else {},
 		"production_owner": true,
 		"gameplay_authority": false,
 		"game_flow_authority": false,
@@ -107,6 +135,8 @@ func audit() -> Dictionary:
 			errors.append("convoy host audit failed")
 	if not is_instance_valid(_race_session) or not bool(_race_session.audit().get("valid", false)):
 		errors.append("authored beacon race audit failed")
+	if not is_instance_valid(_patrol) or not bool(_patrol.audit().get("valid", false)):
+		errors.append("authored beacon patrol audit failed")
 	for point in RACE_ROUTE.checkpoint_positions:
 		if not point.is_finite() or point.length() > NearbySectorCluster.MAXIMUM_CONTENT_DISTANCE:
 			errors.append("beacon race route leaves the authored cluster envelope")
