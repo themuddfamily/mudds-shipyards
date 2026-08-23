@@ -162,6 +162,14 @@ func _test_primary_then_backup_recovery() -> void:
 		bool(recovered.accepted) and recovered.source == &"backup" and int(recovered.generation) == 1,
 		"corrupt primary loads the valid last-known-good backup"
 	)
+	var receipt := fallback.get_recovery_receipt()
+	_check(
+		bool(receipt.available)
+		and receipt.path == PATH + ".recovery"
+		and filesystem.files.has(PATH + ".recovery")
+		and filesystem.files[PATH] == "{truncated".to_utf8_buffer(),
+		"backup fallback quarantines the corrupt primary and exposes a detached receipt without overwriting it"
+	)
 	var repaired := fallback.commit({"value": 3}, 1, "commit-repair")
 	_check(bool(repaired.accepted) and int(repaired.generation) == 2, "an explicit commit after backup load repairs a corrupt primary")
 	_check(int(_decode(filesystem, PATH + ".bak").generation) == 1, "backup-based repair retains the last-known-good backup")

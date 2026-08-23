@@ -24,6 +24,7 @@ const MAX_SAFE_JSON_INTEGER := 9007199254740991
 
 const _TEMP_SUFFIX := ".tmp"
 const _BACKUP_SUFFIX := ".bak"
+const _RECOVERY_SUFFIX := ".recovery"
 const _ENVELOPE_KEYS := ["schema_version", "generation", "commit", "payload"]
 const _COMMIT_KEYS := ["id", "parent_generation", "parent_id", "payload_sha256"]
 
@@ -34,6 +35,7 @@ var _generation := 0
 var _commit_metadata: Dictionary = {}
 var _snapshot: Dictionary = {}
 var _loaded_from := &"none"
+var _recovery_receipt: Dictionary = {}
 
 
 func _init(path: String, filesystem: UserDataFilesystem = null) -> void:
@@ -45,6 +47,7 @@ func _init(path: String, filesystem: UserDataFilesystem = null) -> void:
 ## temporary sibling is never promoted by load. Failure leaves no partial state.
 func load() -> Dictionary:
 	var previous := _state_record()
+	_recovery_receipt = {}
 	var primary := _read_document(_path)
 	var temporary := _read_document(_temp_path())
 	var backup := _read_document(_backup_path())
@@ -66,7 +69,11 @@ func load() -> Dictionary:
 		return _load_result(true, &"ok", &"primary", primary, {})
 	if bool(backup.valid):
 		_install_document(backup.document as Dictionary, &"backup")
-		return _load_result(true, &"primary_invalid_backup_loaded", &"backup", primary, backup)
+		if bool(primary.exists) and not bool(primary.valid):
+			_recovery_receipt = _quarantine_corrupt_primary(primary)
+		var result := _load_result(true, &"primary_invalid_backup_loaded", &"backup", primary, backup)
+		result["recovery_receipt"] = _recovery_receipt.duplicate(true)
+		return result
 	_restore_state(previous)
 	var both_missing := not bool(primary.exists) and not bool(backup.exists)
 	if both_missing:
@@ -77,6 +84,35 @@ func load() -> Dictionary:
 		_loaded_from = &"empty"
 		return _load_result(true, &"empty", &"empty", primary, backup)
 	return _load_result(false, &"no_valid_document", &"none", primary, backup)
+
+
+func get_recovery_receipt() -> Dictionary:
+	return _recovery_receipt.duplicate(true)
+
+
+func _quarantine_corrupt_primary(primary: Dictionary) -> Dictionary:
+	var recovery_path := _path + _RECOVERY_SUFFIX
+	if _filesystem.file_exists(recovery_path):
+		return {"available": false, "reason": &"recovery_destination_exists"}
+	var read := _filesystem.read_bytes(_path, MAX_DOCUMENT_BYTES)
+	if int(read.get("error", FAILED)) != OK:
+		return {"available": false, "reason": &"primary_quarantine_read_failed", "primary_reason": primary.get("reason", "unknown")}
+	var bytes := read.get("bytes", PackedByteArray()) as PackedByteArray
+	if bytes.is_empty() or bytes.size() > MAX_DOCUMENT_BYTES:
+		return {"available": false, "reason": &"primary_quarantine_read_failed", "primary_reason": primary.get("reason", "unknown")}
+	var write_error := _filesystem.write_bytes_and_flush(recovery_path, bytes)
+	if write_error != OK:
+		return {"available": false, "reason": &"primary_quarantine_write_failed", "primary_reason": primary.get("reason", "unknown")}
+	var verify := _filesystem.read_bytes(recovery_path, MAX_DOCUMENT_BYTES)
+	if int(verify.get("error", FAILED)) != OK \
+		or (verify.get("bytes", PackedByteArray()) as PackedByteArray) != bytes:
+		return {"available": false, "reason": &"primary_quarantine_verify_failed", "primary_reason": primary.get("reason", "unknown")}
+	return {
+		"available": true,
+		"path": recovery_path,
+		"primary_reason": primary.get("reason", "unknown"),
+		"bytes": bytes.size(),
+	}
 
 
 ## Explicitly promotes a verified interrupted transaction. Normal load never
