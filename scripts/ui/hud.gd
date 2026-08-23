@@ -209,6 +209,7 @@ var _settings_page: Control
 var _settings_scroll: ScrollContainer
 var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
+const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
 var _settings_status_label: Label
 ## The pause overlay survives a whole-Main detach, but Viewport focus does not.
 ## Retain the exact in-overlay target so controller users return to the same
@@ -1239,6 +1240,10 @@ func set_settings_snapshot(snapshot: Dictionary) -> void:
 			_refresh_input_prompts()
 	for raw_key: Variant in snapshot:
 		var key := StringName(str(raw_key))
+		if key == _CONTROLLER_GLYPH_FAMILY_KEY:
+			# Controller glyph layout is a local presentation preference. It is
+			# intentionally not part of RuntimeSettings persistence.
+			continue
 		if not _settings_controls.has(key):
 			continue
 		var control := _settings_controls[key] as Control
@@ -2332,6 +2337,7 @@ func _build_settings_page() -> void:
 	)
 	_add_toggle_setting(accessibility_group, &"reduced_motion", "Reduced motion", false)
 	_add_toggle_setting(accessibility_group, &"captions_enabled", "Audio cue captions", false)
+	_add_controller_glyph_family_setting(accessibility_group)
 
 	var hint_panel := PanelContainer.new()
 	hint_panel.add_theme_stylebox_override("panel", _box(Color("122638"), 5, 1, Color("315367")))
@@ -2931,6 +2937,53 @@ func _add_option_setting(
 	selector.item_selected.connect(func(index: int) -> void: _on_setting_value_changed(key, index))
 	row.add_child(selector)
 	_settings_controls[key] = selector
+
+
+func _add_controller_glyph_family_setting(parent: VBoxContainer) -> void:
+	var row := VBoxContainer.new()
+	row.name = "ControllerGlyphFamilyRow"
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+	var title := _label("Controller glyph layout", 11, PRIMARY)
+	row.add_child(title)
+	var selector := OptionButton.new()
+	selector.name = "ControllerGlyphFamilyControl"
+	selector.custom_minimum_size.y = 38.0
+	selector.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	selector.add_theme_font_size_override("font_size", 11)
+	_tint_theme_color(selector, &"font_color", PRIMARY)
+	selector.add_theme_stylebox_override("normal", _box(Color("142536"), 4, 1, Color("315367")))
+	selector.add_theme_stylebox_override("hover", _border_box(Color("173044"), 4, NOMINAL))
+	for option: String in ["Automatic", "Generic", "Xbox", "PlayStation", "Nintendo"]:
+		selector.add_item(option)
+	selector.select(0)
+	selector.item_selected.connect(_on_controller_glyph_family_selected)
+	row.add_child(selector)
+	var hint := _label("Presentation only — not saved with gameplay settings.", 10, MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(hint)
+	_settings_controls[_CONTROLLER_GLYPH_FAMILY_KEY] = selector
+
+
+func _on_controller_glyph_family_selected(index: int) -> void:
+	var families: Array[StringName] = [
+		&"",
+		InputGlyphResolverType.FAMILY_GAMEPAD_GENERIC,
+		InputGlyphResolverType.FAMILY_GAMEPAD_XBOX,
+		InputGlyphResolverType.FAMILY_GAMEPAD_PLAYSTATION,
+		InputGlyphResolverType.FAMILY_GAMEPAD_NINTENDO,
+	]
+	if index < 0 or index >= families.size():
+		return
+	var family := families[index]
+	if family.is_empty():
+		_input_glyph_resolver.clear_explicit_device_family_override()
+	else:
+		_input_glyph_resolver.set_explicit_device_family_override(family)
+	_refresh_input_prompts()
+	set_settings_status(
+		"CONTROLLER GLYPHS // %s // PRESENTATION ONLY" % String(family if not family.is_empty() else "AUTOMATIC").to_upper()
+	)
 
 
 func _on_setting_value_changed(key: StringName, value: Variant) -> void:

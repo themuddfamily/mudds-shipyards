@@ -2,6 +2,7 @@ extends SceneTree
 
 const Settings := preload("res://scripts/settings/runtime_settings.gd")
 const Profile := preload("res://scripts/settings/input_binding_profile.gd")
+const InputGlyphResolver := preload("res://scripts/ui/input_glyph_resolver.gd")
 
 var _failures: Array[String] = []
 var _change_events: Array[Dictionary] = []
@@ -53,6 +54,7 @@ func _run() -> void:
 		&"colorblind_palette",
 		&"reduced_motion",
 		&"captions_enabled",
+		&"controller_glyph_family",
 	]
 	var controls := hud.get("_settings_controls") as Dictionary
 	_check(controls.size() == expected_keys.size(), "settings page builds one real control for every runtime preference")
@@ -95,6 +97,8 @@ func _run() -> void:
 	_check((controls[&"colorblind_palette"] as OptionButton).selected == 2, "colour-vision preset snapshot reaches its selector")
 	_check((controls[&"reduced_motion"] as CheckButton).button_pressed, "reduced motion snapshot reaches its toggle")
 	_check((controls[&"captions_enabled"] as CheckButton).button_pressed, "caption snapshot reaches its toggle")
+	var glyph_layout := controls[&"controller_glyph_family"] as OptionButton
+	_check(glyph_layout.selected == 0, "controller glyph layout starts in automatic mode")
 	var value_labels := hud.get("_settings_value_labels") as Dictionary
 	_check((value_labels[&"ship_mouse_sensitivity"] as Label).text == "200%", "sensitivity is presented as a friendly relative percentage")
 	_check((value_labels[&"camera_fov"] as Label).text == "88°", "field of view is presented in degrees")
@@ -115,6 +119,20 @@ func _run() -> void:
 		"Music exposes unambiguous readable text beside its control"
 	)
 	_test_input_prompt_family_switching(hud)
+	glyph_layout.select(2)
+	glyph_layout.item_selected.emit(2)
+	_check(
+		hud.get_input_binding_report().preferred_device_family == InputGlyphResolver.FAMILY_GAMEPAD_XBOX
+		and (controls[&"controller_glyph_family"] as OptionButton).selected == 2
+		and _change_events.size() == 0,
+		"controller glyph layout switches live prompts without creating a persisted settings event"
+	)
+	glyph_layout.select(0)
+	glyph_layout.item_selected.emit(0)
+	_check(
+		hud.get_input_binding_report().preferred_device_family == InputGlyphResolver.FAMILY_KEYBOARD,
+		"automatic controller glyph layout returns to the observed device family"
+	)
 
 	(controls[&"camera_fov"] as HSlider).value = 91.0
 	_check(_change_events.size() == 1, "a player slider edit emits exactly one live change request")
