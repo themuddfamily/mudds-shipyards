@@ -395,6 +395,8 @@ var _speed_label: Label
 var _altitude_label: Label
 var _throttle_label: Label
 var _throttle_bar: ProgressBar
+var _engine_component_hud_stage: StringName = &"nominal"
+var _engine_throttle_profile: Dictionary = {}
 var _hull_bar: ProgressBar
 var _damage_status_label: Label
 var _hull_frame_profile: Dictionary = {}
@@ -1598,6 +1600,7 @@ func _present_bound_hero_component_report(report: Dictionary) -> void:
 	var presentation := _component_degradation_presenter.present_hero_report(report)
 	_present_sensor_reticle_report(report)
 	_present_weapon_component_report(report)
+	_present_engine_component_report(report)
 	if not is_instance_valid(_component_status_label):
 		return
 	_component_status_label.text = str(presentation.get("text", ""))
@@ -1612,6 +1615,7 @@ func _clear_bound_hero_component_report() -> void:
 	_component_degradation_presenter.detach()
 	_apply_sensor_reticle_stage(&"nominal", 1.0, &"cleared")
 	_weapon_component_hud_stage = &"nominal"
+	_apply_engine_throttle_stage(&"nominal", 1.0, &"cleared")
 	_render_damage_status_label()
 	if is_instance_valid(_component_status_label):
 		_component_status_label.text = ""
@@ -1745,7 +1749,7 @@ func _present_weapon_component_report(report: Dictionary) -> void:
 func _render_damage_status_label() -> void:
 	if not is_instance_valid(_damage_status_label):
 		return
-	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%    WEAPONS  %03d%%    TARGETING  %03d%%    HULL INTEGRITY  %03d%%\nWEAPON READY / HEAT  //  %s  %s  %03d%%" % [
+	_damage_status_label.text = "%s    ENGINE OUTPUT  %03d%%    WEAPONS  %03d%%    TARGETING  %03d%%    HULL INTEGRITY  %03d%%    WEAPON READY / HEAT  //  %s  %s  %03d%%" % [
 		_damage_status_accessible_text(_state_damage),
 		roundi(_last_engine_power_presentation * 100.0),
 		roundi(_last_weapon_power_presentation * 100.0),
@@ -1805,6 +1809,101 @@ func get_weapon_heat_component_hud_snapshot() -> Dictionary:
 		"presentation_only": true,
 		"authority": false,
 	}.duplicate(true)
+
+
+## Static scaling of the existing throttle bar around its vertical centre.
+## Its Control box and value remain unchanged, so HeroShip alone continues to
+## own throttle, braking, engine mobility, and failure behavior.
+func _present_engine_component_report(report: Dictionary) -> void:
+	var engine: Dictionary = {}
+	for raw_component in report.get("components", []) as Array:
+		if raw_component is Dictionary \
+				and StringName((raw_component as Dictionary).get("id", &"")) == &"engine_bay":
+			engine = raw_component as Dictionary
+			break
+	if not bool(report.get("configured", false)) or engine.is_empty():
+		_apply_engine_throttle_stage(&"nominal", 1.0, &"unavailable")
+		return
+	var integrity := clampf(float(engine.get("integrity", 0.0)), 0.0, 1.0)
+	var authoritative_stage := StringName(engine.get("state_id", &"failed"))
+	var stage: StringName = &"nominal"
+	if authoritative_stage == &"failed":
+		stage = &"failed"
+	elif integrity <= 0.40:
+		stage = &"critical"
+	elif authoritative_stage == &"impaired":
+		stage = &"degraded"
+	_apply_engine_throttle_stage(stage, integrity, authoritative_stage)
+
+
+func _apply_engine_throttle_stage(
+		stage: StringName,
+		integrity: float,
+		authoritative_stage: StringName
+	) -> void:
+	_engine_component_hud_stage = stage
+	if not is_instance_valid(_throttle_bar):
+		return
+	var geometry_scale := 1.0
+	var corner_radius := 3
+	match stage:
+		&"degraded":
+			geometry_scale = 0.75
+			corner_radius = 2
+		&"critical":
+			geometry_scale = 0.45
+			corner_radius = 0
+		&"failed":
+			geometry_scale = 0.12
+			corner_radius = 0
+		_:
+			stage = &"nominal"
+			_engine_component_hud_stage = stage
+	var authored_height := maxf(_throttle_bar.custom_minimum_size.y, 8.0)
+	_throttle_bar.pivot_offset.y = authored_height * 0.5
+	_throttle_bar.scale = Vector2(1.0, geometry_scale)
+	for style_name in [&"background", &"fill"]:
+		var style := _throttle_bar.get_theme_stylebox(style_name) as StyleBoxFlat
+		if style == null:
+			continue
+		style.corner_radius_top_left = corner_radius
+		style.corner_radius_top_right = corner_radius
+		style.corner_radius_bottom_left = corner_radius
+		style.corner_radius_bottom_right = corner_radius
+	_engine_throttle_profile = {
+		"stage": stage,
+		"integrity": clampf(integrity, 0.0, 1.0),
+		"authoritative_stage": authoritative_stage,
+		"geometry_scale_y": geometry_scale,
+		"corner_radius": corner_radius,
+		"layout_size": _throttle_bar.size,
+		"custom_minimum_size": _throttle_bar.custom_minimum_size,
+		"throttle_value": _throttle_bar.value,
+		"bar_node_count": 1,
+		"added_nodes": 0,
+		"changes_layout_box": false,
+		"geometry_policy": &"static",
+		"flashing": false,
+		"reduced_flash_safe": true,
+		"presentation_only": true,
+		"authority": false,
+	}.duplicate(true)
+
+
+func get_engine_throttle_component_hud_snapshot() -> Dictionary:
+	var snapshot := _engine_throttle_profile.duplicate(true)
+	snapshot["bar_instance_id"] = (
+		_throttle_bar.get_instance_id() if is_instance_valid(_throttle_bar) else 0
+	)
+	snapshot["bar_scale"] = _throttle_bar.scale if is_instance_valid(_throttle_bar) else Vector2.ZERO
+	snapshot["bar_value"] = _throttle_bar.value if is_instance_valid(_throttle_bar) else 0.0
+	snapshot["bar_rect"] = (
+		_throttle_bar.get_global_rect() if is_instance_valid(_throttle_bar) else Rect2()
+	)
+	snapshot["reticle_snapshot"] = get_sensor_reticle_component_snapshot()
+	snapshot["weapon_snapshot"] = get_weapon_heat_component_hud_snapshot()
+	snapshot["hull_frame_snapshot"] = get_hull_frame_damage_snapshot()
+	return snapshot
 
 
 func update_loadmaster_telemetry(snapshot: Dictionary) -> void:
@@ -3685,7 +3784,10 @@ func _build_telemetry() -> void:
 	_telemetry_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_telemetry_panel.offset_left = -(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN)
 	_telemetry_panel.offset_right = -PANEL_MARGIN
-	_telemetry_panel.offset_top = -270.0
+	# Component, weapon-heat, and hull lines now coexist in this retained card.
+	# The extra height occupies the empty right gutter below HelpPanel and keeps
+	# every bar/label in a distinct row without approaching the centre reticle.
+	_telemetry_panel.offset_top = -340.0
 	_telemetry_panel.offset_bottom = -PANEL_MARGIN
 	_telemetry_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
 	_hud_panels.add_child(_telemetry_panel)
@@ -3693,7 +3795,10 @@ func _build_telemetry() -> void:
 	var margin := _margin(18, 15, 18, 15)
 	_telemetry_panel.add_child(margin)
 	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 7)
+	# The retained component and weapon rows share this fixed-height panel. Four
+	# pixels keeps each authored control on its own row without changing the hull
+	# frame bounds or squeezing the bars into adjacent labels.
+	stack.add_theme_constant_override("separation", 4)
 	margin.add_child(stack)
 	_engine_label = _label("ENGINE  //  OFFLINE", 12, DANGER)
 	stack.add_child(_engine_label)
@@ -3713,12 +3818,18 @@ func _build_telemetry() -> void:
 	_throttle_label = _label("THROTTLE  //  NEUTRAL", 9, MUTED)
 	stack.add_child(_throttle_label)
 	_throttle_bar = _bar(NOMINAL)
+	_throttle_bar.custom_minimum_size.x = PANEL_TELEMETRY_WIDTH - 36.0
+	_throttle_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stack.add_child(_throttle_bar)
+	_apply_engine_throttle_stage(&"nominal", 1.0, &"nominal")
 	stack.add_child(_label("HULL INTEGRITY", 9, MUTED))
 	_hull_bar = _bar(CAUTION)
 	_hull_bar.value = 100.0
 	stack.add_child(_hull_bar)
 	_damage_status_label = _label("HULL  //  OK    ENGINE OUTPUT  100%", 9, MUTED)
+	_damage_status_label.custom_minimum_size.x = PANEL_TELEMETRY_WIDTH - 36.0
+	_damage_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_damage_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stack.add_child(_damage_status_label)
 	_component_status_label = _label("", 9, MUTED)
 	_component_status_label.name = "ComponentStatus"
