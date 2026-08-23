@@ -164,6 +164,24 @@ func _run() -> void:
 	_test_determinism(cluster, twin_cluster)
 	await _test_lifecycle(world, cluster)
 
+	# This fixture instantiates the entire station only to verify the range-target
+	# boundary. Its fleet expansion builds three caller-owned audio bindings, so
+	# release them through their public lifecycle before freeing the fixture.
+	var fleet_expansion := world.get_fleet_expansion_production_binding()
+	var fleet_fixture_released := fleet_expansion != null
+	if fleet_expansion != null:
+		for craft_id: StringName in [
+			&"cinder_cargo_hauler",
+			&"cinder_long_range_bomber",
+			&"cinder_light_interceptor",
+		]:
+			var released := fleet_expansion.detach_craft(craft_id) as Dictionary
+			fleet_fixture_released = fleet_fixture_released \
+				and bool(released.get("accepted", false))
+	_check(
+		fleet_fixture_released,
+		"the full-world fixture releases its three caller-owned fleet audio bindings"
+	)
 	twin_cluster.queue_free()
 	cluster.queue_free()
 	world.queue_free()

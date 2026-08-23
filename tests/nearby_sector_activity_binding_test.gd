@@ -194,8 +194,10 @@ func _run() -> void:
 		_check(
 			int(detached_observers.mining_observers) == 0
 			and int(detached_observers.structure_scan_observers) == 0
-			and int(detached_observers.beacon_traversal_observers) == 0,
-			"whole-cluster detach clears every presentation observer"
+			and int(detached_observers.beacon_traversal_observers) == 0
+			and not bool(binding.get_cinder_field_audio_binding_snapshot().attached)
+			and not bool(binding.get_cinder_cargo_terminal_audio_snapshot().attached),
+			"whole-cluster detach clears every presentation observer and audio attachment"
 		)
 		production_parent.add_child(cluster)
 		await process_frame
@@ -206,6 +208,7 @@ func _run() -> void:
 			and int(reentered_observers.structure_scan_observers) == 2
 			and int(reentered_observers.beacon_traversal_observers) == 2
 			and bool(binding.get_cinder_field_audio_binding_snapshot().attached)
+			and bool(binding.get_cinder_cargo_terminal_audio_snapshot().attached)
 			and bool(cluster.get_mining_platform_presentation_audit().valid)
 			and bool(cluster.get_structure_scan_presentation_audit().valid)
 			and bool(cluster.get_beacon_traversal_presentation_audit().valid),
