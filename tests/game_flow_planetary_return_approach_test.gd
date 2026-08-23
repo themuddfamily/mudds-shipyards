@@ -303,6 +303,7 @@ func _run() -> void:
 		"handoff neither moves nor reparents actors and leaves berth occupancy unclaimed",
 	)
 
+	game.ember_surface_loop_production_binding = null
 	surface.free()
 	game.queue_free()
 	await process_frame

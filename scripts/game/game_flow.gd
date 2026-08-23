@@ -641,6 +641,8 @@ func _exit_tree() -> void:
 		hud.clear_runtime_settings_repair_report()
 	_clear_bomber_payload_loop(&"game_flow_exit")
 	_clear_bomber_payload_replica_presentation()
+	if is_queued_for_deletion():
+		_detach_fleet_expansion_for_shutdown()
 	_cancel_station_seat_for_detach()
 	if is_instance_valid(network_session):
 		network_session.shutdown(&"game_flow_exit")
@@ -675,6 +677,30 @@ func _exit_tree() -> void:
 	# gets it back: a detached Main has no camera to steer, and the reload behind
 	# `_restart_shift()` goes through here on its way to the loading screen.
 	release_mouse_capture()
+
+
+## The expansion binding retains RefCounted audio compositions whose payload
+## presenters are deliberately unparented Nodes. A streamed Main keeps those
+## compositions for re-entry, but final Main deletion must close their explicit
+## lifecycle before the owning dictionaries disappear.
+func _detach_fleet_expansion_for_shutdown() -> void:
+	if not is_instance_valid(world) \
+			or not world.has_method(&"get_fleet_expansion_production_binding"):
+		return
+	var expansion_binding := (
+		world.call(&"get_fleet_expansion_production_binding") as Node
+	)
+	if not is_instance_valid(expansion_binding) \
+			or not expansion_binding.has_method(&"detach_craft"):
+		return
+	# These are the binding's fixed authored composition IDs, not GameFlow's
+	# public ship IDs. Calling detach on an already released craft fails closed.
+	for craft_id: StringName in [
+		&"cinder_cargo_hauler",
+		&"cinder_long_range_bomber",
+		&"cinder_light_interceptor",
+	]:
+		expansion_binding.call(&"detach_craft", craft_id)
 
 
 ## Returns the cursor to the desktop. Safe to call from any state, and a no-op
