@@ -833,6 +833,7 @@ func get_render_batch_contract() -> Dictionary:
 			and mullion_renderer_buffer_matches
 			and structural_mullion_renderer_buffer_matches
 			and cushion_renderer_buffer_matches
+			and cushion_visual_contract_matches
 		),
 		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
 			and mullion_bounds_match and structural_mullion_bounds_match \

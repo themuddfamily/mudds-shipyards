@@ -385,8 +385,9 @@ func _test_banquette_cushion_batch(suite: VipReceptionSuite) -> void:
 		if segment != null and cushion != null:
 			anchors.append(cushion)
 			expected.append(segment.transform * cushion.transform)
+	var anchor_material: Material = anchors[0].material_override if not anchors.is_empty() else null
 	for anchor in anchors:
-		anchors_exact = anchors_exact and anchor.material_override == anchors[0].material_override
+		anchors_exact = anchors_exact and anchor.material_override == anchor_material
 	_check(
 		anchors_exact and anchors.size() == 7,
 		"all seven stable cushion paths retain exact transforms, mesh extent and upholstery material"
@@ -400,7 +401,8 @@ func _test_banquette_cushion_batch(suite: VipReceptionSuite) -> void:
 		and batch.multimesh.visible_instance_count == -1
 		and authored_exact
 		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(1.02, 0.14, 0.74))
-		and batch.material_override == anchors[0].material_override
+		and anchor_material != null
+		and batch.material_override == anchor_material
 		and batch.get_child_count() == 0
 		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
 		"cushion batch preserves every pose and visual recipe with no collision descendants"
