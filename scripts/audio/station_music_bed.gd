@@ -1,6 +1,8 @@
 class_name StationMusicBed
 extends Node
 
+const MusicDirectorType := preload("res://scripts/audio/music_director.gd")
+
 ## Bounded three-voice music/ambient bed for the non-combat station state.
 ##
 ## The three checked-in loops are project-original fixed-seed offline synthesis
@@ -146,6 +148,7 @@ var _elapsed_bed_seconds := 0.0
 var _state_change_count := 0
 var _layer_start_count := 0
 var _layer_stop_count := 0
+var _music_director: MusicDirectorType
 
 
 func _enter_tree() -> void:
@@ -177,6 +180,9 @@ func _ready() -> void:
 	_configure_players()
 	_load_streams()
 	_set_evidence_metadata()
+	_music_director = MusicDirectorType.new()
+	_music_director.name = "MusicDirector"
+	add_child(_music_director)
 	add_to_group(&"station_music_bed", false)
 	_initialized = true
 	_apply_session_targets()
@@ -232,14 +238,31 @@ func notify_session_state(state: StringName) -> bool:
 			_combat_recovery_remaining = 0.0
 		_session_state = state
 		_state_change_count += 1
+	if is_instance_valid(_music_director):
+		_music_director.observe_session_state(state)
 	_apply_session_targets()
 	if is_inside_tree() and not _tearing_down:
 		_apply_playback_state()
 	return true
 
 
+## Accepts an already-decided broader phase and maps it to this bed's bounded
+## rest/flight/combat vocabulary. The director still owns no gameplay state.
+func notify_music_phase(phase: StringName) -> bool:
+	if not _can_mutate_live_bed() or not is_instance_valid(_music_director):
+		return false
+	var observation := _music_director.observe_phase(phase)
+	if not bool(observation.get("accepted", false)):
+		return false
+	return notify_session_state(StringName(observation.get("session_state", &"")))
+
+
 func get_session_state() -> StringName:
 	return _session_state
+
+
+func get_music_director() -> MusicDirectorType:
+	return _music_director
 
 
 ## Reversibly starts or silences the whole bed. Disabling immediately releases
