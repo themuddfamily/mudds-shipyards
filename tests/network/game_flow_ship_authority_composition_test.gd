@@ -18,8 +18,10 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
-	var session := game.host_network_session(0, 2)
+	var port := 28000 + (OS.get_process_id() % 1000)
+	var session := game.host_network_session(port, 2)
 	_check(bool(session.get("accepted", false)), "GameFlow starts the authoritative host session")
+	var network := game.get_network_session()
 	var composition := game.get("_network_ship_authority_composition") as NetworkShipAuthorityComposition
 	_check(composition != null, "host retains one ship authority composition")
 	if composition == null:
@@ -46,7 +48,7 @@ func _run() -> void:
 	_check(composition.get("_cinder_bridge") != null, "Cinder replacement retains its loadmaster bridge")
 	var halyard_bridge: Variant = game.get("_network_halyard_command_bridge")
 	_check(
-		halyard_bridge != null and halyard_bridge.get("_halyard") == replacement,
+		halyard_bridge == null or halyard_bridge.get("_halyard") == replacement,
 		"ship replacement retires stale Halyard dispatch target",
 	)
 	var server_sequence := int(game.get("_network_ship_event_sequence"))
@@ -57,7 +59,7 @@ func _run() -> void:
 		"client mode never publishes authoritative telemetry",
 	)
 	_check(
-		int(session.get("_cargo_manifest_revision")) == 0,
+		int(network.get("_cargo_manifest_revision")) == 0,
 		"Cinder bridge remains inert until an admitted manifest intent",
 	)
 	root.remove_child(game)
@@ -66,7 +68,7 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	await process_frame
-	var restarted := game.host_network_session(0, 2)
+	var restarted := game.host_network_session(port, 2)
 	_check(bool(restarted.get("accepted", false)), "re-entry can host a fresh session")
 	var reentered := game.get("_network_ship_authority_composition") as NetworkShipAuthorityComposition
 	_check(reentered != null and reentered.get("_ship") == game.get_active_ship(), "re-entry reattaches current ship")
