@@ -78,7 +78,6 @@ const ACTIVITY_KIND_PATROL: StringName = &"patrol"
 const ACTIVITY_KIND_CARGO_DELIVERY: StringName = &"cargo_delivery"
 const ACTIVITY_KIND_CONVOY_ESCORT: StringName = &"convoy_escort"
 const CINDER_CONVOY_ACTIVITY_ID: StringName = &"cinder_reach_emberline_convoy"
-const NETWORK_REPAIR_CRAFT_ID: StringName = &"halyard_new_design"
 ## The tender stays on its authored route. This audited point is the centre of
 ## the collision-clear player rendezvous lane 20 metres above route point zero.
 const CINDER_CONVOY_ACTIVATION_CENTER := Vector3(84.0, -48.0, -724.0)
@@ -4341,7 +4340,9 @@ func _connect_flyable_ship_signals(candidate: HeroShip) -> void:
 		&"destroyed",
 		Callable(self, "_on_ship_destroyed").bind(candidate)
 	)
-	if candidate.get_ship_id() == NETWORK_REPAIR_CRAFT_ID:
+	if candidate.has_signal(&"engineer_repair_state_changed") \
+			and (candidate.has_method(&"get_engineer_repair_network_snapshot") \
+			or candidate.has_method(&"get_crew_role_gameplay_snapshot")):
 		_connect_signal_once(
 			candidate,
 			&"engineer_repair_state_changed",
@@ -7362,7 +7363,7 @@ func _on_engineer_repair_state_changed(
 			or not is_instance_valid(network_session) \
 			or not network_session.is_server() \
 			or not is_instance_valid(source_ship) \
-			or source_ship.get_ship_id() != NETWORK_REPAIR_CRAFT_ID:
+			or not source_ship.has_signal(&"engineer_repair_state_changed"):
 		return
 	var local_state := StringName(repair_state.get("status", &""))
 	var progress := clampf(float(repair_state.get("progress", 0.0)), 0.0, 1.0)
@@ -7392,7 +7393,7 @@ func _on_engineer_repair_state_changed(
 		if not bool(damage_published.get("accepted", false)):
 			return
 		entity_generation = int(_network_damage_entities.get(entity_id, 0))
-	var owner := _network_engineer_repair_owner(source_ship, component_id)
+	var owner := _network_engineer_repair_owner(source_ship, repair_state)
 	if owner.is_empty():
 		return
 	_network_damage_server_tick += 1
@@ -7417,8 +7418,31 @@ func _on_engineer_repair_state_changed(
 
 func _network_engineer_repair_owner(
 	source_ship: HeroShip,
-	component_id: StringName
+	repair_state: Dictionary
 ) -> Dictionary:
+	# Halyard, Jovian and Bulwark expose the same detached authority view. Match
+	# it back to the synchronous signal payload so a stale or reordered callback
+	# cannot borrow a newer engineer assignment.
+	if source_ship.has_method(&"get_engineer_repair_network_snapshot"):
+		var network_snapshot := source_ship.call(
+			&"get_engineer_repair_network_snapshot"
+		) as Dictionary
+		var current := network_snapshot.get("repair", {}) as Dictionary
+		if StringName(current.get("status", &"")) \
+				!= StringName(repair_state.get("status", &"")) \
+				or StringName(current.get("component_id", &"")) \
+				!= StringName(repair_state.get("component_id", &"")) \
+				or int(current.get("component_generation", 0)) \
+				!= int(repair_state.get("component_generation", 0)) \
+				or not is_equal_approx(
+					float(current.get("progress", 0.0)),
+					float(repair_state.get("progress", 0.0))
+				):
+			return {}
+		return (network_snapshot.get("owner", {}) as Dictionary).duplicate(true)
+	# Compatibility for the original focused Halyard harness. Production craft
+	# use the shared snapshot above; this read-only fallback can be retired with
+	# that older synthetic fixture.
 	if not source_ship.has_method(&"get_crew_role_gameplay_snapshot"):
 		return {}
 	var crew := source_ship.call(&"get_crew_role_gameplay_snapshot") as Dictionary
@@ -7428,7 +7452,8 @@ func _network_engineer_repair_owner(
 	var selected_peer_id := int(selected.get("occupant_peer_id", 0))
 	var selected_avatar_id := StringName(selected.get("avatar_id", &""))
 	if selected_peer_id <= 0 \
-			or StringName(selected.get("component_id", &"")) != component_id:
+			or StringName(selected.get("component_id", &"")) \
+			!= StringName(repair_state.get("component_id", &"")):
 		return {}
 	for occupant_variant in crew.get("occupants", []) as Array:
 		var occupant := occupant_variant as Dictionary

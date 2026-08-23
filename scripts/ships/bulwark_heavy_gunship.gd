@@ -1041,6 +1041,7 @@ func _consume_engineer_repair_intent(intent: Dictionary) -> Dictionary:
 		"component_generation": component_generation,
 		"progress": 0.0,
 		"token": int(repair_request.get("token", -1)),
+		"receipt": repair_request.duplicate(true),
 	})
 	var result := _crew_role_result(true, &"repair_started")
 	result["component_id"] = component_id
@@ -1207,13 +1208,15 @@ func _interrupt_engineer_repair(reason: StringName) -> void:
 	if _engineer_repair_authority == null \
 			or not _engineer_repair_authority.has_active_repair():
 		return
-	_engineer_repair_authority.interrupt(reason)
+	var interruption_receipt := _engineer_repair_authority.interrupt(reason)
 	_set_engineer_repair_state({
 		"status": &"interrupted",
 		"reason": reason,
 		"component_id": StringName(_engineer_repair_state.get("component_id", &"")),
 		"component_generation": int(_engineer_repair_state.get("component_generation", 0)),
 		"progress": float(_engineer_repair_state.get("progress", 0.0)),
+		"token": int(_engineer_repair_state.get("token", -1)),
+		"receipt": interruption_receipt.duplicate(true),
 	})
 
 
@@ -1250,6 +1253,29 @@ func get_engineer_repair_state() -> Dictionary:
 	snapshot["active"] = _engineer_repair_authority != null \
 		and _engineer_repair_authority.has_active_repair()
 	return snapshot.duplicate(true)
+
+
+## Shared, read-only repair-network contract. It projects the current authority
+## receipt and selected engineer identity without exposing a repair mutation.
+func get_engineer_repair_network_snapshot() -> Dictionary:
+	var repair := get_engineer_repair_state()
+	var owner: Dictionary = {}
+	if not _engineer_component_selection.is_empty() \
+			and StringName(_engineer_component_selection.get("component_id", &"")) \
+			== StringName(repair.get("component_id", &"")) \
+			and int(_engineer_component_selection.get("component_generation", 0)) \
+			== int(repair.get("component_generation", 0)):
+		owner = {
+			"occupant_peer_id": int(_engineer_component_selection.get("occupant_peer_id", 0)),
+			"avatar_id": StringName(_engineer_component_selection.get("avatar_id", &"")),
+			"seat_id": ENGINEER_SEAT_ID,
+			"seat_generation": int(_engineer_component_selection.get("seat_generation", 0)),
+		}
+	return {
+		"repair": repair,
+		"owner": owner,
+		"presentation_only": true,
+	}.duplicate(true)
 
 
 func get_engineer_status_text() -> String:

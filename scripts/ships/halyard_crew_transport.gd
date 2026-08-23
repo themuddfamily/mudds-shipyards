@@ -1904,6 +1904,30 @@ func get_engineer_repair_state() -> Dictionary:
 	return snapshot.duplicate(true)
 
 
+## Detached authority view consumed by GameFlow's shared repair-network seam.
+## The receipt and owner originate in the existing repair/crew authorities;
+## callers receive no mutation capability.
+func get_engineer_repair_network_snapshot() -> Dictionary:
+	var repair := get_engineer_repair_state()
+	var owner: Dictionary = {}
+	if not _engineer_component_selection.is_empty() \
+			and StringName(_engineer_component_selection.get("component_id", &"")) \
+			== StringName(repair.get("component_id", &"")) \
+			and int(_engineer_component_selection.get("component_generation", 0)) \
+			== int(repair.get("component_generation", 0)):
+		owner = {
+			"occupant_peer_id": int(_engineer_component_selection.get("occupant_peer_id", 0)),
+			"avatar_id": StringName(_engineer_component_selection.get("avatar_id", &"")),
+			"seat_id": &"crew_port_01",
+			"seat_generation": int(_engineer_component_selection.get("seat_generation", 0)),
+		}
+	return {
+		"repair": repair,
+		"owner": owner,
+		"presentation_only": true,
+	}.duplicate(true)
+
+
 static func _engineer_repair_actor_id_for(
 	occupant_peer_id: int,
 	_avatar_id: StringName
