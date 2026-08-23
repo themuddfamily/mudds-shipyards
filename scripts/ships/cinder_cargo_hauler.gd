@@ -27,6 +27,8 @@ const ACCENT_COLOR := Color("42c9cf")
 
 var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
+var _cargo_access_sign: Label3D
+var _cargo_threshold_light: OmniLight3D
 var _cargo_hold: Node3D
 var _cargo_anchors: Array[Marker3D] = []
 var _walkable_interior: Node3D
@@ -173,6 +175,59 @@ func _build_cargo_variant(_controller: HeroShip) -> bool:
 		ACCENT_COLOR
 	)
 	boarding_step.set_meta(&"route_id", CABIN_ROUTE_ID)
+	var threshold_post_port := _add_interior_box(
+		visual,
+		"CargoThresholdPostPort",
+		_cargo_boarding_marker.position + Vector3(0.0, 1.02, -0.72),
+		Vector3(0.16, 2.05, 0.16),
+		ACCENT_COLOR
+	)
+	threshold_post_port.set_meta(&"presentation_only", true)
+	threshold_post_port.set_meta(&"route_id", CABIN_ROUTE_ID)
+	var threshold_post_starboard := _add_interior_box(
+		visual,
+		"CargoThresholdPostStarboard",
+		_cargo_boarding_marker.position + Vector3(0.0, 1.02, 0.72),
+		Vector3(0.16, 2.05, 0.16),
+		ACCENT_COLOR
+	)
+	threshold_post_starboard.set_meta(&"presentation_only", true)
+	threshold_post_starboard.set_meta(&"route_id", CABIN_ROUTE_ID)
+	var threshold_header := _add_interior_box(
+		visual,
+		"CargoThresholdHeader",
+		_cargo_boarding_marker.position + Vector3(0.0, 2.00, 0.0),
+		Vector3(0.16, 0.16, 1.60),
+		ACCENT_COLOR
+	)
+	threshold_header.set_meta(&"presentation_only", true)
+	threshold_header.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_cargo_access_sign = Label3D.new()
+	_cargo_access_sign.name = "CargoAccessSign"
+	_cargo_access_sign.position = _cargo_boarding_marker.position + Vector3(-0.02, 1.48, 0.0)
+	_cargo_access_sign.rotation.y = PI * 0.5
+	_cargo_access_sign.font_size = 24
+	_cargo_access_sign.pixel_size = 0.0014
+	_cargo_access_sign.modulate = Color("f2ffff")
+	_cargo_access_sign.outline_modulate = Color("07111d")
+	_cargo_access_sign.outline_size = 8
+	_cargo_access_sign.no_depth_test = true
+	_cargo_access_sign.text = "CARGO ACCESS\nLOADMASTER"
+	_cargo_access_sign.set_meta(&"presentation_only", true)
+	_cargo_access_sign.set_meta(&"route_id", CABIN_ROUTE_ID)
+	_cargo_access_sign.set_meta(&"color_independent", true)
+	visual.add_child(_cargo_access_sign)
+	_cargo_threshold_light = OmniLight3D.new()
+	_cargo_threshold_light.name = "CargoThresholdLight"
+	_cargo_threshold_light.position = _cargo_boarding_marker.position + Vector3(0.0, 1.35, 0.0)
+	_cargo_threshold_light.light_color = ACCENT_COLOR
+	_cargo_threshold_light.light_energy = 0.72
+	_cargo_threshold_light.omni_range = 4.2
+	_cargo_threshold_light.shadow_enabled = false
+	_cargo_threshold_light.set_meta(&"presentation_only", true)
+	_cargo_threshold_light.set_meta(&"reduced_flash_safe", true)
+	_cargo_threshold_light.set_meta(&"animated", false)
+	visual.add_child(_cargo_threshold_light)
 	_build_cargo_hold(visual)
 	_build_cargo_interior()
 	_bind_cargo_interior_frame()
