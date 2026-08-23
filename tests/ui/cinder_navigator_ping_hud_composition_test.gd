@@ -49,7 +49,7 @@ func _run() -> void:
 	_check(bool(bridge.attach(session, cinder).get("accepted", false)), "real Cinder navigator bridge attaches")
 	var composition := Composition.new()
 	_check(bool(composition.attach(hud).get("accepted", false)), "composition binds its committed presenter and adapter to the real HUD")
-	var base := {"roles": {&"passenger": {"occupant": "navigator_avatar", "available": false, "seat_id": &"navigator_station"}}}
+	var base := {"roles": {&"passenger": {"occupant": "navigator_avatar", "available": false, "seat_id": &"cinder_navigator_station"}}}
 	var active := bridge.submit_ping(62, 3, &"navigator_avatar", 1, 2, {"channel": &"sensor", "marker_id": &"route_beacon"}, 12, 2)
 	var active_applied := composition.apply_bridge_result(active, base)
 	_check(bool(active_applied.get("accepted", false)) and active_applied.get("source_state") == &"active", "authorized bridge receipt reaches the real crew HUD")
@@ -59,14 +59,29 @@ func _run() -> void:
 	_check(composition.apply_bridge_result(active, base).get("reason") == &"duplicate", "replayed bridge receipt is deduplicated without another HUD update")
 
 	var stale := bridge.submit_ping(62, 3, &"navigator_avatar", 1, 2, {}, 13, 2)
-	_check(composition.apply_bridge_result(stale, base).get("source_state") == &"stale", "stale bridge result is projected through the same HUD seam")
+	var stale_applied := composition.apply_bridge_result(stale, base)
+	_check(stale_applied.get("source_state") == &"stale", "stale bridge result is projected through the same HUD seam")
+	_check((stale_applied.get("composed", {}) as Dictionary).get("cinder_navigator_ping", {}).get("state") == &"active" and (stale_applied.get("composed", {}) as Dictionary).get("cinder_navigator_ping_status", {}).get("state") == &"stale", "stale status remains separate from the accepted navigator view")
 	snapshot = composition.get_snapshot()
 	_check(int(snapshot.get("migration_generation", 0)) == 2 and int(snapshot.get("server_tick", 0)) == 12, "stale status retains the last committed migration and server-tick fence")
+	_check((snapshot.get("presenter", {}) as Dictionary).get("state") == &"active" and (snapshot.get("last_result", {}) as Dictionary).get("source_state") == &"active" and (snapshot.get("last_status", {}) as Dictionary).get("source_state") == &"stale", "composition snapshot retains accepted state beside bounded stale status")
+	var rejected := bridge.submit_ping(62, 3, &"wrong_avatar", 1, 3, {}, 13, 2)
+	_check(rejected.get("status") == &"navigator_identity_mismatch", "real bridge emits the navigator identity rejection shape")
+	var rejected_applied := composition.apply_bridge_result(rejected, base)
+	_check(rejected_applied.get("source_state") == &"rejected" and (rejected_applied.get("composed", {}) as Dictionary).get("cinder_navigator_ping", {}).get("state") == &"active", "real rejection reports status without corrupting the accepted HUD state")
+	_check(int(composition.get_snapshot().get("migration_generation", 0)) == 2 and int(composition.get_snapshot().get("server_tick", 0)) == 12, "rejection cannot advance accepted generation fences")
+	_check(bool(session._migration.rotate_server(1).get("accepted", false)), "real release advances to a newer migration")
 	var released := bridge.release_peer(62)
+	var foreign_tombstone := (released.get("tombstones", []) as Array).duplicate(true)
+	var foreign_receipt := ((foreign_tombstone[0] as Dictionary).get("receipt", {}) as Dictionary).duplicate(true)
+	foreign_receipt.peer_id = 99
+	foreign_tombstone[0] = {"receipt": foreign_receipt}
+	var foreign_clear := composition.apply_tombstones(foreign_tombstone, base)
+	_check(foreign_clear.get("source_state") == &"stale" and (composition.get_snapshot().get("presenter", {}) as Dictionary).get("state") == &"active", "foreign tombstone cannot clear or corrupt the accepted navigator snapshot")
 	var cleared := composition.apply_tombstones(released.get("tombstones", []) as Array, base)
 	_check(bool(cleared.get("accepted", false)) and cleared.get("source_state") == &"cleared", "real bridge tombstone clears the HUD ping")
 	snapshot = composition.get_snapshot()
-	_check(int(snapshot.get("migration_generation", 0)) == 2 and int(snapshot.get("server_tick", 0)) == 13, "tombstone keeps its migration and server-tick fence")
+	_check(int(snapshot.get("migration_generation", 0)) == 3 and int(snapshot.get("server_tick", 0)) == 13, "tombstone keeps its migration and server-tick fence across migration")
 
 	var detached_generation := int(composition.get_snapshot().get("generation", 0))
 	_check(bool(composition.detach().get("accepted", false)), "composition detaches without taking HUD lifecycle authority")

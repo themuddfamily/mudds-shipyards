@@ -14,6 +14,7 @@ var _hud: Object
 var _attached := false
 var _generation := 0
 var _last_result: Dictionary = {}
+var _last_status: Dictionary = {}
 var _last_migration_generation := 0
 var _last_server_tick := 0
 
@@ -32,6 +33,7 @@ func attach(hud: Object) -> Dictionary:
 	_attached = true
 	_generation += 1
 	_last_result.clear()
+	_last_status.clear()
 	_last_migration_generation = 0
 	_last_server_tick = 0
 	return _result(true, &"bound")
@@ -46,6 +48,7 @@ func detach() -> Dictionary:
 	_attached = false
 	_generation += 1
 	_last_result.clear()
+	_last_status.clear()
 	_last_migration_generation = 0
 	_last_server_tick = 0
 	return _result(true, &"detached")
@@ -79,6 +82,7 @@ func get_snapshot() -> Dictionary:
 		"presenter": _presenter.get_snapshot() if _presenter != null else {},
 		"adapter": _adapter.get_snapshot() if _adapter != null else {},
 		"last_result": _last_result.duplicate(true),
+		"last_status": _last_status.duplicate(true),
 		"presentation_only": true,
 		"hud_lifecycle_authority": false,
 		"crew_role_authority": false,
@@ -93,12 +97,17 @@ func _record(applied: Dictionary) -> Dictionary:
 	var recorded := applied.duplicate(true)
 	recorded["composition_generation"] = _generation
 	if bool(applied.get("accepted", false)) and applied.get("reason") != &"duplicate":
-		_last_result = recorded.duplicate(true)
-		var view := (applied.get("composed", {}) as Dictionary).get("cinder_navigator_ping", {}) as Dictionary
-		if view.has("migration_generation"):
-			_last_migration_generation = int(view.get("migration_generation", 0))
-		if view.has("server_tick"):
-			_last_server_tick = int(view.get("server_tick", 0))
+		var source_state := StringName(applied.get("source_state", &"unknown"))
+		if source_state in [&"stale", &"rejected"]:
+			_last_status = recorded.duplicate(true)
+		else:
+			_last_result = recorded.duplicate(true)
+			_last_status.clear()
+			var view := (applied.get("composed", {}) as Dictionary).get("cinder_navigator_ping", {}) as Dictionary
+			if view.has("migration_generation"):
+				_last_migration_generation = int(view.get("migration_generation", 0))
+			if view.has("server_tick"):
+				_last_server_tick = int(view.get("server_tick", 0))
 	return recorded
 
 
