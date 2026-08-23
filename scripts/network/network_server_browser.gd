@@ -158,9 +158,12 @@ func _validate_entry(raw: Dictionary, generation: int, tick: int) -> Dictionary:
 	var ping_ms := int(raw["ping_ms"])
 	var player_count := int(raw["player_count"])
 	var max_players := int(raw["max_players"])
+	var available_slots := int(raw.get("available_slots", max_players - player_count))
+	var capacity_generation := int(raw.get("capacity_generation", generation))
 	if session_id == &"" or region_id == &"" or title == &"":
 		return _result(false, &"invalid_session_label")
-	if host_peer_id <= 0 or player_count < 0 or max_players <= 0 or player_count > max_players:
+	if host_peer_id <= 0 or player_count < 0 or max_players <= 0 or player_count > max_players \
+		or available_slots != max_players - player_count or capacity_generation <= 0:
 		return _result(false, &"invalid_capacity")
 	if ping_ms < PING_UNKNOWN or ping_ms > 60_000:
 		return _result(false, &"invalid_ping")
@@ -173,6 +176,9 @@ func _validate_entry(raw: Dictionary, generation: int, tick: int) -> Dictionary:
 		"ping_label": _ping_label(ping_ms),
 		"player_count": player_count,
 		"max_players": max_players,
+		"available_slots": available_slots,
+		"is_full": available_slots == 0,
+		"capacity_generation": capacity_generation,
 		"directory_generation": generation,
 		"last_seen_tick": tick,
 	}

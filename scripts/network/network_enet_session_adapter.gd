@@ -118,6 +118,9 @@ var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
 var _session_max_clients := DEFAULT_MAX_CLIENTS
+var _hosted_directory_entries: Array = []
+var _hosted_directory_generation := 0
+var _hosted_directory_tick := 0
 var _latest_snapshot_revision := 0
 var _prediction_entities: Dictionary = {}
 var _next_peer_generation := 1
@@ -1788,10 +1791,40 @@ func publish_server_directory(directory_generation: int, server_tick: int, entri
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	var result: Dictionary = _server_browser.publish_snapshot(
-		AUTHORITY_PEER_ID, directory_generation, server_tick, entries
+		AUTHORITY_PEER_ID, directory_generation, server_tick, _decorate_hosted_directory(entries)
 	)
+	if bool(result.get("accepted", false)):
+		_hosted_directory_entries = entries.duplicate(true)
+		_hosted_directory_generation = directory_generation
+		_hosted_directory_tick = server_tick
 	server_browser_result.emit(result.duplicate(true))
 	return _remember(result)
+
+
+func _decorate_hosted_directory(entries: Array) -> Array:
+	var decorated: Array = []
+	var local_peer_id := multiplayer.get_unique_id() if multiplayer != null else AUTHORITY_PEER_ID
+	var capacity := get_session_capacity_snapshot()
+	var capacity_generation := int(_migration.get_snapshot().get("migration_generation", 1))
+	for raw_entry in entries:
+		var entry := (raw_entry as Dictionary).duplicate(true) if raw_entry is Dictionary else {}
+		if int(entry.get("host_peer_id", 0)) == local_peer_id:
+			entry["player_count"] = int(capacity.get("occupancy", 0))
+			entry["max_players"] = int(capacity.get("max_players", 0))
+			entry["available_slots"] = int(capacity.get("available_slots", 0))
+			entry["capacity_generation"] = capacity_generation
+		decorated.append(entry)
+	return decorated
+
+
+func _refresh_hosted_directory() -> void:
+	if not is_server() or _hosted_directory_entries.is_empty():
+		return
+	var result: Dictionary = _server_browser.publish_snapshot(
+		AUTHORITY_PEER_ID, _hosted_directory_generation, _hosted_directory_tick,
+		_decorate_hosted_directory(_hosted_directory_entries)
+	)
+	server_browser_result.emit(result.duplicate(true))
 
 
 func apply_server_directory_snapshot(directory_generation: int, server_tick: int, entries: Array) -> Dictionary:
@@ -2106,6 +2139,7 @@ func _receive_hello(wire: Dictionary) -> void:
 	}
 	_send_server_offer.rpc_id(source_peer_id, offer)
 	peer_admitted.emit(peer_id, offer.duplicate(true))
+	_refresh_hosted_directory()
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -2227,6 +2261,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 			)
 			_prediction_entities.erase(prediction_id)
 	_peer_generations.erase(peer_id)
+	_refresh_hosted_directory()
 	for source_id_variant in _projectile_sources.keys():
 		var source_id := StringName(source_id_variant)
 		var source := _projectile_sources[source_id] as Dictionary
