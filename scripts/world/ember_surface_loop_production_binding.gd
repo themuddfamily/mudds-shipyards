@@ -195,6 +195,12 @@ func get_planetary_surface_snapshot() -> Dictionary:
 		if _planetary_composition != null else {}
 
 
+func get_planetary_atmosphere_snapshot() -> Dictionary:
+	if _atmosphere_composition == null:
+		return {}
+	return _atmosphere_composition.call(&"get_presentation_snapshot")
+
+
 func get_planetary_surface_session_snapshot() -> Dictionary:
 	if _planetary_composition == null:
 		return {}
@@ -259,10 +265,7 @@ func _apply_planetary_atmosphere_recipe() -> void:
 	if solar.is_empty() or weather.is_empty():
 		return
 	_atmosphere_composition.call(
-		&"apply_retained_presentation_recipe", solar, {
-			"intensity_unitless": 0.0, "gust_factor_unitless": 1.0,
-			"shelter_scalar": 0.0, "wind_velocity_mps": Vector3.ZERO,
-		}
+		&"apply_retained_presentation_recipe", solar, weather
 	)
 
 

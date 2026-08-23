@@ -146,6 +146,23 @@ func apply_retained_presentation_recipe(
 	return {"accepted": true, "reason": &"presentation_recipe_applied", "solar": solar, "weather": weather}.duplicate(true)
 
 
+func get_presentation_snapshot() -> Dictionary:
+	var rig := get_atmosphere_rig()
+	var target := get_world_environment()
+	var sun := rig.get_sun_light() if rig != null else null
+	var cloud := rig.get_cloud_shell() if rig != null else null
+	var shadow := get_node_or_null(^"OwnedCloudShadowProjection") as MeshInstance3D
+	return {
+		"configured": _configured,
+		"sun_energy": sun.light_energy if sun != null else 0.0,
+		"sun_color": sun.light_color if sun != null else Color.BLACK,
+		"ambient_energy": target.environment.ambient_light_energy if target != null and target.environment != null else 0.0,
+		"cloud_transparency": cloud.transparency if cloud != null else 1.0,
+		"cloud_shadow_visible": shadow.visible if shadow != null else false,
+		"recipe": _last_recipe.duplicate(true),
+	}.duplicate(true)
+
+
 func get_world_environment() -> WorldEnvironment:
 	return get_node_or_null("WorldEnvironment") as WorldEnvironment
 

@@ -324,8 +324,12 @@ func _test_real_scheduler_complete_loop() -> void:
 		"retained solar/weather observations apply bounded values to live atmosphere nodes"
 	)
 	_check(
-		not production.get_planetary_surface_snapshot().water_presentation.recipe.is_empty()
-			and production.get_planetary_surface_snapshot().water_presentation.material_instance_id > 0,
+		production.get_planetary_atmosphere_snapshot().cloud_shadow_visible
+			and production.get_planetary_atmosphere_snapshot().recipe.size() > 0,
+		"real Ember owner publishes the updated live cloud-shadow recipe"
+	)
+	_check(
+		production.get_planetary_surface_snapshot().water_presentation.material_instance_id > 0,
 		"retained solar/weather observations apply to the owned planetary water target"
 	)
 	var planetary_session := production.get_planetary_surface_session_snapshot()
