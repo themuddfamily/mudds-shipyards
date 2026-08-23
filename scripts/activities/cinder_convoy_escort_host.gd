@@ -44,6 +44,9 @@ const CARGO_POD_POSITIONS := [
 	Vector3(3.35, 0.05, 0.4),
 ]
 const CARGO_POD_SIZE := Vector3(2.15, 2.5, 6.4)
+const MAXIMUM_PRESENTATION_POD_SPREAD := 2.2
+const COMPLETED_PRESENTATION_POD_TUCK := -0.75
+const CRITICAL_SEPARATION_FRACTION := 0.75
 const BASELINE_VISUAL_NODE_COUNT := 7
 const RETAINED_VISUAL_RENDERER_NODE_COUNT := 6
 const BASELINE_VISUAL_MESH_RESOURCE_COUNT := 7
@@ -67,6 +70,7 @@ var _activity: ConvoyEscortActivity
 var _convoy_entity: Node3D
 var _cargo_pod_mesh: BoxMesh
 var _cargo_pod_multimesh: MultiMesh
+var _visual_feedback_snapshot: Dictionary = {}
 var _built := false
 var _attached := false
 var _entity_generation := 0
@@ -379,6 +383,7 @@ func get_snapshot() -> Dictionary:
 		"last_escort_position": _last_escort_position,
 		"attached": _attached and is_inside_tree(),
 		"activity": activity_snapshot.duplicate(true),
+		"visual_feedback": _visual_feedback_snapshot.duplicate(true),
 		"uses_caller_physics_delta": true,
 		"auto_processes": false,
 		"owns_route_definition": true,
@@ -480,6 +485,7 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 
 		var batch := _convoy_entity.get_node_or_null(^"PortCargoPod") as MultiMeshInstance3D
 		var starboard_anchor := _convoy_entity.get_node_or_null(^"StarboardCargoPod") as Node3D
+		var pod_spread := float(_visual_feedback_snapshot.get("pod_spread", 0.0))
 		if batch == null:
 			errors.append("cargo_pod_batch_missing")
 		elif batch.multimesh == null:
@@ -493,21 +499,10 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 					or batch.multimesh.instance_count != CARGO_POD_NAMES.size() \
 					or batch.multimesh.visible_instance_count != -1:
 				errors.append("cargo_pod_multimesh_recipe_drift")
-			var expected_batch_aabb := AABB(
-				-CARGO_POD_SIZE * 0.5, CARGO_POD_SIZE
-			).merge(
-				AABB(
-					CARGO_POD_POSITIONS[1] - CARGO_POD_POSITIONS[0]
-					- CARGO_POD_SIZE * 0.5,
-					CARGO_POD_SIZE
-				)
-			)
+			var expected_batch_aabb := _cargo_pod_presentation_aabb()
 			if not batch.multimesh.custom_aabb.is_equal_approx(expected_batch_aabb):
 				errors.append("cargo_pod_culling_bounds_drift")
-			var expected_transforms: Array[Transform3D] = [
-				Transform3D.IDENTITY,
-				Transform3D(Basis.IDENTITY, Vector3(6.7, 0.0, 0.0)),
-			]
+			var expected_transforms := _cargo_pod_presentation_transforms(pod_spread)
 			if batch.multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
 				errors.append("cargo_pod_instance_transform_buffer_drift")
 			if (
@@ -566,7 +561,9 @@ func get_cargo_pod_visual_allocation_audit() -> Dictionary:
 			if starboard_anchor.is_processing() or starboard_anchor.is_physics_processing():
 				cargo_pod_processing_count += 1
 			if (
-				not starboard_anchor.position.is_equal_approx(CARGO_POD_POSITIONS[1])
+				not starboard_anchor.position.is_equal_approx(
+					CARGO_POD_POSITIONS[1] + Vector3(pod_spread, 0.0, 0.0)
+				)
 				or not starboard_anchor.rotation.is_equal_approx(Vector3.ZERO)
 				or not starboard_anchor.scale.is_equal_approx(Vector3.ONE)
 				or not starboard_anchor.visible
@@ -750,6 +747,7 @@ func _build_content() -> void:
 	_set_entity_position(ROUTE.get_checkpoint_position(0))
 	_orient_toward_route_index(1)
 	_built = true
+	_apply_visual_feedback()
 
 
 func _build_entity_visuals() -> void:
@@ -771,19 +769,9 @@ func _build_entity_visuals() -> void:
 	_cargo_pod_multimesh.mesh = _cargo_pod_mesh
 	_cargo_pod_multimesh.instance_count = CARGO_POD_NAMES.size()
 	_cargo_pod_multimesh.visible_instance_count = -1
-	var cargo_pod_transforms: Array[Transform3D] = [
-		Transform3D.IDENTITY,
-		Transform3D(Basis.IDENTITY, Vector3(6.7, 0.0, 0.0)),
-	]
+	var cargo_pod_transforms := _cargo_pod_presentation_transforms(0.0)
 	_cargo_pod_multimesh.buffer = _encode_multimesh_transforms(cargo_pod_transforms)
-	_cargo_pod_multimesh.custom_aabb = AABB(
-		-CARGO_POD_SIZE * 0.5, CARGO_POD_SIZE
-	).merge(
-		AABB(
-			CARGO_POD_POSITIONS[1] - CARGO_POD_POSITIONS[0] - CARGO_POD_SIZE * 0.5,
-			CARGO_POD_SIZE
-		)
-	)
+	_cargo_pod_multimesh.custom_aabb = _cargo_pod_presentation_aabb()
 	var cargo_pod_batch := MultiMeshInstance3D.new()
 	cargo_pod_batch.name = "PortCargoPod"
 	cargo_pod_batch.multimesh = _cargo_pod_multimesh
@@ -798,6 +786,100 @@ func _build_entity_visuals() -> void:
 	_box("DriveBlock", Vector3(3.8, 1.5, 1.2), Vector3(0.0, -0.05, 5.25), dark_material)
 	_box("DriveGlow", Vector3(3.0, 0.72, 0.16), Vector3(0.0, -0.05, 5.92), glow_material)
 	_box("NavigationBeacon", Vector3(0.42, 0.34, 0.42), Vector3(0.0, 1.2, -1.2), beacon_material)
+
+
+func _apply_visual_feedback() -> void:
+	if not _built or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
+		return
+	var activity_snapshot := _activity.get_snapshot()
+	var activity_state := StringName(activity_snapshot.get("state_id", &"idle"))
+	var geometry_state: StringName = &"idle"
+	var separation_fraction := 0.0
+	var pod_spread := 0.0
+	var drive_scale := Vector3.ONE
+	var beacon_scale := Vector3.ONE
+	if activity_state == &"active":
+		geometry_state = &"formation_stable"
+		var maximum_separation := float(
+			activity_snapshot.get("maximum_separation_seconds", 0.0)
+		)
+		if maximum_separation > 0.0:
+			separation_fraction = clampf(
+				float(activity_snapshot.get("separation_elapsed_seconds", 0.0))
+				/ maximum_separation,
+				0.0,
+				1.0
+			)
+		if bool(activity_snapshot.get("has_entity_sample", false)) \
+				and not bool(activity_snapshot.get("escort_within_proximity", true)):
+			if separation_fraction >= CRITICAL_SEPARATION_FRACTION:
+				geometry_state = &"separation_critical"
+				pod_spread = MAXIMUM_PRESENTATION_POD_SPREAD
+				drive_scale = Vector3(1.75, 0.42, 1.0)
+				beacon_scale = Vector3(1.8, 2.5, 1.8)
+			else:
+				geometry_state = &"separation_warning"
+				pod_spread = lerpf(0.65, 1.5, separation_fraction / CRITICAL_SEPARATION_FRACTION)
+				drive_scale = Vector3(1.25, 0.72, 1.0)
+				beacon_scale = Vector3(1.0, 1.8, 1.0)
+	elif activity_state == &"completed":
+		geometry_state = &"convoy_complete"
+		pod_spread = COMPLETED_PRESENTATION_POD_TUCK
+		drive_scale = Vector3(0.72, 1.65, 1.0)
+		beacon_scale = Vector3(2.2, 0.55, 2.2)
+	elif activity_state in [&"failed", &"aborted"]:
+		geometry_state = &"convoy_failed"
+		pod_spread = MAXIMUM_PRESENTATION_POD_SPREAD
+		drive_scale = Vector3(1.75, 0.42, 1.0)
+		beacon_scale = Vector3(1.8, 2.5, 1.8)
+
+	_cargo_pod_multimesh.buffer = _encode_multimesh_transforms(
+		_cargo_pod_presentation_transforms(pod_spread)
+	)
+	var starboard_anchor := _convoy_entity.get_node_or_null(^"StarboardCargoPod") as Node3D
+	var drive_glow := _convoy_entity.get_node_or_null(^"DriveGlow") as MeshInstance3D
+	var navigation_beacon := (
+		_convoy_entity.get_node_or_null(^"NavigationBeacon") as MeshInstance3D
+	)
+	if starboard_anchor != null:
+		starboard_anchor.position = CARGO_POD_POSITIONS[1] + Vector3(pod_spread, 0.0, 0.0)
+	if drive_glow != null:
+		drive_glow.scale = drive_scale
+	if navigation_beacon != null:
+		navigation_beacon.scale = beacon_scale
+	_visual_feedback_snapshot = {
+		"geometry_state": geometry_state,
+		"activity_generation": int(activity_snapshot.get("generation", 0)),
+		"separation_fraction": separation_fraction,
+		"pod_spread": pod_spread,
+		"drive_scale": drive_scale,
+		"beacon_scale": beacon_scale,
+		"uses_authoritative_activity_snapshot": true,
+		"static_geometry_only": true,
+		"movement_authority": false,
+		"combat_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+func _cargo_pod_presentation_transforms(pod_spread: float) -> Array[Transform3D]:
+	return [
+		Transform3D(Basis.IDENTITY, Vector3(-pod_spread, 0.0, 0.0)),
+		Transform3D(Basis.IDENTITY, Vector3(6.7 + pod_spread, 0.0, 0.0)),
+	]
+
+
+func _cargo_pod_presentation_aabb() -> AABB:
+	return AABB(
+		Vector3(-MAXIMUM_PRESENTATION_POD_SPREAD, 0.0, 0.0) - CARGO_POD_SIZE * 0.5,
+		CARGO_POD_SIZE
+	).merge(
+		AABB(
+			Vector3(6.7 + MAXIMUM_PRESENTATION_POD_SPREAD, 0.0, 0.0)
+			- CARGO_POD_SIZE * 0.5,
+			CARGO_POD_SIZE
+		)
+	)
 
 
 func _encode_multimesh_transforms(
@@ -967,6 +1049,7 @@ func _finish(accepted: bool, reason: StringName) -> Dictionary:
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
+	_apply_visual_feedback()
 	var result := get_snapshot()
 	result["accepted"] = accepted
 	result["reason"] = reason
