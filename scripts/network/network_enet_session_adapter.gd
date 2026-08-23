@@ -79,6 +79,8 @@ var _landing_jitter
 var _landing_replica_samples: Dictionary = {}
 var _damage_jitter
 var _damage_replica_samples: Dictionary = {}
+var _boarding_jitter
+var _boarding_replica_samples: Dictionary = {}
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
@@ -121,6 +123,7 @@ func _init() -> void:
 	_projectile_jitter = SnapshotJitterBuffer.new()
 	_landing_jitter = SnapshotJitterBuffer.new()
 	_damage_jitter = SnapshotJitterBuffer.new()
+	_boarding_jitter = SnapshotJitterBuffer.new()
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -859,6 +862,8 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_landing_jitter.reset(migration_generation)
 	_damage_replica_samples.clear()
 	_damage_jitter.reset(migration_generation)
+	_boarding_replica_samples.clear()
+	_boarding_jitter.reset(migration_generation)
 	return _remember(_snapshot_jitter.reset(migration_generation))
 
 
@@ -1008,6 +1013,53 @@ func consume_projectile_snapshot(packet: Dictionary, alpha: float = 1.0) -> Dict
 
 func get_snapshot_jitter_state() -> Dictionary:
 	return _snapshot_jitter.get_snapshot()
+
+
+## Presents occupancy and ownership records only. Seat claims and ship-owner
+## changes remain server-authoritative; a gap freezes the last presentation.
+func consume_boarding_ownership_snapshot(packet: Dictionary) -> Dictionary:
+	if not packet.has("revision") or not packet.has("server_tick") \
+			or not packet.has("boarding") or not packet.has("ownership"):
+		return _remember(_result(false, &"invalid_boarding_snapshot"))
+	var boarding_variant: Variant = packet.get("boarding")
+	var ownership_variant: Variant = packet.get("ownership")
+	if not boarding_variant is Dictionary or not ownership_variant is Dictionary:
+		return _remember(_result(false, &"invalid_boarding_snapshot"))
+	var buffered: Dictionary = _boarding_jitter.push(packet)
+	if not bool(buffered.get("accepted", false)):
+		return _remember(_result(false, StringName(buffered.get("status", &"buffer_rejected"))))
+	var presented: Array = []
+	while true:
+		var ready: Dictionary = _boarding_jitter.pop_ready()
+		if ready.is_empty():
+			break
+		var ready_boarding: Variant = ready.get("boarding")
+		var ready_ownership: Variant = ready.get("ownership")
+		if not ready_boarding is Dictionary or not ready_ownership is Dictionary:
+			return _remember(_result(false, &"invalid_boarding_snapshot"))
+		var boarding := ready_boarding as Dictionary
+		var ownership := ready_ownership as Dictionary
+		var ship_id := StringName(ownership.get("ship_id", &""))
+		var seat_id := StringName(boarding.get("seat_id", &""))
+		if ship_id.is_empty() or seat_id.is_empty() \
+				or StringName(boarding.get("ship_id", &"")) != ship_id:
+			return _remember(_result(false, &"invalid_boarding_snapshot"))
+		var record := {
+			"revision": int(ready.get("revision", 0)),
+			"server_tick": int(ready.get("server_tick", 0)),
+			"ship_id": ship_id,
+			"owner_peer_id": int(ownership.get("owner_peer_id", 0)),
+			"seat_id": seat_id,
+			"seat_occupied": bool(boarding.get("occupied", false)),
+		}
+		_boarding_replica_samples[ship_id] = record.duplicate(true)
+		presented.append(record)
+	if presented.is_empty():
+		var frozen: Array = []
+		for ship_variant in _boarding_replica_samples.keys():
+			frozen.append((_boarding_replica_samples[ship_variant] as Dictionary).duplicate(true))
+		return _remember(_result(true, &"boarding_waiting_for_gap", {"samples": frozen, "frozen": true}))
+	return _remember(_result(true, &"boarding_presented", {"samples": presented}))
 
 
 ## Presents damage/respawn state only; health mutation and lifecycle remain
