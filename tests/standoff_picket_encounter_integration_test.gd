@@ -13,7 +13,6 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
 const DISPATCH_FRAME_BUDGET := 420
-const SETTLE_FRAME_BUDGET := 240
 const PRODUCTION_ESCORT_DELAY := 3.0
 const TEST_ESCORT_DELAY := 0.4
 const LANCE_TEST_DISTANCE := 110.0
@@ -279,11 +278,9 @@ func _test_production_encounter() -> void:
 	)
 
 	# --------------------------------- withdrawal keeps the guide winnable ----
-	# The defender's terminal signal switches GameFlow to RETURN_TO_YARD
-	# synchronously, while the picket withdraws on its next physics step. Keep the
-	# picket deliberately armed inside that one-call window: it may still be an
-	# active registered node, but must not commit another lance after the encounter
-	# has concluded.
+	# The defender's terminal signal switches GameFlow to RETURN_TO_YARD and
+	# synchronously completes the picket's stand-down transaction. Keep the picket
+	# deliberately armed to prove no late lance crosses that terminal boundary.
 	var post_victory_sequence := resolver.get_last_sequence(picket, picket.source_id)
 	var post_victory_hull := float(torrent.get_telemetry().get("hull", 0.0))
 	var post_victory_pulses := int(pulse.get_statistics().presented)
@@ -295,8 +292,10 @@ func _test_production_encounter() -> void:
 		"destroying the defender still completes the guided combat beat with the picket in play"
 	)
 	_check(
-		picket.is_active() and picket.is_combat_source_registered(),
-		"the terminal transition exposes the one-call pre-withdrawal picket window"
+		not picket.is_active()
+		and not picket.is_combat_source_registered()
+		and picket.get_pending_lance_receipt_count() == 0,
+		"the terminal transition synchronously leaves the picket inactive, unregistered, and receipt-free"
 	)
 	picket._fire_at_target(torrent.global_position)
 	_check(
@@ -306,12 +305,6 @@ func _test_production_encounter() -> void:
 		and picket.get_pending_lance_receipt_count() == post_victory_receipts,
 		"a post-defender-destruction lance is withheld before sequence, hull, pulse, or receipt state changes"
 	)
-	await process_frame
-	var withdrawn := await _advance_until(
-		func() -> bool: return not picket.is_active(),
-		SETTLE_FRAME_BUDGET
-	)
-	_check(withdrawn, "the picket withdraws with the defender wave it escorts")
 	_check(
 		not picket.is_combat_source_registered()
 		and resolver.get_registered_source_count() == 6

@@ -874,14 +874,14 @@ func _test_standoff_tactics() -> void:
 
 
 ## A defender's terminal lifecycle signal and a lance dispatch can share one
-## call stack. This reproduces that exact window without GameFlow: the picket is
-## still active until its next physics pass, but its committed charge has already
-## lost the explicit authorization granted by escort dispatch.
+## call stack. This reproduces that exact window without GameFlow and proves the
+## terminal signal completes the whole stand-down transaction synchronously.
 func _test_synchronous_escort_stand_down_fence() -> void:
 	var fixture := await _make_fixture()
 	var picket: StandoffPicketOpponent = fixture.picket
 	var defender: RangeOpponent = fixture.defender
 	var target: RangeOpponent = fixture.target
+	var pulse: PulseWeaponPresentation = fixture.pulse
 	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
 
 	picket.escort_enabled = true
@@ -917,21 +917,25 @@ func _test_synchronous_escort_stand_down_fence() -> void:
 	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
 	var health_before := target.get_health()
 	var lance_events_before := _lance_events.size()
+	var pulse_count_before := int(pulse.get_statistics().presented)
 	defender.apply_damage(defender.maximum_health + 1.0, defender.global_position)
 	_check(
 		not defender.is_active()
-		and picket.is_active()
+		and not picket.is_active()
+		and not picket.is_combat_source_registered()
+		and not picket.is_escort_dispatched()
+		and picket.get_pending_lance_receipt_count() == 0
 		and not bool((picket.get_audit_report().lifecycle as Dictionary).escort_fire_authorized),
-		"defender destruction synchronously revokes the picket-owned fire fence before withdrawal"
+		"defender destruction synchronously completes inactive, unregistered escort stand-down"
 	)
 	picket._fire_at_target(target.global_position)
-	var withheld := picket.get_last_shot_result()
 	_check(
 		resolver.get_last_sequence(picket, picket.source_id) == sequence_before
 		and is_equal_approx(target.get_health(), health_before)
 		and _lance_events.size() == lance_events_before
-		and StringName(withheld.get("status", &"")) == &"fire_unauthorized",
-		"RED D2: a committed charge cannot consume sequence, damage, or fire events after synchronous stand-down"
+		and int(pulse.get_statistics().presented) == pulse_count_before
+		and picket.get_pending_lance_receipt_count() == 0,
+		"RED D2: stand-down permits no late sequence, damage, fire event, pulse, or receipt"
 	)
 	var cancelled := picket.get_lance_charge_snapshot()
 	_check(

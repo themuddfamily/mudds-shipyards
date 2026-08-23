@@ -692,10 +692,7 @@ func _update_escort_dispatch(delta: float) -> void:
 			return
 		if defender == _dispatch_defender and defender.is_active():
 			return
-		var was_active_dispatch := _escort_dispatched
-		_revoke_dispatch_authorization(&"escort_owner_changed")
-		if was_active_dispatch and _active:
-			deactivate()
+		_stand_down_escort_dispatch(&"escort_owner_changed")
 		return
 	var defender_active := (
 		is_instance_valid(defender)
@@ -705,10 +702,7 @@ func _update_escort_dispatch(delta: float) -> void:
 	if not defender_active:
 		_escort_elapsed = 0.0
 		if _escort_dispatched:
-			_revoke_dispatch_authorization(&"escort_stood_down")
-			_escort_dispatched = false
-			if _active:
-				deactivate()
+			_stand_down_escort_dispatch(&"escort_stood_down")
 		return
 	if _escort_dispatched or not _encounter_authorizes_dispatch():
 		return
@@ -803,7 +797,17 @@ func _unbind_escort_defender_signal() -> void:
 func _on_escort_defender_destroyed(_death_position: Vector3) -> void:
 	if not escort_enabled or _bound_escort_defender != _dispatch_defender:
 		return
-	_revoke_dispatch_authorization(&"escort_stood_down")
+	_stand_down_escort_dispatch(&"escort_stood_down")
+
+
+func _stand_down_escort_dispatch(reason: StringName) -> void:
+	var should_withdraw := _escort_dispatched and _active
+	_revoke_dispatch_authorization(reason)
+	if should_withdraw:
+		deactivate()
+		# `deactivate()` uses its general lifecycle reason. Retain the dispatch
+		# owner's terminal reason for callers inspecting the cancelled charge.
+		_cancel_lance_charge(reason, false)
 
 
 func _revoke_dispatch_authorization(reason: StringName) -> void:
