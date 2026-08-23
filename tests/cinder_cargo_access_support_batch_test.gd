@@ -70,4 +70,3 @@ func _run() -> void:
 func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
-

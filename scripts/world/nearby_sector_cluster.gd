@@ -219,13 +219,13 @@ const STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA := 0
 
 const PERFORMANCE_BUDGET := {
-	# Includes the production cargo access route (21 bodies/21 meshes/two
+	# Includes the production cargo access route (21 bodies/19 meshes/three
 	# batches) and the real destination terminal (two bodies/four meshes).
 	"static_bodies": 61,
-	"mesh_instances": 213,
+	"mesh_instances": 211,
 	# Three bounded visual batches retain the debris shell, processing-spine ribs,
 	# and gantry rails without increasing gameplay or collision ownership.
-	"multimesh_instances": 10,
+	"multimesh_instances": 11,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
