@@ -49,6 +49,7 @@ const ADJACENT_AUTHORITY_KEYS := [
 	"origin_apply", "origin_commit", "origin_request", "presentation",
 	"seat_mutation", "streaming_generation", "streaming_load_unload",
 ]
+const PlanetaryCompositionScript := preload("res://scripts/world/ember_planetary_surface_production_binding.gd")
 
 var _state := State.IDLE
 var _generation := 0
@@ -76,6 +77,7 @@ var _ship_instance_id := 0
 var _player_instance_id := 0
 var _loaded_scene_instance_id := 0
 var _location_generation := 0
+var _planetary_composition: Node
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -161,6 +163,57 @@ func configure(host: EmberSurfaceLoopHost, expected_generation: int = 0) -> Dict
 	process_physics_priority = PHYSICS_PRIORITY
 	set_physics_process(is_inside_tree())
 	return _finish(true, &"configured")
+
+
+## Instantiates the retained planetary surface composition under this real
+## Ember production owner. The composition remains caller-observation driven.
+func configure_planetary_surface(
+		director: ActivityDirector,
+		reward_sink: Callable
+	) -> Dictionary:
+	if not _configured or _composition_root == null:
+		return _reject(&"production_binding_unavailable")
+	if _planetary_composition != null:
+		return _reject(&"planetary_composition_already_bound")
+	_planetary_composition = PlanetaryCompositionScript.new() as Node
+	_planetary_composition.name = "EmberPlanetarySurfaceProductionBinding"
+	_composition_root.add_child(_planetary_composition)
+	var result: Dictionary = _planetary_composition.call(
+		&"configure", _host, director, reward_sink, _host.get_generation()
+	)
+	if not bool(result.get("accepted", false)):
+		_planetary_composition.queue_free()
+		_planetary_composition = null
+	return result
+
+
+func get_planetary_surface_snapshot() -> Dictionary:
+	return _planetary_composition.call(&"get_snapshot") as Dictionary \
+		if _planetary_composition != null else {}
+
+
+func discover_planetary_settlements(position: Variant, radius_m: Variant) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"discover_settlements", position, radius_m)
+
+
+func enter_planetary_settlement(structure_id: StringName, position: Variant) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"enter_settlement", structure_id, position)
+
+
+func detach_planetary_surface() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"detach")
+
+
+func reenter_planetary_surface() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(&"reenter")
 
 
 ## Called once at the future Main/GameFlow priority -100 boundary. The origin
@@ -398,6 +451,7 @@ func get_snapshot() -> Dictionary:
 		"completion_handback_pending": not _completion_handback.is_empty(),
 		"completion_handback_delivered": _completion_handback_delivered,
 		"completion_handback": _completion_handback.duplicate(true),
+		"planetary_surface": get_planetary_surface_snapshot(),
 	}.duplicate(true)
 
 

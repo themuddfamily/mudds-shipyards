@@ -250,6 +250,28 @@ func _test_real_scheduler_complete_loop() -> void:
 	world.add_child(early)
 	await process_frame
 	_check(production.configure(host, 0).accepted, "real bound Host configures exactly once")
+	var planetary_director := ActivityDirector.new()
+	world.add_child(planetary_director)
+	var planetary_bound := production.configure_planetary_surface(
+		planetary_director, Callable(self, "_planetary_reward_sink")
+	)
+	var planetary_discovery := production.discover_planetary_settlements(
+		Vector3(92.0, 120000.5, -18.0), 20.0
+	)
+	var planetary_entry := production.enter_planetary_settlement(
+		&"ember_habitat_spine", Vector3(92.0, 120000.5, -18.0)
+	)
+	_check(
+		planetary_bound.accepted and planetary_discovery.accepted
+			and planetary_entry.accepted
+			and production.get_planetary_surface_snapshot().settlement.state == &"inside",
+		"real Ember production owner consumes authored planetary settlement entry"
+	)
+	_check(
+		production.detach_planetary_surface().accepted
+			and production.get_planetary_surface_snapshot().state == &"detached",
+		"real Ember production owner publishes planetary detach state",
+	)
 	var audit := production.audit()
 	_check(
 		early.process_physics_priority == -100 and ship.process_physics_priority == 0
@@ -785,6 +807,10 @@ func _check(condition: bool, message: String) -> void:
 	else:
 		_failures.append(message)
 		push_error("FAIL: " + message)
+
+
+func _planetary_reward_sink(_receipt: Dictionary) -> Dictionary:
+	return {"accepted": true, "reason": &"test_reward"}
 
 
 func _finish() -> void:
