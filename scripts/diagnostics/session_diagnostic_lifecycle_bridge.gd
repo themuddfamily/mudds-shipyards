@@ -88,6 +88,25 @@ func discard_recovery() -> Dictionary:
 	return _status(true, &"recovery_discarded")
 
 
+## Returns caller-choice startup guidance only; it never applies a settings
+## patch or changes the marker. The optional policy patch is already validated
+## by SafeStartRecoveryPolicy and remains inert until an owner chooses it.
+func get_recovery_recommendation(safe_start_patch: Dictionary = {}) -> Dictionary:
+	if _recovery_available_snapshot.is_empty():
+		return {"available": false, "requires_caller_choice": false}
+	var failures := int(_recovery_available_snapshot.get("unclean_start_count", 0))
+	var severity: StringName = &"safe_graphics_recommended" if failures >= 3 else &"review_prior_session"
+	return {
+		"available": true,
+		"requires_caller_choice": true,
+		"severity": severity,
+		"choices": [&"normal_start", &"safe_graphics_windowed", &"discard"],
+		"safe_start_patch": safe_start_patch.duplicate(true),
+		"applies_settings": false,
+		"persists_settings": false,
+	}.duplicate(true)
+
+
 ## Retries publication of the one recovery event without recording another one.
 func flush_recovery_event(physics_tick: int, elapsed_physics_seconds: float) -> Dictionary:
 	if not _recovery_flush_pending:

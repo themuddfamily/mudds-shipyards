@@ -112,6 +112,16 @@ func _run() -> void:
 		and restarted.phase == recovery_phase,
 		"unclean restart exposes a detached recovery snapshot without changing GameFlow phase"
 	)
+	var recommendation := restarted.get_session_start_recommendation()
+	_check(
+		bool(recommendation.available)
+		and bool(recommendation.requires_caller_choice)
+		and recommendation.choices == [&"normal_start", &"safe_graphics_windowed", &"discard"]
+		and not bool(recommendation.applies_settings)
+		and not bool(recommendation.persists_settings)
+		and restarted.phase == recovery_phase,
+		"safe-start guidance is an explicit recommendation rather than an automatic settings change"
+	)
 	var acknowledged := restarted.acknowledge_recovery()
 	_check(
 		bool(acknowledged.accepted)

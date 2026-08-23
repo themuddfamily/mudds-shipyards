@@ -430,6 +430,8 @@ var _guided_return_ready_for_completion := false
 ## station berth.  This latch prevents a detached/replayed receipt from
 ## re-entering the ordinary yard shutdown path.
 var _planetary_return_receipt_consumed := false
+var _planetary_return_persistence_binding: Object
+const PLANETARY_RETURN_PERSISTENCE_SLOT: StringName = &"ember_planetary_return"
 var _sandbox_sortie := false
 ## A parked craft begins with `landed == true`. Free-flight return handling must
 ## not interpret that initial state as a completed sortie before the first
@@ -1187,6 +1189,15 @@ func get_recovery_available_snapshot() -> Dictionary:
 	if _session_diagnostics_bridge == null:
 		return {}
 	return _session_diagnostics_bridge.get_recovery_available_snapshot()
+
+
+func get_session_start_recommendation() -> Dictionary:
+	if _session_diagnostics_bridge == null:
+		return {"available": false, "requires_caller_choice": false}
+	var safe_patch := {}
+	if _safe_start_production_recovery != null:
+		safe_patch = _safe_start_production_recovery.get_recovery_recommendation_patch()
+	return _session_diagnostics_bridge.get_recovery_recommendation(safe_patch)
 
 
 func acknowledge_recovery() -> Dictionary:
@@ -4120,6 +4131,28 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
 
 
+## Binds the caller-owned Ember persistence bridge to this Main's already-loaded
+## UserDataStore. No filesystem or save authority is created here.
+func bind_planetary_return_persistence(binding: Object) -> Dictionary:
+	if binding == null or not binding.has_method(&"configure_planetary_return_persistence") \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"planetary_return_persistence_unavailable"}
+	var result: Dictionary = binding.call(
+		&"configure_planetary_return_persistence",
+		_runtime_settings_user_data_store, PLANETARY_RETURN_PERSISTENCE_SLOT
+	)
+	if bool(result.get("accepted", false)):
+		_planetary_return_persistence_binding = binding
+	return result
+
+
+func restore_planetary_return_persistence() -> Dictionary:
+	if _planetary_return_persistence_binding == null \
+			or not _planetary_return_persistence_binding.has_method(&"restore_planetary_return_persistence"):
+		return {"accepted": false, "reason": &"planetary_return_persistence_unavailable"}
+	return _planetary_return_persistence_binding.call(&"restore_planetary_return_persistence")
+
+
 ## Consumes the detached Ember return receipt at the normal GameFlow boundary.
 ## The berth remains the sole occupancy authority: this method never reserves,
 ## occupies, moves, or teleports a craft.  The optional arguments are an
@@ -4128,7 +4161,8 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 func consume_planetary_return_receipt(
 		receipt: Variant, planetary_binding: Object = null,
 		return_berth: ShipBerth = null, return_craft: Node = null,
-		return_actor: Node = null
+		return_actor: Node = null, travel_session: Object = null,
+		return_contract: Object = null
 	) -> Dictionary:
 	if _planetary_return_receipt_consumed:
 		return {"accepted": false, "reason": &"planetary_return_receipt_replayed"}
@@ -4185,6 +4219,16 @@ func consume_planetary_return_receipt(
 			or not berth.has_valid_lease(craft, token, ship_id):
 		return {"accepted": false, "reason": &"planetary_return_berth_lease_invalid"}
 	if planetary_binding != null and planetary_binding.has_method(&"detach_planetary_surface"):
+		if travel_session != null and return_contract != null \
+				and planetary_binding.has_method(&"save_planetary_return_persistence") \
+				and _runtime_settings_user_data_store != null:
+			var commit_id := "planetary-return-%d-%d" % [actor_id, craft_id]
+			var saved: Dictionary = planetary_binding.call(
+				&"save_planetary_return_persistence", travel_session, return_contract,
+				receipt, _runtime_settings_user_data_store.get_generation(), commit_id
+			)
+			if not bool(saved.get("accepted", false)):
+				return {"accepted": false, "reason": &"planetary_return_persistence_commit_rejected", "store": saved}
 		var detached := planetary_binding.call(&"detach_planetary_surface") as Dictionary
 		if not bool(detached.get("accepted", false)):
 			return {"accepted": false, "reason": &"planetary_return_attachment_detach_rejected"}

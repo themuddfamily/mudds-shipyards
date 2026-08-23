@@ -154,6 +154,12 @@ func note_first_settings_apply() -> void:
 	)
 
 
+## Exposes the validated safe-start patch as inert caller guidance. Applying or
+## persisting it remains an explicit owner decision.
+func get_recovery_recommendation_patch() -> Dictionary:
+	return _policy.get_recommended_runtime_settings_patch() if _policy != null else {}
+
+
 func advance_physics(delta: float) -> void:
 	if (
 		_policy == null
