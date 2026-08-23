@@ -290,6 +290,15 @@ func _test_real_scheduler_complete_loop() -> void:
 			and production.get_planetary_surface_snapshot().weather.valid,
 		"retained Ember hazard samples authored weather and shelter without damage authority"
 	)
+	var solar := production.submit_planetary_solar_observation(
+		Vector3.UP, Vector3(0.0, 1.0, 0.0), 180.0
+	)
+	_check(
+		solar.accepted
+			and solar.reason == &"solar_observation_accepted"
+			and production.get_planetary_surface_snapshot().solar_phase.state == &"daylight",
+		"caller-owned solar observation publishes bounded daylight state without a clock"
+	)
 	var water_entered := production.enter_planetary_water(
 		Vector3(20.0, 120000.0, 0.0)
 	)

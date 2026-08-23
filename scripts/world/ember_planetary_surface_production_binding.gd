@@ -30,6 +30,7 @@ var _adapter: RefCounted
 var _navigation: RefCounted
 var _hazard: RefCounted
 var _weather: RefCounted
+var _solar_phase: Dictionary = {}
 var _water: RefCounted
 var _landmarks: RefCounted
 var _settlement: RefCounted
@@ -138,6 +139,33 @@ func submit_weather_exposure(
 	)
 
 
+func submit_solar_observation(
+		surface_up: Variant, direction_to_sun: Variant, caller_time_seconds: float
+	) -> Dictionary:
+	if not _live() or not surface_up is Vector3 or not direction_to_sun is Vector3:
+		return _result(false, &"invalid_solar_observation")
+	var up := surface_up as Vector3
+	var sun := direction_to_sun as Vector3
+	if not up.is_finite() or not sun.is_finite() or up.length_squared() <= 0.0 \
+			or sun.length_squared() <= 0.0 or not is_finite(caller_time_seconds) \
+			or caller_time_seconds < 0.0:
+		return _result(false, &"invalid_solar_observation")
+	var elevation := clampf(up.normalized().dot(sun.normalized()), -1.0, 1.0)
+	var state: StringName = &"night"
+	var twilight := 0.0
+	if elevation > 0.0:
+		state = &"daylight"
+	elif elevation > -0.104528:
+		state = &"twilight"
+		twilight = clampf(1.0 + elevation / 0.104528, 0.0, 1.0)
+	_solar_phase = {
+		"state": state, "sun_elevation_sine": elevation,
+		"twilight_factor_unitless": twilight,
+		"caller_time_seconds": caller_time_seconds,
+	}.duplicate(true)
+	return _result(true, &"solar_observation_accepted")
+
+
 func submit_water_contact(position: Variant, depth_m: float, velocity_mps: Variant, delta_seconds: float) -> Dictionary:
 	if not _live():
 		return _result(false, &"composition_detached")
@@ -221,6 +249,7 @@ func get_snapshot() -> Dictionary:
 		"navigation": _navigation.get_snapshot() if _navigation != null else {},
 		"hazard": _hazard.get_snapshot() if _hazard != null else {},
 		"weather": _weather.call(&"audit") if _weather != null else {},
+		"solar_phase": _solar_phase.duplicate(true),
 		"water": _water.get_snapshot() if _water != null else {},
 		"landmarks": _landmarks.get_snapshot() if _landmarks != null else {},
 		"settlement": _settlement.get_snapshot() if _settlement != null else {},

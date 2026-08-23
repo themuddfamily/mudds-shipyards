@@ -233,6 +233,16 @@ func submit_planetary_weather_exposure(
 	)
 
 
+func submit_planetary_solar_observation(
+		surface_up: Variant, direction_to_sun: Variant, caller_time_seconds: float
+	) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"submit_solar_observation", surface_up, direction_to_sun, caller_time_seconds
+	)
+
+
 func enter_planetary_water(position: Variant) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
