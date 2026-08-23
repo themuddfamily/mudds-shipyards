@@ -13,6 +13,7 @@ const LifecycleAdapter := preload("res://scripts/network/network_snapshot_lifecy
 const TransportSecurity := preload("res://scripts/network/network_transport_security.gd")
 const MovementAuthority := preload("res://scripts/network/network_movement_authority.gd")
 const BoardingAuthority := preload("res://scripts/network/network_boarding_authority.gd")
+const ProjectileAuthority := preload("res://scripts/network/network_projectile_authority.gd")
 
 signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
@@ -23,6 +24,7 @@ signal snapshot_applied(result: Dictionary)
 signal transport_rejected(status: StringName)
 signal movement_intent_result(result: Dictionary)
 signal boarding_intent_result(result: Dictionary)
+signal projectile_intent_result(result: Dictionary)
 
 const DEFAULT_PORT := 27101
 const DEFAULT_MAX_CLIENTS := 8
@@ -33,9 +35,11 @@ var _lifecycle
 var _transport
 var _movement
 var _boarding
+var _projectile
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
+var _projectile_sources: Dictionary = {}
 var _last_result: Dictionary = {}
 var _server_offer: Dictionary = {}
 var _bound_port := 0
@@ -46,6 +50,7 @@ func _init() -> void:
 	_transport = TransportSecurity.new(AUTHORITY_PEER_ID)
 	_movement = MovementAuthority.new(AUTHORITY_PEER_ID)
 	_boarding = BoardingAuthority.new(AUTHORITY_PEER_ID)
+	_projectile = ProjectileAuthority.new(AUTHORITY_PEER_ID)
 	_last_result = {"accepted": false, "status": &"uninitialized"}
 
 
@@ -91,6 +96,14 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 			if generation > 0:
 				_lifecycle.disconnect_peer(AUTHORITY_PEER_ID, peer_id, generation)
 			_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
+			for source_id_variant in _projectile_sources.keys():
+				var source_id := StringName(source_id_variant)
+				var source := _projectile_sources[source_id] as Dictionary
+				if int(source.get("owner_peer_id", 0)) == peer_id:
+					_projectile.retire_source(
+						AUTHORITY_PEER_ID, source_id, int(source.get("source_generation", 0))
+					)
+					_projectile_sources.erase(source_id)
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -197,6 +210,46 @@ func get_boarding_snapshot() -> Dictionary:
 	return _boarding.get_snapshot()
 
 
+func register_projectile_source(
+	owner_peer_id: int,
+	source_entity_id: StringName,
+	source_generation: int,
+	faction_id: StringName,
+	weapon_profiles: Dictionary
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var result: Dictionary = _projectile.register_source(
+		AUTHORITY_PEER_ID, owner_peer_id, source_entity_id, source_generation,
+		faction_id, weapon_profiles
+	)
+	if bool(result.get("accepted", false)):
+		_projectile_sources[source_entity_id] = {
+			"owner_peer_id": owner_peer_id,
+			"source_generation": source_generation,
+		}
+	return _remember(result)
+
+
+func set_projectile_server_tick(server_tick: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	return _remember(_projectile.set_server_tick(AUTHORITY_PEER_ID, server_tick))
+
+
+func send_projectile_intent(wire: Dictionary) -> Dictionary:
+	if is_server():
+		return _remember(_result(false, &"client_required"))
+	if not _configured:
+		return _remember(_result(false, &"not_started"))
+	_receive_projectile_intent.rpc_id(AUTHORITY_PEER_ID, wire.duplicate(true))
+	return _remember(_result(true, &"queued"))
+
+
+func get_projectile(projectile_id: StringName) -> Dictionary:
+	return _projectile.get_projectile(projectile_id)
+
+
 func publish_snapshot(
 	server_tick: int,
 	movement: Array,
@@ -235,6 +288,15 @@ func _receive_boarding_intent(wire: Dictionary) -> void:
 	var source_peer_id := multiplayer.get_remote_sender_id()
 	var result: Dictionary = _boarding.accept_intent(source_peer_id, wire)
 	boarding_intent_result.emit(result.duplicate(true))
+
+
+@rpc("any_peer", "reliable")
+func _receive_projectile_intent(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var source_peer_id := multiplayer.get_remote_sender_id()
+	var result: Dictionary = _projectile.accept_fire(source_peer_id, wire)
+	projectile_intent_result.emit(result.duplicate(true))
 
 
 @rpc("any_peer", "reliable")
@@ -319,6 +381,14 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	)
 	_boarding.release_peer(AUTHORITY_PEER_ID, peer_id)
 	_peer_generations.erase(peer_id)
+	for source_id_variant in _projectile_sources.keys():
+		var source_id := StringName(source_id_variant)
+		var source := _projectile_sources[source_id] as Dictionary
+		if int(source.get("owner_peer_id", 0)) == peer_id:
+			_projectile.retire_source(
+				AUTHORITY_PEER_ID, source_id, int(source.get("source_generation", 0))
+			)
+			_projectile_sources.erase(source_id)
 	peer_disconnected.emit(peer_id, receipt.duplicate(true))
 
 

@@ -3,6 +3,7 @@ extends SceneTree
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
 const MovementIntent := preload("res://scripts/network/network_movement_intent.gd")
 const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
+const ProjectileIntent := preload("res://scripts/network/network_projectile_intent.gd")
 
 var _failures: Array[String] = []
 var _server: Adapter
@@ -11,6 +12,7 @@ var _server_admissions: Array[Dictionary] = []
 var _client_applies: Array[Dictionary] = []
 var _movement_results: Array[Dictionary] = []
 var _boarding_results: Array[Dictionary] = []
+var _projectile_results: Array[Dictionary] = []
 var _branches: Array[Dictionary] = []
 
 
@@ -45,6 +47,9 @@ func _initialize() -> void:
 	)
 	_server.boarding_intent_result.connect(func(result: Dictionary) -> void:
 		_boarding_results.append(result)
+	)
+	_server.projectile_intent_result.connect(func(result: Dictionary) -> void:
+		_projectile_results.append(result)
 	)
 	_client.snapshot_applied.connect(func(result: Dictionary) -> void:
 		_client_applies.append(result)
@@ -117,6 +122,30 @@ func _initialize() -> void:
 		_boarding_results.size() == 2 and _boarding_results[1].get("status") == &"stale_sequence",
 		"server rejects a replayed boarding sequence"
 	)
+	_check(
+		bool(_server.register_projectile_source(
+			client_peer_id, &"ship-1", 1, &"crew",
+			{"pulse": {"speed": 20.0, "damage": 8.0, "lifetime": 2.0}}
+		).get("accepted", false)),
+		"server registers the admitted projectile source and weapon profile"
+	)
+	_check(bool(_server.set_projectile_server_tick(1).get("accepted", false)), "server opens the projectile tick window")
+	var projectile = ProjectileIntent.create(
+		client_peer_id, &"ship-1", 1, 1, 0, 1, &"pulse",
+		Vector3.ZERO, Vector3.FORWARD
+	)
+	_check(bool(_client.send_projectile_intent(projectile.to_dictionary()).get("accepted", false)), "client queues fire intent over RPC")
+	await _pump_until(func() -> bool: return _projectile_results.size() == 1, 3.0)
+	_check(
+		_projectile_results.size() == 1 and bool(_projectile_results[0].get("accepted", false)),
+		"server spawns a projectile from the registered source profile"
+	)
+	_client.send_projectile_intent(projectile.to_dictionary())
+	await _pump_until(func() -> bool: return _projectile_results.size() == 2, 3.0)
+	_check(
+		_projectile_results.size() == 2 and _projectile_results[1].get("status") == &"stale_sequence",
+		"server rejects a replayed fire sequence"
+	)
 	var movement := [{
 		"entity_id": &"player-1",
 		"entity_generation": 1,
@@ -142,6 +171,10 @@ func _initialize() -> void:
 	_check(
 		(_server.get_boarding_snapshot().get("occupancies", []) as Array).is_empty(),
 		"server disconnect cleanup releases boarding occupancy"
+	)
+	_check(
+		_server.get_projectile(&"projectile_1").is_empty(),
+		"server disconnect cleanup retires the peer-owned projectile source"
 	)
 	_check(
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),
