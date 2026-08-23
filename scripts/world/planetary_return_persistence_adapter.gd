@@ -17,6 +17,16 @@ const RECORD_KEYS := [
 const COMPLETED_RETURN_KEYS := [
 	"travel_session", "return_contract", "returned_receipt",
 ]
+const DIRECT_AUTHORITY_KEYS := [
+	"reward_replay_allowed", "reward_authority", "reward_grant_authority",
+	"movement_authority", "ship_movement_authority", "teleport_authority",
+	"reparent_authority", "berth_authority", "reservation_authority",
+	"occupancy_authority", "lease_authority", "attachment_authority",
+]
+const AUTHORITY_MAP_KEYS := [
+	"reward", "movement", "ship_movement", "teleport", "reparent", "berth",
+	"reservation", "occupancy", "lease", "attachment",
+]
 
 var _restored_generation := -1
 var _retired_generation := -1
@@ -35,18 +45,6 @@ func capture(
 	if not bool(receipt.get("accepted", false)) \
 			or StringName(receipt.get("reason", &"")) != &"returned_to_station":
 		return _reject(&"return_persistence_receipt_invalid")
-	if not receipt.get("berth_receipt") is Dictionary:
-		return _reject(&"return_persistence_berth_receipt_invalid")
-	var berth := receipt.get("berth_receipt", {}) as Dictionary
-	if not bool(berth.get("accepted", false)) \
-			or StringName(berth.get("reason", &"")) != &"return_berth_occupied":
-		return _reject(&"return_persistence_berth_receipt_invalid")
-	if not receipt.get("contract_receipt") is Dictionary:
-		return _reject(&"return_persistence_contract_receipt_invalid")
-	var contract_receipt := receipt.get("contract_receipt", {}) as Dictionary
-	if not bool(contract_receipt.get("accepted", false)) \
-			or StringName(contract_receipt.get("reason", &"")) != &"returned_to_station":
-		return _reject(&"return_persistence_contract_receipt_invalid")
 	var contract_variant: Variant = return_contract.call(&"get_snapshot")
 	var travel_variant: Variant = travel_session.call(&"get_presentation_snapshot")
 	if not contract_variant is Dictionary or not travel_variant is Dictionary:
@@ -58,20 +56,6 @@ func capture(
 			or StringName(contract.get("world_id", &"")) != WORLD_ID \
 			or StringName(travel.get("state_id", &"")) != &"completed":
 		return _reject(&"return_persistence_not_completed")
-	var run_generation := int(berth.get("session_generation", 0))
-	var attachment_generation := int(berth.get("attachment_generation", 0))
-	if run_generation < 1 or attachment_generation < 1 \
-			or int(contract.get("run_generation", run_generation)) != run_generation \
-			or int(travel.get("generation", run_generation)) != run_generation:
-		return _reject(&"return_persistence_generation_mismatch")
-	if int(contract.get("attachment_generation", attachment_generation)) \
-			!= attachment_generation \
-			or int(travel.get("attachment_generation", attachment_generation)) \
-			!= attachment_generation:
-		return _reject(&"return_persistence_attachment_generation_mismatch")
-	if int(berth.get("actor_instance_id", 0)) < 1 \
-			or int(berth.get("craft_instance_id", 0)) < 1:
-		return _reject(&"return_persistence_identity_invalid")
 	if _contains_live_authority(travel) or _contains_live_authority(contract) \
 			or _contains_live_authority(receipt):
 		return _reject(&"return_persistence_reward_authority_present")
@@ -83,6 +67,14 @@ func capture(
 	var digest := _digest(completed_return)
 	if digest.is_empty():
 		return _reject(&"return_persistence_receipt_invalid")
+	var evidence_rejection := _completed_evidence_rejection(
+		completed_return, {}, 0, 0
+	)
+	if not evidence_rejection.is_empty():
+		return _reject(evidence_rejection)
+	var berth := receipt.get("berth_receipt", {}) as Dictionary
+	var run_generation := int(berth.get("session_generation", 0))
+	var attachment_generation := int(berth.get("attachment_generation", 0))
 	return {
 		"accepted": true,
 		"schema_version": SCHEMA_VERSION,
@@ -219,22 +211,55 @@ func _completed_evidence_rejection(
 			or not receipt.get("contract_receipt") is Dictionary:
 		return &"return_persistence_receipt_corrupt"
 	var berth := receipt.get("berth_receipt", {}) as Dictionary
+	var contract_receipt := receipt.get("contract_receipt", {}) as Dictionary
+	var expected_run_generation := run_generation
+	var expected_attachment_generation := attachment_generation
+	var expected_actor_instance_id := int(saved.get("actor_instance_id", 0))
+	var expected_craft_instance_id := int(saved.get("craft_instance_id", 0))
+	if saved.is_empty():
+		expected_run_generation = int(berth.get("session_generation", 0))
+		expected_attachment_generation = int(berth.get("attachment_generation", 0))
+		expected_actor_instance_id = int(berth.get("actor_instance_id", 0))
+		expected_craft_instance_id = int(berth.get("craft_instance_id", 0))
+	if not _positive_integral(travel.get("generation")) \
+			or not _positive_integral(travel.get("attachment_generation")) \
+			or not _positive_integral(contract.get("run_generation")) \
+			or not _positive_integral(contract.get("attachment_generation")) \
+			or not _positive_integral(berth.get("session_generation")) \
+			or not _positive_integral(berth.get("attachment_generation")) \
+			or not _positive_integral(berth.get("actor_instance_id")) \
+			or not _positive_integral(berth.get("craft_instance_id")) \
+			or not _positive_integral(contract_receipt.get("session_generation")) \
+			or not _positive_integral(contract_receipt.get("attachment_generation")) \
+			or not _positive_integral(contract_receipt.get("actor_instance_id")) \
+			or not _positive_integral(contract_receipt.get("craft_instance_id")):
+		return &"return_persistence_receipt_corrupt"
 	if StringName(travel.get("state_id", &"")) != &"completed" \
-			or int(travel.get("generation", 0)) != run_generation \
+			or StringName(travel.get("world_id", &"")) != WORLD_ID \
+			or int(travel.get("generation", 0)) != expected_run_generation \
+			or int(travel.get("attachment_generation", 0)) != expected_attachment_generation \
 			or StringName(contract.get("phase_id", &"")) != &"completed" \
 			or StringName(contract.get("return_target_id", &"")) != RETURN_TARGET_ID \
 			or StringName(contract.get("world_id", &"")) != WORLD_ID \
-			or int(contract.get("run_generation", 0)) != run_generation \
-			or str(contract.get("world_id", "")) != str(saved.get("world_id", "")):
+			or int(contract.get("run_generation", 0)) != expected_run_generation \
+			or int(contract.get("attachment_generation", 0)) != expected_attachment_generation \
+			or (not saved.is_empty() \
+				and str(contract.get("world_id", "")) != str(saved.get("world_id", ""))):
 		return &"return_persistence_receipt_corrupt"
 	if not bool(receipt.get("accepted", false)) \
 			or StringName(receipt.get("reason", &"")) != &"returned_to_station" \
 			or not bool(berth.get("accepted", false)) \
 			or StringName(berth.get("reason", &"")) != &"return_berth_occupied" \
-			or int(berth.get("session_generation", 0)) != run_generation \
-			or int(berth.get("attachment_generation", 0)) != attachment_generation \
-			or int(berth.get("actor_instance_id", 0)) != int(saved.actor_instance_id) \
-			or int(berth.get("craft_instance_id", 0)) != int(saved.craft_instance_id):
+			or int(berth.get("session_generation", 0)) != expected_run_generation \
+			or int(berth.get("attachment_generation", 0)) != expected_attachment_generation \
+			or int(berth.get("actor_instance_id", 0)) != expected_actor_instance_id \
+			or int(berth.get("craft_instance_id", 0)) != expected_craft_instance_id \
+			or not bool(contract_receipt.get("accepted", false)) \
+			or StringName(contract_receipt.get("return_target_id", &"")) != RETURN_TARGET_ID \
+			or int(contract_receipt.get("session_generation", 0)) != expected_run_generation \
+			or int(contract_receipt.get("attachment_generation", 0)) != expected_attachment_generation \
+			or int(contract_receipt.get("actor_instance_id", 0)) != expected_actor_instance_id \
+			or int(contract_receipt.get("craft_instance_id", 0)) != expected_craft_instance_id:
 		return &"return_persistence_receipt_corrupt"
 	return &""
 
@@ -244,14 +269,10 @@ func _contains_live_authority(value: Variant, inside_authority: bool = false) ->
 		for key_variant in (value as Dictionary).keys():
 			var key := str(key_variant).to_lower()
 			var child: Variant = (value as Dictionary)[key_variant]
-			if key in [
-				"reward_replay_allowed", "reward_authority", "reward_grant_authority",
-				"movement_authority", "berth_authority",
-			] \
-					and bool(child):
+			if key in DIRECT_AUTHORITY_KEYS and child is bool and bool(child):
 				return true
-			if inside_authority and key in ["reward", "movement", "berth"] \
-					and bool(child):
+			if inside_authority and key in AUTHORITY_MAP_KEYS \
+					and child is bool and bool(child):
 				return true
 			if _contains_live_authority(child, inside_authority or key == "authority"):
 				return true
@@ -336,6 +357,10 @@ func _is_integral_number(value: Variant) -> bool:
 	if value is int:
 		return true
 	return value is float and is_finite(value) and value == floor(value)
+
+
+func _positive_integral(value: Variant) -> bool:
+	return _is_integral_number(value) and int(value) > 0
 
 
 func _reject(reason: StringName) -> Dictionary:

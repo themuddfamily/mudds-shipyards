@@ -8,7 +8,8 @@ var _failures := PackedStringArray()
 class FakeRuntime:
 	var travel := {
 		"state_id": &"completed", "generation": 7,
-		"attachment_generation": 4, "reward_authority": false,
+		"world_id": &"ember_moon", "attachment_generation": 4,
+		"reward_authority": false,
 	}
 	var contract := {
 		"phase_id": &"completed", "return_target_id": &"mudds_shipyards",
@@ -88,11 +89,88 @@ func _run() -> void:
 		AdapterScript.new().restore(reward).reason == &"return_persistence_reward_authority_present",
 		"reward authority is rejected even when its payload digest is internally consistent",
 	)
+	for authority_key in [
+		"ship_movement_authority", "teleport_authority",
+		"reservation_authority", "occupancy_authority",
+	]:
+		var authority_red := saved.duplicate(true)
+		authority_red.completed_return.returned_receipt.contract_receipt["nested"] = {
+			authority_key: true,
+		}
+		authority_red.receipt_sha256 = AdapterScript.new().call(
+			"_digest", authority_red.completed_return
+		)
+		_check(
+			AdapterScript.new().restore(authority_red).reason == &"return_persistence_reward_authority_present",
+			"nested %s is rejected even with a matching digest" % authority_key,
+		)
+	var authority_map_red := saved.duplicate(true)
+	authority_map_red.completed_return.returned_receipt.contract_receipt["nested"] = {
+		"authority": {"occupancy": true},
+	}
+	authority_map_red.receipt_sha256 = AdapterScript.new().call(
+		"_digest", authority_map_red.completed_return
+	)
+	_check(
+		AdapterScript.new().restore(authority_map_red).reason == &"return_persistence_reward_authority_present",
+		"nested authority maps reject live occupancy authority",
+	)
+	var direct_authority_red := saved.duplicate(true)
+	direct_authority_red.completed_return.returned_receipt.contract_receipt.ship_movement_authority = true
+	direct_authority_red.receipt_sha256 = AdapterScript.new().call(
+		"_digest", direct_authority_red.completed_return
+	)
+	_check(
+		AdapterScript.new().restore(direct_authority_red).reason == &"return_persistence_reward_authority_present",
+		"the exact ship movement authority key is rejected recursively",
+	)
+	var authority_label := saved.duplicate(true)
+	authority_label.completed_return.returned_receipt.contract_receipt.authority_label = "teleport_authority"
+	authority_label.receipt_sha256 = AdapterScript.new().call(
+		"_digest", authority_label.completed_return
+	)
+	_check(
+		bool(AdapterScript.new().restore(authority_label).get("accepted", false)),
+		"authority-labelled evidence does not false-positive as live authority",
+	)
+	var nested_generation_red := saved.duplicate(true)
+	nested_generation_red.completed_return.returned_receipt.contract_receipt.session_generation = 8
+	nested_generation_red.receipt_sha256 = AdapterScript.new().call(
+		"_digest", nested_generation_red.completed_return
+	)
+	_check(
+		AdapterScript.new().restore(nested_generation_red).reason == &"return_persistence_receipt_corrupt",
+		"nested contract session generation must match the terminal run",
+	)
+	var nested_attachment_red := saved.duplicate(true)
+	nested_attachment_red.completed_return.returned_receipt.contract_receipt.attachment_generation = 5
+	nested_attachment_red.receipt_sha256 = AdapterScript.new().call(
+		"_digest", nested_attachment_red.completed_return
+	)
+	_check(
+		AdapterScript.new().restore(nested_attachment_red).reason == &"return_persistence_receipt_corrupt",
+		"nested contract attachment generation must match the terminal attachment",
+	)
+	var nested_identity_red := saved.duplicate(true)
+	nested_identity_red.completed_return.returned_receipt.contract_receipt.craft_instance_id = 99
+	nested_identity_red.receipt_sha256 = AdapterScript.new().call(
+		"_digest", nested_identity_red.completed_return
+	)
+	_check(
+		AdapterScript.new().restore(nested_identity_red).reason == &"return_persistence_receipt_corrupt",
+		"nested contract identity must match the occupied berth receipt",
+	)
 	var stale_runtime := FakeRuntime.new()
 	stale_runtime.travel.generation = 8
 	_check(
 		not bool(AdapterScript.new().capture(stale_runtime, stale_runtime, receipt).get("accepted", false)),
 		"capture rejects a stale session generation",
+	)
+	var incomplete_receipt := _receipt()
+	incomplete_receipt.contract_receipt.erase("craft_instance_id")
+	_check(
+		not bool(AdapterScript.new().capture(FakeRuntime.new(), FakeRuntime.new(), incomplete_receipt).get("accepted", false)),
+		"capture requires complete nested contract receipt identity evidence",
 	)
 
 	if not _failures.is_empty():
@@ -120,8 +198,16 @@ func _receipt() -> Dictionary:
 		},
 		"contract_receipt": {
 			"accepted": true,
-			"reason": &"returned_to_station",
-			"phase_id": &"completed",
+			"reason": &"physical_station_arrival_completed",
+			"return_target_id": &"mudds_shipyards",
+			"session_generation": 7,
+			"attachment_generation": 4,
+			"actor_instance_id": 11,
+			"craft_instance_id": 22,
+			"authority": {
+				"movement": false, "teleport": false, "reservation": false,
+				"occupancy": false,
+			},
 		},
 	}
 
