@@ -17,6 +17,11 @@ const PHASE_CUES := {
 	&"orbit_return": &"ember_surface_orbit_return",
 	&"failed": &"ember_surface_abort",
 }
+const PRODUCTION_STATE_ALIASES := {
+	&"start_pending": &"descent",
+	&"running": &"descent",
+	&"handoff_pending": &"orbit_return",
+}
 const PERSPECTIVES := [&"interior", &"exterior"]
 const MAXIMUM_SIMULTANEOUS_VOICES := 2
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
@@ -68,6 +73,10 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	if int(owner_generation) < _last_owner_generation:
 		return _result(false, &"stale_generation")
 	var phase_id := StringName(snapshot.get("phase_id", snapshot.get("state_id", &"")))
+	if _owner != null and _owner.has_method(&"get_host_phase"):
+		var host_phase := int(_owner.get_host_phase())
+		phase_id = _host_phase_id(host_phase) if host_phase >= 0 else phase_id
+	phase_id = StringName(PRODUCTION_STATE_ALIASES.get(phase_id, phase_id))
 	if phase_id.is_empty():
 		return _result(false, &"invalid_phase")
 	var terminal_reason := StringName(snapshot.get("terminal_reason", &""))
@@ -110,6 +119,18 @@ func get_snapshot() -> Dictionary:
 
 func _on_owner_snapshot(snapshot: Dictionary) -> void:
 	present_snapshot(snapshot)
+
+func _host_phase_id(host_phase: int) -> StringName:
+	match host_phase:
+		2: return &"descent"
+		5: return &"landed"
+		8: return &"on_foot"
+		10: return &"reboarded"
+		11: return &"takeoff"
+		12: return &"ascent"
+		13: return &"orbit_return"
+		15: return &"failed"
+		_: return &""
 
 func _emit(cue_id: StringName) -> void:
 	if _slots.size() >= MAXIMUM_SIMULTANEOUS_VOICES:

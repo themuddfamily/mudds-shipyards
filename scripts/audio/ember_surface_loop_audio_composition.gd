@@ -43,6 +43,9 @@ func detach() -> Dictionary:
 		_audio_director.unbind_semantic_audio_source(_binding, SOURCE_ID)
 	if _binding != null:
 		_binding.detach()
+		if is_instance_valid(_binding):
+			remove_child(_binding)
+			_binding.free()
 	_audio_director = null
 	_owner = null
 	_binding = null

@@ -18,6 +18,7 @@ func _run() -> void:
 	audio.semantic_surface_cue_emitted.connect(_on_cue)
 	_check(bool(audio.attach(owner, &"interior").accepted), "real Ember production owner attaches")
 	owner.state_changed.emit({"generation": 1, "state_id": &"running"})
+	_check(_has(&"ember_surface_descent_interior"), "production running state maps to descent cue")
 	owner.state_changed.emit({"generation": 1, "state_id": &"descent"})
 	owner.state_changed.emit({"generation": 1, "state_id": &"landed"})
 	owner.state_changed.emit({"generation": 1, "state_id": &"on_foot"})
