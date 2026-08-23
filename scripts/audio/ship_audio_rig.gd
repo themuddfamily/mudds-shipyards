@@ -396,6 +396,10 @@ func set_damage_alarm_active(active: bool) -> bool:
 		return false
 	_damage_alarm_active = active
 	_apply_runtime_state()
+	semantic_engine_cue_emitted.emit(
+		&"engine_damage_alarm" if active else &"engine_damage_alarm_cleared",
+		1.0 if active else 0.0
+	)
 	_emit_state_changed()
 	return true
 
