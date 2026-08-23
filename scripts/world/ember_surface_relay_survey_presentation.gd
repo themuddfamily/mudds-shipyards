@@ -11,6 +11,7 @@ const RELAY_ANCHOR := Vector3(180.0, 120009.0, -44.0)
 const RETURN_ANCHOR := Vector3(540.0, 120030.0, -210.0)
 const APPROACH_SCALE := Vector3(1.35, 0.55, 1.35)
 const ACTIVE_SCALE := Vector3.ONE
+const CHECKPOINT_ONE_RING_SCALE := Vector3(0.82, 1.28, 0.82)
 const ROUTE_COMPLETE_RING_SCALE := Vector3(1.35, 1.35, 1.35)
 const REWARD_CONFIRMED_RING_SCALE := Vector3(1.08, 1.08, 1.08)
 const REWARD_CONFIRMED_SEAL_SCALE := Vector3(1.18, 1.18, 1.18)
@@ -104,6 +105,7 @@ func get_snapshot() -> Dictionary:
 		"return_silhouette": &"return_ring",
 		"completion_silhouette": &"diamond_reward_seal",
 		"route_direction": _route_direction_snapshot(),
+		"mandatory_checkpoint_progress": _mandatory_checkpoint_progress_snapshot(),
 		"completion_response": _completion_response_snapshot(),
 		"reward_confirmation_persistent": true,
 		"hud": _checkpoint_hud_snapshot(),
@@ -126,6 +128,8 @@ func get_snapshot() -> Dictionary:
 
 func _apply_state(state: StringName) -> void:
 	_relay_marker.position = RELAY_ANCHOR
+	_relay_marker.scale = ACTIVE_SCALE
+	_relay_marker.rotation = Vector3.ZERO
 	_return_marker.scale = Vector3.ONE
 	_completion_seal.scale = Vector3.ONE
 	_relay_marker.visible = state in [&"ready", &"active"]
@@ -137,18 +141,21 @@ func _apply_state(state: StringName) -> void:
 		_relay_marker.rotation = Vector3(0.0, 0.0, PI)
 		_cue_mode = &"approach_relay"
 	elif state == &"active":
+		var next_index := int(_mandatory_route.get("next_checkpoint_index", 0))
+		if next_index == 1:
+			_return_marker.visible = true
+			_return_marker.scale = CHECKPOINT_ONE_RING_SCALE
 		if _return_direction_is_current():
-			var next_index := int(_mandatory_route.get("next_checkpoint_index", -1))
 			_relay_marker.position = RELAY_ANCHOR if next_index == 0 else RETURN_ANCHOR
 			_relay_marker.scale = APPROACH_SCALE
 			_relay_marker.rotation = Vector3(0.0, 0.0, PI)
 			_cue_mode = &"bunker_return_to_relay" if next_index == 0 \
 				else &"bunker_return_to_return"
 		else:
-			# The same preallocated mesh remains the standard route pointer.
-			_relay_marker.scale = ACTIVE_SCALE
-			_relay_marker.rotation = Vector3.ZERO
-			_cue_mode = &"active_relay"
+			# Once the relay is accepted, its pyramid yields to the return ring.
+			_relay_marker.visible = next_index == 0
+			_cue_mode = &"active_relay" if next_index == 0 \
+				else &"mandatory_return_checkpoint"
 	elif state == &"awaiting_reward":
 		# The existing ring expands as a static, shape-only route lock witness.
 		_return_marker.scale = ROUTE_COMPLETE_RING_SCALE
@@ -198,6 +205,51 @@ func _route_direction_snapshot() -> Dictionary:
 			"triangles": 0, "maximum_visible_submissions": 1,
 		},
 		"authority": {"navigation": false, "movement": false, "reward": false},
+	}.duplicate(true)
+
+
+func _mandatory_checkpoint_progress_snapshot() -> Dictionary:
+	var next_index := int(_mandatory_route.get("next_checkpoint_index", -1))
+	var retained_count := clampi(next_index, 0, 2) if next_index >= 0 else 0
+	var visible := _attached and _state in [
+		&"active", &"awaiting_reward", &"completed",
+	]
+	var progress_state: StringName = &"hidden"
+	var silhouette: StringName = &"none"
+	if visible and _state == &"active" and next_index == 0:
+		progress_state = &"relay_checkpoint_pending"
+		silhouette = &"single_directional_pyramid"
+	elif visible and _state == &"active" and next_index == 1:
+		progress_state = &"relay_reached_return_pending"
+		silhouette = &"vertical_oval_return_ring"
+	elif visible and _state == &"awaiting_reward":
+		progress_state = &"mandatory_route_complete"
+		silhouette = &"expanded_return_ring"
+	elif visible and _state == &"completed":
+		progress_state = &"reward_confirmed"
+		silhouette = &"return_ring_and_diamond"
+	return {
+		"visible": visible,
+		"state": progress_state,
+		"completed_checkpoint_count": retained_count,
+		"checkpoint_count": 2,
+		"progress_text": "%d / 2 MANDATORY" % retained_count,
+		"next_checkpoint_index": next_index,
+		"activity_generation": int(_mandatory_route.get("activity_generation", -1)),
+		"silhouette": silhouette,
+		"color_independent": true,
+		"relay_marker_visible": _relay_marker.visible if _relay_marker != null else false,
+		"return_marker_visible": _return_marker.visible if _return_marker != null else false,
+		"return_marker_scale": _return_marker.scale if _return_marker != null else Vector3.ONE,
+		"optional_pointer_preserved": _return_direction_is_current(),
+		"incremental_budget": {
+			"nodes": 0, "mesh_instances": 0, "materials": 0,
+			"triangles": 0, "maximum_visible_submissions": 2,
+		},
+		"authority": {
+			"activity": false, "reward": false, "navigation": false,
+			"movement": false, "checkpoint": false,
+		},
 	}.duplicate(true)
 
 
