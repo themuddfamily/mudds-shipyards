@@ -38,8 +38,8 @@ func _run() -> void:
 	game.set("_piloting", true)
 	game.call("_update_music_bed_state")
 	_check(
-		bed.get_presentation_state() == &"planetary",
-		"piloted free flight selects the planetary music profile"
+		bed.get_presentation_state() == &"orbit",
+		"piloted free flight selects the orbit music profile"
 	)
 
 	game.set("_landing_request_active", true)
@@ -50,6 +50,13 @@ func _run() -> void:
 	)
 
 	game.set("_landing_request_active", false)
+	game.set("phase", GameFlowType.Phase.SHUT_DOWN)
+	game.call("_update_music_bed_state")
+	_check(
+		bed.get_presentation_state() == &"surface",
+		"the authoritative shutdown phase selects the surface music profile"
+	)
+
 	game.set("phase", GameFlowType.Phase.INTERCEPTOR_ENGAGEMENT)
 	game.call("_update_music_bed_state")
 	_check(
