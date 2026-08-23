@@ -384,6 +384,43 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 		and int(long_report.collision_resource_allocations) == 3,
 		"three long safety rails share 3->1 visual meshes while retaining three private collision shapes"
 	)
+	var four_meter_report := module.get_four_meter_rail_visual_allocation_audit()
+	_check(
+		bool(four_meter_report.valid)
+		and int(four_meter_report.visual_copies) == 4
+		and int(four_meter_report.legacy_mesh_resource_allocations) == 4
+		and int(four_meter_report.mesh_resource_allocations) == 1
+		and int(four_meter_report.mesh_resource_allocation_delta) == -3
+		and int(four_meter_report.collision_resource_allocations) == 4,
+		"four exact 4 m safety rails share 4->1 visual meshes while retaining four private collision shapes"
+	)
+	var four_meter_meshes := {}
+	var four_meter_collision_ids := {}
+	for rail_name in ["EntryFrontPort", "EntryFrontStarboard", "TopPort", "TopStarboard"]:
+		var rail := module.get_node(NodePath("GeneratedRoot/%s" % rail_name)) as StaticBody3D
+		var visual := rail.get_node(^"Mesh") as MeshInstance3D
+		var collision := rail.get_node(^"Collision") as CollisionShape3D
+		four_meter_meshes[visual.mesh.get_instance_id()] = true
+		four_meter_collision_ids[collision.shape.get_instance_id()] = true
+	_check(
+		four_meter_meshes.size() == 1 and four_meter_collision_ids.size() == 4,
+		"four 4 m rail paths preserve their private collision resources while sharing one visual mesh"
+	)
+	var top_port := module.get_node(^"GeneratedRoot/TopPort/Mesh") as MeshInstance3D
+	if top_port != null:
+		var original_four_meter_mesh := top_port.mesh
+		top_port.mesh = original_four_meter_mesh.duplicate() as BoxMesh
+		var four_meter_red := module.get_four_meter_rail_visual_allocation_audit()
+		var four_meter_full_audit_red := module.get_audit_report()
+		top_port.mesh = original_four_meter_mesh
+		_check(
+			not bool(four_meter_red.valid)
+			and (four_meter_red.errors as PackedStringArray).has("four_meter_rail_visual_mesh_count_drift")
+			and not bool(four_meter_full_audit_red.valid)
+			and bool(module.get_four_meter_rail_visual_allocation_audit().valid)
+			and bool(module.get_audit_report().valid),
+			"splitting one 4 m rail visual mesh turns the full audit red and restores cleanly"
+		)
 	var long_aft := module.get_node(^"GeneratedRoot/LowerAft/Mesh") as MeshInstance3D
 	if long_aft != null:
 		var original_long_mesh := long_aft.mesh
