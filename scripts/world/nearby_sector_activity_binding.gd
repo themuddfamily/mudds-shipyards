@@ -39,6 +39,7 @@ var _cargo_access: CinderCargoAccess
 var _cargo_terminal: CargoTransferTerminal
 var _cargo_source_entity: Node
 var _cargo_access_attachment_generation := 0
+var _last_cargo_terminal_request: Dictionary = {}
 var _station_director: Node
 var _station_target: Node3D
 var _station_anchor: Node3D
@@ -122,6 +123,8 @@ func bind_cargo_access(
 	_cargo_terminal = terminal
 	_cargo_access_attachment_generation = expected_attachment_generation
 	_cargo_destination_handle = destination_handle
+	if not terminal.interaction_requested.is_connected(_on_cargo_terminal_interaction_requested):
+		terminal.interaction_requested.connect(_on_cargo_terminal_interaction_requested)
 	var berth := access.get_berth()
 	if not berth.occupancy_changed.is_connected(_on_cargo_berth_occupancy_changed):
 		berth.occupancy_changed.connect(_on_cargo_berth_occupancy_changed)
@@ -175,6 +178,59 @@ func _on_cargo_manifest_retired(handle: Dictionary) -> void:
 	_cargo_source_handle.clear()
 	_cargo_source_entity = null
 	_cargo_activity = null
+
+
+func _on_cargo_terminal_interaction_requested(actor: Node, snapshot: Dictionary) -> void:
+	_last_cargo_terminal_request = _submit_cargo_terminal_request(actor, snapshot)
+
+
+func _submit_cargo_terminal_request(actor: Node, snapshot: Dictionary) -> Dictionary:
+	if not is_instance_valid(_cargo_terminal) or not is_instance_valid(_cargo_access):
+		return _cargo_terminal_result(false, &"cargo_physical_endpoint_required")
+	if (
+		StringName(snapshot.get("terminal_id", &"")) != _cargo_terminal.terminal_id
+		or int(snapshot.get("terminal_generation", -1)) \
+			!= _cargo_terminal.get_terminal_generation()
+	):
+		return _cargo_terminal_result(false, &"stale_terminal_generation")
+	if not is_instance_valid(_cargo_source_entity):
+		return _cargo_terminal_result(false, &"cargo_source_unavailable")
+	var actor_validation := _cargo_access.validate_terminal_actor(
+		actor, _cargo_source_entity, _cargo_access_attachment_generation
+	)
+	if not bool(actor_validation.get("accepted", false)):
+		return _cargo_terminal_result(
+			false, StringName(actor_validation.get("reason", &"wrong_terminal_actor"))
+		)
+	if not is_instance_valid(_cargo_activity):
+		return _cargo_terminal_result(false, &"cargo_activity_unavailable")
+	var delivered := _cargo_activity.submit_transfer(_cargo_activity.get_generation())
+	if not bool(delivered.get("accepted", false)):
+		return _cargo_terminal_result(
+			false, StringName(delivered.get("reason", &"cargo_transfer_rejected")),
+			delivered
+		)
+	return _cargo_terminal_result(true, &"cargo_terminal_delivery_committed", delivered)
+
+
+func get_last_cargo_terminal_request() -> Dictionary:
+	return _last_cargo_terminal_request.duplicate(true)
+
+
+func _cargo_terminal_result(
+		accepted: bool,
+		reason: StringName,
+		delivery: Dictionary = {}
+	) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"delivery": delivery.duplicate(true),
+		"receipt": (delivery.get("receipt", {}) as Dictionary).duplicate(true),
+		"inventory_authority": false,
+		"reward_authority": false,
+		"ship_motion_authority": false,
+	}.duplicate(true)
 
 
 func start_convoy() -> Dictionary:
@@ -261,6 +317,12 @@ func reset_cargo_run() -> Dictionary:
 	return _cargo_activity.reset(_cargo_activity.get_generation())
 
 
+func abort_cargo_run(expected_generation: int) -> Dictionary:
+	if not is_instance_valid(_cargo_activity):
+		return _result(false, &"not_ready")
+	return _cargo_activity.fail(&"embodied_transfer_aborted", expected_generation)
+
+
 ## Binds the existing EncounterScenarioDirector and caller-owned station anchor.
 ## The nearby cluster never creates combat sources or opponents; Main's existing
 ## encounter roster remains the sole station-defense authority.
@@ -325,6 +387,10 @@ func configure_station_defense_reward(
 			BEACON_ACTIVITY.REWARD_ID
 		)
 	return result
+
+
+func configure_cargo_reward_handoff(reward_callback: Callable) -> Dictionary:
+	return configure_station_defense_reward(reward_callback)
 
 
 func request_station_defense_reward(expected_generation: int) -> Dictionary:

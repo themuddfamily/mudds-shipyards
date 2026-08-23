@@ -82,7 +82,7 @@ func _run() -> void:
 	if ship != null and not lease_token.is_empty():
 		await _test_gameflow_compatible_landing_and_egress(access, ship, lease_token)
 		_test_live_cargo_binding(cluster, access, terminal, ship, lease_token)
-		await _test_embodied_bidirectional_route(access, ship)
+		await _test_embodied_bidirectional_route(cluster, access, terminal, ship, lease_token)
 		await _test_detach_reentry(platform, access, ship, lease_token)
 	else:
 		_check(false, "Jovian fixture reaches lifecycle and embodied-access phases")
@@ -593,8 +593,11 @@ func _test_gameflow_compatible_landing_and_egress(
 
 
 func _test_embodied_bidirectional_route(
+		cluster: NearbySectorCluster,
 		access: CinderCargoAccess,
-		ship: HeroShip
+		terminal: CargoTransferTerminal,
+		ship: HeroShip,
+		lease_token: StringName
 	) -> void:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	root.add_child(player)
@@ -605,6 +608,64 @@ func _test_embodied_bidirectional_route(
 	player.teleport_to(ship.get_exit_transform())
 	for _settle in 10:
 		await physics_frame
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var authority := binding.get_cargo_transfer_authority()
+	var attachment_generation := access.get_attachment_generation()
+	var wrong_craft := Node3D.new()
+	root.add_child(wrong_craft)
+	_check(
+		access.authorize_disembarked_terminal_actor(
+			player, wrong_craft, lease_token, attachment_generation
+		).reason == &"stale_berth_lease"
+		and access.authorize_disembarked_terminal_actor(
+			player, ship, lease_token, attachment_generation
+		).accepted
+		and access.validate_terminal_actor(
+			player, wrong_craft, attachment_generation
+		).reason == &"wrong_terminal_craft",
+		"only the disembarked actor and exact occupied Jovian lease authorize the terminal route"
+	)
+	wrong_craft.queue_free()
+	var source_handle := binding.get_cargo_source_handle()
+	var destination_handle := binding.get_cargo_destination_handle()
+	var source_before := authority.get_quantity(source_handle, &"cinder_supply_crates")
+	var destination_before := authority.get_quantity(destination_handle, &"cinder_supply_crates")
+	var abort_start := binding.start_cargo_run()
+	var abort_generation := int(abort_start.generation)
+	var aborted := binding.abort_cargo_run(abort_generation)
+	var reset_abort := binding.reset_cargo_run()
+	_check(
+		abort_start.accepted and aborted.accepted and reset_abort.accepted
+		and authority.get_quantity(source_handle, &"cinder_supply_crates") == source_before
+		and authority.get_quantity(destination_handle, &"cinder_supply_crates") == destination_before,
+		"abort then reset preserves exact source/destination conservation without refilling either manifest"
+	)
+	var active := binding.start_cargo_run()
+	var cargo_generation := int(active.generation)
+	var ordered_phases := [&"load_crate", &"clear_gate", &"dock_platform"]
+	var phases_accepted := bool(active.accepted)
+	for phase_id: StringName in ordered_phases:
+		phases_accepted = phases_accepted and bool(binding.submit_cargo_phase(phase_id).accepted)
+	var reward_calls := {"count": 0, "request": {}}
+	var reward_configured := binding.configure_cargo_reward_handoff(
+		func(request: Dictionary) -> Dictionary:
+			reward_calls.count = int(reward_calls.count) + 1
+			reward_calls.request = request.duplicate(true)
+			return {"accepted": true, "reason": &"test_store_accepted"}
+	)
+	var out_of_range := terminal.get_interaction_snapshot(
+		player.global_position, terminal.get_terminal_generation()
+	)
+	var stale_terminal := terminal.get_interaction_snapshot(
+		player.global_position, terminal.get_terminal_generation() - 1
+	)
+	_check(
+		phases_accepted and reward_configured.accepted
+		and out_of_range.reason == &"out_of_range"
+		and stale_terminal.reason == &"stale_terminal_generation"
+		and not terminal.interact(player),
+		"terminal rejects out-of-range and stale-generation requests before cargo mutation"
+	)
 	var outbound_local := PackedVector3Array([
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 2.9, 13.75),
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 3.8, 17.8),
@@ -623,6 +684,46 @@ func _test_embodied_bidirectional_route(
 		and float(outbound.minimum_local_y) >= 2.82
 		and absf(outbound_final.y - 4.65) <= 0.01,
 		"production Player walks berth exit to live terminal PlayerApproach with a bounded airborne run and no jump"
+	)
+	var wrong_actor := Node3D.new()
+	root.add_child(wrong_actor)
+	wrong_actor.global_position = player.global_position
+	var wrong_interaction := terminal.interact(wrong_actor)
+	var wrong_result := binding.get_last_cargo_terminal_request()
+	wrong_actor.queue_free()
+	var committed := terminal.interact(player)
+	var committed_result := binding.get_last_cargo_terminal_request()
+	var receipt := committed_result.get("receipt", {}) as Dictionary
+	var completed_cargo := binding.get_snapshot().cargo as Dictionary
+	_check(
+		wrong_interaction and wrong_result.reason == &"wrong_terminal_actor"
+		and committed and committed_result.accepted
+		and committed_result.reason == &"cargo_terminal_delivery_committed"
+		and receipt == (completed_cargo.accepted_receipt as Dictionary)
+		and int(receipt.source_quantity_after) == source_before - 1
+		and int(receipt.destination_quantity_after) == destination_before + 1
+		and authority.get_quantity(source_handle, &"cinder_supply_crates") == source_before - 1
+		and authority.get_quantity(destination_handle, &"cinder_supply_crates") == destination_before + 1,
+		"embodied terminal request commits once and CargoDeliveryActivity retains the authority's exact receipt"
+	)
+	var replay_interaction := terminal.interact(player)
+	var replay_result := binding.get_last_cargo_terminal_request()
+	var ledger_after_replay := authority.to_dictionary().committed_transfers as Array
+	var reward := binding.request_cargo_reward(cargo_generation)
+	var reward_replay := binding.request_cargo_reward(cargo_generation)
+	var reset_completed := binding.reset_cargo_run()
+	_check(
+		replay_interaction and not bool(replay_result.accepted)
+		and replay_result.reason == &"not_active"
+		and ledger_after_replay.size() == 1
+		and reward.accepted and reward.reason == &"reward_request_committed"
+		and not bool(reward_replay.accepted) and reward_replay.reason == &"reward_already_consumed"
+		and int(reward_calls.count) == 1
+		and StringName((reward_calls.request as Dictionary).activity_id) == &"cinder_kit_cargo_run"
+		and reset_completed.accepted
+		and authority.get_quantity(source_handle, &"cinder_supply_crates") == source_before - 1
+		and authority.get_quantity(destination_handle, &"cinder_supply_crates") == destination_before + 1,
+		"replay and reward handoff are exactly once; completed reset preserves conservation with no refill"
 	)
 	var reverse_local := PackedVector3Array([
 		Vector3(-0.8, 4.366667, 15.633333),

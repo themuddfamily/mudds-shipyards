@@ -156,6 +156,10 @@ var _terminal_approach: Marker3D
 var _route_markers: Array[Marker3D] = []
 var _materials: Dictionary = {}
 var _static_box_mesh_cache: Dictionary = {}
+var _terminal_actor: WeakRef
+var _terminal_actor_ship: WeakRef
+var _terminal_actor_lease: StringName = &""
+var _terminal_actor_attachment_generation := 0
 
 
 func _enter_tree() -> void:
@@ -221,6 +225,64 @@ func get_attachment_snapshot(expected_generation: int) -> Dictionary:
 		"component_instance_id": get_instance_id(),
 		"berth_instance_id": _berth.get_instance_id() if is_instance_valid(_berth) else 0,
 	}.duplicate(true)
+
+
+## Records only the physical disembark handoff at this occupied berth. It grants
+## no cargo capability: the activity binding still validates this exact actor,
+## craft, lease and attachment generation before asking cargo authority to act.
+func authorize_disembarked_terminal_actor(
+		actor: Node3D,
+		ship: Node,
+		lease_token: StringName,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var attachment := get_attachment_snapshot(expected_attachment_generation)
+	if not bool(attachment.get("accepted", false)):
+		return attachment
+	if not is_instance_valid(actor) or not actor.is_inside_tree():
+		return {"accepted": false, "reason": &"invalid_terminal_actor"}
+	if (
+		not is_instance_valid(ship)
+		or _berth.get_occupant() != ship
+		or _berth.get_reservation_owner() != ship
+		or lease_token.is_empty()
+		or _berth.get_reservation_token(ship) != lease_token
+	):
+		return {"accepted": false, "reason": &"stale_berth_lease"}
+	var exit_marker := get_route_marker(&"berth_exit")
+	if not is_instance_valid(exit_marker) \
+		or actor.global_position.distance_to(exit_marker.global_position) > 2.5:
+		return {"accepted": false, "reason": &"actor_not_disembarked_at_berth"}
+	_terminal_actor = weakref(actor)
+	_terminal_actor_ship = weakref(ship)
+	_terminal_actor_lease = lease_token
+	_terminal_actor_attachment_generation = expected_attachment_generation
+	return {"accepted": true, "reason": &"terminal_actor_authorized"}
+
+
+func validate_terminal_actor(
+		actor: Node,
+		ship: Node,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	var attachment := get_attachment_snapshot(expected_attachment_generation)
+	if not bool(attachment.get("accepted", false)):
+		return attachment
+	var authorized_actor: Node = _terminal_actor.get_ref() if _terminal_actor != null else null
+	var authorized_ship: Node = (
+		_terminal_actor_ship.get_ref() if _terminal_actor_ship != null else null
+	)
+	if actor != authorized_actor:
+		return {"accepted": false, "reason": &"wrong_terminal_actor"}
+	if ship != authorized_ship or _berth.get_occupant() != ship:
+		return {"accepted": false, "reason": &"wrong_terminal_craft"}
+	if (
+		_terminal_actor_attachment_generation != expected_attachment_generation
+		or _terminal_actor_lease.is_empty()
+		or _berth.get_reservation_token(ship) != _terminal_actor_lease
+	):
+		return {"accepted": false, "reason": &"stale_berth_lease"}
+	return {"accepted": true, "reason": &"terminal_actor_current"}
 
 
 func get_route_local_points() -> PackedVector3Array:
