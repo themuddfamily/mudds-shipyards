@@ -25,6 +25,8 @@ const PRESENTATION_RING_SCALE_CRITICAL := 1.28
 const PRESENTATION_LIGHT_ENERGY_SAFE := 2.4
 const PRESENTATION_LIGHT_ENERGY_DANGER := 3.1
 const PRESENTATION_LIGHT_ENERGY_CRITICAL := 4.2
+const PRESENTATION_CORE_BASE_POSITION := Vector3(0.0, 2.65, 0.0)
+const PRESENTATION_BEARING_OFFSET := 0.85
 
 const _AUTHORITY_EXCLUSIONS := {
 	"combat_resolution": false,
@@ -57,6 +59,9 @@ var _presentation_source_snapshot: Dictionary = {}
 var _wave_presentation_state: StringName = &"idle"
 var _wave_presentation_source_snapshot: Dictionary = {}
 var _effective_presentation_state: StringName = &"idle"
+var _hostile_bearing_active := false
+var _hostile_bearing_local := Vector3.ZERO
+var _hostile_bearing_source_snapshot: Dictionary = {}
 
 
 func _ready() -> void:
@@ -206,6 +211,50 @@ func apply_activity_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 	}.duplicate(true)
 
 
+## Reuses the existing luminous core as a horizontal approach-bearing pip.
+## The caller supplies only an already-resolved world bearing and exact current
+## generations; this method never discovers, targets, or advances a hostile.
+func apply_hostile_bearing_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
+	if not _presentation_nodes_valid():
+		return _result(false, &"presentation_unavailable")
+	if not snapshot.get("asset_handle") is Dictionary:
+		return _result(false, &"invalid_hostile_bearing_snapshot")
+	var asset_handle := snapshot.get("asset_handle") as Dictionary
+	var activity_generation_value: Variant = snapshot.get("activity_generation", null)
+	var active_value: Variant = snapshot.get("active", null)
+	var bearing_value: Variant = snapshot.get("bearing_world", null)
+	if (
+		StringName(asset_handle.get("asset_id", &"")) != ASSET_ID
+		or int(asset_handle.get("generation", -1)) != handle_generation
+		or not activity_generation_value is int
+		or int(activity_generation_value) != handle_generation
+	):
+		return _result(false, &"stale_hostile_bearing_snapshot")
+	if not active_value is bool or not bearing_value is Vector3:
+		return _result(false, &"invalid_hostile_bearing_snapshot")
+	var bearing_world := bearing_value as Vector3
+	if not bearing_world.is_finite():
+		return _result(false, &"invalid_hostile_bearing_snapshot")
+	var bearing_local := global_basis.inverse() * bearing_world
+	bearing_local.y = 0.0
+	if bool(active_value) and bearing_local.length_squared() <= 0.000001:
+		return _result(false, &"invalid_hostile_bearing_snapshot")
+	_hostile_bearing_active = bool(active_value)
+	_hostile_bearing_local = bearing_local.normalized() if _hostile_bearing_active else Vector3.ZERO
+	_hostile_bearing_source_snapshot = {
+		"asset_handle": asset_handle.duplicate(true),
+		"activity_generation": int(activity_generation_value),
+		"active": _hostile_bearing_active,
+		"bearing_world": bearing_world,
+	}.duplicate(true)
+	_apply_hostile_bearing_cue()
+	return {
+		"accepted": true,
+		"reason": &"hostile_bearing_snapshot_applied",
+		"presentation": get_protected_asset_presentation_snapshot(),
+	}.duplicate(true)
+
+
 func get_protected_asset_presentation_snapshot() -> Dictionary:
 	return {
 		"state_id": _presentation_state,
@@ -213,6 +262,10 @@ func get_protected_asset_presentation_snapshot() -> Dictionary:
 		"wave_state_id": _wave_presentation_state,
 		"wave_source": _wave_presentation_source_snapshot.duplicate(true),
 		"effective_state_id": _effective_presentation_state,
+		"hostile_bearing_active": _hostile_bearing_active,
+		"hostile_bearing_local": _hostile_bearing_local,
+		"hostile_bearing_source": _hostile_bearing_source_snapshot.duplicate(true),
+		"core_position": _signal_core.position if is_instance_valid(_signal_core) else Vector3.INF,
 		"ring_visible": _signal_ring.visible if is_instance_valid(_signal_ring) else false,
 		"ring_scale": _signal_ring.scale.x if is_instance_valid(_signal_ring) else 0.0,
 		"core_visible": _signal_core.visible if is_instance_valid(_signal_core) else false,
@@ -233,6 +286,7 @@ func get_protected_asset_presentation_snapshot() -> Dictionary:
 			"health": false,
 			"damage": false,
 			"collision": false,
+			"targeting": false,
 			"objective": false,
 			"rewards": false,
 		},
@@ -413,6 +467,15 @@ func _apply_composed_presentation_state() -> void:
 			_signal_light.light_color = Color(0.282, 0.859, 0.886, 1.0)
 			_signal_light.light_energy = PRESENTATION_LIGHT_ENERGY_SAFE
 			_signal_light.omni_range = 9.0
+	_apply_hostile_bearing_cue()
+
+
+func _apply_hostile_bearing_cue() -> void:
+	if not is_instance_valid(_signal_core):
+		return
+	_signal_core.position = PRESENTATION_CORE_BASE_POSITION
+	if _hostile_bearing_active:
+		_signal_core.position += _hostile_bearing_local * PRESENTATION_BEARING_OFFSET
 
 
 func _on_damage_applied(

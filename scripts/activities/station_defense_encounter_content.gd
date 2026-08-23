@@ -698,7 +698,38 @@ func _apply_protected_asset_presentation() -> Dictionary:
 	if is_instance_valid(_host):
 		var activity := _host.get_snapshot().get("activity", {}) as Dictionary
 		_protected_asset.apply_activity_presentation_snapshot(activity)
+		_apply_active_hostile_bearing(activity)
 	return asset_result
+
+
+func _apply_active_hostile_bearing(activity: Dictionary) -> Dictionary:
+	if not is_instance_valid(_protected_asset):
+		return _content_result(false, &"protected_asset_unavailable")
+	var activity_generation := int(activity.get("generation", 0))
+	var bearing_sum := Vector3.ZERO
+	var bearing_count := 0
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		var key := StationDefenseContract.handle_key(handle, "hostile_id")
+		var entity := _entity_by_key.get(key) as RangeOpponent
+		if not is_instance_valid(entity):
+			continue
+		var direction := entity.global_position - _protected_asset.global_position
+		direction.y = 0.0
+		if direction.is_finite() and direction.length_squared() > 0.000001:
+			bearing_sum += direction.normalized()
+			bearing_count += 1
+	var active := (
+		StringName(activity.get("state_id", &"")) == &"active"
+		and bool(activity.get("wave_active", false))
+		and bearing_count > 0
+		and bearing_sum.length_squared() > 0.000001
+	)
+	return _protected_asset.apply_hostile_bearing_presentation_snapshot({
+		"asset_handle": _protected_asset.get_asset_handle(),
+		"activity_generation": activity_generation,
+		"active": active,
+		"bearing_world": bearing_sum.normalized() if active else Vector3.ZERO,
+	})
 
 
 func _acquire_hostile_sources_atomically(errors: PackedStringArray) -> void:
@@ -942,6 +973,7 @@ func _on_host_snapshot_changed(host_snapshot: Dictionary) -> void:
 	var activity := host_snapshot.get("activity", {}) as Dictionary
 	if is_instance_valid(_protected_asset):
 		_protected_asset.apply_activity_presentation_snapshot(activity)
+		_apply_active_hostile_bearing(activity)
 	if StringName(activity.get("state_id", &"")) in [
 		&"completed", &"failed", &"aborted", &"timed_out",
 	]:

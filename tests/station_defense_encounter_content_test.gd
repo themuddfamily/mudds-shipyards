@@ -361,6 +361,7 @@ func _test_checked_in_encounter_content() -> void:
 		and int(presentation_budget.process_callbacks) == 0
 		and not bool(safe_presentation.authority.health)
 		and not bool(safe_presentation.authority.damage)
+		and not bool(safe_presentation.authority.targeting)
 		and not bool(safe_presentation.authority.objective)
 		and not bool(safe_presentation.authority.rewards),
 		"asset danger presentation reuses the exact fixed 4-node/2-mesh/1-light authority-free budget"
@@ -463,14 +464,38 @@ func _test_checked_in_encounter_content() -> void:
 	var started := content.start(0)
 	var generation := int(started.activity.generation)
 	var active_presentation := asset.get_protected_asset_presentation_snapshot()
+	var expected_alpha_bearing := asset.global_basis.inverse() * (
+		alpha.global_position - asset.global_position
+	)
+	expected_alpha_bearing.y = 0.0
+	expected_alpha_bearing = expected_alpha_bearing.normalized()
 	_check(
 		started.accepted and generation == 1
 		and alpha.is_active() and not beta.is_active() and not gamma.is_active()
 		and active_presentation.wave_state_id == &"active"
 		and active_presentation.effective_state_id == &"active"
 		and is_equal_approx(float(active_presentation.ring_scale), 1.18)
-		and is_equal_approx(float(active_presentation.light_energy), 3.0),
+		and is_equal_approx(float(active_presentation.light_energy), 3.0)
+		and bool(active_presentation.hostile_bearing_active)
+		and (active_presentation.hostile_bearing_local as Vector3).is_equal_approx(
+			expected_alpha_bearing
+		)
+		and (active_presentation.core_position as Vector3).is_equal_approx(
+			Vector3(0.0, 2.65, 0.0) + expected_alpha_bearing * 0.85
+		)
+		and int(active_presentation.hostile_bearing_source.activity_generation) == generation,
 		"start activates only the ordered production opponent"
+	)
+	var before_stale_bearing := asset.get_protected_asset_presentation_snapshot()
+	var stale_bearing := (
+		active_presentation.hostile_bearing_source as Dictionary
+	).duplicate(true)
+	(stale_bearing.asset_handle as Dictionary)["generation"] = generation + 1
+	_check(
+		asset.apply_hostile_bearing_presentation_snapshot(stale_bearing).reason \
+			== &"stale_hostile_bearing_snapshot"
+		and asset.get_protected_asset_presentation_snapshot() == before_stale_bearing,
+		"a mismatched asset/activity generation cannot redirect the visible approach bearing"
 	)
 	var alpha_hostile_shot := await _emit_hostile_projectile(alpha, asset, content)
 	var alpha_terminal := await _shoot(authority, attacker, alpha)
@@ -481,7 +506,11 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(float(recovery_presentation.ring_scale), 0.94)
 		and is_equal_approx(float(recovery_presentation.core_scale), 0.86)
 		and (recovery_presentation.light_color as Color).is_equal_approx(Color("4fb9a7"))
-		and is_equal_approx(float(recovery_presentation.light_energy), 1.4),
+		and is_equal_approx(float(recovery_presentation.light_energy), 1.4)
+		and not bool(recovery_presentation.hostile_bearing_active)
+		and (recovery_presentation.core_position as Vector3).is_equal_approx(
+			Vector3(0.0, 2.65, 0.0)
+		),
 		"the caller-owned inter-wave delay softens the fixed beacon into a recovery cue"
 	)
 	var relief := content.advance_physics(0.5, generation)
@@ -513,6 +542,7 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(float(completed_presentation.ring_scale), 1.32)
 		and (completed_presentation.light_color as Color).is_equal_approx(Color("77e69a"))
 		and is_equal_approx(float(completed_presentation.light_energy), 3.4)
+		and not bool(completed_presentation.hostile_bearing_active)
 		and int(completed.host.destroyed_entity_count) == 3
 		and int(completed.host.active_entity_count) == 0
 		and resolver.get_registered_source_count() == 1,
