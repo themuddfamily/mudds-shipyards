@@ -55,6 +55,7 @@ var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
 var _race_presentation_consumers: Array[Callable] = []
+var _patrol_presentation_consumers: Array[Callable] = []
 var _mining_presentation_consumers: Array[Callable] = []
 var _structure_scan_presentation_consumers: Array[Callable] = []
 var _beacon_traversal_presentation_consumers: Array[Callable] = []
@@ -155,6 +156,7 @@ func _bind_audio_presentation_observers() -> void:
 
 func _clear_presentation_observers() -> void:
 	_race_presentation_consumers.clear()
+	_patrol_presentation_consumers.clear()
 	_mining_presentation_consumers.clear()
 	_structure_scan_presentation_consumers.clear()
 	_beacon_traversal_presentation_consumers.clear()
@@ -471,6 +473,7 @@ func start_patrol() -> Dictionary:
 	if bool(result.get("accepted", false)):
 		_last_patrol_feedback_reason = &""
 		_last_patrol_reward_result.clear()
+	_publish_patrol_presentation(result)
 	_publish_cinder_route_audio()
 	return result
 
@@ -493,6 +496,7 @@ func advance_patrol(delta: float, position: Vector3) -> Dictionary:
 	elif bool(after.get("checkpoint_occupied", false)) \
 			or reason == &"dwell_completed" or after.get("phase_id", &"") == &"travel":
 		_last_patrol_feedback_reason = &""
+	_publish_patrol_presentation(result)
 	_publish_cinder_route_audio()
 	return result
 
@@ -504,8 +508,32 @@ func reset_patrol() -> Dictionary:
 	if bool(result.get("accepted", false)):
 		_last_patrol_feedback_reason = &""
 		_last_patrol_reward_result.clear()
+	_publish_patrol_presentation(result)
 	_publish_cinder_route_audio()
 	return result
+
+
+func bind_patrol_presentation(consumer: Callable) -> Dictionary:
+	var current := _patrol_presentation_snapshot() if _patrol != null else {}
+	return _bind_presentation_observer(
+		_patrol_presentation_consumers, consumer, current, &"patrol"
+	)
+
+
+func unbind_patrol_presentation(consumer: Callable) -> Dictionary:
+	return _unbind_presentation_observer(
+		_patrol_presentation_consumers, consumer, &"patrol"
+	)
+
+
+func _publish_patrol_presentation(authority_record: Dictionary = {}) -> void:
+	if _patrol == null:
+		return
+	var detached := authority_record.duplicate(true)
+	if detached.is_empty():
+		detached = _patrol_presentation_snapshot()
+	detached["presentation_reason"] = _last_patrol_feedback_reason
+	_publish_presentation_observers(_patrol_presentation_consumers, detached)
 
 
 func start_cargo_run() -> Dictionary:
@@ -975,12 +1003,14 @@ func _publish_beacon_traversal_presentation(authority_record: Dictionary = {}) -
 
 func get_presentation_observer_snapshot() -> Dictionary:
 	_prune_invalid_presentation_observers(_race_presentation_consumers)
+	_prune_invalid_presentation_observers(_patrol_presentation_consumers)
 	_prune_invalid_presentation_observers(_mining_presentation_consumers)
 	_prune_invalid_presentation_observers(_structure_scan_presentation_consumers)
 	_prune_invalid_presentation_observers(_beacon_traversal_presentation_consumers)
 	return {
 		"observer_limit": PRESENTATION_OBSERVER_LIMIT,
 		"race_observers": _race_presentation_consumers.size(),
+		"patrol_observers": _patrol_presentation_consumers.size(),
 		"mining_observers": _mining_presentation_consumers.size(),
 		"structure_scan_observers": _structure_scan_presentation_consumers.size(),
 		"beacon_traversal_observers": _beacon_traversal_presentation_consumers.size(),

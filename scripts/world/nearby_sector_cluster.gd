@@ -158,6 +158,12 @@ const TRAVERSAL_TARGET_SPAR_SCALE := Vector3(0.45, 2.0, 0.45)
 const TRAVERSAL_WRONG_COUNTER_SCALE := Vector3(1.8, 0.3, 0.55)
 const TRAVERSAL_WRONG_SPAR_SCALE := Vector3(0.55, 1.8, 0.55)
 const TRAVERSAL_COMPLETE_SCALE := Vector3(1.6, 0.28, 1.6)
+const PATROL_SIGN_BASE_POSITION := Vector3(0.0, 5.4, 0.0)
+const PATROL_SIGN_CLEARED_SCALE := Vector3(0.55, 0.5, 1.0)
+const PATROL_SIGN_PENDING_SCALE := Vector3(0.75, 0.6, 1.0)
+const PATROL_SIGN_TARGET_SCALE := Vector3(1.2, 0.55, 1.0)
+const PATROL_SIGN_INTERRUPTED_SCALE := Vector3(1.4, 0.35, 1.0)
+const PATROL_SIGN_COMPLETE_SCALE := Vector3(1.1, 1.1, 3.0)
 
 ## Rocks take a much heavier chamfer than station stock. The kit's box rule caps
 ## at 0.18 m, which on a 30 m boulder is invisible, so the chamfer is proportional
@@ -318,6 +324,7 @@ var _mining_presentation_snapshot: Dictionary = {}
 var _structure_scan_presentation_snapshot: Dictionary = {}
 var _beacon_traversal_presentation_snapshot: Dictionary = {}
 var _race_gate_presentation_snapshot: Dictionary = {}
+var _patrol_marker_presentation_snapshot: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -335,6 +342,10 @@ func _exit_tree() -> void:
 	_activity_binding.call(
 		"unbind_race_presentation",
 		Callable(self, "_apply_race_gate_presentation")
+	)
+	_activity_binding.call(
+		"unbind_patrol_presentation",
+		Callable(self, "_apply_patrol_marker_presentation")
 	)
 	_activity_binding.call(
 		"unbind_mining_presentation",
@@ -370,6 +381,10 @@ func _restore_cluster_enabled_after_reentry() -> void:
 		Callable(self, "_apply_race_gate_presentation")
 	)
 	_activity_binding.call(
+		"bind_patrol_presentation",
+		Callable(self, "_apply_patrol_marker_presentation")
+	)
+	_activity_binding.call(
 		"bind_mining_presentation",
 		Callable(self, "_apply_mining_activity_presentation")
 	)
@@ -399,6 +414,10 @@ func _ready() -> void:
 	_activity_binding.call(
 		"bind_race_presentation",
 		Callable(self, "_apply_race_gate_presentation")
+	)
+	_activity_binding.call(
+		"bind_patrol_presentation",
+		Callable(self, "_apply_patrol_marker_presentation")
 	)
 	_build_landmarks()
 	_build_debris_field()
@@ -682,6 +701,125 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 
 func get_race_gate_presentation_state() -> Dictionary:
 	return _race_gate_presentation_snapshot.duplicate(true)
+
+
+## Applies the patrol's detached order, dwell and interruption state only to the
+## retained sign boards. Race rings and traversal vanes remain separate, while
+## ActivityDirector and PatrolActivity retain every checkpoint and timing rule.
+func _apply_patrol_marker_presentation(snapshot: Dictionary) -> Dictionary:
+	if StringName(snapshot.get("activity_id", &"")) != RACE_ACTIVITY_ID:
+		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
+	var generation := int(snapshot.get("generation", -1))
+	var state_id := StringName(snapshot.get("state_id", &""))
+	var phase_id := StringName(snapshot.get("phase_id", &""))
+	var next_checkpoint := int(snapshot.get("next_checkpoint_index", -1))
+	var checkpoint_count := int(snapshot.get("checkpoint_count", -1))
+	if generation < 0 or state_id not in [
+		&"idle", &"active", &"completed", &"failed", &"aborted",
+	] or phase_id not in [&"idle", &"travel", &"dwell", &"complete", &"failed", &"aborted"] \
+			or checkpoint_count != RACE_CHECKPOINT_COUNT \
+			or next_checkpoint < 0 or next_checkpoint > checkpoint_count:
+		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
+	var route_root := get_node_or_null(^"RouteBeacons") as Node3D
+	if route_root == null:
+		return {"accepted": false, "reason": &"presentation_unavailable"}
+	var interruption := (
+		StringName(snapshot.get("reason", &"")) == &"dwell_interrupted"
+		or StringName(snapshot.get("presentation_reason", &"")) == &"dwell_interrupted"
+	)
+	var reset := state_id == &"idle" and StringName(snapshot.get("reason", &"")) == &"reset"
+	var dwell_seconds := maxf(0.0, float(snapshot.get("dwell_seconds", 0.0)))
+	var dwell_elapsed := clampf(
+		float(snapshot.get("dwell_elapsed_seconds", 0.0)), 0.0, dwell_seconds
+	)
+	var dwell_fraction := dwell_elapsed / dwell_seconds if dwell_seconds > 0.0 else 0.0
+	var marker_states: Array[Dictionary] = []
+	for marker_index in ROUTE_BEACON_SPECS.size():
+		var marker := route_root.get_node_or_null(
+			NodePath(String(ROUTE_BEACON_SPECS[marker_index]["name"]))
+		) as Node3D
+		var sign_board := marker.get_node_or_null(^"SignBoard") as MeshInstance3D \
+			if marker != null else null
+		if sign_board == null:
+			return {"accepted": false, "reason": &"presentation_roster_incomplete"}
+		var status_id: StringName = &"available"
+		var board_scale := Vector3.ONE
+		var board_position := PATROL_SIGN_BASE_POSITION
+		var board_rotation := Vector3.ZERO
+		if reset:
+			status_id = &"reset"
+		elif state_id == &"active":
+			if next_checkpoint >= ROUTE_BEACON_SPECS.size():
+				status_id = &"platform_return" if marker_index == ROUTE_BEACON_SPECS.size() - 1 \
+					else &"cleared"
+				board_scale = PATROL_SIGN_TARGET_SCALE \
+					if status_id == &"platform_return" else PATROL_SIGN_CLEARED_SCALE
+				if status_id == &"platform_return":
+					board_position = Vector3(0.0, 8.0, 0.0)
+			elif marker_index < next_checkpoint:
+				status_id = &"cleared"
+				board_scale = PATROL_SIGN_CLEARED_SCALE
+			elif marker_index == next_checkpoint:
+				if interruption:
+					status_id = &"hold_interrupted"
+					board_scale = PATROL_SIGN_INTERRUPTED_SCALE
+					board_position = Vector3(0.0, 8.0, 0.0)
+					board_rotation = Vector3(0.0, 0.0, 45.0)
+				elif phase_id == &"dwell":
+					status_id = &"holding"
+					board_scale = Vector3(1.2, lerpf(0.55, 1.5, dwell_fraction), 1.0)
+				else:
+					status_id = &"next_hold"
+					board_scale = PATROL_SIGN_TARGET_SCALE
+			else:
+				status_id = &"pending"
+				board_scale = PATROL_SIGN_PENDING_SCALE
+		elif state_id == &"completed":
+			status_id = &"completed"
+			board_scale = PATROL_SIGN_COMPLETE_SCALE
+		elif state_id in [&"failed", &"aborted"]:
+			status_id = &"route_risk"
+			board_scale = PATROL_SIGN_INTERRUPTED_SCALE
+			board_position = Vector3(0.0, 8.0, 0.0)
+			board_rotation = Vector3(0.0, 0.0, -35.0 if marker_index % 2 == 0 else 35.0)
+		sign_board.scale = board_scale
+		sign_board.position = board_position
+		sign_board.rotation_degrees = board_rotation
+		marker_states.append({
+			"index": marker_index,
+			"status_id": status_id,
+			"board_scale": board_scale,
+			"board_position": board_position,
+			"board_rotation_degrees": board_rotation,
+		})
+	var expected_marker_name: StringName = &""
+	if next_checkpoint < ROUTE_BEACON_SPECS.size():
+		expected_marker_name = StringName(ROUTE_BEACON_SPECS[next_checkpoint]["name"])
+	elif state_id == &"active" and next_checkpoint == ROUTE_BEACON_SPECS.size():
+		expected_marker_name = &"CinderReachPlatform"
+	_patrol_marker_presentation_snapshot = {
+		"activity_id": RACE_ACTIVITY_ID,
+		"state_id": &"reset" if reset else state_id,
+		"phase_id": phase_id,
+		"generation": generation,
+		"next_checkpoint_index": next_checkpoint,
+		"checkpoint_count": checkpoint_count,
+		"expected_marker_name": expected_marker_name,
+		"dwell_fraction": dwell_fraction,
+		"route_risk_interrupted": interruption,
+		"markers": marker_states,
+		"static_geometry_only": true,
+		"node_delta": 0,
+		"collision_delta": 0,
+		"checkpoint_authority": false,
+		"movement_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+	return {"accepted": true, "reason": &"patrol_marker_presentation_applied"}
+
+
+func get_patrol_marker_presentation_state() -> Dictionary:
+	return _patrol_marker_presentation_snapshot.duplicate(true)
 
 
 ## Detached proof that the ordered traversal is visually expressed by the four
