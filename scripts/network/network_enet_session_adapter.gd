@@ -35,6 +35,7 @@ signal session_started(mode: StringName)
 signal session_stopped(reason: StringName)
 signal peer_admitted(peer_id: int, receipt: Dictionary)
 signal peer_disconnected(peer_id: int, receipt: Dictionary)
+signal peer_keepalive_timeout(peer_id: int, receipt: Dictionary)
 signal snapshot_published(packet: Dictionary)
 signal snapshot_applied(result: Dictionary)
 signal transport_rejected(status: StringName)
@@ -64,6 +65,8 @@ const RECONNECT_BACKOFF_MAX_MILLISECONDS := 5000
 const RECONNECT_BACKOFF_MAX_ATTEMPTS := 6
 const HANDSHAKE_DEFAULT_TIMEOUT_MILLISECONDS := 5000
 const HANDSHAKE_MAX_TIMEOUT_MILLISECONDS := 30000
+const KEEPALIVE_DEFAULT_TIMEOUT_MILLISECONDS := 10000
+const KEEPALIVE_MAX_TIMEOUT_MILLISECONDS := 60000
 const MAX_PRESENTATION_ENTITIES := 256
 
 var _peer: ENetMultiplayerPeer
@@ -110,6 +113,8 @@ var _presentation_evictions := 0
 var _is_server := false
 var _configured := false
 var _peer_generations: Dictionary = {}
+var _peer_keepalive_deadlines: Dictionary = {}
+var _keepalive_timeout_milliseconds := KEEPALIVE_DEFAULT_TIMEOUT_MILLISECONDS
 var _projectile_sources: Dictionary = {}
 var _landing_entities: Dictionary = {}
 var _damage_entities: Dictionary = {}
@@ -281,6 +286,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_configured = false
 	_is_server = false
 	_peer_generations.clear()
+	_peer_keepalive_deadlines.clear()
 	_session_max_clients = DEFAULT_MAX_CLIENTS
 	_server_offer.clear()
 	_crew_snapshot_fragmenter.reset()
@@ -314,6 +320,41 @@ func get_session_capacity_snapshot() -> Dictionary:
 		"max_players": _session_max_clients,
 		"available_slots": maxi(0, _session_max_clients - _peer_generations.size()),
 	}.duplicate(true)
+
+
+func configure_peer_keepalive(timeout_milliseconds: int) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	_keepalive_timeout_milliseconds = clampi(timeout_milliseconds, 1, KEEPALIVE_MAX_TIMEOUT_MILLISECONDS)
+	return _remember(_result(true, &"keepalive_configured", {
+		"timeout_milliseconds": _keepalive_timeout_milliseconds,
+	}))
+
+
+func refresh_peer_keepalive(source_peer_id: int, peer_id: int, peer_generation: int, now_milliseconds: int) -> Dictionary:
+	if not is_server() or source_peer_id != AUTHORITY_PEER_ID:
+		return _remember(_result(false, &"authority_required"))
+	if now_milliseconds < 0 or int(_peer_generations.get(peer_id, 0)) != peer_generation:
+		return _remember(_result(false, &"stale_peer_generation"))
+	_peer_keepalive_deadlines[peer_id] = now_milliseconds + _keepalive_timeout_milliseconds
+	return _remember(_result(true, &"keepalive_refreshed", {"peer_id": peer_id, "deadline_milliseconds": _peer_keepalive_deadlines[peer_id]}))
+
+
+func check_peer_keepalives(source_peer_id: int, now_milliseconds: int) -> Dictionary:
+	if not is_server() or source_peer_id != AUTHORITY_PEER_ID:
+		return _remember(_result(false, &"authority_required"))
+	if now_milliseconds < 0:
+		return _remember(_result(false, &"invalid_keepalive_clock"))
+	var timed_out: Array = []
+	for peer_variant in _peer_keepalive_deadlines.keys():
+		var peer_id := int(peer_variant)
+		if now_milliseconds < int(_peer_keepalive_deadlines[peer_id]):
+			continue
+		timed_out.append(peer_id)
+		if _peer != null and multiplayer != null and multiplayer.get_peers().has(peer_id):
+			_peer.disconnect_peer(peer_id)
+		_on_peer_disconnected(peer_id, &"timeout")
+	return _remember(_result(true, &"keepalives_checked", {"timed_out_peer_ids": timed_out}))
 
 
 func get_snapshot() -> Dictionary:
@@ -907,6 +948,8 @@ func rotate_session_migration(next_package_generation: int = -1) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	var result: Dictionary = _migration.rotate_server(AUTHORITY_PEER_ID, next_package_generation)
+	if bool(result.get("accepted", false)):
+		_reset_peer_keepalive_deadlines(Time.get_ticks_msec())
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
 
@@ -917,6 +960,11 @@ func accept_migration_packet(source_peer_id: int, packet: Dictionary) -> Diction
 	var result: Dictionary = _migration.accept_packet(source_peer_id, packet)
 	migration_result.emit(result.duplicate(true))
 	return _remember(result)
+
+
+func _reset_peer_keepalive_deadlines(now_milliseconds: int) -> void:
+	for peer_variant in _peer_generations.keys():
+		_peer_keepalive_deadlines[int(peer_variant)] = now_milliseconds + _keepalive_timeout_milliseconds
 
 
 func rebind_migration_peer(source_peer_id: int, packet: Dictionary) -> Dictionary:
@@ -2114,6 +2162,7 @@ func _receive_hello(wire: Dictionary) -> void:
 		transport_rejected.emit(StringName(registered.get("status", &"transport_rejected")))
 		return
 	_peer_generations[peer_id] = peer_generation
+	_peer_keepalive_deadlines[peer_id] = Time.get_ticks_msec() + _keepalive_timeout_milliseconds
 	_crew_roles.admit_peer(AUTHORITY_PEER_ID, peer_id, peer_generation)
 	var migration_registered: Dictionary = _migration.register_peer(
 		AUTHORITY_PEER_ID, peer_id, peer_generation
@@ -2236,7 +2285,7 @@ func _on_peer_connected(peer_id: int) -> void:
 	_receive_hello.rpc_id(AUTHORITY_PEER_ID, hello)
 
 
-func _on_peer_disconnected(peer_id: int) -> void:
+func _on_peer_disconnected(peer_id: int, reason: StringName = &"disconnect") -> void:
 	if not is_server():
 		return
 	var peer_generation := int(_peer_generations.get(peer_id, 0))
@@ -2261,6 +2310,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 			)
 			_prediction_entities.erase(prediction_id)
 	_peer_generations.erase(peer_id)
+	_peer_keepalive_deadlines.erase(peer_id)
 	_refresh_hosted_directory()
 	for source_id_variant in _projectile_sources.keys():
 		var source_id := StringName(source_id_variant)
@@ -2289,7 +2339,10 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if _moving_occupants.has(peer_id):
 		_moving_interior.release_peer(AUTHORITY_PEER_ID, peer_id)
 		_moving_occupants.erase(peer_id)
+	receipt["reason"] = reason
 	peer_disconnected.emit(peer_id, receipt.duplicate(true))
+	if reason == &"timeout":
+		peer_keepalive_timeout.emit(peer_id, receipt.duplicate(true))
 
 
 func _on_server_disconnected() -> void:
