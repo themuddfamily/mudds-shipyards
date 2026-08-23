@@ -95,6 +95,8 @@ func _activity_state(activity_id: StringName) -> Dictionary:
 		return _snapshot.get("beacon_traversal", {}) as Dictionary
 	if activity_id == &"cinder_platform_supply_run":
 		return _snapshot.get("cargo", {}) as Dictionary
+	if activity_id == &"station_defense":
+		return _snapshot.get("station_defense", {}) as Dictionary
 	return {"state_id": "available"}
 
 
@@ -138,8 +140,13 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var beacon_feedback: Dictionary = {}
 	if activity_id == &"cinder_debris_beacon_traversal":
 		beacon_feedback = _beacon_feedback(state)
+	var station_defense_feedback: Dictionary = {}
+	if activity_id == &"station_defense":
+		station_defense_feedback = _station_defense_feedback(state)
 	var progress := (
-		"  //  %s" % str(convoy_feedback.get("summary", ""))
+		"  //  %s" % str(station_defense_feedback.get("summary", ""))
+		if not station_defense_feedback.is_empty()
+		else "  //  %s" % str(convoy_feedback.get("summary", ""))
 		if not convoy_feedback.is_empty()
 		else "  //  %s" % str(scan_feedback.get("summary", ""))
 		if not scan_feedback.is_empty()
@@ -156,12 +163,12 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		else _progress_text(activity_id, state)
 	)
 	var recovery := (
-		"" if not beacon_feedback.is_empty() or not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
+		"" if not station_defense_feedback.is_empty() or not beacon_feedback.is_empty() or not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
 		or not mining_feedback.is_empty() else _recovery_text(state)
 	)
 	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
 	var status_suffix := ""
-	if reward_pending and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
+	if reward_pending and station_defense_feedback.is_empty() and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
 			and mining_feedback.is_empty():
 		status_suffix += "  REWARD PENDING"
 	if not recovery.is_empty():
@@ -176,7 +183,8 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"intents": ["select", "start", "reset"],
 		"reward_pending": reward_pending,
 		"recovery_text": recovery,
-		"objective_text": str(beacon_feedback.get(
+		"objective_text": str(station_defense_feedback.get(
+			"objective_text", beacon_feedback.get(
 			"objective_text", patrol_feedback.get(
 				"objective_text", race_feedback.get(
 				"objective_text", scan_feedback.get(
@@ -186,7 +194,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 				)
 			)
 			)
-		)),
+		))),
 		"cargo_progress": cargo_progress.duplicate(true),
 		"convoy_feedback": convoy_feedback.duplicate(true),
 		"mining_feedback": mining_feedback.duplicate(true),
@@ -194,10 +202,68 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"race_feedback": race_feedback.duplicate(true),
 		"patrol_feedback": patrol_feedback.duplicate(true),
 		"beacon_feedback": beacon_feedback.duplicate(true),
+		"station_defense_feedback": station_defense_feedback.duplicate(true),
 		"semantic_cue_id": StringName(convoy_feedback.get("semantic_cue_id", &"")),
 		"caption_text": str(convoy_feedback.get("caption_text", "")),
 		"activity_authority": false,
 		"reward_authority": false,
+	}.duplicate(true)
+
+
+## Formats only the authoritative station-defense activity snapshot. Protected
+## asset state is reduced to readable counts; no health or combat is sampled.
+func _station_defense_feedback(state: Dictionary) -> Dictionary:
+	if state.is_empty():
+		return {}
+	var state_id := StringName(state.get("state_id", &"idle"))
+	var wave := maxi(int(state.get("wave_number", 0)), 0)
+	var wave_count := maxi(int(state.get("wave_count", 0)), 0)
+	var hostiles := maxi(int(state.get("remaining_hostile_count", 0)), 0)
+	var assets := state.get("protected_assets", []) as Array
+	var lost := 0
+	var damaged := 0
+	for asset_variant in assets:
+		var asset := asset_variant as Dictionary
+		if bool(asset.get("destroyed", false)):
+			lost += 1
+		elif int(asset.get("damage_event_count", 0)) > 0:
+			damaged += 1
+	var intact := assets.size() - lost
+	var asset_status := "ASSETS %d/%d SECURE" % [intact, assets.size()]
+	if lost > 0:
+		asset_status = "ASSETS %d/%d INTACT  //  %d LOST" % [intact, assets.size(), lost]
+	elif damaged > 0:
+		asset_status = "ASSETS %d/%d INTACT  //  %d DAMAGED" % [intact, assets.size(), damaged]
+	var reward_pending := bool(state.get("reward_pending", false))
+	var stage_id: StringName = &"approach"
+	var summary := "DEFENSE READY  //  %s" % asset_status
+	var objective := "REPORT TO THE STATION DEFENSE BOARD"
+	match state_id:
+		&"active":
+			stage_id = &"active"
+			summary = "WAVE %d/%d  //  %d HOSTILES REMAIN  //  %s" % [wave, wave_count, hostiles, asset_status]
+			objective = "PROTECT THE STATION ASSETS AND CLEAR THE WAVE"
+		&"completed":
+			stage_id = &"reward_pending" if reward_pending else &"complete"
+			summary = "DEFENSE COMPLETE  //  %s  //  %s" % [asset_status, "REWARD PENDING" if reward_pending else "REPORT READY"]
+			objective = "AWAIT DEFENSE REWARD HANDOFF" if reward_pending else "REQUEST THE DEFENSE REPORT REWARD"
+		&"failed", &"aborted", &"timed_out":
+			stage_id = state_id
+			var failure := StringName(state.get("failure_reason", &""))
+			var failure_text := str(failure).replace("_", " ").to_upper()
+			summary = "%s%s  //  %s" % [
+				"DEFENSE FAILED" if state_id != &"aborted" else "DEFENSE INTERRUPTED",
+				("  //  " + failure_text) if not failure_text.is_empty() else "", asset_status,
+			]
+			objective = "RESET AT THE DEFENSE BOARD TO TRY AGAIN"
+	return {
+		"stage_id": stage_id, "wave_number": wave, "wave_count": wave_count,
+		"remaining_hostile_count": hostiles, "protected_asset_count": assets.size(),
+		"intact_asset_count": intact, "damaged_asset_count": damaged,
+		"lost_asset_count": lost, "reward_pending": reward_pending,
+		"summary": summary, "objective_text": objective,
+		"activity_authority": false, "combat_authority": false,
+		"health_authority": false, "reward_authority": false,
 	}.duplicate(true)
 
 

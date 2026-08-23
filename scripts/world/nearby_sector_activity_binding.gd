@@ -50,6 +50,7 @@ var _last_cargo_terminal_request: Dictionary = {}
 var _station_director: Node
 var _station_target: Node3D
 var _station_anchor: Node3D
+var _station_defense_snapshot_provider: Callable
 var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
@@ -119,6 +120,7 @@ func _ready() -> void:
 	_cinder_cargo_terminal_audio.attach()
 	_bind_audio_presentation_observers()
 	_publish_cinder_route_audio()
+	call_deferred("_bind_production_station_defense_snapshot_provider")
 
 
 func _exit_tree() -> void:
@@ -554,6 +556,36 @@ func bind_station_defense(director: Node, target: Node3D, protected_anchor: Node
 	_station_target = target
 	_station_anchor = protected_anchor
 	return _result(true, &"station_defense_bound")
+
+
+## Presentation-only seam for the production StationDefenseEncounterContent.
+## The provider remains the authority and is sampled only when a detached HUD
+## snapshot is requested; this binding never advances combat or activity state.
+func bind_station_defense_snapshot_provider(provider: Callable) -> Dictionary:
+	if not provider.is_valid():
+		return _result(false, &"invalid_station_defense_snapshot_provider")
+	var candidate: Variant = provider.call()
+	if not candidate is Dictionary or not (candidate as Dictionary).has("host"):
+		return _result(false, &"invalid_station_defense_snapshot")
+	_station_defense_snapshot_provider = provider
+	return _result(true, &"station_defense_snapshot_provider_bound")
+
+
+## The streamed cluster and ShipyardWorld are composed beneath the same Main.
+## Resolve that authored sibling once per loaded cluster generation; HUD reads
+## remain detached Callable snapshots and never search or poll the scene tree.
+func _bind_production_station_defense_snapshot_provider() -> void:
+	if _station_defense_snapshot_provider.is_valid() or not is_inside_tree():
+		return
+	var ancestor := get_parent()
+	while ancestor != null:
+		var content := ancestor.get_node_or_null(
+			^"ShipyardWorld/StationDefenseEncounter"
+		)
+		if is_instance_valid(content) and content.has_method(&"get_snapshot"):
+			bind_station_defense_snapshot_provider(Callable(content, &"get_snapshot"))
+			return
+		ancestor = ancestor.get_parent()
 
 
 func start_station_defense() -> Dictionary:
@@ -1062,6 +1094,7 @@ func get_snapshot() -> Dictionary:
 			_station_director.call("get_state") if _station_binding_current() else &"unbound"
 		),
 		"station_defense_reward": get_station_defense_reward_snapshot(),
+		"station_defense": _station_defense_presentation_snapshot(),
 		"mining": _mining_activity.call("get_snapshot") if is_instance_valid(_mining_activity) else {},
 		"structure_scan": _scan_activity.call("get_snapshot") if is_instance_valid(_scan_activity) else {},
 		"beacon_traversal": _beacon_traversal_presentation_snapshot(),
@@ -1072,6 +1105,33 @@ func get_snapshot() -> Dictionary:
 		"hud_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+func _station_defense_presentation_snapshot() -> Dictionary:
+	if not _station_defense_snapshot_provider.is_valid():
+		return {}
+	var content_variant: Variant = _station_defense_snapshot_provider.call()
+	if not content_variant is Dictionary:
+		return {}
+	var content := content_variant as Dictionary
+	var host := content.get("host", {}) as Dictionary
+	var activity := (host.get("activity", {}) as Dictionary).duplicate(true)
+	if activity.is_empty():
+		return {}
+	var generation := int(activity.get("generation", 0))
+	var reward := get_station_defense_reward_snapshot()
+	var request := reward.get("last_request", {}) as Dictionary
+	activity["reward_pending"] = (
+		generation > 0
+		and int(request.get("activity_generation", -1)) == generation
+		and StringName(request.get("activity_id", &"")) == &"shipyard_perimeter_defense"
+	)
+	activity["presentation_source"] = &"station_defense_encounter_content"
+	activity["activity_authority"] = false
+	activity["combat_authority"] = false
+	activity["health_authority"] = false
+	activity["reward_authority"] = false
+	return activity.duplicate(true)
 
 
 func _race_presentation_snapshot() -> Dictionary:
