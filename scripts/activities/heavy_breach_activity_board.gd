@@ -13,6 +13,7 @@ signal interaction_resolved(actor: Node, result: Dictionary)
 const COMPONENT_ID: StringName = &"heavy-breach-activity-board"
 const ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
+const BOARD_AUDIO_BINDING := preload("res://scripts/audio/heavy_breach_activity_board_audio_binding.gd")
 const INTERACTION_RADIUS := 2.8
 const BOARD_SIZE := Vector3(0.75, 1.35, 1.8)
 const PEDESTAL_SIZE := Vector3(1.4, 1.0, 2.2)
@@ -29,6 +30,7 @@ var _active_director_generation := 0
 var _highest_reward_generation := 0
 var _built := false
 var _attached := false
+var _audio_binding: RefCounted
 
 
 func _enter_tree() -> void:
@@ -47,6 +49,8 @@ func _exit_tree() -> void:
 	_active_director_generation = 0
 	_attached = false
 	_generation += 1
+	if _audio_binding != null:
+		_audio_binding.detach()
 
 
 func _ready() -> void:
@@ -59,6 +63,18 @@ func _ready() -> void:
 	if not _built:
 		_built = true
 		_build_physical_board()
+	_audio_binding = BOARD_AUDIO_BINDING.new() as RefCounted
+	_audio_binding.attach()
+	interaction_resolved.connect(_on_audio_interaction_resolved)
+
+
+func get_audio_binding_snapshot() -> Dictionary:
+	return _audio_binding.get_snapshot() if _audio_binding != null else {"attached": false}
+
+
+func _on_audio_interaction_resolved(_actor: Node, result: Dictionary) -> void:
+	if _audio_binding != null:
+		_audio_binding.present_interaction(result)
 
 
 func configure_external_owners(
@@ -238,6 +254,8 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 			or _active_director_generation < 1:
 		return
 	var generation := _active_director_generation
+	if _audio_binding != null:
+		_audio_binding.present_terminal(scenario_id, outcome, generation)
 	if outcome == EncounterScenarioDirector.OUTCOME_CLEARED \
 			and _reward_adapter != null and generation > _highest_reward_generation:
 		var request := {
@@ -254,6 +272,8 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 		_last_reward_result = _reward_adapter.call("consume", request, generation)
 		if bool(_last_reward_result.get("accepted", false)):
 			_highest_reward_generation = generation
+			if _audio_binding != null:
+				_audio_binding.present_reward(_last_reward_result, generation)
 	_active_director_generation = 0
 
 
