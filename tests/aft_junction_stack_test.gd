@@ -40,6 +40,7 @@ func _run() -> void:
 	await _test_collision_backed_surfaces(module)
 	await _test_stair_circulation(module)
 	_test_stair_tread_batch(module)
+	_test_low_route_light_batch(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
 	_test_ceiling_luminaire_lens_batch(module)
@@ -295,6 +296,66 @@ func _test_stair_tread_batch(module: AftJunctionStack) -> void:
 	)
 
 
+func _test_low_route_light_batch(module: AftJunctionStack) -> void:
+	var lower := module.get_node_or_null(^"Structure/LowerOpenDeck") as Node3D
+	var batch := lower.get_node_or_null(^"LowRouteLightRenderBatch") as MultiMeshInstance3D \
+		if lower != null else null
+	var route_stripe := lower.get_node_or_null(^"RouteStripe") as MeshInstance3D \
+		if lower != null else null
+	var expected_buffer := PackedFloat32Array()
+	var anchors_exact := lower != null
+	for index in AftJunctionStack.LOW_ROUTE_LIGHT_COPY_COUNT:
+		var expected := Transform3D(
+			Basis.IDENTITY,
+			AftJunctionStack.LOW_ROUTE_LIGHT_POSITIONS[index] as Vector3
+		)
+		var anchor_name := "LowRouteLight" if index == 0 else "LowRouteLight%d" % (index + 1)
+		var anchor := lower.get_node_or_null(NodePath(anchor_name)) as Marker3D \
+			if lower != null else null
+		anchors_exact = anchors_exact and anchor != null \
+			and anchor.transform.is_equal_approx(expected) \
+			and anchor.get_child_count() == 0
+		expected_buffer.append_array(PackedFloat32Array([
+			1.0, 0.0, 0.0, expected.origin.x,
+			0.0, 1.0, 0.0, expected.origin.y,
+			0.0, 0.0, 1.0, expected.origin.z,
+		]))
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh if multimesh != null else null
+	var expected_bounds := AABB()
+	if mesh != null:
+		for index in AftJunctionStack.LOW_ROUTE_LIGHT_COPY_COUNT:
+			var transformed_bounds := Transform3D(
+				Basis.IDENTITY,
+				AftJunctionStack.LOW_ROUTE_LIGHT_POSITIONS[index] as Vector3
+			) * mesh.get_aabb()
+			expected_bounds = transformed_bounds if index == 0 \
+				else expected_bounds.merge(transformed_bounds)
+	_check(
+		anchors_exact
+		and batch != null
+		and multimesh != null
+		and mesh != null
+		and multimesh.transform_format == MultiMesh.TRANSFORM_3D
+		and not multimesh.use_colors
+		and not multimesh.use_custom_data
+		and multimesh.instance_count == AftJunctionStack.LOW_ROUTE_LIGHT_COPY_COUNT
+		and multimesh.visible_instance_count == AftJunctionStack.LOW_ROUTE_LIGHT_COPY_COUNT
+		and multimesh.buffer == expected_buffer
+		and mesh.get_aabb().size.is_equal_approx(AftJunctionStack.LOW_ROUTE_LIGHT_SIZE)
+		and multimesh.custom_aabb.is_equal_approx(expected_bounds)
+		and route_stripe != null
+		and batch.material_override == route_stripe.material_override
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.visible
+		and batch.layers == 1
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.get_child_count() == 0
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"three named lower-route light anchors retain exact cyan poses and render state under one bounded batch"
+	)
+
+
 func _test_operations_door_and_room(module: AftJunctionStack) -> void:
 	var door := module.get_operations_entrance()
 	_check(door != null, "cyan operations entrance is exposed as StationDoor")
@@ -450,9 +511,9 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1177,
+			"descendant_nodes": 1180,
 			"renderer_nodes": 800,
-			"drawn_copies": 860,
+			"drawn_copies": 864,
 			"surface_submissions": 800,
 			"mesh_resource_allocations": 296,
 			"material_resource_allocations": 30,
@@ -461,13 +522,13 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus visual batching freeze 1177 descendants, 800 renderers/submissions, 860 copies, and 296 mesh allocations"
+		"shared collar families plus visual batching freeze 1180 descendants, 800 renderers/submissions, 864 copies, and 296 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": -6,
+			"descendant_nodes": -9,
 			"renderer_nodes": 55,
-			"drawn_copies": -5,
+			"drawn_copies": -9,
 			"surface_submissions": 55,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,

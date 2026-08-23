@@ -179,12 +179,22 @@ const CEILING_LUMINAIRE_LENS_POSITIONS := [
 	Vector3(8.0, 4.405, 14.15),
 	Vector3(8.0, 4.405, 16.15),
 ]
+## Three identical cyan route-light strips are presentation-only overlays on the
+## collision-backed lower deck. Their authored names remain childless anchors;
+## one lower-deck MultiMesh draws the unchanged cached rounded-box surface.
+const LOW_ROUTE_LIGHT_SIZE := Vector3(0.38, 0.025, 0.12)
+const LOW_ROUTE_LIGHT_COPY_COUNT := 3
+const LOW_ROUTE_LIGHT_POSITIONS := [
+	Vector3(0.0, 0.088, 1.0),
+	Vector3(0.0, 0.088, 4.25),
+	Vector3(0.0, 0.088, 8.9),
+]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1177
+const RENDER_DESCENDANT_NODE_COUNT := 1180
 const BASELINE_RENDERER_NODE_COUNT := 855
 const RENDERER_NODE_COUNT := 800
 const BASELINE_DRAWN_COPY_COUNT := 855
-const DRAWN_COPY_COUNT := 860
+const DRAWN_COPY_COUNT := 864
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
 const SURFACE_SUBMISSION_COUNT := 800
 const BASELINE_MESH_RESOURCE_COUNT := 319
@@ -1022,9 +1032,9 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": -6,
+			"descendant_nodes": -9,
 			"renderer_nodes": 55,
-			"drawn_copies": -5,
+			"drawn_copies": -9,
 			"surface_submissions": 55,
 			"mesh_resource_allocations": 23,
 			"material_resource_allocations": 0,
@@ -2865,8 +2875,25 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 					_materials["brass"],
 					false
 				)
-	for light_z in [1.0, 4.25, 8.9]:
-		_box(lower, "LowRouteLight", Vector3(0, 0.088, light_z), Vector3(0.38, 0.025, 0.12), _materials["cyan"], false)
+	var low_route_light_transforms: Array[Transform3D] = []
+	for light_index in LOW_ROUTE_LIGHT_COPY_COUNT:
+		var light_transform := Transform3D(
+			Basis.IDENTITY,
+			LOW_ROUTE_LIGHT_POSITIONS[light_index] as Vector3
+		)
+		var light_anchor := Marker3D.new()
+		light_anchor.name = "LowRouteLight" if light_index == 0 \
+			else "LowRouteLight%d" % (light_index + 1)
+		light_anchor.transform = light_transform
+		lower.add_child(light_anchor, true)
+		low_route_light_transforms.append(light_transform)
+	_multimesh_rounded_box(
+		lower,
+		"LowRouteLightRenderBatch",
+		LOW_ROUTE_LIGHT_SIZE,
+		_materials["cyan"],
+		low_route_light_transforms
+	)
 
 
 func _build_stair_and_upper_deck(structure: Node3D) -> void:
