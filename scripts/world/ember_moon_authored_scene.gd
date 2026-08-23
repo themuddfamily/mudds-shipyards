@@ -65,6 +65,25 @@ const RELAY_MAST_HEIGHT_M := 3.0
 const RELAY_MAST_POSITION_M := Vector3(0.0, 1.675, 0.0)
 const RELAY_HEAD_SIZE_M := Vector3(0.9, 0.45, 0.9)
 const RELAY_HEAD_POSITION_M := Vector3(0.0, 3.25, 0.0)
+const GANTRY_ROOT_POSITION_M := Vector3(34.0, 0.0, 0.0)
+const GANTRY_PYLON_SIZE_M := Vector3(1.2, 7.2, 1.4)
+const GANTRY_PORT_PYLON_POSITION_M := Vector3(0.0, 3.6, -5.2)
+const GANTRY_STARBOARD_PYLON_POSITION_M := Vector3(0.0, 3.6, 5.2)
+const GANTRY_PYLON_LEAN_RADIANS := 0.08
+const GANTRY_BEAM_SIZE_M := Vector3(1.2, 0.8, 4.8)
+const GANTRY_PORT_BEAM_POSITION_M := Vector3(0.0, 7.0, -2.7)
+const GANTRY_STARBOARD_BEAM_POSITION_M := Vector3(0.0, 6.65, 2.7)
+const GANTRY_PORT_BEAM_TILT_RADIANS := 0.06
+const GANTRY_STARBOARD_BEAM_TILT_RADIANS := -0.14
+const GANTRY_BOOM_RADIUS_M := 0.25
+const GANTRY_BOOM_HEIGHT_M := 4.0
+const GANTRY_BOOM_POSITION_M := Vector3(0.0, 9.0, -1.9)
+const GANTRY_BOOM_TILT_RADIANS := 0.18
+const GANTRY_SENSOR_SIZE_M := Vector3(2.6, 0.45, 1.2)
+const GANTRY_SENSOR_POSITION_M := Vector3(0.36, 10.95, -1.9)
+const GANTRY_SENSOR_TILT_RADIANS := -0.12
+const GANTRY_ACCESS_POSITION_M := Vector3(34.0, 0.0, -7.0)
+const GANTRY_PYLON_MIN_ROUTE_CLEARANCE_M := 4.2
 
 const BODY_COLOR := Color("552817")
 const FLOOR_COLOR := Color("292421")
@@ -74,13 +93,15 @@ const ROUTE_COLOR := Color("d28245")
 const GUIDE_COLOR := Color("71d9da")
 const EQUIPMENT_COLOR := Color("4f4942")
 const RELAY_COLOR := Color("e1a458")
+const DERELICT_ALLOY_COLOR := Color("353a38")
+const DERELICT_OXIDE_COLOR := Color("8c462c")
 
-const EXPECTED_NODE_COUNT := 36
-const EXPECTED_MESH_INSTANCE_COUNT := 9
+const EXPECTED_NODE_COUNT := 50
+const EXPECTED_MESH_INSTANCE_COUNT := 15
 const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 3
 const EXPECTED_MULTI_MESH_COPY_COUNT := 13
-const EXPECTED_STATIC_BODY_COUNT := 5
-const EXPECTED_COLLISION_SHAPE_COUNT := 7
+const EXPECTED_STATIC_BODY_COUNT := 6
+const EXPECTED_COLLISION_SHAPE_COUNT := 13
 const MAXIMUM_TRIANGLE_COUNT := 8192
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const WORLD_MASK := PhysicsLayers.WORLD_BODY_MASK
@@ -96,11 +117,13 @@ const SURFACE_LANDMARK_NODE_PATHS := {
 	&"ember_pad_guidance_starboard": ^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard",
 	&"ember_sample_rack": ^"LandingRegion/SurfaceLandmarks/SampleRack",
 	&"ember_staging_relay": ^"LandingRegion/SurfaceLandmarks/StagingRelay",
+	&"ember_derelict_survey_gantry": ^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry",
 }
 const SURFACE_MARKER_NODE_PATHS := {
 	&"ember_pad_guidance_threshold": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold",
 	&"ember_sample_rack_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/SampleRackAccess",
 	&"ember_staging_relay_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess",
+	&"ember_derelict_survey_gantry_access": ^"LandingRegion/SurfaceLandmarks/RouteMarkers/DerelictSurveyGantryAccess",
 }
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
@@ -235,6 +258,10 @@ func get_snapshot() -> Dictionary:
 			"relay_mast_radius_m": RELAY_MAST_RADIUS_M,
 			"relay_mast_height_m": RELAY_MAST_HEIGHT_M,
 			"relay_head_size_m": RELAY_HEAD_SIZE_M,
+			"derelict_gantry_position_m": GANTRY_ROOT_POSITION_M,
+			"derelict_gantry_height_m": GANTRY_SENSOR_POSITION_M.y + GANTRY_SENSOR_SIZE_M.y * 0.5,
+			"derelict_gantry_span_m": GANTRY_STARBOARD_PYLON_POSITION_M.z
+				- GANTRY_PORT_PYLON_POSITION_M.z + GANTRY_PYLON_SIZE_M.z,
 		},
 		"collision": {
 			"shape": &"box",
@@ -243,8 +270,8 @@ func get_snapshot() -> Dictionary:
 			"top_surface_region_local_y_m": 0.0,
 			"layer": WORLD_LAYER,
 			"mask": WORLD_MASK,
-			"landmark_static_body_count": 4,
-			"solid_landmark_collision_shape_count": 6,
+			"landmark_static_body_count": 5,
+			"solid_landmark_collision_shape_count": 12,
 			"route_clear_half_width_m": SURFACE_ROUTE_WIDTH_M * 0.5,
 		},
 		"terrain_lod_policy": lod_snapshot,
@@ -372,10 +399,24 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/StagingRelay/MastCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry": "StaticBody3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/StarboardPylonVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/StarboardPylonCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortBeamVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortBeamCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/StarboardBeamVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/StarboardBeamCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/SensorBoomVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/SensorBoomCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers": "Node3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/SampleRackAccess": "Marker3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess": "Marker3D",
+		^"LandingRegion/SurfaceLandmarks/RouteMarkers/DerelictSurveyGantryAccess": "Marker3D",
 	}
 	for path: NodePath in expected:
 		var node := get_node_or_null(path)
@@ -389,13 +430,15 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 	var landmarks := get_node_or_null(^"LandingRegion/SurfaceLandmarks")
 	var route_markers := get_node_or_null(^"LandingRegion/SurfaceLandmarks/RouteMarkers")
 	var relay := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay")
+	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry")
 	if get_child_count() != 2 \
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
-			or landmarks == null or landmarks.get_child_count() != 9 \
-			or route_markers == null or route_markers.get_child_count() != 3 \
-			or relay == null or relay.get_child_count() != 6:
+			or landmarks == null or landmarks.get_child_count() != 10 \
+			or route_markers == null or route_markers.get_child_count() != 4 \
+			or relay == null or relay.get_child_count() != 6 \
+			or gantry == null or gantry.get_child_count() != 12:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
 
 
@@ -423,6 +466,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var relay_base := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual") as MeshInstance3D
 	var relay_mast := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual") as MeshInstance3D
 	var relay_head := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual") as MeshInstance3D
+	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
 	var body_mesh := body.mesh as SphereMesh if body != null else null
 	var floor_mesh := floor.mesh as CylinderMesh if floor != null else null
 	var rim_mesh := rim.mesh as TorusMesh if rim != null else null
@@ -469,6 +513,8 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 			or relay_mast_mesh.radial_segments != 12 \
 			or relay_head_mesh == null or relay_head_mesh.size != RELAY_HEAD_SIZE_M:
 		_append_error(errors, &"staging_relay_visual_drift", &"StagingRelay", "solid staging-relay recipe drifted")
+	if not _derelict_gantry_geometry_is_exact(gantry):
+		_append_error(errors, &"derelict_gantry_visual_drift", &"DerelictSurveyGantry", "derelict survey-gantry silhouette or passive material recipe drifted")
 	var material_specs := {
 		body: BODY_COLOR,
 		floor: FLOOR_COLOR,
@@ -480,6 +526,10 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		relay_mast: EQUIPMENT_COLOR,
 		relay_head: RELAY_COLOR,
 	}
+	if gantry != null:
+		for node_name in [&"PortPylonVisual", &"StarboardPylonVisual", &"PortBeamVisual", &"StarboardBeamVisual", &"SensorBoomVisual"]:
+			material_specs[gantry.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = DERELICT_ALLOY_COLOR
+		material_specs[gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D] = DERELICT_OXIDE_COLOR
 	for instance: MeshInstance3D in material_specs:
 		var material := instance.material_override as StandardMaterial3D if instance != null else null
 		if material == null \
@@ -489,6 +539,49 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 				or instance.gi_mode != GeometryInstance3D.GI_MODE_DISABLED:
 			_append_error(errors, &"visual_material_drift", &"materials", "original unshaded material or passive renderer contract drifted")
 			break
+
+
+func _derelict_gantry_geometry_is_exact(gantry: StaticBody3D) -> bool:
+	if gantry == null or gantry.position != GANTRY_ROOT_POSITION_M:
+		return false
+	return _box_visual_is_exact(gantry, &"PortPylonVisual", GANTRY_PYLON_SIZE_M, GANTRY_PORT_PYLON_POSITION_M, GANTRY_PYLON_LEAN_RADIANS) \
+		and _box_visual_is_exact(gantry, &"StarboardPylonVisual", GANTRY_PYLON_SIZE_M, GANTRY_STARBOARD_PYLON_POSITION_M, -GANTRY_PYLON_LEAN_RADIANS) \
+		and _box_visual_is_exact(gantry, &"PortBeamVisual", GANTRY_BEAM_SIZE_M, GANTRY_PORT_BEAM_POSITION_M, GANTRY_PORT_BEAM_TILT_RADIANS) \
+		and _box_visual_is_exact(gantry, &"StarboardBeamVisual", GANTRY_BEAM_SIZE_M, GANTRY_STARBOARD_BEAM_POSITION_M, GANTRY_STARBOARD_BEAM_TILT_RADIANS) \
+		and _cylinder_visual_is_exact(gantry, &"SensorBoomVisual", GANTRY_BOOM_RADIUS_M, GANTRY_BOOM_HEIGHT_M, GANTRY_BOOM_POSITION_M, GANTRY_BOOM_TILT_RADIANS) \
+		and _box_visual_is_exact(gantry, &"DeadSensorVisual", GANTRY_SENSOR_SIZE_M, GANTRY_SENSOR_POSITION_M, GANTRY_SENSOR_TILT_RADIANS)
+
+
+func _box_visual_is_exact(
+		parent: Node,
+		child_name: StringName,
+		size: Vector3,
+		position: Vector3,
+		rotation_x: float,
+	) -> bool:
+	var visual := parent.get_node_or_null(NodePath(child_name)) as MeshInstance3D
+	var mesh := visual.mesh as BoxMesh if visual != null else null
+	return visual != null and mesh != null and mesh.size == size \
+		and visual.position == position \
+		and visual.rotation.is_equal_approx(Vector3(rotation_x, 0.0, 0.0))
+
+
+func _cylinder_visual_is_exact(
+		parent: Node,
+		child_name: StringName,
+		radius: float,
+		height: float,
+		position: Vector3,
+		rotation_z: float,
+	) -> bool:
+	var visual := parent.get_node_or_null(NodePath(child_name)) as MeshInstance3D
+	var mesh := visual.mesh as CylinderMesh if visual != null else null
+	return visual != null and mesh != null \
+		and is_equal_approx(mesh.top_radius, radius) \
+		and is_equal_approx(mesh.bottom_radius, radius) \
+		and is_equal_approx(mesh.height, height) and mesh.radial_segments == 12 \
+		and visual.position == position \
+		and visual.rotation.is_equal_approx(Vector3(0.0, 0.0, rotation_z))
 
 
 func _validate_collision(errors: Array[Dictionary]) -> void:
@@ -506,6 +599,7 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard": STARBOARD_PAD_GUIDE_POSITION_M,
 		^"LandingRegion/SurfaceLandmarks/SampleRack": SAMPLE_RACK_POSITION_M,
 		^"LandingRegion/SurfaceLandmarks/StagingRelay": RELAY_ROOT_POSITION_M,
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry": GANTRY_ROOT_POSITION_M,
 	}
 	for body_path: NodePath in body_specs:
 		var landmark_body := get_node_or_null(body_path) as StaticBody3D
@@ -536,6 +630,37 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 				and cylinder.height == float(spec.height)
 		if not valid_shape:
 			_append_error(errors, &"landmark_collision_shape_drift", StringName(str(shape_path)), "visual-solid landmark collision recipe drifted")
+	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
+	if not _derelict_gantry_collision_is_exact(gantry):
+		_append_error(errors, &"derelict_gantry_collision_drift", &"DerelictSurveyGantry", "derelict gantry visual-solid collision recipe drifted")
+
+
+func _derelict_gantry_collision_is_exact(gantry: StaticBody3D) -> bool:
+	if gantry == null:
+		return false
+	return _box_collision_is_exact(gantry, &"PortPylonCollision", GANTRY_PYLON_SIZE_M, GANTRY_PORT_PYLON_POSITION_M, GANTRY_PYLON_LEAN_RADIANS) \
+		and _box_collision_is_exact(gantry, &"StarboardPylonCollision", GANTRY_PYLON_SIZE_M, GANTRY_STARBOARD_PYLON_POSITION_M, -GANTRY_PYLON_LEAN_RADIANS) \
+		and _box_collision_is_exact(gantry, &"PortBeamCollision", GANTRY_BEAM_SIZE_M, GANTRY_PORT_BEAM_POSITION_M, GANTRY_PORT_BEAM_TILT_RADIANS) \
+		and _box_collision_is_exact(gantry, &"StarboardBeamCollision", GANTRY_BEAM_SIZE_M, GANTRY_STARBOARD_BEAM_POSITION_M, GANTRY_STARBOARD_BEAM_TILT_RADIANS) \
+		and _cylinder_collision_is_exact(gantry, &"SensorBoomCollision", GANTRY_BOOM_RADIUS_M, GANTRY_BOOM_HEIGHT_M, GANTRY_BOOM_POSITION_M, GANTRY_BOOM_TILT_RADIANS) \
+		and _box_collision_is_exact(gantry, &"DeadSensorCollision", GANTRY_SENSOR_SIZE_M, GANTRY_SENSOR_POSITION_M, GANTRY_SENSOR_TILT_RADIANS)
+
+
+func _box_collision_is_exact(parent: Node, child_name: StringName, size: Vector3, position: Vector3, rotation_x: float) -> bool:
+	var collision := parent.get_node_or_null(NodePath(child_name)) as CollisionShape3D
+	var shape := collision.shape as BoxShape3D if collision != null else null
+	return collision != null and not collision.disabled and shape != null and shape.size == size \
+		and collision.position == position \
+		and collision.rotation.is_equal_approx(Vector3(rotation_x, 0.0, 0.0))
+
+
+func _cylinder_collision_is_exact(parent: Node, child_name: StringName, radius: float, height: float, position: Vector3, rotation_z: float) -> bool:
+	var collision := parent.get_node_or_null(NodePath(child_name)) as CollisionShape3D
+	var shape := collision.shape as CylinderShape3D if collision != null else null
+	return collision != null and not collision.disabled and shape != null \
+		and is_equal_approx(shape.radius, radius) and is_equal_approx(shape.height, height) \
+		and collision.position == position \
+		and collision.rotation.is_equal_approx(Vector3(0.0, 0.0, rotation_z))
 
 
 func _validate_surface_content(errors: Array[Dictionary]) -> void:
@@ -553,6 +678,11 @@ func _validate_surface_content(errors: Array[Dictionary]) -> void:
 				or StringName(landmark.get_meta("status", &"")) != &"modern_interpretation" \
 				or not bool(landmark.get_meta("solid_visual_collision", false)):
 			_append_error(errors, &"surface_landmark_identity_drift", landmark_id, "stable landmark identity/evidence/collision metadata drifted")
+	var gantry := get_node_or_null(SURFACE_LANDMARK_NODE_PATHS[&"ember_derelict_survey_gantry"]) as StaticBody3D
+	if gantry == null \
+			or bool(gantry.get_meta("historical_geometry_authenticated", true)) \
+			or str(gantry.get_meta("evidence_note", "")).is_empty():
+		_append_error(errors, &"derelict_gantry_evidence_drift", &"ember_derelict_survey_gantry", "modern derelict interpretation must not claim historical geometry")
 	for marker_id: StringName in SURFACE_MARKER_NODE_PATHS:
 		var marker := get_node_or_null(SURFACE_MARKER_NODE_PATHS[marker_id]) as Marker3D
 		if marker == null \
@@ -573,6 +703,7 @@ func _validate_surface_content(errors: Array[Dictionary]) -> void:
 		absf(STARBOARD_PAD_GUIDE_POSITION_M.z) - PAD_GUIDE_SIZE_M.z * 0.5,
 		absf(SAMPLE_RACK_POSITION_M.z) - SAMPLE_RACK_SIZE_M.z * 0.5,
 		absf(RELAY_ROOT_POSITION_M.z) - RELAY_BASE_SIZE_M.z * 0.5,
+		GANTRY_PYLON_MIN_ROUTE_CLEARANCE_M,
 	])
 	for clearance: float in solid_clearances:
 		if clearance <= SURFACE_ROUTE_WIDTH_M * 0.5 + 0.38:
@@ -944,6 +1075,8 @@ static func _expected_surface_marker_transform(marker_id: StringName) -> Transfo
 			return Transform3D(Basis.IDENTITY, Vector3(28.0, 0.0, -4.8))
 		&"ember_staging_relay_access":
 			return Transform3D(Basis.IDENTITY, Vector3(42.0, 0.0, 4.4))
+		&"ember_derelict_survey_gantry_access":
+			return Transform3D(Basis.IDENTITY, GANTRY_ACCESS_POSITION_M)
 		_:
 			return Transform3D.IDENTITY
 
@@ -958,7 +1091,7 @@ func _evidence_report() -> Dictionary:
 		"authenticated": false,
 		"space_backdrop_palette_inspiration_only": true,
 		"space_backdrop_physical_reuse": false,
-		"notes": "Original Ember Moon visual proxy, bounded static pad collision, traversable surface route, and small modern landmark roster; no historical or production-placement claim.",
+		"notes": "Original Ember Moon visual proxy, bounded static pad collision, traversable surface route, and modern landmarks including a derelict survey gantry; no historical or production-placement claim.",
 	}.duplicate(true)
 
 

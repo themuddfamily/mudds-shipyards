@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3 uid="uid://dtembermoonworld"]
+[gd_scene load_steps=35 format=3 uid="uid://dtembermoonworld"]
 
 [ext_resource type="Script" path="res://scripts/world/ember_moon_authored_scene.gd" id="1_scene"]
 
@@ -114,6 +114,49 @@ size = Vector3(0.9, 0.45, 0.9)
 
 [sub_resource type="BoxShape3D" id="BoxShape_relay_head"]
 size = Vector3(0.9, 0.45, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="Material_derelict_alloy"]
+shading_mode = 0
+albedo_color = Color(0.207843, 0.227451, 0.219608, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Material_derelict_oxide"]
+shading_mode = 0
+albedo_color = Color(0.54902, 0.27451, 0.172549, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="Box_gantry_pylon"]
+material = SubResource("Material_derelict_alloy")
+size = Vector3(1.2, 7.2, 1.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape_gantry_pylon"]
+size = Vector3(1.2, 7.2, 1.4)
+
+[sub_resource type="BoxMesh" id="Box_gantry_beam"]
+material = SubResource("Material_derelict_alloy")
+size = Vector3(1.2, 0.8, 4.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape_gantry_beam"]
+size = Vector3(1.2, 0.8, 4.8)
+
+[sub_resource type="CylinderMesh" id="Cylinder_gantry_boom"]
+material = SubResource("Material_derelict_alloy")
+top_radius = 0.25
+bottom_radius = 0.25
+height = 4.0
+radial_segments = 12
+rings = 1
+
+[sub_resource type="CylinderShape3D" id="CylinderShape_gantry_boom"]
+radius = 0.25
+height = 4.0
+
+[sub_resource type="BoxMesh" id="Box_gantry_sensor"]
+material = SubResource("Material_derelict_oxide")
+size = Vector3(2.6, 0.45, 1.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape_gantry_sensor"]
+size = Vector3(2.6, 0.45, 1.2)
 
 [node name="EmberMoon" type="Node3D"]
 script = ExtResource("1_scene")
@@ -290,6 +333,95 @@ material_override = SubResource("Material_relay")
 position = Vector3(0, 3.25, 0)
 shape = SubResource("BoxShape_relay_head")
 
+[node name="DerelictSurveyGantry" type="StaticBody3D" parent="LandingRegion/SurfaceLandmarks"]
+position = Vector3(34, 0, 0)
+collision_layer = 1
+collision_mask = 0
+metadata/landmark_id = &"ember_derelict_survey_gantry"
+metadata/content_class = &"NEW"
+metadata/status = &"modern_interpretation"
+metadata/solid_visual_collision = true
+metadata/historical_geometry_authenticated = false
+metadata/evidence_note = "Original derelict survey-gantry interpretation; no authenticated historical geometry."
+
+[node name="PortPylonVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 3.6, -5.2)
+rotation = Vector3(0.08, 0, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_gantry_pylon")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="PortPylonCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 3.6, -5.2)
+rotation = Vector3(0.08, 0, 0)
+shape = SubResource("BoxShape_gantry_pylon")
+
+[node name="StarboardPylonVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 3.6, 5.2)
+rotation = Vector3(-0.08, 0, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_gantry_pylon")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="StarboardPylonCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 3.6, 5.2)
+rotation = Vector3(-0.08, 0, 0)
+shape = SubResource("BoxShape_gantry_pylon")
+
+[node name="PortBeamVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 7, -2.7)
+rotation = Vector3(0.06, 0, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_gantry_beam")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="PortBeamCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 7, -2.7)
+rotation = Vector3(0.06, 0, 0)
+shape = SubResource("BoxShape_gantry_beam")
+
+[node name="StarboardBeamVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 6.65, 2.7)
+rotation = Vector3(-0.14, 0, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_gantry_beam")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="StarboardBeamCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 6.65, 2.7)
+rotation = Vector3(-0.14, 0, 0)
+shape = SubResource("BoxShape_gantry_beam")
+
+[node name="SensorBoomVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 9, -1.9)
+rotation = Vector3(0, 0, 0.18)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Cylinder_gantry_boom")
+material_override = SubResource("Material_derelict_alloy")
+
+[node name="SensorBoomCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0, 9, -1.9)
+rotation = Vector3(0, 0, 0.18)
+shape = SubResource("CylinderShape_gantry_boom")
+
+[node name="DeadSensorVisual" type="MeshInstance3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0.36, 10.95, -1.9)
+rotation = Vector3(-0.12, 0, 0)
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Box_gantry_sensor")
+material_override = SubResource("Material_derelict_oxide")
+
+[node name="DeadSensorCollision" type="CollisionShape3D" parent="LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"]
+position = Vector3(0.36, 10.95, -1.9)
+rotation = Vector3(-0.12, 0, 0)
+shape = SubResource("BoxShape_gantry_sensor")
+
 [node name="RouteMarkers" type="Node3D" parent="LandingRegion/SurfaceLandmarks"]
 
 [node name="PadGuidanceThreshold" type="Marker3D" parent="LandingRegion/SurfaceLandmarks/RouteMarkers"]
@@ -303,3 +435,7 @@ metadata/marker_id = &"ember_sample_rack_access"
 [node name="StagingRelayAccess" type="Marker3D" parent="LandingRegion/SurfaceLandmarks/RouteMarkers"]
 position = Vector3(42, 0, 4.4)
 metadata/marker_id = &"ember_staging_relay_access"
+
+[node name="DerelictSurveyGantryAccess" type="Marker3D" parent="LandingRegion/SurfaceLandmarks/RouteMarkers"]
+position = Vector3(34, 0, -7)
+metadata/marker_id = &"ember_derelict_survey_gantry_access"

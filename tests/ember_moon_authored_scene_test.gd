@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 51
+const EXPECTED_ASSERTIONS := 53
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -71,12 +71,12 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 36
-			and audit.performance.mesh_instances == 9
+		audit.performance.node_count == 50
+			and audit.performance.mesh_instances == 15
 			and audit.performance.multi_mesh_instances == 3
 			and audit.performance.multi_mesh_copies == 13
-			and audit.performance.static_bodies == 5
-			and audit.performance.collision_shapes == 7
+			and audit.performance.static_bodies == 6
+			and audit.performance.collision_shapes == 13
 			and audit.performance.triangle_count <= 8192,
 		"live topology and primitive triangles stay inside the exact bounded budget",
 	)
@@ -123,6 +123,7 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	)
 	_check(
 		landmark_ids == PackedStringArray([
+			"ember_derelict_survey_gantry",
 			"ember_pad_guidance_port",
 			"ember_pad_guidance_starboard",
 			"ember_sample_rack",
@@ -132,15 +133,16 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	)
 	var surface_markers := scene.get_surface_landmark_marker_transforms()
 	_check(
-		surface_markers.size() == 3
+		surface_markers.size() == 4
 			and (surface_markers.ember_pad_guidance_threshold as Transform3D).origin == Vector3(14.0, 120_000.0, 0.0)
 			and (surface_markers.ember_sample_rack_access as Transform3D).origin == Vector3(28.0, 120_000.0, -4.8)
-			and (surface_markers.ember_staging_relay_access as Transform3D).origin == Vector3(42.0, 120_000.0, 4.4),
-		"three stable access markers compose through the body-local landing frame",
+			and (surface_markers.ember_staging_relay_access as Transform3D).origin == Vector3(42.0, 120_000.0, 4.4)
+			and (surface_markers.ember_derelict_survey_gantry_access as Transform3D).origin == Vector3(34.0, 120_000.0, -7.0),
+		"four stable access markers compose through the body-local landing frame",
 	)
 	surface_markers.clear()
 	_check(
-		scene.get_surface_landmark_marker_transforms().size() == 3,
+		scene.get_surface_landmark_marker_transforms().size() == 4,
 		"returned surface-landmark marker dictionaries are detached",
 	)
 	var route_visual := scene.get_node(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual") as MeshInstance3D
@@ -150,6 +152,26 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 			and route_visual.position == Vector3(28.0, 0.01, 0.0)
 			and route_mesh.size == Vector3(28.0, 0.02, 4.0),
 		"the surface stripe touches the pad edge at x=14 and reaches staging at x=42 without a visual gap",
+	)
+	var gantry := scene.get_node(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
+	var port_pylon := gantry.get_node_or_null(^"PortPylonVisual") as MeshInstance3D if gantry != null else null
+	var dead_sensor := gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D if gantry != null else null
+	_check(
+		gantry != null and gantry.position == Vector3(34.0, 0.0, 0.0)
+			and port_pylon != null and (port_pylon.mesh as BoxMesh).size == Vector3(1.2, 7.2, 1.4)
+			and dead_sensor != null and is_equal_approx(dead_sensor.position.y, 10.95)
+			and is_equal_approx(float(snapshot.geometry.derelict_gantry_height_m), 11.175)
+			and is_equal_approx(float(snapshot.geometry.derelict_gantry_span_m), 11.8),
+		"the broken survey gantry carries an eleven-metre flight and on-foot silhouette over the return leg",
+	)
+	_check(
+		gantry != null
+			and StringName(gantry.get_meta("landmark_id", &"")) == &"ember_derelict_survey_gantry"
+			and StringName(gantry.get_meta("content_class", &"")) == &"NEW"
+			and StringName(gantry.get_meta("status", &"")) == &"modern_interpretation"
+			and not bool(gantry.get_meta("historical_geometry_authenticated", true))
+			and not str(gantry.get_meta("evidence_note", "")).is_empty(),
+		"the derelict is explicitly a modern interpretation with no historical-geometry claim",
 	)
 	var cues := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/LandingApproachCues"
@@ -274,12 +296,14 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard",
 		^"LandingRegion/SurfaceLandmarks/SampleRack",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry",
 	]
 	var solid_centres := [
 		Vector3(14.8, 120_003.0, -5.0),
 		Vector3(14.8, 120_003.0, 5.0),
 		Vector3(28.0, 120_003.0, -7.0),
 		Vector3(42.0, 120_005.0, 7.0),
+		Vector3(34.0, 120_009.0, -5.2),
 	]
 	var all_solids_collide := true
 	for index in landmark_paths.size():
@@ -288,19 +312,19 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 		all_solids_collide = all_solids_collide \
 			and expected_body != null and not hit.is_empty() \
 			and hit.collider == expected_body
-	_check(all_solids_collide, "every visually solid guide, rack, and relay owns matching World collision")
+	_check(all_solids_collide, "every visually solid guide, rack, relay, and gantry owns matching World collision")
 	var corridor_clear := true
-	for x in [14.8, 28.0, 42.0]:
+	for x in [14.8, 28.0, 34.0, 42.0]:
 		var route_hit := _ray_hit(space, Vector3(x, 120_002.0, 0.0))
 		corridor_clear = corridor_clear \
 			and not route_hit.is_empty() and route_hit.collider == body
 	_check(corridor_clear, "negative-space probes hit only the walkable patch through every landmark station")
 	var collision_snapshot := scene.get_snapshot().collision as Dictionary
 	_check(
-		int(collision_snapshot.landmark_static_body_count) == 4
-			and int(collision_snapshot.solid_landmark_collision_shape_count) == 6
+		int(collision_snapshot.landmark_static_body_count) == 5
+			and int(collision_snapshot.solid_landmark_collision_shape_count) == 12
 			and is_equal_approx(float(collision_snapshot.route_clear_half_width_m), 2.0),
-		"surface collision snapshot freezes four landmark bodies and six solid shapes",
+		"surface collision snapshot freezes five landmark bodies and twelve solid shapes",
 	)
 
 
