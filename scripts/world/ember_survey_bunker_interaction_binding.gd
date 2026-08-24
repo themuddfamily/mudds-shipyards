@@ -247,6 +247,7 @@ func submit_service_repair(
 			or expected_terminal_generation != _service_terminal_generation:
 		return _feedback_result(_result(false, &"stale_service_terminal_generation"))
 	if not _actor_is_current(actor):
+		_service_status = &"service_terminal_actor_mismatch"
 		return _feedback_result(_result(false, &"service_terminal_actor_mismatch"))
 	if _service_consumed:
 		return _feedback_result(_result(false, &"service_terminal_already_consumed"))
@@ -475,6 +476,7 @@ func _service_status_text() -> String:
 		&"no_damaged_component": return "NO DAMAGED COMPONENT REQUIRES SERVICE"
 		&"service_target_out_of_range": return "LANDED CRAFT OUT OF SERVICE RANGE"
 		&"service_actor_out_of_range": return "MOVE CLOSER TO THE SERVICE TERMINAL"
+		&"service_terminal_actor_mismatch": return "RETURN TO THE ON-FOOT SURVEYOR TO USE SERVICE"
 	return "SERVICE LINK LOCKED"
 
 

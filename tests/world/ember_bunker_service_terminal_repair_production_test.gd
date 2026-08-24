@@ -56,6 +56,8 @@ func _run() -> void:
 
 	var host := FakeHost.new()
 	host.player_instance_id = player.get_instance_id()
+	var wrong_actor := Node3D.new()
+	root.add_child(wrong_actor)
 	var director := DirectorScript.new()
 	root.add_child(director)
 	var binding := BindingScript.new() as Node
@@ -118,6 +120,22 @@ func _run() -> void:
 		"rejected attempts publish ordered presentation feedback without component mutation"
 	)
 
+	var wrong_actor_attempt := bool(interaction.call(&"interact", wrong_actor))
+	var wrong_actor_snapshot := interaction.call(&"get_snapshot") as Dictionary
+	_check(
+		not wrong_actor_attempt
+			and wrong_actor_snapshot.service_terminal.status \
+				== &"service_terminal_actor_mismatch"
+			and wrong_actor_snapshot.service_terminal.status_text \
+				== "RETURN TO THE ON-FOOT SURVEYOR TO USE SERVICE"
+			and int(wrong_actor_snapshot.service_terminal.request_sequence) == 2
+			and _service_feedback.size() == 3
+			and _service_feedback[2].reason == &"service_terminal_actor_mismatch"
+			and int(_service_feedback[2].feedback_sequence) == 3
+			and is_equal_approx(model.get_component_integrity(damaged_component), integrity_before),
+		"a controller or stale actor is directed back to the on-foot surveyor without repair mutation"
+	)
+
 	craft.global_position = interaction.global_position + Vector3(25.0, 0.0, 0.0)
 	var serviced := bool(interaction.call(&"interact", player))
 	var integrity_after := model.get_component_integrity(damaged_component)
@@ -135,10 +153,10 @@ func _run() -> void:
 			and service_receipt.component_id == damaged_component
 			and service_receipt.authority_path == &"repair_authority_component_adapter"
 			and int(service_receipt.request_sequence) == 3
-			and _service_feedback.size() == 3
-			and _service_feedback[2].outcome == &"completed"
-			and int(_service_feedback[2].feedback_sequence) == 3
-			and int(_service_feedback[2].composition_generation) == 1,
+			and _service_feedback.size() == 4
+			and _service_feedback[3].outcome == &"completed"
+			and int(_service_feedback[3].feedback_sequence) == 4
+			and int(_service_feedback[3].composition_generation) == 1,
 		"the retained authority applies one pulse and publishes success feedback"
 	)
 	var replay := interaction.call(
@@ -147,9 +165,9 @@ func _run() -> void:
 	_check(
 		not bool(replay.accepted)
 			and replay.reason == &"service_terminal_already_consumed"
-			and _service_feedback.size() == 4
-			and _service_feedback[3].outcome == &"rejected"
-			and int(_service_feedback[3].feedback_sequence) == 4
+			and _service_feedback.size() == 5
+			and _service_feedback[4].outcome == &"rejected"
+			and int(_service_feedback[4].feedback_sequence) == 5
 			and is_equal_approx(model.get_component_integrity(damaged_component), integrity_after),
 		"a replay is rejected once and remains visible through ordered feedback"
 	)
@@ -193,6 +211,7 @@ func _run() -> void:
 
 	binding.queue_free()
 	director.queue_free()
+	wrong_actor.queue_free()
 	game.queue_free()
 	await process_frame
 	_finish()
