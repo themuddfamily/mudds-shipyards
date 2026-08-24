@@ -120,6 +120,35 @@ func _run() -> void:
 		"only the existing mandatory route completion can commit one reward"
 	)
 	var saved := binding.call(&"get_session_snapshot") as Dictionary
+	var session_keys := saved.keys()
+	session_keys.sort()
+	var expected_session_keys := [
+		"attachment_generation",
+		"authority",
+		"composition_generation",
+		"host_generation",
+		"relay_survey_optional_checkpoint",
+		"schema_version",
+		"surface",
+		"survey_interaction",
+	]
+	var checkpoint_keys := (
+		saved.relay_survey_optional_checkpoint as Dictionary
+	).keys()
+	checkpoint_keys.sort()
+	var expected_checkpoint_keys := [
+		"activity_generation",
+		"activity_id",
+		"attachment_generation",
+		"checkpoint_id",
+		"completed",
+		"receipt",
+		"run_generation",
+		"schema_version",
+		"session_attachment_generation",
+		"session_run_generation",
+		"status",
+	]
 	var detached: Dictionary = binding.call(&"detach")
 	var detached_presentation: Dictionary = (
 		binding.call(&"get_snapshot") as Dictionary
@@ -129,8 +158,10 @@ func _run() -> void:
 	var retained := binding.call(&"get_snapshot") as Dictionary
 	_check(
 		bool(saved.relay_survey_optional_checkpoint.completed)
-			and bool(saved.relay_survey_sample_rack_checkpoint.completed)
-			and bool(saved.sample_rack_interaction.completed)
+			and session_keys == expected_session_keys
+			and checkpoint_keys == expected_checkpoint_keys
+			and not saved.has("sample_rack_interaction")
+			and not saved.has("relay_survey_sample_rack_checkpoint")
 			and bool(detached.accepted)
 			and not bool(detached_presentation.hud.visible)
 			and bool(reentered.accepted)
@@ -140,7 +171,7 @@ func _run() -> void:
 			).completed)
 			and bool(retained.sample_rack_interaction.completed)
 			and bool(retained.relay_survey_presentation.hud.visible),
-		"detach hides and re-entry restores both retained optional checkpoint states"
+		"detach and re-entry retain runtime progress without changing session schema"
 	)
 	var restored: Dictionary = binding.call(&"restore_session_snapshot", saved)
 	var after_restore := binding.call(&"get_snapshot") as Dictionary

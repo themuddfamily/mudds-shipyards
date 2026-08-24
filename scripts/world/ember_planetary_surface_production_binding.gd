@@ -1152,14 +1152,8 @@ func get_session_snapshot() -> Dictionary:
 		"composition_generation": _composition_generation,
 		"surface": _adapter.call(&"get_session_snapshot") if _adapter != null else {},
 		"survey_interaction": _survey_interaction.call(&"get_persistence_snapshot") if _survey_interaction != null else {},
-		"sample_rack_interaction": _sample_rack_interaction.call(
-			&"get_persistence_snapshot"
-		) if _sample_rack_interaction != null else {},
 		"relay_survey_optional_checkpoint": _relay_survey.call(
 			&"get_persistence_snapshot", _adapter
-		) if _relay_survey != null else {},
-		"relay_survey_sample_rack_checkpoint": _relay_survey.call(
-			&"get_sample_rack_session_snapshot", _adapter
 		) if _relay_survey != null else {},
 		"authority": {"save": false, "movement": false, "reward": false, "doors": false},
 	}.duplicate(true)
@@ -1179,11 +1173,7 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 	if surface.is_empty():
 		return _result(false, &"invalid_planetary_session_snapshot")
 	var survey_saved := saved.get("survey_interaction", {}) as Dictionary
-	var rack_saved := saved.get("sample_rack_interaction", {}) as Dictionary
 	var checkpoint_saved := saved.get("relay_survey_optional_checkpoint", {}) as Dictionary
-	var rack_checkpoint_saved := saved.get(
-		"relay_survey_sample_rack_checkpoint", {}
-	) as Dictionary
 	if _survey_interaction != null and not survey_saved.is_empty():
 		var survey_validation: Dictionary = _survey_interaction.call(
 			&"validate_persistence_snapshot", survey_saved
@@ -1196,18 +1186,6 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 		)
 		if not bool(checkpoint_validation.get("accepted", false)):
 			return _result(false, &"relay_survey_checkpoint_restore_rejected")
-	if _sample_rack_interaction != null and not rack_saved.is_empty():
-		var rack_validation: Dictionary = _sample_rack_interaction.call(
-			&"validate_persistence_snapshot", rack_saved
-		)
-		if not bool(rack_validation.get("accepted", false)):
-			return _result(false, &"sample_rack_restore_rejected")
-	if _relay_survey != null and not rack_checkpoint_saved.is_empty():
-		var rack_checkpoint_validation: Dictionary = _relay_survey.call(
-			&"validate_sample_rack_session_snapshot", rack_checkpoint_saved, _adapter
-		)
-		if not bool(rack_checkpoint_validation.get("accepted", false)):
-			return _result(false, &"sample_rack_checkpoint_restore_rejected")
 	if not _surface_session_is_pristine(surface):
 		var restored: Dictionary = _adapter.call(
 			&"restore_session_snapshot", surface, _navigation, _hazard, _landmarks, _settlement
@@ -1226,18 +1204,6 @@ func restore_session_snapshot(snapshot: Variant) -> Dictionary:
 		)
 		if not bool(checkpoint_restored.get("accepted", false)):
 			return _result(false, &"relay_survey_checkpoint_restore_rejected")
-	if _sample_rack_interaction != null and not rack_saved.is_empty():
-		var rack_restored: Dictionary = _sample_rack_interaction.call(
-			&"restore_persistence_snapshot", rack_saved
-		)
-		if not bool(rack_restored.get("accepted", false)):
-			return _result(false, &"sample_rack_restore_rejected")
-	if _relay_survey != null and not rack_checkpoint_saved.is_empty():
-		var rack_checkpoint_restored: Dictionary = _relay_survey.call(
-			&"restore_sample_rack_session_snapshot", rack_checkpoint_saved, _adapter
-		)
-		if not bool(rack_checkpoint_restored.get("accepted", false)):
-			return _result(false, &"sample_rack_checkpoint_restore_rejected")
 	_apply_relay_survey_presentation()
 	return _result(true, &"planetary_session_restored")
 

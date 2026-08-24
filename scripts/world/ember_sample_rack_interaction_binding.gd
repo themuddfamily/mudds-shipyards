@@ -181,56 +181,6 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 	return _result(true, &"sample_rack_reentered")
 
 
-func get_persistence_snapshot() -> Dictionary:
-	return {
-		"schema_version": 1,
-		"checkpoint_id": CHECKPOINT_ID,
-		"interaction_id": INTERACTION_ID,
-		"host_generation": _host_generation,
-		"attachment_generation": _attachment_generation,
-		"activity_generation": _activity_generation,
-		"completed": _completed,
-		"completion_attachment_generation": _completion_attachment_generation,
-		"receipt": _last_receipt.duplicate(true),
-	}.duplicate(true)
-
-
-func validate_persistence_snapshot(snapshot: Variant) -> Dictionary:
-	if not _configured or not _attached or not snapshot is Dictionary:
-		return _result(false, &"invalid_sample_rack_snapshot")
-	var saved := snapshot as Dictionary
-	if int(saved.get("schema_version", -1)) != 1 \
-			or StringName(saved.get("checkpoint_id", &"")) != CHECKPOINT_ID \
-			or StringName(saved.get("interaction_id", &"")) != INTERACTION_ID \
-			or int(saved.get("host_generation", -1)) != _host_generation \
-			or int(saved.get("attachment_generation", -1)) >= _attachment_generation \
-			or int(saved.get("activity_generation", -1)) != _activity_generation \
-			or saved.get("completed") is not bool:
-		return _result(false, &"stale_sample_rack_snapshot")
-	var completion_generation := int(
-		saved.get("completion_attachment_generation", -1)
-	)
-	if bool(saved.completed) and (
-		completion_generation < 0 \
-		or completion_generation > int(saved.attachment_generation) \
-		or not saved.get("receipt", {}) is Dictionary
-	):
-		return _result(false, &"invalid_sample_rack_snapshot")
-	return _result(true, &"sample_rack_snapshot_valid")
-
-
-func restore_persistence_snapshot(snapshot: Variant) -> Dictionary:
-	var validation := validate_persistence_snapshot(snapshot)
-	if not bool(validation.get("accepted", false)):
-		return validation
-	var saved := snapshot as Dictionary
-	_completed = bool(saved.completed)
-	_completion_attachment_generation = int(saved.completion_attachment_generation)
-	_last_receipt = (saved.get("receipt", {}) as Dictionary).duplicate(true)
-	_apply_presentation()
-	return _result(true, &"sample_rack_restored")
-
-
 func get_snapshot() -> Dictionary:
 	_apply_presentation()
 	return {

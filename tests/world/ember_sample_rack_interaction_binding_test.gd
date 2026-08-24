@@ -100,18 +100,18 @@ func _run() -> void:
 		"only the current actor and three live generations produce the bounded receipt"
 	)
 
-	var saved := binding.call(&"get_persistence_snapshot") as Dictionary
 	var detached: Dictionary = binding.call(&"detach")
 	var hidden := binding.call(&"get_snapshot") as Dictionary
 	host.attachment_generation = 2
 	var reentered: Dictionary = binding.call(&"reenter", 2)
 	var retained := binding.call(&"get_snapshot") as Dictionary
-	var restored: Dictionary = binding.call(&"restore_persistence_snapshot", saved)
 	_check(
 		bool(detached.accepted) and not bool(hidden.physical.marker_visible)
 			and bool(reentered.accepted) and bool(retained.completed)
-			and bool(retained.physical.marker_visible) and bool(restored.accepted),
-		"same-session detach hides the point and re-entry retains completion"
+			and bool(retained.physical.marker_visible)
+			and not binding.has_method(&"get_persistence_snapshot")
+			and not binding.has_method(&"restore_persistence_snapshot"),
+		"same-session re-entry retains completion without a serialized contract"
 	)
 
 	var next_generation: Dictionary = binding.call(
