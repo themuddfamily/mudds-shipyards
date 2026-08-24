@@ -47,6 +47,14 @@ const LANDING_BED_INTERIOR_GAIN := 0.55
 const LANDING_BED_REDUCED_RANGE_GAIN := 0.62
 const LANDING_BED_MIN_PITCH := 0.72
 const LANDING_BED_MAX_PITCH := 1.04
+const TAKEOFF_BED_MAX_ALTITUDE_M := 350.0
+const TAKEOFF_BED_MIN_ASCENT_SPEED_MPS := 1.0
+const TAKEOFF_BED_FULL_ASCENT_SPEED_MPS := 32.0
+const TAKEOFF_BED_EXTERIOR_GAIN := 0.9
+const TAKEOFF_BED_INTERIOR_GAIN := 0.56
+const TAKEOFF_BED_REDUCED_RANGE_GAIN := 0.64
+const TAKEOFF_BED_MIN_PITCH := 0.86
+const TAKEOFF_BED_MAX_PITCH := 1.16
 const ENTRY_ALERT_STATES := [
 	&"atmospheric_rising", &"atmospheric_critical", &"airless_high_sink",
 ]
@@ -102,6 +110,16 @@ var _landing_bed_target_intensity_unitless := 0.0
 var _landing_bed_intensity_unitless := 0.0
 var _landing_bed_supported_airless_approach := false
 var _landing_bed_reason: StringName = &"unavailable"
+var _takeoff_bed_craft_instance_id := 0
+var _takeoff_bed_altitude_m := TAKEOFF_BED_MAX_ALTITUDE_M
+var _takeoff_bed_vertical_speed_mps := 0.0
+var _takeoff_bed_clearance_factor_unitless := 0.0
+var _takeoff_bed_ascent_factor_unitless := 0.0
+var _takeoff_bed_load_unitless := 0.0
+var _takeoff_bed_target_intensity_unitless := 0.0
+var _takeoff_bed_intensity_unitless := 0.0
+var _takeoff_bed_supported_airless_ascent := false
+var _takeoff_bed_reason: StringName = &"unavailable"
 var _entry_guidance_presenter := EntryGuidancePresenterScript.new() as RefCounted
 
 
@@ -127,6 +145,7 @@ func attach(owner: Node, perspective: StringName = &"exterior") -> Dictionary:
 	_last_key = ""
 	_reset_entry_transition()
 	_reset_landing_bed()
+	_reset_takeoff_bed()
 	present_snapshot(owner.get_snapshot())
 	return _result(true, &"attached")
 
@@ -144,6 +163,9 @@ func set_perspective(perspective: StringName) -> Dictionary:
 	if _landing_bed_supported_airless_approach:
 		_configure_landing_bed_target()
 		_landing_bed_intensity_unitless = _landing_bed_target_intensity_unitless
+	if _takeoff_bed_supported_airless_ascent:
+		_configure_takeoff_bed_target()
+		_takeoff_bed_intensity_unitless = _takeoff_bed_target_intensity_unitless
 	_apply_altitude_voice()
 	return _result(true, &"perspective_updated")
 
@@ -162,6 +184,12 @@ func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 			_landing_bed_intensity_unitless,
 			_landing_bed_target_intensity_unitless,
 		)
+	if _takeoff_bed_supported_airless_ascent:
+		_configure_takeoff_bed_target()
+		_takeoff_bed_intensity_unitless = minf(
+			_takeoff_bed_intensity_unitless,
+			_takeoff_bed_target_intensity_unitless,
+		)
 	_apply_altitude_voice()
 	return _result(true, &"dynamic_range_updated")
 
@@ -178,6 +206,7 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	_apply_altitude_transition(snapshot, _phase_delta(snapshot))
 	_apply_entry_bed(snapshot, _phase_delta(snapshot))
 	_apply_landing_bed(snapshot)
+	_apply_takeoff_bed(snapshot)
 	var phase_id := StringName(snapshot.get("phase_id", snapshot.get("state_id", &"")))
 	if _owner != null and _owner.has_method(&"get_host_phase"):
 		var host_phase := int(_owner.get_host_phase())
@@ -217,6 +246,7 @@ func detach() -> Dictionary:
 	_last_altitude_input.clear()
 	_reset_entry_transition()
 	_reset_landing_bed()
+	_reset_takeoff_bed()
 	_reset_altitude_transition()
 	return _result(true, &"detached")
 
@@ -285,6 +315,32 @@ func get_snapshot() -> Dictionary:
 			"continuous_load_response": true,
 			"presentation_only": true,
 		}.duplicate(true),
+		"takeoff_bed": {
+			"craft_instance_id": _takeoff_bed_craft_instance_id,
+			"accepted_altitude_m": _takeoff_bed_altitude_m,
+			"accepted_vertical_speed_mps": _takeoff_bed_vertical_speed_mps,
+			"clearance_factor_unitless": _takeoff_bed_clearance_factor_unitless,
+			"ascent_factor_unitless": _takeoff_bed_ascent_factor_unitless,
+			"accepted_clearance_ascent_load_unitless": _takeoff_bed_load_unitless,
+			"target_intensity_unitless": _takeoff_bed_target_intensity_unitless,
+			"intensity_unitless": _takeoff_bed_intensity_unitless,
+			"supported_airless_low_ascent": _takeoff_bed_supported_airless_ascent,
+			"reason": _takeoff_bed_reason,
+			"exact_zero_outside_supported_airless_low_ascent": (
+				not _takeoff_bed_supported_airless_ascent
+				and is_zero_approx(_takeoff_bed_target_intensity_unitless)
+				and is_zero_approx(_takeoff_bed_intensity_unitless)
+			),
+			"perspective_gain": TAKEOFF_BED_INTERIOR_GAIN \
+				if _perspective == &"interior" else TAKEOFF_BED_EXTERIOR_GAIN,
+			"reduced_dynamic_range": _reduced_dynamic_range,
+			"reduced_range_gain_cap": TAKEOFF_BED_REDUCED_RANGE_GAIN,
+			"playback_requested": _attached \
+				and _continuous_voice_mode() == &"airless_takeoff_thruster_regolith",
+			"retained_caller_kinematics_only": true,
+			"continuous_clearance_ascent_response": true,
+			"presentation_only": true,
+		}.duplicate(true),
 		"continuous_voice": {
 			"voice_ceiling": 1,
 			"active_mode": _continuous_voice_mode(),
@@ -298,6 +354,8 @@ func get_snapshot() -> Dictionary:
 			"maximum_entry_pitch": ENTRY_BED_MAX_PITCH,
 			"minimum_landing_pitch": LANDING_BED_MIN_PITCH,
 			"maximum_landing_pitch": LANDING_BED_MAX_PITCH,
+			"minimum_takeoff_pitch": TAKEOFF_BED_MIN_PITCH,
+			"maximum_takeoff_pitch": TAKEOFF_BED_MAX_PITCH,
 			"node_count": 1,
 			"stream_count": 1 if _altitude_stream != null else 0,
 		}.duplicate(true),
@@ -699,9 +757,132 @@ func _reset_landing_bed() -> void:
 	_landing_bed_reason = &"unavailable"
 
 
+## Extends the existing airless mechanical voice through takeoff and low ascent
+## using only the production owner's retained caller envelope. The owner has
+## already identity-checked this surface-relative position and velocity; this
+## presentation never samples the craft, commands thrust, or advances travel.
+func _apply_takeoff_bed(snapshot: Dictionary) -> void:
+	var decoded := _decode_accepted_takeoff_load(snapshot)
+	_takeoff_bed_supported_airless_ascent = bool(decoded.get(
+		"supported_airless_low_ascent", false
+	))
+	_takeoff_bed_reason = StringName(decoded.get("reason", &"unavailable"))
+	_takeoff_bed_craft_instance_id = int(decoded.get("craft_instance_id", 0))
+	_takeoff_bed_altitude_m = float(decoded.get(
+		"altitude_m", TAKEOFF_BED_MAX_ALTITUDE_M
+	))
+	_takeoff_bed_vertical_speed_mps = float(decoded.get("vertical_speed_mps", 0.0))
+	_takeoff_bed_clearance_factor_unitless = clampf(
+		float(decoded.get("clearance_factor", 0.0)), 0.0, 1.0
+	)
+	_takeoff_bed_ascent_factor_unitless = clampf(
+		float(decoded.get("ascent_factor", 0.0)), 0.0, 1.0
+	)
+	_takeoff_bed_load_unitless = clampf(
+		float(decoded.get("presentation_load", 0.0)), 0.0, 1.0
+	)
+	if not _takeoff_bed_supported_airless_ascent:
+		_takeoff_bed_target_intensity_unitless = 0.0
+		_takeoff_bed_intensity_unitless = 0.0
+		_apply_altitude_voice()
+		return
+	_configure_takeoff_bed_target()
+	_takeoff_bed_intensity_unitless = _takeoff_bed_target_intensity_unitless
+	_apply_altitude_voice()
+
+
+func _configure_takeoff_bed_target() -> void:
+	var perspective_gain := TAKEOFF_BED_INTERIOR_GAIN \
+		if _perspective == &"interior" else TAKEOFF_BED_EXTERIOR_GAIN
+	var range_gain := minf(
+		perspective_gain, TAKEOFF_BED_REDUCED_RANGE_GAIN
+	) if _reduced_dynamic_range else perspective_gain
+	_takeoff_bed_target_intensity_unitless = clampf(
+		_takeoff_bed_load_unitless * range_gain, 0.0, 1.0
+	)
+
+
+func _decode_accepted_takeoff_load(snapshot: Dictionary) -> Dictionary:
+	var decoded_altitude := _decode_altitude_input(snapshot)
+	if not bool(decoded_altitude.get("accepted", false)):
+		return {
+			"accepted": false,
+			"supported_airless_low_ascent": false,
+			"reason": &"retained_surface_sample_unavailable",
+		}
+	var phase_id := StringName(decoded_altitude.get("phase_id", &""))
+	if phase_id not in [&"takeoff", &"ascent"]:
+		return {
+			"accepted": true,
+			"supported_airless_low_ascent": false,
+			"reason": &"outside_takeoff_low_ascent",
+		}
+	var evidence := snapshot.get("last_prepared_evidence", {}) as Dictionary
+	var kinematics := evidence.get("caller_kinematics", {}) as Dictionary
+	var identities := snapshot.get("identities", {}) as Dictionary
+	var craft_instance: Variant = kinematics.get("craft_instance_id", 0)
+	var retained_ship_instance: Variant = identities.get("ship_instance_id", 0)
+	var velocity: Variant = kinematics.get("velocity_mps", Vector3.INF)
+	if not craft_instance is int or int(craft_instance) <= 0 \
+			or not retained_ship_instance is int \
+			or int(retained_ship_instance) != int(craft_instance) \
+			or not velocity is Vector3 or not (velocity as Vector3).is_finite():
+		return {
+			"accepted": false,
+			"supported_airless_low_ascent": false,
+			"reason": &"retained_takeoff_identity_invalid",
+		}
+	var altitude := float(decoded_altitude.get("altitude_m", TAKEOFF_BED_MAX_ALTITUDE_M))
+	var vertical_speed := (velocity as Vector3).y
+	var base := {
+		"accepted": true,
+		"craft_instance_id": int(craft_instance),
+		"altitude_m": altitude,
+		"vertical_speed_mps": vertical_speed,
+	}.duplicate(true)
+	if altitude < 0.0 or altitude >= TAKEOFF_BED_MAX_ALTITUDE_M:
+		base["supported_airless_low_ascent"] = false
+		base["reason"] = &"above_low_ascent_ceiling"
+		return base
+	if vertical_speed <= TAKEOFF_BED_MIN_ASCENT_SPEED_MPS:
+		base["supported_airless_low_ascent"] = false
+		base["reason"] = &"level_or_descent_zero"
+		return base
+	var clearance_factor := clampf(
+		(TAKEOFF_BED_MAX_ALTITUDE_M - altitude) / TAKEOFF_BED_MAX_ALTITUDE_M,
+		0.0, 1.0,
+	)
+	var ascent_factor := clampf(
+		(vertical_speed - TAKEOFF_BED_MIN_ASCENT_SPEED_MPS)
+			/ (TAKEOFF_BED_FULL_ASCENT_SPEED_MPS - TAKEOFF_BED_MIN_ASCENT_SPEED_MPS),
+		0.0, 1.0,
+	)
+	base["supported_airless_low_ascent"] = true
+	base["reason"] = &"accepted_clearance_ascent_load"
+	base["clearance_factor"] = clearance_factor
+	base["ascent_factor"] = ascent_factor
+	base["presentation_load"] = clearance_factor * ascent_factor
+	return base
+
+
+func _reset_takeoff_bed() -> void:
+	_takeoff_bed_craft_instance_id = 0
+	_takeoff_bed_altitude_m = TAKEOFF_BED_MAX_ALTITUDE_M
+	_takeoff_bed_vertical_speed_mps = 0.0
+	_takeoff_bed_clearance_factor_unitless = 0.0
+	_takeoff_bed_ascent_factor_unitless = 0.0
+	_takeoff_bed_load_unitless = 0.0
+	_takeoff_bed_target_intensity_unitless = 0.0
+	_takeoff_bed_intensity_unitless = 0.0
+	_takeoff_bed_supported_airless_ascent = false
+	_takeoff_bed_reason = &"unavailable"
+
+
 func _continuous_voice_mode() -> StringName:
 	if _landing_bed_intensity_unitless > MIN_AUDIBLE_INTENSITY:
 		return &"airless_landing_thruster_regolith"
+	if _takeoff_bed_intensity_unitless > MIN_AUDIBLE_INTENSITY:
+		return &"airless_takeoff_thruster_regolith"
 	if _entry_bed_intensity_unitless > MIN_AUDIBLE_INTENSITY:
 		return &"atmospheric_entry_wind_heat"
 	if _altitude_intensity_unitless > MIN_AUDIBLE_INTENSITY:
@@ -713,6 +894,8 @@ func _selected_continuous_intensity() -> float:
 	match _continuous_voice_mode():
 		&"airless_landing_thruster_regolith":
 			return _landing_bed_intensity_unitless
+		&"airless_takeoff_thruster_regolith":
+			return _takeoff_bed_intensity_unitless
 		&"atmospheric_entry_wind_heat":
 			return _entry_bed_intensity_unitless
 		&"airless_hull_resonance":
@@ -898,6 +1081,12 @@ func _apply_altitude_voice() -> void:
 				LANDING_BED_MIN_PITCH,
 				LANDING_BED_MAX_PITCH,
 				_landing_bed_load_unitless,
+			)
+		&"airless_takeoff_thruster_regolith":
+			_altitude_voice.pitch_scale = lerpf(
+				TAKEOFF_BED_MIN_PITCH,
+				TAKEOFF_BED_MAX_PITCH,
+				_takeoff_bed_load_unitless,
 			)
 		&"atmospheric_entry_wind_heat":
 			_altitude_voice.pitch_scale = lerpf(
