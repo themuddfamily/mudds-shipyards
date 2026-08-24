@@ -571,18 +571,27 @@ func _test_floor_label_orientation(module: JovianFreightBerth) -> void:
 ## the service threshold. Derive that direction from the live route contract so
 ## this test follows the route if its authored markers move or the module rotates.
 func _test_transfer_lane_label_orientation(module: JovianFreightBerth) -> void:
+	const ROUTE_STENCIL := "SERVICE AHEAD\nCARGO + BOARDING BEHIND\nKEEP TRANSFER LANE CLEAR"
 	var matching_labels: Array[Label3D] = []
 	for candidate in module.find_children("*", "Label3D", true, false):
 		var label := candidate as Label3D
-		if label != null and label.text == "KEEP TRANSFER LANE CLEAR":
+		if label != null and label.text == ROUTE_STENCIL:
 			matching_labels.append(label)
-	_check(matching_labels.size() == 1, "exactly one KEEP TRANSFER LANE CLEAR floor legend is present")
+	_check(matching_labels.size() == 1, "exactly one boarding/cargo/service route stencil is present")
 	if matching_labels.size() != 1:
 		return
 	var transfer_label := matching_labels[0]
+	var cargo_direction := (
+		module.get_route_transform(&"cargo-rack").origin
+		- module.get_route_transform(&"service-threshold").origin
+	).normalized()
 	var route_direction := (
 		module.get_route_transform(&"service-threshold").origin
 		- module.get_route_transform(&"cargo-transfer").origin
+	).normalized()
+	var boarding_direction := (
+		module.get_route_transform(&"boarding-staging").origin
+		- module.get_route_transform(&"service-threshold").origin
 	).normalized()
 	var basis := transfer_label.global_transform.basis.orthonormalized()
 	_check(
@@ -590,12 +599,17 @@ func _test_transfer_lane_label_orientation(module: JovianFreightBerth) -> void:
 		and transfer_label.font_size == 32
 		and is_equal_approx(transfer_label.pixel_size, 0.3 / 32.0)
 		and transfer_label.modulate.is_equal_approx(Color("ffb45b")),
-		"KEEP TRANSFER LANE CLEAR preserves its authored position, physical size, and amber colour"
+		"route stencil preserves its authored position, physical size, and amber colour"
 	)
-	_check(basis.z.is_equal_approx(module.global_basis.y.normalized()), "KEEP TRANSFER LANE CLEAR remains painted face-up on the floor plane")
-	_check(basis.y.is_equal_approx(route_direction), "KEEP TRANSFER LANE CLEAR glyph-up follows cargo-transfer to service-threshold")
-	_check(is_equal_approx(basis.determinant(), 1.0), "KEEP TRANSFER LANE CLEAR rotation remains a proper orientation with determinant +1")
-	_check(transfer_label.find_children("*", "CollisionObject3D", true, false).is_empty(), "KEEP TRANSFER LANE CLEAR remains presentation-only and collision-free")
+	_check(
+		cargo_direction.dot(route_direction) < -0.99
+		and boarding_direction.dot(route_direction) < -0.95,
+		"cargo and boarding are behind while service is ahead at the transfer-lane decision point"
+	)
+	_check(basis.z.is_equal_approx(module.global_basis.y.normalized()), "route stencil remains painted face-up on the floor plane")
+	_check(basis.y.is_equal_approx(route_direction), "route stencil glyph-up follows cargo-transfer to service-threshold")
+	_check(is_equal_approx(basis.determinant(), 1.0), "route stencil rotation remains a proper orientation with determinant +1")
+	_check(transfer_label.find_children("*", "CollisionObject3D", true, false).is_empty(), "route stencil remains presentation-only and collision-free")
 	var old_angle_basis := Basis.from_euler(Vector3(deg_to_rad(-90.0), 0.0, deg_to_rad(90.0)))
 	var old_angle_glyph_up := (module.global_basis * old_angle_basis).orthonormalized().y
 	_check(not old_angle_glyph_up.is_equal_approx(route_direction), "the old +90-degree transfer-lane label mutation remains red")
