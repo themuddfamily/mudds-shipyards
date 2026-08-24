@@ -84,9 +84,9 @@ const LOCAL_BUDGET := {
 	"ship_berths": 1,
 	"static_bodies": 21,
 	"collision_shapes": 21,
-	"mesh_instances": 17,
-	"multimesh_instances": 4,
-	"geometry_submissions": 21,
+	"mesh_instances": 15,
+	"multimesh_instances": 5,
+	"geometry_submissions": 20,
 	"marker_nodes": 9,
 	"label_nodes": 1,
 	"lights": 0,
@@ -159,6 +159,12 @@ const RISE_RAIL_SIZE := Vector3(0.12, 0.12, 1.25)
 const RISE_RAIL_NODE_NAMES: Array[String] = [
 	"RiseRailPort",
 	"RiseRailStarboard",
+]
+const CROSS_RAIL_COUNT := 2
+const CROSS_RAIL_SIZE := Vector3(0.12, 0.12, 17.95)
+const CROSS_RAIL_NODE_NAMES: Array[String] = [
+	"CrossRailNorth",
+	"CrossRailSouth",
 ]
 const STATIC_BOX_VIEW_COUNT := 21
 const STATIC_BOX_MESH_RESOURCE_ALLOCATIONS := 16
@@ -717,7 +723,8 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
 		var shape := collision.shape as BoxShape3D if collision != null else null
 		if mesh == null and body.name not in TERMINAL_APPROACH_SUPPORT_NODE_NAMES \
-				and body.name not in RISE_RAIL_NODE_NAMES:
+		and body.name not in RISE_RAIL_NODE_NAMES \
+			and body.name not in CROSS_RAIL_NODE_NAMES:
 			errors.append("static_box_mesh_missing_%s" % body.name)
 		elif mesh != null:
 			ordinary_views += 1
@@ -748,9 +755,19 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 	)
 	if rise_rail_mesh != null:
 		mesh_resource_ids[rise_rail_mesh.get_instance_id()] = true
+	var cross_rail_audit := get_cross_rail_visual_audit()
+	for cross_rail_error in cross_rail_audit.errors:
+		errors.append(String(cross_rail_error))
+	var cross_rail_batch := get_node_or_null(^"Rails/CrossRailBatch") as MultiMeshInstance3D
+	var cross_rail_mesh := (
+		cross_rail_batch.multimesh.mesh as BoxMesh
+		if cross_rail_batch != null and cross_rail_batch.multimesh != null else null
+	)
+	if cross_rail_mesh != null:
+		mesh_resource_ids[cross_rail_mesh.get_instance_id()] = true
 	var views := ordinary_views + int(support_audit.visible_copy_count) \
-		+ int(rise_rail_audit.visible_copy_count)
-	if views != STATIC_BOX_VIEW_COUNT or ordinary_views != 17:
+		+ int(rise_rail_audit.visible_copy_count) + int(cross_rail_audit.visible_copy_count)
+	if views != STATIC_BOX_VIEW_COUNT or ordinary_views != 15:
 		errors.append("static_box_view_count_drift")
 	if mesh_resource_ids.size() != STATIC_BOX_MESH_RESOURCE_ALLOCATIONS:
 		errors.append("static_box_mesh_resource_count_drift")
@@ -760,9 +777,6 @@ func get_static_box_visual_allocation_audit() -> Dictionary:
 		errors.append("static_box_cache_recipe_count_drift")
 	_validate_shared_static_box_family(
 		[^"Rails/StairRailPort", ^"Rails/StairRailStarboard"], errors
-	)
-	_validate_shared_static_box_family(
-		[^"Rails/CrossRailNorth", ^"Rails/CrossRailSouth"], errors
 	)
 	_validate_shared_static_box_family(
 		[^"Rails/HandoffRailPort", ^"Rails/HandoffRailStarboard"], errors
@@ -917,6 +931,66 @@ func get_rise_rail_visual_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## The cross-catwalk rails retain named collision owners and private shapes.
+## Their matching, static frame visuals share one childless renderer batch.
+func get_cross_rail_visual_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected_transforms: Array[Transform3D] = []
+	for rail_name in CROSS_RAIL_NODE_NAMES:
+		var body := get_node_or_null(NodePath("Rails/%s" % rail_name)) as StaticBody3D
+		if body == null:
+			errors.append("cross_rail_body_missing_%s" % rail_name)
+			continue
+		if body.get_node_or_null(^"Mesh") != null:
+			errors.append("cross_rail_legacy_renderer_%s" % rail_name)
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		if shape == null or not shape.size.is_equal_approx(CROSS_RAIL_SIZE):
+			errors.append("cross_rail_collision_drift_%s" % rail_name)
+		expected_transforms.append(body.transform)
+	var batch := get_node_or_null(^"Rails/CrossRailBatch") as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null:
+		errors.append("cross_rail_batch_missing")
+		return {"valid": false, "errors": errors, "visible_copy_count": 0}.duplicate(true)
+	var mesh := batch.multimesh.mesh as BoxMesh
+	if mesh == null or not mesh.size.is_equal_approx(CROSS_RAIL_SIZE) \
+			or mesh.material != null or mesh.get_surface_count() != 1:
+		errors.append("cross_rail_mesh_recipe_drift")
+	if batch.material_override != _materials.frame \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or batch.material_overlay != null or batch.layers != 1 \
+			or not is_zero_approx(batch.extra_cull_margin) \
+			or not is_zero_approx(batch.visibility_range_begin) \
+			or not is_zero_approx(batch.visibility_range_end):
+		errors.append("cross_rail_renderer_state_drift")
+	if batch.get_child_count() != 0 or batch.get_script() != null \
+			or not bool(batch.get_meta("presentation_only", false)) \
+			or bool(batch.get_meta("collision_authority", true)) \
+			or bool(batch.get_meta("interaction_authority", true)):
+		errors.append("cross_rail_authority_drift")
+	if batch.multimesh.instance_count != CROSS_RAIL_COUNT \
+			or batch.multimesh.visible_instance_count != CROSS_RAIL_COUNT:
+		errors.append("cross_rail_copy_count_drift")
+	if batch.multimesh.buffer != _encode_multimesh_transforms(expected_transforms):
+		errors.append("cross_rail_transform_buffer_drift")
+	if mesh != null and not batch.multimesh.custom_aabb.is_equal_approx(
+		_transformed_bounds(mesh.get_aabb(), expected_transforms)
+	):
+		errors.append("cross_rail_culling_bounds_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family_id": &"cross_rail_boxes",
+		"body_node_names": CROSS_RAIL_NODE_NAMES.duplicate(),
+		"authored_transforms": expected_transforms.duplicate(true),
+		"visible_copy_count": batch.multimesh.visible_instance_count,
+		"renderer_submissions": mesh.get_surface_count() if mesh != null else 0,
+		"before_renderer_submissions": CROSS_RAIL_COUNT,
+		"renderer_submission_delta": 1 - CROSS_RAIL_COUNT,
+		"collision_shape_count": CROSS_RAIL_COUNT,
+	}.duplicate(true)
+
+
 func _validate_shared_static_box_family(paths: Array[NodePath], errors: PackedStringArray) -> void:
 	var shared_mesh: BoxMesh
 	for path in paths:
@@ -980,6 +1054,7 @@ func audit() -> Dictionary:
 		"route_cue_visual_allocation": get_route_cue_visual_allocation_audit(),
 		"static_box_visual_allocation": get_static_box_visual_allocation_audit(),
 		"rise_rail_visual_allocation": get_rise_rail_visual_audit(),
+		"cross_rail_visual_allocation": get_cross_rail_visual_audit(),
 		"cargo_authority": false,
 		"inventory_authority": false,
 		"reward_authority": false,
@@ -1254,15 +1329,25 @@ func _build_structure() -> void:
 		_materials.frame,
 		rise_rail_transforms
 	)
-	_static_segment(
+	var cross_rail_transforms: Array[Transform3D] = []
+	var cross_rail_north := _static_segment(
 		rails, "CrossRailNorth",
 		Vector3(-23.1, 4.62, 19.12), Vector3(-5.15, 4.62, 19.12),
-		0.12, _materials.frame
+		0.12, _materials.frame, false
 	)
-	_static_segment(
+	cross_rail_transforms.append(cross_rail_north.transform)
+	var cross_rail_south := _static_segment(
 		rails, "CrossRailSouth",
 		Vector3(-23.1, 4.62, 16.88), Vector3(-5.15, 4.62, 16.88),
-		0.12, _materials.frame
+		0.12, _materials.frame, false
+	)
+	cross_rail_transforms.append(cross_rail_south.transform)
+	_visual_multimesh_boxes(
+		rails,
+		"CrossRailBatch",
+		_shared_static_box_mesh(CROSS_RAIL_SIZE),
+		_materials.frame,
+		cross_rail_transforms
 	)
 	var handoff_direction := Vector3(0.9, 0.0, -0.75)
 	var handoff_lateral := Vector3(
