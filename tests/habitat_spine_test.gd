@@ -796,21 +796,32 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 	var corridor := module.get_node_or_null(
 		^"Structure/PressurizedHabitatCorridor"
 	) as Node3D
-	var batch := corridor.get_node_or_null(^"DeckSeams") as MultiMeshInstance3D if corridor != null else null
+	var batch := corridor.get_node_or_null(^"BerthGateBands") as MultiMeshInstance3D if corridor != null else null
 	_check(
 		corridor != null and batch != null and batch.multimesh != null,
-		"nine corridor deck seams resolve through one visual-only MultiMesh"
+		"three corridor berth gates resolve their nine bands through one visual-only MultiMesh"
 	)
 	if corridor == null or batch == null or batch.multimesh == null:
 		return
 	var expected: Array[Transform3D] = []
-	for seam_z in [3.15, 5.1, 7.1, 8.15, 10.1, 12.1, 13.15, 15.1, 17.1]:
-		expected.append(Transform3D(Basis.IDENTITY, Vector3(0, 0.055, float(seam_z))))
+	for gate_z in [5.1, 10.1, 15.1]:
+		for endpoints in [
+			[Vector3(-2.12, 4.04, float(gate_z)), Vector3(-0.64, 4.415, float(gate_z))],
+			[Vector3(-0.65, 4.415, float(gate_z)), Vector3(0.65, 4.415, float(gate_z))],
+			[Vector3(0.64, 4.415, float(gate_z)), Vector3(2.12, 4.04, float(gate_z))],
+		]:
+			var from := endpoints[0] as Vector3
+			var to := endpoints[1] as Vector3
+			var direction := to - from
+			var basis := Basis(Quaternion(Vector3.RIGHT, direction.normalized()))
+			basis.x *= direction.length() / 4.2
+			expected.append(Transform3D(basis, (from + to) * 0.5))
 	var anchors: Array[MeshInstance3D] = []
 	for raw_node in corridor.get_children():
 		var candidate := raw_node as MeshInstance3D
 		if (
 			candidate != null
+			and candidate.name.begins_with("BerthGateBand")
 			and candidate.mesh != null
 			and candidate.mesh.get_aabb().size.is_equal_approx(Vector3(4.2, 0.02, 0.045))
 			and not candidate.visible
@@ -835,14 +846,53 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		and batch.multimesh.instance_count == HabitatSpine.CORRIDOR_DECK_SEAM_COPY_COUNT
 		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(4.2, 0.02, 0.045))
 		and batch.material_override == anchors[0].material_override,
-		"batch preserves nine exact transforms, graphite material, mesh extent and stable legacy anchors"
+		"batch preserves nine exact raked transforms, cool lane material, mesh extent and inspection anchors"
+	)
+	var ceiling := corridor.get_node_or_null(^"HabitatCeiling") as StaticBody3D
+	var ceiling_collision := (
+		ceiling.get_node_or_null(^"Collision") as CollisionShape3D if ceiling != null else null
+	)
+	var ceiling_shape := (
+		ceiling_collision.shape as BoxShape3D if ceiling_collision != null else null
+	)
+	var ceiling_underside := (
+		ceiling.position.y - ceiling_shape.size.y * 0.5 if ceiling_shape != null else INF
+	)
+	var all_gates_supported_and_clear := ceiling_shape != null
+	var gate_z_positions := PackedFloat32Array()
+	for transform in authored:
+		var authored_transform := transform as Transform3D
+		var bounds := authored_transform * batch.multimesh.mesh.get_aabb()
+		all_gates_supported_and_clear = (
+			all_gates_supported_and_clear
+			and bounds.position.y >= HabitatSpine.MINIMUM_HEAD_CLEARANCE
+			and bounds.end.y <= ceiling_underside + 0.02
+			and bounds.position.x > -2.2
+			and bounds.end.x < 2.2
+		)
+		if not gate_z_positions.has(authored_transform.origin.z):
+			gate_z_positions.append(authored_transform.origin.z)
+	var lane_edge := corridor.get_node_or_null(^"LaneEdge") as MeshInstance3D
+	var teal_material := lane_edge.material_override if lane_edge != null else null
+	_check(
+		all_gates_supported_and_clear
+		and gate_z_positions.size() == 3
+		and gate_z_positions.has(5.1)
+		and gate_z_positions.has(10.1)
+		and gate_z_positions.has(15.1),
+		"three non-coplanar berth gates meet the real ceiling above four-metre route clearance"
+	)
+	_check(
+		teal_material != null and batch.material_override == teal_material,
+		"cool squared berth gates extend the corridor lane identity without repeating the common room's warm brass ribs"
 	)
 	_check(
 		batch.get_child_count() == 0
 		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
 		and batch.find_children("*", "Area3D", true, false).is_empty()
+		and batch.get_process_mode() == Node.PROCESS_MODE_INHERIT
 		and bool(batch.get_meta("visual_detail_only", false)),
-		"deck-seam batch remains childless, collision-free and presentation-only"
+		"berth-gate batch remains childless, collision-free, timer-free and presentation-only"
 	)
 	var report := module.get_render_allocation_report()
 	_check(
@@ -853,7 +903,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
 		and int(report.drawn_copies) == 1385
 		and bool(report.corridor_deck_seam_authored),
-		"corridor seams measure 9 -> 1 submissions while all nine visible copies remain"
+		"corridor berth gates retain the frozen 9 -> 1 submission allocation"
 	)
 	var detached := report.authored_corridor_deck_seam_transforms as Array
 	detached[0] = Transform3D.IDENTITY
@@ -861,7 +911,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		not ((module.get_render_allocation_report().authored_corridor_deck_seam_transforms as Array)[0] as Transform3D).is_equal_approx(
 			Transform3D.IDENTITY
 		),
-		"deck-seam allocation report returns a detached authored-transform roster"
+		"berth-gate allocation report returns a detached authored-transform roster"
 	)
 
 

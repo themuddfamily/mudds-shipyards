@@ -1113,7 +1113,7 @@ func get_render_allocation_report() -> Dictionary:
 		and _corridor_deck_seam_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
 			Vector3(4.2, 0.02, 0.045)
 		)
-		and _corridor_deck_seam_batch.material_override == _materials.get("graphite")
+		and _corridor_deck_seam_batch.material_override == _materials.get("teal_dim")
 		and (_corridor_deck_seam_batch.get_meta("authored_instance_transforms", []) as Array).size()
 			== CORRIDOR_DECK_SEAM_COPY_COUNT
 		and _corridor_deck_seam_batch.get_child_count() == 0
@@ -2101,25 +2101,47 @@ func _build_habitat_corridor(structure: Node3D) -> void:
 	_box(habitat, "CorridorLane", Vector3(0, 0.022, 10.15), Vector3(4.6, 0.04, 15.15), _materials["floor"], false)
 	for edge_x in [-2.26, 2.26]:
 		_box(habitat, "LaneEdge", Vector3(float(edge_x), 0.052, 10.15), Vector3(0.08, 0.035, 15.0), _materials["teal_dim"], false)
+	# The nine shallow deck seams were technically present but disappeared into
+	# the dark walking lane, leaving all three bunk rows to read as one long tube.
+	# Re-seat those exact nine batched copies as three squared berth gates: two
+	# raked shoulders and a short crown at each bunk-row centre. Their cool teal is
+	# the corridor's established lane colour, deliberately distinct from the warm
+	# curved brass cadence in the common room beyond. Every shoulder meets the real
+	# opaque ceiling and its lowest transformed bound remains above the published
+	# four-metre head clearance. This is therefore a non-coplanar, production-visible
+	# zone landmark without another node, mesh recipe, material, submission, light,
+	# collider, route marker, process callback or gameplay authority.
 	_corridor_deck_seam_transforms.clear()
-	for seam_z in [3.15, 5.1, 7.1, 8.15, 10.1, 12.1, 13.15, 15.1, 17.1]:
-		var seam_anchor := _box(
-			habitat,
-			"DeckSeam",
-			Vector3(0, 0.055, float(seam_z)),
-			Vector3(4.2, 0.02, 0.045),
-			_materials["graphite"],
-			false
-		)
-		_corridor_deck_seam_transforms.append(seam_anchor.transform)
-		# Retain the established paths, transforms, mesh and material handles as
-		# hidden inspection anchors; the one batch owns their visible draw.
-		seam_anchor.visible = false
+	for gate_z in [5.1, 10.1, 15.1]:
+		var gate_segments := [
+			[Vector3(-2.12, 4.04, float(gate_z)), Vector3(-0.64, 4.415, float(gate_z))],
+			[Vector3(-0.65, 4.415, float(gate_z)), Vector3(0.65, 4.415, float(gate_z))],
+			[Vector3(0.64, 4.415, float(gate_z)), Vector3(2.12, 4.04, float(gate_z))],
+		]
+		for segment_index in gate_segments.size():
+			var endpoints: Array = gate_segments[segment_index]
+			var from := endpoints[0] as Vector3
+			var to := endpoints[1] as Vector3
+			var direction := to - from
+			var gate_anchor := _box(
+				habitat,
+				"BerthGateBand%02d" % _corridor_deck_seam_transforms.size(),
+				(from + to) * 0.5,
+				Vector3(4.2, 0.02, 0.045),
+				_materials["teal_dim"],
+				false
+			)
+			gate_anchor.quaternion = Quaternion(Vector3.RIGHT, direction.normalized())
+			gate_anchor.scale.x = direction.length() / 4.2
+			_corridor_deck_seam_transforms.append(gate_anchor.transform)
+			# Retain exact transform/material inspection anchors while the one batch
+			# continues to own all nine visible copies.
+			gate_anchor.visible = false
 	_corridor_deck_seam_batch = _multimesh_boxes(
 		habitat,
-		"DeckSeams",
+		"BerthGateBands",
 		Vector3(4.2, 0.02, 0.045),
-		_materials["graphite"],
+		_materials["teal_dim"],
 		_corridor_deck_seam_transforms
 	)
 
