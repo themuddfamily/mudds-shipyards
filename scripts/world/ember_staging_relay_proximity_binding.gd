@@ -18,6 +18,7 @@ const READY_COLOR := Color(0.95, 0.52, 0.18, 1.0)
 const COMPLETE_COLOR := Color(0.32, 0.86, 0.78, 1.0)
 const PROXIMITY_RADIUS_M := 0.85
 const PROXIMITY_CENTER_M := Vector3(0.0, 0.9, 0.0)
+const MARKER_OFFSET_M := Vector3(0.0, 4.15, 0.0)
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 
 var _host: Object
@@ -51,7 +52,7 @@ func _ready() -> void:
 	add_child(shape_node)
 	_marker = Label3D.new()
 	_marker.name = "StagingRelayDiagnosticMarker"
-	_marker.position = Vector3(0.0, 1.35, 0.0)
+	_marker.position = MARKER_OFFSET_M
 	_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_marker.no_depth_test = true
 	_marker.font_size = 30

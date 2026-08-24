@@ -46,6 +46,7 @@ func _run() -> void:
 		&"configure", host, actor, 41, 7, 777
 	)
 	var ready := binding.call(&"get_snapshot") as Dictionary
+	var marker := binding.get_node(^"StagingRelayDiagnosticMarker") as Label3D
 	_check(
 		bool(configured.accepted) and bool(ready.active)
 			and not bool(ready.completed)
@@ -60,7 +61,8 @@ func _run() -> void:
 			and ready.physical.center_local_m == Vector3(0.0, 0.9, 0.0)
 			and not bool(ready.physical.solid_geometry_added)
 			and ready.physical.marker_text \
-				== "STAGING RELAY\nLOCAL DIAGNOSTIC",
+				== "STAGING RELAY\nLOCAL DIAGNOSTIC"
+			and marker.position == Vector3(0.0, 4.15, 0.0),
 		"current on-foot generation exposes only the Player proximity diagnostic"
 	)
 
