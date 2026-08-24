@@ -1,6 +1,7 @@
 extends SceneTree
 
 const RigScene := preload("res://scenes/audio/ship_audio_rig.tscn")
+const PLAYBACK_TEARDOWN_DRAIN_SECONDS := 0.05
 
 
 class QueueCandidateRig extends ShipAudioRig:
@@ -107,6 +108,10 @@ func _run() -> void:
 	rig.queue_free()
 	await process_frame
 	await process_frame
+	# QueueCandidateRig intentionally exercises accepted playback on the Dummy
+	# backend. Let its audio-thread playback handles observe the rig's detach
+	# before the SceneTree exits, just as a streamed-scene unload does at runtime.
+	await create_timer(PLAYBACK_TEARDOWN_DRAIN_SECONDS).timeout
 	fixture_root.queue_free()
 	await process_frame
 	await process_frame
