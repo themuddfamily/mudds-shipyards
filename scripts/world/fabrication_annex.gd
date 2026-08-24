@@ -108,6 +108,11 @@ const WORK_BENCH_POSITIONS := [
 ]
 const WORK_BENCH_BATCH_KEY := "structure:1.000:0.900:3.000"
 const MATERIAL_RACK_SIZE := Vector3(0.8, 2.2, 2.4)
+const ENTRY_THRESHOLD_MARK_SIZE := Vector3(4.72, 0.027, 0.09)
+const ENTRY_THRESHOLD_MARK_POSITIONS := [
+	Vector3(0.0, 0.02, 4.18),
+	Vector3(0.0, 0.02, 4.52),
+]
 const SOURCE_PRACTICAL_RANGE_M := 8.0
 const PAIRED_POOL_RANGE_M := 11.75
 const SOURCE_PRACTICAL_ENERGY := 3.2
@@ -163,8 +168,8 @@ const PERFORMANCE_BUDGETS := {
 	"mesh_instances": 3,
 	"multi_mesh_instances": 32,
 	"geometry_instances": 35,
-	"visible_geometry_copies": 203,
-	"multi_mesh_drawn_copies": 183,
+	"visible_geometry_copies": 205,
+	"multi_mesh_drawn_copies": 185,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 6,
@@ -177,8 +182,8 @@ const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
 	"mesh_instances": 3,
 	"multi_mesh_instances": 32,
 	"geometry_instances": 35,
-	"visible_geometry_copies": 204,
-	"multi_mesh_drawn_copies": 184,
+	"visible_geometry_copies": 206,
+	"multi_mesh_drawn_copies": 186,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 6,
@@ -486,6 +491,16 @@ func _build_structure_and_dressing() -> void:
 	for x in [-7.0, 7.0]:
 		for z in [5.05, 10.9, 13.1, 18.95]:
 			_add_mesh("BayCrossMark", Vector3(4.72, 0.027, 0.09), Vector3(x, 0.02, z), &"hazard")
+	# Paired amber deck bars visually lock the inbound route to the portal above.
+	# They reuse the bay cross-mark batch and remain flush, collisionless dressing,
+	# so the six-metre aisle and its authored route transform remain untouched.
+	for threshold_position in ENTRY_THRESHOLD_MARK_POSITIONS:
+		_add_mesh(
+			"EntryThresholdMark",
+			ENTRY_THRESHOLD_MARK_SIZE,
+			threshold_position as Vector3,
+			&"hazard"
+		)
 	for x in [-2.55, 2.55]:
 		_add_mesh("AisleGuide", Vector3(0.1, 0.028, 14.8), Vector3(x, 0.021, 12.1), &"luminous")
 	_add_label("FABRICATION ANNEX", Vector3(0.0, 3.4, 4.25), 0.65)

@@ -24,6 +24,7 @@ func _run() -> void:
 	_test_contract(annex)
 	_test_area_and_surface_census(annex)
 	_test_finishing_pass(annex)
+	_test_inbound_portal_threshold(annex)
 	await _test_collision_and_edges(stage, annex)
 	await _test_physical_roof_columns(stage, annex)
 	await _test_embodied_traversal(stage, annex)
@@ -171,10 +172,10 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
-	_check(int(render.multi_mesh_batches) == 32 and int(render.multi_mesh_drawn_copies) == 183, "32 restrained batches store all 183 remaining MultiMesh-authored architectural and equipment copies")
-	_check(int(render.geometry_submissions) == 35 and int(render.visible_geometry_copies) == 203, "35 submissions draw the frozen 203 visible geometry copies")
-	_check(int(render.authored_transform_count) == 183, "every remaining MultiMesh copy retains an authored transform")
-	_check(int(render.forward_plus_buffer_float_count) == 2196 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 183 valid 3D transforms")
+	_check(int(render.multi_mesh_batches) == 32 and int(render.multi_mesh_drawn_copies) == 185, "32 restrained batches store all 185 remaining MultiMesh-authored architectural and equipment copies")
+	_check(int(render.geometry_submissions) == 35 and int(render.visible_geometry_copies) == 205, "35 submissions draw the frozen 205 visible geometry copies")
+	_check(int(render.authored_transform_count) == 185, "every remaining MultiMesh copy retains an authored transform")
+	_check(int(render.forward_plus_buffer_float_count) == 2220 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 185 valid 3D transforms")
 	var floor_render := annex.get_floor_render_optimization_contract()
 	_check(
 		bool(floor_render.valid)
@@ -407,6 +408,28 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 	_check(status_material != null and status_material.emission_enabled, "fabricator status strips and aisle guides use a grounded emissive material")
 
 
+func _test_inbound_portal_threshold(annex: FabricationAnnex) -> void:
+	var batch := annex.find_child("BayCrossMarkBatch", true, false) as MultiMeshInstance3D
+	var expected_thresholds := [
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 0.02, 4.18)),
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 0.02, 4.52)),
+	]
+	var authored := annex.get("_authored_batch_transforms") as Dictionary
+	var transforms := authored.get("hazard:4.720:0.027:0.090", []) as Array
+	var exact := batch != null and batch.multimesh != null and batch.multimesh.instance_count == 10
+	for expected in expected_thresholds:
+		var found := false
+		for transform_variant in transforms:
+			if (transform_variant as Transform3D).is_equal_approx(expected as Transform3D):
+				found = true
+				break
+		exact = exact and found
+	_check(
+		exact,
+		"two flush amber threshold bars align the inbound route with its portal inside the existing collisionless cross-mark batch"
+	)
+
+
 func _test_material_rack_batch(annex: FabricationAnnex) -> void:
 	var rack_batch := annex.find_child("MaterialRackBatch", true, false) as MultiMeshInstance3D
 	var expected_positions := [
@@ -477,7 +500,7 @@ func _test_observation_gate_variant(stage: Node3D) -> void:
 	_check(
 		int(performance.mesh_instances) == 3
 		and int(performance.multi_mesh_instances) == 32
-		and int(performance.visible_geometry_copies) == 204
+		and int(performance.visible_geometry_copies) == 206
 		and int(performance.nodes) == 123,
 		"the integrated Observation-gate variant retains its exact finished rendering budget"
 	)
