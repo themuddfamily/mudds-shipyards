@@ -34,6 +34,7 @@ func _run() -> void:
 		return
 
 	_test_evidence_and_shared_contract(module)
+	_test_manufactured_material_roles(module)
 	_test_origin_slot_and_routes(module)
 	await _test_exact_surface_union(module)
 	_test_rails_dressing_and_authority(module)
@@ -44,6 +45,67 @@ func _run() -> void:
 	await _test_mutations_turn_audit_red(module)
 	await _test_cleanup(module)
 	_finish()
+
+
+func _test_manufactured_material_roles(module: SalvageTerrace) -> void:
+	var materials := module.get("_materials") as Dictionary
+	# The established albedo, metallic and roughness values stay frozen. The
+	# StationSurfaceKit finish profile is the only player-visible response change.
+	var specs := {
+		&"deck": [Color("334f59"), 0.68, 0.34, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"frame": [Color("172930"), 0.76, 0.30, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		&"rail": [Color("789097"), 0.70, 0.27, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS],
+		&"salvage": [Color("7a5132"), 0.42, 0.50, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		&"machine": [Color("415b62"), 0.82, 0.26, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		&"roof": [Color("20363d"), 0.74, 0.42, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+	}
+	var roles_exact := materials.size() == specs.size() + 2 # Hazard paint and emissive cues remain deliberately unmapped.
+	for material_id: StringName in specs:
+		var material := materials.get(material_id) as StandardMaterial3D
+		var spec := specs[material_id] as Array
+		roles_exact = (
+			roles_exact
+			and material != null
+			and material.albedo_color.is_equal_approx(spec[0] as Color)
+			and is_equal_approx(material.metallic, float(spec[1]))
+			and is_equal_approx(material.roughness, float(spec[2]))
+			and material.albedo_texture != null
+			and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH
+			and material.normal_enabled
+			and material.normal_texture != null
+			and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH
+			and material.roughness_texture != null
+			and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH
+			and material.uv1_triplanar
+			and material.uv1_world_triplanar
+			and material.uv1_scale.is_equal_approx(Vector3.ONE * SalvageTerrace.PANEL_SURFACE_SCALE)
+			and material.clearcoat_enabled
+			and is_equal_approx(material.clearcoat, float(spec[3]))
+			and is_equal_approx(material.clearcoat_roughness, float(spec[4]))
+		)
+	var deck_mesh := module.get_node_or_null(^"GeneratedRoot/ConnectionApron/Mesh") as MeshInstance3D
+	var support_batch := module.get_node_or_null(^"GeneratedRoot/TerraceSupportBatch") as MultiMeshInstance3D
+	var rail_batch := module.get_node_or_null(^"GeneratedRoot/RailDetailBatch") as MultiMeshInstance3D
+	var salvage_batch := module.get_node_or_null(^"GeneratedRoot/SalvageCageBatch") as MultiMeshInstance3D
+	var machine_batch := module.get_node_or_null(^"GeneratedRoot/SortingMachineryBatch") as MultiMeshInstance3D
+	var roof := module.get_node_or_null(^"GeneratedRoot/LowerBayRoof") as MeshInstance3D
+	roles_exact = (
+		roles_exact
+		and deck_mesh != null and deck_mesh.material_override == materials.deck
+		and support_batch != null and support_batch.material_override == materials.frame
+		and rail_batch != null and rail_batch.material_override == materials.rail
+		and salvage_batch != null and salvage_batch.material_override == materials.salvage
+		and machine_batch != null and machine_batch.material_override == materials.machine
+		and roof != null and roof.material_override == materials.roof
+	)
+	var hazard := materials.get(&"hazard") as StandardMaterial3D
+	var emissive := materials.get(&"emissive") as StandardMaterial3D
+	_check(
+		roles_exact
+		and hazard != null and not hazard.uv1_world_triplanar
+		and emissive != null and not emissive.uv1_world_triplanar,
+		"walked deck, structural frame, painted equipment/shell and metal trim keep exact hues and StationSurfaceKit finish roles"
+	)
 
 
 func _test_evidence_and_shared_contract(module: SalvageTerrace) -> void:

@@ -24,6 +24,7 @@ const MAIN_RAMP_WIDTH := 6.0
 const MAIN_RAMP_HORIZONTAL_RUN := 8.0
 const INSPECTION_RAMP_WIDTH := 6.0
 const INSPECTION_RAMP_HORIZONTAL_RUN := 4.0
+const PANEL_SURFACE_SCALE := 0.30
 
 ## Exact non-overlapping horizontal projection. Shared boundaries have zero area.
 const LEVEL_WALKABLE_AREA_M2 := 384.0
@@ -1217,8 +1218,31 @@ func _create_materials() -> void:
 	_materials["emissive"] = _material(Color("76e6dc"), 0.12, 0.25, Color("36c9c2"), 1.2)
 	_materials["machine"] = _material(Color("415b62"), 0.82, 0.26)
 	_materials["roof"] = _material(Color("20363d"), 0.74, 0.42)
-	for key in ["deck", "frame", "rail", "salvage", "machine", "roof"]:
-		StationSurfaceKit.apply_panel_triplanar(_materials[key] as StandardMaterial3D, 0.3)
+	# Keep the terrace's existing cool-teal and salvage-brown palette while making
+	# physical roles legible at walking distance. These are the same six shared
+	# resources already feeding every MeshInstance and MultiMesh: only the surface
+	# kit's clearcoat hierarchy changes, so geometry, collisions, transforms,
+	# lights and renderer allocations stay untouched.
+	var finish_by_key := {
+		# All six authoritative pads and ramps are trafficked deck plate.
+		"deck": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		# Supports, portal framing, gantry mast and sign backing remain load-bearing
+		# dark alloy rather than painted equipment.
+		"frame": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		# Safety furniture and the crane cable read as handled metal trim.
+		"rail": StationSurfaceKit.PanelFinish.METAL_TRIM,
+		# Stored cages/clamp, sorting plant and the bay shell are painted industrial
+		# surfaces, distinct from both frame alloy and walked deck.
+		"salvage": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"machine": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"roof": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+	}
+	for key: String in finish_by_key:
+		StationSurfaceKit.apply_panel_triplanar(
+			_materials[key] as StandardMaterial3D,
+			PANEL_SURFACE_SCALE,
+			finish_by_key[key]
+		)
 
 
 func _material(
