@@ -66,6 +66,7 @@ static var _shared_hull_material: StandardMaterial3D
 static var _shared_ordnance_spine_mesh: BoxMesh
 static var _shared_ordnance_spine_material: StandardMaterial3D
 static var _shared_strike_wing_mesh: BoxMesh
+static var _shared_strike_wing_multimesh: MultiMesh
 static var _shared_aft_tailplane_mesh: BoxMesh
 static var _shared_aft_fin_mesh: BoxMesh
 static var _shared_sensor_mesh: SphereMesh
@@ -441,35 +442,44 @@ func get_audit_report() -> Dictionary:
 	}.duplicate(true)
 
 
-## Presentation-only silhouette recipe. The mirrored renderers share one
-## immutable mesh and the primary hull material; they own no collision or
+## Presentation-only silhouette recipe. The mirrored boxes are two immutable
+## transforms in one MultiMesh submission; the batch owns no collision or
 ## gameplay children.
 func get_strike_wing_visual_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var visual := get_variant_visual_root()
-	var port := visual.get_node_or_null(^"PortStrikeWing") as MeshInstance3D \
+	var batch := visual.get_node_or_null(^"StrikeWingBatch") as MultiMeshInstance3D \
 			if visual != null else null
-	var starboard := visual.get_node_or_null(^"StarboardStrikeWing") as MeshInstance3D \
-			if visual != null else null
-	for entry in [
-		[port, -STRIKE_WING_OFFSET.x, -STRIKE_WING_SWEEP_DEGREES],
-		[starboard, STRIKE_WING_OFFSET.x, STRIKE_WING_SWEEP_DEGREES],
-	]:
-		var wing := entry[0] as MeshInstance3D
-		if wing == null:
-			errors.append("strike-wing renderer is missing")
-			continue
-		var expected_position := Vector3(float(entry[1]), STRIKE_WING_OFFSET.y, STRIKE_WING_OFFSET.z)
-		if not wing.position.is_equal_approx(expected_position) \
-				or not is_equal_approx(wing.rotation_degrees.y, float(entry[2])):
-			errors.append("strike-wing mirrored sweep drifted")
-		if not wing.visible or wing.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+	if batch == null:
+		errors.append("strike-wing batch renderer is missing")
+	else:
+		if not batch.transform.is_equal_approx(Transform3D.IDENTITY):
+			errors.append("strike-wing batch root transform drifted")
+		if not batch.visible \
+				or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
 			errors.append("strike-wing renderer state drifted")
-		if wing.get_child_count() != 0 or wing.get_script() != null:
-			errors.append("strike wing gained semantic children or authority")
-		if wing.mesh != _shared_strike_wing_mesh \
-				or wing.material_override != _shared_hull_material:
-			errors.append("strike-wing immutable resource identity drifted")
+		if batch.get_child_count() != 0 or batch.get_script() != null:
+			errors.append("strike-wing batch gained semantic children or authority")
+		if batch.multimesh != _shared_strike_wing_multimesh:
+			errors.append("strike-wing immutable batch identity drifted")
+		if batch.material_override != _shared_hull_material:
+			errors.append("strike-wing shared hull material identity drifted")
+	if _shared_strike_wing_multimesh == null:
+		errors.append("strike-wing immutable batch recipe is missing")
+	else:
+		var expected_transforms := _strike_wing_instance_transforms()
+		if _shared_strike_wing_multimesh.instance_count != 2 \
+				or _shared_strike_wing_multimesh.mesh != _shared_strike_wing_mesh:
+			errors.append("strike-wing batch instance recipe drifted")
+		if _shared_strike_wing_multimesh.buffer \
+				!= _encode_strike_wing_transforms(expected_transforms):
+			errors.append("strike-wing mirrored sweep buffer drifted")
+		if not _shared_strike_wing_multimesh.custom_aabb.is_equal_approx(
+			_strike_wing_bounds(expected_transforms)
+		):
+			errors.append("strike-wing batch culling bounds drifted")
+		if _shared_strike_wing_multimesh.resource_local_to_scene:
+			errors.append("strike-wing batch became scene-local")
 	if _shared_strike_wing_mesh == null \
 			or not _shared_strike_wing_mesh.size.is_equal_approx(STRIKE_WING_SIZE) \
 			or _shared_strike_wing_mesh.resource_local_to_scene:
@@ -477,12 +487,27 @@ func get_strike_wing_visual_audit() -> Dictionary:
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
-		"renderer_nodes_per_copy": int(port != null) + int(starboard != null),
-		"geometry_submissions_per_copy": 2 if port != null and starboard != null else 0,
+		"renderer_nodes_per_copy": 1 if batch != null else 0,
+		"geometry_submissions_per_copy": 1 if batch != null else 0,
+		"visible_instances_per_copy": _shared_strike_wing_multimesh.instance_count \
+				if _shared_strike_wing_multimesh != null else 0,
 		"shared_mesh_resource_id": _shared_strike_wing_mesh.get_instance_id() \
 				if _shared_strike_wing_mesh != null else 0,
+		"shared_multimesh_resource_id": _shared_strike_wing_multimesh.get_instance_id() \
+				if _shared_strike_wing_multimesh != null else 0,
 		"shared_hull_material_resource_id": _shared_hull_material.get_instance_id() \
 				if _shared_hull_material != null else 0,
+		"legacy_per_copy": {
+			"renderer_nodes": 2,
+			"geometry_submissions": 2,
+			"visible_instances": 2,
+		},
+		"current_per_copy": {
+			"renderer_nodes": 1 if batch != null else 0,
+			"geometry_submissions": 1 if batch != null else 0,
+			"visible_instances": _shared_strike_wing_multimesh.instance_count \
+					if _shared_strike_wing_multimesh != null else 0,
+		},
 	}.duplicate(true)
 
 
@@ -857,17 +882,71 @@ func _build_strike_wings(visual: Node3D) -> void:
 		_shared_strike_wing_mesh = BoxMesh.new()
 		_shared_strike_wing_mesh.size = STRIKE_WING_SIZE
 		_shared_strike_wing_mesh.resource_local_to_scene = false
-	for entry in [
-		["PortStrikeWing", -STRIKE_WING_OFFSET.x, -STRIKE_WING_SWEEP_DEGREES],
-		["StarboardStrikeWing", STRIKE_WING_OFFSET.x, STRIKE_WING_SWEEP_DEGREES],
-	]:
-		var wing := MeshInstance3D.new()
-		wing.name = entry[0]
-		wing.mesh = _shared_strike_wing_mesh
-		wing.position = Vector3(float(entry[1]), STRIKE_WING_OFFSET.y, STRIKE_WING_OFFSET.z)
-		wing.rotation_degrees.y = float(entry[2])
-		wing.material_override = _shared_hull_material
-		visual.add_child(wing)
+	if _shared_strike_wing_multimesh == null:
+		var transforms := _strike_wing_instance_transforms()
+		_shared_strike_wing_multimesh = MultiMesh.new()
+		_shared_strike_wing_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		_shared_strike_wing_multimesh.mesh = _shared_strike_wing_mesh
+		_shared_strike_wing_multimesh.instance_count = 2
+		_shared_strike_wing_multimesh.visible_instance_count = -1
+		_shared_strike_wing_multimesh.buffer = _encode_strike_wing_transforms(transforms)
+		_shared_strike_wing_multimesh.custom_aabb = _strike_wing_bounds(transforms)
+		_shared_strike_wing_multimesh.resource_local_to_scene = false
+	var wing_batch := MultiMeshInstance3D.new()
+	wing_batch.name = "StrikeWingBatch"
+	wing_batch.multimesh = _shared_strike_wing_multimesh
+	wing_batch.material_override = _shared_hull_material
+	wing_batch.set_meta(&"presentation_only", true)
+	wing_batch.set_meta(&"authored_visual_names", PackedStringArray([
+		"PortStrikeWing", "StarboardStrikeWing",
+	]))
+	wing_batch.set_meta(&"authored_instance_transforms", _strike_wing_instance_transforms())
+	visual.add_child(wing_batch)
+
+
+static func _strike_wing_instance_transforms() -> Array[Transform3D]:
+	return [
+		Transform3D(
+			Basis(Vector3.UP, deg_to_rad(-STRIKE_WING_SWEEP_DEGREES)),
+			Vector3(-STRIKE_WING_OFFSET.x, STRIKE_WING_OFFSET.y, STRIKE_WING_OFFSET.z)
+		),
+		Transform3D(
+			Basis(Vector3.UP, deg_to_rad(STRIKE_WING_SWEEP_DEGREES)),
+			STRIKE_WING_OFFSET
+		),
+	]
+
+
+static func _encode_strike_wing_transforms(
+		transforms: Array[Transform3D]
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
+
+
+static func _strike_wing_bounds(transforms: Array[Transform3D]) -> AABB:
+	var mesh_bounds := AABB(-STRIKE_WING_SIZE * 0.5, STRIKE_WING_SIZE)
+	var bounds := AABB()
+	for index in transforms.size():
+		var transformed := (transforms[index] * mesh_bounds).abs()
+		bounds = transformed if index == 0 else bounds.merge(transformed)
+	return bounds
 
 
 func _build_aft_empennage(visual: Node3D) -> void:
