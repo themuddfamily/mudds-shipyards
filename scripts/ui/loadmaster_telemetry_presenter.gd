@@ -33,7 +33,9 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 	var readiness := str(snapshot.get("readiness_receipt", snapshot.get("readiness", "NOT PUBLISHED"))).strip_edges()
 	var seat_state := str(snapshot.get("state", "")).strip_edges().to_upper()
 	var generation := int(snapshot.get("generation", snapshot.get("manifest_generation", 0)))
-	var manifest_receipt := snapshot.get("manifest_receipt", {}) as Dictionary
+	# Halyard publishes its manifest API directly as `{manifest_generation,
+	# receipt}`; Cinder's two-snapshot HUD seam normalizes to the same view.
+	var manifest_receipt := snapshot.get("manifest_receipt", snapshot.get("receipt", {})) as Dictionary
 	var revision := int(cursor.get("revision", snapshot.get("revision", 0)))
 	var readiness_state := "[STATUS PUBLISHED]"
 	var next_action := "REVIEW PUBLISHED MANIFEST STATUS"
@@ -41,6 +43,7 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 		var receipt_ready := bool(manifest_receipt.get("ready", false))
 		manifest = "READY" if receipt_ready else "BLOCKED"
 		var receipt_route := str(manifest_receipt.get("route_id", route)).strip_edges()
+		route = receipt_route if not receipt_route.is_empty() else "NONE"
 		readiness_state = "[READY]" if receipt_ready else "[ACTION REQUIRED]"
 		readiness = "%s // ROUTE %s" % [readiness_state, receipt_route if not receipt_route.is_empty() else "NOT PUBLISHED"]
 		next_action = (
@@ -142,7 +145,7 @@ func detach() -> Dictionary:
 func _receipt_cursor(snapshot: Dictionary) -> Dictionary:
 	var status_generation := int(snapshot.get("generation", snapshot.get("manifest_generation", -1)))
 	var manifest_generation := int(snapshot.get("manifest_generation", status_generation))
-	var receipt := snapshot.get("manifest_receipt", {}) as Dictionary
+	var receipt := snapshot.get("manifest_receipt", snapshot.get("receipt", {})) as Dictionary
 	var revision := int(snapshot.get("revision", snapshot.get("request_sequence", 0)))
 	if not receipt.is_empty():
 		var receipt_generation := int(receipt.get("manifest_generation", -1))
