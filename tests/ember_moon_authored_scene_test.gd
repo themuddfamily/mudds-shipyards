@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 63
+const EXPECTED_ASSERTIONS := 66
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -75,11 +75,11 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 70
+		audit.performance.node_count == 71
 			and audit.performance.mesh_instances == 19
-			and audit.performance.multi_mesh_instances == 5
-			and audit.performance.multi_mesh_copies == 21
-			and audit.performance.render_submissions == 24
+			and audit.performance.multi_mesh_instances == 6
+			and audit.performance.multi_mesh_copies == 31
+			and audit.performance.render_submissions == 25
 			and audit.performance.static_bodies == 7
 			and audit.performance.collision_shapes == 25
 			and audit.performance.triangle_count <= 8192,
@@ -159,6 +159,44 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 			and route_visual.position == Vector3(28.0, 0.01, 0.0)
 			and route_mesh.size == Vector3(28.0, 0.02, 4.0),
 		"the surface stripe touches the pad edge at x=14 and reaches staging at x=42 without a visual gap",
+	)
+	var route_spine := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/RouteSpineVisuals"
+	) as MultiMeshInstance3D
+	var spine_multi := route_spine.multimesh if route_spine != null else null
+	var spine_mesh := spine_multi.mesh as BoxMesh if spine_multi != null else null
+	var spine_transforms: Array = route_spine.get_meta("authored_transforms", []) as Array \
+		if route_spine != null else []
+	var spine_points_to_staging := spine_transforms.size() == 10
+	if spine_points_to_staging:
+		for index in 5:
+			var port_arm := spine_transforms[index * 2] as Transform3D
+			var starboard_arm := spine_transforms[index * 2 + 1] as Transform3D
+			spine_points_to_staging = spine_points_to_staging \
+				and port_arm.origin.x < 41.0 and starboard_arm.origin.x < 41.0 \
+				and port_arm.basis.z.normalized().x > 0.8 \
+				and starboard_arm.basis.z.normalized().x > 0.8 \
+				and port_arm.origin.z < 0.0 and starboard_arm.origin.z > 0.0
+	_check(
+		route_spine != null and route_spine.get_child_count() == 0 \
+			and spine_multi != null and spine_multi.instance_count == 10 \
+			and spine_multi.custom_aabb.is_equal_approx(AABB(
+				Vector3(16.7, 0.02, -1.5), Vector3(24.4, 0.025, 3.0)
+			)) \
+			and spine_mesh != null and spine_mesh.size == Vector3.ONE \
+			and spine_mesh.material \
+				== (scene.get_node(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual") as MeshInstance3D).material_override \
+			and StringName(route_spine.get_meta("route_id", &"")) \
+				== &"ember_caldera_pad_to_staging" \
+			and StringName(route_spine.get_meta("destination_marker_id", &"")) \
+				== &"caldera_staging_gate" \
+			and StringName(route_spine.get_meta("collision_role", &"")) \
+				== &"flush_supported_decal_geometry" \
+			and not route_spine.is_processing() and not route_spine.is_physics_processing() \
+			and spine_points_to_staging \
+			and int(snapshot.geometry.surface_route_spine_chevron_count) == 5 \
+			and float(snapshot.geometry.surface_route_spine_maximum_height_m) <= 0.05,
+		"five steady oxide chevrons form one low-cost, staging-directed survey spine over the weak egress segment",
 	)
 	var gantry := scene.get_node(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
 	var port_pylon := gantry.get_node_or_null(^"PortPylonVisual") as MeshInstance3D if gantry != null else null
@@ -482,6 +520,16 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 		corridor_clear = corridor_clear \
 			and not route_hit.is_empty() and route_hit.collider == body
 	_check(corridor_clear, "negative-space probes hit only the walkable patch through every landmark station")
+	var spine_supported_and_clear := true
+	for x in [18.0, 23.5, 29.0, 34.5, 40.0]:
+		for z in [-1.0, 0.0, 1.0]:
+			var spine_hit := _ray_hit(space, Vector3(x, 120_002.0, z))
+			spine_supported_and_clear = spine_supported_and_clear \
+				and not spine_hit.is_empty() and spine_hit.collider == body
+	_check(
+		spine_supported_and_clear,
+		"every survey-spine station is floor-supported and adds no collider across the four-metre route",
+	)
 	var collision_snapshot := scene.get_snapshot().collision as Dictionary
 	_check(
 		int(collision_snapshot.landmark_static_body_count) == 6
@@ -710,6 +758,14 @@ func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonA
 		(drifted.audit().error_codes as PackedStringArray).has("orbital_landing_datum_cue_drift"),
 		"orbital landing-datum transform drift produces a structured red code",
 	)
+	var drifted_spine := drifted.get_node(
+		^"LandingRegion/SurfaceLandmarks/RouteSpineVisuals"
+	) as MultiMeshInstance3D
+	drifted_spine.set_meta("destination_marker_id", &"caldera_pad")
+	_check(
+		(drifted.audit().error_codes as PackedStringArray).has("surface_route_spine_drift"),
+		"survey-spine identity drift produces a structured lifecycle red code",
+	)
 	drifted.queue_free()
 	await process_frame
 
@@ -729,6 +785,7 @@ func _forbidden_node_count(scene: Node) -> int:
 	var count := 0
 	for node in scene.find_children("*", "Node", true, false):
 		if node is Camera3D or node is WorldEnvironment or node is Light3D \
+				or node is Timer \
 				or node is Area3D or node is NavigationRegion3D \
 				or node is AudioStreamPlayer or node is AudioStreamPlayer3D \
 				or node is GPUParticles3D or node is CPUParticles3D \
