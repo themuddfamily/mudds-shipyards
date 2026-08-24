@@ -374,6 +374,22 @@ func _test_identity_placement_budget_and_authority(
 		^"VisualRouteCues/CargoAccessLabel"
 	) as Label3D
 	var identity_transforms := identity.get("authored_transforms", []) as Array
+	var identity_header := (
+		identity_label.text.get_slice("\n", 0) if identity_label != null else ""
+	)
+	var displayed_right := (
+		identity_label.global_transform.basis.x.normalized()
+		if identity_label != null else Vector3.ZERO
+	)
+	var displayed_left := -displayed_right
+	var delivery_direction := (
+		access.get_route_marker(&"destination_terminal_player_approach").global_position
+		- identity_label.global_position
+	).normalized() if identity_label != null else Vector3.ZERO
+	var pickup_direction := (
+		access.get_route_marker(&"berth_exit").global_position
+		- identity_label.global_position
+	).normalized() if identity_label != null else Vector3.ZERO
 	_check(
 		bool(identity.valid)
 		and bool(identity.supported)
@@ -383,9 +399,15 @@ func _test_identity_placement_budget_and_authority(
 		and int(identity.incremental_renderer_submissions) == 0
 		and int(identity.collision_nodes) == 0
 		and identity_label != null
-		and identity_label.text.begins_with(
-			"< JOVIAN PICKUP   |   CARGO DELIVERY >\n"
-		)
+		and identity_header.find("CARGO DELIVERY") >= 0
+		and identity_header.find("JOVIAN PICKUP") >= 0
+		and identity_header.find("|") >= 0
+		and identity_header.find("CARGO DELIVERY") < identity_header.find("|")
+		and identity_header.find("JOVIAN PICKUP") > identity_header.find("|")
+		and delivery_direction.dot(displayed_left) > 0.5
+		and delivery_direction.dot(displayed_right) < -0.5
+		and pickup_direction.dot(displayed_right) > 0.5
+		and pickup_direction.dot(displayed_left) < -0.5
 		and identity_label.text.contains("CINDER CARGO — ")
 		and identity_transforms.size() == 3
 		and ((identity_transforms[0] as Transform3D).basis.get_scale()
@@ -394,7 +416,7 @@ func _test_identity_placement_budget_and_authority(
 		and ((identity_transforms[2] as Transform3D).basis.get_scale()
 		* CinderCargoAccess.ROUTE_CUE_SIZE)
 		.is_equal_approx(Vector3(7.4, 1.12, 0.14)),
-		"rail-supported non-coplanar pickup-left/delivery-right fascia remains legible at route scale with no new submission or material"
+		"label-basis projection maps displayed-left delivery to the terminal and displayed-right pickup to the Jovian berth with no new submission or material"
 	)
 	var identity_buffer := route_cue_cyan.multimesh.buffer.duplicate()
 	var identity_buffer_red := identity_buffer.duplicate()
@@ -874,8 +896,22 @@ func _test_detach_reentry(
 		"stale streamed berth attachment generation cannot replace either live cargo handle"
 	)
 	_check(berth.release(ship, lease_token), "re-entered occupied Jovian lease releases through the canonical berth contract")
-	ship.queue_free()
-	await process_frame
+	var released_binding := binding.get_snapshot()
+	var released_presentation := access.get_cargo_presentation_state()
+	_check(
+		binding.get_cargo_source_handle().is_empty()
+		and (released_binding.cargo as Dictionary).is_empty()
+		and int(released_binding.cargo_binding.source_entity_instance_id) == 0
+		and (released_binding.cargo_binding.source_handle as Dictionary).is_empty()
+		and StringName(released_presentation.state_id) == &"unavailable"
+		and String(released_presentation.label_text).contains(
+			"CINDER CARGO — BERTH REQUIRED"
+		),
+		"ordinary null berth release synchronously clears source handle, activity, actor, and cargo status"
+	)
+	# Keep the released craft alive to prove replacement admission does not rely
+	# on queue_free or an external manifest-retirement request.
+	ship.global_position += Vector3(200.0, 0.0, 0.0)
 	var replacement := JOVIAN_SCENE.instantiate() as HeroShip
 	root.add_child(replacement)
 	await process_frame
@@ -910,10 +946,17 @@ func _test_detach_reentry(
 		and int(replacement_source_handle.entity_generation) \
 			> int(source_handle.entity_generation)
 		and int(binding.get_snapshot().cargo_binding.source_entity_instance_id) \
-			== replacement.get_instance_id()
-		and access.get_berth().release(replacement, token),
+			== replacement.get_instance_id(),
 		"off-centre replacement becomes the fresh live source generation and lands with no abort"
 	)
+	_check(
+		access.get_berth().release(replacement, token)
+		and binding.get_cargo_source_handle().is_empty()
+		and int(binding.get_snapshot().cargo_binding.source_entity_instance_id) == 0
+		and StringName(access.get_cargo_presentation_state().state_id) == &"unavailable",
+		"replacement release repeats the synchronous source and status clear"
+	)
+	ship.queue_free()
 	replacement.queue_free()
 	await process_frame
 

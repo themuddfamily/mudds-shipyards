@@ -316,7 +316,10 @@ func get_cargo_destination_handle() -> Dictionary:
 
 
 func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
-	if not is_instance_valid(occupant) or not _cargo_source_handle.is_empty():
+	if not is_instance_valid(occupant):
+		_release_cargo_source_binding()
+		return
+	if not _cargo_source_handle.is_empty():
 		return
 	if not occupant.has_method("get_ship_id") \
 		or StringName(occupant.call("get_ship_id")) != &"jovian_provisional":
@@ -343,16 +346,33 @@ func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
 	_publish_cargo_presentation()
 
 
-func _on_cargo_manifest_retired(handle: Dictionary) -> void:
-	if handle != _cargo_source_handle:
-		return
+## Ordinary berth release is a physical source-lifecycle boundary. Retire the
+## authority record through its existing public API, then synchronously clear
+## every binding-owned reference so a new landed Jovian can claim the stable
+## source IDs without waiting for the old craft to leave the tree.
+func _release_cargo_source_binding() -> void:
+	var released_handle := _cargo_source_handle.duplicate(true)
+	if not released_handle.is_empty() and is_instance_valid(_cargo_authority):
+		_cargo_authority.retire_entity(released_handle)
+	if _cargo_source_handle == released_handle:
+		_clear_cargo_source_binding()
+
+
+func _clear_cargo_source_binding() -> void:
 	_cargo_source_handle.clear()
 	_cargo_source_entity = null
+	_last_cargo_terminal_request.clear()
 	if _cargo_reward_handoff != null:
 		_cargo_reward_handoff.detach()
 		_cargo_reward_handoff = null
 	_cargo_activity = null
 	_publish_cargo_presentation()
+
+
+func _on_cargo_manifest_retired(handle: Dictionary) -> void:
+	if handle != _cargo_source_handle:
+		return
+	_clear_cargo_source_binding()
 
 
 func _on_cargo_terminal_interaction_requested(actor: Node, snapshot: Dictionary) -> void:
@@ -1835,6 +1855,8 @@ func _cargo_presentation_snapshot() -> Dictionary:
 			snapshot["delivery_persisted"] = true
 			snapshot["delivery_receipt"] = _restored_cargo_delivery.duplicate(true)
 			snapshot["receipt_replay_allowed"] = false
+	if snapshot.is_empty():
+		return {}
 	var handoff := get_cargo_reward_handoff_snapshot()
 	var result := handoff.get("last_result", {}) as Dictionary
 	snapshot["reward_pending"] = (
