@@ -20,6 +20,7 @@ signal camera_view_changed(view: StringName)
 signal damage_stage_changed(stage: int, status: StringName)
 signal component_damage_changed(component_id: StringName, state: int, integrity: float)
 signal component_repair_progressed(progress: Dictionary)
+signal component_repair_interrupted(receipt: Dictionary)
 signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
 signal planetary_cruise_state_changed(snapshot: Dictionary)
 
@@ -369,6 +370,12 @@ var _component_damage: ShipComponentDamage
 ## component mutation permitted while the whole-ship transaction is guarded.
 var _component_damage_owner_capability: RefCounted
 var _last_component_damage_revision := -1
+## Optional interruption observer only. RepairAuthority retains the reservation
+## and interruption decision; this binding neither admits repairs nor mutates
+## hull/component health. Multi-crew variants are also discovered through their
+## existing `_engineer_repair_authority` property so the shared Hero damage path
+## applies identically without duplicating hooks in every craft subclass.
+var _repair_damage_interrupt_authority: RefCounted
 ## Fleet variants replace the temporary common root collision only after the
 ## base `_ready()` returns. This one-shot gate lets that same initial ready pass
 ## bind the existing component model to the final live envelope without opening
@@ -2298,6 +2305,23 @@ func apply_damage(
 		return
 	if amount <= 0.0 or _hull <= 0.0 or _destroyed:
 		return
+	var repair_interrupt_authority := _resolve_repair_damage_interrupt_authority()
+	var component_revision_before := (
+		_component_damage.get_revision()
+		if _component_damage != null and _component_damage.is_configured()
+		else -1
+	)
+	var damage_revision_observed := false
+	if repair_interrupt_authority != null and component_revision_before >= 0:
+		var observed := repair_interrupt_authority.call(
+			&"observe_component_damage_revision",
+			{
+				"target_id": get_ship_id(),
+				"generation": _component_damage.get_ledger_generation(),
+				"revision": component_revision_before,
+			}
+		) as Dictionary
+		damage_revision_observed = bool(observed.get("accepted", false))
 	var has_hit_position := world_hit_position.is_finite()
 	var safe_normal := Vector3.ZERO
 	if world_hit_normal.is_finite() and world_hit_normal != Vector3.ZERO:
@@ -2314,6 +2338,15 @@ func apply_damage(
 		world_hit_position,
 		_collision_component_routing_active
 	)
+	if damage_revision_observed:
+		_interrupt_repair_from_component_damage(
+			repair_interrupt_authority,
+			component_revision_before,
+			component_damage_result,
+			RepairAuthority.DAMAGE_KIND_COLLISION
+			if _collision_component_routing_active
+			else RepairAuthority.DAMAGE_KIND_COMBAT
+		)
 	var component_fence := _get_component_presentation_fence()
 	var impact_world_position := _component_impact_world_position(
 		component_damage_result,
@@ -3917,6 +3950,100 @@ func _on_deferred_component_impact_committed(
 
 func get_component_damage() -> ShipComponentDamage:
 	return _component_damage
+
+
+## Explicit binding seam for repair-capable Hero compositions. It grants no
+## repair admission or component mutation; it only lets this craft present the
+## interruption receipt produced by the existing RepairAuthority. Current crew
+## craft remain compatible through the automatic property discovery below.
+func bind_repair_damage_interrupt_authority(authority: RefCounted) -> Dictionary:
+	if authority == null or not is_instance_valid(authority) \
+			or not authority.has_method(&"has_active_repair") \
+			or not authority.has_method(&"get_snapshot") \
+			or not authority.has_method(&"observe_component_damage_revision") \
+			or not authority.has_method(&"interrupt_for_authoritative_component_damage"):
+		return {"accepted": false, "reason": &"invalid_repair_authority"}
+	var snapshot := authority.call(&"get_snapshot") as Dictionary
+	if StringName(snapshot.get("target_id", &"")) != get_ship_id():
+		return {"accepted": false, "reason": &"target_mismatch"}
+	if _component_damage == null or not _component_damage.is_configured() \
+			or int(snapshot.get("generation", 0)) != _component_damage.get_ledger_generation():
+		return {"accepted": false, "reason": &"stale_generation"}
+	_repair_damage_interrupt_authority = authority
+	return {"accepted": true, "reason": &"repair_damage_interrupt_bound"}
+
+
+func _resolve_repair_damage_interrupt_authority() -> RefCounted:
+	if _repair_damage_interrupt_authority != null \
+			and is_instance_valid(_repair_damage_interrupt_authority) \
+			and bool(_repair_damage_interrupt_authority.call(&"has_active_repair")):
+		return _repair_damage_interrupt_authority
+	# Jovian, Halyard, and Bulwark already own this exact field and authority.
+	# Discovering it here keeps the accepted-damage hook on HeroShip, including
+	# future repair-capable variants, without changing role admission code.
+	var has_engineer_authority_property := false
+	for property: Dictionary in get_property_list():
+		if StringName(property.get("name", &"")) == &"_engineer_repair_authority":
+			has_engineer_authority_property = true
+			break
+	if not has_engineer_authority_property:
+		return null
+	var candidate: Variant = get(&"_engineer_repair_authority")
+	if not candidate is RefCounted or candidate == null \
+			or not is_instance_valid(candidate) \
+			or not candidate.has_method(&"has_active_repair") \
+			or not bool(candidate.call(&"has_active_repair")):
+		return null
+	var bound := bind_repair_damage_interrupt_authority(candidate as RefCounted)
+	return candidate as RefCounted if bool(bound.get("accepted", false)) else null
+
+
+func _interrupt_repair_from_component_damage(
+	authority: RefCounted,
+	previous_revision: int,
+	damage_result: Dictionary,
+	damage_kind: StringName
+	) -> void:
+	if authority == null or not is_instance_valid(authority):
+		return
+	var component_ids: Array = []
+	for component_id: Variant in (damage_result.get("components", {}) as Dictionary).keys():
+		component_ids.append(StringName(component_id))
+	component_ids.sort()
+	var receipt := authority.call(
+		&"interrupt_for_authoritative_component_damage",
+		{
+			"target_id": get_ship_id(),
+			"generation": _component_damage.get_ledger_generation(),
+			"previous_revision": previous_revision,
+			"revision": int(damage_result.get("revision", previous_revision)),
+			"accepted": bool(damage_result.get("accepted", false)),
+			"damage_kind": damage_kind,
+			"component_ids": component_ids,
+		}
+	) as Dictionary
+	if not bool(receipt.get("accepted", false)):
+		return
+	component_repair_interrupted.emit(receipt.duplicate(true))
+	_publish_engineer_repair_damage_interruption(receipt)
+
+
+## Existing crew craft already publish this state through their canonical
+## network snapshot. Updating it through their shared setter makes damage
+## interruption immediately visible without giving HeroShip repair authority.
+func _publish_engineer_repair_damage_interruption(receipt: Dictionary) -> void:
+	if not has_method(&"get_engineer_repair_state") \
+			or not has_method(&"_set_engineer_repair_state"):
+		return
+	var state := call(&"get_engineer_repair_state") as Dictionary
+	if StringName(state.get("status", &"")) != &"repairing" \
+			or int(state.get("token", -1)) != int(receipt.get("token", -2)):
+		return
+	state["status"] = &"interrupted"
+	state["reason"] = StringName(receipt.get("reason", &"authoritative_component_damage"))
+	state["active"] = false
+	state["receipt"] = receipt.duplicate(true)
+	call(&"_set_engineer_repair_state", state)
 
 
 ## Deep-copied audit of the craft's component integrity.

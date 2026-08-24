@@ -19,6 +19,8 @@ const MAX_REPAIR_AMOUNT := 1_000_000_000.0
 const MAX_RESOURCE_UNITS := 1_000_000
 const MAX_REQUEST_SEQUENCE := 9_007_199_254_740_991
 const ADMISSION_SERVICE_TERMINAL: StringName = &"service_terminal"
+const DAMAGE_KIND_COMBAT: StringName = &"combat"
+const DAMAGE_KIND_COLLISION: StringName = &"collision"
 
 signal repair_started(receipt: Dictionary)
 signal repair_committed(receipt: Dictionary)
@@ -41,6 +43,11 @@ var _service_terminal_id: StringName
 var _service_terminal_generation := 0
 var _service_actor_range_meters := 0.0
 var _last_service_request_sequence := 0
+## Revision fence injected by the owning HeroShip immediately before it routes
+## a combat/collision observation into ShipComponentDamage. RepairAuthority
+## never reads or mutates damage health; it only decides whether the resulting
+## accepted receipt is new enough to interrupt its currently reserved token.
+var _observed_component_damage_revision := -1
 
 
 func _init(
@@ -194,6 +201,7 @@ func request_repair(context: Dictionary) -> Dictionary:
 		"generation": _generation,
 		"repair": repair,
 	}
+	_observed_component_damage_revision = -1
 	var receipt := _result(true, &"requested")
 	receipt["token"] = token
 	receipt["component_id"] = component_id
@@ -292,6 +300,7 @@ func _request_service_terminal_repair(context: Dictionary) -> Dictionary:
 		"terminal_generation": _service_terminal_generation,
 		"request_sequence": _last_service_request_sequence,
 	}
+	_observed_component_damage_revision = -1
 	var receipt := _result(true, &"requested")
 	receipt["token"] = token
 	receipt["component_id"] = component_id
@@ -419,6 +428,97 @@ func interrupt(reason: StringName = &"interrupted") -> Dictionary:
 	return _emit_interruption(reason)
 
 
+## Captures the current component revision before HeroShip asks its existing
+## damage adapter to record an already-authorized hull loss. This is an
+## observation fence only: it grants no health/damage authority and deliberately
+## excludes the synchronous service-terminal admission path.
+func observe_component_damage_revision(context: Dictionary) -> Dictionary:
+	if _active.is_empty():
+		return _result(false, &"no_active_repair")
+	if StringName(_active.get("admission_kind", &"")) == ADMISSION_SERVICE_TERMINAL:
+		return _result(false, &"service_terminal_not_interruptible")
+	if not _has_exact_keys(context, ["target_id", "generation", "revision"]):
+		return _result(false, &"invalid_damage_observation")
+	if _canonical_id(_field(context, "target_id", &"")) != _target_id:
+		return _result(false, &"target_mismatch")
+	var raw_generation: Variant = _field(context, "generation", null)
+	if not raw_generation is int or int(raw_generation) != _generation:
+		return _result(false, &"stale_generation")
+	var raw_revision: Variant = _field(context, "revision", null)
+	if not raw_revision is int or int(raw_revision) < 0:
+		return _result(false, &"invalid_damage_revision")
+	var revision := int(raw_revision)
+	if _observed_component_damage_revision >= 0 \
+			and revision < _observed_component_damage_revision:
+		return _result(false, &"stale_damage_revision")
+	_observed_component_damage_revision = revision
+	var observed := _result(true, &"damage_revision_observed")
+	observed["revision"] = revision
+	return observed
+
+
+## Interrupts exactly one pending engineer repair only when the owning HeroShip
+## supplies the accepted component receipt immediately following the observed
+## revision above. Unrelated targets, generations, rejected component damage,
+## stale/replayed revisions, and non-combat semantics leave the token active.
+func interrupt_for_authoritative_component_damage(context: Dictionary) -> Dictionary:
+	if _active.is_empty():
+		return _result(false, &"no_active_repair")
+	if StringName(_active.get("admission_kind", &"")) == ADMISSION_SERVICE_TERMINAL:
+		return _result(false, &"service_terminal_not_interruptible")
+	var required_keys := [
+		"target_id", "generation", "previous_revision", "revision",
+		"accepted", "damage_kind", "component_ids",
+	]
+	if not _has_exact_keys(context, required_keys):
+		return _result(false, &"invalid_damage_observation")
+	if _canonical_id(_field(context, "target_id", &"")) != _target_id:
+		return _result(false, &"target_mismatch")
+	var raw_generation: Variant = _field(context, "generation", null)
+	if not raw_generation is int or int(raw_generation) != _generation:
+		return _result(false, &"stale_generation")
+	var raw_accepted: Variant = _field(context, "accepted", null)
+	if not raw_accepted is bool:
+		return _result(false, &"invalid_damage_acceptance")
+	if not bool(raw_accepted):
+		return _result(false, &"damage_rejected")
+	var damage_kind := _canonical_id(_field(context, "damage_kind", &""))
+	if damage_kind != DAMAGE_KIND_COMBAT and damage_kind != DAMAGE_KIND_COLLISION:
+		return _result(false, &"unsupported_damage_kind")
+	var raw_previous_revision: Variant = _field(context, "previous_revision", null)
+	var raw_revision: Variant = _field(context, "revision", null)
+	if not raw_previous_revision is int or not raw_revision is int:
+		return _result(false, &"invalid_damage_revision")
+	var previous_revision := int(raw_previous_revision)
+	var revision := int(raw_revision)
+	if _observed_component_damage_revision < 0:
+		return _result(false, &"damage_revision_unobserved")
+	if previous_revision != _observed_component_damage_revision \
+			or revision <= previous_revision:
+		return _result(false, &"stale_damage_revision")
+	# ShipComponentDamage advances its public adapter revision exactly once for
+	# one accepted homogeneous damage batch. A skipped value is not the receipt
+	# paired with the observation above and therefore fails closed.
+	if revision != previous_revision + 1:
+		return _result(false, &"unpaired_damage_revision")
+	var raw_component_ids: Variant = _field(context, "component_ids", null)
+	if not raw_component_ids is Array or raw_component_ids.is_empty() \
+			or raw_component_ids.size() > 64:
+		return _result(false, &"invalid_damage_components")
+	var component_ids: Array[StringName] = []
+	for raw_component_id: Variant in raw_component_ids:
+		var component_id := _canonical_id(raw_component_id)
+		if not _is_stable_id(component_id) or component_ids.has(component_id):
+			return _result(false, &"invalid_damage_components")
+		component_ids.append(component_id)
+	_observed_component_damage_revision = revision
+	return _emit_interruption(&"authoritative_component_damage", {
+		"damage_kind": damage_kind,
+		"damage_revision": revision,
+		"component_ids": component_ids.duplicate(),
+	})
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -432,6 +532,7 @@ func get_snapshot() -> Dictionary:
 		"generation": _generation,
 		"cooldown_remaining": _cooldown_remaining,
 		"active": not _active.is_empty(),
+		"observed_component_damage_revision": _observed_component_damage_revision,
 		"service_terminal": {
 			"configured": not _service_terminal_id.is_empty(),
 			"terminal_id": _service_terminal_id,
@@ -452,7 +553,7 @@ func audit() -> Dictionary:
 	return {"valid": is_configuration_valid(), "contract": get_snapshot()}.duplicate(true)
 
 
-func _emit_interruption(reason: StringName) -> Dictionary:
+func _emit_interruption(reason: StringName, semantics: Dictionary = {}) -> Dictionary:
 	var receipt := _result(true, reason)
 	receipt["token"] = int(_active.get("token", -1))
 	receipt["component_id"] = StringName(_active.get("component_id", &""))
@@ -461,6 +562,8 @@ func _emit_interruption(reason: StringName) -> Dictionary:
 		receipt["terminal_id"] = StringName(_active.get("terminal_id", &""))
 		receipt["terminal_generation"] = int(_active.get("terminal_generation", 0))
 		receipt["request_sequence"] = int(_active.get("request_sequence", 0))
+	for key: Variant in semantics:
+		receipt[key] = semantics[key]
 	_active.clear()
 	repair_interrupted.emit(receipt.duplicate(true))
 	return receipt

@@ -106,6 +106,67 @@ func _run() -> void:
 		"interruption clears the token without consuming resource or allowing replay"
 	)
 
+	# Only a new accepted component receipt for this authority's exact craft and
+	# generation may interrupt. Rejected, unrelated, and replayed observations
+	# leave the pending token available, and interruption charges no resource.
+	var damage_authority = Authority.new(
+		&"pilot_one", &"torrent_hull", &"repair_kit", 4.0, 0.0, 20.0, 2
+	)
+	damage_authority.begin_generation(1)
+	var damage_request := damage_authority.request_repair(base)
+	_check(
+		bool(damage_request.accepted)
+			and bool(damage_authority.observe_component_damage_revision({
+				"target_id": &"torrent_hull", "generation": 1, "revision": 5,
+			}).accepted),
+		"an active engineer repair observes its owning component revision without gaining damage authority"
+	)
+	var unrelated := _damage_interruption_context(5, 6, true)
+	unrelated.target_id = &"other_hull"
+	_check(
+		damage_authority.interrupt_for_authoritative_component_damage(unrelated).reason == &"target_mismatch"
+			and damage_authority.has_active_repair(),
+		"accepted damage for another craft cannot interrupt this repair"
+	)
+	var rejected := _damage_interruption_context(5, 5, false)
+	_check(
+		damage_authority.interrupt_for_authoritative_component_damage(rejected).reason == &"damage_rejected"
+			and damage_authority.has_active_repair(),
+		"rejected component damage leaves the repair token active"
+	)
+	var stale := _damage_interruption_context(4, 5, true)
+	_check(
+		damage_authority.interrupt_for_authoritative_component_damage(stale).reason == &"stale_damage_revision"
+			and damage_authority.has_active_repair(),
+		"a stale accepted receipt cannot interrupt the repair"
+	)
+	var interrupted := damage_authority.interrupt_for_authoritative_component_damage(
+		_damage_interruption_context(5, 6, true)
+	)
+	_check(
+		bool(interrupted.accepted)
+			and interrupted.reason == &"authoritative_component_damage"
+			and interrupted.damage_kind == &"combat"
+			and interrupted.component_ids == [&"hull"]
+			and not damage_authority.has_active_repair()
+			and damage_authority.get_resource_units() == 2,
+		"new authoritative combat component damage interrupts with detached semantic evidence and no repair charge"
+	)
+	var restarted := damage_authority.request_repair(base)
+	_check(
+		bool(restarted.accepted) and int(restarted.token) > int(damage_request.token),
+		"the interrupted authority accepts a fresh repair token immediately afterward"
+	)
+	damage_authority.observe_component_damage_revision({
+		"target_id": &"torrent_hull", "generation": 1, "revision": 6,
+	})
+	var collision_context := _damage_interruption_context(6, 7, true)
+	collision_context.damage_kind = Authority.DAMAGE_KIND_COLLISION
+	_check(
+		bool(damage_authority.interrupt_for_authoritative_component_damage(collision_context).accepted),
+		"the same generation fence accepts authoritative collision component damage"
+	)
+
 	# Model generation changes invalidate a reserved action before commit.
 	var stale_authority = Authority.new(&"pilot_one", &"torrent_hull", &"repair_kit", 4.0, 1.0, 20.0, 1)
 	stale_authority.begin_generation(1)
@@ -152,6 +213,22 @@ func _request() -> Dictionary:
 		"seated": true,
 		"resource_id": &"repair_kit",
 		"interrupted": false,
+	}
+
+
+func _damage_interruption_context(
+	previous_revision: int,
+	revision: int,
+	accepted: bool
+) -> Dictionary:
+	return {
+		"target_id": &"torrent_hull",
+		"generation": 1,
+		"previous_revision": previous_revision,
+		"revision": revision,
+		"accepted": accepted,
+		"damage_kind": Authority.DAMAGE_KIND_COMBAT,
+		"component_ids": [&"hull"] if accepted else [],
 	}
 
 
