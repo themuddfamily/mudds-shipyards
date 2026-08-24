@@ -19,6 +19,7 @@ const MIN_KEEP_CLEAR_GAP := 4.0
 const HOSTILE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
 const LATER_WAVE_TACTIC_ID: StringName = &"dockside_crossfire_pincer"
 const REVENGE_DIVE_TACTIC_ID: StringName = &"wingmate_revenge_dive"
+const HIT_AND_FADE_TACTIC_ID: StringName = &"perimeter_hit_and_fade"
 const LATER_WAVE_ID: StringName = &"dockside_relief"
 const BREAKER_FEINT_TACTIC_ID: StringName = &"core_breaker_outer_feint"
 const PINCER_CLOSE_HOSTILE_ID: StringName = &"perimeter_raider_beta"
@@ -43,6 +44,22 @@ const REVENGE_DIVE_TELEGRAPH_POSITIONS := [
 	Vector3(0.82, 0.58, -4.88),
 ]
 const REVENGE_DIVE_TELEGRAPH_RADIUS := 0.22
+const HIT_AND_FADE_DURATION_SECONDS := 1.5
+const HIT_AND_FADE_PREFERRED_RANGE := 92.0
+const HIT_AND_FADE_CRUISE_SPEED := 28.0
+const HIT_AND_FADE_CHASE_SPEED := 36.0
+const HIT_AND_FADE_FIRE_PATTERN: StringName = RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+const HIT_AND_FADE_CLOSE_MANEUVER: StringName = RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
+const HIT_AND_FADE_OUTER_MANEUVER: StringName = RangeOpponent.EVASIVE_MANEUVER_NONE
+const HIT_AND_FADE_CLOSE_TELEGRAPH_POSITIONS := [
+	Vector3(-0.98, 0.82, -4.90),
+	Vector3(-0.34, 0.30, -5.08),
+]
+const HIT_AND_FADE_OUTER_TELEGRAPH_POSITIONS := [
+	Vector3(0.34, 0.30, -5.08),
+	Vector3(0.98, 0.82, -4.90),
+]
+const HIT_AND_FADE_TELEGRAPH_RADIUS := 0.18
 const PINCER_CLOSE_TELEGRAPH_POSITIONS := [
 	Vector3(-0.62, 0.58, -4.98),
 	Vector3(0.62, 0.58, -4.98),
@@ -141,6 +158,11 @@ var _nominal_tactic_configuration_by_key: Dictionary = {}
 var _breaker_feint_state: StringName = &"idle"
 var _breaker_feint_generation := 0
 var _breaker_feint_elapsed_seconds := 0.0
+var _hit_and_fade_state: StringName = &"idle"
+var _hit_and_fade_generation := 0
+var _hit_and_fade_elapsed_seconds := 0.0
+var _hit_and_fade_consumed := false
+var _hit_and_fade_trigger_event_id: StringName = &""
 var _network_presentation_only := false
 
 
@@ -420,12 +442,23 @@ func advance_physics(delta: float, expected_generation: int) -> Dictionary:
 	var breaker_advanceable := _breaker_feint_phase_is_advanceable(
 		activity_before, expected_generation
 	)
+	var hit_and_fade_advanceable := _hit_and_fade_phase_is_advanceable(
+		activity_before, expected_generation
+	)
 	var result := _host.advance_physics(delta, expected_generation)
-	if bool(result.get("accepted", false)) and breaker_advanceable:
-		_breaker_feint_elapsed_seconds = minf(
-			_get_breaker_feint_duration_seconds(),
-			_breaker_feint_elapsed_seconds + delta
-		)
+	if bool(result.get("accepted", false)) and (
+		breaker_advanceable or hit_and_fade_advanceable
+	):
+		if breaker_advanceable:
+			_breaker_feint_elapsed_seconds = minf(
+				_get_breaker_feint_duration_seconds(),
+				_breaker_feint_elapsed_seconds + delta
+			)
+		if hit_and_fade_advanceable:
+			_hit_and_fade_elapsed_seconds = minf(
+				HIT_AND_FADE_DURATION_SECONDS,
+				_hit_and_fade_elapsed_seconds + delta
+			)
 		_sync_later_wave_tactic(
 			_host.get_snapshot().get("activity", {}) as Dictionary
 		)
@@ -440,7 +473,15 @@ func protected_asset_damaged(
 	) -> Dictionary:
 	if not _initialized:
 		return _content_result(false, &"content_not_ready")
-	return _host.protected_asset_damaged(asset_handle, event_handle, expected_generation)
+	var result := _host.protected_asset_damaged(
+		asset_handle, event_handle, expected_generation
+	)
+	if bool(result.get("accepted", false)):
+		_try_start_hit_and_fade(
+			_host.get_snapshot().get("activity", {}) as Dictionary,
+			event_handle
+		)
+	return result
 
 
 func protected_asset_destroyed(
@@ -598,6 +639,7 @@ func get_snapshot() -> Dictionary:
 	var activity := (host_snapshot.get("activity", {}) as Dictionary).duplicate(true)
 	var tactic_feedback := _get_later_wave_tactic_feedback(activity)
 	var breaker_feint_feedback := _get_breaker_feint_feedback(activity)
+	var hit_and_fade_feedback := _get_hit_and_fade_feedback(activity)
 	var heavy_picket_feedback := _get_heavy_picket_feedback(activity)
 	var integrity_feedback := _get_protected_asset_integrity_feedback(activity)
 	var objective := str(tactic_feedback.get("objective", "DEFEND PERIMETER BEACON"))
@@ -605,6 +647,8 @@ func get_snapshot() -> Dictionary:
 		&"inbound", &"active",
 	]:
 		objective = str(breaker_feint_feedback.get("objective", objective))
+	if StringName(hit_and_fade_feedback.get("state_id", &"idle")) == &"active":
+		objective = str(hit_and_fade_feedback.get("objective", objective))
 	if StringName(heavy_picket_feedback.get("state_id", &"idle")) in [
 		&"inbound", &"active",
 	]:
@@ -626,6 +670,10 @@ func get_snapshot() -> Dictionary:
 	activity["tactic_state_id"] = tactic_feedback.get("state_id", &"idle")
 	activity["opening_tactic_id"] = BREAKER_FEINT_TACTIC_ID
 	activity["opening_tactic_state_id"] = breaker_feint_feedback.get(
+		"state_id", &"idle"
+	)
+	activity["response_tactic_id"] = HIT_AND_FADE_TACTIC_ID
+	activity["response_tactic_state_id"] = hit_and_fade_feedback.get(
 		"state_id", &"idle"
 	)
 	activity["reinforcement_tactic_id"] = HEAVY_PICKET_TACTIC_ID
@@ -683,6 +731,7 @@ func get_snapshot() -> Dictionary:
 		"last_leash_exit": _last_leash_exit.duplicate(true),
 		"later_wave_tactic": tactic_feedback,
 		"breaker_feint": breaker_feint_feedback,
+		"hit_and_fade": hit_and_fade_feedback,
 		"heavy_picket_reinforcement": heavy_picket_feedback,
 		"protected_asset_integrity": integrity_feedback,
 		"engagement": {
@@ -1072,23 +1121,30 @@ func _sync_later_wave_tactic(activity: Dictionary) -> void:
 	if state_id == &"idle":
 		_restore_later_wave_tactic_configuration()
 		_reset_breaker_feint_phase(&"idle", 0)
+		_reset_hit_and_fade_phase(&"idle", 0)
 		_later_wave_tactic_state = &"idle"
 		_later_wave_tactic_generation = 0
 		return
 	if state_id in [&"completed", &"failed", &"aborted", &"timed_out"]:
 		_restore_later_wave_tactic_configuration()
 		_reset_breaker_feint_phase(state_id, generation)
+		_reset_hit_and_fade_phase(state_id, generation)
 		_later_wave_tactic_state = state_id
 		return
 	if state_id != &"active" or wave_id != LATER_WAVE_ID:
 		_restore_later_wave_tactic_configuration()
 		_reset_breaker_feint_phase(&"standby", generation)
+		_reset_hit_and_fade_phase(&"standby", generation)
 		_later_wave_tactic_state = &"standby"
 		return
 
 	_later_wave_tactic_generation = generation
 	if _breaker_feint_generation != generation:
 		_reset_breaker_feint_phase(&"inbound", generation)
+	if _hit_and_fade_generation != generation:
+		_reset_hit_and_fade_phase(&"armed", generation)
+	elif _hit_and_fade_state == &"standby":
+		_hit_and_fade_state = &"armed"
 	if not wave_active:
 		_restore_later_wave_tactic_configuration()
 		_breaker_feint_state = &"inbound"
@@ -1098,6 +1154,12 @@ func _sync_later_wave_tactic(activity: Dictionary) -> void:
 	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
 		active_ids.append(StringName(handle.get("hostile_id", &"")))
 	if PINCER_CLOSE_HOSTILE_ID in active_ids and PINCER_OUTER_HOSTILE_ID in active_ids:
+		if _hit_and_fade_state == &"active":
+			if _hit_and_fade_elapsed_seconds < HIT_AND_FADE_DURATION_SECONDS:
+				_apply_hit_and_fade_configuration()
+				_later_wave_tactic_state = &"hit_and_fade"
+				return
+			_hit_and_fade_state = &"reformed"
 		if _breaker_feint_elapsed_seconds < _get_breaker_feint_duration_seconds():
 			_apply_breaker_feint_configuration()
 			_breaker_feint_state = &"active"
@@ -1110,11 +1172,15 @@ func _sync_later_wave_tactic(activity: Dictionary) -> void:
 	if active_ids.size() == 1 and active_ids[0] in [
 		PINCER_CLOSE_HOSTILE_ID, PINCER_OUTER_HOSTILE_ID,
 	]:
+		if _hit_and_fade_state == &"active":
+			_hit_and_fade_state = &"interrupted"
 		_apply_revenge_dive_configuration(active_ids[0])
 		_breaker_feint_state = &"interrupted"
 		_later_wave_tactic_state = &"revenge_dive"
 		return
 	_restore_later_wave_tactic_configuration()
+	if _hit_and_fade_state == &"active":
+		_hit_and_fade_state = &"interrupted"
 	_breaker_feint_state = &"interrupted"
 	_later_wave_tactic_state = &"broken"
 
@@ -1211,6 +1277,85 @@ func _apply_revenge_dive_configuration(survivor_id: StringName) -> void:
 		_restore_later_wave_tactic_configuration()
 
 
+## Once per activity generation, a scored beacon hit lets the two relief raiders
+## peel away from the core on their existing movement/evasion seam. The host's
+## accepted asset event is only the trigger: opponent physics and the injected
+## LiveCombatAuthority continue to own all motion, shots, damage, and outcomes.
+func _try_start_hit_and_fade(activity: Dictionary, event_handle: Dictionary) -> void:
+	var generation := int(activity.get("generation", -1))
+	if (
+		StringName(activity.get("state_id", &"")) != &"active"
+		or generation != _hit_and_fade_generation
+		or StringName(activity.get("wave_id", &"")) != LATER_WAVE_ID
+		or not bool(activity.get("wave_active", false))
+		or _hit_and_fade_consumed
+		or _hit_and_fade_state not in [&"armed", &"reformed"]
+		or _later_wave_tactic_state != &"active"
+	):
+		return
+	var active_ids: Array[StringName] = []
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		active_ids.append(StringName(handle.get("hostile_id", &"")))
+	if (
+		PINCER_CLOSE_HOSTILE_ID not in active_ids
+		or PINCER_OUTER_HOSTILE_ID not in active_ids
+	):
+		return
+	_hit_and_fade_state = &"active"
+	_hit_and_fade_elapsed_seconds = 0.0
+	_hit_and_fade_consumed = true
+	_hit_and_fade_trigger_event_id = StringName(event_handle.get("event_id", &""))
+	_sync_later_wave_tactic(activity)
+	if _content_mutation_active:
+		_publish_pending = true
+	else:
+		_publish_snapshot()
+
+
+func _apply_hit_and_fade_configuration() -> void:
+	var close_entity := _get_tactic_entity(PINCER_CLOSE_HOSTILE_ID)
+	var outer_entity := _get_tactic_entity(PINCER_OUTER_HOSTILE_ID)
+	if not is_instance_valid(close_entity) or not is_instance_valid(outer_entity):
+		_restore_later_wave_tactic_configuration()
+		_hit_and_fade_state = &"interrupted"
+		return
+	if _later_wave_tactic_applied and _later_wave_tactic_mode == &"hit_and_fade":
+		return
+	_restore_later_wave_tactic_configuration()
+	_later_wave_tactic_applied = true
+	_later_wave_tactic_mode = &"hit_and_fade"
+	for entity in [close_entity, outer_entity]:
+		entity.preferred_range = HIT_AND_FADE_PREFERRED_RANGE
+		entity.cruise_speed = HIT_AND_FADE_CRUISE_SPEED
+		entity.chase_speed = HIT_AND_FADE_CHASE_SPEED
+	var close_pattern := close_entity.configure_firing_pattern(HIT_AND_FADE_FIRE_PATTERN)
+	var outer_pattern := outer_entity.configure_firing_pattern(HIT_AND_FADE_FIRE_PATTERN)
+	var close_maneuver := close_entity.configure_evasive_maneuver(
+		HIT_AND_FADE_CLOSE_MANEUVER
+	)
+	var outer_maneuver := outer_entity.configure_evasive_maneuver(
+		HIT_AND_FADE_OUTER_MANEUVER
+	)
+	if (
+		not bool(close_pattern.get("accepted", false))
+		or not bool(outer_pattern.get("accepted", false))
+		or not bool(close_maneuver.get("accepted", false))
+		or not bool(outer_maneuver.get("accepted", false))
+		or not _apply_tactic_telegraph_identity(
+			close_entity,
+			HIT_AND_FADE_CLOSE_TELEGRAPH_POSITIONS,
+			HIT_AND_FADE_TELEGRAPH_RADIUS
+		)
+		or not _apply_tactic_telegraph_identity(
+			outer_entity,
+			HIT_AND_FADE_OUTER_TELEGRAPH_POSITIONS,
+			HIT_AND_FADE_TELEGRAPH_RADIUS
+		)
+	):
+		_restore_later_wave_tactic_configuration()
+		_hit_and_fade_state = &"interrupted"
+
+
 func _restore_later_wave_tactic_configuration() -> void:
 	if not _later_wave_tactic_applied:
 		return
@@ -1254,6 +1399,14 @@ func _reset_breaker_feint_phase(state_id: StringName, generation: int) -> void:
 	_breaker_feint_elapsed_seconds = 0.0
 
 
+func _reset_hit_and_fade_phase(state_id: StringName, generation: int) -> void:
+	_hit_and_fade_state = state_id
+	_hit_and_fade_generation = generation
+	_hit_and_fade_elapsed_seconds = 0.0
+	_hit_and_fade_consumed = false
+	_hit_and_fade_trigger_event_id = &""
+
+
 func _get_breaker_feint_duration_seconds() -> float:
 	if contract_definition == null:
 		return 1.25
@@ -1275,6 +1428,29 @@ func _breaker_feint_phase_is_advanceable(
 		or not bool(activity.get("wave_active", false))
 		or _breaker_feint_generation != expected_generation
 		or _breaker_feint_elapsed_seconds >= _get_breaker_feint_duration_seconds()
+	):
+		return false
+	var active_ids: Array[StringName] = []
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		active_ids.append(StringName(handle.get("hostile_id", &"")))
+	return (
+		PINCER_CLOSE_HOSTILE_ID in active_ids
+		and PINCER_OUTER_HOSTILE_ID in active_ids
+	)
+
+
+func _hit_and_fade_phase_is_advanceable(
+	activity: Dictionary,
+	expected_generation: int
+	) -> bool:
+	if (
+		StringName(activity.get("state_id", &"")) != &"active"
+		or int(activity.get("generation", -1)) != expected_generation
+		or StringName(activity.get("wave_id", &"")) != LATER_WAVE_ID
+		or not bool(activity.get("wave_active", false))
+		or _hit_and_fade_state != &"active"
+		or _hit_and_fade_generation != expected_generation
+		or _hit_and_fade_elapsed_seconds >= HIT_AND_FADE_DURATION_SECONDS
 	):
 		return false
 	var active_ids: Array[StringName] = []
@@ -1439,6 +1615,86 @@ func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
 	}.duplicate(true)
 
 
+func _get_hit_and_fade_feedback(_activity: Dictionary) -> Dictionary:
+	var remaining := maxf(
+		0.0, HIT_AND_FADE_DURATION_SECONDS - _hit_and_fade_elapsed_seconds
+	)
+	var objective := "CLEAR APPROACH RAIDER // DEFEND PERIMETER BEACON"
+	var status := "HIT-AND-FADE // STANDBY"
+	match _hit_and_fade_state:
+		&"idle":
+			objective = "START PERIMETER DEFENSE"
+			status = "HIT-AND-FADE // IDLE"
+		&"armed":
+			objective = "BREAK CROSSFIRE PINCER // PROTECT BEACON"
+			status = "RAIDER BREAKAWAY // ARMED"
+		&"active":
+			objective = "PRESS THE PEEL // RAIDERS BREAKING OUTWARD"
+			status = "BEACON HIT // SPLIT WITHDRAWAL // %.1f S" % remaining
+		&"reformed":
+			objective = "RAIDERS REFORMED // BREAK CROSSFIRE PINCER"
+			status = "HIT-AND-FADE // RECOVERED"
+		&"interrupted":
+			objective = "BREAKAWAY INTERRUPTED // FINISH RELIEF WAVE"
+			status = "HIT-AND-FADE // BROKEN"
+		&"completed":
+			objective = "PERIMETER SECURE // RECOVER AT DEFENSE BOARD"
+			status = "HIT-AND-FADE // DEFEATED"
+		&"failed", &"aborted", &"timed_out":
+			objective = "DEFENSE ENDED // RECOVER AT DEFENSE BOARD"
+			status = "HIT-AND-FADE // RETIRED"
+	return {
+		"tactic_id": HIT_AND_FADE_TACTIC_ID,
+		"wave_id": LATER_WAVE_ID,
+		"state_id": _hit_and_fade_state,
+		"generation": _hit_and_fade_generation,
+		"active": _hit_and_fade_state == &"active",
+		"consumed": _hit_and_fade_consumed,
+		"elapsed_seconds": _hit_and_fade_elapsed_seconds,
+		"duration_seconds": HIT_AND_FADE_DURATION_SECONDS,
+		"remaining_seconds": remaining,
+		"trigger": &"accepted_protected_asset_hit",
+		"trigger_event_id": _hit_and_fade_trigger_event_id,
+		"status": status,
+		"objective": objective,
+		"counterplay": &"press_outward_peel_before_pincer_reforms",
+		"intent_cue": {
+			"cue_id": &"station_defense_hit_and_fade_intent",
+			"presentation_seam": &"activity_objective_text",
+			"behavior": &"steady_non_flashing",
+			"active": _hit_and_fade_state == &"active",
+			"text": "HIT CONFIRMED // RAIDERS PEELING OUTWARD",
+		},
+		"roles": [
+			{
+				"hostile_id": PINCER_CLOSE_HOSTILE_ID,
+				"role": &"port_breakaway",
+				"preferred_range": HIT_AND_FADE_PREFERRED_RANGE,
+				"orbit_sign": PINCER_CLOSE_ORBIT_SIGN,
+				"firing_pattern_id": HIT_AND_FADE_FIRE_PATTERN,
+				"evasive_maneuver_id": HIT_AND_FADE_CLOSE_MANEUVER,
+				"telegraph_identity_pattern": "\\  ",
+			},
+			{
+				"hostile_id": PINCER_OUTER_HOSTILE_ID,
+				"role": &"starboard_breakaway",
+				"preferred_range": HIT_AND_FADE_PREFERRED_RANGE,
+				"orbit_sign": PINCER_OUTER_ORBIT_SIGN,
+				"firing_pattern_id": HIT_AND_FADE_FIRE_PATTERN,
+				"evasive_maneuver_id": HIT_AND_FADE_OUTER_MANEUVER,
+				"telegraph_identity_pattern": "  /",
+			},
+		],
+		"single_use_per_generation": true,
+		"ends_on_duration_hostile_loss_asset_loss_or_terminal": true,
+		"uses_caller_physics_delta": true,
+		"movement_authority": false,
+		"combat_authority": false,
+		"damage_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
 func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 	var state := _later_wave_tactic_state
 	var active_ids: Array[StringName] = []
@@ -1464,6 +1720,9 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 		&"active":
 			objective = "BREAK CROSSFIRE PINCER // PROTECT BEACON"
 			status = "BETA CLOSE // GAMMA OUTER"
+		&"hit_and_fade":
+			objective = "PRESS THE PEEL // RAIDERS BREAKING OUTWARD"
+			status = "BEACON HIT // SPLIT WITHDRAWAL"
 		&"revenge_dive":
 			objective = "SURVIVOR DIVING CORE // BREAK ITS BURST"
 			status = "%s REVENGE DIVE // ZERO ORBIT" % str(revenge_dive_survivor_id).to_upper()
@@ -1481,7 +1740,7 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 		"wave_id": LATER_WAVE_ID,
 		"state_id": state,
 		"generation": _later_wave_tactic_generation,
-		"active": state in [&"active", &"revenge_dive"],
+		"active": state in [&"active", &"hit_and_fade", &"revenge_dive"],
 		"applied": _later_wave_tactic_applied,
 		"status": status,
 		"objective": objective,
@@ -1959,7 +2218,14 @@ func _on_protected_asset_damaged(
 	if _content_mutation_active or not _initialized:
 		return
 	_content_mutation_active = true
-	_host.protected_asset_damaged(asset_handle, event_handle, get_generation())
+	var result := _host.protected_asset_damaged(
+		asset_handle, event_handle, get_generation()
+	)
+	if bool(result.get("accepted", false)):
+		_try_start_hit_and_fade(
+			_host.get_snapshot().get("activity", {}) as Dictionary,
+			event_handle
+		)
 	_apply_protected_asset_presentation()
 	_content_mutation_active = false
 	_flush_publish()

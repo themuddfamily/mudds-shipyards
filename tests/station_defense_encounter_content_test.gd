@@ -1097,6 +1097,178 @@ func _test_checked_in_encounter_content() -> void:
 		content.get_snapshot().host.activity.accepted_asset_event_count
 	)
 	var beta_hostile_shot := await _emit_hostile_projectile(beta, asset, content)
+	var hit_and_fade := content.get_snapshot().hit_and_fade as Dictionary
+	var hit_and_fade_roles := hit_and_fade.roles as Array
+	var hit_and_fade_cue := hit_and_fade.intent_cue as Dictionary
+	var beta_fade_pattern := beta.get_firing_pattern_snapshot()
+	var gamma_fade_pattern := gamma.get_firing_pattern_snapshot()
+	var beta_fade_maneuver := beta.get_evasive_maneuver_snapshot()
+	var gamma_fade_maneuver := gamma.get_evasive_maneuver_snapshot()
+	_check(
+		beta_hostile_shot.damaged
+		and hit_and_fade.tactic_id \
+			== StationDefenseEncounterContent.HIT_AND_FADE_TACTIC_ID
+		and hit_and_fade.state_id == &"active"
+		and bool(hit_and_fade.active) and bool(hit_and_fade.consumed)
+		and is_zero_approx(float(hit_and_fade.elapsed_seconds))
+		and is_equal_approx(
+			float(hit_and_fade.duration_seconds),
+			StationDefenseEncounterContent.HIT_AND_FADE_DURATION_SECONDS
+		)
+		and hit_and_fade.trigger == &"accepted_protected_asset_hit"
+		and hit_and_fade.counterplay \
+			== &"press_outward_peel_before_pincer_reforms"
+		and bool(hit_and_fade.single_use_per_generation)
+		and bool(hit_and_fade.ends_on_duration_hostile_loss_asset_loss_or_terminal)
+		and bool(hit_and_fade_cue.active)
+		and hit_and_fade_cue.presentation_seam == &"activity_objective_text"
+		and hit_and_fade_cue.behavior == &"steady_non_flashing"
+		and str(content.get_snapshot().host.activity.next_step).contains(
+			"PRESS THE PEEL // RAIDERS BREAKING OUTWARD"
+		)
+		and (hit_and_fade_roles[0] as Dictionary).role == &"port_breakaway"
+		and (hit_and_fade_roles[1] as Dictionary).role == &"starboard_breakaway"
+		and is_equal_approx(
+			beta.preferred_range,
+			StationDefenseEncounterContent.HIT_AND_FADE_PREFERRED_RANGE
+		)
+		and is_equal_approx(
+			gamma.preferred_range,
+			StationDefenseEncounterContent.HIT_AND_FADE_PREFERRED_RANGE
+		)
+		and is_equal_approx(
+			beta.chase_speed,
+			StationDefenseEncounterContent.HIT_AND_FADE_CHASE_SPEED
+		)
+		and is_equal_approx(
+			gamma.chase_speed,
+			StationDefenseEncounterContent.HIT_AND_FADE_CHASE_SPEED
+		)
+		and beta_fade_pattern.pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and gamma_fade_pattern.pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and beta_fade_maneuver.maneuver_id \
+			== RangeOpponent.EVASIVE_MANEUVER_LATERAL_BREAK
+		and gamma_fade_maneuver.maneuver_id \
+			== RangeOpponent.EVASIVE_MANEUVER_NONE
+		and beta_fade_maneuver.state_id == &"active"
+		and gamma_fade_maneuver.state_id == &"cancelled"
+		and _telegraph_positions_match(
+			beta_role_lamps,
+			StationDefenseEncounterContent.HIT_AND_FADE_CLOSE_TELEGRAPH_POSITIONS
+		)
+		and _telegraph_positions_match(
+			gamma_role_lamps,
+			StationDefenseEncounterContent.HIT_AND_FADE_OUTER_TELEGRAPH_POSITIONS
+		)
+		and is_equal_approx(
+			_telegraph_radius(beta_role_lamps),
+			StationDefenseEncounterContent.HIT_AND_FADE_TELEGRAPH_RADIUS
+		)
+		and is_equal_approx(
+			_telegraph_radius(gamma_role_lamps),
+			StationDefenseEncounterContent.HIT_AND_FADE_TELEGRAPH_RADIUS
+		),
+		"a scored beacon hit makes both pincer raiders visibly peel outward under a steady press-the-peel intent cue"
+	)
+	var fade_content_id := content.get_instance_id()
+	var fade_generation := int(content.get_snapshot().host.activity.generation)
+	root.remove_child(content)
+	await process_frame
+	var detached_beta_fade_pattern := beta.get_firing_pattern_snapshot()
+	var detached_gamma_fade_pattern := gamma.get_firing_pattern_snapshot()
+	_check(
+		detached_beta_fade_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and detached_gamma_fade_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and _telegraph_positions_match(beta_role_lamps, beta_nominal_lamp_positions)
+		and _telegraph_positions_match(gamma_role_lamps, gamma_nominal_lamp_positions),
+		"detaching active hit-and-fade content restores nominal role configuration without consuming caller time"
+	)
+	root.add_child(content)
+	await process_frame
+	await process_frame
+	var reentered_hit_and_fade := content.get_snapshot().hit_and_fade as Dictionary
+	_check(
+		content.get_instance_id() == fade_content_id
+		and int(content.get_snapshot().host.activity.generation) == fade_generation
+		and reentered_hit_and_fade.state_id == &"active"
+		and is_zero_approx(float(reentered_hit_and_fade.elapsed_seconds))
+		and beta.get_firing_pattern_snapshot().pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and gamma.get_firing_pattern_snapshot().pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
+		and authority.get_source_id(beta) == 2122
+		and authority.get_source_id(gamma) == 2123
+		and _node_instance_ids(beta_role_lamps) == beta_role_lamp_ids
+		and _node_instance_ids(gamma_role_lamps) == gamma_role_lamp_ids
+		and _telegraph_positions_match(
+			beta_role_lamps,
+			StationDefenseEncounterContent.HIT_AND_FADE_CLOSE_TELEGRAPH_POSITIONS
+		)
+		and _telegraph_positions_match(
+			gamma_role_lamps,
+			StationDefenseEncounterContent.HIT_AND_FADE_OUTER_TELEGRAPH_POSITIONS
+		),
+		"same-instance re-entry reapplies the exact generation-scoped breakaway to retained opponents and cue nodes"
+	)
+	var hit_and_fade_before_stale := content.get_snapshot().hit_and_fade as Dictionary
+	var stale_hit_and_fade := content.advance_physics(0.4, generation + 1)
+	_check(
+		not stale_hit_and_fade.accepted
+		and stale_hit_and_fade.reason == &"stale_generation"
+		and content.get_snapshot().hit_and_fade == hit_and_fade_before_stale,
+		"stale caller time cannot consume or replay the generation-scoped hit-and-fade response"
+	)
+	var partial_hit_and_fade := content.advance_physics(0.6, generation)
+	_check(
+		partial_hit_and_fade.accepted
+		and content.get_snapshot().hit_and_fade.state_id == &"active"
+		and is_equal_approx(
+			float(content.get_snapshot().hit_and_fade.remaining_seconds), 0.9
+		),
+		"accepted caller physics alone advances the bounded split-withdrawal window"
+	)
+	var recovered_hit_and_fade := content.advance_physics(0.9, generation)
+	var recovered_fade := content.get_snapshot().hit_and_fade as Dictionary
+	_check(
+		recovered_hit_and_fade.accepted
+		and recovered_fade.state_id == &"reformed"
+		and not bool(recovered_fade.active) and bool(recovered_fade.consumed)
+		and is_zero_approx(float(recovered_fade.remaining_seconds))
+		and content.get_snapshot().later_wave_tactic.state_id == &"active"
+		and is_equal_approx(
+			beta.preferred_range,
+			StationDefenseEncounterContent.PINCER_CLOSE_PREFERRED_RANGE
+		)
+		and is_equal_approx(
+			gamma.preferred_range,
+			StationDefenseEncounterContent.PINCER_OUTER_PREFERRED_RANGE
+		)
+		and is_equal_approx(beta.chase_speed, beta_nominal_chase_speed)
+		and is_equal_approx(gamma.chase_speed, gamma_nominal_chase_speed)
+		and beta.get_firing_pattern_snapshot().pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and gamma.get_firing_pattern_snapshot().pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and _telegraph_positions_match(
+			beta_role_lamps,
+			StationDefenseEncounterContent.PINCER_CLOSE_TELEGRAPH_POSITIONS
+		)
+		and _telegraph_positions_match(
+			gamma_role_lamps,
+			StationDefenseEncounterContent.PINCER_OUTER_TELEGRAPH_POSITIONS
+		)
+		and is_equal_approx(
+			_telegraph_radius(beta_role_lamps),
+			StationDefenseEncounterContent.PINCER_CLOSE_TELEGRAPH_RADIUS
+		)
+		and is_equal_approx(
+			_telegraph_radius(gamma_role_lamps),
+			StationDefenseEncounterContent.PINCER_OUTER_TELEGRAPH_RADIUS
+		),
+		"the finite response restores the sustained pincer exactly once without a parallel mover or timer"
+	)
 	var gamma_hostile_shot := await _emit_hostile_projectile(gamma, asset, content)
 	_check(
 		alpha_hostile_shot.damaged and int(alpha_hostile_shot.source_id) == 2121
@@ -1106,7 +1278,8 @@ func _test_checked_in_encounter_content() -> void:
 			damageable.get_health(), health_before_relief_manual_shots - 22.0
 		)
 		and int(content.get_snapshot().host.activity.accepted_asset_event_count) \
-			== accepted_events_before_relief_manual_shots + 2,
+			== accepted_events_before_relief_manual_shots + 2
+		and content.get_snapshot().hit_and_fade.state_id == &"reformed",
 		"all three production projectile signals resolve through their exact injected-authority source identities"
 	)
 	var beta_terminal := await _shoot(authority, attacker, beta)
@@ -1280,6 +1453,7 @@ func _test_checked_in_encounter_content() -> void:
 		and int(completed.host.destroyed_entity_count) == 4
 		and int(completed.host.active_entity_count) == 0
 		and completed.later_wave_tactic.state_id == &"completed"
+		and completed.hit_and_fade.state_id == &"completed"
 		and completed.heavy_picket_reinforcement.state_id == &"neutralized"
 		and str(completed.host.activity.next_step).contains("RECOVER AT DEFENSE BOARD")
 		and not bool(completed.later_wave_tactic.applied)
@@ -1292,8 +1466,11 @@ func _test_checked_in_encounter_content() -> void:
 	_check(
 		reset_after_completion.accepted and idle_generation == 2
 		and content.get_snapshot().breaker_feint.state_id == &"idle"
+		and content.get_snapshot().hit_and_fade.state_id == &"idle"
 		and content.get_snapshot().heavy_picket_reinforcement.state_id == &"idle"
 		and is_zero_approx(float(content.get_snapshot().breaker_feint.elapsed_seconds))
+		and is_zero_approx(float(content.get_snapshot().hit_and_fade.elapsed_seconds))
+		and not bool(content.get_snapshot().hit_and_fade.consumed)
 		and not picket.is_active() and authority.get_source_id(picket) == 0
 		and int(asset.get_asset_handle().generation) == 2
 		and int(reset_after_completion.activity.protected_assets[0].handle.generation) == 2
@@ -1371,6 +1548,7 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
 		and is_equal_approx(_telegraph_radius(gamma_role_lamps), gamma_nominal_lamp_radius)
 		and content.get_snapshot().breaker_feint.state_id == &"standby"
+		and content.get_snapshot().hit_and_fade.state_id == &"standby"
 		and is_zero_approx(float(content.get_snapshot().breaker_feint.elapsed_seconds))
 		and reentry_integrity.state_id == &"stable"
 		and int(reentry_integrity.health_percent) == 100
@@ -1436,6 +1614,8 @@ func _test_checked_in_encounter_content() -> void:
 		and asset.collision_layer == PhysicsLayers.NONE
 		and asset_failure.host.activity.state_id == &"failed"
 		and asset_failure.host.activity.failure_reason == &"protected_asset_destroyed"
+		and asset_failure.hit_and_fade.state_id == &"failed"
+		and not bool(asset_failure.hit_and_fade.active)
 		and asset_failure.protected_asset_integrity.state_id == &"failed"
 		and int(asset_failure.protected_asset_integrity.health_percent) == 0
 		and asset_failure.protected_asset_integrity.pattern == "[XXXX]"
