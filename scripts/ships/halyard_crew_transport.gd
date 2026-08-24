@@ -208,6 +208,8 @@ const BOARDING_ROUTE_AMBER := Color("d5a552")
 const ENGINE_CYAN := Color("68f0ef")
 const HALYARD_NAV_RED := Color("ff5f58")
 const HALYARD_NAV_GREEN := Color("74ec97")
+const ENGINE_DAMAGE_VANE_AMBER := Color("e89a3c")
+const ENGINE_DAMAGE_VANE_RED := Color("c94b38")
 
 # ------------------------------------------------------------- surfacing ----
 #
@@ -274,6 +276,16 @@ const AIRSTAIR_Z := -4.80
 const PORT_AIRSTAIR_HATCH_APERTURE_WIDTH := 1.90
 ## Transverse engine yoke station, clear aft of the pressure hull.
 const TAIL_YOKE_Z := 11.20
+## A mechanically hinged isolation vane on the tail-yoke cap. In nominal state
+## the 0.82 m face lies flat and fully supported by the cap; engine-bay damage
+## presents the same solid plate upright at its rear hinge. The upright face is
+## centred between the two inboard engines and clears their housings in Y, so a
+## normal chase camera reads a real silhouette change instead of relying only on
+## colour. Both poses touch the unchanged TailYoke/Engine collision envelope.
+const ENGINE_DAMAGE_VANE_SIZE := Vector3(1.65, 0.82, 0.14)
+const ENGINE_DAMAGE_VANE_HINGE := Vector3(0.0, 2.36, 11.78)
+const ENGINE_DAMAGE_VANE_NOMINAL_POSITION := Vector3(0.0, 2.43, 11.37)
+const ENGINE_DAMAGE_VANE_DAMAGED_POSITION := Vector3(0.0, 2.77, 11.78)
 const CREW_SEAT_ROWS: Array[float] = [-8.00, -5.40, -2.80]
 const CREW_SEAT_HALF_SPACING := 1.30
 const CABIN_WINDOW_COUNT := 10
@@ -332,13 +344,13 @@ const AIRSTAIR_NOSING_COPY_COUNT := 4
 ## roots and their anchors retain every occupant and role contract.
 const CREW_SEAT_BACK_SIZE := Vector3(0.68, 0.92, 0.15)
 const CREW_SEAT_BACK_COPY_COUNT := 6
-const RENDER_DESCENDANT_COUNT := 117
-const RENDER_MESH_INSTANCE_COUNT := 105
+const RENDER_DESCENDANT_COUNT := 118
+const RENDER_MESH_INSTANCE_COUNT := 106
 const RENDER_MULTIMESH_BATCH_COUNT := 7
-const RENDER_DRAWN_COPY_COUNT := 167
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 112
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 66
-const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 15
+const RENDER_DRAWN_COPY_COUNT := 168
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 113
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 67
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 16
 
 var _halyard_built := false
 var _halyard_visual: Node3D
@@ -359,6 +371,8 @@ var _interior_occupant_count := 0
 var _engine_plumes: Array[MeshInstance3D] = []
 var _engine_cores: Array[MeshInstance3D] = []
 var _halyard_engine_lights: Array[OmniLight3D] = []
+var _engine_damage_vane: MeshInstance3D
+var _engine_damage_vane_material: StandardMaterial3D
 var _elapsed_halyard := 0.0
 var _spine_rib_mesh: Mesh
 var _spine_rib_batch: MultiMeshInstance3D
@@ -405,6 +419,8 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	if _engine_damage_vane != null:
+		call_deferred("_sync_engine_damage_vane")
 	_clear_loadmaster_station_display(&"ship_attached")
 	if _ship_perspective_audio_binding != null:
 		call_deferred("_rebind_halyard_perspective_audio")
@@ -438,6 +454,9 @@ func _ready() -> void:
 		# Area in that path as well so a crew member who crosses the hatch after
 		# re-entry is registered with the moving interior.
 		_bind_optional_interior_frame()
+	if not component_damage_changed.is_connected(_on_halyard_component_damage_changed):
+		component_damage_changed.connect(_on_halyard_component_damage_changed)
+	_sync_engine_damage_vane()
 	_apply_halyard_metadata()
 	_sync_halyard_engine_presentation_immediately()
 	_build_loadmaster_station_display()
@@ -572,6 +591,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_pilot_last_request_sequence = -1
 	_pilot_command_seat_generation = 0
 	_set_interior_operational(true)
+	_sync_engine_damage_vane()
 	if _moving_interior_component != null:
 		_moving_interior_component.configure(self, INTERIOR_BOUNDS, _occupant_volume)
 		_moving_interior_component.reset_frame_tracking(true)
@@ -2436,6 +2456,11 @@ func _create_halyard_materials() -> void:
 	_halyard_materials.engine = _halyard_material(ENGINE_CYAN, 0.10, 0.18, ENGINE_CYAN, 3.0)
 	_halyard_materials.nav_red = _halyard_material(HALYARD_NAV_RED, 0.10, 0.22, HALYARD_NAV_RED, 2.3)
 	_halyard_materials.nav_green = _halyard_material(HALYARD_NAV_GREEN, 0.10, 0.22, HALYARD_NAV_GREEN, 2.3)
+	# Matte paint keeps the damage cue steady and physically readable without an
+	# OmniLight, emission pulse, timer, or process-driven animation.
+	_halyard_materials.damage_vane = _halyard_material(
+		ENGINE_DAMAGE_VANE_AMBER, 0.08, 0.62
+	)
 	_halyard_materials.glass = _halyard_glass(Color(0.16, 0.28, 0.24, 0.22))
 
 	# The registered station panel maps and triplanar recipe, applied through the
@@ -3190,6 +3215,23 @@ func _build_propulsion_and_gear() -> void:
 	_box(_halyard_visual, "TailYoke", Vector3(0.0, 1.55, TAIL_YOKE_Z), Vector3(9.60, 1.15, 1.40), _halyard_materials.structure)
 	_box(_halyard_visual, "TailYokeCap", Vector3(0.0, 2.24, TAIL_YOKE_Z), Vector3(8.80, 0.24, 1.20), _halyard_materials.hull_shade)
 	_box(_halyard_visual, "TailYokeBand", Vector3(0.0, 1.55, TAIL_YOKE_Z - 0.76), Vector3(9.00, 0.34, 0.14), _halyard_materials.accent)
+	_engine_damage_vane_material = _halyard_materials.damage_vane as StandardMaterial3D
+	_engine_damage_vane = _box(
+		_halyard_visual,
+		"EngineDamageIsolationVane",
+		ENGINE_DAMAGE_VANE_NOMINAL_POSITION,
+		ENGINE_DAMAGE_VANE_SIZE,
+		_engine_damage_vane_material,
+		Vector3(90.0, 0.0, 0.0)
+	)
+	_engine_damage_vane.set_meta(&"presentation_only", true)
+	_engine_damage_vane.set_meta(&"damage_component_id", ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	_engine_damage_vane.set_meta(&"damage_authority", false)
+	_engine_damage_vane.set_meta(&"repair_authority", false)
+	_engine_damage_vane.set_meta(&"seat_authority", false)
+	_engine_damage_vane.set_meta(&"animated", false)
+	_engine_damage_vane.set_meta(&"uses_timer", false)
+	_engine_damage_vane.set_meta(&"damage_state", &"nominal")
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_halyard_visual, side_name + "YokePylon", Vector3(side * 1.35, 1.55, 10.20), Vector3(0.55, 0.85, 2.60), _halyard_materials.structure)
@@ -3249,6 +3291,45 @@ func _build_propulsion_and_gear() -> void:
 		_halyard_materials.accent,
 		gear_damper_transforms,
 		gear_damper_names
+	)
+
+
+func _on_halyard_component_damage_changed(
+		component_id: StringName,
+		_state: int,
+		_integrity: float
+	) -> void:
+	if component_id == ShipComponentDamage.COMPONENT_ENGINE_BAY:
+		_sync_engine_damage_vane()
+
+
+## Reads the inherited component ledger and presents one of two static poses.
+## This observer never changes health, repair, seats, collision, or component
+## state, and does no per-frame work.
+func _sync_engine_damage_vane() -> void:
+	if not is_instance_valid(_engine_damage_vane) or _engine_damage_vane_material == null:
+		return
+	var state := ShipComponentDamage.ComponentState.NOMINAL
+	var model := get_component_damage()
+	if model != null and model.is_configured():
+		state = model.get_component_state(ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	var damaged := state in [
+		ShipComponentDamage.ComponentState.IMPAIRED,
+		ShipComponentDamage.ComponentState.FAILED,
+	]
+	_engine_damage_vane.position = (
+		ENGINE_DAMAGE_VANE_DAMAGED_POSITION
+		if damaged
+		else ENGINE_DAMAGE_VANE_NOMINAL_POSITION
+	)
+	_engine_damage_vane.rotation = Vector3.ZERO if damaged else Vector3(PI * 0.5, 0.0, 0.0)
+	var colour := ENGINE_DAMAGE_VANE_RED \
+		if state == ShipComponentDamage.ComponentState.FAILED \
+		else ENGINE_DAMAGE_VANE_AMBER
+	_engine_damage_vane_material.albedo_color = colour
+	_engine_damage_vane.set_meta(
+		&"damage_state",
+		ShipComponentDamage.state_id_for(state) if damaged else &"nominal"
 	)
 
 
