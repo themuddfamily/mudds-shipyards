@@ -57,6 +57,14 @@ var _multimesh_batch_transforms: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 
+# Every production profile carries the same four childless beacon pedestals.
+# Per-builder cylinder caches already collapse the four local copies to one mesh,
+# but the ten-placement production roster still built ten identical ArrayMeshes.
+# This resource has no material or mutable activity state, so all builders can
+# safely retain one process-wide geometry allocation while each named Base node
+# keeps its own transform, material binding, visibility and shadow settings.
+static var _shared_safety_beacon_base_mesh: ArrayMesh
+
 
 func build(
 		presentation_root: Node3D,
@@ -765,7 +773,16 @@ func _build_safety_beacons() -> void:
 		beacon.position = positions[index]
 		beacon.set_meta("collision_policy", &"sacrificial_nonblocking_route_marker")
 		_presentation_root.add_child(beacon)
-		_cylinder(beacon, "Base", Vector3.ZERO, 0.24, 0.18, _materials["graphite"])
+		_cylinder(
+			beacon,
+			"Base",
+			Vector3.ZERO,
+			0.24,
+			0.18,
+			_materials["graphite"],
+			Vector3.ZERO,
+			_safety_beacon_base_mesh()
+		)
 		var lens := _cylinder(beacon, "Lens", Vector3(0.0, 0.2, 0.0), 0.15, 0.24, _materials["amber_dim"])
 		_beacon_lenses.append(lens)
 		if _profile_id == PROFILE_DRONE_PATROL:
@@ -986,6 +1003,14 @@ func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
 	)
 
 
+func _safety_beacon_base_mesh() -> ArrayMesh:
+	if _shared_safety_beacon_base_mesh == null:
+		_shared_safety_beacon_base_mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.24 * 0.88, 0.24, 0.18, 12, _chamfered_cylinder_cache, 1
+		)
+	return _shared_safety_beacon_base_mesh
+
+
 func _cylinder(
 		parent: Node3D,
 		node_name: String,
@@ -993,7 +1018,8 @@ func _cylinder(
 		radius: float,
 		height: float,
 		material: Material,
-		rotation_degrees_value: Vector3 = Vector3.ZERO
+		rotation_degrees_value: Vector3 = Vector3.ZERO,
+		mesh_override: Mesh = null
 	) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
@@ -1002,8 +1028,12 @@ func _cylinder(
 	# Tapered stock: the wide bottom rim carries this mesh's radial extent alone,
 	# so the kit chamfers only the narrow top rim and the silhouette does not
 	# move. Outer radius and overall height are unchanged.
-	mesh_instance.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-		radius * 0.88, radius, height, 12, _chamfered_cylinder_cache, 1
+	mesh_instance.mesh = (
+		mesh_override
+		if mesh_override != null
+		else StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			radius * 0.88, radius, height, 12, _chamfered_cylinder_cache, 1
+		)
 	)
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
