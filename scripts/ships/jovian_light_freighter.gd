@@ -77,6 +77,11 @@ const PASSENGER_SEAT_BASE_SIZE := Vector3(0.72, 0.2, 0.82)
 const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
 const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
 const PASSENGER_CABIN_LIGHT_STRIP_SIZE := Vector3(0.04, 0.12, 3.55)
+# Three childless emissive ceiling strips share one immutable visual recipe.
+# Their separate OmniLight3D practicals remain authoritative for illumination;
+# this ship-local batch only removes two renderer nodes and submissions.
+const CARGO_CEILING_LIGHT_COPY_COUNT := 3
+const CARGO_CEILING_LIGHT_SIZE := Vector3(2.1, 0.05, 0.18)
 # Four childless amber portal uprights retain their named MeshInstance3D nodes,
 # exact local transforms, and four surface submissions. Their visual-only
 # rounded-box recipe is identical, so one immutable ArrayMesh supplies all four
@@ -252,6 +257,9 @@ var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
 var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _cabin_portal_upright_mesh: ArrayMesh
+var _cargo_ceiling_light_mesh: ArrayMesh
+var _cargo_ceiling_light_batch: MultiMeshInstance3D
+var _cargo_ceiling_light_transforms: Array[Transform3D] = []
 var _load_mark_mesh: ArrayMesh
 var _load_mark_batch: MultiMeshInstance3D
 var _load_mark_transforms: Array[Transform3D] = []
@@ -3241,8 +3249,13 @@ func _build_cargo_bay() -> void:
 		_box(_cargo_bay, "ServiceLocker", Vector3(side * 4.75, 1.52, 8.25), Vector3(1.25, 1.9, 1.15), _jovian_materials.hull_cool)
 		_box(_cargo_bay, "LockerDisplay", Vector3(side * 4.1, 1.62, 8.25), Vector3(0.03, 0.38, 0.52), _jovian_materials.display)
 	# Warm-neutral practicals illuminate the actual interior, not a detached set.
+	_cargo_ceiling_light_mesh = _rounded_box_mesh(
+		CARGO_CEILING_LIGHT_SIZE, _jovian_materials.interior_light
+	)
 	for light_z in [-1.25, 2.85, 6.95]:
-		_box(_cargo_bay, "CargoCeilingLight", Vector3(0.0, 4.36, light_z), Vector3(2.1, 0.05, 0.18), _jovian_materials.interior_light)
+		_cargo_ceiling_light_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(0.0, 4.36, light_z)
+		))
 		var cargo_light := OmniLight3D.new()
 		cargo_light.name = "CargoPracticalLight"
 		cargo_light.position = Vector3(0.0, 4.12, light_z)
@@ -3251,6 +3264,32 @@ func _build_cargo_bay() -> void:
 		cargo_light.omni_range = 6.8
 		cargo_light.shadow_enabled = true
 		_cargo_bay.add_child(cargo_light)
+	var ceiling_light_multimesh := MultiMesh.new()
+	ceiling_light_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	ceiling_light_multimesh.mesh = _cargo_ceiling_light_mesh
+	ceiling_light_multimesh.instance_count = _cargo_ceiling_light_transforms.size()
+	ceiling_light_multimesh.visible_instance_count = -1
+	for index in _cargo_ceiling_light_transforms.size():
+		ceiling_light_multimesh.set_instance_transform(
+			index, _cargo_ceiling_light_transforms[index]
+		)
+	ceiling_light_multimesh.custom_aabb = _load_mark_bounds(
+		_cargo_ceiling_light_mesh.get_aabb(), _cargo_ceiling_light_transforms
+	)
+	_cargo_ceiling_light_batch = MultiMeshInstance3D.new()
+	_cargo_ceiling_light_batch.name = "CargoCeilingLightBatch"
+	_cargo_ceiling_light_batch.multimesh = ceiling_light_multimesh
+	_cargo_ceiling_light_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_cargo_ceiling_light_batch.layers = 1
+	_cargo_ceiling_light_batch.extra_cull_margin = 0.0
+	_cargo_ceiling_light_batch.set_meta("visual_detail_only", true)
+	_cargo_ceiling_light_batch.set_meta("authored_visual_names", PackedStringArray([
+		"CargoCeilingLight", "CargoCeilingLight", "CargoCeilingLight",
+	]))
+	_cargo_ceiling_light_batch.set_meta(
+		"authored_instance_transforms", _cargo_ceiling_light_transforms.duplicate()
+	)
+	_cargo_bay.add_child(_cargo_ceiling_light_batch)
 
 
 func _rounded_box_from_mesh(
