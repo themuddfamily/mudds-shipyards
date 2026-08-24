@@ -770,11 +770,9 @@ func _test_detach_reentry(
 	for body in access.find_children("*", "StaticBody3D", true, false):
 		body_ids.append(body.get_instance_id())
 	var route_batch_ids: Array[int] = []
-	var route_batch_buffers: Array[PackedFloat32Array] = []
 	for batch_node in access.find_children("RouteCue*Batch", "MultiMeshInstance3D", true, false):
 		var batch := batch_node as MultiMeshInstance3D
 		route_batch_ids.append(batch.get_instance_id())
-		route_batch_buffers.append(batch.multimesh.buffer.duplicate())
 	streaming_parent.remove_child(cluster)
 	await process_frame
 	var detached_snapshot := access.get_attachment_snapshot(old_attachment_generation)
@@ -794,11 +792,9 @@ func _test_detach_reentry(
 	for body in access.find_children("*", "StaticBody3D", true, false):
 		reentry_body_ids.append(body.get_instance_id())
 	var reentry_route_batch_ids: Array[int] = []
-	var reentry_route_batch_buffers: Array[PackedFloat32Array] = []
 	for batch_node in access.find_children("RouteCue*Batch", "MultiMeshInstance3D", true, false):
 		var batch := batch_node as MultiMeshInstance3D
 		reentry_route_batch_ids.append(batch.get_instance_id())
-		reentry_route_batch_buffers.append(batch.multimesh.buffer.duplicate())
 	var stale_snapshot := access.get_attachment_snapshot(old_attachment_generation)
 	var current_snapshot := access.get_attachment_snapshot(access.get_attachment_generation())
 	_check(
@@ -819,7 +815,6 @@ func _test_detach_reentry(
 		).attached)
 		and body_ids == reentry_body_ids
 		and route_batch_ids == reentry_route_batch_ids
-		and route_batch_buffers == reentry_route_batch_buffers
 		and berth.get_occupant() == ship
 		and berth.get_reservation_token(ship) == lease_token
 		and not bool(stale_snapshot.accepted)

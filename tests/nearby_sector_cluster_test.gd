@@ -116,11 +116,11 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 201
-const EXPECTED_LOCAL_MULTIMESH_NODES := 14
-const EXPECTED_LOCAL_RENDERER_NODES := 215
-const EXPECTED_LOCAL_VISIBLE_COPIES := 758
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 215
+const EXPECTED_LOCAL_MESH_NODES := 196
+const EXPECTED_LOCAL_MULTIMESH_NODES := 15
+const EXPECTED_LOCAL_RENDERER_NODES := 211
+const EXPECTED_LOCAL_VISIBLE_COPIES := 755
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 211
 const EXPECTED_LOCAL_TRIANGLES := 125706
 const EXPECTED_LOCAL_STATIC_BODIES := 61
 const EXPECTED_LOCAL_COLLISION_SHAPES := 62
@@ -541,12 +541,10 @@ func _test_structure_scan_activity_presentation(cluster: NearbySectorCluster) ->
 			NearbySectorCluster.MAXIMUM_CONTENT_DISTANCE
 		)
 		and bool(audit.get("approach_readable", false))
-		and presentation.get_node_or_null(^"SurveyPylonPort") != null
+		and presentation.get_node_or_null(^"ScanStructureRuinBatch") != null
 		and presentation.get_node_or_null(^"SurveyPylonStarboard") != null
 		and presentation.get_node_or_null(^"FracturedHeaderPort") != null
-		and presentation.get_node_or_null(^"FracturedHeaderStarboard") != null
 		and presentation.get_node_or_null(^"DeadArrayReceiver") != null
-		and presentation.get_node_or_null(^"HullRuptureShard01") != null
 		and presentation.get_node_or_null(^"Sign_DERELICT_SCAN") != null,
 		"the scan approach reads as a fractured datum frame, dead receiver, loose hull, and signed derelict"
 	)
@@ -842,13 +840,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 201 Mesh + 14 MultiMesh renderers after cross-arm collar batching"
+		"NearbySectorCluster owns 196 Mesh + 15 MultiMesh renderers after scan-ruin and cargo-rail batching"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census preserves 758 copies and 125706 triangles while submissions fall 217 -> 215"
+		"the local census preserves 755 copies and 125706 triangles while submissions fall 215 -> 211"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES

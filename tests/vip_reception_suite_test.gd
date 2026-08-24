@@ -764,7 +764,7 @@ func _test_port_shell_rib_head_batch(suite: VipReceptionSuite) -> void:
 		and int(render.port_shell_rib_head_geometry_submissions_removed) == 15
 		and int(render.drawn_copies) == 278
 		and bool(render.exact_counts),
-		"four retained copies reduce suite submissions 236 -> 224 after later visual trims"
+		"four retained copies reduce suite submissions 236 -> 221 after later visual trims"
 	)
 	var original_buffer := multi.buffer.duplicate()
 	var mutated_buffer := original_buffer.duplicate()

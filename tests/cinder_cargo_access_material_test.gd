@@ -44,7 +44,8 @@ func _run() -> void:
 		and _surface(access, ^"Structure/CrossCatwalk") == materials.route
 		and _surface(access, ^"Structure/ConnectorStep1") == materials.grip
 		and _surface(access, ^"Structure/TerminalApproachPlatform") == materials.deck
-		and _surface(access, ^"Rails/CrossRailNorth") == materials.frame
+		and (access.get_node(^"Rails/CrossRailBatch") as MultiMeshInstance3D)
+			.material_override == materials.frame
 		and (access.get_node(^"Structure/TerminalApproachSupportBatch") as MultiMeshInstance3D)
 			.material_override == materials.service,
 		"live cargo, route, grip, deck, frame, and service geometry uses its physical role"

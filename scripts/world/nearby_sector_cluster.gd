@@ -306,14 +306,14 @@ const STRUCTURE_SCAN_FAILED_COLLAR_ROTATION := Vector3(-25.0, 55.0, -42.0)
 const STRUCTURE_SCAN_FAILED_COLLAR_SCALE := Vector3(0.55, 1.45, 0.3)
 
 const PERFORMANCE_BUDGET := {
-	# Includes the production cargo access route (21 bodies/19 meshes/three
+	# Includes the production cargo access route (21 bodies/17 meshes/four
 	# batches) and the real destination terminal (two bodies/four meshes).
 	"static_bodies": 61,
 	"mesh_instances": 203,
 	# Bounded visual batches retain the debris shell, processing-spine ribs,
 	# gantry rails, and streamed aperture lenses without increasing gameplay or
 	# collision ownership.
-	"multimesh_instances": 14,
+	"multimesh_instances": 15,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
