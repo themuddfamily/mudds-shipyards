@@ -87,6 +87,17 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 	return false
 
 
+func _uses_inherited_primary_weapon() -> bool:
+	return false
+
+
+## Cinder's primary action is the caller-owned payload admission seam. Keep the
+## inherited pulse cannon unreachable even if a legacy/internal caller invokes
+## the old method directly instead of entering the normal HeroShip physics gate.
+func _fire_weapon() -> void:
+	pass
+
+
 func _enter_tree() -> void:
 	super._enter_tree()
 	if _ship_perspective_audio_binding != null:

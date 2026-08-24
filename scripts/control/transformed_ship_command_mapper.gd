@@ -96,6 +96,7 @@ func map_frame(
 		"brake": _held(actions, &"brake"),
 		"hover": _held(actions, &"hover"),
 		"fire": _held(actions, &"fire"),
+		"fire_pressed": _edge(actions, &"fire") > 0.0,
 		"barrel_roll": _edge(actions, &"barrel_roll") > 0.0,
 		# Automatic propulsion deliberately has no player start/stop actions.
 		"engine_start": false,
@@ -139,6 +140,7 @@ func audit() -> Dictionary:
 			"fire": &"fire",
 		},
 		"edge_mappings": {
+			"fire_pressed": &"fire",
 			"barrel_roll": &"barrel_roll",
 			"landing": &"landing_assist",
 			"interact": &"interact",

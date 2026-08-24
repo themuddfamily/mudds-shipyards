@@ -60,6 +60,7 @@ func _test_command_snapshot() -> void:
 		"brake": true,
 		"hover": true,
 		"fire": true,
+		"fire_pressed": true,
 		"barrel_roll": true,
 		"engine_start": true,
 		"engine_stop": true,
@@ -71,11 +72,12 @@ func _test_command_snapshot() -> void:
 	_check(command.pitch == 0.0 and command.roll == 0.0, "NaN and infinity sanitize to neutral axes")
 	_check(command.look_yaw_delta == 1.0 and command.look_pitch_delta == 0.0, "look deltas sanitize independently from attitude-rate axes")
 	_check(command.boost and command.brake and command.hover and command.fire, "held action snapshot preserves booleans")
+	_check(command.fire_pressed, "schema v4 appends the fire rising edge independently of held fire")
 	_check(command.barrel_roll, "barrel-roll edge has an explicit transport field")
 	_check(command.engine_start and command.engine_stop and command.landing, "system edge snapshot preserves booleans")
 	_check(command.interact and command.camera_toggle, "interaction edge snapshot preserves booleans")
 	_check(command.is_valid(), "sanitized command validates at the trust boundary")
-	_check(command.has_lifecycle_edge(), "lifecycle-edge classification includes ordered game-flow actions")
+	_check(command.has_game_flow_edge() and command.has_lifecycle_edge(), "GameFlow-edge classification includes the appended ordered fire edge")
 	var legacy_engine_only := ShipCommandType.from_dictionary({
 		"schema_version": ShipCommandType.SCHEMA_VERSION,
 		"sequence": 8,
@@ -181,13 +183,13 @@ func _test_source_stream_and_authority() -> void:
 	_check(is_equal_approx(first_a.yaw, 0.55) and is_equal_approx(first_a.pitch, 0.25), "local source samples keyboard yaw and pitch rate axes")
 	_check(is_zero_approx(first_a.look_yaw_delta) and is_zero_approx(first_a.look_pitch_delta), "rate axes do not synthesize mouse look deltas")
 	_check(is_equal_approx(first_a.roll, 0.4) and first_a.barrel_roll, "analogue roll and classic barrel-roll edge remain distinct")
-	_check(first_a.boost and first_a.fire and first_a.landing, "held and initial edge actions share one snapshot")
+	_check(first_a.boost and first_a.fire and first_a.fire_pressed and first_a.landing, "held and initial edge actions share one snapshot")
 
 	source_a.look_motion_for_full_axis = 100.0
 	source_a.queue_look_motion(Vector2(35.0, -20.0))
 	var second_a := source_a.next_command(1000)
 	_check(second_a.sequence == 1 and second_a.timestamp_usec == 1001, "sequence and timestamp remain strictly monotonic")
-	_check(second_a.fire and not second_a.landing, "held fire repeats while landing edge does not")
+	_check(second_a.fire and not second_a.fire_pressed and not second_a.landing, "held fire repeats while fire and landing edges do not")
 	_check(is_equal_approx(second_a.yaw, 0.55) and is_equal_approx(second_a.pitch, 0.25), "mouse motion cannot alter keyboard attitude-rate axes")
 	_check(is_equal_approx(second_a.look_yaw_delta, 0.35) and is_equal_approx(second_a.look_pitch_delta, 0.2), "queued mouse motion occupies independent per-tick look fields")
 	_check(is_equal_approx(second_a.roll, 0.4) and not second_a.barrel_roll, "held classic barrel-roll action cannot repeat its edge")
@@ -206,6 +208,17 @@ func _test_source_stream_and_authority() -> void:
 	_check(not released.landing and repressed.landing, "release and repress creates exactly one new edge")
 	var held_again := source_a.next_command(1004)
 	_check(not held_again.landing, "an edge action cannot repeat while held")
+	provider.set_pressed(&"fire", false)
+	var fire_released := source_a.next_command(1010)
+	provider.set_pressed(&"fire", true)
+	var fire_repressed := source_a.next_command(1011)
+	var fire_held_again := source_a.next_command(1012)
+	_check(
+		not fire_released.fire and not fire_released.fire_pressed
+		and fire_repressed.fire and fire_repressed.fire_pressed
+		and fire_held_again.fire and not fire_held_again.fire_pressed,
+		"fire rising edges are one-shot while ordinary held fire remains continuous"
+	)
 
 	source_a.enabled = false
 	provider.set_pressed(&"toggle_ship_camera_view", true)
@@ -313,6 +326,7 @@ func _test_lossless_lifecycle_delivery() -> void:
 		# its detached delivery copy.
 		command._sequence = 999
 		command._landing = false
+		command._fire_pressed = false
 	)
 
 	source.next_command(3000)
@@ -320,20 +334,26 @@ func _test_lossless_lifecycle_delivery() -> void:
 	var start := source.next_command(3001)
 	provider.set_pressed(&"landing_assist", false)
 	var between := source.next_command(3002)
+	provider.set_pressed(&"fire", true)
+	var fire_edge := source.next_command(3003)
+	provider.set_pressed(&"fire", false)
 	provider.set_pressed(&"interact", true)
-	var stop := source.next_command(3003)
+	var stop := source.next_command(3004)
 	var generation := source.get_delivery_generation()
 	var batch := source.drain_pending_commands(generation)
 	_check(
 		start.landing
 		and between.is_neutral()
+		and fire_edge.fire_pressed
 		and stop.interact
-		and batch.size() == 2
+		and batch.size() == 3
 		and batch[0].sequence == start.sequence
 		and batch[0].landing
-		and batch[1].sequence == stop.sequence
-		and batch[1].interact,
-		"lifecycle FIFO preserves every edge in production order across a newer neutral sample"
+		and batch[1].sequence == fire_edge.sequence
+		and batch[1].fire_pressed
+		and batch[2].sequence == stop.sequence
+		and batch[2].interact,
+		"GameFlow FIFO preserves landing, fire, and interact edges in production order across a newer neutral sample"
 	)
 	_check(
 		source.drain_pending_commands(generation).is_empty(),
@@ -598,16 +618,20 @@ func _test_real_input_map_adapter() -> void:
 	# default adapter reaches the project's actual InputMap actions.
 	Input.action_release(&"move_forward")
 	Input.action_release(&"landing_assist")
+	Input.action_release(&"fire")
 	var source := LocalShipInputSourceType.new()
 	root.add_child(source)
 	Input.action_press(&"move_forward", 0.65)
 	Input.action_press(&"landing_assist")
+	Input.action_press(&"fire")
 	var first := source.next_command(2000)
 	var second := source.next_command(2001)
 	_check(is_equal_approx(first.throttle, 0.65), "default local source reads analogue strength from the real InputMap")
 	_check(first.landing and not second.landing, "real InputMap edge is emitted once while held")
+	_check(first.fire and first.fire_pressed and second.fire and not second.fire_pressed, "real InputMap exposes one fire edge alongside preserved held fire")
 	Input.action_release(&"move_forward")
 	Input.action_release(&"landing_assist")
+	Input.action_release(&"fire")
 	source.queue_free()
 
 	var retired_provider := FakeInputProvider.new()

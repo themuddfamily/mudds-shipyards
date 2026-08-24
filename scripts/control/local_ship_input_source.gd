@@ -679,6 +679,7 @@ func _clear_transient_input(reprime_edges: bool) -> void:
 
 func _edge_actions() -> Array[StringName]:
 	return [
+		fire_action,
 		barrel_roll_action,
 		landing_action,
 		interact_action,
@@ -770,6 +771,8 @@ func _commit_transform_boundary() -> void:
 
 
 func _apply_explicit_edges(values: Dictionary) -> void:
+	if bool(_pending_explicit_edges.get(fire_action, false)):
+		values["fire_pressed"] = true
 	if bool(_pending_explicit_edges.get(barrel_roll_action, false)):
 		values["barrel_roll"] = true
 	if bool(_pending_explicit_edges.get(landing_action, false)):

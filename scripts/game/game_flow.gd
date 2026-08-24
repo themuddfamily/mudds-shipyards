@@ -5213,10 +5213,10 @@ func _consume_active_ship_command_edges() -> void:
 	if not _piloting or not is_instance_valid(active_ship):
 		return
 	var source := active_ship.get_command_source()
-	if _drain_pending_lifecycle_commands(source):
+	if _drain_pending_game_flow_commands(source):
 		return
 	# Compatibility for custom command sources that have not adopted lossless
-	# lifecycle delivery yet. The sequence cursor still prevents repeat polling.
+	# GameFlow delivery yet. The sequence cursor still prevents repeat polling.
 	_consume_active_ship_command(active_ship.get_last_ship_command())
 
 
@@ -5224,7 +5224,7 @@ func _consume_active_ship_command_edges() -> void:
 ## current FIFO is empty. Capture and validation occur synchronously so a focus,
 ## pause, pilot, source, or tree boundary cannot let a stale caller drain a newer
 ## generation. Every queued edge is dispatched in its original command order.
-func _drain_pending_lifecycle_commands(source: ShipCommandSource) -> bool:
+func _drain_pending_game_flow_commands(source: ShipCommandSource) -> bool:
 	if (
 		not is_instance_valid(source)
 		or not source.has_method(&"drain_pending_commands")
@@ -5240,6 +5240,12 @@ func _drain_pending_lifecycle_commands(source: ShipCommandSource) -> bool:
 		var pending_command := pending_command_value as ShipCommand
 		_consume_active_ship_command(pending_command)
 	return true
+
+
+## Retained private compatibility seam for deterministic tools written before
+## schema v4 named the queue after its then-lifecycle-only contents.
+func _drain_pending_lifecycle_commands(source: ShipCommandSource) -> bool:
+	return _drain_pending_game_flow_commands(source)
 
 
 func _consume_active_ship_command(command: ShipCommand) -> void:
@@ -5278,6 +5284,8 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 	_last_lifecycle_command_sequence = command.sequence
 	if phase == Phase.INTRO or get_tree().paused or _transition_busy:
 		return
+	if command.fire_pressed and active_ship is CinderLongRangeBomberType:
+		_consume_cinder_bomber_fire_pressed()
 	if command.landing and phase in [
 		Phase.RETURN_TO_YARD,
 		Phase.FREE_FLIGHT,
@@ -5290,6 +5298,30 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 		Phase.SHUT_DOWN,
 	]:
 		_try_exit_ship()
+
+
+## Converges the active Cinder onto GameFlow's existing solo/server payload
+## generation before admitting the ordered fire edge. Multiplayer clients fail
+## before convergence, so input can neither start local authority nor create a
+## projectile outside the retained server-replica path.
+func _consume_cinder_bomber_fire_pressed() -> Dictionary:
+	if not _piloting or not is_instance_valid(active_ship) \
+			or not active_ship is CinderLongRangeBomberType:
+		_last_bomber_payload_result = {
+			"accepted": false,
+			"reason": &"active_cinder_pilot_unavailable",
+		}
+		return _last_bomber_payload_result.duplicate(true)
+	if _network_session_mode == &"client":
+		return _consume_bomber_payload_release()
+	var bomber := active_ship as CinderLongRangeBomber
+	if not bomber.is_piloted() or not _ensure_bomber_payload_session(bomber):
+		_last_bomber_payload_result = {
+			"accepted": false,
+			"reason": &"payload_session_unavailable",
+		}
+		return _last_bomber_payload_result.duplicate(true)
+	return _consume_bomber_payload_release()
 
 
 ## Compatibility seam for deterministic tests and replay tooling that dispatch
@@ -5313,11 +5345,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		)
 		# Deterministic tools historically observe the result before yielding a
 		# frame. Sample immediately, apply ship-local camera effects, then drain the
-		# lifecycle FIFO so an older pending edge is always dispatched before this
+		# GameFlow FIFO so an older pending edge is always dispatched before this
 		# newly sampled one. A later idle drain is empty rather than a replay.
 		var command := source.next_command() as ShipCommand
 		active_ship.consume_sampled_camera_edges(command)
-		if not _drain_pending_lifecycle_commands(source):
+		if not _drain_pending_game_flow_commands(source):
 			_consume_active_ship_command(command)
 
 

@@ -241,7 +241,7 @@ func _test_hero_camera_edges_are_ordered_exactly_once() -> void:
 	ship.set_command_source(fresh_held_source)
 	var held_epoch := fresh_held_source.get_stream_id()
 	fresh_held_source.commands = [
-		_command(held_epoch, 0, {"fire": true}),
+		_command(held_epoch, 0, {"fire": true, "fire_pressed": true}),
 		_command(held_epoch, 1, {"fire": true}),
 	]
 	var shots_before_fresh_hold := int(projectile_count[0])
@@ -250,8 +250,9 @@ func _test_hero_camera_edges_are_ordered_exactly_once() -> void:
 	_check(
 		projectile_count[0] == shots_before_fresh_hold + 2
 		and ship.get_last_ship_command().fire
+		and not ship.get_last_ship_command().fire_pressed
 		and ship.get_last_ship_command().sequence == 1,
-		"held fire remains active on every genuinely fresh increasing command sequence"
+		"ordinary craft retain held fire across fresh commands independently of the appended edge"
 	)
 
 	var rollback_source := ReplayCommandSource.new()

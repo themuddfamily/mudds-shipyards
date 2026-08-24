@@ -9,7 +9,7 @@ extends RefCounted
 ## Queue/transport boundaries must clone through the serialization API because
 ## GDScript does not provide enforceable per-instance private storage.
 
-const SCHEMA_VERSION := 3
+const SCHEMA_VERSION := 4
 const MAX_SAFE_SERIALIZED_INTEGER := 9007199254740991
 
 var _sequence := 0
@@ -32,6 +32,7 @@ var _engine_stop := false
 var _landing := false
 var _interact := false
 var _camera_toggle := false
+var _fire_pressed := false
 var _deserialization_error := ""
 
 var sequence: int:
@@ -97,6 +98,12 @@ var interact: bool:
 var camera_toggle: bool:
 	get:
 		return _camera_toggle
+## Rising edge of the same logical action carried by held `fire`. Appended in
+## schema v4 so GameFlow can admit one bomber payload without changing the
+## established held-fire semantics consumed by every other HeroShip.
+var fire_pressed: bool:
+	get:
+		return _fire_pressed
 
 
 func _init(
@@ -119,7 +126,8 @@ func _init(
 	p_landing: bool = false,
 	p_interact: bool = false,
 	p_camera_toggle: bool = false,
-	p_camera_distance_delta: float = 0.0
+	p_camera_distance_delta: float = 0.0,
+	p_fire_pressed: bool = false
 	) -> void:
 	_sequence = clampi(p_sequence, 0, MAX_SAFE_SERIALIZED_INTEGER)
 	_timestamp_usec = clampi(p_timestamp_usec, 0, MAX_SAFE_SERIALIZED_INTEGER)
@@ -141,6 +149,7 @@ func _init(
 	_landing = p_landing
 	_interact = p_interact
 	_camera_toggle = p_camera_toggle
+	_fire_pressed = p_fire_pressed
 
 
 ## Creates a command with stream metadata but no held or edge-trigger actions.
@@ -180,7 +189,8 @@ static func from_dictionary(data: Dictionary) -> ShipCommand:
 		_read_bool(data, &"landing"),
 		_read_bool(data, &"interact"),
 		_read_bool(data, &"camera_toggle"),
-		_read_float(data, &"camera_distance_delta")
+		_read_float(data, &"camera_distance_delta"),
+		_read_bool(data, &"fire_pressed")
 	)
 
 
@@ -209,6 +219,7 @@ func to_dictionary() -> Dictionary:
 		"landing": _landing,
 		"interact": _interact,
 		"camera_toggle": _camera_toggle,
+		"fire_pressed": _fire_pressed,
 	}
 
 
@@ -229,15 +240,22 @@ func is_neutral() -> bool:
 		and not _engine_stop \
 		and not _landing \
 		and not _interact \
-		and not _camera_toggle
+		and not _camera_toggle \
+		and not _fire_pressed
 
 
-## Lifecycle consumers run independently from the ship's physics consumer. Only
+## GameFlow consumers run independently from the ship's physics consumer. Only
 ## these ordered one-shot fields need the source's lossless delivery side-channel;
-## held axes, fire, camera, and presentation state are consumed by HeroShip from
-## the direct per-tick return value.
+## held axes, held fire, camera, and presentation state are consumed by HeroShip
+## from the direct per-tick return value.
+func has_game_flow_edge() -> bool:
+	return _landing or _interact or _fire_pressed
+
+
+## Compatibility name retained for callers that predate the schema-v4 bomber
+## edge. Its meaning is now the complete ordered GameFlow edge family.
 func has_lifecycle_edge() -> bool:
-	return _landing or _interact
+	return has_game_flow_edge()
 
 
 ## GDScript's underscore storage is private only by convention. Every queue and

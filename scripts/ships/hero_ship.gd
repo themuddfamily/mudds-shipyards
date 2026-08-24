@@ -3148,7 +3148,7 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 	):
 		_clear_pending_look_motion()
 		velocity = Vector3.ZERO
-		if command.fire:
+		if command.fire and _uses_inherited_primary_weapon():
 			_fire_weapon()
 		return
 	var boosting := command.boost and _throttle > 0.05
@@ -3236,7 +3236,7 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 			1.0 - exp(-2.0 * delta)
 		)
 		global_basis = Basis(upright).orthonormalized()
-	if command.fire:
+	if command.fire and _uses_inherited_primary_weapon():
 		_fire_weapon()
 	var pre_collision_velocity := velocity
 	var pre_move_position := global_position
@@ -3687,6 +3687,14 @@ func _fire_weapon() -> void:
 			convergence_point = hit.get("position", ray_end)
 	var aimed_direction := (convergence_point - muzzle.global_position).normalized()
 	projectile_fired.emit(muzzle.global_position, aimed_direction)
+
+
+## Variants whose primary action is coordinated outside HeroShip can suppress
+## the inherited pulse cannon while retaining the common held-fire command for
+## every ordinary craft. The variant must still harden its own fire method if it
+## requires unconditional suppression outside this normal physics path.
+func _uses_inherited_primary_weapon() -> bool:
+	return true
 
 
 ## Variant presentation seam for the physical in-cockpit status line. The base

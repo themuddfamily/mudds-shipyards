@@ -8,7 +8,7 @@ const ShipCommandType := preload("res://scripts/control/ship_command.gd")
 ## Every request advances this source's independent sequence, including neutral
 ## requests while suspended. Consumers compare stream ID plus sequence to reject
 ## replayed or out-of-order commands; they need not assume contiguous delivery.
-## Lifecycle edges additionally enter a source-owned FIFO so a faster physics
+## GameFlow edges additionally enter a source-owned FIFO so a faster physics
 ## producer cannot overwrite them before the game-flow consumer runs. Delivery is
 ## lossless and ordered inside one generation; explicit lifecycle boundaries
 ## invalidate undelivered input and begin a new generation.
@@ -88,7 +88,7 @@ func next_command(timestamp_usec: int = -1) -> ShipCommand:
 		command = ShipCommandType.from_dictionary(values)
 		if (
 			command.is_valid()
-			and command.has_lifecycle_edge()
+			and command.has_game_flow_edge()
 			and not _delivery_exhausted
 		):
 			_pending_commands.append(command.detached_copy())
@@ -108,7 +108,7 @@ func next_command(timestamp_usec: int = -1) -> ShipCommand:
 	return command
 
 
-## Atomically takes every pending lifecycle edge in production order. Supplying
+## Atomically takes every pending GameFlow edge in production order. Supplying
 ## a generation prevents a stale caller from draining a queue created after a
 ## focus, pause, tree, pilot, or source boundary. Returned snapshots are detached
 ## from both the queue and signal payloads.
@@ -140,7 +140,7 @@ func is_delivery_exhausted() -> bool:
 	return _delivery_exhausted
 
 
-## Revokes every not-yet-dispatched lifecycle edge and advances the stream epoch.
+## Revokes every not-yet-dispatched GameFlow edge and advances the stream epoch.
 ## Advancing lets direct consumers reject a snapshot captured before this boundary
 ## even when no newer command has been sampled yet. Subclasses use the hook to
 ## clear device transients and re-prime held buttons. The returned generation can

@@ -82,6 +82,7 @@ func _test_exact_flight_mapping() -> void:
 	)
 	_check(
 		command.boost and command.brake and command.hover and command.fire
+		and command.fire_pressed
 		and command.barrel_roll and command.landing and command.interact
 		and command.camera_toggle and command.camera_distance_delta == 1.0,
 		"logical held and just-pressed outputs map to the established held, lifecycle, and camera fields",
@@ -101,7 +102,7 @@ func _test_exact_flight_mapping() -> void:
 	var second := (fixture.mapper as TransformedShipCommandMapper).map_frame(second_frame, 0, 8, 1235, 3)
 	var second_command := second.command as ShipCommand
 	_check(
-		second_command.boost and second_command.fire
+		second_command.boost and second_command.fire and not second_command.fire_pressed
 		and not second_command.barrel_roll and not second_command.landing
 		and not second_command.interact and not second_command.camera_toggle
 		and is_zero_approx(second_command.camera_distance_delta),
@@ -243,6 +244,7 @@ func _test_audit_and_source_boundary() -> void:
 	_check(
 		audit.valid and audit.flight_action_count == 18
 		and audit.flight_action_order == Mapper.FLIGHT_ACTION_ORDER
+		and audit.edge_mappings.fire_pressed == &"fire"
 		and not audit.automatic_engine_start_emitted and not audit.automatic_engine_stop_emitted,
 		"the audit freezes the exact 18-action ship-facing roster and automatic-engine boundary",
 	)
