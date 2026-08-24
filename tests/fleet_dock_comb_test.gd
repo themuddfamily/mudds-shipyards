@@ -29,6 +29,7 @@ func _run() -> void:
 
 	_test_evidence_roster_and_audit(module)
 	_test_footprint_routes_and_authority(module)
+	_test_walked_plate_material_finish(module)
 	await _test_collision_backed_comb_and_voids(module)
 	_test_trunk_expansion_joint_batch(module)
 	_test_trunk_route_light_batch(module)
@@ -130,6 +131,57 @@ func _test_footprint_routes_and_authority(module: FleetDockComb) -> void:
 	_check(int(authority.ship_berth_count) == 0 and int(authority.landing_or_interaction_area_count) == 0, "module owns no ShipBerth, landing, boarding, or interaction area")
 	_check(int(authority.audio_node_count) == 0 and int(authority.activity_node_count) == 0, "module owns no audio or station-activity component")
 	_check(int(authority.lease_authority_count) == 0 and int(authority.spawn_authority_count) == 0, "module owns no lease or spawning authority")
+
+
+## The approach's broad, player-facing plates use the station's walked finish,
+## not the generic structural clear layer. The same material instances remain
+## bound to the same meshes; this pins only their manufactured surface response.
+func _test_walked_plate_material_finish(module: FleetDockComb) -> void:
+	var walked_nodes := [
+		"Trunk", "Rung01", "DockSlab01", "Rung02", "DockSlab02",
+		"Rung03Vertical", "DockSlab03Upper",
+	]
+	var every_surface_is_walked_plate := true
+	for node_name in walked_nodes:
+		var body := module.find_child(node_name, true, false) as StaticBody3D
+		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D if body != null else null
+		var material := mesh_instance.material_override as StandardMaterial3D if mesh_instance != null else null
+		every_surface_is_walked_plate = (
+			every_surface_is_walked_plate
+			and material != null
+			and material.albedo_texture != null
+			and material.normal_enabled
+			and material.normal_texture != null
+			and material.roughness_texture != null
+			and material.uv1_triplanar
+			and material.uv1_world_triplanar
+			and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+			and is_equal_approx(material.clearcoat, StationSurfaceKit.WALKED_CLEARCOAT)
+			and is_equal_approx(
+				material.clearcoat_roughness,
+				StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS
+			)
+		)
+	_check(
+		walked_nodes.size() == 7 and every_surface_is_walked_plate,
+		"all seven approach plates retain the station maps and use the walked-deck finish"
+	)
+
+	var slab_insets := module.find_children("SlabInset*", "MeshInstance3D", true, false)
+	var every_inset_is_walked_plate := slab_insets.size() == 3
+	for raw_node in slab_insets:
+		var inset := raw_node as MeshInstance3D
+		var inset_material := inset.material_override as StandardMaterial3D
+		every_inset_is_walked_plate = (
+			every_inset_is_walked_plate
+			and inset_material != null
+			and is_equal_approx(inset_material.clearcoat, StationSurfaceKit.WALKED_CLEARCOAT)
+			and is_equal_approx(
+				inset_material.clearcoat_roughness,
+				StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS
+			)
+		)
+	_check(every_inset_is_walked_plate, "all three broad slab grip insets share the walked-deck finish")
 
 
 func _test_collision_backed_comb_and_voids(module: FleetDockComb) -> void:

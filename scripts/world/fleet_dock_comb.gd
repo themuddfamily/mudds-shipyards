@@ -1107,32 +1107,28 @@ func _create_materials() -> void:
 ## they bolt onto and no plate size changes across the connector seam.
 ## Emissive route/status cues stay unmapped, as they do in every sibling module.
 func _apply_station_panel_family() -> void:
-	var panel_albedo := load("res://assets/materials/procedural-panel-triplanar-albedo-v2.png") as Texture2D
-	var panel_normal := load("res://assets/materials/procedural-panel-triplanar-normal-v2.png") as Texture2D
-	var panel_roughness := load("res://assets/materials/procedural-panel-triplanar-roughness-v2.png") as Texture2D
-	if panel_albedo == null or panel_normal == null or panel_roughness == null:
-		return
+	# The comb predated the shared finish profiles and therefore stopped at the
+	# texture half of the station recipe: its trunk, rungs, slab faces and broad
+	# grip insets all retained `_material()`'s one generic clear layer. At approach
+	# distance that made the walked plates respond like the clean structural frame,
+	# flattening the chamfers back into the faces the geometry was meant to separate.
+	# Classify only the player-facing walking stock as WALKED_DECK. It keeps the
+	# exact registered maps and 0.30 m projection, but gives the broad faces a low,
+	# rough clear layer while their existing chamfer normals still catch the light.
+	# Frame and underframe remain STRUCTURAL_ALLOY. This changes no mesh, transform,
+	# collider, material count, draw submission or light.
+	var finish_by_key := {
+		"deck": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"deck_light": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"grip": StationSurfaceKit.PanelFinish.WALKED_DECK,
+	}
 	for key in ["deck", "deck_light", "frame", "underframe", "grip"]:
 		var panel_material := _materials[key] as StandardMaterial3D
-		panel_material.albedo_texture = panel_albedo
-		panel_material.normal_enabled = true
-		panel_material.normal_texture = panel_normal
-		# Raised from 0.48 by a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9. At 0.48 a
-		# plated wall at eye height is nearly featureless: the seams and rivets are
-		# present in the map but too shallow to catch light, which is much of why
-		# plated geometry still read as untextured. At 1.9 the plate faces dome and
-		# read as embossed plastic, worst on the bright pod walls. 1.0 is the highest
-		# value at which no frame showed doming while the dark walls resolved into
-		# pressed sheet metal. Every module shares the value so a deck and the wall
-		# beside it cannot disagree.
-		panel_material.normal_scale = 1.0
-		panel_material.roughness_texture = panel_roughness
-		panel_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-		panel_material.uv1_triplanar = true
-		panel_material.uv1_world_triplanar = true
-		panel_material.uv1_triplanar_sharpness = 4.0
-		panel_material.uv1_scale = Vector3(0.3, 0.3, 0.3)
-		panel_material.texture_repeat = true
+		StationSurfaceKit.apply_panel_triplanar(
+			panel_material,
+			0.30,
+			finish_by_key.get(key, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY)
+		)
 
 
 func _build_structure() -> void:
