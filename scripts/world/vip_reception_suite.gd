@@ -106,6 +106,17 @@ const WELL_X_MAX := 1.4
 const WELL_Z_MIN := 5.9
 const WELL_Z_MAX := 11.3
 
+## The reception's one processional line begins just inside the landmark door
+## and terminates at the broad, no-jump entry into the conversation well.  The
+## older 2.9 m strip stopped at the room reveal, so it identified the threshold
+## without actually leading the player anywhere.  Keeping this as one shallow,
+## collision-free inlay gives the invented suite a clear route identity without
+## claiming adjacency authority or adding another floor layer.
+const PROCESSIONAL_ROUTE_START := Vector3(0.0, 0.055, 0.05)
+const PROCESSIONAL_ROUTE_END := Vector3(-1.1, 0.055, WELL_Z_MIN)
+const PROCESSIONAL_ROUTE_WIDTH := 0.14
+const PROCESSIONAL_ROUTE_THICKNESS := 0.05
+
 ## Seven banquette segments, four armchairs, three servery stools and the window
 ## bench. Counted, not estimated: `get_validation_errors()` fails if the built
 ## roster drifts.
@@ -1574,12 +1585,29 @@ func _build_threshold(structure: Node3D) -> void:
 	var plate := _box(threshold, "ThresholdFloor", Vector3(0.0, -0.32, 1.5), Vector3(5.1, FLOOR_PLATE_THICKNESS, 3.0), _materials["pearl_floor"])
 	_register_support(plate, &"threshold walking surface", &"keel girders")
 	_box(threshold, "ThresholdStoneInlay", Vector3(0.0, 0.025, 1.5), Vector3(4.4, 0.05, 2.9), _materials["stone"], false)
-	# A single warm signal thread runs from the doorway into the room and finishes
-	# at the well. Its modest emission keeps the route legible through this
-	# deliberately dim compression zone without adding a practical light, route
-	# authority, collision, or geometry. It remains the only wayfinding piece in
-	# the suite.
-	_box(threshold, "ThresholdThread", Vector3(0.0, 0.055, 1.5), Vector3(0.14, 0.05, 2.9), _materials["signal"], false)
+	# A single warm signal thread now fulfils its original promise: it runs from
+	# the doorway, through the compressed threshold, and turns directly toward
+	# the broad entry tread at the conversation well.  It remains one shallow
+	# visual-only inlay, lapped into the stone and carpet beneath it, so it adds no
+	# snag, step, practical light, route authority or independent floor surface.
+	var route_delta := PROCESSIONAL_ROUTE_END - PROCESSIONAL_ROUTE_START
+	var route_thread := _box(
+		threshold,
+		"ThresholdThread",
+		(PROCESSIONAL_ROUTE_START + PROCESSIONAL_ROUTE_END) * 0.5,
+		Vector3(
+			PROCESSIONAL_ROUTE_WIDTH,
+			PROCESSIONAL_ROUTE_THICKNESS,
+			Vector2(route_delta.x, route_delta.z).length()
+		),
+		_materials["signal"],
+		false,
+		Vector3(0.0, rad_to_deg(atan2(route_delta.x, route_delta.z)), 0.0)
+	)
+	route_thread.set_meta("station_route_landmark", true)
+	route_thread.set_meta("presentation_only", true)
+	route_thread.set_meta("collision_free", true)
+	route_thread.set_meta("route_landmark_role", &"vip_door_to_well_entry")
 
 	for side in [-1.0, 1.0]:
 		var wall_x := float(side) * 2.4

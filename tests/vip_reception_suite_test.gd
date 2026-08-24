@@ -1147,16 +1147,34 @@ func _test_threshold_route_thread(suite: VipReceptionSuite) -> void:
 	var thread := suite.get_node_or_null(
 		^"Structure/Threshold/ThresholdThread"
 	) as MeshInstance3D
-	_check(thread != null, "the threshold retains its single authored route thread")
+	_check(thread != null, "the threshold retains its single authored processional route thread")
 	if thread == null:
 		return
 	var material := thread.material_override as StandardMaterial3D
+	var expected_delta := (
+		VipReceptionSuite.PROCESSIONAL_ROUTE_END
+		- VipReceptionSuite.PROCESSIONAL_ROUTE_START
+	)
+	var expected_length := Vector2(expected_delta.x, expected_delta.z).length()
+	var route_start := thread.transform * Vector3(0.0, 0.0, -expected_length * 0.5)
+	var route_end := thread.transform * Vector3(0.0, 0.0, expected_length * 0.5)
 	_check(
-		thread.position.is_equal_approx(Vector3(0.0, 0.055, 1.5))
+		thread.position.is_equal_approx(
+			(
+				VipReceptionSuite.PROCESSIONAL_ROUTE_START
+				+ VipReceptionSuite.PROCESSIONAL_ROUTE_END
+			) * 0.5
+		)
 		and thread.mesh != null
-		and thread.mesh.get_aabb().size.is_equal_approx(Vector3(0.14, 0.05, 2.9))
+		and thread.mesh.get_aabb().size.is_equal_approx(Vector3(
+			VipReceptionSuite.PROCESSIONAL_ROUTE_WIDTH,
+			VipReceptionSuite.PROCESSIONAL_ROUTE_THICKNESS,
+			expected_length
+		))
+		and route_start.is_equal_approx(VipReceptionSuite.PROCESSIONAL_ROUTE_START)
+		and route_end.is_equal_approx(VipReceptionSuite.PROCESSIONAL_ROUTE_END)
 		and thread.get_child_count() == 0,
-		"the readable thread preserves the exact visual-only threshold route geometry"
+		"the visual-only thread joins the landmark door to the exact broad well-entry tread"
 	)
 	_check(
 		material != null
@@ -1166,6 +1184,52 @@ func _test_threshold_route_thread(suite: VipReceptionSuite) -> void:
 		and is_equal_approx(material.emission_energy_multiplier, 0.9),
 		"the dim threshold route uses the suite's modest warm signal finish"
 	)
+	_check(
+		bool(thread.get_meta("station_route_landmark", false))
+		and bool(thread.get_meta("presentation_only", false))
+		and bool(thread.get_meta("collision_free", false))
+		and StringName(thread.get_meta("route_landmark_role", &"")) == &"vip_door_to_well_entry"
+		and thread.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"the processional line is explicitly presentation-only and gains no collision or route authority"
+	)
+
+	# Walk the production capsule's full 0.76 m diameter and 1.94 m height down
+	# the centreline.  The slight 3 cm sole clearance excludes the supporting
+	# floor from the overlap query while still catching walls, furniture or trim
+	# intruding into the player's body volume.
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.38
+	capsule.height = 1.94
+	var space := suite.get_world_3d().direct_space_state
+	var blocked_samples := PackedStringArray()
+	for sample_index in 11:
+		var weight := 0.05 + float(sample_index) * 0.09
+		var floor_point := VipReceptionSuite.PROCESSIONAL_ROUTE_START.lerp(
+			VipReceptionSuite.PROCESSIONAL_ROUTE_END,
+			weight
+		)
+		var parameters := PhysicsShapeQueryParameters3D.new()
+		parameters.shape = capsule
+		parameters.transform = suite.global_transform * Transform3D(
+			Basis.IDENTITY,
+			Vector3(floor_point.x, 1.0, floor_point.z)
+		)
+		parameters.collision_mask = WORLD_LAYER
+		parameters.collide_with_areas = false
+		parameters.collide_with_bodies = true
+		var hits := space.intersect_shape(parameters, 64)
+		if not hits.is_empty():
+			blocked_samples.append("%d:%s" % [sample_index, str(hits.size())])
+	_check(
+		blocked_samples.is_empty(),
+		"the production-size player capsule clears the full door-to-well processional (%s)"
+			% ", ".join(blocked_samples)
+	)
+
+	suite.set_module_enabled(false)
+	_check(not thread.is_visible_in_tree(), "disabling the VIP module hides the processional with its room")
+	suite.set_module_enabled(true)
+	_check(thread.is_visible_in_tree(), "re-enabling the VIP module restores the processional without rebuilding it")
 
 
 func _test_evidence_label(suite: VipReceptionSuite) -> void:
