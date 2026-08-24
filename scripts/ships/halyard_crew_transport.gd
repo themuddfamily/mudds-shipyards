@@ -286,6 +286,7 @@ const ENGINE_DAMAGE_VANE_SIZE := Vector3(1.65, 0.82, 0.14)
 const ENGINE_DAMAGE_VANE_HINGE := Vector3(0.0, 2.36, 11.78)
 const ENGINE_DAMAGE_VANE_NOMINAL_POSITION := Vector3(0.0, 2.43, 11.37)
 const ENGINE_DAMAGE_VANE_DAMAGED_POSITION := Vector3(0.0, 2.77, 11.78)
+const ENGINE_DAMAGE_VANE_FAILED_ROLL_DEGREES := -34.0
 const CREW_SEAT_ROWS: Array[float] = [-8.00, -5.40, -2.80]
 const CREW_SEAT_HALF_SPACING := 1.30
 const CABIN_WINDOW_COUNT := 10
@@ -3303,7 +3304,10 @@ func _on_halyard_component_damage_changed(
 		_sync_engine_damage_vane()
 
 
-## Reads the inherited component ledger and presents one of two static poses.
+## Reads the inherited component ledger and presents one of three static poses.
+## Impairment raises the isolation vane; failure slumps that same vane toward
+## starboard while retaining its physical hinge. This makes failure readable in
+## silhouette without allocating another renderer, light, particle, or timer.
 ## This observer never changes health, repair, seats, collision, or component
 ## state, and does no per-frame work.
 func _sync_engine_damage_vane() -> void:
@@ -3317,12 +3321,24 @@ func _sync_engine_damage_vane() -> void:
 		ShipComponentDamage.ComponentState.IMPAIRED,
 		ShipComponentDamage.ComponentState.FAILED,
 	]
-	_engine_damage_vane.position = (
-		ENGINE_DAMAGE_VANE_DAMAGED_POSITION
-		if damaged
-		else ENGINE_DAMAGE_VANE_NOMINAL_POSITION
-	)
-	_engine_damage_vane.rotation = Vector3.ZERO if damaged else Vector3(PI * 0.5, 0.0, 0.0)
+	if state == ShipComponentDamage.ComponentState.FAILED:
+		var failed_rotation := Vector3(
+			0.0, 0.0, deg_to_rad(ENGINE_DAMAGE_VANE_FAILED_ROLL_DEGREES)
+		)
+		# The renderer rotates around its centre. Offset that centre from the
+		# authored hinge by the rotated half-height so the lower edge remains
+		# mechanically attached in both upright states.
+		_engine_damage_vane.rotation = failed_rotation
+		_engine_damage_vane.position = ENGINE_DAMAGE_VANE_HINGE + (
+			Basis.from_euler(failed_rotation)
+			* Vector3(0.0, ENGINE_DAMAGE_VANE_SIZE.y * 0.5, 0.0)
+		)
+	elif damaged:
+		_engine_damage_vane.position = ENGINE_DAMAGE_VANE_DAMAGED_POSITION
+		_engine_damage_vane.rotation = Vector3.ZERO
+	else:
+		_engine_damage_vane.position = ENGINE_DAMAGE_VANE_NOMINAL_POSITION
+		_engine_damage_vane.rotation = Vector3(PI * 0.5, 0.0, 0.0)
 	var colour := ENGINE_DAMAGE_VANE_RED \
 		if state == ShipComponentDamage.ComponentState.FAILED \
 		else ENGINE_DAMAGE_VANE_AMBER

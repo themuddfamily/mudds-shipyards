@@ -128,6 +128,18 @@ func _run() -> void:
 			and projected_height >= 15.0,
 		"the upright face stays hinged to the yoke and projects at least 15 pixels in a conservative chase view"
 	)
+	# Hero's bounded component rigs consume the authoritative ledger revision on
+	# the next physics step; the Halyard-local vane consumes the same signal
+	# synchronously. Observe both at their real production cadence.
+	await physics_frame
+	var damage_presentation := craft.get_damage_presentation()
+	_check(
+		damage_presentation != null
+			and damage_presentation.get_active_component_effect_count() > 0
+			and ComponentDamage.COMPONENT_ENGINE_BAY \
+				in damage_presentation.get_component_effect_ids(),
+		"the Halyard vane supplements rather than replaces the inherited bounded component-effect pool"
+	)
 
 	for _frame in 12:
 		await process_frame
@@ -151,6 +163,40 @@ func _run() -> void:
 		"damage presentation leaves crew authority, interior, seats, boarding, collision, weapons, and repair untouched"
 	)
 
+	craft.apply_damage(
+		craft.maximum_hull * 0.10,
+		craft.to_global(engine_position),
+		craft.global_basis.z
+	)
+	await physics_frame
+	await physics_frame
+	var failed_transform := vane.transform
+	var failed_hinge := failed_transform * Vector3(
+		0.0, -HalyardCrewTransport.ENGINE_DAMAGE_VANE_SIZE.y * 0.5, 0.0
+	)
+	_check(
+		damage_model.get_component_state(ComponentDamage.COMPONENT_ENGINE_BAY) \
+			== ComponentDamage.ComponentState.FAILED
+			and vane.get_meta(&"damage_state", &"") == &"failed"
+			and not failed_transform.is_equal_approx(damaged_transform)
+			and is_equal_approx(
+				rad_to_deg(vane.rotation.z),
+				HalyardCrewTransport.ENGINE_DAMAGE_VANE_FAILED_ROLL_DEGREES
+			)
+			and presentation_material.albedo_color.is_equal_approx(
+				HalyardCrewTransport.ENGINE_DAMAGE_VANE_RED
+			),
+		"a second authoritative hit slumps the same vane into a steady red failed silhouette"
+	)
+	_check(
+		failed_hinge.is_equal_approx(HalyardCrewTransport.ENGINE_DAMAGE_VANE_HINGE)
+			and damage_presentation.get_active_component_effect_count() > 0
+			and ComponentDamage.COMPONENT_ENGINE_BAY \
+				in damage_presentation.get_failed_component_effect_ids()
+			and vane.get_instance_id() != 0,
+		"the failed vane remains on its physical hinge while the existing component-effect rig advances in place"
+	)
+
 	var vane_id := vane.get_instance_id()
 	root.remove_child(craft)
 	await process_frame
@@ -158,12 +204,12 @@ func _run() -> void:
 	await process_frame
 	_check(
 		vane.get_instance_id() == vane_id
-			and vane.get_meta(&"damage_state", &"") == &"impaired"
-			and vane.transform.is_equal_approx(damaged_transform)
+			and vane.get_meta(&"damage_state", &"") == &"failed"
+			and vane.transform.is_equal_approx(failed_transform)
 			and craft.get_moving_interior_component().get_instance_id() == moving_frame_id
 			and _seat_paths(craft) == seat_paths
 			and _route_contract_ids(craft) == route_ids,
-		"detach and re-entry retain the same impaired vane and every Halyard route/interior identity"
+		"detach and re-entry retain the same failed vane and every Halyard route/interior identity"
 	)
 
 	var reset := craft.reset_for_reuse(craft.global_transform)
