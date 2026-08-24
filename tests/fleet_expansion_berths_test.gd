@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Berths := preload("res://scripts/world/fleet_expansion_berths.gd")
+const StationSurfaceKit := preload("res://scripts/world/station_surface_kit.gd")
 const EXPECTED_PAD_IDS: Array[StringName] = [
 	&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"
 ]
@@ -31,6 +32,7 @@ func _initialize() -> void:
 	_check(berths.get_pad_ids() == EXPECTED_PAD_IDS, "Dock 04 cargo, Dock 05 bomber, and Dock 06 interceptor are stable authored IDs")
 	_test_service_presentations(berths, audit)
 	_test_access_circulation(berths, audit)
+	_test_panel_finish_roles(berths)
 	for pad_id in berths.get_pad_ids():
 		var contract := berths.get_landing_contract(pad_id)
 		_check(bool(contract.get("accepted", false)) and (contract.get("landing_anchor", Vector3.INF) as Vector3).is_finite(), "landing contract is finite for %s" % pad_id)
@@ -272,6 +274,68 @@ func _expected_pad_piece_specs(pad_index: int) -> Array[Dictionary]:
 		{"name": "StarboardAft", "position": Vector3(8.2, -0.3, 9.0), "size": Vector3(11.6, 0.6, 24.0)},
 		{"name": "TrunkAftCap", "position": Vector3(0.0, -0.3, 17.5), "size": Vector3(4.8, 0.6, 7.0)},
 	]
+
+
+func _test_panel_finish_roles(berths: Node3D) -> void:
+	var pad := berths.get_node_or_null(^"dock_04_cargo/ServicePadSurface") as MeshInstance3D
+	var access := berths.get_node_or_null(
+		^"AccessCirculation/Dock04CargoBridge/Surface"
+	) as MeshInstance3D
+	var frame := berths.get_node_or_null(
+		^"dock_04_cargo/ServicePresentation/CargoCraneMast"
+	) as MeshInstance3D
+	var underframe := berths.get_node_or_null(
+		^"AccessCirculation/SupportedUnderframe/NorthSpineChord"
+	) as MeshInstance3D
+	var wayfinding := berths.get_node_or_null(
+		^"AccessCirculation/BerthRouteEdgeTreatment"
+	) as MeshInstance3D
+	var pad_material := pad.material_override as StandardMaterial3D if pad != null else null
+	var access_material := access.material_override as StandardMaterial3D if access != null else null
+	var frame_material := frame.material_override as StandardMaterial3D if frame != null else null
+	var underframe_material := underframe.material_override as StandardMaterial3D \
+		if underframe != null else null
+	var wayfinding_material := wayfinding.material_override as StandardMaterial3D \
+		if wayfinding != null else null
+	_check(
+		_is_panel_finish(pad_material, StationSurfaceKit.WALKED_CLEARCOAT,
+			StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS)
+		and _is_panel_finish(access_material, StationSurfaceKit.WALKED_CLEARCOAT,
+			StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS),
+		"Dock 04/05/06 pads and access surfaces use the walked-deck panel finish"
+	)
+	_check(
+		_is_panel_finish(frame_material, StationSurfaceKit.STRUCTURAL_CLEARCOAT,
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS)
+		and _is_panel_finish(underframe_material, StationSurfaceKit.STRUCTURAL_CLEARCOAT,
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS),
+		"berth service frames and access underframes use the structural-alloy panel finish"
+	)
+	_check(
+		_is_panel_finish(wayfinding_material, StationSurfaceKit.TRIM_CLEARCOAT,
+			StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS)
+		and wayfinding_material.albedo_color.is_equal_approx(Color("a15f2d")),
+		"route grip uses the metal-trim panel finish while retaining its authored identity tint"
+	)
+
+
+func _is_panel_finish(
+		material: StandardMaterial3D, clearcoat: float, clearcoat_roughness: float
+	) -> bool:
+	return material != null \
+		and material.albedo_texture != null \
+		and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH \
+		and material.normal_enabled \
+		and material.normal_texture != null \
+		and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH \
+		and material.roughness_texture != null \
+		and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH \
+		and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED \
+		and material.uv1_triplanar and material.uv1_world_triplanar \
+		and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30) \
+		and material.clearcoat_enabled \
+		and is_equal_approx(material.clearcoat, clearcoat) \
+		and is_equal_approx(material.clearcoat_roughness, clearcoat_roughness)
 
 
 func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:

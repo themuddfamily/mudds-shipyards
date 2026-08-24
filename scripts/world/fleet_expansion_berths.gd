@@ -80,6 +80,7 @@ const PRESENTATION_LIGHT_DELTA := 0
 const PRESENTATION_SUBMISSION_DELTA := 0
 const AFT_ROUTE_LEGEND_TEXT := "DOCK 04  CARGO        < SPINE\nDOCK 05  BOMBER       > EAST\nDOCK 06  INTERCEPTOR  ^ BRANCH"
 const AFT_ROUTE_LEGEND_POSITION := Vector3(7.45, 2.55, -19.55)
+const PANEL_SURFACE_SCALE := 0.30
 
 var _pads: Dictionary = {}
 var _attachments: Dictionary = {}
@@ -662,7 +663,7 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	# around the independently owned comb trunk and Halyard apron; those live
 	# surfaces support the centre landing footprint without positive-volume
 	# coplanar ownership. Dock 04/05 remain one-piece plates.
-	var pad_material := _material(Color("334b55"), 0.7)
+	var pad_material := _service_materials["pad_deck"] as StandardMaterial3D
 	for piece in _pad_deck_piece_specs(index):
 		var piece_name := String(piece.get("name", ""))
 		var deck_size := piece.get("size", Vector3.ZERO) as Vector3
@@ -1129,17 +1130,45 @@ func _guide_light(
 
 func _build_service_materials() -> void:
 	_service_materials = {
-		"cargo_frame": _material(Color("8a6a36"), 0.72),
-		"cargo_container": _material(Color("2f5966"), 0.58),
+		"pad_deck": _panel_material(
+			Color("334b55"), 0.7, StationSurfaceKit.PanelFinish.WALKED_DECK
+		),
+		"cargo_frame": _panel_material(
+			Color("8a6a36"), 0.72, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+		),
+		"cargo_container": _panel_material(
+			Color("2f5966"), 0.58, StationSurfaceKit.PanelFinish.PAINTED_METAL
+		),
 		"cargo_marker": _emissive_material(Color("56d8de")),
-		"bomber_frame": _material(Color("3b3034"), 0.78),
+		"bomber_frame": _panel_material(
+			Color("3b3034"), 0.78, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+		),
 		"bomber_marker": _emissive_material(Color("ff8b42")),
-		"interceptor_frame": _material(Color("31515b"), 0.74),
+		"interceptor_frame": _panel_material(
+			Color("31515b"), 0.74, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+		),
 		"interceptor_marker": _emissive_material(Color("61e4ee")),
-		"access_deck": _material(Color("39545d"), 0.68),
-		"access_underframe": _material(Color("263d48"), 0.78),
-		"access_support": _material(Color("a15f2d"), 0.62),
+		"access_deck": _panel_material(
+			Color("39545d"), 0.68, StationSurfaceKit.PanelFinish.WALKED_DECK
+		),
+		"access_underframe": _panel_material(
+			Color("263d48"), 0.78, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+		),
+		"access_support": _panel_material(
+			Color("a15f2d"), 0.62, StationSurfaceKit.PanelFinish.METAL_TRIM
+		),
 	}
+
+
+## Apply the same registered panel maps and physical projection used by the
+## station modules Dock 04/05/06 meet. Finish roles affect only surface response;
+## the authored berth-role tints and non-colour wayfinding shapes remain intact.
+func _panel_material(
+		color: Color, metallic: float, finish: StationSurfaceKit.PanelFinish
+	) -> StandardMaterial3D:
+	var material := _material(color, metallic)
+	StationSurfaceKit.apply_panel_triplanar(material, PANEL_SURFACE_SCALE, finish)
+	return material
 
 
 func _emissive_material(color: Color) -> StandardMaterial3D:
