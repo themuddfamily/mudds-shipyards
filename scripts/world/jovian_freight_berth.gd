@@ -92,6 +92,14 @@ const FREIGHT_CONTROL_HEADER_CURVE_SEGMENTS := 8
 const STAGING_BAY_PORT_CENTER := Vector3(-14.1, 0.0, 16.3)
 const STAGING_BAY_STARBOARD_CENTER := Vector3(14.1, 0.0, 15.5)
 const STAGING_BAY_HALF_SIZE := Vector2(1.35, 4.1)
+## The diagonal paint inside both handling bays is one immutable visual family:
+## six copies of the same rounded strip, orange-glow material and render state.
+## The bay borders remain separate because their two authored sizes differ.
+const STAGING_HATCH_COPY_COUNT := 6
+const STAGING_HATCH_SIZE := Vector3(3.4, 0.052, 0.16)
+const STAGING_HATCH_ROTATION_DEGREES := Vector3(0.0, 42.0, 0.0)
+const STAGING_HATCH_SUBMISSIONS_BEFORE := 6
+const STAGING_HATCH_FAMILY_ID: StringName = &"handling-zone-staging-hatches"
 
 ## Gantry maintenance level. The catwalk laps the crane header rather than
 ## floating beside it, and it clears the animated trolley carriage (top 12.825)
@@ -266,6 +274,8 @@ var _cabinet_indicator_batch: MultiMeshInstance3D
 var _cabinet_indicator_transforms: Array[Transform3D] = []
 var _portal_chevron_batch: MultiMeshInstance3D
 var _portal_chevron_transforms: Array[Transform3D] = []
+var _staging_hatch_batch: MultiMeshInstance3D
+var _staging_hatch_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
@@ -1069,6 +1079,97 @@ func get_portal_chevron_batch_contract() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_staging_hatch_batch_contract() -> Dictionary:
+	var zones := get_node_or_null(^"HandlingZones") as Node3D
+	var expected_transforms: Array[Transform3D] = []
+	for center in [STAGING_BAY_PORT_CENTER, STAGING_BAY_STARBOARD_CENTER]:
+		for hatch_index in 3:
+			var hatch_z := lerpf(
+				-STAGING_BAY_HALF_SIZE.y * 0.6,
+				STAGING_BAY_HALF_SIZE.y * 0.6,
+				float(hatch_index) * 0.5
+			)
+			expected_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(0.0, deg_to_rad(STAGING_HATCH_ROTATION_DEGREES.y), 0.0)),
+				center + Vector3(0.0, STAGING_HATCH_SIZE.y * 0.5, hatch_z)
+			))
+	var authored := (
+		_staging_hatch_batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(_staging_hatch_batch) else []
+	)
+	var transforms_exact := authored.size() == expected_transforms.size() \
+		and _staging_hatch_transforms.size() == expected_transforms.size()
+	for index in mini(authored.size(), expected_transforms.size()):
+		transforms_exact = transforms_exact \
+			and (authored[index] as Transform3D).is_equal_approx(expected_transforms[index]) \
+			and _staging_hatch_transforms[index].is_equal_approx(expected_transforms[index])
+	var multi: MultiMesh = (
+		_staging_hatch_batch.multimesh
+		if is_instance_valid(_staging_hatch_batch) else null
+	)
+	var batch_exact: bool = (
+		zones != null
+		and is_instance_valid(_staging_hatch_batch)
+		and _staging_hatch_batch.get_parent() == zones
+		and _staging_hatch_batch.name == &"StagingBayHatchBatch"
+		and multi != null
+		and multi.instance_count == STAGING_HATCH_COPY_COUNT
+		and multi.visible_instance_count in [-1, STAGING_HATCH_COPY_COUNT]
+		and multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(STAGING_HATCH_SIZE)
+		and _staging_hatch_batch.material_override == _materials.get("orange_glow")
+		and _staging_hatch_batch.layers == 1
+		and _staging_hatch_batch.cast_shadow \
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and not _staging_hatch_batch.ignore_occlusion_culling
+		and is_zero_approx(_staging_hatch_batch.extra_cull_margin)
+		and _staging_hatch_batch.get_child_count() == 0
+		and _staging_hatch_batch.get_script() == null
+		and _staging_hatch_batch.get_groups().is_empty()
+		and bool(_staging_hatch_batch.get_meta("visual_detail_only", false))
+		and StringName(_staging_hatch_batch.get_meta("visual_batch_family_id", &"")) \
+			== STAGING_HATCH_FAMILY_ID
+		and transforms_exact
+	)
+	var retired_renderers := zones.find_children(
+		"StagingBayHatch*", "MeshInstance3D", false, false
+	).size() if zones != null else 0
+	var errors := PackedStringArray()
+	if not batch_exact:
+		errors.append("staging_hatch_batch_payload_drift")
+	if retired_renderers != 0:
+		errors.append("staging_hatch_legacy_renderers_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family_id": STAGING_HATCH_FAMILY_ID,
+		"legacy": {
+			"renderer_allocations": STAGING_HATCH_COPY_COUNT,
+			"renderer_submissions": STAGING_HATCH_SUBMISSIONS_BEFORE,
+			"visible_copies": STAGING_HATCH_COPY_COUNT,
+		},
+		"current": {
+			"renderer_allocations": 1 if batch_exact else 0,
+			"renderer_submissions": 1 if batch_exact else 0,
+			"visible_copies": _staging_hatch_transforms.size(),
+		},
+		"reductions": {
+			"renderer_allocations": STAGING_HATCH_COPY_COUNT - 1,
+			"renderer_submissions": STAGING_HATCH_SUBMISSIONS_BEFORE - 1,
+			"visible_copies": 0,
+		},
+		"authored_transforms": _staging_hatch_transforms.duplicate(),
+		"collision_authority": false,
+		"navigation_authority": false,
+		"interaction_authority": false,
+		"berth_authority": false,
+		"landing_authority": false,
+		"ramp_authority": false,
+		"light_authority": false,
+		"lifecycle_authority": false,
+	}.duplicate(true)
+
+
 ## Renderer-independent audit for the four visual-only gantry ladder hoops.
 ## Their exact transforms are retained beside the MultiMesh because headless
 ## RenderingServer readback is not a reliable transform witness.
@@ -1605,14 +1706,17 @@ func get_performance_contract() -> Dictionary:
 	var hoop_sharing := get_catwalk_ladder_hoop_visual_allocation_audit()
 	var rung_batching := get_catwalk_ladder_rung_batch_contract()
 	var trolley_wheel_batching := get_trolley_wheel_batch_contract()
+	var staging_hatch_batching := get_staging_hatch_batch_contract()
 	contract["catwalk_ladder_hoop_visual_sharing"] = hoop_sharing
 	contract["catwalk_ladder_rung_batching"] = rung_batching
 	contract["trolley_wheel_batching"] = trolley_wheel_batching
+	contract["staging_hatch_batching"] = staging_hatch_batching
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(hoop_sharing.valid)
 		and bool(rung_batching.valid)
 		and bool(trolley_wheel_batching.valid)
+		and bool(staging_hatch_batching.valid)
 	)
 	return contract
 
@@ -2251,8 +2355,19 @@ func _build_handling_zones() -> void:
 	)
 	lashing_plate_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-	_build_staging_bay(zones, "Port", STAGING_BAY_PORT_CENTER)
-	_build_staging_bay(zones, "Starboard", STAGING_BAY_STARBOARD_CENTER)
+	_staging_hatch_transforms.clear()
+	_build_staging_bay(zones, "Port", STAGING_BAY_PORT_CENTER, _staging_hatch_transforms)
+	_build_staging_bay(
+		zones, "Starboard", STAGING_BAY_STARBOARD_CENTER, _staging_hatch_transforms
+	)
+	_staging_hatch_batch = _multimesh_rounded_boxes(
+		zones,
+		"StagingBayHatchBatch",
+		STAGING_HATCH_SIZE,
+		_materials["orange_glow"],
+		_staging_hatch_transforms,
+		STAGING_HATCH_FAMILY_ID
+	)
 
 	# Chocks left where a handling crew would leave them.
 	var chock_layout := [
@@ -2275,10 +2390,15 @@ func _build_handling_zones() -> void:
 
 ## One painted, hatched handling bay: border strips and diagonal hatching, all of
 ## it drawn flat against the apron plate it marks rather than hovering over it.
-func _build_staging_bay(parent: Node3D, side_tag: String, center: Vector3) -> void:
+func _build_staging_bay(
+	parent: Node3D,
+	side_tag: String,
+	center: Vector3,
+	hatch_transforms: Array[Transform3D]
+	) -> void:
 	var half := STAGING_BAY_HALF_SIZE
-	var strip_elevation := 0.026
-	var strip_size := 0.052
+	var strip_elevation := STAGING_HATCH_SIZE.y * 0.5
+	var strip_size := STAGING_HATCH_SIZE.y
 	for edge in [-1.0, 1.0]:
 		_rounded_box(
 			parent,
@@ -2298,15 +2418,12 @@ func _build_staging_bay(parent: Node3D, side_tag: String, center: Vector3) -> vo
 		)
 	for hatch_index in 3:
 		var hatch_z := lerpf(-half.y * 0.6, half.y * 0.6, float(hatch_index) * 0.5)
-		_rounded_box(
-			parent,
-			"StagingBayHatch%s%02d" % [side_tag, hatch_index + 1],
-			center + Vector3(0.0, strip_elevation, hatch_z),
-			Vector3(3.4, strip_size, 0.16),
-			_materials["orange_glow"],
-			false,
-			Vector3(0, 42.0, 0)
-		)
+		hatch_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(
+				0.0, deg_to_rad(STAGING_HATCH_ROTATION_DEGREES.y), 0.0
+			)),
+			center + Vector3(0.0, strip_elevation, hatch_z)
+		))
 
 
 ## Storage: what a freight berth keeps between ships.
