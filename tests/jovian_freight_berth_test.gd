@@ -48,7 +48,7 @@ func _run() -> void:
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
 	_test_gantry_header_distance_identity(module)
-	_test_jovian_handoff_route_identity(module)
+	await _test_jovian_handoff_route_identity(module)
 	_test_floor_label_orientation(module)
 	_test_transfer_lane_label_orientation(module)
 	_test_handling_infrastructure(module)
@@ -628,8 +628,39 @@ func _test_jovian_handoff_route_identity(module: JovianFreightBerth) -> void:
 	if apparatus == null:
 		return
 	var materials := module.get("_materials") as Dictionary
+	var identity := apparatus.get_node_or_null(^"JovianHandoffIdentity") as MeshInstance3D
+	var mesh := identity.mesh as ArrayMesh if identity != null else null
+	var palette := identity.material_override as StandardMaterial3D if identity != null else null
+	var exact: bool = identity != null \
+		and identity.position.is_equal_approx(Vector3.ZERO) \
+		and mesh != null \
+		and mesh.get_surface_count() == 1 \
+		and mesh.resource_name == "jovian_handoff_identity_combined_v1" \
+		and palette == materials.get("handoff_palette") \
+		and palette.vertex_color_use_as_albedo \
+		and palette.albedo_texture != null \
+		and identity.get_child_count() == 0 \
+		and identity.get_script() == null \
+		and int(identity.get_meta("renderer_submission_count", 0)) == 1
+	_check(
+		exact,
+		"boarding handoff combines its chamfered colour hierarchy into one panelled submission"
+	)
+	var colors := (mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray) \
+		if mesh != null else PackedColorArray()
+	var board_color := false
+	var crown_color := false
+	var spine_color := false
+	for color in colors:
+		board_color = board_color or color.is_equal_approx(JovianFreightBerth.HANDOFF_BOARD_COLOR)
+		crown_color = crown_color or color.is_equal_approx(JovianFreightBerth.HANDOFF_CROWN_COLOR)
+		spine_color = spine_color or color.is_equal_approx(JovianFreightBerth.HANDOFF_SPINE_COLOR)
+	_check(
+		board_color and crown_color and spine_color,
+		"the one surface retains exact deep-blue, orange and cyan authored regions"
+	)
 	var crown_center := JovianFreightBerth.HANDOFF_BOARD_CENTER + Vector3(
-		0.0,
+		-0.01,
 		(
 			JovianFreightBerth.HANDOFF_BOARD_SIZE.y
 			+ JovianFreightBerth.HANDOFF_CROWN_SIZE.y
@@ -644,58 +675,41 @@ func _test_jovian_handoff_route_identity(module: JovianFreightBerth) -> void:
 		0.0,
 		0.0
 	)
-	var expected := {
-		"JovianHandoffBoard": [
-			JovianFreightBerth.HANDOFF_BOARD_CENTER,
-			JovianFreightBerth.HANDOFF_BOARD_SIZE,
-			materials.get("deep_blue"),
-		],
-		"JovianHandoffCrown": [
-			crown_center,
-			JovianFreightBerth.HANDOFF_CROWN_SIZE,
-			materials.get("orange"),
-		],
-		"JovianHandoffRouteSpine": [
-			spine_center,
-			JovianFreightBerth.HANDOFF_ROUTE_SPINE_SIZE,
-			materials.get("cyan_dim"),
-		],
-	}
-	var exact := true
-	for node_name in expected:
-		var visual := apparatus.get_node_or_null(NodePath(node_name)) as MeshInstance3D
-		var recipe := expected[node_name] as Array
-		exact = exact and visual != null
-		if visual == null:
-			continue
-		exact = exact \
-			and visual.position.is_equal_approx(recipe[0] as Vector3) \
-			and visual.mesh is ArrayMesh \
-			and visual.mesh.get_aabb().size.is_equal_approx(recipe[1] as Vector3) \
-			and visual.material_override == recipe[2] \
-			and visual.get_child_count() == 0 \
-			and visual.get_script() == null
-	_check(
-		exact,
-		"boarding handoff carries the exact chamfered deep-blue, orange and cyan hierarchy"
-	)
-	var board := apparatus.get_node_or_null(^"JovianHandoffBoard") as MeshInstance3D
-	var crown := apparatus.get_node_or_null(^"JovianHandoffCrown") as MeshInstance3D
-	var spine := apparatus.get_node_or_null(^"JovianHandoffRouteSpine") as MeshInstance3D
 	var rail_box := _mesh_aabb_in_module(module, rail_visual)
-	var board_box := _mesh_aabb_in_module(module, board)
-	var crown_box := _mesh_aabb_in_module(module, crown)
-	var spine_box := _mesh_aabb_in_module(module, spine)
+	var identity_box := _mesh_aabb_in_module(module, identity)
+	var shoe_box := AABB(
+		JovianFreightBerth.HANDOFF_SHOE_CENTER - JovianFreightBerth.HANDOFF_SHOE_SIZE * 0.5,
+		JovianFreightBerth.HANDOFF_SHOE_SIZE
+	)
+	var board_box := AABB(
+		JovianFreightBerth.HANDOFF_BOARD_CENTER - JovianFreightBerth.HANDOFF_BOARD_SIZE * 0.5,
+		JovianFreightBerth.HANDOFF_BOARD_SIZE
+	)
+	var crown_box := AABB(
+		crown_center - JovianFreightBerth.HANDOFF_CROWN_SIZE * 0.5,
+		JovianFreightBerth.HANDOFF_CROWN_SIZE
+	)
+	var spine_box := AABB(
+		spine_center - JovianFreightBerth.HANDOFF_ROUTE_SPINE_SIZE * 0.5,
+		JovianFreightBerth.HANDOFF_ROUTE_SPINE_SIZE
+	)
+	var recipe_box := shoe_box.merge(board_box).merge(crown_box).merge(spine_box)
 	_check(
 		rail_visual != null
-		and is_equal_approx(board_box.position.y, rail_box.end.y)
+		and identity_box.is_equal_approx(recipe_box)
+		and is_equal_approx(shoe_box.end.x, rail_box.position.x)
+		and is_equal_approx(board_box.position.y, shoe_box.end.y)
 		and is_equal_approx(crown_box.position.y, board_box.end.y)
 		and is_equal_approx(spine_box.position.x, board_box.end.x),
-		"board, crown and route spine bear on exact non-coplanar faces of existing structure"
+		"shoe, board, crown and route spine bear on exact non-coplanar faces of the rail assembly"
 	)
 	_check(
-		board_box.end.x < JovianFreightBerth.SHIP_ENVELOPE_LOCAL_MIN.x,
-		"the entire handoff blade stays outboard of the protected parked hull"
+		is_equal_approx(identity_box.end.x, JovianFreightBerth.HANDOFF_RAIL_OUTBOARD_FACE_X)
+		and (
+			identity_box.end.x < rail_box.position.x
+			or is_equal_approx(identity_box.end.x, rail_box.position.x)
+		),
+		"every structural vertex ends on or outboard of the physical rail's outboard face"
 	)
 	var matching_labels: Array[Label3D] = []
 	for candidate in module.find_children("FreightSign*", "Label3D", true, false):
@@ -706,15 +720,88 @@ func _test_jovian_handoff_route_identity(module: JovianFreightBerth) -> void:
 	if label_exact:
 		var legend := matching_labels[0]
 		label_exact = legend.position.is_equal_approx(
-			JovianFreightBerth.HANDOFF_BOARD_CENTER
-				+ Vector3(JovianFreightBerth.HANDOFF_BOARD_SIZE.x * 0.5 + 0.025, 0.0, 0.0)
+			Vector3(
+				JovianFreightBerth.HANDOFF_RAIL_OUTBOARD_FACE_X
+					+ JovianFreightBerth.HANDOFF_LEGEND_FACE_GAP,
+				JovianFreightBerth.HANDOFF_BOARD_CENTER.y,
+				JovianFreightBerth.HANDOFF_BOARD_CENTER.z
+			)
 		) and legend.rotation_degrees.is_equal_approx(Vector3(0, 90, 0)) \
+			and legend.position.x >= identity_box.end.x + 0.049 \
 			and not legend.double_sided \
 			and not legend.no_depth_test
 	_check(
 		label_exact,
-		"one supported JOVIAN HANDOFF legend faces the centre-apron approach at gameplay height"
+		"all depth-tested JOVIAN HANDOFF glyphs sit clearly forward of every support layer"
 	)
+
+	# Conservative full-sweep AABB of the exact production capsule while it moves
+	# along the whole assembly frontage on the live boarding-platform elevation.
+	# If this box is clear, the capsule's rounded volume is necessarily clear too.
+	var platform := apparatus.get_node_or_null(^"BoardingPlatformDeck") as StaticBody3D
+	var platform_visual := platform.get_node_or_null(^"Mesh") as MeshInstance3D \
+		if platform != null else null
+	var platform_box := _mesh_aabb_in_module(module, platform_visual)
+	var capsule_contact_x := rail_box.end.x + PLAYER_RADIUS + 0.01
+	var capsule_sweep_box := AABB(
+		Vector3(capsule_contact_x - PLAYER_RADIUS, platform_box.end.y, identity_box.position.z),
+		Vector3(PLAYER_RADIUS * 2.0, PLAYER_HEIGHT, identity_box.size.z)
+	)
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = PLAYER_RADIUS
+	capsule.height = PLAYER_HEIGHT
+	var capsule_center := Vector3(
+		capsule_contact_x,
+		platform_box.end.y + PLAYER_HEIGHT * 0.5 + 0.01,
+		identity_box.get_center().z
+	)
+	var capsule_hits := await _intersect_shape_local(
+		module,
+		capsule,
+		Transform3D(Basis.IDENTITY, capsule_center),
+		32
+	)
+	_check(
+		not identity_box.intersects(capsule_sweep_box) and capsule_hits.is_empty(),
+		"production player capsule clears the complete handoff frontage and live platform rail"
+	)
+
+	# Resolve the actual ShipBerth implementation rather than comparing only the
+	# module constants, then cover its landing volume and both cargo/ship handoffs.
+	var spec := module.get_berth_specification()
+	var live_berth := BERTH_SCENE.instantiate() as ShipBerth
+	live_berth.berth_id = spec.berth_id
+	live_berth.compatibility_tags = (spec.compatibility_tags as PackedStringArray).duplicate()
+	live_berth.landing_half_extents = spec.landing_half_extents
+	_test_root.add_child(live_berth)
+	live_berth.global_transform = spec.dock_transform
+	await process_frame
+	var berth_half := live_berth.get_landing_half_extents()
+	var berth_box := (
+		module.global_transform.affine_inverse()
+		* live_berth.get_dock_transform()
+		* AABB(-berth_half, berth_half * 2.0)
+	).abs()
+	var ship_box := AABB(
+		JovianFreightBerth.SHIP_ENVELOPE_LOCAL_MIN,
+		JovianFreightBerth.SHIP_ENVELOPE_LOCAL_MAX
+			- JovianFreightBerth.SHIP_ENVELOPE_LOCAL_MIN
+	)
+	var cargo_route := module.to_local(module.get_route_transform(&"cargo-transfer").origin)
+	var cargo_width := float(module.get_clearance_profile().cargo_transfer_clear_width)
+	var cargo_box := AABB(
+		Vector3(cargo_route.x - cargo_width * 0.5, 0.0, identity_box.position.z),
+		Vector3(cargo_width, JovianFreightBerth.MINIMUM_HEAD_CLEARANCE, identity_box.size.z)
+	)
+	_check(
+		live_berth.get_validation_errors().is_empty()
+		and not identity_box.intersects(berth_box)
+		and not identity_box.intersects(ship_box)
+		and not identity_box.intersects(cargo_box),
+		"full handoff assembly clears the live ShipBerth landing, parked ship, and cargo-transfer volumes"
+	)
+	live_berth.queue_free()
+	await process_frame
 	_check(
 		apparatus.find_children("JovianHandoff*", "CollisionObject3D", false, false).is_empty()
 		and apparatus.find_children("JovianHandoff*", "Area3D", false, false).is_empty()
@@ -1281,14 +1368,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 908,
-			"mesh_instance_nodes": 409,
+			"descendant_nodes": 906,
+			"mesh_instance_nodes": 407,
 			"multimesh_nodes": 11,
-			"surfaces": 390,
-			"visible_copies": 449,
+			"surfaces": 388,
+			"visible_copies": 447,
 		}
 		and _renderer_census(module) == renderer_before,
-		"lashing-ring batching plus the gantry and handoff identity leaves 908 descendants, 390 submissions, and 449 visible copies"
+		"handoff identity adds one honest combined submission: 906 descendants, 388 submissions, and 447 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

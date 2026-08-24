@@ -233,17 +233,24 @@ const GANTRY_HEADER_FASCIA_SIZE := Vector3(11.4, 0.72, 0.36)
 const GANTRY_HEADER_END_CAP_SIZE := Vector3(1.25, 0.34, 0.12)
 const GANTRY_HEADER_AXIS_STRIPE_SIZE := Vector3(7.8, 0.12, 0.10)
 
-## Eye-level destination blade seated on the outboard rail of the actual
+## Eye-level destination blade clamped to the outboard rail of the actual
 ## boarding platform. The high gantry fascia identifies the berth's skyline;
 ## this lower, approach-facing assembly resolves where a person and freight
 ## actually cross to the parked Jovian once the crane fills the view. Its whole
-## visual envelope remains outboard of the protected hull and the stair flight,
-## while its exact face contacts create a supported three-material hierarchy.
-const HANDOFF_BOARD_CENTER := Vector3(-15.0, 3.86, 30.2)
+## structural envelope ends on the rail's outboard face, while its exact face
+## contacts create a supported three-colour hierarchy in one renderer submission.
+const HANDOFF_RAIL_OUTBOARD_FACE_X := -15.045
+const HANDOFF_SHOE_CENTER := Vector3(-15.105, 3.14, 30.2)
+const HANDOFF_SHOE_SIZE := Vector3(0.12, 0.09, 2.25)
+const HANDOFF_BOARD_CENTER := Vector3(-15.175, 3.86, 30.2)
 const HANDOFF_BOARD_SIZE := Vector3(0.18, 1.35, 2.25)
 const HANDOFF_CROWN_SIZE := Vector3(0.28, 0.18, 2.50)
 const HANDOFF_ROUTE_SPINE_SIZE := Vector3(0.04, 0.90, 0.14)
 const HANDOFF_LEGEND := "JOVIAN HANDOFF\n<< BOARDING + CARGO"
+const HANDOFF_LEGEND_FACE_GAP := 0.05
+const HANDOFF_BOARD_COLOR := Color("102d3b")
+const HANDOFF_CROWN_COLOR := Color("e79338")
+const HANDOFF_SPINE_COLOR := Color("347d83")
 
 const EVIDENCE_REFERENCES := [
 	"RESEARCH.md:A3@2009-11-12 / creator-authored roster names the Jovian-class Light Freighter",
@@ -1860,6 +1867,9 @@ func _create_materials() -> void:
 	_materials["rubber"] = _material(Color("0e1518"), 0.04, 0.9)
 	_materials["glass"] = _transparent_material(Color(0.2, 0.72, 0.78, 0.22), 0.16, 0.12)
 	_materials["screen"] = _material(Color("8debe6"), 0.05, 0.22, Color("49cbd2"), 1.35)
+	var handoff_palette := _material(Color.WHITE, 0.24, 0.54)
+	handoff_palette.vertex_color_use_as_albedo = true
+	_materials["handoff_palette"] = handoff_palette
 
 	# The apron now uses the shared panel family as a material hierarchy rather
 	# than giving every mapped surface the same sealed-paint clearcoat. Keep each
@@ -1880,6 +1890,7 @@ func _create_materials() -> void:
 		"ceramic": StationSurfaceKit.PanelFinish.PAINTED_METAL,
 		"ceramic_warm": StationSurfaceKit.PanelFinish.PAINTED_METAL,
 		"orange": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"handoff_palette": StationSurfaceKit.PanelFinish.PAINTED_METAL,
 	}
 	for key in finish_by_key:
 		var panel := _materials[key] as StandardMaterial3D
@@ -2764,43 +2775,20 @@ func _build_loading_apparatus() -> void:
 		_register_handling_fixture(rail, &"boarding-rail")
 	_rounded_box(apparatus, "BoardingToeBoard", Vector3(-15.15, 2.26, 30.175), Vector3(0.1, 0.24, 2.45), _materials["orange"], false)
 
-	# The broad blade bears directly on the existing physical outer rail: its
-	# y = 3.185 underside is the rail's y = 3.185 crown. The orange cap then bears
-	# on the blade, and the shallow cyan spine starts at the blade's +X face. This
-	# keeps every visible layer supported and non-coplanar without turning route
-	# presentation into another collider in a working platform envelope.
-	_rounded_box(
-		apparatus,
-		"JovianHandoffBoard",
-		HANDOFF_BOARD_CENTER,
-		HANDOFF_BOARD_SIZE,
-		_materials["deep_blue"],
-		false
-	)
-	_rounded_box(
-		apparatus,
-		"JovianHandoffCrown",
-		HANDOFF_BOARD_CENTER + Vector3(
-			0.0,
-			(HANDOFF_BOARD_SIZE.y + HANDOFF_CROWN_SIZE.y) * 0.5,
-			0.0
-		),
-		HANDOFF_CROWN_SIZE,
-		_materials["orange"],
-		false
-	)
-	_rounded_box(
-		apparatus,
-		"JovianHandoffRouteSpine",
-		HANDOFF_BOARD_CENTER + Vector3(
-			(HANDOFF_BOARD_SIZE.x + HANDOFF_ROUTE_SPINE_SIZE.x) * 0.5,
-			0.0,
-			0.0
-		),
-		HANDOFF_ROUTE_SPINE_SIZE,
-		_materials["cyan_dim"],
-		false
-	)
+	# One shallow shoe meets the existing rail only at its -X face and carries the
+	# board from below. The crown and cyan spine then bear on board faces, with no
+	# structural vertex crossing x = -15.045 into the capsule side of the rail.
+	# Four cached rounded-box recipes are combined into one vertex-coloured surface:
+	# the material hierarchy remains visible while the unique assembly costs one
+	# renderer allocation and one submission instead of three of each.
+	var handoff_identity := MeshInstance3D.new()
+	handoff_identity.name = "JovianHandoffIdentity"
+	handoff_identity.mesh = _handoff_identity_mesh()
+	handoff_identity.material_override = _materials["handoff_palette"]
+	handoff_identity.set_meta("visual_detail_only", true)
+	handoff_identity.set_meta("renderer_submission_count", 1)
+	handoff_identity.set_meta("collision_free", true)
+	apparatus.add_child(handoff_identity, true)
 
 	# Service reels on the transfer-lane side, clear of the 3.4 m lane itself.
 	for reel_index in 2:
@@ -3253,7 +3241,11 @@ func _build_lighting_and_signage() -> void:
 	_label(
 		presentation,
 		HANDOFF_LEGEND,
-		HANDOFF_BOARD_CENTER + Vector3(HANDOFF_BOARD_SIZE.x * 0.5 + 0.025, 0.0, 0.0),
+		Vector3(
+			HANDOFF_RAIL_OUTBOARD_FACE_X + HANDOFF_LEGEND_FACE_GAP,
+			HANDOFF_BOARD_CENTER.y,
+			HANDOFF_BOARD_CENTER.z
+		),
 		0.31,
 		Color("bffff6"),
 		Vector3(0, 90, 0)
@@ -3536,6 +3528,68 @@ func _emit_capsule_vertex(
 	surface.set_normal(normal)
 	surface.set_uv(uv)
 	surface.add_vertex(position_value)
+
+
+## One submission for the unique handoff identity. Reusing the berth's cached
+## rounded-box recipes keeps its bevel language exact; expanding their indexed
+## triangles into one coloured surface lets one vertex-aware panel material draw
+## the four supported regions without four renderer nodes or material surfaces.
+func _handoff_identity_mesh() -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_append_colored_rounded_box(
+		surface,
+		HANDOFF_SHOE_CENTER,
+		HANDOFF_SHOE_SIZE,
+		HANDOFF_BOARD_COLOR
+	)
+	_append_colored_rounded_box(
+		surface,
+		HANDOFF_BOARD_CENTER,
+		HANDOFF_BOARD_SIZE,
+		HANDOFF_BOARD_COLOR
+	)
+	_append_colored_rounded_box(
+		surface,
+		HANDOFF_BOARD_CENTER + Vector3(
+			-0.01,
+			(HANDOFF_BOARD_SIZE.y + HANDOFF_CROWN_SIZE.y) * 0.5,
+			0.0
+		),
+		HANDOFF_CROWN_SIZE,
+		HANDOFF_CROWN_COLOR
+	)
+	_append_colored_rounded_box(
+		surface,
+		HANDOFF_BOARD_CENTER + Vector3(
+			(HANDOFF_BOARD_SIZE.x + HANDOFF_ROUTE_SPINE_SIZE.x) * 0.5,
+			0.0,
+			0.0
+		),
+		HANDOFF_ROUTE_SPINE_SIZE,
+		HANDOFF_SPINE_COLOR
+	)
+	surface.index()
+	var mesh := surface.commit()
+	mesh.resource_name = "jovian_handoff_identity_combined_v1"
+	return mesh
+
+
+func _append_colored_rounded_box(
+		surface: SurfaceTool,
+		center: Vector3,
+		size: Vector3,
+		color: Color,
+	) -> void:
+	var source := _rounded_box_mesh(size)
+	var arrays := source.surface_get_arrays(0)
+	var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var normals := arrays[Mesh.ARRAY_NORMAL] as PackedVector3Array
+	var indices := arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
+	for source_index in indices:
+		surface.set_color(color)
+		surface.set_normal(normals[source_index])
+		surface.add_vertex(vertices[source_index] + center)
 
 
 ## Deliberately NOT folded into `StationSurfaceKit`, unlike the five other
