@@ -152,6 +152,26 @@ func detach() -> Dictionary:
 	return _result(true, &"staging_relay_detached")
 
 
+## Restores the exact local attachment epoch only when an outer owner has
+## detached this presentation but failed before committing its own detach.
+## This is rollback, not re-entry: it never advances an attachment generation.
+func rollback_detach(
+		expected_host_generation: int,
+		expected_attachment_generation: int,
+		expected_production_generation: int
+	) -> Dictionary:
+	if not _configured or _attached or _host == null \
+			or not is_instance_valid(_host) \
+			or expected_host_generation != _host_generation \
+			or expected_attachment_generation != _attachment_generation \
+			or expected_production_generation != _production_generation \
+			or int(_host.call(&"get_generation")) != _host_generation:
+		return _result(false, &"staging_relay_detach_rollback_rejected")
+	_attached = true
+	_apply_presentation()
+	return _result(true, &"staging_relay_detach_rolled_back")
+
+
 func reenter(next_attachment_generation: int) -> Dictionary:
 	if not _configured or _attached \
 			or not _valid_generation(next_attachment_generation) \

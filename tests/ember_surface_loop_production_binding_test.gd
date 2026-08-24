@@ -609,28 +609,39 @@ func _test_real_scheduler_complete_loop() -> void:
 	)
 	var planetary_return := production.consume_planetary_orbit_return(receipt)
 	var planetary_return_replay := production.consume_planetary_orbit_return(receipt)
+	var staging_relay := production.get("_staging_relay_proximity") as Area3D
+	var staging_after_return := staging_relay.call(&"get_snapshot") as Dictionary
 	_check(
 		planetary_return.accepted
 			and planetary_return.reason == &"planetary_orbit_return_consumed"
 			and production.get_planetary_surface_snapshot().state == &"detached"
 			and production.get_planetary_relay_survey_return_snapshot().state == &"detached"
+			and not bool(staging_after_return.attached)
+			and not bool(staging_after_return.physical.marker_visible)
 			and planetary_return_replay.reason == &"planetary_orbit_return_already_consumed"
 			and production.get_snapshot().planetary_orbit_return_consumed,
 		"planetary orbit return detaches the composition and return travel exactly once",
 	)
 	var planetary_reentry := production.reenter_planetary_surface()
+	var staging_after_reentry := staging_relay.call(&"get_snapshot") as Dictionary
 	var planetary_return_after_reentry := production.consume_planetary_orbit_return(receipt)
 	var planetary_redetach := production.detach_planetary_surface()
+	var staging_after_redetach := staging_relay.call(&"get_snapshot") as Dictionary
 	_check(
 		planetary_reentry.accepted
 			and planetary_reentry.reason == &"composition_reentered"
 			and int(planetary_reentry.runtime.attachment_generation)
 				== int(receipt.current_attachment_generation)
+			and bool(staging_after_reentry.attached)
+			and int(staging_after_reentry.attachment_generation)
+				== int(receipt.current_attachment_generation)
 			and planetary_return_after_reentry.reason
 				== &"planetary_orbit_return_already_consumed"
 			and planetary_redetach.accepted
 			and production.get_planetary_surface_snapshot().state == &"detached"
-			and production.get_planetary_relay_survey_return_snapshot().state == &"detached",
+			and production.get_planetary_relay_survey_return_snapshot().state == &"detached"
+			and not bool(staging_after_redetach.attached)
+			and not bool(staging_after_redetach.physical.marker_visible),
 		"Host handback generation permits one fenced re-entry before explicit retirement",
 	)
 	early.take_handback_after_completion = true

@@ -16,11 +16,14 @@ class FakeSurfaceComposition:
 	extends Node
 	var detach_calls := 0
 	var reenter_calls := 0
+	var reject_reenter := false
 	func detach() -> Dictionary:
 		detach_calls += 1
 		return {"accepted": true, "reason": &"composition_detached"}
 	func reenter() -> Dictionary:
 		reenter_calls += 1
+		if reject_reenter:
+			return {"accepted": false, "reason": &"composition_reentry_rejected"}
 		return {"accepted": true, "reason": &"composition_reentered"}
 	func get_snapshot() -> Dictionary:
 		return {"state": &"bound", "authority": {"reward": false}}
@@ -125,21 +128,29 @@ func _run() -> void:
 	var detached: Dictionary = owner.detach_planetary_surface()
 	var detached_snapshot := diagnostic.call(&"get_snapshot") as Dictionary
 	host.set("_attachment_generation", 2)
+	surface.reject_reenter = true
+	var rejected_reentry: Dictionary = owner.reenter_planetary_surface()
+	var rejected_snapshot := diagnostic.call(&"get_snapshot") as Dictionary
+	surface.reject_reenter = false
 	var reentered: Dictionary = owner.reenter_planetary_surface()
 	var retained := diagnostic.call(&"get_snapshot") as Dictionary
 	var session_after := owner.get_planetary_surface_session_snapshot()
 	_check(
 		bool(detached.accepted) and not bool(detached_snapshot.active)
 			and not bool(detached_snapshot.physical.marker_visible)
+			and not bool(rejected_reentry.accepted)
+			and rejected_reentry.reason == &"composition_reentry_rejected"
+			and not bool(rejected_snapshot.attached)
+			and not bool(rejected_snapshot.physical.marker_visible)
 			and bool(reentered.accepted) and bool(retained.active)
 			and bool(retained.completed)
 			and int(retained.attachment_generation) == 2
-			and surface.detach_calls == 1 and surface.reenter_calls == 1
+			and surface.detach_calls == 1 and surface.reenter_calls == 2
 			and session_after == session_before
 			and not session_after.has("staging_relay_proximity")
 			and not diagnostic.has_method(&"get_persistence_snapshot")
 			and relay_after == _relay_snapshot(authored),
-		"outer detach and re-entry retain runtime completion without changing session schema"
+		"failed re-entry rolls back both layers before one fenced retry retains completion"
 	)
 
 	owner.call(&"_retire_staging_relay_proximity")

@@ -106,18 +106,24 @@ func _run() -> void:
 	host.phase_id = &"on_foot"
 	var detached: Dictionary = binding.call(&"detach")
 	var hidden := binding.call(&"get_snapshot") as Dictionary
+	var rolled_back: Dictionary = binding.call(&"rollback_detach", 41, 3, 7)
+	var restored := binding.call(&"get_snapshot") as Dictionary
+	var redetached: Dictionary = binding.call(&"detach")
 	host.attachment_generation = 4
 	var reentered: Dictionary = binding.call(&"reenter", 4)
 	var retained := binding.call(&"get_snapshot") as Dictionary
 	_check(
 		not bool(landed.active) and not bool(landed.physical.marker_visible)
 			and bool(detached.accepted) and not bool(hidden.active)
+			and bool(rolled_back.accepted) and bool(restored.active)
+			and int(restored.attachment_generation) == 3
+			and bool(redetached.accepted)
 			and bool(reentered.accepted) and bool(retained.active)
 			and bool(retained.completed)
 			and bool(retained.physical.marker_visible)
 			and not binding.has_method(&"get_persistence_snapshot")
 			and not binding.has_method(&"restore_persistence_snapshot"),
-		"phase and attachment fencing hide the marker while re-entry retains runtime state"
+		"detach rollback restores one epoch while fenced re-entry retains runtime state"
 	)
 
 	var fresh := BindingScript.new() as Area3D

@@ -473,9 +473,36 @@ func consume_planetary_orbit_return(handback: Variant) -> Dictionary:
 	)
 	if not receipt_rejection.is_empty():
 		return _reject(receipt_rejection)
+	var staging_snapshot: Dictionary = {}
+	var staging_detached := false
+	if is_instance_valid(_staging_relay_proximity):
+		staging_snapshot = _staging_relay_proximity.call(&"get_snapshot") \
+			as Dictionary
+		if bool(staging_snapshot.get("attached", false)):
+			var diagnostic_detached := _staging_relay_proximity.call(&"detach") \
+				as Dictionary
+			if not bool(diagnostic_detached.get("accepted", false)):
+				return diagnostic_detached
+			staging_detached = true
 	var result: Dictionary = _planetary_composition.call(
 		&"consume_orbit_return_handback", receipt
 	)
+	if not bool(result.get("accepted", false)) and staging_detached:
+		var diagnostic_rollback := _staging_relay_proximity.call(
+			&"rollback_detach",
+			int(staging_snapshot.get("host_generation", -1)),
+			int(staging_snapshot.get("attachment_generation", -1)),
+			int(staging_snapshot.get("production_generation", -1))
+		) as Dictionary
+		if not bool(diagnostic_rollback.get("accepted", false)):
+			var rollback_failure := _reject(
+				&"staging_relay_handback_rollback_failed"
+			)
+			rollback_failure["composition_result"] = result.duplicate(true)
+			rollback_failure["diagnostic_rollback"] = (
+				diagnostic_rollback.duplicate(true)
+			)
+			return rollback_failure
 	if bool(result.get("accepted", false)):
 		if _relay_return_travel != null:
 			_relay_return_travel.call(&"detach")
@@ -1425,18 +1452,34 @@ func reenter_planetary_surface() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
 	var result: Dictionary = _planetary_composition.call(&"reenter")
-	if bool(result.get("accepted", false)) \
-			and is_instance_valid(_staging_relay_proximity):
-		var diagnostic_reentered := _staging_relay_proximity.call(
+	if not bool(result.get("accepted", false)):
+		return result
+	var diagnostic_reentered := false
+	if is_instance_valid(_staging_relay_proximity):
+		var relay_result := _staging_relay_proximity.call(
 			&"reenter", _host.get_attachment_generation()
 		) as Dictionary
-		if not bool(diagnostic_reentered.get("accepted", false)):
-			return diagnostic_reentered
+		if not bool(relay_result.get("accepted", false)):
+			var composition_rollback := _planetary_composition.call(&"detach") \
+				as Dictionary
+			if not bool(composition_rollback.get("accepted", false)):
+				return _reject(&"planetary_surface_reentry_rollback_failed")
+			return relay_result
+		diagnostic_reentered = true
 	if bool(result.get("accepted", false)) and _relay_return_travel != null:
 		var travel_result: Dictionary = _relay_return_travel.call(
 			&"reenter", _host.get_attachment_generation()
 		)
 		if not bool(travel_result.get("accepted", false)):
+			var composition_rollback := _planetary_composition.call(&"detach") \
+				as Dictionary
+			var diagnostic_rollback := {"accepted": true}
+			if diagnostic_reentered:
+				diagnostic_rollback = _staging_relay_proximity.call(&"detach") \
+					as Dictionary
+			if not bool(composition_rollback.get("accepted", false)) \
+					or not bool(diagnostic_rollback.get("accepted", false)):
+				return _reject(&"planetary_surface_reentry_rollback_failed")
 			return travel_result
 	return result
 
