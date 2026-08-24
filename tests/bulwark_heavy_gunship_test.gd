@@ -76,6 +76,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_test_cockpit_console_key_mesh_sharing(visual)
 	_test_navigation_lamp_mesh_sharing(visual)
 	_test_engine_housing_batch(visual)
+	_test_gun_pod_housing_batch(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -345,6 +346,60 @@ func _test_engine_housing_batch(visual: Node3D) -> void:
 	)
 	print(
 		"BULWARK_ENGINE_HOUSING_BATCH: nodes 2->1 visible_copies 2->2 "
+		+ "submissions 2->1"
+	)
+
+
+func _test_gun_pod_housing_batch(visual: Node3D) -> void:
+	var batch := visual.get_node_or_null("GunPodHousingBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var multi := batch.multimesh if batch != null else null
+	_check(
+		multi != null
+		and multi.transform_format == MultiMesh.TRANSFORM_3D
+		and multi.instance_count == 2
+		and multi.visible_instance_count == -1
+		and multi.mesh != null
+		and multi.mesh.get_surface_count() == 1,
+		"two gun-pod housing copies retain one bounded renderer submission"
+	)
+	if multi == null:
+		return
+	var pod_basis := Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0))
+	var expected_transforms := [
+		Transform3D(pod_basis, Vector3(-3.25, 1.0, -3.1)),
+		Transform3D(pod_basis, Vector3(3.25, 1.0, -3.1)),
+	]
+	var transforms: Array = batch.get_meta(&"authored_instance_transforms", []) as Array
+	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray
+	var mesh_bounds := multi.mesh.get_aabb()
+	var expected_bounds: AABB = (expected_transforms[0] * mesh_bounds).abs().merge(
+		(expected_transforms[1] * mesh_bounds).abs()
+	)
+	var material := multi.mesh.surface_get_material(0) as StandardMaterial3D
+	_check(
+		transforms == expected_transforms
+		and names == PackedStringArray(["PortGunPodHousing", "StarboardGunPodHousing"])
+		and material != null
+		and material.albedo_color.is_equal_approx(Color("416b88"))
+		and is_equal_approx(material.metallic, 0.66)
+		and is_equal_approx(material.roughness, 0.25)
+		and is_equal_approx(mesh_bounds.size.x, 0.84)
+		and is_equal_approx(mesh_bounds.size.y, 2.15)
+		and is_equal_approx(mesh_bounds.size.z, 0.84)
+		and multi.custom_aabb.is_equal_approx(expected_bounds)
+		and batch.material_override == null
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"gun-pod housing mesh, material, culling bounds, layer, and shadows remain exact"
+	)
+	_check(
+		visual.get_node_or_null("PortGunPodHousing") == null
+		and visual.get_node_or_null("StarboardGunPodHousing") == null,
+		"legacy gun-pod housing renderer submissions are removed"
+	)
+	print(
+		"BULWARK_GUN_POD_HOUSING_BATCH: nodes 2->1 visible_copies 2->2 "
 		+ "submissions 2->1"
 	)
 
