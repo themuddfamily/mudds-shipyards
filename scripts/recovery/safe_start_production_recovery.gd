@@ -60,6 +60,7 @@ var _starting_before_first_apply := false
 var _graphics_recovery_receipt: Dictionary = {}
 var _audio_recovery_receipt: Dictionary = {}
 var _startup_choice_generation := -1
+var _report_revision := 0
 
 
 func _init(
@@ -72,6 +73,10 @@ func _init(
 	_identity_scope = (
 		&"injected_main_lifetime" if injected_authority else &"process_lifetime"
 	)
+	if _settings != null and not _settings.settings_changed.is_connected(
+		_on_runtime_settings_changed
+	):
+		_settings.settings_changed.connect(_on_runtime_settings_changed)
 
 
 ## Called once after RuntimeSettingsStoreAdapter.load(). `persist_settings` is a
@@ -87,6 +92,7 @@ func initialize(
 	if _store == null or _settings == null:
 		_restore_status = _local_status(false, &"store_unavailable")
 		_begin_status = _local_status(false, &"not_attempted")
+		_advance_report_revision()
 		return
 	_policy = Policy.new(_store) as SafeStartRecoveryPolicy
 	var store_status := load_status.get("store_status", {}) as Dictionary
@@ -97,11 +103,13 @@ func initialize(
 			{"store_status": store_status}
 		)
 		_begin_status = _local_status(false, &"not_attempted")
+		_advance_report_revision()
 		return
 	_restore_attempt_count += 1
 	_restore_status = _policy.restore(_store.get_generation()).duplicate(true)
 	if not bool(_restore_status.get("accepted", false)):
 		_begin_status = _local_status(false, &"restore_rejected")
+		_advance_report_revision()
 		return
 	if load_status.get("reason") in [
 		&"settings_payload_invalid", &"settings_payload_newer",
@@ -111,16 +119,19 @@ func initialize(
 			&"settings_authority_blocked",
 			{"settings_reason": load_status.get("reason")}
 		)
+		_advance_report_revision()
 		return
 	var restored_snapshot := _policy.get_snapshot()
 	var prior_startup_generation := int(restored_snapshot.get("startup_generation", 0))
 	if prior_startup_generation >= Record.MAX_SAFE_JSON_INTEGER:
 		_begin_status = _local_status(false, &"startup_generation_exhausted")
+		_advance_report_revision()
 		return
 	_startup_generation = prior_startup_generation + 1
 	var commit_id := _commit_id(&"begin")
 	if commit_id.is_empty():
 		_begin_status = _local_status(false, &"commit_id_exhausted")
+		_advance_report_revision()
 		return
 	_transition_attempt_count += 1
 	_begin_status = _policy.mark_startup_begin(
@@ -130,6 +141,7 @@ func initialize(
 		commit_id
 	).duplicate(true)
 	if not bool(_begin_status.get("accepted", false)):
+		_advance_report_revision()
 		return
 	if _begin_status.get("reason") == &"startup_begun":
 		_transition_success_count += 1
@@ -142,6 +154,7 @@ func initialize(
 	# restore refreshes in-memory generation evidence without a second disk load.
 	if bool(_recommendation_status.get("store_generation_changed", false)):
 		_refresh_policy()
+	_advance_report_revision()
 
 
 func note_first_settings_apply() -> void:
@@ -185,6 +198,7 @@ func apply_current_session_safe_graphics(expected_startup_generation: int) -> Di
 	if not bool(applied.get("accepted", false)):
 		return _local_status(false, &"safe_graphics_apply_failed", {"apply_status": applied})
 	_startup_choice_generation = expected_startup_generation
+	_advance_report_revision()
 	return _local_status(true, &"safe_graphics_applied_current_session", {
 		"persisted": false,
 		"startup_generation": expected_startup_generation,
@@ -213,11 +227,13 @@ func advance_physics(delta: float) -> void:
 		_stable_status = _local_status(
 			false, &"policy_refresh_failed", {"policy_status": refreshed}
 		)
+		_advance_report_revision()
 		return
 	var snapshot := _policy.get_snapshot()
 	var commit_id := _commit_id(&"stable")
 	if commit_id.is_empty():
 		_stable_status = _local_status(false, &"commit_id_exhausted")
+		_advance_report_revision()
 		return
 	_transition_attempt_count += 1
 	_stable_status = _policy.mark_stable_after_physics_window(
@@ -232,11 +248,13 @@ func advance_physics(delta: float) -> void:
 	):
 		_transition_success_count += 1
 		_last_commit_id = commit_id
+	_advance_report_revision()
 
 
 func mark_orderly_shutdown() -> Dictionary:
 	if _policy == null or not _initialized:
 		_orderly_shutdown_status = _local_status(false, &"policy_unavailable")
+		_advance_report_revision()
 		return _orderly_shutdown_status.duplicate(true)
 	var refreshed := _refresh_policy()
 	if not bool(refreshed.get("accepted", false)):
@@ -245,11 +263,13 @@ func mark_orderly_shutdown() -> Dictionary:
 			&"policy_refresh_failed",
 			{"policy_status": refreshed}
 		)
+		_advance_report_revision()
 		return _orderly_shutdown_status.duplicate(true)
 	var snapshot := _policy.get_snapshot()
 	var commit_id := _commit_id(&"clean")
 	if commit_id.is_empty():
 		_orderly_shutdown_status = _local_status(false, &"commit_id_exhausted")
+		_advance_report_revision()
 		return _orderly_shutdown_status.duplicate(true)
 	_transition_attempt_count += 1
 	_orderly_shutdown_status = _policy.mark_clean_shutdown(
@@ -264,6 +284,7 @@ func mark_orderly_shutdown() -> Dictionary:
 	):
 		_transition_success_count += 1
 		_last_commit_id = commit_id
+	_advance_report_revision()
 	return _orderly_shutdown_status.duplicate(true)
 
 
@@ -311,6 +332,7 @@ func restore_prior_graphics_profile(persist_settings: Callable) -> Dictionary:
 			"rolled_back_live_settings": true,
 		})
 	_graphics_recovery_receipt["consumed"] = true
+	_advance_report_revision()
 	return _local_status(true, &"prior_graphics_profile_restored", {
 		"save_status": saved,
 		"store_generation_changed": _store.get_generation() != generation_before,
@@ -360,6 +382,7 @@ func apply_audio_recovery_fallback(persist_settings: Callable) -> Dictionary:
 			"music_volume": before_values.get("music_volume"),
 		},
 	}
+	_advance_report_revision()
 	return _local_status(true, &"audio_fallback_applied", {
 		"save_status": saved,
 		"store_generation_changed": _store.get_generation() != generation_before,
@@ -408,6 +431,7 @@ func restore_prior_audio_profile(persist_settings: Callable) -> Dictionary:
 			"rolled_back_live_settings": true,
 		})
 	_audio_recovery_receipt["consumed"] = true
+	_advance_report_revision()
 	return _local_status(true, &"prior_audio_profile_restored", {
 		"save_status": saved,
 		"store_generation_changed": _store.get_generation() != generation_before,
@@ -471,6 +495,7 @@ func get_report() -> Dictionary:
 	var policy_snapshot := _policy.get_snapshot() if _policy != null else {}
 	return {
 		"schema_version": 1,
+		"report_revision": _report_revision,
 		"policy_count": 1 if _policy != null else 0,
 		"policy_instance_id": _policy.get_instance_id() if _policy != null else 0,
 		"identity_scope": _identity_scope,
@@ -487,6 +512,7 @@ func get_report() -> Dictionary:
 		"recommendation_status": _recommendation_status.duplicate(true),
 		"graphics_recovery_receipt": _graphics_recovery_receipt.duplicate(true),
 		"audio_recovery_receipt": _audio_recovery_receipt.duplicate(true),
+		"restore_readiness_snapshot": _restore_readiness_snapshot(),
 		"policy_snapshot": policy_snapshot.duplicate(true),
 		"last_commit_id": _last_commit_id,
 		"commit_clock": &"store_generation_successor",
@@ -511,6 +537,75 @@ func get_report() -> Dictionary:
 		"gameplay_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
+
+
+func _restore_readiness_snapshot() -> Dictionary:
+	var values: Dictionary = {}
+	if _settings != null:
+		values = (
+			_settings.to_user_data_payload().get("values", {}) as Dictionary
+		).duplicate(true)
+	var stability_confirmed: bool = (
+		_policy != null
+		and _policy.get_snapshot().get("state") == Record.STATE_STABLE
+		and _stable_status.get("reason") in [&"startup_stable", &"already_stable"]
+	)
+	var graphics_active: bool = (
+		not _graphics_recovery_receipt.is_empty()
+		and not bool(_graphics_recovery_receipt.get("consumed", true))
+		and values.get("graphics_profile") == "low"
+		and values.get("window_mode") == "windowed"
+	)
+	var audio_active: bool = (
+		not _audio_recovery_receipt.is_empty()
+		and not bool(_audio_recovery_receipt.get("consumed", true))
+		and values.get("master_volume") == SAFE_AUDIO_MASTER_VOLUME
+		and values.get("music_volume") == SAFE_AUDIO_MUSIC_VOLUME
+	)
+	return {
+		"schema_version": 1,
+		"stability_confirmed": stability_confirmed,
+		"graphics": _domain_readiness(
+			_graphics_recovery_receipt, graphics_active, stability_confirmed
+		),
+		"audio": _domain_readiness(
+			_audio_recovery_receipt, audio_active, stability_confirmed
+		),
+	}.duplicate(true)
+
+
+func _domain_readiness(
+		receipt: Dictionary,
+		fallback_active: bool,
+		stability_confirmed: bool
+		) -> Dictionary:
+	var receipt_present := not receipt.is_empty()
+	var receipt_available := receipt_present and not bool(receipt.get("consumed", true))
+	var reason: StringName = &"no_receipt"
+	if receipt_present and not receipt_available:
+		reason = &"receipt_consumed"
+	elif receipt_available and not fallback_active:
+		reason = &"live_settings_changed"
+	elif receipt_available and not stability_confirmed:
+		reason = &"stability_pending"
+	elif receipt_available:
+		reason = &"restore_ready"
+	return {
+		"receipt_present": receipt_present,
+		"receipt_available": receipt_available,
+		"fallback_active": fallback_active,
+		"restore_ready": receipt_available and fallback_active and stability_confirmed,
+		"reason": reason,
+	}
+
+
+func _on_runtime_settings_changed(_settings_names: PackedStringArray) -> void:
+	_advance_report_revision()
+
+
+func _advance_report_revision() -> void:
+	if _report_revision < Record.MAX_SAFE_JSON_INTEGER:
+		_report_revision += 1
 
 
 func _apply_recommendation(

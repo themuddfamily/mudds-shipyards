@@ -17,7 +17,7 @@ func _run() -> void:
 	_check(
 		snapshot.status == &"safe_mode_active"
 		and snapshot.readiness == "[STABILITY CHECK]"
-		and snapshot.next_action == "Keep Safe Settings until startup stability is confirmed."
+		and snapshot.next_action == "Keep current settings until startup stability is confirmed."
 		and snapshot.message.contains("SAFE GRAPHICS + SAFE AUDIO ACTIVE")
 		and snapshot.message.contains("NEXT ACTION //")
 		and bool(snapshot.color_independent),
@@ -68,6 +68,12 @@ func _run() -> void:
 		and presenter.get_snapshot().status == &"restore_ready",
 		"an older recovery revision cannot replace the current next action"
 	)
+	var telemetry_replay := stable_report.duplicate(true)
+	telemetry_replay["physics_elapsed_seconds"] = 4.5
+	_check(
+		presenter.present_receipt(telemetry_replay).status == &"restore_ready",
+		"same-cursor non-presentation telemetry is an idempotent replay"
+	)
 	var conflict_report := stable_report.duplicate(true)
 	(conflict_report.audio_recovery_receipt as Dictionary)["consumed"] = true
 	_check(
@@ -82,7 +88,23 @@ func _run() -> void:
 		"generation and revision fencing retains exact integer types"
 	)
 
-	var complete := presenter.present_receipt(_report(4, 10, "stable", true, true))
+	var changed_report := stable_report.duplicate(true)
+	changed_report.report_revision = 10
+	(changed_report.restore_readiness_snapshot.audio as Dictionary)["fallback_active"] = false
+	(changed_report.restore_readiness_snapshot.audio as Dictionary)["restore_ready"] = false
+	(changed_report.restore_readiness_snapshot.audio as Dictionary)["reason"] = &"live_settings_changed"
+	var changed := presenter.present_receipt(changed_report)
+	_check(
+		changed.status == &"restore_ready"
+		and changed.actions[0].label == "Restore Previous Graphics"
+		and not bool(changed.details.audio_restore_ready)
+		and changed.fallback_summary.contains("AUDIO FALLBACK NOT ACTIVE"),
+		"live-setting evidence limits restore readiness to domains still using the fallback"
+	)
+
+	var complete_report := _report(4, 11, "stable", true, true)
+	(complete_report.policy_snapshot as Dictionary)["record_generation"] = 9
+	var complete := presenter.present_receipt(complete_report)
 	_check(
 		complete.status == &"recovery_complete"
 		and complete.readiness == "[RECOVERY COMPLETE]"
@@ -100,6 +122,15 @@ func _run() -> void:
 		and blocked.actions.is_empty(),
 		"corrupt-settings authority is visibly preserved and directs the player to recovery review"
 	)
+	var unavailable_presenter := Presenter.new()
+	var unavailable := unavailable_presenter.present_receipt(_store_unavailable_report())
+	_check(
+		unavailable.status == &"recovery_blocked"
+		and unavailable.generation == 0
+		and unavailable.revision == 1
+		and unavailable.details.blocked_reason == &"store_unavailable",
+		"missing store authority receives a visible fail-closed recovery status"
+	)
 	var detached_state := presenter.detach()
 	_check(
 		detached_state.status == &"detached"
@@ -111,7 +142,7 @@ func _run() -> void:
 	_check(
 		reused.generation == 1
 		and reused.revision == 1
-		and reused.fallback_summary == "SAFE GRAPHICS ACTIVE // AUDIO UNCHANGED",
+		and reused.fallback_summary == "SAFE GRAPHICS ACTIVE // AUDIO FALLBACK NOT ACTIVE",
 		"detached presenter reuse starts a fresh cursor and names a graphics-only fallback"
 	)
 	var invalid_report := _report(2, 1, "starting", false, false)
@@ -145,7 +176,7 @@ func _run() -> void:
 	_check(not bool(hud._recovery_prompt_panel.visible), "accepted recovery publication clears the prompt")
 	hud.free()
 	if _failures.is_empty():
-		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 21 assertions")
+		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 24 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)
@@ -172,6 +203,7 @@ func _report(
 		) -> Dictionary:
 	return {
 		"schema_version": 1,
+		"report_revision": revision,
 		"startup_generation": generation,
 		"begin_status": {"accepted": true, "reason": &"startup_begun"},
 		"restore_status": {"accepted": true, "reason": &"restored"},
@@ -199,4 +231,55 @@ func _report(
 			"source_store_generation": revision,
 			"prior_values": {"master_volume": 0.8, "music_volume": 0.6},
 		},
+		"restore_readiness_snapshot": {
+			"schema_version": 1,
+			"stability_confirmed": state == "stable",
+			"graphics": _domain_readiness(not graphics_consumed, state == "stable"),
+			"audio": _domain_readiness(not audio_consumed, state == "stable"),
+		},
+	}
+
+
+func _domain_readiness(fallback_active: bool, stable: bool) -> Dictionary:
+	var receipt_available := fallback_active
+	return {
+		"receipt_present": true,
+		"receipt_available": receipt_available,
+		"fallback_active": fallback_active,
+		"restore_ready": receipt_available and stable,
+		"reason": (
+			&"restore_ready" if receipt_available and stable
+			else &"stability_pending" if receipt_available
+			else &"receipt_consumed"
+		),
+	}
+
+
+func _store_unavailable_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"report_revision": 1,
+		"startup_generation": 0,
+		"begin_status": {"accepted": false, "reason": &"not_attempted"},
+		"restore_status": {"accepted": false, "reason": &"store_unavailable"},
+		"stable_status": {},
+		"policy_snapshot": {},
+		"graphics_recovery_receipt": {},
+		"audio_recovery_receipt": {},
+		"restore_readiness_snapshot": {
+			"schema_version": 1,
+			"stability_confirmed": false,
+			"graphics": _empty_domain_readiness(),
+			"audio": _empty_domain_readiness(),
+		},
+	}
+
+
+func _empty_domain_readiness() -> Dictionary:
+	return {
+		"receipt_present": false,
+		"receipt_available": false,
+		"fallback_active": false,
+		"restore_ready": false,
+		"reason": &"no_receipt",
 	}

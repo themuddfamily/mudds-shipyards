@@ -110,7 +110,9 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 		"store load, policy restore and STARTING commit precede the first settings consumer"
 	)
 	_check(
-		store.get_generation() == 1
+		int(startup.begin_status.store_generation) == 1
+		and int(startup.transition_success_count) == 1
+		and store.get_generation() >= int(startup.begin_status.store_generation)
 		and store.get_snapshot().has(Policy.PAYLOAD_NAMESPACE)
 		and startup.last_commit_id == "safe-start-begin-0000000001"
 		and startup.commit_clock == &"store_generation_successor"
@@ -177,8 +179,9 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 		and bool(stable.stability_transition_attempted)
 		and is_equal_approx(float(stable.physics_elapsed_seconds), 5.0)
 		and stable.stable_status.reason == &"startup_stable"
-		and stable.last_commit_id == "safe-start-stable-0000000002"
-		and store.get_generation() == 2,
+		and stable.last_commit_id == "safe-start-stable-%010d" % int(stable.stable_status.store_generation)
+		and store.get_generation() >= int(stable.stable_status.store_generation)
+		and int(stable.transition_success_count) == 2,
 		"the exact five-second caller physics boundary commits STABLE once"
 	)
 
@@ -217,7 +220,9 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 		and game.get_safe_start_recovery_report().policy_snapshot.state
 			== Record.STATE_CLEAN_SHUTDOWN
 		and filesystem.files[STORE_PATH] == orderly_bytes
-		and store.get_generation() == 3,
+		and int(duplicate.record_generation) == int(orderly.record_generation)
+		and store.get_generation() >= int(orderly.store_generation)
+		and int(game.get_safe_start_recovery_report().transition_success_count) == 3,
 		"HUD exit and window-manager close both use the explicit idempotent orderly seam"
 	)
 	parent.add_child(game)
@@ -291,6 +296,14 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		and flow.get_runtime_settings().window_mode == Settings.WindowMode.WINDOWED,
 		"threshold recommendation validates and atomically installs only low/windowed"
 	)
+	_check(
+		int(report.report_revision) > 0
+		and bool(report.restore_readiness_snapshot.graphics.fallback_active)
+		and not bool(report.restore_readiness_snapshot.graphics.restore_ready)
+		and report.restore_readiness_snapshot.graphics.reason == &"stability_pending"
+		and not bool(report.restore_readiness_snapshot.audio.receipt_present),
+		"production reports detached pre-stability fallback readiness without granting restore"
+	)
 	var wrong_type := (report.begin_status.recommendation as Dictionary).duplicate(true)
 	wrong_type["schema_version"] = 1.0
 	var extra_field := (report.begin_status.recommendation as Dictionary).duplicate(true)
@@ -320,14 +333,18 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		and report.policy_snapshot.store_generation == 3,
 		"recommendation preserves bindings/controls/accessibility/audio/camera and adjacent namespaces"
 	)
+	var revision_before_audio := int(report.report_revision)
 	var audio_fallback := flow._safe_start_production_recovery.apply_audio_recovery_fallback(
 		Callable(flow, "_persist_runtime_settings")
 	)
+	var audio_report := flow.get_safe_start_recovery_report()
 	_check(
 		bool(audio_fallback.accepted)
 		and audio_fallback.reason == &"audio_fallback_applied"
 		and is_equal_approx(flow.get_runtime_settings().master_volume, 0.5)
-		and is_equal_approx(flow.get_runtime_settings().music_volume, 0.0),
+		and is_equal_approx(flow.get_runtime_settings().music_volume, 0.0)
+		and int(audio_report.report_revision) > revision_before_audio
+		and bool(audio_report.restore_readiness_snapshot.audio.fallback_active),
 		"caller-authorized safe-start audio fallback applies validated neutral levels"
 	)
 	var fallback_payload := (
@@ -335,12 +352,36 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 	).duplicate(true)
 	flow.set("_initialized", true)
 	flow._physics_process(GameFlow.SAFE_START_STABILITY_PHYSICS_SECONDS)
+	var stable_readiness_report := flow.get_safe_start_recovery_report()
 	_check(
-		flow.get_safe_start_recovery_report().policy_snapshot.state
-			== Record.STATE_STABLE
+		stable_readiness_report.policy_snapshot.state == Record.STATE_STABLE
 		and store.get_generation() == 5
-		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY] == fallback_payload,
+		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY] == fallback_payload
+		and int(stable_readiness_report.report_revision)
+			> int(audio_report.report_revision)
+		and bool(stable_readiness_report.restore_readiness_snapshot.graphics.restore_ready)
+		and bool(stable_readiness_report.restore_readiness_snapshot.audio.restore_ready),
 		"STABLE refreshes the policy after the adapter's shared-store recommendation commit"
+	)
+	var stable_revision := int(stable_readiness_report.report_revision)
+	flow.get_runtime_settings().master_volume = 0.6
+	var changed_audio_report := flow.get_safe_start_recovery_report()
+	_check(
+		int(changed_audio_report.report_revision) > stable_revision
+		and bool(changed_audio_report.restore_readiness_snapshot.graphics.restore_ready)
+		and not bool(changed_audio_report.restore_readiness_snapshot.audio.fallback_active)
+		and not bool(changed_audio_report.restore_readiness_snapshot.audio.restore_ready)
+		and changed_audio_report.restore_readiness_snapshot.audio.reason
+			== &"live_settings_changed",
+		"external live-setting changes advance the report and withdraw false audio readiness"
+	)
+	flow.get_runtime_settings().master_volume = SafeStartProductionRecovery.SAFE_AUDIO_MASTER_VOLUME
+	var restored_fallback_report := flow.get_safe_start_recovery_report()
+	_check(
+		int(restored_fallback_report.report_revision)
+			> int(changed_audio_report.report_revision)
+		and bool(restored_fallback_report.restore_readiness_snapshot.audio.restore_ready),
+		"returning to the recorded fallback publishes a fresh truthful restore opportunity"
 	)
 	var restored_profile := flow._safe_start_production_recovery.restore_prior_graphics_profile(
 		Callable(flow, "_persist_runtime_settings")
@@ -354,6 +395,16 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		and store.get_snapshot()[Adapter.SETTINGS_PAYLOAD_KEY].values.window_mode == "fullscreen",
 		"stable safe-start recovery explicitly restores the one-time prior graphics profile"
 	)
+	var graphics_consumed_report := flow.get_safe_start_recovery_report()
+	_check(
+		int(graphics_consumed_report.report_revision)
+			> int(restored_fallback_report.report_revision)
+		and bool(graphics_consumed_report.graphics_recovery_receipt.consumed)
+		and graphics_consumed_report.restore_readiness_snapshot.graphics.reason
+			== &"receipt_consumed"
+		and not bool(graphics_consumed_report.restore_readiness_snapshot.graphics.restore_ready),
+		"consuming graphics restoration advances immutable presentation state"
+	)
 	var restored_audio := flow._safe_start_production_recovery.restore_prior_audio_profile(
 		Callable(flow, "_persist_runtime_settings")
 	)
@@ -363,6 +414,16 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 		and is_equal_approx(flow.get_runtime_settings().master_volume, 0.71)
 		and is_equal_approx(flow.get_runtime_settings().music_volume, 0.26),
 		"stable safe-start recovery restores the one-time prior audio profile"
+	)
+	var audio_consumed_report := flow.get_safe_start_recovery_report()
+	_check(
+		int(audio_consumed_report.report_revision)
+			> int(graphics_consumed_report.report_revision)
+		and bool(audio_consumed_report.audio_recovery_receipt.consumed)
+		and audio_consumed_report.restore_readiness_snapshot.audio.reason
+			== &"receipt_consumed"
+		and not bool(audio_consumed_report.restore_readiness_snapshot.audio.restore_ready),
+		"consuming audio restoration advances immutable presentation state"
 	)
 	var repeated_restore := flow._safe_start_production_recovery.restore_prior_graphics_profile(
 		Callable(flow, "_persist_runtime_settings")
@@ -463,6 +524,20 @@ func _test_transition_write_failures() -> void:
 
 
 func _test_corrupt_newer_backup_and_failed_authority() -> void:
+	var unavailable_recovery := SafeStartProductionRecovery.new(
+		Settings.new(LEGACY_PATH), null, false
+	)
+	unavailable_recovery.initialize({}, Callable())
+	var unavailable_report := unavailable_recovery.get_report()
+	_check(
+		unavailable_report.restore_status.reason == &"store_unavailable"
+		and int(unavailable_report.report_revision) > 0
+		and unavailable_report.policy_snapshot.is_empty()
+		and not bool(unavailable_report.restore_readiness_snapshot.stability_confirmed)
+		and unavailable_report.restore_readiness_snapshot.graphics.reason == &"no_receipt"
+		and unavailable_report.restore_readiness_snapshot.audio.reason == &"no_receipt",
+		"missing store authority publishes a revisioned fail-closed presentation report"
+	)
 	var invalid_filesystem := FakeFilesystem.new()
 	var invalid_store := Store.new(STORE_PATH, invalid_filesystem)
 	invalid_store.load()

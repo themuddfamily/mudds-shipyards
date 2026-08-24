@@ -39,19 +39,20 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 		return _reject(StringName(cursor.get("reason", &"invalid_cursor")))
 	var generation := int(cursor.get("generation", -1))
 	var revision := int(cursor.get("revision", -1))
+	var report_projection := _report_projection(receipt)
 	if _attached and generation < _source_generation:
 		return _reject(&"stale_generation")
 	if _attached and generation == _source_generation:
 		if revision < _source_revision:
 			return _reject(&"stale_revision")
 		if revision == _source_revision:
-			if receipt != _accepted_report:
+			if report_projection != _accepted_report:
 				return _reject(&"revision_conflict")
 			if _mode == &"receipt":
 				return _snapshot.duplicate(true)
 	_source_generation = generation
 	_source_revision = revision
-	_accepted_report = receipt.duplicate(true)
+	_accepted_report = report_projection
 	_attached = true
 	_mode = &"receipt"
 	if not _valid_receipt(receipt):
@@ -75,23 +76,36 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 		return _snapshot.duplicate(true)
 	var graphics := receipt.get("graphics_recovery_receipt", {}) as Dictionary
 	var audio := receipt.get("audio_recovery_receipt", {}) as Dictionary
-	var graphics_restore_available := not graphics.is_empty() and not bool(graphics.get("consumed", true))
-	var audio_restore_available := not audio.is_empty() and not bool(audio.get("consumed", true))
+	var readiness_snapshot := receipt.get("restore_readiness_snapshot", {}) as Dictionary
+	var graphics_readiness := readiness_snapshot.get("graphics", {}) as Dictionary
+	var audio_readiness := readiness_snapshot.get("audio", {}) as Dictionary
+	var graphics_restore_available := bool(graphics_readiness.get("receipt_available", false))
+	var audio_restore_available := bool(audio_readiness.get("receipt_available", false))
+	var graphics_fallback_active := bool(graphics_readiness.get("fallback_active", false))
+	var audio_fallback_active := bool(audio_readiness.get("fallback_active", false))
+	var graphics_restore_ready := bool(graphics_readiness.get("restore_ready", false))
+	var audio_restore_ready := bool(audio_readiness.get("restore_ready", false))
 	var restore_record_available := graphics_restore_available or audio_restore_available
-	var policy_snapshot := receipt.get("policy_snapshot", {}) as Dictionary
-	var stability_confirmed := (
-		str(policy_snapshot.get("state", "")) == RecoveryRecordType.STATE_STABLE
-		and _status_reason(receipt, "stable_status") in [&"startup_stable", &"already_stable"]
-	)
-	var restore_available := restore_record_available and stability_confirmed
+	var stability_confirmed := bool(readiness_snapshot.get("stability_confirmed", false))
+	var restore_available := graphics_restore_ready or audio_restore_ready
 	var blocked_reason := _blocked_reason(receipt)
-	var actions: Array = [{"id": &"keep_safe", "label": "Keep Safe Settings", "focusable": true}]
-	var status: StringName = &"safe_mode_confirmed"
-	var title := "Safe Settings Active"
-	var summary := _fallback_summary(graphics_restore_available, audio_restore_available)
+	var fallback_active := graphics_fallback_active or audio_fallback_active
+	var actions: Array = [{
+		"id": &"keep_safe",
+		"label": "Keep Safe Settings" if fallback_active else "Keep Current Settings",
+		"focusable": true,
+	}]
+	var status: StringName = &"no_fallback_active"
+	var title := "Recovery Status"
+	var summary := _fallback_summary(
+		graphics_fallback_active,
+		audio_fallback_active,
+		graphics_restore_available,
+		audio_restore_available
+	)
 	var readiness := "[READY]"
 	var next_action := "Continue with the current settings."
-	var explanation := "Safe display and audio status was read from the recovery record."
+	var explanation := "No active graphics or audio fallback was reported."
 	if not blocked_reason.is_empty():
 		status = &"recovery_blocked"
 		title = "Settings Recovery Required"
@@ -99,15 +113,15 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 		next_action = "Review Settings Recovery before changing display or audio settings."
 		explanation = "Settings data was preserved because recovery authority could not safely continue."
 		actions.clear()
-	elif restore_record_available and not stability_confirmed:
+	elif restore_record_available and not stability_confirmed and fallback_active:
 		status = &"safe_mode_active"
 		readiness = "[STABILITY CHECK]"
-		next_action = "Keep Safe Settings until startup stability is confirmed."
-		explanation = "Fallback settings are active while this startup is checked for stability."
+		next_action = "Keep current settings until startup stability is confirmed."
+		explanation = "Active fallback settings are being checked for stability."
 	elif restore_available:
 		status = &"restore_ready"
 		readiness = "[RESTORE READY]"
-		var restored_domains := _restore_domains(graphics_restore_available, audio_restore_available)
+		var restored_domains := _restore_domains(graphics_restore_ready, audio_restore_ready)
 		next_action = "Restore previous %s settings, or keep the safe settings." % restored_domains
 		explanation = "Startup stability is confirmed and previous settings are available."
 		actions.push_front({
@@ -115,6 +129,11 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 			"label": "Restore Previous %s" % restored_domains.capitalize(),
 			"focusable": true,
 		})
+	elif restore_record_available:
+		status = &"restore_unavailable"
+		readiness = "[CURRENT SETTINGS RETAINED]"
+		next_action = "Continue with the current settings; automatic restore is unavailable."
+		explanation = "Current settings no longer match the recorded fallback."
 	elif not graphics.is_empty() or not audio.is_empty():
 		status = &"recovery_complete"
 		readiness = "[RECOVERY COMPLETE]"
@@ -137,6 +156,12 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 		"details": {
 			"graphics_restore_available": graphics_restore_available,
 			"audio_restore_available": audio_restore_available,
+			"graphics_fallback_active": graphics_fallback_active,
+			"audio_fallback_active": audio_fallback_active,
+			"graphics_restore_ready": graphics_restore_ready,
+			"audio_restore_ready": audio_restore_ready,
+			"graphics_readiness_reason": graphics_readiness.get("reason", &""),
+			"audio_readiness_reason": audio_readiness.get("reason", &""),
 			"graphics_receipt_consumed": not graphics.is_empty() and bool(graphics.get("consumed", false)),
 			"audio_receipt_consumed": not audio.is_empty() and bool(audio.get("consumed", false)),
 			"stability_confirmed": stability_confirmed,
@@ -299,11 +324,20 @@ func _valid_receipt(receipt: Dictionary) -> bool:
 		return false
 	var graphics_value: Variant = receipt.get("graphics_recovery_receipt")
 	var audio_value: Variant = receipt.get("audio_recovery_receipt")
-	if not graphics_value is Dictionary or not audio_value is Dictionary:
+	var readiness_value: Variant = receipt.get("restore_readiness_snapshot")
+	if not graphics_value is Dictionary \
+			or not audio_value is Dictionary \
+			or not readiness_value is Dictionary:
 		return false
 	var generation := _source_generation
 	return _valid_fallback_receipt(graphics_value as Dictionary, true, generation) \
-		and _valid_fallback_receipt(audio_value as Dictionary, false, generation)
+		and _valid_fallback_receipt(audio_value as Dictionary, false, generation) \
+		and _valid_restore_readiness(
+			readiness_value as Dictionary,
+			graphics_value as Dictionary,
+			audio_value as Dictionary,
+			_expected_stability_confirmed(receipt)
+		)
 
 
 func _valid_fallback_receipt(record: Dictionary, graphics: bool, generation: int) -> bool:
@@ -327,29 +361,146 @@ func _valid_fallback_receipt(record: Dictionary, graphics: bool, generation: int
 		and (prior_values as Dictionary).has("music_volume")
 
 
+func _valid_restore_readiness(
+		readiness: Dictionary,
+		graphics_receipt: Dictionary,
+		audio_receipt: Dictionary,
+		expected_stability: bool
+		) -> bool:
+	var schema_value: Variant = readiness.get("schema_version")
+	var stability_value: Variant = readiness.get("stability_confirmed")
+	var graphics_value: Variant = readiness.get("graphics")
+	var audio_value: Variant = readiness.get("audio")
+	if not schema_value is int \
+			or int(schema_value) != 1 \
+			or not stability_value is bool \
+			or bool(stability_value) != expected_stability \
+			or not graphics_value is Dictionary \
+			or not audio_value is Dictionary:
+		return false
+	return _valid_domain_readiness(
+		graphics_value as Dictionary, graphics_receipt, expected_stability
+	) and _valid_domain_readiness(
+		audio_value as Dictionary, audio_receipt, expected_stability
+	)
+
+
+func _valid_domain_readiness(
+		domain: Dictionary,
+		receipt: Dictionary,
+		stability_confirmed: bool
+		) -> bool:
+	for key: String in [
+		"receipt_present", "receipt_available", "fallback_active", "restore_ready",
+	]:
+		if not domain.get(key) is bool:
+			return false
+	var reason_value: Variant = domain.get("reason")
+	if not reason_value is String and not reason_value is StringName:
+		return false
+	var receipt_present := not receipt.is_empty()
+	var receipt_available := receipt_present and not bool(receipt.get("consumed", true))
+	var fallback_active := bool(domain.get("fallback_active", false))
+	var restore_ready := receipt_available and fallback_active and stability_confirmed
+	var expected_reason: StringName = &"no_receipt"
+	if receipt_present and not receipt_available:
+		expected_reason = &"receipt_consumed"
+	elif receipt_available and not fallback_active:
+		expected_reason = &"live_settings_changed"
+	elif receipt_available and not stability_confirmed:
+		expected_reason = &"stability_pending"
+	elif receipt_available:
+		expected_reason = &"restore_ready"
+	return bool(domain.get("receipt_present")) == receipt_present \
+		and bool(domain.get("receipt_available")) == receipt_available \
+		and (not fallback_active or receipt_available) \
+		and bool(domain.get("restore_ready")) == restore_ready \
+		and StringName(reason_value) == expected_reason
+
+
+func _expected_stability_confirmed(receipt: Dictionary) -> bool:
+	var policy_value: Variant = receipt.get("policy_snapshot")
+	if not policy_value is Dictionary or (policy_value as Dictionary).is_empty():
+		return false
+	return (
+		str((policy_value as Dictionary).get("state", ""))
+			== RecoveryRecordType.STATE_STABLE
+		and _status_reason(receipt, "stable_status")
+			in [&"startup_stable", &"already_stable"]
+	)
+
+
+func _report_projection(receipt: Dictionary) -> Dictionary:
+	var policy := receipt.get("policy_snapshot", {}) as Dictionary
+	return {
+		"schema_version": receipt.get("schema_version"),
+		"report_revision": receipt.get("report_revision"),
+		"startup_generation": receipt.get("startup_generation"),
+		"begin_reason": _status_reason(receipt, "begin_status"),
+		"restore_reason": _status_reason(receipt, "restore_status"),
+		"stable_reason": _status_reason(receipt, "stable_status"),
+		"policy_cursor": {
+			"schema_version": policy.get("schema_version"),
+			"startup_generation": policy.get("startup_generation"),
+			"record_generation": policy.get("record_generation"),
+			"state": policy.get("state"),
+		},
+		"graphics_recovery_receipt": _project_value(
+			receipt.get("graphics_recovery_receipt")
+		),
+		"audio_recovery_receipt": _project_value(
+			receipt.get("audio_recovery_receipt")
+		),
+		"restore_readiness_snapshot": _project_value(
+			receipt.get("restore_readiness_snapshot")
+		),
+	}.duplicate(true)
+
+
+func _project_value(value: Variant) -> Variant:
+	return value.duplicate(true) if value is Dictionary or value is Array else value
+
+
 func _recovery_cursor(receipt: Dictionary) -> Dictionary:
 	var policy_value: Variant = receipt.get("policy_snapshot")
 	if not policy_value is Dictionary:
 		return {"accepted": false, "reason": &"invalid_cursor"}
 	var policy := policy_value as Dictionary
 	var report_generation_value: Variant = receipt.get("startup_generation")
-	var policy_schema_value: Variant = policy.get("schema_version")
-	var generation_value: Variant = policy.get("startup_generation")
-	var revision_value: Variant = policy.get("record_generation")
+	var revision_value: Variant = receipt.get("report_revision")
 	if not report_generation_value is int \
-			or not policy_schema_value is int \
-			or int(policy_schema_value) != RecoveryRecordType.SCHEMA_VERSION \
-			or not generation_value is int \
 			or not revision_value is int:
 		return {"accepted": false, "reason": &"invalid_cursor"}
 	var report_generation := int(report_generation_value)
-	var generation := int(generation_value)
 	var revision := int(revision_value)
 	if report_generation < 0 \
 			or report_generation > RecoveryRecordType.MAX_SAFE_JSON_INTEGER \
-			or (report_generation > 0 and report_generation != generation) \
-			or generation < 0 or generation > RecoveryRecordType.MAX_SAFE_JSON_INTEGER \
 			or revision < 0 or revision > RecoveryRecordType.MAX_SAFE_JSON_INTEGER:
+		return {"accepted": false, "reason": &"invalid_cursor"}
+	if policy.is_empty():
+		if report_generation != 0 or _blocked_reason(receipt) not in [
+			&"store_unavailable", &"policy_unavailable",
+		]:
+			return {"accepted": false, "reason": &"invalid_cursor"}
+		return {
+			"accepted": true,
+			"generation": report_generation,
+			"revision": revision,
+		}
+	var policy_schema_value: Variant = policy.get("schema_version")
+	var generation_value: Variant = policy.get("startup_generation")
+	var policy_revision_value: Variant = policy.get("record_generation")
+	if not policy_schema_value is int \
+			or int(policy_schema_value) != RecoveryRecordType.SCHEMA_VERSION \
+			or not generation_value is int \
+			or not policy_revision_value is int:
+		return {"accepted": false, "reason": &"invalid_cursor"}
+	var generation := int(generation_value)
+	var policy_revision := int(policy_revision_value)
+	if (report_generation > 0 and report_generation != generation) \
+			or generation < 0 or generation > RecoveryRecordType.MAX_SAFE_JSON_INTEGER \
+			or policy_revision < 0 \
+			or policy_revision > RecoveryRecordType.MAX_SAFE_JSON_INTEGER:
 		return {"accepted": false, "reason": &"invalid_cursor"}
 	return {
 		"accepted": true,
@@ -366,7 +517,10 @@ func _blocked_reason(receipt: Dictionary) -> StringName:
 	]:
 		return begin_reason
 	var restore_reason := _status_reason(receipt, "restore_status")
-	if restore_reason in [&"store_load_unavailable", &"record_schema_newer", &"invalid_record"]:
+	if restore_reason in [
+		&"store_unavailable", &"policy_unavailable", &"store_load_unavailable",
+		&"record_schema_newer", &"invalid_record",
+	]:
 		return restore_reason
 	return &""
 
@@ -378,13 +532,20 @@ func _status_reason(receipt: Dictionary, key: String) -> StringName:
 	return StringName((status_value as Dictionary).get("reason", &""))
 
 
-func _fallback_summary(graphics: bool, audio: bool) -> String:
-	if graphics and audio:
+func _fallback_summary(
+		graphics_active: bool,
+		audio_active: bool,
+		graphics_receipt_available: bool,
+		audio_receipt_available: bool
+		) -> String:
+	if graphics_active and audio_active:
 		return "SAFE GRAPHICS + SAFE AUDIO ACTIVE"
-	if graphics:
-		return "SAFE GRAPHICS ACTIVE // AUDIO UNCHANGED"
-	if audio:
-		return "GRAPHICS UNCHANGED // SAFE AUDIO ACTIVE"
+	if graphics_active:
+		return "SAFE GRAPHICS ACTIVE // AUDIO FALLBACK NOT ACTIVE"
+	if audio_active:
+		return "GRAPHICS FALLBACK NOT ACTIVE // SAFE AUDIO ACTIVE"
+	if graphics_receipt_available or audio_receipt_available:
+		return "RECOVERY RECEIPTS RETAINED // FALLBACK NOT ACTIVE"
 	return "NO ACTIVE FALLBACK RECEIPTS"
 
 
