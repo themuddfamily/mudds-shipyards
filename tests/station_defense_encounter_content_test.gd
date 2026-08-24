@@ -1110,29 +1110,103 @@ func _test_checked_in_encounter_content() -> void:
 		"all three production projectile signals resolve through their exact injected-authority source identities"
 	)
 	var beta_terminal := await _shoot(authority, attacker, beta)
-	var broken_tactic := content.get_snapshot().later_wave_tactic as Dictionary
-	var broken_formation := broken_tactic.formation as Array
+	var revenge_tactic := content.get_snapshot().later_wave_tactic as Dictionary
+	var revenge_formation := revenge_tactic.formation as Array
+	var counterattack := revenge_tactic.counterattack as Dictionary
+	var gamma_revenge_pattern := gamma.get_firing_pattern_snapshot()
 	_check(
 		beta_terminal.destroyed
-		and broken_tactic.state_id == &"broken"
-		and not bool(broken_tactic.applied)
-		and not bool((broken_formation[0] as Dictionary).presentation_active)
-		and not bool((broken_formation[1] as Dictionary).presentation_active)
-		and str(broken_tactic.objective).contains("FINISH REMAINING RAIDER")
-		and is_equal_approx(gamma.preferred_range, gamma_nominal_preferred_range)
-		and float(gamma.get("_orbit_sign")) == gamma_nominal_orbit_sign
+		and revenge_tactic.state_id == &"revenge_dive"
+		and bool(revenge_tactic.active)
+		and bool(revenge_tactic.applied)
+		and not bool((revenge_formation[0] as Dictionary).presentation_active)
+		and not bool((revenge_formation[1] as Dictionary).presentation_active)
+		and str(revenge_tactic.objective).contains("SURVIVOR DIVING CORE")
+		and counterattack.tactic_id \
+			== StationDefenseEncounterContent.REVENGE_DIVE_TACTIC_ID
+		and bool(counterattack.active)
+		and counterattack.survivor_hostile_id == &"perimeter_raider_gamma"
+		and counterattack.trigger == &"wingmate_destroyed"
+		and counterattack.role == &"core_revenge_diver"
+		and bool(counterattack.ends_with_wave_or_survivor)
+		and is_equal_approx(
+			gamma.preferred_range,
+			StationDefenseEncounterContent.REVENGE_DIVE_PREFERRED_RANGE
+		)
+		and float(gamma.get("_orbit_sign")) \
+			== StationDefenseEncounterContent.REVENGE_DIVE_ORBIT_SIGN
 		and is_equal_approx(beta.cruise_speed, beta_nominal_cruise_speed)
 		and is_equal_approx(beta.chase_speed, beta_nominal_chase_speed)
-		and is_equal_approx(gamma.cruise_speed, gamma_nominal_cruise_speed)
-		and is_equal_approx(gamma.chase_speed, gamma_nominal_chase_speed)
+		and is_equal_approx(
+			gamma.cruise_speed,
+			StationDefenseEncounterContent.REVENGE_DIVE_CRUISE_SPEED
+		)
+		and is_equal_approx(
+			gamma.chase_speed,
+			StationDefenseEncounterContent.REVENGE_DIVE_CHASE_SPEED
+		)
+		and gamma_revenge_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SHORT_BURST
+		and gamma_revenge_pattern.pre_discharge_telegraph_id \
+			== RangeOpponent.FIRE_TELEGRAPH_STEPPED_BURST
+		and int(gamma_revenge_pattern.projectile_count_per_cycle) == 3
 		and _telegraph_positions_match(beta_role_lamps, beta_nominal_lamp_positions)
-		and _telegraph_positions_match(gamma_role_lamps, gamma_nominal_lamp_positions)
+		and _telegraph_positions_match(
+			gamma_role_lamps,
+			StationDefenseEncounterContent.REVENGE_DIVE_TELEGRAPH_POSITIONS
+		)
 		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
-		and is_equal_approx(_telegraph_radius(gamma_role_lamps), gamma_nominal_lamp_radius)
+		and is_equal_approx(
+			_telegraph_radius(gamma_role_lamps),
+			StationDefenseEncounterContent.REVENGE_DIVE_TELEGRAPH_RADIUS
+		)
 		and _node_instance_ids(beta_role_lamps) == beta_role_lamp_ids
 		and _node_instance_ids(gamma_role_lamps) == gamma_role_lamp_ids
 		and beta_nominal_preferred_range == gamma_nominal_preferred_range,
-		"destroying either pincer wing clears both role silhouettes and restores the exact retained lamps and nominal pursuit"
+		"destroying one pincer wing makes the survivor visibly collapse onto the core with a fast three-shot revenge dive"
+	)
+	var revenge_content_id := content.get_instance_id()
+	var revenge_generation := int(content.get_snapshot().host.activity.generation)
+	root.remove_child(content)
+	await process_frame
+	var detached_revenge_pattern := gamma.get_firing_pattern_snapshot()
+	root.add_child(content)
+	await process_frame
+	await process_frame
+	var reentered_revenge := content.get_snapshot().later_wave_tactic as Dictionary
+	_check(
+		content.get_instance_id() == revenge_content_id
+		and int(content.get_snapshot().host.activity.generation) == revenge_generation
+		and reentered_revenge.state_id == &"revenge_dive"
+		and bool(reentered_revenge.applied)
+		and gamma.is_active()
+		and detached_revenge_pattern.pattern_id == RangeOpponent.FIRE_PATTERN_SINGLE_SHOT
+		and gamma.get_firing_pattern_snapshot().pattern_id \
+			== RangeOpponent.FIRE_PATTERN_SHORT_BURST
+		and authority.get_source_id(gamma) == 2123
+		and _node_instance_ids(gamma_role_lamps) == gamma_role_lamp_ids
+		and _telegraph_positions_match(
+			gamma_role_lamps,
+			StationDefenseEncounterContent.REVENGE_DIVE_TELEGRAPH_POSITIONS
+		),
+		"same-instance re-entry restores the exact revenge-dive generation, source, burst role, and retained telegraph nodes"
+	)
+	for _frame in 48:
+		await physics_frame
+	var gamma_to_core := (asset.global_position - gamma.global_position).normalized()
+	_check(
+		gamma.velocity.dot(gamma_to_core) > 4.0,
+		"the re-entered survivor executes live inward pressure instead of resuming the former wide orbit"
+	)
+	var revenge_before_stale := content.get_snapshot().later_wave_tactic as Dictionary
+	var stale_revenge := content.advance_physics(0.2, generation + 1)
+	_check(
+		not stale_revenge.accepted and stale_revenge.reason == &"stale_generation"
+		and content.get_snapshot().later_wave_tactic == revenge_before_stale
+		and is_equal_approx(
+			gamma.chase_speed,
+			StationDefenseEncounterContent.REVENGE_DIVE_CHASE_SPEED
+		),
+		"stale caller time cannot alter or replay the generation-scoped survivor counterattack"
 	)
 	var gamma_terminal := await _shoot(authority, attacker, gamma)
 	var inbound_picket := content.get_snapshot().heavy_picket_reinforcement as Dictionary

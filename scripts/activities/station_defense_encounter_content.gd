@@ -18,6 +18,7 @@ const MIN_KEEP_CLEAR_RADIUS := 8.0
 const MIN_KEEP_CLEAR_GAP := 4.0
 const HOSTILE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
 const LATER_WAVE_TACTIC_ID: StringName = &"dockside_crossfire_pincer"
+const REVENGE_DIVE_TACTIC_ID: StringName = &"wingmate_revenge_dive"
 const LATER_WAVE_ID: StringName = &"dockside_relief"
 const BREAKER_FEINT_TACTIC_ID: StringName = &"core_breaker_outer_feint"
 const PINCER_CLOSE_HOSTILE_ID: StringName = &"perimeter_raider_beta"
@@ -32,6 +33,16 @@ const PINCER_CLOSE_ORBIT_SIGN := -1.0
 const PINCER_OUTER_ORBIT_SIGN := 1.0
 const PINCER_CLOSE_TELEGRAPH_RADIUS := 0.24
 const PINCER_OUTER_TELEGRAPH_RADIUS := 0.16
+const REVENGE_DIVE_PREFERRED_RANGE := 12.0
+const REVENGE_DIVE_CRUISE_SPEED := 30.0
+const REVENGE_DIVE_CHASE_SPEED := 40.0
+const REVENGE_DIVE_ORBIT_SIGN := 0.0
+const REVENGE_DIVE_FIRE_PATTERN: StringName = RangeOpponent.FIRE_PATTERN_SHORT_BURST
+const REVENGE_DIVE_TELEGRAPH_POSITIONS := [
+	Vector3(-0.28, 0.58, -5.04),
+	Vector3(0.82, 0.58, -4.88),
+]
+const REVENGE_DIVE_TELEGRAPH_RADIUS := 0.22
 const PINCER_CLOSE_TELEGRAPH_POSITIONS := [
 	Vector3(-0.62, 0.58, -4.98),
 	Vector3(0.62, 0.58, -4.98),
@@ -1096,6 +1107,13 @@ func _sync_later_wave_tactic(activity: Dictionary) -> void:
 			_breaker_feint_state = &"transitioned"
 			_later_wave_tactic_state = &"active"
 		return
+	if active_ids.size() == 1 and active_ids[0] in [
+		PINCER_CLOSE_HOSTILE_ID, PINCER_OUTER_HOSTILE_ID,
+	]:
+		_apply_revenge_dive_configuration(active_ids[0])
+		_breaker_feint_state = &"interrupted"
+		_later_wave_tactic_state = &"revenge_dive"
+		return
 	_restore_later_wave_tactic_configuration()
 	_breaker_feint_state = &"interrupted"
 	_later_wave_tactic_state = &"broken"
@@ -1157,6 +1175,38 @@ func _apply_breaker_feint_configuration() -> void:
 		not bool(breaker_pattern.accepted)
 		or not bool(feint_pattern.accepted)
 		or not bool(feint_maneuver.accepted)
+	):
+		_restore_later_wave_tactic_configuration()
+
+
+## When either relief wing is destroyed, the exact surviving generation trades
+## formation safety for one readable core rush. The retained opponent remains
+## the movement/weapon dispatcher and LiveCombatAuthority still decides every
+## shot; this encounter seam only selects its existing role parameters.
+func _apply_revenge_dive_configuration(survivor_id: StringName) -> void:
+	var survivor := _get_tactic_entity(survivor_id)
+	if not is_instance_valid(survivor) or not survivor.is_active():
+		_restore_later_wave_tactic_configuration()
+		return
+	if _later_wave_tactic_applied and _later_wave_tactic_mode == &"revenge_dive":
+		return
+	_restore_later_wave_tactic_configuration()
+	_later_wave_tactic_applied = true
+	_later_wave_tactic_mode = &"revenge_dive"
+	survivor.preferred_range = REVENGE_DIVE_PREFERRED_RANGE
+	survivor.cruise_speed = REVENGE_DIVE_CRUISE_SPEED
+	survivor.chase_speed = REVENGE_DIVE_CHASE_SPEED
+	survivor.set("_orbit_sign", REVENGE_DIVE_ORBIT_SIGN)
+	var firing_pattern := survivor.configure_firing_pattern(REVENGE_DIVE_FIRE_PATTERN)
+	var maneuver := survivor.configure_evasive_maneuver(RangeOpponent.EVASIVE_MANEUVER_NONE)
+	if (
+		not bool(firing_pattern.get("accepted", false))
+		or not bool(maneuver.get("accepted", false))
+		or not _apply_tactic_telegraph_identity(
+			survivor,
+			REVENGE_DIVE_TELEGRAPH_POSITIONS,
+			REVENGE_DIVE_TELEGRAPH_RADIUS
+		)
 	):
 		_restore_later_wave_tactic_configuration()
 
@@ -1391,6 +1441,14 @@ func _get_breaker_feint_feedback(activity: Dictionary) -> Dictionary:
 
 func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 	var state := _later_wave_tactic_state
+	var active_ids: Array[StringName] = []
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		active_ids.append(StringName(handle.get("hostile_id", &"")))
+	var revenge_dive_survivor_id: StringName = (
+		active_ids[0]
+		if state == &"revenge_dive" and active_ids.size() == 1
+		else &""
+	)
 	var objective := "CLEAR APPROACH RAIDER // DEFEND PERIMETER BEACON"
 	var status := "CROSSFIRE PINCER // STANDBY"
 	match state:
@@ -1406,6 +1464,9 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 		&"active":
 			objective = "BREAK CROSSFIRE PINCER // PROTECT BEACON"
 			status = "BETA CLOSE // GAMMA OUTER"
+		&"revenge_dive":
+			objective = "SURVIVOR DIVING CORE // BREAK ITS BURST"
+			status = "%s REVENGE DIVE // ZERO ORBIT" % str(revenge_dive_survivor_id).to_upper()
 		&"broken":
 			objective = "PINCER BROKEN // FINISH REMAINING RAIDER"
 			status = "CROSSFIRE BROKEN // NOMINAL PURSUIT"
@@ -1420,7 +1481,7 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 		"wave_id": LATER_WAVE_ID,
 		"state_id": state,
 		"generation": _later_wave_tactic_generation,
-		"active": state == &"active",
+		"active": state in [&"active", &"revenge_dive"],
 		"applied": _later_wave_tactic_applied,
 		"status": status,
 		"objective": objective,
@@ -1446,7 +1507,23 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 				"telegraph_positions": PINCER_OUTER_TELEGRAPH_POSITIONS.duplicate(),
 			},
 		],
-		"terminal_or_break_restores_nominal": true,
+		"counterattack": {
+			"tactic_id": REVENGE_DIVE_TACTIC_ID,
+			"active": state == &"revenge_dive" and _later_wave_tactic_applied,
+			"survivor_hostile_id": revenge_dive_survivor_id,
+			"trigger": &"wingmate_destroyed",
+			"role": &"core_revenge_diver",
+			"preferred_range": REVENGE_DIVE_PREFERRED_RANGE,
+			"chase_speed": REVENGE_DIVE_CHASE_SPEED,
+			"orbit_sign": REVENGE_DIVE_ORBIT_SIGN,
+			"firing_pattern_id": REVENGE_DIVE_FIRE_PATTERN,
+			"projectile_count_per_cycle": RangeOpponent.SHORT_BURST_PROJECTILE_COUNT,
+			"pre_discharge_telegraph_id": RangeOpponent.FIRE_TELEGRAPH_STEPPED_BURST,
+			"telegraph_identity_pattern": "o >",
+			"ends_with_wave_or_survivor": true,
+		},
+		"terminal_or_break_restores_nominal": false,
+		"terminal_restores_nominal": true,
 		"combat_authority": false,
 		"damage_authority": false,
 	}.duplicate(true)
