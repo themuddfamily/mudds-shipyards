@@ -175,6 +175,11 @@ func _clear_reset_confirmation() -> void:
 
 func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var state_id := StringName(state.get("state_id", _state_label(state)))
+	var race_countdown_in_progress := bool(state.get(
+		"countdown_in_progress", state_id == &"countdown"
+	))
+	if activity_id == &"cinder_reach_checkpoint_route" and race_countdown_in_progress:
+		state_id = &"countdown"
 	if activity_id == &"cinder_debris_beacon_traversal" \
 			and StringName(state.get("presentation_reason", state.get("reason", &""))) \
 			== &"out_of_order_beacon":
@@ -183,6 +188,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 			and int(state.get("state", -1)) == 3:
 		state_id = &"reset"
 	if activity_id == &"cinder_reach_checkpoint_route" \
+			and not race_countdown_in_progress \
 			and StringName(state.get("presentation_reason", &"")) == &"outside_checkpoint":
 		state_id = &"missed_gate"
 	if activity_id == &"cinder_platform_mining_run" and int(state.get("state", -1)) == 3:
@@ -484,6 +490,9 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 	if state.is_empty():
 		return {}
 	var state_id := StringName(state.get("state_id", &"idle"))
+	var countdown_in_progress := bool(state.get(
+		"countdown_in_progress", state_id == &"countdown"
+	))
 	var presentation_reason := StringName(state.get("presentation_reason", &""))
 	var lap_number := maxi(int(state.get("lap_number", 0)), 0)
 	var lap_count := maxi(int(state.get("lap_count", 0)), 0)
@@ -498,7 +507,12 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 	if state_id == &"idle" and best_persisted and best_time > 0.0:
 		summary = "BEST %.2fs  //  RACE READY" % best_time
 		objective = "START A NEW RUN TO IMPROVE THE SAVED BEST"
-	if presentation_reason == &"outside_checkpoint":
+	if countdown_in_progress:
+		stage_id = &"countdown"
+		var countdown := maxf(float(state.get("countdown_remaining_seconds", 0.0)), 0.0)
+		summary = "HOLD POSITION  //  START IN %.1fs  //  LAP %d/%d" % [countdown, lap_number, lap_count]
+		objective = "HOLD POSITION — WAIT FOR THE START SIGNAL"
+	elif presentation_reason == &"outside_checkpoint":
 		stage_id = &"missed_gate"
 		summary = "FLY THROUGH CHECKPOINT %d/%d" % [
 			mini(next_checkpoint + 1, checkpoint_count), checkpoint_count,
@@ -506,11 +520,6 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 		objective = "RETURN TO THE MARKED CHECKPOINT"
 	else:
 		match state_id:
-			&"countdown":
-				stage_id = &"countdown"
-				var countdown := maxf(float(state.get("countdown_remaining_seconds", 0.0)), 0.0)
-				summary = "START IN %.1fs  //  LAP %d/%d" % [countdown, lap_number, lap_count]
-				objective = "HOLD FOR THE START SIGNAL"
 			&"active":
 				stage_id = &"racing"
 				summary = "LAP %d/%d  //  CHECKPOINT %d/%d  //  %.1fs" % [
@@ -535,6 +544,7 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 		"lap_count": lap_count,
 		"next_checkpoint_index": next_checkpoint,
 		"checkpoint_count": checkpoint_count,
+		"countdown_in_progress": countdown_in_progress,
 		"reward_pending": reward_pending,
 		"best_time_seconds": best_time,
 		"best_result_persisted": best_persisted,
