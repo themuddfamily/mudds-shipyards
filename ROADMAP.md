@@ -668,6 +668,34 @@ run. Native gameplay-distance review of the new source-current package, represen
 Windows performance measurement, real audio listening and an uninterrupted end-to-end
 playthrough remain `NOT_RUN`.
 
+### Wave 29/30 production reconciliation checkpoint — 2026-08-24
+
+This checkpoint records player-visible and runtime changes intended for the next package:
+
+- Service drones and the articulated Aft service arm now disappear as complete assemblies
+  before any remote pod, glow, lens, fork or arm segment crosses the camera near plane. This
+  removes screen-filling flashes and partial floating pieces while preserving normal-distance
+  visibility and the Aft pedestal.
+- Independently keyed runtime cards preserve SafeStart, tutorial and background status while
+  the bomber occupies its dedicated foreground band. Server-browser selection and focus now
+  survive result navigation and retry states. Exact Cinder piloting copy reads `RELEASE
+  PAYLOAD`, other craft retain `FIRE`, and keyboard, Xbox and PlayStation glyph changes repaint
+  the controls and payload action in place without focus loss.
+- During an active Ember survey, the current on-foot player can analyse the authored sample
+  rack and receive an immediate completed marker; a newer survey resets it. Reaching the
+  staging relay records one local diagnostic and changes its marker without advancing the
+  route or granting a reward. Both labels now sit clear of their physical props.
+- An admitted seated Jovian engineer repair now displays a steady component-local progress arc
+  and work lamp. Completion, interruption, role release, destruction, detach and reuse clear
+  the cue immediately.
+- Redundant outer strips were removed from Observation and Salvage while keeping route seams,
+  ramps, collision-backed pads, markers, rails and traversal intact. Observation changes
+  `426 -> 366 m²`; Salvage changes `456 -> 396 m²`; the total walkable-footprint reduction is
+  `120 m²`.
+
+Package review, native-Windows gameplay and GPU/frame-time measurement,
+real-controller and audio review, and an uninterrupted human playthrough remain `NOT_RUN`.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
@@ -871,7 +899,7 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 - [x] Add and integrate the first Habitat Spine through a real starboard connector: an operated door, player-clear corridor, six bunk alcoves, an eight-chair observation/common room, windows, consoles, service detail, and a sealed deferred branch. It is a fixed-era-inspired modern interpretation because C1's exact build provenance, launch-era applicability, plan, dimensions, functions, and adjacency are unverified.
 - [x] Add a reusable source-bounded Fleet Dock Comb and integrate it beyond the Aft upper circulation: one narrow trunk, three short teeth, three broad physically separated slabs, genuine voids, and one short ramp. B2 supports the comb/slab rhythm only; exact geometry, count, placement and styling are modern interpretation. Dock 01 records a modern external Zenith assignment and Dock 02 a modern external Halyard assignment, each aligned to a world-owned berth; Dock 03 alone remains empty/deferred. The module itself adds no berth, lease, regeneration, activity, audio or gameplay authority.
 - [x] Prove the complete visible connector and module route with collision, preserve the exact five-berth registry and transforms, and audit that the comb's two assigned and one deferred dock markers cannot masquerade as `ShipBerth` authority.
-- [x] Settle the bounded operational-lattice presentation with exactly four fixed-rail, role-specific, non-colliding activities: `Full` at Central (`CentralTowServiceActivity`), `Gantry` at Freight (`FreightApproachGantry`, corrected to freight-module-local `z = 0.9`), `Service Arm` at Aft (`AftOperationsActivity`), and `Drone Patrol` at Habitat (`HabitatServicePatrol`). Fixed transforms/seeds, finite envelopes, deterministic seek and 30/60/120 Hz audits, and reversible pause/disable/re-entry lifecycles are covered; the rails are presentation, not a navigation graph or autonomous logistics.
+- [x] Settle the bounded operational-lattice presentation with exactly four fixed-rail, role-specific, non-colliding activities: `Full` at Central (`CentralTowServiceActivity`), `Gantry` at Freight (`FreightApproachGantry`, corrected to freight-module-local `z = 0.9`), `Service Arm` at Aft (`AftOperationsActivity`), and `Drone Patrol` at Habitat (`HabitatServicePatrol`). Fixed transforms/seeds, finite envelopes, deterministic seek and 30/60/120 Hz audits, and reversible pause/disable/re-entry lifecycles are covered; the rails are presentation, not a navigation graph or autonomous logistics. Full and roof-patrol service drones plus the Aft service arm now use one near-camera boundary per complete moving assembly, so no remote part can flash across the camera while the rest has already disappeared.
 - [x] Add exactly four finite-range 3D procedural machinery ambience beds: central berth (`26 m` maximum / `4 m` reference distance), Aft operations (`24 m` / `3.5 m`), Habitat environment (`22 m` / `3 m`), and Freight control (`28 m` / `4 m`). Deterministic loop/servo/latch waveforms use bounded positional voices, with servo/latch hooks on the Aft, Habitat, and Freight station doors.
 - [x] Add exactly four collision-free structural outer-face dressings at the Central berth, Aft operations, Habitat, and Freight rack. Each exposes a fixed prebuilt Low / Medium / High profile of 16 / 33 / 41 visible primitives without widening walkable surfaces, filling station voids, or rebuilding geometry.
 - [x] Keep every new role, rail, transform, service envelope, machinery placement/motion, structural dressing, and sound tagged `modern_interpretation`; the bounded pass authenticates no original geometry, placement, layout, operations, or audio, and its component budgets are not measured representative-Windows performance evidence.
@@ -1030,6 +1058,11 @@ engineer repair cues. World targets, bomber payload resolution, broader repair
 resource/interruption policy, respawn parity, shields, native combat readability,
 and human mix review remain open.
 
+An admitted seated Jovian engineer repair now shows a steady component-local seven-step
+progress arc and work lamp. The cue clears immediately when work completes or is interrupted,
+the engineer releases the role, the ship is destroyed or detached, or the craft is reset for
+reuse.
+
 - [ ] Expand the Phase 2 single-interceptor encounter into varied weapons, opponents, tactics, and combat scenarios.
   - [x] Add two encounter scenarios with different objectives and two laterally differentiated opponent archetypes, owned by `scripts/combat/encounter_scenario_director.gd` and `scripts/combat/wing_coordinator.gd`. **Player-visible outcome:** a sortie now opens either a *courier intercept* — a runner making for the yard boundary, which is a loss condition that fires whether or not the player engages, and which calls an escort wing onto the player's six the moment it is hurt — or a *paired wing*, two craft that split the frontal and rear jobs between them and trade those jobs when the player turns. **Authority owner:** `EncounterScenarioDirector` owns scenario objective state only; it never assigns `GameFlow.phase`, never applies damage, and never holds a phase open, so `GameFlow` still exits `INTERCEPTOR_ENGAGEMENT` exactly when the defender dies regardless of what a scenario is doing. `WingCoordinator` owns anchor/flanker assignment and nothing else. Both new craft resolve on the one live `CombatResolver` under their own registered identities through `scripts/ships/resolver_backed_opponent.gd`, and reuse the shared pooled pulse and ten-voice audio seams. **Soft-lock discipline:** every scenario terminates on six independent conditions — player lost, phase left, objective met, objective lost, player disengaged, and an unconditional accumulated-physics time backstop that reads nothing at all. Fire rights are re-asked on the frame a shot is *dispatched* rather than cached from the frame its charge began, so the SANDBOX-002 shape (a committed charge landing after the state that authorized it has ended) cannot occur for anything built on that base. **Regressions:** `tests/wing_coordinator_test.gd`, `tests/encounter_scenario_director_test.gd` (every branch driven to a terminal outcome, including the unreachable-objective backstop), `tests/opponent_role_differentiation_test.gd` (no strict dominance and a measured manoeuvre-separation floor across all four archetypes), `tests/varied_encounter_integration_test.gd` (the real coordinator, a real resolved shot, and the phase ending under a live scenario). **Not done here:** no new weapon *definitions*, no `WeaponDefinition` resource migration, no new pulse style, no repair or shield work, and no change to the existing defender or picket.
 - [ ] Extend the Phase 2 hero/enemy impact, staged sparks/smoke, engine degradation, destruction, debris, and failure presentations into consistent component damage, repair, cleanup, respawn, and recovery systems; add shields or further failures only where research or explicit new design supports them.
@@ -1180,6 +1213,14 @@ The matching **production streaming path** now exists in `scripts/world/world_st
   One ExteriorTargetRange-local resource-only trim now shares the identical sphere mesh behind the four named childless target `Core` copies, reducing core mesh identities **4 -> 1 (-3)** and retained mesh/material identities **5 -> 2 (-3)** while retaining four nodes, exact target paths/materials/transforms, and four structural submissions. `tests/outbound_route_clearance_test.gd` freezes allocation, mutation, authority, and detach/re-entry boundaries; combat/damage remains covered by the existing live-combat integration. No batching, pixel change, draw-call, timing, VRAM, or whole-scene result is claimed.
 - [ ] Extend authored audio beyond the bounded combat bank and add music, broader accessibility presets, full remapping/controller support, production-grade settings coverage, ultrawide testing, server browser, tutorials, optimisation, robust crash recovery, signing, installers, and desktop-platform validation. Gamepad binding coverage, curve/hold-toggle execution, active-device keyboard/Xbox/PlayStation glyph presentation, and the controller-focusable remapping/conflict/reset HUD are implemented. Accepted remaps now refresh the retained HUD after the single `RuntimeSettings` transaction, and a full isolated round trip proves HUD intent → conflict replacement → `RuntimeSettings`/`InputMap` → atomic store → fresh `GameFlow` load → restored glyph row, including persisted reset. The HUD applies readable-band safe margins at 16:9, 16:10, 21:9, and 32:9 across minimum/default/maximum UI scale. Real controller hardware, additional controller families, and native focus review remain open. The audio side includes station/orbit/surface/activity music routing, weather/surface ambience, fleet expansion profiles, component-damage degradation/alarm presentation, generation-fenced engineer repair cues, and generation-matched bomber payload release, launch, impact, expiry, and abort cues. These are bounded deterministic compositions; **human listening, native output latency/mix/audibility, signing, installers, and desktop-platform validation remain unperformed**, so the umbrella item stays open.
 
+  Runtime status producers now retain independently keyed cards: SafeStart receipts, tutorial
+  progress and ordinary status survive while bomber payload status takes the foreground, and
+  clearing it restores the prior card. Prompt and device-family refreshes update the retained
+  content without replacing the focused action. Server-browser result navigation keeps a
+  stable keyboard/controller selection through result and retry states. Only the exact Cinder
+  bomber replaces the piloting `FIRE` label with `RELEASE PAYLOAD`, and its keyboard, Xbox and
+  PlayStation fire glyph repaints both payload surfaces immediately.
+
   The last recorded renderer-independent production audio census measured **74 AudioStreamPlayers** (8 plain, 66 positional 3D), exposed polyphony capacity **74**, **133 WAV resources**, and **4,489,460 decoded source bytes** in its `station_resident` checkpoint. Later Cinder, final-approach and semantic-audio composition has not been remeasured, so those values are historical rather than current merged-source ceilings. The `cinder_loaded` delta remains **NOT_REMEASURED** because the exact census preparation hit `load_timeout`; no zero-delta claim is made. Dummy audio correctly reported zero playing voices. These are scene/resource checkpoint facts, not native mixer-voice, output-memory, CPU, latency, clipping, balance, or audibility evidence; native mixer/output/audibility gates remain open. The existing `music_volume` setting is reachable through a typed controller-focusable Music slider in the real settings page; real-device listening remains open.
 
   Atomic settings persistence is live in production. `GameFlow` retains one process-lifetime `RuntimeSettings` / `UserDataStore` / `RuntimeSettingsStoreAdapter` composition, loads once before the first Player/ship/HUD consumer, applies the complete validated settings and binding profile, and persists accepted change/reset/save transactions with deterministic bounded IDs while preserving unrelated namespaces (`runtime_settings_store_adapter_test.gd`, 40 assertions; `runtime_settings_production_persistence_test.gd`, 28 assertions). Corrupt/newer/backup authority remains fail-closed; explicit repair, legacy-file retirement, native interruption testing, and OS shutdown/crash wiring remain open.
@@ -1236,6 +1277,11 @@ across four zones, while final-approach audio uses one retained semantic voice
 instead of two. Focused feature tests preserve collision, interaction, lifecycle
 and gameplay authority; these source-side deltas do **not** claim native draw
 calls, GPU/VRAM/frame time, audibility or human visual-review completion.
+
+Observation and Salvage now remove `60 m²` each of redundant outer walkable strips while
+preserving their route seams, ramps, collision-backed pads, markers, rails and traversal.
+Their walkable footprints change from `426 -> 366 m²` and `456 -> 396 m²`, a combined
+`120 m²` reduction. Native-Windows frame, GPU and VRAM measurement remains `NOT_RUN`.
 
 - [ ] Re-measure the merged scene with the deterministic geometry/material census and native-Windows CPU/GPU benchmarks before changing any ceiling. Preserve the existing minimum/target hardware and report p50/p95/p99 frame time, GPU time, RAM/VRAM, draw submissions, triangles, lights, shadows, particles, audio voices, startup time, and long-session growth.
 - [ ] Trim before raising budgets: share immutable material/mesh resources, batch visual-only repeats with audited `MultiMesh` transforms, reduce excessive unique meshes and scene nodes, consolidate practical lights without making rooms unreadable, and restore triangle/draw-call headroom. Never batch collision, interaction, evidence, or lifecycle authority unless its indexing contract is upgraded first.
@@ -1385,7 +1431,11 @@ and position evidence, survives detached re-entry through the existing session
 snapshot, and exposes a reward intent without granting it. Static reduced-flash
 safe objective markers consume that state at the authored relay and return
 positions without collision, navigation, activity, or reward authority. This
-closes a meaningful-content slice only. The real surface-loop binding now
+closes a meaningful-content slice only. While that survey is active, the current
+on-foot player can analyse the authored sample rack and receive an immediate completed
+marker; only a newer survey resets it. Reaching the staging relay records one local
+diagnostic and changes its marker without advancing the route or granting a reward. Both
+labels now sit clear of their physical props. The real surface-loop binding now
 forwards its existing generation-fenced actor-position observation while the
 survey is active, aborts coherently on actor loss or host-generation drift, and
 issues one caller-routed Mudds Shipyards return manifest after accepted reward
