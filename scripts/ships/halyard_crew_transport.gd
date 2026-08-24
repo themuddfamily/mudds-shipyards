@@ -333,6 +333,12 @@ const BOW_DOCKING_ARCH_SHADE_COPY_COUNT := 3
 const GEAR_DAMPER_RADIUS := 0.12
 const GEAR_DAMPER_HEIGHT := 0.83
 const GEAR_DAMPER_COPY_COUNT := 4
+## The four equal landing pads are immutable exterior presentation. Physical
+## ground contact remains the single LandingGearCollision shape, so one batch
+## preserves the complete four-point silhouette while removing three nodes and
+## three renderer submissions from every Halyard instance.
+const LANDING_GEAR_FOOT_SIZE := Vector3(1.20, 0.20, 1.65)
+const LANDING_GEAR_FOOT_COPY_COUNT := 4
 ## The six aft-bay rack readouts are immutable status dressing, not the live
 ## crew-status display or repair authority. Keeping them in one ship-local
 ## batch preserves their moving-interior parent transform while removing five
@@ -353,11 +359,11 @@ const AIRSTAIR_NOSING_COPY_COUNT := 4
 ## roots and their anchors retain every occupant and role contract.
 const CREW_SEAT_BACK_SIZE := Vector3(0.68, 0.92, 0.15)
 const CREW_SEAT_BACK_COPY_COUNT := 6
-const RENDER_DESCENDANT_COUNT := 118
-const RENDER_MESH_INSTANCE_COUNT := 106
-const RENDER_MULTIMESH_BATCH_COUNT := 7
+const RENDER_DESCENDANT_COUNT := 115
+const RENDER_MESH_INSTANCE_COUNT := 102
+const RENDER_MULTIMESH_BATCH_COUNT := 8
 const RENDER_DRAWN_COPY_COUNT := 168
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 113
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 110
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 67
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 16
 
@@ -3339,13 +3345,34 @@ func _build_propulsion_and_gear() -> void:
 	# the way a long aircraft overhangs its stand.
 	var gear_damper_transforms: Array[Transform3D] = []
 	var gear_damper_names := PackedStringArray()
+	var gear_foot_transforms: Array[Transform3D] = []
+	var gear_foot_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		for leg_z in [-5.20, 4.80]:
 			var leg_name := ("Port" if side < 0.0 else "Starboard") + ("Forward" if leg_z < 0.0 else "Aft")
 			_box(_halyard_visual, leg_name + "GearStrut", Vector3(side * 1.95, -0.37, leg_z), Vector3(0.30, 0.88, 0.30), _halyard_materials.dark, Vector3(0.0, 0.0, side * deg_to_rad(-6.0)))
-			_box(_halyard_visual, leg_name + "GearFoot", Vector3(side * 2.08, -0.98, leg_z), Vector3(1.20, 0.20, 1.65), _halyard_materials.structure)
+			gear_foot_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(side * 2.08, -0.98, leg_z)
+			))
+			gear_foot_names.append(leg_name + "GearFoot")
 			gear_damper_transforms.append(Transform3D(Basis.IDENTITY, Vector3(side * 1.78, -0.19, leg_z)))
 			gear_damper_names.append(leg_name + "GearDamper")
+	# These four landing pads are visual-only siblings with one equal mesh and
+	# material. Their authored identities and transforms remain on the batch for
+	# inspection; the unchanged LandingGearCollision still owns physical contact.
+	var gear_foot_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		LANDING_GEAR_FOOT_SIZE,
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_halyard_visual,
+		"LandingGearFootBatch",
+		gear_foot_mesh,
+		_halyard_materials.structure,
+		gear_foot_transforms,
+		gear_foot_names
+	)
 	# The four dampers are immutable visual trim. Landing contact and collision
 	# remain owned by LandingGearCollision, so this retains every physical gear
 	# contract while replacing four identical renderer submissions with one.
