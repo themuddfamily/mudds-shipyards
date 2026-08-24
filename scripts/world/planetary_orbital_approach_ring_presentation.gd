@@ -9,6 +9,12 @@ extends Node3D
 ## solar-responsive material independently owned.
 static var _shared_ring_mesh: TorusMesh
 
+# The ring is created as part of the surface composition, before the first
+# caller-owned solar sample arrives.  Daylight is the least intrusive safe
+# baseline, and makes the authored approach datum present on that first frame
+# instead of appearing a frame later when the sample is applied.
+const INITIAL_SUN_ELEVATION_SINE := 1.0
+
 var _configured := false
 var _anchor := Vector3.ZERO
 var _profile: StringName = &"high"
@@ -40,6 +46,7 @@ func configure(anchor: Vector3) -> Dictionary:
 	_anchor = anchor
 	position = anchor
 	_configured = true
+	apply_solar_phase({"sun_elevation_sine": INITIAL_SUN_ELEVATION_SINE})
 	return {"accepted": true, "reason": &"configured"}
 
 func apply_solar_phase(solar: Variant) -> Dictionary:

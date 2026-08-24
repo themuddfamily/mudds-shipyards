@@ -30,12 +30,16 @@ func _run() -> void:
 	root.add_child(comparison)
 	var comparison_anchor := Vector3(41.0, 140000.0, -17.0)
 	var comparison_configured: Dictionary = comparison.call(&"configure", comparison_anchor)
+	var comparison_ring := comparison.get_node("OwnedOrbitalApproachRing") as MeshInstance3D
+	var comparison_material := comparison_ring.material_override as StandardMaterial3D
+	var first_frame_presentation_ready: bool = (
+		comparison_ring.visible
+		and is_equal_approx(comparison_material.emission_energy_multiplier, 0.15)
+	)
 	var comparison_solar: Dictionary = comparison.call(
 		&"apply_solar_phase", {"sun_elevation_sine": 1.0}
 	)
-	var comparison_ring := comparison.get_node("OwnedOrbitalApproachRing") as MeshInstance3D
 	var bound_material := bound_ring.material_override as StandardMaterial3D
-	var comparison_material := comparison_ring.material_override as StandardMaterial3D
 	var resources_consolidated: bool = (
 		bound_ring.mesh == comparison_ring.mesh
 		and not bound_ring.mesh.resource_local_to_scene
@@ -72,7 +76,7 @@ func _run() -> void:
 	var restored: Dictionary = binding.get_snapshot().orbital_ring
 	if not configured.accepted or not solar.accepted or ring.anchor_body_local_m == Vector3.ZERO \
 			or not comparison_configured.accepted or not comparison_solar.accepted \
-			or not resources_consolidated or not presentation_preserved \
+			or not first_frame_presentation_ready or not resources_consolidated or not presentation_preserved \
 			or not comfort_and_authority_preserved \
 			or not ring.visible or not detached.accepted or not reentered.accepted \
 			or not restored.visible or restored.authority.entry:
