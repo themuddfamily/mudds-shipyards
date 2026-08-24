@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_footprint_routes_and_authority(module)
 	_test_walked_plate_material_finish(module)
 	_test_assigned_dock_status_stripe_readability(module)
+	_test_dock_number_route_fascias(module)
 	await _test_collision_backed_comb_and_voids(module)
 	_test_trunk_expansion_joint_batch(module)
 	_test_trunk_route_light_batch(module)
@@ -236,6 +237,49 @@ func _test_assigned_dock_status_stripe_readability(module: FleetDockComb) -> voi
 	)
 
 
+## Each branch exposes its stable dock number on a supported vertical fascia,
+## where an on-foot player can read it without walking onto the berth deck.
+func _test_dock_number_route_fascias(module: FleetDockComb) -> void:
+	var landmarks := module.get_node_or_null(^"GeneratedComb/DockLandmarks") as Node3D
+	_check(landmarks != null, "dock route fascias resolve under the non-authoritative landmark root")
+	if landmarks == null:
+		return
+	var expected := [
+		["DOCK 01", Vector3(8.965, -0.28, 4.80)],
+		["DOCK 02", Vector3(8.965, -0.28, 21.30)],
+		["DOCK 03", Vector3(8.965, 2.12, 36.30)],
+	]
+	var exact_fascias := true
+	for index in expected.size():
+		var fascia := landmarks.get_node_or_null(
+			"DockRouteFascia%02d" % (index + 1)
+		) as Label3D
+		exact_fascias = (
+			exact_fascias
+			and fascia != null
+			and fascia.text == str(expected[index][0])
+			and fascia.position.is_equal_approx(expected[index][1] as Vector3)
+			and fascia.rotation_degrees.is_equal_approx(Vector3(0.0, -90.0, 0.0))
+			and fascia.font_size == 38
+			and is_equal_approx(fascia.pixel_size, 0.012)
+			and fascia.modulate.is_equal_approx(Color("8ff5f1"))
+			and fascia.outline_modulate.is_equal_approx(Color("071b1d"))
+			and fascia.outline_size == 6
+			and not fascia.no_depth_test
+			and bool(fascia.get_meta("dock_route_fascia", false))
+			and int(fascia.get_meta("dock_number", -1)) == index + 1
+			and bool(fascia.get_meta("non_authoritative_presentation", false))
+			and fascia.get_child_count() == 0
+			and fascia.get_script() == null
+		)
+	_check(
+		exact_fascias
+		and landmarks.find_children("DockRouteFascia*", "CollisionObject3D", true, false).is_empty()
+		and landmarks.find_children("DockRouteFascia*", "Area3D", true, false).is_empty(),
+		"Docks 01-03 carry exact supported vertical number marks with no collision or gameplay authority"
+	)
+
+
 func _test_collision_backed_comb_and_voids(module: FleetDockComb) -> void:
 	var surface_samples := [
 		[Vector3(0, 2.0, 4.0), 0.0, "narrow trunk"],
@@ -366,7 +410,7 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 142
+		int(render.descendant_nodes) == 145
 		and int(render.mesh_instances) == 89
 		and int(render.multimesh_batches) == 10,
 		"renderer census includes all ten bounded visual-detail batches"
@@ -1260,7 +1304,7 @@ func _test_performance_contract(module: FleetDockComb) -> void:
 	var performance := module.get_performance_contract()
 	_check(bool(performance.within_budget), "module stays within every fixed geometry and processing budget")
 	_check(int(performance.static_bodies) == 7 and int(performance.collision_shapes) == 7, "performance report agrees with the exact collision roster")
-	_check(int(performance.labels) == 3 and int(performance.lights) == 7, "presentation contains exactly three labels and seven practical light nodes")
+	_check(int(performance.labels) == 6 and int(performance.lights) == 7, "presentation contains exactly three ship labels, three dock-number fascias and seven practical light nodes")
 	_check(int(performance.process_loops) == 0, "static module allocates no frame or physics process loop")
 	var practicals_are_restrained := true
 	var lights := module.find_children("*", "Light3D", true, false)

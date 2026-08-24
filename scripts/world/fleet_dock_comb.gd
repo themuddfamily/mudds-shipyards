@@ -83,7 +83,7 @@ const PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT := 71
 const PRE_MOORING_CLEAT_BOLLARD_GEOMETRY_SUBMISSION_COUNT := 62
 const PRE_DOCK_SERVICE_MAST_GEOMETRY_SUBMISSION_COUNT := 57
 const PRE_DOCK_SERVICE_BRACKET_GEOMETRY_SUBMISSION_COUNT := 55
-const RENDER_DESCENDANT_COUNT := 142
+const RENDER_DESCENDANT_COUNT := 145
 const RENDER_MESH_INSTANCE_COUNT := 89
 const RENDER_MULTIMESH_BATCH_COUNT := 10
 const RENDER_DRAWN_COPY_COUNT := 101
@@ -141,7 +141,10 @@ const FOOTPRINT_MAX := Vector3(21.0, 5.0, 48.0)
 const MESH_INSTANCE_BUDGET := 107
 const STATIC_BODY_BUDGET := COLLISION_BODY_COUNT
 const COLLISION_SHAPE_BUDGET := COLLISION_SHAPE_COUNT
-const LABEL_BUDGET := DOCK_MARKER_COUNT
+# Three existing ship-identity deck labels plus one dock-number fascia marking
+# at each arm. The latter are static text only: no backing mesh, light, process,
+# collision or route authority accompanies them.
+const LABEL_BUDGET := DOCK_MARKER_COUNT * 2
 # Re-frozen in the open, 0 -> 4. The comb was the only station module with no
 # light of any kind, and it showed: three dock slabs carrying stripes, corner
 # beacons and edge cues that every one of them rendered as a flat painted decal
@@ -1958,6 +1961,39 @@ func _build_deferred_landmarks() -> void:
 		label.set_meta("assigned_dock_label", assigned)
 		label.set_meta("deferred_dock_label", not assigned)
 		landmarks.add_child(label)
+
+	# The ship-name labels above identify what is parked here once a player is on
+	# the slab, but their floor plane does not answer the more immediate on-foot
+	# question at a branch: "which dock is this?" These compact number marks sit
+	# on the slab's inboard *vertical* fascia, 35 mm proud of the rendered face so
+	# they cannot z-fight. Every mark occupies the approach-side fascia segment;
+	# that keeps Dock 03's sign clear of the ramp joining the middle of its face.
+	# The fascia itself is the support, so this adds no floating panel or implied
+	# collision. It also leaves the slab top, route thresholds, parked-hull airspace
+	# and every world-owned berth/boarding envelope exactly where they were.
+	var dock_number_specs := [
+		["DOCK 01", Vector3(8.965, -0.28, 4.80)],
+		["DOCK 02", Vector3(8.965, -0.28, 21.30)],
+		["DOCK 03", Vector3(8.965, 2.12, 36.30)],
+	]
+	for index in dock_number_specs.size():
+		var dock_number := Label3D.new()
+		dock_number.name = "DockRouteFascia%02d" % (index + 1)
+		dock_number.text = str(dock_number_specs[index][0])
+		dock_number.position = dock_number_specs[index][1] as Vector3
+		# Label3D faces local +Z; -90 degrees around Y turns that face toward
+		# the approaching player on local -X.
+		dock_number.rotation_degrees = Vector3(0.0, -90.0, 0.0)
+		dock_number.font_size = 38
+		dock_number.pixel_size = 0.012
+		dock_number.modulate = Color("8ff5f1")
+		dock_number.outline_modulate = Color("071b1d")
+		dock_number.outline_size = 6
+		dock_number.no_depth_test = false
+		dock_number.set_meta("dock_route_fascia", true)
+		dock_number.set_meta("dock_number", index + 1)
+		dock_number.set_meta("non_authoritative_presentation", true)
+		landmarks.add_child(dock_number)
 
 
 func _register_surface(body: StaticBody3D, surface_id: StringName, surface_role: StringName) -> void:
