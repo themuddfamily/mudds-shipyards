@@ -27,6 +27,7 @@ const PRESENTATION_LIGHT_ENERGY_DANGER := 3.1
 const PRESENTATION_LIGHT_ENERGY_CRITICAL := 4.2
 const PRESENTATION_CORE_BASE_POSITION := Vector3(0.0, 2.65, 0.0)
 const PRESENTATION_BEARING_OFFSET := 0.85
+const PRESENTATION_RING_NEUTRAL_YAW := 0.0
 
 const _AUTHORITY_EXCLUSIONS := {
 	"combat_resolution": false,
@@ -266,6 +267,7 @@ func get_protected_asset_presentation_snapshot() -> Dictionary:
 		"hostile_bearing_local": _hostile_bearing_local,
 		"hostile_bearing_source": _hostile_bearing_source_snapshot.duplicate(true),
 		"core_position": _signal_core.position if is_instance_valid(_signal_core) else Vector3.INF,
+		"ring_yaw": _signal_ring.rotation.y if is_instance_valid(_signal_ring) else INF,
 		"ring_visible": _signal_ring.visible if is_instance_valid(_signal_ring) else false,
 		"ring_scale": _signal_ring.scale.x if is_instance_valid(_signal_ring) else 0.0,
 		"core_visible": _signal_core.visible if is_instance_valid(_signal_core) else false,
@@ -496,11 +498,19 @@ func _apply_composed_presentation_state() -> void:
 
 
 func _apply_hostile_bearing_cue() -> void:
-	if not is_instance_valid(_signal_core):
+	if not is_instance_valid(_signal_core) or not is_instance_valid(_signal_ring):
 		return
 	_signal_core.position = PRESENTATION_CORE_BASE_POSITION
+	_signal_ring.rotation.y = PRESENTATION_RING_NEUTRAL_YAW
 	if _hostile_bearing_active:
 		_signal_core.position += _hostile_bearing_local * PRESENTATION_BEARING_OFFSET
+		# The already-vertical ring becomes a steady shield face toward the
+		# caller-resolved approach. This is presentation only: it neither casts
+		# for hostiles nor changes the asset's collision or combat range.
+		_signal_ring.rotation.y = atan2(
+			_hostile_bearing_local.x,
+			_hostile_bearing_local.z
+		)
 
 
 func _on_damage_applied(
