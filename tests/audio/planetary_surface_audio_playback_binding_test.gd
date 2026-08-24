@@ -37,6 +37,22 @@ func _run() -> void:
 	var calm_snapshot: Dictionary = binding.get_state_snapshot()
 	var calm_voice := (calm_snapshot.voices as Dictionary).exterior as Dictionary
 	_check(
+		float((calm_snapshot.fade as Dictionary).intensity_unitless) == 0.0
+		and not bool(calm_voice.stream_attached),
+		"a fresh surface attachment holds its first policy frame silent to avoid a re-entry pop"
+	)
+	var calm_fade_in: Dictionary = binding.present_policy_result(
+		calm, 0.1875, generation, 1001, 7, 11
+	)
+	calm_snapshot = binding.get_state_snapshot()
+	calm_voice = (calm_snapshot.voices as Dictionary).exterior as Dictionary
+	_check(
+		bool(calm_fade_in.accepted)
+		and float((calm_snapshot.fade as Dictionary).intensity_unitless) > 0.0
+		and float(calm_voice.effective_linear_gain) > 0.0,
+		"the following caller frame starts the normal bounded surface fade"
+	)
+	_check(
 		float((calm_snapshot.fade as Dictionary).wind_gain_db) == -80.0,
 		"calm exterior keeps the wind contribution silent"
 	)

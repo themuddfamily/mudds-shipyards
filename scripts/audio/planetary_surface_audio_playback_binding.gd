@@ -136,6 +136,7 @@ var _last_hazard_state: StringName = &"clear"
 var _hazard_cue_count := 0
 var _reduced_dynamic_range := false
 var _lifecycle_active := false
+var _initial_fade_pending := false
 
 
 func _ready() -> void:
@@ -238,6 +239,10 @@ func attach(
 	_location_generation = location_generation
 	_paused = false
 	_reset_fade_state()
+	# Keep the first accepted policy submission silent. A new surface attachment
+	# otherwise lets a large caller delta start an authored loop at full gain,
+	# producing a pop at the orbit-to-surface/re-entry boundary.
+	_initial_fade_pending = true
 	_mutation_active = false
 	_commit(&"attached")
 	return _result(true, &"attached")
@@ -297,7 +302,9 @@ func present_policy_result(
 	_target_entry_intensity_unitless = float(targets.get("entry_intensity_unitless", 0.0))
 	_last_policy_evaluation = evaluation.duplicate(true)
 	var before := _fade_value_snapshot()
-	if not _paused and caller_physics_delta > 0.0:
+	if not _paused and caller_physics_delta > 0.0 and _initial_fade_pending:
+		_initial_fade_pending = false
+	elif not _paused and caller_physics_delta > 0.0:
 		var step := caller_physics_delta / CROSSFADE_SECONDS
 		_route_mix_unitless = move_toward(
 			_route_mix_unitless, _target_route_mix_unitless, step
@@ -911,6 +918,7 @@ func _internal_detach(reason: StringName, advance_generation: bool) -> void:
 	_frame_generation = 0
 	_location_generation = 0
 	_paused = false
+	_initial_fade_pending = false
 	_last_policy_evaluation.clear()
 	_reset_hazard_cue_state()
 	_reset_fade_state()
