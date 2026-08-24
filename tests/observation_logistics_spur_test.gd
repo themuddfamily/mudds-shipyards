@@ -34,6 +34,7 @@ func _run() -> void:
 	_test_exposed_lattice_language_contract(module)
 	_test_connection_slots(module)
 	_test_surface_roster_and_area(module)
+	_test_approach_wayfinding(module)
 	_test_material_retention(module)
 	_test_visual_resource_sharing(module)
 	_test_deterministic_runtime_names(module)
@@ -43,6 +44,33 @@ func _run() -> void:
 	await _test_lifecycle(module)
 	await _test_cleanup(module)
 	_finish()
+
+
+func _test_approach_wayfinding(module: ObservationLogisticsSpur) -> void:
+	var cue := module.get_node_or_null(^"Structure/Dressing/AreaIdentity") as Label3D
+	var approach_direction := (
+		module.get_integration_footprint().module_extends_local as Vector3
+	).normalized()
+	var screen_right := approach_direction.cross(Vector3.UP).normalized()
+	var observation_position := module.get_route_marker(&"observation-pad").position
+	var logistics_position := module.get_route_marker(&"logistics-pad").position
+	_check(
+		cue != null
+		and cue.text == ObservationLogisticsSpur.APPROACH_WAYFINDING_TEXT
+		and logistics_position.dot(screen_right) < observation_position.dot(screen_right)
+		and cue.text.begins_with("←  LOGISTICS")
+		and cue.text.ends_with("OBSERVATION  →"),
+		"approach header orders destinations by their screen position when viewed down the connector"
+	)
+	_check(
+		cue != null
+		and cue.position.is_equal_approx(ObservationLogisticsSpur.APPROACH_WAYFINDING_POSITION)
+		and cue.position.z < 22.0
+		and cue.font_size == 36
+		and cue.outline_size == 6
+		and cue.billboard == BaseMaterial3D.BILLBOARD_ENABLED,
+		"branch cue stays overhead before the cross-landing with its legible sign treatment"
+	)
 
 
 func _test_identity_evidence_and_contract(module: ObservationLogisticsSpur) -> void:

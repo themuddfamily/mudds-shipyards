@@ -229,6 +229,12 @@ const SCALED_VISUAL_BATCH_NAMES := [
 const BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT := 8
 const SCALED_VISUAL_MESH_RESOURCE_COUNT := 1
 
+## The approach meets both destination pads at the cross-landing. Keep this cue
+## attached to the existing overhead sign so the branch choice is readable
+## before the player reaches the split without adding geometry to either lane.
+const APPROACH_WAYFINDING_TEXT := "←  LOGISTICS    |    OBSERVATION  →"
+const APPROACH_WAYFINDING_POSITION := Vector3(0.0, 3.18, 21.82)
+
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
 	+ "spur, these functions, this exposed 24 m approach, two-pad plan, alternate return "
@@ -1498,7 +1504,13 @@ func _build_dressing(parent: Node3D) -> void:
 	)
 	# The district identity belongs to the final connector portal rather than
 	# floating at eye height across the cross-landing sightline.
-	_label(parent, "AreaIdentity", "OBSERVATION  //  LOGISTICS", Vector3(0.0, 3.18, 21.82), Color("dbe8e4"))
+	_label(
+		parent,
+		"AreaIdentity",
+		APPROACH_WAYFINDING_TEXT,
+		APPROACH_WAYFINDING_POSITION,
+		Color("dbe8e4")
+	)
 	_build_finishing_details(parent)
 
 
