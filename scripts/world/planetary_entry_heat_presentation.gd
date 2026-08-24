@@ -79,17 +79,23 @@ var _mutation_active := false
 var _signal_dispatch_active := false
 var _lifecycle_apply_active := false
 var _last_lifecycle_result: Dictionary = {}
+# A tree re-entry can occur after the caller's ship/atmosphere state has
+# changed. Keep the neutral baseline until that caller submits a fresh sample
+# instead of briefly flashing the previous entry intensity.
+var _requires_fresh_observation := false
 
 
 func _enter_tree() -> void:
 	if _configured:
-		_lifecycle_apply_active = true
-		_last_lifecycle_result = _apply_intensity(_current_intensity)
-		_lifecycle_apply_active = false
+		_last_lifecycle_result = {
+			"accepted": true,
+			"reason": &"reentry_waiting_for_fresh_observation",
+		}.duplicate(true)
 
 
 func _exit_tree() -> void:
 	if _configured:
+		_requires_fresh_observation = true
 		_lifecycle_apply_active = true
 		_last_lifecycle_result = _apply_intensity(_baseline_intensity)
 		_lifecycle_apply_active = false
@@ -207,7 +213,8 @@ func present_observation(
 		_mutation_active = false
 		return _result(false, &"sampler_contract_mismatch")
 	var candidate := float(observation.entry_effect_intensity_unitless)
-	var identical := observation == _last_observation \
+	var identical := not _requires_fresh_observation \
+		and observation == _last_observation \
 		and candidate == _current_intensity
 	if identical and _target_matches_expected():
 		_mutation_active = false
@@ -224,6 +231,7 @@ func present_observation(
 		)
 	_last_observation = observation.duplicate(true)
 	_current_intensity = candidate
+	_requires_fresh_observation = false
 	_presented_observation_count += 1
 	_mutation_active = false
 	var reason: StringName = (
@@ -262,6 +270,7 @@ func reset_for_reuse(expected_generation: Variant) -> Dictionary:
 	_generation += 1
 	_current_intensity = _baseline_intensity
 	_last_observation.clear()
+	_requires_fresh_observation = false
 	_reset_count += 1
 	_mutation_active = false
 	_commit(&"reset")
@@ -282,7 +291,8 @@ func get_renderer_snapshot() -> Dictionary:
 	var actual: Variant = null
 	if material != null and shader != null:
 		actual = material.get_shader_parameter(OWNED_SHADER_PARAMETER)
-	var expected := _current_intensity if is_inside_tree() else _baseline_intensity
+	var expected := _current_intensity if is_inside_tree() \
+		and not _requires_fresh_observation else _baseline_intensity
 	return {
 		"target_available": material != null and shader != null,
 		"material_instance_id": _material_instance_id,
@@ -292,8 +302,10 @@ func get_renderer_snapshot() -> Dictionary:
 		"expected": {OWNED_SHADER_PARAMETER: expected},
 		"actual": {OWNED_SHADER_PARAMETER: actual},
 		"current_values_applied": is_inside_tree() \
+			and not _requires_fresh_observation \
 			and actual == _current_intensity,
-		"baseline_applied_while_detached": not is_inside_tree() \
+		"baseline_applied_while_detached": (not is_inside_tree() \
+			or _requires_fresh_observation) \
 			and actual == _baseline_intensity,
 	}.duplicate(true)
 
@@ -309,6 +321,7 @@ func get_state_snapshot() -> Dictionary:
 		"generation": _generation,
 		"revision": _revision,
 		"inside_tree": is_inside_tree(),
+		"requires_fresh_observation": _requires_fresh_observation,
 		"has_presented_observation": not _last_observation.is_empty(),
 		"last_observation": _last_observation.duplicate(true),
 		"profile": _profile_snapshot.duplicate(true),
@@ -387,7 +400,7 @@ func audit() -> Dictionary:
 			"transactional_material_apply": true,
 			"consolidated_resource_changed_notification": true,
 			"tree_exit_restores_baseline": true,
-			"tree_reentry_reapplies_current_generation": true,
+			"tree_reentry_waits_for_fresh_observation": true,
 			"physical_heating_simulation": false,
 			"directional_bow_shock": false,
 			"production_ship_integration": false,
@@ -596,7 +609,8 @@ func _target_matches_expected() -> bool:
 	var material := _resolve_material()
 	if material == null or _resolve_shader() == null:
 		return false
-	var expected := _current_intensity if is_inside_tree() else _baseline_intensity
+	var expected := _current_intensity if is_inside_tree() \
+		and not _requires_fresh_observation else _baseline_intensity
 	return _read_intensity(material) == expected
 
 

@@ -401,13 +401,16 @@ func _test_signal_reentry_and_detachment() -> void:
 	)
 	root.add_child(_adapter)
 	var reentry_intensity: Variant = _material.get_shader_parameter(OWNED_PARAMETER)
+	var reentry_state := _adapter.get_state_snapshot()
 	var fresh := _adapter.present_observation(14000.0, 250.0, generation)
 	_check(
-		reentry_intensity == 1.0
+		reentry_intensity == 0.0
+		and reentry_state.requires_fresh_observation
+		and reentry_state.renderer.expected[OWNED_PARAMETER] == 0.0
 		and fresh.accepted
 		and _material.get_shader_parameter(OWNED_PARAMETER) == 0.25
 		and _adapter.get_generation() == generation,
-		"tree reentry restores last live intent before a fresh observation updates it"
+		"tree reentry holds a neutral baseline until a fresh observation prevents stale heat pop"
 	)
 
 
@@ -490,6 +493,7 @@ func _test_reset_and_detached_reports() -> void:
 		and not audit.capabilities.physical_heating_simulation
 		and not audit.capabilities.directional_bow_shock
 		and not audit.capabilities.production_ship_integration
+		and audit.capabilities.tree_reentry_waits_for_fresh_observation
 		and not audit.capabilities.quality_selection,
 		"capabilities distinguish normalized adapter from deferred systems"
 	)
