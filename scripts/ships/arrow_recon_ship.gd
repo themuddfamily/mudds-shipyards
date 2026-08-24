@@ -107,6 +107,11 @@ const FUSELAGE_PANEL_BAND_STABLE_PATH := "FuselagePanelBand"
 const ARRAY_RECEIVER_RADIUS := 0.15
 const ARRAY_RECEIVER_VISIBLE_COPIES := 2
 const ARRAY_RECEIVER_BATCH_NAME := "ArrayReceiver"
+# The rotating crossbar is easier to read against the long dorsal silhouette
+# when the visual-only survey head also traces a restrained vertical arc.
+const SENSOR_SWEEP_YAW_RATE := 0.42
+const SENSOR_SWEEP_PITCH_RATE := 0.75
+const SENSOR_SWEEP_PITCH_AMPLITUDE := deg_to_rad(6.0)
 const BOARDING_STEP_SIZE := Vector3(0.58, 0.1, 0.62)
 const BOARDING_STEP_VISIBLE_COPIES := 3
 # Retain the only stable renderer path from the former three-node family; the
@@ -733,6 +738,8 @@ func _build_recon_systems() -> void:
 	_sensor_sweep = Node3D.new()
 	_sensor_sweep.name = "SensorSweep"
 	_sensor_sweep.position = Vector3(0, 1.48, 0)
+	_sensor_sweep.set_meta("visual_only", true)
+	_sensor_sweep.set_meta("gameplay_authority", false)
 	mast.add_child(_sensor_sweep)
 	_torus(_sensor_sweep, "PassiveArrayRing", Vector3.ZERO, 0.45, 0.54, _arrow_materials.sensor, Vector3(90, 0, 0))
 	_cylinder(_sensor_sweep, "ArrayCrossbar", Vector3.ZERO, 0.055, 1.45, _arrow_materials.titanium, Vector3(0, 0, 90))
@@ -1086,7 +1093,14 @@ func _add_box_collision(node_name: String, collision_position: Vector3, size: Ve
 
 func _update_arrow_presentation(delta: float) -> void:
 	if _sensor_sweep != null:
-		_sensor_sweep.rotation.y = fmod(_sensor_sweep.rotation.y + delta * 0.42, TAU)
+		_sensor_sweep.rotation.y = fmod(
+			_sensor_sweep.rotation.y + delta * SENSOR_SWEEP_YAW_RATE,
+			TAU
+		)
+		_sensor_sweep.rotation.x = (
+			sin(_elapsed_arrow * SENSOR_SWEEP_PITCH_RATE)
+			* SENSOR_SWEEP_PITCH_AMPLITUDE
+		)
 	var telemetry := get_telemetry()
 	var engine_state := StringName(telemetry.get("engine_state", &"OFFLINE"))
 	var engine_active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
