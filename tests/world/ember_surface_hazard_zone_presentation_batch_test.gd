@@ -66,6 +66,7 @@ func _run() -> void:
 	var warning_snapshot: Dictionary = presentation.get_snapshot()
 	var recovery: Dictionary = presentation.apply_status({
 		"hazard_id": &"ember_thermal_vent", "state": &"recovery_required",
+		"recovery_request": {"generation": 1},
 	})
 	var recovery_color := (perimeter.material_override as StandardMaterial3D).albedo_color
 	var snapshot: Dictionary = presentation.get_snapshot()
@@ -76,6 +77,7 @@ func _run() -> void:
 			or not (batch.material_override as StandardMaterial3D).albedo_color.is_equal_approx( \
 				Color(0.92, 0.96, 1.0, 1.0)) \
 			or not batch.visible or not snapshot.recovery_cue.visible \
+			or snapshot.recovery_cue.active_generation != 1 \
 			or not snapshot.recovery_cue.static \
 			or presentation.is_processing() or presentation.is_physics_processing() \
 			or snapshot.recovery_cue.color_independent_shape != &"progressive_width_dashes" \
@@ -85,13 +87,46 @@ func _run() -> void:
 		_fail("batching changed cue readability, static reduced-flash behavior, or authority boundaries")
 		return
 
+	var cleared: Dictionary = presentation.apply_status({
+		"hazard_id": &"ember_thermal_vent", "state": &"clear",
+		"recovery_request": {"generation": 1},
+	})
+	var stale_replay: Dictionary = presentation.apply_status({
+		"hazard_id": &"ember_thermal_vent", "state": &"recovery_required",
+		"recovery_request": {"generation": 1},
+	})
+	var replay_snapshot: Dictionary = presentation.get_snapshot()
+	if not cleared.accepted or stale_replay.accepted \
+			or stale_replay.reason != &"stale_hazard_recovery_generation" \
+			or replay_snapshot.state != &"clear" or replay_snapshot.recovery_cue.visible \
+			or replay_snapshot.recovery_cue.retired_generation != 1:
+		_fail("a cleared recovery episode replayed its stale direction cue")
+		return
+
+	var fresh_recovery: Dictionary = presentation.apply_status({
+		"hazard_id": &"ember_thermal_vent", "state": &"recovery_required",
+		"recovery_request": {"generation": 2},
+	})
+	var stale_clear: Dictionary = presentation.apply_status({
+		"hazard_id": &"ember_thermal_vent", "state": &"clear",
+		"recovery_request": {"generation": 1},
+	})
+	var fresh_snapshot: Dictionary = presentation.get_snapshot()
 	var detached: Dictionary = presentation.detach()
 	var detached_snapshot: Dictionary = presentation.get_snapshot()
 	var reentered: Dictionary = presentation.reenter()
 	var reentered_snapshot: Dictionary = presentation.get_snapshot()
-	if not detached.accepted or detached_snapshot.visible or detached_snapshot.recovery_cue.visible \
+	var detached_replay: Dictionary = presentation.apply_status({
+		"hazard_id": &"ember_thermal_vent", "state": &"recovery_required",
+		"recovery_request": {"generation": 2},
+	})
+	if not fresh_recovery.accepted or stale_clear.accepted \
+			or fresh_snapshot.state != &"recovery_required" \
+			or not fresh_snapshot.recovery_cue.visible or not detached.accepted \
+			or detached_snapshot.visible or detached_snapshot.recovery_cue.visible \
 			or not reentered.accepted or not reentered_snapshot.visible \
-			or reentered_snapshot.state != &"clear" or reentered_snapshot.recovery_cue.visible:
+			or reentered_snapshot.state != &"clear" or reentered_snapshot.recovery_cue.visible \
+			or detached_replay.accepted or presentation.get_snapshot().recovery_cue.visible:
 		_fail("batching changed detach, reentry, or clear-state lifecycle transitions")
 		return
 

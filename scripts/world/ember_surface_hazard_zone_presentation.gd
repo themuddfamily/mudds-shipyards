@@ -16,6 +16,8 @@ var _recovery_landmark_id: StringName = &""
 var _recovery_target := Vector3.ZERO
 var _recovery_path_start := Vector3.ZERO
 var _recovery_direction := Vector3.ZERO
+var _active_recovery_generation := 0
+var _retired_recovery_generation := 0
 var _ring: MeshInstance3D
 var _beacon: MeshInstance3D
 var _material: StandardMaterial3D
@@ -23,6 +25,7 @@ var _recovery_cue_root: Node3D
 var _recovery_cue_material: StandardMaterial3D
 
 const RECOVERY_CUE_DASH_COUNT := 4
+const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 
 
 func _ready() -> void:
@@ -118,6 +121,29 @@ func apply_status(status: Variant) -> Dictionary:
 	var state := StringName(semantic.get("state", &""))
 	if state not in [&"clear", &"warning", &"recovery_required"]:
 		return {"accepted": false, "reason": &"invalid_hazard_zone_status"}
+	var recovery_value: Variant = semantic.get("recovery_request", {})
+	if not recovery_value is Dictionary:
+		return {"accepted": false, "reason": &"invalid_hazard_recovery_generation"}
+	var recovery := recovery_value as Dictionary
+	var generation_value: Variant = recovery.get("generation", 0)
+	if not generation_value is int or int(generation_value) < 0 \
+			or int(generation_value) > MAX_SAFE_INTEGER:
+		return {"accepted": false, "reason": &"invalid_hazard_recovery_generation"}
+	var recovery_generation := int(generation_value)
+	if state == &"recovery_required" and recovery_generation > 0:
+		if recovery_generation <= _retired_recovery_generation \
+				or recovery_generation < _active_recovery_generation:
+			return {"accepted": false, "reason": &"stale_hazard_recovery_generation"}
+		_active_recovery_generation = recovery_generation
+	elif state == &"clear":
+		if recovery_generation > 0 and _active_recovery_generation > 0 \
+				and recovery_generation < _active_recovery_generation:
+			return {"accepted": false, "reason": &"stale_hazard_recovery_generation"}
+		_retire_active_recovery()
+	elif _active_recovery_generation > 0 \
+			and (recovery_generation == 0 \
+			or recovery_generation <= _active_recovery_generation):
+		return {"accepted": false, "reason": &"stale_hazard_recovery_generation"}
 	_apply_state(state)
 	return {"accepted": true, "reason": &"hazard_zone_status_applied"}
 
@@ -126,6 +152,7 @@ func detach() -> Dictionary:
 	if not _configured or not _attached:
 		return {"accepted": false, "reason": &"hazard_zone_not_attached"}
 	_attached = false
+	_retire_active_recovery()
 	_state = &"clear"
 	_set_visible(false)
 	return {"accepted": true, "reason": &"hazard_zone_detached"}
@@ -159,6 +186,8 @@ func get_snapshot() -> Dictionary:
 			"dash_count": RECOVERY_CUE_DASH_COUNT,
 			"color_independent_shape": &"progressive_width_dashes",
 			"static": true,
+			"active_generation": _active_recovery_generation,
+			"retired_generation": _retired_recovery_generation,
 			"authority": {
 				"navigation": false, "movement": false, "recovery": false,
 				"health": false, "reward": false, "lifecycle": false,
@@ -260,3 +289,10 @@ func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat
 func _set_recovery_cue_visible(value: bool) -> void:
 	if _recovery_cue_root != null:
 		_recovery_cue_root.visible = value and not _recovery_landmark_id.is_empty()
+
+
+func _retire_active_recovery() -> void:
+	_retired_recovery_generation = maxi(
+		_retired_recovery_generation, _active_recovery_generation
+	)
+	_active_recovery_generation = 0

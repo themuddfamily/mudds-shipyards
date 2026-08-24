@@ -110,6 +110,19 @@ func _run() -> void:
 			and _reward_calls == 0,
 		"sustained exposure reveals a static authored-relay path cue without applying recovery"
 	)
+	var cooled_observation := base_observation.duplicate(true)
+	cooled_observation.exposure_unitless = 0.0
+	var recovering := binding.submit_authored_hazard_observation(
+		cooled_observation, 4, 1
+	)
+	_check(
+		recovering.accepted and recovering.reason == &"hazard_recovery_requested"
+			and recovering.status.state == &"recovery_required"
+			and recovering.sample.recovery_request.generation == 1
+			and not recovering.sample.recovery_request.newly_requested
+			and recovering.presentation.recovery_cue.visible,
+		"cooling cannot strand a failed actor by retracting the retained relay recovery cue"
+	)
 	var detached_status := binding.get_authored_hazard_status()
 	detached_status.state = &"tampered"
 	_check(

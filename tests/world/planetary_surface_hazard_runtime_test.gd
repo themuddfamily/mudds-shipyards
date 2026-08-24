@@ -43,8 +43,10 @@ func _run() -> void:
 	_check(
 		escalated.recovery_request.requested
 			and escalated.recovery_request.recovery_id == &"return_to_landed_ship"
+			and escalated.recovery_request.generation == 1
+			and escalated.recovery_request.newly_requested
 			and is_equal_approx(float(escalated.exposure_unitless), 0.9),
-		"accumulated exposure requests the authored recoverable return"
+		"accumulated exposure retains one authored recoverable return episode"
 	)
 	var cooled := runtime.submit_exposure(
 		&"caldera_thermal_vent", heat_position, 0.0, 1.0
@@ -54,6 +56,28 @@ func _run() -> void:
 			and not cooled.damage_request.requested
 			and float(cooled.exposure_unitless) < float(escalated.exposure_unitless),
 		"zero exposure cools the hazard accumulator and emits no damage request"
+	)
+	_check(
+		cooled.recovery_request.requested
+			and cooled.recovery_request.generation == 1
+			and not cooled.recovery_request.newly_requested,
+		"a failed actor retains the same recovery request while exposure cools"
+	)
+	var cleared_snapshot := runtime.get_snapshot()
+	cleared_snapshot.exposure[&"caldera_thermal_vent"] = 0.0
+	_check(
+		runtime.restore_snapshot(cleared_snapshot).accepted
+			and not runtime.get_snapshot().recovery_latched[&"caldera_thermal_vent"],
+		"the existing lifecycle reset clears the latched recovery episode"
+	)
+	var fresh_episode := runtime.submit_exposure(
+		&"caldera_thermal_vent", heat_position, 1.0, 8.0
+	)
+	_check(
+		fresh_episode.recovery_request.requested
+			and fresh_episode.recovery_request.newly_requested
+			and fresh_episode.recovery_request.generation == 2,
+		"a fresh lifecycle starts one new replay-safe recovery generation"
 	)
 	_check(
 		runtime.get_snapshot().authority.health == false

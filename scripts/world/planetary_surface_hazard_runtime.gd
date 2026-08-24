@@ -13,10 +13,13 @@ const RECOVERY_EXPOSURE_THRESHOLD := 0.8
 const EXPOSURE_RATE_PER_SECOND := 0.1
 const DAMAGE_RATE_PER_SECOND := 0.4
 const COOLING_RATE_PER_SECOND := 0.2
+const MAX_SAFE_INTEGER := 9_007_199_254_740_991
 
 var _configured := false
 var _hazards: Dictionary = {}
 var _exposure: Dictionary = {}
+var _recovery_latched: Dictionary = {}
+var _recovery_generation: Dictionary = {}
 var _weather_field: RefCounted
 
 
@@ -30,6 +33,8 @@ func configure(contract: PlanetarySurfaceNavigationContract) -> Dictionary:
 		var hazard_id := StringName(item.get("id", &""))
 		_hazards[hazard_id] = item.duplicate(true)
 		_exposure[hazard_id] = 0.0
+		_recovery_latched[hazard_id] = false
+		_recovery_generation[hazard_id] = 0
 	_configured = true
 	return _result(true, &"configured")
 
@@ -87,7 +92,9 @@ func submit_weather_exposure(
 
 
 ## Evaluates one caller-owned hazard observation and returns transport-safe
-## requests for the owning health/recovery system to decide and apply.
+## requests for the owning health/recovery system to decide and apply. Once
+## requested, recovery stays latched until the existing lifecycle restore clears
+## that hazard's exposure; repeated samples retain one generation for deduping.
 func submit_exposure(
 		hazard_id: StringName,
 		position: Variant,
@@ -115,7 +122,17 @@ func submit_exposure(
 		current = clampf(current + scalar * delta * EXPOSURE_RATE_PER_SECOND, 0.0, MAX_EXPOSURE)
 	else:
 		current = clampf(current - delta * COOLING_RATE_PER_SECOND, 0.0, MAX_EXPOSURE)
+	var recovery_latched := bool(_recovery_latched.get(hazard_id, false))
+	var recovery_generation := int(_recovery_generation.get(hazard_id, 0))
+	var newly_requested := not recovery_latched and current >= RECOVERY_EXPOSURE_THRESHOLD
+	if newly_requested:
+		if recovery_generation >= MAX_SAFE_INTEGER:
+			return _result(false, &"recovery_generation_exhausted")
+		recovery_generation += 1
+		recovery_latched = true
 	_exposure[hazard_id] = current
+	_recovery_latched[hazard_id] = recovery_latched
+	_recovery_generation[hazard_id] = recovery_generation
 	var damage := clampf(scalar * delta * DAMAGE_RATE_PER_SECOND, 0.0, 1.0)
 	var recovery_id := StringName(hazard.get("recovery_id", &""))
 	return _result(true, &"exposure_sampled", {
@@ -128,7 +145,9 @@ func submit_exposure(
 			"health_mutation": false,
 		},
 		"recovery_request": {
-			"requested": current >= RECOVERY_EXPOSURE_THRESHOLD,
+			"requested": recovery_latched,
+			"newly_requested": newly_requested,
+			"generation": recovery_generation,
 			"recovery_id": recovery_id,
 			"hazard_id": hazard_id,
 			"movement_mutation": false,
@@ -141,6 +160,8 @@ func get_snapshot() -> Dictionary:
 		"configured": _configured,
 		"hazard_ids": _hazards.keys(),
 		"exposure": _exposure.duplicate(true),
+		"recovery_latched": _recovery_latched.duplicate(true),
+		"recovery_generation": _recovery_generation.duplicate(true),
 		"hazard_radius_m": HAZARD_RADIUS_M,
 		"authority": {
 			"health": false,
@@ -160,11 +181,41 @@ func restore_snapshot(snapshot: Variant) -> Dictionary:
 	if not saved_exposure_value is Dictionary:
 		return _result(false, &"invalid_hazard_exposure")
 	var saved_exposure := saved_exposure_value as Dictionary
+	var has_saved_latched := saved.has("recovery_latched")
+	var has_saved_generation := saved.has("recovery_generation")
+	var saved_latched_value: Variant = saved.get("recovery_latched", {})
+	var saved_generation_value: Variant = saved.get("recovery_generation", {})
+	if not saved_latched_value is Dictionary or not saved_generation_value is Dictionary:
+		return _result(false, &"invalid_hazard_recovery_state")
+	var saved_latched := saved_latched_value as Dictionary
+	var saved_generation := saved_generation_value as Dictionary
+	var restored_exposure: Dictionary = {}
+	var restored_latched: Dictionary = {}
+	var restored_generation: Dictionary = {}
 	for hazard_id: StringName in _hazards.keys():
 		var value := float(saved_exposure.get(hazard_id, 0.0))
 		if not is_finite(value) or value < 0.0 or value > MAX_EXPOSURE:
 			return _result(false, &"invalid_hazard_exposure")
-		_exposure[hazard_id] = value
+		var latched_value: Variant = saved_latched.get(
+			hazard_id, value >= RECOVERY_EXPOSURE_THRESHOLD if not has_saved_latched else false
+		)
+		var generation_value: Variant = saved_generation.get(
+			hazard_id, 1 if not has_saved_generation and bool(latched_value) else 0
+		)
+		if not latched_value is bool or not generation_value is int:
+			return _result(false, &"invalid_hazard_recovery_state")
+		var generation := int(generation_value)
+		if generation < 0 or generation > MAX_SAFE_INTEGER:
+			return _result(false, &"invalid_hazard_recovery_state")
+		var latched := bool(latched_value) and not is_zero_approx(value)
+		if latched and generation < 1:
+			return _result(false, &"invalid_hazard_recovery_state")
+		restored_exposure[hazard_id] = value
+		restored_latched[hazard_id] = latched
+		restored_generation[hazard_id] = generation
+	_exposure = restored_exposure
+	_recovery_latched = restored_latched
+	_recovery_generation = restored_generation
 	return _result(true, &"hazard_restored")
 
 
