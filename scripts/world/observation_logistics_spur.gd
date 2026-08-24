@@ -131,13 +131,13 @@ const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 	Vector3(-11.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
-const VISUAL_DESCENDANT_NODE_COUNT := 147
+const VISUAL_DESCENDANT_NODE_COUNT := 152
 const BASELINE_RENDERER_NODE_COUNT := 42
-const RENDERER_NODE_COUNT := 34
+const RENDERER_NODE_COUNT := 35
 const BASELINE_DRAWN_COPY_COUNT := 270
-const DRAWN_COPY_COUNT := 274
+const DRAWN_COPY_COUNT := 280
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
-const SURFACE_SUBMISSION_COUNT := 34
+const SURFACE_SUBMISSION_COUNT := 35
 const BASELINE_MESH_RESOURCE_COUNT := 34
 const MESH_RESOURCE_COUNT := 25
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
@@ -249,6 +249,29 @@ const OBSERVATION_ROUTE_CROWN_FIN_POSITIONS := [
 const LOGISTICS_ROUTE_CROWN_FIN_POSITIONS := [
 	Vector3(1.14, 3.90, 22.0),
 	Vector3(1.42, 3.90, 22.0),
+]
+
+## The crown resolves the turn; this survey gantry resolves arrival in the
+## observation work zone. Its two feet bear on the observation deck just beyond
+## the cross-landing seam and the header touches both feet, forming one physical,
+## non-coplanar frame around an 8.16 m clear opening. One World body owns three
+## exact collision shapes and one shared-unit-mesh renderer. Three cyan slits are
+## folded into the existing observation-tick batch, keeping the threshold
+## readable without another material, light, label, or draw submission.
+const OBSERVATION_THRESHOLD_FRAME_POSITIONS := [
+	Vector3(-12.20, 1.65, 26.30),
+	Vector3(-3.80, 1.65, 26.30),
+	Vector3(-8.0, 3.15, 26.30),
+]
+const OBSERVATION_THRESHOLD_FRAME_SIZES := [
+	Vector3(0.24, 3.30, 0.30),
+	Vector3(0.24, 3.30, 0.30),
+	Vector3(8.64, 0.30, 0.30),
+]
+const OBSERVATION_THRESHOLD_SLIT_POSITIONS := [
+	Vector3(-8.42, 3.15, 26.12),
+	Vector3(-8.0, 3.15, 26.12),
+	Vector3(-7.58, 3.15, 26.12),
 ]
 
 const CONTENT_NOTE := (
@@ -408,9 +431,9 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 147 descendant
-	# nodes, 7 MeshInstance3D nodes plus twenty-seven visual-only MultiMesh batches,
-	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
+	# Exact standalone build census, frozen rather than estimated: 152 descendant
+	# nodes, 7 MeshInstance3D nodes plus twenty-eight MultiMesh batches,
+	# 34 bodies, 36 shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
 	# reducing repeated practical recipes while retaining one dedicated dark view
@@ -418,8 +441,8 @@ func get_performance_contract() -> Dictionary:
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 7,
-		"static_bodies": 33,
-		"collision_shapes": 33,
+		"static_bodies": 34,
+		"collision_shapes": 36,
 		"labels": 4,
 		"lights": 6,
 		"process_loops": 0,
@@ -1541,6 +1564,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 		portal_beams.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 3.55, bay_z)))
 	_multimesh_boxes(parent, "ConnectorPortalPosts", Vector3(0.22, 3.60, 0.22), _materials["rail"], portal_posts)
 	_multimesh_boxes(parent, "ConnectorPortalBeams", Vector3(5.05, 0.22, 0.34), _materials["shell"], portal_beams)
+	_build_observation_threshold(parent)
 
 	# Perforated ribbon roofs shelter the working zones but keep the two pads and
 	# the void between them visually legible from the approach and from space.
@@ -1663,6 +1687,8 @@ func _build_finishing_details(parent: Node3D) -> void:
 		observation_ticks.append(Transform3D(crown_fin_basis, fin_position))
 	for fin_position in LOGISTICS_ROUTE_CROWN_FIN_POSITIONS:
 		logistics_ticks.append(Transform3D(crown_fin_basis, fin_position))
+	for slit_position in OBSERVATION_THRESHOLD_SLIT_POSITIONS:
+		observation_ticks.append(Transform3D(crown_fin_basis, slit_position))
 	_multimesh_boxes(
 		parent, "ObservationZoneTicks", ROUTE_CROWN_FIN_SIZE,
 		_materials["cyan"], observation_ticks
@@ -1679,6 +1705,36 @@ func _build_finishing_details(parent: Node3D) -> void:
 	_label(parent, "ObservationArraySign", "OBS  //  ARRAY  04", Vector3(-8.0, 2.98, 27.82), Color("8fe8ef"))
 	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(8.0, 2.98, 27.82), Color("f4bf72"))
 	_label(parent, "ReturnLoopSign", "RETURN LOOP", Vector3(0.0, 2.84, 37.70), Color("dbe8e4"))
+
+
+func _build_observation_threshold(parent: Node3D) -> void:
+	var body := StaticBody3D.new()
+	body.name = "ObservationSurveyThreshold"
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	body.set_meta("player_traversal_threshold", true)
+	body.set_meta("work_zone_id", &"observation-pad")
+	parent.add_child(body)
+	var frame_transforms: Array[Transform3D] = []
+	for frame_index in OBSERVATION_THRESHOLD_FRAME_POSITIONS.size():
+		var frame_position := OBSERVATION_THRESHOLD_FRAME_POSITIONS[frame_index] as Vector3
+		var frame_size := OBSERVATION_THRESHOLD_FRAME_SIZES[frame_index] as Vector3
+		var frame_transform := Transform3D(Basis.from_scale(frame_size), frame_position)
+		var collision := CollisionShape3D.new()
+		collision.name = "FrameCollision%02d" % (frame_index + 1)
+		collision.position = frame_transform.origin
+		var shape := BoxShape3D.new()
+		shape.size = frame_size
+		collision.shape = shape
+		body.add_child(collision)
+		frame_transforms.append(frame_transform)
+	var frame_batch := _multimesh_scaled_boxes(
+		body,
+		"FrameRenderer",
+		_materials["rail"],
+		frame_transforms
+	)
+	frame_batch.set_meta("physically_supported_visual", true)
 
 
 func _build_lighting(parent: Node3D) -> void:

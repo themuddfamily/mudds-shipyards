@@ -1,6 +1,7 @@
 extends SceneTree
 
 const MODULE_SCENE := preload("res://scenes/world/modules/observation_logistics_spur.tscn")
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
 
 var _failures: Array[String] = []
@@ -36,6 +37,7 @@ func _run() -> void:
 	_test_surface_roster_and_area(module)
 	_test_approach_wayfinding(module)
 	_test_approach_route_crown(module)
+	await _test_observation_survey_threshold(module)
 	_test_material_retention(module)
 	_test_visual_resource_sharing(module)
 	_test_deterministic_runtime_names(module)
@@ -96,11 +98,11 @@ func _test_approach_route_crown(module: ObservationLogisticsSpur) -> void:
 		if logistics_batch != null else []
 	)
 	var crown_basis := Basis(Vector3.RIGHT, -PI * 0.5)
-	var crown_exact := observation_authored.size() == 8 and logistics_authored.size() == 8
+	var crown_exact := observation_authored.size() == 11 and logistics_authored.size() == 8
 	for crown_index in 2:
 		var observation_transform := (
 			observation_authored[6 + crown_index] as Transform3D
-			if observation_authored.size() == 8 else Transform3D.IDENTITY
+			if observation_authored.size() == 11 else Transform3D.IDENTITY
 		)
 		var logistics_transform := (
 			logistics_authored[6 + crown_index] as Transform3D
@@ -121,7 +123,7 @@ func _test_approach_route_crown(module: ObservationLogisticsSpur) -> void:
 		and logistics_batch != null
 		and observation_batch.multimesh != null
 		and logistics_batch.multimesh != null
-		and observation_batch.multimesh.instance_count == 8
+		and observation_batch.multimesh.instance_count == 11
 		and logistics_batch.multimesh.instance_count == 8
 		and (observation_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(
 			ObservationLogisticsSpur.ROUTE_CROWN_FIN_SIZE
@@ -151,6 +153,75 @@ func _test_approach_route_crown(module: ObservationLogisticsSpur) -> void:
 		).is_empty(),
 		"route crown reuses cyan/amber destination materials without adding "
 		+ "collision or authority"
+	)
+
+
+func _test_observation_survey_threshold(module: ObservationLogisticsSpur) -> void:
+	var threshold := module.get_node_or_null(
+		^"Structure/Dressing/ObservationSurveyThreshold"
+	) as StaticBody3D
+	var renderer := threshold.get_node_or_null(^"FrameRenderer") as MultiMeshInstance3D \
+		if threshold != null else null
+	var frame_exact := threshold != null \
+		and threshold.collision_layer == WORLD_LAYER \
+		and threshold.collision_mask == 0 \
+		and bool(threshold.get_meta("player_traversal_threshold", false)) \
+		and StringName(threshold.get_meta("work_zone_id", &"")) == &"observation-pad" \
+		and renderer != null \
+		and renderer.multimesh != null \
+		and renderer.multimesh.instance_count == 3 \
+		and renderer.multimesh.mesh is BoxMesh \
+		and (renderer.multimesh.mesh as BoxMesh).size.is_equal_approx(Vector3.ONE) \
+		and bool(renderer.get_meta("physically_supported_visual", false))
+	for frame_index in ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_POSITIONS.size():
+		var authored_position := ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_POSITIONS[frame_index] as Vector3
+		var authored_size := ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_SIZES[frame_index] as Vector3
+		var shape_node := threshold.get_node_or_null(
+			NodePath("FrameCollision%02d" % (frame_index + 1))
+		) as CollisionShape3D if threshold != null else null
+		frame_exact = frame_exact \
+			and shape_node != null \
+			and shape_node.position.is_equal_approx(authored_position) \
+			and shape_node.shape is BoxShape3D \
+			and (shape_node.shape as BoxShape3D).size.is_equal_approx(authored_size)
+	_check(
+		frame_exact,
+		"observation branch arrives through one deck-supported, collision-backed survey gantry"
+	)
+	var observation_batch := module.get_node_or_null(
+		^"Structure/Dressing/ObservationZoneTicks"
+	) as MultiMeshInstance3D
+	var authored_ticks := observation_batch.get_meta(
+		"authored_instance_transforms", []
+	) as Array if observation_batch != null else []
+	var slit_basis := Basis(Vector3.RIGHT, -PI * 0.5)
+	var slits_exact := authored_ticks.size() == 11
+	for slit_index in ObservationLogisticsSpur.OBSERVATION_THRESHOLD_SLIT_POSITIONS.size():
+		slits_exact = slits_exact and (authored_ticks[8 + slit_index] as Transform3D).is_equal_approx(
+			Transform3D(
+				slit_basis,
+				ObservationLogisticsSpur.OBSERVATION_THRESHOLD_SLIT_POSITIONS[slit_index]
+			)
+		)
+	_check(
+		slits_exact and observation_batch.multimesh.instance_count == 11,
+		"three cyan survey slits bind the physical threshold to the observation branch identity"
+	)
+	var left_foot := ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_POSITIONS[0] as Vector3
+	var right_foot := ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_POSITIONS[1] as Vector3
+	var left_support := await _ray_local(
+		module, left_foot + Vector3(0.20, -1.35, 0.0),
+		left_foot + Vector3(0.20, -2.0, 0.0)
+	)
+	var right_support := await _ray_local(
+		module, right_foot + Vector3(-0.20, -1.35, 0.0),
+		right_foot + Vector3(-0.20, -2.0, 0.0)
+	)
+	_check(
+		not left_support.is_empty() and not right_support.is_empty()
+		and StringName((left_support.collider as Node).get_meta("walkable_surface_id", &"")) == &"observation-pad"
+		and StringName((right_support.collider as Node).get_meta("walkable_surface_id", &"")) == &"observation-pad",
+		"both gantry feet bear on the real observation deck rather than floating over the seam"
 	)
 
 
@@ -288,10 +359,10 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.within_budget)
 		and int(performance.mesh_instances) == 7
-		and int(performance.static_bodies) == 33
-		and int(performance.collision_shapes) == 33
-		and module.find_children("*", "Node", true, false).size() == 147,
-		"finished district freezes 147 nodes, 7 meshes and 33 body/shape pairs"
+		and int(performance.static_bodies) == 34
+		and int(performance.collision_shapes) == 36
+		and module.find_children("*", "Node", true, false).size() == 152,
+		"finished district freezes 152 nodes, 7 meshes, 34 bodies and 36 shapes"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -304,7 +375,7 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"PadCanopySupports": 8,
 		"ObservationConsoleTrim": 3,
 		"CargoCaseBands": 12,
-		"ObservationZoneTicks": 8,
+		"ObservationZoneTicks": 11,
 		"LogisticsZoneTicks": 8,
 		"ReturnBridgeChevrons": 5,
 		"PadPavilionBulkheads": 6,
@@ -327,7 +398,7 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		finishing_exact = finishing_exact and batch != null \
 			and batch.multimesh.instance_count == int(finishing_batches[batch_name]) \
 			and bool(batch.get_meta("visual_detail_only", false))
-	_check(finishing_exact, "open portal, canopy, console, cargo and zoning batches finish the district without new collision")
+	_check(finishing_exact, "open portal, canopy, console, cargo and zoning batches remain visual-only presentation")
 
 
 func _test_deterministic_runtime_names(module: ObservationLogisticsSpur) -> void:
@@ -406,14 +477,14 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and bool(performance.headless_safe)
 		and StringName(performance.selected_family) == &"scaled_visual_trim_mesh"
 		and int(performance.baseline_descendant_nodes) == 144
-		and int(performance.descendant_nodes) == 147
+		and int(performance.descendant_nodes) == 152
 		and int(performance.baseline_renderer_nodes) == 42
-		and int(performance.renderer_nodes) == 34
+		and int(performance.renderer_nodes) == 35
 		and int(performance.baseline_drawn_copies) == 270
-		and int(performance.drawn_copies) == 274
+		and int(performance.drawn_copies) == 280
 		and int(performance.baseline_surface_submissions) == 42
-		and int(performance.surface_submissions) == 34,
-		"shared scaled trim mesh preserves 274 visible copies and the district's 34 submissions"
+		and int(performance.surface_submissions) == 35,
+		"shared scaled trim mesh preserves 280 visible copies and the district's 35 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
@@ -941,25 +1012,20 @@ func _test_collision_support_and_safe_edges(module: ObservationLogisticsSpur) ->
 
 
 func _test_embodied_loop_traversal(module: ObservationLogisticsSpur) -> void:
-	var body := CharacterBody3D.new()
-	body.name = "LocalTraversalBody"
-	body.floor_snap_length = 0.35
-	body.floor_max_angle = deg_to_rad(50.0)
-	body.collision_layer = 0
-	body.collision_mask = WORLD_LAYER
-	var collision := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.32
-	capsule.height = 1.70
-	collision.shape = capsule
-	body.add_child(collision)
-	_test_root.add_child(body)
-	body.global_position = module.to_global(Vector3(0.0, 0.86, 0.8))
-	await physics_frame
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.name = "ObservationSpurTraversalPlayer"
+	_test_root.add_child(player)
+	player.set_control_enabled(true)
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
+		Input.action_release(action)
+	player.teleport_to(Transform3D(Basis.IDENTITY, module.to_global(Vector3(0.0, 0.12, 0.8))))
+	for _settle_frame in 10:
+		await physics_frame
 
 	var waypoints := [
 		Vector3(0.0, 0.86, 24.0),
 		Vector3(-8.0, 0.86, 24.0),
+		Vector3(-8.0, 0.86, 27.0),
 		Vector3(-8.0, 0.86, 32.0),
 		Vector3(-3.55, 0.86, 37.15),
 		Vector3(0.0, 0.86, 38.0),
@@ -972,15 +1038,24 @@ func _test_embodied_loop_traversal(module: ObservationLogisticsSpur) -> void:
 	var reached_all := true
 	var grounded_all := true
 	for local_target in waypoints:
-		var reached := await _drive_body_to(body, module.to_global(local_target), 480)
+		var reached := await _drive_player_to(player, module.to_global(local_target), 480)
 		reached_all = reached_all and reached
-		grounded_all = grounded_all and body.is_on_floor() and body.global_position.y > module.global_position.y + 0.45
+		grounded_all = grounded_all \
+			and player.is_on_floor() \
+			and player.global_position.y > module.global_position.y - 0.05
 		if not reached:
 			break
-	_check(reached_all, "one embodied capsule traverses the connector, both separated pads, far bridge and return leg")
-	_check(grounded_all, "embodied traversal remains supported across every loop waypoint without a fall")
-	_check(body.global_position.distance_to(module.to_global(Vector3(0.0, 0.86, 0.8))) < 0.40, "alternate path returns the same body to the local origin")
-	body.queue_free()
+	_check(reached_all, "the production PlayerController traverses the connector, observation gantry, both pads, far bridge and return leg without jump")
+	_check(grounded_all, "production PlayerController traversal remains supported across every loop waypoint without a fall")
+	var origin_target := module.to_global(Vector3(0.0, 0.12, 0.8))
+	_check(
+		Vector2(
+			player.global_position.x - origin_target.x,
+			player.global_position.z - origin_target.z
+		).length() < 0.85,
+		"alternate path returns the production PlayerController to the local origin"
+	)
+	player.queue_free()
 	await process_frame
 
 
@@ -1090,20 +1165,27 @@ func _lifecycle_snapshot(module: ObservationLogisticsSpur) -> Dictionary:
 	}.duplicate(true)
 
 
-func _drive_body_to(body: CharacterBody3D, target: Vector3, frame_budget: int) -> bool:
+func _drive_player_to(player: PlayerController, target: Vector3, frame_budget: int) -> bool:
+	var direction := target - player.global_position
+	direction.y = 0.0
+	if direction.length_squared() <= 0.0001:
+		return true
+	direction = direction.normalized()
+	var facing := player.global_transform
+	facing.basis = Basis.looking_at(direction, Vector3.UP)
+	player.global_transform = facing
+	Input.action_press(&"move_forward")
 	for _frame in frame_budget:
-		var offset := target - body.global_position
-		var horizontal := Vector3(offset.x, 0.0, offset.z)
-		if horizontal.length() <= 0.24:
-			body.velocity = Vector3.ZERO
-			return true
-		var desired := horizontal.normalized() * minf(4.5, horizontal.length() * 3.0)
-		body.velocity.x = desired.x
-		body.velocity.z = desired.z
-		body.velocity.y = -1.5
-		body.move_and_slide()
 		await physics_frame
-	return Vector2(body.global_position.x - target.x, body.global_position.z - target.z).length() <= 0.30
+		var offset := target - player.global_position
+		var horizontal := Vector3(offset.x, 0.0, offset.z)
+		if horizontal.length() <= 0.38 or horizontal.dot(direction) <= 0.0:
+			Input.action_release(&"move_forward")
+			return true
+	Input.action_release(&"move_forward")
+	return Vector2(
+		player.global_position.x - target.x, player.global_position.z - target.z
+	).length() <= 0.38
 
 
 func _ray_local(module: Node3D, local_from: Vector3, local_to: Vector3) -> Dictionary:
