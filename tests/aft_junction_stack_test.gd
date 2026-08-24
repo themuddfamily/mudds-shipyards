@@ -323,6 +323,43 @@ func _test_stair_circulation(module: AftJunctionStack) -> void:
 	_check(absf(samples[0].y - 0.11) < 0.02, "stair begins at the lower floor without a high first step")
 	_check(absf(samples[samples.size() - 1].y - 4.31) < 0.02, "stair terminates flush with the upper landing surface")
 
+	var ramp := module.get_node_or_null(
+		^"Structure/Circulation/ContinuousStairRamp"
+	) as StaticBody3D
+	var ramp_mesh := ramp.get_node_or_null(^"RampMesh") as MeshInstance3D \
+		if ramp != null else null
+	var ramp_collision := ramp.get_node_or_null(^"RampCollision") as CollisionShape3D \
+		if ramp != null else null
+	var ramp_shape := ramp_collision.shape as BoxShape3D \
+		if ramp_collision != null else null
+	var expected_size := Vector3(
+		float(profile.clear_width),
+		0.22,
+		Vector3(0.0, float(profile.upper_elevation) - float(profile.lower_elevation), 9.8).length()
+	)
+	var expected_bevel := StationSurfaceKit.proportional_bevel_for_size(expected_size, 0.18)
+	var bevel_report := StationSurfaceKit.structural_bevel_contract(
+		ramp_mesh.mesh if ramp_mesh != null else null,
+		expected_size,
+		expected_bevel
+	)
+	_check(
+		ramp != null
+		and ramp_mesh != null
+		and ramp_collision != null
+		and ramp_shape != null
+		and ramp.collision_layer == WORLD_LAYER
+		and ramp.collision_mask == 0
+		and ramp_mesh.material_override != null
+		and ramp_mesh.get_child_count() == 0
+		and ramp_shape.size.is_equal_approx(expected_size)
+		and ramp_mesh.mesh.get_aabb().size.is_equal_approx(ramp_shape.size)
+		and bool(bevel_report.valid)
+		and is_equal_approx(float(bevel_report.bevel_width), expected_bevel)
+		and (bevel_report.errors as PackedStringArray).is_empty(),
+		"the exposed continuous-ramp skin is chamfered at the station rule without moving its collision-backed route envelope"
+	)
+
 
 func _test_stair_tread_batch(module: AftJunctionStack) -> void:
 	var circulation := module.get_node_or_null(^"Structure/Circulation") as Node3D

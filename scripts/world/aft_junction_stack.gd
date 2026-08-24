@@ -3173,15 +3173,20 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	circulation.add_child(ramp)
 	var ramp_mesh_instance := MeshInstance3D.new()
 	ramp_mesh_instance.name = "RampMesh"
-	var ramp_mesh := BoxMesh.new()
-	ramp_mesh.size = Vector3(STAIR_CLEAR_WIDTH, 0.22, ramp_length)
-	ramp_mesh_instance.mesh = ramp_mesh
+	# This skin is continuously visible between the tread gaps on the principal
+	# lower-to-upper route. Keep the snag-resistant BoxShape3D as sole physics
+	# authority, but give its formerly raw 90-degree render box the same cached
+	# chamfer treatment as the surrounding deck and tread structure. The surface
+	# kit preserves the requested AABB exactly, so the stair pose, footprint and
+	# usable clearance do not move.
+	var ramp_size := Vector3(STAIR_CLEAR_WIDTH, 0.22, ramp_length)
+	ramp_mesh_instance.mesh = _rounded_box_mesh(ramp_size)
 	ramp_mesh_instance.material_override = _materials["mid_grey_floor"]
 	ramp.add_child(ramp_mesh_instance)
 	var ramp_collision := CollisionShape3D.new()
 	ramp_collision.name = "RampCollision"
 	var ramp_shape := BoxShape3D.new()
-	ramp_shape.size = Vector3(STAIR_CLEAR_WIDTH, 0.22, ramp_length)
+	ramp_shape.size = ramp_size
 	ramp_collision.shape = ramp_shape
 	ramp.add_child(ramp_collision)
 
