@@ -52,6 +52,13 @@ const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + MULTIMESH_BATCH_COUNT
 ## collision, lifecycle, or presentation authority is attached to the mesh.
 static var _fascia_fastener_mesh_cache: Dictionary = {}
 
+## Task strips vary only with the clamped segment-length recipe. The four
+## resident dressings therefore need two immutable, material-free meshes (the
+## 1.4 m and 0.84 m variants), not four per-instance allocations. Materials and
+## MultiMesh buffers remain instance-owned so presentation and quality lifetime
+## cannot leak between components.
+static var _task_strip_mesh_cache: Dictionary = {}
+
 const PERFORMANCE_BUDGET := {
 	"node_count": 49,
 	"visible_primitives": 41,
@@ -1037,7 +1044,7 @@ func _build_high_detail(dimensions: Dictionary) -> void:
 	_task_strip_batch = _multimesh_rounded_box(
 		_high_detail_root,
 		"TaskStripBatch",
-		StationSurfaceKit.rounded_box_mesh_cached(Vector3(strip_length, 0.05, 0.025), _rounded_box_cache),
+		_shared_task_strip_mesh(strip_length),
 		_materials["task_strip"],
 		task_strip_transforms
 	)
@@ -1977,6 +1984,12 @@ func _fascia_fastener(
 static func _shared_fascia_fastener_mesh() -> ArrayMesh:
 	return StationSurfaceKit.chamfered_cylinder_mesh_cached(
 		0.025, 0.025, 0.025, 16, _fascia_fastener_mesh_cache, 1
+	)
+
+
+static func _shared_task_strip_mesh(strip_length: float) -> ArrayMesh:
+	return StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(strip_length, 0.05, 0.025), _task_strip_mesh_cache
 	)
 
 

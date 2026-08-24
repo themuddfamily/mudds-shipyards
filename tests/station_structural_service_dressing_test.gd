@@ -420,6 +420,67 @@ func _run() -> void:
 		sharing_rows == 24 and sharing_mesh_ids.size() == 1,
 		"four resident dressings retain 24 fascia copies through one immutable mesh"
 	)
+	# The same production fixture has only two task-strip size recipes. Sharing
+	# those material-free meshes cuts four allocations to two while each dressing
+	# retains its own material, transforms, anchors, and quality lifecycle.
+	var task_strip_mesh_ids: Dictionary = {}
+	var task_strip_material_ids: Dictionary = {}
+	var exact_task_strip_copies := true
+	for sharing_index in sharing_instances.size():
+		var sharing_dressing := sharing_instances[sharing_index]
+		var sharing_task_batch := sharing_dressing.get_node(
+			^"PresentationRoot/HighDetailRoot/TaskStripBatch"
+		) as MultiMeshInstance3D
+		var expected_strip_length := minf(1.4, float(sharing_specs[sharing_index][1]) * 0.14)
+		task_strip_mesh_ids[sharing_task_batch.multimesh.mesh.get_instance_id()] = true
+		task_strip_material_ids[sharing_task_batch.material_override.get_instance_id()] = true
+		var task_strip_material := sharing_task_batch.material_override as StandardMaterial3D
+		exact_task_strip_copies = exact_task_strip_copies and (
+			sharing_task_batch.multimesh.instance_count == 2
+			and sharing_task_batch.multimesh.visible_instance_count == 2
+			and sharing_task_batch.multimesh.buffer.size() == 24
+			and sharing_task_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+				Vector3(expected_strip_length, 0.05, 0.025)
+			)
+			and task_strip_material.albedo_color.is_equal_approx(Color("665b3d"))
+			and is_equal_approx(task_strip_material.metallic, 0.14)
+			and is_equal_approx(task_strip_material.roughness, 0.3)
+			and task_strip_material.emission_enabled
+			and task_strip_material.emission.is_equal_approx(Color("d8b96e"))
+			and is_equal_approx(task_strip_material.emission_energy_multiplier, 0.55)
+			and sharing_task_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			and sharing_task_batch.get_child_count() == 0
+			and sharing_task_batch.get_script() == null
+		)
+		for strip_index in 2:
+			var strip_anchor := sharing_dressing.get_node(NodePath(
+				"PresentationRoot/HighDetailRoot/TaskStrip%02d" % (strip_index + 1)
+			)) as Marker3D
+			var strip_buffer := sharing_task_batch.multimesh.buffer
+			var strip_offset := strip_index * 12
+			exact_task_strip_copies = exact_task_strip_copies and (
+				strip_anchor.get_child_count() == 0
+				and is_equal_approx(strip_buffer[strip_offset], 1.0)
+				and is_zero_approx(strip_buffer[strip_offset + 1])
+				and is_zero_approx(strip_buffer[strip_offset + 2])
+				and is_zero_approx(strip_buffer[strip_offset + 4])
+				and is_equal_approx(strip_buffer[strip_offset + 5], 1.0)
+				and is_zero_approx(strip_buffer[strip_offset + 6])
+				and is_zero_approx(strip_buffer[strip_offset + 8])
+				and is_zero_approx(strip_buffer[strip_offset + 9])
+				and is_equal_approx(strip_buffer[strip_offset + 10], 1.0)
+				and Vector3(
+					strip_buffer[strip_offset + 3],
+					strip_buffer[strip_offset + 7],
+					strip_buffer[strip_offset + 11]
+				).is_equal_approx(strip_anchor.position)
+			)
+	_check(
+		exact_task_strip_copies
+		and task_strip_mesh_ids.size() == 2
+		and task_strip_material_ids.size() == 4,
+		"resident task strips reduce 4 -> 2 mesh allocations with exact copies and instance-owned materials"
+	)
 	var sharing_fastener_batch := sharing_instances[3].get_node(
 		"PresentationRoot/HighDetailRoot/FasciaFastenerBatch"
 	) as MultiMeshInstance3D
