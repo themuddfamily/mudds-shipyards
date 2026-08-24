@@ -10,7 +10,7 @@ const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
 const EXPECTED_SERVICE_MESHES := [6, 3, 5]
 const EXPECTED_SERVICE_LIGHTS := [2, 1, 2]
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 36
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 37
 const EXPECTED_SERVICE_ROLES: Array[StringName] = [
 	&"cargo_crane_and_container_apron",
 	&"ordnance_safe_gantry_markers",
@@ -110,19 +110,19 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
 		and int(audit.get("static_bodies", -1)) == 10
 		and int(audit.get("collision_shapes", -1)) == 13
-		and int(audit.get("mesh_instances", -1)) == 38
+		and int(audit.get("mesh_instances", -1)) == 39
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 5
-		and int(audit.get("descendants", -1)) == 83
+		and int(audit.get("descendants", -1)) == 85
 		and int(budgets.get("static_bodies", -1)) == 10
 		and int(budgets.get("collision_shapes", -1)) == 13
-		and int(budgets.get("mesh_instances", -1)) == 38
+		and int(budgets.get("mesh_instances", -1)) == 39
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 5
-		and int(budgets.get("descendants", -1)) == 83,
-		"the three pads, service silhouettes, and shared access freeze at 38 world renderers, 36 total / 12 service mesh resources, 5 guide lights, 83 descendants, 10 walkable bodies, and 13 exact shapes"
+		and int(budgets.get("descendants", -1)) == 85,
+		"the three pads, service silhouettes, and shared access freeze at 39 world renderers, 37 total / 12 service mesh resources, 5 guide lights, 85 descendants, 10 walkable bodies, and 13 exact shapes"
 	)
 	var expected_bounds: Array[AABB] = [
 		AABB(Vector3(-18.75, 0.0, -13.5), Vector3(40.25, 12.0, 27.0)),
@@ -276,6 +276,7 @@ func _expected_pad_piece_specs(pad_index: int) -> Array[Dictionary]:
 
 func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 	var access := berths.call("get_access_circulation_audit") as Dictionary
+	var wayfinding := access.get("wayfinding", {}) as Dictionary
 	var expected_names := [
 		&"SharedSpineNorth", &"SouthTransitionPlate", &"SharedSpineSouth",
 		&"Dock04CargoBridge", &"Dock05BomberBridge",
@@ -288,11 +289,41 @@ func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 		and int(access.get("collision_shapes", -1)) == 7
 		and int(access.get("surface_meshes", -1)) == 7
 		and int(access.get("support_meshes", -1)) == 11
+		and bool(wayfinding.get("valid", false))
+		and int(wayfinding.get("mesh_instances", -1)) == 1
+		and int(wayfinding.get("mesh_surfaces", -1)) == 1
+		and int(wayfinding.get("labels", -1)) == 1
+		and int(wayfinding.get("lights", -1)) == 0
+		and int(wayfinding.get("collision_shapes", -1)) == 0
 		and bool(access.get("envelopes_clear", false))
 		and bool(access.get("shared_spine", false))
 		and bool(access.get("world_collision_backed", false))
 		and (audit.get("access_circulation", {}) as Dictionary) == access,
 		"Dock 04/05/06 share seven collision-backed access surfaces, visible support, and clear landing envelopes"
+	)
+	var expected_grammars := {
+		&"dock_04_cargo": &"square_cargo_cradle",
+		&"dock_05_bomber": &"swept_bomber_chevron",
+		&"dock_06_interceptor": &"straight_launch_spear",
+	}
+	var route_mesh := berths.get_node_or_null(
+		^"AccessCirculation/BerthRouteEdgeTreatment"
+	) as MeshInstance3D
+	var route_legend := berths.get_node_or_null(
+		^"AccessCirculation/AftJunctionRouteLegend"
+	) as Label3D
+	_check(
+		route_mesh != null and route_mesh.mesh is ArrayMesh
+		and route_mesh.mesh.get_surface_count() == 1
+		and int(route_mesh.get_meta(&"batched_box_count", -1)) == 14
+		and route_mesh.get_meta(&"route_cue_grammars", {}) == expected_grammars
+		and bool(route_mesh.get_meta(&"manufactured_edge_treatment", false))
+		and route_legend != null
+		and route_legend.text.contains("DOCK 04  CARGO")
+		and route_legend.text.contains("DOCK 05  BOMBER")
+		and route_legend.text.contains("DOCK 06  INTERCEPTOR")
+		and route_mesh.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"one batched station-family edge treatment pairs explicit Aft-junction text with square, chevron, and spear berth identities without colour or collision"
 	)
 	var circulation := berths.get_node_or_null(^"AccessCirculation") as Node3D
 	var spine := circulation.get_node_or_null(^"SharedSpineNorth") as StaticBody3D \

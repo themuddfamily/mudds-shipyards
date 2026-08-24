@@ -34,12 +34,15 @@ const MAX_STATIC_BODIES := 11
 const MAX_MESH_INSTANCES := 39
 const EXPECTED_STATIC_BODIES := 10
 const EXPECTED_COLLISION_SHAPES := 13
-const EXPECTED_MESH_INSTANCES := 38
+const EXPECTED_MESH_INSTANCES := 39
+const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
+const EXPECTED_WAYFINDING_LABELS := 1
+const EXPECTED_WAYFINDING_BOXES := 14
 const EXPECTED_SERVICE_MESH_INSTANCES := 14
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 36
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 37
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 83
+const EXPECTED_DESCENDANTS := 85
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
 	&"dock_05_bomber": 3,
@@ -75,6 +78,8 @@ const PAD_MARKER_MATERIAL_KEYS := {
 const PRESENTATION_NODE_DELTA := 0
 const PRESENTATION_LIGHT_DELTA := 0
 const PRESENTATION_SUBMISSION_DELTA := 0
+const AFT_ROUTE_LEGEND_TEXT := "DOCK 04  CARGO        < SPINE\nDOCK 05  BOMBER       > EAST\nDOCK 06  INTERCEPTOR  ^ BRANCH"
+const AFT_ROUTE_LEGEND_POSITION := Vector3(7.45, 2.55, -19.55)
 
 var _pads: Dictionary = {}
 var _attachments: Dictionary = {}
@@ -452,17 +457,82 @@ func get_access_circulation_audit() -> Dictionary:
 					envelopes_clear = false
 	if not envelopes_clear:
 		errors.append("access circulation entered landing or approach clearance")
+	var wayfinding := get_access_wayfinding_audit()
+	if not bool(wayfinding.get("valid", false)):
+		for error in (wayfinding.get("errors", PackedStringArray()) as PackedStringArray):
+			errors.append("wayfinding: %s" % error)
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"surface_names": ACCESS_SURFACE_NAMES.duplicate(),
 		"static_bodies": bodies.size(),
 		"collision_shapes": shapes.size(),
-		"surface_meshes": meshes.size() - support_meshes.size(),
+		"surface_meshes": meshes.size() - support_meshes.size() - EXPECTED_WAYFINDING_MESH_INSTANCES,
 		"support_meshes": support_meshes.size(),
+		"wayfinding": wayfinding,
 		"envelopes_clear": envelopes_clear,
 		"shared_spine": true,
 		"world_collision_backed": true,
+	}.duplicate(true)
+
+
+func get_access_wayfinding_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var circulation := get_node_or_null(^"AccessCirculation") as Node3D
+	var route_mesh := circulation.get_node_or_null(^"BerthRouteEdgeTreatment") as MeshInstance3D \
+		if circulation != null else null
+	var legend := circulation.get_node_or_null(^"AftJunctionRouteLegend") as Label3D \
+		if circulation != null else null
+	var expected_grammars := {
+		&"dock_04_cargo": &"square_cargo_cradle",
+		&"dock_05_bomber": &"swept_bomber_chevron",
+		&"dock_06_interceptor": &"straight_launch_spear",
+	}
+	if route_mesh == null or route_mesh.mesh is not ArrayMesh:
+		errors.append("batched route edge treatment missing")
+	else:
+		var bounds := route_mesh.mesh.get_aabb()
+		var budget_bounds := AABB(Vector3(-20.0, -0.001, -24.5), Vector3(40.0, 0.1, 36.0))
+		if route_mesh.mesh.get_surface_count() != 1 \
+				or route_mesh.material_override != _service_materials["access_support"] \
+				or not budget_bounds.encloses(bounds):
+			errors.append("route edge treatment geometry or material drift")
+		if int(route_mesh.get_meta(&"batched_box_count", -1)) != EXPECTED_WAYFINDING_BOXES \
+				or route_mesh.get_meta(&"route_cue_grammars", {}) != expected_grammars \
+				or not bool(route_mesh.get_meta(&"manufactured_edge_treatment", false)):
+			errors.append("route shape grammar drift")
+	if legend == null or legend.text != AFT_ROUTE_LEGEND_TEXT \
+			or not legend.position.is_equal_approx(AFT_ROUTE_LEGEND_POSITION) \
+			or legend.billboard != BaseMaterial3D.BILLBOARD_ENABLED:
+		errors.append("Aft junction route legend drift")
+	if circulation != null and (
+		circulation.find_children("*", "MeshInstance3D", true, false).filter(
+			func(node: Node) -> bool: return node.name == &"BerthRouteEdgeTreatment"
+		).size() != EXPECTED_WAYFINDING_MESH_INSTANCES
+		or circulation.find_children("*", "Label3D", true, false).filter(
+			func(node: Node) -> bool: return node.name == &"AftJunctionRouteLegend"
+		).size() != EXPECTED_WAYFINDING_LABELS
+	):
+		errors.append("wayfinding renderer roster drift")
+	if route_mesh != null and (
+		not route_mesh.find_children("*", "CollisionObject3D", true, false).is_empty()
+		or not route_mesh.find_children("*", "CollisionShape3D", true, false).is_empty()
+	):
+		errors.append("wayfinding gained collision")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"cue_grammars": expected_grammars,
+		"manufactured_edge_treatment": route_mesh != null,
+		"mesh_instances": EXPECTED_WAYFINDING_MESH_INSTANCES,
+		"mesh_surfaces": route_mesh.mesh.get_surface_count() if route_mesh != null and route_mesh.mesh != null else 0,
+		"labels": EXPECTED_WAYFINDING_LABELS,
+		"lights": 0,
+		"collision_shapes": 0,
+		"ship_authority": false,
+		"berth_lease_authority": false,
+		"interaction_authority": false,
 	}.duplicate(true)
 
 
@@ -698,6 +768,95 @@ func _build_access_circulation() -> void:
 		Vector3(ACCESS_CLEAR_WIDTH, ACCESS_DECK_THICKNESS, 2.0)
 	)
 	_build_access_underframe(circulation)
+	_build_access_wayfinding(circulation)
+
+
+## One batched, non-colliding metal inlay supplies a continuous manufactured
+## edge read and three silhouette-distinct threshold glyphs. The square cargo
+## cradle, bomber chevron, and interceptor spear remain legible when their
+## shared station-family material is rendered without colour.
+func _build_access_wayfinding(circulation: Node3D) -> void:
+	var boxes := [
+		# Inset edge bands visually carry the route from the Aft handoff, through
+		# the shared spine, and around the Dock 06 branch without changing its top.
+		{"centre": Vector3(-10.2, 0.035, -1.55), "size": Vector3(15.3, 0.07, 0.18)},
+		{"centre": Vector3(-10.2, 0.035, 2.75), "size": Vector3(15.3, 0.07, 0.18)},
+		{"centre": Vector3(12.9, 0.035, -24.25), "size": Vector3(10.0, 0.07, 0.18)},
+		{"centre": Vector3(12.9, 0.035, -19.75), "size": Vector3(10.0, 0.07, 0.18)},
+		{"centre": Vector3(-12.75, 0.035, 7.0), "size": Vector3(0.18, 0.07, 7.6)},
+		{"centre": Vector3(-8.25, 0.035, 7.0), "size": Vector3(0.18, 0.07, 7.6)},
+		# Dock 04: squared cargo cradle, open toward its pad.
+		{"centre": Vector3(-19.72, 0.035, 0.6), "size": Vector3(0.18, 0.07, 2.6)},
+		{"centre": Vector3(-19.12, 0.035, -0.62), "size": Vector3(1.2, 0.07, 0.18)},
+		{"centre": Vector3(-19.12, 0.035, 1.82), "size": Vector3(1.2, 0.07, 0.18)},
+		# Dock 05: swept two-stroke bomber chevron.
+		{"centre": Vector3(19.05, 0.035, -22.48), "size": Vector3(1.45, 0.07, 0.18), "yaw": -PI * 0.25},
+		{"centre": Vector3(19.05, 0.035, -21.52), "size": Vector3(1.45, 0.07, 0.18), "yaw": PI * 0.25},
+		# Dock 06: straight launch spear and separated arrow shoulders.
+		{"centre": Vector3(-10.5, 0.035, 10.15), "size": Vector3(0.18, 0.07, 1.5)},
+		{"centre": Vector3(-10.86, 0.035, 10.72), "size": Vector3(1.0, 0.07, 0.18), "yaw": PI * 0.25},
+		{"centre": Vector3(-10.14, 0.035, 10.72), "size": Vector3(1.0, 0.07, 0.18), "yaw": -PI * 0.25},
+	]
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for spec in boxes:
+		_append_wayfinding_box(
+			builder,
+			spec.get("centre", Vector3.ZERO) as Vector3,
+			spec.get("size", Vector3.ZERO) as Vector3,
+			float(spec.get("yaw", 0.0))
+		)
+	builder.generate_normals()
+	var route_mesh := MeshInstance3D.new()
+	route_mesh.name = "BerthRouteEdgeTreatment"
+	route_mesh.mesh = builder.commit()
+	route_mesh.material_override = _service_materials["access_support"]
+	route_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	route_mesh.set_meta(&"presentation_only", true)
+	route_mesh.set_meta(&"manufactured_edge_treatment", true)
+	route_mesh.set_meta(&"route_cue_grammars", {
+		&"dock_04_cargo": &"square_cargo_cradle",
+		&"dock_05_bomber": &"swept_bomber_chevron",
+		&"dock_06_interceptor": &"straight_launch_spear",
+	})
+	route_mesh.set_meta(&"batched_box_count", boxes.size())
+	circulation.add_child(route_mesh)
+
+	var legend := Label3D.new()
+	legend.name = "AftJunctionRouteLegend"
+	legend.text = AFT_ROUTE_LEGEND_TEXT
+	legend.position = AFT_ROUTE_LEGEND_POSITION
+	legend.font_size = 24
+	legend.outline_size = 5
+	legend.pixel_size = 0.009
+	legend.modulate = Color("d5e5e4")
+	legend.outline_modulate = Color("15252d")
+	legend.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	legend.set_meta(&"presentation_only", true)
+	legend.set_meta(&"viewpoint", &"aft_junction_and_on_foot_approach")
+	circulation.add_child(legend)
+
+
+func _append_wayfinding_box(
+	builder: SurfaceTool, centre: Vector3, size: Vector3, yaw: float
+	) -> void:
+	var half := size * 0.5
+	var basis := Basis(Vector3.UP, yaw)
+	var corners := PackedVector3Array([
+		Vector3(-half.x, -half.y, -half.z), Vector3(half.x, -half.y, -half.z),
+		Vector3(half.x, -half.y, half.z), Vector3(-half.x, -half.y, half.z),
+		Vector3(-half.x, half.y, -half.z), Vector3(half.x, half.y, -half.z),
+		Vector3(half.x, half.y, half.z), Vector3(-half.x, half.y, half.z),
+	])
+	for corner_index in corners.size():
+		corners[corner_index] = basis * corners[corner_index] + centre
+	var indices := PackedInt32Array([
+		0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7,
+		0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5,
+		2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7,
+	])
+	for index in indices:
+		builder.add_vertex(corners[index])
 
 
 func _add_access_level(
