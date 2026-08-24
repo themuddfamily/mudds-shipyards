@@ -11,6 +11,7 @@ var _generation := 0
 var _light: OmniLight3D
 var _last_solar: Dictionary = {}
 var _graphics_profile: StringName = &"high"
+var _light_property_submission_count := 0
 
 
 func _ready() -> void:
@@ -43,12 +44,37 @@ func apply_solar_phase(snapshot: Variant) -> Dictionary:
 			or not (elevation is float or elevation is int):
 		return {"accepted": false, "reason": &"invalid_solar_phase"}
 	var night_factor := clampf(-float(elevation), 0.0, 1.0) if state != &"daylight" else 0.0
-	_light.visible = night_factor > 0.01
 	var energy_cap := 0.45 if _graphics_profile == &"low" else (0.75 if _graphics_profile == &"medium" else 1.1)
-	_light.light_energy = clampf(night_factor * energy_cap, 0.0, energy_cap)
-	_light.light_color = Color(1.0, 0.55 + night_factor * 0.2, 0.3 + night_factor * 0.25, 1.0)
+	_apply_light_target(
+		night_factor > 0.01,
+		clampf(night_factor * energy_cap, 0.0, energy_cap),
+		Color(1.0, 0.55 + night_factor * 0.2, 0.3 + night_factor * 0.25, 1.0)
+	)
 	_last_solar = solar.duplicate(true)
 	return {"accepted": true, "reason": &"practical_solar_applied", "night_factor_unitless": night_factor}
+
+
+## Solar snapshots can arrive every production update even when their effective
+## light target is unchanged. Avoid resubmitting those visual-only properties to
+## RenderingServer; compare the live light so detach/reentry still restores the
+## authored target without owning any caller state or lifecycle authority.
+func _apply_light_target(visible: bool, energy: float, color: Color) -> void:
+	_set_light_visibility(visible)
+	# Light3D stores the authored value at renderer precision (for example 1.1
+	# reads back as 1.1000000238), so compare at that same effective precision.
+	if not is_equal_approx(_light.light_energy, energy):
+		_light.light_energy = energy
+		_light_property_submission_count += 1
+	if _light.light_color != color:
+		_light.light_color = color
+		_light_property_submission_count += 1
+
+
+func _set_light_visibility(visible: bool) -> void:
+	if _light.visible == visible:
+		return
+	_light.visible = visible
+	_light_property_submission_count += 1
 
 
 func apply_graphics_profile(profile: StringName) -> Dictionary:
@@ -63,7 +89,7 @@ func apply_graphics_profile(profile: StringName) -> Dictionary:
 func detach() -> Dictionary:
 	if _light == null:
 		return {"accepted": false, "reason": &"practical_unavailable"}
-	_light.visible = false
+	_set_light_visibility(false)
 	return {"accepted": true, "reason": &"practical_detached"}
 
 
@@ -74,4 +100,4 @@ func reenter() -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
-	return {"configured": _configured, "structure_id": _structure_id, "generation": _generation, "light_instance_id": _light.get_instance_id() if _light != null else 0, "visible": _light.visible if _light != null else false, "energy": _light.light_energy if _light != null else 0.0, "last_solar": _last_solar.duplicate(true), "graphics_profile": _graphics_profile, "authority": {"clock": false, "settlement_interaction": false, "gameplay": false, "movement": false}}.duplicate(true)
+	return {"configured": _configured, "structure_id": _structure_id, "generation": _generation, "light_instance_id": _light.get_instance_id() if _light != null else 0, "visible": _light.visible if _light != null else false, "energy": _light.light_energy if _light != null else 0.0, "last_solar": _last_solar.duplicate(true), "graphics_profile": _graphics_profile, "light_property_submission_count": _light_property_submission_count, "authority": {"clock": false, "settlement_interaction": false, "gameplay": false, "movement": false}}.duplicate(true)
