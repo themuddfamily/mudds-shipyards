@@ -18,6 +18,11 @@ const CANOPY_RADIUS := 1.25
 const CANOPY_HEIGHT := 1.5
 const CANOPY_POSITION := Vector3(0.0, 1.1, -2.1)
 const WING_COLOR := Color("8b4a38")
+## Upper starboard aft shoulder: the full lens clears the hull silhouette in Y
+## and the centreline recognition fin in X when viewed from behind the craft.
+const ENGINE_DAMAGE_BEACON_POSITION := Vector3(1.9, 1.54, 3.82)
+const ENGINE_DAMAGE_IMPAIRED_COLOR := Color("ffd166")
+const ENGINE_DAMAGE_FAILED_COLOR := Color("ff4b3e")
 const AFT_RECOGNITION_FIN_SIZE := Vector3(2.7, 1.8, 0.32)
 const AFT_RECOGNITION_FIN_POSITION := Vector3(0.0, 1.2, 2.45)
 const AFT_RECOGNITION_FIN_ROTATION_Y := PI * 0.5
@@ -80,6 +85,9 @@ var _ship_perspective_audio_binding: RefCounted
 var _console_toggle_batch: MultiMeshInstance3D
 var _console_key_batch: MultiMeshInstance3D
 var _console_center_key_batch: MultiMeshInstance3D
+var _engine_damage_beacon_lens: MeshInstance3D
+var _engine_damage_beacon_light: OmniLight3D
+var _engine_damage_beacon_material: StandardMaterial3D
 
 func _enter_tree() -> void:
 	super._enter_tree()
@@ -108,6 +116,9 @@ func _ready() -> void:
 		_ship_perspective_audio_binding = null
 	if not _interceptor_built:
 		_interceptor_built = rebuild_variant_presentation(_build_interceptor_variant)
+	if not component_damage_changed.is_connected(_on_interceptor_component_damage_changed):
+		component_damage_changed.connect(_on_interceptor_component_damage_changed)
+	_sync_engine_damage_beacon()
 
 func _exit_tree() -> void:
 	if _ship_perspective_audio_binding != null:
@@ -148,6 +159,7 @@ func _build_interceptor_variant(_controller: HeroShip) -> bool:
 	_batch_console_keys(visual)
 	_batch_console_center_keys(visual)
 	_build_hull(visual)
+	_build_engine_damage_beacon(visual)
 	_build_boarding_marker(visual)
 	return true
 
@@ -273,6 +285,86 @@ func _build_hull(visual: Node3D) -> void:
 	canopy.position = CANOPY_POSITION
 	canopy.material_override = _shared_canopy_material
 	visual.add_child(canopy)
+
+
+## A static, exterior-readable consequence of the existing engine-bay ledger.
+## The beacon observes component state only: it owns no health, timing, repair,
+## movement, collision, or damage decision and therefore remains safe across
+## detach/re-entry and the inherited whole-craft reuse transaction.
+func _build_engine_damage_beacon(visual: Node3D) -> void:
+	_engine_damage_beacon_lens = MeshInstance3D.new()
+	_engine_damage_beacon_lens.name = "EngineDamageBeaconLens"
+	var lens_mesh := SphereMesh.new()
+	lens_mesh.radius = 0.24
+	lens_mesh.height = 0.48
+	_engine_damage_beacon_material = _material(
+		ENGINE_DAMAGE_IMPAIRED_COLOR.darkened(0.72),
+		0.08,
+		0.22,
+		ENGINE_DAMAGE_IMPAIRED_COLOR,
+		0.0
+	)
+	_engine_damage_beacon_material.emission_enabled = true
+	lens_mesh.material = _engine_damage_beacon_material
+	_engine_damage_beacon_lens.mesh = lens_mesh
+	_engine_damage_beacon_lens.position = ENGINE_DAMAGE_BEACON_POSITION
+	_engine_damage_beacon_lens.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_engine_damage_beacon_lens.set_meta(&"presentation_only", true)
+	_engine_damage_beacon_lens.set_meta(&"damage_authority", false)
+	_engine_damage_beacon_lens.set_meta(&"animated", false)
+	visual.add_child(_engine_damage_beacon_lens)
+
+	_engine_damage_beacon_light = OmniLight3D.new()
+	_engine_damage_beacon_light.name = "EngineDamageBeaconLight"
+	_engine_damage_beacon_light.position = ENGINE_DAMAGE_BEACON_POSITION
+	_engine_damage_beacon_light.omni_range = 4.8
+	_engine_damage_beacon_light.shadow_enabled = false
+	_engine_damage_beacon_light.set_meta(&"presentation_only", true)
+	_engine_damage_beacon_light.set_meta(&"damage_authority", false)
+	_engine_damage_beacon_light.set_meta(&"reduced_flash_safe", true)
+	_engine_damage_beacon_light.set_meta(&"animated", false)
+	visual.add_child(_engine_damage_beacon_light)
+
+
+func _on_interceptor_component_damage_changed(
+		component_id: StringName,
+		state: int,
+		_integrity: float
+	) -> void:
+	if component_id == ShipComponentDamage.COMPONENT_ENGINE_BAY:
+		_apply_engine_damage_beacon_state(state)
+
+
+func _sync_engine_damage_beacon() -> void:
+	var model := get_component_damage()
+	if model == null or not model.is_configured():
+		_apply_engine_damage_beacon_state(ShipComponentDamage.ComponentState.NOMINAL)
+		return
+	_apply_engine_damage_beacon_state(
+		model.get_component_state(ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	)
+
+
+func _apply_engine_damage_beacon_state(state: int) -> void:
+	if not is_instance_valid(_engine_damage_beacon_lens) \
+			or not is_instance_valid(_engine_damage_beacon_light) \
+			or _engine_damage_beacon_material == null:
+		return
+	var colour := ENGINE_DAMAGE_IMPAIRED_COLOR
+	var energy := 0.0
+	match state:
+		ShipComponentDamage.ComponentState.IMPAIRED:
+			energy = 3.2
+		ShipComponentDamage.ComponentState.FAILED:
+			colour = ENGINE_DAMAGE_FAILED_COLOR
+			energy = 5.0
+	_engine_damage_beacon_material.albedo_color = colour.darkened(0.72)
+	_engine_damage_beacon_material.emission = colour
+	_engine_damage_beacon_material.emission_energy_multiplier = energy
+	_engine_damage_beacon_lens.visible = energy > 0.0
+	_engine_damage_beacon_light.light_color = colour
+	_engine_damage_beacon_light.light_energy = energy * 0.48
+	_engine_damage_beacon_light.visible = energy > 0.0
 
 
 ## The inherited cockpit's eight toggles are childless visual dressing. Their
