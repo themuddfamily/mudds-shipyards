@@ -14,7 +14,9 @@ var _test_root: Node3D
 
 
 func _init() -> void:
-	if OS.get_cmdline_user_args().has("--capture-service"):
+	if OS.get_cmdline_user_args().has("--capture-galley-mugs"):
+		call_deferred("_capture_forward_plus", false, true)
+	elif OS.get_cmdline_user_args().has("--capture-service"):
 		call_deferred("_capture_forward_plus", true)
 	elif OS.get_cmdline_user_args().has("--capture"):
 		call_deferred("_capture_forward_plus", false)
@@ -746,16 +748,17 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_corridor_deck_seam_batch(module)
 	_test_common_ceiling_light_body_batch(module)
 	_test_galley_door_pull_batch(module)
+	_test_galley_mug_batch(module)
 	_test_potting_pull_batch(module)
 	_test_mess_bench_leg_batch(module)
 	_test_mess_mug_batch(module)
 	_test_garden_rack_crown_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1861
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1200
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 30,
-		"visual batching stays frozen at 1861 render nodes, 1200 meshes and 30 MultiMeshes"
+		int(render.descendant_nodes) == 1856
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1194
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 31,
+		"visual batching stays frozen at 1856 render nodes, 1194 meshes and 31 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -899,7 +902,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
 		and int(report.geometry_submissions_before_deck_seam_batch) == 1251
-		and int(report.geometry_submissions) == 1221
+		and int(report.geometry_submissions) == 1216
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
 		and int(report.drawn_copies) == 1385
 		and bool(report.corridor_deck_seam_authored),
@@ -985,7 +988,7 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.common_ceiling_light_body_submissions) == 1
 		and int(report.common_ceiling_light_body_copies) == 6
 		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 1243
-		and int(report.geometry_submissions) == 1221
+		and int(report.geometry_submissions) == 1216
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
 		and int(report.drawn_copies) == 1385
 		and bool(report.common_ceiling_light_body_authored),
@@ -1047,10 +1050,84 @@ func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
 		and int(report.galley_door_pull_submissions) == 1
 		and int(report.galley_door_pull_copies) == 4
 		and int(report.geometry_submissions_before_galley_door_pull_batch) == 1240
-		and int(report.geometry_submissions) == 1221
+		and int(report.geometry_submissions) == 1216
 		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
 		and bool(report.galley_door_pull_authored),
 		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
+	)
+
+
+func _test_galley_mug_batch(module: HabitatSpine) -> void:
+	var galley := module.get_node_or_null(
+		^"Structure/ObservationCommon/CommonGalley"
+	) as Node3D
+	var batch := galley.get_node_or_null(^"GalleyMugs") as MultiMeshInstance3D if galley != null else null
+	_check(
+		galley != null and batch != null and batch.multimesh != null,
+		"six galley mugs resolve through one visual-only MultiMesh"
+	)
+	if galley == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for stack_index in 2:
+		var stack_z := 21.16 + float(stack_index) * 0.19
+		for mug_index in 3:
+			expected.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(-6.76, 0.972 + float(mug_index) * 0.104, stack_z)
+			))
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var transforms_exact := authored.size() == expected.size()
+	var expected_bounds := AABB()
+	for index in mini(authored.size(), expected.size()):
+		transforms_exact = transforms_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected[index]
+		)
+		var transformed_bounds := (expected[index] * batch.multimesh.mesh.get_aabb()).abs()
+		expected_bounds = transformed_bounds if index == 0 else expected_bounds.merge(
+			transformed_bounds
+		)
+	var tray := galley.get_node_or_null(^"GalleyTray") as MeshInstance3D
+	_check(
+		transforms_exact
+		and batch.multimesh.instance_count == HabitatSpine.GALLEY_MUG_COPY_COUNT
+		and batch.multimesh.visible_instance_count == -1
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.10, 0.104, 0.10))
+		and batch.multimesh.custom_aabb.is_equal_approx(expected_bounds)
+		and tray != null
+		and batch.material_override == tray.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.visible,
+		"galley mug batch preserves all six stack transforms, cylinder extent, culling, pale-plastic material, shadows and render layer"
+	)
+	_check(
+		galley.find_children("GalleyMug", "MeshInstance3D", false, false).is_empty()
+		and galley.get_node_or_null(^"GalleyTray") is MeshInstance3D
+		and galley.get_node_or_null(^"GalleyUrnBody") is MeshInstance3D
+		and galley.get_node_or_null(^"GalleyTaskLight") is OmniLight3D
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and batch.get_groups().is_empty()
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Area3D", true, false).is_empty()
+		and bool(batch.get_meta("visual_detail_only", false))
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"GalleyMug",
+		"only childless galley mug visuals are batched while room dressing, collision and task lighting remain ordinary production nodes"
+	)
+	var report := module.get_render_allocation_report()
+	_check(
+		int(report.galley_mug_legacy_renderer_nodes) == 6
+		and int(report.galley_mug_renderer_nodes) == 1
+		and int(report.galley_mug_legacy_submissions) == 6
+		and int(report.galley_mug_submissions) == 1
+		and int(report.galley_mug_copies) == 6
+		and int(report.geometry_submissions_before_galley_mug_batch) == 1221
+		and int(report.geometry_submissions) == 1216
+		and int(report.geometry_submissions_removed_by_galley_mug_batch) == 5
+		and int(report.drawn_copies) == 1385
+		and bool(report.galley_mug_authored),
+		"galley mugs measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
 	)
 
 
@@ -1183,7 +1260,7 @@ func _test_mess_bench_leg_batch(module: HabitatSpine) -> void:
 		and int(report.mess_bench_leg_submissions) == 1
 		and int(report.mess_bench_leg_copies) == 4
 		and int(report.geometry_submissions_before_mess_bench_leg_batch) == 1237
-		and int(report.geometry_submissions) == 1221
+		and int(report.geometry_submissions) == 1216
 		and int(report.geometry_submissions_removed_by_mess_bench_leg_batch) == 3
 		and bool(report.mess_bench_leg_authored),
 		"mess-bench legs measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1261,7 +1338,7 @@ func _test_garden_rack_crown_batch(module: HabitatSpine) -> void:
 		and int(report.garden_rack_crown_mesh_resources) == 1
 		and int(report.garden_rack_crown_copies) == 5
 		and int(report.geometry_submissions_before_garden_rack_crown_batch) == 1234
-		and int(report.geometry_submissions) == 1221
+		and int(report.geometry_submissions) == 1216
 		and int(report.geometry_submissions_removed_by_garden_rack_crown_batch) == 4
 		and int(report.drawn_copies) == 1385
 		and bool(report.garden_rack_crown_authored),
@@ -1333,7 +1410,7 @@ func _test_mess_mug_batch(module: HabitatSpine) -> void:
 		and int(report.mess_mug_submissions) == 1
 		and int(report.mess_mug_copies) == 3
 		and int(report.geometry_submissions_before_mess_mug_batch) == 1230
-		and int(report.geometry_submissions) == 1221
+		and int(report.geometry_submissions) == 1216
 		and int(report.geometry_submissions_removed_by_mess_mug_batch) == 2
 		and int(report.drawn_copies) == 1385
 		and bool(report.mess_mug_authored),
@@ -1489,21 +1566,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1861
-		and int(report.mesh_instances) == 1200
-		and int(report.multimesh_batches) == 30,
+		int(report.descendant_nodes) == 1856
+		and int(report.mesh_instances) == 1194
+		and int(report.multimesh_batches) == 31,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
 		int(report.drawn_copies) == 1385
-		and int(report.geometry_submissions) == 1221
+		and int(report.geometry_submissions) == 1216
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1385 while surface submissions hold at 1221"
+		"drawn copies freeze at 1385 while surface submissions hold at 1216"
 	)
 	_check(
 		int(report.unique_mesh_resources) == HabitatSpine.RENDER_UNIQUE_MESH_RESOURCE_COUNT
 		and int(report.unique_material_resources) == 33
-		and int(report.multimesh_resources) == 30
+		and int(report.multimesh_resources) == 31
 		and int(report.renderer_buffer_floats) == 144,
 		"visible shallow ribs reduce mesh/material allocations to 340/33 while the hatch batch retains its 144-float renderer buffer"
 	)
@@ -2475,7 +2552,7 @@ func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds
 	return is_instance_valid(door) and door.get_state() == expected_state
 
 
-func _capture_forward_plus(service_only: bool) -> void:
+func _capture_forward_plus(service_only: bool, galley_mugs_only: bool = false) -> void:
 	root.size = Vector2i(1400, 900)
 	var capture_root := Node3D.new()
 	capture_root.name = "HabitatSpineForwardPlusCapture"
@@ -2513,6 +2590,23 @@ func _capture_forward_plus(service_only: bool) -> void:
 	camera.current = true
 	camera.position = Vector3(22.0, 14.5, -20.0)
 	capture_root.add_child(camera)
+	if galley_mugs_only:
+		_test_galley_mug_batch(module)
+		camera.fov = 45.0
+		camera.position = Vector3(-4.35, 1.60, 20.55)
+		camera.look_at(Vector3(-6.76, 1.16, 21.25), Vector3.UP)
+		for _frame in 8:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		var galley_image := root.get_texture().get_image()
+		var galley_error := galley_image.save_png("/tmp/habitat-spine-galley-mugs.png")
+		if galley_error != OK:
+			push_error("Failed to save Habitat galley-mug capture: %s" % galley_error)
+		print("HABITAT_SPINE_GALLEY_MUG_CAPTURE_OK")
+		capture_root.queue_free()
+		await process_frame
+		quit(0 if galley_error == OK and _failures.is_empty() else 1)
+		return
 	if service_only:
 		_test_cabinet_louvre_batch(module)
 		camera.position = Vector3(1.9, 1.68, 16.6)

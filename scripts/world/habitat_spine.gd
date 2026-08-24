@@ -94,12 +94,14 @@ const CUPOLA_DOWNLIGHT_COPY_COUNT := 3
 const CORRIDOR_DECK_SEAM_COPY_COUNT := 9
 const COMMON_CEILING_LIGHT_BODY_COPY_COUNT := 6
 const GALLEY_DOOR_PULL_COPY_COUNT := 4
+const GALLEY_MUG_COPY_COUNT := 6
 const POTTING_PULL_COPY_COUNT := 3
 const MESS_BENCH_LEG_COPY_COUNT := 4
 const GARDEN_RACK_CROWN_COPY_COUNT := 5
 const MESS_MUG_COPY_COUNT := 3
 const BERTH_BOOT_COPY_COUNT := 8
 const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 1230
+const PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT := 1221
 const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 1234
 const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
 const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
@@ -108,11 +110,11 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1237
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1861
-const RENDER_MESH_INSTANCE_COUNT := 1200
-const RENDER_MULTIMESH_BATCH_COUNT := 30
+const RENDER_DESCENDANT_COUNT := 1856
+const RENDER_MESH_INSTANCE_COUNT := 1194
+const RENDER_MULTIMESH_BATCH_COUNT := 31
 const RENDER_DRAWN_COPY_COUNT := 1385
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1221
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1216
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
@@ -238,6 +240,8 @@ var _common_ceiling_light_body_transforms: Array[Transform3D] = []
 var _common_ceiling_light_body_batch: MultiMeshInstance3D
 var _galley_door_pull_transforms: Array[Transform3D] = []
 var _galley_door_pull_batch: MultiMeshInstance3D
+var _galley_mug_transforms: Array[Transform3D] = []
+var _galley_mug_batch: MultiMeshInstance3D
 var _potting_pull_transforms: Array[Transform3D] = []
 var _potting_pull_batch: MultiMeshInstance3D
 var _mess_bench_leg_transforms: Array[Transform3D] = []
@@ -767,6 +771,14 @@ func get_performance_contract() -> Dictionary:
 	# 1870 -> 1868, MeshInstances 1211 -> 1208, MultiMeshes 28 -> 29, and geometry
 	# submissions 1230 -> 1228. Drawn copies, lights, collision and authority stay
 	# fixed.
+	#
+	# Re-frozen after the six identical galley mug cylinders moved into one
+	# CommonGalley-local batch. The cached 32-segment mesh, pale-plastic material
+	# and two three-high stack poses are unchanged; descendants 1861 -> 1856,
+	# MeshInstances 1200 -> 1194, MultiMeshes 30 -> 31, and geometry submissions
+	# 1221 -> 1216. All six visible copies remain, while collision, traversal,
+	# galley dressing, its task light, room topology and gameplay authority do not
+	# move.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 1350,
 		"static_bodies": 260,
@@ -1146,6 +1158,34 @@ func get_render_allocation_report() -> Dictionary:
 		and StringName(_galley_door_pull_batch.get_meta("authored_source_name", &""))
 			== &"GalleyDoorPull"
 	)
+	var galley_mug_authored: bool = (
+		is_instance_valid(_galley_mug_batch)
+		and _galley_mug_batch.multimesh != null
+		and _galley_mug_batch.multimesh.instance_count == GALLEY_MUG_COPY_COUNT
+		and _galley_mug_batch.multimesh.visible_instance_count == -1
+		and _galley_mug_batch.multimesh.mesh != null
+		and _galley_mug_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.10, 0.104, 0.10)
+		)
+		and _galley_mug_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_galley_mug_transforms
+		)
+		and _galley_mug_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_galley_mug_batch.multimesh.mesh.get_aabb(), _galley_mug_transforms
+			)
+		)
+		and _galley_mug_batch.material_override == _materials.get("plastic_pale")
+		and _galley_mug_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _galley_mug_batch.layers == 1
+		and _galley_mug_batch.visible
+		and _galley_mug_batch.get_child_count() == 0
+		and _galley_mug_batch.get_script() == null
+		and _galley_mug_batch.get_groups().is_empty()
+		and bool(_galley_mug_batch.get_meta("visual_detail_only", false))
+		and StringName(_galley_mug_batch.get_meta("authored_source_name", &""))
+			== &"GalleyMug"
+	)
 	var potting_pull_authored: bool = (
 		is_instance_valid(_potting_pull_batch)
 		and _potting_pull_batch.multimesh != null
@@ -1275,6 +1315,8 @@ func get_render_allocation_report() -> Dictionary:
 		and deck_seam_authored
 		and _galley_door_pull_transforms.size() == GALLEY_DOOR_PULL_COPY_COUNT
 		and galley_door_pull_authored
+		and _galley_mug_transforms.size() == GALLEY_MUG_COPY_COUNT
+		and galley_mug_authored
 		and _potting_pull_transforms.size() == POTTING_PULL_COPY_COUNT
 		and potting_pull_authored
 		and _mess_bench_leg_transforms.size() == MESS_BENCH_LEG_COPY_COUNT
@@ -1334,6 +1376,17 @@ func get_render_allocation_report() -> Dictionary:
 		"galley_door_pull_copies": _galley_door_pull_transforms.size(),
 		"galley_door_pull_authored": galley_door_pull_authored,
 		"authored_galley_door_pull_transforms": _galley_door_pull_transforms.duplicate(),
+		"galley_mug_legacy_renderer_nodes": GALLEY_MUG_COPY_COUNT,
+		"galley_mug_renderer_nodes": 1 if galley_mug_authored else 0,
+		"galley_mug_legacy_submissions": GALLEY_MUG_COPY_COUNT,
+		"galley_mug_submissions": 1 if galley_mug_authored else 0,
+		"galley_mug_copies": _galley_mug_transforms.size(),
+		"galley_mug_authored": galley_mug_authored,
+		"geometry_submissions_before_galley_mug_batch": (
+			PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT
+		),
+		"geometry_submissions_removed_by_galley_mug_batch": GALLEY_MUG_COPY_COUNT - 1,
+		"authored_galley_mug_transforms": _galley_mug_transforms.duplicate(),
 		"potting_pull_legacy_renderer_nodes": POTTING_PULL_COPY_COUNT,
 		"potting_pull_renderer_nodes": 1 if potting_pull_authored else 0,
 		"potting_pull_legacy_submissions": POTTING_PULL_COPY_COUNT,
@@ -3565,10 +3618,24 @@ func _build_common_galley(common: Node3D) -> void:
 		_box(galley, "GalleyDispenserLens", Vector3(-6.735, 1.40, float(tap_z)), Vector3(0.03, 0.10, 0.16), _materials["teal"], false)
 
 	# Mugs, trays and stores.
+	_galley_mug_transforms.clear()
 	for stack_index in 2:
 		var stack_z := 21.16 + float(stack_index) * 0.19
 		for mug_index in 3:
-			_cylinder(galley, "GalleyMug", Vector3(-6.76, 0.972 + float(mug_index) * 0.104, stack_z), 0.05, 0.104, _materials["plastic_pale"], false)
+			_galley_mug_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(-6.76, 0.972 + float(mug_index) * 0.104, stack_z)
+			))
+	_galley_mug_batch = _multimesh_visual_stock(
+		galley,
+		"GalleyMugs",
+		StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.05, 0.05, 0.104, 32, _chamfered_cylinder_cache
+		),
+		_materials["plastic_pale"],
+		_galley_mug_transforms,
+		&"GalleyMug"
+	)
 	_box(galley, "GalleyTray", Vector3(-6.86, 0.9425, 18.55), Vector3(0.44, 0.045, 0.62), _materials["plastic_pale"], false)
 	_box(galley, "GalleyBoard", Vector3(-6.88, 0.9425, 22.05), Vector3(0.40, 0.045, 0.56), _materials["blanket"], false)
 	for carton_index in 3:
