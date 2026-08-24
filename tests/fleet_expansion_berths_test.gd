@@ -13,7 +13,7 @@ const EXPECTED_SERVICE_BATCHES := [0, 0, 1]
 const EXPECTED_SERVICE_COPIES := [6, 3, 5]
 const EXPECTED_SERVICE_LIGHTS := [2, 1, 2]
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 36
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 31
 const EXPECTED_SERVICE_ROLES: Array[StringName] = [
 	&"cargo_crane_and_container_apron",
 	&"ordnance_safe_gantry_markers",
@@ -34,6 +34,7 @@ func _initialize() -> void:
 	_check(berths.get_pad_ids() == EXPECTED_PAD_IDS, "Dock 04 cargo, Dock 05 bomber, and Dock 06 interceptor are stable authored IDs")
 	_test_service_presentations(berths, audit)
 	_test_launch_rail_batch(berths, audit)
+	_test_underframe_support_batch(berths, audit)
 	_test_access_circulation(berths, audit)
 	_test_panel_finish_roles(berths)
 	for pad_id in berths.get_pad_ids():
@@ -115,23 +116,23 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
 		and int(audit.get("static_bodies", -1)) == 10
 		and int(audit.get("collision_shapes", -1)) == 13
-		and int(audit.get("mesh_instances", -1)) == 37
-		and int(audit.get("multimesh_instances", -1)) == 1
-		and int(audit.get("renderer_nodes", -1)) == 38
+		and int(audit.get("mesh_instances", -1)) == 31
+		and int(audit.get("multimesh_instances", -1)) == 2
+		and int(audit.get("renderer_nodes", -1)) == 33
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 5
-		and int(audit.get("descendants", -1)) == 84
+		and int(audit.get("descendants", -1)) == 79
 		and int(budgets.get("static_bodies", -1)) == 10
 		and int(budgets.get("collision_shapes", -1)) == 13
-		and int(budgets.get("mesh_instances", -1)) == 37
-		and int(budgets.get("multimesh_instances", -1)) == 1
-		and int(budgets.get("renderer_nodes", -1)) == 38
+		and int(budgets.get("mesh_instances", -1)) == 31
+		and int(budgets.get("multimesh_instances", -1)) == 2
+		and int(budgets.get("renderer_nodes", -1)) == 33
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 5
-		and int(budgets.get("descendants", -1)) == 84,
-		"the three pads, service silhouettes, and shared access freeze at 38 world renderers, 36 total / 11 service mesh resources, 5 guide lights, 84 descendants, 10 walkable bodies, and 13 exact shapes"
+		and int(budgets.get("descendants", -1)) == 79,
+		"the three pads, service silhouettes, and shared access freeze at 33 world renderers, 31 total / 11 service mesh resources, 5 guide lights, 79 descendants, 10 walkable bodies, and 13 exact shapes"
 	)
 	var expected_bounds: Array[AABB] = [
 		AABB(Vector3(-18.75, 0.0, -13.5), Vector3(40.25, 12.0, 27.0)),
@@ -338,6 +339,59 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 	)
 
 
+func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
+	var underframe := berths.get_node_or_null(
+		^"AccessCirculation/SupportedUnderframe"
+	) as Node3D
+	var batch := underframe.get_node_or_null(^"UnderframeSupportBatch") as MultiMeshInstance3D \
+		if underframe != null else null
+	var post_mesh := batch.multimesh.mesh as BoxMesh \
+		if batch != null and batch.multimesh != null else null
+	var expected_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(-14.0, -1.75, 0.6)),
+		Transform3D(Basis.IDENTITY, Vector3(-5.0, -1.75, 0.6)),
+		Transform3D(Basis.IDENTITY, Vector3(9.5, -1.75, -22.0)),
+		Transform3D(Basis.IDENTITY, Vector3(15.5, -1.75, -22.0)),
+		Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 5.0)),
+		Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 9.0)),
+	]
+	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
+		if batch != null else []
+	var transforms_exact := authored_transforms.size() == expected_transforms.size()
+	if transforms_exact:
+		for index in expected_transforms.size():
+			transforms_exact = transforms_exact and (
+				authored_transforms[index] as Transform3D
+			).is_equal_approx(expected_transforms[index])
+	_check(
+		batch != null and post_mesh != null
+		and post_mesh.size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
+		and batch.multimesh.instance_count == 6
+		and transforms_exact
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and batch.get_child_count() == 0
+		and bool(batch.get_meta(&"visual_detail_only", false))
+		and StringName(batch.get_meta(&"visual_batch_family_id", &"")) \
+			== &"access_underframe_support_posts",
+		"the access underframe retains all six exact support-post copies and transforms in one childless visual batch"
+	)
+	var access := audit.get("access_circulation", {}) as Dictionary
+	_check(
+		int(access.get("support_meshes", -1)) == 11
+		and int(access.get("support_renderer_nodes", -1)) == 6
+		and int(audit.get("renderer_nodes", -1)) == 33
+		and int(audit.get("mesh_resource_allocations", -1)) == 31,
+		"the support-post family removes five renderer submissions and mesh allocations while retaining all 11 underframe copies"
+	)
+	_check(
+		underframe != null
+		and underframe.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and underframe.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and underframe.find_children("*", "Area3D", true, false).is_empty(),
+		"the support-post batch remains presentation-only and adds no route, collision, navigation, or interaction authority"
+	)
+
+
 func _expected_pad_piece_specs(pad_index: int) -> Array[Dictionary]:
 	if pad_index != 2:
 		return [{"name": "", "position": Vector3(0.0, -0.3, 0.0), "size": Vector3(28.0, 0.6, 42.0)}]
@@ -426,6 +480,7 @@ func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 		and int(access.get("collision_shapes", -1)) == 7
 		and int(access.get("surface_meshes", -1)) == 7
 		and int(access.get("support_meshes", -1)) == 11
+		and int(access.get("support_renderer_nodes", -1)) == 6
 		and bool(wayfinding.get("valid", false))
 		and int(wayfinding.get("mesh_instances", -1)) == 1
 		and int(wayfinding.get("mesh_surfaces", -1)) == 1

@@ -34,18 +34,18 @@ const MAX_STATIC_BODIES := 11
 const MAX_MESH_INSTANCES := 38
 const EXPECTED_STATIC_BODIES := 10
 const EXPECTED_COLLISION_SHAPES := 13
-const EXPECTED_MESH_INSTANCES := 37
-const EXPECTED_MULTIMESH_INSTANCES := 1
-const EXPECTED_RENDERER_NODES := 38
+const EXPECTED_MESH_INSTANCES := 31
+const EXPECTED_MULTIMESH_INSTANCES := 2
+const EXPECTED_RENDERER_NODES := 33
 const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
 const EXPECTED_WAYFINDING_LABELS := 1
 const EXPECTED_WAYFINDING_BOXES := 14
 const EXPECTED_SERVICE_MESH_INSTANCES := 14
 const EXPECTED_SERVICE_RENDERER_NODES := 13
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 36
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 31
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 84
+const EXPECTED_DESCENDANTS := 79
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
 	&"dock_05_bomber": 3,
@@ -88,6 +88,15 @@ const LAUNCH_RAIL_SIZE := Vector3(1.0, 1.0, 38.0)
 const LAUNCH_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)),
 	Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)),
+]
+const UNDERFRAME_SUPPORT_SIZE := Vector3(0.55, 2.5, 0.55)
+const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(-14.0, -1.75, 0.6)),
+	Transform3D(Basis.IDENTITY, Vector3(-5.0, -1.75, 0.6)),
+	Transform3D(Basis.IDENTITY, Vector3(9.5, -1.75, -22.0)),
+	Transform3D(Basis.IDENTITY, Vector3(15.5, -1.75, -22.0)),
+	Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 5.0)),
+	Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 9.0)),
 ]
 
 var _pads: Dictionary = {}
@@ -494,12 +503,34 @@ func get_access_circulation_audit() -> Dictionary:
 	if bodies.size() != ACCESS_SURFACE_NAMES.size() or shapes.size() != ACCESS_SURFACE_NAMES.size():
 		errors.append("access collision roster drift")
 	var support_meshes: Array[Node] = []
+	var support_batches: Array[Node] = []
+	var support_visual_copies := 0
 	if underframe == null:
 		errors.append("access supported underframe missing")
 	else:
 		support_meshes = underframe.find_children("*", "MeshInstance3D", true, false)
-		if support_meshes.size() != ACCESS_SUPPORT_MESH_COUNT:
+		support_batches = underframe.find_children("*", "MultiMeshInstance3D", true, false)
+		support_visual_copies = support_meshes.size()
+		for raw_batch in support_batches:
+			var batch := raw_batch as MultiMeshInstance3D
+			if batch.multimesh != null:
+				support_visual_copies += batch.multimesh.instance_count
+		if support_visual_copies != ACCESS_SUPPORT_MESH_COUNT:
 			errors.append("access support roster drift")
+		if support_batches.size() != 1:
+			errors.append("access support batch roster drift")
+		else:
+			var post_batch := support_batches[0] as MultiMeshInstance3D
+			var post_mesh := post_batch.multimesh.mesh as BoxMesh \
+				if post_batch.multimesh != null else null
+			if post_batch.name != &"UnderframeSupportBatch" \
+					or post_mesh == null or not post_mesh.size.is_equal_approx(UNDERFRAME_SUPPORT_SIZE) \
+					or post_batch.multimesh.instance_count != UNDERFRAME_SUPPORT_TRANSFORMS.size() \
+					or post_batch.material_override != _service_materials["access_support"] \
+					or post_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+					or not bool(post_batch.get_meta(&"visual_detail_only", false)) \
+					or post_batch.get_meta(&"authored_instance_transforms", []) != UNDERFRAME_SUPPORT_TRANSFORMS:
+				errors.append("access support batch recipe drift")
 		if not underframe.find_children("*", "CollisionObject3D", true, false).is_empty() \
 				or not underframe.find_children("*", "CollisionShape3D", true, false).is_empty():
 			errors.append("access underframe gained collision")
@@ -532,7 +563,8 @@ func get_access_circulation_audit() -> Dictionary:
 		"static_bodies": bodies.size(),
 		"collision_shapes": shapes.size(),
 		"surface_meshes": meshes.size() - support_meshes.size() - EXPECTED_WAYFINDING_MESH_INSTANCES,
-		"support_meshes": support_meshes.size(),
+		"support_meshes": support_visual_copies,
+		"support_renderer_nodes": support_meshes.size() + support_batches.size(),
 		"wayfinding": wayfinding,
 		"envelopes_clear": envelopes_clear,
 		"shared_spine": true,
@@ -1105,25 +1137,32 @@ func _build_access_underframe(circulation: Node3D) -> void:
 			underframe, "SouthSpineChord", Vector3(13.15, -1.24, float(z_position)),
 			Vector3(9.7, 1.4, 0.46), _service_materials["access_underframe"]
 		)
-	for x_position in [-14.0, -5.0]:
-		_visual_box(
-			underframe, "NorthSpineSupport", Vector3(float(x_position), -1.75, 0.6),
-			Vector3(0.55, 2.5, 0.55), _service_materials["access_support"]
-		)
-	for x_position in [9.5, 15.5]:
-		_visual_box(
-			underframe, "SouthSpineSupport", Vector3(float(x_position), -1.75, -22.0),
-			Vector3(0.55, 2.5, 0.55), _service_materials["access_support"]
-		)
 	_visual_box(
 		underframe, "BranchChord", Vector3(-10.5, -1.24, 7.0),
 		Vector3(0.46, 1.4, 7.6), _service_materials["access_underframe"]
 	)
-	for z_position in [5.0, 9.0]:
-		_visual_box(
-			underframe, "BranchSupport", Vector3(-10.5, -1.75, float(z_position)),
-			Vector3(0.55, 2.5, 0.55), _service_materials["access_support"]
-		)
+	_build_underframe_support_batch(underframe)
+
+
+func _build_underframe_support_batch(underframe: Node3D) -> void:
+	var post_mesh := BoxMesh.new()
+	post_mesh.size = UNDERFRAME_SUPPORT_SIZE
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = post_mesh
+	multimesh.instance_count = UNDERFRAME_SUPPORT_TRANSFORMS.size()
+	multimesh.visible_instance_count = -1
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "UnderframeSupportBatch"
+	batch.multimesh = multimesh
+	batch.material_override = _service_materials["access_support"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", &"access_underframe_support_posts")
+	batch.set_meta(&"authored_instance_transforms", UNDERFRAME_SUPPORT_TRANSFORMS.duplicate())
+	underframe.add_child(batch)
+	for index in UNDERFRAME_SUPPORT_TRANSFORMS.size():
+		multimesh.set_instance_transform(index, UNDERFRAME_SUPPORT_TRANSFORMS[index])
 
 
 func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
