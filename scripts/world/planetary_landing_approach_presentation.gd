@@ -5,6 +5,10 @@ extends Node3D
 ## solar/weather inputs drive one exclusive emissive target; no landing,
 ## navigation, support, movement, or clock authority is owned here.
 
+const MARKER_SIZE := Vector3(2.0, 0.25, 2.0)
+
+static var _shared_marker_mesh: BoxMesh
+
 var _configured := false
 var _landing_id: StringName = &""
 var _anchor := Vector3.ZERO
@@ -18,14 +22,20 @@ func _ready() -> void:
 	set_physics_process(false)
 	_marker = MeshInstance3D.new()
 	_marker.name = "OwnedLandingApproachMarker"
-	var prism := BoxMesh.new()
-	prism.size = Vector3(2.0, 0.25, 2.0)
-	_marker.mesh = prism
+	_marker.mesh = _get_shared_marker_mesh()
 	_material = StandardMaterial3D.new()
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_material.emission_enabled = true
 	_marker.material_override = _material
 	add_child(_marker)
+
+
+static func _get_shared_marker_mesh() -> BoxMesh:
+	if _shared_marker_mesh == null:
+		_shared_marker_mesh = BoxMesh.new()
+		_shared_marker_mesh.size = MARKER_SIZE
+		_shared_marker_mesh.resource_local_to_scene = false
+	return _shared_marker_mesh
 
 func configure(landing_id: StringName, anchor: Vector3) -> Dictionary:
 	if _configured or landing_id.is_empty() or not anchor.is_finite():
