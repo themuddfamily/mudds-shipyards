@@ -59,7 +59,10 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # likewise preserves its sole stable path and two exact visual copies while
 # removing one fallback-name renderer and one submission.
 # Phase 10 additionally retains both ordinary engine-collar renderers and their
-# exact authored transforms while sharing the pair's immutable TorusMesh.
+# exact authored transforms while sharing the pair's immutable TorusMesh. The
+# visually separate main-gear-foot family follows the same narrow rule: both
+# ordinary feet and their parked silhouette remain, while their identical,
+# authority-free titanium TorusMesh becomes one immutable resource.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
 const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
@@ -114,6 +117,10 @@ const ENGINE_COLLAR_OUTER_RADIUS := 0.7
 const ENGINE_COLLAR_VISIBLE_COPIES := 2
 const ENGINE_COLLAR_AUTHORED_TESSELLATION := Vector2i(64, 18)
 const ENGINE_COLLAR_BUDGETED_TESSELLATION := Vector2i(40, 18)
+const MAIN_GEAR_FOOT_INNER_RADIUS := 0.22
+const MAIN_GEAR_FOOT_OUTER_RADIUS := 0.34
+const MAIN_GEAR_FOOT_SCALE := Vector3(1.4, 0.55, 1.0)
+const MAIN_GEAR_FOOT_VISIBLE_COPIES := 2
 const COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER := [
 	"PortConsoleKey00",
 	"PortConsoleKey02",
@@ -182,7 +189,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 3,
 	"geometry_submissions": 165,
 	"visible_geometry_copies": 169,
-	"unique_mesh_resource_allocations": 124,
+	"unique_mesh_resource_allocations": 123,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -221,6 +228,8 @@ var _boarding_step_mesh: ArrayMesh
 var _cockpit_console_key_mesh: BoxMesh
 var _engine_collar_mesh: TorusMesh
 var _engine_collars: Array[MeshInstance3D] = []
+var _main_gear_foot_mesh: TorusMesh
+var _main_gear_feet: Array[MeshInstance3D] = []
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -359,6 +368,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"array_receiver_mesh_sharing": {},
 			"cockpit_console_key_mesh_sharing": {},
 			"engine_collar_mesh_sharing": {},
+			"main_gear_foot_mesh_sharing": {},
 			"recon_pulse_emitters": {},
 		}.duplicate(true)
 
@@ -390,6 +400,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var engine_collars := _inspect_engine_collar_mesh_sharing()
 	if not bool(engine_collars.valid):
 		errors.append_array(engine_collars.errors as PackedStringArray)
+	var main_gear_feet := _inspect_main_gear_foot_mesh_sharing()
+	if not bool(main_gear_feet.valid):
+		errors.append_array(main_gear_feet.errors as PackedStringArray)
 	var pulse_emitters := _inspect_recon_pulse_emitters()
 	if not bool(pulse_emitters.valid):
 		errors.append_array(pulse_emitters.errors as PackedStringArray)
@@ -408,7 +421,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": -10,
 			"geometry_submissions": -6,
-			"unique_mesh_resource_allocations": 18,
+			"unique_mesh_resource_allocations": 19,
 			"auto_fallback_names": 4,
 			"visible_geometry_copies": -10,
 		},
@@ -427,6 +440,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"array_receiver_mesh_sharing": receivers,
 		"cockpit_console_key_mesh_sharing": console_keys,
 		"engine_collar_mesh_sharing": engine_collars,
+		"main_gear_foot_mesh_sharing": main_gear_feet,
 		"recon_pulse_emitters": pulse_emitters,
 		"entry_heat_target": entry_heat_target,
 	}.duplicate(true)
@@ -859,6 +873,8 @@ func _build_engines_and_landing_gear() -> void:
 	_arrow_engine_lights.clear()
 	_engine_collars.clear()
 	_engine_collar_mesh = null
+	_main_gear_feet.clear()
+	_main_gear_foot_mesh = null
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
 		_loft_hull(
@@ -902,7 +918,20 @@ func _build_engines_and_landing_gear() -> void:
 	# Narrow tricycle gear suits the slender hull and keeps a stable parked pose.
 	for side in [-1.0, 1.0]:
 		_cylinder(_arrow_visual, "MainGearStrut", Vector3(side * 1.55, -0.05, 2.25), 0.07, 1.25, _arrow_materials.graphite, Vector3(0, 0, side * -8.0))
-		_torus(_arrow_visual, "MainGearFoot", Vector3(side * 1.7, -0.64, 2.25), 0.22, 0.34, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.4, 0.55, 1.0))
+		var main_gear_foot := _torus(
+			_arrow_visual,
+			"MainGearFoot",
+			Vector3(side * 1.7, -0.64, 2.25),
+			MAIN_GEAR_FOOT_INNER_RADIUS,
+			MAIN_GEAR_FOOT_OUTER_RADIUS,
+			_arrow_materials.titanium,
+			Vector3(90, 0, 0),
+			MAIN_GEAR_FOOT_SCALE,
+			_main_gear_foot_mesh
+		)
+		if _main_gear_foot_mesh == null:
+			_main_gear_foot_mesh = main_gear_foot.mesh as TorusMesh
+		_main_gear_feet.append(main_gear_foot)
 	_cylinder(_arrow_visual, "NoseGearStrut", Vector3(0, -0.02, -4.2), 0.065, 1.12, _arrow_materials.graphite)
 	_torus(_arrow_visual, "NoseGearFoot", Vector3(0, -0.56, -4.2), 0.18, 0.29, _arrow_materials.titanium, Vector3(90, 0, 0), Vector3(1.4, 0.55, 1.0))
 	_boarding_step_mesh = _rounded_box_mesh(BOARDING_STEP_SIZE, _arrow_materials.pod)
@@ -2356,12 +2385,97 @@ func _inspect_engine_collar_mesh_sharing() -> Dictionary:
 	}.duplicate(true)
 
 
+func _inspect_main_gear_foot_mesh_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var node_paths := PackedStringArray()
+	var mesh_identities := {}
+	var expected_transforms := _main_gear_foot_transforms()
+	if _main_gear_feet.size() != MAIN_GEAR_FOOT_VISIBLE_COPIES:
+		errors.append("main-gear-foot visible-copy roster drift")
+	for index in _main_gear_feet.size():
+		var foot := _main_gear_feet[index]
+		if not is_instance_valid(foot) or foot.get_parent() != _arrow_visual:
+			errors.append("main-gear-foot renderer roster drift: %d" % index)
+			continue
+		var path := str(_arrow_visual.get_path_to(foot))
+		node_paths.append(path)
+		if index >= expected_transforms.size() \
+				or not foot.transform.is_equal_approx(expected_transforms[index]):
+			errors.append("main-gear-foot transform drift: %s" % path)
+		if foot.mesh == null:
+			errors.append("main-gear-foot mesh missing: %s" % path)
+		else:
+			mesh_identities[foot.mesh.get_instance_id()] = true
+		if not foot.visible \
+				or foot.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or foot.material_override != null \
+				or foot.material_overlay != null \
+				or foot.layers != 1 \
+				or not is_zero_approx(foot.transparency):
+			errors.append("main-gear-foot render-state drift: %s" % path)
+		if foot.get_child_count() != 0 or foot.get_script() != null \
+				or not foot.get_groups().is_empty() \
+				or not foot.get_meta_list().is_empty() \
+				or not foot.find_children(
+					"*", "CollisionObject3D", true, false
+				).is_empty():
+			errors.append("main-gear-foot gained semantic authority: %s" % path)
+	if node_paths.size() == MAIN_GEAR_FOOT_VISIBLE_COPIES:
+		if node_paths[0] != "MainGearFoot" \
+				or not node_paths[1].begins_with("@MeshInstance3D@"):
+			errors.append("main-gear-foot path roster drift")
+	if mesh_identities.size() != 1:
+		errors.append("main-gear-foot shared-mesh identity drift")
+	var mesh := _main_gear_foot_mesh
+	if mesh == null \
+			or not is_equal_approx(mesh.inner_radius, MAIN_GEAR_FOOT_INNER_RADIUS) \
+			or not is_equal_approx(mesh.outer_radius, MAIN_GEAR_FOOT_OUTER_RADIUS) \
+			or mesh.get_surface_count() != 1:
+		errors.append("main-gear-foot primitive recipe drift")
+	elif mesh.material != _arrow_materials.titanium:
+		errors.append("main-gear-foot material identity drift")
+	if mesh != null and mesh.resource_local_to_scene:
+		errors.append("main-gear-foot shared mesh gained instance authority")
+	for foot in _main_gear_feet:
+		if is_instance_valid(foot) and foot.mesh != mesh:
+			errors.append("main-gear-foot retained a private mesh")
+			break
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": node_paths,
+		"authored_transforms": expected_transforms.duplicate(),
+		"geometry_nodes": _main_gear_feet.size(),
+		"geometry_submissions": _main_gear_feet.size(),
+		"visible_geometry_copies": _main_gear_feet.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 1,
+		"legacy": {
+			"geometry_nodes": 2,
+			"geometry_submissions": 2,
+			"visible_geometry_copies": 2,
+			"primitive_mesh_allocations": 2,
+		},
+	}.duplicate(true)
+
+
 static func _engine_collar_transforms() -> Array[Transform3D]:
 	var transforms: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
 		transforms.append(Transform3D(
 			Basis.from_euler(Vector3(PI * 0.5, 0.0, 0.0)),
 			Vector3(side * 0.92, 0.94, 6.48)
+		))
+	return transforms
+
+
+static func _main_gear_foot_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		transforms.append(Transform3D(
+			Basis.from_euler(Vector3(PI * 0.5, 0.0, 0.0)) \
+				* Basis.from_scale(MAIN_GEAR_FOOT_SCALE),
+			Vector3(side * 1.7, -0.64, 2.25)
 		))
 	return transforms
 
