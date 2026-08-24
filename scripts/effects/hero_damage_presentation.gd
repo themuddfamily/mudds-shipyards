@@ -1,6 +1,8 @@
 class_name HeroDamagePresentation
 extends Node3D
 
+signal deferred_component_impact_committed(component_id: StringName, intensity: float)
+
 ## Reusable, ship-local damage presentation for the hero craft.
 ##
 ## The owning ship remains authoritative for health, handling and visibility.
@@ -841,7 +843,9 @@ func defer_damage_presentation(
 		intensity: float,
 		terminal: bool,
 		world_velocity: Vector3,
-		world_pose: Variant = null
+		world_pose: Variant = null,
+		component_id: StringName = &"",
+		semantic_intensity: float = 1.0
 	) -> bool:
 	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
 		return false
@@ -856,6 +860,8 @@ func defer_damage_presentation(
 		"terminal": terminal,
 		"velocity": world_velocity if world_velocity.is_finite() else Vector3.ZERO,
 		"world_pose": world_pose if world_pose is Transform3D else global_transform,
+		"component_id": component_id,
+		"semantic_intensity": clampf(semantic_intensity, 0.0, 1.0),
 	}
 	_pending_damage_presentation_order.append(receipt_id)
 	while _pending_damage_presentation_order.size() > MAX_PENDING_DAMAGE_PRESENTATIONS:
@@ -873,6 +879,10 @@ func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 	_pending_damage_presentations.erase(receipt_id)
 	_pending_damage_presentation_order.erase(receipt_id)
 	present_impact(record.position, record.normal, float(record.intensity))
+	deferred_component_impact_committed.emit(
+		StringName(record.get("component_id", &"")),
+		float(record.get("semantic_intensity", 1.0))
+	)
 	if bool(record.terminal):
 		present_destruction(record.velocity, record.world_pose)
 		_pending_damage_presentations.clear()

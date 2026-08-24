@@ -53,6 +53,13 @@ const CUE_IDS := [
 	CUE_DOCKING,
 ]
 
+const COMPONENT_IMPACT_CUE_BY_ID := {
+	&"engine_bay": &"engine_component_impact",
+	&"port_wing": &"port_weapon_component_impact",
+	&"starboard_wing": &"starboard_weapon_component_impact",
+	&"core_systems": &"sensor_component_impact",
+}
+
 const VOICE_IDLE: StringName = &"idle_voice"
 const VOICE_LOAD: StringName = &"load_voice"
 const VOICE_BOOST: StringName = &"boost_voice"
@@ -611,6 +618,20 @@ func play_impact(intensity: float = 1.0) -> bool:
 
 func play_hull_hit(intensity: float = 1.0) -> bool:
 	return play_cue(CUE_HULL_HIT, intensity)
+
+
+## Emits one caption-capable semantic edge for an already-resolved impact. This
+## deliberately does not request another transient voice: collision/combat
+## presentation retains its existing playback and replacement budgets.
+func present_component_impact(component_id: StringName, intensity: float = 1.0) -> bool:
+	if not is_finite(intensity) or intensity <= 0.0 or not _can_mutate_runtime_state():
+		return false
+	var cue_id: StringName = COMPONENT_IMPACT_CUE_BY_ID.get(
+		component_id,
+		&"hull_impact_medium"
+	)
+	semantic_engine_cue_emitted.emit(cue_id, clampf(intensity, 0.0, 1.0))
+	return true
 
 
 func play_destruction(intensity: float = 1.0) -> bool:

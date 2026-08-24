@@ -469,6 +469,9 @@ func _ready() -> void:
 		_audio_boost_state = false
 	if _damage_presentation != null:
 		_damage_presentation.stage_changed.connect(_on_damage_stage_changed)
+		_damage_presentation.deferred_component_impact_committed.connect(
+			_on_deferred_component_impact_committed
+		)
 		_sync_damage_presentation()
 	_ensure_component_damage()
 	_component_damage_final_collision_capture_open = true
@@ -2291,6 +2294,10 @@ func apply_damage(
 		component_damage_result,
 		world_hit_position
 	)
+	var impact_component_id := _component_impact_id(component_damage_result)
+	var semantic_intensity := clampf(amount / 18.0, 0.35, 1.0)
+	if not defer_presentation and _ship_audio_rig != null:
+		_ship_audio_rig.present_component_impact(impact_component_id, semantic_intensity)
 	if (
 		_damage_presentation != null
 		and has_hit_position
@@ -2329,7 +2336,9 @@ func apply_damage(
 				clampf(amount / 18.0, 0.35, 2.0),
 				true,
 				inherited_velocity,
-				global_transform
+				global_transform,
+				impact_component_id,
+				semantic_intensity
 			)
 		elif _damage_presentation != null:
 			_sync_damage_presentation()
@@ -2372,7 +2381,9 @@ func apply_damage(
 			clampf(amount / 18.0, 0.35, 2.0),
 			false,
 			velocity,
-			global_transform
+			global_transform,
+			impact_component_id,
+			semantic_intensity
 		)
 
 
@@ -3835,6 +3846,21 @@ func _component_impact_world_position(
 			return to_global(local_position)
 		break
 	return fallback_world_position
+
+
+func _component_impact_id(component_damage_result: Dictionary) -> StringName:
+	if not bool(component_damage_result.get("accepted", false)):
+		return &""
+	var components := component_damage_result.get("components", {}) as Dictionary
+	return StringName(components.keys()[0]) if components.size() == 1 else &""
+
+
+func _on_deferred_component_impact_committed(
+	component_id: StringName,
+	intensity: float
+	) -> void:
+	if _ship_audio_rig != null:
+		_ship_audio_rig.present_component_impact(component_id, intensity)
 
 
 func get_component_damage() -> ShipComponentDamage:
