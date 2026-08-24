@@ -75,6 +75,7 @@ const SERVICE_REPAIR_CUE_BY_OUTCOME := {
 	&"rejected": &"ember_service_repair_rejected",
 	&"unavailable": &"ember_service_repair_unavailable",
 }
+const RELAY_SURVEY_REWARD_CUE: StringName = &"ember_relay_survey_reward_confirmed"
 
 var _owner: Node
 var _attached := false
@@ -131,6 +132,9 @@ var _last_service_feedback_generation := -1
 var _last_service_feedback_sequence := -1
 var _last_service_feedback: Dictionary = {}
 var _service_cue_count := 0
+var _last_relay_reward_key := ""
+var _relay_reward_cue_count := 0
+var _last_relay_reward_result: Dictionary = {}
 
 
 func _ready() -> void:
@@ -262,6 +266,9 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	if int(owner_generation) < _last_owner_generation:
 		return _result(false, &"stale_generation")
 	_last_entry_result = _present_entry_transition(snapshot, int(owner_generation))
+	_last_relay_reward_result = _present_relay_survey_reward_completion(
+		snapshot, int(owner_generation)
+	)
 	_apply_altitude_transition(snapshot, _phase_delta(snapshot))
 	_apply_entry_bed(snapshot, _phase_delta(snapshot))
 	_apply_landing_bed(snapshot)
@@ -315,6 +322,7 @@ func detach() -> Dictionary:
 	_reset_takeoff_bed()
 	_reset_altitude_transition()
 	_reset_service_repair_feedback()
+	_reset_relay_survey_reward_completion()
 	return _result(true, &"detached")
 
 func get_snapshot() -> Dictionary:
@@ -342,6 +350,18 @@ func get_snapshot() -> Dictionary:
 			"authority": {
 				"repair": false, "components": false, "game_flow": false,
 				"network": false, "persistence": false, "audio_cues": true,
+			},
+		}.duplicate(true),
+		"relay_survey_reward_completion": {
+			"last_key": _last_relay_reward_key,
+			"emitted_cue_count": _relay_reward_cue_count,
+			"last_result": _last_relay_reward_result.duplicate(true),
+			"perspective_routed": true,
+			"reduced_dynamic_range": _reduced_dynamic_range,
+			"presentation_only": true,
+			"authority": {
+				"reward": false, "persistence": false, "game_flow": false,
+				"network": false, "audio_cues": true,
 			},
 		}.duplicate(true),
 		"entry_bed": {
@@ -469,6 +489,61 @@ func _reset_service_repair_feedback() -> void:
 	_last_service_feedback_generation = -1
 	_last_service_feedback_sequence = -1
 	_last_service_feedback.clear()
+
+
+## Announces the terminal, authenticated survey reward only after the owner has
+## retained both its external authority receipt and persistence receipt. The
+## audio adapter observes this snapshot; it never requests or confirms rewards.
+func _present_relay_survey_reward_completion(
+		snapshot: Dictionary, owner_generation: int
+	) -> Dictionary:
+	var relay := snapshot.get("relay_reward_commit", {}) as Dictionary
+	var receipt := relay.get("commit_receipt", {}) as Dictionary
+	var retained_authority := relay.get("authority_receipt", {}) as Dictionary
+	var authority := receipt.get("authority", {}) as Dictionary
+	var persistence := receipt.get("persistence", {}) as Dictionary
+	var receipt_owner_generation: Variant = receipt.get("owner_generation", -1)
+	var host_generation: Variant = receipt.get("host_generation", -1)
+	var attachment_generation: Variant = receipt.get(
+		"host_attachment_generation", -1
+	)
+	var activity_generation: Variant = receipt.get("activity_generation", -1)
+	if receipt.is_empty():
+		return _result(true, &"relay_reward_completion_unavailable")
+	if not receipt_owner_generation is int or not host_generation is int \
+			or not attachment_generation is int or not activity_generation is int \
+			or int(receipt_owner_generation) != owner_generation \
+			or int(host_generation) < 0 or int(host_generation) > MAX_SAFE_GENERATION \
+			or int(attachment_generation) < 1 \
+			or int(attachment_generation) > MAX_SAFE_GENERATION \
+			or int(activity_generation) < 0 or int(activity_generation) > MAX_SAFE_GENERATION \
+			or int(relay.get("authority_commit_count", 0)) < 1 \
+			or int(relay.get("persistence_commit_count", 0)) < 1 \
+			or retained_authority.is_empty() or authority.is_empty() \
+			or not bool(persistence.get("accepted", false)):
+		return _result(false, &"invalid_relay_reward_completion")
+	var key := "%d:%d:%d:%d" % [
+		owner_generation, int(host_generation), int(attachment_generation),
+		int(activity_generation),
+	]
+	if key == _last_relay_reward_key:
+		return _result(true, &"duplicate_relay_reward_completion")
+	_last_relay_reward_key = key
+	_relay_reward_cue_count += 1
+	var intensity := 0.75 if _reduced_dynamic_range else 1.0
+	_emit(StringName("%s_%s" % [
+		String(RELAY_SURVEY_REWARD_CUE), String(_perspective),
+	]), intensity)
+	var result := _result(true, &"relay_reward_completion_presented")
+	result["cue_id"] = RELAY_SURVEY_REWARD_CUE
+	result["intensity"] = intensity
+	return result.duplicate(true)
+
+
+func _reset_relay_survey_reward_completion() -> void:
+	_last_relay_reward_key = ""
+	_relay_reward_cue_count = 0
+	_last_relay_reward_result = {}
 
 func _host_phase_id(host_phase: int) -> StringName:
 	match host_phase:

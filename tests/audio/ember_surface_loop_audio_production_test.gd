@@ -87,6 +87,34 @@ func _run() -> void:
 		audio.get_snapshot().altitude_transition.target_intensity_unitless == 0.0,
 		"leaving the ship removes the presentation-only hull resonance"
 	)
+	var reward_completion := _relay_reward_completion_snapshot(4, 12, 3, 7)
+	var unauthenticated := reward_completion.duplicate(true)
+	(unauthenticated.relay_reward_commit as Dictionary).erase("authority_receipt")
+	var reward_count := _events.count(&"ember_relay_survey_reward_confirmed_exterior")
+	_check(bool(audio.present_snapshot(unauthenticated).accepted)
+		and _events.count(&"ember_relay_survey_reward_confirmed_exterior") == reward_count
+		and audio.get_snapshot().relay_survey_reward_completion.last_result.reason
+			== &"invalid_relay_reward_completion",
+		"unverified relay reward receipts remain silent")
+	_check(bool(audio.present_snapshot(reward_completion).accepted)
+		and _has(&"ember_relay_survey_reward_confirmed_exterior"),
+		"authenticated persisted relay reward emits a distinct exterior cue")
+	reward_count = _events.count(&"ember_relay_survey_reward_confirmed_exterior")
+	_check(bool(audio.present_snapshot(reward_completion).accepted)
+		and _events.count(&"ember_relay_survey_reward_confirmed_exterior") == reward_count,
+		"replayed relay reward receipt is silent")
+	_check(audio.present_snapshot(_relay_reward_completion_snapshot(3, 12, 3, 7)).reason
+		== &"stale_generation",
+		"stale relay reward completion is rejected before cue output")
+	_check(bool(audio.set_reduced_dynamic_range(true).accepted), "reduced range is accepted")
+	_check(bool(audio.set_perspective(&"interior").accepted), "interior perspective is restored")
+	_check(bool(audio.present_snapshot(_relay_reward_completion_snapshot(5, 13, 4, 8)).accepted)
+		and _has(&"ember_relay_survey_reward_confirmed_interior"),
+		"fresh authenticated reward follows interior routing")
+	var reward_snapshot := audio.get_snapshot().relay_survey_reward_completion as Dictionary
+	_check(float(reward_snapshot.last_result.intensity) == 0.75
+		and int(reward_snapshot.emitted_cue_count) == 2,
+		"reduced-range reward cue is accessible and remains replay-safe")
 	_check(bool(audio.detach().accepted), "surface audio detaches")
 	_check(
 		audio.get_snapshot().altitude_transition.intensity_unitless == 0.0
@@ -129,6 +157,28 @@ func _altitude_snapshot(
 				"position": ember_root.global_position + Vector3(0.0, 120_000.0 + altitude_m, 0.0),
 			},
 			"caller_kinematics": {"velocity_mps": Vector3(0.0, -speed_mps, 0.0)},
+		},
+	}.duplicate(true)
+
+func _relay_reward_completion_snapshot(
+		owner_generation: int, host_generation: int,
+		attachment_generation: int, activity_generation: int
+	) -> Dictionary:
+	return {
+		"generation": owner_generation,
+		"state_id": &"on_foot",
+		"relay_reward_commit": {
+			"authority_commit_count": 1,
+			"persistence_commit_count": 1,
+			"authority_receipt": {"commit_id": "test-%d" % activity_generation},
+			"commit_receipt": {
+				"owner_generation": owner_generation,
+				"host_generation": host_generation,
+				"host_attachment_generation": attachment_generation,
+				"activity_generation": activity_generation,
+				"authority": {"commit_id": "test-%d" % activity_generation},
+				"persistence": {"accepted": true},
+			},
 		},
 	}.duplicate(true)
 
