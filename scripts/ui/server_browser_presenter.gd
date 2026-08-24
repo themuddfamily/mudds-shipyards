@@ -9,13 +9,13 @@ extends RefCounted
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"server-browser-presenter"
+const EndpointValidator := preload("res://scripts/network/network_endpoint_validator.gd")
 const MAX_ROWS := 256
 const MAX_REGION_FILTER_LENGTH := 32
 const PING_ANY := -1
 const DEFAULT_PORT := 27101
 const MIN_PORT := 1
 const MAX_PORT := 65535
-const MAX_ADDRESS_LENGTH := 253
 const MAX_PLAYER_NAME_LENGTH := 32
 
 var _region_filter: StringName = &""
@@ -408,30 +408,27 @@ func host_session_intent(port: int = DEFAULT_PORT, player_name: String = "") -> 
 
 
 func manual_join_intent(address: String, port: int = DEFAULT_PORT, player_name: String = "") -> Dictionary:
-	var clean_address := address.strip_edges()
-	var address_validation := _validate_address(clean_address)
-	if not bool(address_validation.get("accepted", false)):
-		_focus_target = &"manual_address"
-		_manual_connect.error = str(address_validation.get("validation_error", "Enter a valid host address or name."))
-		return address_validation
-	var validation := _validate_port(port)
-	if not bool(validation.get("accepted", false)):
-		_focus_target = &"manual_port"
-		_manual_connect.error = str(validation.get("validation_error", "Enter a valid port."))
-		return validation
-	validation = _validate_player_name(player_name)
+	var endpoint := EndpointValidator.normalize_direct_connect_endpoint(address, port)
+	if not bool(endpoint.get("accepted", false)):
+		var reason := StringName(endpoint.get("reason", &"invalid_address"))
+		_focus_target = &"manual_port" if reason == &"invalid_port" else &"manual_address"
+		_manual_connect.error = str(endpoint.get("validation_error", "Enter a valid direct-connect endpoint."))
+		return _validation_error(reason, _manual_connect.error)
+	var clean_address := str(endpoint.get("address", ""))
+	var clean_port := int(endpoint.get("port", 0))
+	var validation := _validate_player_name(player_name)
 	if not bool(validation.get("accepted", false)):
 		_focus_target = &"manual_player_name"
 		_manual_connect.error = str(validation.get("validation_error", "Enter a player name."))
 		return validation
-	_manual_connect = {"address": clean_address, "port": port, "player_name": player_name.strip_edges(), "error": "", "focus_target": &"manual_join"}
+	_manual_connect = {"address": clean_address, "port": clean_port, "player_name": player_name.strip_edges(), "error": "", "focus_target": &"manual_join"}
 	_focus_target = &"manual_join"
 	return {
 		"accepted": true,
 		"reason": &"manual_join_requested",
 		"action": &"manual_join",
 		"address": clean_address,
-		"port": port,
+		"port": clean_port,
 		"player_name": player_name.strip_edges(),
 		"presentation_only": true,
 		"authority": false,
@@ -632,14 +629,6 @@ func _browser_controls() -> Array[Dictionary]:
 func _validate_port(port: int) -> Dictionary:
 	if port < MIN_PORT or port > MAX_PORT:
 		return _validation_error(&"invalid_port", "Port must be between %d and %d." % [MIN_PORT, MAX_PORT])
-	return {"accepted": true}
-
-
-func _validate_address(address: String) -> Dictionary:
-	if address.is_empty() or address.length() > MAX_ADDRESS_LENGTH or address.contains(" ") or address.contains("\n") or address.contains("\r"):
-		return _validation_error(&"invalid_address", "Enter a valid IPv4, IPv6-local, or host name.")
-	if address.begins_with("[") and not address.ends_with("]"):
-		return _validation_error(&"invalid_address", "IPv6 addresses must close with ].")
 	return {"accepted": true}
 
 

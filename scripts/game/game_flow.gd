@@ -4646,9 +4646,19 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			var hosted := host_network_session(host_port, host_capacity)
 			_publish_server_browser_feedback(hosted)
 		&"manual_join":
-			var address := str(payload.get("address", "")).strip_edges()
-			var join_port := int(payload.get("port", runtime_settings.network_default_port if runtime_settings != null else NetworkSessionAdapterType.DEFAULT_PORT))
-			var joined := join_network_session(address, join_port)
+			var direct_connect_intent := {
+				"address": payload.get("address", ""),
+				"port": payload.get("port", runtime_settings.network_default_port if runtime_settings != null else NetworkSessionAdapterType.DEFAULT_PORT),
+				"protocol_version": payload.get("protocol_version", NetworkSessionAdapterType.NETWORK_PROTOCOL_VERSION),
+				"package_generation": payload.get("package_generation", NetworkSessionAdapterType.NETWORK_BUILD_VERSION),
+			}
+			_network_session_mode = &"client"
+			_set_station_defense_network_presentation_only(true)
+			var joined := session.consume_direct_connect_intent(direct_connect_intent)
+			if bool(joined.get("accepted", false)):
+				_network_session_address = str(joined.get("address", ""))
+				_network_session_port = int(joined.get("port", 0))
+			_publish_network_session_result(joined, &"client")
 			_publish_server_browser_feedback(joined)
 
 

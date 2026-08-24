@@ -25,6 +25,7 @@ const CrewCommandAuthority := preload("res://scripts/network/network_crew_comman
 const SessionMigration := preload("res://scripts/network/network_session_migration.gd")
 const PredictionGuard := preload("res://scripts/network/network_prediction_correction_guard.gd")
 const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
+const EndpointValidator := preload("res://scripts/network/network_endpoint_validator.gd")
 const SnapshotJitterBuffer := preload("res://scripts/network/network_snapshot_jitter_buffer.gd")
 const ReplicationInterest := preload("res://scripts/network/network_replication_interest.gd")
 const SnapshotDeltaCodec := preload("res://scripts/network/network_snapshot_delta_codec.gd")
@@ -287,10 +288,17 @@ func host(port: int = DEFAULT_PORT, max_clients: int = DEFAULT_MAX_CLIENTS) -> D
 func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary:
 	if _configured:
 		return _remember(_result(false, &"already_started"))
-	if address.strip_edges().is_empty():
-		return _remember(_result(false, &"invalid_address"))
+	var endpoint := EndpointValidator.normalize_direct_connect_endpoint(address, port)
+	if not bool(endpoint.get("accepted", false)):
+		return _remember(_result(
+			false,
+			StringName(endpoint.get("status", &"invalid_address")),
+			{"message": str(endpoint.get("message", "Invalid direct-connect endpoint."))}
+		))
+	var normalized_address := str(endpoint.get("address", ""))
+	var normalized_port := int(endpoint.get("port", 0))
 	_peer = ENetMultiplayerPeer.new()
-	var status := _peer.create_client(address, maxi(1, port))
+	var status := _peer.create_client(normalized_address, normalized_port)
 	if status != OK:
 		_peer = null
 		return _remember(_result(false, &"connect_failed", {"error": status}))
@@ -302,8 +310,8 @@ func join(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Dictionary
 	_next_join_intent_sequence = 1
 	_last_join_intent_sequence = 0
 	session_started.emit(&"client")
-	_bound_port = maxi(1, port)
-	return _remember(_result(true, &"client_started", {"address": address, "port": _bound_port}))
+	_bound_port = normalized_port
+	return _remember(_result(true, &"client_started", {"address": normalized_address, "port": _bound_port}))
 
 
 func configure_handshake_versions(protocol_version: int, package_generation: int) -> Dictionary:
@@ -315,15 +323,20 @@ func configure_handshake_versions(protocol_version: int, package_generation: int
 
 
 func consume_direct_connect_intent(intent: Dictionary) -> Dictionary:
-	var address := String(intent.get("address", "")).strip_edges()
-	var port := int(intent.get("port", 0))
+	var endpoint := EndpointValidator.normalize_direct_connect_endpoint(
+		intent.get("address", ""), intent.get("port", null)
+	)
 	var protocol_version := int(intent.get("protocol_version", NETWORK_PROTOCOL_VERSION))
 	var package_generation := int(intent.get("package_generation", NETWORK_BUILD_VERSION))
-	if address.is_empty() or port <= 0 or port > 65535:
-		return _remember(_result(false, &"invalid_direct_connect_port"))
+	if not bool(endpoint.get("accepted", false)):
+		return _remember(_result(
+			false,
+			StringName(endpoint.get("status", &"invalid_address")),
+			{"message": str(endpoint.get("message", "Invalid direct-connect endpoint."))}
+		))
 	if protocol_version != NETWORK_PROTOCOL_VERSION or package_generation != NETWORK_BUILD_VERSION:
 		return _remember(_result(false, &"direct_connect_protocol_mismatch"))
-	return join(address, port)
+	return join(str(endpoint.get("address", "")), int(endpoint.get("port", 0)))
 
 
 func cancel_direct_connect() -> Dictionary:
