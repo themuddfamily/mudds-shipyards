@@ -47,6 +47,7 @@ func _run() -> void:
 	await _test_animated_equipment(module)
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
+	_test_gantry_header_distance_identity(module)
 	_test_floor_label_orientation(module)
 	_test_transfer_lane_label_orientation(module)
 	_test_handling_infrastructure(module)
@@ -499,6 +500,114 @@ func _test_materials_signage_and_detail(module: JovianFreightBerth) -> void:
 	_check(visual != null and visual.mesh is ArrayMesh, "load-bearing deck renders custom chamfered geometry")
 	_check(module.find_children("*", "CylinderMesh", true, false).is_empty(), "scene does not mistake resources for nodes")
 	_check(module.find_children("*", "MeshInstance3D", true, false).size() >= 150, "module has a high-detail rendered assembly rather than a generic blockout")
+
+
+## The freight crane's skyline member used to be only the collision-backed pale
+## cylinder, which merged with the berth lattice at approach distance. Freeze the
+## new material hierarchy as shallow, chamfered presentation on that unchanged
+## header rather than as a second physical beam or a new gameplay cue authority.
+func _test_gantry_header_distance_identity(module: JovianFreightBerth) -> void:
+	var crane := module.get_node_or_null(^"FreightGantryCrane") as Node3D
+	var header := crane.get_node_or_null(^"GantryHeader") as StaticBody3D if crane != null else null
+	var header_shape := header.get_node_or_null(^"Collision") as CollisionShape3D if header != null else null
+	var cylinder := header_shape.shape as CylinderShape3D if header_shape != null else null
+	_check(
+		header != null
+		and header.position.is_equal_approx(Vector3(0.0, 13.0, JovianFreightBerth.CRANE_CENTER_Z))
+		and cylinder != null
+		and is_equal_approx(cylinder.radius, 0.42)
+		and is_equal_approx(cylinder.height, 28.6),
+		"gantry header keeps its exact collision-backed cylinder and transform"
+	)
+	if crane == null:
+		return
+	var materials := module.get("_materials") as Dictionary
+	var expected := {
+		"GantryHeaderFascia": [
+			JovianFreightBerth.GANTRY_HEADER_FASCIA_CENTER,
+			JovianFreightBerth.GANTRY_HEADER_FASCIA_SIZE,
+			materials.get("deep_blue"),
+		],
+		"GantryHeaderEndCapPort": [
+			JovianFreightBerth.GANTRY_HEADER_FASCIA_CENTER + Vector3(-5.05, 0.0, -0.24),
+			JovianFreightBerth.GANTRY_HEADER_END_CAP_SIZE,
+			materials.get("orange"),
+		],
+		"GantryHeaderEndCapStarboard": [
+			JovianFreightBerth.GANTRY_HEADER_FASCIA_CENTER + Vector3(5.05, 0.0, -0.24),
+			JovianFreightBerth.GANTRY_HEADER_END_CAP_SIZE,
+			materials.get("orange"),
+		],
+		"GantryHeaderLiftAxis": [
+			JovianFreightBerth.GANTRY_HEADER_FASCIA_CENTER + Vector3(0.0, 0.0, -0.23),
+			JovianFreightBerth.GANTRY_HEADER_AXIS_STRIPE_SIZE,
+			materials.get("cyan_dim"),
+		],
+	}
+	var exact := true
+	for node_name in expected:
+		var visual := crane.get_node_or_null(NodePath(node_name)) as MeshInstance3D
+		var recipe := expected[node_name] as Array
+		exact = exact and visual != null
+		if visual == null:
+			continue
+		exact = exact \
+			and visual.position.is_equal_approx(recipe[0] as Vector3) \
+			and visual.mesh is ArrayMesh \
+			and visual.mesh.get_aabb().size.is_equal_approx(recipe[1] as Vector3) \
+			and visual.material_override == recipe[2] \
+			and visual.get_child_count() == 0 \
+			and visual.get_script() == null
+	_check(exact, "gantry header carries the exact chamfered deep-blue, orange and cyan distance fascia")
+	var fascia := crane.get_node_or_null(^"GantryHeaderFascia") as MeshInstance3D
+	var cable_tray := module.get_node_or_null(^"GantryAccess/GantryCableTray") as MeshInstance3D
+	var rail_a := crane.get_node_or_null(^"TrolleyRailA") as MeshInstance3D
+	var rail_b := crane.get_node_or_null(^"TrolleyRailB") as MeshInstance3D
+	var existing_stock: Array[MeshInstance3D] = [cable_tray, rail_a, rail_b]
+	var added_stock: Array[MeshInstance3D] = []
+	for node_name in expected:
+		var visual := crane.get_node_or_null(NodePath(node_name)) as MeshInstance3D
+		if visual != null:
+			added_stock.append(visual)
+	var stock_resolves := fascia != null
+	var stock_disjoint := true
+	for existing in existing_stock:
+		stock_resolves = stock_resolves and existing != null
+		if existing == null:
+			continue
+		var existing_box := _mesh_aabb_in_module(module, existing)
+		for added in added_stock:
+			stock_disjoint = stock_disjoint \
+				and not _mesh_aabb_in_module(module, added).intersects(existing_box)
+	_check(
+		stock_resolves and stock_disjoint,
+		"fascia, stripe and end blocks have non-overlapping AABBs against the cable tray and both trolley rails"
+	)
+	var header_visual := header.get_node_or_null(^"Mesh") as MeshInstance3D if header != null else null
+	var header_box := _mesh_aabb_in_module(module, header_visual)
+	var fascia_box := _mesh_aabb_in_module(module, fascia)
+	_check(
+		header_visual != null
+		and is_equal_approx(fascia_box.position.y, header_box.end.y)
+		and is_equal_approx(fascia_box.end.z, header_box.get_center().z),
+		"raised fascia is seated on the unchanged header top tangent instead of floating"
+	)
+	_check(
+		crane.find_children("GantryHeader*", "CollisionObject3D", false, false).size() == 1
+		and crane.find_children("GantryHeader*", "Light3D", false, false).is_empty()
+		and crane.find_children("GantryHeader*", "Area3D", false, false).is_empty(),
+		"header polish is visual-only and adds no collision, light, interaction, or route authority"
+	)
+
+
+func _mesh_aabb_in_module(module: Node3D, visual: MeshInstance3D) -> AABB:
+	if visual == null or visual.mesh == null:
+		return AABB()
+	return (
+		module.global_transform.affine_inverse()
+		* visual.global_transform
+		* visual.mesh.get_aabb()
+	).abs()
 
 
 func _test_manufactured_material_hierarchy(module: JovianFreightBerth) -> void:
@@ -1057,14 +1166,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 900,
-			"mesh_instance_nodes": 402,
+			"descendant_nodes": 904,
+			"mesh_instance_nodes": 406,
 			"multimesh_nodes": 11,
-			"surfaces": 383,
-			"visible_copies": 442,
+			"surfaces": 387,
+			"visible_copies": 446,
 		}
 		and _renderer_census(module) == renderer_before,
-		"lashing-ring batching leaves 900 descendants, 383 submissions, and 442 visible copies"
+		"lashing-ring batching plus the gantry fascia leaves 904 descendants, 387 submissions, and 446 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

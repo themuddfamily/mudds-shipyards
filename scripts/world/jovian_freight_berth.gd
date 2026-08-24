@@ -221,6 +221,17 @@ const CRANE_HOOK_MIN_ELEVATION := 10.75
 const CRANE_HOOK_MAX_ELEVATION := 11.25
 const CRANE_HOOK_VISUAL_LOW_OFFSET := -0.66
 const CRANE_CENTER_Z := 27.0
+## Visual-only crown applied to the unchanged collision-backed gantry header.
+## The crane used to present one pale pipe at approach distance, indistinct from
+## the berth's lattice chords. A deep-blue chamfered fascia, painted-orange end
+## blocks and a dim-cyan lift-axis stripe give that skyline member the same
+## freight-handling hierarchy as the racks and apron cues below it. Its bottom-
+## aft edge sits on the header's top tangent; its face is above both trolley rail
+## and the later-built cable tray instead of sharing their narrow working band.
+const GANTRY_HEADER_FASCIA_CENTER := Vector3(0.0, 13.78, CRANE_CENTER_Z - 0.18)
+const GANTRY_HEADER_FASCIA_SIZE := Vector3(11.4, 0.72, 0.36)
+const GANTRY_HEADER_END_CAP_SIZE := Vector3(1.25, 0.34, 0.12)
+const GANTRY_HEADER_AXIS_STRIPE_SIZE := Vector3(7.8, 0.12, 0.10)
 
 const EVIDENCE_REFERENCES := [
 	"RESEARCH.md:A3@2009-11-12 / creator-authored roster names the Jovian-class Light Freighter",
@@ -2128,6 +2139,38 @@ func _build_crane() -> void:
 		_cylinder(crane, "GantryFoot", Vector3(side * 14.15, 0.275, CRANE_CENTER_Z), 0.7, 0.55, _materials["orange"], true)
 		_rounded_box(crane, "GantryKnee", Vector3(side * 13.0, 11.15, CRANE_CENTER_Z), Vector3(3.2, 0.42, 0.7), _materials["ceramic"], false, Vector3(0, 0, side * 34.0))
 	_cylinder(crane, "GantryHeader", Vector3(0, 13.0, CRANE_CENTER_Z), 0.42, 28.6, _materials["ceramic"], true, Vector3(0, 0, 90))
+	# Keep the header's exact cylindrical collision, transform and load-bearing
+	# silhouette. The fascia starts at its y = 13.42 top tangent and rises clear of
+	# both the approach-side trolley rail and the cable tray. The coloured plates
+	# sit against its approach face with exact face contact rather than intersecting
+	# it. They add no body, shape, clearance obstruction, route marker or lifecycle
+	# authority, but turn the generic pale cross-pipe into the freight crane's
+	# high-contrast crown when viewed from the portal and apron centreline.
+	_rounded_box(
+		crane,
+		"GantryHeaderFascia",
+		GANTRY_HEADER_FASCIA_CENTER,
+		GANTRY_HEADER_FASCIA_SIZE,
+		_materials["deep_blue"],
+		false
+	)
+	for side in [-1.0, 1.0]:
+		_rounded_box(
+			crane,
+			"GantryHeaderEndCapPort" if side < 0.0 else "GantryHeaderEndCapStarboard",
+			GANTRY_HEADER_FASCIA_CENTER + Vector3(side * 5.05, 0.0, -0.24),
+			GANTRY_HEADER_END_CAP_SIZE,
+			_materials["orange"],
+			false
+		)
+	_rounded_box(
+		crane,
+		"GantryHeaderLiftAxis",
+		GANTRY_HEADER_FASCIA_CENTER + Vector3(0.0, 0.0, -0.23),
+		GANTRY_HEADER_AXIS_STRIPE_SIZE,
+		_materials["cyan_dim"],
+		false
+	)
 	# CRANE-RAIL-001, the same class as the hoist that detached from its beam. Both
 	# 27 m trolley rails topped out at y = 12.53 under a header whose underside is
 	# 12.58: the rails the trolley runs on were bolted to 0.05 m of nothing. Raised
