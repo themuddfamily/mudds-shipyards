@@ -19,6 +19,7 @@ const RepairAuthorityType := preload("res://scripts/combat/repair_authority.gd")
 const JovianEngineerRepairConsoleType := preload("res://scripts/ships/jovian_engineer_repair_console.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const JovianCopilotNavigationAudioBindingType := preload("res://scripts/audio/jovian_copilot_navigation_audio_binding.gd")
+const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 const EVIDENCE_STATUS: StringName = &"provisional"
 const EVIDENCE_SCOPE: StringName = &"name_and_role_only"
 const NAME_TO_MODEL_STATUS: StringName = &"unknown"
@@ -216,6 +217,19 @@ const ENGINE_AQUA := Color("70eee7")
 const JOVIAN_NAV_RED := Color("ff635d")
 const JOVIAN_NAV_GREEN := Color("70e995")
 
+# A steady starboard-aft silhouette makes engine-bay impairment legible from
+# the normal chase camera without another warning light or animated effect. The
+# dark footprint and hot isolation blade sit entirely on AftHullCollision's
+# upper face (y = 3.9) and consume only the existing component ledger stage.
+const ENGINE_DAMAGE_CUE_COMPONENT_ID: StringName = &"engine_bay"
+const ENGINE_DAMAGE_CUE_POSITION := Vector3(3.25, 3.92, 11.65)
+const ENGINE_DAMAGE_SCORCH_SIZE := Vector3(2.15, 0.04, 1.05)
+const ENGINE_DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.0, 0.0)
+const ENGINE_DAMAGE_VANE_SIZE := Vector3(1.55, 1.22, 0.16)
+const ENGINE_DAMAGE_VANE_POSITION := Vector3(0.0, 0.61, 0.0)
+const ENGINE_DAMAGE_SCORCH_COLOR := Color("171a19")
+const ENGINE_DAMAGE_VANE_COLOR := Color("ff7438")
+
 # Modern-provisional civilian defensive fit. These dimensions deliberately sit
 # between the Arrow's light nose guns and gunship-scale hardware: broad mounts
 # carry the visual load, while the short barrels end at the inherited firing
@@ -254,6 +268,7 @@ var _cargo_hardpoints: Array[Marker3D] = []
 var _passenger_seat_anchors: Array[Marker3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
 var _jovian_engine_lights: Array[OmniLight3D] = []
+var _engine_damage_cue: Node3D
 var _dorsal_cargo_rib_joint_mesh: SphereMesh
 var _shoulder_rail_joint_mesh: SphereMesh
 var _cargo_frame_joint_mesh: SphereMesh
@@ -339,6 +354,9 @@ func _ready() -> void:
 		_jovian_built = rebuild_variant_presentation(_build_jovian_variant)
 	if _jovian_built:
 		_jovian_built = _reconfigure_component_damage_from_final_root_collision()
+	if not component_damage_changed.is_connected(_on_jovian_component_damage_changed):
+		component_damage_changed.connect(_on_jovian_component_damage_changed)
+	_sync_engine_damage_cue()
 	_apply_jovian_metadata()
 	_sync_jovian_engine_presentation_immediately()
 
@@ -467,6 +485,7 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	_sync_engine_damage_cue()
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
 	_reset_engineer_repair_state()
@@ -516,6 +535,38 @@ func get_cargo_bay_root() -> Node3D:
 
 func get_passenger_cabin_root() -> Node3D:
 	return _passenger_cabin
+
+
+## Detached presentation snapshot. The cue reports the existing engine-bay
+## ledger stage and retained geometry but exposes no damage or repair mutation.
+func get_engine_damage_cue_snapshot() -> Dictionary:
+	var cue := _engine_damage_cue
+	var scorch := cue.get_node_or_null(^"EngineBreachScorch") as MeshInstance3D \
+		if cue != null else null
+	var vane := cue.get_node_or_null(^"EngineIsolationBlade") as MeshInstance3D \
+		if cue != null else null
+	var bounds := AABB()
+	var has_bounds := false
+	for renderer in [scorch, vane]:
+		if renderer == null or renderer.mesh == null or cue == null:
+			continue
+		var renderer_bounds: AABB = cue.transform * renderer.transform * renderer.mesh.get_aabb()
+		bounds = renderer_bounds if not has_bounds else bounds.merge(renderer_bounds)
+		has_bounds = true
+	var model := get_component_damage()
+	return {
+		"component_id": ENGINE_DAMAGE_CUE_COMPONENT_ID,
+		"stage": ShipComponentDamageType.state_id_for(
+			model.get_component_state(ENGINE_DAMAGE_CUE_COMPONENT_ID)
+		) if model != null and model.is_configured() else &"unavailable",
+		"visible": cue.visible if cue != null else false,
+		"local_bounds": bounds,
+		"supported_surface_y": 3.9,
+		"processes": false,
+		"flashes": false,
+		"damage_authority": false,
+		"repair_authority": false,
+	}.duplicate(true)
 
 
 func get_interior_access_marker() -> Marker3D:
@@ -2742,6 +2793,7 @@ func _build_jovian_variant(_controller: HeroShip) -> bool:
 	_build_exterior()
 	_build_connected_interior()
 	_build_propulsion_and_gear()
+	_build_engine_damage_cue()
 	_replace_collision_and_markers()
 	_bind_optional_interior_frame()
 	if not replace_variant_visual_root(_jovian_visual):
@@ -3536,6 +3588,65 @@ func _build_propulsion_and_gear() -> void:
 			Vector3(side * 5.15, 3.76, -6.92), 0.17, 0.06,
 			_jovian_materials.teal, Vector3(90.0, 0.0, 0.0)
 		), &"muzzle_lens")
+
+
+func _build_engine_damage_cue() -> void:
+	_engine_damage_cue = Node3D.new()
+	_engine_damage_cue.name = "StarboardAftEngineDamageCue"
+	_engine_damage_cue.position = ENGINE_DAMAGE_CUE_POSITION
+	_engine_damage_cue.process_mode = Node.PROCESS_MODE_DISABLED
+	_engine_damage_cue.set_meta(&"presentation_only", true)
+	_engine_damage_cue.set_meta(&"component_id", ENGINE_DAMAGE_CUE_COMPONENT_ID)
+	_engine_damage_cue.set_meta(&"damage_authority", false)
+	_engine_damage_cue.set_meta(&"repair_authority", false)
+	_engine_damage_cue.set_meta(&"animated", false)
+	_jovian_visual.add_child(_engine_damage_cue)
+
+	var scorch_mesh := BoxMesh.new()
+	scorch_mesh.size = ENGINE_DAMAGE_SCORCH_SIZE
+	var scorch := MeshInstance3D.new()
+	scorch.name = "EngineBreachScorch"
+	scorch.mesh = scorch_mesh
+	scorch.position = ENGINE_DAMAGE_SCORCH_POSITION
+	scorch.material_override = _jovian_material(
+		ENGINE_DAMAGE_SCORCH_COLOR, 0.06, 0.94
+	)
+	_engine_damage_cue.add_child(scorch)
+
+	var vane_mesh := BoxMesh.new()
+	vane_mesh.size = ENGINE_DAMAGE_VANE_SIZE
+	var vane := MeshInstance3D.new()
+	vane.name = "EngineIsolationBlade"
+	vane.mesh = vane_mesh
+	vane.position = ENGINE_DAMAGE_VANE_POSITION
+	vane.material_override = _jovian_material(
+		ENGINE_DAMAGE_VANE_COLOR,
+		0.12,
+		0.44,
+		ENGINE_DAMAGE_VANE_COLOR,
+		1.4
+	)
+	_engine_damage_cue.add_child(vane)
+	_engine_damage_cue.visible = false
+
+
+func _on_jovian_component_damage_changed(
+		component_id: StringName,
+		_state: int,
+		_integrity: float
+	) -> void:
+	if component_id == ENGINE_DAMAGE_CUE_COMPONENT_ID:
+		_sync_engine_damage_cue()
+
+
+func _sync_engine_damage_cue() -> void:
+	if not is_instance_valid(_engine_damage_cue):
+		return
+	var model := get_component_damage()
+	_engine_damage_cue.visible = model != null \
+		and model.is_configured() \
+		and model.get_component_state(ENGINE_DAMAGE_CUE_COMPONENT_ID) \
+			!= ShipComponentDamageType.ComponentState.NOMINAL
 
 
 func _mark_defensive_weapon_detail(component: MeshInstance3D, component_role: StringName) -> void:
