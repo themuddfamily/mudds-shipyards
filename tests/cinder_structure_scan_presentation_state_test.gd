@@ -29,8 +29,9 @@ func _run() -> void:
 		bool(initial_audit.valid)
 		and int(initial_audit.counts.material_resources) == 8
 		and (initial_audit.material_roles as Dictionary).size() == 5
-		and _has_scan_material_hierarchy(presentation),
-		"the derelict uses distinct structure, service, paint, trim, and scan-facing finishes without changing its renderer budget"
+		and _has_scan_material_hierarchy(presentation)
+		and _has_immutable_ruin_batch(presentation),
+		"the derelict retains its finish hierarchy while four immutable ruin pieces share one exact batched surface"
 	)
 	_check(
 		initial.state_id == &"available"
@@ -205,7 +206,7 @@ func _presentation_counts(presentation: Node3D) -> Dictionary:
 
 func _has_scan_material_hierarchy(presentation: Node3D) -> bool:
 	var expected := {
-		^"SurveyPylonPort": [Color("14171b"), 0.1, 0.94, 0.18, 0.38],
+		^"ScanStructureRuinBatch": [Color("14171b"), 0.1, 0.94, 0.18, 0.38],
 		^"SurveyPylonStarboard": [Color("2a2f36"), 0.3, 0.7, 0.06, 0.72],
 		^"FracturedHeaderPort": [Color("1c566e"), 0.5, 0.36, 0.45, 0.12],
 		^"DeadArrayCollar": [Color("ff9f43"), 0.1, 0.56, 0.30, 0.24],
@@ -228,6 +229,28 @@ func _has_scan_material_hierarchy(presentation: Node3D) -> bool:
 			return false
 		material_ids[material.get_instance_id()] = true
 	return material_ids.size() == expected.size()
+
+
+func _has_immutable_ruin_batch(presentation: Node3D) -> bool:
+	var batch := presentation.get_node_or_null(^"ScanStructureRuinBatch") as MeshInstance3D
+	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) \
+		as PackedStringArray if batch != null else PackedStringArray()
+	var transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
+		if batch != null else []
+	return batch != null \
+		and batch.mesh != null \
+		and StringName(batch.get_meta(&"visual_batch_family_id", &"")) \
+			== &"cinder-structure-scan-ruin" \
+		and names == PackedStringArray([
+			"SurveyPylonPort", "FracturedHeaderStarboard", "DeadArrayBoom", "HullRuptureShard01"
+		]) \
+		and transforms.size() == 4 \
+		and (transforms[0] as Transform3D).origin.is_equal_approx(Vector3(-22.0, 13.0, -5.0)) \
+		and (transforms[3] as Transform3D).origin.is_equal_approx(Vector3(17.0, 7.0, -13.0)) \
+		and presentation.get_node_or_null(^"SurveyPylonPort") == null \
+		and presentation.get_node_or_null(^"FracturedHeaderStarboard") == null \
+		and presentation.get_node_or_null(^"DeadArrayBoom") == null \
+		and presentation.get_node_or_null(^"HullRuptureShard01") == null
 
 
 func _check(condition: bool, description: String) -> void:

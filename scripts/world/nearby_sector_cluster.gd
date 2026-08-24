@@ -279,9 +279,10 @@ const STRUCTURE_SCAN_APPROACH_LOCAL := Vector3(0.0, GANTRY_CENTER_Y, 20.0)
 const STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
 	Vector3(-30.0, -4.0, -24.0), Vector3(64.0, 38.0, 40.0)
 )
-const STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET := 15
+const STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET := 12
 const STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET := 2
-const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 18
+const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 15
+const STRUCTURE_SCAN_RUIN_BATCH_FAMILY_ID: StringName = &"cinder-structure-scan-ruin"
 const STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA := 0
@@ -1717,16 +1718,13 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 			&"scan_facing": Color("101820"),
 		}
 		var renderer_roles := {
-			^"SurveyPylonPort": &"structural_ruin",
+			^"ScanStructureRuinBatch": &"structural_ruin",
 			^"SurveyPylonStarboard": &"service",
 			^"FracturedHeaderPort": &"painted",
-			^"FracturedHeaderStarboard": &"structural_ruin",
 			^"FractureBracePort": &"service",
 			^"FractureBraceStarboard": &"painted",
-			^"DeadArrayBoom": &"structural_ruin",
 			^"DeadArrayReceiver": &"scan_facing",
 			^"DeadArrayCollar": &"trim",
-			^"HullRuptureShard01": &"structural_ruin",
 			^"HullRuptureShard02": &"service",
 			^"HullRuptureShard03": &"painted",
 		}
@@ -1747,8 +1745,18 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 					or not is_equal_approx(material.metallic, surface_scalars.x) \
 					or not is_equal_approx(material.roughness, surface_scalars.y) \
 					or not material.albedo_color.is_equal_approx(expected_colors[role] as Color) \
-					or material.emission_enabled:
+				or material.emission_enabled:
 				errors.append("structure_scan_%s_material_hierarchy_drift" % role)
+		var ruin_batch := presentation.get_node_or_null(^"ScanStructureRuinBatch") as MeshInstance3D
+		var ruin_names := ruin_batch.get_meta(&"authored_visual_names", PackedStringArray()) \
+			as PackedStringArray if ruin_batch != null else PackedStringArray()
+		if ruin_batch == null or ruin_batch.mesh == null \
+				or StringName(ruin_batch.get_meta(&"visual_batch_family_id", &"")) \
+					!= STRUCTURE_SCAN_RUIN_BATCH_FAMILY_ID \
+				or ruin_names != PackedStringArray([
+					"SurveyPylonPort", "FracturedHeaderStarboard", "DeadArrayBoom", "HullRuptureShard01"
+				]):
+			errors.append("structure_scan_ruin_batch_drift")
 	if approach == null \
 			or not approach.position.is_equal_approx(STRUCTURE_SCAN_APPROACH_LOCAL) \
 			or approach.get_child_count() != 0:
@@ -2839,16 +2847,13 @@ func _build_structure_scan_presentation(platform: Node3D) -> void:
 	approach.position = STRUCTURE_SCAN_APPROACH_LOCAL
 	presentation.add_child(approach)
 
-	_box(presentation, "SurveyPylonPort", Vector3(-22.0, 13.0, -5.0), Vector3(3.0, 30.0, 3.0), _materials["scan_structure_char"], false, Vector3(0.0, 0.0, -8.0))
+	_build_structure_scan_ruin_batch(presentation)
 	_box(presentation, "SurveyPylonStarboard", Vector3(22.0, 12.0, -5.0), Vector3(3.0, 29.0, 3.0), _materials["scan_service_shadow"], false, Vector3(0.0, 0.0, 13.0))
 	_box(presentation, "FracturedHeaderPort", Vector3(-11.5, 28.0, -5.0), Vector3(20.0, 2.5, 3.0), _materials["scan_painted_steel"], false, Vector3(0.0, 0.0, 6.0))
-	_box(presentation, "FracturedHeaderStarboard", Vector3(11.5, 27.0, -5.0), Vector3(19.0, 2.5, 3.0), _materials["scan_structure_char"], false, Vector3(0.0, 0.0, -11.0))
 	_box(presentation, "FractureBracePort", Vector3(-12.0, 16.0, -5.0), Vector3(25.0, 1.2, 2.0), _materials["scan_service_shadow"], false, Vector3(0.0, 0.0, 44.0))
 	_box(presentation, "FractureBraceStarboard", Vector3(12.0, 15.0, -5.0), Vector3(24.0, 1.2, 2.0), _materials["scan_painted_steel"], false, Vector3(0.0, 0.0, -49.0))
-	_box(presentation, "DeadArrayBoom", Vector3(20.0, 12.0, -1.0), Vector3(2.0, 2.0, 22.0), _materials["scan_structure_char"], false, Vector3(8.0, -7.0, 0.0))
 	_cylinder(presentation, "DeadArrayReceiver", Vector3(20.0, 15.0, 8.0), 2.0, 6.0, 5.0, _materials["scan_receiver_dead"], false, Vector3(90.0, 0.0, 0.0))
 	_cylinder(presentation, "DeadArrayCollar", Vector3(20.0, 15.0, 5.0), 2.8, 2.8, 0.8, _materials["scan_trim_orange"], false, Vector3(90.0, 0.0, 0.0))
-	_box(presentation, "HullRuptureShard01", Vector3(17.0, 7.0, -13.0), Vector3(7.0, 1.0, 3.0), _materials["scan_structure_char"], false, Vector3(18.0, 25.0, 14.0))
 	_box(presentation, "HullRuptureShard02", Vector3(29.0, 13.0, -10.0), Vector3(5.0, 1.2, 4.0), _materials["scan_service_shadow"], false, Vector3(-12.0, -16.0, 31.0))
 	_box(presentation, "HullRuptureShard03", Vector3(24.0, 3.0, -17.0), Vector3(6.0, 1.0, 2.5), _materials["scan_painted_steel"], false, Vector3(34.0, 10.0, -22.0))
 
@@ -2859,6 +2864,41 @@ func _build_structure_scan_presentation(platform: Node3D) -> void:
 		"bind_structure_scan_presentation",
 		Callable(self, "_apply_structure_scan_activity_presentation")
 	)
+
+
+## The four static ruin pieces share one immutable finish and have no state,
+## collision, interaction, or authority. Merging their already-authored rounded
+## box surfaces retains their exact geometry and transforms in one submission.
+func _build_structure_scan_ruin_batch(presentation: Node3D) -> MeshInstance3D:
+	var recipes := [
+		[&"SurveyPylonPort", Vector3(-22.0, 13.0, -5.0), Vector3(3.0, 30.0, 3.0), Vector3(0.0, 0.0, -8.0)],
+		[&"FracturedHeaderStarboard", Vector3(11.5, 27.0, -5.0), Vector3(19.0, 2.5, 3.0), Vector3(0.0, 0.0, -11.0)],
+		[&"DeadArrayBoom", Vector3(20.0, 12.0, -1.0), Vector3(2.0, 2.0, 22.0), Vector3(8.0, -7.0, 0.0)],
+		[&"HullRuptureShard01", Vector3(17.0, 7.0, -13.0), Vector3(7.0, 1.0, 3.0), Vector3(18.0, 25.0, 14.0)],
+	]
+	var surface := SurfaceTool.new()
+	var names := PackedStringArray()
+	var transforms: Array[Transform3D] = []
+	for recipe: Array in recipes:
+		var name := recipe[0] as StringName
+		var position := recipe[1] as Vector3
+		var size := recipe[2] as Vector3
+		var rotation := recipe[3] as Vector3
+		var transform := Transform3D(Basis.from_euler(rotation * PI / 180.0), position)
+		surface.append_from(StationSurfaceKit.rounded_box_mesh_cached(size, _box_cache), 0, transform)
+		names.append(name)
+		transforms.append(transform)
+	var batch := MeshInstance3D.new()
+	batch.name = "ScanStructureRuinBatch"
+	batch.mesh = surface.commit()
+	batch.material_override = _materials["scan_structure_char"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"visual_batch_family_id", STRUCTURE_SCAN_RUIN_BATCH_FAMILY_ID)
+	batch.set_meta(&"authored_visual_names", names)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	presentation.add_child(batch)
+	return batch
 
 
 ## Detached scan state drives only the existing datum practicals, sign, dead

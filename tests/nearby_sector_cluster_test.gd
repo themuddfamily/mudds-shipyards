@@ -62,9 +62,9 @@ const EXPECTED_STRUCTURE_SCAN_APPROACH_LOCAL := Vector3(0.0, 4.0, 20.0)
 const EXPECTED_STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
 	Vector3(-30.0, -4.0, -24.0), Vector3(64.0, 38.0, 40.0)
 )
-const EXPECTED_STRUCTURE_SCAN_MESH_NODES := 15
+const EXPECTED_STRUCTURE_SCAN_MESH_NODES := 12
 const EXPECTED_STRUCTURE_SCAN_LIGHT_NODES := 2
-const EXPECTED_STRUCTURE_SCAN_DESCENDANTS := 18
+const EXPECTED_STRUCTURE_SCAN_DESCENDANTS := 15
 const EXPECTED_BEACON_TRAVERSAL_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
 const EXPECTED_BEACON_TRAVERSAL_CORRIDOR_RADIUS := 42.0
 const EXPECTED_TRAVERSAL_DEBRIS_CLUSTERS := 8
@@ -529,7 +529,7 @@ func _test_structure_scan_activity_presentation(cluster: NearbySectorCluster) ->
 		and int(budgets.get("mesh_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_MESH_NODES
 		and int(budgets.get("light_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_LIGHT_NODES
 		and int(budgets.get("descendant_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_DESCENDANTS,
-		"the derelict silhouette freezes at 15 meshes, 2 lights, and 18 descendants"
+		"the derelict silhouette freezes at 12 meshes, 2 lights, and 15 descendants"
 	)
 	_check(
 		EXPECTED_STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS.encloses(bounds)
