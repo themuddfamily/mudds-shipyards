@@ -206,6 +206,40 @@ func _run() -> void:
 			and _reward_calls == 1,
 		"a genuinely newer relay-survey generation clears run N optional progress"
 	)
+	var second_relay: Dictionary = binding.call(
+		&"submit_relay_survey_position", Vector3(180.0, 120009.0, -44.0)
+	)
+	var second_return: Dictionary = binding.call(
+		&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0)
+	)
+	var second_committed: Dictionary = binding.call(&"commit_relay_survey_reward")
+	var terminal_complete_layer := int(sample_rack.collision_layer)
+	var terminal_complete_marker_visible := bool(
+		sample_rack.get_node("SampleRackAnalysisMarker").visible
+	)
+	var terminal_complete := binding.call(&"get_snapshot") as Dictionary
+	var late_after_complete: Dictionary = sample_rack.call(
+		&"submit_interaction", actor, 28, 2, 2
+	)
+	var after_complete := binding.call(&"get_snapshot") as Dictionary
+	var after_complete_sample := after_complete.relay_survey.optional_checkpoints.get(
+		&"ember_sample_rack_analysis_log", {}
+	) as Dictionary
+	_check(
+		bool(second_relay.accepted) and bool(second_return.accepted)
+			and bool(second_committed.accepted)
+			and not bool(terminal_complete.sample_rack_interaction.active)
+			and terminal_complete_layer == 0
+			and not terminal_complete_marker_visible
+			and not bool(late_after_complete.accepted)
+			and not bool(after_complete.sample_rack_interaction.active)
+			and not bool(after_complete.sample_rack_interaction.completed)
+			and not bool(after_complete_sample.eligible)
+			and not bool(after_complete_sample.completed)
+			and after_complete_sample.status == &"inactive"
+			and _reward_calls == 2,
+		"a completed survey hides the rack before a late press can diverge progress"
+	)
 
 	var standalone_actor := Node3D.new()
 	root.add_child(standalone_actor)
@@ -237,6 +271,22 @@ func _run() -> void:
 	)
 	var standalone_started: Dictionary = standalone_binding.call(&"start_relay_survey")
 	var after_start := standalone_binding.call(&"get_snapshot") as Dictionary
+	var standalone_sample := standalone_binding.get_node("OwnedSampleRackInteraction")
+	var standalone_aborted: Dictionary = standalone_binding.call(
+		&"abort_relay_survey", &"test_activity_failure"
+	)
+	var terminal_failure_layer := int(standalone_sample.collision_layer)
+	var terminal_failure_marker_visible := bool(
+		standalone_sample.get_node("SampleRackAnalysisMarker").visible
+	)
+	var terminal_failure := standalone_binding.call(&"get_snapshot") as Dictionary
+	var late_after_failure: Dictionary = standalone_sample.call(
+		&"submit_interaction", standalone_actor, 29, 2, 1
+	)
+	var after_failure := standalone_binding.call(&"get_snapshot") as Dictionary
+	var failed_sample := after_failure.relay_survey.optional_checkpoints.get(
+		&"ember_sample_rack_analysis_log", {}
+	) as Dictionary
 	_check(
 		bool(standalone_configured.accepted) and bool(standalone_completed.accepted)
 			and before_start.adapter.state == &"ready"
@@ -248,8 +298,17 @@ func _run() -> void:
 			and bool(standalone_started.accepted)
 			and bool(after_start.relay_survey.optional_checkpoint.eligible)
 			and not bool(after_start.relay_survey.optional_checkpoint.completed)
-			and _reward_calls == 1,
-		"standalone logging remains valid but never auto-starts or backfills the activity"
+			and bool(standalone_aborted.accepted)
+			and not bool(terminal_failure.sample_rack_interaction.active)
+			and terminal_failure_layer == 0
+			and not terminal_failure_marker_visible
+			and not bool(late_after_failure.accepted)
+			and not bool(after_failure.sample_rack_interaction.active)
+			and not bool(after_failure.sample_rack_interaction.completed)
+			and not bool(failed_sample.eligible)
+			and not bool(failed_sample.completed)
+			and _reward_calls == 2,
+		"standalone logging never starts activity and a failed survey hides its rack"
 	)
 
 	for failure in _failures:

@@ -243,12 +243,11 @@ func configure(
 	_sample_rack_interaction = SampleRackInteractionScript.new() as Area3D
 	_sample_rack_interaction.name = "OwnedSampleRackInteraction"
 	add_child(_sample_rack_interaction)
-	_sample_rack_interaction.connect(
-		&"sample_rack_completed", _on_sample_rack_completed
-	)
 	configured = _sample_rack_interaction.call(
 		&"configure", host,
-		EmberAuthoredSceneScript.get_sample_rack_interaction_definition()
+		EmberAuthoredSceneScript.get_sample_rack_interaction_definition(),
+		Callable(self, "_sample_rack_activity_is_current"),
+		Callable(self, "_submit_sample_rack_optional_checkpoint")
 	)
 	if not bool(configured.get("accepted", false)):
 		return _result(false, &"sample_rack_configuration_rejected")
@@ -269,7 +268,11 @@ func configure(
 func start_surface_activity_sequence(activity_ids: Array[StringName]) -> Dictionary:
 	if not _live():
 		return _result(false, &"composition_detached")
-	return _adapter.call(&"start_surface_activity_sequence", activity_ids, _navigation)
+	var result := _adapter.call(
+		&"start_surface_activity_sequence", activity_ids, _navigation
+	) as Dictionary
+	_refresh_sample_rack_presentation()
+	return result
 
 func start_relay_survey() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
@@ -300,18 +303,24 @@ func _on_service_terminal_repair_feedback(feedback: Dictionary) -> void:
 
 func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
-	return _relay_survey.submit_landmark(_adapter, landmark_id, position)
+	var result: Dictionary = _relay_survey.submit_landmark(
+		_adapter, landmark_id, position
+	)
+	_refresh_sample_rack_presentation()
+	return result
 
 func submit_relay_survey_position(position: Vector3) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
 	var result: Dictionary = _relay_survey.submit_position(_adapter, position)
 	_apply_relay_survey_presentation()
+	_refresh_sample_rack_presentation()
 	return result
 
 func commit_relay_survey_reward() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
 	var result: Dictionary = _relay_survey.commit_reward(_adapter)
 	_apply_relay_survey_presentation()
+	_refresh_sample_rack_presentation()
 	if bool(result.get("accepted", false)) and _relay_survey_persistence != null:
 		var next_store_generation := int(
 			_relay_survey_persistence.call(&"get_store_generation")
@@ -369,7 +378,9 @@ func restore_relay_survey_persistence() -> Dictionary:
 
 func abort_relay_survey(reason: StringName = &"caller_evidence_lost") -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
-	return _adapter.call(&"abort_activity", reason)
+	var result := _adapter.call(&"abort_activity", reason) as Dictionary
+	_refresh_sample_rack_presentation()
+	return result
 
 
 func discover_settlements(position: Variant, radius_m: Variant) -> Dictionary:
@@ -387,7 +398,12 @@ func enter_settlement(structure_id: StringName, position: Variant) -> Dictionary
 func submit_hazard_exposure(hazard_id: StringName, position: Variant, exposure: float, delta_seconds: float) -> Dictionary:
 	if not _live():
 		return _result(false, &"composition_detached")
-	return _adapter.call(&"submit_surface_hazard_exposure", hazard_id, position, exposure, delta_seconds)
+	var result := _adapter.call(
+		&"submit_surface_hazard_exposure",
+		hazard_id, position, exposure, delta_seconds
+	) as Dictionary
+	_refresh_sample_rack_presentation()
+	return result
 
 
 ## Consumes one exact caller-owned on-foot observation for the authored Relay
@@ -1138,10 +1154,27 @@ func _on_survey_interaction_completed(receipt: Dictionary) -> void:
 	_apply_relay_survey_presentation()
 
 
-func _on_sample_rack_completed(receipt: Dictionary) -> void:
+func _sample_rack_activity_is_current(expected_activity_generation: int) -> bool:
 	if _relay_survey == null or _adapter == null:
-		return
-	_relay_survey.call(&"submit_optional_checkpoint", _adapter, receipt)
+		return false
+	var adapter_snapshot := _adapter.call(&"get_snapshot") as Dictionary
+	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
+	return StringName(adapter_snapshot.get("state", &"")) == &"active" \
+		and StringName(runtime.get("state", &"")) == &"active" \
+		and StringName(runtime.get("activity_id", &"")) == _relay_survey.ACTIVITY_ID \
+		and int(runtime.get("activity_generation", -1)) \
+			== expected_activity_generation
+
+
+func _submit_sample_rack_optional_checkpoint(receipt: Dictionary) -> Dictionary:
+	if _relay_survey == null or _adapter == null:
+		return {"accepted": false, "reason": &"relay_survey_unavailable"}
+	return _relay_survey.call(&"submit_optional_checkpoint", _adapter, receipt)
+
+
+func _refresh_sample_rack_presentation() -> void:
+	if _sample_rack_interaction != null:
+		_sample_rack_interaction.call(&"get_snapshot")
 
 
 func get_session_snapshot() -> Dictionary:

@@ -28,6 +28,8 @@ var _completion_attachment_generation := -1
 var _definition: Dictionary = {}
 var _last_receipt: Dictionary = {}
 var _marker: Label3D
+var _activity_state_source: Callable
+var _submission_sink: Callable
 
 
 func _ready() -> void:
@@ -60,11 +62,18 @@ func _ready() -> void:
 	_apply_presentation()
 
 
-func configure(host: Object, definition: Variant) -> Dictionary:
+func configure(
+		host: Object,
+		definition: Variant,
+		activity_state_source: Callable,
+		submission_sink: Callable
+	) -> Dictionary:
 	if _configured or host == null or not is_instance_valid(host) \
 			or not host.has_method(&"get_generation") \
 			or not host.has_method(&"get_attachment_generation") \
-			or not definition is Dictionary:
+			or not definition is Dictionary \
+			or not activity_state_source.is_valid() \
+			or not submission_sink.is_valid():
 		return _result(false, &"invalid_sample_rack_configuration")
 	var record := definition as Dictionary
 	var position_value: Variant = record.get("position_body_local_m", Vector3.INF)
@@ -87,6 +96,8 @@ func configure(host: Object, definition: Variant) -> Dictionary:
 			or not _valid_generation(_attachment_generation):
 		return _result(false, &"invalid_sample_rack_generation")
 	_definition = record.duplicate(true)
+	_activity_state_source = activity_state_source
+	_submission_sink = submission_sink
 	position = position_value as Vector3
 	_configured = true
 	_attached = true
@@ -98,7 +109,8 @@ func activate_for_activity_generation(next_activity_generation: int) -> Dictiona
 	if not _configured or not _attached or not _current_host() \
 			or next_activity_generation < 1 \
 			or next_activity_generation > MAX_SAFE_GENERATION \
-			or next_activity_generation <= _activity_generation:
+			or next_activity_generation <= _activity_generation \
+			or not _authoritative_activity_current(next_activity_generation):
 		return _result(false, &"sample_rack_activation_invalid")
 	_activity_generation = next_activity_generation
 	_completed = false
@@ -140,9 +152,7 @@ func submit_interaction(
 		return _result(false, &"sample_rack_actor_mismatch")
 	if _completed:
 		return _result(false, &"sample_rack_already_completed")
-	_completed = true
-	_completion_attachment_generation = _attachment_generation
-	_last_receipt = {
+	var receipt := {
 		"checkpoint_id": CHECKPOINT_ID,
 		"interaction_id": INTERACTION_ID,
 		"world_id": &"ember_moon",
@@ -157,6 +167,16 @@ func submit_interaction(
 		"historical_claim": false,
 		"completion_response_id": COMPLETION_RESPONSE_ID,
 	}.duplicate(true)
+	var admitted := _submission_sink.call(receipt.duplicate(true)) as Dictionary
+	if not bool(admitted.get("accepted", false)):
+		_apply_presentation()
+		return _result(
+			false,
+			StringName(admitted.get("reason", &"sample_rack_submission_rejected"))
+		)
+	_completed = true
+	_completion_attachment_generation = _attachment_generation
+	_last_receipt = receipt
 	_apply_presentation()
 	sample_rack_completed.emit(_last_receipt.duplicate(true))
 	return _result(true, &"sample_rack_completed")
@@ -230,7 +250,14 @@ func _current_host() -> bool:
 
 
 func _current() -> bool:
-	return _current_host() and _activity_generation > 0
+	return _current_host() and _activity_generation > 0 \
+		and _authoritative_activity_current(_activity_generation)
+
+
+func _authoritative_activity_current(expected_activity_generation: int) -> bool:
+	return _activity_state_source.is_valid() and bool(
+		_activity_state_source.call(expected_activity_generation)
+	)
 
 
 func _actor_is_current(actor: Node) -> bool:

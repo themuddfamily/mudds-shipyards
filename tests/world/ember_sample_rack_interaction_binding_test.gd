@@ -20,6 +20,19 @@ class FakeHost:
 			"identities": {"player_instance_id": player_instance_id},
 		}
 
+class FakeActivityAuthority:
+	var active := true
+	var active_generation := 1
+	var accept_submissions := true
+	var admitted_receipts: Array[Dictionary] = []
+	func is_current(expected_activity_generation: int) -> bool:
+		return active and expected_activity_generation == active_generation
+	func submit(receipt: Dictionary) -> Dictionary:
+		if not accept_submissions:
+			return {"accepted": false, "reason": &"optional_checkpoint_rejected"}
+		admitted_receipts.append(receipt.duplicate(true))
+		return {"accepted": true, "reason": &"optional_checkpoint_completed"}
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -35,12 +48,14 @@ func _run() -> void:
 	root.add_child(foreign_actor)
 	var host := FakeHost.new()
 	host.player_instance_id = actor.get_instance_id()
+	var authority := FakeActivityAuthority.new()
 	var binding := BindingScript.new() as Area3D
 	root.add_child(binding)
 	await process_frame
 	var configured: Dictionary = binding.call(
 		&"configure", host,
-		AuthoredSceneScript.get_sample_rack_interaction_definition()
+		AuthoredSceneScript.get_sample_rack_interaction_definition(),
+		Callable(authority, "is_current"), Callable(authority, "submit")
 	)
 	var dormant := binding.call(&"get_snapshot") as Dictionary
 	_check(
@@ -114,6 +129,7 @@ func _run() -> void:
 		"same-session re-entry retains completion without a serialized contract"
 	)
 
+	authority.active_generation = 2
 	var next_generation: Dictionary = binding.call(
 		&"activate_for_activity_generation", 2
 	)
@@ -123,6 +139,40 @@ func _run() -> void:
 			and int(reset.activity_generation) == 2
 			and reset.prompt == "[ E ]  ANALYSE SAMPLE RACK",
 		"a genuinely newer survey generation resets the sample analysis"
+	)
+
+	authority.accept_submissions = false
+	var rejected: Dictionary = binding.call(
+		&"submit_interaction", actor, 44, 2, 2
+	)
+	var after_rejection := binding.call(&"get_snapshot") as Dictionary
+	authority.active = false
+	var late_after_failure: Dictionary = binding.call(
+		&"submit_interaction", actor, 44, 2, 2
+	)
+	var inactive := binding.call(&"get_snapshot") as Dictionary
+	authority.active_generation = 3
+	var inactive_activation: Dictionary = binding.call(
+		&"activate_for_activity_generation", 3
+	)
+	authority.active = true
+	authority.accept_submissions = true
+	var reactivated: Dictionary = binding.call(
+		&"activate_for_activity_generation", 3
+	)
+	var fresh := binding.call(&"get_snapshot") as Dictionary
+	_check(
+		not bool(rejected.accepted) and bool(after_rejection.active)
+			and not bool(after_rejection.completed)
+			and after_rejection.prompt == "[ E ]  ANALYSE SAMPLE RACK"
+			and not bool(late_after_failure.accepted)
+			and not bool(inactive.active)
+			and not bool(inactive.physical.marker_visible)
+			and not bool(inactive.completed)
+			and not bool(inactive_activation.accepted)
+			and bool(reactivated.accepted) and bool(fresh.active)
+			and int(fresh.activity_generation) == 3,
+		"rejection and terminal activity state never manufacture local completion"
 	)
 
 	for failure in _failures:
