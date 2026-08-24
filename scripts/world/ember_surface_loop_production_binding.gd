@@ -1974,6 +1974,21 @@ func _physics_process(_engine_delta: float) -> void:
 		return
 	_advance_count += 1
 	_last_late_result = operation.duplicate(true)
+	# The real Host commits retained return evidence internally. Publish its
+	# generation-fenced route intent at the first ORBIT_RETURN boundary, leaving
+	# one caller tick for GameFlow to take it before the next late tick atomically
+	# retires Host ownership.
+	if _host.get_phase() == EmberSurfaceLoopHost.Phase.ORBIT_RETURN \
+			and _retained_return_session_instance_id != 0 \
+			and _station_return_handoff_intent.is_empty():
+		var published := _publish_retained_station_return_handoff()
+		if not bool(published.get("accepted", false)):
+			_fail_late(
+				published.get(
+					"reason", &"station_return_handoff_publication_rejected"
+				) as StringName
+			)
+			return
 	if _host.get_phase() == EmberSurfaceLoopHost.Phase.COMPLETED:
 		_complete_handback_late()
 		return

@@ -46,6 +46,8 @@ class EarlyCaller:
 	var reentrant_probe: Dictionary = {}
 	var take_handback_after_completion := false
 	var last_handback: Dictionary = {}
+	var take_station_intent_when_ready := false
+	var station_intent_take: Dictionary = {}
 
 	func _ready() -> void:
 		process_physics_priority = -100
@@ -53,6 +55,16 @@ class EarlyCaller:
 	func _physics_process(_delta: float) -> void:
 		if not enabled:
 			return
+		if take_station_intent_when_ready \
+				and bool(production.get_snapshot().get(
+					"station_return_handoff_pending", false
+				)):
+			station_intent_take = (
+				production.take_planetary_station_return_handoff_intent(
+					production.get_generation()
+				)
+			)
+			take_station_intent_when_ready = false
 		if take_handback_after_completion:
 			last_handback = production.take_completion_handback(production.get_generation())
 			take_handback_after_completion = false
@@ -466,6 +478,34 @@ func _test_real_scheduler_complete_loop() -> void:
 	early.actor_kind = &"player"
 	_check(await _walk_outbound(fixture), "real Player crosses the ordered outbound route")
 	_check(await _walk_return(fixture), "real Player returns to the exact BoardingArea")
+	var retained_session := host.get_travel_session_observation_source()
+	var retained_attachment_generation := int(
+		(retained_session.call(&"get_presentation_snapshot") as Dictionary).get(
+			"attachment_generation", 0
+		)
+	)
+	var return_admitted := production.admit_planetary_relay_survey_return(
+		{
+			"accepted": true,
+			"reason": &"return_manifest_ready",
+			"manifest": {
+				"activity_id": &"ember_beacon_survey",
+				"activity_generation": 17,
+				"attachment_generation": retained_attachment_generation,
+				"destination_id": &"mudds_shipyards",
+				"movement_authority": false,
+				"berth_authority": false,
+				"reward_authority": false,
+			}.duplicate(true),
+		}.duplicate(true),
+		player.get_instance_id(),
+		ship.get_instance_id(),
+	)
+	early.take_station_intent_when_ready = true
+	_check(
+		bool(return_admitted.get("accepted", false)),
+		"the real on-foot Host admits one retained Ember return manifest",
+	)
 	early.arm_intent(1, &"reboard")
 	await _one_physics()
 	_check(early.last_intent.reason == &"intent_serial_replayed", "intent replay rejects")
@@ -481,6 +521,19 @@ func _test_real_scheduler_complete_loop() -> void:
 		fixture, EmberSurfaceLoopProductionBinding.State.HANDOFF_PENDING, 2700
 	), "real physical loop reaches completion and atomic handback")
 	var final_snapshot := production.get_snapshot()
+	var production_intent := early.station_intent_take.get("intent", {}) as Dictionary
+	_check(
+		bool(early.station_intent_take.get("accepted", false))
+			and production_intent.get("intent_id") \
+				== &"ember_station_return_handoff"
+			and production_intent.get("destination_id") == &"mudds_shipyards"
+			and int(production_intent.get("actor_instance_id", 0)) \
+				== player.get_instance_id()
+			and int(production_intent.get("craft_instance_id", 0)) \
+				== ship.get_instance_id()
+			and bool(final_snapshot.station_return_handoff_delivered),
+		"the real late Host cadence publishes and caller-takes one station-return intent before ownership retirement",
+	)
 	_check(
 		int(final_snapshot.prepared_count) == int(final_snapshot.late_consume_count)
 			and int(final_snapshot.handback_count) == 1

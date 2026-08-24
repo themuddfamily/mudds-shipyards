@@ -7,11 +7,34 @@ class CompletedSurfaceBinding:
 	extends EmberSurfaceLoopProductionBinding
 
 	var take_calls := 0
+	var intent_take_calls := 0
+	var abort_calls := 0
 	var detach_calls := 0
 	var handback: Dictionary = {}
+	var intent: Dictionary = {}
+	var intent_delivered := false
+	var retained_session_instance_id := 7001
 
 	func get_snapshot() -> Dictionary:
-		return {"state_id": &"handoff_pending"}
+		var host: Object = get("_host")
+		return {
+			"state_id": &"handoff_pending",
+			"station_return_handoff_pending": (
+				not intent.is_empty() and not intent_delivered
+			),
+			"station_return_handoff_delivered": intent_delivered,
+			"station_return_handoff_intent": intent.duplicate(true),
+			"retained_return_context": {
+				"host_instance_id": host.get_instance_id() if host != null else 0,
+				"host_generation": host.get_generation() if host != null else -1,
+				"host_attachment_generation": (
+					host.get_attachment_generation() if host != null else -1
+				),
+				"session_instance_id": retained_session_instance_id,
+				"actor_instance_id": int(intent.get("actor_instance_id", 0)),
+				"craft_instance_id": int(intent.get("craft_instance_id", 0)),
+			}.duplicate(true),
+		}.duplicate(true)
 
 	func get_generation() -> int:
 		return 9
@@ -25,6 +48,28 @@ class CompletedSurfaceBinding:
 			"reason": &"completion_handback_delivered",
 			"runtime_ownership_return": handback.duplicate(true),
 		}.duplicate(true)
+
+	func take_planetary_station_return_handoff_intent(
+			_expected_generation: int
+		) -> Dictionary:
+		intent_take_calls += 1
+		if intent_delivered:
+			return {
+				"accepted": false,
+				"reason": &"station_return_handoff_already_delivered",
+			}
+		intent_delivered = true
+		return {
+			"accepted": true,
+			"reason": &"station_return_handoff_delivered",
+			"intent": intent.duplicate(true),
+		}.duplicate(true)
+
+	func abort_planetary_relay_survey_return(
+			request_reason: StringName = &"caller_aborted"
+		) -> Dictionary:
+		abort_calls += 1
+		return {"accepted": true, "reason": request_reason}
 
 	func get_planetary_surface_snapshot() -> Dictionary:
 		var host: Object = get("_host")
@@ -220,10 +265,20 @@ func _run() -> void:
 	var player_parent_before := game.player.get_parent()
 
 	var surface := CompletedSurfaceBinding.new()
-	game.ember_surface_loop_host.set("_attachment_generation", 5)
+	game.ember_surface_loop_host.set("_generation", 9)
+	game.ember_surface_loop_host.set("_attachment_generation", 4)
+	game.ember_surface_loop_host.set("_coordinate_frame_generation", frame.get_generation())
+	game.ember_surface_loop_host.set("_attached", true)
+	game.ember_surface_loop_host.set("_phase", EmberSurfaceLoopHost.Phase.ORBIT_RETURN)
+	game.ember_surface_loop_host.set("_player_instance_id", game.player.get_instance_id())
+	game.ember_surface_loop_host.set("_ship_instance_id", craft.get_instance_id())
 	surface.set("_host", game.ember_surface_loop_host)
 	surface.set("_generation", 9)
+	surface.intent = _station_return_intent(
+		game, frame, 9, 4
+	)
 	surface.handback = {
+		"generation": 9,
 		"reason": &"runtime_ownership_returned",
 		"ship_instance_id": craft.get_instance_id(),
 		"player_instance_id": game.player.get_instance_id(),
@@ -237,6 +292,52 @@ func _run() -> void:
 	}.duplicate(true)
 	game.ember_surface_loop_production_binding = surface
 	cadence.free()
+	var forged_intent := surface.intent.duplicate(true)
+	(forged_intent.authority as Dictionary)["movement"] = true
+	surface.intent = forged_intent
+	var forged_reason := game._mudds_station_return_handoff_rejection(
+		forged_intent, surface.get_snapshot(), frame.get_generation()
+	)
+	var actor_drift_intent := _station_return_intent(game, frame, 9, 4)
+	actor_drift_intent["craft_instance_id"] = craft.get_instance_id() + 1
+	surface.intent = actor_drift_intent
+	var actor_drift_reason := game._mudds_station_return_handoff_rejection(
+		actor_drift_intent, surface.get_snapshot(), frame.get_generation()
+	)
+	surface.intent = _station_return_intent(game, frame, 9, 4)
+	surface.retained_session_instance_id = 0
+	var session_drift_reason := game._mudds_station_return_handoff_rejection(
+		surface.intent, surface.get_snapshot(), frame.get_generation()
+	)
+	surface.retained_session_instance_id = 7001
+	var stale_intent := game._consume_mudds_station_return_handoff_intent(
+		frame.get_generation() + 1
+	)
+	_check(
+		forged_reason == &"station_return_handoff_claims_authority"
+			and actor_drift_reason == &"station_return_handoff_actor_drift"
+			and session_drift_reason == &"station_return_handoff_session_drift"
+			and stale_intent.get("reason") == &"station_return_handoff_frame_drift"
+			and surface.abort_calls == 1
+			and (game.get("_mudds_station_return_intent_receipt") as Dictionary).is_empty()
+			and not bool(game.get("_mudds_return_approach_active"))
+			and not bool(game.get("_planetary_return_physical_arrival_required"))
+			and not bool(game.get("_landing_request_active")),
+		"forged authority and craft/session/frame drift abort before cruise, landing, or berth admission",
+	)
+	game.set("_mudds_station_return_intent_consumption_attempted", false)
+	game.set("_last_mudds_station_return_intent_result", {})
+	surface.intent_delivered = false
+	surface.intent_take_calls = 0
+	surface.abort_calls = 0
+	var intent_consumed := game._consume_mudds_station_return_handoff_intent(
+		frame.get_generation()
+	)
+	var intent_replay := game._consume_mudds_station_return_handoff_intent(
+		frame.get_generation()
+	)
+	game.ember_surface_loop_host.set("_attachment_generation", 5)
+	game.ember_surface_loop_host.set("_attached", false)
 	var armed := game._advance_mudds_return_approach_handoff(
 		frame.get_generation()
 	)
@@ -251,10 +352,16 @@ func _run() -> void:
 			and fleet_bounds.get(fleet_ship.get_ship_id(), AABB()) \
 			== fleet_ship.get_landing_collision_report().get("local_bounds", AABB())
 	_check(
-		reserved and boarded and bool(armed.get("accepted", false))
+		reserved and boarded and bool(intent_consumed.get("accepted", false))
+			and intent_consumed.get("reason") == &"station_return_handoff_consumed"
+			and not bool(intent_replay.get("accepted", true))
+			and intent_replay.get("reason") == &"station_return_handoff_already_observed"
+			and surface.intent_take_calls == 1
+			and surface.abort_calls == 0
+			and bool(armed.get("accepted", false))
 			and armed.get("reason") == &"return_approach_armed"
 			and surface.take_calls == 1,
-		"completed Ember ownership is consumed once and arms the production return",
+		"the authenticated Ember intent and completed ownership are each consumed once before arming the production return",
 	)
 	_check(
 		bool(target_result.get("accepted", false))
@@ -419,6 +526,45 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _station_return_intent(
+		game: GameFlow,
+		frame: PlanetaryCoordinateFrame,
+		session_generation: int,
+		attachment_generation: int
+	) -> Dictionary:
+	return {
+		"schema_version": 1,
+		"intent_id": &"ember_station_return_handoff",
+		"destination_id": &"mudds_shipyards",
+		"activity_id": &"ember_beacon_survey",
+		"activity_generation": 17,
+		"actor_instance_id": game.player.get_instance_id(),
+		"craft_instance_id": game.active_ship.get_instance_id(),
+		"session_generation": session_generation,
+		"attachment_generation": attachment_generation,
+		"coordinate_frame_generation": frame.get_generation(),
+		"orbital_coordinate": (
+			frame.get_snapshot().get(
+				"world_streaming_origin_orbital_coordinate", {}
+			) as Dictionary
+		).duplicate(true),
+		"evidence_sequence": PackedStringArray([
+			"reboard", "takeoff", "ascent", "orbit",
+		]),
+		"arrival_confirmed": false,
+		"authority": {
+			"movement": false,
+			"teleport": false,
+			"origin": false,
+			"landing": false,
+			"boarding": false,
+			"berth": false,
+			"reward": false,
+			"arrival": false,
+		}.duplicate(true),
+	}.duplicate(true)
 
 
 func _check(condition: bool, message: String) -> void:

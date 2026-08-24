@@ -1528,6 +1528,7 @@ func _authorized_return_evidence_is_complete(
 		expected_coordinate_frame_generation: int
 	) -> bool:
 	var sequence: Array[StringName] = [&"reboard", &"takeoff", &"ascent", &"orbit"]
+	var previous_physical_frame_generation := 0
 	if _authorized_return_evidence.size() != sequence.size():
 		return false
 	for index in sequence.size():
@@ -1544,10 +1545,24 @@ func _authorized_return_evidence_is_complete(
 					!= expected_attachment_generation \
 				or not record.get("sample", {}) is Dictionary:
 			return false
-		if sequence[index] in [&"ascent", &"orbit"] \
-				and int(record.get("coordinate_frame_generation", -1)) \
-					!= expected_coordinate_frame_generation:
-			return false
+		if sequence[index] in [&"ascent", &"orbit"]:
+			var sampled_frame_generation := int(
+				record.get("coordinate_frame_generation", -1)
+			)
+			# CommonWorldOrigin may commit between the physical surface-clear and
+			# terminal orbit samples. Each stored sample keeps its own generation;
+			# generations must advance monotonically, and the terminal orbit must
+			# still match the live frame used to publish the route intent.
+			if sampled_frame_generation < 1 \
+					or sampled_frame_generation \
+						< previous_physical_frame_generation \
+					or sampled_frame_generation \
+						> expected_coordinate_frame_generation \
+					or (sequence[index] == &"orbit" \
+						and sampled_frame_generation \
+							!= expected_coordinate_frame_generation):
+				return false
+			previous_physical_frame_generation = sampled_frame_generation
 	return true
 
 

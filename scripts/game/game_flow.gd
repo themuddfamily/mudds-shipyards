@@ -143,6 +143,29 @@ const MUDDS_RETURN_FLEET_IDS: Array[StringName] = [
 	&"zenith_b7_observed",
 	&"halyard_new_design",
 ]
+const EMBER_STATION_RETURN_HANDOFF_KEYS := [
+	"schema_version",
+	"intent_id",
+	"destination_id",
+	"activity_id",
+	"activity_generation",
+	"actor_instance_id",
+	"craft_instance_id",
+	"session_generation",
+	"attachment_generation",
+	"coordinate_frame_generation",
+	"orbital_coordinate",
+	"evidence_sequence",
+	"arrival_confirmed",
+	"authority",
+]
+const EMBER_STATION_RETURN_AUTHORITY_KEYS := [
+	"movement", "teleport", "origin", "landing", "boarding", "berth",
+	"reward", "arrival",
+]
+const EMBER_STATION_RETURN_EVIDENCE_SEQUENCE := [
+	"reboard", "takeoff", "ascent", "orbit",
+]
 const EMBER_SERVICE_TERMINAL_ID: StringName = &"ember_bunker_service_terminal"
 const EMBER_SERVICE_RESOURCE_ID: StringName = &"ember_service_charge"
 const EMBER_SERVICE_ACTOR_RANGE_METERS := 2.5
@@ -674,6 +697,12 @@ var _ember_final_approach_completion_receipt: Dictionary = {}
 ## caller-driven cruise binding reaches the existing station return lifecycle.
 var _mudds_return_handback_consumption_attempted := false
 var _mudds_return_handback_receipt: Dictionary = {}
+## The retained surface binding publishes this while its Host/session attachment
+## is still live. GameFlow takes and authenticates it on the next caller tick,
+## before the Host's atomic ownership return can retire that attachment.
+var _mudds_station_return_intent_consumption_attempted := false
+var _mudds_station_return_intent_receipt: Dictionary = {}
+var _last_mudds_station_return_intent_result: Dictionary = {}
 var _mudds_return_approach_active := false
 var _mudds_return_approach_completion_attempted := false
 var _mudds_return_approach_completion_receipt: Dictionary = {}
@@ -2492,6 +2521,9 @@ func _physics_process(delta: float) -> void:
 		if bool(_last_ember_surface_forward_result.get("accepted", false)):
 			_ember_surface_forward_count += 1
 	if not required_origin_rebase_uncommitted:
+		_consume_mudds_station_return_handoff_intent(
+			coordinate_frame_generation
+		)
 		_advance_mudds_return_approach_handoff(coordinate_frame_generation)
 	if is_instance_valid(planetary_cruise_binding):
 		var cruise_gate_reason := _planetary_cruise_gate_reason(false)
@@ -6767,6 +6799,9 @@ func begin_ember_surface_journey(
 	_ember_final_approach_completion_receipt.clear()
 	_mudds_return_handback_consumption_attempted = false
 	_mudds_return_handback_receipt.clear()
+	_mudds_station_return_intent_consumption_attempted = false
+	_mudds_station_return_intent_receipt.clear()
+	_last_mudds_station_return_intent_result.clear()
 	_mudds_return_approach_active = false
 	_mudds_return_approach_completion_attempted = false
 	_mudds_return_approach_completion_receipt.clear()
@@ -6878,6 +6913,155 @@ func _consume_ember_final_approach_completion(receipt: Dictionary) -> Dictionary
 	return discarded
 
 
+## Takes the authority-free station-route intent while the retained Host and
+## travel session are still attached. The binding owns publication/delivery
+## fencing; GameFlow only authenticates the detached route identity against its
+## live actor, Host and sole common-origin frame. A rejected intent never arms
+## cruise, landing, or berth state.
+func _consume_mudds_station_return_handoff_intent(
+		coordinate_frame_generation: int
+	) -> Dictionary:
+	if _mudds_station_return_intent_consumption_attempted:
+		return {
+			"accepted": false,
+			"reason": &"station_return_handoff_already_observed",
+		}.duplicate(true)
+	if not is_instance_valid(ember_surface_loop_production_binding) \
+			or not ember_surface_loop_production_binding.has_method(
+				&"take_planetary_station_return_handoff_intent"
+			):
+		return {
+			"accepted": false,
+			"reason": &"station_return_handoff_binding_unavailable",
+		}.duplicate(true)
+	var binding_snapshot := ember_surface_loop_production_binding.get_snapshot()
+	if not bool(binding_snapshot.get("station_return_handoff_pending", false)):
+		return {
+			"accepted": false,
+			"reason": &"station_return_handoff_not_pending",
+		}.duplicate(true)
+	_mudds_station_return_intent_consumption_attempted = true
+	var taken := ember_surface_loop_production_binding.call(
+		&"take_planetary_station_return_handoff_intent",
+		ember_surface_loop_production_binding.get_generation(),
+	) as Dictionary
+	if not bool(taken.get("accepted", false)):
+		_last_mudds_station_return_intent_result = taken.duplicate(true)
+		return taken
+	var intent := taken.get("intent", {}) as Dictionary
+	var rejection := _mudds_station_return_handoff_rejection(
+		intent, binding_snapshot, coordinate_frame_generation
+	)
+	if not rejection.is_empty():
+		var aborted: Dictionary = {}
+		if ember_surface_loop_production_binding.has_method(
+			&"abort_planetary_relay_survey_return"
+		):
+			aborted = ember_surface_loop_production_binding.call(
+				&"abort_planetary_relay_survey_return", rejection
+			) as Dictionary
+		_last_mudds_station_return_intent_result = {
+			"accepted": false,
+			"reason": rejection,
+			"return_intent_abort": aborted.duplicate(true),
+		}.duplicate(true)
+		return _last_mudds_station_return_intent_result.duplicate(true)
+	_mudds_station_return_intent_receipt = intent.duplicate(true)
+	_last_mudds_station_return_intent_result = {
+		"accepted": true,
+		"reason": &"station_return_handoff_consumed",
+		"intent": intent.duplicate(true),
+	}.duplicate(true)
+	return _last_mudds_station_return_intent_result.duplicate(true)
+
+
+func _mudds_station_return_handoff_rejection(
+		intent: Dictionary,
+		binding_snapshot: Dictionary,
+		coordinate_frame_generation: int
+	) -> StringName:
+	if intent.size() != EMBER_STATION_RETURN_HANDOFF_KEYS.size():
+		return &"station_return_handoff_schema_invalid"
+	for key in EMBER_STATION_RETURN_HANDOFF_KEYS:
+		if not intent.has(key):
+			return &"station_return_handoff_schema_invalid"
+	if int(intent.get("schema_version", 0)) != 1 \
+			or StringName(intent.get("intent_id", &"")) \
+				!= &"ember_station_return_handoff" \
+			or StringName(intent.get("destination_id", &"")) \
+				!= MUDDS_RETURN_TARGET_ID \
+			or StringName(intent.get("activity_id", &"")) \
+				!= &"ember_beacon_survey" \
+			or int(intent.get("activity_generation", 0)) < 1 \
+			or bool(intent.get("arrival_confirmed", true)) \
+			or not intent.get("evidence_sequence") is PackedStringArray \
+			or intent.get("evidence_sequence") \
+				!= PackedStringArray(EMBER_STATION_RETURN_EVIDENCE_SEQUENCE):
+		return &"station_return_handoff_contract_invalid"
+	if not is_instance_valid(active_ship) or not is_instance_valid(player) \
+			or int(intent.get("actor_instance_id", 0)) \
+				!= player.get_instance_id() \
+			or int(intent.get("craft_instance_id", 0)) \
+				!= active_ship.get_instance_id():
+		return &"station_return_handoff_actor_drift"
+	if not is_instance_valid(ember_surface_loop_host):
+		return &"station_return_handoff_host_drift"
+	var host_snapshot := ember_surface_loop_host.get_snapshot()
+	var host_identities := host_snapshot.get("identities", {}) as Dictionary
+	if not bool(host_snapshot.get("attached", false)) \
+			or int(host_snapshot.get("phase", -1)) \
+				!= EmberSurfaceLoopHost.Phase.ORBIT_RETURN \
+			or int(intent.get("session_generation", 0)) \
+				!= ember_surface_loop_host.get_generation() \
+			or int(intent.get("attachment_generation", 0)) \
+				!= ember_surface_loop_host.get_attachment_generation() \
+			or int(host_identities.get("player_instance_id", 0)) \
+				!= player.get_instance_id() \
+			or int(host_identities.get("ship_instance_id", 0)) \
+				!= active_ship.get_instance_id():
+		return &"station_return_handoff_host_drift"
+	var retained := binding_snapshot.get("retained_return_context", {}) as Dictionary
+	if int(retained.get("host_instance_id", 0)) \
+			!= ember_surface_loop_host.get_instance_id() \
+			or int(retained.get("host_generation", -1)) \
+				!= int(intent.get("session_generation", 0)) \
+			or int(retained.get("host_attachment_generation", -1)) \
+				!= int(intent.get("attachment_generation", 0)) \
+			or int(retained.get("session_instance_id", 0)) == 0 \
+			or int(retained.get("actor_instance_id", 0)) \
+				!= player.get_instance_id() \
+			or int(retained.get("craft_instance_id", 0)) \
+				!= active_ship.get_instance_id() \
+			or binding_snapshot.get("station_return_handoff_intent", {}) != intent:
+		return &"station_return_handoff_session_drift"
+	if coordinate_frame_generation < 1 \
+			or int(intent.get("coordinate_frame_generation", 0)) \
+				!= coordinate_frame_generation \
+			or int(host_snapshot.get("coordinate_frame_generation", 0)) \
+				!= coordinate_frame_generation:
+		return &"station_return_handoff_frame_drift"
+	if not is_instance_valid(ember_streaming_bootstrap):
+		return &"station_return_handoff_frame_unavailable"
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	if not is_instance_valid(frame) or frame.get_generation() \
+			!= coordinate_frame_generation:
+		return &"station_return_handoff_frame_drift"
+	var orbital_validation := frame.validate_orbital_coordinate(
+		intent.get("orbital_coordinate", {})
+	)
+	if not bool(orbital_validation.get("accepted", false)) \
+			or orbital_validation.get("coordinate", {}) \
+				!= intent.get("orbital_coordinate", {}):
+		return &"station_return_handoff_coordinate_invalid"
+	var authority := intent.get("authority", {}) as Dictionary
+	if authority.size() != EMBER_STATION_RETURN_AUTHORITY_KEYS.size():
+		return &"station_return_handoff_claims_authority"
+	for key in EMBER_STATION_RETURN_AUTHORITY_KEYS:
+		if not authority.has(key) or bool(authority.get(key, true)):
+			return &"station_return_handoff_claims_authority"
+	return &""
+
+
 ## Observes the surface scheduler's already-validated atomic ownership return.
 ## It is called from the same GameFlow physics cadence as the outbound cruise,
 ## after the Host has completed reboard, takeoff, ascent and orbit return. The
@@ -6913,6 +7097,20 @@ func _advance_mudds_return_approach_handoff(
 		return _last_mudds_return_approach_result.duplicate(true)
 	_mudds_return_handback_receipt = ownership.duplicate(true)
 	_ember_surface_journey_active = false
+	if _mudds_station_return_intent_receipt.is_empty():
+		_last_mudds_return_approach_result = {
+			"accepted": false,
+			"reason": &"return_approach_station_intent_required",
+		}.duplicate(true)
+		return _last_mudds_return_approach_result.duplicate(true)
+	if int(_mudds_station_return_intent_receipt.get(
+			"coordinate_frame_generation", 0
+		)) != coordinate_frame_generation:
+		_last_mudds_return_approach_result = {
+			"accepted": false,
+			"reason": &"return_approach_station_intent_stale",
+		}.duplicate(true)
+		return _last_mudds_return_approach_result.duplicate(true)
 	var target_result := _build_mudds_return_approach_target()
 	if not bool(target_result.get("accepted", false)):
 		_last_mudds_return_approach_result = target_result.duplicate(true)
@@ -6974,6 +7172,16 @@ func _mudds_return_handback_rejection(receipt: Dictionary) -> StringName:
 			or int(receipt.get("current_attachment_generation", 0)) \
 				!= retired_generation + 1:
 		return &"return_approach_handback_generation_mismatch"
+	if not _mudds_station_return_intent_receipt.is_empty() \
+			and (int(receipt.get("generation", 0)) \
+			!= int(_mudds_station_return_intent_receipt.get(
+				"session_generation", -1
+			)) \
+			or retired_generation \
+				!= int(_mudds_station_return_intent_receipt.get(
+					"attachment_generation", -1
+				))):
+		return &"return_approach_station_intent_generation_mismatch"
 	return &""
 
 
