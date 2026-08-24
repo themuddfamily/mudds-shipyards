@@ -24,6 +24,14 @@ func _run() -> void:
 	var retained_collar_id := receiver_collar.get_instance_id()
 	var initial_counts := _presentation_counts(presentation)
 	var initial := cluster.get_structure_scan_presentation_state()
+	var initial_audit := cluster.get_structure_scan_presentation_audit()
+	_check(
+		bool(initial_audit.valid)
+		and int(initial_audit.counts.material_resources) == 8
+		and (initial_audit.material_roles as Dictionary).size() == 5
+		and _has_scan_material_hierarchy(presentation),
+		"the derelict uses distinct structure, service, paint, trim, and scan-facing finishes without changing its renderer budget"
+	)
 	_check(
 		initial.state_id == &"available"
 		and is_equal_approx(float(initial.port_energy), 0.45)
@@ -193,6 +201,33 @@ func _presentation_counts(presentation: Node3D) -> Dictionary:
 		"lights": presentation.find_children("*", "Light3D", true, false).size(),
 		"collision_objects": presentation.find_children("*", "CollisionObject3D", true, false).size(),
 	}
+
+
+func _has_scan_material_hierarchy(presentation: Node3D) -> bool:
+	var expected := {
+		^"SurveyPylonPort": [Color("14171b"), 0.1, 0.94, 0.18, 0.38],
+		^"SurveyPylonStarboard": [Color("2a2f36"), 0.3, 0.7, 0.06, 0.72],
+		^"FracturedHeaderPort": [Color("1c566e"), 0.5, 0.36, 0.45, 0.12],
+		^"DeadArrayCollar": [Color("ff9f43"), 0.1, 0.56, 0.30, 0.24],
+		^"DeadArrayReceiver": [Color("101820"), 0.4, 0.72, 0.45, 0.12],
+	}
+	var material_ids := {}
+	for renderer_path: NodePath in expected:
+		var renderer := presentation.get_node_or_null(renderer_path) as MeshInstance3D
+		var material := renderer.material_override as StandardMaterial3D \
+			if renderer != null else null
+		var recipe := expected[renderer_path] as Array
+		if material == null \
+				or not material.albedo_color.is_equal_approx(recipe[0] as Color) \
+				or not is_equal_approx(material.metallic, float(recipe[1])) \
+				or not is_equal_approx(material.roughness, float(recipe[2])) \
+				or not material.clearcoat_enabled \
+				or not is_equal_approx(material.clearcoat, float(recipe[3])) \
+				or not is_equal_approx(material.clearcoat_roughness, float(recipe[4])) \
+				or material.emission_enabled:
+			return false
+		material_ids[material.get_instance_id()] = true
+	return material_ids.size() == expected.size()
 
 
 func _check(condition: bool, description: String) -> void:

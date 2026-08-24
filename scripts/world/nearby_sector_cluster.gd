@@ -274,6 +274,13 @@ const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 18
 const STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA := 0
+const STRUCTURE_SCAN_MATERIAL_ROLES := {
+	&"structural_ruin": &"scan_structure_char",
+	&"service": &"scan_service_shadow",
+	&"painted": &"scan_painted_steel",
+	&"trim": &"scan_trim_orange",
+	&"scan_facing": &"scan_receiver_dead",
+}
 const STRUCTURE_SCAN_RECEIVER_IDLE_ROTATION := Vector3(90.0, 0.0, 0.0)
 const STRUCTURE_SCAN_RECEIVER_RESOLVED_ROTATION := Vector3.ZERO
 const STRUCTURE_SCAN_COLLAR_IDLE_POSITION := Vector3(20.0, 15.0, 5.0)
@@ -1591,6 +1598,80 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 					world_outer_distance = maxf(
 						world_outer_distance, presentation.to_global(local_corner).length()
 					)
+		# The derelict keeps the exact Cinder ruin palette and PBR scalars, while
+		# the station finish response makes each approach-facing role legible:
+		# dead structure, service stock, surviving paint, warning trim, and the
+		# receiver face the scan resolves. Checking live renderers prevents a
+		# later generic-material shortcut from flattening that hierarchy.
+		var expected_finishes := {
+			&"structural_ruin": Vector2(
+				StationSurfaceKit.STRUCTURAL_CLEARCOAT,
+				StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS
+			),
+			&"service": Vector2(
+				StationSurfaceKit.WALKED_CLEARCOAT,
+				StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS
+			),
+			&"painted": Vector2(
+				StationSurfaceKit.PAINTED_CLEARCOAT,
+				StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS
+			),
+			&"trim": Vector2(
+				StationSurfaceKit.TRIM_CLEARCOAT,
+				StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS
+			),
+			&"scan_facing": Vector2(
+				StationSurfaceKit.PAINTED_CLEARCOAT,
+				StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS
+			),
+		}
+		var expected_surface_scalars := {
+			&"structural_ruin": Vector3(0.1, 0.94, 0.0),
+			&"service": Vector3(0.3, 0.7, 0.0),
+			&"painted": Vector3(0.5, 0.36, 0.0),
+			&"trim": Vector3(0.1, 0.56, 0.0),
+			&"scan_facing": Vector3(0.4, 0.72, 0.0),
+		}
+		var expected_colors := {
+			&"structural_ruin": HULL_CHAR,
+			&"service": HULL_SHADOW,
+			&"painted": STEEL_BLUE,
+			&"trim": KETH_ORANGE,
+			&"scan_facing": Color("101820"),
+		}
+		var renderer_roles := {
+			^"SurveyPylonPort": &"structural_ruin",
+			^"SurveyPylonStarboard": &"service",
+			^"FracturedHeaderPort": &"painted",
+			^"FracturedHeaderStarboard": &"structural_ruin",
+			^"FractureBracePort": &"service",
+			^"FractureBraceStarboard": &"painted",
+			^"DeadArrayBoom": &"structural_ruin",
+			^"DeadArrayReceiver": &"scan_facing",
+			^"DeadArrayCollar": &"trim",
+			^"HullRuptureShard01": &"structural_ruin",
+			^"HullRuptureShard02": &"service",
+			^"HullRuptureShard03": &"painted",
+		}
+		for renderer_path: NodePath in renderer_roles:
+			var renderer := presentation.get_node_or_null(renderer_path) as MeshInstance3D
+			var role := renderer_roles[renderer_path] as StringName
+			var material_key := STRUCTURE_SCAN_MATERIAL_ROLES[role] as StringName
+			var material := renderer.material_override as StandardMaterial3D \
+				if renderer != null else null
+			var finish_response := expected_finishes[role] as Vector2
+			var surface_scalars := expected_surface_scalars[role] as Vector3
+			if material == null or material != _materials.get(material_key) \
+					or not material.clearcoat_enabled \
+					or not is_equal_approx(material.clearcoat, finish_response.x) \
+					or not is_equal_approx(
+						material.clearcoat_roughness, finish_response.y
+					) \
+					or not is_equal_approx(material.metallic, surface_scalars.x) \
+					or not is_equal_approx(material.roughness, surface_scalars.y) \
+					or not material.albedo_color.is_equal_approx(expected_colors[role] as Color) \
+					or material.emission_enabled:
+				errors.append("structure_scan_%s_material_hierarchy_drift" % role)
 	if approach == null \
 			or not approach.position.is_equal_approx(STRUCTURE_SCAN_APPROACH_LOCAL) \
 			or approach.get_child_count() != 0:
@@ -1658,6 +1739,7 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 		"state_feedback": state_feedback,
 		"approach_readable": local_bounds.size.x >= 44.0 \
 			and local_bounds.size.y >= 30.0,
+		"material_roles": STRUCTURE_SCAN_MATERIAL_ROLES.duplicate(true),
 		"scan_authority": false,
 		"interaction_authority": false,
 		"collision_authority": false,
@@ -2678,18 +2760,18 @@ func _build_structure_scan_presentation(platform: Node3D) -> void:
 	approach.position = STRUCTURE_SCAN_APPROACH_LOCAL
 	presentation.add_child(approach)
 
-	_box(presentation, "SurveyPylonPort", Vector3(-22.0, 13.0, -5.0), Vector3(3.0, 30.0, 3.0), _materials["char"], false, Vector3(0.0, 0.0, -8.0))
-	_box(presentation, "SurveyPylonStarboard", Vector3(22.0, 12.0, -5.0), Vector3(3.0, 29.0, 3.0), _materials["hull_shadow"], false, Vector3(0.0, 0.0, 13.0))
-	_box(presentation, "FracturedHeaderPort", Vector3(-11.5, 28.0, -5.0), Vector3(20.0, 2.5, 3.0), _materials["steel"], false, Vector3(0.0, 0.0, 6.0))
-	_box(presentation, "FracturedHeaderStarboard", Vector3(11.5, 27.0, -5.0), Vector3(19.0, 2.5, 3.0), _materials["char"], false, Vector3(0.0, 0.0, -11.0))
-	_box(presentation, "FractureBracePort", Vector3(-12.0, 16.0, -5.0), Vector3(25.0, 1.2, 2.0), _materials["hull_shadow"], false, Vector3(0.0, 0.0, 44.0))
-	_box(presentation, "FractureBraceStarboard", Vector3(12.0, 15.0, -5.0), Vector3(24.0, 1.2, 2.0), _materials["steel"], false, Vector3(0.0, 0.0, -49.0))
-	_box(presentation, "DeadArrayBoom", Vector3(20.0, 12.0, -1.0), Vector3(2.0, 2.0, 22.0), _materials["char"], false, Vector3(8.0, -7.0, 0.0))
-	_cylinder(presentation, "DeadArrayReceiver", Vector3(20.0, 15.0, 8.0), 2.0, 6.0, 5.0, _materials["solar_dead"], false, Vector3(90.0, 0.0, 0.0))
-	_cylinder(presentation, "DeadArrayCollar", Vector3(20.0, 15.0, 5.0), 2.8, 2.8, 0.8, _materials["orange"], false, Vector3(90.0, 0.0, 0.0))
-	_box(presentation, "HullRuptureShard01", Vector3(17.0, 7.0, -13.0), Vector3(7.0, 1.0, 3.0), _materials["char"], false, Vector3(18.0, 25.0, 14.0))
-	_box(presentation, "HullRuptureShard02", Vector3(29.0, 13.0, -10.0), Vector3(5.0, 1.2, 4.0), _materials["hull_shadow"], false, Vector3(-12.0, -16.0, 31.0))
-	_box(presentation, "HullRuptureShard03", Vector3(24.0, 3.0, -17.0), Vector3(6.0, 1.0, 2.5), _materials["steel"], false, Vector3(34.0, 10.0, -22.0))
+	_box(presentation, "SurveyPylonPort", Vector3(-22.0, 13.0, -5.0), Vector3(3.0, 30.0, 3.0), _materials["scan_structure_char"], false, Vector3(0.0, 0.0, -8.0))
+	_box(presentation, "SurveyPylonStarboard", Vector3(22.0, 12.0, -5.0), Vector3(3.0, 29.0, 3.0), _materials["scan_service_shadow"], false, Vector3(0.0, 0.0, 13.0))
+	_box(presentation, "FracturedHeaderPort", Vector3(-11.5, 28.0, -5.0), Vector3(20.0, 2.5, 3.0), _materials["scan_painted_steel"], false, Vector3(0.0, 0.0, 6.0))
+	_box(presentation, "FracturedHeaderStarboard", Vector3(11.5, 27.0, -5.0), Vector3(19.0, 2.5, 3.0), _materials["scan_structure_char"], false, Vector3(0.0, 0.0, -11.0))
+	_box(presentation, "FractureBracePort", Vector3(-12.0, 16.0, -5.0), Vector3(25.0, 1.2, 2.0), _materials["scan_service_shadow"], false, Vector3(0.0, 0.0, 44.0))
+	_box(presentation, "FractureBraceStarboard", Vector3(12.0, 15.0, -5.0), Vector3(24.0, 1.2, 2.0), _materials["scan_painted_steel"], false, Vector3(0.0, 0.0, -49.0))
+	_box(presentation, "DeadArrayBoom", Vector3(20.0, 12.0, -1.0), Vector3(2.0, 2.0, 22.0), _materials["scan_structure_char"], false, Vector3(8.0, -7.0, 0.0))
+	_cylinder(presentation, "DeadArrayReceiver", Vector3(20.0, 15.0, 8.0), 2.0, 6.0, 5.0, _materials["scan_receiver_dead"], false, Vector3(90.0, 0.0, 0.0))
+	_cylinder(presentation, "DeadArrayCollar", Vector3(20.0, 15.0, 5.0), 2.8, 2.8, 0.8, _materials["scan_trim_orange"], false, Vector3(90.0, 0.0, 0.0))
+	_box(presentation, "HullRuptureShard01", Vector3(17.0, 7.0, -13.0), Vector3(7.0, 1.0, 3.0), _materials["scan_structure_char"], false, Vector3(18.0, 25.0, 14.0))
+	_box(presentation, "HullRuptureShard02", Vector3(29.0, 13.0, -10.0), Vector3(5.0, 1.2, 4.0), _materials["scan_service_shadow"], false, Vector3(-12.0, -16.0, 31.0))
+	_box(presentation, "HullRuptureShard03", Vector3(24.0, 3.0, -17.0), Vector3(6.0, 1.0, 2.5), _materials["scan_painted_steel"], false, Vector3(34.0, 10.0, -22.0))
 
 	_lamp(presentation, "DerelictDatumLampPort", Vector3(-22.0, 28.0, 0.0), KETH_ORANGE, 1.1, 20.0, false)
 	_lamp(presentation, "DerelictDatumLampStarboard", Vector3(22.0, 27.0, 0.0), MOONLET_TEAL, 0.8, 18.0, false)
@@ -3144,6 +3226,23 @@ func _create_materials() -> void:
 	_materials["solar_dead"] = _material(Color("101820"), 0.4, 0.72)
 	_materials["cyan_glow"] = _material(KETH_CYAN, 0.0, 0.28, KETH_CYAN, 1.5)
 	_materials["orange_glow"] = _material(KETH_ORANGE, 0.0, 0.3, KETH_ORANGE, 1.4)
+	# Scan-only finishes preserve the exact generic Cinder scalar recipes above;
+	# they differ only in the physical finish assigned to each visual role.
+	_materials["scan_structure_char"] = _panel_material(
+		HULL_CHAR, 0.1, 0.94, 0.1, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	_materials["scan_service_shadow"] = _panel_material(
+		HULL_SHADOW, 0.3, 0.7, 0.1, StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
+	_materials["scan_painted_steel"] = _panel_material(
+		STEEL_BLUE, 0.5, 0.36, 0.12, StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
+	_materials["scan_trim_orange"] = _panel_material(
+		KETH_ORANGE, 0.1, 0.56, 0.1, StationSurfaceKit.PanelFinish.METAL_TRIM
+	)
+	_materials["scan_receiver_dead"] = _panel_material(
+		Color("101820"), 0.4, 0.72, 0.1, StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
 	# Activity-only finish family. The scalar colours and PBR values are the
 	# existing Cinder palette; only the shared physical finish differs by role.
 	_materials["mining_service"] = _panel_material(
