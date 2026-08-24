@@ -17,16 +17,12 @@ func present(profile: Dictionary, accessibility: Dictionary = {}) -> Dictionary:
 	if not revision_value is int or int(revision_value) < 0:
 		return _reject(&"invalid_settings_revision")
 	var settings_revision := int(revision_value)
-	if _settings_revision >= 0 and settings_revision < _settings_revision:
-		return _reject(&"stale_settings_revision")
 	var state_error := _validate_settings_state(accessibility)
 	if not state_error.is_empty():
 		return _reject(state_error)
 	var validation := ContractType.new().validate_profile(profile)
 	if not bool(validation.get("accepted", false)):
-		_attached = false
-		_settings_revision = settings_revision
-		_view = {
+		return {
 			"accepted": false,
 			"reason": &"invalid_profile",
 			"errors": validation.get("errors", PackedStringArray()),
@@ -35,7 +31,8 @@ func present(profile: Dictionary, accessibility: Dictionary = {}) -> Dictionary:
 			"camera_authority": false,
 			"input_authority": false,
 		}
-		return _view.duplicate(true)
+	if _settings_revision >= 0 and settings_revision < _settings_revision:
+		return _reject(&"stale_settings_revision")
 	var reduced_motion := bool(accessibility.get("reduced_motion", false))
 	var reduced_flash := bool(accessibility.get("reduced_flash", false))
 	var on_foot_first_person := bool(accessibility.get("on_foot_first_person", false))
@@ -43,18 +40,17 @@ func present(profile: Dictionary, accessibility: Dictionary = {}) -> Dictionary:
 	var safe_area := accessibility.get("safe_area", Rect2()) as Rect2
 	var controller_focus := StringName(accessibility.get("controller_focus", &""))
 	var mode := "REDUCED MOTION" if reduced_motion else "STANDARD MOTION"
-	var shake := "REDUCED" if reduced_motion else "STANDARD"
-	var flash := "REDUCED" if reduced_flash else "STANDARD"
 	var transition := "STEADY" if reduced_motion else "STANDARD"
 	var lines := PackedStringArray([
 		"CAMERA COMFORT  //  %s" % mode,
-		"SHAKE  //  %s  ·  MOTION  //  %s  ·  FLASH  //  %s" % [shake, transition, flash],
-		"CHASE COMFORT  //  %.0f° FOV  ·  FOLLOW LAG ≤ %.1f°  ·  BANK ≤ %.1f°" % [
+		"MOTION  //  %s" % transition,
+		"REDUCED FLASH  //  %s" % ("ON" if reduced_flash else "OFF"),
+		"FIELD OF VIEW  %.0f°  //  CHASE COMFORT  ·  FOLLOW LAG ≤ %.1f°  ·  BANK ≤ %.1f°" % [
 			float(profile.get("camera_fov", 0.0)),
 			float(profile.get("maximum_chase_camera_rotation_lag_degrees", 0.0)),
 			float(profile.get("maximum_chase_camera_bank_degrees", 0.0)),
 		],
-		"ON-FOOT VIEW  //  %s" % ("FIRST PERSON" if on_foot_first_person else "CHASE"),
+		"ON-FOOT VIEW  //  %s" % ("FIRST PERSON" if on_foot_first_person else "THIRD PERSON"),
 		"LANDING  ≤ %.1f m/s  //  TILT ≤ %.1f°" % [
 			float(profile.get("landing_capture_maximum_speed", 0.0)),
 			float(profile.get("landing_capture_maximum_tilt_degrees", 0.0)),
@@ -110,7 +106,8 @@ func _validate_settings_state(state: Dictionary) -> StringName:
 	if not safe_area_value is Rect2:
 		return &"invalid_safe_area"
 	var safe_area := safe_area_value as Rect2
-	if safe_area.position.x < 0.0 or safe_area.position.y < 0.0 \
+	if not safe_area.position.is_finite() or not safe_area.size.is_finite() \
+		or safe_area.position.x < 0.0 or safe_area.position.y < 0.0 \
 		or safe_area.size.x < 0.0 or safe_area.size.y < 0.0:
 		return &"invalid_safe_area"
 	var focus_value: Variant = state.get("controller_focus", &"")

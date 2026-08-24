@@ -20,9 +20,13 @@ func _run() -> void:
 	settings.camera_fov = 90.0
 	settings.reduced_motion = true
 	settings.reduced_flash = true
+	settings.on_foot_first_person = true
+	settings.ui_scale = 1.35
 	var changed := presenter.get_snapshot()
 	_check(changed.mode == &"reduced_motion" and str(changed.text).contains("FIELD OF VIEW  90°"), "accepted setting changes refresh the presenter")
 	_check(str(changed.text).contains("REDUCED FLASH  //  ON") and binding.get_snapshot().generation == 1, "accessibility flags and binding generation remain deterministic")
+	_check(changed.on_foot_first_person and str(changed.text).contains("ON-FOOT VIEW  //  FIRST PERSON"), "real first-person setting changes refresh the visible summary")
+	_check(changed.ui_scale == 1.35 and binding.get_snapshot().settings_revision == changed.settings_revision, "real UI scale changes are forwarded with the binding settings revision")
 	binding.detach()
 	settings.camera_fov = 60.0
 	_check(not bool(presenter.get_snapshot().get("attached", true)), "detach prevents later settings signals from refreshing")

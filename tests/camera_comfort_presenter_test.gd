@@ -22,8 +22,8 @@ func _run() -> void:
 		"controller_focus": &"camera_comfort_summary",
 	})
 	_check(bool(view.get("accepted", false)) and bool(view.get("focusable", false)), "valid comfort profile produces a focusable presentation")
-	_check(str(view.get("text", "")).contains("SHAKE  //  REDUCED") and str(view.get("text", "")).contains("MOTION  //  STEADY") and str(view.get("text", "")).contains("FLASH  //  REDUCED"), "shake motion and flash comfort are confirmed without colour")
-	_check(str(view.get("text", "")).contains("CHASE COMFORT") and str(view.get("text", "")).contains("72° FOV") and str(view.get("text", "")).contains("ON-FOOT VIEW  //  FIRST PERSON"), "active chase and view comfort are readable")
+	_check(not str(view.get("text", "")).contains("SHAKE") and str(view.get("text", "")).contains("MOTION  //  STEADY") and str(view.get("text", "")).contains("REDUCED FLASH  //  ON"), "motion and flash settings are confirmed without inventing shake support")
+	_check(str(view.get("text", "")).contains("FIELD OF VIEW  72°") and str(view.get("text", "")).contains("CHASE COMFORT") and str(view.get("text", "")).contains("ON-FOOT VIEW  //  FIRST PERSON"), "active chase and view comfort are readable with the legacy field-of-view phrase")
 	_check(view.ui_scale == 1.35 and view.safe_area == safe_area, "caller UI scale and safe area survive unchanged")
 	_check(view.controller_focus == &"camera_comfort_summary" and not bool(view.focus_requested), "presenter preserves controller focus without stealing it")
 	_check(bool(view.color_independent) and not bool(view.get("camera_authority", true)) and not bool(view.get("input_authority", true)), "summary is colour-independent and has no camera or input authority")
@@ -32,8 +32,13 @@ func _run() -> void:
 	_check(presenter.get_snapshot().settings_revision == 12 and presenter.get_snapshot().reduced_motion, "stale state cannot overwrite the active confirmation")
 	var malformed := profile.duplicate(true)
 	malformed[&"camera_fov"] = 999.0
-	var rejected := presenter.present(malformed, {"settings_revision": 13})
-	_check(not bool(rejected.get("accepted", true)) and not bool(presenter.get_snapshot().get("attached", true)), "malformed profile rejects atomically")
+	var rejected := presenter.present(malformed, {"settings_revision": 99})
+	_check(not bool(rejected.get("accepted", true)) and presenter.get_snapshot().settings_revision == 12 and presenter.get_snapshot().attached, "invalid future profile leaves the active presentation and revision unchanged")
+	var corrected := presenter.present(profile, {"settings_revision": 13, "reduced_motion": false})
+	_check(bool(corrected.get("accepted", false)) and corrected.settings_revision == 13, "valid correction after an invalid future profile is not fenced")
+	for invalid_safe_area: Rect2 in [Rect2(NAN, 0.0, 0.0, 0.0), Rect2(0.0, 0.0, INF, 0.0)]:
+		var invalid_layout := presenter.present(profile, {"settings_revision": 14, "safe_area": invalid_safe_area})
+		_check(not bool(invalid_layout.get("accepted", true)) and invalid_layout.reason == &"invalid_safe_area", "nonfinite safe-area geometry is rejected")
 	var detached := presenter.detach()
 	_check(not bool(detached.get("attached", true)) and not detached.has("text") and not detached.has("safe_area"), "detach clears all player and layout presentation state")
 	var reentered := presenter.present(profile, {"settings_revision": 1})
