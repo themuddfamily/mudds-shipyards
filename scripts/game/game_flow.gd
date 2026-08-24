@@ -10065,6 +10065,7 @@ func _build_nearby_activity_audio_snapshot(
 	if candidate.is_empty():
 		return {}
 	if state in [&"idle", &"selected", &"countdown", &"active", &"complete", &"completed", &"reset", &"failed", &"aborted", &"expired"]:
+		var activity_kind := StringName(candidate.get("kind", &"patrol"))
 		var activity_id := StringName(value.get("activity_id", source.get("activity_id", &"nearby_activity")))
 		var generation := int(value.get("generation", value.get("session_generation", 0)))
 		var normalized_state: StringName = &"countdown" if state == &"countdown" else (&"active" if state == &"active" else (
@@ -10072,9 +10073,32 @@ func _build_nearby_activity_audio_snapshot(
 				&"reset" if state == &"reset" else &"idle"
 			)
 		))
+		var terminal_outcome: StringName = &""
+		if state != &"reset":
+			if activity_kind in [&"mining", &"salvage"]:
+				var typed_terminal_outcome: Variant = value.get("terminal_outcome", &"")
+				if typed_terminal_outcome is StringName:
+					terminal_outcome = typed_terminal_outcome
+			elif activity_kind == &"race":
+				var failure_reason: Variant = value.get("failure_reason", &"")
+				if state == &"aborted":
+					terminal_outcome = &"aborted"
+				elif state in [&"failed", &"expired"]:
+					terminal_outcome = (
+						&"timed_out"
+						if state == &"expired" or (
+							failure_reason is StringName and failure_reason == &"timeout"
+						)
+						else &"failed"
+					)
+			elif activity_kind == &"patrol":
+				if state == &"failed":
+					terminal_outcome = &"failed"
+				elif state == &"aborted":
+					terminal_outcome = &"aborted"
 		var normalized := {
 			"generation": maxi(generation, 0),
-			"activity_kind": candidate.get("kind", &"patrol"),
+			"activity_kind": activity_kind,
 			"activity_state": normalized_state,
 			"activity_id": activity_id,
 			"state": normalized_state,
@@ -10082,6 +10106,7 @@ func _build_nearby_activity_audio_snapshot(
 			"checkpoint_id": StringName(value.get("checkpoint_id", &"")),
 			"reward_pending": bool(value.get("reward_pending", false)),
 			"reset_serial": maxi(int(value.get("reset_serial", 0)), 0),
+			"terminal_outcome": terminal_outcome,
 		}.duplicate(true)
 		if StringName(candidate.get("kind", &"")) == &"cargo":
 			normalized["cargo_outcome"] = (
