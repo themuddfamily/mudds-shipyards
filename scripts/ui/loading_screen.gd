@@ -31,9 +31,11 @@ const CARET_PERIOD_SECONDS := 1.1
 var _root: Control
 var _backdrop_slot: Control
 var _title: Label
+var _destination_label: Label
 var _stage_label: Label
 var _detail_label: Label
 var _caret: Label
+var _progress_label: Label
 var _bar_track: ColorRect
 var _bar_fill: ColorRect
 var _rule: ColorRect
@@ -44,6 +46,7 @@ var _reduced_motion := false
 var _progress := 0.0
 var _stage_text := ""
 var _detail_text := ""
+var _destination_text := ""
 var _elapsed := 0.0
 var _dismissed := false
 var _backdrop: TextureRect
@@ -65,6 +68,14 @@ func _ready() -> void:
 	if viewport != null and not viewport.size_changed.is_connected(_layout):
 		viewport.size_changed.connect(_layout)
 	_layout()
+
+
+func _exit_tree() -> void:
+	# This instance may be retained and attached again. Do not let the last
+	# destination remain painted during the gap before its new caller publishes
+	# current state; detached public calls are deliberately rejected below.
+	_destination_text = ""
+	_clear_status_composition()
 
 
 ## Applies the stored accessibility preferences. Accepts the same descriptor
@@ -94,16 +105,23 @@ func configure(descriptor: Dictionary) -> void:
 func set_stage(stage_text: String, progress: float, detail_text: String = "") -> void:
 	if not _can_mutate_live_presentation():
 		return
+	# Zero is the caller's unambiguous beginning-of-load state. It also prevents
+	# a retained screen from lending a previous destination to a new transition.
+	if progress <= 0.0:
+		_destination_text = ""
 	_stage_text = stage_text
 	_detail_text = detail_text
+	_destination_text = _destination_for(stage_text, detail_text, _destination_text)
 	# Startup only ever moves forward. Clamping here means a caller that reports
 	# a phase boundary slightly out of order cannot make the bar walk backwards.
 	_progress = clampf(maxf(progress, _progress), 0.0, 1.0)
 	if _stage_label == null:
 		return
+	_destination_label.text = "DESTINATION  /  %s" % _destination_text
 	_stage_label.text = _stage_text.to_upper()
 	_detail_label.text = _detail_text
 	_detail_label.visible = not _detail_text.is_empty()
+	_progress_label.text = "%d%%" % roundi(_progress * 100.0)
 	_layout_bar()
 
 
@@ -258,6 +276,10 @@ func _build() -> void:
 	_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(_rule)
 
+	_destination_label = _make_label("", 13)
+	_destination_label.name = "Destination"
+	stack.add_child(_destination_label)
+
 	var stage_row := HBoxContainer.new()
 	stage_row.name = "StageRow"
 	stage_row.add_theme_constant_override("separation", 6)
@@ -265,12 +287,26 @@ func _build() -> void:
 	stack.add_child(stage_row)
 
 	_stage_label = _make_label("", 17)
+	_stage_label.name = "Status"
+	_stage_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_stage_label.clip_text = true
+	_stage_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	stage_row.add_child(_stage_label)
 
 	_caret = _make_label("_", 17)
 	stage_row.add_child(_caret)
 
+	_progress_label = _make_label("", 17)
+	_progress_label.name = "Progress"
+	_progress_label.custom_minimum_size.x = 62.0
+	_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	stage_row.add_child(_progress_label)
+
 	_detail_label = _make_label("", 13)
+	_detail_label.name = "Detail"
+	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_label.max_lines_visible = 2
+	_detail_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_detail_label.visible = false
 	stack.add_child(_detail_label)
 
@@ -311,8 +347,10 @@ func _repaint() -> void:
 	var nominal := _role(PaletteType.ROLE_NOMINAL)
 	var muted := _role(PaletteType.ROLE_MUTED)
 	_title.add_theme_color_override("font_color", primary)
+	_destination_label.add_theme_color_override("font_color", _role(PaletteType.ROLE_CAUTION))
 	_stage_label.add_theme_color_override("font_color", nominal)
 	_caret.add_theme_color_override("font_color", nominal)
+	_progress_label.add_theme_color_override("font_color", nominal)
 	_detail_label.add_theme_color_override("font_color", muted)
 	_rule.color = _role(PaletteType.ROLE_CAUTION)
 	_bar_fill.color = nominal
@@ -331,25 +369,35 @@ func _layout() -> void:
 	var stack := _root.get_node_or_null(^"Stack") as VBoxContainer
 	if stack == null:
 		return
-	for label: Node in [_title, _stage_label, _caret, _detail_label]:
+	for label: Node in [_title, _destination_label, _stage_label, _caret, _progress_label, _detail_label]:
 		var typed := label as Label
 		if typed == null:
 			continue
 		var base := int(typed.get_meta(&"base_font_size", 16))
 		typed.add_theme_font_size_override("font_size", maxi(8, roundi(base * _ui_scale)))
-	_rule.custom_minimum_size = Vector2(310.0 * _ui_scale, 3.0)
-	_bar_track.custom_minimum_size = Vector2(420.0 * _ui_scale, 8.0)
 	var viewport_size := _viewport_size()
-	var margin := 72.0 * _ui_scale
-	stack.position = Vector2(margin, viewport_size.y - 300.0 * _ui_scale)
-	stack.size = Vector2(maxf(420.0 * _ui_scale, viewport_size.x * 0.5), 240.0 * _ui_scale)
+	var margin := minf(72.0 * _ui_scale, viewport_size.x * 0.1)
+	var available_width := maxf(1.0, viewport_size.x - margin * 2.0)
+	var readable_width := clampf(
+		viewport_size.x * 0.5,
+		minf(420.0 * _ui_scale, available_width),
+		minf(760.0 * _ui_scale, available_width)
+	)
+	_rule.custom_minimum_size = Vector2(minf(310.0 * _ui_scale, readable_width), 3.0)
+	_bar_track.custom_minimum_size = Vector2(readable_width, 8.0)
+	_progress_label.custom_minimum_size.x = 62.0 * _ui_scale
+	var stack_height := minf(260.0 * _ui_scale, viewport_size.y - margin * 2.0)
+	stack.position = Vector2(margin, maxf(margin, viewport_size.y - stack_height - margin))
+	stack.size = Vector2(readable_width, stack_height)
 	_layout_bar()
 
 
 func _layout_bar() -> void:
 	if _bar_track == null or _bar_fill == null:
 		return
-	var track_width := maxf(_bar_track.size.x, _bar_track.custom_minimum_size.x)
+	# The track minimum is the exact readable width selected by `_layout`. Using
+	# an old container size here can briefly overflow when UI scale decreases.
+	var track_width := _bar_track.custom_minimum_size.x
 	_bar_fill.position = Vector2.ZERO
 	_bar_fill.size = Vector2(track_width * _progress, _bar_track.custom_minimum_size.y)
 
@@ -364,3 +412,35 @@ func _viewport_size() -> Vector2:
 		float(ProjectSettings.get_setting("display/window/size/viewport_width", 1600)),
 		float(ProjectSettings.get_setting("display/window/size/viewport_height", 900))
 	)
+
+
+func _destination_for(stage_text: String, detail_text: String, current: String) -> String:
+	var supplied := (stage_text + " " + detail_text).to_lower()
+	if supplied.contains("ember"):
+		return "EMBER MOON"
+	if supplied.contains("cinder"):
+		return "CINDER REACH"
+	if (
+		supplied.contains("mudds")
+		or supplied.contains("shipyard")
+		or (" " + supplied + " ").contains(" station ")
+		or stage_text.to_lower() == "starting up"
+	):
+		return "MUDDS SHIPYARDS"
+	if not current.is_empty():
+		return current
+	return "DESTINATION PENDING"
+
+
+func _clear_status_composition() -> void:
+	if _destination_label != null:
+		_destination_label.text = ""
+	if _stage_label != null:
+		_stage_label.text = ""
+	if _detail_label != null:
+		_detail_label.text = ""
+		_detail_label.visible = false
+	if _progress_label != null:
+		_progress_label.text = ""
+	if _bar_fill != null:
+		_bar_fill.size.x = 0.0
