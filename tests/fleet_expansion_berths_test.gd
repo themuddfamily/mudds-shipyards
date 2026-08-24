@@ -156,7 +156,7 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		var expected_approach := EXPECTED_PAD_POSITIONS[pad_index] + Vector3(0.0, 0.0, 30.0)
 		var sign := pad.get_node_or_null(^"PadSign") as Label3D if pad != null else null
 		var expected_sign := "DOCK %02d  %s  //  APPROACH CLEAR" % [
-			pad_index + 4, ["CARGO", "BOMBER", "INTERCEPTOR"][pad_index]
+			pad_index + 4, ["CARGO HAULER", "BOMBER", "INTERCEPTOR"][pad_index]
 		]
 		var state: Dictionary = berths.call("get_pad_presentation_state", pad_id)
 		_check(
