@@ -1574,9 +1574,12 @@ func _build_threshold(structure: Node3D) -> void:
 	var plate := _box(threshold, "ThresholdFloor", Vector3(0.0, -0.32, 1.5), Vector3(5.1, FLOOR_PLATE_THICKNESS, 3.0), _materials["pearl_floor"])
 	_register_support(plate, &"threshold walking surface", &"keel girders")
 	_box(threshold, "ThresholdStoneInlay", Vector3(0.0, 0.025, 1.5), Vector3(4.4, 0.05, 2.9), _materials["stone"], false)
-	# A single bronze thread runs from the doorway into the room and finishes at
-	# the well. It is the only piece of wayfinding in the suite.
-	_box(threshold, "ThresholdThread", Vector3(0.0, 0.055, 1.5), Vector3(0.14, 0.05, 2.9), _materials["bronze"], false)
+	# A single warm signal thread runs from the doorway into the room and finishes
+	# at the well. Its modest emission keeps the route legible through this
+	# deliberately dim compression zone without adding a practical light, route
+	# authority, collision, or geometry. It remains the only wayfinding piece in
+	# the suite.
+	_box(threshold, "ThresholdThread", Vector3(0.0, 0.055, 1.5), Vector3(0.14, 0.05, 2.9), _materials["signal"], false)
 
 	for side in [-1.0, 1.0]:
 		var wall_x := float(side) * 2.4

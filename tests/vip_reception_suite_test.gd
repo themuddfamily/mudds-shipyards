@@ -127,6 +127,7 @@ func _run() -> void:
 	_test_outboard_mullion_batch(suite)
 	_test_clerestory_mullion_batch(suite)
 	_test_servery_shelf_batch(suite)
+	_test_threshold_route_thread(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
 	_test_nothing_floats(world, suite)
@@ -1139,6 +1140,31 @@ func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
 	_check(
 		suite.get_validation_errors().is_empty(),
 		"restoring the structural mullion buffer restores a clean module audit"
+	)
+
+
+func _test_threshold_route_thread(suite: VipReceptionSuite) -> void:
+	var thread := suite.get_node_or_null(
+		^"Structure/Threshold/ThresholdThread"
+	) as MeshInstance3D
+	_check(thread != null, "the threshold retains its single authored route thread")
+	if thread == null:
+		return
+	var material := thread.material_override as StandardMaterial3D
+	_check(
+		thread.position.is_equal_approx(Vector3(0.0, 0.055, 1.5))
+		and thread.mesh != null
+		and thread.mesh.get_aabb().size.is_equal_approx(Vector3(0.14, 0.05, 2.9))
+		and thread.get_child_count() == 0,
+		"the readable thread preserves the exact visual-only threshold route geometry"
+	)
+	_check(
+		material != null
+		and material.albedo_color.is_equal_approx(Color("d8b06a"))
+		and material.emission_enabled
+		and material.emission.is_equal_approx(Color("d99a3c"))
+		and is_equal_approx(material.emission_energy_multiplier, 0.9),
+		"the dim threshold route uses the suite's modest warm signal finish"
 	)
 
 
