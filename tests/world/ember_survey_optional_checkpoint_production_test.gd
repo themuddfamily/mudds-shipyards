@@ -45,12 +45,21 @@ func _run() -> void:
 		&"configure", host, director, Callable(self, "_reward_sink"), 28
 	)
 	var interaction := binding.get_node("OwnedSurveyBunkerInteraction")
+	var sample_rack := binding.get_node("OwnedSampleRackInteraction")
 	var started: Dictionary = binding.call(&"start_relay_survey")
 	var available := binding.call(&"get_snapshot") as Dictionary
+	var available_sample := available.relay_survey.optional_checkpoints.get(
+		&"ember_sample_rack_analysis_log", {}
+	) as Dictionary
 	_check(
 		bool(configured.accepted) and bool(started.accepted)
 			and bool(available.relay_survey.optional_checkpoint.eligible)
 			and not bool(available.relay_survey.optional_checkpoint.completed)
+			and bool(available_sample.eligible)
+			and not bool(available_sample.completed)
+			and bool(available.sample_rack_interaction.active)
+			and available.sample_rack_interaction.prompt \
+				== "[ E ]  ANALYSE SAMPLE RACK"
 			and bool(available.relay_survey_presentation.hud.visible)
 			and available.relay_survey_presentation.hud.progress_text \
 				== "OPTIONAL BUNKER LOG  0 / 1",
@@ -59,17 +68,38 @@ func _run() -> void:
 	var stale: Dictionary = interaction.call(&"submit_interaction", actor, 27, 1)
 	var completed: Dictionary = interaction.call(&"submit_interaction", actor, 28, 1)
 	var duplicate: Dictionary = interaction.call(&"submit_interaction", actor, 28, 1)
+	var rack_stale: Dictionary = sample_rack.call(
+		&"submit_interaction", actor, 28, 1, 0
+	)
+	var rack_completed: Dictionary = sample_rack.call(
+		&"submit_interaction", actor, 28, 1, 1
+	)
+	var rack_duplicate: Dictionary = sample_rack.call(
+		&"submit_interaction", actor, 28, 1, 1
+	)
 	var checkpointed := binding.call(&"get_snapshot") as Dictionary
+	var sample_checkpoint := checkpointed.relay_survey.optional_checkpoints.get(
+		&"ember_sample_rack_analysis_log", {}
+	) as Dictionary
 	var director_progress := director.get_activity_snapshot(&"ember_beacon_survey")
 	_check(
 		not bool(stale.accepted) and bool(completed.accepted)
 			and not bool(duplicate.accepted)
+			and not bool(rack_stale.accepted) and bool(rack_completed.accepted)
+			and not bool(rack_duplicate.accepted)
 			and bool(checkpointed.relay_survey.optional_checkpoint.completed)
 			and checkpointed.relay_survey.optional_checkpoint.status == &"completed"
 			and int(checkpointed.relay_survey.optional_checkpoint.activity_generation) == 1
 			and bool(checkpointed.relay_survey_presentation.hud.completed)
 			and checkpointed.relay_survey_presentation.hud.progress_text \
 				== "OPTIONAL BUNKER LOG  1 / 1"
+			and bool(sample_checkpoint.completed)
+			and sample_checkpoint.status == &"completed"
+			and int(sample_checkpoint.activity_generation) == 1
+			and int(checkpointed.relay_survey.optional_progress.completed_count) == 2
+			and int(checkpointed.relay_survey.optional_progress.checkpoint_count) == 2
+			and checkpointed.sample_rack_interaction.prompt \
+				== "[ COMPLETE ]  SAMPLE RACK ANALYSED"
 			and int(director_progress.next_checkpoint_index) == 0
 			and int(director_progress.checkpoint_count) == 2
 			and _reward_calls == 0,
@@ -99,12 +129,18 @@ func _run() -> void:
 	var retained := binding.call(&"get_snapshot") as Dictionary
 	_check(
 		bool(saved.relay_survey_optional_checkpoint.completed)
+			and bool(saved.relay_survey_sample_rack_checkpoint.completed)
+			and bool(saved.sample_rack_interaction.completed)
 			and bool(detached.accepted)
 			and not bool(detached_presentation.hud.visible)
 			and bool(reentered.accepted)
 			and bool(retained.relay_survey.optional_checkpoint.completed)
+			and bool(retained.relay_survey.optional_checkpoints.get(
+				&"ember_sample_rack_analysis_log", {}
+			).completed)
+			and bool(retained.sample_rack_interaction.completed)
 			and bool(retained.relay_survey_presentation.hud.visible),
-		"detach hides and re-entry restores the retained optional checkpoint status"
+		"detach hides and re-entry restores both retained optional checkpoint states"
 	)
 	var restored: Dictionary = binding.call(&"restore_session_snapshot", saved)
 	var after_restore := binding.call(&"get_snapshot") as Dictionary
@@ -115,7 +151,10 @@ func _run() -> void:
 			and after_restore.relay_survey.optional_checkpoint.interpretation_status \
 				== &"modern_interpretation"
 			and not bool(after_restore.relay_survey.optional_checkpoint.authority.route)
-			and not bool(after_restore.relay_survey.optional_checkpoint.authority.reward),
+			and not bool(after_restore.relay_survey.optional_checkpoint.authority.reward)
+			and bool(after_restore.relay_survey.optional_checkpoints.get(
+				&"ember_sample_rack_analysis_log", {}
+			).completed),
 		"the saved optional checkpoint restores without gaining route or reward authority"
 	)
 	var next_run: Dictionary = binding.call(&"start_relay_survey")
@@ -127,6 +166,11 @@ func _run() -> void:
 			and next_run_snapshot.relay_survey.optional_checkpoint.status == &"available"
 			and next_run_snapshot.relay_survey_presentation.hud.progress_text \
 				== "OPTIONAL BUNKER LOG  0 / 1"
+			and not bool(next_run_snapshot.relay_survey.optional_checkpoints.get(
+				&"ember_sample_rack_analysis_log", {}
+			).completed)
+			and not bool(next_run_snapshot.sample_rack_interaction.completed)
+			and int(next_run_snapshot.sample_rack_interaction.activity_generation) == 2
 			and bool(next_run_snapshot.survey_interaction.completed)
 			and _reward_calls == 1,
 		"a genuinely newer relay-survey generation clears run N optional progress"

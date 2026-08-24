@@ -74,6 +74,7 @@ const ORBITAL_CUE_ARM_WIDTH_M := 8.0
 const ORBITAL_CUE_MAXIMUM_RADIUS_M := 252.0
 const SAMPLE_RACK_SIZE_M := Vector3(4.0, 1.0, 1.4)
 const SAMPLE_RACK_POSITION_M := Vector3(28.0, 0.5, -7.0)
+const SAMPLE_RACK_ACCESS_POSITION_M := Vector3(28.0, 0.0, -4.8)
 const RELAY_ROOT_POSITION_M := Vector3(42.0, 0.0, 7.0)
 const RELAY_BASE_SIZE_M := Vector3(2.4, 0.35, 2.4)
 const RELAY_BASE_POSITION_M := Vector3(0.0, 0.175, 0.0)
@@ -244,6 +245,23 @@ static func get_survey_interaction_definition() -> Dictionary:
 		"landmark_ids": PackedStringArray([
 			"ember_survey_service_bunker", "ember_derelict_survey_gantry",
 		]),
+		"historical_claim": false,
+		"status": &"modern_interpretation",
+	}.duplicate(true)
+
+
+## Pure interaction placement over the existing rack access marker. The
+## runtime binding adds only a proximity Area and text marker; the authored
+## rack mesh, collision, and transform remain unchanged.
+static func get_sample_rack_interaction_definition() -> Dictionary:
+	return {
+		"checkpoint_id": &"ember_sample_rack_analysis_log",
+		"interaction_id": &"ember_sample_rack_analysis",
+		"world_id": WORLD_ID,
+		"position_body_local_m": SAMPLE_RACK_ACCESS_POSITION_M \
+			+ Vector3.UP * BODY_RADIUS_M,
+		"completion_response_id": &"ember_sample_rack_analysis_marker",
+		"landmark_ids": PackedStringArray(["ember_sample_rack"]),
 		"historical_claim": false,
 		"status": &"modern_interpretation",
 	}.duplicate(true)
@@ -1833,7 +1851,7 @@ static func _expected_surface_marker_transform(marker_id: StringName) -> Transfo
 		&"ember_pad_guidance_threshold":
 			return Transform3D(Basis.IDENTITY, Vector3(14.0, 0.0, 0.0))
 		&"ember_sample_rack_access":
-			return Transform3D(Basis.IDENTITY, Vector3(28.0, 0.0, -4.8))
+			return Transform3D(Basis.IDENTITY, SAMPLE_RACK_ACCESS_POSITION_M)
 		&"ember_staging_relay_access":
 			return Transform3D(Basis.IDENTITY, Vector3(42.0, 0.0, 4.4))
 		&"ember_derelict_survey_gantry_access":
