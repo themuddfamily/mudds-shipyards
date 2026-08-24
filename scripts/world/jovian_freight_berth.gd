@@ -263,6 +263,8 @@ var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _lashing_ring_mesh: TorusMesh
+var _lashing_ring_batch: MultiMeshInstance3D
+var _lashing_ring_transforms: Array[Transform3D] = []
 var _catwalk_ladder_hoop_mesh: TorusMesh
 var _catwalk_ladder_hoop_batch: MultiMeshInstance3D
 var _catwalk_ladder_hoop_transforms: Array[Transform3D] = []
@@ -1360,10 +1362,10 @@ func get_catwalk_ladder_hoop_visual_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-## Renderer-independent retained-resource audit for the eight childless freight
-## tie-down rings. Their stable nodes, paths, transforms and one-surface
-## submissions remain separate; only the identical TorusMesh allocation is
-## shared. A structural submission is not a driver draw-call or GPU-time claim.
+## Renderer-independent visual audit for the eight childless freight tie-down
+## rings. Stable named anchors preserve their exact paths and transforms while
+## one MultiMesh owns the visible copies. A structural submission is not a
+## driver draw-call or GPU-time claim.
 func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var expected_rows: Array[Dictionary] = []
@@ -1387,7 +1389,6 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 	var mesh_ids: Dictionary = {}
 	var material_ids: Dictionary = {}
 	var behavior_rows: Array[Dictionary] = []
-	var structural_submissions := 0
 	var child_node_count := 0
 	var authority_node_count := 0
 	var scripted_node_count := 0
@@ -1403,12 +1404,11 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 		var mesh := ring.mesh as TorusMesh
 		if mesh != null:
 			mesh_ids[mesh.get_instance_id()] = true
-			structural_submissions += mesh.get_surface_count()
 		if ring.material_override != null:
 			material_ids[ring.material_override.get_instance_id()] = true
 		if (
 			not ring.transform.is_equal_approx(expected_transform)
-			or not ring.visible
+			or ring.visible
 			or ring.layers != 1
 			or ring.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		):
@@ -1443,6 +1443,29 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 			"transform": ring.transform,
 			"material": &"ceramic",
 		})
+
+	var batch := _lashing_ring_batch
+	var authored_transforms := (
+		batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(batch) else []
+	)
+	var batch_exact: bool = (
+		is_instance_valid(batch)
+		and batch.multimesh != null
+		and batch.multimesh.mesh == _lashing_ring_mesh
+		and batch.multimesh.instance_count == LASHING_RING_COPY_COUNT
+		and batch.material_override == _materials.get("ceramic")
+		and batch.layers == 1
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.get_child_count() == 0
+		and bool(batch.get_meta("visual_detail_only", false))
+		and StringName(batch.get_meta("visual_batch_family_id", &"")) == LASHING_RING_FAMILY_ID
+		and authored_transforms.size() == LASHING_RING_COPY_COUNT
+	)
+	for index in mini(authored_transforms.size(), behavior_rows.size()):
+		batch_exact = batch_exact and (authored_transforms[index] as Transform3D).is_equal_approx(
+			(behavior_rows[index] as Dictionary).get("transform", Transform3D.IDENTITY) as Transform3D
+		)
 
 	var mesh := _lashing_ring_mesh
 	var authored_segments := Vector2i(
@@ -1482,7 +1505,7 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 		errors.append("lashing_ring_mesh_identity_count_drift")
 	if material_ids.size() != LASHING_RING_BASELINE_MATERIAL_RESOURCES:
 		errors.append("lashing_ring_material_identity_count_drift")
-	if structural_submissions != LASHING_RING_BASELINE_SUBMISSIONS:
+	if not batch_exact:
 		errors.append("lashing_ring_submission_count_drift")
 	if (
 		child_node_count != 0
@@ -1504,8 +1527,8 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 		"drawn_copy_count_after": behavior_rows.size(),
 		"drawn_copy_delta": behavior_rows.size() - LASHING_RING_COPY_COUNT,
 		"structural_submission_count_before": LASHING_RING_BASELINE_SUBMISSIONS,
-		"structural_submission_count_after": structural_submissions,
-		"structural_submission_delta": structural_submissions - LASHING_RING_BASELINE_SUBMISSIONS,
+		"structural_submission_count_after": 1 if batch_exact else 0,
+		"structural_submission_delta": (1 if batch_exact else 0) - LASHING_RING_BASELINE_SUBMISSIONS,
 		"mesh_resource_identity_count_before": LASHING_RING_BASELINE_MESH_RESOURCES,
 		"mesh_resource_identity_count_after": mesh_ids.size(),
 		"mesh_resource_identity_delta": mesh_ids.size() - LASHING_RING_BASELINE_MESH_RESOURCES,
@@ -1534,7 +1557,7 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 		"scripted_node_count": scripted_node_count,
 		"unexpected_metadata_entry_count": unexpected_metadata_entry_count,
 		"processing_node_count": processing_node_count,
-		"batched": false,
+		"batched": batch_exact,
 		"frame_time_claimed": false,
 		"gpu_draw_call_claimed": false,
 		"vram_claimed": false,
@@ -2283,6 +2306,7 @@ func _build_handling_zones() -> void:
 		LASHING_RING_AUTHORED_RINGS,
 		LASHING_RING_AUTHORED_RING_SEGMENTS
 	)
+	_lashing_ring_transforms.clear()
 
 	# Envelope bollards. The parked hull's protected width is 23.0 m; these stand
 	# at x = +/-12.4 with a 0.19 m radius, so the whole line clears the envelope by
@@ -2345,6 +2369,18 @@ func _build_handling_zones() -> void:
 				TorusGeometryBudget.PROFILE_FREIGHT_RECESSED_LASHING_RING
 			)
 			lashing_ring.set_meta(LASHING_RING_FAMILY_META, LASHING_RING_FAMILY_ID)
+			_lashing_ring_transforms.append(lashing_ring.transform)
+			# Stable paths remain as hidden, authority-free inspection anchors; the
+			# MultiMesh below owns the visible copies.
+			lashing_ring.visible = false
+	_lashing_ring_batch = _multimesh_visuals(
+		zones,
+		"LashingRingBatch",
+		_lashing_ring_mesh,
+		_materials["ceramic"],
+		_lashing_ring_transforms,
+		LASHING_RING_FAMILY_ID
+	)
 	var lashing_plate_batch := _multimesh_rounded_boxes(
 		zones,
 		"LashingPlateBatch",

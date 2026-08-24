@@ -1043,14 +1043,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 899,
+			"descendant_nodes": 900,
 			"mesh_instance_nodes": 402,
-			"multimesh_nodes": 10,
-			"surfaces": 390,
+			"multimesh_nodes": 11,
+			"surfaces": 383,
 			"visible_copies": 442,
 		}
 		and _renderer_census(module) == renderer_before,
-		"module renderer census stays exact at 899 descendants, 390 submissions, and 442 visible copies"
+		"lashing-ring batching leaves 900 descendants, 383 submissions, and 442 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before
@@ -1074,9 +1074,9 @@ func _test_lashing_ring_visual_allocation(module: JovianFreightBerth) -> void:
 		and int(audit.get("drawn_copy_count_after", 0)) == 8
 		and int(audit.get("drawn_copy_delta", 99)) == 0
 		and int(audit.get("structural_submission_count_before", 0)) == 8
-		and int(audit.get("structural_submission_count_after", 0)) == 8
-		and int(audit.get("structural_submission_delta", 99)) == 0,
-		"eight named nodes, eight visible copies and eight structural submissions remain exact"
+		and int(audit.get("structural_submission_count_after", 0)) == 1
+		and int(audit.get("structural_submission_delta", 99)) == -7,
+		"eight named anchors preserve eight visible copies through one structural submission"
 	)
 	_check(
 		int(audit.get("mesh_resource_identity_count_before", 0)) == 8
@@ -1111,12 +1111,12 @@ func _test_lashing_ring_visual_allocation(module: JovianFreightBerth) -> void:
 		and int(audit.get("scripted_node_count", -1)) == 0
 		and int(audit.get("unexpected_metadata_entry_count", -1)) == 0
 		and int(audit.get("processing_node_count", -1)) == 0
-		and not bool(audit.get("batched", true))
+		and bool(audit.get("batched", false))
 		and not bool(audit.get("frame_time_claimed", true))
 		and not bool(audit.get("gpu_draw_call_claimed", true))
 		and not bool(audit.get("vram_claimed", true))
 		and not bool(audit.get("whole_scene_budget_claimed", true)),
-		"shared stock remains childless, authority-free, unbatched and claim-bounded"
+		"shared stock remains childless, authority-free, batched and claim-bounded"
 	)
 
 	var rows := audit.get("behavior_rows", []) as Array
