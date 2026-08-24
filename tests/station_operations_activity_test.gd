@@ -252,10 +252,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 384
+		int(roster_catalog.bound_material_references) == 386
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 384 renderer bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing leaves all 386 renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -295,17 +295,17 @@ func _run() -> void:
 	# 392 -> 386, without changing the 461 visible-copy total.
 	# Rail faces on the same placements then move nodes 501 -> 499, MeshInstances
 	# 367 -> 363, batches 19 -> 21, copies 94 -> 98 and submissions 386 -> 384.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 499, "ten production placements have the exact 499-node aggregate")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 363, "ten production placements have the exact 363 MeshInstance aggregate")
+	_check(int((roster_audit.counts as Dictionary).node_count) == 501, "ten production placements have the exact 501-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 365, "ten production placements have the exact 365 MeshInstance aggregate")
 	_check(
 		int((roster_audit.counts as Dictionary).multimesh_batches) == 21
 		and int((roster_audit.counts as Dictionary).multimesh_instances) == 98,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(
-		int((roster_audit.counts as Dictionary).geometry_submissions) == 384
-		and int((roster_audit.counts as Dictionary).drawn_copies) == 461,
-		"production submissions fall 386 -> 384 while all 461 visible geometry copies remain"
+		int((roster_audit.counts as Dictionary).geometry_submissions) == 386
+		and int((roster_audit.counts as Dictionary).drawn_copies) == 463,
+		"production retains 461 visible geometry copies plus two non-drawing arm guards"
 	)
 	_check(int((roster_audit.counts as Dictionary).instance_count) == 10, "the recommended production roster is exactly ten placements")
 	var mutated_profile := profile_instances[1] as StationOperationsActivity
@@ -981,12 +981,12 @@ func _check_gantry_safety_band_batch(
 	var counts := performance.counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 45)
+		and int(counts.mesh_instances) == (62 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
-		and int(counts.drawn_copies) == (79 if is_full else 48),
+		and int(counts.geometry_submissions) == (66 if is_full else 34)
+		and int(counts.drawn_copies) == (80 if is_full else 48),
 		"%s freezes nodes -3, MeshInstances -4, batches +1 and submissions -3 without dropping a copy" % activity.get_activity_profile_id()
 	)
 	if not RenderingServer.get_video_adapter_name().is_empty():
@@ -1085,12 +1085,12 @@ func _check_gantry_rail_fastener_batch(
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 45)
+		and int(counts.mesh_instances) == (62 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
-		and int(counts.drawn_copies) == (79 if is_full else 48),
+		and int(counts.geometry_submissions) == (66 if is_full else 34)
+		and int(counts.drawn_copies) == (80 if is_full else 48),
 		"%s freezes rail fasteners at 8 -> 1 submissions while retaining all eight visible copies" % activity.get_activity_profile_id()
 	)
 	if not RenderingServer.get_video_adapter_name().is_empty():
@@ -1187,12 +1187,12 @@ func _check_gantry_guide_wheel_batch(activity: StationOperationsActivity) -> voi
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 45)
+		and int(counts.mesh_instances) == (62 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
-		and int(counts.drawn_copies) == (79 if is_full else 48),
+		and int(counts.geometry_submissions) == (66 if is_full else 34)
+		and int(counts.drawn_copies) == (80 if is_full else 48),
 		"%s guide wheels fall 4 -> 1 submissions while all four moving copies remain" % activity.get_activity_profile_id()
 	)
 
@@ -1253,12 +1253,12 @@ func _check_gantry_rail_face_batch(activity: StationOperationsActivity) -> void:
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (82 if is_full else 45)
-		and int(counts.mesh_instances) == (61 if is_full else 30)
+		int(counts.node_count) == (83 if is_full else 45)
+		and int(counts.mesh_instances) == (62 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (65 if is_full else 34)
-		and int(counts.drawn_copies) == (79 if is_full else 48),
+		and int(counts.geometry_submissions) == (66 if is_full else 34)
+		and int(counts.drawn_copies) == (80 if is_full else 48),
 		"%s rail faces fall 2 -> 1 submissions while both visible copies remain" % activity.get_activity_profile_id()
 	)
 

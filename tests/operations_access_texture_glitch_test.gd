@@ -4,7 +4,9 @@ const ACTIVITY_SCENE := preload(
 	"res://scenes/world/components/station_operations_activity.tscn"
 )
 const AFT_SCENE := preload("res://scenes/world/modules/aft_junction_stack.tscn")
-const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 1.4
+const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 5.0
+const SERVICE_ARM_MAXIMUM_SURFACE_SPAN := 4.721922
+const SERVICE_ARM_MAXIMUM_SPAN_TIME := 196.25409
 const PRODUCTION_CAMERA_NEAR := 0.08
 const MINIMUM_CAMERA_SURFACE_CLEARANCE := 0.15
 const WORLD_LAYER := PhysicsLayers.WORLD
@@ -18,9 +20,12 @@ func _init() -> void:
 
 func _run() -> void:
 	var activity := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+	activity.activity_profile = StationOperationsActivity.ActivityProfile.SERVICE_ARM
+	activity.variation_seed = 2207
+	activity.starts_paused = true
 	root.add_child(activity)
 	await process_frame
-	_test_service_arm_camera_clearance(activity)
+	await _test_service_arm_camera_clearance(activity)
 	activity.queue_free()
 	await process_frame
 
@@ -48,44 +53,46 @@ func _test_service_arm_camera_clearance(activity: StationOperationsActivity) -> 
 	var shoulder := activity.get_node(
 		^"PresentationRoot/ArticulatedServiceArm/AnimatedShoulder"
 	) as Node3D
-	var guarded_mesh_count := 0
-	var guard_complete := true
-	var minimum_surface_clearance := INF
+	var guard := shoulder.get_node(^"WholeAssemblyCameraGuard") as MeshInstance3D
+	var arm_meshes: Array[MeshInstance3D] = []
+	var atomic_dependency_complete := true
 	for candidate in shoulder.find_children("*", "MeshInstance3D", true, false):
 		var arm_mesh := candidate as MeshInstance3D
-		guarded_mesh_count += 1
-		var bounding_radius := 0.0
-		for surface_index in arm_mesh.mesh.get_surface_count():
-			var surface_arrays := arm_mesh.mesh.surface_get_arrays(surface_index)
-			var vertices := surface_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
-			for vertex in vertices:
-				bounding_radius = maxf(
-					bounding_radius,
-					(arm_mesh.basis * vertex).length()
-				)
-		minimum_surface_clearance = minf(
-			minimum_surface_clearance,
+		if arm_mesh == guard:
+			continue
+		arm_meshes.append(arm_mesh)
+		atomic_dependency_complete = (
+			atomic_dependency_complete
+			and is_zero_approx(arm_mesh.visibility_range_begin)
+			and is_zero_approx(arm_mesh.visibility_range_end)
+			and arm_mesh.get_node_or_null(arm_mesh.visibility_parent) == guard
+		)
+	_check(
+		arm_meshes.size() == 9
+		and atomic_dependency_complete
+		and is_zero_approx(guard.visibility_range_begin)
+		and is_equal_approx(
+			guard.visibility_range_end,
 			SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
-				- bounding_radius
-				- PRODUCTION_CAMERA_NEAR
 		)
-		guard_complete = (
-			guard_complete
-			and is_equal_approx(
-				arm_mesh.visibility_range_begin,
-				SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
-			)
-			and is_zero_approx(arm_mesh.visibility_range_begin_margin)
-			and arm_mesh.visibility_range_fade_mode
-				== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-		)
-	_check(
-		guarded_mesh_count == 9 and guard_complete,
-		"all nine animated service-arm meshes hard-cut before entering the camera"
+		and is_zero_approx(guard.visibility_range_end_margin)
+		and guard.visibility_range_fade_mode
+			== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		and guard.cast_shadow
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"one non-drawing guard switches all nine service-arm renderers atomically"
 	)
+	activity.set_activity_time(SERVICE_ARM_MAXIMUM_SPAN_TIME)
+	var maximum_surface_span := _maximum_surface_span(shoulder, arm_meshes)
 	_check(
-		minimum_surface_clearance >= MINIMUM_CAMERA_SURFACE_CLEARANCE,
-		"the guarded arm keeps at least 0.15 m beyond its radius and camera near plane"
+		is_equal_approx(maximum_surface_span, SERVICE_ARM_MAXIMUM_SURFACE_SPAN)
+		and SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+			- maximum_surface_span
+			- PRODUCTION_CAMERA_NEAR
+			>= MINIMUM_CAMERA_SURFACE_CLEARANCE,
+		"the whole-arm guard covers the exact worst animation-pose surface span "
+		+ "with at least 0.15 m beyond the production near plane (span %.6f m)"
+		% maximum_surface_span
 	)
 	var base_plate := activity.get_node(
 		^"PresentationRoot/ArticulatedServiceArm/BasePlate"
@@ -101,16 +108,49 @@ func _test_service_arm_camera_clearance(activity: StationOperationsActivity) -> 
 	var upper_arm := activity.get_node(
 		^"PresentationRoot/ArticulatedServiceArm/AnimatedShoulder/UpperArm"
 	) as MeshInstance3D
-	upper_arm.visibility_range_begin = 0.0
+	upper_arm.visibility_parent = NodePath()
 	_check(
 		not bool(activity.get_audit_report().valid),
-		"the activity audit rejects removal of the service-arm camera guard"
+		"the activity audit rejects detaching one renderer from the atomic arm guard"
 	)
-	upper_arm.visibility_range_begin = SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+	upper_arm.visibility_parent = upper_arm.get_path_to(guard)
+	guard.visibility_range_end = 0.0
 	_check(
-		bool(activity.get_audit_report().valid),
-		"restoring the service-arm camera guard restores the activity audit"
+		not bool(activity.get_audit_report().valid),
+		"the activity audit rejects removal of the whole-arm camera boundary"
 	)
+	guard.visibility_range_end = SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+	_check(bool(activity.get_audit_report().valid), "restoring the atomic arm guard restores the activity audit")
+
+	root.remove_child(activity)
+	root.add_child(activity)
+	await process_frame
+	var dependency_survived_reentry := true
+	for arm_mesh in arm_meshes:
+		dependency_survived_reentry = (
+			dependency_survived_reentry
+			and arm_mesh.get_node_or_null(arm_mesh.visibility_parent) == guard
+		)
+	_check(
+		bool(activity.get_audit_report().valid)
+		and dependency_survived_reentry,
+		"detach and re-entry preserve the same whole-assembly visibility dependency"
+	)
+
+
+func _maximum_surface_span(
+		shoulder: Node3D,
+		arm_meshes: Array[MeshInstance3D]
+	) -> float:
+	var maximum := 0.0
+	var shoulder_inverse := shoulder.global_transform.affine_inverse()
+	for arm_mesh in arm_meshes:
+		var relative := shoulder_inverse * arm_mesh.global_transform
+		for surface_index in arm_mesh.mesh.get_surface_count():
+			var surface_arrays := arm_mesh.mesh.surface_get_arrays(surface_index)
+			for vertex in surface_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+				maximum = maxf(maximum, (relative * vertex).length())
+	return maximum
 
 
 func _test_operations_access_floor_seam(aft: AftJunctionStack) -> void:

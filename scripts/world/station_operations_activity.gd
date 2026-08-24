@@ -168,16 +168,16 @@ static var _shared_visual_mesh_catalog: Dictionary = {}
 ## submissions fall by one and all carriage motion and visible copies remain.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
-		"node_count": 82,
-		"mesh_instances": 61,
+		"node_count": 83,
+		"mesh_instances": 62,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 4,
 		"multimesh_instances": 18,
-		"geometry_submissions": 65,
-		"drawn_copies": 79,
+		"geometry_submissions": 66,
+		"drawn_copies": 80,
 		"animated_assemblies": 5,
 	},
 	ActivityProfile.GANTRY: {
@@ -194,16 +194,16 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 1,
 	},
 	ActivityProfile.SERVICE_ARM: {
-		"node_count": 31,
-		"mesh_instances": 19,
+		"node_count": 32,
+		"mesh_instances": 20,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
-		"geometry_submissions": 19,
-		"drawn_copies": 19,
+		"geometry_submissions": 20,
+		"drawn_copies": 20,
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.DRONE_PATROL: {
@@ -321,19 +321,22 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## 392 -> 386. All 461 visible copies remain.
 ## The two rail-face batches then move nodes 501 -> 499, MeshInstances 367 -> 363,
 ## batches 19 -> 21, copies 94 -> 98 and submissions 386 -> 384. The same 461
-## visible copies, named rail anchors and animated assemblies remain.
+## visible copies, named rail anchors and animated assemblies remain. The two
+## service-arm-bearing placements now each add one degenerate whole-assembly
+## camera guard: 501 nodes, 365 MeshInstances/submission bindings and 463 counted
+## renderer copies. The guard triangles have no area and emit no pixels.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 499,
-	"mesh_instances": 363,
+	"node_count": 501,
+	"mesh_instances": 365,
 	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
 	"multimesh_batches": 21,
 	"multimesh_instances": 98,
-	"geometry_submissions": 384,
-	"drawn_copies": 461,
+	"geometry_submissions": 386,
+	"drawn_copies": 463,
 	"animated_assemblies": 21,
 }
 
@@ -393,6 +396,7 @@ var _gantry_tool: Node3D
 var _service_arm_shoulder: Node3D
 var _service_arm_elbow: Node3D
 var _service_arm_tool: Node3D
+var _service_arm_camera_guard: MeshInstance3D
 var _drone_roots: Array[Node3D] = []
 var _drone_beacon_lenses: Array[MeshInstance3D] = []
 var _beacon_lenses: Array[MeshInstance3D] = []
@@ -468,6 +472,7 @@ func _ready() -> void:
 	)
 	_adopt_presentation_builder_state()
 	_share_immutable_visual_meshes()
+	_presentation_builder.finalize_camera_visibility_dependencies()
 	if _shared_material_catalog.is_empty():
 		_shared_material_catalog = _materials.duplicate(false)
 	_service_zone_anchor.position = _get_profile_service_zone_center()
@@ -488,6 +493,7 @@ func _adopt_presentation_builder_state() -> void:
 	_service_arm_shoulder = _presentation_builder.get_service_arm_shoulder()
 	_service_arm_elbow = _presentation_builder.get_service_arm_elbow()
 	_service_arm_tool = _presentation_builder.get_service_arm_tool()
+	_service_arm_camera_guard = _presentation_builder.get_service_arm_camera_guard()
 	_drone_roots = _presentation_builder.get_drone_roots()
 	_drone_beacon_lenses = _presentation_builder.get_drone_beacon_lenses()
 	_beacon_lenses = _presentation_builder.get_beacon_lenses()
@@ -1411,17 +1417,20 @@ func _cached_presentation_references_are_live() -> bool:
 			not is_instance_valid(_service_arm_shoulder)
 			or not is_instance_valid(_service_arm_elbow)
 			or not is_instance_valid(_service_arm_tool)
+			or not is_instance_valid(_service_arm_camera_guard)
 		):
 			return false
 		required_nodes.append_array([
 			_service_arm_shoulder,
 			_service_arm_elbow,
 			_service_arm_tool,
+			_service_arm_camera_guard,
 		])
 	elif (
 		is_instance_valid(_service_arm_shoulder)
 		or is_instance_valid(_service_arm_elbow)
 		or is_instance_valid(_service_arm_tool)
+		or is_instance_valid(_service_arm_camera_guard)
 	):
 		return false
 	if _drone_roots.size() != (DRONE_COUNT if _profile_has_drones() else 0):
@@ -1539,6 +1548,8 @@ func _capture_built_presentation_contract() -> void:
 				"visibility_range_begin_margin": mesh_instance.visibility_range_begin_margin,
 				"visibility_range_end_margin": mesh_instance.visibility_range_end_margin,
 				"visibility_range_fade_mode": mesh_instance.visibility_range_fade_mode,
+				"visibility_parent": mesh_instance.visibility_parent,
+				"custom_aabb": mesh_instance.custom_aabb,
 				"transparency": mesh_instance.transparency,
 				"flip_faces": (
 					(mesh_instance.mesh as PrimitiveMesh).flip_faces
@@ -1621,6 +1632,8 @@ func _built_mesh_contracts_are_live() -> bool:
 			or not is_equal_approx(mesh_instance.visibility_range_begin_margin, float(contract.get("visibility_range_begin_margin", 0.0)))
 			or not is_equal_approx(mesh_instance.visibility_range_end_margin, float(contract.get("visibility_range_end_margin", 0.0)))
 			or mesh_instance.visibility_range_fade_mode != int(contract.get("visibility_range_fade_mode", -1))
+			or mesh_instance.visibility_parent != (contract.get("visibility_parent", NodePath()) as NodePath)
+			or not mesh_instance.custom_aabb.is_equal_approx(contract.get("custom_aabb", AABB()) as AABB)
 			or not is_equal_approx(mesh_instance.transparency, float(contract.get("transparency", 0.0)))
 			or (
 				mesh_instance.mesh is PrimitiveMesh

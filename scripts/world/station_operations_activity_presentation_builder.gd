@@ -37,12 +37,21 @@ const DRONE_CAMERA_CLEARANCE_DISTANCE := 1.85
 
 ## The Aft Operations placement puts this nonblocking articulated arm directly
 ## behind the third-person camera at the access door. At steep downward pitch
-## the boom can enter the arm even though the player's body cannot. Hide every
-## animated arm part before it reaches the near plane; 1.40 m leaves at least 0.15 m
-## beyond the 1.165 m half-diagonal of UpperArm plus the 0.08 m camera near
-## distance. The fixed collision-backed pedestal remains visible; only the
-## deliberately nonblocking animated subtree needs this camera guard.
-const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 1.4
+## the boom can enter the arm even though the player's body cannot. Range culling
+## is renderer-local, so the former 1.40 m cutoff on each of the nine articulated
+## meshes was not an assembly guard: a diagnostic fork could touch the near plane
+## while the remote shoulder renderer remained more than four metres away.
+##
+## One renderer-native HLOD dependency now makes the decision for the complete
+## animated subtree. Its origin is the shoulder pivot. The exact authored motion
+## envelope has a maximum surface-to-pivot span of 4.721922 m; the production
+## camera near plane adds 0.08 m and this 5.00 m hard boundary retains 0.198078 m
+## of reserve. The proxy's degenerate triangle emits no pixels; its only job is
+## to switch all nine dependent renderers atomically. The fixed collision-backed
+## pedestal remains continuously visible and no camera polling or gameplay state
+## is introduced.
+const SERVICE_ARM_MAXIMUM_SURFACE_SPAN := 4.721922
+const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 5.0
 
 var _presentation_root: Node3D
 var _profile_id: StringName = PROFILE_FULL
@@ -55,6 +64,7 @@ var _gantry_tool: Node3D
 var _service_arm_shoulder: Node3D
 var _service_arm_elbow: Node3D
 var _service_arm_tool: Node3D
+var _service_arm_camera_guard: MeshInstance3D
 var _drone_roots: Array[Node3D] = []
 var _drone_beacon_lenses: Array[MeshInstance3D] = []
 var _beacon_lenses: Array[MeshInstance3D] = []
@@ -136,6 +146,28 @@ func get_service_arm_elbow() -> Node3D:
 
 func get_service_arm_tool() -> Node3D:
 	return _service_arm_tool
+
+
+func get_service_arm_camera_guard() -> MeshInstance3D:
+	return _service_arm_camera_guard
+
+
+func finalize_camera_visibility_dependencies() -> void:
+	# The owner calls this after immutable mesh sharing. RenderingServer does not
+	# permit changing an HLOD dependency's mesh base while the dependency tree is
+	# live, so binding earlier would make later reusable placements emit a renderer
+	# error while adopting the shared mesh catalog.
+	if not is_instance_valid(_service_arm_shoulder) or not is_instance_valid(
+		_service_arm_camera_guard
+	):
+		return
+	for candidate in _service_arm_shoulder.find_children(
+		"*", "MeshInstance3D", true, false
+	):
+		var arm_mesh := candidate as MeshInstance3D
+		if arm_mesh == _service_arm_camera_guard:
+			continue
+		arm_mesh.visibility_parent = arm_mesh.get_path_to(_service_arm_camera_guard)
 
 
 func get_drone_roots() -> Array[Node3D]:
@@ -362,6 +394,11 @@ func _build_service_arm() -> void:
 	_service_arm_shoulder.name = "AnimatedShoulder"
 	_service_arm_shoulder.position = Vector3(0.0, 0.72, 0.0)
 	base.add_child(_service_arm_shoulder)
+	_service_arm_camera_guard = _build_camera_clearance_guard(
+		_service_arm_shoulder,
+		"WholeAssemblyCameraGuard",
+		SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+	)
 	_cylinder(_service_arm_shoulder, "ShoulderJoint", Vector3.ZERO, 0.42, 0.62, _materials["orange"], Vector3(90, 0, 0))
 	_box(_service_arm_shoulder, "UpperArm", Vector3(-0.05, 1.13, 0.0), Vector3(0.46, 2.22, 0.52), _materials["ceramic"])
 	_box(_service_arm_shoulder, "UpperArmInset", Vector3(-0.05, 1.13, -0.275), Vector3(0.22, 1.7, 0.035), _materials["frame_edge"])
@@ -381,13 +418,35 @@ func _build_service_arm() -> void:
 	_box(_service_arm_tool, "ToolHousing", Vector3(0.0, 0.26, 0.0), Vector3(0.62, 0.34, 0.72), _materials["graphite"])
 	for x_side in [-1.0, 1.0]:
 		_box(_service_arm_tool, "DiagnosticFork", Vector3(x_side * 0.23, 0.62, 0.0), Vector3(0.12, 0.62, 0.16), _materials["cyan_dim"])
-	for candidate in _service_arm_shoulder.find_children("*", "MeshInstance3D", true, false):
-		var arm_mesh := candidate as MeshInstance3D
-		arm_mesh.visibility_range_begin = SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
-		arm_mesh.visibility_range_begin_margin = 0.0
-		arm_mesh.visibility_range_fade_mode = (
-			GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-		)
+func _build_camera_clearance_guard(
+		parent: Node3D,
+		node_name: String,
+		clearance_distance: float
+	) -> MeshInstance3D:
+	# Visibility dependencies require a GeometryInstance3D. A degenerate indexed
+	# triangle gives RenderingServer a real instance and range state without a
+	# drawable surface, bloom contribution, collision, or gameplay ownership.
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([
+		Vector3.ZERO,
+		Vector3.ZERO,
+		Vector3.ZERO,
+	])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
+	var guard_mesh := ArrayMesh.new()
+	guard_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var guard := MeshInstance3D.new()
+	guard.name = node_name
+	guard.mesh = guard_mesh
+	guard.material_override = _materials["graphite"]
+	guard.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	guard.custom_aabb = AABB(Vector3(-0.001, -0.001, -0.001), Vector3.ONE * 0.002)
+	guard.visibility_range_end = clearance_distance
+	guard.visibility_range_end_margin = 0.0
+	guard.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	parent.add_child(guard)
+	return guard
 
 
 func _build_service_drones() -> void:
