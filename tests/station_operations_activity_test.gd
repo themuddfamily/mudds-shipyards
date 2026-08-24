@@ -720,6 +720,8 @@ func _test_full_drone_camera_clearance(full: StationOperationsActivity) -> void:
 						DRONE_CAMERA_CLEARANCE_DISTANCE
 					)
 					and is_zero_approx(drone_mesh.visibility_range_begin_margin)
+					and is_zero_approx(drone_mesh.visibility_range_end)
+					and is_zero_approx(drone_mesh.visibility_range_end_margin)
 					and drone_mesh.visibility_range_fade_mode
 						== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 				)
