@@ -3993,6 +3993,10 @@ func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
 	caller_snapshot["glyphs"] = _tutorial_glyphs()
 	var presentation := _first_sortie_tutorial_presenter.present_snapshot(caller_snapshot)
 	if not bool(presentation.get("accepted", false)):
+		if StringName(presentation.get("reason", &"")) in [
+			&"actor_unavailable", &"session_unavailable", &"tutorials_disabled",
+		]:
+			clear_first_sortie_tutorial(StringName(presentation.get("reason", &"detached")))
 		return false
 	_first_sortie_tutorial_source_snapshot = snapshot.duplicate(true)
 	var runtime_snapshot := presentation.duplicate(true)
@@ -4008,18 +4012,11 @@ func _apply_show_tutorials_setting(enabled: bool) -> void:
 	# RuntimeSettings owns whether tutorials are enabled. The HUD only retires
 	# its current presentation so an already-visible prompt cannot outlive the
 	# setting or reappear when this retained layer re-enters the tree.
-	_first_sortie_tutorial_source_snapshot.clear()
-	if _runtime_status_kind == &"tutorial":
-		clear_runtime_status()
+	clear_first_sortie_tutorial(&"tutorials_disabled")
 
 
 func dismiss_first_sortie_tutorial() -> Dictionary:
-	var result := _first_sortie_tutorial_presenter.request(&"dismiss")
-	if bool(result.get("accepted", false)):
-		presentation_intent_requested.emit(&"tutorial", result)
-		_first_sortie_tutorial_source_snapshot.clear()
-	clear_runtime_status()
-	return result
+	return request_first_sortie_tutorial_action(&"dismiss")
 
 
 func request_first_sortie_tutorial_action(action: StringName) -> Dictionary:
@@ -4027,8 +4024,20 @@ func request_first_sortie_tutorial_action(action: StringName) -> Dictionary:
 	if bool(result.get("accepted", false)):
 		presentation_intent_requested.emit(&"tutorial", result)
 		if action == &"dismiss":
-			_first_sortie_tutorial_source_snapshot.clear()
-			clear_runtime_status()
+			clear_first_sortie_tutorial(&"dismissed")
+	return result
+
+
+func clear_first_sortie_tutorial(reason: StringName = &"detached") -> Dictionary:
+	var result := _first_sortie_tutorial_presenter.detach(reason)
+	_first_sortie_tutorial_source_snapshot.clear()
+	if _runtime_status_kind == &"tutorial":
+		if is_instance_valid(_runtime_status_panel):
+			var focus_owner := get_viewport().gui_get_focus_owner()
+			if is_instance_valid(focus_owner) \
+					and _runtime_status_panel.is_ancestor_of(focus_owner):
+				focus_owner.release_focus()
+		clear_runtime_status()
 	return result
 
 
@@ -4042,16 +4051,22 @@ func clear_runtime_status() -> void:
 
 
 func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
-	_runtime_status_kind = kind
-	if kind != &"tutorial":
+	if kind != &"tutorial" and (
+		_runtime_status_kind == &"tutorial"
+		or not _first_sortie_tutorial_source_snapshot.is_empty()
+	):
+		_first_sortie_tutorial_presenter.detach(&"status_replaced")
 		_first_sortie_tutorial_source_snapshot.clear()
+	_runtime_status_kind = kind
 	if not is_instance_valid(_runtime_status_panel):
 		return
 	_runtime_status_title.text = str(snapshot.get("title", "STATUS"))
 	_runtime_status_detail.text = str(snapshot.get("message", snapshot.get("guidance", "")))
 	for child in _runtime_status_rows.get_children():
+		_runtime_status_rows.remove_child(child)
 		child.queue_free()
 	for child in _runtime_status_actions.get_children():
+		_runtime_status_actions.remove_child(child)
 		child.queue_free()
 	var detail := _runtime_status_detail.text
 	if snapshot.has("exposure_marker"):
@@ -4106,6 +4121,7 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 		if not gunner_reason.is_empty():
 			detail += "\nUNAVAILABLE // %s" % gunner_reason.to_upper()
 	_runtime_status_detail.text = detail
+	var tutorial_buttons: Array[Button] = []
 	for action: Dictionary in snapshot.get("actions", []):
 		var button := _menu_button(str(action.get("label", "Action")), NOMINAL)
 		button.name = "RuntimeStatus" + String(action.get("id", &"Action")).to_pascal_case() + "Button"
@@ -4115,11 +4131,27 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 			button.tooltip_text = "Release bomber payload. " + str(snapshot.get("message", "Payload release unavailable."))
 		if kind == &"bomber" and action_id == &"release_payload":
 			button.pressed.connect(request_bomber_payload_release)
+		elif kind == &"tutorial":
+			button.pressed.connect(request_first_sortie_tutorial_action.bind(action_id))
+			tutorial_buttons.append(button)
 		else:
 			button.pressed.connect(func() -> void:
 				presentation_intent_requested.emit(kind, {"action": action_id, "snapshot": snapshot.duplicate(true)})
 			)
 		_runtime_status_actions.add_child(button)
+	if not tutorial_buttons.is_empty():
+		for index in tutorial_buttons.size():
+			var button := tutorial_buttons[index]
+			button.focus_neighbor_left = button.get_path_to(
+				tutorial_buttons[maxi(0, index - 1)]
+			)
+			button.focus_neighbor_right = button.get_path_to(
+				tutorial_buttons[mini(tutorial_buttons.size() - 1, index + 1)]
+			)
+		if tutorial_buttons[0].is_inside_tree():
+			tutorial_buttons[0].grab_focus()
+		else:
+			tutorial_buttons[0].call_deferred(&"grab_focus")
 	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_runtime_status_panel.visible = true
 

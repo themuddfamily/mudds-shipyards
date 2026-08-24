@@ -30,6 +30,7 @@ const STEP_STATUS := {
 var _snapshot: Dictionary = {}
 var _source_generation := -1
 var _source_revision := -1
+var _source_step: StringName = &""
 var _attached := false
 
 
@@ -53,11 +54,18 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var step_id := StringName(str(source.get("step_id", &"walk_interact")))
 	if not STEP_ORDER.has(step_id):
 		return _reject(&"unknown_step")
-	var revision := STEP_ORDER.find(step_id)
+	var step_index := STEP_ORDER.find(step_id)
+	var revision_value: Variant = source.get("revision", step_index)
+	if not revision_value is int or int(revision_value) < 0:
+		return _reject(&"invalid_revision")
+	var revision := int(revision_value)
 	if _attached and generation < _source_generation:
 		return _reject(&"stale_generation")
 	if _attached and generation == _source_generation and revision < _source_revision:
 		return _reject(&"stale_revision")
+	if _attached and generation == _source_generation \
+			and revision == _source_revision and step_id != _source_step:
+		return _reject(&"conflicting_revision")
 	var copy := STEP_COPY[step_id] as Dictionary
 	var status := STEP_STATUS[step_id] as Dictionary
 	var family := StringName(str(source.get("input_family", &"controller")))
@@ -66,7 +74,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var glyphs := source.get("glyphs", {}) as Dictionary
 	for raw_key in glyphs:
 		prompt = prompt.replace("{%s}" % str(raw_key), str(glyphs[raw_key]))
-	var progress_label := "STEP %d OF %d" % [revision + 1, STEP_ORDER.size()]
+	var progress_label := "STEP %d OF %d" % [step_index + 1, STEP_ORDER.size()]
 	var next_action := str(status.next_action)
 	var recovery := str(status.recovery)
 	var status_text := "\nPROGRESS // %s\nNEXT ACTION // %s\nRECOVERY // %s" % [
@@ -76,13 +84,14 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var accessible_prompt := str(copy.accessible) + status_text
 	_source_generation = generation
 	_source_revision = revision
+	_source_step = step_id
 	_attached = true
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"accepted": true,
 		"attached": true,
 		"step_id": step_id,
-		"step_index": revision,
+		"step_index": step_index,
 		"generation": generation,
 		"revision": revision,
 		"title": copy.title,
@@ -97,7 +106,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			{"id": &"repeat", "label": "Repeat instruction", "focusable": true},
 			{"id": &"dismiss", "label": "Dismiss tutorial", "focusable": true},
 		],
-		"completion_intent": {"kind": &"first_sortie_tutorial", "step_id": step_id, "generation": generation, "persist": true},
+		"completion_intent": {"kind": &"first_sortie_tutorial", "step_id": step_id, "generation": generation, "revision": revision, "persist": true},
 		"color_independent": true,
 		"presentation_only": true,
 		"tutorial_progress_authority": false,
@@ -152,6 +161,7 @@ func _clear_state() -> void:
 	_snapshot.clear()
 	_source_generation = -1
 	_source_revision = -1
+	_source_step = &""
 	_attached = false
 
 
