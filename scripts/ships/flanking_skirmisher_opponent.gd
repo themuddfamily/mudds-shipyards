@@ -69,10 +69,21 @@ const SKIRMISHER_ENGINE := Color("b6ffe3")
 const REPEATER_CHARGE_SCALE := Vector3(0.62, 1.6, 0.62)
 
 # Component-local static presentation budget. The old build retained one
-# BoxMesh per chalk-band and winglet-fin node. Each mirrored pair has one exact
-# immutable recipe, so only its Mesh Resource is shared: nodes, visible copies,
-# materials, transforms, lights, collision, and structural submissions remain
-# unchanged.
+# Mesh per wing, chalk-band and winglet-fin node. Each mirrored pair has one
+# exact immutable recipe; the asymmetric wing is authored once on port and the
+# starboard node mirrors that same ArrayMesh. Only Mesh Resources are shared:
+# nodes, visible copies, materials, transforms, lights, collision, and
+# structural submissions remain unchanged.
+const WING_SIZE := Vector3(3.0, 0.22, 3.8)
+const WING_POSITIONS := [
+	Vector3(-2.4, -0.06, 1.0),
+	Vector3(2.4, -0.06, 1.0),
+]
+const WING_SCALES := [
+	Vector3.ONE,
+	Vector3(-1.0, 1.0, 1.0),
+]
+const WING_PORT_SKEW := -0.06
 const WING_CHALK_BAND_SIZE := Vector3(2.4, 0.05, 0.3)
 const WING_CHALK_BAND_POSITIONS := [
 	Vector3(-2.5, 0.06, 0.4),
@@ -96,9 +107,12 @@ const PRESENTATION_PARTICLE_NODE_COUNT := 3
 const PRESENTATION_SURFACE_SUBMISSION_COUNT := 18
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 16
-const PRESENTATION_MESH_RESOURCE_COUNT := 14
+const PRESENTATION_MESH_RESOURCE_COUNT := 13
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 6
 const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 4
+const WING_INSTANCE_COUNT := 2
+const BASELINE_WING_MESH_RESOURCE_COUNT := 2
+const WING_MESH_RESOURCE_COUNT := 1
 const WING_CHALK_BAND_INSTANCE_COUNT := 2
 const BASELINE_WING_CHALK_BAND_MESH_RESOURCE_COUNT := 2
 const WING_CHALK_BAND_MESH_RESOURCE_COUNT := 1
@@ -132,6 +146,7 @@ var _role_lamp: MeshInstance3D
 var _role_light: OmniLight3D
 var _muzzle_lens: MeshInstance3D
 var _shots_arc_denied := 0
+var _wing_mesh: ArrayMesh
 var _wing_chalk_band_mesh: BoxMesh
 var _winglet_fin_mesh: BoxMesh
 
@@ -294,9 +309,12 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 	var material_resource_ids := {}
 	var band_mesh_resource_ids := {}
 	var band_material_resource_ids := {}
+	var wing_mesh_resource_ids := {}
+	var wing_material_resource_ids := {}
 	var fin_mesh_resource_ids := {}
 	var fin_material_resource_ids := {}
 	var behavior_rows: Array[Dictionary] = []
+	var wing_behavior_rows: Array[Dictionary] = []
 	var fin_behavior_rows: Array[Dictionary] = []
 	var visual_node_count := 0
 	var mesh_instance_count := 0
@@ -307,6 +325,8 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 	var descendant_node_count := 0
 	var band_instance_count := 0
 	var band_submission_count := 0
+	var wing_instance_count := 0
+	var wing_submission_count := 0
 	var fin_instance_count := 0
 	var fin_submission_count := 0
 	var authority_node_count := 0
@@ -403,6 +423,70 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 				"material": "skirmisher_chalk",
 			})
 
+		for slot_index in WING_POSITIONS.size():
+			var expected_position: Vector3 = WING_POSITIONS[slot_index]
+			var matching_nodes: Array[MeshInstance3D] = []
+			for raw_node in visual.get_children():
+				var candidate := raw_node as MeshInstance3D
+				if candidate != null and candidate.position.is_equal_approx(expected_position):
+					matching_nodes.append(candidate)
+			if matching_nodes.size() != 1:
+				errors.append("wing_transform_slot_count_drift:%d" % slot_index)
+				continue
+			var wing := matching_nodes[0]
+			wing_instance_count += 1
+			var wing_array_mesh := wing.mesh as ArrayMesh
+			if wing_array_mesh == null:
+				errors.append("wing_mesh_type_drift:%d" % slot_index)
+			else:
+				wing_mesh_resource_ids[wing_array_mesh.get_instance_id()] = true
+				wing_submission_count += wing_array_mesh.get_surface_count()
+				if wing_array_mesh.get_surface_count() == 1:
+					var material := wing_array_mesh.surface_get_material(0)
+					if material != null:
+						wing_material_resource_ids[material.get_instance_id()] = true
+				if not _wing_mesh_matches_recipe(wing_array_mesh):
+					errors.append("wing_mesh_recipe_drift:%d" % slot_index)
+			if (
+				wing.get_parent() != visual
+				or not wing.rotation.is_equal_approx(Vector3.ZERO)
+				or not wing.scale.is_equal_approx(WING_SCALES[slot_index])
+				or not wing.visible
+				or wing.layers != 1
+				or wing.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				or wing.material_override != null
+				or wing.material_overlay != null
+			):
+				errors.append("wing_node_recipe_drift:%d" % slot_index)
+			if wing.get_script() != null:
+				scripted_node_count += 1
+			metadata_entry_count += wing.get_meta_list().size()
+			if wing.is_processing() or wing.is_physics_processing():
+				processing_node_count += 1
+			child_node_count += wing.get_child_count()
+			for child in wing.find_children("*", "Node", true, false):
+				if child.get_script() != null:
+					scripted_node_count += 1
+				if (
+					child is CollisionObject3D
+					or child is CollisionShape3D
+					or child is NavigationRegion3D
+					or child is Light3D
+					or child is AudioStreamPlayer
+					or child is AudioStreamPlayer3D
+					or child is Camera3D
+				):
+					authority_node_count += 1
+			wing_behavior_rows.append({
+				"side": "port" if slot_index == 0 else "starboard",
+				"position": [wing.position.x, wing.position.y, wing.position.z],
+				"rotation": [wing.rotation.x, wing.rotation.y, wing.rotation.z],
+				"scale": [wing.scale.x, wing.scale.y, wing.scale.z],
+				"size": [WING_SIZE.x, WING_SIZE.y, WING_SIZE.z],
+				"effective_skew": WING_PORT_SKEW if slot_index == 0 else -WING_PORT_SKEW,
+				"material": "skirmisher_moss",
+			})
+
 		for slot_index in WINGLET_FIN_POSITIONS.size():
 			var expected_position: Vector3 = WINGLET_FIN_POSITIONS[slot_index]
 			var matching_nodes: Array[MeshInstance3D] = []
@@ -490,6 +574,16 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		errors.append("wing_chalk_band_instance_count_drift")
 	if band_submission_count != WING_CHALK_BAND_INSTANCE_COUNT:
 		errors.append("wing_chalk_band_submission_count_drift")
+	if wing_mesh_resource_ids.size() != WING_MESH_RESOURCE_COUNT:
+		errors.append("wing_mesh_identity_not_shared")
+	if wing_material_resource_ids.size() != 1:
+		errors.append("wing_material_identity_count_drift")
+	if _wing_mesh == null or not wing_mesh_resource_ids.has(_wing_mesh.get_instance_id()):
+		errors.append("wing_component_mesh_identity_drift")
+	if wing_instance_count != WING_INSTANCE_COUNT:
+		errors.append("wing_instance_count_drift")
+	if wing_submission_count != WING_INSTANCE_COUNT:
+		errors.append("wing_submission_count_drift")
 	if fin_mesh_resource_ids.size() != WINGLET_FIN_MESH_RESOURCE_COUNT:
 		errors.append("winglet_fin_mesh_identity_not_shared")
 	if fin_material_resource_ids.size() != 1:
@@ -554,6 +648,11 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		"wing_chalk_band_mesh_resources_new": band_mesh_resource_ids.size(),
 		"wing_chalk_band_submissions_old": WING_CHALK_BAND_INSTANCE_COUNT,
 		"wing_chalk_band_submissions_new": band_submission_count,
+		"wing_instances": wing_instance_count,
+		"wing_mesh_resources_old": BASELINE_WING_MESH_RESOURCE_COUNT,
+		"wing_mesh_resources_new": wing_mesh_resource_ids.size(),
+		"wing_submissions_old": WING_INSTANCE_COUNT,
+		"wing_submissions_new": wing_submission_count,
 		"winglet_fin_instances": fin_instance_count,
 		"winglet_fin_mesh_resources_old": BASELINE_WINGLET_FIN_MESH_RESOURCE_COUNT,
 		"winglet_fin_mesh_resources_new": fin_mesh_resource_ids.size(),
@@ -566,6 +665,7 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		"particle_nodes_old": PRESENTATION_PARTICLE_NODE_COUNT,
 		"particle_nodes_new": particle_node_count,
 		"behavior_rows": behavior_rows,
+		"wing_behavior_rows": wing_behavior_rows,
 		"fin_behavior_rows": fin_behavior_rows,
 		"authority_node_count": authority_node_count,
 		"scripted_node_count": scripted_node_count,
@@ -579,6 +679,44 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		"vram_claimed": false,
 		"whole_scene_budget_claimed": false,
 	}.duplicate(true)
+
+
+func _wing_mesh_matches_recipe(mesh: ArrayMesh) -> bool:
+	if (
+		mesh.get_surface_count() != 1
+		or mesh.surface_get_primitive_type(0) != Mesh.PRIMITIVE_TRIANGLES
+		or mesh.surface_get_material(0) != _materials.skirmisher_moss
+	):
+		return false
+	var half_width := WING_SIZE.x * 0.5
+	var half_height := WING_SIZE.y * 0.5
+	var half_length := WING_SIZE.z * 0.5
+	var nose_x := WING_PORT_SKEW * WING_SIZE.z
+	var recipe_vertices := PackedVector3Array([
+		Vector3(nose_x, -half_height, -half_length),
+		Vector3(-half_width, -half_height, half_length),
+		Vector3(half_width, -half_height, half_length),
+		Vector3(nose_x, half_height, -half_length),
+		Vector3(-half_width, half_height, half_length),
+		Vector3(half_width, half_height, half_length),
+	])
+	var recipe_indices := PackedInt32Array([
+		0, 2, 1,
+		3, 4, 5,
+		0, 3, 5, 0, 5, 2,
+		0, 1, 4, 0, 4, 3,
+		1, 2, 5, 1, 5, 4,
+	])
+	var arrays := mesh.surface_get_arrays(0)
+	var actual_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	if actual_vertices.size() != recipe_indices.size():
+		return false
+	for vertex_index in actual_vertices.size():
+		if not actual_vertices[vertex_index].is_equal_approx(
+			recipe_vertices[recipe_indices[vertex_index]]
+		):
+			return false
+	return true
 
 
 func get_validation_errors() -> PackedStringArray:
@@ -832,7 +970,19 @@ func _build_interceptor() -> void:
 	_wing_chalk_band_mesh = _make_box_mesh(WING_CHALK_BAND_SIZE, _materials.skirmisher_chalk)
 	_winglet_fin_mesh = _make_box_mesh(WINGLET_FIN_SIZE, _materials.skirmisher_chalk)
 	for side in [-1.0, 1.0]:
-		_wedge(_visual_root, "Wing", Vector3(side * 2.4, -0.06, 1.0), Vector3(3.0, 0.22, 3.8), _materials.skirmisher_moss, side * 0.06)
+		if side < 0.0:
+			var port_wing := _wedge(
+				_visual_root, "Wing", WING_POSITIONS[0], WING_SIZE,
+				_materials.skirmisher_moss, WING_PORT_SKEW
+			)
+			_wing_mesh = port_wing.mesh as ArrayMesh
+		else:
+			var starboard_wing := MeshInstance3D.new()
+			starboard_wing.name = "Wing"
+			starboard_wing.position = WING_POSITIONS[1]
+			starboard_wing.scale = WING_SCALES[1]
+			starboard_wing.mesh = _wing_mesh
+			_visual_root.add_child(starboard_wing)
 		_box_from_mesh(_visual_root, "WingChalkBand", Vector3(side * 2.5, 0.06, 0.4), _wing_chalk_band_mesh)
 		_box_from_mesh(_visual_root, "WingletFin", Vector3(side * 3.7, 0.36, 1.9), _winglet_fin_mesh, Vector3(0.0, side * 0.16, side * -0.22))
 		_cylinder(_visual_root, "EnginePod", Vector3(side * 1.0, -0.02, 2.5), 0.36, 1.3, _materials.skirmisher_deep, Vector3(90.0, 0.0, 0.0))

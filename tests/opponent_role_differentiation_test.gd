@@ -250,6 +250,8 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		"wing_chalk_band_mesh_resources_new": int(audit.wing_chalk_band_mesh_resources_new),
 		"winglet_fin_mesh_resources_old": int(audit.winglet_fin_mesh_resources_old),
 		"winglet_fin_mesh_resources_new": int(audit.winglet_fin_mesh_resources_new),
+		"wing_mesh_resources_old": int(audit.wing_mesh_resources_old),
+		"wing_mesh_resources_new": int(audit.wing_mesh_resources_new),
 		"nodes_old": int(audit.visual_nodes_old),
 		"nodes_new": int(audit.visual_nodes_new),
 		"drawn_copies_old": int(audit.drawn_copies_old),
@@ -265,14 +267,16 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 	)
 	_check(
 		int(audit.mesh_resources_old) == 16
-		and int(audit.mesh_resources_new) == 14
+		and int(audit.mesh_resources_new) == 13
 		and int(audit.box_mesh_resources_old) == 6
 		and int(audit.box_mesh_resources_new) == 4
+		and int(audit.wing_mesh_resources_old) == 2
+		and int(audit.wing_mesh_resources_new) == 1
 		and int(audit.wing_chalk_band_mesh_resources_old) == 2
 		and int(audit.wing_chalk_band_mesh_resources_new) == 1
 		and int(audit.winglet_fin_mesh_resources_old) == 2
 		and int(audit.winglet_fin_mesh_resources_new) == 1,
-		"two shared trim recipes reduce retained Mesh identities from 16 to 14"
+		"three shared mirrored recipes reduce retained Mesh identities from 16 to 13"
 	)
 	_check(
 		int(audit.descendant_nodes_old) == 31
@@ -288,7 +292,9 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		and int(audit.wing_chalk_band_submissions_old) == 2
 		and int(audit.wing_chalk_band_submissions_new) == 2
 		and int(audit.winglet_fin_submissions_old) == 2
-		and int(audit.winglet_fin_submissions_new) == 2,
+		and int(audit.winglet_fin_submissions_new) == 2
+		and int(audit.wing_submissions_old) == 2
+		and int(audit.wing_submissions_new) == 2,
 		"sharing preserves every node, MeshInstance, visible copy, and submission"
 	)
 	_check(
@@ -339,6 +345,33 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		and String((behavior_rows[0] as Dictionary).material) == "skirmisher_chalk"
 		and String((behavior_rows[1] as Dictionary).material) == "skirmisher_chalk",
 		"both authored chalk-band transforms and their exact visible recipe stay frozen"
+	)
+	var wing_rows := audit.wing_behavior_rows as Array
+	_check(
+		wing_rows.size() == 2
+		and String((wing_rows[0] as Dictionary).side) == "port"
+		and String((wing_rows[1] as Dictionary).side) == "starboard"
+		and _float_array_matches(
+			(wing_rows[0] as Dictionary).position as Array, [-2.4, -0.06, 1.0]
+		)
+		and _float_array_matches(
+			(wing_rows[1] as Dictionary).position as Array, [2.4, -0.06, 1.0]
+		)
+		and _float_array_matches(
+			(wing_rows[0] as Dictionary).scale as Array, [1.0, 1.0, 1.0]
+		)
+		and _float_array_matches(
+			(wing_rows[1] as Dictionary).scale as Array, [-1.0, 1.0, 1.0]
+		)
+		and is_equal_approx(float((wing_rows[0] as Dictionary).effective_skew), -0.06)
+		and is_equal_approx(float((wing_rows[1] as Dictionary).effective_skew), 0.06)
+		and _float_array_matches(
+			(wing_rows[0] as Dictionary).size as Array, [3.0, 0.22, 3.8]
+		)
+		and _float_array_matches(
+			(wing_rows[1] as Dictionary).size as Array, [3.0, 0.22, 3.8]
+		),
+		"the shared ArrayMesh preserves both asymmetric wing silhouettes by exact mirroring"
 	)
 	var fin_rows := audit.fin_behavior_rows as Array
 	_check(
@@ -434,6 +467,35 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		_check(
 			bool(skirmisher.get_wing_chalk_band_resource_audit().valid),
 			"restoring the shared winglet mesh identity restores the allocation audit"
+		)
+
+	var port_wing: MeshInstance3D
+	var starboard_wing: MeshInstance3D
+	for raw_node in visual.get_children():
+		var candidate := raw_node as MeshInstance3D
+		if candidate == null:
+			continue
+		if candidate.position.is_equal_approx(Vector3(-2.4, -0.06, 1.0)):
+			port_wing = candidate
+		elif candidate.position.is_equal_approx(Vector3(2.4, -0.06, 1.0)):
+			starboard_wing = candidate
+	_check(
+		port_wing != null and starboard_wing != null and port_wing.mesh == starboard_wing.mesh,
+		"the mirrored live wing nodes bind the same immutable ArrayMesh identity"
+	)
+	if port_wing != null and starboard_wing != null:
+		var shared_wing_mesh := port_wing.mesh as ArrayMesh
+		starboard_wing.mesh = shared_wing_mesh.duplicate(false) as ArrayMesh
+		var wing_identity_red := skirmisher.get_wing_chalk_band_resource_audit()
+		_check(
+			not bool(wing_identity_red.valid)
+			and (wing_identity_red.errors as PackedStringArray).has("wing_mesh_identity_not_shared"),
+			"a separately allocated mirrored wing fails red on Resource identity"
+		)
+		starboard_wing.mesh = shared_wing_mesh
+		_check(
+			bool(skirmisher.get_wing_chalk_band_resource_audit().valid),
+			"restoring the shared wing mesh identity restores the allocation audit"
 		)
 
 	root.remove_child(skirmisher)
