@@ -151,9 +151,51 @@ func _run() -> void:
 	)
 	_check(berth_cues == [&"berth_open_vector"], "approach emits one open-vector semantic cue")
 	_check(feedback.get_state_snapshot().label == "APPROACH VECTOR", "approach state publishes its exact visible label")
+	var approach_guides: Array[MeshInstance3D] = []
+	var approach_guide_transforms: Array[Transform3D] = []
+	for index in range(1, 5):
+		var guide := feedback.get_node(
+			"FeedbackVisual/ApproachGuide%02d" % index
+		) as MeshInstance3D
+		approach_guides.append(guide)
+		approach_guide_transforms.append(guide.transform)
+	var lanes_are_longitudinal := true
+	for guide in approach_guides:
+		lanes_are_longitudinal = lanes_are_longitudinal \
+			and guide.visible \
+			and guide.scale.z >= 3.0 \
+			and guide.scale.z >= guide.scale.x * 12.0 \
+			and is_zero_approx(guide.rotation.y)
+	_check(
+		lanes_are_longitudinal
+		and is_equal_approx(approach_guides[0].position.x, -approach_guides[1].position.x)
+		and is_equal_approx(approach_guides[2].position.x, -approach_guides[3].position.x)
+		and is_equal_approx(approach_guides[0].position.z, approach_guides[1].position.z)
+		and is_equal_approx(approach_guides[2].position.z, approach_guides[3].position.z),
+		"approach renders a paired port/starboard longitudinal landing lane"
+	)
+	feedback.set_auto_advance_enabled(false)
+	feedback.seek_simulation(0.0)
+	feedback.advance_simulation(0.5)
+	var lane_transforms_stayed_fixed := true
+	for index in approach_guides.size():
+		lane_transforms_stayed_fixed = lane_transforms_stayed_fixed \
+			and approach_guides[index].transform.is_equal_approx(approach_guide_transforms[index])
+	_check(
+		lane_transforms_stayed_fixed and is_equal_approx(
+			(feedback.get_node("FeedbackVisual/LeaseStateLabel") as Label3D).modulate.a,
+			1.0
+		),
+		"approach lane and label remain steady across clock phases without flashing"
+	)
+	feedback.set_auto_advance_enabled(true)
 	_check(berth.occupy(ship, token), "fixture converts the exact opaque lease to occupancy")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"occupied" and feedback.get_state_snapshot().label == "BERTH SECURED", "real occupancy transition renders secured state")
+	_check(
+		approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible),
+		"occupancy clears every approach-only alignment lane segment"
+	)
 	_check(
 		boundary_port_forward.material_override == lease_plate.material_override,
 		"secured state returns every visible cue to the same active material identity"
@@ -162,6 +204,10 @@ func _run() -> void:
 	_check(berth.release(ship, token), "fixture releases the authoritative occupied lease")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released", "real lease release restores open state")
+	_check(
+		approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible),
+		"release clears every approach-only alignment lane segment"
+	)
 	_check(berth_cues == [&"berth_open_vector", &"berth_capture_secured", &"berth_release"], "release emits one semantic release cue")
 
 	await _test_state_channels(berth, feedback, ship)
@@ -174,7 +220,7 @@ func _run() -> void:
 	feedback.seek_simulation(0.0)
 	for _step in 30:
 		feedback.advance_simulation(1.0 / 120.0)
-	_check(absf(float(feedback.get_state_snapshot().phase) - first_phase) < 0.00001, "manual animation is invariant between one-step and 120 Hz subdivision")
+	_check(absf(float(feedback.get_state_snapshot().phase) - first_phase) < 0.00001, "manual clock is invariant between one-step and 120 Hz subdivision")
 	feedback.set_feedback_paused(true)
 	feedback.advance_simulation(1.0)
 	_check(absf(float(feedback.get_state_snapshot().elapsed) - 0.25) < 0.00001, "paused feedback rejects manual time advancement")
@@ -262,13 +308,26 @@ func _run() -> void:
 	await process_frame
 	var passive_label := feedback.get_node("FeedbackVisual/LeaseStateLabel") as Label3D
 	_check(
-		_weak_reconcile_states == [&"released"] and passive_label.text == "BERTH OPEN",
-		"paused manual-clock polling reconciles a freed weak owner into released state and live copy without getter or advance"
+		_weak_reconcile_states == [&"released"]
+		and passive_label.text == "BERTH OPEN"
+		and approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible),
+		"paused polling clears a freed weak owner's approach lane and live copy without getter or advance"
 	)
 	feedback.state_changed.disconnect(_on_weak_reconcile_state_changed)
 	feedback.set_feedback_paused(false)
 
 	var detached_state_events: Array[StringName] = []
+	var detached_owner := Node3D.new()
+	detached_owner.name = "DetachedApproachOwner"
+	stage.add_child(detached_owner)
+	var detached_token := berth.try_reserve(detached_owner, TORRENT_DEFINITION)
+	await process_frame
+	_check(
+		not detached_token.is_empty()
+		and feedback.get_feedback_state() == &"approach"
+		and approach_guides.all(func(guide: MeshInstance3D) -> bool: return guide.visible),
+		"detach fixture starts with a live caller-owned approach lane"
+	)
 	var detached_state_listener := func(state: StringName) -> void:
 		detached_state_events.append(state)
 	feedback.state_changed.connect(detached_state_listener)
@@ -276,6 +335,10 @@ func _run() -> void:
 	await process_frame
 	var detached_state := feedback.get_state_snapshot()
 	_check(not bool(berth_audio.get_snapshot().attached), "detaching feedback clears the berth audio binding")
+	_check(
+		berth.release(detached_owner, detached_token),
+		"caller can release its lease while detached feedback holds no authority"
+	)
 	feedback.advance_simulation(1.0)
 	feedback.seek_simulation(float(detached_state.elapsed) + 3.0)
 	feedback.set_feedback_enabled(false)
@@ -289,7 +352,13 @@ func _run() -> void:
 	)
 	berth.add_child(feedback)
 	await process_frame
-	_check(feedback.get_feedback_state() == &"released" and bool(feedback.get_audit_report().valid), "child detach and re-add reconnects lifecycle without rebuilding")
+	_check(
+		feedback.get_feedback_state() == &"released"
+		and approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible)
+		and bool(feedback.get_audit_report().valid),
+		"child reuse rejects its stale approach state and clears the lane without rebuilding"
+	)
+	detached_owner.queue_free()
 	var reentered_audio: RefCounted = feedback.get_audio_binding()
 	_check(bool(reentered_audio.get_snapshot().attached) and int(reentered_audio.get_snapshot().emitted_cue_count) == 0, "re-entry creates a clean deduplicated berth audio generation")
 	_check(not bool(reentered_audio.present_state(&"released").accepted), "duplicate released state does not emit a berth cue")

@@ -26,6 +26,12 @@ extends Node3D
 ##    unbroken bar for secured. It is static geometry, not motion, so it degrades
 ##    gracefully under the reduced-motion accessibility preset and it survives a
 ##    fully desaturated frame.
+## 3. During approach, the four existing guide submissions form two long,
+##    parallel deck lanes instead of moving lateral ticks. Their fixed port and
+##    starboard edges give the pilot a steady heading/centering reference without
+##    relying on colour, flashing, or sampled ship motion. The direct parent's
+##    reservation state remains the only input: this component never evaluates,
+##    moves, captures, reserves, or occupies the approaching ship.
 ##
 ## The palette is safe by default rather than gated behind
 ## `RuntimeSettings.colorblind_palette`. An accessibility option a player has to
@@ -195,7 +201,10 @@ func get_component_id() -> StringName:
 
 
 func get_feedback_state() -> StringName:
-	_reconcile_state(false)
+	# Detached/queued instances expose their last coherent snapshot but may not
+	# derive or publish a transition from a missing, stale parent generation.
+	if _can_mutate_feedback():
+		_reconcile_state(false)
 	return _state
 
 func get_audio_binding() -> RefCounted:
@@ -264,7 +273,8 @@ func seek_simulation(time_seconds: float) -> void:
 
 
 func get_state_snapshot() -> Dictionary:
-	_reconcile_state(false)
+	if _can_mutate_feedback():
+		_reconcile_state(false)
 	var owner := _berth.get_reservation_owner() if is_instance_valid(_berth) else null
 	var occupant := _berth.get_occupant() if is_instance_valid(_berth) else null
 	return {
@@ -404,7 +414,8 @@ func get_performance_report() -> Dictionary:
 
 
 func get_audit_report() -> Dictionary:
-	_reconcile_state(false)
+	if _can_mutate_feedback():
+		_reconcile_state(false)
 	var errors := PackedStringArray()
 	if not _built:
 		errors.append("presentation_not_built")
@@ -527,13 +538,20 @@ func _build_presentation() -> void:
 	for index in 4:
 		var side := -1.0 if index % 2 == 0 else 1.0
 		var row := -1.0 if index < 2 else 1.0
+		# Two fixed segments per side make a long, broken landing lane. Longitudinal
+		# ink makes yaw and lateral drift readable from the cockpit; the center break
+		# keeps the lane distinct from the occupied state's solid transverse bar.
+		var lane_segment_length := minf(4.2, cue_half_length * 0.40)
 		var guide := _add_box(
 			"ApproachGuide%02d" % (index + 1),
-			Vector3(side * cue_half_width * 0.38, 0.18, row * cue_half_length * 0.33),
-			Vector3(minf(1.25, cue_half_width * 0.18), 0.08, 0.18),
+			Vector3(
+				side * cue_half_width * 0.38,
+				0.18,
+				row * lane_segment_length * 0.54
+			),
+			Vector3(0.18, 0.08, lane_segment_length),
 			_materials.active
 		)
-		guide.rotation.y = deg_to_rad(-28.0 * side * row)
 		_guide_meshes.append(guide)
 		_base_guide_transforms.append(guide.transform)
 
@@ -761,15 +779,11 @@ func _mesh_matches_contract(mesh: MeshInstance3D, contract: Dictionary) -> bool:
 	if mesh.mesh == null or not mesh.mesh is BoxMesh or mesh.material_override == null:
 		return false
 	var expected_transform := contract.get("transform", Transform3D.IDENTITY) as Transform3D
-	# Approach guides have a deterministic phase translation; compare against the
-	# exact state-derived pose rather than the static build pose.
+	# Approach guides are a steady alignment reference. They never translate or
+	# rotate in response to the presentation clock.
 	if _guide_meshes.has(mesh):
 		var guide_index := _guide_meshes.find(mesh)
 		expected_transform = _base_guide_transforms[guide_index]
-		if _state == STATE_APPROACH:
-			var phase := fposmod(_elapsed, 1.0)
-			var direction := -signf(expected_transform.origin.z)
-			expected_transform.origin.z += direction * phase * minf(0.85, _built_cue_half_length * 0.07)
 	var expected_visible := _expected_visibility_for_mesh(mesh)
 	var expected_material := _expected_material_for_mesh(mesh)
 	return get_node_or_null(contract.get("path", NodePath())) == mesh \
@@ -918,7 +932,9 @@ func _state_label_contract() -> Dictionary:
 	elif _state == STATE_OCCUPIED:
 		text_value = "BERTH SECURED"
 		color = LABEL_OCCUPIED
-	color.a = 1.0 if _state == STATE_OCCUPIED else 0.88 + 0.12 * sin(_elapsed * TAU)
+	# State copy is deliberately steady. Shape and text carry urgency without a
+	# flashing or pulsing opacity channel.
+	color.a = 1.0
 	return {"text": text_value, "modulate": color}
 
 
@@ -1099,18 +1115,15 @@ func _apply_visual_state() -> void:
 func _apply_animation() -> void:
 	if not _built or not is_instance_valid(_visual_root):
 		return
-	var phase := fposmod(_elapsed, 1.0)
+	# Retain the deterministic clock API for lifecycle compatibility, but keep the
+	# landing-alignment presentation steady at every phase.
 	for index in _guide_meshes.size():
 		var guide := _guide_meshes[index]
 		if not is_instance_valid(guide) or index >= _base_guide_transforms.size():
 			continue
 		guide.transform = _base_guide_transforms[index]
-		if _state == STATE_APPROACH:
-			var direction := -signf(guide.position.z)
-			guide.position.z += direction * phase * minf(0.85, _built_cue_half_length * 0.07)
-	var pulse := 0.88 + 0.12 * sin(_elapsed * TAU)
 	if is_instance_valid(_label):
-		_label.modulate.a = pulse if _state != STATE_OCCUPIED else 1.0
+		_label.modulate.a = 1.0
 
 
 func _refresh_processing() -> void:
