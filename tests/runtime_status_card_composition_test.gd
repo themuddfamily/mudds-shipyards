@@ -42,6 +42,56 @@ func _run() -> void:
 		and not (hud.get("_bomber_status_panel") as Control).visible,
 		"bomber clear restores the retained tutorial composition",
 	)
+	hud.update_copilot_navigation_support({
+		"role": "copilot",
+		"occupant": "Mira",
+		"request_state": "pending",
+	})
+	var cards := hud.get("_runtime_status_cards") as Dictionary
+	var copilot_serial := int((cards[&"copilot"] as Dictionary).get("serial", -1))
+	var tutorial_serial := int((cards[&"tutorial"] as Dictionary).get("serial", -1))
+	var copilot_action := (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) as Button
+	copilot_action.grab_focus()
+	await process_frame
+	hud.call("_refresh_input_prompts")
+	await process_frame
+	cards = hud.get("_runtime_status_cards") as Dictionary
+	_check(
+		hud.get("_runtime_status_kind") == &"copilot"
+		and int((cards[&"copilot"] as Dictionary).get("serial", -1)) == copilot_serial
+		and int((cards[&"tutorial"] as Dictionary).get("serial", -1)) == tutorial_serial
+		and hud.get_viewport().gui_get_focus_owner() == copilot_action,
+		"tutorial prompt refresh retains copilot foreground serial and focus",
+	)
+	hud.update_loadmaster_telemetry({
+		"role": "loadmaster",
+		"occupant": "Rhea",
+		"manifest_state": "review",
+	})
+	cards = hud.get("_runtime_status_cards") as Dictionary
+	var loadmaster_serial := int((cards[&"loadmaster"] as Dictionary).get("serial", -1))
+	var loadmaster_action := (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) as Button
+	loadmaster_action.grab_focus()
+	await process_frame
+	hud.call("_refresh_input_prompts")
+	await process_frame
+	cards = hud.get("_runtime_status_cards") as Dictionary
+	_check(
+		hud.get("_runtime_status_kind") == &"loadmaster"
+		and int((cards[&"loadmaster"] as Dictionary).get("serial", -1)) == loadmaster_serial
+		and int((cards[&"tutorial"] as Dictionary).get("serial", -1)) == tutorial_serial
+		and hud.get_viewport().gui_get_focus_owner() == loadmaster_action,
+		"tutorial prompt refresh retains loadmaster foreground serial and focus",
+	)
+	hud.clear_runtime_status()
+	hud.call("_refresh_input_prompts")
+	await process_frame
+	_check(
+		(hud.get("_runtime_status_cards") as Dictionary).is_empty()
+		and (hud.get("_first_sortie_tutorial_source_snapshot") as Dictionary).is_empty()
+		and not (hud.get("_runtime_status_panel") as Control).visible,
+		"legacy runtime all-clear retires tutorial redraw state without resurrection",
+	)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

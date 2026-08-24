@@ -589,6 +589,13 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if is_queued_for_deletion():
+		# A queued glyph/profile refresh must not repopulate presentation state
+		# while the HUD is being destroyed. Retained subtree exits deliberately
+		# keep these records so re-entry can redraw the current tutorial.
+		_first_sortie_tutorial_source_snapshot.clear()
+		_runtime_status_cards.clear()
+		_runtime_status_kind = &""
 	if _hero_component_hud_binding != null:
 		if is_queued_for_deletion():
 			_hero_component_hud_binding.detach()
@@ -4086,7 +4093,13 @@ func clear_bomber_payload_status() -> void:
 	_refresh_bomber_payload_help()
 
 
-func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
+func apply_first_sortie_tutorial_snapshot(
+		snapshot: Dictionary, activate_runtime_card: bool = true
+) -> bool:
+	# Prompt/glyph redraws may update an existing retained tutorial but cannot
+	# recreate one after the complete runtime surface was explicitly cleared.
+	if not activate_runtime_card and not _runtime_status_cards.has(&"tutorial"):
+		return false
 	var caller_snapshot := snapshot.duplicate(true)
 	caller_snapshot["input_family"] = _tutorial_input_family()
 	caller_snapshot["glyphs"] = _tutorial_glyphs()
@@ -4101,7 +4114,7 @@ func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
 	var runtime_snapshot := presentation.duplicate(true)
 	runtime_snapshot["message"] = presentation.prompt
 	runtime_snapshot["detail"] = presentation.prompt
-	_render_runtime_status(runtime_snapshot, &"tutorial")
+	set_runtime_status_card(&"tutorial", runtime_snapshot, activate_runtime_card)
 	return true
 
 
@@ -4144,6 +4157,10 @@ func clear_first_sortie_tutorial(reason: StringName = &"detached") -> Dictionary
 func clear_runtime_status(source: StringName = &"") -> void:
 	if source.is_empty():
 		_runtime_status_cards.clear()
+		# This is the only producer-side redraw source kept outside the card map.
+		# Retire it with the legacy all-clear so a later device/profile refresh
+		# cannot silently resurrect a cleared tutorial.
+		_first_sortie_tutorial_source_snapshot.clear()
 	else:
 		_runtime_status_cards.erase(source)
 	_refresh_runtime_status_cards()
@@ -4152,9 +4169,22 @@ func clear_runtime_status(source: StringName = &"") -> void:
 ## Source-keyed presentation seam for HUD-only producers. The detached payload
 ## and stable key are retained independently; no producer can replace another
 ## producer's backing card merely by drawing.
-func set_runtime_status_card(source: StringName, snapshot: Dictionary) -> bool:
+func set_runtime_status_card(
+		source: StringName, snapshot: Dictionary, activate: bool = true
+) -> bool:
 	if source.is_empty():
 		return false
+	if not activate:
+		if not _runtime_status_cards.has(source):
+			return false
+		var retained_card := _runtime_status_cards[source] as Dictionary
+		retained_card["snapshot"] = snapshot.duplicate(true)
+		_runtime_status_cards[source] = retained_card
+		# A background redraw must not rebuild the foreground action row: doing so
+		# would discard its live focus owner despite no foreground publication.
+		if _runtime_status_kind == source:
+			_refresh_runtime_status_cards()
+		return true
 	_runtime_status_card_serial += 1
 	_runtime_status_cards[source] = {
 		"serial": _runtime_status_card_serial,
@@ -6062,8 +6092,14 @@ func _refresh_input_prompts() -> void:
 	_refresh_all_binding_rows()
 	if is_instance_valid(_help_panel):
 		_set_help_text(_help_rows_with_role_context(_state_mode))
-	if not _first_sortie_tutorial_source_snapshot.is_empty():
-		apply_first_sortie_tutorial_snapshot(_first_sortie_tutorial_source_snapshot)
+	if (
+		not is_queued_for_deletion()
+		and not _first_sortie_tutorial_source_snapshot.is_empty()
+		and _runtime_status_cards.has(&"tutorial")
+	):
+		apply_first_sortie_tutorial_snapshot(
+			_first_sortie_tutorial_source_snapshot, false
+		)
 
 
 func _refresh_input_prompts_after_reentry() -> void:
