@@ -24,6 +24,7 @@ func _run() -> void:
 	var route_root := cluster.get_node(^"RouteBeacons") as Node3D
 	var retained_ids := _sign_board_ids(route_root)
 	var descendant_count := route_root.find_children("*", "", true, false).size()
+	var authored_transforms := _board_transforms(route_root)
 	_assert_state(cluster, route_root, &"idle", [&"available", &"available", &"available", &"available"])
 
 	var started := binding.start_patrol()
@@ -158,13 +159,101 @@ func _run() -> void:
 		and _sign_board_ids(route_root) == retained_ids,
 		"new-generation patrol reuse preserves all marker identities"
 	)
+
+	var failed := binding.fail_patrol(&"craft_unavailable")
+	var failed_state := cluster.get_patrol_marker_presentation_state()
+	var failed_transforms := _board_transforms(route_root)
+	_check(
+		bool(failed.get("accepted", false))
+		and failed_state.get("state_id") == &"failed"
+		and failed_state.get("terminal_state") == &"failed"
+		and failed_state.get("failure_reason") == &"craft_unavailable",
+		"the authoritative patrol failure reaches the retained world snapshot"
+	)
+	_assert_state(cluster, route_root, &"failed", [&"failed", &"failed", &"failed", &"failed"])
+	_check(
+		_board(route_root, 0).scale.is_equal_approx(Vector3(1.55, 0.28, 0.55))
+		and _board(route_root, 1).rotation_degrees.is_equal_approx(Vector3(0.0, 0.0, 42.0))
+		and failed_transforms != authored_transforms,
+		"failure collapses and alternately crosses every route board without relying on colour"
+	)
+
+	root.remove_child(cluster)
+	await process_frame
+	root.add_child(cluster)
+	await process_frame
+	await process_frame
+	_check(
+		_sign_board_ids(route_root) == retained_ids
+		and _board_transforms(route_root) == failed_transforms
+		and cluster.get_patrol_marker_presentation_state().get("failure_reason") == &"craft_unavailable",
+		"detach and re-entry retain the exact authoritative failure geometry"
+	)
+
+	var failed_reset := binding.reset_patrol()
+	_check(
+		bool(failed_reset.get("accepted", false))
+		and _sign_board_ids(route_root) == retained_ids
+		and _board_transforms(route_root) == authored_transforms,
+		"failure reset restores every exact authored board transform"
+	)
+	var abort_start := binding.start_patrol()
+	var aborted := binding.abort_patrol(&"pilot_recalled")
+	var aborted_state := cluster.get_patrol_marker_presentation_state()
+	var aborted_transforms := _board_transforms(route_root)
+	_check(
+		bool(abort_start.get("accepted", false))
+		and bool(aborted.get("accepted", false))
+		and aborted_state.get("state_id") == &"aborted"
+		and aborted_state.get("terminal_state") == &"aborted"
+		and aborted_state.get("abort_reason") == &"pilot_recalled",
+		"the authoritative patrol abort reaches the retained world snapshot"
+	)
+	_assert_state(cluster, route_root, &"aborted", [&"aborted", &"aborted", &"aborted", &"aborted"])
+	_check(
+		_board(route_root, 0).position.is_equal_approx(Vector3(-2.6, 7.8, 0.0))
+		and _board(route_root, 1).position.is_equal_approx(Vector3(2.6, 7.8, 0.0))
+		and aborted_transforms != failed_transforms
+		and aborted_transforms != authored_transforms,
+		"abort parts every route board into a distinct non-colour withdrawal silhouette"
+	)
+	root.remove_child(cluster)
+	await process_frame
+	root.add_child(cluster)
+	await process_frame
+	await process_frame
+	_check(
+		_sign_board_ids(route_root) == retained_ids
+		and _board_transforms(route_root) == aborted_transforms
+		and cluster.get_patrol_marker_presentation_state().get("abort_reason") == &"pilot_recalled",
+		"detach and re-entry retain the exact authoritative abort geometry"
+	)
+	var abort_reset := binding.reset_patrol()
+	var final_restart := binding.start_patrol()
+	_check(
+		bool(abort_reset.get("accepted", false))
+		and bool(final_restart.get("accepted", false))
+		and _sign_board_ids(route_root) == retained_ids
+		and _board_transforms(route_root)[0] != aborted_transforms[0]
+		and _board(route_root, 0).scale.is_equal_approx(NearbySectorCluster.PATROL_SIGN_TARGET_SCALE),
+		"abort reset and the next generation restore then reuse the exact retained board roster"
+	)
 	_check(
 		route_root.find_children("*", "CollisionObject3D", true, false).is_empty()
 		and bool(restarted_state.get("static_geometry_only", false))
 		and not bool(restarted_state.get("checkpoint_authority", true))
+		and not bool(aborted_state.get("activity_authority", true))
+		and not bool(aborted_state.get("patrol_authority", true))
 		and not bool(restarted_state.get("movement_authority", true))
-		and not bool(restarted_state.get("reward_authority", true)),
-		"patrol marker presentation adds no collision, checkpoint, movement, or reward authority"
+		and not bool(aborted_state.get("reward_authority", true))
+		and not bool(aborted_state.get("gameflow_authority", true))
+		and not bool(aborted_state.get("network_authority", true))
+		and int(aborted_state.get("node_delta", -1)) == 0
+		and int(aborted_state.get("light_delta", -1)) == 0
+		and int(aborted_state.get("submission_delta", -1)) == 0
+		and int(aborted_state.get("collision_delta", -1)) == 0
+		and route_root.find_children("*", "", true, false).size() == descendant_count,
+		"terminal cues add no nodes, lights, submissions, collision, or gameplay authority"
 	)
 
 	cluster.queue_free()
@@ -211,6 +300,13 @@ func _sign_board_ids(route_root: Node3D) -> Array[int]:
 	for marker_index in BEACON_NAMES.size():
 		ids.append(_board(route_root, marker_index).get_instance_id())
 	return ids
+
+
+func _board_transforms(route_root: Node3D) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for marker_index in BEACON_NAMES.size():
+		transforms.append(_board(route_root, marker_index).transform)
+	return transforms
 
 
 func _check(condition: bool, message: String) -> void:

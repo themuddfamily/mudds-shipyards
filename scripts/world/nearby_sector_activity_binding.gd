@@ -577,6 +577,24 @@ func advance_patrol(delta: float, position: Vector3) -> Dictionary:
 	return result
 
 
+func fail_patrol(reason: StringName) -> Dictionary:
+	if not is_inside_tree() or _patrol == null:
+		return _result(false, &"not_ready")
+	var result: Dictionary = _patrol.fail(reason, _patrol.get_generation())
+	_publish_patrol_presentation(result)
+	_publish_cinder_route_audio()
+	return result
+
+
+func abort_patrol(reason: StringName) -> Dictionary:
+	if not is_inside_tree() or _patrol == null:
+		return _result(false, &"not_ready")
+	var result: Dictionary = _patrol.abort(reason, _patrol.get_generation())
+	_publish_patrol_presentation(result)
+	_publish_cinder_route_audio()
+	return result
+
+
 func reset_patrol() -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")

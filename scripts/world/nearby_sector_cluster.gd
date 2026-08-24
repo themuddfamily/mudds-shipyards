@@ -173,6 +173,11 @@ const PATROL_SIGN_PENDING_SCALE := Vector3(0.75, 0.6, 1.0)
 const PATROL_SIGN_TARGET_SCALE := Vector3(1.2, 0.55, 1.0)
 const PATROL_SIGN_INTERRUPTED_SCALE := Vector3(1.4, 0.35, 1.0)
 const PATROL_SIGN_COMPLETE_SCALE := Vector3(1.1, 1.1, 3.0)
+const PATROL_SIGN_FAILED_SCALE := Vector3(1.55, 0.28, 0.55)
+const PATROL_SIGN_FAILED_POSITION := Vector3(0.0, 7.2, 0.0)
+const PATROL_SIGN_ABORTED_SCALE := Vector3(0.72, 0.48, 1.25)
+const PATROL_SIGN_ABORTED_LEFT_POSITION := Vector3(-2.6, 7.8, 0.0)
+const PATROL_SIGN_ABORTED_RIGHT_POSITION := Vector3(2.6, 7.8, 0.0)
 
 ## Rocks take a much heavier chamfer than station stock. The kit's box rule caps
 ## at 0.18 m, which on a 30 m boulder is invisible, so the chamfer is proportional
@@ -826,11 +831,20 @@ func _apply_patrol_marker_presentation(snapshot: Dictionary) -> Dictionary:
 		elif state_id == &"completed":
 			status_id = &"completed"
 			board_scale = PATROL_SIGN_COMPLETE_SCALE
-		elif state_id in [&"failed", &"aborted"]:
-			status_id = &"route_risk"
-			board_scale = PATROL_SIGN_INTERRUPTED_SCALE
-			board_position = Vector3(0.0, 8.0, 0.0)
-			board_rotation = Vector3(0.0, 0.0, -35.0 if marker_index % 2 == 0 else 35.0)
+		elif state_id == &"failed":
+			status_id = &"failed"
+			board_scale = PATROL_SIGN_FAILED_SCALE
+			board_position = PATROL_SIGN_FAILED_POSITION
+			board_rotation = Vector3(0.0, 0.0, -42.0 if marker_index % 2 == 0 else 42.0)
+		elif state_id == &"aborted":
+			status_id = &"aborted"
+			board_scale = PATROL_SIGN_ABORTED_SCALE
+			board_position = (
+				PATROL_SIGN_ABORTED_LEFT_POSITION
+				if marker_index % 2 == 0
+				else PATROL_SIGN_ABORTED_RIGHT_POSITION
+			)
+			board_rotation = Vector3(0.0, 0.0, -18.0 if marker_index % 2 == 0 else 18.0)
 		sign_board.scale = board_scale
 		sign_board.position = board_position
 		sign_board.rotation_degrees = board_rotation
@@ -856,13 +870,22 @@ func _apply_patrol_marker_presentation(snapshot: Dictionary) -> Dictionary:
 		"expected_marker_name": expected_marker_name,
 		"dwell_fraction": dwell_fraction,
 		"route_risk_interrupted": interruption,
+		"terminal_state": state_id if state_id in [&"failed", &"aborted"] else &"",
+		"failure_reason": StringName(snapshot.get("failure_reason", &"")),
+		"abort_reason": StringName(snapshot.get("abort_reason", &"")),
 		"markers": marker_states,
 		"static_geometry_only": true,
 		"node_delta": 0,
+		"light_delta": 0,
+		"submission_delta": 0,
 		"collision_delta": 0,
 		"checkpoint_authority": false,
+		"activity_authority": false,
+		"patrol_authority": false,
 		"movement_authority": false,
 		"reward_authority": false,
+		"gameflow_authority": false,
+		"network_authority": false,
 	}.duplicate(true)
 	return {"accepted": true, "reason": &"patrol_marker_presentation_applied"}
 
