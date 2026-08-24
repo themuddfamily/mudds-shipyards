@@ -8,6 +8,8 @@ extends HeroShip
 ## flight, damage, audio, weapons, boarding, docking and every numeric handling
 ## value remain modern gameplay authority owned by this node and HeroShip.
 
+const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
+
 const SCHEMA_VERSION := 1
 const EVIDENCE_STATUS: StringName = &"b7_observed_partial"
 const EVIDENCE_SCOPE: StringName = &"B7_frames_373_467_only"
@@ -3184,6 +3186,25 @@ const REQUIRED_PLUME_NAMES := [
 	"LOD1StarboardEnginePlume",
 ]
 
+## One steady presentation of the already-authoritative starboard-wing ledger
+## stage. The exposed spar rises from the upper surface of the production wing
+## shell, outboard of the cockpit/aim corridor and aft of both muzzle origins,
+## so the chase view reads the damage in silhouette without obscuring a control
+## or interaction lane.
+const DAMAGE_CUE_COMPONENT_ID: StringName = &"starboard_wing"
+const DAMAGE_CUE_POSITION := Vector3(4.15, 0.28, 1.80)
+const DAMAGE_SCORCH_SIZE := Vector3(1.45, 0.05, 1.30)
+const DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.025, 0.0)
+const DAMAGE_SPAR_SIZE := Vector3(0.16, 0.72, 1.08)
+const DAMAGE_SPAR_POSITION := Vector3(0.0, 0.36, 0.0)
+const DAMAGE_SCORCH_COLOR := Color("14181a")
+const DAMAGE_SPAR_COLOR := Color("ff723d")
+
+static var _shared_damage_scorch_mesh: BoxMesh
+static var _shared_damage_scorch_material: StandardMaterial3D
+static var _shared_damage_spar_mesh: BoxMesh
+static var _shared_damage_spar_material: StandardMaterial3D
+
 const CONTENT_NOTE := (
 	"B7 frames 373-467 securely link a wide pale delta/arrow craft to the "
 	+ "Zenith-class Interceptor label in footage uploaded in 2012. The recording "
@@ -3205,6 +3226,7 @@ var _close_plume_batch: MultiMeshInstance3D
 var _close_plume_sources: Array[MeshInstance3D] = []
 var _far_plume_batch: MultiMeshInstance3D
 var _far_plume_sources: Array[MeshInstance3D] = []
+var _starboard_wing_damage_cue: Node3D
 var _identity_snapshot: Dictionary = {}
 
 
@@ -3218,9 +3240,12 @@ func _ready() -> void:
 		_zenith_built = rebuild_variant_presentation(_build_zenith_variant)
 	if _zenith_built:
 		_zenith_built = _reconfigure_component_damage_from_final_root_collision()
+	if not component_damage_changed.is_connected(_on_zenith_component_damage_changed):
+		component_damage_changed.connect(_on_zenith_component_damage_changed)
 	_apply_zenith_metadata()
 	_sync_zenith_canopy_immediately()
 	_sync_zenith_engine_presentation_immediately()
+	_sync_starboard_wing_damage_cue()
 
 
 func _physics_process(delta: float) -> void:
@@ -3244,6 +3269,53 @@ func get_zenith_engine_plumes() -> Array[MeshInstance3D]:
 		if is_instance_valid(plume):
 			result.append(plume)
 	return result
+
+
+## Detached presentation snapshot only. Component integrity and recovery remain
+## private to HeroShip's existing damage model and production mutation paths.
+func get_starboard_wing_damage_cue_snapshot() -> Dictionary:
+	var cue := _starboard_wing_damage_cue \
+		if is_instance_valid(_starboard_wing_damage_cue) else null
+	var scorch := cue.get_node_or_null(^"DamageScorch") as MeshInstance3D \
+		if cue != null else null
+	var spar := cue.get_node_or_null(^"ExposedWingSpar") as MeshInstance3D \
+		if cue != null else null
+	var bounds := AABB()
+	var has_bounds := false
+	for renderer in [scorch, spar]:
+		if renderer == null or renderer.mesh == null or cue == null:
+			continue
+		var renderer_bounds: AABB = cue.transform * renderer.transform * renderer.mesh.get_aabb()
+		bounds = renderer_bounds if not has_bounds else bounds.merge(renderer_bounds)
+		has_bounds = true
+	var model := get_component_damage()
+	return {
+		"component_id": DAMAGE_CUE_COMPONENT_ID,
+		"stage": ShipComponentDamageType.state_id_for(
+			model.get_component_state(DAMAGE_CUE_COMPONENT_ID)
+		) if model != null and model.is_configured() else &"unavailable",
+		"visible": cue.visible if cue != null else false,
+		"local_bounds": bounds,
+		"renderer_nodes_per_copy": int(scorch != null) + int(spar != null),
+		"geometry_submissions_per_copy": 2 if scorch != null and spar != null else 0,
+		"mesh_resource_ids": PackedInt64Array([
+			_shared_damage_scorch_mesh.get_instance_id() \
+				if _shared_damage_scorch_mesh != null else 0,
+			_shared_damage_spar_mesh.get_instance_id() \
+				if _shared_damage_spar_mesh != null else 0,
+		]),
+		"material_resource_ids": PackedInt64Array([
+			_shared_damage_scorch_material.get_instance_id() \
+				if _shared_damage_scorch_material != null else 0,
+			_shared_damage_spar_material.get_instance_id() \
+				if _shared_damage_spar_material != null else 0,
+		]),
+		"presentation_only": true,
+		"processes": false,
+		"flashes": false,
+		"damage_authority": false,
+		"repair_authority": false,
+	}.duplicate(true)
 
 
 func get_zenith_evidence_report() -> Dictionary:
@@ -3433,6 +3505,7 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	_sync_zenith_canopy_immediately()
+	_sync_starboard_wing_damage_cue()
 
 
 func _set_canopy_open_fraction(open_fraction: float) -> void:
@@ -3530,6 +3603,7 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 	_collect_engine_plumes()
 	_install_close_plume_batch()
 	_install_far_plume_batch()
+	_build_starboard_wing_damage_cue(staged_visual)
 	for collision in inherited_collisions:
 		collision.queue_free()
 	if inherited_visual.get_parent() != null:
@@ -3537,6 +3611,75 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 	inherited_visual.queue_free()
 	_identity_snapshot = _capture_runtime_identities()
 	return true
+
+
+func _build_starboard_wing_damage_cue(visual: Node3D) -> void:
+	_starboard_wing_damage_cue = Node3D.new()
+	_starboard_wing_damage_cue.name = "StarboardWingDamageCue"
+	_starboard_wing_damage_cue.position = DAMAGE_CUE_POSITION
+	_starboard_wing_damage_cue.process_mode = Node.PROCESS_MODE_DISABLED
+	_starboard_wing_damage_cue.set_meta(&"presentation_only", true)
+	_starboard_wing_damage_cue.set_meta(&"component_id", DAMAGE_CUE_COMPONENT_ID)
+	_starboard_wing_damage_cue.set_meta(&"damage_authority", false)
+	_starboard_wing_damage_cue.set_meta(&"repair_authority", false)
+	visual.add_child(_starboard_wing_damage_cue)
+
+	if _shared_damage_scorch_mesh == null:
+		_shared_damage_scorch_mesh = BoxMesh.new()
+		_shared_damage_scorch_mesh.size = DAMAGE_SCORCH_SIZE
+		_shared_damage_scorch_mesh.resource_local_to_scene = false
+	if _shared_damage_scorch_material == null:
+		_shared_damage_scorch_material = StandardMaterial3D.new()
+		_shared_damage_scorch_material.albedo_color = DAMAGE_SCORCH_COLOR
+		_shared_damage_scorch_material.metallic = 0.12
+		_shared_damage_scorch_material.roughness = 0.94
+		_shared_damage_scorch_material.resource_local_to_scene = false
+	var scorch := MeshInstance3D.new()
+	scorch.name = "DamageScorch"
+	scorch.mesh = _shared_damage_scorch_mesh
+	scorch.material_override = _shared_damage_scorch_material
+	scorch.position = DAMAGE_SCORCH_POSITION
+	_starboard_wing_damage_cue.add_child(scorch)
+
+	if _shared_damage_spar_mesh == null:
+		_shared_damage_spar_mesh = BoxMesh.new()
+		_shared_damage_spar_mesh.size = DAMAGE_SPAR_SIZE
+		_shared_damage_spar_mesh.resource_local_to_scene = false
+	if _shared_damage_spar_material == null:
+		_shared_damage_spar_material = StandardMaterial3D.new()
+		_shared_damage_spar_material.albedo_color = DAMAGE_SPAR_COLOR
+		_shared_damage_spar_material.metallic = 0.26
+		_shared_damage_spar_material.roughness = 0.42
+		_shared_damage_spar_material.emission_enabled = true
+		_shared_damage_spar_material.emission = DAMAGE_SPAR_COLOR
+		_shared_damage_spar_material.emission_energy_multiplier = 1.45
+		_shared_damage_spar_material.resource_local_to_scene = false
+	var spar := MeshInstance3D.new()
+	spar.name = "ExposedWingSpar"
+	spar.mesh = _shared_damage_spar_mesh
+	spar.material_override = _shared_damage_spar_material
+	spar.position = DAMAGE_SPAR_POSITION
+	_starboard_wing_damage_cue.add_child(spar)
+	_starboard_wing_damage_cue.visible = false
+
+
+func _on_zenith_component_damage_changed(
+	component_id: StringName,
+	_state: int,
+	_integrity: float
+	) -> void:
+	if component_id == DAMAGE_CUE_COMPONENT_ID:
+		_sync_starboard_wing_damage_cue()
+
+
+func _sync_starboard_wing_damage_cue() -> void:
+	if not is_instance_valid(_starboard_wing_damage_cue):
+		return
+	var model := get_component_damage()
+	_starboard_wing_damage_cue.visible = model != null \
+		and model.is_configured() \
+		and model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+			!= ShipComponentDamageType.ComponentState.NOMINAL
 
 
 func _preflight_authored_presentation(presentation: Node3D) -> bool:
@@ -4240,6 +4383,12 @@ func _capture_runtime_identities() -> Dictionary:
 	var damage := get_damage_presentation()
 	var audio := get_ship_audio_rig()
 	var docking_receiver := get_node_or_null("DockingReceiver") as Marker3D
+	var damage_scorch := _starboard_wing_damage_cue.get_node_or_null(
+		^"DamageScorch"
+	) as MeshInstance3D if is_instance_valid(_starboard_wing_damage_cue) else null
+	var damage_spar := _starboard_wing_damage_cue.get_node_or_null(
+		^"ExposedWingSpar"
+	) as MeshInstance3D if is_instance_valid(_starboard_wing_damage_cue) else null
 	var asset_root: Node3D = null
 	var canopy_pivot: Node3D = null
 	if _authored_presentation != null and is_instance_valid(_authored_presentation):
@@ -4256,6 +4405,22 @@ func _capture_runtime_identities() -> Dictionary:
 		"docking_receiver_id": docking_receiver.get_instance_id() if docking_receiver != null else 0,
 		"definition_id": definition.get_instance_id() if definition != null else 0,
 		"damage_presentation_id": damage.get_instance_id() if damage != null else 0,
+		"starboard_damage_cue_id": (
+			_starboard_wing_damage_cue.get_instance_id()
+			if is_instance_valid(_starboard_wing_damage_cue) else 0
+		),
+		"starboard_damage_cue_mesh_ids": PackedInt64Array([
+			damage_scorch.mesh.get_instance_id()
+				if damage_scorch != null and damage_scorch.mesh != null else 0,
+			damage_spar.mesh.get_instance_id()
+				if damage_spar != null and damage_spar.mesh != null else 0,
+		]),
+		"starboard_damage_cue_material_ids": PackedInt64Array([
+			damage_scorch.material_override.get_instance_id()
+				if damage_scorch != null and damage_scorch.material_override != null else 0,
+			damage_spar.material_override.get_instance_id()
+				if damage_spar != null and damage_spar.material_override != null else 0,
+		]),
 		"audio_rig_id": audio.get_instance_id() if audio != null else 0,
 		"collision_shape_resource_ids": collision_shape_ids,
 		"plume_node_ids": plume_node_ids,
