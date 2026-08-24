@@ -138,6 +138,14 @@ const LATERAL_BREAK_DURATION_SECONDS := 0.85
 const LATERAL_BREAK_SPEED_MULTIPLIER := 1.3
 const LATERAL_BREAK_LATERAL_WEIGHT := 0.92
 const LATERAL_BREAK_RETREAT_WEIGHT := 0.28
+const PRESSURE_TURN_CYCLE_INTERVAL := 3
+const PRESSURE_TURN_DURATION_SECONDS := 0.9
+const PRESSURE_TURN_SPEED_MULTIPLIER := 1.16
+const PRESSURE_TURN_LATERAL_WEIGHT := 0.9
+const PRESSURE_TURN_RETREAT_WEIGHT := 0.34
+const PRESSURE_TURN_TELEGRAPH_LARGE_SCALE := 1.38
+const PRESSURE_TURN_TELEGRAPH_SMALL_SCALE := 0.72
+const PRESSURE_TURN_TELEGRAPH_ID: StringName = &"pressure_turn_side"
 
 ## The paired gun housings are immutable presentation shells. Weapon authority
 ## remains on the root and its two muzzle markers; charge animation remains on
@@ -215,6 +223,12 @@ var _evasive_maneuver_elapsed_seconds := 0.0
 var _evasive_maneuver_direction_sign := 1.0
 var _evasive_maneuver_consumed_generation := -1
 var _evasive_maneuver_last_mobility := 1.0
+var _pressure_turn_state: StringName = &"idle"
+var _pressure_turn_elapsed_seconds := 0.0
+var _pressure_turn_direction_sign := 1.0
+var _pressure_turn_completed_cycles := 0
+var _pressure_turn_last_mobility := 1.0
+var _pressure_turn_automatic_enabled := true
 var _orbit_sign := 1.0
 var _target: Node3D
 var _alternate_muzzle := false
@@ -260,6 +274,12 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	# GameFlow already binds its one production defender by this exact stable
+	# node identity. Generic range-opponent fixtures, station raiders and derived
+	# archetypes keep their authored tactics unless explicitly promoted to it.
+	_pressure_turn_automatic_enabled = (
+		_pressure_turn_automatic_enabled and name == &"RangeOpponent"
+	)
 	_ensure_hull_damage_adapter()
 	_bind_damage_audio()
 	_build_interceptor()
@@ -292,6 +312,7 @@ func _physics_process(delta: float) -> void:
 		_telegraph_remaining = 0.0
 		_clear_pending_pattern_projectiles()
 		_cancel_evasive_maneuver(&"target_awareness_lost")
+		_cancel_pressure_turn(&"target_awareness_lost")
 		velocity = velocity.move_toward(Vector3.ZERO, acceleration * mobility * 0.45 * delta)
 		move_and_slide()
 		return
@@ -303,12 +324,15 @@ func _physics_process(delta: float) -> void:
 		return
 	var target_direction := offset / distance
 	_update_evasive_maneuver_state(delta, modifiers)
+	_update_pressure_turn_state(delta, modifiers)
 	var desired_direction := _choose_motion_direction(target_direction, distance)
 	desired_direction = _avoid_world_geometry(desired_direction)
 	_last_motion_direction = desired_direction
 	var desired_speed := chase_speed if distance > preferred_range * 1.65 else cruise_speed
 	if _evasive_maneuver_state == &"active":
 		desired_speed = maxf(cruise_speed, chase_speed * 0.8) * LATERAL_BREAK_SPEED_MULTIPLIER
+	elif _pressure_turn_state == &"active":
+		desired_speed = maxf(cruise_speed, chase_speed * 0.72) * PRESSURE_TURN_SPEED_MULTIPLIER
 	desired_speed *= mobility
 	velocity = velocity.move_toward(
 		desired_direction * desired_speed,
@@ -432,6 +456,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_evasive_maneuver_state = &"idle"
 	_evasive_maneuver_elapsed_seconds = 0.0
 	_evasive_maneuver_last_mobility = 1.0
+	_reset_pressure_turn_tactic()
 	visible = true
 	_visual_root.visible = true
 	# The interceptor is both a physical ship body and a damageable hitscan target.
@@ -469,6 +494,7 @@ func deactivate() -> void:
 	_cooldown_remaining = 0.0
 	_clear_pending_pattern_projectiles()
 	_clear_evasive_maneuver_configuration(&"deactivated")
+	_reset_pressure_turn_tactic()
 	_clear_component_damage_presentation()
 	if _visual_root != null:
 		_visual_root.visible = true
@@ -569,6 +595,10 @@ func configure_firing_pattern(pattern_id: StringName) -> Dictionary:
 			"reason": &"unknown_firing_pattern",
 			"pattern_id": _firing_pattern_id,
 		}.duplicate(true)
+	# Explicit encounter-role cadence supersedes the base defender's automatic
+	# pressure turn for this retained instance, including across activation reuse.
+	_pressure_turn_automatic_enabled = false
+	_reset_pressure_turn_tactic()
 	if pattern_id == _firing_pattern_id:
 		return {
 			"accepted": true,
@@ -679,6 +709,46 @@ func get_evasive_maneuver_snapshot() -> Dictionary:
 		"last_mobility_multiplier": _evasive_maneuver_last_mobility,
 		"speed_multiplier": LATERAL_BREAK_SPEED_MULTIPLIER,
 		"uses_existing_movement_authority": true,
+		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
+## Every third successful base single-shot cycle announces and performs one
+## short outward turn before settling into the opposite orbit. The cue reuses
+## the two fixed charge spheres with unequal static scale: it remains readable
+## without color or presentation motion, while movement and projectile dispatch
+## stay on this craft's existing authorities.
+func get_pressure_turn_snapshot() -> Dictionary:
+	var cycles_until_turn := PRESSURE_TURN_CYCLE_INTERVAL - (
+		_pressure_turn_completed_cycles % PRESSURE_TURN_CYCLE_INTERVAL
+	)
+	if _pressure_turn_state == &"telegraph":
+		cycles_until_turn = 0
+	return {
+		"tactic_id": &"pressure_turn",
+		"state_id": _pressure_turn_state,
+		"automatic_enabled": _pressure_turn_automatic_enabled,
+		"activation_generation": _activation_generation,
+		"completed_single_shot_cycles": _pressure_turn_completed_cycles,
+		"cycles_until_turn": cycles_until_turn,
+		"cycle_interval": PRESSURE_TURN_CYCLE_INTERVAL,
+		"elapsed_seconds": _pressure_turn_elapsed_seconds,
+		"duration_seconds": PRESSURE_TURN_DURATION_SECONDS,
+		"remaining_seconds": maxf(
+			0.0,
+			PRESSURE_TURN_DURATION_SECONDS - _pressure_turn_elapsed_seconds
+		),
+		"direction_sign": _pressure_turn_direction_sign,
+		"last_mobility_multiplier": _pressure_turn_last_mobility,
+		"speed_multiplier": PRESSURE_TURN_SPEED_MULTIPLIER,
+		"pre_discharge_telegraph_id": PRESSURE_TURN_TELEGRAPH_ID,
+		"pre_discharge_scale_multipliers": _get_pressure_turn_telegraph_multipliers(),
+		"pre_discharge_uses_static_geometry": true,
+		"pre_discharge_color_only": false,
+		"pre_discharge_motion_added": false,
+		"uses_existing_movement_authority": true,
+		"uses_existing_projectile_signal": true,
 		"combat_authority": false,
 		"damage_authority": false,
 	}.duplicate(true)
@@ -1110,6 +1180,18 @@ func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vec
 		)
 		if break_direction.length_squared() > 0.001:
 			return break_direction.normalized()
+	if _pressure_turn_state == &"active":
+		var pressure_lateral := (
+			Vector3.UP.cross(target_direction).normalized()
+			* _pressure_turn_direction_sign
+		)
+		var pressure_direction := (
+			pressure_lateral * PRESSURE_TURN_LATERAL_WEIGHT
+			- target_direction * PRESSURE_TURN_RETREAT_WEIGHT
+			+ Vector3.UP * 0.06
+		)
+		if pressure_direction.length_squared() > 0.001:
+			return pressure_direction.normalized()
 	var orbit_direction := Vector3.UP.cross(target_direction).normalized() * _orbit_sign
 	var vertical_weave := Vector3.UP * sin(_elapsed * 0.83 + 0.7) * 0.25
 	var radial_weight := clampf((distance - preferred_range) / maxf(preferred_range, 1.0), -1.0, 1.0)
@@ -1157,6 +1239,68 @@ func _clear_evasive_maneuver_configuration(_reason: StringName) -> void:
 	elif _evasive_maneuver_state not in [&"completed", &"cancelled"]:
 		_evasive_maneuver_state = &"idle"
 	_evasive_maneuver_id = EVASIVE_MANEUVER_NONE
+
+
+func _update_pressure_turn_state(delta: float, modifiers: Dictionary) -> void:
+	if _pressure_turn_state != &"active":
+		return
+	var mobility := clampf(
+		float(modifiers.get("mobility_multiplier", 0.0)),
+		0.0,
+		1.0
+	)
+	_pressure_turn_last_mobility = mobility
+	if mobility <= 0.0 or bool(modifiers.get("mobility_disabled", true)):
+		_cancel_pressure_turn(&"engine_mobility_lost")
+		return
+	if not _has_target_awareness(modifiers):
+		_cancel_pressure_turn(&"target_awareness_lost")
+		return
+	_pressure_turn_elapsed_seconds = minf(
+		PRESSURE_TURN_DURATION_SECONDS,
+		_pressure_turn_elapsed_seconds + maxf(delta, 0.0)
+	)
+	if _pressure_turn_elapsed_seconds >= PRESSURE_TURN_DURATION_SECONDS:
+		_pressure_turn_state = &"completed"
+
+
+func _prepare_pressure_turn_telegraph() -> void:
+	if (
+		not _pressure_turn_automatic_enabled
+		or _firing_pattern_id != FIRE_PATTERN_SINGLE_SHOT
+		or (_pressure_turn_completed_cycles + 1) % PRESSURE_TURN_CYCLE_INTERVAL != 0
+	):
+		return
+	_pressure_turn_state = &"telegraph"
+	_pressure_turn_elapsed_seconds = 0.0
+	_pressure_turn_direction_sign = -1.0 if _orbit_sign >= 0.0 else 1.0
+	_pressure_turn_last_mobility = clampf(
+		float(get_operational_modifiers().get("mobility_multiplier", 0.0)),
+		0.0,
+		1.0
+	)
+
+
+func _commit_pressure_turn() -> void:
+	if _pressure_turn_state != &"telegraph":
+		return
+	_orbit_sign = _pressure_turn_direction_sign
+	_pressure_turn_elapsed_seconds = 0.0
+	_pressure_turn_state = &"active"
+
+
+func _cancel_pressure_turn(_reason: StringName) -> void:
+	if _pressure_turn_state in [&"telegraph", &"active"]:
+		_pressure_turn_state = &"cancelled"
+	_pressure_turn_elapsed_seconds = 0.0
+
+
+func _reset_pressure_turn_tactic() -> void:
+	_pressure_turn_state = &"idle"
+	_pressure_turn_elapsed_seconds = 0.0
+	_pressure_turn_direction_sign = 1.0
+	_pressure_turn_completed_cycles = 0
+	_pressure_turn_last_mobility = 1.0
 
 
 func _avoid_world_geometry(desired_direction: Vector3) -> Vector3:
@@ -1218,6 +1362,7 @@ func _update_weapon(target_position: Vector3, target_direction: Vector3, distanc
 	if fire_modifier <= 0.0 or bool(modifiers.get("fire_disabled", true)):
 		_telegraph_remaining = 0.0
 		_clear_pending_pattern_projectiles()
+		_cancel_pressure_turn(&"weapon_disabled")
 		return
 	if _pattern_projectiles_remaining > 0:
 		_update_pattern_followup(
@@ -1240,6 +1385,7 @@ func _update_weapon(target_position: Vector3, target_direction: Vector3, distanc
 		if distance > engagement_range or not still_aimed or not _has_line_of_sight(target_position):
 			_telegraph_remaining = 0.0
 			_cooldown_remaining = maxf(_cooldown_remaining, 0.28)
+			_cancel_pressure_turn(&"charge_cancelled")
 			return
 		_telegraph_remaining = maxf(0.0, _telegraph_remaining - delta)
 		if _telegraph_remaining <= 0.0:
@@ -1251,6 +1397,7 @@ func _update_weapon(target_position: Vector3, target_direction: Vector3, distanc
 	if forward.dot(target_direction) < _aim_acceptance_dot(0.94, targeting_modifier) \
 			or not _has_line_of_sight(target_position):
 		return
+	_prepare_pressure_turn_telegraph()
 	_telegraph_remaining = telegraph_time
 
 
@@ -1359,6 +1506,12 @@ func _dispatch_projectile(target_position: Vector3) -> bool:
 
 func _finish_firing_cycle(profile: Dictionary, fire_modifier: float) -> void:
 	_clear_pending_pattern_projectiles()
+	if (
+		_pressure_turn_automatic_enabled
+		and _firing_pattern_id == FIRE_PATTERN_SINGLE_SHOT
+	):
+		_pressure_turn_completed_cycles += 1
+		_commit_pressure_turn()
 	_cooldown_remaining = (
 		weapon_cooldown * float(profile.cooldown_multiplier) / maxf(fire_modifier, 0.001)
 	)
@@ -1459,6 +1612,8 @@ func _update_presentation(delta: float) -> void:
 ## Static, non-color geometry only. This composes with the existing charge size
 ## and never touches muzzle/projectile dispatch or derived-archetype lenses.
 func _get_firing_pattern_telegraph_scale_multipliers() -> PackedFloat32Array:
+	if _pressure_turn_state == &"telegraph":
+		return _get_pressure_turn_telegraph_multipliers()
 	var profile := FIRE_PATTERN_PROFILES.get(
 		_firing_pattern_id,
 		FIRE_PATTERN_PROFILES[FIRE_PATTERN_SINGLE_SHOT]
@@ -1474,6 +1629,18 @@ func _get_firing_pattern_telegraph_scale_multipliers() -> PackedFloat32Array:
 	return multipliers
 
 
+func _get_pressure_turn_telegraph_multipliers() -> PackedFloat32Array:
+	if _pressure_turn_direction_sign < 0.0:
+		return PackedFloat32Array([
+			PRESSURE_TURN_TELEGRAPH_LARGE_SCALE,
+			PRESSURE_TURN_TELEGRAPH_SMALL_SCALE,
+		])
+	return PackedFloat32Array([
+		PRESSURE_TURN_TELEGRAPH_SMALL_SCALE,
+		PRESSURE_TURN_TELEGRAPH_LARGE_SCALE,
+	])
+
+
 func _destroy_interceptor(death_position: Vector3) -> void:
 	_active = false
 	velocity = Vector3.ZERO
@@ -1483,6 +1650,7 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 	_cooldown_remaining = 0.0
 	_clear_pending_pattern_projectiles()
 	_clear_evasive_maneuver_configuration(&"destroyed")
+	_reset_pressure_turn_tactic()
 	destroyed.emit(death_position)
 
 
