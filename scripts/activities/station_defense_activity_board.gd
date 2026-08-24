@@ -343,7 +343,7 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 		&"completed":
 			status_text = "PERIMETER SECURE\nRECOVERY AVAILABLE"
 			status_color = STATUS_COLOR_SECURE
-		&"failed", &"aborted":
+		&"failed", &"aborted", &"timed_out":
 			status_text = "DEFENSE OFFLINE\nRECOVERY REQUIRED"
 			status_color = STATUS_COLOR_RECOVERY
 		&"idle":
