@@ -257,7 +257,8 @@ const LAMP_LENS_COPY_COUNT := 26
 const TORUS_RINGS := 40
 const TORUS_RING_SEGMENTS := 14
 const TORUS_COPY_COUNT := 19
-const TORUS_MESH_RESOURCE_ALLOCATIONS := 12
+const TORUS_CACHE_RESOURCE_ALLOCATIONS := 6
+const TORUS_MESH_RESOURCE_ALLOCATIONS := 7
 
 ## Activity-specific silhouette behind the existing dock gate. The fixed mining
 ## approach anchor remains the gate centre; this bounded, collision-free stock
@@ -361,6 +362,9 @@ const KETH_ORANGE := Color("ff9f43")
 const MOONLET_TEAL := Color("3f8f7a")
 const MOONLET_RING := Color("8b7f63")
 const MOONLET_CRATER_COUNT := 6
+const MOONLET_CRATER_RIM_FAMILY_ID: StringName = &"cinder-moonlet-crater-rims"
+const MOONLET_CRATER_RIM_INNER_RADIUS := 1.0
+const MOONLET_CRATER_RIM_OUTER_RADIUS := 1.28
 
 @export_category("Presentation")
 @export var starts_enabled := true
@@ -1940,9 +1944,9 @@ func get_lamp_lens_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-## Exact torus recipes are component-local immutable render resources. This
-## checks the cache only shares indistinguishable geometry; every named instance
-## keeps its authored path, transform, material override and no-collision status.
+## Exact torus recipes are component-local immutable render resources. Repeated
+## mutable rings keep their authored nodes and share matching primitive recipes;
+## the six fully static moonlet rims retain their transforms in one surface.
 func get_torus_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var mesh_ids := {}
@@ -1960,11 +1964,33 @@ func get_torus_allocation_audit() -> Dictionary:
 			errors.append("torus_collision_authority_added")
 		if not _torus_recipe_is_authored(mesh):
 			errors.append("torus_mesh_recipe_drift")
-	if tori.size() != TORUS_COPY_COUNT:
+	var crater_rims := get_node_or_null(
+		^"Landmarks/ReachMoonlet/MoonletCraterRims"
+	) as MeshInstance3D
+	var crater_mesh := crater_rims.mesh as ArrayMesh if crater_rims != null else null
+	var crater_copy_count := int(
+		crater_rims.get_meta(&"authored_visible_copy_count", 0)
+	) if crater_rims != null else 0
+	if crater_mesh == null:
+		errors.append("moonlet_crater_rim_batch_missing")
+	else:
+		mesh_ids[crater_mesh.get_instance_id()] = true
+		if crater_mesh.get_surface_count() != 1:
+			errors.append("moonlet_crater_rim_mesh_recipe_drift")
+		if crater_copy_count != MOONLET_CRATER_COUNT:
+			errors.append("moonlet_crater_rim_copy_count_drift")
+		if StringName(crater_rims.get_meta(&"visual_batch_family_id", &"")) \
+				!= MOONLET_CRATER_RIM_FAMILY_ID \
+				or crater_rims.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+				or not crater_rims.find_children(
+					"*", "CollisionObject3D", true, false
+				).is_empty():
+			errors.append("moonlet_crater_rim_batch_contract_drift")
+	if tori.size() + crater_copy_count != TORUS_COPY_COUNT:
 		errors.append("torus_copy_count_drift")
 	if mesh_ids.size() != TORUS_MESH_RESOURCE_ALLOCATIONS:
 		errors.append("torus_mesh_allocation_count_drift")
-	if _torus_mesh_cache.size() != TORUS_MESH_RESOURCE_ALLOCATIONS:
+	if _torus_mesh_cache.size() != TORUS_CACHE_RESOURCE_ALLOCATIONS:
 		errors.append("torus_cache_recipe_count_drift")
 	_validate_shared_torus_family(
 		[
@@ -1992,7 +2018,9 @@ func get_torus_allocation_audit() -> Dictionary:
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
-		"copy_count": tori.size(),
+		"copy_count": tori.size() + crater_copy_count,
+		"renderer_nodes": tori.size() + (1 if crater_rims != null else 0),
+		"crater_rim_copy_count": crater_copy_count,
 		"mesh_resource_allocations": mesh_ids.size(),
 		"expected_copy_count": TORUS_COPY_COUNT,
 		"expected_mesh_resource_allocations": TORUS_MESH_RESOURCE_ALLOCATIONS,
@@ -2266,27 +2294,44 @@ func _build_landmarks() -> void:
 	# Crater rims. A 90 m sphere with one albedo has no scale cue at all: it could
 	# be a marble ten metres away or a moon a kilometre off, and the pilot has no
 	# way to tell which until they hit it. Six rims of known size fix that, and
-	# they are deterministic rather than scattered.
+	# they are deterministic rather than scattered. Their 1:1.28 torus recipe is
+	# identical at every radius, so bake the six authored transforms into one
+	# immutable surface instead of allocating six nodes and six mesh resources.
 	var crater_random := RandomNumberGenerator.new()
 	crater_random.seed = FIELD_SEED + 4111
+	var crater_transforms: Array[Transform3D] = []
 	for crater_index in MOONLET_CRATER_COUNT:
 		var latitude := crater_random.randf_range(-0.75, 0.75)
 		var longitude := crater_random.randf_range(-PI, PI)
 		var planar := sqrt(maxf(0.0, 1.0 - latitude * latitude))
 		var normal := Vector3(planar * cos(longitude), latitude, planar * sin(longitude))
 		var rim_radius := crater_random.randf_range(9.0, 21.0)
-		var rim := _torus(
-			moonlet,
-			"CraterRim%d" % (crater_index + 1),
-			normal * (MOONLET_RADIUS - rim_radius * 0.22),
-			rim_radius,
-			rim_radius * 1.28,
-			_materials["moonlet_crater"],
-			Vector3.ZERO
-		)
 		# A torus lies in its own XZ plane, so aligning local +Y with the surface
 		# normal lays the rim flat on the body instead of standing it on edge.
-		rim.basis = _basis_facing(normal) * Basis(Vector3.RIGHT, PI * 0.5)
+		crater_transforms.append(Transform3D(
+			_basis_facing(normal) * Basis(Vector3.RIGHT, PI * 0.5) \
+				* Basis.from_scale(Vector3.ONE * rim_radius),
+			normal * (MOONLET_RADIUS - rim_radius * 0.22)
+		))
+	var crater_source := TorusMesh.new()
+	crater_source.inner_radius = MOONLET_CRATER_RIM_INNER_RADIUS
+	crater_source.outer_radius = MOONLET_CRATER_RIM_OUTER_RADIUS
+	crater_source.rings = TORUS_RINGS
+	crater_source.ring_segments = TORUS_RING_SEGMENTS
+	var crater_surface := SurfaceTool.new()
+	for crater_transform in crater_transforms:
+		crater_surface.append_from(crater_source, 0, crater_transform)
+	var crater_rims := MeshInstance3D.new()
+	crater_rims.name = "MoonletCraterRims"
+	crater_rims.mesh = crater_surface.commit()
+	crater_rims.material_override = _materials["moonlet_crater"]
+	crater_rims.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	crater_rims.set_meta(&"presentation_only", true)
+	crater_rims.set_meta(&"visual_batch_family_id", MOONLET_CRATER_RIM_FAMILY_ID)
+	crater_rims.set_meta(&"authored_instance_transforms", crater_transforms.duplicate())
+	crater_rims.set_meta(&"authored_visible_copy_count", MOONLET_CRATER_COUNT)
+	crater_rims.set_meta(&"physically_supported", true)
+	moonlet.add_child(crater_rims)
 	_moonlet = moonlet
 
 
