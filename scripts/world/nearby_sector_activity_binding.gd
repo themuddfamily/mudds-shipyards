@@ -98,6 +98,7 @@ var _cinder_cargo_terminal_audio: RefCounted
 var _last_race_feedback_reason: StringName = &""
 var _last_patrol_feedback_reason: StringName = &""
 var _last_patrol_reward_result: Dictionary = {}
+var _last_mining_feedback_reason: StringName = &""
 var _last_beacon_feedback_reason: StringName = &""
 var _last_beacon_reward_result: Dictionary = {}
 
@@ -1110,6 +1111,13 @@ func start_mining_activity(caller_position: Vector3) -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _mining_activity.call("start", caller_position)
+	if bool(result.get("accepted", false)):
+		_last_mining_feedback_reason = &""
+	elif StringName(result.get("reason", &"")) == &"outside_approach_anchor":
+		# The mining authority deliberately does not retain rejected caller
+		# positions. Retain only its bounded reason for the current presentation
+		# generation so the player can recover without duplicating authority.
+		_last_mining_feedback_reason = &"outside_approach_anchor"
 	_publish_mining_presentation()
 	return result
 
@@ -1188,6 +1196,8 @@ func reset_mining_activity() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _mining_activity.call("reset")
+	if bool(result.get("accepted", false)):
+		_last_mining_feedback_reason = &""
 	_publish_mining_presentation()
 	return result
 
@@ -1686,6 +1696,7 @@ func _mining_presentation_snapshot() -> Dictionary:
 	if not is_instance_valid(_mining_activity):
 		return {}
 	var snapshot := _mining_activity.call("get_snapshot") as Dictionary
+	snapshot["presentation_reason"] = _last_mining_feedback_reason
 	if _restored_mining_capacity.is_empty():
 		return snapshot.duplicate(true)
 	var state := int(snapshot.get("state", MINING_ACTIVITY.State.IDLE))

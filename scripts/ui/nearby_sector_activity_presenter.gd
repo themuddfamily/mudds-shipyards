@@ -187,6 +187,10 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		state_id = &"missed_gate"
 	if activity_id == &"cinder_platform_mining_run" and int(state.get("state", -1)) == 3:
 		state_id = &"interrupted"
+	elif activity_id == &"cinder_platform_mining_run" \
+			and StringName(state.get("presentation_reason", &"")) \
+			== &"outside_approach_anchor":
+		state_id = &"wrong_position"
 	if activity_id == &"cinder_derelict_structure_scan":
 		if StringName(state.get("reason", &"")) == &"outside_scan_approach":
 			state_id = &"wrong_position"
@@ -543,6 +547,7 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 	if state.is_empty():
 		return {}
 	var authority_state := int(state.get("state", 0))
+	var presentation_reason := StringName(state.get("presentation_reason", &""))
 	var elapsed := maxf(float(state.get("elapsed_seconds", 0.0)), 0.0)
 	var duration := maxf(float(state.get("extraction_seconds", 0.0)), 0.0)
 	var progress := clampf(elapsed / duration, 0.0, 1.0) if duration > 0.0 else 0.0
@@ -582,6 +587,10 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 			stage_id = &"interrupted"
 			summary = "EXTRACTION INTERRUPTED  //  PROGRESS RESET"
 			objective = "RETURN TO THE APPROACH MARKER AND RESTART"
+	if presentation_reason == &"outside_approach_anchor":
+		stage_id = &"wrong_position"
+		summary = "EXTRACTION OUT OF RANGE  //  RETURN TO APPROACH MARKER"
+		objective = "MOVE TO THE CINDER EXTRACTION APPROACH MARKER"
 	return {
 		"stage_id": stage_id,
 		"progress": progress,
