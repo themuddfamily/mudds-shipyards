@@ -130,17 +130,17 @@ const OBSERVATION_LENS_POSITIONS := [
 const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 	Vector3(-11.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
-const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 133
-const VISUAL_DESCENDANT_NODE_COUNT := 144
-const BASELINE_RENDERER_NODE_COUNT := 46
-const RENDERER_NODE_COUNT := 42
-const BASELINE_DRAWN_COPY_COUNT := 232
+const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
+const VISUAL_DESCENDANT_NODE_COUNT := 145
+const BASELINE_RENDERER_NODE_COUNT := 42
+const RENDERER_NODE_COUNT := 37
+const BASELINE_DRAWN_COPY_COUNT := 270
 const DRAWN_COPY_COUNT := 270
-const BASELINE_SURFACE_SUBMISSION_COUNT := 46
-const SURFACE_SUBMISSION_COUNT := 42
-const BASELINE_MESH_RESOURCE_COUNT := 46
+const BASELINE_SURFACE_SUBMISSION_COUNT := 42
+const SURFACE_SUBMISSION_COUNT := 37
+const BASELINE_MESH_RESOURCE_COUNT := 34
 const MESH_RESOURCE_COUNT := 34
-const BASELINE_MATERIAL_RESOURCE_COUNT := 9
+const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
 const OBSERVATION_LENS_MESH_RESOURCE_COUNT := 1
@@ -180,6 +180,11 @@ const PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT := 1
 const LOGISTICS_CASE_SIZE := Vector3(2.1, 0.52, 1.28)
 const LOGISTICS_CASE_COPY_COUNT := 6
 const LOGISTICS_CASE_MESH_RESOURCE_COUNT := 1
+const BASELINE_LOGISTICS_CASE_RENDERER_NODE_COUNT := 6
+const LOGISTICS_CASE_RENDERER_NODE_COUNT := 1
+const LOGISTICS_CASE_CULLING_BOUNDS := AABB(
+	Vector3(10.1, 0.22, 28.16), Vector3(2.1, 1.10, 6.78)
+)
 const LIGHT_MAST_SIZE := Vector3(0.16, 2.8, 0.16)
 const LIGHT_MAST_POSITIONS := [
 	Vector3(2.32, 1.4, 7.0),
@@ -348,8 +353,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 144 descendant
-	# nodes, 18 MeshInstance3D nodes plus twenty-four visual-only MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 145 descendant
+	# nodes, 12 MeshInstance3D nodes plus twenty-five visual-only MultiMesh batches,
 	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
@@ -357,7 +362,7 @@ func get_performance_contract() -> Dictionary:
 	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 18,
+		"mesh_instances": 12,
 		"static_bodies": 33,
 		"collision_shapes": 33,
 		"labels": 4,
@@ -597,27 +602,73 @@ func get_visual_resource_contract() -> Dictionary:
 			and lens.get_child_count() == 0 \
 			and bool(lens.get_meta("visual_detail_only", false))
 	practical_lens_identities_exact = practical_lens_identities_exact and practical_cyan_lens_identities_exact
+	var logistics_case_batch := get_node_or_null(
+		^"Structure/Dressing/LogisticsCaseRenderBatch"
+	) as MultiMeshInstance3D
 	var logistics_case_mesh_resource_ids := {}
-	var logistics_case_identities_exact := is_instance_valid(_logistics_case_mesh)
+	var logistics_case_identities_exact := (
+		is_instance_valid(_logistics_case_mesh)
+		and logistics_case_batch != null
+		and logistics_case_batch.multimesh != null
+	)
+	var authored_case_transforms: Array = []
+	var expected_case_transforms: Array[Transform3D] = []
+	for case_index in LOGISTICS_CASE_COPY_COUNT:
+		var stack_index := int(case_index / 2)
+		var tier_index := case_index % 2
+		expected_case_transforms.append(Transform3D(Basis.IDENTITY, Vector3(
+			11.15, 0.48 + float(tier_index) * 0.58, 28.8 + float(stack_index) * 2.75
+		)))
+	if logistics_case_identities_exact:
+		var batch_mesh := logistics_case_batch.multimesh.mesh as BoxMesh
+		if batch_mesh != null:
+			logistics_case_mesh_resource_ids[batch_mesh.get_instance_id()] = true
+		authored_case_transforms = logistics_case_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
+		logistics_case_identities_exact = (
+			batch_mesh == _logistics_case_mesh
+			and batch_mesh != null
+			and batch_mesh.size.is_equal_approx(LOGISTICS_CASE_SIZE)
+			and logistics_case_batch.material_override == _materials.get("cargo")
+			and logistics_case_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and logistics_case_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and logistics_case_batch.layers == 1
+			and is_zero_approx(logistics_case_batch.extra_cull_margin)
+			and not logistics_case_batch.ignore_occlusion_culling
+			and logistics_case_batch.multimesh.transform_format == MultiMesh.TRANSFORM_3D
+			and logistics_case_batch.multimesh.instance_count == LOGISTICS_CASE_COPY_COUNT
+			and logistics_case_batch.multimesh.visible_instance_count == LOGISTICS_CASE_COPY_COUNT
+			and logistics_case_batch.multimesh.buffer == _encode_multimesh_transforms(
+				expected_case_transforms
+			)
+			and logistics_case_batch.multimesh.custom_aabb.is_equal_approx(
+				LOGISTICS_CASE_CULLING_BOUNDS
+			)
+			and authored_case_transforms == expected_case_transforms
+			and bool(logistics_case_batch.get_meta("visual_detail_only", false))
+		)
 	for case_index in LOGISTICS_CASE_COPY_COUNT:
 		var case_body := get_node_or_null(NodePath(
 			"Structure/Dressing/LogisticsCase%02d" % (case_index + 1)
 		)) as StaticBody3D
-		var case_mesh := (
-			case_body.get_node_or_null("Mesh") as MeshInstance3D
+		var case_anchor := (
+			case_body.get_node_or_null("Mesh") as Marker3D
 			if case_body != null else null
 		)
-		if case_mesh == null or case_mesh.mesh == null:
-			logistics_case_identities_exact = false
-			continue
-		logistics_case_mesh_resource_ids[case_mesh.mesh.get_instance_id()] = true
 		logistics_case_identities_exact = (
 			logistics_case_identities_exact
-			and case_mesh.mesh == _logistics_case_mesh
-			and (case_mesh.mesh as BoxMesh).size.is_equal_approx(LOGISTICS_CASE_SIZE)
-			and case_mesh.material_override == _materials.get("cargo")
-			and case_mesh.get_parent() == case_body
+			and case_anchor != null
+			and case_anchor.transform.is_equal_approx(Transform3D.IDENTITY)
+			and case_anchor.get_child_count() == 0
+			and bool(case_anchor.get_meta("visual_detail_only", false))
+			and bool(case_anchor.get_meta("batched_visual_anchor", false))
+			and case_anchor.get_parent() == case_body
 			and case_body.get_node_or_null("CollisionShape3D") is CollisionShape3D
+			and authored_case_transforms.size() == LOGISTICS_CASE_COPY_COUNT
+			and (authored_case_transforms[case_index] as Transform3D).is_equal_approx(
+				expected_case_transforms[case_index]
+			)
 		)
 
 	var light_mast_batch := get_node_or_null(
@@ -686,7 +737,7 @@ func get_visual_resource_contract() -> Dictionary:
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"practical_cyan_lens_render_batch",
+		"selected_family": &"logistics_case_render_batch",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -737,6 +788,11 @@ func get_visual_resource_contract() -> Dictionary:
 		"practical_cyan_lens_renderer_delta": PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT - BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
 		"practical_cyan_lens_identities_exact": practical_cyan_lens_identities_exact,
 		"logistics_case_copies": LOGISTICS_CASE_COPY_COUNT,
+		"baseline_logistics_case_renderer_nodes": BASELINE_LOGISTICS_CASE_RENDERER_NODE_COUNT,
+		"logistics_case_renderer_nodes": LOGISTICS_CASE_RENDERER_NODE_COUNT,
+		"logistics_case_renderer_delta": (
+			LOGISTICS_CASE_RENDERER_NODE_COUNT - BASELINE_LOGISTICS_CASE_RENDERER_NODE_COUNT
+		),
 		"logistics_case_mesh_resources": logistics_case_mesh_resource_ids.size(),
 		"logistics_case_identities_exact": logistics_case_identities_exact,
 		"baseline_light_mast_renderer_nodes": BASELINE_LIGHT_MAST_RENDERER_NODE_COUNT,
@@ -1146,12 +1202,37 @@ func _build_dressing(parent: Node3D) -> void:
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
 	_logistics_case_mesh = BoxMesh.new()
 	_logistics_case_mesh.size = LOGISTICS_CASE_SIZE
+	var logistics_case_transforms: Array[Transform3D] = []
 	for stack_index in 3:
 		var stack_z := 28.8 + float(stack_index) * 2.75
 		_box(parent, "LogisticsPallet%02d" % (stack_index + 1), Vector3(11.15, 0.12, stack_z), Vector3(2.4, 0.24, 1.55), _materials["rail"], true)
 		for tier_index in 2:
 			var case_index := stack_index * 2 + tier_index + 1
-			_box(parent, "LogisticsCase%02d" % case_index, Vector3(11.15, 0.48 + float(tier_index) * 0.58, stack_z), LOGISTICS_CASE_SIZE, _materials["cargo"], true, _logistics_case_mesh)
+			var case_position := Vector3(
+				11.15, 0.48 + float(tier_index) * 0.58, stack_z
+			)
+			var case_body := _box(
+				parent, "LogisticsCase%02d" % case_index, case_position,
+				LOGISTICS_CASE_SIZE, _materials["cargo"], true, _logistics_case_mesh
+			) as StaticBody3D
+			var case_renderer := case_body.get_node(^"Mesh") as MeshInstance3D
+			case_body.remove_child(case_renderer)
+			case_renderer.free()
+			var case_anchor := Marker3D.new()
+			case_anchor.name = "Mesh"
+			case_anchor.set_meta("visual_detail_only", true)
+			case_anchor.set_meta("batched_visual_anchor", true)
+			case_body.add_child(case_anchor)
+			logistics_case_transforms.append(Transform3D(Basis.IDENTITY, case_position))
+	var logistics_case_batch := _multimesh_boxes(
+		parent, "LogisticsCaseRenderBatch", LOGISTICS_CASE_SIZE,
+		_materials["cargo"], logistics_case_transforms, _logistics_case_mesh
+	)
+	logistics_case_batch.multimesh.visible_instance_count = LOGISTICS_CASE_COPY_COUNT
+	logistics_case_batch.multimesh.buffer = _encode_multimesh_transforms(
+		logistics_case_transforms
+	)
+	logistics_case_batch.multimesh.custom_aabb = LOGISTICS_CASE_CULLING_BOUNDS
 	# Sparse connector rhythm provides scale without narrowing its 4 m lane.
 	var connector_marker_transforms: Array[Transform3D] = []
 	for bay_index in 5:
