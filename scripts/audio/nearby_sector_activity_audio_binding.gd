@@ -36,7 +36,9 @@ const RACE_TRANSITION_CUES := [
 ]
 const MINING_FAILURE_CUES := [&"cinder_mining_extraction_failed"]
 const SCAN_FAILURE_CUES := [&"cinder_scan_failed", &"cinder_scan_aborted"]
-const PATROL_FAILURE_CUES := [&"cinder_patrol_failed", &"cinder_patrol_aborted"]
+const PATROL_TRANSITION_CUES := [
+	&"cinder_patrol_completed", &"cinder_patrol_failed", &"cinder_patrol_aborted",
+]
 const TERMINAL_OUTCOMES_BY_KIND := {
 	&"mining": [&"", &"failed"],
 	&"salvage": [&"", &"failed", &"aborted"],
@@ -83,6 +85,7 @@ const CUE_PRIORITIES := {
 	&"cinder_race_timed_out": 100,
 	&"cinder_race_failed": 100,
 	&"cinder_race_aborted": 100,
+	&"cinder_patrol_completed": 95,
 	&"cinder_patrol_failed": 100,
 	&"cinder_patrol_aborted": 100,
 }
@@ -312,7 +315,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 				&"failed": _emit_cue(&"cinder_race_failed", activity_id, 1.0)
 				&"aborted": _emit_cue(&"cinder_race_aborted", activity_id, 1.0)
 	elif activity_kind == &"patrol":
-		_retire_activity_transition_slots(activity_id, PATROL_FAILURE_CUES)
+		_retire_activity_transition_slots(activity_id, PATROL_TRANSITION_CUES)
 		if terminal_outcome != previous_terminal_outcome:
 			if terminal_outcome == &"failed":
 				_emit_cue(&"cinder_patrol_failed", activity_id, 1.0)
@@ -334,6 +337,8 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 				_emit_cue(&"convoy_escort_lost", activity_id, 1.0)
 		elif activity_kind == &"beacon":
 			_emit_cue(&"beacon_route_completed", activity_id, 1.0)
+		elif activity_kind == &"patrol":
+			_emit_cue(&"cinder_patrol_completed", activity_id, 1.0)
 		elif activity_kind != &"cargo":
 			_emit_cue(&"activity_complete", activity_id, 1.0)
 		elif StringName(decoded.cargo_outcome) == &"delivered":

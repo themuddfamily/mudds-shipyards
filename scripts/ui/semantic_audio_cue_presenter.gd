@@ -95,6 +95,7 @@ const REGISTERED_CUES := {
 	&"cinder_race_timed_out": {"caption": "Race timed out", "default_severity": &"high"},
 	&"cinder_race_failed": {"caption": "Race failed", "default_severity": &"high"},
 	&"cinder_race_aborted": {"caption": "Race aborted", "default_severity": &"high"},
+	&"cinder_patrol_completed": {"caption": "Patrol complete", "default_severity": &"low"},
 	&"cinder_patrol_failed": {"caption": "Patrol failed", "default_severity": &"high"},
 	&"cinder_patrol_aborted": {"caption": "Patrol aborted", "default_severity": &"high"},
 	&"planetary_orbit_approach": {"caption": "Approaching planetary orbit", "default_severity": &"medium"},

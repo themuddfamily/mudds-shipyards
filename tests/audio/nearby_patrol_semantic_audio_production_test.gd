@@ -2,6 +2,7 @@ extends SceneTree
 
 const AudioDirectorScript := preload("res://scripts/audio/audio_director.gd")
 const ActivityAudioScript := preload("res://scripts/audio/nearby_sector_activity_audio_binding.gd")
+const CuePresenterScript := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -38,8 +39,23 @@ func _run() -> void:
 		"stale patrol generation is rejected before semantic output")
 
 	_check(bool(binding.present_activity_snapshot(_patrol(7, &"complete", false)).accepted)
-		and _count(&"activity_complete") == 1,
-		"patrol completion produces one existing activity-complete semantic event")
+		and _count(&"cinder_patrol_completed") == 1
+		and _has(&"activity", &"cinder_patrol_completed")
+		and is_equal_approx(_last_intensity(&"cinder_patrol_completed"), 1.0)
+		and _count(&"activity_complete") == 0,
+		"patrol completion produces one distinct full-intensity semantic event")
+	var completion_event := _events[-1] as Dictionary
+	var presentation := CuePresenterScript.new().present_cue(
+		completion_event.cue_id, completion_event.source_id, completion_event.intensity,
+		Vector3.ZERO, {"transition_id": "patrol-7-complete"}
+	)
+	_check(bool(presentation.accepted) and presentation.caption == "Patrol complete"
+		and bool(presentation.presentation_only),
+		"routed patrol completion is accepted by the HUD semantic cue presenter")
+	var after_complete := _events.size()
+	_check(bool(binding.present_activity_snapshot(_patrol(7, &"complete", false)).accepted)
+		and _events.size() == after_complete,
+		"retained patrol completion does not replay its audible semantic event")
 	_check(bool(binding.present_activity_snapshot(_patrol(7, &"complete", true)).accepted)
 		and _count(&"activity_reward_pending") == 1,
 		"generation-matched reward pending produces one existing reward semantic event")
@@ -92,6 +108,11 @@ func _count(cue_id: StringName) -> int:
 	for event in _events:
 		if event.cue_id == cue_id: count += 1
 	return count
+
+func _last_intensity(cue_id: StringName) -> float:
+	for index in range(_events.size() - 1, -1, -1):
+		if _events[index].cue_id == cue_id: return float(_events[index].intensity)
+	return -1.0
 
 func _check(condition: bool, message: String) -> void:
 	_assertions += 1
