@@ -99,6 +99,11 @@ var _closed_panel_transform := Transform3D.IDENTITY
 ## the same four authored sizes, so keeping that immutable stock at class scope
 ## avoids rebuilding four ArrayMeshes for every additional door instance.
 static var _shared_rounded_box_mesh_cache: Dictionary = {}
+## Frame-post transforms and geometry are immutable presentation stock. The
+## renderer node remains per door so culling, visibility and host placement stay
+## independent, but doors with the same authored pair can share one MultiMesh
+## buffer instead of allocating an identical resource for every threshold.
+static var _shared_frame_post_multimesh_cache: Dictionary = {}
 var _panel_grain_materials: Array[StandardMaterial3D] = []
 var _panel_grain_scales: Array[Vector3] = []
 var _ready_completed := false
@@ -364,14 +369,7 @@ func _batch_frame_post_renderers() -> void:
 		var source_bounds := (source_transform * mesh_bounds).abs()
 		bounds = source_bounds if source_index == 0 else bounds.merge(source_bounds)
 
-	var multi := MultiMesh.new()
-	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.mesh = reference.mesh
-	multi.instance_count = transforms.size()
-	multi.visible_instance_count = -1
-	for transform_index in transforms.size():
-		multi.set_instance_transform(transform_index, transforms[transform_index])
-	multi.custom_aabb = bounds
+	var multi := _shared_frame_post_multimesh(reference.mesh, transforms, bounds)
 
 	var batch := MultiMeshInstance3D.new()
 	batch.name = FRAME_POST_BATCH_NAME
@@ -395,6 +393,39 @@ func _batch_frame_post_renderers() -> void:
 		# Preserve the authored semantic nodes while suppressing only their
 		# duplicate renderer submissions.
 		source.layers = 0
+
+
+## Returns immutable renderer geometry for one exact frame-post layout. A
+## collision-safe candidate check means a hash collision or an overridden door
+## transform falls back to its own resource instead of inheriting the wrong
+## silhouette. Only MultiMeshInstance3D owns per-door renderer state.
+func _shared_frame_post_multimesh(
+		mesh: Mesh,
+		transforms: Array[Transform3D],
+		bounds: AABB
+) -> MultiMesh:
+	var cache_key := hash([mesh.get_instance_id(), transforms, bounds])
+	var candidates: Array = _shared_frame_post_multimesh_cache.get(cache_key, [])
+	for candidate_value in candidates:
+		var candidate := candidate_value as MultiMesh
+		if candidate != null \
+				and candidate.mesh == mesh \
+				and candidate.get_meta(&"authored_instance_transforms", []) == transforms \
+				and candidate.custom_aabb == bounds:
+			return candidate
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = -1
+	for transform_index in transforms.size():
+		multi.set_instance_transform(transform_index, transforms[transform_index])
+	multi.custom_aabb = bounds
+	multi.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	candidates.append(multi)
+	_shared_frame_post_multimesh_cache[cache_key] = candidates
+	return multi
 
 
 ## The two indicator strips are identical visual-only stock under the same

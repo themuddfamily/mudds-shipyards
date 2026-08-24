@@ -248,6 +248,12 @@ func _test_cross_instance_geometry_sharing(reference_door: StationDoor) -> void:
 	var second_panel := second_door.get_node(
 		^"SlidingPanel/PanelMesh"
 	) as MeshInstance3D
+	var reference_frame_batch := reference_door.get_node(
+		^"FrameVisuals/FramePostRenderBatch"
+	) as MultiMeshInstance3D
+	var second_frame_batch := second_door.get_node(
+		^"FrameVisuals/FramePostRenderBatch"
+	) as MultiMeshInstance3D
 
 	_check(
 		geometry_is_shared
@@ -258,11 +264,39 @@ func _test_cross_instance_geometry_sharing(reference_door: StationDoor) -> void:
 		and second_panel.material_override != null
 		and reference_panel.material_override != second_panel.material_override
 		and (reference_panel.material_override as StandardMaterial3D).albedo_color \
-			== (second_panel.material_override as StandardMaterial3D).albedo_color,
-		"two doors share four immutable presentation meshes while retaining per-door panel materials"
+			== (second_panel.material_override as StandardMaterial3D).albedo_color
+		and reference_frame_batch != second_frame_batch
+		and reference_frame_batch.multimesh == second_frame_batch.multimesh
+		and reference_frame_batch.multimesh.get_meta(
+			&"authored_instance_transforms", []
+		) == second_frame_batch.get_meta(&"authored_instance_transforms", []),
+		"two doors share four immutable meshes and one immutable frame-post buffer while retaining per-door renderer and panel state"
+	)
+
+	var overridden_door := DOOR_SCENE.instantiate() as StationDoor
+	var overridden_right := overridden_door.get_node(
+		^"FrameVisuals/RightPost"
+	) as MeshInstance3D
+	overridden_right.position.x += 0.125
+	_test_root.add_child(overridden_door)
+	await process_frame
+	var overridden_batch := overridden_door.get_node(
+		^"FrameVisuals/FramePostRenderBatch"
+	) as MultiMeshInstance3D
+	var overridden_transforms: Array = overridden_batch.multimesh.get_meta(
+		&"authored_instance_transforms", []
+	)
+	_check(
+		overridden_batch.multimesh != reference_frame_batch.multimesh
+		and overridden_transforms.size() == 2
+		and (overridden_transforms[1] as Transform3D).is_equal_approx(
+			overridden_right.transform
+		),
+		"an overridden frame-post layout receives its own exact buffer instead of aliasing default door geometry"
 	)
 
 	second_door.queue_free()
+	overridden_door.queue_free()
 	await process_frame
 
 
