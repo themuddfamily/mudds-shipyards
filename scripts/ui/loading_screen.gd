@@ -414,16 +414,31 @@ func _viewport_size() -> Vector2:
 
 
 func _destination_for(stage_text: String, detail_text: String, current: String) -> String:
-	var supplied := (stage_text + " " + detail_text).to_lower()
-	if supplied.contains("ember"):
+	var stage := stage_text.to_lower()
+	if stage.contains("ember"):
 		return "EMBER MOON"
-	if supplied.contains("cinder"):
+	if stage.contains("cinder"):
 		return "CINDER REACH"
 	if (
-		supplied.contains("mudds")
-		or supplied.contains("shipyard")
-		or (" " + supplied + " ").contains(" station ")
-		or stage_text.to_lower() == "starting up"
+		stage.contains("mudds")
+		or stage.contains("shipyard")
+		or (" " + stage + " ").contains(" station ")
+		or stage == "starting up"
+	):
+		return "MUDDS SHIPYARDS"
+	# A staged child name is supporting detail, not a destination override. Only
+	# consult it when the caller's status did not already name the transition.
+	# This keeps "Building the shipyard / Preparing Ember..." truthfully at
+	# Mudds while still supporting neutral statuses with an explicit destination.
+	var detail := detail_text.to_lower()
+	if detail.contains("ember"):
+		return "EMBER MOON"
+	if detail.contains("cinder"):
+		return "CINDER REACH"
+	if (
+		detail.contains("mudds")
+		or detail.contains("shipyard")
+		or (" " + detail + " ").contains(" station ")
 	):
 		return "MUDDS SHIPYARDS"
 	if not current.is_empty():

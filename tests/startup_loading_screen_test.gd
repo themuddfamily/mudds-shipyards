@@ -374,7 +374,7 @@ func _test_boot_presents_before_it_builds() -> void:
 		"the coordinator's bindings resolve to the re-added children"
 	)
 	var fleet: Array[HeroShip] = flow.get_flyable_ships()
-	_check(fleet.size() == 5, "the staged startup registers the same five flyable craft")
+	_check(fleet.size() == 8, "the staged startup registers the complete eight-craft fleet")
 	_check(
 		world != null and world.get_target_count() > 0,
 		"the staged world finished its procedural build, not just its authored modules"
@@ -435,7 +435,7 @@ func _test_boot_presents_before_it_builds() -> void:
 	await physics_frame
 	await process_frame
 	_check(
-		flow.get_flyable_ships().size() == 5,
+		flow.get_flyable_ships().size() == 8,
 		"a loader-built Main survives a whole-subtree detach and re-add"
 	)
 	_check(

@@ -42,6 +42,15 @@ func _run() -> void:
 			and detail.visible,
 		"station startup has a separate steady destination, live status, detail, and numeric completion"
 	)
+	screen.set_stage(
+		"Building the shipyard", 0.2, "Preparing Cinder Streaming Bootstrap"
+	)
+	_check(
+		destination.text == "DESTINATION  /  MUDDS SHIPYARDS"
+			and status.text == "BUILDING THE SHIPYARD"
+			and detail.text == "Preparing Cinder Streaming Bootstrap",
+		"an explicit station stage outranks incidental destination names in staged-child detail"
+	)
 	screen.set_stage("Loading Cinder Reach", 0.42, "Preparing nearby sector")
 	screen.set_stage("Preparing encounters", 0.58)
 	_check(
