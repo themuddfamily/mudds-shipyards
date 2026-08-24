@@ -2128,10 +2128,16 @@ func set_paused(paused: bool) -> void:
 		var resume := _pause_main_page.find_child("ResumeButton", true, false) as Button
 		if resume != null:
 			resume.grab_focus()
-	elif not paused and not _runtime_status_cards.is_empty():
-		# The modal relinquished focus. Recompose the retained foreground so a
-		# tutorial action can reclaim its deterministic initial target.
-		_refresh_runtime_status_cards()
+	elif not paused and _runtime_status_kind == &"tutorial":
+		# The modal relinquished focus. Return to the retained tutorial action
+		# without rebuilding an otherwise unchanged foreground card.
+		if is_instance_valid(_runtime_status_actions) \
+				and _runtime_status_actions.get_child_count() > 0:
+			var tutorial_action := _runtime_status_actions.get_child(0) as Control
+			if tutorial_action.is_inside_tree() and _runtime_status_can_claim_focus():
+				tutorial_action.grab_focus()
+			else:
+				call_deferred(&"_claim_runtime_status_focus", tutorial_action)
 
 
 func _restore_pause_focus_after_reentry() -> void:
@@ -4143,7 +4149,7 @@ func request_first_sortie_tutorial_action(action: StringName) -> Dictionary:
 func clear_first_sortie_tutorial(reason: StringName = &"detached") -> Dictionary:
 	var result := _first_sortie_tutorial_presenter.detach(reason)
 	_first_sortie_tutorial_source_snapshot.clear()
-	if is_instance_valid(_runtime_status_panel):
+	if _runtime_status_kind == &"tutorial" and is_instance_valid(_runtime_status_panel):
 		var focus_owner := get_viewport().gui_get_focus_owner()
 		if is_instance_valid(focus_owner) \
 				and _runtime_status_panel.is_ancestor_of(focus_owner):
@@ -4156,14 +4162,16 @@ func clear_first_sortie_tutorial(reason: StringName = &"detached") -> Dictionary
 ## public signature and explicitly clears the complete runtime-card surface.
 func clear_runtime_status(source: StringName = &"") -> void:
 	if source.is_empty():
+		var previous_foreground := _runtime_status_foreground_kind()
 		_runtime_status_cards.clear()
 		# This is the only producer-side redraw source kept outside the card map.
 		# Retire it with the legacy all-clear so a later device/profile refresh
 		# cannot silently resurrect a cleared tutorial.
 		_first_sortie_tutorial_source_snapshot.clear()
-	else:
-		_runtime_status_cards.erase(source)
-	_refresh_runtime_status_cards()
+		if not previous_foreground.is_empty():
+			_refresh_runtime_status_cards()
+		return
+	_clear_runtime_status_card_source(source)
 
 
 ## Source-keyed presentation seam for HUD-only producers. The detached payload
@@ -4174,31 +4182,50 @@ func set_runtime_status_card(
 ) -> bool:
 	if source.is_empty():
 		return false
+	var previous_foreground := _runtime_status_foreground_kind()
+	var content_changed := true
+	if _runtime_status_cards.has(source):
+		var previous_card := _runtime_status_cards[source] as Dictionary
+		content_changed = (
+			(previous_card.get("snapshot", {}) as Dictionary) != snapshot
+		)
 	if not activate:
 		if not _runtime_status_cards.has(source):
 			return false
 		var retained_card := _runtime_status_cards[source] as Dictionary
 		retained_card["snapshot"] = snapshot.duplicate(true)
 		_runtime_status_cards[source] = retained_card
-		# A background redraw must not rebuild the foreground action row: doing so
-		# would discard its live focus owner despite no foreground publication.
-		if _runtime_status_kind == source:
-			_refresh_runtime_status_cards()
-		return true
-	_runtime_status_card_serial += 1
-	_runtime_status_cards[source] = {
-		"serial": _runtime_status_card_serial,
-		"snapshot": snapshot.duplicate(true),
-	}
-	_refresh_runtime_status_cards()
+	else:
+		_runtime_status_card_serial += 1
+		_runtime_status_cards[source] = {
+			"serial": _runtime_status_card_serial,
+			"snapshot": snapshot.duplicate(true),
+		}
+	var next_foreground := _runtime_status_foreground_kind()
+	# Rebuild only when publication changed the visible owner or its payload.
+	# Bomber priority can keep an activating ordinary update in the background;
+	# that retained mutation must not replace the focused bomber action control.
+	if (
+		next_foreground != previous_foreground
+		or (next_foreground == source and content_changed)
+	):
+		_refresh_runtime_status_cards()
 	return true
 
 
 func clear_runtime_status_card(source: StringName) -> bool:
-	if source.is_empty() or not _runtime_status_cards.has(source):
+	if source.is_empty():
 		return false
+	return _clear_runtime_status_card_source(source)
+
+
+func _clear_runtime_status_card_source(source: StringName) -> bool:
+	if not _runtime_status_cards.has(source):
+		return false
+	var previous_foreground := _runtime_status_foreground_kind()
 	_runtime_status_cards.erase(source)
-	_refresh_runtime_status_cards()
+	if _runtime_status_foreground_kind() != previous_foreground:
+		_refresh_runtime_status_cards()
 	return true
 
 
@@ -4209,9 +4236,8 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 func _refresh_runtime_status_cards() -> void:
 	_hide_runtime_status_panel(_runtime_status_panel)
 	_hide_runtime_status_panel(_bomber_status_panel)
-	_runtime_status_kind = &""
-	if _runtime_status_cards.has(&"bomber"):
-		_runtime_status_kind = &"bomber"
+	_runtime_status_kind = _runtime_status_foreground_kind()
+	if _runtime_status_kind == &"bomber":
 		var bomber_card := _runtime_status_cards[&"bomber"] as Dictionary
 		_render_runtime_status_card(
 			bomber_card.get("snapshot", {}) as Dictionary,
@@ -4223,6 +4249,23 @@ func _refresh_runtime_status_cards() -> void:
 			_bomber_status_actions
 		)
 		return
+	if _runtime_status_kind.is_empty():
+		return
+	var selected_card := _runtime_status_cards[_runtime_status_kind] as Dictionary
+	_render_runtime_status_card(
+		selected_card.get("snapshot", {}) as Dictionary,
+		_runtime_status_kind,
+		_runtime_status_panel,
+		_runtime_status_title,
+		_runtime_status_detail,
+		_runtime_status_rows,
+		_runtime_status_actions
+	)
+
+
+func _runtime_status_foreground_kind() -> StringName:
+	if _runtime_status_cards.has(&"bomber"):
+		return &"bomber"
 	var selected_kind: StringName = &""
 	var selected_serial := -1
 	for source_variant: Variant in _runtime_status_cards.keys():
@@ -4234,19 +4277,7 @@ func _refresh_runtime_status_cards() -> void:
 		if serial > selected_serial:
 			selected_serial = serial
 			selected_kind = source
-	if selected_kind.is_empty():
-		return
-	_runtime_status_kind = selected_kind
-	var selected_card := _runtime_status_cards[selected_kind] as Dictionary
-	_render_runtime_status_card(
-		selected_card.get("snapshot", {}) as Dictionary,
-		selected_kind,
-		_runtime_status_panel,
-		_runtime_status_title,
-		_runtime_status_detail,
-		_runtime_status_rows,
-		_runtime_status_actions
-	)
+	return selected_kind
 
 
 func _hide_runtime_status_panel(panel: PanelContainer) -> void:

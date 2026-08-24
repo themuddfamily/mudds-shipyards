@@ -36,6 +36,24 @@ func _run() -> void:
 		and (hud.get("_bomber_status_panel") as Control).visible,
 		"clearing an absent source cannot erase the active bomber card",
 	)
+	var bomber_actions := hud.get("_bomber_status_actions") as HBoxContainer
+	var bomber_action := bomber_actions.get_child(0) as Button
+	bomber_action.grab_focus()
+	await process_frame
+	_check(
+		hud.set_runtime_status_card(
+			&"surface", {"title": "SURFACE ROUTE", "message": "Background update"}
+		)
+		and bomber_actions.get_child(0) == bomber_action
+		and hud.get_viewport().gui_get_focus_owner() == bomber_action,
+		"ordinary background update preserves the focused bomber action instance",
+	)
+	_check(
+		hud.clear_runtime_status_card(&"surface")
+		and bomber_actions.get_child(0) == bomber_action
+		and hud.get_viewport().gui_get_focus_owner() == bomber_action,
+		"ordinary background clear preserves the focused bomber action instance",
+	)
 	hud.clear_bomber_payload_status()
 	_check(
 		(hud.get("_runtime_status_panel") as Control).visible
@@ -63,6 +81,21 @@ func _run() -> void:
 		and hud.get_viewport().gui_get_focus_owner() == copilot_action,
 		"tutorial prompt refresh retains copilot foreground serial and focus",
 	)
+	hud.clear_first_sortie_tutorial(&"session_lost")
+	await process_frame
+	_check(
+		not (hud.get("_runtime_status_cards") as Dictionary).has(&"tutorial")
+		and hud.get("_runtime_status_kind") == &"copilot"
+		and (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) == copilot_action
+		and hud.get_viewport().gui_get_focus_owner() == copilot_action,
+		"background tutorial clear preserves the focused copilot action instance",
+	)
+	_check(
+		hud.apply_first_sortie_tutorial_snapshot({
+			"step_id": &"board", "generation": 9, "revision": 1,
+		}),
+		"tutorial can reactivate after its background owner was cleared",
+	)
 	hud.update_loadmaster_telemetry({
 		"role": "loadmaster",
 		"occupant": "Rhea",
@@ -70,6 +103,7 @@ func _run() -> void:
 	})
 	cards = hud.get("_runtime_status_cards") as Dictionary
 	var loadmaster_serial := int((cards[&"loadmaster"] as Dictionary).get("serial", -1))
+	tutorial_serial = int((cards[&"tutorial"] as Dictionary).get("serial", -1))
 	var loadmaster_action := (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) as Button
 	loadmaster_action.grab_focus()
 	await process_frame
@@ -82,6 +116,25 @@ func _run() -> void:
 		and int((cards[&"tutorial"] as Dictionary).get("serial", -1)) == tutorial_serial
 		and hud.get_viewport().gui_get_focus_owner() == loadmaster_action,
 		"tutorial prompt refresh retains loadmaster foreground serial and focus",
+	)
+	var copilot_background := (
+		(cards[&"copilot"] as Dictionary).get("snapshot", {}) as Dictionary
+	).duplicate(true)
+	copilot_background["message"] = "Background support updated"
+	_check(
+		hud.set_runtime_status_card(&"copilot", copilot_background, false)
+		and (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) == loadmaster_action
+		and hud.get_viewport().gui_get_focus_owner() == loadmaster_action,
+		"copilot background update preserves the focused loadmaster action instance",
+	)
+	hud.clear_copilot_navigation_support()
+	await process_frame
+	_check(
+		not (hud.get("_runtime_status_cards") as Dictionary).has(&"copilot")
+		and hud.get("_runtime_status_kind") == &"loadmaster"
+		and (hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) == loadmaster_action
+		and hud.get_viewport().gui_get_focus_owner() == loadmaster_action,
+		"copilot background clear preserves the focused loadmaster action instance",
 	)
 	hud.clear_runtime_status()
 	hud.call("_refresh_input_prompts")
