@@ -322,17 +322,22 @@ const AFT_RACK_PANEL_COPY_COUNT := 6
 ## silhouettes may share one renderer without changing traversal authority.
 const AIRSTAIR_TREAD_SIZE := Vector3(0.46, 0.14, 1.55)
 const AIRSTAIR_TREAD_COPY_COUNT := 4
+## Low-profile amber nosing makes each deployed tread readable from both the
+## berth and the open cabin threshold. This is immutable luminous dressing;
+## the separate ramp collider and route markers remain the boarding contract.
+const AIRSTAIR_NOSING_SIZE := Vector3(0.06, 0.03, 1.38)
+const AIRSTAIR_NOSING_COPY_COUNT := 4
 ## The six crew-seat backs are equal, childless cabin presentation. The seat
 ## roots and their anchors retain every occupant and role contract.
 const CREW_SEAT_BACK_SIZE := Vector3(0.68, 0.92, 0.15)
 const CREW_SEAT_BACK_COPY_COUNT := 6
-const RENDER_DESCENDANT_COUNT := 116
+const RENDER_DESCENDANT_COUNT := 117
 const RENDER_MESH_INSTANCE_COUNT := 105
-const RENDER_MULTIMESH_BATCH_COUNT := 6
-const RENDER_DRAWN_COPY_COUNT := 163
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 111
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 65
-const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
+const RENDER_MULTIMESH_BATCH_COUNT := 7
+const RENDER_DRAWN_COPY_COUNT := 167
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 112
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 66
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 15
 
 var _halyard_built := false
 var _halyard_visual: Node3D
@@ -2681,6 +2686,8 @@ func _build_flank_detail() -> void:
 	var cabin_window_pane_names := PackedStringArray()
 	var airstair_tread_transforms: Array[Transform3D] = []
 	var airstair_tread_names := PackedStringArray()
+	var airstair_nosing_transforms: Array[Transform3D] = []
+	var airstair_nosing_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_halyard_visual, side_name + "WindowFrame", Vector3(side * (HULL_HALF_WIDTH + 0.04), 2.35, band_centre_z), Vector3(0.12, 0.78, band_length), _halyard_materials.structure)
@@ -2747,15 +2754,23 @@ func _build_flank_detail() -> void:
 		# midships hull. The hatch is placed where the deck is.
 		if side < 0.0:
 			for tread_index in 4:
+				var tread_centre := Vector3(
+					-2.86 - float(tread_index) * 0.42,
+					0.24 - float(tread_index) * 0.44,
+					AIRSTAIR_Z
+				)
 				airstair_tread_transforms.append(Transform3D(
 					Basis.IDENTITY,
-					Vector3(
-						-2.86 - float(tread_index) * 0.42,
-						0.24 - float(tread_index) * 0.44,
-						AIRSTAIR_Z
-					)
+					tread_centre
 				))
 				airstair_tread_names.append("AirstairTread%02d" % tread_index)
+				# The strip sits on the outboard leading edge of the visual tread.
+				# It has no collider and does not alter the ramp's walkable plane.
+				airstair_nosing_transforms.append(Transform3D(
+					Basis.IDENTITY,
+					tread_centre + Vector3(-0.20, 0.085, 0.0)
+				))
+				airstair_nosing_names.append("AirstairNosing%02d" % tread_index)
 			_box(_halyard_visual, "AirstairStringer", Vector3(-3.60, -0.36, AIRSTAIR_Z), Vector3(2.00, 0.16, 0.14), _halyard_materials.structure, Vector3(0.0, 0.0, deg_to_rad(-46.0)))
 			_box(_halyard_visual, "AirstairHatchSurround", Vector3(-2.70, 1.55, AIRSTAIR_Z), Vector3(0.16, 2.10, 1.90), _halyard_materials.accent)
 	# The visible steps are not the boarding surface: PortAirstairCollision and
@@ -2772,6 +2787,18 @@ func _build_flank_detail() -> void:
 		_halyard_materials.deck,
 		airstair_tread_transforms,
 		airstair_tread_names
+	)
+	var airstair_nosing_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		AIRSTAIR_NOSING_SIZE,
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_halyard_visual,
+		"AirstairNosingBatch",
+		airstair_nosing_mesh,
+		_halyard_materials.instrument_low,
+		airstair_nosing_transforms,
+		airstair_nosing_names
 	)
 	var window_pane_mesh := StationSurfaceKit.rounded_box_mesh_cached(
 		Vector3(0.05, 0.54, 1.08),
