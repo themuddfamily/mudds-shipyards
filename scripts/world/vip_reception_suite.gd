@@ -67,10 +67,12 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const PANEL_SURFACE_SCALES := {
 	"pearl": 0.12,
 	"pearl_deep": 0.14,
+	"pearl_deep_floor": 0.14,
 	"pearl_floor": 0.16,
 	"lacquer": 0.2,
 	"stone": 0.26,
 	"graphite": 0.3,
+	"bronze": 0.4,
 	"bronze_panel": 0.4,
 }
 
@@ -1183,6 +1185,9 @@ func _create_materials() -> void:
 	_materials["pearl"] = _material(Color("e6e0d5"), 0.26, 0.30)
 	_materials["pearl_floor"] = _material(Color("d8d1c5"), 0.16, 0.46)
 	_materials["pearl_deep"] = _material(Color("c3bbae"), 0.22, 0.38)
+	# Hue-identical to the structural pearl-deep stock, but reserved for the two
+	# well treads so foot-worn grip does not spread onto mullions and pilasters.
+	_materials["pearl_deep_floor"] = _material(Color("c3bbae"), 0.22, 0.38)
 	# Lacquer: dark, tight, low roughness. The working station has nothing this
 	# reflective, which is most of why the room reads as a different grade of
 	# space through the same doorway.
@@ -1212,9 +1217,28 @@ func _create_materials() -> void:
 	# The landmark's own red, carried exactly one element deep into the room so
 	# the door's colour has somewhere to land.
 	_materials["landmark_red"] = _material(Color("d84d47"), 0.2, 0.39, Color("a9252c"), 1.05)
-	for key: String in PANEL_SURFACE_SCALES.keys():
+	# Keep the suite's warm pearl, dark lacquer and bronze identity while making
+	# the physical hierarchy legible at walking distance. StationSurfaceKit owns
+	# only the clearcoat response and registered maps; the exact colours,
+	# metalness, roughness and emissive cues authored above stay unchanged.
+	var finish_by_key := {
+		"pearl_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"pearl_deep_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"pearl": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		"pearl_deep": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		"graphite": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		# Stone keeps its existing registered plate maps and neutral clear layer;
+		# unlike the lacquered housings, it is neither paint nor handled trim.
+		"stone": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		"lacquer": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"bronze": StationSurfaceKit.PanelFinish.METAL_TRIM,
+		"bronze_panel": StationSurfaceKit.PanelFinish.METAL_TRIM,
+	}
+	for key: String in finish_by_key:
 		StationSurfaceKit.apply_panel_triplanar(
-			_materials[key] as StandardMaterial3D, float(PANEL_SURFACE_SCALES[key])
+			_materials[key] as StandardMaterial3D,
+			float(PANEL_SURFACE_SCALES[key]),
+			finish_by_key[key]
 		)
 
 
@@ -1419,7 +1443,13 @@ func _build_reception_shell(structure: Node3D) -> void:
 		["WellStepEntry", Vector3(-1.1, -0.5375, 6.25), Vector3(3.0, 0.625, 0.7)],
 		["WellStepPort", Vector3(-4.25, -0.5375, 9.0), Vector3(0.7, 0.625, 2.4)],
 	]:
-		var tread := _box(room, str(step[0]), step[1] as Vector3, step[2] as Vector3, _materials["pearl_deep"])
+		var tread := _box(
+			room,
+			str(step[0]),
+			step[1] as Vector3,
+			step[2] as Vector3,
+			_materials["pearl_deep_floor"]
+		)
 		_register_support(tread, &"well entry step", &"well pan")
 
 	# Walls. The port side is solid because it carries the servery and the art
