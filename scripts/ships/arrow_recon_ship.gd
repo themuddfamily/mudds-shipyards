@@ -63,6 +63,9 @@ const ARROW_NAV_GREEN := Color("7cf0a3")
 # visually separate main-gear-foot family follows the same narrow rule: both
 # ordinary feet and their parked silhouette remain, while their identical,
 # authority-free titanium TorusMesh becomes one immutable resource.
+# The two escape-pod separation collars now follow that same allocation-only
+# rule: both independently named pod renderers, parent modules, transforms and
+# visible submissions remain, while the identical graphite TorusMesh is shared.
 const WING_ROOT_RIB_SIZE := Vector3(1.25, 0.34, 4.8)
 const WING_ROOT_RIB_VISIBLE_COPIES := 2
 const LATERAL_ARRAY_CURVE_JOINT_RADIUS := 0.07
@@ -147,6 +150,12 @@ const MAIN_GEAR_FOOT_INNER_RADIUS := 0.22
 const MAIN_GEAR_FOOT_OUTER_RADIUS := 0.34
 const MAIN_GEAR_FOOT_SCALE := Vector3(1.4, 0.55, 1.0)
 const MAIN_GEAR_FOOT_VISIBLE_COPIES := 2
+const POD_SEPARATION_COLLAR_INNER_RADIUS := 0.57
+const POD_SEPARATION_COLLAR_OUTER_RADIUS := 0.65
+const POD_SEPARATION_COLLAR_SCALE := Vector3(1.0, 0.82, 1.0)
+const POD_SEPARATION_COLLAR_VISIBLE_COPIES := 2
+const POD_SEPARATION_COLLAR_AUTHORED_TESSELLATION := Vector2i(64, 18)
+const POD_SEPARATION_COLLAR_BUDGETED_TESSELLATION := Vector2i(40, 13)
 const ESCAPE_POD_STATUS_LIGHT_RADIUS := 0.085
 const COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER := [
 	"PortConsoleKey00",
@@ -216,7 +225,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 3,
 	"geometry_submissions": 167,
 	"visible_geometry_copies": 171,
-	"unique_mesh_resource_allocations": 124,
+	"unique_mesh_resource_allocations": 123,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -262,6 +271,8 @@ var _engine_collar_mesh: TorusMesh
 var _engine_collars: Array[MeshInstance3D] = []
 var _main_gear_foot_mesh: TorusMesh
 var _main_gear_feet: Array[MeshInstance3D] = []
+var _pod_separation_collar_mesh: TorusMesh
+var _pod_separation_collars: Array[MeshInstance3D] = []
 var _escape_pod_status_light_mesh: SphereMesh
 
 
@@ -488,6 +499,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 			"cockpit_console_key_mesh_sharing": {},
 			"engine_collar_mesh_sharing": {},
 			"main_gear_foot_mesh_sharing": {},
+			"pod_separation_collar_mesh_sharing": {},
 			"recon_pulse_emitters": {},
 		}.duplicate(true)
 
@@ -522,6 +534,9 @@ func get_arrow_visual_performance_report() -> Dictionary:
 	var main_gear_feet := _inspect_main_gear_foot_mesh_sharing()
 	if not bool(main_gear_feet.valid):
 		errors.append_array(main_gear_feet.errors as PackedStringArray)
+	var pod_separation_collars := _inspect_pod_separation_collar_mesh_sharing()
+	if not bool(pod_separation_collars.valid):
+		errors.append_array(pod_separation_collars.errors as PackedStringArray)
 	var pulse_emitters := _inspect_recon_pulse_emitters()
 	if not bool(pulse_emitters.valid):
 		errors.append_array(pulse_emitters.errors as PackedStringArray)
@@ -540,7 +555,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"reductions": {
 			"nodes": -12,
 			"geometry_submissions": -8,
-			"unique_mesh_resource_allocations": 18,
+			"unique_mesh_resource_allocations": 19,
 			"auto_fallback_names": 4,
 			"visible_geometry_copies": -12,
 		},
@@ -560,6 +575,7 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"cockpit_console_key_mesh_sharing": console_keys,
 		"engine_collar_mesh_sharing": engine_collars,
 		"main_gear_foot_mesh_sharing": main_gear_feet,
+		"pod_separation_collar_mesh_sharing": pod_separation_collars,
 		"recon_pulse_emitters": pulse_emitters,
 		"entry_heat_target": entry_heat_target,
 	}.duplicate(true)
@@ -991,6 +1007,8 @@ func _configure_recon_pulse_emitter_metadata(
 
 func _build_escape_pods() -> void:
 	_escape_pods.clear()
+	_pod_separation_collars.clear()
+	_pod_separation_collar_mesh = null
 	_escape_pod_status_light_mesh = SphereMesh.new()
 	_escape_pod_status_light_mesh.radius = ESCAPE_POD_STATUS_LIGHT_RADIUS
 	_escape_pod_status_light_mesh.height = ESCAPE_POD_STATUS_LIGHT_RADIUS * 2.0
@@ -1024,7 +1042,20 @@ func _build_escape_pods() -> void:
 			]),
 			_arrow_materials.pod
 		)
-		_torus(pod, "PodSeparationCollar", Vector3.ZERO, 0.57, 0.65, _arrow_materials.graphite, Vector3(90, 0, 0), Vector3(1.0, 0.82, 1.0))
+		var separation_collar := _torus(
+			pod,
+			"PodSeparationCollar",
+			Vector3.ZERO,
+			POD_SEPARATION_COLLAR_INNER_RADIUS,
+			POD_SEPARATION_COLLAR_OUTER_RADIUS,
+			_arrow_materials.graphite,
+			Vector3(90, 0, 0),
+			POD_SEPARATION_COLLAR_SCALE,
+			_pod_separation_collar_mesh
+		)
+		if _pod_separation_collar_mesh == null:
+			_pod_separation_collar_mesh = separation_collar.mesh as TorusMesh
+		_pod_separation_collars.append(separation_collar)
 		_box(pod, "PodIdentityStripe", Vector3(side * 0.48, 0.02, -0.05), Vector3(0.06, 0.22, 1.55), _arrow_materials.sensor)
 		_sphere(
 			pod,
@@ -2683,6 +2714,108 @@ func _inspect_main_gear_foot_mesh_sharing() -> Dictionary:
 		"visible_geometry_copies": _main_gear_feet.size(),
 		"primitive_mesh_allocations": mesh_identities.size(),
 		"resource_allocation_reduction": 1,
+		"legacy": {
+			"geometry_nodes": 2,
+			"geometry_submissions": 2,
+			"visible_geometry_copies": 2,
+			"primitive_mesh_allocations": 2,
+		},
+	}.duplicate(true)
+
+
+func _inspect_pod_separation_collar_mesh_sharing() -> Dictionary:
+	var errors := PackedStringArray()
+	var node_paths := PackedStringArray()
+	var mesh_identities := {}
+	var expected_transform := Transform3D(
+		Basis.from_euler(Vector3(PI * 0.5, 0.0, 0.0)) \
+			* Basis.from_scale(POD_SEPARATION_COLLAR_SCALE),
+		Vector3.ZERO
+	)
+	if _pod_separation_collars.size() != POD_SEPARATION_COLLAR_VISIBLE_COPIES:
+		errors.append("pod-separation-collar visible-copy roster drift")
+	for index in _pod_separation_collars.size():
+		var collar := _pod_separation_collars[index]
+		var expected_parent := _escape_pods[index] \
+			if index < _escape_pods.size() else null
+		if not is_instance_valid(collar) or collar.get_parent() != expected_parent:
+			errors.append("pod-separation-collar renderer roster drift: %d" % index)
+			continue
+		var path := str(_arrow_visual.get_path_to(collar))
+		node_paths.append(path)
+		if not collar.transform.is_equal_approx(expected_transform):
+			errors.append("pod-separation-collar transform drift: %s" % path)
+		if collar.mesh == null:
+			errors.append("pod-separation-collar mesh missing: %s" % path)
+		else:
+			mesh_identities[collar.mesh.get_instance_id()] = true
+		if not collar.visible \
+				or collar.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or collar.material_override != null \
+				or collar.material_overlay != null \
+				or collar.layers != 1 \
+				or not is_zero_approx(collar.transparency):
+			errors.append("pod-separation-collar render-state drift: %s" % path)
+		if collar.get_child_count() != 0 or collar.get_script() != null \
+				or not collar.get_groups().is_empty() \
+				or not collar.get_meta_list().is_empty() \
+				or not collar.find_children(
+					"*", "CollisionObject3D", true, false
+				).is_empty():
+			errors.append("pod-separation-collar gained semantic authority: %s" % path)
+	var expected_paths := PackedStringArray([
+		"PortEscapePod/PodSeparationCollar",
+		"StarboardEscapePod/PodSeparationCollar",
+	])
+	if node_paths != expected_paths:
+		errors.append("pod-separation-collar path roster drift")
+	if mesh_identities.size() != 1:
+		errors.append("pod-separation-collar shared-mesh identity drift")
+	var mesh := _pod_separation_collar_mesh
+	var tessellation := Vector2i(mesh.rings, mesh.ring_segments) \
+		if mesh != null else Vector2i.ZERO
+	var budget_metadata_valid: bool = mesh != null \
+		and mesh.get_meta_list() == [StringName(TorusGeometryBudget.AUTHORED_META)] \
+		and mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
+			== POD_SEPARATION_COLLAR_AUTHORED_TESSELLATION
+	var tessellation_valid: bool = (
+		tessellation == POD_SEPARATION_COLLAR_AUTHORED_TESSELLATION
+		and mesh != null and mesh.get_meta_list().is_empty()
+	)
+	tessellation_valid = tessellation_valid or (
+		tessellation == POD_SEPARATION_COLLAR_BUDGETED_TESSELLATION
+		and budget_metadata_valid
+	)
+	if mesh == null \
+			or not is_equal_approx(
+				mesh.inner_radius, POD_SEPARATION_COLLAR_INNER_RADIUS
+			) \
+			or not is_equal_approx(
+				mesh.outer_radius, POD_SEPARATION_COLLAR_OUTER_RADIUS
+			) \
+			or not tessellation_valid \
+			or mesh.get_surface_count() != 1:
+		errors.append("pod-separation-collar primitive recipe drift")
+	elif mesh.material != _arrow_materials.graphite:
+		errors.append("pod-separation-collar material identity drift")
+	if mesh != null and mesh.resource_local_to_scene:
+		errors.append("pod-separation-collar shared mesh gained instance authority")
+	for collar in _pod_separation_collars:
+		if is_instance_valid(collar) and collar.mesh != mesh:
+			errors.append("pod-separation-collar retained a private mesh")
+			break
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"node_paths": node_paths,
+		"authored_local_transform": expected_transform,
+		"geometry_nodes": _pod_separation_collars.size(),
+		"geometry_submissions": _pod_separation_collars.size(),
+		"visible_geometry_copies": _pod_separation_collars.size(),
+		"primitive_mesh_allocations": mesh_identities.size(),
+		"resource_allocation_reduction": 1,
+		"tessellation": tessellation,
+		"mesh_metadata": mesh.get_meta_list() if mesh != null else [],
 		"legacy": {
 			"geometry_nodes": 2,
 			"geometry_submissions": 2,

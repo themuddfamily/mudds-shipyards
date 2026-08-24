@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_visual_performance_batch(arrow)
 	_test_engine_collar_mesh_sharing(arrow)
 	_test_main_gear_foot_mesh_sharing(arrow)
+	_test_pod_separation_collar_mesh_sharing(arrow)
 	_test_boarding_step_mesh_sharing(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_collision_boarding_and_cameras(arrow)
@@ -208,6 +209,73 @@ func _test_main_gear_foot_mesh_sharing(arrow: ArrowReconShip) -> void:
 		_check(
 			bool(arrow.get_arrow_visual_performance_report().valid),
 			"restoring the shared immutable main-gear-foot mesh restores the Arrow audit"
+		)
+
+
+func _test_pod_separation_collar_mesh_sharing(arrow: ArrowReconShip) -> void:
+	var report := arrow.get_arrow_visual_performance_report()
+	var sharing := report.pod_separation_collar_mesh_sharing as Dictionary
+	var visual := arrow.get_arrow_visual_root()
+	var paths := sharing.node_paths as PackedStringArray
+	var port := visual.get_node_or_null(NodePath(paths[0])) as MeshInstance3D \
+		if paths.size() == 2 else null
+	var starboard := visual.get_node_or_null(NodePath(paths[1])) as MeshInstance3D \
+		if paths.size() == 2 else null
+	_check(
+		bool(sharing.valid)
+		and sharing.legacy == {
+			"geometry_nodes": 2,
+			"geometry_submissions": 2,
+			"visible_geometry_copies": 2,
+			"primitive_mesh_allocations": 2,
+		}
+		and int(sharing.geometry_nodes) == 2
+		and int(sharing.geometry_submissions) == 2
+		and int(sharing.visible_geometry_copies) == 2
+		and int(sharing.primitive_mesh_allocations) == 1
+		and int(sharing.resource_allocation_reduction) == 1
+		and paths == PackedStringArray([
+			"PortEscapePod/PodSeparationCollar",
+			"StarboardEscapePod/PodSeparationCollar",
+		]),
+		"escape-pod collars reduce immutable TorusMesh allocations 2->1 while retaining both named pod renderers and submissions"
+	)
+	_check(
+		port != null and starboard != null and port.mesh == starboard.mesh
+		and port.mesh is TorusMesh
+		and is_equal_approx(
+			(port.mesh as TorusMesh).inner_radius,
+			ArrowReconShip.POD_SEPARATION_COLLAR_INNER_RADIUS
+		)
+		and is_equal_approx(
+			(port.mesh as TorusMesh).outer_radius,
+			ArrowReconShip.POD_SEPARATION_COLLAR_OUTER_RADIUS
+		)
+		and (port.mesh as TorusMesh).material == arrow.get_variant_materials().graphite
+		and port.transform.is_equal_approx(sharing.authored_local_transform)
+		and starboard.transform.is_equal_approx(sharing.authored_local_transform)
+		and port.get_parent() == arrow.get_escape_pod(&"port")
+		and starboard.get_parent() == arrow.get_escape_pod(&"starboard")
+		and port.get_child_count() == 0 and starboard.get_child_count() == 0
+		and port.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and starboard.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"both pod-local collars preserve exact graphite geometry, transforms, parent identity, and zero gameplay authority"
+	)
+	if port != null and starboard != null:
+		var shared_mesh := port.mesh
+		starboard.mesh = shared_mesh.duplicate(false)
+		_check(
+			not bool(arrow.get_arrow_visual_performance_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_visual_performance_report(),
+				"pod-separation-collar shared-mesh identity drift"
+			),
+			"structured-red: a private pod-collar mesh fails the allocation audit"
+		)
+		starboard.mesh = shared_mesh
+		_check(
+			bool(arrow.get_arrow_visual_performance_report().valid),
+			"restoring the shared pod-collar mesh restores the Arrow audit"
 		)
 
 
@@ -720,15 +788,15 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		bool(report.valid)
 		and report.current == report.expected
 		and report.current == {
-			"nodes": 187,
-			"mesh_instance_nodes": 162,
+			"nodes": 189,
+			"mesh_instance_nodes": 164,
 			"multi_mesh_instance_nodes": 3,
-			"geometry_submissions": 165,
-			"visible_geometry_copies": 169,
-			"unique_mesh_resource_allocations": 122,
+			"geometry_submissions": 167,
+			"visible_geometry_copies": 171,
+			"unique_mesh_resource_allocations": 123,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 187-node, 165-submission, 122-mesh census with all 169 copies"
+		"entry-complete Arrow freezes the exact 189-node, 167-submission, 123-mesh census with all 171 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -757,11 +825,11 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"unique_mesh_resource_allocations": 4,
 		}
 		and report.reductions == {
-			"nodes": -10,
-			"geometry_submissions": -6,
+			"nodes": -12,
+			"geometry_submissions": -8,
 			"unique_mesh_resource_allocations": 19,
 			"auto_fallback_names": 4,
-			"visible_geometry_copies": -10,
+			"visible_geometry_copies": -12,
 		}
 		and report.phase9_reductions_before_entry_heat == {
 			"nodes": 1,
@@ -932,7 +1000,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	)
 	detached_panel_transforms[0] = Transform3D.IDENTITY
 	_check(
-		int(arrow.get_arrow_visual_performance_report().current.nodes) == 187
+		int(arrow.get_arrow_visual_performance_report().current.nodes) == 189
 		and int(
 			arrow.get_arrow_visual_performance_report()
 				.lateral_array_curve_joint_sharing.primitive_mesh_allocations
@@ -980,7 +1048,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 	_check(
 		bool(budgeted_panel_report.valid)
 		and StringName(budgeted_panel_report.mesh_kind) == &"BoxMesh"
-		and int(torus_budget_report.tori) == 12,
+		and int(torus_budget_report.tori) == 13,
 		"production torus budget retains the compact emitter shrouds and bounded compression bow while leaving shallow dorsal seams outside torus normalization"
 	)
 	var injected := Node3D.new()
