@@ -12,6 +12,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_keyboard_and_mouse_resolution()
+	_test_controls_overlay_device_family_coverage()
 	_test_gamepad_layouts_and_axes()
 	_test_last_active_selection_and_override()
 	_test_deadzone_and_event_observation()
@@ -39,6 +40,35 @@ func _test_keyboard_and_mouse_resolution() -> void:
 	)
 	var side := Resolver.resolve_binding(_mouse(MOUSE_BUTTON_XBUTTON1), Resolver.FAMILY_MOUSE)
 	_check(side.glyph_token == &"mouse.back", "mouse side button resolves to its semantic role")
+
+
+func _test_controls_overlay_device_family_coverage() -> void:
+	var profile := InputBindingProfile.from_dictionary({
+		"schema_version": InputBindingProfile.SCHEMA_VERSION,
+		"bindings": {
+			&"toggle_controls_overlay": [_key(KEY_F1), _joy_button(JOY_BUTTON_LEFT_SHOULDER)],
+		},
+		"action_options": {
+			&"toggle_controls_overlay": {"deadzone": 0.18, "curve": &"linear", "hold_mode": &"hold"},
+		},
+	})
+	var resolver := Resolver.new()
+	var keyboard := resolver.resolve_action(profile, &"toggle_controls_overlay")
+	_check(
+		keyboard.glyph_token == &"key.f1"
+		and keyboard.text == "F1"
+		and not keyboard.fallback_used,
+		"the shipped keyboard controls-overlay action has a stable F1 glyph and fallback"
+	)
+	resolver.set_explicit_device_family_override(Resolver.FAMILY_GAMEPAD_XBOX)
+	var xbox := resolver.resolve_action(profile, &"toggle_controls_overlay")
+	resolver.set_explicit_device_family_override(Resolver.FAMILY_GAMEPAD_PLAYSTATION)
+	var playstation := resolver.resolve_action(profile, &"toggle_controls_overlay")
+	_check(
+		xbox.glyph_token == &"gamepad.xbox.lb" and xbox.text == "LB"
+		and playstation.glyph_token == &"gamepad.playstation.l1" and playstation.text == "L1",
+		"the same action follows existing Xbox and PlayStation active-family state"
+	)
 
 
 func _test_gamepad_layouts_and_axes() -> void:

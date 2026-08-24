@@ -50,6 +50,11 @@ const _KEY_NAMES := {
 	KEY_PAGEDOWN: [&"page_down", "Page Down"],
 	KEY_INSERT: [&"insert", "Insert"],
 	KEY_DELETE: [&"delete", "Delete"],
+	# The live controls overlay and screenshot actions ship on F1/F2. Keep their
+	# prompt tokens independent of platform key-name formatting so keyboard
+	# players see the same concise fallback in every packaged build.
+	KEY_F1: [&"f1", "F1"],
+	KEY_F2: [&"f2", "F2"],
 }
 
 const _MOUSE_NAMES := {
