@@ -59,6 +59,15 @@ func _run() -> void:
 		_check(visual != null, "range target %02d retains DroneVisual" % (target_index + 1))
 		if visual == null:
 			continue
+		var frame_root := visual.get_node_or_null(^"ApproachFrame") as Node3D
+		_check(
+			frame_root != null
+			and bool(frame_root.get_meta(&"presentation_only", false))
+			and not bool(frame_root.get_meta(&"gameplay_authority", true)),
+			"range target %02d owns one visual-only approach frame" % (target_index + 1)
+		)
+		if frame_root == null:
+			continue
 		var core := visual.get_node_or_null(^"Core") as MeshInstance3D
 		_check(core != null, "range target %02d retains its core" % (target_index + 1))
 		if core != null:
@@ -79,7 +88,7 @@ func _run() -> void:
 
 		for frame_index in EXPECTED_FRAME_NAMES.size():
 			var frame_name := EXPECTED_FRAME_NAMES[frame_index]
-			var frame := visual.get_node_or_null(NodePath(frame_name)) as MeshInstance3D
+			var frame := frame_root.get_node_or_null(NodePath(frame_name)) as MeshInstance3D
 			_check(frame != null, "%s exists on range target %02d" % [frame_name, target_index + 1])
 			if frame == null:
 				continue
@@ -99,9 +108,45 @@ func _run() -> void:
 				"%s is an exact childless emissive presentation bar" % frame_name
 			)
 
+	_test_animated_approach_facing(world)
+
 	world.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_animated_approach_facing(world: ShipyardWorld) -> void:
+	var target := world.get_node(^"ExteriorTargetRange/TargetDrone01") as StaticBody3D
+	var visual := target.get_node(^"DroneVisual") as Node3D
+	var frame := visual.get_node(^"ApproachFrame") as Node3D
+	var initial_offset := frame.global_position - target.global_position
+	for sample in 16:
+		# Production _process advances the same idle translation, yaw, and roll path
+		# as a live frame. Eight seconds crosses more than 150 degrees of yaw, well
+		# beyond the old frame's fully edge-on failure point.
+		world._process(0.5)
+		var facing := frame.global_basis.orthonormalized().z.dot(Vector3.BACK)
+		_check(
+			facing > 0.999
+			and (frame.global_position - target.global_position).is_equal_approx(initial_offset),
+			"approach frame remains face-on and follows target at animation sample %02d" % sample
+		)
+
+	# Because the frame remains below DroneVisual, the existing collapse/hide
+	# owner still controls it; restoring that owner restores the same frame.
+	visual.visible = false
+	visual.scale = Vector3.ONE * 0.2
+	_check(not frame.is_visible_in_tree(), "target hide also hides the approach frame")
+	_check(
+		frame.global_basis.get_scale().is_equal_approx(Vector3.ONE * 0.2),
+		"target collapse scale also collapses the approach frame"
+	)
+	visual.visible = true
+	visual.scale = Vector3.ONE
+	_check(
+		frame.is_visible_in_tree() and frame.global_basis.get_scale().is_equal_approx(Vector3.ONE),
+		"target visual reset restores the approach frame"
+	)
 
 
 func _check_target_authority(target: StaticBody3D, target_index: int) -> void:

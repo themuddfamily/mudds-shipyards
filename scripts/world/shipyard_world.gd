@@ -1337,7 +1337,7 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	_animate_crane()
 	_animate_warning_lights()
-	_animate_targets()
+	_animate_targets(delta)
 
 
 ## Exact world-space transform for placing the on-foot player.
@@ -4450,6 +4450,7 @@ func reset_range_target_for_reuse(target: StaticBody3D) -> Dictionary:
 	if visual != null:
 		visual.visible = true
 		visual.scale = Vector3.ONE
+		_update_exterior_target_approach_frame_facing(target)
 	var result := reset_result.duplicate(true)
 	result["collision_restore_deferred"] = true
 	return result
@@ -8637,6 +8638,11 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 ## already-authorized destruction collapse without gaining its own processing,
 ## collision, damage, scoring, or lifecycle route.
 func _add_exterior_target_approach_frame(visual: Node3D) -> void:
+	var frame_root := Node3D.new()
+	frame_root.name = "ApproachFrame"
+	frame_root.set_meta(&"presentation_only", true)
+	frame_root.set_meta(&"gameplay_authority", false)
+	visual.add_child(frame_root)
 	var half_radius := EXTERIOR_TARGET_APPROACH_FRAME_RADIUS * 0.5
 	var bar_size := Vector3(
 		EXTERIOR_TARGET_APPROACH_FRAME_RADIUS * sqrt(2.0),
@@ -8652,7 +8658,7 @@ func _add_exterior_target_approach_frame(visual: Node3D) -> void:
 	for spec in frame_specs:
 		var offset := spec[1] as Vector2
 		var bar := _box(
-			visual,
+			frame_root,
 			"ApproachFrame%s" % spec[0],
 			Vector3(offset.x, offset.y, EXTERIOR_TARGET_APPROACH_FRAME_Z),
 			bar_size,
@@ -8664,6 +8670,16 @@ func _add_exterior_target_approach_frame(visual: Node3D) -> void:
 		bar.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		bar.set_meta(&"presentation_only", true)
 		bar.set_meta(&"gameplay_authority", false)
+
+
+## Cancels the authoritative body's presentation yaw/roll only for the visual
+## acquisition frame. The frame remains a DroneVisual descendant, so it still
+## follows target translation and inherits the existing collapse, hide, and
+## reset lifecycle; it simply cannot turn edge-on during the idle target orbit.
+func _update_exterior_target_approach_frame_facing(target: StaticBody3D) -> void:
+	var frame := target.get_node_or_null(^"DroneVisual/ApproachFrame") as Node3D
+	if frame != null:
+		frame.quaternion = target.quaternion.inverse()
 
 
 func _add_exterior_target_core(visual: Node3D) -> void:
@@ -8863,7 +8879,7 @@ func _animate_warning_lights() -> void:
 			light.light_energy = base_energy * (0.35 + 0.65 * maxf(0.0, sin(_elapsed * 3.8 + phase)))
 
 
-func _animate_targets() -> void:
+func _animate_targets(delta: float) -> void:
 	for index in _targets.size():
 		var target := _targets[index]
 		if not is_instance_valid(target) or target.get_meta("destroyed", false):
@@ -8875,8 +8891,9 @@ func _animate_targets() -> void:
 			sin(_elapsed * 0.72 + phase) * 1.1,
 			cos(_elapsed * 0.33 + phase) * 0.8
 		)
-		target.rotation.y += 0.34 * get_process_delta_time()
+		target.rotation.y += 0.34 * delta
 		target.rotation.z = sin(_elapsed * 0.6 + phase) * 0.13
+		_update_exterior_target_approach_frame_facing(target)
 
 
 func _add_guide_light(
