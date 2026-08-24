@@ -9,10 +9,16 @@ var _points: Array[Vector3] = []
 var _profile: StringName = &"high"
 var _solar: Dictionary = {}
 var _weather: Dictionary = {}
-var _shared_mesh: SphereMesh
+static var _shared_mesh: SphereMesh
 var _shared_material: StandardMaterial3D
 var _marker_multimesh: MultiMesh
 var _marker_batch: MultiMeshInstance3D
+var _profile_buffers: Dictionary = {}
+var _profile_bounds: Dictionary = {}
+var _profile_visible_counts: Dictionary = {}
+var _submitted_profile: StringName = &""
+var _geometry_buffer_build_count := 0
+var _geometry_buffer_submission_count := 0
 
 func configure(points: Array) -> Dictionary:
 	if _configured or points.is_empty():
@@ -20,9 +26,11 @@ func configure(points: Array) -> Dictionary:
 	for point in points:
 		if not point is Vector3 or not (point as Vector3).is_finite():
 			return {"accepted": false, "reason": &"invalid_route_trail_configuration"}
-	_shared_mesh = SphereMesh.new()
-	_shared_mesh.radius = 0.45
-	_shared_mesh.height = 0.9
+	if _shared_mesh == null:
+		_shared_mesh = SphereMesh.new()
+		_shared_mesh.radius = 0.45
+		_shared_mesh.height = 0.9
+		_shared_mesh.resource_local_to_scene = false
 	_shared_material = StandardMaterial3D.new()
 	_shared_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_shared_material.emission_enabled = true
@@ -50,16 +58,16 @@ func apply_presentation_recipe(solar: Variant, weather: Variant) -> Dictionary:
 	_weather = (weather as Dictionary).duplicate(true)
 	var elevation := float(_solar.get("sun_elevation_sine", 0.0))
 	var intensity := clampf(0.25 + clampf(-elevation, 0.0, 1.0) * 0.75, 0.15, 1.0)
-	var stride := 1 if _profile == &"high" else (2 if _profile == &"medium" else 3)
-	var visible_transforms: Array[Transform3D] = []
-	for index in _points.size():
-		if index % stride == 0:
-			visible_transforms.append(Transform3D(Basis.IDENTITY, _points[index]))
-	_marker_multimesh.buffer = _encode_multimesh_transforms(visible_transforms)
-	_marker_multimesh.visible_instance_count = visible_transforms.size()
-	_marker_multimesh.custom_aabb = _transformed_mesh_bounds(
-		_shared_mesh.get_aabb(), visible_transforms
-	)
+	# Route geometry is immutable after configure(). Solar/weather observations
+	# only change readability, so do not rebuild and re-upload the same transforms
+	# on every presentation recipe tick.
+	if _submitted_profile != _profile:
+		_ensure_profile_geometry(_profile)
+		_marker_multimesh.buffer = _profile_buffers[_profile]
+		_marker_multimesh.custom_aabb = _profile_bounds[_profile]
+		_submitted_profile = _profile
+		_geometry_buffer_submission_count += 1
+	_marker_multimesh.visible_instance_count = int(_profile_visible_counts[_profile])
 	_marker_batch.visible = true
 	_shared_material.emission_energy_multiplier = intensity
 	return {"accepted": true, "reason": &"route_trail_recipe_applied", "marker_count": _points.size()}
@@ -85,32 +93,40 @@ func get_snapshot() -> Dictionary:
 	var visible_count := 0
 	if _marker_batch != null and _marker_batch.visible and _marker_multimesh != null:
 		visible_count = _marker_multimesh.visible_instance_count
-	return {"configured": _configured, "point_count": _points.size(), "points_body_local_m": _points.duplicate(), "visible_marker_count": visible_count, "graphics_profile": _profile, "shared_mesh": _shared_mesh != null, "shared_material": _shared_material != null, "authority": {"navigation": false, "pathfinding": false, "activity": false, "movement": false}}.duplicate(true)
+	return {"configured": _configured, "point_count": _points.size(), "points_body_local_m": _points.duplicate(), "visible_marker_count": visible_count, "graphics_profile": _profile, "shared_mesh": _shared_mesh != null, "shared_material": _shared_material != null, "performance": {"cached_profile_geometry_count": _geometry_buffer_build_count, "geometry_buffer_submissions": _geometry_buffer_submission_count}, "authority": {"navigation": false, "pathfinding": false, "activity": false, "movement": false}}.duplicate(true)
 
-func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+func _stride_for_profile(profile: StringName) -> int:
+	return 1 if profile == &"high" else (2 if profile == &"medium" else 3)
+
+func _ensure_profile_geometry(profile: StringName) -> void:
+	if _profile_buffers.has(profile):
+		return
+	var stride := _stride_for_profile(profile)
+	_profile_buffers[profile] = _encode_profile_buffer(stride)
+	_profile_bounds[profile] = _profile_mesh_bounds(stride)
+	_profile_visible_counts[profile] = ceili(float(_points.size()) / float(stride))
+	_geometry_buffer_build_count += 1
+
+func _encode_profile_buffer(stride: int) -> PackedFloat32Array:
 	var buffer := PackedFloat32Array()
 	# Keep the buffer at the configured family capacity. Only the compacted prefix
 	# is submitted through visible_instance_count for the active profile.
 	buffer.resize(_points.size() * 12)
-	for index in transforms.size():
-		var transform_value := transforms[index]
-		var offset := index * 12
-		buffer[offset + 0] = transform_value.basis.x.x
-		buffer[offset + 1] = transform_value.basis.y.x
-		buffer[offset + 2] = transform_value.basis.z.x
-		buffer[offset + 3] = transform_value.origin.x
-		buffer[offset + 4] = transform_value.basis.x.y
-		buffer[offset + 5] = transform_value.basis.y.y
-		buffer[offset + 6] = transform_value.basis.z.y
-		buffer[offset + 7] = transform_value.origin.y
-		buffer[offset + 8] = transform_value.basis.x.z
-		buffer[offset + 9] = transform_value.basis.y.z
-		buffer[offset + 10] = transform_value.basis.z.z
-		buffer[offset + 11] = transform_value.origin.z
+	var visible_index := 0
+	for point_index in range(0, _points.size(), stride):
+		var offset := visible_index * 12
+		buffer[offset + 0] = 1.0
+		buffer[offset + 3] = _points[point_index].x
+		buffer[offset + 5] = 1.0
+		buffer[offset + 7] = _points[point_index].y
+		buffer[offset + 10] = 1.0
+		buffer[offset + 11] = _points[point_index].z
+		visible_index += 1
 	return buffer
 
-func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
-	var bounds := (transforms[0] * mesh_bounds).abs()
-	for index in range(1, transforms.size()):
-		bounds = bounds.merge((transforms[index] * mesh_bounds).abs())
+func _profile_mesh_bounds(stride: int) -> AABB:
+	var mesh_bounds := _shared_mesh.get_aabb()
+	var bounds := (Transform3D(Basis.IDENTITY, _points[0]) * mesh_bounds).abs()
+	for index in range(stride, _points.size(), stride):
+		bounds = bounds.merge((Transform3D(Basis.IDENTITY, _points[index]) * mesh_bounds).abs())
 	return bounds

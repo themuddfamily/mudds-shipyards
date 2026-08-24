@@ -44,6 +44,37 @@ func _run() -> void:
 			or Vector3(buffer[27], buffer[31], buffer[35]) != points[4]:
 		_fail("route trail batch drifted from the medium-profile marker geometry")
 		return
+	var night_material := batch.material_override as StandardMaterial3D
+	var first_performance: Dictionary = trail.get_snapshot().performance
+	var daylight: Dictionary = trail.apply_presentation_recipe(
+		{"sun_elevation_sine": 1.0}, {"reduced_flash": true}
+	)
+	var daylight_performance: Dictionary = trail.get_snapshot().performance
+	if not daylight.accepted \
+			or night_material.emission != Color(0.2, 0.7, 1.0, 1.0) \
+			or not is_equal_approx(night_material.emission_energy_multiplier, 0.25) \
+			or multi.buffer != buffer \
+			or int(first_performance.cached_profile_geometry_count) != 1 \
+			or int(first_performance.geometry_buffer_submissions) != 1 \
+			or int(daylight_performance.geometry_buffer_submissions) != 1:
+		_fail("solar-only recipe update rebuilt immutable route geometry")
+		return
+	trail.apply_presentation_recipe({"sun_elevation_sine": -1.0}, {})
+	var second_trail := TrailScript.new()
+	root.add_child(second_trail)
+	if not bool(second_trail.configure(points).accepted):
+		_fail("second route trail configuration failed")
+		return
+	second_trail.apply_presentation_recipe({"sun_elevation_sine": 1.0}, {})
+	var second_batches := second_trail.find_children("*", "MultiMeshInstance3D", true, false)
+	var second_batch := second_batches[0] as MultiMeshInstance3D
+	var second_material := second_batch.material_override as StandardMaterial3D
+	if second_batch.multimesh.mesh != multi.mesh \
+			or second_material == night_material \
+			or not is_equal_approx(night_material.emission_energy_multiplier, 1.0) \
+			or not is_equal_approx(second_material.emission_energy_multiplier, 0.25):
+		_fail("route trails did not share immutable mesh or isolated mutable readability")
+		return
 	var detached: Dictionary = trail.detach()
 	var detached_snapshot: Dictionary = trail.get_snapshot()
 	var reentered: Dictionary = trail.reenter()
@@ -56,7 +87,7 @@ func _run() -> void:
 			or not trail.find_children("*", "NavigationRegion3D", true, false).is_empty():
 		_fail("route trail batch changed lifecycle, route, or authority state")
 		return
-	print("PLANETARY_SURFACE_ROUTE_TRAIL_PRESENTATION_TEST_OK: one inert batch preserves route copies")
+	print("PLANETARY_SURFACE_ROUTE_TRAIL_PRESENTATION_TEST_OK: immutable geometry caches avoid recipe resubmission")
 	quit(0)
 
 func _fail(message: String) -> void:
