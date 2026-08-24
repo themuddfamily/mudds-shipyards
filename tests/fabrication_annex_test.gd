@@ -171,10 +171,10 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
-	_check(int(render.multi_mesh_batches) == 34 and int(render.multi_mesh_drawn_copies) == 191, "34 restrained batches store all 191 MultiMesh-authored architectural and equipment copies")
-	_check(int(render.geometry_submissions) == 36 and int(render.visible_geometry_copies) == 203, "36 submissions draw the frozen 203 visible geometry copies")
-	_check(int(render.authored_transform_count) == 191, "every MultiMesh copy retains an authored transform")
-	_check(int(render.forward_plus_buffer_float_count) == 2292 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 191 valid 3D transforms")
+	_check(int(render.multi_mesh_batches) == 32 and int(render.multi_mesh_drawn_copies) == 183, "32 restrained batches store all 183 remaining MultiMesh-authored architectural and equipment copies")
+	_check(int(render.geometry_submissions) == 35 and int(render.visible_geometry_copies) == 203, "35 submissions draw the frozen 203 visible geometry copies")
+	_check(int(render.authored_transform_count) == 183, "every remaining MultiMesh copy retains an authored transform")
+	_check(int(render.forward_plus_buffer_float_count) == 2196 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 183 valid 3D transforms")
 	var floor_render := annex.get_floor_render_optimization_contract()
 	_check(
 		bool(floor_render.valid)
@@ -222,6 +222,24 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 		and bool(overhead.visual_parts_exact)
 		and bool(overhead.render_state_and_combined_geometry_exact),
 		"all seven exact overhead poses, rounded topology, structural finish, shadows and visibility survive without transform-buffer storage"
+	)
+	var ceiling_portal := annex.get_ceiling_portal_render_optimization_contract()
+	_check(
+		bool(ceiling_portal.valid)
+		and int(ceiling_portal.before.renderer_submissions) == 2
+		and int(ceiling_portal.after.renderer_submissions) == 1
+		and int(ceiling_portal.delta.renderer_submissions) == -1
+		and int(ceiling_portal.before.multi_mesh_transform_buffer_floats) == 96
+		and int(ceiling_portal.after.multi_mesh_transform_buffer_floats) == 0,
+		"six ceiling coffers and two portal fascia panels share one immutable ceiling-finish submission"
+	)
+	_check(
+		int(ceiling_portal.before.visible_geometry_copies) == 8
+		and int(ceiling_portal.after.visible_geometry_copies) == 8
+		and int(ceiling_portal.combined_vertex_count) == 2592
+		and bool(ceiling_portal.visual_parts_exact)
+		and bool(ceiling_portal.render_state_and_combined_geometry_exact),
+		"all eight exact ceiling and portal poses, rounded topology, finish, shadows, and visibility survive the shared renderer"
 	)
 	var work_bay_surfaces := annex.get_work_bay_surface_render_optimization_contract()
 	_check(
@@ -294,7 +312,7 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_test_material_rack_batch(annex)
 	var naming := annex.get_deterministic_naming_contract()
 	print("FABRICATION_ANNEX_NAMING: nodes=%d allocations=%d fallbacks=%d duplicates=%d paths=%s" % [naming.node_count, naming.generated_name_allocation_count, naming.auto_generated_fallback_path_count, naming.duplicate_sibling_name_count, naming.auto_generated_fallback_paths])
-	_check(int(naming.node_count) == 122 and int(naming.generated_name_allocation_count) == 68, "all 122 nodes and 68 generated allocations are frozen deterministically")
+	_check(int(naming.node_count) == 121 and int(naming.generated_name_allocation_count) == 66, "all 121 nodes and 66 generated allocations are frozen deterministically")
 	_check(int(naming.auto_generated_fallback_path_count) == 0 and int(naming.duplicate_sibling_name_count) == 0, "no runtime path contains an auto-generated @ fallback or duplicate sibling name")
 
 	var mapped_materials := {}
@@ -355,9 +373,9 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 		collision_is_invisible = collision_is_invisible and raw_collider.find_children("*", "MeshInstance3D", false, false).is_empty()
 	_check(collision_is_invisible, "guardrails retain conservative collision without rendering it as opaque wall slabs")
 	var required_batches := [
-		"CeilingCofferBatch", "ClerestoryRibBatch",
+		"ClerestoryRibBatch",
 		"RoofColumnBatch",
-		"EntryFasciaBatch", "EntryJambBatch", "EntryHeaderBatch",
+		"EntryJambBatch", "EntryHeaderBatch",
 		"MainSignBackingBatch", "BayGuideLineBatch", "AisleGuideBatch",
 		"FabricatorDeckBatch", "FabricatorControlBatch", "FabricatorStatusBatch",
 		"BenchBackboardBatch", "ToolDockBatch", "RackCanisterBatch",
@@ -365,7 +383,9 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 	var complete := true
 	for node_name in required_batches:
 		complete = complete and annex.find_child(node_name, true, false) is MultiMeshInstance3D
-	complete = complete and annex.find_child("OverheadStructureRenderBatch", true, false) is MeshInstance3D
+	complete = complete \
+		and annex.find_child("OverheadStructureRenderBatch", true, false) is MeshInstance3D \
+		and annex.find_child("CeilingPortalRenderBatch", true, false) is MeshInstance3D
 	_check(complete, "roof, facade, deck zoning, controls, benches, and material racks all carry their finishing geometry")
 
 	var labels := annex.find_children("*", "Label3D", true, false)
@@ -455,10 +475,10 @@ func _test_observation_gate_variant(stage: Node3D) -> void:
 	await process_frame
 	var performance := gate_annex.get_performance_contract()
 	_check(
-		int(performance.mesh_instances) == 2
-		and int(performance.multi_mesh_instances) == 34
+		int(performance.mesh_instances) == 3
+		and int(performance.multi_mesh_instances) == 32
 		and int(performance.visible_geometry_copies) == 204
-		and int(performance.nodes) == 124,
+		and int(performance.nodes) == 123,
 		"the integrated Observation-gate variant retains its exact finished rendering budget"
 	)
 	_check(bool(gate_annex.get_audit_report().valid), "the finished Observation-gate variant retains its production integration contract")

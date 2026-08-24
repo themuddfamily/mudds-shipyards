@@ -80,6 +80,17 @@ const OVERHEAD_STRUCTURE_DEFINITIONS := [
 	{"id": &"spine_starboard_inner", "size": Vector3(0.34, 0.34, 15.3), "position": Vector3(3.2, 5.15, 12.25)},
 	{"id": &"spine_starboard_outer", "size": Vector3(0.34, 0.34, 15.3), "position": Vector3(13.1, 5.15, 12.25)},
 ]
+const CEILING_PORTAL_RENDER_NAME := &"CeilingPortalRenderBatch"
+const CEILING_PORTAL_DEFINITIONS := [
+	{"id": &"coffer_port_08", "size": Vector3(9.8, 0.18, 4.5), "position": Vector3(-8.25, 5.52, 7.65)},
+	{"id": &"coffer_port_13", "size": Vector3(9.8, 0.18, 4.5), "position": Vector3(-8.25, 5.52, 12.55)},
+	{"id": &"coffer_port_17", "size": Vector3(9.8, 0.18, 4.5), "position": Vector3(-8.25, 5.52, 17.45)},
+	{"id": &"coffer_starboard_08", "size": Vector3(9.8, 0.18, 4.5), "position": Vector3(8.25, 5.52, 7.65)},
+	{"id": &"coffer_starboard_13", "size": Vector3(9.8, 0.18, 4.5), "position": Vector3(8.25, 5.52, 12.55)},
+	{"id": &"coffer_starboard_17", "size": Vector3(9.8, 0.18, 4.5), "position": Vector3(8.25, 5.52, 17.45)},
+	{"id": &"entry_fascia_port", "size": Vector3(10.4, 1.15, 0.32), "position": Vector3(-8.5, 4.45, 4.42)},
+	{"id": &"entry_fascia_starboard", "size": Vector3(10.4, 1.15, 0.32), "position": Vector3(8.5, 4.45, 4.42)},
+]
 const FABRICATOR_BASE_SIZE := Vector3(4.0, 0.4, 3.0)
 const FABRICATOR_BASE_POSITIONS := [
 	Vector3(-7.0, 0.2, 7.0),
@@ -149,32 +160,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 2,
-	"multi_mesh_instances": 34,
-	"geometry_instances": 36,
+	"mesh_instances": 3,
+	"multi_mesh_instances": 32,
+	"geometry_instances": 35,
 	"visible_geometry_copies": 203,
-	"multi_mesh_drawn_copies": 191,
+	"multi_mesh_drawn_copies": 183,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 122,
+	"nodes": 121,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 2,
-	"multi_mesh_instances": 34,
-	"geometry_instances": 36,
+	"mesh_instances": 3,
+	"multi_mesh_instances": 32,
+	"geometry_instances": 35,
 	"visible_geometry_copies": 204,
-	"multi_mesh_drawn_copies": 192,
+	"multi_mesh_drawn_copies": 184,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 124,
+	"nodes": 123,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -448,18 +459,14 @@ func _build_structure_and_dressing() -> void:
 			&"structure"
 		)
 	_add_combined_overhead_structure_render()
+	_add_combined_ceiling_portal_render()
 	# Deep ceiling coffers and longitudinal spines turn the former open frame
 	# into a complete industrial hall while retaining the central clerestory.
-	for x in [-8.25, 8.25]:
-		for z in [7.65, 12.55, 17.45]:
-			_add_mesh("CeilingCoffer", Vector3(9.8, 0.18, 4.5), Vector3(x, 5.52, z), &"ceiling")
 	for z in [6.5, 9.5, 12.5, 15.5, 18.5]:
 		_add_mesh("ClerestoryRib", Vector3(5.8, 0.16, 0.24), Vector3(0.0, 5.5, z), &"rail")
 
 	# A layered portal and shallow fascia give the inbound threshold a readable
 	# facade without introducing collision or narrowing the six-metre route.
-	for x in [-8.5, 8.5]:
-		_add_mesh("EntryFascia", Vector3(10.4, 1.15, 0.32), Vector3(x, 4.45, 4.42), &"ceiling")
 	for x in [-2.72, 2.72]:
 		_add_mesh("EntryJamb", Vector3(0.26, 4.2, 0.34), Vector3(x, 2.35, 4.34), &"hazard")
 	_add_mesh("EntryHeader", Vector3(5.7, 0.64, 0.38), Vector3(0.0, 4.55, 4.38), &"structure")
@@ -503,6 +510,27 @@ func _add_combined_overhead_structure_render() -> void:
 	renderer.mesh = tool.commit()
 	renderer.material_override = _materials[&"structure"]
 	renderer.set_meta(&"fabrication_overhead_structure_parts", authored_parts)
+	renderer.set_meta(&"authored_visible_copy_count", authored_parts.size())
+	_build_root.add_child(renderer)
+
+
+func _add_combined_ceiling_portal_render() -> void:
+	# The six ceiling coffers and two entry fascia panels are static, collisionless
+	# ceiling dressing with one finish. Baking their exact rounded boxes removes
+	# one submission and both per-family transform buffers without moving routes.
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var authored_parts: Array[Dictionary] = []
+	for definition_variant in CEILING_PORTAL_DEFINITIONS:
+		var definition := definition_variant as Dictionary
+		var transform := Transform3D(Basis.IDENTITY, definition.position as Vector3)
+		tool.append_from(StationSurfaceKit.rounded_box_mesh(definition.size as Vector3), 0, transform)
+		authored_parts.append({"id": definition.id, "size": definition.size, "transform": transform})
+	var renderer := MeshInstance3D.new()
+	renderer.name = CEILING_PORTAL_RENDER_NAME
+	renderer.mesh = tool.commit()
+	renderer.material_override = _materials[&"ceiling"]
+	renderer.set_meta(&"fabrication_ceiling_portal_parts", authored_parts)
 	renderer.set_meta(&"authored_visible_copy_count", authored_parts.size())
 	_build_root.add_child(renderer)
 
@@ -1027,6 +1055,74 @@ func get_overhead_structure_render_optimization_contract() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_ceiling_portal_render_optimization_contract() -> Dictionary:
+	var renderer := _build_root.get_node_or_null(NodePath(str(CEILING_PORTAL_RENDER_NAME))) \
+		as MeshInstance3D
+	var live_parts := (
+		renderer.get_meta(&"fabrication_ceiling_portal_parts", []) as Array
+		if renderer != null
+		else []
+	)
+	var parts_exact := live_parts.size() == CEILING_PORTAL_DEFINITIONS.size()
+	for index in mini(live_parts.size(), CEILING_PORTAL_DEFINITIONS.size()):
+		var live := live_parts[index] as Dictionary
+		var expected := CEILING_PORTAL_DEFINITIONS[index] as Dictionary
+		parts_exact = parts_exact \
+			and StringName(live.get("id", &"")) == StringName(expected.id) \
+			and (live.get("size", Vector3.ZERO) as Vector3).is_equal_approx(expected.size as Vector3) \
+			and (live.get("transform", Transform3D()) as Transform3D).is_equal_approx(
+				Transform3D(Basis.IDENTITY, expected.position as Vector3)
+			)
+	var mesh := renderer.mesh as ArrayMesh if renderer != null else null
+	var vertex_count := 0
+	if mesh != null and mesh.get_surface_count() == 1:
+		var arrays := mesh.surface_get_arrays(0)
+		if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
+			vertex_count = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var render_state_exact: bool = (
+		renderer != null
+		and renderer.name == CEILING_PORTAL_RENDER_NAME
+		and mesh != null
+		and mesh.get_surface_count() == 1
+		and vertex_count == CEILING_PORTAL_DEFINITIONS.size() * 324
+		and mesh.get_aabb().is_equal_approx(
+			AABB(Vector3(-13.7, 3.875, 4.26), Vector3(27.4, 1.735, 15.44))
+		)
+		and renderer.material_override == _materials[&"ceiling"]
+		and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(renderer.visibility_range_begin)
+		and is_zero_approx(renderer.visibility_range_end)
+		and is_zero_approx(renderer.extra_cull_margin)
+		and int(renderer.get_meta(&"authored_visible_copy_count", 0))
+			== CEILING_PORTAL_DEFINITIONS.size()
+	)
+	return {
+		"valid": parts_exact and render_state_exact,
+		"family": &"immutable_ceiling_and_portal_dressing",
+		"before": {
+			"renderer_submissions": 2,
+			"presentation_nodes": 2,
+			"visible_geometry_copies": 8,
+			"multi_mesh_transform_buffer_floats": 96,
+		},
+		"after": {
+			"renderer_submissions": 1 if renderer != null else 0,
+			"presentation_nodes": 1 if renderer != null else 0,
+			"visible_geometry_copies": int(renderer.get_meta(&"authored_visible_copy_count", 0)) if renderer != null else 0,
+			"multi_mesh_transform_buffer_floats": 0,
+		},
+		"delta": {
+			"renderer_submissions": -1,
+			"presentation_nodes": -1,
+			"multi_mesh_transform_buffer_floats": -96,
+		},
+		"authored_parts": live_parts.duplicate(true),
+		"visual_parts_exact": parts_exact,
+		"render_state_and_combined_geometry_exact": render_state_exact,
+		"combined_vertex_count": vertex_count,
+	}.duplicate(true)
+
+
 func get_roof_column_render_optimization_contract() -> Dictionary:
 	var batch: MultiMeshInstance3D = null
 	for raw_batch in find_children("*", "MultiMeshInstance3D", true, false):
@@ -1542,7 +1638,9 @@ func get_validation_errors() -> PackedStringArray:
 	if not bool(get_overhead_structure_render_optimization_contract().valid):
 		errors.append("overhead structural dressing render batch drifted")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 69 if observation_rear_gate_open else 68
+	if not bool(get_ceiling_portal_render_optimization_contract().valid):
+		errors.append("ceiling and portal dressing render batch drifted")
+	var expected_name_allocations := 67 if observation_rear_gate_open else 66
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()
