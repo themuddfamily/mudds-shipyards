@@ -586,6 +586,39 @@ The full isolated-process matrix, source-current package review, native-Windows 
 uninterrupted human playthrough, audibility review, representative native frame/GPU timing and
 VRAM gates remain `NOT_RUN` at this source checkpoint.
 
+### Wave 25 production reconciliation checkpoint — 2026-08-24
+
+This checkpoint records source-level runtime and player-facing outcomes, not a phase
+completion percentage or a substitute for native/human review:
+
+- Cinder race countdown, missed-gate, saved-best, scan, cargo-transfer, mining and
+  station-defence recovery states now give explicit next actions. Convoy actor loss,
+  bunker actor mismatch, Jovian repair-receipt staleness and Ember landmark range loss
+  likewise recover through the existing owners instead of leaving ambiguous retained UI.
+- Ember surface progression now shows the next landmark, return/take-off state, latched
+  hazard recovery and reward audio through the existing surface/session bindings. The
+  broader mid-visit save/re-entry problem remains open because restoring it safely also
+  requires caller-owned craft/player embodiment, berth lease and travel-session state.
+- Combat gains one bounded opponent pressure-turn telegraph, while station defence now
+  retires a missing hostile cleanly and tells the player to reset/redeploy. Cargo and
+  planetary audio re-entry/teardown paths release their retained voices; Hero exhaust
+  presentation now ignores already-freed plume/light references during teardown.
+- Production visual cost was reduced across Aft, Fabrication, Observation, Habitat,
+  Jovian, VIP, Salvage Terrace, Cinder scan/cargo/hauler/interceptor, Torrent, Arrow,
+  Bulwark, Zenith, Halyard and station-service presentation. The current streamed-Cinder
+  local census is **196 MeshInstance3D + 15 MultiMeshInstance3D = 211 renderer/surface
+  submissions**, retaining **755 visible copies and 125,706 triangles**. These are
+  component/source facts only; native driver draw calls, frame time and VRAM remain
+  unmeasured.
+- Focused affected-component tests pass at the merged checkpoint, including physical
+  cargo detach/re-entry, scan state transitions, station defence, Torrent reconstruction,
+  Habitat, Salvage Terrace and VIP reception. The complete isolated-process matrix was
+  intentionally not run for this short delivery checkpoint.
+
+Native gameplay-distance visual review, real audio listening, representative Windows
+performance measurement, uninterrupted end-to-end playthrough and repeated planetary
+loop endurance remain `NOT_RUN`.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
