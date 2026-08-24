@@ -1398,8 +1398,7 @@ func _configure_surface_route_spine() -> void:
 	multi.mesh = unit_bar
 	multi.instance_count = ROUTE_SPINE_INSTANCE_COUNT
 	var transforms := _surface_route_spine_transforms()
-	for index in transforms.size():
-		multi.set_instance_transform(index, transforms[index])
+	multi.buffer = _encode_multi_mesh_transforms(transforms)
 	multi.custom_aabb = ROUTE_SPINE_BATCH_BOUNDS
 	var spine := MultiMeshInstance3D.new()
 	spine.name = &"RouteSpineVisuals"
@@ -1449,7 +1448,45 @@ func _surface_route_spine_is_exact(
 		if not (authored as Array)[index] is Transform3D \
 				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
 			return false
+	return _multi_mesh_live_transforms_are_exact(multi, expected)
+
+
+static func _multi_mesh_live_transforms_are_exact(
+		multi: MultiMesh,
+		expected: Array[Transform3D],
+	) -> bool:
+	# The Dummy headless renderer exposes no live instances, so verify the exact
+	# upload buffer there. With a real renderer, audit each live instance that the
+	# player build consumes; set_instance_transform() drift must turn this red.
+	if RenderingServer.get_video_adapter_name().is_empty():
+		return multi.buffer == _encode_multi_mesh_transforms(expected)
+	for index in expected.size():
+		if not multi.get_instance_transform(index).is_equal_approx(expected[index]):
+			return false
 	return true
+
+
+static func _encode_multi_mesh_transforms(
+		transforms: Array[Transform3D],
+	) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
 
 
 static func _surface_route_spine_transforms() -> Array[Transform3D]:

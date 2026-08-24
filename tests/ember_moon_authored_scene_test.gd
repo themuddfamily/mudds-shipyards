@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 66
+const EXPECTED_ASSERTIONS := 67
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -550,6 +550,7 @@ func _test_embodied_surface_traversal(scene: EmberMoonAuthoredScene) -> void:
 	root.add_child(player)
 	await process_frame
 	player.set_camera_active(false)
+	player.gravity_multiplier = EMBER_SURFACE_GRAVITY_MPS2 / PROJECT_GRAVITY_MPS2
 	Input.action_release(&"jump")
 	Input.action_release(&"sprint_boost")
 	Input.action_release(&"move_forward")
@@ -582,8 +583,10 @@ func _test_embodied_surface_traversal(scene: EmberMoonAuthoredScene) -> void:
 	var final_local := player.global_position
 	_check(
 		start.x >= -0.1 and start.x <= 0.1 and absf(start.z) <= 0.1 \
-			and player.is_on_floor(),
-		"the production Player settles physically at the authored pad start",
+			and player.is_on_floor() \
+			and is_equal_approx(float(ProjectSettings.get_setting("physics/3d/default_gravity")), PROJECT_GRAVITY_MPS2) \
+			and is_equal_approx(player.gravity_multiplier, 0.09),
+		"the production Player settles at the pad under Ember's exact 1.62 m/s2 gravity",
 	)
 	_check(reached_egress, "continuous production locomotion crosses the exact pad-egress marker")
 	_check(
@@ -703,6 +706,37 @@ func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonA
 			and not bool(scene.audit().integration_authority.streaming),
 		"nested audit mutation cannot alter later reports or live authored state",
 	)
+	var live_spine := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/RouteSpineVisuals"
+	) as MultiMeshInstance3D
+	var canonical_spine_transform := (
+		live_spine.get_meta("authored_transforms", []) as Array
+	)[0] as Transform3D
+	if RenderingServer.get_video_adapter_name().is_empty():
+		_check(
+			scene.audit().valid,
+			"Dummy rendering retains the canonical survey-spine upload buffer",
+		)
+		_check(
+			scene.audit().valid,
+			"Dummy rendering leaves the canonical survey-spine lifecycle green",
+		)
+	else:
+		live_spine.multimesh.set_instance_transform(
+			0,
+			Transform3D(Basis.IDENTITY, Vector3(999.0, 999.0, 999.0)),
+		)
+		var live_spine_drift := scene.audit()
+		_check(
+			not live_spine_drift.valid \
+				and (live_spine_drift.error_codes as PackedStringArray).has("surface_route_spine_drift"),
+			"live survey-spine instance drift produces the structured route red code",
+		)
+		live_spine.multimesh.set_instance_transform(0, canonical_spine_transform)
+		_check(
+			scene.audit().valid,
+			"restoring the canonical live survey-spine transform returns the lifecycle audit green",
+		)
 	var drifted := packed.instantiate() as EmberMoonAuthoredScene
 	root.add_child(drifted)
 	await process_frame
@@ -757,14 +791,6 @@ func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonA
 	_check(
 		(drifted.audit().error_codes as PackedStringArray).has("orbital_landing_datum_cue_drift"),
 		"orbital landing-datum transform drift produces a structured red code",
-	)
-	var drifted_spine := drifted.get_node(
-		^"LandingRegion/SurfaceLandmarks/RouteSpineVisuals"
-	) as MultiMeshInstance3D
-	drifted_spine.set_meta("destination_marker_id", &"caldera_pad")
-	_check(
-		(drifted.audit().error_codes as PackedStringArray).has("surface_route_spine_drift"),
-		"survey-spine identity drift produces a structured lifecycle red code",
 	)
 	drifted.queue_free()
 	await process_frame
