@@ -51,8 +51,9 @@ const VALID_STATES := [STATE_RELEASED, STATE_APPROACH, STATE_OCCUPIED]
 # five-material ceiling, and the zero-authority prohibitions are unchanged.
 const MESH_COUNT := 16
 const MESH_RESOURCE_COUNT_BEFORE_SHARING := 16
-const MESH_RESOURCE_COUNT := 7
-const MESH_RESOURCE_COPY_ROSTER := [1, 1, 2, 2, 2, 4, 4]
+const MESH_RESOURCE_COUNT_BEFORE_UNIT_SCALING := 7
+const MESH_RESOURCE_COUNT := 1
+const MESH_RESOURCE_COPY_ROSTER := [16]
 const MATERIAL_COUNT := 4
 const RENDER_MIN_Y := 0.14
 const RENDER_MAX_Y := 0.22
@@ -118,7 +119,7 @@ var _status_meshes: Array[MeshInstance3D] = []
 var _glyph_meshes: Array[MeshInstance3D] = []
 var _glyph_mesh_states: Array[StringName] = []
 var _materials: Dictionary = {}
-var _box_mesh_cache: Dictionary = {}
+var _shared_box_mesh: BoxMesh
 var _material_instance_ids: Dictionary = {}
 var _material_contracts: Dictionary = {}
 var _mesh_contracts: Dictionary = {}
@@ -306,9 +307,10 @@ func _visible_glyph_footprint() -> float:
 		var glyph := _glyph_meshes[index]
 		if not is_instance_valid(glyph) or _glyph_mesh_states[index] != _state:
 			continue
-		var box := glyph.mesh as BoxMesh
-		if box != null:
-			area += box.size.x * box.size.z
+		if glyph.mesh is BoxMesh:
+			# Every cue uses the component's unit box; its node scale retains the
+			# authored dimensions without allocating another mesh resource.
+			area += absf(glyph.scale.x * glyph.scale.z)
 	return area
 
 
@@ -347,7 +349,8 @@ func get_performance_report() -> Dictionary:
 	var mesh_sharing_exact := (
 		mesh_resource_copy_counts.size() == MESH_RESOURCE_COUNT
 		and mesh_resource_copy_roster == MESH_RESOURCE_COPY_ROSTER
-		and _box_mesh_cache.size() == MESH_RESOURCE_COUNT
+		and is_instance_valid(_shared_box_mesh)
+		and mesh_resource_copy_counts.has(_shared_box_mesh.get_instance_id())
 	)
 	var owned_node_count := 1 + find_children("*", "", true, false).size()
 	return {
@@ -365,14 +368,18 @@ func get_performance_report() -> Dictionary:
 		"visible_meshes": visible_meshes,
 		"mesh_budget": MESH_COUNT,
 		"mesh_resources_before_sharing": MESH_RESOURCE_COUNT_BEFORE_SHARING,
+		"mesh_resources_before_unit_scaling": MESH_RESOURCE_COUNT_BEFORE_UNIT_SCALING,
 		"mesh_resources": mesh_resource_copy_counts.size(),
 		"mesh_resource_budget": MESH_RESOURCE_COUNT,
 		"mesh_resource_savings": (
 			MESH_RESOURCE_COUNT_BEFORE_SHARING - mesh_resource_copy_counts.size()
 		),
+		"mesh_resource_unit_scaling_savings": (
+			MESH_RESOURCE_COUNT_BEFORE_UNIT_SCALING - mesh_resource_copy_counts.size()
+		),
 		"mesh_resource_copy_roster": mesh_resource_copy_roster,
 		"mesh_sharing_exact": mesh_sharing_exact,
-		"mesh_sharing_policy": &"component_local_exact_size_box_mesh_cache",
+		"mesh_sharing_policy": &"component_local_unit_box_mesh",
 		"material_resources": _materials.size(),
 		"material_budget": 5,
 		"labels": live_labels.size(),
@@ -916,22 +923,20 @@ func _add_box(
 	material: Material
 	) -> MeshInstance3D:
 	# Every cue remains its own named/stateful MeshInstance and therefore its own
-	# submission. Only build-frozen geometry recipes are shared: identical BoxMesh
-	# sizes inside this component generation resolve to one retained resource.
-	# The cache is deliberately instance-local so an integrity mutation in one
-	# berth can never bleed into another berth's presentation.
-	var mesh_resource := _box_mesh_cache.get(size) as BoxMesh
-	if mesh_resource == null:
-		mesh_resource = BoxMesh.new()
-		mesh_resource.size = size
-		mesh_resource.resource_name = "BerthFeedbackBox_%s" % str(size)
-		mesh_resource.set_meta(&"visual_resource_family", &"ship_berth_feedback_box")
-		mesh_resource.set_meta(&"component_local_shared", true)
-		_box_mesh_cache[size] = mesh_resource
+	# submission. A single build-frozen unit box supplies all geometry; node scale
+	# retains each cue's exact authored dimensions. The resource remains local to
+	# this component so an integrity mutation cannot bleed into another berth.
+	if _shared_box_mesh == null:
+		_shared_box_mesh = BoxMesh.new()
+		_shared_box_mesh.size = Vector3.ONE
+		_shared_box_mesh.resource_name = "BerthFeedbackUnitBox"
+		_shared_box_mesh.set_meta(&"visual_resource_family", &"ship_berth_feedback_unit_box")
+		_shared_box_mesh.set_meta(&"component_local_shared", true)
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
 	mesh_instance.position = position_value
-	mesh_instance.mesh = mesh_resource
+	mesh_instance.scale = size
+	mesh_instance.mesh = _shared_box_mesh
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mesh_instance.set_meta(&"presentation_only", true)

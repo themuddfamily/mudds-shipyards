@@ -86,8 +86,8 @@ func _run() -> void:
 	_check(int(berth_audio.get_snapshot().maximum_simultaneous_voices) == 2 and berth_audio.get_snapshot().prebuilt_voice_ids.size() == 2, "berth audio keeps two fixed prebuilt voice identities")
 	_check(bool(feedback.get_audit_report().valid), "fresh component passes its complete audit")
 	var perf := feedback.get_performance_report()
-	# All sixteen named/stateful copies and submissions remain. Seven exact size
-	# recipes replace sixteen one-use BoxMeshes: copy roster 4,4,2,2,2,1,1.
+	# All sixteen named/stateful copies and submissions remain. Their node scales
+	# retain the exact dimensions while one unit BoxMesh replaces sixteen meshes.
 	_check(
 		int(perf.owned_nodes) == 19
 		and int(perf.mesh_instances) == 16
@@ -98,11 +98,13 @@ func _run() -> void:
 	)
 	_check(
 		int(perf.mesh_resources_before_sharing) == 16
-		and int(perf.mesh_resources) == 7
-		and int(perf.mesh_resource_savings) == 9
+		and int(perf.mesh_resources_before_unit_scaling) == 7
+		and int(perf.mesh_resources) == 1
+		and int(perf.mesh_resource_savings) == 15
+		and int(perf.mesh_resource_unit_scaling_savings) == 6
 		and bool(perf.mesh_sharing_exact)
-		and perf.mesh_resource_copy_roster == [1, 1, 2, 2, 2, 4, 4],
-		"component-local BoxMesh allocation is frozen at 16 -> 7 with the exact copy roster"
+		and perf.mesh_resource_copy_roster == [16],
+		"unit scaling advances component-local BoxMesh allocation from 7 to 1 (16 original)"
 	)
 	var boundary_port_forward := feedback.get_node(
 		"FeedbackVisual/Boundary_Port_Forward"
@@ -120,7 +122,7 @@ func _run() -> void:
 		boundary_port_forward.mesh == boundary_port_aft.mesh
 		and boundary_port_forward.mesh == boundary_starboard_forward.mesh
 		and boundary_port_forward.mesh == boundary_starboard_aft.mesh,
-		"the four independent boundary nodes share their one exact build-frozen size recipe"
+		"the four independent boundary nodes share the build-frozen unit-box recipe"
 	)
 	_check(int(perf.collision_nodes) == 0 and int(perf.lights) == 0 and int(perf.audio_nodes) == 0 and int(perf.particle_emitters) == 0, "feedback adds no collision, light, audio, or particle authority")
 	_check(feedback.get_evidence_metadata().evidence_status == &"modern_interpretation" and not bool(feedback.get_evidence_metadata().historically_supported), "feedback remains an explicit unsupported modern interpretation")
@@ -363,9 +365,9 @@ func _run() -> void:
 	plate_box.size = plate_box_size
 	_check(bool(feedback.get_audit_report().valid), "restoring the exact BoxMesh size restores a green audit")
 
-	# Structured negative controls for the sharing seam itself. An equal-recipe
-	# duplicate must fail because it reintroduces an eighth retained resource;
-	# mutating the shared recipe must fail all four boundary contracts together.
+	# Structured negative controls for the sharing seam itself. An equal unit-box
+	# duplicate must fail because it reintroduces a second retained resource;
+	# mutating the unit recipe must fail every scaled cue contract together.
 	var shared_boundary_mesh := boundary_port_forward.mesh as BoxMesh
 	var duplicate_boundary_mesh := BoxMesh.new()
 	duplicate_boundary_mesh.size = shared_boundary_mesh.size
@@ -373,24 +375,25 @@ func _run() -> void:
 	var duplicate_mesh_report := feedback.get_performance_report()
 	_check(
 		not bool(feedback.get_audit_report().valid)
-		and int(duplicate_mesh_report.mesh_resources) == 8
+		and int(duplicate_mesh_report.mesh_resources) == 2
 		and not bool(duplicate_mesh_report.mesh_sharing_exact),
-		"audit rejects an equal-size duplicate that reasserts an eighth BoxMesh allocation"
+		"audit rejects an equal-size duplicate that reasserts a second BoxMesh allocation"
 	)
 	boundary_port_forward.mesh = shared_boundary_mesh
 	_check(
 		bool(feedback.get_audit_report().valid)
-		and int(feedback.get_performance_report().mesh_resources) == 7,
-		"restoring the exact shared boundary identity restores the seven-resource audit"
+		and int(feedback.get_performance_report().mesh_resources) == 1,
+		"restoring the exact shared unit-box identity restores the one-resource audit"
 	)
 	var shared_boundary_size := shared_boundary_mesh.size
 	shared_boundary_mesh.size += Vector3(0.1, 0.01, 0.02)
 	_check(
 		not bool(feedback.get_audit_report().valid)
+		and (plate.mesh as BoxMesh).size == shared_boundary_mesh.size
 		and (boundary_port_aft.mesh as BoxMesh).size == shared_boundary_mesh.size
 		and (boundary_starboard_forward.mesh as BoxMesh).size == shared_boundary_mesh.size
 		and (boundary_starboard_aft.mesh as BoxMesh).size == shared_boundary_mesh.size,
-		"audit rejects shared recipe drift observed by all four independent boundary copies"
+		"audit rejects unit-box drift observed by every independently scaled cue"
 	)
 	shared_boundary_mesh.size = shared_boundary_size
 	_check(bool(feedback.get_audit_report().valid), "restoring the shared boundary recipe restores a green audit")
