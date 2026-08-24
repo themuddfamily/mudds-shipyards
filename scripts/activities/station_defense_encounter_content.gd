@@ -1328,6 +1328,10 @@ func _apply_hit_and_fade_configuration() -> void:
 		entity.preferred_range = HIT_AND_FADE_PREFERRED_RANGE
 		entity.cruise_speed = HIT_AND_FADE_CRUISE_SPEED
 		entity.chase_speed = HIT_AND_FADE_CHASE_SPEED
+	# Set authored sides before the close craft's existing evasive seam latches
+	# its one-shot direction for this activation generation.
+	close_entity.set("_orbit_sign", PINCER_CLOSE_ORBIT_SIGN)
+	outer_entity.set("_orbit_sign", PINCER_OUTER_ORBIT_SIGN)
 	var close_pattern := close_entity.configure_firing_pattern(HIT_AND_FADE_FIRE_PATTERN)
 	var outer_pattern := outer_entity.configure_firing_pattern(HIT_AND_FADE_FIRE_PATTERN)
 	var close_maneuver := close_entity.configure_evasive_maneuver(

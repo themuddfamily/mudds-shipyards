@@ -1144,6 +1144,10 @@ func _test_checked_in_encounter_content() -> void:
 			gamma.chase_speed,
 			StationDefenseEncounterContent.HIT_AND_FADE_CHASE_SPEED
 		)
+		and float(beta.get("_orbit_sign")) \
+			== StationDefenseEncounterContent.PINCER_CLOSE_ORBIT_SIGN
+		and float(gamma.get("_orbit_sign")) \
+			== StationDefenseEncounterContent.PINCER_OUTER_ORBIT_SIGN
 		and beta_fade_pattern.pattern_id \
 			== RangeOpponent.FIRE_PATTERN_SPACED_SUPPRESSION
 		and gamma_fade_pattern.pattern_id \
@@ -1153,6 +1157,8 @@ func _test_checked_in_encounter_content() -> void:
 		and gamma_fade_maneuver.maneuver_id \
 			== RangeOpponent.EVASIVE_MANEUVER_NONE
 		and beta_fade_maneuver.state_id == &"active"
+		and float(beta_fade_maneuver.direction_sign) \
+			== StationDefenseEncounterContent.PINCER_CLOSE_ORBIT_SIGN
 		and gamma_fade_maneuver.state_id == &"cancelled"
 		and _telegraph_positions_match(
 			beta_role_lamps,
@@ -1171,6 +1177,25 @@ func _test_checked_in_encounter_content() -> void:
 			StationDefenseEncounterContent.HIT_AND_FADE_TELEGRAPH_RADIUS
 		),
 		"a scored beacon hit makes both pincer raiders visibly peel outward under a steady press-the-peel intent cue"
+	)
+	for _frame in 6:
+		await physics_frame
+	var beta_fade_radius := beta.global_position - asset.global_position
+	var gamma_fade_radius := gamma.global_position - asset.global_position
+	var beta_fade_lateral := beta.velocity.dot(
+		Vector3.UP.cross(beta_fade_radius).normalized()
+	)
+	var gamma_fade_lateral := gamma.velocity.dot(
+		Vector3.UP.cross(gamma_fade_radius).normalized()
+	)
+	var beta_fade_outward := beta.velocity.dot(beta_fade_radius.normalized())
+	var gamma_fade_outward := gamma.velocity.dot(gamma_fade_radius.normalized())
+	_check(
+		beta_fade_lateral > 0.5
+		and gamma_fade_lateral < -0.5
+		and beta_fade_outward > 0.5
+		and gamma_fade_outward > 0.5,
+		"the live close and outer raiders split onto opposite authored sides while both withdraw from the beacon"
 	)
 	var fade_content_id := content.get_instance_id()
 	var fade_generation := int(content.get_snapshot().host.activity.generation)
