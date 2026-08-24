@@ -217,10 +217,15 @@ func _test_contract_floor() -> void:
 	var caption_report := _hud.get_caption_presentation_report()
 	var caption_panel := caption_report.panel_rect as Rect2
 	var caption_speaker := caption_report.speaker_rect as Rect2
+	var expected_speaker := "SOURCE · %s" % "S".repeat(
+		CaptionPresentationEvent.MAX_SPEAKER_LENGTH
+	)
 	_check(
-		str(caption_report.rendered_speaker).length()
-			== CaptionPresentationEvent.MAX_SPEAKER_LENGTH
-		and caption_speaker.position.x >= caption_panel.position.x
+		str(caption_report.rendered_speaker) == expected_speaker,
+		"the maximum 64-character speaker retains its textual source marker"
+	)
+	_check(
+		caption_speaker.position.x >= caption_panel.position.x
 		and caption_speaker.end.x <= caption_panel.end.x,
 		"the maximum 64-character speaker stays inside the narrow production host"
 	)

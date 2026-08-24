@@ -181,7 +181,19 @@ const PANEL_LEFT_COLUMN_WIDTH := 350.0
 ## objective card before the first visible layout pass.
 const PANEL_OBJECTIVE_CONTENT_WIDTH := PANEL_LEFT_COLUMN_WIDTH - 38.0
 const PANEL_BRAND_WIDTH := 262.0
+const PANEL_INTERACTION_WIDTH := 424.0
+## The toast remains centred, but this width preserves at least 16 logical px of
+## contract headroom before it can meet the right-side controls card. It stays
+## comfortably above the measured 385 px worst-case content minimum.
+const PANEL_TOAST_WIDTH := 498.0
 const PANEL_TELEMETRY_WIDTH := 312.0
+## The telemetry geometry is authored as one logical band. Construction and
+## safe-area relayout must share the same top reservation so the first frame and
+## every later viewport update agree about where the occupied band begins.
+const PANEL_TELEMETRY_TOP_OFFSET := 250.0
+## Keep telemetry just right of the caption host without shrinking either card.
+## The authored edge margin still retains 26 logical px before safe-area inset.
+const PANEL_TELEMETRY_CAPTION_CLEARANCE := 2.0
 const PANEL_HELP_WIDTH := 272.0
 const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
@@ -2718,17 +2730,28 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 		_recovery_prompt_panel.position = recovery_rect.position - logical * 0.5
 		_recovery_prompt_panel.size = recovery_rect.size
 	if is_instance_valid(_reticle):
-		# The reticle remains camera-centred, but its state label follows the same
-		# authored UI scale ceiling as the surrounding HUD.
-		_reticle.scale = Vector2.ONE * effective
+		# Camera-space targeting remains one-to-one with the viewport. Its textual
+		# state changes independently and must not inherit the HUD readability scale.
+		_reticle.scale = Vector2.ONE
 	if is_instance_valid(_caption_presenter):
+		# CaptionPresenter already reserves the contract's base 32 logical px on
+		# each side. Add only the extra readable-band inset introduced by an
+		# ultrawide viewport or a larger platform safe area, so the caption stays
+		# centred between the same left/right gutters as the scaled HUD panels.
+		var caption_base_safe := UltrawideSafeAreaContractType.BASE_SAFE_MARGIN_X
+		var caption_host_left := (
+			CAPTION_HOST_LEFT_LOGICAL + maxf(safe_left - caption_base_safe, 0.0)
+		)
+		var caption_host_right := (
+			CAPTION_HOST_RIGHT_LOGICAL + maxf(safe_right - caption_base_safe, 0.0)
+		)
 		_caption_presenter.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		_caption_presenter.position = Vector2(CAPTION_HOST_LEFT_LOGICAL * effective, 0.0)
+		_caption_presenter.position = Vector2(caption_host_left * effective, 0.0)
 		_caption_presenter.size = Vector2(
 			maxf(
 				1.0,
 				viewport_size.x
-					- (CAPTION_HOST_LEFT_LOGICAL + CAPTION_HOST_RIGHT_LOGICAL) * effective
+					- (caption_host_left + caption_host_right) * effective
 			),
 			viewport_size.y
 		)
@@ -2819,7 +2842,7 @@ func _apply_safe_area_offsets(left: float, top: float, right: float, bottom: flo
 		_brand_block.position.x = 30.0 + left
 		_brand_block.position.y = 26.0 + top
 	if is_instance_valid(_objective_panel):
-		_objective_panel.position.x = 30.0 + left
+		_objective_panel.position.x = 28.0 + left
 		_objective_panel.position.y = 126.0 + top
 	if is_instance_valid(_help_panel):
 		_help_panel.offset_left = -(PANEL_HELP_WIDTH + PANEL_MARGIN + right)
@@ -2832,9 +2855,14 @@ func _apply_safe_area_offsets(left: float, top: float, right: float, bottom: flo
 		_minimap.offset_top = -270.0 - bottom
 		_minimap.offset_bottom = -PANEL_MARGIN - bottom
 	if is_instance_valid(_telemetry_panel):
-		_telemetry_panel.offset_left = -(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN + right)
-		_telemetry_panel.offset_right = -PANEL_MARGIN - right
-		_telemetry_panel.offset_top = -250.0 - bottom
+		_telemetry_panel.offset_left = (
+			-(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN + right)
+			+ PANEL_TELEMETRY_CAPTION_CLEARANCE
+		)
+		_telemetry_panel.offset_right = (
+			-PANEL_MARGIN - right + PANEL_TELEMETRY_CAPTION_CLEARANCE
+		)
+		_telemetry_panel.offset_top = -PANEL_TELEMETRY_TOP_OFFSET - bottom
 		_telemetry_panel.offset_bottom = -PANEL_MARGIN - bottom
 
 
@@ -3789,7 +3817,7 @@ func _build_hud() -> void:
 	# wraps to one more line instead of being occluded by that readout.
 	_objective_panel = PanelContainer.new()
 	_objective_panel.name = "ObjectivePanel"
-	_objective_panel.position = Vector2(30.0, 126.0)
+	_objective_panel.position = Vector2(28.0, 126.0)
 	_objective_panel.custom_minimum_size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
 	_objective_panel.size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
 	_objective_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
@@ -3826,14 +3854,14 @@ func _build_hud() -> void:
 	_set_help_text([])
 
 	# Narrowed from +/-250 so the prompt clears the telemetry column at
-	# MIN_LOGICAL_WIDTH. 430 still clears the longest authored prompt ("Clear the
+	# MIN_LOGICAL_WIDTH. 424 still clears the longest authored prompt ("Clear the
 	# berth before requesting a return approach", 417 px) on one line, and the
 	# label wraps rather than widening the panel if a longer one is ever added.
 	_interaction_panel = PanelContainer.new()
 	_interaction_panel.name = "InteractionPanel"
 	_interaction_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_interaction_panel.offset_left = -215.0
-	_interaction_panel.offset_right = 215.0
+	_interaction_panel.offset_left = -PANEL_INTERACTION_WIDTH * 0.5
+	_interaction_panel.offset_right = PANEL_INTERACTION_WIDTH * 0.5
 	_interaction_panel.offset_top = -118.0
 	_interaction_panel.offset_bottom = -54.0
 	_interaction_panel.add_theme_stylebox_override("panel", _border_box(Color("101c2bf2"), 7, NOMINAL))
@@ -3908,12 +3936,14 @@ func _build_telemetry() -> void:
 	_telemetry_panel = PanelContainer.new()
 	_telemetry_panel.name = "TelemetryPanel"
 	_telemetry_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_telemetry_panel.offset_left = -(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN)
-	_telemetry_panel.offset_right = -PANEL_MARGIN
+	_telemetry_panel.offset_left = (
+		-(PANEL_TELEMETRY_WIDTH + PANEL_MARGIN) + PANEL_TELEMETRY_CAPTION_CLEARANCE
+	)
+	_telemetry_panel.offset_right = -PANEL_MARGIN + PANEL_TELEMETRY_CAPTION_CLEARANCE
 	# Component, weapon-heat, and hull lines now coexist in this retained card.
 	# The extra height occupies the empty right gutter below HelpPanel and keeps
 	# every bar/label in a distinct row without approaching the centre reticle.
-	_telemetry_panel.offset_top = -340.0
+	_telemetry_panel.offset_top = -PANEL_TELEMETRY_TOP_OFFSET
 	_telemetry_panel.offset_bottom = -PANEL_MARGIN
 	_telemetry_panel.add_theme_stylebox_override("panel", _box(PANEL, 8, 1, Color("315367")))
 	_hud_panels.add_child(_telemetry_panel)
@@ -3968,8 +3998,8 @@ func _build_toast() -> void:
 	_toast_panel = PanelContainer.new()
 	_toast_panel.name = "ToastPanel"
 	_toast_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_toast_panel.offset_left = -255.0
-	_toast_panel.offset_right = 255.0
+	_toast_panel.offset_left = -PANEL_TOAST_WIDTH * 0.5
+	_toast_panel.offset_right = PANEL_TOAST_WIDTH * 0.5
 	_toast_panel.offset_top = 32.0
 	_toast_panel.offset_bottom = 112.0
 	_toast_panel.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 6, CAUTION))
@@ -4550,8 +4580,8 @@ func _build_enemy_status() -> void:
 	_enemy_panel = PanelContainer.new()
 	_enemy_panel.name = "EnemyPanel"
 	_enemy_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_enemy_panel.offset_left = -180.0
-	_enemy_panel.offset_right = 180.0
+	_enemy_panel.offset_left = -170.0
+	_enemy_panel.offset_right = 170.0
 	_enemy_panel.offset_top = 124.0
 	_enemy_panel.offset_bottom = 192.0
 	_enemy_panel.add_theme_stylebox_override("panel", _border_box(Color("180f16e8"), 7, DANGER))
