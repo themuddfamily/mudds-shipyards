@@ -54,6 +54,10 @@ func _run() -> void:
 		"the steady effect is spatially bounded and owns no collision or timer loop"
 	)
 	_check(
+		_all_component_anchors_clear_hull(),
+		"every selectable component resolves the complete bounded cue above the hull"
+	)
+	_check(
 		not bool(authority.get("repair", true))
 			and not bool(authority.get("admission", true))
 			and not bool(authority.get("movement", true))
@@ -167,6 +171,29 @@ func _envelope(
 			"presentation_only": true,
 		},
 	}
+
+
+func _all_component_anchors_clear_hull() -> bool:
+	var hull_bounds := AABB(Vector3(-7.5, -2.0, -11.0), Vector3(15.0, 6.0, 22.0))
+	var component_points := [
+		Vector3(0.0, 0.0, -8.0),
+		Vector3(-5.8, 0.0, 0.0),
+		Vector3(5.8, 0.0, 0.0),
+		Vector3(0.0, 1.0, 0.0),
+		Vector3(0.0, 0.0, 8.2),
+	]
+	for component_position: Vector3 in component_points:
+		var anchor := PresentationType.resolve_exterior_anchor(
+			component_position,
+			hull_bounds
+		)
+		var effect_position := anchor + PresentationType.COMPONENT_CLEARANCE
+		if not is_equal_approx(anchor.x, component_position.x) \
+				or not is_equal_approx(anchor.z, component_position.z) \
+				or effect_position.y + PresentationType.LOCAL_EFFECT_BOUNDS.position.y \
+					<= hull_bounds.end.y:
+			return false
+	return true
 
 
 func _check(condition: bool, message: String) -> void:

@@ -13,6 +13,9 @@ const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const RepairAuthorityType := preload("res://scripts/combat/repair_authority.gd")
 const RoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const ComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
+const RepairPresentationType := preload(
+	"res://scripts/ships/jovian_engineer_repair_presentation.gd"
+)
 
 const FIVE_CRAFT := [
 	TORRENT_SCENE,
@@ -118,14 +121,23 @@ func _test_live_jovian_engineer_binding() -> void:
 		"authority-admitted Jovian engineer work reaches the existing active repair state"
 	)
 	var component_local_position := _component_local_position(craft, component_id)
+	var exterior_anchor := craft.call(
+		&"_engineer_repair_component_exterior_anchor", component_id
+	) as Vector3
 	var active_presentation := craft.get_engineer_repair_presentation_snapshot()
 	_check(
 		bool(active_presentation.get("visible", false))
 			and StringName(active_presentation.get("component_id", &"")) == component_id
 			and (active_presentation.get(
 				"target_local_position", Vector3.INF
-			) as Vector3).is_equal_approx(component_local_position),
-		"the admitted seated repair alone displays component-local work"
+			) as Vector3).is_equal_approx(exterior_anchor)
+			and is_equal_approx(exterior_anchor.x, component_local_position.x)
+			and is_equal_approx(exterior_anchor.z, component_local_position.z),
+		"the admitted seated repair alone displays work at its component exterior anchor"
+	)
+	_check(
+		_all_component_presentation_anchors_clear_hull(craft),
+		"every selectable component keeps the complete bounded arc and lamp above the hull"
 	)
 
 	var integrity_before_repair := model.get_component_integrity(component_id)
@@ -362,6 +374,26 @@ func _component_local_position(craft: HeroShip, component_id: StringName) -> Vec
 		if StringName(state.get("id", &"")) == component_id:
 			return state.get("local_position", Vector3.INF) as Vector3
 	return Vector3.INF
+
+
+func _all_component_presentation_anchors_clear_hull(craft: HeroShip) -> bool:
+	var model := craft.get_component_damage()
+	var local_bounds := model.get_component_report().get("local_bounds", AABB()) as AABB
+	var hull_top := local_bounds.end.y
+	var effect_bounds := RepairPresentationType.LOCAL_EFFECT_BOUNDS as AABB
+	for state: Dictionary in model.get_component_states():
+		var component_position := state.get("local_position", Vector3.INF) as Vector3
+		var anchor := craft.call(
+			&"_engineer_repair_component_exterior_anchor",
+			StringName(state.get("id", &""))
+		) as Vector3
+		var effect_position := anchor + RepairPresentationType.COMPONENT_CLEARANCE
+		if not anchor.is_finite() \
+				or not is_equal_approx(anchor.x, component_position.x) \
+				or not is_equal_approx(anchor.z, component_position.z) \
+				or effect_position.y + effect_bounds.position.y <= hull_top:
+			return false
+	return true
 
 
 func _build_jovian_role_authority() -> CrewSeatRoleAuthority:

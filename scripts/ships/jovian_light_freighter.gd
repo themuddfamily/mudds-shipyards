@@ -1312,7 +1312,7 @@ func _refresh_engineer_status_readout() -> void:
 				"sequence": _engineer_presentation_sequence,
 				"repair_snapshot": network_snapshot,
 			},
-			_engineer_repair_component_local_position(
+			_engineer_repair_component_exterior_anchor(
 				StringName((network_snapshot.get("repair", {}) as Dictionary).get(
 					"component_id", &""
 				))
@@ -1336,15 +1336,21 @@ func _restart_engineer_work_presentation() -> void:
 	_engineer_repair_presentation.begin_generation(_engineer_presentation_generation)
 
 
-func _engineer_repair_component_local_position(component_id: StringName) -> Vector3:
+func _engineer_repair_component_exterior_anchor(component_id: StringName) -> Vector3:
 	if component_id == &"":
 		return Vector3.ZERO
 	var model := get_component_damage()
 	if model == null or not model.is_configured():
 		return Vector3.INF
+	var component_bounds := (
+		model.get_component_report().get("local_bounds", AABB()) as AABB
+	)
 	for component: Dictionary in model.get_component_states():
 		if StringName(component.get("id", &"")) == component_id:
-			return component.get("local_position", Vector3.INF) as Vector3
+			return JovianEngineerRepairPresentationType.resolve_exterior_anchor(
+				component.get("local_position", Vector3.INF) as Vector3,
+				component_bounds
+			)
 	return Vector3.INF
 
 

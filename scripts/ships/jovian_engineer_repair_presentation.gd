@@ -3,16 +3,16 @@ extends Node3D
 
 ## Bounded ship-local work cue for an authority-admitted Jovian repair.
 ##
-## The owning ship supplies an already-resolved repair snapshot and component
-## position. This component only renders that observation: it owns no repair,
-## component, seat, movement, collision, network, or persistence state.
+## The owning ship supplies an already-resolved repair snapshot and exterior
+## component anchor. This component only renders that observation: it owns no
+## repair, component, seat, movement, collision, network, or persistence state.
 
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const MAX_SAFE_SEQUENCE := 9_007_199_254_740_991
 const ENGINEER_SEAT_ID: StringName = &"passenger_port_01"
 const ARC_SEGMENT_COUNT := 7
 const ARC_RADIUS := 0.82
-const COMPONENT_CLEARANCE := Vector3(0.0, 1.15, 0.0)
+const COMPONENT_CLEARANCE := Vector3(0.0, 0.24, 0.0)
 const LOCAL_EFFECT_BOUNDS := AABB(Vector3(-1.2, -0.15, -1.2), Vector3(2.4, 1.1, 2.4))
 const WORK_COLOR := Color("70eee7")
 const READY_COLOR := Color("e9a844")
@@ -140,6 +140,29 @@ func get_snapshot() -> Dictionary:
 			"presentation": true,
 		},
 	}.duplicate(true)
+
+
+## Projects a read-only component point to the top exterior plane of the final
+## collision envelope. X/Z continue to identify the selected authoritative
+## component while the complete bounded effect remains outside the hull.
+static func resolve_exterior_anchor(
+		component_local_position: Vector3,
+		component_local_bounds: AABB
+	) -> Vector3:
+	var bounds_position := component_local_bounds.position
+	var bounds_size := component_local_bounds.size
+	if not component_local_position.is_finite() \
+			or not bounds_position.is_finite() \
+			or not bounds_size.is_finite() \
+			or bounds_size.x <= 0.0 \
+			or bounds_size.y <= 0.0 \
+			or bounds_size.z <= 0.0:
+		return Vector3.INF
+	return Vector3(
+		component_local_position.x,
+		component_local_bounds.end.y,
+		component_local_position.z
+	)
 
 
 func _decode(envelope: Dictionary, component_local_position: Vector3) -> Dictionary:
