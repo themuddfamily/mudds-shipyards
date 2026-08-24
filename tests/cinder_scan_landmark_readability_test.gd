@@ -17,20 +17,20 @@ var _assertions := 0
 var _failures: Array[String] = []
 var _expected_transforms: Array[Transform3D] = [
 	Transform3D(
-		Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-45.0)))
-			* Basis.from_scale(Vector3(3.6, 35.35534, 4.0)),
-		Vector3(22.5, 14.5, -10.0)
+		Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-48.7429883)))
+			* Basis.from_scale(Vector3(3.6, 37.91108, 4.0)),
+		Vector3(20.75, 14.5, -8.0)
 	),
-	Transform3D(Basis.from_scale(Vector3(3.6, 22.0, 4.0)), Vector3(35.0, 38.0, -10.0)),
+	Transform3D(Basis.from_scale(Vector3(3.6, 22.0, 4.0)), Vector3(35.0, 38.0, -8.0)),
 	Transform3D(
 		Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(39.80557)))
 			* Basis.from_scale(Vector3(3.6, 15.6205, 4.0)),
-		Vector3(30.0, 46.0, -10.0)
+		Vector3(30.0, 46.0, -8.0)
 	),
 	Transform3D(
 		Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-47.48955)))
 			* Basis.from_scale(Vector3(3.6, 16.27882, 4.0)),
-		Vector3(41.0, 45.5, -10.0)
+		Vector3(41.0, 45.5, -8.0)
 	),
 ]
 
@@ -69,20 +69,34 @@ func _run() -> void:
 	var mast_foot := mast.origin - mast.basis.y * 0.5
 	var mast_top := mast.origin + mast.basis.y * 0.5
 	_check(
-		heel_foot.is_equal_approx(Vector3(10.0, 2.0, -10.0))
-		and heel_top.is_equal_approx(Vector3(35.0, 27.0, -10.0))
+		heel_foot.is_equal_approx(Vector3(6.5, 2.0, -8.0))
+		and heel_top.is_equal_approx(Vector3(35.0, 27.0, -8.0))
 		and mast_foot.is_equal_approx(heel_top)
-		and mast_top.is_equal_approx(Vector3(35.0, 49.0, -10.0)),
-		"the raked heel buries in the processing spine and carries the upright mast"
+		and mast_top.is_equal_approx(Vector3(35.0, 49.0, -8.0)),
+		"the raked heel reaches the core drum and carries the upright mast"
+	)
+	var support_path := landmark.get_meta(&"support_owner_path", NodePath()) as NodePath
+	var support_body := landmark.get_node_or_null(support_path) as StaticBody3D
+	var support_collision := support_body.get_node_or_null(^"Collision") as CollisionShape3D \
+		if support_body != null else null
+	var support_shape := support_collision.shape as CylinderShape3D \
+		if support_collision != null else null
+	var support_local_foot := support_body.to_local(landmark.get_parent_node_3d().to_global(heel_foot)) \
+		if support_body != null else Vector3(INF, INF, INF)
+	_check(
+		support_path == ^"../../CoreDrum" and support_shape != null
+		and Vector2(support_local_foot.x, support_local_foot.z).length() < support_shape.radius
+		and absf(support_local_foot.y) < support_shape.height * 0.5,
+		"the authored heel point overlaps the live core-drum collision solid"
 	)
 	var fork_port := transforms[2] as Transform3D
 	var fork_starboard := transforms[3] as Transform3D
 	_check(
 		(fork_port.origin - fork_port.basis.y * 0.5).distance_to(
-			Vector3(35.0, 40.0, -10.0)
+			Vector3(35.0, 40.0, -8.0)
 		) < 0.001
 		and (fork_starboard.origin - fork_starboard.basis.y * 0.5).distance_to(
-			Vector3(35.0, 40.0, -10.0)
+			Vector3(35.0, 40.0, -8.0)
 		) < 0.001
 		and bounds.size.x >= 38.0 and bounds.size.y >= 51.0,
 		"the split receiver crown makes a tall asymmetric scan silhouette at gameplay distance"
@@ -104,6 +118,7 @@ func _run() -> void:
 		and StringName(landmark.get_meta(&"activity_id", &"")) == EXPECTED_ACTIVITY_ID
 		and bool(landmark.get_meta(&"presentation_only", false))
 		and bool(landmark.get_meta(&"physically_supported", false))
+		and landmark.get_meta(&"support_owner_path", NodePath()) == ^"../../CoreDrum"
 		and bool(landmark.get_meta(&"approach_landmark", false)),
 		"the supported fork identifies the existing scan activity without owning it"
 	)

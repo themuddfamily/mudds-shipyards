@@ -1786,6 +1786,25 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 				or not bool(survey_fork.get_meta(&"physically_supported", false)) \
 				or not bool(survey_fork.get_meta(&"approach_landmark", false)):
 			errors.append("structure_scan_survey_fork_drift")
+		if survey_fork != null:
+			var support_path := survey_fork.get_meta(&"support_owner_path", NodePath()) as NodePath
+			var support_body := survey_fork.get_node_or_null(support_path) as StaticBody3D
+			var support_collision := support_body.get_node_or_null(^"Collision") as CollisionShape3D \
+				if support_body != null else null
+			var support_shape := support_collision.shape as CylinderShape3D \
+				if support_collision != null else null
+			var transforms := survey_fork.get_meta(&"authored_instance_transforms", []) as Array
+			var heel_foot := Vector3(INF, INF, INF)
+			if transforms.size() == 4:
+				var heel := transforms[0] as Transform3D
+				heel_foot = heel.origin - heel.basis.y * 0.5
+			var support_local_foot := support_body.to_local(presentation.to_global(heel_foot)) \
+				if support_body != null else Vector3(INF, INF, INF)
+			if support_path != ^"../../CoreDrum" or support_shape == null \
+					or Vector2(support_local_foot.x, support_local_foot.z).length() \
+						>= support_shape.radius \
+					or absf(support_local_foot.y) >= support_shape.height * 0.5:
+				errors.append("structure_scan_survey_fork_support_drift")
 	if approach == null \
 			or not approach.position.is_equal_approx(STRUCTURE_SCAN_APPROACH_LOCAL) \
 			or approach.get_child_count() != 0:
@@ -3027,26 +3046,26 @@ func _build_structure_scan_ruin_batch(presentation: Node3D) -> MeshInstance3D:
 
 
 ## A tall, asymmetric survey fork gives the derelict scan a teal silhouette at
-## travel distance. Its heel terminates in the processing-spine footing, while
+## travel distance. Its heel terminates inside the live core-drum solid, while
 ## every member stays aft of the positive-Z ship and activity lanes. The four
 ## rounded members are merged into one immutable surface submission.
 func _build_structure_scan_survey_fork(presentation: Node3D) -> MeshInstance3D:
 	var transforms: Array[Transform3D] = [
 		Transform3D(
-			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-45.0)))
-				* Basis.from_scale(Vector3(3.6, 35.35534, 4.0)),
-			Vector3(22.5, 14.5, -10.0)
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-48.7429883)))
+				* Basis.from_scale(Vector3(3.6, 37.91108, 4.0)),
+			Vector3(20.75, 14.5, -8.0)
 		),
-		Transform3D(Basis.from_scale(Vector3(3.6, 22.0, 4.0)), Vector3(35.0, 38.0, -10.0)),
+		Transform3D(Basis.from_scale(Vector3(3.6, 22.0, 4.0)), Vector3(35.0, 38.0, -8.0)),
 		Transform3D(
 			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(39.80557)))
 				* Basis.from_scale(Vector3(3.6, 15.6205, 4.0)),
-			Vector3(30.0, 46.0, -10.0)
+			Vector3(30.0, 46.0, -8.0)
 		),
 		Transform3D(
 			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-47.48955)))
 				* Basis.from_scale(Vector3(3.6, 16.27882, 4.0)),
-			Vector3(41.0, 45.5, -10.0)
+			Vector3(41.0, 45.5, -8.0)
 		),
 	]
 	var surface := SurfaceTool.new()
@@ -3063,6 +3082,7 @@ func _build_structure_scan_survey_fork(presentation: Node3D) -> MeshInstance3D:
 	landmark.set_meta(&"visual_batch_family_id", STRUCTURE_SCAN_SURVEY_FORK_FAMILY_ID)
 	landmark.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	landmark.set_meta(&"physically_supported", true)
+	landmark.set_meta(&"support_owner_path", ^"../../CoreDrum")
 	landmark.set_meta(&"approach_landmark", true)
 	presentation.add_child(landmark)
 	return landmark
