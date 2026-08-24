@@ -38,6 +38,7 @@ func _run() -> void:
 	_test_origin_slot_and_routes(module)
 	_test_paired_ramp_beacons(module)
 	await _test_exact_surface_union(module)
+	_test_surface_visual_mesh_sharing(module)
 	_test_rails_dressing_and_authority(module)
 	_test_short_side_rail_visual_sharing(module)
 	_test_hazard_dressing_batch(module)
@@ -345,6 +346,48 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 		float((by_surface[&"main-service-ramp"] as Dictionary).horizontal_area_m2) == 48.0
 		and float((by_surface[&"inspection-ramp"] as Dictionary).horizontal_area_m2) == 24.0,
 		"both broad ramps publish exact projected contribution rather than hidden stair area"
+	)
+
+
+func _test_surface_visual_mesh_sharing(module: SalvageTerrace) -> void:
+	var surface_mesh_ids := {}
+	var collision_shape_ids := {}
+	var exact_visual_recipe := true
+	var contracts := module.get_standable_surface_contract()
+	for contract_variant in contracts:
+		var contract := contract_variant as Dictionary
+		var body := module.get_node(contract.body_path as NodePath) as StaticBody3D
+		var visual := body.get_node(^"Mesh") as MeshInstance3D
+		var collision := body.get_node(^"Collision") as CollisionShape3D
+		var mesh := visual.mesh as BoxMesh if visual != null else null
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		if mesh != null:
+			surface_mesh_ids[mesh.get_instance_id()] = true
+		if shape != null:
+			collision_shape_ids[shape.get_instance_id()] = true
+		exact_visual_recipe = (
+			exact_visual_recipe
+			and visual != null and mesh != null and shape != null
+			and mesh.resource_name == "SalvageTerraceSurfaceVisualMesh"
+			and mesh.size.is_equal_approx(Vector3.ONE)
+			and visual.position.is_equal_approx(Vector3.ZERO)
+			and visual.basis.is_equal_approx(
+				Basis.IDENTITY.scaled(contract.size as Vector3)
+			)
+			and shape.size.is_equal_approx(contract.size as Vector3)
+			and visual.material_override == (module.get("_materials") as Dictionary).deck
+		)
+	print(
+		"SALVAGE_TERRACE_SURFACE_VISUAL_MESHES: allocations 6->%d delta %d" % [
+			surface_mesh_ids.size(), surface_mesh_ids.size() - 6,
+		]
+	)
+	_check(
+		contracts.size() == 6
+		and surface_mesh_ids.size() == 1
+		and collision_shape_ids.size() == 6
+		and exact_visual_recipe,
+		"six immutable deck/ramp renderers share visual meshes 6->1 while retaining exact scaled geometry and six private collisions"
 	)
 
 
@@ -932,11 +975,11 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 
 	var surface_contract := module.get_standable_surface_contract()[0]
 	var surface := module.get_node(surface_contract.body_path as NodePath) as StaticBody3D
-	var surface_mesh := (surface.get_node(^"Mesh") as MeshInstance3D).mesh as BoxMesh
+	var surface_visual := surface.get_node(^"Mesh") as MeshInstance3D
 	var surface_shape := (surface.get_node(^"Collision") as CollisionShape3D).shape as BoxShape3D
-	var original_size := surface_mesh.size
+	var original_visual_scale := surface_visual.scale
 	var original_shape_size := surface_shape.size
-	surface_mesh.size.x += 0.5
+	surface_visual.scale.x += 0.5
 	surface_shape.size.x += 0.5
 	var widened_area := module.get_walkable_area_contract()
 	_check(
@@ -944,7 +987,7 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 		and _errors_include(module.get_validation_errors(), "live walkable-area union"),
 		"MUTATION: widening the live collision shape changes derived area and turns the union audit red"
 	)
-	surface_mesh.size = original_size
+	surface_visual.scale = original_visual_scale
 	surface_shape.size = original_shape_size
 	_check(bool(module.get_audit_report().valid), "restoring surface geometry returns the audit to green")
 

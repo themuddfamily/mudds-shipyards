@@ -211,6 +211,7 @@ var _top_side_rail_visual_mesh: BoxMesh
 var _main_ramp_rail_visual_mesh: BoxMesh
 var _inspection_ramp_rail_visual_mesh: BoxMesh
 var _unit_box_batch_mesh: BoxMesh
+var _surface_visual_mesh: BoxMesh
 var _rail_detail_transforms: Array[Transform3D] = []
 var _ramp_threshold_post_transforms: Array[Transform3D] = []
 
@@ -1060,6 +1061,14 @@ func _index_routes() -> void:
 
 
 func _build_surfaces() -> void:
+	# All six deck/ramp renderers are immutable unit boxes whose authored size can
+	# live in the renderer transform. Share one visual resource while leaving each
+	# body transform, private collision shape, stable Mesh path and submission
+	# untouched. World-triplanar deck mapping is position based, so this is a
+	# resource-only allocation reduction with the exact same visible geometry.
+	_surface_visual_mesh = BoxMesh.new()
+	_surface_visual_mesh.resource_name = "SalvageTerraceSurfaceVisualMesh"
+	_surface_visual_mesh.size = Vector3.ONE
 	_add_level_surface(&"connection-apron", Vector3(0.0, LOWER_ELEVATION, 4.0), Vector2(12.0, 8.0))
 	_add_level_surface(
 		&"lower-salvage-pad",
@@ -1089,7 +1098,11 @@ func _add_level_surface(
 	) -> void:
 	var size := Vector3(plan_size.x, SURFACE_THICKNESS, plan_size.y)
 	var transform := Transform3D(Basis.IDENTITY, top_center - Vector3.UP * SURFACE_THICKNESS * 0.5)
-	var body := _box_body(_build_root, String(surface_id).to_pascal_case(), transform, size, _materials.deck)
+	var body := _box_body(
+		_build_root, String(surface_id).to_pascal_case(), transform, size,
+		_materials.deck, _surface_visual_mesh
+	)
+	(body.get_node(^"Mesh") as MeshInstance3D).scale = size
 	_tag_walkable_surface(body, surface_id, &"level")
 	_surface_nodes[surface_id] = body
 	_surface_contracts.append({
@@ -1115,7 +1128,11 @@ func _add_ramp_surface(
 	var normal := basis.y.normalized()
 	var transform := Transform3D(basis, (start + finish) * 0.5 - normal * SURFACE_THICKNESS * 0.5)
 	var size := Vector3(width, SURFACE_THICKNESS, direction.length())
-	var body := _box_body(_build_root, String(surface_id).to_pascal_case(), transform, size, _materials.deck)
+	var body := _box_body(
+		_build_root, String(surface_id).to_pascal_case(), transform, size,
+		_materials.deck, _surface_visual_mesh
+	)
+	(body.get_node(^"Mesh") as MeshInstance3D).scale = size
 	_tag_walkable_surface(body, surface_id, &"ramp")
 	_surface_nodes[surface_id] = body
 	_surface_contracts.append({
@@ -1681,7 +1698,12 @@ func _surface_geometry_matches_contract() -> bool:
 		var shape := collision.shape as BoxShape3D if collision != null else null
 		if (
 			mesh == null or shape == null
-			or not mesh.size.is_equal_approx(contract.size as Vector3)
+			or mesh != _surface_visual_mesh
+			or not mesh.size.is_equal_approx(Vector3.ONE)
+			or not mesh_instance.position.is_equal_approx(Vector3.ZERO)
+			or not mesh_instance.basis.is_equal_approx(
+				Basis.IDENTITY.scaled(contract.size as Vector3)
+			)
 			or not shape.size.is_equal_approx(contract.size as Vector3)
 			or mesh_instance.material_override != _materials.deck
 		):
