@@ -116,11 +116,11 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 198
+const EXPECTED_LOCAL_MESH_NODES := 193
 const EXPECTED_LOCAL_MULTIMESH_NODES := 17
-const EXPECTED_LOCAL_RENDERER_NODES := 215
-const EXPECTED_LOCAL_VISIBLE_COPIES := 766
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 215
+const EXPECTED_LOCAL_RENDERER_NODES := 210
+const EXPECTED_LOCAL_VISIBLE_COPIES := 761
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 210
 const EXPECTED_LOCAL_TRIANGLES := 126978
 const EXPECTED_LOCAL_STATIC_BODIES := 61
 const EXPECTED_LOCAL_COLLISION_SHAPES := 62
@@ -130,7 +130,7 @@ const EXPECTED_LAMP_LENS_HEIGHT := 0.9
 const EXPECTED_LAMP_LENS_RADIAL_SEGMENTS := 12
 const EXPECTED_LAMP_LENS_RINGS := 6
 const EXPECTED_TORUS_COPY_COUNT := 19
-const EXPECTED_TORUS_MESH_RESOURCE_ALLOCATIONS := 12
+const EXPECTED_TORUS_MESH_RESOURCE_ALLOCATIONS := 7
 const EXPECTED_TORUS_RINGS := 40
 const EXPECTED_TORUS_RING_SEGMENTS := 14
 ## The furthest the whole cluster may sit from the station and still be somewhere
@@ -860,13 +860,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 198 Mesh + 17 MultiMesh renderers with all three activity landmarks"
+		"NearbySectorCluster owns 193 Mesh + 17 MultiMesh renderers with all three activity landmarks"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 766 copies, 126978 triangles, and 215 submissions"
+		"the local census freezes 761 renderer copies, 126978 triangles, and 210 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
@@ -1045,7 +1045,7 @@ func _test_torus_mesh_sharing(cluster: NearbySectorCluster) -> void:
 		and signal_alpha.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		and trim_alpha.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		and upper_collar.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
-		"nineteen named non-colliding tori retain their paths while twelve exact recipes share resources"
+		"nineteen non-colliding torus copies use fourteen renderers and seven retained resources"
 	)
 	if signal_alpha == null or signal_bravo == null:
 		return
@@ -1083,7 +1083,7 @@ func _test_torus_mesh_sharing(cluster: NearbySectorCluster) -> void:
 		and signal_alpha.mesh == signal_bravo.mesh
 		and trim_alpha.mesh == trim_bravo.mesh
 		and upper_collar.mesh == lower_collar.mesh,
-		"TorusGeometryBudget preserves shared resource identity and the nineteen-copy/twelve-allocation census"
+		"TorusGeometryBudget preserves shared resource identity and the nineteen-copy/seven-allocation census"
 	)
 	var exact_recipe_mesh := cluster._shared_torus_mesh(5.0, 5.6)
 	var near_recipe_mesh := cluster._shared_torus_mesh(5.00005, 5.6)
