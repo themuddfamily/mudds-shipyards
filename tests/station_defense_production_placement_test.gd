@@ -1,5 +1,8 @@
 extends SceneTree
 
+## This load order is intentional: it covers the clean-load dependency cycle in
+## which the picket's RangeOpponent base is resolved before ShipyardWorld.
+const PICKET_SCENE := preload("res://scenes/ships/standoff_picket_opponent.tscn")
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
@@ -60,7 +63,8 @@ func _run() -> void:
 	var content := world.get_station_defense_content()
 	var board: Variant = world.get_station_defense_activity_board()
 	_check(
-		content != null and board != null
+		PICKET_SCENE.can_instantiate()
+		and content != null and board != null
 		and world.find_children("*", "StationDefenseEncounterContent", true, false).size() == 1
 		and content.scene_file_path == "res://scenes/activities/station_defense_encounter.tscn"
 		and content.global_transform.is_equal_approx(AUDITED_ENCOUNTER_TRANSFORM)

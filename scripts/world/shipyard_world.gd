@@ -23,7 +23,13 @@ const FLEET_EXPANSION_BINDING := preload("res://scripts/world/fleet_expansion_pr
 const STATION_SOLAR_READABILITY_SCRIPT := preload(
 	"res://scripts/world/station_solar_readability_presentation.gd"
 )
-const STATION_DEFENSE_CONTENT_SCENE := preload("res://scenes/activities/station_defense_encounter.tscn")
+## Loaded only when the production world builds its activity content. Eagerly
+## preloading this scene while Godot resolves global classes creates a cycle:
+## the encounter owns a StandoffPicketOpponent, whose script extends the
+## RangeOpponent class that may already be loading. Keep the exact resource path
+## as production data, but defer parsing the scene until the world needs it.
+const STATION_DEFENSE_CONTENT_SCENE_PATH := \
+	"res://scenes/activities/station_defense_encounter.tscn"
 const STATION_DEFENSE_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/station_defense_activity_board.gd")
 const HEAVY_BREACH_ACTIVITY_BOARD_SCRIPT := preload("res://scripts/activities/heavy_breach_activity_board.gd")
 const STATION_DEFENSE_ACTIVITY_BOARD_TRANSFORM := Transform3D(
@@ -1118,9 +1124,19 @@ func _restore_station_activity_state() -> void:
 func _build_station_defense_production_content() -> void:
 	if is_instance_valid(_station_defense_content) or is_instance_valid(_station_defense_activity_board):
 		return
-	_station_defense_content = (
-		STATION_DEFENSE_CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
-	)
+	var content_scene := _load_station_defense_content_scene()
+	if content_scene == null:
+		return
+	var content_node := content_scene.instantiate()
+	if content_node == null or not content_node is StationDefenseEncounterContent:
+		push_error(
+			"Station-defense content scene root is not StationDefenseEncounterContent: %s"
+			% STATION_DEFENSE_CONTENT_SCENE_PATH
+		)
+		if content_node != null:
+			content_node.free()
+		return
+	_station_defense_content = content_node as StationDefenseEncounterContent
 	_station_defense_content.name = "StationDefenseEncounter"
 	add_child(_station_defense_content)
 	_station_defense_activity_board = (
@@ -1130,6 +1146,24 @@ func _build_station_defense_production_content() -> void:
 	_station_defense_activity_board.transform = STATION_DEFENSE_ACTIVITY_BOARD_TRANSFORM
 	add_child(_station_defense_activity_board)
 	call_deferred("_bind_station_defense_external_owners")
+
+
+func _load_station_defense_content_scene() -> PackedScene:
+	if not ResourceLoader.exists(STATION_DEFENSE_CONTENT_SCENE_PATH, "PackedScene"):
+		push_error(
+			"Station-defense content scene is unavailable: %s"
+			% STATION_DEFENSE_CONTENT_SCENE_PATH
+		)
+		return null
+	var content_scene := ResourceLoader.load(
+		STATION_DEFENSE_CONTENT_SCENE_PATH, "PackedScene"
+	) as PackedScene
+	if content_scene == null:
+		push_error(
+			"Station-defense content scene failed to load: %s"
+			% STATION_DEFENSE_CONTENT_SCENE_PATH
+		)
+	return content_scene
 
 
 func _build_heavy_breach_production_activity() -> void:
