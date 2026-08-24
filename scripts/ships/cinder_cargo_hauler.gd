@@ -27,6 +27,7 @@ const LOADMASTER_INTERACTION_REACH := 1.20
 const HULL_COLOR := Color("536b73")
 const CARGO_COLOR := Color("b2773d")
 const ACCENT_COLOR := Color("42c9cf")
+const CARGO_SHOULDER_SIZE := Vector3(0.42, 0.72, 2.90)
 
 # The primary hull is immutable, childless presentation stock. Fleet switching
 # can briefly retain two haulers, so keep one process-local mesh/material recipe
@@ -1027,6 +1028,29 @@ func _build_hull(visual: Node3D) -> void:
 	cargo_pod.position = Vector3(0.0, 0.15, 1.0)
 	cargo_pod.material_override = _shared_cargo_pod_material
 	visual.add_child(cargo_pod)
+	# Four split shoulders give the otherwise rectangular hull a broad freight
+	# profile from either approach direction. Their complete bounds remain inside
+	# the existing side-wall collision envelope and clear the port aperture.
+	var cargo_shoulders := _add_visual_box_batch(
+		visual,
+		"CargoShoulderBatch",
+		CARGO_SHOULDER_SIZE,
+		[
+			Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, -3.75)),
+			Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, -3.75)),
+			Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, 3.75)),
+			Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, 3.75)),
+		],
+		CARGO_COLOR,
+		PackedStringArray([
+			"CargoShoulderPortForward",
+			"CargoShoulderStarboardForward",
+			"CargoShoulderPortAft",
+			"CargoShoulderStarboardAft",
+		])
+	)
+	cargo_shoulders.set_meta(&"silhouette_role", &"cargo_shoulders")
+	cargo_shoulders.set_meta(&"color_independent", true)
 
 
 func _build_cargo_hold(visual: Node3D) -> void:
