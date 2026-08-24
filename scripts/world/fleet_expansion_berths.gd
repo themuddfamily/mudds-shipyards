@@ -423,6 +423,14 @@ func get_service_presentation_audit() -> Dictionary:
 			readable = readable and local_bounds.size.z >= 40.0
 		if not readable:
 			errors.append("service silhouette readability drift: %s" % pad_id)
+		var marker_key := String(PAD_MARKER_MATERIAL_KEYS[pad_id])
+		var marker_material := _service_materials.get(marker_key) as StandardMaterial3D
+		if not _is_station_panel_finish(
+			marker_material,
+			StationSurfaceKit.TRIM_CLEARCOAT,
+			StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS
+		):
+			errors.append("service marker station material drift: %s" % pad_id)
 		var expected_landing := PAD_POSITIONS[pad_index] + Vector3(0.0, LANDING_ANCHOR_Y, 0.0)
 		var expected_approach := PAD_POSITIONS[pad_index] + APPROACH_OFFSET
 		var contract := get_landing_contract(pad_id)
@@ -1350,11 +1358,36 @@ func _panel_material(
 
 
 func _emissive_material(color: Color) -> StandardMaterial3D:
-	var material := _material(color.darkened(0.25), 0.48)
+	# These cues are large pieces of manufactured rail/gantry hardware, not
+	# screen-space glyphs. Retain their emissive state language while giving the
+	# underlying metal the same metric grain and response as the neighbouring
+	# station trim. This changes no geometry, renderer, or light roster.
+	var material := _panel_material(
+		color.darkened(0.25), 0.48, StationSurfaceKit.PanelFinish.METAL_TRIM
+	)
 	material.emission_enabled = true
 	material.emission = color
 	material.emission_energy_multiplier = 1.6
 	return material
+
+
+func _is_station_panel_finish(
+		material: StandardMaterial3D, clearcoat: float, clearcoat_roughness: float
+	) -> bool:
+	return material != null \
+		and material.albedo_texture != null \
+		and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH \
+		and material.normal_enabled \
+		and material.normal_texture != null \
+		and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH \
+		and material.roughness_texture != null \
+		and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH \
+		and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED \
+		and material.uv1_triplanar and material.uv1_world_triplanar \
+		and material.uv1_scale.is_equal_approx(Vector3.ONE * PANEL_SURFACE_SCALE) \
+		and material.clearcoat_enabled \
+		and is_equal_approx(material.clearcoat, clearcoat) \
+		and is_equal_approx(material.clearcoat_roughness, clearcoat_roughness)
 
 
 func _material(color: Color, metallic: float) -> StandardMaterial3D:
