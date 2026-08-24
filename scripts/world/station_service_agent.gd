@@ -107,6 +107,12 @@ static var _shared_pod_mesh: ArrayMesh
 const HULL_MESH_SIZE := Vector3(0.86, 0.34, 1.18)
 static var _shared_hull_mesh: ArrayMesh
 
+## The forward cowls repeat one immutable, visual-only rounded-box recipe across
+## the production courier roster. The nodes and their hull-edge overrides remain
+## instance-owned; only the underlying mesh allocation is retained once.
+const FORWARD_COWL_MESH_SIZE := Vector3(0.5, 0.26, 0.34)
+static var _shared_forward_cowl_mesh: ArrayMesh
+
 const CONTENT_NOTE := (
 	"The remake brief supports ambient station activity, cargo movement, and "
 	+ "animated equipment. It does not authenticate this courier silhouette, its "
@@ -1200,7 +1206,14 @@ func _build_courier() -> void:
 	_carriage.name = "ServiceCarriage"
 	_presentation_root.add_child(_carriage)
 	_box(_carriage, "Hull", Vector3.ZERO, HULL_MESH_SIZE, _materials["hull"], _get_shared_hull_mesh())
-	_box(_carriage, "ForwardCowl", Vector3(0.0, 0.02, -0.72), Vector3(0.5, 0.26, 0.34), _materials["hull_edge"])
+	_box(
+		_carriage,
+		"ForwardCowl",
+		Vector3(0.0, 0.02, -0.72),
+		FORWARD_COWL_MESH_SIZE,
+		_materials["hull_edge"],
+		_get_shared_forward_cowl_mesh()
+	)
 	var pod_mesh := _get_shared_pod_mesh()
 	_box(_carriage, "PortPod", PORT_POD_POSITION, POD_MESH_SIZE, _materials["graphite"], pod_mesh)
 	_box(_carriage, "StarboardPod", STARBOARD_POD_POSITION, POD_MESH_SIZE, _materials["graphite"], pod_mesh)
@@ -1255,6 +1268,17 @@ static func _get_shared_hull_mesh() -> ArrayMesh:
 			StationSurfaceKit.BevelUV.FACE_GRID
 		)
 	return _shared_hull_mesh
+
+
+static func _get_shared_forward_cowl_mesh() -> ArrayMesh:
+	if _shared_forward_cowl_mesh == null:
+		_shared_forward_cowl_mesh = StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+			FORWARD_COWL_MESH_SIZE,
+			StationSurfaceKit.proportional_bevel_for_size(FORWARD_COWL_MESH_SIZE, 0.2),
+			{},
+			StationSurfaceKit.BevelUV.FACE_GRID
+		)
+	return _shared_forward_cowl_mesh
 
 
 func _capture_built_hierarchy() -> void:
