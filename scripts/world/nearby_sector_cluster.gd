@@ -102,6 +102,15 @@ const RACE_GATE_MISSED_SIGNAL_POSITION := Vector3(0.0, 15.0, 0.0)
 const RACE_GATE_MISSED_TRIM_POSITION := Vector3(0.0, 9.0, 0.0)
 const RACE_GATE_COMPLETE_SIGNAL_POSITION := Vector3(0.0, 13.5, 0.0)
 const RACE_GATE_COMPLETE_TRIM_POSITION := Vector3(0.0, 10.5, 0.0)
+const RACE_GATE_AUTHORED_ROTATION_DEGREES := Vector3(90.0, 0.0, 0.0)
+const RACE_GATE_TIMEOUT_SIGNAL_SCALE := Vector3(1.34, 0.28, 1.34)
+const RACE_GATE_TIMEOUT_TRIM_SCALE := Vector3(0.66, 1.42, 0.66)
+const RACE_GATE_FAILED_SIGNAL_SCALE := Vector3(1.36, 0.42, 0.74)
+const RACE_GATE_FAILED_TRIM_SCALE := Vector3(0.74, 0.42, 1.36)
+const RACE_GATE_ABORTED_SIGNAL_POSITION := Vector3(-2.8, 14.0, 0.0)
+const RACE_GATE_ABORTED_TRIM_POSITION := Vector3(2.8, 10.0, 0.0)
+const RACE_GATE_ABORTED_SIGNAL_ROTATION_DEGREES := Vector3(90.0, 0.0, -24.0)
+const RACE_GATE_ABORTED_TRIM_ROTATION_DEGREES := Vector3(90.0, 0.0, 24.0)
 
 ## Debris field: an ellipsoid flattened in Y so it reads as a drift rather than a
 ## ball, centred on the platform.
@@ -613,7 +622,7 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 	var next_checkpoint := int(snapshot.get("next_checkpoint_index", -1))
 	var checkpoint_count := int(snapshot.get("checkpoint_count", -1))
 	if generation < 0 or state_id not in [
-		&"idle", &"countdown", &"active", &"completed", &"failed"
+		&"idle", &"countdown", &"active", &"completed", &"failed", &"aborted"
 	] or next_checkpoint < 0 or next_checkpoint > checkpoint_count \
 			or checkpoint_count != RACE_CHECKPOINT_COUNT:
 		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
@@ -625,6 +634,17 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 		StringName(snapshot.get("presentation_reason", &"")) == &"outside_checkpoint"
 		or StringName(snapshot.get("checkpoint_id", &"")) == &"race_missed_gate"
 	)
+	var failure_reason := StringName(snapshot.get("failure_reason", &""))
+	var terminal_state: StringName = &""
+	if state_id in [&"failed", &"aborted"]:
+		if state_id == &"aborted" or failure_reason in [
+			&"abort", &"aborted", &"caller_abort", &"activity_aborted"
+		]:
+			terminal_state = &"aborted"
+		elif failure_reason == &"timeout":
+			terminal_state = &"timed_out"
+		else:
+			terminal_state = &"failed"
 	var gate_states: Array[Dictionary] = []
 	for gate_index in ROUTE_BEACON_SPECS.size():
 		var gate := route_root.get_node_or_null(
@@ -641,6 +661,8 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 		var trim_scale := Vector3.ONE
 		var signal_position := RACE_GATE_RING_CENTER
 		var trim_position := RACE_GATE_RING_CENTER
+		var signal_rotation_degrees := RACE_GATE_AUTHORED_ROTATION_DEGREES
+		var trim_rotation_degrees := RACE_GATE_AUTHORED_ROTATION_DEGREES
 		if reset:
 			status_id = &"reset"
 		elif state_id == &"countdown":
@@ -673,14 +695,26 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 			trim_scale = RACE_GATE_COMPLETE_SCALE
 			signal_position = RACE_GATE_COMPLETE_SIGNAL_POSITION
 			trim_position = RACE_GATE_COMPLETE_TRIM_POSITION
-		elif state_id == &"failed":
+		elif terminal_state == &"timed_out":
+			status_id = &"timed_out"
+			signal_scale = RACE_GATE_TIMEOUT_SIGNAL_SCALE
+			trim_scale = RACE_GATE_TIMEOUT_TRIM_SCALE
+		elif terminal_state == &"aborted":
+			status_id = &"aborted"
+			signal_position = RACE_GATE_ABORTED_SIGNAL_POSITION
+			trim_position = RACE_GATE_ABORTED_TRIM_POSITION
+			signal_rotation_degrees = RACE_GATE_ABORTED_SIGNAL_ROTATION_DEGREES
+			trim_rotation_degrees = RACE_GATE_ABORTED_TRIM_ROTATION_DEGREES
+		elif terminal_state == &"failed":
 			status_id = &"failed"
-			signal_scale = RACE_GATE_CLEARED_SCALE
-			trim_scale = RACE_GATE_CLEARED_SCALE
+			signal_scale = RACE_GATE_FAILED_SIGNAL_SCALE
+			trim_scale = RACE_GATE_FAILED_TRIM_SCALE
 		signal_ring.scale = signal_scale
 		signal_ring.position = signal_position
+		signal_ring.rotation_degrees = signal_rotation_degrees
 		trim_ring.scale = trim_scale
 		trim_ring.position = trim_position
+		trim_ring.rotation_degrees = trim_rotation_degrees
 		gate_states.append({
 			"index": gate_index,
 			"status_id": status_id,
@@ -688,6 +722,8 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 			"trim_scale": trim_scale,
 			"signal_position": signal_position,
 			"trim_position": trim_position,
+			"signal_rotation_degrees": signal_rotation_degrees,
+			"trim_rotation_degrees": trim_rotation_degrees,
 		})
 	_race_gate_presentation_snapshot = {
 		"activity_id": RACE_ACTIVITY_ID,
@@ -699,8 +735,11 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 		"best_result_persisted": bool(snapshot.get("best_result_persisted", false)),
 		"best_reward_consumed": bool(snapshot.get("best_reward_consumed", false)),
 		"missed_gate_recovery": missed_gate,
+		"terminal_state": terminal_state,
+		"failure_reason": failure_reason,
 		"gates": gate_states,
 		"node_delta": 0,
+		"light_delta": 0,
 		"collision_delta": 0,
 		"checkpoint_authority": false,
 		"gameplay_authority": false,

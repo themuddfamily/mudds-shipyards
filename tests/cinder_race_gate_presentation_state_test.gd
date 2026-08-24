@@ -19,6 +19,7 @@ func _run() -> void:
 	var route_root := cluster.get_node(^"RouteBeacons") as Node3D
 	var gates := _gates(route_root)
 	var retained_ids := gates.map(func(gate: Node3D) -> int: return gate.get_instance_id())
+	var authored_ring_transforms := _ring_transforms(gates)
 	var initial_counts := _route_counts(route_root)
 	var initial := cluster.get_race_gate_presentation_state()
 	_check(
@@ -125,6 +126,72 @@ func _run() -> void:
 		and _route_counts(route_root) == initial_counts,
 		"a new race generation reuses the exact retained gate nodes and frozen roster"
 	)
+	_check(bool((binding.call("advance_race", 123.0) as Dictionary).get("accepted", false)),
+		"caller physics produces the authoritative timeout snapshot")
+	var timed_out := cluster.get_race_gate_presentation_state()
+	var timeout_geometry := _ring_transforms(gates)
+	_check(
+		timed_out.state_id == &"failed"
+		and timed_out.terminal_state == &"timed_out"
+		and timed_out.failure_reason == &"timeout"
+		and _every_gate_has_status(timed_out, &"timed_out")
+		and _ring_scale(gates[0], ^"SignalRing").is_equal_approx(Vector3(1.34, 0.28, 1.34))
+		and _ring_scale(gates[3], ^"TrimRing").is_equal_approx(Vector3(0.66, 1.42, 0.66))
+		and timeout_geometry != authored_ring_transforms,
+		"timeout compresses every retained route gate into a distinct non-colour hourglass silhouette"
+	)
+
+	var failed_snapshot := _terminal_snapshot(timed_out, &"failed", &"engine_failure")
+	_check(bool((cluster.call("_apply_race_gate_presentation", failed_snapshot) as Dictionary).accepted),
+		"the presenter consumes a detached generic-failure snapshot")
+	var failed_state := cluster.get_race_gate_presentation_state()
+	var failed_geometry := _ring_transforms(gates)
+	_check(
+		failed_state.terminal_state == &"failed"
+		and _every_gate_has_status(failed_state, &"failed")
+		and _ring_scale(gates[0], ^"SignalRing").is_equal_approx(Vector3(1.36, 0.42, 0.74))
+		and failed_geometry != timeout_geometry,
+		"generic failure crosses the proportions of every retained route gate"
+	)
+
+	var aborted_snapshot := _terminal_snapshot(timed_out, &"aborted", &"caller_abort")
+	_check(bool((cluster.call("_apply_race_gate_presentation", aborted_snapshot) as Dictionary).accepted),
+		"the presenter consumes a detached aborted snapshot")
+	var aborted_state := cluster.get_race_gate_presentation_state()
+	var aborted_geometry := _ring_transforms(gates)
+	_check(
+		aborted_state.terminal_state == &"aborted"
+		and _every_gate_has_status(aborted_state, &"aborted")
+		and _ring_position(gates[0], ^"SignalRing").is_equal_approx(Vector3(-2.8, 14.0, 0.0))
+		and (gates[3].get_node(^"TrimRing") as MeshInstance3D).rotation_degrees.is_equal_approx(
+			Vector3(90.0, 0.0, 24.0)
+		)
+		and aborted_geometry != failed_geometry,
+		"abort splits and tilts every retained route gate into a third non-colour silhouette"
+	)
+	_check(
+		_gate_ids(gates) == retained_ids
+		and _route_counts(route_root) == initial_counts
+		and int(aborted_state.node_delta) == 0
+		and int(aborted_state.light_delta) == 0
+		and int(aborted_state.collision_delta) == 0,
+		"all terminal cues reuse the exact route roster without nodes, lights, or collision"
+	)
+
+	var failure_reset: Dictionary = binding.call("reset_race")
+	_check(
+		bool(failure_reset.get("accepted", false))
+		and _gate_ids(gates) == retained_ids
+		and _ring_transforms(gates) == authored_ring_transforms,
+		"failure reset restores every exact authored ring transform on the retained gate nodes"
+	)
+	var failure_restart: Dictionary = binding.call("start_race")
+	_check(
+		bool(failure_restart.get("accepted", false))
+		and int(cluster.get_race_gate_presentation_state().generation) > int(timed_out.generation)
+		and _gate_ids(gates) == retained_ids,
+		"the next authority generation starts on the same restored gate nodes"
+	)
 
 	cluster.queue_free()
 	for _frame in 5:
@@ -164,6 +231,36 @@ func _route_counts(route_root: Node3D) -> Dictionary:
 		"lights": route_root.find_children("*", "Light3D", true, false).size(),
 		"collision_objects": route_root.find_children("*", "CollisionObject3D", true, false).size(),
 	}
+
+
+func _ring_transforms(gates: Array[Node3D]) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for gate in gates:
+		transforms.append((gate.get_node(^"SignalRing") as MeshInstance3D).transform)
+		transforms.append((gate.get_node(^"TrimRing") as MeshInstance3D).transform)
+	return transforms
+
+
+func _every_gate_has_status(snapshot: Dictionary, status_id: StringName) -> bool:
+	for gate_state: Dictionary in snapshot.get("gates", []) as Array:
+		if StringName(gate_state.get("status_id", &"")) != status_id:
+			return false
+	return (snapshot.get("gates", []) as Array).size() == gates_count()
+
+
+func gates_count() -> int:
+	return 4
+
+
+func _terminal_snapshot(source: Dictionary, state_id: StringName, reason: StringName) -> Dictionary:
+	return {
+		"activity_id": &"cinder_reach_checkpoint_route",
+		"state_id": state_id,
+		"session_generation": int(source.generation),
+		"next_checkpoint_index": int(source.next_checkpoint_index),
+		"checkpoint_count": int(source.checkpoint_count),
+		"failure_reason": reason,
+	}.duplicate(true)
 
 
 func _check(condition: bool, description: String) -> void:
