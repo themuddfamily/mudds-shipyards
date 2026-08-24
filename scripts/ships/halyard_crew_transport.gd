@@ -306,6 +306,12 @@ const SPINE_RIB_COPY_COUNT := 7
 const GEAR_DAMPER_RADIUS := 0.12
 const GEAR_DAMPER_HEIGHT := 0.83
 const GEAR_DAMPER_COPY_COUNT := 4
+## The six aft-bay rack readouts are immutable status dressing, not the live
+## crew-status display or repair authority. Keeping them in one ship-local
+## batch preserves their moving-interior parent transform while removing five
+## renderer submissions and five scene nodes.
+const AFT_RACK_PANEL_SIZE := Vector3(0.05, 0.32, 1.00)
+const AFT_RACK_PANEL_COPY_COUNT := 6
 const RENDER_DESCENDANT_COUNT := 121
 const RENDER_MESH_INSTANCE_COUNT := 112
 const RENDER_MULTIMESH_BATCH_COUNT := 4
@@ -2916,6 +2922,8 @@ func _build_aft_systems_bay() -> void:
 	_walkable_interior.add_child(_aft_systems_bay)
 	_box(_aft_systems_bay, "AftBayDeck", Vector3(0.0, 0.41, 5.85), Vector3(4.46, 0.18, 6.50), _halyard_materials.deck)
 	_box(_aft_systems_bay, "AftBayCeiling", Vector3(0.0, 3.34, 5.85), Vector3(4.46, 0.16, 6.50), _halyard_materials.trim)
+	var rack_panel_transforms: Array[Transform3D] = []
+	var rack_panel_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_aft_systems_bay, side_name + "AftBaySidewall", Vector3(side * 2.26, 1.92, 5.85), Vector3(0.18, 2.86, 6.50), _halyard_materials.structure)
@@ -2926,14 +2934,28 @@ func _build_aft_systems_bay() -> void:
 		_box(_aft_systems_bay, side_name + "BunkCurtainRail", Vector3(side * 1.02, 2.16, 6.60), Vector3(0.07, 0.07, 2.20), _halyard_materials.trim)
 		_box(_aft_systems_bay, side_name + "SystemsRack", Vector3(side * 1.80, 2.26, 3.85), Vector3(0.72, 1.80, 1.30), _halyard_materials.locker)
 		for panel_index in 3:
-			_box(
-				_aft_systems_bay,
-				side_name + "RackPanel%02d" % panel_index,
-				Vector3(side * 1.42, 1.68 + float(panel_index) * 0.56, 3.85),
-				Vector3(0.05, 0.32, 1.00),
-				_halyard_materials.display
-			)
+			rack_panel_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(side * 1.42, 1.68 + float(panel_index) * 0.56, 3.85)
+			))
+			rack_panel_names.append(side_name + "RackPanel%02d" % panel_index)
 		_box(_aft_systems_bay, side_name + "AftBayLightStrip", Vector3(side * 2.12, 3.22, 5.85), Vector3(0.05, 0.12, 5.80), _halyard_materials.interior_light)
+	# These readouts are fixed luminous rectangles on the rack faces. The actual
+	# engineer selection, repair progress, component damage and lifecycle state
+	# remain on the ship and its dedicated crew-status display; only the six
+	# childless presentation meshes share this moving-interior renderer.
+	var rack_panel_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		AFT_RACK_PANEL_SIZE,
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_aft_systems_bay,
+		"AftRackPanelBatch",
+		rack_panel_mesh,
+		_halyard_materials.display,
+		rack_panel_transforms,
+		rack_panel_names
+	)
 	var bay_light := OmniLight3D.new()
 	bay_light.name = "AftBayPracticalLight"
 	bay_light.position = Vector3(0.0, 3.06, 5.85)
