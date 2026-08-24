@@ -201,6 +201,7 @@ const SEAT_CLOTH := Color("24312c")
 const LOCKER_FACE := Color("46503f")
 const CABIN_LIGHT := Color("a9bda4")
 const WINDOW_INTERIOR := Color("33403a")
+const BOARDING_ROUTE_AMBER := Color("d5a552")
 # Shared fleet layer, unchanged and deliberately not differentiating: cyan
 # engine emission, red to port, green to starboard.
 # (`docs/design/FLEET_VISUAL_GRAMMAR.md` §2, layer 1.)
@@ -2422,6 +2423,13 @@ func _create_halyard_materials() -> void:
 	# `_relocate_and_restyle_cockpit`.
 	_halyard_materials.instrument = _halyard_material(Color("3a2a10"), 0.16, 0.28, Color("e0a445"), 2.4)
 	_halyard_materials.instrument_low = _halyard_material(Color("241a0b"), 0.10, 0.42, Color("6f5222"), 0.42)
+	# A restrained continuation of the airstair's amber nosings. This material is
+	# emission-only presentation rather than another cabin light: it keeps the
+	# port threshold and forward aisle legible at standing-camera distance without
+	# changing the five-light moving-interior budget or implying route authority.
+	_halyard_materials.boarding_route = _halyard_material(
+		Color("473719"), 0.06, 0.46, BOARDING_ROUTE_AMBER, 0.72
+	)
 	_halyard_materials.window_glow = _halyard_material(
 		WINDOW_INTERIOR, 0.05, 0.42, Color("cfe0cc"), 2.1
 	)
@@ -2892,7 +2900,19 @@ func _build_crew_cabin() -> void:
 	_crew_cabin.set_meta("capacity_status", &"modern_design")
 	_walkable_interior.add_child(_crew_cabin)
 	_box(_crew_cabin, "CabinDeck", Vector3(0.0, 0.41, -3.65), Vector3(4.86, 0.18, 12.50), _halyard_materials.deck)
-	_box(_crew_cabin, "CabinAisleInlay", Vector3(0.0, 0.51, -3.65), Vector3(1.00, 0.03, 12.20), _halyard_materials.accent)
+	# The former metre-wide aubergine insert was nearly black under cabin lighting
+	# and looked like another deck panel. A narrow warm ribbon now continues the
+	# exterior airstair nosings through both pressure portals. It bears 5 mm into
+	# the unchanged deck skin and remains presentation only; the three existing
+	# deck colliders and route markers still own every physical/navigation fact.
+	var cabin_route_spine := _box(
+		_crew_cabin,
+		"CabinAisleInlay",
+		Vector3(0.0, 0.51, -3.65),
+		Vector3(0.34, 0.03, 12.20),
+		_halyard_materials.boarding_route
+	)
+	_mark_boarding_route_cue(cabin_route_spine, &"cabin_spine")
 	_box(_crew_cabin, "CabinCeiling", Vector3(0.0, 3.34, -3.65), Vector3(4.86, 0.16, 12.50), _halyard_materials.trim)
 	var cabin_window_pane_transforms: Array[Transform3D] = []
 	var cabin_window_pane_names := PackedStringArray()
@@ -3006,8 +3026,25 @@ func _build_crew_cabin() -> void:
 	_crew_status_display = HalyardCrewStatusDisplayType.new()
 	_crew_status_display.name = "HalyardCrewStatusDisplay"
 	status_panel.add_child(_crew_status_display)
-	# Threshold plate inside the port hatch. Kept clear of the port seat row.
-	_box(_crew_cabin, "AirstairInnerLanding", Vector3(-1.98, 0.52, AIRSTAIR_Z), Vector3(0.86, 0.06, 1.70), _halyard_materials.accent)
+	# Threshold plate inside the port hatch. Kept clear of the port seat row. Its
+	# cross-aisle branch meets the centre ribbon, so someone boarding sees one
+	# continuous destination cue instead of a bright stair ending at a dark deck.
+	var airstair_inner_landing := _box(
+		_crew_cabin,
+		"AirstairInnerLanding",
+		Vector3(-2.17, 0.51, AIRSTAIR_Z),
+		Vector3(0.94, 0.03, 1.70),
+		_halyard_materials.boarding_route
+	)
+	_mark_boarding_route_cue(airstair_inner_landing, &"port_threshold")
+	var airstair_route_branch := _box(
+		_crew_cabin,
+		"AirstairRouteBranch",
+		Vector3(-0.765, 0.51, AIRSTAIR_Z),
+		Vector3(1.87, 0.03, 0.34),
+		_halyard_materials.boarding_route
+	)
+	_mark_boarding_route_cue(airstair_route_branch, &"hatch_branch")
 	_box(_crew_cabin, "PortHatchDoor", Vector3(-2.36, 1.55, AIRSTAIR_Z), Vector3(0.10, 2.00, 1.80), _halyard_materials.dark)
 	_box(_crew_cabin, "PortHatchDoorSeal", Vector3(-2.30, 1.55, AIRSTAIR_Z), Vector3(0.05, 2.10, 1.90), _halyard_materials.accent)
 	for light_z in [-8.00, -3.65, 0.70]:
@@ -3076,6 +3113,14 @@ func _build_interior_route_and_markers() -> void:
 	# A short same-level bridge joins the crew cabin to the flight deck, so the
 	# walk from the airstair to the pilot seat is one continuous deck.
 	_box(_walkable_interior, "FlightDeckConnector", Vector3(0.0, 0.41, -10.15), Vector3(2.60, 0.18, 1.30), _halyard_materials.deck)
+	var flight_deck_route_inlay := _box(
+		_walkable_interior,
+		"FlightDeckRouteInlay",
+		Vector3(0.0, 0.51, -10.15),
+		Vector3(0.34, 0.03, 1.30),
+		_halyard_materials.boarding_route
+	)
+	_mark_boarding_route_cue(flight_deck_route_inlay, &"flight_deck_connector")
 	for side in [-1.0, 1.0]:
 		_box(_walkable_interior, "FlightDeckConnectorRail", Vector3(side * 1.34, 1.55, -10.15), Vector3(0.11, 2.10, 1.26), _halyard_materials.structure)
 
@@ -3124,6 +3169,15 @@ func _build_interior_route_and_markers() -> void:
 	box.size = INTERIOR_BOUNDS.size
 	volume_shape.shape = box
 	_occupant_volume.add_child(volume_shape)
+
+
+func _mark_boarding_route_cue(cue: Node3D, route_segment: StringName) -> void:
+	if cue == null:
+		return
+	cue.set_meta("presentation_only", true)
+	cue.set_meta("route_id", &"port_airstair_to_flight_deck")
+	cue.set_meta("route_segment", route_segment)
+	cue.set_meta("historically_authenticated_layout", false)
 
 
 func _build_propulsion_and_gear() -> void:

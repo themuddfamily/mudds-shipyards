@@ -170,6 +170,31 @@ const MINIMUM_CREW_SEATS := 6
 const FLIGHT_DECK_STATIONS := 2
 const MINIMUM_INTERIOR_VOLUME := 300.0
 const MINIMUM_WALKABLE_DIMENSION := 2.2
+const BOARDING_ROUTE_ID: StringName = &"port_airstair_to_flight_deck"
+const BOARDING_ROUTE_EMISSION_ENERGY := 0.72
+const INTERIOR_PRACTICAL_LIGHT_COUNT := 5
+const BOARDING_ROUTE_CUES := {
+	NodePath("WalkableInterior/CrewCabin/AirstairInnerLanding"): {
+		"segment": &"port_threshold",
+		"position": Vector3(-2.17, 0.51, HalyardCrewTransport.AIRSTAIR_Z),
+		"size": Vector3(0.94, 0.03, 1.70),
+	},
+	NodePath("WalkableInterior/CrewCabin/AirstairRouteBranch"): {
+		"segment": &"hatch_branch",
+		"position": Vector3(-0.765, 0.51, HalyardCrewTransport.AIRSTAIR_Z),
+		"size": Vector3(1.87, 0.03, 0.34),
+	},
+	NodePath("WalkableInterior/CrewCabin/CabinAisleInlay"): {
+		"segment": &"cabin_spine",
+		"position": Vector3(0.0, 0.51, -3.65),
+		"size": Vector3(0.34, 0.03, 12.20),
+	},
+	NodePath("WalkableInterior/FlightDeckRouteInlay"): {
+		"segment": &"flight_deck_connector",
+		"position": Vector3(0.0, 0.51, -10.15),
+		"size": Vector3(0.34, 0.03, 1.30),
+	},
+}
 ## The small-craft envelope ceiling the fleet audit freezes. A craft that
 ## publishes an interior has to exceed it on at least one horizontal axis.
 const SMALL_CRAFT_ENVELOPE_MAXIMUM := 15.0
@@ -213,8 +238,11 @@ func _run() -> void:
 	_test_weapon_presentation(craft)
 	_test_cockpit_and_boarding(craft)
 	_test_interior(craft)
-	await _test_in_flight_cabin(craft)
+	_test_boarding_route_readability(craft)
+	# Inspect authored Halyard surfacing before the destruction red-control below
+	# intentionally asks the shared damage presenter to add transient shards.
 	_test_surfacing(craft)
+	await _test_in_flight_cabin(craft)
 
 	craft.queue_free()
 	await process_frame
@@ -705,21 +733,56 @@ func _test_bow_docking_arch(craft: HeroShip) -> void:
 	var arch_matches := visual != null
 	var lower_half_clear := true
 	if visual != null:
+		var shade_batch := visual.get_node_or_null(
+			^"BowDockingArchShadeBatch"
+		) as MultiMeshInstance3D
+		var shade_transforms := shade_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array if shade_batch != null else []
+		var shade_names := shade_batch.get_meta(
+			"authored_visual_names", PackedStringArray()
+		) as PackedStringArray if shade_batch != null else PackedStringArray()
+		var expected_shade_names := PackedStringArray()
+		var shade_index := 0
 		for segment_index in 5:
 			var angle := PI * float(segment_index) / 4.0
-			var segment := visual.get_node_or_null(
-				"BowDockingArchSegment%02d" % segment_index
-			) as MeshInstance3D
 			var expected_position := Vector3(
 				HalyardCrewTransport.BOW_RING_RADIUS * cos(angle),
 				HalyardCrewTransport.BOW_RING_CENTRE_Y + HalyardCrewTransport.BOW_RING_RADIUS * sin(angle),
 				HalyardCrewTransport.BOW_RING_Z
 			)
-			arch_matches = arch_matches and segment != null and segment.mesh != null \
-				and segment.position.is_equal_approx(expected_position)
-			if segment != null:
-				lower_half_clear = lower_half_clear and segment.position.y \
-					>= HalyardCrewTransport.BOW_RING_CENTRE_Y - 0.001
+			lower_half_clear = lower_half_clear and expected_position.y \
+				>= HalyardCrewTransport.BOW_RING_CENTRE_Y - 0.001
+			if segment_index % 2 == 0:
+				var segment_name := "BowDockingArchSegment%02d" % segment_index
+				expected_shade_names.append(segment_name)
+				var expected_transform := Transform3D(
+					Basis.from_euler(Vector3(0.0, 0.0, angle + PI * 0.5)),
+					expected_position
+				)
+				arch_matches = (
+					arch_matches
+					and shade_index < shade_transforms.size()
+					and (shade_transforms[shade_index] as Transform3D).is_equal_approx(
+						expected_transform
+					)
+				)
+				shade_index += 1
+			else:
+				var segment := visual.get_node_or_null(
+					"BowDockingArchSegment%02d" % segment_index
+				) as MeshInstance3D
+				arch_matches = arch_matches and segment != null and segment.mesh != null \
+					and segment.position.is_equal_approx(expected_position)
+		arch_matches = (
+			arch_matches
+			and shade_batch != null
+			and shade_batch.multimesh != null
+			and shade_batch.multimesh.instance_count
+				== HalyardCrewTransport.BOW_DOCKING_ARCH_SHADE_COPY_COUNT
+			and shade_names == expected_shade_names
+			and shade_batch.material_override == craft.get_variant_materials().get("hull_shade")
+		)
 		var old_loop_segments := visual.find_children(
 			"BowCollarSegment*", "MeshInstance3D", false, false
 		)
@@ -861,23 +924,23 @@ func _test_render_allocations(craft: HeroShip) -> void:
 
 	var report := craft.call("get_halyard_render_allocation_report") as Dictionary
 	_check(
-		int(report.descendant_nodes) == 121
-		and int(report.mesh_instances) == 112
-		and int(report.multimesh_batches) == 4,
-		"current exterior freezes at 121 descendants, 112 MeshInstances, and four batches after damper batching"
+		int(report.descendant_nodes) == HalyardCrewTransport.RENDER_DESCENDANT_COUNT
+		and int(report.mesh_instances) == HalyardCrewTransport.RENDER_MESH_INSTANCE_COUNT
+		and int(report.multimesh_batches) == HalyardCrewTransport.RENDER_MULTIMESH_BATCH_COUNT,
+		"current exterior matches the production descendant, MeshInstance and batch budget"
 	)
 	_check(
-		int(report.drawn_copies) == 163
-		and int(report.geometry_submissions) == 116
+		int(report.drawn_copies) == HalyardCrewTransport.RENDER_DRAWN_COPY_COUNT
+		and int(report.geometry_submissions) == HalyardCrewTransport.RENDER_GEOMETRY_SUBMISSION_COUNT
 		and int(report.spine_rib_copies) == 7,
-		"current exterior preserves 163 drawn copies while reducing surface submissions from 119 to 116"
+		"current exterior matches the production drawn-copy and geometry-submission budget"
 	)
 	_check(
-		int(report.unique_mesh_resources) == 65
-		and int(report.unique_material_resources) == 14
-		and int(report.multimesh_resources) == 4
+		int(report.unique_mesh_resources) == HalyardCrewTransport.RENDER_UNIQUE_MESH_RESOURCE_COUNT
+		and int(report.unique_material_resources) == HalyardCrewTransport.RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
+		and int(report.multimesh_resources) == HalyardCrewTransport.RENDER_MULTIMESH_BATCH_COUNT
 		and int(report.renderer_buffer_floats) == 84,
-		"current exterior keeps 65/14 mesh/material allocations with four MultiMesh resources and 84 buffer floats"
+		"current exterior matches the production mesh, material and MultiMesh allocation budget"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
@@ -1242,6 +1305,165 @@ func _test_interior(craft: HeroShip) -> void:
 			mutated_gap > DECK_JOIN_TOLERANCE,
 			"RED: a shifted deck plate is detected as a gap (%.3f m)" % mutated_gap
 		)
+
+
+func _test_boarding_route_readability(craft: HeroShip) -> void:
+	var route_material := craft.get_variant_materials().get("boarding_route") \
+		as StandardMaterial3D
+	_check(
+		route_material != null
+		and route_material.emission_enabled
+		and route_material.emission.is_equal_approx(
+			HalyardCrewTransport.BOARDING_ROUTE_AMBER
+		)
+		and is_equal_approx(
+			route_material.emission_energy_multiplier,
+			BOARDING_ROUTE_EMISSION_ENERGY
+		),
+		"the port boarding route uses one restrained amber material at gameplay distance"
+	)
+
+	var route_bounds: Dictionary = {}
+	var exact_route_cues := true
+	var visual_only_route_cues := true
+	for path: NodePath in BOARDING_ROUTE_CUES:
+		var expected := BOARDING_ROUTE_CUES[path] as Dictionary
+		var cue := craft.get_node_or_null(path) as MeshInstance3D
+		exact_route_cues = (
+			exact_route_cues
+			and cue != null
+			and cue.position.is_equal_approx(expected.position as Vector3)
+			and cue.mesh != null
+			and cue.mesh.get_aabb().size.is_equal_approx(expected.size as Vector3)
+			and cue.material_override == route_material
+			and cue.get_meta("route_id", &"") == BOARDING_ROUTE_ID
+			and cue.get_meta("route_segment", &"") == expected.segment
+		)
+		if cue == null or cue.mesh == null:
+			visual_only_route_cues = false
+			continue
+		visual_only_route_cues = (
+			visual_only_route_cues
+			and cue.get_child_count() == 0
+			and cue.get_script() == null
+			and bool(cue.get_meta("presentation_only", false))
+			and not bool(cue.get_meta("historically_authenticated_layout", true))
+		)
+		var bounds := _mesh_bounds_in_craft(craft, cue)
+		route_bounds[expected.segment] = bounds
+		visual_only_route_cues = (
+			visual_only_route_cues
+			and bounds.position.y < HalyardCrewTransport.DECK_SURFACE_Y
+			and bounds.end.y > HalyardCrewTransport.DECK_SURFACE_Y
+		)
+	_check(
+		exact_route_cues and route_bounds.size() == BOARDING_ROUTE_CUES.size(),
+		"one amber threshold/branch/spine/flight-deck ribbon keeps its authored moving-hull pose"
+	)
+	_check(
+		visual_only_route_cues,
+		"every route cue bears into the deck as childless presentation with no collision or authority"
+	)
+
+	var threshold := route_bounds.get(&"port_threshold", AABB()) as AABB
+	var branch := route_bounds.get(&"hatch_branch", AABB()) as AABB
+	var spine := route_bounds.get(&"cabin_spine", AABB()) as AABB
+	var connector := route_bounds.get(&"flight_deck_connector", AABB()) as AABB
+	var ramp := craft.get_node_or_null(^"PortAirstairCollision") as CollisionShape3D
+	var ramp_shape := ramp.shape as ConvexPolygonShape3D if ramp != null else null
+	var ramp_inner_x := -INF
+	var ramp_inner_top_y := -INF
+	if ramp_shape != null:
+		for point in ramp_shape.points:
+			var craft_point := ramp.transform * point
+			if craft_point.x > ramp_inner_x + DECK_JOIN_TOLERANCE:
+				ramp_inner_x = craft_point.x
+				ramp_inner_top_y = craft_point.y
+			elif is_equal_approx(craft_point.x, ramp_inner_x):
+				ramp_inner_top_y = maxf(ramp_inner_top_y, craft_point.y)
+	var visual := craft.call("get_halyard_visual_root") as Node3D
+	var tread_batch := visual.get_node_or_null(^"AirstairTreadBatch") \
+		as MultiMeshInstance3D if visual != null else null
+	var tread_names := tread_batch.get_meta(
+		"authored_visual_names", PackedStringArray()
+	) as PackedStringArray if tread_batch != null else PackedStringArray()
+	var top_tread_index := tread_names.find("AirstairTread00")
+	var top_tread_inner_x := -INF
+	if tread_batch != null and tread_batch.multimesh != null \
+			and tread_batch.multimesh.mesh != null and top_tread_index >= 0:
+		var top_tread_transform := (
+			craft.global_transform.affine_inverse()
+			* tread_batch.global_transform
+			* tread_batch.multimesh.get_instance_transform(top_tread_index)
+		)
+		var top_tread_bounds := (
+			top_tread_transform * tread_batch.multimesh.mesh.get_aabb()
+		).abs()
+		top_tread_inner_x = top_tread_bounds.end.x
+	var ramp_handoff_gap := maxf(threshold.position.x - ramp_inner_x, 0.0)
+	var tread_handoff_gap := maxf(threshold.position.x - top_tread_inner_x, 0.0)
+	var maximum_handoff_gap := maxf(ramp_handoff_gap, tread_handoff_gap)
+	var minimum_handoff_overlap := minf(
+		ramp_inner_x - threshold.position.x,
+		top_tread_inner_x - threshold.position.x
+	)
+	_check(
+		ramp_shape != null
+		and top_tread_index >= 0
+		and is_finite(ramp_inner_x)
+		and is_finite(ramp_inner_top_y)
+		and is_finite(top_tread_inner_x)
+		and maximum_handoff_gap <= DECK_JOIN_TOLERANCE
+		and minimum_handoff_overlap >= 0.0
+		and minimum_handoff_overlap <= 0.03
+		and threshold.position.y < ramp_inner_top_y
+		and threshold.end.y > ramp_inner_top_y,
+		"live ramp/top-tread endpoints overlap the supported amber sill (max gap %.4f m, min overlap %.4f m)"
+			% [maximum_handoff_gap, minimum_handoff_overlap]
+	)
+	var continuous := (
+		absf(threshold.end.x - branch.position.x) <= DECK_JOIN_TOLERANCE
+		and _horizontal_overlap_area(branch, spine) > 0.0
+		and _horizontal_overlap_area(spine, connector) > 0.0
+	)
+	_check(
+		continuous
+		and connector.position.z <= -10.79,
+		"the cue is a continuous floor read from the port hatch to the forward flight deck"
+	)
+
+	var crew_cabin := craft.get_node_or_null(^"WalkableInterior/CrewCabin") as Node3D
+	var seat_clear := crew_cabin != null
+	if crew_cabin != null:
+		for seat_base_node in crew_cabin.find_children("SeatBase", "MeshInstance3D", true, false):
+			var seat_base := seat_base_node as MeshInstance3D
+			seat_clear = (
+				seat_clear
+				and _horizontal_overlap_area(threshold, _mesh_bounds_in_craft(craft, seat_base))
+					<= 0.0
+				and _horizontal_overlap_area(branch, _mesh_bounds_in_craft(craft, seat_base))
+					<= 0.0
+			)
+	_check(seat_clear, "the port route branch leaves every passenger seat footprint clear")
+
+	var interior := craft.get_node_or_null(^"WalkableInterior") as Node3D
+	var interior_lights := interior.find_children("*", "Light3D", true, false) \
+		if interior != null else []
+	_check(
+		interior_lights.size() == INTERIOR_PRACTICAL_LIGHT_COUNT,
+		"route readability adds no light beyond the frozen five-light moving interior budget"
+	)
+
+
+func _mesh_bounds_in_craft(craft: HeroShip, mesh_instance: MeshInstance3D) -> AABB:
+	var to_craft := craft.global_transform.affine_inverse() * mesh_instance.global_transform
+	return (to_craft * mesh_instance.mesh.get_aabb()).abs()
+
+
+func _horizontal_overlap_area(first: AABB, second: AABB) -> float:
+	var overlap_x := minf(first.end.x, second.end.x) - maxf(first.position.x, second.position.x)
+	var overlap_z := minf(first.end.z, second.end.z) - maxf(first.position.z, second.position.z)
+	return maxf(overlap_x, 0.0) * maxf(overlap_z, 0.0)
 
 
 func _test_in_flight_cabin(craft: HeroShip) -> void:
