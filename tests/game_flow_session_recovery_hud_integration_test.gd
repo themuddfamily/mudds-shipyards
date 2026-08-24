@@ -40,6 +40,7 @@ class SafeRecoveryProbe extends SafeStartType:
 
 class RecoveryBridgeProbe extends BridgeType:
 	var recovery_snapshot: Dictionary = {}
+	var diagnostic_snapshot: Dictionary = {}
 	var safe_choices: Array[StringName] = []
 	var acknowledge_count := 0
 	var discard_count := 0
@@ -58,6 +59,44 @@ class RecoveryBridgeProbe extends BridgeType:
 			"unclean_start_count": unclean_count,
 			"last_physics_tick": 240,
 			"last_elapsed_physics_seconds": 4.0,
+		}.duplicate(true)
+		diagnostic_snapshot = {
+			"schema_version": 1,
+			"capacity": 64,
+			"next_sequence": 4,
+			"dropped_event_count": 0,
+			"events": [
+				{
+					"sequence": 1,
+					"session_id": token,
+					"event_code": "session_started",
+					"severity": "info",
+					"physics_tick": 0,
+					"session_elapsed_physics_seconds": 0.0,
+					"fields": {"recovered": false},
+					"redacted_field_count": 0,
+				},
+				{
+					"sequence": 2,
+					"session_id": token,
+					"event_code": "control_source_changed",
+					"severity": "info",
+					"physics_tick": 120,
+					"session_elapsed_physics_seconds": 2.0,
+					"fields": {"input_device_code": 2},
+					"redacted_field_count": 0,
+				},
+				{
+					"sequence": 3,
+					"session_id": token + 1,
+					"event_code": "recovery_started",
+					"severity": "warning",
+					"physics_tick": 0,
+					"session_elapsed_physics_seconds": 0.0,
+					"fields": {"attempt_count": unclean_count},
+					"redacted_field_count": 0,
+				},
+			],
 		}.duplicate(true)
 
 	func get_recovery_available_snapshot() -> Dictionary:
@@ -118,7 +157,10 @@ class RecoveryBridgeProbe extends BridgeType:
 		}.duplicate(true)
 
 	func get_snapshot() -> Dictionary:
-		return {"recovery_available": not recovery_snapshot.is_empty()}.duplicate(true)
+		return {
+			"recovery_available": not recovery_snapshot.is_empty(),
+			"record": diagnostic_snapshot.duplicate(true),
+		}.duplicate(true)
 
 
 func _init() -> void:
@@ -139,6 +181,7 @@ func _run() -> void:
 	flow._connect_session_recovery_hud_signals()
 	flow._publish_recovery_choice_to_hud()
 	var notice := hud.get_session_recovery_notice_snapshot()
+	var detail := hud.get("_recovery_prompt_detail") as Label
 	_check(
 		bool(notice.active)
 		and int(notice.recovery_token) == 51
@@ -147,6 +190,16 @@ func _run() -> void:
 		and bridge.acknowledge_count == 0
 		and bridge.discard_count == 0,
 		"production publishes the authentic bridge receipt without choosing for the player"
+	)
+	_check(
+		bool(notice.support_summary.available)
+		and int(notice.support_summary.session_id) == 51
+		and int(notice.support_summary.retained_event_count) == 2
+		and notice.support_summary.last_runtime_mode == &"FLIGHT"
+		and detail.text.contains(
+			"Support summary: session 51  //  retained events: 2  //  last mode: FLIGHT"
+		),
+		"interrupted startup presents only the bounded prior-session ring summary"
 	)
 	var stale := flow._handle_hud_session_recovery_choice(
 		&"normal_start", 50, 4
@@ -171,9 +224,11 @@ func _run() -> void:
 	)
 	_check(
 		not bool(hud.get_session_recovery_notice_snapshot().active)
+		and hud.get_session_recovery_notice_snapshot().support_summary.is_empty()
+		and flow.get_session_recovery_diagnostic_snapshot().is_empty()
 		and flow.get_session_diagnostics_snapshot().recovery_hud.choice == &"safe_graphics_windowed"
 		and not bool(flow.get_session_diagnostics_snapshot().recovery_hud.automatic_choice),
-		"an accepted safe result clears the notice and remains a detached explicit HUD result"
+		"an accepted safe result clears the notice and support summary while retaining the explicit HUD result"
 	)
 	bridge.install(52, 5)
 	flow._publish_recovery_choice_to_hud()

@@ -1,10 +1,26 @@
 class_name SafeStartRecoveryPresenter
 extends RefCounted
 
-## Presentation-only consumer for a caller-owned SafeStart recovery receipt.
-## It does not inspect settings, perform restoration, or own crash diagnostics.
+## Presentation-only consumer for caller-owned recovery receipts and detached
+## diagnostic snapshots. It does not inspect settings, perform restoration, or
+## own crash diagnostics.
 
 const COMPONENT_ID: StringName = &"safe-start-recovery-presenter"
+const SessionDiagnosticRecordType := preload(
+	"res://scripts/diagnostics/session_diagnostic_record.gd"
+)
+const RUNTIME_MODE_LABELS := {
+	SessionDiagnosticRecordType.RuntimeMode.STATION: &"STATION",
+	SessionDiagnosticRecordType.RuntimeMode.FLIGHT: &"FLIGHT",
+	SessionDiagnosticRecordType.RuntimeMode.SURFACE: &"SURFACE",
+}
+const DIAGNOSTIC_SNAPSHOT_KEYS := [
+	"schema_version",
+	"capacity",
+	"next_sequence",
+	"dropped_event_count",
+	"events",
+]
 
 var _snapshot: Dictionary = {}
 
@@ -67,6 +83,60 @@ func present_recovery_choice(recommendation: Dictionary) -> Dictionary:
 	return _snapshot.duplicate(true)
 
 
+## Reduces the existing diagnostic ring to fixed labels and bounded primitives
+## for an interrupted-session card. No event text, fields, paths, or sink data
+## are copied into the presentation result.
+func present_diagnostic_support_summary(
+		diagnostic_snapshot: Dictionary,
+		interrupted_session_id: int
+		) -> Dictionary:
+	var hidden := {
+		"available": false,
+		"session_id": 0,
+		"retained_event_count": 0,
+		"last_runtime_mode": &"NOT_RETAINED",
+		"presentation_only": true,
+	}
+	if not _valid_diagnostic_snapshot(diagnostic_snapshot) \
+			or interrupted_session_id <= 0 \
+			or interrupted_session_id > SessionDiagnosticRecordType.MAX_SESSION_ID:
+		return hidden.duplicate(true)
+	var retained_event_count := 0
+	var last_runtime_mode: StringName = &"NOT_RETAINED"
+	for event_variant: Variant in diagnostic_snapshot.get("events", []) as Array:
+		if event_variant is not Dictionary:
+			return hidden.duplicate(true)
+		var event := event_variant as Dictionary
+		var session_value: Variant = event.get("session_id")
+		if session_value is not int:
+			return hidden.duplicate(true)
+		if session_value as int != interrupted_session_id:
+			continue
+		retained_event_count += 1
+		if event.get("event_code") != "control_source_changed":
+			continue
+		var fields_value: Variant = event.get("fields")
+		if fields_value is not Dictionary:
+			continue
+		var fields := fields_value as Dictionary
+		# Production runtime-mode observations contain exactly this one fixed
+		# primitive. Other CONTROL_SOURCE_CHANGED uses cannot impersonate it.
+		if fields.size() != 1 or not fields.has("input_device_code"):
+			continue
+		var mode_value: Variant = fields.get("input_device_code")
+		if mode_value is int and RUNTIME_MODE_LABELS.has(mode_value):
+			last_runtime_mode = RUNTIME_MODE_LABELS[mode_value]
+	if retained_event_count == 0:
+		return hidden.duplicate(true)
+	return {
+		"available": true,
+		"session_id": interrupted_session_id,
+		"retained_event_count": retained_event_count,
+		"last_runtime_mode": last_runtime_mode,
+		"presentation_only": true,
+	}.duplicate(true)
+
+
 func request_choice(choice: StringName) -> Dictionary:
 	for candidate in _snapshot.get("actions", []) as Array:
 		if StringName(candidate.get("id", &"")) == choice:
@@ -91,3 +161,34 @@ func _intent(action: StringName, reason: StringName) -> Dictionary:
 
 func _valid_receipt(receipt: Dictionary) -> bool:
 	return receipt.has("graphics_recovery_receipt") and receipt.has("audio_recovery_receipt")
+
+
+func _valid_diagnostic_snapshot(snapshot: Dictionary) -> bool:
+	if snapshot.size() != DIAGNOSTIC_SNAPSHOT_KEYS.size():
+		return false
+	for key: Variant in snapshot.keys():
+		if key is not String or key not in DIAGNOSTIC_SNAPSHOT_KEYS:
+			return false
+	var schema_value: Variant = snapshot.get("schema_version")
+	var capacity_value: Variant = snapshot.get("capacity")
+	var next_sequence_value: Variant = snapshot.get("next_sequence")
+	var dropped_value: Variant = snapshot.get("dropped_event_count")
+	var events_value: Variant = snapshot.get("events")
+	if (
+		schema_value is not int
+		or capacity_value is not int
+		or next_sequence_value is not int
+		or dropped_value is not int
+		or events_value is not Array
+	):
+		return false
+	var events := events_value as Array
+	return (
+		schema_value as int == SessionDiagnosticRecordType.SCHEMA_VERSION
+		and capacity_value as int == SessionDiagnosticRecordType.MAX_EVENTS
+		and next_sequence_value as int > 0
+		and next_sequence_value as int <= SessionDiagnosticRecordType.MAX_FIELD_INTEGER
+		and dropped_value as int >= 0
+		and dropped_value as int <= SessionDiagnosticRecordType.MAX_COUNT
+		and events.size() <= SessionDiagnosticRecordType.MAX_EVENTS
+	)

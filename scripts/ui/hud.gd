@@ -497,6 +497,7 @@ var _recovery_prompt_actions: HBoxContainer
 var _recovery_prompt_dismiss_button: Button
 var _session_recovery_snapshot: Dictionary = {}
 var _session_recovery_recommendation: Dictionary = {}
+var _session_recovery_support_summary: Dictionary = {}
 var _session_recovery_token := 0
 var _session_recovery_generation := 0
 var _session_recovery_choice_latched := false
@@ -2977,7 +2978,8 @@ func _build_semantic_transcript_panel() -> void:
 ## deep copy and emits a fenced request after an explicit player choice.
 func present_session_recovery_notice(
 	recovery_snapshot: Dictionary,
-	recommendation: Dictionary
+	recommendation: Dictionary,
+	diagnostic_snapshot: Dictionary = {}
 ) -> Dictionary:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return {"accepted": false, "reason": &"hud_detached"}
@@ -3002,6 +3004,11 @@ func present_session_recovery_notice(
 		}
 	_session_recovery_snapshot = recovery_snapshot.duplicate(true)
 	_session_recovery_recommendation = recommendation.duplicate(true)
+	_session_recovery_support_summary = (
+		_safe_start_recovery_presenter.present_diagnostic_support_summary(
+			diagnostic_snapshot.duplicate(true), token
+		)
+	)
 	_session_recovery_token = token
 	_session_recovery_generation = generation
 	_session_recovery_choice_latched = false
@@ -3141,6 +3148,15 @@ func _render_session_recovery_notice() -> void:
 		unfinished,
 		str(advice).replace("_", " ").to_upper(),
 	]
+	if bool(_session_recovery_support_summary.get("available", false)):
+		_recovery_prompt_detail.text += (
+			"\nSupport summary: session %d  //  retained events: %d  //  last mode: %s"
+			% [
+				int(_session_recovery_support_summary.get("session_id", 0)),
+				int(_session_recovery_support_summary.get("retained_event_count", 0)),
+				str(_session_recovery_support_summary.get("last_runtime_mode", &"NOT_RETAINED")),
+			]
+		)
 	_clear_recovery_action_controls()
 	for action_data: Dictionary in [
 		{"id": &"safe", "label": "Safe Recovery", "role": CAUTION},
@@ -3245,6 +3261,7 @@ func present_session_recovery_support_export_result(
 func clear_session_recovery_notice() -> void:
 	_session_recovery_snapshot.clear()
 	_session_recovery_recommendation.clear()
+	_session_recovery_support_summary.clear()
 	_session_recovery_token = 0
 	_session_recovery_generation = 0
 	_session_recovery_choice_latched = false
@@ -3278,6 +3295,7 @@ func get_session_recovery_notice_snapshot() -> Dictionary:
 		"support_export_latched": _session_recovery_support_export_latched,
 		"recovery_snapshot": _session_recovery_snapshot.duplicate(true),
 		"recommendation": _session_recovery_recommendation.duplicate(true),
+		"support_summary": _session_recovery_support_summary.duplicate(true),
 		"reduced_motion": _reduced_motion,
 		"automatic_choice": false,
 		"authority": {

@@ -59,11 +59,12 @@ func _run() -> void:
 		"the notice truthfully summarizes the interrupted session without claiming a crash"
 	)
 	_check(
-		actions.get_child_count() == 3
+		actions.get_child_count() == 4
 		and (actions.get_child(0) as Button).text == "Safe Recovery"
 		and (actions.get_child(1) as Button).text == "Continue"
-		and (actions.get_child(2) as Button).text == "Discard",
-		"the three explicit player choices use the requested readable labels"
+		and (actions.get_child(2) as Button).text == "Discard"
+		and (actions.get_child(3) as Button).text == "Save Support Summary",
+		"the recovery choices and receipt-fenced support action use readable labels"
 	)
 	var safe := actions.get_child(0) as Button
 	var continue_button := actions.get_child(1) as Button

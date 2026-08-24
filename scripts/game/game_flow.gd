@@ -1646,6 +1646,20 @@ func get_recovery_available_snapshot() -> Dictionary:
 	return _session_diagnostics_bridge.get_recovery_available_snapshot()
 
 
+## Recovery-card-only exposure of the existing detached diagnostic ring. A
+## clean startup never exposes it, and callers receive no sink, path, store, or
+## diagnostic mutation authority.
+func get_session_recovery_diagnostic_snapshot() -> Dictionary:
+	if _session_diagnostics_bridge == null \
+			or get_recovery_available_snapshot().is_empty():
+		return {}
+	var bridge_snapshot := _session_diagnostics_bridge.get_snapshot()
+	var record_value: Variant = bridge_snapshot.get("record")
+	if record_value is not Dictionary:
+		return {}
+	return (record_value as Dictionary).duplicate(true)
+
+
 func get_session_start_recommendation() -> Dictionary:
 	if _session_diagnostics_bridge == null:
 		return {"available": false, "requires_caller_choice": false}
@@ -1673,7 +1687,8 @@ func _publish_recovery_choice_to_hud() -> void:
 		var presentation := hud.call(
 			&"present_session_recovery_notice",
 			recovery_snapshot.duplicate(true),
-			recommendation.duplicate(true)
+			recommendation.duplicate(true),
+			get_session_recovery_diagnostic_snapshot()
 		) as Dictionary
 		if not bool(presentation.get("accepted", false)):
 			_session_recovery_hud_status = {
