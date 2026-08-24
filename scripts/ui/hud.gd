@@ -195,6 +195,18 @@ const PANEL_TELEMETRY_TOP_OFFSET := 250.0
 ## The authored edge margin still retains 26 logical px before safe-area inset.
 const PANEL_TELEMETRY_CAPTION_CLEARANCE := 2.0
 const PANEL_HELP_WIDTH := 272.0
+## Public runtime cards occupy the narrow band below the enemy readout. Their
+## body may scroll, but their title and action row never leave this fixed frame.
+## The 396 px width keeps two logical pixels clear of both floor gutters; the
+## 112 px height ends seven pixels above the camera-space reticle marks.
+const PANEL_PUBLIC_STATUS_WIDTH := 396.0
+const PANEL_PUBLIC_STATUS_HEIGHT := 112.0
+const PANEL_PUBLIC_STATUS_TOP := 204.0
+const PANEL_PUBLIC_STATUS_CENTER_OFFSET_X := 20.0
+## While a public status card is composed, captions move into the fixed band
+## immediately above the interaction prompt. The reusable presenter's ordinary
+## 272 px reservation remains unchanged whenever no public card is visible.
+const PANEL_COMPOSED_CAPTION_BOTTOM_SAFE_LOGICAL := 126.0
 const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
 const GAMEPAD_CAPTURE_THRESHOLD := 0.75
@@ -539,6 +551,8 @@ var _runtime_status_title: Label
 var _runtime_status_detail: Label
 var _runtime_status_rows: VBoxContainer
 var _runtime_status_actions: HBoxContainer
+var _runtime_status_scroll: ScrollContainer
+var _runtime_status_scroll_content: VBoxContainer
 var _bomber_status_panel: PanelContainer
 var _bomber_status_title: Label
 var _bomber_status_detail: Label
@@ -2756,9 +2770,7 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 			viewport_size.y
 		)
 		_caption_presenter.set_ui_scale(effective)
-		_caption_presenter.set_host_bottom_safe_margin(
-			CAPTION_BOTTOM_SAFE_LOGICAL * effective
-		)
+		_apply_caption_bottom_reservation(effective)
 	return effective
 
 
@@ -2770,11 +2782,17 @@ static func compute_runtime_status_panel_rect(
 	var left := maxf(safe_insets.position.x, 0.0) / scale
 	var right := maxf(safe_insets.size.x, 0.0) / scale
 	var top := maxf(safe_insets.position.y, 0.0) / scale
-	var width := 420.0
-	var center_x := left + (logical.x - left - right) * 0.5 + 12.0
-	# The public-card band sits below the enemy readout and above captions and the
-	# interaction strip at the supported 720p logical floor.
-	return Rect2(Vector2(center_x - width * 0.5, top + 204.0), Vector2(width, 230.0))
+	var center_x := (
+		left + (logical.x - left - right) * 0.5
+		+ PANEL_PUBLIC_STATUS_CENTER_OFFSET_X
+	)
+	return Rect2(
+		Vector2(
+			center_x - PANEL_PUBLIC_STATUS_WIDTH * 0.5,
+			top + PANEL_PUBLIC_STATUS_TOP
+		),
+		Vector2(PANEL_PUBLIC_STATUS_WIDTH, PANEL_PUBLIC_STATUS_HEIGHT)
+	)
 
 
 static func compute_bomber_payload_panel_rect(
@@ -2785,9 +2803,17 @@ static func compute_bomber_payload_panel_rect(
 	var left := maxf(safe_insets.position.x, 0.0) / scale
 	var right := maxf(safe_insets.size.x, 0.0) / scale
 	var top := maxf(safe_insets.position.y, 0.0) / scale
-	var width := 420.0
-	var center_x := left + (logical.x - left - right) * 0.5 + 12.0
-	return Rect2(Vector2(center_x - width * 0.5, top + 204.0), Vector2(width, 230.0))
+	var center_x := (
+		left + (logical.x - left - right) * 0.5
+		+ PANEL_PUBLIC_STATUS_CENTER_OFFSET_X
+	)
+	return Rect2(
+		Vector2(
+			center_x - PANEL_PUBLIC_STATUS_WIDTH * 0.5,
+			top + PANEL_PUBLIC_STATUS_TOP
+		),
+		Vector2(PANEL_PUBLIC_STATUS_WIDTH, PANEL_PUBLIC_STATUS_HEIGHT)
+	)
 
 
 ## Keeps the recovery decision in the readable centre band on 16:9 through
@@ -4023,26 +4049,46 @@ func _build_runtime_status_panel() -> void:
 	_runtime_status_panel = PanelContainer.new()
 	_runtime_status_panel.name = "RuntimeStatusPanel"
 	_runtime_status_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_runtime_status_panel.position = Vector2(-250.0, -150.0)
-	_runtime_status_panel.size = Vector2(500.0, 300.0)
+	_runtime_status_panel.position = Vector2(
+		-PANEL_PUBLIC_STATUS_WIDTH * 0.5, -PANEL_PUBLIC_STATUS_HEIGHT * 0.5
+	)
+	_runtime_status_panel.size = Vector2(
+		PANEL_PUBLIC_STATUS_WIDTH, PANEL_PUBLIC_STATUS_HEIGHT
+	)
 	_runtime_status_panel.add_theme_stylebox_override("panel", _border_box(PANEL_SOLID, 8, NOMINAL))
 	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_hud_panels.add_child(_runtime_status_panel)
-	var margin := _margin(18, 16, 18, 16)
+	var margin := _margin(14, 8, 14, 8)
 	_runtime_status_panel.add_child(margin)
 	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 8)
+	stack.add_theme_constant_override("separation", 4)
 	margin.add_child(stack)
-	_runtime_status_title = _label("STATUS", 18, PRIMARY)
+	_runtime_status_title = _label("STATUS", 16, PRIMARY)
+	_runtime_status_title.clip_text = true
+	_runtime_status_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	stack.add_child(_runtime_status_title)
+	_runtime_status_scroll = ScrollContainer.new()
+	_runtime_status_scroll.name = "RuntimeStatusBodyScroll"
+	_runtime_status_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_runtime_status_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_runtime_status_scroll.follow_focus = true
+	_runtime_status_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_runtime_status_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.add_child(_runtime_status_scroll)
+	_runtime_status_scroll_content = VBoxContainer.new()
+	_runtime_status_scroll_content.name = "RuntimeStatusScrollableContent"
+	_runtime_status_scroll_content.add_theme_constant_override("separation", 4)
+	_runtime_status_scroll_content.custom_minimum_size.x = 350.0
+	_runtime_status_scroll_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_runtime_status_scroll.add_child(_runtime_status_scroll_content)
 	_runtime_status_detail = _label("", 11, NOMINAL_SOFT)
 	_runtime_status_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_runtime_status_detail.custom_minimum_size.x = 380.0
+	_runtime_status_detail.custom_minimum_size.x = 350.0
 	_runtime_status_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stack.add_child(_runtime_status_detail)
+	_runtime_status_scroll_content.add_child(_runtime_status_detail)
 	_runtime_status_rows = VBoxContainer.new()
 	_runtime_status_rows.add_theme_constant_override("separation", 4)
-	stack.add_child(_runtime_status_rows)
+	_runtime_status_scroll_content.add_child(_runtime_status_rows)
 	_runtime_status_actions = HBoxContainer.new()
 	_runtime_status_actions.add_theme_constant_override("separation", 8)
 	stack.add_child(_runtime_status_actions)
@@ -4054,31 +4100,42 @@ func _build_bomber_status_panel() -> void:
 	_bomber_status_panel = PanelContainer.new()
 	_bomber_status_panel.name = "BomberPayloadStatusPanel"
 	_bomber_status_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_bomber_status_panel.position = Vector2(-250.0, -150.0)
-	_bomber_status_panel.size = Vector2(500.0, 230.0)
+	_bomber_status_panel.position = Vector2(
+		-PANEL_PUBLIC_STATUS_WIDTH * 0.5, -PANEL_PUBLIC_STATUS_HEIGHT * 0.5
+	)
+	_bomber_status_panel.size = Vector2(
+		PANEL_PUBLIC_STATUS_WIDTH, PANEL_PUBLIC_STATUS_HEIGHT
+	)
 	_bomber_status_panel.add_theme_stylebox_override(
 		"panel", _border_box(Color("101c2bf2"), 8, CAUTION)
 	)
 	_bomber_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_panels.add_child(_bomber_status_panel)
-	var margin := _margin(18, 16, 18, 16)
+	var margin := _margin(14, 3, 14, 3)
 	_bomber_status_panel.add_child(margin)
 	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 8)
+	stack.add_theme_constant_override("separation", 2)
 	margin.add_child(stack)
-	_bomber_status_title = _label("BOMBER PAYLOAD", 18, PRIMARY)
-	stack.add_child(_bomber_status_title)
-	_bomber_status_detail = _label("", 11, NOMINAL_SOFT)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	stack.add_child(header)
+	_bomber_status_title = _label("BOMBER PAYLOAD", 16, PRIMARY)
+	_bomber_status_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_bomber_status_title.clip_text = true
+	_bomber_status_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	header.add_child(_bomber_status_title)
+	_bomber_status_actions = HBoxContainer.new()
+	_bomber_status_actions.add_theme_constant_override("separation", 8)
+	header.add_child(_bomber_status_actions)
+	_bomber_status_detail = _label("", 9, NOMINAL_SOFT)
 	_bomber_status_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bomber_status_detail.custom_minimum_size.x = 380.0
+	_bomber_status_detail.custom_minimum_size.x = 350.0
 	_bomber_status_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_bomber_status_detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stack.add_child(_bomber_status_detail)
 	_bomber_status_rows = VBoxContainer.new()
 	_bomber_status_rows.add_theme_constant_override("separation", 4)
 	stack.add_child(_bomber_status_rows)
-	_bomber_status_actions = HBoxContainer.new()
-	_bomber_status_actions.add_theme_constant_override("separation", 8)
-	stack.add_child(_bomber_status_actions)
 	_bomber_status_panel.visible = false
 
 
@@ -4378,6 +4435,7 @@ func _refresh_runtime_status_cards() -> void:
 	_hide_runtime_status_panel(_bomber_status_panel)
 	_runtime_status_kind = _runtime_status_foreground_kind()
 	if is_instance_valid(_recovery_prompt_panel) and _recovery_prompt_panel.visible:
+		_apply_caption_bottom_reservation(_layout_effective_ui_scale)
 		return
 	if _runtime_status_kind == &"bomber":
 		var bomber_card := _runtime_status_cards[&"bomber"] as Dictionary
@@ -4390,8 +4448,10 @@ func _refresh_runtime_status_cards() -> void:
 			_bomber_status_rows,
 			_bomber_status_actions
 		)
+		_apply_caption_bottom_reservation(_layout_effective_ui_scale)
 		return
 	if _runtime_status_kind.is_empty():
+		_apply_caption_bottom_reservation(_layout_effective_ui_scale)
 		return
 	var selected_card := _runtime_status_cards[_runtime_status_kind] as Dictionary
 	_render_runtime_status_card(
@@ -4402,6 +4462,21 @@ func _refresh_runtime_status_cards() -> void:
 		_runtime_status_detail,
 		_runtime_status_rows,
 		_runtime_status_actions
+	)
+	_apply_caption_bottom_reservation(_layout_effective_ui_scale)
+
+
+func _apply_caption_bottom_reservation(effective_scale: float) -> void:
+	if not is_instance_valid(_caption_presenter):
+		return
+	var logical_margin := CAPTION_BOTTOM_SAFE_LOGICAL
+	if (
+		(is_instance_valid(_runtime_status_panel) and _runtime_status_panel.visible)
+		or (is_instance_valid(_bomber_status_panel) and _bomber_status_panel.visible)
+	):
+		logical_margin = PANEL_COMPOSED_CAPTION_BOTTOM_SAFE_LOGICAL
+	_caption_presenter.set_host_bottom_safe_margin(
+		logical_margin * maxf(effective_scale, 0.01)
 	)
 
 
@@ -4503,6 +4578,9 @@ func _render_runtime_status_card(
 		if not gunner_reason.is_empty():
 			detail += "\nUNAVAILABLE // %s" % gunner_reason.to_upper()
 	detail_label.text = detail
+	if kind != &"bomber" and is_instance_valid(_runtime_status_scroll):
+		_runtime_status_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+		_runtime_status_scroll.get_v_scroll_bar().mouse_filter = Control.MOUSE_FILTER_STOP
 	var action_buttons: Array[Button] = []
 	for action: Dictionary in snapshot.get("actions", []):
 		var button := _menu_button(str(action.get("label", "Action")), NOMINAL)
