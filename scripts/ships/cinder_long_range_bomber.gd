@@ -28,6 +28,14 @@ const ORDNANCE_SPINE_POSITION := Vector3(0.0, -0.15, 1.5)
 const STRIKE_WING_SIZE := Vector3(5.0, 0.3, 6.2)
 const STRIKE_WING_OFFSET := Vector3(5.15, -0.45, 0.65)
 const STRIKE_WING_SWEEP_DEGREES := 12.0
+## A compact twin-fin empennage breaks up the otherwise slab-like aft profile
+## from the normal chase distance. Every part stays inside the current wing and
+## hull footprint, so this presentation cue does not change berth fit.
+const AFT_TAILPLANE_SIZE := Vector3(8.6, 0.22, 2.9)
+const AFT_TAILPLANE_POSITION := Vector3(0.0, 0.2, 5.3)
+const AFT_FIN_SIZE := Vector3(0.34, 2.2, 3.3)
+const AFT_FIN_OFFSET := Vector3(2.3, 1.25, 5.35)
+const AFT_FIN_CANT_DEGREES := 12.0
 const SENSOR_RADIUS := 0.62
 const SENSOR_HEIGHT := 1.24
 const SENSOR_POSITION := Vector3(0.0, 1.6, -5.2)
@@ -58,6 +66,8 @@ static var _shared_hull_material: StandardMaterial3D
 static var _shared_ordnance_spine_mesh: BoxMesh
 static var _shared_ordnance_spine_material: StandardMaterial3D
 static var _shared_strike_wing_mesh: BoxMesh
+static var _shared_aft_tailplane_mesh: BoxMesh
+static var _shared_aft_fin_mesh: BoxMesh
 static var _shared_sensor_mesh: SphereMesh
 static var _shared_sensor_material: StandardMaterial3D
 static var _shared_damage_scorch_mesh: BoxMesh
@@ -204,6 +214,7 @@ func _build_bomber_variant(_controller: HeroShip) -> bool:
 	visual.set_meta(&"historically_supported", false)
 	_build_hull(visual)
 	_build_strike_wings(visual)
+	_build_aft_empennage(visual)
 	_build_cockpit_and_boarding(visual)
 	_build_payload_hardpoints(visual)
 	_build_component_damage_cue(visual)
@@ -375,6 +386,7 @@ func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var hull_sharing := get_hull_resource_sharing_audit()
 	var strike_wing_visual := get_strike_wing_visual_audit()
+	var aft_empennage_visual := get_aft_empennage_visual_audit()
 	var sensor_sharing := get_sensor_resource_sharing_audit()
 	if not _bomber_built:
 		errors.append("bomber has not built its authored component tree")
@@ -396,6 +408,8 @@ func get_audit_report() -> Dictionary:
 		errors.append("bomber immutable primary visual resource sharing drifted")
 	if not bool(strike_wing_visual.get("valid", false)):
 		errors.append("bomber swept strike-wing silhouette drifted")
+	if not bool(aft_empennage_visual.get("valid", false)):
+		errors.append("bomber twin-fin aft silhouette drifted")
 	if not bool(sensor_sharing.get("valid", false)):
 		errors.append("bomber immutable sensor visual resource sharing drifted")
 	return {
@@ -422,6 +436,7 @@ func get_audit_report() -> Dictionary:
 		"network_authority": false,
 		"hull_resource_sharing": hull_sharing,
 		"strike_wing_visual": strike_wing_visual,
+		"aft_empennage_visual": aft_empennage_visual,
 		"sensor_resource_sharing": sensor_sharing,
 	}.duplicate(true)
 
@@ -468,6 +483,78 @@ func get_strike_wing_visual_audit() -> Dictionary:
 				if _shared_strike_wing_mesh != null else 0,
 		"shared_hull_material_resource_id": _shared_hull_material.get_instance_id() \
 				if _shared_hull_material != null else 0,
+	}.duplicate(true)
+
+
+## Presentation-only bomber recognition cue. The three renderers stay inside
+## the existing visual footprint and share immutable stock across craft copies;
+## they add no lights, collision, hardpoints, scripts, or gameplay authority.
+func get_aft_empennage_visual_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var visual := get_variant_visual_root()
+	var tailplane := visual.get_node_or_null(^"LongRangeTailplane") as MeshInstance3D \
+			if visual != null else null
+	var port_fin := visual.get_node_or_null(^"PortBomberFin") as MeshInstance3D \
+			if visual != null else null
+	var starboard_fin := visual.get_node_or_null(^"StarboardBomberFin") as MeshInstance3D \
+			if visual != null else null
+	if tailplane == null:
+		errors.append("aft tailplane renderer is missing")
+	else:
+		if not tailplane.position.is_equal_approx(AFT_TAILPLANE_POSITION):
+			errors.append("aft tailplane placement drifted")
+		if tailplane.mesh != _shared_aft_tailplane_mesh \
+				or tailplane.material_override != _shared_hull_material:
+			errors.append("aft tailplane immutable resource identity drifted")
+		if not tailplane.visible \
+				or tailplane.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("aft tailplane renderer state drifted")
+		if tailplane.get_child_count() != 0 or tailplane.get_script() != null:
+			errors.append("aft tailplane gained semantic children or authority")
+	for entry in [
+		[port_fin, -AFT_FIN_OFFSET.x, AFT_FIN_CANT_DEGREES],
+		[starboard_fin, AFT_FIN_OFFSET.x, -AFT_FIN_CANT_DEGREES],
+	]:
+		var fin := entry[0] as MeshInstance3D
+		if fin == null:
+			errors.append("aft bomber-fin renderer is missing")
+			continue
+		var expected_position := Vector3(float(entry[1]), AFT_FIN_OFFSET.y, AFT_FIN_OFFSET.z)
+		if not fin.position.is_equal_approx(expected_position) \
+				or not is_equal_approx(fin.rotation_degrees.z, float(entry[2])):
+			errors.append("aft bomber-fin mirrored cant drifted")
+		if fin.mesh != _shared_aft_fin_mesh \
+				or fin.material_override != _shared_ordnance_spine_material:
+			errors.append("aft bomber-fin immutable resource identity drifted")
+		if not fin.visible or fin.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("aft bomber-fin renderer state drifted")
+		if fin.get_child_count() != 0 or fin.get_script() != null:
+			errors.append("aft bomber fin gained semantic children or authority")
+	if _shared_aft_tailplane_mesh == null \
+			or not _shared_aft_tailplane_mesh.size.is_equal_approx(AFT_TAILPLANE_SIZE) \
+			or _shared_aft_tailplane_mesh.resource_local_to_scene:
+		errors.append("aft tailplane mesh recipe drifted")
+	if _shared_aft_fin_mesh == null \
+			or not _shared_aft_fin_mesh.size.is_equal_approx(AFT_FIN_SIZE) \
+			or _shared_aft_fin_mesh.resource_local_to_scene:
+		errors.append("aft bomber-fin mesh recipe drifted")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"renderer_nodes_per_copy": int(tailplane != null) + int(port_fin != null) + int(starboard_fin != null),
+		"geometry_submissions_per_copy": 3 if tailplane != null and port_fin != null and starboard_fin != null else 0,
+		"tailplane_mesh_resource_id": _shared_aft_tailplane_mesh.get_instance_id() \
+				if _shared_aft_tailplane_mesh != null else 0,
+		"fin_mesh_resource_id": _shared_aft_fin_mesh.get_instance_id() \
+				if _shared_aft_fin_mesh != null else 0,
+		"hull_material_resource_id": _shared_hull_material.get_instance_id() \
+				if _shared_hull_material != null else 0,
+		"ordnance_material_resource_id": _shared_ordnance_spine_material.get_instance_id() \
+				if _shared_ordnance_spine_material != null else 0,
+		"lights": 0,
+		"collision_shapes": 0,
+		"payload_hardpoints": 0,
+		"gameplay_authority": false,
 	}.duplicate(true)
 
 
@@ -781,6 +868,35 @@ func _build_strike_wings(visual: Node3D) -> void:
 		wing.rotation_degrees.y = float(entry[2])
 		wing.material_override = _shared_hull_material
 		visual.add_child(wing)
+
+
+func _build_aft_empennage(visual: Node3D) -> void:
+	if _shared_aft_tailplane_mesh == null:
+		_shared_aft_tailplane_mesh = BoxMesh.new()
+		_shared_aft_tailplane_mesh.size = AFT_TAILPLANE_SIZE
+		_shared_aft_tailplane_mesh.resource_local_to_scene = false
+	var tailplane := MeshInstance3D.new()
+	tailplane.name = "LongRangeTailplane"
+	tailplane.mesh = _shared_aft_tailplane_mesh
+	tailplane.position = AFT_TAILPLANE_POSITION
+	tailplane.material_override = _shared_hull_material
+	visual.add_child(tailplane)
+
+	if _shared_aft_fin_mesh == null:
+		_shared_aft_fin_mesh = BoxMesh.new()
+		_shared_aft_fin_mesh.size = AFT_FIN_SIZE
+		_shared_aft_fin_mesh.resource_local_to_scene = false
+	for entry in [
+		["PortBomberFin", -AFT_FIN_OFFSET.x, AFT_FIN_CANT_DEGREES],
+		["StarboardBomberFin", AFT_FIN_OFFSET.x, -AFT_FIN_CANT_DEGREES],
+	]:
+		var fin := MeshInstance3D.new()
+		fin.name = entry[0]
+		fin.mesh = _shared_aft_fin_mesh
+		fin.position = Vector3(float(entry[1]), AFT_FIN_OFFSET.y, AFT_FIN_OFFSET.z)
+		fin.rotation_degrees.z = float(entry[2])
+		fin.material_override = _shared_ordnance_spine_material
+		visual.add_child(fin)
 
 
 func _build_component_damage_cue(visual: Node3D) -> void:
