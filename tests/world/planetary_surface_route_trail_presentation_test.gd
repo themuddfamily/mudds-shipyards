@@ -98,9 +98,10 @@ func _run() -> void:
 	if not cue_result.accepted or not cue.visible or cue.landmark_id != &"caldera_overlook" \
 			or not is_equal_approx(cue.distance_m, 486.25) or not cue.reduced_motion \
 			or not cue.static or cue_label == null or not cue_label.visible \
+			or cue_label.no_depth_test \
 			or not cue_label.text.contains("CALDERA OVERLOOK") \
 			or cue.authority.navigation or cue.authority.movement or cue.authority.interaction:
-		_fail("route trail did not render a static, distance-aware next-landmark cue")
+		_fail("route trail did not render an occluded, static, distance-aware next-landmark cue")
 		return
 	var detached: Dictionary = trail.detach()
 	var detached_snapshot: Dictionary = trail.get_snapshot()

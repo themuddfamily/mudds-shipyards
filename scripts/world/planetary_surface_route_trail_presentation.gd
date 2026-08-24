@@ -54,7 +54,8 @@ func configure(points: Array) -> Dictionary:
 	_next_landmark_label = Label3D.new()
 	_next_landmark_label.name = "NextLandmarkCue"
 	_next_landmark_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_next_landmark_label.no_depth_test = true
+	# A target hidden by the surface must not read as an unobstructed route.
+	_next_landmark_label.no_depth_test = false
 	_next_landmark_label.outline_size = 8
 	_next_landmark_label.pixel_size = 0.008
 	_next_landmark_label.modulate = Color(0.85, 0.95, 1.0, 1.0)
