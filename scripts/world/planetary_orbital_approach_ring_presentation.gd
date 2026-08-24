@@ -3,6 +3,12 @@ extends Node3D
 
 ## Presentation-only orbital approach ring at a caller-authored boundary anchor.
 
+## Every live visitable-world presentation uses this exact immutable torus
+## recipe. Retaining the geometry once for the class removes one mesh resource
+## allocation for each additional ring while leaving each node, transform, and
+## solar-responsive material independently owned.
+static var _shared_ring_mesh: TorusMesh
+
 var _configured := false
 var _anchor := Vector3.ZERO
 var _profile: StringName = &"high"
@@ -15,10 +21,11 @@ func _ready() -> void:
 	set_physics_process(false)
 	_ring = MeshInstance3D.new()
 	_ring.name = "OwnedOrbitalApproachRing"
-	var torus := TorusMesh.new()
-	torus.inner_radius = 18.0
-	torus.outer_radius = 20.0
-	_ring.mesh = torus
+	if _shared_ring_mesh == null:
+		_shared_ring_mesh = TorusMesh.new()
+		_shared_ring_mesh.inner_radius = 18.0
+		_shared_ring_mesh.outer_radius = 20.0
+	_ring.mesh = _shared_ring_mesh
 	_material = StandardMaterial3D.new()
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_material.emission_enabled = true
