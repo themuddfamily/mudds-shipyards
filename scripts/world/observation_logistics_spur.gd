@@ -131,15 +131,15 @@ const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 	Vector3(-11.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
-const VISUAL_DESCENDANT_NODE_COUNT := 145
+const VISUAL_DESCENDANT_NODE_COUNT := 146
 const BASELINE_RENDERER_NODE_COUNT := 42
-const RENDERER_NODE_COUNT := 37
+const RENDERER_NODE_COUNT := 35
 const BASELINE_DRAWN_COPY_COUNT := 270
 const DRAWN_COPY_COUNT := 270
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
-const SURFACE_SUBMISSION_COUNT := 37
+const SURFACE_SUBMISSION_COUNT := 35
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 34
+const MESH_RESOURCE_COUNT := 32
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
@@ -185,6 +185,20 @@ const LOGISTICS_CASE_RENDERER_NODE_COUNT := 1
 const LOGISTICS_CASE_CULLING_BOUNDS := AABB(
 	Vector3(10.1, 0.22, 28.16), Vector3(2.1, 1.10, 6.78)
 )
+const LOGISTICS_PALLET_SIZE := Vector3(2.4, 0.24, 1.55)
+const LOGISTICS_PALLET_POSITIONS := [
+	Vector3(11.15, 0.12, 28.8),
+	Vector3(11.15, 0.12, 31.55),
+	Vector3(11.15, 0.12, 34.3),
+]
+const LOGISTICS_PALLET_COPY_COUNT := 3
+const BASELINE_LOGISTICS_PALLET_RENDERER_NODE_COUNT := 3
+const LOGISTICS_PALLET_RENDERER_NODE_COUNT := 1
+const BASELINE_LOGISTICS_PALLET_MESH_RESOURCE_COUNT := 3
+const LOGISTICS_PALLET_MESH_RESOURCE_COUNT := 1
+const LOGISTICS_PALLET_CULLING_BOUNDS := AABB(
+	Vector3(9.95, 0.0, 28.025), Vector3(2.4, 0.24, 7.05)
+)
 const LIGHT_MAST_SIZE := Vector3(0.16, 2.8, 0.16)
 const LIGHT_MAST_POSITIONS := [
 	Vector3(2.32, 1.4, 7.0),
@@ -221,6 +235,9 @@ var _practical_lens_mesh: BoxMesh
 ## Immutable visual resource only; every named case retains its StaticBody3D
 ## and CollisionShape3D while the six identical cargo-case renderers share it.
 var _logistics_case_mesh: BoxMesh
+## Immutable visual resource only; each named pallet retains its StaticBody3D
+## and CollisionShape3D while the three identical pallet renderers share it.
+var _logistics_pallet_mesh: BoxMesh
 var _route_markers: Dictionary = {}
 var _walkable_surfaces: Array[StaticBody3D] = []
 var _visible_rail_bar_transforms: Array[Transform3D] = []
@@ -353,8 +370,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 145 descendant
-	# nodes, 12 MeshInstance3D nodes plus twenty-five visual-only MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 146 descendant
+	# nodes, 9 MeshInstance3D nodes plus twenty-six visual-only MultiMesh batches,
 	# 33 bodies/shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
@@ -362,7 +379,7 @@ func get_performance_contract() -> Dictionary:
 	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 12,
+		"mesh_instances": 9,
 		"static_bodies": 33,
 		"collision_shapes": 33,
 		"labels": 4,
@@ -670,6 +687,86 @@ func get_visual_resource_contract() -> Dictionary:
 				expected_case_transforms[case_index]
 			)
 		)
+	var logistics_pallet_batch := get_node_or_null(
+		^"Structure/Dressing/LogisticsPalletRenderBatch"
+	) as MultiMeshInstance3D
+	var logistics_pallet_mesh_resource_ids := {}
+	var logistics_pallet_identities_exact := (
+		is_instance_valid(_logistics_pallet_mesh)
+		and logistics_pallet_batch != null
+		and logistics_pallet_batch.multimesh != null
+	)
+	var authored_pallet_transforms: Array = []
+	var expected_pallet_transforms: Array[Transform3D] = []
+	for pallet_position in LOGISTICS_PALLET_POSITIONS:
+		expected_pallet_transforms.append(Transform3D(Basis.IDENTITY, pallet_position))
+	if logistics_pallet_identities_exact:
+		var pallet_batch_mesh := logistics_pallet_batch.multimesh.mesh as BoxMesh
+		if pallet_batch_mesh != null:
+			logistics_pallet_mesh_resource_ids[pallet_batch_mesh.get_instance_id()] = true
+		authored_pallet_transforms = logistics_pallet_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array
+		logistics_pallet_identities_exact = (
+			pallet_batch_mesh == _logistics_pallet_mesh
+			and pallet_batch_mesh != null
+			and pallet_batch_mesh.size.is_equal_approx(LOGISTICS_PALLET_SIZE)
+			and logistics_pallet_batch.material_override == _materials.get("rail")
+			and logistics_pallet_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and logistics_pallet_batch.cast_shadow
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and logistics_pallet_batch.layers == 1
+			and is_zero_approx(logistics_pallet_batch.extra_cull_margin)
+			and not logistics_pallet_batch.ignore_occlusion_culling
+			and is_zero_approx(logistics_pallet_batch.visibility_range_begin)
+			and is_zero_approx(logistics_pallet_batch.visibility_range_end)
+			and logistics_pallet_batch.visibility_range_fade_mode
+				== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+			and logistics_pallet_batch.multimesh.transform_format == MultiMesh.TRANSFORM_3D
+			and logistics_pallet_batch.multimesh.instance_count == LOGISTICS_PALLET_COPY_COUNT
+			and logistics_pallet_batch.multimesh.visible_instance_count
+				== LOGISTICS_PALLET_COPY_COUNT
+			and logistics_pallet_batch.multimesh.buffer == _encode_multimesh_transforms(
+				expected_pallet_transforms
+			)
+			and logistics_pallet_batch.multimesh.custom_aabb.is_equal_approx(
+				LOGISTICS_PALLET_CULLING_BOUNDS
+			)
+			and authored_pallet_transforms == expected_pallet_transforms
+			and bool(logistics_pallet_batch.get_meta("visual_detail_only", false))
+		)
+	for pallet_index in LOGISTICS_PALLET_COPY_COUNT:
+		var pallet_body := get_node_or_null(NodePath(
+			"Structure/Dressing/LogisticsPallet%02d" % (pallet_index + 1)
+		)) as StaticBody3D
+		var pallet_anchor := (
+			pallet_body.get_node_or_null("Mesh") as Marker3D
+			if pallet_body != null else null
+		)
+		var pallet_collision := (
+			pallet_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+			if pallet_body != null else null
+		)
+		logistics_pallet_identities_exact = (
+			logistics_pallet_identities_exact
+			and pallet_body != null
+			and pallet_body.position.is_equal_approx(LOGISTICS_PALLET_POSITIONS[pallet_index])
+			and pallet_anchor != null
+			and pallet_anchor.transform.is_equal_approx(Transform3D.IDENTITY)
+			and pallet_anchor.get_child_count() == 0
+			and bool(pallet_anchor.get_meta("visual_detail_only", false))
+			and bool(pallet_anchor.get_meta("batched_visual_anchor", false))
+			and pallet_anchor.get_parent() == pallet_body
+			and pallet_collision != null
+			and pallet_collision.shape is BoxShape3D
+			and (pallet_collision.shape as BoxShape3D).size.is_equal_approx(
+				LOGISTICS_PALLET_SIZE
+			)
+			and authored_pallet_transforms.size() == LOGISTICS_PALLET_COPY_COUNT
+			and (authored_pallet_transforms[pallet_index] as Transform3D).is_equal_approx(
+				expected_pallet_transforms[pallet_index]
+			)
+		)
 
 	var light_mast_batch := get_node_or_null(
 		^"Structure/Dressing/LightMastRenderBatch"
@@ -730,6 +827,8 @@ func get_visual_resource_contract() -> Dictionary:
 		and practical_lens_identities_exact
 		and logistics_case_mesh_resource_ids.size() == LOGISTICS_CASE_MESH_RESOURCE_COUNT
 		and logistics_case_identities_exact
+		and logistics_pallet_mesh_resource_ids.size() == LOGISTICS_PALLET_MESH_RESOURCE_COUNT
+		and logistics_pallet_identities_exact
 		and light_mast_mesh_resource_ids.size() == LIGHT_MAST_MESH_RESOURCE_COUNT
 		and light_mast_identities_exact
 	)
@@ -737,7 +836,7 @@ func get_visual_resource_contract() -> Dictionary:
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"logistics_case_render_batch",
+		"selected_family": &"logistics_pallet_render_batch",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -751,14 +850,14 @@ func get_visual_resource_contract() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
-		"baseline_family_nodes": BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
-		"family_nodes": PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
-		"baseline_family_submissions": BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
-		"family_submissions": PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT,
-		"baseline_family_mesh_resources": 1,
-		"family_mesh_resources": 1,
-		"family_copies": PRACTICAL_CYAN_LENS_COPY_COUNT,
-		"family_identities_exact": practical_cyan_lens_identities_exact,
+		"baseline_family_nodes": BASELINE_LOGISTICS_PALLET_RENDERER_NODE_COUNT,
+		"family_nodes": LOGISTICS_PALLET_RENDERER_NODE_COUNT,
+		"baseline_family_submissions": BASELINE_LOGISTICS_PALLET_RENDERER_NODE_COUNT,
+		"family_submissions": LOGISTICS_PALLET_RENDERER_NODE_COUNT,
+		"baseline_family_mesh_resources": BASELINE_LOGISTICS_PALLET_MESH_RESOURCE_COUNT,
+		"family_mesh_resources": logistics_pallet_mesh_resource_ids.size(),
+		"family_copies": LOGISTICS_PALLET_COPY_COUNT,
+		"family_identities_exact": logistics_pallet_identities_exact,
 		"observation_lens_anchor_nodes": OBSERVATION_LENS_COPY_COUNT,
 		"baseline_observation_lens_renderer_nodes": BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT,
 		"observation_lens_renderer_nodes": OBSERVATION_LENS_RENDERER_NODE_COUNT,
@@ -795,6 +894,20 @@ func get_visual_resource_contract() -> Dictionary:
 		),
 		"logistics_case_mesh_resources": logistics_case_mesh_resource_ids.size(),
 		"logistics_case_identities_exact": logistics_case_identities_exact,
+		"logistics_pallet_copies": LOGISTICS_PALLET_COPY_COUNT,
+		"baseline_logistics_pallet_renderer_nodes": BASELINE_LOGISTICS_PALLET_RENDERER_NODE_COUNT,
+		"logistics_pallet_renderer_nodes": LOGISTICS_PALLET_RENDERER_NODE_COUNT,
+		"logistics_pallet_renderer_delta": (
+			LOGISTICS_PALLET_RENDERER_NODE_COUNT
+			- BASELINE_LOGISTICS_PALLET_RENDERER_NODE_COUNT
+		),
+		"baseline_logistics_pallet_mesh_resources": BASELINE_LOGISTICS_PALLET_MESH_RESOURCE_COUNT,
+		"logistics_pallet_mesh_resources": logistics_pallet_mesh_resource_ids.size(),
+		"logistics_pallet_mesh_resource_delta": (
+			logistics_pallet_mesh_resource_ids.size()
+			- BASELINE_LOGISTICS_PALLET_MESH_RESOURCE_COUNT
+		),
+		"logistics_pallet_identities_exact": logistics_pallet_identities_exact,
 		"baseline_light_mast_renderer_nodes": BASELINE_LIGHT_MAST_RENDERER_NODE_COUNT,
 		"light_mast_renderer_nodes": LIGHT_MAST_RENDERER_NODE_COUNT,
 		"light_mast_renderer_delta": (
@@ -1202,10 +1315,26 @@ func _build_dressing(parent: Node3D) -> void:
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
 	_logistics_case_mesh = BoxMesh.new()
 	_logistics_case_mesh.size = LOGISTICS_CASE_SIZE
+	_logistics_pallet_mesh = BoxMesh.new()
+	_logistics_pallet_mesh.size = LOGISTICS_PALLET_SIZE
 	var logistics_case_transforms: Array[Transform3D] = []
+	var logistics_pallet_transforms: Array[Transform3D] = []
 	for stack_index in 3:
-		var stack_z := 28.8 + float(stack_index) * 2.75
-		_box(parent, "LogisticsPallet%02d" % (stack_index + 1), Vector3(11.15, 0.12, stack_z), Vector3(2.4, 0.24, 1.55), _materials["rail"], true)
+		var pallet_position: Vector3 = LOGISTICS_PALLET_POSITIONS[stack_index]
+		var stack_z := pallet_position.z
+		var pallet_body := _box(
+			parent, "LogisticsPallet%02d" % (stack_index + 1), pallet_position,
+			LOGISTICS_PALLET_SIZE, _materials["rail"], true, _logistics_pallet_mesh
+		) as StaticBody3D
+		var pallet_renderer := pallet_body.get_node(^"Mesh") as MeshInstance3D
+		pallet_body.remove_child(pallet_renderer)
+		pallet_renderer.free()
+		var pallet_anchor := Marker3D.new()
+		pallet_anchor.name = "Mesh"
+		pallet_anchor.set_meta("visual_detail_only", true)
+		pallet_anchor.set_meta("batched_visual_anchor", true)
+		pallet_body.add_child(pallet_anchor)
+		logistics_pallet_transforms.append(Transform3D(Basis.IDENTITY, pallet_position))
 		for tier_index in 2:
 			var case_index := stack_index * 2 + tier_index + 1
 			var case_position := Vector3(
@@ -1233,6 +1362,15 @@ func _build_dressing(parent: Node3D) -> void:
 		logistics_case_transforms
 	)
 	logistics_case_batch.multimesh.custom_aabb = LOGISTICS_CASE_CULLING_BOUNDS
+	var logistics_pallet_batch := _multimesh_boxes(
+		parent, "LogisticsPalletRenderBatch", LOGISTICS_PALLET_SIZE,
+		_materials["rail"], logistics_pallet_transforms, _logistics_pallet_mesh
+	)
+	logistics_pallet_batch.multimesh.visible_instance_count = LOGISTICS_PALLET_COPY_COUNT
+	logistics_pallet_batch.multimesh.buffer = _encode_multimesh_transforms(
+		logistics_pallet_transforms
+	)
+	logistics_pallet_batch.multimesh.custom_aabb = LOGISTICS_PALLET_CULLING_BOUNDS
 	# Sparse connector rhythm provides scale without narrowing its 4 m lane.
 	var connector_marker_transforms: Array[Transform3D] = []
 	for bay_index in 5:

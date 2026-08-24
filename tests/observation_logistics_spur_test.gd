@@ -178,11 +178,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 12
+		and int(performance.mesh_instances) == 9
 		and int(performance.static_bodies) == 33
 		and int(performance.collision_shapes) == 33
-		and module.find_children("*", "Node", true, false).size() == 145,
-		"finished district freezes 145 nodes, 12 meshes and 33 body/shape pairs"
+		and module.find_children("*", "Node", true, false).size() == 146,
+		"finished district freezes 146 nodes, 9 meshes and 33 body/shape pairs"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -209,6 +209,7 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"ObservationConsoleRenderBatch": 3,
 		"ObservationLensRenderBatch": 3,
 		"LogisticsCaseRenderBatch": 6,
+		"LogisticsPalletRenderBatch": 3,
 	}
 	var finishing_exact := true
 	for batch_name in finishing_batches:
@@ -244,7 +245,7 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 		"finished pavilions retain ten shared material recipes including their dark view band"
 	)
 	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
-	var grip_material := (module.get_node(^"Structure/Dressing/LogisticsPallet01/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
+	var grip_material := (module.get_node(^"Structure/Dressing/LogisticsPalletRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsoleRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	var service_material := (module.get_node(^"Structure/Dressing/LogisticsCaseRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	_check(
@@ -293,30 +294,30 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"logistics_case_render_batch"
+		and StringName(performance.selected_family) == &"logistics_pallet_render_batch"
 		and int(performance.baseline_descendant_nodes) == 144
-		and int(performance.descendant_nodes) == 145
+		and int(performance.descendant_nodes) == 146
 		and int(performance.baseline_renderer_nodes) == 42
-		and int(performance.renderer_nodes) == 37
+		and int(performance.renderer_nodes) == 35
 		and int(performance.baseline_drawn_copies) == 270
 		and int(performance.drawn_copies) == 270
 		and int(performance.baseline_surface_submissions) == 42
-		and int(performance.surface_submissions) == 37,
-		"six cargo cases preserve 270 visible copies while reducing the district to 37 submissions"
+		and int(performance.surface_submissions) == 35,
+		"three pallets preserve 270 visible copies while reducing the district to 35 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 34
-		and int(performance.mesh_resource_delta) == 0
+		and int(performance.mesh_resources) == 32
+		and int(performance.mesh_resource_delta) == -2
 		and int(performance.baseline_material_resources) == 10
 		and int(performance.material_resources) == 10
 		and int(performance.baseline_family_nodes) == 3
 		and int(performance.family_nodes) == 1
 		and int(performance.baseline_family_submissions) == 3
 		and int(performance.family_submissions) == 1
-		and int(performance.baseline_family_mesh_resources) == 1
+		and int(performance.baseline_family_mesh_resources) == 3
 		and int(performance.family_mesh_resources) == 1,
-		"cyan practical-lens batching retains its shared mesh resource and cuts its submissions from three to one"
+		"pallet batching cuts three renderer submissions and mesh allocations to one each"
 	)
 	var console_batch := module.get_node_or_null(
 		^"Structure/Dressing/ObservationConsoleRenderBatch"
@@ -556,6 +557,79 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 			and not bool(case_red.logistics_case_identities_exact)
 			and bool(module.get_visual_resource_contract().exact),
 			"red mutation: changing cargo-case batch bounds fails the pose contract and restores cleanly"
+		)
+	var pallet_batch := module.get_node_or_null(
+		^"Structure/Dressing/LogisticsPalletRenderBatch"
+	) as MultiMeshInstance3D
+	var authored_pallet_transforms := (
+		pallet_batch.get_meta("authored_instance_transforms", []) as Array
+		if pallet_batch != null else []
+	)
+	var pallet_contract_matches := pallet_batch != null and pallet_batch.multimesh != null
+	for pallet_index in ObservationLogisticsSpur.LOGISTICS_PALLET_COPY_COUNT:
+		var pallet_body := module.get_node_or_null(NodePath(
+			"Structure/Dressing/LogisticsPallet%02d" % (pallet_index + 1)
+		)) as StaticBody3D
+		var pallet_anchor := (
+			pallet_body.get_node_or_null("Mesh") as Marker3D
+			if pallet_body != null else null
+		)
+		var pallet_collision := (
+			pallet_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+			if pallet_body != null else null
+		)
+		var expected_transform := Transform3D(
+			Basis.IDENTITY, ObservationLogisticsSpur.LOGISTICS_PALLET_POSITIONS[pallet_index]
+		)
+		pallet_contract_matches = pallet_contract_matches and (
+			pallet_body != null
+			and pallet_body.position.is_equal_approx(expected_transform.origin)
+			and pallet_anchor != null
+			and pallet_anchor.transform.is_equal_approx(Transform3D.IDENTITY)
+			and pallet_anchor.get_child_count() == 0
+			and bool(pallet_anchor.get_meta("batched_visual_anchor", false))
+			and pallet_collision != null
+			and pallet_collision.shape is BoxShape3D
+			and (pallet_collision.shape as BoxShape3D).size.is_equal_approx(
+				ObservationLogisticsSpur.LOGISTICS_PALLET_SIZE
+			)
+			and authored_pallet_transforms.size()
+				== ObservationLogisticsSpur.LOGISTICS_PALLET_COPY_COUNT
+			and (authored_pallet_transforms[pallet_index] as Transform3D).is_equal_approx(
+				expected_transform
+			)
+		)
+	_check(
+		pallet_contract_matches
+		and pallet_batch.multimesh.mesh is BoxMesh
+		and (pallet_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(
+			ObservationLogisticsSpur.LOGISTICS_PALLET_SIZE
+		)
+		and pallet_batch.multimesh.instance_count == 3
+		and pallet_batch.multimesh.visible_instance_count == 3
+		and pallet_batch.multimesh.custom_aabb.is_equal_approx(
+			ObservationLogisticsSpur.LOGISTICS_PALLET_CULLING_BOUNDS
+		)
+		and int(performance.baseline_logistics_pallet_renderer_nodes) == 3
+		and int(performance.logistics_pallet_renderer_nodes) == 1
+		and int(performance.logistics_pallet_renderer_delta) == -2
+		and int(performance.logistics_pallet_copies) == 3
+		and int(performance.baseline_logistics_pallet_mesh_resources) == 3
+		and int(performance.logistics_pallet_mesh_resources) == 1
+		and int(performance.logistics_pallet_mesh_resource_delta) == -2
+		and bool(performance.logistics_pallet_identities_exact),
+		"three named collidable pallets retain exact bodies, shapes and poses while one bounded renderer draws them"
+	)
+	if pallet_batch != null:
+		var pallet_bounds := pallet_batch.multimesh.custom_aabb
+		pallet_batch.multimesh.custom_aabb = pallet_bounds.grow(0.2)
+		var pallet_red := module.get_visual_resource_contract()
+		pallet_batch.multimesh.custom_aabb = pallet_bounds
+		_check(
+			not bool(pallet_red.exact)
+			and not bool(pallet_red.logistics_pallet_identities_exact)
+			and bool(module.get_visual_resource_contract().exact),
+			"red mutation: changing pallet batch bounds fails the pose contract and restores cleanly"
 		)
 
 	var lens_batch := module.get_node_or_null(
