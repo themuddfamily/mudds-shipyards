@@ -42,7 +42,7 @@ const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
 ## Exact post-batch renderer census. The visual-only trunk expansion strips,
 ## slab corner beacons, slab supports, rung edge cues, mooring cleat pads,
-## mooring cleat bollards, dock service masts and trunk route lights still draw at their authored
+## mooring cleat bollards, dock service brackets, dock service masts and trunk route lights still draw at their authored
 ## transforms, while one MultiMesh per family owns each family's submission.
 ## The legacy MeshInstance nodes remain hidden inspection anchors.
 const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
@@ -51,6 +51,7 @@ const SLAB_SUPPORT_COPY_COUNT := 6
 const RUNG_EDGE_CUE_COPY_COUNT := 4
 const MOORING_CLEAT_PAD_COPY_COUNT := 6
 const MOORING_CLEAT_BOLLARD_COPY_COUNT := 6
+const DOCK_SERVICE_BRACKET_COPY_COUNT := 3
 const TRUNK_ROUTE_LIGHT_COPY_COUNT := 3
 const DOCK_MAST_CAP_COPY_COUNT := 3
 const DOCK_SERVICE_MAST_COPY_COUNT := 3
@@ -74,11 +75,12 @@ const PRE_RUNG_EDGE_CUE_GEOMETRY_SUBMISSION_COUNT := 74
 const PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT := 71
 const PRE_MOORING_CLEAT_BOLLARD_GEOMETRY_SUBMISSION_COUNT := 62
 const PRE_DOCK_SERVICE_MAST_GEOMETRY_SUBMISSION_COUNT := 57
-const RENDER_DESCENDANT_COUNT := 141
+const PRE_DOCK_SERVICE_BRACKET_GEOMETRY_SUBMISSION_COUNT := 55
+const RENDER_DESCENDANT_COUNT := 142
 const RENDER_MESH_INSTANCE_COUNT := 89
-const RENDER_MULTIMESH_BATCH_COUNT := 9
+const RENDER_MULTIMESH_BATCH_COUNT := 10
 const RENDER_DRAWN_COPY_COUNT := 101
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 55
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 53
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -255,6 +257,8 @@ var _mooring_cleat_pad_transforms: Array[Transform3D] = []
 var _mooring_cleat_pad_batch: MultiMeshInstance3D = null
 var _mooring_cleat_bollard_transforms: Array[Transform3D] = []
 var _mooring_cleat_bollard_batch: MultiMeshInstance3D = null
+var _dock_service_bracket_transforms: Array[Transform3D] = []
+var _dock_service_bracket_batch: MultiMeshInstance3D = null
 var _trunk_route_light_transforms: Array[Transform3D] = []
 var _trunk_route_light_batch: MultiMeshInstance3D = null
 var _dock_mast_cap_transforms: Array[Transform3D] = []
@@ -741,6 +745,31 @@ func get_render_batch_contract() -> Dictionary:
 			and _dock_service_mast_batch.get_child_count() == 0
 			and _dock_service_mast_batch.get_script() == null
 		)
+	var expected_service_bracket_buffer := _encode_multimesh_transforms(_dock_service_bracket_transforms)
+	var service_bracket_buffer_matches := (
+		is_instance_valid(_dock_service_bracket_batch)
+		and _dock_service_bracket_batch.multimesh != null
+		and _dock_service_bracket_batch.multimesh.buffer == expected_service_bracket_buffer
+	)
+	var service_bracket_bounds_match := false
+	var service_bracket_contract_matches := false
+	if is_instance_valid(_dock_service_bracket_batch) and _dock_service_bracket_batch.multimesh != null:
+		var service_bracket_multi := _dock_service_bracket_batch.multimesh
+		service_bracket_bounds_match = service_bracket_multi.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(service_bracket_multi.mesh.get_aabb(), _dock_service_bracket_transforms)
+		)
+		service_bracket_contract_matches = (
+			_dock_service_bracket_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and service_bracket_multi.instance_count == DOCK_SERVICE_BRACKET_COPY_COUNT
+			and service_bracket_multi.visible_instance_count == -1
+			and service_bracket_multi.mesh.get_aabb().size.is_equal_approx(Vector3(2.6, 0.34, 0.90))
+			and service_bracket_multi.mesh.get_surface_count() == 1
+			and _dock_service_bracket_batch.material_override == _materials.get("frame")
+			and _dock_service_bracket_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _dock_service_bracket_batch.layers == 1
+			and _dock_service_bracket_batch.get_child_count() == 0
+			and _dock_service_bracket_batch.get_script() == null
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -754,6 +783,7 @@ func get_render_batch_contract() -> Dictionary:
 		and _rung_edge_cue_transforms.size() == RUNG_EDGE_CUE_COPY_COUNT
 		and _mooring_cleat_pad_transforms.size() == MOORING_CLEAT_PAD_COPY_COUNT
 		and _mooring_cleat_bollard_transforms.size() == MOORING_CLEAT_BOLLARD_COPY_COUNT
+		and _dock_service_bracket_transforms.size() == DOCK_SERVICE_BRACKET_COPY_COUNT
 		and _trunk_route_light_transforms.size() == TRUNK_ROUTE_LIGHT_COPY_COUNT
 		and _dock_mast_cap_transforms.size() == DOCK_MAST_CAP_COPY_COUNT
 		and _dock_service_mast_transforms.size() == DOCK_SERVICE_MAST_COPY_COUNT
@@ -764,6 +794,7 @@ func get_render_batch_contract() -> Dictionary:
 		and route_light_contract_matches
 		and mast_cap_contract_matches
 		and service_mast_contract_matches
+		and service_bracket_contract_matches
 	)
 	var joint_buffer_floats := (
 		_trunk_expansion_joint_batch.multimesh.buffer.size()
@@ -810,6 +841,11 @@ func get_render_batch_contract() -> Dictionary:
 		if is_instance_valid(_dock_service_mast_batch) and _dock_service_mast_batch.multimesh != null
 		else 0
 	)
+	var service_bracket_buffer_floats := (
+		_dock_service_bracket_batch.multimesh.buffer.size()
+		if is_instance_valid(_dock_service_bracket_batch) and _dock_service_bracket_batch.multimesh != null
+		else 0
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"descendant_nodes": descendant_count,
@@ -823,12 +859,16 @@ func get_render_batch_contract() -> Dictionary:
 		"rung_edge_cue_copies": _rung_edge_cue_transforms.size(),
 		"mooring_cleat_pad_copies": _mooring_cleat_pad_transforms.size(),
 		"mooring_cleat_bollard_copies": _mooring_cleat_bollard_transforms.size(),
+		"dock_service_bracket_copies": _dock_service_bracket_transforms.size(),
 		"trunk_route_light_copies": _trunk_route_light_transforms.size(),
 		"dock_mast_cap_copies": _dock_mast_cap_transforms.size(),
 		"dock_service_mast_copies": _dock_service_mast_transforms.size(),
 		"dock_service_mast_submissions_before": DOCK_SERVICE_MAST_COPY_COUNT,
 		"dock_service_mast_submissions_after": 1,
 		"geometry_submissions_before_dock_service_mast_batch": PRE_DOCK_SERVICE_MAST_GEOMETRY_SUBMISSION_COUNT,
+		"dock_service_bracket_submissions_before": DOCK_SERVICE_BRACKET_COPY_COUNT,
+		"dock_service_bracket_submissions_after": 1,
+		"geometry_submissions_before_dock_service_bracket_batch": PRE_DOCK_SERVICE_BRACKET_GEOMETRY_SUBMISSION_COUNT,
 		"trunk_route_light_submissions_before": TRUNK_ROUTE_LIGHT_COPY_COUNT,
 		"trunk_route_light_submissions_after": 1,
 		"geometry_submissions_before_trunk_route_light_batch": PRE_TRUNK_ROUTE_LIGHT_GEOMETRY_SUBMISSION_COUNT,
@@ -857,8 +897,9 @@ func get_render_batch_contract() -> Dictionary:
 		"trunk_route_light_renderer_buffer_floats": route_light_buffer_floats,
 		"dock_mast_cap_renderer_buffer_floats": mast_cap_buffer_floats,
 		"dock_service_mast_renderer_buffer_floats": service_mast_buffer_floats,
-		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + bollard_buffer_floats + route_light_buffer_floats + mast_cap_buffer_floats + service_mast_buffer_floats,
-		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and bollard_buffer_matches and route_light_buffer_matches and mast_cap_buffer_matches and service_mast_buffer_matches,
+		"dock_service_bracket_renderer_buffer_floats": service_bracket_buffer_floats,
+		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + bollard_buffer_floats + route_light_buffer_floats + mast_cap_buffer_floats + service_mast_buffer_floats + service_bracket_buffer_floats,
+		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and bollard_buffer_matches and route_light_buffer_matches and mast_cap_buffer_matches and service_mast_buffer_matches and service_bracket_buffer_matches,
 		"trunk_renderer_buffer_matches_authored": joint_buffer_matches,
 		"slab_corner_beacon_renderer_buffer_matches_authored": beacon_buffer_matches,
 		"slab_support_renderer_buffer_matches_authored": support_buffer_matches,
@@ -868,7 +909,8 @@ func get_render_batch_contract() -> Dictionary:
 		"trunk_route_light_renderer_buffer_matches_authored": route_light_buffer_matches,
 		"dock_mast_cap_renderer_buffer_matches_authored": mast_cap_buffer_matches,
 		"dock_service_mast_renderer_buffer_matches_authored": service_mast_buffer_matches,
-		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and bollard_bounds_match and route_light_bounds_match and mast_cap_bounds_match and service_mast_bounds_match,
+		"dock_service_bracket_renderer_buffer_matches_authored": service_bracket_buffer_matches,
+		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and bollard_bounds_match and route_light_bounds_match and mast_cap_bounds_match and service_mast_bounds_match and service_bracket_bounds_match,
 		"trunk_bounds_match_authored": joint_bounds_match,
 		"slab_corner_beacon_bounds_match_authored": beacon_bounds_match,
 		"slab_support_bounds_match_authored": support_bounds_match,
@@ -878,6 +920,7 @@ func get_render_batch_contract() -> Dictionary:
 		"trunk_route_light_bounds_match_authored": route_light_bounds_match,
 		"dock_mast_cap_bounds_match_authored": mast_cap_bounds_match,
 		"dock_service_mast_bounds_match_authored": service_mast_bounds_match,
+		"dock_service_bracket_bounds_match_authored": service_bracket_bounds_match,
 		"slab_support_contract_matches": support_contract_matches,
 		"rung_edge_cue_contract_matches": rung_cue_contract_matches,
 		"mooring_cleat_pad_contract_matches": cleat_pad_contract_matches,
@@ -885,6 +928,7 @@ func get_render_batch_contract() -> Dictionary:
 		"trunk_route_light_contract_matches": route_light_contract_matches,
 		"dock_mast_cap_contract_matches": mast_cap_contract_matches,
 		"dock_service_mast_contract_matches": service_mast_contract_matches,
+		"dock_service_bracket_contract_matches": service_bracket_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _trunk_expansion_joint_transforms.duplicate(),
 		"authored_slab_corner_beacon_transforms": _slab_corner_beacon_transforms.duplicate(),
@@ -895,6 +939,7 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_trunk_route_light_transforms": _trunk_route_light_transforms.duplicate(),
 		"authored_dock_mast_cap_transforms": _dock_mast_cap_transforms.duplicate(),
 		"authored_dock_service_mast_transforms": _dock_service_mast_transforms.duplicate(),
+		"authored_dock_service_bracket_transforms": _dock_service_bracket_transforms.duplicate(),
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
 		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
 		"route_markers": get_route_ids().size(),
@@ -1087,6 +1132,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("comb dock-service-mast batch bounds drifted from its authored copies")
 	if not bool(rendering.dock_service_mast_contract_matches):
 		errors.append("comb dock-service-mast renderer contract drifted")
+	if not bool(rendering.dock_service_bracket_renderer_buffer_matches_authored):
+		errors.append("comb dock-service-bracket renderer buffer drifted from its authored roster")
+	if not bool(rendering.dock_service_bracket_bounds_match_authored):
+		errors.append("comb dock-service-bracket batch bounds drifted from its authored copies")
+	if not bool(rendering.dock_service_bracket_contract_matches):
+		errors.append("comb dock-service-bracket renderer contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -1474,6 +1525,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 	_mooring_cleat_bollard_transforms.clear()
 	_dock_mast_cap_transforms.clear()
 	_dock_service_mast_transforms.clear()
+	_dock_service_bracket_transforms.clear()
 
 	for index in DOCK_SLAB_IDS.size():
 		var elevation := 0.0 if index < 2 else UPPER_DECK_ELEVATION
@@ -1492,7 +1544,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		# Bolted through the slab's own section: 1.4 m of this bracket is inside
 		# the plate (x 19.6…21.0) and 1.2 m cantilevers past it, which is what the
 		# mast stands on.
-		_service_box(
+		var bracket_anchor := _service_box(
 			service,
 			"DockServiceBracket" + suffix,
 			Vector3(20.9, elevation - 0.30, slab_z),
@@ -1500,6 +1552,10 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			_materials["frame"],
 			"cantilevered service bracket outboard of a walkable dock slab"
 		)
+		_dock_service_bracket_transforms.append(bracket_anchor.transform)
+		# Preserve the named service bracket as a semantic and transform anchor;
+		# one immutable frame-material batch owns the three visible copies.
+		bracket_anchor.visible = false
 		# Pale plate rather than the dark structural grey, decided by looking. In
 		# the first rendered pass the mast was `frame` (`304248`), and against a
 		# near-black sky it vanished: down the length of an arm at 15 m it read as
@@ -1715,6 +1771,13 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		),
 		_materials["deck_light"],
 		_dock_service_mast_transforms
+	)
+	_dock_service_bracket_batch = _multimesh_boxes(
+		service,
+		"DockServiceBrackets",
+		Vector3(2.6, 0.34, 0.90),
+		_materials["frame"],
+		_dock_service_bracket_transforms
 	)
 
 	# The service run that ties the arms back to the trunk. Two conduits down the
