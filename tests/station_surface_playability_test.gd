@@ -957,12 +957,12 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 	print("SALVAGE_PRODUCTION_AUDIT: ", audit)
 	_check(
 		bool(audit.valid) \
-		and is_equal_approx(float(area.horizontal_walkable_area_m2), 456.0) \
+		and is_equal_approx(float(area.horizontal_walkable_area_m2), 396.0) \
 		and is_equal_approx(float(area.ramp_projected_area_m2), 72.0) \
 		and absf(float(area.ramp_true_area_m2) - 78.954163) <= 0.00001 \
 		and bool(performance.exact_census) \
 		and bool(performance.within_budget),
-		"production Salvage audit preserves its exact 456 m2 projected / 462.954163 m2 true standalone surface contract and budgets"
+		"production Salvage audit preserves its compacted exact 396 m2 projected / 402.954163 m2 true standalone surface contract and budgets"
 	)
 	_check(
 		(authority.authority_ids as PackedStringArray).is_empty() \

@@ -27,9 +27,14 @@ const INSPECTION_RAMP_HORIZONTAL_RUN := 4.0
 const PANEL_SURFACE_SCALE := 0.30
 
 ## Exact non-overlapping horizontal projection. Shared boundaries have zero area.
-const LEVEL_WALKABLE_AREA_M2 := 384.0
+## The lower work pad retains its complete apron and route seams while its
+## redundant aft strip is compacted from 12 m to 7 m deep: 144 -> 84 m2.
+const LOWER_PAD_DEPTH := 7.0
+const LOWER_PAD_CENTER_Z := 5.5
+const LOWER_PAD_AFT_Z := 9.0
+const LEVEL_WALKABLE_AREA_M2 := 324.0
 const RAMP_PROJECTED_AREA_M2 := 72.0
-const HORIZONTAL_WALKABLE_AREA_M2 := 456.0
+const HORIZONTAL_WALKABLE_AREA_M2 := 396.0
 const MAIN_RAMP_TRUE_AREA_M2 := 52.636109
 const INSPECTION_RAMP_TRUE_AREA_M2 := 26.318054
 const RAMP_TRUE_AREA_M2 := 78.954163
@@ -109,19 +114,19 @@ const HAZARD_DRESSING_PARTS := [
 	},
 	{
 		"id": &"CrusherFeedHood",
-		"position": Vector3(-12.4, 2.55, 15.35),
+		"position": Vector3(-12.4, 2.55, 10.35),
 		"size": Vector3(2.2, 0.35, 1.8),
-		"reason": "crusher hood behind aft safety rail",
+		"reason": "crusher hood behind the compacted aft safety rail",
 	},
 	{
 		"id": &"CraneBridge",
-		"position": Vector3(-12.0, 4.05, 8.0),
+		"position": Vector3(-12.0, 4.05, 5.5),
 		"size": Vector3(9.4, 0.28, 0.38),
 		"reason": "overhead salvage crane bridge above player clearance",
 	},
 	{
 		"id": &"CraneHook",
-		"position": Vector3(-10.1, 2.68, 8.0),
+		"position": Vector3(-10.1, 2.68, 5.5),
 		"size": Vector3(0.35, 0.22, 0.35),
 		"reason": "high suspended crane hook outside route contact",
 	},
@@ -944,13 +949,13 @@ func get_validation_errors() -> PackedStringArray:
 		or not bool(area.live_geometry_valid)
 		or not bool(area.projection_axis_aligned)
 		or not bool(area.non_overlapping)
-		or not is_equal_approx(float(area.projected_surface_sum_m2), 456.0)
-		or not is_equal_approx(float(area.level_area_m2), 384.0)
+		or not is_equal_approx(float(area.projected_surface_sum_m2), HORIZONTAL_WALKABLE_AREA_M2)
+		or not is_equal_approx(float(area.level_area_m2), LEVEL_WALKABLE_AREA_M2)
 		or not is_equal_approx(float(area.ramp_projected_area_m2), 72.0)
-		or not is_equal_approx(float(area.horizontal_walkable_area_m2), 456.0)
+		or not is_equal_approx(float(area.horizontal_walkable_area_m2), HORIZONTAL_WALKABLE_AREA_M2)
 		or not is_equal_approx(float(area.ramp_true_area_m2), RAMP_TRUE_AREA_M2)
 	):
-		errors.append("live walkable-area union differs from the exact non-overlapping 456 square metre contract")
+		errors.append("live walkable-area union differs from the compacted exact non-overlapping 396 square metre contract")
 	if PAD_IDS.size() < 2 or _surface_nodes.get(&"lower-salvage-pad") == _surface_nodes.get(&"upper-inspection-pad"):
 		errors.append("module requires spatially distinct usable terrace pads")
 	if _rail_nodes.size() < 12 or not _rails_are_live_and_physical():
@@ -1045,7 +1050,11 @@ func _index_routes() -> void:
 
 func _build_surfaces() -> void:
 	_add_level_surface(&"connection-apron", Vector3(0.0, LOWER_ELEVATION, 4.0), Vector2(12.0, 8.0))
-	_add_level_surface(&"lower-salvage-pad", Vector3(-12.0, LOWER_ELEVATION, 8.0), Vector2(12.0, 12.0))
+	_add_level_surface(
+		&"lower-salvage-pad",
+		Vector3(-12.0, LOWER_ELEVATION, LOWER_PAD_CENTER_Z),
+		Vector2(12.0, LOWER_PAD_DEPTH)
+	)
 	_add_ramp_surface(
 		&"main-service-ramp",
 		Vector3(6.0, LOWER_ELEVATION, 5.0),
@@ -1144,10 +1153,28 @@ func _build_safety_rails() -> void:
 	_add_rail("EntryFrontStarboard", Transform3D(Basis.IDENTITY, Vector3(4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryPortForward", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 1.0)), Vector3(0.16, 1.3, 2.0))
 	_add_rail("EntryStarboardForward", Transform3D(Basis.IDENTITY, Vector3(6.0, 0.65, 1.0)), Vector3(0.16, 1.3, 2.0))
-	_add_rail("LowerOutboard", Transform3D(Basis.IDENTITY, Vector3(-18.0, 0.65, 8.0)), Vector3(0.16, 1.3, 12.0))
+	_add_rail(
+		"LowerOutboard",
+		Transform3D(Basis.IDENTITY, Vector3(-18.0, 0.65, LOWER_PAD_CENTER_Z)),
+		Vector3(0.16, 1.3, LOWER_PAD_DEPTH),
+		# The compacted covered bay keeps closer-spaced perimeter posts beside
+		# the sorting line; this is physical edge protection, not a new batch.
+		6
+	)
 	_add_rail("LowerForward", Transform3D(Basis.IDENTITY, Vector3(-12.0, 0.65, 2.0)), Vector3(12.0, 1.3, 0.16))
-	_add_rail("LowerAft", Transform3D(Basis.IDENTITY, Vector3(-12.0, 0.65, 14.0)), Vector3(12.0, 1.3, 0.16))
-	_add_rail("LowerInboardAft", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 11.0)), Vector3(0.16, 1.3, 6.0))
+	_add_rail(
+		"LowerAft",
+		Transform3D(Basis.IDENTITY, Vector3(-12.0, 0.65, LOWER_PAD_AFT_Z)),
+		Vector3(12.0, 1.3, 0.16),
+		# Denser posts resolve the compacted sorting-line boundary while keeping
+		# the established open-rail silhouette and renderer allocation.
+		8
+	)
+	_add_rail(
+		"LowerInboardAft",
+		Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 8.5)),
+		Vector3(0.16, 1.3, 1.0)
+	)
 	_add_sloped_rail("MainRampForward", Vector3(6.0, 0.0, 2.0), Vector3(14.0, 3.6, 2.0), _main_ramp_rail_visual_mesh)
 	_add_sloped_rail("MainRampAft", Vector3(6.0, 0.0, 8.0), Vector3(14.0, 3.6, 8.0), _main_ramp_rail_visual_mesh)
 	_add_rail("UpperOutboard", Transform3D(Basis.IDENTITY, Vector3(26.0, 4.25, 5.0)), Vector3(0.16, 1.3, 10.0))
@@ -1168,6 +1195,7 @@ func _build_safety_rails() -> void:
 
 func _add_rail(
 		node_name: String, transform: Transform3D, size: Vector3,
+		post_interval_count_override: int = -1,
 		shared_visual_mesh: BoxMesh = null
 	) -> void:
 	var visual_mesh := shared_visual_mesh
@@ -1193,10 +1221,12 @@ func _add_rail(
 		"non_walkable_reason", "physical safety rail, not a route surface"
 	)
 	_rail_nodes.append(rail)
-	_append_rail_detail_transforms(transform, size)
+	_append_rail_detail_transforms(transform, size, post_interval_count_override)
 
 
-func _append_rail_detail_transforms(rail_transform: Transform3D, size: Vector3) -> void:
+func _append_rail_detail_transforms(
+		rail_transform: Transform3D, size: Vector3, post_interval_count_override: int = -1
+	) -> void:
 	var runs_on_x := size.x >= size.z
 	var run_length := size.x if runs_on_x else size.z
 	var bar_size := (
@@ -1209,7 +1239,11 @@ func _append_rail_detail_transforms(rail_transform: Transform3D, size: Vector3) 
 				Basis.IDENTITY.scaled(bar_size), Vector3(0.0, rail_height, 0.0)
 			)
 		)
-	var interval_count := ceili(run_length / 2.0)
+	var interval_count := (
+		post_interval_count_override
+		if post_interval_count_override > 0
+		else ceili(run_length / 2.0)
+	)
 	for post_index in range(interval_count + 1):
 		var along := lerpf(-run_length * 0.5, run_length * 0.5, float(post_index) / interval_count)
 		var local_position := Vector3(along, 0.0, 0.0) if runs_on_x else Vector3(0.0, 0.0, along)
@@ -1226,7 +1260,7 @@ func _add_sloped_rail(
 	var direction := finish - start
 	var basis := _basis_with_local_back_along(direction)
 	var transform := Transform3D(basis, (start + finish) * 0.5 + Vector3.UP * 0.65)
-	_add_rail(node_name, transform, Vector3(0.16, 1.3, direction.length()), visual_mesh)
+	_add_rail(node_name, transform, Vector3(0.16, 1.3, direction.length()), -1, visual_mesh)
 	# Sloped rails author from finish back to start, so the final appended detail
 	# is the actual rendered post at the route threshold.
 	_ramp_threshold_post_transforms.append(_rail_detail_transforms.back())
@@ -1235,20 +1269,20 @@ func _add_sloped_rail(
 func _build_batched_supports_and_dressing() -> void:
 	var support_transforms: Array[Transform3D] = []
 	for support in [
-		Vector3(-16, -0.9, 4), Vector3(-16, -0.9, 12), Vector3(-8, -0.9, 4),
-		Vector3(-8, -0.9, 12), Vector3(16, 2.4, 2), Vector3(24, 2.4, 2),
+		Vector3(-16, -0.9, 4), Vector3(-16, -0.9, 8), Vector3(-8, -0.9, 4),
+		Vector3(-8, -0.9, 8), Vector3(16, 2.4, 2), Vector3(24, 2.4, 2),
 		Vector3(16, 2.4, 8), Vector3(24, 2.4, 8), Vector3(21, 4.5, 16),
 		Vector3(25, 4.5, 16),
 	]:
 		support_transforms.append(Transform3D(Basis.IDENTITY, support as Vector3))
 	_add_multimesh_batch("TerraceSupportBatch", Vector3(0.65, 1.8, 0.65), support_transforms, _materials.frame, "structural support below walkable decks")
 
-	# Salvage cages sit outside the walkable union over the lower pad's aft/outboard
-	# edge. They read as stored service stock without consuming route submissions.
+	# Salvage cages sit outside the compacted walkable union behind the lower
+	# pad's aft rail. They read as stored service stock without consuming routes.
 	var salvage_transforms: Array[Transform3D] = []
 	for position_value in [
-		Vector3(-17.1, 0.65, 15.2), Vector3(-15.5, 0.65, 15.2),
-		Vector3(-13.9, 0.65, 15.2), Vector3(16.0, 4.25, 11.0),
+		Vector3(-17.1, 0.65, 10.2), Vector3(-15.5, 0.65, 10.2),
+		Vector3(-13.9, 0.65, 10.2), Vector3(16.0, 4.25, 11.0),
 		Vector3(17.6, 4.25, 11.0), Vector3(19.2, 4.25, 11.0),
 	]:
 		salvage_transforms.append(Transform3D(Basis.IDENTITY, position_value as Vector3))
@@ -1280,7 +1314,7 @@ func _build_salvage_work_bay() -> void:
 	# breaking/sorting bay. The uprights hug the already-guarded perimeter and
 	# every cross-member remains well above the player capsule.
 	var frame_transforms: Array[Transform3D] = []
-	for z_value in [3.0, 8.0, 13.0]:
+	for z_value in [3.0, 5.75, 8.5]:
 		frame_transforms.append(
 			Transform3D(Basis.IDENTITY.scaled(Vector3(0.7, 7.0, 0.7)), Vector3(-17.55, 2.1, z_value))
 		)
@@ -1302,10 +1336,10 @@ func _build_salvage_work_bay() -> void:
 	# six walkable projections. Different transforms make the shared cube read as
 	# conveyor, crusher, hopper, and stock rather than repeated crates.
 	var machinery_transforms: Array[Transform3D] = [
-		Transform3D(Basis.IDENTITY.scaled(Vector3(3.2, 0.7, 1.2)), Vector3(-15.7, 1.0, 15.35)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(1.4, 2.2, 1.4)), Vector3(-12.4, 1.25, 15.35)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(1.8, 0.45, 1.6)), Vector3(-9.8, 0.65, 15.35)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(0.35, 1.6, 0.35)), Vector3(-16.8, 1.45, 15.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(3.2, 0.7, 1.2)), Vector3(-15.7, 1.0, 10.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(1.4, 2.2, 1.4)), Vector3(-12.4, 1.25, 10.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(1.8, 0.45, 1.6)), Vector3(-9.8, 0.65, 10.35)),
+		Transform3D(Basis.IDENTITY.scaled(Vector3(0.35, 1.6, 0.35)), Vector3(-16.8, 1.45, 10.35)),
 		Transform3D(Basis.IDENTITY.scaled(Vector3(2.8, 0.55, 1.1)), Vector3(16.0, 4.2, 11.25)),
 		Transform3D(Basis.IDENTITY.scaled(Vector3(1.2, 1.8, 1.2)), Vector3(19.2, 4.75, 11.25)),
 		Transform3D(Basis.IDENTITY.scaled(Vector3(1.7, 0.4, 1.4)), Vector3(21.4, 4.05, 11.25)),
@@ -1316,16 +1350,16 @@ func _build_salvage_work_bay() -> void:
 		"sorting machinery staged behind physical aft rails outside route projections"
 	)
 
-	_visual_box("LowerBayRoof", Vector3(-12.0, 4.6, 8.0), Vector3(11.4, 0.22, 9.4), _materials.roof, "high salvage-bay roof above player clearance")
-	_visual_box("CraneTrolley", Vector3(-10.1, 3.72, 8.0), Vector3(0.8, 0.55, 0.7), _materials.machine, "overhead crane trolley above player clearance")
-	_visual_box("CraneDropCable", Vector3(-10.1, 3.15, 8.0), Vector3(0.08, 0.9, 0.08), _materials.rail, "overhead crane cable outside capsule height")
+	_visual_box("LowerBayRoof", Vector3(-12.0, 4.6, 5.5), Vector3(11.4, 0.22, 6.4), _materials.roof, "high compacted salvage-bay roof above player clearance")
+	_visual_box("CraneTrolley", Vector3(-10.1, 3.72, 5.5), Vector3(0.8, 0.55, 0.7), _materials.machine, "overhead crane trolley above player clearance")
+	_visual_box("CraneDropCable", Vector3(-10.1, 3.15, 5.5), Vector3(0.08, 0.9, 0.08), _materials.rail, "overhead crane cable outside capsule height")
 	_visual_box("UpperInspectionConsole", Vector3(25.55, 4.25, 5.0), Vector3(0.45, 1.1, 1.8), _materials.machine, "inspection console beyond upper outboard rail")
 	_visual_box("UpperConsoleScreen", Vector3(25.28, 4.45, 5.0), Vector3(0.05, 0.55, 1.15), _materials.emissive, "emissive inspection display beyond upper outboard rail")
 	_visual_box("BayNameplate", Vector3(-12.0, 4.15, 2.76), Vector3(4.4, 0.65, 0.12), _materials.emissive, "illuminated salvage-bay nameplate above entry clearance")
 	_build_hazard_dressing_render()
 
-	_add_work_light("LowerBayWorkLight", Vector3(-12.0, 3.9, 7.0), Color("83e9df"), 1.4, 6.5)
-	_add_work_light("SortingLineWorkLight", Vector3(-12.0, 2.8, 13.0), Color("ff9b43"), 1.15, 4.5)
+	_add_work_light("LowerBayWorkLight", Vector3(-12.0, 3.9, 5.5), Color("83e9df"), 1.4, 6.5)
+	_add_work_light("SortingLineWorkLight", Vector3(-12.0, 2.8, 8.0), Color("ff9b43"), 1.15, 4.5)
 	_add_work_light("UpperInspectionWorkLight", Vector3(24.8, 5.25, 5.0), Color("72dcd7"), 1.0, 4.0)
 
 

@@ -302,18 +302,18 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 		and bool(area.live_geometry_valid)
 		and bool(area.projection_axis_aligned)
 		and bool(area.non_overlapping)
-		and is_equal_approx(float(area.projected_surface_sum_m2), 456.0)
-		and is_equal_approx(float(area.level_area_m2), 384.0)
+		and is_equal_approx(float(area.projected_surface_sum_m2), 396.0)
+		and is_equal_approx(float(area.level_area_m2), 324.0)
 		and is_equal_approx(float(area.ramp_projected_area_m2), 72.0)
-		and is_equal_approx(float(area.horizontal_walkable_area_m2), 456.0)
-		and is_equal_approx(projected_sum, 456.0),
-		"non-overlapping horizontal union is exactly 456.0 square metres"
+		and is_equal_approx(float(area.horizontal_walkable_area_m2), 396.0)
+		and is_equal_approx(projected_sum, 396.0),
+		"compacted non-overlapping horizontal union is exactly 396.0 square metres"
 	)
 	_check(
 		is_equal_approx(float(area.main_ramp_true_area_m2), 52.636109)
 		and is_equal_approx(float(area.inspection_ramp_true_area_m2), 26.318054)
 		and is_equal_approx(float(area.ramp_true_area_m2), 78.954163)
-		and is_equal_approx(true_sum, 462.954163)
+		and is_equal_approx(true_sum, 402.954163)
 		and not bool(area.baseline_share_claimed),
 		"true ramp areas are explicit and no unsupported station-baseline percentage is claimed"
 	)
@@ -327,6 +327,20 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 		"three spatially distinct usable pads are joined by two declared broad ramps"
 	)
 	var by_surface := area.by_surface as Dictionary
+	_check(
+		float((by_surface[&"lower-salvage-pad"] as Dictionary).horizontal_area_m2) == 84.0
+		and float((by_surface[&"connection-apron"] as Dictionary).horizontal_area_m2) == 96.0,
+		"only the lower pad's redundant aft strip changes: 144 -> 84 m2 while the 96 m2 apron seam stays exact"
+	)
+	var lower_pad := module.get_node(^"GeneratedRoot/LowerSalvagePad") as StaticBody3D
+	var lower_shape := (lower_pad.get_node(^"Collision") as CollisionShape3D).shape as BoxShape3D
+	var lower_route := module.get_route_marker(&"lower-pad")
+	_check(
+		lower_pad.position.is_equal_approx(Vector3(-12.0, -0.15, 5.5))
+		and lower_shape.size.is_equal_approx(Vector3(12.0, 0.30, 7.0))
+		and lower_route.position.is_equal_approx(Vector3(-12.0, 0.15, 7.0)),
+		"compacted 12 x 7 m lower pad retains its embodied route marker on live collision"
+	)
 	_check(
 		float((by_surface[&"main-service-ramp"] as Dictionary).horizontal_area_m2) == 48.0
 		and float((by_surface[&"inspection-ramp"] as Dictionary).horizontal_area_m2) == 24.0,
@@ -670,9 +684,9 @@ func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
 		var expected := [
 			[&"InspectionGantryBoom", Vector3(23.25, 5.8, 7.5), Vector3(7.5, 0.35, 0.35)],
 			[&"RoofHazardStripe", Vector3(-12.0, 4.46, 2.95), Vector3(8.0, 0.10, 0.35)],
-			[&"CrusherFeedHood", Vector3(-12.4, 2.55, 15.35), Vector3(2.2, 0.35, 1.8)],
-			[&"CraneBridge", Vector3(-12.0, 4.05, 8.0), Vector3(9.4, 0.28, 0.38)],
-			[&"CraneHook", Vector3(-10.1, 2.68, 8.0), Vector3(0.35, 0.22, 0.35)],
+			[&"CrusherFeedHood", Vector3(-12.4, 2.55, 10.35), Vector3(2.2, 0.35, 1.8)],
+			[&"CraneBridge", Vector3(-12.0, 4.05, 5.5), Vector3(9.4, 0.28, 0.38)],
+			[&"CraneHook", Vector3(-10.1, 2.68, 5.5), Vector3(0.35, 0.22, 0.35)],
 		]
 		for index in expected.size():
 			var part := parts[index] as Dictionary
@@ -926,7 +940,7 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 	surface_shape.size.x += 0.5
 	var widened_area := module.get_walkable_area_contract()
 	_check(
-		not is_equal_approx(float(widened_area.projected_surface_sum_m2), 456.0)
+		not is_equal_approx(float(widened_area.projected_surface_sum_m2), 396.0)
 		and _errors_include(module.get_validation_errors(), "live walkable-area union"),
 		"MUTATION: widening the live collision shape changes derived area and turns the union audit red"
 	)
@@ -942,7 +956,7 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 	var overlapping_area := module.get_walkable_area_contract()
 	_check(
 		not bool(overlapping_area.non_overlapping)
-		and float(overlapping_area.horizontal_walkable_area_m2) < 456.0
+		and float(overlapping_area.horizontal_walkable_area_m2) < 396.0
 		and _errors_include(module.get_validation_errors(), "live walkable-area union"),
 		"MUTATION: overlapping one live surface transform reduces the derived union and turns audit red"
 	)
