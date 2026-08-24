@@ -9404,6 +9404,15 @@ func _sync_nearby_activity_hud() -> void:
 		if hud.has_method(&"clear_nearby_activity_snapshot"):
 			hud.call(&"clear_nearby_activity_snapshot")
 		return
+	if binding.has_method(&"bind_production_convoy_host"):
+		var convoy_binding := binding.call(
+			&"bind_production_convoy_host", cinder_convoy_host
+		) as Dictionary
+		if not bool(convoy_binding.get("accepted", false)):
+			_detach_nearby_activity_audio()
+			if hud.has_method(&"clear_nearby_activity_snapshot"):
+				hud.call(&"clear_nearby_activity_snapshot")
+			return
 	bind_cinder_race_best_persistence(binding)
 	bind_cinder_scan_discovery_persistence(binding)
 	bind_cinder_cargo_delivery_persistence(binding)
@@ -9934,8 +9943,16 @@ func _handle_nearby_activity_persistence(binding: Node, action: StringName, inte
 
 
 func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionary:
+	if activity_id == CINDER_CONVOY_ACTIVITY_ID:
+		if _selected_activity_kind != ACTIVITY_KIND_CONVOY_ESCORT:
+			var selected := select_activity_kind(ACTIVITY_KIND_CONVOY_ESCORT)
+			if not bool(selected.get("accepted", false)):
+				return selected
+		return request_activity_start(
+			CINDER_CONVOY_ACTIVITY_ID,
+			active_ship.global_position if is_instance_valid(active_ship) else null
+		)
 	match activity_id:
-		&"cinder_reach_emberline_convoy": return binding.call(&"start_convoy")
 		&"cinder_reach_checkpoint_route": return binding.call(&"start_race")
 		&"cinder_platform_mining_run": return binding.call(&"start_mining_activity", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
 		&"cinder_derelict_structure_scan": return binding.call(&"start_structure_scan", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
@@ -9946,8 +9963,14 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 
 
 func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionary:
+	if activity_id == CINDER_CONVOY_ACTIVITY_ID:
+		var reset := reset_active_activity()
+		return {
+			"accepted": reset,
+			"reason": &"reset" if reset else &"production_convoy_reset_rejected",
+			"snapshot": get_active_activity_snapshot(),
+		}.duplicate(true)
 	match activity_id:
-		&"cinder_reach_emberline_convoy": return binding.call(&"reset_convoy")
 		&"cinder_reach_checkpoint_route": return binding.call(&"reset_race")
 		&"cinder_platform_mining_run": return binding.call(&"reset_mining_activity")
 		&"cinder_derelict_structure_scan": return binding.call(&"reset_structure_scan")

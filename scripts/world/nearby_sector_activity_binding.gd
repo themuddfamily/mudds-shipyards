@@ -46,6 +46,8 @@ const CINDER_PATROL_DWELL_SECONDS := 2.0
 const CINDER_RACE_COUNTDOWN_SECONDS := 3.0
 
 var _host: CinderConvoyEscortHost
+var _production_convoy_host_bound := false
+var _retired_local_convoy_host: CinderConvoyEscortHost
 var _race_director: ActivityDirector
 var _race_session: CinderTimedRaceSession
 var _patrol_director: ActivityDirector
@@ -160,6 +162,12 @@ func _exit_tree() -> void:
 		_cinder_field_audio.detach()
 	if _cinder_cargo_terminal_audio != null:
 		_cinder_cargo_terminal_audio.detach()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(_retired_local_convoy_host):
+		_retired_local_convoy_host.free()
+		_retired_local_convoy_host = null
 
 
 func _restore_presentation_observers_after_reentry() -> void:
@@ -434,19 +442,59 @@ func _cargo_terminal_result(
 func start_convoy() -> Dictionary:
 	if not is_inside_tree() or _host == null:
 		return _result(false, &"not_ready")
+	if _production_convoy_host_bound:
+		return _result(false, &"production_game_flow_required")
 	return _host.start(_host.get_generation())
 
 
 func advance_convoy(delta: float, escort_position: Vector3) -> Dictionary:
 	if not is_inside_tree() or _host == null:
 		return _result(false, &"not_ready")
+	if _production_convoy_host_bound:
+		return _result(false, &"production_game_flow_required")
 	return _host.advance_physics(delta, escort_position, _host.get_generation())
 
 
 func reset_convoy() -> Dictionary:
 	if not is_inside_tree() or _host == null:
 		return _result(false, &"not_ready")
+	if _production_convoy_host_bound:
+		return _result(false, &"production_game_flow_required")
 	return _host.reset(_host.get_generation())
+
+
+## Replaces the streamed cluster's standalone fixture host with Main's retained
+## production authority. The local host must still be pristine, so streaming
+## can never retire a live escort. Main remains the owner of all start/reset and
+## caller-physics decisions; this binding observes its snapshot and reward seam.
+func bind_production_convoy_host(host: CinderConvoyEscortHost) -> Dictionary:
+	if not is_inside_tree() or not is_instance_valid(host):
+		return _result(false, &"production_convoy_host_invalid")
+	if _production_convoy_host_bound:
+		return _result(
+			_host == host,
+			&"production_convoy_host_already_bound" \
+				if _host == host else &"production_convoy_host_replacement_rejected"
+		)
+	if not is_instance_valid(_host):
+		return _result(false, &"local_convoy_host_unavailable")
+	var local_activity := _host.get_snapshot().get("activity", {}) as Dictionary
+	if int(local_activity.get("state", -1)) != ConvoyEscortActivity.State.IDLE \
+			or int(local_activity.get("generation", -1)) != 0:
+		return _result(false, &"local_convoy_host_not_pristine")
+	var local_host := _host
+	if local_host.get_parent() == self:
+		remove_child(local_host)
+	# The cluster's fade presenter has already indexed this fixture's renderers
+	# during ready. Retain the detached node until cluster exit so those bounded
+	# references stay valid, then free it with the streamed generation.
+	local_host.visible = false
+	_retired_local_convoy_host = local_host
+	_host = host
+	_production_convoy_host_bound = true
+	if not _restored_convoy_arrival.is_empty():
+		_host.apply_restored_safe_arrival_presentation(_restored_convoy_arrival)
+	return _result(true, &"production_convoy_host_bound")
 
 
 func start_race() -> Dictionary:
@@ -1482,6 +1530,8 @@ func get_snapshot() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"activity_id": ACTIVITY_ID,
 		"host_instance_id": _host.get_instance_id() if is_instance_valid(_host) else 0,
+		"production_convoy_host_bound": _production_convoy_host_bound,
+		"owns_convoy_host": not _production_convoy_host_bound,
 		"host": _convoy_host_presentation_snapshot(),
 		"race_activity_id": RACE_ACTIVITY_ID,
 		"race": _race_presentation_snapshot(),
@@ -1755,7 +1805,9 @@ func _beacon_traversal_presentation_snapshot() -> Dictionary:
 
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
-	if not is_instance_valid(_host) or _host.get_parent() != self:
+	if not is_instance_valid(_host) or (
+			not _production_convoy_host_bound and _host.get_parent() != self
+	):
 		errors.append("one authored convoy host is required")
 	else:
 		for point in _host.get_snapshot().get("route_positions", PackedVector3Array()):

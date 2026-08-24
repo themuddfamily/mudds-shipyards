@@ -210,6 +210,19 @@ func _test_exact_activation_and_shared_sampling(
 		== samples_before + 1,
 		"3.99 metres starts the current loaded generation and advances it from the same tick sample"
 	)
+	var loaded_cluster := bootstrap.get_loaded_instance()
+	var nearby_binding := loaded_cluster.get_node_or_null(
+		^"ActivityBinding"
+	) as NearbySectorActivityBinding
+	var nearby_snapshot := nearby_binding.get_snapshot() if nearby_binding != null else {}
+	_check(
+		nearby_binding != null
+		and bool(nearby_snapshot.get("production_convoy_host_bound", false))
+		and not bool(nearby_snapshot.get("owns_convoy_host", true))
+		and int(nearby_snapshot.get("host_instance_id", 0)) == host.get_instance_id()
+		and int(game.get_activity_integration_report().get("convoy_host_count", 0)) == 1,
+		"the streamed activity view adopts Main's one convoy host without a second tender"
+	)
 	_check(
 		Array(ROUTE.checkpoint_positions) == EXPECTED_ROUTE
 		and Array(active.get("route_positions") as PackedVector3Array) == EXPECTED_ROUTE
