@@ -962,6 +962,21 @@ func _compute_dispatch_transform(defender: Node3D, target: Node3D) -> Transform3
 
 # ---------------------------------------------------------------- tactics ----
 
+## The inherited movement loop still steers against the live target, but the
+## marksman's attitude must honour the same frozen line its charged weapon will
+## resolve. Without this virtual seam the production 52-degree-per-second turn
+## rate would chase a lateral dodge, cross the hold cone, and cancel before the
+## promised locked ray could fire. Banking, component mobility consequences,
+## and the actual attitude integration remain owned by `RangeOpponent`.
+func _update_attitude(target_direction: Vector3, delta: float) -> void:
+	var aim_direction := target_direction
+	if _lance_charge_armed and _lance_locked_aim_position.is_finite():
+		var locked_offset := _lance_locked_aim_position - global_position
+		if locked_offset.length_squared() > 0.000001:
+			aim_direction = locked_offset.normalized()
+	super(aim_direction, delta)
+
+
 ## Standoff kiting instead of the defender's tight orbit. Three bands: close to
 ## the standoff ring, hold it with a slow wide drift, and break directly away
 ## when the player gets inside the arming radius.

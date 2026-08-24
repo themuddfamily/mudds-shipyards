@@ -948,28 +948,30 @@ func _test_charge_locked_aim() -> void:
 	var fixture := await _make_fixture()
 	var picket: StandoffPicketOpponent = fixture.picket
 	var target: RangeOpponent = fixture.target
+	var authority := fixture.authority as LiveCombatAuthority
 	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
 
-	picket.acceleration = 0.0
-	picket.turn_speed_degrees = 0.0
 	_place(picket, Vector3.ZERO, Vector3(0.0, 0.0, -120.0))
 	_place_target(target, Vector3(0.0, 0.0, -120.0))
 	picket.activate(picket.global_transform)
 	picket.set_target(target)
-	picket._cooldown_remaining = 0.0
-	var initial_aim := picket._get_target_aim_position()
-	var initial_offset := initial_aim - picket.global_position
-	picket._update_weapon(
-		initial_aim,
-		initial_offset.normalized(),
-		initial_offset.length(),
-		0.0,
+	_check(
+		is_equal_approx(picket.acceleration, 20.0)
+		and is_equal_approx(picket.turn_speed_degrees, 52.0)
+		and is_equal_approx(picket.telegraph_time, 1.35),
+		"the dodge proof retains the production scene's movement, attitude and charge defaults"
+	)
+	var charging := await _advance_until(
+		func() -> bool: return bool(picket.get_lance_charge_snapshot().get("active", false)),
+		FIRE_FRAME_BUDGET,
 	)
 	picket._update_presentation(0.0)
 	var locked := picket.get_lance_charge_snapshot()
+	var initial_aim := locked.get("locked_aim_position", Vector3.INF) as Vector3
 	var cue := picket.get_node_or_null("StandoffTargetingRails") as MultiMeshInstance3D
 	_check(
-		bool(locked.get("active", false))
+		charging
+		and bool(locked.get("active", false))
 		and bool(locked.get("armed", false))
 		and bool(locked.get("aim_locked", false))
 		and StringName(locked.get("aim_rule", &""))
@@ -988,15 +990,14 @@ func _test_charge_locked_aim() -> void:
 	)
 
 	# Move far enough sideways to clear both the original target collider and the
-	# old homing hold cone. One physics frame commits the collision transform;
-	# zero turn speed keeps the picket on its already-telegraphed line.
+	# old homing hold cone. From here onward only the real production physics loop
+	# advances the attitude, charge and irreversible resolver dispatch.
 	var health_before := target.get_health()
 	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
-	_place_target(target, Vector3(48.0, 0.0, -120.0))
+	var receipt_before := int(authority.get("_next_presentation_receipt_id"))
+	_place_target(target, target.global_position + Vector3(48.0, 0.0, 0.0))
 	await physics_frame
 	await process_frame
-	var live_aim := picket._get_target_aim_position()
-	var live_offset := live_aim - picket.global_position
 	picket._update_presentation(0.0)
 	_check(
 		bool(picket.get_lance_charge_snapshot().get("aim_locked", false))
@@ -1008,11 +1009,9 @@ func _test_charge_locked_aim() -> void:
 		) > 0.9999,
 		"a lateral dodge does not bend the visible charge corridor after lock"
 	)
-	picket._update_weapon(
-		live_aim,
-		live_offset.normalized(),
-		live_offset.length(),
-		picket.telegraph_time + 0.01,
+	var fired := await _advance_until(
+		func() -> bool: return _lance_events.size() == 1,
+		FIRE_FRAME_BUDGET,
 	)
 	var result := picket.get_last_shot_result()
 	var fired_event: Dictionary = (
@@ -1021,7 +1020,9 @@ func _test_charge_locked_aim() -> void:
 	var fired_direction := fired_event.get("direction", Vector3.ZERO) as Vector3
 	var muzzle_origin := fired_event.get("origin", Vector3.INF) as Vector3
 	_check(
-		bool(result.get("accepted", false))
+		fired
+		and _lance_events.size() == 1
+		and bool(result.get("accepted", false))
 		and bool(result.get("resolved", false))
 		and StringName(result.get("status", &"")) == &"miss"
 		and StringName(result.get("aim_rule", &""))
@@ -1033,10 +1034,12 @@ func _test_charge_locked_aim() -> void:
 	)
 	_check(
 		resolver.get_last_sequence(picket, picket.source_id) == sequence_before + 1
+		and int(authority.get("_next_presentation_receipt_id")) == receipt_before + 1
 		and is_equal_approx(target.get_health(), health_before)
 		and not bool(picket.get_lance_charge_snapshot().get("aim_locked", true))
+		and picket.get_pending_lance_receipt_count() == 0
 		and not picket.get_weapon_definition().spread_enabled,
-		"locked aim consumes one resolver sequence and one ray, never the scatter fan or duplicate damage"
+		"locked aim consumes one receipt, sequence and resolver ray, never the scatter fan or duplicate damage"
 	)
 
 	picket.deactivate()
