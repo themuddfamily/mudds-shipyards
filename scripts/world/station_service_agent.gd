@@ -120,6 +120,12 @@ static var _shared_forward_cowl_mesh: ArrayMesh
 const CARGO_POD_MESH_SIZE := Vector3(0.54, 0.3, 0.62)
 static var _shared_cargo_pod_mesh: ArrayMesh
 
+## The rear fin is likewise identical for the complete courier roster. Sharing
+## its immutable rounded-box stock preserves each renderer node and its
+## hull-edge override while retaining a single mesh resource for the session.
+const TAIL_FIN_MESH_SIZE := Vector3(0.08, 0.42, 0.36)
+static var _shared_tail_fin_mesh: ArrayMesh
+
 const CONTENT_NOTE := (
 	"The remake brief supports ambient station activity, cargo movement, and "
 	+ "animated equipment. It does not authenticate this courier silhouette, its "
@@ -1233,7 +1239,14 @@ func _build_courier() -> void:
 		_get_shared_cargo_pod_mesh()
 	)
 	_status_lens = _box(_carriage, "StatusLens", Vector3(0.0, 0.2, -0.5), Vector3(0.22, 0.1, 0.06), _materials["cyan_dim"])
-	_box(_carriage, "TailFin", Vector3(0.0, 0.28, 0.5), Vector3(0.08, 0.42, 0.36), _materials["hull_edge"])
+	_box(
+		_carriage,
+		"TailFin",
+		Vector3(0.0, 0.28, 0.5),
+		TAIL_FIN_MESH_SIZE,
+		_materials["hull_edge"],
+		_get_shared_tail_fin_mesh()
+	)
 
 
 func _box(
@@ -1304,6 +1317,17 @@ static func _get_shared_cargo_pod_mesh() -> ArrayMesh:
 			StationSurfaceKit.BevelUV.FACE_GRID
 		)
 	return _shared_cargo_pod_mesh
+
+
+static func _get_shared_tail_fin_mesh() -> ArrayMesh:
+	if _shared_tail_fin_mesh == null:
+		_shared_tail_fin_mesh = StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+			TAIL_FIN_MESH_SIZE,
+			StationSurfaceKit.proportional_bevel_for_size(TAIL_FIN_MESH_SIZE, 0.2),
+			{},
+			StationSurfaceKit.BevelUV.FACE_GRID
+		)
+	return _shared_tail_fin_mesh
 
 
 func _capture_built_hierarchy() -> void:
