@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 56
+const EXPECTED_ASSERTIONS := 57
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -72,10 +72,11 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 64
-			and audit.performance.mesh_instances == 21
-			and audit.performance.multi_mesh_instances == 3
-			and audit.performance.multi_mesh_copies == 13
+		audit.performance.node_count == 63
+			and audit.performance.mesh_instances == 19
+			and audit.performance.multi_mesh_instances == 4
+			and audit.performance.multi_mesh_copies == 15
+			and audit.performance.render_submissions == 23
 			and audit.performance.static_bodies == 7
 			and audit.performance.collision_shapes == 19
 			and audit.performance.triangle_count <= 8192,
@@ -196,6 +197,32 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 			and not bool(bunker.get_meta("historical_geometry_authenticated", true))
 			and not str(bunker.get_meta("evidence_note", "")).is_empty(),
 		"the service bunker is explicitly modern authored content with no historical-geometry claim",
+	)
+	var vent_visuals := bunker.get_node_or_null(^"BunkerVentVisuals") as MultiMeshInstance3D \
+		if bunker != null else null
+	var vent_multi := vent_visuals.multimesh if vent_visuals != null else null
+	var vent_mesh := vent_multi.mesh as CylinderMesh if vent_multi != null else null
+	var vent_transforms: Array = vent_visuals.get_meta("authored_transforms", []) as Array \
+		if vent_visuals != null else []
+	_check(
+		vent_visuals != null and vent_visuals.get_child_count() == 0
+			and vent_multi != null and vent_multi.instance_count == 2
+			and vent_multi.custom_aabb.is_equal_approx(AABB(
+				Vector3(-2.28, 3.65, -1.88), Vector3(0.56, 1.1, 3.76)
+			))
+			and vent_mesh != null
+			and is_equal_approx(vent_mesh.top_radius, 0.28)
+			and is_equal_approx(vent_mesh.bottom_radius, 0.28)
+			and is_equal_approx(vent_mesh.height, 1.1)
+			and vent_transforms == [
+				Transform3D(Basis.IDENTITY, Vector3(-2.0, 4.2, -1.6)),
+				Transform3D(Basis.IDENTITY, Vector3(-2.0, 4.2, 1.6)),
+			]
+			and bunker.get_node_or_null(^"PortVentVisual") == null
+			and bunker.get_node_or_null(^"StarboardVentVisual") == null
+			and bunker.get_node_or_null(^"PortVentCollision") is CollisionShape3D
+			and bunker.get_node_or_null(^"StarboardVentCollision") is CollisionShape3D,
+		"the paired bunker vents retain their silhouette and separate collisions in one bounded render submission",
 	)
 	var cues := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/LandingApproachCues"

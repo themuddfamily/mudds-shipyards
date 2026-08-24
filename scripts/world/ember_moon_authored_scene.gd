@@ -101,6 +101,11 @@ const BUNKER_VENT_RADIUS_M := 0.28
 const BUNKER_VENT_HEIGHT_M := 1.1
 const BUNKER_PORT_VENT_POSITION_M := Vector3(-2.0, 4.2, -1.6)
 const BUNKER_STARBOARD_VENT_POSITION_M := Vector3(-2.0, 4.2, 1.6)
+const BUNKER_VENT_INSTANCE_COUNT := 2
+const BUNKER_VENT_BATCH_BOUNDS := AABB(
+	Vector3(-2.28, 3.65, -1.88),
+	Vector3(0.56, 1.1, 3.76),
+)
 const BUNKER_ACCESS_POSITION_M := Vector3(-17.5, 0.0, -17.5)
 const BUNKER_MIN_PAD_CLEARANCE_M := 2.3
 const BUNKER_MIN_ROUTE_CLEARANCE_M := 18.3
@@ -137,10 +142,11 @@ const METAL_ROUGHNESS := 0.78
 const OXIDE_ROUGHNESS := 0.92
 const SERVICE_ROUGHNESS := 0.72
 
-const EXPECTED_NODE_COUNT := 64
-const EXPECTED_MESH_INSTANCE_COUNT := 21
-const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 3
-const EXPECTED_MULTI_MESH_COPY_COUNT := 13
+const EXPECTED_NODE_COUNT := 63
+const EXPECTED_MESH_INSTANCE_COUNT := 19
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 4
+const EXPECTED_MULTI_MESH_COPY_COUNT := 15
+const EXPECTED_RENDER_SUBMISSION_COUNT := 23
 const EXPECTED_STATIC_BODY_COUNT := 7
 const EXPECTED_COLLISION_SHAPE_COUNT := 19
 const MAXIMUM_TRIANGLE_COUNT := 8192
@@ -206,6 +212,7 @@ func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
 	_configure_surface_material_hierarchy()
+	_configure_bunker_vent_visuals()
 	_configure_landing_approach_cues()
 	_configure_orbital_landing_datum_cue()
 	_configure_pad_guide_visuals()
@@ -628,9 +635,8 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/RoofCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorCollision": "CollisionShape3D",
-		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/PortVentVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/BunkerVentVisuals": "MultiMeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/PortVentCollision": "CollisionShape3D",
-		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/StarboardVentVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/StarboardVentCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers": "Node3D",
 		^"LandingRegion/SurfaceLandmarks/RouteMarkers/PadGuidanceThreshold": "Marker3D",
@@ -661,7 +667,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or route_markers == null or route_markers.get_child_count() != 5 \
 			or relay == null or relay.get_child_count() != 6 \
 			or gantry == null or gantry.get_child_count() != 12 \
-			or bunker == null or bunker.get_child_count() != 12:
+			or bunker == null or bunker.get_child_count() != 11:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
 
 
@@ -758,7 +764,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 			material_specs[gantry.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = {"color": DERELICT_ALLOY_COLOR, "role": &"metal"}
 		material_specs[gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D] = {"color": DERELICT_OXIDE_COLOR, "role": &"oxide"}
 	if bunker != null:
-		for node_name in [&"BaseVisual", &"RoofVisual", &"PortVentVisual", &"StarboardVentVisual"]:
+		for node_name in [&"BaseVisual", &"RoofVisual"]:
 			material_specs[bunker.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = {"color": DERELICT_ALLOY_COLOR, "role": &"metal"}
 		material_specs[bunker.get_node_or_null(^"ShellVisual") as MeshInstance3D] = {"color": BUNKER_SHELL_COLOR, "role": &"service"}
 		material_specs[bunker.get_node_or_null(^"DoorVisual") as MeshInstance3D] = {"color": BUNKER_DOOR_COLOR, "role": &"service"}
@@ -770,6 +776,12 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 				or instance.gi_mode != GeometryInstance3D.GI_MODE_DISABLED:
 			_append_error(errors, &"visual_material_drift", &"materials", "airless surface material hierarchy or passive renderer contract drifted")
 			break
+	var vent_batch := bunker.get_node_or_null(^"BunkerVentVisuals") as MultiMeshInstance3D \
+		if bunker != null else null
+	var vent_material := vent_batch.material_override as StandardMaterial3D \
+		if vent_batch != null else null
+	if not _surface_material_is_exact(vent_material, DERELICT_ALLOY_COLOR, &"metal"):
+		_append_error(errors, &"visual_material_drift", &"BunkerVentVisuals", "batched bunker vents lost the structural-alloy surface role")
 
 
 func _derelict_gantry_geometry_is_exact(gantry: StaticBody3D) -> bool:
@@ -791,8 +803,9 @@ func _survey_bunker_geometry_is_exact(bunker: StaticBody3D) -> bool:
 		and _box_visual_is_exact(bunker, &"ShellVisual", BUNKER_SHELL_SIZE_M, BUNKER_SHELL_POSITION_M, 0.0) \
 		and _box_visual_is_exact(bunker, &"RoofVisual", BUNKER_ROOF_SIZE_M, BUNKER_ROOF_POSITION_M, 0.0) \
 		and _box_visual_is_exact(bunker, &"DoorVisual", BUNKER_DOOR_SIZE_M, BUNKER_DOOR_POSITION_M, 0.0) \
-		and _cylinder_visual_is_exact(bunker, &"PortVentVisual", BUNKER_VENT_RADIUS_M, BUNKER_VENT_HEIGHT_M, BUNKER_PORT_VENT_POSITION_M, 0.0) \
-		and _cylinder_visual_is_exact(bunker, &"StarboardVentVisual", BUNKER_VENT_RADIUS_M, BUNKER_VENT_HEIGHT_M, BUNKER_STARBOARD_VENT_POSITION_M, 0.0)
+		and _bunker_vent_visuals_are_exact(
+			bunker.get_node_or_null(^"BunkerVentVisuals") as MultiMeshInstance3D
+		)
 
 
 func _box_visual_is_exact(
@@ -990,6 +1003,104 @@ func _validate_forbidden_nodes(errors: Array[Dictionary]) -> void:
 			_append_error(errors, &"forbidden_runtime_node", StringName(node.name), "scene gained adjacent runtime authority")
 		if node.is_processing() or node.is_physics_processing():
 			_append_error(errors, &"automatic_process_loop", StringName(node.name), "static scene must not own process or physics callbacks")
+
+
+func _configure_bunker_vent_visuals() -> void:
+	var bunker := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker"
+	) as StaticBody3D
+	var port := bunker.get_node_or_null(^"PortVentVisual") as MeshInstance3D \
+		if bunker != null else null
+	var starboard := bunker.get_node_or_null(^"StarboardVentVisual") as MeshInstance3D \
+		if bunker != null else null
+	if bunker == null or port == null or starboard == null \
+			or port.mesh == null or port.mesh != starboard.mesh \
+			or port.material_override != starboard.material_override \
+			or port.cast_shadow != starboard.cast_shadow \
+			or port.layers != starboard.layers \
+			or port.ignore_occlusion_culling != starboard.ignore_occlusion_culling \
+			or port.gi_mode != starboard.gi_mode \
+			or port.extra_cull_margin != starboard.extra_cull_margin \
+			or port.visibility_range_begin != starboard.visibility_range_begin \
+			or port.visibility_range_end != starboard.visibility_range_end \
+			or port.visibility_range_begin_margin != starboard.visibility_range_begin_margin \
+			or port.visibility_range_end_margin != starboard.visibility_range_end_margin \
+			or port.visibility_range_fade_mode != starboard.visibility_range_fade_mode:
+		return
+	var transforms: Array[Transform3D] = [port.transform, starboard.transform]
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = port.mesh
+	multi.instance_count = BUNKER_VENT_INSTANCE_COUNT
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+	multi.custom_aabb = BUNKER_VENT_BATCH_BOUNDS
+	var batch := MultiMeshInstance3D.new()
+	batch.name = &"BunkerVentVisuals"
+	batch.multimesh = multi
+	batch.material_override = port.material_override
+	batch.cast_shadow = port.cast_shadow
+	batch.gi_mode = port.gi_mode
+	batch.extra_cull_margin = port.extra_cull_margin
+	batch.visibility_range_begin = port.visibility_range_begin
+	batch.visibility_range_end = port.visibility_range_end
+	batch.visibility_range_begin_margin = port.visibility_range_begin_margin
+	batch.visibility_range_end_margin = port.visibility_range_end_margin
+	batch.visibility_range_fade_mode = port.visibility_range_fade_mode
+	batch.layers = port.layers
+	batch.ignore_occlusion_culling = port.ignore_occlusion_culling
+	batch.sorting_offset = port.sorting_offset
+	batch.sorting_use_aabb_center = port.sorting_use_aabb_center
+	batch.set_meta("authored_transforms", transforms.duplicate())
+	batch.set_meta("source_visual_ids", PackedStringArray([
+		"PortVentVisual", "StarboardVentVisual",
+	]))
+	bunker.add_child(batch)
+	port.free()
+	starboard.free()
+
+
+func _bunker_vent_visuals_are_exact(batch: MultiMeshInstance3D) -> bool:
+	if batch == null or batch.multimesh == null \
+			or batch.transform != Transform3D.IDENTITY \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or batch.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or batch.layers != 1 or batch.ignore_occlusion_culling \
+			or not is_zero_approx(batch.extra_cull_margin) \
+			or not is_zero_approx(batch.visibility_range_begin) \
+			or not is_zero_approx(batch.visibility_range_end) \
+			or not is_zero_approx(batch.visibility_range_begin_margin) \
+			or not is_zero_approx(batch.visibility_range_end_margin) \
+			or batch.visibility_range_fade_mode \
+				!= GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED:
+		return false
+	var multi := batch.multimesh
+	var mesh := multi.mesh as CylinderMesh
+	if multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.instance_count != BUNKER_VENT_INSTANCE_COUNT \
+			or multi.visible_instance_count not in [-1, BUNKER_VENT_INSTANCE_COUNT] \
+			or not multi.custom_aabb.is_equal_approx(BUNKER_VENT_BATCH_BOUNDS) \
+			or mesh == null \
+			or not is_equal_approx(mesh.top_radius, BUNKER_VENT_RADIUS_M) \
+			or not is_equal_approx(mesh.bottom_radius, BUNKER_VENT_RADIUS_M) \
+			or not is_equal_approx(mesh.height, BUNKER_VENT_HEIGHT_M) \
+			or mesh.radial_segments != 12 \
+			or batch.material_override == null:
+		return false
+	var expected: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, BUNKER_PORT_VENT_POSITION_M),
+		Transform3D(Basis.IDENTITY, BUNKER_STARBOARD_VENT_POSITION_M),
+	]
+	var authored: Variant = batch.get_meta("authored_transforms", [])
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return batch.get_meta("source_visual_ids", PackedStringArray()) == PackedStringArray([
+		"PortVentVisual", "StarboardVentVisual",
+	])
 
 
 func _configure_landing_approach_cues() -> void:
@@ -1293,6 +1404,7 @@ func _performance_census() -> Dictionary:
 		"mesh_instances": meshes,
 		"multi_mesh_instances": multi_meshes,
 		"multi_mesh_copies": multi_mesh_copies,
+		"render_submissions": meshes + multi_meshes,
 		"static_bodies": static_bodies,
 		"collision_shapes": collision_shapes,
 		"triangle_count": triangles,
@@ -1305,6 +1417,7 @@ func _performance_budget() -> Dictionary:
 		"mesh_instances": EXPECTED_MESH_INSTANCE_COUNT,
 		"multi_mesh_instances": EXPECTED_MULTI_MESH_INSTANCE_COUNT,
 		"multi_mesh_copies": EXPECTED_MULTI_MESH_COPY_COUNT,
+		"render_submissions": EXPECTED_RENDER_SUBMISSION_COUNT,
 		"static_bodies": EXPECTED_STATIC_BODY_COUNT,
 		"collision_shapes": EXPECTED_COLLISION_SHAPE_COUNT,
 	}.duplicate(true)
