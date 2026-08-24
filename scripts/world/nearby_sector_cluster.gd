@@ -3176,6 +3176,8 @@ func _build_gantry_rails(platform: Node3D, half_width: float, half_height: float
 
 
 func _build_extraction_arms(platform: Node3D) -> void:
+	var collar_transforms: Array[Transform3D] = []
+	var collar_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var arm := Node3D.new()
 		arm.name = "ExtractionArm%s" % ("Port" if side < 0.0 else "Starboard")
@@ -3183,18 +3185,27 @@ func _build_extraction_arms(platform: Node3D) -> void:
 		arm.rotation_degrees = Vector3(-36.0, 0.0, side * 14.0)
 		platform.add_child(arm)
 		_box(arm, "ArmSpar", Vector3(0.0, -17.0, 0.0), Vector3(4.4, 38.0, 4.4), _materials["hull_shadow"], true)
-		_build_extraction_arm_collars(arm)
+		for y_position in EXTRACTION_ARM_COLLAR_Y_POSITIONS:
+			# The old per-arm batches lived below this transformed arm. Keep each
+			# collar at that exact platform-local transform while sharing one visual
+			# submission across both arms.
+			collar_transforms.append(
+				arm.transform * Transform3D(Basis.IDENTITY, Vector3(0.0, y_position, 0.0))
+			)
+			collar_names.append("%s/ArmCollar" % arm.name)
 		_cylinder(arm, "DrillHead", Vector3(0.0, -37.5, 0.0), 1.2, 3.6, 6.0, _materials["orange"], true)
 		_lamp(arm, "ArmLamp", Vector3(0.0, -33.0, 3.6), KETH_ORANGE, 1.5, 12.0, false)
+	_build_extraction_arm_collars(platform, collar_transforms, collar_names)
 
 
-## Each arm retains its authored transform and canonical ArmCollar path while
-## three identical, presentation-only steel collars submit as one renderer.
-## The arm spar and drill stay collision-backed; this batch owns no authority.
-func _build_extraction_arm_collars(arm: Node3D) -> void:
-	var transforms: Array[Transform3D] = []
-	for y_position in EXTRACTION_ARM_COLLAR_Y_POSITIONS:
-		transforms.append(Transform3D(Basis.IDENTITY, Vector3(0.0, y_position, 0.0)))
+## All six arm collars have one exact mesh, steel material and no gameplay or
+## collision authority. Their transforms remain the same arm-local placements,
+## composed into platform space so one MultiMesh replaces the two old batches.
+func _build_extraction_arm_collars(
+	platform: Node3D,
+	transforms: Array[Transform3D],
+	names: PackedStringArray
+) -> void:
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = StationSurfaceKit.rounded_box_mesh_cached(
@@ -3206,7 +3217,7 @@ func _build_extraction_arm_collars(arm: Node3D) -> void:
 	var bounds := _transformed_mesh_bounds(multimesh.mesh.get_aabb(), transforms)
 	multimesh.custom_aabb = bounds
 	var batch := MultiMeshInstance3D.new()
-	batch.name = "ArmCollar"
+	batch.name = "ExtractionArmCollars"
 	batch.multimesh = multimesh
 	batch.material_override = _materials["steel"]
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -3214,8 +3225,8 @@ func _build_extraction_arm_collars(arm: Node3D) -> void:
 	batch.set_meta(&"visual_detail_only", true)
 	batch.set_meta(&"visual_batch_family_id", EXTRACTION_ARM_COLLAR_FAMILY_ID)
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
-	batch.set_meta(&"authored_instance_names", PackedStringArray(["ArmCollar", "ArmCollar", "ArmCollar"]))
-	arm.add_child(batch)
+	batch.set_meta(&"authored_instance_names", names)
+	platform.add_child(batch)
 
 
 func _build_derelict_hardware(platform: Node3D) -> void:

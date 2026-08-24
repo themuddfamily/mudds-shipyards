@@ -95,6 +95,18 @@ const EXPECTED_ARM_COLLAR_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(0.0, -17.0, 0.0)),
 	Transform3D(Basis.IDENTITY, Vector3(0.0, -28.0, 0.0)),
 ]
+const EXPECTED_ARM_COLLAR_ARM_SPECS: Array[Dictionary] = [
+	{
+		"name": &"ExtractionArmPort",
+		"position": Vector3(-12.0, -8.0, -6.0),
+		"rotation_degrees": Vector3(-36.0, 0.0, -14.0),
+	},
+	{
+		"name": &"ExtractionArmStarboard",
+		"position": Vector3(12.0, -8.0, -6.0),
+		"rotation_degrees": Vector3(-36.0, 0.0, 14.0),
+	},
+]
 const EXPECTED_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"
 const EXPECTED_GANTRY_RAIL_AABB := AABB(Vector3(-0.6, -0.6, -9.0), Vector3(1.2, 1.2, 18.0))
 const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
@@ -104,11 +116,11 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 203
+const EXPECTED_LOCAL_MESH_NODES := 201
 const EXPECTED_LOCAL_MULTIMESH_NODES := 14
-const EXPECTED_LOCAL_RENDERER_NODES := 217
+const EXPECTED_LOCAL_RENDERER_NODES := 215
 const EXPECTED_LOCAL_VISIBLE_COPIES := 758
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 217
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 215
 const EXPECTED_LOCAL_TRIANGLES := 125706
 const EXPECTED_LOCAL_STATIC_BODIES := 61
 const EXPECTED_LOCAL_COLLISION_SHAPES := 62
@@ -800,9 +812,8 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		"four visible rib copies retain 108 triangles each and 432 triangles total"
 	)
 
-	var steel_reference := cluster.get_node_or_null(
-		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
-	) as GeometryInstance3D
+	var steel_reference := platform.get_node_or_null(^"DrumCollarUpper") as GeometryInstance3D \
+		if platform != null else null
 	_check(
 		steel_reference != null
 		and batch.material_override == steel_reference.material_override,
@@ -831,13 +842,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 203 Mesh + 14 MultiMesh renderers after collar batching"
+		"NearbySectorCluster owns 201 Mesh + 14 MultiMesh renderers after cross-arm collar batching"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census preserves 758 copies and 125706 triangles while submissions fall 221 -> 217"
+		"the local census preserves 758 copies and 125706 triangles while submissions fall 217 -> 215"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
@@ -852,41 +863,54 @@ func _test_extraction_arm_collar_batches(cluster: NearbySectorCluster) -> void:
 	) as Node3D
 	var steel_reference := platform.get_node_or_null(^"DrumCollarUpper") as MeshInstance3D \
 		if platform != null else null
-	var batches_valid := platform != null and steel_reference != null
-	var total_copies := 0
-	for arm_name in [&"ExtractionArmPort", &"ExtractionArmStarboard"]:
+	var batch := platform.get_node_or_null(^"ExtractionArmCollars") as MultiMeshInstance3D \
+		if platform != null else null
+	var transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
+		if batch != null else []
+	var names := batch.get_meta(&"authored_instance_names", PackedStringArray()) \
+		as PackedStringArray if batch != null else PackedStringArray()
+	var expected_transforms: Array[Transform3D] = []
+	var expected_names := PackedStringArray()
+	var arms_valid := platform != null
+	for spec in EXPECTED_ARM_COLLAR_ARM_SPECS:
+		var arm_name := spec["name"] as StringName
 		var arm := platform.get_node_or_null(NodePath(arm_name)) as Node3D if platform != null else null
-		var batch := platform.get_node_or_null(
-			NodePath("%s/ArmCollar" % arm_name)
-		) as MultiMeshInstance3D if platform != null else null
-		var transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
-			if batch != null else []
-		var names := batch.get_meta(&"authored_instance_names", PackedStringArray()) \
-			as PackedStringArray if batch != null else PackedStringArray()
-		batches_valid = batches_valid and arm != null \
+		var expected_rotation := spec["rotation_degrees"] as Vector3
+		var expected_arm_transform := Transform3D(
+			Basis.from_euler(Vector3(
+				deg_to_rad(expected_rotation.x),
+				deg_to_rad(expected_rotation.y),
+				deg_to_rad(expected_rotation.z)
+			)),
+			spec["position"] as Vector3
+		)
+		arms_valid = arms_valid and arm != null \
+			and arm.transform.is_equal_approx(expected_arm_transform) \
 			and arm.get_node_or_null(^"ArmSpar") is StaticBody3D \
-			and arm.get_node_or_null(^"DrillHead") is StaticBody3D \
-			and batch != null and batch.multimesh != null \
+			and arm.get_node_or_null(^"DrillHead") is StaticBody3D
+		for collar_transform in EXPECTED_ARM_COLLAR_TRANSFORMS:
+			expected_transforms.append(expected_arm_transform * collar_transform)
+			expected_names.append("%s/ArmCollar" % arm_name)
+	_check(
+		arms_valid and batch != null and batch.multimesh != null \
 			and batch.multimesh.transform_format == MultiMesh.TRANSFORM_3D \
-			and batch.multimesh.instance_count == EXPECTED_ARM_COLLAR_TRANSFORMS.size() \
+			and batch.multimesh.instance_count == 6 \
 			and batch.multimesh.visible_instance_count == -1 \
-			and batch.multimesh.buffer == _encode_multimesh_transforms(EXPECTED_ARM_COLLAR_TRANSFORMS) \
+			and batch.multimesh.buffer == _encode_multimesh_transforms(expected_transforms) \
 			and batch.multimesh.mesh != null \
 			and batch.multimesh.mesh.get_aabb().is_equal_approx(EXPECTED_ARM_COLLAR_AABB) \
-			and batch.custom_aabb.is_equal_approx(EXPECTED_ARM_COLLAR_BATCH_AABB) \
+			and batch.custom_aabb.is_equal_approx(
+				_transformed_mesh_bounds(batch.multimesh.mesh.get_aabb(), expected_transforms)
+			) \
 			and batch.material_override == steel_reference.material_override \
 			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			and bool(batch.get_meta(&"visual_detail_only", false)) \
 			and StringName(batch.get_meta(&"visual_batch_family_id", &"")) == EXPECTED_ARM_COLLAR_FAMILY_ID \
-			and transforms == EXPECTED_ARM_COLLAR_TRANSFORMS \
-			and names == PackedStringArray(["ArmCollar", "ArmCollar", "ArmCollar"]) \
+			and transforms == expected_transforms \
+			and names == expected_names \
 			and batch.find_children("*", "CollisionObject3D", true, false).is_empty() \
-			and batch.find_children("*", "CollisionShape3D", true, false).is_empty()
-		if batch != null and batch.multimesh != null:
-			total_copies += batch.multimesh.instance_count
-	_check(
-		batches_valid and total_copies == 6,
-		"six named, collision-free arm-collar copies retain their exact transforms and steel material through two bounded submissions"
+			and batch.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"six named, collision-free arm-collar copies retain their exact arm-local transforms and steel material through one bounded submission"
 	)
 
 
@@ -1125,6 +1149,19 @@ func _encode_multimesh_transforms(transforms: Array) -> PackedFloat32Array:
 		buffer[offset + 10] = transform_value.basis.z.z
 		buffer[offset + 11] = transform_value.origin.z
 	return buffer
+
+
+func _transformed_mesh_bounds(mesh_bounds: AABB, transforms: Array[Transform3D]) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var piece := (transform_value * mesh_bounds).abs()
+		if first:
+			result = piece
+			first = false
+		else:
+			result = result.merge(piece)
+	return result
 
 
 # --- Placement ----------------------------------------------------------------
