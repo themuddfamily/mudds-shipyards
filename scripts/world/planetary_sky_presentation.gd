@@ -17,6 +17,10 @@ const COMPONENT_ID: StringName = &"planetary-sky-presentation"
 const EQUATION_VERSION: StringName = &"procedural_sky_aerial_colour_v1"
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const UNIT_VECTOR_TOLERANCE := 0.0001
+## A resource observer may make one synchronous, one-shot correction while the
+## material emits its consolidated change. Retry that re-entry handoff once so
+## the authored baseline is never left onscreen until the next caller sample.
+const LIFECYCLE_REAPPLY_ATTEMPTS := 2
 const OWNED_RENDERER_PROPERTIES := [
 	"sky_top_color",
 	"sky_horizon_color",
@@ -88,14 +92,14 @@ var _lifecycle_apply_active := false
 func _enter_tree() -> void:
 	if _configured:
 		_lifecycle_apply_active = true
-		_apply_renderer_values(_current_renderer_values)
+		_apply_lifecycle_renderer_values(_current_renderer_values)
 		_lifecycle_apply_active = false
 
 
 func _exit_tree() -> void:
 	if _configured:
 		_lifecycle_apply_active = true
-		_apply_renderer_values(_baseline_renderer_values)
+		_apply_lifecycle_renderer_values(_baseline_renderer_values)
 		_lifecycle_apply_active = false
 
 
@@ -742,6 +746,21 @@ func _apply_renderer_values(values: Dictionary) -> Dictionary:
 		"accepted": true,
 		"reason": &"renderer_values_applied" if wrote_property else &"unchanged",
 	}
+
+
+## Lifecycle writes are not caller observations. A single bounded retry handles
+## a synchronous one-shot Resource.changed observer without retaining new
+## renderer intent, emitting a presentation signal, or gaining process work.
+func _apply_lifecycle_renderer_values(values: Dictionary) -> Dictionary:
+	var result := _apply_renderer_values(values)
+	var attempts := 1
+	while attempts < LIFECYCLE_REAPPLY_ATTEMPTS \
+			and not bool(result.get("accepted", false)) \
+			and StringName(result.get("reason", &"")) \
+			== &"renderer_state_changed_during_apply":
+		result = _apply_renderer_values(values)
+		attempts += 1
+	return result
 
 
 func _restore_cached_material(

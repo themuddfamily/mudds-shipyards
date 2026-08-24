@@ -6,7 +6,7 @@ const ProfileScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_sky_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 47
+const EXPECTED_ASSERTIONS := 48
 const EXPECTED_RENDERER_PROPERTIES := [
 	"sky_top_color", "sky_horizon_color", "ground_horizon_color",
 ]
@@ -489,6 +489,18 @@ func _test_detach_reentry() -> void:
 		and int(_adapter.get_state_snapshot().revision) == int(state.revision) + 1
 		and _events.size() == events + 1 and bool(_adapter.audit().valid),
 		"re-entry restores last live sky values before a fresh observation commits"
+	)
+	root.remove_child(_adapter)
+	_material_reentry_results.clear()
+	_material_attack_mode = &"overwrite_top"
+	_material_attack_armed = true
+	root.add_child(_adapter)
+	_check(
+		_renderer_values(_material) == _adapter.get_renderer_snapshot().expected
+		and _material_reentry_results.size() == 3
+		and _all_reason(_material_reentry_results, &"reentrant_call")
+		and bool(_adapter.audit().valid),
+		"one-shot material churn during re-entry is retried before the next sky frame"
 	)
 	var reentered_generation := _adapter.get_generation()
 	var reentered_reset := _adapter.reset_for_reuse(reentered_generation)
