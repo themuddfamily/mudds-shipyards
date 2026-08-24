@@ -27,6 +27,9 @@ func _ready() -> void:
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_material.emission_enabled = true
 	_marker.material_override = _material
+	# Avoid exposing an unlit default mesh for a frame before the caller has
+	# supplied the first weather/solar recipe.
+	_marker.visible = false
 	add_child(_marker)
 
 

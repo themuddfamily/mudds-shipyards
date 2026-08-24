@@ -37,6 +37,7 @@ func _initialize() -> void:
 			and marker.transform.is_equal_approx(Transform3D.IDENTITY) \
 			and presentation.position.is_equal_approx(expected_anchor) \
 			and marker.material_override is StandardMaterial3D \
+			and not marker.visible \
 			and not presentation.is_processing() \
 			and not presentation.is_physics_processing()
 		if marker != null and marker.mesh != null:
@@ -45,7 +46,7 @@ func _initialize() -> void:
 			material_ids[marker.material_override.get_instance_id()] = true
 	_check(
 		marker_recipe_preserved and mesh_ids.size() == 1 and material_ids.size() == MARKER_COUNT,
-		"four markers share one immutable pad mesh while retaining four recipe-local materials"
+		"unconfigured markers stay hidden while four markers share one immutable pad mesh and retain recipe-local materials"
 	)
 
 	var first: Variant = presentations[0]
