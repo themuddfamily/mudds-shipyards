@@ -114,6 +114,9 @@ const ENTRY_FRONT_RAIL_NAMES := [&"EntryFrontPort", &"EntryFrontStarboard"]
 const TOP_SIDE_RAIL_VISUAL_SIZE := Vector3(0.16, 1.3, 4.0)
 const TOP_SIDE_RAIL_NAMES := [&"TopPort", &"TopStarboard"]
 const FOUR_METER_RAIL_VISUAL_COUNT := 4
+const MAIN_RAMP_RAIL_NAMES := [&"MainRampForward", &"MainRampAft"]
+const INSPECTION_RAMP_RAIL_NAMES := [&"InspectionRampPort", &"InspectionRampStarboard"]
+const SLOPED_RAIL_VISUAL_COUNT := 4
 
 const CONTENT_NOTE := (
 	"Salvage Terrace is a NEW modern interpretation. No source authenticates its "
@@ -149,6 +152,8 @@ var _rounded_box_cache: Dictionary = {}
 var _long_rail_visual_mesh: BoxMesh
 var _entry_front_rail_visual_mesh: BoxMesh
 var _top_side_rail_visual_mesh: BoxMesh
+var _main_ramp_rail_visual_mesh: BoxMesh
+var _inspection_ramp_rail_visual_mesh: BoxMesh
 var _rail_detail_transforms: Array[Transform3D] = []
 
 
@@ -361,13 +366,16 @@ func get_performance_contract() -> Dictionary:
 	var rail_visual_sharing := get_short_side_rail_visual_allocation_audit()
 	var long_rail_visual_sharing := get_long_rail_visual_allocation_audit()
 	var four_meter_rail_visual_sharing := get_four_meter_rail_visual_allocation_audit()
+	var sloped_rail_visual_sharing := get_sloped_rail_visual_allocation_audit()
 	contract["short_side_rail_visual_sharing"] = rail_visual_sharing
 	contract["long_rail_visual_sharing"] = long_rail_visual_sharing
 	contract["four_meter_rail_visual_sharing"] = four_meter_rail_visual_sharing
+	contract["sloped_rail_visual_sharing"] = sloped_rail_visual_sharing
 	contract["resource_sharing_matches_authored"] = (
 		bool(rail_visual_sharing.valid)
 		and bool(long_rail_visual_sharing.valid)
 		and bool(four_meter_rail_visual_sharing.valid)
+		and bool(sloped_rail_visual_sharing.valid)
 	)
 	var exact_census := true
 	for key in PERFORMANCE_BUDGET:
@@ -624,6 +632,76 @@ func get_four_meter_rail_visual_allocation_audit() -> Dictionary:
 		"legacy_mesh_resource_allocations": 4,
 		"mesh_resource_allocation_delta": -2,
 		"visual_aabbs_match_collision": aabb_matches_collision,
+	}.duplicate(true)
+
+
+## The two physical rails on each ramp retain distinct bodies, collision shapes,
+## paths and transforms. Their hidden conservative visual envelopes now reuse one
+## immutable mesh per exact ramp length instead of allocating one per side.
+func get_sloped_rail_visual_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids := {}
+	var collision_ids := {}
+	var visual_aabbs_match_collision := true
+	var authored_groups := [
+		{
+			"names": MAIN_RAMP_RAIL_NAMES,
+			"mesh": _main_ramp_rail_visual_mesh,
+		},
+		{
+			"names": INSPECTION_RAMP_RAIL_NAMES,
+			"mesh": _inspection_ramp_rail_visual_mesh,
+		},
+	]
+	for group in authored_groups:
+		var expected_mesh := group.mesh as BoxMesh
+		for rail_name in group.names:
+			var rail := get_node_or_null(NodePath("GeneratedRoot/%s" % rail_name)) as StaticBody3D
+			var visual := rail.get_node_or_null(^"Mesh") as MeshInstance3D if rail != null else null
+			var collision := rail.get_node_or_null(^"Collision") as CollisionShape3D if rail != null else null
+			var has_box_visual := visual != null and visual.mesh is BoxMesh
+			if not has_box_visual:
+				errors.append("sloped_rail_visual_missing")
+			else:
+				mesh_ids[visual.mesh.get_instance_id()] = true
+				if (
+					visual.mesh != expected_mesh
+					or visual.material_override != _materials.rail
+					or visual.visible
+					or not visual.transform.is_equal_approx(Transform3D.IDENTITY)
+				):
+					errors.append("sloped_rail_visual_identity_or_recipe_drift")
+			if collision == null or not (collision.shape is BoxShape3D):
+				errors.append("sloped_rail_collision_missing")
+			else:
+				collision_ids[collision.shape.get_instance_id()] = true
+				var collision_shape := collision.shape as BoxShape3D
+				if not has_box_visual:
+					visual_aabbs_match_collision = false
+				else:
+					var visual_bounds := _transformed_aabb(visual.mesh.get_aabb(), visual.transform)
+					var collision_bounds := _transformed_aabb(
+						AABB(-collision_shape.size * 0.5, collision_shape.size), collision.transform
+					)
+					if not visual_bounds.is_equal_approx(collision_bounds):
+						visual_aabbs_match_collision = false
+						errors.append("sloped_rail_visual_aabb_drift")
+	if mesh_ids.size() != 2:
+		errors.append("sloped_rail_visual_mesh_count_drift")
+	if collision_ids.size() != SLOPED_RAIL_VISUAL_COUNT:
+		errors.append("sloped_rail_collision_identity_drift")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(), "errors": errors,
+		"visual_copies": SLOPED_RAIL_VISUAL_COUNT,
+		"renderer_nodes": SLOPED_RAIL_VISUAL_COUNT,
+		"geometry_submissions": SLOPED_RAIL_VISUAL_COUNT,
+		"mesh_resource_allocations": mesh_ids.size(),
+		"collision_resource_allocations": collision_ids.size(),
+		"legacy_mesh_resource_allocations": 4,
+		"mesh_resource_allocation_delta": -2,
+		"visual_aabbs_match_collision": visual_aabbs_match_collision,
+		"batched": false,
 	}.duplicate(true)
 
 
@@ -895,6 +973,17 @@ func _build_safety_rails() -> void:
 	_top_side_rail_visual_mesh = BoxMesh.new()
 	_top_side_rail_visual_mesh.resource_name = "SalvageTerraceTopSideRailVisualMesh"
 	_top_side_rail_visual_mesh.size = TOP_SIDE_RAIL_VISUAL_SIZE
+	_main_ramp_rail_visual_mesh = BoxMesh.new()
+	_main_ramp_rail_visual_mesh.resource_name = "SalvageTerraceMainRampRailVisualMesh"
+	_main_ramp_rail_visual_mesh.size = Vector3(
+		0.16, 1.3, Vector3(8.0, UPPER_ELEVATION - LOWER_ELEVATION, 0.0).length()
+	)
+	_inspection_ramp_rail_visual_mesh = BoxMesh.new()
+	_inspection_ramp_rail_visual_mesh.resource_name = "SalvageTerraceInspectionRampRailVisualMesh"
+	_inspection_ramp_rail_visual_mesh.size = Vector3(
+		0.16, 1.3,
+		Vector3(0.0, INSPECTION_ELEVATION - UPPER_ELEVATION, 4.0).length()
+	)
 	_add_rail("EntryFrontPort", Transform3D(Basis.IDENTITY, Vector3(-4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryFrontStarboard", Transform3D(Basis.IDENTITY, Vector3(4.0, 0.65, 0.0)), Vector3(4.0, 1.3, 0.16))
 	_add_rail("EntryPortForward", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 1.0)), Vector3(0.16, 1.3, 2.0))
@@ -903,15 +992,15 @@ func _build_safety_rails() -> void:
 	_add_rail("LowerForward", Transform3D(Basis.IDENTITY, Vector3(-12.0, 0.65, 2.0)), Vector3(12.0, 1.3, 0.16))
 	_add_rail("LowerAft", Transform3D(Basis.IDENTITY, Vector3(-12.0, 0.65, 14.0)), Vector3(12.0, 1.3, 0.16))
 	_add_rail("LowerInboardAft", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 11.0)), Vector3(0.16, 1.3, 6.0))
-	_add_sloped_rail("MainRampForward", Vector3(6.0, 0.0, 2.0), Vector3(14.0, 3.6, 2.0))
-	_add_sloped_rail("MainRampAft", Vector3(6.0, 0.0, 8.0), Vector3(14.0, 3.6, 8.0))
+	_add_sloped_rail("MainRampForward", Vector3(6.0, 0.0, 2.0), Vector3(14.0, 3.6, 2.0), _main_ramp_rail_visual_mesh)
+	_add_sloped_rail("MainRampAft", Vector3(6.0, 0.0, 8.0), Vector3(14.0, 3.6, 8.0), _main_ramp_rail_visual_mesh)
 	_add_rail("UpperOutboard", Transform3D(Basis.IDENTITY, Vector3(26.0, 4.25, 5.0)), Vector3(0.16, 1.3, 10.0))
 	_add_rail("UpperForward", Transform3D(Basis.IDENTITY, Vector3(20.0, 4.25, 0.0)), Vector3(12.0, 1.3, 0.16))
 	_add_rail("UpperAftPort", Transform3D(Basis.IDENTITY, Vector3(17.0, 4.25, 10.0)), Vector3(6.0, 1.3, 0.16))
 	_add_rail("UpperInboardForward", Transform3D(Basis.IDENTITY, Vector3(14.0, 4.25, 1.0)), Vector3(0.16, 1.3, 2.0))
 	_add_rail("UpperInboardAft", Transform3D(Basis.IDENTITY, Vector3(14.0, 4.25, 9.0)), Vector3(0.16, 1.3, 2.0))
-	_add_sloped_rail("InspectionRampPort", Vector3(20.0, 3.6, 10.0), Vector3(20.0, 5.4, 14.0))
-	_add_sloped_rail("InspectionRampStarboard", Vector3(26.0, 3.6, 10.0), Vector3(26.0, 5.4, 14.0))
+	_add_sloped_rail("InspectionRampPort", Vector3(20.0, 3.6, 10.0), Vector3(20.0, 5.4, 14.0), _inspection_ramp_rail_visual_mesh)
+	_add_sloped_rail("InspectionRampStarboard", Vector3(26.0, 3.6, 10.0), Vector3(26.0, 5.4, 14.0), _inspection_ramp_rail_visual_mesh)
 	_add_rail("TopAft", Transform3D(Basis.IDENTITY, Vector3(23.0, 6.05, 18.0)), Vector3(6.0, 1.3, 0.16))
 	_add_rail("TopPort", Transform3D(Basis.IDENTITY, Vector3(20.0, 6.05, 16.0)), Vector3(0.16, 1.3, 4.0))
 	_add_rail("TopStarboard", Transform3D(Basis.IDENTITY, Vector3(26.0, 6.05, 16.0)), Vector3(0.16, 1.3, 4.0))
@@ -921,15 +1010,19 @@ func _build_safety_rails() -> void:
 	)
 
 
-func _add_rail(node_name: String, transform: Transform3D, size: Vector3) -> void:
-	var visual_mesh: BoxMesh = null
+func _add_rail(
+		node_name: String, transform: Transform3D, size: Vector3,
+		shared_visual_mesh: BoxMesh = null
+	) -> void:
+	var visual_mesh := shared_visual_mesh
 	var omit_hidden_renderer := node_name in SHORT_SIDE_RAIL_NAMES
-	if StringName(node_name) in LONG_RAIL_NAMES:
-		visual_mesh = _long_rail_visual_mesh
-	elif StringName(node_name) in ENTRY_FRONT_RAIL_NAMES:
-		visual_mesh = _entry_front_rail_visual_mesh
-	elif StringName(node_name) in TOP_SIDE_RAIL_NAMES:
-		visual_mesh = _top_side_rail_visual_mesh
+	if visual_mesh == null:
+		if StringName(node_name) in LONG_RAIL_NAMES:
+			visual_mesh = _long_rail_visual_mesh
+		elif StringName(node_name) in ENTRY_FRONT_RAIL_NAMES:
+			visual_mesh = _entry_front_rail_visual_mesh
+		elif StringName(node_name) in TOP_SIDE_RAIL_NAMES:
+			visual_mesh = _top_side_rail_visual_mesh
 	var rail := _box_body(
 		_build_root, node_name, transform, size, _materials.rail, visual_mesh,
 		omit_hidden_renderer
@@ -971,11 +1064,13 @@ func _append_rail_detail_transforms(rail_transform: Transform3D, size: Vector3) 
 		)
 
 
-func _add_sloped_rail(node_name: String, start: Vector3, finish: Vector3) -> void:
+func _add_sloped_rail(
+		node_name: String, start: Vector3, finish: Vector3, visual_mesh: BoxMesh
+	) -> void:
 	var direction := finish - start
 	var basis := _basis_with_local_back_along(direction)
 	var transform := Transform3D(basis, (start + finish) * 0.5 + Vector3.UP * 0.65)
-	_add_rail(node_name, transform, Vector3(0.16, 1.3, direction.length()))
+	_add_rail(node_name, transform, Vector3(0.16, 1.3, direction.length()), visual_mesh)
 
 
 func _build_batched_supports_and_dressing() -> void:
