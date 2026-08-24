@@ -43,6 +43,7 @@ func _run() -> void:
 	_test_low_route_light_batch(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
+	_test_manufactured_material_roles(module)
 	_test_ceiling_luminaire_lens_batch(module)
 	_test_pod_corner_collar_visual_resource_sharing(module)
 	_test_junction_arc_tile_batch(module)
@@ -408,6 +409,57 @@ func _test_operations_contents(module: AftJunctionStack) -> void:
 	_check(furniture_tagged, "operations furniture exposes stable semantic metadata")
 	var service_wall := module.get_service_wall()
 	_check(service_wall != null and bool(service_wall.get_meta("station_service_wall", false)), "service wall is present and semantically tagged")
+
+
+func _test_manufactured_material_roles(module: AftJunctionStack) -> void:
+	var materials := module.get("_materials") as Dictionary
+	# Authored albedo, metallic and roughness freeze the operations room's cool
+	# shell against its warm handled brass. Only the shared clearcoat role changes.
+	var specs := {
+		&"off_white_floor": [Color("cbd0ce"), 0.26, 0.52, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"warm_grey_floor": [Color("818b8b"), 0.30, 0.55, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"mid_grey_floor": [Color("526166"), 0.38, 0.50, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"hull_dark_floor": [Color("29363a"), 0.40, 0.46, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"off_white": [Color("cbd0ce"), 0.38, 0.34, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		&"mid_grey": [Color("526166"), 0.58, 0.31, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		&"hull_dark": [Color("29363a"), 0.62, 0.28, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		&"panel_light": [Color("aeb8b8"), 0.42, 0.29, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		&"warm_grey": [Color("818b8b"), 0.46, 0.39, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		&"brass": [Color("d0a350"), 0.46, 0.44, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS],
+	}
+	var mapped_materials := {}
+	for raw_material in materials.values():
+		var mapped := raw_material as StandardMaterial3D
+		if mapped != null and mapped.uv1_world_triplanar:
+			mapped_materials[mapped.get_instance_id()] = mapped
+	var roles_exact := true
+	for material_id: StringName in specs:
+		var material := materials.get(material_id) as StandardMaterial3D
+		var spec := specs[material_id] as Array
+		roles_exact = (
+			roles_exact
+			and material != null
+			and mapped_materials.has(material.get_instance_id())
+			and material.albedo_color.is_equal_approx(spec[0] as Color)
+			and is_equal_approx(material.metallic, float(spec[1]))
+			and is_equal_approx(material.roughness, float(spec[2]))
+			and material.albedo_texture != null
+			and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH
+			and material.normal_enabled
+			and material.normal_texture != null
+			and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH
+			and material.roughness_texture != null
+			and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH
+			and material.uv1_triplanar
+			and material.uv1_scale.is_equal_approx(Vector3.ONE * AftJunctionStack.PANEL_SURFACE_SCALE)
+			and material.clearcoat_enabled
+			and is_equal_approx(material.clearcoat, float(spec[3]))
+			and is_equal_approx(material.clearcoat_roughness, float(spec[4]))
+		)
+	_check(
+		roles_exact and mapped_materials.size() == specs.size(),
+		"walked deck/grip, structural frame, painted wall/machinery and warm trim keep exact hues and StationSurfaceKit finish roles"
+	)
 
 
 func _test_ceiling_luminaire_lens_batch(module: AftJunctionStack) -> void:

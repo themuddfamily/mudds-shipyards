@@ -2780,32 +2780,38 @@ func _create_materials() -> void:
 	# field across them would read as printed steel.
 	_materials["fabric"] = _material(Color("5d6b63"), 0.0, 0.94)
 	_materials["paper"] = _material(Color("d9d7cd"), 0.0, 0.88)
-	# One call per key into the published kit recipe, rather than a fourth inline
-	# copy of it. The recipe includes `normal_scale = 1.0`, re-frozen from 0.48 by
-	# a rendered sweep at 0.48 / 1.0 / 1.4 / 1.9: at 0.48 a plated wall at eye
-	# height is nearly featureless, at 1.9 the plate faces dome into embossed
-	# plastic. Every module shares the constant so a deck and the wall beside it
-	# cannot disagree — which is exactly what an inline copy per module was free to
-	# get wrong.
-	for key in [
-		"off_white",
-		"off_white_floor",
-		"panel_light",
-		"warm_grey",
-		"warm_grey_floor",
-		"mid_grey_floor",
-		"hull_dark_floor",
-		# `mid_grey` and `hull_dark` are the same colours as their `_floor`
-		# twins and were the module's last flat scalar structural greys, so a
-		# wall read as plastic while the plated floor met it at the skirting.
-		"mid_grey",
-		"hull_dark",
-		# Brass furniture. The handrails and collars are the parts a player stands
-		# closest to; leaving them scalar put a flat yellow stick on top of a
-		# plated post at arm's reach.
-		"brass",
-	]:
-		StationSurfaceKit.apply_panel_triplanar(_materials[key] as StandardMaterial3D, PANEL_SURFACE_SCALE)
+	# Keep the operations room's authored cool pressure shell and warm handled
+	# metal palette, but separate the response of the physical roles a player can
+	# read at walking distance. These are the same ten material resources that
+	# already feed every mesh and MultiMesh: only their shared-kit finish changes,
+	# so layout, collision, navigation, labels, lights and render allocations stay
+	# outside this pass.
+	var finish_by_key := {
+		# Deck slabs, stair treads and dark pressure/grip plates share the worn top
+		# layer expected of trafficked surfaces.
+		"off_white_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"warm_grey_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"mid_grey_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"hull_dark_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		# Bright frame stock plus the darker load-bearing lattice remain alloy.
+		"off_white": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		"mid_grey": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		"hull_dark": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		# Light pressure panels, walls and machinery housings retain a painted read.
+		"panel_light": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"warm_grey": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		# Warm handrails, collars and furniture stay distinct close metal trim.
+		"brass": StationSurfaceKit.PanelFinish.METAL_TRIM,
+	}
+	# The recipe includes the published normal depth and the module's frozen 0.30
+	# m scale; the finish profile owns clearcoat only and cannot rewrite hue or PBR
+	# scalar values declared above.
+	for key: String in finish_by_key:
+		StationSurfaceKit.apply_panel_triplanar(
+			_materials[key] as StandardMaterial3D,
+			PANEL_SURFACE_SCALE,
+			finish_by_key[key]
+		)
 
 
 func _build_structure() -> void:
