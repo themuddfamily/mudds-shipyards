@@ -4,7 +4,7 @@ const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_clus
 const LOCATION_ID: StringName = &"cinder_reach"
 const GENERATION := 7
 const TICK := 1.0 / 60.0
-const EXPECTED_AUTHORED_RENDERER_COUNT := 219
+const EXPECTED_AUTHORED_RENDERER_COUNT := 218
 const EXPECTED_BOUND_RENDERER_COUNT := 222
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
@@ -13,6 +13,8 @@ const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	+ "|cinder-extraction-arm-collars|3|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	+ "|cinder-streaming-aperture-lenses|8|-1;"
+	+ "ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
+	+ "|cinder-streaming-scorched-bays|4|4;"
 	+ "StreamingBeaconMastBatch|cinder-streaming-beacon-masts|4|4;"
 	+ "StreamingBeaconTrimRingBatch|cinder-streaming-beacon-trim-rings|4|4"
 )
@@ -20,6 +22,12 @@ const EXPECTED_ARM_COLLAR_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(0.0, -6.0, 0.0)),
 	Transform3D(Basis.IDENTITY, Vector3(0.0, -17.0, 0.0)),
 	Transform3D(Basis.IDENTITY, Vector3(0.0, -28.0, 0.0)),
+]
+const EXPECTED_SCORCHED_BAY_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(-4.62, 0.0, -18.0)),
+	Transform3D(Basis.IDENTITY, Vector3(4.62, 0.0, -18.0)),
+	Transform3D(Basis.IDENTITY, Vector3(-4.62, 0.0, 6.0)),
+	Transform3D(Basis.IDENTITY, Vector3(4.62, 0.0, 6.0)),
 ]
 
 var _assertions := 0
@@ -173,12 +181,37 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 	)
 	_check(
 		_integrated_batch_roster_contract(cluster, hidden),
-		"the bound renderer roster has the exact extraction-collar, aperture-lens, beacon-mast, and beacon-trim batch fingerprint"
+		"the bound renderer roster has the exact extraction-collar, aperture-lens, scorched-bay, beacon-mast, and beacon-trim batch fingerprint"
 	)
 	_check(
 		_aperture_lens_batch_contract(cluster),
 		"eight semantic aperture lenses retain exact transforms and renderer settings behind one bounded MultiMesh"
 	)
+	_check(
+		_scorched_bay_batch_contract(cluster),
+		"four immutable scorched-bay surfaces retain exact transforms and renderer settings behind one bounded MultiMesh submission"
+	)
+	var peer := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	peer.set_meta(&"world_location_id", LOCATION_ID)
+	peer.set_meta(&"world_location_generation", GENERATION + 1)
+	root.add_child(peer)
+	await process_frame
+	var batch := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
+	) as MultiMeshInstance3D
+	var peer_batch := peer.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
+	) as MultiMeshInstance3D
+	_check(
+		_scorched_bay_batch_contract(peer)
+		and batch != null and peer_batch != null
+		and batch.material_override != null
+		and peer_batch.material_override != null
+		and batch.material_override != peer_batch.material_override,
+		"concurrent streamed generations retain isolated scorched-bay materials"
+	)
+	peer.queue_free()
+	await process_frame
 	_check(
 		_beacon_trim_ring_batch_contract(cluster),
 		"four static beacon trim rings retain exact transforms and renderer settings behind one bounded MultiMesh"
@@ -384,6 +417,7 @@ func _integrated_batch_roster_contract(
 		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar",
 		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar",
 		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch",
+		^"ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch",
 		^"StreamingBeaconMastBatch",
 		^"StreamingBeaconTrimRingBatch",
 	]
@@ -394,6 +428,7 @@ func _integrated_batch_roster_contract(
 		if family in [
 			&"cinder-extraction-arm-collars",
 			&"cinder-streaming-aperture-lenses",
+			&"cinder-streaming-scorched-bays",
 			&"cinder-streaming-beacon-masts",
 			&"cinder-streaming-beacon-trim-rings",
 		]:
@@ -421,7 +456,7 @@ func _integrated_batch_roster_contract(
 						"*", "CollisionShape3D", true, false
 					).is_empty():
 				return false
-	return integrated_family_count == 5 \
+	return integrated_family_count == 6 \
 		and ";".join(rows) == EXPECTED_INTEGRATED_BATCH_FINGERPRINT
 
 
@@ -474,6 +509,58 @@ func _aperture_lens_batch_contract(cluster: NearbySectorCluster) -> bool:
 		and batch.ignore_occlusion_culling == exemplar.ignore_occlusion_culling \
 		and batch.gi_mode == exemplar.gi_mode \
 		and batch.lod_bias == exemplar.lod_bias
+
+
+func _scorched_bay_batch_contract(cluster: NearbySectorCluster) -> bool:
+	var platform := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var batch := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
+	) as MultiMeshInstance3D
+	if platform == null or batch == null or batch.multimesh == null:
+		return false
+	var multi := batch.multimesh
+	var transforms := batch.get_meta(
+		&"authored_instance_transforms", []
+	) as Array
+	var source_paths := batch.get_meta(&"semantic_source_paths", []) as Array
+	if multi.instance_count != 4 \
+			or multi.visible_instance_count != 4 \
+			or multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.custom_aabb.size.length_squared() <= 0.0 \
+			or transforms != EXPECTED_SCORCHED_BAY_TRANSFORMS \
+			or source_paths.size() != 4 \
+			or batch.get_meta(&"visual_batch_family_id", &"") \
+				!= &"cinder-streaming-scorched-bays":
+		return false
+	var sources: Array[MeshInstance3D] = []
+	for index in source_paths.size():
+		var source := cluster.get_node_or_null(
+			source_paths[index]
+		) as MeshInstance3D
+		if source == null or source.visible or source.mesh == null \
+				or not source.get_children().is_empty() \
+				or not source.transform.is_equal_approx(transforms[index]):
+			return false
+		sources.append(source)
+	var exemplar := sources[0]
+	return multi.mesh == exemplar.mesh \
+		and batch.material_override == exemplar.material_override \
+		and batch.material_overlay == exemplar.material_overlay \
+		and batch.cast_shadow == exemplar.cast_shadow \
+		and batch.layers == exemplar.layers \
+		and batch.visibility_range_begin == exemplar.visibility_range_begin \
+		and batch.visibility_range_end == exemplar.visibility_range_end \
+		and batch.visibility_range_begin_margin == exemplar.visibility_range_begin_margin \
+		and batch.visibility_range_end_margin == exemplar.visibility_range_end_margin \
+		and batch.visibility_range_fade_mode == exemplar.visibility_range_fade_mode \
+		and batch.extra_cull_margin == exemplar.extra_cull_margin \
+		and batch.ignore_occlusion_culling == exemplar.ignore_occlusion_culling \
+		and batch.gi_mode == exemplar.gi_mode \
+		and batch.lod_bias == exemplar.lod_bias \
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty() \
+		and batch.find_children("*", "CollisionShape3D", true, false).is_empty()
 
 
 func _beacon_trim_ring_batch_contract(cluster: NearbySectorCluster) -> bool:

@@ -12,7 +12,7 @@ const UNLOAD_BOUNDARY_METERS := 650.0
 const FADE_IN_SECONDS := 0.5
 const FADE_OUT_SECONDS := 0.5
 const MAX_RETAINED_DISTANCE_METERS := 725.0
-const EXPECTED_AUTHORED_RENDERER_COUNT := 219
+const EXPECTED_AUTHORED_RENDERER_COUNT := 218
 const EXPECTED_BOUND_RENDERER_COUNT := 222
 const EXPECTED_LIGHT_COUNT := 27
 const EPSILON := 0.000001
@@ -38,6 +38,14 @@ const APERTURE_FRAME_PATHS: Array[NodePath] = [
 	^"ExtractionPlatform/CinderReachPlatform/GantryFrame1",
 	^"ExtractionPlatform/CinderReachPlatform/GantryFrame2",
 ]
+const SCORCHED_BAY_BATCH_NAME: StringName = &"StreamingScorchedBayBatch"
+const SCORCHED_BAY_FAMILY_ID: StringName = &"cinder-streaming-scorched-bays"
+const SCORCHED_BAY_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(-4.62, 0.0, -18.0)),
+	Transform3D(Basis.IDENTITY, Vector3(4.62, 0.0, -18.0)),
+	Transform3D(Basis.IDENTITY, Vector3(-4.62, 0.0, 6.0)),
+	Transform3D(Basis.IDENTITY, Vector3(4.62, 0.0, 6.0)),
+]
 const BEACON_TRIM_RING_BATCH_NAME: StringName = &"StreamingBeaconTrimRingBatch"
 const BEACON_TRIM_RING_FAMILY_ID: StringName = &"cinder-streaming-beacon-trim-rings"
 const BEACON_TRIM_RING_PATHS: Array[NodePath] = [
@@ -61,6 +69,8 @@ const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	+ "|cinder-extraction-arm-collars|3|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	+ "|cinder-streaming-aperture-lenses|8|-1;"
+	+ "ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
+	+ "|cinder-streaming-scorched-bays|4|4;"
 	+ "StreamingBeaconMastBatch|cinder-streaming-beacon-masts|4|4;"
 	+ "StreamingBeaconTrimRingBatch|cinder-streaming-beacon-trim-rings|4|4"
 )
@@ -112,6 +122,10 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	if aperture_lens_family.is_empty():
 		content_root.visible = false
 		return _result(false, &"aperture_lens_family_mismatch")
+	var scorched_bay_family := _validate_scorched_bay_family(content_root)
+	if scorched_bay_family.is_empty():
+		content_root.visible = false
+		return _result(false, &"scorched_bay_family_mismatch")
 	var beacon_trim_ring_family := _validate_beacon_trim_ring_family(content_root)
 	if beacon_trim_ring_family.is_empty():
 		content_root.visible = false
@@ -126,6 +140,9 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	var aperture_lens_batch := _build_aperture_lens_batch(
 		content_root, aperture_lens_family
 	)
+	var scorched_bay_batch := _build_scorched_bay_batch(
+		content_root, scorched_bay_family
+	)
 	var beacon_trim_ring_batch := _build_beacon_trim_ring_batch(
 		content_root, beacon_trim_ring_family
 	)
@@ -133,6 +150,7 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 		content_root, beacon_mast_family
 	)
 	renderers.append(aperture_lens_batch)
+	renderers.append(scorched_bay_batch)
 	renderers.append(beacon_trim_ring_batch)
 	renderers.append(beacon_mast_batch)
 	_content_root = content_root
@@ -425,6 +443,9 @@ func _build_integrated_batch_fingerprint(content_root: Node3D) -> String:
 	paths.append(
 		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	)
+	paths.append(
+		^"ExtractionPlatform/CinderReachPlatform/StreamingScorchedBayBatch"
+	)
 	paths.append(^"StreamingBeaconMastBatch")
 	paths.append(^"StreamingBeaconTrimRingBatch")
 	for batch_path in paths:
@@ -535,6 +556,111 @@ func _build_aperture_lens_batch(
 	platform.add_child(batch)
 	for lens in family:
 		lens.visible = false
+	return batch
+
+
+## Four identical charred bay plates are immutable visual surface damage. They
+## are childless, collision-free leaves with one cached mesh/material recipe;
+## their duplicate authored names remain hidden on the platform while this
+## generation-local batch draws the exact four transforms in one submission.
+func _validate_scorched_bay_family(content_root: Node3D) -> Array[MeshInstance3D]:
+	var platform := content_root.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	if platform == null:
+		return []
+	var family: Array[MeshInstance3D] = []
+	var exemplar: MeshInstance3D
+	for expected_transform in SCORCHED_BAY_TRANSFORMS:
+		var bay: MeshInstance3D
+		for child in platform.get_children():
+			var candidate := child as MeshInstance3D
+			if candidate != null and candidate.transform.is_equal_approx(
+				expected_transform
+			):
+				bay = candidate
+				break
+		if bay == null:
+			return []
+		if bay.mesh == null or not bay.get_children().is_empty() \
+				or bay.has_meta(&"activity_id") \
+				or bay.has_meta(&"presentation_state"):
+			return []
+		if exemplar == null:
+			exemplar = bay
+		elif bay.mesh != exemplar.mesh \
+				or bay.material_override != exemplar.material_override \
+				or bay.material_overlay != exemplar.material_overlay \
+				or bay.cast_shadow != exemplar.cast_shadow \
+				or bay.layers != exemplar.layers \
+				or bay.transparency != exemplar.transparency \
+				or bay.visibility_range_begin != exemplar.visibility_range_begin \
+				or bay.visibility_range_end != exemplar.visibility_range_end \
+				or bay.visibility_range_begin_margin != exemplar.visibility_range_begin_margin \
+				or bay.visibility_range_end_margin != exemplar.visibility_range_end_margin \
+				or bay.visibility_range_fade_mode != exemplar.visibility_range_fade_mode \
+				or bay.extra_cull_margin != exemplar.extra_cull_margin \
+				or bay.ignore_occlusion_culling != exemplar.ignore_occlusion_culling \
+				or bay.gi_mode != exemplar.gi_mode \
+				or bay.lod_bias != exemplar.lod_bias:
+			return []
+		family.append(bay)
+	if family[0].name != &"ScorchedBay":
+		return []
+	return family
+
+
+func _build_scorched_bay_batch(
+		content_root: Node3D, family: Array[MeshInstance3D]
+	) -> MultiMeshInstance3D:
+	var platform := content_root.get_node(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var exemplar := family[0]
+	var bounds := AABB()
+	var has_bounds := false
+	for transform_value in SCORCHED_BAY_TRANSFORMS:
+		var instance_bounds := transform_value * exemplar.mesh.get_aabb()
+		bounds = bounds.merge(instance_bounds) if has_bounds else instance_bounds
+		has_bounds = true
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = exemplar.mesh
+	multi.instance_count = SCORCHED_BAY_TRANSFORMS.size()
+	multi.visible_instance_count = SCORCHED_BAY_TRANSFORMS.size()
+	for index in SCORCHED_BAY_TRANSFORMS.size():
+		multi.set_instance_transform(index, SCORCHED_BAY_TRANSFORMS[index])
+	multi.custom_aabb = bounds
+
+	var batch := MultiMeshInstance3D.new()
+	batch.name = SCORCHED_BAY_BATCH_NAME
+	batch.multimesh = multi
+	batch.material_override = exemplar.material_override
+	batch.material_overlay = exemplar.material_overlay
+	batch.cast_shadow = exemplar.cast_shadow
+	batch.layers = exemplar.layers
+	batch.transparency = exemplar.transparency
+	batch.visibility_range_begin = exemplar.visibility_range_begin
+	batch.visibility_range_end = exemplar.visibility_range_end
+	batch.visibility_range_begin_margin = exemplar.visibility_range_begin_margin
+	batch.visibility_range_end_margin = exemplar.visibility_range_end_margin
+	batch.visibility_range_fade_mode = exemplar.visibility_range_fade_mode
+	batch.extra_cull_margin = exemplar.extra_cull_margin
+	batch.ignore_occlusion_culling = exemplar.ignore_occlusion_culling
+	batch.gi_mode = exemplar.gi_mode
+	batch.lod_bias = exemplar.lod_bias
+	batch.set_meta(&"visual_batch_family_id", SCORCHED_BAY_FAMILY_ID)
+	batch.set_meta(
+		&"authored_instance_transforms", SCORCHED_BAY_TRANSFORMS.duplicate()
+	)
+	var source_paths: Array[NodePath] = []
+	for bay in family:
+		source_paths.append(content_root.get_path_to(bay))
+	batch.set_meta(&"semantic_source_paths", source_paths)
+	platform.add_child(batch)
+	for bay in family:
+		bay.visible = false
 	return batch
 
 
