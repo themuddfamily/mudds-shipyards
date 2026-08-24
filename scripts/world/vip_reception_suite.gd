@@ -126,7 +126,8 @@ const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 ## exterior roof cassettes, six bronze outboard mullion fillets, three servery
 ## shelves, six collision-backed outboard mullions, seven banquette cushions,
 ## eight armchair arms, four port-shell rib heads, four downlight housings, four
-## downlight lenses and four port-wall pilaster fillets still draw, but eleven
+## downlight lenses, four port-wall pilaster fillets and four collision-backed
+## clerestory mullions still draw, but twelve
 ## MultiMeshes own their visual-only submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const BANQUETTE_CUSHION_COPY_COUNT := 7
@@ -139,6 +140,7 @@ const PORT_SHELL_RIB_HEAD_COPY_COUNT := 4
 const PERIMETER_DOWNLIGHT_HOUSING_COPY_COUNT := 4
 const PERIMETER_DOWNLIGHT_LENS_COPY_COUNT := 4
 const PORT_PILASTER_FILLET_COPY_COUNT := 4
+const CLERESTORY_MULLION_COPY_COUNT := 4
 const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
 const BASELINE_RENDER_MULTIMESH_BATCH_COUNT := 1
@@ -157,11 +159,11 @@ const PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT := 243
 const PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT := 236
 const PRE_DOWNLIGHT_HOUSING_GEOMETRY_SUBMISSION_COUNT := 230
 const PRE_PORT_PILASTER_FILLET_GEOMETRY_SUBMISSION_COUNT := 227
-const RENDER_DESCENDANT_COUNT := 457
-const RENDER_MESH_INSTANCE_COUNT := 240
-const RENDER_MULTIMESH_BATCH_COUNT := 11
+const RENDER_DESCENDANT_COUNT := 454
+const RENDER_MESH_INSTANCE_COUNT := 236
+const RENDER_MULTIMESH_BATCH_COUNT := 12
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 224
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 221
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -217,6 +219,8 @@ var _perimeter_downlight_lens_transforms: Array[Transform3D] = []
 var _perimeter_downlight_lens_batch: MultiMeshInstance3D = null
 var _port_pilaster_fillet_transforms: Array[Transform3D] = []
 var _port_pilaster_fillet_batch: MultiMeshInstance3D = null
+var _clerestory_mullion_transforms: Array[Transform3D] = []
+var _clerestory_mullion_batch: MultiMeshInstance3D = null
 var _built := false
 var _module_enabled := true
 
@@ -537,6 +541,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP outboard-mullion batch bounds drifted from its authored copies")
 	if not bool(rendering.outboard_mullion_visual_contract_matches):
 		errors.append("VIP outboard-mullion visual contract drifted")
+	if not bool(rendering.clerestory_mullion_renderer_buffer_matches_authored):
+		errors.append("VIP clerestory-mullion renderer buffer drifted from its authored roster")
+	if not bool(rendering.clerestory_mullion_bounds_match_authored):
+		errors.append("VIP clerestory-mullion batch bounds drifted from its authored copies")
+	if not bool(rendering.clerestory_mullion_visual_contract_matches):
+		errors.append("VIP clerestory-mullion visual contract drifted")
 	if not bool(rendering.armchair_arm_renderer_buffer_matches_authored):
 		errors.append("VIP armchair-arm renderer buffer drifted from its authored roster")
 	if not bool(rendering.armchair_arm_bounds_match_authored):
@@ -785,6 +795,31 @@ func get_render_batch_contract() -> Dictionary:
 			and _outboard_mullion_batch.get_child_count() == 0
 			and _outboard_mullion_batch.get_script() == null
 		)
+	var expected_clerestory_mullion_buffer := _encode_multimesh_transforms(_clerestory_mullion_transforms)
+	var clerestory_mullion_renderer_buffer_matches := (
+		is_instance_valid(_clerestory_mullion_batch)
+		and _clerestory_mullion_batch.multimesh != null
+		and _clerestory_mullion_batch.multimesh.buffer == expected_clerestory_mullion_buffer
+	)
+	var clerestory_mullion_bounds_match := false
+	var clerestory_mullion_visual_contract_matches := false
+	if is_instance_valid(_clerestory_mullion_batch) and _clerestory_mullion_batch.multimesh != null:
+		var expected_clerestory_mullion_bounds := _transformed_mesh_bounds(
+			_clerestory_mullion_batch.multimesh.mesh.get_aabb(), _clerestory_mullion_transforms
+		)
+		clerestory_mullion_bounds_match = _clerestory_mullion_batch.multimesh.custom_aabb.is_equal_approx(expected_clerestory_mullion_bounds)
+		clerestory_mullion_visual_contract_matches = (
+			_clerestory_mullion_batch.multimesh.instance_count == CLERESTORY_MULLION_COPY_COUNT
+			and _clerestory_mullion_batch.multimesh.visible_instance_count == -1
+			and _clerestory_mullion_batch.multimesh.mesh.get_surface_count() == 1
+			and _clerestory_mullion_batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.42, 0.9, 0.2))
+			and _clerestory_mullion_batch.material_override == _materials.get("pearl_deep")
+			and _clerestory_mullion_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _clerestory_mullion_batch.layers == 1
+			and _clerestory_mullion_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _clerestory_mullion_batch.get_child_count() == 0
+			and _clerestory_mullion_batch.get_script() == null
+		)
 	var expected_armchair_arm_buffer := _encode_multimesh_transforms(
 		_armchair_arm_transforms
 	)
@@ -972,6 +1007,7 @@ func get_render_batch_contract() -> Dictionary:
 		and _perimeter_downlight_housing_transforms.size() == PERIMETER_DOWNLIGHT_HOUSING_COPY_COUNT
 		and _perimeter_downlight_lens_transforms.size() == PERIMETER_DOWNLIGHT_LENS_COPY_COUNT
 		and _port_pilaster_fillet_transforms.size() == PORT_PILASTER_FILLET_COPY_COUNT
+		and _clerestory_mullion_transforms.size() == CLERESTORY_MULLION_COPY_COUNT
 	)
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -1052,6 +1088,7 @@ func get_render_batch_contract() -> Dictionary:
 		"roof_cassette_copies": _roof_cassette_transforms.size(),
 		"outboard_mullion_fillet_copies": _outboard_mullion_fillet_transforms.size(),
 		"outboard_mullion_copies": _outboard_mullion_transforms.size(),
+		"clerestory_mullion_copies": _clerestory_mullion_transforms.size(),
 		"banquette_renderer_buffer_floats": (
 			_banquette_joint_batch.multimesh.buffer.size()
 			if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -1076,6 +1113,11 @@ func get_render_batch_contract() -> Dictionary:
 			_outboard_mullion_batch.multimesh.buffer.size()
 			if is_instance_valid(_outboard_mullion_batch)
 			and _outboard_mullion_batch.multimesh != null else 0
+		),
+		"clerestory_mullion_renderer_buffer_floats": (
+			_clerestory_mullion_batch.multimesh.buffer.size()
+			if is_instance_valid(_clerestory_mullion_batch)
+			and _clerestory_mullion_batch.multimesh != null else 0
 		),
 		"armchair_arm_renderer_buffer_floats": (
 			_armchair_arm_batch.multimesh.buffer.size()
@@ -1115,6 +1157,9 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_outboard_mullion_batch.multimesh.buffer.size()
 				if is_instance_valid(_outboard_mullion_batch)
 				and _outboard_mullion_batch.multimesh != null else 0)
+			+ (_clerestory_mullion_batch.multimesh.buffer.size()
+				if is_instance_valid(_clerestory_mullion_batch)
+				and _clerestory_mullion_batch.multimesh != null else 0)
 			+ (_banquette_cushion_batch.multimesh.buffer.size()
 				if is_instance_valid(_banquette_cushion_batch)
 				and _banquette_cushion_batch.multimesh != null else 0)
@@ -1147,6 +1192,9 @@ func get_render_batch_contract() -> Dictionary:
 		"outboard_mullion_renderer_buffer_matches_authored": structural_mullion_renderer_buffer_matches,
 		"outboard_mullion_bounds_match_authored": structural_mullion_bounds_match,
 		"outboard_mullion_visual_contract_matches": structural_mullion_visual_contract_matches,
+		"clerestory_mullion_renderer_buffer_matches_authored": clerestory_mullion_renderer_buffer_matches,
+		"clerestory_mullion_bounds_match_authored": clerestory_mullion_bounds_match,
+		"clerestory_mullion_visual_contract_matches": clerestory_mullion_visual_contract_matches,
 		"armchair_arm_renderer_buffer_matches_authored": armchair_arm_renderer_buffer_matches,
 		"armchair_arm_bounds_match_authored": armchair_arm_bounds_match,
 		"armchair_arm_visual_contract_matches": armchair_arm_visual_contract_matches,
@@ -1167,6 +1215,8 @@ func get_render_batch_contract() -> Dictionary:
 			and roof_renderer_buffer_matches
 			and mullion_renderer_buffer_matches
 			and structural_mullion_renderer_buffer_matches
+			and clerestory_mullion_renderer_buffer_matches
+			and clerestory_mullion_visual_contract_matches
 			and cushion_renderer_buffer_matches
 			and cushion_visual_contract_matches
 			and armchair_arm_renderer_buffer_matches
@@ -1182,6 +1232,7 @@ func get_render_batch_contract() -> Dictionary:
 		),
 		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
 			and mullion_bounds_match and structural_mullion_bounds_match \
+			and clerestory_mullion_bounds_match \
 			and cushion_bounds_match and armchair_arm_bounds_match \
 			and port_shell_rib_head_bounds_match and downlight_housing_bounds_match \
 			and downlight_lens_bounds_match and port_pilaster_fillet_bounds_match,
@@ -1261,6 +1312,7 @@ func get_render_batch_contract() -> Dictionary:
 			_outboard_mullion_fillet_transforms.duplicate()
 		),
 		"authored_outboard_mullion_transforms": _outboard_mullion_transforms.duplicate(),
+		"authored_clerestory_mullion_transforms": _clerestory_mullion_transforms.duplicate(),
 		"authored_armchair_arm_transforms": _armchair_arm_transforms.duplicate(),
 		"authored_port_shell_rib_head_transforms": _port_shell_rib_head_transforms.duplicate(),
 		"authored_perimeter_downlight_housing_transforms": _perimeter_downlight_housing_transforms.duplicate(),
@@ -1737,9 +1789,28 @@ func _build_outboard_glazing(structure: Node3D) -> void:
 	# their back to, so it earns its glass as light and silhouette, not as a view
 	# to stand at.
 	_box(glazing, "ClerestorySill", Vector3(-7.1, 2.75, 8.9), Vector3(WALL_THICKNESS, 0.3, 7.4), _materials["pearl_deep"])
+	var clerestory_mullion_transforms: Array[Transform3D] = []
 	for mullion_index in 4:
 		var clerestory_z := 5.2 + float(mullion_index) * 2.4667
-		_box(glazing, "ClerestoryMullion%02d" % (mullion_index + 1), Vector3(-7.1, 3.35, clerestory_z), Vector3(0.42, 0.9, 0.2), _materials["pearl_deep"])
+		var mullion := _box(
+			glazing,
+			"ClerestoryMullion%02d" % (mullion_index + 1),
+			Vector3(-7.1, 3.35, clerestory_z),
+			Vector3(0.42, 0.9, 0.2),
+			_materials["pearl_deep"],
+			true,
+			Vector3.ZERO,
+			false
+		)
+		clerestory_mullion_transforms.append(mullion.transform)
+	_clerestory_mullion_transforms.assign(clerestory_mullion_transforms)
+	_clerestory_mullion_batch = _multimesh_boxes(
+		glazing,
+		"ClerestoryMullions",
+		Vector3(0.42, 0.9, 0.2),
+		_materials["pearl_deep"],
+		_clerestory_mullion_transforms
+	)
 	for pane_index in 3:
 		var clerestory_pane_z := 6.4333 + float(pane_index) * 2.4667
 		_register_pane(_box(

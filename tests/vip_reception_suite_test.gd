@@ -125,6 +125,7 @@ func _run() -> void:
 	_test_port_pilaster_fillet_batch(suite)
 	_test_outboard_mullion_fillet_batch(suite)
 	_test_outboard_mullion_batch(suite)
+	_test_clerestory_mullion_batch(suite)
 	_test_servery_shelf_batch(suite)
 	_test_evidence_label(suite)
 	_test_is_not_a_fifth_station_module(world, suite)
@@ -315,20 +316,20 @@ func _test_banquette_joint_batch(suite: VipReceptionSuite) -> void:
 	var render := suite.get_render_batch_contract()
 	_check(
 		int(render.baseline_descendant_nodes) == 468
-		and int(render.descendant_nodes) == 457
+		and int(render.descendant_nodes) == 454
 		and int(render.baseline_mesh_instances) == 264
-		and int(render.mesh_instances) == 240
+		and int(render.mesh_instances) == 236
 		and int(render.baseline_multimesh_batches) == 1
-		and int(render.multimesh_batches) == 11,
-		"cumulative visual batching freezes descendants 468 -> 457, MeshInstances 264 -> 240, and batches 1 -> 11"
+		and int(render.multimesh_batches) == 12,
+		"cumulative visual batching freezes descendants 468 -> 454, MeshInstances 264 -> 236, and batches 1 -> 12"
 	)
 	_check(
 		int(render.baseline_drawn_copies) == 278
 		and int(render.drawn_copies) == 278
 		and int(render.baseline_geometry_submissions) == 265
-		and int(render.geometry_submissions) == 224
+		and int(render.geometry_submissions) == 221
 		and int(render.banquette_joint_copies) == 14,
-		"drawn copies remain 278 while batched families lower submissions 265 -> 224"
+		"drawn copies remain 278 while batched families lower submissions 265 -> 221"
 	)
 	_check(
 		int(render.banquette_renderer_buffer_floats) == 168
@@ -416,7 +417,7 @@ func _test_banquette_cushion_batch(suite: VipReceptionSuite) -> void:
 		int(render.banquette_cushion_baseline_submissions) == 7
 		and int(render.banquette_cushion_submissions) == 1
 		and int(render.pre_banquette_cushion_geometry_submissions) == 249
-		and int(render.geometry_submissions) == 224
+		and int(render.geometry_submissions) == 221
 		and int(render.banquette_cushion_geometry_submissions_removed) == 6
 		and int(render.drawn_copies) == 278,
 		"banquette cushions measure 7 -> 1 submissions while all seven visible copies remain"
@@ -524,7 +525,7 @@ func _test_armchair_arm_batch(suite: VipReceptionSuite) -> void:
 		and int(render.armchair_arm_baseline_submissions) == 8
 		and int(render.armchair_arm_submissions) == 1
 		and int(render.pre_armchair_arm_geometry_submissions) == 243
-		and int(render.geometry_submissions) == 224
+		and int(render.geometry_submissions) == 221
 		and int(render.armchair_arm_geometry_submissions_removed) == 7
 		and int(render.drawn_copies) == 278,
 		"armchair arms reduce submissions 8 -> 1 before the later rib-head batch"
@@ -672,7 +673,7 @@ func _test_roof_cassette_batch(suite: VipReceptionSuite) -> void:
 	_check(
 		int(render.roof_cassette_copies) == 5
 		and int(render.roof_cassette_renderer_buffer_floats) == 60
-		and int(render.renderer_buffer_floats) == 744
+		and int(render.renderer_buffer_floats) == 792
 		and bool(render.roof_cassette_renderer_buffer_matches_authored)
 		and bool(render.roof_cassette_bounds_match_authored)
 		and bool(render.renderer_buffer_matches_authored)
@@ -757,10 +758,10 @@ func _test_port_shell_rib_head_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_port_shell_rib_head_geometry_submissions) == 236
-		and int(render.geometry_submissions) == 224
+		and int(render.geometry_submissions) == 221
 		and int(render.port_shell_rib_head_baseline_submissions) == 4
 		and int(render.port_shell_rib_head_submissions) == 1
-		and int(render.port_shell_rib_head_geometry_submissions_removed) == 12
+		and int(render.port_shell_rib_head_geometry_submissions_removed) == 15
 		and int(render.drawn_copies) == 278
 		and bool(render.exact_counts),
 		"four retained copies reduce suite submissions 236 -> 224 after later visual trims"
@@ -888,10 +889,10 @@ func _test_port_pilaster_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_port_pilaster_fillet_geometry_submissions) == 227
-		and int(render.geometry_submissions) == 224
+		and int(render.geometry_submissions) == 221
 		and int(render.port_pilaster_fillet_baseline_submissions) == 4
 		and int(render.port_pilaster_fillet_submissions) == 1
-		and int(render.port_pilaster_fillet_geometry_submissions_removed) == 3
+		and int(render.port_pilaster_fillet_geometry_submissions_removed) == 6
 		and int(render.port_pilaster_fillet_baseline_mesh_instances) == 4
 		and int(render.port_pilaster_fillet_mesh_instances) == 0
 		and int(render.port_pilaster_fillet_multimesh_resources) == 1
@@ -962,13 +963,13 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		int(render.pre_mullion_descendant_nodes) == 464
-		and int(render.descendant_nodes) == 457
+		and int(render.descendant_nodes) == 454
 		and int(render.pre_mullion_mesh_instances) == 259
-		and int(render.mesh_instances) == 240
+		and int(render.mesh_instances) == 236
 		and int(render.pre_mullion_multimesh_batches) == 2
-		and int(render.multimesh_batches) == 11
+		and int(render.multimesh_batches) == 12
 		and int(render.pre_mullion_geometry_submissions) == 261
-		and int(render.geometry_submissions) == 224
+		and int(render.geometry_submissions) == 221
 		and int(render.drawn_copies) == 278,
 		"fillet family cuts six renderer nodes/submissions to one while preserving all drawn copies"
 	)
@@ -994,6 +995,60 @@ func _test_outboard_mullion_fillet_batch(suite: VipReceptionSuite) -> void:
 	)
 	multi.buffer = original_buffer
 	_check(suite.get_validation_errors().is_empty(), "restoring the fillet buffer restores a clean module audit")
+
+
+func _test_clerestory_mullion_batch(suite: VipReceptionSuite) -> void:
+	var glazing := suite.get_node_or_null(^"Structure/OutboardGlazing") as Node3D
+	var batch := glazing.get_node_or_null(^"ClerestoryMullions") as MultiMeshInstance3D if glazing != null else null
+	_check(glazing != null and batch != null and batch.multimesh != null, "four collision-backed clerestory mullions resolve through one glazing batch")
+	if glazing == null or batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	var collision_intact := true
+	for mullion_index in VipReceptionSuite.CLERESTORY_MULLION_COPY_COUNT:
+		var transform_value := Transform3D(Basis.IDENTITY, Vector3(-7.1, 3.35, 5.2 + float(mullion_index) * 2.4667))
+		expected.append(transform_value)
+		var body := glazing.get_node_or_null(NodePath("ClerestoryMullion%02d" % (mullion_index + 1))) as StaticBody3D
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D if body != null else null
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		collision_intact = collision_intact and body != null \
+			and body.transform.is_equal_approx(transform_value) \
+			and body.get_node_or_null(^"Mesh") == null \
+			and collision != null and collision.disabled == false \
+			and shape != null and shape.size.is_equal_approx(Vector3(0.42, 0.9, 0.2)) \
+			and body.collision_layer == WORLD_LAYER and body.collision_mask == 0
+	var render := suite.get_render_batch_contract()
+	var sill := glazing.get_node_or_null(^"ClerestorySill") as StaticBody3D
+	var sill_mesh := sill.get_node_or_null(^"Mesh") as MeshInstance3D if sill != null else null
+	_check(
+		collision_intact
+		and batch.multimesh.instance_count == VipReceptionSuite.CLERESTORY_MULLION_COPY_COUNT
+		and batch.multimesh.visible_instance_count == -1
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.42, 0.9, 0.2))
+		and batch.multimesh.mesh.get_surface_count() == 1
+		and sill_mesh != null and batch.material_override == sill_mesh.material_override
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1 and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"clerestory collision authority stays independent while the batch owns only the four visible copies"
+	)
+	_check(
+		(render.authored_clerestory_mullion_transforms as Array) == expected
+		and int(render.clerestory_mullion_renderer_buffer_floats) == 48
+		and bool(render.clerestory_mullion_renderer_buffer_matches_authored)
+		and bool(render.clerestory_mullion_bounds_match_authored)
+		and bool(render.clerestory_mullion_visual_contract_matches)
+		and int(render.geometry_submissions) == VipReceptionSuite.RENDER_GEOMETRY_SUBMISSION_COUNT
+		and int(render.drawn_copies) == VipReceptionSuite.RENDER_DRAWN_COPY_COUNT,
+		"clerestory batch preserves all exact transforms and copies while reducing submissions 4 -> 1"
+	)
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var mutated_buffer := original_buffer.duplicate()
+	mutated_buffer[3] += 0.25
+	batch.multimesh.buffer = mutated_buffer
+	_check(suite.get_validation_errors().has("VIP clerestory-mullion renderer buffer drifted from its authored roster"), "mutating one clerestory mullion pose is rejected by the module audit")
+	batch.multimesh.buffer = original_buffer
+	_check(suite.get_validation_errors().is_empty(), "restoring the clerestory payload restores a clean module audit")
 
 
 func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
@@ -1045,20 +1100,18 @@ func _test_outboard_mullion_batch(suite: VipReceptionSuite) -> void:
 		and bool(render.outboard_mullion_bounds_match_authored)
 		and bool(render.outboard_mullion_visual_contract_matches)
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.22, 3.35, 0.42))
-		and batch.material_override == suite.get_node(
-			^"Structure/OutboardGlazing/ClerestoryMullion01/Mesh"
-		).material_override,
+		and batch.material_override != null,
 		"one exact buffer preserves six pearl-deep mullion copies, transforms, bounds and material"
 	)
 	_check(
 		int(render.pre_outboard_mullion_descendant_nodes) == 460
-		and int(render.descendant_nodes) == 457
+		and int(render.descendant_nodes) == 454
 		and int(render.pre_outboard_mullion_mesh_instances) == 250
-		and int(render.mesh_instances) == 240
+		and int(render.mesh_instances) == 236
 		and int(render.pre_outboard_mullion_multimesh_batches) == 4
-		and int(render.multimesh_batches) == 11
+		and int(render.multimesh_batches) == 12
 		and int(render.pre_outboard_mullion_geometry_submissions) == 254
-		and int(render.geometry_submissions) == 224
+		and int(render.geometry_submissions) == 221
 		and int(render.drawn_copies) == 278,
 		"mullion batching removes five renderer submissions while preserving all 278 copies"
 	)
@@ -1203,6 +1256,13 @@ func _test_colliders_have_drawn_geometry(suite: VipReceptionSuite) -> void:
 		suite.get_render_batch_contract().authored_outboard_mullion_transforms
 		as Array
 	)
+	var clerestory_mullion_batch := suite.get_node_or_null(
+		^"Structure/OutboardGlazing/ClerestoryMullions"
+	) as MultiMeshInstance3D
+	var clerestory_mullion_transforms := (
+		suite.get_render_batch_contract().authored_clerestory_mullion_transforms
+		as Array
+	)
 	for candidate in suite.find_children("*", "StaticBody3D", true, false):
 		var body := candidate as StaticBody3D
 		var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
@@ -1223,6 +1283,14 @@ func _test_colliders_have_drawn_geometry(suite: VipReceptionSuite) -> void:
 				orphans.append(str(body.name))
 				continue
 			drawn = mullion_batch.multimesh.mesh.get_aabb().size
+		elif str(body.name).begins_with("ClerestoryMullion") \
+				and clerestory_mullion_batch != null and clerestory_mullion_batch.multimesh != null:
+			var clerestory_index := int(str(body.name).trim_prefix("ClerestoryMullion")) - 1
+			if clerestory_index < 0 or clerestory_index >= clerestory_mullion_transforms.size() \
+					or not (clerestory_mullion_transforms[clerestory_index] as Transform3D).origin.is_equal_approx(body.position):
+				orphans.append(str(body.name))
+				continue
+			drawn = clerestory_mullion_batch.multimesh.mesh.get_aabb().size
 		else:
 			orphans.append(str(body.name))
 			continue
