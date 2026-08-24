@@ -645,6 +645,29 @@ Focused affected-feature suites pass at the merged checkpoint. The full matrix w
 Human gameplay-distance visual review, real audio listening, representative Windows GPU and
 frame-time measurement, and an uninterrupted end-to-end playthrough remain `NOT_RUN`.
 
+### Wave 27/28 production reconciliation checkpoint — 2026-08-24
+
+This source checkpoint records player-visible and runtime changes intended for the next
+package:
+
+- The recurring full-screen service-drone flash now uses one assembly-wide near-camera
+  clearance bound across every body, pod, thruster, glow and navigation-lens surface. The
+  bound covers the exact furthest surface pair plus the production camera near plane and a
+  reserve, while far visibility remains unbounded; this replaces the incomplete per-part
+  cutoff that allowed remote pieces of a close drone to cross the camera plane.
+- Cinder interceptor, cargo-hauler and long-range-bomber component damage now has steady,
+  craft-specific silhouette feedback driven by the existing damage ledger. Station defence
+  adds a bounded revenge-dive response, and exterior range targets give clearer hit feedback.
+- Walked-route readability and station identity were strengthened at Halyard boarding,
+  Observation, Central Berth, Jovian, Fleet Dock, Ember, Habitat, Aft, Salvage Terrace and
+  Dock Operations. The Dock Operations floor pass consolidates the existing inset instead of
+  layering duplicate coplanar decoration.
+
+Focused affected-feature suites pass at the merged checkpoint. The complete matrix was not
+run. Native gameplay-distance review of the new source-current package, representative
+Windows performance measurement, real audio listening and an uninterrupted end-to-end
+playthrough remain `NOT_RUN`.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
