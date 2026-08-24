@@ -205,18 +205,56 @@ func _build_recovery_cue(path_length_m: float) -> void:
 	var local_start := _recovery_path_start - _anchor
 	var local_target := _recovery_target - _anchor
 	var dash_length := minf(0.75, path_length_m / float(RECOVERY_CUE_DASH_COUNT + 1))
+	var dash_mesh := BoxMesh.new()
+	dash_mesh.size = Vector3.ONE
+	var dash_instances := MultiMesh.new()
+	dash_instances.transform_format = MultiMesh.TRANSFORM_3D
+	dash_instances.mesh = dash_mesh
+	dash_instances.instance_count = RECOVERY_CUE_DASH_COUNT
+	dash_instances.visible_instance_count = -1
+	var direction_basis := Basis.looking_at(_recovery_direction, Vector3.UP)
+	var dash_transforms: Array[Transform3D] = []
+	var cue_bounds := AABB()
 	for index in RECOVERY_CUE_DASH_COUNT:
-		var dash := MeshInstance3D.new()
-		dash.name = "RecoveryDirectionDash%d" % (index + 1)
-		var dash_mesh := BoxMesh.new()
 		# Increasing widths form a directional silhouette even without color.
-		dash_mesh.size = Vector3(0.22 + float(index) * 0.18, 0.08, dash_length)
-		dash.mesh = dash_mesh
-		dash.material_override = _recovery_cue_material
+		var dash_basis := direction_basis
+		dash_basis.x *= 0.22 + float(index) * 0.18
+		dash_basis.y *= 0.08
+		dash_basis.z *= dash_length
 		var progress := float(index + 1) / float(RECOVERY_CUE_DASH_COUNT + 1)
-		dash.position = local_start.lerp(local_target, progress) + Vector3.UP * 0.16
-		dash.basis = Basis.looking_at(_recovery_direction, Vector3.UP)
-		_recovery_cue_root.add_child(dash)
+		var dash_position := local_start.lerp(local_target, progress) + Vector3.UP * 0.16
+		var dash_transform := Transform3D(dash_basis, dash_position)
+		dash_transforms.append(dash_transform)
+		var dash_bounds := (dash_transform * dash_mesh.get_aabb()).abs()
+		cue_bounds = dash_bounds if index == 0 else cue_bounds.merge(dash_bounds)
+	dash_instances.buffer = _encode_multimesh_transforms(dash_transforms)
+	dash_instances.custom_aabb = cue_bounds
+	var dash_batch := MultiMeshInstance3D.new()
+	dash_batch.name = "RecoveryDirectionDashBatch"
+	dash_batch.multimesh = dash_instances
+	dash_batch.material_override = _recovery_cue_material
+	_recovery_cue_root.add_child(dash_batch)
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
 
 
 func _set_recovery_cue_visible(value: bool) -> void:
