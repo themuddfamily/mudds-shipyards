@@ -66,6 +66,13 @@ const CONSOLE_CENTER_KEY_NAMES := [
 	"PortConsoleKey01",
 	"StarboardConsoleKey01",
 ]
+const STATUS_REPEATER_VISIBLE_COPIES := 2
+const STATUS_REPEATER_LEGACY_SUBMISSIONS := 2
+const STATUS_REPEATER_BATCH_SUBMISSIONS := 1
+const STATUS_REPEATER_NAMES := [
+	"PortStatusRepeater",
+	"StarboardStatusRepeater",
+]
 
 # The primary hull is immutable presentation stock. Fleet composition and ship
 # replacement can briefly retain multiple interceptors, so cache this exact
@@ -98,6 +105,7 @@ var _ship_perspective_audio_binding: RefCounted
 var _console_toggle_batch: MultiMeshInstance3D
 var _console_key_batch: MultiMeshInstance3D
 var _console_center_key_batch: MultiMeshInstance3D
+var _status_repeater_batch: MultiMeshInstance3D
 var _engine_damage_beacon_lens: MeshInstance3D
 var _engine_damage_beacon_light: OmniLight3D
 var _engine_damage_beacon_material: StandardMaterial3D
@@ -173,6 +181,7 @@ func _build_interceptor_variant(_controller: HeroShip) -> bool:
 	_batch_console_toggles(visual)
 	_batch_console_keys(visual)
 	_batch_console_center_keys(visual)
+	_batch_status_repeaters(visual)
 	_build_hull(visual)
 	_build_speed_silhouette(visual)
 	_build_engine_damage_beacon(visual)
@@ -739,6 +748,91 @@ func _batch_console_center_keys(visual: Node3D) -> void:
 	for key in keys:
 		key.free()
 	cockpit.add_child(_console_center_key_batch)
+
+
+## The mirrored cyan status repeaters are identical, childless display meshes
+## under one immutable instrument cluster. One two-instance renderer preserves
+## their exact positions, finish, and culling bounds while leaving the primary
+## display, functional cockpit nodes, lights, and command authority untouched.
+func _batch_status_repeaters(visual: Node3D) -> void:
+	var instrument_cluster := visual.get_node_or_null(
+		^"CockpitInterior/InstrumentCluster"
+	) as Node3D
+	if instrument_cluster == null:
+		return
+	var repeaters: Array[MeshInstance3D] = []
+	for repeater_name in STATUS_REPEATER_NAMES:
+		var repeater := instrument_cluster.get_node_or_null(repeater_name) as MeshInstance3D
+		if (
+			repeater == null
+			or repeater.get_child_count() != 0
+			or repeater.mesh == null
+			or repeater.get_script() != null
+			or not repeater.get_groups().is_empty()
+			or not repeater.get_meta_list().is_empty()
+		):
+			return
+		repeaters.append(repeater)
+	var source := repeaters[0]
+	var source_mesh := source.mesh
+	var source_material := _renderer_material(source)
+	for repeater in repeaters:
+		if (
+			repeater.mesh.get_class() != source_mesh.get_class()
+			or repeater.mesh.get_aabb() != source_mesh.get_aabb()
+			or repeater.mesh.get_surface_count() != source_mesh.get_surface_count()
+			or _renderer_material(repeater) != source_material
+			or repeater.material_override != source.material_override
+			or repeater.material_overlay != source.material_overlay
+			or repeater.visible != source.visible
+			or repeater.cast_shadow != source.cast_shadow
+			or repeater.layers != source.layers
+			or repeater.extra_cull_margin != source.extra_cull_margin
+			or repeater.ignore_occlusion_culling != source.ignore_occlusion_culling
+			or repeater.lod_bias != source.lod_bias
+			or repeater.visibility_range_begin != source.visibility_range_begin
+			or repeater.visibility_range_end != source.visibility_range_end
+			or repeater.visibility_range_begin_margin != source.visibility_range_begin_margin
+			or repeater.visibility_range_end_margin != source.visibility_range_end_margin
+			or repeater.visibility_range_fade_mode != source.visibility_range_fade_mode
+		):
+			return
+	var transforms: Array[Transform3D] = []
+	for repeater in repeaters:
+		transforms.append(repeater.transform)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = source_mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	multi.buffer = _encode_visual_transforms(transforms)
+	multi.custom_aabb = _visual_bounds(source_mesh.get_aabb(), transforms)
+	_status_repeater_batch = MultiMeshInstance3D.new()
+	_status_repeater_batch.name = "CinderStatusRepeaterBatch"
+	_status_repeater_batch.multimesh = multi
+	_status_repeater_batch.material_override = source.material_override
+	_status_repeater_batch.material_overlay = source.material_overlay
+	_status_repeater_batch.visible = source.visible
+	_status_repeater_batch.cast_shadow = source.cast_shadow
+	_status_repeater_batch.layers = source.layers
+	_status_repeater_batch.extra_cull_margin = source.extra_cull_margin
+	_status_repeater_batch.ignore_occlusion_culling = source.ignore_occlusion_culling
+	_status_repeater_batch.lod_bias = source.lod_bias
+	_status_repeater_batch.visibility_range_begin = source.visibility_range_begin
+	_status_repeater_batch.visibility_range_end = source.visibility_range_end
+	_status_repeater_batch.visibility_range_begin_margin = source.visibility_range_begin_margin
+	_status_repeater_batch.visibility_range_end_margin = source.visibility_range_end_margin
+	_status_repeater_batch.visibility_range_fade_mode = source.visibility_range_fade_mode
+	_status_repeater_batch.set_meta(&"visual_detail_only", true)
+	_status_repeater_batch.set_meta(&"presentation_only", true)
+	_status_repeater_batch.set_meta(&"gameplay_authority", false)
+	_status_repeater_batch.set_meta(
+		&"authored_visual_names", PackedStringArray(STATUS_REPEATER_NAMES)
+	)
+	_status_repeater_batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	for repeater in repeaters:
+		repeater.free()
+	instrument_cluster.add_child(_status_repeater_batch)
 
 
 static func _renderer_material(instance: MeshInstance3D) -> Material:
