@@ -16,6 +16,18 @@ func _run() -> void:
 	var contract := ContractScript.new()
 	_check(runtime.configure(contract).accepted, "authored navigation contract configures runtime")
 	_check(runtime.start_route(&"pad_to_surface_staging").accepted, "ordered surface route starts at first landmark")
+	var first_cue := runtime.get_next_landmark_feedback(Vector3(18.0, 120000.0, 0.0))
+	_check(
+		first_cue.accepted
+			and first_cue.cue.landmark_id == &"surface_staging_gate"
+			and first_cue.cue.label == "Surface Staging Gate"
+			and is_equal_approx(first_cue.cue.distance_m, 24.0)
+			and first_cue.cue.distance_band == &"nearby"
+			and first_cue.cue.controller_only and not first_cue.cue.raw_input
+			and not first_cue.cue.authority.navigation
+			and not first_cue.cue.authority.movement,
+		"active routes expose a detached, distance-aware controller cue without navigation authority"
+	)
 	_check(
 		runtime.submit_landmark_evidence(&"caldera_overlook", Vector3(42.0, 120000.0, 0.0)).reason == &"landmark_mismatch",
 		"wrong landmark evidence cannot skip the ordered waypoint"
@@ -32,6 +44,12 @@ func _run() -> void:
 			and first.runtime.waypoint_index == 1
 			and first.runtime.next_landmark_id == &"caldera_overlook",
 		"caller position evidence commits only the next authored waypoint"
+	)
+	var second_cue := runtime.get_next_landmark_feedback(Vector3(420.0, 120025.0, -180.0))
+	_check(
+		second_cue.accepted and second_cue.cue.landmark_id == &"caldera_overlook"
+			and second_cue.cue.distance_band == &"arriving",
+		"next-landmark feedback follows ordered route progress instead of selecting a target"
 	)
 	_check(runtime.interrupt(&"surface_route_lost").accepted, "active route interruption is recoverable")
 	var interrupted := runtime.get_snapshot()

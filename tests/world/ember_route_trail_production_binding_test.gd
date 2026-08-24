@@ -18,18 +18,36 @@ func _run() -> void:
 	var configured := binding.configure(host, director, Callable(self, "_reward_sink"), 9)
 	binding.submit_solar_observation(Vector3.UP, Vector3.DOWN, 0.0)
 	binding.submit_weather_exposure(&"caldera_thermal_vent", Vector3(58.0, 120000.0, -4.0), 1000.0, 1.0, 0.2, 1.0 / 60.0, 0.0)
+	var route_started := binding.start_relay_survey()
+	var stale_feedback := binding.submit_surface_navigation_feedback(
+		Vector3(18.0, 120000.0, 0.0), 8, 1, true
+	)
+	var feedback := binding.submit_surface_navigation_feedback(
+		Vector3(18.0, 120000.0, 0.0), 9, 1, true
+	)
+	var cue: Dictionary = binding.get_snapshot().route_trail.next_landmark_cue
 	var trail: Dictionary = binding.get_snapshot().route_trail
 	var detached := binding.detach()
 	host.attachment_generation = 2
 	var reentered := binding.reenter()
+	var reentered_feedback := binding.submit_surface_navigation_feedback(
+		Vector3(18.0, 120000.0, 0.0), 9, 2, true
+	)
 	var restored: Dictionary = binding.get_snapshot().route_trail
 	if not configured.accepted or trail.point_count != 8 or trail.visible_marker_count == 0 \
 			or not trail.shared_mesh or not trail.shared_material \
+			or not route_started.accepted or stale_feedback.reason != &"stale_host_generation" \
+			or not feedback.accepted or cue.landmark_id != &"surface_staging_gate" \
+			or cue.label != "Surface Staging Gate" or not is_equal_approx(cue.distance_m, 24.0) \
+			or cue.distance_band != &"nearby" or not cue.reduced_motion or not cue.static \
+			or not cue.controller_only or cue.raw_input or cue.authority.navigation \
+			or cue.authority.movement or cue.authority.interaction \
 			or not detached.accepted or not reentered.accepted or restored.visible_marker_count == 0 \
+			or not reentered_feedback.accepted or not restored.next_landmark_cue.visible \
 			or restored.authority.navigation:
 		push_error("route trail production lifecycle failed")
 		quit(1)
 		return
-	print("EMBER_ROUTE_TRAIL_PRODUCTION_BINDING_TEST_OK: authored route trail lifecycle")
+	print("EMBER_ROUTE_TRAIL_PRODUCTION_BINDING_TEST_OK: authored route trail lifecycle and next-landmark cue")
 	quit(0)
 func _reward_sink(_receipt: Dictionary) -> Dictionary: return {"accepted": true, "reason": &"test_reward"}

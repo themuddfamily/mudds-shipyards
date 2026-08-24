@@ -75,11 +75,41 @@ func _run() -> void:
 			or not is_equal_approx(second_material.emission_energy_multiplier, 0.25):
 		_fail("route trails did not share immutable mesh or isolated mutable readability")
 		return
+	var cue_source := {
+		"accepted": true,
+		"cue": {
+			"available": true,
+			"landmark_id": &"caldera_overlook",
+			"label": "Caldera Overlook",
+			"target_body_local_m": Vector3(420.0, 120025.0, -180.0),
+			"distance_m": 486.25,
+			"distance_band": &"distant",
+			"controller_only": true,
+			"raw_input": false,
+			"authority": {"navigation": false, "movement": false, "interaction": false},
+		},
+	}
+	var cue_generation := trail.get_presentation_generation()
+	var cue_result: Dictionary = trail.present_next_landmark_feedback(
+		cue_source, cue_generation, true
+	)
+	var cue: Dictionary = trail.get_snapshot().next_landmark_cue
+	var cue_label := trail.get_node_or_null(^"NextLandmarkCue") as Label3D
+	if not cue_result.accepted or not cue.visible or cue.landmark_id != &"caldera_overlook" \
+			or not is_equal_approx(cue.distance_m, 486.25) or not cue.reduced_motion \
+			or not cue.static or cue_label == null or not cue_label.visible \
+			or not cue_label.text.contains("CALDERA OVERLOOK") \
+			or cue.authority.navigation or cue.authority.movement or cue.authority.interaction:
+		_fail("route trail did not render a static, distance-aware next-landmark cue")
+		return
 	var detached: Dictionary = trail.detach()
 	var detached_snapshot: Dictionary = trail.get_snapshot()
+	var stale_cue: Dictionary = trail.present_next_landmark_feedback(cue_source, cue_generation)
 	var reentered: Dictionary = trail.reenter()
 	var snapshot: Dictionary = trail.get_snapshot()
 	if not detached.accepted or detached_snapshot.visible_marker_count != 0 \
+			or not detached_snapshot.next_landmark_cue.is_empty() \
+			or stale_cue.reason != &"stale_presentation_generation" \
 			or not reentered.accepted or snapshot.visible_marker_count != 3 \
 			or snapshot.points_body_local_m != points \
 			or snapshot.authority.navigation \

@@ -71,6 +71,7 @@ var _landmark_beacons: Dictionary = {}
 var _landing_markers: Dictionary = {}
 var _orbital_ring: Node
 var _route_trail: Node
+var _last_surface_navigation_feedback: Dictionary = {}
 var _relay_survey: RefCounted
 var _relay_survey_presentation: Node
 var _relay_survey_persistence: RefCounted
@@ -380,6 +381,12 @@ func submit_authored_hazard_observation(
 		return _result(false, validation.get("reason", &"invalid_hazard_observation") as StringName)
 	var evidence := observation as Dictionary
 	var actor_position := evidence.get("position_body_local_m") as Vector3
+	# The same generation-fenced on-foot observation already admitted for the
+	# authored hazard supplies the presentation-only route cue. No input is
+	# sampled and neither the hazard nor the cue can advance the route.
+	_present_surface_navigation_feedback(
+		actor_position, expected_host_generation, expected_attachment_generation
+	)
 	var center := _authored_hazard.get("position_body_local_m", Vector3.INF) as Vector3
 	var inside := actor_position.distance_to(center) \
 		<= PlanetarySurfaceHazardRuntime.HAZARD_RADIUS_M
@@ -404,6 +411,33 @@ func submit_authored_hazard_observation(
 			(sampled.get("recovery_request", {}) as Dictionary).get("requested", false)
 		) else &"hazard_zone_exposed",
 		sampled, actor_position
+	)
+
+
+## Exposes the active route's next landmark from a caller-owned on-foot sample.
+## This is deliberately separate from route evidence: presenting a cue cannot
+## commit a waypoint, invoke an interaction, or claim input authority.
+func submit_surface_navigation_feedback(
+		position: Variant,
+		expected_host_generation: int,
+		expected_attachment_generation: int,
+		reduced_motion: bool = false
+	) -> Dictionary:
+	if not _live():
+		return _result(false, &"composition_detached")
+	if expected_host_generation != _host_generation:
+		return _result(false, &"stale_host_generation")
+	if expected_attachment_generation != _attachment_generation \
+			or int(_host.call(&"get_attachment_generation")) != _attachment_generation:
+		return _result(false, &"stale_attachment_generation")
+	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
+	if StringName(host_snapshot.get("phase_id", &"")) != &"on_foot":
+		return _result(false, &"surface_navigation_lifecycle_mismatch")
+	if not position is Vector3 or not (position as Vector3).is_finite():
+		return _result(false, &"invalid_surface_navigation_position")
+	return _present_surface_navigation_feedback(
+		position as Vector3, expected_host_generation,
+		expected_attachment_generation, reduced_motion
 	)
 
 
@@ -559,6 +593,7 @@ func detach() -> Dictionary:
 	_relay_survey_presentation.call(&"detach")
 	_orbital_ring.call(&"detach")
 	_route_trail.call(&"detach")
+	_last_surface_navigation_feedback = {}
 	for beacon: Node in _landmark_beacons.values():
 		beacon.call(&"detach")
 	if _hazard_zone_presentation != null:
@@ -665,6 +700,7 @@ func get_snapshot() -> Dictionary:
 		"landing_markers": _landing_marker_snapshot(),
 		"orbital_ring": _orbital_ring.call(&"get_snapshot") if _orbital_ring != null else {},
 		"route_trail": _route_trail.call(&"get_snapshot") if _route_trail != null else {},
+		"surface_navigation_feedback": _last_surface_navigation_feedback.duplicate(true),
 		"relay_survey": _relay_survey.get_snapshot(_adapter) if _relay_survey != null else {},
 		"relay_survey_presentation": _relay_survey_presentation.call(&"get_snapshot") if _relay_survey_presentation != null else {},
 		"relay_survey_persistence": {
@@ -854,7 +890,42 @@ func _hazard_observation_result(
 		"sample": sample.duplicate(true),
 		"status": _hazard_semantic_status.duplicate(true),
 		"presentation": _hazard_zone_presentation.call(&"get_snapshot"),
+		"surface_navigation_feedback": _last_surface_navigation_feedback.duplicate(true),
 	}.duplicate(true)
+
+
+func _present_surface_navigation_feedback(
+		position_body_local_m: Vector3,
+		expected_host_generation: int,
+		expected_attachment_generation: int,
+		reduced_motion: bool = false
+	) -> Dictionary:
+	if _navigation == null or _route_trail == null:
+		return _result(false, &"surface_navigation_feedback_unavailable")
+	if expected_host_generation != _host_generation:
+		return _result(false, &"stale_host_generation")
+	if expected_attachment_generation != _attachment_generation:
+		return _result(false, &"stale_attachment_generation")
+	var feedback := _navigation.call(
+		&"get_next_landmark_feedback", position_body_local_m
+	) as Dictionary
+	var presented := _route_trail.call(
+		&"present_next_landmark_feedback", feedback,
+		_route_trail.call(&"get_presentation_generation"), reduced_motion
+	) as Dictionary
+	_last_surface_navigation_feedback = {
+		"accepted": bool(presented.get("accepted", false)),
+		"reason": presented.get("reason", &"surface_navigation_feedback_rejected"),
+		"navigation": feedback.duplicate(true),
+		"presentation": presented.duplicate(true),
+		"host_generation": _host_generation,
+		"attachment_generation": _attachment_generation,
+		"authority": {
+			"navigation": false, "movement": false, "interaction": false,
+			"input": false,
+		},
+	}.duplicate(true)
+	return _last_surface_navigation_feedback.duplicate(true)
 
 
 func _hazard_zero_authority() -> Dictionary:

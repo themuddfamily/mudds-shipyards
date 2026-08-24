@@ -8,6 +8,8 @@ extends RefCounted
 
 const ContractScript := preload("res://scripts/world/planetary_surface_navigation_contract.gd")
 const WAYPOINT_RADIUS_M := 12.0
+const NEARBY_CUE_DISTANCE_M := 50.0
+const APPROACHING_CUE_DISTANCE_M := 250.0
 
 enum State { IDLE, ACTIVE, INTERRUPTED, COMPLETED }
 
@@ -109,14 +111,13 @@ func restore_snapshot(snapshot: Variant) -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
-	var next_landmark: StringName = &""
-	if _waypoint_index >= 0 and _waypoint_index < _landmarks.size():
-		next_landmark = StringName(_landmarks[_waypoint_index].get("id", &""))
+	var next_landmark := _next_landmark()
 	return {
 		"state": _state_id(),
 		"route_id": _route_id,
 		"waypoint_index": _waypoint_index,
-		"next_landmark_id": next_landmark,
+		"next_landmark_id": StringName(next_landmark.get("id", &"")),
+		"next_landmark": next_landmark,
 		"landmark_count": _landmarks.size(),
 		"last_interruption": _last_interruption,
 		"waypoint_radius_m": WAYPOINT_RADIUS_M,
@@ -124,8 +125,59 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+## Builds one detached, display-only target from caller-owned on-foot position
+## evidence. This neither advances the route nor samples input, so a controller
+## path can use the same cue without granting the runtime movement authority.
+func get_next_landmark_feedback(position: Variant) -> Dictionary:
+	if not _finite_vector(position):
+		return _feedback_result(false, &"invalid_position")
+	var landmark := _next_landmark()
+	if landmark.is_empty() or _state not in [State.ACTIVE, State.INTERRUPTED]:
+		return _feedback_result(false, &"next_landmark_unavailable")
+	var target := landmark.get("position_body_local_m", Vector3.INF) as Vector3
+	if not target.is_finite():
+		return _feedback_result(false, &"next_landmark_unavailable")
+	var distance := (position as Vector3).distance_to(target)
+	return {
+		"accepted": true,
+		"reason": &"next_landmark_feedback_ready",
+		"cue": {
+			"available": true,
+			"landmark_id": StringName(landmark.get("id", &"")),
+			"label": str(landmark.get("display_name", "NEXT LANDMARK")),
+			"target_body_local_m": target,
+			"distance_m": distance,
+			"distance_band": _distance_band(distance),
+			"waypoint_radius_m": WAYPOINT_RADIUS_M,
+			"route_state": _state_id(),
+			"action": &"continue_to_landmark",
+			"controller_only": true,
+			"raw_input": false,
+			"authority": {
+				"navigation": false, "movement": false, "interaction": false,
+			},
+		}.duplicate(true),
+	}.duplicate(true)
+
+
 func _state_id() -> StringName:
 	return [&"idle", &"active", &"interrupted", &"completed"][_state]
+
+
+func _next_landmark() -> Dictionary:
+	if _waypoint_index < 0 or _waypoint_index >= _landmarks.size():
+		return {}
+	return (_landmarks[_waypoint_index] as Dictionary).duplicate(true)
+
+
+func _distance_band(distance_m: float) -> StringName:
+	if distance_m <= WAYPOINT_RADIUS_M:
+		return &"arriving"
+	if distance_m <= NEARBY_CUE_DISTANCE_M:
+		return &"nearby"
+	if distance_m <= APPROACHING_CUE_DISTANCE_M:
+		return &"approaching"
+	return &"distant"
 
 
 func _finite_vector(value: Variant) -> bool:
@@ -140,4 +192,19 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 		"accepted": accepted,
 		"reason": reason,
 		"runtime": get_snapshot(),
+	}.duplicate(true)
+
+
+func _feedback_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"cue": {
+			"available": false,
+			"controller_only": true,
+			"raw_input": false,
+			"authority": {
+				"navigation": false, "movement": false, "interaction": false,
+			},
+		}.duplicate(true),
 	}.duplicate(true)
