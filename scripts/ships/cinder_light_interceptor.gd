@@ -39,6 +39,13 @@ const CONSOLE_KEY_NAMES := [
 	"StarboardConsoleKey02",
 ]
 
+# The primary hull is immutable presentation stock. Fleet composition and ship
+# replacement can briefly retain multiple interceptors, so cache this exact
+# recipe across copies while renderer nodes, submissions, transforms, collision,
+# and all gameplay authority remain per craft.
+static var _shared_hull_mesh: BoxMesh
+static var _shared_hull_material: StandardMaterial3D
+
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
 var _weapon_definition: WeaponDefinition
@@ -188,10 +195,15 @@ func _build_collision() -> void:
 func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "HighVisibilityHull"
-	var mesh := BoxMesh.new()
-	mesh.size = HULL_SIZE
-	hull.mesh = mesh
-	hull.material_override = _material(HULL_COLOR, 0.62, 0.36)
+	if _shared_hull_mesh == null:
+		_shared_hull_mesh = BoxMesh.new()
+		_shared_hull_mesh.size = HULL_SIZE
+		_shared_hull_mesh.resource_local_to_scene = false
+	if _shared_hull_material == null:
+		_shared_hull_material = _material(HULL_COLOR, 0.62, 0.36)
+		_shared_hull_material.resource_local_to_scene = false
+	hull.mesh = _shared_hull_mesh
+	hull.material_override = _shared_hull_material
 	visual.add_child(hull)
 	var wing := MeshInstance3D.new()
 	wing.name = "RapidResponseWing"
