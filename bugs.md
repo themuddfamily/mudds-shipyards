@@ -14,6 +14,40 @@ Previously identified candidates were reproduced and addressed in the current br
   and `scripts/world/shipyard_world.gd`: whole-Main teardown now clears owner-side
   deferred presentation queues to prevent stale replay after re-entry.
 
+## CINDER-ACCESS-001 — Dock 04/05/06 craft were registered but stranded — **CLOSED**
+
+- Status: `CLOSED` (fixed 2026-08-24). Severity **P1** — three selectable craft
+  could not be reached from the production player spawn without teleporting.
+- Reproduction: the production `GameFlow` exposed all eight flyable craft, but
+  the cargo hauler at `(-5.35, 8.25, 105.5)`, interceptor at
+  `(46.65, 8.25, 71.5)`, and bomber at `(-5.35, 8.25, 37.5)` were isolated from
+  station circulation. The older physical-switching test teleported beside each
+  craft before walking, so it did not exercise the missing station-to-pad route.
+- Fix: `FleetExpansionBerths` now owns visible World-layer pedestrian structure
+  joining all three pads to existing Fleet/Aft circulation. Dock 05 uses a
+  player-clear 1.8 m gate in the retained Aft upper-deck guard, a zero-volume
+  transition plate, and a tapered south deck routed behind the existing room,
+  Dock 01 slab, and Zenith berth. Dock 04 and Dock 06 use bounded bridges from a
+  shared north spine. Pad render/collision tops are co-located, and Dock 06 is
+  split around the existing Fleet/Halyard structure rather than double-authoring
+  it.
+- Production clearance: the instantiated-world regression rejects positive-volume
+  overlap with Aft, Fleet Dock, the connector, or Halyard structure and checks all
+  access bodies against every authoritative berth volume. All eight parked craft
+  retain complete footprint support.
+- Regression: `station_traversal_defect_witness_test.gd` walks the production
+  controller **339.18 m from the real spawn**, visits bomber → interceptor → cargo,
+  and passes `GameFlow` selection/reservation with no teleport, jump, fall, or
+  respawn. The complete witness reports 176,681 graph nodes, 152,704 reachable,
+  no stranded craft, and exits green. The focused component (43 assertions),
+  production-integration (10), production-binding (8), lifecycle (15),
+  Aft-junction, and navigation (330) regressions also pass in the reviewed
+  integration run. Two older exact-census suites remain independently tracked:
+  the streamed-berth binding test still assumes the pre-Bulwark five-craft roster,
+  and the Jovian berth test still freezes an earlier renderer census.
+- Reviewed fix: `a72f120c4`. The accidentally pushed earlier draft was explicitly
+  reverted by `bc3ddda0c` before this reviewed replacement was applied.
+
 ## 2026-08-16 human playtest intake — **ALL FOUR CLOSED**
 
 Reporter: project owner, 2026-08-16, verbatim, four
@@ -782,11 +816,15 @@ Position, physical size, amber treatment, and collision-free presentation are
 unchanged. A focused transform regression is red under the old rotation and green
 at `c383968d4`.
 
-The old record incorrectly grouped `KEEP TRANSFER LANE CLEAR` with that defect.
-Its existing `(-90, 0, 90)` rotation points glyph-up along local -X, across the
-lateral transfer lane rather than back toward the station. It remains unchanged;
-no source-current reader-direction evidence justifies rotating it with the berth
-legend.
+The old record incorrectly grouped `KEEP TRANSFER LANE CLEAR` with the berth
+legend, but its direction is now independently resolved. The freight module's
+live `cargo-transfer → service-threshold` markers define the service route as
+exact local +X. The old `(-90, 0, 90)` angle kept the face normal at +Y but put
+glyph-up on -X, so a worker following that route saw the text inverted. Its new
+`(-90, 0, -90)` rotation preserves the upward face and determinant +1 while
+aligning glyph-up with route +X. A world-space regression applies 23° module yaw,
+proves the old angle red, and leaves `BERTH F-01` untouched. Fixed at
+`98476a900`.
 **However**, the third item in the same bullet, "AFT JUNCTION // MODERN
 INTERPRETATION", is **not a floor decal at all** — it is a vertical `TextMesh`
 plaque at `(0, 1.23, 57.82)` on `AftJunctionStack/Structure/OpenStructureDetails`,
