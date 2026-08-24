@@ -125,12 +125,12 @@ const INDEXED_RUNTIME_CHILD_PATHS := [
 ## anchors while one bounded renderer draws the three exact copies.
 const OBSERVATION_LENS_SIZE := Vector3(0.035, 0.26, 0.92)
 const OBSERVATION_LENS_POSITIONS := [
-	Vector3(-8.55, 0.76, 28.6),
-	Vector3(-8.55, 0.76, 31.4),
-	Vector3(-8.55, 0.76, 34.2),
+	Vector3(-9.05, 0.76, 28.6),
+	Vector3(-9.05, 0.76, 31.4),
+	Vector3(-9.05, 0.76, 34.2),
 ]
 const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
-	Vector3(-8.5675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
+	Vector3(-9.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
 const VISUAL_DESCENDANT_NODE_COUNT := 152
@@ -151,12 +151,12 @@ const BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT := 3
 const OBSERVATION_LENS_RENDERER_NODE_COUNT := 1
 const OBSERVATION_CONSOLE_SIZE := Vector3(0.72, 0.96, 1.35)
 const OBSERVATION_CONSOLE_POSITIONS := [
-	Vector3(-8.95, 0.48, 28.6),
-	Vector3(-8.95, 0.48, 31.4),
-	Vector3(-8.95, 0.48, 34.2),
+	Vector3(-9.45, 0.48, 28.6),
+	Vector3(-9.45, 0.48, 31.4),
+	Vector3(-9.45, 0.48, 34.2),
 ]
 const OBSERVATION_CONSOLE_CULLING_BOUNDS := AABB(
-	Vector3(-9.31, 0.0, 27.925), Vector3(0.72, 0.96, 6.95)
+	Vector3(-9.81, 0.0, 27.925), Vector3(0.72, 0.96, 6.95)
 )
 const OBSERVATION_CONSOLE_COPY_COUNT := 3
 const BASELINE_OBSERVATION_CONSOLE_RENDERER_NODE_COUNT := 3
@@ -186,16 +186,20 @@ const PRACTICAL_WHITE_LENS_CULLING_BOUNDS := AABB(
 )
 const BASELINE_PRACTICAL_WHITE_LENS_RENDERER_NODE_COUNT := 2
 const PRACTICAL_WHITE_LENS_RENDERER_NODE_COUNT := 1
-const LOGISTICS_CASE_SIZE := Vector3(2.1, 0.52, 1.28)
+const LOGISTICS_CASE_SIZE := Vector3(1.8, 0.52, 1.28)
 const LOGISTICS_CASE_COPY_COUNT := 6
 const LOGISTICS_CASE_MESH_RESOURCE_COUNT := 1
 const BASELINE_LOGISTICS_CASE_RENDERER_NODE_COUNT := 6
 const LOGISTICS_CASE_RENDERER_NODE_COUNT := 1
-const LOGISTICS_STACK_X := 9.1
+## Keep both the compacted pad marker lane at x=6.75 and the production
+## witness's retained x=8.0 centreline clear of physical cargo. The 1.8 m
+## stack width leaves 0.6 m from the old centreline to its inboard face and
+## 0.1 m from its outboard face to the exact pad edge at x=10.5.
+const LOGISTICS_STACK_X := 9.5
 const LOGISTICS_CASE_CULLING_BOUNDS := AABB(
-	Vector3(8.05, 0.22, 28.16), Vector3(2.1, 1.10, 6.78)
+	Vector3(8.6, 0.22, 28.16), Vector3(1.8, 1.10, 6.78)
 )
-const LOGISTICS_PALLET_SIZE := Vector3(2.4, 0.24, 1.55)
+const LOGISTICS_PALLET_SIZE := Vector3(1.8, 0.24, 1.55)
 const LOGISTICS_PALLET_POSITIONS := [
 	Vector3(LOGISTICS_STACK_X, 0.12, 28.8),
 	Vector3(LOGISTICS_STACK_X, 0.12, 31.55),
@@ -207,7 +211,7 @@ const LOGISTICS_PALLET_RENDERER_NODE_COUNT := 1
 const BASELINE_LOGISTICS_PALLET_MESH_RESOURCE_COUNT := 3
 const LOGISTICS_PALLET_MESH_RESOURCE_COUNT := 1
 const LOGISTICS_PALLET_CULLING_BOUNDS := AABB(
-	Vector3(7.9, 0.0, 28.025), Vector3(2.4, 0.24, 7.05)
+	Vector3(8.6, 0.0, 28.025), Vector3(1.8, 0.24, 7.05)
 )
 const LIGHT_MAST_SIZE := Vector3(0.16, 2.8, 0.16)
 const LIGHT_MAST_POSITIONS := [
@@ -1663,10 +1667,11 @@ func _build_finishing_details(parent: Node3D) -> void:
 	_multimesh_scaled_boxes(parent, "DistrictSignBacks", _materials["rail"], sign_backs)
 
 	# Small functional accents resolve the existing consoles and cargo stacks at
-	# player distance while staying visual-only and out of the circulation lane.
+	# player distance while staying visual-only and out of both the compacted
+	# marker route and the retained production-witness centreline.
 	var console_trim: Array[Transform3D] = []
 	for console_z in [28.6, 31.4, 34.2]:
-		console_trim.append(Transform3D(Basis.IDENTITY, Vector3(-8.52, 1.00, console_z)))
+		console_trim.append(Transform3D(Basis.IDENTITY, Vector3(-9.02, 1.00, console_z)))
 	_multimesh_boxes(parent, "ObservationConsoleTrim", Vector3(0.07, 0.12, 1.08), _materials["cyan"], console_trim)
 	var cargo_bands: Array[Transform3D] = []
 	for stack_index in 3:
