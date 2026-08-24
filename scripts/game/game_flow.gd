@@ -554,6 +554,11 @@ var _session_recovery_hud_status: Dictionary = {}
 var _session_recovery_support_export_token := 0
 var _session_recovery_support_export_generation := 0
 const SESSION_DIAGNOSTIC_SUPPORT_EXPORT_ROOT := "user://diagnostics/exports"
+var _safe_start_recovery_published_generation := -1
+var _safe_start_recovery_published_revision := -1
+var _safe_start_recovery_published_material: Dictionary = {}
+var _safe_start_recovery_dismissed_generation := -1
+var _safe_start_recovery_hud_status: Dictionary = {}
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
 var _pending_display_confirmation: Dictionary = {}
@@ -1491,6 +1496,7 @@ func _start_up() -> void:
 	_initialize_session_diagnostics()
 	_apply_command_line_recovery_args(OS.get_cmdline_args())
 	_publish_recovery_choice_to_hud()
+	_publish_safe_start_recovery_status_to_hud()
 	player.teleport_to(world.get_player_spawn())
 	player.set_control_enabled(false)
 	player.set_camera_active(false)
@@ -1731,6 +1737,139 @@ func _connect_session_recovery_hud_signals() -> void:
 func _restore_session_recovery_hud_after_reentry() -> void:
 	_connect_session_recovery_hud_signals()
 	_publish_recovery_choice_to_hud()
+	# The retained keyed card already owns its serial and controls. Refresh its
+	# cursor without promoting it over a newer ordinary source. A newly replaced
+	# HUD may activate on the bounded retry inside the publisher.
+	_publish_safe_start_recovery_status_to_hud(false, true)
+
+
+## Publishes only detached SafeStartProductionRecovery output. Report revision
+## is an action fence, but any RuntimeSettings batch may advance it; only a
+## material status/readiness change is allowed to promote this ordinary card.
+func _publish_safe_start_recovery_status_to_hud(
+		activate_runtime_card: bool = true,
+		force: bool = false
+		) -> Dictionary:
+	if _safe_start_production_recovery == null:
+		return _record_safe_start_recovery_hud_status(
+			false, &"policy_unavailable", &"publish", -1, -1, {}
+		)
+	var report := _safe_start_production_recovery.get_report() as Dictionary
+	var cursor := _safe_start_recovery_report_cursor(report)
+	if not bool(cursor.get("accepted", false)):
+		return _record_safe_start_recovery_hud_status(
+			false,
+			StringName(cursor.get("reason", &"invalid_recovery_cursor")),
+			&"publish",
+			int(cursor.get("generation", -1)),
+			int(cursor.get("revision", -1)),
+			{}
+		)
+	var generation := int(cursor.generation)
+	var revision := int(cursor.revision)
+	if generation == _safe_start_recovery_dismissed_generation:
+		_safe_start_recovery_published_generation = generation
+		_safe_start_recovery_published_revision = revision
+		if is_instance_valid(hud) and hud.has_method(&"clear_safe_start_recovery_status"):
+			hud.call(&"clear_safe_start_recovery_status")
+		return _record_safe_start_recovery_hud_status(
+			true, &"dismissed_generation_suppressed", &"publish",
+			generation, revision, {}
+		)
+	if (
+		not force
+		and generation == _safe_start_recovery_published_generation
+		and revision == _safe_start_recovery_published_revision
+	):
+		return _record_safe_start_recovery_hud_status(
+			true, &"recovery_report_unchanged", &"publish",
+			generation, revision, {}
+		)
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_safe_start_recovery_report"):
+		return _record_safe_start_recovery_hud_status(
+			false, &"hud_unavailable", &"publish", generation, revision, {}
+		)
+	var material := _safe_start_recovery_material_projection(report)
+	var material_changed := (
+		generation != _safe_start_recovery_published_generation
+		or material != _safe_start_recovery_published_material
+	)
+	var presentation := hud.call(
+		&"apply_safe_start_recovery_report",
+		report.duplicate(true),
+		activate_runtime_card and material_changed
+	) as Dictionary
+	# Retained re-entry updates in place. Only a genuinely replaced HUD lacks the
+	# keyed source; retrying once activates the same authoritative report there.
+	if (
+		not bool(presentation.get("accepted", false))
+		and not activate_runtime_card
+		and presentation.get("reason") == &"safe_start_recovery_card_unavailable"
+	):
+		presentation = hud.call(
+			&"apply_safe_start_recovery_report", report.duplicate(true), true
+		) as Dictionary
+	if not bool(presentation.get("accepted", false)):
+		return _record_safe_start_recovery_hud_status(
+			false,
+			StringName(presentation.get("reason", &"hud_rejected_recovery_report")),
+			&"publish",
+			generation,
+			revision,
+			{"presentation": presentation}
+		)
+	_safe_start_recovery_published_generation = generation
+	_safe_start_recovery_published_revision = revision
+	_safe_start_recovery_published_material = material.duplicate(true)
+	return _record_safe_start_recovery_hud_status(
+		true,
+		StringName(presentation.get("reason", &"safe_start_recovery_presented")),
+		&"publish",
+		generation,
+		revision,
+		{"presentation": presentation}
+	)
+
+
+func _safe_start_recovery_report_cursor(report: Dictionary) -> Dictionary:
+	var generation_value: Variant = report.get("startup_generation")
+	var revision_value: Variant = report.get("report_revision")
+	if generation_value is not int or revision_value is not int:
+		return {"accepted": false, "reason": &"invalid_recovery_cursor"}
+	var generation := generation_value as int
+	var revision := revision_value as int
+	if generation < 0 or revision < 0:
+		return {
+			"accepted": false,
+			"reason": &"invalid_recovery_cursor",
+			"generation": generation,
+			"revision": revision,
+		}
+	return {
+		"accepted": true,
+		"reason": &"recovery_cursor_valid",
+		"generation": generation,
+		"revision": revision,
+	}
+
+
+func _safe_start_recovery_material_projection(report: Dictionary) -> Dictionary:
+	var policy := report.get("policy_snapshot", {}) as Dictionary
+	return {
+		"begin_reason": (report.get("begin_status", {}) as Dictionary).get("reason", &""),
+		"restore_reason": (report.get("restore_status", {}) as Dictionary).get("reason", &""),
+		"stable_reason": (report.get("stable_status", {}) as Dictionary).get("reason", &""),
+		"policy_state": policy.get("state", &""),
+		"graphics_recovery_receipt": (
+			report.get("graphics_recovery_receipt", {}) as Dictionary
+		).duplicate(true),
+		"audio_recovery_receipt": (
+			report.get("audio_recovery_receipt", {}) as Dictionary
+		).duplicate(true),
+		"restore_readiness_snapshot": (
+			report.get("restore_readiness_snapshot", {}) as Dictionary
+		).duplicate(true),
+	}.duplicate(true)
 
 
 func _on_hud_session_recovery_safe_requested(token: int, generation: int) -> void:
@@ -4484,6 +4623,9 @@ func _on_hud_presentation_intent_requested(kind: StringName, payload: Dictionary
 			_publish_recovery_choice_to_hud()
 		elif is_instance_valid(hud) and hud.has_method(&"apply_recovery_choice_snapshot"):
 			hud.call(&"apply_recovery_choice_snapshot", get_session_start_recommendation())
+		return
+	if kind == &"safe_start_recovery":
+		_handle_safe_start_recovery_intent(payload)
 		return
 	if kind == &"bomber":
 		if StringName(str(payload.get("intent", payload.get("action", &"")))) == &"release_payload":
@@ -11349,6 +11491,133 @@ func get_safe_start_recovery_report() -> Dictionary:
 	)
 
 
+func get_safe_start_recovery_hud_status() -> Dictionary:
+	return _safe_start_recovery_hud_status.duplicate(true)
+
+
+func _handle_safe_start_recovery_intent(payload: Dictionary) -> Dictionary:
+	var action_value: Variant = payload.get("action")
+	var generation_value: Variant = payload.get("generation")
+	var revision_value: Variant = payload.get("revision")
+	if (
+		not (action_value is String or action_value is StringName)
+		or generation_value is not int
+		or revision_value is not int
+		or payload.get("presentation_only") != true
+		or payload.get("settings_authority") != false
+		or payload.get("filesystem_authority") != false
+	):
+		return _record_safe_start_recovery_hud_status(
+			false, &"invalid_recovery_intent", &"invalid", -1, -1, {}
+		)
+	var action := StringName(str(action_value))
+	var generation := generation_value as int
+	var revision := revision_value as int
+	if action not in [&"restore", &"keep_safe"]:
+		return _record_safe_start_recovery_hud_status(
+			false, &"action_unavailable", action, generation, revision, {}
+		)
+	if _safe_start_production_recovery == null:
+		return _record_safe_start_recovery_hud_status(
+			false, &"policy_unavailable", action, generation, revision, {}
+		)
+	var report := _safe_start_production_recovery.get_report() as Dictionary
+	var cursor := _safe_start_recovery_report_cursor(report)
+	if (
+		not bool(cursor.get("accepted", false))
+		or generation != int(cursor.get("generation", -1))
+		or revision != int(cursor.get("revision", -1))
+		or generation == _safe_start_recovery_dismissed_generation
+	):
+		return _record_safe_start_recovery_hud_status(
+			false, &"stale_recovery_fence", action, generation, revision, {}
+		)
+	if action == &"keep_safe":
+		_safe_start_recovery_dismissed_generation = generation
+		if is_instance_valid(hud) and hud.has_method(&"clear_safe_start_recovery_status"):
+			hud.call(&"clear_safe_start_recovery_status")
+		return _record_safe_start_recovery_hud_status(
+			true,
+			&"keep_safe_dismissed",
+			action,
+			generation,
+			revision,
+			{
+				"presentation_only": true,
+				"settings_authority": false,
+				"filesystem_authority": false,
+			}
+		)
+	var domain_results := {}
+	var attempted_domains: PackedStringArray = []
+	var readiness := report.get("restore_readiness_snapshot", {}) as Dictionary
+	var graphics := readiness.get("graphics", {}) as Dictionary
+	if bool(graphics.get("restore_ready", false)):
+		attempted_domains.append("graphics")
+		domain_results["graphics"] = (
+			_safe_start_production_recovery.restore_prior_graphics_profile(
+				Callable(self, &"_persist_runtime_settings")
+			) as Dictionary
+		).duplicate(true)
+	# The first persistence transaction advances report/store generations. Re-read
+	# authoritative readiness before attempting the independent audio receipt.
+	report = _safe_start_production_recovery.get_report()
+	readiness = report.get("restore_readiness_snapshot", {}) as Dictionary
+	var audio := readiness.get("audio", {}) as Dictionary
+	if bool(audio.get("restore_ready", false)):
+		attempted_domains.append("audio")
+		domain_results["audio"] = (
+			_safe_start_production_recovery.restore_prior_audio_profile(
+				Callable(self, &"_persist_runtime_settings")
+			) as Dictionary
+		).duplicate(true)
+	if attempted_domains.is_empty():
+		_publish_safe_start_recovery_status_to_hud(true, true)
+		return _record_safe_start_recovery_hud_status(
+			false, &"restore_unavailable", action, generation, revision, {}
+		)
+	var all_accepted := true
+	for domain: String in attempted_domains:
+		all_accepted = all_accepted and bool(
+			(domain_results.get(domain, {}) as Dictionary).get("accepted", false)
+		)
+	_sync_production_runtime_settings_state()
+	var publication := _publish_safe_start_recovery_status_to_hud(true, true)
+	return _record_safe_start_recovery_hud_status(
+		all_accepted,
+		&"restore_completed" if all_accepted else &"restore_partially_completed",
+		action,
+		generation,
+		revision,
+		{
+			"attempted_domains": attempted_domains,
+			"domain_results": domain_results,
+			"publication": publication,
+		}
+	)
+
+
+func _record_safe_start_recovery_hud_status(
+		accepted: bool,
+		reason: StringName,
+		action: StringName,
+		generation: int,
+		revision: int,
+		details: Dictionary
+		) -> Dictionary:
+	_safe_start_recovery_hud_status = {
+		"accepted": accepted,
+		"reason": reason,
+		"action": action,
+		"generation": generation,
+		"revision": revision,
+		"details": details.duplicate(true),
+		"automatic_action": false,
+		"presentation_only": action == &"keep_safe" or action == &"publish",
+	}.duplicate(true)
+	return _safe_start_recovery_hud_status.duplicate(true)
+
+
 ## Explicit application-owned orderly-shutdown seam. Both retained marker
 ## owners receive the same caller-confirmed close intent, and one failed write
 ## never suppresses the other attempt. `_exit_tree()`, free, and whole-Main
@@ -11956,6 +12225,7 @@ func _validate_safe_start_recommendation(recommendation: Dictionary) -> Dictiona
 func _advance_safe_start_recovery_physics(delta: float) -> void:
 	if _safe_start_production_recovery != null:
 		_safe_start_production_recovery.advance_physics(delta)
+		_publish_safe_start_recovery_status_to_hud()
 
 
 func _adopt_production_runtime_settings_state() -> void:

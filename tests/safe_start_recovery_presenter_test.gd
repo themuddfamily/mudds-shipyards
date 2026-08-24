@@ -4,6 +4,7 @@ const Presenter := preload("res://scripts/ui/safe_start_recovery_presenter.gd")
 const HudType := preload("res://scripts/ui/hud.gd")
 var _failures: PackedStringArray = []
 var _intents: Array[Dictionary] = []
+var _safe_start_intents: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -159,10 +160,43 @@ func _run() -> void:
 	root.add_child(hud)
 	await process_frame
 	hud.presentation_intent_requested.connect(_on_intent)
+	var status_report := _report(12, 3, "stable", false, false)
+	var status_presentation := hud.apply_safe_start_recovery_report(status_report)
+	var status_actions := hud.get("_runtime_status_actions") as HBoxContainer
+	_check(
+		bool(status_presentation.accepted)
+		and status_presentation.status == &"restore_ready"
+		and hud.get("_runtime_status_kind") == &"safe_start_recovery"
+		and status_actions.get_child_count() == 2,
+		"the recovery receipt mounts as its own keyed ordinary runtime card"
+	)
+	var restore_button := status_actions.get_child(0) as Button
+	restore_button.pressed.emit()
+	_check(
+		_safe_start_intents == [{
+			"accepted": true,
+			"reason": &"restore_requested",
+			"action": &"restore",
+			"generation": 12,
+			"revision": 3,
+			"presentation_only": true,
+			"settings_authority": false,
+			"filesystem_authority": false,
+		}]
+		and not bool(hud.request_safe_start_recovery_action(&"restore", 12, 2).accepted)
+		and _safe_start_intents.size() == 1,
+		"receipt actions emit the exact fenced no-authority payload and reject stale revisions"
+	)
 	var choice := hud.apply_recovery_choice_snapshot({
 		"available": true, "requires_caller_choice": true, "severity": &"safe_graphics_recommended",
 	})
-	_check(choice.status == &"choice_required" and bool(hud._recovery_prompt_panel.visible), "diagnostic recovery snapshot opens the blocking choice prompt")
+	_check(
+		choice.status == &"choice_required"
+		and bool(hud._recovery_prompt_panel.visible)
+		and not bool((hud.get("_runtime_status_panel") as PanelContainer).visible)
+		and (hud.get("_runtime_status_cards") as Dictionary).has(&"safe_start_recovery"),
+		"diagnostic recovery modal suppresses but retains the separate keyed receipt card"
+	)
 	_check(hud._recovery_prompt_actions.get_child_count() == 3, "normal safe-graphics and discard choices are focusable")
 	var first_choice := hud._recovery_prompt_actions.get_child(0) as Button
 	var last_choice := hud._recovery_prompt_actions.get_child(2) as Button
@@ -173,10 +207,29 @@ func _run() -> void:
 	hud.apply_recovery_choice_snapshot({"available": true, "requires_caller_choice": true, "severity": &"review_prior_session"})
 	_check(bool(hud._recovery_prompt_panel.visible), "failed or retried recovery publication retains the prompt")
 	hud.apply_recovery_choice_snapshot({"available": false, "requires_caller_choice": false})
-	_check(not bool(hud._recovery_prompt_panel.visible), "accepted recovery publication clears the prompt")
+	await process_frame
+	var restored_status_action := (
+		(hud.get("_runtime_status_actions") as HBoxContainer).get_child(0) as Button
+	)
+	_check(
+		not bool(hud._recovery_prompt_panel.visible)
+		and bool((hud.get("_runtime_status_panel") as PanelContainer).visible)
+		and hud.get("_runtime_status_kind") == &"safe_start_recovery"
+		and hud.get_viewport().gui_get_focus_owner() != restored_status_action,
+		"clearing the legacy choice restores the retained receipt without identity or focus theft"
+	)
+	hud.clear_safe_start_recovery_status()
+	var store_unavailable := hud.apply_safe_start_recovery_report(_store_unavailable_report())
+	_check(
+		bool(store_unavailable.accepted)
+		and bool(store_unavailable.visible)
+		and (hud.get("_runtime_status_detail") as Label).text.contains("ACTION REQUIRED")
+		and (hud.get("_runtime_status_actions") as HBoxContainer).get_child_count() == 0,
+		"store-unavailable authority remains visibly fail-closed on the production HUD"
+	)
 	hud.free()
 	if _failures.is_empty():
-		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 24 assertions")
+		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 27 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)
@@ -192,6 +245,8 @@ func _check(condition: bool, message: String) -> void:
 func _on_intent(kind: StringName, payload: Dictionary) -> void:
 	if kind == &"recovery":
 		_intents.append(payload.duplicate(true))
+	elif kind == &"safe_start_recovery":
+		_safe_start_intents.append(payload.duplicate(true))
 
 
 func _report(

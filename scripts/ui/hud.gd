@@ -491,6 +491,10 @@ var _semantic_transcript_toggle: Button
 var _semantic_transcript_scroll := 0
 var _semantic_transcript_tick := 0
 var _safe_start_recovery_presenter := SafeStartRecoveryPresenterType.new()
+## The interrupted-session choice modal and the post-start receipt card can be
+## alive at the same time. Their presenter cursors must therefore be separate:
+## changing one surface cannot replace the other surface's available actions.
+var _safe_start_status_presenter := SafeStartRecoveryPresenterType.new()
 var _recovery_prompt_panel: PanelContainer
 var _recovery_prompt_title: Label
 var _recovery_prompt_detail: Label
@@ -597,12 +601,13 @@ func _exit_tree() -> void:
 		_first_sortie_tutorial_source_snapshot.clear()
 		_runtime_status_cards.clear()
 		_runtime_status_kind = &""
+		_safe_start_status_presenter.detach()
 	if _hero_component_hud_binding != null:
 		if is_queued_for_deletion():
 			_hero_component_hud_binding.detach()
 		else:
 			_hero_component_hud_binding.suspend_for_tree_exit()
-	clear_session_recovery_notice()
+	clear_session_recovery_notice(false)
 	clear_nearby_activity_snapshot()
 	clear_semantic_caption_transcript()
 	clear_runtime_settings_repair_report()
@@ -3255,6 +3260,10 @@ func _render_session_recovery_notice() -> void:
 		ordered[index].focus_neighbor_right = ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)])
 	_recovery_prompt_dismiss_button.visible = false
 	_recovery_prompt_panel.visible = true
+	# The interrupted-session decision is the blocking owner. Keyed cards remain
+	# retained behind it, but neither their controls nor bomber's dedicated band
+	# may compete with this modal for visibility or focus.
+	_refresh_runtime_status_cards()
 	ordered[0].grab_focus()
 
 
@@ -3326,7 +3335,11 @@ func present_session_recovery_support_export_result(
 	}.duplicate(true)
 
 
-func clear_session_recovery_notice() -> void:
+func clear_session_recovery_notice(restore_runtime_cards: bool = true) -> void:
+	var was_visible := (
+		is_instance_valid(_recovery_prompt_panel)
+		and _recovery_prompt_panel.visible
+	)
 	_session_recovery_snapshot.clear()
 	_session_recovery_recommendation.clear()
 	_session_recovery_support_summary.clear()
@@ -3339,6 +3352,8 @@ func clear_session_recovery_notice() -> void:
 		_recovery_prompt_dismiss_button.visible = true
 	if is_instance_valid(_recovery_prompt_panel):
 		_recovery_prompt_panel.visible = false
+	if restore_runtime_cards and was_visible:
+		_refresh_runtime_status_cards()
 
 
 func reset_session_recovery_notice() -> void:
@@ -3376,12 +3391,13 @@ func get_session_recovery_notice_snapshot() -> Dictionary:
 
 
 func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:
-	clear_session_recovery_notice()
+	clear_session_recovery_notice(false)
 	var presentation := _safe_start_recovery_presenter.present_recovery_choice(snapshot)
 	if not is_instance_valid(_recovery_prompt_panel):
 		return presentation
 	_recovery_prompt_panel.visible = presentation.get("status", &"hidden") == &"choice_required"
 	if not _recovery_prompt_panel.visible:
+		_refresh_runtime_status_cards()
 		return presentation
 	_recovery_prompt_title.text = "RECOVERY CHOICE REQUIRED"
 	_recovery_prompt_detail.text = "%s\n%s" % [presentation.get("message", ""), presentation.get("summary", "")]
@@ -3400,6 +3416,7 @@ func apply_recovery_choice_snapshot(snapshot: Dictionary) -> Dictionary:
 			var button := action_buttons[index]
 			button.focus_neighbor_left = button.get_path_to(action_buttons[maxi(0, index - 1)])
 			button.focus_neighbor_right = button.get_path_to(action_buttons[mini(action_buttons.size() - 1, index + 1)])
+		_refresh_runtime_status_cards()
 		action_buttons[0].grab_focus()
 	if is_instance_valid(_recovery_prompt_dismiss_button) and not action_buttons.is_empty():
 		_recovery_prompt_dismiss_button.visible = true
@@ -3415,8 +3432,9 @@ func _request_recovery_choice(choice: StringName) -> void:
 
 
 func dismiss_recovery_prompt() -> void:
-	if is_instance_valid(_recovery_prompt_panel):
+	if is_instance_valid(_recovery_prompt_panel) and _recovery_prompt_panel.visible:
 		_recovery_prompt_panel.visible = false
+		_refresh_runtime_status_cards()
 
 
 func get_recovery_prompt_snapshot() -> Dictionary:
@@ -4159,6 +4177,89 @@ func clear_first_sortie_tutorial(reason: StringName = &"detached") -> Dictionary
 	return result
 
 
+## Presents SafeStartProductionRecovery's detached report as one ordinary keyed
+## card. Store-unavailable and malformed-but-cursor-valid reports intentionally
+## remain visible; a valid report with no fallback is acknowledged silently.
+func apply_safe_start_recovery_report(
+		report: Dictionary, activate_runtime_card: bool = true
+		) -> Dictionary:
+	var presentation := _safe_start_status_presenter.present_receipt(
+		report.duplicate(true)
+	)
+	# Presenter rejections are wrappers around the last accepted snapshot. They
+	# must never repaint or clear that snapshot.
+	if presentation.has("snapshot"):
+		return presentation.duplicate(true)
+	var status := StringName(str(presentation.get("status", &"invalid")))
+	if status == &"no_fallback_active":
+		clear_runtime_status(&"safe_start_recovery")
+		return {
+			"accepted": true,
+			"reason": &"safe_start_recovery_suppressed",
+			"visible": false,
+			"generation": int(presentation.get("generation", -1)),
+			"revision": int(presentation.get("revision", -1)),
+			"presentation_only": true,
+			"settings_authority": false,
+			"filesystem_authority": false,
+		}.duplicate(true)
+	if not set_runtime_status_card(
+		&"safe_start_recovery", presentation, activate_runtime_card
+	):
+		return {
+			"accepted": false,
+			"reason": &"safe_start_recovery_card_unavailable",
+			"generation": int(presentation.get("generation", -1)),
+			"revision": int(presentation.get("revision", -1)),
+			"presentation_only": true,
+			"settings_authority": false,
+			"filesystem_authority": false,
+		}.duplicate(true)
+	return {
+		"accepted": true,
+		"reason": &"safe_start_recovery_presented",
+		"visible": true,
+		"generation": int(presentation.get("generation", -1)),
+		"revision": int(presentation.get("revision", -1)),
+		"status": status,
+		"presentation_only": true,
+		"settings_authority": false,
+		"filesystem_authority": false,
+	}.duplicate(true)
+
+
+func request_safe_start_recovery_action(
+		action: StringName, generation: int, revision: int
+		) -> Dictionary:
+	var intent: Dictionary
+	match action:
+		&"restore":
+			intent = _safe_start_status_presenter.request_restore(generation, revision)
+		&"keep_safe":
+			intent = _safe_start_status_presenter.request_keep_safe(generation, revision)
+		_:
+			return {
+				"accepted": false,
+				"reason": &"action_unavailable",
+				"action": action,
+				"generation": generation,
+				"revision": revision,
+				"presentation_only": true,
+				"settings_authority": false,
+				"filesystem_authority": false,
+			}.duplicate(true)
+	if bool(intent.get("accepted", false)):
+		presentation_intent_requested.emit(
+			&"safe_start_recovery", intent.duplicate(true)
+		)
+	return intent.duplicate(true)
+
+
+func clear_safe_start_recovery_status() -> void:
+	_safe_start_status_presenter.detach()
+	clear_runtime_status(&"safe_start_recovery")
+
+
 ## Clears one producer's retained card. An empty source preserves the legacy
 ## public signature and explicitly clears the complete runtime-card surface.
 func clear_runtime_status(source: StringName = &"") -> void:
@@ -4238,6 +4339,8 @@ func _refresh_runtime_status_cards() -> void:
 	_hide_runtime_status_panel(_runtime_status_panel)
 	_hide_runtime_status_panel(_bomber_status_panel)
 	_runtime_status_kind = _runtime_status_foreground_kind()
+	if is_instance_valid(_recovery_prompt_panel) and _recovery_prompt_panel.visible:
+		return
 	if _runtime_status_kind == &"bomber":
 		var bomber_card := _runtime_status_cards[&"bomber"] as Dictionary
 		_render_runtime_status_card(
@@ -4374,6 +4477,15 @@ func _render_runtime_status_card(
 			button.pressed.connect(request_bomber_payload_release)
 		elif kind == &"tutorial":
 			button.pressed.connect(request_first_sortie_tutorial_action.bind(action_id))
+		elif kind == &"safe_start_recovery":
+			button.tooltip_text = "Settings recovery action. The current settings remain unchanged until GameFlow accepts this fenced request."
+			button.pressed.connect(
+				request_safe_start_recovery_action.bind(
+					action_id,
+					int(snapshot.get("generation", -1)),
+					int(snapshot.get("revision", -1))
+				)
+			)
 		else:
 			button.pressed.connect(func() -> void:
 				presentation_intent_requested.emit(kind, {"action": action_id, "snapshot": snapshot.duplicate(true)})
