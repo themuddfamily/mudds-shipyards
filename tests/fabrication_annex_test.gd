@@ -239,6 +239,46 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	for material in mapped_materials.values():
 		compliant_scale = compliant_scale and (material as StandardMaterial3D).uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
 	_check(compliant_scale, "every mapped annex panel uses the accepted 0.30 production station scale")
+	_test_manufactured_material_roles(annex)
+
+
+func _test_manufactured_material_roles(annex: FabricationAnnex) -> void:
+	var materials := annex.get("_materials") as Dictionary
+	var specs := {
+		&"deck": [Color("34414a"), 0.72, 0.45, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"floor_inlay": [Color("19353b"), 0.64, 0.28, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"structure": [Color("202a31"), 0.76, 0.45, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		&"ceiling": [Color("151d23"), 0.86, 0.32, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		&"machine": [Color("68727a"), 0.62, 0.5, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		&"hazard": [Color("d58b27"), 0.5, 0.35, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		&"rail": [Color("aeb9bc"), 0.5, 0.55, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS],
+		&"accent": [Color("3b9ca2"), 0.38, 0.4, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS],
+	}
+	var roles_exact := materials.size() == specs.size() + 1 # The ninth material is emissive status light.
+	for material_id in specs:
+		var material := materials.get(material_id) as StandardMaterial3D
+		var spec := specs[material_id] as Array
+		roles_exact = (
+			roles_exact
+			and material != null
+			and material.albedo_color.is_equal_approx(spec[0] as Color)
+			and is_equal_approx(material.roughness, float(spec[1]))
+			and is_equal_approx(material.metallic, float(spec[2]))
+			and material.albedo_texture != null
+			and material.normal_enabled
+			and material.normal_texture != null
+			and material.roughness_texture != null
+			and material.uv1_triplanar
+			and material.uv1_world_triplanar
+			and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+			and material.clearcoat_enabled
+			and is_equal_approx(material.clearcoat, float(spec[3]))
+			and is_equal_approx(material.clearcoat_roughness, float(spec[4]))
+		)
+	_check(
+		roles_exact,
+		"walked, structural, painted-machine, and metal-trim surfaces keep their hues and exact StationSurfaceKit finish roles"
+	)
 
 
 func _test_finishing_pass(annex: FabricationAnnex) -> void:

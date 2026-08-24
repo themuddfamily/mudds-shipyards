@@ -164,31 +164,61 @@ func _build_once() -> void:
 
 
 func _make_materials() -> void:
-	_materials[&"deck"] = _material(Color("34414a"), 0.72, 0.45, true)
-	_materials[&"structure"] = _material(Color("202a31"), 0.76, 0.45, true)
-	_materials[&"machine"] = _material(Color("68727a"), 0.62, 0.5, true)
-	_materials[&"hazard"] = _material(Color("d58b27"), 0.5, 0.35, false)
-	_materials[&"rail"] = _material(Color("aeb9bc"), 0.5, 0.55, false)
-	_materials[&"accent"] = _material(Color("3b9ca2"), 0.38, 0.4, false)
-	_materials[&"ceiling"] = _material(Color("151d23"), 0.86, 0.32, true)
-	_materials[&"floor_inlay"] = _material(Color("19353b"), 0.64, 0.28, true)
+	# One shared map family, separated by the physical finish each part performs.
+	# Keeping the authored colours and scalar PBR values here preserves the
+	# annex's cool steel/teal identity while the response identifies walked,
+	# structural, painted-machine and close metal surfaces at player range.
+	_materials[&"deck"] = _panel_material(
+		Color("34414a"), 0.72, 0.45, StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
+	_materials[&"structure"] = _panel_material(
+		Color("202a31"), 0.76, 0.45, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	_materials[&"machine"] = _panel_material(
+		Color("68727a"), 0.62, 0.5, StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
+	_materials[&"hazard"] = _panel_material(
+		Color("d58b27"), 0.5, 0.35, StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
+	_materials[&"rail"] = _panel_material(
+		Color("aeb9bc"), 0.5, 0.55, StationSurfaceKit.PanelFinish.METAL_TRIM
+	)
+	_materials[&"accent"] = _panel_material(
+		Color("3b9ca2"), 0.38, 0.4, StationSurfaceKit.PanelFinish.METAL_TRIM
+	)
+	_materials[&"ceiling"] = _panel_material(
+		Color("151d23"), 0.86, 0.32, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	_materials[&"floor_inlay"] = _panel_material(
+		Color("19353b"), 0.64, 0.28, StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
 	_materials[&"luminous"] = _emissive_material(Color("64d9dc"), 1.7)
 
 
-func _material(color: Color, roughness: float, metallic: float, panel: bool) -> StandardMaterial3D:
+func _panel_material(
+		color: Color,
+		roughness: float,
+		metallic: float,
+		finish: StationSurfaceKit.PanelFinish
+	) -> StandardMaterial3D:
+	var result := _material(color, roughness, metallic)
+	# 0.30 is the production-compliant large station-module panel scale.
+	StationSurfaceKit.apply_panel_triplanar(result, 0.30, finish)
+	# The shared recipe owns maps and clearcoat only, never this room's hue.
+	result.albedo_color = color
+	return result
+
+
+func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
 	var result := StandardMaterial3D.new()
 	result.albedo_color = color
 	result.roughness = roughness
 	result.metallic = metallic
-	if panel:
-		# 0.30 is the production-compliant large station-module panel scale.
-		StationSurfaceKit.apply_panel_triplanar(result, 0.30)
-		result.albedo_color = color
 	return result
 
 
 func _emissive_material(color: Color, energy: float) -> StandardMaterial3D:
-	var result := _material(color.darkened(0.38), 0.32, 0.18, false)
+	var result := _material(color.darkened(0.38), 0.32, 0.18)
 	result.emission_enabled = true
 	result.emission = color
 	result.emission_energy_multiplier = energy
