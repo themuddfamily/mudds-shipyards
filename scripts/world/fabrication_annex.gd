@@ -113,6 +113,8 @@ const ENTRY_THRESHOLD_MARK_POSITIONS := [
 	Vector3(0.0, 0.02, 4.18),
 	Vector3(0.0, 0.02, 4.52),
 ]
+const CASTING_LINE_CROWN_CENTER := Vector3(0.0, 4.12, 10.62)
+const CASTING_LINE_CROWN_CLEARANCE_M := 3.595
 const SOURCE_PRACTICAL_RANGE_M := 8.0
 const PAIRED_POOL_RANGE_M := 11.75
 const SOURCE_PRACTICAL_ENERGY := 3.2
@@ -168,29 +170,29 @@ const PERFORMANCE_BUDGETS := {
 	"mesh_instances": 3,
 	"multi_mesh_instances": 32,
 	"geometry_instances": 35,
-	"visible_geometry_copies": 205,
-	"multi_mesh_drawn_copies": 185,
+	"visible_geometry_copies": 211,
+	"multi_mesh_drawn_copies": 191,
 	"static_bodies": 34,
 	"collision_shapes": 34,
-	"labels": 6,
+	"labels": 8,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 121,
+	"nodes": 123,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
 	"mesh_instances": 3,
 	"multi_mesh_instances": 32,
 	"geometry_instances": 35,
-	"visible_geometry_copies": 206,
-	"multi_mesh_drawn_copies": 186,
+	"visible_geometry_copies": 212,
+	"multi_mesh_drawn_copies": 192,
 	"static_bodies": 35,
 	"collision_shapes": 35,
-	"labels": 6,
+	"labels": 8,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 123,
+	"nodes": 125,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -501,11 +503,23 @@ func _build_structure_and_dressing() -> void:
 			threshold_position as Vector3,
 			&"hazard"
 		)
+	# A suspended casting-line crown gives the long central route an interior
+	# identity landmark after the inbound portal falls behind the player. Its
+	# hangers overlap the existing z=11 crossbeam and the sign backing, while the
+	# complete assembly remains visual-only and 3.595 m above the walked deck.
+	# Every part reuses an existing size/material family, adding no submission.
+	_add_mesh("CastingLineBacking", Vector3(6.2, 1.05, 0.16), CASTING_LINE_CROWN_CENTER, &"structure")
+	for x in [-2.65, 2.65]:
+		_add_mesh("CastingLineHanger", Vector3(0.12, 1.2, 0.12), Vector3(x, 5.0, 10.70), &"rail")
+	for y in [3.64, 4.60]:
+		_add_mesh("CastingLineHazardRail", Vector3(4.72, 0.027, 0.09), Vector3(0.0, y, 10.51), &"hazard")
+	_add_mesh("CastingLineStatusBand", Vector3(5.25, 0.1, 0.12), Vector3(0.0, 3.76, 10.50), &"luminous")
 	for x in [-2.55, 2.55]:
 		_add_mesh("AisleGuide", Vector3(0.1, 0.028, 14.8), Vector3(x, 0.021, 12.1), &"luminous")
 	_add_label("FABRICATION ANNEX", Vector3(0.0, 3.4, 4.25), 0.65)
 	_add_label("PORT BAY", Vector3(-7.0, 3.65, 10.0), 0.5)
 	_add_label("STARBOARD BAY", Vector3(7.0, 3.65, 10.0), 0.5)
+	_add_label("CASTING LINE // 01", Vector3(0.0, 4.15, 10.62), 0.54)
 
 
 func _add_combined_overhead_structure_render() -> void:

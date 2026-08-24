@@ -25,6 +25,7 @@ func _run() -> void:
 	_test_area_and_surface_census(annex)
 	_test_finishing_pass(annex)
 	_test_inbound_portal_threshold(annex)
+	_test_central_casting_line_crown(annex)
 	await _test_collision_and_edges(stage, annex)
 	await _test_physical_roof_columns(stage, annex)
 	await _test_embodied_traversal(stage, annex)
@@ -172,10 +173,10 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
-	_check(int(render.multi_mesh_batches) == 32 and int(render.multi_mesh_drawn_copies) == 185, "32 restrained batches store all 185 remaining MultiMesh-authored architectural and equipment copies")
-	_check(int(render.geometry_submissions) == 35 and int(render.visible_geometry_copies) == 205, "35 submissions draw the frozen 205 visible geometry copies")
-	_check(int(render.authored_transform_count) == 185, "every remaining MultiMesh copy retains an authored transform")
-	_check(int(render.forward_plus_buffer_float_count) == 2220 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 185 valid 3D transforms")
+	_check(int(render.multi_mesh_batches) == 32 and int(render.multi_mesh_drawn_copies) == 191, "32 restrained batches store all 191 remaining MultiMesh-authored architectural and equipment copies")
+	_check(int(render.geometry_submissions) == 35 and int(render.visible_geometry_copies) == 211, "35 submissions draw the frozen 211 visible geometry copies")
+	_check(int(render.authored_transform_count) == 191, "every remaining MultiMesh copy retains an authored transform")
+	_check(int(render.forward_plus_buffer_float_count) == 2292 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 191 valid 3D transforms")
 	var floor_render := annex.get_floor_render_optimization_contract()
 	_check(
 		bool(floor_render.valid)
@@ -313,7 +314,7 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_test_material_rack_batch(annex)
 	var naming := annex.get_deterministic_naming_contract()
 	print("FABRICATION_ANNEX_NAMING: nodes=%d allocations=%d fallbacks=%d duplicates=%d paths=%s" % [naming.node_count, naming.generated_name_allocation_count, naming.auto_generated_fallback_path_count, naming.duplicate_sibling_name_count, naming.auto_generated_fallback_paths])
-	_check(int(naming.node_count) == 121 and int(naming.generated_name_allocation_count) == 66, "all 121 nodes and 66 generated allocations are frozen deterministically")
+	_check(int(naming.node_count) == 123 and int(naming.generated_name_allocation_count) == 66, "all 123 nodes and 66 generated allocations are frozen deterministically")
 	_check(int(naming.auto_generated_fallback_path_count) == 0 and int(naming.duplicate_sibling_name_count) == 0, "no runtime path contains an auto-generated @ fallback or duplicate sibling name")
 
 	var mapped_materials := {}
@@ -390,10 +391,10 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 	_check(complete, "roof, facade, deck zoning, controls, benches, and material racks all carry their finishing geometry")
 
 	var labels := annex.find_children("*", "Label3D", true, false)
-	var culled_faces := labels.size() == 6
+	var culled_faces := labels.size() == 8
 	for raw_label in labels:
 		culled_faces = culled_faces and not (raw_label as Label3D).double_sided
-	_check(culled_faces, "three signs use six individually culled faces instead of mirrored rear-face text")
+	_check(culled_faces, "four signs use eight individually culled faces instead of mirrored rear-face text")
 	var entry_front := annex.find_child("FabricationAnnexFront", true, false) as Label3D
 	var entry_rear := annex.find_child("FabricationAnnexRear", true, false) as Label3D
 	_check(
@@ -416,7 +417,7 @@ func _test_inbound_portal_threshold(annex: FabricationAnnex) -> void:
 	]
 	var authored := annex.get("_authored_batch_transforms") as Dictionary
 	var transforms := authored.get("hazard:4.720:0.027:0.090", []) as Array
-	var exact := batch != null and batch.multimesh != null and batch.multimesh.instance_count == 10
+	var exact := batch != null and batch.multimesh != null and batch.multimesh.instance_count == 12
 	for expected in expected_thresholds:
 		var found := false
 		for transform_variant in transforms:
@@ -428,6 +429,41 @@ func _test_inbound_portal_threshold(annex: FabricationAnnex) -> void:
 		exact,
 		"two flush amber threshold bars align the inbound route with its portal inside the existing collisionless cross-mark batch"
 	)
+
+
+func _test_central_casting_line_crown(annex: FabricationAnnex) -> void:
+	var authored := annex.get("_authored_batch_transforms") as Dictionary
+	var backing_transforms := authored.get("structure:6.200:1.050:0.160", []) as Array
+	var hanger_transforms := authored.get("rail:0.120:1.200:0.120", []) as Array
+	var hazard_transforms := authored.get("hazard:4.720:0.027:0.090", []) as Array
+	var status_transforms := authored.get("luminous:5.250:0.100:0.120", []) as Array
+	var crown_exact := _has_transform(backing_transforms, Transform3D(Basis.IDENTITY, Vector3(0.0, 4.12, 10.62)))
+	for x in [-2.65, 2.65]:
+		crown_exact = crown_exact and _has_transform(hanger_transforms, Transform3D(Basis.IDENTITY, Vector3(x, 5.0, 10.70)))
+	for y in [3.64, 4.60]:
+		crown_exact = crown_exact and _has_transform(hazard_transforms, Transform3D(Basis.IDENTITY, Vector3(0.0, y, 10.51)))
+	crown_exact = crown_exact and _has_transform(status_transforms, Transform3D(Basis.IDENTITY, Vector3(0.0, 3.76, 10.50)))
+	var front := annex.find_child("CastingLine__01Front", true, false) as Label3D
+	var rear := annex.find_child("CastingLine__01Rear", true, false) as Label3D
+	_check(
+		crown_exact and front != null and rear != null
+		and front.text == "CASTING LINE // 01" and rear.text == front.text,
+		"the central aisle carries the exact crossbeam-supported casting-line crown and two correctly oriented legend faces"
+	)
+	var crown_bottom := 4.12 - 1.05 * 0.5
+	_check(
+		is_equal_approx(crown_bottom, FabricationAnnex.CASTING_LINE_CROWN_CLEARANCE_M)
+		and crown_bottom > 2.8
+		and annex.find_children("CastingLine*", "StaticBody3D", true, false).is_empty(),
+		"the visual-only crown preserves at least 3.595 m of unobstructed embodied clearance over the central route"
+	)
+
+
+func _has_transform(transforms: Array, expected: Transform3D) -> bool:
+	for transform_variant in transforms:
+		if (transform_variant as Transform3D).is_equal_approx(expected):
+			return true
+	return false
 
 
 func _test_material_rack_batch(annex: FabricationAnnex) -> void:
@@ -500,8 +536,8 @@ func _test_observation_gate_variant(stage: Node3D) -> void:
 	_check(
 		int(performance.mesh_instances) == 3
 		and int(performance.multi_mesh_instances) == 32
-		and int(performance.visible_geometry_copies) == 206
-		and int(performance.nodes) == 123,
+		and int(performance.visible_geometry_copies) == 212
+		and int(performance.nodes) == 125,
 		"the integrated Observation-gate variant retains its exact finished rendering budget"
 	)
 	_check(bool(gate_annex.get_audit_report().valid), "the finished Observation-gate variant retains its production integration contract")
