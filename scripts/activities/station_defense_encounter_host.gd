@@ -115,8 +115,6 @@ func register_hostile(
 		return _result(false, &"not_configured")
 	if _activity.get_state() != StationDefenseActivity.State.IDLE:
 		return _result(false, &"registration_closed")
-	if _record_by_key.size() >= MAX_SPAWN_ROSTER:
-		return _result(false, &"spawn_roster_limit_reached")
 	if not StationDefenseContract._has_exact_keys(
 		hostile_handle, ["hostile_id", "generation"]
 	):
@@ -125,8 +123,11 @@ func register_hostile(
 	var key := StationDefenseContract.handle_key(canonical, "hostile_id")
 	if not _spec_by_key.has(key):
 		return _result(false, &"unknown_hostile")
-	if _record_by_key.has(key):
+	var replaced_record := _record_by_key.get(key, {}) as Dictionary
+	if not replaced_record.is_empty() and not _record_can_be_replaced(replaced_record):
 		return _result(false, &"duplicate_hostile_registration")
+	if replaced_record.is_empty() and _record_by_key.size() >= MAX_SPAWN_ROSTER:
+		return _result(false, &"spawn_roster_limit_reached")
 	if not is_instance_valid(entity):
 		return _result(false, &"hostile_entity_required")
 	if entity.is_active():
@@ -147,6 +148,10 @@ func register_hostile(
 		return _result(false, &"damage_adapter_unavailable")
 
 	_mutation_active = true
+	if not replaced_record.is_empty():
+		_key_by_entity_instance_id.erase(
+			int(replaced_record.get("entity_instance_id", 0))
+		)
 	_record_by_key[key] = {
 		"handle": canonical.duplicate(true),
 		"entity": weakref(entity),
@@ -215,6 +220,23 @@ func advance_physics(delta: float, expected_generation: int) -> Dictionary:
 	var lifecycle_rejection := _lifecycle_currentness_rejection()
 	if not lifecycle_rejection.is_empty():
 		return _result(false, lifecycle_rejection)
+	if expected_generation != _activity.get_generation():
+		return _result(false, &"stale_generation")
+	if not bool(_activity.get_snapshot().get("attached", false)):
+		return _result(false, &"detached")
+	if _activity.get_state() != StationDefenseActivity.State.ACTIVE:
+		return _result(false, &"not_active")
+	if not is_finite(delta) or delta < 0.0:
+		return _result(false, &"invalid_delta")
+	var roster_failure := _active_roster_failure_reason()
+	if not roster_failure.is_empty():
+		_mutation_active = true
+		var failure := _activity.fail(roster_failure, expected_generation)
+		_publish_snapshot()
+		return _finish_mutation(
+			bool(failure.get("accepted", false)),
+			StringName(failure.get("reason", &"unknown"))
+		)
 	_mutation_active = true
 	_pending_failure_reason = &""
 	var result := _activity.advance(delta, expected_generation)
@@ -629,7 +651,13 @@ func _synchronize_active_roster() -> void:
 		if not active_keys.has(key):
 			continue
 		var record := _record_by_key.get(key, {}) as Dictionary
-		if record.is_empty() or record.get("state_id", &"") == &"active":
+		if record.is_empty():
+			_pending_failure_reason = &"hostile_unavailable"
+			continue
+		if record.get("state_id", &"") == &"active":
+			var currentness_failure := _record_currentness_failure(record)
+			if not currentness_failure.is_empty():
+				_pending_failure_reason = currentness_failure
 			continue
 		if record.get("state_id", &"") != &"registered":
 			_pending_failure_reason = &"hostile_roster_state_invalid"
@@ -677,6 +705,36 @@ func _validate_start_roster() -> Dictionary:
 		if record.get("state_id", &"") != &"registered" or entity.is_active():
 			return {"accepted": false, "reason": &"hostile_roster_state_invalid"}
 	return {"accepted": true}
+
+
+func _active_roster_failure_reason() -> StringName:
+	if _activity == null or _activity.get_state() != StationDefenseActivity.State.ACTIVE:
+		return &""
+	for record: Dictionary in _record_by_key.values():
+		if record.get("state_id", &"") != &"active":
+			continue
+		var failure := _record_currentness_failure(record)
+		if not failure.is_empty():
+			return failure
+	return &""
+
+
+func _record_currentness_failure(record: Dictionary) -> StringName:
+	var entity := _entity_from_record(record)
+	if (
+		not is_instance_valid(entity)
+		or entity.is_queued_for_deletion()
+		or not entity.is_inside_tree()
+	):
+		return &"hostile_unavailable"
+	if not entity.is_active():
+		return &"hostile_roster_state_invalid"
+	return &""
+
+
+func _record_can_be_replaced(record: Dictionary) -> bool:
+	var entity := _entity_from_record(record)
+	return not is_instance_valid(entity) or entity.is_queued_for_deletion()
 
 
 func _lifecycle_currentness_rejection() -> StringName:

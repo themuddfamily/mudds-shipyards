@@ -23,6 +23,7 @@ func _init() -> void:
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
 	await _test_queued_lifecycle_mutators_are_atomic()
+	await _test_lost_active_hostile_can_be_replaced_after_reset()
 	await _test_real_resolver_waves_and_lifecycle()
 	_check(
 		root.get_child_count() == original_root_child_count,
@@ -139,6 +140,73 @@ func _test_queued_lifecycle_mutators_are_atomic() -> void:
 		"a queued active host rejects caller physics without clock, roster, or snapshot drift"
 	)
 	await process_frame
+
+
+func _test_lost_active_hostile_can_be_replaced_after_reset() -> void:
+	var fixture := await _make_lifecycle_fixture("LostHostileRecovery")
+	var host := fixture.host as StationDefenseEncounterHost
+	var lost_alpha := fixture.alpha as RangeOpponent
+	var authority := host.get_combat_authority()
+	var resolver := authority.get_resolver()
+	var started := host.start(0)
+	var failed_generation := int(started.activity.generation)
+	_check(
+		started.accepted and lost_alpha.is_active(),
+		"lost-hostile fixture begins through the ordinary encounter authority"
+	)
+
+	lost_alpha.queue_free()
+	await process_frame
+	var failed := host.advance_physics(0.25, failed_generation)
+	_check(
+		failed.accepted and failed.reason == &"failed"
+		and failed.activity.state_id == "failed"
+		and failed.activity.failure_reason == &"hostile_unavailable"
+		and is_zero_approx(float(failed.activity.elapsed_seconds))
+		and int(failed.active_entity_count) == 0,
+		"caller physics fails a lost active hostile before advancing an unfinishable encounter"
+	)
+
+	var reset := host.reset(failed_generation)
+	var replacement := _opponent("LostHostileRecoveryReplacement")
+	host.add_child(replacement)
+	await process_frame
+	var registered := host.register_hostile(
+		_hostile(&"raider_alpha", 1),
+		replacement,
+		Transform3D(Basis.IDENTITY, Vector3(-20.0, 0.0, -30.0)),
+		HOSTILE_FACTION
+	)
+	_check(
+		reset.accepted and registered.accepted
+		and registered.reason == &"hostile_registered"
+		and int(registered.spawn_roster_count) == 3
+		and replacement.get_node_or_null("AuthoritativeDamageable") \
+			is LifecycleDamageableAdapter,
+		"public reset permits one exact replacement for the freed weak roster entry"
+	)
+
+	var restarted := host.start(int(reset.activity.generation))
+	var restart_generation := int(restarted.activity.generation)
+	var stale_tick := host.advance_physics(0.25, failed_generation)
+	_check(
+		restarted.accepted and restart_generation > failed_generation
+		and replacement.is_active()
+		and host.get_combat_authority() == authority
+		and authority.get_resolver() == resolver
+		and not stale_tick.accepted and stale_tick.reason == &"stale_generation"
+		and stale_tick.activity.state_id == "active"
+		and is_zero_approx(float(stale_tick.activity.elapsed_seconds)),
+		"replacement restarts on the retained authority while stale caller physics stays rejected"
+	)
+	var aborted := host.abort(restart_generation)
+	_check(
+		aborted.accepted and not replacement.is_active(),
+		"recovered encounter still retires the replacement through the ordinary terminal path"
+	)
+	host.queue_free()
+	for _frame in 4:
+		await process_frame
 
 
 func _test_real_resolver_waves_and_lifecycle() -> void:
