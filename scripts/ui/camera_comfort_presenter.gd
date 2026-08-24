@@ -41,11 +41,12 @@ func present(profile: Dictionary, accessibility: Dictionary = {}) -> Dictionary:
 	var controller_focus := StringName(accessibility.get("controller_focus", &""))
 	var mode := "REDUCED MOTION" if reduced_motion else "STANDARD MOTION"
 	var transition := "STEADY" if reduced_motion else "STANDARD"
+	var transition_phrase := "STEADY CAMERA TRANSITIONS" if reduced_motion else "AUTHORED CAMERA TRANSITIONS"
 	var lines := PackedStringArray([
 		"CAMERA COMFORT  //  %s" % mode,
-		"MOTION  //  %s" % transition,
+		"MOTION  //  %s  ·  %s" % [transition, transition_phrase],
 		"REDUCED FLASH  //  %s" % ("ON" if reduced_flash else "OFF"),
-		"FIELD OF VIEW  %.0f°  //  CHASE COMFORT  ·  FOLLOW LAG ≤ %.1f°  ·  BANK ≤ %.1f°" % [
+		"FIELD OF VIEW  %.0f°  //  CHASE COMFORT  ·  CHASE LAG ≤ %.1f°  ·  BANK ≤ %.1f°" % [
 			float(profile.get("camera_fov", 0.0)),
 			float(profile.get("maximum_chase_camera_rotation_lag_degrees", 0.0)),
 			float(profile.get("maximum_chase_camera_bank_degrees", 0.0)),

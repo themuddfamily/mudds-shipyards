@@ -15,20 +15,22 @@ const REFRESH_SETTINGS: Array[StringName] = [
 ]
 
 var _settings: Object
-var _presenter: CameraComfortPresenter
+var _presenter: RefCounted
 var _generation := 0
 var _settings_revision := 0
 var _attached := false
 var _view: Dictionary = {}
 
 
-func attach(settings: Object, presenter: CameraComfortPresenter = null) -> Dictionary:
+func attach(settings: Object, presenter: RefCounted = null) -> Dictionary:
 	if _attached:
 		detach()
 	if settings == null or not is_instance_valid(settings) \
 			or not settings.has_signal(&"setting_changed") \
 			or not settings.has_method(&"to_dictionary"):
 		return _reject(&"settings_contract_missing")
+	if presenter != null and not presenter.has_method(&"present"):
+		return _reject(&"presenter_contract_missing")
 	_settings = settings
 	_presenter = presenter if presenter != null else PresenterType.new()
 	_generation += 1
@@ -62,7 +64,7 @@ func get_snapshot() -> Dictionary:
 	return result
 
 
-func get_presenter() -> CameraComfortPresenter:
+func get_presenter() -> RefCounted:
 	return _presenter
 
 
@@ -86,7 +88,7 @@ func _refresh() -> void:
 		"on_foot_first_person": bool(source.get(&"on_foot_first_person", false)),
 		"ui_scale": float(source.get(&"ui_scale", 1.0)),
 	}
-	var next_view := _presenter.present(profile, accessibility)
+	var next_view: Dictionary = _presenter.call(&"present", profile, accessibility)
 	if bool(next_view.get("accepted", false)):
 		_view = next_view.duplicate(true)
 		_view["generation"] = _generation

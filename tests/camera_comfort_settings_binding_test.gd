@@ -1,16 +1,48 @@
 extends SceneTree
 
-const SettingsType := preload("res://scripts/settings/runtime_settings.gd")
 const PresenterType := preload("res://scripts/ui/camera_comfort_presenter.gd")
 const BindingType := preload("res://scripts/ui/camera_comfort_settings_binding.gd")
 var _assertions := 0
 var _failures: PackedStringArray = []
 
+class RuntimeSettingsFixture extends RefCounted:
+	signal setting_changed(setting: StringName, value: Variant)
+
+	var camera_fov := 72.0:
+		set(value):
+			camera_fov = value
+			setting_changed.emit(&"camera_fov", value)
+	var reduced_motion := false:
+		set(value):
+			reduced_motion = value
+			setting_changed.emit(&"reduced_motion", value)
+	var reduced_flash := false:
+		set(value):
+			reduced_flash = value
+			setting_changed.emit(&"reduced_flash", value)
+	var on_foot_first_person := false:
+		set(value):
+			on_foot_first_person = value
+			setting_changed.emit(&"on_foot_first_person", value)
+	var ui_scale := 1.0:
+		set(value):
+			ui_scale = value
+			setting_changed.emit(&"ui_scale", value)
+
+	func to_dictionary() -> Dictionary:
+		return {
+			"camera_fov": camera_fov,
+			"reduced_motion": reduced_motion,
+			"reduced_flash": reduced_flash,
+			"on_foot_first_person": on_foot_first_person,
+			"ui_scale": ui_scale,
+		}
+
 func _init() -> void:
 	call_deferred(&"_run")
 
 func _run() -> void:
-	var settings := SettingsType.new("memory://camera-comfort-binding.cfg")
+	var settings := RuntimeSettingsFixture.new()
 	var presenter := PresenterType.new()
 	var binding := BindingType.new()
 	_check(bool(binding.attach(settings, presenter).get("accepted", false)), "binding attaches to read-only RuntimeSettings signal seam")

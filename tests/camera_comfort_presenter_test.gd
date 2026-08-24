@@ -22,8 +22,8 @@ func _run() -> void:
 		"controller_focus": &"camera_comfort_summary",
 	})
 	_check(bool(view.get("accepted", false)) and bool(view.get("focusable", false)), "valid comfort profile produces a focusable presentation")
-	_check(not str(view.get("text", "")).contains("SHAKE") and str(view.get("text", "")).contains("MOTION  //  STEADY") and str(view.get("text", "")).contains("REDUCED FLASH  //  ON"), "motion and flash settings are confirmed without inventing shake support")
-	_check(str(view.get("text", "")).contains("FIELD OF VIEW  72°") and str(view.get("text", "")).contains("CHASE COMFORT") and str(view.get("text", "")).contains("ON-FOOT VIEW  //  FIRST PERSON"), "active chase and view comfort are readable with the legacy field-of-view phrase")
+	_check(not str(view.get("text", "")).contains("SHAKE") and str(view.get("text", "")).contains("MOTION  //  STEADY") and str(view.get("text", "")).contains("STEADY CAMERA TRANSITIONS") and str(view.get("text", "")).contains("REDUCED FLASH  //  ON"), "motion and flash settings retain the legacy transition phrase without inventing shake support")
+	_check(str(view.get("text", "")).contains("FIELD OF VIEW  72°") and str(view.get("text", "")).contains("CHASE COMFORT") and str(view.get("text", "")).contains("CHASE LAG ≤") and str(view.get("text", "")).contains("ON-FOOT VIEW  //  FIRST PERSON"), "active chase and view comfort retain the legacy field-of-view and chase-lag phrases")
 	_check(view.ui_scale == 1.35 and view.safe_area == safe_area, "caller UI scale and safe area survive unchanged")
 	_check(view.controller_focus == &"camera_comfort_summary" and not bool(view.focus_requested), "presenter preserves controller focus without stealing it")
 	_check(bool(view.color_independent) and not bool(view.get("camera_authority", true)) and not bool(view.get("input_authority", true)), "summary is colour-independent and has no camera or input authority")
@@ -43,6 +43,7 @@ func _run() -> void:
 	_check(not bool(detached.get("attached", true)) and not detached.has("text") and not detached.has("safe_area"), "detach clears all player and layout presentation state")
 	var reentered := presenter.present(profile, {"settings_revision": 1})
 	_check(bool(reentered.get("accepted", false)) and reentered.get("mode") == &"standard" and reentered.settings_revision == 1, "reuse accepts a fresh revision domain without stale state")
+	_check(str(reentered.text).contains("AUTHORED CAMERA TRANSITIONS"), "standard motion retains the legacy authored-transition phrase")
 	if _failures.is_empty():
 		print("CAMERA_COMFORT_PRESENTER_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
