@@ -177,9 +177,8 @@ func _test_main_gear_foot_mesh_sharing(arrow: ArrowReconShip) -> void:
 		and int(sharing.geometry_submissions) == 2
 		and int(sharing.visible_geometry_copies) == 2
 		and int(sharing.primitive_mesh_allocations) == 1
-		and int(sharing.resource_allocation_reduction) == 1
-		and int(report.current.unique_mesh_resource_allocations) == 123,
-		"main-gear feet reduce immutable TorusMesh allocations 2->1 and whole-craft meshes 124->123 without changing renderers, submissions, or copies"
+		and int(sharing.resource_allocation_reduction) == 1,
+		"main-gear feet reduce immutable TorusMesh allocations 2->1 without changing renderers, submissions, or copies"
 	)
 	_check(
 		port != null and starboard != null and port.mesh == starboard.mesh
@@ -576,6 +575,21 @@ func _test_escape_pods_and_sensors(arrow: ArrowReconShip) -> void:
 			_check(not bool(pod.get_meta("release_mechanism_implemented", true)), "%s does not falsely claim a working release system" % pod.name)
 			_check(pod.get_node_or_null("PodPressureShell") is MeshInstance3D, "%s owns a smooth pressure shell" % pod.name)
 			_check(pod.get_node_or_null("PodSeparationCollar") is MeshInstance3D, "%s has a legible separation collar" % pod.name)
+		var port_status_light := port.get_node_or_null("PodStatusLight") as MeshInstance3D
+		var starboard_status_light := starboard.get_node_or_null("PodStatusLight") as MeshInstance3D
+		_check(
+			port_status_light != null and starboard_status_light != null
+			and port_status_light.mesh == starboard_status_light.mesh
+			and port_status_light.mesh is SphereMesh
+			and is_equal_approx((port_status_light.mesh as SphereMesh).radius, ArrowReconShip.ESCAPE_POD_STATUS_LIGHT_RADIUS)
+			and (port_status_light.mesh as SphereMesh).material == arrow.get_variant_materials().sensor
+			and port_status_light.position.is_equal_approx(Vector3(-0.53, 0.14, -0.72))
+			and starboard_status_light.position.is_equal_approx(Vector3(0.53, 0.14, -0.72))
+			and port_status_light.visible and starboard_status_light.visible
+			and port_status_light.find_children("*", "CollisionObject3D", true, false).is_empty()
+			and starboard_status_light.find_children("*", "CollisionObject3D", true, false).is_empty(),
+			"escape-pod status lights retain exact local transforms and sensor material while sharing one immutable visual mesh"
+		)
 
 	var mast := arrow.get_sensor_mast()
 	_check(mast != null and mast.name == "SensorSweep", "Arrow exposes its rotating sensor sweep")
@@ -711,10 +725,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 3,
 			"geometry_submissions": 165,
 			"visible_geometry_copies": 169,
-			"unique_mesh_resource_allocations": 123,
+			"unique_mesh_resource_allocations": 122,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 187-node, 165-submission, 123-mesh census with all 169 copies"
+		"entry-complete Arrow freezes the exact 187-node, 165-submission, 122-mesh census with all 169 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {

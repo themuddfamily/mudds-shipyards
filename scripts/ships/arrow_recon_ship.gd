@@ -121,6 +121,7 @@ const MAIN_GEAR_FOOT_INNER_RADIUS := 0.22
 const MAIN_GEAR_FOOT_OUTER_RADIUS := 0.34
 const MAIN_GEAR_FOOT_SCALE := Vector3(1.4, 0.55, 1.0)
 const MAIN_GEAR_FOOT_VISIBLE_COPIES := 2
+const ESCAPE_POD_STATUS_LIGHT_RADIUS := 0.085
 const COCKPIT_CONSOLE_KEY_SHARED_MESH_ROSTER := [
 	"PortConsoleKey00",
 	"PortConsoleKey02",
@@ -189,7 +190,7 @@ const EXPECTED_ARROW_VISUAL_CENSUS := {
 	"multi_mesh_instance_nodes": 3,
 	"geometry_submissions": 165,
 	"visible_geometry_copies": 169,
-	"unique_mesh_resource_allocations": 123,
+	"unique_mesh_resource_allocations": 122,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -230,6 +231,7 @@ var _engine_collar_mesh: TorusMesh
 var _engine_collars: Array[MeshInstance3D] = []
 var _main_gear_foot_mesh: TorusMesh
 var _main_gear_feet: Array[MeshInstance3D] = []
+var _escape_pod_status_light_mesh: SphereMesh
 
 
 func _uses_torrent_reconstruction_presentation() -> bool:
@@ -836,6 +838,12 @@ func _configure_recon_pulse_emitter_metadata(
 
 func _build_escape_pods() -> void:
 	_escape_pods.clear()
+	_escape_pod_status_light_mesh = SphereMesh.new()
+	_escape_pod_status_light_mesh.radius = ESCAPE_POD_STATUS_LIGHT_RADIUS
+	_escape_pod_status_light_mesh.height = ESCAPE_POD_STATUS_LIGHT_RADIUS * 2.0
+	_escape_pod_status_light_mesh.radial_segments = 28
+	_escape_pod_status_light_mesh.rings = 14
+	_escape_pod_status_light_mesh.material = _arrow_materials.sensor
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
 		var pod := Node3D.new()
@@ -865,7 +873,14 @@ func _build_escape_pods() -> void:
 		)
 		_torus(pod, "PodSeparationCollar", Vector3.ZERO, 0.57, 0.65, _arrow_materials.graphite, Vector3(90, 0, 0), Vector3(1.0, 0.82, 1.0))
 		_box(pod, "PodIdentityStripe", Vector3(side * 0.48, 0.02, -0.05), Vector3(0.06, 0.22, 1.55), _arrow_materials.sensor)
-		_sphere(pod, "PodStatusLight", Vector3(side * 0.53, 0.14, -0.72), 0.085, _arrow_materials.sensor)
+		_sphere(
+			pod,
+			"PodStatusLight",
+			Vector3(side * 0.53, 0.14, -0.72),
+			ESCAPE_POD_STATUS_LIGHT_RADIUS,
+			_arrow_materials.sensor,
+			_escape_pod_status_light_mesh
+		)
 
 
 func _build_engines_and_landing_gear() -> void:
