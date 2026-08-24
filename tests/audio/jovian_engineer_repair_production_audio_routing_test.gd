@@ -89,12 +89,15 @@ func _run() -> void:
 			and craft.get_engineer_repair_audio_snapshot().get("last_state", &"unexpected") == &"",
 		"Main re-entry restores the fleet route without replaying the retained interruption snapshot"
 	)
+	var interrupted_before_restart := _count_cue(&"crew_engineer_repair_interrupted")
 	var restarted := _submit(craft, component_id, 3)
 	await process_frame
 	_check(
 		bool(restarted.get("consumed", false))
-			and _count_cue(&"crew_engineer_repair_started") == 2,
-		"one fresh authoritative repair restarts production routing after re-entry"
+			and _count_cue(&"crew_engineer_repair_started") == 2
+			and _count_cue(&"crew_engineer_repair_interrupted")
+				== interrupted_before_restart,
+		"fresh post-re-entry repair routes started without republishing interruption"
 	)
 	await _finish(game)
 

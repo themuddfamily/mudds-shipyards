@@ -1075,7 +1075,10 @@ func _select_engineer_component(
 		"request_sequence": int(intent.get("request_sequence", -1)),
 	}
 	_engineer_component_selection = selection
-	_refresh_engineer_status_readout()
+	# Selection is an admission precursor, not a new repair presentation state.
+	# Keep the console current, then let the accepted `repairing` transition below
+	# publish the first fresh work/audio snapshot atomically.
+	_refresh_engineer_status_readout(false)
 	engineer_component_selected.emit(
 		component_id,
 		component_generation,

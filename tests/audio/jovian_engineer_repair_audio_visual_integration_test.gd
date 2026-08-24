@@ -142,7 +142,15 @@ func _run() -> void:
 		"re-entry restores fresh hidden generations without replaying the interrupted snapshot"
 	)
 
-	_check(bool(_submit(craft, component_id, selected_generation, 8).get("consumed", false)), "fresh receipt restores work after re-entry")
+	var interrupted_before_restart := _count_repair_cue(
+		&"crew_engineer_repair_interrupted"
+	)
+	_check(
+		bool(_submit(craft, component_id, selected_generation, 8).get("consumed", false))
+			and _count_repair_cue(&"crew_engineer_repair_interrupted")
+				== interrupted_before_restart,
+		"fresh receipt restores work after re-entry without republishing interruption"
+	)
 	craft.apply_damage(craft.maximum_hull * 10.0, craft.global_position, Vector3.UP)
 	var destroyed_audio := craft.get_engineer_repair_audio_snapshot()
 	_check(
@@ -243,6 +251,14 @@ func _on_semantic_cue(cue_id: StringName, intensity: float) -> void:
 func _last_repair_cue() -> StringName:
 	return StringName(_repair_events.back().get("cue_id", &"")) \
 		if not _repair_events.is_empty() else &""
+
+
+func _count_repair_cue(cue_id: StringName) -> int:
+	var count := 0
+	for event: Dictionary in _repair_events:
+		if event.get("cue_id", &"") == cue_id:
+			count += 1
+	return count
 
 
 func _audio_voices_clear(snapshot: Dictionary) -> bool:
