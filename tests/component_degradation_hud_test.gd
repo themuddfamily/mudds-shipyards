@@ -6,6 +6,23 @@ var _assertions := 0
 var _failures: PackedStringArray = []
 
 
+class ComponentReportSource:
+	extends Node
+
+	signal component_damage_changed(component_id: StringName, state: int, integrity: float)
+
+	var report: Dictionary = {}
+
+
+	func get_component_damage_report() -> Dictionary:
+		return report.duplicate(true)
+
+
+	func publish(next_report: Dictionary) -> void:
+		report = next_report.duplicate(true)
+		component_damage_changed.emit(&"engine_bay", 0, 1.0)
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -36,6 +53,7 @@ func _run() -> void:
 	var degraded := hud.get_hero_component_hud_snapshot()
 	_check(
 		label.visible
+		and label.text.begins_with("[!] DAMAGE  //  ENGINE BAY")
 		and label.text.contains("ENGINE BAY")
 		and label.text.contains("DEGRADED")
 		and label.text.contains("%")
@@ -47,17 +65,27 @@ func _run() -> void:
 	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.35)
 	var critical := hud.get_hero_component_hud_snapshot()
 	_check(
-		label.text.contains("ENGINE BAY")
+		label.text.begins_with("[!] DAMAGE  //  ENGINE BAY")
 		and label.text.contains("CRITICAL")
 		and critical.get("authoritative_stage") == &"impaired"
 		and critical.get("wording") == &"critical",
 		"authoritative impaired integrity below forty percent gains explicit non-color CRITICAL wording"
 	)
 
+	var repair := torrent.get_component_damage().tick_component_repair(
+		ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.10, true
+	)
+	_check(
+		bool(repair.get("accepted", false))
+		and label.text.begins_with("[+] RECOVERY  //  ENGINE BAY")
+		and label.text.contains("REPAIRING"),
+		"authorized recovery leads with a steady non-color repair mark and names its component"
+	)
+
 	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.20)
 	var failed := hud.get_hero_component_hud_snapshot()
 	_check(
-		label.text.contains("ENGINE BAY")
+		label.text.begins_with("[X] FAILURE  //  ENGINE BAY")
 		and label.text.contains("FAILED")
 		and failed.get("authoritative_stage") == &"failed"
 		and failed.get("wording") == &"failed"
@@ -82,6 +110,32 @@ func _run() -> void:
 	_check(
 		label.text == "COMPONENT  //  FORWARD HULL  100%  //  NOMINAL",
 		"damage signals from the previously observed craft cannot overwrite the switched HUD"
+	)
+
+	var report_source := ComponentReportSource.new()
+	game.add_child(report_source)
+	var accepted_report := torrent.get_component_damage_report()
+	accepted_report["ledger_generation"] = 12
+	report_source.report = accepted_report
+	_check(
+		hud.bind_hero_component_ship(report_source)
+		and label.text.begins_with("[!] DAMAGE  //  ENGINE BAY"),
+		"the production HUD accepts the current authoritative component generation"
+	)
+	var accepted_text := label.text
+	var stale_report := arrow.get_component_damage_report()
+	stale_report["ledger_generation"] = 11
+	report_source.publish(stale_report)
+	_check(
+		label.text == accepted_text,
+		"a stale ledger generation cannot repaint the retained component line"
+	)
+	var replacement_report := arrow.get_component_damage_report()
+	replacement_report["ledger_generation"] = 13
+	report_source.publish(replacement_report)
+	_check(
+		label.text == "COMPONENT  //  FORWARD HULL  100%  //  NOMINAL",
+		"a newer actor lifecycle generation atomically replaces the prior damage cue"
 	)
 
 	hud.set_mode("on-foot")
