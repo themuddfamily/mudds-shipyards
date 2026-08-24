@@ -63,7 +63,7 @@ func detach() -> Dictionary:
 func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_attached")
-	var final_approach := snapshot.get("final_approach", snapshot) as Dictionary
+	var final_approach := _extract_final_approach_record(snapshot)
 	var input_generation: Variant = final_approach.get(
 		"target_generation", snapshot.get("generation", -1)
 	)
@@ -136,6 +136,20 @@ func _emit(cue_id: StringName) -> void:
 	_slots.append(cue_id)
 	_emitted_count += 1
 	semantic_cue_emitted.emit(SOURCE_ID, cue_id, 1.0, Vector3.ZERO)
+
+## Production cruise snapshots keep lifecycle identity in `final_approach`,
+## while their readable semantic phase is owned by the physical controller.
+## Combine them before deduplication so a transition never becomes an accepted
+## but silent/ambiguous outer record during the approach-to-surface handoff.
+func _extract_final_approach_record(snapshot: Dictionary) -> Dictionary:
+	var record := snapshot.get("final_approach", snapshot) as Dictionary
+	var controller := snapshot.get("controller", {}) as Dictionary
+	var controller_record := controller.get("final_approach", {}) as Dictionary
+	if controller_record.is_empty():
+		return record
+	var merged := controller_record.duplicate(true)
+	merged.merge(record, true)
+	return merged
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason, "generation": _generation}.duplicate(true)

@@ -26,10 +26,14 @@ func _run() -> void:
 	router.semantic_cue_emitted.connect(_on_cue)
 	_check(bool(adapter.attach(cruise).get("accepted", false)), "final approach production adapter attaches")
 	_check(bool(router.bind_source(adapter, &"planetary").get("accepted", false)), "router binds planetary final approach source")
-	cruise.engagement_changed.emit({"final_approach": {"target_generation": 1, "state_id": &"armed", "reason": &"final_approach_armed"}})
+	cruise.engagement_changed.emit({
+		"generation": 1,
+		"final_approach": {"target_generation": 1},
+		"controller": {"final_approach": {"state_id": &"armed", "reason": &"final_approach_armed"}},
+	})
 	cruise.engagement_changed.emit({"final_approach": {"target_generation": 1, "state_id": &"final_approach", "reason": &"final_approach_activated"}})
 	cruise.final_approach_completed.emit({"target_generation": 1, "reason": &"final_approach_handoff_ready", "caller_tick": 9})
-	_check(_has(&"planetary_final_approach_armed") and _has(&"planetary_final_approach_alignment_ready") and _has(&"planetary_final_approach_handoff_ready"), "engagement and completion cues route through planetary router")
+	_check(_has(&"planetary_final_approach_armed") and _has(&"planetary_final_approach_alignment_ready") and _has(&"planetary_final_approach_handoff_ready"), "production lifecycle identity combines with the controller phase before routing approach and completion cues")
 	cruise.final_approach_completed.emit({"target_generation": 1, "reason": &"final_approach_handoff_ready", "caller_tick": 9})
 	_check(_events.size() == 3, "duplicate completion is suppressed")
 	cruise.tick_committed.emit({"accepted": false, "reason": &"location_generation_mismatch", "generation": 20})
