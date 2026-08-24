@@ -105,6 +105,11 @@ const GANTRY_PYLON_SIZE_M := Vector3(1.2, 7.2, 1.4)
 const GANTRY_PORT_PYLON_POSITION_M := Vector3(0.0, 3.6, -5.2)
 const GANTRY_STARBOARD_PYLON_POSITION_M := Vector3(0.0, 3.6, 5.2)
 const GANTRY_PYLON_LEAN_RADIANS := 0.08
+const GANTRY_PYLON_INSTANCE_COUNT := 2
+const GANTRY_PYLON_BATCH_BOUNDS := AABB(
+	Vector3(-0.6, -0.05, -6.2),
+	Vector3(1.2, 7.3, 12.4),
+)
 const GANTRY_BEAM_SIZE_M := Vector3(1.2, 0.8, 4.8)
 const GANTRY_PORT_BEAM_POSITION_M := Vector3(0.0, 7.0, -2.7)
 const GANTRY_STARBOARD_BEAM_POSITION_M := Vector3(0.0, 6.65, 2.7)
@@ -201,11 +206,11 @@ const METAL_ROUGHNESS := 0.78
 const OXIDE_ROUGHNESS := 0.92
 const SERVICE_ROUGHNESS := 0.72
 
-const EXPECTED_NODE_COUNT := 72
-const EXPECTED_MESH_INSTANCE_COUNT := 19
-const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 7
-const EXPECTED_MULTI_MESH_COPY_COUNT := 40
-const EXPECTED_RENDER_SUBMISSION_COUNT := 26
+const EXPECTED_NODE_COUNT := 71
+const EXPECTED_MESH_INSTANCE_COUNT := 17
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 8
+const EXPECTED_MULTI_MESH_COPY_COUNT := 42
+const EXPECTED_RENDER_SUBMISSION_COUNT := 25
 const EXPECTED_STATIC_BODY_COUNT := 7
 const EXPECTED_COLLISION_SHAPE_COUNT := 25
 const MAXIMUM_TRIANGLE_COUNT := 8192
@@ -290,6 +295,7 @@ func _ready() -> void:
 	_configure_surface_material_hierarchy()
 	_configure_sample_rack_identity_vane()
 	_configure_surface_route_spine()
+	_configure_gantry_pylon_visuals()
 	_configure_gantry_navigation_crown()
 	_configure_bunker_vent_visuals()
 	_configure_landing_approach_cues()
@@ -733,10 +739,9 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry": "StaticBody3D",
-		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonCollision": "CollisionShape3D",
-		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/StarboardPylonVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/StarboardPylonCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/GantryPylonVisuals": "MultiMeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortBeamVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortBeamCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/StarboardBeamVisual": "MeshInstance3D",
@@ -792,7 +797,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or landmarks == null or landmarks.get_child_count() != 12 \
 			or route_markers == null or route_markers.get_child_count() != 5 \
 			or relay == null or relay.get_child_count() != 6 \
-			or gantry == null or gantry.get_child_count() != 19 \
+			or gantry == null or gantry.get_child_count() != 18 \
 			or bunker == null or bunker.get_child_count() != 11:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
 
@@ -826,6 +831,8 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var relay_mast := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual") as MeshInstance3D
 	var relay_head := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual") as MeshInstance3D
 	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
+	var gantry_pylons := gantry.get_node_or_null(^"GantryPylonVisuals") as MultiMeshInstance3D \
+		if gantry != null else null
 	var route_spine_accent := gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D \
 		if gantry != null else null
 	var bunker := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker") as StaticBody3D
@@ -896,7 +903,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		relay_head: {"color": RELAY_COLOR, "role": &"service"},
 	}
 	if gantry != null:
-		for node_name in [&"PortPylonVisual", &"StarboardPylonVisual", &"PortBeamVisual", &"StarboardBeamVisual", &"SensorBoomVisual"]:
+		for node_name in [&"PortBeamVisual", &"StarboardBeamVisual", &"SensorBoomVisual"]:
 			material_specs[gantry.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = {"color": DERELICT_ALLOY_COLOR, "role": &"metal"}
 		material_specs[gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D] = {"color": DERELICT_OXIDE_COLOR, "role": &"oxide"}
 	if bunker != null:
@@ -923,6 +930,10 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var crown_material := crown.material_override as StandardMaterial3D if crown != null else null
 	if not _surface_material_is_exact(crown_material, DERELICT_OXIDE_COLOR, &"oxide"):
 		_append_error(errors, &"visual_material_drift", &"NavigationCrownVisuals", "survey crown lost the existing oxide landmark role")
+	var pylon_material := gantry_pylons.material_override as StandardMaterial3D \
+		if gantry_pylons != null else null
+	if not _surface_material_is_exact(pylon_material, DERELICT_ALLOY_COLOR, &"metal"):
+		_append_error(errors, &"visual_material_drift", &"GantryPylonVisuals", "batched gantry pylons lost the structural-alloy surface role")
 	var rack_vane_material := rack_vane.material_override as StandardMaterial3D \
 		if rack_vane != null else null
 	if not _surface_material_is_exact(
@@ -934,8 +945,9 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 func _derelict_gantry_geometry_is_exact(gantry: StaticBody3D) -> bool:
 	if gantry == null or gantry.position != GANTRY_ROOT_POSITION_M:
 		return false
-	return _box_visual_is_exact(gantry, &"PortPylonVisual", GANTRY_PYLON_SIZE_M, GANTRY_PORT_PYLON_POSITION_M, GANTRY_PYLON_LEAN_RADIANS) \
-		and _box_visual_is_exact(gantry, &"StarboardPylonVisual", GANTRY_PYLON_SIZE_M, GANTRY_STARBOARD_PYLON_POSITION_M, -GANTRY_PYLON_LEAN_RADIANS) \
+	return _gantry_pylon_visuals_are_exact(
+		gantry.get_node_or_null(^"GantryPylonVisuals") as MultiMeshInstance3D
+	) \
 		and _box_visual_is_exact(gantry, &"PortBeamVisual", GANTRY_BEAM_SIZE_M, GANTRY_PORT_BEAM_POSITION_M, GANTRY_PORT_BEAM_TILT_RADIANS) \
 		and _box_visual_is_exact(gantry, &"StarboardBeamVisual", GANTRY_BEAM_SIZE_M, GANTRY_STARBOARD_BEAM_POSITION_M, GANTRY_STARBOARD_BEAM_TILT_RADIANS) \
 		and _cylinder_visual_is_exact(gantry, &"SensorBoomVisual", GANTRY_BOOM_RADIUS_M, GANTRY_BOOM_HEIGHT_M, GANTRY_BOOM_POSITION_M, GANTRY_BOOM_TILT_RADIANS) \
@@ -1287,6 +1299,100 @@ static func _vane_bar_between(
 		),
 		(start + finish) * 0.5,
 	)
+
+
+func _configure_gantry_pylon_visuals() -> void:
+	var gantry := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"
+	) as StaticBody3D
+	var port := gantry.get_node_or_null(^"PortPylonVisual") as MeshInstance3D \
+		if gantry != null else null
+	var starboard := gantry.get_node_or_null(^"StarboardPylonVisual") as MeshInstance3D \
+		if gantry != null else null
+	if gantry == null or port == null or starboard == null \
+			or port.mesh == null or port.mesh != starboard.mesh \
+			or port.material_override != starboard.material_override \
+			or port.cast_shadow != starboard.cast_shadow \
+			or port.layers != starboard.layers \
+			or port.ignore_occlusion_culling != starboard.ignore_occlusion_culling \
+			or port.gi_mode != starboard.gi_mode \
+			or port.extra_cull_margin != starboard.extra_cull_margin \
+			or port.visibility_range_begin != starboard.visibility_range_begin \
+			or port.visibility_range_end != starboard.visibility_range_end \
+			or port.visibility_range_begin_margin != starboard.visibility_range_begin_margin \
+			or port.visibility_range_end_margin != starboard.visibility_range_end_margin \
+			or port.visibility_range_fade_mode != starboard.visibility_range_fade_mode:
+		return
+	var transforms: Array[Transform3D] = [port.transform, starboard.transform]
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = port.mesh
+	multi.instance_count = GANTRY_PYLON_INSTANCE_COUNT
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+	multi.custom_aabb = GANTRY_PYLON_BATCH_BOUNDS
+	var batch := MultiMeshInstance3D.new()
+	batch.name = &"GantryPylonVisuals"
+	batch.multimesh = multi
+	batch.material_override = port.material_override
+	batch.cast_shadow = port.cast_shadow
+	batch.gi_mode = port.gi_mode
+	batch.extra_cull_margin = port.extra_cull_margin
+	batch.visibility_range_begin = port.visibility_range_begin
+	batch.visibility_range_end = port.visibility_range_end
+	batch.visibility_range_begin_margin = port.visibility_range_begin_margin
+	batch.visibility_range_end_margin = port.visibility_range_end_margin
+	batch.visibility_range_fade_mode = port.visibility_range_fade_mode
+	batch.layers = port.layers
+	batch.ignore_occlusion_culling = port.ignore_occlusion_culling
+	batch.sorting_offset = port.sorting_offset
+	batch.sorting_use_aabb_center = port.sorting_use_aabb_center
+	batch.set_meta("authored_transforms", transforms.duplicate())
+	batch.set_meta("source_visual_ids", PackedStringArray([
+		"PortPylonVisual", "StarboardPylonVisual",
+	]))
+	gantry.add_child(batch)
+	port.free()
+	starboard.free()
+
+
+func _gantry_pylon_visuals_are_exact(batch: MultiMeshInstance3D) -> bool:
+	if batch == null or batch.multimesh == null \
+			or batch.transform != Transform3D.IDENTITY \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or batch.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or batch.layers != 1 or batch.ignore_occlusion_culling \
+			or not is_zero_approx(batch.extra_cull_margin) \
+			or not is_zero_approx(batch.visibility_range_begin) \
+			or not is_zero_approx(batch.visibility_range_end) \
+			or not is_zero_approx(batch.visibility_range_begin_margin) \
+			or not is_zero_approx(batch.visibility_range_end_margin) \
+			or batch.visibility_range_fade_mode \
+				!= GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED:
+		return false
+	var multi := batch.multimesh
+	var mesh := multi.mesh as BoxMesh
+	if multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.instance_count != GANTRY_PYLON_INSTANCE_COUNT \
+			or multi.visible_instance_count not in [-1, GANTRY_PYLON_INSTANCE_COUNT] \
+			or not multi.custom_aabb.is_equal_approx(GANTRY_PYLON_BATCH_BOUNDS) \
+			or mesh == null or mesh.size != GANTRY_PYLON_SIZE_M \
+			or batch.material_override == null:
+		return false
+	var expected: Array[Transform3D] = [
+		Transform3D(Basis.from_euler(Vector3(GANTRY_PYLON_LEAN_RADIANS, 0.0, 0.0)), GANTRY_PORT_PYLON_POSITION_M),
+		Transform3D(Basis.from_euler(Vector3(-GANTRY_PYLON_LEAN_RADIANS, 0.0, 0.0)), GANTRY_STARBOARD_PYLON_POSITION_M),
+	]
+	var authored: Variant = batch.get_meta("authored_transforms", [])
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return batch.get_meta("source_visual_ids", PackedStringArray()) == PackedStringArray([
+		"PortPylonVisual", "StarboardPylonVisual",
+	])
 
 
 func _configure_gantry_navigation_crown() -> void:

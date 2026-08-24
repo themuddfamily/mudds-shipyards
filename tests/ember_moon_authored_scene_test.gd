@@ -75,11 +75,11 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 72
-			and audit.performance.mesh_instances == 19
-			and audit.performance.multi_mesh_instances == 7
-			and audit.performance.multi_mesh_copies == 40
-			and audit.performance.render_submissions == 26
+		audit.performance.node_count == 71
+			and audit.performance.mesh_instances == 17
+			and audit.performance.multi_mesh_instances == 8
+			and audit.performance.multi_mesh_copies == 42
+			and audit.performance.render_submissions == 25
 			and audit.performance.static_bodies == 7
 			and audit.performance.collision_shapes == 25
 			and audit.performance.triangle_count <= 8192,
@@ -199,15 +199,32 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 		"five steady oxide chevrons form one low-cost, staging-directed survey spine over the weak egress segment",
 	)
 	var gantry := scene.get_node(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
-	var port_pylon := gantry.get_node_or_null(^"PortPylonVisual") as MeshInstance3D if gantry != null else null
+	var pylon_batch := gantry.get_node_or_null(^"GantryPylonVisuals") as MultiMeshInstance3D \
+		if gantry != null else null
+	var pylon_multi := pylon_batch.multimesh if pylon_batch != null else null
+	var pylon_mesh := pylon_multi.mesh as BoxMesh if pylon_multi != null else null
+	var pylon_transforms: Array = pylon_batch.get_meta("authored_transforms", []) as Array \
+		if pylon_batch != null else []
 	var dead_sensor := gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D if gantry != null else null
 	_check(
 		gantry != null and gantry.position == Vector3(34.0, 0.0, 0.0)
-			and port_pylon != null and (port_pylon.mesh as BoxMesh).size == Vector3(1.2, 7.2, 1.4)
+			and pylon_batch != null and pylon_batch.get_child_count() == 0
+			and pylon_multi != null and pylon_multi.instance_count == 2
+			and pylon_multi.custom_aabb.is_equal_approx(AABB(
+				Vector3(-0.6, -0.05, -6.2), Vector3(1.2, 7.3, 12.4)
+			))
+			and pylon_mesh != null and pylon_mesh.size == Vector3(1.2, 7.2, 1.4)
+			and pylon_transforms.size() == 2
+			and (pylon_transforms[0] as Transform3D).origin == Vector3(0.0, 3.6, -5.2)
+			and (pylon_transforms[1] as Transform3D).origin == Vector3(0.0, 3.6, 5.2)
+			and gantry.get_node_or_null(^"PortPylonVisual") == null
+			and gantry.get_node_or_null(^"StarboardPylonVisual") == null
+			and gantry.get_node_or_null(^"PortPylonCollision") is CollisionShape3D
+			and gantry.get_node_or_null(^"StarboardPylonCollision") is CollisionShape3D
 			and dead_sensor != null and is_equal_approx(dead_sensor.position.y, 10.95)
 			and is_equal_approx(float(snapshot.geometry.derelict_gantry_height_m), 15.25)
 			and is_equal_approx(float(snapshot.geometry.derelict_gantry_span_m), 11.8),
-		"the broken survey gantry carries a fifteen-metre flight and on-foot silhouette over the return leg",
+		"the paired gantry pylons retain their exact silhouette and separate collisions in one bounded submission",
 	)
 	var crown := gantry.get_node_or_null(^"NavigationCrownVisuals") as MultiMeshInstance3D \
 		if gantry != null else null
@@ -395,8 +412,8 @@ func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
 		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual"
 	) as MeshInstance3D
 	var gantry := scene.get_node(
-		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonVisual"
-	) as MeshInstance3D
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/GantryPylonVisuals"
+	) as MultiMeshInstance3D
 	var gantry_sensor := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual"
 	) as MeshInstance3D
