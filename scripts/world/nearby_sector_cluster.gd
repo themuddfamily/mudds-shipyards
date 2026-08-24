@@ -252,16 +252,16 @@ const TORUS_MESH_RESOURCE_ALLOCATIONS := 12
 const MINING_ACTIVITY_ID: StringName = &"cinder_platform_mining_run"
 const MINING_APPROACH_LOCAL := Vector3(0.0, GANTRY_CENTER_Y, GANTRY_NEAR_Z)
 const MINING_PRESENTATION_LOCAL_BOUNDS := AABB(
-	Vector3(-17.0, -1.0, -13.0), Vector3(34.0, 36.0, 34.0)
+	Vector3(-50.0, -1.0, -13.0), Vector3(67.0, 55.0, 34.0)
 )
 const MINING_PRESENTATION_MESH_BUDGET := 6
-const MINING_PRESENTATION_MULTIMESH_BUDGET := 5
-const MINING_PRESENTATION_RENDERER_BUDGET := 11
-const MINING_PRESENTATION_VISIBLE_COPY_BUDGET := 18
-const MINING_PRESENTATION_SUBMISSION_BUDGET := 11
-const MINING_PRESENTATION_MESH_RESOURCE_BUDGET := 10
+const MINING_PRESENTATION_MULTIMESH_BUDGET := 6
+const MINING_PRESENTATION_RENDERER_BUDGET := 12
+const MINING_PRESENTATION_VISIBLE_COPY_BUDGET := 22
+const MINING_PRESENTATION_SUBMISSION_BUDGET := 12
+const MINING_PRESENTATION_MESH_RESOURCE_BUDGET := 11
 const MINING_PRESENTATION_LIGHT_BUDGET := 2
-const MINING_PRESENTATION_DESCENDANT_BUDGET := 14
+const MINING_PRESENTATION_DESCENDANT_BUDGET := 15
 const MINING_MATERIAL_ROLES := {
 	&"service": &"mining_service",
 	&"structure": &"mining_structure",
@@ -271,9 +271,10 @@ const MINING_MATERIAL_ROLES := {
 const MINING_PRESENTATION_STATE_NODE_DELTA := 0
 const MINING_PRESENTATION_STATE_LIGHT_DELTA := 0
 const MINING_PRESENTATION_STATE_SUBMISSION_DELTA := 0
-const MINING_PRESENTATION_PREBATCH_RENDERERS := 18
-const MINING_PRESENTATION_PREBATCH_SUBMISSIONS := 18
-const MINING_PRESENTATION_PREBATCH_DESCENDANTS := 21
+const MINING_PRESENTATION_PREBATCH_RENDERERS := 22
+const MINING_PRESENTATION_PREBATCH_SUBMISSIONS := 22
+const MINING_PRESENTATION_PREBATCH_DESCENDANTS := 25
+const MINING_ORE_LIFT_FAMILY_ID: StringName = &"cinder-mining-ore-lift-pick"
 const MINING_COLLECTOR_COUNT := 3
 const MINING_COLLECTOR_BAND_IDLE_Y := 4.0
 const MINING_COLLECTOR_BAND_FULL_Y := 7.0
@@ -324,7 +325,7 @@ const PERFORMANCE_BUDGET := {
 	# Bounded visual batches retain the debris shell, processing-spine ribs,
 	# gantry rails, race-return crown supports, and streamed aperture lenses
 	# without increasing gameplay or collision ownership.
-	"multimesh_instances": 16,
+	"multimesh_instances": 17,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -1492,6 +1493,7 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 			^"MiningHeadframeLegs": &"structure",
 			^"MiningHeadframeBraces": &"trim",
 			^"MiningFeedChutes": &"service",
+			^"MiningOreLiftPick": &"trim",
 			^"OreSeparatorHopper": &"machinery",
 			^"HopperServiceBand": &"trim",
 			^"MiningOreBufferBins": &"service",
@@ -2677,6 +2679,17 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(3.0, 13.0, 3.0), _box_cache),
 		_materials["mining_service"], chute_transforms, &"mining-feed-chutes"
 	)
+	var ore_lift := _presentation_multimesh_batch(
+		presentation,
+		"MiningOreLiftPick",
+		StationSurfaceKit.rounded_box_mesh_cached(Vector3.ONE, _box_cache),
+		_materials["mining_trim"],
+		_mining_ore_lift_transforms(),
+		MINING_ORE_LIFT_FAMILY_ID
+	)
+	ore_lift.set_meta(&"activity_id", MINING_ACTIVITY_ID)
+	ore_lift.set_meta(&"physically_supported", true)
+	ore_lift.set_meta(&"approach_landmark", true)
 
 	_cylinder(presentation, "OreSeparatorHopper", Vector3(0.0, 19.0, -4.0), 5.5, 2.0, 9.0, _materials["mining_machinery"], false)
 	_cylinder(presentation, "HopperServiceBand", Vector3(0.0, 15.0, -4.0), 5.8, 5.8, 0.7, _materials["mining_trim"], false)
@@ -2733,6 +2746,30 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 		"bind_mining_presentation",
 		Callable(self, "_apply_mining_activity_presentation")
 	)
+
+
+func _mining_ore_lift_transforms() -> Array[Transform3D]:
+	# Two raked stays bury their feet in the processing spine. The long pick head
+	# and its hanging lift make the port-side silhouette read as extraction stock,
+	# rather than a second symmetric race crown.
+	return [
+		Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(23.749494)))
+				* Basis.from_scale(Vector3(3.6, 54.626, 4.0)),
+			Vector3(-14.0, 27.0, -6.0)
+		),
+		Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(26.565052)))
+				* Basis.from_scale(Vector3(3.6, 46.957, 4.0)),
+			Vector3(-7.5, 23.0, -6.0)
+		),
+		Transform3D(
+			Basis.from_scale(Vector3(38.0, 3.6, 4.0)), Vector3(-29.0, 50.0, -6.0)
+		),
+		Transform3D(
+			Basis.from_scale(Vector3(3.6, 28.0, 4.0)), Vector3(-45.0, 36.0, -6.0)
+		),
+	]
 
 
 ## Reuses the two crown practicals, fixed sign, ore-buffer bands, and hopper
