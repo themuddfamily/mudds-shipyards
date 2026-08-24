@@ -3689,6 +3689,55 @@ func _fire_weapon() -> void:
 	projectile_fired.emit(muzzle.global_position, aimed_direction)
 
 
+## Variant presentation seam for the physical in-cockpit status line. The base
+## craft keeps the established pulse-cannon heat language, while craft whose
+## primary ordnance has a different read-only state may replace only this
+## descriptor without taking over cockpit construction or weapon authority.
+func _get_cockpit_system_readout() -> Dictionary:
+	var weapon_status := get_weapon_fire_status()
+	var weapon_line := "WPN READY  //  HEAT %03d%%" % roundi(_weapon_heat * 100.0)
+	match StringName(weapon_status.get("status", &"unavailable")):
+		&"overheated":
+			weapon_line = "! WPN OVERHEAT  //  %.1fs" % _weapon_overheat_remaining
+		&"cooldown":
+			weapon_line = "WPN CYCLING  //  HEAT %03d%%" % roundi(_weapon_heat * 100.0)
+		&"offline":
+			weapon_line = "WPN SAFE  //  ENGINE OFFLINE"
+		&"unavailable":
+			weapon_line = "! WPN UNAVAILABLE"
+	return {
+		"text": weapon_line,
+		"color": (
+			Color("ff6b5f") if _weapon_overheated
+			else (Color("ffb85c") if _weapon_heat >= 0.70 else Color("8de8e4"))
+		),
+	}.duplicate(true)
+
+
+## Installs the common physical status display into a variant-owned cockpit
+## cluster. Variants opt in explicitly, so adding a truthful readout to one
+## craft does not alter the presentation hierarchy of any sibling craft.
+func _install_variant_cockpit_system_readout(parent: Node3D) -> Label3D:
+	if parent == null or not is_instance_valid(parent):
+		return null
+	if _cockpit_readout != null and is_instance_valid(_cockpit_readout):
+		return _cockpit_readout
+	_cockpit_readout = Label3D.new()
+	_cockpit_readout.name = "FlightDataReadout"
+	_cockpit_readout.position = Vector3(0.0, 0.015, 0.164)
+	_cockpit_readout.font_size = 42
+	_cockpit_readout.pixel_size = 0.00082
+	_cockpit_readout.modulate = Color("8de8e4")
+	_cockpit_readout.outline_modulate = Color("07111d")
+	_cockpit_readout.outline_size = 10
+	_cockpit_readout.no_depth_test = true
+	_cockpit_readout.text = "SPD 000   THR +00\nOFFLINE  //  HOLD"
+	_cockpit_readout.set_meta("presentation_only", true)
+	_tag_modern_interpretation(_cockpit_readout)
+	parent.add_child(_cockpit_readout)
+	return _cockpit_readout
+
+
 func _update_presentation(delta: float, command: ShipCommand) -> void:
 	if _visual_root != null:
 		var bank_input := command.yaw if _piloted and _engine_state == ENGINE_ONLINE else 0.0
@@ -3775,28 +3824,16 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 		exhaust_profile
 	)
 	if _cockpit_readout != null:
-		var weapon_status := get_weapon_fire_status()
-		var weapon_line := "WPN READY  //  HEAT %03d%%" % roundi(_weapon_heat * 100.0)
-		match StringName(weapon_status.get("status", &"unavailable")):
-			&"overheated":
-				weapon_line = "! WPN OVERHEAT  //  %.1fs" % _weapon_overheat_remaining
-			&"cooldown":
-				weapon_line = "WPN CYCLING  //  HEAT %03d%%" % roundi(_weapon_heat * 100.0)
-			&"offline":
-				weapon_line = "WPN SAFE  //  ENGINE OFFLINE"
-			&"unavailable":
-				weapon_line = "! WPN UNAVAILABLE"
+		var system_readout := _get_cockpit_system_readout()
+		var system_color: Variant = system_readout.get("color", Color("8de8e4"))
 		_cockpit_readout.text = "SPD %03d   THR %+03d\n%s  //  %s\n%s" % [
 			roundi(velocity.length()),
 			roundi(_throttle * 100.0),
 			str(_engine_state),
 			"PATH" if velocity.length() >= 1.5 else "HOLD",
-			weapon_line,
+			str(system_readout.get("text", "! SYSTEM UNAVAILABLE")),
 		]
-		_cockpit_readout.modulate = (
-			Color("ff6b5f") if _weapon_overheated
-			else (Color("ffb85c") if _weapon_heat >= 0.70 else Color("8de8e4"))
-		)
+		_cockpit_readout.modulate = system_color if system_color is Color else Color("8de8e4")
 	if _cockpit_practical_light != null:
 		var practical_energy := 0.04
 		if _engine_state == ENGINE_STARTING:
@@ -4550,19 +4587,7 @@ func _apply_torrent_2011_cockpit_presentation() -> void:
 			warning_strip.material_override = _materials.display_gold_low
 		for console in _cockpit_root.find_children("SideConsole*", "MeshInstance3D", true, false):
 			(console as MeshInstance3D).material_override = _materials.cockpit_anti_glare
-		_cockpit_readout = Label3D.new()
-		_cockpit_readout.name = "FlightDataReadout"
-		_cockpit_readout.position = Vector3(0.0, 0.015, 0.164)
-		_cockpit_readout.font_size = 42
-		_cockpit_readout.pixel_size = 0.00082
-		_cockpit_readout.modulate = Color("8de8e4")
-		_cockpit_readout.outline_modulate = Color("07111d")
-		_cockpit_readout.outline_size = 10
-		_cockpit_readout.no_depth_test = true
-		_cockpit_readout.text = "SPD 000   THR +00\nOFFLINE  //  HOLD"
-		_cockpit_readout.set_meta("presentation_only", true)
-		_tag_modern_interpretation(_cockpit_readout)
-		cluster.add_child(_cockpit_readout)
+		_install_variant_cockpit_system_readout(cluster)
 	_cockpit_practical_light = SpotLight3D.new()
 	_cockpit_practical_light.name = "CockpitPracticalLight"
 	_cockpit_practical_light.position = Vector3(0.0, 3.24, 0.30)

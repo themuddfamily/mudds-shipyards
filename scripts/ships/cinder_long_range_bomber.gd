@@ -247,6 +247,38 @@ func get_payload_authority_snapshot() -> Dictionary:
 	return _payload_authority.get_snapshot()
 
 
+## The physical cockpit is a presentation consumer of the existing payload
+## snapshot. It neither advances cooldown nor submits a release intent, and it
+## deliberately never falls back to HeroShip's inherited cannon heat language.
+func _get_cockpit_system_readout() -> Dictionary:
+	var payload := get_payload_authority_snapshot()
+	var active := bool(payload.get("active", false))
+	var ammunition := maxi(0, int(payload.get("ammunition_remaining", 0)))
+	var cooldown := maxf(0.0, float(payload.get("cooldown_remaining", 0.0)))
+	if not active:
+		return {
+			"text": "PAYLOAD OFFLINE  //  AMMO %d  //  RELEASE LOCKED" % ammunition,
+			"color": Color("ff6b5f"),
+		}.duplicate(true)
+	if ammunition <= 0:
+		return {
+			"text": "PAYLOAD EMPTY  //  AMMO 0  //  RELEASE LOCKED",
+			"color": Color("ff6b5f"),
+		}.duplicate(true)
+	if cooldown > 0.0:
+		return {
+			"text": "PAYLOAD COOLDOWN %.1fs  //  AMMO %d  //  RELEASE WAIT" % [
+				cooldown,
+				ammunition,
+			],
+			"color": Color("ffb85c"),
+		}.duplicate(true)
+	return {
+		"text": "PAYLOAD READY  //  AMMO %d  //  RELEASE READY" % ammunition,
+		"color": Color("8de8e4"),
+	}.duplicate(true)
+
+
 func get_payload_presentation():
 	return _payload_presentation
 
@@ -800,6 +832,10 @@ func _sync_component_damage_cue() -> void:
 
 
 func _build_cockpit_and_boarding(visual: Node3D) -> void:
+	var instrument_cluster := visual.get_node_or_null(
+		NodePath("CockpitInterior/InstrumentCluster")
+	) as Node3D
+	_install_variant_cockpit_system_readout(instrument_cluster)
 	_bomber_boarding_marker = Marker3D.new()
 	_bomber_boarding_marker.name = "BoardingMarker"
 	_bomber_boarding_marker.position = Vector3(-3.8, -1.0, -0.5)
