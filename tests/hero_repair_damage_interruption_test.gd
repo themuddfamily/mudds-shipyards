@@ -117,6 +117,76 @@ func _test_live_jovian_engineer_binding() -> void:
 			and StringName(craft.get_engineer_repair_state().get("status", &"")) == &"repairing",
 		"authority-admitted Jovian engineer work reaches the existing active repair state"
 	)
+	var component_local_position := _component_local_position(craft, component_id)
+	var active_presentation := craft.get_engineer_repair_presentation_snapshot()
+	_check(
+		bool(active_presentation.get("visible", false))
+			and StringName(active_presentation.get("component_id", &"")) == component_id
+			and (active_presentation.get(
+				"target_local_position", Vector3.INF
+			) as Vector3).is_equal_approx(component_local_position),
+		"the admitted seated repair alone displays component-local work"
+	)
+
+	var integrity_before_repair := model.get_component_integrity(component_id)
+	craft.call(&"_advance_engineer_repair", 0.5)
+	_check(
+		StringName(craft.get_engineer_repair_state().get("status", &"")) == &"completed"
+			and model.get_component_integrity(component_id) > integrity_before_repair
+			and not bool(craft.get_engineer_repair_presentation_snapshot().get(
+				"visible", true
+			)),
+		"authoritative completion commits repair and immediately clears only its work cue"
+	)
+	craft.call(&"_advance_engineer_repair", 0.8)
+	model.record_damage(70.0, Vector3.INF)
+	component_id = _first_damaged_component(model)
+	var before_detach := craft.submit_crew_intent(
+		1,
+		77,
+		&"repair_interrupt_engineer",
+		RoleAuthorityType.ACTION_ENGINEER_REPAIR,
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
+		3
+	)
+	_check(
+		bool(before_detach.get("consumed", false))
+			and bool(craft.get_engineer_repair_presentation_snapshot().get("visible", false)),
+		"fresh admitted work can return after completion cooldown"
+	)
+	root.remove_child(craft)
+	var detached_state := craft.get_engineer_repair_state()
+	var detached_presentation := craft.get_engineer_repair_presentation_snapshot()
+	_check(
+		StringName(detached_state.get("status", &"")) == &"interrupted"
+			and StringName(detached_state.get("reason", &"")) == &"ship_detached"
+			and not bool(detached_presentation.get("attached", true))
+			and not bool(detached_presentation.get("visible", true)),
+		"ship detach interrupts authoritative work and clears its attachment-fenced cue"
+	)
+	root.add_child(craft)
+	await process_frame
+	await process_frame
+	_check(
+		bool(craft.get_engineer_repair_presentation_snapshot().get("attached", false))
+			and not bool(craft.get_engineer_repair_presentation_snapshot().get(
+				"visible", true
+			)),
+		"re-entry reattaches a fresh hidden presentation generation"
+	)
+	var after_reentry := craft.submit_crew_intent(
+		1,
+		77,
+		&"repair_interrupt_engineer",
+		RoleAuthorityType.ACTION_ENGINEER_REPAIR,
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
+		4
+	)
+	_check(
+		bool(after_reentry.get("consumed", false))
+			and bool(craft.get_engineer_repair_presentation_snapshot().get("visible", false)),
+		"only a fresh post-re-entry repair receipt restores component work"
+	)
 	var integrity_before_hit := model.get_component_integrity(component_id)
 	var hit_position := _component_world_position(craft, ComponentDamageType.COMPONENT_ENGINE_BAY)
 	craft.apply_damage(2.0, hit_position, Vector3.UP)
@@ -132,7 +202,10 @@ func _test_live_jovian_engineer_binding() -> void:
 			and StringName(interruption_receipt.get("damage_kind", &"")) == &"combat"
 			and model.get_component_integrity(component_id) <= integrity_before_hit
 			and StringName(network_repair.get("status", &"")) == &"interrupted"
-			and StringName(network_repair.get("reason", &"")) == &"authoritative_component_damage",
+			and StringName(network_repair.get("reason", &"")) == &"authoritative_component_damage"
+			and not bool(craft.get_engineer_repair_presentation_snapshot().get(
+				"visible", true
+			)),
 		"accepted combat damage aborts the real repair with immediate semantic and network feedback"
 	)
 	var restarted := craft.submit_crew_intent(
@@ -141,7 +214,7 @@ func _test_live_jovian_engineer_binding() -> void:
 		&"repair_interrupt_engineer",
 		RoleAuthorityType.ACTION_ENGINEER_REPAIR,
 		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
-		3
+		5
 	)
 	_check(
 		bool(restarted.get("consumed", false))
@@ -160,8 +233,104 @@ func _test_live_jovian_engineer_binding() -> void:
 			and StringName(collision_interrupted.get("status", &"")) == &"interrupted"
 			and StringName((collision_interrupted.get("receipt", {}) as Dictionary).get(
 				"damage_kind", &""
-			)) == &"collision",
+			)) == &"collision"
+			and not bool(craft.get_engineer_repair_presentation_snapshot().get(
+				"visible", true
+			)),
 		"accepted collision component damage uses the same interruption authority and semantic channel"
+	)
+
+	var before_release := craft.submit_crew_intent(
+		1,
+		77,
+		&"repair_interrupt_engineer",
+		RoleAuthorityType.ACTION_ENGINEER_REPAIR,
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
+		6
+	)
+	var generation_before_release := int(
+		craft.get_engineer_repair_presentation_snapshot().get("generation", -1)
+	)
+	var released := craft.release_crew_role(
+		1, 77, &"repair_interrupt_engineer", &"passenger_port_01", 7
+	)
+	var released_presentation := craft.get_engineer_repair_presentation_snapshot()
+	_check(
+		bool(before_release.get("consumed", false))
+			and bool(released.get("accepted", false))
+			and not bool(released_presentation.get("visible", true))
+			and int(released_presentation.get("generation", -1)) > generation_before_release,
+		"role release clears active work and advances the presentation generation"
+	)
+
+	var reclaimed := role_authority.claim(
+		1,
+		77,
+		&"repair_interrupt_engineer",
+		&"passenger_port_01",
+		RoleAuthorityType.ROLE_ENGINEER,
+		8
+	)
+	var selected_generation := int(
+		craft.get_engineer_gameplay_state().get("component_generation", 0)
+	)
+	var before_destruction := craft.submit_crew_intent(
+		1,
+		77,
+		&"repair_interrupt_engineer",
+		RoleAuthorityType.ACTION_ENGINEER_REPAIR,
+		{
+			"system_id": component_id,
+			"repair": 0.2,
+			"system_generation": selected_generation,
+		},
+		9
+	)
+	_check(
+		bool(reclaimed.get("accepted", false))
+			and bool(before_destruction.get("consumed", false))
+			and bool(craft.get_engineer_repair_presentation_snapshot().get("visible", false)),
+		"the re-admitted engineer starts against the fresh role generation"
+	)
+	craft.apply_damage(craft.maximum_hull * 10.0, craft.global_position, Vector3.UP)
+	_check(
+		craft.is_destroyed()
+			and not bool(craft.get_engineer_repair_presentation_snapshot().get(
+				"visible", true
+			)),
+		"ship destruction clears active repair work without granting the cue damage authority"
+	)
+
+	var presentation_generation_before_reset := int(
+		craft.get_engineer_repair_presentation_snapshot().get("generation", -1)
+	)
+	var reset := craft.reset_for_reuse(Transform3D.IDENTITY)
+	var reset_presentation := craft.get_engineer_repair_presentation_snapshot()
+	_check(
+		bool(reset.get("accepted", false))
+			and not bool(reset_presentation.get("visible", true))
+			and int(reset_presentation.get("generation", -1)) \
+				> presentation_generation_before_reset
+			and int(craft.get_engineer_gameplay_state().get(
+				"component_generation", 0
+			)) == 1,
+		"pooled reset clears the cue and starts fresh repair/component generations"
+	)
+	model.record_damage(70.0, Vector3.INF)
+	component_id = _first_damaged_component(model)
+	craft.set("_landed", true)
+	var after_reset := craft.submit_crew_intent(
+		1,
+		77,
+		&"repair_interrupt_engineer",
+		RoleAuthorityType.ACTION_ENGINEER_REPAIR,
+		{"system_id": component_id, "repair": 0.2, "system_generation": 1},
+		10
+	)
+	_check(
+		bool(after_reset.get("consumed", false))
+			and bool(craft.get_engineer_repair_presentation_snapshot().get("visible", false)),
+		"fresh authoritative work presents normally after pooled reset"
 	)
 	craft.queue_free()
 	await process_frame
@@ -186,6 +355,13 @@ func _component_world_position(craft: HeroShip, component_id: StringName) -> Vec
 		if StringName(state.get("id", &"")) == component_id:
 			return craft.to_global(state.get("local_position", Vector3.ZERO) as Vector3)
 	return craft.global_position
+
+
+func _component_local_position(craft: HeroShip, component_id: StringName) -> Vector3:
+	for state: Dictionary in craft.get_component_damage().get_component_states():
+		if StringName(state.get("id", &"")) == component_id:
+			return state.get("local_position", Vector3.INF) as Vector3
+	return Vector3.INF
 
 
 func _build_jovian_role_authority() -> CrewSeatRoleAuthority:
