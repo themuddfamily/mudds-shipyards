@@ -67,6 +67,13 @@ const ARMORED_SHOULDER_SIZE := Vector3(3.4, 1.9, 5.3)
 const ARMORED_SHOULDER_COPY_COUNT := 2
 const IDENTITY_BAND_SIZE := Vector3(0.16, 1.25, 3.2)
 const IDENTITY_BAND_COPY_COUNT := 2
+## Raised paired bastions turn the broad shoulder slab into a stepped armored
+## outline in the normal chase view. They stay inside the existing shoulder
+## footprint in X/Z and carry no collision, weapon, light, or component seam.
+const DORSAL_BASTION_SIZE := Vector3(1.45, 1.5, 3.4)
+const DORSAL_BASTION_COPY_COUNT := 2
+const DORSAL_BASTION_CROWN_SIZE := Vector3(1.08, 0.12, 2.55)
+const DORSAL_BASTION_CROWN_COPY_COUNT := 2
 const COCKPIT_CONSOLE_KEY_COPY_COUNT := 6
 const NAVIGATION_LAMP_RADIUS := 0.11
 const NAVIGATION_LAMP_COPY_COUNT := 2
@@ -346,6 +353,10 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	var armored_shoulder_names := PackedStringArray()
 	var identity_band_transforms: Array[Transform3D] = []
 	var identity_band_names := PackedStringArray()
+	var dorsal_bastion_transforms: Array[Transform3D] = []
+	var dorsal_bastion_names := PackedStringArray()
+	var dorsal_bastion_crown_transforms: Array[Transform3D] = []
+	var dorsal_bastion_crown_names := PackedStringArray()
 	var engine_housing_transforms: Array[Transform3D] = []
 	var engine_housing_names := PackedStringArray()
 	var gun_pod_housing_transforms: Array[Transform3D] = []
@@ -360,6 +371,18 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 			Transform3D(Basis.IDENTITY, Vector3(side * 4.18, 1.55, -0.2))
 		)
 		identity_band_names.append(side_name + "IdentityBand")
+		# The slight mirrored roll creates an inward-braced stepped outline while
+		# preserving the shoulder's existing lateral and longitudinal envelope.
+		dorsal_bastion_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, side * deg_to_rad(-7.0))),
+			Vector3(side * 4.05, 2.72, 0.72)
+		))
+		dorsal_bastion_names.append(side_name + "DorsalBastion")
+		dorsal_bastion_crown_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, side * deg_to_rad(-7.0))),
+			Vector3(side * 3.96, 3.48, 0.72)
+		))
+		dorsal_bastion_crown_names.append(side_name + "DorsalBastionCrown")
 		gun_pod_housing_transforms.append(Transform3D(
 			Basis.from_euler(Vector3(0.0, deg_to_rad(90.0), 0.0)),
 			Vector3(side * 3.25, 1.0, -3.1)
@@ -382,6 +405,26 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		identity_band_transforms,
 		identity_band_names,
 		amber
+	)
+	_add_dorsal_silhouette_batch(
+		_bulwark_visual,
+		"DorsalBastionBatch",
+		dorsal_bastion_transforms,
+		dorsal_bastion_names,
+		DORSAL_BASTION_SIZE,
+		DORSAL_BASTION_COPY_COUNT,
+		armor_blue,
+		&"heavy_gunship_dorsal_bastions"
+	)
+	_add_dorsal_silhouette_batch(
+		_bulwark_visual,
+		"DorsalBastionCrownBatch",
+		dorsal_bastion_crown_transforms,
+		dorsal_bastion_crown_names,
+		DORSAL_BASTION_CROWN_SIZE,
+		DORSAL_BASTION_CROWN_COPY_COUNT,
+		amber,
+		&"heavy_gunship_orientation_crowns"
 	)
 	_add_engine_housing_batch(
 		_bulwark_visual,
@@ -700,6 +743,46 @@ func _add_identity_band_batch(
 	batch.multimesh = multi
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", authored_names.duplicate())
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+## Two immutable renderer batches supply the Bulwark's stepped upper outline and
+## its restrained amber crown read. They are deliberately childless and inert:
+## heavy-gunship readability changes, but every gameplay envelope and authority
+## remains owned by the pre-existing HeroShip/Bulwark nodes.
+func _add_dorsal_silhouette_batch(
+		parent: Node3D,
+		batch_name: String,
+		transforms: Array[Transform3D],
+		authored_names: PackedStringArray,
+		size: Vector3,
+		copy_count: int,
+		material: Material,
+		silhouette_role: StringName
+) -> MultiMeshInstance3D:
+	var mesh := _rounded_box_mesh(size, material)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = copy_count
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in copy_count:
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = batch_name
+	batch.multimesh = multi
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"gameplay_distance_cue", true)
+	batch.set_meta(&"gameplay_authority", false)
+	batch.set_meta(&"silhouette_role", silhouette_role)
 	batch.set_meta(&"authored_visual_names", authored_names.duplicate())
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
