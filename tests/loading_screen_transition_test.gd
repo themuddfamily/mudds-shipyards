@@ -19,14 +19,25 @@ func _run() -> void:
 	screen.configure({"ui_scale": 1.6, "reduced_motion": true})
 	var stack := screen.get_node_or_null("LoadingRoot/Stack") as VBoxContainer
 	var destination := screen.get_node_or_null("LoadingRoot/Stack/Destination") as Label
+	var phase := screen.get_node_or_null("LoadingRoot/Stack/Phase") as Label
+	var phase_track := screen.get_node_or_null("LoadingRoot/Stack/PhaseTrack") as HBoxContainer
 	var status := screen.get_node_or_null("LoadingRoot/Stack/StageRow/Status") as Label
 	var progress := screen.get_node_or_null("LoadingRoot/Stack/StageRow/Progress") as Label
 	var detail := screen.get_node_or_null("LoadingRoot/Stack/Detail") as Label
 	_check(
-		stack != null and destination != null and status != null and progress != null and detail != null,
-		"the loading screen builds its destination, status, detail, and completion composition"
+		stack != null and destination != null and phase != null and phase_track != null
+			and status != null and progress != null and detail != null,
+		"the loading screen builds its destination, phase, status, detail, and completion composition"
 	)
-	if stack == null or destination == null or status == null or progress == null or detail == null:
+	if (
+		stack == null
+		or destination == null
+		or phase == null
+		or phase_track == null
+		or status == null
+		or progress == null
+		or detail == null
+	):
 		screen.queue_free()
 		await process_frame
 		viewport.queue_free()
@@ -52,19 +63,43 @@ func _run() -> void:
 		"an explicit station stage outranks incidental destination names in staged-child detail"
 	)
 	screen.set_stage("Loading Cinder Reach", 0.42, "Preparing nearby sector")
-	screen.set_stage("Preparing encounters", 0.58)
+	screen.set_stage(
+		"Preparing encounters", 0.58, "", "CINDER REACH", "Encounter handoff", 2, 3
+	)
 	_check(
 		destination.text == "DESTINATION  /  CINDER REACH"
+			and phase.text == "PHASE 2 OF 3  /  ENCOUNTER HANDOFF"
+			and phase_track.visible
+			and phase_track.get_child_count() == 3
 			and status.text == "PREPARING ENCOUNTERS"
 			and progress.text == "58%"
-			and not detail.visible,
-		"Cinder identity stays readable while caller-provided status and optional detail change"
+			and detail.visible
+			and detail.text.is_empty(),
+		"explicit Cinder identity and real phase stay readable while optional detail clears without shifting the track"
 	)
-	screen.set_stage("Approaching Ember Moon", 0.73, "Streaming basalt terrain")
+	var retained_segment_ids: Array[int] = []
+	for segment in phase_track.get_children():
+		retained_segment_ids.append(segment.get_instance_id())
+	screen.set_stage(
+		"Preparing encounters", 0.61, "Placing patrols",
+		"CINDER REACH", "Encounter handoff", 2, 3
+	)
+	var next_segment_ids: Array[int] = []
+	for segment in phase_track.get_children():
+		next_segment_ids.append(segment.get_instance_id())
+	_check(
+		next_segment_ids == retained_segment_ids and progress.text == "61%",
+		"same-phase real progress repaints retained segments instead of allocating Controls every frame"
+	)
+	screen.set_stage(
+		"Approaching Ember Moon", 0.73, "Streaming basalt terrain",
+		"EMBER MOON", "Surface approach", 3, 3
+	)
 	_check(
 		destination.text == "DESTINATION  /  EMBER MOON"
+			and phase.text == "PHASE 3 OF 3  /  SURFACE APPROACH"
 			and progress.text == "73%",
-		"Ember caller state replaces Cinder identity without a second transition owner"
+		"the next caller-owned phase replaces Cinder identity without inventing progress or transition authority"
 	)
 	var viewport_size := screen.get_viewport().get_visible_rect().size
 	_check(
@@ -80,10 +115,13 @@ func _run() -> void:
 
 	viewport.remove_child(screen)
 	_check(
-		destination.text.is_empty()
+			destination.text.is_empty()
+			and phase.text.is_empty()
+			and not phase_track.visible
 			and status.text.is_empty()
 			and progress.text.is_empty()
-			and not detail.visible,
+			and detail.visible
+			and detail.text.is_empty(),
 		"detaching clears the painted transition composition before reuse"
 	)
 	viewport.add_child(screen)

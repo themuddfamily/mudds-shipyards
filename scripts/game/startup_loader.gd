@@ -95,7 +95,10 @@ func _ready() -> void:
 	_screen.name = "LoadingScreen"
 	_screen.configure(_read_accessibility_descriptor())
 	add_child(_screen)
-	_screen.set_stage("Starting up", 0.0)
+	_screen.set_stage(
+		"Starting up", 0.0, "Preparing station manifest",
+		"MUDDS SHIPYARDS", "Station data", 1, 3
+	)
 	if auto_start:
 		run_startup()
 
@@ -197,7 +200,10 @@ func run_startup() -> Node:
 		return null
 	_resources_ready_usec = Time.get_ticks_usec()
 	if packed == null:
-		_screen.set_stage("Startup failed", 1.0, "scenes/main.tscn could not be loaded")
+		_screen.set_stage(
+			"Startup failed", 1.0, "scenes/main.tscn could not be loaded",
+			"MUDDS SHIPYARDS", "Startup interrupted", 1, 1
+		)
 		_finish_startup(startup_generation)
 		return null
 
@@ -224,11 +230,17 @@ func run_startup() -> Node:
 	# turns 3D back on, which is exactly the monolithic stall this scene exists to
 	# break up. Letting each staged chunk draw spreads that warm-up over frames
 	# the loading screen is already repainting between.
-	_screen.set_stage("Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION)
+	_screen.set_stage(
+		"Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION, "Preparing player control",
+		"MUDDS SHIPYARDS", "Handoff", 3, 3
+	)
 	await tree.process_frame
 	if not _is_startup_current(startup_generation):
 		return null
-	_screen.set_stage("Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION + PHASE_HANDOFF)
+	_screen.set_stage(
+		"Entering the yard", PHASE_RESOURCES + PHASE_CONSTRUCTION + PHASE_HANDOFF, "Yard ready",
+		"MUDDS SHIPYARDS", "Handoff", 3, 3
+	)
 	_interactive_usec = Time.get_ticks_usec()
 	_screen.dismiss()
 	_finish_startup(startup_generation)
@@ -278,7 +290,10 @@ func _load_main_scene(startup_generation: int) -> PackedScene:
 	if request != OK:
 		# A loader thread was refused. Fall back to the blocking load rather than
 		# failing to boot; the loading screen is still up, it just stops moving.
-		_screen.set_stage("Loading station data", PHASE_RESOURCES)
+		_screen.set_stage(
+			"Loading station data", PHASE_RESOURCES, "Fallback resource load",
+			"MUDDS SHIPYARDS", "Station data", 1, 3
+		)
 		var fallback := load(MAIN_SCENE_PATH) as PackedScene
 		_note_stage("resources", "Loading station data")
 		return fallback
@@ -293,7 +308,11 @@ func _load_main_scene(startup_generation: int) -> PackedScene:
 		_screen.set_stage(
 			"Loading station data",
 			PHASE_RESOURCES * ratio,
-			"%d%%" % roundi(ratio * 100.0)
+			"Resource load %d%%" % roundi(ratio * 100.0),
+			"MUDDS SHIPYARDS",
+			"Station data",
+			1,
+			3
 		)
 		if status == ResourceLoader.THREAD_LOAD_LOADED:
 			break
@@ -305,7 +324,10 @@ func _load_main_scene(startup_generation: int) -> PackedScene:
 		await tree.process_frame
 		if not _is_startup_current(startup_generation):
 			return null
-	_screen.set_stage("Loading station data", PHASE_RESOURCES, "100%")
+	_screen.set_stage(
+		"Loading station data", PHASE_RESOURCES, "Resource load 100%",
+		"MUDDS SHIPYARDS", "Station data", 1, 3
+	)
 	_note_stage("resources", "Loading station data")
 	return ResourceLoader.load_threaded_get(MAIN_SCENE_PATH) as PackedScene
 
@@ -319,7 +341,11 @@ func _on_construction_stage(startup_generation: int, label: String, ratio: float
 	_screen.set_stage(
 		"Building the shipyard",
 		PHASE_RESOURCES + PHASE_CONSTRUCTION * clampf(ratio, 0.0, 1.0),
-		label
+		label,
+		"MUDDS SHIPYARDS",
+		"Yard construction",
+		2,
+		3
 	)
 	_note_stage("construction", label)
 

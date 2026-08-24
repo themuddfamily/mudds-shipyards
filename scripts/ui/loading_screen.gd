@@ -32,12 +32,14 @@ var _root: Control
 var _backdrop_slot: Control
 var _title: Label
 var _destination_label: Label
+var _phase_label: Label
 var _stage_label: Label
 var _detail_label: Label
 var _caret: Label
 var _progress_label: Label
 var _bar_track: ColorRect
 var _bar_fill: ColorRect
+var _phase_track: HBoxContainer
 var _rule: ColorRect
 
 var _palette: Dictionary = PaletteType.get_palette(PaletteType.MODE_NONE)
@@ -47,6 +49,9 @@ var _progress := 0.0
 var _stage_text := ""
 var _detail_text := ""
 var _destination_text := ""
+var _phase_text := ""
+var _phase_index := 0
+var _phase_count := 0
 var _elapsed := 0.0
 var _dismissed := false
 var _backdrop: TextureRect
@@ -101,7 +106,18 @@ func configure(descriptor: Dictionary) -> void:
 
 
 ## Names the stage now running and how far startup has actually got, 0..1.
-func set_stage(stage_text: String, progress: float, detail_text: String = "") -> void:
+## A caller that owns a real multi-phase transition may also publish its steady
+## destination and 1-based phase position. They are presentation descriptors:
+## this screen never advances either one on its own.
+func set_stage(
+	stage_text: String,
+	progress: float,
+	detail_text: String = "",
+	destination_text: String = "",
+	phase_text: String = "",
+	phase_index: int = 0,
+	phase_count: int = 0
+) -> void:
 	if not _can_mutate_live_presentation():
 		return
 	# Zero is the caller's unambiguous beginning-of-load state. It also prevents
@@ -110,18 +126,28 @@ func set_stage(stage_text: String, progress: float, detail_text: String = "") ->
 		_reset_status_state()
 	_stage_text = stage_text
 	_detail_text = detail_text
-	_destination_text = _destination_for(stage_text, detail_text, _destination_text)
+	_destination_text = (
+		destination_text.strip_edges()
+		if not destination_text.strip_edges().is_empty()
+		else _destination_for(stage_text, detail_text, _destination_text)
+	)
+	_set_phase_state(phase_text, phase_index, phase_count)
 	# Startup only ever moves forward. Clamping here means a caller that reports
 	# a phase boundary slightly out of order cannot make the bar walk backwards.
 	_progress = clampf(maxf(progress, _progress), 0.0, 1.0)
 	if _stage_label == null:
 		return
 	_destination_label.text = "DESTINATION  /  %s" % _destination_text
+	_phase_label.text = _formatted_phase_text()
+	_phase_label.visible = _phase_count > 0
 	_stage_label.text = _stage_text.to_upper()
 	_detail_label.text = _detail_text
-	_detail_label.visible = not _detail_text.is_empty()
+	# Keep this row reserved even when a phase has no detail. Changing a child
+	# stage must not make the global progress track jump vertically.
+	_detail_label.visible = true
 	_progress_label.text = "%d%%" % roundi(_progress * 100.0)
 	_layout_bar()
+	_sync_phase_track()
 
 
 ## Loads and fades in the shared title backdrop. Called after the first frames
@@ -192,6 +218,10 @@ func get_report() -> Dictionary:
 		"progress": _progress,
 		"stage": _stage_text,
 		"detail": _detail_text,
+		"destination": _destination_text,
+		"phase": _phase_text,
+		"phase_index": _phase_index,
+		"phase_count": _phase_count,
 		"reduced_motion": _reduced_motion,
 		"ui_scale": _ui_scale,
 		"dismissed": _dismissed,
@@ -279,6 +309,11 @@ func _build() -> void:
 	_destination_label.name = "Destination"
 	stack.add_child(_destination_label)
 
+	_phase_label = _make_label("", 12)
+	_phase_label.name = "Phase"
+	_phase_label.visible = false
+	stack.add_child(_phase_label)
+
 	var stage_row := HBoxContainer.new()
 	stage_row.name = "StageRow"
 	stage_row.add_theme_constant_override("separation", 6)
@@ -306,8 +341,15 @@ func _build() -> void:
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_label.max_lines_visible = 2
 	_detail_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_detail_label.visible = false
+	_detail_label.custom_minimum_size.y = 36.0
 	stack.add_child(_detail_label)
+
+	_phase_track = HBoxContainer.new()
+	_phase_track.name = "PhaseTrack"
+	_phase_track.add_theme_constant_override("separation", 6)
+	_phase_track.custom_minimum_size.y = 3.0
+	_phase_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(_phase_track)
 
 	_bar_track = ColorRect.new()
 	_bar_track.name = "BarTrack"
@@ -347,12 +389,14 @@ func _repaint() -> void:
 	var muted := _role(PaletteType.ROLE_MUTED)
 	_title.add_theme_color_override("font_color", primary)
 	_destination_label.add_theme_color_override("font_color", _role(PaletteType.ROLE_CAUTION))
+	_phase_label.add_theme_color_override("font_color", _role(PaletteType.ROLE_MUTED))
 	_stage_label.add_theme_color_override("font_color", nominal)
 	_caret.add_theme_color_override("font_color", nominal)
 	_progress_label.add_theme_color_override("font_color", nominal)
 	_detail_label.add_theme_color_override("font_color", muted)
 	_rule.color = _role(PaletteType.ROLE_CAUTION)
 	_bar_fill.color = nominal
+	_repaint_phase_track()
 	var footer := _root.get_node_or_null(^"Footer") as Label
 	if footer != null:
 		footer.add_theme_color_override("font_color", muted)
@@ -368,7 +412,7 @@ func _layout() -> void:
 	var stack := _root.get_node_or_null(^"Stack") as VBoxContainer
 	if stack == null:
 		return
-	for label: Node in [_title, _destination_label, _stage_label, _caret, _progress_label, _detail_label]:
+	for label: Node in [_title, _destination_label, _phase_label, _stage_label, _caret, _progress_label, _detail_label]:
 		var typed := label as Label
 		if typed == null:
 			continue
@@ -384,6 +428,7 @@ func _layout() -> void:
 	)
 	_rule.custom_minimum_size = Vector2(minf(310.0 * _ui_scale, readable_width), 3.0)
 	_bar_track.custom_minimum_size = Vector2(readable_width, 8.0)
+	_phase_track.custom_minimum_size = Vector2(readable_width, 3.0)
 	_progress_label.custom_minimum_size.x = 62.0 * _ui_scale
 	var stack_height := minf(260.0 * _ui_scale, viewport_size.y - margin * 2.0)
 	stack.position = Vector2(margin, maxf(margin, viewport_size.y - stack_height - margin))
@@ -446,18 +491,94 @@ func _destination_for(stage_text: String, detail_text: String, current: String) 
 	return "DESTINATION PENDING"
 
 
+func _set_phase_state(phase_text: String, phase_index: int, phase_count: int) -> void:
+	var cleaned_phase := phase_text.strip_edges()
+	if cleaned_phase.is_empty() or phase_count <= 0 or phase_index <= 0 or phase_index > phase_count:
+		_phase_text = ""
+		_phase_index = 0
+		_phase_count = 0
+		return
+	_phase_text = cleaned_phase
+	_phase_index = phase_index
+	_phase_count = mini(phase_count, 8)
+	_phase_index = mini(_phase_index, _phase_count)
+
+
+func _formatted_phase_text() -> String:
+	if _phase_count <= 0:
+		return ""
+	return "PHASE %d OF %d  /  %s" % [_phase_index, _phase_count, _phase_text.to_upper()]
+
+
+func _rebuild_phase_track() -> void:
+	if _phase_track == null:
+		return
+	for child in _phase_track.get_children():
+		_phase_track.remove_child(child)
+		child.queue_free()
+	_phase_track.visible = _phase_count > 0
+	for segment_index in _phase_count:
+		var segment := ColorRect.new()
+		segment.name = "Phase%02d" % (segment_index + 1)
+		segment.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		segment.custom_minimum_size.y = 3.0
+		segment.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		segment.set_meta(&"phase_number", segment_index + 1)
+		_phase_track.add_child(segment)
+	_repaint_phase_track()
+
+
+func _sync_phase_track() -> void:
+	if _phase_track == null:
+		return
+	_phase_track.visible = _phase_count > 0
+	# Threaded resource progress may publish every frame. Preserve the same
+	# segment nodes while only their phase state changes; the loading UI should
+	# not allocate and retire Controls throughout the very path it is smoothing.
+	if _phase_track.get_child_count() != _phase_count:
+		_rebuild_phase_track()
+		return
+	_repaint_phase_track()
+
+
+func _repaint_phase_track() -> void:
+	if _phase_track == null:
+		return
+	for child in _phase_track.get_children():
+		var segment := child as ColorRect
+		if segment == null:
+			continue
+		var phase_number := int(segment.get_meta(&"phase_number", 0))
+		var color := _role(PaletteType.ROLE_MUTED)
+		if phase_number < _phase_index:
+			color = _role(PaletteType.ROLE_NOMINAL)
+			color.a = 0.7
+		elif phase_number == _phase_index:
+			color = _role(PaletteType.ROLE_CAUTION)
+		else:
+			color.a = 0.3
+		segment.color = color
+
+
 func _reset_status_state() -> void:
 	_progress = 0.0
 	_stage_text = ""
 	_detail_text = ""
 	_destination_text = ""
+	_phase_text = ""
+	_phase_index = 0
+	_phase_count = 0
 	if _destination_label != null:
 		_destination_label.text = ""
 	if _stage_label != null:
 		_stage_label.text = ""
 	if _detail_label != null:
 		_detail_label.text = ""
-		_detail_label.visible = false
+		_detail_label.visible = true
+	if _phase_label != null:
+		_phase_label.text = ""
+		_phase_label.visible = false
+	_sync_phase_track()
 	if _progress_label != null:
 		_progress_label.text = ""
 	if _bar_fill != null:
