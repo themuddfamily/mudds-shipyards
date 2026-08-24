@@ -306,6 +306,7 @@ var _server_browser_focus_target: Control
 var _server_browser_address: LineEdit
 var _server_browser_port: LineEdit
 var _server_browser_player_name: LineEdit
+var _server_browser_results_scroll: ScrollContainer
 var _server_browser_rows: VBoxContainer
 var _server_browser_actions: HBoxContainer
 var _server_browser_filter_controls: Dictionary = {}
@@ -4995,11 +4996,21 @@ func _build_server_browser_page() -> void:
 	_server_browser_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_server_browser_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(_server_browser_feedback)
+	_server_browser_results_scroll = ScrollContainer.new()
+	_server_browser_results_scroll.name = "ServerBrowserResultsScroll"
+	_server_browser_results_scroll.custom_minimum_size.y = 48.0
+	_server_browser_results_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_server_browser_results_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_server_browser_results_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_server_browser_results_scroll.follow_focus = true
+	_server_browser_results_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	stack.add_child(_server_browser_results_scroll)
 	_server_browser_rows = VBoxContainer.new()
 	_server_browser_rows.name = "ServerBrowserRows"
 	_server_browser_rows.add_theme_constant_override("separation", 6)
+	_server_browser_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_server_browser_rows.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stack.add_child(_server_browser_rows)
+	_server_browser_results_scroll.add_child(_server_browser_rows)
 	_server_browser_actions = HBoxContainer.new()
 	_server_browser_actions.name = "ServerBrowserActions"
 	_server_browser_actions.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -5129,6 +5140,9 @@ func request_server_browser_manual_join() -> Dictionary:
 		if is_instance_valid(target):
 			target.grab_focus()
 		return apply_server_browser_feedback(request)
+	var normalized_form := composed.get("form", {}) as Dictionary
+	_server_browser_address.text = str(normalized_form.get("address", request.get("address", "")))
+	_server_browser_port.text = str(int(normalized_form.get("port", request.get("port", 0))))
 	presentation_intent_requested.emit(&"server_browser", request.duplicate(true))
 	return request
 
@@ -5210,6 +5224,48 @@ func request_server_browser_join(session_id: StringName) -> Dictionary:
 	return request
 
 
+func _configure_server_browser_result_focus_order(
+	result_controls: Array[Control], clear_sort: Control, refresh: Control
+	) -> void:
+	if not is_instance_valid(clear_sort) or not is_instance_valid(refresh):
+		return
+	var previous := clear_sort
+	for control in result_controls:
+		if not is_instance_valid(control) or control.focus_mode == Control.FOCUS_NONE:
+			continue
+		previous.focus_neighbor_bottom = previous.get_path_to(control)
+		control.focus_neighbor_top = control.get_path_to(previous)
+		previous = control
+	previous.focus_neighbor_bottom = previous.get_path_to(refresh)
+	refresh.focus_neighbor_top = refresh.get_path_to(previous)
+
+
+func _request_server_browser_result_visible(control: Control) -> void:
+	_ensure_server_browser_result_visible.call_deferred(control)
+
+
+func _ensure_server_browser_result_visible(control: Control) -> void:
+	if (
+		not is_inside_tree()
+		or is_queued_for_deletion()
+		or not is_instance_valid(_server_browser_results_scroll)
+		or _server_browser_results_scroll.is_queued_for_deletion()
+		or not _server_browser_results_scroll.is_inside_tree()
+		or not is_instance_valid(_server_browser_page)
+		or _server_browser_page.is_queued_for_deletion()
+		or not _server_browser_page.is_inside_tree()
+		or not _server_browser_page.is_visible_in_tree()
+		or not is_instance_valid(control)
+		or control.is_queued_for_deletion()
+		or not control.is_inside_tree()
+		or not control.is_visible_in_tree()
+		or not _server_browser_results_scroll.is_ancestor_of(control)
+		or get_viewport().gui_get_focus_owner() != control
+	):
+		return
+	_server_browser_results_scroll.ensure_control_visible(control)
+
+
 func _render_server_browser(presentation: Dictionary) -> void:
 	var status := StringName(str(presentation.get("status", &"empty")))
 	var refresh := (
@@ -5217,11 +5273,12 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		as Button
 	)
 	var clear_sort := _server_browser_sort_controls.get(&"clear_sort") as Control
-	# A prior error may have spliced a transient retry button into this edge.
-	# Restore the authored static route before rebuilding dynamic browser rows.
-	if is_instance_valid(refresh) and is_instance_valid(clear_sort):
-		clear_sort.focus_neighbor_bottom = clear_sort.get_path_to(refresh)
-		refresh.focus_neighbor_top = refresh.get_path_to(clear_sort)
+	var focused_session_id: StringName = &""
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if is_instance_valid(focus_owner) \
+			and is_instance_valid(_server_browser_rows) \
+			and _server_browser_rows.is_ancestor_of(focus_owner):
+		focused_session_id = StringName(focus_owner.get_meta(&"session_id", &""))
 	var status_title: String = {
 		&"loading": "REFRESHING SERVER LIST",
 		&"refreshing": "REFRESHING SERVER LIST",
@@ -5253,8 +5310,11 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		var latency_index := [&"", &"excellent", &"good", &"poor", &"unknown"].find(StringName(str(active_filters.get("latency_band", &""))))
 		latency_filter.select(maxi(latency_index, 0))
 	for child in _server_browser_rows.get_children():
+		_server_browser_rows.remove_child(child)
 		child.queue_free()
 	var retry_focus_target: Button
+	var result_focus_controls: Array[Control] = []
+	var row_buttons: Dictionary = {}
 	var rows: Array = presentation.get("rows", [])
 	for row_value in rows:
 		if not row_value is Dictionary:
@@ -5272,11 +5332,18 @@ func _render_server_browser(presentation: Dictionary) -> void:
 			],
 			MUTED if bool(row.get("full", false)) else NOMINAL_SOFT
 		)
-		button.focus_mode = Control.FOCUS_ALL
-		button.disabled = bool(row.get("full", false))
+		var session_id := StringName(str(row.get("session_id", &"")))
+		var row_disabled := bool(row.get("full", false))
+		button.set_meta(&"session_id", session_id)
+		button.disabled = row_disabled
+		button.focus_mode = Control.FOCUS_NONE if row_disabled else Control.FOCUS_ALL
 		button.tooltip_text = str(row.get("focus_label", "Select server"))
-		button.pressed.connect(request_server_browser_join.bind(StringName(str(row.get("session_id", &"")))))
+		button.pressed.connect(request_server_browser_join.bind(session_id))
 		_server_browser_rows.add_child(button)
+		if not session_id.is_empty():
+			row_buttons[session_id] = button
+		if not row_disabled:
+			result_focus_controls.append(button)
 	if status in [&"error", &"expired"] and bool(presentation.get("retryable", false)):
 		var retry_after_milliseconds := maxi(int(presentation.get("retry_after_milliseconds", 0)), 0)
 		var retry_label := "RETRY SERVER LIST"
@@ -5289,11 +5356,8 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		retry.pressed.connect(request_server_browser_refresh)
 		_server_browser_rows.add_child(retry)
 		retry_focus_target = retry
-		if is_instance_valid(refresh) and is_instance_valid(clear_sort):
-			clear_sort.focus_neighbor_bottom = clear_sort.get_path_to(retry)
-			retry.focus_neighbor_top = retry.get_path_to(clear_sort)
-			retry.focus_neighbor_bottom = retry.get_path_to(refresh)
-			refresh.focus_neighbor_top = refresh.get_path_to(retry)
+		result_focus_controls.append(retry)
+	_configure_server_browser_result_focus_order(result_focus_controls, clear_sort, refresh)
 	if is_instance_valid(retry_focus_target):
 		# The presenter's retry focus target is an accessibility instruction. Keep
 		# the live retained control as the re-entry target as well as focusing it now.
@@ -5307,6 +5371,17 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		# stable refresh action named by the presenter's all-full status.
 		_server_browser_focus_target = refresh
 		refresh.grab_focus()
+	elif not focused_session_id.is_empty():
+		var retained_row := row_buttons.get(focused_session_id) as Button
+		if is_instance_valid(retained_row) and not retained_row.disabled:
+			_server_browser_focus_target = retained_row
+			retained_row.grab_focus()
+			_request_server_browser_result_visible(retained_row)
+		elif is_instance_valid(refresh):
+			# A rebuilt directory must not silently move the player to another session.
+			# Return to the stable caller-owned action when that identity disappeared.
+			_server_browser_focus_target = refresh
+			refresh.grab_focus()
 
 
 func _add_activity_selection_row(

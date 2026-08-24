@@ -28,11 +28,30 @@ func _run() -> void:
 	_check(result, "discovery result is accepted")
 	_check((hud.get("_server_browser_title") as Label).text == "AVAILABLE SESSIONS", "available state has a readable title")
 	var rows := hud.get("_server_browser_rows") as VBoxContainer
+	var clear_sort := hud.get("_server_browser_page").find_child(
+		"ServerBrowserClearSortButton", true, false
+	) as Control
+	var refresh := hud.get("_server_browser_page").find_child(
+		"ServerBrowserRefreshButton", true, false
+	) as Control
+	var open_row: Button
 	var full_row: Button
 	for child in rows.get_children():
+		if child is Button and "Open Run" in (child as Button).text:
+			open_row = child as Button
 		if child is Button and "Full Run" in (child as Button).text:
 			full_row = child as Button
-	_check(rows.get_child_count() == 2 and full_row != null and full_row.disabled, "full sessions stay visible but cannot be selected")
+	_check(
+		rows.get_child_count() == 2 and open_row != null and full_row != null
+			and full_row.disabled and full_row.focus_mode == Control.FOCUS_NONE,
+		"full sessions stay visible but cannot enter the focus graph",
+	)
+	_check(
+		clear_sort.focus_neighbor_bottom == clear_sort.get_path_to(open_row)
+			and open_row.focus_neighbor_bottom == open_row.get_path_to(refresh)
+			and refresh.focus_neighbor_top == refresh.get_path_to(open_row),
+		"only enabled session rows participate in deterministic controller navigation",
+	)
 	hud.apply_server_browser_result({
 		"accepted": true,
 		"rows": [{"session_id": &"full", "title": "Full Run", "region_id": &"us-east", "ping_ms": 85, "player_count": 4, "max_players": 4}],

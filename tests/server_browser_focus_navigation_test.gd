@@ -42,6 +42,77 @@ func _run() -> void:
 		and root.get_viewport().gui_get_focus_owner() == address,
 		"a tutorial redraw cannot steal controller focus from the open browser"
 	)
+	var scroll := hud.get("_server_browser_results_scroll") as ScrollContainer
+	_check(
+		scroll != null and scroll.follow_focus
+			and scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED
+			and scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO,
+		"browser results are vertically bounded and automatically follow controller focus",
+	)
+	var capacity_rows := _session_rows(9)
+	_check(hud.apply_server_browser_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 44,
+		"snapshot_sequence": 1,
+		"rows": capacity_rows,
+	}), "initial capacity receipt renders scrollable sessions")
+	await process_frame
+	var rows := hud.get("_server_browser_rows") as VBoxContainer
+	var first_row := _session_button(rows, &"session_00")
+	var focused_row := _session_button(rows, &"session_08")
+	_check(
+		first_row != null and focused_row != null
+			and clear_sort.focus_neighbor_bottom == clear_sort.get_path_to(first_row)
+			and first_row.focus_neighbor_top == first_row.get_path_to(clear_sort)
+			and focused_row.focus_neighbor_bottom == focused_row.get_path_to(refresh)
+			and refresh.focus_neighbor_top == refresh.get_path_to(focused_row),
+		"enabled result rows are spliced between sort and refresh in the focus graph",
+	)
+	focused_row.grab_focus()
+	await process_frame
+	_check(scroll.scroll_vertical > 0, "focusing the ninth session scrolls the bounded results viewport")
+	var previous_row := focused_row
+	capacity_rows[8]["player_count"] = 2
+	_check(hud.apply_server_browser_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 44,
+		"snapshot_sequence": 2,
+		"rows": capacity_rows,
+	}), "advanced capacity receipt rebuilds the same session identities")
+	await process_frame
+	await process_frame
+	var rebuilt_row := root.get_viewport().gui_get_focus_owner() as Button
+	var scroll_rect := scroll.get_global_rect()
+	var rebuilt_rect := rebuilt_row.get_global_rect() if is_instance_valid(rebuilt_row) else Rect2()
+	_check(
+		is_instance_valid(rebuilt_row) and rebuilt_row != previous_row
+			and rows.is_ancestor_of(rebuilt_row)
+			and StringName(rebuilt_row.get_meta(&"session_id", &"")) == &"session_08",
+		"capacity rebuild restores focus to the same session identity",
+	)
+	_check(
+		rebuilt_rect.position.y >= scroll_rect.position.y - 0.5
+			and rebuilt_rect.end.y <= scroll_rect.end.y + 0.5
+			and scroll.scroll_vertical > 0,
+		"capacity rebuild keeps the restored session visible in the scrolled viewport",
+	)
+	capacity_rows.remove_at(8)
+	_check(hud.apply_server_browser_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 44,
+		"snapshot_sequence": 3,
+		"rows": capacity_rows,
+	}), "later capacity receipt may remove the focused session")
+	await process_frame
+	_check(
+		root.get_viewport().gui_get_focus_owner() == refresh
+			and hud.get("_server_browser_focus_target") == refresh
+			and _session_button(rows, &"session_08") == null,
+		"removed focused session returns to Refresh without selecting another identity",
+	)
 	hud.apply_server_browser_result({
 		"accepted": true,
 		"rows": [{"session_id": &"full", "title": "Full", "player_count": 4, "max_players": 4}],
@@ -104,3 +175,24 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _session_rows(count: int) -> Array:
+	var rows: Array = []
+	for index in count:
+		rows.append({
+			"session_id": StringName("session_%02d" % index),
+			"title": "Session %02d" % index,
+			"region_id": &"local",
+			"ping_ms": 20 + index,
+			"player_count": 1,
+			"max_players": 4,
+		})
+	return rows
+
+
+func _session_button(rows: VBoxContainer, session_id: StringName) -> Button:
+	for child in rows.get_children():
+		if child is Button and StringName(child.get_meta(&"session_id", &"")) == session_id:
+			return child as Button
+	return null
