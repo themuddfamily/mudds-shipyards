@@ -75,6 +75,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_test_identity_band_batch(visual)
 	_test_cockpit_console_key_mesh_sharing(visual)
 	_test_navigation_lamp_mesh_sharing(visual)
+	_test_engine_housing_batch(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -291,6 +292,60 @@ func _test_navigation_lamp_mesh_sharing(visual: Node3D) -> void:
 	print(
 		"BULWARK_NAVIGATION_LAMPS: nodes 2->2 visible_copies 2->2 "
 		+ "submissions 2->2 mesh_resources 2->1"
+	)
+
+
+func _test_engine_housing_batch(visual: Node3D) -> void:
+	var batch := visual.get_node_or_null("EngineHousingBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var multi := batch.multimesh if batch != null else null
+	_check(
+		multi != null
+		and multi.transform_format == MultiMesh.TRANSFORM_3D
+		and multi.instance_count == 2
+		and multi.visible_instance_count == -1
+		and multi.mesh != null
+		and multi.mesh.get_surface_count() == 1,
+		"two rear engine-housing copies retain one bounded renderer submission"
+	)
+	if multi == null:
+		return
+	var engine_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var expected_transforms := [
+		Transform3D(engine_basis, Vector3(-2.65, 1.15, 4.25)),
+		Transform3D(engine_basis, Vector3(2.65, 1.15, 4.25)),
+	]
+	var transforms: Array = batch.get_meta(&"authored_instance_transforms", []) as Array
+	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray
+	var mesh_bounds := multi.mesh.get_aabb()
+	var expected_bounds: AABB = (expected_transforms[0] * mesh_bounds).abs().merge(
+		(expected_transforms[1] * mesh_bounds).abs()
+	)
+	var material := multi.mesh.surface_get_material(0) as StandardMaterial3D
+	_check(
+		transforms == expected_transforms
+		and names == PackedStringArray(["PortEngineHousing", "StarboardEngineHousing"])
+		and material != null
+		and material.albedo_color.is_equal_approx(Color("101b2a"))
+		and is_equal_approx(material.metallic, 0.78)
+		and is_equal_approx(material.roughness, 0.32)
+		and is_equal_approx(mesh_bounds.size.x, 1.44)
+		and is_equal_approx(mesh_bounds.size.y, 2.8)
+		and is_equal_approx(mesh_bounds.size.z, 1.44)
+		and multi.custom_aabb.is_equal_approx(expected_bounds)
+		and batch.material_override == null
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1,
+		"engine-housing silhouette, material, culling bounds, layer, and shadows remain exact"
+	)
+	_check(
+		visual.get_node_or_null("PortEngineHousing") == null
+		and visual.get_node_or_null("StarboardEngineHousing") == null,
+		"legacy engine-housing renderer submissions are removed"
+	)
+	print(
+		"BULWARK_ENGINE_HOUSING_BATCH: nodes 2->1 visible_copies 2->2 "
+		+ "submissions 2->1"
 	)
 
 

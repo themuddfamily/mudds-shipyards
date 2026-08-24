@@ -68,6 +68,9 @@ const IDENTITY_BAND_COPY_COUNT := 2
 const COCKPIT_CONSOLE_KEY_COPY_COUNT := 6
 const NAVIGATION_LAMP_RADIUS := 0.11
 const NAVIGATION_LAMP_COPY_COUNT := 2
+const ENGINE_HOUSING_RADIUS := 0.72
+const ENGINE_HOUSING_HEIGHT := 2.8
+const ENGINE_HOUSING_COPY_COUNT := 2
 
 var _bulwark_built := false
 var _bulwark_visual: Node3D
@@ -305,6 +308,8 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	var armored_shoulder_names := PackedStringArray()
 	var identity_band_transforms: Array[Transform3D] = []
 	var identity_band_names := PackedStringArray()
+	var engine_housing_transforms: Array[Transform3D] = []
+	var engine_housing_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		armored_shoulder_transforms.append(
@@ -316,7 +321,11 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		)
 		identity_band_names.append(side_name + "IdentityBand")
 		_cylinder(_bulwark_visual, side_name + "GunPodHousing", Vector3(side * 3.25, 1.0, -3.1), 0.42, 2.15, armor_highlight, Vector3(0.0, 90.0, 0.0))
-		_cylinder(_bulwark_visual, side_name + "EngineHousing", Vector3(side * 2.65, 1.15, 4.25), 0.72, 2.8, armor_dark, Vector3(90.0, 0.0, 0.0))
+		engine_housing_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)),
+			Vector3(side * 2.65, 1.15, 4.25)
+		))
+		engine_housing_names.append(side_name + "EngineHousing")
 	_add_navigation_lamps(_bulwark_visual, boarding, amber)
 	_add_armored_shoulder_batch(
 		_bulwark_visual,
@@ -329,6 +338,12 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		identity_band_transforms,
 		identity_band_names,
 		amber
+	)
+	_add_engine_housing_batch(
+		_bulwark_visual,
+		engine_housing_transforms,
+		engine_housing_names,
+		armor_dark
 	)
 
 	# Gunner station is physical ship-local presentation and interaction data;
@@ -531,6 +546,49 @@ func _add_identity_band_batch(
 	multi.custom_aabb = bounds
 	var batch := MultiMeshInstance3D.new()
 	batch.name = "IdentityBandBatch"
+	batch.multimesh = multi
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", authored_names.duplicate())
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+## The mirrored rear engine housings are immutable exterior dressing: engine
+## state remains owned by HeroShip and no component, light, particle, collision,
+## or interaction node is attached to either renderer. Preserve their exact
+## chamfered cylinders and transforms in one bounded renderer submission.
+func _add_engine_housing_batch(
+		parent: Node3D,
+		transforms: Array[Transform3D],
+		authored_names: PackedStringArray,
+		material: Material
+) -> MultiMeshInstance3D:
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		ENGINE_HOUSING_RADIUS,
+		ENGINE_HOUSING_RADIUS,
+		ENGINE_HOUSING_HEIGHT,
+		32,
+		_chamfered_cylinder_cache,
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS,
+		true,
+		true,
+		material
+	)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = ENGINE_HOUSING_COPY_COUNT
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in ENGINE_HOUSING_COPY_COUNT:
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "EngineHousingBatch"
 	batch.multimesh = multi
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	batch.set_meta(&"presentation_only", true)
