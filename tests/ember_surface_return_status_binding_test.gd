@@ -5,9 +5,14 @@ class FakeProduction:
 	signal state_changed(snapshot: Dictionary)
 	signal completion_handback_ready(receipt: Dictionary)
 	var snapshot: Dictionary = {
-		"generation": 3,
+		"generation": 4,
 		"configured": true,
+		"state_id": &"running",
+		"identities": {},
 		"planetary_surface": {
+			"state": &"bound",
+			"host_generation": 4,
+			"attachment_generation": 2,
 			"relay_survey_presentation": {
 				"state": &"completed",
 				"cue_mode": &"reward_confirmed",
@@ -16,6 +21,7 @@ class FakeProduction:
 	}
 	var manifest: Dictionary = {
 		"issued_generation": 8,
+		"activity_id": &"ember_beacon_survey",
 		"destination_id": &"mudds_shipyards",
 	}
 	func get_snapshot() -> Dictionary: return snapshot.duplicate(true)
@@ -26,6 +32,7 @@ class FakeHost:
 	extends RefCounted
 	var snapshot: Dictionary = {
 		"attached": true,
+		"host_id": &"ember_surface_loop",
 		"generation": 4,
 		"attachment_generation": 2,
 		"phase_id": &"on_foot",
@@ -43,70 +50,201 @@ func _init() -> void:
 func _run() -> void:
 	var production := FakeProduction.new()
 	var host := FakeHost.new()
+	production.snapshot.identities = {
+		"host_instance_id": host.get_instance_id(),
+		"player_instance_id": 41,
+		"ship_instance_id": 42,
+	}
 	var binding = BindingType.new()
 	_check(
 		bool(binding.attach(production, host, null, true).get("accepted", false)),
-		"binding attaches authoritative Ember snapshot sources",
-	)
-	_check_stage(
-		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
-		"FOLLOW THE STATIC RETURN ROUTE",
-	)
-	var manifest := binding.apply_return_manifest_receipt({
-		"accepted": true,
-		"reason": &"return_manifest_ready",
-		"manifest": {
-			"attachment_generation": 2,
-			"destination_id": &"mudds_shipyards",
-		},
-	}, true)
-	_check(
-		bool(manifest.get("accepted", false))
-			and binding.get_presenter_snapshot().state == &"return_manifest",
-		"current manifest receipt remains display evidence without gaining authority",
+		"binding accepts one exact live Host/production identity tuple",
 	)
 	_check_stage(
 		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
 		"FOLLOW THE STATIC RETURN ROUTE",
 	)
 
-	_set_phase(production, host, 5, &"boarding")
+	_sync(production, host, 5, &"surface_outbound", 2)
+	_check_no_stage(
+		binding,
+		"pre-on-foot surface outbound does not claim survey completion",
+	)
+	_sync(production, host, 6, &"on_foot", 2)
+	_check_stage(
+		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
+		"FOLLOW THE STATIC RETURN ROUTE",
+	)
+
+	var missing_attachment := _manifest_receipt(8, 2)
+	(missing_attachment.manifest as Dictionary).erase("attachment_generation")
+	_check_rejection(
+		binding.apply_return_manifest_receipt(missing_attachment),
+		&"receipt_attachment_generation_missing",
+		"manifest receipt without attachment scope is rejected",
+	)
+	_check_rejection(
+		binding.apply_return_manifest_receipt(_manifest_receipt(99, 2)),
+		&"foreign_receipt_activity_generation",
+		"foreign activity generation cannot borrow the current attachment",
+	)
+	_check_rejection(
+		binding.apply_return_manifest_receipt(_manifest_receipt(8, 1)),
+		&"stale_receipt_generation",
+		"foreign attachment generation cannot enter the return status",
+	)
+	_check(
+		bool(binding.apply_return_manifest_receipt(
+			_manifest_receipt(8, 2), true
+		).get("accepted", false)),
+		"exact activity and attachment receipt is accepted",
+	)
+	_check_stage(
+		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
+		"FOLLOW THE STATIC RETURN ROUTE",
+	)
+
+	production.snapshot.identities.host_instance_id = host.get_instance_id() + 1
+	production.state_changed.emit({})
+	_check_cleared(binding, "HOST INSTANCE MISMATCH", "wrong Host ID fails closed")
+	production.snapshot.identities.host_instance_id = host.get_instance_id()
+	production.state_changed.emit({})
+	_check_stage(
+		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
+		"FOLLOW THE STATIC RETURN ROUTE",
+	)
+	production.snapshot.identities.player_instance_id = 99
+	production.state_changed.emit({})
+	_check_cleared(binding, "ACTOR IDENTITY MISMATCH", "wrong Player ID fails closed")
+	production.snapshot.identities.player_instance_id = 41
+	production.state_changed.emit({})
+	production.snapshot.identities.ship_instance_id = 100
+	production.state_changed.emit({})
+	_check_cleared(binding, "ACTOR IDENTITY MISMATCH", "wrong ship ID fails closed")
+	production.snapshot.identities.ship_instance_id = 42
+	production.state_changed.emit({})
+	_check_stage(
+		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
+		"FOLLOW THE STATIC RETURN ROUTE",
+	)
+
+	host.snapshot.generation = 7
+	production.state_changed.emit({})
+	_check_cleared(
+		binding, "HOST PRODUCTION GENERATION MISMATCH",
+		"independently advanced Host generation fails closed",
+	)
+	_sync(production, host, 7, &"on_foot", 2)
+	(production.snapshot.planetary_surface as Dictionary).attachment_generation = 1
+	production.state_changed.emit({})
+	_check_cleared(
+		binding, "PLANETARY ATTACHMENT GENERATION MISMATCH",
+		"production surface attachment must pair with the Host attachment",
+	)
+	(production.snapshot.planetary_surface as Dictionary).attachment_generation = 2
+	production.state_changed.emit({})
+	_check_stage(
+		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
+		"FOLLOW THE STATIC RETURN ROUTE",
+	)
+
+	# Reuse carries deliberately stale survey and manifest snapshots. The exact
+	# source tuple is current, but no return stage may survive without a fresh,
+	# attachment-scoped and newly issued receipt.
+	_sync(production, host, 8, &"on_foot", 3)
+	_check_no_stage(
+		binding,
+		"attachment reuse clears retained survey and manifest stage evidence",
+	)
+	_check(
+		(binding.get_snapshot().last_result as Dictionary).is_empty(),
+		"attachment reuse clears the retained receipt",
+	)
+	_check_rejection(
+		binding.apply_return_manifest_receipt(_manifest_receipt(8, 3)),
+		&"replayed_receipt_activity_generation",
+		"reuse rejects a re-scoped copy of the prior activity receipt",
+	)
+	production.manifest.issued_generation = 9
+	_check(
+		bool(binding.apply_return_manifest_receipt(
+			_manifest_receipt(9, 3), true
+		).get("accepted", false)),
+		"reuse accepts a newly issued exact receipt for the current attachment",
+	)
+	_check_stage(
+		binding, &"survey_complete", 1, "RETURN TO YOUR SHIP",
+		"FOLLOW THE STATIC RETURN ROUTE",
+	)
+
+	_sync(production, host, 9, &"boarding", 3)
 	_check_stage(
 		binding, &"reboard", 2, "COMPLETE REBOARD",
 		"RE-ENTER THE LANDING PAD BOARDING AREA IF INTERRUPTED",
 	)
-	_set_phase(production, host, 6, &"reboarded")
+	_sync(production, host, 10, &"reboarded", 3)
 	_check_stage(
 		binding, &"reboard", 2, "TAKE OFF",
 		"RE-ENTER THE LANDING PAD BOARDING AREA IF INTERRUPTED",
 	)
-	_set_phase(production, host, 7, &"takeoff")
+	_sync(production, host, 11, &"takeoff", 3)
 	_check_stage(
 		binding, &"takeoff", 3, "BEGIN ASCENT",
 		"REMAIN SEATED WHILE TAKEOFF STATUS RECOVERS",
 	)
-	_set_phase(production, host, 8, &"ascent")
+	_sync(production, host, 12, &"ascent", 3)
 	_check_stage(
 		binding, &"ascent", 4, "REACH ORBIT",
 		"CONTINUE THE STEADY CLIMB IF GUIDANCE IS INTERRUPTED",
 	)
-	_set_phase(production, host, 9, &"orbit_return")
+	_sync(production, host, 13, &"orbit_return", 3)
 	_check_stage(
 		binding, &"orbit", 5, "COMPLETE RETURN HANDOFF",
 		"HOLD ORBIT WHILE THE MUDDS HANDOFF RECOVERS",
 	)
-	host.snapshot.attached = false
-	host.snapshot.attachment_generation = 3
-	production.snapshot.state_id = &"handoff_pending"
-	production.snapshot.completion_handback_pending = true
-	production.snapshot.completion_handback = {
+	var before_stale := binding.get_presenter_snapshot()
+	_sync(production, host, 12, &"takeoff", 3)
+	_check(
+		binding.get_presenter_snapshot() == before_stale,
+		"coherent but stale source generations cannot overwrite orbit status",
+	)
+
+	_sync(production, host, 14, &"completed", 3)
+	_check_no_stage(
+		binding,
+		"unmatched completed phase cannot claim terminal Mudds return",
+	)
+	var completion := {
 		"reason": &"runtime_ownership_returned",
-		"generation": 10,
-		"current_attachment_generation": 3,
+		"host_id": &"ember_surface_loop",
+		"generation": 14,
+		"retired_attachment_generation": 3,
+		"current_attachment_generation": 4,
 		"player_instance_id": 41,
 		"ship_instance_id": 42,
+		"host_attached": false,
+		"command_source_restored": true,
+		"boarding_reservation_retained": true,
+		"player_seated": true,
+		"ship_piloted": true,
 	}
-	_set_phase(production, host, 10, &"completed")
+	host.snapshot.attached = false
+	host.snapshot.attachment_generation = 4
+	production.snapshot.state_id = &"handoff_pending"
+	production.snapshot.completion_handback_pending = true
+	var unmatched_handback := completion.duplicate(true)
+	unmatched_handback.player_instance_id = 99
+	production.snapshot.completion_handback = unmatched_handback
+	# The planetary composition retains the exact retired attachment until the
+	# caller consumes this handback.
+	(production.snapshot.planetary_surface as Dictionary).attachment_generation = 3
+	production.state_changed.emit({})
+	_check_cleared(
+		binding, "PLANETARY ATTACHMENT GENERATION MISMATCH",
+		"detached completed phase with an unmatched handback fails closed",
+	)
+	production.snapshot.completion_handback = completion.duplicate(true)
+	production.state_changed.emit({})
 	_check_stage(
 		binding, &"mudds_return", 6, "RETURN TO MUDDS SHIPYARDS",
 		"MUDDS SHIPYARDS REMAINS THE MANIFEST DESTINATION",
@@ -114,100 +252,15 @@ func _run() -> void:
 	_check(
 		not bool(binding.get_presenter_snapshot().attached)
 			and bool(binding.get_presenter_snapshot().completion_observed),
-		"authenticated terminal detach remains readable as the Mudds return step",
-	)
-	var before_stale := binding.get_presenter_snapshot()
-	host.snapshot.generation = 9
-	host.snapshot.phase_id = &"on_foot"
-	production.state_changed.emit({})
-	_check(
-		binding.get_presenter_snapshot() == before_stale,
-		"stale host generation cannot be masked by the production generation",
-	)
-	host.snapshot.generation = 11
-	production.snapshot.generation = 2
-	production.state_changed.emit({})
-	_check(
-		binding.get_presenter_snapshot() == before_stale,
-		"stale production generation cannot overwrite the return status",
-	)
-
-	production.snapshot.generation = 4
-	host.snapshot.attached = true
-	host.snapshot.attachment_generation = 4
-	host.snapshot.phase_id = &"takeoff"
-	production.state_changed.emit({})
-	_check_stage(
-		binding, &"takeoff", 3, "BEGIN ASCENT",
-		"REMAIN SEATED WHILE TAKEOFF STATUS RECOVERS",
-	)
-	_check(
-		(binding.get_snapshot().last_result as Dictionary).is_empty()
-			and not binding.get_presenter_snapshot().text.contains("RETURN MANIFEST READY"),
-		"attachment reuse clears prior-session receipt semantics",
-	)
-	var stale_receipt := binding.apply_return_manifest_receipt({
-		"accepted": true,
-		"reason": &"return_manifest_ready",
-		"manifest": {
-			"attachment_generation": 2,
-			"destination_id": &"mudds_shipyards",
-		},
-	})
-	_check(
-		not bool(stale_receipt.get("accepted", true))
-			and stale_receipt.reason == &"stale_receipt_generation",
-		"receipt from the retired attachment is rejected",
-	)
-
-	host.snapshot.generation = 12
-	host.snapshot.identities.player_instance_id = 0
-	production.state_changed.emit({})
-	var lost := binding.get_presenter_snapshot()
-	_check(
-		lost.state == &"rejected" and not bool(lost.attached)
-			and lost.text.contains("ACTOR LOST")
-			and lost.text.contains("WAIT FOR CURRENT ACTOR AND SESSION STATUS"),
-		"actor loss clears the old action and shows a steady recovery status",
-	)
-	host.snapshot.generation = 13
-	host.snapshot.identities.player_instance_id = 43
-	host.snapshot.attached = false
-	production.state_changed.emit({})
-	_check(
-		binding.get_presenter_snapshot().text.contains("SESSION DETACHED"),
-		"session detach cannot leave the previous return action visible",
+		"only the exact stored handback exposes terminal Mudds return",
 	)
 
 	binding.detach()
 	_check(
 		not bool(binding.get_snapshot().attached)
 			and binding.get_presenter_snapshot().is_empty(),
-		"explicit detach clears retained presentation state",
+		"detach clears all status evidence",
 	)
-	host.snapshot = {
-		"attached": true,
-		"generation": 14,
-		"attachment_generation": 5,
-		"phase_id": &"orbit_return",
-		"identities": {"player_instance_id": 43, "ship_instance_id": 44},
-	}
-	production.snapshot.generation = 5
-	production.state_changed.emit({})
-	_check(
-		binding.get_presenter_snapshot().is_empty(),
-		"detached binding ignores future source updates",
-	)
-	_check(
-		bool(binding.attach(production, host, null, false).get("accepted", false)),
-		"fresh actor/session attachment can re-enter the status binding",
-	)
-	_check_stage(
-		binding, &"orbit", 5, "COMPLETE RETURN HANDOFF",
-		"HOLD ORBIT WHILE THE MUDDS HANDOFF RECOVERS",
-	)
-	binding.detach()
-
 	if _failures.is_empty():
 		print("EMBER_SURFACE_RETURN_STATUS_BINDING_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -215,12 +268,33 @@ func _run() -> void:
 	for failure in _failures: push_error(failure)
 	quit(1)
 
-func _set_phase(
+func _manifest_receipt(activity_generation: int, attachment_generation: int) -> Dictionary:
+	return {
+		"accepted": true,
+		"reason": &"return_manifest_ready",
+		"manifest": {
+			"activity_id": &"ember_beacon_survey",
+			"activity_generation": activity_generation,
+			"attachment_generation": attachment_generation,
+			"destination_id": &"mudds_shipyards",
+		},
+	}.duplicate(true)
+
+func _sync(
 		production: FakeProduction, host: FakeHost, generation: int,
-		phase: StringName
+		phase: StringName, attachment_generation: int
 	) -> void:
+	host.snapshot.attached = true
 	host.snapshot.generation = generation
+	host.snapshot.attachment_generation = attachment_generation
 	host.snapshot.phase_id = phase
+	production.snapshot.generation = generation
+	production.snapshot.state_id = &"running"
+	production.snapshot.completion_handback_pending = false
+	production.snapshot.completion_handback = {}
+	var planetary := production.snapshot.planetary_surface as Dictionary
+	planetary.host_generation = generation
+	planetary.attachment_generation = attachment_generation
 	production.state_changed.emit({})
 
 func _check_stage(
@@ -258,6 +332,30 @@ func _check_stage(
 			and not bool(view.get("boarding_authority", true))
 			and not bool(view.get("reward_authority", true)),
 		"%s presentation cannot advance the return loop" % stage,
+	)
+
+func _check_no_stage(binding: RefCounted, message: String) -> void:
+	var view := binding.call(&"get_presenter_snapshot") as Dictionary
+	_check(
+		(view.get("return_status", {}) as Dictionary).is_empty()
+			and not str(view.get("text", "")).contains("RETURN STEP  //"),
+		message,
+	)
+
+func _check_cleared(binding: RefCounted, reason: String, message: String) -> void:
+	var view := binding.call(&"get_presenter_snapshot") as Dictionary
+	_check(
+		view.get("state", &"") == &"rejected"
+			and (view.get("return_status", {}) as Dictionary).is_empty()
+			and str(view.get("text", "")).contains(reason),
+		message,
+	)
+
+func _check_rejection(result: Dictionary, reason: StringName, message: String) -> void:
+	_check(
+		not bool(result.get("accepted", true))
+			and StringName(result.get("reason", &"")) == reason,
+		message,
 	)
 
 func _check(condition: bool, message: String) -> void:
