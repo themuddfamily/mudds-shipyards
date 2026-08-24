@@ -46,7 +46,7 @@ var _last_proxy_hit_normal := Vector3.ZERO
 var _last_proxy_source_context: Dictionary = {}
 var _component_damage_model: ComponentDamageModel
 var _next_component_damage_sequence := 0
-var _feedback_binding: RangeTargetComponentFeedbackBinding
+var _feedback_binding: RefCounted
 var _next_feedback_sequence := 0
 
 

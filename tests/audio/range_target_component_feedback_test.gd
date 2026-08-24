@@ -39,7 +39,7 @@ func _test_production_adapter_feedback() -> void:
 	target.set_meta("target_id", &"TARGET_TEST")
 	target.set_meta("health", 100.0)
 	root.add_child(target)
-	var adapter := AdapterType.new() as RangeTargetDamageableAdapter
+	var adapter = AdapterType.new()
 	adapter.name = "AuthoritativeDamageable"
 	target.add_child(adapter)
 	await process_frame
@@ -120,7 +120,7 @@ func _test_production_adapter_feedback() -> void:
 func _test_fences_fallback_and_caption_contract() -> void:
 	var target := Node3D.new()
 	target.set_meta("target_id", &"TARGET_FALLBACK")
-	var binding := BindingType.new() as RangeTargetComponentFeedbackBinding
+	var binding = BindingType.new()
 	_check(bool(binding.attach(target, 7).accepted), "detached binding accepts a live target generation")
 	var fallback := binding.present_component_receipt(&"unmapped", 7, 0, 0.5)
 	_check(
@@ -144,7 +144,7 @@ func _test_fences_fallback_and_caption_contract() -> void:
 		"reuse opens only the next generation's ordered receipt stream"
 	)
 
-	var presenter := PresenterType.new() as SemanticAudioCuePresenter
+	var presenter = PresenterType.new()
 	for cue_id in EXPECTED_CAPTIONS:
 		var caption := presenter.present_cue(
 			cue_id,
