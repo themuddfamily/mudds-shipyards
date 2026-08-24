@@ -26,6 +26,16 @@ const ENGINE_DAMAGE_FAILED_COLOR := Color("ff4b3e")
 const AFT_RECOGNITION_FIN_SIZE := Vector3(2.7, 1.8, 0.32)
 const AFT_RECOGNITION_FIN_POSITION := Vector3(0.0, 1.2, 2.45)
 const AFT_RECOGNITION_FIN_ROTATION_Y := PI * 0.5
+## Mirrored outboard response rails and blades give the lightweight craft a
+## fast, directional planform at normal chase distance. Their transformed
+## bounds stay inside the existing 12 m wing, 8.8 m hull and 2.5 m hull-height
+## envelope: this is presentation detail, not a new berth-fit claim.
+const SPEED_RAIL_SIZE := Vector3(3.2, 0.16, 0.32)
+const SPEED_RAIL_OFFSET := Vector3(4.25, 0.16, 0.35)
+const SPEED_RAIL_SWEEP_DEGREES := 22.0
+const WINGTIP_BLADE_SIZE := Vector3(0.28, 0.78, 2.6)
+const WINGTIP_BLADE_OFFSET := Vector3(5.52, 0.24, 0.72)
+const WINGTIP_BLADE_CANT_DEGREES := 10.0
 const WEAPON_ID: StringName = &"cinder_light_repeater"
 const CONSOLE_TOGGLE_VISIBLE_COPIES := 8
 const CONSOLE_TOGGLE_LEGACY_SUBMISSIONS := 8
@@ -72,6 +82,9 @@ static var _shared_wing_material: StandardMaterial3D
 # immutable visual stock, shared across briefly coexisting fleet copies without
 # adding collision, damage routing, or lifecycle ownership.
 static var _shared_aft_recognition_fin_mesh: PrismMesh
+static var _shared_speed_rail_mesh: BoxMesh
+static var _shared_speed_rail_material: StandardMaterial3D
+static var _shared_wingtip_blade_mesh: BoxMesh
 # The canopy shell is immutable exterior presentation stock. Its renderer stays
 # per craft so visibility, culling, and submissions remain unchanged, while the
 # identical emissive sphere recipe is allocated once across live fleet copies.
@@ -88,6 +101,8 @@ var _console_center_key_batch: MultiMeshInstance3D
 var _engine_damage_beacon_lens: MeshInstance3D
 var _engine_damage_beacon_light: OmniLight3D
 var _engine_damage_beacon_material: StandardMaterial3D
+var _speed_rail_batch: MultiMeshInstance3D
+var _wingtip_blade_batch: MultiMeshInstance3D
 
 func _enter_tree() -> void:
 	super._enter_tree()
@@ -159,6 +174,7 @@ func _build_interceptor_variant(_controller: HeroShip) -> bool:
 	_batch_console_keys(visual)
 	_batch_console_center_keys(visual)
 	_build_hull(visual)
+	_build_speed_silhouette(visual)
 	_build_engine_damage_beacon(visual)
 	_build_boarding_marker(visual)
 	return true
@@ -184,12 +200,15 @@ func get_weapon_definition() -> WeaponDefinition:
 
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
+	var speed_silhouette := get_speed_silhouette_visual_audit()
 	if not _interceptor_built:
 		errors.append("interceptor has not built its authored component tree")
 	if not is_instance_valid(get_pilot_seat_anchor()) or not is_instance_valid(_interceptor_boarding_marker):
 		errors.append("cockpit and boarding anchors are required")
 	if not bool(get_landing_collision_report().get("valid", false)):
 		errors.append("interceptor requires HeroShip root collision")
+	if not bool(speed_silhouette.get("valid", false)):
+		errors.append("interceptor speed-silhouette presentation drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -209,6 +228,66 @@ func get_audit_report() -> Dictionary:
 		"berth_authority": false,
 		"game_flow_authority": false,
 		"network_authority": false,
+		"speed_silhouette_visual": speed_silhouette,
+	}.duplicate(true)
+
+
+## Detached audit for the presentation-only recognition batches. Structural
+## submissions are reported as renderer surfaces, not as a driver draw-call
+## claim; collision, lights and gameplay authority remain explicitly absent.
+func get_speed_silhouette_visual_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var visual := get_variant_visual_root()
+	var rails := visual.get_node_or_null(^"InterceptorSpeedRailBatch") as MultiMeshInstance3D \
+			if visual != null else null
+	var blades := visual.get_node_or_null(^"InterceptorWingtipBladeBatch") as MultiMeshInstance3D \
+			if visual != null else null
+	if rails == null or rails.multimesh == null:
+		errors.append("mirrored speed-rail batch is missing")
+	else:
+		if rails != _speed_rail_batch \
+				or rails.multimesh.mesh != _shared_speed_rail_mesh \
+				or rails.material_override != _shared_speed_rail_material:
+			errors.append("speed-rail immutable resource identity drifted")
+		if rails.multimesh.instance_count != 2 \
+				or rails.multimesh.visible_instance_count != 2 \
+				or not rails.visible \
+				or rails.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			errors.append("speed-rail renderer state drifted")
+		if rails.get_child_count() != 0 or rails.get_script() != null:
+			errors.append("speed rails gained semantic children or authority")
+	if blades == null or blades.multimesh == null:
+		errors.append("mirrored wingtip-blade batch is missing")
+	else:
+		if blades != _wingtip_blade_batch \
+				or blades.multimesh.mesh != _shared_wingtip_blade_mesh \
+				or blades.material_override != _shared_wing_material:
+			errors.append("wingtip-blade immutable resource identity drifted")
+		if blades.multimesh.instance_count != 2 \
+				or blades.multimesh.visible_instance_count != 2 \
+				or not blades.visible \
+				or blades.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("wingtip-blade renderer state drifted")
+		if blades.get_child_count() != 0 or blades.get_script() != null:
+			errors.append("wingtip blades gained semantic children or authority")
+	if _shared_speed_rail_mesh == null \
+			or not _shared_speed_rail_mesh.size.is_equal_approx(SPEED_RAIL_SIZE) \
+			or _shared_speed_rail_mesh.resource_local_to_scene:
+		errors.append("speed-rail mesh recipe drifted")
+	if _shared_wingtip_blade_mesh == null \
+			or not _shared_wingtip_blade_mesh.size.is_equal_approx(WINGTIP_BLADE_SIZE) \
+			or _shared_wingtip_blade_mesh.resource_local_to_scene:
+		errors.append("wingtip-blade mesh recipe drifted")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"renderer_nodes_per_copy": int(rails != null) + int(blades != null),
+		"geometry_submissions_per_copy": 2 if rails != null and blades != null else 0,
+		"rail_instances_per_copy": rails.multimesh.instance_count if rails != null and rails.multimesh != null else 0,
+		"blade_instances_per_copy": blades.multimesh.instance_count if blades != null and blades.multimesh != null else 0,
+		"lights": 0,
+		"collision_shapes": 0,
+		"gameplay_authority": false,
 	}.duplicate(true)
 
 
@@ -285,6 +364,85 @@ func _build_hull(visual: Node3D) -> void:
 	canopy.position = CANOPY_POSITION
 	canopy.material_override = _shared_canopy_material
 	visual.add_child(canopy)
+
+
+func _build_speed_silhouette(visual: Node3D) -> void:
+	if _shared_speed_rail_mesh == null:
+		_shared_speed_rail_mesh = BoxMesh.new()
+		_shared_speed_rail_mesh.size = SPEED_RAIL_SIZE
+		_shared_speed_rail_mesh.resource_local_to_scene = false
+	if _shared_speed_rail_material == null:
+		_shared_speed_rail_material = _material(
+			CANOPY_COLOR.darkened(0.16), 0.24, 0.28, CANOPY_COLOR, 2.4
+		)
+		_shared_speed_rail_material.resource_local_to_scene = false
+	var rail_transforms: Array[Transform3D] = [
+		Transform3D(
+			Basis(Vector3.UP, deg_to_rad(SPEED_RAIL_SWEEP_DEGREES)),
+			Vector3(-SPEED_RAIL_OFFSET.x, SPEED_RAIL_OFFSET.y, SPEED_RAIL_OFFSET.z)
+		),
+		Transform3D(
+			Basis(Vector3.UP, deg_to_rad(-SPEED_RAIL_SWEEP_DEGREES)),
+			SPEED_RAIL_OFFSET
+		),
+	]
+	_speed_rail_batch = _build_visual_batch(
+		"InterceptorSpeedRailBatch",
+		_shared_speed_rail_mesh,
+		_shared_speed_rail_material,
+		rail_transforms,
+		GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	)
+	visual.add_child(_speed_rail_batch)
+
+	if _shared_wingtip_blade_mesh == null:
+		_shared_wingtip_blade_mesh = BoxMesh.new()
+		_shared_wingtip_blade_mesh.size = WINGTIP_BLADE_SIZE
+		_shared_wingtip_blade_mesh.resource_local_to_scene = false
+	var blade_transforms: Array[Transform3D] = [
+		Transform3D(
+			Basis(Vector3.FORWARD, deg_to_rad(-WINGTIP_BLADE_CANT_DEGREES)),
+			Vector3(-WINGTIP_BLADE_OFFSET.x, WINGTIP_BLADE_OFFSET.y, WINGTIP_BLADE_OFFSET.z)
+		),
+		Transform3D(
+			Basis(Vector3.FORWARD, deg_to_rad(WINGTIP_BLADE_CANT_DEGREES)),
+			WINGTIP_BLADE_OFFSET
+		),
+	]
+	_wingtip_blade_batch = _build_visual_batch(
+		"InterceptorWingtipBladeBatch",
+		_shared_wingtip_blade_mesh,
+		_shared_wing_material,
+		blade_transforms,
+		GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	)
+	visual.add_child(_wingtip_blade_batch)
+
+
+func _build_visual_batch(
+	batch_name: String,
+	mesh: Mesh,
+	material: Material,
+	transforms: Array[Transform3D],
+	shadow_setting: GeometryInstance3D.ShadowCastingSetting
+	) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	multi.buffer = _encode_visual_transforms(transforms)
+	multi.custom_aabb = _visual_bounds(mesh.get_aabb(), transforms)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = batch_name
+	batch.multimesh = multi
+	batch.material_override = material
+	batch.cast_shadow = shadow_setting
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"gameplay_authority", false)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	return batch
 
 
 ## A static, exterior-readable consequence of the existing engine-bay ledger.
