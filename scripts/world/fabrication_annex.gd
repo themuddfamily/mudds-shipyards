@@ -70,6 +70,16 @@ const ROOF_COLUMN_POSITIONS := [
 	Vector3(11.0, 2.8, 19.0),
 ]
 const ROOF_COLUMN_BATCH_KEY := "structure:0.450:5.600:0.450"
+const OVERHEAD_STRUCTURE_RENDER_NAME := &"OverheadStructureRenderBatch"
+const OVERHEAD_STRUCTURE_DEFINITIONS := [
+	{"id": &"crossbeam_05", "size": Vector3(27.0, 0.45, 0.5), "position": Vector3(0.0, 5.35, 5.0)},
+	{"id": &"crossbeam_11", "size": Vector3(27.0, 0.45, 0.5), "position": Vector3(0.0, 5.35, 11.0)},
+	{"id": &"crossbeam_17", "size": Vector3(27.0, 0.45, 0.5), "position": Vector3(0.0, 5.35, 17.0)},
+	{"id": &"spine_port_outer", "size": Vector3(0.34, 0.34, 15.3), "position": Vector3(-13.1, 5.15, 12.25)},
+	{"id": &"spine_port_inner", "size": Vector3(0.34, 0.34, 15.3), "position": Vector3(-3.2, 5.15, 12.25)},
+	{"id": &"spine_starboard_inner", "size": Vector3(0.34, 0.34, 15.3), "position": Vector3(3.2, 5.15, 12.25)},
+	{"id": &"spine_starboard_outer", "size": Vector3(0.34, 0.34, 15.3), "position": Vector3(13.1, 5.15, 12.25)},
+]
 const FABRICATOR_BASE_SIZE := Vector3(4.0, 0.4, 3.0)
 const FABRICATOR_BASE_POSITIONS := [
 	Vector3(-7.0, 0.2, 7.0),
@@ -139,32 +149,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 1,
-	"multi_mesh_instances": 36,
-	"geometry_instances": 37,
+	"mesh_instances": 2,
+	"multi_mesh_instances": 34,
+	"geometry_instances": 36,
 	"visible_geometry_copies": 203,
-	"multi_mesh_drawn_copies": 198,
+	"multi_mesh_drawn_copies": 191,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 123,
+	"nodes": 122,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 1,
-	"multi_mesh_instances": 36,
-	"geometry_instances": 37,
+	"mesh_instances": 2,
+	"multi_mesh_instances": 34,
+	"geometry_instances": 36,
 	"visible_geometry_copies": 204,
-	"multi_mesh_drawn_copies": 199,
+	"multi_mesh_drawn_copies": 192,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 125,
+	"nodes": 124,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -437,15 +447,12 @@ func _build_structure_and_dressing() -> void:
 			column_position as Vector3,
 			&"structure"
 		)
-	for z in [5.0, 11.0, 17.0]:
-		_add_mesh("OverheadCrossbeam", Vector3(27.0, 0.45, 0.5), Vector3(0.0, 5.35, z), &"structure")
+	_add_combined_overhead_structure_render()
 	# Deep ceiling coffers and longitudinal spines turn the former open frame
 	# into a complete industrial hall while retaining the central clerestory.
 	for x in [-8.25, 8.25]:
 		for z in [7.65, 12.55, 17.45]:
 			_add_mesh("CeilingCoffer", Vector3(9.8, 0.18, 4.5), Vector3(x, 5.52, z), &"ceiling")
-	for x in [-13.1, -3.2, 3.2, 13.1]:
-		_add_mesh("RoofSpine", Vector3(0.34, 0.34, 15.3), Vector3(x, 5.15, 12.25), &"structure")
 	for z in [6.5, 9.5, 12.5, 15.5, 18.5]:
 		_add_mesh("ClerestoryRib", Vector3(5.8, 0.16, 0.24), Vector3(0.0, 5.5, z), &"rail")
 
@@ -477,6 +484,27 @@ func _build_structure_and_dressing() -> void:
 	_add_label("FABRICATION ANNEX", Vector3(0.0, 3.4, 4.25), 0.65)
 	_add_label("PORT BAY", Vector3(-7.0, 3.65, 10.0), 0.5)
 	_add_label("STARBOARD BAY", Vector3(7.0, 3.65, 10.0), 0.5)
+
+
+func _add_combined_overhead_structure_render() -> void:
+	# Crossbeams and longitudinal spines are immutable visual-only dressing with
+	# one structural finish. Baking their differently sized rounded boxes into a
+	# single surface removes a submission, node and MultiMesh buffer allocation.
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var authored_parts: Array[Dictionary] = []
+	for definition_variant in OVERHEAD_STRUCTURE_DEFINITIONS:
+		var definition := definition_variant as Dictionary
+		var transform := Transform3D(Basis.IDENTITY, definition.position as Vector3)
+		tool.append_from(StationSurfaceKit.rounded_box_mesh(definition.size as Vector3), 0, transform)
+		authored_parts.append({"id": definition.id, "size": definition.size, "transform": transform})
+	var renderer := MeshInstance3D.new()
+	renderer.name = OVERHEAD_STRUCTURE_RENDER_NAME
+	renderer.mesh = tool.commit()
+	renderer.material_override = _materials[&"structure"]
+	renderer.set_meta(&"fabrication_overhead_structure_parts", authored_parts)
+	renderer.set_meta(&"authored_visible_copy_count", authored_parts.size())
+	_build_root.add_child(renderer)
 
 
 func _add_label(text: String, at: Vector3, font_size: float) -> void:
@@ -928,6 +956,74 @@ func get_work_bay_surface_render_optimization_contract() -> Dictionary:
 		"render_state_exact": batch_exact,
 		"collision_body_count": collision_bodies.size(),
 		"collision_transforms_and_shapes_exact": collision_exact,
+	}.duplicate(true)
+
+
+func get_overhead_structure_render_optimization_contract() -> Dictionary:
+	var renderer := _build_root.get_node_or_null(NodePath(str(OVERHEAD_STRUCTURE_RENDER_NAME))) \
+		as MeshInstance3D
+	var live_parts := (
+		renderer.get_meta(&"fabrication_overhead_structure_parts", []) as Array
+		if renderer != null
+		else []
+	)
+	var parts_exact := live_parts.size() == OVERHEAD_STRUCTURE_DEFINITIONS.size()
+	for index in mini(live_parts.size(), OVERHEAD_STRUCTURE_DEFINITIONS.size()):
+		var live := live_parts[index] as Dictionary
+		var expected := OVERHEAD_STRUCTURE_DEFINITIONS[index] as Dictionary
+		parts_exact = parts_exact \
+			and StringName(live.get("id", &"")) == StringName(expected.id) \
+			and (live.get("size", Vector3.ZERO) as Vector3).is_equal_approx(expected.size as Vector3) \
+			and (live.get("transform", Transform3D()) as Transform3D).is_equal_approx(
+				Transform3D(Basis.IDENTITY, expected.position as Vector3)
+			)
+	var mesh := renderer.mesh as ArrayMesh if renderer != null else null
+	var vertex_count := 0
+	if mesh != null and mesh.get_surface_count() == 1:
+		var arrays := mesh.surface_get_arrays(0)
+		if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
+			vertex_count = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var render_state_exact: bool = (
+		renderer != null
+		and renderer.name == OVERHEAD_STRUCTURE_RENDER_NAME
+		and mesh != null
+		and mesh.get_surface_count() == 1
+		and vertex_count == OVERHEAD_STRUCTURE_DEFINITIONS.size() * 324
+		and renderer.material_override == _materials[&"structure"]
+		and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(renderer.visibility_range_begin)
+		and is_zero_approx(renderer.visibility_range_end)
+		and is_zero_approx(renderer.extra_cull_margin)
+		and int(renderer.get_meta(&"authored_visible_copy_count", 0))
+			== OVERHEAD_STRUCTURE_DEFINITIONS.size()
+	)
+	return {
+		"valid": parts_exact and render_state_exact,
+		"family": &"immutable_overhead_structural_dressing",
+		"before": {
+			"renderer_submissions": 2,
+			"presentation_nodes": 2,
+			"visible_geometry_copies": 7,
+			"retained_mesh_resources": 2,
+			"multi_mesh_transform_buffer_floats": 84,
+		},
+		"after": {
+			"renderer_submissions": 1 if renderer != null else 0,
+			"presentation_nodes": 1 if renderer != null else 0,
+			"visible_geometry_copies": int(renderer.get_meta(&"authored_visible_copy_count", 0)) if renderer != null else 0,
+			"retained_mesh_resources": 1 if mesh != null else 0,
+			"multi_mesh_transform_buffer_floats": 0,
+		},
+		"delta": {
+			"renderer_submissions": -1,
+			"presentation_nodes": -1,
+			"retained_mesh_resources": -1,
+			"multi_mesh_transform_buffer_floats": -84,
+		},
+		"authored_parts": live_parts.duplicate(true),
+		"visual_parts_exact": parts_exact,
+		"render_state_and_combined_geometry_exact": render_state_exact,
+		"combined_vertex_count": vertex_count,
 	}.duplicate(true)
 
 
@@ -1443,8 +1539,10 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("work-bay surface presentation batch or physical roster drifted")
 	if not bool(get_floor_render_optimization_contract().valid):
 		errors.append("non-work-bay floor presentation batch or physical roster drifted")
+	if not bool(get_overhead_structure_render_optimization_contract().valid):
+		errors.append("overhead structural dressing render batch drifted")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 71 if observation_rear_gate_open else 70
+	var expected_name_allocations := 69 if observation_rear_gate_open else 68
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()
