@@ -188,6 +188,30 @@ const CARGO_FRAME_JOINT_XY: Array[Vector2] = [
 
 const PARKED_RENDER_BOUNDS := AABB(Vector3(-10.6, -1.36, -14.1), Vector3(19.1, 6.31, 28.55))
 const FLIGHT_COLLISION_BOUNDS := AABB(Vector3(-10.45, -1.45, -13.9), Vector3(18.55, 6.2, 26.2))
+
+# One childless two-surface renderer carries a mirrored pair of forward cargo
+# guide vanes plus their amber index faces. The long, converging forks make the
+# negative-Z bow and the ship's freight role readable from the normal chase
+# camera without adding collision, lights, interaction, cargo capacity, or a
+# claim about the unknown historical silhouette. Every point stays inside the
+# already published parked render envelope.
+const FORWARD_CARGO_GUIDE_NAME: StringName = &"ForwardCargoGuideSilhouette"
+const FORWARD_CARGO_GUIDE_STATUS: StringName = &"modern_provisional"
+const FORWARD_CARGO_GUIDE_ROLE: StringName = &"forward_freight_index"
+const FORWARD_CARGO_GUIDE_THICKNESS := 0.16
+const FORWARD_CARGO_GUIDE_PORT_OUTLINE: Array[Vector3] = [
+	Vector3(-5.45, 4.46, -2.80),
+	Vector3(-6.15, 4.58, -3.75),
+	Vector3(-8.18, 4.62, -11.35),
+	Vector3(-7.15, 4.60, -10.72),
+]
+const FORWARD_CARGO_INDEX_THICKNESS := 0.08
+const FORWARD_CARGO_INDEX_PORT_OUTLINE: Array[Vector3] = [
+	Vector3(-5.70, 4.58, -3.25),
+	Vector3(-6.00, 4.64, -3.90),
+	Vector3(-7.77, 4.70, -10.55),
+	Vector3(-7.38, 4.67, -10.28),
+]
 const PROVISIONAL_NOTE := (
 	"Creator-supported facts (A3 page text): Jovian-class Light Freighter name "
 	+ "and light-freighter role. No registered source ties any visible craft to "
@@ -1652,9 +1676,77 @@ func get_defensive_weapon_visual_report() -> Dictionary:
 	}
 
 
+## Presentation-only role/orientation cue. The report deliberately proves the
+## cue has no gameplay authority and remains inside the already published
+## parked envelope; it does not elevate the craft's historical evidence status.
+func get_forward_cargo_guide_visual_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var guide := _jovian_visual.get_node_or_null(NodePath(FORWARD_CARGO_GUIDE_NAME)) \
+		as MeshInstance3D if _jovian_visual != null else null
+	var mesh := guide.mesh as ArrayMesh if guide != null else null
+	var bounds := mesh.get_aabb() if mesh != null else AABB()
+	if guide == null or mesh == null:
+		errors.append("forward_cargo_guide_renderer_missing")
+	else:
+		if (
+			mesh.get_surface_count() != 2
+			or mesh.surface_get_material(0) != _jovian_materials.get("structure")
+			or mesh.surface_get_material(1) != _jovian_materials.get("amber")
+		):
+			errors.append("forward_cargo_guide_surface_recipe_drift")
+		if (
+			guide.get_child_count() != 0
+			or not bool(guide.get_meta("visual_only", false))
+			or StringName(guide.get_meta("orientation_axis", &"")) != &"forward_negative_z"
+			or StringName(guide.get_meta("cargo_role_cue", &"")) != FORWARD_CARGO_GUIDE_ROLE
+			or StringName(guide.get_meta("interpretation_status", &"")) \
+				!= FORWARD_CARGO_GUIDE_STATUS
+			or bool(guide.get_meta("authenticated_historical_silhouette", true))
+			or bool(guide.get_meta("collision_authority", true))
+			or bool(guide.get_meta("cargo_authority", true))
+		):
+			errors.append("forward_cargo_guide_presentation_boundary_drift")
+		if (
+			guide.is_processing()
+			or guide.is_physics_processing()
+			or not guide.find_children("*", "CollisionObject3D", true, false).is_empty()
+			or not guide.find_children("*", "CollisionShape3D", true, false).is_empty()
+			or not guide.find_children("*", "Light3D", true, false).is_empty()
+		):
+			errors.append("forward_cargo_guide_gained_runtime_authority")
+		if (
+			bounds.position.x < PARKED_RENDER_BOUNDS.position.x
+			or bounds.position.y < PARKED_RENDER_BOUNDS.position.y
+			or bounds.position.z < PARKED_RENDER_BOUNDS.position.z
+			or bounds.end.x > PARKED_RENDER_BOUNDS.end.x
+			or bounds.end.y > PARKED_RENDER_BOUNDS.end.y
+			or bounds.end.z > PARKED_RENDER_BOUNDS.end.z
+		):
+			errors.append("forward_cargo_guide_exceeded_parked_render_envelope")
+		if not is_zero_approx(bounds.get_center().x):
+			errors.append("forward_cargo_guide_lost_centerline_symmetry")
+		if bounds.position.z > -11.3 or bounds.end.z < -2.81 or bounds.size.x < 16.3:
+			errors.append("forward_cargo_guide_gameplay_distance_silhouette_drift")
+	return {
+		"schema_version": 1,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"interpretation_status": FORWARD_CARGO_GUIDE_STATUS,
+		"authenticated_historical_silhouette": false,
+		"visual_only": true,
+		"orientation_axis": &"forward_negative_z",
+		"cargo_role_cue": FORWARD_CARGO_GUIDE_ROLE,
+		"renderer_nodes": 1 if guide != null else 0,
+		"surface_count": mesh.get_surface_count() if mesh != null else 0,
+		"local_bounds": bounds,
+		"parked_render_bounds": PARKED_RENDER_BOUNDS,
+	}
+
+
 func get_jovian_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var defensive_weapon_visual := get_defensive_weapon_visual_report()
+	var forward_cargo_guide_visual := get_forward_cargo_guide_visual_report()
 	var load_mark_allocation := get_load_mark_render_audit()
 	var service_panel_allocation := get_service_panel_render_audit()
 	var cargo_deck_lane_allocation := get_cargo_deck_lane_render_audit()
@@ -1691,6 +1783,8 @@ func get_jovian_audit_report() -> Dictionary:
 		errors.append("defensive muzzle markers are missing")
 	if not bool(defensive_weapon_visual.get("valid", false)):
 		errors.append("modern provisional defensive weapon visual drifted")
+	if not bool(forward_cargo_guide_visual.get("valid", false)):
+		errors.append("modern provisional forward cargo-guide silhouette drifted")
 	if not bool(load_mark_allocation.get("valid", false)):
 		errors.append("load-mark visual batching contract drifted")
 	if not bool(service_panel_allocation.get("valid", false)):
@@ -1719,6 +1813,7 @@ func get_jovian_audit_report() -> Dictionary:
 		"engine_count": _engine_plumes.size(),
 		"weapon_class": &"freighter_defensive_pulse",
 		"defensive_weapon_visual": defensive_weapon_visual,
+		"forward_cargo_guide_visual": forward_cargo_guide_visual,
 		"load_mark_render_allocation": load_mark_allocation,
 		"service_panel_render_allocation": service_panel_allocation,
 		"cargo_deck_lane_render_allocation": cargo_deck_lane_allocation,
@@ -3224,6 +3319,7 @@ func _build_exterior() -> void:
 			0.16,
 			_jovian_materials.nav_red if side < 0.0 else _jovian_materials.nav_green
 		)
+	_build_forward_cargo_guide_silhouette()
 
 	# Arched roof and keel members visually unify the load-bearing shoulders.
 	_planform_surface(
@@ -3386,6 +3482,90 @@ func _build_exterior() -> void:
 	)
 	_box(_jovian_visual, "CargoRampActuator", Vector3(-6.1, 0.12, 1.3), Vector3(0.24, 0.24, 1.35), _jovian_materials.structure, Vector3(0.0, 0.0, ramp_angle))
 	_box(_jovian_visual, "CargoRampActuator", Vector3(-6.1, 0.12, 5.1), Vector3(0.24, 0.24, 1.35), _jovian_materials.structure, Vector3(0.0, 0.0, ramp_angle))
+
+
+func _build_forward_cargo_guide_silhouette() -> void:
+	var guide_mesh := ArrayMesh.new()
+	var guide_tool := SurfaceTool.new()
+	guide_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	guide_tool.set_material(_jovian_materials.structure)
+	_append_planform_prism(
+		guide_tool, FORWARD_CARGO_GUIDE_PORT_OUTLINE, FORWARD_CARGO_GUIDE_THICKNESS, 0
+	)
+	_append_planform_prism(
+		guide_tool,
+		_mirror_outline_across_centerline(FORWARD_CARGO_GUIDE_PORT_OUTLINE),
+		FORWARD_CARGO_GUIDE_THICKNESS,
+		8
+	)
+	guide_tool.generate_normals()
+	guide_tool.commit(guide_mesh)
+
+	var index_tool := SurfaceTool.new()
+	index_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	index_tool.set_material(_jovian_materials.amber)
+	_append_planform_prism(
+		index_tool, FORWARD_CARGO_INDEX_PORT_OUTLINE, FORWARD_CARGO_INDEX_THICKNESS, 0
+	)
+	_append_planform_prism(
+		index_tool,
+		_mirror_outline_across_centerline(FORWARD_CARGO_INDEX_PORT_OUTLINE),
+		FORWARD_CARGO_INDEX_THICKNESS,
+		8
+	)
+	index_tool.generate_normals()
+	index_tool.commit(guide_mesh)
+
+	var guide := MeshInstance3D.new()
+	guide.name = FORWARD_CARGO_GUIDE_NAME
+	guide.mesh = guide_mesh
+	guide.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	guide.layers = 1
+	guide.process_mode = Node.PROCESS_MODE_DISABLED
+	guide.set_meta("visual_only", true)
+	guide.set_meta("orientation_axis", &"forward_negative_z")
+	guide.set_meta("cargo_role_cue", FORWARD_CARGO_GUIDE_ROLE)
+	guide.set_meta("interpretation_status", FORWARD_CARGO_GUIDE_STATUS)
+	guide.set_meta("authenticated_historical_silhouette", false)
+	guide.set_meta("collision_authority", false)
+	guide.set_meta("cargo_authority", false)
+	_jovian_visual.add_child(guide)
+
+
+func _append_planform_prism(
+		tool: SurfaceTool,
+		outline: Array[Vector3],
+		thickness: float,
+		base_index: int
+	) -> void:
+	var half_thickness := thickness * 0.5
+	for point in outline:
+		tool.add_vertex(point + Vector3.UP * half_thickness)
+	for point in outline:
+		tool.add_vertex(point - Vector3.UP * half_thickness)
+	for triangle in [[0, 1, 2], [0, 2, 3]]:
+		tool.add_index(base_index + triangle[0])
+		tool.add_index(base_index + triangle[1])
+		tool.add_index(base_index + triangle[2])
+		tool.add_index(base_index + 4 + triangle[0])
+		tool.add_index(base_index + 4 + triangle[2])
+		tool.add_index(base_index + 4 + triangle[1])
+	for index in 4:
+		var next := (index + 1) % 4
+		tool.add_index(base_index + index)
+		tool.add_index(base_index + 4 + index)
+		tool.add_index(base_index + 4 + next)
+		tool.add_index(base_index + index)
+		tool.add_index(base_index + 4 + next)
+		tool.add_index(base_index + next)
+
+
+func _mirror_outline_across_centerline(outline: Array[Vector3]) -> Array[Vector3]:
+	var mirrored: Array[Vector3] = []
+	for index in range(outline.size() - 1, -1, -1):
+		var point := outline[index]
+		mirrored.append(Vector3(-point.x, point.y, point.z))
+	return mirrored
 
 
 func _build_connected_interior() -> void:
