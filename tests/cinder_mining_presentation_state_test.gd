@@ -64,6 +64,23 @@ func _run() -> void:
 		and hopper_band.get_instance_id() == retained_hopper_id,
 		"detach/re-entry keeps the retained gauges and makes half extraction readable in geometry"
 	)
+	var failed_snapshot := (binding.call("get_snapshot").mining as Dictionary).duplicate(true)
+	failed_snapshot["terminal_outcome"] = &"failed"
+	var failed_result: Dictionary = cluster.call(
+		"_apply_mining_activity_presentation", failed_snapshot
+	)
+	var failed_state := cluster.get_mining_activity_presentation_state()
+	_check(
+		bool(failed_result.get("accepted", false))
+		and failed_state.state_id == &"failed"
+		and bool(failed_state.failure_geometry)
+		and hopper_band.scale.is_equal_approx(Vector3(0.65, 1.35, 0.65))
+		and _collector_turns(collector_bands) == [-38.0, 38.0, -38.0]
+		and _presentation_counts(presentation) == initial_counts
+		and int((binding.call("get_snapshot").mining as Dictionary).state) \
+			== CinderMiningPlatformActivity.State.ACTIVE,
+		"an authoritative failed outcome collapses and crosses the retained gauges without taking activity authority"
+	)
 	var completed: Dictionary = binding.call("advance_mining_activity", 3.0)
 	var secured := cluster.get_mining_activity_presentation_state()
 	var secured_audit := cluster.get_mining_platform_presentation_audit()
@@ -142,6 +159,17 @@ func _collector_heights(collector_bands: MultiMeshInstance3D) -> Array[float]:
 	for collector_index in collector_bands.multimesh.instance_count:
 		heights.append(transform_buffer[collector_index * 12 + 7])
 	return heights
+
+
+func _collector_turns(collector_bands: MultiMeshInstance3D) -> Array[float]:
+	var turns: Array[float] = []
+	var transform_buffer := collector_bands.multimesh.buffer
+	for collector_index in collector_bands.multimesh.instance_count:
+		var offset := collector_index * 12
+		turns.append(snappedf(rad_to_deg(atan2(
+			transform_buffer[offset + 4], transform_buffer[offset]
+		)), 0.1))
+	return turns
 
 
 func _check(condition: bool, description: String) -> void:

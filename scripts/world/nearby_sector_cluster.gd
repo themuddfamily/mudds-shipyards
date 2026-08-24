@@ -237,6 +237,8 @@ const MINING_COLLECTOR_COUNT := 3
 const MINING_COLLECTOR_BAND_IDLE_Y := 4.0
 const MINING_COLLECTOR_BAND_FULL_Y := 7.0
 const MINING_CAPACITY_HOPPER_SCALE := Vector3(1.2, 1.0, 1.2)
+const MINING_FAILED_HOPPER_SCALE := Vector3(0.65, 1.35, 0.65)
+const MINING_FAILED_BAND_TURNS := [-38.0, 38.0, -38.0]
 
 ## The scan begins twenty metres in front of the platform centre. A fractured
 ## datum frame gathers the existing torn habitat and collapsed solar wing into
@@ -1334,7 +1336,7 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 	if (
 		StringName(state_feedback.get("activity_id", &"")) != MINING_ACTIVITY_ID
 		or StringName(state_feedback.get("state_id", &"")) \
-			not in [&"available", &"extracting", &"secured", &"reset"]
+			not in [&"available", &"extracting", &"secured", &"failed", &"reset"]
 		or int(state_feedback.get("node_delta", -1)) != 0
 		or int(state_feedback.get("light_delta", -1)) != 0
 		or int(state_feedback.get("submission_delta", -1)) != 0
@@ -2358,6 +2360,10 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 		collector_bands.custom_aabb = collector_bands.custom_aabb.merge(
 			(full_transform * collector_bands.multimesh.mesh.get_aabb()).abs()
 		)
+	for failed_transform in _mining_collector_band_transforms(0.0, true):
+		collector_bands.custom_aabb = collector_bands.custom_aabb.merge(
+			(failed_transform * collector_bands.multimesh.mesh.get_aabb()).abs()
+		)
 
 	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
 	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
@@ -2377,9 +2383,11 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		return {"accepted": false, "reason": &"wrong_activity_snapshot"}
 	var generation := int(snapshot.get("generation", -1))
 	var state := int(snapshot.get("state", -1))
+	var terminal_outcome := StringName(snapshot.get("terminal_outcome", &""))
 	var elapsed := float(snapshot.get("elapsed_seconds", -1.0))
 	var duration := float(snapshot.get("extraction_seconds", 0.0))
-	if generation < 0 or state < 0 or state > 3 or elapsed < 0.0 or duration <= 0.0:
+	if generation < 0 or state < 0 or state > 3 or elapsed < 0.0 or duration <= 0.0 \
+			or terminal_outcome not in [&"", &"failed"]:
 		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
 	var presentation := get_node_or_null(
 		^"ExtractionPlatform/CinderReachPlatform/MiningActivityPresentation"
@@ -2399,7 +2407,8 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		return {"accepted": false, "reason": &"presentation_roster_incomplete"}
 	var progress := clampf(elapsed / duration, 0.0, 1.0)
 	var collector_levels := _mining_collector_levels(progress)
-	var collector_transforms := _mining_collector_band_transforms(progress)
+	var failed := terminal_outcome == &"failed"
+	var collector_transforms := _mining_collector_band_transforms(progress, failed)
 	collector_bands.multimesh.buffer = _mining_collector_transform_buffer(
 		collector_transforms
 	)
@@ -2413,28 +2422,33 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	sign.material_override = _materials["orange_glow"]
 	sign.scale = Vector3.ONE * 2.4
 	hopper_band.scale = Vector3.ONE
-	match state:
-		CinderMiningPlatformActivity.State.ACTIVE:
-			state_id = &"extracting"
-			port.light_energy = lerpf(1.4, 3.2, progress)
-			starboard.light_energy = lerpf(3.2, 1.4, progress)
-			sign.material_override = _materials["cyan_glow"]
-			sign.scale = Vector3.ONE * 2.55
-		CinderMiningPlatformActivity.State.COMPLETE:
-			state_id = &"secured"
-			port.light_energy = 3.4
-			starboard.light_energy = 3.4
-			starboard.light_color = KETH_CYAN
-			starboard_lens.material_override = _lens_material(KETH_CYAN)
-			sign.material_override = _materials["cyan_glow"]
-			sign.scale = Vector3.ONE * 2.75
-			hopper_band.scale = MINING_CAPACITY_HOPPER_SCALE
-		CinderMiningPlatformActivity.State.RESET:
-			state_id = &"reset"
-			port.light_energy = 0.35
-			starboard.light_energy = 0.35
-		_:
-			pass
+	if failed:
+		state_id = &"failed"
+		port.light_energy = 0.2
+		starboard.light_energy = 3.5
+		sign.material_override = _materials["orange_glow"]
+		sign.scale = Vector3(2.05, 2.8, 2.05)
+		hopper_band.scale = MINING_FAILED_HOPPER_SCALE
+	elif state == CinderMiningPlatformActivity.State.ACTIVE:
+		state_id = &"extracting"
+		port.light_energy = lerpf(1.4, 3.2, progress)
+		starboard.light_energy = lerpf(3.2, 1.4, progress)
+		sign.material_override = _materials["cyan_glow"]
+		sign.scale = Vector3.ONE * 2.55
+	elif state == CinderMiningPlatformActivity.State.COMPLETE:
+		state_id = &"secured"
+		port.light_energy = 3.4
+		starboard.light_energy = 3.4
+		starboard.light_color = KETH_CYAN
+		starboard_lens.material_override = _lens_material(KETH_CYAN)
+		sign.material_override = _materials["cyan_glow"]
+		sign.scale = Vector3.ONE * 2.75
+		hopper_band.scale = MINING_CAPACITY_HOPPER_SCALE
+	elif state == CinderMiningPlatformActivity.State.RESET:
+		state_id = &"reset"
+		port.light_energy = 0.35
+		starboard.light_energy = 0.35
+	# IDLE retains the authored available state through the defaults above.
 	_mining_presentation_snapshot = {
 		"activity_id": MINING_ACTIVITY_ID,
 		"state_id": state_id,
@@ -2453,6 +2467,7 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		"capacity_ready_geometry": hopper_band.scale.is_equal_approx(
 			MINING_CAPACITY_HOPPER_SCALE
 		),
+		"failure_geometry": failed,
 		"hopper_scale": hopper_band.scale,
 		"node_delta": MINING_PRESENTATION_STATE_NODE_DELTA,
 		"light_delta": MINING_PRESENTATION_STATE_LIGHT_DELTA,
@@ -2474,12 +2489,19 @@ func _mining_collector_levels(progress: float) -> Array[float]:
 	return levels
 
 
-func _mining_collector_band_transforms(progress: float) -> Array[Transform3D]:
+func _mining_collector_band_transforms(
+	progress: float, failed: bool = false
+	) -> Array[Transform3D]:
 	var transforms: Array[Transform3D] = []
 	var levels := _mining_collector_levels(progress)
 	for collector_index in MINING_COLLECTOR_COUNT:
+		var basis := Basis.IDENTITY
+		if failed:
+			basis = Basis.from_euler(Vector3(
+				0.0, 0.0, deg_to_rad(MINING_FAILED_BAND_TURNS[collector_index])
+			))
 		transforms.append(Transform3D(
-			Basis.IDENTITY,
+			basis,
 			Vector3(
 				-8.0 + float(collector_index) * 8.0,
 				lerpf(
