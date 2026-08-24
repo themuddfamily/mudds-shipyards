@@ -312,6 +312,7 @@ var _server_browser_filter_controls: Dictionary = {}
 var _server_browser_filter_summary: Label
 var _server_browser_sort_controls: Dictionary = {}
 var _server_browser_sort_summary: Label
+var _server_browser_accept_results := true
 var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
@@ -2092,6 +2093,14 @@ func set_paused(paused: bool) -> void:
 	if paused:
 		_show_pause_main()
 	else:
+		if _server_browser_page != null and _server_browser_page.visible:
+			_render_server_browser(_server_browser_presenter.close_view())
+			_server_browser_accept_results = false
+			_server_browser_focus_target = _server_browser_page.find_child(
+				"ServerBrowserRefreshButton", true, false
+			) as Button
+			_server_browser_page.visible = false
+			_pause_main_page.visible = true
 		_binding_capture_action = &""
 		_cancel_pending_input_conflict(false)
 		_pause_reentry_focus_target = null
@@ -4727,6 +4736,7 @@ func _show_server_browser_page() -> void:
 	_activity_selection_page.visible = false
 	_settings_page.visible = false
 	_server_browser_page.visible = true
+	_server_browser_accept_results = true
 	var target := _server_browser_focus_target
 	if (
 		not is_instance_valid(target)
@@ -4743,19 +4753,21 @@ func _show_server_browser_page() -> void:
 ## presenter owns only textual shaping; refresh and join remain external
 ## intents, so this UI never queries a directory or opens a transport.
 func apply_server_browser_result(result: Dictionary) -> bool:
-	if not is_instance_valid(_server_browser_page):
+	if not is_instance_valid(_server_browser_page) or not _server_browser_accept_results:
 		return false
 	var presentation: Dictionary
 	var requested_status := StringName(str(result.get("status", &"")))
 	if requested_status == &"loading":
 		presentation = {
-			"status": &"loading",
+			"status": &"refreshing",
 			"rows": [],
-			"error_message": "Searching for available sessions…",
+			"error_message": "Refreshing server list…",
 			"actions": [],
 		}
 	else:
 		presentation = _server_browser_presenter.present_result(result)
+		if presentation.get("reason", &"") == &"stale_result_ignored":
+			return false
 		if presentation.get("status", &"") == &"ready":
 			var rows: Array = presentation.get("rows", [])
 			if not rows.is_empty() and rows.all(func(row: Variant) -> bool: return bool((row as Dictionary).get("full", false))):
@@ -4810,7 +4822,10 @@ func request_server_browser_manual_join() -> Dictionary:
 func request_server_browser_refresh() -> Dictionary:
 	var request := _server_browser_presenter.request_retry()
 	if not bool(request.get("accepted", false)):
-		request = {"accepted": true, "reason": &"refresh_requested", "presentation_only": true}
+		request = _server_browser_presenter.begin_refresh(&"refresh")
+	var presentation := request.get("presentation", {}) as Dictionary
+	if not presentation.is_empty():
+		_render_server_browser(presentation)
 	presentation_intent_requested.emit(&"server_browser", {"action": &"refresh", "request": request})
 	return request
 
@@ -4894,8 +4909,10 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		clear_sort.focus_neighbor_bottom = clear_sort.get_path_to(refresh)
 		refresh.focus_neighbor_top = refresh.get_path_to(clear_sort)
 	var status_title: String = {
-		&"loading": "SEARCHING…",
+		&"loading": "REFRESHING SERVER LIST",
+		&"refreshing": "REFRESHING SERVER LIST",
 		&"empty": "NO SESSIONS FOUND",
+		&"expired": "SERVER LIST EXPIRED",
 		&"error": "SERVER LIST UNAVAILABLE",
 		&"full": "ALL SESSIONS FULL",
 		&"ready": "AVAILABLE SESSIONS",
@@ -4946,8 +4963,12 @@ func _render_server_browser(presentation: Dictionary) -> void:
 		button.tooltip_text = str(row.get("focus_label", "Select server"))
 		button.pressed.connect(request_server_browser_join.bind(StringName(str(row.get("session_id", &"")))))
 		_server_browser_rows.add_child(button)
-	if status == &"error" and bool(presentation.get("retryable", false)):
-		var retry := _menu_button("RETRY SERVER LIST", NOMINAL)
+	if status in [&"error", &"expired"] and bool(presentation.get("retryable", false)):
+		var retry_after_milliseconds := maxi(int(presentation.get("retry_after_milliseconds", 0)), 0)
+		var retry_label := "RETRY SERVER LIST"
+		if retry_after_milliseconds > 0:
+			retry_label += " (%d MS)" % retry_after_milliseconds
+		var retry := _menu_button(retry_label, NOMINAL)
 		retry.name = "ServerBrowserRetryButton"
 		retry.focus_mode = Control.FOCUS_ALL
 		retry.tooltip_text = "Retry the server directory request"
@@ -4959,12 +4980,14 @@ func _render_server_browser(presentation: Dictionary) -> void:
 			retry.focus_neighbor_top = retry.get_path_to(clear_sort)
 			retry.focus_neighbor_bottom = retry.get_path_to(refresh)
 			refresh.focus_neighbor_top = refresh.get_path_to(retry)
-	_server_browser_page.visible = true
 	if is_instance_valid(retry_focus_target):
 		# The presenter's retry focus target is an accessibility instruction. Keep
 		# the live retained control as the re-entry target as well as focusing it now.
 		_server_browser_focus_target = retry_focus_target
 		retry_focus_target.grab_focus()
+	elif status == &"refreshing" and is_instance_valid(refresh):
+		_server_browser_focus_target = refresh
+		refresh.grab_focus()
 
 
 func _add_activity_selection_row(
@@ -6258,6 +6281,19 @@ func _show_pause_main() -> void:
 	):
 		return
 	var returning_from_activity := _activity_selection_page.visible
+	var returning_from_browser := _server_browser_page != null and _server_browser_page.visible
+	if returning_from_browser:
+		var browser_focus_was_transient := (
+			not is_instance_valid(_server_browser_focus_target)
+			or _server_browser_focus_target.name == &"ServerBrowserRetryButton"
+			or _server_browser_rows.is_ancestor_of(_server_browser_focus_target)
+		)
+		_render_server_browser(_server_browser_presenter.close_view())
+		_server_browser_accept_results = false
+		if browser_focus_was_transient:
+			_server_browser_focus_target = _server_browser_page.find_child(
+				"ServerBrowserRefreshButton", true, false
+			) as Button
 	_binding_capture_action = &""
 	_cancel_pending_input_conflict(false)
 	_pause_main_page.visible = true
@@ -6265,7 +6301,9 @@ func _show_pause_main() -> void:
 	_server_browser_page.visible = false
 	_settings_page.visible = false
 	var focus_button := _pause_main_page.find_child(
-		"ActivityBoardButton" if returning_from_activity else "SettingsOpenButton",
+		"ActivityBoardButton" if returning_from_activity else (
+			"ServerBrowserButton" if returning_from_browser else "SettingsOpenButton"
+		),
 		true,
 		false
 	) as Button

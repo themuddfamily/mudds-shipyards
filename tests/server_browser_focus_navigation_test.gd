@@ -50,12 +50,21 @@ func _run() -> void:
 		root.get_viewport().gui_get_focus_owner() == retry,
 		"retryable failure moves controller focus directly to recovery",
 	)
+	var retry_request := hud.request_server_browser_refresh()
+	await process_frame
+	_check(root.get_viewport().gui_get_focus_owner() == refresh, "retry preserves controller recovery focus on the stable refresh control")
+	_check(not hud.apply_server_browser_result({"accepted": true, "request_generation": int(retry_request.request_generation) + 1, "rows": []}), "out-of-order browser completion is ignored")
+	hud.apply_server_browser_result({"accepted": false, "request_generation": retry_request.request_generation, "message": "Directory unavailable.", "retryable": true})
+	await process_frame
 	hud.call("_show_pause_main")
+	await process_frame
+	_check((hud.get("_server_browser_rows") as VBoxContainer).get_child_count() == 0, "closing browser clears transient retry controls")
+	_check(not hud.apply_server_browser_result({"accepted": true, "rows": [{"session_id": &"late", "title": "Late", "player_count": 1, "max_players": 4}]}), "a late untagged completion cannot repaint the closed browser")
 	hud.call("_show_server_browser_page")
 	await process_frame
 	_check(
-		root.get_viewport().gui_get_focus_owner() == retry,
-		"retained browser re-entry returns controller focus to retry",
+		root.get_viewport().gui_get_focus_owner() == refresh,
+		"browser re-entry returns controller focus to the stable refresh action",
 	)
 	address.grab_focus()
 	await process_frame
@@ -63,6 +72,9 @@ func _run() -> void:
 	hud.call("_show_server_browser_page")
 	await process_frame
 	_check(root.get_viewport().gui_get_focus_owner() == address, "browser re-entry restores last focused field")
+	hud.set_paused(false)
+	await process_frame
+	_check(not hud.apply_server_browser_result({"accepted": false, "message": "Late failure.", "retryable": true}), "closing the pause overlay also fences late browser results")
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

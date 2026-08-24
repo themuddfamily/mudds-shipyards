@@ -35,6 +35,8 @@ var _accessibility_filters: Dictionary = {
 }
 var _sort_key: StringName = &"name"
 var _sort_descending := false
+var _request_generation := 0
+var _pending_request_generation := 0
 
 
 func configure_filters(region_filter: StringName = &"", max_ping_ms: int = PING_ANY, include_full: bool = true) -> Dictionary:
@@ -63,12 +65,34 @@ func present(browser: RefCounted) -> Dictionary:
 ## Error actions are intents for the owning screen; this presenter never retries,
 ## cancels a request, or touches a network transport.
 func present_result(result: Dictionary) -> Dictionary:
+	var result_generation := int(result.get("request_generation", 0))
+	if result_generation > 0 and result_generation != _pending_request_generation:
+		var retained := _last_snapshot.duplicate(true)
+		retained["accepted"] = false
+		retained["reason"] = &"stale_result_ignored"
+		retained["ignored_request_generation"] = result_generation
+		retained["request_generation"] = _pending_request_generation
+		retained["presentation_only"] = true
+		return retained
+	_pending_request_generation = 0
+	var requested_status := StringName(str(result.get("status", &"")))
+	if requested_status == &"expired" or result.get("reason", &"") in [&"directory_expired", &"results_expired"]:
+		_focus_target = &"retry"
+		return _store_snapshot(_status_snapshot(
+			&"expired", [], &"directory_expired",
+			"Server list expired. Refresh to see current servers.", true
+		))
 	if not bool(result.get("accepted", false)):
 		var reason := StringName(str(result.get("reason", &"directory_unavailable")))
 		var message := _status_reason_message(reason, str(result.get("message", "")))
 		var retryable := bool(result.get("retryable", true))
+		var retry_after_milliseconds := maxi(int(result.get("retry_after_milliseconds", 0)), 0)
+		if retryable and retry_after_milliseconds > 0:
+			message = "%s. Retry in %d ms." % [message.trim_suffix("."), retry_after_milliseconds]
 		_focus_target = &"retry" if retryable else &"cancel"
-		return _store_snapshot(_status_snapshot(&"error", [], reason, message, retryable))
+		var failed := _status_snapshot(&"error", [], reason, message, retryable)
+		failed["retry_after_milliseconds"] = retry_after_milliseconds
+		return _store_snapshot(failed)
 	var source_rows: Array = result.get("rows", []) as Array
 	var newest_capacity_generation := _latest_capacity_generation
 	for source in source_rows:
@@ -159,9 +183,43 @@ func set_focus_target(control_id: StringName) -> Dictionary:
 
 
 func request_retry() -> Dictionary:
-	if _last_snapshot.get("status", &"") != &"error" or not bool(_last_snapshot.get("retryable", false)):
+	if _last_snapshot.get("status", &"") not in [&"error", &"expired"] or not bool(_last_snapshot.get("retryable", false)):
 		return {"accepted": false, "reason": &"retry_not_available", "presentation_only": true}
-	return {"accepted": true, "reason": &"retry_requested", "presentation_only": true}
+	return begin_refresh(&"retry")
+
+
+## Starts one caller-owned directory request and returns its fence. The caller
+## echoes request_generation in the eventual result; older completions are
+## ignored after another refresh or after close_view(). No clock is owned here.
+func begin_refresh(focus_target: StringName = &"refresh") -> Dictionary:
+	_request_generation += 1
+	_pending_request_generation = _request_generation
+	_focus_target = focus_target if focus_target in [&"refresh", &"retry"] else &"refresh"
+	var refreshing := _status_snapshot(
+		&"refreshing", [], &"refresh_requested", "Refreshing server list…", false
+	)
+	refreshing["request_generation"] = _pending_request_generation
+	_store_snapshot(refreshing)
+	return {
+		"accepted": true,
+		"reason": &"retry_requested" if _focus_target == &"retry" else &"refresh_requested",
+		"request_generation": _pending_request_generation,
+		"presentation": refreshing.duplicate(true),
+		"presentation_only": true,
+	}
+
+
+## Invalidates an in-flight result and drops transient rows/status while
+## retaining filters, sort, and the validated manual-connect form for re-entry.
+func close_view() -> Dictionary:
+	_request_generation += 1
+	_pending_request_generation = 0
+	if _focus_target == &"retry" or _focus_target.begins_with("row:"):
+		_focus_target = &"refresh"
+	_last_unfiltered_rows.clear()
+	_last_snapshot = _status_snapshot(&"idle", [], &"", "Select refresh to find available sessions.", false)
+	_last_snapshot["request_generation"] = _request_generation
+	return _last_snapshot.duplicate(true)
 
 
 func request_cancel() -> Dictionary:
@@ -170,7 +228,7 @@ func request_cancel() -> Dictionary:
 
 func _status_snapshot(status: StringName, rows: Array, reason: StringName, message: String, retryable: bool) -> Dictionary:
 	var actions: Array = []
-	if status == &"error":
+	if status in [&"error", &"expired"]:
 		if retryable:
 			actions.append({"id": &"retry", "label": "Retry server list", "focusable": true})
 		actions.append({"id": &"cancel", "label": "Cancel", "focusable": true})
@@ -185,6 +243,7 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 		"error_code": reason,
 		"error_message": message,
 		"retryable": retryable,
+		"request_generation": _pending_request_generation,
 		"actions": actions,
 		"focus_target": _focus_target,
 		"focus_order": [&"refresh", &"host_session", &"manual_join", &"compatible_only", &"not_full", &"no_password", &"latency_band", &"clear_filters", &"retry", &"cancel"],
