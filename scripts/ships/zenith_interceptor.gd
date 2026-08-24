@@ -3203,6 +3203,8 @@ var _engine_plumes: Array[MeshInstance3D] = []
 var _plume_base_scales: Dictionary = {}
 var _close_plume_batch: MultiMeshInstance3D
 var _close_plume_sources: Array[MeshInstance3D] = []
+var _far_plume_batch: MultiMeshInstance3D
+var _far_plume_sources: Array[MeshInstance3D] = []
 var _identity_snapshot: Dictionary = {}
 
 
@@ -3527,6 +3529,7 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 
 	_collect_engine_plumes()
 	_install_close_plume_batch()
+	_install_far_plume_batch()
 	for collision in inherited_collisions:
 		collision.queue_free()
 	if inherited_visual.get_parent() != null:
@@ -3830,6 +3833,106 @@ func _sync_close_plume_batch() -> void:
 	_close_plume_batch.visible = any_visible
 
 
+## The far-LOD exhaust pair is the next repeated immutable presentation family.
+## Its authored nodes remain the protected visibility/scale authority while one
+## MultiMesh carries both exact transforms in a single surface submission.
+func _install_far_plume_batch() -> void:
+	_far_plume_batch = null
+	_far_plume_sources.clear()
+	var port: MeshInstance3D = null
+	var starboard: MeshInstance3D = null
+	for plume in _engine_plumes:
+		if plume.name == &"LOD1PortEnginePlume":
+			port = plume
+		elif plume.name == &"LOD1StarboardEnginePlume":
+			starboard = plume
+	if (
+		port == null or starboard == null
+		or port.get_parent() != starboard.get_parent()
+		or not port.get_parent() is Node3D
+		or port.mesh == null or starboard.mesh == null
+		or not _meshes_render_identically(
+			port.mesh, starboard.mesh, port.material_override
+		)
+		or port.material_override != starboard.material_override
+		or port.material_overlay != starboard.material_overlay
+		or port.cast_shadow != starboard.cast_shadow
+		or port.layers != starboard.layers
+		or not is_equal_approx(port.extra_cull_margin, starboard.extra_cull_margin)
+		or not is_equal_approx(port.lod_bias, starboard.lod_bias)
+		or port.ignore_occlusion_culling != starboard.ignore_occlusion_culling
+		or port.gi_mode != starboard.gi_mode
+		or not is_equal_approx(port.transparency, starboard.transparency)
+		or port.visibility_range_begin != starboard.visibility_range_begin
+		or port.visibility_range_end != starboard.visibility_range_end
+		or port.visibility_range_begin_margin != starboard.visibility_range_begin_margin
+		or port.visibility_range_end_margin != starboard.visibility_range_end_margin
+		or port.visibility_range_fade_mode != starboard.visibility_range_fade_mode
+	):
+		return
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = port.mesh
+	multi.instance_count = 2
+	multi.visible_instance_count = -1
+	multi.set_instance_transform(0, port.transform)
+	multi.set_instance_transform(1, starboard.transform)
+
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "FarEnginePlumeBatch"
+	batch.multimesh = multi
+	batch.material_override = port.material_override
+	batch.material_overlay = port.material_overlay
+	batch.cast_shadow = port.cast_shadow
+	batch.layers = port.layers
+	batch.extra_cull_margin = port.extra_cull_margin
+	batch.lod_bias = port.lod_bias
+	batch.ignore_occlusion_culling = port.ignore_occlusion_culling
+	batch.gi_mode = port.gi_mode
+	batch.transparency = port.transparency
+	batch.visibility_range_begin = port.visibility_range_begin
+	batch.visibility_range_end = port.visibility_range_end
+	batch.visibility_range_begin_margin = port.visibility_range_begin_margin
+	batch.visibility_range_end_margin = port.visibility_range_end_margin
+	batch.visibility_range_fade_mode = port.visibility_range_fade_mode
+	batch.set_meta("authored_instance_transforms", [port.transform, starboard.transform])
+	batch.set_meta("visual_only", true)
+	(port.get_parent() as Node3D).add_child(batch)
+	_far_plume_batch = batch
+	_far_plume_sources.assign([port, starboard])
+	port.layers = 0
+	starboard.layers = 0
+	_sync_far_plume_batch()
+
+
+func _sync_far_plume_batch() -> void:
+	if _far_plume_batch == null or not is_instance_valid(_far_plume_batch) \
+			or _far_plume_batch.multimesh == null or _far_plume_sources.size() != 2:
+		return
+	var any_visible := false
+	var visible_count := 0
+	var authored_transforms: Array[Transform3D] = []
+	var batch_bounds := AABB()
+	var batch_mesh := _far_plume_batch.multimesh.mesh
+	for index in _far_plume_sources.size():
+		var source := _far_plume_sources[index]
+		if not is_instance_valid(source):
+			return
+		_far_plume_batch.multimesh.set_instance_transform(index, source.transform)
+		authored_transforms.append(source.transform)
+		var instance_bounds := _transformed_aabb(batch_mesh.get_aabb(), source.transform)
+		batch_bounds = instance_bounds if index == 0 else batch_bounds.merge(instance_bounds)
+		any_visible = any_visible or source.visible
+		if source.visible:
+			visible_count += 1
+	_far_plume_batch.set_meta("authored_instance_transforms", authored_transforms)
+	_far_plume_batch.multimesh.custom_aabb = batch_bounds
+	_far_plume_batch.multimesh.visible_instance_count = visible_count
+	_far_plume_batch.material_overlay = _far_plume_sources[0].material_overlay
+	_far_plume_batch.visible = any_visible
+
+
 static func _meshes_render_identically(
 	left: Mesh, right: Mesh, material_override: Material
 ) -> bool:
@@ -3905,6 +4008,7 @@ func _update_zenith_engine_presentation(delta: float) -> void:
 		plume.scale = plume.scale.lerp(target_scale, 1.0 - exp(-10.0 * maxf(delta, 0.0)))
 	_apply_engine_exhaust_damage_presentation(_engine_plumes, [], active, exhaust_profile)
 	_sync_close_plume_batch()
+	_sync_far_plume_batch()
 
 
 func _sync_zenith_engine_presentation_immediately() -> void:
@@ -3928,6 +4032,7 @@ func _sync_zenith_engine_presentation_immediately() -> void:
 		plume.scale = scale_value
 	_apply_engine_exhaust_damage_presentation(_engine_plumes, [], active, exhaust_profile)
 	_sync_close_plume_batch()
+	_sync_far_plume_batch()
 
 
 func _sync_zenith_canopy_immediately() -> void:
@@ -4163,6 +4268,15 @@ func _capture_runtime_identities() -> Dictionary:
 			_close_plume_batch.multimesh.get_instance_id()
 			if _close_plume_batch != null and is_instance_valid(_close_plume_batch)
 				and _close_plume_batch.multimesh != null else 0
+		),
+		"far_plume_batch_id": (
+			_far_plume_batch.get_instance_id()
+			if _far_plume_batch != null and is_instance_valid(_far_plume_batch) else 0
+		),
+		"far_plume_multimesh_id": (
+			_far_plume_batch.multimesh.get_instance_id()
+			if _far_plume_batch != null and is_instance_valid(_far_plume_batch)
+				and _far_plume_batch.multimesh != null else 0
 		),
 	}
 
