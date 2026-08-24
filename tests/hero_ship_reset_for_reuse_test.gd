@@ -392,13 +392,13 @@ func _test_guarded_commit_chronology(ship: HeroShip) -> void:
 		"every synchronous reset callback is fenced from direct component mutation"
 	)
 	_check(
-		_ordered(&"cruise", &"presentation_stage")
+		_ordered(&"cruise", &"components_restored")
+		and _ordered(&"components_restored", &"presentation_stage")
 		and _ordered(&"presentation_stage", &"presentation_status")
 		and _ordered(&"presentation_status", &"presentation_cleared")
-		and _ordered(&"presentation_cleared", &"components_restored")
-		and _ordered(&"components_restored", &"engine")
+		and _ordered(&"presentation_cleared", &"engine")
 		and _ordered(&"engine", &"hull"),
-		"accepted reset preserves cruise, presentation, component, engine, hull chronology"
+		"accepted reset restores component authority before presentation, engine, and hull"
 	)
 	_check(
 		component.get_instance_id() == model_identity

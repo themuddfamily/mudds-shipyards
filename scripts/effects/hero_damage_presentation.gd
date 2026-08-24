@@ -102,6 +102,10 @@ var _tearing_down := false
 const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
 var _pending_damage_presentations: Dictionary = {}
 var _pending_damage_presentation_order: Array[int] = []
+## Exact ComponentDamageModel generation currently represented by this rig.
+## Zero retains the standalone presentation-fixture compatibility mode; every
+## production HeroShip binds a positive generation before queuing receipts.
+var _presented_component_generation := 0
 ## Bounded localized channel. One rig per damaged component id, all of them
 ## ship-local children of this node so a moving, detached, or re-entered craft
 ## carries them rather than stranding them in world space.
@@ -845,15 +849,28 @@ func defer_damage_presentation(
 		world_velocity: Vector3,
 		world_pose: Variant = null,
 		component_id: StringName = &"",
-		semantic_intensity: float = 1.0
+		semantic_intensity: float = 1.0,
+		component_generation: int = 0,
+		component_sequence: int = -1,
+		component_revision: int = 0
 	) -> bool:
 	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
 		return false
 	if receipt_id < 0 or not world_position.is_finite():
 		return false
+	if _presented_component_generation > 0 and (
+		component_generation != _presented_component_generation
+		or component_sequence < -1
+		or component_revision <= 0
+	):
+		return false
 	if _pending_damage_presentations.has(receipt_id):
 		_pending_damage_presentation_order.erase(receipt_id)
 	_pending_damage_presentations[receipt_id] = {
+		"receipt_id": receipt_id,
+		"component_generation": component_generation,
+		"component_sequence": component_sequence,
+		"component_revision": component_revision,
 		"position": world_position,
 		"normal": world_normal,
 		"intensity": clampf(intensity, 0.25, 2.5),
@@ -870,7 +887,12 @@ func defer_damage_presentation(
 	return true
 
 
-func commit_deferred_damage_presentation(receipt_id: int) -> bool:
+func commit_deferred_damage_presentation(
+		receipt_id: int,
+		component_generation: int = 0,
+		component_sequence: int = -1,
+		component_revision: int = 0
+	) -> bool:
 	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
 		return false
 	if not _pending_damage_presentations.has(receipt_id):
@@ -878,6 +900,14 @@ func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 	var record := _pending_damage_presentations[receipt_id] as Dictionary
 	_pending_damage_presentations.erase(receipt_id)
 	_pending_damage_presentation_order.erase(receipt_id)
+	if not _deferred_damage_record_is_current(
+		receipt_id,
+		record,
+		component_generation,
+		component_sequence,
+		component_revision
+	):
+		return false
 	present_impact(record.position, record.normal, float(record.intensity))
 	deferred_component_impact_committed.emit(
 		StringName(record.get("component_id", &"")),
@@ -892,6 +922,64 @@ func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 
 func get_pending_damage_presentation_count() -> int:
 	return _pending_damage_presentations.size()
+
+
+## Binds the passive rig to the authoritative component epoch without clearing
+## art. HeroShip uses this once after initial component configuration; reuse
+## advances the same fence through [method reset_for_reuse].
+func bind_component_generation(component_generation: int) -> bool:
+	if component_generation <= 0:
+		return false
+	if _presented_component_generation > component_generation:
+		return false
+	_presented_component_generation = component_generation
+	return true
+
+
+func get_presented_component_generation() -> int:
+	return _presented_component_generation
+
+
+## Detached recovery audit. This is presentation evidence only: it cannot
+## repair components, advance generations, apply damage, or authorize reuse.
+func get_component_recovery_report(expected_component_generation: int) -> Dictionary:
+	var errors := PackedStringArray()
+	if expected_component_generation <= 0 \
+			or _presented_component_generation != expected_component_generation:
+		errors.append("component_generation_not_presented")
+	if _stage != DamageStage.HEALTHY or not is_equal_approx(_health_ratio, 1.0):
+		errors.append("hull_damage_stage_residue")
+	if _alarm_active:
+		errors.append("damage_alarm_active")
+	if _engine_failure_active or not is_equal_approx(_engine_power_multiplier, 1.0):
+		errors.append("engine_failure_residue")
+	if not _component_effects.is_empty():
+		errors.append("localized_component_effects")
+	if not _component_repair_cues.is_empty():
+		errors.append("component_repair_cues")
+	if not _pending_damage_presentations.is_empty():
+		errors.append("pending_damage_presentations")
+	if is_instance_valid(_destruction_root) or not _destruction_debris.is_empty():
+		errors.append("destruction_or_debris_residue")
+	if not _transient_effects.is_empty():
+		errors.append("impact_effect_residue")
+	if _damage_sparks == null or _damage_sparks.emitting:
+		errors.append("hull_sparks_emitting")
+	if _engine_failure_sparks == null or _engine_failure_sparks.emitting:
+		errors.append("engine_sparks_emitting")
+	if _engine_smoke == null or _engine_smoke.emitting:
+		errors.append("engine_smoke_emitting")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"hero_damage_component_recovery",
+		"presentation_generation": _presented_component_generation,
+		"pending_presentations": _pending_damage_presentations.size(),
+		"localized_component_effects": _component_effects.size(),
+		"component_repair_cues": _component_repair_cues.size(),
+		"impact_effects": _transient_effects.size(),
+		"debris": _destruction_debris.size(),
+	}.duplicate(true)
 
 
 ## Clears every pending deferred receipt record without affecting active world effects.
@@ -933,7 +1021,8 @@ func present_destruction(
 ## [method update_state]; this explicit reset is required.
 func reset_for_reuse(
 		health_ratio: float = 1.0,
-		ship_state: StringName = STATE_POWERED_DOWN
+		ship_state: StringName = STATE_POWERED_DOWN,
+		component_generation: int = 0
 	) -> void:
 	_ensure_built()
 	_clear_all_world_effects(false)
@@ -943,6 +1032,8 @@ func reset_for_reuse(
 	_pending_damage_presentation_order.clear()
 	_pending_destruction = false
 	_pending_destruction_pose_valid = false
+	if component_generation > 0:
+		_presented_component_generation = component_generation
 	_elapsed = 0.0
 	_last_world_velocity = Vector3.ZERO
 	_health_ratio = clampf(health_ratio, 0.001, 1.0)
@@ -955,6 +1046,28 @@ func reset_for_reuse(
 	stage_changed.emit(_stage, _health_ratio)
 	status_changed.emit(get_status(), _health_ratio)
 	effects_cleared.emit()
+
+
+func _deferred_damage_record_is_current(
+		receipt_id: int,
+		record: Dictionary,
+		component_generation: int,
+		component_sequence: int,
+		component_revision: int
+	) -> bool:
+	if int(record.get("receipt_id", -1)) != receipt_id:
+		return false
+	# Unbound standalone fixtures preserve their original receipt-only behavior.
+	if _presented_component_generation == 0:
+		return true
+	if component_generation != _presented_component_generation \
+			or int(record.get("component_generation", -1)) != component_generation:
+		return false
+	var record_sequence := int(record.get("component_sequence", -2))
+	if record_sequence < -1 or record_sequence > component_sequence:
+		return false
+	var record_revision := int(record.get("component_revision", -1))
+	return record_revision > 0 and record_revision <= component_revision
 
 
 ## Immediately removes all detached effects and suppresses local emitters.

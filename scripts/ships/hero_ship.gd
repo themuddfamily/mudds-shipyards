@@ -474,6 +474,11 @@ func _ready() -> void:
 		)
 		_sync_damage_presentation()
 	_ensure_component_damage()
+	if _damage_presentation != null and _component_damage != null \
+			and _component_damage.is_configured():
+		_damage_presentation.bind_component_generation(
+			_component_damage.get_ledger_generation()
+		)
 	_component_damage_final_collision_capture_open = true
 	call_deferred("_close_component_damage_final_collision_capture")
 	# Fleet subclasses finish replacing the base visual after super._ready().
@@ -1819,6 +1824,11 @@ func preflight_reset_for_reuse(spawn_transform: Transform3D) -> Dictionary:
 			if is_instance_valid(_damage_presentation)
 			else 0
 		),
+		"damage_presentation_generation": (
+			_damage_presentation.get_presented_component_generation()
+			if is_instance_valid(_damage_presentation)
+			else 0
+		),
 		"planetary_cruise_attachment_generation": _planetary_cruise_attachment_generation,
 	}.duplicate(true)
 	var accepted := _reset_for_reuse_result(
@@ -1930,20 +1940,26 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 	_sync_engine_visuals_immediately()
 	_snap_chase_camera_response()
 	_set_canopy_open_unchecked(false, 0.0)
-	if _damage_presentation != null:
-		_damage_presentation.reset_for_reuse(1.0, HeroDamagePresentation.STATE_POWERED_DOWN)
 	# Respawn restores the whole roster in one call, so recovery never waits on the
-	# gradual berth repair. `reset_for_reuse()` clears the presentation rigs too.
+	# gradual berth repair. Reset authority first: its nominal callbacks may touch
+	# retained presentation consumers, so the presentation clear must be the last
+	# damage-lifecycle mutation and bind the exact new model generation.
 	if _component_damage != null:
 		if not _component_damage.reset_for_reuse_as_owner(
 			_component_damage_owner_capability
 		):
 			push_error("HeroShip component owner reset invariant failed after accepted preflight")
 		_last_component_damage_revision = _component_damage.get_revision()
-		# Component reset is the point where the exhaust grade becomes nominal;
-		# restore its shared overlay and geometry before reuse observers run.
-		_sync_engine_visuals_immediately()
-		_sync_weapon_component_presentation()
+	if _damage_presentation != null:
+		_damage_presentation.reset_for_reuse(
+			1.0,
+			HeroDamagePresentation.STATE_POWERED_DOWN,
+			_component_damage.get_ledger_generation()
+		)
+	# Component reset is the point where every retained engine and weapon grade
+	# becomes nominal. Restore those consumers after the generic rig is clean.
+	_sync_engine_visuals_immediately()
+	_sync_weapon_component_presentation()
 	_set_camera_current(false)
 	engine_state_changed.emit(_engine_state)
 	hull_changed.emit(_hull, maximum_hull)
@@ -2061,7 +2077,15 @@ func _reset_for_reuse_dependencies_are_current(context: Dictionary) -> bool:
 		if is_instance_valid(_damage_presentation)
 		else 0
 	)
-	return int(context.get("damage_presentation_instance_id", -1)) == presentation_id
+	if int(context.get("damage_presentation_instance_id", -1)) != presentation_id:
+		return false
+	var presentation_generation := (
+		_damage_presentation.get_presented_component_generation()
+		if is_instance_valid(_damage_presentation)
+		else 0
+	)
+	return int(context.get("damage_presentation_generation", -1)) \
+		== presentation_generation
 
 
 func _reset_for_reuse_result(
@@ -2290,6 +2314,7 @@ func apply_damage(
 		world_hit_position,
 		_collision_component_routing_active
 	)
+	var component_fence := _get_component_presentation_fence()
 	var impact_world_position := _component_impact_world_position(
 		component_damage_result,
 		world_hit_position
@@ -2338,7 +2363,10 @@ func apply_damage(
 				inherited_velocity,
 				global_transform,
 				impact_component_id,
-				semantic_intensity
+				semantic_intensity,
+				int(component_fence.get("generation", 0)),
+				int(component_fence.get("sequence", -1)),
+				int(component_fence.get("revision", 0))
 			)
 		elif _damage_presentation != null:
 			_sync_damage_presentation()
@@ -2383,7 +2411,10 @@ func apply_damage(
 			velocity,
 			global_transform,
 			impact_component_id,
-			semantic_intensity
+			semantic_intensity,
+			int(component_fence.get("generation", 0)),
+			int(component_fence.get("sequence", -1)),
+			int(component_fence.get("revision", 0))
 		)
 
 
@@ -2392,7 +2423,17 @@ func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 		return false
 	if _damage_presentation == null:
 		return false
-	var committed := _damage_presentation.commit_deferred_damage_presentation(receipt_id)
+	var component_fence := _get_component_presentation_fence()
+	var committed := _damage_presentation.commit_deferred_damage_presentation(
+		receipt_id,
+		int(component_fence.get("generation", 0)),
+		int(component_fence.get("sequence", -1)),
+		int(component_fence.get("revision", 0))
+	)
+	if not committed and receipt_id == _deferred_terminal_presentation_receipt_id:
+		# A consumed stale/corrupt terminal record may never retain a live-looking
+		# terminal capability after its generation/sequence fence rejects it.
+		_deferred_terminal_presentation_receipt_id = -1
 	if committed and receipt_id == _deferred_terminal_presentation_receipt_id:
 		_deferred_terminal_presentation_receipt_id = -1
 		_destroyed_hull_hide_pending = true
@@ -2422,6 +2463,17 @@ func get_pending_damage_presentation_count() -> int:
 
 func get_pending_terminal_damage_presentation_receipt_id() -> int:
 	return _deferred_terminal_presentation_receipt_id
+
+
+func _get_component_presentation_fence() -> Dictionary:
+	if _component_damage == null or not _component_damage.is_configured():
+		return {"generation": 0, "sequence": -1, "revision": 0}
+	var snapshot := _component_damage.get_ledger_snapshot()
+	return {
+		"generation": int(snapshot.get("generation", 0)),
+		"sequence": int(snapshot.get("last_operation_sequence", -1)),
+		"revision": int(snapshot.get("revision", 0)),
+	}
 
 
 func _update_engine(delta: float) -> void:
@@ -3881,6 +3933,80 @@ func get_component_damage_report() -> Dictionary:
 			"components": [] as Array[Dictionary],
 		}
 	return _component_damage.get_component_report()
+
+
+## Detached post-reuse evidence for all production HeroShip variants. Authority
+## remains in the component ledger and reset transaction; this audit can neither
+## repair state nor clear presentation residue.
+func get_component_recovery_report() -> Dictionary:
+	var errors := PackedStringArray()
+	if _component_damage == null or not _component_damage.is_configured():
+		errors.append("component_model_unavailable")
+	var model := (
+		_component_damage.get_ledger_snapshot()
+		if _component_damage != null and _component_damage.is_configured()
+		else {}
+	) as Dictionary
+	var model_generation := int(model.get("generation", 0))
+	if _destroyed or not is_equal_approx(_hull, maximum_hull):
+		errors.append("hull_not_restored")
+	if int(model.get("last_operation_sequence", -2)) != -1:
+		errors.append("component_sequence_not_reset")
+	for component_variant in model.get("components", []) as Array:
+		if not component_variant is Dictionary:
+			errors.append("invalid_component_state")
+			continue
+		var component := component_variant as Dictionary
+		var stage := component.get("stage", {}) as Dictionary
+		if (
+			not is_equal_approx(
+				float(component.get("current_health", -1.0)),
+				float(component.get("maximum_health", 0.0))
+			)
+			or StringName(stage.get("stage_id", &"")) != &"nominal"
+			or bool(stage.get("disabled", true))
+			or not is_equal_approx(float(stage.get("performance_multiplier", -1.0)), 1.0)
+		):
+			errors.append("component_not_nominal:%s" % component.get("component_id", &""))
+	var modifiers := get_operational_modifiers()
+	if (
+		modifiers.is_empty()
+		or bool(modifiers.get("mobility_disabled", true))
+		or bool(modifiers.get("fire_disabled", true))
+		or bool(modifiers.get("targeting_disabled", true))
+		or not is_equal_approx(float(modifiers.get("mobility_multiplier", -1.0)), 1.0)
+		or not is_equal_approx(float(modifiers.get("fire_multiplier", -1.0)), 1.0)
+		or not is_equal_approx(float(modifiers.get("targeting_multiplier", -1.0)), 1.0)
+	):
+		errors.append("engine_weapon_sensor_not_restored")
+	if get_engine_exhaust_damage_presentation_profile().get("stage", &"") != &"nominal":
+		errors.append("engine_presentation_residue")
+	if get_weapon_component_presentation_profile().get("stage", &"") != &"nominal":
+		errors.append("weapon_presentation_residue")
+	if _deferred_terminal_presentation_receipt_id >= 0:
+		errors.append("pending_terminal_presentation")
+	if _visual_root == null or not is_instance_valid(_visual_root) or not _visual_root.visible:
+		errors.append("component_visual_root_not_restored")
+	var presentation_report := (
+		_damage_presentation.get_component_recovery_report(model_generation)
+		if is_instance_valid(_damage_presentation)
+		else {"valid": false, "errors": PackedStringArray(["presentation_unavailable"])}
+	) as Dictionary
+	for presentation_error in presentation_report.get("errors", PackedStringArray()) as PackedStringArray:
+		errors.append(String(presentation_error))
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"hero_ship_component_recovery",
+		"ship_id": ship_id,
+		"model_generation": model_generation,
+		"presentation_generation": int(presentation_report.get(
+			"presentation_generation", 0
+		)),
+		"component_sequence": int(model.get("last_operation_sequence", -2)),
+		"pending_presentations": get_pending_damage_presentation_count(),
+		"presentation": presentation_report.duplicate(true),
+	}.duplicate(true)
 
 
 ## Detached operational consequences consumed by this ship's existing control
