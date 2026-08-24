@@ -22,17 +22,21 @@ const PAYLOAD_WEAPON_ID: StringName = &"bomber_payload_release"
 const PAYLOAD_PRESENTATION_ID: StringName = &"payload_release_flash"
 const PAYLOAD_AUDIO_ID: StringName = &"payload_release_audio"
 const HULL_SIZE := Vector3(7.0, 3.0, 15.5)
+const ORDNANCE_SPINE_SIZE := Vector3(2.2, 1.25, 8.4)
+const ORDNANCE_SPINE_POSITION := Vector3(0.0, -0.15, 1.5)
 const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("b85a3c")
 const SENSOR_COLOR := Color("d6b45d")
 
-# The primary hull is immutable presentation stock. Production may briefly own
-# more than one bomber during fleet composition/replacement, so retain one
-# process-local recipe instead of allocating the same mesh and material for
-# every copy. Renderer nodes, submissions, transforms and physical authority
-# remain per craft.
+# The primary hull and painted ordnance spine are immutable presentation stock.
+# Production may briefly own more than one bomber during fleet composition or
+# replacement, so retain one process-local recipe instead of allocating the
+# same meshes and materials for every copy. Renderer nodes, submissions,
+# transforms and physical authority remain per craft.
 static var _shared_hull_mesh: BoxMesh
 static var _shared_hull_material: StandardMaterial3D
+static var _shared_ordnance_spine_mesh: BoxMesh
+static var _shared_ordnance_spine_material: StandardMaterial3D
 
 var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
@@ -306,7 +310,7 @@ func get_audit_report() -> Dictionary:
 	if not bool(get_landing_collision_report().get("valid", false)):
 		errors.append("bomber requires HeroShip root collision")
 	if not bool(hull_sharing.get("valid", false)):
-		errors.append("bomber immutable hull resource sharing drifted")
+		errors.append("bomber immutable primary visual resource sharing drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -333,7 +337,7 @@ func get_audit_report() -> Dictionary:
 	}.duplicate(true)
 
 
-## Detached exact-recipe evidence for the one cross-copy cached visual family.
+## Detached exact-recipe evidence for the cross-copy cached primary visual stock.
 ## Structural submissions are mesh surfaces, not a driver draw-call claim.
 func get_hull_resource_sharing_audit() -> Dictionary:
 	var errors := PackedStringArray()
@@ -341,6 +345,9 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 	var hull := visual.get_node_or_null(^"LongRangeHull") as MeshInstance3D if visual != null else null
 	var mesh := hull.mesh as BoxMesh if hull != null else null
 	var material := hull.material_override as StandardMaterial3D if hull != null else null
+	var ordnance := visual.get_node_or_null(^"OrdnanceSpine") as MeshInstance3D if visual != null else null
+	var ordnance_mesh := ordnance.mesh as BoxMesh if ordnance != null else null
+	var ordnance_material := ordnance.material_override as StandardMaterial3D if ordnance != null else null
 	if hull == null:
 		errors.append("LongRangeHull renderer is missing")
 	else:
@@ -365,6 +372,33 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 		or material.resource_local_to_scene
 	):
 		errors.append("LongRangeHull material recipe drifted")
+	if ordnance == null:
+		errors.append("OrdnanceSpine renderer is missing")
+	else:
+		var expected_transform := Transform3D(Basis.IDENTITY, ORDNANCE_SPINE_POSITION)
+		if not ordnance.transform.is_equal_approx(expected_transform):
+			errors.append("OrdnanceSpine transform drifted")
+		if not ordnance.visible \
+				or ordnance.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("OrdnanceSpine renderer state drifted")
+		if ordnance.get_child_count() != 0 or ordnance.get_script() != null:
+			errors.append("OrdnanceSpine gained semantic children or authority")
+	if ordnance_mesh == null or ordnance_mesh != _shared_ordnance_spine_mesh:
+		errors.append("OrdnanceSpine shared mesh identity drifted")
+	elif not ordnance_mesh.size.is_equal_approx(ORDNANCE_SPINE_SIZE) \
+			or ordnance_mesh.get_surface_count() != 1:
+		errors.append("OrdnanceSpine mesh recipe drifted")
+	elif ordnance_mesh.resource_local_to_scene:
+		errors.append("OrdnanceSpine mesh became scene-local")
+	if ordnance_material == null or ordnance_material != _shared_ordnance_spine_material:
+		errors.append("OrdnanceSpine shared material identity drifted")
+	elif (
+		not ordnance_material.albedo_color.is_equal_approx(ORDNANCE_COLOR)
+		or not is_equal_approx(ordnance_material.metallic, 0.52)
+		or not is_equal_approx(ordnance_material.roughness, 0.4)
+		or ordnance_material.resource_local_to_scene
+	):
+		errors.append("OrdnanceSpine material recipe drifted")
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
@@ -385,6 +419,27 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 			"geometry_submissions": 2,
 			"unique_mesh_resources": 1,
 			"unique_material_resources": 1,
+		},
+		"ordnance_spine": {
+			"renderer_nodes_per_copy": 1 if ordnance != null else 0,
+			"geometry_submissions_per_copy": ordnance_mesh.get_surface_count() \
+				if ordnance_mesh != null else 0,
+			"visible_copies_per_bomber": 1 if ordnance != null and ordnance.visible else 0,
+			"mesh_resource_id": ordnance_mesh.get_instance_id() if ordnance_mesh != null else 0,
+			"material_resource_id": ordnance_material.get_instance_id() \
+				if ordnance_material != null else 0,
+			"legacy_two_copy": {
+				"renderer_nodes": 2,
+				"geometry_submissions": 2,
+				"unique_mesh_resources": 2,
+				"unique_material_resources": 2,
+			},
+			"current_two_copy": {
+				"renderer_nodes": 2,
+				"geometry_submissions": 2,
+				"unique_mesh_resources": 1,
+				"unique_material_resources": 1,
+			},
 		},
 	}.duplicate(true)
 
@@ -439,11 +494,16 @@ func _build_hull(visual: Node3D) -> void:
 	visual.add_child(hull)
 	var ordnance := MeshInstance3D.new()
 	ordnance.name = "OrdnanceSpine"
-	var ordnance_mesh := BoxMesh.new()
-	ordnance_mesh.size = Vector3(2.2, 1.25, 8.4)
-	ordnance.mesh = ordnance_mesh
-	ordnance.position = Vector3(0.0, -0.15, 1.5)
-	ordnance.material_override = _material(ORDNANCE_COLOR, 0.52, 0.4)
+	if _shared_ordnance_spine_mesh == null:
+		_shared_ordnance_spine_mesh = BoxMesh.new()
+		_shared_ordnance_spine_mesh.size = ORDNANCE_SPINE_SIZE
+		_shared_ordnance_spine_mesh.resource_local_to_scene = false
+	if _shared_ordnance_spine_material == null:
+		_shared_ordnance_spine_material = _material(ORDNANCE_COLOR, 0.52, 0.4)
+		_shared_ordnance_spine_material.resource_local_to_scene = false
+	ordnance.mesh = _shared_ordnance_spine_mesh
+	ordnance.position = ORDNANCE_SPINE_POSITION
+	ordnance.material_override = _shared_ordnance_spine_material
 	visual.add_child(ordnance)
 	var sensor := MeshInstance3D.new()
 	sensor.name = "LongRangeSensor"
