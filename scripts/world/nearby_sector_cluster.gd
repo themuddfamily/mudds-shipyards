@@ -155,6 +155,12 @@ const TRAVERSAL_BEACON_MESH_BUDGET := 44
 const TRAVERSAL_BEACON_LIGHT_BUDGET := 12
 const TRAVERSAL_BEACON_DESCENDANT_BUDGET := 60
 const TRAVERSAL_DEBRIS_BATCH_BUDGET := 1
+const BEACON_MATERIAL_ROLES := {
+	&"structure": &"beacon_structure",
+	&"painted": &"beacon_painted_body",
+	&"service": &"beacon_service_body",
+	&"trim": &"beacon_trim",
+}
 const BEACON_TRAVERSAL_STATE_NODE_DELTA := 0
 const BEACON_TRAVERSAL_STATE_LIGHT_DELTA := 0
 const BEACON_TRAVERSAL_STATE_SUBMISSION_DELTA := 0
@@ -950,6 +956,71 @@ func get_beacon_traversal_presentation_audit() -> Dictionary:
 				)
 	if not ordered:
 		errors.append("beacon_traversal_visual_order_drift")
+	# The route remains unmistakably Cinder blue-steel, ochre, shadow and orange,
+	# while the physical response separates load-bearing hardware from painted
+	# vanes, service-facing sign bodies and high-readability route trim. Emissive
+	# traversal state is deliberately outside this hierarchy and remains dynamic.
+	var expected_finishes := {
+		&"structure": Vector2(
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT,
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS
+		),
+		&"painted": Vector2(
+			StationSurfaceKit.PAINTED_CLEARCOAT,
+			StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS
+		),
+		&"service": Vector2(
+			StationSurfaceKit.WALKED_CLEARCOAT,
+			StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS
+		),
+		&"trim": Vector2(
+			StationSurfaceKit.TRIM_CLEARCOAT,
+			StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS
+		),
+	}
+	var expected_scalars := {
+		&"structure": Vector3(0.5, 0.36, 0.0),
+		&"painted": Vector3(0.2, 0.66, 0.0),
+		&"service": Vector3(0.3, 0.7, 0.0),
+		&"trim": Vector3(0.1, 0.56, 0.0),
+	}
+	var expected_colors := {
+		&"structure": STEEL_BLUE,
+		&"painted": HULL_OCHRE,
+		&"service": HULL_SHADOW,
+		&"trim": KETH_ORANGE,
+	}
+	var renderer_roles := {
+		^"Mast": &"structure",
+		^"VaneSpar": &"structure",
+		^"CounterVane": &"painted",
+		^"SignBoard": &"service",
+		^"TrimRing": &"trim",
+	}
+	if route_root != null:
+		for raw_spec in ROUTE_BEACON_SPECS:
+			var beacon := route_root.get_node_or_null(
+				NodePath(String((raw_spec as Dictionary)["name"]))
+			) as Node3D
+			if beacon == null:
+				continue
+			for renderer_path: NodePath in renderer_roles:
+				var renderer := beacon.get_node_or_null(renderer_path) as MeshInstance3D
+				var role := renderer_roles[renderer_path] as StringName
+				var material_key := BEACON_MATERIAL_ROLES[role] as StringName
+				var material := renderer.material_override as StandardMaterial3D \
+					if renderer != null else null
+				var finish := expected_finishes[role] as Vector2
+				var scalars := expected_scalars[role] as Vector3
+				if material == null or material != _materials.get(material_key) \
+						or not material.albedo_color.is_equal_approx(expected_colors[role] as Color) \
+						or not is_equal_approx(material.metallic, scalars.x) \
+						or not is_equal_approx(material.roughness, scalars.y) \
+						or material.emission_enabled \
+						or not material.clearcoat_enabled \
+						or not is_equal_approx(material.clearcoat, finish.x) \
+						or not is_equal_approx(material.clearcoat_roughness, finish.y):
+					errors.append("beacon_traversal_%s_material_hierarchy_drift" % role)
 	if beacon_meshes.size() != TRAVERSAL_BEACON_MESH_BUDGET:
 		errors.append("beacon_traversal_mesh_budget_drift")
 	if beacon_lights.size() != TRAVERSAL_BEACON_LIGHT_BUDGET:
@@ -1054,6 +1125,7 @@ func get_beacon_traversal_presentation_audit() -> Dictionary:
 		"content_class": &"NEW",
 		"evidence_status": EVIDENCE_STATUS,
 		"beacon_positions": get_route_beacon_positions(),
+		"material_roles": BEACON_MATERIAL_ROLES.duplicate(true),
 		"corridor_radius": BEACON_TRAVERSAL_CORRIDOR_RADIUS,
 		"minimum_chip_clearance": minimum_chip_clearance,
 		"minimum_boulder_clearance": minimum_boulder_clearance,
@@ -2023,11 +2095,11 @@ func _build_route_beacons() -> void:
 		# middle of the corridor the pilot is being told to follow would be a
 		# cheap collision at 82 m/s. The beacons guide; the boulders and the
 		# platform are the things that are solid.
-		_cylinder(beacon, "Mast", Vector3.ZERO, 1.2, 1.2, 30.0, _materials["steel"], false)
+		_cylinder(beacon, "Mast", Vector3.ZERO, 1.2, 1.2, 30.0, _materials["beacon_structure"], false)
 		_torus(beacon, "SignalRing", Vector3(0.0, 12.0, 0.0), 5.0, 5.6, _materials["cyan_glow"], Vector3(90.0, 0.0, 0.0))
-		_torus(beacon, "TrimRing", Vector3(0.0, 12.0, 0.0), 6.4, 6.7, _materials["orange"], Vector3(90.0, 0.0, 0.0))
-		_box(beacon, "CounterVane", Vector3(0.0, -11.0, 0.0), Vector3(9.0, 5.0, 0.5), _materials["hull"], false)
-		_box(beacon, "VaneSpar", Vector3(0.0, -11.0, 0.0), Vector3(0.5, 5.6, 3.2), _materials["steel"], false)
+		_torus(beacon, "TrimRing", Vector3(0.0, 12.0, 0.0), 6.4, 6.7, _materials["beacon_trim"], Vector3(90.0, 0.0, 0.0))
+		_box(beacon, "CounterVane", Vector3(0.0, -11.0, 0.0), Vector3(9.0, 5.0, 0.5), _materials["beacon_painted_body"], false)
+		_box(beacon, "VaneSpar", Vector3(0.0, -11.0, 0.0), Vector3(0.5, 5.6, 3.2), _materials["beacon_structure"], false)
 
 		# Homebound face (+Z, toward the station) cyan; outbound face amber.
 		_lamp(beacon, "HomeLamp", Vector3(0.0, 12.0, 3.4), KETH_CYAN, 3.4, 26.0, true)
@@ -2044,7 +2116,7 @@ func _build_route_beacons() -> void:
 		# first 15 m board both legends hung over the edges and the reversed far
 		# face read straight through beside the near one. Two shorter lines at 2.2
 		# span about 14 m inside a 20 m board.
-		_box(beacon, "SignBoard", Vector3(0.0, 5.4, 0.0), Vector3(20.0, 3.4, 0.4), _materials["hull_shadow"], false)
+		_box(beacon, "SignBoard", Vector3(0.0, 5.4, 0.0), Vector3(20.0, 3.4, 0.4), _materials["beacon_service_body"], false)
 		_sign(
 			beacon,
 			"CINDER REACH  %d m" % int(round((PLATFORM_ANCHOR - beacon_position).length())),
@@ -3226,6 +3298,20 @@ func _create_materials() -> void:
 	_materials["solar_dead"] = _material(Color("101820"), 0.4, 0.72)
 	_materials["cyan_glow"] = _material(KETH_CYAN, 0.0, 0.28, KETH_CYAN, 1.5)
 	_materials["orange_glow"] = _material(KETH_ORANGE, 0.0, 0.3, KETH_ORANGE, 1.4)
+	# Beacon-only finishes preserve the exact generic Cinder scalar recipes and
+	# separate the retained route silhouette by manufactured surface role.
+	_materials["beacon_structure"] = _panel_material(
+		STEEL_BLUE, 0.5, 0.36, 0.12, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	_materials["beacon_painted_body"] = _panel_material(
+		HULL_OCHRE, 0.2, 0.66, 0.075, StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
+	_materials["beacon_service_body"] = _panel_material(
+		HULL_SHADOW, 0.3, 0.7, 0.1, StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
+	_materials["beacon_trim"] = _panel_material(
+		KETH_ORANGE, 0.1, 0.56, 0.1, StationSurfaceKit.PanelFinish.METAL_TRIM
+	)
 	# Scan-only finishes preserve the exact generic Cinder scalar recipes above;
 	# they differ only in the physical finish assigned to each visual role.
 	_materials["scan_structure_char"] = _panel_material(
