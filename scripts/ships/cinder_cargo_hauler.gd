@@ -28,6 +28,13 @@ const HULL_COLOR := Color("536b73")
 const CARGO_COLOR := Color("b2773d")
 const ACCENT_COLOR := Color("42c9cf")
 const CARGO_SHOULDER_SIZE := Vector3(0.42, 0.72, 2.90)
+## Repeated exterior load-frame ribs make the freight body legible from the
+## normal side/rear approach. Their full bounds remain inside the existing
+## 6.8 m-wide collision shell and clear the physical port boarding aperture.
+const CARGO_FRAME_RIB_SIZE := Vector3(0.14, 2.40, 0.34)
+const CARGO_FRAME_RIB_COLOR := Color("d8a258")
+const CARGO_FRAME_RIB_X := 3.28
+const CARGO_FRAME_RIB_Z := [-4.65, -2.75, 2.75, 4.65]
 const ENGINE_DAMAGE_SHOULDER_COLOR := Color("f0a24a")
 const ENGINE_FAILED_SHOULDER_COLOR := Color("d95b43")
 const ENGINE_DAMAGE_SHOULDER_X := 2.98
@@ -310,6 +317,7 @@ class CinderNavigatorInteraction:
 var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
 var _cargo_shoulders: MultiMeshInstance3D
+var _cargo_frame_ribs: MultiMeshInstance3D
 var _cargo_shoulder_material: StandardMaterial3D
 var _engine_damage_shoulder_material: StandardMaterial3D
 var _cargo_access_sign: Label3D
@@ -1041,6 +1049,31 @@ func _build_hull(visual: Node3D) -> void:
 	cargo_pod.position = Vector3(0.0, 0.15, 1.0)
 	cargo_pod.material_override = _shared_cargo_pod_material
 	visual.add_child(cargo_pod)
+	# Eight bright, repeated load-frame ribs expose the otherwise nested cargo
+	# pod as an industrial freight body at gameplay distance. One MultiMesh keeps
+	# the cue to a single renderer/submission; it owns no collision or authority.
+	var frame_transforms: Array[Transform3D] = []
+	var frame_names := PackedStringArray()
+	for side in [-1.0, 1.0]:
+		var side_name := "Port" if side < 0.0 else "Starboard"
+		for z_position in CARGO_FRAME_RIB_Z:
+			frame_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(side * CARGO_FRAME_RIB_X, 0.20, z_position)
+			))
+			frame_names.append("CargoFrame%s%+03d" % [side_name, int(round(z_position * 10.0))])
+	_cargo_frame_ribs = _add_visual_box_batch(
+		visual,
+		"CargoFrameRibBatch",
+		CARGO_FRAME_RIB_SIZE,
+		frame_transforms,
+		CARGO_FRAME_RIB_COLOR,
+		frame_names
+	)
+	_cargo_frame_ribs.set_meta(&"silhouette_role", &"cargo_load_frame")
+	_cargo_frame_ribs.set_meta(&"color_independent", true)
+	_cargo_frame_ribs.set_meta(&"animated", false)
+	_cargo_frame_ribs.set_meta(&"gameplay_distance_meters", 24.0)
 	# Four split shoulders give the otherwise rectangular hull a broad freight
 	# profile from either approach direction. Their complete bounds remain inside
 	# the existing side-wall collision envelope and clear the port aperture.
