@@ -944,6 +944,9 @@ const SIGNAL_GANTRY_CURVE_SEGMENTS := 8
 ## 63 m: at four the lamps are 15.75 m apart and the beam still reads as unlit
 ## structure between them from the launch gate.
 const RANGE_HEADER_CUE_X: Array[float] = [-28.0, -21.0, -14.0, -7.0, 0.0, 7.0, 14.0, 21.0, 28.0]
+const RANGE_HEADER_CHEVRON_SIZE := Vector3(1.2, 0.14, 0.1)
+const RANGE_HEADER_CHEVRON_OFFSET_X := 0.52
+const RANGE_HEADER_CHEVRON_ROTATION_DEGREES := 26.0
 
 ## Deep-space sky. See `deep_space_sky.gdshader` for why this replaced
 ## ProceduralSkyMaterial; these are its complete authored state.
@@ -8542,6 +8545,12 @@ func _build_range_gate_clearance_cue(exterior: Node3D) -> void:
 		_materials["orange_glow"]
 	)
 
+	# These 16 bars are one immutable, visual-only family. They used to be 16
+	# independent MeshInstance3D nodes and therefore 16 submissions even though
+	# their mesh, material and lifetime are identical. Keep the exact authored
+	# transforms in one renderer batch; the independently pulsing obstruction
+	# lamps below intentionally remain separate lights.
+	var chevron_transforms: Array[Transform3D] = []
 	for index in RANGE_HEADER_CUE_X.size():
 		var x_position := RANGE_HEADER_CUE_X[index]
 		# Downward chevrons flanking the legend: the aperture is below this line.
@@ -8550,15 +8559,22 @@ func _build_range_gate_clearance_cue(exterior: Node3D) -> void:
 		# can fly. The centre position is left to the legend.
 		if not is_zero_approx(x_position):
 			for side in [-1.0, 1.0]:
-				var arm := _box(
-					exterior,
-					"RangeHeaderClearanceChevron%02d%s" % [index, "Port" if side < 0.0 else "Starboard"],
-					Vector3(x_position + side * 0.52, 8.92, header_face_z),
-					Vector3(1.2, 0.14, 0.1),
-					_materials["cyan_glow"],
-					false
+				chevron_transforms.append(
+					Transform3D(
+						Basis.from_euler(
+							Vector3(
+								0.0,
+								0.0,
+								deg_to_rad(side * RANGE_HEADER_CHEVRON_ROTATION_DEGREES)
+							)
+						),
+						Vector3(
+							x_position + side * RANGE_HEADER_CHEVRON_OFFSET_X,
+							8.92,
+							header_face_z
+						)
+					)
 				)
-				arm.rotation_degrees = Vector3(0.0, 0.0, side * 26.0)
 		# Pulsing red obstruction lamps sunk into the underside, the same cue the
 		# launch corridor's signal masts and the deck safety pylons use for "solid
 		# thing here". Short range and low energy: these exist to be seen, not to
@@ -8571,6 +8587,15 @@ func _build_range_gate_clearance_cue(exterior: Node3D) -> void:
 			2.6,
 			9.0
 		)
+	_multimesh_visual_boxes(
+		exterior,
+		"RangeHeaderClearanceChevronBatch",
+		RANGE_HEADER_CHEVRON_SIZE,
+		_materials["cyan_glow"],
+		chevron_transforms
+	)
+
+
 func _build_space_backdrop() -> void:
 	var backdrop := Node3D.new()
 	backdrop.name = "SpaceBackdrop"

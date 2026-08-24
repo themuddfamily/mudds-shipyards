@@ -114,6 +114,7 @@ func _run() -> void:
 	]
 
 	var exterior := world.get_node_or_null(^"ExteriorTargetRange") as Node3D
+	_check_chevron_batch(exterior)
 	for pass_index in 2:
 		var with_cue := pass_index == 0
 		_set_cue_visible(exterior, with_cue)
@@ -159,6 +160,13 @@ func _set_cue_visible(exterior: Node3D, visible_state: bool) -> void:
 				mesh.visible = visible_state
 				touched += 1
 				break
+	for candidate in exterior.find_children("*", "MultiMeshInstance3D", true, false):
+		var batch := candidate as MultiMeshInstance3D
+		for prefix: String in CUE_PREFIXES:
+			if batch.name.begins_with(prefix):
+				batch.visible = visible_state
+				touched += 1
+				break
 	# The obstruction lamps are lens + OmniLight pairs the guide-light helper adds
 	# at the beam; they are matched by position because the helper names them all
 	# the same and the engine renames the duplicates.
@@ -175,6 +183,50 @@ func _set_cue_visible(exterior: Node3D, visible_state: bool) -> void:
 			lens.visible = visible_state
 			touched += 1
 	print("CUE_VISIBILITY: %s on %d pieces" % [str(visible_state), touched])
+
+
+func _check_chevron_batch(exterior: Node3D) -> void:
+	if exterior == null:
+		_fail("ExteriorTargetRange is missing")
+		return
+	var batch := exterior.get_node_or_null(^"RangeHeaderClearanceChevronBatch") as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null:
+		_fail("range gate exposes no clearance-chevron renderer batch")
+		return
+	if batch.multimesh.instance_count != 16:
+		_fail("clearance-chevron batch does not retain all 16 authored bars")
+	var transforms := batch.get_meta("authored_instance_transforms", []) as Array
+	if transforms.size() != 16:
+		_fail("clearance-chevron batch does not publish 16 authored transforms")
+	else:
+		var expected: Array[Transform3D] = []
+		for x_position in [-28.0, -21.0, -14.0, -7.0, 7.0, 14.0, 21.0, 28.0]:
+			for side in [-1.0, 1.0]:
+				expected.append(
+					Transform3D(
+						Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(side * 26.0))),
+						Vector3(x_position + side * 0.52, 8.92, -119.42)
+					)
+				)
+		for index in expected.size():
+			if not (transforms[index] as Transform3D).is_equal_approx(expected[index]):
+				_fail("clearance-chevron transform %d moved from its authored pose" % index)
+	if not batch.get_children().is_empty():
+		_fail("clearance-chevron renderer batch unexpectedly owns gameplay children")
+	var legacy_nodes := 0
+	for candidate in exterior.find_children("*", "MeshInstance3D", true, false):
+		if (candidate as MeshInstance3D).name.begins_with("RangeHeaderClearanceChevron"):
+			legacy_nodes += 1
+	if legacy_nodes != 0:
+		_fail("clearance cue retains %d legacy per-bar renderers" % legacy_nodes)
+	var surface_count := batch.multimesh.mesh.get_surface_count()
+	if surface_count != 1:
+		_fail("clearance-chevron batch unexpectedly requires %d mesh surfaces" % surface_count)
+	print(
+		"RANGE_GATE_CHEVRON_BATCH: bars=16 visual_nodes=1 baseline_nodes=16 "
+		+ "submissions=%d baseline_submissions=16 mesh_resources=1 baseline_mesh_resources=1"
+		% surface_count
+	)
 
 
 func _frames(count: int) -> void:
