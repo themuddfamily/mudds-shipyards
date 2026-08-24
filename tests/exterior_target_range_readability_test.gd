@@ -5,6 +5,9 @@ extends SceneTree
 ## hit volumes, positions, IDs, and established shared mesh families stay exact.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
+const LIVE_COMBAT_AUTHORITY_SCRIPT := preload(
+	"res://scripts/combat/live_combat_authority.gd"
+)
 const EXPECTED_TARGET_POSITIONS: Array[Vector3] = [
 	Vector3(-13.0, 7.0, -95.0),
 	Vector3(14.0, 11.0, -116.0),
@@ -109,6 +112,7 @@ func _run() -> void:
 			)
 
 	_test_animated_approach_facing(world)
+	await _test_live_nonlethal_hit_feedback(world)
 
 	world.queue_free()
 	await process_frame
@@ -147,6 +151,120 @@ func _test_animated_approach_facing(world: ShipyardWorld) -> void:
 		frame.is_visible_in_tree() and frame.global_basis.get_scale().is_equal_approx(Vector3.ONE),
 		"target visual reset restores the approach frame"
 	)
+
+
+func _test_live_nonlethal_hit_feedback(world: ShipyardWorld) -> void:
+	var authority := LIVE_COMBAT_AUTHORITY_SCRIPT.new() as LiveCombatAuthority
+	root.add_child(authority)
+	var attached := authority.attach_range_targets(world)
+	var target := world.get_node(^"ExteriorTargetRange/TargetDrone01") as StaticBody3D
+	var adapter := target.get_node_or_null(^"AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	var visual := target.get_node(^"DroneVisual") as Node3D
+	var approach_frame := visual.get_node(^"ApproachFrame") as Node3D
+	var core := visual.get_node(^"Core") as MeshInstance3D
+	var collision := target.find_children("*", "CollisionShape3D", false, false)[0] as CollisionShape3D
+	var bars := _approach_bars(approach_frame)
+	var nominal_material := bars[0].material_override if bars.size() == 4 else null
+	var nominal_collision_transform := collision.transform
+	var maximum_health := adapter.get_maximum_health() if adapter != null else 0.0
+	_check(
+		attached == 4 and adapter != null and bars.size() == 4,
+		"the production combat authority attaches the four existing target adapters"
+	)
+	if adapter == null or bars.size() != 4:
+		authority.queue_free()
+		await process_frame
+		return
+
+	# This is the production target's ordinary first 50-point hit: nonlethal at
+	# the target-health layer, damaged at the frame, and critical at the core.
+	var hit := adapter.apply_damage(
+		maximum_health * 0.5,
+		target.global_position,
+		Vector3.FORWARD,
+		{"source_id": 1010, "sequence": 0}
+	)
+	var feedback_is_exact := true
+	for bar in bars:
+		feedback_is_exact = feedback_is_exact \
+			and bar.get_meta(&"component_stage", &"") == &"critical" \
+			and bar.material_override == core.material_override \
+			and bar.scale.is_equal_approx(Vector3(1.0, 2.35, 1.0))
+	_check(
+		bool(hit.get("accepted", false))
+		and not bool(hit.get("destroyed", true))
+		and is_equal_approx(float(hit.get("health", -1.0)), maximum_health * 0.5)
+		and not bool(target.get_meta("destroyed", false))
+		and world.get_destroyed_target_count() == 0
+		and approach_frame.get_meta(&"component_stage", &"") == &"critical"
+		and feedback_is_exact
+		and collision.transform.is_equal_approx(nominal_collision_transform),
+		"one real nonlethal practice hit turns the face-on diamond steadily thick red without scoring or collision changes"
+	)
+	world._process(0.5)
+	_check(
+		approach_frame.global_basis.orthonormalized().z.dot(Vector3.BACK) > 0.999
+		and approach_frame.find_children("*", "Light3D", true, false).is_empty()
+		and approach_frame.find_children("*", "Timer", true, false).is_empty(),
+		"damage feedback preserves the fixed acquisition facing and adds no light, flash, or timer"
+	)
+
+	# A surviving target is reset by the production whole-world re-entry path.
+	# The same four nodes return to the exact nominal material and scale.
+	var generation_before_reentry := int(adapter.get_component_snapshot().get("generation", 0))
+	root.remove_child(world)
+	await process_frame
+	root.add_child(world)
+	await process_frame
+	await process_frame
+	await process_frame
+	var reentry_is_exact := true
+	for bar in bars:
+		reentry_is_exact = reentry_is_exact \
+			and bar.get_meta(&"component_stage", &"") == &"nominal" \
+			and bar.material_override == nominal_material \
+			and bar.scale.is_equal_approx(Vector3.ONE)
+	_check(
+		int(adapter.get_component_snapshot().get("generation", 0)) == generation_before_reentry + 1
+		and is_equal_approx(float(target.get_meta("health", -1.0)), maximum_health)
+		and world.get_destroyed_target_count() == 0
+		and reentry_is_exact
+		and approach_frame.global_basis.orthonormalized().z.dot(Vector3.BACK) > 0.999,
+		"whole-world re-entry restores the same face-on diamond to exact nominal state"
+	)
+
+	adapter.apply_damage(
+		maximum_health * 0.5,
+		target.global_position,
+		Vector3.FORWARD,
+		{"source_id": 1010, "sequence": 1}
+	)
+	var reset := world.reset_range_target_for_reuse(target)
+	var reset_is_exact := true
+	for bar in bars:
+		reset_is_exact = reset_is_exact \
+			and bar.get_meta(&"component_stage", &"") == &"nominal" \
+			and bar.material_override == nominal_material \
+			and bar.scale.is_equal_approx(Vector3.ONE)
+	_check(
+		bool(reset.get("accepted", false))
+		and reset_is_exact
+		and bool(world.get_range_target_component_recovery_report(target).get("valid", false))
+		and world.get_destroyed_target_count() == 0,
+		"explicit target reuse clears the hit cue without manufacturing score or lifecycle residue"
+	)
+	authority.queue_free()
+	await process_frame
+
+
+func _approach_bars(frame: Node3D) -> Array[MeshInstance3D]:
+	var result: Array[MeshInstance3D] = []
+	if frame == null:
+		return result
+	for child in frame.get_children():
+		if child is MeshInstance3D:
+			result.append(child as MeshInstance3D)
+	return result
 
 
 func _check_target_authority(target: StaticBody3D, target_index: int) -> void:

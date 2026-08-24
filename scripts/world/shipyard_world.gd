@@ -876,6 +876,14 @@ const EXTERIOR_TARGET_APPROACH_FRAME_RADIUS := 4.0
 const EXTERIOR_TARGET_APPROACH_FRAME_DEPTH := 0.28
 const EXTERIOR_TARGET_APPROACH_FRAME_THICKNESS := 0.14
 const EXTERIOR_TARGET_APPROACH_FRAME_Z := 0.32
+## The acquisition diamond is the one target feature designed to remain legible
+## at the full 95-165 m practice distance. Reuse it for steady damage feedback:
+## a normal first hit takes the core to critical, so the same four bars thicken
+## and turn red instead of asking the much smaller core/rings to carry the whole
+## response. These are renderer scales only; no target, collision, damage, score,
+## or clock authority is added.
+const EXTERIOR_TARGET_APPROACH_FRAME_DAMAGED_THICKNESS_SCALE := 1.7
+const EXTERIOR_TARGET_APPROACH_FRAME_CRITICAL_THICKNESS_SCALE := 2.35
 
 ## Aim of the station's key light, and of the sky's sun glow.
 ##
@@ -4563,7 +4571,62 @@ func apply_range_target_component_presentation(
 		core.set_meta("component_stage", core_stage)
 		core.material_override = _range_target_core_material(core_stage)
 		core.scale = _range_target_core_scale(core_stage)
+	_apply_exterior_target_approach_feedback(visual, frame_stage, core_stage)
 	return outer_ring != null and core != null
+
+
+## Projects the worst already-authoritative frame/core condition onto the
+## existing camera-facing diamond. Component snapshots and pulse receipts still
+## decide *when* presentation changes; this function only chooses a steady
+## material and bar thickness for that accepted state.
+func _apply_exterior_target_approach_feedback(
+		visual: Node3D,
+		frame_stage: StringName,
+		core_stage: StringName
+	) -> void:
+	var approach_frame := visual.get_node_or_null("ApproachFrame") as Node3D
+	if approach_frame == null:
+		return
+	var feedback_stage := _range_target_worst_component_stage(frame_stage, core_stage)
+	var bar_material := _range_target_approach_frame_material(feedback_stage)
+	var bar_scale := _range_target_approach_frame_bar_scale(feedback_stage)
+	approach_frame.set_meta("component_stage", feedback_stage)
+	for child in approach_frame.get_children():
+		if child is MeshInstance3D:
+			var bar := child as MeshInstance3D
+			bar.set_meta("component_stage", feedback_stage)
+			bar.material_override = bar_material
+			bar.scale = bar_scale
+
+
+func _range_target_worst_component_stage(
+		frame_stage: StringName,
+		core_stage: StringName
+	) -> StringName:
+	for stage in [&"destroyed", &"critical", &"damaged"]:
+		if frame_stage == stage or core_stage == stage:
+			return stage
+	return &"nominal"
+
+
+func _range_target_approach_frame_material(stage: StringName) -> Material:
+	match stage:
+		&"damaged":
+			return _materials["orange_glow"]
+		&"critical", &"destroyed":
+			return _materials["red_glow"]
+		_:
+			return _materials["cyan_glow"]
+
+
+func _range_target_approach_frame_bar_scale(stage: StringName) -> Vector3:
+	match stage:
+		&"damaged":
+			return Vector3(1.0, EXTERIOR_TARGET_APPROACH_FRAME_DAMAGED_THICKNESS_SCALE, 1.0)
+		&"critical", &"destroyed":
+			return Vector3(1.0, EXTERIOR_TARGET_APPROACH_FRAME_CRITICAL_THICKNESS_SCALE, 1.0)
+		_:
+			return Vector3.ONE
 
 
 func _range_target_frame_material(stage: StringName) -> Material:
