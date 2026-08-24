@@ -2,10 +2,7 @@ extends SceneTree
 
 ## Adversarial production-world contract for the six authored berth-feedback
 ## components. Every destructive probe restores the same cached production
-## instances and proves that the audit returns to its exact component-clean
-## baseline. The world wrapper still carries the pre-existing four-material
-## roster while each current component intentionally owns two; this test accepts
-## only that exact wrapper mismatch and no additional error.
+## instances and proves that the audit returns to green.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const BERTH_SCENE := preload("res://scenes/world/components/ship_berth.tscn")
@@ -18,7 +15,7 @@ const EXPECTED_BERTH_IDS: Array[StringName] = [
 	&"halyard_fleet_dock_berth",
 	&"bulwark_fleet_dock_berth",
 ]
-const EXPECTED_MATERIAL_IDS: Array[StringName] = [&"active", &"dim"]
+const EXPECTED_MATERIAL_IDS: Array[StringName] = [&"dim", &"cyan", &"amber", &"secured"]
 const PRODUCTION_SPECS := {
 	&"central_berth": {
 		"berth_path": NodePath("CentralBerth"),
@@ -140,7 +137,7 @@ func _run() -> void:
 	await _test_reparent_and_path_drift(world)
 	_test_transform_and_export_drift(world)
 	_test_material_identity_drift(world)
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "all adversarial restorations leave the exact component-clean production baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "all adversarial restorations leave the production audit green")
 
 	world.queue_free()
 	world = null
@@ -151,7 +148,7 @@ func _run() -> void:
 
 func _test_pristine_contract(world: ShipyardWorld) -> void:
 	var report := world.get_ship_berth_feedback_audit_report()
-	_check(_report_matches_component_baseline(report), "pristine production berth-feedback audit has only the known legacy world material-roster mismatch")
+	_check(_report_is_green(report), "pristine production berth-feedback audit is green without suppressed errors")
 	_check(
 		int(report.get("schema_version", 0)) == 2
 		and int(report.get("component_count", 0)) == 6
@@ -180,7 +177,6 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 	)
 
 	var all_material_instance_ids: Dictionary = {}
-	var all_light_instance_ids: Dictionary = {}
 	var placements := report.get("placements", {}) as Dictionary
 	for index in EXPECTED_BERTH_IDS.size():
 		var berth_id := EXPECTED_BERTH_IDS[index]
@@ -229,7 +225,7 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 		var material_instance_ids := component_report.get("material_instance_ids", {}) as Dictionary
 		_check(
 			_dictionary_has_exact_keys(material_instance_ids, EXPECTED_MATERIAL_IDS),
-			"%s publishes exactly two named mutable-material identities" % berth_id
+			"%s publishes exactly four named mutable-material identities" % berth_id
 		)
 		var locally_unique: Dictionary = {}
 		for instance_id_value in material_instance_ids.values():
@@ -237,22 +233,7 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 			if instance_id != 0:
 				locally_unique[instance_id] = true
 			all_material_instance_ids[instance_id] = true
-		_check(locally_unique.size() == 2, "%s owns two distinct nonzero material ObjectIDs" % berth_id)
-		var state_light := feedback.get_node_or_null(
-			"FeedbackVisual/LeaseStatePractical"
-		) as OmniLight3D
-		_check(
-			state_light != null
-			and state_light.is_visible_in_tree()
-			and state_light.light_color == Color("9ff0ff")
-			and is_equal_approx(state_light.light_energy, 0.72)
-			and is_equal_approx(state_light.omni_range, 6.5)
-			and not state_light.shadow_enabled
-			and state_light.distance_fade_enabled,
-			"%s owns one visible bounded released-state practical" % berth_id
-		)
-		if state_light != null:
-			all_light_instance_ids[state_light.get_instance_id()] = true
+		_check(locally_unique.size() == 4, "%s owns four distinct nonzero material ObjectIDs" % berth_id)
 		var placement := placements.get(berth_id, {}) as Dictionary
 		_check(
 			placement.get("berth_path", NodePath()) == berth_path
@@ -270,8 +251,7 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 			and is_equal_approx(float(placement.get("cue_half_length", -1.0)), float(spec.get("cue_half_length"))),
 			"%s audit placement publishes the exact immutable authored contract" % berth_id
 		)
-	_check(all_material_instance_ids.size() == 12, "all six feedback instances own twelve globally unique material ObjectIDs")
-	_check(all_light_instance_ids.size() == 6, "all six production feedback instances own distinct practical identities")
+	_check(all_material_instance_ids.size() == 24, "all six feedback instances own twenty-four globally unique material ObjectIDs")
 	_check(_count_descendants(world, "ShipBerth") == 6, "production world contains no extra ShipBerth descendant")
 	_check(_count_descendants(world, "ShipBerthFeedback") == 6, "production world contains no extra ShipBerthFeedback descendant")
 
@@ -298,7 +278,7 @@ func _test_pre_tree_authored_drift() -> void:
 	# The startup cache truthfully remains the mutated snapshot; rebuilding it
 	# after restoring authored exports must not make the audit bless drift.
 	world.call("_initialize_berths")
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring pre-tree berth exports and reindexing returns that isolated world audit to baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring pre-tree berth exports and reindexing returns that isolated world audit to green")
 	world.queue_free()
 	await process_frame
 
@@ -318,7 +298,7 @@ func _test_rogue_descendants(world: ShipyardWorld) -> void:
 	)
 	rogue_berth.queue_free()
 	await process_frame
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "removing the rogue sixth ShipBerth restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "removing the rogue sixth ShipBerth restores green")
 
 	var central_berth := world.get_node("CentralBerth") as ShipBerth
 	var rogue_feedback := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback
@@ -334,7 +314,7 @@ func _test_rogue_descendants(world: ShipyardWorld) -> void:
 	)
 	rogue_feedback.queue_free()
 	await process_frame
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "removing the rogue feedback descendant restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "removing the rogue feedback descendant restores green")
 
 
 func _test_exact_instance_replacements(world: ShipyardWorld) -> void:
@@ -370,7 +350,7 @@ func _test_exact_instance_replacements(world: ShipyardWorld) -> void:
 	await process_frame
 	world.add_child(original_berth)
 	await process_frame
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "re-adding the original cached berth subtree restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "re-adding the original cached berth subtree restores green")
 
 	var arrow_berth := world.get_node("ArrowReconBerth") as ShipBerth
 	var original_feedback := arrow_berth.get_node("BerthFeedback") as ShipBerthFeedback
@@ -392,7 +372,7 @@ func _test_exact_instance_replacements(world: ShipyardWorld) -> void:
 	await process_frame
 	arrow_berth.add_child(original_feedback)
 	await process_frame
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "re-adding the original cached feedback instance restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "re-adding the original cached feedback instance restores green")
 
 
 func _test_reparent_and_path_drift(world: ShipyardWorld) -> void:
@@ -409,7 +389,7 @@ func _test_reparent_and_path_drift(world: ShipyardWorld) -> void:
 	)
 	arrow_feedback.reparent(arrow_berth, false)
 	await process_frame
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring the feedback direct parent restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring the feedback direct parent restores green")
 
 	var central_berth := world.get_node("CentralBerth") as ShipBerth
 	central_berth.name = "CentralBerthPathDrift"
@@ -420,7 +400,7 @@ func _test_reparent_and_path_drift(world: ShipyardWorld) -> void:
 		"audit rejects canonical ShipBerth path drift even when its cached instance remains live"
 	)
 	central_berth.name = "CentralBerth"
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring the canonical ShipBerth path restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring the canonical ShipBerth path restores green")
 
 	var central_feedback := central_berth.get_node("BerthFeedback") as ShipBerthFeedback
 	central_feedback.name = "BerthFeedbackPathDrift"
@@ -431,7 +411,7 @@ func _test_reparent_and_path_drift(world: ShipyardWorld) -> void:
 		"audit rejects direct-child feedback path drift"
 	)
 	central_feedback.name = "BerthFeedback"
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring the feedback child path restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring the feedback child path restores green")
 
 
 func _test_transform_and_export_drift(world: ShipyardWorld) -> void:
@@ -445,7 +425,7 @@ func _test_transform_and_export_drift(world: ShipyardWorld) -> void:
 		"audit rejects live berth transform drift away from the cached authored dock transform"
 	)
 	central_berth.transform = berth_transform
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring the berth transform restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring the berth transform restores green")
 
 	var freight_feedback := world.get_node("JovianFreightShipBerth/BerthFeedback") as ShipBerthFeedback
 	var feedback_transform := freight_feedback.transform
@@ -457,7 +437,7 @@ func _test_transform_and_export_drift(world: ShipyardWorld) -> void:
 		"audit rejects authored feedback local-transform drift"
 	)
 	freight_feedback.transform = feedback_transform
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring the feedback local transform restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring the feedback local transform restores green")
 
 	var arrow_feedback := world.get_node("ArrowReconBerth/BerthFeedback") as ShipBerthFeedback
 	var cue_half_width := arrow_feedback.cue_half_width
@@ -473,7 +453,7 @@ func _test_transform_and_export_drift(world: ShipyardWorld) -> void:
 	)
 	arrow_feedback.cue_half_width = cue_half_width
 	arrow_feedback.cue_half_length = cue_half_length
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring both cue exports restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring both cue exports restores green")
 
 	var arrow_berth := world.get_node("ArrowReconBerth") as ShipBerth
 	arrow_berth.compatibility_tags = PackedStringArray(["recon", "small_craft"])
@@ -488,8 +468,8 @@ func _test_transform_and_export_drift(world: ShipyardWorld) -> void:
 	)
 	arrow_berth.compatibility_tags = PackedStringArray(["recon"])
 	_check(
-		_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()),
-		"restoring Arrow's exact recon-only compatibility returns the world audit to baseline"
+		_report_is_green(world.get_ship_berth_feedback_audit_report()),
+		"restoring Arrow's exact recon-only compatibility returns the world audit to green"
 	)
 
 	var capture_center := central_berth.assist_capture_center
@@ -514,8 +494,8 @@ func _test_transform_and_export_drift(world: ShipyardWorld) -> void:
 	central_berth.assist_capture_maximum_speed = capture_speed
 	central_berth.assist_maximum_tilt_degrees = capture_tilt
 	_check(
-		_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()),
-		"restoring the exact broad assist-capture contract returns the world audit to baseline"
+		_report_is_green(world.get_ship_berth_feedback_audit_report()),
+		"restoring the exact broad assist-capture contract returns the world audit to green"
 	)
 
 
@@ -534,22 +514,12 @@ func _test_material_identity_drift(world: ShipyardWorld) -> void:
 		"audit rejects forged cross-instance material identity sharing and component invalidity"
 	)
 	central_material_ids[&"dim"] = original_dim_id
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "restoring the exact instance-local material identity restores baseline")
+	_check(_report_is_green(world.get_ship_berth_feedback_audit_report()), "restoring the exact instance-local material identity restores green")
 
 
-func _report_matches_component_baseline(report: Dictionary) -> bool:
-	var errors := report.get("errors", PackedStringArray()) as PackedStringArray
-	if bool(report.get("valid", false)) and errors.is_empty():
-		return true
-	var expected := PackedStringArray([
-		"feedback_material_ids_do_not_match_production_contract",
-	])
-	for berth_id in EXPECTED_BERTH_IDS:
-		expected.append("feedback_%s_material_id_count_drift" % berth_id)
-	errors = errors.duplicate()
-	errors.sort()
-	expected.sort()
-	return not bool(report.get("valid", true)) and errors == expected
+func _report_is_green(report: Dictionary) -> bool:
+	return bool(report.get("valid", false)) \
+		and (report.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
 
 
 func _errors_have(report: Dictionary, expected_error: String) -> bool:

@@ -90,7 +90,7 @@ func _run() -> void:
 	# retain the exact dimensions while one unit BoxMesh replaces sixteen meshes,
 	# and one state-driven material replaces three mutually exclusive palettes.
 	_check(
-		int(perf.owned_nodes) == 20
+		int(perf.owned_nodes) == 19
 		and int(perf.mesh_instances) == 16
 		and int(perf.drawn_copies) == 16
 		and int(perf.render_submissions) == 16
@@ -98,7 +98,7 @@ func _run() -> void:
 		and int(perf.material_resources) == 2
 		and int(perf.material_resource_savings) == 2
 		and perf.material_sharing_policy == &"component_local_state_material",
-		"component preserves twenty nodes and sixteen submissions while reducing four instance-local materials to two"
+		"component preserves nineteen nodes and sixteen submissions while reducing four instance-local materials to two"
 	)
 	_check(
 		int(perf.mesh_resources_before_sharing) == 16
@@ -133,31 +133,7 @@ func _run() -> void:
 		boundary_port_forward.material_override == lease_plate.material_override,
 		"released boundary and lease plate share the one component-local active material"
 	)
-	var state_light := feedback.get_node(
-		"FeedbackVisual/LeaseStatePractical"
-	) as OmniLight3D
-	var state_light_instance_id := state_light.get_instance_id()
-	_check(
-		int(perf.collision_nodes) == 0
-		and int(perf.lights) == 1
-		and int(perf.light_budget) == 1
-		and int(perf.audio_nodes) == 0
-		and int(perf.particle_emitters) == 0,
-		"feedback adds exactly one bounded practical and no collision, audio, or particle authority"
-	)
-	_check(
-		state_light != null
-		and state_light.is_visible_in_tree()
-		and state_light.light_color == Color("9ff0ff")
-		and is_equal_approx(state_light.light_energy, 0.72)
-		and is_equal_approx(state_light.omni_range, 6.5)
-		and is_equal_approx(state_light.omni_attenuation, 2.0)
-		and not state_light.shadow_enabled
-		and state_light.distance_fade_enabled
-		and is_equal_approx(state_light.distance_fade_begin, 60.0)
-		and is_equal_approx(state_light.distance_fade_length, 25.0),
-		"released state owns one visible shadowless short-range practical with bounded distance fade"
-	)
+	_check(int(perf.collision_nodes) == 0 and int(perf.lights) == 0 and int(perf.audio_nodes) == 0 and int(perf.particle_emitters) == 0, "feedback adds no collision, light, audio, or particle authority")
 	_check(feedback.get_evidence_metadata().evidence_status == &"modern_interpretation" and not bool(feedback.get_evidence_metadata().historically_supported), "feedback remains an explicit unsupported modern interpretation")
 
 	var ship := Node3D.new()
@@ -166,12 +142,6 @@ func _run() -> void:
 	var token := berth.try_reserve(ship, TORRENT_DEFINITION)
 	await process_frame
 	_check(not token.is_empty() and feedback.get_feedback_state() == &"approach", "real reservation transition renders approach state")
-	_check(
-		state_light.get_instance_id() == state_light_instance_id
-		and state_light.light_color == Color("ff7a08")
-		and is_equal_approx(state_light.light_energy, 0.64),
-		"approach immediately repaints the same practical with the existing amber cue palette"
-	)
 	var approach_guide := feedback.get_node("FeedbackVisual/ApproachGuide01") as MeshInstance3D
 	_check(
 		approach_guide.material_override == lease_plate.material_override
@@ -223,12 +193,6 @@ func _run() -> void:
 	await process_frame
 	_check(feedback.get_feedback_state() == &"occupied" and feedback.get_state_snapshot().label == "BERTH SECURED", "real occupancy transition renders secured state")
 	_check(
-		state_light.get_instance_id() == state_light_instance_id
-		and state_light.light_color == Color("2f52cc")
-		and is_equal_approx(state_light.light_energy, 0.58),
-		"occupancy immediately repaints the same practical with the existing secured palette"
-	)
-	_check(
 		approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible),
 		"occupancy clears every approach-only alignment lane segment"
 	)
@@ -240,12 +204,6 @@ func _run() -> void:
 	_check(berth.release(ship, token), "fixture releases the authoritative occupied lease")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released", "real lease release restores open state")
-	_check(
-		state_light.get_instance_id() == state_light_instance_id
-		and state_light.light_color == Color("9ff0ff")
-		and is_equal_approx(state_light.light_energy, 0.72),
-		"release immediately restores the original practical identity and open palette"
-	)
 	_check(
 		approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible),
 		"release clears every approach-only alignment lane segment"
@@ -268,22 +226,10 @@ func _run() -> void:
 	_check(absf(float(feedback.get_state_snapshot().elapsed) - 0.25) < 0.00001, "paused feedback rejects manual time advancement")
 	feedback.set_feedback_paused(false)
 	feedback.set_feedback_enabled(false)
-	_check(
-		not feedback.visible
-		and int(feedback.get_performance_report().visible_meshes) == 0
-		and not state_light.visible
-		and not state_light.is_visible_in_tree(),
-		"disabled lifecycle hides every presentation mesh and the berth practical"
-	)
+	_check(not feedback.visible and int(feedback.get_performance_report().visible_meshes) == 0, "disabled lifecycle hides every presentation mesh")
 	_check(bool(feedback.get_audit_report().valid), "disabled presentation remains a valid intentional lifecycle state")
 	feedback.set_feedback_enabled(true)
-	_check(
-		state_light.visible
-		and state_light.is_visible_in_tree()
-		and state_light.get_instance_id() == state_light_instance_id
-		and bool(feedback.get_audit_report().valid),
-		"re-enabled feedback restores the same practical and a valid presentation"
-	)
+	_check(bool(feedback.get_audit_report().valid), "re-enabled feedback restores a valid presentation")
 
 	var berth_two := BERTH_SCENE.instantiate() as ShipBerth
 	berth_two.berth_id = &"feedback_isolation_berth"
@@ -297,12 +243,6 @@ func _run() -> void:
 	var mesh_a := (feedback.get_node("FeedbackVisual/Boundary_Port_Forward") as MeshInstance3D).mesh
 	var mesh_b := (feedback_two.get_node("FeedbackVisual/Boundary_Port_Forward") as MeshInstance3D).mesh
 	_check(mesh_a != mesh_b, "component-local mesh sharing cannot leak a mutable test or runtime mutation between berths")
-	var light_b := feedback_two.get_node("FeedbackVisual/LeaseStatePractical") as OmniLight3D
-	_check(
-		light_b != state_light
-		and light_b.get_instance_id() != state_light_instance_id,
-		"each berth feedback instance owns one distinct prebuilt practical"
-	)
 	var ship_two := Node3D.new()
 	stage.add_child(ship_two)
 	var token_two := berth_two.try_reserve(ship_two, TORRENT_DEFINITION)
@@ -394,7 +334,6 @@ func _run() -> void:
 	berth.remove_child(feedback)
 	await process_frame
 	var detached_state := feedback.get_state_snapshot()
-	var detached_light_instance_id := state_light.get_instance_id()
 	_check(not bool(berth_audio.get_snapshot().attached), "detaching feedback clears the berth audio binding")
 	_check(
 		berth.release(detached_owner, detached_token),
@@ -416,11 +355,8 @@ func _run() -> void:
 	_check(
 		feedback.get_feedback_state() == &"released"
 		and approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible)
-		and state_light.get_instance_id() == detached_light_instance_id
-		and state_light.light_color == Color("9ff0ff")
-		and state_light.is_visible_in_tree()
 		and bool(feedback.get_audit_report().valid),
-		"child reuse rejects stale approach state and restores the same released practical without rebuilding"
+		"child reuse rejects its stale approach state and clears the lane without rebuilding"
 	)
 	detached_owner.queue_free()
 	var reentered_audio: RefCounted = feedback.get_audio_binding()
@@ -584,17 +520,6 @@ func _run() -> void:
 	_check(not bool(feedback.get_audit_report().valid), "audit rejects state-label transform drift")
 	state_label.transform = label_transform
 	_check(bool(feedback.get_audit_report().valid), "restoring the exact label transform restores a green audit")
-
-	var light_range := state_light.omni_range
-	state_light.omni_range = light_range + 1.0
-	_check(not bool(feedback.get_audit_report().valid), "audit rejects berth-practical range drift")
-	state_light.omni_range = light_range
-	_check(bool(feedback.get_audit_report().valid), "restoring the exact practical range restores a green audit")
-	var light_identity_parent := state_light.get_parent()
-	light_identity_parent.remove_child(state_light)
-	_check(not bool(feedback.get_audit_report().valid), "audit rejects detaching the prebuilt berth practical")
-	light_identity_parent.add_child(state_light)
-	_check(bool(feedback.get_audit_report().valid), "re-attaching the same practical identity restores a green audit")
 
 	# Detachment is recoverable; freeing is tested on a sacrificial component so
 	# repeated fail-red audits can prove stale cached references remain safe.
