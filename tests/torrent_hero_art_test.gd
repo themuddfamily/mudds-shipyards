@@ -344,29 +344,78 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		"only the twelve generic louvre leaves retire; both named bank roots remain"
 	)
 
+	var expected_rcs_names := PackedStringArray(["ThrusterPort00", "ThrusterPort01"])
+	var rcs_batches: Array[MultiMeshInstance3D] = []
+	var rcs_shared_mesh: Mesh = null
+	for side_name: String in ["Port", "Starboard"]:
+		var side := -1.0 if side_name == "Port" else 1.0
+		var expected_rcs_transforms: Array[Transform3D] = []
+		var port_basis := Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0)))
+		for port_index in HeroShip.TORRENT_RCS_THRUSTER_PORTS_PER_CLUSTER:
+			expected_rcs_transforms.append(Transform3D(
+				port_basis,
+				Vector3(side * 0.28, 0.07 - float(port_index) * 0.15, -0.1 + float(port_index) * 0.2)
+			))
+		for station_name: String in ["Forward", "Aft"]:
+			var cluster := modern.get_node_or_null(side_name + station_name + "RCSCluster") as Node3D
+			var batch := cluster.get_node_or_null("ThrusterPorts") as MultiMeshInstance3D if cluster != null else null
+			_check(cluster != null and batch != null and batch.multimesh != null, "%s %s RCS cluster retains its local port batch" % [side_name, station_name])
+			if batch == null or batch.multimesh == null:
+				continue
+			rcs_batches.append(batch)
+			var authored := batch.get_meta("authored_instance_transforms", []) as Array
+			var transforms_match := authored.size() == expected_rcs_transforms.size()
+			for index in mini(authored.size(), expected_rcs_transforms.size()):
+				transforms_match = transforms_match and (authored[index] as Transform3D).is_equal_approx(expected_rcs_transforms[index])
+			_check(
+				batch.get_parent() == cluster
+				and batch.multimesh.instance_count == HeroShip.TORRENT_RCS_THRUSTER_PORTS_PER_CLUSTER
+				and batch.multimesh.visible_instance_count == HeroShip.TORRENT_RCS_THRUSTER_PORTS_PER_CLUSTER
+				and transforms_match
+				and batch.get_meta("authored_visual_names", PackedStringArray()) == expected_rcs_names
+				and batch.multimesh.mesh.get_surface_count() == 1
+				and batch.multimesh.mesh.surface_get_material(0) == torrent.get_variant_materials().get("thermal")
+				and batch.material_override == null
+				and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				and batch.layers == 1
+				and batch.get_child_count() == 0
+				and bool(batch.get_meta("visual_detail_only", false))
+				and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
+				"%s %s RCS batch preserves its exact visual copies, material and presentation-only boundary" % [side_name, station_name]
+			)
+			if rcs_shared_mesh == null:
+				rcs_shared_mesh = batch.multimesh.mesh
+			else:
+				_check(batch.multimesh.mesh == rcs_shared_mesh, "all RCS port batches share one immutable thermal mesh")
+	_check(
+		rcs_batches.size() == 4
+		and modern.find_children("ThrusterPort*", "MeshInstance3D", true, false).is_empty(),
+		"only eight generic RCS port leaves retire; all four cluster roots remain"
+	)
+
 	var report := torrent.get_torrent_render_allocation_report()
 	var component := report.get("component", {}) as Dictionary
 	var fallback := report.get("modern_fallback", {}) as Dictionary
 	_check(
-		int(component.get("descendant_nodes", -1)) == 299
-		and int(component.get("mesh_instances", -1)) == 241
-		and int(component.get("multimesh_batches", -1)) == 2,
-		"Torrent-local renderer census includes the six compact weapon-detail meshes"
+		int(component.get("descendant_nodes", -1)) == 295
+		and int(component.get("mesh_instances", -1)) == 233
+		and int(component.get("multimesh_batches", -1)) == 6,
+		"Torrent-local renderer census batches eight RCS ports while retaining named clusters"
 	)
 	_check(
 		int(component.get("drawn_copies", -1)) == 253
-		and int(component.get("geometry_submissions", -1)) == 243
+		and int(component.get("geometry_submissions", -1)) == 239
 		and int(component.get("unique_mesh_resources", -1)) == 209
 		and int(component.get("unique_material_resources", -1)) == 37,
-		"weapon detail extends the frozen draw, mesh and cyan-lens material census exactly"
+		"RCS batching reduces four renderer submissions while preserving all visible copies"
 	)
 	_check(
-		int(fallback.get("descendant_nodes", -1)) == 113
-		and int(fallback.get("mesh_instances", -1)) == 95
-		and int(fallback.get("multimesh_batches", -1)) == 2
+		int(fallback.get("descendant_nodes", -1)) == 109
+		and int(fallback.get("mesh_instances", -1)) == 87
+		and int(fallback.get("multimesh_batches", -1)) == 6
 		and int(fallback.get("drawn_copies", -1)) == 107
-		and int(fallback.get("geometry_submissions", -1)) == 97,
-		"modern-fallback census owns all six added weapon details and no authored source geometry"
+		and int(fallback.get("geometry_submissions", -1)) == 93,
+		"modern-fallback census batches only the eight visual RCS port copies"
 	)
 	_check(
 		int(report.get("vent_louver_batches", -1)) == 2
@@ -380,8 +429,12 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		and int(report.get("capture_jaw_copies", -1)) == 4
 		and int(report.get("capture_jaw_shared_mesh_resources", -1)) == 1
 		and bool(report.get("capture_jaw_contract_matches", false))
+		and int(report.get("rcs_thruster_port_batches", -1)) == 4
+		and int(report.get("rcs_thruster_port_copies", -1)) == 8
+		and int(report.get("rcs_thruster_port_shared_mesh_resources", -1)) == 1
+		and bool(report.get("rcs_thruster_port_contract_matches", false))
 		and bool(report.get("exact_counts", false)),
-		"louvre batches and four authored capture jaws preserve their visual contracts while sharing only immutable family meshes"
+		"louvre, capture-jaw and RCS-port families preserve their visual contracts with immutable shared resources"
 	)
 
 	var detached := report.get("authored_bank_transforms", []) as Array

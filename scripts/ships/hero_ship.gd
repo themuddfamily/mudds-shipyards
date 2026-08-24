@@ -204,20 +204,22 @@ const TORRENT_2009_CONTINUITY: StringName = &"unproved"
 const TORRENT_VENT_LOUVERS_PER_BANK := 6
 const TORRENT_VENT_LOUVER_COPY_COUNT := 12
 const TORRENT_CAPTURE_JAW_COPY_COUNT := 4
+const TORRENT_RCS_THRUSTER_PORTS_PER_CLUSTER := 2
+const TORRENT_RCS_THRUSTER_PORT_COPY_COUNT := 8
 # Component-local render census retains all close art and semantic/system roots.
-# The two louvre batches and four shared capture jaws retain the frozen base
-# census; six compact weapon-detail meshes extend that roster explicitly.
-const TORRENT_RENDER_DESCENDANT_COUNT := 299
-const TORRENT_RENDER_MESH_INSTANCE_COUNT := 241
-const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 2
+# Two louvre and four RCS-port batches retain every source-local copy while
+# reducing fallback submissions; shared capture jaws retain their named paths.
+const TORRENT_RENDER_DESCENDANT_COUNT := 295
+const TORRENT_RENDER_MESH_INSTANCE_COUNT := 233
+const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 6
 const TORRENT_RENDER_DRAWN_COPY_COUNT := 253
-const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 243
+const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 239
 const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 209
 const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 37
-const TORRENT_MODERN_DESCENDANT_COUNT := 113
-const TORRENT_MODERN_MESH_INSTANCE_COUNT := 95
+const TORRENT_MODERN_DESCENDANT_COUNT := 109
+const TORRENT_MODERN_MESH_INSTANCE_COUNT := 87
 const TORRENT_MODERN_DRAWN_COPY_COUNT := 107
-const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 97
+const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 93
 const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 74
 const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 11
 
@@ -419,6 +421,10 @@ var _torrent_vent_louver_batches: Array[MultiMeshInstance3D] = []
 ## Torrent-local and immutable: all four articulated-visual-only capture jaws
 ## retain their paths and transforms while sharing this exact gold box mesh.
 var _torrent_capture_jaw_mesh: ArrayMesh
+## The eight RCS ports are immutable, presentation-only copies. Four local
+## batches retain the named cluster roots and their parent-space transforms.
+var _torrent_rcs_thruster_port_mesh: ArrayMesh
+var _torrent_rcs_thruster_port_batches: Array[MultiMeshInstance3D] = []
 var _audio_throttle_state := -1.0
 var _audio_boost_state := false
 ## Planetary cruise is an optional, caller-issued envelope inside this body's
@@ -4793,6 +4799,56 @@ func get_torrent_render_allocation_report() -> Dictionary:
 			and jaw.material_override == null
 			and jaw.get_parent() == docking_receiver
 		)
+	var rcs_port_contract_matches := _torrent_rcs_thruster_port_mesh != null
+	var expected_rcs_names := PackedStringArray(["ThrusterPort00", "ThrusterPort01"])
+	for side_name: String in ["Port", "Starboard"]:
+		var side := -1.0 if side_name == "Port" else 1.0
+		var expected_rcs_transforms := _torrent_rcs_thruster_port_transforms(side)
+		var expected_rcs_buffer := _torrent_encode_multimesh_transforms(expected_rcs_transforms)
+		for station_name: String in ["Forward", "Aft"]:
+			var cluster := modern.get_node_or_null(
+				side_name + station_name + "RCSCluster"
+			) as Node3D if modern != null else null
+			var batch := (
+				cluster.get_node_or_null("ThrusterPorts") as MultiMeshInstance3D
+				if cluster != null else null
+			)
+			if batch == null or batch.multimesh == null:
+				rcs_port_contract_matches = false
+				continue
+			var multi := batch.multimesh
+			var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+			rcs_port_contract_matches = rcs_port_contract_matches and (
+				multi.transform_format == MultiMesh.TRANSFORM_3D
+				and not multi.use_colors
+				and not multi.use_custom_data
+				and multi.instance_count == TORRENT_RCS_THRUSTER_PORTS_PER_CLUSTER
+				and multi.visible_instance_count == TORRENT_RCS_THRUSTER_PORTS_PER_CLUSTER
+				and multi.buffer == expected_rcs_buffer
+				and multi.custom_aabb.is_equal_approx(_torrent_transformed_mesh_bounds(
+					_torrent_rcs_thruster_port_mesh.get_aabb(), expected_rcs_transforms
+				))
+				and multi.mesh == _torrent_rcs_thruster_port_mesh
+				and _torrent_rcs_thruster_port_mesh.get_surface_count() == 1
+				and _torrent_rcs_thruster_port_mesh.surface_get_material(0) == _materials.get("thermal")
+				and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+				and batch.material_override == null
+				and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				and batch.layers == 1
+				and batch.get_child_count() == 0
+				and batch.get_script() == null
+				and batch.get_groups().is_empty()
+				and bool(batch.get_meta("visual_detail_only", false))
+				and batch.get_meta("authored_visual_names", PackedStringArray()) == expected_rcs_names
+				and _torrent_transform_arrays_match(authored_transforms, expected_rcs_transforms)
+			)
+	var retired_rcs_port_nodes := (
+		modern.find_children("ThrusterPort*", "MeshInstance3D", true, false).size()
+		if modern != null else -1
+	)
+	rcs_port_contract_matches = rcs_port_contract_matches and (
+		_torrent_rcs_thruster_port_batches.size() == 4 and retired_rcs_port_nodes == 0
+	)
 	var errors := PackedStringArray()
 	if not exact_counts:
 		errors.append("Torrent render allocations drifted from the frozen component-local roster")
@@ -4806,6 +4862,8 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		errors.append("Torrent dorsal vent-louver mesh or material identity drifted")
 	if not capture_jaw_contract_matches:
 		errors.append("Torrent capture-jaw mesh-sharing contract drifted")
+	if not rcs_port_contract_matches:
+		errors.append("Torrent RCS thruster-port batch contract drifted")
 	return {
 		"schema_version": 1,
 		"valid": errors.is_empty(),
@@ -4817,12 +4875,16 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		"vent_louver_shared_mesh_resources": 1 if _torrent_vent_louver_mesh != null else 0,
 		"capture_jaw_copies": TORRENT_CAPTURE_JAW_COPY_COUNT,
 		"capture_jaw_shared_mesh_resources": 1 if _torrent_capture_jaw_mesh != null else 0,
+		"rcs_thruster_port_batches": _torrent_rcs_thruster_port_batches.size(),
+		"rcs_thruster_port_copies": TORRENT_RCS_THRUSTER_PORT_COPY_COUNT,
+		"rcs_thruster_port_shared_mesh_resources": 1 if _torrent_rcs_thruster_port_mesh != null else 0,
 		"renderer_buffer_floats": renderer_buffer_floats,
 		"renderer_buffer_matches_authored": buffer_matches,
 		"bounds_match_authored": bounds_match,
 		"mesh_material_matches_authored": mesh_material_matches,
 		"batch_contract_matches": batch_contract_matches,
 		"capture_jaw_contract_matches": capture_jaw_contract_matches,
+		"rcs_thruster_port_contract_matches": rcs_port_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_bank_transforms": expected_transforms.duplicate(),
 		"old_family": {
@@ -5145,16 +5207,7 @@ func _build_torrent_service_detail(parent: Node3D) -> void:
 			cluster.set_meta("system", &"attitude_control")
 			parent.add_child(cluster)
 			_box(cluster, "RCSServicePanel", Vector3.ZERO, Vector3(0.54, 0.28, 0.46), _materials.panel, Vector3(0.0, 0.0, side * deg_to_rad(-9.0)))
-			for port_index in 2:
-				_cylinder(
-					cluster,
-					"ThrusterPort%02d" % port_index,
-					Vector3(side * 0.28, 0.07 - float(port_index) * 0.15, -0.1 + float(port_index) * 0.2),
-					0.065,
-					0.09,
-					_materials.thermal,
-					Vector3(0.0, 0.0, 90.0)
-				)
+			_build_torrent_rcs_thruster_port_batch(cluster, side)
 
 	# Recessed access covers, fasteners, and louvred heat-exchanger banks break
 	# large surfaces without presenting them as unsupported historical features.
@@ -5223,6 +5276,37 @@ func _build_torrent_vent_louver_batch(vent_bank: Node3D) -> void:
 	_torrent_vent_louver_batches.append(batch)
 
 
+## Each RCS cluster remains a named semantic root. Its two repeated visual-only
+## ports are rendered together in the same local space, retaining their exact
+## authored transforms, material and visibility without a gameplay authority.
+func _build_torrent_rcs_thruster_port_batch(cluster: Node3D, side: float) -> void:
+	if _torrent_rcs_thruster_port_mesh == null:
+		_torrent_rcs_thruster_port_mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.065, 0.065, 0.09, 32, _chamfered_cylinder_cache,
+			ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.thermal
+		)
+	var transforms := _torrent_rcs_thruster_port_transforms(side)
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _torrent_rcs_thruster_port_mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	multi.buffer = _torrent_encode_multimesh_transforms(transforms)
+	multi.custom_aabb = _torrent_transformed_mesh_bounds(
+		_torrent_rcs_thruster_port_mesh.get_aabb(), transforms
+	)
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "ThrusterPorts"
+	batch.multimesh = multi
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.layers = 1
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("authored_visual_names", PackedStringArray(["ThrusterPort00", "ThrusterPort01"]))
+	batch.set_meta("authored_instance_transforms", transforms.duplicate())
+	cluster.add_child(batch)
+	_torrent_rcs_thruster_port_batches.append(batch)
+
+
 func _torrent_vent_louver_transforms() -> Array[Transform3D]:
 	var transforms: Array[Transform3D] = []
 	var louver_basis := Basis.from_euler(Vector3(deg_to_rad(-8.0), 0.0, 0.0))
@@ -5230,6 +5314,17 @@ func _torrent_vent_louver_transforms() -> Array[Transform3D]:
 		transforms.append(Transform3D(
 			louver_basis,
 			Vector3(0.0, 0.055, -0.43 + float(louver_index) * 0.17)
+		))
+	return transforms
+
+
+func _torrent_rcs_thruster_port_transforms(side: float) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var port_basis := Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0)))
+	for port_index in TORRENT_RCS_THRUSTER_PORTS_PER_CLUSTER:
+		transforms.append(Transform3D(
+			port_basis,
+			Vector3(side * 0.28, 0.07 - float(port_index) * 0.15, -0.1 + float(port_index) * 0.2)
 		))
 	return transforms
 
