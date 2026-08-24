@@ -5,7 +5,9 @@ extends Node3D
 ##
 ## The direct parent remains the sole reservation/occupancy authority. This
 ## component only renders that existing state and deliberately owns no collision,
-## navigation, audio, timers, tweens, particles, or random behaviour.
+## navigation, audio, timers, tweens, particles, or random behaviour. One
+## prebuilt bounded practical light follows the same state palette; it owns no
+## state or authority of its own.
 ##
 ## Colour-vision readability. Lease state used to be signalled by colour alone,
 ## in cyan / amber / green. Measured with `tests/fleet_colour_metrics.gd` (the one
@@ -63,6 +65,14 @@ const MESH_RESOURCE_COUNT := 1
 const MESH_RESOURCE_COPY_ROSTER := [16]
 const MATERIAL_RESOURCE_COUNT_BEFORE_STATE_SHARING := 4
 const MATERIAL_COUNT := 2
+const LIGHT_COUNT := 1
+const LIGHT_RANGE_M := 6.5
+const LIGHT_ATTENUATION := 2.0
+const LIGHT_FADE_BEGIN_M := 60.0
+const LIGHT_FADE_LENGTH_M := 25.0
+const LIGHT_ENERGY_RELEASED := 0.72
+const LIGHT_ENERGY_APPROACH := 0.64
+const LIGHT_ENERGY_OCCUPIED := 0.58
 const RENDER_MIN_Y := 0.14
 const RENDER_MAX_Y := 0.22
 
@@ -120,6 +130,7 @@ const LABEL_OCCUPIED := Color("6f88ee")
 var _berth: ShipBerth
 var _visual_root: Node3D
 var _label: Label3D
+var _state_light: OmniLight3D
 var _meshes: Array[MeshInstance3D] = []
 var _boundary_meshes: Array[MeshInstance3D] = []
 var _guide_meshes: Array[MeshInstance3D] = []
@@ -142,6 +153,9 @@ var _visual_root_storage_contract: Dictionary = {}
 var _label_instance_id := 0
 var _label_transform := Transform3D.IDENTITY
 var _label_storage_contract: Dictionary = {}
+var _state_light_instance_id := 0
+var _state_light_transform := Transform3D.IDENTITY
+var _state_light_storage_contract: Dictionary = {}
 var _state: StringName = STATE_RELEASED
 var _elapsed := 0.0
 var _feedback_enabled := true
@@ -224,6 +238,8 @@ func set_feedback_enabled(enabled: bool) -> void:
 		_visual_root.visible = enabled
 	if is_instance_valid(_label):
 		_label.visible = enabled
+	if is_instance_valid(_state_light):
+		_state_light.visible = enabled
 	_refresh_processing()
 
 
@@ -295,6 +311,24 @@ func get_state_snapshot() -> Dictionary:
 		"cue_glyph": get_state_glyph_id(_state),
 		"cue_glyph_mesh_names": _visible_glyph_mesh_names(),
 		"cue_glyph_footprint": _visible_glyph_footprint(),
+		"state_light": {
+			"instance_id": (
+				_state_light.get_instance_id()
+				if is_instance_valid(_state_light) else 0
+			),
+			"visible": (
+				_state_light.is_visible_in_tree()
+				if is_instance_valid(_state_light) else false
+			),
+			"color": (
+				_state_light.light_color
+				if is_instance_valid(_state_light) else Color.TRANSPARENT
+			),
+			"energy": (
+				_state_light.light_energy
+				if is_instance_valid(_state_light) else 0.0
+			),
+		},
 	}.duplicate(true)
 
 
@@ -342,6 +376,7 @@ func get_performance_report() -> Dictionary:
 	var visible_meshes := 0
 	var live_meshes := find_children("*", "MeshInstance3D", true, false)
 	var live_labels := find_children("*", "Label3D", true, false)
+	var live_lights := find_children("*", "Light3D", true, false)
 	var mesh_resource_copy_counts: Dictionary = {}
 	for mesh in live_meshes:
 		if not is_instance_valid(mesh):
@@ -370,6 +405,7 @@ func get_performance_report() -> Dictionary:
 		"within_budget": (
 			live_meshes.size() == MESH_COUNT
 			and _materials.size() == MATERIAL_COUNT
+			and live_lights.size() == LIGHT_COUNT
 			and mesh_sharing_exact
 		),
 		"owned_nodes": owned_node_count,
@@ -401,7 +437,8 @@ func get_performance_report() -> Dictionary:
 		"collision_nodes": find_children("*", "CollisionObject3D", true, false).size(),
 		"physics_query_nodes": find_children("*", "RayCast3D", true, false).size() \
 			+ find_children("*", "ShapeCast3D", true, false).size(),
-		"lights": find_children("*", "Light3D", true, false).size(),
+		"lights": live_lights.size(),
+		"light_budget": LIGHT_COUNT,
 		"audio_nodes": find_children("*", "AudioStreamPlayer3D", true, false).size(),
 		"particle_emitters": find_children("*", "GPUParticles3D", true, false).size() \
 			+ find_children("*", "CPUParticles3D", true, false).size(),
@@ -447,10 +484,10 @@ func get_audit_report() -> Dictionary:
 	var live_descendants := find_children("*", "", true, false)
 	if _meshes.size() != MESH_COUNT or live_meshes.size() != MESH_COUNT:
 		errors.append("mesh_count_changed")
-	if live_labels.size() != 1 or live_visuals.size() != MESH_COUNT + 1:
+	if live_labels.size() != 1 or live_visuals.size() != MESH_COUNT + 2:
 		errors.append("visual_descendant_count_changed")
-	# One owned Node3D root plus eleven meshes and one Label3D.
-	if live_descendants.size() != MESH_COUNT + 2:
+	# One owned Node3D root plus the meshes, one Label3D and one OmniLight3D.
+	if live_descendants.size() != MESH_COUNT + 3:
 		errors.append("node_hierarchy_count_changed")
 	if _materials.size() != MATERIAL_COUNT:
 		errors.append("material_count_changed")
@@ -489,12 +526,16 @@ func get_audit_report() -> Dictionary:
 			errors.append("owned_mesh_contract_changed_%s" % mesh.name)
 	if not _label_matches_contract():
 		errors.append("label_contract_changed")
+	if not _state_light_matches_contract():
+		errors.append("state_light_contract_changed")
 	var performance := get_performance_report()
 	if not bool(performance.get("mesh_sharing_exact", false)):
 		errors.append("mesh_resource_sharing_contract_changed")
-	for key in ["collision_nodes", "physics_query_nodes", "lights", "audio_nodes", "particle_emitters", "timers"]:
+	for key in ["collision_nodes", "physics_query_nodes", "audio_nodes", "particle_emitters", "timers"]:
 		if int(performance.get(key, 0)) != 0:
 			errors.append("prohibited_%s_present" % key)
+	if int(performance.get("lights", 0)) != LIGHT_COUNT:
+		errors.append("state_light_count_changed")
 	var expected_state := _derive_state()
 	if _state != expected_state:
 		errors.append("rendered_state_diverges_from_berth")
@@ -588,6 +629,21 @@ func _build_presentation() -> void:
 	_label.text = "BERTH OPEN"
 	_label.set_meta(&"presentation_only", true)
 	_visual_root.add_child(_label)
+	_state_light = OmniLight3D.new()
+	_state_light.name = "LeaseStatePractical"
+	_state_light.position = Vector3(0.0, 0.48, 0.0)
+	_state_light.light_color = EMISSION_RELEASED
+	_state_light.light_energy = LIGHT_ENERGY_RELEASED
+	_state_light.omni_range = LIGHT_RANGE_M
+	_state_light.omni_attenuation = LIGHT_ATTENUATION
+	_state_light.shadow_enabled = false
+	_state_light.distance_fade_enabled = true
+	_state_light.distance_fade_begin = LIGHT_FADE_BEGIN_M
+	_state_light.distance_fade_length = LIGHT_FADE_LENGTH_M
+	_state_light.set_meta(&"presentation_only", true)
+	_state_light.set_meta(&"berth_state_practical", true)
+	_state_light.set_meta(&"evidence_status", &"modern_interpretation")
+	_visual_root.add_child(_state_light)
 	_apply_visual_state()
 
 
@@ -699,6 +755,12 @@ func _capture_integrity_contract() -> void:
 	_label_storage_contract = _storage_property_snapshot(
 		_label,
 		PackedStringArray(["transform", "text", "visible", "modulate"])
+	)
+	_state_light_instance_id = _state_light.get_instance_id()
+	_state_light_transform = _state_light.transform
+	_state_light_storage_contract = _storage_property_snapshot(
+		_state_light,
+		PackedStringArray(["transform", "visible", "light_color", "light_energy"])
 	)
 	_material_contracts.clear()
 	for material_id: StringName in _materials:
@@ -843,6 +905,14 @@ func _active_material_palette() -> Dictionary:
 	return {"albedo": ALBEDO_RELEASED, "emission": EMISSION_RELEASED, "energy": EMISSION_ENERGY_RELEASED}
 
 
+func _active_light_palette() -> Dictionary:
+	if _state == STATE_APPROACH:
+		return {"color": EMISSION_APPROACH, "energy": LIGHT_ENERGY_APPROACH}
+	if _state == STATE_OCCUPIED:
+		return {"color": EMISSION_OCCUPIED, "energy": LIGHT_ENERGY_OCCUPIED}
+	return {"color": EMISSION_RELEASED, "energy": LIGHT_ENERGY_RELEASED}
+
+
 func _label_matches_contract() -> bool:
 	if not is_instance_valid(_label) \
 			or _label.get_instance_id() != _label_instance_id \
@@ -867,15 +937,48 @@ func _label_matches_contract() -> bool:
 		)
 
 
+func _state_light_matches_contract() -> bool:
+	if not is_instance_valid(_state_light) \
+			or _state_light.get_instance_id() != _state_light_instance_id \
+			or not is_instance_valid(_visual_root) \
+			or _state_light.get_parent() != _visual_root \
+			or get_node_or_null("FeedbackVisual/LeaseStatePractical") != _state_light:
+		return false
+	var palette := _active_light_palette()
+	var expected_color := palette.get("color", Color.TRANSPARENT) as Color
+	var expected_energy := float(palette.get("energy", 0.0))
+	return _state_light.transform.is_equal_approx(_state_light_transform) \
+		and _state_light.visible == _feedback_enabled \
+		and _state_light.light_color == expected_color \
+		and is_equal_approx(_state_light.light_energy, expected_energy) \
+		and is_equal_approx(_state_light.omni_range, LIGHT_RANGE_M) \
+		and is_equal_approx(_state_light.omni_attenuation, LIGHT_ATTENUATION) \
+		and not _state_light.shadow_enabled \
+		and _state_light.distance_fade_enabled \
+		and is_equal_approx(_state_light.distance_fade_begin, LIGHT_FADE_BEGIN_M) \
+		and is_equal_approx(_state_light.distance_fade_length, LIGHT_FADE_LENGTH_M) \
+		and bool(_state_light.get_meta(&"presentation_only", false)) \
+		and bool(_state_light.get_meta(&"berth_state_practical", false)) \
+		and _storage_properties_match(
+			_state_light,
+			_state_light_storage_contract,
+			PackedStringArray(["transform", "visible", "light_color", "light_energy"])
+		)
+
+
 func _owned_children_match_live_hierarchy() -> bool:
 	if not is_instance_valid(_visual_root) \
-			or _visual_root.get_child_count() != MESH_COUNT + 1 \
-			or _owned_child_instance_ids.size() != MESH_COUNT + 1:
+			or _visual_root.get_child_count() != MESH_COUNT + 2 \
+			or _owned_child_instance_ids.size() != MESH_COUNT + 2:
 		return false
 	var live_ids: Dictionary = {}
 	for child in _visual_root.get_children():
 		if not is_instance_valid(child) \
-				or (not child is MeshInstance3D and not child is Label3D):
+				or (
+					not child is MeshInstance3D
+					and not child is Label3D
+					and not child is OmniLight3D
+				):
 			return false
 		live_ids[child.get_instance_id()] = true
 	return live_ids == _owned_child_instance_ids
@@ -1109,6 +1212,11 @@ func _apply_visual_state() -> void:
 	if is_instance_valid(_label):
 		_label.text = label_text
 		_label.modulate = label_color
+	if is_instance_valid(_state_light):
+		var light_palette := _active_light_palette()
+		_state_light.light_color = light_palette.color as Color
+		_state_light.light_energy = float(light_palette.energy)
+		_state_light.visible = _feedback_enabled
 	_apply_animation()
 
 
