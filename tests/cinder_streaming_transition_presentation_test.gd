@@ -5,7 +5,7 @@ const LOCATION_ID: StringName = &"cinder_reach"
 const GENERATION := 7
 const TICK := 1.0 / 60.0
 const EXPECTED_AUTHORED_RENDERER_COUNT := 219
-const EXPECTED_BOUND_RENDERER_COUNT := 221
+const EXPECTED_BOUND_RENDERER_COUNT := 222
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
 	+ "|cinder-extraction-arm-collars|3|-1;"
@@ -13,6 +13,7 @@ const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	+ "|cinder-extraction-arm-collars|3|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	+ "|cinder-streaming-aperture-lenses|8|-1;"
+	+ "StreamingBeaconMastBatch|cinder-streaming-beacon-masts|4|4;"
 	+ "StreamingBeaconTrimRingBatch|cinder-streaming-beacon-trim-rings|4|4"
 )
 const EXPECTED_ARM_COLLAR_TRANSFORMS: Array[Transform3D] = [
@@ -56,9 +57,9 @@ func _test_standalone_is_authored_and_inert() -> void:
 		and cluster.visible,
 		"a standalone cluster cannot be armed by advancement"
 	)
-	var authored_renderer := cluster.find_children(
-		"*", "GeometryInstance3D", true, false
-	)[0] as GeometryInstance3D
+	var authored_renderer := cluster.get_node(
+		^"ExtractionPlatform/CinderReachPlatform/CoreDrum/Mesh"
+	) as GeometryInstance3D
 	var authored_light := cluster.find_children("*", "Light3D", true, false)[0] as Light3D
 	authored_renderer.transparency = 0.25
 	authored_renderer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
@@ -172,7 +173,7 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 	)
 	_check(
 		_integrated_batch_roster_contract(cluster, hidden),
-		"the bound renderer roster has the exact two extraction-collar, aperture-lens, and beacon-trim batch fingerprint"
+		"the bound renderer roster has the exact extraction-collar, aperture-lens, beacon-mast, and beacon-trim batch fingerprint"
 	)
 	_check(
 		_aperture_lens_batch_contract(cluster),
@@ -181,6 +182,10 @@ func _test_streamed_fade_lifecycle_and_baselines() -> void:
 	_check(
 		_beacon_trim_ring_batch_contract(cluster),
 		"four static beacon trim rings retain exact transforms and renderer settings behind one bounded MultiMesh"
+	)
+	_check(
+		_beacon_mast_batch_contract(cluster),
+		"four static beacon masts retain exact transforms and renderer settings behind one bounded MultiMesh submission"
 	)
 	_check(
 		_all_renderer_transparency(renderers, 1.0)
@@ -379,6 +384,7 @@ func _integrated_batch_roster_contract(
 		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar",
 		^"ExtractionPlatform/CinderReachPlatform/ExtractionArmStarboard/ArmCollar",
 		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch",
+		^"StreamingBeaconMastBatch",
 		^"StreamingBeaconTrimRingBatch",
 	]
 	var rows := PackedStringArray()
@@ -388,6 +394,7 @@ func _integrated_batch_roster_contract(
 		if family in [
 			&"cinder-extraction-arm-collars",
 			&"cinder-streaming-aperture-lenses",
+			&"cinder-streaming-beacon-masts",
 			&"cinder-streaming-beacon-trim-rings",
 		]:
 			integrated_family_count += 1
@@ -414,7 +421,7 @@ func _integrated_batch_roster_contract(
 						"*", "CollisionShape3D", true, false
 					).is_empty():
 				return false
-	return integrated_family_count == 4 \
+	return integrated_family_count == 5 \
 		and ";".join(rows) == EXPECTED_INTEGRATED_BATCH_FINGERPRINT
 
 
@@ -494,6 +501,56 @@ func _beacon_trim_ring_batch_contract(cluster: NearbySectorCluster) -> bool:
 	for index in source_paths.size():
 		var source := cluster.get_node_or_null(source_paths[index]) as MeshInstance3D
 		if source == null or source.visible or source.mesh == null \
+			or not (transforms[index] as Transform3D).is_equal_approx(
+				root_inverse * source.global_transform
+			):
+			return false
+		if exemplar == null:
+			exemplar = source
+	if exemplar == null:
+		return false
+	return multi.mesh == exemplar.mesh \
+		and batch.material_override == exemplar.material_override \
+		and batch.material_overlay == exemplar.material_overlay \
+		and batch.cast_shadow == exemplar.cast_shadow \
+		and batch.layers == exemplar.layers \
+		and batch.visibility_range_begin == exemplar.visibility_range_begin \
+		and batch.visibility_range_end == exemplar.visibility_range_end \
+		and batch.visibility_range_begin_margin == exemplar.visibility_range_begin_margin \
+		and batch.visibility_range_end_margin == exemplar.visibility_range_end_margin \
+		and batch.visibility_range_fade_mode == exemplar.visibility_range_fade_mode \
+		and batch.extra_cull_margin == exemplar.extra_cull_margin \
+		and batch.ignore_occlusion_culling == exemplar.ignore_occlusion_culling \
+		and batch.gi_mode == exemplar.gi_mode \
+		and batch.lod_bias == exemplar.lod_bias
+
+
+func _beacon_mast_batch_contract(cluster: NearbySectorCluster) -> bool:
+	var batch := cluster.get_node_or_null(
+		^"StreamingBeaconMastBatch"
+	) as MultiMeshInstance3D
+	if batch == null or batch.multimesh == null:
+		return false
+	var multi := batch.multimesh
+	var transforms := batch.get_meta(
+		&"authored_instance_transforms", []
+	) as Array
+	var source_paths := batch.get_meta(&"semantic_source_paths", []) as Array
+	if multi.instance_count != 4 \
+		or multi.visible_instance_count != 4 \
+		or multi.transform_format != MultiMesh.TRANSFORM_3D \
+		or multi.custom_aabb.size.length_squared() <= 0.0 \
+		or transforms.size() != 4 \
+		or source_paths.size() != 4 \
+		or batch.get_meta(&"visual_batch_family_id", &"") \
+			!= &"cinder-streaming-beacon-masts":
+		return false
+	var exemplar: MeshInstance3D
+	var root_inverse := cluster.global_transform.affine_inverse()
+	for index in source_paths.size():
+		var source := cluster.get_node_or_null(source_paths[index]) as MeshInstance3D
+		if source == null or source.visible or source.mesh == null \
+			or not source.get_children().is_empty() \
 			or not (transforms[index] as Transform3D).is_equal_approx(
 				root_inverse * source.global_transform
 			):

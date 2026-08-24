@@ -13,7 +13,7 @@ const FADE_IN_SECONDS := 0.5
 const FADE_OUT_SECONDS := 0.5
 const MAX_RETAINED_DISTANCE_METERS := 725.0
 const EXPECTED_AUTHORED_RENDERER_COUNT := 219
-const EXPECTED_BOUND_RENDERER_COUNT := 221
+const EXPECTED_BOUND_RENDERER_COUNT := 222
 const EXPECTED_LIGHT_COUNT := 27
 const EPSILON := 0.000001
 const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"
@@ -46,6 +46,14 @@ const BEACON_TRIM_RING_PATHS: Array[NodePath] = [
 	^"RouteBeacons/RouteBeaconCharlie/TrimRing",
 	^"RouteBeacons/RouteBeaconDelta/TrimRing",
 ]
+const BEACON_MAST_BATCH_NAME: StringName = &"StreamingBeaconMastBatch"
+const BEACON_MAST_FAMILY_ID: StringName = &"cinder-streaming-beacon-masts"
+const BEACON_MAST_PATHS: Array[NodePath] = [
+	^"RouteBeacons/RouteBeaconAlpha/Mast",
+	^"RouteBeacons/RouteBeaconBravo/Mast",
+	^"RouteBeacons/RouteBeaconCharlie/Mast",
+	^"RouteBeacons/RouteBeaconDelta/Mast",
+]
 const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	"ExtractionPlatform/CinderReachPlatform/ExtractionArmPort/ArmCollar"
 	+ "|cinder-extraction-arm-collars|3|-1;"
@@ -53,6 +61,7 @@ const EXPECTED_INTEGRATED_BATCH_FINGERPRINT := (
 	+ "|cinder-extraction-arm-collars|3|-1;"
 	+ "ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	+ "|cinder-streaming-aperture-lenses|8|-1;"
+	+ "StreamingBeaconMastBatch|cinder-streaming-beacon-masts|4|4;"
 	+ "StreamingBeaconTrimRingBatch|cinder-streaming-beacon-trim-rings|4|4"
 )
 
@@ -107,6 +116,10 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	if beacon_trim_ring_family.is_empty():
 		content_root.visible = false
 		return _result(false, &"beacon_trim_ring_family_mismatch")
+	var beacon_mast_family := _validate_beacon_mast_family(content_root)
+	if beacon_mast_family.is_empty():
+		content_root.visible = false
+		return _result(false, &"beacon_mast_family_mismatch")
 	var authored_renderer_count := renderers.size()
 
 	_mutation_active = true
@@ -116,8 +129,12 @@ func bind_streamed_content(content_root: Node3D, generation: int) -> Dictionary:
 	var beacon_trim_ring_batch := _build_beacon_trim_ring_batch(
 		content_root, beacon_trim_ring_family
 	)
+	var beacon_mast_batch := _build_beacon_mast_batch(
+		content_root, beacon_mast_family
+	)
 	renderers.append(aperture_lens_batch)
 	renderers.append(beacon_trim_ring_batch)
+	renderers.append(beacon_mast_batch)
 	_content_root = content_root
 	_generation = generation
 	_authored_renderer_count = authored_renderer_count
@@ -408,6 +425,7 @@ func _build_integrated_batch_fingerprint(content_root: Node3D) -> String:
 	paths.append(
 		^"ExtractionPlatform/CinderReachPlatform/StreamingApertureLensBatch"
 	)
+	paths.append(^"StreamingBeaconMastBatch")
 	paths.append(^"StreamingBeaconTrimRingBatch")
 	for batch_path in paths:
 		var batch := content_root.get_node_or_null(batch_path) as MultiMeshInstance3D
@@ -599,6 +617,90 @@ func _build_beacon_trim_ring_batch(
 	content_root.add_child(batch)
 	for trim_ring in family:
 		trim_ring.visible = false
+	return batch
+
+
+## The four route-beacon masts are static visual guides with one cached mesh,
+## steel material, and renderer recipe. Traversal presentation mutates only
+## their sibling lamps, signal rings, signs, counter-vanes, and spars. The named
+## mast paths therefore remain as hidden semantic identities while this
+## generation-local batch draws the exact four copies in one submission.
+func _validate_beacon_mast_family(content_root: Node3D) -> Array[MeshInstance3D]:
+	var family: Array[MeshInstance3D] = []
+	var exemplar: MeshInstance3D
+	for mast_path in BEACON_MAST_PATHS:
+		var mast := content_root.get_node_or_null(mast_path) as MeshInstance3D
+		if mast == null or mast.mesh == null or not mast.get_children().is_empty():
+			return []
+		if exemplar == null:
+			exemplar = mast
+		elif mast.mesh != exemplar.mesh \
+				or mast.material_override != exemplar.material_override \
+				or mast.material_overlay != exemplar.material_overlay \
+				or mast.cast_shadow != exemplar.cast_shadow \
+				or mast.layers != exemplar.layers \
+				or mast.transparency != exemplar.transparency \
+				or mast.visibility_range_begin != exemplar.visibility_range_begin \
+				or mast.visibility_range_end != exemplar.visibility_range_end \
+				or mast.visibility_range_begin_margin != exemplar.visibility_range_begin_margin \
+				or mast.visibility_range_end_margin != exemplar.visibility_range_end_margin \
+				or mast.visibility_range_fade_mode != exemplar.visibility_range_fade_mode \
+				or mast.extra_cull_margin != exemplar.extra_cull_margin \
+				or mast.ignore_occlusion_culling != exemplar.ignore_occlusion_culling \
+				or mast.gi_mode != exemplar.gi_mode \
+				or mast.lod_bias != exemplar.lod_bias:
+			return []
+		family.append(mast)
+	return family
+
+
+func _build_beacon_mast_batch(
+		content_root: Node3D, family: Array[MeshInstance3D]
+	) -> MultiMeshInstance3D:
+	var exemplar := family[0]
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	var has_bounds := false
+	var root_inverse := content_root.global_transform.affine_inverse()
+	for mast in family:
+		var instance_transform := root_inverse * mast.global_transform
+		transforms.append(instance_transform)
+		var instance_bounds := instance_transform * exemplar.mesh.get_aabb()
+		bounds = bounds.merge(instance_bounds) if has_bounds else instance_bounds
+		has_bounds = true
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = exemplar.mesh
+	multi.instance_count = transforms.size()
+	multi.visible_instance_count = transforms.size()
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+	multi.custom_aabb = bounds
+
+	var batch := MultiMeshInstance3D.new()
+	batch.name = BEACON_MAST_BATCH_NAME
+	batch.multimesh = multi
+	batch.material_override = exemplar.material_override
+	batch.material_overlay = exemplar.material_overlay
+	batch.cast_shadow = exemplar.cast_shadow
+	batch.layers = exemplar.layers
+	batch.transparency = exemplar.transparency
+	batch.visibility_range_begin = exemplar.visibility_range_begin
+	batch.visibility_range_end = exemplar.visibility_range_end
+	batch.visibility_range_begin_margin = exemplar.visibility_range_begin_margin
+	batch.visibility_range_end_margin = exemplar.visibility_range_end_margin
+	batch.visibility_range_fade_mode = exemplar.visibility_range_fade_mode
+	batch.extra_cull_margin = exemplar.extra_cull_margin
+	batch.ignore_occlusion_culling = exemplar.ignore_occlusion_culling
+	batch.gi_mode = exemplar.gi_mode
+	batch.lod_bias = exemplar.lod_bias
+	batch.set_meta(&"visual_batch_family_id", BEACON_MAST_FAMILY_ID)
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	batch.set_meta(&"semantic_source_paths", BEACON_MAST_PATHS.duplicate())
+	content_root.add_child(batch)
+	for mast in family:
+		mast.visible = false
 	return batch
 
 
