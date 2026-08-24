@@ -74,6 +74,15 @@ const PROTECTED_PLUMES := [
 	"LOD1PortEnginePlume",
 	"LOD1StarboardEnginePlume",
 ]
+## LOD1 already carries the authored twin engine faces, but the close-LOD
+## emission response became a pair of sub-pixel dark marks at normal fleet
+## overview distance. This modern-only material response preserves those exact
+## meshes and transforms while keeping the aft direction readable after the
+## whole-ship LOD handoff. It adds no light, bloom billboard or geometry.
+const FAR_ENGINE_EMISSION_ENERGY := 4.8
+const FAR_ENGINE_PLUME_NAMES := [
+	"LOD1PortEnginePlume", "LOD1StarboardEnginePlume",
+]
 
 @export_range(15.0, 150.0, 0.5) var lod_switch_distance := 48.0
 @export_range(0.0, 20.0, 0.5) var lod_hysteresis := 5.0
@@ -89,6 +98,7 @@ var _modern_lod1: Node3D
 var _canopy_pivot: Node3D
 var _semantic_anchors: Node3D
 var _runtime_materials: Dictionary = {}
+var _far_engine_emission_material: StandardMaterial3D
 var _manifest: Dictionary = {}
 var _integrity_nodes: Dictionary = {}
 var _integrity_meshes: Dictionary = {}
@@ -231,6 +241,28 @@ func _configure_runtime_materials() -> void:
 				mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_share_close_navigation_light_mesh()
 	_share_far_navigation_light_mesh()
+	_configure_far_engine_orientation_cue()
+
+
+## Give only the already-authored far engine faces a stronger, bounded emission
+## response. The public material role remains EngineEmission so the visual stays
+## inside removable ModernSystems and cannot imply B7-authenticated propulsion.
+func _configure_far_engine_orientation_cue() -> void:
+	_far_engine_emission_material = _emissive_material(
+		Color("05343c"), Color("07bddc"), FAR_ENGINE_EMISSION_ENERGY
+	)
+	_far_engine_emission_material.resource_name = "ZenithFarEngineOrientationEmission"
+	_far_engine_emission_material.resource_local_to_scene = true
+	if _modern_lod1 == null:
+		return
+	for plume_name in FAR_ENGINE_PLUME_NAMES:
+		var plume := _modern_lod1.find_child(plume_name, true, false) as MeshInstance3D
+		if plume == null:
+			continue
+		plume.material_override = _far_engine_emission_material
+		plume.set_meta(&"distant_orientation_cue", true)
+		plume.set_meta(&"presentation_only", true)
+		plume.set_meta(&"gameplay_authority", false)
 
 
 ## The import already joins every static material family. The first remaining
