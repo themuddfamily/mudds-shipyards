@@ -150,6 +150,16 @@ const GUN_HOUSING_POSITIONS := [
 ]
 const GUN_HOUSING_NAMES := ["PortGunHousing", "StarboardGunHousing"]
 
+## The fixed amber charge-lens barrels are presentation-only peers around the
+## independently animated telegraph spheres. One bounded batch preserves both
+## authored apertures while removing one renderer node and one submission.
+const CHARGE_LENS_COPY_COUNT := 2
+const CHARGE_LENS_POSITIONS := [
+	Vector3(-2.65, -0.08, -4.88),
+	Vector3(2.65, -0.08, -4.88),
+]
+const CHARGE_LENS_NAMES := ["PortChargeLens", "StarboardChargeLens"]
+
 ## The mirrored engine-pod shells are immutable presentation stock. Their
 ## animated plume renderers and practical lights remain independent so staged
 ## damage and reuse can continue to drive each side without touching the batch.
@@ -1902,6 +1912,7 @@ func _build_interceptor() -> void:
 	_weapon_telegraph_mesh.rings = WEAPON_TELEGRAPH_RINGS
 	_weapon_telegraph_mesh.material = _materials.amber_emissive
 	_add_gun_housing_batch(_visual_root)
+	_add_charge_lens_batch(_visual_root)
 	_add_range_engine_pod_batch(_visual_root)
 
 	var forward_prong_mesh: Mesh
@@ -1919,7 +1930,6 @@ func _build_interceptor() -> void:
 				symmetric_box_meshes[family_name] as BoxMesh,
 				(spec["rotations"] as Array)[side_index]
 			)
-		_cylinder(_visual_root, "ChargeLens", Vector3(side * 2.65, -0.08, -4.88), 0.18, 0.12, _materials.amber_emissive, Vector3(90.0, 0.0, 0.0))
 		var lens := _sphere(
 			_visual_root,
 			"WeaponTelegraph",
@@ -2015,6 +2025,38 @@ func _add_gun_housing_batch(parent: Node3D) -> MultiMeshInstance3D:
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	batch.set_meta(&"presentation_only", true)
 	batch.set_meta(&"authored_visual_names", PackedStringArray(GUN_HOUSING_NAMES))
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+func _add_charge_lens_batch(parent: Node3D) -> MultiMeshInstance3D:
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.18, 0.18, 0.12, 28, _chamfered_cylinder_cache,
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.amber_emissive
+	)
+	var rotation_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var transforms: Array[Transform3D] = []
+	var bounds := AABB()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = CHARGE_LENS_COPY_COUNT
+	multi.visible_instance_count = -1
+	for index in CHARGE_LENS_COPY_COUNT:
+		var authored_transform := Transform3D(rotation_basis, CHARGE_LENS_POSITIONS[index])
+		transforms.append(authored_transform)
+		multi.set_instance_transform(index, authored_transform)
+		var instance_bounds := (authored_transform * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "ChargeLensBatch"
+	batch.multimesh = multi
+	batch.layers = 1
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", PackedStringArray(CHARGE_LENS_NAMES))
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
