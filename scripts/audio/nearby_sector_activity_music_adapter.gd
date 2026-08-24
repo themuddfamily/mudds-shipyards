@@ -51,7 +51,15 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not accepted:
 		return _result(false, &"music_state_rejected")
 	_last_activity_generation = generation
-	_last_snapshot = snapshot.duplicate(true)
+	# Retain only the validated routing tuple. Activity snapshots may carry
+	# caller-owned payloads (including decoded audio resources); none of those
+	# fields participate in music selection, so keeping a deep copy would pin
+	# them until the next accepted snapshot or detach.
+	_last_snapshot = {
+		"generation": generation,
+		"activity_kind": decoded.activity_kind,
+		"activity_state": decoded.activity_state,
+	}
 	return _result(true, &"activity_music_presented")
 
 
