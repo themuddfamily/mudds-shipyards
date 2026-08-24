@@ -38,17 +38,30 @@ class RuntimeSettingsFixture extends RefCounted:
 			"ui_scale": ui_scale,
 		}
 
+class PresentOnlyFixture extends RefCounted:
+	var present_calls := 0
+
+	func present(_profile: Dictionary, _accessibility: Dictionary = {}) -> Dictionary:
+		present_calls += 1
+		return {"accepted": true}
+
 func _init() -> void:
 	call_deferred(&"_run")
 
 func _run() -> void:
 	var settings := RuntimeSettingsFixture.new()
+	var incomplete_presenter := PresentOnlyFixture.new()
+	var rejected_binding := BindingType.new()
+	var incomplete := rejected_binding.attach(settings, incomplete_presenter)
+	_check(not bool(incomplete.get("accepted", true)) and incomplete.reason == &"presenter_contract_missing", "present-only presenter is rejected before attachment")
+	settings.camera_fov = 74.0
+	_check(incomplete_presenter.present_calls == 0 and not rejected_binding.get_snapshot().attached, "rejected presenter receives no refresh or later invalid lifecycle call")
 	var presenter := PresenterType.new()
 	var binding := BindingType.new()
 	_check(bool(binding.attach(settings, presenter).get("accepted", false)), "binding attaches to read-only RuntimeSettings signal seam")
 	_check(binding.get_snapshot().attached and not bool(binding.get_snapshot().get("settings_authority", true)), "binding is attached without settings authority")
 	var initial := presenter.get_snapshot()
-	_check(initial.mode == &"standard" and str(initial.text).contains("FIELD OF VIEW  72°"), "initial settings become the default comfort profile")
+	_check(initial.mode == &"standard" and str(initial.text).contains("FIELD OF VIEW  74°"), "current settings become the initial comfort profile")
 	settings.camera_fov = 90.0
 	settings.reduced_motion = true
 	settings.reduced_flash = true
@@ -60,6 +73,7 @@ func _run() -> void:
 	_check(changed.on_foot_first_person and str(changed.text).contains("ON-FOOT VIEW  //  FIRST PERSON"), "real first-person setting changes refresh the visible summary")
 	_check(changed.ui_scale == 1.35 and binding.get_snapshot().settings_revision == changed.settings_revision, "real UI scale changes are forwarded with the binding settings revision")
 	binding.detach()
+	_check(not presenter.get_snapshot().attached, "valid presenter receives its complete detach lifecycle")
 	settings.camera_fov = 60.0
 	_check(not bool(presenter.get_snapshot().get("attached", true)), "detach prevents later settings signals from refreshing")
 	_check(bool(binding.attach(settings, presenter).get("accepted", false)), "re-entry rebinds the same presenter cleanly")

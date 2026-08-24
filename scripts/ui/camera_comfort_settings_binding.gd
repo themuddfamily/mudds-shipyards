@@ -29,10 +29,11 @@ func attach(settings: Object, presenter: RefCounted = null) -> Dictionary:
 			or not settings.has_signal(&"setting_changed") \
 			or not settings.has_method(&"to_dictionary"):
 		return _reject(&"settings_contract_missing")
-	if presenter != null and not presenter.has_method(&"present"):
+	var selected_presenter: RefCounted = presenter if presenter != null else PresenterType.new()
+	if not selected_presenter.has_method(&"present") or not selected_presenter.has_method(&"detach"):
 		return _reject(&"presenter_contract_missing")
 	_settings = settings
-	_presenter = presenter if presenter != null else PresenterType.new()
+	_presenter = selected_presenter
 	_generation += 1
 	_settings_revision = 0
 	_attached = true
