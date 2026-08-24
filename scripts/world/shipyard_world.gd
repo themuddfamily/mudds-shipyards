@@ -7464,25 +7464,6 @@ func _build_catwalks_and_control_room() -> void:
 	# A compact modern operations pod is attached to, rather than enclosing, the
 	# starboard node. Its purpose and adjacency are not recovered original facts.
 	_box(upper, "OperationsPodFloor", Vector3(43.0, 0.18, 27.0), Vector3(12.0, 0.4, 8.0), _materials["deck_light"])
-	# The pod's 96 m2 walking plate used one uninterrupted light-grey response,
-	# even though the much smaller observation landing beside it already carries
-	# a darker grip inset from the same mapped station-deck family. Continue that
-	# treatment across the room's high-area floor: the inset leaves a 0.40 m light
-	# perimeter that catches the slab's rounded edge and separates walking stock
-	# from the ivory/steel walls. Its underside bears 5 mm into the existing top
-	# face, while the original box remains the sole collider and route authority.
-	var operations_floor_inset := _box(
-		upper,
-		"OperationsPodFloorInset",
-		Vector3(43.0, 0.3875, 27.0),
-		Vector3(11.2, 0.025, 7.2),
-		_materials["deck"],
-		false
-	) as MeshInstance3D
-	operations_floor_inset.mesh.resource_name = "operations_pod_floor_inset_v1"
-	operations_floor_inset.set_meta("presentation_only", true)
-	operations_floor_inset.set_meta("surface_role", &"mapped_grip_inset")
-	operations_floor_inset.set_meta("historical_form_identified", false)
 	# The pod floor is a 0.40 m slab resting on the starboard node, so its glazed
 	# frontage presented a 0.40 m vertical face to anyone walking up to it — a wall,
 	# not a step, for a CharacterBody3D. The pod keeps its authored placement; a
@@ -7615,9 +7596,24 @@ func _build_dock_operations_room(upper: Node3D) -> void:
 		Color("3a7479"), 0.34, 0.42, Color("2aa6ae"), 0.35
 	)
 
-	# A shallow inset breaks up the otherwise empty deck without adding a raised
-	# edge to the approach path.
-	_box(room, "OperationsDeckInset", Vector3(42.35, 0.391, 27.55), Vector3(8.3, 0.022, 5.0), _materials["deck"], false)
+	# The pod's 96 m2 walking plate used one uninterrupted light-grey response.
+	# Expand its existing dark grip inset instead of layering another renderer:
+	# the single mapped surface now leaves a 0.40 m light perimeter that catches
+	# the slab's rounded edge and separates walking stock from the ivory/steel
+	# walls. Its underside bears 5 mm into the existing top face, while the
+	# original box remains the sole collider and route authority.
+	var operations_floor_inset := _box(
+		room,
+		"OperationsDeckInset",
+		Vector3(43.0, 0.3875, 27.0),
+		Vector3(11.2, 0.025, 7.2),
+		_materials["deck"],
+		false
+	) as MeshInstance3D
+	operations_floor_inset.mesh.resource_name = "operations_pod_floor_inset_v1"
+	operations_floor_inset.set_meta("presentation_only", true)
+	operations_floor_inset.set_meta("surface_role", &"mapped_grip_inset")
+	operations_floor_inset.set_meta("historical_form_identified", false)
 
 	# The back-wall board supplies the room's at-a-glance purpose from the open
 	# frontage.  It is seated against the structural back wall, not suspended in
