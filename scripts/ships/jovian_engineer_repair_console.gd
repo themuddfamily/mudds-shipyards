@@ -14,6 +14,7 @@ var _generation := 0
 var _last_sequence := -1
 var _last_state: StringName = &"idle"
 var _last_snapshot: Dictionary = {}
+var _recovery_status: Dictionary = {}
 
 
 func bind(readout: Label3D, expected_generation: int = 0) -> Dictionary:
@@ -33,16 +34,20 @@ func present_snapshot(envelope: Dictionary) -> Dictionary:
 		return _result(false, &"not_attached")
 	var decoded := _decode(envelope)
 	if not bool(decoded.get("accepted", false)):
-		return _result(false, StringName(decoded.get("reason", &"invalid_snapshot")))
+		var decode_reason := StringName(decoded.get("reason", &"invalid_snapshot"))
+		_present_stale_receipt_recovery(decode_reason)
+		return _result(false, decode_reason)
 	var sequence := int(decoded.get("sequence", -1))
 	if sequence <= _last_sequence:
-		return _result(
-			false,
+		var sequence_reason := (
 			&"duplicate_sequence" if sequence == _last_sequence else &"stale_sequence"
 		)
+		_present_stale_receipt_recovery(sequence_reason)
+		return _result(false, sequence_reason)
 	_last_sequence = sequence
 	_last_state = StringName(decoded.get("state", &"idle"))
 	_last_snapshot = envelope.duplicate(true)
+	_recovery_status.clear()
 	_readout.text = _format_text(decoded)
 	return _result(true, &"snapshot_presented")
 
@@ -79,6 +84,7 @@ func get_snapshot() -> Dictionary:
 		"state": _last_state,
 		"text": _readout.text if _readout != null and is_instance_valid(_readout) else "",
 		"last_snapshot": _last_snapshot.duplicate(true),
+		"recovery_status": _recovery_status.duplicate(true),
 		"authority": {
 			"repair": false,
 			"components": false,
@@ -184,6 +190,24 @@ func _clear_presented_state() -> void:
 	_last_sequence = -1
 	_last_state = &"idle"
 	_last_snapshot.clear()
+	_recovery_status.clear()
+
+
+## Publishes a controller-readable recovery cue without accepting the stale
+## receipt, replacing the current readout, or gaining input/repair authority.
+func _present_stale_receipt_recovery(reason: StringName) -> void:
+	if reason not in [&"stale_generation", &"stale_sequence"]:
+		return
+	_recovery_status = {
+		"status": &"stale_receipt",
+		"reason": reason,
+		"action": &"request_fresh_station_snapshot",
+		"expected_generation": _generation,
+		"after_sequence": _last_sequence,
+		"retryable": true,
+		"input_authority": false,
+		"repair_authority": false,
+	}.duplicate(true)
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:

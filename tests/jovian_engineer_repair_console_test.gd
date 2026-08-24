@@ -26,6 +26,20 @@ func _init() -> void:
 		console.present_snapshot(_envelope(0, 0, &"completed", 1.0, &"engine_array", &"")).get("reason", &"") == &"stale_sequence",
 		"out-of-order sequence cannot replace current progress"
 	)
+	var stale_receipt := console.get_snapshot()
+	var stale_recovery := stale_receipt.get("recovery_status", {}) as Dictionary
+	_check(
+		StringName(stale_recovery.get("status", &"")) == &"stale_receipt"
+			and StringName(stale_recovery.get("reason", &"")) == &"stale_sequence"
+			and StringName(stale_recovery.get("action", &"")) == &"request_fresh_station_snapshot"
+			and int(stale_recovery.get("expected_generation", -1)) == 0
+			and int(stale_recovery.get("after_sequence", -2)) == 1
+			and not bool(stale_recovery.get("input_authority", true))
+			and not bool(stale_recovery.get("repair_authority", true))
+			and StringName(stale_receipt.get("state", &"")) == &"repairing"
+			and int(stale_receipt.get("last_sequence", -1)) == 1,
+		"stale receipt exposes a retry action without replacing accepted station state"
+	)
 	_check(
 		console.present_snapshot(_envelope(1, 2, &"completed", 1.0, &"engine_array", &"")).get("reason", &"") == &"stale_generation",
 		"foreign generation cannot cross a console lifecycle"
@@ -34,7 +48,8 @@ func _init() -> void:
 	_check(
 		bool(console.present_snapshot(_envelope(0, 2, &"completed", 1.0, &"engine_array", &"")).get("accepted", false))
 			and readout.text.contains("COMPLETED // ENGINE ARRAY")
-			and readout.text.contains("PROGRESS // 100%"),
+			and readout.text.contains("PROGRESS // 100%")
+			and (console.get_snapshot().get("recovery_status", {}) as Dictionary).is_empty(),
 		"completion remains an explicit non-colour-only state"
 	)
 	_check(
