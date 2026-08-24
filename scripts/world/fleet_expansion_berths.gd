@@ -69,7 +69,7 @@ const SERVICE_LOCAL_BOUNDS := {
 const LANDING_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, -14.0), Vector3(20.0, 8.0, 28.0))
 const APPROACH_VISUAL_CLEARANCE := AABB(Vector3(-10.0, 0.0, 21.0), Vector3(20.0, 8.0, 15.0))
 const PAD_ROLE_LABELS := {
-	&"dock_04_cargo": "CARGO",
+	&"dock_04_cargo": "CARGO HAULER",
 	&"dock_05_bomber": "BOMBER",
 	&"dock_06_interceptor": "INTERCEPTOR",
 }
@@ -81,7 +81,7 @@ const PAD_MARKER_MATERIAL_KEYS := {
 const PRESENTATION_NODE_DELTA := 0
 const PRESENTATION_LIGHT_DELTA := 0
 const PRESENTATION_SUBMISSION_DELTA := 0
-const AFT_ROUTE_LEGEND_TEXT := "DOCK 04  CARGO        < SPINE\nDOCK 05  BOMBER       > EAST\nDOCK 06  INTERCEPTOR  ^ BRANCH"
+const AFT_ROUTE_LEGEND_TEXT := "FLEET EXPANSION // BERTH ASSIGNMENTS\n< WEST   DOCK 04  CARGO HAULER\n> EAST   DOCK 05  BOMBER\n^ NORTH  DOCK 06  INTERCEPTOR"
 const AFT_ROUTE_LEGEND_POSITION := Vector3(7.45, 2.55, -19.55)
 const PANEL_SURFACE_SCALE := 0.30
 const LAUNCH_RAIL_SIZE := Vector3(1.0, 1.0, 38.0)
@@ -801,7 +801,7 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	pad.add_child(landing)
 	var sign := Label3D.new()
 	sign.name = "PadSign"
-	sign.text = "DOCK %02d  %s" % [index + 4, ["CARGO", "BOMBER", "INTERCEPTOR"][index]]
+	sign.text = "DOCK %02d  %s" % [index + 4, String(PAD_ROLE_LABELS[pad_id])]
 	sign.position = Vector3(0.0, 4.5, -18.0)
 	sign.font_size = 32
 	sign.modulate = Color("63dbe0")
@@ -933,8 +933,8 @@ func _build_access_wayfinding(circulation: Node3D) -> void:
 	legend.name = "AftJunctionRouteLegend"
 	legend.text = AFT_ROUTE_LEGEND_TEXT
 	legend.position = AFT_ROUTE_LEGEND_POSITION
-	legend.font_size = 24
-	legend.outline_size = 5
+	legend.font_size = 28
+	legend.outline_size = 7
 	legend.pixel_size = 0.009
 	legend.modulate = Color("d5e5e4")
 	legend.outline_modulate = Color("15252d")
