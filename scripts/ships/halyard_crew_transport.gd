@@ -338,7 +338,11 @@ var _spine_rib_mesh: Mesh
 var _spine_rib_batch: MultiMeshInstance3D
 var _spine_rib_transforms: Array[Transform3D] = []
 var _crew_role_authority: CrewSeatRoleAuthority
-var _crew_status_display: HalyardCrewStatusDisplay
+## Instantiated through HalyardCrewStatusDisplayType's explicit preload so this
+## production binding does not depend on the editor's global class-name cache.
+var _crew_status_display: Node3D
+var _crew_status_repair_sequence := -1
+var _skip_next_crew_status_repair_snapshot := false
 var _loadmaster_station_sign: Label3D
 var _loadmaster_station_sign_snapshot: Dictionary = {}
 var _passenger_ping_cooldowns: Dictionary = {}
@@ -385,6 +389,7 @@ func _enter_tree() -> void:
 	# tree is live instead of leaving cabin walkers unregistered.
 	if _halyard_built:
 		call_deferred("_bind_optional_interior_frame")
+		call_deferred("refresh_crew_status_display")
 
 
 func _ready() -> void:
@@ -414,6 +419,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_interrupt_engineer_repair(&"ship_detached")
+	_clear_engineer_status_display_lifecycle()
 	_clear_loadmaster_manifest(&"ship_detached")
 	_clear_loadmaster_station_display(&"ship_detached")
 	if _ship_perspective_audio_binding != null:
@@ -524,7 +530,7 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
 	if _crew_status_display != null and is_instance_valid(_crew_status_display):
-		_crew_status_display.clear_for_detach()
+		_clear_engineer_status_display_lifecycle()
 	_clear_passenger_ping_markers(&"ship_reused")
 	_clear_loadmaster_manifest(&"ship_reused", false)
 	_clear_loadmaster_station_display(&"ship_reused")
@@ -598,12 +604,25 @@ func refresh_crew_status_display() -> Dictionary:
 	if _crew_status_display == null or not is_instance_valid(_crew_status_display):
 		return {}
 	var snapshot := get_crew_role_gameplay_snapshot()
-	var display_snapshot := _crew_status_display.present_crew_snapshot(snapshot)
+	if _skip_next_crew_status_repair_snapshot:
+		_skip_next_crew_status_repair_snapshot = false
+	else:
+		_crew_status_repair_sequence = mini(
+			_crew_status_repair_sequence + 1,
+			HalyardCrewStatusDisplayType.MAX_SAFE_SEQUENCE
+		)
+		var repair_presentation: Dictionary = _crew_status_display.get_repair_presentation_snapshot()
+		_crew_status_display.present_engineer_repair_snapshot({
+			"generation": int(repair_presentation.get("generation", 0)),
+			"sequence": _crew_status_repair_sequence,
+			"repair_snapshot": get_engineer_repair_network_snapshot(),
+		})
+	var display_snapshot: Dictionary = _crew_status_display.present_crew_snapshot(snapshot)
 	_present_loadmaster_station_snapshot(snapshot.get("loadmaster_manifest", {}))
 	return display_snapshot
 
 
-func get_crew_status_display() -> HalyardCrewStatusDisplay:
+func get_crew_status_display() -> Node3D:
 	return _crew_status_display
 
 
@@ -764,6 +783,8 @@ func release_network_crew_role(
 		authority_peer_id, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
 	)
 	if bool(result.get("accepted", false)):
+		if seat_id == &"crew_port_01":
+			_clear_engineer_status_display_lifecycle()
 		refresh_crew_status_display()
 	return result
 
@@ -1001,6 +1022,8 @@ func release_crew_role_occupant(
 	)
 	occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
 	_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
+	if seat_id == &"crew_port_01":
+		_clear_engineer_status_display_lifecycle()
 	var result := release.duplicate(true)
 	result["occupancy"] = unregistration.duplicate(true)
 	refresh_crew_status_display()
@@ -1049,6 +1072,8 @@ func release_crew_role(
 	)
 	if bool(result.get("accepted", false)):
 		_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
+		if seat_id == &"crew_port_01":
+			_clear_engineer_status_display_lifecycle()
 		_release_tagged_crew_role_occupants(occupant_peer_id, avatar_id, &"role_released")
 		refresh_crew_status_display()
 	return result
@@ -1094,6 +1119,8 @@ func handoff_crew_role(
 			previous_avatar_id,
 			&"role_handoff"
 		)
+		if seat_id == &"crew_port_01":
+			_clear_engineer_status_display_lifecycle()
 		refresh_crew_status_display()
 	return result
 
@@ -1189,6 +1216,8 @@ func request_emergency_pilot_handoff(
 		return claim
 	var pilot_assignment := claim.get("assignment", {}) as Dictionary
 	_clear_crew_role_state(new_occupant_peer_id, new_avatar_id, &"emergency_handoff")
+	if StringName(assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_ENGINEER:
+		_clear_engineer_status_display_lifecycle()
 	_emergency_pilot_handoff_state = {
 		"status": &"completed",
 		"previous_role": StringName(assignment.get("role", &"")),
@@ -3290,7 +3319,7 @@ func _set_interior_operational(enabled: bool) -> void:
 		_clear_engineer_component_selection(&"interior_unavailable")
 		_clear_pilot_command(&"interior_unavailable")
 		if _crew_status_display != null and is_instance_valid(_crew_status_display):
-			_crew_status_display.clear_for_detach()
+			_clear_engineer_status_display_lifecycle()
 	if _walkable_interior != null:
 		_walkable_interior.visible = enabled
 	if _occupant_volume != null:
@@ -3544,6 +3573,13 @@ func _clear_engineer_component_selection(
 		_engineer_repair_authority = null
 		_engineer_repair_actor_id = &""
 		_engineer_repair_elapsed = 0.0
+
+
+func _clear_engineer_status_display_lifecycle() -> void:
+	_crew_status_repair_sequence = -1
+	_skip_next_crew_status_repair_snapshot = true
+	if _crew_status_display != null and is_instance_valid(_crew_status_display):
+		_crew_status_display.clear_for_detach()
 
 
 func _clear_pilot_command(_reason: StringName) -> void:

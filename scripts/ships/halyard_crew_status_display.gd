@@ -9,6 +9,8 @@ extends Node3D
 ## gameplay decisions. Bracketed text tokens remain legible without colour.
 
 const SCHEMA_VERSION := 1
+const MAX_SAFE_GENERATION := 9_007_199_254_740_991
+const MAX_SAFE_SEQUENCE := 9_007_199_254_740_991
 const ROLE_ORDER: Array[StringName] = [&"pilot", &"gunner", &"engineer", &"passenger"]
 const ROLE_SHORT_NAMES := {
 	&"pilot": "P",
@@ -19,6 +21,9 @@ const ROLE_SHORT_NAMES := {
 
 var _readout: Label3D
 var _display_snapshot: Dictionary = {}
+var _repair_generation := 0
+var _last_repair_sequence := -1
+var _repair_view: Dictionary = {}
 
 
 func _ready() -> void:
@@ -42,7 +47,6 @@ func present_crew_snapshot(source: Dictionary) -> Dictionary:
 	var departure := source.get("departure_readiness", {}) as Dictionary
 	var power_routing := source.get("power_routing", {}) as Dictionary
 	var engineer_route := power_routing.get("engineer", {}) as Dictionary
-	var engineer_repair := source.get("engineer_repair", {}) as Dictionary
 	var handoff := source.get("emergency_pilot_handoff", {}) as Dictionary
 	var role_states := {}
 	var role_occupancy := source.get("role_occupancy", {}) as Dictionary
@@ -72,12 +76,76 @@ func present_crew_snapshot(source: Dictionary) -> Dictionary:
 		"optional_crew_count": optional_count,
 		"role_states": role_states,
 		"engineer_route": route_token,
-		"engineer_repair": _repair_token(engineer_repair),
+		"engineer_repair": _repair_view.duplicate(true),
+		"repair_generation": _repair_generation,
+		"last_repair_sequence": _last_repair_sequence,
 		"emergency_handoff": handoff_view,
 		"presentation_only": true,
 	}.duplicate(true)
 	_readout.text = _format_readout(_display_snapshot)
 	return _display_snapshot.duplicate(true)
+
+
+## Presents the existing detached Halyard repair-network snapshot. The display
+## only formats it; repair, component, seat, and network authority stay with
+## the snapshot producers. Generation and sequence fences prevent a released
+## engineer's retained snapshot from painting a later station lifecycle.
+func present_engineer_repair_snapshot(envelope: Dictionary) -> Dictionary:
+	var decoded := _decode_repair_envelope(envelope)
+	if not bool(decoded.get("accepted", false)):
+		return _repair_result(false, StringName(decoded.get("reason", &"invalid_snapshot")))
+	var sequence := int(decoded.get("sequence", -1))
+	if sequence <= _last_repair_sequence:
+		return _repair_result(
+			false,
+			&"duplicate_sequence" if sequence == _last_repair_sequence else &"stale_sequence"
+		)
+	_last_repair_sequence = sequence
+	_repair_view = {
+		"state": StringName(decoded.get("state", &"idle")),
+		"component_id": StringName(decoded.get("component_id", &"")),
+		"component_generation": int(decoded.get("component_generation", 0)),
+		"progress": float(decoded.get("progress", 0.0)),
+		"reason": StringName(decoded.get("reason", &"")),
+		"cooldown_remaining": float(decoded.get("cooldown_remaining", 0.0)),
+	}.duplicate(true)
+	_repair_view["token"] = _repair_token(_repair_view)
+	if not _display_snapshot.is_empty():
+		_display_snapshot["engineer_repair"] = _repair_view.duplicate(true)
+		_display_snapshot["repair_generation"] = _repair_generation
+		_display_snapshot["last_repair_sequence"] = _last_repair_sequence
+		if is_instance_valid(_readout):
+			_readout.text = _format_readout(_display_snapshot)
+	return _repair_result(true, &"snapshot_presented")
+
+
+func begin_repair_generation(generation: int) -> Dictionary:
+	if generation <= _repair_generation or generation > MAX_SAFE_GENERATION:
+		return _repair_result(false, &"stale_generation")
+	_repair_generation = generation
+	_clear_repair_view()
+	if not _display_snapshot.is_empty():
+		_display_snapshot["engineer_repair"] = _repair_view.duplicate(true)
+		_display_snapshot["repair_generation"] = _repair_generation
+		_display_snapshot["last_repair_sequence"] = _last_repair_sequence
+		if is_instance_valid(_readout):
+			_readout.text = _format_readout(_display_snapshot)
+	return _repair_result(true, &"generation_started")
+
+
+func get_repair_presentation_snapshot() -> Dictionary:
+	return {
+		"generation": _repair_generation,
+		"last_sequence": _last_repair_sequence,
+		"repair": _repair_view.duplicate(true),
+		"authority": {
+			"repair": false,
+			"components": false,
+			"seats": false,
+			"network": false,
+			"presentation": true,
+		},
+	}.duplicate(true)
 
 
 func get_display_snapshot() -> Dictionary:
@@ -89,6 +157,8 @@ func get_readout_text() -> String:
 
 
 func clear_for_detach() -> void:
+	_repair_generation = mini(_repair_generation + 1, MAX_SAFE_GENERATION)
+	_clear_repair_view()
 	_clear_display_snapshot()
 	if is_instance_valid(_readout):
 		_readout.text = "CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]\nDEPART [WAIT PILOT]\nENG ROUTE [NONE] REPAIR [READY]"
@@ -101,7 +171,9 @@ func _clear_display_snapshot() -> void:
 		"optional_crew_count": 0,
 		"role_states": {},
 		"engineer_route": "[NONE]",
-		"engineer_repair": "[READY]",
+		"engineer_repair": _repair_view.duplicate(true),
+		"repair_generation": _repair_generation,
+		"last_repair_sequence": _last_repair_sequence,
 		"emergency_handoff": {},
 		"presentation_only": true,
 	}.duplicate(true)
@@ -122,7 +194,7 @@ func _format_readout(snapshot: Dictionary) -> String:
 		departure_token,
 		int(snapshot.get("optional_crew_count", 0)),
 		route_token,
-		str(snapshot.get("engineer_repair", "[READY]")),
+		_repair_token(snapshot.get("engineer_repair", {}) as Dictionary),
 	]
 	var handoff := snapshot.get("emergency_handoff", {}) as Dictionary
 	if not handoff.is_empty():
@@ -149,12 +221,99 @@ func _route_token(channel: StringName) -> String:
 
 
 func _repair_token(repair: Dictionary) -> String:
-	var status := StringName(repair.get("status", &"idle"))
+	var status := StringName(repair.get("state", repair.get("status", &"idle")))
+	var component := _readable_id(StringName(repair.get("component_id", &"")))
+	var percent := int(round(clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0))
 	if status == &"repairing":
-		return "[WORK %d%%]" % int(round(clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0))
-	if status == &"interrupted":
-		return "[INTERRUPTED]"
+		return "[WORK // REPAIRING // %s // %d%%]" % [component, percent]
+	if status == &"aborted" or status == &"interrupted":
+		return "[INTERRUPTED] [ABORTED // %s // %s // %d%%]" % [
+			_readable_id(StringName(repair.get("reason", &"interrupted"))),
+			component,
+			percent,
+		]
+	if status == &"completed":
+		var completed_cooldown := maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0)
+		return "[COOLDOWN %.1fs // COMPLETED // %s // 100%%]" % [completed_cooldown, component] \
+			if completed_cooldown > 0.0 else "[COMPLETED // %s // 100%%]" % component
 	var cooldown := maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0)
 	if cooldown > 0.0:
 		return "[COOLDOWN %.1fs]" % cooldown
-	return "[READY]"
+	return "[READY // IDLE // REPAIR READY]"
+
+
+func _decode_repair_envelope(envelope: Dictionary) -> Dictionary:
+	var raw_generation: Variant = envelope.get("generation", -1)
+	var raw_sequence: Variant = envelope.get("sequence", -1)
+	var raw_snapshot: Variant = envelope.get("repair_snapshot", null)
+	if not raw_generation is int or int(raw_generation) != _repair_generation:
+		return {"accepted": false, "reason": &"stale_generation"}
+	if not raw_sequence is int or int(raw_sequence) < 0 \
+			or int(raw_sequence) > MAX_SAFE_SEQUENCE:
+		return {"accepted": false, "reason": &"invalid_sequence"}
+	if not raw_snapshot is Dictionary:
+		return {"accepted": false, "reason": &"invalid_repair_snapshot"}
+	var network_snapshot := raw_snapshot as Dictionary
+	var repair_variant: Variant = network_snapshot.get("repair", null)
+	var owner_variant: Variant = network_snapshot.get("owner", null)
+	if not repair_variant is Dictionary or not owner_variant is Dictionary \
+			or not bool(network_snapshot.get("presentation_only", false)):
+		return {"accepted": false, "reason": &"invalid_repair_snapshot"}
+	var repair := repair_variant as Dictionary
+	var owner := owner_variant as Dictionary
+	var authority_status := StringName(repair.get("status", &"idle"))
+	var state: StringName
+	match authority_status:
+		&"repairing": state = &"repairing"
+		&"completed": state = &"completed"
+		&"interrupted": state = &"aborted"
+		&"idle": state = &"idle"
+		_: return {"accepted": false, "reason": &"invalid_repair_state"}
+	var raw_progress: Variant = repair.get("progress", 0.0)
+	if not (raw_progress is int or raw_progress is float) \
+			or not is_finite(float(raw_progress)) \
+			or float(raw_progress) < 0.0 or float(raw_progress) > 1.0:
+		return {"accepted": false, "reason": &"invalid_progress"}
+	var component_id := StringName(repair.get("component_id", &""))
+	var component_generation := int(repair.get("component_generation", 0))
+	if state != &"idle" and (component_id.is_empty() or component_generation <= 0):
+		return {"accepted": false, "reason": &"invalid_component_fence"}
+	if not owner.is_empty() and (
+		StringName(owner.get("seat_id", &"")) != &"crew_port_01"
+		or component_id.is_empty()
+	):
+		return {"accepted": false, "reason": &"owner_mismatch"}
+	return {
+		"accepted": true,
+		"sequence": int(raw_sequence),
+		"state": state,
+		"component_id": component_id,
+		"component_generation": component_generation,
+		"progress": float(raw_progress),
+		"reason": StringName(repair.get("reason", &"")),
+		"cooldown_remaining": maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0),
+	}
+
+
+func _clear_repair_view() -> void:
+	_last_repair_sequence = -1
+	_repair_view = {
+		"state": &"idle",
+		"component_id": &"",
+		"component_generation": 0,
+		"progress": 0.0,
+		"reason": &"",
+		"cooldown_remaining": 0.0,
+	}.duplicate(true)
+
+
+func _readable_id(value: StringName) -> String:
+	return "NO TARGET" if value.is_empty() else String(value).replace("_", " ").to_upper()
+
+
+func _repair_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"generation": _repair_generation,
+	}.duplicate(true)

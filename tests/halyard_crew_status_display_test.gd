@@ -50,6 +50,48 @@ func _run() -> void:
 			and display.get_readout_text().contains("HANDOFF [PASSENGER>PILOT] [READY] [NEUTRAL]"),
 		"display exposes emergency handoff transition readiness and neutral controls"
 	)
+	var repairing := _repair_envelope(0, 1, &"repairing", 0.42, &"engine_bay", &"")
+	_check(
+		bool(display.present_engineer_repair_snapshot(repairing).get("accepted", false))
+			and display.get_readout_text().contains("REPAIRING // ENGINE BAY // 42%"),
+		"the physical readout names the repairing component and numeric progress"
+	)
+	_check(
+		display.present_engineer_repair_snapshot(repairing).get("reason", &"") == &"duplicate_sequence"
+			and display.present_engineer_repair_snapshot(
+				_repair_envelope(0, 0, &"completed", 1.0, &"engine_bay", &"")
+			).get("reason", &"") == &"stale_sequence",
+		"duplicate and out-of-order repair snapshots cannot repaint the station"
+	)
+	_check(
+		bool(display.present_engineer_repair_snapshot(
+			_repair_envelope(0, 2, &"completed", 1.0, &"engine_bay", &"")
+		).get("accepted", false))
+			and display.get_readout_text().contains("COMPLETED // ENGINE BAY // 100%"),
+		"completion is an explicit non-colour-only state"
+	)
+	_check(
+		bool(display.present_engineer_repair_snapshot(
+			_repair_envelope(0, 3, &"interrupted", 0.58, &"engine_bay", &"role_released")
+		).get("accepted", false))
+			and display.get_readout_text().contains("ABORTED // ROLE RELEASED // ENGINE BAY // 58%"),
+		"an interrupted authority snapshot is rendered as an explicit aborted state"
+	)
+	_check(bool(display.begin_repair_generation(1).get("accepted", false)), "a new role lifecycle advances the repair fence")
+	_check(
+		display.get_readout_text().contains("IDLE // REPAIR READY")
+			and display.present_engineer_repair_snapshot(
+				_repair_envelope(0, 4, &"completed", 1.0, &"engine_bay", &"")
+			).get("reason", &"") == &"stale_generation",
+		"role cleanup clears the station and fences snapshots from the prior generation"
+	)
+	var repair_authority := display.get_repair_presentation_snapshot().get("authority", {}) as Dictionary
+	_check(
+		not bool(repair_authority.get("repair", true))
+			and not bool(repair_authority.get("network", true))
+			and bool(repair_authority.get("presentation", false)),
+		"the Halyard station declares presentation ownership only"
+	)
 	var detached := display.present_crew_snapshot({"departure_readiness": {}, "role_occupancy": {}})
 	_check(
 		not bool(detached.get("pilot_ready", true))
@@ -79,3 +121,32 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _repair_envelope(
+	generation: int,
+	sequence: int,
+	status: StringName,
+	progress: float,
+	component_id: StringName,
+	reason: StringName
+) -> Dictionary:
+	return {
+		"generation": generation,
+		"sequence": sequence,
+		"repair_snapshot": {
+			"repair": {
+				"status": status,
+				"reason": reason,
+				"component_id": component_id,
+				"component_generation": 1,
+				"progress": progress,
+				"cooldown_remaining": 0.5 if status == &"completed" else 0.0,
+			},
+			"owner": {
+				"seat_id": &"crew_port_01",
+				"occupant_peer_id": 77,
+			},
+			"presentation_only": true,
+		},
+	}
