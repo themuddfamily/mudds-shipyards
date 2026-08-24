@@ -125,8 +125,9 @@ const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 ## Exact post-batch presentation census. Fourteen lacquer joint blocks, five
 ## exterior roof cassettes, six bronze outboard mullion fillets, three servery
 ## shelves, six collision-backed outboard mullions, seven banquette cushions,
-## eight armchair arms, four port-shell rib heads and four downlight lenses still
-## draw, but nine MultiMeshes own their visual-only submissions.
+## eight armchair arms, four port-shell rib heads, four downlight housings and
+## four downlight lenses still draw, but ten MultiMeshes own their visual-only
+## submissions.
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const BANQUETTE_CUSHION_COPY_COUNT := 7
 const ROOF_CASSETTE_COPY_COUNT := 5
@@ -135,6 +136,7 @@ const OUTBOARD_MULLION_COPY_COUNT := 6
 const SERVERY_SHELF_COPY_COUNT := 3
 const ARMCHAIR_ARM_COPY_COUNT := 8
 const PORT_SHELL_RIB_HEAD_COPY_COUNT := 4
+const PERIMETER_DOWNLIGHT_HOUSING_COPY_COUNT := 4
 const PERIMETER_DOWNLIGHT_LENS_COPY_COUNT := 4
 const BASELINE_RENDER_DESCENDANT_COUNT := 468
 const BASELINE_RENDER_MESH_INSTANCE_COUNT := 264
@@ -152,11 +154,12 @@ const PRE_OUTBOARD_MULLION_RENDER_GEOMETRY_SUBMISSION_COUNT := 254
 const PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT := 249
 const PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT := 243
 const PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT := 236
-const RENDER_DESCENDANT_COUNT := 459
+const PRE_DOWNLIGHT_HOUSING_GEOMETRY_SUBMISSION_COUNT := 230
+const RENDER_DESCENDANT_COUNT := 460
 const RENDER_MESH_INSTANCE_COUNT := 244
-const RENDER_MULTIMESH_BATCH_COUNT := 9
+const RENDER_MULTIMESH_BATCH_COUNT := 10
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 230
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 227
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -206,6 +209,8 @@ var _armchair_arm_transforms: Array[Transform3D] = []
 var _armchair_arm_batch: MultiMeshInstance3D = null
 var _port_shell_rib_head_transforms: Array[Transform3D] = []
 var _port_shell_rib_head_batch: MultiMeshInstance3D = null
+var _perimeter_downlight_housing_transforms: Array[Transform3D] = []
+var _perimeter_downlight_housing_batch: MultiMeshInstance3D = null
 var _perimeter_downlight_lens_transforms: Array[Transform3D] = []
 var _perimeter_downlight_lens_batch: MultiMeshInstance3D = null
 var _built := false
@@ -540,6 +545,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP port-shell-rib-head batch bounds drifted from its authored copies")
 	if not bool(rendering.port_shell_rib_head_visual_contract_matches):
 		errors.append("VIP port-shell-rib-head visual contract drifted")
+	if not bool(rendering.perimeter_downlight_housing_renderer_buffer_matches_authored):
+		errors.append("VIP perimeter-downlight-housing renderer buffer drifted from its authored roster")
+	if not bool(rendering.perimeter_downlight_housing_bounds_match_authored):
+		errors.append("VIP perimeter-downlight-housing batch bounds drifted from its authored copies")
+	if not bool(rendering.perimeter_downlight_housing_visual_contract_matches):
+		errors.append("VIP perimeter-downlight-housing visual contract drifted")
 	if not bool(rendering.perimeter_downlight_lens_renderer_buffer_matches_authored):
 		errors.append("VIP perimeter-downlight-lens renderer buffer drifted from its authored roster")
 	if not bool(rendering.perimeter_downlight_lens_bounds_match_authored):
@@ -832,6 +843,41 @@ func get_render_batch_contract() -> Dictionary:
 			and _port_shell_rib_head_batch.get_child_count() == 0
 			and _port_shell_rib_head_batch.get_script() == null
 		)
+	var expected_downlight_housing_buffer := _encode_multimesh_transforms(
+		_perimeter_downlight_housing_transforms
+	)
+	var downlight_housing_renderer_buffer_matches := (
+		is_instance_valid(_perimeter_downlight_housing_batch)
+		and _perimeter_downlight_housing_batch.multimesh != null
+		and _perimeter_downlight_housing_batch.multimesh.buffer == expected_downlight_housing_buffer
+	)
+	var downlight_housing_bounds_match := false
+	var downlight_housing_visual_contract_matches := false
+	if is_instance_valid(_perimeter_downlight_housing_batch) \
+			and _perimeter_downlight_housing_batch.multimesh != null:
+		var expected_downlight_housing_bounds := _transformed_mesh_bounds(
+			_perimeter_downlight_housing_batch.multimesh.mesh.get_aabb(),
+			_perimeter_downlight_housing_transforms
+		)
+		downlight_housing_bounds_match = _perimeter_downlight_housing_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_downlight_housing_bounds
+		)
+		downlight_housing_visual_contract_matches = (
+			_perimeter_downlight_housing_batch.multimesh.instance_count
+				== PERIMETER_DOWNLIGHT_HOUSING_COPY_COUNT
+			and _perimeter_downlight_housing_batch.multimesh.visible_instance_count == -1
+			and _perimeter_downlight_housing_batch.multimesh.mesh.get_surface_count() == 1
+			and _perimeter_downlight_housing_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.32, 0.12, 0.32)
+			)
+			and _perimeter_downlight_housing_batch.material_override == _materials.get("bronze")
+			and _perimeter_downlight_housing_batch.cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			and _perimeter_downlight_housing_batch.layers == 1
+			and _perimeter_downlight_housing_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _perimeter_downlight_housing_batch.get_child_count() == 0
+			and _perimeter_downlight_housing_batch.get_script() == null
+		)
 	var expected_downlight_lens_buffer := _encode_multimesh_transforms(
 		_perimeter_downlight_lens_transforms
 	)
@@ -876,6 +922,7 @@ func get_render_batch_contract() -> Dictionary:
 		and _banquette_cushion_transforms.size() == BANQUETTE_CUSHION_COPY_COUNT
 		and _armchair_arm_transforms.size() == ARMCHAIR_ARM_COPY_COUNT
 		and _port_shell_rib_head_transforms.size() == PORT_SHELL_RIB_HEAD_COPY_COUNT
+		and _perimeter_downlight_housing_transforms.size() == PERIMETER_DOWNLIGHT_HOUSING_COPY_COUNT
 		and _perimeter_downlight_lens_transforms.size() == PERIMETER_DOWNLIGHT_LENS_COPY_COUNT
 	)
 	return {
@@ -922,6 +969,15 @@ func get_render_batch_contract() -> Dictionary:
 		"port_shell_rib_head_geometry_submissions_removed": (
 			PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT - submissions
 		),
+		"pre_downlight_housing_geometry_submissions": PRE_DOWNLIGHT_HOUSING_GEOMETRY_SUBMISSION_COUNT,
+		"perimeter_downlight_housing_copies": _perimeter_downlight_housing_transforms.size(),
+		"perimeter_downlight_housing_baseline_submissions": PERIMETER_DOWNLIGHT_HOUSING_COPY_COUNT,
+		"perimeter_downlight_housing_submissions": (
+			1 if downlight_housing_visual_contract_matches else 0
+		),
+		"perimeter_downlight_housing_geometry_submissions_removed": (
+			PRE_DOWNLIGHT_HOUSING_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
 		"roof_cassette_copies": _roof_cassette_transforms.size(),
 		"outboard_mullion_fillet_copies": _outboard_mullion_fillet_transforms.size(),
 		"outboard_mullion_copies": _outboard_mullion_transforms.size(),
@@ -960,6 +1016,11 @@ func get_render_batch_contract() -> Dictionary:
 			if is_instance_valid(_port_shell_rib_head_batch)
 			and _port_shell_rib_head_batch.multimesh != null else 0
 		),
+		"perimeter_downlight_housing_renderer_buffer_floats": (
+			_perimeter_downlight_housing_batch.multimesh.buffer.size()
+			if is_instance_valid(_perimeter_downlight_housing_batch)
+			and _perimeter_downlight_housing_batch.multimesh != null else 0
+		),
 		"perimeter_downlight_lens_renderer_buffer_floats": (
 			_perimeter_downlight_lens_batch.multimesh.buffer.size()
 			if is_instance_valid(_perimeter_downlight_lens_batch)
@@ -987,6 +1048,9 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_port_shell_rib_head_batch.multimesh.buffer.size()
 				if is_instance_valid(_port_shell_rib_head_batch)
 				and _port_shell_rib_head_batch.multimesh != null else 0)
+			+ (_perimeter_downlight_housing_batch.multimesh.buffer.size()
+				if is_instance_valid(_perimeter_downlight_housing_batch)
+				and _perimeter_downlight_housing_batch.multimesh != null else 0)
 			+ (_perimeter_downlight_lens_batch.multimesh.buffer.size()
 				if is_instance_valid(_perimeter_downlight_lens_batch)
 				and _perimeter_downlight_lens_batch.multimesh != null else 0)
@@ -1010,6 +1074,9 @@ func get_render_batch_contract() -> Dictionary:
 		"port_shell_rib_head_renderer_buffer_matches_authored": port_shell_rib_head_renderer_buffer_matches,
 		"port_shell_rib_head_bounds_match_authored": port_shell_rib_head_bounds_match,
 		"port_shell_rib_head_visual_contract_matches": port_shell_rib_head_visual_contract_matches,
+		"perimeter_downlight_housing_renderer_buffer_matches_authored": downlight_housing_renderer_buffer_matches,
+		"perimeter_downlight_housing_bounds_match_authored": downlight_housing_bounds_match,
+		"perimeter_downlight_housing_visual_contract_matches": downlight_housing_visual_contract_matches,
 		"perimeter_downlight_lens_renderer_buffer_matches_authored": downlight_lens_renderer_buffer_matches,
 		"perimeter_downlight_lens_bounds_match_authored": downlight_lens_bounds_match,
 		"perimeter_downlight_lens_visual_contract_matches": downlight_lens_visual_contract_matches,
@@ -1024,13 +1091,16 @@ func get_render_batch_contract() -> Dictionary:
 			and armchair_arm_visual_contract_matches
 			and port_shell_rib_head_renderer_buffer_matches
 			and port_shell_rib_head_visual_contract_matches
+			and downlight_housing_renderer_buffer_matches
+			and downlight_housing_visual_contract_matches
 			and downlight_lens_renderer_buffer_matches
 			and downlight_lens_visual_contract_matches
 		),
 		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
 			and mullion_bounds_match and structural_mullion_bounds_match \
 			and cushion_bounds_match and armchair_arm_bounds_match \
-			and port_shell_rib_head_bounds_match and downlight_lens_bounds_match,
+			and port_shell_rib_head_bounds_match and downlight_housing_bounds_match \
+			and downlight_lens_bounds_match,
 		"outboard_mullion_baseline_mesh_instances": OUTBOARD_MULLION_COPY_COUNT,
 		"outboard_mullion_mesh_instances": 0,
 		"outboard_mullion_multimesh_resources": (
@@ -1109,6 +1179,7 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_outboard_mullion_transforms": _outboard_mullion_transforms.duplicate(),
 		"authored_armchair_arm_transforms": _armchair_arm_transforms.duplicate(),
 		"authored_port_shell_rib_head_transforms": _port_shell_rib_head_transforms.duplicate(),
+		"authored_perimeter_downlight_housing_transforms": _perimeter_downlight_housing_transforms.duplicate(),
 		"authored_perimeter_downlight_lens_transforms": _perimeter_downlight_lens_transforms.duplicate(),
 	}
 
@@ -1862,8 +1933,9 @@ func _build_reception_lighting(structure: Node3D) -> void:
 		_fixture_practical(lighting, str(cove[0]), cove[1] as Vector3, Color("ffe2ba"), 0.62, 6.6)
 
 	# Perimeter downlights over the seating ring and the circulation behind it.
-	# Their named lens nodes remain as hidden inspection anchors; the exact four
-	# visual-only lenses render through one shared cylinder batch.
+	# Their named housing and lens nodes remain as hidden inspection anchors; the
+	# exact four visual-only copies in each family render through shared batches.
+	var perimeter_downlight_housing_transforms: Array[Transform3D] = []
 	var perimeter_downlight_lens_transforms: Array[Transform3D] = []
 	for downlight in [
 		["DownlightPortForward", Vector3(-5.6, 4.5, 6.1)],
@@ -1872,7 +1944,13 @@ func _build_reception_lighting(structure: Node3D) -> void:
 		["DownlightStarboardAft", Vector3(2.9, 4.5, 11.0)],
 	]:
 		var lamp_position := downlight[1] as Vector3
-		_cylinder(lighting, "%sHousing" % str(downlight[0]), lamp_position + Vector3(0.0, 0.06, 0.0), 0.16, 0.12, _materials["bronze"], false)
+		var housing_anchor := _cylinder(
+			lighting, "%sHousing" % str(downlight[0]),
+			lamp_position + Vector3(0.0, 0.06, 0.0), 0.16, 0.12,
+			_materials["bronze"], false
+		) as MeshInstance3D
+		perimeter_downlight_housing_transforms.append(housing_anchor.transform)
+		housing_anchor.visible = false
 		var lens_anchor := _cylinder(
 			lighting, "%sLens" % str(downlight[0]), lamp_position, 0.12, 0.03,
 			_materials["cove_lens"], false
@@ -1880,6 +1958,16 @@ func _build_reception_lighting(structure: Node3D) -> void:
 		perimeter_downlight_lens_transforms.append(lens_anchor.transform)
 		lens_anchor.visible = false
 		_fixture_practical(lighting, str(downlight[0]), lamp_position - Vector3(0.0, 0.2, 0.0), Color("ffdcae"), 0.58, 5.4)
+	_perimeter_downlight_housing_transforms.assign(perimeter_downlight_housing_transforms)
+	_perimeter_downlight_housing_batch = _multimesh_cylinders(
+		lighting,
+		"PerimeterDownlightHousings",
+		0.16,
+		0.12,
+		_materials["bronze"],
+		_perimeter_downlight_housing_transforms,
+		false
+	)
 	_perimeter_downlight_lens_transforms.assign(perimeter_downlight_lens_transforms)
 	_perimeter_downlight_lens_batch = _multimesh_cylinders(
 		lighting,
