@@ -78,6 +78,33 @@ const PAD_MARKER_MATERIAL_KEYS := {
 	&"dock_05_bomber": "bomber_marker",
 	&"dock_06_interceptor": "interceptor_marker",
 }
+## Reuse each pad's live availability sign as its ground-level boarding fascia.
+## Positions are pad-local but resolve 35 mm proud of the approach-side vertical
+## face of the named collision-backed bridge. The three different rotations face
+## the real on-foot approach rather than assuming every berth shares an axis.
+const PAD_BOARDING_FASCIA_SPECS := {
+	&"dock_04_cargo": {
+		"position": Vector3(16.035, -0.28, 18.6),
+		"rotation_degrees": Vector3(0.0, 90.0, 0.0),
+		"approach_normal": Vector3.RIGHT,
+		"support": &"Dock04CargoBridge",
+		"craft_role": &"cargo_hauler",
+	},
+	&"dock_05_bomber": {
+		"position": Vector3(-16.035, -0.28, -4.0),
+		"rotation_degrees": Vector3(0.0, -90.0, 0.0),
+		"approach_normal": Vector3.LEFT,
+		"support": &"Dock05BomberBridge",
+		"craft_role": &"bomber",
+	},
+	&"dock_06_interceptor": {
+		"position": Vector3(-10.5, -0.28, -23.035),
+		"rotation_degrees": Vector3(0.0, 180.0, 0.0),
+		"approach_normal": Vector3.FORWARD,
+		"support": &"Dock06InterceptorBridge",
+		"craft_role": &"interceptor",
+	},
+}
 const PRESENTATION_NODE_DELTA := 0
 const PRESENTATION_LIGHT_DELTA := 0
 const PRESENTATION_SUBMISSION_DELTA := 0
@@ -615,6 +642,39 @@ func get_access_wayfinding_audit() -> Dictionary:
 		or not route_mesh.find_children("*", "CollisionShape3D", true, false).is_empty()
 	):
 		errors.append("wayfinding gained collision")
+	var fascia_reports: Dictionary = {}
+	for pad_id in PAD_IDS:
+		var pad := get_node_or_null(NodePath(String(pad_id))) as Node3D
+		var sign := pad.get_node_or_null(^"PadSign") as Label3D if pad != null else null
+		var spec := PAD_BOARDING_FASCIA_SPECS[pad_id] as Dictionary
+		var expected_normal := spec.get("approach_normal", Vector3.ZERO) as Vector3
+		var facing_normal := sign.basis.z.normalized() if sign != null else Vector3.ZERO
+		var fascia_valid := sign != null \
+			and sign.position.is_equal_approx(spec.get("position", Vector3.INF) as Vector3) \
+			and sign.rotation_degrees.is_equal_approx(
+				spec.get("rotation_degrees", Vector3.INF) as Vector3
+			) \
+			and facing_normal.dot(expected_normal) > 0.999 \
+			and StringName(sign.get_meta(&"pad_id", &"")) == pad_id \
+			and StringName(sign.get_meta(&"craft_role", &"")) \
+				== StringName(spec.get("craft_role", &"")) \
+			and StringName(sign.get_meta(&"supported_by", &"")) \
+				== StringName(spec.get("support", &"")) \
+			and StringName(sign.get_meta(&"boarding_orientation", &"")) == &"ahead" \
+			and bool(sign.get_meta(&"non_authoritative_presentation", false)) \
+			and sign.font_size == 30 and is_equal_approx(sign.pixel_size, 0.007) \
+			and sign.outline_size == 6 and not sign.no_depth_test \
+			and sign.get_child_count() == 0 and sign.get_script() == null
+		if not fascia_valid:
+			errors.append("boarding fascia transform or identity drift: %s" % pad_id)
+		fascia_reports[pad_id] = {
+			"craft_role": spec.get("craft_role", &""),
+			"support": spec.get("support", &""),
+			"approach_normal": expected_normal,
+			"facing_normal": facing_normal,
+			"supported_clearance_m": 0.035,
+			"approach_facing": facing_normal.dot(expected_normal) > 0.999,
+		}.duplicate(true)
 	errors.sort()
 	return {
 		"valid": errors.is_empty(),
@@ -624,6 +684,9 @@ func get_access_wayfinding_audit() -> Dictionary:
 		"mesh_instances": EXPECTED_WAYFINDING_MESH_INSTANCES,
 		"mesh_surfaces": route_mesh.mesh.get_surface_count() if route_mesh != null and route_mesh.mesh != null else 0,
 		"labels": EXPECTED_WAYFINDING_LABELS,
+		"boarding_fascias": fascia_reports,
+		"boarding_fascia_labels": PAD_IDS.size(),
+		"boarding_fascia_roster_delta": 0,
 		"lights": 0,
 		"collision_shapes": 0,
 		"ship_authority": false,
@@ -802,9 +865,21 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	var sign := Label3D.new()
 	sign.name = "PadSign"
 	sign.text = "DOCK %02d  %s" % [index + 4, String(PAD_ROLE_LABELS[pad_id])]
-	sign.position = Vector3(0.0, 4.5, -18.0)
-	sign.font_size = 32
+	var fascia_spec := PAD_BOARDING_FASCIA_SPECS[pad_id] as Dictionary
+	sign.position = fascia_spec.get("position", Vector3.ZERO) as Vector3
+	sign.rotation_degrees = fascia_spec.get("rotation_degrees", Vector3.ZERO) as Vector3
+	sign.font_size = 30
+	sign.pixel_size = 0.007
+	sign.outline_size = 6
 	sign.modulate = Color("63dbe0")
+	sign.outline_modulate = Color("071b1d")
+	sign.no_depth_test = false
+	sign.set_meta(&"ground_level_boarding_fascia", true)
+	sign.set_meta(&"pad_id", pad_id)
+	sign.set_meta(&"craft_role", fascia_spec.get("craft_role", &""))
+	sign.set_meta(&"supported_by", fascia_spec.get("support", &""))
+	sign.set_meta(&"boarding_orientation", &"ahead")
+	sign.set_meta(&"non_authoritative_presentation", true)
 	pad.add_child(sign)
 	_build_service_presentation(pad, pad_id)
 	_pads[pad_id] = {
