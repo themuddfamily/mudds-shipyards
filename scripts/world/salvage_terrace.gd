@@ -71,10 +71,10 @@ const ROUTE_IDS := [
 const PERFORMANCE_BUDGET := {
 	"mesh_instances": 32,
 	"multimesh_batches": 6,
-	"multimesh_instances": 164,
+	"multimesh_instances": 170,
 	"geometry_submissions": 38,
-	"visible_geometry_copies": 200,
-	"multimesh_buffer_floats": 1968,
+	"visible_geometry_copies": 206,
+	"multimesh_buffer_floats": 2040,
 	"static_bodies": 26,
 	"collision_shapes": 26,
 	"labels": 1,
@@ -86,12 +86,23 @@ const PERFORMANCE_BUDGET := {
 const MULTIMESH_INSTANCE_COUNTS := {
 	"TerraceSupportBatch": 10,
 	"SalvageCageBatch": 6,
-	"ServiceBeaconBatch": 4,
+	"ServiceBeaconBatch": 10,
 	"SalvageFrameBatch": 10,
 	"SortingMachineryBatch": 8,
 	"RailDetailBatch": 126,
 }
 const SERVICE_BEACON_SIZE := Vector3(0.18, 0.42, 0.18)
+## Three two-stroke chevrons make the upper-terrace turn toward the inspection
+## ramp legible from the main ramp crest. They are flush, collision-free copies
+## inside the existing ServiceBeaconBatch: no node, submission, light, route,
+## interaction, or physics authority is added.
+const INSPECTION_ROUTE_CHEVRON_CENTERS := [
+	Vector3(21.5, UPPER_ELEVATION + 0.016, 5.9),
+	Vector3(21.5, UPPER_ELEVATION + 0.016, 7.35),
+	Vector3(21.5, UPPER_ELEVATION + 0.016, 8.8),
+]
+const INSPECTION_ROUTE_CHEVRON_STROKE_SIZE := Vector3(0.18, 0.025, 0.92)
+const INSPECTION_ROUTE_CHEVRON_HALF_SPAN := 0.26
 const RAIL_POST_VISUAL_SIZE := Vector3(0.10, 1.20, 0.10)
 const UNIT_BOX_BATCH_NAMES := [
 	&"RailDetailBatch",
@@ -1288,7 +1299,8 @@ func _build_batched_supports_and_dressing() -> void:
 		salvage_transforms.append(Transform3D(Basis.IDENTITY, position_value as Vector3))
 	_add_multimesh_batch("SalvageCageBatch", Vector3(1.3, 1.3, 1.3), salvage_transforms, _materials.salvage, "batched salvage cage outside every traversal corridor")
 
-	# Reuse the existing four-copy emissive batch as two unmistakable ramp gates.
+	# Reuse the emissive batch for two unmistakable ramp gates and a three-beat
+	# deck-chevron cadence that tells players to turn toward the second climb.
 	# These remain passive presentation: no light, collision, processing, route or
 	# authority is added, and the separate hazard-dressing surface is untouched.
 	var beacon_transforms: Array[Transform3D] = []
@@ -1297,9 +1309,24 @@ func _build_batched_supports_and_dressing() -> void:
 		var post_top := post_transform.origin + post_transform.basis.y * 0.5
 		var cue_center := post_top + cue_basis.y * SERVICE_BEACON_SIZE.y * 0.5
 		beacon_transforms.append(Transform3D(cue_basis, cue_center))
+	var stroke_scale := Vector3(
+		INSPECTION_ROUTE_CHEVRON_STROKE_SIZE.x / SERVICE_BEACON_SIZE.x,
+		INSPECTION_ROUTE_CHEVRON_STROKE_SIZE.y / SERVICE_BEACON_SIZE.y,
+		INSPECTION_ROUTE_CHEVRON_STROKE_SIZE.z / SERVICE_BEACON_SIZE.z
+	)
+	for center in INSPECTION_ROUTE_CHEVRON_CENTERS:
+		for x_sign in [-1.0, 1.0]:
+			var stroke_basis := Basis(Vector3.UP, deg_to_rad(-45.0 * x_sign)).scaled(stroke_scale)
+			var stroke_center := center as Vector3
+			stroke_center += Vector3(
+				INSPECTION_ROUTE_CHEVRON_HALF_SPAN * x_sign,
+				0.0,
+				-INSPECTION_ROUTE_CHEVRON_HALF_SPAN
+			)
+			beacon_transforms.append(Transform3D(stroke_basis, stroke_center))
 	_add_multimesh_batch(
 		"ServiceBeaconBatch", SERVICE_BEACON_SIZE, beacon_transforms, _materials.emissive,
-		"paired emissive ramp-gate cues mounted over physical rail posts with no dynamic light"
+		"paired ramp-gate cues and flush upper-turn chevrons with no dynamic light or authority"
 	)
 
 	# One outboard inspection gantry over void, intentionally collision-free and

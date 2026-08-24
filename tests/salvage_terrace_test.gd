@@ -186,7 +186,7 @@ func _test_paired_ramp_beacons(module: SalvageTerrace) -> void:
 		if batch != null and batch.multimesh != null else null
 	)
 	var batches_are_exact := batch != null and batch.multimesh != null \
-		and batch.multimesh.instance_count == 4 \
+		and batch.multimesh.instance_count == 10 \
 		and rail_batch != null and rail_batch.multimesh != null \
 		and rail_batch.multimesh.instance_count == 126
 	_check(
@@ -194,13 +194,13 @@ func _test_paired_ramp_beacons(module: SalvageTerrace) -> void:
 		and mesh != null and mesh.size.is_equal_approx(SalvageTerrace.SERVICE_BEACON_SIZE)
 		and batch.material_override == (module.get("_materials") as Dictionary).emissive
 		and str(batch.get_meta("non_walkable_reason", ""))
-			== "paired emissive ramp-gate cues mounted over physical rail posts with no dynamic light",
-		"four passive emissive cues form paired gates at the two upward ramp thresholds"
+			== "paired ramp-gate cues and flush upper-turn chevrons with no dynamic light or authority",
+		"four passive emissive gate cues share one batch with six upper-turn deck strokes"
 	)
 	var cue_transforms: Array[Transform3D] = []
 	var cues_contact_live_posts := batches_are_exact
 	if batches_are_exact:
-		for cue_index in batch.multimesh.instance_count:
+		for cue_index in 4:
 			var cue_transform := _decode_multimesh_transform(batch.multimesh.buffer, cue_index)
 			cue_transforms.append(cue_transform)
 			var cue_bottom := cue_transform.origin \
@@ -738,27 +738,27 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 		and int(performance.lights) == 3
 		and int(performance.labels) == 1
 		and int(performance.multimesh_batches) == 6
-		and int(performance.multimesh_instances) == 164
-		and int(performance.multimesh_drawn_copies) == 164
-		and int(performance.multimesh_buffer_floats) == 1968
+		and int(performance.multimesh_instances) == 170
+		and int(performance.multimesh_drawn_copies) == 170
+		and int(performance.multimesh_buffer_floats) == 2040
 		and int(performance.geometry_submissions) == 38
-		and int(performance.visible_geometry_copies) == 200
+		and int(performance.visible_geometry_copies) == 206
 		and int(performance.nodes) == 108
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"exact census freezes 38 submissions, 200 authored copies, 26 bodies/shapes, 108 nodes, one label, three bounded lights, and zero loops"
+		"exact census freezes 38 submissions, 206 authored copies, 26 bodies/shapes, 108 nodes, one label, three bounded lights, and zero loops"
 	)
 	_check(
 		bool(performance.buffers_match_authored)
 		and (performance.batch_instance_counts as Dictionary) == {
 			&"TerraceSupportBatch": 10,
 			&"SalvageCageBatch": 6,
-			&"ServiceBeaconBatch": 4,
+			&"ServiceBeaconBatch": 10,
 			&"SalvageFrameBatch": 10,
 			&"SortingMachineryBatch": 8,
 			&"RailDetailBatch": 126,
 		},
-		"six MultiMesh batches freeze all 164 structural, machinery, and open-rail transforms in 1968 raw buffer floats"
+		"six MultiMesh batches freeze all 170 structural, machinery, wayfinding, and open-rail transforms in 2040 raw buffer floats"
 	)
 	var before := module.get_lifecycle_contract()
 	module.set_module_enabled(false)
