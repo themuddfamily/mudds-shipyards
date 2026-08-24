@@ -563,6 +563,7 @@ const CINDER_RACE_BEST_PERSISTENCE_SLOT: StringName = &"cinder_race_best_result"
 const CINDER_SCAN_DISCOVERY_PERSISTENCE_SLOT: StringName = &"cinder_scan_discovery"
 const CINDER_CARGO_DELIVERY_PERSISTENCE_SLOT: StringName = &"cinder_cargo_delivery"
 const CINDER_MINING_CAPACITY_PERSISTENCE_SLOT: StringName = &"cinder_mining_capacity"
+const CINDER_CONVOY_ARRIVAL_PERSISTENCE_SLOT: StringName = &"cinder_convoy_safe_arrival"
 const PLANETARY_RETURN_RETIRE_COMMIT_PREFIX := "planetary-return-retire-"
 const PLANETARY_RETURN_RETIRE_MAX_STORE_GENERATION := 2_147_483_647
 var _planetary_return_startup_restore_receipt: Dictionary = {}
@@ -6284,6 +6285,21 @@ func bind_cinder_mining_capacity_persistence(binding: Object) -> Dictionary:
 	) as Dictionary
 
 
+## Supplies the retained Cinder convoy presentation with Main's already-loaded
+## atomic store. Only a generation-authenticated safe-arrival/reward receipt is
+## restored; the host stays idle and receives no movement, samples, or combat.
+func bind_cinder_convoy_arrival_persistence(binding: Object) -> Dictionary:
+	if binding == null \
+			or not binding.has_method(&"configure_cinder_convoy_arrival_persistence") \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"convoy_arrival_persistence_unavailable"}
+	return binding.call(
+		&"configure_cinder_convoy_arrival_persistence",
+		_runtime_settings_user_data_store,
+		CINDER_CONVOY_ARRIVAL_PERSISTENCE_SLOT
+	) as Dictionary
+
+
 ## Binds the terminal Ember relay-survey receipt bridge to this Main's
 ## already-loaded UserDataStore. No filesystem or reward authority is created.
 func bind_ember_relay_survey_persistence(binding: Object) -> Dictionary:
@@ -9392,6 +9408,7 @@ func _sync_nearby_activity_hud() -> void:
 	bind_cinder_scan_discovery_persistence(binding)
 	bind_cinder_cargo_delivery_persistence(binding)
 	bind_cinder_mining_capacity_persistence(binding)
+	bind_cinder_convoy_arrival_persistence(binding)
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
 	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):

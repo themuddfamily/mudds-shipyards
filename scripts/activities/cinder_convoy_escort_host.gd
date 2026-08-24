@@ -345,6 +345,35 @@ func get_generation() -> int:
 	return _activity.get_generation() if is_instance_valid(_activity) else 0
 
 
+## Applies only the terminal static formation recipe restored by persistence.
+## The live activity must still be the pristine generation-zero IDLE authority;
+## no entity position, movement ledger, sample, status, clock, or generation is
+## adopted from the receipt. Starting or resetting the host reapplies its live
+## authority snapshot through the ordinary mutation path.
+func apply_restored_safe_arrival_presentation(arrival: Dictionary) -> Dictionary:
+	if not _built or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
+		return {"accepted": false, "reason": &"not_ready"}
+	var live := _activity.get_snapshot()
+	if int(live.get("state", -1)) != ConvoyEscortActivity.State.IDLE \
+			or int(live.get("generation", -1)) != 0:
+		return {"accepted": false, "reason": &"pristine_idle_presentation_required"}
+	if StringName(arrival.get("activity_id", &"")) != ROUTE.activity_id \
+			or StringName(arrival.get("convoy_id", &"")) != CONVOY_ID \
+			or StringName(arrival.get("terminal_result", &"")) != &"safely_arrived" \
+			or int(arrival.get("leg_count", 0)) != ROUTE.get_checkpoint_count():
+		return {"accepted": false, "reason": &"invalid_safe_arrival_presentation"}
+	_apply_visual_feedback({"state_id": &"completed", "generation": 0})
+	return {
+		"accepted": true,
+		"reason": &"safe_arrival_presentation_restored",
+		"visual_feedback": _visual_feedback_snapshot.duplicate(true),
+		"activity_authority_restored": false,
+		"movement_authority_restored": false,
+		"combat_authority_restored": false,
+		"reward_authority_restored": false,
+	}.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	var activity_snapshot := (
 		_activity.get_snapshot() if is_instance_valid(_activity) else {}
@@ -788,10 +817,14 @@ func _build_entity_visuals() -> void:
 	_box("NavigationBeacon", Vector3(0.42, 0.34, 0.42), Vector3(0.0, 1.2, -1.2), beacon_material)
 
 
-func _apply_visual_feedback() -> void:
+func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 	if not _built or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
 		return
-	var activity_snapshot := _activity.get_snapshot()
+	var activity_snapshot := (
+		activity_override.duplicate(true)
+		if not activity_override.is_empty()
+		else _activity.get_snapshot()
+	)
 	var activity_state := StringName(activity_snapshot.get("state_id", &"idle"))
 	var geometry_state: StringName = &"idle"
 	var separation_fraction := 0.0
@@ -859,6 +892,7 @@ func _apply_visual_feedback() -> void:
 		"movement_authority": false,
 		"combat_authority": false,
 		"reward_authority": false,
+		"restored_terminal_presentation": not activity_override.is_empty(),
 	}.duplicate(true)
 
 

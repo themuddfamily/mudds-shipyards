@@ -37,6 +37,9 @@ const CARGO_DELIVERY_PERSISTENCE := preload(
 const MINING_CAPACITY_PERSISTENCE := preload(
 	"res://scripts/persistence/cinder_mining_capacity_persistence.gd"
 )
+const CONVOY_ARRIVAL_PERSISTENCE := preload(
+	"res://scripts/persistence/cinder_convoy_arrival_persistence.gd"
+)
 const ENCOUNTER_DIRECTOR_SCRIPT_PATH := "res://scripts/combat/encounter_scenario_director.gd"
 const PRESENTATION_OBSERVER_LIMIT := 3
 const CINDER_PATROL_DWELL_SECONDS := 2.0
@@ -84,6 +87,9 @@ var _last_cargo_delivery_persistence_result: Dictionary = {}
 var _mining_capacity_persistence: RefCounted
 var _restored_mining_capacity: Dictionary = {}
 var _last_mining_capacity_persistence_result: Dictionary = {}
+var _convoy_arrival_persistence: RefCounted
+var _restored_convoy_arrival: Dictionary = {}
+var _last_convoy_arrival_persistence_result: Dictionary = {}
 var _station_reward_adapter: RefCounted
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
@@ -720,14 +726,84 @@ func get_station_defense_reward_snapshot() -> Dictionary:
 func request_convoy_reward(expected_generation: int) -> Dictionary:
 	if _host == null or _station_reward_adapter == null:
 		return _result(false, &"convoy_reward_unavailable")
-	var activity := (_host.get_snapshot().get("activity", {}) as Dictionary)
+	var host_snapshot := _host.get_snapshot()
+	var activity := (host_snapshot.get("activity", {}) as Dictionary)
 	var normalized := {
 		"activity_id": activity.get("activity_id", ACTIVITY_ID),
 		"state_id": activity.get("state_id", &""),
 		"outcome": &"cleared" if activity.get("terminal_result_id", &"") == &"safely_arrived" else &"",
 		"generation": activity.get("generation", 0),
 	}.duplicate(true)
-	return _station_reward_adapter.call("consume", normalized, expected_generation)
+	var result := _station_reward_adapter.call(
+		"consume", normalized, expected_generation
+	) as Dictionary
+	if bool(result.get("accepted", false)):
+		_persist_convoy_safe_arrival(host_snapshot, result)
+	return result
+
+
+## Restores only an authenticated safe-arrival receipt into the detached HUD
+## activity view and the host's static completed formation. The host authority
+## itself remains pristine IDLE at generation zero, at its authored start
+## position, with no live samples or movement ledger.
+func configure_cinder_convoy_arrival_persistence(
+		store: RefCounted, slot_id: StringName = &"cinder_convoy_safe_arrival"
+	) -> Dictionary:
+	if _convoy_arrival_persistence != null:
+		return _result(true, &"convoy_arrival_persistence_already_configured")
+	var persistence := CONVOY_ARRIVAL_PERSISTENCE.new() as RefCounted
+	var configured := persistence.call(&"configure", store, slot_id) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		return configured
+	_convoy_arrival_persistence = persistence
+	var restored := persistence.call(&"load") as Dictionary
+	if bool(restored.get("accepted", false)):
+		_restored_convoy_arrival = (
+			restored.get("arrival", {}) as Dictionary
+		).duplicate(true)
+		_last_convoy_arrival_persistence_result = restored.duplicate(true)
+		var formation := _host.apply_restored_safe_arrival_presentation(
+			_restored_convoy_arrival
+		)
+		if not bool(formation.get("accepted", false)):
+			_last_convoy_arrival_persistence_result = formation.duplicate(true)
+			_restored_convoy_arrival.clear()
+			return formation
+	elif StringName(restored.get("reason", &"")) != &"convoy_arrival_not_found":
+		_last_convoy_arrival_persistence_result = restored.duplicate(true)
+		return restored
+	return configured
+
+
+func get_cinder_convoy_arrival_persistence_snapshot() -> Dictionary:
+	return {
+		"configured": _convoy_arrival_persistence != null,
+		"arrival": _restored_convoy_arrival.duplicate(true),
+		"last_result": _last_convoy_arrival_persistence_result.duplicate(true),
+		"restores_activity_authority": false,
+		"restores_movement_authority": false,
+		"restores_combat_authority": false,
+		"restores_reward_authority": false,
+	}.duplicate(true)
+
+
+func _persist_convoy_safe_arrival(
+		host_snapshot: Dictionary, reward_result: Dictionary
+	) -> void:
+	if _convoy_arrival_persistence == null:
+		return
+	var commit_id := "cinder-convoy-arrival-%010d" % (
+		int(_convoy_arrival_persistence.call(&"get_store_generation")) + 1
+	)
+	_last_convoy_arrival_persistence_result = _convoy_arrival_persistence.call(
+		&"save", host_snapshot, reward_result, commit_id
+	) as Dictionary
+	if bool(_last_convoy_arrival_persistence_result.get("accepted", false)):
+		var loaded := _convoy_arrival_persistence.call(&"load") as Dictionary
+		if bool(loaded.get("accepted", false)):
+			_restored_convoy_arrival = (
+				loaded.get("arrival", {}) as Dictionary
+			).duplicate(true)
 
 
 func request_cargo_reward(expected_generation: int) -> Dictionary:
@@ -1406,7 +1482,7 @@ func get_snapshot() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"activity_id": ACTIVITY_ID,
 		"host_instance_id": _host.get_instance_id() if is_instance_valid(_host) else 0,
-		"host": _host.get_snapshot() if is_instance_valid(_host) else {},
+		"host": _convoy_host_presentation_snapshot(),
 		"race_activity_id": RACE_ACTIVITY_ID,
 		"race": _race_presentation_snapshot(),
 		"patrol": _patrol_presentation_snapshot(),
@@ -1453,6 +1529,43 @@ func get_snapshot() -> Dictionary:
 		"hud_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+func _convoy_host_presentation_snapshot() -> Dictionary:
+	if not is_instance_valid(_host):
+		return {}
+	var host := _host.get_snapshot()
+	if _restored_convoy_arrival.is_empty():
+		return host.duplicate(true)
+	var live := host.get("activity", {}) as Dictionary
+	if int(live.get("state", -1)) != ConvoyEscortActivity.State.IDLE \
+			or int(live.get("generation", -1)) != 0:
+		return host.duplicate(true)
+	var leg_count := int(_restored_convoy_arrival.get("leg_count", 0))
+	var elapsed := float(_restored_convoy_arrival.get("elapsed_seconds", 0.0))
+	var completed := live.duplicate(true)
+	completed["state"] = ConvoyEscortActivity.State.COMPLETED
+	completed["state_id"] = &"completed"
+	completed["generation"] = 0
+	completed["terminal_result"] = ConvoyEscortActivity.TerminalResult.SAFELY_ARRIVED
+	completed["terminal_result_id"] = &"safely_arrived"
+	completed["terminal_reason"] = &"safely_arrived"
+	completed["convoy_id"] = CinderConvoyEscortHost.CONVOY_ID
+	completed["convoy_generation"] = -1
+	completed["leg_count"] = leg_count
+	completed["completed_leg_count"] = leg_count
+	completed["next_leg_index"] = -1
+	completed["next_leg_number"] = 0
+	completed["progress_fraction"] = 1.0
+	completed["elapsed_seconds"] = elapsed
+	completed["has_entity_sample"] = false
+	completed["sample_count"] = 0
+	completed["reward_pending"] = false
+	completed["arrival_persisted"] = true
+	completed["arrival_receipt"] = _restored_convoy_arrival.duplicate(true)
+	completed["receipt_replay_allowed"] = false
+	host["activity"] = completed
+	return host.duplicate(true)
 
 
 func _station_defense_presentation_snapshot() -> Dictionary:
