@@ -512,6 +512,7 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 	var best_time := float(state.get("best_time_seconds", -1.0))
 	var best_persisted := bool(state.get("best_result_persisted", false))
 	var stage_id: StringName = &"approach"
+	var completion_status_id: StringName = &"none"
 	var summary := "RACE READY  //  LINE UP AT GATE 1"
 	var objective := "START THE CINDER BEACON RACE"
 	if state_id == &"idle" and best_persisted and best_time > 0.0:
@@ -544,10 +545,28 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 			&"completed":
 				stage_id = &"reward_pending" if reward_pending else &"complete"
 				var last_time := maxf(float(state.get("last_time_seconds", 0.0)), 0.0)
-				summary = "FINISH %.2fs  //  %s" % [
-					last_time, "REWARD PENDING" if reward_pending else "TIME RECORDED",
-				]
-				objective = "AWAIT RACE REWARD HANDOFF" if reward_pending else "RACE COMPLETE"
+				if best_persisted and best_time > 0.0 and is_equal_approx(last_time, best_time):
+					completion_status_id = &"new_best_saved"
+					summary = "FINISH %.2fs  //  NEW BEST SAVED" % last_time
+					objective = (
+						"AWAIT RACE REWARD HANDOFF"
+						if reward_pending else "START A NEW RUN TO IMPROVE THE SAVED BEST"
+					)
+				elif best_persisted and best_time > 0.0 and last_time > best_time:
+					completion_status_id = &"slower_than_saved_best"
+					summary = "FINISH %.2fs  //  SAVED BEST %.2fs  //  NO NEW BEST" % [
+						last_time, best_time,
+					]
+					objective = (
+						"AWAIT RACE REWARD HANDOFF"
+						if reward_pending else "START A NEW RUN TO BEAT THE SAVED BEST"
+					)
+				else:
+					completion_status_id = &"time_recorded"
+					summary = "FINISH %.2fs  //  %s" % [
+						last_time, "REWARD PENDING" if reward_pending else "TIME RECORDED",
+					]
+					objective = "AWAIT RACE REWARD HANDOFF" if reward_pending else "RACE COMPLETE"
 	return {
 		"stage_id": stage_id,
 		"lap_number": lap_number,
@@ -558,6 +577,7 @@ func _race_feedback(state: Dictionary) -> Dictionary:
 		"reward_pending": reward_pending,
 		"best_time_seconds": best_time,
 		"best_result_persisted": best_persisted,
+		"completion_status_id": completion_status_id,
 		"summary": summary,
 		"objective_text": objective,
 		"race_authority": false,

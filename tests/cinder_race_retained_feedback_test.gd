@@ -76,6 +76,32 @@ func _initialize() -> void:
 		"reward pending is readable once without adding race or grant authority",
 	)
 
+	var new_best := _race(&"completed", 4, 0.0)
+	new_best.last_time_seconds = 34.5
+	new_best.best_time_seconds = 34.5
+	new_best.best_result_persisted = true
+	view = hud.set_nearby_activity_snapshot({"race": new_best})
+	feedback = _race_card(view).get("race_feedback", {}) as Dictionary
+	_check(
+		_race_text(_race_row(hud)).contains("FINISH 34.50s  //  NEW BEST SAVED")
+			and StringName(feedback.get("completion_status_id", &"")) == &"new_best_saved"
+			and str(_race_card(view).get("objective_text", "")) == "START A NEW RUN TO IMPROVE THE SAVED BEST",
+		"a persisted completion that matches the saved best announces the new record and next run",
+	)
+
+	var slower := _race(&"completed", 4, 0.0)
+	slower.last_time_seconds = 38.75
+	slower.best_time_seconds = 34.5
+	slower.best_result_persisted = true
+	view = hud.set_nearby_activity_snapshot({"race": slower})
+	feedback = _race_card(view).get("race_feedback", {}) as Dictionary
+	_check(
+		_race_text(_race_row(hud)).contains("FINISH 38.75s  //  SAVED BEST 34.50s  //  NO NEW BEST")
+			and StringName(feedback.get("completion_status_id", &"")) == &"slower_than_saved_best"
+			and str(_race_card(view).get("objective_text", "")) == "START A NEW RUN TO BEAT THE SAVED BEST",
+		"a slower completed run names the retained record and a controller-readable next action",
+	)
+
 	hud.queue_free()
 	await process_frame
 	for failure in _failures:
@@ -96,6 +122,8 @@ func _race(state_id: StringName, next_checkpoint: int, countdown: float) -> Dict
 		"countdown_remaining_seconds": countdown,
 		"current_time_seconds": 12.5,
 		"last_time_seconds": -1.0,
+		"best_time_seconds": -1.0,
+		"best_result_persisted": false,
 		"failure_reason": &"",
 		"reward_pending": false,
 	}.duplicate(true)
