@@ -31,8 +31,18 @@ const SCAN_TRANSITION_CUES := [
 ]
 const RACE_TRANSITION_CUES := [
 	&"cinder_race_countdown_started", &"cinder_race_gate_acquired",
-	&"cinder_race_missed_gate", &"cinder_race_completed",
+	&"cinder_race_missed_gate", &"cinder_race_completed", &"cinder_race_timed_out",
+	&"cinder_race_failed", &"cinder_race_aborted",
 ]
+const MINING_FAILURE_CUES := [&"cinder_mining_extraction_failed"]
+const SCAN_FAILURE_CUES := [&"cinder_scan_failed", &"cinder_scan_aborted"]
+const PATROL_FAILURE_CUES := [&"cinder_patrol_failed", &"cinder_patrol_aborted"]
+const TERMINAL_OUTCOMES_BY_KIND := {
+	&"mining": [&"", &"failed"],
+	&"salvage": [&"", &"failed", &"aborted"],
+	&"race": [&"", &"timed_out", &"failed", &"aborted"],
+	&"patrol": [&"", &"failed", &"aborted"],
+}
 const CUE_PRIORITIES := {
 	&"activity_progress": 10,
 	&"activity_checkpoint": 20,
@@ -59,14 +69,22 @@ const CUE_PRIORITIES := {
 	&"cinder_mining_extraction_interrupted": 90,
 	&"cinder_mining_capacity_ready": 85,
 	&"cinder_mining_extraction_completed": 95,
+	&"cinder_mining_extraction_failed": 100,
 	&"cinder_scan_started": 50,
 	&"cinder_scan_progress_checkpoint": 40,
 	&"cinder_scan_interrupted": 90,
 	&"cinder_scan_completed": 95,
+	&"cinder_scan_failed": 100,
+	&"cinder_scan_aborted": 100,
 	&"cinder_race_countdown_started": 55,
 	&"cinder_race_gate_acquired": 45,
 	&"cinder_race_missed_gate": 90,
 	&"cinder_race_completed": 95,
+	&"cinder_race_timed_out": 100,
+	&"cinder_race_failed": 100,
+	&"cinder_race_aborted": 100,
+	&"cinder_patrol_failed": 100,
+	&"cinder_patrol_aborted": 100,
 }
 
 var _attached := false
@@ -146,6 +164,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var reset_serial := int(decoded.reset_serial)
 	var source_generation := int(decoded.generation)
 	var activity_kind := StringName(decoded.activity_kind)
+	var terminal_outcome := StringName(decoded.terminal_outcome)
 	var source_time := float(decoded.source_time_seconds)
 	var previous := _activity_ledger.get(activity_id, {}) as Dictionary
 	var previous_generation := int(previous.get("generation", -1))
@@ -194,6 +213,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	var previous_mining_checkpoint := int(previous.get("mining_yield_checkpoint", 0))
 	var previous_scan_checkpoint := int(previous.get("scan_progress_checkpoint", 0))
 	var previous_race_missed := bool(previous.get("race_missed_gate", false))
+	var previous_terminal_outcome := StringName(previous.get("terminal_outcome", &""))
 	if generation_changed and urgency == &"normal":
 		previous_urgency = prior_generation_urgency
 	if previous.is_empty():
@@ -240,7 +260,9 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		elif convoy_threat == &"critical" and previous_convoy_threat != &"critical":
 			_emit_cue(&"convoy_escort_separation_critical", activity_id, 1.0)
 	elif activity_kind == &"mining":
-		_retire_activity_transition_slots(activity_id, MINING_TRANSITION_CUES)
+		_retire_activity_transition_slots(
+			activity_id, MINING_TRANSITION_CUES + MINING_FAILURE_CUES
+		)
 		var mining_checkpoint := _mining_yield_checkpoint(decoded)
 		if state == &"active" and previous_state != &"active":
 			_emit_cue(&"cinder_mining_extraction_started", activity_id, 0.8)
@@ -251,8 +273,10 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			)
 		if state == &"reset" and previous_state != &"reset":
 			_emit_cue(&"cinder_mining_extraction_interrupted", activity_id, 1.0)
+		if terminal_outcome == &"failed" and previous_terminal_outcome != &"failed":
+			_emit_cue(&"cinder_mining_extraction_failed", activity_id, 1.0)
 	elif is_structure_scan:
-		_retire_activity_transition_slots(activity_id, SCAN_TRANSITION_CUES)
+		_retire_activity_transition_slots(activity_id, SCAN_TRANSITION_CUES + SCAN_FAILURE_CUES)
 		var scan_checkpoint := _progress_checkpoint(progress)
 		if state == &"active" and previous_state != &"active":
 			_emit_cue(&"cinder_scan_started", activity_id, 0.8)
@@ -263,6 +287,11 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			)
 		if state == &"reset" and previous_state != &"reset":
 			_emit_cue(&"cinder_scan_interrupted", activity_id, 1.0)
+		if terminal_outcome != previous_terminal_outcome:
+			if terminal_outcome == &"failed":
+				_emit_cue(&"cinder_scan_failed", activity_id, 1.0)
+			elif terminal_outcome == &"aborted":
+				_emit_cue(&"cinder_scan_aborted", activity_id, 1.0)
 	elif is_cinder_race:
 		_retire_activity_transition_slots(activity_id, RACE_TRANSITION_CUES)
 		var race_missed := checkpoint_id == &"race_missed_gate"
@@ -272,12 +301,24 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		if race_missed and not previous_race_missed:
 			_emit_cue(&"cinder_race_missed_gate", activity_id, 1.0)
 		if state in [&"active", &"complete"] and not race_missed and not race_failed \
-				and progress > previous_progress:
+				and terminal_outcome.is_empty() and progress > previous_progress:
 			_emit_cue(
 				&"cinder_race_gate_acquired", activity_id,
 				clampf(0.45 + 0.55 * progress, 0.0, 1.0)
 			)
-	if state == &"complete" and previous_state != &"complete":
+		if terminal_outcome != previous_terminal_outcome:
+			match terminal_outcome:
+				&"timed_out": _emit_cue(&"cinder_race_timed_out", activity_id, 1.0)
+				&"failed": _emit_cue(&"cinder_race_failed", activity_id, 1.0)
+				&"aborted": _emit_cue(&"cinder_race_aborted", activity_id, 1.0)
+	elif activity_kind == &"patrol":
+		_retire_activity_transition_slots(activity_id, PATROL_FAILURE_CUES)
+		if terminal_outcome != previous_terminal_outcome:
+			if terminal_outcome == &"failed":
+				_emit_cue(&"cinder_patrol_failed", activity_id, 1.0)
+			elif terminal_outcome == &"aborted":
+				_emit_cue(&"cinder_patrol_aborted", activity_id, 1.0)
+	if state == &"complete" and previous_state != &"complete" and terminal_outcome.is_empty():
 		if is_cinder_race:
 			if checkpoint_id != &"race_failed":
 				_emit_cue(&"cinder_race_completed", activity_id, 1.0)
@@ -318,6 +359,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		"scan_progress_checkpoint": _progress_checkpoint(progress) if is_structure_scan else 0,
 		"race_progress": progress if is_cinder_race else 0.0,
 		"race_missed_gate": checkpoint_id == &"race_missed_gate" if is_cinder_race else false,
+		"terminal_outcome": terminal_outcome,
 		"state": state,
 		"checkpoint_id": checkpoint_id,
 		"progress": progress,
@@ -388,6 +430,7 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 	var generation: Variant = snapshot.get("generation", 0)
 	var activity_kind: Variant = snapshot.get("activity_kind", &"")
 	var source_time: Variant = snapshot.get("source_time_seconds", 0.0)
+	var terminal_outcome: Variant = snapshot.get("terminal_outcome", &"")
 	if activity_id is not StringName or (activity_id as StringName).is_empty() \
 			or state is not StringName or not ACTIVITY_STATES.has(state as StringName) \
 			or not _finite_range(progress, 0.0, 1.0) \
@@ -395,6 +438,7 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 			or not (generation is int) or int(generation) < 0 \
 			or int(generation) > MAX_SAFE_GENERATION \
 			or not (activity_kind is StringName) \
+			or not (terminal_outcome is StringName) \
 			or not (source_time is float or source_time is int) \
 			or not is_finite(float(source_time)) or float(source_time) < 0.0 \
 			or int(reset_serial) < 0 or int(reset_serial) > MAX_SAFE_GENERATION:
@@ -413,7 +457,14 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 		"generation": int(generation),
 		"activity_kind": activity_kind,
 		"source_time_seconds": float(source_time),
+		"terminal_outcome": terminal_outcome,
 	}.duplicate(true)
+	var permitted_terminal_outcomes: Array = TERMINAL_OUTCOMES_BY_KIND.get(
+		activity_kind, [&""]
+	) as Array
+	if terminal_outcome not in permitted_terminal_outcomes \
+			or (state == &"reset" and terminal_outcome != &""):
+		return _result(false, &"invalid_terminal_outcome")
 	if activity_kind == &"cargo":
 		var deadline: Variant = snapshot.get("deadline_seconds", null)
 		var remaining: Variant = snapshot.get("deadline_remaining_seconds", null)
