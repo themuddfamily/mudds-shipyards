@@ -28,6 +28,10 @@ func _ready() -> void:
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_material.emission_enabled = true
 	_mesh.material_override = _material
+	# Keep the freshly-instanced placeholder out of the first rendered frame.
+	# A caller-owned recipe makes it visible only after its current solar/weather
+	# state has been applied, including after a detach/re-entry cycle.
+	_mesh.visible = false
 	add_child(_mesh)
 
 static func _get_shared_beacon_mesh() -> SphereMesh:

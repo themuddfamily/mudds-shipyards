@@ -11,6 +11,7 @@ func _run() -> void:
 	root.add_child(beacon)
 	root.add_child(peer_beacon)
 	await process_frame
+	var initial_snapshot := beacon.get_snapshot()
 	var configured := beacon.configure(&"ember_settlement_gate", Vector3(70.0, 120000.0, -10.0))
 	var peer_configured := peer_beacon.configure(&"ember_relay_ridge", Vector3(-24.0, 120040.0, 31.0))
 	var applied := beacon.apply_presentation_recipe({"sun_elevation_sine": -1.0}, {"cloud_opacity_unitless": 0.2})
@@ -28,6 +29,7 @@ func _run() -> void:
 	if not configured.accepted or not peer_configured.accepted \
 			or not applied.accepted or not peer_applied.accepted or not low.accepted \
 			or not detached.accepted or not reentered.accepted \
+			or initial_snapshot.visible \
 			or snapshot.landmark_id != &"ember_settlement_gate" \
 			or snapshot.anchor_body_local_m != Vector3(70.0, 120000.0, -10.0) \
 			or peer_snapshot.anchor_body_local_m != Vector3(-24.0, 120040.0, 31.0) \
@@ -46,5 +48,5 @@ func _run() -> void:
 		push_error("landmark beacon presentation lifecycle failed")
 		quit(1)
 		return
-	print("PLANETARY_SURFACE_LANDMARK_BEACON_PRESENTATION_TEST_OK: shared geometry, isolated recipes, bounded lifecycle")
+	print("PLANETARY_SURFACE_LANDMARK_BEACON_PRESENTATION_TEST_OK: hidden initial frame, shared geometry, isolated recipes, bounded lifecycle")
 	quit(0)
