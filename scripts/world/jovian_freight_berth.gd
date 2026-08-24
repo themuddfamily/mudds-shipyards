@@ -66,6 +66,13 @@ const SHIP_ENVELOPE_LOCAL_MAX := Vector3(11.5, 9.75, 46.0)
 const PORTAL_Z := 9.7
 const PORTAL_MAST_HALF_SPAN := 6.5
 const PORTAL_HEADER_ELEVATION := 5.95
+## Six immutable, authority-free chevrons share one exact rounded-box mesh,
+## orange-glow material, and render state. Their portal-local transforms remain
+## the authored roster while one MultiMesh replaces six renderer allocations.
+const PORTAL_CHEVRON_COPY_COUNT := 6
+const PORTAL_CHEVRON_SIZE := Vector3(0.9, 0.24, 0.05)
+const PORTAL_CHEVRON_SUBMISSIONS_BEFORE := 6
+const PORTAL_CHEVRON_FAMILY_ID: StringName = &"approach-portal-chevrons"
 
 ## Freight-control doorway lintel. Its broad Y/Z face is visible throughout the
 ## starboard service approach; the old proportional bevel was only 92 mm deep
@@ -257,6 +264,8 @@ var _trolley_wheel_batch: MultiMeshInstance3D
 var _trolley_wheel_transforms: Array[Transform3D] = []
 var _cabinet_indicator_batch: MultiMeshInstance3D
 var _cabinet_indicator_transforms: Array[Transform3D] = []
+var _portal_chevron_batch: MultiMeshInstance3D
+var _portal_chevron_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
@@ -972,6 +981,90 @@ func get_cabinet_indicator_batch_contract() -> Dictionary:
 		"traversal_authority": false,
 		"cargo_authority": false,
 		"berth_authority": false,
+		"lifecycle_authority": false,
+	}.duplicate(true)
+
+
+func get_portal_chevron_batch_contract() -> Dictionary:
+	var portal := get_node_or_null(^"ApproachPortal") as Node3D
+	var expected_transforms: Array[Transform3D] = []
+	for chevron_index in PORTAL_CHEVRON_COPY_COUNT:
+		expected_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(26.0))),
+			Vector3(
+				lerpf(-4.1, 4.1, float(chevron_index) / 5.0),
+				5.95,
+				PORTAL_Z - 0.42
+			)
+		))
+	var authored := (
+		_portal_chevron_batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(_portal_chevron_batch) else []
+	)
+	var transforms_exact := authored.size() == expected_transforms.size() \
+		and _portal_chevron_transforms.size() == expected_transforms.size()
+	for index in mini(authored.size(), expected_transforms.size()):
+		transforms_exact = transforms_exact \
+			and (authored[index] as Transform3D).is_equal_approx(expected_transforms[index]) \
+			and _portal_chevron_transforms[index].is_equal_approx(expected_transforms[index])
+	var multi: MultiMesh = (
+		_portal_chevron_batch.multimesh
+		if is_instance_valid(_portal_chevron_batch) else null
+	)
+	var batch_exact: bool = (
+		portal != null
+		and is_instance_valid(_portal_chevron_batch)
+		and _portal_chevron_batch.get_parent() == portal
+		and _portal_chevron_batch.name == &"PortalChevronBatch"
+		and multi != null
+		and multi.instance_count == PORTAL_CHEVRON_COPY_COUNT
+		and multi.visible_instance_count in [-1, PORTAL_CHEVRON_COPY_COUNT]
+		and multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(PORTAL_CHEVRON_SIZE)
+		and _portal_chevron_batch.material_override == _materials.get("orange_glow")
+		and _portal_chevron_batch.layers == 1
+		and _portal_chevron_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _portal_chevron_batch.get_child_count() == 0
+		and _portal_chevron_batch.get_script() == null
+		and _portal_chevron_batch.get_groups().is_empty()
+		and bool(_portal_chevron_batch.get_meta("visual_detail_only", false))
+		and StringName(_portal_chevron_batch.get_meta("visual_batch_family_id", &"")) \
+			== PORTAL_CHEVRON_FAMILY_ID
+		and transforms_exact
+	)
+	var retired_renderers := portal.find_children(
+		"PortalChevron", "MeshInstance3D", false, false
+	).size() if portal != null else 0
+	var errors := PackedStringArray()
+	if not batch_exact:
+		errors.append("portal_chevron_batch_payload_drift")
+	if retired_renderers != 0:
+		errors.append("portal_chevron_legacy_renderers_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family_id": PORTAL_CHEVRON_FAMILY_ID,
+		"legacy": {
+			"renderer_allocations": PORTAL_CHEVRON_COPY_COUNT,
+			"renderer_submissions": PORTAL_CHEVRON_SUBMISSIONS_BEFORE,
+			"visible_copies": PORTAL_CHEVRON_COPY_COUNT,
+		},
+		"current": {
+			"renderer_allocations": 1 if batch_exact else 0,
+			"renderer_submissions": 1 if batch_exact else 0,
+			"visible_copies": _portal_chevron_transforms.size(),
+		},
+		"reductions": {
+			"renderer_allocations": PORTAL_CHEVRON_COPY_COUNT - 1,
+			"renderer_submissions": PORTAL_CHEVRON_SUBMISSIONS_BEFORE - 1,
+			"visible_copies": 0,
+		},
+		"authored_transforms": _portal_chevron_transforms.duplicate(),
+		"collision_authority": false,
+		"navigation_authority": false,
+		"interaction_authority": false,
+		"berth_authority": false,
+		"landing_authority": false,
 		"lifecycle_authority": false,
 	}.duplicate(true)
 
@@ -2031,17 +2124,21 @@ func _build_approach_portal() -> void:
 			_materials["cyan"],
 			false
 		)
-	for chevron_index in 6:
+	_portal_chevron_transforms.clear()
+	for chevron_index in PORTAL_CHEVRON_COPY_COUNT:
 		var chevron_x := lerpf(-4.1, 4.1, float(chevron_index) / 5.0)
-		_rounded_box(
-			portal,
-			"PortalChevron",
-			Vector3(chevron_x, 5.95, PORTAL_Z - 0.42),
-			Vector3(0.9, 0.24, 0.05),
-			_materials["orange_glow"],
-			false,
-			Vector3(0, 0, 26.0)
-		)
+		_portal_chevron_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(26.0))),
+			Vector3(chevron_x, 5.95, PORTAL_Z - 0.42)
+		))
+	_portal_chevron_batch = _multimesh_rounded_boxes(
+		portal,
+		"PortalChevronBatch",
+		PORTAL_CHEVRON_SIZE,
+		_materials["orange_glow"],
+		_portal_chevron_transforms,
+		PORTAL_CHEVRON_FAMILY_ID
+	)
 
 	# The freight-control legend's mount. The door-side wall was split around the
 	# StationDoor portal and never closed again above it: `InnerWallForward` stops
