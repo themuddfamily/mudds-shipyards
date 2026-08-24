@@ -303,6 +303,11 @@ const DEFENSIVE_VISUAL_PARTS_PER_MOUNT := 5
 ## submission through a ship-local MultiMesh.
 const SPINE_RIB_SIZE := Vector3(1.90, 0.22, 0.28)
 const SPINE_RIB_COPY_COUNT := 7
+## The three hull-shade faces of the five-piece bow docking arch are immutable
+## silhouette geometry. The target plate and struts remain separate docking
+## landmarks; only these equal-mesh, equal-material presentation faces share a
+## renderer allocation.
+const BOW_DOCKING_ARCH_SHADE_COPY_COUNT := 3
 const GEAR_DAMPER_RADIUS := 0.12
 const GEAR_DAMPER_HEIGHT := 0.83
 const GEAR_DAMPER_COPY_COUNT := 4
@@ -317,11 +322,11 @@ const AFT_RACK_PANEL_COPY_COUNT := 6
 ## silhouettes may share one renderer without changing traversal authority.
 const AIRSTAIR_TREAD_SIZE := Vector3(0.46, 0.14, 1.55)
 const AIRSTAIR_TREAD_COPY_COUNT := 4
-const RENDER_DESCENDANT_COUNT := 118
-const RENDER_MESH_INSTANCE_COUNT := 108
-const RENDER_MULTIMESH_BATCH_COUNT := 5
+const RENDER_DESCENDANT_COUNT := 116
+const RENDER_MESH_INSTANCE_COUNT := 105
+const RENDER_MULTIMESH_BATCH_COUNT := 6
 const RENDER_DRAWN_COPY_COUNT := 163
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 113
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 111
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 65
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
 
@@ -2605,20 +2610,45 @@ func _build_pressure_hull() -> void:
 ## the original eight-segment collar formed.
 func _build_bow_docking_arch() -> void:
 	var segment_length := 2.0 * BOW_RING_RADIUS * tan(PI / 8.0)
+	var shade_segment_transforms: Array[Transform3D] = []
+	var shade_segment_names := PackedStringArray()
 	for segment_index in 5:
 		var angle := PI * float(segment_index) / 4.0
+		var segment_position := Vector3(
+			BOW_RING_RADIUS * cos(angle),
+			BOW_RING_CENTRE_Y + BOW_RING_RADIUS * sin(angle),
+			BOW_RING_Z
+		)
+		if segment_index % 2 == 0:
+			shade_segment_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(0.0, 0.0, angle + PI * 0.5)),
+				segment_position
+			))
+			shade_segment_names.append("BowDockingArchSegment%02d" % segment_index)
+			continue
 		var segment := _box(
 			_halyard_visual,
 			"BowDockingArchSegment%02d" % segment_index,
-			Vector3(
-				BOW_RING_RADIUS * cos(angle),
-				BOW_RING_CENTRE_Y + BOW_RING_RADIUS * sin(angle),
-				BOW_RING_Z
-			),
+			segment_position,
 			Vector3(segment_length, 0.34, 0.55),
-			_halyard_materials.hull_shade if segment_index % 2 == 0 else _halyard_materials.accent
+			_halyard_materials.accent
 		)
 		segment.rotation.z = angle + PI * 0.5
+	# Alternating accent faces retain their independent authored nodes. The three
+	# childless hull-shade faces have identical stock and are presentation only,
+	# so one batch preserves the open-arch silhouette with two fewer submissions.
+	var shade_segment_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(segment_length, 0.34, 0.55),
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_halyard_visual,
+		"BowDockingArchShadeBatch",
+		shade_segment_mesh,
+		_halyard_materials.hull_shade,
+		shade_segment_transforms,
+		shade_segment_names
+	)
 	for strut_index in 2:
 		var strut_angle := PI * (2.0 * float(strut_index) + 1.0) / 4.0
 		_box(
