@@ -5,6 +5,11 @@ extends Node3D
 ## and consumes caller-owned solar/weather values; it owns no navigation,
 ## activity, movement, clock, or landmark discovery authority.
 
+const BEACON_RADIUS_M := 0.8
+const BEACON_HEIGHT_M := 1.6
+
+static var _shared_beacon_mesh: SphereMesh
+
 var _configured := false
 var _landmark_id: StringName = &""
 var _anchor := Vector3.ZERO
@@ -18,18 +23,19 @@ func _ready() -> void:
 	set_physics_process(false)
 	_mesh = MeshInstance3D.new()
 	_mesh.name = "OwnedLandmarkBeacon"
-	var sphere := SphereMesh.new()
-	sphere_radius_fix(sphere)
-	_mesh.mesh = sphere
+	_mesh.mesh = _get_shared_beacon_mesh()
 	_material = StandardMaterial3D.new()
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_material.emission_enabled = true
 	_mesh.material_override = _material
 	add_child(_mesh)
 
-func sphere_radius_fix(sphere: SphereMesh) -> void:
-	sphere.radius = 0.8
-	sphere.height = 1.6
+static func _get_shared_beacon_mesh() -> SphereMesh:
+	if _shared_beacon_mesh == null:
+		_shared_beacon_mesh = SphereMesh.new()
+		_shared_beacon_mesh.radius = BEACON_RADIUS_M
+		_shared_beacon_mesh.height = BEACON_HEIGHT_M
+	return _shared_beacon_mesh
 
 func configure(landmark_id: StringName, anchor: Vector3) -> Dictionary:
 	if _configured or landmark_id.is_empty() or not anchor.is_finite():
