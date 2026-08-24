@@ -34,6 +34,8 @@ func _run() -> void:
 		"[2001:db8::7]:27101", "example.test:27101", "fe80::1%eth0",
 		"[fe80::1%25eth0]", "bad host", "bad_host", "-bad.test",
 		"bad-.test", "bad..test", "999.1.1.1", "café.test",
+		"\nexample.test", "example.test\n", "\texample.test", "example.test\t",
+		String.chr(31) + "example.test", "example.test" + String.chr(127),
 	]
 	for address in invalid_addresses:
 		var result := Validator.normalize_direct_connect_endpoint(address, 27101)

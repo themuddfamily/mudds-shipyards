@@ -30,7 +30,10 @@ static func normalize_direct_connect_endpoint(address: Variant, port: Variant) -
 static func _normalize_address(address: Variant) -> Dictionary:
 	if typeof(address) != TYPE_STRING and typeof(address) != TYPE_STRING_NAME:
 		return _invalid_address()
-	var normalized := String(address).strip_edges()
+	var raw_address := String(address)
+	if _contains_control(raw_address):
+		return _invalid_address()
+	var normalized := raw_address.strip_edges()
 	if normalized.is_empty() or normalized.length() > MAX_HOSTNAME_LENGTH:
 		return _invalid_address()
 	if _contains_whitespace_or_control(normalized) or normalized.contains("%"):
@@ -89,6 +92,14 @@ static func _contains_whitespace_or_control(value: String) -> bool:
 	for character_index in value.length():
 		var codepoint := value.unicode_at(character_index)
 		if codepoint <= 32 or codepoint == 127:
+			return true
+	return false
+
+
+static func _contains_control(value: String) -> bool:
+	for character_index in value.length():
+		var codepoint := value.unicode_at(character_index)
+		if codepoint < 32 or codepoint == 127:
 			return true
 	return false
 
