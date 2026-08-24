@@ -66,6 +66,8 @@ const ARMORED_SHOULDER_COPY_COUNT := 2
 const IDENTITY_BAND_SIZE := Vector3(0.16, 1.25, 3.2)
 const IDENTITY_BAND_COPY_COUNT := 2
 const COCKPIT_CONSOLE_KEY_COPY_COUNT := 6
+const NAVIGATION_LAMP_RADIUS := 0.11
+const NAVIGATION_LAMP_COPY_COUNT := 2
 
 var _bulwark_built := false
 var _bulwark_visual: Node3D
@@ -315,7 +317,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		identity_band_names.append(side_name + "IdentityBand")
 		_cylinder(_bulwark_visual, side_name + "GunPodHousing", Vector3(side * 3.25, 1.0, -3.1), 0.42, 2.15, armor_highlight, Vector3(0.0, 90.0, 0.0))
 		_cylinder(_bulwark_visual, side_name + "EngineHousing", Vector3(side * 2.65, 1.15, 4.25), 0.72, 2.8, armor_dark, Vector3(90.0, 0.0, 0.0))
-		_sphere(_bulwark_visual, side_name + "NavigationLamp", Vector3(side * 4.35, 1.8, -2.5), 0.11, boarding if side < 0.0 else amber)
+	_add_navigation_lamps(_bulwark_visual, boarding, amber)
 	_add_armored_shoulder_batch(
 		_bulwark_visual,
 		armored_shoulder_transforms,
@@ -448,6 +450,30 @@ func _share_cockpit_console_key_meshes(cockpit: Node3D) -> void:
 	for index in keys.size():
 		keys[index].mesh = shared_mesh
 		keys[index].material_override = authored_materials[index]
+
+
+## The port and starboard navigation lamps are immutable visual markers with
+## identical sphere geometry and distinct authored finishes. Keep both named
+## renderer nodes and submissions while allocating one material-free mesh.
+func _add_navigation_lamps(
+		parent: Node3D,
+		port_material: Material,
+		starboard_material: Material
+) -> void:
+	var shared_mesh := SphereMesh.new()
+	shared_mesh.radius = NAVIGATION_LAMP_RADIUS
+	shared_mesh.height = NAVIGATION_LAMP_RADIUS * 2.0
+	shared_mesh.radial_segments = 24
+	shared_mesh.rings = 12
+	var materials: Array[Material] = [port_material, starboard_material]
+	for index in NAVIGATION_LAMP_COPY_COUNT:
+		var side := -1.0 if index == 0 else 1.0
+		var lamp := MeshInstance3D.new()
+		lamp.name = "PortNavigationLamp" if side < 0.0 else "StarboardNavigationLamp"
+		lamp.position = Vector3(side * 4.35, 1.8, -2.5)
+		lamp.mesh = shared_mesh
+		lamp.material_override = materials[index]
+		parent.add_child(lamp)
 
 
 ## The mirrored shoulder shells are childless silhouette presentation with no

@@ -74,6 +74,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_test_armored_shoulder_batch(visual)
 	_test_identity_band_batch(visual)
 	_test_cockpit_console_key_mesh_sharing(visual)
+	_test_navigation_lamp_mesh_sharing(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -242,6 +243,54 @@ func _test_cockpit_console_key_mesh_sharing(visual: Node3D) -> void:
 	print(
 		"BULWARK_COCKPIT_CONSOLE_KEYS: nodes 6->6 visible_copies 6->6 "
 		+ "submissions 6->6 mesh_resources 3->1"
+	)
+
+
+func _test_navigation_lamp_mesh_sharing(visual: Node3D) -> void:
+	var port := visual.get_node_or_null("PortNavigationLamp") as MeshInstance3D \
+		if visual != null else null
+	var starboard := visual.get_node_or_null("StarboardNavigationLamp") as MeshInstance3D \
+		if visual != null else null
+	var shared_mesh := port.mesh as SphereMesh if port != null else null
+	var port_material := port.material_override as StandardMaterial3D if port != null else null
+	var starboard_material := starboard.material_override as StandardMaterial3D \
+		if starboard != null else null
+	_check(
+		port != null
+		and starboard != null
+		and shared_mesh != null
+		and starboard.mesh == shared_mesh
+		and shared_mesh.material == null
+		and is_equal_approx(shared_mesh.radius, 0.11)
+		and is_equal_approx(shared_mesh.height, 0.22)
+		and shared_mesh.radial_segments == 24
+		and shared_mesh.rings == 12
+		and port.position.is_equal_approx(Vector3(-4.35, 1.8, -2.5))
+		and starboard.position.is_equal_approx(Vector3(4.35, 1.8, -2.5)),
+		"two named navigation lamps retain exact geometry and transforms through one mesh resource"
+	)
+	_check(
+		port_material != null
+		and port_material.albedo_color.is_equal_approx(Color("8ae8bd"))
+		and is_equal_approx(port_material.metallic, 0.18)
+		and is_equal_approx(port_material.roughness, 0.22)
+		and port_material.emission_enabled
+		and port_material.emission.is_equal_approx(Color("8ae8bd"))
+		and is_equal_approx(port_material.emission_energy_multiplier, 1.2)
+		and starboard_material != null
+		and starboard_material.albedo_color.is_equal_approx(Color("e2a63c"))
+		and is_equal_approx(starboard_material.metallic, 0.52)
+		and is_equal_approx(starboard_material.roughness, 0.31)
+		and not starboard_material.emission_enabled
+		and port.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and starboard.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and port.layers == 1
+		and starboard.layers == 1,
+		"shared navigation-lamp geometry preserves both finishes and renderer policy"
+	)
+	print(
+		"BULWARK_NAVIGATION_LAMPS: nodes 2->2 visible_copies 2->2 "
+		+ "submissions 2->2 mesh_resources 2->1"
 	)
 
 
