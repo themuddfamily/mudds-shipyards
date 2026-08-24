@@ -1225,18 +1225,29 @@ func _test_engine_weapon_damage_and_reuse(jovian: JovianLightFreighter) -> void:
 	jovian.projectile_fired.connect(func(origin: Vector3, direction: Vector3) -> void:
 		fired.append({"origin": origin, "direction": direction})
 	)
+	var engine_cores := jovian.get_jovian_visual_root().find_children("*EngineCore", "MeshInstance3D", true, false)
+	_check(engine_cores.size() == 4, "freighter retains all four authored engine cores")
+	_check(_visible_mesh_count(engine_cores) == 0, "all four engine cores are dark while initially offline")
 	jovian.engine_start_time = 0.03
 	jovian.weapon_cooldown = 0.03
 	jovian.set_piloted(true)
 	jovian.request_engine_start()
+	_check(str(jovian.get_telemetry().engine_state) == "STARTING", "freighter enters inherited engine startup")
+	_check(_visible_mesh_count(engine_cores) == 4, "all four engine cores activate during startup")
 	for index in 7:
 		await physics_frame
 	_check(str(jovian.get_telemetry().engine_state) == "ONLINE", "freighter completes inherited engine startup")
-	var visible_plumes := 0
-	for node in jovian.get_jovian_visual_root().find_children("*EnginePlume", "MeshInstance3D", true, false):
-		if (node as MeshInstance3D).visible:
-			visible_plumes += 1
-	_check(visible_plumes == 4, "all four engine plumes activate online")
+	var engine_plumes := jovian.get_jovian_visual_root().find_children("*EnginePlume", "MeshInstance3D", true, false)
+	_check(_visible_mesh_count(engine_cores) == 4, "all four engine cores activate online")
+	_check(_visible_mesh_count(engine_plumes) == 4, "all four engine plumes activate online")
+	_test_root.remove_child(jovian)
+	_check(_visible_mesh_count(engine_cores) == 0, "detaching immediately darkens all four engine cores")
+	_check(_visible_mesh_count(engine_plumes) == 0, "detaching immediately hides all four engine plumes")
+	_test_root.add_child(jovian)
+	await process_frame
+	await physics_frame
+	_check(str(jovian.get_telemetry().engine_state) == "ONLINE", "re-entry preserves authoritative online engine state")
+	_check(_visible_mesh_count(engine_cores) == 4, "online cores reactivate from authoritative telemetry after re-entry")
 	Input.action_press("fire")
 	await physics_frame
 	Input.action_release("fire")
@@ -1253,9 +1264,19 @@ func _test_engine_weapon_damage_and_reuse(jovian: JovianLightFreighter) -> void:
 	_check(bool(registration.registered), "physical occupant registers inside the ship-local bounds")
 	jovian.set_piloted(false)
 	jovian.request_engine_stop()
+	_check(str(jovian.get_telemetry().engine_state) == "OFFLINE", "freighter accepts inherited engine shutdown")
+	_check(_visible_mesh_count(engine_cores) == 0, "shutdown immediately darkens all four engine cores")
+	_check(_visible_mesh_count(engine_plumes) == 0, "shutdown immediately hides all four engine plumes")
+	jovian.set_piloted(true)
+	jovian.request_engine_start()
+	for index in 7:
+		await physics_frame
+	_check(_visible_mesh_count(engine_cores) == 4, "all four engine cores reactivate after a real restart")
 	jovian.apply_damage(jovian.maximum_hull + 1.0, jovian.global_position, Vector3.UP)
 	await physics_frame
 	_check(jovian.is_destroyed() and coordinator.get_occupant_count() == 0, "destruction releases moving-interior occupants")
+	_check(_visible_mesh_count(engine_cores) == 0, "destruction darkens all four engine cores")
+	_check(_visible_mesh_count(engine_plumes) == 0, "destruction hides all four engine plumes")
 	var volume := jovian.get_node_or_null("WalkableInterior/InteriorOccupantVolume") as Area3D
 	_check(volume != null and not volume.monitoring, "destroyed ship disables automatic interior registration")
 	var reset_transform := Transform3D(Basis(Vector3.UP, deg_to_rad(-18.0)), Vector3(20.0, 4.0, 16.0))
@@ -1266,8 +1287,23 @@ func _test_engine_weapon_damage_and_reuse(jovian: JovianLightFreighter) -> void:
 	_check(jovian.global_transform.origin.is_equal_approx(reset_transform.origin), "reuse snaps to requested berth transform")
 	_check(volume.monitoring and coordinator.get_moving_frame() == jovian, "reuse restores interior registration volume and frame")
 	_check(jovian.get_interior_root().visible and jovian.get_cargo_hardpoints().size() == 4, "connected interior survives reuse")
+	_check(str(jovian.get_telemetry().engine_state) == "OFFLINE", "reuse restores authoritative offline engine state")
+	_check(_visible_mesh_count(engine_cores) == 0, "reused offline freighter keeps all four engine cores dark")
+	_test_root.remove_child(jovian)
+	_test_root.add_child(jovian)
+	await process_frame
+	await physics_frame
+	_check(_visible_mesh_count(engine_cores) == 0, "offline detach and re-entry keeps all four engine cores dark")
 	occupant.queue_free()
 	await process_frame
+
+
+func _visible_mesh_count(nodes: Array[Node]) -> int:
+	var visible_count := 0
+	for node in nodes:
+		if is_instance_valid(node) and (node as MeshInstance3D).visible:
+			visible_count += 1
+	return visible_count
 
 
 func _test_cleanup(jovian: JovianLightFreighter) -> void:

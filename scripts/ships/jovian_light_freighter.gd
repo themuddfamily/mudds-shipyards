@@ -266,6 +266,7 @@ var _cabin_stand_marker: Marker3D
 var _interior_occupant_count := 0
 var _cargo_hardpoints: Array[Marker3D] = []
 var _passenger_seat_anchors: Array[Marker3D] = []
+var _engine_cores: Array[MeshInstance3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
 var _jovian_engine_lights: Array[OmniLight3D] = []
 var _engine_damage_cue: Node3D
@@ -330,6 +331,7 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	call_deferred("_sync_jovian_engine_presentation_immediately")
 	if _engineer_repair_console != null:
 		call_deferred("_rebind_engineer_repair_console")
 	if _ship_perspective_audio_binding != null:
@@ -362,6 +364,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_set_jovian_engine_presentation_inactive()
 	_interrupt_engineer_repair(&"ship_detached")
 	if _engineer_repair_console != null:
 		_engineer_repair_console.detach()
@@ -3522,7 +3525,8 @@ func _build_propulsion_and_gear() -> void:
 			var prefix := side_name + ("Lower" if vertical_index == 0 else "Upper")
 			_cylinder(_jovian_visual, prefix + "EngineHousing", Vector3(engine_x, engine_y, 11.65), 0.84, 3.0, _jovian_materials.structure, Vector3(90.0, 0.0, 0.0))
 			_cylinder(_jovian_visual, prefix + "EngineCollar", Vector3(engine_x, engine_y, 13.05), 1.02, 0.42, _jovian_materials.hull_cool, Vector3(90.0, 0.0, 0.0))
-			_cylinder(_jovian_visual, prefix + "EngineCore", Vector3(engine_x, engine_y, 13.31), 0.57, 0.2, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
+			var core := _cylinder(_jovian_visual, prefix + "EngineCore", Vector3(engine_x, engine_y, 13.31), 0.57, 0.2, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
+			_engine_cores.append(core)
 			var plume := _cylinder(_jovian_visual, prefix + "EnginePlume", Vector3(engine_x, engine_y, 13.8), 0.38, 1.1, _jovian_materials.engine, Vector3(90.0, 0.0, 0.0))
 			_engine_plumes.append(plume)
 			var light := OmniLight3D.new()
@@ -3883,6 +3887,8 @@ func _update_jovian_presentation(delta: float) -> void:
 		engine_level *= clampf(damage_presentation.get_engine_power_multiplier(), 0.0, 1.0)
 	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
 	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
+	for core in _engine_cores:
+		core.visible = engine_active and engine_level > 0.01
 	for plume in _engine_plumes:
 		plume.visible = engine_level > 0.01
 		plume.scale.z = lerpf(
@@ -3905,6 +3911,9 @@ func _sync_jovian_engine_presentation_immediately() -> void:
 	var engine_level := 0.22 if state == ENGINE_STARTING else (0.46 if state == ENGINE_ONLINE else 0.0)
 	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
 	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
+	for core in _engine_cores:
+		if is_instance_valid(core):
+			core.visible = active and engine_level > 0.01
 	for plume in _engine_plumes:
 		if is_instance_valid(plume):
 			plume.visible = active
@@ -3915,6 +3924,18 @@ func _sync_jovian_engine_presentation_immediately() -> void:
 	_apply_engine_exhaust_damage_presentation(
 		_engine_plumes, _jovian_engine_lights, active, exhaust_profile
 	)
+
+
+func _set_jovian_engine_presentation_inactive() -> void:
+	for core in _engine_cores:
+		if is_instance_valid(core):
+			core.visible = false
+	for plume in _engine_plumes:
+		if is_instance_valid(plume):
+			plume.visible = false
+	for light in _jovian_engine_lights:
+		if is_instance_valid(light):
+			light.light_energy = 0.0
 
 
 func _sync_variant_engine_presentation_immediately() -> void:
