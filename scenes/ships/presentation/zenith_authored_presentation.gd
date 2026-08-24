@@ -29,6 +29,8 @@ const RUNTIME_SURFACE_BUDGET := 30
 const CANOPY_OPEN_ANGLE_RADIANS := deg_to_rad(63.0)
 const CLOSE_NAV_PORT_PATH := ^"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_PortNavRed"
 const CLOSE_NAV_STARBOARD_PATH := ^"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_StarboardNavGreen"
+const FAR_NAV_PORT_PATH := ^"ModernSystems/LOD1/ModernSystemsLOD1StaticBatch_PortNavRed"
+const FAR_NAV_STARBOARD_PATH := ^"ModernSystems/LOD1/ModernSystemsLOD1StaticBatch_StarboardNavGreen"
 
 const MATERIAL_ROLES := [
 	"PaleCeramicHull",
@@ -224,6 +226,7 @@ func _configure_runtime_materials() -> void:
 			if role in [&"CanopyGlass", &"EngineEmission", &"PortNavRed", &"StarboardNavGreen", &"CockpitEmission"]:
 				mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_share_close_navigation_light_mesh()
+	_share_far_navigation_light_mesh()
 
 
 ## The import already joins every static material family. The first remaining
@@ -268,6 +271,25 @@ func _share_close_navigation_light_mesh() -> void:
 	starboard.mesh = port.mesh
 	_close_nav_shared_mesh = port.mesh
 	_close_nav_shared_surface_snapshot = _snapshot_mesh_surfaces(port.mesh)
+
+
+## The far-LOD navigation lights are a separate immutable pair. Like their
+## close counterparts, only UV0 differs; their runtime red/green materials are
+## texture-free, so one shared mesh preserves the two exact nodes, transforms
+## and material identities while retiring one imported mesh allocation.
+func _share_far_navigation_light_mesh() -> void:
+	var port := _asset_root.get_node_or_null(FAR_NAV_PORT_PATH) as MeshInstance3D
+	var starboard := _asset_root.get_node_or_null(FAR_NAV_STARBOARD_PATH) as MeshInstance3D
+	if port == null or starboard == null or port.mesh == null or starboard.mesh == null:
+		return
+	if not _mesh_render_arrays_match_ignoring_uv0(port.mesh, starboard.mesh) \
+			or _mesh_uv0_matches(port.mesh, starboard.mesh) \
+			or port.material_override != _runtime_materials.get(&"PortNavRed") \
+			or starboard.material_override != _runtime_materials.get(&"StarboardNavGreen") \
+			or not _material_is_texture_free(port.material_override) \
+			or not _material_is_texture_free(starboard.material_override):
+		return
+	starboard.mesh = port.mesh
 
 
 func _pbr_material(color: Color, metallic_value: float, roughness_value: float) -> StandardMaterial3D:

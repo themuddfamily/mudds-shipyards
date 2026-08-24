@@ -166,6 +166,26 @@ func _run() -> void:
 		)
 
 	_check(_runtime_meshes_have_uv0_and_unit_normals(asset_root), "every imported surface retains UV0 and unit normals")
+	var far_port_nav := asset_root.get_node_or_null(
+		^"ModernSystems/LOD1/ModernSystemsLOD1StaticBatch_PortNavRed"
+	) as MeshInstance3D
+	var far_starboard_nav := asset_root.get_node_or_null(
+		^"ModernSystems/LOD1/ModernSystemsLOD1StaticBatch_StarboardNavGreen"
+	) as MeshInstance3D
+	_check(
+		far_port_nav != null and far_starboard_nav != null
+		and far_port_nav.mesh == far_starboard_nav.mesh
+		and far_port_nav.transform.is_equal_approx(
+			Transform3D(Basis.IDENTITY, Vector3(-7.08, 0.28, 0.88))
+		)
+		and far_starboard_nav.transform.is_equal_approx(
+			Transform3D(Basis.IDENTITY, Vector3(7.08, 0.28, 0.88))
+		)
+		and far_port_nav.material_override == presentation.get_runtime_material(&"PortNavRed")
+		and far_starboard_nav.material_override == presentation.get_runtime_material(&"StarboardNavGreen")
+		and far_port_nav.material_override != far_starboard_nav.material_override,
+		"far navigation lights share one immutable mesh while retaining exact copies, transforms, and port/starboard materials"
+	)
 	_check(_runtime_has_no_per_surface_lods(asset_root), "import sidecar disables every per-surface auto-LOD table")
 	_check(
 		bool(audit.get("whole_ship_lod_atomic", false))
