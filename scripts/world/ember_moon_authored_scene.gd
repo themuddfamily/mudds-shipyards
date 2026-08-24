@@ -75,6 +75,23 @@ const ORBITAL_CUE_MAXIMUM_RADIUS_M := 252.0
 const SAMPLE_RACK_SIZE_M := Vector3(4.0, 1.0, 1.4)
 const SAMPLE_RACK_POSITION_M := Vector3(28.0, 0.5, -7.0)
 const SAMPLE_RACK_ACCESS_POSITION_M := Vector3(28.0, 0.0, -4.8)
+## The rack used to disappear into the caldera as a one-metre-high dark box.
+## One passive pair of orthogonal open diamonds now gives it a broad,
+## colour-independent identity from both the walked route and rack access
+## without changing the solid rack, its access point, collision, activity
+## lifecycle, lighting, or navigation authority.
+const SAMPLE_RACK_VANE_INSTANCE_COUNT := 9
+const SAMPLE_RACK_VANE_HALF_WIDTH_M := 1.5
+const SAMPLE_RACK_VANE_HALF_HEIGHT_M := 1.3
+const SAMPLE_RACK_VANE_CENTRE_Y_M := 2.6
+const SAMPLE_RACK_VANE_BAR_THICKNESS_M := 0.22
+const SAMPLE_RACK_VANE_DEPTH_M := 0.16
+const SAMPLE_RACK_VANE_POST_HEIGHT_M := 1.3
+const SAMPLE_RACK_VANE_GAMEPLAY_READABILITY_DISTANCE_M := 36.0
+const SAMPLE_RACK_VANE_BATCH_BOUNDS := AABB(
+	Vector3(-1.62, 0.0, -1.62),
+	Vector3(3.24, 4.02, 3.24),
+)
 const RELAY_ROOT_POSITION_M := Vector3(42.0, 0.0, 7.0)
 const RELAY_BASE_SIZE_M := Vector3(2.4, 0.35, 2.4)
 const RELAY_BASE_POSITION_M := Vector3(0.0, 0.175, 0.0)
@@ -184,11 +201,11 @@ const METAL_ROUGHNESS := 0.78
 const OXIDE_ROUGHNESS := 0.92
 const SERVICE_ROUGHNESS := 0.72
 
-const EXPECTED_NODE_COUNT := 71
+const EXPECTED_NODE_COUNT := 72
 const EXPECTED_MESH_INSTANCE_COUNT := 19
-const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 6
-const EXPECTED_MULTI_MESH_COPY_COUNT := 31
-const EXPECTED_RENDER_SUBMISSION_COUNT := 25
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 7
+const EXPECTED_MULTI_MESH_COPY_COUNT := 40
+const EXPECTED_RENDER_SUBMISSION_COUNT := 26
 const EXPECTED_STATIC_BODY_COUNT := 7
 const EXPECTED_COLLISION_SHAPE_COUNT := 25
 const MAXIMUM_TRIANGLE_COUNT := 8192
@@ -271,6 +288,7 @@ func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
 	_configure_surface_material_hierarchy()
+	_configure_sample_rack_identity_vane()
 	_configure_surface_route_spine()
 	_configure_gantry_navigation_crown()
 	_configure_bunker_vent_visuals()
@@ -390,6 +408,15 @@ func get_snapshot() -> Dictionary:
 			"orbital_landing_cue_maximum_radius_m": ORBITAL_CUE_MAXIMUM_RADIUS_M,
 			"orbital_landing_navigation_direction": Vector3(0.0, 0.0, -1.0),
 			"sample_rack_size_m": SAMPLE_RACK_SIZE_M,
+			"sample_rack_identity_vane": {
+				"silhouette": &"crossed_open_diamonds_over_low_rack",
+				"instance_count": SAMPLE_RACK_VANE_INSTANCE_COUNT,
+				"maximum_height_region_local_m": SAMPLE_RACK_POSITION_M.y
+					+ SAMPLE_RACK_VANE_CENTRE_Y_M + SAMPLE_RACK_VANE_HALF_HEIGHT_M,
+				"gameplay_readability_distance_m": SAMPLE_RACK_VANE_GAMEPLAY_READABILITY_DISTANCE_M,
+				"color_independent": true,
+				"collision_changed": false,
+			},
 			"relay_base_size_m": RELAY_BASE_SIZE_M,
 			"relay_mast_radius_m": RELAY_MAST_RADIUS_M,
 			"relay_mast_height_m": RELAY_MAST_HEIGHT_M,
@@ -696,6 +723,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard/CollisionShape3D": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/SampleRack": "StaticBody3D",
 		^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual": "MeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/SampleRack/IdentityVaneVisuals": "MultiMeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/SampleRack/CollisionShape3D": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay": "StaticBody3D",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual": "MeshInstance3D",
@@ -791,6 +819,9 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var orbital_cue := get_node_or_null(^"LandingRegion/SurfaceLandmarks/OrbitalLandingDatumCue") as MultiMeshInstance3D
 	var pad_guides := get_node_or_null(^"LandingRegion/SurfaceLandmarks/PadGuideVisuals") as MultiMeshInstance3D
 	var rack := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual") as MeshInstance3D
+	var rack_vane := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/SampleRack/IdentityVaneVisuals"
+	) as MultiMeshInstance3D
 	var relay_base := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual") as MeshInstance3D
 	var relay_mast := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual") as MeshInstance3D
 	var relay_head := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual") as MeshInstance3D
@@ -838,6 +869,8 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		_append_error(errors, &"pad_guidance_visual_drift", &"PadGuidance", "paired solid pad guidance recipe drifted")
 	if rack_mesh == null or rack_mesh.size != SAMPLE_RACK_SIZE_M:
 		_append_error(errors, &"sample_rack_visual_drift", &"SampleRack", "low solid sample-rack recipe drifted")
+	if not _sample_rack_identity_vane_is_exact(rack_vane, route_spine_accent):
+		_append_error(errors, &"sample_rack_identity_vane_drift", &"SampleRack", "passive sample-rack diamond identity drifted")
 	if relay_base_mesh == null or relay_base_mesh.size != RELAY_BASE_SIZE_M \
 			or relay_mast_mesh == null \
 			or not is_equal_approx(relay_mast_mesh.top_radius, RELAY_MAST_RADIUS_M) \
@@ -890,6 +923,12 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	var crown_material := crown.material_override as StandardMaterial3D if crown != null else null
 	if not _surface_material_is_exact(crown_material, DERELICT_OXIDE_COLOR, &"oxide"):
 		_append_error(errors, &"visual_material_drift", &"NavigationCrownVisuals", "survey crown lost the existing oxide landmark role")
+	var rack_vane_material := rack_vane.material_override as StandardMaterial3D \
+		if rack_vane != null else null
+	if not _surface_material_is_exact(
+		rack_vane_material, DERELICT_OXIDE_COLOR, &"oxide"
+	):
+		_append_error(errors, &"visual_material_drift", &"IdentityVaneVisuals", "sample-rack vane lost the existing oxide landmark role")
 
 
 func _derelict_gantry_geometry_is_exact(gantry: StaticBody3D) -> bool:
@@ -1118,6 +1157,136 @@ func _validate_forbidden_nodes(errors: Array[Dictionary]) -> void:
 			_append_error(errors, &"forbidden_runtime_node", StringName(node.name), "scene gained adjacent runtime authority")
 		if node.is_processing() or node.is_physics_processing():
 			_append_error(errors, &"automatic_process_loop", StringName(node.name), "static scene must not own process or physics callbacks")
+
+
+func _configure_sample_rack_identity_vane() -> void:
+	var rack := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/SampleRack"
+	) as StaticBody3D
+	var oxide_accent := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual"
+	) as MeshInstance3D
+	if rack == null or oxide_accent == null or oxide_accent.material_override == null:
+		return
+	var unit_bar := BoxMesh.new()
+	unit_bar.size = Vector3.ONE
+	unit_bar.material = oxide_accent.material_override
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = unit_bar
+	multi.instance_count = SAMPLE_RACK_VANE_INSTANCE_COUNT
+	var transforms := _sample_rack_identity_vane_transforms()
+	multi.buffer = _encode_multi_mesh_transforms(transforms)
+	multi.custom_aabb = SAMPLE_RACK_VANE_BATCH_BOUNDS
+	var vane := MultiMeshInstance3D.new()
+	vane.name = &"IdentityVaneVisuals"
+	vane.multimesh = multi
+	vane.material_override = oxide_accent.material_override
+	vane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	vane.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	vane.set_meta("authored_transforms", transforms.duplicate())
+	vane.set_meta("landmark_id", &"ember_sample_rack")
+	vane.set_meta("silhouette", &"crossed_open_diamonds_over_low_rack")
+	vane.set_meta("readable_axes", PackedStringArray([
+		"walked_route_x", "rack_access_z",
+	]))
+	vane.set_meta(
+		"gameplay_readability_distance_m",
+		SAMPLE_RACK_VANE_GAMEPLAY_READABILITY_DISTANCE_M,
+	)
+	vane.set_meta("color_independent", true)
+	vane.set_meta("content_class", &"NEW")
+	vane.set_meta("status", &"modern_interpretation")
+	vane.set_meta("collision_role", &"passive_noninteractive_identity_vane")
+	rack.add_child(vane)
+
+
+func _sample_rack_identity_vane_is_exact(
+		vane: MultiMeshInstance3D,
+		oxide_accent: MeshInstance3D,
+	) -> bool:
+	if vane == null or oxide_accent == null or vane.multimesh == null \
+			or vane.get_child_count() != 0 \
+			or vane.transform != Transform3D.IDENTITY \
+			or vane.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or vane.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or StringName(vane.get_meta("landmark_id", &"")) != &"ember_sample_rack" \
+			or StringName(vane.get_meta("silhouette", &"")) != &"crossed_open_diamonds_over_low_rack" \
+			or vane.get_meta("readable_axes", PackedStringArray()) \
+				!= PackedStringArray(["walked_route_x", "rack_access_z"]) \
+			or float(vane.get_meta("gameplay_readability_distance_m", 0.0)) \
+				!= SAMPLE_RACK_VANE_GAMEPLAY_READABILITY_DISTANCE_M \
+			or not bool(vane.get_meta("color_independent", false)) \
+			or StringName(vane.get_meta("content_class", &"")) != &"NEW" \
+			or StringName(vane.get_meta("status", &"")) != &"modern_interpretation" \
+			or StringName(vane.get_meta("collision_role", &"")) \
+				!= &"passive_noninteractive_identity_vane":
+		return false
+	var multi := vane.multimesh
+	var unit_bar := multi.mesh as BoxMesh
+	if multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.instance_count != SAMPLE_RACK_VANE_INSTANCE_COUNT \
+			or multi.visible_instance_count not in [-1, SAMPLE_RACK_VANE_INSTANCE_COUNT] \
+			or not multi.custom_aabb.is_equal_approx(SAMPLE_RACK_VANE_BATCH_BOUNDS) \
+			or unit_bar == null or unit_bar.size != Vector3.ONE \
+			or unit_bar.material != oxide_accent.material_override \
+			or vane.material_override != oxide_accent.material_override:
+		return false
+	var expected := _sample_rack_identity_vane_transforms()
+	var authored: Variant = vane.get_meta("authored_transforms", [])
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(
+					expected[index]
+				):
+			return false
+	return _multi_mesh_live_transforms_are_exact(multi, expected)
+
+
+static func _sample_rack_identity_vane_transforms() -> Array[Transform3D]:
+	var left_x := Vector3(-SAMPLE_RACK_VANE_HALF_WIDTH_M, SAMPLE_RACK_VANE_CENTRE_Y_M, 0.0)
+	var left_z := Vector3(0.0, SAMPLE_RACK_VANE_CENTRE_Y_M, -SAMPLE_RACK_VANE_HALF_WIDTH_M)
+	var top := Vector3(0.0, SAMPLE_RACK_VANE_CENTRE_Y_M + SAMPLE_RACK_VANE_HALF_HEIGHT_M, 0.0)
+	var right_x := Vector3(SAMPLE_RACK_VANE_HALF_WIDTH_M, SAMPLE_RACK_VANE_CENTRE_Y_M, 0.0)
+	var right_z := Vector3(0.0, SAMPLE_RACK_VANE_CENTRE_Y_M, SAMPLE_RACK_VANE_HALF_WIDTH_M)
+	var bottom := Vector3(0.0, SAMPLE_RACK_VANE_CENTRE_Y_M - SAMPLE_RACK_VANE_HALF_HEIGHT_M, 0.0)
+	return [
+		_vane_bar_between(left_x, top, Vector3.FORWARD),
+		_vane_bar_between(top, right_x, Vector3.FORWARD),
+		_vane_bar_between(right_x, bottom, Vector3.FORWARD),
+		_vane_bar_between(bottom, left_x, Vector3.FORWARD),
+		_vane_bar_between(left_z, top, Vector3.RIGHT),
+		_vane_bar_between(top, right_z, Vector3.RIGHT),
+		_vane_bar_between(right_z, bottom, Vector3.RIGHT),
+		_vane_bar_between(bottom, left_z, Vector3.RIGHT),
+		Transform3D(
+			Basis().scaled(Vector3(
+				SAMPLE_RACK_VANE_BAR_THICKNESS_M,
+				SAMPLE_RACK_VANE_POST_HEIGHT_M,
+				SAMPLE_RACK_VANE_DEPTH_M,
+			)),
+			Vector3(0.0, SAMPLE_RACK_VANE_POST_HEIGHT_M * 0.5, 0.0),
+		),
+	]
+
+
+static func _vane_bar_between(
+		start: Vector3,
+		finish: Vector3,
+		plane_normal: Vector3,
+	) -> Transform3D:
+	var direction := (finish - start).normalized()
+	var in_plane_normal := plane_normal.cross(direction).normalized()
+	return Transform3D(
+		Basis(
+			direction * start.distance_to(finish),
+			in_plane_normal * SAMPLE_RACK_VANE_BAR_THICKNESS_M,
+			plane_normal * SAMPLE_RACK_VANE_DEPTH_M,
+		),
+		(start + finish) * 0.5,
+	)
 
 
 func _configure_gantry_navigation_crown() -> void:

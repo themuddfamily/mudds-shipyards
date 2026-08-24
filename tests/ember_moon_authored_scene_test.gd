@@ -75,11 +75,11 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 71
+		audit.performance.node_count == 72
 			and audit.performance.mesh_instances == 19
-			and audit.performance.multi_mesh_instances == 6
-			and audit.performance.multi_mesh_copies == 31
-			and audit.performance.render_submissions == 25
+			and audit.performance.multi_mesh_instances == 7
+			and audit.performance.multi_mesh_copies == 40
+			and audit.performance.render_submissions == 26
 			and audit.performance.static_bodies == 7
 			and audit.performance.collision_shapes == 25
 			and audit.performance.triangle_count <= 8192,
