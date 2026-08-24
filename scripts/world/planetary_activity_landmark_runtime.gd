@@ -84,7 +84,9 @@ func activate_landmark(landmark_id: StringName, position: Variant) -> Dictionary
 	var landmark := _landmarks[landmark_id] as Dictionary
 	var distance := (position as Vector3).distance_to(landmark.position_body_local_m)
 	if distance > ACTIVATION_RADIUS_M:
-		return _result(false, &"landmark_out_of_range")
+		return _result(false, &"landmark_out_of_range", {
+			"recovery": _out_of_range_recovery(landmark, distance),
+		})
 	var activity := _activities[_sequence_activity_ids[_sequence_index]] as Dictionary
 	var receipt := {
 		"landmark_id": landmark_id,
@@ -132,6 +134,27 @@ func restore_snapshot(snapshot: Variant) -> Dictionary:
 	_sequence_landmark_ids = restored_landmarks
 	_sequence_index = index
 	return _result(true, &"landmark_sequence_restored")
+
+
+## Returns a display-only retry cue for a rejected proximity sample. The caller
+## remains responsible for movement and activity admission; this receipt only
+## identifies the unchanged authored target and the remaining bounded distance.
+func _out_of_range_recovery(landmark: Dictionary, distance_m: float) -> Dictionary:
+	var activity := _activities[_sequence_activity_ids[_sequence_index]] as Dictionary
+	return {
+		"action": &"return_to_landmark",
+		"landmark_id": StringName(landmark.get("id", &"")),
+		"display_name": String(landmark.get("display_name", "LANDMARK")),
+		"target_body_local_m": landmark.get("position_body_local_m", Vector3.INF),
+		"activity_id": _sequence_activity_ids[_sequence_index],
+		"route_id": StringName(activity.get("route_id", &"")),
+		"sequence_index": _sequence_index,
+		"distance_m": distance_m,
+		"activation_radius_m": ACTIVATION_RADIUS_M,
+		"distance_remaining_m": maxf(0.0, distance_m - ACTIVATION_RADIUS_M),
+		"progress_consumed": false,
+		"authority": {"movement": false, "activity": false, "reward": false},
+	}.duplicate(true)
 
 
 func _finite_range(value: Variant, minimum: float, maximum: float) -> bool:

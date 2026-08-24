@@ -31,6 +31,18 @@ func _run() -> void:
 		runtime.activate_landmark(&"ember_mining_platform", Vector3(480.0, 3.0, -210.0)).reason == &"landmark_order_mismatch",
 		"ordered activation rejects a later landmark"
 	)
+	var before_retry := runtime.get_snapshot()
+	var out_of_range := runtime.activate_landmark(&"ember_caldera_pad", Vector3(80.0, 0.0, 0.0))
+	_check(
+		not out_of_range.accepted and out_of_range.reason == &"landmark_out_of_range"
+			and out_of_range.recovery.action == &"return_to_landmark"
+			and out_of_range.recovery.landmark_id == &"ember_caldera_pad"
+			and out_of_range.recovery.distance_remaining_m > 0.0
+			and not out_of_range.recovery.progress_consumed
+			and not out_of_range.recovery.authority.movement
+			and runtime.get_snapshot() == before_retry,
+		"out-of-range activation returns a bounded retry target without consuming landmark progress"
+	)
 	var first := runtime.activate_landmark(&"ember_caldera_pad", Vector3(18.0, 0.0, 0.0))
 	_check(
 		first.accepted and first.receipt.route_eligible
