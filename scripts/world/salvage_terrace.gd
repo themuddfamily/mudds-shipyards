@@ -86,6 +86,8 @@ const MULTIMESH_INSTANCE_COUNTS := {
 	"SortingMachineryBatch": 8,
 	"RailDetailBatch": 126,
 }
+const SERVICE_BEACON_SIZE := Vector3(0.18, 0.42, 0.18)
+const RAIL_POST_VISUAL_SIZE := Vector3(0.10, 1.20, 0.10)
 const UNIT_BOX_BATCH_NAMES := [
 	&"RailDetailBatch",
 	&"SalvageFrameBatch",
@@ -194,6 +196,7 @@ var _main_ramp_rail_visual_mesh: BoxMesh
 var _inspection_ramp_rail_visual_mesh: BoxMesh
 var _unit_box_batch_mesh: BoxMesh
 var _rail_detail_transforms: Array[Transform3D] = []
+var _ramp_threshold_post_transforms: Array[Transform3D] = []
 
 
 func _ready() -> void:
@@ -1212,7 +1215,7 @@ func _append_rail_detail_transforms(rail_transform: Transform3D, size: Vector3) 
 		var local_position := Vector3(along, 0.0, 0.0) if runs_on_x else Vector3(0.0, 0.0, along)
 		_rail_detail_transforms.append(
 			rail_transform * Transform3D(
-				Basis.IDENTITY.scaled(Vector3(0.10, 1.20, 0.10)), local_position
+				Basis.IDENTITY.scaled(RAIL_POST_VISUAL_SIZE), local_position
 			)
 		)
 
@@ -1224,6 +1227,9 @@ func _add_sloped_rail(
 	var basis := _basis_with_local_back_along(direction)
 	var transform := Transform3D(basis, (start + finish) * 0.5 + Vector3.UP * 0.65)
 	_add_rail(node_name, transform, Vector3(0.16, 1.3, direction.length()), visual_mesh)
+	# Sloped rails author from finish back to start, so the final appended detail
+	# is the actual rendered post at the route threshold.
+	_ramp_threshold_post_transforms.append(_rail_detail_transforms.back())
 
 
 func _build_batched_supports_and_dressing() -> void:
@@ -1248,10 +1254,19 @@ func _build_batched_supports_and_dressing() -> void:
 		salvage_transforms.append(Transform3D(Basis.IDENTITY, position_value as Vector3))
 	_add_multimesh_batch("SalvageCageBatch", Vector3(1.3, 1.3, 1.3), salvage_transforms, _materials.salvage, "batched salvage cage outside every traversal corridor")
 
+	# Reuse the existing four-copy emissive batch as two unmistakable ramp gates.
+	# These remain passive presentation: no light, collision, processing, route or
+	# authority is added, and the separate hazard-dressing surface is untouched.
 	var beacon_transforms: Array[Transform3D] = []
-	for position_value in [Vector3(-17.5, 1.55, 2.4), Vector3(-17.5, 1.55, 13.6), Vector3(25.5, 5.15, 0.4), Vector3(25.5, 6.95, 17.6)]:
-		beacon_transforms.append(Transform3D(Basis.IDENTITY, position_value as Vector3))
-	_add_multimesh_batch("ServiceBeaconBatch", Vector3(0.22, 0.22, 0.22), beacon_transforms, _materials.emissive, "emissive route-edge marker with no dynamic light")
+	for post_transform in _ramp_threshold_post_transforms:
+		var cue_basis := post_transform.basis.orthonormalized()
+		var post_top := post_transform.origin + post_transform.basis.y * 0.5
+		var cue_center := post_top + cue_basis.y * SERVICE_BEACON_SIZE.y * 0.5
+		beacon_transforms.append(Transform3D(cue_basis, cue_center))
+	_add_multimesh_batch(
+		"ServiceBeaconBatch", SERVICE_BEACON_SIZE, beacon_transforms, _materials.emissive,
+		"paired emissive ramp-gate cues mounted over physical rail posts with no dynamic light"
+	)
 
 	# One outboard inspection gantry over void, intentionally collision-free and
 	# outside the surface union. Its compact silhouette makes the service role read

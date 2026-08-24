@@ -36,6 +36,7 @@ func _run() -> void:
 	_test_evidence_and_shared_contract(module)
 	_test_manufactured_material_roles(module)
 	_test_origin_slot_and_routes(module)
+	_test_paired_ramp_beacons(module)
 	await _test_exact_surface_union(module)
 	_test_rails_dressing_and_authority(module)
 	_test_short_side_rail_visual_sharing(module)
@@ -174,6 +175,87 @@ func _test_origin_slot_and_routes(module: SalvageTerrace) -> void:
 		and (footprint.local_min as Vector3).is_equal_approx(Vector3(-18.1, -1.8, -0.7))
 		and (footprint.local_size as Vector3).is_equal_approx(Vector3(45.4, 8.9, 18.8)),
 		"integration footprint and local-origin approach convention are finite and exact"
+	)
+
+
+func _test_paired_ramp_beacons(module: SalvageTerrace) -> void:
+	var batch := module.get_node_or_null(^"GeneratedRoot/ServiceBeaconBatch") as MultiMeshInstance3D
+	var rail_batch := module.get_node_or_null(^"GeneratedRoot/RailDetailBatch") as MultiMeshInstance3D
+	var mesh := (
+		batch.multimesh.mesh as BoxMesh
+		if batch != null and batch.multimesh != null else null
+	)
+	var batches_are_exact := batch != null and batch.multimesh != null \
+		and batch.multimesh.instance_count == 4 \
+		and rail_batch != null and rail_batch.multimesh != null \
+		and rail_batch.multimesh.instance_count == 126
+	_check(
+		batches_are_exact
+		and mesh != null and mesh.size.is_equal_approx(SalvageTerrace.SERVICE_BEACON_SIZE)
+		and batch.material_override == (module.get("_materials") as Dictionary).emissive
+		and str(batch.get_meta("non_walkable_reason", ""))
+			== "paired emissive ramp-gate cues mounted over physical rail posts with no dynamic light",
+		"four passive emissive cues form paired gates at the two upward ramp thresholds"
+	)
+	var cue_transforms: Array[Transform3D] = []
+	var cues_contact_live_posts := batches_are_exact
+	if batches_are_exact:
+		for cue_index in batch.multimesh.instance_count:
+			var cue_transform := _decode_multimesh_transform(batch.multimesh.buffer, cue_index)
+			cue_transforms.append(cue_transform)
+			var cue_bottom := cue_transform.origin \
+				- cue_transform.basis.y * SalvageTerrace.SERVICE_BEACON_SIZE.y * 0.5
+			var matching_post_count := 0
+			for rail_index in rail_batch.multimesh.instance_count:
+				var post_transform := _decode_multimesh_transform(
+					rail_batch.multimesh.buffer, rail_index
+				)
+				var scale := Vector3(
+					post_transform.basis.x.length(),
+					post_transform.basis.y.length(),
+					post_transform.basis.z.length()
+				)
+				if not scale.is_equal_approx(SalvageTerrace.RAIL_POST_VISUAL_SIZE):
+					continue
+				var post_top := post_transform.origin + post_transform.basis.y * 0.5
+				if (
+					cue_bottom.is_equal_approx(post_top)
+					and cue_transform.basis.is_equal_approx(post_transform.basis.orthonormalized())
+				):
+					matching_post_count += 1
+			cues_contact_live_posts = cues_contact_live_posts and matching_post_count == 1
+	var main_midpoint := (cue_transforms[0].origin + cue_transforms[1].origin) * 0.5 \
+		if cue_transforms.size() == 4 else Vector3.INF
+	var inspection_midpoint := (cue_transforms[2].origin + cue_transforms[3].origin) * 0.5 \
+		if cue_transforms.size() == 4 else Vector3.INF
+	var main_route := module.get_route_marker(&"main-ramp-base")
+	var inspection_route := module.get_route_marker(&"inspection-ramp-base")
+	var cues_bracket_thresholds := cue_transforms.size() == 4 \
+		and Vector2(main_midpoint.x, main_midpoint.z).distance_to(
+			Vector2(main_route.position.x, main_route.position.z)
+		) < 0.5 \
+		and Vector2(inspection_midpoint.x, inspection_midpoint.z).distance_to(
+			Vector2(inspection_route.position.x, inspection_route.position.z)
+		) < 0.5 \
+		and cue_transforms[0].origin.distance_to(cue_transforms[1].origin) > 5.5 \
+		and cue_transforms[2].origin.distance_to(cue_transforms[3].origin) > 5.5
+	_check(
+		cues_contact_live_posts and cues_bracket_thresholds
+		and module.find_children("*", "OmniLight3D", true, false).size() == 3
+		and module.get_node_or_null(^"GeneratedRoot/HazardDressingBatch") != null,
+		"ramp-gate cues contact live sloped posts and bracket both thresholds without changing lights or hazard dressing"
+	)
+
+
+func _decode_multimesh_transform(buffer: PackedFloat32Array, index: int) -> Transform3D:
+	var offset := index * 12
+	return Transform3D(
+		Basis(
+			Vector3(buffer[offset], buffer[offset + 4], buffer[offset + 8]),
+			Vector3(buffer[offset + 1], buffer[offset + 5], buffer[offset + 9]),
+			Vector3(buffer[offset + 2], buffer[offset + 6], buffer[offset + 10])
+		),
+		Vector3(buffer[offset + 3], buffer[offset + 7], buffer[offset + 11])
 	)
 
 
