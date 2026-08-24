@@ -18,6 +18,7 @@ const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd
 const WeaponDefinitionResolverProfileType := preload("res://scripts/combat/weapon_definition_resolver_profile.gd")
 const SiegeLanceDefinition := preload("res://assets/weapons/picket_siege_lance.tres")
 const SiegeLanceAudioBindingType := preload("res://scripts/audio/siege_lance_audio_binding.gd")
+const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
 const SCHEMA_VERSION := 1
 const COMBAT_SOURCE_ID := 1106
@@ -75,6 +76,24 @@ const ENGINE_HOUSING_COPY_COUNT := 2
 const GUN_POD_HOUSING_RADIUS := 0.42
 const GUN_POD_HOUSING_HEIGHT := 2.15
 const GUN_POD_HOUSING_COPY_COUNT := 2
+## A retained, static consequence of the existing starboard-wing component
+## ledger. The breach sits on the upper aft weapon shoulder: it breaks the
+## outboard silhouette in the normal chase view without entering either forward
+## muzzle lane, the central cockpit/gunner sightline, or the port boarding lane.
+const DAMAGE_CUE_COMPONENT_ID: StringName = &"starboard_wing"
+const DAMAGE_CUE_POSITION := Vector3(4.15, 2.0, 2.75)
+const DAMAGE_SCORCH_SIZE := Vector3(1.85, 0.06, 1.55)
+const DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.03, 0.0)
+const DAMAGE_VANE_SIZE := Vector3(0.24, 1.1, 1.25)
+const DAMAGE_VANE_POSITION := Vector3(0.0, 0.55, 0.05)
+const DAMAGE_VANE_ROTATION := Vector3(0.0, deg_to_rad(-8.0), deg_to_rad(-12.0))
+const DAMAGE_SCORCH_COLOR := Color("15191f")
+const DAMAGE_VANE_COLOR := Color("ff6945")
+
+static var _shared_damage_scorch_mesh: BoxMesh
+static var _shared_damage_scorch_material: StandardMaterial3D
+static var _shared_damage_vane_mesh: BoxMesh
+static var _shared_damage_vane_material: StandardMaterial3D
 
 var _bulwark_built := false
 var _bulwark_visual: Node3D
@@ -106,6 +125,7 @@ var _engineer_repair_state: Dictionary = {
 var _engineer_status_readout: Label3D
 var _siege_lance_audio_sequence := 0
 var _siege_lance_audio_binding: RefCounted
+var _component_damage_cue: Node3D
 
 signal gunner_target_selected(target_id: StringName, target_generation: int, receipt: Dictionary)
 signal gunner_target_cleared(target_id: StringName, target_generation: int, reason: StringName)
@@ -185,6 +205,11 @@ func _ready() -> void:
 	_gunner_weapon_definition = SiegeLanceDefinition.duplicate(true) as WeaponDefinition
 	if not _bulwark_built:
 		_bulwark_built = rebuild_variant_presentation(_build_bulwark_variant)
+	if _bulwark_built:
+		_bulwark_built = _reconfigure_component_damage_from_final_root_collision()
+	if not component_damage_changed.is_connected(_on_bulwark_component_damage_changed):
+		component_damage_changed.connect(_on_bulwark_component_damage_changed)
+	_sync_component_damage_cue()
 	_apply_bulwark_metadata()
 	_bind_siege_lance_audio()
 
@@ -218,6 +243,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
 	_reset_engineer_repair_state()
+	_sync_component_damage_cue()
 	_update_gunner_station_feedback()
 
 func get_siege_lance_audio_binding() -> RefCounted:
@@ -369,6 +395,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		gun_pod_housing_names,
 		armor_highlight
 	)
+	_build_component_damage_cue(_bulwark_visual)
 
 	# Gunner station is physical ship-local presentation and interaction data;
 	# its optional siege-lance action is resolved by the shared combat authority.
@@ -458,6 +485,106 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	add_child(_boarding_area)
 
 	return replace_variant_visual_root(_bulwark_visual)
+
+
+## Builds exactly two steady renderer surfaces. They have no process callback,
+## timer, light, particles, collision, interaction, health, damage, or repair
+## seam; visibility only mirrors the already-authoritative component stage.
+func _build_component_damage_cue(visual: Node3D) -> void:
+	_component_damage_cue = Node3D.new()
+	_component_damage_cue.name = "StarboardWeaponShoulderDamageCue"
+	_component_damage_cue.position = DAMAGE_CUE_POSITION
+	_component_damage_cue.process_mode = Node.PROCESS_MODE_DISABLED
+	_component_damage_cue.set_meta(&"presentation_only", true)
+	_component_damage_cue.set_meta(&"component_id", DAMAGE_CUE_COMPONENT_ID)
+	_component_damage_cue.set_meta(&"damage_authority", false)
+	_component_damage_cue.set_meta(&"repair_authority", false)
+	_component_damage_cue.set_meta(&"animated", false)
+	visual.add_child(_component_damage_cue)
+
+	if _shared_damage_scorch_mesh == null:
+		_shared_damage_scorch_mesh = BoxMesh.new()
+		_shared_damage_scorch_mesh.size = DAMAGE_SCORCH_SIZE
+		_shared_damage_scorch_mesh.resource_local_to_scene = false
+	if _shared_damage_scorch_material == null:
+		_shared_damage_scorch_material = _material(DAMAGE_SCORCH_COLOR, 0.08, 0.94)
+		_shared_damage_scorch_material.resource_local_to_scene = false
+	var scorch := MeshInstance3D.new()
+	scorch.name = "ShoulderBreachScorch"
+	scorch.mesh = _shared_damage_scorch_mesh
+	scorch.material_override = _shared_damage_scorch_material
+	scorch.position = DAMAGE_SCORCH_POSITION
+	_component_damage_cue.add_child(scorch)
+
+	if _shared_damage_vane_mesh == null:
+		_shared_damage_vane_mesh = BoxMesh.new()
+		_shared_damage_vane_mesh.size = DAMAGE_VANE_SIZE
+		_shared_damage_vane_mesh.resource_local_to_scene = false
+	if _shared_damage_vane_material == null:
+		_shared_damage_vane_material = _material(
+			DAMAGE_VANE_COLOR, 0.14, 0.4, DAMAGE_VANE_COLOR, 1.45
+		)
+		_shared_damage_vane_material.resource_local_to_scene = false
+	var vane := MeshInstance3D.new()
+	vane.name = "RaisedBreachVane"
+	vane.mesh = _shared_damage_vane_mesh
+	vane.material_override = _shared_damage_vane_material
+	vane.position = DAMAGE_VANE_POSITION
+	vane.rotation = DAMAGE_VANE_ROTATION
+	_component_damage_cue.add_child(vane)
+	_component_damage_cue.visible = false
+
+
+func _on_bulwark_component_damage_changed(
+		component_id: StringName,
+		_state: int,
+		_integrity: float
+	) -> void:
+	if component_id == DAMAGE_CUE_COMPONENT_ID:
+		_sync_component_damage_cue()
+
+
+func _sync_component_damage_cue() -> void:
+	if not is_instance_valid(_component_damage_cue):
+		return
+	var model := get_component_damage()
+	_component_damage_cue.visible = model != null \
+		and model.is_configured() \
+		and model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+			!= ShipComponentDamageType.ComponentState.NOMINAL
+
+
+## Detached presentation snapshot for focused tests and diagnostics. This is
+## deliberately read-only and cannot mutate either the component ledger or the
+## inherited whole-craft recovery transaction.
+func get_component_damage_cue_snapshot() -> Dictionary:
+	var cue := _component_damage_cue
+	var scorch := cue.get_node_or_null(^"ShoulderBreachScorch") as MeshInstance3D \
+		if is_instance_valid(cue) else null
+	var vane := cue.get_node_or_null(^"RaisedBreachVane") as MeshInstance3D \
+		if is_instance_valid(cue) else null
+	var bounds := AABB()
+	var has_bounds := false
+	for renderer in [scorch, vane]:
+		if renderer == null or renderer.mesh == null or cue == null:
+			continue
+		var renderer_bounds: AABB = cue.transform * renderer.transform * renderer.mesh.get_aabb()
+		bounds = renderer_bounds if not has_bounds else bounds.merge(renderer_bounds)
+		has_bounds = true
+	var model := get_component_damage()
+	return {
+		"component_id": DAMAGE_CUE_COMPONENT_ID,
+		"stage": ShipComponentDamageType.state_id_for(
+			model.get_component_state(DAMAGE_CUE_COMPONENT_ID)
+		) if model != null and model.is_configured() else &"unavailable",
+		"visible": cue.visible if is_instance_valid(cue) else false,
+		"local_bounds": bounds,
+		"renderer_nodes": int(scorch != null) + int(vane != null),
+		"processes": false,
+		"flashes": false,
+		"damage_authority": false,
+		"repair_authority": false,
+	}.duplicate(true)
 
 
 ## The six console keys are immutable cockpit dressing with identical rounded-box
