@@ -127,13 +127,13 @@ func _test_contract_and_evidence() -> void:
 		bool(performance.valid)
 		and bool(performance.headless_safe)
 		and int(performance.baseline_visual_nodes) == 33
-		and int(performance.visual_nodes) == 31
+		and int(performance.visual_nodes) == 30
 		and int(performance.baseline_mesh_instances) == 31
-		and int(performance.mesh_instances) == 27
-		and int(performance.renderer_nodes) == 29
+		and int(performance.mesh_instances) == 25
+		and int(performance.renderer_nodes) == 28
 		and int(performance.visible_geometry_copies) == 31
 		and int(performance.baseline_surface_submissions) == 31
-		and int(performance.surface_submissions) == 29
+		and int(performance.surface_submissions) == 28
 		and int(performance.baseline_mesh_resources) == 27
 		and int(performance.mesh_resources) == 22
 		and int(performance.mesh_resource_delta) == -5
@@ -142,8 +142,8 @@ func _test_contract_and_evidence() -> void:
 		and int(performance.box_instances) == 14
 		and int(performance.shared_box_families) == 5
 		and int(performance.material_resources) == 8
-		and int(performance.multimesh_batches) == 2,
-		"the two safe batches preserve 31 visible copies while renderer nodes/submissions fall 31 -> 29"
+		and int(performance.multimesh_batches) == 3,
+		"the three safe batches preserve 31 visible copies while renderer nodes/submissions fall 31 -> 28"
 	)
 
 	var engine_pods := visual.get_node_or_null("EnginePodBatch") as MultiMeshInstance3D \
@@ -182,6 +182,42 @@ func _test_contract_and_evidence() -> void:
 		and is_equal_approx(pod_material.roughness, 0.32)
 		and bool(engine_pods.get_meta(&"presentation_only", false)),
 		"engine-pod batching preserves exact transforms, authored identities, bounds, material mesh and shadow policy"
+	)
+
+	var engine_cores := visual.get_node_or_null("EngineCoreBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var core_multi := engine_cores.multimesh if engine_cores != null else null
+	var core_transforms: Array = engine_cores.get_meta(&"authored_instance_transforms", []) as Array \
+		if engine_cores != null else []
+	var core_names := engine_cores.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray \
+		if engine_cores != null else PackedStringArray()
+	var expected_core_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var expected_core_transforms: Array[Transform3D] = [
+		Transform3D(expected_core_basis, Vector3(-0.86, -0.02, 5.02)),
+		Transform3D(expected_core_basis, Vector3(0.86, -0.02, 5.02)),
+	]
+	var expected_core_bounds := AABB()
+	if core_multi != null and core_multi.mesh != null:
+		for index in expected_core_transforms.size():
+			var instance_bounds := (expected_core_transforms[index] * core_multi.mesh.get_aabb()).abs()
+			expected_core_bounds = instance_bounds if index == 0 else expected_core_bounds.merge(instance_bounds)
+	var core_material := core_multi.mesh.surface_get_material(0) as StandardMaterial3D \
+		if core_multi != null and core_multi.mesh != null else null
+	_check(
+		core_multi != null
+		and core_multi.transform_format == MultiMesh.TRANSFORM_3D
+		and core_multi.instance_count == 2
+		and core_multi.visible_instance_count == -1
+		and core_multi.mesh != null
+		and core_multi.mesh.get_surface_count() == 1
+		and core_transforms == expected_core_transforms
+		and core_names == PackedStringArray(["PortEngineCore", "StarboardEngineCore"])
+		and core_multi.custom_aabb.is_equal_approx(expected_core_bounds)
+		and engine_cores.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and core_material == picket._materials.picket_engine
+		and picket._engine_glows.size() == 2
+		and bool(engine_cores.get_meta(&"presentation_only", false)),
+		"engine-core batching preserves exact transforms, material, bounds and shadows while animated plumes stay independent"
 	)
 
 	var lance_rails := visual.get_node_or_null("LanceRailBatch") as MultiMeshInstance3D \

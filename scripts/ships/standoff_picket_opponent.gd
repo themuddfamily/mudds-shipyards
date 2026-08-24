@@ -80,13 +80,13 @@ const MAX_PENDING_LANCE_RECEIPTS := 8
 # and exact duplicates, so the cache reduces only retained mesh resources:
 # nodes, visible copies, surfaces/submissions, materials and transforms stay put.
 const BASELINE_PRESENTATION_VISUAL_NODE_COUNT := 33
-const PRESENTATION_VISUAL_NODE_COUNT := 31
+const PRESENTATION_VISUAL_NODE_COUNT := 30
 const BASELINE_PRESENTATION_MESH_INSTANCE_COUNT := 31
-const PRESENTATION_MESH_INSTANCE_COUNT := 27
-const PRESENTATION_RENDERER_NODE_COUNT := 29
+const PRESENTATION_MESH_INSTANCE_COUNT := 25
+const PRESENTATION_RENDERER_NODE_COUNT := 28
 const PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT := 31
 const BASELINE_PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
-const PRESENTATION_SURFACE_SUBMISSION_COUNT := 29
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 28
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
 const PRESENTATION_MESH_RESOURCE_COUNT := 22
@@ -94,8 +94,9 @@ const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
 const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 9
 const PRESENTATION_BOX_INSTANCE_COUNT := 14
 const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 5
-const PRESENTATION_MULTIMESH_BATCH_COUNT := 2
+const PRESENTATION_MULTIMESH_BATCH_COUNT := 3
 const ENGINE_POD_COPY_COUNT := 2
+const ENGINE_CORE_COPY_COUNT := 2
 const LANCE_RAIL_COPY_COUNT := 2
 
 const CONTENT_NOTE := (
@@ -1383,6 +1384,7 @@ func _build_interceptor() -> void:
 	var spine_lens := _sphere(_visual_root, "LanceSpineLens", Vector3(0.0, 0.34, -3.4), 0.15, _materials.picket_magenta_emissive)
 	_warning_lenses.append(spine_lens)
 	_add_engine_pod_batch(_visual_root)
+	_add_engine_core_batch(_visual_root)
 
 	for side in [-1.0, 1.0]:
 		# Swept radiator vanes replace the defender's forward prongs entirely.
@@ -1391,7 +1393,6 @@ func _build_interceptor() -> void:
 		_picket_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
 		_picket_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
 
-		_cylinder(_visual_root, "EngineCore", Vector3(side * 0.86, -0.02, 5.02), 0.27, 0.16, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
 		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 0.86, -0.02, 5.42), 0.17, 0.7, _materials.picket_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
 		var engine_light := OmniLight3D.new()
@@ -1453,6 +1454,41 @@ func _add_engine_pod_batch(parent: Node3D) -> MultiMeshInstance3D:
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	batch.set_meta(&"presentation_only", true)
 	batch.set_meta(&"authored_visual_names", PackedStringArray(["PortEnginePod", "StarboardEnginePod"]))
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
+## The mirrored engine cores are static visual caps. The independently retained
+## plumes remain in `_engine_glows`, so thrust animation and reuse reset keep
+## their existing per-side lifecycle while this immutable pair submits once.
+func _add_engine_core_batch(parent: Node3D) -> MultiMeshInstance3D:
+	var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.27, 0.27, 0.16, 28, _chamfered_cylinder_cache,
+		ShipSurfaceDetail.CYLINDER_WALL_RINGS, true, true, _materials.picket_engine
+	)
+	var core_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var transforms: Array[Transform3D] = [
+		Transform3D(core_basis, Vector3(-0.86, -0.02, 5.02)),
+		Transform3D(core_basis, Vector3(0.86, -0.02, 5.02)),
+	]
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = ENGINE_CORE_COPY_COUNT
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in ENGINE_CORE_COPY_COUNT:
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "EngineCoreBatch"
+	batch.multimesh = multi
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", PackedStringArray(["PortEngineCore", "StarboardEngineCore"]))
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
