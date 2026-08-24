@@ -238,6 +238,11 @@ const MATERIAL_RESOURCE_COUNT := 32
 
 const LOWER_FLOOR_ELEVATION := 0.0
 const UPPER_FLOOR_ELEVATION := 4.2
+## Width of the presentation-only route ribbon. The lower ribbon retains its
+## original 0.18 m width and clears the Operations Access frame; readability
+## comes from turning the ribbon toward the actual stair instead of widening it
+## into the door post.
+const ROUTE_STRIPE_WIDTH := 0.18
 const STAIR_STEP_COUNT := 15
 const STAIR_RISE := UPPER_FLOOR_ELEVATION / float(STAIR_STEP_COUNT - 1)
 const STAIR_RUN := 9.8 / float(STAIR_STEP_COUNT - 1)
@@ -2955,7 +2960,26 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 	# onto the stair, so no rail may stand in it (MAP-001).
 	_box(lower, "StairBaseLanding", STAIR_BASE_LANDING_CENTRE, STAIR_BASE_LANDING_SIZE, _materials["off_white_floor"])
 	_box(lower, "JunctionInset", Vector3(0.0, 0.025, 7.35), Vector3(5.8, 0.05, 3.5), _materials["off_white_floor"], false)
-	_box(lower, "RouteStripe", Vector3(0.0, 0.06, 4.8), Vector3(0.18, 0.055, 9.1), _materials["cyan"], false)
+	# Turn the cyan ribbon across the supported junction/landing overlap, directly
+	# between the published lower-junction and stair-base markers. The previous
+	# north/south strip ran into the Operations Access frame while never showing
+	# the 5.7 m west turn a player actually has to make.
+	var lower_route_start := Vector3(
+		_route_lower_junction.position.x, 0.06, _route_lower_junction.position.z
+	)
+	var lower_route_finish := Vector3(
+		_route_stair_base.position.x, 0.06, _route_stair_base.position.z
+	)
+	var lower_route_delta := lower_route_finish - lower_route_start
+	_box(
+		lower,
+		"RouteStripe",
+		(lower_route_start + lower_route_finish) * 0.5,
+		Vector3(ROUTE_STRIPE_WIDTH, 0.055, lower_route_delta.length()),
+		_materials["cyan"],
+		false,
+		Vector3(0.0, rad_to_deg(atan2(lower_route_delta.x, lower_route_delta.z)), 0.0)
+	)
 
 	# The incomplete ring makes the junction readable without becoming another
 	# monumental runway gate. Its open west quadrant points toward the stair.
@@ -3272,7 +3296,7 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	_box(upper, "UpperFloor", Vector3(-5.15, 3.88, 17.55), Vector3(10.3, 0.64, 10.1), _materials["off_white_floor"])
 	_box(upper, "UpperFloorInset", Vector3(-5.15, 4.225, 16.4), Vector3(7.7, 0.05, 5.8), _materials["warm_grey_floor"], false)
 	_box(upper, "VIPAccessApronInset", Vector3(-5.15, 4.225, 20.95), Vector3(7.7, 0.05, 3.3), _materials["warm_grey_floor"], false)
-	_box(upper, "UpperRouteStripe", Vector3(-5.15, 4.26, 17.2), Vector3(0.16, 0.05, 8.5), _materials["red"], false)
+	_box(upper, "UpperRouteStripe", Vector3(-5.15, 4.26, 17.2), Vector3(ROUTE_STRIPE_WIDTH, 0.05, 8.5), _materials["red"], false)
 	# The former rail began at z=12.7 and joined UpperSouthRail into a sealed
 	# corner. Start it at z=14.5 to preserve the guarded edge while exposing a
 	# 1.8 m player-clear gate onto the Cinder south access transition.

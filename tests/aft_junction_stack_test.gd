@@ -37,6 +37,7 @@ func _run() -> void:
 
 	_test_identity_evidence_and_audit(module)
 	_test_route_and_space_contract(module)
+	await _test_route_stripe_readability(module)
 	await _test_collision_backed_surfaces(module)
 	await _test_stair_circulation(module)
 	_test_stair_tread_batch(module)
@@ -167,6 +168,81 @@ func _test_route_and_space_contract(module: AftJunctionStack) -> void:
 	_check(footprint_min.z < -2.0 and footprint_max.z >= 21.0, "integration footprint includes approach and aft facade")
 	_check((footprint.local_size as Vector3).is_finite(), "integration footprint size is finite")
 	_check(module.get_module_anchor().global_transform.is_equal_approx(module.global_transform), "module anchor is the exact root connection transform")
+
+
+func _test_route_stripe_readability(module: AftJunctionStack) -> void:
+	var lower := module.get_node_or_null(
+		^"Structure/LowerOpenDeck/RouteStripe"
+	) as MeshInstance3D
+	var upper := module.get_node_or_null(
+		^"Structure/UpperOpenDeck/UpperRouteStripe"
+	) as MeshInstance3D
+	var lower_junction := module.get_route_marker(&"lower-junction")
+	var stair_base := module.get_route_marker(&"stair-base")
+	var left_post := module.get_node_or_null(
+		^"OperationsEntrance/FrameBody/LeftPostCollision"
+	) as CollisionShape3D
+	var lower_size := lower.mesh.get_aabb().size if lower != null and lower.mesh != null \
+		else Vector3.ZERO
+	var upper_size := upper.mesh.get_aabb().size if upper != null and upper.mesh != null \
+		else Vector3.ZERO
+	var expected_delta := Vector3.ZERO
+	var expected_midpoint := Vector3.ZERO
+	if lower_junction != null and stair_base != null:
+		expected_delta = stair_base.position - lower_junction.position
+		expected_delta.y = 0.0
+		expected_midpoint = (lower_junction.position + stair_base.position) * 0.5
+		expected_midpoint.y = lower.position.y if lower != null else 0.0
+	var stripe_axis := lower.transform.basis.z.normalized() if lower != null else Vector3.ZERO
+	var stripe_start := lower.position - stripe_axis * lower_size.z * 0.5 \
+		if lower != null else Vector3.ZERO
+	var stripe_finish := lower.position + stripe_axis * lower_size.z * 0.5 \
+		if lower != null else Vector3.ZERO
+	var stripe_bounds := lower.transform * lower.mesh.get_aabb() \
+		if lower != null and lower.mesh != null else AABB()
+	var post_bounds := AABB()
+	if left_post != null and left_post.shape is BoxShape3D:
+		var post_size := (left_post.shape as BoxShape3D).size
+		var post_in_module := module.global_transform.affine_inverse() * left_post.global_transform
+		post_bounds = post_in_module * AABB(-post_size * 0.5, post_size)
+	var every_connector_sample_supported := lower_junction != null and stair_base != null
+	if every_connector_sample_supported:
+		for sample_index in 9:
+			var progress := float(sample_index) / 8.0
+			var sample := lower_junction.position.lerp(stair_base.position, progress)
+			var support_hit := await _ray_local(
+				module,
+				Vector3(sample.x, 0.5, sample.z),
+				Vector3(sample.x, -0.5, sample.z)
+			)
+			if support_hit.is_empty():
+				every_connector_sample_supported = false
+	_check(
+		lower != null
+		and upper != null
+		and lower_junction != null
+		and stair_base != null
+		and left_post != null
+		and left_post.shape is BoxShape3D
+		and is_equal_approx(lower_size.x, AftJunctionStack.ROUTE_STRIPE_WIDTH)
+		and is_equal_approx(upper_size.x, AftJunctionStack.ROUTE_STRIPE_WIDTH)
+		and is_equal_approx(lower_size.z, expected_delta.length())
+		and is_equal_approx(upper_size.z, 8.5)
+		and lower.position.is_equal_approx(expected_midpoint)
+		and stripe_start.distance_to(Vector3(
+			lower_junction.position.x, lower.position.y, lower_junction.position.z
+		)) < 0.01
+		and stripe_finish.distance_to(Vector3(
+			stair_base.position.x, lower.position.y, stair_base.position.z
+		)) < 0.01
+		and not stripe_bounds.intersects(post_bounds)
+		and every_connector_sample_supported
+		and lower.get_child_count() == 0
+		and upper.get_child_count() == 0
+		and lower.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and upper.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"clear presentation ribbon links the live lower-junction and stair-base markers over supported deck without touching Operations Access"
+	)
 
 
 func _test_collision_backed_surfaces(module: AftJunctionStack) -> void:
