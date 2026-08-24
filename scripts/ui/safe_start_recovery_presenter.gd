@@ -6,6 +6,9 @@ extends RefCounted
 ## own crash diagnostics.
 
 const COMPONENT_ID: StringName = &"safe-start-recovery-presenter"
+const RecoveryRecordType := preload(
+	"res://scripts/recovery/safe_start_recovery_record.gd"
+)
 const SessionDiagnosticRecordType := preload(
 	"res://scripts/diagnostics/session_diagnostic_record.gd"
 )
@@ -23,37 +26,127 @@ const DIAGNOSTIC_SNAPSHOT_KEYS := [
 ]
 
 var _snapshot: Dictionary = {}
+var _accepted_report: Dictionary = {}
+var _source_generation := -1
+var _source_revision := -1
+var _attached := false
+var _mode: StringName = &""
 
 
 func present_receipt(receipt: Dictionary) -> Dictionary:
+	var cursor := _recovery_cursor(receipt)
+	if not bool(cursor.get("accepted", false)):
+		return _reject(StringName(cursor.get("reason", &"invalid_cursor")))
+	var generation := int(cursor.get("generation", -1))
+	var revision := int(cursor.get("revision", -1))
+	if _attached and generation < _source_generation:
+		return _reject(&"stale_generation")
+	if _attached and generation == _source_generation:
+		if revision < _source_revision:
+			return _reject(&"stale_revision")
+		if revision == _source_revision:
+			if receipt != _accepted_report:
+				return _reject(&"revision_conflict")
+			if _mode == &"receipt":
+				return _snapshot.duplicate(true)
+	_source_generation = generation
+	_source_revision = revision
+	_accepted_report = receipt.duplicate(true)
+	_attached = true
+	_mode = &"receipt"
 	if not _valid_receipt(receipt):
 		_snapshot = {
 			"component_id": COMPONENT_ID,
+			"accepted": false,
+			"attached": true,
+			"generation": generation,
+			"revision": revision,
 			"status": &"invalid",
 			"title": "Recovery information unavailable",
-			"message": "Keep Safe Settings is the only available option.",
+			"message": "READINESS // [STATUS UNAVAILABLE]\nNEXT ACTION // Keep Safe Settings and review recovery information.",
+			"readiness": "[STATUS UNAVAILABLE]",
+			"next_action": "Keep Safe Settings and review recovery information.",
 			"actions": [{"id": &"keep_safe", "label": "Keep Safe Settings", "focusable": true}],
+			"color_independent": true,
 			"presentation_only": true,
+			"settings_authority": false,
+			"filesystem_authority": false,
 		}
 		return _snapshot.duplicate(true)
 	var graphics := receipt.get("graphics_recovery_receipt", {}) as Dictionary
 	var audio := receipt.get("audio_recovery_receipt", {}) as Dictionary
-	var restore_available := not graphics.is_empty() or not audio.is_empty()
+	var graphics_restore_available := not graphics.is_empty() and not bool(graphics.get("consumed", true))
+	var audio_restore_available := not audio.is_empty() and not bool(audio.get("consumed", true))
+	var restore_record_available := graphics_restore_available or audio_restore_available
+	var policy_snapshot := receipt.get("policy_snapshot", {}) as Dictionary
+	var stability_confirmed := (
+		str(policy_snapshot.get("state", "")) == RecoveryRecordType.STATE_STABLE
+		and _status_reason(receipt, "stable_status") in [&"startup_stable", &"already_stable"]
+	)
+	var restore_available := restore_record_available and stability_confirmed
+	var blocked_reason := _blocked_reason(receipt)
 	var actions: Array = [{"id": &"keep_safe", "label": "Keep Safe Settings", "focusable": true}]
-	if restore_available:
-		actions.push_front({"id": &"restore", "label": "Restore Previous Settings", "focusable": true})
+	var status: StringName = &"safe_mode_confirmed"
+	var title := "Safe Settings Active"
+	var summary := _fallback_summary(graphics_restore_available, audio_restore_available)
+	var readiness := "[READY]"
+	var next_action := "Continue with the current settings."
+	var explanation := "Safe display and audio status was read from the recovery record."
+	if not blocked_reason.is_empty():
+		status = &"recovery_blocked"
+		title = "Settings Recovery Required"
+		readiness = "[ACTION REQUIRED]"
+		next_action = "Review Settings Recovery before changing display or audio settings."
+		explanation = "Settings data was preserved because recovery authority could not safely continue."
+		actions.clear()
+	elif restore_record_available and not stability_confirmed:
+		status = &"safe_mode_active"
+		readiness = "[STABILITY CHECK]"
+		next_action = "Keep Safe Settings until startup stability is confirmed."
+		explanation = "Fallback settings are active while this startup is checked for stability."
+	elif restore_available:
+		status = &"restore_ready"
+		readiness = "[RESTORE READY]"
+		var restored_domains := _restore_domains(graphics_restore_available, audio_restore_available)
+		next_action = "Restore previous %s settings, or keep the safe settings." % restored_domains
+		explanation = "Startup stability is confirmed and previous settings are available."
+		actions.push_front({
+			"id": &"restore",
+			"label": "Restore Previous %s" % restored_domains.capitalize(),
+			"focusable": true,
+		})
+	elif not graphics.is_empty() or not audio.is_empty():
+		status = &"recovery_complete"
+		readiness = "[RECOVERY COMPLETE]"
+		next_action = "Continue with the current settings. Previous fallback receipts are complete."
+		explanation = "No previous graphics or audio settings remain available to restore."
 	_snapshot = {
 		"component_id": COMPONENT_ID,
-		"status": &"safe_mode_active" if restore_available else &"safe_mode_confirmed",
-		"title": "Safe Settings Active",
-		"message": "The previous session did not start cleanly. Safe display/audio settings are active.",
+		"accepted": true,
+		"attached": true,
+		"generation": generation,
+		"revision": revision,
+		"status": status,
+		"title": title,
+		"message": "%s\nFALLBACK // %s\nREADINESS // %s\nNEXT ACTION // %s" % [
+			explanation, summary, readiness, next_action,
+		],
+		"fallback_summary": summary,
+		"readiness": readiness,
+		"next_action": next_action,
 		"details": {
-			"graphics_restore_available": not graphics.is_empty(),
-			"audio_restore_available": not audio.is_empty(),
-			"stability_confirmed": bool(receipt.get("stability_confirmed", false)),
+			"graphics_restore_available": graphics_restore_available,
+			"audio_restore_available": audio_restore_available,
+			"graphics_receipt_consumed": not graphics.is_empty() and bool(graphics.get("consumed", false)),
+			"audio_receipt_consumed": not audio.is_empty() and bool(audio.get("consumed", false)),
+			"stability_confirmed": stability_confirmed,
+			"blocked_reason": blocked_reason,
 		},
 		"actions": actions,
+		"color_independent": true,
 		"presentation_only": true,
+		"settings_authority": false,
+		"filesystem_authority": false,
 	}
 	return _snapshot.duplicate(true)
 
@@ -62,7 +155,30 @@ func get_snapshot() -> Dictionary:
 	return _snapshot.duplicate(true)
 
 
+func detach() -> Dictionary:
+	_accepted_report.clear()
+	_source_generation = -1
+	_source_revision = -1
+	_attached = false
+	_mode = &""
+	_snapshot = {
+		"component_id": COMPONENT_ID,
+		"accepted": true,
+		"attached": false,
+		"generation": -1,
+		"revision": -1,
+		"status": &"detached",
+		"actions": [],
+		"color_independent": true,
+		"presentation_only": true,
+		"settings_authority": false,
+		"filesystem_authority": false,
+	}
+	return _snapshot.duplicate(true)
+
+
 func present_recovery_choice(recommendation: Dictionary) -> Dictionary:
+	_mode = &"choice"
 	if not bool(recommendation.get("available", false)) or not bool(recommendation.get("requires_caller_choice", false)):
 		_snapshot = {"component_id": COMPONENT_ID, "status": &"hidden", "actions": [], "presentation_only": true}
 		return _snapshot.duplicate(true)
@@ -144,23 +260,164 @@ func request_choice(choice: StringName) -> Dictionary:
 	return {"accepted": false, "reason": &"action_unavailable", "choice": choice, "presentation_only": true}
 
 
-func request_restore() -> Dictionary:
-	return _intent(&"restore", &"restore_requested")
+func request_restore(expected_generation: int = -1, expected_revision: int = -1) -> Dictionary:
+	return _intent(&"restore", &"restore_requested", expected_generation, expected_revision)
 
 
-func request_keep_safe() -> Dictionary:
-	return _intent(&"keep_safe", &"keep_safe_requested")
+func request_keep_safe(expected_generation: int = -1, expected_revision: int = -1) -> Dictionary:
+	return _intent(&"keep_safe", &"keep_safe_requested", expected_generation, expected_revision)
 
 
-func _intent(action: StringName, reason: StringName) -> Dictionary:
+func _intent(
+		action: StringName,
+		reason: StringName,
+		expected_generation: int = -1,
+		expected_revision: int = -1
+		) -> Dictionary:
+	if expected_generation >= 0 and expected_generation != _source_generation:
+		return _reject_intent(action, &"stale_generation")
+	if expected_revision >= 0 and expected_revision != _source_revision:
+		return _reject_intent(action, &"stale_revision")
 	for candidate in _snapshot.get("actions", []) as Array:
 		if StringName(candidate.get("id", &"")) == action:
-			return {"accepted": true, "reason": reason, "action": action, "presentation_only": true}
-	return {"accepted": false, "reason": &"action_unavailable", "action": action, "presentation_only": true}
+			return {
+				"accepted": true,
+				"reason": reason,
+				"action": action,
+				"generation": _source_generation,
+				"revision": _source_revision,
+				"presentation_only": true,
+				"settings_authority": false,
+				"filesystem_authority": false,
+			}
+	return _reject_intent(action, &"action_unavailable")
 
 
 func _valid_receipt(receipt: Dictionary) -> bool:
-	return receipt.has("graphics_recovery_receipt") and receipt.has("audio_recovery_receipt")
+	var schema_value: Variant = receipt.get("schema_version")
+	if not schema_value is int or int(schema_value) != 1:
+		return false
+	var graphics_value: Variant = receipt.get("graphics_recovery_receipt")
+	var audio_value: Variant = receipt.get("audio_recovery_receipt")
+	if not graphics_value is Dictionary or not audio_value is Dictionary:
+		return false
+	var generation := _source_generation
+	return _valid_fallback_receipt(graphics_value as Dictionary, true, generation) \
+		and _valid_fallback_receipt(audio_value as Dictionary, false, generation)
+
+
+func _valid_fallback_receipt(record: Dictionary, graphics: bool, generation: int) -> bool:
+	if record.is_empty():
+		return true
+	var consumed_value: Variant = record.get("consumed")
+	var source_store_generation: Variant = record.get("source_store_generation")
+	var prior_values: Variant = record.get("prior_values")
+	if not consumed_value is bool \
+			or not source_store_generation is int \
+			or int(source_store_generation) < 0 \
+			or not prior_values is Dictionary:
+		return false
+	if graphics:
+		var startup_generation: Variant = record.get("startup_generation")
+		return startup_generation is int \
+			and int(startup_generation) == generation \
+			and (prior_values as Dictionary).has("graphics_profile") \
+			and (prior_values as Dictionary).has("window_mode")
+	return (prior_values as Dictionary).has("master_volume") \
+		and (prior_values as Dictionary).has("music_volume")
+
+
+func _recovery_cursor(receipt: Dictionary) -> Dictionary:
+	var policy_value: Variant = receipt.get("policy_snapshot")
+	if not policy_value is Dictionary:
+		return {"accepted": false, "reason": &"invalid_cursor"}
+	var policy := policy_value as Dictionary
+	var report_generation_value: Variant = receipt.get("startup_generation")
+	var policy_schema_value: Variant = policy.get("schema_version")
+	var generation_value: Variant = policy.get("startup_generation")
+	var revision_value: Variant = policy.get("record_generation")
+	if not report_generation_value is int \
+			or not policy_schema_value is int \
+			or int(policy_schema_value) != RecoveryRecordType.SCHEMA_VERSION \
+			or not generation_value is int \
+			or not revision_value is int:
+		return {"accepted": false, "reason": &"invalid_cursor"}
+	var report_generation := int(report_generation_value)
+	var generation := int(generation_value)
+	var revision := int(revision_value)
+	if report_generation < 0 \
+			or report_generation > RecoveryRecordType.MAX_SAFE_JSON_INTEGER \
+			or (report_generation > 0 and report_generation != generation) \
+			or generation < 0 or generation > RecoveryRecordType.MAX_SAFE_JSON_INTEGER \
+			or revision < 0 or revision > RecoveryRecordType.MAX_SAFE_JSON_INTEGER:
+		return {"accepted": false, "reason": &"invalid_cursor"}
+	return {
+		"accepted": true,
+		"generation": generation,
+		"revision": revision,
+	}
+
+
+func _blocked_reason(receipt: Dictionary) -> StringName:
+	var begin_reason := _status_reason(receipt, "begin_status")
+	if begin_reason in [
+		&"settings_authority_blocked", &"store_recovery_required", &"restore_rejected",
+		&"policy_unavailable", &"store_unavailable", &"startup_generation_exhausted",
+	]:
+		return begin_reason
+	var restore_reason := _status_reason(receipt, "restore_status")
+	if restore_reason in [&"store_load_unavailable", &"record_schema_newer", &"invalid_record"]:
+		return restore_reason
+	return &""
+
+
+func _status_reason(receipt: Dictionary, key: String) -> StringName:
+	var status_value: Variant = receipt.get(key, {})
+	if not status_value is Dictionary:
+		return &""
+	return StringName((status_value as Dictionary).get("reason", &""))
+
+
+func _fallback_summary(graphics: bool, audio: bool) -> String:
+	if graphics and audio:
+		return "SAFE GRAPHICS + SAFE AUDIO ACTIVE"
+	if graphics:
+		return "SAFE GRAPHICS ACTIVE // AUDIO UNCHANGED"
+	if audio:
+		return "GRAPHICS UNCHANGED // SAFE AUDIO ACTIVE"
+	return "NO ACTIVE FALLBACK RECEIPTS"
+
+
+func _restore_domains(graphics: bool, audio: bool) -> String:
+	if graphics and audio:
+		return "graphics and audio"
+	return "graphics" if graphics else "audio"
+
+
+func _reject(reason: StringName) -> Dictionary:
+	return {
+		"accepted": false,
+		"reason": reason,
+		"generation": _source_generation,
+		"revision": _source_revision,
+		"snapshot": _snapshot.duplicate(true),
+		"presentation_only": true,
+		"settings_authority": false,
+		"filesystem_authority": false,
+	}.duplicate(true)
+
+
+func _reject_intent(action: StringName, reason: StringName) -> Dictionary:
+	return {
+		"accepted": false,
+		"reason": reason,
+		"action": action,
+		"generation": _source_generation,
+		"revision": _source_revision,
+		"presentation_only": true,
+		"settings_authority": false,
+		"filesystem_authority": false,
+	}
 
 
 func _valid_diagnostic_snapshot(snapshot: Dictionary) -> bool:

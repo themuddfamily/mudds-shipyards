@@ -12,19 +12,118 @@ func _init() -> void:
 
 func _run() -> void:
 	var presenter := Presenter.new()
-	var snapshot := presenter.present_receipt({
-		"graphics_recovery_receipt": {"consumed": false, "prior_values": {"graphics_profile": "high"}},
-		"audio_recovery_receipt": {"consumed": false, "prior_values": {"music_volume": 0.6}},
-		"stability_confirmed": true,
-	})
-	_check(snapshot.status == &"safe_mode_active" and snapshot.title == "Safe Settings Active", "recovery receipt becomes explicit safe-mode copy")
-	_check(snapshot.actions.size() == 2 and snapshot.actions[0].focusable and snapshot.actions[1].focusable, "restore and keep-safe actions are controller-focusable")
-	_check(presenter.request_restore().accepted and presenter.request_keep_safe().accepted, "recovery actions return external presentation intents")
+	var active_report := _report(4, 8, "starting", false, false)
+	var snapshot := presenter.present_receipt(active_report)
+	_check(
+		snapshot.status == &"safe_mode_active"
+		and snapshot.readiness == "[STABILITY CHECK]"
+		and snapshot.next_action == "Keep Safe Settings until startup stability is confirmed."
+		and snapshot.message.contains("SAFE GRAPHICS + SAFE AUDIO ACTIVE")
+		and snapshot.message.contains("NEXT ACTION //")
+		and bool(snapshot.color_independent),
+		"active graphics/audio fallbacks expose a text-labelled stability next action"
+	)
+	_check(
+		snapshot.actions.size() == 1
+		and snapshot.actions[0].id == &"keep_safe"
+		and snapshot.actions[0].focusable,
+		"restore stays unavailable until the authoritative stability record confirms readiness"
+	)
+	_check(
+		not bool(presenter.request_restore(4, 8).accepted)
+		and bool(presenter.request_keep_safe(4, 8).accepted)
+		and not bool(presenter.request_keep_safe(4, 8).settings_authority)
+		and not bool(presenter.request_keep_safe(4, 8).filesystem_authority),
+		"pre-stability recovery actions return presentation intents without settings authority"
+	)
 	var detached := presenter.get_snapshot()
-	(detached.details as Dictionary)["stability_confirmed"] = false
-	_check(bool(presenter.get_snapshot().details.stability_confirmed), "presented recovery details are detached")
-	var invalid := presenter.present_receipt({"graphics_recovery_receipt": {}})
-	_check(invalid.status == &"invalid" and invalid.actions.size() == 1 and presenter.request_restore().accepted == false, "incomplete receipts fail closed to keep-safe only")
+	(detached.details as Dictionary)["stability_confirmed"] = true
+	(detached.actions as Array).clear()
+	_check(
+		not bool(presenter.get_snapshot().details.stability_confirmed)
+		and presenter.get_snapshot().actions.size() == 1,
+		"presented recovery details and action rows are detached"
+	)
+
+	var stable_report := _report(4, 9, "stable", false, false)
+	var ready := presenter.present_receipt(stable_report)
+	_check(
+		ready.status == &"restore_ready"
+		and ready.readiness == "[RESTORE READY]"
+		and ready.next_action.contains("graphics and audio")
+		and ready.actions.size() == 2
+		and ready.actions[0].label == "Restore Previous Graphics And Audio",
+		"stable authoritative receipts name the exact graphics/audio restore opportunity"
+	)
+	_check(
+		bool(presenter.request_restore(4, 9).accepted)
+		and presenter.request_restore(4, 8).reason == &"stale_revision"
+		and presenter.request_keep_safe(3, 9).reason == &"stale_generation",
+		"recovery intents can be fenced to the exact visible generation and revision"
+	)
+	var stale := presenter.present_receipt(active_report)
+	_check(
+		not bool(stale.accepted)
+		and stale.reason == &"stale_revision"
+		and presenter.get_snapshot().status == &"restore_ready",
+		"an older recovery revision cannot replace the current next action"
+	)
+	var conflict_report := stable_report.duplicate(true)
+	(conflict_report.audio_recovery_receipt as Dictionary)["consumed"] = true
+	_check(
+		presenter.present_receipt(conflict_report).reason == &"revision_conflict"
+		and presenter.get_snapshot().details.audio_restore_available,
+		"same-cursor divergent recovery data is rejected without changing the view"
+	)
+	var wrong_generation_type := stable_report.duplicate(true)
+	(wrong_generation_type.policy_snapshot as Dictionary)["startup_generation"] = "4"
+	_check(
+		presenter.present_receipt(wrong_generation_type).reason == &"invalid_cursor",
+		"generation and revision fencing retains exact integer types"
+	)
+
+	var complete := presenter.present_receipt(_report(4, 10, "stable", true, true))
+	_check(
+		complete.status == &"recovery_complete"
+		and complete.readiness == "[RECOVERY COMPLETE]"
+		and complete.actions.size() == 1
+		and not bool(presenter.request_restore(4, 10).accepted),
+		"consumed graphics/audio receipts clearly report completion without replaying restore"
+	)
+	var blocked_report := _report(5, 1, "starting", true, true)
+	blocked_report.begin_status = {"accepted": false, "reason": &"settings_authority_blocked"}
+	var blocked := presenter.present_receipt(blocked_report)
+	_check(
+		blocked.status == &"recovery_blocked"
+		and blocked.readiness == "[ACTION REQUIRED]"
+		and blocked.next_action.contains("Review Settings Recovery")
+		and blocked.actions.is_empty(),
+		"corrupt-settings authority is visibly preserved and directs the player to recovery review"
+	)
+	var detached_state := presenter.detach()
+	_check(
+		detached_state.status == &"detached"
+		and presenter.get_snapshot().actions.is_empty()
+		and not bool(presenter.request_keep_safe().accepted),
+		"detach clears retained recovery rows and intents"
+	)
+	var reused := presenter.present_receipt(_report(1, 1, "starting", false, true))
+	_check(
+		reused.generation == 1
+		and reused.revision == 1
+		and reused.fallback_summary == "SAFE GRAPHICS ACTIVE // AUDIO UNCHANGED",
+		"detached presenter reuse starts a fresh cursor and names a graphics-only fallback"
+	)
+	var invalid_report := _report(2, 1, "starting", false, false)
+	invalid_report.erase("audio_recovery_receipt")
+	var invalid := presenter.present_receipt(invalid_report)
+	_check(
+		invalid.status == &"invalid"
+		and invalid.actions.size() == 1
+		and not bool(presenter.request_restore().accepted),
+		"incomplete authoritative receipts fail closed to keep-safe only"
+	)
+
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame
@@ -46,7 +145,7 @@ func _run() -> void:
 	_check(not bool(hud._recovery_prompt_panel.visible), "accepted recovery publication clears the prompt")
 	hud.free()
 	if _failures.is_empty():
-		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 11 assertions")
+		print("SAFE_START_RECOVERY_PRESENTER_TEST_OK: 21 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)
@@ -62,3 +161,42 @@ func _check(condition: bool, message: String) -> void:
 func _on_intent(kind: StringName, payload: Dictionary) -> void:
 	if kind == &"recovery":
 		_intents.append(payload.duplicate(true))
+
+
+func _report(
+		generation: int,
+		revision: int,
+		state: String,
+		graphics_consumed: bool,
+		audio_consumed: bool
+		) -> Dictionary:
+	return {
+		"schema_version": 1,
+		"startup_generation": generation,
+		"begin_status": {"accepted": true, "reason": &"startup_begun"},
+		"restore_status": {"accepted": true, "reason": &"restored"},
+		"stable_status": (
+			{"accepted": true, "reason": &"startup_stable"}
+			if state == "stable" else {"accepted": false, "reason": &"not_attempted"}
+		),
+		"policy_snapshot": {
+			"schema_version": 1,
+			"startup_generation": generation,
+			"record_generation": revision,
+			"state": state,
+		},
+		"graphics_recovery_receipt": {
+			"consumed": graphics_consumed,
+			"source_store_generation": revision,
+			"startup_generation": generation,
+			"prior_values": {
+				"graphics_profile": "high",
+				"window_mode": "fullscreen",
+			},
+		},
+		"audio_recovery_receipt": {
+			"consumed": audio_consumed,
+			"source_store_generation": revision,
+			"prior_values": {"master_volume": 0.8, "music_volume": 0.6},
+		},
+	}
