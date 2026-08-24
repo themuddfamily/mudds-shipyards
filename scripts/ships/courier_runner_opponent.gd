@@ -60,6 +60,15 @@ const TAIL_TURRET_CHARGE_SCALE := Vector3(1.65, 0.62, 0.62)
 const MATERIAL_CATALOG_ENTRY_COUNT := 19
 const POD_BAND_SIZE := Vector3(1.35, 1.35, 0.22)
 const POD_LAMP_RADIUS := 0.13
+## One steady, world-space arrow above the runner makes its fixed boundary route
+## legible from the player's intercept distance. It is intentionally much wider
+## than a hull marker: the cue describes where the courier is escaping, not a
+## subsystem to shoot.
+const ROUTE_INTENT_CUE_HEIGHT := 7.5
+const ROUTE_INTENT_SHAFT_SIZE := Vector3(0.72, 0.34, 6.4)
+const ROUTE_INTENT_HEAD_SIZE := Vector3(0.72, 0.34, 4.6)
+const ROUTE_INTENT_HEAD_OFFSET := Vector3(1.35, 0.0, -4.05)
+const ROUTE_INTENT_HEAD_YAW := deg_to_rad(42.0)
 
 ## The inherited eleven recipes plus the courier's eight palette recipes are
 ## immutable after build. Each runner keeps its own dictionary and all dynamic
@@ -84,6 +93,8 @@ var _distress_broadcast := false
 var _tail_muzzle: Marker3D
 var _distress_beacon: MeshInstance3D
 var _distress_light: OmniLight3D
+var _route_intent_cue: Node3D
+var _route_intent_generation := -1
 var _cargo_lamps: Array[MeshInstance3D] = []
 var _shots_arc_denied := 0
 var _built_material_contracts: Dictionary = {}
@@ -101,6 +112,15 @@ func _ready() -> void:
 	if source_id <= 0:
 		source_id = DEFAULT_SOURCE_ID
 	_apply_distress_presentation()
+	_apply_route_intent_presentation()
+
+
+func _exit_tree() -> void:
+	# A streamed detach invalidates the scenario generation that supplied this
+	# route. Re-entry must receive a fresh authoritative route before advertising
+	# an escape direction again.
+	_clear_route_intent_presentation()
+	super()
 
 
 func activate(spawn_transform: Transform3D) -> Dictionary:
@@ -115,18 +135,22 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_escape_origin = spawn_transform.origin
 	_escape_heading = (-spawn_transform.basis.z).normalized()
 	_escape_run_set = false
+	_route_intent_generation = -1
 	_apply_distress_presentation()
+	_apply_route_intent_presentation()
 	return activation
 
 
 func deactivate() -> void:
 	super()
 	_distress_broadcast = false
+	_clear_route_intent_presentation()
 	_apply_distress_presentation()
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
 	_distress_broadcast = false
+	_clear_route_intent_presentation()
 	_apply_distress_presentation()
 	super(death_position)
 
@@ -172,8 +196,17 @@ func set_escape_run(origin: Vector3, heading: Vector3, distance: float) -> bool:
 	_escape_heading = heading.normalized()
 	escape_distance = distance
 	_escape_run_set = true
+	_route_intent_generation = _activation_generation
+	_apply_route_intent_presentation()
 	escape_run_set.emit(_escape_origin, _escape_heading, escape_distance)
 	return true
+
+
+func set_target(target: Node3D) -> void:
+	super(target)
+	# Explicit threat loss clears the route read in the same call. An unexpected
+	# target teardown is caught by the inherited presentation pass next frame.
+	_apply_route_intent_presentation()
 
 
 func get_escape_heading() -> Vector3:
@@ -530,6 +563,44 @@ func _apply_distress_presentation() -> void:
 			lamp.visible = _active
 
 
+## Pure presentation of the already-fixed destination and live pursuer. The
+## arrow is top-level, so hull jinks and banking never bend the advertised route
+## away from the scenario's authoritative world-space escape heading.
+func _apply_route_intent_presentation() -> void:
+	if not is_instance_valid(_route_intent_cue):
+		return
+	var route_is_current := (
+		_active
+		and _escape_run_set
+		and _route_intent_generation == _activation_generation
+		and _has_current_target()
+		and not is_equal_approx(get_escape_progress(), 1.0)
+		and is_inside_tree()
+		and not is_queued_for_deletion()
+	)
+	_route_intent_cue.visible = route_is_current
+	if not route_is_current:
+		# Loss, terminal distance, detach, and queued teardown invalidate this
+		# generation's cue rather than merely hiding it. Restoring a target or
+		# moving the retained fixture cannot resurrect a stale route read.
+		if _route_intent_generation == _activation_generation:
+			_route_intent_generation = -1
+		return
+	var route_up := Vector3.UP
+	if absf(_escape_heading.dot(route_up)) > 0.965:
+		route_up = Vector3.FORWARD
+	_route_intent_cue.global_transform = Transform3D(
+		Basis.looking_at(_escape_heading, route_up).orthonormalized(),
+		global_position + Vector3.UP * ROUTE_INTENT_CUE_HEIGHT
+	)
+
+
+func _clear_route_intent_presentation() -> void:
+	_route_intent_generation = -1
+	if is_instance_valid(_route_intent_cue):
+		_route_intent_cue.visible = false
+
+
 func _update_presentation(delta: float) -> void:
 	super(delta)
 	if _active and _telegraph_remaining > 0.0 and not _warning_lenses.is_empty():
@@ -537,6 +608,7 @@ func _update_presentation(delta: float) -> void:
 		# aperture reads as a slow deterrent shot without adding flash motion.
 		_warning_lenses[0].scale *= TAIL_TURRET_CHARGE_SCALE
 	_apply_distress_presentation()
+	_apply_route_intent_presentation()
 
 
 # ---------------------------------------------------------------- geometry ----
@@ -559,6 +631,42 @@ func _build_interceptor() -> void:
 	_visual_root = Node3D.new()
 	_visual_root.name = "ContractCourierVisual"
 	add_child(_visual_root)
+
+	# A single retained arrow, rendered from three boxes and two immutable mesh
+	# recipes. It has no light, collision, timer, input, or process ownership.
+	# Its top-level transform is refreshed by the existing presentation owner.
+	_route_intent_cue = Node3D.new()
+	_route_intent_cue.name = "EscapeRouteIntentCue"
+	add_child(_route_intent_cue)
+	_route_intent_cue.set_as_top_level(true)
+	var route_shaft_mesh := _make_box_mesh(
+		ROUTE_INTENT_SHAFT_SIZE, _materials.courier_engine
+	)
+	var route_head_mesh := _make_box_mesh(
+		ROUTE_INTENT_HEAD_SIZE, _materials.courier_engine
+	)
+	var route_shaft := _box_from_mesh(
+		_route_intent_cue, "Shaft", Vector3(0.0, 0.0, -0.25), route_shaft_mesh
+	)
+	var route_port_head := _box_from_mesh(
+		_route_intent_cue,
+		"PortArrowHead",
+		Vector3(-ROUTE_INTENT_HEAD_OFFSET.x, 0.0, ROUTE_INTENT_HEAD_OFFSET.z),
+		route_head_mesh,
+		Vector3(0.0, -ROUTE_INTENT_HEAD_YAW, 0.0)
+	)
+	var route_starboard_head := _box_from_mesh(
+		_route_intent_cue,
+		"StarboardArrowHead",
+		ROUTE_INTENT_HEAD_OFFSET,
+		route_head_mesh,
+		Vector3(0.0, ROUTE_INTENT_HEAD_YAW, 0.0)
+	)
+	for route_piece in [route_shaft, route_port_head, route_starboard_head]:
+		(route_piece as MeshInstance3D).cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		)
+	_route_intent_cue.visible = false
 
 	# A blunt utility hull with slung cargo pods and oversized engines. It has to
 	# read as freight that has been made to go fast, not as a warship.
