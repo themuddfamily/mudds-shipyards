@@ -85,6 +85,8 @@ const GALLEY_DOOR_PULL_COPY_COUNT := 4
 const POTTING_PULL_COPY_COUNT := 3
 const MESS_BENCH_LEG_COPY_COUNT := 4
 const GARDEN_RACK_CROWN_COPY_COUNT := 5
+const MESS_MUG_COPY_COUNT := 3
+const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 1230
 const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 1234
 const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
 const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
@@ -93,11 +95,11 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1237
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1870
-const RENDER_MESH_INSTANCE_COUNT := 1211
-const RENDER_MULTIMESH_BATCH_COUNT := 28
+const RENDER_DESCENDANT_COUNT := 1868
+const RENDER_MESH_INSTANCE_COUNT := 1208
+const RENDER_MULTIMESH_BATCH_COUNT := 29
 const RENDER_DRAWN_COPY_COUNT := 1385
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1230
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1228
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 345
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
@@ -226,6 +228,8 @@ var _mess_bench_leg_transforms: Array[Transform3D] = []
 var _mess_bench_leg_batch: MultiMeshInstance3D
 var _garden_rack_crown_transforms: Array[Transform3D] = []
 var _garden_rack_crown_batch: MultiMeshInstance3D
+var _mess_mug_transforms: Array[Transform3D] = []
+var _mess_mug_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -738,6 +742,13 @@ func get_performance_contract() -> Dictionary:
 	# get collision is what a player would otherwise walk through — the 12 mouth
 	# jambs, the galley carcass, worktop and bin, the mess trestles, table top and
 	# two benches, and the four kit bags on the deck.
+	#
+	# Re-frozen after the three identical, childless mess-table mugs moved from
+	# individual renderers into one CommonMess-local batch. Their cached 32-segment
+	# cylinder, plastic material and three poses are unchanged; descendants fall
+	# 1870 -> 1868, MeshInstances 1211 -> 1208, MultiMeshes 28 -> 29, and geometry
+	# submissions 1230 -> 1228. Drawn copies, lights, collision and authority stay
+	# fixed.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 1350,
 		"static_bodies": 260,
@@ -1172,6 +1183,33 @@ func get_render_allocation_report() -> Dictionary:
 		and StringName(_mess_bench_leg_batch.get_meta("authored_source_name", &""))
 			== &"MessBenchLeg"
 	)
+	var mess_mug_authored: bool = (
+		is_instance_valid(_mess_mug_batch)
+		and _mess_mug_batch.multimesh != null
+		and _mess_mug_batch.multimesh.instance_count == MESS_MUG_COPY_COUNT
+		and _mess_mug_batch.multimesh.visible_instance_count == -1
+		and _mess_mug_batch.multimesh.mesh != null
+		and _mess_mug_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.096, 0.105, 0.096)
+		)
+		and _mess_mug_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_mess_mug_transforms
+		)
+		and _mess_mug_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_mess_mug_batch.multimesh.mesh.get_aabb(), _mess_mug_transforms
+			)
+		)
+		and _mess_mug_batch.material_override == _materials.get("plastic_pale")
+		and _mess_mug_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _mess_mug_batch.layers == 1
+		and _mess_mug_batch.get_child_count() == 0
+		and _mess_mug_batch.get_script() == null
+		and _mess_mug_batch.get_groups().is_empty()
+		and bool(_mess_mug_batch.get_meta("visual_detail_only", false))
+		and StringName(_mess_mug_batch.get_meta("authored_source_name", &""))
+			== &"MessMug"
+	)
 	var descendant_count := _render_descendant_count()
 	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -1199,6 +1237,8 @@ func get_render_allocation_report() -> Dictionary:
 		and potting_pull_authored
 		and _mess_bench_leg_transforms.size() == MESS_BENCH_LEG_COPY_COUNT
 		and mess_bench_leg_authored
+		and _mess_mug_transforms.size() == MESS_MUG_COPY_COUNT
+		and mess_mug_authored
 	)
 	return {
 		"schema_version": 1,
@@ -1270,6 +1310,17 @@ func get_render_allocation_report() -> Dictionary:
 			MESS_BENCH_LEG_COPY_COUNT - 1
 		),
 		"authored_mess_bench_leg_transforms": _mess_bench_leg_transforms.duplicate(),
+		"mess_mug_legacy_renderer_nodes": MESS_MUG_COPY_COUNT,
+		"mess_mug_renderer_nodes": 1 if mess_mug_authored else 0,
+		"mess_mug_legacy_submissions": MESS_MUG_COPY_COUNT,
+		"mess_mug_submissions": 1 if mess_mug_authored else 0,
+		"mess_mug_copies": _mess_mug_transforms.size(),
+		"mess_mug_authored": mess_mug_authored,
+		"geometry_submissions_before_mess_mug_batch": (
+			PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT
+		),
+		"geometry_submissions_removed_by_mess_mug_batch": MESS_MUG_COPY_COUNT - 1,
+		"authored_mess_mug_transforms": _mess_mug_transforms.duplicate(),
 		"garden_rack_crown_legacy_renderer_nodes": GARDEN_RACK_CROWN_COPY_COUNT,
 		"garden_rack_crown_renderer_nodes": 1 if garden_rack_crown_authored else 0,
 		"garden_rack_crown_legacy_submissions": GARDEN_RACK_CROWN_COPY_COUNT,
@@ -3491,8 +3542,22 @@ func _build_common_mess(common: Node3D) -> void:
 	# Left on the table.
 	_box(mess, "MessTray", Vector3(table_x - 0.10, 0.812, 22.76), Vector3(0.46, 0.045, 0.62), _materials["plastic_pale"], false)
 	_cylinder(mess, "MessBowl", Vector3(table_x - 0.18, 0.879, 22.76), 0.13, 0.09, _materials["plastic_pale"], false)
+	_mess_mug_transforms.clear()
 	for mug_offset in [Vector2(-0.19, 0.26), Vector2(0.08, 0.44), Vector2(0.24, 0.12)]:
-		_cylinder(mess, "MessMug", Vector3(table_x + mug_offset.x, 0.8425, table_z + mug_offset.y), 0.048, 0.105, _materials["plastic_pale"], false)
+		_mess_mug_transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(table_x + mug_offset.x, 0.8425, table_z + mug_offset.y)
+		))
+	_mess_mug_batch = _multimesh_visual_stock(
+		mess,
+		"MessMugs",
+		StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.048, 0.048, 0.105, 32, _chamfered_cylinder_cache
+		),
+		_materials["plastic_pale"],
+		_mess_mug_transforms,
+		&"MessMug"
+	)
 	_cylinder(mess, "MessThermos", Vector3(table_x + 0.30, 0.930, 22.92), 0.062, 0.28, _materials["steel_bright"], false)
 	_box(mess, "MessCloth", Vector3(table_x - 0.25, 0.8075, 24.05), Vector3(0.30, 0.035, 0.24), _materials["linen"], false)
 	_box(mess, "MessCardDeck", Vector3(table_x + 0.17, 0.800, 24.12), Vector3(0.10, 0.025, 0.14), _materials["linen"], false, Vector3(0, 14, 0))
