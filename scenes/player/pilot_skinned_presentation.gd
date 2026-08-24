@@ -33,7 +33,7 @@ const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest
 ## rigid single-bone detail has no reason to enter the GPU skinning buffer.
 const EXPECTED_ASSET_SHA256 := "457c783ba0c27ef21531ce17c15d62d486bfa7216a0b8a120d09f0b046af4099"
 const EXPECTED_SOURCE_SHA256 := "612840e09b44342f06c596b162dda4e67bb711713ff0bf20a34babf36326a1a6"
-const EXPECTED_SOURCE_CONTENT_SHA256 := "21208f9d6d33407ef05f58b79c95f22d1e4ef7dcaf6f85a7485cdd8e4197bfe2"
+const EXPECTED_SOURCE_CONTENT_SHA256 := "5f89c5b26fad25fe9c59e47f1838bcaa536bee27a510401a5c87e8bc8d0e4ceb"
 const EXPECTED_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_38ank"
 const EXPECTED_RIGID_HARNESS_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_dfldj"
 const EXPECTED_SKIN_RESOURCE_PATH := ASSET_PATH + "::Skin_l0rqn"
@@ -130,6 +130,12 @@ const EXPECTED_CLIP_TRACK_COUNTS := {
 	&"seated_control": 23,
 	&"disembark_recovery": 23,
 }
+## Godot's platform glTF decoders can differ below one micro-unit when they
+## normalize derived normals and tangents. Geometry, UVs, indices, skinning and
+## authored animation data remain exact; only these unit-direction channels use
+## a portable precision when the untouched source graph is first identified.
+## The captured live integrity contract still hashes the full runtime arrays.
+const SOURCE_DIRECTION_PRECISION := 0.000001
 ## Render layer reserved for "this avatar's own body, as seen by the observer
 ## riding it". Nothing else in the project uses a render layer other than 1, and
 ## every camera in the project keeps Godot's default all-layers cull mask, so a
@@ -263,9 +269,9 @@ func _capture_source_resource_contract() -> void:
 	var source_signature_payload := {
 		"nodes": _source_node_contract(),
 		"mesh_path": suit.mesh.resource_path,
-		"mesh_signature": _mesh_signature(suit.mesh),
+		"mesh_signature": _mesh_signature(suit.mesh, true),
 		"rigid_harness_mesh_path": harness_release.mesh.resource_path,
-		"rigid_harness_mesh_signature": _mesh_signature(harness_release.mesh),
+		"rigid_harness_mesh_signature": _mesh_signature(harness_release.mesh, true),
 		"skin_path": suit.skin.resource_path,
 		"skin_signature": _variant_sha256(&"pilot_skin_v2", _skin_contract(suit.skin)),
 		"materials": material_signatures,
@@ -997,7 +1003,7 @@ func _resource_signature(resource: Resource) -> String:
 	return _variant_sha256(&"pilot_resource_v2", properties)
 
 
-func _mesh_signature(mesh: Mesh) -> String:
+func _mesh_signature(mesh: Mesh, portable_source: bool = false) -> String:
 	var content := [{
 		"aabb": mesh.get_aabb(),
 		"custom_aabb": mesh.custom_aabb,
@@ -1010,7 +1016,10 @@ func _mesh_signature(mesh: Mesh) -> String:
 		content.append({
 			"primitive": mesh.surface_get_primitive_type(surface_index),
 			"format": mesh.surface_get_format(surface_index),
-			"arrays": mesh.surface_get_arrays(surface_index),
+			"arrays": (
+				_canonical_source_surface_arrays(mesh.surface_get_arrays(surface_index))
+				if portable_source else mesh.surface_get_arrays(surface_index)
+			),
 			"lods": server_surface.get("lods", {}),
 		})
 	var blend_shapes := []
@@ -1030,7 +1039,33 @@ func _mesh_signature(mesh: Mesh) -> String:
 			if mesh is ArrayMesh and (mesh as ArrayMesh).shadow_mesh != null else ""
 		),
 	})
-	return _variant_sha256(&"pilot_mesh_v2", content)
+	var signature_domain: StringName = (
+		&"pilot_source_mesh_v2" if portable_source else &"pilot_mesh_v2"
+	)
+	return _variant_sha256(signature_domain, content)
+
+
+func _canonical_source_surface_arrays(surface_arrays: Array) -> Array:
+	var canonical := surface_arrays.duplicate(true)
+	var normals := canonical[Mesh.ARRAY_NORMAL] as PackedVector3Array
+	for normal_index in normals.size():
+		var normal := normals[normal_index]
+		normals[normal_index] = Vector3(
+			_canonical_source_direction(normal.x),
+			_canonical_source_direction(normal.y),
+			_canonical_source_direction(normal.z)
+		)
+	canonical[Mesh.ARRAY_NORMAL] = normals
+	var tangents := canonical[Mesh.ARRAY_TANGENT] as PackedFloat32Array
+	for tangent_index in tangents.size():
+		tangents[tangent_index] = _canonical_source_direction(tangents[tangent_index])
+	canonical[Mesh.ARRAY_TANGENT] = tangents
+	return canonical
+
+
+func _canonical_source_direction(value: float) -> float:
+	var canonical := snappedf(value, SOURCE_DIRECTION_PRECISION)
+	return 0.0 if canonical == 0.0 else canonical
 
 
 func _animation_signature(animation: Animation) -> String:

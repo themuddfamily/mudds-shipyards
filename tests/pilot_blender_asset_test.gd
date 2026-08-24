@@ -29,7 +29,7 @@ const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
 ## materials, clip roster and clip durations did not.
 ## The rigid harness-light split changes the source graph without changing the
 ## armature or the nine authored clips.
-const SOURCE_CONTENT_SIGNATURE := "21208f9d6d33407ef05f58b79c95f22d1e4ef7dcaf6f85a7485cdd8e4197bfe2"
+const SOURCE_CONTENT_SIGNATURE := "5f89c5b26fad25fe9c59e47f1838bcaa536bee27a510401a5c87e8bc8d0e4ceb"
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -50,6 +50,7 @@ func _run() -> void:
 	await process_frame
 
 	_test_runtime_boundary(presentation)
+	_test_cross_platform_source_signature(presentation)
 	_test_exact_rig_and_skin(presentation)
 	_test_imported_motion_library(presentation)
 	_test_authored_deformation(presentation)
@@ -119,6 +120,59 @@ func _test_runtime_boundary(presentation: PilotSkinnedPresentation) -> void:
 	_check(bounds.size.y >= 1.90 and bounds.size.y <= 1.96, "bind silhouette remains a practical roughly 1.95 metre pilot")
 	_check(absf(bounds.position.y) <= .002, "flat boot soles meet the Godot Y=0 ground plane")
 	_check(bounds.size.x < 1.16 and bounds.size.z < .56, "standing suit keeps a restrained human cockpit envelope")
+
+
+func _test_cross_platform_source_signature(
+	presentation: PilotSkinnedPresentation
+) -> void:
+	var decoder_a: Array = []
+	decoder_a.resize(Mesh.ARRAY_MAX)
+	decoder_a[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(1.0, 2.0, 3.0)])
+	decoder_a[Mesh.ARRAY_NORMAL] = PackedVector3Array([
+		Vector3(0.1234562, -0.7654322, 0.0000002),
+	])
+	decoder_a[Mesh.ARRAY_TANGENT] = PackedFloat32Array([
+		0.1234562, -0.7654322, 0.0000002, 1.0,
+	])
+	var decoder_b := decoder_a.duplicate(true)
+	decoder_b[Mesh.ARRAY_NORMAL] = PackedVector3Array([
+		Vector3(0.1234564, -0.7654324, -0.0000002),
+	])
+	decoder_b[Mesh.ARRAY_TANGENT] = PackedFloat32Array([
+		0.1234564, -0.7654324, -0.0000002, 1.0,
+	])
+	var canonical_a: Array = presentation.call(
+		"_canonical_source_surface_arrays", decoder_a
+	)
+	var canonical_b: Array = presentation.call(
+		"_canonical_source_surface_arrays", decoder_b
+	)
+	_check(
+		canonical_a == canonical_b,
+		"source signature canonicalizes only sub-micro platform normal/tangent variance"
+	)
+
+	var meaningful_direction_drift := decoder_a.duplicate(true)
+	meaningful_direction_drift[Mesh.ARRAY_NORMAL] = PackedVector3Array([
+		Vector3(0.1234562, -0.7654322, 0.0000022),
+	])
+	_check(
+		canonical_a != presentation.call(
+			"_canonical_source_surface_arrays", meaningful_direction_drift
+		),
+		"source signature preserves near-zero derived-direction drift above one micro-unit"
+	)
+
+	var geometry_drift := decoder_a.duplicate(true)
+	geometry_drift[Mesh.ARRAY_VERTEX] = PackedVector3Array([
+		Vector3(1.001, 2.0, 3.0),
+	])
+	_check(
+		canonical_a != presentation.call(
+			"_canonical_source_surface_arrays", geometry_drift
+		),
+		"source signature keeps authored geometry exact"
+	)
 
 
 func _test_exact_rig_and_skin(presentation: PilotSkinnedPresentation) -> void:
