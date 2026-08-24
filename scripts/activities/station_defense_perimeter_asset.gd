@@ -332,6 +332,7 @@ func restore_pristine_generation(target_generation: int) -> Dictionary:
 	if not bool(preflight.get("accepted", false)):
 		return preflight
 	handle_generation = target_generation
+	_clear_hostile_bearing_presentation()
 	_apply_live_state()
 	return _result(true, &"pristine_generation_restored")
 
@@ -344,6 +345,7 @@ func renew(expected_generation: int) -> Dictionary:
 		return preflight
 
 	handle_generation += 1
+	_clear_hostile_bearing_presentation()
 	_event_sequence = 0
 	_pending_terminal_event.clear()
 	_last_event_handle.clear()
@@ -511,6 +513,13 @@ func _apply_hostile_bearing_cue() -> void:
 			_hostile_bearing_local.x,
 			_hostile_bearing_local.z
 		)
+
+
+func _clear_hostile_bearing_presentation() -> void:
+	_hostile_bearing_active = false
+	_hostile_bearing_local = Vector3.ZERO
+	_hostile_bearing_source_snapshot.clear()
+	_apply_hostile_bearing_cue()
 
 
 func _on_damage_applied(
