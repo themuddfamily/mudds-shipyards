@@ -116,12 +116,12 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 196
-const EXPECTED_LOCAL_MULTIMESH_NODES := 15
-const EXPECTED_LOCAL_RENDERER_NODES := 211
-const EXPECTED_LOCAL_VISIBLE_COPIES := 755
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 211
-const EXPECTED_LOCAL_TRIANGLES := 125706
+const EXPECTED_LOCAL_MESH_NODES := 197
+const EXPECTED_LOCAL_MULTIMESH_NODES := 16
+const EXPECTED_LOCAL_RENDERER_NODES := 213
+const EXPECTED_LOCAL_VISIBLE_COPIES := 758
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 213
+const EXPECTED_LOCAL_TRIANGLES := 126030
 const EXPECTED_LOCAL_STATIC_BODIES := 61
 const EXPECTED_LOCAL_COLLISION_SHAPES := 62
 const EXPECTED_LAMP_LENS_COPY_COUNT := 26
@@ -840,13 +840,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 196 Mesh + 15 MultiMesh renderers after scan-ruin and cargo-rail batching"
+		"NearbySectorCluster owns 197 Mesh + 16 MultiMesh renderers with the race-return crown"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census preserves 755 copies and 125706 triangles while submissions fall 215 -> 211"
+		"the local census freezes 758 copies, 126030 triangles, and 213 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
