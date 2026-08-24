@@ -14,6 +14,7 @@ const COMPLETION_RESPONSE_ID: StringName = &"ember_sample_rack_analysis_marker"
 const PROMPT_READY := "[ E ]  ANALYSE SAMPLE RACK"
 const PROMPT_COMPLETE := "[ COMPLETE ]  SAMPLE RACK ANALYSED"
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
+const MARKER_OFFSET_M := Vector3(0.0, 1.8, 0.0)
 const READY_COLOR := Color(0.95, 0.52, 0.18, 1.0)
 const COMPLETE_COLOR := Color(0.32, 0.86, 0.78, 1.0)
 
@@ -52,7 +53,7 @@ func _ready() -> void:
 	add_child(shape_node)
 	_marker = Label3D.new()
 	_marker.name = "SampleRackAnalysisMarker"
-	_marker.position = Vector3(0.0, 1.35, 0.0)
+	_marker.position = MARKER_OFFSET_M
 	_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_marker.no_depth_test = true
 	_marker.font_size = 34

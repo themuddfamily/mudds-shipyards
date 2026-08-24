@@ -70,12 +70,14 @@ func _run() -> void:
 		&"activate_for_activity_generation", 1
 	)
 	var ready := binding.call(&"get_snapshot") as Dictionary
+	var marker := binding.get_node(^"SampleRackAnalysisMarker") as Label3D
 	_check(
 		bool(activated.accepted) and bool(ready.active)
 			and ready.prompt == "[ E ]  ANALYSE SAMPLE RACK"
 			and int(ready.physical.collision_layer) == 8
 			and bool(ready.physical.marker_visible)
 			and ready.physical.marker_kind == &"label_3d"
+			and marker.position == Vector3(0.0, 1.8, 0.0)
 			and not bool(ready.authority.route)
 			and not bool(ready.authority.reward)
 			and not bool(ready.authority.solid_geometry),
