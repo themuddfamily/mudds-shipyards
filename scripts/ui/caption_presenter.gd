@@ -24,6 +24,8 @@ const BASE_STACK_SEPARATION := 8
 const BASE_CATEGORY_FONT_SIZE := 15
 const BASE_SPEAKER_FONT_SIZE := 18
 const BASE_TEXT_FONT_SIZE := 22
+const PRIORITY_HIGH_THRESHOLD := 80
+const PRIORITY_MEDIUM_THRESHOLD := 60
 const PANEL_BACKGROUND := Color("07101ef2")
 const PANEL_BORDER := Color("bceef5")
 const CATEGORY_INK := Color("9aedf4")
@@ -90,8 +92,8 @@ func apply_presentation_snapshot(snapshot: Dictionary) -> bool:
 			_queue_layout()
 		return true
 	var caption := _applied_snapshot.caption as Dictionary
-	_category_label.text = "[ %s ]" % str(caption.category_id).to_upper()
-	_speaker_label.text = str(caption.speaker)
+	_category_label.text = _status_marker(caption)
+	_speaker_label.text = "SOURCE · %s" % str(caption.speaker)
 	_text_label.text = str(caption.text)
 	modulate = Color.WHITE
 	self_modulate = Color.WHITE
@@ -167,6 +169,8 @@ func get_layout_contract() -> Dictionary:
 		"host_bottom_safe_margin_unit": &"physical_viewport_pixels",
 		"maximum_panel_height_policy": &"viewport_minus_scaled_safe_top_and_bottom",
 		"maximum_text_characters": CaptionPresentationEvent.MAX_TEXT_LENGTH,
+		"priority_marker_policy": &"high_80_medium_60_other_low",
+		"expiry_marker_policy": &"ceil_service_remaining_seconds_clamped_1_to_30",
 	}.duplicate(true)
 
 
@@ -180,6 +184,8 @@ func get_accessibility_contract() -> Dictionary:
 		"captions_are_textual": true,
 		"category_is_textual": true,
 		"speaker_is_textual": true,
+		"source_marker_is_textual": true,
+		"priority_and_expiry_are_textual": true,
 		"body_contrast_ratio_minimum": 7.0,
 		"speaker_contrast_ratio_minimum": 7.0,
 		"category_contrast_ratio_minimum": 7.0,
@@ -190,6 +196,7 @@ func get_accessibility_contract() -> Dictionary:
 		"owned_tween_count": 0,
 		"input_transparent": true,
 		"captions_enabled_authority": &"caller_accessibility_settings",
+		"expiry_time_source": &"service_snapshot_remaining_physics_seconds",
 		"audio_authority": false,
 		"gameplay_authority": false,
 	}.duplicate(true)
@@ -261,6 +268,8 @@ func audit() -> Dictionary:
 		"safe_area_anchoring": true,
 		"wraps_text": true,
 		"category_label_is_textual": true,
+		"source_marker_is_textual": true,
+		"priority_and_expiry_are_textual": true,
 		"reduced_flash_policy": &"steady_no_animation",
 		"presentation_only": true,
 		"audio_authority": false,
@@ -330,6 +339,32 @@ func _is_valid_presentation_snapshot(snapshot: Dictionary) -> bool:
 		and remaining > 0.0
 		and remaining <= event.duration_physics_seconds
 	)
+
+
+## Compact status text lets players distinguish a caption's source and urgency
+## without relying on colour. Expiry is projected only from the service's
+## caller-physics snapshot; this presenter never owns a clock or advances it.
+func _status_marker(caption: Dictionary) -> String:
+	var priority := clampi(int(caption.get("priority", 0)), 0, 100)
+	var remaining := clampf(
+		float(caption.get("remaining_physics_seconds", 1.0)),
+		CaptionPresentationEvent.MIN_DURATION_PHYSICS_SECONDS,
+		CaptionPresentationEvent.MAX_DURATION_PHYSICS_SECONDS
+	)
+	return "[%s]  %s · P%d · %ds" % [
+		str(caption.get("category_id", &"system")).to_upper(),
+		_priority_label(priority),
+		priority,
+		clampi(ceili(remaining), 1, ceili(CaptionPresentationEvent.MAX_DURATION_PHYSICS_SECONDS)),
+	]
+
+
+func _priority_label(priority: int) -> String:
+	if priority >= PRIORITY_HIGH_THRESHOLD:
+		return "HIGH"
+	if priority >= PRIORITY_MEDIUM_THRESHOLD:
+		return "MED"
+	return "LOW"
 
 
 func _can_mutate_live_presentation() -> bool:

@@ -30,6 +30,7 @@ func _run() -> void:
 	viewport.add_child(presenter)
 	await process_frame
 	await _test_contract_and_snapshot_boundary(presenter)
+	await _test_simultaneous_cue_readability(presenter)
 	await _test_supported_layout_sweep(viewport, presenter)
 	await _test_detached_layout_currentness(viewport, presenter)
 	await _test_queued_layout_currentness(viewport)
@@ -77,7 +78,9 @@ func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 		and float(contract.base_safe_margin_bottom) == 42.0
 		and contract.host_bottom_safe_margin_unit == &"physical_viewport_pixels"
 		and contract.maximum_panel_height_policy == &"viewport_minus_scaled_safe_top_and_bottom"
-		and int(contract.maximum_text_characters) == 512,
+		and int(contract.maximum_text_characters) == 512
+		and contract.priority_marker_policy == &"high_80_medium_60_other_low"
+		and contract.expiry_marker_policy == &"ceil_service_remaining_seconds_clamped_1_to_30",
 		"layout contract freezes exact UI-scale, panel, safe-area and text bounds"
 	)
 	var accessibility := presenter.get_accessibility_contract()
@@ -85,6 +88,8 @@ func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 		bool(accessibility.captions_are_textual)
 		and bool(accessibility.category_is_textual)
 		and bool(accessibility.speaker_is_textual)
+		and bool(accessibility.source_marker_is_textual)
+		and bool(accessibility.priority_and_expiry_are_textual)
 		and float(accessibility.body_contrast_ratio_minimum) >= 7.0
 		and float(accessibility.speaker_contrast_ratio_minimum) >= 7.0
 		and float(accessibility.category_contrast_ratio_minimum) >= 7.0
@@ -95,6 +100,7 @@ func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 		and int(accessibility.owned_tween_count) == 0
 		and bool(accessibility.input_transparent)
 		and accessibility.captions_enabled_authority == &"caller_accessibility_settings"
+		and accessibility.expiry_time_source == &"service_snapshot_remaining_physics_seconds"
 		and not bool(accessibility.audio_authority)
 		and not bool(accessibility.gameplay_authority),
 		"accessibility contract freezes semantic text, contrast, reduced-flash and authority boundaries"
@@ -122,7 +128,7 @@ func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 	var report := presenter.get_layout_report()
 	_check(
 		str(report.rendered_text) == "Detached snapshot text."
-		and str(report.rendered_speaker) == "Mudds Controller"
+		and str(report.rendered_speaker) == "SOURCE · Mudds Controller"
 		and str(presenter.get_applied_snapshot().caption.speaker) == "Mudds Controller",
 		"input and returned presentation snapshots are deeply detached from rendered state"
 	)
@@ -140,6 +146,31 @@ func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 		not presenter.apply_presentation_snapshot(wrong_scalar_types),
 		"service generation and caption sequence retain their exact scalar types"
 	)
+
+
+func _test_simultaneous_cue_readability(presenter: CaptionPresenter) -> void:
+	var cases := [
+		[&"system", "Threat warning", &"combat.alert", 90, 3.01, "[SYSTEM]  HIGH · P90 · 4s"],
+		[&"radio", "Activity board", &"activity.checkpoint", 65, 2.0, "[RADIO]  MED · P65 · 2s"],
+		[&"ambient", "Damage control", &"repair.complete", 45, 0.1, "[AMBIENT]  LOW · P45 · 1s"],
+	]
+	for cue: Array in cases:
+		var snapshot := _semantic_snapshot(
+			StringName(cue[0]),
+			str(cue[1]),
+			StringName(cue[2]),
+			int(cue[3]),
+			float(cue[4])
+		)
+		_check(presenter.apply_presentation_snapshot(snapshot), "%s caption snapshot is accepted" % str(cue[2]))
+		await _settle()
+		var report := presenter.get_layout_report()
+		_check(
+			str(report.rendered_category) == str(cue[5])
+			and str(report.rendered_speaker) == "SOURCE · %s" % str(cue[1])
+			and str(report.rendered_text) == "Concurrent semantic cue.",
+			"%s remains identifiable by textual source/category, priority and bounded expiry" % str(cue[2])
+		)
 
 
 func _test_supported_layout_sweep(viewport: SubViewport, presenter: CaptionPresenter) -> void:
@@ -169,8 +200,8 @@ func _test_supported_layout_sweep(viewport: SubViewport, presenter: CaptionPrese
 				and panel.size.y <= float(report.panel_maximum_height) + 0.51
 			)
 			var typography_valid := (
-				str(report.rendered_category) == "[ RADIO ]"
-				and str(report.rendered_speaker) == "Mudds Controller"
+				str(report.rendered_category) == "[RADIO]  MED · P70 · 9s"
+				and str(report.rendered_speaker) == "SOURCE · Mudds Controller"
 				and str(report.rendered_text).length() == 512
 				and int(report.text_line_count) > 1
 				and not bool(report.text_clipped)
@@ -388,6 +419,24 @@ func _hidden_snapshot(reduced_flash: bool) -> Dictionary:
 		"transition_policy": &"steady_no_flash" if reduced_flash else &"consumer_standard",
 		"caption": {},
 	}
+
+
+func _semantic_snapshot(
+		category_id: StringName,
+		speaker: String,
+		stable_id: StringName,
+		priority: int,
+		remaining: float
+	) -> Dictionary:
+	var snapshot := _snapshot(false, "Concurrent semantic cue.")
+	var category := CaptionPresentationEvent.CATEGORY_IDS.find(category_id)
+	(snapshot.caption as Dictionary)["stable_id"] = stable_id
+	(snapshot.caption as Dictionary)["category"] = category
+	(snapshot.caption as Dictionary)["category_id"] = category_id
+	(snapshot.caption as Dictionary)["speaker"] = speaker
+	(snapshot.caption as Dictionary)["priority"] = priority
+	(snapshot.caption as Dictionary)["remaining_physics_seconds"] = remaining
+	return snapshot
 
 
 func _maximum_text() -> String:
