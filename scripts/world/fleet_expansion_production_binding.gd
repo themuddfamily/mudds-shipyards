@@ -40,10 +40,48 @@ var _cargo_activity_binding: Node
 var _berth_audio_binding: RefCounted
 
 
+func _enter_tree() -> void:
+	if _built:
+		call_deferred("_restore_audio_bindings_after_reentry")
+
+
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
 	call_deferred("_assemble")
+
+
+func _exit_tree() -> void:
+	# FleetExpansionAudioBinding owns payload audio Nodes outside the scene tree.
+	# Release those caller-owned bindings while their rigs are still valid so
+	# their nested projectile bindings cannot outlive this production owner.
+	for binding_value: Variant in _audio_bindings.values():
+		var binding := binding_value as RefCounted
+		if binding != null and bool(binding.get_snapshot().get("attached", false)):
+			binding.detach()
+
+
+func _restore_audio_bindings_after_reentry() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	for spec in CRAFT_SPECS:
+		var craft_id: StringName = spec.craft_id
+		var craft := _craft_by_id.get(craft_id) as Node3D
+		var binding := _audio_bindings.get(craft_id) as RefCounted
+		var attachment := (
+			_berths.call("get_attachment_snapshot", spec.pad_id) as Dictionary
+			if _berths != null else {}
+		)
+		if not is_instance_valid(craft) or binding == null \
+				or not bool(attachment.get("attached", false)):
+			continue
+		var rig := craft.call("get_ship_audio_rig") as Node \
+			if craft.has_method(&"get_ship_audio_rig") else null
+		var result: Dictionary = binding.bind(AUDIO_RECIPE_BY_CRAFT[craft_id], rig)
+		if not bool(result.get("accepted", false)):
+			_composition_error = StringName(result.get("reason", &"audio_rebind_failed"))
+			continue
+		binding.set_reduced_dynamic_range(_reduced_dynamic_range)
 
 
 func _assemble() -> void:

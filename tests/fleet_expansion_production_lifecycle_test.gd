@@ -19,6 +19,27 @@ func _initialize() -> void:
 		var reset: Dictionary = binding.reset_craft_for_reuse(craft_id)
 		_check(bool(reset.get("accepted", false)) and int(reset.get("receipt_id", 0)) > 0, "%s accepts one HeroShip reuse reset generation" % craft_id)
 		_check(bool(reset.get("attachment_preserved", false)), "%s remains attached after reuse reset" % craft_id)
+	var craft_instance_ids: Dictionary = {}
+	for row in binding.get_fleet_snapshot().get("craft", []) as Array:
+		craft_instance_ids[(row as Dictionary).craft_id] = (row as Dictionary).instance_id
+	root.remove_child(binding)
+	var exited_audio_bindings := binding.get("_audio_bindings") as Dictionary
+	for craft_id: StringName in exited_audio_bindings:
+		var audio := (exited_audio_bindings[craft_id] as RefCounted).get_snapshot() as Dictionary
+		_check(
+			not bool(audio.get("attached", true))
+				and (audio.get("payload_audio", {}) as Dictionary).is_empty(),
+			"%s releases caller-owned audio on tree exit" % craft_id
+		)
+	root.add_child(binding)
+	await process_frame
+	for row in binding.get_fleet_snapshot().get("craft", []) as Array:
+		var craft_id: StringName = (row as Dictionary).craft_id
+		_check(
+			bool(((row as Dictionary).audio as Dictionary).get("attached", false))
+				and int((row as Dictionary).instance_id) == int(craft_instance_ids.get(craft_id, 0)),
+			"%s restores audio without replacing gameplay state on tree re-entry" % craft_id
+		)
 	binding.queue_free()
 	await process_frame
 	if _failures.is_empty():
