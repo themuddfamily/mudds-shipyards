@@ -18,7 +18,7 @@ const BEACON_TRANSITION_CUES := [
 const CONVOY_TRANSITION_CUES := [
 	&"convoy_escort_secure", &"convoy_escort_separation_warning",
 	&"convoy_escort_separation_critical", &"convoy_escort_recovered",
-	&"convoy_escort_arrived", &"convoy_escort_lost",
+	&"convoy_escort_formation_secured", &"convoy_escort_lost",
 ]
 const MINING_TRANSITION_CUES := [
 	&"cinder_mining_extraction_started", &"cinder_mining_yield_checkpoint",
@@ -52,7 +52,7 @@ const CUE_PRIORITIES := {
 	&"convoy_escort_separation_warning": 70,
 	&"convoy_escort_separation_critical": 95,
 	&"convoy_escort_recovered": 75,
-	&"convoy_escort_arrived": 90,
+	&"convoy_escort_formation_secured": 90,
 	&"convoy_escort_lost": 100,
 	&"cinder_mining_extraction_started": 50,
 	&"cinder_mining_yield_checkpoint": 40,
@@ -288,7 +288,7 @@ func present_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 			_emit_cue(&"cinder_mining_extraction_completed", activity_id, 1.0)
 		elif activity_kind == &"convoy":
 			if StringName(decoded.convoy_outcome) == &"arrived":
-				_emit_cue(&"convoy_escort_arrived", activity_id, 1.0)
+				_emit_cue(&"convoy_escort_formation_secured", activity_id, 1.0)
 			elif StringName(decoded.convoy_outcome) == &"failed":
 				_emit_cue(&"convoy_escort_lost", activity_id, 1.0)
 		elif activity_kind == &"beacon":

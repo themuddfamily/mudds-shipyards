@@ -4401,9 +4401,9 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	return view
 
 
-## Consumes push-driven convoy presenter transitions. Only critical and terminal
-## warnings enter the existing caption seam; activity and audio authority remain
-## with their current owners.
+## Consumes push-driven convoy presenter transitions. Critical, safe-arrival,
+## and terminal-loss responses enter the existing caption seam; activity and
+## audio authority remain with their current owners.
 func _present_nearby_convoy_semantic_transition(view: Dictionary) -> void:
 	for candidate in view.get("cards", []) as Array:
 		var card := candidate as Dictionary
@@ -4419,6 +4419,7 @@ func _present_nearby_convoy_semantic_transition(view: Dictionary) -> void:
 		_nearby_convoy_semantic_transition_serial += 1
 		if cue_id not in [
 			&"convoy_escort_separation_critical",
+			&"convoy_escort_formation_secured",
 			&"convoy_escort_lost",
 		]:
 			return

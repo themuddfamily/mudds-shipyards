@@ -82,6 +82,7 @@ const REGISTERED_CUES := {
 	&"cargo_transfer_activity_completed": {"caption": "Cargo transfer completed", "default_severity": &"low"},
 	&"cargo_transfer_aborted": {"caption": "Cargo transfer aborted", "default_severity": &"high"},
 	&"convoy_escort_separation_critical": {"caption": "Critical convoy separation. Rejoin now", "default_severity": &"high"},
+	&"convoy_escort_formation_secured": {"caption": "Convoy engines safe. Formation secured", "default_severity": &"low"},
 	&"convoy_escort_lost": {"caption": "Convoy lost", "default_severity": &"high"},
 	&"planetary_orbit_approach": {"caption": "Approaching planetary orbit", "default_severity": &"medium"},
 	&"planetary_atmospheric_entry": {"caption": "Planetary atmospheric entry", "default_severity": &"high"},

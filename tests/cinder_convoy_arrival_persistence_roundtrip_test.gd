@@ -131,8 +131,13 @@ func _run() -> void:
 	)
 	_check(
 		feedback.threat_id == &"secured"
-			and "CONVOY SECURED" in str(feedback.summary)
+			and "ENGINES SAFE" in str(feedback.summary)
+			and "FORMATION SECURED" in str(feedback.summary)
 			and formation.geometry_state == &"convoy_complete"
+			and formation.engine_state == &"safe"
+			and formation.formation_state == &"secured"
+			and formation.arrival_response_id == &"engines_safe_formation_secured"
+			and int(formation.arrival_response_serial) == 1
 			and bool(formation.restored_terminal_presentation),
 		"retained HUD and static convoy formation return in safe-arrival state"
 	)
@@ -154,6 +159,7 @@ func _run() -> void:
 		bool(fresh.accepted) and active.state_id == &"active"
 			and not bool(active.get("arrival_persisted", false))
 			and live_formation.geometry_state == &"formation_stable"
+			and not bool(live_formation.arrival_response_active)
 			and not bool(live_formation.restored_terminal_presentation)
 			and int(reloaded_store.get_generation()) == 2,
 		"a fresh incomplete escort is session-scoped and supersedes restored display"

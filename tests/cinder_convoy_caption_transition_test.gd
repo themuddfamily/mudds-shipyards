@@ -43,11 +43,32 @@ func _initialize() -> void:
 	hud.set_nearby_activity_snapshot({"host": {"activity": failed}})
 	_check(_caption_requests.size() == 2, "an identical terminal snapshot is consumed exactly once")
 
+	var completed := _convoy(5, 8.0)
+	completed.state_id = &"completed"
+	completed.escort_within_proximity = true
+	completed.completed_leg_count = 4
+	hud.set_nearby_activity_snapshot({"host": {"activity": completed}})
+	_check(
+		_caption_requests.size() == 3
+		and str(_caption_requests[2].get("text", "")).contains(
+			"Convoy engines safe. Formation secured"
+		),
+		"safe arrival produces one distinct engines-safe formation caption",
+	)
+	hud.set_nearby_activity_snapshot({"host": {"activity": completed}})
+	_check(_caption_requests.size() == 3,
+		"the retained completed receipt does not replay its caption")
+	var fresh := _convoy(6, 8.0)
+	fresh.escort_within_proximity = true
+	hud.set_nearby_activity_snapshot({"host": {"activity": fresh}})
+	_check(_caption_requests.size() == 3,
+		"a fresh escort clears the completed response without adding a caption")
+
 	settings.captions_enabled = false
 	hud.set_accessibility(settings.get_accessibility_descriptor())
 	hud.set_nearby_activity_snapshot({"host": {"activity": _convoy(7, 0.5)}})
 	_check(
-		_caption_requests.size() == 2,
+		_caption_requests.size() == 3,
 		"RuntimeSettings captions-off suppresses a fresh critical transition",
 	)
 
@@ -55,7 +76,7 @@ func _initialize() -> void:
 	hud.set_accessibility(settings.get_accessibility_descriptor())
 	hud.set_nearby_activity_snapshot({"host": {"activity": _convoy(8, 0.5)}})
 	_check(
-		_caption_requests.size() == 3,
+		_caption_requests.size() == 4,
 		"a later authoritative generation can produce the same critical cue once",
 	)
 

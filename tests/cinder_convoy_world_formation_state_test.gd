@@ -87,8 +87,19 @@ func _run() -> void:
 		step_budget > 0
 		and completed.get("activity", {}).get("state_id") == &"completed"
 		and completed_feedback.get("geometry_state") == &"convoy_complete"
+		and completed_feedback.get("engine_state") == &"safe"
+		and completed_feedback.get("formation_state") == &"secured"
+		and completed_feedback.get("arrival_response_id")
+		== &"engines_safe_formation_secured"
+		and bool(completed_feedback.get("arrival_response_active", false))
+		and int(completed_feedback.get("arrival_response_serial", 0)) == 1
 		and is_equal_approx(float(completed_feedback.get("pod_spread", 0.0)), -0.75),
-		"safe arrival tucks the pods and flattens the beacon into a distinct complete silhouette"
+		"safe arrival secures formation and safes engines in one distinct retained silhouette"
+	)
+	var repeated_completed := host.get_snapshot().get("visual_feedback", {}) as Dictionary
+	_check(
+		int(repeated_completed.get("arrival_response_serial", 0)) == 1,
+		"reading the completed receipt cannot replay the arrival response",
 	)
 	_assert_geometry_matches_snapshot(host, entity)
 
@@ -102,6 +113,12 @@ func _run() -> void:
 		"reset restores retained geometry in place and advances authority generation"
 	)
 	_assert_state(host, entity, &"idle", 0.0, Vector3.ONE, Vector3.ONE)
+	_check(
+		not bool(host.get_snapshot().get("visual_feedback", {}).get(
+			"arrival_response_active", true
+		)),
+		"reset clears the engines-safe formation response",
+	)
 	host.start(reset_generation)
 	_assert_state(host, entity, &"formation_stable", 0.0, Vector3.ONE, Vector3.ONE)
 	_check(

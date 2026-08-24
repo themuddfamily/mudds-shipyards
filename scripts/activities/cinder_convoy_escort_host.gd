@@ -831,8 +831,12 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 	var pod_spread := 0.0
 	var drive_scale := Vector3.ONE
 	var beacon_scale := Vector3.ONE
+	var engine_state: StringName = &"standby"
+	var formation_state: StringName = &"open"
 	if activity_state == &"active":
 		geometry_state = &"formation_stable"
+		engine_state = &"underway"
+		formation_state = &"escorting"
 		var maximum_separation := float(
 			activity_snapshot.get("maximum_separation_seconds", 0.0)
 		)
@@ -857,11 +861,15 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 				beacon_scale = Vector3(1.0, 1.8, 1.0)
 	elif activity_state == &"completed":
 		geometry_state = &"convoy_complete"
+		engine_state = &"safe"
+		formation_state = &"secured"
 		pod_spread = COMPLETED_PRESENTATION_POD_TUCK
 		drive_scale = Vector3(0.72, 1.65, 1.0)
 		beacon_scale = Vector3(2.2, 0.55, 2.2)
 	elif activity_state in [&"failed", &"aborted"]:
 		geometry_state = &"convoy_failed"
+		engine_state = &"unavailable"
+		formation_state = &"broken"
 		pod_spread = MAXIMUM_PRESENTATION_POD_SPREAD
 		drive_scale = Vector3(1.75, 0.42, 1.0)
 		beacon_scale = Vector3(1.8, 2.5, 1.8)
@@ -880,8 +888,22 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 		drive_glow.scale = drive_scale
 	if navigation_beacon != null:
 		navigation_beacon.scale = beacon_scale
+	var previous_response_active := bool(
+		_visual_feedback_snapshot.get("arrival_response_active", false)
+	)
+	var response_active := activity_state == &"completed"
+	var response_serial := int(_visual_feedback_snapshot.get("arrival_response_serial", 0))
+	if response_active and not previous_response_active:
+		response_serial += 1
 	_visual_feedback_snapshot = {
 		"geometry_state": geometry_state,
+		"engine_state": engine_state,
+		"formation_state": formation_state,
+		"arrival_response_id": (
+			&"engines_safe_formation_secured" if response_active else &""
+		),
+		"arrival_response_active": response_active,
+		"arrival_response_serial": response_serial,
 		"activity_generation": int(activity_snapshot.get("generation", 0)),
 		"separation_fraction": separation_fraction,
 		"pod_spread": pod_spread,

@@ -693,9 +693,9 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 		summary = "RENDEZVOUS WITH SUPPLY TENDER"
 	elif state_id == &"completed":
 		threat_id = &"secured"
-		semantic_cue_id = &"convoy_escort_arrived"
-		caption = "Convoy safely arrived"
-		summary = "CONVOY SECURED"
+		semantic_cue_id = &"convoy_escort_formation_secured"
+		caption = "Convoy engines safe. Formation secured."
+		summary = "ENGINES SAFE  //  FORMATION SECURED"
 	elif state_id in [&"failed", &"aborted"]:
 		threat_id = &"lost" if state_id == &"failed" else &"aborted"
 		semantic_cue_id = &"convoy_escort_lost" if state_id == &"failed" \

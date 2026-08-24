@@ -105,9 +105,13 @@ func _run() -> void:
 		and is_equal_approx(_last_intensity(&"convoy_escort_secure"), 0.4875),
 		"fresh post-reentry generation can emit a reduced-range stable formation cue")
 	flow._sync_nearby_activity_audio(_raw_convoy(6, &"completed", 4.0, true, 44.0, 8.0))
-	_check(_count(&"convoy_escort_arrived") == 1
-		and is_equal_approx(_last_intensity(&"convoy_escort_arrived"), 0.75),
-		"authoritative safe arrival emits one distinct convoy-complete event")
+	_check(_count(&"convoy_escort_formation_secured") == 1
+		and is_equal_approx(_last_intensity(&"convoy_escort_formation_secured"), 0.75),
+		"authoritative safe arrival emits one engines-safe formation-secured event")
+	var after_arrival := _events.size()
+	flow._sync_nearby_activity_audio(_raw_convoy(6, &"completed", 4.0, true, 44.0, 8.0))
+	_check(_events.size() == after_arrival,
+		"the retained completed receipt cannot replay the formation-secured event")
 	var authority := binding.get_snapshot().authority as Dictionary
 	_check(not bool(authority.activity) and not bool(authority.reward)
 		and not bool(authority.gameplay) and bool(authority.audio_cues),
