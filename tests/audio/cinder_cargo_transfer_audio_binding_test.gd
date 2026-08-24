@@ -27,6 +27,15 @@ func _run() -> void:
 	_check(binding.present_transfer_receipt({"generation": 0, "transaction_id": &"bad", "event_id": &"pickup_accepted", "accepted": false}).get("reason", &"") == &"rejected_receipt", "unaccepted receipt fails closed")
 	_check(bool(binding.detach().get("accepted", false)), "detach clears the presentation lifecycle")
 	_check(binding.present_transfer_receipt(receipt).get("reason", &"") == &"not_attached", "detached binding rejects stale presentation")
+	_check((binding.get_snapshot().get("active_cue_slots", []) as Array).is_empty(), "detach silences every transfer cue slot")
+	_check(bool(binding.attach(1).get("accepted", false)), "fresh transfer generation re-attaches")
+	_check(binding.present_transfer_receipt(receipt).get("reason", &"") == &"stale_generation", "completed receipt cannot replay into a fresh transfer generation")
+	var restart := {"generation": 1, "transaction_id": &"cinder_run_g2", "event_id": &"pickup_accepted", "accepted": true}
+	_check(bool(binding.present_transfer_receipt(restart).get("accepted", false)), "fresh transfer generation receives one restart cue")
+	_check(cues.count(&"cargo_transfer_pickup_accepted") == 2, "restart cue remains bounded to its new receipt")
+	binding.set("_generation", BINDING.MAX_SAFE_GENERATION)
+	_check(not bool(binding.detach().get("accepted", true)), "exhausted transfer detach fails closed")
+	_check((binding.get_snapshot().get("active_cue_slots", []) as Array).is_empty(), "failed transfer detach still silences cue slots")
 	if _failures.is_empty():
 		print("PASS cinder_cargo_transfer_audio_binding_test (%d assertions)" % _assertions)
 		quit(0)

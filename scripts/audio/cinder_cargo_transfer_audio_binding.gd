@@ -48,7 +48,7 @@ func attach(expected_generation: int = 0) -> Dictionary:
 		return _result(false, &"stale_generation")
 	_attached = true
 	_seen_receipts.clear()
-	_active_cue_slots.clear()
+	_clear_active_cues()
 	return _result(true, &"attached")
 
 func present_transfer_receipt(receipt: Dictionary) -> Dictionary:
@@ -75,11 +75,13 @@ func present_transfer_receipt(receipt: Dictionary) -> Dictionary:
 	return _result(true, &"cue_presented")
 
 func detach() -> Dictionary:
+	# Detach is also the presentation stop boundary. Clear slots before reporting
+	# any lifecycle failure so an expired generation cannot retain a transfer loop.
+	_clear_active_cues()
 	if not _attached:
 		return _result(false, &"not_attached")
 	_attached = false
 	_seen_receipts.clear()
-	_active_cue_slots.clear()
 	if _generation >= MAX_SAFE_GENERATION:
 		return _result(false, &"generation_exhausted")
 	_generation += 1
@@ -133,6 +135,9 @@ func _admit_cue(cue_id: StringName, transaction_id: StringName) -> bool:
 	_preempted_cue_count += 1
 	_active_cue_slots[lowest_index] = {"cue_id": cue_id, "transaction_id": transaction_id, "priority": priority}
 	return true
+
+func _clear_active_cues() -> void:
+	_active_cue_slots.clear()
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason, "generation": _generation}.duplicate(true)
