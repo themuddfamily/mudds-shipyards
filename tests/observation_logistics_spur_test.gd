@@ -475,7 +475,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"scaled_visual_trim_mesh"
+		and StringName(performance.selected_family) == &"route_zone_tick_mesh"
 		and int(performance.baseline_descendant_nodes) == 144
 		and int(performance.descendant_nodes) == 152
 		and int(performance.baseline_renderer_nodes) == 42
@@ -484,21 +484,66 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.drawn_copies) == 278
 		and int(performance.baseline_surface_submissions) == 42
 		and int(performance.surface_submissions) == 35,
-		"shared scaled trim mesh preserves 278 supported visible copies and the district's 35 submissions"
+		"shared route-tick geometry preserves 278 supported visible copies and the district's 35 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 25
-		and int(performance.mesh_resource_delta) == -9
+		and int(performance.mesh_resources) == 24
+		and int(performance.mesh_resource_delta) == -10
 		and int(performance.baseline_material_resources) == 10
 		and int(performance.material_resources) == 10
-		and int(performance.baseline_family_nodes) == 8
-		and int(performance.family_nodes) == 8
-		and int(performance.baseline_family_submissions) == 8
-		and int(performance.family_submissions) == 8
-		and int(performance.baseline_family_mesh_resources) == 8
+		and int(performance.baseline_family_nodes) == 2
+		and int(performance.family_nodes) == 2
+		and int(performance.baseline_family_submissions) == 2
+		and int(performance.family_submissions) == 2
+		and int(performance.baseline_family_mesh_resources) == 2
 		and int(performance.family_mesh_resources) == 1,
-		"eight scaled trim batches keep their submissions while sharing one immutable unit mesh"
+		"cyan and amber route-tick batches keep both submissions while sharing one immutable mesh"
+	)
+	var observation_ticks := module.get_node_or_null(
+		^"Structure/Dressing/ObservationZoneTicks"
+	) as MultiMeshInstance3D
+	var logistics_ticks := module.get_node_or_null(
+		^"Structure/Dressing/LogisticsZoneTicks"
+	) as MultiMeshInstance3D
+	var observation_tick_transforms := observation_ticks.get_meta(
+		"authored_instance_transforms", []
+	) as Array if observation_ticks != null else []
+	var logistics_tick_transforms := logistics_ticks.get_meta(
+		"authored_instance_transforms", []
+	) as Array if logistics_ticks != null else []
+	var shared_route_tick_mesh := (
+		observation_ticks.multimesh.mesh as BoxMesh
+		if observation_ticks != null and observation_ticks.multimesh != null else null
+	)
+	_check(
+		shared_route_tick_mesh != null
+		and logistics_ticks != null
+		and logistics_ticks.multimesh != null
+		and logistics_ticks.multimesh.mesh == shared_route_tick_mesh
+		and shared_route_tick_mesh.size.is_equal_approx(
+			ObservationLogisticsSpur.ROUTE_CROWN_FIN_SIZE
+		)
+		and observation_ticks.material_override != logistics_ticks.material_override
+		and observation_tick_transforms.size() == 11
+		and logistics_tick_transforms.size() == 8
+		and int(performance.family_copies) == 19
+		and int(performance.route_tick_batch_count) == 2
+		and int(performance.route_tick_mesh_resources) == 1
+		and int(performance.route_tick_mesh_resource_delta) == -1
+		and int(performance.route_tick_copies) == 19
+		and bool(performance.route_tick_identities_exact),
+		"19 cyan/amber route ticks retain exact separate batches and material identities on one box mesh"
+	)
+	logistics_ticks.multimesh.mesh = shared_route_tick_mesh.duplicate()
+	_check(
+		not bool(module.get_visual_resource_contract().exact),
+		"red mutation: splitting the logistics tick mesh identity fails the sharing contract"
+	)
+	logistics_ticks.multimesh.mesh = shared_route_tick_mesh
+	_check(
+		bool(module.get_visual_resource_contract().exact),
+		"restoring the shared route-tick mesh identity returns the contract green"
 	)
 	var scaled_trim_batches := [
 		"VisibleRailBars", "VisibleRailPosts", "PadPavilionBulkheads",

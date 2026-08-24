@@ -141,7 +141,7 @@ const DRAWN_COPY_COUNT := 278
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
 const SURFACE_SUBMISSION_COUNT := 35
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 25
+const MESH_RESOURCE_COUNT := 24
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
@@ -249,6 +249,10 @@ const APPROACH_WAYFINDING_POSITION := Vector3(0.0, 3.18, 21.82)
 ## a gameplay-distance silhouette without entering the 3.44 m clear portal or
 ## adding a renderer, material, light, collision shape, label, or authority node.
 const ROUTE_CROWN_FIN_SIZE := Vector3(0.14, 0.035, 0.92)
+const ROUTE_TICK_BATCH_NAMES := ["ObservationZoneTicks", "LogisticsZoneTicks"]
+const BASELINE_ROUTE_TICK_MESH_RESOURCE_COUNT := 2
+const ROUTE_TICK_MESH_RESOURCE_COUNT := 1
+const ROUTE_TICK_COPY_COUNT := 19
 const OBSERVATION_ROUTE_CROWN_FIN_POSITIONS := [
 	Vector3(-1.42, 3.90, 22.0),
 	Vector3(-1.14, 3.90, 22.0),
@@ -306,6 +310,10 @@ var _logistics_case_mesh: BoxMesh
 ## and CollisionShape3D while the three identical pallet renderers share it.
 var _logistics_pallet_mesh: BoxMesh
 var _scaled_visual_box_mesh: BoxMesh
+## Immutable visual-only geometry shared by the cyan observation and amber
+## logistics batches. Their material overrides, transforms and submissions stay
+## independent so route readability is unchanged.
+var _route_tick_mesh: BoxMesh
 var _route_markers: Dictionary = {}
 var _walkable_surfaces: Array[StaticBody3D] = []
 var _visible_rail_bar_transforms: Array[Transform3D] = []
@@ -955,6 +963,32 @@ func get_visual_resource_contract() -> Dictionary:
 			and bool(scaled_batch.get_meta("visual_detail_only", false))
 		)
 
+	var route_tick_mesh_resource_ids := {}
+	var route_tick_identities_exact := is_instance_valid(_route_tick_mesh)
+	var route_tick_copies := 0
+	var route_tick_materials := [_materials.get("cyan"), _materials.get("amber")]
+	var expected_route_tick_copies := [11, 8]
+	for batch_index in ROUTE_TICK_BATCH_NAMES.size():
+		var route_tick_batch := get_node_or_null(NodePath(
+			"Structure/Dressing/%s" % ROUTE_TICK_BATCH_NAMES[batch_index]
+		)) as MultiMeshInstance3D
+		var route_tick_batch_mesh := (
+			route_tick_batch.multimesh.mesh as BoxMesh
+			if route_tick_batch != null and route_tick_batch.multimesh != null else null
+		)
+		if route_tick_batch_mesh != null:
+			route_tick_mesh_resource_ids[route_tick_batch_mesh.get_instance_id()] = true
+			route_tick_copies += route_tick_batch.multimesh.instance_count
+		route_tick_identities_exact = (
+			route_tick_identities_exact
+			and route_tick_batch != null
+			and route_tick_batch_mesh == _route_tick_mesh
+			and route_tick_batch_mesh.size.is_equal_approx(ROUTE_CROWN_FIN_SIZE)
+			and route_tick_batch.material_override == route_tick_materials[batch_index]
+			and route_tick_batch.multimesh.instance_count == expected_route_tick_copies[batch_index]
+			and bool(route_tick_batch.get_meta("visual_detail_only", false))
+		)
+
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	var exact := (
@@ -978,12 +1012,15 @@ func get_visual_resource_contract() -> Dictionary:
 		and light_mast_identities_exact
 		and scaled_visual_mesh_resource_ids.size() == SCALED_VISUAL_MESH_RESOURCE_COUNT
 		and scaled_visual_identities_exact
+		and route_tick_mesh_resource_ids.size() == ROUTE_TICK_MESH_RESOURCE_COUNT
+		and route_tick_copies == ROUTE_TICK_COPY_COUNT
+		and route_tick_identities_exact
 	)
 	return {
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"scaled_visual_trim_mesh",
+		"selected_family": &"route_zone_tick_mesh",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -997,14 +1034,21 @@ func get_visual_resource_contract() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
-		"baseline_family_nodes": SCALED_VISUAL_BATCH_NAMES.size(),
-		"family_nodes": SCALED_VISUAL_BATCH_NAMES.size(),
-		"baseline_family_submissions": SCALED_VISUAL_BATCH_NAMES.size(),
-		"family_submissions": SCALED_VISUAL_BATCH_NAMES.size(),
-		"baseline_family_mesh_resources": BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT,
-		"family_mesh_resources": scaled_visual_mesh_resource_ids.size(),
-		"family_copies": 0,
-		"family_identities_exact": scaled_visual_identities_exact,
+		"baseline_family_nodes": ROUTE_TICK_BATCH_NAMES.size(),
+		"family_nodes": ROUTE_TICK_BATCH_NAMES.size(),
+		"baseline_family_submissions": ROUTE_TICK_BATCH_NAMES.size(),
+		"family_submissions": ROUTE_TICK_BATCH_NAMES.size(),
+		"baseline_family_mesh_resources": BASELINE_ROUTE_TICK_MESH_RESOURCE_COUNT,
+		"family_mesh_resources": route_tick_mesh_resource_ids.size(),
+		"family_copies": route_tick_copies,
+		"family_identities_exact": route_tick_identities_exact,
+		"route_tick_batch_count": ROUTE_TICK_BATCH_NAMES.size(),
+		"route_tick_mesh_resources": route_tick_mesh_resource_ids.size(),
+		"route_tick_mesh_resource_delta": (
+			route_tick_mesh_resource_ids.size() - BASELINE_ROUTE_TICK_MESH_RESOURCE_COUNT
+		),
+		"route_tick_copies": route_tick_copies,
+		"route_tick_identities_exact": route_tick_identities_exact,
 		"scaled_visual_batch_count": SCALED_VISUAL_BATCH_NAMES.size(),
 		"scaled_visual_mesh_resources": scaled_visual_mesh_resource_ids.size(),
 		"scaled_visual_mesh_resource_delta": scaled_visual_mesh_resource_ids.size() - BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT,
@@ -1327,6 +1371,8 @@ func _index_routes() -> void:
 func _build_module() -> void:
 	_scaled_visual_box_mesh = BoxMesh.new()
 	_scaled_visual_box_mesh.size = Vector3.ONE
+	_route_tick_mesh = BoxMesh.new()
+	_route_tick_mesh.size = ROUTE_CROWN_FIN_SIZE
 	var structure := Node3D.new()
 	structure.name = "Structure"
 	add_child(structure)
@@ -1699,11 +1745,11 @@ func _build_finishing_details(parent: Node3D) -> void:
 		observation_ticks.append(Transform3D(crown_fin_basis, slit_position))
 	_multimesh_boxes(
 		parent, "ObservationZoneTicks", ROUTE_CROWN_FIN_SIZE,
-		_materials["cyan"], observation_ticks
+		_materials["cyan"], observation_ticks, _route_tick_mesh
 	)
 	_multimesh_boxes(
 		parent, "LogisticsZoneTicks", ROUTE_CROWN_FIN_SIZE,
-		_materials["amber"], logistics_ticks
+		_materials["amber"], logistics_ticks, _route_tick_mesh
 	)
 	var return_chevrons: Array[Transform3D] = []
 	for chevron_index in 5:
