@@ -229,6 +229,7 @@ func _run() -> void:
 	_disconnect_session_observers(session)
 	session = null
 	director.free()
+	await _test_countdown_checkpoint_rejection_and_reentry()
 	_test_checkpoint_translation_mismatch_fails_closed()
 	_finish()
 
@@ -350,6 +351,55 @@ func _test_checkpoint_translation_mismatch_fails_closed() -> void:
 		"checkpoint translation mismatch terminally fails both mapped authorities"
 	)
 	director.activity_checkpoint_reached.disconnect(inject_mismatch)
+	session.close(session.get_session_generation())
+	session = null
+	director.free()
+
+
+func _test_countdown_checkpoint_rejection_and_reentry() -> void:
+	var director := ActivityDirector.new()
+	director.register_definition(ROUTE)
+	root.add_child(director)
+	var session := Session.new(1, 3.0, 10.0)
+	_check(session.attach(director, 0).accepted, "countdown fixture attaches to the shared route authority")
+	var start := session.start(0)
+	var generation := int(start.session_generation)
+	var before_early_checkpoint := session.get_presentation_snapshot()
+	var early_checkpoint := session.submit_position(
+		ROUTE.get_checkpoint_position(0), generation
+	)
+	var repeated_early_checkpoint := session.submit_position(
+		ROUTE.get_checkpoint_position(0), generation
+	)
+	var director_after_early_checkpoint := director.get_activity_snapshot(ROUTE.activity_id)
+	_check(
+		start.accepted
+		and not early_checkpoint.accepted
+		and early_checkpoint.reason == &"countdown_in_progress"
+		and early_checkpoint == repeated_early_checkpoint
+		and early_checkpoint.state_id == &"countdown"
+		and is_equal_approx(float(early_checkpoint.countdown_remaining_seconds), 3.0)
+		and int(early_checkpoint.next_checkpoint_index) == 0
+		and session.get_presentation_snapshot() == before_early_checkpoint
+		and int(director_after_early_checkpoint.next_checkpoint_index) == 0,
+		"a pre-start gate intent returns a stable countdown recovery state without consuming either authority"
+	)
+	var detached := session.detach(generation)
+	var reattached := session.attach(director, generation)
+	var activated := session.advance_physics(3.0, generation)
+	var admitted_checkpoint := session.submit_position(
+		ROUTE.get_checkpoint_position(0), generation
+	)
+	_check(
+		detached.accepted
+		and reattached.accepted
+		and activated.accepted
+		and activated.state_id == &"active"
+		and admitted_checkpoint.accepted
+		and admitted_checkpoint.state_id == &"active"
+		and int(admitted_checkpoint.next_checkpoint_index) == 1,
+		"countdown recovery preserves re-entry and admits the same first gate after the start signal"
+	)
 	session.close(session.get_session_generation())
 	session = null
 	director.free()

@@ -150,6 +150,11 @@ func submit_position(position: Vector3, expected_session_generation: int) -> Dic
 	var rejection := _running_rejection(expected_session_generation)
 	if not rejection.is_empty():
 		return _finish(false, rejection)
+	if _race.get_state() == TimedCheckpointRace.State.COUNTDOWN:
+		# The route remains armed with the director during the countdown, but it
+		# must not consume an early gate overlap. Return the live countdown state
+		# so callers can keep the player on the start signal and retry unchanged.
+		return _finish(false, &"countdown_in_progress")
 	if _race.get_state() != TimedCheckpointRace.State.ACTIVE:
 		return _finish(false, &"race_not_active")
 	var activity_result := _director.submit_position(
