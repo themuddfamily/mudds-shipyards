@@ -877,12 +877,10 @@ func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vec
 	if _wing_role == WingCoordinator.ROLE_FLANKER:
 		_refresh_rear_cross_state()
 		if _rear_cross_state == &"active":
-			var target_right := _get_target_right()
-			var cross_station := (
-				_get_target_aim_position()
-				- target_forward * flank_station_range
-				+ target_right * rear_cross_lateral_offset * _rear_cross_destination_side
-			)
+			var cross_station := _get_rear_cross_station()
+			# Presentation samples the exact station used by this authoritative
+			# movement update. It gains no callback or target ownership of its own.
+			_apply_rear_cross_presentation()
 			var to_cross_station := cross_station - global_position
 			if to_cross_station.length_squared() > 1.0:
 				# The player's rear point remains in the blend, so the pass reads as
@@ -1008,6 +1006,17 @@ func _get_target_right() -> Vector3:
 	if right.length_squared() <= 0.001:
 		return Vector3.RIGHT
 	return right.normalized()
+
+
+## One source of truth for both the inherited movement request and its retained
+## direction vane. Every term already belongs to the active rear-cross tactic.
+func _get_rear_cross_station() -> Vector3:
+	return (
+		_get_target_aim_position()
+			- _get_target_forward() * flank_station_range
+			+ _get_target_right()
+				* rear_cross_lateral_offset * _rear_cross_destination_side
+	)
 
 
 func _begin_rear_cross() -> void:
@@ -1154,8 +1163,10 @@ func _update_presentation(delta: float) -> void:
 		_warning_light.light_energy = 0.0
 
 
-## A state step, never a phase or animation. Pointing the retained wedge toward
-## the existing destination side is the cue's only runtime mutation.
+## A direct observation, never a phase or animation. At each existing tactic
+## update the retained wedge is reoriented in world space toward the exact cross
+## station used by movement, so transformed parents and a moving/turning target
+## cannot make a hull-local left/right arrow lie about the committed route.
 func _apply_rear_cross_presentation() -> void:
 	if not is_instance_valid(_rear_cross_cue):
 		return
@@ -1166,12 +1177,24 @@ func _apply_rear_cross_presentation() -> void:
 		and _rear_cross_activation_generation == _activation_generation
 		and _has_current_target()
 	)
-	_rear_cross_cue.visible = presented
 	_rear_cross_cue.position = REAR_CROSS_CUE_POSITION
-	_rear_cross_cue.rotation = (
-		Vector3(0.0, -_rear_cross_destination_side * PI * 0.5, 0.0)
-		if presented else Vector3.ZERO
+	if not presented:
+		_rear_cross_cue.visible = false
+		_rear_cross_cue.rotation = Vector3.ZERO
+		return
+	var direction := _get_rear_cross_station() - global_position
+	if direction.length_squared() <= 0.000001:
+		_rear_cross_cue.visible = false
+		return
+	var normalized_direction := direction.normalized()
+	var presentation_up := Vector3.UP
+	if absf(normalized_direction.dot(presentation_up)) >= 0.98:
+		presentation_up = Vector3.RIGHT
+	_rear_cross_cue.global_basis = Basis.looking_at(
+		normalized_direction,
+		presentation_up
 	)
+	_rear_cross_cue.visible = true
 
 
 # ---------------------------------------------------------------- geometry ----

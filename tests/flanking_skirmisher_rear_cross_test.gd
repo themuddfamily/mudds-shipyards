@@ -298,6 +298,114 @@ func _run() -> void:
 		"terminal destruction clears the vane while retaining the bounded presentation resources for safe teardown"
 	)
 
+	# A rotated/translated parent plus a moving and turning target defeats a
+	# hull-local left/right arrow. The production tactic update must instead
+	# align the retained vane with the newly recomputed world cross station.
+	var transformed_host := Node3D.new()
+	transformed_host.name = "TransformedRearCrossWorld"
+	transformed_host.transform = Transform3D(
+		Basis.from_euler(Vector3(0.18, 0.63, -0.12)),
+		Vector3(126.0, -18.0, 74.0)
+	)
+	root.add_child(transformed_host)
+	var transformed_authority := AUTHORITY_SCRIPT.new() as LiveCombatAuthority
+	transformed_authority.name = "CombatAuthority"
+	transformed_host.add_child(transformed_authority)
+	var moving_target := Node3D.new()
+	moving_target.name = "MovingRearCrossTarget"
+	moving_target.transform = Transform3D(
+		Basis.from_euler(Vector3(-0.08, 0.31, 0.14)),
+		Vector3(11.0, 4.0, -9.0)
+	)
+	transformed_host.add_child(moving_target)
+	var initial_target_forward := (-moving_target.global_basis.z).normalized()
+	var initial_target_right := moving_target.global_basis.x.normalized()
+	var transformed_spawn_position := (
+		moving_target.global_position
+			- initial_target_forward * 36.0
+			+ initial_target_right * 18.0
+	)
+	var transformed_spawn_basis := Basis.looking_at(
+		(moving_target.global_position - transformed_spawn_position).normalized(),
+		Vector3.UP
+	)
+	var transformed_skirmisher := (
+		SKIRMISHER_SCENE.instantiate() as FlankingSkirmisherOpponent
+	)
+	transformed_skirmisher.name = "TransformedRearCrossSkirmisher"
+	transformed_skirmisher.process_mode = Node.PROCESS_MODE_DISABLED
+	transformed_skirmisher.combat_authority_path = NodePath("../CombatAuthority")
+	transformed_skirmisher.pulse_presentation_path = NodePath("../MissingPulsePresentation")
+	transformed_skirmisher.combat_audio_path = NodePath("../MissingCombatAudio")
+	transformed_skirmisher.hud_path = NodePath("../MissingHud")
+	transformed_skirmisher.scenario_director_path = NodePath("../MissingScenarioDirector")
+	transformed_host.add_child(transformed_skirmisher)
+	await process_frame
+	var transformed_activation := transformed_skirmisher.activate(
+		Transform3D(transformed_spawn_basis, transformed_spawn_position)
+	)
+	transformed_skirmisher.set_target(moving_target)
+	transformed_skirmisher.assign_wing_role(WingCoordinator.ROLE_FLANKER)
+	transformed_skirmisher.call("_fire_at_target", moving_target.global_position)
+	var transformed_cue := transformed_skirmisher.get_node(
+		^"WingSkirmisherVisual/RoleLamp/RearCrossDirectionVane"
+	) as MeshInstance3D
+	var transformed_cue_mesh_id := transformed_cue.mesh.get_instance_id()
+	var transformed_cue_material_id := (
+		transformed_cue.get_active_material(0).get_instance_id()
+	)
+
+	# Move and rotate after commitment; the same tactic callback that recomputes
+	# movement now refreshes presentation from the changed authoritative pose.
+	moving_target.transform = Transform3D(
+		Basis.from_euler(Vector3(-0.27, 1.04, 0.21)),
+		Vector3(-17.0, 9.0, 28.0)
+	)
+	var moved_target_direction := (
+		moving_target.global_position - transformed_skirmisher.global_position
+	).normalized()
+	transformed_skirmisher.call(
+		"_choose_motion_direction",
+		moved_target_direction,
+		transformed_skirmisher.global_position.distance_to(moving_target.global_position)
+	)
+	var transformed_state := transformed_skirmisher.get_rear_cross_snapshot()
+	var transformed_cue_state := (
+		transformed_skirmisher.get_rear_cross_intent_cue_snapshot()
+	)
+	var moved_target_forward := (-moving_target.global_basis.z).normalized()
+	var moved_target_right := moving_target.global_basis.x.normalized()
+	var expected_cross_station := (
+		moving_target.global_position
+			- moved_target_forward * transformed_skirmisher.flank_station_range
+			+ moved_target_right
+				* transformed_skirmisher.rear_cross_lateral_offset
+				* float(transformed_state.destination_side)
+	)
+	var expected_world_direction := (
+		expected_cross_station - transformed_skirmisher.global_position
+	).normalized()
+	var presented_world_direction := (-transformed_cue.global_basis.z).normalized()
+	_check(
+		bool(transformed_activation.accepted)
+		and transformed_state.state_id == &"active"
+		and bool(transformed_cue_state.visible)
+		and not transformed_host.global_basis.is_equal_approx(Basis.IDENTITY)
+		and presented_world_direction.dot(expected_world_direction) > 0.9999
+		and transformed_cue.mesh.get_instance_id() == transformed_cue_mesh_id
+		and transformed_cue.get_active_material(0).get_instance_id()
+			== transformed_cue_material_id
+		and not bool(transformed_cue_state.movement_authority)
+		and not bool(transformed_cue_state.target_authority),
+		"the existing tactic cadence tracks the true moving world cross station through transformed parents without gaining authority"
+	)
+
+	transformed_skirmisher.deactivate()
+	transformed_host.remove_child(transformed_skirmisher)
+	transformed_skirmisher.queue_free()
+	root.remove_child(transformed_host)
+	transformed_host.queue_free()
+
 	skirmisher.deactivate()
 	host.remove_child(skirmisher)
 	skirmisher.queue_free()
