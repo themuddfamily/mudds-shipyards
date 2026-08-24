@@ -97,9 +97,9 @@ const HAZARD_DRESSING_RENDER_NAME := &"HazardDressingBatch"
 const HAZARD_DRESSING_PARTS := [
 	{
 		"id": &"InspectionGantryBoom",
-		"position": Vector3(24.5, 5.8, 7.5),
-		"size": Vector3(5.0, 0.35, 0.35),
-		"reason": "overhead inspection boom outside capsule height",
+		"position": Vector3(23.25, 5.8, 7.5),
+		"size": Vector3(7.5, 0.35, 0.35),
+		"reason": "extended overhead inspection boom outside capsule height",
 	},
 	{
 		"id": &"RoofHazardStripe",
@@ -1269,8 +1269,8 @@ func _build_batched_supports_and_dressing() -> void:
 	)
 
 	# One outboard inspection gantry over void, intentionally collision-free and
-	# outside the surface union. Its compact silhouette makes the service role read
-	# without placing furniture in any route.
+	# outside the surface union. Its long orange boom reaches inboard from the mast
+	# as a strong gameplay-distance landmark without placing furniture in any route.
 	_visual_box("InspectionGantryMast", Vector3(27.0, 3.0, 7.5), Vector3(0.45, 6.0, 0.45), _materials.frame, "outboard inspection gantry over void")
 	_visual_box("SuspendedSalvageClamp", Vector3(26.6, 5.0, 7.5), Vector3(0.8, 1.2, 0.8), _materials.salvage, "suspended service clamp beyond the upper terrace rail")
 

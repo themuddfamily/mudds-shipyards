@@ -668,7 +668,7 @@ func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
 	var exact_parts := parts.size() == 5
 	if exact_parts:
 		var expected := [
-			[&"InspectionGantryBoom", Vector3(24.5, 5.8, 7.5), Vector3(5.0, 0.35, 0.35)],
+			[&"InspectionGantryBoom", Vector3(23.25, 5.8, 7.5), Vector3(7.5, 0.35, 0.35)],
 			[&"RoofHazardStripe", Vector3(-12.0, 4.46, 2.95), Vector3(8.0, 0.10, 0.35)],
 			[&"CrusherFeedHood", Vector3(-12.4, 2.55, 15.35), Vector3(2.2, 0.35, 1.8)],
 			[&"CraneBridge", Vector3(-12.0, 4.05, 8.0), Vector3(9.4, 0.28, 0.38)],
@@ -686,6 +686,17 @@ func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
 	_check(
 		exact_parts,
 		"the batched hazard surface retains every authored source id, size, and identity-basis transform"
+	)
+	var gantry_boom := parts[0] as Dictionary if not parts.is_empty() else {}
+	var boom_transform := gantry_boom.get("transform", Transform3D.IDENTITY) as Transform3D
+	var boom_size := gantry_boom.get("size", Vector3.ZERO) as Vector3
+	_check(
+		boom_size.is_equal_approx(Vector3(7.5, 0.35, 0.35))
+		and boom_transform.origin.is_equal_approx(Vector3(23.25, 5.8, 7.5))
+		and is_equal_approx(boom_transform.origin.x - boom_size.x * 0.5, 19.5)
+		and is_equal_approx(boom_transform.origin.x + boom_size.x * 0.5, 27.0)
+		and is_equal_approx(boom_transform.origin.y - boom_size.y * 0.5, 5.625),
+		"inspection gantry carries a 7.5 m orange boom from its outboard mast into the route sightline while retaining overhead clearance"
 	)
 	var original_parts: Array = parts.duplicate(true)
 	parts[0].transform = Transform3D(Basis.IDENTITY, Vector3.ZERO)
