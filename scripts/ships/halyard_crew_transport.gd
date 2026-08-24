@@ -312,11 +312,16 @@ const GEAR_DAMPER_COPY_COUNT := 4
 ## renderer submissions and five scene nodes.
 const AFT_RACK_PANEL_SIZE := Vector3(0.05, 0.32, 1.00)
 const AFT_RACK_PANEL_COPY_COUNT := 6
-const RENDER_DESCENDANT_COUNT := 121
-const RENDER_MESH_INSTANCE_COUNT := 112
-const RENDER_MULTIMESH_BATCH_COUNT := 4
+## The four deployed airstair treads are fixed exterior presentation. Boarding
+## remains owned by the separate ramp collider and route markers, so the tread
+## silhouettes may share one renderer without changing traversal authority.
+const AIRSTAIR_TREAD_SIZE := Vector3(0.46, 0.14, 1.55)
+const AIRSTAIR_TREAD_COPY_COUNT := 4
+const RENDER_DESCENDANT_COUNT := 118
+const RENDER_MESH_INSTANCE_COUNT := 108
+const RENDER_MULTIMESH_BATCH_COUNT := 5
 const RENDER_DRAWN_COPY_COUNT := 163
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 116
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 113
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 65
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 14
 
@@ -2640,6 +2645,8 @@ func _build_flank_detail() -> void:
 	var cabin_window_glow_names := PackedStringArray()
 	var cabin_window_pane_transforms: Array[Transform3D] = []
 	var cabin_window_pane_names := PackedStringArray()
+	var airstair_tread_transforms: Array[Transform3D] = []
+	var airstair_tread_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_halyard_visual, side_name + "WindowFrame", Vector3(side * (HULL_HALF_WIDTH + 0.04), 2.35, band_centre_z), Vector3(0.12, 0.78, band_length), _halyard_materials.structure)
@@ -2706,15 +2713,32 @@ func _build_flank_detail() -> void:
 		# midships hull. The hatch is placed where the deck is.
 		if side < 0.0:
 			for tread_index in 4:
-				_box(
-					_halyard_visual,
-					"AirstairTread%02d" % tread_index,
-					Vector3(-2.86 - float(tread_index) * 0.42, 0.24 - float(tread_index) * 0.44, AIRSTAIR_Z),
-					Vector3(0.46, 0.14, 1.55),
-					_halyard_materials.deck
-				)
+				airstair_tread_transforms.append(Transform3D(
+					Basis.IDENTITY,
+					Vector3(
+						-2.86 - float(tread_index) * 0.42,
+						0.24 - float(tread_index) * 0.44,
+						AIRSTAIR_Z
+					)
+				))
+				airstair_tread_names.append("AirstairTread%02d" % tread_index)
 			_box(_halyard_visual, "AirstairStringer", Vector3(-3.60, -0.36, AIRSTAIR_Z), Vector3(2.00, 0.16, 0.14), _halyard_materials.structure, Vector3(0.0, 0.0, deg_to_rad(-46.0)))
 			_box(_halyard_visual, "AirstairHatchSurround", Vector3(-2.70, 1.55, AIRSTAIR_Z), Vector3(0.16, 2.10, 1.90), _halyard_materials.accent)
+	# The visible steps are not the boarding surface: PortAirstairCollision and
+	# the access/deck markers retain that physical contract. This batch keeps the
+	# exact four-step silhouette while replacing four one-surface submissions.
+	var airstair_tread_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		AIRSTAIR_TREAD_SIZE,
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_halyard_visual,
+		"AirstairTreadBatch",
+		airstair_tread_mesh,
+		_halyard_materials.deck,
+		airstair_tread_transforms,
+		airstair_tread_names
+	)
 	var window_pane_mesh := StationSurfaceKit.rounded_box_mesh_cached(
 		Vector3(0.05, 0.54, 1.08),
 		_box_mesh_cache
