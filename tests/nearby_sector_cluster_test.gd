@@ -360,28 +360,28 @@ func _test_mining_platform_activity_presentation(cluster: NearbySectorCluster) -
 	var batch_specs := {
 		"MiningHeadframeLegs": {
 			"family": &"mining-headframe-legs", "mesh_aabb": AABB(Vector3(-1.5, -11.0, -1.5), Vector3(3.0, 22.0, 3.0)),
-			"material": "steel", "transforms": [
+			"material": "mining_structure", "transforms": [
 				Transform3D(Basis.IDENTITY, Vector3(-12.0, 20.0, -4.0)),
 				Transform3D(Basis.IDENTITY, Vector3(12.0, 20.0, -4.0)),
 			],
 		},
 		"MiningHeadframeBraces": {
 			"family": &"mining-headframe-braces", "mesh_aabb": AABB(Vector3(-7.5, -0.6, -1.0), Vector3(15.0, 1.2, 2.0)),
-			"material": "orange", "transforms": [
+			"material": "mining_trim", "transforms": [
 				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-48.0))), Vector3(-6.2, 23.0, -4.0)),
 				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(48.0))), Vector3(6.2, 23.0, -4.0)),
 			],
 		},
 		"MiningFeedChutes": {
 			"family": &"mining-feed-chutes", "mesh_aabb": AABB(Vector3(-1.5, -6.5, -1.5), Vector3(3.0, 13.0, 3.0)),
-			"material": "hull_shadow", "transforms": [
+			"material": "mining_service", "transforms": [
 				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-24.0))), Vector3(-7.0, 11.0, -2.0)),
 				Transform3D(Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(24.0))), Vector3(7.0, 11.0, -2.0)),
 			],
 		},
 		"MiningOreBufferBins": {
 			"family": &"mining-ore-buffer-bins", "mesh_aabb": AABB(Vector3(-3.2, -3.5, -3.2), Vector3(6.4, 7.0, 6.4)),
-			"material": "hull_shadow", "transforms": [
+			"material": "mining_service", "transforms": [
 				Transform3D(Basis.IDENTITY, Vector3(-8.0, 4.0, 11.0)),
 				Transform3D(Basis.IDENTITY, Vector3(0.0, 4.0, 11.0)),
 				Transform3D(Basis.IDENTITY, Vector3(8.0, 4.0, 11.0)),
@@ -389,7 +389,7 @@ func _test_mining_platform_activity_presentation(cluster: NearbySectorCluster) -
 		},
 		"MiningOreBufferBands": {
 			"family": &"mining-ore-buffer-bands", "mesh_aabb": AABB(Vector3(-3.3, -0.4, -3.3), Vector3(6.6, 0.8, 6.6)),
-			"material": "steel", "transforms": [
+			"material": "mining_trim", "transforms": [
 				Transform3D(Basis.IDENTITY, Vector3(-8.0, 4.0, 11.0)),
 				Transform3D(Basis.IDENTITY, Vector3(0.0, 4.0, 11.0)),
 				Transform3D(Basis.IDENTITY, Vector3(8.0, 4.0, 11.0)),

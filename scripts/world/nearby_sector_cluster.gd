@@ -241,6 +241,12 @@ const MINING_PRESENTATION_SUBMISSION_BUDGET := 11
 const MINING_PRESENTATION_MESH_RESOURCE_BUDGET := 10
 const MINING_PRESENTATION_LIGHT_BUDGET := 2
 const MINING_PRESENTATION_DESCENDANT_BUDGET := 14
+const MINING_MATERIAL_ROLES := {
+	&"service": &"mining_service",
+	&"structure": &"mining_structure",
+	&"machinery": &"mining_machinery",
+	&"trim": &"mining_trim",
+}
 const MINING_PRESENTATION_STATE_NODE_DELTA := 0
 const MINING_PRESENTATION_STATE_LIGHT_DELTA := 0
 const MINING_PRESENTATION_STATE_SUBMISSION_DELTA := 0
@@ -1362,6 +1368,53 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 				or StringName(presentation.get_meta(&"activity_id", &"")) \
 					!= MINING_ACTIVITY_ID:
 			errors.append("mining_presentation_root_drift")
+		# The mining stock keeps Cinder's ochre, blue-steel, shadow and orange
+		# palette, but its response now identifies what each surface does. This is
+		# deliberately checked on the live renderers so a later shared-material
+		# shortcut cannot flatten the hierarchy without turning the production
+		# audit red.
+		var expected_finishes := {
+			&"service": Vector2(
+				StationSurfaceKit.WALKED_CLEARCOAT,
+				StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS
+			),
+			&"structure": Vector2(
+				StationSurfaceKit.STRUCTURAL_CLEARCOAT,
+				StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS
+			),
+			&"machinery": Vector2(
+				StationSurfaceKit.PAINTED_CLEARCOAT,
+				StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS
+			),
+			&"trim": Vector2(
+				StationSurfaceKit.TRIM_CLEARCOAT,
+				StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS
+			),
+		}
+		var renderer_roles := {
+			^"HeadframeHeader": &"structure",
+			^"MiningHeadframeLegs": &"structure",
+			^"MiningHeadframeBraces": &"trim",
+			^"MiningFeedChutes": &"service",
+			^"OreSeparatorHopper": &"machinery",
+			^"HopperServiceBand": &"trim",
+			^"MiningOreBufferBins": &"service",
+			^"MiningOreBufferBands": &"trim",
+		}
+		for renderer_path: NodePath in renderer_roles:
+			var renderer := presentation.get_node_or_null(renderer_path) as GeometryInstance3D
+			var role := renderer_roles[renderer_path] as StringName
+			var material_key := MINING_MATERIAL_ROLES[role] as StringName
+			var material := renderer.material_override as StandardMaterial3D \
+				if renderer != null else null
+			var finish_response := expected_finishes[role] as Vector2
+			if material == null or material != _materials.get(material_key) \
+					or not material.clearcoat_enabled \
+					or not is_equal_approx(material.clearcoat, finish_response.x) \
+					or not is_equal_approx(
+						material.clearcoat_roughness, finish_response.y
+					):
+				errors.append("mining_%s_material_hierarchy_drift" % role)
 	if approach == null \
 			or not approach.position.is_equal_approx(MINING_APPROACH_LOCAL) \
 			or approach.get_child_count() != 0:
@@ -1458,6 +1511,7 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 		"state_feedback": state_feedback,
 		"approach_readable": local_bounds.size.x >= 28.0 \
 			and local_bounds.size.y >= 32.0,
+		"material_roles": MINING_MATERIAL_ROLES.duplicate(true),
 		"activity_authority": false,
 		"interaction_authority": false,
 		"collision_authority": false,
@@ -2371,7 +2425,7 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	approach.position = MINING_APPROACH_LOCAL
 	presentation.add_child(approach)
 
-	_box(presentation, "HeadframeHeader", Vector3(0.0, 31.0, -4.0), Vector3(28.0, 2.0, 4.0), _materials["hull"], false)
+	_box(presentation, "HeadframeHeader", Vector3(0.0, 31.0, -4.0), Vector3(28.0, 2.0, 4.0), _materials["mining_structure"], false)
 	var leg_transforms: Array[Transform3D] = []
 	var brace_transforms: Array[Transform3D] = []
 	var chute_transforms: Array[Transform3D] = []
@@ -2388,21 +2442,21 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	_presentation_multimesh_batch(
 		presentation, "MiningHeadframeLegs",
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(3.0, 22.0, 3.0), _box_cache),
-		_materials["steel"], leg_transforms, &"mining-headframe-legs"
+		_materials["mining_structure"], leg_transforms, &"mining-headframe-legs"
 	)
 	_presentation_multimesh_batch(
 		presentation, "MiningHeadframeBraces",
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(15.0, 1.2, 2.0), _box_cache),
-		_materials["orange"], brace_transforms, &"mining-headframe-braces"
+		_materials["mining_trim"], brace_transforms, &"mining-headframe-braces"
 	)
 	_presentation_multimesh_batch(
 		presentation, "MiningFeedChutes",
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(3.0, 13.0, 3.0), _box_cache),
-		_materials["hull_shadow"], chute_transforms, &"mining-feed-chutes"
+		_materials["mining_service"], chute_transforms, &"mining-feed-chutes"
 	)
 
-	_cylinder(presentation, "OreSeparatorHopper", Vector3(0.0, 19.0, -4.0), 5.5, 2.0, 9.0, _materials["hull"], false)
-	_cylinder(presentation, "HopperServiceBand", Vector3(0.0, 15.0, -4.0), 5.8, 5.8, 0.7, _materials["orange"], false)
+	_cylinder(presentation, "OreSeparatorHopper", Vector3(0.0, 19.0, -4.0), 5.5, 2.0, 9.0, _materials["mining_machinery"], false)
+	_cylinder(presentation, "HopperServiceBand", Vector3(0.0, 15.0, -4.0), 5.8, 5.8, 0.7, _materials["mining_trim"], false)
 	var bin_transforms: Array[Transform3D] = []
 	var bin_band_transforms: Array[Transform3D] = []
 	for bin_index in 3:
@@ -2413,12 +2467,12 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 		presentation, "MiningOreBufferBins",
 		StationSurfaceKit.chamfered_cylinder_mesh_cached(
 			2.6, 3.2, 7.0, 24, _cylinder_cache, 4, true, true
-		), _materials["hull_shadow"], bin_transforms, &"mining-ore-buffer-bins"
+		), _materials["mining_service"], bin_transforms, &"mining-ore-buffer-bins"
 	)
 	var collector_bands := _presentation_multimesh_batch(
 		presentation, "MiningOreBufferBands",
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(6.6, 0.8, 6.6), _box_cache),
-		_materials["steel"], bin_band_transforms, &"mining-ore-buffer-bands"
+		_materials["mining_trim"], bin_band_transforms, &"mining-ore-buffer-bands"
 	)
 	# The retained bands travel only inside their fixed collectors. Expand the
 	# batch culling bounds once for that complete presentation range; snapshots
@@ -3090,6 +3144,20 @@ func _create_materials() -> void:
 	_materials["solar_dead"] = _material(Color("101820"), 0.4, 0.72)
 	_materials["cyan_glow"] = _material(KETH_CYAN, 0.0, 0.28, KETH_CYAN, 1.5)
 	_materials["orange_glow"] = _material(KETH_ORANGE, 0.0, 0.3, KETH_ORANGE, 1.4)
+	# Activity-only finish family. The scalar colours and PBR values are the
+	# existing Cinder palette; only the shared physical finish differs by role.
+	_materials["mining_service"] = _panel_material(
+		HULL_SHADOW, 0.3, 0.7, 0.1, StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
+	_materials["mining_structure"] = _panel_material(
+		STEEL_BLUE, 0.5, 0.36, 0.12, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	_materials["mining_machinery"] = _panel_material(
+		HULL_OCHRE, 0.2, 0.66, 0.075, StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
+	_materials["mining_trim"] = _panel_material(
+		KETH_ORANGE, 0.1, 0.56, 0.1, StationSurfaceKit.PanelFinish.METAL_TRIM
+	)
 
 
 func _material(
@@ -3124,10 +3192,11 @@ func _panel_material(
 		color: Color,
 		metallic: float,
 		roughness: float,
-		uv_scale: float
+		uv_scale: float,
+		finish: StationSurfaceKit.PanelFinish = StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
 	) -> StandardMaterial3D:
 	var result := _material(color, metallic, roughness)
-	StationSurfaceKit.apply_panel_triplanar(result, uv_scale)
+	StationSurfaceKit.apply_panel_triplanar(result, uv_scale, finish)
 	return result
 
 
