@@ -55,6 +55,23 @@ func _initialize() -> void:
 		"terminal failure names the authoritative cause without adding combat, damage, or activity authority"
 	)
 
+	var actor_lost_state := _convoy(148.0, false, 0.0)
+	actor_lost_state.state_id = &"failed"
+	actor_lost_state.terminal_result_id = &"convoy_lost"
+	actor_lost_state.terminal_reason = &"convoy_reported_lost"
+	actor_lost_state.convoy_status_id = &"lost"
+	view = hud.set_nearby_activity_snapshot({"host": {"activity": actor_lost_state}})
+	row = _convoy_row(hud)
+	var actor_lost := _convoy_card(view)
+	_check(
+		_convoy_text(row).contains("CONVOY ACTOR LOST  //  RESET ESCORT TO REDEPLOY")
+			and actor_lost.recovery_text == "RECOVER: RESET ESCORT TO REDEPLOY CONVOY"
+			and actor_lost.objective_text == "USE RESET TO REDEPLOY THE CONVOY AND RESTART THE ESCORT"
+			and StringName((actor_lost.convoy_feedback as Dictionary).threat_id) == &"lost"
+			and not bool((actor_lost.convoy_feedback as Dictionary).activity_authority),
+		"an actor-loss terminal gives a color-independent reset and restart instruction without adding authority"
+	)
+
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

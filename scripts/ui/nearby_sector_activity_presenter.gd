@@ -243,6 +243,9 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"" if not cargo_progress.is_empty() or not station_defense_feedback.is_empty() or not beacon_feedback.is_empty() or not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
 		or not mining_feedback.is_empty() else _recovery_text(state)
 	)
+	var convoy_recovery := str(convoy_feedback.get("recovery_text", ""))
+	if not convoy_recovery.is_empty():
+		recovery = convoy_recovery
 	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
 	var status_suffix := ""
 	if reward_pending and cargo_progress.is_empty() and station_defense_feedback.is_empty() and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
@@ -265,6 +268,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"reward_pending": reward_pending,
 		"recovery_text": str(cargo_progress.get("recovery_text", recovery)),
 		"objective_text": str(station_defense_feedback.get(
+			"objective_text", convoy_feedback.get(
 			"objective_text", beacon_feedback.get(
 			"objective_text", patrol_feedback.get(
 				"objective_text", race_feedback.get(
@@ -273,6 +277,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 					"objective_text", cargo_progress.get("objective_text", "")
 				)
 				)
+			)
 			)
 			)
 		))),
@@ -694,6 +699,8 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 	var semantic_cue_id: StringName = &"convoy_escort_secure"
 	var caption := "Convoy escort secure"
 	var summary := "ESCORT SECURE"
+	var objective := ""
+	var recovery_text := ""
 
 	if state_id == &"idle" or (state_id == &"active" and not has_sample):
 		threat_id = &"rendezvous"
@@ -710,6 +717,10 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 		semantic_cue_id = &"convoy_escort_lost" if state_id == &"failed" \
 			else &"convoy_escort_aborted"
 		var reason := StringName(state.get("terminal_reason", &""))
+		var terminal_result := StringName(state.get("terminal_result_id", &""))
+		var convoy_status := StringName(state.get("convoy_status_id", &""))
+		var actor_lost := terminal_result == &"convoy_lost" \
+			and (reason == &"convoy_reported_lost" or convoy_status == &"lost")
 		var readable_reason := str(reason).replace("_", " ").to_upper()
 		caption = "Convoy lost: %s" % str(reason).replace("_", " ") \
 			if state_id == &"failed" else "Convoy escort aborted"
@@ -717,6 +728,11 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 			"CONVOY LOST" if state_id == &"failed" else "ESCORT ABORTED",
 			(" — " + readable_reason) if not readable_reason.is_empty() else "",
 		]
+		if actor_lost:
+			caption = "Convoy actor lost. Reset escort to redeploy it."
+			summary = "CONVOY ACTOR LOST  //  RESET ESCORT TO REDEPLOY"
+			objective = "USE RESET TO REDEPLOY THE CONVOY AND RESTART THE ESCORT"
+			recovery_text = "RECOVER: RESET ESCORT TO REDEPLOY CONVOY"
 	elif state_id == &"active" and has_sample and not within_range:
 		var critical_window := maxf(1.0, maximum_separation * 0.25)
 		var critical := separation_remaining <= critical_window
@@ -754,6 +770,8 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 		"completed_leg_count": completed_legs,
 		"leg_count": leg_count,
 		"summary": summary,
+		"objective_text": objective,
+		"recovery_text": recovery_text,
 		"combat_authority": false,
 		"damage_authority": false,
 		"activity_authority": false,
