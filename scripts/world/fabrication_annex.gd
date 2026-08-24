@@ -14,6 +14,12 @@ const GROSS_HORIZONTAL_AREA_M2 := 480.0
 const FIXED_EQUIPMENT_FOOTPRINT_M2 := 69.30
 const FLOOR_AFTER_FIXED_EQUIPMENT_M2 := 410.70
 const LUMINAIRE_SIZE := Vector3(1.8, 0.12, 0.3)
+const WORK_BAY_SURFACE_SIZE := Vector3(8.0, 0.4, 14.0)
+const WORK_BAY_SURFACE_POSITIONS := [
+	Vector3(-7.0, -0.2, 11.0),
+	Vector3(7.0, -0.2, 11.0),
+]
+const WORK_BAY_SURFACE_BATCH_KEY := "deck:8.000:0.400:14.000"
 const ROOF_COLUMN_SIZE := Vector3(0.45, 5.6, 0.45)
 const ROOF_COLUMN_POSITIONS := [
 	Vector3(-11.0, 2.8, 4.5),
@@ -95,32 +101,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 7,
-	"multi_mesh_instances": 35,
-	"geometry_instances": 42,
+	"mesh_instances": 5,
+	"multi_mesh_instances": 36,
+	"geometry_instances": 41,
 	"visible_geometry_copies": 203,
-	"multi_mesh_drawn_copies": 196,
+	"multi_mesh_drawn_copies": 198,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 128,
+	"nodes": 127,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 7,
-	"multi_mesh_instances": 35,
-	"geometry_instances": 42,
+	"mesh_instances": 5,
+	"multi_mesh_instances": 36,
+	"geometry_instances": 41,
 	"visible_geometry_copies": 204,
-	"multi_mesh_drawn_copies": 197,
+	"multi_mesh_drawn_copies": 199,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 6,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 130,
+	"nodes": 129,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -239,8 +245,8 @@ func _build_routes() -> void:
 func _build_floor() -> void:
 	_add_surface(&"connector_apron", "ConnectorApron", Vector3(8.0, 0.4, 4.0), Vector3(0.0, -0.2, 2.0), 32.0)
 	_add_surface(&"central_through_aisle", "CentralThroughAisle", Vector3(6.0, 0.4, 14.0), Vector3(0.0, -0.2, 11.0), 84.0)
-	_add_surface(&"port_work_bay", "PortWorkBay", Vector3(8.0, 0.4, 14.0), Vector3(-7.0, -0.2, 11.0), 112.0)
-	_add_surface(&"starboard_work_bay", "StarboardWorkBay", Vector3(8.0, 0.4, 14.0), Vector3(7.0, -0.2, 11.0), 112.0)
+	_add_batched_surface(&"port_work_bay", "PortWorkBay", WORK_BAY_SURFACE_POSITIONS[0], 112.0)
+	_add_batched_surface(&"starboard_work_bay", "StarboardWorkBay", WORK_BAY_SURFACE_POSITIONS[1], 112.0)
 	_add_surface(&"port_side_bypass", "PortSideBypass", Vector3(3.0, 0.4, 14.0), Vector3(-12.5, -0.2, 11.0), 42.0)
 	_add_surface(&"starboard_side_bypass", "StarboardSideBypass", Vector3(3.0, 0.4, 14.0), Vector3(12.5, -0.2, 11.0), 42.0)
 	_add_surface(&"rear_cross_aisle", "RearCrossAisle", Vector3(28.0, 0.4, 2.0), Vector3(0.0, -0.2, 19.0), 56.0)
@@ -248,6 +254,18 @@ func _build_floor() -> void:
 
 func _add_surface(id: StringName, label: String, size: Vector3, at: Vector3, area: float) -> void:
 	var body := _add_solid(label, size, at, &"deck")
+	_tag_surface(body, id, area)
+
+
+func _add_batched_surface(id: StringName, label: String, at: Vector3, area: float) -> void:
+	# The two work-bay slabs retain independent collision/census bodies. Their
+	# identical immutable deck renderers share one submission at the same poses.
+	var body := _add_collision_only(label, WORK_BAY_SURFACE_SIZE, at)
+	_tag_surface(body, id, area)
+	_add_mesh("WorkBaySurface", WORK_BAY_SURFACE_SIZE, at, &"deck")
+
+
+func _tag_surface(body: StaticBody3D, id: StringName, area: float) -> void:
 	body.set_meta(&"walkable_surface", true)
 	body.set_meta(&"walkable_surface_id", id)
 	body.set_meta(&"walkable_surface_kind", &"level")
@@ -663,6 +681,88 @@ func get_render_submission_contract() -> Dictionary:
 		"batch_keys": live_batch_keys,
 		"authored_batch_transforms": _authored_batch_transforms.duplicate(true),
 	}
+
+
+func get_work_bay_surface_render_optimization_contract() -> Dictionary:
+	var batch: MultiMeshInstance3D = null
+	for raw_batch in find_children("*", "MultiMeshInstance3D", true, false):
+		var candidate := raw_batch as MultiMeshInstance3D
+		if str(candidate.get_meta(&"fabrication_annex_batch_key", "")) \
+				== WORK_BAY_SURFACE_BATCH_KEY:
+			batch = candidate
+			break
+	var authored := _authored_batch_transforms.get(WORK_BAY_SURFACE_BATCH_KEY, []) as Array
+	var transforms_exact := authored.size() == WORK_BAY_SURFACE_POSITIONS.size()
+	for index in mini(authored.size(), WORK_BAY_SURFACE_POSITIONS.size()):
+		var transform := authored[index] as Transform3D
+		transforms_exact = transforms_exact \
+			and transform.basis.is_equal_approx(Basis.IDENTITY) \
+			and transform.origin.is_equal_approx(WORK_BAY_SURFACE_POSITIONS[index] as Vector3)
+	var collision_bodies: Array[StaticBody3D] = []
+	for raw_body in StationModuleContract.collect_static_bodies(self):
+		var body := raw_body as StaticBody3D
+		if StringName(body.get_meta(&"walkable_surface_id", &"")) in [
+			&"port_work_bay", &"starboard_work_bay"
+		]:
+			collision_bodies.append(body)
+	collision_bodies.sort_custom(
+		func(first: StaticBody3D, second: StaticBody3D) -> bool:
+			return str(first.get_meta(&"walkable_surface_id")) \
+				< str(second.get_meta(&"walkable_surface_id"))
+	)
+	var collision_exact := collision_bodies.size() == WORK_BAY_SURFACE_POSITIONS.size()
+	for index in mini(collision_bodies.size(), WORK_BAY_SURFACE_POSITIONS.size()):
+		var body := collision_bodies[index]
+		var shape := _body_box_shape(body)
+		collision_exact = collision_exact \
+			and body.position.is_equal_approx(WORK_BAY_SURFACE_POSITIONS[index] as Vector3) \
+			and shape != null \
+			and shape.size.is_equal_approx(WORK_BAY_SURFACE_SIZE) \
+			and body.find_children("*", "MeshInstance3D", false, false).is_empty()
+	var batch_exact: bool = (
+		batch != null
+		and batch.name == &"WorkBaySurfaceBatch"
+		and batch.multimesh != null
+		and batch.multimesh.instance_count == WORK_BAY_SURFACE_POSITIONS.size()
+		and batch.multimesh.mesh == StationSurfaceKit.rounded_box_mesh_cached(
+			WORK_BAY_SURFACE_SIZE, _mesh_cache
+		)
+		and batch.material_override == _materials[&"deck"]
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(batch.visibility_range_begin)
+		and is_zero_approx(batch.visibility_range_end)
+		and is_zero_approx(batch.extra_cull_margin)
+	)
+	return {
+		"valid": batch_exact and transforms_exact and collision_exact,
+		"family": &"walkable_work_bay_surface_presentation",
+		"before": {
+			"renderer_submissions": 2,
+			"visible_geometry_copies": 2,
+			"presentation_nodes": 2,
+			"primitive_mesh_resources": 1,
+		},
+		"after": {
+			"renderer_submissions": 1 if batch != null else 0,
+			"visible_geometry_copies": (
+				batch.multimesh.instance_count
+				if batch != null and batch.multimesh != null
+				else 0
+			),
+			"presentation_nodes": 1 if batch != null else 0,
+			"primitive_mesh_resources": (
+				1
+				if batch != null and batch.multimesh != null and batch.multimesh.mesh != null
+				else 0
+			),
+		},
+		"delta": {"renderer_submissions": -1, "presentation_nodes": -1},
+		"authored_transforms": authored.duplicate(true),
+		"visual_transforms_exact": transforms_exact,
+		"render_state_exact": batch_exact,
+		"collision_body_count": collision_bodies.size(),
+		"collision_transforms_and_shapes_exact": collision_exact,
+	}.duplicate(true)
 
 
 func get_roof_column_render_optimization_contract() -> Dictionary:
@@ -1173,8 +1273,10 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("fabricator-base presentation batch or physical roster drifted")
 	if not bool(get_work_bench_render_optimization_contract().valid):
 		errors.append("work-bench presentation batch or physical roster drifted")
+	if not bool(get_work_bay_surface_render_optimization_contract().valid):
+		errors.append("work-bay surface presentation batch or physical roster drifted")
 	var naming := get_deterministic_naming_contract()
-	var expected_name_allocations := 70 if observation_rear_gate_open else 69
+	var expected_name_allocations := 71 if observation_rear_gate_open else 70
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()
