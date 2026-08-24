@@ -7966,11 +7966,16 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 			if not bool(encounter_contract.get("valid", false)):
 				for error in encounter_contract.get("errors", PackedStringArray()):
 					errors.append("station defense: %s" % error)
-	var expected_encounter_sources := int(
+	var authored_encounter_sources := int(
 		encounter_contract.get("expected_source_count", 0)
 	) if encounter_ready else 0
+	var expected_encounter_sources := int(
+		encounter_contract.get("expected_live_source_count", 0)
+	) if encounter_ready else 0
+	if encounter_ready and authored_encounter_sources != 4:
+		errors.append("station-defense source roster must contain exactly four hostiles")
 	if encounter_ready and expected_encounter_sources != 3:
-		errors.append("station-defense source roster must contain exactly three hostiles")
+		errors.append("station-defense startup roster must contain exactly three live sources")
 	var resolver := combat_authority.get_resolver() if is_instance_valid(combat_authority) else null
 	var actual_source_count := (
 		resolver.get_registered_source_count() if is_instance_valid(resolver) else 0
@@ -7997,6 +8002,7 @@ func get_live_combat_source_roster_audit() -> Dictionary:
 		"expected_player_source_count": player_rows.size(),
 		"expected_opponent_source_count": 1,
 		"expected_station_defense_source_count": expected_encounter_sources,
+		"authored_station_defense_source_count": authored_encounter_sources,
 		"player_sources": player_rows,
 		"opponent_source": {
 			"entity_instance_id": opponent.get_instance_id() if is_instance_valid(opponent) else 0,

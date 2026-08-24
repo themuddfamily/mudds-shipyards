@@ -14,6 +14,11 @@ const PINCER_WAVE_ID: StringName = &"dockside_relief"
 const PINCER_CLOSE_HOSTILE_ID: StringName = &"perimeter_raider_beta"
 const PINCER_OUTER_HOSTILE_ID: StringName = &"perimeter_raider_gamma"
 const BREAKER_FEINT_TACTIC_ID: StringName = &"core_breaker_outer_feint"
+const HEAVY_PICKET_TACTIC_ID: StringName = &"heavy_picket_reinforcement"
+const HEAVY_PICKET_STATES: Array[StringName] = [
+	&"idle", &"standby", &"inbound", &"active", &"neutralized",
+	&"failed", &"aborted", &"timed_out",
+]
 const BREAKER_STATES: Array[StringName] = [
 	&"idle", &"standby", &"inbound", &"active", &"transitioned", &"interrupted",
 	&"completed", &"failed", &"aborted", &"timed_out",
@@ -27,6 +32,10 @@ const CUE_PRIORITIES := {
 	&"station_defense_crossfire_active": 75,
 	&"station_defense_pincer_wing_broken": 65,
 	&"station_defense_pincer_cleared": 45,
+	&"station_defense_heavy_picket_inbound": 75,
+	&"station_defense_heavy_picket_active": 85,
+	&"station_defense_heavy_picket_neutralized": 65,
+	&"station_defense_heavy_picket_withdrew": 55,
 	&"station_defense_asset_danger": 50,
 	&"station_defense_asset_critical": 80,
 	&"station_defense_asset_destroyed": 100,
@@ -51,6 +60,9 @@ var _reduced_dynamic_range := false
 var _tactic_generation_by_activity: Dictionary = {}
 var _tactic_state_by_activity: Dictionary = {}
 var _seen_tactic_cues_by_activity: Dictionary = {}
+var _reinforcement_generation_by_activity: Dictionary = {}
+var _reinforcement_state_by_activity: Dictionary = {}
+var _seen_reinforcement_cues_by_activity: Dictionary = {}
 
 func register_audio_director(audio_director: Node) -> Dictionary:
 	if audio_director == null or not is_instance_valid(audio_director) or not audio_director.has_method(&"_on_semantic_cue"):
@@ -184,6 +196,13 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 	var breaker := _decode_breaker_state(snapshot, activity as Dictionary, int(generation))
 	if not bool(breaker.get("accepted", false)):
 		return _result(false, StringName(breaker.get("reason", &"invalid_breaker_snapshot")))
+	var reinforcement := _decode_reinforcement_state(
+		snapshot, activity as Dictionary, int(generation)
+	)
+	if not bool(reinforcement.get("accepted", false)):
+		return _result(false, StringName(
+			reinforcement.get("reason", &"invalid_reinforcement_snapshot")
+		))
 	return {
 		"accepted": true,
 		"state": state,
@@ -196,6 +215,10 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 		"assets": assets,
 		"breaker_authoritative": bool(breaker.get("available", false)),
 		"breaker_state": StringName(breaker.get("state_id", &"unavailable")),
+		"reinforcement_authoritative": bool(reinforcement.get("available", false)),
+		"reinforcement_state": StringName(
+			reinforcement.get("state_id", &"unavailable")
+		),
 	}.duplicate(true)
 
 
@@ -232,6 +255,31 @@ func _decode_breaker_state(
 	return {"accepted": true, "available": true, "state_id": StringName(state)}
 
 
+func _decode_reinforcement_state(
+	snapshot: Dictionary,
+	activity: Dictionary,
+	activity_generation: int
+	) -> Dictionary:
+	var reinforcement: Variant = snapshot.get("heavy_picket_reinforcement", null)
+	if not reinforcement is Dictionary or (reinforcement as Dictionary).is_empty():
+		if StringName(snapshot.get("component_id", &"")) == CONTENT_COMPONENT_ID:
+			return {"accepted": false, "reason": &"missing_reinforcement_snapshot"}
+		return {"accepted": true, "available": false, "state_id": &"unavailable"}
+	if StringName((reinforcement as Dictionary).get("tactic_id", &"")) \
+		!= HEAVY_PICKET_TACTIC_ID:
+		return {"accepted": false, "reason": &"invalid_reinforcement_snapshot"}
+	var state: Variant = (reinforcement as Dictionary).get("state_id", &"")
+	var generation: Variant = (reinforcement as Dictionary).get("generation", -1)
+	if not state is StringName or StringName(state) not in HEAVY_PICKET_STATES \
+		or not generation is int or int(generation) < 0 \
+		or int(generation) > MAX_SAFE_GENERATION:
+		return {"accepted": false, "reason": &"invalid_reinforcement_snapshot"}
+	if StringName(state) not in [&"idle", &"standby"] \
+		and int(generation) != activity_generation:
+		return {"accepted": false, "reason": &"stale_reinforcement_snapshot"}
+	return {"accepted": true, "available": true, "state_id": StringName(state)}
+
+
 func _emit_transitions(decoded: Dictionary) -> void:
 	var activity_id: StringName = decoded.activity_id
 	var state: StringName = decoded.state
@@ -240,6 +288,7 @@ func _emit_transitions(decoded: Dictionary) -> void:
 			and (wave_index != _last_wave_index or _last_state != &"active"):
 		_emit_cue(&"station_defense_wave_started", activity_id, 1.0)
 	_emit_tactic_transition(decoded)
+	_emit_reinforcement_transition(decoded)
 	for asset_variant in decoded.assets as Array:
 		if not asset_variant is Dictionary:
 			continue
@@ -360,6 +409,46 @@ func _decode_live_pincer_state(decoded: Dictionary) -> StringName:
 	if close_active or outer_active:
 		return &"broken"
 	return &"cleared"
+
+
+func _emit_reinforcement_transition(decoded: Dictionary) -> void:
+	if not bool(decoded.reinforcement_authoritative):
+		return
+	var activity_id: StringName = decoded.activity_id
+	var activity_key := str(activity_id)
+	var generation := int(decoded.generation)
+	var fenced_generation := int(
+		_reinforcement_generation_by_activity.get(activity_key, -1)
+	)
+	if generation < fenced_generation:
+		return
+	if generation > fenced_generation:
+		_reinforcement_generation_by_activity[activity_key] = generation
+		_reinforcement_state_by_activity[activity_key] = &"idle"
+		_seen_reinforcement_cues_by_activity[activity_key] = {}
+	var state: StringName = decoded.reinforcement_state
+	var prior: StringName = _reinforcement_state_by_activity.get(activity_key, &"idle")
+	var cue_id: StringName = &""
+	var intensity := 0.0
+	match state:
+		&"inbound":
+			cue_id = &"station_defense_heavy_picket_inbound"
+			intensity = 0.9
+		&"active":
+			cue_id = &"station_defense_heavy_picket_active"
+			intensity = 1.0
+		&"neutralized":
+			cue_id = &"station_defense_heavy_picket_neutralized"
+			intensity = 0.8
+		&"timed_out":
+			cue_id = &"station_defense_heavy_picket_withdrew"
+			intensity = 0.7
+	var seen := _seen_reinforcement_cues_by_activity.get(activity_key, {}) as Dictionary
+	if state != prior and not cue_id.is_empty() and not seen.has(cue_id):
+		seen[cue_id] = true
+		_seen_reinforcement_cues_by_activity[activity_key] = seen
+		_emit_cue(cue_id, activity_id, intensity)
+	_reinforcement_state_by_activity[activity_key] = state
 
 
 func _emit_cue(cue_id: StringName, activity_id: StringName, intensity: float) -> void:

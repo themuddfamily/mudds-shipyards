@@ -102,11 +102,12 @@ func _initialize() -> void:
 		and int(live_roster.expected_player_source_count) == 6
 		and int(live_roster.expected_opponent_source_count) == 1
 		and int(live_roster.expected_station_defense_source_count) == 3
+		and int(live_roster.authored_station_defense_source_count) == 4
 		and int(live_roster.expected_source_count) == 10
 		and int(live_roster.actual_source_count) == 10
 		and bool(live_roster.station_defense_ready)
 		and bool((live_roster.station_defense_sources as Dictionary).valid),
-		"strict production roster composes six player, one range-opponent and three exact station-defense sources"
+		"strict production roster composes six player, one range-opponent, three live station-defense sources, and one dormant heavy picket"
 	)
 	var arbitrary := Node3D.new()
 	arbitrary.name = "ArbitraryLiveCombatSource"

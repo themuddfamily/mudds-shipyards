@@ -1,10 +1,11 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/activities/station_defense_encounter_content.gd" id="1_content"]
 [ext_resource type="Resource" path="res://assets/activities/shipyard_perimeter_defense.tres" id="2_contract"]
 [ext_resource type="Script" path="res://scripts/activities/station_defense_encounter_host.gd" id="3_host"]
 [ext_resource type="PackedScene" path="res://scenes/ships/range_opponent.tscn" id="6_opponent"]
 [ext_resource type="PackedScene" path="res://scenes/activities/station_defense_perimeter_asset.tscn" id="7_asset"]
+[ext_resource type="PackedScene" path="res://scenes/ships/standoff_picket_opponent.tscn" id="8_picket"]
 
 [sub_resource type="SphereShape3D" id="Sphere_keep_clear"]
 radius = 9.0
@@ -69,6 +70,21 @@ monitorable = false
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SpawnStaging/GammaSpawn/KeepClearVolume"]
 shape = SubResource("Sphere_keep_clear")
 
+[node name="HeavyPicketSpawn" type="Marker3D" parent="SpawnStaging"]
+position = Vector3(-30, 12, -92)
+rotation = Vector3(0, -0.42, 0)
+metadata/hostile_id = &"perimeter_heavy_picket"
+metadata/handle_generation = 4
+
+[node name="KeepClearVolume" type="Area3D" parent="SpawnStaging/HeavyPicketSpawn"]
+collision_layer = 0
+collision_mask = 0
+monitoring = false
+monitorable = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SpawnStaging/HeavyPicketSpawn/KeepClearVolume"]
+shape = SubResource("Sphere_keep_clear")
+
 [node name="OpponentRoster" type="Node3D" parent="."]
 
 [node name="PerimeterRaiderAlpha" parent="OpponentRoster" instance=ExtResource("6_opponent")]
@@ -103,3 +119,13 @@ retreat_range = 12.0
 engagement_range = 140.0
 metadata/hostile_id = &"perimeter_raider_gamma"
 metadata/handle_generation = 3
+
+[node name="PerimeterHeavyPicket" parent="OpponentRoster" instance=ExtResource("8_picket")]
+source_id = 2124
+faction_id = &"perimeter_raiders"
+standoff_range = 118.0
+minimum_arming_range = 40.0
+initial_arming_delay = 1.6
+escort_enabled = false
+metadata/hostile_id = &"perimeter_heavy_picket"
+metadata/handle_generation = 4

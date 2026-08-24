@@ -13,7 +13,7 @@ signal snapshot_changed(snapshot: Dictionary)
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"shipyard_perimeter_defense_content"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
-const MAX_AUTHORED_NODE_COUNT := 24
+const MAX_AUTHORED_NODE_COUNT := 30
 const MIN_KEEP_CLEAR_RADIUS := 8.0
 const MIN_KEEP_CLEAR_GAP := 4.0
 const HOSTILE_WEAPON_ID: StringName = &"perimeter_defense_pulse"
@@ -22,6 +22,10 @@ const LATER_WAVE_ID: StringName = &"dockside_relief"
 const BREAKER_FEINT_TACTIC_ID: StringName = &"core_breaker_outer_feint"
 const PINCER_CLOSE_HOSTILE_ID: StringName = &"perimeter_raider_beta"
 const PINCER_OUTER_HOSTILE_ID: StringName = &"perimeter_raider_gamma"
+const HEAVY_PICKET_TACTIC_ID: StringName = &"heavy_picket_reinforcement"
+const HEAVY_PICKET_WAVE_ID: StringName = &"heavy_picket_reinforcement"
+const HEAVY_PICKET_HOSTILE_ID: StringName = &"perimeter_heavy_picket"
+const HEAVY_PICKET_SOURCE_ID := 2124
 const PINCER_CLOSE_PREFERRED_RANGE := 22.0
 const PINCER_OUTER_PREFERRED_RANGE := 74.0
 const PINCER_CLOSE_ORBIT_SIGN := -1.0
@@ -62,6 +66,7 @@ const HOSTILE_SOURCE_ID_BY_ID := {
 	&"perimeter_raider_alpha": 2121,
 	&"perimeter_raider_beta": 2122,
 	&"perimeter_raider_gamma": 2123,
+	HEAVY_PICKET_HOSTILE_ID: HEAVY_PICKET_SOURCE_ID,
 }
 
 ## Local-space origins audited at world pose (90, 0, -10). The player envelope
@@ -110,6 +115,7 @@ var _protected_asset: StationDefensePerimeterAsset
 var _entity_by_key: Dictionary = {}
 var _staging_by_key: Dictionary = {}
 var _registered_source_keys: Dictionary = {}
+var _reserved_lifecycle_source_keys: Dictionary = {}
 var _content_mutation_active := false
 var _publish_pending := false
 var _last_hostile_shot: Dictionary = {}
@@ -213,10 +219,10 @@ func get_combat_authority() -> LiveCombatAuthority:
 	return _combat_authority if is_instance_valid(_combat_authority) else null
 
 
-## Detached exact roster proof for the three production-composed hostile combat
-## sources. The content owns their authored identity mapping but not the shared
-## authority; callers can include this bounded roster in a wider authority census
-## without reaching into private nodes or accepting count-only substitutions.
+## Detached exact roster proof for the production-composed hostile combat
+## sources. The heavy picket intentionally owns a lifecycle-scoped registration
+## because its inherited activation is the existing siege-lance dispatch seam;
+## dormant is therefore exact for that one row while all pulse raiders stay live.
 func get_live_source_registration_contract() -> Dictionary:
 	var errors := PackedStringArray()
 	var rows: Array[Dictionary] = []
@@ -239,14 +245,32 @@ func get_live_source_registration_contract() -> Dictionary:
 			var entity := _entity_by_key.get(key) as RangeOpponent
 			var source_id := int(HOSTILE_SOURCE_ID_BY_ID.get(hostile_id, 0))
 			var retained_source_id := int(_registered_source_keys.get(key, 0))
-			var exact := (
-				is_instance_valid(entity)
-				and entity.is_inside_tree()
-				and not entity.is_queued_for_deletion()
-				and source_id > 0
-				and retained_source_id == source_id
-				and _hostile_source_registration_is_exact(entity, source_id)
+			var lifecycle_scoped := entity is StandoffPicketOpponent
+			var authority_source_id := (
+				_combat_authority.get_source_id(entity)
+				if is_instance_valid(_combat_authority) and is_instance_valid(entity)
+				else 0
 			)
+			var exact := is_instance_valid(entity) \
+				and entity.is_inside_tree() \
+				and not entity.is_queued_for_deletion() \
+				and source_id > 0 \
+				and (
+					(
+						lifecycle_scoped
+						and not entity.is_active()
+						and authority_source_id == 0
+					)
+					or (
+						retained_source_id == source_id
+						and _hostile_source_registration_is_exact(entity, source_id)
+					)
+					or (
+						lifecycle_scoped
+						and entity.is_active()
+						and _hostile_source_registration_is_exact(entity, source_id)
+					)
+				)
 			expected_keys[key] = true
 			if exact:
 				exact_registration_count += 1
@@ -257,6 +281,9 @@ func get_live_source_registration_contract() -> Dictionary:
 				"handle_generation": int(handle.get("generation", -1)),
 				"source_id": source_id,
 				"retained_source_id": retained_source_id,
+				"registration_mode": (
+					&"active_lifecycle" if lifecycle_scoped else &"encounter_session"
+				),
 				"entity_instance_id": entity.get_instance_id() if is_instance_valid(entity) else 0,
 				"faction_id": (
 					_combat_authority.get_source_faction(entity)
@@ -264,7 +291,11 @@ func get_live_source_registration_contract() -> Dictionary:
 					else &""
 				),
 				"weapon_profile": (
-					_combat_authority.get_weapon_profile(entity, HOSTILE_WEAPON_ID)
+					_combat_authority.get_weapon_profile(
+						entity,
+						StandoffPicketOpponent.LANCE_WEAPON_ID
+						if lifecycle_scoped else HOSTILE_WEAPON_ID
+					)
 					if is_instance_valid(_combat_authority) and is_instance_valid(entity)
 					else {}
 				),
@@ -273,8 +304,6 @@ func get_live_source_registration_contract() -> Dictionary:
 	for retained_key in _registered_source_keys:
 		if not expected_keys.has(retained_key):
 			errors.append("station-defense retained an unauthored hostile source key: %s" % retained_key)
-	if _registered_source_keys.size() != HOSTILE_SOURCE_ID_BY_ID.size():
-		errors.append("station-defense hostile source key count is not exact")
 	if rows.size() != HOSTILE_SOURCE_ID_BY_ID.size():
 		errors.append("station-defense hostile source row count is not exact")
 	errors.sort()
@@ -293,7 +322,9 @@ func get_live_source_registration_contract() -> Dictionary:
 			and is_instance_valid(_combat_authority.get_resolver()) else 0
 		),
 		"expected_source_count": HOSTILE_SOURCE_ID_BY_ID.size(),
+		"expected_live_source_count": _registered_source_keys.size(),
 		"registered_source_key_count": _registered_source_keys.size(),
+		"live_registered_source_count": _get_live_registered_hostile_source_count(),
 		"exact_registration_count": exact_registration_count,
 		"faction_id": (
 			contract_definition.hostile_faction_id
@@ -556,12 +587,17 @@ func get_snapshot() -> Dictionary:
 	var activity := (host_snapshot.get("activity", {}) as Dictionary).duplicate(true)
 	var tactic_feedback := _get_later_wave_tactic_feedback(activity)
 	var breaker_feint_feedback := _get_breaker_feint_feedback(activity)
+	var heavy_picket_feedback := _get_heavy_picket_feedback(activity)
 	var integrity_feedback := _get_protected_asset_integrity_feedback(activity)
 	var objective := str(tactic_feedback.get("objective", "DEFEND PERIMETER BEACON"))
 	if StringName(breaker_feint_feedback.get("state_id", &"idle")) in [
 		&"inbound", &"active",
 	]:
 		objective = str(breaker_feint_feedback.get("objective", objective))
+	if StringName(heavy_picket_feedback.get("state_id", &"idle")) in [
+		&"inbound", &"active",
+	]:
+		objective = str(heavy_picket_feedback.get("objective", objective))
 	if (
 		StringName(integrity_feedback.get("state_id", INTEGRITY_STATE_STABLE))
 		!= INTEGRITY_STATE_STABLE
@@ -579,6 +615,10 @@ func get_snapshot() -> Dictionary:
 	activity["tactic_state_id"] = tactic_feedback.get("state_id", &"idle")
 	activity["opening_tactic_id"] = BREAKER_FEINT_TACTIC_ID
 	activity["opening_tactic_state_id"] = breaker_feint_feedback.get(
+		"state_id", &"idle"
+	)
+	activity["reinforcement_tactic_id"] = HEAVY_PICKET_TACTIC_ID
+	activity["reinforcement_tactic_state_id"] = heavy_picket_feedback.get(
 		"state_id", &"idle"
 	)
 	activity["protected_asset_integrity"] = integrity_feedback.duplicate(true)
@@ -625,13 +665,14 @@ func get_snapshot() -> Dictionary:
 		),
 		"external_combat_authority_injected": is_instance_valid(_combat_authority),
 		"owns_combat_authority": false,
-		"registered_hostile_source_count": _registered_source_keys.size(),
+		"registered_hostile_source_count": _get_live_registered_hostile_source_count(),
 		"hostile_weapon_id": HOSTILE_WEAPON_ID,
 		"network_presentation_only": _network_presentation_only,
 		"last_hostile_shot": _last_hostile_shot.duplicate(true),
 		"last_leash_exit": _last_leash_exit.duplicate(true),
 		"later_wave_tactic": tactic_feedback,
 		"breaker_feint": breaker_feint_feedback,
+		"heavy_picket_reinforcement": heavy_picket_feedback,
 		"protected_asset_integrity": integrity_feedback,
 		"engagement": {
 			"required_world_transform": AUDITED_WORLD_TRANSFORM,
@@ -1411,6 +1452,95 @@ func _get_later_wave_tactic_feedback(activity: Dictionary) -> Dictionary:
 	}.duplicate(true)
 
 
+## Retained warning/status for the contract-owned final wave. Timing, active
+## handles, terminal state, and timeout all come from StationDefenseActivity;
+## this projection owns no second phase clock and cannot complete the reward.
+func _get_heavy_picket_feedback(activity: Dictionary) -> Dictionary:
+	var activity_state := StringName(activity.get("state_id", &"idle"))
+	var wave_id := StringName(activity.get("wave_id", &""))
+	var wave_active := bool(activity.get("wave_active", false))
+	var generation := int(activity.get("generation", 0))
+	var active_ids: Array[StringName] = []
+	for handle: Dictionary in activity.get("active_hostile_handles", []) as Array:
+		active_ids.append(StringName(handle.get("hostile_id", &"")))
+	var picket := _get_tactic_entity(HEAVY_PICKET_HOSTILE_ID) as StandoffPicketOpponent
+	var minimum_arming_range := (
+		picket.minimum_arming_range if is_instance_valid(picket) else 40.0
+	)
+	var initial_arming_delay := (
+		picket.initial_arming_delay if is_instance_valid(picket) else 1.6
+	)
+	var state_id: StringName = &"standby"
+	if activity_state == &"idle":
+		state_id = &"idle"
+	elif activity_state in [&"failed", &"aborted", &"timed_out"]:
+		state_id = activity_state
+	elif activity_state == &"completed":
+		state_id = &"neutralized"
+	elif wave_id == HEAVY_PICKET_WAVE_ID and not wave_active:
+		state_id = &"inbound"
+	elif wave_id == HEAVY_PICKET_WAVE_ID and HEAVY_PICKET_HOSTILE_ID in active_ids:
+		state_id = &"active"
+
+	var objective := "CLEAR RELIEF WAVE // DEFEND PERIMETER BEACON"
+	var status := "HEAVY PICKET // STANDBY"
+	match state_id:
+		&"idle":
+			objective = "START PERIMETER DEFENSE"
+			status = "HEAVY PICKET // IDLE"
+		&"inbound":
+			objective = "HEAVY PICKET INBOUND // CLOSE INSIDE ARMING RADIUS"
+			status = "SIEGE LANCE WARNING // %.1f S" % float(
+				activity.get("wave_delay_remaining_seconds", 0.0)
+			)
+		&"active":
+			objective = "RUSH HEAVY PICKET // DENY LANCE OUTSIDE %.0f M" % minimum_arming_range
+			status = "LANCE ARMED AT RANGE // %.1f S TO WITHDRAWAL" % float(
+				activity.get("timeout_remaining_seconds", 0.0)
+			)
+		&"neutralized":
+			objective = "PERIMETER SECURE // RECOVER AT DEFENSE BOARD"
+			status = "HEAVY PICKET NEUTRALIZED"
+		&"timed_out":
+			objective = "PICKET WINDOW EXPIRED // RECOVER AT DEFENSE BOARD"
+			status = "HEAVY PICKET WITHDREW"
+		&"failed", &"aborted":
+			objective = "DEFENSE ENDED // RECOVER AT DEFENSE BOARD"
+			status = "HEAVY PICKET RETIRED"
+	return {
+		"tactic_id": HEAVY_PICKET_TACTIC_ID,
+		"wave_id": HEAVY_PICKET_WAVE_ID,
+		"hostile_id": HEAVY_PICKET_HOSTILE_ID,
+		"state_id": state_id,
+		"generation": generation,
+		"active": state_id == &"active",
+		"warning": state_id == &"inbound",
+		"status": status,
+		"objective": objective,
+		"warning_remaining_seconds": (
+			float(activity.get("wave_delay_remaining_seconds", 0.0))
+			if state_id == &"inbound" else 0.0
+		),
+		"timeout_remaining_seconds": float(
+			activity.get("timeout_remaining_seconds", 0.0)
+		),
+		"minimum_arming_range": minimum_arming_range,
+		"initial_arming_delay_seconds": initial_arming_delay,
+		"counterplay": &"close_inside_minimum_arming_range",
+		"terminal_policy": &"resolver_defeat_rewards_timeout_recovers",
+		"semantic_cue_id": (
+			&"station_defense_heavy_picket_inbound"
+			if state_id == &"inbound"
+			else &"station_defense_heavy_picket_active"
+			if state_id == &"active"
+			else &""
+		),
+		"uses_activity_timeout": true,
+		"combat_authority": false,
+		"damage_authority": false,
+	}.duplicate(true)
+
+
 ## Retained, HUD-safe accessibility projection of the physical asset's one
 ## authoritative health store. Four text/pattern states complement the fixed
 ## beacon silhouette and align with the existing station-defense audio cues;
@@ -1492,6 +1622,25 @@ func _acquire_hostile_sources_atomically(errors: PackedStringArray) -> void:
 		if not is_instance_valid(entity) or source_id <= 0:
 			_append_unique(errors, "hostile source identity unavailable: %s" % key)
 			break
+		# The standoff picket's production activation owns its siege-lance profile
+		# registration and retirement. Reserve its stable identity atomically with
+		# the session sources, then retire the live row until host activation.
+		if entity is StandoffPicketOpponent:
+			var picket := entity as StandoffPicketOpponent
+			if not _combat_authority.register_source(
+				picket,
+				source_id,
+				contract_definition.hostile_faction_id,
+				picket.get_weapon_profiles()
+			):
+				_append_unique(errors, "hostile source reservation failed: %s" % key)
+				break
+			if not _combat_authority.retire_source_registration(picket, source_id):
+				_combat_authority.forget_source(picket, source_id)
+				_append_unique(errors, "hostile source reservation could not retire: %s" % key)
+				break
+			_reserved_lifecycle_source_keys[key] = source_id
+			continue
 		var exact_before := _hostile_source_registration_is_exact(entity, source_id)
 		if not exact_before and not _combat_authority.register_source(
 			entity,
@@ -1515,7 +1664,14 @@ func _acquire_hostile_sources_atomically(errors: PackedStringArray) -> void:
 			_combat_authority.forget_source(
 				entity, int(acquired.get("source_id", 0))
 			)
+	for reserved_key in _reserved_lifecycle_source_keys:
+		var reserved := _entity_by_key.get(reserved_key) as RangeOpponent
+		if is_instance_valid(reserved):
+			_combat_authority.forget_source(
+				reserved, int(_reserved_lifecycle_source_keys[reserved_key])
+			)
 	_registered_source_keys.clear()
+	_reserved_lifecycle_source_keys.clear()
 
 
 func _wire_hostile_combat(errors: PackedStringArray) -> void:
@@ -1531,6 +1687,13 @@ func _wire_hostile_combat(errors: PackedStringArray) -> void:
 			_append_unique(errors, "hostile source identity unavailable: %s" % key)
 			continue
 		entity.set_target(_protected_asset)
+		if entity is StandoffPicketOpponent:
+			var picket := entity as StandoffPicketOpponent
+			picket.source_id = source_id
+			picket.faction_id = contract_definition.hostile_faction_id
+			picket.escort_enabled = false
+			picket.combat_authority_path = picket.get_path_to(_combat_authority)
+			continue
 		var projectile_callback := Callable(
 			self,
 			"_on_hostile_projectile_fired"
@@ -1554,6 +1717,17 @@ func _hostile_source_registration_is_exact(
 	entity: RangeOpponent,
 	source_id: int
 	) -> bool:
+	if entity is StandoffPicketOpponent:
+		var picket := entity as StandoffPicketOpponent
+		return is_instance_valid(_combat_authority) \
+			and _combat_authority.get_source_id(picket) == source_id \
+			and _combat_authority.get_source_faction(picket) \
+				== contract_definition.hostile_faction_id \
+			and _combat_authority.get_weapon_profile(
+				picket, StandoffPicketOpponent.LANCE_WEAPON_ID
+			) == (picket.get_weapon_profiles().get(
+				StandoffPicketOpponent.LANCE_WEAPON_ID, {}
+			) as Dictionary)
 	return is_instance_valid(entity) \
 		and is_instance_valid(_combat_authority) \
 		and _combat_authority.get_source_id(entity) == source_id \
@@ -1579,6 +1753,7 @@ func _retire_hostile_sources() -> void:
 func _forget_hostile_sources() -> void:
 	if not is_instance_valid(_combat_authority):
 		_registered_source_keys.clear()
+		_reserved_lifecycle_source_keys.clear()
 		return
 	for handle in contract_definition.get_ordered_hostile_handles():
 		var key := StationDefenseContract.handle_key(handle, "hostile_id")
@@ -1586,7 +1761,14 @@ func _forget_hostile_sources() -> void:
 		var source_id := int(HOSTILE_SOURCE_ID_BY_ID.get(StringName(handle.hostile_id), 0))
 		if is_instance_valid(entity) and _combat_authority.get_source_id(entity) == source_id:
 			_combat_authority.forget_source(entity, source_id)
+	for reserved_key in _reserved_lifecycle_source_keys:
+		var reserved := _entity_by_key.get(reserved_key) as RangeOpponent
+		if is_instance_valid(reserved):
+			_combat_authority.forget_source(
+				reserved, int(_reserved_lifecycle_source_keys[reserved_key])
+			)
 	_registered_source_keys.clear()
+	_reserved_lifecycle_source_keys.clear()
 
 
 func _validate_runtime_wiring(errors: PackedStringArray) -> void:
@@ -1602,6 +1784,13 @@ func _validate_runtime_wiring(errors: PackedStringArray) -> void:
 		else:
 			seen_source_ids[source_id] = true
 		if _initialized and is_instance_valid(entity):
+			if entity is StandoffPicketOpponent:
+				var picket := entity as StandoffPicketOpponent
+				if picket.source_id != source_id \
+					or picket.faction_id != contract_definition.hostile_faction_id \
+					or picket.escort_enabled:
+					errors.append("heavy picket lifecycle source wiring differs from authored identity")
+				continue
 			var callback := Callable(self, "_on_hostile_projectile_fired").bind(entity)
 			if not entity.projectile_fired.is_connected(callback):
 				errors.append("hostile projectile bridge is disconnected: %s" % key)
@@ -1617,7 +1806,23 @@ func _validate_runtime_wiring(errors: PackedStringArray) -> void:
 				_protected_asset.get_asset_handle(),
 				"asset_id"
 			):
-			errors.append("host and physical protected-asset generations differ")
+				errors.append("host and physical protected-asset generations differ")
+
+
+func _get_live_registered_hostile_source_count() -> int:
+	if not is_instance_valid(_combat_authority):
+		return 0
+	var count := 0
+	for handle in contract_definition.get_ordered_hostile_handles():
+		var key := StationDefenseContract.handle_key(handle, "hostile_id")
+		var entity := _entity_by_key.get(key) as RangeOpponent
+		var source_id := int(HOSTILE_SOURCE_ID_BY_ID.get(
+			StringName(handle.hostile_id), 0
+		))
+		if is_instance_valid(entity) \
+			and _combat_authority.get_source_id(entity) == source_id:
+			count += 1
+	return count
 
 
 func _find_leash_exit() -> Dictionary:

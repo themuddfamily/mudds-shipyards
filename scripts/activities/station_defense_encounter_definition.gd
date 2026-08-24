@@ -141,6 +141,7 @@ func get_evidence_metadata() -> Dictionary:
 		"modern_interpretations": PackedStringArray([
 			"station perimeter defense objective",
 			"ordered probe followed by a breaker-and-feint relief opening",
+			"bounded heavy-picket reinforcement and counterplay window",
 			"spawn positions, keep-clear radii, delay, and timeout",
 		]),
 		"explicit_unknowns": PackedStringArray([

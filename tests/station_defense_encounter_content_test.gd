@@ -17,7 +17,7 @@ const TEST_WEAPON: StringName = &"content_integration_cannon"
 const TEST_SOURCE_ID := 9201
 const TEST_WEAPON_DAMAGE := 100.0
 const PHYSICS_STEP := 1.0 / 60.0
-const FULL_ENCOUNTER_PHYSICS_STEPS := 720
+const FULL_ENCOUNTER_PHYSICS_STEPS := 960
 const AUDITED_WORLD_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(90.0, 0.0, -10.0))
 
 var _assertions := 0
@@ -647,6 +647,7 @@ func _test_checked_in_encounter_content() -> void:
 	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
 	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
 	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
+	var picket := roster.get_node(^"PerimeterHeavyPicket") as StandoffPicketOpponent
 	var beta_nominal_preferred_range := beta.preferred_range
 	var gamma_nominal_preferred_range := gamma.preferred_range
 	var beta_nominal_cruise_speed := beta.cruise_speed
@@ -662,7 +663,7 @@ func _test_checked_in_encounter_content() -> void:
 	var gamma_nominal_lamp_radius := _telegraph_radius(gamma_role_lamps)
 	var beta_role_lamp_ids := _node_instance_ids(beta_role_lamps)
 	var gamma_role_lamp_ids := _node_instance_ids(gamma_role_lamps)
-	var opponents: Array[RangeOpponent] = [alpha, beta, gamma]
+	var opponents: Array[RangeOpponent] = [alpha, beta, gamma, picket]
 	var asset := content.get_protected_asset()
 	var damageable := asset.get_damageable_component() if asset != null else null
 	var signal_ring := asset.get_node(^"Presentation/SignalRing") as MeshInstance3D if asset != null else null
@@ -674,16 +675,17 @@ func _test_checked_in_encounter_content() -> void:
 	var signal_ring_mesh_id := signal_ring.mesh.get_instance_id() if signal_ring != null else 0
 	var signal_core_mesh_id := signal_core.mesh.get_instance_id() if signal_core != null else 0
 	_check(
-		alpha != null and beta != null and gamma != null
-		and _count_direct_opponents(roster) == 3
-		and content.find_children("*", "RangeOpponent", true, false).size() == 3
+		alpha != null and beta != null and gamma != null and picket != null
+		and _count_direct_opponents(roster) == 4
+		and content.find_children("*", "RangeOpponent", true, false).size() == 4
 		and alpha.scene_file_path == "res://scenes/ships/range_opponent.tscn"
 		and beta.scene_file_path == "res://scenes/ships/range_opponent.tscn"
 		and gamma.scene_file_path == "res://scenes/ships/range_opponent.tscn"
+		and picket.scene_file_path == "res://scenes/ships/standoff_picket_opponent.tscn"
 		and alpha.get_node(^"AuthoritativeDamageable") is LifecycleDamageableAdapter
 		and beta.get_node(^"AuthoritativeDamageable") is LifecycleDamageableAdapter
 		and gamma.get_node(^"AuthoritativeDamageable") is LifecycleDamageableAdapter,
-		"the bounded roster remains three pre-created production RangeOpponents with existing lifecycle adapters"
+		"the bounded roster adds one pre-created production heavy picket through the existing RangeOpponent lifecycle adapter"
 	)
 	_check(
 		asset != null and asset.scene_file_path == ASSET_SCENE_PATH
@@ -778,22 +780,25 @@ func _test_checked_in_encounter_content() -> void:
 		definition != null and definition.resource_path == DEFINITION_PATH
 		and bool(definition_audit.get("valid", false))
 		and contract != null and contract.is_configuration_valid()
-		and int(definition_audit.get("wave_count", 0)) == 2
-		and int(definition_audit.get("hostile_count", 0)) == 3
+		and int(definition_audit.get("wave_count", 0)) == 3
+		and int(definition_audit.get("hostile_count", 0)) == 4
 		and int(definition_audit.get("protected_asset_count", 0)) == 1
 		and is_equal_approx(definition.later_wave_opening_duration_seconds, 1.25)
 		and is_equal_approx(
 			float((definition_audit.limits as Dictionary).later_wave_opening_duration_seconds),
 			1.25
 		)
-		and waves.size() == 2
+		and waves.size() == 3
 		and waves[0].wave_id == &"yard_approach"
 		and int(waves[0].mode) == StationDefenseContract.WaveMode.ORDERED
 		and waves[1].wave_id == &"dockside_relief"
 		and int(waves[1].mode) == StationDefenseContract.WaveMode.SIMULTANEOUS
 		and is_equal_approx(float(waves[1].delay_seconds), 0.5)
-		and is_equal_approx(float(contract_snapshot.timeout_seconds), 12.0),
-		"the bounded contract freezes two waves plus the authored 1.25 s relief-wave opening"
+		and waves[2].wave_id == &"heavy_picket_reinforcement"
+		and int(waves[2].mode) == StationDefenseContract.WaveMode.ORDERED
+		and is_equal_approx(float(waves[2].delay_seconds), 1.25)
+		and is_equal_approx(float(contract_snapshot.timeout_seconds), 16.0),
+		"the bounded contract adds one delayed heavy-picket wave inside a finite 16 s encounter"
 	)
 
 	var initial := content.get_snapshot()
@@ -802,14 +807,15 @@ func _test_checked_in_encounter_content() -> void:
 		initial.content_ready and initial.precreated_roster_wired
 		and initial.external_combat_authority_injected
 		and not initial.owns_combat_authority
-		and int(initial.opponent_count) == 3
-		and int(initial.authored_node_count) == 24
+		and int(initial.opponent_count) == 4
+		and int(initial.authored_node_count) <= StationDefenseEncounterContent.MAX_AUTHORED_NODE_COUNT
 		and int(initial.registered_hostile_source_count) == 3
 		and resolver.get_registered_source_count() == 3
-		and staging.size() == 3
+		and staging.size() == 4
 		and staging[0].local_position == Vector3(-24.0, 6.0, -52.0)
 		and staging[1].local_position == Vector3(0.0, 6.0, -38.0)
 		and staging[2].local_position == Vector3(26.0, 10.0, -84.0)
+		and staging[3].local_position == Vector3(-30.0, 12.0, -92.0)
 		and _staging_rows_valid(staging)
 		and _minimum_keep_clear_gap(staging) > StationDefenseEncounterContent.MIN_KEEP_CLEAR_GAP,
 		"checked-in content authors a distinct core breach lane and lateral feint lane within the bounded staging roster"
@@ -825,10 +831,15 @@ func _test_checked_in_encounter_content() -> void:
 		alpha.get("_target") == asset
 		and beta.get("_target") == asset
 		and gamma.get("_target") == asset
+		and picket.get("_target") == asset
 		and authority.get_source_id(alpha) == 2121
 		and authority.get_source_id(beta) == 2122
-		and authority.get_source_id(gamma) == 2123,
-		"all opponent target, projectile, and stable source seams use the injected authority and dedicated asset"
+		and authority.get_source_id(gamma) == 2123
+		and authority.get_source_id(picket) == 0
+		and picket.source_id == 2124
+		and picket.faction_id == &"perimeter_raiders"
+		and not picket.escort_enabled,
+		"raiders stay session-registered while the heavy picket retains its production activation-scoped siege-lance source"
 	)
 
 	var attacker := Node3D.new()
@@ -858,6 +869,7 @@ func _test_checked_in_encounter_content() -> void:
 	_check(
 		started.accepted and generation == 1
 		and alpha.is_active() and not beta.is_active() and not gamma.is_active()
+		and not picket.is_active()
 		and active_presentation.wave_state_id == &"active"
 		and active_presentation.effective_state_id == &"active"
 		and is_equal_approx(float(active_presentation.ring_scale), 1.18)
@@ -1123,10 +1135,67 @@ func _test_checked_in_encounter_content() -> void:
 		"destroying either pincer wing clears both role silhouettes and restores the exact retained lamps and nominal pursuit"
 	)
 	var gamma_terminal := await _shoot(authority, attacker, gamma)
+	var inbound_picket := content.get_snapshot().heavy_picket_reinforcement as Dictionary
+	_check(
+		gamma_terminal.destroyed
+		and content.get_snapshot().host.activity.state_id == &"active"
+		and content.get_snapshot().host.activity.wave_id == &"heavy_picket_reinforcement"
+		and not bool(content.get_snapshot().host.activity.wave_active)
+		and not picket.is_active()
+		and inbound_picket.tactic_id \
+			== StationDefenseEncounterContent.HEAVY_PICKET_TACTIC_ID
+		and inbound_picket.state_id == &"inbound"
+		and bool(inbound_picket.warning)
+		and is_equal_approx(float(inbound_picket.warning_remaining_seconds), 1.25)
+		and is_equal_approx(float(inbound_picket.minimum_arming_range), 40.0)
+		and is_equal_approx(float(inbound_picket.initial_arming_delay_seconds), 1.6)
+		and inbound_picket.counterplay == &"close_inside_minimum_arming_range"
+		and inbound_picket.semantic_cue_id == &"station_defense_heavy_picket_inbound"
+		and str(content.get_snapshot().host.activity.next_step).contains(
+			"HEAVY PICKET INBOUND // CLOSE INSIDE ARMING RADIUS"
+		)
+		and resolver.get_registered_source_count() == 4,
+		"clearing the pincer opens one retained HUD/audio warning window before the heavy source exists"
+	)
+	var stale_picket_warning := content.advance_physics(0.5, generation + 1)
+	_check(
+		not stale_picket_warning.accepted
+		and stale_picket_warning.reason == &"stale_generation"
+		and is_equal_approx(
+			float(content.get_snapshot().heavy_picket_reinforcement.warning_remaining_seconds),
+			1.25
+		),
+		"stale activity generation cannot consume or replay the reinforcement warning"
+	)
+	var picket_arrival := content.advance_physics(1.25, generation)
+	await physics_frame
+	var active_picket := content.get_snapshot().heavy_picket_reinforcement as Dictionary
+	var active_source_contract := content.get_live_source_registration_contract()
+	_check(
+		picket_arrival.accepted and picket.is_active()
+		and active_picket.state_id == &"active"
+		and bool(active_picket.active) and not bool(active_picket.warning)
+		and float(active_picket.timeout_remaining_seconds) > 0.0
+		and float(active_picket.timeout_remaining_seconds) <= 16.0
+		and active_picket.terminal_policy == &"resolver_defeat_rewards_timeout_recovers"
+		and authority.get_source_id(picket) == 2124
+		and authority.get_source_faction(picket) == &"perimeter_raiders"
+		and authority.get_weapon_profile(
+			picket, StandoffPicketOpponent.LANCE_WEAPON_ID
+		) == (picket.get_weapon_profiles()[StandoffPicketOpponent.LANCE_WEAPON_ID] as Dictionary)
+		and bool(active_source_contract.valid)
+		and int(active_source_contract.exact_registration_count) == 4
+		and resolver.get_registered_source_count() == 5
+		and str(content.get_snapshot().host.activity.next_step).contains(
+			"RUSH HEAVY PICKET // DENY LANCE OUTSIDE 40 M"
+		),
+		"accepted caller time activates one exact siege-lance source with a short arming delay and finite activity deadline"
+	)
+	var picket_terminal := await _shoot(authority, attacker, picket)
 	var completed := content.get_snapshot()
 	var completed_presentation := asset.get_protected_asset_presentation_snapshot()
 	_check(
-		beta_terminal.destroyed and gamma_terminal.destroyed
+		beta_terminal.destroyed and gamma_terminal.destroyed and picket_terminal.destroyed
 		and completed.host.activity.state_id == &"completed"
 		and completed_presentation.wave_state_id == &"completed"
 		and completed_presentation.effective_state_id == &"completed"
@@ -1134,13 +1203,14 @@ func _test_checked_in_encounter_content() -> void:
 		and (completed_presentation.light_color as Color).is_equal_approx(Color("77e69a"))
 		and is_equal_approx(float(completed_presentation.light_energy), 3.4)
 		and not bool(completed_presentation.hostile_bearing_active)
-		and int(completed.host.destroyed_entity_count) == 3
+		and int(completed.host.destroyed_entity_count) == 4
 		and int(completed.host.active_entity_count) == 0
 		and completed.later_wave_tactic.state_id == &"completed"
+		and completed.heavy_picket_reinforcement.state_id == &"neutralized"
 		and str(completed.host.activity.next_step).contains("RECOVER AT DEFENSE BOARD")
 		and not bool(completed.later_wave_tactic.applied)
 		and resolver.get_registered_source_count() == 1,
-		"three real resolver terminal results complete exactly once and retire every hostile source"
+		"four real resolver terminal results, including the picket, complete exactly once and retire every hostile source before reward recovery"
 	)
 
 	var reset_after_completion := content.reset(generation)
@@ -1148,7 +1218,9 @@ func _test_checked_in_encounter_content() -> void:
 	_check(
 		reset_after_completion.accepted and idle_generation == 2
 		and content.get_snapshot().breaker_feint.state_id == &"idle"
+		and content.get_snapshot().heavy_picket_reinforcement.state_id == &"idle"
 		and is_zero_approx(float(content.get_snapshot().breaker_feint.elapsed_seconds))
+		and not picket.is_active() and authority.get_source_id(picket) == 0
 		and int(asset.get_asset_handle().generation) == 2
 		and int(reset_after_completion.activity.protected_assets[0].handle.generation) == 2
 		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
@@ -1157,7 +1229,7 @@ func _test_checked_in_encounter_content() -> void:
 		and is_equal_approx(_telegraph_radius(beta_role_lamps), beta_nominal_lamp_radius)
 		and is_equal_approx(_telegraph_radius(gamma_role_lamps), gamma_nominal_lamp_radius)
 		and asset.collision_layer == PhysicsLayers.TARGET,
-		"post-completion reset keeps both role-lamp pairs nominal while renewing health/collision generation plus one"
+		"post-completion reset clears the picket generation and keeps both role-lamp pairs nominal while renewing health/collision generation plus one"
 	)
 	var timeout_start := content.start(idle_generation)
 	var timeout_generation := int(timeout_start.activity.generation)
@@ -1187,7 +1259,7 @@ func _test_checked_in_encounter_content() -> void:
 		and int(asset_after_physics.damage_event_count) > 0
 		and int(observed_hostile_fire.count) > 0
 		and resolver.get_registered_source_count() == 1,
-		"a full 12 s of real physics stays collision-clear, resolves hostile fire, times out, and retires cleanly"
+		"a full 16 s of real physics stays collision-clear, resolves hostile fire, times out without reward, and retires cleanly"
 	)
 
 	var reset_after_timeout := content.reset(timeout_generation)
@@ -1392,8 +1464,8 @@ func _test_checked_in_encounter_content() -> void:
 	var audit_first := content.audit()
 	var audit_second := content.audit()
 	_check(
-		(content.get_snapshot().staging as Array).size() == 3
-		and (content.get_snapshot().host.spawn_roster as Array).size() == 3
+		(content.get_snapshot().staging as Array).size() == 4
+		and (content.get_snapshot().host.spawn_roster as Array).size() == 4
 		and int(content.get_snapshot().protected_asset.asset_handle.generation) == renewed_generation
 		and not bool(content.get_snapshot().authority_exclusions.rewards)
 		and audit_first == audit_second and bool(audit_first.valid)

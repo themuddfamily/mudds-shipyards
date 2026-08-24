@@ -188,11 +188,15 @@ func _run() -> void:
 	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
 	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
 	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
+	var picket := roster.get_node(^"PerimeterHeavyPicket") as StandoffPicketOpponent
 	var alpha_terminal := await _destroy_with_torrent(authority, torrent, alpha)
 	var relief := content.advance_physics(0.5, generation)
 	await physics_frame
 	var beta_terminal := await _destroy_with_torrent(authority, torrent, beta)
 	var gamma_terminal := await _destroy_with_torrent(authority, torrent, gamma)
+	var reinforcement := content.advance_physics(1.25, generation)
+	await physics_frame
+	var picket_terminal := await _destroy_with_torrent(authority, torrent, picket, 8)
 	await process_frame
 	var reward_snapshot: Dictionary = board.get_reward_handoff_snapshot()
 	var completed_save := world.save_station_defense_session(
@@ -207,6 +211,8 @@ func _run() -> void:
 		and bool(relief.get("accepted", false))
 		and bool(beta_terminal.get("destroyed", false))
 		and bool(gamma_terminal.get("destroyed", false))
+		and bool(reinforcement.get("accepted", false))
+		and bool(picket_terminal.get("destroyed", false))
 		and content.get_snapshot().host.activity.state_id == &"completed"
 		and _reward_requests.size() == 1
 		and int(_reward_requests[0].activity_generation) == generation
@@ -216,7 +222,7 @@ func _run() -> void:
 		and int(persisted_history.get("reward_handoff_generation", 0)) == generation
 		and not bool(persisted_history.get("reward_replayable", true))
 		and authority.get_resolver().get_registered_source_count() == 1,
-		"real fleet fire resolves every wave and completion feeds the shared reward adapter exactly once"
+		"real fleet fire must neutralize the heavy picket before completion feeds the shared reward adapter exactly once"
 	)
 	content.snapshot_changed.emit(content.get_snapshot())
 	_check(

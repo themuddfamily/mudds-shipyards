@@ -115,16 +115,27 @@ func _snapshot(
 	}
 
 
-func _content_snapshot(activity: Dictionary, breaker_state: StringName) -> Dictionary:
+func _content_snapshot(
+	activity: Dictionary,
+	breaker_state: StringName,
+	reinforcement_state: StringName = &"standby"
+	) -> Dictionary:
 	var enriched_activity := activity.duplicate(true)
 	enriched_activity["opening_tactic_id"] = &"core_breaker_outer_feint"
 	enriched_activity["opening_tactic_state_id"] = breaker_state
+	enriched_activity["reinforcement_tactic_id"] = &"heavy_picket_reinforcement"
+	enriched_activity["reinforcement_tactic_state_id"] = reinforcement_state
 	return {
 		"component_id": &"shipyard_perimeter_defense_content",
 		"host": {"activity": enriched_activity},
 		"breaker_feint": {
 			"tactic_id": &"core_breaker_outer_feint",
 			"state_id": breaker_state,
+			"generation": int(activity.generation),
+		},
+		"heavy_picket_reinforcement": {
+			"tactic_id": &"heavy_picket_reinforcement",
+			"state_id": reinforcement_state,
 			"generation": int(activity.generation),
 		},
 	}.duplicate(true)
@@ -181,6 +192,25 @@ func _test_generation_fenced_pincer_cues() -> void:
 	content_source.publish(transitioned)
 	content_source.publish(interrupted)
 	content_source.publish(interrupted)
+	var picket_inbound := _content_snapshot(
+		_snapshot(&"active", 2, false, [], 7, &"heavy_picket_reinforcement"),
+		&"completed",
+		&"inbound"
+	)
+	var picket_active := _content_snapshot(
+		_snapshot(&"active", 2, true, [], 7, &"heavy_picket_reinforcement", [{
+			"hostile_id": &"perimeter_heavy_picket", "generation": 4,
+		}]),
+		&"completed",
+		&"active"
+	)
+	cleared = _content_snapshot(
+		_snapshot(&"completed", 2, false, [], 7), &"completed", &"neutralized"
+	)
+	content_source.publish(picket_inbound)
+	content_source.publish(picket_inbound)
+	content_source.publish(picket_active)
+	content_source.publish(picket_active)
 	content_source.publish(cleared)
 	content_source.publish(cleared)
 	_check(
@@ -190,13 +220,22 @@ func _test_generation_fenced_pincer_cues() -> void:
 		"authoritative handoff, interruption, and clear each emit their distinct cue once per generation"
 	)
 	_check(
+		_count_pincer_cue(&"station_defense_heavy_picket_inbound") == 1
+		and _count_pincer_cue(&"station_defense_heavy_picket_active") == 1
+		and _count_pincer_cue(&"station_defense_heavy_picket_neutralized") == 1,
+		"heavy-picket warning, activation, and resolver-backed neutralization each emit once"
+	)
+	_check(
 		is_equal_approx(_pincer_cue_intensity(&"station_defense_breaker_inbound"), 0.525)
 		and is_equal_approx(_pincer_cue_intensity(&"station_defense_breaker_active"), 0.675)
 		and is_equal_approx(_pincer_cue_intensity(&"station_defense_crossfire_active"), 0.75)
 		and is_equal_approx(_pincer_cue_intensity(&"station_defense_breaker_interrupted"), 0.6375)
 		and is_equal_approx(_pincer_cue_intensity(&"station_defense_pincer_cleared"), 0.4875)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_heavy_picket_inbound"), 0.675)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_heavy_picket_active"), 0.75)
+		and is_equal_approx(_pincer_cue_intensity(&"station_defense_heavy_picket_neutralized"), 0.6)
 		and bool(binding.get_snapshot().reduced_dynamic_range),
-		"all breaker and pincer semantic intensities follow the retained reduced-range policy"
+		"breaker, pincer, and reinforcement intensities follow the retained reduced-range policy"
 	)
 	var before_stale := _pincer_transition_count()
 	content_source.publish(_content_snapshot(_snapshot(&"idle", 0, false, [], 8), &"idle"))
@@ -214,6 +253,15 @@ func _test_generation_fenced_pincer_cues() -> void:
 	_check(
 		_count_pincer_cue(&"station_defense_breaker_inbound") == 2,
 		"a fresh activity generation admits one new breaker-inbound cue and deduplicates repeats"
+	)
+	var timeout_withdrawal := _content_snapshot(
+		_snapshot(&"timed_out", 2, false, [], 8), &"timed_out", &"timed_out"
+	)
+	content_source.publish(timeout_withdrawal)
+	content_source.publish(timeout_withdrawal)
+	_check(
+		_count_pincer_cue(&"station_defense_heavy_picket_withdrew") == 1,
+		"activity timeout announces one non-rewarding heavy-picket withdrawal"
 	)
 	binding.detach()
 	content_source.free()
