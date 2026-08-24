@@ -115,6 +115,18 @@ const LOOPING_CLIPS := [&"idle", &"walk", &"run", &"airborne", &"seated_control"
 ## forward without altering the Blender resource or animation playback.
 const IMPORTED_VISUAL_FORWARD_AXIS := Vector3.BACK
 const PLAYER_CANONICAL_FORWARD_AXIS := Vector3.FORWARD
+## The imported ankle joint is 0.15 m above the authored flat boot sole. The
+## gameplay owner supplies a support point and its own movement-up direction;
+## this presentation converts that detached observation back into an ankle
+## target without querying physics or moving the Player root.
+const FOOT_SOLE_CLEARANCE_M := 0.15
+const FOOT_PLACEMENT_MAX_CORRECTION_M := 0.10
+const FOOT_PLACEMENT_CONTACT_LIMIT_M := 0.08
+const FOOT_PLACEMENT_MOTION_STATES := [&"idle", &"walk", &"run"]
+const FOOT_CHAIN_BONES := {
+	&"l": [&"thigh_l", &"calf_l", &"foot_l"],
+	&"r": [&"thigh_r", &"calf_r", &"foot_r"],
+}
 ## 22 bone rotation tracks plus one pelvis position track. The import drops
 ## immutable tracks, so this is exactly the set of bones the authored clips
 ## actually move: everything but `root`, which stays invariant by contract
@@ -172,6 +184,23 @@ var _built := false
 var _local_observer_culled := false
 var _integrity_contract: Dictionary = {}
 var _canonical_resource_contract: Dictionary = {}
+var _foot_placement_attachment_generation := 0
+var _foot_placement_attached := false
+var _last_foot_placement_physics_frame := -1
+var _foot_placement_snapshot: Dictionary = {}
+
+
+func _enter_tree() -> void:
+	_foot_placement_attachment_generation += 1
+	_foot_placement_attached = true
+	_last_foot_placement_physics_frame = -1
+	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"attached")
+
+
+func _exit_tree() -> void:
+	_foot_placement_attached = false
+	_last_foot_placement_physics_frame = -1
+	_foot_placement_snapshot = _empty_foot_placement_snapshot(&"detached")
 
 
 func _ready() -> void:
@@ -1404,6 +1433,240 @@ func get_animation_player() -> AnimationPlayer:
 
 func get_skeleton() -> Skeleton3D:
 	return _skeleton if is_instance_valid(_skeleton) else null
+
+
+## Returns only the current animated ankle origins. Physics ownership remains
+## outside this subtree; the caller may use these points to sample support once
+## and return detached finite observations through [method apply_foot_placement].
+func get_animated_foot_anchors() -> Dictionary:
+	if not _foot_placement_attached or not is_instance_valid(_skeleton):
+		return {}
+	_skeleton.force_update_all_bone_transforms()
+	var result := {}
+	for side: StringName in FOOT_CHAIN_BONES:
+		var foot_name: StringName = FOOT_CHAIN_BONES[side][2]
+		var foot_index := _skeleton.find_bone(foot_name)
+		if foot_index < 0:
+			return {}
+		var ankle_local := _skeleton.get_bone_global_pose(foot_index).origin
+		result[side] = _skeleton.global_transform * ankle_local
+	return result.duplicate(true)
+
+
+func get_foot_placement_attachment_generation() -> int:
+	return _foot_placement_attachment_generation
+
+
+func get_foot_placement_snapshot() -> Dictionary:
+	return _foot_placement_snapshot.duplicate(true)
+
+
+## Applies one caller-physics sample after the imported AnimationPlayer has
+## advanced. The operation changes only the current thigh/calf/foot bone poses;
+## it creates no modifier nodes, edits no animation resource, and has no body,
+## collision, input, camera, traversal, or timing authority.
+func apply_foot_placement(sample: Variant, expected_attachment_generation: int) -> Dictionary:
+	if (
+		not _foot_placement_attached
+		or not is_inside_tree()
+		or expected_attachment_generation != _foot_placement_attachment_generation
+		or not sample is Dictionary
+		or not is_instance_valid(_skeleton)
+	):
+		return _foot_placement_result(false, &"stale_foot_placement_attachment")
+	var observation := sample as Dictionary
+	var physics_frame := int(observation.get("physics_frame", -1))
+	var motion_state := StringName(observation.get("motion_state", &""))
+	var movement_up: Variant = observation.get("movement_up", Vector3.ZERO)
+	var feet: Variant = observation.get("feet", {})
+	if (
+		physics_frame < 0
+		or physics_frame <= _last_foot_placement_physics_frame
+		or not movement_up is Vector3
+		or not (movement_up as Vector3).is_finite()
+		or (movement_up as Vector3).is_zero_approx()
+		or not feet is Dictionary
+	):
+		return _foot_placement_result(false, &"invalid_foot_placement_sample")
+	_last_foot_placement_physics_frame = physics_frame
+	if motion_state not in FOOT_PLACEMENT_MOTION_STATES:
+		_foot_placement_snapshot = _empty_foot_placement_snapshot(
+			&"motion_state_inactive", physics_frame, motion_state
+		)
+		return _foot_placement_result(true, &"foot_placement_inactive")
+	var normalized_up := (movement_up as Vector3).normalized()
+	var corrected_feet := {}
+	for side: StringName in FOOT_CHAIN_BONES:
+		var support: Variant = (feet as Dictionary).get(side, {})
+		if not support is Dictionary:
+			corrected_feet[side] = _inactive_foot_record(&"support_missing")
+			continue
+		corrected_feet[side] = _apply_foot_chain(
+			side, support as Dictionary, normalized_up
+		)
+	var any_foot_active := false
+	for record: Variant in corrected_feet.values():
+		if record is Dictionary and bool((record as Dictionary).get("active", false)):
+			any_foot_active = true
+			break
+	_foot_placement_snapshot = {
+		"active": any_foot_active,
+		"attached": true,
+		"attachment_generation": _foot_placement_attachment_generation,
+		"physics_frame": physics_frame,
+		"motion_state": motion_state,
+		"feet": corrected_feet.duplicate(true),
+		"modifier_node_count": find_children("*", "SkeletonModifier3D", true, false).size(),
+	}.duplicate(true)
+	return _foot_placement_result(true, &"foot_placement_applied")
+
+
+func clear_foot_placement(expected_attachment_generation: int, reason: StringName) -> Dictionary:
+	if (
+		not _foot_placement_attached
+		or expected_attachment_generation != _foot_placement_attachment_generation
+	):
+		return _foot_placement_result(false, &"stale_foot_placement_attachment")
+	_foot_placement_snapshot = _empty_foot_placement_snapshot(reason)
+	return _foot_placement_result(true, &"foot_placement_cleared")
+
+
+func _apply_foot_chain(
+		side: StringName, support: Dictionary, movement_up_world: Vector3
+	) -> Dictionary:
+	var support_position: Variant = support.get("position", Vector3.INF)
+	var support_normal: Variant = support.get("normal", Vector3.ZERO)
+	if (
+		not support_position is Vector3
+		or not (support_position as Vector3).is_finite()
+		or not support_normal is Vector3
+		or not (support_normal as Vector3).is_finite()
+		or (support_normal as Vector3).is_zero_approx()
+	):
+		return _inactive_foot_record(&"support_invalid")
+	var chain: Array = FOOT_CHAIN_BONES[side]
+	var thigh_index := _skeleton.find_bone(chain[0])
+	var calf_index := _skeleton.find_bone(chain[1])
+	var foot_index := _skeleton.find_bone(chain[2])
+	if thigh_index < 0 or calf_index < 0 or foot_index < 0:
+		return _inactive_foot_record(&"bone_missing")
+	_skeleton.force_update_all_bone_transforms()
+	var to_skeleton := _skeleton.global_transform.affine_inverse()
+	var up_local := (_skeleton.global_basis.inverse() * movement_up_world).normalized()
+	var support_local := to_skeleton * (support_position as Vector3)
+	var thigh_pose := _skeleton.get_bone_global_pose(thigh_index)
+	var calf_pose := _skeleton.get_bone_global_pose(calf_index)
+	var foot_pose := _skeleton.get_bone_global_pose(foot_index)
+	var hip := thigh_pose.origin
+	var knee := calf_pose.origin
+	var ankle := foot_pose.origin
+	var sole := ankle - up_local * FOOT_SOLE_CLEARANCE_M
+	var requested_correction := (support_local - sole).dot(up_local)
+	if absf(requested_correction) > FOOT_PLACEMENT_CONTACT_LIMIT_M:
+		return {
+			"active": false,
+			"reason": &"foot_not_in_contact_phase",
+			"requested_correction_m": requested_correction,
+		}.duplicate(true)
+	var correction := clampf(
+		requested_correction,
+		-FOOT_PLACEMENT_MAX_CORRECTION_M,
+		FOOT_PLACEMENT_MAX_CORRECTION_M
+	)
+	var target_ankle := ankle + up_local * correction
+	var upper_length := hip.distance_to(knee)
+	var lower_length := knee.distance_to(ankle)
+	var target_delta := target_ankle - hip
+	var target_distance := target_delta.length()
+	if (
+		upper_length <= 0.001
+		or lower_length <= 0.001
+		or target_distance <= 0.001
+	):
+		return _inactive_foot_record(&"degenerate_leg_chain")
+	var minimum_reach := absf(upper_length - lower_length) + 0.0005
+	var maximum_reach := upper_length + lower_length - 0.0005
+	var solved_distance := clampf(target_distance, minimum_reach, maximum_reach)
+	var target_direction := target_delta / target_distance
+	var solved_ankle := hip + target_direction * solved_distance
+	var along := (
+		upper_length * upper_length - lower_length * lower_length
+		+ solved_distance * solved_distance
+	) / (2.0 * solved_distance)
+	var bend_height := sqrt(maxf(0.0, upper_length * upper_length - along * along))
+	var bend_direction := knee - (hip + target_direction * (knee - hip).dot(target_direction))
+	if bend_direction.length_squared() <= 0.000001:
+		bend_direction = IMPORTED_VISUAL_FORWARD_AXIS - (
+			target_direction * IMPORTED_VISUAL_FORWARD_AXIS.dot(target_direction)
+		)
+	if bend_direction.length_squared() <= 0.000001:
+		bend_direction = target_direction.cross(Vector3.RIGHT)
+	bend_direction = bend_direction.normalized()
+	var solved_knee := hip + target_direction * along + bend_direction * bend_height
+	var original_foot_basis := foot_pose.basis
+	var thigh_from := (knee - hip).normalized()
+	var thigh_to := (solved_knee - hip).normalized()
+	thigh_pose.basis = Basis(Quaternion(thigh_from, thigh_to)) * thigh_pose.basis
+	_skeleton.set_bone_global_pose(thigh_index, thigh_pose)
+	_skeleton.force_update_all_bone_transforms()
+	calf_pose = _skeleton.get_bone_global_pose(calf_index)
+	foot_pose = _skeleton.get_bone_global_pose(foot_index)
+	var calf_from := (foot_pose.origin - calf_pose.origin).normalized()
+	var calf_to := (solved_ankle - calf_pose.origin).normalized()
+	calf_pose.basis = Basis(Quaternion(calf_from, calf_to)) * calf_pose.basis
+	_skeleton.set_bone_global_pose(calf_index, calf_pose)
+	_skeleton.force_update_all_bone_transforms()
+	foot_pose = _skeleton.get_bone_global_pose(foot_index)
+	# A nearly straight authored contact can leave the two-bone solve at its
+	# reach limit on the downhill side of a ramp. Close only that bounded visual
+	# remainder at the ankle; animation resamples this local pose next tick.
+	foot_pose.origin = target_ankle
+	foot_pose.basis = original_foot_basis
+	_skeleton.set_bone_global_pose(foot_index, foot_pose)
+	_skeleton.force_update_all_bone_transforms()
+	var corrected_ankle := _skeleton.get_bone_global_pose(foot_index).origin
+	var corrected_sole := corrected_ankle - up_local * FOOT_SOLE_CLEARANCE_M
+	var sole_error := absf((support_local - corrected_sole).dot(up_local))
+	return {
+		"active": true,
+		"reason": &"support_corrected",
+		"requested_correction_m": requested_correction,
+		"applied_correction_m": correction,
+		"sole_error_m": sole_error,
+		"support_position": support_position,
+		"support_normal": (support_normal as Vector3).normalized(),
+		"ankle_position": _skeleton.global_transform * corrected_ankle,
+		"sole_position": _skeleton.global_transform * corrected_sole,
+	}.duplicate(true)
+
+
+func _inactive_foot_record(reason: StringName) -> Dictionary:
+	return {"active": false, "reason": reason}.duplicate(true)
+
+
+func _empty_foot_placement_snapshot(
+		reason: StringName,
+		physics_frame: int = -1,
+		motion_state: StringName = &""
+	) -> Dictionary:
+	return {
+		"active": false,
+		"attached": _foot_placement_attached,
+		"attachment_generation": _foot_placement_attachment_generation,
+		"physics_frame": physics_frame,
+		"motion_state": motion_state,
+		"reason": reason,
+		"feet": {},
+		"modifier_node_count": find_children("*", "SkeletonModifier3D", true, false).size(),
+	}.duplicate(true)
+
+
+func _foot_placement_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"foot_placement": get_foot_placement_snapshot(),
+	}.duplicate(true)
 
 
 func get_visual_root() -> Node3D:

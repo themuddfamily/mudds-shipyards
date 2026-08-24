@@ -675,6 +675,10 @@ func _test_standing_and_seated_lifecycle(player: PlayerController, fixture: Node
 	await physics_frame
 	_check(player.is_seated(), "pilot reaches the existing seated lifecycle state")
 	_check(player.get_authored_motion_state() == &"seated_control", "zero-duration boarding resolves directly to imported seated control")
+	_check(
+		not bool(player.get_grounded_foot_placement_snapshot().get("active", true)),
+		"seated control cannot retain a grounded foot-placement pose"
+	)
 	_check(player.global_transform.is_equal_approx(seat.global_transform), "seated CharacterBody follows the exact live seat anchor")
 	_check(player.collision_layer == 0 and player.collision_mask == 0 and collision.disabled, "seating disables embodied CharacterBody collision")
 	if skeleton != null:
@@ -705,6 +709,10 @@ func _test_standing_and_seated_lifecycle(player: PlayerController, fixture: Node
 	_check(player.is_control_enabled(), "ordinary on-foot control can resume after visual lifecycle")
 	_check(player.begin_boarding(exit_transform, seat, 1.0), "animated boarding can begin after reuse")
 	_check(player.get_authored_motion_state() == &"boarding", "animated reentry selects the imported boarding clip")
+	_check(
+		not bool(player.get_grounded_foot_placement_snapshot().get("active", true)),
+		"boarding clears grounded foot placement before traversal"
+	)
 	_check(not player.begin_boarding(exit_transform, seat, 1.0), "boarding cannot re-enter while its imported transition is active")
 	var recovery_transform := Transform3D(Basis.IDENTITY, Vector3(8.0, 0.0, -3.0))
 	player.force_recovery_to_on_foot(recovery_transform)
@@ -720,6 +728,10 @@ func _test_standing_and_seated_lifecycle(player: PlayerController, fixture: Node
 	var second_recovery := Transform3D(Basis.IDENTITY, Vector3(9.0, 0.0, -1.5))
 	_check(player.begin_disembark(second_recovery, 1.0), "animated disembark can begin after imported reentry")
 	_check(player.get_authored_motion_state() == &"disembark_recovery", "animated exit selects the imported disembark recovery clip")
+	_check(
+		not bool(player.get_grounded_foot_placement_snapshot().get("active", true)),
+		"disembark recovery cannot acquire grounded foot placement"
+	)
 	_check(not player.begin_disembark(second_recovery, 1.0), "disembark cannot re-enter while its imported recovery is active")
 	player.force_recovery_to_on_foot(second_recovery)
 	await process_frame

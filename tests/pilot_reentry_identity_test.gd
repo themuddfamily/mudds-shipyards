@@ -39,6 +39,7 @@ func _run() -> void:
 		"attached pilot owns exactly one inactive engine compatibility simulator and no physical bones"
 	)
 	var prior_simulator := initial_simulators[0] if initial_simulators.size() == 1 else null
+	var prior_foot_generation := presentation.get_foot_placement_attachment_generation()
 	for cycle in REENTRY_CYCLE_COUNT:
 		var prior_simulator_id := (
 			prior_simulator.get_instance_id()
@@ -47,9 +48,30 @@ func _run() -> void:
 		)
 		var prior_simulator_ref: WeakRef = weakref(prior_simulator)
 		host.remove_child(presentation)
+		var detached_result := presentation.apply_foot_placement(
+			{
+				"physics_frame": Engine.get_physics_frames(),
+				"motion_state": &"idle",
+				"movement_up": Vector3.UP,
+				"feet": {},
+			},
+			prior_foot_generation
+		)
+		_check(
+			not bool(detached_result.get("accepted", true))
+			and not bool(presentation.get_foot_placement_snapshot().get("attached", true)),
+			"re-entry cycle %d rejects stale foot samples while detached" % (cycle + 1)
+		)
 		await process_frame
 		host.add_child(presentation)
 		await process_frame
+		var restored_foot_generation := presentation.get_foot_placement_attachment_generation()
+		_check(
+			restored_foot_generation == prior_foot_generation + 1
+			and not bool(presentation.get_foot_placement_snapshot().get("active", true)),
+			"re-entry cycle %d advances exactly one inactive foot-placement generation" % (cycle + 1)
+		)
+		prior_foot_generation = restored_foot_generation
 		var restored_nodes := _authored_node_identity_snapshot(presentation)
 		if restored_nodes != fixed_nodes:
 			print("PILOT_REENTRY_IDENTITY_DIFF cycle=%d: %s" % [cycle + 1, _identity_diff(fixed_nodes, restored_nodes)])

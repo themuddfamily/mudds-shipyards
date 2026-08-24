@@ -125,6 +125,11 @@ const MOTION_DISEMBARK_RECOVERY := &"disembark_recovery"
 const MOTION_BLEND_TIME := 0.12
 const TRANSITION_MOTION_BLEND_TIME := 0.16
 const PILOT_INTEGRITY_PROBE_INTERVAL := 0.2
+## A sole sits 0.15 m below the imported ankle joint. Start above the ankle and
+## finish below the sole so one bounded query sees flat decks and shallow ramps
+## without becoming a general-purpose terrain probe.
+const FOOT_SUPPORT_RAY_RISE_M := 0.18
+const FOOT_SUPPORT_RAY_DROP_M := 0.27
 const BOARDING_CLIP_LENGTH := 1.1
 const DISEMBARK_CLIP_LENGTH := 0.9
 const PILOT_MOTION_VERSION := &"blender_skinned_motion_v2"
@@ -349,6 +354,7 @@ func _physics_process(delta: float) -> void:
 			interact_requested.emit()
 		_update_embodiment(delta)
 		_advance_motion_animation(delta)
+		_update_grounded_foot_placement()
 		return
 
 	var desired_direction := Vector3.ZERO
@@ -385,6 +391,7 @@ func _physics_process(delta: float) -> void:
 	_update_facing(desired_direction, delta)
 	_update_authored_locomotion(is_sprinting)
 	_advance_motion_animation(delta)
+	_update_grounded_foot_placement()
 
 
 func _process(delta: float) -> void:
@@ -855,6 +862,15 @@ func get_pilot_visual_parts() -> Array[MeshInstance3D]:
 		if part != null:
 			parts.append(part)
 	return parts
+
+
+## Read-only proof of the latest visual foot-placement pass. The presentation
+## returns a detached copy so tests and capture tooling cannot acquire pose
+## authority through this diagnostic seam.
+func get_grounded_foot_placement_snapshot() -> Dictionary:
+	if _pilot_presentation == null or not is_instance_valid(_pilot_presentation):
+		return {}
+	return _pilot_presentation.get_foot_placement_snapshot()
 
 
 ## Runtime presentation contract used by visual regression tests and capture
@@ -2425,6 +2441,62 @@ func _apply_gravity(delta: float) -> void:
 		velocity += movement_up * (downward_speed - terminal_velocity)
 
 
+func _update_grounded_foot_placement() -> void:
+	if _pilot_presentation == null or not is_instance_valid(_pilot_presentation):
+		return
+	var generation := _pilot_presentation.get_foot_placement_attachment_generation()
+	if (
+		not _using_imported_pilot_presentation
+		or _embodiment_state != EmbodimentState.ON_FOOT
+		or not is_on_floor()
+		or _motion_state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN]
+	):
+		_pilot_presentation.clear_foot_placement(generation, &"grounded_state_inactive")
+		return
+	var anchors := _pilot_presentation.get_animated_foot_anchors()
+	if anchors.size() != 2 or get_world_3d() == null:
+		_pilot_presentation.clear_foot_placement(generation, &"foot_anchors_unavailable")
+		return
+	var movement_up := _get_movement_up_direction()
+	var walkable_normal_dot := cos(floor_max_angle)
+	var feet := {}
+	for side: StringName in [&"l", &"r"]:
+		var ankle: Variant = anchors.get(side, Vector3.INF)
+		if not ankle is Vector3 or not (ankle as Vector3).is_finite():
+			continue
+		var query := PhysicsRayQueryParameters3D.create(
+			(ankle as Vector3) + movement_up * FOOT_SUPPORT_RAY_RISE_M,
+			(ankle as Vector3) - movement_up * FOOT_SUPPORT_RAY_DROP_M,
+			collision_mask
+		)
+		query.exclude = [get_rid()]
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		query.hit_from_inside = false
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		var support_position: Variant = hit.get("position", Vector3.INF)
+		var support_normal: Variant = hit.get("normal", Vector3.ZERO)
+		if (
+			support_position is Vector3
+			and (support_position as Vector3).is_finite()
+			and support_normal is Vector3
+			and (support_normal as Vector3).is_finite()
+			and not (support_normal as Vector3).is_zero_approx()
+			and (support_normal as Vector3).normalized().dot(movement_up)
+				>= walkable_normal_dot
+		):
+			feet[side] = {
+				"position": support_position,
+				"normal": (support_normal as Vector3).normalized(),
+			}
+	_pilot_presentation.apply_foot_placement({
+		"physics_frame": Engine.get_physics_frames(),
+		"motion_state": _motion_state,
+		"movement_up": movement_up,
+		"feet": feet,
+	}, generation)
+
+
 ## MovingInteriorFrame sets CharacterBody3D.up_direction before this controller
 ## runs. All locomotion is resolved in that tangent plane, so a real occupant can
 ## walk and jump on a translating or rotated ship deck without a separate level.
@@ -2497,6 +2569,15 @@ func _set_motion_state(
 	if not is_finite(playback_rate) or playback_rate <= 0.0:
 		push_error("Player motion playback rate must be finite and positive")
 		return
+	if (
+		state not in [MOTION_IDLE, MOTION_WALK, MOTION_RUN]
+		and _pilot_presentation != null
+		and is_instance_valid(_pilot_presentation)
+	):
+		_pilot_presentation.clear_foot_placement(
+			_pilot_presentation.get_foot_placement_attachment_generation(),
+			&"motion_state_inactive"
+		)
 	var prior_player := _motion_animation_player
 	if not _ensure_motion_authority():
 		return
