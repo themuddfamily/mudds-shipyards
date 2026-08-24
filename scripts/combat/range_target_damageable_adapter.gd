@@ -142,6 +142,20 @@ func reset_for_reuse(expected_generation: int) -> Dictionary:
 	return reset_result.duplicate(true)
 
 
+## Presentation-only lifecycle seam used by the world after validating a
+## generation-bound pulse receipt. Component and hull authority have already
+## committed synchronously in apply_damage().
+func present_current_component_snapshot(expected_generation: int) -> bool:
+	if (
+		_component_damage_model == null
+		or expected_generation != _component_damage_model.get_generation()
+		or not _is_damage_target_current(get_target_entity())
+	):
+		return false
+	_present_component_snapshot()
+	return true
+
+
 func apply_damage(
 	amount: float,
 	hit_position: Vector3 = Vector3.INF,
@@ -178,7 +192,8 @@ func apply_damage(
 	var applied := minf(amount, before)
 	var after := maxf(0.0, before - applied)
 	target.set_meta("health", after)
-	_apply_component_damage(applied)
+	var presentation_receipt_id := int(source_context.get("presentation_receipt_id", -1))
+	var component_receipt := _apply_component_damage(applied, presentation_receipt_id < 0)
 	var safe_position := hit_position if hit_position.is_finite() else (target as Node3D).global_position
 	var safe_normal := hit_normal
 	if not safe_normal.is_finite() or safe_normal.length_squared() <= 0.000001:
@@ -202,33 +217,42 @@ func apply_damage(
 		safe_context.duplicate(true)
 	)
 	health_changed.emit(after, get_maximum_health())
-	var presentation_receipt_id := int(safe_context.get("presentation_receipt_id", -1))
+	var world_owner := _get_world_owner()
+	var target_id := StringName(target.get_meta("target_id", &"UNKNOWN"))
+	var authority_committed := true
 	if after <= 0.0 and not bool(target.get_meta("destroyed", false)):
-		var world_owner := _get_world_owner()
-		var authority_committed := false
+		authority_committed = false
 		if is_instance_valid(world_owner) and world_owner.has_method("authorize_target_destruction"):
 			authority_committed = bool(world_owner.call(
 				"authorize_target_destruction",
 				target,
-				StringName(target.get_meta("target_id", &"UNKNOWN")),
+				target_id,
 				safe_position
 			))
-		if (
-			presentation_receipt_id >= 0
-			and is_instance_valid(world_owner)
-			and world_owner.has_method("defer_target_damage_presentation")
-		):
-			if not authority_committed:
-				target.set_meta("destroyed", true)
-			world_owner.call(
-				"defer_target_damage_presentation",
-				presentation_receipt_id,
-				target,
-				StringName(target.get_meta("target_id", &"UNKNOWN")),
-				safe_position,
-				true
-			)
-		elif is_instance_valid(world_owner) and world_owner.has_method("present_authorized_target_destruction"):
+		if not authority_committed:
+			target.set_meta("destroyed", true)
+	if (
+		presentation_receipt_id >= 0
+		and is_instance_valid(world_owner)
+		and world_owner.has_method("defer_target_damage_presentation")
+	):
+		var deferred := bool(world_owner.call(
+			"defer_target_damage_presentation",
+			presentation_receipt_id,
+			target,
+			target_id,
+			safe_position,
+			after <= 0.0,
+			component_receipt
+		))
+		if not deferred:
+			# Damage authority is already final. Receipt saturation or a duplicate
+			# presentation ID must not strand the target in an old visual state.
+			_present_component_snapshot()
+			if after <= 0.0 and world_owner.has_method("present_authorized_target_destruction"):
+				world_owner.call("present_authorized_target_destruction", target, safe_position)
+	elif after <= 0.0:
+		if is_instance_valid(world_owner) and world_owner.has_method("present_authorized_target_destruction"):
 			world_owner.call(
 				"present_authorized_target_destruction",
 				target,
@@ -273,9 +297,12 @@ func _initialize_component_damage() -> void:
 	_present_component_snapshot()
 
 
-func _apply_component_damage(applied_hull_damage: float) -> void:
+func _apply_component_damage(
+		applied_hull_damage: float,
+		present_immediately: bool
+	) -> Dictionary:
 	if _component_damage_model == null or applied_hull_damage <= 0.0:
-		return
+		return {}
 	var contexts: Array[Dictionary] = []
 	for component_spec in [
 		{"component_id": FRAME_COMPONENT_ID, "exposure": 0.5},
@@ -293,12 +320,24 @@ func _apply_component_damage(applied_hull_damage: float) -> void:
 			"sequence": _next_component_damage_sequence + contexts.size(),
 		})
 	if contexts.is_empty():
-		return
+		return _component_receipt_snapshot()
 	var component_result := _component_damage_model.apply_component_damage_batch(contexts)
 	if not bool(component_result.get("accepted", false)):
-		return
+		return _component_receipt_snapshot()
 	_next_component_damage_sequence += contexts.size()
-	_present_component_snapshot()
+	var receipt := _component_receipt_snapshot()
+	if present_immediately:
+		_present_component_snapshot()
+	return receipt
+
+
+func _component_receipt_snapshot() -> Dictionary:
+	var snapshot := get_component_snapshot()
+	return {
+		"damage_generation": int(snapshot.get("generation", 0)),
+		"damage_sequence": int(snapshot.get("last_damage_sequence", -1)),
+		"damage_revision": int(snapshot.get("revision", 0)),
+	}.duplicate(true)
 
 
 func _present_component_snapshot() -> void:

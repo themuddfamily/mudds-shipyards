@@ -989,6 +989,8 @@ var _destroyed_target_count := 0
 const MAX_PENDING_TARGET_PRESENTATIONS := 16
 var _pending_target_presentations: Dictionary = {}
 var _pending_target_presentation_order: Array[int] = []
+var _range_target_destruction_tweens: Dictionary = {}
+var _range_target_destruction_residue: Dictionary = {}
 var _visual_quality_report: Dictionary = {}
 var _berth_transforms: Dictionary = {}
 var _berth_half_extents: Dictionary = {}
@@ -4409,7 +4411,7 @@ func reset_range_target_for_reuse(target: StaticBody3D) -> Dictionary:
 		not is_instance_valid(target)
 		or not _targets.has(target)
 		or not target.get_meta("is_shipyard_target", false)
-		or bool(target.get_meta("destroyed", false))
+		or target.is_queued_for_deletion()
 	):
 		return {"accepted": false, "reason": &"target_unavailable"}.duplicate(true)
 	var adapter := target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
@@ -4420,9 +4422,100 @@ func reset_range_target_for_reuse(target: StaticBody3D) -> Dictionary:
 	var reset_result := adapter.reset_for_reuse(expected_generation)
 	if not bool(reset_result.get("accepted", false)):
 		return reset_result.duplicate(true)
+	_discard_deferred_target_presentations(target)
+	_clear_range_target_destruction_residue(target)
 	target.set_meta("health", adapter.get_maximum_health())
 	target.set_meta("destroyed", false)
-	return reset_result.duplicate(true)
+	# `destruction_authority_committed` deliberately survives reuse. It is the
+	# one-shot mission/reward latch; later training reuse may be destroyed again
+	# without incrementing guided progress or emitting a second reward signal.
+	target.set_meta("destruction_visual_committed", false)
+	target.collision_layer = TARGET_LAYER
+	target.collision_mask = 0
+	for child in target.get_children():
+		if child is CollisionShape3D:
+			(child as CollisionShape3D).set_deferred("disabled", false)
+	var visual := target.get_node_or_null("DroneVisual") as Node3D
+	if visual != null:
+		visual.visible = true
+		visual.scale = Vector3.ONE
+	var result := reset_result.duplicate(true)
+	result["collision_restore_deferred"] = true
+	return result
+
+
+## Detached reset audit over state already owned by the adapter and world. This
+## observes cleanup; it grants no health, collision, score, or reward authority.
+func get_range_target_component_recovery_report(target: StaticBody3D) -> Dictionary:
+	var errors := PackedStringArray()
+	var adapter := (
+		target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+		if is_instance_valid(target) else null
+	)
+	var snapshot := adapter.get_component_snapshot() if adapter != null else {}
+	if adapter == null:
+		errors.append("component_adapter_unavailable")
+	else:
+		if int(snapshot.get("last_damage_sequence", -2)) != -1:
+			errors.append("component_sequence_not_reset")
+		for raw_state in snapshot.get("components", []) as Array:
+			if not raw_state is Dictionary:
+				errors.append("invalid_component_state")
+				continue
+			var state := raw_state as Dictionary
+			var stage := state.get("stage", {}) as Dictionary
+			if (
+				not is_equal_approx(
+					float(state.get("current_health", -1.0)),
+					float(state.get("maximum_health", 0.0))
+				)
+				or StringName(stage.get("stage_id", &"")) != &"nominal"
+				or bool(stage.get("disabled", true))
+			):
+				errors.append("component_not_nominal:%s" % state.get("component_id", &""))
+	if not is_instance_valid(target) or bool(target.get_meta("destroyed", true)):
+		errors.append("target_not_reused")
+	elif adapter != null and not is_equal_approx(
+		float(target.get_meta("health", -1.0)), adapter.get_maximum_health()
+	):
+		errors.append("health_not_restored")
+	if is_instance_valid(target) and target.collision_layer != TARGET_LAYER:
+		errors.append("target_collision_not_restored")
+	if is_instance_valid(target):
+		for child in target.get_children():
+			if child is CollisionShape3D and (child as CollisionShape3D).disabled:
+				errors.append("target_shape_not_restored")
+	var visual := target.get_node_or_null("DroneVisual") as Node3D \
+		if is_instance_valid(target) else null
+	if visual == null or not visual.visible or not visual.scale.is_equal_approx(Vector3.ONE):
+		errors.append("target_visual_not_restored")
+	else:
+		for node_name in [&"OuterRing", &"Core"]:
+			var part := visual.get_node_or_null(NodePath(node_name)) as MeshInstance3D
+			if part == null or StringName(part.get_meta("component_stage", &"")) != &"nominal":
+				errors.append("component_presentation_residue:%s" % node_name)
+	var target_instance_id := target.get_instance_id() if is_instance_valid(target) else 0
+	if _has_pending_target_presentation(target_instance_id):
+		errors.append("pending_damage_presentations")
+	if (
+		_range_target_destruction_residue.has(target_instance_id)
+		or _range_target_destruction_tweens.has(target_instance_id)
+	):
+		errors.append("destruction_residue")
+	for impact in find_children("ProjectileImpact", "MeshInstance3D", true, false):
+		if (
+			int(impact.get_meta("range_target_instance_id", 0)) == target_instance_id
+			and not impact.is_queued_for_deletion()
+		):
+			errors.append("impact_residue")
+			break
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"component_generation": int(snapshot.get("generation", 0)),
+		"pending_presentations": get_pending_target_damage_presentation_count(),
+		"mission_destruction_count": _destroyed_target_count,
+	}.duplicate(true)
 
 
 ## Consumes detached component condition for the four authored range drones.
@@ -4513,22 +4606,28 @@ func defer_target_damage_presentation(
 		target: StaticBody3D,
 		target_id: StringName,
 		hit_position: Vector3,
-		terminal: bool
+		terminal: bool,
+		component_receipt: Dictionary = {}
 	) -> bool:
 	if (
 		not is_inside_tree()
 		or is_queued_for_deletion()
 		or receipt_id < 0
 		or not is_instance_valid(target)
+		or target.is_queued_for_deletion()
+		or _pending_target_presentations.has(receipt_id)
 	):
 		return false
-	if _pending_target_presentations.has(receipt_id):
-		_pending_target_presentation_order.erase(receipt_id)
 	_pending_target_presentations[receipt_id] = {
+		"receipt_id": receipt_id,
 		"target": weakref(target),
+		"target_instance_id": target.get_instance_id(),
 		"target_id": target_id,
 		"hit_position": hit_position,
 		"terminal": terminal,
+		"damage_generation": int(component_receipt.get("damage_generation", -1)),
+		"damage_sequence": int(component_receipt.get("damage_sequence", -1)),
+		"damage_revision": int(component_receipt.get("damage_revision", -1)),
 	}
 	_pending_target_presentation_order.append(receipt_id)
 	while _pending_target_presentation_order.size() > MAX_PENDING_TARGET_PRESENTATIONS:
@@ -4559,13 +4658,76 @@ func commit_deferred_damage_presentation(receipt_id: int) -> bool:
 	_pending_target_presentation_order.erase(receipt_id)
 	var target_ref := record.get("target") as WeakRef
 	var target := target_ref.get_ref() as StaticBody3D if target_ref != null else null
-	if not is_instance_valid(target):
+	if not _range_target_presentation_record_is_current(receipt_id, target, record):
+		return false
+	var adapter := target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	var generation := int(record.get("damage_generation", -1))
+	if generation >= 0 and (
+		adapter == null or not adapter.present_current_component_snapshot(generation)
+	):
 		return false
 	if bool(record.terminal):
+		_discard_deferred_target_presentations(target)
 		present_authorized_target_destruction(target, record.hit_position)
 	else:
-		_spawn_impact(record.hit_position, KETH_ORANGE)
+		var impact := _spawn_impact(record.hit_position, KETH_ORANGE)
+		if impact != null:
+			impact.set_meta("range_target_instance_id", target.get_instance_id())
+			impact.set_meta("range_target_generation", generation)
 	return true
+
+
+func _range_target_presentation_record_is_current(
+		receipt_id: int,
+		target: StaticBody3D,
+		record: Dictionary
+	) -> bool:
+	if (
+		not is_instance_valid(target)
+		or target.is_queued_for_deletion()
+		or int(record.get("receipt_id", -1)) != receipt_id
+		or int(record.get("target_instance_id", 0)) != target.get_instance_id()
+	):
+		return false
+	var generation := int(record.get("damage_generation", -1))
+	# Five-argument legacy callers own impact timing only and have no component
+	# generation to validate. Production adapter records always carry all three.
+	if generation < 0:
+		return true
+	var adapter := target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	if adapter == null:
+		return false
+	var snapshot := adapter.get_component_snapshot()
+	if generation != int(snapshot.get("generation", 0)):
+		return false
+	var damage_sequence := int(record.get("damage_sequence", -1))
+	var damage_revision := int(record.get("damage_revision", -1))
+	return (
+		damage_sequence >= 0
+		and damage_sequence <= int(snapshot.get("last_damage_sequence", -1))
+		and damage_revision > 0
+		and damage_revision <= int(snapshot.get("revision", 0))
+	)
+
+
+func _discard_deferred_target_presentations(target: StaticBody3D) -> void:
+	if not is_instance_valid(target):
+		return
+	var target_instance_id := target.get_instance_id()
+	for raw_receipt_id in _pending_target_presentations.keys():
+		var receipt_id := int(raw_receipt_id)
+		var record := _pending_target_presentations.get(receipt_id, {}) as Dictionary
+		if int(record.get("target_instance_id", 0)) == target_instance_id:
+			_pending_target_presentations.erase(receipt_id)
+			_pending_target_presentation_order.erase(receipt_id)
+
+
+func _has_pending_target_presentation(target_instance_id: int) -> bool:
+	for record_variant in _pending_target_presentations.values():
+		var record := record_variant as Dictionary
+		if int(record.get("target_instance_id", 0)) == target_instance_id:
+			return true
+	return false
 
 
 func get_visual_quality_report() -> Dictionary:
@@ -8485,17 +8647,22 @@ func authorize_target_destruction(
 		target_id: StringName,
 		hit_position: Vector3
 	) -> bool:
-	if not is_instance_valid(target) or bool(target.get_meta("destruction_authority_committed", false)):
+	if not is_instance_valid(target) or bool(target.get_meta("destroyed", false)):
 		return false
 	target.set_meta("destroyed", true)
-	target.set_meta("destruction_authority_committed", true)
-	_destroyed_target_count += 1
+	var first_mission_destruction := not bool(
+		target.get_meta("destruction_authority_committed", false)
+	)
+	if first_mission_destruction:
+		target.set_meta("destruction_authority_committed", true)
+		_destroyed_target_count += 1
 	target.collision_layer = 0
 	target.collision_mask = 0
 	for child in target.get_children():
 		if child is CollisionShape3D:
 			(child as CollisionShape3D).set_deferred("disabled", true)
-	target_destroyed.emit(target_id, hit_position)
+	if first_mission_destruction:
+		target_destroyed.emit(target_id, hit_position)
 	return true
 
 
@@ -8507,22 +8674,34 @@ func present_authorized_target_destruction(
 	if not is_instance_valid(target) or bool(target.get_meta("destruction_visual_committed", false)):
 		return
 	target.set_meta("destruction_visual_committed", true)
-	_spawn_target_burst(target.global_position)
+	var target_instance_id := target.get_instance_id()
+	var adapter := target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+	var component_generation := int(
+		adapter.get_component_snapshot().get("generation", 0) if adapter != null else 0
+	)
+	var burst := _spawn_target_burst(target.global_position)
+	burst.set_meta("range_target_instance_id", target_instance_id)
+	burst.set_meta("range_target_generation", component_generation)
+	_range_target_destruction_residue[target_instance_id] = burst
 
 	var tween := create_tween()
+	_range_target_destruction_tweens[target_instance_id] = tween
 	tween.set_parallel(true)
 	tween.set_trans(Tween.TRANS_BACK)
 	tween.set_ease(Tween.EASE_IN)
 	# Never collapse a PhysicsBody3D transform to a singular basis. Tween only
 	# the visual child so the disabled collision remains mathematically valid.
 	var target_visual := target.get_node_or_null("DroneVisual") as Node3D
+	target.set_meta("pre_destruction_rotation", target.rotation)
 	if target_visual != null:
 		tween.tween_property(target_visual, "scale", Vector3.ZERO, 0.34)
 	tween.tween_property(target, "rotation", target.rotation + Vector3(0.8, 1.5, 1.1), 0.34)
-	tween.chain().tween_callback(target.queue_free)
+	tween.chain().tween_callback(
+		_finish_range_target_collapse.bind(weakref(target), target_instance_id)
+	)
 
 
-func _spawn_impact(world_position: Vector3, color: Color) -> void:
+func _spawn_impact(world_position: Vector3, color: Color) -> MeshInstance3D:
 	var impact_material := _material(color, 0.0, 0.3, color, 6.0)
 	var impact := _sphere(self, "ProjectileImpact", world_position, 0.16, impact_material, false)
 	impact.top_level = true
@@ -8532,9 +8711,10 @@ func _spawn_impact(world_position: Vector3, color: Color) -> void:
 	tween.tween_property(impact, "scale", Vector3.ONE * 4.0, 0.18)
 	tween.tween_property(impact, "rotation", Vector3(0.5, 1.2, 0.8), 0.18)
 	tween.chain().tween_callback(impact.queue_free)
+	return impact
 
 
-func _spawn_target_burst(world_position: Vector3) -> void:
+func _spawn_target_burst(world_position: Vector3) -> Node3D:
 	var burst := Node3D.new()
 	burst.name = "TargetBurst"
 	add_child(burst)
@@ -8559,7 +8739,48 @@ func _spawn_target_burst(world_position: Vector3) -> void:
 		tween.tween_property(fragment, "position", direction * 5.5, 0.48)
 		tween.tween_property(fragment, "scale", Vector3.ZERO, 0.48)
 	var cleanup := get_tree().create_timer(0.55)
-	cleanup.timeout.connect(burst.queue_free)
+	cleanup.timeout.connect(_finish_range_target_burst.bind(weakref(burst)))
+	return burst
+
+
+func _finish_range_target_collapse(target_reference: WeakRef, target_instance_id: int) -> void:
+	_range_target_destruction_tweens.erase(target_instance_id)
+	var target := target_reference.get_ref() as StaticBody3D if target_reference != null else null
+	if not is_instance_valid(target) or not bool(target.get_meta("destroyed", false)):
+		return
+	var visual := target.get_node_or_null("DroneVisual") as Node3D
+	if visual != null:
+		visual.visible = false
+
+
+func _finish_range_target_burst(burst_reference: WeakRef) -> void:
+	var burst := burst_reference.get_ref() as Node3D if burst_reference != null else null
+	if not is_instance_valid(burst):
+		return
+	var target_instance_id := int(burst.get_meta("range_target_instance_id", 0))
+	if _range_target_destruction_residue.get(target_instance_id) == burst:
+		_range_target_destruction_residue.erase(target_instance_id)
+	burst.queue_free()
+
+
+func _clear_range_target_destruction_residue(target: StaticBody3D) -> void:
+	if not is_instance_valid(target):
+		return
+	var target_instance_id := target.get_instance_id()
+	var tween := _range_target_destruction_tweens.get(target_instance_id) as Tween
+	if tween != null and tween.is_valid():
+		tween.kill()
+	_range_target_destruction_tweens.erase(target_instance_id)
+	var burst := _range_target_destruction_residue.get(target_instance_id) as Node3D
+	if is_instance_valid(burst):
+		burst.queue_free()
+	_range_target_destruction_residue.erase(target_instance_id)
+	for impact in find_children("ProjectileImpact", "MeshInstance3D", true, false):
+		if int(impact.get_meta("range_target_instance_id", 0)) == target_instance_id:
+			impact.queue_free()
+	if target.has_meta("pre_destruction_rotation"):
+		target.rotation = target.get_meta("pre_destruction_rotation") as Vector3
+		target.remove_meta("pre_destruction_rotation")
 
 
 func _animate_crane() -> void:

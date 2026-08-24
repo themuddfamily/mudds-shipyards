@@ -172,6 +172,102 @@ func _run() -> void:
 		"re-entry never resurrects an authorized target or duplicates its model and mission count"
 	)
 
+	var destroyed_generation := int(adapter.get_component_snapshot().get("generation", 0))
+	var destroyed_residue_before_reset := world.find_children(
+		"TargetBurst", "Node3D", true, false
+	).size()
+	var regenerated: Dictionary = world.reset_range_target_for_reuse(target)
+	await process_frame
+	var recovery: Dictionary = world.get_range_target_component_recovery_report(target)
+	_check(
+		bool(regenerated.get("accepted", false))
+		and bool(recovery.get("valid", false))
+		and destroyed_residue_before_reset > 0
+		and world.find_children("TargetBurst", "Node3D", true, false).is_empty()
+		and int(adapter.get_component_snapshot().get("generation", 0)) == destroyed_generation + 1
+		and is_equal_approx(float(target.get_meta("health", -1.0)), maximum_health)
+		and not bool(target.get_meta("destroyed", true))
+		and target.collision_layer != 0
+		and not collision_shape.disabled
+		and visual.visible
+		and visual.scale.is_equal_approx(Vector3.ONE)
+		and frame.get_meta("component_stage", &"") == &"nominal"
+		and core.get_meta("component_stage", &"") == &"nominal"
+		and world.get_destroyed_target_count() == 1,
+		"destroyed target regeneration restores frame/core, collision, visuals, and clears burst residue without duplicating mission authority"
+	)
+
+	var deferred_receipt := 7101
+	var deferred_result := adapter.apply_damage(
+		maximum_health * 0.34,
+		target.global_position,
+		Vector3.FORWARD,
+		{"presentation_receipt_id": deferred_receipt, "source_id": 1101}
+	)
+	var duplicate_admission: bool = world.defer_target_damage_presentation(
+		deferred_receipt,
+		target,
+		StringName(target.get_meta("target_id", &"UNKNOWN")),
+		target.global_position,
+		false
+	)
+	_check(
+		bool(deferred_result.get("accepted", false))
+		and world.get_pending_target_damage_presentation_count() == 1
+		and frame.get_meta("component_stage", &"") == &"nominal"
+		and core.get_meta("component_stage", &"") == &"nominal"
+		and not duplicate_admission,
+		"component authority commits before receipt-timed localized presentation and duplicate receipt admission is inert"
+	)
+	_check(
+		world.commit_deferred_damage_presentation(deferred_receipt)
+		and not world.commit_deferred_damage_presentation(deferred_receipt)
+		and frame.get_meta("component_stage", &"nominal") != &"nominal"
+		and core.get_meta("component_stage", &"nominal") != &"nominal",
+		"one matching receipt presents current frame/core state exactly once"
+	)
+
+	var stale_receipt := 7102
+	adapter.apply_damage(
+		maximum_health * 0.10,
+		target.global_position,
+		Vector3.FORWARD,
+		{"presentation_receipt_id": stale_receipt, "source_id": 1101}
+	)
+	var generation_before_fence := int(adapter.get_component_snapshot().get("generation", 0))
+	var fenced_reset: Dictionary = world.reset_range_target_for_reuse(target)
+	_check(
+		bool(fenced_reset.get("accepted", false))
+		and int(adapter.get_component_snapshot().get("generation", 0)) == generation_before_fence + 1
+		and not world.commit_deferred_damage_presentation(stale_receipt)
+		and world.get_pending_target_damage_presentation_count() == 0
+		and bool(world.get_range_target_component_recovery_report(target).get("valid", false)),
+		"regeneration discards stale generation-bound receipts before they can replay component presentation"
+	)
+
+	var reused_lethal := adapter.apply_damage(
+		maximum_health,
+		target.global_position,
+		Vector3.FORWARD,
+		{"source_id": 1101, "sequence": 99}
+	)
+	_check(
+		bool(reused_lethal.get("destroyed", false))
+		and bool(target.get_meta("destroyed", false))
+		and world.get_destroyed_target_count() == 1,
+		"destroying a regenerated training target reuses collision/destruction authority without a second mission reward"
+	)
+	var final_reset: Dictionary = world.reset_range_target_for_reuse(target)
+	await process_frame
+	_check(
+		bool(final_reset.get("accepted", false))
+		and bool(world.get_range_target_component_recovery_report(target).get("valid", false))
+		and world.find_children("TargetBurst", "Node3D", true, false).is_empty()
+		and world.get_destroyed_target_count() == 1,
+		"repeat regeneration ends with a clean reusable target and no component or destruction residue"
+	)
+
+	await create_timer(0.6).timeout
 	world.queue_free()
 	authority.queue_free()
 	await process_frame
