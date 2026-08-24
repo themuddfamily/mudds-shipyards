@@ -44,6 +44,10 @@ const CARGO_POD_POSITIONS := [
 	Vector3(3.35, 0.05, 0.4),
 ]
 const CARGO_POD_SIZE := Vector3(2.15, 2.5, 6.4)
+const ROUTE_INTENT_CUE_POSITION := Vector3(0.0, 1.2, -1.9)
+const ROUTE_INTENT_CUE_ROTATION := Vector3(-PI * 0.5, 0.0, 0.0)
+const ROUTE_INTENT_CUE_HEIGHT := 2.8
+const ROUTE_INTENT_CUE_RADIUS := 0.42
 const MAXIMUM_PRESENTATION_POD_SPREAD := 2.2
 const COMPLETED_PRESENTATION_POD_TUCK := -0.75
 const CRITICAL_SEPARATION_FRACTION := 0.75
@@ -70,6 +74,7 @@ var _activity: ConvoyEscortActivity
 var _convoy_entity: Node3D
 var _cargo_pod_mesh: BoxMesh
 var _cargo_pod_multimesh: MultiMesh
+var _route_intent_cue_mesh: CylinderMesh
 var _visual_feedback_snapshot: Dictionary = {}
 var _built := false
 var _attached := false
@@ -817,7 +822,20 @@ func _build_entity_visuals() -> void:
 	_convoy_entity.add_child(starboard_cargo_pod)
 	_box("DriveBlock", Vector3(3.8, 1.5, 1.2), Vector3(0.0, -0.05, 5.25), dark_material)
 	_box("DriveGlow", Vector3(3.0, 0.72, 0.16), Vector3(0.0, -0.05, 5.92), glow_material)
-	_box("NavigationBeacon", Vector3(0.42, 0.34, 0.42), Vector3(0.0, 1.2, -1.2), beacon_material)
+	_route_intent_cue_mesh = CylinderMesh.new()
+	_route_intent_cue_mesh.top_radius = 0.0
+	_route_intent_cue_mesh.bottom_radius = ROUTE_INTENT_CUE_RADIUS
+	_route_intent_cue_mesh.height = ROUTE_INTENT_CUE_HEIGHT
+	_route_intent_cue_mesh.radial_segments = 12
+	_route_intent_cue_mesh.rings = 1
+	var route_intent_cue := MeshInstance3D.new()
+	route_intent_cue.name = "NavigationBeacon"
+	route_intent_cue.mesh = _route_intent_cue_mesh
+	route_intent_cue.material_override = beacon_material
+	route_intent_cue.position = ROUTE_INTENT_CUE_POSITION
+	route_intent_cue.rotation = ROUTE_INTENT_CUE_ROTATION
+	route_intent_cue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_convoy_entity.add_child(route_intent_cue)
 
 
 func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
@@ -898,6 +916,7 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 	var response_serial := int(_visual_feedback_snapshot.get("arrival_response_serial", 0))
 	if response_active and not previous_response_active:
 		response_serial += 1
+	var route_intent := _route_intent_snapshot(activity_snapshot, activity_state)
 	_visual_feedback_snapshot = {
 		"geometry_state": geometry_state,
 		"engine_state": engine_state,
@@ -912,6 +931,17 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 		"pod_spread": pod_spread,
 		"drive_scale": drive_scale,
 		"beacon_scale": beacon_scale,
+		"route_intent_cue_id": &"emberline_route_vane",
+		"route_intent_state": route_intent.get("state", &"unavailable"),
+		"route_intent_active": bool(route_intent.get("active", false)),
+		"route_target_index": int(route_intent.get("target_index", -1)),
+		"route_target_position": route_intent.get("target_position", Vector3.ZERO),
+		"route_direction_world": route_intent.get("direction_world", Vector3.ZERO),
+		"route_cue_local_forward": Vector3.FORWARD,
+		"retained_world_space_cue": true,
+		"steady_state_only": true,
+		"uses_timers": false,
+		"uses_raw_input": false,
 		"uses_authoritative_activity_snapshot": true,
 		"static_geometry_only": true,
 		"movement_authority": false,
@@ -919,6 +949,52 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 		"reward_authority": false,
 		"restored_terminal_presentation": not activity_override.is_empty(),
 	}.duplicate(true)
+
+
+## Derives presentation-only route intent from the activity's current ordered
+## leg and the host's authoritative world transform. The retained vane never
+## advances a leg or chooses motion; it only makes the already-selected route
+## direction visible. At the initial route position, leg zero is already under
+## the tender, so the useful outward intent is the first travel leg.
+func _route_intent_snapshot(
+	activity_snapshot: Dictionary,
+	activity_state: StringName
+	) -> Dictionary:
+	var cue_state: StringName = &"unavailable"
+	var target_index := -1
+	if activity_state == &"idle":
+		cue_state = &"standby"
+		target_index = 1
+	elif activity_state == &"active":
+		cue_state = &"next_leg"
+		target_index = int(activity_snapshot.get("next_leg_index", _next_route_index))
+		if target_index == 0 \
+				and _convoy_entity.position.distance_to(ROUTE.get_checkpoint_position(0)) \
+				<= ROUTE.checkpoint_radius:
+			target_index = 1
+	elif activity_state == &"completed":
+		cue_state = &"secured"
+	elif activity_state in [&"failed", &"aborted"]:
+		cue_state = &"unavailable"
+	if target_index < 0 or target_index >= ROUTE.get_checkpoint_count():
+		return {
+			"state": cue_state,
+			"active": false,
+			"target_index": -1,
+			"target_position": Vector3.ZERO,
+			"direction_world": Vector3.ZERO,
+		}
+	var target_position := ROUTE.get_checkpoint_position(target_index)
+	var direction := target_position - _convoy_entity.position
+	return {
+		"state": cue_state,
+		"active": direction.length_squared() > 0.000001,
+		"target_index": target_index,
+		"target_position": target_position,
+		"direction_world": (
+			direction.normalized() if direction.length_squared() > 0.000001 else Vector3.ZERO
+		),
+	}
 
 
 func _cargo_pod_presentation_transforms(pod_spread: float) -> Array[Transform3D]:
