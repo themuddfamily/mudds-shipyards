@@ -1043,14 +1043,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 908,
-			"mesh_instance_nodes": 418,
-			"multimesh_nodes": 3,
-			"surfaces": 409,
-			"visible_copies": 438,
+			"descendant_nodes": 899,
+			"mesh_instance_nodes": 402,
+			"multimesh_nodes": 10,
+			"surfaces": 390,
+			"visible_copies": 442,
 		}
 		and _renderer_census(module) == renderer_before,
-		"module renderer census stays exact at 908 descendants, 409 submissions, and 438 visible copies"
+		"module renderer census stays exact at 899 descendants, 390 submissions, and 442 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

@@ -173,12 +173,12 @@ const GUIDE_LENS_BASELINE_MATERIAL_RESOURCES := 18
 const GUIDE_LENS_CYAN_COLOR := Color("4bdce3")
 const GUIDE_LENS_AMBER_COLOR := Color("f6a445")
 
-## Standalone module census frozen around the dock-guide batching change. The
-## twelve 60-triangle copies remain exact; only renderer/node representation
-## changes. Collision and authority counts are unchanged. `all_nodes_checked`
-## follows the intentional node reduction; every semantic authority field stays
-## at its prior value (zero authority IDs/leases/spawns/activity/audio/berths,
-## one existing StationDoor interaction area, network role none).
+## Standalone module census first frozen around the dock-guide batching change.
+## The current aggregate advances with the later immutable visual families while
+## collision and authority counts remain unchanged. `all_nodes_checked` follows
+## the intentional node reduction; every semantic authority field stays at its
+## prior value (zero authority IDs/leases/spawns/activity/audio/berths, one
+## existing StationDoor interaction area, network role none).
 const DOCK_GUIDE_BATCH_CENSUS_BEFORE := {
 	"descendant_nodes": 920,
 	"mesh_instance_nodes": 439,
@@ -190,12 +190,12 @@ const DOCK_GUIDE_BATCH_CENSUS_BEFORE := {
 	"collision_shapes": 210,
 }
 const DOCK_GUIDE_BATCH_CENSUS_AFTER := {
-	"descendant_nodes": 907,
-	"mesh_instance_nodes": 418,
-	"multimesh_nodes": 2,
-	"geometry_submissions": 420,
-	"visible_geometry_copies": 438,
-	"drawn_triangles": 61192,
+	"descendant_nodes": 899,
+	"mesh_instance_nodes": 402,
+	"multimesh_nodes": 10,
+	"geometry_submissions": 412,
+	"visible_geometry_copies": 464,
+	"drawn_triangles": 67324,
 	"static_bodies": 206,
 	"collision_shapes": 209,
 }

@@ -20,7 +20,7 @@ func _run() -> void:
 	var apron := module.get_node("LoadingApron")
 	_check(
 		census == JovianFreightBerth.DOCK_GUIDE_BATCH_CENSUS_AFTER,
-		"standalone census freezes 920 -> 909 nodes and 439 -> 428 submissions with copies/triangles/collision exact"
+		"standalone census freezes 920 -> 899 nodes and 439 -> 412 submissions with 464 copies and collision exact"
 	)
 	var contract := module.get_dock_guide_batch_contract()
 	_check(
