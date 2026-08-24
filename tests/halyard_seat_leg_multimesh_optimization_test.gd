@@ -1,8 +1,8 @@
 extends SceneTree
 
-## Focused Phase 9 performance contract: the six identical Halyard cabin seat
-## legs are one presentation-only MultiMesh batch. Seat roots, anchors and the
-## live loadmaster receipt path remain independent gameplay structure.
+## Focused Halyard cabin trim contract: the identical seat legs and backs are
+## presentation-only MultiMesh batches. Seat roots, anchors and the live
+## loadmaster receipt path remain independent gameplay structure.
 
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
@@ -22,21 +22,6 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	await physics_frame
-
-	var render := craft.get_halyard_render_allocation_report()
-	_check(
-		int(render.get("mesh_instances", -1)) == 116
-			and int(render.get("geometry_submissions", -1)) == 119
-			and int(render.get("multimesh_batches", -1)) == 3
-			and bool(render.get("exact_counts", false)),
-		"the exterior renderer budget remains unchanged by the interior seat-leg batch"
-	)
-	_check(
-		int(render.get("drawn_copies", -1)) == 163
-			and int(render.get("unique_mesh_resources", -1)) == 65
-			and int(render.get("unique_material_resources", -1)) == 14,
-		"the seat-leg batch preserves drawn copies, mesh identity and the cumulative budget"
-	)
 
 	var cabin := craft.get_node_or_null(^"WalkableInterior/CrewCabin") as Node3D
 	var leg_meshes := cabin.find_children("SeatLeg", "MeshInstance3D", true, false) \
@@ -80,6 +65,64 @@ func _run() -> void:
 			and leg_names[5] == "StarboardCrewSeat02/SeatLeg",
 		"the batch preserves deterministic seat-leg identities for inspection"
 	)
+	var back_meshes := cabin.find_children("SeatBack", "MeshInstance3D", true, false) \
+		if cabin != null else []
+	var back_batch := craft.get_node_or_null(^"WalkableInterior/CrewCabin/CrewSeatBackBatch") as MultiMeshInstance3D
+	var back_names := back_batch.get_meta("authored_visual_names", PackedStringArray()) as PackedStringArray \
+		if back_batch != null else PackedStringArray()
+	var back_transforms := back_batch.get_meta("authored_instance_transforms", []) as Array \
+		if back_batch != null else []
+	_check(
+		back_batch != null
+			and back_batch.get_parent() == cabin
+			and back_batch.get_meta("visual_detail_only", false)
+			and back_batch.material_override == craft.get_variant_materials().get("cloth")
+			and back_names.size() == HalyardCrewTransport.CREW_SEAT_BACK_COPY_COUNT
+			and back_transforms.size() == HalyardCrewTransport.CREW_SEAT_BACK_COPY_COUNT
+			and back_meshes.is_empty()
+			and back_batch.multimesh != null
+			and back_batch.multimesh.instance_count == HalyardCrewTransport.CREW_SEAT_BACK_COPY_COUNT
+			and back_batch.multimesh.mesh.get_surface_count() == 1
+			and back_batch.get_child_count() == 0
+			and back_batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"six one-surface seat-back submissions collapse to one collision-free cabin batch"
+	)
+	var back_transforms_match := true
+	for index in HalyardCrewTransport.CREW_SEAT_BACK_COPY_COUNT:
+		var transform := back_transforms[index] as Transform3D
+		var side := -1.0 if index < 3 else 1.0
+		var row_index := index % 3
+		var expected := Transform3D(
+			Basis.from_euler(Vector3(deg_to_rad(8.0), 0.0, 0.0)),
+			Vector3(
+				side * HalyardCrewTransport.CREW_SEAT_HALF_SPACING,
+				1.46,
+				HalyardCrewTransport.CREW_SEAT_ROWS[row_index] + 0.40
+			)
+		)
+		if not transform.is_equal_approx(expected):
+			back_transforms_match = false
+	_check(back_transforms_match, "seat-back batch preserves every authored local transform and tilt")
+	_check(
+		back_names[0] == "PortCrewSeat00/SeatBack"
+			and back_names[2] == "PortCrewSeat02/SeatBack"
+			and back_names[3] == "StarboardCrewSeat00/SeatBack"
+			and back_names[5] == "StarboardCrewSeat02/SeatBack",
+		"the batch preserves deterministic seat-back identities for inspection"
+	)
+	var all_seat_roots_and_anchors_remain := true
+	for side_name in ["Port", "Starboard"]:
+		for row_index in 3:
+			var seat_root := cabin.get_node_or_null("%sCrewSeat%02d" % [side_name, row_index]) as Node3D
+			if seat_root == null or seat_root.get_node_or_null(^"CrewSeatAnchor") == null:
+				all_seat_roots_and_anchors_remain = false
+	_check(
+		back_batch != null
+			and back_batch.multimesh != null
+			and back_batch.multimesh.buffer == _encode_multimesh_transforms(back_transforms)
+			and all_seat_roots_and_anchors_remain,
+		"the renderer buffer is exact while every seat root and anchor remains available"
+	)
 
 	_check(craft.get_loadmaster_station_anchor() != null, "the loadmaster seat anchor survives the seat-leg batch")
 	var authority := Authority.new(1)
@@ -105,6 +148,13 @@ func _run() -> void:
 			and (receipt.get("effect", {}) as Dictionary).get("receipt", {}).get("manifest_id", &"") == &"leg_manifest",
 		"the seat-leg optimization leaves loadmaster manifest receipts functional"
 	)
+	var allocation_report := craft.get_halyard_render_allocation_report()
+	var audit_report := craft.get_halyard_audit_report()
+	_check(
+		bool(allocation_report.get("exact_counts", false))
+			and bool(audit_report.get("valid", false)),
+		"the complete Halyard render census and component audit remain green"
+	)
 
 	craft.queue_free()
 	await process_frame
@@ -121,3 +171,24 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _encode_multimesh_transforms(transforms: Array) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index] as Transform3D
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer

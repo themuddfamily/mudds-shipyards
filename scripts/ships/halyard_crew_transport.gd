@@ -322,6 +322,10 @@ const AFT_RACK_PANEL_COPY_COUNT := 6
 ## silhouettes may share one renderer without changing traversal authority.
 const AIRSTAIR_TREAD_SIZE := Vector3(0.46, 0.14, 1.55)
 const AIRSTAIR_TREAD_COPY_COUNT := 4
+## The six crew-seat backs are equal, childless cabin presentation. The seat
+## roots and their anchors retain every occupant and role contract.
+const CREW_SEAT_BACK_SIZE := Vector3(0.68, 0.92, 0.15)
+const CREW_SEAT_BACK_COPY_COUNT := 6
 const RENDER_DESCENDANT_COUNT := 116
 const RENDER_MESH_INSTANCE_COUNT := 105
 const RENDER_MULTIMESH_BATCH_COUNT := 6
@@ -2867,6 +2871,8 @@ func _build_crew_cabin() -> void:
 	var cabin_window_pane_names := PackedStringArray()
 	var crew_seat_leg_transforms: Array[Transform3D] = []
 	var crew_seat_leg_names := PackedStringArray()
+	var crew_seat_back_transforms: Array[Transform3D] = []
+	var crew_seat_back_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_crew_cabin, side_name + "CabinSidewall", Vector3(side * 2.46, 1.92, -3.65), Vector3(0.18, 2.86, 12.50), _halyard_materials.structure)
@@ -2893,9 +2899,13 @@ func _build_crew_cabin() -> void:
 			seat_root.position = Vector3(side * CREW_SEAT_HALF_SPACING, 0.0, CREW_SEAT_ROWS[row_index])
 			_crew_cabin.add_child(seat_root)
 			_box(seat_root, "SeatBase", Vector3(0.0, 0.92, 0.0), Vector3(0.68, 0.18, 0.76), _halyard_materials.cloth)
-			_box(seat_root, "SeatBack", Vector3(0.0, 1.46, 0.40), Vector3(0.68, 0.92, 0.15), _halyard_materials.cloth, Vector3(deg_to_rad(8.0), 0.0, 0.0))
 			_box(seat_root, "SeatHeadrest", Vector3(0.0, 1.98, 0.44), Vector3(0.48, 0.26, 0.18), _halyard_materials.trim)
 			_box(seat_root, "SeatHarness", Vector3(0.0, 1.44, 0.28), Vector3(0.11, 0.66, 0.05), _halyard_materials.accent)
+			crew_seat_back_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(8.0), 0.0, 0.0)),
+				seat_root.position + Vector3(0.0, 1.46, 0.40)
+			))
+			crew_seat_back_names.append(seat_root.name + "/SeatBack")
 			crew_seat_leg_transforms.append(Transform3D(
 				Basis.IDENTITY,
 				seat_root.position + Vector3(0.0, 0.70, 0.10)
@@ -2936,6 +2946,21 @@ func _build_crew_cabin() -> void:
 		_halyard_materials.structure,
 		crew_seat_leg_transforms,
 		crew_seat_leg_names
+	)
+	# The six matching seat backs are presentation only. Their seat roots and
+	# anchors remain ordinary nodes for occupancy, roles and boarding; this batch
+	# solely replaces six identical one-surface renderer submissions with one.
+	var seat_back_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		CREW_SEAT_BACK_SIZE,
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_crew_cabin,
+		"CrewSeatBackBatch",
+		seat_back_mesh,
+		_halyard_materials.cloth,
+		crew_seat_back_transforms,
+		crew_seat_back_names
 	)
 	# Open pressure frames make the forward and aft connections explicit rather
 	# than leaving two blank bulkheads.
