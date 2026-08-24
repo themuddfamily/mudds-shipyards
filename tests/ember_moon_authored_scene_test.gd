@@ -2,7 +2,9 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 58
+const EXPECTED_ASSERTIONS := 63
+const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
+const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -34,6 +36,7 @@ func _run() -> void:
 	_test_surface_material_hierarchy(scene)
 	_test_collision(scene)
 	await _test_embodied_surface_traversal(scene)
+	await _test_embodied_crown_jump_collision(scene)
 	_test_lod_seam(scene)
 	await _test_detachment_and_structured_reds(packed, scene)
 	scene.queue_free()
@@ -72,13 +75,13 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 63
+		audit.performance.node_count == 70
 			and audit.performance.mesh_instances == 19
-			and audit.performance.multi_mesh_instances == 4
-			and audit.performance.multi_mesh_copies == 15
-			and audit.performance.render_submissions == 23
+			and audit.performance.multi_mesh_instances == 5
+			and audit.performance.multi_mesh_copies == 21
+			and audit.performance.render_submissions == 24
 			and audit.performance.static_bodies == 7
-			and audit.performance.collision_shapes == 19
+			and audit.performance.collision_shapes == 25
 			and audit.performance.triangle_count <= 8192,
 		"live topology and primitive triangles stay inside the exact bounded budget",
 	)
@@ -164,9 +167,32 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 		gantry != null and gantry.position == Vector3(34.0, 0.0, 0.0)
 			and port_pylon != null and (port_pylon.mesh as BoxMesh).size == Vector3(1.2, 7.2, 1.4)
 			and dead_sensor != null and is_equal_approx(dead_sensor.position.y, 10.95)
-			and is_equal_approx(float(snapshot.geometry.derelict_gantry_height_m), 11.175)
+			and is_equal_approx(float(snapshot.geometry.derelict_gantry_height_m), 15.25)
 			and is_equal_approx(float(snapshot.geometry.derelict_gantry_span_m), 11.8),
-		"the broken survey gantry carries an eleven-metre flight and on-foot silhouette over the return leg",
+		"the broken survey gantry carries a fifteen-metre flight and on-foot silhouette over the return leg",
+	)
+	var crown := gantry.get_node_or_null(^"NavigationCrownVisuals") as MultiMeshInstance3D \
+		if gantry != null else null
+	var crown_multi := crown.multimesh if crown != null else null
+	var crown_mesh := crown_multi.mesh as BoxMesh if crown_multi != null else null
+	var crown_transforms: Array = crown.get_meta("authored_transforms", []) as Array \
+		if crown != null else []
+	_check(
+		crown != null and crown.get_child_count() == 0
+			and crown_multi != null and crown_multi.instance_count == 6
+			and crown_mesh != null and crown_mesh.size == Vector3.ONE
+			and crown.material_override == dead_sensor.material_override
+			and crown_multi.custom_aabb.is_equal_approx(AABB(
+				Vector3(-4.5, 11.05, -6.4), Vector3(9.0, 4.2, 9.0)
+			))
+			and crown_transforms.size() == 6
+			and (crown_transforms[0] as Transform3D).basis.get_scale().is_equal_approx(Vector3(9.0, 0.7, 0.7))
+			and (crown_transforms[1] as Transform3D).basis.get_scale().is_equal_approx(Vector3(0.7, 0.7, 9.0))
+			and bool(crown.get_meta("solid_visual_collision", false))
+			and crown.get_meta("readable_axes", PackedStringArray()) == PackedStringArray(["flight_z", "walked_route_x"])
+			and is_equal_approx(float(snapshot.geometry.derelict_gantry_navigation_crown_cross_span_m), 9.0)
+			and float(snapshot.geometry.derelict_gantry_navigation_crown_minimum_clearance_m) > 11.0,
+		"one passive oxide compass crown presents a broad nine-metre face to both low flight and the walked route",
 	)
 	_check(
 		gantry != null
@@ -430,6 +456,26 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 			and expected_body != null and not hit.is_empty() \
 			and hit.collider == expected_body
 	_check(all_solids_collide, "every visually solid guide, rack, relay, gantry, and bunker owns matching World collision")
+	var crown_probe_origins := [
+		Vector3(36.0, 120_012.75, -1.9),
+		Vector3(34.0, 120_012.75, 1.0),
+		Vector3(38.15, 120_016.25, -1.9),
+		Vector3(29.85, 120_016.25, -1.9),
+		Vector3(34.0, 120_016.25, 2.25),
+		Vector3(34.0, 120_016.25, -6.05),
+	]
+	var crown_solids_collide := true
+	var gantry_body := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"
+	) as StaticBody3D
+	for origin: Vector3 in crown_probe_origins:
+		var crown_hit := _ray_hit(space, origin)
+		crown_solids_collide = crown_solids_collide \
+			and not crown_hit.is_empty() and crown_hit.collider == gantry_body
+	_check(
+		crown_solids_collide,
+		"production World queries hit both crown crossbars and all four reachable fins",
+	)
 	var corridor_clear := true
 	for x in [14.8, 28.0, 34.0, 42.0]:
 		var route_hit := _ray_hit(space, Vector3(x, 120_002.0, 0.0))
@@ -439,9 +485,9 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 	var collision_snapshot := scene.get_snapshot().collision as Dictionary
 	_check(
 		int(collision_snapshot.landmark_static_body_count) == 6
-			and int(collision_snapshot.solid_landmark_collision_shape_count) == 18
+			and int(collision_snapshot.solid_landmark_collision_shape_count) == 24
 			and is_equal_approx(float(collision_snapshot.route_clear_half_width_m), 2.0),
-		"surface collision snapshot freezes six landmark bodies and eighteen solid shapes",
+		"surface collision snapshot freezes six landmark bodies and twenty-four solid shapes",
 	)
 
 
@@ -504,6 +550,83 @@ func _test_embodied_surface_traversal(scene: EmberMoonAuthoredScene) -> void:
 		maximum_lateral_offset <= 0.2,
 		"landmark collision preserves the straight four-metre negative-space corridor",
 	)
+	player.queue_free()
+	await process_frame
+	scene.position = Vector3.ZERO
+	await physics_frame
+
+
+func _test_embodied_crown_jump_collision(scene: EmberMoonAuthoredScene) -> void:
+	# EmberSurfaceLoopHost composes its 1.62 m/s2 tangent gravity through this
+	# exact public multiplier. At the production 7.4 m/s jump velocity, an
+	# unobstructed Player would rise well above the crown's 11.05 m underside.
+	scene.position = Vector3(0.0, -120_000.0, 0.0)
+	await physics_frame
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	root.add_child(player)
+	await process_frame
+	player.set_camera_active(false)
+	player.gravity_multiplier = EMBER_SURFACE_GRAVITY_MPS2 / PROJECT_GRAVITY_MPS2
+	var collision := player.get_node(^"PlayerCollision") as CollisionShape3D
+	var capsule := collision.shape as CapsuleShape3D
+	var unblocked_rise_m := player.jump_velocity * player.jump_velocity \
+		/ (2.0 * EMBER_SURFACE_GRAVITY_MPS2)
+	_check(
+		is_equal_approx(float(ProjectSettings.get_setting("physics/3d/default_gravity")), PROJECT_GRAVITY_MPS2)
+			and is_equal_approx(player.gravity_multiplier, 0.09)
+			and is_equal_approx(player.jump_velocity, 7.4)
+			and unblocked_rise_m > EmberMoonAuthoredScene.GANTRY_CROWN_MINIMUM_CLEARANCE_M,
+		"production Player uses Ember's exact 1.62 m/s2 gravity and can ballistically reach the crown",
+	)
+	var gantry := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"
+	) as StaticBody3D
+	var jump_starts := [
+		Vector3(36.0, 0.05, -1.9), # Under the broad flight-facing X crossbar.
+		Vector3(34.0, 0.05, 1.0), # Under the broad walked-route-facing Z crossbar.
+	]
+	var both_left_floor := true
+	var both_hit_gantry_ceiling := true
+	var both_returned_to_floor := true
+	var maximum_capsule_top_m := -INF
+	for jump_start: Vector3 in jump_starts:
+		player.teleport_to(Transform3D(Basis.IDENTITY, jump_start))
+		for _settle in 12:
+			await physics_frame
+		Input.action_release(&"jump")
+		await physics_frame
+		Input.action_press(&"jump")
+		var left_floor := false
+		var hit_gantry_ceiling := false
+		var returned_to_floor := false
+		for frame in 480:
+			await physics_frame
+			if frame == 0:
+				Input.action_release(&"jump")
+			left_floor = left_floor or not player.is_on_floor()
+			maximum_capsule_top_m = maxf(
+				maximum_capsule_top_m,
+				player.global_position.y + capsule.height,
+			)
+			if player.is_on_ceiling():
+				for collision_index in player.get_slide_collision_count():
+					var slide := player.get_slide_collision(collision_index)
+					hit_gantry_ceiling = hit_gantry_ceiling or slide.get_collider() == gantry
+			if left_floor and player.is_on_floor():
+				returned_to_floor = true
+				break
+		both_left_floor = both_left_floor and left_floor
+		both_hit_gantry_ceiling = both_hit_gantry_ceiling and hit_gantry_ceiling
+		both_returned_to_floor = both_returned_to_floor and returned_to_floor
+	_check(
+		both_left_floor and both_hit_gantry_ceiling and both_returned_to_floor,
+		"real Ember-gravity jumps contact both crown axes through production CharacterBody motion",
+	)
+	_check(
+		maximum_capsule_top_m <= EmberMoonAuthoredScene.GANTRY_CROWN_MINIMUM_CLEARANCE_M + 0.02,
+		"the reachable Player capsule never penetrates the crown's solid underside",
+	)
+	Input.action_release(&"jump")
 	player.queue_free()
 	await process_frame
 	scene.position = Vector3.ZERO

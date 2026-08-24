@@ -82,6 +82,23 @@ const GANTRY_BOOM_TILT_RADIANS := 0.18
 const GANTRY_SENSOR_SIZE_M := Vector3(2.6, 0.45, 1.2)
 const GANTRY_SENSOR_POSITION_M := Vector3(0.36, 10.95, -1.9)
 const GANTRY_SENSOR_TILT_RADIANS := -0.12
+## A high, orthogonal survey crown gives the existing derelict a broad profile
+## along both the orbital approach (+/-Z) and walked pad route (+/-X). The six
+## oxide members retain exact World collision on the existing gantry body, so
+## a production-gravity jump or ship contact cannot pass through solid-looking
+## reachable geometry. The route clearance and gameplay authority stay below.
+const GANTRY_CROWN_INSTANCE_COUNT := 6
+const GANTRY_CROWN_CENTRE_M := Vector3(0.0, 11.4, -1.9)
+const GANTRY_CROWN_CROSS_SPAN_M := 9.0
+const GANTRY_CROWN_BAR_THICKNESS_M := 0.7
+const GANTRY_CROWN_FIN_HEIGHT_M := 4.2
+const GANTRY_CROWN_FIN_OFFSET_M := 4.15
+const GANTRY_CROWN_MAXIMUM_HEIGHT_M := 15.25
+const GANTRY_CROWN_MINIMUM_CLEARANCE_M := 11.05
+const GANTRY_CROWN_BATCH_BOUNDS := AABB(
+	Vector3(-4.5, 11.05, -6.4),
+	Vector3(9.0, 4.2, 9.0),
+)
 const GANTRY_ACCESS_POSITION_M := Vector3(34.0, 0.0, -7.0)
 const GANTRY_PYLON_MIN_ROUTE_CLEARANCE_M := 4.2
 const BUNKER_ROOT_POSITION_M := Vector3(-24.0, 0.0, -24.0)
@@ -149,13 +166,13 @@ const METAL_ROUGHNESS := 0.78
 const OXIDE_ROUGHNESS := 0.92
 const SERVICE_ROUGHNESS := 0.72
 
-const EXPECTED_NODE_COUNT := 63
+const EXPECTED_NODE_COUNT := 70
 const EXPECTED_MESH_INSTANCE_COUNT := 19
-const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 4
-const EXPECTED_MULTI_MESH_COPY_COUNT := 15
-const EXPECTED_RENDER_SUBMISSION_COUNT := 23
+const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 5
+const EXPECTED_MULTI_MESH_COPY_COUNT := 21
+const EXPECTED_RENDER_SUBMISSION_COUNT := 24
 const EXPECTED_STATIC_BODY_COUNT := 7
-const EXPECTED_COLLISION_SHAPE_COUNT := 19
+const EXPECTED_COLLISION_SHAPE_COUNT := 25
 const MAXIMUM_TRIANGLE_COUNT := 8192
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const WORLD_MASK := PhysicsLayers.WORLD_BODY_MASK
@@ -219,6 +236,7 @@ func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
 	_configure_surface_material_hierarchy()
+	_configure_gantry_navigation_crown()
 	_configure_bunker_vent_visuals()
 	_configure_landing_approach_cues()
 	_configure_orbital_landing_datum_cue()
@@ -338,9 +356,11 @@ func get_snapshot() -> Dictionary:
 			"relay_mast_height_m": RELAY_MAST_HEIGHT_M,
 			"relay_head_size_m": RELAY_HEAD_SIZE_M,
 			"derelict_gantry_position_m": GANTRY_ROOT_POSITION_M,
-			"derelict_gantry_height_m": GANTRY_SENSOR_POSITION_M.y + GANTRY_SENSOR_SIZE_M.y * 0.5,
+			"derelict_gantry_height_m": GANTRY_CROWN_MAXIMUM_HEIGHT_M,
 			"derelict_gantry_span_m": GANTRY_STARBOARD_PYLON_POSITION_M.z
 				- GANTRY_PORT_PYLON_POSITION_M.z + GANTRY_PYLON_SIZE_M.z,
+			"derelict_gantry_navigation_crown_cross_span_m": GANTRY_CROWN_CROSS_SPAN_M,
+			"derelict_gantry_navigation_crown_minimum_clearance_m": GANTRY_CROWN_MINIMUM_CLEARANCE_M,
 			"survey_bunker_position_m": BUNKER_ROOT_POSITION_M,
 			"survey_bunker_footprint_m": Vector2(BUNKER_BASE_SIZE_M.x, BUNKER_BASE_SIZE_M.z),
 			"survey_bunker_height_m": BUNKER_PORT_VENT_POSITION_M.y + BUNKER_VENT_HEIGHT_M * 0.5,
@@ -354,7 +374,7 @@ func get_snapshot() -> Dictionary:
 			"layer": WORLD_LAYER,
 			"mask": WORLD_MASK,
 			"landmark_static_body_count": 6,
-			"solid_landmark_collision_shape_count": 18,
+			"solid_landmark_collision_shape_count": 24,
 			"route_clear_half_width_m": SURFACE_ROUTE_WIDTH_M * 0.5,
 		},
 		"terrain_lod_policy": lod_snapshot,
@@ -657,6 +677,13 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/SensorBoomCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/NavigationCrownVisuals": "MultiMeshInstance3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/NavigationCrownCrossXCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/NavigationCrownCrossZCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/NavigationCrownPositiveXFinCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/NavigationCrownNegativeXFinCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/NavigationCrownPositiveZFinCollision": "CollisionShape3D",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/NavigationCrownNegativeZFinCollision": "CollisionShape3D",
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker": "StaticBody3D",
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/BaseVisual": "MeshInstance3D",
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/BaseCollision": "CollisionShape3D",
@@ -697,7 +724,7 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or landmarks == null or landmarks.get_child_count() != 11 \
 			or route_markers == null or route_markers.get_child_count() != 5 \
 			or relay == null or relay.get_child_count() != 6 \
-			or gantry == null or gantry.get_child_count() != 12 \
+			or gantry == null or gantry.get_child_count() != 19 \
 			or bunker == null or bunker.get_child_count() != 11:
 		_append_error(errors, &"ownership_tree_drift", &"scene", "exact static ownership tree drifted")
 
@@ -813,6 +840,11 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 		if vent_batch != null else null
 	if not _surface_material_is_exact(vent_material, DERELICT_ALLOY_COLOR, &"metal"):
 		_append_error(errors, &"visual_material_drift", &"BunkerVentVisuals", "batched bunker vents lost the structural-alloy surface role")
+	var crown := gantry.get_node_or_null(^"NavigationCrownVisuals") as MultiMeshInstance3D \
+		if gantry != null else null
+	var crown_material := crown.material_override as StandardMaterial3D if crown != null else null
+	if not _surface_material_is_exact(crown_material, DERELICT_OXIDE_COLOR, &"oxide"):
+		_append_error(errors, &"visual_material_drift", &"NavigationCrownVisuals", "survey crown lost the existing oxide landmark role")
 
 
 func _derelict_gantry_geometry_is_exact(gantry: StaticBody3D) -> bool:
@@ -823,7 +855,8 @@ func _derelict_gantry_geometry_is_exact(gantry: StaticBody3D) -> bool:
 		and _box_visual_is_exact(gantry, &"PortBeamVisual", GANTRY_BEAM_SIZE_M, GANTRY_PORT_BEAM_POSITION_M, GANTRY_PORT_BEAM_TILT_RADIANS) \
 		and _box_visual_is_exact(gantry, &"StarboardBeamVisual", GANTRY_BEAM_SIZE_M, GANTRY_STARBOARD_BEAM_POSITION_M, GANTRY_STARBOARD_BEAM_TILT_RADIANS) \
 		and _cylinder_visual_is_exact(gantry, &"SensorBoomVisual", GANTRY_BOOM_RADIUS_M, GANTRY_BOOM_HEIGHT_M, GANTRY_BOOM_POSITION_M, GANTRY_BOOM_TILT_RADIANS) \
-		and _box_visual_is_exact(gantry, &"DeadSensorVisual", GANTRY_SENSOR_SIZE_M, GANTRY_SENSOR_POSITION_M, GANTRY_SENSOR_TILT_RADIANS)
+		and _box_visual_is_exact(gantry, &"DeadSensorVisual", GANTRY_SENSOR_SIZE_M, GANTRY_SENSOR_POSITION_M, GANTRY_SENSOR_TILT_RADIANS) \
+		and _gantry_navigation_crown_is_exact(gantry.get_node_or_null(^"NavigationCrownVisuals") as MultiMeshInstance3D)
 
 
 func _survey_bunker_geometry_is_exact(bunker: StaticBody3D) -> bool:
@@ -929,12 +962,17 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 func _derelict_gantry_collision_is_exact(gantry: StaticBody3D) -> bool:
 	if gantry == null:
 		return false
-	return _box_collision_is_exact(gantry, &"PortPylonCollision", GANTRY_PYLON_SIZE_M, GANTRY_PORT_PYLON_POSITION_M, GANTRY_PYLON_LEAN_RADIANS) \
+	var exact := _box_collision_is_exact(gantry, &"PortPylonCollision", GANTRY_PYLON_SIZE_M, GANTRY_PORT_PYLON_POSITION_M, GANTRY_PYLON_LEAN_RADIANS) \
 		and _box_collision_is_exact(gantry, &"StarboardPylonCollision", GANTRY_PYLON_SIZE_M, GANTRY_STARBOARD_PYLON_POSITION_M, -GANTRY_PYLON_LEAN_RADIANS) \
 		and _box_collision_is_exact(gantry, &"PortBeamCollision", GANTRY_BEAM_SIZE_M, GANTRY_PORT_BEAM_POSITION_M, GANTRY_PORT_BEAM_TILT_RADIANS) \
 		and _box_collision_is_exact(gantry, &"StarboardBeamCollision", GANTRY_BEAM_SIZE_M, GANTRY_STARBOARD_BEAM_POSITION_M, GANTRY_STARBOARD_BEAM_TILT_RADIANS) \
 		and _cylinder_collision_is_exact(gantry, &"SensorBoomCollision", GANTRY_BOOM_RADIUS_M, GANTRY_BOOM_HEIGHT_M, GANTRY_BOOM_POSITION_M, GANTRY_BOOM_TILT_RADIANS) \
 		and _box_collision_is_exact(gantry, &"DeadSensorCollision", GANTRY_SENSOR_SIZE_M, GANTRY_SENSOR_POSITION_M, GANTRY_SENSOR_TILT_RADIANS)
+	for spec: Dictionary in _gantry_navigation_crown_collision_specs():
+		exact = exact and _box_collision_is_exact(
+			gantry, spec.name, spec.size, spec.position, 0.0
+		)
+	return exact
 
 
 func _survey_bunker_collision_is_exact(bunker: StaticBody3D) -> bool:
@@ -1034,6 +1072,164 @@ func _validate_forbidden_nodes(errors: Array[Dictionary]) -> void:
 			_append_error(errors, &"forbidden_runtime_node", StringName(node.name), "scene gained adjacent runtime authority")
 		if node.is_processing() or node.is_physics_processing():
 			_append_error(errors, &"automatic_process_loop", StringName(node.name), "static scene must not own process or physics callbacks")
+
+
+func _configure_gantry_navigation_crown() -> void:
+	var gantry := get_node_or_null(
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry"
+	) as StaticBody3D
+	var sensor := gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D \
+		if gantry != null else null
+	if gantry == null or sensor == null or sensor.material_override == null:
+		return
+	var unit_bar := BoxMesh.new()
+	unit_bar.size = Vector3.ONE
+	unit_bar.material = sensor.material_override
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = unit_bar
+	multi.instance_count = GANTRY_CROWN_INSTANCE_COUNT
+	var transforms := _gantry_navigation_crown_transforms()
+	for index in transforms.size():
+		multi.set_instance_transform(index, transforms[index])
+	multi.custom_aabb = GANTRY_CROWN_BATCH_BOUNDS
+	var crown := MultiMeshInstance3D.new()
+	crown.name = &"NavigationCrownVisuals"
+	crown.multimesh = multi
+	crown.material_override = sensor.material_override
+	crown.cast_shadow = sensor.cast_shadow
+	crown.gi_mode = sensor.gi_mode
+	crown.layers = sensor.layers
+	crown.ignore_occlusion_culling = sensor.ignore_occlusion_culling
+	crown.set_meta("authored_transforms", transforms.duplicate())
+	crown.set_meta("content_class", &"NEW")
+	crown.set_meta("status", &"modern_interpretation")
+	crown.set_meta("solid_visual_collision", true)
+	crown.set_meta("readable_axes", PackedStringArray(["flight_z", "walked_route_x"]))
+	gantry.add_child(crown)
+	for spec: Dictionary in _gantry_navigation_crown_collision_specs():
+		var shape := BoxShape3D.new()
+		shape.size = spec.size
+		var collision := CollisionShape3D.new()
+		collision.name = spec.name
+		collision.position = spec.position
+		collision.shape = shape
+		gantry.add_child(collision)
+
+
+func _gantry_navigation_crown_is_exact(crown: MultiMeshInstance3D) -> bool:
+	if crown == null or crown.multimesh == null \
+			or crown.transform != Transform3D.IDENTITY \
+			or crown.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			or crown.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
+			or crown.layers != 1 or crown.ignore_occlusion_culling \
+			or crown.get_child_count() != 0 \
+			or StringName(crown.get_meta("content_class", &"")) != &"NEW" \
+			or StringName(crown.get_meta("status", &"")) != &"modern_interpretation" \
+			or not bool(crown.get_meta("solid_visual_collision", false)) \
+			or crown.get_meta("readable_axes", PackedStringArray()) \
+				!= PackedStringArray(["flight_z", "walked_route_x"]):
+		return false
+	var multi := crown.multimesh
+	var unit_bar := multi.mesh as BoxMesh
+	if multi.transform_format != MultiMesh.TRANSFORM_3D \
+			or multi.instance_count != GANTRY_CROWN_INSTANCE_COUNT \
+			or multi.visible_instance_count not in [-1, GANTRY_CROWN_INSTANCE_COUNT] \
+			or not multi.custom_aabb.is_equal_approx(GANTRY_CROWN_BATCH_BOUNDS) \
+			or unit_bar == null or unit_bar.size != Vector3.ONE \
+			or unit_bar.material != crown.material_override:
+		return false
+	var expected := _gantry_navigation_crown_transforms()
+	var authored: Variant = crown.get_meta("authored_transforms", [])
+	if not authored is Array or (authored as Array).size() != expected.size():
+		return false
+	for index in expected.size():
+		if not (authored as Array)[index] is Transform3D \
+				or not ((authored as Array)[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return true
+
+
+static func _gantry_navigation_crown_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = [
+		Transform3D(
+			Basis().scaled(Vector3(
+				GANTRY_CROWN_CROSS_SPAN_M,
+				GANTRY_CROWN_BAR_THICKNESS_M,
+				GANTRY_CROWN_BAR_THICKNESS_M,
+			)),
+			GANTRY_CROWN_CENTRE_M,
+		),
+		Transform3D(
+			Basis().scaled(Vector3(
+				GANTRY_CROWN_BAR_THICKNESS_M,
+				GANTRY_CROWN_BAR_THICKNESS_M,
+				GANTRY_CROWN_CROSS_SPAN_M,
+			)),
+			GANTRY_CROWN_CENTRE_M,
+		),
+	]
+	for offset: Vector3 in [
+		Vector3(GANTRY_CROWN_FIN_OFFSET_M, 0.0, 0.0),
+		Vector3(-GANTRY_CROWN_FIN_OFFSET_M, 0.0, 0.0),
+		Vector3(0.0, 0.0, GANTRY_CROWN_FIN_OFFSET_M),
+		Vector3(0.0, 0.0, -GANTRY_CROWN_FIN_OFFSET_M),
+	]:
+		transforms.append(Transform3D(
+			Basis().scaled(Vector3(
+				GANTRY_CROWN_BAR_THICKNESS_M,
+				GANTRY_CROWN_FIN_HEIGHT_M,
+				GANTRY_CROWN_BAR_THICKNESS_M,
+			)),
+			GANTRY_CROWN_CENTRE_M + offset
+				+ Vector3.UP * (GANTRY_CROWN_FIN_HEIGHT_M * 0.5 - GANTRY_CROWN_BAR_THICKNESS_M * 0.5),
+		))
+	return transforms
+
+
+static func _gantry_navigation_crown_collision_specs() -> Array[Dictionary]:
+	var fin_position_y := GANTRY_CROWN_CENTRE_M.y \
+		+ GANTRY_CROWN_FIN_HEIGHT_M * 0.5 - GANTRY_CROWN_BAR_THICKNESS_M * 0.5
+	return [
+		{
+			"name": &"NavigationCrownCrossXCollision",
+			"size": Vector3(
+				GANTRY_CROWN_CROSS_SPAN_M,
+				GANTRY_CROWN_BAR_THICKNESS_M,
+				GANTRY_CROWN_BAR_THICKNESS_M,
+			),
+			"position": GANTRY_CROWN_CENTRE_M,
+		},
+		{
+			"name": &"NavigationCrownCrossZCollision",
+			"size": Vector3(
+				GANTRY_CROWN_BAR_THICKNESS_M,
+				GANTRY_CROWN_BAR_THICKNESS_M,
+				GANTRY_CROWN_CROSS_SPAN_M,
+			),
+			"position": GANTRY_CROWN_CENTRE_M,
+		},
+		{
+			"name": &"NavigationCrownPositiveXFinCollision",
+			"size": Vector3(GANTRY_CROWN_BAR_THICKNESS_M, GANTRY_CROWN_FIN_HEIGHT_M, GANTRY_CROWN_BAR_THICKNESS_M),
+			"position": Vector3(GANTRY_CROWN_FIN_OFFSET_M, fin_position_y, GANTRY_CROWN_CENTRE_M.z),
+		},
+		{
+			"name": &"NavigationCrownNegativeXFinCollision",
+			"size": Vector3(GANTRY_CROWN_BAR_THICKNESS_M, GANTRY_CROWN_FIN_HEIGHT_M, GANTRY_CROWN_BAR_THICKNESS_M),
+			"position": Vector3(-GANTRY_CROWN_FIN_OFFSET_M, fin_position_y, GANTRY_CROWN_CENTRE_M.z),
+		},
+		{
+			"name": &"NavigationCrownPositiveZFinCollision",
+			"size": Vector3(GANTRY_CROWN_BAR_THICKNESS_M, GANTRY_CROWN_FIN_HEIGHT_M, GANTRY_CROWN_BAR_THICKNESS_M),
+			"position": Vector3(0.0, fin_position_y, GANTRY_CROWN_CENTRE_M.z + GANTRY_CROWN_FIN_OFFSET_M),
+		},
+		{
+			"name": &"NavigationCrownNegativeZFinCollision",
+			"size": Vector3(GANTRY_CROWN_BAR_THICKNESS_M, GANTRY_CROWN_FIN_HEIGHT_M, GANTRY_CROWN_BAR_THICKNESS_M),
+			"position": Vector3(0.0, fin_position_y, GANTRY_CROWN_CENTRE_M.z - GANTRY_CROWN_FIN_OFFSET_M),
+		},
+	]
 
 
 func _configure_bunker_vent_visuals() -> void:
