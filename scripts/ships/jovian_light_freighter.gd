@@ -269,7 +269,10 @@ var _engineer_repair_state: Dictionary = {
 	"progress": 0.0,
 }
 var _engineer_status_readout: Label3D
-var _engineer_repair_console: JovianEngineerRepairConsole
+# Constructed through the explicit preload above so a clean checkout does not
+# need this new presentation class in Godot's generated global-class cache
+# before JovianLightFreighter itself can parse.
+var _engineer_repair_console
 var _engineer_console_generation := 0
 var _engineer_console_sequence := -1
 var _copilot_navigation_receipt: Dictionary = {}
@@ -353,7 +356,7 @@ func _rebind_engineer_repair_console() -> void:
 	if not is_inside_tree() or _engineer_repair_console == null \
 			or _engineer_status_readout == null or not is_instance_valid(_engineer_status_readout):
 		return
-	var snapshot := _engineer_repair_console.get_snapshot()
+	var snapshot: Dictionary = _engineer_repair_console.get_snapshot()
 	if not bool(snapshot.get("attached", false)):
 		_engineer_repair_console.bind(_engineer_status_readout, _engineer_console_generation)
 		_refresh_engineer_status_readout()
