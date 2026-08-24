@@ -33,6 +33,7 @@ const DAMAGE_ORANGE := Color("ff8b3d")
 const SMOKE_DARK := Color(0.08, 0.12, 0.14, 0.62)
 const DESTRUCTION_EFFECT_LIFETIME := 4.5
 const MAX_PENDING_DAMAGE_PRESENTATIONS := 16
+const NOMINAL_IDLE_ENGINE_STRENGTH := 0.78
 const SENSOR_DAMAGE_ANCHOR_NAMES := {
 	&"RangeInterceptorVisual": &"AmberCanopy",
 	&"StandoffPicketVisual": &"SensorBlister",
@@ -230,6 +231,7 @@ var _tearing_down := false
 var _pending_damage_presentations: Dictionary = {}
 var _pending_damage_presentation_order: Array[int] = []
 var _pending_terminal_presentation_sequence := -1
+var _presented_component_generation := 0
 
 
 func _enter_tree() -> void:
@@ -424,17 +426,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	_orbit_sign = 1.0 if spawn_transform.origin.x >= 0.0 else -1.0
 	_bank_angle = 0.0
 	_visual_root.rotation = Vector3.ZERO
-	_damage_sparks.emitting = false
-	_damage_smoke.emitting = false
-	_weapon_damage_sparks.emitting = false
-	_sensor_damage_light.light_energy = 0.0
-	_presented_sensor_damage_stage = &"nominal"
-	_presented_engine_damage_stage = &"nominal"
-	_presented_engine_performance_multiplier = 1.0
-	_restart_particles_cleared(_damage_sparks)
-	_restart_particles_cleared(_damage_smoke)
-	_restart_particles_cleared(_weapon_damage_sparks)
-	_set_damage_stage()
+	_restore_component_damage_presentation_after_reset(reset_result)
 	health_changed.emit(get_health(), get_maximum_health())
 	return {
 		"accepted": true,
@@ -442,6 +434,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 		"health": get_health(),
 		"maximum_health": get_maximum_health(),
 		"damage_model": reset_result.duplicate(true),
+		"recovery": get_component_recovery_report(),
 	}.duplicate(true)
 
 
@@ -455,19 +448,7 @@ func deactivate() -> void:
 	_cooldown_remaining = 0.0
 	_clear_pending_pattern_projectiles()
 	_clear_evasive_maneuver_configuration(&"deactivated")
-	if _damage_sparks != null:
-		_damage_sparks.emitting = false
-		_restart_particles_cleared(_damage_sparks)
-	if _damage_smoke != null:
-		_damage_smoke.emitting = false
-		_restart_particles_cleared(_damage_smoke)
-	if _weapon_damage_sparks != null:
-		_weapon_damage_sparks.emitting = false
-		_restart_particles_cleared(_weapon_damage_sparks)
-	if _sensor_damage_light != null:
-		_sensor_damage_light.light_energy = 0.0
-	_presented_sensor_damage_stage = &"nominal"
-	_clear_engine_component_damage_presentation()
+	_clear_component_damage_presentation()
 	if _visual_root != null:
 		_visual_root.visible = true
 	_clear_destruction_effects()
@@ -497,12 +478,18 @@ func apply_damage(
 	effect_pose.basis = effect_pose.basis.orthonormalized()
 	var presentation := {
 		"sequence": sequence,
+		"activation_generation": _activation_generation,
 		"hit_position": hit_position,
 		"health": current_health,
 		"terminal": terminal,
 		"effect_pose": effect_pose,
 		"inherited_velocity": velocity,
 	}
+	var damage_snapshot := _hull_damage.get_snapshot()
+	var damage_model := damage_snapshot.get("model", {}) as Dictionary
+	presentation["damage_generation"] = int(damage_model.get("generation", 0))
+	presentation["damage_sequence"] = int(damage_model.get("last_damage_sequence", -1))
+	presentation["damage_revision"] = int(damage_model.get("revision", 0))
 	if defer_visuals and sequence >= 0:
 		_queue_damage_presentation(sequence, presentation)
 	else:
@@ -974,6 +961,95 @@ func get_pending_damage_presentation_count() -> int:
 	return _pending_damage_presentations.size()
 
 
+## Detached post-reset evidence for lifecycle owners and focused runtime checks.
+## This reports only state already owned by RangeOpponent and ComponentDamageModel;
+## it does not authorize reset, repair, effects, collision, or respawn.
+func get_component_recovery_report() -> Dictionary:
+	var errors := PackedStringArray()
+	var snapshot := get_component_damage_snapshot()
+	var model := snapshot.get("model", {}) as Dictionary
+	var model_generation := int(model.get("generation", 0))
+	if not _active:
+		errors.append("opponent_not_active")
+	if model_generation <= 0 or model_generation != _presented_component_generation:
+		errors.append("component_generation_not_presented")
+	if int(model.get("last_damage_sequence", -2)) != -1:
+		errors.append("component_sequence_not_reset")
+	if int(snapshot.get("next_damage_sequence", -1)) != 0:
+		errors.append("adapter_sequence_not_reset")
+	for component_variant in model.get("components", []) as Array:
+		if not component_variant is Dictionary:
+			errors.append("invalid_component_state")
+			continue
+		var component := component_variant as Dictionary
+		var stage := component.get("stage", {}) as Dictionary
+		if (
+			not is_equal_approx(
+				float(component.get("current_health", -1.0)),
+				float(component.get("maximum_health", 0.0))
+			)
+			or StringName(stage.get("stage_id", &"")) != &"nominal"
+			or bool(stage.get("disabled", true))
+			or not is_equal_approx(float(stage.get("performance_multiplier", -1.0)), 1.0)
+		):
+			errors.append("component_not_nominal:%s" % component.get("component_id", &""))
+	if not _pending_damage_presentations.is_empty():
+		errors.append("pending_damage_presentations")
+	if _pending_terminal_presentation_sequence >= 0:
+		errors.append("pending_terminal_presentation")
+	if get_destruction_effect_root() != null or not _debris.is_empty():
+		errors.append("destruction_or_debris_residue")
+	if not _transient_effects.is_empty():
+		errors.append("transient_effect_residue")
+	if _damage_sparks == null or _damage_sparks.emitting:
+		errors.append("hull_sparks_emitting")
+	if _damage_smoke == null or _damage_smoke.emitting:
+		errors.append("engine_smoke_emitting")
+	if _weapon_damage_sparks == null or _weapon_damage_sparks.emitting:
+		errors.append("weapon_sparks_emitting")
+	if (
+		_sensor_damage_light == null
+		or not is_zero_approx(_sensor_damage_light.light_energy)
+		or _presented_sensor_damage_stage != &"nominal"
+	):
+		errors.append("sensor_damage_residue")
+	if (
+		_presented_engine_damage_stage != &"nominal"
+		or not is_equal_approx(_presented_engine_performance_multiplier, 1.0)
+	):
+		errors.append("engine_damage_residue")
+	for glow in _engine_glows:
+		if (
+			glow == null
+			or not is_instance_valid(glow)
+			or not glow.visible
+			or not glow.scale.is_finite()
+			or glow.scale.x <= 0.0
+			or glow.scale.y <= 0.0
+			or glow.scale.z <= 0.0
+		):
+			errors.append("engine_plume_not_restored")
+			break
+	for engine_light in _engine_lights:
+		if engine_light == null or not is_instance_valid(engine_light) \
+				or engine_light.light_energy <= 0.0:
+			errors.append("engine_light_not_restored")
+			break
+	if _visual_root == null or not is_instance_valid(_visual_root) or not _visual_root.visible:
+		errors.append("component_visual_root_not_restored")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"scope": &"range_opponent_component_recovery",
+		"model_generation": model_generation,
+		"presentation_generation": _presented_component_generation,
+		"activation_generation": _activation_generation,
+		"pending_presentations": _pending_damage_presentations.size(),
+		"debris": _debris.size(),
+		"transient_effects": _transient_effects.size(),
+	}.duplicate(true)
+
+
 ## Removes all queued deferred damage receipts for re-entry/teardown safety.
 func discard_deferred_damage_presentations() -> void:
 	_clear_pending_damage_presentations()
@@ -987,6 +1063,10 @@ func commit_deferred_damage_presentation(sequence: int) -> bool:
 	var presentation := _pending_damage_presentations[sequence] as Dictionary
 	_pending_damage_presentations.erase(sequence)
 	_pending_damage_presentation_order.erase(sequence)
+	if not _damage_presentation_record_is_current(sequence, presentation):
+		if bool(presentation.get("terminal", false)):
+			_pending_terminal_presentation_sequence = -1
+		return false
 	if bool(presentation.get("terminal", false)):
 		_clear_pending_damage_presentations()
 	_present_damage_record(presentation)
@@ -1282,6 +1362,34 @@ func _set_damage_stage_for_health(presented_health: float, presentation_active: 
 	_set_sensor_component_damage_presentation(presentation_active)
 
 
+func _restore_component_damage_presentation_after_reset(reset_result: Dictionary) -> void:
+	_presented_component_generation = int(reset_result.get("generation", 0))
+	_clear_component_damage_presentation()
+	if _visual_root != null and is_instance_valid(_visual_root):
+		_visual_root.visible = true
+	for glow in _engine_glows:
+		if glow != null and is_instance_valid(glow):
+			glow.scale = Vector3.ONE
+			glow.visible = true
+	for engine_light in _engine_lights:
+		if engine_light != null and is_instance_valid(engine_light):
+			engine_light.light_energy = NOMINAL_IDLE_ENGINE_STRENGTH * 1.9
+	_set_damage_stage()
+
+
+func _clear_component_damage_presentation() -> void:
+	if _damage_sparks != null:
+		_damage_sparks.emitting = false
+		_restart_particles_cleared(_damage_sparks)
+	if _weapon_damage_sparks != null:
+		_weapon_damage_sparks.emitting = false
+		_restart_particles_cleared(_weapon_damage_sparks)
+	if _sensor_damage_light != null:
+		_sensor_damage_light.light_energy = 0.0
+	_presented_sensor_damage_stage = &"nominal"
+	_clear_engine_component_damage_presentation()
+
+
 func _update_presentation(delta: float) -> void:
 	if not _built:
 		return
@@ -1289,7 +1397,8 @@ func _update_presentation(delta: float) -> void:
 	_sync_sensor_damage_anchor()
 	var engine_strength := 0.0
 	if _active:
-		engine_strength = 0.78 + clampf(velocity.length() / maxf(chase_speed, 1.0), 0.0, 1.0) * 0.4
+		engine_strength = NOMINAL_IDLE_ENGINE_STRENGTH \
+			+ clampf(velocity.length() / maxf(chase_speed, 1.0), 0.0, 1.0) * 0.4
 		engine_strength *= clampf(_presented_engine_performance_multiplier, 0.0, 1.0)
 	for index in _engine_glows.size():
 		var glow := _engine_glows[index]
@@ -1358,6 +1467,12 @@ func _destroy_interceptor(death_position: Vector3) -> void:
 
 func _queue_damage_presentation(sequence: int, presentation: Dictionary) -> void:
 	if _pending_damage_presentations.has(sequence):
+		var replaced := _pending_damage_presentations[sequence] as Dictionary
+		if (
+			sequence == _pending_terminal_presentation_sequence
+			and bool(replaced.get("terminal", false))
+		):
+			_pending_terminal_presentation_sequence = -1
 		_pending_damage_presentation_order.erase(sequence)
 	_pending_damage_presentations[sequence] = presentation.duplicate(true)
 	_pending_damage_presentation_order.append(sequence)
@@ -1374,13 +1489,7 @@ func _present_damage_record(presentation: Dictionary) -> void:
 	var hit_position: Vector3 = presentation.get("hit_position", Vector3.ZERO)
 	_spawn_impact_sparks(hit_position)
 	if bool(presentation.get("terminal", false)):
-		_damage_sparks.emitting = false
-		_damage_smoke.emitting = false
-		_weapon_damage_sparks.emitting = false
-		_restart_particles_cleared(_weapon_damage_sparks)
-		_sensor_damage_light.light_energy = 0.0
-		_presented_sensor_damage_stage = &"nominal"
-		_clear_engine_component_damage_presentation()
+		_clear_component_damage_presentation()
 		_visual_root.visible = false
 		_pending_terminal_presentation_sequence = -1
 		var effect_pose: Transform3D = presentation.get("effect_pose", global_transform)
@@ -1560,6 +1669,26 @@ func _clear_pending_damage_presentations() -> void:
 	_pending_terminal_presentation_sequence = -1
 
 
+func _damage_presentation_record_is_current(
+		receipt_sequence: int,
+		presentation: Dictionary
+	) -> bool:
+	if int(presentation.get("sequence", -1)) != receipt_sequence:
+		return false
+	if int(presentation.get("activation_generation", -1)) != _activation_generation:
+		return false
+	var snapshot := get_component_damage_snapshot()
+	var model := snapshot.get("model", {}) as Dictionary
+	if int(presentation.get("damage_generation", -1)) != int(model.get("generation", 0)):
+		return false
+	var damage_sequence := int(presentation.get("damage_sequence", -1))
+	var current_sequence := int(model.get("last_damage_sequence", -1))
+	if damage_sequence < 0 or damage_sequence > current_sequence:
+		return false
+	var damage_revision := int(presentation.get("damage_revision", -1))
+	return damage_revision > 0 and damage_revision <= int(model.get("revision", 0))
+
+
 func _spawn_impact_sparks(hit_position: Vector3) -> void:
 	if not is_inside_tree():
 		return
@@ -1691,7 +1820,7 @@ func _remove_transient_effect(effect_id: int) -> void:
 
 
 func _restart_particles_cleared(particles: CPUParticles3D) -> void:
-	if particles == null or not particles.is_inside_tree():
+	if particles == null or not is_instance_valid(particles):
 		return
 	particles.restart(true)
 	particles.emitting = false

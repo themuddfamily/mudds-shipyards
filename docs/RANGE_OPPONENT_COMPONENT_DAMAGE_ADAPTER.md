@@ -29,6 +29,24 @@ sequence. Ordinary deactivation and whole-owner detach/re-entry do not reset
 the model. They retain health and generation while existing owner code clears
 transient presentation and combat registration state.
 
+Every accepted `activate_with_result()` commits the matching presentation
+recovery in the same lifecycle call. The base defender, siege picket, courier,
+and wing skirmisher immediately restore nominal component stages, engine plume
+scale/visibility and engine lights; clear persistent hull/weapon sparks, engine
+smoke and sensor damage light; and retire impact, destruction, and debris nodes.
+The detached activation result includes the same
+`range_opponent_component_recovery` report available from
+`get_component_recovery_report()`, so a lifecycle owner can verify the reset
+without gaining presentation or damage authority.
+
+Deferred damage records capture the model generation, its private operation
+sequence/revision, and the physical opponent's activation generation alongside
+the external presentation receipt. Commit removes and rejects a record when
+any fence is stale or its receipt sequence does not match its storage key. The
+session-monotonic combat receipt remains externally owned; these local fences
+only prevent a delayed prior-life callback or corrupted queued record from
+spawning smoke, sparks, or destruction effects after reuse.
+
 `maximum_health` is captured once after scene properties are authored. A later
 property drift rejects damage and `activate_with_result()` returns
 `maximum_health_drift` before reset, collision, visibility, or spawn state can

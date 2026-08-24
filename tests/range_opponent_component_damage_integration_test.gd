@@ -234,6 +234,7 @@ func _test_derived_archetype_component_presentation() -> void:
 	host.name = "DerivedOpponentComponentPresentationWorld"
 	root.add_child(host)
 	var archetypes := [
+		[&"range_defender", OPPONENT_SCENE, &"AmberCanopy"],
 		[&"standoff_picket", PICKET_SCENE, &"SensorBlister"],
 		[&"courier_runner", COURIER_SCENE, &"DistressBeacon"],
 		[&"flanking_skirmisher", SKIRMISHER_SCENE, &"RoleLamp"],
@@ -342,20 +343,87 @@ func _test_derived_archetype_component_presentation() -> void:
 			not opponent.is_active()
 				and not weapon_sparks.emitting
 				and is_zero_approx(sensor_light.light_energy)
-				and propulsion_presentation_cleared,
+				and propulsion_presentation_cleared
+				and opponent.get_destruction_effect_root() != null
+				and not (opponent.get("_debris") as Dictionary).is_empty()
+				and not (opponent.get("_transient_effects") as Dictionary).is_empty(),
 			"%s destruction clears localized component presentation" % archetype_id
 		)
-		opponent.deactivate()
+		var destroyed_generation := int(
+			(opponent.get_component_damage_snapshot().get("model", {}) as Dictionary).get(
+				"generation", -1
+			)
+		)
 		var reused := opponent.activate_with_result(opponent.global_transform)
 		var weapon_state := _component_state(opponent, &"weapon")
 		var sensor_state := _component_state(opponent, &"sensor")
+		var recovery := opponent.get_component_recovery_report()
 		_check(
 			bool(reused.get("accepted", false))
+				and bool((reused.get("recovery", {}) as Dictionary).get("valid", false))
+				and bool(recovery.get("valid", false))
+				and int(recovery.get("model_generation", -1)) == destroyed_generation + 1
 				and not weapon_sparks.emitting
 				and (weapon_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal"
 				and is_zero_approx(sensor_light.light_energy)
-				and (sensor_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal",
-			"%s reuse clears local effects and restores shared component stages" % archetype_id
+				and (sensor_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal"
+				and opponent.get_destruction_effect_root() == null
+				and (opponent.get("_debris") as Dictionary).is_empty()
+				and (opponent.get("_transient_effects") as Dictionary).is_empty(),
+			"%s authoritative reuse restores components and leaves no VFX/debris/engine residue" % archetype_id
+		)
+
+		# Structured red: live emitter drift must be visible in the detached
+		# recovery report, then return green once the mutation is restored.
+		engine_smoke.emitting = true
+		var red_recovery := opponent.get_component_recovery_report()
+		_check(
+			not bool(red_recovery.get("valid", true))
+				and (red_recovery.get("errors", PackedStringArray()) as PackedStringArray).has(
+					"engine_smoke_emitting"
+				),
+			"%s structured-red smoke mutation fails the recovery contract" % archetype_id
+		)
+		opponent.call("_restart_particles_cleared", engine_smoke)
+		_check(
+			bool(opponent.get_component_recovery_report().get("valid", false)),
+			"%s recovery contract returns green after the mutation is restored" % archetype_id
+		)
+
+		# Presentation records carry both the model generation/sequence and the
+		# owner activation generation. Corrupting the private generation is a
+		# bounded red-path probe: commit rejects without spawning impact residue.
+		var fenced_receipt := 2000 + archetype_index
+		opponent.apply_damage(1.0, opponent.global_position, fenced_receipt, true)
+		var pending := opponent.get("_pending_damage_presentations") as Dictionary
+		var corrupted := (pending.get(fenced_receipt, {}) as Dictionary).duplicate(true)
+		corrupted["damage_generation"] = destroyed_generation
+		pending[fenced_receipt] = corrupted
+		opponent.set("_pending_damage_presentations", pending)
+		_check(
+			not opponent.commit_deferred_damage_presentation(fenced_receipt)
+				and (opponent.get("_transient_effects") as Dictionary).is_empty()
+				and opponent.get_pending_damage_presentation_count() == 0,
+			"%s stale-generation receipt rejects before presentation mutation" % archetype_id
+		)
+		var sequence_receipt := 3000 + archetype_index
+		opponent.apply_damage(1.0, opponent.global_position, sequence_receipt, true)
+		pending = opponent.get("_pending_damage_presentations") as Dictionary
+		corrupted = (pending.get(sequence_receipt, {}) as Dictionary).duplicate(true)
+		corrupted["sequence"] = sequence_receipt + 1
+		pending[sequence_receipt] = corrupted
+		opponent.set("_pending_damage_presentations", pending)
+		_check(
+			not opponent.commit_deferred_damage_presentation(sequence_receipt)
+				and (opponent.get("_transient_effects") as Dictionary).is_empty()
+				and opponent.get_pending_damage_presentation_count() == 0,
+			"%s mismatched sequence receipt rejects before presentation mutation" % archetype_id
+		)
+		var fence_reset := opponent.activate_with_result(opponent.global_transform)
+		_check(
+			bool(fence_reset.get("accepted", false))
+				and bool(opponent.get_component_recovery_report().get("valid", false)),
+			"%s generation-fence probes finish on a clean reusable opponent" % archetype_id
 		)
 		opponent.queue_free()
 		await process_frame
