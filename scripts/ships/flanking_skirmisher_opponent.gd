@@ -67,6 +67,12 @@ const ROLE_ANCHOR_LAMP := Color("ffb347")
 const ROLE_FLANKER_LAMP := Color("58ff9b")
 const SKIRMISHER_ENGINE := Color("b6ffe3")
 const REPEATER_CHARGE_SCALE := Vector3(0.62, 1.6, 0.62)
+## One broad, steady dorsal arrow for the already-committed rear cross. Its
+## 4.8 m long axis spans most of the delta silhouette so the destination side
+## remains readable at the craft's short combat range without a light or flash.
+const REAR_CROSS_CUE_COLOR := Color("baffd0")
+const REAR_CROSS_CUE_SIZE := Vector3(1.5, 0.12, 4.8)
+const REAR_CROSS_CUE_POSITION := Vector3(0.0, 0.2, -0.95)
 
 # Component-local static presentation budget. The old build retained one
 # Mesh per wing, chalk-band and winglet-fin node. Each mirrored pair has one
@@ -98,7 +104,7 @@ const WINGLET_FIN_ROTATIONS := [
 	Vector3(0.0, -0.16, 0.22),
 	Vector3(0.0, 0.16, -0.22),
 ]
-const PRESENTATION_DESCENDANT_NODE_COUNT := 31
+const PRESENTATION_DESCENDANT_NODE_COUNT := 32
 const PRESENTATION_VISUAL_NODE_COUNT := 21
 const PRESENTATION_MESH_INSTANCE_COUNT := 18
 const PRESENTATION_LIGHT_NODE_COUNT := 5
@@ -160,6 +166,9 @@ var _rear_cross_state: StringName = &"idle"
 var _rear_cross_started_at := 0.0
 var _rear_cross_destination_side := 1.0
 var _rear_cross_completed_count := 0
+var _rear_cross_activation_generation := 0
+var _rear_cross_cue: MeshInstance3D
+var _rear_cross_cue_mesh: ArrayMesh
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -173,6 +182,7 @@ func _ready() -> void:
 	if source_id <= 0:
 		source_id = DEFAULT_SOURCE_ID
 	_apply_role_presentation()
+	_apply_rear_cross_presentation()
 
 
 func _exit_tree() -> void:
@@ -241,6 +251,14 @@ func assign_wing_role(role: StringName) -> void:
 	_assign_wing_role_internal(role)
 
 
+## Preserve the inherited coordinator-owned target assignment and only observe
+## its loss so no stale committed intent remains visible between frames.
+func set_target(target: Node3D) -> void:
+	super(target)
+	if not _has_current_target():
+		_reset_rear_cross_tactic()
+
+
 func _can_assign_wing_role() -> bool:
 	return is_inside_tree() and not is_queued_for_deletion()
 
@@ -286,6 +304,57 @@ func get_rear_cross_snapshot() -> Dictionary:
 		"combat_authority": false,
 		"damage_authority": false,
 		"physics_authority": false,
+	}.duplicate(true)
+
+
+## A renderer-readable view of the one retained intent vane. The vane only
+## observes the authoritative rear-cross state above: it cannot select a side,
+## move the craft, retain a target, dispatch a weapon, resolve damage, or grant
+## a reward. Its mesh and material are built once with the hull and never
+## replaced or mutated as the cue changes sides.
+func get_rear_cross_intent_cue_snapshot() -> Dictionary:
+	_refresh_rear_cross_state()
+	var cue_valid := is_instance_valid(_rear_cross_cue)
+	var mesh: ArrayMesh = (
+		_rear_cross_cue_mesh
+		if cue_valid and _rear_cross_cue.mesh == _rear_cross_cue_mesh else null
+	)
+	var material := (
+		mesh.surface_get_material(0) as StandardMaterial3D
+		if mesh != null and mesh.get_surface_count() == 1 else null
+	)
+	var local_bounds := AABB()
+	if cue_valid and mesh != null:
+		local_bounds = (_rear_cross_cue.transform * mesh.get_aabb()).abs()
+	return {
+		"cue_id": &"rear_cross_destination_vane",
+		"derived_from_tactic_id": &"rear_cross",
+		"state_id": _rear_cross_state,
+		"visible": cue_valid and _rear_cross_cue.visible,
+		"destination_side": (
+			_rear_cross_destination_side if _rear_cross_state == &"active" else 0.0
+		),
+		"activation_generation": _activation_generation,
+		"intent_activation_generation": _rear_cross_activation_generation,
+		"renderer_nodes": 1 if cue_valid else 0,
+		"mesh_resources": 1 if mesh != null else 0,
+		"material_resources": 1 if material != null else 0,
+		"mesh_resource_id": mesh.get_instance_id() if mesh != null else 0,
+		"material_resource_id": material.get_instance_id() if material != null else 0,
+		"local_transform": _rear_cross_cue.transform if cue_valid else Transform3D.IDENTITY,
+		"local_bounds": local_bounds,
+		"long_axis_meters": REAR_CROSS_CUE_SIZE.z,
+		"steady_state_only": true,
+		"flashes": false,
+		"processes": false,
+		"uses_timer": false,
+		"presentation_only": true,
+		"movement_authority": false,
+		"target_authority": false,
+		"fire_authority": false,
+		"combat_authority": false,
+		"damage_authority": false,
+		"reward_authority": false,
 	}.duplicate(true)
 
 
@@ -955,9 +1024,22 @@ func _begin_rear_cross() -> void:
 		_rear_cross_destination_side = -1.0 if _orbit_sign >= 0.0 else 1.0
 	_rear_cross_started_at = _elapsed
 	_rear_cross_state = &"active"
+	_rear_cross_activation_generation = _activation_generation
+	_apply_rear_cross_presentation()
 
 
 func _refresh_rear_cross_state() -> void:
+	if (
+		_rear_cross_state == &"active"
+		and (
+			not _active
+			or _wing_role != WingCoordinator.ROLE_FLANKER
+			or not _has_current_target()
+			or _rear_cross_activation_generation != _activation_generation
+		)
+	):
+		_reset_rear_cross_tactic()
+		return
 	if (
 		_rear_cross_state == &"active"
 		and _elapsed - _rear_cross_started_at >= rear_cross_duration
@@ -970,6 +1052,8 @@ func _complete_rear_cross() -> void:
 		return
 	_rear_cross_state = &"completed"
 	_rear_cross_completed_count += 1
+	_rear_cross_activation_generation = 0
+	_apply_rear_cross_presentation()
 
 
 func _reset_rear_cross_tactic() -> void:
@@ -977,6 +1061,8 @@ func _reset_rear_cross_tactic() -> void:
 	_rear_cross_started_at = 0.0
 	_rear_cross_destination_side = 1.0
 	_rear_cross_completed_count = 0
+	_rear_cross_activation_generation = 0
+	_apply_rear_cross_presentation()
 
 
 func _is_fire_authorized() -> bool:
@@ -1049,6 +1135,10 @@ func _update_presentation(delta: float) -> void:
 	super(delta)
 	if not _built:
 		return
+	# Target removal can happen without another coordinator assignment. Observe
+	# that loss through the inherited presentation pass so a committed vane can
+	# never remain on a craft that no longer has a live rear-cross target.
+	_refresh_rear_cross_state()
 	if (
 		_active
 		and not _weapon_safed
@@ -1062,6 +1152,26 @@ func _update_presentation(delta: float) -> void:
 		_muzzle_lens.visible = _active and not _weapon_safed
 	if is_instance_valid(_warning_light) and _weapon_safed:
 		_warning_light.light_energy = 0.0
+
+
+## A state step, never a phase or animation. Pointing the retained wedge toward
+## the existing destination side is the cue's only runtime mutation.
+func _apply_rear_cross_presentation() -> void:
+	if not is_instance_valid(_rear_cross_cue):
+		return
+	var presented := (
+		_active
+		and _wing_role == WingCoordinator.ROLE_FLANKER
+		and _rear_cross_state == &"active"
+		and _rear_cross_activation_generation == _activation_generation
+		and _has_current_target()
+	)
+	_rear_cross_cue.visible = presented
+	_rear_cross_cue.position = REAR_CROSS_CUE_POSITION
+	_rear_cross_cue.rotation = (
+		Vector3(0.0, -_rear_cross_destination_side * PI * 0.5, 0.0)
+		if presented else Vector3.ZERO
+	)
 
 
 # ---------------------------------------------------------------- geometry ----
@@ -1145,6 +1255,21 @@ func _build_interceptor() -> void:
 	_role_light.shadow_enabled = false
 	_visual_root.add_child(_role_light)
 
+	# A single retained triangular prism points across the dorsal silhouette
+	# toward the committed rear-cross shoulder. Nesting it under the existing
+	# role lamp keeps it banked with the hull without expanding the visual root's
+	# frozen direct-renderer and mirrored-trim resource budgets.
+	_rear_cross_cue = _wedge(
+		_role_lamp,
+		"RearCrossDirectionVane",
+		REAR_CROSS_CUE_POSITION,
+		REAR_CROSS_CUE_SIZE,
+		_materials.skirmisher_rear_cross_cue
+	)
+	_rear_cross_cue.process_mode = Node.PROCESS_MODE_DISABLED
+	_rear_cross_cue.visible = false
+	_rear_cross_cue_mesh = _rear_cross_cue.mesh as ArrayMesh
+
 	_muzzle_port = Marker3D.new()
 	_muzzle_port.name = "RepeaterMuzzle"
 	_muzzle_port.position = Vector3(0.0, -0.3, -3.98)
@@ -1205,6 +1330,14 @@ func _create_skirmisher_materials() -> void:
 	_materials.skirmisher_deep = _material(Color("161d20"), 0.6, 0.3)
 	_materials.skirmisher_engine = _material(SKIRMISHER_ENGINE, 0.08, 0.2, SKIRMISHER_ENGINE, 2.6)
 	_materials.skirmisher_muzzle = _material(ROLE_ANCHOR_LAMP, 0.12, 0.22, ROLE_ANCHOR_LAMP, 2.6)
+	_materials.skirmisher_rear_cross_cue = _material(
+		REAR_CROSS_CUE_COLOR,
+		0.08,
+		0.24,
+		REAR_CROSS_CUE_COLOR,
+		2.8
+	)
+	_materials.skirmisher_rear_cross_cue.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# A per-instance lamp material: the two craft in a wing show different roles
 	# at the same moment, so this must not be shared between them.
 	# Authored with emission already enabled: `_apply_role_presentation()` only
