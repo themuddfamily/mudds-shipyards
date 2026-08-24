@@ -40,6 +40,11 @@ func _init() -> void:
 func configure_for_ship(ship: HeroShip) -> Dictionary:
 	if not _configured_ship_id.is_empty():
 		return _result(false, &"already_configured")
+	# A lease snapshots this berth's dock transform for the landing authority.
+	# Do not let a late initial configuration rewrite that snapshot underneath a
+	# reserved craft during a streamed re-entry or retry.
+	if is_reserved() or is_occupied():
+		return _result(false, &"berth_lease_active")
 	if ship == null or not is_instance_valid(ship) or ship.is_queued_for_deletion():
 		return _result(false, &"ship_unavailable")
 	var definition := ship.get_ship_definition()

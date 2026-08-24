@@ -19,6 +19,7 @@ func _init() -> void:
 func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
+	await _test_berth_configuration_requires_empty_lease()
 	await _test_read_only_approach_ready_probe()
 	await _test_shared_composition_and_measured_entry()
 	await _test_committed_origin_receipt_adoption()
@@ -38,6 +39,36 @@ func _run() -> void:
 		await _test_transition_terminal_atomicity(phase, &"queued_surface")
 	Engine.time_scale = _original_time_scale
 	_finish()
+
+
+func _test_berth_configuration_requires_empty_lease() -> void:
+	var fixture_root := Node3D.new()
+	fixture_root.name = "BerthConfigurationLeaseFixture"
+	root.add_child(fixture_root)
+	var berth := EmberSurfaceBerth.new()
+	fixture_root.add_child(berth)
+	var ship := ARROW_SCENE.instantiate() as ArrowReconShip
+	fixture_root.add_child(ship)
+	await process_frame
+	await physics_frame
+	var definition := ship.get_ship_definition()
+	var token := berth.try_reserve(ship, definition)
+	var dock_before_leased_configuration := berth.dock_transform
+	var while_leased := berth.configure_for_ship(ship)
+	var contract_unchanged_while_leased := berth.dock_transform == dock_before_leased_configuration
+	var released := berth.release(ship, token)
+	var after_release := berth.configure_for_ship(ship)
+	_check(
+		definition != null and not token.is_empty()
+			and not bool(while_leased.get("accepted", true))
+			and while_leased.get("reason", &"") == &"berth_lease_active"
+			and contract_unchanged_while_leased
+			and released and bool(after_release.get("accepted", false))
+			and after_release.get("reason", &"") == &"configured",
+		"surface berth cannot rewrite the landing contract under a reserved re-entry craft",
+	)
+	fixture_root.queue_free()
+	await process_frame
 
 
 func _test_read_only_approach_ready_probe() -> void:
