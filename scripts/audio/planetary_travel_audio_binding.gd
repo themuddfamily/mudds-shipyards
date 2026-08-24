@@ -61,7 +61,10 @@ func attach(session: Object = null) -> Dictionary:
 	_last_state_id = &""
 	_active_slots.clear()
 	if _session != null:
-		present_snapshot(_session.call(&"get_presentation_snapshot"))
+		# The retained session may already be mid-transit when this observer binds.
+		# Prime state and continuous mix silently so attachment cannot replay an
+		# old phase as a new semantic transition.
+		_present_snapshot(_session.call(&"get_presentation_snapshot"), false)
 	return _result(true, &"attached")
 
 func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
@@ -70,6 +73,9 @@ func set_reduced_dynamic_range(enabled: bool) -> Dictionary:
 	return _result(true, &"mix_updated")
 
 func present_snapshot(snapshot: Dictionary) -> Dictionary:
+	return _present_snapshot(snapshot, true)
+
+func _present_snapshot(snapshot: Dictionary, emit_semantic_cue: bool) -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_attached")
 	var generation: Variant = snapshot.get("generation", -1)
@@ -88,7 +94,7 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		return _result(false, &"duplicate_state")
 	_last_session_generation = int(generation)
 	var state_changed: bool = state_id != _last_state_id
-	if state_changed and CUE_BY_STATE.has(state_id as StringName):
+	if emit_semantic_cue and state_changed and CUE_BY_STATE.has(state_id as StringName):
 		var cue_id: StringName = CUE_BY_STATE[state_id]
 		if _admit(cue_id):
 			var intensity := 0.75 if _reduced_dynamic_range else 1.0
