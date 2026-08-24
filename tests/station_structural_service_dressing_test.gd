@@ -481,6 +481,54 @@ func _run() -> void:
 		and task_strip_material_ids.size() == 4,
 		"resident task strips reduce 4 -> 2 mesh allocations with exact copies and instance-owned materials"
 	)
+	# Radiator blades vary only by structural profile, so the two LIGHT and two
+	# STANDARD resident dressings should share two material-free meshes without
+	# sharing their MultiMesh buffers, materials, transforms, or lifecycle.
+	var radiator_mesh_ids: Dictionary = {}
+	var radiator_multimesh_ids: Dictionary = {}
+	var radiator_material_ids: Dictionary = {}
+	var radiator_mesh_by_profile: Dictionary = {}
+	var exact_radiator_batches := true
+	for sharing_index in sharing_instances.size():
+		var sharing_dressing := sharing_instances[sharing_index]
+		var profile_value := int(sharing_specs[sharing_index][2])
+		var radiator_batch := sharing_dressing.get_node(
+			^"PresentationRoot/ServiceDetailRoot/RadiatorVentBlades"
+		) as MultiMeshInstance3D
+		var radiator_audit := sharing_dressing.get_radiator_vent_batch_audit()
+		var expected_crossface_span := (
+			0.82
+			if profile_value == StationStructuralServiceDressing.StructuralProfile.LIGHT
+			else 1.08
+		)
+		var radiator_mesh := radiator_batch.multimesh.mesh
+		radiator_mesh_ids[radiator_mesh.get_instance_id()] = true
+		radiator_multimesh_ids[radiator_batch.multimesh.get_instance_id()] = true
+		radiator_material_ids[radiator_batch.material_override.get_instance_id()] = true
+		if radiator_mesh_by_profile.has(profile_value):
+			exact_radiator_batches = exact_radiator_batches and (
+				radiator_mesh_by_profile[profile_value] == radiator_mesh
+			)
+		else:
+			radiator_mesh_by_profile[profile_value] = radiator_mesh
+		exact_radiator_batches = exact_radiator_batches and (
+			bool(radiator_audit.get("valid", false))
+			and radiator_batch.multimesh.instance_count == 6
+			and radiator_batch.multimesh.visible_instance_count == 6
+			and radiator_batch.multimesh.buffer.size() == 72
+			and radiator_mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.075, expected_crossface_span * 0.48 * 0.82, 0.045)
+			)
+			and radiator_batch.get_child_count() == 0
+			and radiator_batch.get_script() == null
+		)
+	_check(
+		exact_radiator_batches
+		and radiator_mesh_ids.size() == 2
+		and radiator_multimesh_ids.size() == 4
+		and radiator_material_ids.size() == 4,
+		"resident radiator blades reduce 4 -> 2 mesh allocations with exact copies and instance-owned presentation"
+	)
 	var sharing_fastener_batch := sharing_instances[3].get_node(
 		"PresentationRoot/HighDetailRoot/FasciaFastenerBatch"
 	) as MultiMeshInstance3D

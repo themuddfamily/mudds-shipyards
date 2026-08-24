@@ -59,6 +59,11 @@ static var _fascia_fastener_mesh_cache: Dictionary = {}
 ## cannot leak between components.
 static var _task_strip_mesh_cache: Dictionary = {}
 
+## Radiator blades vary only with structural-profile height. Keep their
+## material-free geometry as one immutable mesh per profile while each dressing
+## retains its own MultiMesh buffer, material override, and visibility lifetime.
+static var _radiator_vent_mesh_cache: Dictionary = {}
+
 const PERFORMANCE_BUDGET := {
 	"node_count": 49,
 	"visible_primitives": 41,
@@ -1696,10 +1701,7 @@ func _keel_post_mesh() -> ArrayMesh:
 
 func _radiator_vent_mesh() -> ArrayMesh:
 	var dimensions := _get_profile_dimensions()
-	return StationSurfaceKit.rounded_box_mesh_cached(
-		Vector3(0.075, float(dimensions["crossface_span"]) * 0.48 * 0.82, 0.045),
-		_rounded_box_cache
-	)
+	return _shared_radiator_vent_mesh(float(dimensions["crossface_span"]))
 
 
 func _conduit_clamp_mesh() -> ArrayMesh:
@@ -1990,6 +1992,13 @@ static func _shared_fascia_fastener_mesh() -> ArrayMesh:
 static func _shared_task_strip_mesh(strip_length: float) -> ArrayMesh:
 	return StationSurfaceKit.rounded_box_mesh_cached(
 		Vector3(strip_length, 0.05, 0.025), _task_strip_mesh_cache
+	)
+
+
+static func _shared_radiator_vent_mesh(crossface_span: float) -> ArrayMesh:
+	return StationSurfaceKit.rounded_box_mesh_cached(
+		Vector3(0.075, crossface_span * 0.48 * 0.82, 0.045),
+		_radiator_vent_mesh_cache
 	)
 
 
