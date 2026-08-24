@@ -61,12 +61,23 @@ func attach(settings: RuntimeSettings, expected_revision: int) -> Dictionary:
 		return fenced
 	if settings == null or not is_instance_valid(settings):
 		return _reject(&"settings_missing")
-	var staged := _build_status_confirmation(settings.get_accessibility_descriptor())
+	var candidates := _copy_policy_candidates()
+	if not bool(candidates.get("accepted", false)):
+		return _reject(StringName(candidates.get("reason", &"invalid_presentation_state")))
+	var staged := _reconcile_settings_descriptor(
+		settings.get_accessibility_descriptor(),
+		candidates.visual,
+		candidates.captions,
+		candidates.audio,
+	)
 	if not bool(staged.get("accepted", false)):
 		return _reject(StringName(staged.get("reason", &"invalid_accessibility_descriptor")))
 	_disconnect_settings()
 	_settings = settings
 	_attached = true
+	_visual = candidates.visual
+	_captions = candidates.captions
+	_audio = candidates.audio
 	_status_confirmation = (staged.status as Dictionary).duplicate(true)
 	_settings.setting_changed.connect(_on_setting_changed)
 	_revision += 1
@@ -107,19 +118,15 @@ func configure(request: Dictionary) -> Dictionary:
 			return _reject(&"unknown_profile_field", StringName(key))
 		if not request[key] is Dictionary:
 			return _reject(&"invalid_profile_section", StringName(key))
-	var visual_candidate: RefCounted = VisualPreset.new()
-	var captions_candidate: RefCounted = CaptionContract.new()
-	var audio_candidate: RefCounted = AudioPreset.new()
-	var visual_result: Dictionary = visual_candidate.configure(_visual.get_snapshot())
-	if not bool(visual_result.accepted):
-		return _reject(&"invalid_visual_state")
-	var caption_state := _captions.get_profile_snapshot().get("profile", {}) as Dictionary
-	var caption_result: Dictionary = captions_candidate.configure(caption_state)
-	if not bool(caption_result.accepted):
-		return _reject(&"invalid_caption_state")
-	var audio_result: Dictionary = audio_candidate.configure(_audio.get_snapshot())
-	if not bool(audio_result.accepted):
-		return _reject(&"invalid_audio_state")
+	var candidates := _copy_policy_candidates()
+	if not bool(candidates.get("accepted", false)):
+		return _reject(StringName(candidates.get("reason", &"invalid_presentation_state")))
+	var visual_candidate: RefCounted = candidates.visual
+	var captions_candidate: RefCounted = candidates.captions
+	var audio_candidate: RefCounted = candidates.audio
+	var visual_result: Dictionary
+	var caption_result: Dictionary
+	var audio_result: Dictionary
 	if request.has("visual"):
 		visual_result = visual_candidate.configure(request.visual)
 		if not bool(visual_result.accepted):
@@ -132,9 +139,21 @@ func configure(request: Dictionary) -> Dictionary:
 		audio_result = audio_candidate.configure(request.audio)
 		if not bool(audio_result.accepted):
 			return _reject(&"invalid_audio_profile")
+	var reconciled_status: Dictionary = _status_confirmation.duplicate(true)
+	if _attached:
+		var reconciled := _reconcile_settings_descriptor(
+			_settings.get_accessibility_descriptor(),
+			visual_candidate,
+			captions_candidate,
+			audio_candidate,
+		)
+		if not bool(reconciled.get("accepted", false)):
+			return _reject(StringName(reconciled.get("reason", &"invalid_accessibility_descriptor")))
+		reconciled_status = (reconciled.status as Dictionary).duplicate(true)
 	_visual = visual_candidate
 	_captions = captions_candidate
 	_audio = audio_candidate
+	_status_confirmation = reconciled_status
 	_revision += 1
 	return {"accepted": true, "reason": &"applied", "revision": _revision, "snapshot": get_snapshot()}
 
@@ -151,7 +170,7 @@ func resolve_cue(cue: Dictionary) -> Dictionary:
 		StringName(cue.cue_id),
 		visual_category,
 		bool(cue.get("audible", true)),
-		true,
+		bool((_captions.get_profile_snapshot().get("profile", {}) as Dictionary).get("captions_enabled", false)),
 		bool(cue.get("key_cue", false)),
 		float(cue.get("contrast_ratio", 7.0)),
 	)
@@ -269,12 +288,89 @@ func _refresh_attached(expected_revision: int, reason: StringName) -> Dictionary
 	var fenced := _validate_revision(expected_revision)
 	if not fenced.is_empty():
 		return fenced
-	var staged := _build_status_confirmation(_settings.get_accessibility_descriptor())
+	var candidates := _copy_policy_candidates()
+	if not bool(candidates.get("accepted", false)):
+		return _reject(StringName(candidates.get("reason", &"invalid_presentation_state")))
+	var staged := _reconcile_settings_descriptor(
+		_settings.get_accessibility_descriptor(),
+		candidates.visual,
+		candidates.captions,
+		candidates.audio,
+	)
 	if not bool(staged.get("accepted", false)):
 		return _reject(StringName(staged.get("reason", &"invalid_accessibility_descriptor")))
+	_visual = candidates.visual
+	_captions = candidates.captions
+	_audio = candidates.audio
 	_status_confirmation = (staged.status as Dictionary).duplicate(true)
 	_revision += 1
 	return _lifecycle_result(reason)
+
+
+func _copy_policy_candidates() -> Dictionary:
+	var visual_candidate: RefCounted = VisualPreset.new()
+	var captions_candidate: RefCounted = CaptionContract.new()
+	var audio_candidate: RefCounted = AudioPreset.new()
+	var visual_result: Dictionary = visual_candidate.configure(_visual.get_snapshot())
+	if not bool(visual_result.accepted):
+		return {"accepted": false, "reason": &"invalid_visual_state"}
+	var caption_state := _captions.get_profile_snapshot().get("profile", {}) as Dictionary
+	var caption_result: Dictionary = captions_candidate.configure(caption_state)
+	if not bool(caption_result.accepted):
+		return {"accepted": false, "reason": &"invalid_caption_state"}
+	var audio_result: Dictionary = audio_candidate.configure(_audio.get_snapshot())
+	if not bool(audio_result.accepted):
+		return {"accepted": false, "reason": &"invalid_audio_state"}
+	return {
+		"accepted": true,
+		"visual": visual_candidate,
+		"captions": captions_candidate,
+		"audio": audio_candidate,
+	}
+
+
+func _reconcile_settings_descriptor(
+	descriptor: Dictionary,
+	visual_candidate: RefCounted,
+	captions_candidate: RefCounted,
+	audio_candidate: RefCounted,
+) -> Dictionary:
+	var staged := _build_status_confirmation(descriptor)
+	if not bool(staged.get("accepted", false)):
+		return staged
+	var captions_enabled := bool(descriptor.captions_enabled)
+	var reduced_flash := bool(descriptor.reduced_flash)
+	var reduced_motion := bool(descriptor.reduced_motion)
+	var palette_id := StringName(descriptor.colorblind_palette_id)
+	var visual_result: Dictionary = visual_candidate.configure({
+		"reduced_flash": reduced_flash,
+		"reduced_motion": reduced_motion,
+		"colour_safe_cues": palette_id != &"none",
+		"ui_scale": float(descriptor.ui_scale),
+	})
+	if not bool(visual_result.get("accepted", false)):
+		return {"accepted": false, "reason": &"invalid_visual_reconciliation"}
+	var caption_profile := (
+		captions_candidate.get_profile_snapshot().get("profile", {}) as Dictionary
+	).duplicate(true)
+	caption_profile["captions_enabled"] = captions_enabled
+	caption_profile["reduced_flash"] = reduced_flash
+	caption_profile["reduced_motion"] = reduced_motion
+	var caption_result: Dictionary = captions_candidate.configure(caption_profile)
+	if not bool(caption_result.get("accepted", false)):
+		return {"accepted": false, "reason": &"invalid_caption_reconciliation"}
+	var audio_result: Dictionary = audio_candidate.configure({
+		"reduced_flash": reduced_flash,
+		"reduced_motion": reduced_motion,
+		"subtitle_verbosity": (
+			AudioPreset.SubtitleVerbosity.ALL_CUES
+			if captions_enabled
+			else AudioPreset.SubtitleVerbosity.OFF
+		),
+	})
+	if not bool(audio_result.get("accepted", false)):
+		return {"accepted": false, "reason": &"invalid_audio_reconciliation"}
+	return staged
 
 
 func _build_status_confirmation(descriptor: Dictionary) -> Dictionary:

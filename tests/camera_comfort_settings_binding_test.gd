@@ -72,6 +72,31 @@ func _run() -> void:
 	_check(str(changed.text).contains("REDUCED FLASH  //  ON") and binding.get_snapshot().generation == 1, "accessibility flags and binding generation remain deterministic")
 	_check(changed.on_foot_first_person and str(changed.text).contains("ON-FOOT VIEW  //  FIRST PERSON"), "real first-person setting changes refresh the visible summary")
 	_check(changed.ui_scale == 1.35 and binding.get_snapshot().settings_revision == changed.settings_revision, "real UI scale changes are forwarded with the binding settings revision")
+	var retained_generation := int(binding.get_snapshot().generation)
+	var invalid_replacement := binding.attach(RefCounted.new(), presenter)
+	_check(
+		not bool(invalid_replacement.get("accepted", true))
+			and invalid_replacement.reason == &"settings_contract_missing"
+			and binding.get_snapshot().attached
+			and int(binding.get_snapshot().generation) == retained_generation
+			and presenter.get_snapshot().attached,
+		"invalid replacement settings preserve the live binding and presenter atomically"
+	)
+	var incomplete_replacement := binding.attach(settings, incomplete_presenter)
+	_check(
+		not bool(incomplete_replacement.get("accepted", true))
+			and incomplete_replacement.reason == &"presenter_contract_missing"
+			and binding.get_snapshot().attached
+			and int(binding.get_snapshot().generation) == retained_generation
+			and incomplete_presenter.present_calls == 0,
+		"invalid replacement presenter preserves the live subscription without receiving a refresh"
+	)
+	settings.camera_fov = 91.0
+	_check(
+		str(presenter.get_snapshot().text).contains("FIELD OF VIEW  91°")
+			and binding.get_snapshot().settings_revision == presenter.get_snapshot().settings_revision,
+		"the original settings owner still refreshes after rejected replacement attempts"
+	)
 	binding.detach()
 	_check(not presenter.get_snapshot().attached, "valid presenter receives its complete detach lifecycle")
 	settings.camera_fov = 60.0

@@ -23,8 +23,6 @@ var _view: Dictionary = {}
 
 
 func attach(settings: Object, presenter: RefCounted = null) -> Dictionary:
-	if _attached:
-		detach()
 	if settings == null or not is_instance_valid(settings) \
 			or not settings.has_signal(&"setting_changed") \
 			or not settings.has_method(&"to_dictionary"):
@@ -32,6 +30,11 @@ func attach(settings: Object, presenter: RefCounted = null) -> Dictionary:
 	var selected_presenter: RefCounted = presenter if presenter != null else PresenterType.new()
 	if not selected_presenter.has_method(&"present") or not selected_presenter.has_method(&"detach"):
 		return _reject(&"presenter_contract_missing")
+	# Validate the complete replacement contract before disconnecting the live
+	# settings owner or clearing its presenter. A rejected replacement is a
+	# no-op, so the current summary and signal subscription remain usable.
+	if _attached:
+		detach()
 	_settings = settings
 	_presenter = selected_presenter
 	_generation += 1

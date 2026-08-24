@@ -2,6 +2,7 @@ extends SceneTree
 
 const Contract := preload("res://scripts/ui/runtime_accessibility_presentation.gd")
 const Settings := preload("res://scripts/settings/runtime_settings.gd")
+const AudioPreset := preload("res://scripts/audio/audio_accessibility_preset.gd")
 
 class MalformedRuntimeSettings extends RuntimeSettings:
 	func get_accessibility_descriptor() -> Dictionary:
@@ -71,6 +72,19 @@ func _test_active_settings_status(contract: RefCounted) -> void:
 			and status.colorblind_palette_id == &"tritanopia",
 		"the confirmation covers the actual caption, flash, motion, UI/text scale and colour-alternative fields"
 	)
+	var reconciled: Dictionary = contract.get_snapshot()
+	var caption_profile := reconciled.captions.profile as Dictionary
+	_check(
+		is_equal_approx(float(reconciled.visual.ui_scale), 1.35)
+			and bool(reconciled.visual.reduced_flash)
+			and bool(reconciled.visual.reduced_motion)
+			and bool(reconciled.visual.colour_safe_cues)
+			and bool(caption_profile.captions_enabled)
+			and bool(caption_profile.reduced_flash)
+			and bool(caption_profile.reduced_motion)
+			and int(reconciled.audio.subtitle_verbosity) == AudioPreset.SubtitleVerbosity.ALL_CUES,
+		"attachment reconciles every public presentation policy to the same active settings descriptor"
+	)
 	_check(
 		status.rows.size() == 5
 			and status.rows[0].text == "CAPTIONS // ON"
@@ -111,8 +125,26 @@ func _test_active_settings_status(contract: RefCounted) -> void:
 	var live: Dictionary = contract.get_snapshot()
 	_check(
 		int(live.revision) == attached_revision + 1
-			and live.status_confirmation.rows[0].text == "CAPTIONS // OFF",
+			and live.status_confirmation.rows[0].text == "CAPTIONS // OFF"
+			and not bool(live.captions.profile.captions_enabled)
+			and int(live.audio.subtitle_verbosity) == AudioPreset.SubtitleVerbosity.OFF,
 		"a supported live RuntimeSettings change repaints the textual confirmation immediately"
+	)
+	var disabled_cue: Dictionary = contract.resolve_cue({
+		"cue_id": &"captions_disabled",
+		"visual_category": &"info",
+		"caption_category": &"system",
+		"audible": false,
+		"key_cue": true,
+		"text": "Caption disabled.",
+		"bus": &"UI",
+	})
+	_check(
+		bool(disabled_cue.accepted)
+			and not bool(disabled_cue.visual.show_caption)
+			and not bool(disabled_cue.audio.show_subtitle)
+			and not bool(disabled_cue.caption.get("accepted", false)),
+		"cue output cannot contradict a captions-off status across visual, caption and audio policies"
 	)
 	var live_revision := int(live.revision)
 	settings.master_volume = 0.25
@@ -141,8 +173,28 @@ func _test_active_settings_status(contract: RefCounted) -> void:
 	var reused: Dictionary = contract.attach(replacement, detached_revision)
 	_check(
 		bool(reused.accepted) and reused.snapshot.status_confirmation.rows[3].text == "UI / TEXT SCALE // 110%"
-			and reused.snapshot.status_confirmation.colorblind_palette_id == &"protanopia",
+			and reused.snapshot.status_confirmation.colorblind_palette_id == &"protanopia"
+			and is_equal_approx(float(reused.snapshot.visual.ui_scale), 1.1)
+			and bool(reused.snapshot.visual.colour_safe_cues)
+			and not bool(reused.snapshot.captions.profile.captions_enabled)
+			and int(reused.snapshot.audio.subtitle_verbosity) == AudioPreset.SubtitleVerbosity.OFF,
 		"the detached presenter is reusable at its exact revision without leaking the previous preset"
+	)
+	var configured: Dictionary = contract.configure({
+		"visual": {"ui_scale": 0.75, "reduced_motion": true, "colour_safe_cues": false},
+		"captions": {"captions_enabled": true},
+		"audio": {"subtitle_verbosity": 2},
+	})
+	var settings_owned := configured.snapshot as Dictionary
+	_check(
+		bool(configured.accepted)
+			and is_equal_approx(float(settings_owned.visual.ui_scale), 1.1)
+			and not bool(settings_owned.visual.reduced_motion)
+			and bool(settings_owned.visual.colour_safe_cues)
+			and not bool(settings_owned.captions.profile.captions_enabled)
+			and int(settings_owned.audio.subtitle_verbosity) == AudioPreset.SubtitleVerbosity.OFF
+			and is_equal_approx(float(settings_owned.status_confirmation.ui_scale), 1.1),
+		"attached settings remain the shared-field authority across later public configuration"
 	)
 
 
