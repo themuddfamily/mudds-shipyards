@@ -36,6 +36,13 @@ const CORRIDOR_CLEAR_WIDTH := 4.6
 const MINIMUM_HEAD_CLEARANCE := 4.0
 const BUNK_ALCOVE_COUNT := 6
 const COMMON_CHAIR_COUNT := 8
+## The common room keeps the same five pressure-rib silhouettes and renderer
+## allocation, but three of them now carry the Habitat's established brass trim
+## as route-scale waypoints. From the corridor they read as a warm nested cadence:
+## arrival, room centre, observation glazing. The two dark structural ribs between
+## them preserve depth separation without adding emission or practical lights.
+const COMMON_PRESSURE_RIB_Z_POSITIONS := [18.25, 20.75, 23.25, 25.75, 28.25]
+const COMMON_PRESSURE_RIB_WAYPOINT_INDICES := [0, 2, 4]
 
 ## Component-local renderer freeze for four childless visual-only families.
 ## Their parent hatches, nutrient tanks, pipework and garden column retain
@@ -2242,18 +2249,22 @@ func _build_observation_common(structure: Node3D) -> void:
 	_torus(common, "CommonTableEdge", Vector3(0, 1.34, 21.45), 1.25, 1.45, _materials["copper"])
 	_box(common, "TableDisplay", Vector3(0, 1.36, 21.45), Vector3(1.25, 0.035, 0.62), _materials["screen"], false)
 
-	var common_rib_positions := PackedFloat32Array([18.25, 20.75, 23.25, 25.75, 28.25])
-	for rib_index in common_rib_positions.size():
+	for rib_index in COMMON_PRESSURE_RIB_Z_POSITIONS.size():
+		var rib_material: Material = (
+			_materials["brass"]
+			if COMMON_PRESSURE_RIB_WAYPOINT_INDICES.has(rib_index)
+			else _materials["structural"]
+		)
 		_arch_across_x(
 			common,
 			"CommonPressureRib%02d" % rib_index,
-			common_rib_positions[rib_index],
+			float(COMMON_PRESSURE_RIB_Z_POSITIONS[rib_index]),
 			-7.65,
 			7.65,
 			4.85,
 			5.8,
 			0.13,
-			_materials["shell_light"]
+			rib_material
 		)
 	# Same correction as the corridor: a warm #ffe6bd lens over a cool #e6f2ec
 	# pool. The common room is the module a crew lives in, and warm overheads are

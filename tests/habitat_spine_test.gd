@@ -55,6 +55,7 @@ func _run() -> void:
 	await _test_bunk_alcoves(module)
 	_test_berth_boot_batch(module)
 	await _test_common_room_glazing_and_furniture(module)
+	_test_common_room_route_identity(module)
 	await _test_garden_pressure_shell(module)
 	_test_service_and_visual_detail(module)
 	_test_manufactured_material_roles(module)
@@ -433,6 +434,56 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 		_check(bool((rear_glass_hit.collider as Node).get_meta("station_glazing", false)), "rear sightline terminates on glazing rather than invisible wall")
 	var outside_point := module.to_global(Vector3(0, 1.0, 30.0))
 	_check(not module.contains_room(&"observation-common", outside_point), "space beyond broad window is outside common-room volume")
+
+
+func _test_common_room_route_identity(module: HabitatSpine) -> void:
+	var common := module.get_node_or_null(^"Structure/ObservationCommon") as Node3D
+	var materials := module.get("_materials") as Dictionary
+	var brass := materials.get("brass") as StandardMaterial3D
+	var structural := materials.get("structural") as StandardMaterial3D
+	var cadence_exact := common != null and brass != null and structural != null
+	var visual_only := cadence_exact
+	for rib_index in HabitatSpine.COMMON_PRESSURE_RIB_Z_POSITIONS.size():
+		var rib := common.get_node_or_null(
+			NodePath("CommonPressureRib%02d" % rib_index)
+		) as Node3D if common != null else null
+		var expected_material: Material = (
+			brass
+			if HabitatSpine.COMMON_PRESSURE_RIB_WAYPOINT_INDICES.has(rib_index)
+			else structural
+		)
+		var segments := (
+			rib.find_children("TubeSegment*", "MeshInstance3D", false, false)
+			if rib != null else []
+		)
+		cadence_exact = cadence_exact and rib != null and segments.size() == 14
+		visual_only = (
+			visual_only
+			and rib != null
+			and bool(rib.get_meta("visual_detail_only", false))
+			and rib.find_children("*", "CollisionObject3D", true, false).is_empty()
+		)
+		for segment in segments:
+			var mesh := segment as MeshInstance3D
+			cadence_exact = (
+				cadence_exact
+				and mesh.material_override == expected_material
+				and is_equal_approx(
+					mesh.position.z,
+					float(HabitatSpine.COMMON_PRESSURE_RIB_Z_POSITIONS[rib_index])
+				)
+			)
+			visual_only = visual_only and mesh.get_child_count() == 0
+	_check(
+		cadence_exact
+		and not brass.emission_enabled
+		and not structural.emission_enabled,
+		"five retained common-room ribs alternate dark structure with three non-emissive brass route waypoints"
+	)
+	_check(
+		visual_only,
+		"common-room waypoint cadence remains visual-only with no collision or interaction authority"
+	)
 
 
 ## The cupola is drawn partly from a MultiMesh, but it is still pressure-shell
