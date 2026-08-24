@@ -28,6 +28,11 @@ const HULL_COLOR := Color("536b73")
 const CARGO_COLOR := Color("b2773d")
 const ACCENT_COLOR := Color("42c9cf")
 const CARGO_SHOULDER_SIZE := Vector3(0.42, 0.72, 2.90)
+const ENGINE_DAMAGE_SHOULDER_COLOR := Color("f0a24a")
+const ENGINE_FAILED_SHOULDER_COLOR := Color("d95b43")
+const ENGINE_DAMAGE_SHOULDER_X := 2.98
+const ENGINE_DAMAGE_SHOULDER_Y := 0.95
+const ENGINE_DAMAGE_SHOULDER_Y_SCALE := 2.5
 
 # The primary hull is immutable, childless presentation stock. Fleet switching
 # can briefly retain two haulers, so keep one process-local mesh/material recipe
@@ -304,6 +309,9 @@ class CinderNavigatorInteraction:
 
 var _cargo_cockpit_seat: Marker3D
 var _cargo_boarding_marker: Marker3D
+var _cargo_shoulders: MultiMeshInstance3D
+var _cargo_shoulder_material: StandardMaterial3D
+var _engine_damage_shoulder_material: StandardMaterial3D
 var _cargo_access_sign: Label3D
 var _cargo_threshold_light: OmniLight3D
 var _cargo_hold: Node3D
@@ -343,6 +351,8 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	if _ship_perspective_audio_binding != null:
 		call_deferred("_rebind_cargo_perspective_audio")
+	if _cargo_shoulders != null:
+		call_deferred("_sync_engine_damage_shoulders")
 
 
 func _ready() -> void:
@@ -363,6 +373,9 @@ func _ready() -> void:
 		_ship_perspective_audio_binding = null
 	if not _cargo_built:
 		_cargo_built = rebuild_variant_presentation(_build_cargo_variant)
+	if not component_damage_changed.is_connected(_on_cargo_component_damage_changed):
+		component_damage_changed.connect(_on_cargo_component_damage_changed)
+	_sync_engine_damage_shoulders()
 
 
 func _exit_tree() -> void:
@@ -1031,16 +1044,11 @@ func _build_hull(visual: Node3D) -> void:
 	# Four split shoulders give the otherwise rectangular hull a broad freight
 	# profile from either approach direction. Their complete bounds remain inside
 	# the existing side-wall collision envelope and clear the port aperture.
-	var cargo_shoulders := _add_visual_box_batch(
+	_cargo_shoulders = _add_visual_box_batch(
 		visual,
 		"CargoShoulderBatch",
 		CARGO_SHOULDER_SIZE,
-		[
-			Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, -3.75)),
-			Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, -3.75)),
-			Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, 3.75)),
-			Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, 3.75)),
-		],
+		_cargo_shoulder_transforms(false),
 		CARGO_COLOR,
 		PackedStringArray([
 			"CargoShoulderPortForward",
@@ -1049,8 +1057,86 @@ func _build_hull(visual: Node3D) -> void:
 			"CargoShoulderStarboardAft",
 		])
 	)
-	cargo_shoulders.set_meta(&"silhouette_role", &"cargo_shoulders")
-	cargo_shoulders.set_meta(&"color_independent", true)
+	_cargo_shoulder_material = _cargo_shoulders.material_override as StandardMaterial3D
+	_engine_damage_shoulder_material = _material(
+		ENGINE_DAMAGE_SHOULDER_COLOR, 0.28, 0.38,
+		ENGINE_DAMAGE_SHOULDER_COLOR, 1.15
+	)
+	_cargo_shoulders.set_meta(&"silhouette_role", &"cargo_shoulders")
+	_cargo_shoulders.set_meta(&"color_independent", true)
+	_cargo_shoulders.set_meta(&"damage_component_id", ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	_cargo_shoulders.set_meta(&"damage_authority", false)
+	_cargo_shoulders.set_meta(&"animated", false)
+	_cargo_shoulders.set_meta(&"damage_state", &"nominal")
+
+
+## Existing freight shoulders become raised, high-contrast isolation rails when
+## the inherited engine-bay ledger is impaired. The cue is steady and observes
+## authority only; its complete damaged bounds remain inside the existing side
+## wall and roof collision shell, so it adds no collision or gameplay contract.
+func _cargo_shoulder_transforms(damaged: bool) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, -3.75)),
+		Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, -3.75)),
+		Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, 3.75)),
+		Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, 3.75)),
+	]
+	if damaged:
+		var raised_basis := Basis.IDENTITY.scaled(
+			Vector3(1.0, ENGINE_DAMAGE_SHOULDER_Y_SCALE, 1.0)
+		)
+		transforms[2] = Transform3D(
+			raised_basis, Vector3(-ENGINE_DAMAGE_SHOULDER_X, ENGINE_DAMAGE_SHOULDER_Y, 3.75)
+		)
+		transforms[3] = Transform3D(
+			raised_basis, Vector3(ENGINE_DAMAGE_SHOULDER_X, ENGINE_DAMAGE_SHOULDER_Y, 3.75)
+		)
+	return transforms
+
+
+func _on_cargo_component_damage_changed(
+		component_id: StringName,
+		_state: int,
+		_integrity: float
+	) -> void:
+	if component_id == ShipComponentDamage.COMPONENT_ENGINE_BAY:
+		_sync_engine_damage_shoulders()
+
+
+func _sync_engine_damage_shoulders() -> void:
+	if not is_instance_valid(_cargo_shoulders) or _cargo_shoulders.multimesh == null:
+		return
+	var model := get_component_damage()
+	var state := ShipComponentDamage.ComponentState.NOMINAL
+	if model != null and model.is_configured():
+		state = model.get_component_state(ShipComponentDamage.COMPONENT_ENGINE_BAY)
+	var damaged := state in [
+		ShipComponentDamage.ComponentState.IMPAIRED,
+		ShipComponentDamage.ComponentState.FAILED,
+	]
+	var transforms := _cargo_shoulder_transforms(damaged)
+	var mesh := _cargo_shoulders.multimesh.mesh
+	var bounds := AABB()
+	for index in transforms.size():
+		_cargo_shoulders.multimesh.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	_cargo_shoulders.multimesh.custom_aabb = bounds
+	_cargo_shoulders.set_meta(&"presented_instance_transforms", transforms.duplicate())
+	_cargo_shoulders.set_meta(&"presented_local_bounds", bounds)
+	_cargo_shoulders.material_override = (
+		_engine_damage_shoulder_material if damaged else _cargo_shoulder_material
+	)
+	if damaged and _engine_damage_shoulder_material != null:
+		var colour := ENGINE_FAILED_SHOULDER_COLOR \
+			if state == ShipComponentDamage.ComponentState.FAILED \
+			else ENGINE_DAMAGE_SHOULDER_COLOR
+		_engine_damage_shoulder_material.albedo_color = colour
+		_engine_damage_shoulder_material.emission = colour
+	_cargo_shoulders.set_meta(
+		&"damage_state",
+		ShipComponentDamage.state_id_for(state) if damaged else &"nominal"
+	)
 
 
 func _build_cargo_hold(visual: Node3D) -> void:
@@ -1319,6 +1405,7 @@ func _sync_interior_occupant_collision() -> void:
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	_sync_engine_damage_shoulders()
 	_clear_loadmaster_manifest(&"ship_reused", false)
 	_loadmaster_manifest_generation = 1
 	if _moving_interior_component != null and is_instance_valid(_moving_interior_component):
