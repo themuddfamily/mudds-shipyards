@@ -59,6 +59,12 @@ const MAX_PASSENGER_PING_MARKERS := 8
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
 const LOADMASTER_STATION_SEAT_ID: StringName = &"crew_port_00"
 const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
+## Normal aisle-to-seat reading distance for the first port-row role plaque.
+## This is presentation scale only; it grants no interaction or route reach.
+const LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M := 4.5
+const LOADMASTER_WAYFINDING_PANEL_SIZE := Vector3(1.46, 0.78, 0.04)
+const LOADMASTER_WAYFINDING_ROLE_KEY_SIZE := Vector3(0.14, 0.78, 0.055)
+const LOADMASTER_WAYFINDING_LOCAL_OFFSET := Vector3(0.0, 2.08, 0.42)
 const ENGINEER_POWER_ROUTE_BONUS := 0.15
 const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
 const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
@@ -385,6 +391,8 @@ var _crew_status_display: Node3D
 var _crew_status_repair_sequence := -1
 var _skip_next_crew_status_repair_snapshot := false
 var _loadmaster_station_sign: Label3D
+var _loadmaster_wayfinding_panel: MeshInstance3D
+var _loadmaster_wayfinding_role_key: MeshInstance3D
 var _loadmaster_station_sign_snapshot: Dictionary = {}
 var _passenger_ping_cooldowns: Dictionary = {}
 var _gunner_role_cooldowns: Dictionary = {}
@@ -681,24 +689,58 @@ func get_loadmaster_station_display_readout() -> String:
 	return _loadmaster_station_sign.text if is_instance_valid(_loadmaster_station_sign) else ""
 
 
-## Builds one presentation-only sign outside the authored visual root. Keeping
+## Builds one presentation-only plaque outside the authored visual root. Keeping
 ## it on the ship root preserves the frozen Halyard mesh/collision budgets while
-## the sign still follows the physical cabin seat through the moving hull.
+## the plaque still follows the physical cabin seat through the moving hull.
+## The raised seat-back placement, 13.4 cm text em, and full-height vertical key
+## let a player identify this optional role from the ordinary cabin aisle without
+## relying on colour. Neither backing shape owns collision, light, or authority.
 func _build_loadmaster_station_display() -> void:
 	if is_instance_valid(_loadmaster_station_sign):
 		_position_loadmaster_station_display()
 		return
+	_loadmaster_wayfinding_panel = _box(
+		self,
+		"LoadmasterStationWayfindingPanel",
+		Vector3.ZERO,
+		LOADMASTER_WAYFINDING_PANEL_SIZE,
+		_halyard_materials.dark
+	)
+	_loadmaster_wayfinding_panel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_loadmaster_wayfinding_panel.set_meta("presentation_only", true)
+	_loadmaster_wayfinding_panel.set_meta("color_independent", true)
+	_loadmaster_wayfinding_panel.set_meta("seat_id", LOADMASTER_STATION_SEAT_ID)
+	_loadmaster_wayfinding_panel.set_meta(
+		"readability_distance_m", LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M
+	)
+	_loadmaster_wayfinding_role_key = _box(
+		self,
+		"LoadmasterStationRoleKey",
+		Vector3.ZERO,
+		LOADMASTER_WAYFINDING_ROLE_KEY_SIZE,
+		_halyard_materials.boarding_route
+	)
+	_loadmaster_wayfinding_role_key.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_loadmaster_wayfinding_role_key.set_meta("presentation_only", true)
+	_loadmaster_wayfinding_role_key.set_meta("color_independent", true)
+	_loadmaster_wayfinding_role_key.set_meta("shape_role", &"full_height_port_bar")
+	_loadmaster_wayfinding_role_key.set_meta("seat_id", LOADMASTER_STATION_SEAT_ID)
 	_loadmaster_station_sign = Label3D.new()
 	_loadmaster_station_sign.name = "LoadmasterStationSign"
-	_loadmaster_station_sign.font_size = 24
-	_loadmaster_station_sign.pixel_size = 0.0012
+	_loadmaster_station_sign.font_size = 56
+	_loadmaster_station_sign.pixel_size = 0.0024
 	_loadmaster_station_sign.modulate = Color("b9f1d0")
 	_loadmaster_station_sign.outline_modulate = Color("07111d")
-	_loadmaster_station_sign.outline_size = 8
-	_loadmaster_station_sign.no_depth_test = true
+	_loadmaster_station_sign.outline_size = 10
+	_loadmaster_station_sign.no_depth_test = false
+	_loadmaster_station_sign.double_sided = false
 	_loadmaster_station_sign.set_meta("presentation_only", true)
+	_loadmaster_station_sign.set_meta("color_independent", true)
 	_loadmaster_station_sign.set_meta("seat_id", LOADMASTER_STATION_SEAT_ID)
 	_loadmaster_station_sign.set_meta("route_id", &"crew_cabin_port_row_00")
+	_loadmaster_station_sign.set_meta(
+		"readability_distance_m", LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M
+	)
 	add_child(_loadmaster_station_sign)
 	_position_loadmaster_station_display()
 	_clear_loadmaster_station_display(&"display_ready")
@@ -710,11 +752,30 @@ func _position_loadmaster_station_display() -> void:
 	var anchor := get_loadmaster_station_anchor()
 	if not is_instance_valid(anchor):
 		_loadmaster_station_sign.visible = false
+		if is_instance_valid(_loadmaster_wayfinding_panel):
+			_loadmaster_wayfinding_panel.visible = false
+		if is_instance_valid(_loadmaster_wayfinding_role_key):
+			_loadmaster_wayfinding_role_key.visible = false
 		return
-	_loadmaster_station_sign.global_position = anchor.global_position \
-			+ anchor.global_basis * Vector3(0.0, 0.86, -0.42)
+	var plaque_basis := anchor.global_basis.orthonormalized()
+	var plaque_position := anchor.global_position \
+			+ plaque_basis * LOADMASTER_WAYFINDING_LOCAL_OFFSET
+	_loadmaster_station_sign.global_position = plaque_position \
+			+ plaque_basis * Vector3(0.04, 0.0, 0.034)
 	_loadmaster_station_sign.global_rotation = anchor.global_rotation
 	_loadmaster_station_sign.visible = true
+	if is_instance_valid(_loadmaster_wayfinding_panel):
+		_loadmaster_wayfinding_panel.global_transform = Transform3D(
+			plaque_basis,
+			plaque_position
+		)
+		_loadmaster_wayfinding_panel.visible = true
+	if is_instance_valid(_loadmaster_wayfinding_role_key):
+		_loadmaster_wayfinding_role_key.global_transform = Transform3D(
+			plaque_basis,
+			plaque_position + plaque_basis * Vector3(-0.66, 0.0, 0.012)
+		)
+		_loadmaster_wayfinding_role_key.visible = true
 
 
 func _present_loadmaster_station_snapshot(source: Variant) -> void:
@@ -741,6 +802,9 @@ func _present_loadmaster_station_snapshot(source: Variant) -> void:
 		"manifest_generation": generation,
 		"state": state,
 		"ready": ready,
+		"wayfinding_role": &"loadmaster",
+		"readability_distance_m": LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M,
+		"color_independent": true,
 		"presentation_only": true,
 		"cargo_transfer_authority": false,
 		"inventory_mutation_authority": false,
@@ -749,7 +813,7 @@ func _present_loadmaster_station_snapshot(source: Variant) -> void:
 	}.duplicate(true)
 	if is_instance_valid(_loadmaster_station_sign):
 		_loadmaster_station_sign.text = (
-			"LOADMASTER\n[%s]\nMANIFEST %s\nROUTE %s"
+			"LOADMASTER // CARGO\n[%s]\nMANIFEST %s\nROUTE %s"
 			% [str(state).to_upper(), str(manifest_id) if not manifest_id.is_empty() else "--", str(route_id) if not route_id.is_empty() else "--"]
 		)
 		_position_loadmaster_station_display()
@@ -765,6 +829,9 @@ func _clear_loadmaster_station_display(reason: StringName) -> void:
 		"state": &"standby",
 		"ready": false,
 		"reason": reason,
+		"wayfinding_role": &"loadmaster",
+		"readability_distance_m": LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M,
+		"color_independent": true,
 		"presentation_only": true,
 		"cargo_transfer_authority": false,
 		"inventory_mutation_authority": false,
@@ -772,7 +839,7 @@ func _clear_loadmaster_station_display(reason: StringName) -> void:
 		"helm_authority": false,
 	}.duplicate(true)
 	if is_instance_valid(_loadmaster_station_sign):
-		_loadmaster_station_sign.text = "LOADMASTER\n[STANDBY]\nMANIFEST --\nROUTE --"
+		_loadmaster_station_sign.text = "LOADMASTER // CARGO\n[STANDBY]\nMANIFEST --\nROUTE --"
 		_loadmaster_station_sign.visible = is_inside_tree()
 
 
