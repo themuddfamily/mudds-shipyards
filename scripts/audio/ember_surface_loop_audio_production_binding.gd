@@ -70,6 +70,11 @@ const ENTRY_CUE_INTENSITY := {
 	&"airless_high_sink": 0.9,
 	&"clear": 0.25,
 }
+const SERVICE_REPAIR_CUE_BY_OUTCOME := {
+	&"completed": &"ember_service_repair_completed",
+	&"rejected": &"ember_service_repair_rejected",
+	&"unavailable": &"ember_service_repair_unavailable",
+}
 
 var _owner: Node
 var _attached := false
@@ -121,6 +126,11 @@ var _takeoff_bed_intensity_unitless := 0.0
 var _takeoff_bed_supported_airless_ascent := false
 var _takeoff_bed_reason: StringName = &"unavailable"
 var _entry_guidance_presenter := EntryGuidancePresenterScript.new() as RefCounted
+var _last_service_owner_generation := -1
+var _last_service_feedback_generation := -1
+var _last_service_feedback_sequence := -1
+var _last_service_feedback: Dictionary = {}
+var _service_cue_count := 0
 
 
 func _ready() -> void:
@@ -138,6 +148,10 @@ func attach(owner: Node, perspective: StringName = &"exterior") -> Dictionary:
 	_ensure_altitude_voice()
 	if owner.has_signal(&"state_changed"):
 		owner.connect(&"state_changed", _on_owner_snapshot)
+	if owner.has_signal(&"service_terminal_repair_feedback"):
+		owner.connect(
+			&"service_terminal_repair_feedback", present_service_repair_feedback
+		)
 	_attached = true
 	_seen.clear()
 	_slots.clear()
@@ -148,6 +162,51 @@ func attach(owner: Node, perspective: StringName = &"exterior") -> Dictionary:
 	_reset_takeoff_bed()
 	present_snapshot(owner.get_snapshot())
 	return _result(true, &"attached")
+
+
+func present_service_repair_feedback(feedback: Dictionary) -> Dictionary:
+	if not _attached or _owner == null or not is_instance_valid(_owner):
+		return _result(false, &"not_attached")
+	var owner_generation: Variant = feedback.get("owner_generation", -1)
+	var feedback_generation: Variant = feedback.get("feedback_generation", -1)
+	var feedback_sequence: Variant = feedback.get("feedback_sequence", -1)
+	var outcome: Variant = feedback.get("outcome", &"")
+	var world_position: Variant = feedback.get("world_position", Vector3.INF)
+	if not owner_generation is int or not feedback_generation is int \
+			or not feedback_sequence is int or not outcome is StringName \
+			or not world_position is Vector3 \
+			or int(owner_generation) < 0 or int(owner_generation) > MAX_SAFE_GENERATION \
+			or int(feedback_generation) < 0 \
+			or int(feedback_generation) > MAX_SAFE_GENERATION \
+			or int(feedback_sequence) < 1 \
+			or int(feedback_sequence) > MAX_SAFE_GENERATION \
+			or (outcome as StringName) not in SERVICE_REPAIR_CUE_BY_OUTCOME \
+			or not (world_position as Vector3).is_finite():
+		return _result(false, &"invalid_service_repair_feedback")
+	var current_owner_generation := int(_owner.get_snapshot().get("generation", -1))
+	if int(owner_generation) != current_owner_generation \
+			or int(owner_generation) < _last_service_owner_generation:
+		return _result(false, &"stale_service_owner_generation")
+	if int(owner_generation) > _last_service_owner_generation:
+		_last_service_feedback_generation = -1
+		_last_service_feedback_sequence = -1
+	if int(feedback_generation) < _last_service_feedback_generation:
+		return _result(false, &"stale_service_feedback_generation")
+	if int(feedback_generation) > _last_service_feedback_generation:
+		_last_service_feedback_sequence = -1
+	if int(feedback_sequence) <= _last_service_feedback_sequence:
+		return _result(
+			false, &"duplicate_service_feedback" \
+				if int(feedback_sequence) == _last_service_feedback_sequence \
+				else &"stale_service_feedback_sequence"
+		)
+	_last_service_owner_generation = int(owner_generation)
+	_last_service_feedback_generation = int(feedback_generation)
+	_last_service_feedback_sequence = int(feedback_sequence)
+	_last_service_feedback = feedback.duplicate(true)
+	_service_cue_count += 1
+	_emit(SERVICE_REPAIR_CUE_BY_OUTCOME[outcome as StringName] as StringName)
+	return _result(true, &"service_repair_feedback_presented")
 
 func set_perspective(perspective: StringName) -> Dictionary:
 	if not _attached:
@@ -236,6 +295,13 @@ func detach() -> Dictionary:
 		return _result(true, &"already_detached")
 	if is_instance_valid(_owner) and _owner.is_connected(&"state_changed", _on_owner_snapshot):
 		_owner.disconnect(&"state_changed", _on_owner_snapshot)
+	if is_instance_valid(_owner) and _owner.has_signal(&"service_terminal_repair_feedback") \
+			and _owner.is_connected(
+				&"service_terminal_repair_feedback", present_service_repair_feedback
+			):
+		_owner.disconnect(
+			&"service_terminal_repair_feedback", present_service_repair_feedback
+		)
 	_owner = null
 	_attached = false
 	_generation += 1
@@ -248,6 +314,7 @@ func detach() -> Dictionary:
 	_reset_landing_bed()
 	_reset_takeoff_bed()
 	_reset_altitude_transition()
+	_reset_service_repair_feedback()
 	return _result(true, &"detached")
 
 func get_snapshot() -> Dictionary:
@@ -264,6 +331,18 @@ func get_snapshot() -> Dictionary:
 			"last_cue": _last_entry_cue,
 			"emitted_cue_count": _entry_cue_count,
 			"last_result": _last_entry_result.duplicate(true),
+		}.duplicate(true),
+		"service_repair_feedback": {
+			"last_owner_generation": _last_service_owner_generation,
+			"last_feedback_generation": _last_service_feedback_generation,
+			"last_feedback_sequence": _last_service_feedback_sequence,
+			"last_feedback": _last_service_feedback.duplicate(true),
+			"emitted_cue_count": _service_cue_count,
+			"presentation_only": true,
+			"authority": {
+				"repair": false, "components": false, "game_flow": false,
+				"network": false, "persistence": false, "audio_cues": true,
+			},
 		}.duplicate(true),
 		"entry_bed": {
 			"branch_id": _entry_bed_branch,
@@ -383,6 +462,13 @@ func get_snapshot() -> Dictionary:
 
 func _on_owner_snapshot(snapshot: Dictionary) -> void:
 	present_snapshot(snapshot)
+
+
+func _reset_service_repair_feedback() -> void:
+	_last_service_owner_generation = -1
+	_last_service_feedback_generation = -1
+	_last_service_feedback_sequence = -1
+	_last_service_feedback.clear()
 
 func _host_phase_id(host_phase: int) -> StringName:
 	match host_phase:

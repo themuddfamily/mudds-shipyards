@@ -86,6 +86,9 @@ const REGISTERED_CUES := {
 	&"planetary_ascent": {"caption": "Planetary ascent", "default_severity": &"medium"},
 	&"planetary_orbit_return": {"caption": "Returning to orbit", "default_severity": &"medium"},
 	&"planetary_returned_to_station": {"caption": "Returned to station", "default_severity": &"low"},
+	&"ember_service_repair_completed": {"caption": "Component service complete", "default_severity": &"low"},
+	&"ember_service_repair_rejected": {"caption": "Component service rejected", "default_severity": &"medium"},
+	&"ember_service_repair_unavailable": {"caption": "Component service unavailable", "default_severity": &"medium"},
 }
 const SEVERITY_MARKERS := {&"low": "○", &"medium": "△", &"high": "!"}
 

@@ -27,6 +27,7 @@ class FakeHost:
 var _assertions := 0
 var _failures := PackedStringArray()
 var _reward_calls := 0
+var _service_feedback: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -59,6 +60,9 @@ func _run() -> void:
 	root.add_child(director)
 	var binding := BindingScript.new() as Node
 	root.add_child(binding)
+	binding.connect(
+		&"service_terminal_repair_feedback", _on_service_terminal_repair_feedback
+	)
 	await process_frame
 	var configured := binding.call(
 		&"configure", host, director, Callable(self, "_reward_sink"), 55,
@@ -104,8 +108,14 @@ func _run() -> void:
 			and not distant
 			and distant_snapshot.service_terminal.status == &"service_target_out_of_range"
 			and int(distant_snapshot.service_terminal.request_sequence) == 2
+			and _service_feedback.size() == 2
+			and _service_feedback[0].outcome == &"rejected"
+			and _service_feedback[0].reason == &"service_craft_not_landed"
+			and int(_service_feedback[0].feedback_sequence) == 1
+			and _service_feedback[1].reason == &"service_target_out_of_range"
+			and int(_service_feedback[1].feedback_sequence) == 2
 			and is_equal_approx(model.get_component_integrity(damaged_component), integrity_before),
-		"airborne and out-of-range craft evidence cannot mutate the component"
+		"rejected attempts publish ordered presentation feedback without component mutation"
 	)
 
 	craft.global_position = interaction.global_position + Vector3(25.0, 0.0, 0.0)
@@ -124,8 +134,12 @@ func _run() -> void:
 				== "[ COMPLETE ]  CRAFT COMPONENT SERVICED"
 			and service_receipt.component_id == damaged_component
 			and service_receipt.authority_path == &"repair_authority_component_adapter"
-			and int(service_receipt.request_sequence) == 3,
-		"GameFlow selects one component and the retained authority applies one pulse"
+			and int(service_receipt.request_sequence) == 3
+			and _service_feedback.size() == 3
+			and _service_feedback[2].outcome == &"completed"
+			and int(_service_feedback[2].feedback_sequence) == 3
+			and int(_service_feedback[2].composition_generation) == 1,
+		"the retained authority applies one pulse and publishes success feedback"
 	)
 	var replay := interaction.call(
 		&"submit_service_repair", player, 55, 1, 1
@@ -133,8 +147,11 @@ func _run() -> void:
 	_check(
 		not bool(replay.accepted)
 			and replay.reason == &"service_terminal_already_consumed"
+			and _service_feedback.size() == 4
+			and _service_feedback[3].outcome == &"rejected"
+			and int(_service_feedback[3].feedback_sequence) == 4
 			and is_equal_approx(model.get_component_integrity(damaged_component), integrity_after),
-		"the consumed terminal cannot replay its repair transaction"
+		"a replay is rejected once and remains visible through ordered feedback"
 	)
 
 	var relay := binding.call(
@@ -205,6 +222,10 @@ func _damage_one_component(craft: HeroShip) -> StringName:
 func _reward_sink(_receipt: Dictionary) -> Dictionary:
 	_reward_calls += 1
 	return {"accepted": true, "reason": &"test_reward_committed"}
+
+
+func _on_service_terminal_repair_feedback(feedback: Dictionary) -> void:
+	_service_feedback.append(feedback.duplicate(true))
 
 
 func _finish() -> void:

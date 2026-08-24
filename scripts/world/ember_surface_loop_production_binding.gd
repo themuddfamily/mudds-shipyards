@@ -10,6 +10,7 @@ extends Node
 
 signal state_changed(snapshot: Dictionary)
 signal completion_handback_ready(receipt: Dictionary)
+signal service_terminal_repair_feedback(feedback: Dictionary)
 
 enum State { IDLE, START_PENDING, RUNNING, HANDOFF_PENDING, FAILED }
 
@@ -270,6 +271,9 @@ func configure_planetary_surface(
 	_planetary_composition = PlanetaryCompositionScript.new() as Node
 	_planetary_composition.name = "EmberPlanetarySurfaceProductionBinding"
 	_composition_root.add_child(_planetary_composition)
+	_planetary_composition.connect(
+		&"service_terminal_repair_feedback", _on_service_terminal_repair_feedback
+	)
 	var result: Dictionary = _planetary_composition.call(
 		&"configure", _host, director, reward_sink, _host.get_generation(),
 		service_repair_sink
@@ -294,6 +298,12 @@ func configure_planetary_surface(
 	if bool(result.get("accepted", false)) and atmosphere_composition != null:
 		_configure_entry_atmosphere(atmosphere_composition)
 	return result
+
+
+func _on_service_terminal_repair_feedback(feedback: Dictionary) -> void:
+	var forwarded := feedback.duplicate(true)
+	forwarded["owner_generation"] = _generation
+	service_terminal_repair_feedback.emit(forwarded)
 
 
 func get_planetary_surface_snapshot() -> Dictionary:

@@ -1,6 +1,8 @@
 class_name EmberPlanetarySurfaceProductionBinding
 extends Node
 
+signal service_terminal_repair_feedback(feedback: Dictionary)
+
 ## Retained Ember composition for the caller-owned planetary surface systems.
 ## The Ember host still owns lifecycle and actors; this node only keeps one
 ## generation-fenced set of planetary runtimes and forwards observations.
@@ -212,6 +214,9 @@ func configure(
 	_survey_interaction.name = "OwnedSurveyBunkerInteraction"
 	add_child(_survey_interaction)
 	_survey_interaction.connect(&"survey_completed", _on_survey_interaction_completed)
+	_survey_interaction.connect(
+		&"service_repair_feedback", _on_service_terminal_repair_feedback
+	)
 	configured = _survey_interaction.call(
 		&"configure", host, EmberAuthoredSceneScript.get_survey_interaction_definition()
 	)
@@ -256,6 +261,12 @@ func start_relay_survey() -> Dictionary:
 			_survey_interaction.call(&"reset_service_terminal", next_generation)
 	_apply_relay_survey_presentation()
 	return result
+
+
+func _on_service_terminal_repair_feedback(feedback: Dictionary) -> void:
+	var forwarded := feedback.duplicate(true)
+	forwarded["composition_generation"] = _composition_generation
+	service_terminal_repair_feedback.emit(forwarded)
 
 func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")

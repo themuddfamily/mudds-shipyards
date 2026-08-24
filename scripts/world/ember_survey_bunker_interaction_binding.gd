@@ -7,6 +7,7 @@ extends Area3D
 ## but owns no movement, activity progression, reward, save, or history claim.
 
 signal survey_completed(receipt: Dictionary)
+signal service_repair_feedback(feedback: Dictionary)
 
 const INTERACTION_LAYER := 1 << 3
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
@@ -53,6 +54,8 @@ var _wayfinding_direction := Vector3.ZERO
 var _service_repair_sink := Callable()
 var _service_terminal_generation := -1
 var _service_request_sequence := 0
+var _service_feedback_generation := 0
+var _service_feedback_sequence := 0
 var _service_consumed := false
 var _service_status: StringName = &"locked"
 var _last_service_receipt: Dictionary = {}
@@ -205,9 +208,13 @@ func configure_service_repair_sink(sink: Callable) -> Dictionary:
 
 func activate_service_terminal(activity_generation: int) -> Dictionary:
 	if not _current() or not _completed or not _service_repair_sink.is_valid() \
-			or activity_generation < 1 or _service_terminal_generation > 0:
+			or activity_generation < 1 or activity_generation > MAX_SAFE_GENERATION \
+			or _service_terminal_generation > 0 \
+			or _service_feedback_generation >= MAX_SAFE_GENERATION:
 		return _result(false, &"service_terminal_activation_invalid")
 	_service_terminal_generation = activity_generation
+	_service_feedback_generation += 1
+	_service_feedback_sequence = 0
 	_service_status = &"available"
 	_last_service_receipt.clear()
 	return _result(true, &"service_terminal_activated")
@@ -215,9 +222,13 @@ func activate_service_terminal(activity_generation: int) -> Dictionary:
 
 func reset_service_terminal(next_activity_generation: int) -> Dictionary:
 	if _service_terminal_generation < 1 \
-			or next_activity_generation <= _service_terminal_generation:
+			or next_activity_generation <= _service_terminal_generation \
+			or next_activity_generation > MAX_SAFE_GENERATION \
+			or _service_feedback_generation >= MAX_SAFE_GENERATION:
 		return _result(false, &"service_terminal_reset_invalid")
 	_service_terminal_generation = -1
+	_service_feedback_generation += 1
+	_service_feedback_sequence = 0
 	_service_request_sequence = 0
 	_service_consumed = false
 	_service_status = &"locked"
@@ -230,17 +241,17 @@ func submit_service_repair(
 		expected_attachment_generation: int, expected_terminal_generation: int
 	) -> Dictionary:
 	if not _current() or not _completed or not _service_repair_sink.is_valid():
-		return _result(false, &"service_terminal_unavailable")
+		return _feedback_result(_result(false, &"service_terminal_unavailable"))
 	if expected_host_generation != _host_generation \
 			or expected_attachment_generation != _attachment_generation \
 			or expected_terminal_generation != _service_terminal_generation:
-		return _result(false, &"stale_service_terminal_generation")
+		return _feedback_result(_result(false, &"stale_service_terminal_generation"))
 	if not _actor_is_current(actor):
-		return _result(false, &"service_terminal_actor_mismatch")
+		return _feedback_result(_result(false, &"service_terminal_actor_mismatch"))
 	if _service_consumed:
-		return _result(false, &"service_terminal_already_consumed")
+		return _feedback_result(_result(false, &"service_terminal_already_consumed"))
 	if _service_request_sequence >= MAX_SAFE_GENERATION:
-		return _result(false, &"service_terminal_sequence_exhausted")
+		return _feedback_result(_result(false, &"service_terminal_sequence_exhausted"))
 	_service_request_sequence += 1
 	var result := _service_repair_sink.call({
 		"terminal_id": SERVICE_TERMINAL_ID,
@@ -257,6 +268,35 @@ func submit_service_repair(
 		_service_status = &"repair_applied"
 	else:
 		_service_status = StringName(result.get("reason", &"repair_rejected"))
+	return _feedback_result(result)
+
+
+func _feedback_result(result: Dictionary) -> Dictionary:
+	if _service_feedback_sequence >= MAX_SAFE_GENERATION:
+		return result
+	_service_feedback_sequence += 1
+	var accepted := bool(result.get("accepted", false))
+	var reason := StringName(result.get("reason", &"repair_rejected"))
+	var outcome := &"completed" if accepted else (
+		&"unavailable" if reason == &"service_terminal_unavailable" else &"rejected"
+	)
+	service_repair_feedback.emit({
+		"terminal_id": SERVICE_TERMINAL_ID,
+		"host_generation": _host_generation,
+		"attachment_generation": _attachment_generation,
+		"terminal_generation": _service_terminal_generation,
+		"feedback_generation": _service_feedback_generation,
+		"feedback_sequence": _service_feedback_sequence,
+		"request_sequence": _service_request_sequence,
+		"outcome": outcome,
+		"reason": reason,
+		"world_position": global_position,
+		"presentation_only": true,
+		"authority": {
+			"repair": false, "components": false, "movement": false,
+			"game_flow": false, "network": false, "persistence": false,
+		},
+	}.duplicate(true))
 	return result
 
 
@@ -405,6 +445,8 @@ func get_snapshot() -> Dictionary:
 				and _service_terminal_generation > 0 and not _service_consumed,
 			"consumed": _service_consumed,
 			"request_sequence": _service_request_sequence,
+			"feedback_generation": _service_feedback_generation,
+			"feedback_sequence": _service_feedback_sequence,
 			"status": _service_status,
 			"status_text": _service_status_text(),
 			"last_receipt": _last_service_receipt.duplicate(true),
