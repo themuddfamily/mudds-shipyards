@@ -25,6 +25,21 @@ const MAX_FRAME_DELTA_SECONDS := 60.0
 const MAX_SPEED_METRES_PER_SECOND := 1_000_000.0
 const PAYLOAD_NAMESPACE := "session_diagnostics"
 
+## Production lifecycle observations use existing event and field vocabulary so
+## wiring the ring does not create a second schema. The caller still owns the
+## session identity and monotonic physics sample supplied to each observation.
+enum LifecycleObservation {
+	STARTUP_COMPLETED = 1,
+	MODE_HANDOFF = 2,
+	CLEAN_SHUTDOWN = 3,
+}
+
+enum RuntimeMode {
+	STATION = 1,
+	FLIGHT = 2,
+	SURFACE = 3,
+}
+
 const _CODE_NAMES := [
 	"session_started",
 	"session_reentered",
@@ -166,6 +181,42 @@ func record(event: SessionDiagnosticEvent) -> Dictionary:
 		int(stored.sequence),
 		int(stored.redacted_field_count)
 	)
+
+
+## Converts the production owner's fixed lifecycle enum into the ring's
+## existing typed events. No caller text or filesystem/process data is accepted.
+func record_lifecycle_observation(
+	observation: LifecycleObservation,
+	session_id: int,
+	physics_tick: int,
+	elapsed_physics_seconds: float,
+	runtime_mode: RuntimeMode = RuntimeMode.STATION
+	) -> Dictionary:
+	var event_code := Event.Code.CONTROL_SOURCE_CHANGED
+	var fields := {}
+	match observation:
+		LifecycleObservation.STARTUP_COMPLETED:
+			event_code = Event.Code.SESSION_STARTED
+			fields = {"recovered": false}
+		LifecycleObservation.MODE_HANDOFF:
+			if runtime_mode not in [
+				RuntimeMode.STATION, RuntimeMode.FLIGHT, RuntimeMode.SURFACE,
+			]:
+				return _record_result(false, &"invalid_runtime_mode")
+			fields = {"input_device_code": runtime_mode}
+		LifecycleObservation.CLEAN_SHUTDOWN:
+			event_code = Event.Code.SESSION_ENDED
+			fields = {"duration_physics_seconds": elapsed_physics_seconds}
+		_:
+			return _record_result(false, &"invalid_lifecycle_observation")
+	return record(Event.new(
+		event_code,
+		Event.Severity.INFO,
+		session_id,
+		physics_tick,
+		elapsed_physics_seconds,
+		fields,
+	))
 
 
 ## Detached, JSON-safe durable state. Observer attachment is intentionally not

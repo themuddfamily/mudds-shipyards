@@ -538,22 +538,19 @@ var _runtime_settings_repair_request_active := false
 ## recovery notice after the repaired store advances to its next generation.
 var _runtime_settings_repair_resolved := false
 var _session_diagnostics_bridge: SessionDiagnosticLifecycleBridge
+var _session_diagnostics_record: SessionDiagnosticRecord
 var _session_diagnostics_last_status: Dictionary = {}
 var _session_diagnostics_filesystem: UserDataFilesystem
+var _session_diagnostics_session_id := 0
+var _session_diagnostics_physics_tick := 0
+var _session_diagnostics_elapsed_physics_seconds := 0.0
+var _session_diagnostics_runtime_mode := 0
+var _session_diagnostics_persist_pending := false
+var _session_diagnostics_clean_observation_recorded := false
 var _session_recovery_command_status: Dictionary = {}
 var _session_recovery_hud_status: Dictionary = {}
 var _session_recovery_support_export_token := 0
 var _session_recovery_support_export_generation := 0
-const _DIAGNOSTIC_STARTUP := 1
-const _DIAGNOSTIC_BOARD := 2
-const _DIAGNOSTIC_DISEMBARK := 3
-const _DIAGNOSTIC_COMBAT_ENTER := 4
-const _DIAGNOSTIC_COMBAT_EXIT := 5
-const _DIAGNOSTIC_LANDING := 6
-const _DIAGNOSTIC_RETURN := 7
-const _DIAGNOSTIC_NETWORK_START := 8
-const _DIAGNOSTIC_NETWORK_STOP := 9
-const _DIAGNOSTIC_SHUTDOWN := 10
 const SESSION_DIAGNOSTIC_SUPPORT_EXPORT_ROOT := "user://diagnostics/exports"
 var _runtime_settings_apply_count := 0
 var _runtime_settings_first_apply_followed_load := false
@@ -1529,6 +1526,7 @@ func _start_up() -> void:
 	_sync_planetary_cruise_hud()
 	_publish_runtime_settings_repair_to_hud()
 	_initialized = true
+	_record_session_startup_completed()
 
 
 func _initialize_session_diagnostics() -> void:
@@ -1543,10 +1541,28 @@ func _initialize_session_diagnostics() -> void:
 	if not bool(restored.accepted):
 		_session_diagnostics_last_status = {"accepted": false, "reason": &"restore_failed", "status": restored}
 		return
+	var record_restored := record.restore_from_store()
+	if not bool(record_restored.accepted) and record_restored.reason != &"no_record":
+		_session_diagnostics_last_status = {
+			"accepted": false,
+			"reason": &"record_restore_failed",
+			"status": record_restored,
+		}
+		return
+	var coordinator_snapshot := coordinator.get_snapshot()
+	_session_diagnostics_session_id = int(
+		coordinator_snapshot.get("startup_generation", 0)
+	) + 1
 	_session_diagnostics_bridge = SessionDiagnosticLifecycleBridgeType.new(coordinator, record, sink)
 	var start_commit_id := "main-session-start-%d" % (_runtime_settings_user_data_store.get_generation() + 1)
-	_session_diagnostics_last_status = _session_diagnostics_bridge.begin_session(1, start_commit_id, 0, 0.0)
-	_record_session_lifecycle_transition(_DIAGNOSTIC_STARTUP)
+	_session_diagnostics_last_status = _session_diagnostics_bridge.begin_session(
+		_session_diagnostics_session_id,
+		start_commit_id,
+		_session_diagnostics_physics_tick,
+		_session_diagnostics_elapsed_physics_seconds,
+	)
+	if bool(_session_diagnostics_last_status.get("accepted", false)):
+		_session_diagnostics_record = record
 
 
 func get_session_diagnostics_snapshot() -> Dictionary:
@@ -1554,6 +1570,10 @@ func get_session_diagnostics_snapshot() -> Dictionary:
 		"available": _session_diagnostics_bridge != null,
 		"last_status": _session_diagnostics_last_status.duplicate(true),
 		"bridge": _session_diagnostics_bridge.get_snapshot() if _session_diagnostics_bridge != null else {},
+		"session_id": _session_diagnostics_session_id,
+		"physics_tick": _session_diagnostics_physics_tick,
+		"elapsed_physics_seconds": _session_diagnostics_elapsed_physics_seconds,
+		"runtime_mode": _session_diagnostics_runtime_mode,
 		"recovery_command": _session_recovery_command_status.duplicate(true),
 		"recovery_hud": _session_recovery_hud_status.duplicate(true),
 	}.duplicate(true)
@@ -1571,14 +1591,53 @@ func mark_orderly_session_shutdown() -> Dictionary:
 		return {"accepted": false, "reason": &"diagnostics_unavailable"}
 	if StringName(_session_diagnostics_bridge.get_snapshot().get("state", &"")) == &"clean":
 		return {"accepted": true, "reason": &"already_clean"}.duplicate(true)
-	_record_session_lifecycle_transition(_DIAGNOSTIC_SHUTDOWN)
+	var observation := (
+		{"accepted": true, "reason": &"clean_observation_already_recorded"}
+		if _session_diagnostics_clean_observation_recorded
+		else _record_session_diagnostic_observation(
+			SessionDiagnosticRecordType.LifecycleObservation.CLEAN_SHUTDOWN
+		)
+	) as Dictionary
+	if bool((observation.get("record_status", {}) as Dictionary).get(
+		"accepted", false
+	)):
+		_session_diagnostics_clean_observation_recorded = true
+	if _session_diagnostics_clean_observation_recorded \
+			and _session_diagnostics_persist_pending:
+		var pending_retry := _persist_session_diagnostics_ring()
+		observation["accepted"] = bool(pending_retry.get("accepted", false))
+		observation["retry_status"] = pending_retry.duplicate(true)
 	var clean_commit_id := "main-session-clean-%d" % (_runtime_settings_user_data_store.get_generation() + 1)
-	_session_diagnostics_last_status = _session_diagnostics_bridge.mark_orderly_shutdown(0, 0.0, clean_commit_id)
+	var marker := _session_diagnostics_bridge.mark_orderly_shutdown(
+		_session_diagnostics_physics_tick,
+		_session_diagnostics_elapsed_physics_seconds,
+		clean_commit_id,
+	)
+	if not bool(observation.get("accepted", false)) \
+			and bool((observation.get("record_status", {}) as Dictionary).get(
+				"accepted", false
+			)):
+		var retry := _persist_session_diagnostics_ring()
+		observation["retry_status"] = retry.duplicate(true)
+		observation["accepted"] = bool(retry.get("accepted", false))
+		observation["reason"] = (
+			&"observation_persisted"
+			if bool(retry.get("accepted", false))
+			else &"observation_persist_failed"
+		)
+	_session_diagnostics_last_status = {
+		"accepted": bool(observation.get("accepted", false))
+			and bool(marker.get("accepted", false)),
+		"reason": (
+			&"orderly_shutdown"
+			if bool(observation.get("accepted", false))
+				and bool(marker.get("accepted", false))
+			else &"orderly_shutdown_failed"
+		),
+		"observation_status": observation.duplicate(true),
+		"marker_status": marker.duplicate(true),
+	}.duplicate(true)
 	return _session_diagnostics_last_status.duplicate(true)
-
-
-func record_session_lifecycle_transition(transition_code: int, entity_code: int = 0, active: bool = true) -> Dictionary:
-	return _record_session_lifecycle_transition(transition_code, entity_code, active)
 
 
 func get_recovery_available_snapshot() -> Dictionary:
@@ -1845,40 +1904,98 @@ func _apply_command_line_recovery_args(args: PackedStringArray) -> Dictionary:
 	return _session_recovery_command_status.duplicate(true)
 
 
-func _record_session_lifecycle_transition(
-		transition_code: int,
-		entity_code: int = 0,
-		active: bool = true
-		) -> Dictionary:
-	if _session_diagnostics_bridge == null:
-		return {"accepted": false, "reason": &"diagnostics_unavailable"}
-	return _session_diagnostics_bridge.record_lifecycle_transition(
-		transition_code, entity_code, active
+func _record_session_startup_completed() -> Dictionary:
+	var startup := _record_session_diagnostic_observation(
+		SessionDiagnosticRecordType.LifecycleObservation.STARTUP_COMPLETED
 	)
+	if bool(startup.get("accepted", false)):
+		_observe_session_diagnostic_runtime_mode()
+	return startup
 
 
-func _diagnostic_ship_code(candidate: HeroShip) -> int:
-	if not is_instance_valid(candidate):
-		return 0
-	match candidate.get_ship_id():
-		&"torrent_provisional":
-			return 1
-		&"arrow_provisional":
-			return 2
-		&"jovian_provisional":
-			return 3
-		&"zenith_b7_observed":
-			return 4
-		&"halyard_new_design":
-			return 5
-		&"cinder-cargo-hauler":
-			return 6
-		&"cinder-long-range-bomber":
-			return 7
-		&"cinder-light-interceptor":
-			return 8
-		_:
-			return 0
+func _record_session_diagnostic_observation(
+	observation: int,
+	runtime_mode: int = SessionDiagnosticRecordType.RuntimeMode.STATION
+	) -> Dictionary:
+	if _session_diagnostics_record == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	var recorded := _session_diagnostics_record.record_lifecycle_observation(
+		observation,
+		_session_diagnostics_session_id,
+		_session_diagnostics_physics_tick,
+		_session_diagnostics_elapsed_physics_seconds,
+		runtime_mode,
+	)
+	if not bool(recorded.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": &"observation_rejected",
+			"record_status": recorded.duplicate(true),
+		}.duplicate(true)
+	_session_diagnostics_persist_pending = true
+	var persisted := _persist_session_diagnostics_ring()
+	var result := {
+		"accepted": bool(persisted.get("accepted", false)),
+		"reason": (
+			&"observation_persisted"
+			if bool(persisted.get("accepted", false))
+			else &"observation_persist_failed"
+		),
+		"record_status": recorded.duplicate(true),
+		"persist_status": persisted.duplicate(true),
+	}.duplicate(true)
+	_session_diagnostics_last_status = result.duplicate(true)
+	return result
+
+
+func _persist_session_diagnostics_ring() -> Dictionary:
+	if _session_diagnostics_record == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	var persisted := _session_diagnostics_record.persist(
+		"main-session-observation-%d"
+		% (_runtime_settings_user_data_store.get_generation() + 1)
+	)
+	if bool(persisted.get("accepted", false)):
+		_session_diagnostics_persist_pending = false
+	return persisted.duplicate(true)
+
+
+func _observe_session_diagnostic_runtime_mode() -> Dictionary:
+	if _session_diagnostics_record == null:
+		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	var mode := SessionDiagnosticRecordType.RuntimeMode.STATION
+	if _piloting:
+		mode = SessionDiagnosticRecordType.RuntimeMode.FLIGHT
+	# The retained journey latch is set only after the production surface
+	# composition admits the handoff and is cleared when ownership returns.
+	if _ember_surface_journey_active:
+		mode = SessionDiagnosticRecordType.RuntimeMode.SURFACE
+	if mode == _session_diagnostics_runtime_mode:
+		return {"accepted": true, "reason": &"mode_unchanged", "runtime_mode": mode}
+	var observed := _record_session_diagnostic_observation(
+		SessionDiagnosticRecordType.LifecycleObservation.MODE_HANDOFF,
+		mode,
+	)
+	if bool((observed.get("record_status", {}) as Dictionary).get("accepted", false)):
+		_session_diagnostics_runtime_mode = mode
+	return observed
+
+
+func _advance_session_diagnostics_physics(delta: float) -> void:
+	if _session_diagnostics_record == null \
+			or delta < 0.0 or is_nan(delta) or is_inf(delta):
+		return
+	_session_diagnostics_physics_tick = mini(
+		_session_diagnostics_physics_tick + 1,
+		SessionDiagnosticRecordType.MAX_PHYSICS_TICK,
+	)
+	_session_diagnostics_elapsed_physics_seconds = minf(
+		_session_diagnostics_elapsed_physics_seconds + delta,
+		SessionDiagnosticRecordType.MAX_SESSION_PHYSICS_SECONDS,
+	)
+	if _session_diagnostics_persist_pending:
+		_persist_session_diagnostics_ring()
+	_observe_session_diagnostic_runtime_mode()
 
 
 ## Brings every ring and collar in the scene under one geometry budget.
@@ -2444,6 +2561,7 @@ func _physics_process(delta: float) -> void:
 				_network_ship_event_sequence, _network_ship_event_sequence
 			)
 	_advance_safe_start_recovery_physics(delta)
+	_advance_session_diagnostics_physics(delta)
 	if _caption_presentation_service != null:
 		_caption_presentation_service.advance_physics(delta)
 	var actor_sample := _capture_cinder_actor_sample()
@@ -4176,7 +4294,6 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 
 func _on_network_session_started(mode: StringName) -> void:
-	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_START)
 	_set_station_defense_network_presentation_only(mode == &"client")
 	if mode == &"server" and _bomber_payload_ship != null:
 		_ensure_bomber_payload_network_source()
@@ -4189,7 +4306,6 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
-	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_STOP, 0, false)
 	_bomber_payload_canonical_publish_pending = false
 	_bomber_payload_network_source_generation = 0
 	_player_pulse_canonical_publish_pending = false
@@ -5375,9 +5491,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
 			return
 	_piloting = true
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_BOARD, _diagnostic_ship_code(active_ship), true
-	)
+	_observe_session_diagnostic_runtime_mode()
 	if is_instance_valid(network_session) and network_session.is_server():
 		network_session.register_remote_ship_pilot(1, active_ship.get_ship_id(), 1)
 	_publish_network_boarding_state(active_ship, true)
@@ -5462,9 +5576,7 @@ func _try_exit_ship() -> void:
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
 		return
 	_piloting = false
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_DISEMBARK, _diagnostic_ship_code(transition_ship), false
-	)
+	_observe_session_diagnostic_runtime_mode()
 	_landing_request_active = false
 	player.set_control_enabled(true)
 	_reboard_blocked_ship = active_ship
@@ -6323,12 +6435,6 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		_fail_active_activity(&"returned_to_shipyard")
 	_return_registered = true
 	phase = Phase.SHUT_DOWN
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_LANDING, _diagnostic_ship_code(active_ship), true
-	)
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_RETURN, _diagnostic_ship_code(active_ship), true
-	)
 	hud.set_objective("Hold controls neutral, then exit %s" % active_ship.get_display_name())
 	hud.toast("Landing complete", "Docking clamps engaged — propulsion will idle offline")
 
@@ -7456,12 +7562,6 @@ func _complete_planetary_return_physical_arrival(
 	if not bool(consumed.get("accepted", false)):
 		return consumed
 	_planetary_return_physical_arrival_required = false
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_LANDING, _diagnostic_ship_code(active_ship), true
-	)
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_RETURN, _diagnostic_ship_code(active_ship), true
-	)
 	publish_first_sortie_tutorial_phase(
 		&"return_land", _first_sortie_tutorial_generation
 	)
@@ -7689,9 +7789,6 @@ func _begin_return_to_yard() -> void:
 	):
 		return
 	_guided_return_ready_for_completion = true
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_COMBAT_EXIT, _diagnostic_ship_code(active_ship), false
-	)
 	phase = Phase.RETURN_TO_YARD
 	publish_first_sortie_tutorial_phase(&"return_land", _first_sortie_tutorial_generation)
 	hud.set_enemy_status("", 0.0, 1.0, false)
@@ -7718,9 +7815,6 @@ func _begin_interceptor_engagement() -> void:
 		_opponent_pulse_network_generation += 1
 	_opponent_spawned = true
 	phase = Phase.INTERCEPTOR_ENGAGEMENT
-	_record_session_lifecycle_transition(
-		_DIAGNOSTIC_COMBAT_ENTER, _diagnostic_ship_code(active_ship), true
-	)
 	var spawn_direction := (active_ship.global_position - ENEMY_SPAWN).normalized()
 	var spawn_up := Vector3.FORWARD if absf(spawn_direction.dot(Vector3.UP)) > 0.98 else Vector3.UP
 	var spawn_basis := Basis.looking_at(spawn_direction, spawn_up)

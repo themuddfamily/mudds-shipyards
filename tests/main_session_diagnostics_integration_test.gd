@@ -70,33 +70,63 @@ func _run() -> void:
 	_check(
 		bool(started.available)
 		and bool(started.bridge.get("coordinator", {}).get("active", false))
-		and StringName(started.last_status.reason) == &"started",
+		and StringName(started.last_status.reason) == &"started"
+		and int(started.session_id) == 1,
 		"Main composition publishes a running privacy-safe session marker"
 	)
-	for transition_code in [2, 4, 5, 6, 7, 8, 9]:
-		flow.record_session_lifecycle_transition(transition_code, 6, transition_code != 5)
+	var startup := flow._record_session_startup_completed()
+	flow._advance_session_diagnostics_physics(0.25)
+	flow.set("_piloting", true)
+	flow._observe_session_diagnostic_runtime_mode()
+	flow._advance_session_diagnostics_physics(0.5)
+	flow.set("_ember_surface_journey_active", true)
+	flow._observe_session_diagnostic_runtime_mode()
+	flow._advance_session_diagnostics_physics(0.75)
+	flow.set("_ember_surface_journey_active", false)
+	flow._observe_session_diagnostic_runtime_mode()
+	flow.set("_piloting", false)
+	flow._observe_session_diagnostic_runtime_mode()
 	var events := flow.get_session_diagnostics_snapshot().bridge.record.events as Array
-	var observed_codes := {}
+	var observed_modes: Array[int] = []
 	var bounded := true
+	var previous_tick := -1
+	var previous_elapsed := -1.0
 	for event in events:
 		var fields := event.fields as Dictionary
-		observed_codes[int(fields.input_device_code)] = true
-		bounded = bounded and event.event_code == "control_source_changed" \
-			and fields.size() == 3 \
-			and not fields.has("name") and not fields.has("path")
+		if event.event_code == "control_source_changed":
+			observed_modes.append(int(fields.input_device_code))
+		bounded = bounded \
+			and int(event.session_id) == int(started.session_id) \
+			and int(event.physics_tick) >= previous_tick \
+			and float(event.session_elapsed_physics_seconds) >= previous_elapsed \
+			and not fields.has("name") and not fields.has("path") \
+			and not fields.has("text") and not fields.has("token")
+		previous_tick = int(event.physics_tick)
+		previous_elapsed = float(event.session_elapsed_physics_seconds)
 	_check(
-		 events.size() == 8
-		 and observed_codes.size() == 8
-		 and bounded,
-		"GameFlow lifecycle transitions retain only bounded numeric diagnostic fields"
+		bool(startup.accepted)
+		and events.size() == 6
+		and events[0].event_code == "session_started"
+		and observed_modes == [1, 2, 3, 2, 1]
+		and previous_tick == 3
+		and is_equal_approx(previous_elapsed, 1.5)
+		and bounded,
+		"real startup and station/flight/surface handoffs retain bounded caller-timed observations"
 	)
 	var closed := flow.mark_orderly_session_shutdown()
 	var finished := flow.get_session_diagnostics_snapshot()
+	var persisted_events := (
+		store.get_snapshot().get("session_diagnostics", {}) as Dictionary
+	).get("events", []) as Array
 	_check(
 		bool(closed.accepted)
 		and StringName(closed.reason) == &"orderly_shutdown"
-		and StringName(finished.bridge.get("state", "")) == &"clean",
-		"caller-confirmed Main shutdown clears the running marker without touching gameplay state"
+		and StringName(finished.bridge.get("state", "")) == &"clean"
+		and persisted_events.size() == 7
+		and persisted_events[-1].event_code == "session_ended"
+		and int(persisted_events[-1].physics_tick) == 3
+		and is_equal_approx(float(persisted_events[-1].session_elapsed_physics_seconds), 1.5),
+		"caller-confirmed shutdown commits its final observation and clears the running marker"
 	)
 	var unclean := GameFlowType.new()
 	unclean.set("_runtime_settings_user_data_store", store)
@@ -114,9 +144,11 @@ func _run() -> void:
 	var recovery_phase := restarted.phase
 	_check(
 		StringName(recovery.get("state", "")) == &"running"
-		and int(recovery.get("session_id", 0)) == 1
+		and int(recovery.get("session_id", 0)) == 2
+		and int(restarted.get_session_diagnostics_snapshot().session_id) == 3
+		and (restarted.get_session_diagnostics_snapshot().bridge.record.events as Array).size() == 8
 		and restarted.phase == recovery_phase,
-		"unclean restart exposes a detached recovery snapshot without changing GameFlow phase"
+		"fresh startup restores the bounded ring and advances the marker-owned session identity"
 	)
 	var recommendation := restarted.get_session_start_recommendation()
 	_check(
@@ -190,7 +222,7 @@ func _test_orderly_shutdown_composition() -> void:
 		and StringName(safe_status.get("reason", &"")) == &"clean_shutdown"
 		and bool(diagnostics_status.get("accepted", false))
 		and StringName(diagnostics_status.get("reason", &"")) == &"orderly_shutdown"
-		and successful_filesystem.write_count - successful_writes_before == 2
+		and successful_filesystem.write_count - successful_writes_before == 3
 		and StringName(
 			successful.get_safe_start_recovery_report().policy_snapshot.state
 		) == &"clean_shutdown"
@@ -246,7 +278,7 @@ func _test_orderly_shutdown_composition() -> void:
 		and bool(
 			(safe_partial.get("session_diagnostics", {}) as Dictionary).get("accepted", false)
 		)
-		and safe_failure_filesystem.write_count - safe_failure_writes_before == 2
+		and safe_failure_filesystem.write_count - safe_failure_writes_before == 3
 		and StringName(safe_failure.get_safe_start_recovery_report().policy_snapshot.state) == &"starting"
 		and StringName(safe_failure.get_session_diagnostics_snapshot().bridge.state) == &"clean"
 		and _unrelated_state_snapshot(safe_failure) == safe_failure_before,
@@ -261,7 +293,7 @@ func _test_orderly_shutdown_composition() -> void:
 	)
 	var diagnostics_failure_before := _unrelated_state_snapshot(diagnostics_failure)
 	var diagnostics_failure_writes_before := diagnostics_failure_filesystem.write_count
-	diagnostics_failure_filesystem.fail_write_number = diagnostics_failure_writes_before + 2
+	diagnostics_failure_filesystem.fail_write_number = diagnostics_failure_writes_before + 3
 	var diagnostics_partial := diagnostics_failure.mark_orderly_shutdown()
 	_check(
 		not bool(diagnostics_partial.get("accepted", true))
@@ -272,7 +304,7 @@ func _test_orderly_shutdown_composition() -> void:
 		and not bool(
 			(diagnostics_partial.get("session_diagnostics", {}) as Dictionary).get("accepted", true)
 		)
-		and diagnostics_failure_filesystem.write_count - diagnostics_failure_writes_before == 2
+		and diagnostics_failure_filesystem.write_count - diagnostics_failure_writes_before == 3
 		and StringName(
 			diagnostics_failure.get_safe_start_recovery_report().policy_snapshot.state
 		) == &"clean_shutdown"
@@ -300,6 +332,16 @@ func _test_detach_reentry_and_free_remain_dirty() -> void:
 	flow.set_physics_process(false)
 	await process_frame
 	await process_frame
+	var production_events := (
+		store.get_snapshot().get("session_diagnostics", {}) as Dictionary
+	).get("events", []) as Array
+	_check(
+		production_events.size() == 2
+		and production_events[0].event_code == "session_started"
+		and production_events[1].event_code == "control_source_changed"
+		and int(production_events[1].fields.input_device_code) == 1,
+		"real Main startup commits completion and its initial station handoff"
+	)
 	var writes_before := filesystem.write_count
 	var generation_before := store.get_generation()
 	var bytes_before := (filesystem.files[path] as PackedByteArray).duplicate()
