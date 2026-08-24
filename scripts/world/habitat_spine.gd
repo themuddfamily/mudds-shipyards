@@ -41,8 +41,13 @@ const COMMON_CHAIR_COUNT := 8
 ## as route-scale waypoints. From the corridor they read as a warm nested cadence:
 ## arrival, room centre, observation glazing. The two dark structural ribs between
 ## them preserve depth separation without adding emission or practical lights.
-const COMMON_PRESSURE_RIB_Z_POSITIONS := [18.25, 20.75, 23.25, 25.75, 28.25]
+const COMMON_PRESSURE_RIB_Z_POSITIONS := [18.25, 20.75, 23.25, 25.75, 28.15]
 const COMMON_PRESSURE_RIB_WAYPOINT_INDICES := [0, 2, 4]
+const COMMON_PRESSURE_RIB_X_MINIMUM := -7.0
+const COMMON_PRESSURE_RIB_X_MAXIMUM := 7.0
+const COMMON_PRESSURE_RIB_SPRING_HEIGHT := 4.16
+const COMMON_PRESSURE_RIB_CROWN_HEIGHT := 4.19
+const COMMON_PRESSURE_RIB_RADIUS := 0.13
 
 ## Component-local renderer freeze for four childless visual-only families.
 ## Their parent hatches, nutrient tanks, pipework and garden column retain
@@ -108,7 +113,10 @@ const RENDER_MESH_INSTANCE_COUNT := 1200
 const RENDER_MULTIMESH_BATCH_COUNT := 30
 const RENDER_DRAWN_COPY_COUNT := 1385
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 1221
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 345
+# The shallow, interior-visible common-room ribs resolve through two symmetric
+# cached cylinder lengths rather than the former seven-length exterior curve.
+# All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 340
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
 const OBSERVATION_BACKREST_METALLIC := 0.02
@@ -2259,11 +2267,11 @@ func _build_observation_common(structure: Node3D) -> void:
 			common,
 			"CommonPressureRib%02d" % rib_index,
 			float(COMMON_PRESSURE_RIB_Z_POSITIONS[rib_index]),
-			-7.65,
-			7.65,
-			4.85,
-			5.8,
-			0.13,
+			COMMON_PRESSURE_RIB_X_MINIMUM,
+			COMMON_PRESSURE_RIB_X_MAXIMUM,
+			COMMON_PRESSURE_RIB_SPRING_HEIGHT,
+			COMMON_PRESSURE_RIB_CROWN_HEIGHT,
+			COMMON_PRESSURE_RIB_RADIUS,
 			rib_material
 		)
 	# Same correction as the corridor: a warm #ffe6bd lens over a cool #e6f2ec

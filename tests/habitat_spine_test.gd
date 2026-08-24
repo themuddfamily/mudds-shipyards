@@ -438,11 +438,27 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 
 func _test_common_room_route_identity(module: HabitatSpine) -> void:
 	var common := module.get_node_or_null(^"Structure/ObservationCommon") as Node3D
+	var ceiling := common.get_node_or_null(^"CommonCeiling") as StaticBody3D if common != null else null
+	var ceiling_shape_node := (
+		ceiling.get_node_or_null(^"Collision") as CollisionShape3D if ceiling != null else null
+	)
+	var ceiling_shape := (
+		ceiling_shape_node.shape as BoxShape3D if ceiling_shape_node != null else null
+	)
+	var ceiling_underside := (
+		ceiling.position.y - ceiling_shape.size.y * 0.5 if ceiling_shape != null else -INF
+	)
 	var materials := module.get("_materials") as Dictionary
 	var brass := materials.get("brass") as StandardMaterial3D
 	var structural := materials.get("structural") as StandardMaterial3D
 	var cadence_exact := common != null and brass != null and structural != null
 	var visual_only := cadence_exact
+	var wholly_inside_room_shell := cadence_exact and ceiling_shape != null
+	var walking_camera_position := Vector3(0.0, 2.5, 18.7)
+	var walking_camera_forward := (
+		Vector3(0.0, 1.65, 27.5) - walking_camera_position
+	).normalized()
+	var forward_waypoints_in_view := 0
 	for rib_index in HabitatSpine.COMMON_PRESSURE_RIB_Z_POSITIONS.size():
 		var rib := common.get_node_or_null(
 			NodePath("CommonPressureRib%02d" % rib_index)
@@ -465,6 +481,7 @@ func _test_common_room_route_identity(module: HabitatSpine) -> void:
 		)
 		for segment in segments:
 			var mesh := segment as MeshInstance3D
+			var segment_bounds := mesh.transform * mesh.mesh.get_aabb()
 			cadence_exact = (
 				cadence_exact
 				and mesh.material_override == expected_material
@@ -473,12 +490,45 @@ func _test_common_room_route_identity(module: HabitatSpine) -> void:
 					float(HabitatSpine.COMMON_PRESSURE_RIB_Z_POSITIONS[rib_index])
 				)
 			)
+			wholly_inside_room_shell = (
+				wholly_inside_room_shell
+				and segment_bounds.position.y >= HabitatSpine.MINIMUM_HEAD_CLEARANCE
+				and segment_bounds.end.y < ceiling_underside
+				and segment_bounds.position.x > -7.29
+				and segment_bounds.end.x < 7.29
+				and (rib_index != 0 or segment_bounds.position.z > 18.11)
+				and (
+					rib_index != HabitatSpine.COMMON_PRESSURE_RIB_Z_POSITIONS.size() - 1
+					or segment_bounds.end.z < 28.29
+				)
+			)
 			visual_only = visual_only and mesh.get_child_count() == 0
+		if (
+			HabitatSpine.COMMON_PRESSURE_RIB_WAYPOINT_INDICES.has(rib_index)
+			and float(HabitatSpine.COMMON_PRESSURE_RIB_Z_POSITIONS[rib_index])
+				> walking_camera_position.z
+		):
+			var crown := Vector3(
+				0.0,
+				HabitatSpine.COMMON_PRESSURE_RIB_CROWN_HEIGHT,
+				float(HabitatSpine.COMMON_PRESSURE_RIB_Z_POSITIONS[rib_index])
+			)
+			var camera_to_crown := (crown - walking_camera_position).normalized()
+			if walking_camera_forward.angle_to(camera_to_crown) < deg_to_rad(27.0):
+				forward_waypoints_in_view += 1
 	_check(
 		cadence_exact
 		and not brass.emission_enabled
 		and not structural.emission_enabled,
 		"five retained common-room ribs alternate dark structure with three non-emissive brass route waypoints"
+	)
+	_check(
+		wholly_inside_room_shell,
+		"common-room route ribs sit below the opaque ceiling, above four-metre clearance, and clear every wall header"
+	)
+	_check(
+		forward_waypoints_in_view == 2,
+		"both forward brass waypoint crowns fall inside the live common-room walking camera's view cone"
 	)
 	_check(
 		visual_only,
@@ -1401,11 +1451,11 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 		"drawn copies freeze at 1385 while surface submissions hold at 1221"
 	)
 	_check(
-		int(report.unique_mesh_resources) == 345
+		int(report.unique_mesh_resources) == HabitatSpine.RENDER_UNIQUE_MESH_RESOURCE_COUNT
 		and int(report.unique_material_resources) == 33
 		and int(report.multimesh_resources) == 30
 		and int(report.renderer_buffer_floats) == 144,
-		"mesh/material allocations freeze at 345/33 while the hatch batch retains its 144-float renderer buffer"
+		"visible shallow ribs reduce mesh/material allocations to 340/33 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)
