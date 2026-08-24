@@ -452,6 +452,8 @@ var _screenshot_image_provider_for_test := Callable()
 var _started := false
 var _active_ship_name := "TORRENT-CLASS INTERCEPTOR"
 var _active_ship_role := "INTERCEPTOR"
+const CINDER_BOMBER_DISPLAY_NAME := "CINDER LONG-RANGE BOMBER"
+const CINDER_BOMBER_ROLE := "LONG-RANGE BOMBER"
 
 var _palette_mode: StringName = PaletteType.MODE_NONE
 var _palette: Dictionary = PaletteType.get_palette(PaletteType.MODE_NONE)
@@ -976,13 +978,16 @@ func _refresh_mode_readouts() -> void:
 func _help_rows_for_mode(mode: StringName) -> Array:
 	match mode:
 		MODE_PILOTING:
+			var primary_action_label := (
+				"RELEASE PAYLOAD" if _has_cinder_bomber_identity() else "FIRE"
+			)
 			return [
 				[_action_prompts([&"move_forward", &"move_back"]), "FORWARD / REVERSE  //  AUTO POWER"],
 				[_look_prompt(), "STEER"],
 				[_action_prompts([&"pitch_up", &"pitch_down"]), "PITCH"],
 				[_action_prompts([&"move_left", &"move_right"]), "YAW"],
 				[_action_prompts([&"roll_left", &"roll_right"]), "ROLL"],
-				[_action_prompts([&"fire"]), "FIRE"],
+				[_action_prompts([&"fire"]), primary_action_label],
 				[_action_prompts([&"sprint_boost", &"brake"]), "BOOST / BRAKE"],
 				[_view_distance_prompts(), "VIEW / DISTANCE"],
 				[_action_prompts([&"hover", &"barrel_roll"]), "HOVER / BARREL ROLL"],
@@ -1110,6 +1115,13 @@ func set_ship_identity(display_name: String, role: String = "") -> void:
 	_active_ship_role = role.strip_edges().to_upper()
 	if _mode_label != null:
 		_refresh_mode_readouts()
+
+
+func _has_cinder_bomber_identity() -> bool:
+	return (
+		_active_ship_name == CINDER_BOMBER_DISPLAY_NAME
+		and _active_ship_role == CINDER_BOMBER_ROLE
+	)
 
 
 func set_objective(text: String, kicker: String = "CURRENT OBJECTIVE") -> void:
@@ -4088,12 +4100,8 @@ func apply_bomber_payload_snapshot(snapshot: Dictionary) -> bool:
 	var presentation: Dictionary = _bomber_payload_presenter.present_snapshot(snapshot)
 	if not bool(presentation.get("attached", false)):
 		return false
-	var release_action := StringName(str(snapshot.get("action_id", &"fire")))
-	var resolved_action: Dictionary = _runtime_input_glyph_presenter.resolve_action(release_action)
-	if bool(resolved_action.get("valid", false)):
-		var action_rows := presentation.get("actions", []) as Array
-		if not action_rows.is_empty():
-			(action_rows[0] as Dictionary)["label"] = "[%s] RELEASE PAYLOAD" % str(resolved_action.get("text", "INPUT"))
+	presentation["action_id"] = StringName(str(snapshot.get("action_id", &"fire")))
+	_decorate_bomber_payload_action_prompt(presentation)
 	presentation["message"] = "%s  %s" % [presentation.get("marker", ""), presentation.get("message", "")]
 	_bomber_payload_help_snapshot = presentation.duplicate(true)
 	_refresh_bomber_payload_help()
@@ -6310,6 +6318,7 @@ func _refresh_input_prompts() -> void:
 	_refresh_all_binding_rows()
 	if is_instance_valid(_help_panel):
 		_set_help_text(_help_rows_with_role_context(_state_mode))
+	_refresh_retained_bomber_payload_input_prompts()
 	if (
 		not is_queued_for_deletion()
 		and not _first_sortie_tutorial_source_snapshot.is_empty()
@@ -7273,7 +7282,8 @@ func _refresh_bomber_payload_help() -> void:
 	if not attached:
 		return
 	var state := str(snapshot.get("state", "unavailable")).to_upper()
-	var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(&"fire")
+	var release_action := StringName(str(snapshot.get("action_id", &"fire")))
+	var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(release_action)
 	var glyph := str(resolved.get("text", "INPUT")) if bool(resolved.get("valid", false)) else "INPUT"
 	_bomber_payload_help_button.text = "PAYLOAD  // [%s] RELEASE  // %s" % [glyph, state]
 	var intensity_names := ["LOW", "MEDIUM", "HIGH"]
@@ -7286,6 +7296,58 @@ func _refresh_bomber_payload_help() -> void:
 		detail += " Unavailable: %s." % str(snapshot.get("reason", "unavailable"))
 	detail += " Reduced flash: %s. Visual intensity: %s." % ["ON" if _reduced_flash else "OFF", intensity]
 	_bomber_payload_help_button.tooltip_text = detail
+
+
+## Re-resolves only the local presentation label. Payload ordering, admission,
+## authority and the presenter's source receipt remain untouched.
+func _decorate_bomber_payload_action_prompt(presentation: Dictionary) -> String:
+	var release_action := StringName(str(presentation.get("action_id", &"fire")))
+	var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(release_action)
+	var glyph := str(resolved.get("text", "INPUT")) if bool(resolved.get("valid", false)) else "INPUT"
+	var label := "[%s] RELEASE PAYLOAD" % glyph
+	var action_rows := presentation.get("actions", []) as Array
+	for index in action_rows.size():
+		var action := action_rows[index] as Dictionary
+		if StringName(str(action.get("id", &""))) != &"release_payload":
+			continue
+		action["label"] = label
+		action_rows[index] = action
+		presentation["actions"] = action_rows
+		return label
+	return ""
+
+
+## Device/profile changes must repaint the retained Cinder prompt without
+## re-ingesting a payload receipt or rebuilding the focused keyed-card action.
+func _refresh_retained_bomber_payload_input_prompts() -> void:
+	if (
+		_state_mode != MODE_PILOTING
+		or not _has_cinder_bomber_identity()
+		or _bomber_payload_help_snapshot.is_empty()
+	):
+		return
+	var help_snapshot := _bomber_payload_help_snapshot.duplicate(true)
+	_decorate_bomber_payload_action_prompt(help_snapshot)
+	_bomber_payload_help_snapshot = help_snapshot
+	_refresh_bomber_payload_help()
+	if not _runtime_status_cards.has(&"bomber"):
+		return
+	var card := (_runtime_status_cards[&"bomber"] as Dictionary).duplicate(true)
+	var retained_snapshot := (card.get("snapshot", {}) as Dictionary).duplicate(true)
+	var live_label := _decorate_bomber_payload_action_prompt(retained_snapshot)
+	card["snapshot"] = retained_snapshot
+	_runtime_status_cards[&"bomber"] = card
+	if (
+		live_label.is_empty()
+		or _runtime_status_kind != &"bomber"
+		or not is_instance_valid(_bomber_status_actions)
+	):
+		return
+	var live_button := _bomber_status_actions.get_node_or_null(
+		^"RuntimeStatusReleasePayloadButton"
+	) as Button
+	if is_instance_valid(live_button):
+		live_button.text = live_label
 
 
 func _label(text: String, size: int, role: StringName) -> Label:
