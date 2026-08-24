@@ -7,6 +7,9 @@ extends Damageable
 
 const MAXIMUM_HEALTH_META: StringName = &"combat_maximum_health"
 const ComponentDamageModelType := preload("res://scripts/combat/component_damage_model.gd")
+const RangeTargetFeedbackBindingType := preload(
+	"res://scripts/audio/range_target_component_feedback_binding.gd"
+)
 
 const FRAME_COMPONENT_ID: StringName = &"frame"
 const CORE_COMPONENT_ID: StringName = &"core"
@@ -43,6 +46,8 @@ var _last_proxy_hit_normal := Vector3.ZERO
 var _last_proxy_source_context: Dictionary = {}
 var _component_damage_model: ComponentDamageModel
 var _next_component_damage_sequence := 0
+var _feedback_binding: RangeTargetComponentFeedbackBinding
+var _next_feedback_sequence := 0
 
 
 func _ready() -> void:
@@ -50,6 +55,7 @@ func _ready() -> void:
 	if is_instance_valid(target) and not target.has_meta(MAXIMUM_HEALTH_META):
 		target.set_meta(MAXIMUM_HEALTH_META, maxf(0.001, float(target.get_meta("health", 1.0))))
 	_initialize_component_damage()
+	_bind_feedback()
 
 
 func configure(world_owner: Node, target_faction: StringName = &"range_target") -> void:
@@ -121,6 +127,10 @@ func get_component_snapshot() -> Dictionary:
 	).duplicate(true)
 
 
+func get_component_feedback_binding() -> RefCounted:
+	return _feedback_binding
+
+
 ## Reuses the existing model at the world-owned lifecycle boundary. The caller
 ## supplies its observed generation so duplicate/stale restores cannot advance
 ## the ledger or clear presentation a second time.
@@ -131,14 +141,28 @@ func reset_for_reuse(expected_generation: int) -> Dictionary:
 			"reason": &"component_model_unavailable",
 			"generation": 0,
 		}.duplicate(true)
+	var previous_generation := _component_damage_model.get_generation()
 	var reset_result := _component_damage_model.reset_for_reuse(expected_generation)
 	if not bool(reset_result.get("accepted", false)):
 		return reset_result.duplicate(true)
 	_next_component_damage_sequence = 0
+	_next_feedback_sequence = 0
 	_last_proxy_hit_position = Vector3.INF
 	_last_proxy_hit_normal = Vector3.ZERO
 	_last_proxy_source_context.clear()
 	_present_component_snapshot()
+	if _feedback_binding != null:
+		_feedback_binding.reset_for_reuse(
+			previous_generation,
+			int(reset_result.get("generation", 0))
+		)
+		_feedback_binding.present_lifecycle_receipt(
+			&"regenerated",
+			int(reset_result.get("generation", 0)),
+			_next_feedback_sequence,
+			1.0
+		)
+		_next_feedback_sequence += 1
 	return reset_result.duplicate(true)
 
 
@@ -194,6 +218,7 @@ func apply_damage(
 	target.set_meta("health", after)
 	var presentation_receipt_id := int(source_context.get("presentation_receipt_id", -1))
 	var component_receipt := _apply_component_damage(applied, presentation_receipt_id < 0)
+	_present_component_feedback(component_receipt, applied / get_maximum_health())
 	var safe_position := hit_position if hit_position.is_finite() else (target as Node3D).global_position
 	var safe_normal := hit_normal
 	if not safe_normal.is_finite() or safe_normal.length_squared() <= 0.000001:
@@ -269,6 +294,7 @@ func apply_damage(
 			target.set_meta("destroyed", true)
 	result["destroyed"] = after <= 0.0
 	if after <= 0.0:
+		_present_lifecycle_feedback(&"destroyed", 1.0)
 		destroyed.emit(safe_position, safe_normal, safe_context.duplicate(true))
 	return result
 
@@ -326,6 +352,10 @@ func _apply_component_damage(
 		return _component_receipt_snapshot()
 	_next_component_damage_sequence += contexts.size()
 	var receipt := _component_receipt_snapshot()
+	var feedback_component_ids: Array[StringName] = []
+	for context in contexts:
+		feedback_component_ids.append(StringName(context.component_id))
+	receipt["feedback_component_ids"] = feedback_component_ids
 	if present_immediately:
 		_present_component_snapshot()
 	return receipt
@@ -338,6 +368,44 @@ func _component_receipt_snapshot() -> Dictionary:
 		"damage_sequence": int(snapshot.get("last_damage_sequence", -1)),
 		"damage_revision": int(snapshot.get("revision", 0)),
 	}.duplicate(true)
+
+
+func _bind_feedback() -> void:
+	_feedback_binding = RangeTargetFeedbackBindingType.new()
+	if _component_damage_model != null:
+		_feedback_binding.attach(get_target_entity(), _component_damage_model.get_generation())
+
+
+func _present_component_feedback(receipt: Dictionary, intensity: float) -> void:
+	if _feedback_binding == null or receipt.is_empty():
+		return
+	var generation := int(receipt.get("damage_generation", -1))
+	# Audio ordering is independent of visual deferral, but only components
+	# named by the accepted component batch receive feedback.
+	for component_variant in receipt.get("feedback_component_ids", []):
+		var component_id := StringName(component_variant)
+		var state := _component_damage_model.get_component_state(component_id)
+		if state.is_empty():
+			continue
+		_feedback_binding.present_component_receipt(
+			component_id,
+			generation,
+			_next_feedback_sequence,
+			clampf(intensity, 0.0, 1.0)
+		)
+		_next_feedback_sequence += 1
+
+
+func _present_lifecycle_feedback(receipt_id: StringName, intensity: float) -> void:
+	if _feedback_binding == null or _component_damage_model == null:
+		return
+	_feedback_binding.present_lifecycle_receipt(
+		receipt_id,
+		_component_damage_model.get_generation(),
+		_next_feedback_sequence,
+		intensity
+	)
+	_next_feedback_sequence += 1
 
 
 func _present_component_snapshot() -> void:
