@@ -1052,7 +1052,17 @@ func _build_cargo_interior() -> void:
 		ACCENT_COLOR,
 		PackedStringArray(["LoadmasterSeatBase", "NavigatorSeatBase"])
 	)
-	_add_interior_box(_cargo_cabin, "LoadmasterSeatBack", Vector3(0.95, 0.08, 1.42), Vector3(0.86, 1.0, 0.14), ACCENT_COLOR)
+	_add_visual_box_batch(
+		_cargo_cabin,
+		"CrewSeatBackBatch",
+		Vector3(0.86, 1.0, 0.14),
+		[
+			Transform3D(Basis.IDENTITY, Vector3(0.95, 0.08, 1.42)),
+			Transform3D(Basis.IDENTITY, Vector3(-0.95, 0.08, 1.42)),
+		],
+		ACCENT_COLOR,
+		PackedStringArray(["LoadmasterSeatBack", "NavigatorSeatBack"])
+	)
 	_loadmaster_console = _add_interior_box(
 		_cargo_cabin,
 		"LoadmasterConsole",
@@ -1107,13 +1117,6 @@ func _build_cargo_interior() -> void:
 	_loadmaster_interaction.set_meta(&"route_id", CABIN_ROUTE_ID)
 	_loadmaster_interaction.set_meta(&"authority_owner", &"CrewSeatRoleAuthority")
 	_cargo_cabin.add_child(_loadmaster_interaction)
-	_add_interior_box(
-		_cargo_cabin,
-		"NavigatorSeatBack",
-		Vector3(-0.95, 0.08, 1.42),
-		Vector3(0.86, 1.0, 0.14),
-		ACCENT_COLOR
-	)
 	_navigator_console = _add_interior_box(
 		_cargo_cabin,
 		"NavigatorConsole",
