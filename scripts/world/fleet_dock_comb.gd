@@ -55,6 +55,13 @@ const DOCK_SERVICE_BRACKET_COPY_COUNT := 3
 const TRUNK_ROUTE_LIGHT_COPY_COUNT := 3
 const DOCK_MAST_CAP_COPY_COUNT := 3
 const DOCK_SERVICE_MAST_COPY_COUNT := 3
+## The assigned-dock cross is the only status mark spanning each 10.4 m grip
+## inset. Its former 0.18 m stroke disappeared into the panel texture at
+## approach distance, especially beneath a berthed hull. Widening the same two
+## visual-only strips to 0.28 m keeps their centres, reach, material, names and
+## submission count while giving the active-berth cue a readable silhouette.
+const DOCK_STATUS_STRIPE_LENGTH := 8.2
+const DOCK_STATUS_STRIPE_WIDTH := 0.28
 ## Dock 03's deployed service boom is the rendered overhead/header read at the
 ## raised threshold. Its former 57 mm proportional bevel left the 3.1 m member
 ## boxy at walking distance. A half-height capsule end authors that silhouette
@@ -1399,8 +1406,20 @@ func _build_surface_detail() -> void:
 		var status_material: Material = (
 			_materials["cyan"] if _dock_is_assigned(index) else _materials["deferred"]
 		)
-		_visual_box(detail, "DockCrossStripe%02d" % (index + 1), top_center + Vector3(0, 0.035, 0), Vector3(8.2, 0.03, 0.18), status_material)
-		_visual_box(detail, "DockLongStripe%02d" % (index + 1), top_center + Vector3(0, 0.038, 0), Vector3(0.18, 0.03, 8.2), status_material)
+		_visual_box(
+			detail,
+			"DockCrossStripe%02d" % (index + 1),
+			top_center + Vector3(0, 0.035, 0),
+			Vector3(DOCK_STATUS_STRIPE_LENGTH, 0.03, DOCK_STATUS_STRIPE_WIDTH),
+			status_material
+		)
+		_visual_box(
+			detail,
+			"DockLongStripe%02d" % (index + 1),
+			top_center + Vector3(0, 0.038, 0),
+			Vector3(DOCK_STATUS_STRIPE_WIDTH, 0.03, DOCK_STATUS_STRIPE_LENGTH),
+			status_material
+		)
 		for corner in [Vector2(-5.1, -5.1), Vector2(-5.1, 5.1), Vector2(5.1, -5.1), Vector2(5.1, 5.1)]:
 			var beacon_anchor := _visual_box(
 				detail,

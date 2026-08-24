@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_evidence_roster_and_audit(module)
 	_test_footprint_routes_and_authority(module)
 	_test_walked_plate_material_finish(module)
+	_test_assigned_dock_status_stripe_readability(module)
 	await _test_collision_backed_comb_and_voids(module)
 	_test_trunk_expansion_joint_batch(module)
 	_test_trunk_route_light_batch(module)
@@ -185,6 +186,54 @@ func _test_walked_plate_material_finish(module: FleetDockComb) -> void:
 			)
 		)
 	_check(every_inset_is_walked_plate, "all three broad slab grip insets share the walked-deck finish")
+
+
+## The active-berth cross must remain legible across each broad grip inset. This
+## pins the wider visual stroke and, equally importantly, proves the polish did
+## not move the established marks or turn them into interaction/collision state.
+func _test_assigned_dock_status_stripe_readability(module: FleetDockComb) -> void:
+	var detail := module.get_node_or_null(^"GeneratedComb/SurfaceDetail") as Node3D
+	_check(detail != null, "dock status stripes resolve under the visual-only surface-detail root")
+	if detail == null:
+		return
+	var expected_centres := [
+		Vector3(15.0, 0.055, 8.5),
+		Vector3(15.0, 0.055, 25.0),
+		Vector3(15.0, 2.455, 40.0),
+	]
+	var exact_visuals := true
+	var status_material: Material = null
+	for index in expected_centres.size():
+		var cross := detail.get_node_or_null("DockCrossStripe%02d" % (index + 1)) as MeshInstance3D
+		var longitudinal := detail.get_node_or_null("DockLongStripe%02d" % (index + 1)) as MeshInstance3D
+		exact_visuals = (
+			exact_visuals
+			and cross != null
+			and longitudinal != null
+			and cross.position.is_equal_approx(expected_centres[index] + Vector3(0.0, 0.0, 0.0))
+			and longitudinal.position.is_equal_approx(expected_centres[index] + Vector3(0.0, 0.003, 0.0))
+			and cross.mesh.get_aabb().size.is_equal_approx(
+				Vector3(FleetDockComb.DOCK_STATUS_STRIPE_LENGTH, 0.03, FleetDockComb.DOCK_STATUS_STRIPE_WIDTH)
+			)
+			and longitudinal.mesh.get_aabb().size.is_equal_approx(
+				Vector3(FleetDockComb.DOCK_STATUS_STRIPE_WIDTH, 0.03, FleetDockComb.DOCK_STATUS_STRIPE_LENGTH)
+			)
+			and cross.material_override == longitudinal.material_override
+			and cross.get_child_count() == 0
+			and longitudinal.get_child_count() == 0
+		)
+		if cross != null:
+			if status_material == null:
+				status_material = cross.material_override
+			else:
+				exact_visuals = exact_visuals and cross.material_override == status_material
+	_check(
+		exact_visuals
+		and is_equal_approx(FleetDockComb.DOCK_STATUS_STRIPE_WIDTH, 0.28)
+		and detail.find_children("Dock*Stripe*", "CollisionObject3D", true, false).is_empty()
+		and detail.find_children("Dock*Stripe*", "Area3D", true, false).is_empty(),
+		"all three assigned docks keep centred 8.2 m status crosses with a readable 0.28 m visual-only stroke"
+	)
 
 
 func _test_collision_backed_comb_and_voids(module: FleetDockComb) -> void:
