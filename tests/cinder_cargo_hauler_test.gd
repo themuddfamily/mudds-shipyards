@@ -2,6 +2,7 @@ extends SceneTree
 
 const Hauler := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const SEAT_BACK_GEOMETRY_SHA256 := "ea6f7d6c371d9cb11458d667cc86b2bdd346705e3a83fb60313615a3cb5a0ca1"
+const CABIN_END_WALL_GEOMETRY_SHA256 := "0bf3635e76ff6e2267bb9e7fd5579ca5e4f1fb0c5f3d49aa1155db416f582b67"
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -59,6 +60,43 @@ func _initialize() -> void:
 		"threshold posts reduce renderer submissions from two to one without dropping a visible copy"
 	)
 	var cabin := craft.get_node_or_null(^"WalkableInterior/LoadmasterCabin")
+	var cabin_end_walls := cabin.get_node_or_null(^"CabinEndWallBatch") as MultiMeshInstance3D \
+		if cabin != null else null
+	var expected_end_wall_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 0.18, -2.55)),
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 0.18, 2.55)),
+	]
+	var end_wall_material := cabin_end_walls.material_override as StandardMaterial3D \
+		if cabin_end_walls != null else null
+	_check(
+		cabin_end_walls != null
+			and cabin_end_walls.multimesh.instance_count == 2
+			and cabin_end_walls.multimesh.visible_instance_count == -1
+			and cabin_end_walls.multimesh.mesh is BoxMesh
+			and (cabin_end_walls.multimesh.mesh as BoxMesh).size == Vector3(4.7, 2.0, 0.10)
+			and cabin_end_walls.get_meta(&"authored_visual_names", PackedStringArray())
+				== PackedStringArray(["CabinForwardWall", "CabinAftWall"])
+			and cabin_end_walls.get_meta(&"authored_instance_transforms", [])
+				== expected_end_wall_transforms
+			and bool(cabin_end_walls.get_meta(&"presentation_only", false))
+			and cabin_end_walls.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and cabin_end_walls.layers == 1
+			and is_zero_approx(cabin_end_walls.extra_cull_margin)
+			and is_zero_approx(cabin_end_walls.visibility_range_begin)
+			and is_zero_approx(cabin_end_walls.visibility_range_end)
+			and end_wall_material != null
+			and end_wall_material.albedo_color == Hauler.HULL_COLOR
+			and is_equal_approx(end_wall_material.metallic, 0.42)
+			and is_equal_approx(end_wall_material.roughness, 0.62),
+		"cabin end walls retain both authored copies, transforms, silhouette, shadows, and material"
+	)
+	_check(
+		cabin_end_walls != null
+			and cabin_end_walls.multimesh.mesh.get_surface_count() == 1
+			and cabin.get_node_or_null(^"CabinForwardWall") == null
+			and cabin.get_node_or_null(^"CabinAftWall") == null,
+		"cabin end walls reduce renderer submissions from two to one without dropping a visible copy"
+	)
 	var seat_bases := cabin.get_node_or_null(^"CrewSeatBaseBatch") as MultiMeshInstance3D \
 		if cabin != null else null
 	var expected_seat_base_transforms: Array[Transform3D] = [
@@ -122,15 +160,16 @@ func _initialize() -> void:
 			and seat_backs.multimesh.mesh.get_surface_count() == 1
 			and cabin.get_node_or_null(^"LoadmasterSeatBack") == null
 			and cabin.get_node_or_null(^"NavigatorSeatBack") == null
-			and _visual_renderer_count(craft) == 103
-			and _visual_mesh_resource_count(craft) == 92
-			and _visual_material_resource_count(craft) == 16
+			and _visual_renderer_count(craft) == 102
+			and _visual_mesh_resource_count(craft) == 91
+			and _visual_material_resource_count(craft) == 15
 			and _authored_visual_copy_count(craft) == 106,
-		"seat-back batching reduces full-craft renderers 104->103 and resources while retaining 106 visual copies"
+		"the optimized full craft retains 106 authored visual copies in 102 bounded renderers"
 	)
-	var geometry_hash := _seat_back_geometry_hash(seat_backs)
+	var geometry_hash := _two_box_geometry_hash(seat_backs)
+	var end_wall_geometry_hash := _two_box_geometry_hash(cabin_end_walls)
 	print(
-		"CINDER_CARGO_SEAT_BACK_BATCH_ACTUAL: renderers=%d meshes=%d materials=%d authored_copies=%d collisions=%d"
+		"CINDER_CARGO_VISUAL_ACTUAL: renderers=%d meshes=%d materials=%d authored_copies=%d collisions=%d"
 		% [
 			_visual_renderer_count(craft),
 			_visual_mesh_resource_count(craft),
@@ -143,6 +182,10 @@ func _initialize() -> void:
 		geometry_hash == SEAT_BACK_GEOMETRY_SHA256,
 		"the canonical seat-back geometry hash remains %s" % SEAT_BACK_GEOMETRY_SHA256
 	)
+	_check(
+		end_wall_geometry_hash == CABIN_END_WALL_GEOMETRY_SHA256,
+		"the canonical cabin-end-wall geometry hash is %s" % CABIN_END_WALL_GEOMETRY_SHA256
+	)
 	var anchor_snapshot := _anchor_snapshot(craft)
 	var collision_count := craft.find_children("*", "CollisionShape3D", true, false).size()
 	var authority_snapshot := _authority_snapshot(craft.get_audit_report())
@@ -150,7 +193,8 @@ func _initialize() -> void:
 	await process_frame
 	_check(
 		float(craft.get_telemetry().get("hull", 0.0)) < float(craft.get_telemetry().get("maximum_hull", 0.0))
-			and _seat_back_geometry_hash(seat_backs) == geometry_hash
+			and _two_box_geometry_hash(seat_backs) == geometry_hash
+			and _two_box_geometry_hash(cabin_end_walls) == end_wall_geometry_hash
 			and _anchor_snapshot(craft) == anchor_snapshot
 			and craft.find_children("*", "CollisionShape3D", true, false).size() == collision_count
 			and _authority_snapshot(craft.get_audit_report()) == authority_snapshot,
@@ -166,17 +210,20 @@ func _initialize() -> void:
 	) as MultiMeshInstance3D
 	_check(
 		rebuilt_seat_backs != null
-			and _seat_back_geometry_hash(rebuilt_seat_backs) == geometry_hash
+			and _two_box_geometry_hash(rebuilt_seat_backs) == geometry_hash
+			and _two_box_geometry_hash(rebuilt.get_node_or_null(
+				^"WalkableInterior/LoadmasterCabin/CabinEndWallBatch"
+			) as MultiMeshInstance3D) == end_wall_geometry_hash
 			and _anchor_snapshot(rebuilt) == anchor_snapshot
 			and rebuilt.find_children("*", "CollisionShape3D", true, false).size() == collision_count
 			and _authority_snapshot(rebuilt.get_audit_report()) == authority_snapshot
-			and _visual_renderer_count(rebuilt) == 103
+			and _visual_renderer_count(rebuilt) == 102
 			and _authored_visual_copy_count(rebuilt) == 106,
 		"detach and rebuild retain the exact optimized presentation and gameplay contract"
 	)
 	print(
-		"CINDER_CARGO_SEAT_BACK_BATCH_METRICS: renderers=104->103 meshes=93->92 materials=17->16 authored_copies=106->106 geometry_sha256=%s"
-		% geometry_hash
+		"CINDER_CARGO_END_WALL_BATCH_METRICS: renderers=103->102 meshes=92->91 materials=16->15 authored_copies=106->106 geometry_sha256=%s"
+		% end_wall_geometry_hash
 	)
 	rebuilt.queue_free()
 	await process_frame
@@ -238,7 +285,7 @@ func _authored_visual_copy_count(craft: Node) -> int:
 	return count
 
 
-func _seat_back_geometry_hash(batch: MultiMeshInstance3D) -> String:
+func _two_box_geometry_hash(batch: MultiMeshInstance3D) -> String:
 	if batch == null or batch.multimesh == null or not batch.multimesh.mesh is BoxMesh:
 		return ""
 	var names := batch.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray

@@ -1048,8 +1048,17 @@ func _build_cargo_interior() -> void:
 	_add_interior_box(_cargo_cabin, "CabinDeck", Vector3(0.0, -0.92, 0.0), Vector3(4.9, 0.12, 5.3), CARGO_COLOR)
 	_add_interior_box(_cargo_cabin, "CabinCeiling", Vector3(0.0, 1.28, 0.0), Vector3(4.9, 0.10, 5.3), HULL_COLOR)
 	_add_interior_box(_cargo_cabin, "CabinStarboardWall", Vector3(2.35, 0.18, 0.0), Vector3(0.10, 2.0, 5.3), HULL_COLOR)
-	_add_interior_box(_cargo_cabin, "CabinForwardWall", Vector3(0.0, 0.18, -2.55), Vector3(4.7, 2.0, 0.10), HULL_COLOR)
-	_add_interior_box(_cargo_cabin, "CabinAftWall", Vector3(0.0, 0.18, 2.55), Vector3(4.7, 2.0, 0.10), HULL_COLOR)
+	_add_visual_box_batch(
+		_cargo_cabin,
+		"CabinEndWallBatch",
+		Vector3(4.7, 2.0, 0.10),
+		[
+			Transform3D(Basis.IDENTITY, Vector3(0.0, 0.18, -2.55)),
+			Transform3D(Basis.IDENTITY, Vector3(0.0, 0.18, 2.55)),
+		],
+		HULL_COLOR,
+		PackedStringArray(["CabinForwardWall", "CabinAftWall"])
+	)
 	# The port wall is intentionally open between the split outer shell pieces;
 	# this is the physical boarding route, not a teleport marker.
 	_add_visual_box_batch(
