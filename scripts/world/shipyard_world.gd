@@ -866,6 +866,17 @@ const EXTERIOR_TARGET_LAMP_BASELINE_MESH_RESOURCES := 16
 const EXTERIOR_TARGET_LAMP_SHARED_MESH_RESOURCES := 1
 const EXTERIOR_TARGET_LAMP_SUBMISSIONS := 16
 
+## A thin, approach-facing diamond sits just outside each drone's existing lamp
+## silhouette. At range the old four point lamps can disappear independently
+## against stars, leaving no stable outline until the player is already close;
+## this continuous shape makes the practice target readable without enlarging
+## its hit volume or adding a light. All 16 identical bars use the rounded-box
+## cache, while the established core and lamp mesh families remain untouched.
+const EXTERIOR_TARGET_APPROACH_FRAME_RADIUS := 4.0
+const EXTERIOR_TARGET_APPROACH_FRAME_DEPTH := 0.28
+const EXTERIOR_TARGET_APPROACH_FRAME_THICKNESS := 0.14
+const EXTERIOR_TARGET_APPROACH_FRAME_Z := 0.32
+
 ## Aim of the station's key light, and of the sky's sun glow.
 ##
 ## One constant serves both. A backdrop whose bright side does not agree with the
@@ -8608,6 +8619,7 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 	_add_exterior_target_core(visual)
 	_torus(visual, "OuterRing", Vector3.ZERO, 2.25, 2.55, _materials["ivory"], Vector3(90, 0, 0))
 	_torus(visual, "InnerRing", Vector3.ZERO, 1.75, 1.93, _materials["cyan_glow"], Vector3(0, 0, 90))
+	_add_exterior_target_approach_frame(visual)
 	for angle in [0.0, 90.0, 180.0, 270.0]:
 		var radians := deg_to_rad(angle)
 		var arm_position := Vector3(cos(radians) * 2.6, sin(radians) * 2.6, 0)
@@ -8618,6 +8630,40 @@ func _create_target(parent: Node3D, index: int, target_position: Vector3) -> voi
 			_shared_exterior_target_lamp_mesh()
 		)
 	_targets.append(target)
+
+
+## Adds only station-approach presentation under DroneVisual. Keeping the cue
+## beneath that existing visual owner means it follows target motion and the
+## already-authorized destruction collapse without gaining its own processing,
+## collision, damage, scoring, or lifecycle route.
+func _add_exterior_target_approach_frame(visual: Node3D) -> void:
+	var half_radius := EXTERIOR_TARGET_APPROACH_FRAME_RADIUS * 0.5
+	var bar_size := Vector3(
+		EXTERIOR_TARGET_APPROACH_FRAME_RADIUS * sqrt(2.0),
+		EXTERIOR_TARGET_APPROACH_FRAME_THICKNESS,
+		EXTERIOR_TARGET_APPROACH_FRAME_DEPTH
+	)
+	var frame_specs := [
+		["NorthEast", Vector2(half_radius, half_radius), -45.0],
+		["SouthEast", Vector2(half_radius, -half_radius), 45.0],
+		["SouthWest", Vector2(-half_radius, -half_radius), -45.0],
+		["NorthWest", Vector2(-half_radius, half_radius), 45.0],
+	]
+	for spec in frame_specs:
+		var offset := spec[1] as Vector2
+		var bar := _box(
+			visual,
+			"ApproachFrame%s" % spec[0],
+			Vector3(offset.x, offset.y, EXTERIOR_TARGET_APPROACH_FRAME_Z),
+			bar_size,
+			_materials["cyan_glow"],
+			false,
+			Vector3(0.0, 0.0, float(spec[2]))
+		) as MeshInstance3D
+		bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		bar.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		bar.set_meta(&"presentation_only", true)
+		bar.set_meta(&"gameplay_authority", false)
 
 
 func _add_exterior_target_core(visual: Node3D) -> void:
