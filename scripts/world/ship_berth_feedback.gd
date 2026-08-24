@@ -47,14 +47,16 @@ const STATE_OCCUPIED: StringName = &"occupied"
 const VALID_STATES := [STATE_RELEASED, STATE_APPROACH, STATE_OCCUPIED]
 # Re-frozen 11 -> 16: the five added meshes are the shape-coded state glyph (two
 # gate marks, two chevron arms, one secured bar), which is the non-colour channel
-# described above. Nothing else about the budget moved; the material count, the
-# five-material ceiling, and the zero-authority prohibitions are unchanged.
+# described above. The later performance seam below changes only retained
+# material resources; the mesh/submission budget and zero-authority prohibitions
+# remain unchanged.
 const MESH_COUNT := 16
 const MESH_RESOURCE_COUNT_BEFORE_SHARING := 16
 const MESH_RESOURCE_COUNT_BEFORE_UNIT_SCALING := 7
 const MESH_RESOURCE_COUNT := 1
 const MESH_RESOURCE_COPY_ROSTER := [16]
-const MATERIAL_COUNT := 4
+const MATERIAL_RESOURCE_COUNT_BEFORE_STATE_SHARING := 4
+const MATERIAL_COUNT := 2
 const RENDER_MIN_Y := 0.14
 const RENDER_MAX_Y := 0.22
 
@@ -381,7 +383,10 @@ func get_performance_report() -> Dictionary:
 		"mesh_sharing_exact": mesh_sharing_exact,
 		"mesh_sharing_policy": &"component_local_unit_box_mesh",
 		"material_resources": _materials.size(),
-		"material_budget": 5,
+		"material_resources_before_state_sharing": MATERIAL_RESOURCE_COUNT_BEFORE_STATE_SHARING,
+		"material_resource_savings": MATERIAL_RESOURCE_COUNT_BEFORE_STATE_SHARING - _materials.size(),
+		"material_sharing_policy": &"component_local_state_material",
+		"material_budget": MATERIAL_COUNT,
 		"labels": live_labels.size(),
 		"collision_nodes": find_children("*", "CollisionObject3D", true, false).size(),
 		"physics_query_nodes": find_children("*", "RayCast3D", true, false).size() \
@@ -443,7 +448,11 @@ func get_audit_report() -> Dictionary:
 		if not is_instance_valid(material) \
 				or material.get_instance_id() != int(_material_instance_ids.get(material_id, 0)):
 			errors.append("material_identity_changed_%s" % material_id)
-		elif not _material_matches_contract(material, _material_contracts.get(material_id, {}) as Dictionary):
+		elif not _material_matches_contract(
+			material,
+			_material_contracts.get(material_id, {}) as Dictionary,
+			material_id
+		):
 			errors.append("material_content_changed_%s" % material_id)
 	if not is_instance_valid(_visual_root) \
 			or _visual_root.get_instance_id() != _visual_root_instance_id \
@@ -511,7 +520,7 @@ func _build_presentation() -> void:
 				"Boundary_%s_%s" % ["Port" if side < 0.0 else "Starboard", "Forward" if end < 0.0 else "Aft"],
 				Vector3(side * (cue_half_width - edge_length * 0.5), 0.18, end * (cue_half_length - 0.18)),
 				Vector3(edge_length, 0.08, 0.16),
-				_materials.dim
+				_materials.active
 			)
 			_boundary_meshes.append(boundary)
 
@@ -522,7 +531,7 @@ func _build_presentation() -> void:
 			"ApproachGuide%02d" % (index + 1),
 			Vector3(side * cue_half_width * 0.38, 0.18, row * cue_half_length * 0.33),
 			Vector3(minf(1.25, cue_half_width * 0.18), 0.08, 0.18),
-			_materials.amber
+			_materials.active
 		)
 		guide.rotation.y = deg_to_rad(-28.0 * side * row)
 		_guide_meshes.append(guide)
@@ -532,7 +541,7 @@ func _build_presentation() -> void:
 		"LeaseStatePlate",
 		Vector3(0.0, 0.18, 0.0),
 		Vector3(minf(2.4, cue_half_width * 0.32), 0.08, minf(0.72, cue_half_length * 0.08)),
-		_materials.cyan
+		_materials.active
 	)
 	_status_meshes.append(center)
 	for side in [-1.0, 1.0]:
@@ -540,7 +549,7 @@ func _build_presentation() -> void:
 			"Status_%s" % ("Port" if side < 0.0 else "Starboard"),
 			Vector3(side * cue_half_width * 0.72, 0.18, 0.0),
 			Vector3(minf(0.65, cue_half_width * 0.09), 0.08, minf(1.4, cue_half_length * 0.12)),
-			_materials.cyan
+			_materials.active
 		)
 		_status_meshes.append(status)
 
@@ -592,7 +601,7 @@ func _build_state_glyph() -> void:
 			"GlyphGate%s" % ("Port" if side < 0.0 else "Starboard"),
 			Vector3(side * (half_span - gate_length * 0.5), 0.18, glyph_z),
 			Vector3(gate_length, 0.08, bar_depth),
-			_materials.cyan
+			_materials.active
 		)
 		_register_glyph(gate, STATE_RELEASED)
 
@@ -604,7 +613,7 @@ func _build_state_glyph() -> void:
 			"GlyphChevron%s" % ("Port" if side < 0.0 else "Starboard"),
 			Vector3(side * arm_length * cos(arm_angle) * 0.5, 0.18, glyph_z),
 			Vector3(arm_length, 0.08, bar_depth),
-			_materials.amber
+			_materials.active
 		)
 		arm.rotation.y = -side * arm_angle
 		_register_glyph(arm, STATE_APPROACH)
@@ -614,7 +623,7 @@ func _build_state_glyph() -> void:
 		"GlyphSecuredBar",
 		Vector3(0.0, 0.18, glyph_z),
 		Vector3(half_span * 2.0, 0.08, bar_depth * 1.55),
-		_materials.secured
+		_materials.active
 	)
 	_register_glyph(secured, STATE_OCCUPIED)
 
@@ -637,11 +646,13 @@ static func get_state_glyph_id(state: StringName) -> StringName:
 
 
 func _build_materials() -> void:
+	# The three lease colours are mutually exclusive. One component-local active
+	# material follows authoritative state instead of retaining three immutable
+	# resources that can never be rendered together. The dim boundary remains a
+	# second resource because it is visible beside amber guides during approach.
 	_materials = {
 		"dim": _make_material(ALBEDO_INACTIVE, EMISSION_INACTIVE, EMISSION_ENERGY_INACTIVE),
-		"cyan": _make_material(ALBEDO_RELEASED, EMISSION_RELEASED, EMISSION_ENERGY_RELEASED),
-		"amber": _make_material(ALBEDO_APPROACH, EMISSION_APPROACH, EMISSION_ENERGY_APPROACH),
-		"secured": _make_material(ALBEDO_OCCUPIED, EMISSION_OCCUPIED, EMISSION_ENERGY_OCCUPIED),
+		"active": _make_material(ALBEDO_RELEASED, EMISSION_RELEASED, EMISSION_ENERGY_RELEASED),
 	}
 	_material_instance_ids.clear()
 	for material_id: StringName in _materials:
@@ -709,24 +720,40 @@ func _material_snapshot(material: StandardMaterial3D) -> Dictionary:
 		"transparency": material.transparency,
 		"cull_mode": material.cull_mode,
 		"shading_mode": material.shading_mode,
-		"storage_properties": _storage_property_snapshot(material),
+		"storage_properties": _storage_property_snapshot(
+			material,
+			PackedStringArray(["albedo_color", "emission", "emission_energy_multiplier"])
+		),
 	}
 
 
-func _material_matches_contract(material: StandardMaterial3D, contract: Dictionary) -> bool:
+func _material_matches_contract(
+	material: StandardMaterial3D,
+	contract: Dictionary,
+	material_id: StringName
+	) -> bool:
+	var expected_albedo := contract.get("albedo_color") as Color
+	var expected_emission := contract.get("emission") as Color
+	var expected_energy := float(contract.get("emission_energy", -1.0))
+	if material_id == &"active":
+		var palette := _active_material_palette()
+		expected_albedo = palette.albedo as Color
+		expected_emission = palette.emission as Color
+		expected_energy = float(palette.energy)
 	return not contract.is_empty() \
-		and material.albedo_color == contract.get("albedo_color") \
+		and material.albedo_color == expected_albedo \
 		and is_equal_approx(material.metallic, float(contract.get("metallic", -1.0))) \
 		and is_equal_approx(material.roughness, float(contract.get("roughness", -1.0))) \
 		and material.emission_enabled == bool(contract.get("emission_enabled", false)) \
-		and material.emission == contract.get("emission") \
-		and is_equal_approx(material.emission_energy_multiplier, float(contract.get("emission_energy", -1.0))) \
+		and material.emission == expected_emission \
+		and is_equal_approx(material.emission_energy_multiplier, expected_energy) \
 		and material.transparency == contract.get("transparency") \
 		and material.cull_mode == contract.get("cull_mode") \
 		and material.shading_mode == contract.get("shading_mode") \
 		and _storage_properties_match(
 			material,
-			contract.get("storage_properties", {}) as Dictionary
+			contract.get("storage_properties", {}) as Dictionary,
+			PackedStringArray(["albedo_color", "emission", "emission_energy_multiplier"])
 		)
 
 
@@ -778,7 +805,7 @@ func _expected_visibility_for_mesh(mesh: MeshInstance3D) -> bool:
 
 func _expected_material_for_mesh(mesh: MeshInstance3D) -> Material:
 	if _guide_meshes.has(mesh):
-		return _materials.get("amber") as Material
+		return _materials.get("active") as Material
 	if _glyph_meshes.has(mesh):
 		return _active_state_material()
 	if _boundary_meshes.has(mesh):
@@ -791,11 +818,15 @@ func _expected_material_for_mesh(mesh: MeshInstance3D) -> Material:
 
 
 func _active_state_material() -> Material:
+	return _materials.get("active") as Material
+
+
+func _active_material_palette() -> Dictionary:
 	if _state == STATE_APPROACH:
-		return _materials.get("amber") as Material
+		return {"albedo": ALBEDO_APPROACH, "emission": EMISSION_APPROACH, "energy": EMISSION_ENERGY_APPROACH}
 	if _state == STATE_OCCUPIED:
-		return _materials.get("secured") as Material
-	return _materials.get("cyan") as Material
+		return {"albedo": ALBEDO_OCCUPIED, "emission": EMISSION_OCCUPIED, "energy": EMISSION_ENERGY_OCCUPIED}
+	return {"albedo": ALBEDO_RELEASED, "emission": EMISSION_RELEASED, "energy": EMISSION_ENERGY_RELEASED}
 
 
 func _label_matches_contract() -> bool:
@@ -1027,15 +1058,17 @@ func _reconcile_state(force: bool) -> void:
 func _apply_visual_state() -> void:
 	if not is_instance_valid(_visual_root):
 		return
-	var active_material := _materials.get("cyan") as Material
+	var active_material := _materials.get("active") as StandardMaterial3D
+	var palette := _active_material_palette()
+	active_material.albedo_color = palette.albedo as Color
+	active_material.emission = palette.emission as Color
+	active_material.emission_energy_multiplier = float(palette.energy)
 	var label_text := "BERTH OPEN"
 	var label_color := LABEL_RELEASED
 	if _state == STATE_APPROACH:
-		active_material = _materials.get("amber") as Material
 		label_text = "APPROACH VECTOR"
 		label_color = LABEL_APPROACH
 	elif _state == STATE_OCCUPIED:
-		active_material = _materials.get("secured") as Material
 		label_text = "BERTH SECURED"
 		label_color = LABEL_OCCUPIED
 	for mesh in _boundary_meshes:
@@ -1044,7 +1077,7 @@ func _apply_visual_state() -> void:
 	for mesh in _guide_meshes:
 		if is_instance_valid(mesh):
 			mesh.visible = _state == STATE_APPROACH
-			mesh.material_override = _materials.amber
+			mesh.material_override = active_material
 	for mesh in _status_meshes:
 		if is_instance_valid(mesh):
 			mesh.material_override = active_material

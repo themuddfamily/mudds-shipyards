@@ -87,14 +87,18 @@ func _run() -> void:
 	_check(bool(feedback.get_audit_report().valid), "fresh component passes its complete audit")
 	var perf := feedback.get_performance_report()
 	# All sixteen named/stateful copies and submissions remain. Their node scales
-	# retain the exact dimensions while one unit BoxMesh replaces sixteen meshes.
+	# retain the exact dimensions while one unit BoxMesh replaces sixteen meshes,
+	# and one state-driven material replaces three mutually exclusive palettes.
 	_check(
 		int(perf.owned_nodes) == 19
 		and int(perf.mesh_instances) == 16
 		and int(perf.drawn_copies) == 16
 		and int(perf.render_submissions) == 16
-		and int(perf.material_resources) == 4,
-		"component preserves nineteen nodes, sixteen named copies/submissions, and four instance-local materials"
+		and int(perf.material_resources_before_state_sharing) == 4
+		and int(perf.material_resources) == 2
+		and int(perf.material_resource_savings) == 2
+		and perf.material_sharing_policy == &"component_local_state_material",
+		"component preserves nineteen nodes and sixteen submissions while reducing four instance-local materials to two"
 	)
 	_check(
 		int(perf.mesh_resources_before_sharing) == 16
@@ -124,6 +128,11 @@ func _run() -> void:
 		and boundary_port_forward.mesh == boundary_starboard_aft.mesh,
 		"the four independent boundary nodes share the build-frozen unit-box recipe"
 	)
+	var lease_plate := feedback.get_node("FeedbackVisual/LeaseStatePlate") as MeshInstance3D
+	_check(
+		boundary_port_forward.material_override == lease_plate.material_override,
+		"released boundary and lease plate share the one component-local active material"
+	)
 	_check(int(perf.collision_nodes) == 0 and int(perf.lights) == 0 and int(perf.audio_nodes) == 0 and int(perf.particle_emitters) == 0, "feedback adds no collision, light, audio, or particle authority")
 	_check(feedback.get_evidence_metadata().evidence_status == &"modern_interpretation" and not bool(feedback.get_evidence_metadata().historically_supported), "feedback remains an explicit unsupported modern interpretation")
 
@@ -133,11 +142,22 @@ func _run() -> void:
 	var token := berth.try_reserve(ship, TORRENT_DEFINITION)
 	await process_frame
 	_check(not token.is_empty() and feedback.get_feedback_state() == &"approach", "real reservation transition renders approach state")
+	var approach_guide := feedback.get_node("FeedbackVisual/ApproachGuide01") as MeshInstance3D
+	_check(
+		approach_guide.material_override == lease_plate.material_override
+		and boundary_port_forward.material_override != lease_plate.material_override
+		and int(feedback.get_performance_report().material_resources) == 2,
+		"approach reuses the active amber material while retaining one concurrent dim boundary material"
+	)
 	_check(berth_cues == [&"berth_open_vector"], "approach emits one open-vector semantic cue")
 	_check(feedback.get_state_snapshot().label == "APPROACH VECTOR", "approach state publishes its exact visible label")
 	_check(berth.occupy(ship, token), "fixture converts the exact opaque lease to occupancy")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"occupied" and feedback.get_state_snapshot().label == "BERTH SECURED", "real occupancy transition renders secured state")
+	_check(
+		boundary_port_forward.material_override == lease_plate.material_override,
+		"secured state returns every visible cue to the same active material identity"
+	)
 	_check(berth_cues == [&"berth_open_vector", &"berth_capture_secured"], "occupancy emits one capture-secured semantic cue")
 	_check(berth.release(ship, token), "fixture releases the authoritative occupied lease")
 	await process_frame
@@ -409,6 +429,11 @@ func _run() -> void:
 	_check(not bool(feedback.get_audit_report().valid), "audit rejects shared presentation material cull drift")
 	plate_material.cull_mode = cull_mode
 	_check(bool(feedback.get_audit_report().valid), "restoring material cull mode restores a green audit")
+	var active_emission := plate_material.emission
+	plate_material.emission = Color.MAGENTA
+	_check(not bool(feedback.get_audit_report().valid), "audit rejects live state-material palette drift")
+	plate_material.emission = active_emission
+	_check(bool(feedback.get_audit_report().valid), "restoring the authoritative state emission restores a green audit")
 
 	var state_label := feedback.get_node("FeedbackVisual/LeaseStateLabel") as Label3D
 	var label_text := state_label.text
