@@ -41,6 +41,7 @@ func _run() -> void:
 	await _test_stair_circulation(module)
 	_test_stair_tread_batch(module)
 	_test_low_route_light_batch(module)
+	_test_approach_edge_collar_batch(module)
 	await _test_operations_door_and_room(module)
 	_test_operations_contents(module)
 	_test_manufactured_material_roles(module)
@@ -358,6 +359,44 @@ func _test_low_route_light_batch(module: AftJunctionStack) -> void:
 	)
 
 
+func _test_approach_edge_collar_batch(module: AftJunctionStack) -> void:
+	var report := module.get_approach_edge_collar_batch_audit()
+	var lower := module.get_node_or_null(^"Structure/LowerOpenDeck") as Node3D
+	var batch := lower.get_node_or_null(^"ApproachEdgeCollarRenderBatch") as MultiMeshInstance3D \
+		if lower != null else null
+	_check(
+		bool(report.valid)
+		and int(report.legacy_renderer_nodes) == 6
+		and int(report.renderer_nodes) == 1
+		and int(report.legacy_surface_submissions) == 6
+		and int(report.surface_submissions) == 1
+		and int(report.drawn_copies) == 6
+		and int(report.stable_anchor_nodes) == 6
+		and int(report.collision_authority_count) == 0
+		and int(report.interaction_authority_count) == 0,
+		"six exact approach service-collar copies move from six submissions to one without changing the non-colliding deck envelope"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var original_buffer := batch.multimesh.buffer.duplicate()
+	var drifted_buffer := original_buffer.duplicate()
+	drifted_buffer[3] += 0.25
+	batch.multimesh.buffer = drifted_buffer
+	var buffer_red := module.get_approach_edge_collar_batch_audit()
+	_check(
+		not bool(buffer_red.valid)
+		and (buffer_red.errors as PackedStringArray).has(
+			"approach_edge_collar_renderer_buffer_drift"
+		),
+		"an approach-collar transform mutation fails the exact visual batch closed"
+	)
+	batch.multimesh.buffer = original_buffer
+	_check(
+		bool(module.get_approach_edge_collar_batch_audit().valid),
+		"restoring the authored approach-collar transforms returns the visual batch green"
+	)
+
+
 func _test_operations_door_and_room(module: AftJunctionStack) -> void:
 	var door := module.get_operations_entrance()
 	_check(door != null, "cyan operations entrance is exposed as StationDoor")
@@ -564,26 +603,26 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1182,
-			"renderer_nodes": 800,
+			"descendant_nodes": 1184,
+			"renderer_nodes": 790,
 			"drawn_copies": 864,
-			"surface_submissions": 800,
-			"mesh_resource_allocations": 293,
+			"surface_submissions": 790,
+			"mesh_resource_allocations": 290,
 			"material_resource_allocations": 30,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus visual batching freeze 1182 descendants, 800 renderers/submissions, 864 copies, and 293 mesh allocations"
+		"shared collar families plus visual batching freeze 1184 descendants, 790 renderers/submissions, 864 copies, and 290 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": -11,
-			"renderer_nodes": 55,
+			"descendant_nodes": -13,
+			"renderer_nodes": 65,
 			"drawn_copies": -9,
-			"surface_submissions": 55,
-			"mesh_resource_allocations": 26,
+			"surface_submissions": 65,
+			"mesh_resource_allocations": 29,
 			"material_resource_allocations": 0,
 		}
 		and not bool(report.batched)

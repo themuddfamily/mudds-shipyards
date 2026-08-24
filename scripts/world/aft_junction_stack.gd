@@ -216,14 +216,21 @@ const LOW_ROUTE_LIGHT_POSITIONS := [
 	Vector3(0.0, 0.088, 4.25),
 	Vector3(0.0, 0.088, 8.9),
 ]
+## Six brass collars dress the non-colliding approach service tubes. The tubes
+## remain the only visual structure in this family; these childless markers
+## preserve each authored copy transform while one inert batch submits the
+## unchanged chamfered-cylinder surface.
+const APPROACH_EDGE_COLLAR_RADIUS := 0.115
+const APPROACH_EDGE_COLLAR_HEIGHT := 0.16
+const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1183
+const RENDER_DESCENDANT_NODE_COUNT := 1184
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 795
+const RENDERER_NODE_COUNT := 790
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 864
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 795
+const SURFACE_SUBMISSION_COUNT := 790
 const BASELINE_MESH_RESOURCE_COUNT := 319
 const MESH_RESOURCE_COUNT := 290
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
@@ -307,6 +314,7 @@ var _console_shock_collar_batch: MultiMeshInstance3D
 var _cabinet_fastener_batch: MultiMeshInstance3D
 var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
 var _roof_vent_louvre_batch: MultiMeshInstance3D
+var _approach_edge_collar_batch: MultiMeshInstance3D
 var _exterior_pipe_clamp_mesh: TorusMesh
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
@@ -749,6 +757,7 @@ func get_performance_contract() -> Dictionary:
 	var exterior_pipe_clamp_sharing := get_exterior_pipe_clamp_visual_allocation_audit()
 	var roof_vent_collar_sharing := get_roof_vent_collar_visual_allocation_audit()
 	var ceiling_lens_batch := get_ceiling_luminaire_lens_batch_audit()
+	var approach_edge_collar_batch := get_approach_edge_collar_batch_audit()
 	contract["pod_corner_collar_visual_sharing"] = visual_sharing
 	contract["vip_facade_column_trim_batch"] = facade_batch
 	contract["rack_card_batch"] = rack_card_batch
@@ -761,6 +770,7 @@ func get_performance_contract() -> Dictionary:
 	contract["exterior_pipe_clamp_visual_sharing"] = exterior_pipe_clamp_sharing
 	contract["roof_vent_collar_visual_sharing"] = roof_vent_collar_sharing
 	contract["ceiling_luminaire_lens_batch"] = ceiling_lens_batch
+	contract["approach_edge_collar_batch"] = approach_edge_collar_batch
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(visual_sharing.valid)
@@ -775,6 +785,7 @@ func get_performance_contract() -> Dictionary:
 		and bool(exterior_pipe_clamp_sharing.valid)
 		and bool(roof_vent_collar_sharing.valid)
 		and bool(ceiling_lens_batch.valid)
+		and bool(approach_edge_collar_batch.valid)
 	)
 	return contract
 
@@ -898,6 +909,87 @@ func get_ceiling_luminaire_lens_batch_audit() -> Dictionary:
 		"collision_authority_added": false,
 		"interaction_authority_added": false,
 		"semantic_authority_added": false,
+	}.duplicate(true)
+
+
+## The approach service tubes are untouched non-colliding structure. This audit
+## freezes only their six childless brass collars: paths/transforms, material,
+## culling and inert renderer state must remain exact while submissions fall 6→1.
+func get_approach_edge_collar_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var lower := get_node_or_null(^"Structure/LowerOpenDeck") as Node3D
+	var expected := _approach_edge_collar_transforms()
+	var anchors: Array[Marker3D] = []
+	if lower != null:
+		for child in lower.get_children():
+			if child is Marker3D and bool(child.get_meta("approach_edge_collar_anchor", false)):
+				anchors.append(child as Marker3D)
+	if anchors.size() != expected.size():
+		errors.append("approach_edge_collar_anchor_count_drift")
+	for index in mini(anchors.size(), expected.size()):
+		var anchor := anchors[index]
+		if not anchor.transform.is_equal_approx(expected[index]) \
+				or anchor.get_parent() != lower \
+				or anchor.get_child_count() != 0 \
+				or anchor.get_script() != null \
+				or not anchor.get_groups().is_empty() \
+				or anchor.get_meta_list().size() != 1 \
+				or not bool(anchor.get_meta("approach_edge_collar_anchor", false)):
+			errors.append("approach_edge_collar_anchor_roster_drift")
+	var batch := _approach_edge_collar_batch
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh if multimesh != null else null
+	var expected_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		APPROACH_EDGE_COLLAR_RADIUS,
+		APPROACH_EDGE_COLLAR_RADIUS,
+		APPROACH_EDGE_COLLAR_HEIGHT,
+		32,
+		_chamfered_cylinder_cache
+	)
+	if batch == null or multimesh == null or mesh == null:
+		errors.append("approach_edge_collar_batch_missing")
+	else:
+		if batch.get_parent() != lower or batch.name != &"ApproachEdgeCollarRenderBatch":
+			errors.append("approach_edge_collar_batch_path_drift")
+		if mesh != expected_mesh or mesh.get_surface_count() != 1:
+			errors.append("approach_edge_collar_mesh_identity_drift")
+		if multimesh.instance_count != APPROACH_EDGE_COLLAR_COPY_COUNT \
+				or multimesh.visible_instance_count != APPROACH_EDGE_COLLAR_COPY_COUNT:
+			errors.append("approach_edge_collar_copy_count_drift")
+		if multimesh.buffer != _encode_multimesh_transforms(expected):
+			errors.append("approach_edge_collar_renderer_buffer_drift")
+		if not multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(expected_mesh.get_aabb(), expected)
+		):
+			errors.append("approach_edge_collar_culling_bounds_drift")
+		if batch.material_override != _materials.get("brass") \
+				or not batch.transform.is_equal_approx(Transform3D.IDENTITY) \
+				or not batch.visible or batch.layers != 1 \
+				or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				or batch.get_child_count() != 0 or batch.get_script() != null \
+				or not batch.get_groups().is_empty() \
+				or not bool(batch.get_meta("visual_detail_only", false)) \
+				or not _transform_arrays_match(
+					batch.get_meta("authored_instance_transforms", []) as Array, expected
+				):
+			errors.append("approach_edge_collar_renderer_state_or_authority_drift")
+	if lower != null and not lower.find_children(
+		"ApproachEdgeCollar*", "MeshInstance3D", false, false
+	).is_empty():
+		errors.append("approach_edge_collar_legacy_renderer_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"legacy_renderer_nodes": APPROACH_EDGE_COLLAR_COPY_COUNT,
+		"renderer_nodes": 1 if batch != null else 0,
+		"legacy_surface_submissions": APPROACH_EDGE_COLLAR_COPY_COUNT,
+		"surface_submissions": mesh.get_surface_count() if mesh != null else 0,
+		"drawn_copies": multimesh.visible_instance_count if multimesh != null else 0,
+		"stable_anchor_nodes": anchors.size(),
+		"renderer_buffer": multimesh.buffer if multimesh != null else PackedFloat32Array(),
+		"culling_bounds": multimesh.custom_aabb if multimesh != null else AABB(),
+		"collision_authority_count": 0,
+		"interaction_authority_count": 0,
 	}.duplicate(true)
 
 
@@ -2956,11 +3048,18 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 
 	# A separate, non-colliding service envelope breaks up the slab while leaving
 	# the tested floor plane and open circulation samples completely unchanged.
+	var approach_edge_collar_transforms := _approach_edge_collar_transforms()
+	var approach_edge_collar_index := 0
 	for side in [-1.0, 1.0]:
 		var edge_x := float(side) * 3.5
 		_beam_between(lower, "ApproachEdgeTube", Vector3(edge_x, -0.38, 0.1), Vector3(edge_x, -0.38, 5.0), 0.105, _materials["mid_grey"], false)
 		for z_position in [0.65, 2.5, 4.35]:
-			_cylinder(lower, "ApproachEdgeCollar", Vector3(edge_x, -0.38, z_position), 0.115, 0.16, _materials["brass"], false, Vector3(90, 0, 0))
+			var collar_anchor := Marker3D.new()
+			collar_anchor.name = "ApproachEdgeCollar"
+			collar_anchor.transform = approach_edge_collar_transforms[approach_edge_collar_index]
+			collar_anchor.set_meta("approach_edge_collar_anchor", true)
+			lower.add_child(collar_anchor)
+			approach_edge_collar_index += 1
 		var junction_edge_x := float(side) * 5.5
 		_beam_between(lower, "JunctionEdgeTube", Vector3(junction_edge_x, -0.42, 5.0), Vector3(junction_edge_x, -0.42, 10.0), 0.13, _materials["hull_dark"], false)
 		_beam_between(lower, "LowerLongitudinalTruss", Vector3(float(side) * 3.9, -0.86, 5.15), Vector3(float(side) * 4.9, -0.86, 9.85), 0.11, _materials["mid_grey"], false)
@@ -2974,6 +3073,19 @@ func _build_open_lower_deck(structure: Node3D) -> void:
 				_materials["warm_grey"],
 				false
 			)
+	_approach_edge_collar_batch = _multimesh_mesh(
+		lower,
+		"ApproachEdgeCollarRenderBatch",
+		StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			APPROACH_EDGE_COLLAR_RADIUS,
+			APPROACH_EDGE_COLLAR_RADIUS,
+			APPROACH_EDGE_COLLAR_HEIGHT,
+			32,
+			_chamfered_cylinder_cache
+		),
+		_materials["brass"],
+		approach_edge_collar_transforms
+	)
 
 	for z_position in [1.15, 2.65, 4.15, 6.15, 8.55]:
 		_box(lower, "DeckExpansionJoint", Vector3(0, 0.072, z_position), Vector3(6.1 if z_position < 5.0 else 9.8, 0.018, 0.045), _materials["graphite"], false)
@@ -5289,6 +5401,18 @@ func _multimesh_mesh(
 	batch.set_meta("authored_instance_transforms", transforms.duplicate())
 	parent.add_child(batch)
 	return batch
+
+
+static func _approach_edge_collar_transforms() -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var collar_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	for side in [-1.0, 1.0]:
+		for z_position in [0.65, 2.5, 4.35]:
+			transforms.append(Transform3D(
+				collar_basis,
+				Vector3(float(side) * 3.5, -0.38, float(z_position))
+			))
+	return transforms
 
 
 static func _rack_card_transforms() -> Array[Transform3D]:
