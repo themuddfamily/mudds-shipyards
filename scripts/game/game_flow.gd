@@ -2739,6 +2739,15 @@ func _physics_process(delta: float) -> void:
 		return
 	if (
 		not bool(actor_sample.get("available", false))
+		and actor_sample.get("reason", &"") == &"nonfinite_active_ship_position"
+		and _selected_activity_kind == ACTIVITY_KIND_PATROL
+		and patrol_activity != null
+		and bool(patrol_activity.get_presentation_snapshot().get("running", false))
+	):
+		_advance_patrol(delta, active_ship, Vector3.INF)
+		return
+	if (
+		not bool(actor_sample.get("available", false))
 		or actor_sample.get("actor_kind", &"") != &"ship"
 		or int(actor_sample.get("actor_instance_id", 0)) != active_ship.get_instance_id()
 	):
@@ -9100,7 +9109,9 @@ func request_activity_start(
 	var started: Dictionary
 	match _selected_activity_kind:
 		ACTIVITY_KIND_PATROL:
-			started = patrol_activity.start(patrol_activity.get_generation())
+			started = patrol_activity.start(
+				patrol_activity.get_generation(), active_ship
+			)
 		ACTIVITY_KIND_CARGO_DELIVERY:
 			if not _restore_cargo_delivery_bindings():
 				return {"accepted": false, "reason": &"cargo_authority_detached"}
@@ -9435,7 +9446,7 @@ func _advance_selected_activity(delta: float, world_position: Vector3) -> void:
 	if _active_activity_id.is_empty():
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
-		_advance_patrol(delta, world_position)
+		_advance_patrol(delta, active_ship, world_position)
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
 		_advance_cargo_delivery(delta)
@@ -9479,20 +9490,21 @@ func _advance_cinder_convoy(delta: float, world_position: Vector3) -> void:
 		_fail_active_activity(&"convoy_advance_rejected")
 
 
-func _advance_patrol(delta: float, world_position: Vector3) -> void:
+func _advance_patrol(
+	delta: float,
+	patrol_actor: Node3D,
+	sampled_world_position: Vector3
+) -> void:
 	var generation := patrol_activity.get_generation()
 	var before := patrol_activity.get_presentation_snapshot()
 	if before.get("state_id", &"") != &"active":
 		return
-	# One captured active-ship position is shared by arrival and continuous dwell
-	# for this physics tick. GameFlow samples; PatrolActivity and the director own
-	# every decision made from that value.
+	# The live active ship is sampled once and fenced by PatrolActivity. Its exit
+	# signal remains observable even when no later GameFlow physics tick exists.
 	_cinder_position_sample_count += 1
-	if before.get("phase_id", &"") == &"travel":
-		patrol_activity.submit_position(world_position, generation)
-	var after_arrival := patrol_activity.get_presentation_snapshot()
-	if after_arrival.get("state_id", &"") == &"active":
-		patrol_activity.advance_physics(delta, world_position, generation)
+	patrol_activity.advance_actor_physics(
+		delta, patrol_actor, sampled_world_position, generation
+	)
 
 
 func _advance_cargo_delivery(delta: float) -> void:

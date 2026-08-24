@@ -212,8 +212,10 @@ func _test_physics_progress_reentry_and_completion(
 		and start.get("state_id", &"") == &"active"
 		and start.get("phase_id", &"") == &"travel"
 		and generation == 1
+		and int(start.get("patrol_actor_instance_id", 0)) == route_ship.get_instance_id()
+		and start.get("patrol_actor_status_id", &"") == &"tracked"
 		and bool(game.get_activity_integration_report().get("selection_locked", false)),
-		"the selected patrol starts one generation in travel and locks interpretation"
+		"the selected patrol admits the production ship before its first tick and locks interpretation"
 	)
 	var locked := game.select_activity_kind(GameFlow.ACTIVITY_KIND_TIMED_RACE)
 	_check(
@@ -239,6 +241,8 @@ func _test_physics_progress_reentry_and_completion(
 	_check(
 		travel.get("phase_id", &"") == &"travel"
 		and is_equal_approx(float(travel.get("current_time_seconds", -1.0)), 0.5)
+		and int(travel.get("patrol_actor_instance_id", 0)) == route_ship.get_instance_id()
+		and travel.get("patrol_actor_status_id", &"") == &"tracked"
 		and int(game.get_activity_integration_report().get("position_sample_count", -1))
 		== samples_before + 1
 		and "PATROL  TRAVEL G1/5" in str(hud.get_activity_objective_report().get("text", "")),
@@ -398,6 +402,20 @@ func _test_failure_reset_and_generation_safety(game: GameFlow, hud: GameHUD) -> 
 		game.reset_active_activity()
 		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
 		"return abort resets cleanly while the locked patrol selection remains stable"
+	)
+	var route_ship := game.active_ship
+	var finite_position := route_ship.global_position
+	var nonfinite_start := game.request_activity_start(ROUTE.activity_id)
+	route_ship.global_position = Vector3.INF
+	game.call("_physics_process", 0.1)
+	var nonfinite_failure := game.get_active_activity_snapshot()
+	route_ship.global_position = finite_position
+	_check(
+		bool(nonfinite_start.get("accepted", false))
+		and nonfinite_failure.get("state_id", &"") == &"failed"
+		and nonfinite_failure.get("failure_reason", &"") == &"patrol_actor_invalid_position"
+		and nonfinite_failure.get("recovery_action_id", &"") == &"reset_patrol_then_restart",
+		"production non-finite ship sampling fails patrol instead of leaving it active"
 	)
 
 

@@ -52,6 +52,13 @@ var _pending_checkpoint_event := false
 var _activity_route_completed := false
 var _authority_desynchronized := false
 var _pending_terminal_state := State.IDLE
+var _patrol_actor_ref: WeakRef
+var _patrol_actor_instance_id := 0
+var _patrol_actor_status_id: StringName = &"unbound"
+var _patrol_actor_exit_callback := Callable()
+var _patrol_actor_exit_pending := false
+var _patrol_actor_loss_pending := false
+var _patrol_actor_pending_reason: StringName = &""
 
 
 func _init(route_definition: ActivityDefinition, configured_dwell_seconds: float = 2.0) -> void:
@@ -91,6 +98,13 @@ func attach(director: ActivityDirector, expected_generation: int) -> Dictionary:
 	_director = director
 	_connect_director()
 	_attached = true
+	_validate_and_rearm_patrol_actor_on_attach()
+	if _patrol_actor_loss_pending:
+		var pending_reason := _patrol_actor_pending_reason
+		_patrol_actor_loss_pending = false
+		_patrol_actor_pending_reason = &""
+		_mutation_active = false
+		return fail(pending_reason, expected_generation)
 	var result := _finish(true, &"attached")
 	_emit_snapshot_signal(presentation_changed)
 	return result
@@ -111,7 +125,7 @@ func detach(expected_generation: int) -> Dictionary:
 	return result
 
 
-func start(expected_generation: int) -> Dictionary:
+func start(expected_generation: int, patrol_actor: Variant = null) -> Dictionary:
 	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	_mutation_active = true
@@ -125,6 +139,10 @@ func start(expected_generation: int) -> Dictionary:
 		return _finish(false, &"invalid_configuration")
 	if _state == State.ACTIVE:
 		return _finish(false, &"already_running")
+	if patrol_actor != null:
+		var actor_rejection := _patrol_actor_rejection(patrol_actor)
+		if not actor_rejection.is_empty():
+			return _finish(false, actor_rejection)
 	var activity_start := _director.start_activity(definition.activity_id)
 	if not bool(activity_start.get("accepted", false)):
 		return _finish(false, &"activity_cannot_start")
@@ -144,6 +162,8 @@ func start(expected_generation: int) -> Dictionary:
 	_activity_route_completed = false
 	_authority_desynchronized = false
 	_pending_terminal_state = State.IDLE
+	if patrol_actor != null:
+		_track_patrol_actor(patrol_actor as Node3D, _generation)
 	var result := _finish(true, &"started")
 	_emit_snapshot_signal(patrol_started)
 	_emit_snapshot_signal(presentation_changed)
@@ -254,6 +274,54 @@ func advance_physics(
 	return result
 
 
+## Actor-aware production seam for hosts that own the physical patrol caller.
+## The first valid sample fences this run to one actor identity. Losing that
+## node, replacing it mid-run, or supplying invalid transform evidence fails
+## the same director-backed lifecycle instead of leaving an active patrol with
+## no future position samples. Recovery remains the existing reset/start path.
+func advance_actor_physics(
+	delta: float,
+	patrol_actor: Variant,
+	sampled_position: Vector3,
+	expected_generation: int
+) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	var rejection := _running_rejection(expected_generation)
+	if not rejection.is_empty():
+		return _result(false, rejection)
+	var actor_rejection := _patrol_actor_identity_rejection(patrol_actor)
+	if actor_rejection.is_empty() and not WorldLocationDefinition._is_finite_vector(
+		(patrol_actor as Node3D).global_position
+	):
+		actor_rejection = &"patrol_actor_invalid_position"
+	if actor_rejection.is_empty() \
+			and not WorldLocationDefinition._is_finite_vector(sampled_position):
+		actor_rejection = &"patrol_actor_invalid_position"
+	if not actor_rejection.is_empty():
+		_patrol_actor_status_id = (
+			&"lost"
+			if actor_rejection == &"patrol_actor_lost"
+			else &"invalid"
+		)
+		return fail(actor_rejection, expected_generation)
+	var actor := patrol_actor as Node3D
+	if _patrol_actor_instance_id == 0:
+		_track_patrol_actor(actor, expected_generation)
+	elif actor.get_instance_id() != _patrol_actor_instance_id:
+		_patrol_actor_status_id = &"replaced"
+		return fail(&"patrol_actor_replaced", expected_generation)
+	elif _patrol_actor_status_id == &"detached":
+		_track_patrol_actor(actor, expected_generation)
+
+	var before := get_presentation_snapshot()
+	if before.get("phase_id", &"") == &"travel":
+		submit_position(sampled_position, expected_generation)
+	if _state != State.ACTIVE:
+		return _result(false, &"patrol_actor_advance_rejected")
+	return advance_physics(delta, sampled_position, expected_generation)
+
+
 func abort(reason: StringName, expected_generation: int) -> Dictionary:
 	return _request_terminal(State.ABORTED, reason, expected_generation)
 
@@ -294,6 +362,7 @@ func reset(expected_generation: int) -> Dictionary:
 	_activity_route_completed = false
 	_authority_desynchronized = false
 	_pending_terminal_state = State.IDLE
+	_release_patrol_actor()
 	var result := _finish(true, &"reset")
 	_emit_snapshot_signal(patrol_reset)
 	_emit_snapshot_signal(presentation_changed)
@@ -311,6 +380,7 @@ func close(expected_generation: int) -> Dictionary:
 	if _closed:
 		return _finish(false, &"already_closed")
 	_disconnect_director()
+	_release_patrol_actor()
 	_attached = false
 	_closed = true
 	var result := _finish(true, &"closed")
@@ -336,6 +406,20 @@ func get_presentation_snapshot() -> Dictionary:
 		phase_id = &"failed"
 	elif _state == State.ABORTED:
 		phase_id = &"aborted"
+	var actor_recovery_required := (
+		_state == State.FAILED
+		and _terminal_reason in [
+			&"patrol_actor_lost",
+			&"patrol_actor_invalid",
+			&"patrol_actor_invalid_position",
+			&"patrol_actor_replaced",
+		]
+	)
+	var recovery_action_id: StringName = &""
+	if actor_recovery_required:
+		recovery_action_id = &"reset_patrol_then_restart"
+	elif _patrol_actor_loss_pending:
+		recovery_action_id = &"reattach_patrol_to_terminalize"
 	return {
 		"activity_id": definition.activity_id if definition != null else &"",
 		"display_name": definition.display_name if definition != null else "",
@@ -365,6 +449,12 @@ func get_presentation_snapshot() -> Dictionary:
 		"terminal_reason": _terminal_reason,
 		"failure_reason": _terminal_reason if _state == State.FAILED else &"",
 		"abort_reason": _terminal_reason if _state == State.ABORTED else &"",
+		"patrol_actor_instance_id": _patrol_actor_instance_id,
+		"patrol_actor_status_id": _patrol_actor_status_id,
+		"patrol_actor_loss_pending": _patrol_actor_loss_pending,
+		"patrol_actor_pending_reason": _patrol_actor_pending_reason,
+		"actor_recovery_required": actor_recovery_required,
+		"recovery_action_id": recovery_action_id,
 		"uses_caller_physics_delta": true,
 		"owns_checkpoint_geometry": false,
 		"gameplay_authority": false,
@@ -420,6 +510,7 @@ func _request_terminal(
 		_authority_desynchronized = true
 		return _finish_desynchronized()
 	_pending_terminal_state = State.IDLE
+	_disconnect_patrol_actor_exit_signal()
 	var result_reason: StringName = &"aborted" if terminal_state == State.ABORTED else &"failed"
 	var result := _finish(true, result_reason)
 	if terminal_state == State.ABORTED:
@@ -473,6 +564,7 @@ func _complete_checkpoint_dwell(patrol_position: Vector3) -> bool:
 		_state = State.COMPLETED
 		_last_duration = _elapsed
 		_terminal_reason = &""
+		_disconnect_patrol_actor_exit_signal()
 		return true
 	return true
 
@@ -578,6 +670,7 @@ func _on_activity_failed(
 	_dwell_elapsed = 0.0
 	_checkpoint_occupied = false
 	_activity_route_completed = false
+	_disconnect_patrol_actor_exit_signal()
 	if _mutation_active:
 		return
 	if _state == State.ABORTED:
@@ -593,6 +686,131 @@ func _director_owns_route(director: ActivityDirector) -> bool:
 		and definition != null
 		and director.get_definition(definition.activity_id) == definition
 	)
+
+
+func _patrol_actor_rejection(patrol_actor: Variant) -> StringName:
+	var identity_rejection := _patrol_actor_identity_rejection(patrol_actor)
+	if not identity_rejection.is_empty():
+		return identity_rejection
+	var actor := patrol_actor as Node3D
+	if not WorldLocationDefinition._is_finite_vector(actor.global_position):
+		return &"patrol_actor_invalid_position"
+	return &""
+
+
+func _patrol_actor_identity_rejection(patrol_actor: Variant) -> StringName:
+	if patrol_actor == null:
+		return &"patrol_actor_lost"
+	if not patrol_actor is Object:
+		return &"patrol_actor_invalid"
+	if not is_instance_valid(patrol_actor):
+		return &"patrol_actor_lost"
+	if not patrol_actor is Node3D:
+		return &"patrol_actor_invalid"
+	var actor := patrol_actor as Node3D
+	if actor.is_queued_for_deletion() or not actor.is_inside_tree():
+		return &"patrol_actor_lost"
+	return &""
+
+
+func _track_patrol_actor(actor: Node3D, expected_generation: int) -> void:
+	_disconnect_patrol_actor_exit_signal(false)
+	_patrol_actor_ref = weakref(actor)
+	_patrol_actor_instance_id = actor.get_instance_id()
+	_patrol_actor_status_id = &"tracked"
+	_patrol_actor_exit_pending = false
+	_patrol_actor_exit_callback = _on_patrol_actor_tree_exiting.bind(
+		_patrol_actor_instance_id, expected_generation
+	)
+	actor.tree_exiting.connect(_patrol_actor_exit_callback, CONNECT_ONE_SHOT)
+
+
+func _on_patrol_actor_tree_exiting(actor_instance_id: int, generation: int) -> void:
+	if actor_instance_id != _patrol_actor_instance_id or generation != _generation:
+		return
+	_patrol_actor_exit_callback = Callable()
+	_patrol_actor_exit_pending = true
+	_patrol_actor_status_id = &"exit_pending"
+	call_deferred("_resolve_patrol_actor_exit", actor_instance_id, generation)
+
+
+func _resolve_patrol_actor_exit(actor_instance_id: int, generation: int) -> void:
+	if (
+		not _patrol_actor_exit_pending
+		or actor_instance_id != _patrol_actor_instance_id
+		or generation != _generation
+	):
+		return
+	_patrol_actor_exit_pending = false
+	if _state != State.ACTIVE:
+		return
+	var actor := _get_tracked_patrol_actor()
+	if is_instance_valid(actor) and actor.is_inside_tree() and not actor.is_queued_for_deletion():
+		_track_patrol_actor(actor, generation)
+		return
+	if not _attached:
+		if is_instance_valid(actor):
+			_patrol_actor_status_id = &"detached"
+		else:
+			_latch_patrol_actor_loss()
+		return
+	_patrol_actor_ref = null
+	_patrol_actor_status_id = &"lost"
+	fail(&"patrol_actor_lost", generation)
+
+
+func _get_tracked_patrol_actor() -> Node3D:
+	return (
+		_patrol_actor_ref.get_ref() as Node3D
+		if _patrol_actor_ref != null
+		else null
+	)
+
+
+func _validate_and_rearm_patrol_actor_on_attach() -> void:
+	if _state != State.ACTIVE or _patrol_actor_instance_id == 0:
+		return
+	var actor := _get_tracked_patrol_actor()
+	if (
+		not is_instance_valid(actor)
+		or actor.is_queued_for_deletion()
+		or not actor.is_inside_tree()
+	):
+		_latch_patrol_actor_loss()
+		return
+	_track_patrol_actor(actor, _generation)
+
+
+func _latch_patrol_actor_loss() -> void:
+	_patrol_actor_ref = null
+	_patrol_actor_exit_callback = Callable()
+	_patrol_actor_exit_pending = false
+	_patrol_actor_status_id = &"lost"
+	_patrol_actor_loss_pending = true
+	_patrol_actor_pending_reason = &"patrol_actor_lost"
+
+
+func _disconnect_patrol_actor_exit_signal(clear_actor_ref: bool = true) -> void:
+	var actor := _get_tracked_patrol_actor()
+	if (
+		is_instance_valid(actor)
+		and _patrol_actor_exit_callback.is_valid()
+		and actor.tree_exiting.is_connected(_patrol_actor_exit_callback)
+	):
+		actor.tree_exiting.disconnect(_patrol_actor_exit_callback)
+	if clear_actor_ref:
+		_patrol_actor_ref = null
+	_patrol_actor_exit_callback = Callable()
+	_patrol_actor_exit_pending = false
+
+
+func _release_patrol_actor() -> void:
+	_disconnect_patrol_actor_exit_signal()
+	_patrol_actor_instance_id = 0
+	_patrol_actor_status_id = &"unbound"
+	_patrol_actor_exit_pending = false
+	_patrol_actor_loss_pending = false
+	_patrol_actor_pending_reason = &""
 
 
 func _director_state_matches(director: ActivityDirector) -> bool:

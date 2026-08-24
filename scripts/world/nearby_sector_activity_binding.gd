@@ -106,6 +106,8 @@ var _last_beacon_reward_result: Dictionary = {}
 func _enter_tree() -> void:
 	if _mining_activity != null:
 		call_deferred("_restore_presentation_observers_after_reentry")
+	if _patrol != null:
+		call_deferred("_restore_patrol_after_reentry")
 
 
 func _ready() -> void:
@@ -135,6 +137,7 @@ func _ready() -> void:
 		RACE_ROUTE, CINDER_PATROL_DWELL_SECONDS
 	) as PatrolActivity
 	_patrol.attach(_patrol_director, _patrol.get_generation())
+	_patrol.patrol_failed.connect(_on_patrol_failed)
 	_cargo_authority = CargoTransferAuthority.new()
 	_cargo_authority.name = "CinderCargoTransferAuthority"
 	add_child(_cargo_authority)
@@ -158,6 +161,10 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _patrol != null and bool(
+		_patrol.get_presentation_snapshot().get("attached", false)
+	):
+		_patrol.detach(_patrol.get_generation())
 	_clear_presentation_observers()
 	if _cinder_field_audio != null:
 		_cinder_field_audio.detach()
@@ -184,6 +191,15 @@ func _restore_presentation_observers_after_reentry() -> void:
 		)
 	_bind_audio_presentation_observers()
 	_publish_cinder_route_audio()
+
+
+func _restore_patrol_after_reentry() -> void:
+	if not is_inside_tree() or is_queued_for_deletion() or _patrol == null:
+		return
+	if bool(_patrol.get_presentation_snapshot().get("attached", false)):
+		return
+	var restored := _patrol.attach(_patrol_director, _patrol.get_generation())
+	_publish_patrol_advance(restored)
 
 
 func _bind_audio_presentation_observers() -> void:
@@ -543,10 +559,12 @@ func reset_race() -> Dictionary:
 	return result
 
 
-func start_patrol() -> Dictionary:
+func start_patrol(patrol_actor: Variant = null) -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
-	var result: Dictionary = _patrol.start(_patrol.get_generation())
+	var result: Dictionary = _patrol.start(
+		_patrol.get_generation(), patrol_actor
+	)
 	if bool(result.get("accepted", false)):
 		_last_patrol_feedback_reason = &""
 		_last_patrol_reward_result.clear()
@@ -555,27 +573,62 @@ func start_patrol() -> Dictionary:
 	return result
 
 
-func advance_patrol(delta: float, position: Vector3) -> Dictionary:
+func advance_patrol(
+	delta: float,
+	actor_or_position: Variant,
+	sampled_position: Variant = null
+) -> Dictionary:
 	if not is_inside_tree() or _patrol == null:
 		return _result(false, &"not_ready")
-	# This is the production caller seam, so translate arrival samples before
-	# advancing dwell. Previously no public binding method submitted an arrival;
-	# callers could start the patrol but could never leave its first travel leg.
-	var before := _patrol.get_presentation_snapshot()
-	if before.get("state_id", &"") == &"active" \
-		and before.get("phase_id", &"") == &"travel":
-		_patrol.submit_position(position, _patrol.get_generation())
-	var result: Dictionary = _patrol.advance_physics(delta, position, _patrol.get_generation())
+	var result: Dictionary
+	if actor_or_position is Vector3 and sampled_position == null:
+		var position := actor_or_position as Vector3
+		var before := _patrol.get_presentation_snapshot()
+		if before.get("state_id", &"") == &"active" \
+				and before.get("phase_id", &"") == &"travel":
+			_patrol.submit_position(position, _patrol.get_generation())
+		result = _patrol.advance_physics(
+			delta, position, _patrol.get_generation()
+		)
+	elif sampled_position is Vector3:
+		result = _patrol.advance_actor_physics(
+			delta, actor_or_position, sampled_position as Vector3,
+			_patrol.get_generation()
+		)
+	else:
+		return _result(false, &"invalid_patrol_sample")
+	_publish_patrol_advance(result)
+	return result
+
+
+func _publish_patrol_advance(result: Dictionary) -> void:
 	var reason := StringName(result.get("reason", &""))
 	var after := _patrol.get_presentation_snapshot()
-	if reason == &"dwell_interrupted":
+	var actor_recovery_required := bool(after.get("actor_recovery_required", false))
+	var actor_failure_reason := StringName(after.get("failure_reason", reason))
+	var published_from_failure_signal := (
+		actor_recovery_required
+		and not actor_failure_reason.is_empty()
+		and _last_patrol_feedback_reason == actor_failure_reason
+	)
+	if actor_recovery_required:
+		_last_patrol_feedback_reason = actor_failure_reason
+	elif reason == &"dwell_interrupted":
 		_last_patrol_feedback_reason = reason
 	elif bool(after.get("checkpoint_occupied", false)) \
 			or reason == &"dwell_completed" or after.get("phase_id", &"") == &"travel":
 		_last_patrol_feedback_reason = &""
-	_publish_patrol_presentation(result)
+	if not published_from_failure_signal:
+		_publish_patrol_presentation(result)
+		_publish_cinder_route_audio()
+
+
+func _on_patrol_failed(snapshot: Dictionary) -> void:
+	if not bool(snapshot.get("actor_recovery_required", false)):
+		return
+	_last_patrol_feedback_reason = StringName(snapshot.get("failure_reason", &""))
+	_publish_patrol_presentation(snapshot)
 	_publish_cinder_route_audio()
-	return result
 
 
 func fail_patrol(reason: StringName) -> Dictionary:

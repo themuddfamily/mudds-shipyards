@@ -21,13 +21,15 @@ func _run() -> void:
 	root.add_child(cluster)
 	await process_frame
 	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var patrol_actor := Node3D.new()
+	root.add_child(patrol_actor)
 	var route_root := cluster.get_node(^"RouteBeacons") as Node3D
 	var retained_ids := _sign_board_ids(route_root)
 	var descendant_count := route_root.find_children("*", "", true, false).size()
 	var authored_transforms := _board_transforms(route_root)
 	_assert_state(cluster, route_root, &"idle", [&"available", &"available", &"available", &"available"])
 
-	var started := binding.start_patrol()
+	var started := binding.start_patrol(patrol_actor)
 	var first_generation := int(started.get("generation", -1))
 	_check(
 		bool(started.get("accepted", false)) and first_generation == 1,
@@ -36,7 +38,7 @@ func _run() -> void:
 	_assert_state(cluster, route_root, &"active", [&"next_hold", &"pending", &"pending", &"pending"])
 
 	var first_position := ROUTE.get_checkpoint_position(0)
-	var partial := binding.advance_patrol(0.5, first_position)
+	var partial := binding.advance_patrol(0.5, patrol_actor, first_position)
 	var partial_state := cluster.get_patrol_marker_presentation_state()
 	_check(
 		bool(partial.get("accepted", false))
@@ -52,7 +54,7 @@ func _run() -> void:
 	)
 
 	var outside := first_position + Vector3(ROUTE.checkpoint_radius + 1.0, 0.0, 0.0)
-	var interrupted := binding.advance_patrol(0.25, outside)
+	var interrupted := binding.advance_patrol(0.25, patrol_actor, outside)
 	var interrupted_state := cluster.get_patrol_marker_presentation_state()
 	_check(
 		interrupted.get("reason") == &"dwell_interrupted"
@@ -85,13 +87,13 @@ func _run() -> void:
 		"re-entry restores the enriched generation-matched interruption snapshot"
 	)
 
-	var recovered := binding.advance_patrol(0.5, first_position)
+	var recovered := binding.advance_patrol(0.5, patrol_actor, first_position)
 	_check(
 		bool(recovered.get("accepted", false))
 		and not bool(cluster.get_patrol_marker_presentation_state().get("route_risk_interrupted", true)),
 		"returning to the authoritative volume restores the hold formation"
 	)
-	var first_complete := binding.advance_patrol(1.5, first_position)
+	var first_complete := binding.advance_patrol(1.5, patrol_actor, first_position)
 	_check(
 		first_complete.get("reason") == &"dwell_completed"
 		and int(first_complete.get("completed_checkpoint_count", -1)) == 1,
@@ -102,6 +104,7 @@ func _run() -> void:
 	for checkpoint_index in range(1, 4):
 		var progressed := binding.advance_patrol(
 			NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS,
+			patrol_actor,
 			ROUTE.get_checkpoint_position(checkpoint_index)
 		)
 		_check(
@@ -119,6 +122,7 @@ func _run() -> void:
 
 	var completed := binding.advance_patrol(
 		NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS,
+		patrol_actor,
 		ROUTE.get_checkpoint_position(4)
 	)
 	_check(
@@ -151,7 +155,7 @@ func _run() -> void:
 			and board.rotation_degrees.is_equal_approx(Vector3.ZERO),
 			"reset marker %d returns to its authored sign-board transform" % (marker_index + 1)
 		)
-	var restarted := binding.start_patrol()
+	var restarted := binding.start_patrol(patrol_actor)
 	var restarted_state := cluster.get_patrol_marker_presentation_state()
 	_check(
 		bool(restarted.get("accepted", false))
@@ -197,7 +201,7 @@ func _run() -> void:
 		and _board_transforms(route_root) == authored_transforms,
 		"failure reset restores every exact authored board transform"
 	)
-	var abort_start := binding.start_patrol()
+	var abort_start := binding.start_patrol(patrol_actor)
 	var aborted := binding.abort_patrol(&"pilot_recalled")
 	var aborted_state := cluster.get_patrol_marker_presentation_state()
 	var aborted_transforms := _board_transforms(route_root)
@@ -229,7 +233,7 @@ func _run() -> void:
 		"detach and re-entry retain the exact authoritative abort geometry"
 	)
 	var abort_reset := binding.reset_patrol()
-	var final_restart := binding.start_patrol()
+	var final_restart := binding.start_patrol(patrol_actor)
 	_check(
 		bool(abort_reset.get("accepted", false))
 		and bool(final_restart.get("accepted", false))

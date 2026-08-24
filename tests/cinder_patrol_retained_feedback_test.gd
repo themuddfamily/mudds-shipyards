@@ -20,6 +20,8 @@ func _run() -> void:
 	root.add_child(hud)
 	await process_frame
 	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var patrol_actor := Node3D.new()
+	root.add_child(patrol_actor)
 
 	var view := hud.set_nearby_activity_snapshot(binding.get_snapshot())
 	var row := _patrol_row(hud)
@@ -30,8 +32,8 @@ func _run() -> void:
 		"the real idle patrol snapshot appears as an approach objective",
 	)
 
-	binding.start_patrol()
-	binding.advance_patrol(0.5, Vector3.ZERO)
+	binding.start_patrol(patrol_actor)
+	binding.advance_patrol(0.5, patrol_actor, Vector3.ZERO)
 	view = hud.set_nearby_activity_snapshot(binding.get_snapshot())
 	row = _patrol_row(hud)
 	_check(
@@ -41,7 +43,7 @@ func _run() -> void:
 	)
 
 	var first_point: Vector3 = ROUTE.get_checkpoint_position(0)
-	binding.advance_patrol(0.75, first_point)
+	binding.advance_patrol(0.75, patrol_actor, first_point)
 	view = hud.set_nearby_activity_snapshot(binding.get_snapshot())
 	_check(
 		_patrol_text(_patrol_row(hud)).contains("HOLD BEACON 1/5  //  0.8/2.0s  //  1.2s LEFT")
@@ -50,7 +52,7 @@ func _run() -> void:
 	)
 
 	var outside := first_point + Vector3(ROUTE.checkpoint_radius + 1.0, 0.0, 0.0)
-	var interrupted := binding.advance_patrol(0.25, outside)
+	var interrupted := binding.advance_patrol(0.25, patrol_actor, outside)
 	view = hud.set_nearby_activity_snapshot(binding.get_snapshot())
 	_check(
 		interrupted.get("reason", &"") == &"dwell_interrupted"
@@ -60,11 +62,12 @@ func _run() -> void:
 	)
 
 	var final := binding.advance_patrol(
-		NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS, first_point
+		NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS, patrol_actor, first_point
 	)
 	for checkpoint_index in range(1, ROUTE.get_checkpoint_count()):
 		final = binding.advance_patrol(
 			NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS,
+			patrol_actor,
 			ROUTE.get_checkpoint_position(checkpoint_index),
 		)
 	view = hud.set_nearby_activity_snapshot(binding.get_snapshot())

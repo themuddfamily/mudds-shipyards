@@ -19,6 +19,8 @@ func _run() -> void:
 	root.add_child(cluster)
 	await process_frame
 	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	var patrol_actor := Node3D.new()
+	root.add_child(patrol_actor)
 	var initial := (binding.get_snapshot().get("patrol", {}) as Dictionary)
 	_check(
 		is_equal_approx(
@@ -28,8 +30,8 @@ func _run() -> void:
 		"the Cinder patrol authors a two-second station-keeping stop at each route point"
 	)
 
-	var started := binding.start_patrol()
-	var travel := binding.advance_patrol(0.5, Vector3.ZERO)
+	var started := binding.start_patrol(patrol_actor)
+	var travel := binding.advance_patrol(0.5, patrol_actor, Vector3.ZERO)
 	_check(
 		bool(started.get("accepted", false))
 		and bool(travel.get("accepted", false))
@@ -39,7 +41,7 @@ func _run() -> void:
 	)
 
 	var first_point: Vector3 = ROUTE.get_checkpoint_position(0)
-	var partial := binding.advance_patrol(0.75, first_point)
+	var partial := binding.advance_patrol(0.75, patrol_actor, first_point)
 	_check(
 		bool(partial.get("accepted", false))
 		and partial.get("phase_id", &"") == &"dwell"
@@ -49,7 +51,8 @@ func _run() -> void:
 	)
 
 	var interrupted := binding.advance_patrol(
-		0.25, first_point + Vector3(ROUTE.checkpoint_radius + 1.0, 0.0, 0.0)
+		0.25, patrol_actor,
+		first_point + Vector3(ROUTE.checkpoint_radius + 1.0, 0.0, 0.0)
 	)
 	_check(
 		interrupted.get("reason", &"") == &"dwell_interrupted"
@@ -59,7 +62,7 @@ func _run() -> void:
 	)
 
 	var secured := binding.advance_patrol(
-		NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS, first_point
+		NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS, patrol_actor, first_point
 	)
 	_check(
 		secured.get("reason", &"") == &"dwell_completed"
@@ -72,6 +75,7 @@ func _run() -> void:
 	for checkpoint_index in range(1, ROUTE.get_checkpoint_count()):
 		final = binding.advance_patrol(
 			NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS,
+			patrol_actor,
 			ROUTE.get_checkpoint_position(checkpoint_index)
 		)
 	_check(
