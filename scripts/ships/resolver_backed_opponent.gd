@@ -95,6 +95,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_discard_presentation_effects()
 	_disconnect_pulse_signals()
 	# Damage authority is already final; only queued presentation is dropped so a
 	# streamed teardown can never resurrect a transient on re-entry.
@@ -120,12 +121,15 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 
 func deactivate() -> void:
 	_release_combat_registration()
+	_discard_presentation_effects()
 	_discard_shot_receipts()
 	super()
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
 	_release_combat_registration()
+	_discard_presentation_effects()
+	_discard_shot_receipts()
 	super(death_position)
 
 
@@ -303,14 +307,15 @@ func _fire_at_target(target_position: Vector3) -> void:
 		direction = -global_basis.z
 	direction = direction.normalized()
 
-	# One receipt from the shared session-monotonic allocator. Saturation fails
-	# closed here exactly as it does inside the authority's own submit path.
-	var receipt_id := authority.allocate_presentation_receipt_id()
-	if receipt_id < 0:
+	var profile := authority.get_weapon_profile(self, get_weapon_id()) as Dictionary
+	var pellet_count := int(profile.get("pellet_count", 1))
+	var receipt_ids := _allocate_presentation_receipts(authority, pellet_count)
+	if receipt_ids.size() != pellet_count:
 		_cooldown_remaining = weapon_cooldown
 		_last_shot_result = {"accepted": false, "status": &"receipt_exhausted"}
 		return
 	var sequence := resolver.get_last_sequence(self, source_id) + 1
+	var trigger_damage := float(profile.get("trigger_damage", weapon_damage))
 	var request := ShotRequest.new(
 		self,
 		source_id,
@@ -320,10 +325,14 @@ func _fire_at_target(target_position: Vector3) -> void:
 		origin,
 		direction,
 		weapon_range,
-		weapon_damage,
-		receipt_id
+		trigger_damage,
+		-1 if pellet_count > 1 else int(receipt_ids[0])
 	)
-	var result := resolver.resolve_hitscan(request)
+	var result := (
+		resolver.resolve_hitscan_fan(request, receipt_ids)
+		if pellet_count > 1
+		else resolver.resolve_hitscan(request)
+	) as Dictionary
 	_cooldown_remaining = weapon_cooldown
 	_last_shot_result = result.duplicate(true)
 	_shots_fired += 1
@@ -331,10 +340,59 @@ func _fire_at_target(target_position: Vector3) -> void:
 	# is a request for the coordinator to submit a shot; this craft has already
 	# resolved its own, so re-raising it could produce a second submission.
 	shot_resolved.emit(origin, direction, result.duplicate(true))
-	if not bool(result.get("accepted", false)) or not bool(result.get("resolved", false)):
-		return
-	_spawn_muzzle_flash(origin)
-	_present_resolved_shot(origin, direction, receipt_id, result)
+	if pellet_count > 1:
+		_present_resolved_fan(origin, result)
+	elif bool(result.get("accepted", false)) and bool(result.get("resolved", false)):
+		_spawn_muzzle_flash(origin)
+		_play_weapon_fire_audio(origin)
+		_present_resolved_shot(origin, direction, int(receipt_ids[0]), result)
+
+
+func _allocate_presentation_receipts(
+		authority: LiveCombatAuthority,
+		count: int
+	) -> PackedInt64Array:
+	var receipts := PackedInt64Array()
+	if not is_instance_valid(authority) or count <= 0 or count > CombatResolver.SCATTER_PELLET_COUNT:
+		return receipts
+	for _index in count:
+		var receipt_id := authority.allocate_presentation_receipt_id()
+		if receipt_id < 0:
+			return PackedInt64Array()
+		receipts.append(receipt_id)
+	return receipts
+
+
+func _present_resolved_fan(
+		origin: Vector3,
+		result: Dictionary
+	) -> void:
+	var pellets := result.get("pellets", []) as Array
+	var presented_any := false
+	for raw_pellet: Variant in pellets:
+		if not raw_pellet is Dictionary:
+			continue
+		var pellet := raw_pellet as Dictionary
+		if not bool(pellet.get("accepted", false)) or not bool(pellet.get("resolved", false)):
+			continue
+		var pellet_request := pellet.get("request") as ShotRequest
+		if pellet_request == null:
+			continue
+		presented_any = true
+		_present_resolved_shot(
+			origin,
+			pellet_request.get_normalized_direction(),
+			pellet_request.presentation_receipt_id,
+			pellet
+		)
+	if presented_any:
+		_spawn_muzzle_flash(origin)
+		_play_weapon_fire_audio(origin)
+	elif bool(result.get("accepted", false)) and bool(result.get("resolved", false)):
+		# A valid empty fan cannot be produced by the bounded resolver, but keeping
+		# the trigger cue deterministic makes any future fail-closed extension sane.
+		_spawn_muzzle_flash(origin)
+		_play_weapon_fire_audio(origin)
 
 
 ## Which port this shot leaves from. Overridden by archetypes that mount their
@@ -354,11 +412,6 @@ func _present_resolved_shot(
 		var resolved_position: Variant = result.get("position", endpoint)
 		if resolved_position is Vector3 and (resolved_position as Vector3).is_finite():
 			endpoint = resolved_position as Vector3
-	var audio := _get_combat_audio()
-	if is_instance_valid(audio):
-		audio.play_opponent_weapon_fire(
-			origin, get_instance_id(), get_combat_audio_profile_id()
-		)
 	var damaged := bool(result.get("damaged", false))
 	if damaged:
 		_record_shot_receipt(receipt_id, result, endpoint)
@@ -382,6 +435,14 @@ func _present_resolved_shot(
 		# The pool refused or is unavailable. Authority is already final, so the
 		# queued target presentation is released immediately rather than stranded.
 		_finalize_shot_receipt(receipt_id, endpoint, true)
+
+
+func _play_weapon_fire_audio(origin: Vector3) -> void:
+	var audio := _get_combat_audio()
+	if is_instance_valid(audio):
+		audio.play_opponent_weapon_fire(
+			origin, get_instance_id(), get_combat_audio_profile_id()
+		)
 
 
 func _record_shot_receipt(receipt_id: int, result: Dictionary, endpoint: Vector3) -> void:
@@ -484,6 +545,12 @@ func _finalize_shot_receipt(
 func _discard_shot_receipts() -> void:
 	_shot_receipts.clear()
 	_shot_receipt_order.clear()
+
+
+func _discard_presentation_effects() -> void:
+	var pulse := _get_pulse_presentation()
+	if is_instance_valid(pulse):
+		pulse.clear_source_effects(self)
 
 
 # ------------------------------------------------------------- authority ----

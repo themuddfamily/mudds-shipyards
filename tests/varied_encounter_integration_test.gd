@@ -42,11 +42,99 @@ func _init() -> void:
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
 	await _test_production_encounter()
+	await _test_paired_wing_scatter_scenario()
 	_check(
 		root.get_child_count() == original_root_child_count,
 		"the production encounter fixture cleans up without leaving scene nodes"
 	)
 	_finish()
+
+
+func _test_paired_wing_scatter_scenario() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var target := game.get_node("TorrentInterceptor") as HeroShip
+	var director := game.get_node("EncounterScenarios") as EncounterScenarioDirector
+	var coordinator := game.get_node("EncounterScenarios/WingCoordinator") as WingCoordinator
+	var pulse := game.get_node("PulseWeaponPresentation") as PulseWeaponPresentation
+	var resolver := game.get_combat_resolver()
+	director.start_delay = 999.0
+	director.suppression_lead_time = 0.0
+	game.destroyed_targets = game.total_targets
+	game.call("_begin_interceptor_engagement")
+	await process_frame
+	_check(
+		director.begin_scenario(EncounterScenarioDirector.SCENARIO_PAIRED_WING, target),
+		"the production paired_wing scenario admits its scatter slice"
+	)
+	await _advance_physics(2)
+	var anchor := coordinator.get_anchor() as FlankingSkirmisherOpponent
+	var flanker: FlankingSkirmisherOpponent = null
+	for member: FlankingSkirmisherOpponent in [
+		game.get_node("WingSkirmisherLead") as FlankingSkirmisherOpponent,
+		game.get_node("WingSkirmisherWing") as FlankingSkirmisherOpponent,
+	]:
+		if member != anchor:
+			flanker = member
+			break
+	_check(
+		director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_PAIRED_WING
+		and flanker != null and flanker.is_active(),
+		"paired_wing dispatches one live flanker under the coordinator"
+	)
+	if flanker == null:
+		await _free_game(game)
+		return
+	flanker.acceleration = 0.0
+	flanker.velocity = Vector3.ZERO
+	var rear_origin := target.global_position + target.global_basis.z * 48.0
+	flanker.global_transform = Transform3D(
+		Basis.looking_at(
+			(target.global_position - rear_origin).normalized(), Vector3.UP
+		).orthonormalized(),
+		rear_origin
+	)
+	flanker.assign_wing_role(WingCoordinator.ROLE_FLANKER)
+	flanker.set_target(target)
+	await _advance_physics(1)
+	var presented_before := int(pulse.get_statistics().presented)
+	var sequence_before := resolver.get_last_sequence(flanker, flanker.source_id)
+	flanker.set("_cooldown_remaining", 0.0)
+	flanker.call("_fire_at_target", target.global_position)
+	var result := flanker.get_last_shot_result()
+	var source_snapshots := 0
+	var all_scatter_amber := true
+	for snapshot: Dictionary in pulse.get_active_shot_snapshots():
+		if int(snapshot.get("source_instance_id", 0)) != flanker.get_instance_id():
+			continue
+		source_snapshots += 1
+		all_scatter_amber = (
+			all_scatter_amber
+			and snapshot.get("style_id", &"") == PulseWeaponPresentation.STYLE_AMBER
+			and snapshot.get("profile_id", &"") == PulseWeaponPresentation.PROFILE_REPEATER
+		)
+	_check(
+		bool(result.get("accepted", false)) and bool(result.get("resolved", false))
+		and (result.get("pellets", []) as Array).size() == 3
+		and resolver.get_last_sequence(flanker, flanker.source_id) == sequence_before + 3,
+		"paired_wing fires three resolver-authoritative pellets as one trigger"
+	)
+	_check(
+		int(pulse.get_statistics().presented) == presented_before + 3
+		and source_snapshots == 3 and all_scatter_amber,
+		"paired_wing visibly launches a bounded three-ray amber scatter fan"
+	)
+	director.abort()
+	await _advance_physics(1)
+	_check(
+		flanker.get_pending_shot_receipt_count() == 0
+		and not _pulse_has_source(pulse, flanker.get_instance_id()),
+		"paired_wing abort retires its complete scatter presentation transaction"
+	)
+	await _free_game(game)
 
 
 func _test_production_encounter() -> void:
@@ -317,6 +405,74 @@ func _test_production_encounter() -> void:
 		"the flanker's own safing latch agrees with the refused shot"
 	)
 
+	# Park the same craft in the open rear arc and resolve its production scatter
+	# trigger. The resolver, not the opponent script, supplies the three fan rays.
+	var rear_origin := torrent.global_position + torrent.global_basis.z * 55.0
+	var rear_to_player := (torrent.global_position - rear_origin).normalized()
+	flanker.global_transform = Transform3D(
+		Basis.looking_at(rear_to_player, Vector3.UP).orthonormalized(),
+		rear_origin
+	)
+	flanker.assign_wing_role(WingCoordinator.ROLE_FLANKER)
+	flanker.set_target(torrent)
+	await _advance_physics(1)
+	var scatter_hull_before := float(torrent.get_telemetry().get("hull", 0.0))
+	var scatter_sequence_before := resolver.get_last_sequence(flanker, flanker.source_id)
+	var scatter_presented_before := int(pulse.get_statistics().presented)
+	flanker.set("_cooldown_remaining", 0.0)
+	flanker.call("_fire_at_target", torrent.global_position)
+	var scatter := flanker.get_last_shot_result()
+	var scatter_pellets := scatter.get("pellets", []) as Array
+	var scatter_directions := scatter.get(
+		"pellet_directions", PackedVector3Array()
+	) as PackedVector3Array
+	_check(
+		bool(scatter.get("accepted", false))
+		and bool(scatter.get("resolved", false))
+		and scatter_pellets.size() == 3
+		and scatter_directions.size() == 3,
+		"an open rear arc dispatches one production three-pellet scatter trigger"
+	)
+	var pellets_authoritative := true
+	var receipt_ids := {}
+	for raw_pellet: Variant in scatter_pellets:
+		var pellet := raw_pellet as Dictionary
+		var pellet_request := pellet.get("request") as ShotRequest
+		pellets_authoritative = (
+			pellets_authoritative
+			and bool(pellet.get("accepted", false))
+			and bool(pellet.get("resolved", false))
+			and StringName(pellet.get("source_faction_id", &"")) == GameFlow.OPPONENT_FACTION
+			and pellet_request != null
+			and pellet_request.source_entity == flanker
+			and pellet_request.weapon_id == FlankingSkirmisherOpponent.SKIRMISHER_WEAPON_ID
+		)
+		if pellet_request != null:
+			receipt_ids[pellet_request.presentation_receipt_id] = true
+	_check(
+		pellets_authoritative
+		and receipt_ids.size() == 3
+		and resolver.get_last_sequence(flanker, flanker.source_id)
+			== scatter_sequence_before + 3,
+		"every fan pellet owns a unique receipt and resolver sequence under the flanker identity"
+	)
+	var scatter_applied := float(scatter.get("applied_damage", 0.0))
+	_check(
+		scatter_applied > 0.0
+		and scatter_applied <= 14.0
+		and is_equal_approx(
+			float(torrent.get_telemetry().get("hull", 0.0)),
+			scatter_hull_before - scatter_applied
+		),
+		"the complete fan commits damage once per pellet without exceeding its 14-point trigger cap"
+	)
+	_check(
+		is_equal_approx(rad_to_deg(scatter_directions[0].angle_to(scatter_directions[1])), 5.0)
+		and is_equal_approx(rad_to_deg(scatter_directions[1].angle_to(scatter_directions[2])), 5.0)
+		and int(pulse.get_statistics().presented) == scatter_presented_before + 3,
+		"the player receives a deterministic pooled amber centre plus/minus five-degree fan"
+	)
+
 	# ------------------------------- the phase ends under a live scenario ----
 	# This is the SANDBOX-002 shape in production. The defender dies, the
 	# coordinator moves to RETURN_TO_YARD, and every scenario craft must stop —
@@ -361,6 +517,11 @@ func _test_production_encounter() -> void:
 			"%s is stood down and unregistered once the scenario withdraws" % craft.name
 		)
 	_check(
+		flanker.get_pending_shot_receipt_count() == 0
+		and not _pulse_has_source(pulse, flanker.get_instance_id()),
+		"scenario withdrawal clears every pending scatter receipt and in-flight fan visual"
+	)
+	_check(
 		director.get_roster().is_empty() and coordinator.get_member_count() == 0,
 		"the withdrawn scenario releases its roster and empties the wing"
 	)
@@ -397,6 +558,13 @@ func _last_conclusion_outcome() -> StringName:
 
 func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> void:
 	_conclusions.append({"scenario": scenario_id, "outcome": outcome})
+
+
+func _pulse_has_source(pulse: PulseWeaponPresentation, source_instance_id: int) -> bool:
+	for snapshot: Dictionary in pulse.get_active_shot_snapshots():
+		if int(snapshot.get("source_instance_id", 0)) == source_instance_id:
+			return true
+	return false
 
 
 func _advance_physics(frames: int) -> void:

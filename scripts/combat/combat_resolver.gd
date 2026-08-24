@@ -4,6 +4,8 @@ extends Node3D
 const PhysicsLayerContract := preload("res://scripts/core/physics_layers.gd")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const DamageableType := preload("res://scripts/combat/damageable.gd")
+const SCATTER_PELLET_COUNT := 3
+const MAX_SPREAD_DEGREES := 45.0
 
 ## Node-scoped authority service for deterministic hitscan resolution. The
 ## sequence ledger intentionally lives on this node so a future multiplayer
@@ -29,7 +31,9 @@ func _process(_delta: float) -> void:
 ## Registers the authority-owned identity, collision root, faction, and weapon
 ## envelope used to validate future requests. `weapon_profiles` is keyed by
 ## weapon id; every value must define positive finite `range` and `damage`, and
-## may define a positive `origin_tolerance` around the source root.
+## may define a positive `origin_tolerance` around the source root. The one
+## bounded spread case additionally carries a three-pellet trigger budget and
+## finite angular envelope; all other profiles retain the original shape.
 func register_source(
 	source_id: int,
 	source_entity: Node3D,
@@ -85,6 +89,161 @@ func register_source(
 
 func resolve_hitscan(request: ShotRequestType) -> Dictionary:
 	return _resolve_request(request)
+
+
+## Resolves the one supported spread case as a single trigger containing three
+## independently authoritative hitscan rays. The caller supplies only the
+## centreline and preallocated presentation receipts; this resolver owns the
+## deterministic fan directions, per-pellet damage split, ray queries, faction
+## policy, damage commits, and replay sequence consumption.
+func resolve_hitscan_fan(
+		trigger_request: ShotRequestType,
+		presentation_receipt_ids: PackedInt64Array
+	) -> Dictionary:
+	var aggregate := _make_fan_result(trigger_request)
+	if trigger_request == null:
+		return _reject_fan(aggregate, &"invalid_request", "request is null")
+	var validation_errors := trigger_request.get_validation_errors()
+	if not validation_errors.is_empty():
+		return _reject_fan(
+			aggregate, &"invalid_request", "; ".join(validation_errors)
+		)
+	if enforce_multiplayer_authority:
+		if not is_inside_tree():
+			return _reject_fan(aggregate, &"not_in_tree", "resolver is not in a scene tree")
+		if not is_multiplayer_authority():
+			return _reject_fan(aggregate, &"not_authority", "resolver is not multiplayer authority")
+
+	var authority_context := _resolve_authority_context(trigger_request, true)
+	if not bool(authority_context.get("valid", false)):
+		return _reject_fan(
+			aggregate,
+			authority_context.get("status", &"unregistered_source"),
+			str(authority_context.get("reason", "source is not registered"))
+		)
+	var pellet_count := int(authority_context.get("pellet_count", 0))
+	if pellet_count != SCATTER_PELLET_COUNT:
+		return _reject_fan(
+			aggregate, &"weapon_not_scatter", "registered weapon is not the bounded scatter case"
+		)
+	if presentation_receipt_ids.size() != pellet_count:
+		return _reject_fan(
+			aggregate,
+			&"invalid_presentation_receipts",
+			"scatter requires one presentation receipt per pellet"
+		)
+	var unique_receipts := {}
+	for receipt_id: int in presentation_receipt_ids:
+		if receipt_id < 0 or unique_receipts.has(receipt_id):
+			return _reject_fan(
+				aggregate,
+				&"invalid_presentation_receipts",
+				"scatter presentation receipts must be unique and non-negative"
+			)
+		unique_receipts[receipt_id] = true
+	if trigger_request.sequence > 9223372036854775807 - pellet_count:
+		return _reject_fan(
+			aggregate, &"invalid_request", "scatter sequence range would overflow"
+		)
+	var previous_sequence := get_last_sequence(
+		authority_context.source_entity, int(authority_context.source_id)
+	)
+	if trigger_request.sequence <= previous_sequence:
+		return _reject_fan(
+			aggregate,
+			&"duplicate_sequence"
+				if trigger_request.sequence == previous_sequence
+				else &"out_of_order_sequence",
+			"scatter trigger sequence is not newer than the source ledger"
+		)
+
+	var directions := build_deterministic_fan_directions(
+		trigger_request.get_normalized_direction(),
+		float(authority_context.get("spread_degrees", 0.0)),
+		pellet_count
+	)
+	if directions.size() != pellet_count:
+		return _reject_fan(
+			aggregate, &"invalid_spread_profile", "scatter direction envelope is invalid"
+		)
+
+	var pellet_results: Array[Dictionary] = []
+	var applied_damage := 0.0
+	var all_accepted := true
+	var all_resolved := true
+	for pellet_index in pellet_count:
+		var pellet_request := ShotRequestType.new(
+			authority_context.source_entity,
+			int(authority_context.source_id),
+			authority_context.faction_id,
+			trigger_request.weapon_id,
+			trigger_request.sequence + pellet_index,
+			trigger_request.origin,
+			directions[pellet_index],
+			float(authority_context.range),
+			float(authority_context.damage),
+			int(presentation_receipt_ids[pellet_index])
+		) as ShotRequestType
+		var pellet_result := _resolve_request(pellet_request)
+		pellet_result["pellet_index"] = pellet_index
+		pellet_result["pellet_count"] = pellet_count
+		pellet_results.append(pellet_result)
+		applied_damage += float(pellet_result.get("applied_damage", 0.0))
+		all_accepted = all_accepted and bool(pellet_result.get("accepted", false))
+		all_resolved = all_resolved and bool(pellet_result.get("resolved", false))
+		if bool(pellet_result.get("hit", false)) and not bool(aggregate.hit):
+			_copy_fan_contact(aggregate, pellet_result)
+		if bool(pellet_result.get("damaged", false)):
+			aggregate["damaged"] = true
+			aggregate["target_entity"] = pellet_result.get("target_entity")
+		if bool(pellet_result.get("destroyed", false)):
+			aggregate["destroyed"] = true
+
+	aggregate["accepted"] = all_accepted
+	aggregate["resolved"] = all_resolved
+	aggregate["status"] = &"fan_resolved" if all_accepted and all_resolved else &"fan_rejected"
+	aggregate["pellets"] = pellet_results
+	aggregate["pellet_directions"] = directions
+	aggregate["pellet_count"] = pellet_count
+	aggregate["trigger_damage"] = float(authority_context.trigger_damage)
+	aggregate["applied_damage"] = minf(
+		applied_damage, float(authority_context.trigger_damage)
+	)
+	aggregate["last_sequence"] = get_last_sequence(
+		authority_context.source_entity, int(authority_context.source_id)
+	)
+	aggregate["source_entity"] = authority_context.source_entity
+	aggregate["source_id"] = int(authority_context.source_id)
+	aggregate["source_faction_id"] = authority_context.faction_id
+	return aggregate
+
+
+static func build_deterministic_fan_directions(
+		center_direction: Vector3,
+		spread_degrees: float,
+		pellet_count: int = SCATTER_PELLET_COUNT
+	) -> PackedVector3Array:
+	if (
+		not center_direction.is_finite()
+		or center_direction.length_squared() <= 0.000001
+		or not is_finite(spread_degrees)
+		or spread_degrees <= 0.0
+		or spread_degrees > MAX_SPREAD_DEGREES
+		or pellet_count != SCATTER_PELLET_COUNT
+	):
+		return PackedVector3Array()
+	var center := center_direction.normalized()
+	var lateral := center.cross(Vector3.UP)
+	if lateral.length_squared() <= 0.000001:
+		lateral = center.cross(Vector3.RIGHT)
+	lateral = lateral.normalized()
+	var fan_axis := center.cross(lateral).normalized()
+	var spread_radians := deg_to_rad(spread_degrees)
+	return PackedVector3Array([
+		center.rotated(fan_axis, -spread_radians).normalized(),
+		center,
+		center.rotated(fan_axis, spread_radians).normalized(),
+	])
 
 
 ## Resolves one caller-provided projectile endpoint through the same registered
@@ -378,6 +537,29 @@ func _make_result(request: ShotRequestType) -> Dictionary:
 	}
 
 
+func _make_fan_result(request: ShotRequestType) -> Dictionary:
+	var result := _make_result(request)
+	result["pellets"] = []
+	result["pellet_directions"] = PackedVector3Array()
+	result["pellet_count"] = 0
+	result["trigger_damage"] = 0.0
+	return result
+
+
+func _reject_fan(result: Dictionary, status: StringName, reason: String) -> Dictionary:
+	result["status"] = status
+	result["reason"] = reason
+	return result
+
+
+func _copy_fan_contact(aggregate: Dictionary, pellet_result: Dictionary) -> void:
+	for key: String in [
+		"hit", "collider", "damageable", "target_entity", "position", "normal",
+		"distance", "remaining_health", "target_faction_id", "damage_result",
+	]:
+		aggregate[key] = pellet_result.get(key, aggregate.get(key))
+
+
 func _reject(
 	result: Dictionary,
 	status: StringName,
@@ -394,7 +576,10 @@ func _emit_result(request: ShotRequestType, result: Dictionary) -> void:
 	shot_resolved.emit(request, result.duplicate(true))
 
 
-func _resolve_authority_context(request: ShotRequestType) -> Dictionary:
+func _resolve_authority_context(
+		request: ShotRequestType,
+		expect_trigger_damage: bool = false
+	) -> Dictionary:
 	var source_key := request.get_source_key()
 	var registration: Dictionary = _source_registry.get(source_key, {})
 	if registration.is_empty():
@@ -441,8 +626,18 @@ func _resolve_authority_context(request: ShotRequestType) -> Dictionary:
 		}
 	var authoritative_range := float(profile.range)
 	var authoritative_damage := float(profile.damage)
+	var trigger_damage := float(profile.get("trigger_damage", authoritative_damage))
+	var pellet_count := int(profile.get("pellet_count", 1))
+	var spread_degrees := float(profile.get("spread_degrees", 0.0))
+	if expect_trigger_damage and pellet_count <= 1:
+		return {
+			"valid": false,
+			"status": &"weapon_not_scatter",
+			"reason": "registered weapon has no scatter envelope",
+		}
+	var expected_damage := trigger_damage if expect_trigger_damage else authoritative_damage
 	if not is_equal_approx(request.range, authoritative_range) \
-		or not is_equal_approx(request.damage, authoritative_damage):
+		or not is_equal_approx(request.damage, expected_damage):
 		return {
 			"valid": false,
 			"status": &"weapon_data_mismatch",
@@ -463,6 +658,9 @@ func _resolve_authority_context(request: ShotRequestType) -> Dictionary:
 		"faction_id": authoritative_faction,
 		"range": authoritative_range,
 		"damage": authoritative_damage,
+		"trigger_damage": trigger_damage,
+		"pellet_count": pellet_count,
+		"spread_degrees": spread_degrees,
 	}
 
 
@@ -514,15 +712,34 @@ func _normalize_weapon_profiles(profiles: Dictionary) -> Dictionary:
 		var weapon_range := float(profile.get("range", 0.0))
 		var weapon_damage := float(profile.get("damage", 0.0))
 		var origin_tolerance := float(profile.get("origin_tolerance", 12.0))
+		var pellet_count := int(profile.get("pellet_count", 1))
+		var spread_degrees := float(profile.get("spread_degrees", 0.0))
+		var trigger_damage := float(profile.get("trigger_damage", weapon_damage))
 		if not is_finite(weapon_range) or weapon_range <= 0.0 \
 			or not is_finite(weapon_damage) or weapon_damage <= 0.0 \
-			or not is_finite(origin_tolerance) or origin_tolerance <= 0.0:
+			or not is_finite(origin_tolerance) or origin_tolerance <= 0.0 \
+			or pellet_count < 1 or pellet_count > SCATTER_PELLET_COUNT \
+			or not is_finite(spread_degrees) \
+			or spread_degrees < 0.0 or spread_degrees > MAX_SPREAD_DEGREES \
+			or not is_finite(trigger_damage) or trigger_damage <= 0.0:
+			continue
+		if pellet_count == 1 and (spread_degrees != 0.0 or trigger_damage != weapon_damage):
+			continue
+		if pellet_count != 1 and (
+			pellet_count != SCATTER_PELLET_COUNT
+			or spread_degrees <= 0.0
+			or not is_equal_approx(trigger_damage, weapon_damage * float(pellet_count))
+		):
 			continue
 		normalized[weapon_id] = {
 			"range": weapon_range,
 			"damage": weapon_damage,
 			"origin_tolerance": origin_tolerance,
 		}
+		if pellet_count > 1:
+			normalized[weapon_id]["trigger_damage"] = trigger_damage
+			normalized[weapon_id]["spread_degrees"] = spread_degrees
+			normalized[weapon_id]["pellet_count"] = pellet_count
 	return normalized
 
 

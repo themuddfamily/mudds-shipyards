@@ -413,6 +413,30 @@ func _capture_readability_plates() -> void:
 	_aim_camera(ARENA_ORIGIN + Vector3(0.0, 0.0, -6.0), Vector3(-0.2, 0.16, -0.97), 26.0)
 	await _capture("plate_04_armed_versus_safed.png")
 
+	# 4b. The resolver's frozen centre plus/minus five-degree directions rendered
+	# through three ordinary slots of the shared pool. The runtime integration
+	# test separately proves these exact rays are authority-owned; this plate is
+	# only the player-visible silhouette/readability check.
+	var fan_origin := ARENA_ORIGIN + Vector3(0.0, 0.6, 8.0)
+	var fan_center := Vector3(0.0, -0.02, -1.0).normalized()
+	var fan_directions := CombatResolver.build_deterministic_fan_directions(
+		fan_center, 5.0, 3
+	)
+	for fan_direction: Vector3 in fan_directions:
+		pulse.present_shot(
+			fan_origin,
+			fan_origin + fan_direction * 34.0,
+			PulseWeaponPresentation.STYLE_AMBER,
+			lead,
+			false,
+			-1,
+			PulseWeaponPresentation.PROFILE_REPEATER
+		)
+	pulse.advance_simulation(0.09)
+	_aim_camera(fan_origin + fan_center * 17.0, Vector3(0.0, 0.3, 0.95), 28.0)
+	await _capture("plate_04b_scatter_fan.png")
+	pulse.clear_source_effects(lead)
+
 	# 5. The runner: distress beacon dark, then lit. One state change, no
 	#    oscillator — every frame of a given state photographs identically.
 	lead.deactivate()

@@ -114,6 +114,26 @@ func _test_production_roster() -> void:
 		and courier.source_id != GameFlow.OPPONENT_SOURCE_ID,
 		"every staged opponent carries a distinct stable combat identity"
 	)
+	var scatter_definition := lead.get_weapon_definition()
+	var scatter_profile := lead.get_weapon_profiles().get(
+		FlankingSkirmisherOpponent.SKIRMISHER_WEAPON_ID, {}
+	) as Dictionary
+	_check(
+		scatter_definition != null
+		and scatter_definition.weapon_id == &"skirmisher_flank_scatter"
+		and scatter_definition.spread_enabled
+		and is_equal_approx(scatter_definition.spread_degrees, 5.0)
+		and is_equal_approx(scatter_definition.damage_per_hit, 14.0),
+		"production skirmishers consume the authored short-range five-degree scatter trigger"
+	)
+	_check(
+		int(scatter_profile.get("pellet_count", 0)) == 3
+		and is_equal_approx(float(scatter_profile.get("trigger_damage", 0.0)), 14.0)
+		and is_equal_approx(float(scatter_profile.get("damage", 0.0)) * 3.0, 14.0)
+		and lead.get_pulse_style_id() == PulseWeaponPresentation.STYLE_AMBER
+		and lead.get_pulse_profile_id() == PulseWeaponPresentation.PROFILE_REPEATER,
+		"the role binds three capped resolver pellets to three pooled amber pulse silhouettes"
+	)
 
 	var profiles := {
 		&"range_defender": _defender_profile(defender),
@@ -279,8 +299,8 @@ func _test_skirmisher_mirrored_trim_resource_sharing() -> void:
 		"three shared mirrored recipes reduce retained Mesh identities from 16 to 13"
 	)
 	_check(
-		int(audit.descendant_nodes_old) == 31
-		and int(audit.descendant_nodes_new) == 31
+		int(audit.descendant_nodes_old) == 32
+		and int(audit.descendant_nodes_new) == 32
 		and int(audit.visual_nodes_old) == 21
 		and int(audit.visual_nodes_new) == 21
 		and int(audit.mesh_instance_nodes_old) == 18

@@ -6,6 +6,7 @@ extends RefCounted
 ## state and deliberately does not widen LiveCombatAuthority's API.
 
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
+const SCATTER_PELLET_COUNT := 3
 
 
 static func get_conversion_errors(
@@ -28,8 +29,6 @@ static func get_conversion_errors(
 		errors.append("fixed_faction_id must match the registered source faction")
 	if definition.friendly_fire_policy != WeaponDefinitionType.FriendlyFirePolicy.DENY:
 		errors.append("current CombatResolver conversion supports denied friendly fire only")
-	if definition.spread_enabled:
-		errors.append("current CombatResolver conversion does not support spread")
 	if definition.heat_enabled:
 		errors.append("current CombatResolver conversion does not support heat")
 	if definition.ammunition_enabled:
@@ -50,10 +49,17 @@ static func to_resolver_profiles(
 		definition, registered_faction_id, origin_tolerance_meters
 	).is_empty():
 		return {}
-	return {
-		definition.weapon_id: {
-			"range": definition.range_meters,
-			"damage": definition.damage_per_hit,
-			"origin_tolerance": origin_tolerance_meters,
-		},
-	}.duplicate(true)
+	var profile := {
+		"range": definition.range_meters,
+		"damage": definition.damage_per_hit,
+		"origin_tolerance": origin_tolerance_meters,
+	}
+	if definition.spread_enabled:
+		# The first production spread case is intentionally frozen to one small,
+		# odd fan. `damage_per_hit` remains the trigger budget authored by the
+		# resource; the resolver divides it across these three authoritative rays.
+		profile["damage"] = definition.damage_per_hit / float(SCATTER_PELLET_COUNT)
+		profile["trigger_damage"] = definition.damage_per_hit
+		profile["spread_degrees"] = definition.spread_degrees
+		profile["pellet_count"] = SCATTER_PELLET_COUNT
+	return {definition.weapon_id: profile}.duplicate(true)

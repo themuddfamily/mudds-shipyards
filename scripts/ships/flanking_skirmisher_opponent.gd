@@ -1,6 +1,13 @@
 class_name FlankingSkirmisherOpponent
 extends ResolverBackedOpponent
 
+const WeaponDefinitionResolverProfileType := preload(
+	"res://scripts/combat/weapon_definition_resolver_profile.gd"
+)
+const SCATTER_DEFINITION: WeaponDefinition = preload(
+	"res://assets/weapons/skirmisher_flank_scatter.tres"
+)
+
 ## Wing skirmisher — an opponent that is only dangerous as half of a pair.
 ##
 ## The defender is a lone dogfighter that leans on cadence. The picket is a lone
@@ -49,7 +56,7 @@ const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const DISPLAY_NAME := "Mudds wing skirmisher"
 
 const DEFAULT_SOURCE_ID := 2103
-const SKIRMISHER_WEAPON_ID: StringName = &"skirmisher_repeater"
+const SKIRMISHER_WEAPON_ID: StringName = &"skirmisher_flank_scatter"
 ## Reuses the defender's amber. The project's pooled pulse grammar is cyan for
 ## the player fleet, magenta for the picket's heavy charged lance, and amber for
 ## ordinary opponent guns; a fourth style would have to be cut into the frozen
@@ -169,11 +176,20 @@ var _rear_cross_completed_count := 0
 var _rear_cross_activation_generation := 0
 var _rear_cross_cue: MeshInstance3D
 var _rear_cross_cue_mesh: ArrayMesh
+var _weapon_definition: WeaponDefinition
 
 
 # ------------------------------------------------------------- lifecycle ----
 
 func _ready() -> void:
+	_weapon_definition = SCATTER_DEFINITION.duplicate(true) as WeaponDefinition
+	if _weapon_definition != null:
+		weapon_range = _weapon_definition.range_meters
+		weapon_damage = (
+			_weapon_definition.damage_per_hit
+			/ float(WeaponDefinitionResolverProfileType.SCATTER_PELLET_COUNT)
+		)
+		weapon_cooldown = 1.0 / _weapon_definition.cadence_shots_per_second
 	super()
 	set_meta("component_id", COMPONENT_ID)
 	set_meta("evidence_status", EVIDENCE_STATUS)
@@ -241,6 +257,30 @@ func get_pulse_profile_id() -> StringName:
 
 func get_combat_audio_profile_id() -> StringName:
 	return SKIRMISHER_AUDIO_PROFILE
+
+
+func get_weapon_definition() -> WeaponDefinition:
+	return _weapon_definition.duplicate(true) as WeaponDefinition \
+		if _weapon_definition != null else null
+
+
+func get_weapon_profiles() -> Dictionary:
+	var definition := get_weapon_definition()
+	if definition == null or definition.weapon_id != SKIRMISHER_WEAPON_ID:
+		return {}
+	return WeaponDefinitionResolverProfileType.to_resolver_profiles(
+		definition,
+		faction_id,
+		weapon_origin_tolerance,
+	)
+
+
+func get_sustained_damage_per_second() -> float:
+	var trigger_damage := (
+		_weapon_definition.damage_per_hit if _weapon_definition != null else weapon_damage
+	)
+	var cycle := maxf(0.001, telegraph_time + weapon_cooldown)
+	return trigger_damage / cycle
 
 
 ## Called by `WingCoordinator`. The craft stores and presents the role; it never
@@ -837,6 +877,25 @@ func _wing_mesh_matches_recipe(mesh: ArrayMesh) -> bool:
 
 func get_validation_errors() -> PackedStringArray:
 	var errors := get_resolver_backed_errors()
+	if _weapon_definition == null:
+		errors.append("scatter weapon definition is required")
+	else:
+		for definition_error in _weapon_definition.get_validation_errors():
+			errors.append("scatter weapon definition invalid: %s" % definition_error)
+		if _weapon_definition.weapon_id != SKIRMISHER_WEAPON_ID:
+			errors.append("scatter weapon identity drifted")
+		if (
+			not _weapon_definition.spread_enabled
+			or not is_equal_approx(_weapon_definition.spread_degrees, 5.0)
+		):
+			errors.append("scatter weapon must retain its deterministic five-degree envelope")
+		var profile := get_weapon_profiles().get(SKIRMISHER_WEAPON_ID, {}) as Dictionary
+		if (
+			int(profile.get("pellet_count", 0))
+				!= WeaponDefinitionResolverProfileType.SCATTER_PELLET_COUNT
+			or not is_equal_approx(float(profile.get("trigger_damage", 0.0)), 14.0)
+		):
+			errors.append("scatter resolver profile must retain three pellets and a 14-point trigger cap")
 	if not _built:
 		errors.append("wing skirmisher presentation has not been built")
 	elif not bool(get_wing_chalk_band_resource_audit().valid):

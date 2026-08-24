@@ -336,6 +336,36 @@ func clear_effects() -> void:
 	_clear_effects_internal(true)
 
 
+## Retires only transients launched by one source. This is the scenario-craft
+## teardown seam: withdrawing a pooled opponent cannot leave its fan crossing
+## the world, and no sibling craft's presentation is disturbed.
+func clear_source_effects(source_entity: Node) -> int:
+	if (
+		not _can_mutate_current_presentation()
+		or not is_instance_valid(source_entity)
+		or _lifecycle_transaction_active
+	):
+		return 0
+	var source_instance_id := source_entity.get_instance_id()
+	var retired := 0
+	var aborted_receipts: Array[int] = []
+	_lifecycle_transaction_active = true
+	for slot_index in _slots.size():
+		var slot: Dictionary = _slots[slot_index]
+		if (
+			bool(slot.get("active", false))
+			and int(slot.get("source_instance_id", 0)) == source_instance_id
+		):
+			var aborted_receipt_id := _deactivate_slot(slot_index, false)
+			if aborted_receipt_id >= 0:
+				aborted_receipts.append(aborted_receipt_id)
+			retired += 1
+	_refresh_lifecycle()
+	_emit_aborted_receipts(aborted_receipts)
+	_lifecycle_transaction_active = false
+	return retired
+
+
 ## Clears active visuals and statistics while preserving the allocated pool.
 ## This is the explicit reentry API for recycled combat/world presentations.
 func reset_for_reuse() -> void:

@@ -11,6 +11,9 @@ const ARROW_DEFINITION_PATH := "res://assets/weapons/arrow_combat_pulse.tres"
 const ZENITH_DEFINITION_PATH := "res://assets/weapons/zenith_combat_pulse.tres"
 const JOVIAN_DEFINITION_PATH := "res://assets/weapons/jovian_combat_pulse.tres"
 const HALYARD_DEFINITION_PATH := "res://assets/weapons/halyard_combat_pulse.tres"
+const SKIRMISHER_SCATTER_DEFINITION_PATH := (
+	"res://assets/weapons/skirmisher_flank_scatter.tres"
+)
 const TORRENT_SOURCE_ID := 1101
 const ARROW_SOURCE_ID := 1102
 const JOVIAN_SOURCE_ID := 1103
@@ -50,6 +53,14 @@ const HALYARD_EXPECTED_PROFILE := {
 	"damage": 52.0,
 	"origin_tolerance": HALYARD_ORIGIN_TOLERANCE,
 }
+const SKIRMISHER_SCATTER_EXPECTED_PROFILE := {
+	"range": 180.0,
+	"damage": 14.0 / 3.0,
+	"origin_tolerance": 22.0,
+	"trigger_damage": 14.0,
+	"spread_degrees": 5.0,
+	"pellet_count": 3,
+}
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -76,11 +87,15 @@ func _run() -> void:
 	var halyard_definition := ResourceLoader.load(
 		HALYARD_DEFINITION_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
 	) as WeaponDefinition
+	var skirmisher_scatter_definition := ResourceLoader.load(
+		SKIRMISHER_SCATTER_DEFINITION_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
+	) as WeaponDefinition
 	_test_checked_in_resource(torrent_definition)
 	_test_arrow_checked_in_resource(arrow_definition)
 	_test_zenith_checked_in_resource(zenith_definition)
 	_test_jovian_checked_in_resource(jovian_definition)
 	_test_halyard_checked_in_resource(halyard_definition)
+	_test_skirmisher_scatter_checked_in_resource(skirmisher_scatter_definition)
 	_test_weapon_class_distinction(
 		torrent_definition,
 		arrow_definition,
@@ -409,6 +424,35 @@ func _test_halyard_checked_in_resource(definition: WeaponDefinition) -> void:
 	)
 
 
+func _test_skirmisher_scatter_checked_in_resource(definition: WeaponDefinition) -> void:
+	_check(definition != null, "checked-in skirmisher scatter definition loads with its concrete type")
+	if definition == null:
+		return
+	_check(definition.get_validation_errors().is_empty(), "production skirmisher scatter definition passes strict validation")
+	_check(
+		definition.weapon_id == &"skirmisher_flank_scatter"
+		and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN
+		and definition.spread_enabled
+		and is_equal_approx(definition.spread_degrees, 5.0),
+		"skirmisher definition authors the deterministic five-degree hitscan envelope"
+	)
+	_check(
+		is_equal_approx(definition.range_meters, 180.0)
+		and is_equal_approx(definition.damage_per_hit, 14.0)
+		and is_equal_approx(definition.cadence_shots_per_second, 2.5),
+		"skirmisher definition owns the short-range 14-point trigger and cadence"
+	)
+	var profiles := ConverterScript.to_resolver_profiles(
+		definition, &"range_defence", 22.0
+	)
+	_check(
+		profiles.size() == 1
+		and profiles.has(definition.weapon_id)
+		and (profiles[definition.weapon_id] as Dictionary) == SKIRMISHER_SCATTER_EXPECTED_PROFILE,
+		"scatter conversion splits one 14-point trigger into the exact bounded three-pellet authority profile"
+	)
+
+
 func _test_weapon_class_distinction(
 	torrent_definition: WeaponDefinition,
 	arrow_definition: WeaponDefinition,
@@ -525,11 +569,17 @@ func _test_pure_converter(definition: WeaponDefinition) -> void:
 	var spread := definition.duplicate(true) as WeaponDefinition
 	spread.spread_enabled = true
 	spread.spread_degrees = 1.0
+	var spread_profiles := ConverterScript.to_resolver_profiles(
+		spread, SOURCE_FACTION, ORIGIN_TOLERANCE
+	)
 	_check(
-		ConverterScript.to_resolver_profiles(
-			spread, SOURCE_FACTION, ORIGIN_TOLERANCE
-		).is_empty(),
-		"unsupported spread fails closed"
+		spread_profiles.size() == 1
+		and int((spread_profiles[definition.weapon_id] as Dictionary).pellet_count) == 3
+		and is_equal_approx(
+			float((spread_profiles[definition.weapon_id] as Dictionary).trigger_damage),
+			definition.damage_per_hit
+		),
+		"supported spread converts only to the fixed three-pellet trigger budget"
 	)
 	var heat := definition.duplicate(true) as WeaponDefinition
 	heat.heat_enabled = true

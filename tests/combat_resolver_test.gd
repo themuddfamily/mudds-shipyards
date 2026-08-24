@@ -347,6 +347,7 @@ func _run() -> void:
 	resolver.forget_source(second_shooter, SOURCE_ID + 1)
 	resolver.forget_source(shooter, SOURCE_ID)
 	_check(resolver.get_tracked_source_count() == 0 and resolver.get_registered_source_count() == 0, "despawn cleanup forgets source registration and ledger")
+	await _test_scatter_authority(host)
 
 	host.queue_free()
 	await process_frame
@@ -354,6 +355,165 @@ func _run() -> void:
 	await process_frame
 	_check(root.get_child_count() == original_root_child_count, "combat resolver fixture cleans up every scene node")
 	_finish()
+
+
+func _test_scatter_authority(host: Node3D) -> void:
+	var resolver := CombatResolverScript.new() as CombatResolver
+	resolver.name = "ScatterAuthorityResolver"
+	host.add_child(resolver)
+	var profile := {
+		&"flank_scatter": {
+			"range": 40.0,
+			"damage": 14.0 / 3.0,
+			"origin_tolerance": 2.0,
+			"trigger_damage": 14.0,
+			"spread_degrees": 5.0,
+			"pellet_count": 3,
+		},
+	}
+
+	var enemy_shooter := _make_compound_shooter(
+		"ScatterEnemyShooter", Vector3(120.0, 0.0, 20.0)
+	)
+	host.add_child(enemy_shooter)
+	var enemy_fixture := _make_damageable_body(
+		"ScatterBroadEnemy", Vector3(120.0, 0.0, 0.0), &"raider", 100.0
+	)
+	(enemy_fixture.collider.get_child(0) as CollisionShape3D).shape = _sphere_shape(4.0)
+	host.add_child(enemy_fixture.entity)
+
+	var friendly_shooter := _make_compound_shooter(
+		"ScatterFriendlyShooter", Vector3(150.0, 0.0, 20.0)
+	)
+	host.add_child(friendly_shooter)
+	var friendly_fixture := _make_damageable_body(
+		"ScatterBroadFriendly", Vector3(150.0, 0.0, 0.0), SOURCE_FACTION, 100.0
+	)
+	(friendly_fixture.collider.get_child(0) as CollisionShape3D).shape = _sphere_shape(4.0)
+	host.add_child(friendly_fixture.entity)
+
+	var world_shooter := _make_compound_shooter(
+		"ScatterWorldShooter", Vector3(180.0, 0.0, 20.0)
+	)
+	host.add_child(world_shooter)
+	var world_blocker := _make_body(
+		"ScatterBroadWorldBlocker", Vector3(180.0, 0.0, 0.0), Layers.WORLD, 4.0
+	)
+	host.add_child(world_blocker)
+	await process_frame
+	await physics_frame
+	await physics_frame
+
+	_check(
+		resolver.register_source(9201, enemy_shooter, SOURCE_FACTION, profile)
+		and resolver.register_source(9202, friendly_shooter, SOURCE_FACTION, profile)
+		and resolver.register_source(9203, world_shooter, SOURCE_FACTION, profile),
+		"scatter fixtures register the bounded trigger and per-pellet authority envelope"
+	)
+	var enemy_result := resolver.resolve_hitscan_fan(
+		_scatter_request(enemy_shooter, 9201, 0, enemy_fixture.collider.global_position),
+		PackedInt64Array([101, 102, 103])
+	)
+	var enemy_pellets := enemy_result.get("pellets", []) as Array
+	var directions := enemy_result.get("pellet_directions", PackedVector3Array()) as PackedVector3Array
+	_check(
+		bool(enemy_result.get("accepted", false))
+		and bool(enemy_result.get("resolved", false))
+		and enemy_pellets.size() == 3
+		and directions.size() == 3,
+		"one scatter trigger resolves exactly three authoritative pellets"
+	)
+	_check(
+		is_equal_approx(rad_to_deg(directions[0].angle_to(directions[1])), 5.0)
+		and is_equal_approx(rad_to_deg(directions[1].angle_to(directions[2])), 5.0)
+		and directions == CombatResolver.build_deterministic_fan_directions(
+			(enemy_fixture.collider.global_position - enemy_shooter.global_position).normalized(),
+			5.0,
+			3
+		),
+		"resolver owns a repeatable centre plus/minus five-degree fan"
+	)
+	var all_enemy_pellets_damaged := true
+	for raw_pellet: Variant in enemy_pellets:
+		var pellet := raw_pellet as Dictionary
+		all_enemy_pellets_damaged = (
+			all_enemy_pellets_damaged
+			and pellet.get("status", &"") == &"damaged"
+			and pellet.get("target_entity") == enemy_fixture.collider
+		)
+	_check(
+		all_enemy_pellets_damaged
+		and is_equal_approx(float(enemy_result.get("applied_damage", 0.0)), 14.0)
+		and is_equal_approx((enemy_fixture.damageable as Damageable).get_health(), 86.0)
+		and resolver.get_last_sequence(enemy_shooter, 9201) == 2,
+		"all pellets exclude the compound shooter and share one exact 14-point trigger cap"
+	)
+	var replay_health := (enemy_fixture.damageable as Damageable).get_health()
+	var replay := resolver.resolve_hitscan_fan(
+		_scatter_request(enemy_shooter, 9201, 0, enemy_fixture.collider.global_position),
+		PackedInt64Array([104, 105, 106])
+	)
+	_check(
+		replay.get("status", &"") == &"out_of_order_sequence"
+		and not bool(replay.get("accepted", true))
+		and (replay.get("pellets", []) as Array).is_empty()
+		and is_equal_approx((enemy_fixture.damageable as Damageable).get_health(), replay_health),
+		"a replayed scatter trigger is rejected atomically before any pellet can damage"
+	)
+
+	var friendly_result := resolver.resolve_hitscan_fan(
+		_scatter_request(friendly_shooter, 9202, 0, friendly_fixture.collider.global_position),
+		PackedInt64Array([201, 202, 203])
+	)
+	var friendly_blocked := true
+	for raw_pellet: Variant in friendly_result.get("pellets", []) as Array:
+		friendly_blocked = friendly_blocked and (raw_pellet as Dictionary).status == &"friendly_fire_blocked"
+	_check(
+		friendly_blocked
+		and is_zero_approx(float(friendly_result.get("applied_damage", -1.0)))
+		and is_equal_approx((friendly_fixture.damageable as Damageable).get_health(), 100.0),
+		"every scatter pellet obeys the resolver's friendly-fire block"
+	)
+
+	var world_result := resolver.resolve_hitscan_fan(
+		_scatter_request(world_shooter, 9203, 0, world_blocker.global_position),
+		PackedInt64Array([301, 302, 303])
+	)
+	var world_blocked := true
+	for raw_pellet: Variant in world_result.get("pellets", []) as Array:
+		world_blocked = world_blocked and (raw_pellet as Dictionary).status == &"world_blocked"
+	_check(
+		world_blocked and is_zero_approx(float(world_result.get("applied_damage", -1.0))),
+		"every scatter pellet independently respects world occlusion"
+	)
+
+	resolver.queue_free()
+	enemy_shooter.queue_free()
+	enemy_fixture.entity.queue_free()
+	friendly_shooter.queue_free()
+	friendly_fixture.entity.queue_free()
+	world_shooter.queue_free()
+	world_blocker.queue_free()
+	await process_frame
+
+
+func _scatter_request(
+		shooter: Node3D,
+		source_id: int,
+		sequence: int,
+		target_position: Vector3
+	) -> ShotRequest:
+	return ShotRequestScript.new(
+		shooter,
+		source_id,
+		SOURCE_FACTION,
+		&"flank_scatter",
+		sequence,
+		shooter.global_position,
+		(target_position - shooter.global_position).normalized(),
+		40.0,
+		14.0
+	) as ShotRequest
 
 
 func _test_request_contract(shooter: Node) -> void:
@@ -468,10 +628,14 @@ func _make_body(
 
 func _make_collision_shape(radius: float) -> CollisionShape3D:
 	var collision := CollisionShape3D.new()
+	collision.shape = _sphere_shape(radius)
+	return collision
+
+
+func _sphere_shape(radius: float) -> SphereShape3D:
 	var sphere := SphereShape3D.new()
 	sphere.radius = radius
-	collision.shape = sphere
-	return collision
+	return sphere
 
 
 func _on_damage_applied(

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/weapon_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+weapon_id = &"skirmisher_flank_scatter"
+display_name = "Skirmisher Flank Scatter"
+resolution_mode = 0
+evidence_status = 2
+evidence_notes = "Original-modern short-range three-pellet flank weapon; not a recovered historical weapon specification."
+range_meters = 180.0
+damage_per_hit = 14.0
+cadence_shots_per_second = 2.5
+faction_policy = 0
+friendly_fire_policy = 0
+spread_enabled = true
+spread_degrees = 5.0
+presentation_id = &"amber"
+fire_audio_id = &"opponent_repeater_fire"
+impact_audio_id = &"opponent_repeater_impact"
+dry_fire_audio_id = &"opponent_repeater_dry_fire"
