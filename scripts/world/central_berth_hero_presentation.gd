@@ -47,10 +47,12 @@ const ROUTE_HANDOFF_FAMILY_ID := &"central_berth_regeneration_handoff"
 const ROUTE_HANDOFF_PATH := ^"service_channels/RegenerationDeckHandoff"
 const ROUTE_HANDOFF_MEMBER_COUNT := 8
 const ROUTE_HANDOFF_TRIANGLE_COUNT := 864
-const ROUTE_HANDOFF_INNER_CLEARANCE_M := 6.76
+const ROUTE_HANDOFF_ASSEMBLY_X := 10.50
+const ROUTE_HANDOFF_BOARDING_ANCHOR := Vector3(-3.20, 1.20, -9.35)
+const ROUTE_HANDOFF_HEAD_REACH_M := 0.72
 const ROUTE_HANDOFF_BOUNDS := AABB(
-	Vector3(-7.74, 0.095, 5.55),
-	Vector3(15.48, 1.433958, 0.90),
+	Vector3(-10.89, 0.095, 5.313344),
+	Vector3(21.78, 1.32, 1.136656),
 )
 const REQUIRED_ROOTS := [
 	"deck_panels",
@@ -263,7 +265,7 @@ static func _get_shared_route_handoff_mesh() -> ArrayMesh:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for recipe: Dictionary in _route_handoff_recipes():
-		var basis := Basis(Vector3.FORWARD, deg_to_rad(float(recipe.get("roll", 0.0))))
+		var basis := Basis(Vector3.UP, deg_to_rad(float(recipe.get("yaw", 0.0))))
 		tool.append_from(
 			StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
 				recipe.size as Vector3,
@@ -282,7 +284,7 @@ static func _get_shared_route_handoff_mesh() -> ArrayMesh:
 static func _route_handoff_recipes() -> Array[Dictionary]:
 	var recipes: Array[Dictionary] = []
 	for side: float in [-1.0, 1.0]:
-		var x: float = side * 7.35
+		var x: float = side * ROUTE_HANDOFF_ASSEMBLY_X
 		recipes.append({
 			"position": Vector3(x, 0.155, 6.0),
 			"size": Vector3(0.78, 0.12, 0.90),
@@ -293,16 +295,40 @@ static func _route_handoff_recipes() -> Array[Dictionary]:
 			"size": Vector3(0.22, 1.20, 0.22),
 			"bevel": 0.045,
 		})
-		# From the regeneration-deck sightline these paired slashes lean inward,
-		# turning the existing parallel service tracers into an unmistakable gate.
-		for roll in [-34.0, 34.0]:
+		# Each plan-view V has its own bearing. Both tips aim at the landed
+		# Torrent's real port boarding anchor rather than symmetrically implying
+		# the pad centre.
+		var head_origin := Vector3(x, 1.25, 6.0)
+		var direction := ROUTE_HANDOFF_BOARDING_ANCHOR - head_origin
+		direction.y = 0.0
+		direction = direction.normalized()
+		var tip := head_origin + direction * ROUTE_HANDOFF_HEAD_REACH_M
+		var perpendicular := Vector3(-direction.z, 0.0, direction.x)
+		for rear_side: float in [-1.0, 1.0]:
+			var rear := head_origin + perpendicular * rear_side * 0.28
+			var member_axis := tip - rear
 			recipes.append({
-				"position": Vector3(x - side * 0.20, 1.20, 5.86),
-				"size": Vector3(0.16, 0.72, 0.14),
+				"position": (rear + tip) * 0.5,
+				"size": Vector3(0.14, 0.16, member_axis.length()),
 				"bevel": 0.035,
-				"roll": roll,
+				"yaw": rad_to_deg(atan2(member_axis.x, member_axis.z)),
 			})
 	return recipes
+
+
+static func _route_handoff_head_contract() -> Array[Dictionary]:
+	var heads: Array[Dictionary] = []
+	for side: float in [-1.0, 1.0]:
+		var origin := Vector3(side * ROUTE_HANDOFF_ASSEMBLY_X, 1.25, 6.0)
+		var direction := ROUTE_HANDOFF_BOARDING_ANCHOR - origin
+		direction.y = 0.0
+		direction = direction.normalized()
+		heads.append({
+			"origin": origin,
+			"direction": direction,
+			"tip": origin + direction * ROUTE_HANDOFF_HEAD_REACH_M,
+		})
+	return heads
 
 
 func get_asset_root() -> Node3D:
@@ -423,7 +449,8 @@ func get_asset_audit_report() -> Dictionary:
 		"route_handoff_family": ROUTE_HANDOFF_FAMILY_ID,
 		"route_handoff_member_count": ROUTE_HANDOFF_MEMBER_COUNT,
 		"route_handoff_triangle_count": ROUTE_HANDOFF_TRIANGLE_COUNT,
-		"route_handoff_inner_clearance_m": ROUTE_HANDOFF_INNER_CLEARANCE_M,
+		"route_handoff_boarding_anchor": ROUTE_HANDOFF_BOARDING_ANCHOR,
+		"route_handoff_heads": _route_handoff_head_contract(),
 		"route_handoff_bounds": ROUTE_HANDOFF_BOUNDS,
 		"approach_fascia_bevel_family": APPROACH_FASCIA_FAMILY_ID,
 		"approach_fascia_member_count": APPROACH_FASCIA_MEMBER_COUNT,
