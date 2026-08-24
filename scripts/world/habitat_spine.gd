@@ -1777,19 +1777,29 @@ func _create_materials() -> void:
 	_materials["warm_light"] = _material(Color("f4ede0"), 0.02, 0.2, Color("ffe6bd"), 1.7)
 	_materials["glass"] = _transparent_material(Color(0.33, 0.67, 0.73, 0.2), 0.06, 0.12)
 	_create_habitat_life_materials()
+	# Keep the authored cool shell, dark frame and warm service-metal palette, but
+	# give each manufactured surface the response its physical role needs. This
+	# is deliberately one material-level hierarchy: the same resources still feed
+	# every existing mesh and MultiMesh, so no transform, collider, route, label,
+	# light or renderer allocation changes with the finish pass.
+	var finish_by_key := {
+		"shell_light": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"shell_light_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"shell_mid": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"structural": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		"brass": StationSurfaceKit.PanelFinish.METAL_TRIM,
+		"steel_bright": StationSurfaceKit.PanelFinish.METAL_TRIM,
+	}
 	# One call per key into the published kit recipe rather than an inline copy of
 	# it, so this module cannot drift from the shared `normal_scale = 1.0` that
 	# keeps one relief depth across every module seam.
-	for key in [
-		"shell_light",
-		"shell_light_floor",
-		"shell_mid",
-		"floor",
-		"structural",
-		"brass",
-		"steel_bright",
-	]:
-		StationSurfaceKit.apply_panel_triplanar(_materials[key] as StandardMaterial3D, PANEL_SURFACE_SCALE)
+	for key: String in finish_by_key:
+		StationSurfaceKit.apply_panel_triplanar(
+			_materials[key] as StandardMaterial3D,
+			PANEL_SURFACE_SCALE,
+			finish_by_key[key]
+		)
 
 
 ## The soft-goods and small-object palette the living quarters need.

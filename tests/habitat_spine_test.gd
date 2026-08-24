@@ -55,6 +55,7 @@ func _run() -> void:
 	await _test_common_room_glazing_and_furniture(module)
 	await _test_garden_pressure_shell(module)
 	_test_service_and_visual_detail(module)
+	_test_manufactured_material_roles(module)
 	await _test_garden_branch(module)
 	await _test_negative_space(module)
 	_test_collision_contract(module)
@@ -457,6 +458,72 @@ func _test_garden_pressure_shell(module: HabitatSpine) -> void:
 	_check(
 		garden_marker != null and module.contains_room(&"garden-cupola", garden_marker.global_position),
 		"garden route marker sits inside the room it publishes"
+	)
+
+
+func _test_manufactured_material_roles(module: HabitatSpine) -> void:
+	var materials := module.get("_materials") as Dictionary
+	# Albedo, metallic and roughness remain the authored Habitat palette; only the
+	# shared kit's clearcoat response differs by physical role.
+	var specs := {
+		&"shell_light": [
+			Color("cbd2d0"), 0.34, 0.32,
+			StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS,
+		],
+		&"shell_light_floor": [
+			Color("cbd2d0"), 0.24, 0.50,
+			StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS,
+		],
+		&"shell_mid": [
+			Color("8d9999"), 0.44, 0.38,
+			StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS,
+		],
+		&"floor": [
+			Color("667579"), 0.35, 0.48,
+			StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS,
+		],
+		&"structural": [
+			Color("35464a"), 0.52, 0.44,
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS,
+		],
+		&"brass": [
+			Color("e2b45f"), 0.40, 0.44,
+			StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS,
+		],
+		&"steel_bright": [
+			Color("a8b3b5"), 0.70, 0.26,
+			StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS,
+		],
+	}
+	var mapped_materials := {}
+	var roles_exact := true
+	for raw_material in materials.values():
+		var mapped := raw_material as StandardMaterial3D
+		if mapped != null and mapped.uv1_world_triplanar:
+			mapped_materials[mapped.get_instance_id()] = mapped
+	for material_id: StringName in specs:
+		var material := materials.get(material_id) as StandardMaterial3D
+		var spec := specs[material_id] as Array
+		roles_exact = (
+			roles_exact
+			and material != null
+			and mapped_materials.has(material.get_instance_id())
+			and material.albedo_color.is_equal_approx(spec[0] as Color)
+			and is_equal_approx(material.metallic, float(spec[1]))
+			and is_equal_approx(material.roughness, float(spec[2]))
+			and material.albedo_texture != null
+			and material.normal_enabled
+			and material.normal_texture != null
+			and material.roughness_texture != null
+			and material.uv1_triplanar
+			and material.uv1_scale.is_equal_approx(Vector3.ONE * HabitatSpine.PANEL_SURFACE_SCALE)
+			and material.clearcoat_enabled
+			and is_equal_approx(material.clearcoat, float(spec[3]))
+			and is_equal_approx(material.clearcoat_roughness, float(spec[4]))
+		)
+	_check(
+		roles_exact and mapped_materials.size() == specs.size(),
+		"walked decks, structural frames, painted walls and warm/cool service trim retain exact hues and StationSurfaceKit finish roles"
 	)
 
 
