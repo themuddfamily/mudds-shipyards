@@ -16,6 +16,27 @@ const PANEL_TRIPLANAR_SCALE := 0.3
 const GUIDANCE_ALBEDO := Color("087889")
 const GUIDANCE_EMISSION := Color("19d7e7")
 const GUIDANCE_EMISSION_ENERGY := 3.4
+## The four upper fascia rails are the first station-scale edges seen on the
+## normal Torrent landing and boarding approach. The Blender source deliberately
+## retained their exact established box envelope, but unlike the surrounding
+## deck cassettes and lower panels they carried a zero-width edge. Rebuild only
+## that already-batched, presentation-only family with the shared station
+## chamfer recipe. The source sizes and centres remain frozen, so the bevel adds
+## highlight-catching faces without moving the platform footprint, deck top,
+## landing volume, boarding route, utilities, or World collision owned outside
+## this adapter.
+const APPROACH_FASCIA_FAMILY_ID := &"central_berth_approach_upper_fascia"
+const APPROACH_FASCIA_BATCH_PATH := ^"edge_fascia/edge_fascia__EdgeIvory"
+const APPROACH_FASCIA_LONG_SIZE := Vector3(0.5, 1.21, 35.5)
+const APPROACH_FASCIA_END_SIZE := Vector3(24.5, 1.21, 0.5)
+const APPROACH_FASCIA_BEVEL_M := 0.11
+const APPROACH_FASCIA_MEMBER_COUNT := 4
+const APPROACH_FASCIA_TRIANGLE_COUNT := 432
+const APPROACH_FASCIA_RUNTIME_TRIANGLE_DELTA := 384
+const APPROACH_FASCIA_BOUNDS := AABB(
+	Vector3(-12.75, -1.115, -27.75),
+	Vector3(25.5, 1.21, 35.5),
+)
 const REQUIRED_ROOTS := [
 	"deck_panels",
 	"edge_fascia",
@@ -45,6 +66,11 @@ var _integrity_materials: Dictionary = {}
 var _asset_root_parent_id := 0
 var _manifest: Dictionary = {}
 var _built := false
+
+## Geometry only: material overrides, nodes, clocks and integrity state remain
+## instance-owned. Every production wrapper can therefore retain this immutable
+## approach silhouette without rebuilding four identical chamfer recipes.
+static var _shared_approach_fascia_mesh: ArrayMesh
 
 
 func _ready() -> void:
@@ -77,6 +103,7 @@ func _build_once() -> void:
 		_semantic_roots[StringName(root_name)] = _asset_root.get_node_or_null(NodePath(root_name)) as Node3D
 	_manifest = _read_manifest()
 	_configure_runtime_materials()
+	_configure_approach_fascia_bevel()
 	_capture_integrity_contract()
 
 
@@ -141,6 +168,56 @@ func _emissive_material(color: Color, emission: Color, energy: float) -> Standar
 	material.emission = emission
 	material.emission_energy_multiplier = energy
 	return material
+
+
+func _configure_approach_fascia_bevel() -> void:
+	if _asset_root == null:
+		return
+	var fascia := _asset_root.get_node_or_null(APPROACH_FASCIA_BATCH_PATH) as MeshInstance3D
+	if fascia == null:
+		return
+	# Blender's static join retains the first rail's object transform and stores
+	# the other three members relative to it. The replacement mesh is already
+	# baked in the semantic root's coordinates, so neutralize that import-only
+	# carrier transform; the final world geometry remains at the exact same bounds.
+	fascia.transform = Transform3D.IDENTITY
+	fascia.mesh = _get_shared_approach_fascia_mesh()
+	fascia.set_meta(&"central_berth_bevel_family", APPROACH_FASCIA_FAMILY_ID)
+	fascia.set_meta(&"authored_visible_member_count", APPROACH_FASCIA_MEMBER_COUNT)
+	fascia.set_meta(&"approach_fascia_bevel_m", APPROACH_FASCIA_BEVEL_M)
+	fascia.set_meta(&"presentation_only", true)
+
+
+static func _get_shared_approach_fascia_mesh() -> ArrayMesh:
+	if _shared_approach_fascia_mesh != null:
+		return _shared_approach_fascia_mesh
+	var cache := {}
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for recipe: Dictionary in _approach_fascia_recipes():
+		var size := recipe.size as Vector3
+		tool.append_from(
+			StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+				size,
+				APPROACH_FASCIA_BEVEL_M,
+				cache,
+				StationSurfaceKit.BevelUV.FACE_GRID,
+			),
+			0,
+			Transform3D(Basis.IDENTITY, recipe.position as Vector3),
+		)
+	_shared_approach_fascia_mesh = tool.commit()
+	_shared_approach_fascia_mesh.resource_name = String(APPROACH_FASCIA_FAMILY_ID)
+	return _shared_approach_fascia_mesh
+
+
+static func _approach_fascia_recipes() -> Array[Dictionary]:
+	return [
+		{"position": Vector3(-12.5, -0.51, -10.0), "size": APPROACH_FASCIA_LONG_SIZE},
+		{"position": Vector3(12.5, -0.51, -10.0), "size": APPROACH_FASCIA_LONG_SIZE},
+		{"position": Vector3(0.0, -0.51, -27.5), "size": APPROACH_FASCIA_END_SIZE},
+		{"position": Vector3(0.0, -0.51, 7.5), "size": APPROACH_FASCIA_END_SIZE},
+	]
 
 
 func get_asset_root() -> Node3D:
@@ -227,6 +304,7 @@ func get_asset_audit_report() -> Dictionary:
 
 	_append_manifest_errors(errors, mesh_count, surface_count, triangle_count)
 	_append_integrity_errors(errors)
+	_append_approach_fascia_bevel_errors(errors)
 	_append_deck_material_errors(errors)
 	_append_material_role_errors(errors)
 
@@ -252,6 +330,11 @@ func get_asset_audit_report() -> Dictionary:
 		"whole_wrapper_mesh_count": whole_wrapper_mesh_count,
 		"runtime_surface_count": surface_count,
 		"runtime_triangle_count": triangle_count,
+		"approach_fascia_bevel_family": APPROACH_FASCIA_FAMILY_ID,
+		"approach_fascia_member_count": APPROACH_FASCIA_MEMBER_COUNT,
+		"approach_fascia_bevel_m": APPROACH_FASCIA_BEVEL_M,
+		"approach_fascia_bounds": APPROACH_FASCIA_BOUNDS,
+		"approach_fascia_triangle_count": APPROACH_FASCIA_TRIANGLE_COUNT,
 		"runtime_mesh_budget": MAXIMUM_RUNTIME_MESHES,
 		"runtime_surface_budget": MAXIMUM_RUNTIME_SURFACES,
 		"bounds_minimum": bounds.get("minimum", Vector3.INF),
@@ -300,7 +383,8 @@ func _append_manifest_errors(errors: PackedStringArray, mesh_count: int, surface
 	):
 		errors.append("manifest_runtime_batching_contract_drift")
 	if (
-		int(_manifest.get("mesh_triangles_exported_runtime", -1)) != triangle_count
+		int(_manifest.get("mesh_triangles_exported_runtime", -1))
+			+ APPROACH_FASCIA_RUNTIME_TRIANGLE_DELTA != triangle_count
 		or int((_manifest.get("uv0_contract", {}) as Dictionary).get("runtime_meshes_with_uv0", -1)) != mesh_count
 		or str((_manifest.get("uv0_contract", {}) as Dictionary).get("texture_coordinate", "")) != "UV0/TEXCOORD_0"
 		or bool((_manifest.get("uv0_contract", {}) as Dictionary).get("triplanar", true))
@@ -323,6 +407,31 @@ func _append_manifest_errors(errors: PackedStringArray, mesh_count: int, surface
 		or str(deck_uv_metrics.get("runtime_axes_after_gltf_v_flip", "")) != "+U=>Godot +X, +V=>Godot -Z"
 	):
 		errors.append("manifest_deck_top_metric_uv0_contract_drift")
+
+
+func _append_approach_fascia_bevel_errors(errors: PackedStringArray) -> void:
+	var fascia := _asset_root.get_node_or_null(APPROACH_FASCIA_BATCH_PATH) as MeshInstance3D \
+		if _asset_root != null else null
+	if (
+		fascia == null
+		or not fascia.transform.is_equal_approx(Transform3D.IDENTITY)
+		or fascia.mesh == null
+		or fascia.mesh != _get_shared_approach_fascia_mesh()
+		or fascia.mesh.resource_name != String(APPROACH_FASCIA_FAMILY_ID)
+		or fascia.mesh.get_surface_count() != 1
+		or _mesh_triangle_count(fascia.mesh) != APPROACH_FASCIA_TRIANGLE_COUNT
+		or not fascia.mesh.get_aabb().is_equal_approx(APPROACH_FASCIA_BOUNDS)
+		or StringName(fascia.get_meta(&"central_berth_bevel_family", &""))
+			!= APPROACH_FASCIA_FAMILY_ID
+		or int(fascia.get_meta(&"authored_visible_member_count", 0))
+			!= APPROACH_FASCIA_MEMBER_COUNT
+		or not is_equal_approx(
+			float(fascia.get_meta(&"approach_fascia_bevel_m", 0.0)),
+			APPROACH_FASCIA_BEVEL_M,
+		)
+		or not bool(fascia.get_meta(&"presentation_only", false))
+	):
+		errors.append("approach_fascia_bevel_recipe_drift")
 
 
 func _append_integrity_errors(errors: PackedStringArray) -> void:
@@ -569,9 +678,9 @@ func _mesh_triangle_count(mesh: Mesh) -> int:
 	var count := 0
 	for surface_index in mesh.get_surface_count():
 		var arrays := mesh.surface_get_arrays(surface_index)
-		var indices := arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
-		if not indices.is_empty():
-			count += indices.size() / 3
+		var index_value: Variant = arrays[Mesh.ARRAY_INDEX]
+		if index_value is PackedInt32Array and not (index_value as PackedInt32Array).is_empty():
+			count += (index_value as PackedInt32Array).size() / 3
 		else:
 			var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
 			count += vertices.size() / 3

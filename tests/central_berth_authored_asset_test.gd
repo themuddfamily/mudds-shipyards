@@ -17,6 +17,12 @@ const MATERIAL_ROLES := [
 	"DeckComposite", "EdgeIvory", "GuidanceCyan",
 	"ServiceGraphite", "StructuralAlloy",
 ]
+const APPROACH_FASCIA_PATH := ^"edge_fascia/edge_fascia__EdgeIvory"
+const APPROACH_FASCIA_BOUNDS := AABB(
+	Vector3(-12.75, -1.115, -27.75), Vector3(25.5, 1.21, 35.5)
+)
+const APPROACH_FASCIA_RUNTIME_TRIANGLES := 432
+const RUNTIME_TRIANGLE_COUNT := 11892
 
 var _failures: Array[String] = []
 
@@ -34,7 +40,7 @@ func _run() -> void:
 		return
 	root.add_child(presentation)
 	await process_frame
-	_test_green_runtime_contract(presentation)
+	await _test_green_runtime_contract(presentation)
 	await _test_structured_red_drift_cases(presentation)
 	presentation.queue_free()
 	await process_frame
@@ -150,18 +156,52 @@ func _test_green_runtime_contract(presentation: CentralBerthHeroPresentation) ->
 		int(audit.get("runtime_mesh_count", 0)) == 8
 		and int(audit.get("whole_wrapper_mesh_count", 0)) == 8
 		and int(audit.get("runtime_surface_count", 0)) == 8
-		and int(audit.get("runtime_triangle_count", 0)) == 11508
+		and int(audit.get("runtime_triangle_count", 0)) == RUNTIME_TRIANGLE_COUNT
 		and int(audit.get("runtime_mesh_budget", 0)) == 12
 		and int(audit.get("runtime_surface_budget", 0)) == 12,
-		"live runtime remains within its eight-draw 11,508-triangle budget"
+		"live runtime remains within its eight-draw 11,892-triangle budget"
 	)
 	_check(
 		(audit.get("bounds_minimum", Vector3.INF) as Vector3).distance_to(Vector3(-12.75, -2.58, -27.75)) <= 0.002
 		and (audit.get("bounds_maximum", Vector3.INF) as Vector3).distance_to(Vector3(12.75, 0.095, 7.75)) <= 0.002,
-		"Godot import preserves the exact platform envelope and flush deck top"
+		"Godot import preserves the exact platform envelope and flush deck top (%s -> %s)" % [
+			audit.get("bounds_minimum", Vector3.INF), audit.get("bounds_maximum", Vector3.INF),
+		]
 	)
 	var root_art := presentation.get_asset_root()
 	_check(root_art != null and root_art.transform.is_equal_approx(Transform3D.IDENTITY), "imported art root mounts at identity")
+	var fascia := root_art.get_node_or_null(APPROACH_FASCIA_PATH) as MeshInstance3D \
+		if root_art != null else null
+	var fascia_arrays := fascia.mesh.surface_get_arrays(0) if fascia != null \
+		and fascia.mesh != null and fascia.mesh.get_surface_count() == 1 else []
+	var fascia_vertices := fascia_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array \
+		if fascia_arrays is Array and fascia_arrays.size() > Mesh.ARRAY_VERTEX else PackedVector3Array()
+	_check(
+		fascia != null and fascia.mesh is ArrayMesh
+			and fascia.mesh.resource_name == "central_berth_approach_upper_fascia"
+			and fascia.mesh.get_aabb().is_equal_approx(APPROACH_FASCIA_BOUNDS)
+			and fascia_vertices.size() == 1296
+			and int(audit.get("approach_fascia_member_count", 0)) == 4
+			and is_equal_approx(float(audit.get("approach_fascia_bevel_m", 0.0)), 0.11)
+			and int(audit.get("approach_fascia_triangle_count", 0))
+				== APPROACH_FASCIA_RUNTIME_TRIANGLES,
+		"the four approach-facing upper rails share one real 0.11 m StationSurfaceKit chamfer without moving their exact envelope"
+	)
+	var peer := PRESENTATION_SCENE.instantiate() as CentralBerthHeroPresentation
+	root.add_child(peer)
+	await process_frame
+	var peer_root := peer.get_asset_root()
+	var peer_fascia := peer_root.get_node_or_null(APPROACH_FASCIA_PATH) as MeshInstance3D \
+		if peer_root != null else null
+	_check(
+		peer_fascia != null and peer_fascia.mesh == fascia.mesh
+			and peer_fascia != fascia
+			and peer_fascia.material_override != fascia.material_override
+			and bool(peer.get_asset_audit_report().get("valid", false)),
+		"a second wrapper shares only immutable fascia geometry while retaining independent renderer and material ownership"
+	)
+	peer.queue_free()
+	await process_frame
 	for root_name in REQUIRED_ROOTS:
 		var semantic_root := presentation.get_semantic_root(StringName(root_name))
 		_check(
@@ -256,6 +296,19 @@ func _test_structured_red_drift_cases(presentation: CentralBerthHeroPresentation
 	)
 	deck_mesh.mesh = original_mesh
 	_check(bool(presentation.get_asset_audit_report().get("valid", false)), "restoring the exact authored mesh returns green")
+
+	var fascia := root_art.get_node(APPROACH_FASCIA_PATH) as MeshInstance3D
+	var original_fascia_mesh := fascia.mesh
+	fascia.mesh = BoxMesh.new()
+	var bevel_drift := presentation.get_asset_audit_report()
+	_check(
+		not bool(bevel_drift.get("valid", true))
+		and _errors_have(bevel_drift, "approach_fascia_bevel_recipe_drift")
+		and _errors_have(bevel_drift, "imported_mesh_topology_drift:"),
+		"removing the approach fascia chamfer returns structured geometry red"
+	)
+	fascia.mesh = original_fascia_mesh
+	_check(bool(presentation.get_asset_audit_report().get("valid", false)), "restoring the shared fascia chamfer returns green")
 
 	var rogue_mesh := MeshInstance3D.new()
 	rogue_mesh.name = "RogueVisualSibling"
