@@ -65,7 +65,63 @@ func _run() -> void:
 		and receiver_collar.get_instance_id() == retained_collar_id,
 		"detach/re-entry retains the scanner nodes and half progress resolves to a halfway physical sweep"
 	)
-	var completed: Dictionary = binding.call("advance_structure_scan", 2.0)
+	var failed_snapshot := (binding.call("get_snapshot").structure_scan as Dictionary).duplicate(true)
+	failed_snapshot["terminal_outcome"] = &"failed"
+	var failed_result: Dictionary = cluster.call(
+		"_apply_structure_scan_activity_presentation", failed_snapshot
+	)
+	var failed_state := cluster.get_structure_scan_presentation_state()
+	_check(
+		bool(failed_result.get("accepted", false))
+		and failed_state.state_id == &"failed"
+		and bool(failed_state.failure_geometry)
+		and receiver.rotation_degrees.is_equal_approx(Vector3(32.0, -48.0, 72.0))
+		and receiver.scale.is_equal_approx(Vector3(1.3, 0.28, 0.75))
+		and receiver_collar.rotation_degrees.is_equal_approx(Vector3(-25.0, 55.0, -42.0))
+		and receiver_collar.position.is_equal_approx(Vector3(23.5, 12.0, 4.0))
+		and receiver_collar.scale.is_equal_approx(Vector3(0.55, 1.45, 0.3))
+		and _presentation_counts(presentation) == initial_counts
+		and int((binding.call("get_snapshot").structure_scan as Dictionary).state) \
+			== CinderAbandonedStructureScanActivity.State.SCANNING,
+		"an authoritative failed outcome visibly drops and misaligns the retained receiver and collar without taking scan authority"
+	)
+	var aborted_snapshot := failed_snapshot.duplicate(true)
+	aborted_snapshot["terminal_outcome"] = &"aborted"
+	var aborted_result: Dictionary = cluster.call(
+		"_apply_structure_scan_activity_presentation", aborted_snapshot
+	)
+	_check(
+		bool(aborted_result.get("accepted", false))
+		and cluster.get_structure_scan_presentation_state().state_id == &"aborted"
+		and bool(cluster.get_structure_scan_presentation_state().failure_geometry)
+		and receiver.get_instance_id() == retained_receiver_id
+		and receiver_collar.get_instance_id() == retained_collar_id,
+		"an authoritative abort reuses the same unmistakable retained failure silhouette"
+	)
+	var failed_reset: Dictionary = binding.call("reset_structure_scan")
+	var failed_reset_state := cluster.get_structure_scan_presentation_state()
+	_check(
+		bool(failed_reset.get("accepted", false))
+		and failed_reset_state.state_id == &"reset"
+		and receiver.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
+		and receiver.scale.is_equal_approx(Vector3.ONE)
+		and receiver_collar.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
+		and receiver_collar.position.is_equal_approx(Vector3(20.0, 15.0, 5.0))
+		and receiver_collar.scale.is_equal_approx(Vector3.ONE)
+		and _presentation_counts(presentation) == initial_counts,
+		"authoritative reset restores the failed receiver and collar without allocating presentation nodes"
+	)
+	var second_started: Dictionary = binding.call(
+		"start_structure_scan", CinderAbandonedStructureScanActivity.APPROACH_ANCHOR
+	)
+	_check(
+		bool(second_started.get("accepted", false))
+		and int(cluster.get_structure_scan_presentation_state().generation) == 2
+		and receiver.get_instance_id() == retained_receiver_id
+		and receiver_collar.get_instance_id() == retained_collar_id,
+		"the generation after failure reuses the restored receiver and collar nodes"
+	)
+	var completed: Dictionary = binding.call("advance_structure_scan", 4.0)
 	var resolved := cluster.get_structure_scan_presentation_state()
 	var resolved_audit := cluster.get_structure_scan_presentation_audit()
 	_check(
@@ -116,7 +172,7 @@ func _run() -> void:
 	var restarted_state := cluster.get_structure_scan_presentation_state()
 	_check(
 		bool(restarted.get("accepted", false))
-		and int(restarted_state.generation) == 2
+		and int(restarted_state.generation) == 3
 		and receiver.rotation_degrees.is_equal_approx(Vector3(90.0, 0.0, 0.0))
 		and receiver.get_instance_id() == retained_receiver_id
 		and receiver_collar.get_instance_id() == retained_collar_id,

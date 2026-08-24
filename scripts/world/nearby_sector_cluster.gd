@@ -260,6 +260,11 @@ const STRUCTURE_SCAN_COLLAR_IDLE_POSITION := Vector3(20.0, 15.0, 5.0)
 const STRUCTURE_SCAN_COLLAR_RESOLVED_POSITION := Vector3(20.0, 15.0, 8.0)
 const STRUCTURE_SCAN_COMPLETE_RECEIVER_SCALE := Vector3.ONE * 1.2
 const STRUCTURE_SCAN_COMPLETE_COLLAR_SCALE := Vector3.ONE * 1.35
+const STRUCTURE_SCAN_FAILED_RECEIVER_ROTATION := Vector3(32.0, -48.0, 72.0)
+const STRUCTURE_SCAN_FAILED_RECEIVER_SCALE := Vector3(1.3, 0.28, 0.75)
+const STRUCTURE_SCAN_FAILED_COLLAR_POSITION := Vector3(23.5, 12.0, 4.0)
+const STRUCTURE_SCAN_FAILED_COLLAR_ROTATION := Vector3(-25.0, 55.0, -42.0)
+const STRUCTURE_SCAN_FAILED_COLLAR_SCALE := Vector3(0.55, 1.45, 0.3)
 
 const PERFORMANCE_BUDGET := {
 	# Includes the production cargo access route (21 bodies/19 meshes/three
@@ -1502,7 +1507,7 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 	if (
 		StringName(state_feedback.get("activity_id", &"")) != STRUCTURE_SCAN_ACTIVITY_ID
 		or StringName(state_feedback.get("state_id", &"")) \
-			not in [&"available", &"scanning", &"completed", &"reset"]
+			not in [&"available", &"scanning", &"completed", &"failed", &"aborted", &"reset"]
 		or int(state_feedback.get("node_delta", -1)) != 0
 		or int(state_feedback.get("light_delta", -1)) != 0
 		or int(state_feedback.get("submission_delta", -1)) != 0
@@ -2589,7 +2594,9 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 	var state := int(snapshot.get("state", -1))
 	var elapsed := float(snapshot.get("elapsed_seconds", -1.0))
 	var duration := float(snapshot.get("scan_seconds", 0.0))
-	if generation < 0 or state < 0 or state > 3 or elapsed < 0.0 or duration <= 0.0:
+	var terminal_outcome := StringName(snapshot.get("terminal_outcome", &""))
+	if generation < 0 or state < 0 or state > 3 or elapsed < 0.0 or duration <= 0.0 \
+			or terminal_outcome not in [&"", &"failed", &"aborted"]:
 		return {"accepted": false, "reason": &"invalid_activity_snapshot"}
 	var presentation := get_node_or_null(
 		^"ExtractionPlatform/CinderReachPlatform/AbandonedStructureScanPresentation"
@@ -2652,6 +2659,13 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 			starboard.light_energy = 0.2
 		_:
 			pass
+	if terminal_outcome in [&"failed", &"aborted"]:
+		state_id = terminal_outcome
+		receiver.rotation_degrees = STRUCTURE_SCAN_FAILED_RECEIVER_ROTATION
+		receiver.scale = STRUCTURE_SCAN_FAILED_RECEIVER_SCALE
+		receiver_collar.rotation_degrees = STRUCTURE_SCAN_FAILED_COLLAR_ROTATION
+		receiver_collar.position = STRUCTURE_SCAN_FAILED_COLLAR_POSITION
+		receiver_collar.scale = STRUCTURE_SCAN_FAILED_COLLAR_SCALE
 	_structure_scan_presentation_snapshot = {
 		"activity_id": STRUCTURE_SCAN_ACTIVITY_ID,
 		"state_id": state_id,
@@ -2672,6 +2686,18 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 		) and receiver_collar.scale.is_equal_approx(
 			STRUCTURE_SCAN_COMPLETE_COLLAR_SCALE
 		),
+		"failure_geometry": terminal_outcome in [&"failed", &"aborted"] \
+			and receiver.rotation_degrees.is_equal_approx(
+				STRUCTURE_SCAN_FAILED_RECEIVER_ROTATION
+			) and receiver.scale.is_equal_approx(
+				STRUCTURE_SCAN_FAILED_RECEIVER_SCALE
+			) and receiver_collar.rotation_degrees.is_equal_approx(
+				STRUCTURE_SCAN_FAILED_COLLAR_ROTATION
+			) and receiver_collar.position.is_equal_approx(
+				STRUCTURE_SCAN_FAILED_COLLAR_POSITION
+			) and receiver_collar.scale.is_equal_approx(
+				STRUCTURE_SCAN_FAILED_COLLAR_SCALE
+			),
 		"node_delta": STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA,
 		"light_delta": STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA,
 		"submission_delta": STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA,
