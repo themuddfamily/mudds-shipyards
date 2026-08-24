@@ -84,6 +84,8 @@ const COMMON_CEILING_LIGHT_BODY_COPY_COUNT := 6
 const GALLEY_DOOR_PULL_COPY_COUNT := 4
 const POTTING_PULL_COPY_COUNT := 3
 const MESS_BENCH_LEG_COPY_COUNT := 4
+const GARDEN_RACK_CROWN_COPY_COUNT := 5
+const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 1234
 const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
 const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1251
 const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 1240
@@ -91,12 +93,12 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1237
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1874
-const RENDER_MESH_INSTANCE_COUNT := 1216
-const RENDER_MULTIMESH_BATCH_COUNT := 27
+const RENDER_DESCENDANT_COUNT := 1870
+const RENDER_MESH_INSTANCE_COUNT := 1211
+const RENDER_MULTIMESH_BATCH_COUNT := 28
 const RENDER_DRAWN_COPY_COUNT := 1385
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1234
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1230
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 345
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
 const OBSERVATION_BACKREST_METALLIC := 0.02
@@ -222,6 +224,8 @@ var _potting_pull_transforms: Array[Transform3D] = []
 var _potting_pull_batch: MultiMeshInstance3D
 var _mess_bench_leg_transforms: Array[Transform3D] = []
 var _mess_bench_leg_batch: MultiMeshInstance3D
+var _garden_rack_crown_transforms: Array[Transform3D] = []
+var _garden_rack_crown_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -1007,6 +1011,36 @@ func get_render_allocation_report() -> Dictionary:
 	var collar_sharing := _inspect_garden_column_collar_mesh_sharing()
 	var pipe_collar_sharing := _inspect_pipe_collar_mesh_sharing()
 	var garden_bench_leg_batching := _inspect_garden_bench_leg_batching()
+	var garden_rack_crown_authored: bool = (
+		is_instance_valid(_garden_rack_crown_batch)
+		and _garden_rack_crown_batch.multimesh != null
+		and _garden_rack_crown_batch.multimesh.instance_count
+			== GARDEN_RACK_CROWN_COPY_COUNT
+		and _garden_rack_crown_batch.multimesh.visible_instance_count == -1
+		and _garden_rack_crown_batch.multimesh.mesh != null
+		and _garden_rack_crown_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.13, 0.12, 1.86)
+		)
+		and _garden_rack_crown_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_garden_rack_crown_transforms
+		)
+		and _garden_rack_crown_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_garden_rack_crown_batch.multimesh.mesh.get_aabb(),
+				_garden_rack_crown_transforms
+			)
+		)
+		and _garden_rack_crown_batch.material_override == _materials.get("structural")
+		and _garden_rack_crown_batch.cast_shadow
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _garden_rack_crown_batch.layers == 1
+		and _garden_rack_crown_batch.get_child_count() == 0
+		and _garden_rack_crown_batch.get_script() == null
+		and _garden_rack_crown_batch.get_groups().is_empty()
+		and bool(_garden_rack_crown_batch.get_meta("visual_detail_only", false))
+		and StringName(_garden_rack_crown_batch.get_meta("authored_source_name", &""))
+			== &"RackCrown"
+	)
 	var common_ceiling_light_body_authored := false
 	if (
 		is_instance_valid(_common_ceiling_light_body_batch)
@@ -1152,6 +1186,8 @@ func get_render_allocation_report() -> Dictionary:
 		and _nutrient_tank_band_transforms.size() == NUTRIENT_TANK_BAND_COPY_COUNT
 		and _nutrient_valve_transforms.size() == NUTRIENT_VALVE_COPY_COUNT
 		and bool(garden_bench_leg_batching.valid)
+		and _garden_rack_crown_transforms.size() == GARDEN_RACK_CROWN_COPY_COUNT
+		and garden_rack_crown_authored
 		and _common_ceiling_light_body_transforms.size()
 			== COMMON_CEILING_LIGHT_BODY_COPY_COUNT
 		and common_ceiling_light_body_authored
@@ -1231,9 +1267,26 @@ func get_render_allocation_report() -> Dictionary:
 			PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT
 		),
 		"geometry_submissions_removed_by_mess_bench_leg_batch": (
-			PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT - submissions
+			MESS_BENCH_LEG_COPY_COUNT - 1
 		),
 		"authored_mess_bench_leg_transforms": _mess_bench_leg_transforms.duplicate(),
+		"garden_rack_crown_legacy_renderer_nodes": GARDEN_RACK_CROWN_COPY_COUNT,
+		"garden_rack_crown_renderer_nodes": 1 if garden_rack_crown_authored else 0,
+		"garden_rack_crown_legacy_submissions": GARDEN_RACK_CROWN_COPY_COUNT,
+		"garden_rack_crown_submissions": 1 if garden_rack_crown_authored else 0,
+		"garden_rack_crown_legacy_mesh_resources": GARDEN_RACK_CROWN_COPY_COUNT,
+		"garden_rack_crown_mesh_resources": 1 if garden_rack_crown_authored else 0,
+		"garden_rack_crown_copies": _garden_rack_crown_transforms.size(),
+		"garden_rack_crown_authored": garden_rack_crown_authored,
+		"geometry_submissions_before_garden_rack_crown_batch": (
+			PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT
+		),
+		"geometry_submissions_removed_by_garden_rack_crown_batch": (
+			GARDEN_RACK_CROWN_COPY_COUNT - 1
+		),
+		"authored_garden_rack_crown_transforms": (
+			_garden_rack_crown_transforms.duplicate()
+		),
 		"unique_mesh_resources": mesh_resource_ids.size(),
 		"unique_material_resources": material_resource_ids.size(),
 		"hatch_fastener_copies": _hatch_fastener_transforms.size(),
@@ -2815,6 +2868,7 @@ func _build_garden_racks(branch: Node3D) -> void:
 	var canopy_light_transforms: Array[Transform3D] = []
 	var canopy_deep_transforms: Array[Transform3D] = []
 	var grow_strip_transforms: Array[Transform3D] = []
+	_garden_rack_crown_transforms.clear()
 	for rack_index in 6:
 		# Index four is GrowRack05 at x = 11.35, z = 20.2: directly beyond
 		# the branch-link opening at x = 10.31, z = 20.2.
@@ -2834,7 +2888,11 @@ func _build_garden_racks(branch: Node3D) -> void:
 		for upright_z in [-0.86, 0.86]:
 			_box(rack, "RackUpright", Vector3(0, 1.18, float(upright_z)), Vector3(0.11, 2.36, 0.11), _materials["structural"])
 		_box(rack, "RackFoot", Vector3(0, 0.035, 0), Vector3(0.36, 0.07, 1.94), _materials["graphite"], false)
-		_box(rack, "RackCrown", Vector3(0, 2.30, 0), Vector3(0.13, 0.12, 1.86), _materials["structural"], false)
+		# The crown is immutable visual trim. Keep the collidable uprights and trays
+		# on each rack, but compose this childless stock into the ring-parent batch.
+		_garden_rack_crown_transforms.append(
+			rack.transform * Transform3D(Basis.IDENTITY, Vector3(0, 2.30, 0))
+		)
 		for tier_index in 3:
 			var tray_y := 0.62 + float(tier_index) * 0.74
 			_box(rack, "RackTray", Vector3(0, tray_y, 0), Vector3(0.62, 0.05, 1.82), _materials["steel_bright"])
@@ -2864,6 +2922,14 @@ func _build_garden_racks(branch: Node3D) -> void:
 	_multimesh_boxes(racks, "RackCanopies", Vector3(0.50, 0.22, 0.50), _materials["greenery"], canopy_light_transforms)
 	_multimesh_boxes(racks, "RackCanopiesDeep", Vector3(0.50, 0.22, 0.50), _materials["greenery_deep"], canopy_deep_transforms)
 	_multimesh_boxes(racks, "RackGrowStrips", Vector3(0.44, 0.035, 1.70), _materials["grow_light"], grow_strip_transforms)
+	_garden_rack_crown_batch = _multimesh_visual_stock(
+		racks,
+		"RackCrowns",
+		_rounded_box_mesh(Vector3(0.13, 0.12, 1.86)),
+		_materials["structural"],
+		_garden_rack_crown_transforms,
+		&"RackCrown"
+	)
 	for lamp_index in 3:
 		var lamp_radians := deg_to_rad(float(lamp_index) * 120.0 + 60.0)
 		_fixture_practical(
