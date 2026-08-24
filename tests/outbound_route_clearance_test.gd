@@ -394,45 +394,104 @@ func _test_header_beam_carries_a_clearance_cue(world: ShipyardWorld) -> void:
 			"the stripe is on the beam's own face, not hung in open space"
 		)
 
-	var chevrons := exterior.find_children("RangeHeaderClearanceChevron*", "MeshInstance3D", true, false)
+	var chevron_batch := exterior.get_node_or_null(
+		^"RangeHeaderClearanceChevronBatch"
+	) as MultiMeshInstance3D
+	var chevron_transforms: Array = []
+	if chevron_batch != null:
+		chevron_transforms = chevron_batch.get_meta("authored_instance_transforms", []) as Array
 	_check(
-		chevrons.size() == EXPECTED_CUE_CHEVRON_COUNT,
+		chevron_batch != null
+		and chevron_batch.multimesh != null
+		and chevron_batch.multimesh.instance_count == EXPECTED_CUE_CHEVRON_COUNT
+		and chevron_transforms.size() == EXPECTED_CUE_CHEVRON_COUNT,
 		"the beam carries %d clearance chevron arms (found %d)"
-			% [EXPECTED_CUE_CHEVRON_COUNT, chevrons.size()]
+			% [EXPECTED_CUE_CHEVRON_COUNT, chevron_transforms.size()]
 	)
 	# The second channel has to be shape, not another colour: a chevron arm is
 	# rotated out of the beam's own axis, which is what makes it read when the
 	# frame is desaturated.
 	var rotated := 0
-	for candidate in chevrons:
-		if absf((candidate as MeshInstance3D).rotation_degrees.z) > 10.0:
-			rotated += 1
+	var expected_chevron_transforms: Array[Transform3D] = []
+	for x_position in ShipyardWorld.RANGE_HEADER_CUE_X:
+		if is_zero_approx(x_position):
+			continue
+		for side in [-1.0, 1.0]:
+			expected_chevron_transforms.append(
+				Transform3D(
+					Basis.from_euler(
+						Vector3(
+							0.0,
+							0.0,
+							deg_to_rad(
+								side * ShipyardWorld.RANGE_HEADER_CHEVRON_ROTATION_DEGREES
+							)
+						)
+					),
+					Vector3(
+						x_position + side * ShipyardWorld.RANGE_HEADER_CHEVRON_OFFSET_X,
+						8.92,
+						-119.42
+					)
+				)
+			)
+	var exact_chevron_transforms := chevron_transforms.size() == expected_chevron_transforms.size()
+	var chevron_transform_errors := PackedStringArray()
+	if chevron_batch != null and chevron_batch.multimesh != null and exact_chevron_transforms:
+		for index in expected_chevron_transforms.size():
+			var authored := chevron_transforms[index] as Transform3D
+			if absf(rad_to_deg(authored.basis.get_euler().z)) > 10.0:
+				rotated += 1
+			if not authored.is_equal_approx(expected_chevron_transforms[index]):
+				chevron_transform_errors.append("authored_%02d" % index)
+		if chevron_batch.multimesh.buffer != _encode_multimesh_transforms(
+			expected_chevron_transforms
+		):
+			chevron_transform_errors.append("renderer_buffer")
+		exact_chevron_transforms = chevron_transform_errors.is_empty()
 	_check(
 		rotated == EXPECTED_CUE_CHEVRON_COUNT,
 		"every chevron arm is angled, so the cue survives a fully desaturated frame"
+	)
+	_check(
+		exact_chevron_transforms,
+		"the batched chevrons retain all 16 exact authored positions and +/-26 degree poses%s"
+			% ["" if chevron_transform_errors.is_empty() else " (%s)" % ", ".join(chevron_transform_errors)]
 	)
 
 	# Every drawn cue piece must sit inside the beam's own 8.5 .. 9.5 m band. A cue
 	# hung below the beam would be drawn geometry standing in the clear lane, which
 	# a craft flying the top of that lane would pass through - the ghost-geometry
 	# defect this whole pass exists to avoid making worse.
-	var cue_pieces: Array[Node] = [stripe]
-	cue_pieces.append_array(chevrons)
-	cue_pieces.append_array(exterior.find_children("Sign_CLEARANCE*", "MeshInstance3D", true, false))
+	var cue_bounds: Array[Dictionary] = []
+	if stripe != null:
+		cue_bounds.append({"name": stripe.name, "bounds": stripe.global_transform * stripe.get_aabb()})
+	for sign_candidate in exterior.find_children("Sign_CLEARANCE*", "MeshInstance3D", true, false):
+		var sign_piece := sign_candidate as MeshInstance3D
+		cue_bounds.append({
+			"name": sign_piece.name,
+			"bounds": sign_piece.global_transform * sign_piece.get_aabb(),
+		})
+	if chevron_batch != null and chevron_batch.multimesh != null:
+		var chevron_mesh_bounds := chevron_batch.multimesh.mesh.get_aabb()
+		for index in chevron_transforms.size():
+			var instance_transform := chevron_transforms[index] as Transform3D
+			cue_bounds.append({
+				"name": "RangeHeaderClearanceChevron%02d" % index,
+				"bounds": chevron_batch.global_transform * instance_transform * chevron_mesh_bounds,
+			})
 	var inside_the_beam := 0
 	var lowest := 1e9
-	for candidate in cue_pieces:
-		var piece := candidate as MeshInstance3D
-		if piece == null:
-			continue
-		var bounds := piece.global_transform * piece.get_aabb()
+	for cue_piece in cue_bounds:
+		var bounds := cue_piece["bounds"] as AABB
 		lowest = minf(lowest, bounds.position.y)
 		if bounds.position.y >= header.position.y - 0.01 and bounds.end.y <= header.end.y + 0.01:
 			inside_the_beam += 1
 	_check(
-		inside_the_beam == cue_pieces.size(),
+		inside_the_beam == cue_bounds.size()
+		and cue_bounds.size() == EXPECTED_CUE_CHEVRON_COUNT + 2,
 		"all %d drawn cue pieces sit inside the beam's own 8.50 .. 9.50 band (lowest %.3f)"
-			% [cue_pieces.size(), lowest]
+			% [cue_bounds.size(), lowest]
 	)
 
 	# ...and in front of the beam's station-facing face rather than inside the
@@ -442,13 +501,13 @@ func _test_header_beam_carries_a_clearance_cue(world: ShipyardWorld) -> void:
 	# existed, it was in the right height band, it was not a collider — and a
 	# rendered close-up of the beam face is what showed there was no legend on it.
 	var buried := PackedStringArray()
-	for candidate in cue_pieces:
-		var piece := candidate as MeshInstance3D
-		if piece == null:
-			continue
-		var bounds := (piece.global_transform * piece.get_aabb()).abs()
+	for cue_piece in cue_bounds:
+		var bounds := (cue_piece["bounds"] as AABB).abs()
 		if bounds.position.z < header.end.z - 0.001:
-			buried.append("%s reaches z %.3f behind the face at %.3f" % [piece.name, bounds.position.z, header.end.z])
+			buried.append(
+				"%s reaches z %.3f behind the face at %.3f"
+					% [str(cue_piece["name"]), bounds.position.z, header.end.z]
+			)
 	print("BURIED_CUE_PIECES: ", buried)
 	_check(
 		buried.is_empty(),
@@ -987,6 +1046,27 @@ func _looks_like(body: StaticBody3D, node_name: String) -> bool:
 		and own.shape is BoxShape3D
 		and (own.shape as BoxShape3D).size.is_equal_approx(sibling_size)
 	)
+
+
+func _encode_multimesh_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var transform_value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = transform_value.basis.x.x
+		buffer[offset + 1] = transform_value.basis.y.x
+		buffer[offset + 2] = transform_value.basis.z.x
+		buffer[offset + 3] = transform_value.origin.x
+		buffer[offset + 4] = transform_value.basis.x.y
+		buffer[offset + 5] = transform_value.basis.y.y
+		buffer[offset + 6] = transform_value.basis.z.y
+		buffer[offset + 7] = transform_value.origin.y
+		buffer[offset + 8] = transform_value.basis.x.z
+		buffer[offset + 9] = transform_value.basis.y.z
+		buffer[offset + 10] = transform_value.basis.z.z
+		buffer[offset + 11] = transform_value.origin.z
+	return buffer
 
 
 func _check(condition: bool, description: String) -> bool:
