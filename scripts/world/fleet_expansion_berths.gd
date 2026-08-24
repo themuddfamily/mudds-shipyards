@@ -10,42 +10,48 @@ const EVIDENCE_STATUS: StringName = &"NEW"
 const WORLD_LAYER := PhysicsLayers.WORLD
 const PAD_IDS: Array[StringName] = [&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"]
 const PAD_POSITIONS: Array[Vector3] = [
-	Vector3(-34.0, 0.0, -18.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
+	Vector3(-16.4, 0.0, -8.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
 ]
 const PAD_SIZE := Vector3(28.0, 0.6, 42.0)
 const APPROACH_OFFSET := Vector3(0.0, 0.0, 30.0)
 const LANDING_ANCHOR_Y := 4.0
-## Dock 04/05/06 share the established Fleet Dock top plane. One module-owned
-## circulation joins the two separated fore/aft pads, meets that trunk at local
-## z = 0, bypasses the occupied Dock 01 slab, and gives Dock 06 one bounded
-## branch. Three two-metre bridges close the pad handoffs without relying on the
-## player's step assist.
-const ACCESS_DECK_TOP := 0.0
-const PAD_DECK_TOP := 0.0
+## The craft are held by their kinematic attachment contracts four metres above
+## this plane; World collision never supported their hulls. The former broad
+## 3,220.8 m2 pad plates therefore created player floor without serving the
+## landing physics. Six honest one-metre routes now connect the live trunk/Aft
+## handoff to each exact craft boarding-marker projection.
 const ACCESS_DECK_THICKNESS := 0.6
-const ACCESS_CLEAR_WIDTH := 4.8
 const ACCESS_SURFACE_NAMES := [
-	&"SharedSpineNorth", &"SouthTransitionPlate", &"SharedSpineSouth",
-	&"Dock04CargoBridge", &"Dock05BomberBridge",
-	&"Dock06Branch", &"Dock06InterceptorBridge",
+	&"CargoTrunkLeg", &"CargoBoardingLeg", &"Dock05BomberBridge",
+	&"BomberBerthLeg", &"BomberBoardingLeg", &"InterceptorBoardingToe",
 ]
+const ACCESS_SURFACE_SPECS: Array[Dictionary] = [
+	{"name": &"CargoTrunkLeg", "top_center": Vector3(-11.35, 0.0, 0.5), "size": Vector3(17.9, 0.6, 1.0)},
+	{"name": &"CargoBoardingLeg", "top_center": Vector3(-19.8, 0.0, -3.75), "size": Vector3(1.0, 0.6, 9.5)},
+	{"name": &"Dock05BomberBridge", "top_center": Vector3(13.3, 0.02, -22.8), "size": Vector3(13.4, 0.6, 1.0)},
+	{"name": &"BomberBerthLeg", "top_center": Vector3(25.35, 0.0, -22.8), "size": Vector3(10.7, 0.6, 1.0)},
+	{"name": &"BomberBoardingLeg", "top_center": Vector3(30.2, 0.0, -20.65), "size": Vector3(1.0, 0.6, 5.3)},
+	{"name": &"InterceptorBoardingToe", "top_center": Vector3(-2.7, 0.0, 34.0), "size": Vector3(0.6, 0.6, 1.0)},
+]
+const ACCESS_GROSS_HORIZONTAL_M2 := 57.4
+const ACCESS_UNIQUE_HORIZONTAL_M2 := 55.4
 const ACCESS_SUPPORT_MESH_COUNT := 11
-const MAX_STATIC_BODIES := 11
+const MAX_STATIC_BODIES := 6
 const MAX_MESH_INSTANCES := 38
-const EXPECTED_STATIC_BODIES := 10
-const EXPECTED_COLLISION_SHAPES := 13
-const EXPECTED_MESH_INSTANCES := 31
+const EXPECTED_STATIC_BODIES := 6
+const EXPECTED_COLLISION_SHAPES := 6
+const EXPECTED_MESH_INSTANCES := 24
 const EXPECTED_MULTIMESH_INSTANCES := 2
-const EXPECTED_RENDERER_NODES := 33
+const EXPECTED_RENDERER_NODES := 26
 const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
 const EXPECTED_WAYFINDING_LABELS := 1
 const EXPECTED_WAYFINDING_BOXES := 14
 const EXPECTED_SERVICE_MESH_INSTANCES := 14
 const EXPECTED_SERVICE_RENDERER_NODES := 13
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 31
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 24
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 79
+const EXPECTED_DESCENDANTS := 61
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
 	&"dock_05_bomber": 3,
@@ -84,24 +90,24 @@ const PAD_MARKER_MATERIAL_KEYS := {
 ## the real on-foot approach rather than assuming every berth shares an axis.
 const PAD_BOARDING_FASCIA_SPECS := {
 	&"dock_04_cargo": {
-		"position": Vector3(16.035, -0.28, 18.6),
-		"rotation_degrees": Vector3(0.0, 90.0, 0.0),
-		"approach_normal": Vector3.RIGHT,
-		"support": &"Dock04CargoBridge",
+		"position": Vector3(-3.4, -0.28, -0.535),
+		"rotation_degrees": Vector3(0.0, 180.0, 0.0),
+		"approach_normal": Vector3.FORWARD,
+		"support": &"CargoBoardingLeg",
 		"craft_role": &"cargo_hauler",
 	},
 	&"dock_05_bomber": {
-		"position": Vector3(-16.035, -0.28, -4.0),
-		"rotation_degrees": Vector3(0.0, -90.0, 0.0),
-		"approach_normal": Vector3.LEFT,
-		"support": &"Dock05BomberBridge",
+		"position": Vector3(-3.8, -0.28, 0.035),
+		"rotation_degrees": Vector3.ZERO,
+		"approach_normal": Vector3.BACK,
+		"support": &"BomberBoardingLeg",
 		"craft_role": &"bomber",
 	},
 	&"dock_06_interceptor": {
-		"position": Vector3(-10.5, -0.28, -23.035),
-		"rotation_degrees": Vector3(0.0, 180.0, 0.0),
-		"approach_normal": Vector3.FORWARD,
-		"support": &"Dock06InterceptorBridge",
+		"position": Vector3(-3.035, -0.28, 0.0),
+		"rotation_degrees": Vector3(0.0, -90.0, 0.0),
+		"approach_normal": Vector3.LEFT,
+		"support": &"InterceptorBoardingToe",
 		"craft_role": &"interceptor",
 	},
 }
@@ -118,12 +124,12 @@ const LAUNCH_RAIL_TRANSFORMS: Array[Transform3D] = [
 ]
 const UNDERFRAME_SUPPORT_SIZE := Vector3(0.55, 2.5, 0.55)
 const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
-	Transform3D(Basis.IDENTITY, Vector3(-14.0, -1.75, 0.6)),
-	Transform3D(Basis.IDENTITY, Vector3(-5.0, -1.75, 0.6)),
-	Transform3D(Basis.IDENTITY, Vector3(9.5, -1.75, -22.0)),
-	Transform3D(Basis.IDENTITY, Vector3(15.5, -1.75, -22.0)),
-	Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 5.0)),
-	Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 9.0)),
+	Transform3D(Basis.IDENTITY, Vector3(-15.0, -1.75, 0.5)),
+	Transform3D(Basis.IDENTITY, Vector3(-5.0, -1.75, 0.5)),
+	Transform3D(Basis.IDENTITY, Vector3(-19.8, -1.75, -6.0)),
+	Transform3D(Basis.IDENTITY, Vector3(10.0, -1.75, -22.8)),
+	Transform3D(Basis.IDENTITY, Vector3(24.0, -1.75, -22.8)),
+	Transform3D(Basis.IDENTITY, Vector3(30.2, -1.75, -19.2)),
 ]
 
 var _pads: Dictionary = {}
@@ -473,6 +479,8 @@ func get_service_presentation_audit() -> Dictionary:
 ## no overlap with any landing or final-approach envelope.
 func get_access_circulation_audit() -> Dictionary:
 	var errors := PackedStringArray()
+	var projection_rects: Array[Rect2] = []
+	var gross_horizontal_m2 := 0.0
 	var circulation := get_node_or_null(^"AccessCirculation") as Node3D
 	var underframe := circulation.get_node_or_null(^"SupportedUnderframe") as Node3D \
 		if circulation != null else null
@@ -524,9 +532,20 @@ func get_access_circulation_audit() -> Dictionary:
 			errors.append("access surface collision drift: %s" % surface_name)
 		if not render_valid:
 			errors.append("access surface render drift: %s" % surface_name)
+		var expected_id := StringName("fleet-expansion-" + String(surface_name).to_snake_case())
 		if body.collision_layer != WORLD_LAYER or body.collision_mask != 0 \
-				or not bool(body.get_meta(&"walkable_surface", false)):
+				or not bool(body.get_meta(&"walkable_surface", false)) \
+				or StringName(body.get_meta(&"walkable_surface_id", &"")) != expected_id \
+				or StringName(body.get_meta(&"walkable_surface_kind", &"")) != &"level" \
+				or StringName(body.get_meta(&"walkable_surface_owner", &"")) != COMPONENT_ID:
 			errors.append("access surface world ownership drift: %s" % surface_name)
+		if collision != null and collision.shape is BoxShape3D:
+			var live_size := (collision.shape as BoxShape3D).size
+			gross_horizontal_m2 += live_size.x * live_size.z
+			projection_rects.append(Rect2(
+				Vector2(body.position.x - live_size.x * 0.5, body.position.z - live_size.z * 0.5),
+				Vector2(live_size.x, live_size.z)
+			))
 	if bodies.size() != ACCESS_SURFACE_NAMES.size() or shapes.size() != ACCESS_SURFACE_NAMES.size():
 		errors.append("access collision roster drift")
 	var support_meshes: Array[Node] = []
@@ -561,21 +580,28 @@ func get_access_circulation_audit() -> Dictionary:
 		if not underframe.find_children("*", "CollisionObject3D", true, false).is_empty() \
 				or not underframe.find_children("*", "CollisionShape3D", true, false).is_empty():
 			errors.append("access underframe gained collision")
+	var unique_horizontal_m2 := _axis_aligned_rect_union_area(projection_rects)
+	if not is_equal_approx(gross_horizontal_m2, ACCESS_GROSS_HORIZONTAL_M2):
+		errors.append("access gross walkable area drift")
+	if not is_equal_approx(unique_horizontal_m2, ACCESS_UNIQUE_HORIZONTAL_M2):
+		errors.append("access unique walkable area drift")
 	var envelopes_clear := true
 	if circulation != null:
-		for raw_mesh in circulation.find_children("*", "MeshInstance3D", true, false):
-			var instance := raw_mesh as MeshInstance3D
-			if instance == null or instance.mesh == null \
-					or (underframe != null and underframe.is_ancestor_of(instance)):
+		for raw_body in circulation.find_children("*", "StaticBody3D", true, false):
+			var route_body := raw_body as StaticBody3D
+			var collision := route_body.get_node_or_null(^"Collision") as CollisionShape3D
+			if collision == null or collision.disabled or collision.shape is not BoxShape3D:
 				continue
-			var bounds := (instance.global_transform * instance.mesh.get_aabb()).abs()
+			var size := (collision.shape as BoxShape3D).size
+			var bounds := (collision.global_transform * AABB(-size * 0.5, size)).abs()
 			for pad_index in PAD_IDS.size():
 				var pad := get_node_or_null(NodePath(String(PAD_IDS[pad_index]))) as Node3D
 				if pad == null:
 					continue
 				var landing_bounds := (pad.global_transform * LANDING_VISUAL_CLEARANCE).abs()
 				var approach_bounds := (pad.global_transform * APPROACH_VISUAL_CLEARANCE).abs()
-				if bounds.intersects(landing_bounds) or bounds.intersects(approach_bounds):
+				if _aabbs_have_positive_overlap(bounds, landing_bounds) \
+						or _aabbs_have_positive_overlap(bounds, approach_bounds):
 					envelopes_clear = false
 	if not envelopes_clear:
 		errors.append("access circulation entered landing or approach clearance")
@@ -594,7 +620,9 @@ func get_access_circulation_audit() -> Dictionary:
 		"support_renderer_nodes": support_meshes.size() + support_batches.size(),
 		"wayfinding": wayfinding,
 		"envelopes_clear": envelopes_clear,
-		"shared_spine": true,
+		"gross_horizontal_m2": snappedf(gross_horizontal_m2, 0.000001),
+		"unique_horizontal_m2": snappedf(unique_horizontal_m2, 0.000001),
+		"shared_spine": false,
 		"world_collision_backed": true,
 	}.duplicate(true)
 
@@ -615,7 +643,7 @@ func get_access_wayfinding_audit() -> Dictionary:
 		errors.append("batched route edge treatment missing")
 	else:
 		var bounds := route_mesh.mesh.get_aabb()
-		var budget_bounds := AABB(Vector3(-20.0, -0.001, -24.5), Vector3(40.0, 0.1, 36.0))
+		var budget_bounds := AABB(Vector3(-20.5, -0.001, -23.25), Vector3(51.5, 0.1, 58.25))
 		if route_mesh.mesh.get_surface_count() != 1 \
 				or route_mesh.material_override != _service_materials["access_support"] \
 				or not budget_bounds.encloses(bounds):
@@ -713,6 +741,47 @@ func _flat_bounds_match(actual: AABB, expected: AABB) -> bool:
 		and actual.size.y <= 0.0001
 
 
+func _aabbs_have_positive_overlap(first: AABB, second: AABB) -> bool:
+	return minf(first.end.x, second.end.x) - maxf(first.position.x, second.position.x) > 0.001 \
+		and minf(first.end.y, second.end.y) - maxf(first.position.y, second.position.y) > 0.001 \
+		and minf(first.end.z, second.end.z) - maxf(first.position.z, second.position.z) > 0.001
+
+
+func _axis_aligned_rect_union_area(rects: Array[Rect2]) -> float:
+	var x_values := PackedFloat32Array()
+	for rect in rects:
+		x_values.append(rect.position.x)
+		x_values.append(rect.end.x)
+	x_values.sort()
+	var area := 0.0
+	for x_index in range(x_values.size() - 1):
+		var x_min := x_values[x_index]
+		var x_max := x_values[x_index + 1]
+		if x_max - x_min <= 0.000001:
+			continue
+		var z_intervals: Array[Vector2] = []
+		for rect in rects:
+			if rect.position.x < x_max - 0.000001 and rect.end.x > x_min + 0.000001:
+				z_intervals.append(Vector2(rect.position.y, rect.end.y))
+		z_intervals.sort_custom(func(left: Vector2, right: Vector2) -> bool: return left.x < right.x)
+		var covered_z := 0.0
+		var active := Vector2.ZERO
+		var has_active := false
+		for interval in z_intervals:
+			if not has_active:
+				active = interval
+				has_active = true
+			elif interval.x <= active.y + 0.000001:
+				active.y = maxf(active.y, interval.y)
+			else:
+				covered_z += active.y - active.x
+				active = interval
+		if has_active:
+			covered_z += active.y - active.x
+		area += (x_max - x_min) * covered_z
+	return area
+
+
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	if PAD_IDS.size() != 3 or _pads.size() != 3:
@@ -760,30 +829,16 @@ func get_audit_report() -> Dictionary:
 		var contract := get_landing_contract(pad_id)
 		if not bool(contract.get("accepted", false)):
 			errors.append("missing landing contract: %s" % pad_id)
-	var pad_index := 0
 	for pad_id in PAD_IDS:
 		var pad := get_node_or_null(NodePath(String(pad_id))) as Node3D
-		var body := pad.get_node_or_null(^"WalkablePadCollision") as StaticBody3D \
-			if pad != null else null
-		if body == null or body.collision_layer != WORLD_LAYER or body.collision_mask != 0:
-			errors.append("pad World ownership drift: %s" % pad_id)
-		for piece in _pad_deck_piece_specs(pad_index):
-			var piece_name := String(piece.get("name", ""))
-			var collision := body.get_node_or_null(NodePath("Collision" + piece_name)) as CollisionShape3D \
-				if body != null else null
-			var surface := pad.get_node_or_null(NodePath("ServicePadSurface" + piece_name)) as MeshInstance3D \
-				if pad != null else null
-			var expected_size := piece.get("size", Vector3.ZERO) as Vector3
-			var expected_position := piece.get("position", Vector3.INF) as Vector3
-			if collision == null or collision.disabled or collision.shape is not BoxShape3D \
-					or not collision.position.is_equal_approx(expected_position) \
-					or not (collision.shape as BoxShape3D).size.is_equal_approx(expected_size):
-				errors.append("pad collision/render alignment drift: %s" % pad_id)
-			if surface == null or surface.mesh is not BoxMesh \
-					or not surface.position.is_equal_approx(expected_position) \
-					or not (surface.mesh as BoxMesh).size.is_equal_approx(expected_size):
-				errors.append("pad render/collision alignment drift: %s" % pad_id)
-		pad_index += 1
+		if pad == null:
+			errors.append("logical pad missing: %s" % pad_id)
+			continue
+		if pad.get_node_or_null(^"WalkablePadCollision") != null \
+				or not pad.find_children("ServicePadSurface*", "MeshInstance3D", true, false).is_empty() \
+				or not pad.find_children("*", "StaticBody3D", true, false).is_empty() \
+				or not pad.find_children("*", "CollisionShape3D", true, false).is_empty():
+			errors.append("logical pad regained broad collision or render: %s" % pad_id)
 	for pad_id in _attachments:
 		var attachment := _attachments[pad_id] as Dictionary
 		if (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref() == null:
@@ -822,36 +877,6 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	pad.position = pad_position
 	pad.set_meta(&"landing_contract_anchor", true)
 	add_child(pad)
-	var body := StaticBody3D.new()
-	body.name = "WalkablePadCollision"
-	body.collision_layer = WORLD_LAYER
-	body.collision_mask = 0
-	pad.add_child(body)
-	# Collision and render share every exact piece transform at local top y=0.
-	# Dock 06 is split
-	# around the independently owned comb trunk and Halyard apron; those live
-	# surfaces support the centre landing footprint without positive-volume
-	# coplanar ownership. Dock 04/05 remain one-piece plates.
-	var pad_material := _service_materials["pad_deck"] as StandardMaterial3D
-	for piece in _pad_deck_piece_specs(index):
-		var piece_name := String(piece.get("name", ""))
-		var deck_size := piece.get("size", Vector3.ZERO) as Vector3
-		var deck_position := piece.get("position", Vector3.ZERO) as Vector3
-		var collision := CollisionShape3D.new()
-		collision.name = "Collision" + piece_name
-		var shape := BoxShape3D.new()
-		shape.size = deck_size
-		collision.shape = shape
-		collision.position = deck_position
-		body.add_child(collision)
-		var surface := MeshInstance3D.new()
-		surface.name = "ServicePadSurface" + piece_name
-		var mesh := BoxMesh.new()
-		mesh.size = deck_size
-		surface.mesh = mesh
-		surface.position = deck_position
-		surface.material_override = pad_material
-		pad.add_child(surface)
 	var route := Marker3D.new()
 	route.name = "ApproachMarker"
 	route.position = APPROACH_OFFSET
@@ -889,26 +914,6 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 		"position": pad_position,
 		"size": PAD_SIZE,
 	}
-
-
-func _pad_deck_piece_specs(index: int) -> Array[Dictionary]:
-	if index != 2:
-		return [{
-			"name": "",
-			"position": Vector3(0.0, -0.3, 0.0),
-			"size": PAD_SIZE,
-		}]
-	# Coordinates are Dock 06-local. In module coordinates these four rectangles
-	# cover x=-14..14/z=13..55 except the comb trunk (x=-2.4..2.4,
-	# z=13..48) and Halyard deck (x=2.4..14,z=19..31).
-	return [
-		{"name": "PortWing", "position": Vector3(-8.2, -0.3, 0.0), "size": Vector3(11.6, 0.6, 42.0)},
-		{"name": "StarboardForward", "position": Vector3(8.2, -0.3, -18.0), "size": Vector3(11.6, 0.6, 6.0)},
-		{"name": "StarboardAft", "position": Vector3(8.2, -0.3, 9.0), "size": Vector3(11.6, 0.6, 24.0)},
-		{"name": "TrunkAftCap", "position": Vector3(0.0, -0.3, 17.5), "size": Vector3(4.8, 0.6, 7.0)},
-	]
-
-
 func _build_access_circulation() -> void:
 	var circulation := Node3D.new()
 	circulation.name = "AccessCirculation"
@@ -916,39 +921,10 @@ func _build_access_circulation() -> void:
 	circulation.set_meta(&"connects_existing_module", &"fleet-dock-comb")
 	add_child(circulation)
 
-	# Shared fore/aft spine. The 4.8 m central interval is supplied by the live
-	# Fleet Dock trunk itself; leaving it out removes positive-volume ownership
-	# overlap and lets the route pass east of the connector rails' local-z=0.25
-	# ends. The north span meets the trunk at x=-2.4. The south span meets the
-	# existing Aft upper floor at x=7.8, behind its walls, stair, and berth volume.
-	_add_access_level(
-		circulation, &"SharedSpineNorth", Vector3(-10.2, ACCESS_DECK_TOP, 0.6),
-		Vector3(15.6, ACCESS_DECK_THICKNESS, ACCESS_CLEAR_WIDTH)
-	)
-	_add_access_transition_plate(
-		circulation, &"SouthTransitionPlate", Vector3(7.35, ACCESS_DECK_TOP, -22.0),
-		Vector2(2.7, ACCESS_CLEAR_WIDTH)
-	)
-	_add_tapered_access_level(
-		circulation, &"SharedSpineSouth", Vector3(12.9, ACCESS_DECK_TOP, -22.0),
-		Vector3(10.2, ACCESS_DECK_THICKNESS, ACCESS_CLEAR_WIDTH)
-	)
-	_add_access_level(
-		circulation, &"Dock04CargoBridge", Vector3(-19.0, PAD_DECK_TOP, 0.6),
-		Vector3(2.0, ACCESS_DECK_THICKNESS, ACCESS_CLEAR_WIDTH)
-	)
-	_add_access_level(
-		circulation, &"Dock05BomberBridge", Vector3(19.0, PAD_DECK_TOP, -22.0),
-		Vector3(2.0, ACCESS_DECK_THICKNESS, ACCESS_CLEAR_WIDTH)
-	)
-	_add_access_level(
-		circulation, &"Dock06Branch", Vector3(-10.5, ACCESS_DECK_TOP, 7.0),
-		Vector3(ACCESS_CLEAR_WIDTH, ACCESS_DECK_THICKNESS, 8.0)
-	)
-	_add_access_level(
-		circulation, &"Dock06InterceptorBridge", Vector3(-10.5, PAD_DECK_TOP, 12.0),
-		Vector3(ACCESS_CLEAR_WIDTH, ACCESS_DECK_THICKNESS, 2.0)
-	)
+	for spec in ACCESS_SURFACE_SPECS:
+		_add_access_level(
+			circulation, spec.name, spec.top_center as Vector3, spec.size as Vector3
+		)
 	_build_access_underframe(circulation)
 	_build_access_wayfinding(circulation)
 
@@ -959,25 +935,21 @@ func _build_access_circulation() -> void:
 ## shared station-family material is rendered without colour.
 func _build_access_wayfinding(circulation: Node3D) -> void:
 	var boxes := [
-		# Inset edge bands visually carry the route from the Aft handoff, through
-		# the shared spine, and around the Dock 06 branch without changing its top.
-		{"centre": Vector3(-10.2, 0.035, -1.55), "size": Vector3(15.3, 0.07, 0.18)},
-		{"centre": Vector3(-10.2, 0.035, 2.75), "size": Vector3(15.3, 0.07, 0.18)},
-		{"centre": Vector3(12.9, 0.035, -24.25), "size": Vector3(10.0, 0.07, 0.18)},
-		{"centre": Vector3(12.9, 0.035, -19.75), "size": Vector3(10.0, 0.07, 0.18)},
-		{"centre": Vector3(-12.75, 0.035, 7.0), "size": Vector3(0.18, 0.07, 7.6)},
-		{"centre": Vector3(-8.25, 0.035, 7.0), "size": Vector3(0.18, 0.07, 7.6)},
-		# Dock 04: squared cargo cradle, open toward its pad.
-		{"centre": Vector3(-19.72, 0.035, 0.6), "size": Vector3(0.18, 0.07, 2.6)},
-		{"centre": Vector3(-19.12, 0.035, -0.62), "size": Vector3(1.2, 0.07, 0.18)},
-		{"centre": Vector3(-19.12, 0.035, 1.82), "size": Vector3(1.2, 0.07, 0.18)},
-		# Dock 05: swept two-stroke bomber chevron.
-		{"centre": Vector3(19.05, 0.035, -22.48), "size": Vector3(1.45, 0.07, 0.18), "yaw": -PI * 0.25},
-		{"centre": Vector3(19.05, 0.035, -21.52), "size": Vector3(1.45, 0.07, 0.18), "yaw": PI * 0.25},
-		# Dock 06: straight launch spear and separated arrow shoulders.
-		{"centre": Vector3(-10.5, 0.035, 10.15), "size": Vector3(0.18, 0.07, 1.5)},
-		{"centre": Vector3(-10.86, 0.035, 10.72), "size": Vector3(1.0, 0.07, 0.18), "yaw": PI * 0.25},
-		{"centre": Vector3(-10.14, 0.035, 10.72), "size": Vector3(1.0, 0.07, 0.18), "yaw": -PI * 0.25},
+		{"centre": Vector3(-11.35, 0.035, 0.18), "size": Vector3(17.5, 0.07, 0.10)},
+		{"centre": Vector3(-11.35, 0.035, 0.82), "size": Vector3(17.5, 0.07, 0.10)},
+		{"centre": Vector3(-20.12, 0.035, -3.75), "size": Vector3(0.10, 0.07, 8.9)},
+		{"centre": Vector3(-19.48, 0.035, -3.75), "size": Vector3(0.10, 0.07, 8.9)},
+		{"centre": Vector3(18.65, 0.055, -23.12), "size": Vector3(23.7, 0.07, 0.10)},
+		{"centre": Vector3(18.65, 0.055, -22.48), "size": Vector3(23.7, 0.07, 0.10)},
+		{"centre": Vector3(29.88, 0.035, -20.65), "size": Vector3(0.10, 0.07, 4.7)},
+		{"centre": Vector3(30.52, 0.035, -20.65), "size": Vector3(0.10, 0.07, 4.7)},
+		# Square, chevron, and spear make the three endpoints colour-independent.
+		{"centre": Vector3(-19.8, 0.035, -8.12), "size": Vector3(0.62, 0.07, 0.10)},
+		{"centre": Vector3(30.0, 0.035, -18.35), "size": Vector3(0.62, 0.07, 0.10), "yaw": -PI * 0.25},
+		{"centre": Vector3(30.4, 0.035, -18.35), "size": Vector3(0.62, 0.07, 0.10), "yaw": PI * 0.25},
+		{"centre": Vector3(-2.7, 0.035, 34.0), "size": Vector3(0.38, 0.07, 0.10)},
+		{"centre": Vector3(-2.86, 0.035, 33.86), "size": Vector3(0.30, 0.07, 0.10), "yaw": PI * 0.25},
+		{"centre": Vector3(-2.86, 0.035, 34.14), "size": Vector3(0.30, 0.07, 0.10), "yaw": -PI * 0.25},
 	]
 	var builder := SurfaceTool.new()
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -995,6 +967,8 @@ func _build_access_wayfinding(circulation: Node3D) -> void:
 	route_mesh.material_override = _service_materials["access_support"]
 	route_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	route_mesh.set_meta(&"presentation_only", true)
+	route_mesh.set_meta(&"non_authoritative_visual", true)
+	route_mesh.set_meta(&"non_walkable_reason", "thin manufactured route inlay over the six authoritative access boxes")
 	route_mesh.set_meta(&"manufactured_edge_treatment", true)
 	route_mesh.set_meta(&"route_cue_grammars", {
 		&"dock_04_cargo": &"square_cargo_cradle",
@@ -1202,20 +1176,16 @@ func _build_access_underframe(circulation: Node3D) -> void:
 	underframe.set_meta(&"presentation_only", true)
 	underframe.set_meta(&"structurally_supports", &"fleet-expansion-pedestrian-access")
 	circulation.add_child(underframe)
-	for z_position in [-1.0, 2.2]:
-		_visual_box(
-			underframe, "NorthSpineChord", Vector3(-10.2, -1.24, float(z_position)),
-			Vector3(15.6, 1.4, 0.46), _service_materials["access_underframe"]
-		)
-	for z_position in [-23.6, -20.4]:
-		_visual_box(
-			underframe, "SouthSpineChord", Vector3(13.15, -1.24, float(z_position)),
-			Vector3(9.7, 1.4, 0.46), _service_materials["access_underframe"]
-		)
-	_visual_box(
-		underframe, "BranchChord", Vector3(-10.5, -1.24, 7.0),
-		Vector3(0.46, 1.4, 7.6), _service_materials["access_underframe"]
-	)
+	_visual_box(underframe, "CargoTrunkChord", Vector3(-11.35, -1.24, 0.5),
+		Vector3(17.5, 1.4, 0.46), _service_materials["access_underframe"])
+	_visual_box(underframe, "CargoBoardingChord", Vector3(-19.8, -1.24, -3.75),
+		Vector3(0.46, 1.4, 9.1), _service_materials["access_underframe"])
+	_visual_box(underframe, "BomberBerthChord", Vector3(18.65, -1.24, -22.8),
+		Vector3(23.7, 1.4, 0.46), _service_materials["access_underframe"])
+	_visual_box(underframe, "BomberBoardingChord", Vector3(30.2, -1.24, -20.65),
+		Vector3(0.46, 1.4, 4.9), _service_materials["access_underframe"])
+	_visual_box(underframe, "InterceptorToeChord", Vector3(-2.7, -1.24, 34.0),
+		Vector3(0.2, 1.4, 0.6), _service_materials["access_underframe"])
 	_build_underframe_support_batch(underframe)
 
 

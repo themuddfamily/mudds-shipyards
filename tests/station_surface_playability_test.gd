@@ -140,6 +140,7 @@ func _run() -> void:
 	_test_shared_bevel_rules(world)
 	_test_station_panel_material_bindings(world)
 	await _test_discovered_walkable_surface_support(world)
+	_test_fleet_expansion_surface_honesty(world)
 	_test_no_station_collision_without_visible_geometry(world)
 	_test_lattice_decks_do_not_share_the_authored_runway_volume(world)
 	await _test_spawn_adjacent_stair(world, player)
@@ -1427,6 +1428,42 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 	_check(unsupported_paths.is_empty(), "every discovered broad/thin upward route mesh has immediate World collision support below")
 	_check(unreasoned_visual_paths.is_empty(), "every intentionally non-authoritative station visual carries an explicit non-walkable reason")
 	_check(explicitly_tagged_decorations > 0, "discovery explicitly excludes tagged nonblocking presentation with a stable reason")
+
+
+func _test_fleet_expansion_surface_honesty(world: ShipyardWorld) -> void:
+	var berths := world.get_node_or_null(
+		^"FleetExpansionProductionBinding/FleetExpansionBerths"
+	) as Node3D
+	var circulation := berths.get_node_or_null(^"AccessCirculation") as Node3D \
+		if berths != null else null
+	var exact := circulation != null
+	var gross := 0.0
+	var route_bodies := circulation.find_children("*", "StaticBody3D", true, false) \
+		if circulation != null else []
+	for raw_body in route_bodies:
+		var body := raw_body as StaticBody3D
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		var surface := body.get_node_or_null(^"Surface") as MeshInstance3D
+		var mesh := surface.mesh as BoxMesh if surface != null else null
+		exact = exact and shape != null and mesh != null and not collision.disabled \
+			and shape.size.is_equal_approx(mesh.size) \
+			and body.collision_layer == WORLD_LAYER and body.collision_mask == 0 \
+			and bool(body.get_meta(&"walkable_surface", false)) \
+			and StringName(body.get_meta(&"walkable_surface_owner", &"")) == &"fleet-expansion-berths" \
+			and StringName(body.get_meta(&"walkable_surface_kind", &"")) == &"level" \
+			and not StringName(body.get_meta(&"walkable_surface_id", &"")).is_empty()
+		if shape != null:
+			gross += shape.size.x * shape.size.z
+	var broad_collision := world.find_children("WalkablePadCollision", "StaticBody3D", true, false)
+	var broad_render := world.find_children("ServicePadSurface*", "MeshInstance3D", true, false)
+	var audit := berths.call("get_access_circulation_audit") as Dictionary if berths != null else {}
+	_check(
+		exact and route_bodies.size() == 6 and is_equal_approx(gross, 57.4) \
+		and is_equal_approx(float(audit.get("unique_horizontal_m2", -1.0)), 55.4) \
+		and broad_collision.is_empty() and broad_render.is_empty(),
+		"Fleet exposes only six visible/tagged Box routes at 57.4 gross / 55.4 unique m2 and no undeclared pad top"
+	)
 
 
 ## The inverse of `_test_discovered_walkable_surface_support`, and the case

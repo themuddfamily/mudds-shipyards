@@ -40,8 +40,8 @@ func _check(condition: bool, message: String) -> void:
 		_failures.append(message)
 
 
-## The Cinder circulation joins existing deck edges, but must not double-author
-## any positive area of those decks or intrude into a live landing volume. This
+## Six declared Cinder route boxes join existing deck edges, but must not
+## double-author any positive area or intrude into a live berth volume. This
 ## runs against the instantiated production world so module transforms are part
 ## of the contract, rather than comparing unrelated local coordinates.
 func _test_access_geometry_clearance(world: ShipyardWorld) -> void:
@@ -64,7 +64,13 @@ func _test_access_geometry_clearance(world: ShipyardWorld) -> void:
 	var access_bodies: Array[StaticBody3D] = []
 	for candidate in circulation.find_children("*", "StaticBody3D", true, false):
 		access_bodies.append(candidate as StaticBody3D)
-	_check(access_bodies.size() == 7, "Cinder circulation exposes exactly seven collision-backed access surfaces")
+	_check(access_bodies.size() == 6, "Cinder circulation exposes exactly six collision-backed route boxes")
+	var broad_pad_surfaces := world.find_children("ServicePadSurface*", "MeshInstance3D", true, false)
+	var broad_pad_bodies := world.find_children("WalkablePadCollision", "StaticBody3D", true, false)
+	_check(
+		broad_pad_surfaces.is_empty() and broad_pad_bodies.is_empty(),
+		"logical Dock 04/05/06 owners expose no broad pad render or collision"
+	)
 
 	var existing_bodies: Array[StaticBody3D] = []
 	for existing_root in existing_roots:

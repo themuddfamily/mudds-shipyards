@@ -6,14 +6,14 @@ const EXPECTED_PAD_IDS: Array[StringName] = [
 	&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"
 ]
 const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
-	Vector3(-34.0, 0.0, -18.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
+	Vector3(-16.4, 0.0, -8.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
 ]
 const EXPECTED_SERVICE_MESHES := [6, 3, 3]
 const EXPECTED_SERVICE_BATCHES := [0, 0, 1]
 const EXPECTED_SERVICE_COPIES := [6, 3, 5]
 const EXPECTED_SERVICE_LIGHTS := [2, 1, 2]
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 31
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 24
 const EXPECTED_SERVICE_ROLES: Array[StringName] = [
 	&"cargo_crane_and_container_apron",
 	&"ordnance_safe_gantry_markers",
@@ -49,7 +49,7 @@ func _initialize() -> void:
 	await process_frame
 	var attached := berths.attach_craft(&"dock_04_cargo", craft, &"cinder_cargo_hauler")
 	var occupied_state := berths.get_pad_presentation_state(&"dock_04_cargo")
-	var access_spine := berths.get_node_or_null(^"AccessCirculation/SharedSpineNorth") as StaticBody3D
+	var access_spine := berths.get_node_or_null(^"AccessCirculation/CargoTrunkLeg") as StaticBody3D
 	var access_spine_id := access_spine.get_instance_id() if access_spine != null else 0
 	_check(
 		bool(attached.get("accepted", false))
@@ -70,9 +70,9 @@ func _initialize() -> void:
 	)
 	_check(
 		access_spine_id != 0
-		and berths.get_node_or_null(^"AccessCirculation/SharedSpineNorth") == access_spine
+		and berths.get_node_or_null(^"AccessCirculation/CargoTrunkLeg") == access_spine
 		and bool((berths.call("get_access_circulation_audit") as Dictionary).get("valid", false)),
-		"detach/re-entry retains the identity-stable shared circulation without rebuilding it"
+		"detach/re-entry retains the identity-stable compact circulation without rebuilding it"
 	)
 	var duplicate := berths.attach_craft(&"dock_05_bomber", craft, &"cinder_cargo_hauler")
 	_check(not bool(duplicate.get("accepted", true)) and duplicate.get("reason", &"") == &"craft_already_attached", "one craft cannot occupy multiple expansion pads")
@@ -114,25 +114,25 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		bool(presentation.get("valid", false))
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
-		and int(audit.get("static_bodies", -1)) == 10
-		and int(audit.get("collision_shapes", -1)) == 13
-		and int(audit.get("mesh_instances", -1)) == 31
+		and int(audit.get("static_bodies", -1)) == 6
+		and int(audit.get("collision_shapes", -1)) == 6
+		and int(audit.get("mesh_instances", -1)) == 24
 		and int(audit.get("multimesh_instances", -1)) == 2
-		and int(audit.get("renderer_nodes", -1)) == 33
+		and int(audit.get("renderer_nodes", -1)) == 26
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 5
-		and int(audit.get("descendants", -1)) == 79
-		and int(budgets.get("static_bodies", -1)) == 10
-		and int(budgets.get("collision_shapes", -1)) == 13
-		and int(budgets.get("mesh_instances", -1)) == 31
+		and int(audit.get("descendants", -1)) == 61
+		and int(budgets.get("static_bodies", -1)) == 6
+		and int(budgets.get("collision_shapes", -1)) == 6
+		and int(budgets.get("mesh_instances", -1)) == 24
 		and int(budgets.get("multimesh_instances", -1)) == 2
-		and int(budgets.get("renderer_nodes", -1)) == 33
+		and int(budgets.get("renderer_nodes", -1)) == 26
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 5
-		and int(budgets.get("descendants", -1)) == 79,
-		"the three pads, service silhouettes, and shared access freeze at 33 world renderers, 31 total / 11 service mesh resources, 5 guide lights, 79 descendants, 10 walkable bodies, and 13 exact shapes"
+		and int(budgets.get("descendants", -1)) == 61,
+		"three logical pads and six honest routes freeze at 26 renderers, 24 resources, 61 descendants, and six exact walkable boxes"
 	)
 	var expected_bounds: Array[AABB] = [
 		AABB(Vector3(-18.75, 0.0, -13.5), Vector3(40.25, 12.0, 27.0)),
@@ -196,30 +196,15 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		_check(lights_safe, "%s uses its exact bounded shadowless service-guide roster" % pad_id)
 		var first_material := (meshes[0] as MeshInstance3D).material_override as StandardMaterial3D
 		material_signatures.append(first_material.albedo_color.to_html(false))
-		var body := pad.get_node_or_null(^"WalkablePadCollision") as StaticBody3D
-		var piece_specs := _expected_pad_piece_specs(pad_index)
-		var pieces_aligned := body != null
-		for piece in piece_specs:
-			var piece_name := String(piece.get("name", ""))
-			var shape_node := body.get_node_or_null(NodePath("Collision" + piece_name)) as CollisionShape3D \
-				if body != null else null
-			var box_shape := shape_node.shape as BoxShape3D if shape_node != null else null
-			var pad_surface := pad.get_node_or_null(NodePath("ServicePadSurface" + piece_name)) as MeshInstance3D \
-				if pad != null else null
-			var pad_mesh := pad_surface.mesh as BoxMesh if pad_surface != null else null
-			pieces_aligned = pieces_aligned \
-				and shape_node != null and not shape_node.disabled \
-				and box_shape != null and box_shape.size.is_equal_approx(piece.size) \
-				and shape_node.position.is_equal_approx(piece.position) \
-				and pad_mesh != null and pad_mesh.size.is_equal_approx(piece.size) \
-				and pad_surface.position.is_equal_approx(piece.position)
 		_check(
-			body != null and body.collision_layer == PhysicsLayers.WORLD and body.collision_mask == 0
-			and pieces_aligned
+			pad.get_node_or_null(^"WalkablePadCollision") == null
+			and pad.find_children("ServicePadSurface*", "MeshInstance3D", true, false).is_empty()
+			and pad.find_children("*", "StaticBody3D", true, false).is_empty()
+			and pad.find_children("*", "CollisionShape3D", true, false).is_empty()
 			and service.find_children("*", "CollisionObject3D", true, false).is_empty()
 			and service.find_children("*", "CollisionShape3D", true, false).is_empty()
 			and service.find_children("*", "Area3D", true, false).is_empty(),
-			"%s preserves its one walkable pad collider and gives presentation no collision or interaction" % pad_id
+			"%s remains a logical landing owner without an undeclared broad floor" % pad_id
 		)
 	_check(
 		material_signatures[0] != material_signatures[1]
@@ -348,12 +333,12 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 	var post_mesh := batch.multimesh.mesh as BoxMesh \
 		if batch != null and batch.multimesh != null else null
 	var expected_transforms: Array[Transform3D] = [
-		Transform3D(Basis.IDENTITY, Vector3(-14.0, -1.75, 0.6)),
-		Transform3D(Basis.IDENTITY, Vector3(-5.0, -1.75, 0.6)),
-		Transform3D(Basis.IDENTITY, Vector3(9.5, -1.75, -22.0)),
-		Transform3D(Basis.IDENTITY, Vector3(15.5, -1.75, -22.0)),
-		Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 5.0)),
-		Transform3D(Basis.IDENTITY, Vector3(-10.5, -1.75, 9.0)),
+		Transform3D(Basis.IDENTITY, Vector3(-15.0, -1.75, 0.5)),
+		Transform3D(Basis.IDENTITY, Vector3(-5.0, -1.75, 0.5)),
+		Transform3D(Basis.IDENTITY, Vector3(-19.8, -1.75, -6.0)),
+		Transform3D(Basis.IDENTITY, Vector3(10.0, -1.75, -22.8)),
+		Transform3D(Basis.IDENTITY, Vector3(24.0, -1.75, -22.8)),
+		Transform3D(Basis.IDENTITY, Vector3(30.2, -1.75, -19.2)),
 	]
 	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
 		if batch != null else []
@@ -379,8 +364,8 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		int(access.get("support_meshes", -1)) == 11
 		and int(access.get("support_renderer_nodes", -1)) == 6
-		and int(audit.get("renderer_nodes", -1)) == 33
-		and int(audit.get("mesh_resource_allocations", -1)) == 31,
+		and int(audit.get("renderer_nodes", -1)) == 26
+		and int(audit.get("mesh_resource_allocations", -1)) == 24,
 		"the support-post family removes five renderer submissions and mesh allocations while retaining all 11 underframe copies"
 	)
 	_check(
@@ -392,32 +377,19 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 	)
 
 
-func _expected_pad_piece_specs(pad_index: int) -> Array[Dictionary]:
-	if pad_index != 2:
-		return [{"name": "", "position": Vector3(0.0, -0.3, 0.0), "size": Vector3(28.0, 0.6, 42.0)}]
-	return [
-		{"name": "PortWing", "position": Vector3(-8.2, -0.3, 0.0), "size": Vector3(11.6, 0.6, 42.0)},
-		{"name": "StarboardForward", "position": Vector3(8.2, -0.3, -18.0), "size": Vector3(11.6, 0.6, 6.0)},
-		{"name": "StarboardAft", "position": Vector3(8.2, -0.3, 9.0), "size": Vector3(11.6, 0.6, 24.0)},
-		{"name": "TrunkAftCap", "position": Vector3(0.0, -0.3, 17.5), "size": Vector3(4.8, 0.6, 7.0)},
-	]
-
-
 func _test_panel_finish_roles(berths: Node3D) -> void:
-	var pad := berths.get_node_or_null(^"dock_04_cargo/ServicePadSurface") as MeshInstance3D
 	var access := berths.get_node_or_null(
-		^"AccessCirculation/Dock04CargoBridge/Surface"
+		^"AccessCirculation/CargoTrunkLeg/Surface"
 	) as MeshInstance3D
 	var frame := berths.get_node_or_null(
 		^"dock_04_cargo/ServicePresentation/CargoCraneMast"
 	) as MeshInstance3D
 	var underframe := berths.get_node_or_null(
-		^"AccessCirculation/SupportedUnderframe/NorthSpineChord"
+		^"AccessCirculation/SupportedUnderframe/CargoTrunkChord"
 	) as MeshInstance3D
 	var wayfinding := berths.get_node_or_null(
 		^"AccessCirculation/BerthRouteEdgeTreatment"
 	) as MeshInstance3D
-	var pad_material := pad.material_override as StandardMaterial3D if pad != null else null
 	var access_material := access.material_override as StandardMaterial3D if access != null else null
 	var frame_material := frame.material_override as StandardMaterial3D if frame != null else null
 	var underframe_material := underframe.material_override as StandardMaterial3D \
@@ -425,11 +397,9 @@ func _test_panel_finish_roles(berths: Node3D) -> void:
 	var wayfinding_material := wayfinding.material_override as StandardMaterial3D \
 		if wayfinding != null else null
 	_check(
-		_is_panel_finish(pad_material, StationSurfaceKit.WALKED_CLEARCOAT,
-			StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS)
-		and _is_panel_finish(access_material, StationSurfaceKit.WALKED_CLEARCOAT,
+		_is_panel_finish(access_material, StationSurfaceKit.WALKED_CLEARCOAT,
 			StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS),
-		"Dock 04/05/06 pads and access surfaces use the walked-deck panel finish"
+		"all compact access surfaces use the walked-deck panel finish"
 	)
 	_check(
 		_is_panel_finish(frame_material, StationSurfaceKit.STRUCTURAL_CLEARCOAT,
@@ -467,18 +437,18 @@ func _is_panel_finish(
 
 func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 	var access := berths.call("get_access_circulation_audit") as Dictionary
+	print("FLEET_COMPACT_ACCESS_AUDIT: ", access)
 	var wayfinding := access.get("wayfinding", {}) as Dictionary
 	var expected_names := [
-		&"SharedSpineNorth", &"SouthTransitionPlate", &"SharedSpineSouth",
-		&"Dock04CargoBridge", &"Dock05BomberBridge",
-		&"Dock06Branch", &"Dock06InterceptorBridge",
+		&"CargoTrunkLeg", &"CargoBoardingLeg", &"Dock05BomberBridge",
+		&"BomberBerthLeg", &"BomberBoardingLeg", &"InterceptorBoardingToe",
 	]
 	_check(
 		bool(access.get("valid", false))
 		and (access.get("surface_names", []) as Array) == expected_names
-		and int(access.get("static_bodies", -1)) == 7
-		and int(access.get("collision_shapes", -1)) == 7
-		and int(access.get("surface_meshes", -1)) == 7
+		and int(access.get("static_bodies", -1)) == 6
+		and int(access.get("collision_shapes", -1)) == 6
+		and int(access.get("surface_meshes", -1)) == 6
 		and int(access.get("support_meshes", -1)) == 11
 		and int(access.get("support_renderer_nodes", -1)) == 6
 		and bool(wayfinding.get("valid", false))
@@ -488,10 +458,12 @@ func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 		and int(wayfinding.get("lights", -1)) == 0
 		and int(wayfinding.get("collision_shapes", -1)) == 0
 		and bool(access.get("envelopes_clear", false))
-		and bool(access.get("shared_spine", false))
+		and is_equal_approx(float(access.get("gross_horizontal_m2", -1.0)), 57.4)
+		and is_equal_approx(float(access.get("unique_horizontal_m2", -1.0)), 55.4)
+		and not bool(access.get("shared_spine", true))
 		and bool(access.get("world_collision_backed", false))
 		and (audit.get("access_circulation", {}) as Dictionary) == access,
-		"Dock 04/05/06 share seven collision-backed access surfaces, visible support, and clear landing envelopes"
+		"six declared route boxes own exactly 57.4 gross / 55.4 unique m2 with dynamic clearances"
 	)
 	var expected_grammars := {
 		&"dock_04_cargo": &"square_cargo_cradle",
@@ -518,63 +490,53 @@ func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 		"one batched station-family edge treatment pairs explicit Aft-junction text with square, chevron, and spear berth identities without colour or collision"
 	)
 	var circulation := berths.get_node_or_null(^"AccessCirculation") as Node3D
-	var spine := circulation.get_node_or_null(^"SharedSpineNorth") as StaticBody3D \
+	var spine := circulation.get_node_or_null(^"CargoTrunkLeg") as StaticBody3D \
 		if circulation != null else null
-	var dock04 := circulation.get_node_or_null(^"Dock04CargoBridge") as StaticBody3D \
+	var dock04 := circulation.get_node_or_null(^"CargoBoardingLeg") as StaticBody3D \
 		if circulation != null else null
 	var dock05 := circulation.get_node_or_null(^"Dock05BomberBridge") as StaticBody3D \
 		if circulation != null else null
-	var branch := circulation.get_node_or_null(^"Dock06Branch") as StaticBody3D \
+	var branch := circulation.get_node_or_null(^"BomberBoardingLeg") as StaticBody3D \
 		if circulation != null else null
-	var dock06 := circulation.get_node_or_null(^"Dock06InterceptorBridge") as StaticBody3D \
+	var dock06 := circulation.get_node_or_null(^"InterceptorBoardingToe") as StaticBody3D \
 		if circulation != null else null
 	_check(
 		spine != null and dock04 != null and dock05 != null and branch != null and dock06 != null
-		and spine.position.is_equal_approx(Vector3(-10.2, -0.3, 0.6))
-		and absf(dock04.position.x + 19.0) < 0.06
-		and dock05.position.is_equal_approx(Vector3(19.0, -0.3, -22.0))
-		and branch.position.is_equal_approx(Vector3(-10.5, -0.3, 7.0))
-		and absf(dock06.position.z - 12.0) < 0.06,
-		"the shared spine meets the Fleet Dock edge and three bounded bridges meet their unchanged pad edges"
+		and spine.position.is_equal_approx(Vector3(-11.35, -0.3, 0.5))
+		and dock04.position.is_equal_approx(Vector3(-19.8, -0.3, -3.75))
+		and dock05.position.is_equal_approx(Vector3(13.3, -0.28, -22.8))
+		and branch.position.is_equal_approx(Vector3(30.2, -0.3, -20.65))
+		and dock06.position.is_equal_approx(Vector3(-2.7, -0.3, 34.0)),
+		"the compact routes meet both station seams and all three boarding projections"
 	)
 	var collision := dock04.get_node_or_null(^"Collision") as CollisionShape3D \
 		if dock04 != null else null
-	_check(collision != null, "Dock 04 access owns its production World collision")
+	_check(collision != null, "Dock 04 boarding leg owns its production World collision")
 	if collision != null:
 		collision.disabled = true
 		var disabled := berths.call("get_access_circulation_audit") as Dictionary
 		_check(
 			not bool(disabled.get("valid", true))
 			and (disabled.get("errors", PackedStringArray()) as PackedStringArray).has(
-				"access surface collision drift: Dock04CargoBridge"
+				"access surface collision drift: CargoBoardingLeg"
 			),
-			"disabling a required access bridge is structured red"
+			"disabling a required boarding leg is structured red"
 		)
 		collision.disabled = false
 		_check(bool((berths.call("get_access_circulation_audit") as Dictionary).get("valid", false)), "restoring Dock 04 access returns the production topology green")
-	var dock04_pad_collision := berths.get_node_or_null(
-		^"dock_04_cargo/WalkablePadCollision/Collision"
-	) as CollisionShape3D
-	var dock04_pad_surface := berths.get_node_or_null(
-		^"dock_04_cargo/ServicePadSurface"
-	) as MeshInstance3D
-	_check(
-		dock04_pad_collision != null and dock04_pad_surface != null,
-		"Dock 04 pad owns its co-located production render and collision"
-	)
-	if dock04_pad_collision != null and dock04_pad_surface != null:
-		var aligned_position := dock04_pad_surface.position
-		dock04_pad_surface.position.y = 0.0
+	if collision != null and collision.shape is BoxShape3D:
+		var original_size := (collision.shape as BoxShape3D).size
+		(collision.shape as BoxShape3D).size.x = 2.0
 		var old_offset := berths.call("get_audit_report") as Dictionary
 		_check(
 			not bool(old_offset.get("valid", true))
 			and (old_offset.get("errors", PackedStringArray()) as PackedStringArray).has(
-				"pad render/collision alignment drift: dock_04_cargo"
+				"access circulation: access surface collision drift: CargoBoardingLeg"
 			),
-			"restoring the old embedded-floor collider offset is structured red"
+			"widening a route without its render is structured red"
 		)
-		dock04_pad_surface.position = aligned_position
-		_check(bool((berths.call("get_audit_report") as Dictionary).get("valid", false)), "restoring exact pad mesh/collision co-location returns the berth audit green")
+		(collision.shape as BoxShape3D).size = original_size
+		_check(bool((berths.call("get_audit_report") as Dictionary).get("valid", false)), "restoring the exact route box returns the berth audit green")
 
 
 func _check(condition: bool, message: String) -> void:

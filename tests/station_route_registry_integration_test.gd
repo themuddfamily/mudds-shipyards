@@ -107,6 +107,7 @@ func _run() -> void:
 	_test_hub_endpoints_resolve_to_world_geometry(world)
 	_test_only_approach_markers_are_connection_slots(world)
 	_test_no_gameplay_authority_leak(world)
+	_test_fleet_internal_routes_stay_out_of_registry(world)
 	await _test_detach_and_reentry_identity(game, world)
 	_test_report_is_deeply_detached(world)
 	_test_structured_red_on_undeclared_slot(world)
@@ -359,6 +360,35 @@ func _test_no_gameplay_authority_leak(world: ShipyardWorld) -> void:
 			and int(comb_authority.get("ship_berth_count", -1)) == 0 \
 			and int(comb_authority.get("landing_or_interaction_area_count", -1)) == 0
 	_check(docks_own_no_authority, "all three comb dock markers still report owns_berth_authority false after registration")
+
+
+func _test_fleet_internal_routes_stay_out_of_registry(world: ShipyardWorld) -> void:
+	var berths := world.get_node_or_null(
+		^"FleetExpansionProductionBinding/FleetExpansionBerths"
+	) as Node3D
+	var circulation := berths.get_node_or_null(^"AccessCirculation") as Node3D \
+		if berths != null else null
+	var route_bodies := circulation.find_children("*", "StaticBody3D", true, false) \
+		if circulation != null else []
+	var routes_are_internal := route_bodies.size() == 6
+	for raw_body in route_bodies:
+		var body := raw_body as StaticBody3D
+		routes_are_internal = routes_are_internal \
+			and not body.has_meta(CONNECTION_SLOT_META) \
+			and bool(body.get_meta(&"walkable_surface", false)) \
+			and StringName(body.get_meta(&"walkable_surface_owner", &"")) == &"fleet-expansion-berths"
+	var audit := berths.call("get_access_circulation_audit") as Dictionary \
+		if berths != null else {}
+	var report := world.get_station_route_registry_report()
+	_check(
+		routes_are_internal \
+		and bool(audit.get("valid", false)) \
+		and is_equal_approx(float(audit.get("gross_horizontal_m2", -1.0)), 57.4) \
+		and is_equal_approx(float(audit.get("unique_horizontal_m2", -1.0)), 55.4) \
+		and int(report.get("module_count", -1)) == EXPECTED_MODULE_COUNT \
+		and int(report.get("route_marker_count", -1)) == EXPECTED_ROUTE_MARKER_COUNT,
+		"six compact Fleet walking surfaces remain internal physical routes without changing registry topology"
+	)
 
 
 # 7. Detach and re-entry rebuilds an identical graph without accumulating errors.
