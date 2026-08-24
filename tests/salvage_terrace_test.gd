@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_exact_surface_union(module)
 	_test_rails_dressing_and_authority(module)
 	_test_short_side_rail_visual_sharing(module)
+	_test_hazard_dressing_batch(module)
 	_test_performance_and_lifecycle(module)
 	await _test_queued_module_enable_guard()
 	await _test_real_player_ramp_traversal(module)
@@ -295,7 +296,7 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 		bool(roster.salvage_work_bay_present)
 		and int(roster.work_light_count) == 3
 		and module.get_node_or_null(^"GeneratedRoot/LowerBayRoof") != null
-		and module.get_node_or_null(^"GeneratedRoot/CraneBridge") != null
+		and module.get_node_or_null(^"GeneratedRoot/HazardDressingBatch") != null
 		and module.get_node_or_null(^"GeneratedRoot/SortingMachineryBatch") != null
 		and module.get_node_or_null(^"GeneratedRoot/UpperInspectionConsole") != null,
 		"finished terrace reads as a covered salvage work bay with crane, sorting line, inspection console, and three local work lights"
@@ -563,12 +564,68 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 	)
 
 
+func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
+	var report := module.get_hazard_dressing_batch_audit()
+	var renderer := module.get_node_or_null(^"GeneratedRoot/HazardDressingBatch") as MeshInstance3D
+	var parts: Array = [] if renderer == null else renderer.get_meta(
+		"salvage_terrace_hazard_dressing_parts", []
+	) as Array
+	_check(
+		bool(report.valid)
+		and renderer != null
+		and renderer.material_override == (module.get("_materials") as Dictionary).hazard
+		and int(report.authored_visible_copies) == 5
+		and int(report.renderer_nodes) == 1
+		and int(report.geometry_submissions) == 1
+		and int(report.legacy_renderer_nodes) == 5
+		and int(report.legacy_geometry_submissions) == 5
+		and int(report.renderer_node_delta) == -4
+		and int(report.geometry_submission_delta) == -4,
+		"five immutable hazard dressing pieces share one material-bound static surface, reducing nodes and submissions 5->1"
+	)
+	var exact_parts := parts.size() == 5
+	if exact_parts:
+		var expected := [
+			[&"InspectionGantryBoom", Vector3(24.5, 5.8, 7.5), Vector3(5.0, 0.35, 0.35)],
+			[&"RoofHazardStripe", Vector3(-12.0, 4.46, 2.95), Vector3(8.0, 0.10, 0.35)],
+			[&"CrusherFeedHood", Vector3(-12.4, 2.55, 15.35), Vector3(2.2, 0.35, 1.8)],
+			[&"CraneBridge", Vector3(-12.0, 4.05, 8.0), Vector3(9.4, 0.28, 0.38)],
+			[&"CraneHook", Vector3(-10.1, 2.68, 8.0), Vector3(0.35, 0.22, 0.35)],
+		]
+		for index in expected.size():
+			var part := parts[index] as Dictionary
+			var expected_part := expected[index] as Array
+			exact_parts = exact_parts \
+				and part.id == expected_part[0] \
+				and (part.size as Vector3).is_equal_approx(expected_part[2] as Vector3) \
+				and (part.transform as Transform3D).is_equal_approx(
+					Transform3D(Basis.IDENTITY, expected_part[1] as Vector3)
+				)
+	_check(
+		exact_parts,
+		"the batched hazard surface retains every authored source id, size, and identity-basis transform"
+	)
+	var original_parts: Array = parts.duplicate(true)
+	parts[0].transform = Transform3D(Basis.IDENTITY, Vector3.ZERO)
+	renderer.set_meta("salvage_terrace_hazard_dressing_parts", parts)
+	_check(
+		not bool(module.get_hazard_dressing_batch_audit().valid)
+		and not bool(module.get_audit_report().valid),
+		"MUTATION: changing one baked hazard-part transform turns the focused and full audits red"
+	)
+	renderer.set_meta("salvage_terrace_hazard_dressing_parts", original_parts)
+	_check(
+		bool(module.get_hazard_dressing_batch_audit().valid) and bool(module.get_audit_report().valid),
+		"restoring the immutable hazard-part metadata returns the module audit green"
+	)
+
+
 func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	var performance := module.get_performance_contract()
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget) and bool(performance.exact_census), "module exactly matches every published performance count")
 	_check(
-		int(performance.mesh_instances) == 36
+		int(performance.mesh_instances) == 32
 		and int(performance.static_bodies) == 26
 		and int(performance.collision_shapes) == 26
 		and int(performance.lights) == 3
@@ -577,12 +634,12 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 		and int(performance.multimesh_instances) == 164
 		and int(performance.multimesh_drawn_copies) == 164
 		and int(performance.multimesh_buffer_floats) == 1968
-		and int(performance.geometry_submissions) == 42
+		and int(performance.geometry_submissions) == 38
 		and int(performance.visible_geometry_copies) == 200
-		and int(performance.nodes) == 112
+		and int(performance.nodes) == 108
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"exact census freezes 42 submissions, 200 authored copies, 26 bodies/shapes, 112 nodes, one label, three bounded lights, and zero loops"
+		"exact census freezes 38 submissions, 200 authored copies, 26 bodies/shapes, 108 nodes, one label, three bounded lights, and zero loops"
 	)
 	_check(
 		bool(performance.buffers_match_authored)

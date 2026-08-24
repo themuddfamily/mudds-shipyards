@@ -64,17 +64,17 @@ const ROUTE_IDS := [
 ## build rather than padded during integration, so any added submission/node
 ## turns audit red.
 const PERFORMANCE_BUDGET := {
-	"mesh_instances": 36,
+	"mesh_instances": 32,
 	"multimesh_batches": 6,
 	"multimesh_instances": 164,
-	"geometry_submissions": 42,
+	"geometry_submissions": 38,
 	"visible_geometry_copies": 200,
 	"multimesh_buffer_floats": 1968,
 	"static_bodies": 26,
 	"collision_shapes": 26,
 	"labels": 1,
 	"lights": 3,
-	"nodes": 112,
+	"nodes": 108,
 	"process_loops": 0,
 	"physics_process_loops": 0,
 }
@@ -90,6 +90,39 @@ const UNIT_BOX_BATCH_NAMES := [
 	&"RailDetailBatch",
 	&"SalvageFrameBatch",
 	&"SortingMachineryBatch",
+]
+const HAZARD_DRESSING_RENDER_NAME := &"HazardDressingBatch"
+const HAZARD_DRESSING_PARTS := [
+	{
+		"id": &"InspectionGantryBoom",
+		"position": Vector3(24.5, 5.8, 7.5),
+		"size": Vector3(5.0, 0.35, 0.35),
+		"reason": "overhead inspection boom outside capsule height",
+	},
+	{
+		"id": &"RoofHazardStripe",
+		"position": Vector3(-12.0, 4.46, 2.95),
+		"size": Vector3(8.0, 0.10, 0.35),
+		"reason": "overhead bay-edge identification stripe",
+	},
+	{
+		"id": &"CrusherFeedHood",
+		"position": Vector3(-12.4, 2.55, 15.35),
+		"size": Vector3(2.2, 0.35, 1.8),
+		"reason": "crusher hood behind aft safety rail",
+	},
+	{
+		"id": &"CraneBridge",
+		"position": Vector3(-12.0, 4.05, 8.0),
+		"size": Vector3(9.4, 0.28, 0.38),
+		"reason": "overhead salvage crane bridge above player clearance",
+	},
+	{
+		"id": &"CraneHook",
+		"position": Vector3(-10.1, 2.68, 8.0),
+		"size": Vector3(0.35, 0.22, 0.35),
+		"reason": "high suspended crane hook outside route contact",
+	},
 ]
 
 ## These four physical rails keep separate bodies, collision shapes, stable
@@ -365,7 +398,7 @@ func get_performance_contract() -> Dictionary:
 	contract["multimesh_buffer_floats"] = multimesh_buffer_floats
 	contract["batch_instance_counts"] = batch_instance_counts
 	contract["geometry_submissions"] = int(contract.mesh_instances) + multimeshes.size()
-	contract["visible_geometry_copies"] = int(contract.mesh_instances) + multimesh_drawn_copies
+	contract["visible_geometry_copies"] = _authored_mesh_copy_count() + multimesh_drawn_copies
 	contract["nodes"] = 1 + find_children("*", "", true, false).size()
 	contract["budgets"] = PERFORMANCE_BUDGET.duplicate(true)
 	contract["buffers_match_authored"] = _multimesh_contract_is_live()
@@ -374,17 +407,20 @@ func get_performance_contract() -> Dictionary:
 	var four_meter_rail_visual_sharing := get_four_meter_rail_visual_allocation_audit()
 	var sloped_rail_visual_sharing := get_sloped_rail_visual_allocation_audit()
 	var unit_box_batch_mesh_sharing := get_unit_box_batch_mesh_allocation_audit()
+	var hazard_dressing_batching := get_hazard_dressing_batch_audit()
 	contract["short_side_rail_visual_sharing"] = rail_visual_sharing
 	contract["long_rail_visual_sharing"] = long_rail_visual_sharing
 	contract["four_meter_rail_visual_sharing"] = four_meter_rail_visual_sharing
 	contract["sloped_rail_visual_sharing"] = sloped_rail_visual_sharing
 	contract["unit_box_batch_mesh_sharing"] = unit_box_batch_mesh_sharing
+	contract["hazard_dressing_batching"] = hazard_dressing_batching
 	contract["resource_sharing_matches_authored"] = (
 		bool(rail_visual_sharing.valid)
 		and bool(long_rail_visual_sharing.valid)
 		and bool(four_meter_rail_visual_sharing.valid)
 		and bool(sloped_rail_visual_sharing.valid)
 		and bool(unit_box_batch_mesh_sharing.valid)
+		and bool(hazard_dressing_batching.valid)
 	)
 	var exact_census := true
 	for key in PERFORMANCE_BUDGET:
@@ -397,6 +433,56 @@ func get_performance_contract() -> Dictionary:
 		and bool(contract.resource_sharing_matches_authored)
 	)
 	return contract
+
+
+func _authored_mesh_copy_count() -> int:
+	var copies := 0
+	for raw_mesh in find_children("*", "MeshInstance3D", true, false):
+		var mesh := raw_mesh as MeshInstance3D
+		copies += int(mesh.get_meta("authored_visible_copy_count", 1))
+	return copies
+
+
+## The combined renderer retains exact source-part size and transform metadata,
+## while eliminating four static submissions and mesh-instance nodes.
+func get_hazard_dressing_batch_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var renderer := _build_root.get_node_or_null(NodePath(HAZARD_DRESSING_RENDER_NAME)) as MeshInstance3D
+	var parts: Array = [] if renderer == null else renderer.get_meta("salvage_terrace_hazard_dressing_parts", []) as Array
+	if renderer == null or renderer.mesh == null:
+		errors.append("hazard_dressing_renderer_missing")
+	elif renderer.material_override != _materials.hazard or renderer.transform != Transform3D.IDENTITY:
+		errors.append("hazard_dressing_renderer_recipe_drift")
+	if parts.size() != HAZARD_DRESSING_PARTS.size():
+		errors.append("hazard_dressing_part_count_drift")
+	else:
+		for index in HAZARD_DRESSING_PARTS.size():
+			var expected := HAZARD_DRESSING_PARTS[index] as Dictionary
+			var actual := parts[index] as Dictionary
+			if (
+				actual.get("id", &"") != expected.id
+				or not (actual.get("size", Vector3.ZERO) as Vector3).is_equal_approx(expected.size as Vector3)
+				or not (actual.get("transform", Transform3D.IDENTITY) as Transform3D).is_equal_approx(
+					Transform3D(Basis.IDENTITY, expected.position as Vector3)
+				)
+				or actual.get("reason", "") != expected.reason
+			):
+				errors.append("hazard_dressing_part_recipe_drift")
+				break
+	if renderer != null and int(renderer.get_meta("authored_visible_copy_count", 0)) != HAZARD_DRESSING_PARTS.size():
+		errors.append("hazard_dressing_visible_copy_count_drift")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"authored_visible_copies": HAZARD_DRESSING_PARTS.size(),
+		"renderer_nodes": 1 if renderer != null else 0,
+		"geometry_submissions": 1 if renderer != null and renderer.mesh != null else 0,
+		"legacy_renderer_nodes": 5,
+		"legacy_geometry_submissions": 5,
+		"renderer_node_delta": (1 if renderer != null else 0) - 5,
+		"geometry_submission_delta": (1 if renderer != null and renderer.mesh != null else 0) - 5,
+	}.duplicate(true)
 
 
 ## Renderer-independent, component-local allocation evidence for four exact
@@ -1171,7 +1257,6 @@ func _build_batched_supports_and_dressing() -> void:
 	# outside the surface union. Its compact silhouette makes the service role read
 	# without placing furniture in any route.
 	_visual_box("InspectionGantryMast", Vector3(27.0, 3.0, 7.5), Vector3(0.45, 6.0, 0.45), _materials.frame, "outboard inspection gantry over void")
-	_visual_box("InspectionGantryBoom", Vector3(24.5, 5.8, 7.5), Vector3(5.0, 0.35, 0.35), _materials.hazard, "overhead inspection boom outside capsule height")
 	_visual_box("SuspendedSalvageClamp", Vector3(26.6, 5.0, 7.5), Vector3(0.8, 1.2, 0.8), _materials.salvage, "suspended service clamp beyond the upper terrace rail")
 
 
@@ -1217,15 +1302,12 @@ func _build_salvage_work_bay() -> void:
 	)
 
 	_visual_box("LowerBayRoof", Vector3(-12.0, 4.6, 8.0), Vector3(11.4, 0.22, 9.4), _materials.roof, "high salvage-bay roof above player clearance")
-	_visual_box("RoofHazardStripe", Vector3(-12.0, 4.46, 2.95), Vector3(8.0, 0.10, 0.35), _materials.hazard, "overhead bay-edge identification stripe")
-	_visual_box("CrusherFeedHood", Vector3(-12.4, 2.55, 15.35), Vector3(2.2, 0.35, 1.8), _materials.hazard, "crusher hood behind aft safety rail")
-	_visual_box("CraneBridge", Vector3(-12.0, 4.05, 8.0), Vector3(9.4, 0.28, 0.38), _materials.hazard, "overhead salvage crane bridge above player clearance")
 	_visual_box("CraneTrolley", Vector3(-10.1, 3.72, 8.0), Vector3(0.8, 0.55, 0.7), _materials.machine, "overhead crane trolley above player clearance")
 	_visual_box("CraneDropCable", Vector3(-10.1, 3.15, 8.0), Vector3(0.08, 0.9, 0.08), _materials.rail, "overhead crane cable outside capsule height")
-	_visual_box("CraneHook", Vector3(-10.1, 2.68, 8.0), Vector3(0.35, 0.22, 0.35), _materials.hazard, "high suspended crane hook outside route contact")
 	_visual_box("UpperInspectionConsole", Vector3(25.55, 4.25, 5.0), Vector3(0.45, 1.1, 1.8), _materials.machine, "inspection console beyond upper outboard rail")
 	_visual_box("UpperConsoleScreen", Vector3(25.28, 4.45, 5.0), Vector3(0.05, 0.55, 1.15), _materials.emissive, "emissive inspection display beyond upper outboard rail")
 	_visual_box("BayNameplate", Vector3(-12.0, 4.15, 2.76), Vector3(4.4, 0.65, 0.12), _materials.emissive, "illuminated salvage-bay nameplate above entry clearance")
+	_build_hazard_dressing_render()
 
 	_add_work_light("LowerBayWorkLight", Vector3(-12.0, 3.9, 7.0), Color("83e9df"), 1.4, 6.5)
 	_add_work_light("SortingLineWorkLight", Vector3(-12.0, 2.8, 13.0), Color("ff9b43"), 1.15, 4.5)
@@ -1377,6 +1459,43 @@ func _visual_box(
 	result.set_meta("non_walkable_reason", reason)
 	_build_root.add_child(result)
 	return result
+
+
+## These five authored hazard pieces are immutable, collision-free dressing with
+## one material. Bake their exact rounded meshes at their authored transforms
+## into one retained surface, leaving the five source meshes transient.
+func _build_hazard_dressing_render() -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var authored_parts: Array[Dictionary] = []
+	for definition_variant in HAZARD_DRESSING_PARTS:
+		var definition := definition_variant as Dictionary
+		var size := definition.size as Vector3
+		var transform := Transform3D(Basis.IDENTITY, definition.position as Vector3)
+		tool.append_from(
+			StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+				size,
+				StationSurfaceKit.proportional_bevel_for_size(size, 0.16),
+				_rounded_box_cache,
+				StationSurfaceKit.BevelUV.FACE_GRID
+			),
+			0,
+			transform
+		)
+		authored_parts.append({
+			"id": definition.id,
+			"size": size,
+			"transform": transform,
+			"reason": definition.reason,
+		})
+	var renderer := MeshInstance3D.new()
+	renderer.name = HAZARD_DRESSING_RENDER_NAME
+	renderer.mesh = tool.commit()
+	renderer.material_override = _materials.hazard
+	renderer.set_meta("non_walkable_reason", "five merged collision-free hazard dressing pieces outside every traversal corridor")
+	renderer.set_meta("salvage_terrace_hazard_dressing_parts", authored_parts)
+	renderer.set_meta("authored_visible_copy_count", authored_parts.size())
+	_build_root.add_child(renderer)
 
 
 func _create_materials() -> void:
@@ -1658,7 +1777,7 @@ func _dressing_is_batched_and_route_clear() -> bool:
 func _salvage_work_bay_is_complete() -> bool:
 	var required_nodes := PackedStringArray([
 		"SalvageFrameBatch", "SortingMachineryBatch", "LowerBayRoof",
-		"CraneBridge", "CraneTrolley", "CraneHook", "UpperInspectionConsole",
+		String(HAZARD_DRESSING_RENDER_NAME), "CraneTrolley", "UpperInspectionConsole",
 		"UpperConsoleScreen", "BayNameplate", "LowerBayWorkLight",
 		"SortingLineWorkLight", "UpperInspectionWorkLight",
 	])
