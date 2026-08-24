@@ -74,9 +74,9 @@ const CAPABILITIES := {
 	"transactional_renderer_apply": true,
 	"caller_driven_observations_only": true,
 	"tree_exit_restores_baseline": true,
-	"tree_reentry_reapplies_current_generation": true,
+	"tree_reentry_waits_for_fresh_observation": true,
 	"target_tree_exit_restores_baseline": true,
-	"target_tree_reentry_reapplies_current_generation": true,
+	"target_tree_reentry_waits_for_fresh_observation": true,
 	"direction_or_orientation_implemented": false,
 	"absolute_energy_or_lux_implemented": false,
 	"calibrated_colorimetry_implemented": false,
@@ -118,7 +118,7 @@ func _enter_tree() -> void:
 	_lifecycle_apply_active = true
 	var light := _resolve_light()
 	var values := (
-		_current_renderer_values
+		_invalidate_retained_phase_for_reentry()
 		if light != null and light.is_inside_tree()
 		else _baseline_renderer_values
 	)
@@ -482,11 +482,21 @@ func _on_target_tree_entered() -> void:
 		return
 	_lifecycle_apply_active = true
 	var values := (
-		_current_renderer_values if is_inside_tree()
+		_invalidate_retained_phase_for_reentry() if is_inside_tree()
 		else _baseline_renderer_values
 	)
 	_record_lifecycle_result(_apply_renderer_values(values))
 	_lifecycle_apply_active = false
+
+
+## A body-local observation is only authoritative for the tree lifetime in
+## which it was supplied. Re-entry may follow an orbit, landing, or on-foot
+## transition, so never briefly reapply a retained solar phase before the
+## caller supplies its next exact observation.
+func _invalidate_retained_phase_for_reentry() -> Dictionary:
+	_last_evaluation.clear()
+	_current_renderer_values = _baseline_renderer_values.duplicate(true)
+	return _current_renderer_values
 
 
 func _record_lifecycle_result(result: Dictionary) -> void:

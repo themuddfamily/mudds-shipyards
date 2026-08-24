@@ -39,9 +39,9 @@ const CAPABILITY_KEYS := [
 	"baseline_relative_light_color_hint_implemented",
 	"transactional_renderer_apply", "caller_driven_observations_only",
 	"tree_exit_restores_baseline",
-	"tree_reentry_reapplies_current_generation",
+	"tree_reentry_waits_for_fresh_observation",
 	"target_tree_exit_restores_baseline",
-	"target_tree_reentry_reapplies_current_generation",
+	"target_tree_reentry_waits_for_fresh_observation",
 	"direction_or_orientation_implemented", "absolute_energy_or_lux_implemented",
 	"calibrated_colorimetry_implemented", "shadow_or_occlusion_implemented",
 	"clock_or_ephemeris_implemented", "environment_or_sky_implemented",
@@ -409,12 +409,14 @@ func _test_adapter_and_target_lifecycle() -> void:
 	_host.add_child(_adapter)
 	await process_frame
 	var adapter_reentry_values := _renderer_values(_light)
+	var adapter_reentry_state := _adapter.get_state_snapshot()
 	var live_night := _adapter.present_observation(_observation(Vector3.DOWN), 1)
 	_check(
-		adapter_reentry_values == day_values
+		adapter_reentry_values == _adapter.get_renderer_snapshot().baseline
+		and not bool(adapter_reentry_state.has_presented_observation)
 		and live_night.accepted and _light.light_energy == 0.0
 		and bool(_adapter.get_renderer_snapshot().current_values_applied),
-		"adapter re-entry restores only the last live state before a fresh observation updates it"
+		"adapter re-entry clears retained phase and waits at the authored baseline for a fresh observation"
 	)
 	_host.remove_child(_light)
 	await process_frame
@@ -444,12 +446,14 @@ func _test_adapter_and_target_lifecycle() -> void:
 	_host.add_child(_light)
 	await process_frame
 	var target_reentry_values := _renderer_values(_light)
+	var target_reentry_state := _adapter.get_state_snapshot()
 	var fresh_day := _adapter.present_observation(_observation(Vector3.UP), 1)
 	_check(
-		target_reentry_values.light_energy == 0.0
+		target_reentry_values == _adapter.get_renderer_snapshot().baseline
+		and not bool(target_reentry_state.has_presented_observation)
 		and fresh_day.accepted and _renderer_values(_light) == day_values
 		and bool(_adapter.audit().valid),
-		"target re-entry restores only the last live state before a fresh observation updates it"
+		"target re-entry clears retained phase and waits at the authored baseline for a fresh observation"
 	)
 
 
@@ -732,9 +736,9 @@ func _exact_capabilities(value: Variant) -> bool:
 		and bool(capabilities.transactional_renderer_apply) \
 		and bool(capabilities.caller_driven_observations_only) \
 		and bool(capabilities.tree_exit_restores_baseline) \
-		and bool(capabilities.tree_reentry_reapplies_current_generation) \
+		and bool(capabilities.tree_reentry_waits_for_fresh_observation) \
 		and bool(capabilities.target_tree_exit_restores_baseline) \
-		and bool(capabilities.target_tree_reentry_reapplies_current_generation) \
+		and bool(capabilities.target_tree_reentry_waits_for_fresh_observation) \
 		and not bool(capabilities.direction_or_orientation_implemented) \
 		and not bool(capabilities.absolute_energy_or_lux_implemented) \
 		and not bool(capabilities.calibrated_colorimetry_implemented) \
