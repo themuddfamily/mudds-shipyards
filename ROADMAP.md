@@ -619,6 +619,32 @@ Native gameplay-distance visual review, real audio listening, representative Win
 performance measurement, uninterrupted end-to-end playthrough and repeated planetary
 loop endurance remain `NOT_RUN`.
 
+### Wave 26 production reconciliation checkpoint — 2026-08-24
+
+This source checkpoint records changes a player can exercise in the next package:
+
+- The packaged pilot mesh now tolerates Windows decoder-level normal/tangent variance
+  without replacing a valid skinned pilot with the safe fallback. Geometry, UVs, rig,
+  skin, materials and animations retain their exact production contracts.
+- Cinder patrols now fail and recover explicitly when their active craft exits, is freed,
+  or reports a non-finite transform; detach/re-entry publishes one terminal result and
+  legacy callers retain their existing start/advance behavior. Skirmishers also gain a
+  bounded rear-cross tactic, and successful patrols publish their semantic audio cue.
+- Player-facing route and landmark readability was strengthened across Ember Moon, Fleet
+  Dock and its expansion berths, Aft Operations, Upper Operations, Habitat, Fabrication,
+  Observation, VIP reception, Central/Jovian berths, Salvage Terrace, Cinder extraction,
+  station defence, the activity console and the exterior target range. The Aft cyan route
+  now reaches the live stair base without clipping the Operations Access post, and range
+  acquisition frames remain approach-facing while their targets rotate.
+- Arrow, Bulwark, Zenith, Halyard, Cinder bomber/hauler/interceptor and station-service
+  silhouettes gained bounded recognition cues. Structural, service-agent and Jovian berth
+  presentation also share immutable meshes where authored copies are identical; these are
+  local allocation facts, not native driver performance claims.
+
+Focused affected-feature suites pass at the merged checkpoint. The full matrix was not run.
+Human gameplay-distance visual review, real audio listening, representative Windows GPU and
+frame-time measurement, and an uninterrupted end-to-end playthrough remain `NOT_RUN`.
+
 ## Phase 1 — Research
 
 ### Design and implementation specification
