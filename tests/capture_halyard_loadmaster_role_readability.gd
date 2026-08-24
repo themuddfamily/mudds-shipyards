@@ -53,7 +53,8 @@ func _run() -> void:
 	var aisle_direction := anchor.global_basis.orthonormalized() * Vector3(0.0, 0.0, 1.0)
 	camera.global_position = plaque_position + aisle_direction \
 			* HalyardCrewTransport.LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M \
-			+ Vector3(1.30, -0.48, 0.0)
+			+ Vector3(0.52, 0.0, 0.0)
+	camera.global_position.y = anchor.global_position.y + 1.60
 	camera.look_at(plaque_position, Vector3.UP)
 
 	for _frame in 10:

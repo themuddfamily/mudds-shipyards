@@ -64,7 +64,9 @@ const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 const LOADMASTER_WAYFINDING_READABILITY_DISTANCE_M := 4.5
 const LOADMASTER_WAYFINDING_PANEL_SIZE := Vector3(1.46, 0.78, 0.04)
 const LOADMASTER_WAYFINDING_ROLE_KEY_SIZE := Vector3(0.14, 0.78, 0.055)
-const LOADMASTER_WAYFINDING_LOCAL_OFFSET := Vector3(0.0, 2.08, 0.42)
+const LOADMASTER_WAYFINDING_LOCAL_OFFSET := Vector3(0.30, 2.05, 0.66)
+const LOADMASTER_WAYFINDING_TEXT_OFFSET := Vector3(0.10, 0.0, 0.034)
+const LOADMASTER_WAYFINDING_ROLE_KEY_OFFSET := Vector3(-0.66, 0.0, 0.012)
 const ENGINEER_POWER_ROUTE_BONUS := 0.15
 const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
 const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
@@ -761,7 +763,7 @@ func _position_loadmaster_station_display() -> void:
 	var plaque_position := anchor.global_position \
 			+ plaque_basis * LOADMASTER_WAYFINDING_LOCAL_OFFSET
 	_loadmaster_station_sign.global_position = plaque_position \
-			+ plaque_basis * Vector3(0.04, 0.0, 0.034)
+			+ plaque_basis * LOADMASTER_WAYFINDING_TEXT_OFFSET
 	_loadmaster_station_sign.global_rotation = anchor.global_rotation
 	_loadmaster_station_sign.visible = true
 	if is_instance_valid(_loadmaster_wayfinding_panel):
@@ -773,7 +775,7 @@ func _position_loadmaster_station_display() -> void:
 	if is_instance_valid(_loadmaster_wayfinding_role_key):
 		_loadmaster_wayfinding_role_key.global_transform = Transform3D(
 			plaque_basis,
-			plaque_position + plaque_basis * Vector3(-0.66, 0.0, 0.012)
+			plaque_position + plaque_basis * LOADMASTER_WAYFINDING_ROLE_KEY_OFFSET
 		)
 		_loadmaster_wayfinding_role_key.visible = true
 
@@ -813,7 +815,7 @@ func _present_loadmaster_station_snapshot(source: Variant) -> void:
 	}.duplicate(true)
 	if is_instance_valid(_loadmaster_station_sign):
 		_loadmaster_station_sign.text = (
-			"LOADMASTER // CARGO\n[%s]\nMANIFEST %s\nROUTE %s"
+			"LOADMASTER\n[%s]\nMANIFEST %s\nROUTE %s"
 			% [str(state).to_upper(), str(manifest_id) if not manifest_id.is_empty() else "--", str(route_id) if not route_id.is_empty() else "--"]
 		)
 		_position_loadmaster_station_display()
@@ -839,7 +841,7 @@ func _clear_loadmaster_station_display(reason: StringName) -> void:
 		"helm_authority": false,
 	}.duplicate(true)
 	if is_instance_valid(_loadmaster_station_sign):
-		_loadmaster_station_sign.text = "LOADMASTER // CARGO\n[STANDBY]\nMANIFEST --\nROUTE --"
+		_loadmaster_station_sign.text = "LOADMASTER\n[STANDBY]\nMANIFEST --\nROUTE --"
 		_loadmaster_station_sign.visible = is_inside_tree()
 
 
