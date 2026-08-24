@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_content_and_authority_contract(host)
 	_test_cargo_pod_visual_allocation(host)
 	await _test_movement_proximity_and_safe_arrival(host)
+	await _test_actor_loss_recovery()
 	await _test_loss_reset_and_reentry(host)
 	host.queue_free()
 	await process_frame
@@ -569,6 +570,48 @@ func _test_loss_reset_and_reentry(host: CinderConvoyEscortHost) -> void:
 		and queued_events == 0,
 		"a queued convoy host rejects every public mutation before state or presentation publication"
 	)
+
+
+func _test_actor_loss_recovery() -> void:
+	var host := HostScript.new() as CinderConvoyEscortHost
+	root.add_child(host)
+	await process_frame
+	var restarted := host.start(0)
+	var loss_generation := host.get_generation()
+	var start_position := restarted.get("entity_position") as Vector3
+	var first_tick := host.advance_physics(0.5, start_position, loss_generation)
+	var position_before_loss := host.get_snapshot().get("entity_position") as Vector3
+	var lost_entity := host.get_node_or_null(^"EmberlineSupplyTender") as Node3D
+	lost_entity.queue_free()
+	await process_frame
+	var actor_loss := host.advance_physics(
+		0.5,
+		position_before_loss,
+		loss_generation
+	)
+	var terminal := host.get_snapshot()
+	var reset_after_loss := host.reset(loss_generation)
+	var reset_entity := host.get_node_or_null(^"EmberlineSupplyTender") as Node3D
+	var restarted_after_loss := host.start(host.get_generation())
+	_check(
+		bool(first_tick.get("accepted", false))
+		and actor_loss.get("reason") == &"convoy_actor_lost"
+		and actor_loss.get("activity", {}).get("state_id") == &"failed"
+		and actor_loss.get("activity", {}).get("terminal_result_id") == &"convoy_lost"
+		and actor_loss.get("entity_status_id") == &"lost"
+		and not bool(actor_loss.get("entity_available", true))
+		and actor_loss.get("last_entity_position") == position_before_loss
+		and terminal.get("activity", {}).get("convoy_position") == position_before_loss
+		and bool(reset_after_loss.get("accepted", false))
+		and reset_entity != null
+		and bool(reset_after_loss.get("entity_available", false))
+		and reset_after_loss.get("entity_position") == ROUTE.get_checkpoint_position(0)
+		and bool(restarted_after_loss.get("accepted", false))
+		and restarted_after_loss.get("activity", {}).get("state_id") == &"active",
+		"a vanished tender terminalizes from its last authoritative sample, then reset and start rebuild one fresh recoverable escort"
+	)
+	host.queue_free()
+	await process_frame
 
 
 func _check(condition: bool, message: String) -> void:

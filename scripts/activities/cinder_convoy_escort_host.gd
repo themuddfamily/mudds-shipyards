@@ -81,6 +81,7 @@ var _physics_tick_count := 0
 var _sample_publication_count := 0
 var _has_escort_sample := false
 var _last_escort_position := Vector3.ZERO
+var _last_entity_position := Vector3.ZERO
 var _mutation_active := false
 var _signal_dispatch_active := false
 var _terminal_signal_generation := -1
@@ -124,6 +125,7 @@ func start(expected_generation: int) -> Dictionary:
 		return _finish(false, &"invalid_configuration")
 	if _activity.get_state() != ConvoyEscortActivity.State.IDLE:
 		return _finish(false, &"reset_required")
+	_restore_missing_convoy_entity()
 
 	var candidate_entity_generation := _entity_generation + 1
 	var started := _activity.start(
@@ -167,6 +169,8 @@ func advance_physics(
 	var rejection := _running_rejection(expected_generation)
 	if not rejection.is_empty():
 		return _finish(false, rejection)
+	if not _has_live_convoy_entity():
+		return _finish_actor_loss(expected_generation)
 	if not is_finite(delta) or delta < 0.0:
 		return _finish(false, &"invalid_delta")
 	if not WorldLocationDefinition._is_finite_vector(escort_position):
@@ -289,6 +293,8 @@ func report_convoy_lost(expected_generation: int) -> Dictionary:
 	var rejection := _running_rejection(expected_generation)
 	if not rejection.is_empty():
 		return _finish(false, rejection)
+	if not _has_live_convoy_entity():
+		return _finish_actor_loss(expected_generation)
 	var escort_position := (
 		_last_escort_position if _has_escort_sample else _convoy_entity.position
 	)
@@ -318,6 +324,7 @@ func reset(expected_generation: int) -> Dictionary:
 	var rejection := _common_mutation_rejection(expected_generation)
 	if not rejection.is_empty():
 		return _finish(false, rejection)
+	_restore_missing_convoy_entity()
 	var reset_result := _activity.reset(expected_generation)
 	if not bool(reset_result.get("accepted", false)):
 		return _finish(
@@ -403,6 +410,8 @@ func get_snapshot() -> Dictionary:
 		"entity_status_id": ConvoyEscortActivity._entity_status_id(_entity_status),
 		"entity_position": entity_position,
 		"entity_visible": _convoy_entity.visible if is_instance_valid(_convoy_entity) else false,
+		"entity_available": _has_live_convoy_entity(),
+		"last_entity_position": _last_entity_position,
 		"next_route_index": _next_route_index,
 		"movement_speed": _movement_speed,
 		"movement_distance": _movement_distance,
@@ -766,13 +775,7 @@ func _build_content() -> void:
 	)
 	_activity.name = "ConvoyEscortActivity"
 	add_child(_activity)
-	_convoy_entity = Node3D.new()
-	_convoy_entity.name = "EmberlineSupplyTender"
-	_convoy_entity.set_meta(&"convoy_entity", true)
-	_convoy_entity.set_meta(&"content_class", CONTENT_CLASS)
-	_convoy_entity.set_meta(&"evidence_status", EVIDENCE_STATUS)
-	add_child(_convoy_entity)
-	_build_entity_visuals()
+	_restore_missing_convoy_entity()
 	_set_entity_position(ROUTE.get_checkpoint_position(0))
 	_orient_toward_route_index(1)
 	_built = true
@@ -1025,9 +1028,59 @@ func _sync_next_route_index() -> void:
 
 
 func _set_entity_position(value: Vector3) -> void:
+	_last_entity_position = value
+	if not _has_live_convoy_entity():
+		return
 	var transform := _convoy_entity.transform
 	transform.origin = value
 	_convoy_entity.transform = transform
+
+
+func _has_live_convoy_entity() -> bool:
+	return (
+		is_instance_valid(_convoy_entity)
+		and not _convoy_entity.is_queued_for_deletion()
+		and _convoy_entity.get_parent() == self
+	)
+
+
+## Actor removal is terminal rather than an implicit respawn. The activity keeps
+## its own generation-safe lifecycle authority, so the normal reset/start path
+## is the sole bounded recovery route for a fresh tender incarnation.
+func _finish_actor_loss(expected_generation: int) -> Dictionary:
+	var escort_position := (
+		_last_escort_position if _has_escort_sample else _last_entity_position
+	)
+	var lost := _activity.submit_entity_sample(
+		CONVOY_ID,
+		_entity_generation,
+		_last_entity_position,
+		escort_position,
+		ConvoyEscortActivity.EntityStatus.LOST,
+		expected_generation
+	)
+	if not bool(lost.get("accepted", false)):
+		return _finish(false, &"actor_loss_publication_rejected")
+	_sample_publication_count += 1
+	_entity_status = ConvoyEscortActivity.EntityStatus.LOST
+	var result := _finish(true, &"convoy_actor_lost")
+	_emit_terminal_once()
+	_emit_snapshot(presentation_changed)
+	return result
+
+
+func _restore_missing_convoy_entity() -> void:
+	if _has_live_convoy_entity():
+		return
+	if is_instance_valid(_convoy_entity) and _convoy_entity.get_parent() == self:
+		remove_child(_convoy_entity)
+	_convoy_entity = Node3D.new()
+	_convoy_entity.name = "EmberlineSupplyTender"
+	_convoy_entity.set_meta(&"convoy_entity", true)
+	_convoy_entity.set_meta(&"content_class", CONTENT_CLASS)
+	_convoy_entity.set_meta(&"evidence_status", EVIDENCE_STATUS)
+	add_child(_convoy_entity)
+	_build_entity_visuals()
 
 
 func _orient_toward_route_index(index: int) -> void:
