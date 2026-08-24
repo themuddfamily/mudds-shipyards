@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 57
+const EXPECTED_ASSERTIONS := 58
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -333,6 +333,9 @@ func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
 	var gantry := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonVisual"
 	) as MeshInstance3D
+	var gantry_sensor := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual"
+	) as MeshInstance3D
 	var bunker_door := scene.get_node(
 		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorVisual"
 	) as MeshInstance3D
@@ -340,6 +343,7 @@ func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
 	var pad_material := pad.material_override as StandardMaterial3D
 	var route_material := route.material_override as StandardMaterial3D
 	var gantry_material := gantry.material_override as StandardMaterial3D
+	var gantry_sensor_material := gantry_sensor.material_override as StandardMaterial3D
 	var service_material := bunker_door.material_override as StandardMaterial3D
 	var panel_path := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
 	_check(
@@ -363,6 +367,17 @@ func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
 			and service_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.36)
 			and is_equal_approx(service_material.clearcoat, StationSurfaceKit.PAINTED_CLEARCOAT),
 		"the pad-to-egress-to-bunker route has distinct basalt, walked grip, structural metal, and painted service responses",
+	)
+	_check(
+		gantry_sensor_material.albedo_color.is_equal_approx(Color("c66a3d"))
+			and service_material.albedo_color.is_equal_approx(Color("d99253"))
+			and not gantry_sensor_material.emission_enabled
+			and not service_material.emission_enabled
+			and gantry_sensor_material.albedo_color.get_luminance()
+				> gantry_material.albedo_color.get_luminance()
+			and service_material.albedo_color.get_luminance()
+				> gantry_material.albedo_color.get_luminance(),
+		"existing gantry and bunker landmarks gain brighter non-emissive access accents without a light or flash cue",
 	)
 
 

@@ -119,9 +119,13 @@ const GUIDE_COLOR := Color("71d9da")
 const EQUIPMENT_COLOR := Color("4f4942")
 const RELAY_COLOR := Color("e1a458")
 const DERELICT_ALLOY_COLOR := Color("353a38")
-const DERELICT_OXIDE_COLOR := Color("8c462c")
+## Existing interaction-facing accents are deliberately brighter than the
+## surrounding oxidised alloy. They distinguish the elevated gantry head and
+## bunker access face at landing/on-foot distance without adding an emissive
+## cue, light, motion, or another rendered primitive.
+const DERELICT_OXIDE_COLOR := Color("c66a3d")
 const BUNKER_SHELL_COLOR := Color("6f5946")
-const BUNKER_DOOR_COLOR := Color("bd7547")
+const BUNKER_DOOR_COLOR := Color("d99253")
 
 # The terrain stays mineral and fully rough. Manufactured surfaces reuse the
 # registered production panel maps at role-specific metric scales, so the broad
@@ -443,6 +447,14 @@ func _configure_surface_material_hierarchy() -> void:
 			_material_at(path), SERVICE_PANEL_SCALE, SERVICE_METALLIC, SERVICE_ROUGHNESS,
 			StationSurfaceKit.PanelFinish.PAINTED_METAL,
 		)
+	_configure_landmark_accent_material(
+		_material_at(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual"),
+		DERELICT_OXIDE_COLOR,
+	)
+	_configure_landmark_accent_material(
+		_material_at(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorVisual"),
+		BUNKER_DOOR_COLOR,
+	)
 
 
 func _material_at(path: NodePath) -> StandardMaterial3D:
@@ -471,6 +483,18 @@ static func _configure_panel_material(
 	if StationSurfaceKit.apply_panel_triplanar(material, uv_scale, finish):
 		material.metallic = metallic
 		material.roughness = roughness
+
+
+## Accent colour is authored on two already-solid landmark surfaces only. The
+## material remains fully lit and non-emissive, so the airless sun evaluation
+## continues to own all illumination and accessibility cadence.
+static func _configure_landmark_accent_material(
+		material: StandardMaterial3D, accent_color: Color,
+	) -> void:
+	if material == null:
+		return
+	material.albedo_color = accent_color
+	material.emission_enabled = false
 
 
 static func _surface_material_is_exact(
