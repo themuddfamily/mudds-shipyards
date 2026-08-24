@@ -77,16 +77,16 @@ const MAX_PENDING_LANCE_RECEIPTS := 8
 
 # Component-local static presentation budget. The old build allocated one
 # BoxMesh for each of fourteen box nodes. Five mirrored recipes are immutable
-# and exact duplicates, so the cache reduces only retained mesh resources:
-# nodes, visible copies, surfaces/submissions, materials and transforms stay put.
+# exact duplicates, so the cache retains one mesh per recipe; the broad static
+# radiator pair also shares one renderer submission without changing its copies.
 const BASELINE_PRESENTATION_VISUAL_NODE_COUNT := 33
-const PRESENTATION_VISUAL_NODE_COUNT := 30
+const PRESENTATION_VISUAL_NODE_COUNT := 29
 const BASELINE_PRESENTATION_MESH_INSTANCE_COUNT := 31
-const PRESENTATION_MESH_INSTANCE_COUNT := 25
-const PRESENTATION_RENDERER_NODE_COUNT := 28
+const PRESENTATION_MESH_INSTANCE_COUNT := 23
+const PRESENTATION_RENDERER_NODE_COUNT := 27
 const PRESENTATION_VISIBLE_GEOMETRY_COPY_COUNT := 31
 const BASELINE_PRESENTATION_SURFACE_SUBMISSION_COUNT := 31
-const PRESENTATION_SURFACE_SUBMISSION_COUNT := 28
+const PRESENTATION_SURFACE_SUBMISSION_COUNT := 27
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 27
 const PRESENTATION_MESH_RESOURCE_COUNT := 22
@@ -94,10 +94,11 @@ const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 14
 const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 9
 const PRESENTATION_BOX_INSTANCE_COUNT := 14
 const PRESENTATION_SHARED_BOX_FAMILY_COUNT := 5
-const PRESENTATION_MULTIMESH_BATCH_COUNT := 3
+const PRESENTATION_MULTIMESH_BATCH_COUNT := 4
 const ENGINE_POD_COPY_COUNT := 2
 const ENGINE_CORE_COPY_COUNT := 2
 const LANCE_RAIL_COPY_COUNT := 2
+const RADIATOR_VANE_COPY_COUNT := 2
 
 const CONTENT_NOTE := (
 	"The picket silhouette, palette, lance telegraph, standoff band, minimum arming "
@@ -398,6 +399,9 @@ func get_presentation_performance_contract() -> Dictionary:
 				var visible_count := multi.visible_instance_count
 				visible_geometry_copies += multi.instance_count if visible_count < 0 else visible_count
 				mesh_resources[multi.mesh.get_instance_id()] = true
+				if multi.mesh is BoxMesh:
+					box_instances += multi.instance_count if visible_count < 0 else visible_count
+					box_mesh_resources[multi.mesh.get_instance_id()] = true
 				submissions += multi.mesh.get_surface_count()
 				for surface_index in multi.mesh.get_surface_count():
 					var batch_material := multi.mesh.surface_get_material(surface_index)
@@ -1385,10 +1389,10 @@ func _build_interceptor() -> void:
 	_warning_lenses.append(spine_lens)
 	_add_engine_pod_batch(_visual_root)
 	_add_engine_core_batch(_visual_root)
+	_add_radiator_vane_batch(_visual_root)
 
 	for side in [-1.0, 1.0]:
 		# Swept radiator vanes replace the defender's forward prongs entirely.
-		_picket_box(_visual_root, "RadiatorVane", Vector3(side * 2.3, 0.12, 2.9), Vector3(3.7, 0.16, 3.1), _materials.picket_bone, Vector3(0.0, side * 0.46, side * -0.12))
 		_picket_box(_visual_root, "VaneSpar", Vector3(side * 1.15, 0.05, 2.3), Vector3(1.9, 0.28, 0.6), _materials.picket_slate, Vector3(0.0, side * 0.46, 0.0))
 		_picket_box(_visual_root, "VaneStripe", Vector3(side * 2.9, 0.22, 3.5), Vector3(2.1, 0.06, 0.24), _materials.picket_magenta, Vector3(0.0, side * 0.46, 0.0))
 		_picket_box(_visual_root, "VaneTipFin", Vector3(side * 3.85, 0.5, 4.0), Vector3(0.18, 1.0, 1.5), _materials.picket_bone, Vector3(0.0, side * 0.24, side * -0.2))
@@ -1530,6 +1534,38 @@ func _add_lance_rail_batch(parent: Node3D) -> MultiMeshInstance3D:
 	return batch
 
 
+## The broad mirrored radiator shells are immutable silhouette geometry. Their
+## collision remains in the independently authored vane CollisionShape3Ds, so
+## batching only the visible pair cannot affect movement or hit resolution.
+func _add_radiator_vane_batch(parent: Node3D) -> MultiMeshInstance3D:
+	var mesh := _picket_box_mesh(Vector3(3.7, 0.16, 3.1), _materials.picket_bone)
+	var transforms: Array[Transform3D] = [
+		Transform3D(Basis.from_euler(Vector3(0.0, -0.46, 0.12)), Vector3(-2.3, 0.12, 2.9)),
+		Transform3D(Basis.from_euler(Vector3(0.0, 0.46, -0.12)), Vector3(2.3, 0.12, 2.9)),
+	]
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = RADIATOR_VANE_COPY_COUNT
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	for index in RADIATOR_VANE_COPY_COUNT:
+		multi.set_instance_transform(index, transforms[index])
+		var instance_bounds := (transforms[index] * mesh.get_aabb()).abs()
+		bounds = instance_bounds if index == 0 else bounds.merge(instance_bounds)
+	multi.custom_aabb = bounds
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "RadiatorVaneBatch"
+	batch.multimesh = multi
+	batch.layers = 1
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	batch.set_meta(&"presentation_only", true)
+	batch.set_meta(&"authored_visual_names", PackedStringArray(["PortRadiatorVane", "StarboardRadiatorVane"]))
+	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	parent.add_child(batch)
+	return batch
+
+
 ## Component-owned immutable primitive cache. Size and bound surface material
 ## form the complete BoxMesh recipe; transforms and names remain per-node.
 func _picket_box(
@@ -1544,6 +1580,12 @@ func _picket_box(
 	instance.name = node_name
 	instance.position = position_value
 	instance.rotation = rotation_value
+	instance.mesh = _picket_box_mesh(size, material)
+	parent.add_child(instance)
+	return instance
+
+
+func _picket_box_mesh(size: Vector3, material: Material) -> BoxMesh:
 	var cache_key := "box:%0.4f:%0.4f:%0.4f:%d" % [
 		size.x,
 		size.y,
@@ -1556,9 +1598,7 @@ func _picket_box(
 		mesh.size = size
 		mesh.material = material
 		_picket_box_mesh_cache[cache_key] = mesh
-	instance.mesh = mesh
-	parent.add_child(instance)
-	return instance
+	return mesh
 
 
 func _build_collision() -> void:

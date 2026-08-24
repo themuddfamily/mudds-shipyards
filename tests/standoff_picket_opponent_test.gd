@@ -127,13 +127,13 @@ func _test_contract_and_evidence() -> void:
 		bool(performance.valid)
 		and bool(performance.headless_safe)
 		and int(performance.baseline_visual_nodes) == 33
-		and int(performance.visual_nodes) == 30
+		and int(performance.visual_nodes) == 29
 		and int(performance.baseline_mesh_instances) == 31
-		and int(performance.mesh_instances) == 25
-		and int(performance.renderer_nodes) == 28
+		and int(performance.mesh_instances) == 23
+		and int(performance.renderer_nodes) == 27
 		and int(performance.visible_geometry_copies) == 31
 		and int(performance.baseline_surface_submissions) == 31
-		and int(performance.surface_submissions) == 28
+		and int(performance.surface_submissions) == 27
 		and int(performance.baseline_mesh_resources) == 27
 		and int(performance.mesh_resources) == 22
 		and int(performance.mesh_resource_delta) == -5
@@ -142,8 +142,8 @@ func _test_contract_and_evidence() -> void:
 		and int(performance.box_instances) == 14
 		and int(performance.shared_box_families) == 5
 		and int(performance.material_resources) == 8
-		and int(performance.multimesh_batches) == 3,
-		"the three safe batches preserve 31 visible copies while renderer nodes/submissions fall 31 -> 28"
+		and int(performance.multimesh_batches) == 4,
+		"the four safe batches preserve 31 visible copies while renderer nodes/submissions fall 31 -> 27"
 	)
 
 	var engine_pods := visual.get_node_or_null("EnginePodBatch") as MultiMeshInstance3D \
@@ -257,6 +257,41 @@ func _test_contract_and_evidence() -> void:
 		"lance-rail batching preserves exact transforms, authored identities, bounds, material, culling and shadows"
 	)
 
+	var radiator_vanes := visual.get_node_or_null("RadiatorVaneBatch") as MultiMeshInstance3D \
+		if visual != null else null
+	var vane_multi := radiator_vanes.multimesh if radiator_vanes != null else null
+	var vane_transforms: Array = radiator_vanes.get_meta(&"authored_instance_transforms", []) as Array \
+		if radiator_vanes != null else []
+	var vane_names := radiator_vanes.get_meta(&"authored_visual_names", PackedStringArray()) as PackedStringArray \
+		if radiator_vanes != null else PackedStringArray()
+	var expected_vane_transforms: Array[Transform3D] = [
+		Transform3D(Basis.from_euler(Vector3(0.0, -0.46, 0.12)), Vector3(-2.3, 0.12, 2.9)),
+		Transform3D(Basis.from_euler(Vector3(0.0, 0.46, -0.12)), Vector3(2.3, 0.12, 2.9)),
+	]
+	var expected_vane_bounds := AABB()
+	if vane_multi != null and vane_multi.mesh != null:
+		for index in expected_vane_transforms.size():
+			var instance_bounds := (expected_vane_transforms[index] * vane_multi.mesh.get_aabb()).abs()
+			expected_vane_bounds = instance_bounds if index == 0 else expected_vane_bounds.merge(instance_bounds)
+	var vane_mesh := vane_multi.mesh as BoxMesh if vane_multi != null else null
+	_check(
+		vane_multi != null
+		and vane_multi.transform_format == MultiMesh.TRANSFORM_3D
+		and vane_multi.instance_count == 2
+		and vane_multi.visible_instance_count == -1
+		and vane_mesh != null
+		and vane_mesh.size.is_equal_approx(Vector3(3.7, 0.16, 3.1))
+		and vane_mesh.material == picket._materials.picket_bone
+		and vane_transforms == expected_vane_transforms
+		and vane_names == PackedStringArray(["PortRadiatorVane", "StarboardRadiatorVane"])
+		and vane_multi.custom_aabb.is_equal_approx(expected_vane_bounds)
+		and radiator_vanes.layers == 1
+		and radiator_vanes.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(radiator_vanes.extra_cull_margin)
+		and bool(radiator_vanes.get_meta(&"presentation_only", false)),
+		"radiator-vane batching preserves exact silhouette transforms, material, bounds, culling and shadows"
+	)
+
 	var pair_specs: Array[Dictionary] = [
 		{
 			"port_position": Vector3(-0.64, 0.2, 1.2),
@@ -264,13 +299,6 @@ func _test_contract_and_evidence() -> void:
 			"size": Vector3(0.06, 0.16, 6.6),
 			"port_rotation": Vector3.ZERO,
 			"starboard_rotation": Vector3.ZERO,
-		},
-		{
-			"port_position": Vector3(-2.3, 0.12, 2.9),
-			"starboard_position": Vector3(2.3, 0.12, 2.9),
-			"size": Vector3(3.7, 0.16, 3.1),
-			"port_rotation": Vector3(0.0, -0.46, 0.12),
-			"starboard_rotation": Vector3(0.0, 0.46, -0.12),
 		},
 		{
 			"port_position": Vector3(-1.15, 0.05, 2.3),
@@ -314,7 +342,7 @@ func _test_contract_and_evidence() -> void:
 		)
 	_check(
 		exact_shared_pairs,
-		"all five shared recipes retain their exact authored transforms, sizes, bound materials and shadow policy"
+		"the four retained per-node shared recipes preserve exact transforms, sizes, materials and shadows"
 	)
 
 	var spine_collision := picket.get_node_or_null("SpineCollision") as CollisionShape3D
