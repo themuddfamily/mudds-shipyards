@@ -108,6 +108,7 @@ const WORK_BENCH_POSITIONS := [
 ]
 const WORK_BENCH_BATCH_KEY := "structure:1.000:0.900:3.000"
 const MATERIAL_RACK_SIZE := Vector3(0.8, 2.2, 2.4)
+const GUARDRAIL_RENDER_NAME := &"GuardrailRenderBatch"
 const ENTRY_THRESHOLD_MARK_SIZE := Vector3(4.72, 0.027, 0.09)
 const ENTRY_THRESHOLD_MARK_POSITIONS := [
 	Vector3(0.0, 0.02, 4.18),
@@ -167,32 +168,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 3,
-	"multi_mesh_instances": 32,
-	"geometry_instances": 35,
+	"mesh_instances": 4,
+	"multi_mesh_instances": 29,
+	"geometry_instances": 33,
 	"visible_geometry_copies": 211,
-	"multi_mesh_drawn_copies": 191,
+	"multi_mesh_drawn_copies": 140,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 8,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 123,
+	"nodes": 121,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 3,
-	"multi_mesh_instances": 32,
-	"geometry_instances": 35,
+	"mesh_instances": 4,
+	"multi_mesh_instances": 29,
+	"geometry_instances": 33,
 	"visible_geometry_copies": 212,
-	"multi_mesh_drawn_copies": 192,
+	"multi_mesh_drawn_copies": 140,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 8,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 125,
+	"nodes": 123,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -209,6 +210,7 @@ var _mesh_cache: Dictionary = {}
 var _mesh_batches: Dictionary = {}
 var _authored_batch_transforms: Dictionary = {}
 var _name_counters: Dictionary = {}
+var _guardrail_render_parts: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -228,6 +230,7 @@ func _build_once() -> void:
 	_build_routes()
 	_build_floor()
 	_build_guardrails()
+	_add_combined_guardrail_render()
 	_build_work_bays()
 	_build_structure_and_dressing()
 	_build_lighting()
@@ -400,7 +403,11 @@ func _add_rail_run(at: Vector3, collider_size: Vector3) -> StaticBody3D:
 	var horizontal := collider_size.x > collider_size.z
 	var rail_size := Vector3(collider_size.x, 0.1, collider_size.z)
 	for y in [0.55, 1.1]:
-		_add_mesh("Rail", rail_size, Vector3(at.x, y, at.z), &"rail")
+		_guardrail_render_parts.append({
+			"label": &"rail",
+			"size": rail_size,
+			"transform": Transform3D(Basis.IDENTITY, Vector3(at.x, y, at.z)),
+		})
 	var length := collider_size.x if horizontal else collider_size.z
 	var count := int(floor(length / 2.0))
 	for index in count + 1:
@@ -410,8 +417,34 @@ func _add_rail_run(at: Vector3, collider_size: Vector3) -> StaticBody3D:
 			position.x += offset
 		else:
 			position.z += offset
-		_add_mesh("RailPost", Vector3(0.12, 1.2, 0.12), Vector3(position.x, 0.6, position.z), &"rail")
+		_guardrail_render_parts.append({
+			"label": &"post",
+			"size": Vector3(0.12, 1.2, 0.12),
+			"transform": Transform3D(Basis.IDENTITY, Vector3(position.x, 0.6, position.z)),
+		})
 	return collider
+
+
+func _add_combined_guardrail_render() -> void:
+	# Every visible rail and post is immutable, collisionless dressing with one
+	# shared metal-trim finish. Their seven conservative collision bodies remain
+	# independently named and shaped; only the presentation is baked into one
+	# surface, avoiding room-wide transform buffers for four size families.
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for part in _guardrail_render_parts:
+		tool.append_from(
+			StationSurfaceKit.rounded_box_mesh(part.size as Vector3),
+			0,
+			part.transform as Transform3D
+		)
+	var renderer := MeshInstance3D.new()
+	renderer.name = GUARDRAIL_RENDER_NAME
+	renderer.mesh = tool.commit()
+	renderer.material_override = _materials[&"rail"]
+	renderer.set_meta(&"fabrication_guardrail_render_parts", _guardrail_render_parts.duplicate(true))
+	renderer.set_meta(&"authored_visible_copy_count", _guardrail_render_parts.size())
+	_build_root.add_child(renderer)
 
 
 func _add_collision_only(label: String, size: Vector3, at: Vector3) -> StaticBody3D:
@@ -1381,6 +1414,99 @@ func get_work_bench_render_optimization_contract() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_guardrail_render_optimization_contract() -> Dictionary:
+	var renderer := _build_root.get_node_or_null(NodePath(str(GUARDRAIL_RENDER_NAME))) \
+		as MeshInstance3D
+	var live_parts := (
+		renderer.get_meta(&"fabrication_guardrail_render_parts", []) as Array
+		if renderer != null
+		else []
+	)
+	var parts_exact := live_parts.size() == _guardrail_render_parts.size()
+	for index in mini(live_parts.size(), _guardrail_render_parts.size()):
+		var live := live_parts[index] as Dictionary
+		var expected := _guardrail_render_parts[index] as Dictionary
+		parts_exact = parts_exact \
+			and StringName(live.get("label", &"")) == StringName(expected.label) \
+			and (live.get("size", Vector3.ZERO) as Vector3).is_equal_approx(expected.size as Vector3) \
+			and (live.get("transform", Transform3D()) as Transform3D).is_equal_approx(
+				expected.transform as Transform3D
+			)
+	var mesh := renderer.mesh as ArrayMesh if renderer != null else null
+	var vertex_count := 0
+	if mesh != null and mesh.get_surface_count() == 1:
+		var arrays := mesh.surface_get_arrays(0)
+		if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
+			vertex_count = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var expected_part_count := 52 if observation_rear_gate_open else 51
+	var render_state_exact: bool = (
+		renderer != null
+		and renderer.name == GUARDRAIL_RENDER_NAME
+		and mesh != null
+		and mesh.get_surface_count() == 1
+		and vertex_count == expected_part_count * 324
+		and renderer.material_override == _materials[&"rail"]
+		and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(renderer.visibility_range_begin)
+		and is_zero_approx(renderer.visibility_range_end)
+		and is_zero_approx(renderer.extra_cull_margin)
+		and int(renderer.get_meta(&"authored_visible_copy_count", 0)) == expected_part_count
+	)
+	var collider_count := 0
+	var collision_exact := true
+	for raw_body in StationModuleContract.collect_static_bodies(self):
+		var body := raw_body as StaticBody3D
+		if not bool(body.get_meta(&"safety_rail", false)):
+			continue
+		collider_count += 1
+		collision_exact = collision_exact \
+			and _body_box_shape(body) != null \
+			and body.find_children("*", "MeshInstance3D", false, false).is_empty()
+	var expected_collider_count := 8 if observation_rear_gate_open else 7
+	collision_exact = collision_exact and collider_count == expected_collider_count
+	var removed_keys_absent := true
+	for key in [
+		"rail:0.140:0.100:6.000",
+		"rail:0.140:0.100:4.000",
+		"rail:28.000:0.100:0.140",
+		"rail:12.000:0.100:0.140",
+	]:
+		removed_keys_absent = removed_keys_absent and not _authored_batch_transforms.has(key)
+	return {
+		"valid": parts_exact and render_state_exact and collision_exact and removed_keys_absent,
+		"family": &"immutable_guardrail_presentation",
+		"before": {
+			"renderer_submissions": 4,
+			"presentation_nodes": 4,
+			"visible_geometry_copies": expected_part_count,
+			"retained_mesh_resources": 4,
+			"multi_mesh_transform_buffer_floats": expected_part_count * 12,
+		},
+		"after": {
+			"renderer_submissions": 1 if renderer != null else 0,
+			"presentation_nodes": 1 if renderer != null else 0,
+			"visible_geometry_copies": int(renderer.get_meta(&"authored_visible_copy_count", 0)) if renderer != null else 0,
+			"retained_mesh_resources": 1 if mesh != null else 0,
+			"multi_mesh_transform_buffer_floats": 0,
+		},
+		"delta": {
+			"renderer_submissions": -3,
+			"presentation_nodes": -3,
+			"retained_mesh_resources": -3,
+			"multi_mesh_transform_buffer_floats": -expected_part_count * 12,
+			"module_geometry_submissions": -2,
+			"module_nodes": -2,
+		},
+		"authored_parts": live_parts.duplicate(true),
+		"visual_parts_exact": parts_exact,
+		"render_state_and_combined_geometry_exact": render_state_exact,
+		"combined_vertex_count": vertex_count,
+		"collision_body_count": collider_count,
+		"collision_bodies_remain_renderer_free": collision_exact,
+		"legacy_dedicated_batch_keys_absent": removed_keys_absent,
+	}.duplicate(true)
+
+
 func get_lighting_contract() -> Dictionary:
 	var pools: Array[Dictionary] = []
 	var exact_pool_roster := true
@@ -1660,6 +1786,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("fabricator-base presentation batch or physical roster drifted")
 	if not bool(get_work_bench_render_optimization_contract().valid):
 		errors.append("work-bench presentation batch or physical roster drifted")
+	if not bool(get_guardrail_render_optimization_contract().valid):
+		errors.append("guardrail combined presentation or physical roster drifted")
 	if not bool(get_work_bay_surface_render_optimization_contract().valid):
 		errors.append("work-bay surface presentation batch or physical roster drifted")
 	if not bool(get_floor_render_optimization_contract().valid):
@@ -1669,7 +1797,7 @@ func get_validation_errors() -> PackedStringArray:
 	var naming := get_deterministic_naming_contract()
 	if not bool(get_ceiling_portal_render_optimization_contract().valid):
 		errors.append("ceiling and portal dressing render batch drifted")
-	var expected_name_allocations := 67 if observation_rear_gate_open else 66
+	var expected_name_allocations := 64 if observation_rear_gate_open else 63
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()
