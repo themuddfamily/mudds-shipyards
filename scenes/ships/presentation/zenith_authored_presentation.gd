@@ -207,8 +207,12 @@ func _configure_runtime_materials() -> void:
 		&"ExposedAlloy": _structural_material(Color("384244"), 0.86, 0.18, 3.5, 0.90),
 		&"CanopyGlass": _canopy_material(),
 		&"EngineEmission": _emissive_material(Color("05343c"), Color("07bddc"), 3.1),
-		&"PortNavRed": _emissive_material(Color("6b0506"), Color("ff0305"), 2.6),
-		&"StarboardNavGreen": _emissive_material(Color("03501a"), Color("04f230"), 2.6),
+		# Navigation lights are modern recognition cues, not B7-observed surface
+		# detail. Keep them emissive and unshaded so the red/green wing identity
+		# remains legible under both the bright berth rig and shadowed flight
+		# lighting, without adding geometry or reaching into SourceCore.
+		&"PortNavRed": _navigation_light_material(Color("6b0506"), Color("ff0305")),
+		&"StarboardNavGreen": _navigation_light_material(Color("03501a"), Color("04f230")),
 		&"CockpitEmission": _emissive_material(Color("052d35"), Color("06a8c2"), 1.9),
 	}
 	if _asset_root == null:
@@ -352,6 +356,12 @@ func _emissive_material(color: Color, emission: Color, energy: float) -> Standar
 	material.emission_enabled = true
 	material.emission = emission
 	material.emission_energy_multiplier = energy
+	return material
+
+
+func _navigation_light_material(color: Color, emission: Color) -> StandardMaterial3D:
+	var material := _emissive_material(color, emission, 3.4)
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	return material
 
 
