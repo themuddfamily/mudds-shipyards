@@ -77,6 +77,12 @@ const PASSENGER_SEAT_BASE_SIZE := Vector3(0.72, 0.2, 0.82)
 const PASSENGER_SEAT_BACK_SIZE := Vector3(0.72, 0.95, 0.16)
 const PASSENGER_SEAT_HARNESS_SIZE := Vector3(0.13, 0.72, 0.04)
 const PASSENGER_CABIN_LIGHT_STRIP_SIZE := Vector3(0.04, 0.12, 3.55)
+# Four childless amber portal uprights retain their named MeshInstance3D nodes,
+# exact local transforms, and four surface submissions. Their visual-only
+# rounded-box recipe is identical, so one immutable ArrayMesh supplies all four
+# copies instead of allocating the same geometry four times.
+const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
+const CABIN_PORTAL_UPRIGHT_SIZE := Vector3(0.18, 3.25, 0.2)
 ## Broad amber lintel above the deployed cargo ramp. The old rounded box spent
 ## 108 triangles on a 0.054 m bevel that still read rectangular while boarding.
 ## A true Y/Z capsule uses the same bounds and one surface in 72 triangles.
@@ -245,6 +251,7 @@ var _passenger_seat_base_mesh: ArrayMesh
 var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
 var _passenger_cabin_light_strip_mesh: ArrayMesh
+var _cabin_portal_upright_mesh: ArrayMesh
 var _load_mark_mesh: ArrayMesh
 var _load_mark_batch: MultiMeshInstance3D
 var _load_mark_transforms: Array[Transform3D] = []
@@ -3274,6 +3281,9 @@ func _build_passenger_cabin() -> void:
 	_passenger_cabin_light_strip_mesh = _rounded_box_mesh(
 		PASSENGER_CABIN_LIGHT_STRIP_SIZE, _jovian_materials.interior_light
 	)
+	_cabin_portal_upright_mesh = _rounded_box_mesh(
+		CABIN_PORTAL_UPRIGHT_SIZE, _jovian_materials.amber
+	)
 	_box(_passenger_cabin, "PassengerDeck", Vector3(0.0, 0.5, -5.25), Vector3(6.9, 0.18, 4.65), _jovian_materials.deck)
 	_box(_passenger_cabin, "PassengerRoof", Vector3(0.0, 3.82, -5.25), Vector3(6.9, 0.16, 4.65), _jovian_materials.hull_cool)
 	for side in [-1.0, 1.0]:
@@ -3305,7 +3315,12 @@ func _build_passenger_cabin() -> void:
 	# Open frames make both forward and aft connections visually explicit.
 	for bulkhead_z in [-7.48, -3.0]:
 		for side in [-1.0, 1.0]:
-			_box(_passenger_cabin, "CabinPortalUpright", Vector3(side * 1.45, 2.1, bulkhead_z), Vector3(0.18, 3.25, 0.2), _jovian_materials.amber)
+			_rounded_box_from_mesh(
+				_passenger_cabin,
+				"CabinPortalUpright",
+				Vector3(side * 1.45, 2.1, bulkhead_z),
+				_cabin_portal_upright_mesh
+			)
 		_box(_passenger_cabin, "CabinPortalHeader", Vector3(0.0, 3.68, bulkhead_z), Vector3(3.05, 0.18, 0.2), _jovian_materials.amber)
 	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.13), Vector3(1.05, 0.58, 0.04), _jovian_materials.display)
 	_engineer_status_readout = Label3D.new()
