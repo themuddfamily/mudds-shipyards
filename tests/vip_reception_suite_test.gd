@@ -1193,6 +1193,67 @@ func _test_threshold_route_thread(suite: VipReceptionSuite) -> void:
 		"the processional line is explicitly presentation-only and gains no collision or route authority"
 	)
 
+	# Prove support as a union of complete slabs beneath the route's exact swept
+	# AABB, not by asking whether it intersects any one neighbour.  Every slab is
+	# wider than the complete transformed route footprint, overlaps its underside,
+	# and the sorted Z intervals must cover from the first rotated corner to the
+	# last with no positive gap.  This catches both former 2.95--3.05 and
+	# 5.85--5.87 unsupported seams while allowing the floor finishes to meet at a
+	# butt joint instead of becoming duplicate coplanar layers.
+	var suite_inverse := suite.global_transform.affine_inverse()
+	var swept := (
+		suite_inverse * thread.global_transform * thread.mesh.get_aabb()
+	).abs()
+	var support_paths := [
+		^"Structure/Threshold/ThresholdStoneInlay",
+		^"Structure/Reception/CarpetFront",
+		^"Structure/Reception/WellNosingFront",
+	]
+	var support_intervals: Array[Vector2] = []
+	var support_slabs_exact := true
+	var route_underside := swept.position.y
+	for support_path: NodePath in support_paths:
+		var support := suite.get_node_or_null(support_path) as MeshInstance3D
+		if support == null or support.mesh == null:
+			support_slabs_exact = false
+			continue
+		var support_box := (
+			suite_inverse * support.global_transform * support.mesh.get_aabb()
+		).abs()
+		var support_end := support_box.end
+		support_slabs_exact = (
+			support_slabs_exact
+			and support_box.position.x <= swept.position.x
+			and support_end.x >= swept.end.x
+			and support_box.position.y <= route_underside
+			and support_end.y >= route_underside
+			and support_end.y < swept.end.y
+		)
+		support_intervals.append(Vector2(support_box.position.z, support_end.z))
+	support_intervals.sort_custom(func(left: Vector2, right: Vector2) -> bool: return left.x < right.x)
+	var covered_until := swept.position.z
+	var continuous_support := support_slabs_exact and not support_intervals.is_empty()
+	for interval in support_intervals:
+		if interval.y < covered_until:
+			continue
+		if interval.x > covered_until + 0.00001:
+			continuous_support = false
+			break
+		covered_until = maxf(covered_until, interval.y)
+	continuous_support = continuous_support and covered_until >= swept.end.z - 0.00001
+	_check(
+		continuous_support
+		and is_equal_approx(
+			VipReceptionSuite.PROCESSIONAL_STONE_Z_MAX,
+			VipReceptionSuite.PROCESSIONAL_CARPET_Z_MIN
+		)
+		and is_equal_approx(
+			VipReceptionSuite.PROCESSIONAL_CARPET_Z_MAX,
+			5.87
+		),
+		"stone, carpet and well nosing continuously support the route's full swept footprint"
+	)
+
 	# Walk the production capsule's full 0.76 m diameter and 1.94 m height down
 	# the centreline.  The slight 3 cm sole clearance excludes the supporting
 	# floor from the overlap query while still catching walls, furniture or trim

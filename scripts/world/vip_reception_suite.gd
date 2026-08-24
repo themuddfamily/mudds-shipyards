@@ -116,6 +116,13 @@ const PROCESSIONAL_ROUTE_START := Vector3(0.0, 0.055, 0.05)
 const PROCESSIONAL_ROUTE_END := Vector3(-1.1, 0.055, WELL_Z_MIN)
 const PROCESSIONAL_ROUTE_WIDTH := 0.14
 const PROCESSIONAL_ROUTE_THICKNESS := 0.05
+## Existing floor finishes butt at these exact seams beneath the processional.
+## They do not overlap one another (which would z-fight), but their closed
+## intervals leave no unsupported air beneath the inlay either.
+const PROCESSIONAL_STONE_Z_MIN := 0.0
+const PROCESSIONAL_STONE_Z_MAX := 3.05
+const PROCESSIONAL_CARPET_Z_MIN := PROCESSIONAL_STONE_Z_MAX
+const PROCESSIONAL_CARPET_Z_MAX := 5.87
 
 ## Seven banquette segments, four armchairs, three servery stools and the window
 ## bench. Counted, not estimated: `get_validation_errors()` fails if the built
@@ -1584,7 +1591,14 @@ func _build_threshold(structure: Node3D) -> void:
 
 	var plate := _box(threshold, "ThresholdFloor", Vector3(0.0, -0.32, 1.5), Vector3(5.1, FLOOR_PLATE_THICKNESS, 3.0), _materials["pearl_floor"])
 	_register_support(plate, &"threshold walking surface", &"keel girders")
-	_box(threshold, "ThresholdStoneInlay", Vector3(0.0, 0.025, 1.5), Vector3(4.4, 0.05, 2.9), _materials["stone"], false)
+	_box(
+		threshold,
+		"ThresholdStoneInlay",
+		Vector3(0.0, 0.025, (PROCESSIONAL_STONE_Z_MIN + PROCESSIONAL_STONE_Z_MAX) * 0.5),
+		Vector3(4.4, 0.05, PROCESSIONAL_STONE_Z_MAX - PROCESSIONAL_STONE_Z_MIN),
+		_materials["stone"],
+		false
+	)
 	# A single warm signal thread now fulfils its original promise: it runs from
 	# the doorway, through the compressed threshold, and turns directly toward
 	# the broad entry tread at the conversation well.  It remains one shallow
@@ -1662,7 +1676,22 @@ func _build_reception_shell(structure: Node3D) -> void:
 
 	# Carpet. Deep, matt, and laid in three pieces so the well reads as its own
 	# room within the room.
-	_box(room, "CarpetFront", Vector3(-1.3, 0.025, 4.45), Vector3(10.9, 0.05, 2.8), _materials["carpet"], false)
+	_box(
+		room,
+		"CarpetFront",
+		Vector3(
+			-1.3,
+			0.025,
+			(PROCESSIONAL_CARPET_Z_MIN + PROCESSIONAL_CARPET_Z_MAX) * 0.5
+		),
+		Vector3(
+			10.9,
+			0.05,
+			PROCESSIONAL_CARPET_Z_MAX - PROCESSIONAL_CARPET_Z_MIN
+		),
+		_materials["carpet"],
+		false
+	)
 	_box(room, "CarpetRear", Vector3(-1.3, 0.025, 12.65), Vector3(10.9, 0.05, 2.6), _materials["carpet"], false)
 	_box(room, "CarpetPort", Vector3(-5.75, 0.025, 8.6), Vector3(2.2, 0.05, 5.3), _materials["carpet"], false)
 	_box(room, "CarpetStarboard", Vector3(2.85, 0.025, 8.6), Vector3(2.8, 0.05, 5.3), _materials["carpet"], false)
