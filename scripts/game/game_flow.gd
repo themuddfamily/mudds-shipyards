@@ -11697,7 +11697,8 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 			_ember_surface_loop_audio_composition.call(&"detach")
 		return status_result
 	var hud_result := _ember_surface_return_hud_adapter.call(
-		&"attach", _ember_surface_return_status_binding, hud
+		&"attach", _ember_surface_return_status_binding, hud,
+		ember_surface_loop_production_binding
 	) as Dictionary
 	if not bool(hud_result.get("accepted", false)):
 		_ember_surface_return_status_binding.call(&"detach")

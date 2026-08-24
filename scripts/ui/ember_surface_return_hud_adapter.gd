@@ -6,14 +6,17 @@ extends RefCounted
 
 var _binding: Object
 var _hud: GameHUD
+var _hazard_source: Object
 var _attached := false
 var _generation := 0
 var _last_source_generation := -1
 var _last_snapshot: Dictionary = {}
 var _last_minimap_marker: Dictionary = {}
+var _last_hazard_snapshot: Dictionary = {}
+var _hazard_active := false
 
 
-func attach(binding: Object, hud: GameHUD) -> Dictionary:
+func attach(binding: Object, hud: GameHUD, hazard_source: Object = null) -> Dictionary:
 	if _attached:
 		detach()
 	if binding == null or not is_instance_valid(binding) \
@@ -22,23 +25,40 @@ func attach(binding: Object, hud: GameHUD) -> Dictionary:
 		return _reject(&"binding_contract_missing")
 	if hud == null or not is_instance_valid(hud) \
 			or not hud.has_method(&"update_surface_route_status") \
+			or not hud.has_method(&"detach_surface_route_status") \
 			or not hud.has_method(&"update_offscreen_route_marker") \
 			or not hud.has_method(&"clear_offscreen_route_marker") \
 			or not hud.has_method(&"get_minimap_report"):
 		return _reject(&"hud_contract_missing")
+	if hazard_source != null and (
+			not is_instance_valid(hazard_source)
+			or not hazard_source.has_signal(&"state_changed")
+			or not hazard_source.has_method(&"get_authored_hazard_presentation_snapshot")
+		):
+		return _reject(&"hazard_source_contract_missing")
 	_binding = binding
 	_hud = hud
+	_hazard_source = hazard_source
 	_attached = true
 	_generation += 1
 	_binding.connect(&"presentation_changed", _on_presentation_changed)
+	if is_instance_valid(_hazard_source):
+		_hazard_source.connect(&"state_changed", _on_hazard_source_changed)
 	_apply(binding.call(&"get_presenter_snapshot") as Dictionary)
+	_refresh_authored_hazard()
 	return {"accepted": true, "reason": &"bound", "generation": _generation, "presentation_only": true}
 
 
 func detach() -> Dictionary:
 	if is_instance_valid(_binding) and _binding.is_connected(&"presentation_changed", _on_presentation_changed):
 		_binding.disconnect(&"presentation_changed", _on_presentation_changed)
+	if is_instance_valid(_hazard_source) \
+			and _hazard_source.is_connected(&"state_changed", _on_hazard_source_changed):
+		_hazard_source.disconnect(&"state_changed", _on_hazard_source_changed)
+	if not _last_hazard_snapshot.is_empty() and is_instance_valid(_hud):
+		_hud.call(&"detach_surface_route_status")
 	_binding = null
+	_hazard_source = null
 	if is_instance_valid(_hud):
 		_hud.call(&"clear_offscreen_route_marker")
 	_hud = null
@@ -47,6 +67,8 @@ func detach() -> Dictionary:
 	_last_source_generation = -1
 	_last_snapshot = {}
 	_last_minimap_marker = {}
+	_last_hazard_snapshot = {}
+	_hazard_active = false
 	return {"accepted": true, "reason": &"detached", "generation": _generation, "presentation_only": true}
 
 
@@ -57,6 +79,8 @@ func get_snapshot() -> Dictionary:
 		"source_generation": _last_source_generation,
 		"surface_route": _last_snapshot.duplicate(true),
 		"minimap_marker": _last_minimap_marker.duplicate(true),
+		"authored_hazard": _last_hazard_snapshot.duplicate(true),
+		"hazard_active": _hazard_active,
 		"presentation_only": true,
 		"movement_authority": false,
 		"landing_authority": false,
@@ -67,6 +91,48 @@ func get_snapshot() -> Dictionary:
 
 func _on_presentation_changed(view: Dictionary) -> void:
 	_apply(view)
+	_refresh_authored_hazard()
+
+
+func _on_hazard_source_changed(_snapshot: Dictionary) -> void:
+	_refresh_authored_hazard()
+
+
+func _refresh_authored_hazard() -> void:
+	if not _attached or not is_instance_valid(_hud) \
+			or not is_instance_valid(_hazard_source):
+		return
+	var snapshot := _hazard_source.call(
+		&"get_authored_hazard_presentation_snapshot"
+	) as Dictionary
+	if snapshot.is_empty():
+		return
+	var previous_hazard := _last_hazard_snapshot.duplicate(true)
+	_last_hazard_snapshot = snapshot.duplicate(true)
+	var attached := bool(snapshot.get("attached", false))
+	var hazard := snapshot.get("hazard", {}) as Dictionary
+	var hazard_visible := bool(hazard.get("visible", false)) \
+		and StringName(hazard.get("state", &"clear")) \
+			in [&"warning", &"recovery_required"]
+	if not attached:
+		if _hazard_active or bool(previous_hazard.get("attached", false)):
+			_hud.call(&"detach_surface_route_status")
+			_hazard_active = false
+			if StringName(snapshot.get("reason", &"")) == &"surface_lifecycle_inactive" \
+					and not _last_snapshot.is_empty():
+				_hud.call(&"update_surface_route_status", _last_snapshot)
+		return
+	if not hazard_visible:
+		if _hazard_active:
+			# Admit the newer clear revision before restoring the ordinary route;
+			# re-entering the same zone in this attachment must remain possible.
+			_hud.call(&"update_surface_route_status", snapshot)
+			_hazard_active = false
+			if not _last_snapshot.is_empty():
+				_hud.call(&"update_surface_route_status", _last_snapshot)
+		return
+	_hud.call(&"update_surface_route_status", snapshot)
+	_hazard_active = true
 
 
 func _apply(view: Dictionary) -> void:

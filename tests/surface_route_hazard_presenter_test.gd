@@ -37,8 +37,10 @@ func _run() -> void:
 			and is_equal_approx(recovery.exposure, 0.86)
 			and recovery.message.contains("HAZARD // RECOVERY REQUIRED")
 			and recovery.message.contains("NEXT ACTION // RETURN TO THE STAGING RELAY")
-			and recovery.next_action == "RETURN TO THE STAGING RELAY",
-		"authoritative Ember hazard status publishes the recovery destination as readable next-action text"
+			and recovery.next_action == "RETURN TO THE STAGING RELAY"
+			and not recovery.recovery_available
+			and not fenced.request_recovery().accepted,
+		"authoritative Ember hazard status publishes the recovery destination without offering an already-requested no-op action"
 	)
 	_check(
 		not recovery.hazard_authority and not recovery.recovery_authority

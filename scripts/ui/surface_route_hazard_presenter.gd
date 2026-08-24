@@ -40,7 +40,11 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var recovery_request := hazard.get("recovery_request", {}) as Dictionary
 	var recovery_required := hazard_state in [&"recovery_required", &"recovery_requested"] \
 		or bool(recovery_request.get("requested", false))
-	var recovery_ready := bool(hazard.get("recovery_available", false)) or recovery_required
+	# A latched Ember recovery request is already in flight. Only an explicitly
+	# authored availability flag may expose a request intent; otherwise the HUD
+	# gives the player the recovery destination without promising a no-op action.
+	var recovery_ready := bool(hazard.get("recovery_available", false)) \
+		and not recovery_required
 	var marker := _exposure_marker(exposure, hazard_state)
 	var guidance := _hazard_guidance(hazard, hazard_state, exposure, recovery_required, next)
 	var actions: Array = [
@@ -151,10 +155,13 @@ func _hazard_guidance(
 	) -> Dictionary:
 	if recovery_required:
 		var authored_recovery := str(hazard.get("status_text", "")).strip_edges()
+		var recovery_id := StringName(hazard.get("recovery_id", &""))
 		return {
 			"status": "RECOVERY REQUIRED",
 			"next_action": authored_recovery.to_upper() \
-				if not authored_recovery.is_empty() else "REQUEST RECOVERY",
+				if not authored_recovery.is_empty() \
+				else ("RETURN TO RECOVERY LANDMARK" \
+					if not recovery_id.is_empty() else "AWAIT RECOVERY GUIDANCE"),
 		}
 	if hazard_state in [&"storm", &"blocked"] or exposure >= 0.8:
 		return {"status": "HIGH EXPOSURE", "next_action": "LEAVE HAZARD ZONE"}
@@ -189,7 +196,10 @@ func _source_cursor(source: Dictionary) -> Dictionary:
 	var values := {}
 	for key in CURSOR_KEYS:
 		var value: Variant = source.get(key, null)
-		if not value is int or int(value) <= 0:
+		var identity_key: bool = key in [
+			"host_instance_id", "actor_instance_id", "session_instance_id",
+		]
+		if not value is int or (int(value) == 0 if identity_key else int(value) <= 0):
 			return {
 				"fenced": true, "valid": false,
 				"reason": &"source_identity_lost" if key in ["actor_instance_id", "session_instance_id"] \
@@ -251,7 +261,7 @@ func _set_cursor(
 
 
 func _retire_cursor() -> void:
-	if _host_instance_id <= 0:
+	if _host_instance_id == 0:
 		return
 	_retired_host_instance_id = _host_instance_id
 	_retired_attachment_generation = _attachment_generation

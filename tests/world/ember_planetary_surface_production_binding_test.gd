@@ -7,12 +7,22 @@ class FakeHost:
 	var generation := 4
 	var attachment_generation := 1
 	var phase_id: StringName = &"on_foot"
+	var session := RefCounted.new()
 
 	func get_generation() -> int: return generation
 	func get_attachment_generation() -> int: return attachment_generation
 	func get_phase() -> int: return 8
+	func get_travel_session_observation_source() -> Object: return session
 	func get_snapshot() -> Dictionary:
-		return {"host_id": &"ember_surface_loop", "attached": true, "phase_id": phase_id, "identities": {"world_id": &"ember_moon", "player_instance_id": 101}}
+		return {
+			"host_id": &"ember_surface_loop", "attached": true,
+			"generation": generation,
+			"attachment_generation": attachment_generation,
+			"phase_id": phase_id,
+			"identities": {
+				"world_id": &"ember_moon", "player_instance_id": 101,
+			},
+		}
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -80,6 +90,17 @@ func _run() -> void:
 			and not warned.presentation.recovery_cue.visible,
 		"caller position enters the visible Relay Arc and emits detached warning requests"
 	)
+	_check(
+		warned.hud_presentation.attached
+			and warned.hud_presentation.host_instance_id == host.get_instance_id()
+			and warned.hud_presentation.actor_instance_id == 101
+			and warned.hud_presentation.session_instance_id == host.session.get_instance_id()
+			and warned.hud_presentation.attachment_generation == 1
+			and warned.hud_presentation.generation == 4
+			and warned.hud_presentation.revision > 0
+			and warned.hud_presentation.hazard == warned.status,
+		"real hazard receipt carries the exact Host, actor, session, attachment, generation, and revision cursor"
+	)
 	var recovery_observation := base_observation.duplicate(true)
 	recovery_observation.delta_seconds = 7.0
 	var recovery := binding.submit_authored_hazard_observation(
@@ -109,6 +130,14 @@ func _run() -> void:
 			and not recovery.presentation.recovery_cue.authority.recovery
 			and _reward_calls == 0,
 		"sustained exposure reveals a static authored-relay path cue without applying recovery"
+	)
+	_check(
+		recovery.hud_presentation.revision > warned.hud_presentation.revision
+			and recovery.hud_presentation.hazard.state == &"recovery_required"
+			and recovery.hud_presentation.presentation_only
+			and not recovery.hud_presentation.recovery_authority
+			and not recovery.hud_presentation.movement_authority,
+		"recovery advances only the detached HUD revision without claiming recovery or movement authority"
 	)
 	var cooled_observation := base_observation.duplicate(true)
 	cooled_observation.exposure_unitless = 0.0

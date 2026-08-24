@@ -306,6 +306,10 @@ func configure_planetary_surface(
 	_planetary_composition.name = "EmberPlanetarySurfaceProductionBinding"
 	_composition_root.add_child(_planetary_composition)
 	_planetary_composition.connect(
+		&"authored_hazard_presentation_changed",
+		_on_authored_hazard_presentation_changed
+	)
+	_planetary_composition.connect(
 		&"service_terminal_repair_feedback", _on_service_terminal_repair_feedback
 	)
 	_planetary_reward_authority = reward_sink
@@ -345,9 +349,44 @@ func _on_service_terminal_repair_feedback(feedback: Dictionary) -> void:
 	service_terminal_repair_feedback.emit(forwarded)
 
 
+func _on_authored_hazard_presentation_changed(_snapshot: Dictionary) -> void:
+	if _mutation_active or _signal_dispatch_active:
+		return
+	_signal_dispatch_active = true
+	state_changed.emit(get_snapshot())
+	_signal_dispatch_active = false
+
+
 func get_planetary_surface_snapshot() -> Dictionary:
 	return _planetary_composition.call(&"get_snapshot") as Dictionary \
 		if _planetary_composition != null else {}
+
+
+func get_authored_hazard_presentation_snapshot() -> Dictionary:
+	if _planetary_composition == null:
+		return {}
+	return _planetary_composition.call(
+		&"get_authored_hazard_presentation_snapshot"
+	) as Dictionary
+
+
+## Forwards the one caller-owned on-foot observation to the retained authored
+## hazard runtime. The returned receipt remains request-only and is published
+## through the existing state signal solely so presentation observers can read
+## the detached, lifecycle-fenced HUD envelope.
+func submit_authored_hazard_observation(
+		observation: Variant, expected_generation: int
+	) -> Dictionary:
+	var rejection := _basic_mutation_rejection(expected_generation)
+	if not rejection.is_empty():
+		return _reject(rejection)
+	if _state != State.RUNNING or _planetary_composition == null \
+			or _host == null or not is_instance_valid(_host):
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"submit_authored_hazard_observation", observation,
+		_host.get_generation(), _host.get_attachment_generation()
+	) as Dictionary
 
 
 func get_planetary_atmosphere_snapshot() -> Dictionary:
@@ -1981,6 +2020,7 @@ func _physics_process(_engine_delta: float) -> void:
 	if not relay_forward_rejection.is_empty():
 		_fail_late(relay_forward_rejection)
 		return
+	_forward_authored_hazard_observation(envelope)
 
 	var phase := _host.get_phase()
 	var operation: Dictionary
@@ -2068,6 +2108,30 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 	if StringName(updated_activity.get("state", &"")) == &"awaiting_reward":
 		return _commit_pending_relay_reward(envelope, updated_activity)
 	return &""
+
+
+## Reuses the exact already-admitted player observation for the authored Relay
+## Arc. The hazard runtime may emit damage/recovery requests, but this scheduler
+## neither consumes those requests nor changes Host movement/lifecycle state.
+func _forward_authored_hazard_observation(envelope: Dictionary) -> void:
+	if _planetary_composition == null \
+			or _host.get_phase() != EmberSurfaceLoopHost.Phase.ON_FOOT:
+		return
+	var sample := envelope.get("actor_sample", {}) as Dictionary
+	if StringName(sample.get("actor_kind", &"")) != &"player" \
+			or int(sample.get("actor_instance_id", 0)) != _player_instance_id:
+		return
+	_planetary_composition.call(
+		&"submit_authored_hazard_observation",
+		{
+			"actor_instance_id": int(sample.get("actor_instance_id", 0)),
+			"delta_seconds": float(envelope.get("delta", 0.0)),
+			"exposure_unitless": 1.0,
+			"position_body_local_m": sample.get("position", Vector3.INF),
+			"surface_phase_id": &"on_foot",
+		}.duplicate(true),
+		_host.get_generation(), _host.get_attachment_generation()
+	)
 
 
 func _commit_pending_relay_reward(

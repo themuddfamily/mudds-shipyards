@@ -3944,6 +3944,16 @@ func update_surface_route_status(snapshot: Dictionary) -> void:
 	_render_runtime_status(_surface_route_presenter.present_snapshot(snapshot), &"surface")
 
 
+## Retires the currently accepted lifecycle cursor and hides its public row.
+## Callers cannot use this presentation cleanup to move an actor or advance a
+## route; a later attachment must supply a fresh cursor before it can repaint.
+func detach_surface_route_status() -> Dictionary:
+	var detached := _surface_route_presenter.detach()
+	if _runtime_status_kind == &"surface":
+		clear_runtime_status()
+	return detached
+
+
 func update_atmospheric_entry_status(snapshot: Dictionary) -> void:
 	_render_runtime_status(_entry_guidance_presenter.present_snapshot(snapshot), &"entry")
 

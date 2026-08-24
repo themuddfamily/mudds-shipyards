@@ -2,6 +2,7 @@ class_name EmberPlanetarySurfaceProductionBinding
 extends Node
 
 signal service_terminal_repair_feedback(feedback: Dictionary)
+signal authored_hazard_presentation_changed(snapshot: Dictionary)
 
 ## Retained Ember composition for the caller-owned planetary surface systems.
 ## The Ember host still owns lifecycle and actors; this node only keeps one
@@ -46,6 +47,7 @@ const AUTHORED_HAZARD_ID: StringName = &"ember_relay_arc"
 const AUTHORED_HAZARD_RECOVERY_LANDMARK_ID: StringName = &"ember_staging_relay"
 const AUTHORED_HAZARD_MARKER_ID: StringName = &"surface_staging_gate"
 const AUTHORED_HAZARD_RUNTIME_ROUTE_ID: StringName = &"pad_to_surface_staging"
+const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 
 enum State { IDLE, BOUND, DETACHED }
 
@@ -59,8 +61,10 @@ var _navigation: RefCounted
 var _hazard: RefCounted
 var _hazard_content: Resource
 var _authored_hazard: Dictionary = {}
+var _authored_recovery_landmark: Dictionary = {}
 var _hazard_zone_presentation: Node
 var _hazard_semantic_status: Dictionary = {}
+var _hazard_presentation_revision := 0
 var _weather: RefCounted
 var _solar_phase: Dictionary = {}
 var _weather_observation: Dictionary = {}
@@ -131,6 +135,9 @@ func configure(
 		return _result(false, hazard_composition.get("reason", &"hazard_content_unavailable") as StringName)
 	var navigation_contract := hazard_composition.get("contract") as PlanetarySurfaceNavigationContract
 	_authored_hazard = (hazard_composition.get("hazard", {}) as Dictionary).duplicate(true)
+	_authored_recovery_landmark = (
+		hazard_composition.get("recovery_landmark", {}) as Dictionary
+	).duplicate(true)
 	_navigation = NavigationScript.new()
 	var configured: Dictionary = _navigation.call(&"configure", navigation_contract)
 	if not bool(configured.get("accepted", false)):
@@ -239,6 +246,7 @@ func configure(
 	_composition_generation += 1
 	_state = State.BOUND
 	_apply_relay_survey_presentation()
+	_publish_authored_hazard_presentation()
 	return _result(true, &"composition_bound")
 
 
@@ -393,6 +401,7 @@ func submit_authored_hazard_observation(
 	if not inside:
 		_clear_authored_hazard_runtime_exposure()
 		_set_hazard_semantic_clear(&"hazard_zone_exited")
+		_publish_authored_hazard_presentation()
 		return _hazard_observation_result(
 			true, &"hazard_zone_clear", {}, actor_position
 		)
@@ -405,6 +414,7 @@ func submit_authored_hazard_observation(
 			false, sampled.get("reason", &"hazard_observation_rejected") as StringName
 		)
 	_set_hazard_semantic_from_sample(sampled)
+	_publish_authored_hazard_presentation()
 	return _hazard_observation_result(
 		true,
 		&"hazard_recovery_requested" if bool(
@@ -443,6 +453,12 @@ func submit_surface_navigation_feedback(
 
 func get_authored_hazard_status() -> Dictionary:
 	return _hazard_semantic_status.duplicate(true)
+
+
+## Public presentation envelope built from the exact live Host identities and
+## the already-produced semantic hazard status. It is detached data only.
+func get_authored_hazard_presentation_snapshot() -> Dictionary:
+	return _authored_hazard_presentation_snapshot()
 
 
 func set_surface_audio_reduced_dynamic_range(enabled: bool) -> Dictionary:
@@ -611,6 +627,7 @@ func detach() -> Dictionary:
 			_surface_audio_binding.call(&"get_attachment_generation")
 		)
 	_state = State.DETACHED
+	_publish_authored_hazard_presentation()
 	return _result(true, &"composition_detached")
 
 
@@ -652,6 +669,7 @@ func reenter() -> Dictionary:
 	if not bool(audio_attach.get("accepted", false)):
 		return _result(false, &"surface_audio_reentry_rejected")
 	_state = State.BOUND
+	_publish_authored_hazard_presentation()
 	return _result(true, &"composition_reentered")
 
 
@@ -792,7 +810,7 @@ func _validate_authored_hazard_observation(observation: Variant) -> Dictionary:
 	var host_snapshot := _host.call(&"get_snapshot") as Dictionary
 	var identities := host_snapshot.get("identities", {}) as Dictionary
 	if not evidence.actor_instance_id is int \
-			or int(evidence.actor_instance_id) < 1 \
+			or int(evidence.actor_instance_id) == 0 \
 			or int(evidence.actor_instance_id) \
 				!= int(identities.get("player_instance_id", 0)):
 		return {"accepted": false, "reason": &"hazard_actor_identity_mismatch"}
@@ -890,7 +908,83 @@ func _hazard_observation_result(
 		"sample": sample.duplicate(true),
 		"status": _hazard_semantic_status.duplicate(true),
 		"presentation": _hazard_zone_presentation.call(&"get_snapshot"),
+		"hud_presentation": _authored_hazard_presentation_snapshot(),
 		"surface_navigation_feedback": _last_surface_navigation_feedback.duplicate(true),
+	}.duplicate(true)
+
+
+func _publish_authored_hazard_presentation() -> void:
+	if _hazard_presentation_revision < MAX_SAFE_GENERATION:
+		_hazard_presentation_revision += 1
+	var snapshot := _authored_hazard_presentation_snapshot()
+	authored_hazard_presentation_changed.emit(snapshot.duplicate(true))
+
+
+func _authored_hazard_presentation_snapshot() -> Dictionary:
+	var host_snapshot := _host.call(&"get_snapshot") as Dictionary \
+		if _host != null and is_instance_valid(_host) else {}
+	var identities := host_snapshot.get("identities", {}) as Dictionary
+	var actor_instance_id := int(identities.get("player_instance_id", 0))
+	var session_instance_id := 0
+	if _host != null and is_instance_valid(_host) \
+			and _host.has_method(&"get_travel_session_observation_source"):
+		var session: Object = _host.call(&"get_travel_session_observation_source")
+		if session != null and is_instance_valid(session):
+			session_instance_id = session.get_instance_id()
+	var host_instance_id := _host.get_instance_id() \
+		if _host != null and is_instance_valid(_host) else 0
+	var host_generation := int(host_snapshot.get("generation", _host_generation))
+	var attachment_generation := int(
+		host_snapshot.get("attachment_generation", _attachment_generation)
+	)
+	var phase_id := StringName(host_snapshot.get("phase_id", &""))
+	var attached := _state == State.BOUND \
+		and bool(host_snapshot.get("attached", false)) \
+		and phase_id == &"on_foot" \
+		and host_instance_id != 0 and actor_instance_id != 0 \
+		and session_instance_id != 0 and host_generation > 0 \
+		and attachment_generation > 0
+	var waypoint := _authored_recovery_landmark.duplicate(true)
+	var feedback := _last_surface_navigation_feedback.get("navigation", {}) as Dictionary
+	var cue := feedback.get("cue", {}) as Dictionary
+	if bool(cue.get("available", false)):
+		waypoint = {
+			"id": cue.get("landmark_id", &""),
+			"label": cue.get("label", "Staging Relay"),
+			"distance_m": cue.get("distance_m", 0.0),
+		}.duplicate(true)
+	else:
+		waypoint = {
+			"id": waypoint.get("id", AUTHORED_HAZARD_RECOVERY_LANDMARK_ID),
+			"label": waypoint.get("display_name", "Staging Relay"),
+			"distance_m": 0.0,
+		}.duplicate(true)
+	var reason: StringName = &"current"
+	if _state == State.DETACHED or not bool(host_snapshot.get("attached", false)):
+		reason = &"source_detached"
+	elif actor_instance_id == 0 or session_instance_id == 0:
+		reason = &"source_identity_lost"
+	elif phase_id != &"on_foot":
+		reason = &"surface_lifecycle_inactive"
+	return {
+		"attached": attached,
+		"reason": reason,
+		"host_instance_id": host_instance_id,
+		"actor_instance_id": actor_instance_id,
+		"session_instance_id": session_instance_id,
+		"attachment_generation": attachment_generation,
+		"generation": host_generation,
+		"revision": maxi(1, _hazard_presentation_revision),
+		"title": "EMBER SURFACE HAZARD",
+		"message": str(_hazard_semantic_status.get("title", "RELAY ARC STATUS")),
+		"waypoints": [waypoint],
+		"weather": "Ember Relay Arc",
+		"hazard": _hazard_semantic_status.duplicate(true),
+		"presentation_only": true,
+		"hazard_authority": false,
+		"recovery_authority": false,
+		"movement_authority": false,
+		"input_authority": false,
 	}.duplicate(true)
 
 
