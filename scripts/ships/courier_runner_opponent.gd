@@ -59,6 +59,7 @@ const COURIER_ENGINE := Color("8fd0ff")
 const TAIL_TURRET_CHARGE_SCALE := Vector3(1.65, 0.62, 0.62)
 const MATERIAL_CATALOG_ENTRY_COUNT := 19
 const POD_BAND_SIZE := Vector3(1.35, 1.35, 0.22)
+const POD_LAMP_RADIUS := 0.13
 
 ## The inherited eleven recipes plus the courier's eight palette recipes are
 ## immutable after build. Each runner keeps its own dictionary and all dynamic
@@ -572,6 +573,15 @@ func _build_interceptor() -> void:
 	# transforms and renderer nodes independent, but submit both through one mesh
 	# Resource instead of allocating the same BoxMesh twice for every courier.
 	var pod_band_mesh := _make_box_mesh(POD_BAND_SIZE, _materials.courier_rust)
+	# The marker lamps are likewise a bilateral immutable visual family. Their
+	# MeshInstance3D nodes remain independent because lifecycle presentation
+	# toggles visibility per lamp, but their identical sphere geometry is shared.
+	var pod_lamp_mesh := SphereMesh.new()
+	pod_lamp_mesh.radius = POD_LAMP_RADIUS
+	pod_lamp_mesh.height = POD_LAMP_RADIUS * 2.0
+	pod_lamp_mesh.radial_segments = 24
+	pod_lamp_mesh.rings = 12
+	pod_lamp_mesh.material = _materials.courier_lamp
 	for side in [-1.0, 1.0]:
 		# Slung cargo pods on external pylons: the silhouette detail that says
 		# this craft is carrying something and would rather not stop.
@@ -583,7 +593,14 @@ func _build_interceptor() -> void:
 			Vector3(side * 2.5, -0.34, -0.8),
 			pod_band_mesh
 		)
-		var lamp := _sphere(_visual_root, "PodLamp", Vector3(side * 2.5, 0.22, -1.9), 0.13, _materials.courier_lamp)
+		var lamp := _sphere(
+			_visual_root,
+			"PodLamp",
+			Vector3(side * 2.5, 0.22, -1.9),
+			POD_LAMP_RADIUS,
+			_materials.courier_lamp,
+			pod_lamp_mesh
+		)
 		_cargo_lamps.append(lamp)
 
 		_cylinder(_visual_root, "EnginePod", Vector3(side * 1.15, 0.05, 3.9), 0.62, 1.8, _materials.courier_shadow, Vector3(90.0, 0.0, 0.0))
