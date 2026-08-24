@@ -45,6 +45,11 @@ const CONSOLE_KEY_NAMES := [
 # and all gameplay authority remain per craft.
 static var _shared_hull_mesh: BoxMesh
 static var _shared_hull_material: StandardMaterial3D
+# The broad response wing is likewise immutable exterior presentation stock.
+# Sharing its exact mesh and finish across briefly coexisting fleet copies saves
+# duplicate resources without merging renderer nodes or changing submissions.
+static var _shared_wing_mesh: BoxMesh
+static var _shared_wing_material: StandardMaterial3D
 
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
@@ -207,11 +212,16 @@ func _build_hull(visual: Node3D) -> void:
 	visual.add_child(hull)
 	var wing := MeshInstance3D.new()
 	wing.name = "RapidResponseWing"
-	var wing_mesh := BoxMesh.new()
-	wing_mesh.size = Vector3(12.0, 0.45, 2.4)
-	wing.mesh = wing_mesh
+	if _shared_wing_mesh == null:
+		_shared_wing_mesh = BoxMesh.new()
+		_shared_wing_mesh.size = Vector3(12.0, 0.45, 2.4)
+		_shared_wing_mesh.resource_local_to_scene = false
+	if _shared_wing_material == null:
+		_shared_wing_material = _material(WING_COLOR, 0.5, 0.36)
+		_shared_wing_material.resource_local_to_scene = false
+	wing.mesh = _shared_wing_mesh
 	wing.position = Vector3(0.0, -0.15, 0.8)
-	wing.material_override = _material(WING_COLOR, 0.5, 0.36)
+	wing.material_override = _shared_wing_material
 	visual.add_child(wing)
 	var canopy := MeshInstance3D.new()
 	canopy.name = "Canopy"
