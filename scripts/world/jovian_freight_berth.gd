@@ -1618,29 +1618,33 @@ func _create_materials() -> void:
 	_materials["glass"] = _transparent_material(Color(0.2, 0.72, 0.78, 0.22), 0.16, 0.12)
 	_materials["screen"] = _material(Color("8debe6"), 0.05, 0.22, Color("49cbd2"), 1.35)
 
-	# One call per key into the published kit recipe rather than an inline copy of
-	# it, so this module cannot drift from the shared `normal_scale = 1.0` that
-	# keeps one relief depth across every module seam. The walked-on surfaces stay
-	# at the berth's tighter 0.22 m plate; everything else stays at 0.30 m.
-	for key in [
-		"ceramic",
-		"ceramic_warm",
-		"ceramic_floor",
-		"steel_blue",
-		"deck",
-		# Painted handling steel. Structure, not hazard marking: the striped route
-		# and lane cues are `orange_glow` and stay outside the family.
-		"orange",
-	]:
+	# The apron now uses the shared panel family as a material hierarchy rather
+	# than giving every mapped surface the same sealed-paint clearcoat. Keep each
+	# key's authored hue/metalness/roughness above; the finish role only changes
+	# how its manufactured top layer responds to light. Emissive guides, glass,
+	# rubber and screens deliberately remain outside the panel family.
+	var finish_by_key := {
+		# Load-bearing and inset walking surfaces use the worn, broad deck response.
+		"ceramic_floor": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"deck": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		"deck_grip": StationSurfaceKit.PanelFinish.WALKED_DECK,
+		# Blue frame stock and dark equipment housings read as bare structure.
+		"steel_blue": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		"graphite": StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		# Cargo bands and deep-blue service accents are close-scale metal trim.
+		"deep_blue": StationSurfaceKit.PanelFinish.METAL_TRIM,
+		# Ceramic cladding and orange handling steel retain their paint identity.
+		"ceramic": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"ceramic_warm": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		"orange": StationSurfaceKit.PanelFinish.PAINTED_METAL,
+	}
+	for key in finish_by_key:
 		var panel := _materials[key] as StandardMaterial3D
 		StationSurfaceKit.apply_panel_triplanar(
 			panel,
-			WALKED_PANEL_SURFACE_SCALE if key in ["deck", "ceramic_floor"] else PANEL_SURFACE_SCALE
+			WALKED_PANEL_SURFACE_SCALE if key in ["ceramic_floor", "deck", "deck_grip"] else PANEL_SURFACE_SCALE,
+			finish_by_key[key]
 		)
-		# The berth's own sealed-marine-paint layer over the shared recipe.
-		panel.clearcoat_enabled = true
-		panel.clearcoat = 0.28
-		panel.clearcoat_roughness = 0.38
 
 
 func _create_guide_lens_mesh() -> void:

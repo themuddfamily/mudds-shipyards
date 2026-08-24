@@ -495,9 +495,49 @@ func _test_materials_signage_and_detail(module: JovianFreightBerth) -> void:
 	var visual := panel.get_node_or_null("Mesh") as MeshInstance3D if panel != null else null
 	var material := visual.material_override as StandardMaterial3D if visual != null else null
 	_check(material != null and material.albedo_texture != null and material.uv1_triplanar, "main deck uses project PBR panel texture with triplanar mapping")
+	_test_manufactured_material_hierarchy(module)
 	_check(visual != null and visual.mesh is ArrayMesh, "load-bearing deck renders custom chamfered geometry")
 	_check(module.find_children("*", "CylinderMesh", true, false).is_empty(), "scene does not mistake resources for nodes")
 	_check(module.find_children("*", "MeshInstance3D", true, false).size() >= 150, "module has a high-detail rendered assembly rather than a generic blockout")
+
+
+func _test_manufactured_material_hierarchy(module: JovianFreightBerth) -> void:
+	var materials := module.get("_materials") as Dictionary
+	var specs := [
+		["ceramic_floor", Color("b8c2be"), 0.22, 0.54, JovianFreightBerth.WALKED_PANEL_SURFACE_SCALE, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		["deck", Color("29434d"), 0.62, 0.47, JovianFreightBerth.WALKED_PANEL_SURFACE_SCALE, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		["deck_grip", Color("1b2c32"), 0.36, 0.73, JovianFreightBerth.WALKED_PANEL_SURFACE_SCALE, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		["steel_blue", Color("315868"), 0.68, 0.28, JovianFreightBerth.PANEL_SURFACE_SCALE, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		["graphite", Color("172329"), 0.55, 0.48, JovianFreightBerth.PANEL_SURFACE_SCALE, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
+		["deep_blue", Color("102d3b"), 0.52, 0.43, JovianFreightBerth.PANEL_SURFACE_SCALE, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS],
+		["ceramic", Color("d6dedb"), 0.32, 0.34, JovianFreightBerth.PANEL_SURFACE_SCALE, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		["ceramic_warm", Color("b8c2be"), 0.30, 0.39, JovianFreightBerth.PANEL_SURFACE_SCALE, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		["orange", Color("e79338"), 0.24, 0.54, JovianFreightBerth.PANEL_SURFACE_SCALE, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+	]
+	var exact := true
+	for spec in specs:
+		var material := materials.get(spec[0]) as StandardMaterial3D
+		exact = exact and material != null
+		if material == null:
+			continue
+		exact = exact \
+			and material.albedo_color.is_equal_approx(spec[1] as Color) \
+			and is_equal_approx(material.metallic, float(spec[2])) \
+			and is_equal_approx(material.roughness, float(spec[3])) \
+			and material.albedo_texture != null \
+			and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH \
+			and material.normal_enabled \
+			and material.normal_texture != null \
+			and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH \
+			and material.roughness_texture != null \
+			and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH \
+			and material.uv1_triplanar \
+			and material.uv1_world_triplanar \
+			and material.uv1_scale.is_equal_approx(Vector3.ONE * float(spec[4])) \
+			and material.clearcoat_enabled \
+			and is_equal_approx(material.clearcoat, float(spec[5])) \
+			and is_equal_approx(material.clearcoat_roughness, float(spec[6]))
+	_check(exact, "apron deck, grip, frame, trim, and service surfaces retain their hues under distinct StationSurfaceKit finishes")
 
 
 ## The berth extends from the station connection toward local +Z. A player
