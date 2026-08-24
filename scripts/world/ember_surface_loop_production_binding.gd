@@ -64,6 +64,11 @@ const HeroAirlessLandingWashBindingScript := preload(
 const HeroAtmosphericEntryEnvelopeBindingScript := preload(
 	"res://scripts/ships/hero_atmospheric_entry_envelope_binding.gd"
 )
+const StagingRelayProximityBindingScript := preload(
+	"res://scripts/world/ember_staging_relay_proximity_binding.gd"
+)
+const STAGING_RELAY_ACCESS_PATH := \
+	^"LandingRegion/SurfaceLandmarks/RouteMarkers/StagingRelayAccess"
 const RETURN_PERSISTENCE_SCHEMA_VERSION := 1
 const RETURN_PERSISTENCE_PAYLOAD_KIND: StringName = &"ember_planetary_return"
 const RETURN_PERSISTENCE_RECORD_KEYS := [
@@ -137,6 +142,8 @@ var _fleet_landing_wash_binding: RefCounted
 var _last_fleet_landing_wash_result: Dictionary = {}
 var _fleet_entry_envelope_binding: RefCounted
 var _last_fleet_entry_envelope_result: Dictionary = {}
+var _staging_relay_proximity: Area3D
+var _staging_relay_access_marker: Marker3D
 
 var _last_caller_serial := 0
 var _pending_envelope: Dictionary = {}
@@ -184,6 +191,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_retire_staging_relay_proximity()
 	if _travel_audio_binding != null:
 		_travel_audio_binding.detach()
 		_travel_audio_binding = null
@@ -335,6 +343,12 @@ func configure_planetary_surface(
 		_planetary_composition.queue_free()
 		_planetary_composition = null
 	else:
+		var diagnostic_attached := _attach_staging_relay_proximity()
+		if not bool(diagnostic_attached.get("accepted", false)):
+			_planetary_reward_authority = Callable()
+			_planetary_composition.queue_free()
+			_planetary_composition = null
+			return diagnostic_attached
 		_relay_return_manifest = ReturnManifestScript.new()
 		_relay_return_travel = ReturnTravelAdapterScript.new()
 	_atmosphere_composition = atmosphere_composition
@@ -347,6 +361,62 @@ func _on_service_terminal_repair_feedback(feedback: Dictionary) -> void:
 	var forwarded := feedback.duplicate(true)
 	forwarded["owner_generation"] = _generation
 	service_terminal_repair_feedback.emit(forwarded)
+
+
+func _attach_staging_relay_proximity(
+		loaded_scene_override: Node3D = null
+	) -> Dictionary:
+	if is_instance_valid(_staging_relay_proximity):
+		return {
+			"accepted": false,
+			"reason": &"staging_relay_proximity_already_attached",
+		}
+	var loaded_scene := loaded_scene_override
+	if loaded_scene == null and is_instance_valid(_bootstrap):
+		loaded_scene = _bootstrap.get_loaded_instance()
+	if loaded_scene == null or not is_instance_valid(loaded_scene) \
+			or loaded_scene.get_instance_id() != _loaded_scene_instance_id \
+			or _host == null or not is_instance_valid(_host) \
+			or _player == null or not is_instance_valid(_player) \
+			or _composition_root == null \
+			or not is_instance_valid(_composition_root):
+		return {
+			"accepted": false,
+			"reason": &"staging_relay_proximity_source_unavailable",
+		}
+	var access_marker := loaded_scene.get_node_or_null(
+		STAGING_RELAY_ACCESS_PATH
+	) as Marker3D
+	if access_marker == null:
+		return {
+			"accepted": false,
+			"reason": &"staging_relay_access_marker_unavailable",
+		}
+	var diagnostic := StagingRelayProximityBindingScript.new() as Area3D
+	diagnostic.name = "OwnedStagingRelayProximityDiagnostic"
+	_composition_root.add_child(diagnostic)
+	diagnostic.global_transform = access_marker.global_transform
+	var configured := diagnostic.call(
+		&"configure", _host, _player, _host.get_generation(), _generation,
+		_loaded_scene_instance_id
+	) as Dictionary
+	if not bool(configured.get("accepted", false)):
+		diagnostic.queue_free()
+		return configured
+	_staging_relay_proximity = diagnostic
+	_staging_relay_access_marker = access_marker
+	return {
+		"accepted": true,
+		"reason": &"staging_relay_proximity_attached",
+		"diagnostic": diagnostic.call(&"get_snapshot"),
+	}.duplicate(true)
+
+
+func _retire_staging_relay_proximity() -> void:
+	if is_instance_valid(_staging_relay_proximity):
+		_staging_relay_proximity.queue_free()
+	_staging_relay_proximity = null
+	_staging_relay_access_marker = null
 
 
 func _on_authored_hazard_presentation_changed(_snapshot: Dictionary) -> void:
@@ -1340,6 +1410,12 @@ func detach_planetary_surface() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
 	var result: Dictionary = _planetary_composition.call(&"detach")
+	if bool(result.get("accepted", false)) \
+			and is_instance_valid(_staging_relay_proximity):
+		var diagnostic_detached := _staging_relay_proximity.call(&"detach") \
+			as Dictionary
+		if not bool(diagnostic_detached.get("accepted", false)):
+			return diagnostic_detached
 	if bool(result.get("accepted", false)) and _relay_return_travel != null:
 		_relay_return_travel.call(&"detach")
 	return result
@@ -1349,6 +1425,13 @@ func reenter_planetary_surface() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
 	var result: Dictionary = _planetary_composition.call(&"reenter")
+	if bool(result.get("accepted", false)) \
+			and is_instance_valid(_staging_relay_proximity):
+		var diagnostic_reentered := _staging_relay_proximity.call(
+			&"reenter", _host.get_attachment_generation()
+		) as Dictionary
+		if not bool(diagnostic_reentered.get("accepted", false)):
+			return diagnostic_reentered
 	if bool(result.get("accepted", false)) and _relay_return_travel != null:
 		var travel_result: Dictionary = _relay_return_travel.call(
 			&"reenter", _host.get_attachment_generation()
@@ -1951,6 +2034,17 @@ func audit() -> Dictionary:
 
 
 func _physics_process(_engine_delta: float) -> void:
+	if is_instance_valid(_staging_relay_proximity):
+		if is_instance_valid(_staging_relay_access_marker):
+			_staging_relay_proximity.global_transform = \
+				_staging_relay_access_marker.global_transform
+			_staging_relay_proximity.call(&"refresh_authoritative_state")
+		elif bool(
+			(_staging_relay_proximity.call(&"get_snapshot") as Dictionary).get(
+				"attached", false
+			)
+		):
+			_staging_relay_proximity.call(&"detach")
 	if _pending_envelope.is_empty() or _mutation_active or _signal_dispatch_active:
 		return
 	_mutation_active = true
