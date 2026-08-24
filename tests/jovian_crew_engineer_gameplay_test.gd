@@ -35,8 +35,15 @@ func _run() -> void:
 	_check(craft.get_pilot_seat_anchor() != null, "pilot remains immediately available")
 	_check(craft.get_engineer_seat_anchor() != null, "engineer maps to a physical passenger-cabin seat")
 	_check(
-		craft.get_engineer_status_text().contains("[READY]"),
-		"the physical cabin status panel boots with engineer repair ready"
+		craft.get_engineer_status_text() == "IDLE // REPAIR READY",
+		"the physical cabin status panel boots with a text-readable idle state"
+	)
+	var console_boot: Dictionary = craft.get_engineer_console_presentation_snapshot()
+	_check(
+		bool(console_boot.get("attached", false))
+			and StringName(console_boot.get("state", &"")) == &"idle"
+			and not bool((console_boot.get("authority", {}) as Dictionary).get("repair", true)),
+		"the physical console is attached as presentation only"
 	)
 
 	var selected := [0]
@@ -107,7 +114,8 @@ func _run() -> void:
 				model.get_component_integrity(adjacent_component_id),
 				adjacent_integrity_before
 			)
-			and craft.get_engineer_status_text().contains("[WORK"),
+			and craft.get_engineer_status_text().contains("REPAIRING //")
+			and craft.get_engineer_status_text().contains("PROGRESS // 0%"),
 		"pending work mutates no component and is visible on the physical cabin panel"
 	)
 	await physics_frame
@@ -127,7 +135,7 @@ func _run() -> void:
 				model.get_component_integrity(component_id), integrity_at_departure
 			)
 			and is_zero_approx(float(interrupted.get("cooldown_remaining", -1.0)))
-			and craft.get_engineer_status_text().contains("[INTERRUPTED]"),
+			and craft.get_engineer_status_text().contains("ABORTED // LEFT BERTH"),
 		"departing the berth visibly interrupts without repair commit or cooldown"
 	)
 	craft.set("_landed", true)
@@ -166,7 +174,8 @@ func _run() -> void:
 			and int(completion_operation.get("repaired_components", 0)) == 1
 			and selected_gain > adjacent_gain
 			and float(completed.get("cooldown_remaining", 0.0)) > 0.0
-			and craft.get_engineer_status_text().contains("[COOLDOWN"),
+			and craft.get_engineer_status_text().contains("COMPLETED //")
+			and craft.get_engineer_status_text().contains("PROGRESS // 100%"),
 		"completion targets one component and exposes the shared physics-time cooldown"
 	)
 	_check(selected[0] == 2 and selected_generation[0] == 1, "repair retry retains the generation-fenced target")
@@ -261,6 +270,13 @@ func _run() -> void:
 	_check(bool(released.get("accepted", false)), "replacement engineer releases through the same authority")
 	await physics_frame
 	_check(cleared[0] == 2 and clear_reason[0] == &"role_released", "detach clears replacement selection")
+	var released_console: Dictionary = craft.get_engineer_console_presentation_snapshot()
+	_check(
+		StringName(released_console.get("state", &"")) == &"idle"
+			and int(released_console.get("last_sequence", -2)) == -1
+			and craft.get_engineer_status_text() == "IDLE // REPAIR READY",
+		"role release clears the physical console and its sequence fence"
+	)
 
 	var reset := craft.reset_for_reuse(Transform3D(Basis.IDENTITY, Vector3(4.0, 2.0, 6.0)))
 	_check(bool(reset.get("accepted", false)), "Jovian reuse transaction remains available after role cleanup")
@@ -269,7 +285,7 @@ func _run() -> void:
 		(state.get("selection", {}) as Dictionary).is_empty()
 			and int(state.get("component_generation", 0)) == 1
 			and StringName((state.get("repair", {}) as Dictionary).get("status", &"")) == &"idle"
-			and craft.get_engineer_status_text().contains("[READY]"),
+			and craft.get_engineer_status_text() == "IDLE // REPAIR READY",
 		"reuse resets engineer selection and component generation"
 	)
 

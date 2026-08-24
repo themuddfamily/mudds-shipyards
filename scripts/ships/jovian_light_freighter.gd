@@ -16,6 +16,7 @@ const SCHEMA_VERSION := 1
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
 const RepairAuthorityType := preload("res://scripts/combat/repair_authority.gd")
+const JovianEngineerRepairConsoleType := preload("res://scripts/ships/jovian_engineer_repair_console.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const JovianCopilotNavigationAudioBindingType := preload("res://scripts/audio/jovian_copilot_navigation_audio_binding.gd")
 const EVIDENCE_STATUS: StringName = &"provisional"
@@ -268,6 +269,9 @@ var _engineer_repair_state: Dictionary = {
 	"progress": 0.0,
 }
 var _engineer_status_readout: Label3D
+var _engineer_repair_console: JovianEngineerRepairConsole
+var _engineer_console_generation := 0
+var _engineer_console_sequence := -1
 var _copilot_navigation_receipt: Dictionary = {}
 var _copilot_navigation_generation := 1
 var _ship_perspective_audio_binding: RefCounted
@@ -286,6 +290,8 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 func _enter_tree() -> void:
 	super._enter_tree()
+	if _engineer_repair_console != null:
+		call_deferred("_rebind_engineer_repair_console")
 	if _ship_perspective_audio_binding != null:
 		call_deferred("_rebind_jovian_perspective_audio")
 	if _copilot_navigation_audio_binding != null:
@@ -314,6 +320,10 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_interrupt_engineer_repair(&"ship_detached")
+	if _engineer_repair_console != null:
+		_engineer_repair_console.detach()
+		_engineer_console_generation += 1
+		_engineer_console_sequence = -1
 	_clear_copilot_navigation_state(&"ship_detached")
 	if _ship_perspective_audio_binding != null:
 		if camera_view_changed.is_connected(_on_jovian_camera_view_changed):
@@ -337,6 +347,16 @@ func _rebind_jovian_perspective_audio() -> void:
 	if bool(result.get("accepted", false)) \
 		and not camera_view_changed.is_connected(_on_jovian_camera_view_changed):
 		camera_view_changed.connect(_on_jovian_camera_view_changed)
+
+
+func _rebind_engineer_repair_console() -> void:
+	if not is_inside_tree() or _engineer_repair_console == null \
+			or _engineer_status_readout == null or not is_instance_valid(_engineer_status_readout):
+		return
+	var snapshot := _engineer_repair_console.get_snapshot()
+	if not bool(snapshot.get("attached", false)):
+		_engineer_repair_console.bind(_engineer_status_readout, _engineer_console_generation)
+		_refresh_engineer_status_readout()
 
 
 func _rebind_copilot_navigation_audio() -> void:
@@ -425,6 +445,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_clear_engineer_component_selection(&"ship_reused", false)
 	_engineer_component_generation = 1
 	_reset_engineer_repair_state()
+	_restart_engineer_console_presentation()
 	_clear_copilot_navigation_state(&"ship_reused")
 	_copilot_navigation_generation = 1
 	_set_interior_operational(true)
@@ -917,6 +938,7 @@ func _select_engineer_component(
 		"request_sequence": int(intent.get("request_sequence", -1)),
 	}
 	_engineer_component_selection = selection
+	_refresh_engineer_status_readout()
 	engineer_component_selected.emit(
 		component_id,
 		component_generation,
@@ -1142,21 +1164,28 @@ func get_engineer_status_text() -> String:
 		else ""
 
 
+func get_engineer_console_presentation_snapshot() -> Dictionary:
+	return _engineer_repair_console.get_snapshot() \
+		if _engineer_repair_console != null else {"attached": false}
+
+
 func _refresh_engineer_status_readout() -> void:
-	if _engineer_status_readout == null or not is_instance_valid(_engineer_status_readout):
+	if _engineer_repair_console == null:
 		return
-	var repair := get_engineer_repair_state()
-	var status := StringName(repair.get("status", &"idle"))
-	var token := "[READY]"
-	if status == &"repairing":
-		token = "[WORK %d%%]" % int(round(
-			clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0
-		))
-	elif status == &"interrupted":
-		token = "[INTERRUPTED]"
-	elif float(repair.get("cooldown_remaining", 0.0)) > 0.0:
-		token = "[COOLDOWN %.1fs]" % float(repair.get("cooldown_remaining", 0.0))
-	_engineer_status_readout.text = "ENGINEER REPAIR\n%s" % token
+	_engineer_console_sequence += 1
+	_engineer_repair_console.present_snapshot({
+		"generation": _engineer_console_generation,
+		"sequence": _engineer_console_sequence,
+		"repair_snapshot": get_engineer_repair_network_snapshot(),
+	})
+
+
+func _restart_engineer_console_presentation() -> void:
+	if _engineer_repair_console == null:
+		return
+	_engineer_console_generation += 1
+	_engineer_console_sequence = -1
+	_engineer_repair_console.begin_generation(_engineer_console_generation)
 
 
 func _cleanup_detached_engineer_state() -> void:
@@ -1199,6 +1228,7 @@ func _clear_engineer_component_selection(reason: StringName, advance_generation:
 			_engineer_repair_authority = null
 			_engineer_repair_actor_id = &""
 			_engineer_repair_elapsed = 0.0
+			_restart_engineer_console_presentation()
 		return
 	var component_id := StringName(_engineer_component_selection.get("component_id", &""))
 	var component_generation := int(_engineer_component_selection.get("component_generation", 0))
@@ -1212,6 +1242,7 @@ func _clear_engineer_component_selection(reason: StringName, advance_generation:
 		_engineer_repair_authority = null
 		_engineer_repair_actor_id = &""
 		_engineer_repair_elapsed = 0.0
+		_restart_engineer_console_presentation()
 
 
 static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
@@ -3286,6 +3317,8 @@ func _build_passenger_cabin() -> void:
 	_engineer_status_readout.no_depth_test = true
 	_engineer_status_readout.set_meta("presentation_only", true)
 	_passenger_cabin.add_child(_engineer_status_readout)
+	_engineer_repair_console = JovianEngineerRepairConsoleType.new()
+	_engineer_repair_console.bind(_engineer_status_readout, _engineer_console_generation)
 	_refresh_engineer_status_readout()
 	var cabin_light := OmniLight3D.new()
 	cabin_light.name = "PassengerPracticalLight"
