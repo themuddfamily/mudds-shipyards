@@ -10,6 +10,11 @@ const CRAFT_SCRIPT := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const CARGO_AUDIO_BINDING := preload("res://scripts/audio/cinder_cargo_transfer_audio_binding.gd")
 const COMPONENT_ID: StringName = &"cinder-cargo-hauler"
 const EXPECTED_CARGO_ID: StringName = &"cinder_supply_crates"
+const CARGO_STATE_IDLE := 0
+const CARGO_STATE_ACTIVE := 1
+const CARGO_STATE_COMPLETED := 2
+const CARGO_STATE_FAILED := 3
+const CARGO_STATE_EXPIRED := 4
 
 var _craft: Node
 var _binding: Node
@@ -53,6 +58,7 @@ func bind(craft: Node, binding: Node) -> Dictionary:
 	if not bool(audio_result.get("accepted", false)):
 		_audio_binding = null
 		return _result(false, &"audio_binding_failed")
+	_sync_audio_generation(_binding_generation)
 	_bound = true
 	return _result(true, &"bound")
 
@@ -79,24 +85,40 @@ func submit_phase(phase_id: StringName, anchor_id: StringName, cargo_id: StringN
 func detach() -> Dictionary:
 	if not _bound:
 		return _result(false, &"not_bound")
-	var cleanup: Dictionary = {"accepted": true, "reason": &"already_idle"}
 	var snapshot: Dictionary = _binding.call("get_snapshot")
 	var cargo: Dictionary = snapshot.get("cargo", {}) as Dictionary
 	if int(cargo.get("generation", -1)) != _binding_generation:
-		cleanup = _result(false, &"stale_generation")
-	elif int(cargo.get("state", 0)) == 1:
-		cleanup = _binding.call("reset_cargo_run")
-	_bound = false
+		return _result(false, &"stale_generation")
+	var cleanup := _detach_cargo_cleanup(cargo)
+	if not bool(cleanup.get("accepted", false)):
+		return cleanup
 	if _audio_binding != null:
 		_audio_binding.unregister_audio_director()
 		_audio_binding.detach()
 	_audio_binding = null
+	_bound = false
 	_craft = null
 	_binding = null
 	_craft_instance_id = 0
 	_binding_instance_id = 0
 	_binding_generation = -1
 	return cleanup
+
+
+## Interrupted transfers leave CargoDeliveryActivity in a terminal failed or
+## expired state. Reset those authoritative states before release so a later
+## re-entry can start a new generation. Completed receipts deliberately remain
+## untouched for the reward/persistence handoff.
+func _detach_cargo_cleanup(cargo: Dictionary) -> Dictionary:
+	match int(cargo.get("state", -1)):
+		CARGO_STATE_IDLE:
+			return _result(true, &"already_idle")
+		CARGO_STATE_ACTIVE, CARGO_STATE_FAILED, CARGO_STATE_EXPIRED:
+			return _binding.call("reset_cargo_run") as Dictionary
+		CARGO_STATE_COMPLETED:
+			return _result(true, &"completion_retained")
+		_:
+			return _result(false, &"unknown_cargo_state")
 
 
 func get_snapshot() -> Dictionary:
@@ -135,11 +157,16 @@ func unregister_audio_director() -> Dictionary:
 func _sync_audio_generation(target_generation: int) -> void:
 	if _audio_binding == null or target_generation < 0:
 		return
-	var current := int(_audio_binding.get_snapshot().get("generation", -1))
+	var audio_snapshot := _audio_binding.get_snapshot() as Dictionary
+	var current := int(audio_snapshot.get("generation", -1))
 	while current < target_generation:
-		_audio_binding.detach()
-		current = int(_audio_binding.get_snapshot().get("generation", -1))
-	if current == target_generation and not bool(_audio_binding.get_snapshot().get("attached", false)):
+		if bool(audio_snapshot.get("attached", false)):
+			_audio_binding.detach()
+		else:
+			_audio_binding.attach(current)
+		audio_snapshot = _audio_binding.get_snapshot() as Dictionary
+		current = int(audio_snapshot.get("generation", -1))
+	if current == target_generation and not bool(audio_snapshot.get("attached", false)):
 		_audio_binding.attach(current)
 
 
