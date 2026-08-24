@@ -4050,6 +4050,8 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 		var craft_lifecycle_notice := str(snapshot.get("craft_lifecycle_notice", ""))
 		if not craft_lifecycle_notice.is_empty():
 			detail += "\n%s" % craft_lifecycle_notice
+		for repair_row in snapshot.get("repair_rows", []) as Array:
+			detail += "\nREPAIR // %s" % str(repair_row)
 		var landing_text := str(snapshot.get("landing_text", ""))
 		if not landing_text.is_empty():
 			detail += "\nLANDING // %s" % landing_text

@@ -7,6 +7,8 @@ extends RefCounted
 const COMPONENT_ID: StringName = &"network-session-status-presenter"
 const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"rejected", &"disconnected", &"migrating"]
 const LOCAL_ROLES := [&"pilot", &"passenger", &"observer"]
+const REPAIR_STATES := [&"started", &"progress", &"completed", &"aborted"]
+const MAX_REPAIR_PRESENTATIONS := 8
 const SESSION_END_MESSAGES := {
 	&"timeout": "Session timed out.",
 	&"rejected": "Session request was rejected.",
@@ -22,6 +24,7 @@ var _authority_peer_id := 0
 var _authority_revision := -1
 var _authority_records: Dictionary = {&"ownership": [], &"boarding": [], &"respawn": []}
 var _ownership_view: Dictionary = {}
+var _repair_presentations: Dictionary = {}
 var _landing_authority_peer_id := 0
 var _landing_revision := -1
 var _landing_record: Dictionary = {}
@@ -66,6 +69,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		local_role,
 		state
 	)
+	var repair_view := _present_authoritative_repairs(local_peer_id, state)
 	var landing_view := _present_authoritative_landing(
 		source.get("authoritative_landing", {}),
 		craft_id,
@@ -110,6 +114,8 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"craft_lifecycle_state": ownership_view.get("craft_lifecycle_state", &""),
 		"craft_lifecycle_text": ownership_view.get("craft_lifecycle_text", ""),
 		"craft_lifecycle_notice": ownership_view.get("craft_lifecycle_notice", ""),
+		"repair_lifecycles": repair_view.get("lifecycles", []),
+		"repair_rows": repair_view.get("rows", []),
 		"landing_state": landing_view.get("state", &""),
 		"landing_text": landing_view.get("text", ""),
 		"landing_notice": landing_view.get("notice", ""),
@@ -318,6 +324,141 @@ func _present_authoritative_landing(
 	_landing_view["authority_peer_id"] = authority_peer_id
 	_landing_view["presentation_only"] = true
 	return _landing_view.duplicate(true)
+
+
+## Reads only the repair projection already carried by canonical respawn rows.
+## Each craft retains an independent nested generation/sequence cursor because
+## a newer outer authority revision may still contain reordered craft data.
+func _present_authoritative_repairs(local_peer_id: int, state: StringName) -> Dictionary:
+	if state == &"disconnected":
+		_repair_presentations.clear()
+		return {}
+	var current_entity_ids: Dictionary = {}
+	for record_variant in _authority_records.get(&"respawn", []) as Array:
+		var record := record_variant as Dictionary
+		var entity_id := StringName(record.get("entity_id", &""))
+		if entity_id.is_empty():
+			continue
+		current_entity_ids[entity_id] = true
+		var retained := _repair_presentations.get(entity_id, {}) as Dictionary
+		var repair_variant: Variant = record.get("repair", null)
+		if repair_variant is Dictionary \
+				and _valid_repair_record(record, repair_variant as Dictionary):
+			var repair := repair_variant as Dictionary
+			if retained.is_empty() or _repair_cursor_is_newer(record, repair, retained):
+				_repair_presentations[entity_id] = _repair_presentation(record, repair)
+		elif not retained.is_empty() and _repair_parent_is_newer(record, retained):
+			# A respawn/component reset canonically retires the prior repair.
+			_repair_presentations.erase(entity_id)
+	for entity_variant in _repair_presentations.keys():
+		if not current_entity_ids.has(StringName(entity_variant)):
+			_repair_presentations.erase(entity_variant)
+	var lifecycles: Array = []
+	var entity_ids := _repair_presentations.keys()
+	entity_ids.sort_custom(func(left: Variant, right: Variant) -> bool:
+		return str(left) < str(right)
+	)
+	var rows: Array[String] = []
+	for entity_variant in entity_ids.slice(0, mini(entity_ids.size(), MAX_REPAIR_PRESENTATIONS)):
+		var lifecycle := (
+			_repair_presentations[entity_variant] as Dictionary
+		).duplicate(true)
+		var owner_peer_id := int(lifecycle.get("owner_peer_id", 0))
+		lifecycle["owner_text"] = _peer_scope(owner_peer_id, local_peer_id)
+		lifecycle["presentation_only"] = true
+		lifecycles.append(lifecycle)
+		rows.append("%s // %s // %s // ENGINEER %s" % [
+			str(lifecycle.get("craft_id", &"")).to_upper(),
+			str(lifecycle.get("component_id", &"")).to_upper(),
+			str(lifecycle.get("status_text", "")),
+			str(lifecycle.get("owner_text", "UNASSIGNED")),
+		])
+	return {
+		"lifecycles": lifecycles,
+		"rows": rows,
+		"presentation_only": true,
+	}
+
+
+func _valid_repair_record(parent: Dictionary, repair: Dictionary) -> bool:
+	var state := StringName(repair.get("state", &""))
+	var progress_variant: Variant = repair.get("progress", null)
+	if state not in REPAIR_STATES \
+			or int(repair.get("repair_generation", 0)) <= 0 \
+			or int(repair.get("repair_sequence", 0)) <= 0 \
+			or str(repair.get("component_id", "")).is_empty() \
+			or int(repair.get("component_generation", 0)) \
+				!= int(parent.get("component_generation", 0)) \
+			or int(repair.get("owner_peer_id", 0)) <= 0 \
+			or int(repair.get("owner_peer_generation", 0)) <= 0 \
+			or not (progress_variant is int or progress_variant is float) \
+			or not is_finite(float(progress_variant)):
+		return false
+	var progress := float(progress_variant)
+	var terminal := state in [&"completed", &"aborted"]
+	if progress < 0.0 or progress > 1.0 \
+			or bool(repair.get("terminal", false)) != terminal:
+		return false
+	return not (state == &"started" and progress != 0.0) \
+		and not (state == &"progress" and progress <= 0.0) \
+		and not (state == &"completed" and progress != 1.0)
+
+
+func _repair_cursor_is_newer(
+	parent: Dictionary,
+	repair: Dictionary,
+	retained: Dictionary
+) -> bool:
+	var entity_generation := int(parent.get("entity_generation", 0))
+	var retained_entity_generation := int(retained.get("entity_generation", 0))
+	if entity_generation != retained_entity_generation:
+		return entity_generation > retained_entity_generation
+	var component_generation := int(parent.get("component_generation", 0))
+	var retained_component_generation := int(retained.get("component_generation", 0))
+	if component_generation != retained_component_generation:
+		return component_generation > retained_component_generation
+	var repair_generation := int(repair.get("repair_generation", 0))
+	var retained_repair_generation := int(retained.get("repair_generation", 0))
+	if repair_generation != retained_repair_generation:
+		return repair_generation > retained_repair_generation
+	return int(repair.get("repair_sequence", 0)) \
+		> int(retained.get("repair_sequence", 0))
+
+
+func _repair_parent_is_newer(parent: Dictionary, retained: Dictionary) -> bool:
+	var entity_generation := int(parent.get("entity_generation", 0))
+	var retained_entity_generation := int(retained.get("entity_generation", 0))
+	if entity_generation != retained_entity_generation:
+		return entity_generation > retained_entity_generation
+	return int(parent.get("component_generation", 0)) \
+		> int(retained.get("component_generation", 0))
+
+
+func _repair_presentation(parent: Dictionary, repair: Dictionary) -> Dictionary:
+	var state := StringName(repair.get("state", &""))
+	var progress := float(repair.get("progress", 0.0))
+	var state_text := {
+		&"started": "STARTED",
+		&"progress": "IN PROGRESS",
+		&"completed": "COMPLETED",
+		&"aborted": "ABORTED",
+	}[state] as String
+	return {
+		"craft_id": StringName(parent.get("entity_id", &"")),
+		"entity_generation": int(parent.get("entity_generation", 0)),
+		"component_id": StringName(repair.get("component_id", &"")),
+		"component_generation": int(repair.get("component_generation", 0)),
+		"repair_generation": int(repair.get("repair_generation", 0)),
+		"repair_sequence": int(repair.get("repair_sequence", 0)),
+		"state": state,
+		"progress": progress,
+		"progress_percent": roundi(progress * 100.0),
+		"status_text": "%s // %d%%" % [state_text, roundi(progress * 100.0)],
+		"terminal": bool(repair.get("terminal", false)),
+		"owner_peer_id": int(repair.get("owner_peer_id", 0)),
+		"owner_peer_generation": int(repair.get("owner_peer_generation", 0)),
+		"presentation_only": true,
+	}
 
 
 func _landing_view_for_craft(record: Dictionary, craft_id: StringName) -> Dictionary:
