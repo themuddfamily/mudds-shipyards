@@ -19,7 +19,12 @@ const SESSION_END_MESSAGES := {
 }
 
 var _snapshot: Dictionary = {}
+var _source_session_id: StringName = &""
 var _source_generation := -1
+var _source_sequence := -1
+var _retired_session_id: StringName = &""
+var _retired_generation := -1
+var _retired_sequence := -1
 var _authority_peer_id := 0
 var _authority_revision := -1
 var _authority_records: Dictionary = {&"ownership": [], &"boarding": [], &"respawn": []}
@@ -32,15 +37,16 @@ var _landing_view: Dictionary = {}
 
 
 func present_snapshot(source: Dictionary) -> Dictionary:
-	if source.has("generation"):
-		if not source.generation is int or int(source.generation) < 0:
-			return _invalid_snapshot(&"invalid_generation")
-		if int(source.generation) < _source_generation:
-			return _snapshot.duplicate(true)
-		_source_generation = int(source.generation)
+	var cursor := _session_cursor(source)
+	if bool(cursor.get("fenced", false)):
+		if not bool(cursor.get("valid", false)):
+			return _retained_or_invalid(&"invalid_session_cursor")
 	var state := StringName(str(source.get("state", &"disconnected")))
 	if not STATES.has(state):
-		return _invalid_snapshot(&"invalid_state")
+		return _retained_or_invalid(&"invalid_state") \
+			if bool(cursor.get("fenced", false)) else _invalid_snapshot(&"invalid_state")
+	if bool(cursor.get("fenced", false)) and not _accept_session_cursor(cursor):
+		return _snapshot.duplicate(true)
 	var role := StringName(str(source.get("role", &"client")))
 	var detail := str(source.get("detail", "" )).strip_edges()
 	var retryable := bool(source.get("retryable", state == &"failed"))
@@ -101,6 +107,16 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		&"disconnected": "Disconnected",
 		&"migrating": "Host Migration",
 	}[state]
+	var next_action := _next_action(
+		state, retryable, attempt, seconds_remaining, local_role, ownership_view, landing_view
+	)
+	var message: String = detail if not detail.is_empty() else (
+		SESSION_END_MESSAGES[end_reason] if not end_reason.is_empty() else _default_message(state)
+	)
+	# Preserve concise terminal-reason copy consumed by the existing end-reason
+	# API; active/recoverable states add the next action directly to HUD text.
+	if end_reason.is_empty():
+		message += "\nNEXT ACTION // %s" % next_action
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"state": state,
@@ -126,7 +142,9 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			and bool(landing_view.get("control_available", true))
 		),
 		"title": title,
-		"message": detail if not detail.is_empty() else (SESSION_END_MESSAGES[end_reason] if not end_reason.is_empty() else _default_message(state)),
+		"message": message,
+		"next_action": next_action,
+		"next_action_text": "NEXT ACTION // %s" % next_action,
 		"peer_generation": peer_generation,
 		"session_generation": session_generation,
 		"generation_summary": "PEER %d  //  SESSION %d" % [peer_generation, session_generation],
@@ -137,13 +155,36 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"seconds_remaining": seconds_remaining if state == &"reconnecting" else 0.0,
 		"backoff_active": state == &"reconnecting",
 		"actions": actions,
+		"color_independent": true,
 		"presentation_only": true,
 	}
+	if bool(cursor.get("fenced", false)):
+		_snapshot["session_id"] = cursor.get("session_id", &"")
+		_snapshot["source_generation"] = int(cursor.get("generation", -1))
+		_snapshot["source_sequence"] = int(cursor.get("sequence", -1))
+	if state == &"disconnected":
+		_retire_session_cursor()
+		_clear_active_session_cursor()
+		_clear_authoritative_state()
 	return _snapshot.duplicate(true)
 
 
 func get_snapshot() -> Dictionary:
 	return _snapshot.duplicate(true)
+
+
+func detach() -> Dictionary:
+	_snapshot.clear()
+	_clear_active_session_cursor()
+	_retired_session_id = &""
+	_retired_generation = -1
+	_retired_sequence = -1
+	_clear_authoritative_state()
+	return {
+		"attached": false,
+		"presentation_only": true,
+		"network_authority": false,
+	}.duplicate(true)
 
 
 func request_cancel() -> Dictionary:
@@ -156,6 +197,91 @@ func request_retry() -> Dictionary:
 
 func request_disconnect() -> Dictionary:
 	return _intent(&"disconnect", &"disconnect_requested")
+
+
+func _session_cursor(source: Dictionary) -> Dictionary:
+	var fenced := source.has("session_id") or source.has("generation") \
+		or source.has("sequence") or source.has("event_sequence")
+	if not fenced:
+		return {"fenced": false, "valid": true}
+	var session_variant: Variant = source.get("session_id", &"legacy")
+	var generation_variant: Variant = source.get("generation", null)
+	var sequence_variant: Variant = source.get("sequence", source.get("event_sequence", null))
+	if sequence_variant == null:
+		var authoritative_variant: Variant = source.get("authoritative_snapshot", {})
+		if authoritative_variant is Dictionary:
+			var authoritative_sequence: Variant = (
+				(authoritative_variant as Dictionary).get("event_sequence", null)
+			)
+			if authoritative_sequence is int and int(authoritative_sequence) >= 0:
+				sequence_variant = authoritative_sequence
+	if sequence_variant == null:
+		sequence_variant = generation_variant
+	var session_id := StringName(str(session_variant).strip_edges()) \
+		if session_variant is String or session_variant is StringName else &""
+	return {
+		"fenced": true,
+		"valid": not session_id.is_empty() \
+			and generation_variant is int and int(generation_variant) >= 0 \
+			and sequence_variant is int and int(sequence_variant) >= 0,
+		"session_id": session_id,
+		"generation": int(generation_variant) if generation_variant is int else -1,
+		"sequence": int(sequence_variant) if sequence_variant is int else -1,
+	}
+
+
+func _accept_session_cursor(cursor: Dictionary) -> bool:
+	var session_id := StringName(cursor.get("session_id", &""))
+	var generation := int(cursor.get("generation", -1))
+	var sequence := int(cursor.get("sequence", -1))
+	if session_id == _retired_session_id and generation <= _retired_generation:
+		return false
+	if not _source_session_id.is_empty():
+		if session_id != _source_session_id:
+			return false
+		if generation < _source_generation \
+				or (generation == _source_generation and sequence <= _source_sequence):
+			return false
+		if generation > _source_generation:
+			_clear_authoritative_state()
+	elif session_id != _retired_session_id or generation > _retired_generation:
+		# A fresh identity or generation reuses the presenter without carrying
+		# ownership, repair, or landing rows from the prior session.
+		_clear_authoritative_state()
+	_source_session_id = session_id
+	_source_generation = generation
+	_source_sequence = sequence
+	return true
+
+
+func _retire_session_cursor() -> void:
+	if _source_session_id.is_empty():
+		return
+	_retired_session_id = _source_session_id
+	_retired_generation = _source_generation
+	_retired_sequence = _source_sequence
+
+
+func _clear_active_session_cursor() -> void:
+	_source_session_id = &""
+	_source_generation = -1
+	_source_sequence = -1
+
+
+func _clear_authoritative_state() -> void:
+	_authority_peer_id = 0
+	_authority_revision = -1
+	_authority_records = {&"ownership": [], &"boarding": [], &"respawn": []}
+	_ownership_view.clear()
+	_repair_presentations.clear()
+	_landing_authority_peer_id = 0
+	_landing_revision = -1
+	_landing_record.clear()
+	_landing_view.clear()
+
+
+func _retained_or_invalid(reason: StringName) -> Dictionary:
+	return _snapshot.duplicate(true) if not _snapshot.is_empty() else _invalid_snapshot(reason)
 
 
 func _intent(action: StringName, reason: StringName) -> Dictionary:
@@ -190,6 +316,47 @@ func _default_message(state: StringName) -> String:
 		&"disconnected": "No active session.",
 		&"migrating": "The session host is changing.",
 	}[state]
+
+
+func _next_action(
+	state: StringName,
+	retryable: bool,
+	attempt: int,
+	seconds_remaining: float,
+	local_role: StringName,
+	ownership_view: Dictionary,
+	landing_view: Dictionary
+) -> String:
+	match state:
+		&"connecting":
+			return "WAIT FOR HOST ADMISSION OR CANCEL CONNECTION"
+		&"reconnecting":
+			if seconds_remaining > 0.0:
+				return "WAIT %.1f S FOR RECONNECT ATTEMPT %d OR CANCEL RECONNECT" % [
+					seconds_remaining, maxi(attempt, 1),
+				]
+			return "WAIT FOR RECONNECT ATTEMPT %d OR CANCEL RECONNECT" % maxi(attempt, 1)
+		&"migrating":
+			return "WAIT FOR NEW HOST OR CANCEL MIGRATION"
+		&"connected":
+			if not bool(landing_view.get("control_available", true)):
+				return "WAIT FOR AUTHORITATIVE LANDING UPDATE OR DISCONNECT"
+			if not bool(ownership_view.get("craft_control_available", true)):
+				return "WAIT FOR AUTHORITATIVE CRAFT RECOVERY OR DISCONNECT"
+			for notice_variant in ownership_view.get("notices", []) as Array:
+				var notice := str(notice_variant)
+				if notice.begins_with("CONTROL DENIED") or notice.begins_with("SEAT DENIED"):
+					return "WAIT FOR HOST CRAFT ASSIGNMENT OR DISCONNECT"
+			return {
+				&"pilot": "CONTINUE AS PILOT OR DISCONNECT",
+				&"passenger": "CONTINUE AS PASSENGER OR DISCONNECT",
+				&"observer": "WAIT FOR HOST ASSIGNMENT OR DISCONNECT",
+			}[local_role]
+		&"failed", &"rejected":
+			return "RETRY CONNECTION OR CANCEL" if retryable else "CANCEL AND REVIEW SESSION SETTINGS"
+		&"disconnected":
+			return "RETRY CONNECTION" if retryable else "RETURN TO SESSION MENU"
+	return "REVIEW SESSION STATUS"
 
 
 func _normalize_local_role(raw_role: Variant) -> StringName:
