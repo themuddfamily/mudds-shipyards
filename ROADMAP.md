@@ -1140,6 +1140,21 @@ state rejects before berth, hull, transform, presentation, or lifecycle mutation
 
 ### 2. Measured performance improvement
 
+The current merged trim pass now changes production cost rather than extending
+evidence families. Repeated inert visuals share immutable resources across the
+Arrow, Jovian, Bulwark, Cinder, opponent, station-service and planetary
+presentation families; bounded `MultiMesh` batches retain authored copies while
+reducing submissions throughout Fleet Dock, Habitat, Aft, Fabrication, VIP,
+Observation, Jovian and expansion berths, Halyard, Cinder cargo/streaming and
+Ember surface presentation. Five berth-feedback displays replace thirty
+duplicate box meshes with five shared unit-box resources, and five station doors
+replace twenty presentation meshes with four immutable recipes. Disabled station
+machinery ambience avoids twelve idle synthesized streams / 335,360 PCM bytes
+across four zones, while final-approach audio uses one retained semantic voice
+instead of two. Focused feature tests preserve collision, interaction, lifecycle
+and gameplay authority; these source-side deltas do **not** claim native draw
+calls, GPU/VRAM/frame time, audibility or human visual-review completion.
+
 - [ ] Re-measure the merged scene with the deterministic geometry/material census and native-Windows CPU/GPU benchmarks before changing any ceiling. Preserve the existing minimum/target hardware and report p50/p95/p99 frame time, GPU time, RAM/VRAM, draw submissions, triangles, lights, shadows, particles, audio voices, startup time, and long-session growth.
 - [ ] Trim before raising budgets: share immutable material/mesh resources, batch visual-only repeats with audited `MultiMesh` transforms, reduce excessive unique meshes and scene nodes, consolidate practical lights without making rooms unreadable, and restore triangle/draw-call headroom. Never batch collision, interaction, evidence, or lifecycle authority unless its indexing contract is upgraded first.
 - [ ] Render and inspect every visual optimization from the affected player/ship viewpoints. Accept a change only when it improves measured cost without introducing missing geometry, altered collision, lighting regressions, unreadable signage, or evidence drift.
@@ -1148,6 +1163,14 @@ state rejects before berth, hull, transform, presentation, or lifecycle mutation
 ### 3. Whole-game visual improvement
 
 The first required transition harness now captures production Cinder residency at one immutable 2560 x 1440 camera across HIGH/LOW and normal/reduced motion. Its exact 24-image inventory reproduced a real one-frame near-field cluster pop at the hard load/unload boundary; production now commits each streamed generation hidden, fades it to the fully authored state over exactly 0.5 caller-physics seconds, remains fully authored through 650 m, fades out only after crossing that boundary, and defers physical retirement until a confirming still-outside tick after opacity reaches zero. Retention is bounded at 725 m for teleports. The updated 24-frame Forward+ evidence shows no Cinder geometry at hidden commit/removal, clear HIGH/LOW loaded readability, and only a small HIGH temporal-settling residual after opacity zero; root inspection agrees that the reproduced pop is removed. The required graphical registry contains **13 harnesses**, but checked-in source freeze, exact published image inventory and original-resolution human review remain truthfully pending (**0 / 13 ready, 39 blockers**). A local agent inspection is not the release human-review gate, and no subjective pixel threshold substitutes for it.
+
+The merged material pass now gives production Salvage Terrace, VIP reception,
+Central/Jovian/expansion berths, Aft, Habitat, Fabrication, Observation, Cinder
+cargo access, the Cinder mining/scan/beacon landmarks and the Ember surface
+route distinct walked, structural, painted/service and metal-trim responses
+while retaining their exact palettes and emissive state cues. This improves
+hierarchy in the next package, but native gameplay-distance before/after capture
+and human review remain open.
 
 - [ ] Run a deliberate art-direction pass over the station, fleet, nearby sector, UI, effects, lighting, materials, silhouettes, signage, animation, and transitions. Prioritize navigation/readability, coherent scale, material hierarchy, colour-safe cues, and strong compositions before adding decorative density.
 - [ ] Replace placeholder or inconsistent assets, remove visible seams/z-fighting, improve LOD transitions and distant silhouettes, tune exposure/fog/bloom/particles, and give important spaces distinct but coherent visual identities. Preserve the evidence boundary: invented polish remains `modern_interpretation` and never becomes historical evidence.
@@ -1214,8 +1237,10 @@ envelope after the common-origin transaction from the same adjusted actor
 sample, and Hero consumes it on the next physics tick. The existing pause menu
 exposes a controller-reachable fixed `EMBER CRUISE` engage/disengage row with
 bounded public status, replay/re-entry protection and no auto-engage. There is
-still no destination catalog, safe station-return target, arrival owner or
-surface handoff, and no new raw-input or ship-command authority was added.
+still no general destination catalog, but the retained Ember journey now owns
+one generation-fenced surface handoff and fixed Mudds Shipyards return target;
+the existing cruise/manual-landing/berth authorities own arrival rather than a
+parallel mover. No new raw-input or ship-command authority was added.
 
 The first authored destination is the original airless `ember_moon`, with exact
 `ember_basalt_terrain` and sole radial `ember_caldera` landing definitions; the
@@ -1257,11 +1282,14 @@ host/berth/boarding contracts, and admits the deferred journey exactly once. A
 generation-fenced completion receipt releases cruise ownership and hands the retained
 craft to `EmberSurfaceLoopProductionBinding`; its priority-2 caller cadence starts the
 Host once without staging, teleporting, reparenting, adding another mover/origin owner,
-or polling raw Input. The full surface-and-return repetition, whole-`Main` continuity,
-native performance, audibility, and human review remain open. The audited station
-datum remains an occupied coordinate reference, not a selectable return
-destination; a candidate return approach still lacks a live all-five-craft
-750 km route proof and an owner for its roughly 65 km brake-complete shell.
+or polling raw Input. The retained production cadence now also consumes one
+authenticated station-return intent after real reboarding, take-off, ascent and
+orbit evidence, reuses the existing cruise-to-manual-landing path, and confirms
+real touchdown, engine shutdown, disembark and occupancy of the compatible home
+berth exactly once. Replays, forged actors, stale frames and handback-generation
+drift fail closed. Repeated whole-`Main` cycles, a live all-five-craft 750 km
+route proof, native performance, audibility, and human review remain open; this
+fixed Ember-to-Mudds route is not a general selectable destination catalog.
 Global terrain/clipmap generation, spherical vehicle gravity, an atmospheric
 authored destination with complete sky/cloud/weather/entry/audio presentation,
 activity/reward, save/network, native performance and repeated orbit-to-surface
@@ -1281,10 +1309,14 @@ survey is active, aborts coherently on actor loss or host-generation drift, and
 issues one caller-routed Mudds Shipyards return manifest after accepted reward
 intent. The retained binding now validates that manifest and admits it exactly
 once into the existing `PlanetaryTravelSession`; admission records the intended
-homeward session without moving the craft or advancing a phase. The caller must
-still supply reboard, take-off, ascent, orbit, and arrival evidence, so automatic
-reward grant, complete return execution, packaged completion, native performance,
-and reward persistence across the whole game remain open.
+homeward session without moving the craft or advancing a phase. The production
+caller now supplies and generation-checks reboard, take-off, ascent and orbit
+evidence, publishes the authority-free station intent while the Host is still
+attached, and completes the existing station arrival/berth lifecycle. The
+validated live actor observation now grants the survey reward exactly once
+through GameFlow authority and requires the existing UserDataStore persistence
+commit before return-manifest flow proceeds. Packaged completion, native
+performance, human review and repeated whole-game loop endurance remain open.
 
 - [ ] Turn the nearby coloured bodies into authored, visitable destinations rather than decorative spheres. Begin with one vertical slice planet or moon and complete it before multiplying worlds: orbital approach, atmospheric entry where applicable, descent, surface flight, landing, on-foot traversal, activities, take-off, ascent, orbit, and return to Mudds Shipyards without a loading/lifecycle dead end.
 - [ ] Build a reusable planetary-world contract covering scale and coordinate frames, streaming/origin management, terrain LOD and collision, biome/material layers, atmosphere and sky scattering, clouds, weather, wind, fog, day/night and sun/moon lighting, water where appropriate, surface audio, navigation, landing sites, settlements/structures, hazards, wildlife only if deliberately authored, and save/session persistence.
