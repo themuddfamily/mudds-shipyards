@@ -28,6 +28,12 @@ const HULL_COLOR := Color("536b73")
 const CARGO_COLOR := Color("b2773d")
 const ACCENT_COLOR := Color("42c9cf")
 
+# The primary hull is immutable, childless presentation stock. Fleet switching
+# can briefly retain two haulers, so keep one process-local mesh/material recipe
+# while each craft retains its own renderer, transform, collision and authority.
+static var _shared_hull_mesh: BoxMesh
+static var _shared_hull_material: StandardMaterial3D
+
 
 class CinderLoadmasterInteraction:
 	extends Area3D
@@ -993,10 +999,15 @@ func _build_collision() -> void:
 func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "IndustrialHull"
-	var mesh := BoxMesh.new()
-	mesh.size = HULL_SIZE
-	hull.mesh = mesh
-	hull.material_override = _material(HULL_COLOR, 0.72, 0.42)
+	if _shared_hull_mesh == null:
+		_shared_hull_mesh = BoxMesh.new()
+		_shared_hull_mesh.size = HULL_SIZE
+		_shared_hull_mesh.resource_local_to_scene = false
+	if _shared_hull_material == null:
+		_shared_hull_material = _material(HULL_COLOR, 0.72, 0.42)
+		_shared_hull_material.resource_local_to_scene = false
+	hull.mesh = _shared_hull_mesh
+	hull.material_override = _shared_hull_material
 	visual.add_child(hull)
 	var cargo_pod := MeshInstance3D.new()
 	cargo_pod.name = "CargoPod"
