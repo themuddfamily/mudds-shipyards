@@ -22,6 +22,13 @@ const STATUS_COLOR_READY := Color("8ef4f2")
 const STATUS_COLOR_ACTIVE := Color("ffd27a")
 const STATUS_COLOR_SECURE := Color("92efb1")
 const STATUS_COLOR_RECOVERY := Color("ff9b86")
+const READABILITY_ROOT_NAME := &"StationDefenseReadability"
+const LOCATOR_BACKING_SIZE := Vector3(1.58, 0.70, 0.08)
+const LOCATOR_BACKING_POSITION := Vector3(0.0, 1.48, 0.97)
+const LOCATOR_BRACKET_SIZE := Vector3(0.12, 0.78, 0.09)
+const LOCATOR_UNDERLINE_SIZE := Vector3(1.28, 0.025, 0.025)
+const LOCATOR_CYAN := Color("8ef4f2")
+const LOCATOR_AMBER := Color("ffd27a")
 
 var _content: StationDefenseEncounterContent
 var _combat_authority: LiveCombatAuthority
@@ -294,6 +301,10 @@ func get_presentation_snapshot() -> Dictionary:
 		"text": _presentation_text,
 		"snapshot_driven": true,
 		"steady": true,
+		"readability_geometry_nodes": 4,
+		"label_nodes": 2,
+		"lights": 0,
+		"pulsing": false,
 	}.duplicate(true)
 
 
@@ -415,14 +426,47 @@ func _build_physical_board() -> void:
 	material.emission = Color("39c7d5")
 	material.emission_energy_multiplier = 0.35
 	console.material_override = material
+	var readability := Node3D.new()
+	readability.name = READABILITY_ROOT_NAME
+	readability.set_meta("presentation_only", true)
+	body.add_child(readability)
+	var backing := MeshInstance3D.new()
+	backing.name = "DefenseActivityLocator"
+	var backing_box := BoxMesh.new()
+	backing_box.size = LOCATOR_BACKING_SIZE
+	backing.mesh = backing_box
+	backing.position = CONSOLE_OFFSET + LOCATOR_BACKING_POSITION
+	backing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	backing.material_override = _readability_material(Color("102a34"), 0.22)
+	readability.add_child(backing)
+	for side in [-1.0, 1.0]:
+		var bracket := MeshInstance3D.new()
+		bracket.name = "LocatorBracketPort" if side < 0.0 else "LocatorBracketStarboard"
+		var bracket_box := BoxMesh.new()
+		bracket_box.size = LOCATOR_BRACKET_SIZE
+		bracket.mesh = bracket_box
+		bracket.position = CONSOLE_OFFSET + Vector3(side * 0.76, 1.48, 1.02)
+		bracket.rotation.z = side * deg_to_rad(12.0)
+		bracket.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		bracket.material_override = _readability_material(LOCATOR_CYAN, 0.85)
+		readability.add_child(bracket)
+	var underline := MeshInstance3D.new()
+	underline.name = "ActivityBoardLocatorUnderline"
+	var underline_box := BoxMesh.new()
+	underline_box.size = LOCATOR_UNDERLINE_SIZE
+	underline.mesh = underline_box
+	underline.position = CONSOLE_OFFSET + Vector3(0.0, 1.16, 1.025)
+	underline.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	underline.material_override = _readability_material(LOCATOR_AMBER, 1.0)
+	readability.add_child(underline)
 	var label := Label3D.new()
 	label.name = "ActivityLabel"
-	label.text = "STATION DEFENSE"
-	label.font_size = 20
-	label.modulate = Color("8ef4f2")
-	label.position = CONSOLE_OFFSET + Vector3(0.0, 1.04, 0.94)
-	label.pixel_size = 0.0048
-	label.outline_size = 5
+	label.text = "STATION DEFENSE\nACTIVITY BOARD"
+	label.font_size = 18
+	label.modulate = LOCATOR_CYAN
+	label.position = CONSOLE_OFFSET + Vector3(0.0, 1.50, 1.04)
+	label.pixel_size = 0.0047
+	label.outline_size = 7
 	add_child(label)
 	var status_label := Label3D.new()
 	status_label.name = "StatusLabel"
@@ -440,6 +484,17 @@ func _build_physical_board() -> void:
 	interaction_shape.shape = interaction_box
 	interaction_shape.position = CONSOLE_OFFSET + Vector3(0.0, 0.25, 0.45)
 	add_child(interaction_shape)
+
+
+func _readability_material(color: Color, emission_energy: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.metallic = 0.08
+	material.roughness = 0.38
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = emission_energy
+	return material
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
