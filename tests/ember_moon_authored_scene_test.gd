@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 55
+const EXPECTED_ASSERTIONS := 56
 const INTEGRATION_AUTHORITY_KEYS := [
 	"streaming", "game_flow", "gameplay", "landing_decision", "ship_movement",
 	"player_movement", "world_generation", "terrain_generation",
@@ -31,6 +31,7 @@ func _run() -> void:
 	await physics_frame
 	_test_identity_and_audit(scene)
 	_test_geometry_and_markers(scene)
+	_test_surface_material_hierarchy(scene)
 	_test_collision(scene)
 	await _test_embodied_surface_traversal(scene)
 	_test_lod_seam(scene)
@@ -292,6 +293,49 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 			and snapshot.geometry.orbital_landing_navigation_direction == Vector3(0.0, 0.0, -1.0) \
 			and float(snapshot.geometry.orbital_landing_cue_maximum_radius_m) < 280.0,
 		"one non-emissive open-arrow batch ties low-orbit caldera readability to the exact approach-to-pad datum inside the rim",
+	)
+
+
+func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
+	var snapshot := scene.get_snapshot().surface_material_hierarchy as Dictionary
+	var floor := scene.get_node(^"LandingRegion/CalderaFloor") as MeshInstance3D
+	var pad := scene.get_node(^"LandingRegion/PadVisual") as MeshInstance3D
+	var route := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/EgressRouteVisual"
+	) as MeshInstance3D
+	var gantry := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonVisual"
+	) as MeshInstance3D
+	var bunker_door := scene.get_node(
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorVisual"
+	) as MeshInstance3D
+	var floor_material := floor.material_override as StandardMaterial3D
+	var pad_material := pad.material_override as StandardMaterial3D
+	var route_material := route.material_override as StandardMaterial3D
+	var gantry_material := gantry.material_override as StandardMaterial3D
+	var service_material := bunker_door.material_override as StandardMaterial3D
+	var panel_path := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
+	_check(
+		snapshot.basalt == {"triplanar": false, "metallic": 0.0, "roughness": 1.0}
+			and snapshot.grip.finish == &"walked_deck"
+			and snapshot.metal.finish == &"structural_alloy"
+			and snapshot.service.finish == &"painted_metal"
+			and floor_material.shading_mode == BaseMaterial3D.SHADING_MODE_PER_PIXEL
+			and floor_material.albedo_texture == null
+			and is_zero_approx(floor_material.metallic)
+			and is_equal_approx(floor_material.roughness, 1.0)
+			and pad_material.albedo_texture.resource_path == panel_path
+			and pad_material.uv1_world_triplanar
+			and pad_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.55)
+			and route_material.uv1_scale == pad_material.uv1_scale
+			and is_equal_approx(route_material.clearcoat_roughness, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS)
+			and gantry_material.albedo_texture.resource_path == panel_path
+			and gantry_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+			and is_equal_approx(gantry_material.metallic, 0.68)
+			and service_material.albedo_texture.resource_path == panel_path
+			and service_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.36)
+			and is_equal_approx(service_material.clearcoat, StationSurfaceKit.PAINTED_CLEARCOAT),
+		"the pad-to-egress-to-bunker route has distinct basalt, walked grip, structural metal, and painted service responses",
 	)
 
 

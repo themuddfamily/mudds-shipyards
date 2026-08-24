@@ -118,6 +118,25 @@ const DERELICT_OXIDE_COLOR := Color("8c462c")
 const BUNKER_SHELL_COLOR := Color("6f5946")
 const BUNKER_DOOR_COLOR := Color("bd7547")
 
+# The terrain stays mineral and fully rough. Manufactured surfaces reuse the
+# registered production panel maps at role-specific metric scales, so the broad
+# pad, narrow grip route, structural salvage and bunker service paint no longer
+# collapse into the same flat primitive response under the airless sun.
+const PANEL_ALBEDO_PATH := StationSurfaceKit.PANEL_ALBEDO_PATH
+const PANEL_NORMAL_PATH := StationSurfaceKit.PANEL_NORMAL_PATH
+const PANEL_ROUGHNESS_PATH := StationSurfaceKit.PANEL_ROUGHNESS_PATH
+const GRIP_PANEL_SCALE := 0.55
+const METAL_PANEL_SCALE := 0.30
+const SERVICE_PANEL_SCALE := 0.36
+const GRIP_METALLIC := 0.32
+const METAL_METALLIC := 0.68
+const OXIDE_METALLIC := 0.18
+const SERVICE_METALLIC := 0.28
+const GRIP_ROUGHNESS := 0.86
+const METAL_ROUGHNESS := 0.78
+const OXIDE_ROUGHNESS := 0.92
+const SERVICE_ROUGHNESS := 0.72
+
 const EXPECTED_NODE_COUNT := 64
 const EXPECTED_MESH_INSTANCE_COUNT := 21
 const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 3
@@ -186,6 +205,7 @@ static func get_survey_interaction_definition() -> Dictionary:
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
+	_configure_surface_material_hierarchy()
 	_configure_landing_approach_cues()
 	_configure_orbital_landing_datum_cue()
 	_configure_pad_guide_visuals()
@@ -284,6 +304,7 @@ func get_snapshot() -> Dictionary:
 			"landmark_ids": SURFACE_LANDMARK_NODE_PATHS.keys(),
 			"marker_transforms_body_local": get_surface_landmark_marker_transforms(),
 		},
+		"surface_material_hierarchy": _surface_material_hierarchy_snapshot(),
 		"geometry": {
 			"caldera_floor_radius_m": CALDERA_FLOOR_RADIUS_M,
 			"caldera_rim_inner_radius_m": CALDERA_RIM_INNER_RADIUS_M,
@@ -374,6 +395,144 @@ func _initialize_contract() -> void:
 	if _terrain_profile != null:
 		_terrain_lod_policy.configure(_terrain_profile)
 	_initialized = true
+
+
+func _configure_surface_material_hierarchy() -> void:
+	_configure_basalt_material(_material_at(^"BodyVisual"))
+	_configure_basalt_material(_material_at(^"LandingRegion/CalderaFloor"))
+	_configure_basalt_material(_material_at(^"LandingRegion/CalderaRim"))
+	_configure_panel_material(
+		_material_at(^"LandingRegion/PadVisual"),
+		GRIP_PANEL_SCALE, GRIP_METALLIC, GRIP_ROUGHNESS,
+		StationSurfaceKit.PanelFinish.WALKED_DECK,
+	)
+	_configure_panel_material(
+		_material_at(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual"),
+		GRIP_PANEL_SCALE, GRIP_METALLIC, GRIP_ROUGHNESS,
+		StationSurfaceKit.PanelFinish.WALKED_DECK,
+	)
+	for path: NodePath in [
+		^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual",
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/MastVisual",
+		^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/PortPylonVisual",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/BaseVisual",
+	]:
+		_configure_panel_material(
+			_material_at(path), METAL_PANEL_SCALE, METAL_METALLIC, METAL_ROUGHNESS,
+			StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+		)
+	_configure_panel_material(
+		_material_at(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual"),
+		METAL_PANEL_SCALE, OXIDE_METALLIC, OXIDE_ROUGHNESS,
+		StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
+	)
+	for path: NodePath in [
+		^"LandingRegion/SurfaceLandmarks/StagingRelay/HeadVisual",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/ShellVisual",
+		^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorVisual",
+	]:
+		_configure_panel_material(
+			_material_at(path), SERVICE_PANEL_SCALE, SERVICE_METALLIC, SERVICE_ROUGHNESS,
+			StationSurfaceKit.PanelFinish.PAINTED_METAL,
+		)
+
+
+func _material_at(path: NodePath) -> StandardMaterial3D:
+	var instance := get_node_or_null(path) as MeshInstance3D
+	return instance.material_override as StandardMaterial3D if instance != null else null
+
+
+static func _configure_basalt_material(material: StandardMaterial3D) -> void:
+	if material == null:
+		return
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	material.metallic = 0.0
+	material.roughness = 1.0
+
+
+static func _configure_panel_material(
+		material: StandardMaterial3D,
+		uv_scale: float,
+		metallic: float,
+		roughness: float,
+		finish: StationSurfaceKit.PanelFinish,
+	) -> void:
+	if material == null:
+		return
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	if StationSurfaceKit.apply_panel_triplanar(material, uv_scale, finish):
+		material.metallic = metallic
+		material.roughness = roughness
+
+
+static func _surface_material_is_exact(
+		material: StandardMaterial3D,
+		color: Color,
+		role: StringName,
+	) -> bool:
+	if material == null \
+			or material.shading_mode != BaseMaterial3D.SHADING_MODE_PER_PIXEL \
+			or not material.albedo_color.is_equal_approx(color):
+		return false
+	if role == &"basalt":
+		return is_zero_approx(material.metallic) \
+			and is_equal_approx(material.roughness, 1.0) \
+			and material.albedo_texture == null \
+			and not material.normal_enabled \
+			and not material.uv1_triplanar
+	var expected_scale := GRIP_PANEL_SCALE if role == &"grip" else (
+		SERVICE_PANEL_SCALE if role == &"service" else METAL_PANEL_SCALE
+	)
+	var expected_metallic := GRIP_METALLIC if role == &"grip" else (
+		SERVICE_METALLIC if role == &"service" else (
+			OXIDE_METALLIC if role == &"oxide" else METAL_METALLIC
+		)
+	)
+	var expected_roughness := GRIP_ROUGHNESS if role == &"grip" else (
+		SERVICE_ROUGHNESS if role == &"service" else (
+			OXIDE_ROUGHNESS if role == &"oxide" else METAL_ROUGHNESS
+		)
+	)
+	var expected_clearcoat := StationSurfaceKit.WALKED_CLEARCOAT \
+		if role == &"grip" else (
+			StationSurfaceKit.PAINTED_CLEARCOAT if role == &"service" \
+			else StationSurfaceKit.STRUCTURAL_CLEARCOAT
+		)
+	var expected_clearcoat_roughness := StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS \
+		if role == &"grip" else (
+			StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS if role == &"service" \
+			else StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS
+		)
+	return material.albedo_texture != null \
+		and material.albedo_texture.resource_path == PANEL_ALBEDO_PATH \
+		and material.normal_enabled and material.normal_texture != null \
+		and material.normal_texture.resource_path == PANEL_NORMAL_PATH \
+		and is_equal_approx(material.normal_scale, StationSurfaceKit.PANEL_NORMAL_SCALE) \
+		and material.roughness_texture != null \
+		and material.roughness_texture.resource_path == PANEL_ROUGHNESS_PATH \
+		and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED \
+		and material.uv1_triplanar and material.uv1_world_triplanar \
+		and is_equal_approx(material.uv1_triplanar_sharpness, StationSurfaceKit.PANEL_TRIPLANAR_SHARPNESS) \
+		and material.uv1_scale.is_equal_approx(Vector3.ONE * expected_scale) \
+		and material.texture_repeat \
+		and is_equal_approx(material.metallic, expected_metallic) \
+		and is_equal_approx(material.roughness, expected_roughness) \
+		and material.clearcoat_enabled \
+		and is_equal_approx(material.clearcoat, expected_clearcoat) \
+		and is_equal_approx(material.clearcoat_roughness, expected_clearcoat_roughness)
+
+
+static func _surface_material_hierarchy_snapshot() -> Dictionary:
+	return {
+		"basalt": {"triplanar": false, "metallic": 0.0, "roughness": 1.0},
+		"grip": {"triplanar": true, "uv_scale": GRIP_PANEL_SCALE, "finish": &"walked_deck"},
+		"metal": {"triplanar": true, "uv_scale": METAL_PANEL_SCALE, "finish": &"structural_alloy"},
+		"service": {"triplanar": true, "uv_scale": SERVICE_PANEL_SCALE, "finish": &"painted_metal"},
+		"panel_maps": PackedStringArray([
+			PANEL_ALBEDO_PATH, PANEL_NORMAL_PATH, PANEL_ROUGHNESS_PATH,
+		]),
+	}.duplicate(true)
 
 
 func _validate_resource_join(errors: Array[Dictionary]) -> void:
@@ -584,33 +743,32 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 	if not _survey_bunker_geometry_is_exact(bunker):
 		_append_error(errors, &"survey_bunker_visual_drift", &"SurveyServiceBunker", "survey service-bunker silhouette or passive material recipe drifted")
 	var material_specs := {
-		body: BODY_COLOR,
-		floor: FLOOR_COLOR,
-		rim: RIM_COLOR,
-		pad: PAD_COLOR,
-		route: ROUTE_COLOR,
-		rack: EQUIPMENT_COLOR,
-		relay_base: EQUIPMENT_COLOR,
-		relay_mast: EQUIPMENT_COLOR,
-		relay_head: RELAY_COLOR,
+		body: {"color": BODY_COLOR, "role": &"basalt"},
+		floor: {"color": FLOOR_COLOR, "role": &"basalt"},
+		rim: {"color": RIM_COLOR, "role": &"basalt"},
+		pad: {"color": PAD_COLOR, "role": &"grip"},
+		route: {"color": ROUTE_COLOR, "role": &"grip"},
+		rack: {"color": EQUIPMENT_COLOR, "role": &"metal"},
+		relay_base: {"color": EQUIPMENT_COLOR, "role": &"metal"},
+		relay_mast: {"color": EQUIPMENT_COLOR, "role": &"metal"},
+		relay_head: {"color": RELAY_COLOR, "role": &"service"},
 	}
 	if gantry != null:
 		for node_name in [&"PortPylonVisual", &"StarboardPylonVisual", &"PortBeamVisual", &"StarboardBeamVisual", &"SensorBoomVisual"]:
-			material_specs[gantry.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = DERELICT_ALLOY_COLOR
-		material_specs[gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D] = DERELICT_OXIDE_COLOR
+			material_specs[gantry.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = {"color": DERELICT_ALLOY_COLOR, "role": &"metal"}
+		material_specs[gantry.get_node_or_null(^"DeadSensorVisual") as MeshInstance3D] = {"color": DERELICT_OXIDE_COLOR, "role": &"oxide"}
 	if bunker != null:
 		for node_name in [&"BaseVisual", &"RoofVisual", &"PortVentVisual", &"StarboardVentVisual"]:
-			material_specs[bunker.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = DERELICT_ALLOY_COLOR
-		material_specs[bunker.get_node_or_null(^"ShellVisual") as MeshInstance3D] = BUNKER_SHELL_COLOR
-		material_specs[bunker.get_node_or_null(^"DoorVisual") as MeshInstance3D] = BUNKER_DOOR_COLOR
+			material_specs[bunker.get_node_or_null(NodePath(node_name)) as MeshInstance3D] = {"color": DERELICT_ALLOY_COLOR, "role": &"metal"}
+		material_specs[bunker.get_node_or_null(^"ShellVisual") as MeshInstance3D] = {"color": BUNKER_SHELL_COLOR, "role": &"service"}
+		material_specs[bunker.get_node_or_null(^"DoorVisual") as MeshInstance3D] = {"color": BUNKER_DOOR_COLOR, "role": &"service"}
 	for instance: MeshInstance3D in material_specs:
 		var material := instance.material_override as StandardMaterial3D if instance != null else null
-		if material == null \
-				or material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED \
-				or not material.albedo_color.is_equal_approx(material_specs[instance]) \
+		var spec := material_specs[instance] as Dictionary
+		if not _surface_material_is_exact(material, spec.color, spec.role) \
 				or instance.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 				or instance.gi_mode != GeometryInstance3D.GI_MODE_DISABLED:
-			_append_error(errors, &"visual_material_drift", &"materials", "original unshaded material or passive renderer contract drifted")
+			_append_error(errors, &"visual_material_drift", &"materials", "airless surface material hierarchy or passive renderer contract drifted")
 			break
 
 
