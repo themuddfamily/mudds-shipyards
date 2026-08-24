@@ -39,6 +39,8 @@ var _request_generation := 0
 var _pending_request_generation := 0
 var _source_directory_generation := -1
 var _source_sequence := -1
+var _source_server_tick := -1
+var _source_receipt_sequence := -1
 var _source_fenced := false
 var _attached := true
 
@@ -84,14 +86,34 @@ func present_result(result: Dictionary) -> Dictionary:
 		if bool(cursor.get("source_fenced", false)):
 			var directory_generation := int(cursor.get("directory_generation", -1))
 			var sequence := int(cursor.get("sequence", -1))
-			if _source_fenced and (
-				directory_generation < _source_directory_generation
-				or (directory_generation == _source_directory_generation and sequence <= _source_sequence)
-			):
+			var directory_advanced := directory_generation > _source_directory_generation
+			if _source_fenced and directory_generation < _source_directory_generation:
 				return _ignored_result(result, &"source_cursor_not_advanced")
+			if _source_fenced and not directory_advanced:
+				if bool(cursor.get("has_receipt_sequence", false)):
+					if _source_receipt_sequence >= 0 and int(cursor.get("receipt_sequence", -1)) <= _source_receipt_sequence:
+						return _ignored_result(result, &"source_cursor_not_advanced")
+					if _source_receipt_sequence < 0:
+						if bool(cursor.get("has_server_tick", false)) and _source_server_tick >= 0 \
+								and int(cursor.get("server_tick", -1)) < _source_server_tick:
+							return _ignored_result(result, &"source_cursor_not_advanced")
+						if not bool(cursor.get("has_server_tick", false)) and _source_sequence >= 0 \
+								and int(cursor.get("receipt_sequence", -1)) <= _source_sequence:
+							return _ignored_result(result, &"source_cursor_not_advanced")
+				else:
+					var source_tick_floor := _source_server_tick if _source_server_tick >= 0 else _source_sequence
+					if source_tick_floor >= 0 and int(cursor.get("server_tick", -1)) <= source_tick_floor:
+						return _ignored_result(result, &"source_cursor_not_advanced")
+			if directory_advanced:
+				_source_server_tick = -1
+				_source_receipt_sequence = -1
 			_source_fenced = true
 			_source_directory_generation = directory_generation
 			_source_sequence = sequence
+			if bool(cursor.get("has_receipt_sequence", false)):
+				_source_receipt_sequence = int(cursor.get("receipt_sequence", -1))
+			if bool(cursor.get("has_server_tick", false)):
+				_source_server_tick = int(cursor.get("server_tick", -1))
 	var requested_status := StringName(str(result.get("status", &"")))
 	if requested_status == &"expired" or result.get("reason", &"") in [&"directory_expired", &"results_expired"]:
 		_focus_target = &"retry"
@@ -130,18 +152,33 @@ func present_result(result: Dictionary) -> Dictionary:
 		rows.append(row)
 	_last_unfiltered_rows = rows.duplicate(true)
 	var filtered_rows := _sort_rows(_filter_rows(_last_unfiltered_rows))
+	var all_full := not filtered_rows.is_empty() and filtered_rows.all(
+		func(row: Variant) -> bool: return bool((row as Dictionary).get("full", false))
+	)
 	var prior_focus := _focus_target
-	if prior_focus.begins_with("row:") and filtered_rows.any(func(row: Variant) -> bool: return "row:%s" % str((row as Dictionary).get("session_id", "")) == prior_focus):
+	if all_full:
+		_focus_target = &"refresh"
+	elif prior_focus.begins_with("row:") and filtered_rows.any(func(row: Variant) -> bool: return "row:%s" % str((row as Dictionary).get("session_id", "")) == prior_focus):
 		_focus_target = prior_focus
 	elif not filtered_rows.is_empty():
 		_focus_target = &"row:%s" % str(filtered_rows[0].get("session_id", ""))
 	else:
 		_focus_target = &"refresh"
+	var status: StringName = &"full" if all_full else (&"ready" if not filtered_rows.is_empty() else &"empty")
+	var message := (
+		_full_status_message(filtered_rows.size())
+		if all_full else (
+			"%d session%s available." % [filtered_rows.size(), "" if filtered_rows.size() == 1 else "s"]
+			if not filtered_rows.is_empty() else (
+				"No sessions match active filters." if _has_active_filters() else "No matching servers."
+			)
+		)
+	)
 	return _complete_result(_status_snapshot(
-		&"ready" if not filtered_rows.is_empty() else &"empty",
+		status,
 		filtered_rows,
 		&"" if not filtered_rows.is_empty() else &"no_matches",
-		"%d session%s available." % [filtered_rows.size(), "" if filtered_rows.size() == 1 else "s"] if not filtered_rows.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers."),
+		message,
 		false
 	))
 
@@ -236,6 +273,8 @@ func close_view() -> Dictionary:
 	_attached = false
 	_source_directory_generation = -1
 	_source_sequence = -1
+	_source_server_tick = -1
+	_source_receipt_sequence = -1
 	_source_fenced = false
 	_latest_capacity_generation = 0
 	if _focus_target in [&"retry", &"cancel"] or _focus_target.begins_with("row:"):
@@ -477,14 +516,16 @@ func _present_row(source: Dictionary) -> Dictionary:
 func _result_cursor(result: Dictionary) -> Dictionary:
 	var has_request := result.has("request_generation")
 	var has_directory_generation := result.has("directory_generation")
-	var has_sequence := result.has("sequence") or result.has("snapshot_sequence") or result.has("server_tick")
+	var has_receipt_sequence := result.has("sequence") or result.has("snapshot_sequence")
+	var has_server_tick := result.has("server_tick")
+	var has_sequence := has_receipt_sequence or has_server_tick
 	var fenced := has_request or has_directory_generation or has_sequence
 	var source_fenced := has_directory_generation or has_sequence
 	var request_variant: Variant = result.get("request_generation", null)
 	var directory_variant: Variant = result.get("directory_generation", null)
-	var sequence_variant: Variant = result.get(
-		"sequence", result.get("snapshot_sequence", result.get("server_tick", null))
-	)
+	var receipt_sequence_variant: Variant = result.get("sequence", result.get("snapshot_sequence", null))
+	var server_tick_variant: Variant = result.get("server_tick", null)
+	var sequence_variant: Variant = receipt_sequence_variant if has_receipt_sequence else server_tick_variant
 	return {
 		"fenced": fenced,
 		"has_request": has_request,
@@ -493,11 +534,17 @@ func _result_cursor(result: Dictionary) -> Dictionary:
 			(not has_request or (request_variant is int and int(request_variant) > 0))
 			and (not source_fenced or (
 				directory_variant is int and int(directory_variant) >= 0
-				and sequence_variant is int and int(sequence_variant) >= 0
+				and has_sequence
+				and (not has_receipt_sequence or (receipt_sequence_variant is int and int(receipt_sequence_variant) >= 0))
+				and (not has_server_tick or (server_tick_variant is int and int(server_tick_variant) >= 0))
 			))
 		),
+		"has_receipt_sequence": has_receipt_sequence,
+		"has_server_tick": has_server_tick,
 		"request_generation": int(request_variant) if request_variant is int else 0,
 		"directory_generation": int(directory_variant) if directory_variant is int else -1,
+		"receipt_sequence": int(receipt_sequence_variant) if receipt_sequence_variant is int else -1,
+		"server_tick": int(server_tick_variant) if server_tick_variant is int else -1,
 		"sequence": int(sequence_variant) if sequence_variant is int else -1,
 	}
 
@@ -523,6 +570,7 @@ func _next_action(status: StringName, retryable: bool) -> String:
 	match status:
 		&"refreshing": return "WAIT FOR RESULTS OR RETURN"
 		&"ready": return "SELECT A SESSION TO REQUEST JOINING OR REFRESH"
+		&"full": return "REFRESH SERVER LIST OR RETURN"
 		&"empty": return "REFRESH SERVER LIST"
 		&"expired": return "RETRY SERVER LIST OR CANCEL"
 		&"error": return "RETRY SERVER LIST OR CANCEL" if retryable else "CANCEL AND RETURN"
@@ -532,6 +580,10 @@ func _next_action(status: StringName, retryable: bool) -> String:
 
 func _message_with_next_action(message: String, next_action: String) -> String:
 	return "%s\nNEXT ACTION // %s" % [message, next_action] if not next_action.is_empty() else message
+
+
+func _full_status_message(row_count: int) -> String:
+	return "The only session is full." if row_count == 1 else "All %d sessions are full." % row_count
 
 
 func _region_label(value: Variant) -> String:
@@ -645,9 +697,22 @@ func _refresh_filtered_snapshot() -> Dictionary:
 	if _last_snapshot.is_empty():
 		return {"accepted": true, "reason": &"filters_applied", "filters": get_accessibility_filters(), "active_filter_summary": _active_filter_summary(), "presentation_only": true}
 	var filtered := _sort_rows(_filter_rows(_last_unfiltered_rows))
-	var status: StringName = &"ready" if not filtered.is_empty() else &"empty"
-	var message := "%d session%s available." % [filtered.size(), "" if filtered.size() == 1 else "s"] if not filtered.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers.")
+	var all_full := not filtered.is_empty() and filtered.all(
+		func(row: Variant) -> bool: return bool((row as Dictionary).get("full", false))
+	)
+	var status: StringName = &"full" if all_full else (&"ready" if not filtered.is_empty() else &"empty")
+	var message := (
+		_full_status_message(filtered.size())
+		if all_full else (
+			"%d session%s available." % [filtered.size(), "" if filtered.size() == 1 else "s"]
+			if not filtered.is_empty() else (
+				"No sessions match active filters." if _has_active_filters() else "No matching servers."
+			)
+		)
+	)
 	var next_action := _next_action(status, false)
+	if all_full:
+		_focus_target = &"refresh"
 	_last_snapshot["rows"] = filtered
 	_last_snapshot["row_count"] = filtered.size()
 	_last_snapshot["status"] = status
@@ -655,6 +720,7 @@ func _refresh_filtered_snapshot() -> Dictionary:
 	_last_snapshot["error_message"] = _message_with_next_action(message, next_action)
 	_last_snapshot["next_action"] = next_action
 	_last_snapshot["next_action_text"] = "NEXT ACTION // %s" % next_action
+	_last_snapshot["focus_target"] = _focus_target
 	_last_snapshot["generation"] = _generation
 	_last_snapshot["accessibility_filters"] = get_accessibility_filters()
 	_last_snapshot["active_filter_summary"] = _active_filter_summary()

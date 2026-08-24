@@ -38,6 +38,9 @@ func _run() -> void:
 		"rows": [{"session_id": &"full", "title": "Full Run", "region_id": &"us-east", "ping_ms": 85, "player_count": 4, "max_players": 4}],
 	})
 	_check((hud.get("_server_browser_title") as Label).text == "ALL SESSIONS FULL", "all-full results have an explicit state")
+	_check("NEXT ACTION // REFRESH SERVER LIST OR RETURN" in (hud.get("_server_browser_detail") as Label).text
+		and not (hud.get("_server_browser_detail") as Label).text.contains("SELECT A SESSION"),
+		"all-full results direct controller users to the enabled refresh or return actions")
 	hud.apply_server_browser_result({"accepted": true, "rows": []})
 	_check((hud.get("_server_browser_title") as Label).text == "NO SESSIONS FOUND", "empty results have an explicit state")
 	hud.apply_server_browser_result({"accepted": true, "rows": [{"session_id": &"open", "title": "Open Run", "region_id": &"eu-west", "ping_ms": 42, "player_count": 1, "max_players": 4}]})

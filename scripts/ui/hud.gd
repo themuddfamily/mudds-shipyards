@@ -5038,6 +5038,11 @@ func _render_server_browser(presentation: Dictionary) -> void:
 	elif status == &"refreshing" and is_instance_valid(refresh):
 		_server_browser_focus_target = refresh
 		refresh.grab_focus()
+	elif status == &"full" and is_instance_valid(refresh):
+		# Every result row is disabled, so keep controller recovery on the
+		# stable refresh action named by the presenter's all-full status.
+		_server_browser_focus_target = refresh
+		refresh.grab_focus()
 
 
 func _add_activity_selection_row(

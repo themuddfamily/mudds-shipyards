@@ -4617,7 +4617,14 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 		return
 	match action:
 		&"refresh":
-			_on_server_browser_result({"accepted": true, "status": &"snapshot_refreshed"})
+			var refresh_result := {"accepted": true, "status": &"snapshot_refreshed"}
+			var refresh_request := payload.get("request", {}) as Dictionary
+			var request_generation: Variant = refresh_request.get(
+				"request_generation", payload.get("request_generation", null)
+			)
+			if request_generation is int and int(request_generation) > 0:
+				refresh_result["request_generation"] = int(request_generation)
+			_on_server_browser_result(refresh_result)
 		&"join":
 			var session_id := StringName(str(payload.get("session_id", &"")))
 			var intent := session.create_join_intent(session_id)

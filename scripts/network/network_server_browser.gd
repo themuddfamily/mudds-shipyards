@@ -26,6 +26,7 @@ var _directory_peer_id := 1
 var _stale_after_ticks := DEFAULT_STALE_AFTER_TICKS
 var _directory_generation := 0
 var _directory_tick := 0
+var _snapshot_sequence := 0
 var _sessions: Dictionary = {}
 var _last_result: Dictionary = {}
 
@@ -63,9 +64,11 @@ func publish_snapshot(source_peer_id: int, directory_generation: int, server_tic
 	_directory_generation = directory_generation
 	_directory_tick = server_tick
 	_expire_stale_entries()
+	_snapshot_sequence += 1
 	return _remember(_result(true, &"snapshot_published", {
 		"directory_generation": _directory_generation,
 		"server_tick": _directory_tick,
+		"snapshot_sequence": _snapshot_sequence,
 		"session_count": _sessions.size(),
 	}))
 
@@ -77,8 +80,11 @@ func advance_clock(source_peer_id: int, server_tick: int) -> Dictionary:
 		return _remember(_result(false, &"stale_directory_tick"))
 	_directory_tick = server_tick
 	var expired := _expire_stale_entries()
+	_snapshot_sequence += 1
 	return _remember(_result(true, &"clock_advanced", {
+		"directory_generation": _directory_generation,
 		"server_tick": _directory_tick,
+		"snapshot_sequence": _snapshot_sequence,
 		"expired_session_ids": expired,
 		"session_count": _sessions.size(),
 	}))
@@ -95,7 +101,13 @@ func detach(source_peer_id: int) -> Dictionary:
 		return _remember(_result(false, &"unauthorized_source"))
 	var removed := _sessions.keys()
 	_sessions.clear()
-	return _remember(_result(true, &"detached", {"removed_session_ids": removed}))
+	_snapshot_sequence += 1
+	return _remember(_result(true, &"detached", {
+		"directory_generation": _directory_generation,
+		"server_tick": _directory_tick,
+		"snapshot_sequence": _snapshot_sequence,
+		"removed_session_ids": removed,
+	}))
 
 
 ## Returns only fresh entries. Filtering is presentation-only and does not
@@ -134,6 +146,7 @@ func audit() -> Dictionary:
 		"policy_version": POLICY_VERSION,
 		"directory_generation": _directory_generation,
 		"server_tick": _directory_tick,
+		"snapshot_sequence": _snapshot_sequence,
 		"session_count": _sessions.size(),
 		"directory_owns_records": true,
 		"client_can_mutate_records": false,

@@ -175,6 +175,46 @@ func _run() -> void:
 		"rows": [entries[0]],
 	})
 	_check(published_snapshot.status == &"ready" and published_snapshot.directory_generation == 12 and published_snapshot.source_sequence == 44, "an unsolicited caller-owned directory publication keeps its existing generation and server-tick API")
+	var capacity_presenter := Presenter.new()
+	var capacity_open := capacity_presenter.present_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 44,
+		"snapshot_sequence": 1,
+		"rows": [entries[0]],
+	})
+	var capacity_full_entry: Dictionary = entries[0].duplicate(true)
+	capacity_full_entry.player_count = capacity_full_entry.max_players
+	var capacity_full := capacity_presenter.present_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 44,
+		"snapshot_sequence": 2,
+		"rows": [capacity_full_entry],
+	})
+	_check(capacity_open.status == &"ready" and capacity_full.status == &"full"
+		and capacity_full.source_sequence == 2 and capacity_full.focus_target == &"refresh",
+		"an advanced local receipt presents a same-directory capacity update and focuses refresh when all sessions are full")
+	_check(capacity_full.next_action == "REFRESH SERVER LIST OR RETURN"
+		and capacity_full.error_message.contains("The only session is full.")
+		and not capacity_full.error_message.contains("SELECT A SESSION"),
+		"all-full status gives an actionable colour-independent refresh instruction")
+	var legacy_advanced := capacity_presenter.present_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 45,
+		"rows": [entries[0]],
+	})
+	var receipt_after_legacy := capacity_presenter.present_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 45,
+		"snapshot_sequence": 3,
+		"rows": [entries[0]],
+	})
+	_check(legacy_advanced.status == &"ready" and legacy_advanced.source_sequence == 45
+		and receipt_after_legacy.status == &"ready" and receipt_after_legacy.source_sequence == 3,
+		"legacy server-tick and local receipt sequences remain independently monotonic public cursor shapes")
 	var audit := presenter.audit()
 	_check(bool(audit.presentation_only) and bool(audit.filters_stale_rows) and not bool(audit.browser_owns_join_authority) and bool(audit.exact_source_cursor_fencing), "audit records presentation and exact cursor boundaries")
 	if _failures.is_empty():

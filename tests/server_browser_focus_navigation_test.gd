@@ -35,6 +35,13 @@ func _run() -> void:
 	for index in ordered.size():
 		_check(ordered[index].focus_mode == Control.FOCUS_ALL, "browser control %d is focusable" % index)
 		_check(ordered[index].focus_neighbor_bottom == ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)]), "browser control %d has next focus" % index)
+	hud.apply_server_browser_result({
+		"accepted": true,
+		"rows": [{"session_id": &"full", "title": "Full", "player_count": 4, "max_players": 4}],
+	})
+	await process_frame
+	_check(root.get_viewport().gui_get_focus_owner() == refresh,
+		"all-full results keep controller focus on the enabled refresh action")
 	hud.apply_server_browser_result({"accepted": false, "message": "Directory unavailable.", "retryable": true})
 	_check((hud.get("_server_browser_title") as Label).text == "SERVER LIST UNAVAILABLE", "error state remains explicit")
 	await process_frame

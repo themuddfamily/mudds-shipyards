@@ -16,7 +16,12 @@ func _run() -> void:
 		{"session_id": &"quiet_dock", "host_peer_id": 9, "title": "Quiet Dock", "region_id": &"eu-west", "ping_ms": -1, "player_count": 0, "max_players": 2},
 	]
 	_check(not browser.publish_snapshot(7, 1, 10, entries).accepted, "untrusted client cannot publish directory records")
-	_check(browser.publish_snapshot(99, 1, 10, entries).accepted, "directory publishes one atomic snapshot")
+	var published := browser.publish_snapshot(99, 1, 10, entries)
+	_check(published.accepted and published.directory_generation == 1 and published.snapshot_sequence > 0,
+		"directory publishes one atomic snapshot with a local presentation receipt")
+	var republished := browser.publish_snapshot(99, 1, 10, entries)
+	_check(republished.accepted and republished.snapshot_sequence > published.snapshot_sequence,
+		"an accepted same-cursor capacity republish advances the local presentation sequence")
 	var eu := browser.query(&"eu-west")
 	_check(eu.size() == 2 and eu[0]["session_id"] == &"cinder_run", "region filter and ping ordering are deterministic")
 	_check(eu[0]["ping_label"] == Browser.PING_FAST and eu[1]["ping_label"] == Browser.PING_UNAVAILABLE, "ping labels expose fast and unavailable states")
@@ -27,7 +32,10 @@ func _run() -> void:
 	_check(int(browser.get_session(&"cinder_run")["player_count"]) == 1, "browser result copies cannot mutate authority")
 	_check(not browser.publish_snapshot(99, 0, 11, entries).accepted, "older directory generation is rejected")
 	_check(not browser.publish_snapshot(99, 2, 9, entries).accepted, "older directory tick is rejected")
-	_check(browser.advance_clock(99, 14).accepted, "directory clock advances through trusted source")
+	var advanced := browser.advance_clock(99, 14)
+	_check(advanced.accepted and advanced.directory_generation == 1
+		and advanced.snapshot_sequence > republished.snapshot_sequence,
+		"directory clock advances through a complete trusted presentation cursor")
 	_check(browser.get_session(&"cinder_run").is_empty(), "entries beyond freshness window are stale")
 	_check(not browser.publish_snapshot(99, 3, 15, [{"session_id": &"bad", "host_peer_id": 1, "title": "Bad", "region_id": &"eu", "ping_ms": 1, "player_count": 5, "max_players": 2}]).accepted, "invalid capacity rejects atomically")
 	_check(browser.get_session(&"ember_duel").is_empty(), "failed snapshot does not partially replace existing cache")
