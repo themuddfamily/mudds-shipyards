@@ -120,6 +120,12 @@ static var _shared_forward_cowl_mesh: ArrayMesh
 const CARGO_POD_MESH_SIZE := Vector3(0.54, 0.3, 0.62)
 static var _shared_cargo_pod_mesh: ArrayMesh
 
+## The cyan status lens changes material with each courier's deterministic clock,
+## but its rounded-box geometry never changes. Sharing only that immutable mesh
+## keeps the independently blinking renderer and its material override local.
+const STATUS_LENS_MESH_SIZE := Vector3(0.22, 0.1, 0.06)
+static var _shared_status_lens_mesh: ArrayMesh
+
 ## The rear fin is likewise identical for the complete courier roster. Sharing
 ## its immutable rounded-box stock preserves each renderer node and its
 ## hull-edge override while retaining a single mesh resource for the session.
@@ -1238,7 +1244,14 @@ func _build_courier() -> void:
 		_materials["orange"],
 		_get_shared_cargo_pod_mesh()
 	)
-	_status_lens = _box(_carriage, "StatusLens", Vector3(0.0, 0.2, -0.5), Vector3(0.22, 0.1, 0.06), _materials["cyan_dim"])
+	_status_lens = _box(
+		_carriage,
+		"StatusLens",
+		Vector3(0.0, 0.2, -0.5),
+		STATUS_LENS_MESH_SIZE,
+		_materials["cyan_dim"],
+		_get_shared_status_lens_mesh()
+	)
 	_box(
 		_carriage,
 		"TailFin",
@@ -1317,6 +1330,17 @@ static func _get_shared_cargo_pod_mesh() -> ArrayMesh:
 			StationSurfaceKit.BevelUV.FACE_GRID
 		)
 	return _shared_cargo_pod_mesh
+
+
+static func _get_shared_status_lens_mesh() -> ArrayMesh:
+	if _shared_status_lens_mesh == null:
+		_shared_status_lens_mesh = StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+			STATUS_LENS_MESH_SIZE,
+			StationSurfaceKit.proportional_bevel_for_size(STATUS_LENS_MESH_SIZE, 0.2),
+			{},
+			StationSurfaceKit.BevelUV.FACE_GRID
+		)
+	return _shared_status_lens_mesh
 
 
 static func _get_shared_tail_fin_mesh() -> ArrayMesh:
