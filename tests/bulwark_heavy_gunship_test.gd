@@ -173,12 +173,15 @@ func _test_identity_band_batch(visual: Node3D) -> void:
 		and material.albedo_color.is_equal_approx(Color("e2a63c"))
 		and is_equal_approx(material.metallic, 0.52)
 		and is_equal_approx(material.roughness, 0.31)
+		and material.emission_enabled
+		and material.emission.is_equal_approx(Color("e2a63c"))
+		and is_equal_approx(material.emission_energy_multiplier, 0.7)
 		and mesh_bounds.size.is_equal_approx(Vector3(0.16, 1.25, 3.2))
 		and multi.custom_aabb.is_equal_approx(expected_bounds)
 		and batch.material_override == null
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1,
-		"identity-band mesh, material, culling bounds/layer, and shadow behavior remain exact"
+		"identity-band mesh, emissive low-light finish, culling, and shadows remain exact"
 	)
 	_check(
 		visual.get_node_or_null("PortIdentityBand") == null
@@ -283,12 +286,14 @@ func _test_navigation_lamp_mesh_sharing(visual: Node3D) -> void:
 		and starboard_material.albedo_color.is_equal_approx(Color("e2a63c"))
 		and is_equal_approx(starboard_material.metallic, 0.52)
 		and is_equal_approx(starboard_material.roughness, 0.31)
-		and not starboard_material.emission_enabled
+		and starboard_material.emission_enabled
+		and starboard_material.emission.is_equal_approx(Color("e2a63c"))
+		and is_equal_approx(starboard_material.emission_energy_multiplier, 0.7)
 		and port.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and starboard.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and port.layers == 1
 		and starboard.layers == 1,
-		"shared navigation-lamp geometry preserves both finishes and renderer policy"
+		"shared navigation-lamp geometry preserves both emissive finishes and renderer policy"
 	)
 	print(
 		"BULWARK_NAVIGATION_LAMPS: nodes 2->2 visible_copies 2->2 "

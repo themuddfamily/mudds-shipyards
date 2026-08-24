@@ -38,6 +38,7 @@ const ARMOR_DARK := Color("101b2a")
 const ARMOR_BLUE := Color("243f5b")
 const ARMOR_HIGHLIGHT := Color("416b88")
 const IDENTITY_AMBER := Color("e2a63c")
+const IDENTITY_AMBER_EMISSION_ENERGY := 0.7
 const GUNNER_CYAN := Color("58d8df")
 const BOARDING_LIGHT := Color("8ae8bd")
 const BULWARK_CREW_WEAPON_ID: StringName = &"picket_siege_lance"
@@ -297,7 +298,15 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	var armor_dark := _material(ARMOR_DARK, 0.78, 0.32)
 	var armor_blue := _material(ARMOR_BLUE, 0.72, 0.28)
 	var armor_highlight := _material(ARMOR_HIGHLIGHT, 0.66, 0.25)
-	var amber := _material(IDENTITY_AMBER, 0.52, 0.31)
+	# Keep the existing amber bands and starboard navigation marker legible in
+	# shadow without adding lights or changing any physical/authority node.
+	var amber := _material(
+		IDENTITY_AMBER,
+		0.52,
+		0.31,
+		IDENTITY_AMBER,
+		IDENTITY_AMBER_EMISSION_ENERGY
+	)
 	var cyan := _material(GUNNER_CYAN, 0.25, 0.2, GUNNER_CYAN, 1.8)
 	var boarding := _material(BOARDING_LIGHT, 0.18, 0.22, BOARDING_LIGHT, 1.2)
 
