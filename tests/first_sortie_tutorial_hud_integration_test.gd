@@ -46,6 +46,37 @@ func _run() -> void:
 		and _intents.is_empty(),
 		"retained HUD re-entry refreshes current glyphs without replacing tutorial generation or emitting intent"
 	)
+	_check(
+		hud.apply_bomber_payload_snapshot({
+			"generation": 1, "active": true, "ammo": 2, "cooldown_remaining": 0.0,
+		})
+		and (hud.get("_bomber_status_panel") as PanelContainer).visible
+		and not (hud.get("_runtime_status_panel") as PanelContainer).visible
+		and int((hud.get("_first_sortie_tutorial_source_snapshot") as Dictionary).generation) == 4,
+		"transient bomber status foregrounds its dedicated band without retiring tutorial progress"
+	)
+	hud.clear_bomber_payload_status()
+	await process_frame
+	_check(
+		(hud.get("_runtime_status_panel") as PanelContainer).visible
+		and not (hud.get("_bomber_status_panel") as PanelContainer).visible
+		and title.text == "Board"
+		and detail.text.contains(reentered_interact),
+		"clearing bomber restores the retained tutorial card with current glyphs"
+	)
+	hud.set_paused(true)
+	hud.call("_show_server_browser_page")
+	var browser_address := hud.get("_server_browser_address") as LineEdit
+	browser_address.grab_focus()
+	await process_frame
+	hud.call("_refresh_input_prompts")
+	await process_frame
+	_check(
+		hud.get_viewport().gui_get_focus_owner() == browser_address,
+		"tutorial redraw cannot steal focus from the active server-browser modal"
+	)
+	hud.set_paused(false)
+	await process_frame
 	var next := hud.find_child("RuntimeStatusNextButton", true, false) as Button
 	var repeat := hud.find_child("RuntimeStatusRepeatButton", true, false) as Button
 	var dismiss := hud.find_child("RuntimeStatusDismissButton", true, false) as Button

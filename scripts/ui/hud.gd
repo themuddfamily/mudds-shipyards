@@ -509,12 +509,22 @@ var _first_sortie_tutorial_presenter := FirstSortieTutorialPresenterType.new()
 ## refresh after a device/profile/re-entry change without emitting an intent.
 var _first_sortie_tutorial_source_snapshot: Dictionary = {}
 var _runtime_status_kind: StringName = &""
+## Runtime cards are retained by producer instead of sharing one mutable slot.
+## The serial selects the most recently updated ordinary card; bomber has an
+## explicit foreground band but never destroys the card behind it.
+var _runtime_status_cards: Dictionary = {}
+var _runtime_status_card_serial := 0
 var _server_browser_presenter := ServerBrowserPresenterType.new()
 var _runtime_status_panel: PanelContainer
 var _runtime_status_title: Label
 var _runtime_status_detail: Label
 var _runtime_status_rows: VBoxContainer
 var _runtime_status_actions: HBoxContainer
+var _bomber_status_panel: PanelContainer
+var _bomber_status_title: Label
+var _bomber_status_detail: Label
+var _bomber_status_rows: VBoxContainer
+var _bomber_status_actions: HBoxContainer
 ## Request-only route into the GameFlow-owned service. The HUD stores no queue,
 ## timer, event ID, or parallel visible-caption state.
 var _caption_event_submitter := Callable()
@@ -1568,7 +1578,7 @@ func update_copilot_navigation_support(snapshot: Dictionary) -> void:
 func clear_copilot_navigation_support() -> void:
 	_copilot_help_snapshot = {}
 	_copilot_navigation_presenter.detach()
-	clear_runtime_status()
+	clear_runtime_status(&"copilot")
 	_refresh_input_prompts()
 
 
@@ -1578,7 +1588,7 @@ func update_component_degradation(snapshot: Dictionary) -> void:
 
 func clear_component_degradation() -> void:
 	_component_degradation_presenter.detach()
-	clear_runtime_status()
+	clear_runtime_status(&"component")
 
 
 func bind_hero_component_ship(ship: Node) -> bool:
@@ -1935,7 +1945,7 @@ func update_cinder_loadmaster_telemetry(
 func clear_loadmaster_telemetry() -> void:
 	_loadmaster_help_snapshot = {}
 	_loadmaster_telemetry_presenter.detach()
-	clear_runtime_status()
+	clear_runtime_status(&"loadmaster")
 	_refresh_input_prompts()
 
 
@@ -2111,6 +2121,10 @@ func set_paused(paused: bool) -> void:
 		var resume := _pause_main_page.find_child("ResumeButton", true, false) as Button
 		if resume != null:
 			resume.grab_focus()
+	elif not paused and not _runtime_status_cards.is_empty():
+		# The modal relinquished focus. Recompose the retained foreground so a
+		# tutorial action can reclaim its deterministic initial target.
+		_refresh_runtime_status_cards()
 
 
 func _restore_pause_focus_after_reentry() -> void:
@@ -2583,6 +2597,23 @@ func get_hud_panel_rects() -> Dictionary:
 		"enemy": _enemy_panel,
 	}
 	var rects := {}
+	# Runtime cards are overlays, so they are registered only while composed.
+	# This keeps the ordinary always-reserved panel contract unchanged while
+	# allowing focused layout checks to measure the exact live card rectangle.
+	if is_instance_valid(_runtime_status_panel) and _runtime_status_panel.visible:
+		var runtime_effective := maxf(_layout_effective_ui_scale, 0.01)
+		var runtime_global := _runtime_status_panel.get_global_rect()
+		rects["runtime_status"] = Rect2(
+			runtime_global.position / runtime_effective,
+			runtime_global.size / runtime_effective
+		)
+	if is_instance_valid(_bomber_status_panel) and _bomber_status_panel.visible:
+		var bomber_effective := maxf(_layout_effective_ui_scale, 0.01)
+		var bomber_global := _bomber_status_panel.get_global_rect()
+		rects["bomber_payload"] = Rect2(
+			bomber_global.position / bomber_effective,
+			bomber_global.size / bomber_effective
+		)
 	for key: String in sources:
 		var control := sources[key] as Control
 		if is_instance_valid(control):
@@ -2631,8 +2662,19 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 			contract_safe.size / maxf(effective, 0.01)
 		)
 		status_rect = _clamp_rect_to_safe_area(status_rect, readable_safe)
-		_runtime_status_panel.position = status_rect.position - logical * 0.5
+		_runtime_status_panel.position = status_rect.position
 		_runtime_status_panel.size = status_rect.size
+	if is_instance_valid(_bomber_status_panel):
+		var bomber_rect := compute_bomber_payload_panel_rect(
+			viewport_size, _safe_area_insets, effective
+		)
+		var bomber_safe := Rect2(
+			contract_safe.position / maxf(effective, 0.01),
+			contract_safe.size / maxf(effective, 0.01)
+		)
+		bomber_rect = _clamp_rect_to_safe_area(bomber_rect, bomber_safe)
+		_bomber_status_panel.position = bomber_rect.position
+		_bomber_status_panel.size = bomber_rect.size
 	if is_instance_valid(_recovery_prompt_panel):
 		var recovery_rect := compute_session_recovery_panel_rect(
 			viewport_size, _safe_area_insets, effective
@@ -2674,12 +2716,24 @@ static func compute_runtime_status_panel_rect(
 	var left := maxf(safe_insets.position.x, 0.0) / scale
 	var right := maxf(safe_insets.size.x, 0.0) / scale
 	var top := maxf(safe_insets.position.y, 0.0) / scale
-	var bottom := maxf(safe_insets.size.y, 0.0) / scale
-	var available := maxf(360.0, logical.x - left - right - PANEL_MARGIN * 2.0)
-	var width := clampf(available * 0.32, 460.0, 680.0)
-	var center_x := left + (logical.x - left - right) * 0.5
-	var center_y := top + (logical.y - top - bottom) * 0.5
-	return Rect2(Vector2(center_x - width * 0.5, center_y - 150.0), Vector2(width, 300.0))
+	var width := 420.0
+	var center_x := left + (logical.x - left - right) * 0.5 + 12.0
+	# The public-card band sits below the enemy readout and above captions and the
+	# interaction strip at the supported 720p logical floor.
+	return Rect2(Vector2(center_x - width * 0.5, top + 204.0), Vector2(width, 230.0))
+
+
+static func compute_bomber_payload_panel_rect(
+	viewport_size: Vector2, safe_insets: Rect2, effective_scale: float
+) -> Rect2:
+	var scale := maxf(effective_scale, 0.01)
+	var logical := viewport_size / scale
+	var left := maxf(safe_insets.position.x, 0.0) / scale
+	var right := maxf(safe_insets.size.x, 0.0) / scale
+	var top := maxf(safe_insets.position.y, 0.0) / scale
+	var width := 420.0
+	var center_x := left + (logical.x - left - right) * 0.5 + 12.0
+	return Rect2(Vector2(center_x - width * 0.5, top + 204.0), Vector2(width, 230.0))
 
 
 ## Keeps the recovery decision in the readable centre band on 16:9 through
@@ -3782,6 +3836,7 @@ func _build_hud() -> void:
 	_build_enemy_status()
 	_build_toast()
 	_build_runtime_status_panel()
+	_build_bomber_status_panel()
 	_build_semantic_transcript_panel()
 	_build_recovery_prompt_panel()
 	_attach_caption_presenter()
@@ -3908,6 +3963,8 @@ func _build_runtime_status_panel() -> void:
 	stack.add_child(_runtime_status_title)
 	_runtime_status_detail = _label("", 11, NOMINAL_SOFT)
 	_runtime_status_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_runtime_status_detail.custom_minimum_size.x = 380.0
+	_runtime_status_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stack.add_child(_runtime_status_detail)
 	_runtime_status_rows = VBoxContainer.new()
 	_runtime_status_rows.add_theme_constant_override("separation", 4)
@@ -3917,6 +3974,38 @@ func _build_runtime_status_panel() -> void:
 	stack.add_child(_runtime_status_actions)
 	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_runtime_status_panel.visible = false
+
+
+func _build_bomber_status_panel() -> void:
+	_bomber_status_panel = PanelContainer.new()
+	_bomber_status_panel.name = "BomberPayloadStatusPanel"
+	_bomber_status_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_bomber_status_panel.position = Vector2(-250.0, -150.0)
+	_bomber_status_panel.size = Vector2(500.0, 230.0)
+	_bomber_status_panel.add_theme_stylebox_override(
+		"panel", _border_box(Color("101c2bf2"), 8, CAUTION)
+	)
+	_bomber_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud_panels.add_child(_bomber_status_panel)
+	var margin := _margin(18, 16, 18, 16)
+	_bomber_status_panel.add_child(margin)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 8)
+	margin.add_child(stack)
+	_bomber_status_title = _label("BOMBER PAYLOAD", 18, PRIMARY)
+	stack.add_child(_bomber_status_title)
+	_bomber_status_detail = _label("", 11, NOMINAL_SOFT)
+	_bomber_status_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_bomber_status_detail.custom_minimum_size.x = 380.0
+	_bomber_status_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stack.add_child(_bomber_status_detail)
+	_bomber_status_rows = VBoxContainer.new()
+	_bomber_status_rows.add_theme_constant_override("separation", 4)
+	stack.add_child(_bomber_status_rows)
+	_bomber_status_actions = HBoxContainer.new()
+	_bomber_status_actions.add_theme_constant_override("separation", 8)
+	stack.add_child(_bomber_status_actions)
+	_bomber_status_panel.visible = false
 
 
 func update_network_session_status(snapshot: Dictionary) -> void:
@@ -3992,7 +4081,7 @@ func request_bomber_payload_release() -> Dictionary:
 func clear_bomber_payload_status() -> void:
 	if _bomber_payload_presenter != null:
 		_bomber_payload_presenter.detach()
-	clear_runtime_status()
+	clear_runtime_status(&"bomber")
 	_bomber_payload_help_snapshot = {}
 	_refresh_bomber_payload_help()
 
@@ -4041,44 +4130,124 @@ func request_first_sortie_tutorial_action(action: StringName) -> Dictionary:
 func clear_first_sortie_tutorial(reason: StringName = &"detached") -> Dictionary:
 	var result := _first_sortie_tutorial_presenter.detach(reason)
 	_first_sortie_tutorial_source_snapshot.clear()
-	if _runtime_status_kind == &"tutorial":
-		if is_instance_valid(_runtime_status_panel):
-			var focus_owner := get_viewport().gui_get_focus_owner()
-			if is_instance_valid(focus_owner) \
-					and _runtime_status_panel.is_ancestor_of(focus_owner):
-				focus_owner.release_focus()
-		clear_runtime_status()
+	if is_instance_valid(_runtime_status_panel):
+		var focus_owner := get_viewport().gui_get_focus_owner()
+		if is_instance_valid(focus_owner) \
+				and _runtime_status_panel.is_ancestor_of(focus_owner):
+			focus_owner.release_focus()
+	clear_runtime_status(&"tutorial")
 	return result
 
 
-func clear_runtime_status() -> void:
-	_runtime_status_kind = &""
-	if is_instance_valid(_runtime_status_panel):
-		_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		for child in _runtime_status_panel.find_children("*", "Control", true, false):
-			(child as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_runtime_status_panel.visible = false
+## Clears one producer's retained card. An empty source preserves the legacy
+## public signature and explicitly clears the complete runtime-card surface.
+func clear_runtime_status(source: StringName = &"") -> void:
+	if source.is_empty():
+		_runtime_status_cards.clear()
+	else:
+		_runtime_status_cards.erase(source)
+	_refresh_runtime_status_cards()
+
+
+## Source-keyed presentation seam for HUD-only producers. The detached payload
+## and stable key are retained independently; no producer can replace another
+## producer's backing card merely by drawing.
+func set_runtime_status_card(source: StringName, snapshot: Dictionary) -> bool:
+	if source.is_empty():
+		return false
+	_runtime_status_card_serial += 1
+	_runtime_status_cards[source] = {
+		"serial": _runtime_status_card_serial,
+		"snapshot": snapshot.duplicate(true),
+	}
+	_refresh_runtime_status_cards()
+	return true
+
+
+func clear_runtime_status_card(source: StringName) -> bool:
+	if source.is_empty() or not _runtime_status_cards.has(source):
+		return false
+	_runtime_status_cards.erase(source)
+	_refresh_runtime_status_cards()
+	return true
 
 
 func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
-	if kind != &"tutorial" and (
-		_runtime_status_kind == &"tutorial"
-		or not _first_sortie_tutorial_source_snapshot.is_empty()
-	):
-		_first_sortie_tutorial_presenter.detach(&"status_replaced")
-		_first_sortie_tutorial_source_snapshot.clear()
-	_runtime_status_kind = kind
-	if not is_instance_valid(_runtime_status_panel):
+	set_runtime_status_card(kind, snapshot)
+
+
+func _refresh_runtime_status_cards() -> void:
+	_hide_runtime_status_panel(_runtime_status_panel)
+	_hide_runtime_status_panel(_bomber_status_panel)
+	_runtime_status_kind = &""
+	if _runtime_status_cards.has(&"bomber"):
+		_runtime_status_kind = &"bomber"
+		var bomber_card := _runtime_status_cards[&"bomber"] as Dictionary
+		_render_runtime_status_card(
+			bomber_card.get("snapshot", {}) as Dictionary,
+			&"bomber",
+			_bomber_status_panel,
+			_bomber_status_title,
+			_bomber_status_detail,
+			_bomber_status_rows,
+			_bomber_status_actions
+		)
 		return
-	_runtime_status_title.text = str(snapshot.get("title", "STATUS"))
-	_runtime_status_detail.text = str(snapshot.get("message", snapshot.get("guidance", "")))
-	for child in _runtime_status_rows.get_children():
-		_runtime_status_rows.remove_child(child)
+	var selected_kind: StringName = &""
+	var selected_serial := -1
+	for source_variant: Variant in _runtime_status_cards.keys():
+		var source := StringName(str(source_variant))
+		if source == &"bomber":
+			continue
+		var card := _runtime_status_cards[source] as Dictionary
+		var serial := int(card.get("serial", -1))
+		if serial > selected_serial:
+			selected_serial = serial
+			selected_kind = source
+	if selected_kind.is_empty():
+		return
+	_runtime_status_kind = selected_kind
+	var selected_card := _runtime_status_cards[selected_kind] as Dictionary
+	_render_runtime_status_card(
+		selected_card.get("snapshot", {}) as Dictionary,
+		selected_kind,
+		_runtime_status_panel,
+		_runtime_status_title,
+		_runtime_status_detail,
+		_runtime_status_rows,
+		_runtime_status_actions
+	)
+
+
+func _hide_runtime_status_panel(panel: PanelContainer) -> void:
+	if not is_instance_valid(panel):
+		return
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child in panel.find_children("*", "Control", true, false):
+		(child as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.visible = false
+
+
+func _render_runtime_status_card(
+		snapshot: Dictionary,
+		kind: StringName,
+		panel: PanelContainer,
+		title_label: Label,
+		detail_label: Label,
+		rows: VBoxContainer,
+		actions: HBoxContainer
+		) -> void:
+	if not is_instance_valid(panel):
+		return
+	title_label.text = str(snapshot.get("title", "STATUS"))
+	detail_label.text = str(snapshot.get("message", snapshot.get("guidance", "")))
+	for child in rows.get_children():
+		rows.remove_child(child)
 		child.queue_free()
-	for child in _runtime_status_actions.get_children():
-		_runtime_status_actions.remove_child(child)
+	for child in actions.get_children():
+		actions.remove_child(child)
 		child.queue_free()
-	var detail := _runtime_status_detail.text
+	var detail := detail_label.text
 	if snapshot.has("exposure_marker"):
 		detail += "\n" + str(snapshot.exposure_marker)
 	if snapshot.has("next_landmark"):
@@ -4130,8 +4299,8 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 		var gunner_reason := str(gunner.get("unavailable_reason", "")).strip_edges()
 		if not gunner_reason.is_empty():
 			detail += "\nUNAVAILABLE // %s" % gunner_reason.to_upper()
-	_runtime_status_detail.text = detail
-	var tutorial_buttons: Array[Button] = []
+	detail_label.text = detail
+	var action_buttons: Array[Button] = []
 	for action: Dictionary in snapshot.get("actions", []):
 		var button := _menu_button(str(action.get("label", "Action")), NOMINAL)
 		button.name = "RuntimeStatus" + String(action.get("id", &"Action")).to_pascal_case() + "Button"
@@ -4143,27 +4312,51 @@ func _render_runtime_status(snapshot: Dictionary, kind: StringName) -> void:
 			button.pressed.connect(request_bomber_payload_release)
 		elif kind == &"tutorial":
 			button.pressed.connect(request_first_sortie_tutorial_action.bind(action_id))
-			tutorial_buttons.append(button)
 		else:
 			button.pressed.connect(func() -> void:
 				presentation_intent_requested.emit(kind, {"action": action_id, "snapshot": snapshot.duplicate(true)})
 			)
-		_runtime_status_actions.add_child(button)
-	if not tutorial_buttons.is_empty():
-		for index in tutorial_buttons.size():
-			var button := tutorial_buttons[index]
+		actions.add_child(button)
+		action_buttons.append(button)
+	if not action_buttons.is_empty():
+		for index in action_buttons.size():
+			var button := action_buttons[index]
 			button.focus_neighbor_left = button.get_path_to(
-				tutorial_buttons[maxi(0, index - 1)]
+				action_buttons[maxi(0, index - 1)]
 			)
 			button.focus_neighbor_right = button.get_path_to(
-				tutorial_buttons[mini(tutorial_buttons.size() - 1, index + 1)]
+				action_buttons[mini(action_buttons.size() - 1, index + 1)]
 			)
-		if tutorial_buttons[0].is_inside_tree():
-			tutorial_buttons[0].grab_focus()
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.visible = true
+	if (
+		kind == &"tutorial"
+		and not action_buttons.is_empty()
+		and _runtime_status_can_claim_focus()
+	):
+		if action_buttons[0].is_inside_tree():
+			action_buttons[0].grab_focus()
 		else:
-			tutorial_buttons[0].call_deferred(&"grab_focus")
-	_runtime_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_runtime_status_panel.visible = true
+			call_deferred(&"_claim_runtime_status_focus", action_buttons[0])
+
+
+func _runtime_status_can_claim_focus() -> bool:
+	return (
+		is_inside_tree()
+		and not is_queued_for_deletion()
+		and (_pause == null or not _pause.visible)
+		and (_recovery_prompt_panel == null or not _recovery_prompt_panel.visible)
+	)
+
+
+func _claim_runtime_status_focus(target: Control) -> void:
+	if (
+		_runtime_status_kind == &"tutorial"
+		and is_instance_valid(target)
+		and target.is_visible_in_tree()
+		and _runtime_status_can_claim_focus()
+	):
+		target.grab_focus()
 
 
 func _build_enemy_status() -> void:
@@ -5869,7 +6062,7 @@ func _refresh_input_prompts() -> void:
 	_refresh_all_binding_rows()
 	if is_instance_valid(_help_panel):
 		_set_help_text(_help_rows_with_role_context(_state_mode))
-	if _runtime_status_kind == &"tutorial" and not _first_sortie_tutorial_source_snapshot.is_empty():
+	if not _first_sortie_tutorial_source_snapshot.is_empty():
 		apply_first_sortie_tutorial_snapshot(_first_sortie_tutorial_source_snapshot)
 
 

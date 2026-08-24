@@ -35,6 +35,13 @@ func _run() -> void:
 	for index in ordered.size():
 		_check(ordered[index].focus_mode == Control.FOCUS_ALL, "browser control %d is focusable" % index)
 		_check(ordered[index].focus_neighbor_bottom == ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)]), "browser control %d has next focus" % index)
+	address.grab_focus()
+	await process_frame
+	_check(
+		hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 3, "revision": 1})
+		and root.get_viewport().gui_get_focus_owner() == address,
+		"a tutorial redraw cannot steal controller focus from the open browser"
+	)
 	hud.apply_server_browser_result({
 		"accepted": true,
 		"rows": [{"session_id": &"full", "title": "Full", "player_count": 4, "max_players": 4}],
