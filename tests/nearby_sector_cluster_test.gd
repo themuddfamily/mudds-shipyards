@@ -161,6 +161,7 @@ func _run() -> void:
 	_test_mining_platform_activity_presentation(cluster)
 	_test_structure_scan_activity_presentation(cluster)
 	_test_beacon_traversal_presentation(cluster)
+	_test_scorched_bay_seam_overlap(cluster)
 	_test_processing_spine_rib_batch(cluster)
 	_test_extraction_arm_collar_batches(cluster)
 	_test_gantry_rail_batch(cluster)
@@ -708,6 +709,36 @@ func _test_beacon_traversal_presentation(cluster: NearbySectorCluster) -> void:
 			float(audit.get("minimum_chip_clearance", 0.0)),
 			float(audit.get("minimum_boulder_clearance", 0.0)), str(cluster_counts),
 		]
+	)
+
+
+# The four charred plates are visual-only, but their overlap with the solid
+# spine is what prevents the platform's damage read from splitting into a thin
+# bright seam when it resolves at approach distance.
+func _test_scorched_bay_seam_overlap(cluster: NearbySectorCluster) -> void:
+	var platform := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform"
+	) as Node3D
+	var bays: Array[MeshInstance3D] = []
+	if platform != null:
+		for child in platform.get_children():
+			var bay := child as MeshInstance3D
+			if bay != null \
+				and bay.material_override == cluster._materials["char"] \
+				and is_equal_approx(absf(bay.position.x), 4.62) \
+				and bay.position.z in [-18.0, 6.0]:
+				bays.append(bay)
+	var overlap_is_seam_safe := bays.size() == 4
+	for bay in bays:
+		var inner_edge := absf(bay.position.x) \
+			- NearbySectorCluster.SCORCHED_BAY_SIZE.x * 0.5
+		overlap_is_seam_safe = overlap_is_seam_safe \
+			and bay.mesh != null \
+			and bay.get_parent() == platform \
+			and inner_edge <= NearbySectorCluster.SPINE_SIZE.x * 0.5 - 0.20
+	_check(
+		overlap_is_seam_safe,
+		"four collision-free scorched bay plates overlap the spine by at least 0.20 m to hide the approach-distance seam"
 	)
 
 

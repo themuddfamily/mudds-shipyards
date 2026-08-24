@@ -213,6 +213,11 @@ const GANTRY_FAR_Z := 77.0
 const GANTRY_CENTER_Y := 4.0
 const SPINE_SIZE := Vector3(9.0, 7.0, 44.0)
 const SPINE_CENTER_Z := -6.0
+## Charred bay plates sink 0.23 m into the 9 m spine on each side. The earlier
+## 0.08 m overlap opened a hairline daylight seam as the platform resolved at
+## approach distance; this visual-only overlap keeps the abandoned bays legible
+## without changing the spine's collision envelope.
+const SCORCHED_BAY_SIZE := Vector3(0.70, 5.4, 8.0)
 const PROCESSING_SPINE_RIB_SIZE := Vector3(13.0, 9.5, 1.6)
 const PROCESSING_SPINE_RIB_Z_POSITIONS: Array[float] = [-24.0, -14.0, 0.0, 12.0]
 const PROCESSING_SPINE_RIB_FAMILY_ID: StringName = &"nearby-processing-spine-ribs"
@@ -2520,14 +2525,16 @@ func _build_extraction_platform() -> void:
 	_box(platform, "ProcessingSpine", Vector3(0.0, 0.0, SPINE_CENTER_Z), SPINE_SIZE, _materials["hull"], true)
 	_build_processing_spine_ribs(platform)
 	# Burned-through bays: the abandonment read, done with material rather than a
-	# hole, so the collision envelope stays one simple solid spine.
+	# hole, so the collision envelope stays one simple solid spine. Their slight
+	# overlap is intentional: it removes a daylight seam against the spine at
+	# gameplay distance.
 	for z_position in [-18.0, 6.0]:
 		for side in [-1.0, 1.0]:
 			_box(
 				platform,
 				"ScorchedBay",
 				Vector3(side * 4.62, 0.0, z_position),
-				Vector3(0.4, 5.4, 8.0),
+				SCORCHED_BAY_SIZE,
 				_materials["char"],
 				false
 			)
