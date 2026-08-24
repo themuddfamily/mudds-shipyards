@@ -7,7 +7,6 @@ extends Node3D
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"fleet-expansion-berths"
 const EVIDENCE_STATUS: StringName = &"NEW"
-const WORLD_LAYER := PhysicsLayers.WORLD
 const PAD_IDS: Array[StringName] = [&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"]
 const PAD_POSITIONS: Array[Vector3] = [
 	Vector3(-34.0, 0.0, -18.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
@@ -15,31 +14,15 @@ const PAD_POSITIONS: Array[Vector3] = [
 const PAD_SIZE := Vector3(28.0, 0.6, 42.0)
 const APPROACH_OFFSET := Vector3(0.0, 0.0, 30.0)
 const LANDING_ANCHOR_Y := 4.0
-## Dock 04/05/06 sit 0.30 m above the established Fleet Dock trunk. One
-## module-owned spine joins the two separated fore/aft pads, meets that trunk at
-## local z = 0, and gives Dock 06 one bounded branch. The three two-metre ramps
-## make the height handoff explicit instead of relying on the player's maximum
-## step assist.
-const ACCESS_DECK_TOP := 0.0
-const PAD_DECK_TOP := 0.3
-const ACCESS_DECK_THICKNESS := 0.6
-const ACCESS_CLEAR_WIDTH := 4.8
-const ACCESS_SURFACE_NAMES := [
-	&"SharedSpineNorth", &"SharedSpineSouth",
-	&"Dock04CargoRamp", &"Dock05BomberRamp",
-	&"Dock06Branch", &"Dock06InterceptorRamp",
-]
-const ACCESS_SUPPORT_MESH_COUNT := 9
 const MAX_STATIC_BODIES := 10
-const MAX_MESH_INSTANCES := 36
-const EXPECTED_STATIC_BODIES := 9
-const EXPECTED_COLLISION_SHAPES := 12
-const EXPECTED_MESH_INSTANCES := 35
+const MAX_MESH_INSTANCES := 30
+const EXPECTED_STATIC_BODIES := 3
+const EXPECTED_COLLISION_SHAPES := 3
+const EXPECTED_MESH_INSTANCES := 17
 const EXPECTED_SERVICE_MESH_INSTANCES := 14
-const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 33
+const EXPECTED_MESH_RESOURCE_ALLOCATIONS := 12
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 78
+const EXPECTED_DESCENDANTS := 43
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
 	&"dock_05_bomber": 3,
@@ -82,7 +65,6 @@ var _service_materials: Dictionary = {}
 var _cargo_container_mesh: BoxMesh
 var _built := false
 var _pad_presentation_states: Dictionary = {}
-var _access_surfaces: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -101,7 +83,6 @@ func _ready() -> void:
 	for index in PAD_IDS.size():
 		_build_pad(PAD_IDS[index], PAD_POSITIONS[index], index)
 		_publish_pad_presentation(PAD_IDS[index])
-	_build_access_circulation()
 
 
 func get_pad_ids() -> Array[StringName]:
@@ -350,8 +331,7 @@ func get_service_presentation_audit() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - EXPECTED_SERVICE_MESH_INSTANCES,
 		"budgets": {
 			"mesh_instances": EXPECTED_MESH_INSTANCES,
-			"mesh_resource_allocations": EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS,
-			"service_mesh_resource_allocations": EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS,
+			"mesh_resource_allocations": EXPECTED_MESH_RESOURCE_ALLOCATIONS,
 			"guide_lights": EXPECTED_GUIDE_LIGHTS,
 			"descendants": EXPECTED_DESCENDANTS,
 			"static_bodies": EXPECTED_STATIC_BODIES,
@@ -363,101 +343,12 @@ func get_service_presentation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-## Reports the production walking structure itself. This is intentionally a
-## small topology contract: six physical surfaces, one shared underframe, and
-## no overlap with any landing or final-approach envelope.
-func get_access_circulation_audit() -> Dictionary:
-	var errors := PackedStringArray()
-	var circulation := get_node_or_null(^"AccessCirculation") as Node3D
-	var underframe := circulation.get_node_or_null(^"SupportedUnderframe") as Node3D \
-		if circulation != null else null
-	var bodies: Array[Node] = []
-	var shapes: Array[Node] = []
-	var meshes: Array[Node] = []
-	if circulation == null:
-		errors.append("access circulation missing")
-	else:
-		bodies = circulation.find_children("*", "StaticBody3D", true, false)
-		shapes = circulation.find_children("*", "CollisionShape3D", true, false)
-		meshes = circulation.find_children("*", "MeshInstance3D", true, false)
-	for surface_name in ACCESS_SURFACE_NAMES:
-		var body := circulation.get_node_or_null(NodePath(String(surface_name))) as StaticBody3D \
-			if circulation != null else null
-		var authored := _access_surfaces.get(surface_name, {}) as Dictionary
-		if body == null or authored.is_empty():
-			errors.append("access surface missing: %s" % surface_name)
-			continue
-		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
-		var surface := body.get_node_or_null(^"Surface") as MeshInstance3D
-		var expected_transform := authored.get("transform", Transform3D.IDENTITY) as Transform3D
-		var expected_size := authored.get("size", Vector3.ZERO) as Vector3
-		if not body.transform.is_equal_approx(expected_transform):
-			errors.append("access surface transform drift: %s" % surface_name)
-		if collision == null or collision.disabled or collision.shape is not BoxShape3D \
-				or not (collision.shape as BoxShape3D).size.is_equal_approx(expected_size):
-			errors.append("access surface collision drift: %s" % surface_name)
-		if surface == null or surface.mesh is not BoxMesh \
-				or not (surface.mesh as BoxMesh).size.is_equal_approx(expected_size):
-			errors.append("access surface render drift: %s" % surface_name)
-		if body.collision_layer != WORLD_LAYER or body.collision_mask != 0 \
-				or not bool(body.get_meta(&"walkable_surface", false)):
-			errors.append("access surface world ownership drift: %s" % surface_name)
-	if bodies.size() != ACCESS_SURFACE_NAMES.size() or shapes.size() != ACCESS_SURFACE_NAMES.size():
-		errors.append("access collision roster drift")
-	var support_meshes: Array[Node] = []
-	if underframe == null:
-		errors.append("access supported underframe missing")
-	else:
-		support_meshes = underframe.find_children("*", "MeshInstance3D", true, false)
-		if support_meshes.size() != ACCESS_SUPPORT_MESH_COUNT:
-			errors.append("access support roster drift")
-		if not underframe.find_children("*", "CollisionObject3D", true, false).is_empty() \
-				or not underframe.find_children("*", "CollisionShape3D", true, false).is_empty():
-			errors.append("access underframe gained collision")
-	var envelopes_clear := true
-	if circulation != null:
-		for raw_mesh in circulation.find_children("*", "MeshInstance3D", true, false):
-			var instance := raw_mesh as MeshInstance3D
-			if instance == null or instance.mesh == null \
-					or (underframe != null and underframe.is_ancestor_of(instance)):
-				continue
-			var bounds := (instance.global_transform * instance.mesh.get_aabb()).abs()
-			for pad_index in PAD_IDS.size():
-				var pad := get_node_or_null(NodePath(String(PAD_IDS[pad_index]))) as Node3D
-				if pad == null:
-					continue
-				var landing_bounds := (pad.global_transform * LANDING_VISUAL_CLEARANCE).abs()
-				var approach_bounds := (pad.global_transform * APPROACH_VISUAL_CLEARANCE).abs()
-				if bounds.intersects(landing_bounds) or bounds.intersects(approach_bounds):
-					envelopes_clear = false
-	if not envelopes_clear:
-		errors.append("access circulation entered landing or approach clearance")
-	return {
-		"valid": errors.is_empty(),
-		"errors": errors,
-		"surface_names": ACCESS_SURFACE_NAMES.duplicate(),
-		"static_bodies": bodies.size(),
-		"collision_shapes": shapes.size(),
-		"surface_meshes": meshes.size() - support_meshes.size(),
-		"support_meshes": support_meshes.size(),
-		"envelopes_clear": envelopes_clear,
-		"shared_spine": true,
-		"world_collision_backed": true,
-	}.duplicate(true)
-
-
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	if PAD_IDS.size() != 3 or _pads.size() != 3:
 		errors.append("exactly three authored expansion pads are required")
 	var bodies := find_children("*", "StaticBody3D", true, false).size()
-	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
-	var meshes := mesh_nodes.size()
-	var mesh_resource_ids := {}
-	for raw_mesh in mesh_nodes:
-		var mesh_instance := raw_mesh as MeshInstance3D
-		if mesh_instance != null and mesh_instance.mesh != null:
-			mesh_resource_ids[mesh_instance.mesh.get_instance_id()] = true
+	var meshes := find_children("*", "MeshInstance3D", true, false).size()
 	var collision_shapes := find_children("*", "CollisionShape3D", true, false).size()
 	var guide_lights := find_children("*", "OmniLight3D", true, false).size()
 	var descendants := find_children("*", "", true, false).size()
@@ -470,44 +361,14 @@ func get_audit_report() -> Dictionary:
 	if meshes != EXPECTED_MESH_INSTANCES or guide_lights != EXPECTED_GUIDE_LIGHTS \
 			or descendants != EXPECTED_DESCENDANTS:
 		errors.append("service presentation census drift")
-	if mesh_resource_ids.size() != EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS:
-		errors.append("whole-component mesh resource census drift")
 	var service_presentation := get_service_presentation_audit()
 	if not bool(service_presentation.get("valid", false)):
 		for error in (service_presentation.get("errors", PackedStringArray()) as PackedStringArray):
 			errors.append("service presentation: %s" % error)
-	var access_circulation := get_access_circulation_audit()
-	if not bool(access_circulation.get("valid", false)):
-		for error in (access_circulation.get("errors", PackedStringArray()) as PackedStringArray):
-			errors.append("access circulation: %s" % error)
 	for pad_id in PAD_IDS:
 		var contract := get_landing_contract(pad_id)
 		if not bool(contract.get("accepted", false)):
 			errors.append("missing landing contract: %s" % pad_id)
-	var pad_index := 0
-	for pad_id in PAD_IDS:
-		var pad := get_node_or_null(NodePath(String(pad_id))) as Node3D
-		var body := pad.get_node_or_null(^"WalkablePadCollision") as StaticBody3D \
-			if pad != null else null
-		if body == null or body.collision_layer != WORLD_LAYER or body.collision_mask != 0:
-			errors.append("pad World ownership drift: %s" % pad_id)
-		for piece in _pad_deck_piece_specs(pad_index):
-			var piece_name := String(piece.get("name", ""))
-			var collision := body.get_node_or_null(NodePath("Collision" + piece_name)) as CollisionShape3D \
-				if body != null else null
-			var surface := pad.get_node_or_null(NodePath("ServicePadSurface" + piece_name)) as MeshInstance3D \
-				if pad != null else null
-			var expected_size := piece.get("size", Vector3.ZERO) as Vector3
-			var expected_position := piece.get("position", Vector3.INF) as Vector3
-			if collision == null or collision.disabled or collision.shape is not BoxShape3D \
-					or not collision.position.is_equal_approx(expected_position) \
-					or not (collision.shape as BoxShape3D).size.is_equal_approx(expected_size):
-				errors.append("pad collision/render alignment drift: %s" % pad_id)
-			if surface == null or surface.mesh is not BoxMesh \
-					or not surface.position.is_equal_approx(expected_position) \
-					or not (surface.mesh as BoxMesh).size.is_equal_approx(expected_size):
-				errors.append("pad render/collision alignment drift: %s" % pad_id)
-		pad_index += 1
 	for pad_id in _attachments:
 		var attachment := _attachments[pad_id] as Dictionary
 		if (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref() == null:
@@ -522,15 +383,11 @@ func get_audit_report() -> Dictionary:
 		"pad_count": _pads.size(),
 		"static_bodies": bodies,
 		"mesh_instances": meshes,
-		"mesh_resource_allocations": mesh_resource_ids.size(),
-		"service_mesh_resource_allocations": int(
-			service_presentation.get("mesh_resource_allocations_after", -1)
-		),
+		"mesh_resource_allocations": int(service_presentation.get("mesh_resource_allocations_after", -1)),
 		"collision_shapes": collision_shapes,
 		"guide_lights": guide_lights,
 		"descendants": descendants,
 		"service_presentation": service_presentation,
-		"access_circulation": access_circulation,
 		"ship_authority": false,
 		"berth_lease_authority": false,
 		"game_flow_authority": false,
@@ -546,33 +403,22 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	add_child(pad)
 	var body := StaticBody3D.new()
 	body.name = "WalkablePadCollision"
-	body.collision_layer = WORLD_LAYER
-	body.collision_mask = 0
+	body.collision_layer = 1
+	body.collision_mask = 1
 	pad.add_child(body)
-	# Collision and render share every exact piece transform. Dock 06 is split
-	# around the independently owned comb trunk and Halyard apron; those live
-	# surfaces support the centre landing footprint without positive-volume
-	# coplanar ownership. Dock 04/05 remain one-piece plates.
-	var pad_material := _material(Color("334b55"), 0.7)
-	for piece in _pad_deck_piece_specs(index):
-		var piece_name := String(piece.get("name", ""))
-		var deck_size := piece.get("size", Vector3.ZERO) as Vector3
-		var deck_position := piece.get("position", Vector3.ZERO) as Vector3
-		var collision := CollisionShape3D.new()
-		collision.name = "Collision" + piece_name
-		var shape := BoxShape3D.new()
-		shape.size = deck_size
-		collision.shape = shape
-		collision.position = deck_position
-		body.add_child(collision)
-		var surface := MeshInstance3D.new()
-		surface.name = "ServicePadSurface" + piece_name
-		var mesh := BoxMesh.new()
-		mesh.size = deck_size
-		surface.mesh = mesh
-		surface.position = deck_position
-		surface.material_override = pad_material
-		pad.add_child(surface)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = PAD_SIZE
+	collision.shape = shape
+	collision.position.y = -0.3
+	body.add_child(collision)
+	var surface := MeshInstance3D.new()
+	surface.name = "ServicePadSurface"
+	var mesh := BoxMesh.new()
+	mesh.size = PAD_SIZE
+	surface.mesh = mesh
+	surface.material_override = _material(Color("334b55"), 0.7)
+	pad.add_child(surface)
 	var route := Marker3D.new()
 	route.name = "ApproachMarker"
 	route.position = APPROACH_OFFSET
@@ -598,168 +444,6 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 		"position": pad_position,
 		"size": PAD_SIZE,
 	}
-
-
-func _pad_deck_piece_specs(index: int) -> Array[Dictionary]:
-	if index != 2:
-		return [{
-			"name": "",
-			"position": Vector3.ZERO,
-			"size": PAD_SIZE,
-		}]
-	# Coordinates are Dock 06-local. In module coordinates these four rectangles
-	# cover x=-14..14/z=13..55 except the comb trunk (x=-2.4..2.4,
-	# z=13..48) and Halyard deck (x=2.4..14,z=19..31).
-	return [
-		{"name": "PortWing", "position": Vector3(-8.2, 0.0, 0.0), "size": Vector3(11.6, 0.6, 42.0)},
-		{"name": "StarboardForward", "position": Vector3(8.2, 0.0, -18.0), "size": Vector3(11.6, 0.6, 6.0)},
-		{"name": "StarboardAft", "position": Vector3(8.2, 0.0, 9.0), "size": Vector3(11.6, 0.6, 24.0)},
-		{"name": "TrunkAftCap", "position": Vector3(0.0, 0.0, 17.5), "size": Vector3(4.8, 0.6, 7.0)},
-	]
-
-
-func _build_access_circulation() -> void:
-	var circulation := Node3D.new()
-	circulation.name = "AccessCirculation"
-	circulation.set_meta(&"component_id", &"fleet-expansion-pedestrian-access")
-	circulation.set_meta(&"connects_existing_module", &"fleet-dock-comb")
-	add_child(circulation)
-
-	# Shared fore/aft spine. The 4.8 m central interval is supplied by the live
-	# Fleet Dock trunk itself; leaving it out removes positive-volume ownership
-	# overlap and lets the route pass east of the connector rails' local-z=0.25
-	# ends. Both spans meet the trunk at exact x=-2.4/+2.4 boundaries.
-	_add_access_level(
-		circulation, &"SharedSpineNorth", Vector3(-10.2, ACCESS_DECK_TOP, 0.6),
-		Vector3(15.6, ACCESS_DECK_THICKNESS, ACCESS_CLEAR_WIDTH)
-	)
-	_add_access_level(
-		circulation, &"SharedSpineSouth", Vector3(10.2, ACCESS_DECK_TOP, 0.6),
-		Vector3(15.6, ACCESS_DECK_THICKNESS, ACCESS_CLEAR_WIDTH)
-	)
-	_add_access_ramp_x(
-		circulation, &"Dock04CargoRamp", -20.0, PAD_DECK_TOP,
-		-18.0, ACCESS_DECK_TOP, 0.6
-	)
-	_add_access_ramp_x(
-		circulation, &"Dock05BomberRamp", 18.0, ACCESS_DECK_TOP,
-		20.0, PAD_DECK_TOP, 0.6
-	)
-	_add_access_level(
-		circulation, &"Dock06Branch", Vector3(-10.5, ACCESS_DECK_TOP, 7.0),
-		Vector3(ACCESS_CLEAR_WIDTH, ACCESS_DECK_THICKNESS, 8.0)
-	)
-	_add_access_ramp_z(
-		circulation, &"Dock06InterceptorRamp", -10.5,
-		11.0, ACCESS_DECK_TOP, 13.0, PAD_DECK_TOP
-	)
-	_build_access_underframe(circulation)
-
-
-func _add_access_level(
-		parent: Node3D, surface_name: StringName, top_centre: Vector3, size: Vector3
-	) -> void:
-	var transform := Transform3D(
-		Basis.IDENTITY, top_centre - Vector3.UP * size.y * 0.5
-	)
-	_add_access_surface(parent, surface_name, transform, size, &"level")
-
-
-func _add_access_ramp_x(
-		parent: Node3D, surface_name: StringName,
-		start_x: float, start_y: float, finish_x: float, finish_y: float, centre_z: float
-	) -> void:
-	var horizontal := finish_x - start_x
-	var angle := atan2(finish_y - start_y, horizontal)
-	var basis := Basis(Vector3.BACK, angle)
-	var normal := basis.y.normalized()
-	var start := Vector3(start_x, start_y, centre_z)
-	var finish := Vector3(finish_x, finish_y, centre_z)
-	var transform := Transform3D(basis, (start + finish) * 0.5 - normal * ACCESS_DECK_THICKNESS * 0.5)
-	_add_access_surface(
-		parent, surface_name, transform,
-		Vector3(start.distance_to(finish), ACCESS_DECK_THICKNESS, ACCESS_CLEAR_WIDTH),
-		&"ramp"
-	)
-
-
-func _add_access_ramp_z(
-		parent: Node3D, surface_name: StringName, centre_x: float,
-		start_z: float, start_y: float, finish_z: float, finish_y: float
-	) -> void:
-	var horizontal := finish_z - start_z
-	var angle := -atan2(finish_y - start_y, horizontal)
-	var basis := Basis(Vector3.RIGHT, angle)
-	var normal := basis.y.normalized()
-	var start := Vector3(centre_x, start_y, start_z)
-	var finish := Vector3(centre_x, finish_y, finish_z)
-	var transform := Transform3D(basis, (start + finish) * 0.5 - normal * ACCESS_DECK_THICKNESS * 0.5)
-	_add_access_surface(
-		parent, surface_name, transform,
-		Vector3(ACCESS_CLEAR_WIDTH, ACCESS_DECK_THICKNESS, start.distance_to(finish)),
-		&"ramp"
-	)
-
-
-func _add_access_surface(
-		parent: Node3D, surface_name: StringName, surface_transform: Transform3D,
-		size: Vector3, kind: StringName
-	) -> void:
-	var body := StaticBody3D.new()
-	body.name = String(surface_name)
-	body.transform = surface_transform
-	body.collision_layer = WORLD_LAYER
-	body.collision_mask = 0
-	body.set_meta(&"walkable_surface", true)
-	body.set_meta(&"walkable_surface_id", StringName("fleet-expansion-" + String(surface_name).to_snake_case()))
-	body.set_meta(&"walkable_surface_kind", kind)
-	body.set_meta(&"walkable_surface_owner", COMPONENT_ID)
-	parent.add_child(body)
-	var collision := CollisionShape3D.new()
-	collision.name = "Collision"
-	var shape := BoxShape3D.new()
-	shape.size = size
-	collision.shape = shape
-	body.add_child(collision)
-	var surface := MeshInstance3D.new()
-	surface.name = "Surface"
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	surface.mesh = mesh
-	surface.material_override = _service_materials["access_deck"]
-	body.add_child(surface)
-	_access_surfaces[surface_name] = {
-		"transform": surface_transform,
-		"size": size,
-		"kind": kind,
-	}.duplicate(true)
-
-
-func _build_access_underframe(circulation: Node3D) -> void:
-	var underframe := Node3D.new()
-	underframe.name = "SupportedUnderframe"
-	underframe.set_meta(&"presentation_only", true)
-	underframe.set_meta(&"structurally_supports", &"fleet-expansion-pedestrian-access")
-	circulation.add_child(underframe)
-	for z_position in [-1.0, 2.2]:
-		_visual_box(
-			underframe, "SpineChord", Vector3(0.0, -1.24, float(z_position)),
-			Vector3(35.2, 1.4, 0.46), _service_materials["access_underframe"]
-		)
-	for x_position in [-14.0, -5.0, 5.0, 14.0]:
-		_visual_box(
-			underframe, "SpineSupport", Vector3(float(x_position), -1.75, 0.6),
-			Vector3(0.55, 2.5, 0.55), _service_materials["access_support"]
-		)
-	_visual_box(
-		underframe, "BranchChord", Vector3(-10.5, -1.24, 7.0),
-		Vector3(0.46, 1.4, 7.6), _service_materials["access_underframe"]
-	)
-	for z_position in [5.0, 9.0]:
-		_visual_box(
-			underframe, "BranchSupport", Vector3(-10.5, -1.75, float(z_position)),
-			Vector3(0.55, 2.5, 0.55), _service_materials["access_support"]
-		)
 
 
 func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
@@ -847,9 +531,6 @@ func _build_service_materials() -> void:
 		"bomber_marker": _emissive_material(Color("ff8b42")),
 		"interceptor_frame": _material(Color("31515b"), 0.74),
 		"interceptor_marker": _emissive_material(Color("61e4ee")),
-		"access_deck": _material(Color("39545d"), 0.68),
-		"access_underframe": _material(Color("263d48"), 0.78),
-		"access_support": _material(Color("a15f2d"), 0.62),
 	}
 
 
