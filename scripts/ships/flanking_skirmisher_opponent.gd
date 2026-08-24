@@ -139,6 +139,13 @@ const CONTENT_NOTE := (
 @export_range(0.5, 0.9999, 0.0001) var aim_tolerance := 0.9
 ## Cooldown forced when a committed charge is broken by arc, cone or occlusion.
 @export_range(0.0, 8.0, 0.05) var abort_recovery := 0.35
+## How far to the opposite side of the player's wake a flanker cuts after a
+## resolved rear shot. This changes only its requested movement direction; the
+## inherited physics loop still owns acceleration, speed and collision.
+@export_range(8.0, 80.0, 1.0) var rear_cross_lateral_offset := 28.0
+## A rear cross expires instead of becoming a permanent alternate station if
+## damage or geometry prevents the craft from reaching the opposite shoulder.
+@export_range(0.25, 4.0, 0.05) var rear_cross_duration := 1.15
 
 var _wing_role: StringName = WingCoordinator.ROLE_UNASSIGNED
 var _weapon_safed := true
@@ -149,6 +156,10 @@ var _shots_arc_denied := 0
 var _wing_mesh: ArrayMesh
 var _wing_chalk_band_mesh: BoxMesh
 var _winglet_fin_mesh: BoxMesh
+var _rear_cross_state: StringName = &"idle"
+var _rear_cross_started_at := 0.0
+var _rear_cross_destination_side := 1.0
+var _rear_cross_completed_count := 0
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -164,10 +175,18 @@ func _ready() -> void:
 	_apply_role_presentation()
 
 
+func _exit_tree() -> void:
+	# Streaming re-entry restores combat registration in the resolver-backed
+	# base. The short tactical pass is deliberately not replayed after absence.
+	_reset_rear_cross_tactic()
+	super()
+
+
 func activate(spawn_transform: Transform3D) -> Dictionary:
 	var activation := super(spawn_transform) as Dictionary
 	if not bool(activation.get("accepted", false)):
 		return activation
+	_reset_rear_cross_tactic()
 	_shots_arc_denied = 0
 	_set_weapon_safed(true)
 	_apply_role_presentation()
@@ -176,11 +195,13 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 
 func deactivate() -> void:
 	super()
+	_reset_rear_cross_tactic()
 	_assign_wing_role_internal(WingCoordinator.ROLE_UNASSIGNED)
 	_set_weapon_safed(true)
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
+	_reset_rear_cross_tactic()
 	_assign_wing_role_internal(WingCoordinator.ROLE_UNASSIGNED)
 	_set_weapon_safed(true)
 	super(death_position)
@@ -240,6 +261,32 @@ func is_weapon_safed() -> bool:
 
 func get_arc_denied_count() -> int:
 	return _shots_arc_denied
+
+
+## Runtime-readable state for the post-shot flank pass. It is intentionally a
+## movement contract only: combat resolution, damage and physics stay on the
+## resolver-backed base and the inherited CharacterBody3D loop.
+func get_rear_cross_snapshot() -> Dictionary:
+	_refresh_rear_cross_state()
+	var elapsed := maxf(0.0, _elapsed - _rear_cross_started_at)
+	return {
+		"tactic_id": &"rear_cross",
+		"state_id": _rear_cross_state,
+		"destination_side": _rear_cross_destination_side,
+		"elapsed_seconds": elapsed if _rear_cross_state == &"active" else 0.0,
+		"duration_seconds": rear_cross_duration,
+		"remaining_seconds": (
+			maxf(0.0, rear_cross_duration - elapsed)
+			if _rear_cross_state == &"active" else 0.0
+		),
+		"lateral_offset": rear_cross_lateral_offset,
+		"completed_crosses": _rear_cross_completed_count,
+		"uses_existing_movement_authority": true,
+		"uses_existing_resolver_authority": true,
+		"combat_authority": false,
+		"damage_authority": false,
+		"physics_authority": false,
+	}.duplicate(true)
 
 
 func get_evidence_metadata() -> Dictionary:
@@ -737,6 +784,10 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("the anchor station must sit inside the engagement range")
 	if rear_arc_cosine >= 1.0:
 		errors.append("the rear arc must admit some part of the player's rear hemisphere")
+	if rear_cross_lateral_offset <= 0.0:
+		errors.append("the rear cross must name a visible lateral offset")
+	if rear_cross_duration <= 0.0:
+		errors.append("the rear cross must have a finite positive duration")
 	return errors
 
 
@@ -755,6 +806,20 @@ func _choose_motion_direction(target_direction: Vector3, distance: float) -> Vec
 	var weave := Vector3.UP * sin(_elapsed * 0.97 + 0.4) * 0.16
 
 	if _wing_role == WingCoordinator.ROLE_FLANKER:
+		_refresh_rear_cross_state()
+		if _rear_cross_state == &"active":
+			var target_right := _get_target_right()
+			var cross_station := (
+				_get_target_aim_position()
+				- target_forward * flank_station_range
+				+ target_right * rear_cross_lateral_offset * _rear_cross_destination_side
+			)
+			var to_cross_station := cross_station - global_position
+			if to_cross_station.length_squared() > 1.0:
+				# The player's rear point remains in the blend, so the pass reads as
+				# a wake crossing rather than an unrelated sideways retreat.
+				return (to_cross_station.normalized() * 0.88 + weave * 0.35).normalized()
+			_complete_rear_cross()
 		var station := _get_target_aim_position() - target_forward * flank_station_range
 		var to_station := station - global_position
 		if to_station.length_squared() <= 0.001:
@@ -821,6 +886,19 @@ func _update_weapon(
 	_telegraph_remaining = telegraph_time
 
 
+## Observe the inherited resolver call after it has made the authoritative
+## decision. A miss is still a resolved discharge and therefore a readable cue;
+## rejected or withheld requests never start movement.
+func _fire_at_target(target_position: Vector3) -> void:
+	var shots_before := get_shots_fired()
+	super(target_position)
+	if get_shots_fired() <= shots_before or _wing_role != WingCoordinator.ROLE_FLANKER:
+		return
+	var result := get_last_shot_result()
+	if bool(result.get("accepted", false)) and bool(result.get("resolved", false)):
+		_begin_rear_cross()
+
+
 ## The anchor may always shoot. The flanker may shoot only from the player's
 ## rear hemisphere. An unassigned craft may not shoot at all — that state only
 ## exists before the coordinator's first assignment and while standing down.
@@ -854,6 +932,53 @@ func _get_target_forward() -> Vector3:
 	return forward.normalized()
 
 
+func _get_target_right() -> Vector3:
+	if not is_instance_valid(_target):
+		return Vector3.RIGHT
+	var right := _target.global_basis.x
+	if right.length_squared() <= 0.001:
+		return Vector3.RIGHT
+	return right.normalized()
+
+
+func _begin_rear_cross() -> void:
+	_refresh_rear_cross_state()
+	if _rear_cross_state == &"active" or not is_instance_valid(_target):
+		return
+	var target_right := _get_target_right()
+	var side_offset := (global_position - _target.global_position).dot(target_right)
+	if absf(side_offset) > 0.5:
+		_rear_cross_destination_side = -signf(side_offset)
+	else:
+		# A dead-centre stern shot still has a deterministic opposite shoulder,
+		# keyed to the inherited orbit selected from the spawn side.
+		_rear_cross_destination_side = -1.0 if _orbit_sign >= 0.0 else 1.0
+	_rear_cross_started_at = _elapsed
+	_rear_cross_state = &"active"
+
+
+func _refresh_rear_cross_state() -> void:
+	if (
+		_rear_cross_state == &"active"
+		and _elapsed - _rear_cross_started_at >= rear_cross_duration
+	):
+		_complete_rear_cross()
+
+
+func _complete_rear_cross() -> void:
+	if _rear_cross_state != &"active":
+		return
+	_rear_cross_state = &"completed"
+	_rear_cross_completed_count += 1
+
+
+func _reset_rear_cross_tactic() -> void:
+	_rear_cross_state = &"idle"
+	_rear_cross_started_at = 0.0
+	_rear_cross_destination_side = 1.0
+	_rear_cross_completed_count = 0
+
+
 func _is_fire_authorized() -> bool:
 	# The encounter's authorization first, then this craft's own arc. Both are
 	# re-asked on the dispatch frame; neither is cached from the charge frame.
@@ -866,6 +991,8 @@ func _assign_wing_role_internal(role: StringName) -> void:
 	var next := role if WingCoordinator.ROLES.has(role) else WingCoordinator.ROLE_UNASSIGNED
 	if _wing_role == next:
 		return
+	if next != WingCoordinator.ROLE_FLANKER:
+		_reset_rear_cross_tactic()
 	_wing_role = next
 	_apply_role_presentation()
 	wing_role_changed.emit(_wing_role)
