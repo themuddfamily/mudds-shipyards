@@ -31,6 +31,8 @@ const CLOSE_NAV_PORT_PATH := ^"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_P
 const CLOSE_NAV_STARBOARD_PATH := ^"ModernSystems/LOD0/ModernSystemsLOD0StaticBatch_StarboardNavGreen"
 const FAR_NAV_PORT_PATH := ^"ModernSystems/LOD1/ModernSystemsLOD1StaticBatch_PortNavRed"
 const FAR_NAV_STARBOARD_PATH := ^"ModernSystems/LOD1/ModernSystemsLOD1StaticBatch_StarboardNavGreen"
+const CLOSE_PLUME_PORT_PATH := ^"ModernSystems/LOD0/PortEnginePlume"
+const CLOSE_PLUME_STARBOARD_PATH := ^"ModernSystems/LOD0/StarboardEnginePlume"
 
 const MATERIAL_ROLES := [
 	"PaleCeramicHull",
@@ -241,6 +243,7 @@ func _configure_runtime_materials() -> void:
 				mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_share_close_navigation_light_mesh()
 	_share_far_navigation_light_mesh()
+	_share_close_engine_plume_mesh()
 	_configure_far_engine_orientation_cue()
 
 
@@ -324,6 +327,28 @@ func _share_far_navigation_light_mesh() -> void:
 			or starboard.material_override != _runtime_materials.get(&"StarboardNavGreen") \
 			or not _material_is_texture_free(port.material_override) \
 			or not _material_is_texture_free(starboard.material_override):
+		return
+	starboard.mesh = port.mesh
+
+
+## The close exhaust pair remains as two protected dynamic nodes, while the
+## interceptor renders both copies through its existing MultiMesh. Their import
+## arrays differ only in UV0 and EngineEmission is texture-free, so retaining
+## the port mesh for both authorities removes one otherwise idle mesh resource
+## without changing either plume transform, material, visibility, scale or the
+## already-single renderer submission.
+func _share_close_engine_plume_mesh() -> void:
+	var port := _asset_root.get_node_or_null(CLOSE_PLUME_PORT_PATH) as MeshInstance3D
+	var starboard := _asset_root.get_node_or_null(
+		CLOSE_PLUME_STARBOARD_PATH
+	) as MeshInstance3D
+	if port == null or starboard == null or port.mesh == null or starboard.mesh == null:
+		return
+	if not _mesh_render_arrays_match_ignoring_uv0(port.mesh, starboard.mesh) \
+			or _mesh_uv0_matches(port.mesh, starboard.mesh) \
+			or port.material_override != _runtime_materials.get(&"EngineEmission") \
+			or starboard.material_override != port.material_override \
+			or not _material_is_texture_free(port.material_override):
 		return
 	starboard.mesh = port.mesh
 
