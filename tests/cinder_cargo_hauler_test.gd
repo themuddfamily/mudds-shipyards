@@ -3,6 +3,7 @@ extends SceneTree
 const Hauler := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const SEAT_BACK_GEOMETRY_SHA256 := "ea6f7d6c371d9cb11458d667cc86b2bdd346705e3a83fb60313615a3cb5a0ca1"
 const CABIN_END_WALL_GEOMETRY_SHA256 := "0bf3635e76ff6e2267bb9e7fd5579ca5e4f1fb0c5f3d49aa1155db416f582b67"
+const CREW_CONSOLE_GEOMETRY_SHA256 := "34266f123c5543edc45eef7564290f256c39519aec34b8525b34472f594b0daa"
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -155,19 +156,55 @@ func _initialize() -> void:
 			and is_equal_approx(seat_back_material.roughness, 0.62),
 		"seat backs retain both exact authored copies, transforms, silhouette, shadows, and material"
 	)
+	var crew_consoles := cabin.get_node_or_null(^"CrewConsoleBatch") as MultiMeshInstance3D \
+		if cabin != null else null
+	var expected_console_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(0.95, 0.20, 0.42)),
+		Transform3D(Basis.IDENTITY, Vector3(-0.95, 0.20, 0.42)),
+	]
+	var console_material := crew_consoles.material_override as StandardMaterial3D \
+		if crew_consoles != null else null
+	_check(
+		crew_consoles != null
+			and crew_consoles.multimesh.instance_count == 2
+			and crew_consoles.multimesh.visible_instance_count == -1
+			and crew_consoles.multimesh.mesh is BoxMesh
+			and (crew_consoles.multimesh.mesh as BoxMesh).size == Vector3(0.92, 0.58, 0.08)
+			and crew_consoles.get_meta(&"authored_visual_names", PackedStringArray())
+				== PackedStringArray(["LoadmasterConsole", "NavigatorConsole"])
+			and crew_consoles.get_meta(&"authored_instance_transforms", [])
+				== expected_console_transforms
+			and crew_consoles.get_meta(&"authored_station_ids", PackedStringArray())
+				== PackedStringArray([
+					Hauler.LOADMASTER_STATION_SEAT_ID,
+					Hauler.NAVIGATOR_STATION_SEAT_ID,
+				])
+			and bool(crew_consoles.get_meta(&"presentation_only", false))
+			and crew_consoles.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and console_material != null
+			and console_material.albedo_color == Hauler.ACCENT_COLOR
+			and is_equal_approx(console_material.metallic, 0.42)
+			and is_equal_approx(console_material.roughness, 0.62)
+			and cabin.get_node_or_null(^"LoadmasterConsole") == null
+			and cabin.get_node_or_null(^"NavigatorConsole") == null,
+		"both station console shells retain exact geometry, transforms, paint, shadows, and station identity"
+	)
 	_check(
 		seat_backs != null
 			and seat_backs.multimesh.mesh.get_surface_count() == 1
 			and cabin.get_node_or_null(^"LoadmasterSeatBack") == null
 			and cabin.get_node_or_null(^"NavigatorSeatBack") == null
-			and _visual_renderer_count(craft) == 102
-			and _visual_mesh_resource_count(craft) == 91
-			and _visual_material_resource_count(craft) == 15
-			and _authored_visual_copy_count(craft) == 106,
-		"the optimized full craft retains 106 authored visual copies in 102 bounded renderers"
+			and crew_consoles != null
+			and crew_consoles.multimesh.mesh.get_surface_count() == 1
+			and _visual_renderer_count(craft) == 103
+			and _visual_mesh_resource_count(craft) == 92
+			and _visual_material_resource_count(craft) == 16
+			and _authored_visual_copy_count(craft) == 118,
+		"the optimized full craft retains 118 authored visual copies in 103 bounded renderers"
 	)
 	var geometry_hash := _two_box_geometry_hash(seat_backs)
 	var end_wall_geometry_hash := _two_box_geometry_hash(cabin_end_walls)
+	var console_geometry_hash := _two_box_geometry_hash(crew_consoles)
 	print(
 		"CINDER_CARGO_VISUAL_ACTUAL: renderers=%d meshes=%d materials=%d authored_copies=%d collisions=%d"
 		% [
@@ -186,6 +223,10 @@ func _initialize() -> void:
 		end_wall_geometry_hash == CABIN_END_WALL_GEOMETRY_SHA256,
 		"the canonical cabin-end-wall geometry hash is %s" % CABIN_END_WALL_GEOMETRY_SHA256
 	)
+	_check(
+		console_geometry_hash == CREW_CONSOLE_GEOMETRY_SHA256,
+		"the canonical paired-console geometry hash is %s" % CREW_CONSOLE_GEOMETRY_SHA256
+	)
 	var anchor_snapshot := _anchor_snapshot(craft)
 	var collision_count := craft.find_children("*", "CollisionShape3D", true, false).size()
 	var authority_snapshot := _authority_snapshot(craft.get_audit_report())
@@ -195,6 +236,7 @@ func _initialize() -> void:
 		float(craft.get_telemetry().get("hull", 0.0)) < float(craft.get_telemetry().get("maximum_hull", 0.0))
 			and _two_box_geometry_hash(seat_backs) == geometry_hash
 			and _two_box_geometry_hash(cabin_end_walls) == end_wall_geometry_hash
+			and _two_box_geometry_hash(crew_consoles) == console_geometry_hash
 			and _anchor_snapshot(craft) == anchor_snapshot
 			and craft.find_children("*", "CollisionShape3D", true, false).size() == collision_count
 			and _authority_snapshot(craft.get_audit_report()) == authority_snapshot,
@@ -208,22 +250,26 @@ func _initialize() -> void:
 	var rebuilt_seat_backs := rebuilt.get_node_or_null(
 		^"WalkableInterior/LoadmasterCabin/CrewSeatBackBatch"
 	) as MultiMeshInstance3D
+	var rebuilt_consoles := rebuilt.get_node_or_null(
+		^"WalkableInterior/LoadmasterCabin/CrewConsoleBatch"
+	) as MultiMeshInstance3D
 	_check(
 		rebuilt_seat_backs != null
 			and _two_box_geometry_hash(rebuilt_seat_backs) == geometry_hash
+			and _two_box_geometry_hash(rebuilt_consoles) == console_geometry_hash
 			and _two_box_geometry_hash(rebuilt.get_node_or_null(
 				^"WalkableInterior/LoadmasterCabin/CabinEndWallBatch"
 			) as MultiMeshInstance3D) == end_wall_geometry_hash
 			and _anchor_snapshot(rebuilt) == anchor_snapshot
 			and rebuilt.find_children("*", "CollisionShape3D", true, false).size() == collision_count
 			and _authority_snapshot(rebuilt.get_audit_report()) == authority_snapshot
-			and _visual_renderer_count(rebuilt) == 102
-			and _authored_visual_copy_count(rebuilt) == 106,
+			and _visual_renderer_count(rebuilt) == 103
+			and _authored_visual_copy_count(rebuilt) == 118,
 		"detach and rebuild retain the exact optimized presentation and gameplay contract"
 	)
 	print(
-		"CINDER_CARGO_END_WALL_BATCH_METRICS: renderers=103->102 meshes=92->91 materials=16->15 authored_copies=106->106 geometry_sha256=%s"
-		% end_wall_geometry_hash
+		"CINDER_CARGO_CONSOLE_BATCH_METRICS: renderers=104->103 meshes=93->92 materials=17->16 authored_copies=118->118 geometry_sha256=%s"
+		% console_geometry_hash
 	)
 	rebuilt.queue_free()
 	await process_frame

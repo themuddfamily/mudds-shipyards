@@ -329,10 +329,9 @@ var _cargo_cabin: Node3D
 var _moving_interior_component: MovingInteriorFrame
 var _occupant_volume: Area3D
 var _loadmaster_station_anchor: Marker3D
-var _loadmaster_console: MeshInstance3D
+var _crew_console_batch: MultiMeshInstance3D
 var _loadmaster_interaction: CinderLoadmasterInteraction
 var _navigator_station_anchor: Marker3D
-var _navigator_console: MeshInstance3D
 var _navigator_interaction: CinderNavigatorInteraction
 var _navigator_ping_receipt: Dictionary = {}
 var _navigator_ping_generation := 1
@@ -1236,15 +1235,24 @@ func _build_cargo_interior() -> void:
 		ACCENT_COLOR,
 		PackedStringArray(["LoadmasterSeatBack", "NavigatorSeatBack"])
 	)
-	_loadmaster_console = _add_interior_box(
+	# These two immutable console shells have always shared the same dimensions,
+	# paint and lifetime. Keep their authored transforms and station identities,
+	# but submit them through one presentation-only renderer.
+	_crew_console_batch = _add_visual_box_batch(
 		_cargo_cabin,
-		"LoadmasterConsole",
-		Vector3(0.95, 0.20, 0.42),
+		"CrewConsoleBatch",
 		Vector3(0.92, 0.58, 0.08),
-		ACCENT_COLOR
+		[
+			Transform3D(Basis.IDENTITY, Vector3(0.95, 0.20, 0.42)),
+			Transform3D(Basis.IDENTITY, Vector3(-0.95, 0.20, 0.42)),
+		],
+		ACCENT_COLOR,
+		PackedStringArray(["LoadmasterConsole", "NavigatorConsole"])
 	)
-	_loadmaster_console.set_meta(&"presentation_only", true)
-	_loadmaster_console.set_meta(&"station_id", LOADMASTER_STATION_SEAT_ID)
+	_crew_console_batch.set_meta(
+		&"authored_station_ids",
+		PackedStringArray([LOADMASTER_STATION_SEAT_ID, NAVIGATOR_STATION_SEAT_ID])
+	)
 	_loadmaster_status_panel = _add_interior_box(
 		_cargo_cabin,
 		"LoadmasterStatusPanel",
@@ -1290,15 +1298,6 @@ func _build_cargo_interior() -> void:
 	_loadmaster_interaction.set_meta(&"route_id", CABIN_ROUTE_ID)
 	_loadmaster_interaction.set_meta(&"authority_owner", &"CrewSeatRoleAuthority")
 	_cargo_cabin.add_child(_loadmaster_interaction)
-	_navigator_console = _add_interior_box(
-		_cargo_cabin,
-		"NavigatorConsole",
-		Vector3(-0.95, 0.20, 0.42),
-		Vector3(0.92, 0.58, 0.08),
-		ACCENT_COLOR
-	)
-	_navigator_console.set_meta(&"presentation_only", true)
-	_navigator_console.set_meta(&"station_id", NAVIGATOR_STATION_SEAT_ID)
 	_navigator_station_anchor = Marker3D.new()
 	_navigator_station_anchor.name = "NavigatorStationAnchor"
 	_navigator_station_anchor.position = Vector3(-0.95, -0.30, 1.10)
