@@ -132,6 +132,19 @@ const BOULDER_MAXIMUM_EXTENT := 46.0
 const BOULDER_MINIMUM_SEPARATION := 56.0
 const DEBRIS_CHIP_COUNT := 520
 const DEBRIS_CHIP_SEED := 5512803
+## The one debris batch uses vertex colour as its albedo, so the shared material
+## must stay neutral. Multiplying the old basalt base by already-dark instance
+## colours made the field disappear into the sky at the 80-140 m traversal
+## distance. Slightly larger shards and a cool-port / warm-starboard palette now
+## frame the safe route as two distinct flanks without adding a renderer, light,
+## collision shape, or activity state.
+const DEBRIS_CHIP_MESH_SIZE := Vector3(1.4, 0.85, 1.8)
+const DEBRIS_CHIP_MINIMUM_SCALE := 0.85
+const DEBRIS_CHIP_MAXIMUM_SCALE := 2.75
+const DEBRIS_CHIP_NEUTRAL_BASE := Color.WHITE
+const DEBRIS_CHIP_COOL_FLANK := Color("7898a5")
+const DEBRIS_CHIP_WARM_FLANK := Color("a06c48")
+const DEBRIS_CHIP_PALE_ACCENT := Color("a5adb2")
 ## Kept clear so the platform is approachable and the dock gate is not blocked by
 ## a rock the pilot cannot see until it fills the canopy. It applies to the fine
 ## debris shell as well as the boulders — the first rendered pass filtered only
@@ -2319,10 +2332,14 @@ func _build_debris_field() -> void:
 ## clusters make the ordered route read as a corridor through a field while all
 ## 520 chips remain collision-free in one renderer submission.
 func _build_debris_chips() -> void:
-	var chip_material := _material(ROCK_BASALT, 0.04, 0.95)
+	# Vertex colour supplies the actual rock tint. A neutral base is essential:
+	# StandardMaterial3D multiplies the two, so the old basalt-on-basalt recipe
+	# crushed the field to near-black before lighting was even evaluated.
+	var chip_material := _material(DEBRIS_CHIP_NEUTRAL_BASE, 0.04, 0.9)
 	chip_material.vertex_color_use_as_albedo = true
 	var chip_mesh := StationSurfaceKit.rounded_box_mesh_with_bevel(
-		Vector3(1.0, 0.72, 1.34), 0.72 * ROCK_BEVEL_PROPORTION
+		DEBRIS_CHIP_MESH_SIZE,
+		minf(DEBRIS_CHIP_MESH_SIZE.x, DEBRIS_CHIP_MESH_SIZE.y) * ROCK_BEVEL_PROPORTION
 	)
 	chip_mesh.surface_set_material(0, chip_material)
 
@@ -2337,6 +2354,7 @@ func _build_debris_chips() -> void:
 	var chip_attempts := 0
 	var authored_positions := PackedVector3Array()
 	var authored_cluster_indices := PackedInt32Array()
+	var authored_colors := PackedColorArray()
 	while placed_chips < DEBRIS_CHIP_COUNT and chip_attempts < DEBRIS_CHIP_COUNT * 20:
 		chip_attempts += 1
 		var cluster_index := placed_chips % TRAVERSAL_DEBRIS_CLUSTER_SPECS.size()
@@ -2347,7 +2365,9 @@ func _build_debris_chips() -> void:
 		placed_chips += 1
 		authored_positions.append(world_position)
 		authored_cluster_indices.append(cluster_index)
-		var scale_value := random.randf_range(0.7, 2.4)
+		var scale_value := random.randf_range(
+			DEBRIS_CHIP_MINIMUM_SCALE, DEBRIS_CHIP_MAXIMUM_SCALE
+		)
 		var chip_basis := Basis.from_euler(
 			Vector3(
 				random.randf_range(-PI, PI),
@@ -2362,10 +2382,17 @@ func _build_debris_chips() -> void:
 			)
 		)
 		multimesh.set_instance_transform(index, Transform3D(chip_basis, world_position))
-		multimesh.set_instance_color(
-			index,
-			ROCK_BASALT.lerp(ROCK_RUST if index % 3 == 0 else ROCK_PALE, random.randf_range(0.1, 0.85))
-		)
+		# Cluster specs alternate port/starboard at every route leg. Keeping that
+		# parity in the palette makes the ordered corridor readable in silhouette
+		# even when individual shards are below sign-reading distance.
+		var flank_color := DEBRIS_CHIP_COOL_FLANK \
+			if cluster_index % 2 == 0 else DEBRIS_CHIP_WARM_FLANK
+		var instance_color := flank_color.lerp(
+				DEBRIS_CHIP_PALE_ACCENT,
+				random.randf_range(0.04, 0.32)
+			)
+		authored_colors.append(instance_color)
+		multimesh.set_instance_color(index, instance_color)
 	multimesh.visible_instance_count = placed_chips
 
 	var chips := MultiMeshInstance3D.new()
@@ -2380,6 +2407,8 @@ func _build_debris_chips() -> void:
 	chips.set_meta(&"authored_cluster_count", TRAVERSAL_DEBRIS_CLUSTER_SPECS.size())
 	chips.set_meta(&"authored_instance_positions", authored_positions)
 	chips.set_meta(&"authored_cluster_indices", authored_cluster_indices)
+	chips.set_meta(&"authored_instance_colors", authored_colors)
+	chips.set_meta(&"visual_palette_id", &"cinder-cool-port-warm-starboard")
 	_field_root.add_child(chips)
 
 
