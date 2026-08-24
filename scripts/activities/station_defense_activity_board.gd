@@ -18,6 +18,10 @@ const INTERACTION_RADIUS := 2.6
 const BOARD_SIZE := Vector3(0.75, 1.35, 1.8)
 const PEDESTAL_SIZE := Vector3(1.4, 1.0, 2.2)
 const CONSOLE_OFFSET := Vector3(1.25, 0.0, 0.0)
+const STATUS_COLOR_READY := Color("8ef4f2")
+const STATUS_COLOR_ACTIVE := Color("ffd27a")
+const STATUS_COLOR_SECURE := Color("92efb1")
+const STATUS_COLOR_RECOVERY := Color("ff9b86")
 
 var _content: StationDefenseEncounterContent
 var _combat_authority: LiveCombatAuthority
@@ -32,6 +36,9 @@ var _terminal_history: Dictionary = {}
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
+var _presentation_generation := -1
+var _presentation_state_id: StringName = &"unavailable"
+var _presentation_text := "AWAITING LINK"
 
 
 func _ready() -> void:
@@ -77,7 +84,9 @@ func configure_external_owners(
 	_activity_director = activity_director
 	if not _content.snapshot_changed.is_connected(_on_content_snapshot_changed):
 		_content.snapshot_changed.connect(_on_content_snapshot_changed)
-	_capture_safe_history(_content.get_snapshot())
+	var content_snapshot := _content.get_snapshot()
+	_refresh_presentation(content_snapshot)
+	_capture_safe_history(content_snapshot)
 	return _result(true, &"configured")
 
 
@@ -274,6 +283,17 @@ func get_snapshot() -> Dictionary:
 		"reward_authority": false,
 		"ship_motion_authority": false,
 		"process_loops": int(is_processing()) + int(is_physics_processing()),
+		"presentation": get_presentation_snapshot(),
+	}.duplicate(true)
+
+
+func get_presentation_snapshot() -> Dictionary:
+	return {
+		"generation": _presentation_generation,
+		"state_id": _presentation_state_id,
+		"text": _presentation_text,
+		"snapshot_driven": true,
+		"steady": true,
 	}.duplicate(true)
 
 
@@ -281,6 +301,9 @@ func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
 	var host := snapshot.get("host", {}) as Dictionary
 	var activity := (host.get("activity", {}) as Dictionary).duplicate(true)
 	var generation := int(activity.get("generation", 0))
+	if generation < _presentation_generation:
+		return
+	_refresh_presentation(snapshot)
 	if (
 		_reward_adapter != null
 		and StringName(activity.get("state_id", &"")) == &"completed"
@@ -297,6 +320,44 @@ func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
 		if bool(_last_reward_result.get("accepted", false)):
 			_highest_reward_generation = generation
 	_capture_safe_history(snapshot)
+
+
+func _refresh_presentation(snapshot: Dictionary) -> void:
+	var host := snapshot.get("host", {}) as Dictionary
+	var activity := host.get("activity", {}) as Dictionary
+	if activity.is_empty():
+		return
+	var generation := int(activity.get("generation", -1))
+	if generation < _presentation_generation:
+		return
+	var state_id := StringName(activity.get("state_id", &"idle"))
+	var status_text := "READY\nINTERACT TO DEPLOY"
+	var status_color := STATUS_COLOR_READY
+	match state_id:
+		&"active":
+			var wave_number := maxi(0, int(activity.get("wave_number", 0)))
+			var wave_count := maxi(wave_number, int(activity.get("wave_count", 0)))
+			var remaining := maxi(0, int(activity.get("remaining_hostile_count", 0)))
+			status_text = "WAVE %d / %d\nTHREATS %d" % [wave_number, wave_count, remaining]
+			status_color = STATUS_COLOR_ACTIVE
+		&"completed":
+			status_text = "PERIMETER SECURE\nRECOVERY AVAILABLE"
+			status_color = STATUS_COLOR_SECURE
+		&"failed", &"aborted":
+			status_text = "DEFENSE OFFLINE\nRECOVERY REQUIRED"
+			status_color = STATUS_COLOR_RECOVERY
+		&"idle":
+			pass
+		_:
+			status_text = "STATUS UNAVAILABLE"
+			status_color = STATUS_COLOR_RECOVERY
+	_presentation_generation = generation
+	_presentation_state_id = state_id
+	_presentation_text = status_text
+	var status_label := get_node_or_null(^"StatusLabel") as Label3D
+	if status_label != null:
+		status_label.text = status_text
+		status_label.modulate = status_color
 
 
 func _capture_safe_history(snapshot: Dictionary) -> void:
@@ -356,13 +417,22 @@ func _build_physical_board() -> void:
 	console.material_override = material
 	var label := Label3D.new()
 	label.name = "ActivityLabel"
-	label.text = "STATION\nDEFENSE\nBOARD"
-	label.font_size = 25
+	label.text = "STATION DEFENSE"
+	label.font_size = 20
 	label.modulate = Color("8ef4f2")
-	label.position = CONSOLE_OFFSET + Vector3(0.0, 0.72, 0.94)
+	label.position = CONSOLE_OFFSET + Vector3(0.0, 1.04, 0.94)
 	label.pixel_size = 0.0048
 	label.outline_size = 5
 	add_child(label)
+	var status_label := Label3D.new()
+	status_label.name = "StatusLabel"
+	status_label.text = _presentation_text
+	status_label.font_size = 17
+	status_label.modulate = STATUS_COLOR_READY
+	status_label.position = CONSOLE_OFFSET + Vector3(0.0, 0.47, 0.94)
+	status_label.pixel_size = 0.0048
+	status_label.outline_size = 5
+	add_child(status_label)
 	var interaction_shape := CollisionShape3D.new()
 	interaction_shape.name = "InteractionCollision"
 	var interaction_box := BoxShape3D.new()
