@@ -20,8 +20,8 @@ func _initialize() -> void:
 	var row := _race_row(hud)
 	var retained_id := row.get_instance_id() if row != null else 0
 	_check(
-		_race_text(row).contains("COUNTDOWN  //  START IN 2.4s  //  LAP 1/2")
-		and str(_race_card(view).get("objective_text", "")) == "HOLD FOR THE START SIGNAL",
+		_race_text(row).contains("COUNTDOWN  //  HOLD POSITION  //  START IN 2.4s  //  LAP 1/2")
+		and str(_race_card(view).get("objective_text", "")) == "HOLD POSITION — WAIT FOR THE START SIGNAL",
 		"countdown state is readable before the first gate opens",
 	)
 

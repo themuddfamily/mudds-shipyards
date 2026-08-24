@@ -5931,9 +5931,10 @@ func _apply_engine_exhaust_damage_presentation(
 		)
 		overlay = _engine_exhaust_damage_overlay
 	for index in plumes.size():
-		var plume := plumes[index] as MeshInstance3D
-		if not is_instance_valid(plume):
+		var plume_value: Variant = plumes[index]
+		if not is_instance_valid(plume_value) or not plume_value is MeshInstance3D:
 			continue
+		var plume := plume_value as MeshInstance3D
 		var instance_id := plume.get_instance_id()
 		if not _engine_exhaust_original_overlays.has(instance_id):
 			_engine_exhaust_original_overlays[instance_id] = plume.material_overlay
@@ -5947,9 +5948,9 @@ func _apply_engine_exhaust_damage_presentation(
 			stage_visible = index % 2 == 0
 		plume.visible = engine_active and stage_visible
 	for light_value in lights:
-		var light := light_value as OmniLight3D
-		if not is_instance_valid(light):
+		if not is_instance_valid(light_value) or not light_value is OmniLight3D:
 			continue
+		var light := light_value as OmniLight3D
 		var light_id := light.get_instance_id()
 		if not _engine_exhaust_original_light_colors.has(light_id):
 			_engine_exhaust_original_light_colors[light_id] = light.light_color
