@@ -6,6 +6,7 @@ const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tr
 const GameFlowScript := preload("res://scripts/game/game_flow.gd")
 const StoreScript := preload("res://scripts/persistence/user_data_store.gd")
 const FilesystemScript := preload("res://scripts/persistence/user_data_filesystem.gd")
+const RaceBestPersistenceScript := preload("res://scripts/persistence/cinder_race_best_persistence.gd")
 
 class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
@@ -89,6 +90,30 @@ func _run() -> void:
 	await _retire_runtime(first)
 
 	var reloaded_store := StoreScript.new("memory://cinder-race-best.json", filesystem)
+	var fresh_adapter := RaceBestPersistenceScript.new() as CinderRaceBestPersistence
+	var fresh_adapter_configured := fresh_adapter.configure(
+		reloaded_store, &"cinder_race_best_result"
+	)
+	var retained_before_rejections := fresh_adapter.load()
+	var generation_before_rejections := int(reloaded_store.get_generation())
+	var worse := fresh_adapter.save(_best_result(12.0), "cinder-race-worse")
+	var forged := fresh_adapter.save(
+		_best_result(7.0, _consumed_reward_receipt()), "cinder-race-forged-receipt"
+	)
+	var stale := fresh_adapter.save(_best_result(8.0), "cinder-race-stale-receipt")
+	var retained := fresh_adapter.load()
+	_check(
+		bool(fresh_adapter_configured.accepted)
+			and bool(retained_before_rejections.accepted)
+			and not bool(worse.accepted) and worse.reason == &"race_best_not_improved"
+			and not bool(forged.accepted) and forged.reason == &"race_best_reward_receipt_unearned"
+			and not bool(stale.accepted) and stale.reason == &"race_best_reward_receipt_stale"
+			and int(reloaded_store.get_generation()) == generation_before_rejections
+			and is_equal_approx(float((retained.best_result as Dictionary).time_seconds), 8.0)
+			and not bool(((retained.best_result as Dictionary).reward_receipt as Dictionary).replay_allowed),
+		"a fresh store adapter rejects worse, forged, and stale writes without changing the retained best"
+	)
+
 	var second := await _make_runtime(reloaded_store)
 	var second_binding := second.binding as NearbySectorActivityBinding
 	var second_flow := second.flow as GameFlow
@@ -159,6 +184,23 @@ func _complete_race(binding: NearbySectorActivityBinding, elapsed: float) -> Dic
 	for index in ROUTE.get_checkpoint_count():
 		binding.submit_race_position(ROUTE.get_checkpoint_position(index))
 	return binding.get_snapshot().race as Dictionary
+
+
+func _best_result(time_seconds: float, receipt: Dictionary = {}) -> Dictionary:
+	return {
+		"activity_id": "cinder_reach_checkpoint_route",
+		"time_seconds": time_seconds,
+		"penalty_seconds": 0.0,
+		"reward_receipt": receipt.duplicate(true),
+	}.duplicate(true)
+
+
+func _consumed_reward_receipt() -> Dictionary:
+	return {
+		"activity_id": "cinder_reach_checkpoint_route",
+		"reward_id": "return_race_record_to_shipyard",
+		"replay_allowed": false,
+	}.duplicate(true)
 
 
 func _race_card(view: Dictionary) -> Dictionary:

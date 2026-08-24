@@ -56,7 +56,28 @@ func save(best_result: Dictionary, commit_id: String) -> Dictionary:
 	if not bool(loaded.get("accepted", false)):
 		return loaded
 	var payload := _store.call(&"get_snapshot") as Dictionary
-	payload[String(_slot_id)] = record
+	var slot_key := String(_slot_id)
+	if payload.has(slot_key):
+		# A stale adapter must never turn a newer best back into an older one,
+		# erase a consumed receipt, or replace a stored result with a conflicting
+		# same-time record. The race and reward adapters remain the authorities;
+		# this boundary only preserves their monotonic result.
+		var existing_validation := validate_record(payload.get(slot_key))
+		if not bool(existing_validation.get("accepted", false)):
+			return existing_validation
+		var existing_record := payload.get(slot_key) as Dictionary
+		var transition := _validate_save_transition(
+			existing_record.best_result as Dictionary, best_result
+		)
+		if not bool(transition.get("accepted", false)):
+			return transition
+	elif not (best_result.get("reward_receipt", {}) as Dictionary).is_empty():
+		# A completion first persists without a receipt. A receipt may only be
+		# added to that exact stored completion after the live reward adapter has
+		# accepted it, which prevents a standalone fabricated result from claiming
+		# reward consumption.
+		return _result(false, &"race_best_reward_receipt_unearned")
+	payload[slot_key] = record
 	var committed := _store.call(
 		&"commit", payload, int(_store.call(&"get_generation")), commit_id
 	) as Dictionary
@@ -64,6 +85,42 @@ func save(best_result: Dictionary, commit_id: String) -> Dictionary:
 		&"race_best_saved" if bool(committed.get("accepted", false)) else &"store_rejected"
 	)
 	return committed
+
+
+func _validate_save_transition(existing: Dictionary, candidate: Dictionary) -> Dictionary:
+	var existing_time := float(existing.get("time_seconds", -1.0))
+	var candidate_time := float(candidate.get("time_seconds", -1.0))
+	var existing_receipt := existing.get("reward_receipt", {}) as Dictionary
+	var candidate_receipt := candidate.get("reward_receipt", {}) as Dictionary
+	if candidate_time > existing_time:
+		return _result(false, &"race_best_not_improved")
+	if candidate_time < existing_time:
+		if not candidate_receipt.is_empty():
+			return _result(false, &"race_best_reward_receipt_unearned")
+		return _result(true, &"race_best_improved")
+	if not _same_result_without_receipt(existing, candidate):
+		return _result(false, &"race_best_result_conflict")
+	if existing_receipt.is_empty():
+		if candidate_receipt.is_empty():
+			return _result(false, &"race_best_unchanged")
+		return _result(true, &"race_best_reward_receipt_recorded")
+	if candidate_receipt.is_empty():
+		return _result(false, &"race_best_reward_receipt_stale")
+	if candidate_receipt == existing_receipt:
+		return _result(false, &"race_best_unchanged")
+	return _result(false, &"race_best_reward_receipt_conflict")
+
+
+func _same_result_without_receipt(left: Dictionary, right: Dictionary) -> bool:
+	return (
+		str(left.get("activity_id", "")) == str(right.get("activity_id", ""))
+		and is_equal_approx(
+			float(left.get("time_seconds", -1.0)), float(right.get("time_seconds", -2.0))
+		)
+		and is_equal_approx(
+			float(left.get("penalty_seconds", -1.0)), float(right.get("penalty_seconds", -2.0))
+		)
+	)
 
 
 func get_store_generation() -> int:
