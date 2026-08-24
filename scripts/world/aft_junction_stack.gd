@@ -193,6 +193,19 @@ const CEILING_LUMINAIRE_LENS_POSITIONS := [
 	Vector3(8.0, 4.405, 14.15),
 	Vector3(8.0, 4.405, 16.15),
 ]
+## Six identical graphite louvres sit above the two collision-free roof vents.
+## They have no children or authority; stable anchors retain the authored copy
+## roster while one envelope-local MultiMesh submits their unchanged surfaces.
+const ROOF_VENT_LOUVRE_SIZE := Vector3(0.09, 0.06, 0.58)
+const ROOF_VENT_LOUVRE_COPY_COUNT := 6
+const ROOF_VENT_LOUVRE_POSITIONS := [
+	Vector3(2.81, 5.34, 13.0),
+	Vector3(3.05, 5.34, 13.0),
+	Vector3(3.29, 5.34, 13.0),
+	Vector3(7.86, 5.34, 13.0),
+	Vector3(8.10, 5.34, 13.0),
+	Vector3(8.34, 5.34, 13.0),
+]
 ## Three identical cyan route-light strips are presentation-only overlays on the
 ## collision-backed lower deck. Their authored names remain childless anchors;
 ## one lower-deck MultiMesh draws the unchanged cached rounded-box surface.
@@ -204,15 +217,15 @@ const LOW_ROUTE_LIGHT_POSITIONS := [
 	Vector3(0.0, 0.088, 8.9),
 ]
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1171
-const RENDER_DESCENDANT_NODE_COUNT := 1182
+const RENDER_DESCENDANT_NODE_COUNT := 1183
 const BASELINE_RENDERER_NODE_COUNT := 855
-const RENDERER_NODE_COUNT := 800
+const RENDERER_NODE_COUNT := 795
 const BASELINE_DRAWN_COPY_COUNT := 855
 const DRAWN_COPY_COUNT := 864
 const BASELINE_SURFACE_SUBMISSION_COUNT := 855
-const SURFACE_SUBMISSION_COUNT := 800
+const SURFACE_SUBMISSION_COUNT := 795
 const BASELINE_MESH_RESOURCE_COUNT := 319
-const MESH_RESOURCE_COUNT := 293
+const MESH_RESOURCE_COUNT := 290
 const BASELINE_MATERIAL_RESOURCE_COUNT := 30
 const MATERIAL_RESOURCE_COUNT := 30
 
@@ -293,6 +306,7 @@ var _stair_tread_batch: MultiMeshInstance3D
 var _console_shock_collar_batch: MultiMeshInstance3D
 var _cabinet_fastener_batch: MultiMeshInstance3D
 var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
+var _roof_vent_louvre_batch: MultiMeshInstance3D
 var _exterior_pipe_clamp_mesh: TorusMesh
 var _spine_clamp_mesh: TorusMesh
 var _rack_cable_tray_clamp_mesh: TorusMesh
@@ -3446,14 +3460,27 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 		var collar := _torus(envelope, "RoofVentCollar", Vector3(vent_x, 5.31, 13.0), ROOF_VENT_COLLAR_INNER_RADIUS, ROOF_VENT_COLLAR_OUTER_RADIUS, _materials["mid_grey"], Vector3.ZERO, _roof_vent_collar_mesh)
 		collar.set_meta(ROOF_VENT_COLLAR_FAMILY_META, ROOF_VENT_COLLAR_FAMILY_ID)
 		for louvre_index in 3:
-			_box(
-				envelope,
-				"VentLouvre",
-				Vector3(vent_x - 0.24 + float(louvre_index) * 0.24, 5.34, 13.0),
-				Vector3(0.09, 0.06, 0.58),
-				_materials["graphite"],
-				false
+			var anchor := Marker3D.new()
+			anchor.name = "VentLouvre%02d" % (vent_index * 3 + louvre_index)
+			anchor.position = Vector3(
+				vent_x - 0.24 + float(louvre_index) * 0.24,
+				5.34,
+				13.0
 			)
+			anchor.set_meta("presentation_only", true)
+			anchor.set_meta("collision_free", true)
+			anchor.set_meta("detail_role", &"roof_vent_louvre")
+			envelope.add_child(anchor)
+	var louvre_transforms: Array[Transform3D] = []
+	for louvre_position in ROOF_VENT_LOUVRE_POSITIONS:
+		louvre_transforms.append(Transform3D(Basis.IDENTITY, louvre_position as Vector3))
+	_roof_vent_louvre_batch = _multimesh_rounded_box(
+		envelope,
+		"RoofVentLouvreBatch",
+		ROOF_VENT_LOUVRE_SIZE,
+		_materials["graphite"],
+		louvre_transforms
+	)
 
 	# Layered side cladding is offset just beyond the physical room shell. Dark
 	# reveal channels make each plate legible under oblique exterior lighting.
