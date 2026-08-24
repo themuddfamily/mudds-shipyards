@@ -544,12 +544,19 @@ func _test_pause_disable_and_reset() -> void:
 	_check(resumed_active.size() == 3, "resuming does not strand or drop a voice")
 
 	var starts_before_disable := int(bed.get_state_snapshot()["layer_start_count"])
+	var positions_before_disable := _positions(bed).duplicate(true)
 	bed.set_bed_enabled(false)
 	_check(not bed.is_bed_enabled(), "the bed reports its disabled state")
 	var disabled_state: Dictionary = bed.get_state_snapshot()
+	var disabled_performance: Dictionary = bed.get_performance_report()
 	_check(
 		(disabled_state["active_layer_ids"] as PackedStringArray).is_empty(),
 		"disabling releases every voice"
+	)
+	_check(
+		int(disabled_performance["resident_stream_count"]) == 0
+		and int(disabled_performance["resident_sample_bytes"]) == 0,
+		"disabling releases all three resident PCM stream references and 2116800 owned bytes"
 	)
 	for candidate in bed.find_children("*", "AudioStreamPlayer", true, false):
 		_check(
@@ -566,9 +573,17 @@ func _test_pause_disable_and_reset() -> void:
 
 	bed.set_bed_enabled(true)
 	_advance(bed, 2.0, 60)
+	var reenabled_performance: Dictionary = bed.get_performance_report()
 	_check(
-		float(_positions(bed)[&"drone"]) > 0.0,
-		"re-enabling resumes from the retained loop position"
+		float(_positions(bed)[&"drone"])
+		> float(positions_before_disable[&"drone"]),
+		"re-enabling reloads playback at the retained loop position"
+	)
+	_check(
+		int(reenabled_performance["resident_stream_count"]) == 3
+		and int(reenabled_performance["resident_sample_bytes"]) == 2116800
+		and int(reenabled_performance["playing_voice_count"]) == 3,
+		"re-enabling restores the three distinct authored streams and voices"
 	)
 
 	bed.reset_bed()

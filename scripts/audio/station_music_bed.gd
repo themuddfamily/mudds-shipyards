@@ -239,7 +239,8 @@ func _ready() -> void:
 		_positions[layer_id] = 0.0
 		_active[layer_id] = false
 	_configure_players()
-	_load_streams()
+	if bed_enabled:
+		_load_streams()
 	_set_evidence_metadata()
 	_music_director = MusicDirectorType.new()
 	_music_director.name = "MusicDirector"
@@ -376,7 +377,8 @@ func get_music_director() -> MusicDirectorType:
 
 
 ## Reversibly starts or silences the whole bed. Disabling immediately releases
-## every voice; the retained loop positions make re-enabling a resume.
+## every voice and resident PCM reference; re-enabling reloads the same three
+## authored resources at the retained loop positions.
 func set_bed_enabled(enabled: bool) -> void:
 	if not _can_mutate_live_bed():
 		return
@@ -387,8 +389,10 @@ func set_bed_enabled(enabled: bool) -> void:
 		for layer_id in LAYER_IDS:
 			_gains[layer_id] = 0.0
 			_stop_and_detach(layer_id)
+		_unload_streams()
 		_apply_session_targets()
 		return
+	_load_streams()
 	_apply_session_targets()
 	if is_inside_tree() and not _tearing_down:
 		_apply_playback_state()
@@ -441,6 +445,10 @@ func reset_bed() -> void:
 func release_audio_resources() -> void:
 	for layer_id in LAYER_IDS:
 		_stop_and_detach(layer_id)
+	_unload_streams()
+
+
+func _unload_streams() -> void:
 	_streams.clear()
 	_stream_ids.clear()
 	_stream_fingerprints.clear()
@@ -547,6 +555,7 @@ func get_performance_report() -> Dictionary:
 		"playing_voice_count": playing_count,
 		"per_frame_script_processing": true,
 		"runtime_wave_synthesis_allowed": false,
+		"resident_stream_count": _streams.size(),
 		"resident_sample_bytes": _resident_sample_bytes,
 		"resident_byte_budget": RESIDENT_BYTE_BUDGET,
 		"within_resident_budget": _resident_sample_bytes <= RESIDENT_BYTE_BUDGET,
@@ -821,7 +830,8 @@ func _restore_after_enter_tree() -> void:
 	):
 		return
 	_configure_players()
-	_load_streams()
+	if bed_enabled:
+		_load_streams()
 	_apply_session_targets()
 	_apply_playback_state()
 
