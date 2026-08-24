@@ -11,6 +11,7 @@ extends Node
 signal state_changed(snapshot: Dictionary)
 signal completion_handback_ready(receipt: Dictionary)
 signal service_terminal_repair_feedback(feedback: Dictionary)
+signal station_return_handoff_ready(intent: Dictionary)
 
 enum State { IDLE, START_PENDING, RUNNING, HANDOFF_PENDING, FAILED }
 
@@ -140,6 +141,15 @@ var _last_late_result: Dictionary = {}
 var _completion_handback: Dictionary = {}
 var _completion_handback_delivered := false
 var _planetary_orbit_return_consumed := false
+var _retained_return_host_instance_id := 0
+var _retained_return_host_generation := -1
+var _retained_return_host_attachment_generation := -1
+var _retained_return_session: Object
+var _retained_return_session_instance_id := 0
+var _retained_return_actor_instance_id := 0
+var _retained_return_craft_instance_id := 0
+var _station_return_handoff_intent: Dictionary = {}
+var _station_return_handoff_delivered := false
 
 
 func _enter_tree() -> void:
@@ -170,6 +180,7 @@ func _exit_tree() -> void:
 	# it after a whole composition detach/re-entry.
 	_pending_envelope.clear()
 	_pending_intent.clear()
+	_clear_retained_return_context()
 	if _state == State.START_PENDING:
 		_state = State.IDLE
 	set_physics_process(false)
@@ -503,6 +514,7 @@ func reset_planetary_relay_survey_return_manifest() -> Dictionary:
 	var manifest_reset: Dictionary = _relay_return_manifest.reset()
 	if _relay_return_travel != null:
 		_relay_return_travel.call(&"reset")
+	_clear_retained_return_context()
 	return manifest_reset
 
 
@@ -564,6 +576,11 @@ func admit_planetary_relay_survey_return(
 	if not bool(admitted.get("accepted", false)):
 		_relay_return_travel.call(&"reset")
 		return admitted
+	if retained:
+		_capture_retained_return_context(
+			actor_instance_id, craft_instance_id,
+			_host.get_travel_session_observation_source()
+		)
 	return {"accepted": true, "reason": &"return_travel_intent_admitted", "intent": intent}.duplicate(true)
 
 
@@ -1047,21 +1064,40 @@ func _submit_authorized_return_sample(
 		travel_session: Object, method: StringName, actor_instance_id: int,
 		craft_instance_id: int, sample_args: Array
 	) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _reject(&"reentrant_call")
 	if _host == null:
 		return _reject(&"return_travel_session_unavailable")
 	if travel_session == null:
+		if actor_instance_id != _retained_return_actor_instance_id \
+				or craft_instance_id != _retained_return_craft_instance_id:
+			return _reject(&"return_travel_bound_actor_mismatch")
+		var context_rejection := _retained_return_context_rejection()
+		if not context_rejection.is_empty():
+			return _abort_retained_return_drift(context_rejection)
 		if not _host.has_method(&"submit_return_travel_evidence"):
-			return _reject(&"return_travel_session_unavailable")
+			return _abort_retained_return_drift(&"return_host_drift")
 		var evidence_result := _return_evidence_from_sample(method, sample_args)
 		if not bool(evidence_result.get("accepted", false)):
 			return evidence_result
-		return _host.call(
+		var committed: Dictionary = _host.call(
 			&"submit_return_travel_evidence",
 			evidence_result.kind as StringName,
 			actor_instance_id, craft_instance_id,
 			evidence_result.evidence as Dictionary,
 			_host.get_generation(), _host.get_attachment_generation()
 		)
+		if not bool(committed.get("accepted", false)) \
+				or method != &"submit_authorized_return_orbit":
+			return committed
+		var published := _publish_retained_station_return_handoff()
+		if not bool(published.get("accepted", false)):
+			return published
+		committed["station_return_handoff_intent"] = (
+			published.get("intent", {}) as Dictionary
+		).duplicate(true)
+		committed["station_return_handoff_published"] = true
+		return committed
 	if not travel_session.has_method(method):
 		return _reject(&"return_travel_session_unavailable")
 	var args: Array = [actor_instance_id, craft_instance_id]
@@ -1099,6 +1135,140 @@ func _return_evidence_from_sample(method: StringName, args: Array) -> Dictionary
 					"coordinate_frame_generation": args[2],
 				}}.duplicate(true)
 	return _reject(&"invalid_return_travel_evidence")
+
+
+## Delivers the already published detached station-route intent once. The
+## receipt is not an arrival, movement, origin, landing, boarding, or reward
+## capability; the next production owner must consume it explicitly.
+func take_planetary_station_return_handoff_intent(
+		expected_generation: int
+	) -> Dictionary:
+	if _mutation_active or _signal_dispatch_active:
+		return _reject(&"reentrant_call")
+	if expected_generation != _generation:
+		return _reject(&"stale_generation")
+	if _station_return_handoff_intent.is_empty():
+		return _reject(&"station_return_handoff_not_ready")
+	if _station_return_handoff_delivered:
+		return _reject(&"station_return_handoff_already_delivered")
+	var context_rejection := _retained_return_context_rejection()
+	if not context_rejection.is_empty():
+		return _abort_retained_return_drift(context_rejection)
+	_station_return_handoff_delivered = true
+	return {
+		"accepted": true,
+		"reason": &"station_return_handoff_delivered",
+		"intent": _station_return_handoff_intent.duplicate(true),
+	}.duplicate(true)
+
+
+func _capture_retained_return_context(
+		actor_instance_id: int, craft_instance_id: int, session: Object
+	) -> void:
+	_retained_return_host_instance_id = _host.get_instance_id()
+	_retained_return_host_generation = _host.get_generation()
+	_retained_return_host_attachment_generation = _host.get_attachment_generation()
+	_retained_return_session = session
+	_retained_return_session_instance_id = (
+		session.get_instance_id() if is_instance_valid(session) else 0
+	)
+	_retained_return_actor_instance_id = actor_instance_id
+	_retained_return_craft_instance_id = craft_instance_id
+	_station_return_handoff_intent = {}
+	_station_return_handoff_delivered = false
+
+
+func _clear_retained_return_context() -> void:
+	_retained_return_host_instance_id = 0
+	_retained_return_host_generation = -1
+	_retained_return_host_attachment_generation = -1
+	_retained_return_session = null
+	_retained_return_session_instance_id = 0
+	_retained_return_actor_instance_id = 0
+	_retained_return_craft_instance_id = 0
+	_station_return_handoff_intent = {}
+	_station_return_handoff_delivered = false
+
+
+func _retained_return_context_rejection() -> StringName:
+	if _retained_return_host_instance_id == 0 \
+			or _retained_return_session_instance_id == 0:
+		return &"return_travel_intent_required"
+	if not is_instance_valid(_host) \
+			or _host.get_instance_id() != _retained_return_host_instance_id:
+		return &"return_host_drift"
+	if _host.get_generation() != _retained_return_host_generation \
+			or _host.get_attachment_generation() \
+				!= _retained_return_host_attachment_generation:
+		return &"return_host_drift"
+	var host_snapshot := _host.get_snapshot() as Dictionary
+	var identities := host_snapshot.get("identities", {}) as Dictionary
+	if int(identities.get("player_instance_id", 0)) \
+			!= _retained_return_actor_instance_id \
+			or int(identities.get("ship_instance_id", 0)) \
+				!= _retained_return_craft_instance_id:
+		return &"return_actor_drift"
+	var session := _host.get_travel_session_observation_source() \
+		if _host.has_method(&"get_travel_session_observation_source") else null
+	if not is_instance_valid(session) \
+			or session.get_instance_id() != _retained_return_session_instance_id:
+		return &"return_host_drift"
+	return &""
+
+
+func _abort_retained_return_drift(reason: StringName) -> Dictionary:
+	var session_abort: Dictionary = {}
+	if is_instance_valid(_retained_return_session) \
+			and _retained_return_session.has_method(&"abort"):
+		var snapshot := _retained_return_session.call(
+			&"get_presentation_snapshot"
+		) as Dictionary
+		if bool(snapshot.get("running", false)):
+			session_abort = _retained_return_session.call(
+				&"abort", reason,
+				int(snapshot.get("generation", -1)),
+				int(snapshot.get("attachment_generation", -1))
+			) as Dictionary
+	if _relay_return_travel != null:
+		_relay_return_travel.call(&"abort", reason)
+	_station_return_handoff_intent = {}
+	_station_return_handoff_delivered = false
+	var result := _reject(reason)
+	result["return_session_abort"] = session_abort.duplicate(true)
+	return result
+
+
+func _publish_retained_station_return_handoff() -> Dictionary:
+	var context_rejection := _retained_return_context_rejection()
+	if not context_rejection.is_empty():
+		return _abort_retained_return_drift(context_rejection)
+	if not _station_return_handoff_intent.is_empty():
+		return _reject(&"station_return_handoff_already_published")
+	if not _host.has_method(&"publish_station_return_handoff_intent"):
+		return _abort_retained_return_drift(&"return_host_drift")
+	var published := _host.call(
+		&"publish_station_return_handoff_intent",
+		_retained_return_actor_instance_id,
+		_retained_return_craft_instance_id,
+		_host.get_generation(), _host.get_attachment_generation(),
+		int((_retained_return_session.call(&"get_presentation_snapshot") as Dictionary).get(
+			"coordinate_frame_generation", -1
+		))
+	) as Dictionary
+	if not bool(published.get("accepted", false)):
+		return published
+	_station_return_handoff_intent = (
+		published.get("intent", {}) as Dictionary
+	).duplicate(true)
+	_station_return_handoff_delivered = false
+	_signal_dispatch_active = true
+	station_return_handoff_ready.emit(_station_return_handoff_intent.duplicate(true))
+	_signal_dispatch_active = false
+	return {
+		"accepted": true,
+		"reason": &"station_return_handoff_published",
+		"intent": _station_return_handoff_intent.duplicate(true),
+	}.duplicate(true)
 
 
 func abort_planetary_relay_survey_return(reason: StringName = &"caller_aborted") -> Dictionary:
@@ -1467,6 +1637,24 @@ func get_snapshot() -> Dictionary:
 		"completion_handback_delivered": _completion_handback_delivered,
 		"completion_handback": _completion_handback.duplicate(true),
 		"planetary_orbit_return_consumed": _planetary_orbit_return_consumed,
+		"station_return_handoff_pending": (
+			not _station_return_handoff_intent.is_empty()
+			and not _station_return_handoff_delivered
+		),
+		"station_return_handoff_delivered": _station_return_handoff_delivered,
+		"station_return_handoff_intent": (
+			_station_return_handoff_intent.duplicate(true)
+		),
+		"retained_return_context": {
+			"host_instance_id": _retained_return_host_instance_id,
+			"host_generation": _retained_return_host_generation,
+			"host_attachment_generation": (
+				_retained_return_host_attachment_generation
+			),
+			"session_instance_id": _retained_return_session_instance_id,
+			"actor_instance_id": _retained_return_actor_instance_id,
+			"craft_instance_id": _retained_return_craft_instance_id,
+		}.duplicate(true),
 		"planetary_surface": get_planetary_surface_snapshot(),
 		"entry_presentation": _entry_presentation_binding.get_snapshot() \
 			if _entry_presentation_binding != null else {"attached": false},

@@ -853,6 +853,49 @@ func submit_return_travel_evidence(
 	)
 
 
+## Publishes the retained session's detached station-route intent after the
+## complete physical return sequence. The Host remains in ORBIT_RETURN and does
+## not move the craft, confirm arrival, or acquire any downstream authority.
+func publish_station_return_handoff_intent(
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int,
+		expected_coordinate_frame_generation: int
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if actor_instance_id != _player_instance_id \
+			or craft_instance_id != _ship_instance_id:
+		return _finish(false, &"return_travel_bound_actor_mismatch")
+	if _session == null:
+		return _finish(false, &"return_travel_session_unavailable")
+	var session_snapshot := _session.get_presentation_snapshot()
+	if _phase != Phase.ORBIT_RETURN \
+			or StringName(session_snapshot.get("state_id", &"")) != &"orbit_return":
+		return _finish(false, &"station_return_handoff_host_session_mismatch")
+	var published := _session.publish_station_return_handoff_intent(
+		actor_instance_id, craft_instance_id,
+		expected_coordinate_frame_generation, _generation,
+		_session.get_attachment_generation()
+	)
+	var result := _finish(
+		bool(published.get("accepted", false)),
+		published.get("reason", &"station_return_handoff_rejected") as StringName
+	)
+	if bool(result.get("accepted", false)):
+		result["intent"] = (
+			published.get("intent", {}) as Dictionary
+		).duplicate(true)
+	return result
+
+
 ## Validates the retained orbit-return sample for the existing Mudds approach
 ## contract. This only marks approach readiness in the retained session; Host
 ## phase, actor transforms, movement ownership, and berth ownership are unchanged.

@@ -156,6 +156,9 @@ var _terminal_reason: StringName = &""
 var _last_sample: Dictionary = {}
 var _last_return_intent: Dictionary = {}
 var _last_return_activity_generation := -1
+var _authorized_return_evidence: Dictionary = {}
+var _station_return_handoff_intent: Dictionary = {}
+var _station_return_handoff_published := false
 var _return_approach_ready := false
 var _return_contract_approach_admitted := false
 var _arrival_ready_receipt := false
@@ -350,16 +353,31 @@ func admit_return_travel_intent(
 		return _finish(false, &"invalid_return_travel_intent")
 	var request := intent as Dictionary
 	var activity_generation := int(request.get("activity_generation", 0))
-	if activity_generation < 1 or activity_generation == _last_return_activity_generation:
+	if activity_generation < 1:
+		return _finish(false, &"invalid_return_travel_intent")
+	if activity_generation < _last_return_activity_generation:
+		return _finish(false, &"stale_return_travel_intent")
+	if activity_generation == _last_return_activity_generation:
+		return _finish(false, &"return_travel_intent_already_admitted")
+	if not _last_return_intent.is_empty():
 		return _finish(false, &"return_travel_intent_already_admitted")
 	if StringName(request.get("destination_id", &"")) != &"mudds_shipyards":
 		return _finish(false, &"return_travel_destination_mismatch")
+	if int(request.get("attachment_generation", 0)) != expected_attachment_generation:
+		return _finish(false, &"return_travel_attachment_mismatch")
+	if bool(request.get("movement_authority", true)) \
+			or bool(request.get("berth_authority", true)) \
+			or bool(request.get("reward_authority", true)):
+		return _finish(false, &"return_travel_intent_claims_authority")
 	if _state not in [State.ON_FOOT, State.REBOARDED]:
 		return _finish(false, &"return_travel_out_of_order")
 	_last_return_activity_generation = activity_generation
 	_last_return_intent = request.duplicate(true)
 	_last_return_intent["actor_instance_id"] = actor_instance_id
 	_last_return_intent["craft_instance_id"] = craft_instance_id
+	_authorized_return_evidence = {}
+	_station_return_handoff_intent = {}
+	_station_return_handoff_published = false
 	_last_sample["return_travel_intent"] = _last_return_intent.duplicate(true)
 	var result := _finish(true, &"return_travel_intent_admitted")
 	_emit_snapshot_signal(presentation_changed)
@@ -377,10 +395,17 @@ func submit_authorized_return_reboard(
 	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
 	if not identity_rejection.is_empty():
 		return _result(false, identity_rejection)
-	return submit_reboard_sample(
+	var result := submit_reboard_sample(
 		player_reboarded, ship_still_landed,
 		expected_generation, expected_attachment_generation
 	)
+	if bool(result.get("accepted", false)):
+		_record_authorized_return_evidence(
+			&"reboard", actor_instance_id, craft_instance_id,
+			expected_generation, expected_attachment_generation
+		)
+		return _result(true, result.get("reason", &"phase_advanced") as StringName)
+	return result
 
 
 func submit_authorized_return_takeoff(
@@ -394,10 +419,17 @@ func submit_authorized_return_takeoff(
 	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
 	if not identity_rejection.is_empty():
 		return _result(false, identity_rejection)
-	return submit_takeoff_sample(
+	var result := submit_takeoff_sample(
 		takeoff_started, ship_still_landed,
 		expected_generation, expected_attachment_generation
 	)
+	if bool(result.get("accepted", false)):
+		_record_authorized_return_evidence(
+			&"takeoff", actor_instance_id, craft_instance_id,
+			expected_generation, expected_attachment_generation
+		)
+		return _result(true, result.get("reason", &"phase_advanced") as StringName)
+	return result
 
 
 func submit_authorized_return_ascent(
@@ -413,11 +445,18 @@ func submit_authorized_return_ascent(
 	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
 	if not identity_rejection.is_empty():
 		return _result(false, identity_rejection)
-	return submit_ascent_sample(
+	var result := submit_ascent_sample(
 		surface_clear_confirmed, orbital_coordinate, speed_meters_per_second,
 		expected_coordinate_frame_generation, expected_generation,
 		expected_attachment_generation
 	)
+	if bool(result.get("accepted", false)):
+		_record_authorized_return_evidence(
+			&"ascent", actor_instance_id, craft_instance_id,
+			expected_generation, expected_attachment_generation
+		)
+		return _result(true, result.get("reason", &"phase_advanced") as StringName)
+	return result
 
 
 func submit_authorized_return_orbit(
@@ -432,11 +471,95 @@ func submit_authorized_return_orbit(
 	var identity_rejection := _return_identity_rejection(actor_instance_id, craft_instance_id)
 	if not identity_rejection.is_empty():
 		return _result(false, identity_rejection)
-	return submit_orbit_return_sample(
+	var result := submit_orbit_return_sample(
 		orbital_coordinate, speed_meters_per_second,
 		expected_coordinate_frame_generation, expected_generation,
 		expected_attachment_generation
 	)
+	if bool(result.get("accepted", false)):
+		_record_authorized_return_evidence(
+			&"orbit", actor_instance_id, craft_instance_id,
+			expected_generation, expected_attachment_generation
+		)
+		return _result(true, result.get("reason", &"phase_advanced") as StringName)
+	return result
+
+
+## Publishes one detached route handoff only after this session has accepted the
+## admitted manifest's complete physical return evidence. This is not arrival
+## evidence and conveys no authority to move, rebase, board, land, or reward.
+func publish_station_return_handoff_intent(
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_coordinate_frame_generation: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _attachment_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	var identity_rejection := _return_identity_rejection(
+		actor_instance_id, craft_instance_id
+	)
+	if not identity_rejection.is_empty():
+		return _finish(false, identity_rejection)
+	if _state != State.ORBIT_RETURN:
+		return _finish(false, &"station_return_handoff_out_of_order")
+	if _station_return_handoff_published:
+		return _finish(false, &"station_return_handoff_already_published")
+	var frame_rejection := _coordinate_frame_rejection(
+		expected_coordinate_frame_generation
+	)
+	if not frame_rejection.is_empty():
+		return _finish(false, frame_rejection)
+	if not _authorized_return_evidence_is_complete(
+		actor_instance_id, craft_instance_id, expected_generation,
+		expected_attachment_generation, expected_coordinate_frame_generation
+	):
+		return _finish(false, &"station_return_handoff_evidence_incomplete")
+	var orbit_evidence := _authorized_return_evidence.get("orbit", {}) as Dictionary
+	var orbit_sample := orbit_evidence.get("sample", {}) as Dictionary
+	_station_return_handoff_intent = {
+		"schema_version": SCHEMA_VERSION,
+		"intent_id": &"ember_station_return_handoff",
+		"destination_id": &"mudds_shipyards",
+		"activity_id": _last_return_intent.get("activity_id", &""),
+		"activity_generation": _last_return_activity_generation,
+		"actor_instance_id": actor_instance_id,
+		"craft_instance_id": craft_instance_id,
+		"session_generation": expected_generation,
+		"attachment_generation": expected_attachment_generation,
+		"coordinate_frame_generation": expected_coordinate_frame_generation,
+		"orbital_coordinate": (
+			orbit_sample.get("orbital_coordinate", {}) as Dictionary
+		).duplicate(true),
+		"evidence_sequence": PackedStringArray([
+			"reboard", "takeoff", "ascent", "orbit",
+		]),
+		"arrival_confirmed": false,
+		"authority": {
+			"movement": false,
+			"teleport": false,
+			"origin": false,
+			"landing": false,
+			"boarding": false,
+			"berth": false,
+			"reward": false,
+			"arrival": false,
+		}.duplicate(true),
+	}.duplicate(true)
+	_station_return_handoff_published = true
+	_last_sample["station_return_handoff_intent"] = (
+		_station_return_handoff_intent.duplicate(true)
+	)
+	var result := _finish(true, &"station_return_handoff_published")
+	result["intent"] = _station_return_handoff_intent.duplicate(true)
+	return result
 
 
 ## Validates the completed orbital sample against the existing landing-return
@@ -912,6 +1035,9 @@ func reset(
 	_last_sample = {}
 	_last_return_intent = {}
 	_last_return_activity_generation = -1
+	_authorized_return_evidence = {}
+	_station_return_handoff_intent = {}
+	_station_return_handoff_published = false
 	_return_approach_ready = false
 	_return_contract_approach_admitted = false
 	_arrival_ready_receipt = false
@@ -970,6 +1096,9 @@ func get_presentation_snapshot() -> Dictionary:
 		"last_sample": _last_sample.duplicate(true),
 		"last_return_intent": _last_return_intent.duplicate(true),
 		"last_return_activity_generation": _last_return_activity_generation,
+		"authorized_return_evidence": _authorized_return_evidence.duplicate(true),
+		"station_return_handoff_intent": _station_return_handoff_intent.duplicate(true),
+		"station_return_handoff_published": _station_return_handoff_published,
 		"return_approach_ready": _return_approach_ready,
 		"return_contract_approach_admitted": _return_contract_approach_admitted,
 		"arrival_ready_receipt": _arrival_ready_receipt,
@@ -1300,6 +1429,9 @@ func _request_terminal(
 	_state = terminal_state
 	_terminal_reason = reason
 	_last_duration_seconds = _elapsed_seconds
+	if reason in [&"return_host_drift", &"return_actor_drift"]:
+		_station_return_handoff_intent = {}
+		_station_return_handoff_published = false
 	var result := _finish(
 		true,
 		&"aborted" if terminal_state == State.ABORTED else &"failed"
@@ -1367,6 +1499,56 @@ func _return_identity_rejection(actor_instance_id: int, craft_instance_id: int) 
 			or int(_last_return_intent.get("craft_instance_id", 0)) != craft_instance_id:
 		return &"return_travel_identity_mismatch"
 	return &""
+
+
+func _record_authorized_return_evidence(
+		kind: StringName,
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int
+	) -> void:
+	_authorized_return_evidence[String(kind)] = {
+		"kind": kind,
+		"sequence": _authorized_return_evidence.size() + 1,
+		"actor_instance_id": actor_instance_id,
+		"craft_instance_id": craft_instance_id,
+		"session_generation": expected_generation,
+		"attachment_generation": expected_attachment_generation,
+		"coordinate_frame_generation": _last_coordinate_frame_generation,
+		"sample": _last_sample.duplicate(true),
+	}.duplicate(true)
+
+
+func _authorized_return_evidence_is_complete(
+		actor_instance_id: int,
+		craft_instance_id: int,
+		expected_generation: int,
+		expected_attachment_generation: int,
+		expected_coordinate_frame_generation: int
+	) -> bool:
+	var sequence: Array[StringName] = [&"reboard", &"takeoff", &"ascent", &"orbit"]
+	if _authorized_return_evidence.size() != sequence.size():
+		return false
+	for index in sequence.size():
+		var record_variant: Variant = _authorized_return_evidence.get(String(sequence[index]))
+		if not record_variant is Dictionary:
+			return false
+		var record := record_variant as Dictionary
+		if record.get("kind", &"") != sequence[index] \
+				or int(record.get("sequence", 0)) != index + 1 \
+				or int(record.get("actor_instance_id", 0)) != actor_instance_id \
+				or int(record.get("craft_instance_id", 0)) != craft_instance_id \
+				or int(record.get("session_generation", -1)) != expected_generation \
+				or int(record.get("attachment_generation", -1)) \
+					!= expected_attachment_generation \
+				or not record.get("sample", {}) is Dictionary:
+			return false
+		if sequence[index] in [&"ascent", &"orbit"] \
+				and int(record.get("coordinate_frame_generation", -1)) \
+					!= expected_coordinate_frame_generation:
+			return false
+	return true
 
 
 func _is_reentrant() -> bool:
