@@ -24,6 +24,9 @@ const PAYLOAD_AUDIO_ID: StringName = &"payload_release_audio"
 const HULL_SIZE := Vector3(7.0, 3.0, 15.5)
 const ORDNANCE_SPINE_SIZE := Vector3(2.2, 1.25, 8.4)
 const ORDNANCE_SPINE_POSITION := Vector3(0.0, -0.15, 1.5)
+const STRIKE_WING_SIZE := Vector3(5.0, 0.3, 6.2)
+const STRIKE_WING_OFFSET := Vector3(5.15, -0.45, 0.65)
+const STRIKE_WING_SWEEP_DEGREES := 12.0
 const SENSOR_RADIUS := 0.62
 const SENSOR_HEIGHT := 1.24
 const SENSOR_POSITION := Vector3(0.0, 1.6, -5.2)
@@ -40,6 +43,7 @@ static var _shared_hull_mesh: BoxMesh
 static var _shared_hull_material: StandardMaterial3D
 static var _shared_ordnance_spine_mesh: BoxMesh
 static var _shared_ordnance_spine_material: StandardMaterial3D
+static var _shared_strike_wing_mesh: BoxMesh
 static var _shared_sensor_mesh: SphereMesh
 static var _shared_sensor_material: StandardMaterial3D
 
@@ -161,6 +165,7 @@ func _build_bomber_variant(_controller: HeroShip) -> bool:
 	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
 	visual.set_meta(&"historically_supported", false)
 	_build_hull(visual)
+	_build_strike_wings(visual)
 	_build_cockpit_and_boarding(visual)
 	_build_payload_hardpoints(visual)
 	return true
@@ -298,6 +303,7 @@ func request_payload_release(
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var hull_sharing := get_hull_resource_sharing_audit()
+	var strike_wing_visual := get_strike_wing_visual_audit()
 	var sensor_sharing := get_sensor_resource_sharing_audit()
 	if not _bomber_built:
 		errors.append("bomber has not built its authored component tree")
@@ -317,6 +323,8 @@ func get_audit_report() -> Dictionary:
 		errors.append("bomber requires HeroShip root collision")
 	if not bool(hull_sharing.get("valid", false)):
 		errors.append("bomber immutable primary visual resource sharing drifted")
+	if not bool(strike_wing_visual.get("valid", false)):
+		errors.append("bomber swept strike-wing silhouette drifted")
 	if not bool(sensor_sharing.get("valid", false)):
 		errors.append("bomber immutable sensor visual resource sharing drifted")
 	return {
@@ -342,7 +350,53 @@ func get_audit_report() -> Dictionary:
 		"game_flow_authority": false,
 		"network_authority": false,
 		"hull_resource_sharing": hull_sharing,
+		"strike_wing_visual": strike_wing_visual,
 		"sensor_resource_sharing": sensor_sharing,
+	}.duplicate(true)
+
+
+## Presentation-only silhouette recipe. The mirrored renderers share one
+## immutable mesh and the primary hull material; they own no collision or
+## gameplay children.
+func get_strike_wing_visual_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var visual := get_variant_visual_root()
+	var port := visual.get_node_or_null(^"PortStrikeWing") as MeshInstance3D \
+			if visual != null else null
+	var starboard := visual.get_node_or_null(^"StarboardStrikeWing") as MeshInstance3D \
+			if visual != null else null
+	for entry in [
+		[port, -STRIKE_WING_OFFSET.x, -STRIKE_WING_SWEEP_DEGREES],
+		[starboard, STRIKE_WING_OFFSET.x, STRIKE_WING_SWEEP_DEGREES],
+	]:
+		var wing := entry[0] as MeshInstance3D
+		if wing == null:
+			errors.append("strike-wing renderer is missing")
+			continue
+		var expected_position := Vector3(float(entry[1]), STRIKE_WING_OFFSET.y, STRIKE_WING_OFFSET.z)
+		if not wing.position.is_equal_approx(expected_position) \
+				or not is_equal_approx(wing.rotation_degrees.y, float(entry[2])):
+			errors.append("strike-wing mirrored sweep drifted")
+		if not wing.visible or wing.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("strike-wing renderer state drifted")
+		if wing.get_child_count() != 0 or wing.get_script() != null:
+			errors.append("strike wing gained semantic children or authority")
+		if wing.mesh != _shared_strike_wing_mesh \
+				or wing.material_override != _shared_hull_material:
+			errors.append("strike-wing immutable resource identity drifted")
+	if _shared_strike_wing_mesh == null \
+			or not _shared_strike_wing_mesh.size.is_equal_approx(STRIKE_WING_SIZE) \
+			or _shared_strike_wing_mesh.resource_local_to_scene:
+		errors.append("strike-wing mesh recipe drifted")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"renderer_nodes_per_copy": int(port != null) + int(starboard != null),
+		"geometry_submissions_per_copy": 2 if port != null and starboard != null else 0,
+		"shared_mesh_resource_id": _shared_strike_wing_mesh.get_instance_id() \
+				if _shared_strike_wing_mesh != null else 0,
+		"shared_hull_material_resource_id": _shared_hull_material.get_instance_id() \
+				if _shared_hull_material != null else 0,
 	}.duplicate(true)
 
 
@@ -594,6 +648,24 @@ func _build_hull(visual: Node3D) -> void:
 	sensor.position = SENSOR_POSITION
 	sensor.material_override = _shared_sensor_material
 	visual.add_child(sensor)
+
+
+func _build_strike_wings(visual: Node3D) -> void:
+	if _shared_strike_wing_mesh == null:
+		_shared_strike_wing_mesh = BoxMesh.new()
+		_shared_strike_wing_mesh.size = STRIKE_WING_SIZE
+		_shared_strike_wing_mesh.resource_local_to_scene = false
+	for entry in [
+		["PortStrikeWing", -STRIKE_WING_OFFSET.x, -STRIKE_WING_SWEEP_DEGREES],
+		["StarboardStrikeWing", STRIKE_WING_OFFSET.x, STRIKE_WING_SWEEP_DEGREES],
+	]:
+		var wing := MeshInstance3D.new()
+		wing.name = entry[0]
+		wing.mesh = _shared_strike_wing_mesh
+		wing.position = Vector3(float(entry[1]), STRIKE_WING_OFFSET.y, STRIKE_WING_OFFSET.z)
+		wing.rotation_degrees.y = float(entry[2])
+		wing.material_override = _shared_hull_material
+		visual.add_child(wing)
 
 
 func _build_cockpit_and_boarding(visual: Node3D) -> void:
