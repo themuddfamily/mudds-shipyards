@@ -6,9 +6,24 @@ extends RefCounted
 
 const MAX_HISTORY := 4
 var _snapshot: Dictionary = {}
+var _presentation: Dictionary = {}
+var _accepted_craft_id: StringName = &""
+var _accepted_generation := -1
+var _accepted_revision := -1
 
 
 func present_snapshot(snapshot: Dictionary) -> Dictionary:
+	var craft_id := StringName(str(snapshot.get("craft_id", "")).strip_edges().to_lower())
+	if not _accepted_craft_id.is_empty() and not craft_id.is_empty() \
+			and craft_id != _accepted_craft_id:
+		_clear_state()
+	var cursor := _receipt_cursor(snapshot)
+	if bool(cursor.get("fenced", false)) and not _accept_cursor(cursor, craft_id):
+		return _presentation.duplicate(true)
+	return _present_accepted_snapshot(snapshot, cursor)
+
+
+func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -> Dictionary:
 	_snapshot = snapshot.duplicate(true)
 	var role := str(snapshot.get("role", snapshot.get("crew_role", "UNKNOWN"))).strip_edges().to_upper()
 	var craft_id := str(snapshot.get("craft_id", "")).strip_edges().to_upper()
@@ -19,9 +34,35 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 	var seat_state := str(snapshot.get("state", "")).strip_edges().to_upper()
 	var generation := int(snapshot.get("generation", snapshot.get("manifest_generation", 0)))
 	var manifest_receipt := snapshot.get("manifest_receipt", {}) as Dictionary
+	var revision := int(cursor.get("revision", snapshot.get("revision", 0)))
+	var readiness_state := "[STATUS PUBLISHED]"
+	var next_action := "REVIEW PUBLISHED MANIFEST STATUS"
 	if not manifest_receipt.is_empty():
-		manifest = "READY" if bool(manifest_receipt.get("ready", false)) else "BLOCKED"
-		readiness = str(manifest_receipt.get("route_id", readiness)).strip_edges()
+		var receipt_ready := bool(manifest_receipt.get("ready", false))
+		manifest = "READY" if receipt_ready else "BLOCKED"
+		var receipt_route := str(manifest_receipt.get("route_id", route)).strip_edges()
+		readiness_state = "[READY]" if receipt_ready else "[ACTION REQUIRED]"
+		readiness = "%s // ROUTE %s" % [readiness_state, receipt_route if not receipt_route.is_empty() else "NOT PUBLISHED"]
+		next_action = (
+			"CREW REVIEW // CONFIRM ROUTE %s" % (receipt_route if not receipt_route.is_empty() else "NOT PUBLISHED")
+			if receipt_ready
+			else "RESOLVE MANIFEST BLOCKERS // ROUTE %s" % (receipt_route if not receipt_route.is_empty() else "NOT PUBLISHED")
+		)
+	elif seat_state == "RELEASED":
+		readiness_state = "[STATION RELEASED]"
+		next_action = "CLAIM LOADMASTER STATION TO REVIEW"
+	elif seat_state == "AVAILABLE":
+		readiness_state = "[STATION AVAILABLE]"
+		next_action = "CLAIM LOADMASTER STATION"
+	elif seat_state == "OCCUPIED":
+		readiness_state = "[MANIFEST PENDING]"
+		next_action = "PUBLISH MANIFEST READINESS"
+	elif manifest.begins_with("BLOCKED"):
+		readiness_state = "[ACTION REQUIRED]"
+		next_action = "REVIEW PUBLISHED READINESS BLOCKER"
+	elif manifest.begins_with("READY"):
+		readiness_state = "[READY]"
+		next_action = "CREW REVIEW // CONFIRM PUBLISHED ROUTE"
 	if not seat_state.is_empty():
 		manifest = "%s  //  SEAT %s" % [manifest, seat_state]
 	var history: Array[String] = []
@@ -31,15 +72,17 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		var text := str(item).strip_edges()
 		if not text.is_empty():
 			history.append(text.to_upper())
-	var message := "ROLE // %s  //  OCCUPANT // %s\nMANIFEST // %s\nROUTE // %s\nREADINESS // %s" % [role, occupant, manifest, route, readiness]
+	var message := "ROLE // %s  //  OCCUPANT // %s\nMANIFEST // %s\nROUTE // %s\nREADINESS // %s\nREADINESS STATE // %s\nNEXT ACTION // %s" % [role, occupant, manifest, route, readiness, readiness_state, next_action]
 	if not craft_id.is_empty():
 		message = "CRAFT // %s\n%s" % [craft_id, message]
 	if generation > 0:
 		message += "\nGENERATION // %d" % generation
+	if revision > 0:
+		message += "  //  REVISION // %d" % revision
 	if not history.is_empty():
 		message += "\nRECEIPT HISTORY // " + " | ".join(history)
 	message += "\nNO INVENTORY TRANSFER  //  NO REWARD AUTHORITY  //  NO HELM AUTHORITY"
-	return {
+	_presentation = {
 		"schema_version": 1,
 		"title": "LOADMASTER STATUS",
 		"message": message,
@@ -51,12 +94,16 @@ func present_snapshot(snapshot: Dictionary) -> Dictionary:
 		"readiness_receipt": readiness,
 		"seat_state": seat_state,
 		"generation": generation,
+		"revision": revision,
+		"readiness_state": readiness_state,
+		"next_action": next_action,
 		"history": history,
 		"authority_text": "NO INVENTORY TRANSFER  //  NO REWARD AUTHORITY  //  NO HELM AUTHORITY",
 		"actions": [{"id": &"loadmaster_review", "label": "LOADMASTER REVIEW  //  READ ONLY", "focusable": true}],
 		"presentation_only": true,
 		"authority": false,
 	}.duplicate(true)
+	return _presentation.duplicate(true)
 
 
 func present_cinder_snapshot(
@@ -65,12 +112,22 @@ func present_cinder_snapshot(
 		status_snapshot: Dictionary,
 		manifest_snapshot: Dictionary = {}
 ) -> Dictionary:
+	var normalized_craft_id := StringName(str(craft_id).strip_edges().to_lower())
+	if not _accepted_craft_id.is_empty() and normalized_craft_id != _accepted_craft_id:
+		_clear_state()
 	var snapshot := status_snapshot.duplicate(true)
 	snapshot["craft_id"] = craft_id
 	snapshot["role"] = role
-	snapshot["manifest_generation"] = int(manifest_snapshot.get("manifest_generation", snapshot.get("generation", 0)))
+	var status_generation := int(status_snapshot.get("generation", -1))
+	var manifest_generation := int(manifest_snapshot.get("manifest_generation", status_generation))
+	snapshot["manifest_generation"] = manifest_generation
 	snapshot["manifest_receipt"] = (manifest_snapshot.get("receipt", {}) as Dictionary).duplicate(true)
-	return present_snapshot(snapshot)
+	var cursor := _receipt_cursor(snapshot)
+	if status_generation <= 0 or manifest_generation != status_generation:
+		return _presentation.duplicate(true)
+	if not _accept_cursor(cursor, normalized_craft_id):
+		return _presentation.duplicate(true)
+	return _present_accepted_snapshot(snapshot, cursor)
 
 
 func get_snapshot() -> Dictionary:
@@ -78,5 +135,55 @@ func get_snapshot() -> Dictionary:
 
 
 func detach() -> Dictionary:
-	_snapshot = {}
+	_clear_state()
 	return {"attached": false, "presentation_only": true, "authority": false}
+
+
+func _receipt_cursor(snapshot: Dictionary) -> Dictionary:
+	var status_generation := int(snapshot.get("generation", snapshot.get("manifest_generation", -1)))
+	var manifest_generation := int(snapshot.get("manifest_generation", status_generation))
+	var receipt := snapshot.get("manifest_receipt", {}) as Dictionary
+	var revision := int(snapshot.get("revision", snapshot.get("request_sequence", 0)))
+	if not receipt.is_empty():
+		var receipt_generation := int(receipt.get("manifest_generation", -1))
+		revision = int(receipt.get("request_sequence", -1))
+		return {
+			"fenced": true,
+			"valid": status_generation > 0 \
+					and manifest_generation == status_generation \
+					and receipt_generation == status_generation \
+					and revision > 0,
+			"generation": status_generation,
+			"revision": revision,
+		}
+	return {
+		"fenced": status_generation > 0 or manifest_generation > 0,
+		"valid": status_generation > 0 \
+				and manifest_generation == status_generation \
+				and revision >= 0,
+		"generation": status_generation,
+		"revision": revision,
+	}
+
+
+func _accept_cursor(cursor: Dictionary, craft_id: StringName = &"") -> bool:
+	if not bool(cursor.get("valid", false)):
+		return false
+	var generation := int(cursor.get("generation", -1))
+	var revision := int(cursor.get("revision", -1))
+	if generation < _accepted_generation \
+			or (generation == _accepted_generation and revision <= _accepted_revision):
+		return false
+	_accepted_generation = generation
+	_accepted_revision = revision
+	if not craft_id.is_empty():
+		_accepted_craft_id = craft_id
+	return true
+
+
+func _clear_state() -> void:
+	_snapshot = {}
+	_presentation = {}
+	_accepted_craft_id = &""
+	_accepted_generation = -1
+	_accepted_revision = -1
