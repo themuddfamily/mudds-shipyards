@@ -110,21 +110,32 @@ func _run() -> void:
 	await process_frame
 	_check_status(board, status_label, &"idle", idle_generation, "READY\nINTERACT TO DEPLOY", "completion reset clears terminal copy for redeployment")
 
-	var abort_start: Dictionary = content.start(idle_generation)
-	var abort_generation := int((abort_start.get("activity", {}) as Dictionary).get("generation", -1))
 	var actor := Node3D.new()
 	fixture.add_child(actor)
+	actor.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	var actor_started: bool = board.interact(actor)
+	var abort_generation := content.get_generation()
+	var interaction_result: Dictionary = board.get_last_result()
+	var interaction_snapshot: Dictionary = board.get_snapshot()
 	var actor_ref: WeakRef = weakref(actor)
 	actor.queue_free()
 	await process_frame
 	var aborted: Dictionary = content.abort(abort_generation)
 	await process_frame
-	_check(actor_ref.get_ref() == null and bool(aborted.get("accepted", false)), "actor loss leaves lifecycle ownership with the authoritative content")
+	_check(
+		actor_started
+		and bool(interaction_result.get("accepted", false))
+		and not interaction_snapshot.has("actor")
+		and not interaction_snapshot.has("actor_instance_id")
+		and actor_ref.get_ref() == null
+		and bool(aborted.get("accepted", false)),
+		"real board interaction uses the actor only as a range gate and retains no stale actor identity"
+	)
 	_check_status(board, status_label, &"aborted", abort_generation, "DEFENSE OFFLINE\nRECOVERY REQUIRED", "aborted signal presents recovery-required guidance")
 	var aborted_reset: Dictionary = content.reset(abort_generation)
 	var post_abort_generation := int((aborted_reset.get("activity", {}) as Dictionary).get("generation", -1))
 	await process_frame
-	_check_status(board, status_label, &"idle", post_abort_generation, "READY\nINTERACT TO DEPLOY", "reset after actor loss clears aborted presentation")
+	_check_status(board, status_label, &"idle", post_abort_generation, "READY\nINTERACT TO DEPLOY", "authoritative reset clears aborted presentation after the interaction actor is gone")
 
 	var timeout_start: Dictionary = content.start(post_abort_generation)
 	var timeout_generation := int((timeout_start.get("activity", {}) as Dictionary).get("generation", -1))
