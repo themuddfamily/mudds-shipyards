@@ -263,6 +263,10 @@ func _test_real_scheduler_complete_loop() -> void:
 	world.add_child(early)
 	await process_frame
 	_check(production.configure(host, 0).accepted, "real bound Host configures exactly once")
+	_check(
+		not production.has_method(&"submit_authored_hazard_observation"),
+		"authored hazard mutation is internal to the admitted late scheduler path",
+	)
 	var nested_probe: Dictionary = {}
 	production.state_changed.connect(func(_snapshot: Dictionary) -> void:
 		var nested := production.queue_disembark_intent(1, production.get_generation())
@@ -477,6 +481,22 @@ func _test_real_scheduler_complete_loop() -> void:
 	_check(await _wait_phase(fixture, EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 300), "real disembark reaches surface route")
 	early.actor_kind = &"player"
 	_check(await _walk_outbound(fixture), "real Player crosses the ordered outbound route")
+	var hazard_before := production.get_authored_hazard_presentation_snapshot()
+	var late_before := int(production.get_snapshot().late_consume_count)
+	var samples_before := early.sample_count
+	await _one_physics()
+	var hazard_after := production.get_authored_hazard_presentation_snapshot()
+	_check(
+		int(hazard_after.get("revision", 0)) \
+			== int(hazard_before.get("revision", 0)) + 1
+			and int(hazard_after.get("host_instance_id", 0)) == host.get_instance_id()
+			and int(hazard_after.get("actor_instance_id", 0)) == player.get_instance_id()
+			and int(hazard_after.get("session_instance_id", 0)) \
+				== host.get_travel_session_observation_source().get_instance_id()
+			and int(production.get_snapshot().late_consume_count) == late_before + 1
+			and early.sample_count == samples_before + 1,
+		"one admitted on-foot sample advances the exact late hazard receipt once",
+	)
 	_check(await _walk_return(fixture), "real Player returns to the exact BoardingArea")
 	var retained_session := host.get_travel_session_observation_source()
 	var retained_attachment_generation := int(

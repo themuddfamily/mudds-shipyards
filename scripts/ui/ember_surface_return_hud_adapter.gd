@@ -120,7 +120,7 @@ func _refresh_authored_hazard() -> void:
 			_hazard_active = false
 			if StringName(snapshot.get("reason", &"")) == &"surface_lifecycle_inactive" \
 					and not _last_snapshot.is_empty():
-				_hud.call(&"update_surface_route_status", _last_snapshot)
+				_restore_cached_route()
 		return
 	if not hazard_visible:
 		if _hazard_active:
@@ -129,7 +129,7 @@ func _refresh_authored_hazard() -> void:
 			_hud.call(&"update_surface_route_status", snapshot)
 			_hazard_active = false
 			if not _last_snapshot.is_empty():
-				_hud.call(&"update_surface_route_status", _last_snapshot)
+				_restore_cached_route()
 		return
 	_hud.call(&"update_surface_route_status", snapshot)
 	_hazard_active = true
@@ -148,10 +148,21 @@ func _apply(view: Dictionary) -> void:
 	var route := _to_surface_route_snapshot(view)
 	if int(source_generation) == _last_source_generation and route == _last_snapshot:
 		return
-	_hud.call(&"update_surface_route_status", route)
-	_apply_minimap_guidance(route)
 	_last_source_generation = int(source_generation)
 	_last_snapshot = route.duplicate(true)
+	# An authored warning owns the public row until its cursor advances to a real
+	# clear/lifecycle transition. Cache newer route state without letting an
+	# unchanged hazard revision be overwritten and then rejected as a duplicate.
+	if _hazard_active:
+		return
+	_restore_cached_route()
+
+
+func _restore_cached_route() -> void:
+	if not is_instance_valid(_hud) or _last_snapshot.is_empty():
+		return
+	_hud.call(&"update_surface_route_status", _last_snapshot)
+	_apply_minimap_guidance(_last_snapshot)
 
 
 func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:

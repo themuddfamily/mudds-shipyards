@@ -149,6 +149,17 @@ func _run() -> void:
 			and bool(adapter.get_snapshot().hazard_active),
 		"real authored Relay Arc warning receipt overlays the public surface HUD"
 	)
+	var warning_detail := detail.text
+	var cached_route := binding.get_presenter_snapshot()
+	cached_route["text"] = str(cached_route.get("text", "")) + "\nCACHE PROBE // LATEST ROUTE"
+	binding.presentation_changed.emit(cached_route)
+	_check(
+		detail.text == warning_detail
+			and str(adapter.get_snapshot().surface_route.message).contains(
+				"CACHE PROBE // LATEST ROUTE"
+			),
+		"an active hazard keeps the public overlay while caching a same-generation route update"
+	)
 	planetary.hazard_snapshot = _hazard_envelope(
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),
 		2, 6, 2, &"recovery_required", true, &"current"
@@ -175,8 +186,9 @@ func _run() -> void:
 	production.state_changed.emit({})
 	_check(
 		detail.text.contains("NEXT // RETURN ROUTE")
+			and detail.text.contains("CACHE PROBE // LATEST ROUTE")
 			and not bool(adapter.get_snapshot().hazard_active),
-		"clearing the hazard restores the retained route without retiring the live attachment"
+		"a real clear cursor restores the latest cached route without retiring the live attachment"
 	)
 	planetary.hazard_snapshot = _hazard_envelope(
 		host.get_instance_id(), 101, hazard_session.get_instance_id(),

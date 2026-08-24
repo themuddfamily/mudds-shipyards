@@ -370,25 +370,6 @@ func get_authored_hazard_presentation_snapshot() -> Dictionary:
 	) as Dictionary
 
 
-## Forwards the one caller-owned on-foot observation to the retained authored
-## hazard runtime. The returned receipt remains request-only and is published
-## through the existing state signal solely so presentation observers can read
-## the detached, lifecycle-fenced HUD envelope.
-func submit_authored_hazard_observation(
-		observation: Variant, expected_generation: int
-	) -> Dictionary:
-	var rejection := _basic_mutation_rejection(expected_generation)
-	if not rejection.is_empty():
-		return _reject(rejection)
-	if _state != State.RUNNING or _planetary_composition == null \
-			or _host == null or not is_instance_valid(_host):
-		return _reject(&"planetary_composition_unavailable")
-	return _planetary_composition.call(
-		&"submit_authored_hazard_observation", observation,
-		_host.get_generation(), _host.get_attachment_generation()
-	) as Dictionary
-
-
 func get_planetary_atmosphere_snapshot() -> Dictionary:
 	if _atmosphere_composition == null:
 		return {}
