@@ -73,7 +73,7 @@ func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	_check(visual != null and visual.get_node_or_null("ArmoredCentralSlab") is MeshInstance3D, "armored central slab is a real visual mesh")
 	_test_armored_shoulder_batch(visual)
 	_test_identity_band_batch(visual)
-	_test_cockpit_console_cyan_key_mesh_sharing(visual)
+	_test_cockpit_console_key_mesh_sharing(visual)
 	var audit: Dictionary = ship.call("get_bulwark_audit_report")
 	_check(bool(audit.get("valid", false)), "fully constructed Bulwark passes its public audit")
 	_check(int(audit.get("collision_shape_count", 0)) >= 3, "audit sees the armored collision envelope")
@@ -185,18 +185,22 @@ func _test_identity_band_batch(visual: Node3D) -> void:
 	print("BULWARK_IDENTITY_BAND_BATCH: visible_copies 2->2 submissions 2->1")
 
 
-func _test_cockpit_console_cyan_key_mesh_sharing(visual: Node3D) -> void:
+func _test_cockpit_console_key_mesh_sharing(visual: Node3D) -> void:
 	var cockpit := visual.get_node_or_null("CockpitInterior") as Node3D if visual != null else null
 	var key_names := PackedStringArray([
 		"PortConsoleKey00",
+		"PortConsoleKey01",
 		"PortConsoleKey02",
 		"StarboardConsoleKey00",
+		"StarboardConsoleKey01",
 		"StarboardConsoleKey02",
 	])
 	var expected_positions := [
 		Vector3(-0.76, 2.41, -0.88),
+		Vector3(-0.715, 2.41, -0.56),
 		Vector3(-0.67, 2.41, -0.24),
 		Vector3(0.76, 2.41, -0.88),
+		Vector3(0.805, 2.41, -0.56),
 		Vector3(0.85, 2.41, -0.24),
 	]
 	var keys: Array[MeshInstance3D] = []
@@ -204,27 +208,41 @@ func _test_cockpit_console_cyan_key_mesh_sharing(visual: Node3D) -> void:
 		var key := cockpit.get_node_or_null(NodePath(key_name)) as MeshInstance3D if cockpit != null else null
 		if key != null:
 			keys.append(key)
-	_check(keys.size() == 4, "four named cyan console-key visual copies remain present")
-	if keys.size() != 4:
+	_check(keys.size() == 6, "six named cyan/amber console-key visual copies remain present")
+	if keys.size() != 6:
 		return
 	var shared_mesh := keys[0].mesh
-	var material := shared_mesh.surface_get_material(0) as StandardMaterial3D if shared_mesh != null else null
 	var exact_transforms := true
 	var shared_resources := true
+	var exact_materials := true
 	for index in keys.size():
 		exact_transforms = exact_transforms and keys[index].position.is_equal_approx(expected_positions[index])
 		shared_resources = shared_resources and keys[index].mesh == shared_mesh
+		var material := keys[index].material_override as StandardMaterial3D
+		var is_amber_key := index == 1 or index == 4
+		var expected_color := Color("e2a63c").darkened(0.68) if is_amber_key else Color("16383e")
+		var expected_emission := Color("e2a63c") if is_amber_key else Color("48dbe2")
+		exact_materials = exact_materials and material != null \
+			and material.albedo_color.is_equal_approx(expected_color) \
+			and is_equal_approx(material.metallic, 0.16) \
+			and is_equal_approx(material.roughness, 0.28 if is_amber_key else 0.25) \
+			and material.emission_enabled \
+			and material.emission.is_equal_approx(expected_emission) \
+			and is_equal_approx(material.emission_energy_multiplier, 2.4 if is_amber_key else 2.8)
 	_check(
 		shared_resources
 		and shared_mesh != null
 		and shared_mesh.get_surface_count() == 1
+		and shared_mesh.surface_get_material(0) == null
 		and shared_mesh.get_aabb().size.is_equal_approx(Vector3(0.12, 0.035, 0.12))
-		and material != null
-		and material.albedo_color.is_equal_approx(Color("16383e"))
+		and exact_materials
 		and exact_transforms,
-		"cyan console-key mesh sharing preserves names, transforms, material, and four visible submissions"
+		"console-key mesh sharing preserves names, transforms, two materials, and six visible submissions"
 	)
-	print("BULWARK_COCKPIT_CONSOLE_CYAN_KEYS: visible_copies 4->4 submissions 4->4 mesh_resources 4->1")
+	print(
+		"BULWARK_COCKPIT_CONSOLE_KEYS: nodes 6->6 visible_copies 6->6 "
+		+ "submissions 6->6 mesh_resources 3->1"
+	)
 
 
 func _test_base_lifecycle(ship: HeroShip) -> void:
