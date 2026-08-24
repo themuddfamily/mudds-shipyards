@@ -12,7 +12,10 @@ signal semantic_cue_emitted(
 	)
 
 const SOURCE_ID: StringName = &"planetary_final_approach"
-const MAXIMUM_SIMULTANEOUS_VOICES := 2
+# Each accepted final-approach record emits at most one synchronous cue. Reuse
+# one transient voice instead of retaining an idle second slot; signal emission
+# still preserves every distinct transition cue.
+const MAXIMUM_SIMULTANEOUS_VOICES := 1
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const STATE_CUES := {
 	&"armed": &"planetary_final_approach_armed",
@@ -124,7 +127,7 @@ func get_snapshot() -> Dictionary:
 		"rejected_count": _rejected_count,
 		"active_cue_slots": _slots.duplicate(),
 		"maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES,
-		"authority": {"cruise": false, "landing": false, "movement": false, "host": false, "audio_cues": true},
+		"authority": {"cruise": false, "travel": false, "landing": false, "movement": false, "host": false, "audio_cues": true},
 	}.duplicate(true)
 
 func _emit(cue_id: StringName) -> void:

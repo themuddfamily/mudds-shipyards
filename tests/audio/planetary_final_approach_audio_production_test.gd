@@ -37,7 +37,7 @@ func _run() -> void:
 	_check(_events.size() == 4 and _has(&"planetary_final_approach_armed"), "generic rejection does not poison a later target generation")
 	cruise.tick_committed.emit({"accepted": false, "reason": &"final_approach_aborted", "generation": 1, "target_generation": 1})
 	_check(_has(&"planetary_final_approach_rejected"), "rejection receipt routes through planetary router")
-	_check(int(adapter.get_snapshot().audio.maximum_simultaneous_voices) == 2, "two-voice ceiling is retained")
+	_check(int(adapter.get_snapshot().audio.maximum_simultaneous_voices) == 1, "production adapter retains the one-voice reuse ceiling")
 	_check(bool(router.detach().accepted), "router detaches")
 	_check(bool(adapter.detach().accepted), "adapter detaches")
 	_check(bool(adapter.attach(cruise).accepted), "adapter re-enters")
