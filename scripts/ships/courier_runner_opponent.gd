@@ -58,6 +58,7 @@ const DISTRESS_RED := Color("ff4a4a")
 const COURIER_ENGINE := Color("8fd0ff")
 const TAIL_TURRET_CHARGE_SCALE := Vector3(1.65, 0.62, 0.62)
 const MATERIAL_CATALOG_ENTRY_COUNT := 19
+const POD_BAND_SIZE := Vector3(1.35, 1.35, 0.22)
 
 ## The inherited eleven recipes plus the courier's eight palette recipes are
 ## immutable after build. Each runner keeps its own dictionary and all dynamic
@@ -567,12 +568,21 @@ func _build_interceptor() -> void:
 	_wedge(_visual_root, "Canopy", Vector3(0.0, 0.72, -2.6), Vector3(1.15, 0.5, 1.8), _materials.glass)
 	_box(_visual_root, "VentralKeel", Vector3(0.0, -0.94, 0.6), Vector3(1.5, 0.34, 6.0), _materials.courier_shadow)
 
+	# The port and starboard bands have one immutable visual recipe. Keep their
+	# transforms and renderer nodes independent, but submit both through one mesh
+	# Resource instead of allocating the same BoxMesh twice for every courier.
+	var pod_band_mesh := _make_box_mesh(POD_BAND_SIZE, _materials.courier_rust)
 	for side in [-1.0, 1.0]:
 		# Slung cargo pods on external pylons: the silhouette detail that says
 		# this craft is carrying something and would rather not stop.
 		_box(_visual_root, "CargoPylon", Vector3(side * 1.5, -0.2, 0.6), Vector3(0.9, 0.22, 2.2), _materials.courier_shadow)
 		_cylinder(_visual_root, "CargoPod", Vector3(side * 2.5, -0.34, 0.6), 0.62, 4.6, _materials.courier_clay, Vector3(90.0, 0.0, 0.0))
-		_box(_visual_root, "PodBand", Vector3(side * 2.5, -0.34, -0.8), Vector3(1.35, 1.35, 0.22), _materials.courier_rust)
+		_box_from_mesh(
+			_visual_root,
+			"PodBand",
+			Vector3(side * 2.5, -0.34, -0.8),
+			pod_band_mesh
+		)
 		var lamp := _sphere(_visual_root, "PodLamp", Vector3(side * 2.5, 0.22, -1.9), 0.13, _materials.courier_lamp)
 		_cargo_lamps.append(lamp)
 
