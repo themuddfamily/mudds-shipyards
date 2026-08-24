@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_recon_pulse_emitter_assemblies(arrow)
 	await _test_entry_heat_attachment(arrow)
 	_test_visual_performance_batch(arrow)
+	_test_engine_collar_mesh_sharing(arrow)
 	_test_boarding_step_mesh_sharing(arrow)
 	_test_escape_pods_and_sensors(arrow)
 	_test_collision_boarding_and_cameras(arrow)
@@ -107,6 +108,52 @@ func _test_boarding_step_mesh_sharing(arrow: ArrowReconShip) -> void:
 		and ordinary_step_renderers == 0,
 		"three visual-only boarding steps retain their exact mesh, transforms, culling, material and shadow state in one bounded batch"
 	)
+
+
+func _test_engine_collar_mesh_sharing(arrow: ArrowReconShip) -> void:
+	var report := arrow.get_arrow_visual_performance_report()
+	var sharing := report.engine_collar_mesh_sharing as Dictionary
+	var visual := arrow.get_arrow_visual_root()
+	var paths := sharing.node_paths as PackedStringArray
+	var port := visual.get_node_or_null(NodePath(paths[0])) as MeshInstance3D \
+		if paths.size() == 2 else null
+	var starboard := visual.get_node_or_null(NodePath(paths[1])) as MeshInstance3D \
+		if paths.size() == 2 else null
+	_check(
+		bool(sharing.valid)
+		and int(sharing.geometry_nodes) == 2
+		and int(sharing.geometry_submissions) == 2
+		and int(sharing.visible_geometry_copies) == 2
+		and int(sharing.primitive_mesh_allocations) == 1
+		and int(sharing.resource_allocation_reduction) == 1
+		and int(report.current.unique_mesh_resource_allocations) == 124,
+		"engine collars reduce retained TorusMesh allocations 2->1 and whole-craft meshes 125->124 without changing nodes, submissions, or copies"
+	)
+	_check(
+		port != null and starboard != null and port.mesh == starboard.mesh
+		and port.transform.is_equal_approx((sharing.authored_transforms as Array)[0])
+		and starboard.transform.is_equal_approx((sharing.authored_transforms as Array)[1])
+		and port.get_child_count() == 0 and starboard.get_child_count() == 0
+		and port.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and starboard.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"both ordinary collar paths retain exact transforms, visible renderers, and zero collision or gameplay authority"
+	)
+	if port != null and starboard != null:
+		var shared_mesh := port.mesh
+		starboard.mesh = shared_mesh.duplicate(false)
+		_check(
+			not bool(arrow.get_arrow_visual_performance_report().valid)
+			and _report_has_error(
+				arrow.get_arrow_visual_performance_report(),
+				"engine-collar shared-mesh identity drift"
+			),
+			"structured-red: a private replacement collar mesh fails the production allocation audit"
+		)
+		starboard.mesh = shared_mesh
+		_check(
+			bool(arrow.get_arrow_visual_performance_report().valid),
+			"restoring the shared immutable collar mesh restores the Arrow audit"
+		)
 
 
 func _test_definition_and_evidence(arrow: ArrowReconShip) -> void:
@@ -608,10 +655,10 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 			"multi_mesh_instance_nodes": 3,
 			"geometry_submissions": 165,
 			"visible_geometry_copies": 169,
-			"unique_mesh_resource_allocations": 125,
+			"unique_mesh_resource_allocations": 124,
 			"auto_fallback_names": 20,
 		},
-		"entry-complete Arrow freezes the exact 187-node, 165-submission, 125-mesh census with all 169 copies"
+		"entry-complete Arrow freezes the exact 187-node, 165-submission, 124-mesh census with all 169 copies"
 	)
 	_check(
 		report.phase9_before_entry_heat == {
@@ -642,7 +689,7 @@ func _test_visual_performance_batch(arrow: ArrowReconShip) -> void:
 		and report.reductions == {
 			"nodes": -10,
 			"geometry_submissions": -6,
-			"unique_mesh_resource_allocations": 17,
+			"unique_mesh_resource_allocations": 18,
 			"auto_fallback_names": 4,
 			"visible_geometry_copies": -10,
 		}
