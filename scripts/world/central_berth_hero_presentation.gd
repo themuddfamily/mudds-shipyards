@@ -10,6 +10,12 @@ const ASSET_PATH := "res://assets/models/station/central_berth_hero_v1.glb"
 const MANIFEST_PATH := "res://assets/models/station/central_berth_hero_v1_asset_manifest.json"
 const ASSET_ID := &"mudds.station.central_berth_hero.v1"
 const PANEL_TRIPLANAR_SCALE := 0.3
+## The authored service-channel strips are the berth's existing route language.
+## Keep the mesh and its batching untouched, but hold enough luminance and
+## cyan/graphite separation for the path to read under the hangar's practicals.
+const GUIDANCE_ALBEDO := Color("087889")
+const GUIDANCE_EMISSION := Color("19d7e7")
+const GUIDANCE_EMISSION_ENERGY := 3.4
 const REQUIRED_ROOTS := [
 	"deck_panels",
 	"edge_fascia",
@@ -88,7 +94,9 @@ func _configure_runtime_materials() -> void:
 		&"ServiceGraphite": _panel_material(
 			Color("081014"), 0.42, 0.48, StationSurfaceKit.PanelFinish.PAINTED_METAL
 		),
-		&"GuidanceCyan": _emissive_material(Color("045c6b"), Color("04bacd"), 2.1),
+		&"GuidanceCyan": _emissive_material(
+			GUIDANCE_ALBEDO, GUIDANCE_EMISSION, GUIDANCE_EMISSION_ENERGY
+		),
 	}
 	if _asset_root == null:
 		return
@@ -410,7 +418,11 @@ func _append_material_role_errors(errors: PackedStringArray) -> void:
 		edge == null or not is_equal_approx(edge.metallic, 0.18) or not is_equal_approx(edge.roughness, 0.34)
 		or structure == null or not is_equal_approx(structure.metallic, 0.72) or not is_equal_approx(structure.roughness, 0.29)
 		or service == null or not is_equal_approx(service.metallic, 0.42) or not is_equal_approx(service.roughness, 0.48)
-		or guidance == null or not guidance.emission_enabled or not is_equal_approx(guidance.emission_energy_multiplier, 2.1)
+		or guidance == null
+		or not guidance.albedo_color.is_equal_approx(GUIDANCE_ALBEDO)
+		or not guidance.emission_enabled
+		or not guidance.emission.is_equal_approx(GUIDANCE_EMISSION)
+		or not is_equal_approx(guidance.emission_energy_multiplier, GUIDANCE_EMISSION_ENERGY)
 	):
 		errors.append("physically_distinct_material_role_contract_drift")
 	var finish_roles := [
