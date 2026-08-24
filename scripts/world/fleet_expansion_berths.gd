@@ -40,18 +40,18 @@ const MAX_STATIC_BODIES := 6
 const MAX_MESH_INSTANCES := 38
 const EXPECTED_STATIC_BODIES := 6
 const EXPECTED_COLLISION_SHAPES := 6
-const EXPECTED_MESH_INSTANCES := 24
-const EXPECTED_MULTIMESH_INSTANCES := 2
-const EXPECTED_RENDERER_NODES := 26
+const EXPECTED_MESH_INSTANCES := 21
+const EXPECTED_MULTIMESH_INSTANCES := 3
+const EXPECTED_RENDERER_NODES := 24
 const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
 const EXPECTED_WAYFINDING_LABELS := 1
 const EXPECTED_WAYFINDING_BOXES := 14
 const EXPECTED_SERVICE_MESH_INSTANCES := 14
-const EXPECTED_SERVICE_RENDERER_NODES := 13
+const EXPECTED_SERVICE_RENDERER_NODES := 11
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
 const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 24
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 61
+const EXPECTED_DESCENDANTS := 59
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
 	&"dock_05_bomber": 3,
@@ -122,6 +122,12 @@ const LAUNCH_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)),
 	Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)),
 ]
+const CARGO_CONTAINER_SIZE := Vector3(7.0, 3.6, 7.0)
+const CARGO_CONTAINER_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, -10.0)),
+	Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 0.0)),
+	Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 10.0)),
+]
 const UNDERFRAME_SUPPORT_SIZE := Vector3(0.55, 2.5, 0.55)
 const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(-15.0, -1.75, 0.5)),
@@ -135,7 +141,6 @@ const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
 var _pads: Dictionary = {}
 var _attachments: Dictionary = {}
 var _service_materials: Dictionary = {}
-var _cargo_container_mesh: BoxMesh
 var _built := false
 var _pad_presentation_states: Dictionary = {}
 var _access_surfaces: Dictionary = {}
@@ -395,10 +400,23 @@ func get_service_presentation_audit() -> Dictionary:
 				visible_mesh_copies += batch.multimesh.instance_count
 		if visible_mesh_copies != int(SERVICE_MESH_COUNTS[pad_id]):
 			errors.append("service mesh budget drift: %s" % pad_id)
-		var expected_batches := 1 if pad_id == &"dock_06_interceptor" else 0
+		var expected_batches := 1 if pad_id in [&"dock_04_cargo", &"dock_06_interceptor"] else 0
 		if batches.size() != expected_batches:
 			errors.append("service batch roster drift: %s" % pad_id)
-		elif expected_batches == 1:
+		elif pad_id == &"dock_04_cargo":
+			var container_batch := batches[0] as MultiMeshInstance3D
+			var container_mesh := container_batch.multimesh.mesh as BoxMesh \
+				if container_batch.multimesh != null else null
+			if container_batch.name != &"CargoContainerBatch" \
+					or container_mesh == null \
+					or not container_mesh.size.is_equal_approx(CARGO_CONTAINER_SIZE) \
+					or container_batch.multimesh.instance_count != CARGO_CONTAINER_TRANSFORMS.size() \
+					or container_batch.material_override != _service_materials["cargo_container"] \
+					or container_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+					or not bool(container_batch.get_meta(&"visual_detail_only", false)) \
+					or container_batch.get_meta(&"authored_instance_transforms", []) != CARGO_CONTAINER_TRANSFORMS:
+				errors.append("cargo container batch recipe drift")
+		elif pad_id == &"dock_06_interceptor":
 			var rail_batch := batches[0] as MultiMeshInstance3D
 			var rail_mesh := rail_batch.multimesh.mesh as BoxMesh \
 				if rail_batch.multimesh != null else null
@@ -1231,15 +1249,7 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 			_visual_box(service, "CargoCraneMast", Vector3(-18.0, 6.0, -7.0), Vector3(1.5, 12.0, 1.5), _service_materials["cargo_frame"])
 			_visual_box(service, "CargoCraneJib", Vector3(-12.0, 11.5, -7.0), Vector3(13.5, 1.0, 1.0), _service_materials["cargo_frame"])
 			_visual_box(service, "CargoCraneHoist", Vector3(-7.0, 10.0, -7.0), Vector3(1.0, 3.0, 1.0), _service_materials["cargo_marker"])
-			_cargo_container_mesh = BoxMesh.new()
-			_cargo_container_mesh.size = Vector3(7.0, 3.6, 7.0)
-			for container_index in 3:
-				_visual_box(
-					service, "CargoContainer%02d" % (container_index + 1),
-					Vector3(18.0, 1.8, -10.0 + float(container_index) * 10.0),
-					Vector3(7.0, 3.6, 7.0),
-					_service_materials["cargo_container"], _cargo_container_mesh
-				)
+			_build_cargo_container_batch(service)
 			_guide_light(service, "CargoApronGuidePort", Vector3(-18.0, 1.2, 12.0), Color("56d8de"))
 			_guide_light(service, "CargoApronGuideStarboard", Vector3(18.0, 1.2, 14.0), Color("56d8de"))
 		&"dock_05_bomber":
@@ -1278,6 +1288,27 @@ func _build_launch_rail_batch(service: Node3D) -> void:
 	service.add_child(batch)
 	multimesh.set_instance_transform(0, Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)))
 	multimesh.set_instance_transform(1, Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)))
+
+
+func _build_cargo_container_batch(service: Node3D) -> void:
+	var container_mesh := BoxMesh.new()
+	container_mesh.size = CARGO_CONTAINER_SIZE
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = container_mesh
+	multimesh.instance_count = CARGO_CONTAINER_TRANSFORMS.size()
+	multimesh.visible_instance_count = -1
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "CargoContainerBatch"
+	batch.multimesh = multimesh
+	batch.material_override = _service_materials["cargo_container"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", &"dock_04_cargo_containers")
+	batch.set_meta(&"authored_instance_transforms", CARGO_CONTAINER_TRANSFORMS.duplicate())
+	service.add_child(batch)
+	for index in CARGO_CONTAINER_TRANSFORMS.size():
+		multimesh.set_instance_transform(index, CARGO_CONTAINER_TRANSFORMS[index])
 
 
 func _visual_box(

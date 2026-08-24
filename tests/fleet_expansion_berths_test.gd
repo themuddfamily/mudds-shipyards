@@ -8,8 +8,8 @@ const EXPECTED_PAD_IDS: Array[StringName] = [
 const EXPECTED_PAD_POSITIONS: Array[Vector3] = [
 	Vector3(-16.4, 0.0, -8.0), Vector3(34.0, 0.0, -18.0), Vector3(0.0, 0.0, 34.0)
 ]
-const EXPECTED_SERVICE_MESHES := [6, 3, 3]
-const EXPECTED_SERVICE_BATCHES := [0, 0, 1]
+const EXPECTED_SERVICE_MESHES := [3, 3, 3]
+const EXPECTED_SERVICE_BATCHES := [1, 0, 1]
 const EXPECTED_SERVICE_COPIES := [6, 3, 5]
 const EXPECTED_SERVICE_LIGHTS := [2, 1, 2]
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
@@ -33,6 +33,7 @@ func _initialize() -> void:
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the expansion makes no historical berth claim")
 	_check(berths.get_pad_ids() == EXPECTED_PAD_IDS, "Dock 04 cargo, Dock 05 bomber, and Dock 06 interceptor are stable authored IDs")
 	_test_service_presentations(berths, audit)
+	_test_cargo_container_batch(berths, audit)
 	_test_launch_rail_batch(berths, audit)
 	_test_underframe_support_batch(berths, audit)
 	_test_access_circulation(berths, audit)
@@ -116,23 +117,23 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		and (presentation.get("errors", PackedStringArray()) as PackedStringArray).is_empty()
 		and int(audit.get("static_bodies", -1)) == 6
 		and int(audit.get("collision_shapes", -1)) == 6
-		and int(audit.get("mesh_instances", -1)) == 24
-		and int(audit.get("multimesh_instances", -1)) == 2
-		and int(audit.get("renderer_nodes", -1)) == 26
+		and int(audit.get("mesh_instances", -1)) == 21
+		and int(audit.get("multimesh_instances", -1)) == 3
+		and int(audit.get("renderer_nodes", -1)) == 24
 		and int(audit.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(audit.get("guide_lights", -1)) == 5
-		and int(audit.get("descendants", -1)) == 61
+		and int(audit.get("descendants", -1)) == 59
 		and int(budgets.get("static_bodies", -1)) == 6
 		and int(budgets.get("collision_shapes", -1)) == 6
-		and int(budgets.get("mesh_instances", -1)) == 24
-		and int(budgets.get("multimesh_instances", -1)) == 2
-		and int(budgets.get("renderer_nodes", -1)) == 26
+		and int(budgets.get("mesh_instances", -1)) == 21
+		and int(budgets.get("multimesh_instances", -1)) == 3
+		and int(budgets.get("renderer_nodes", -1)) == 24
 		and int(budgets.get("mesh_resource_allocations", -1)) == EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("service_mesh_resource_allocations", -1)) == EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS
 		and int(budgets.get("guide_lights", -1)) == 5
-		and int(budgets.get("descendants", -1)) == 61,
-		"three logical pads and six honest routes freeze at 26 renderers, 24 resources, 61 descendants, and six exact walkable boxes"
+		and int(budgets.get("descendants", -1)) == 59,
+		"three logical pads and six honest routes freeze at 24 renderers, 24 resources, 59 descendants, and six exact walkable boxes"
 	)
 	var expected_bounds: Array[AABB] = [
 		AABB(Vector3(-18.75, 0.0, -13.5), Vector3(40.25, 12.0, 27.0)),
@@ -140,7 +141,7 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		AABB(Vector3(-16.75, 0.0, -16.75), Vector3(33.5, 10.5, 40.75)),
 	]
 	var required_nodes := [
-		["CargoCraneMast", "CargoCraneJib", "CargoContainer01", "CargoContainer02", "CargoContainer03"],
+		["CargoCraneMast", "CargoCraneJib", "CargoContainerBatch"],
 		["OrdnanceGantryPort", "OrdnanceMarkerPort", "BlastSafetyDatum"],
 		["LaunchRailBatch", "LaunchFramePort", "LaunchFrameHeader"],
 	]
@@ -232,13 +233,12 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 	detached["ship_authority"] = true
 	(detached["errors"] as PackedStringArray).append("injected")
 	_check(bool(berths.get_service_presentation_audit().valid), "the service presentation audit is detached from caller mutation")
-	var cargo_container := berths.get_node_or_null(
-		^"dock_04_cargo/ServicePresentation/CargoContainer01"
-	) as MeshInstance3D
-	if cargo_container == null:
+	var cargo_container_batch := berths.get_node_or_null(
+		^"dock_04_cargo/ServicePresentation/CargoContainerBatch"
+	) as MultiMeshInstance3D
+	if cargo_container_batch == null:
 		return
-	var original_position := cargo_container.position
-	cargo_container.position = Vector3(0.0, original_position.y, 0.0)
+	cargo_container_batch.position = Vector3(-18.0, 0.0, 0.0)
 	var clearance_drift: Dictionary = berths.call("get_service_presentation_audit")
 	_check(
 		not bool(clearance_drift.valid)
@@ -247,7 +247,7 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 		),
 		"moving cargo stock into the landing volume is structured clearance red"
 	)
-	cargo_container.position = original_position
+	cargo_container_batch.position = Vector3.ZERO
 	_check(bool(berths.get_service_presentation_audit().valid), "restoring the cargo apron returns all three service presentations green")
 	print(
 		"FLEET_EXPANSION_SERVICE_BUDGET: world_renderers=%d total_resources=%d service_resources=%d (baseline=%d delta=%d) submissions=%d->%d lights=%d descendants=%d bodies=%d shapes=%d" % [
@@ -259,6 +259,62 @@ func _test_service_presentations(berths: Node3D, audit: Dictionary) -> void:
 			int(audit.get("descendants", -1)), int(audit.get("static_bodies", -1)),
 			int(audit.get("collision_shapes", -1)),
 		]
+	)
+
+
+func _test_cargo_container_batch(berths: Node3D, audit: Dictionary) -> void:
+	var service := berths.get_node_or_null(
+		^"dock_04_cargo/ServicePresentation"
+	) as Node3D
+	var batch := service.get_node_or_null(^"CargoContainerBatch") as MultiMeshInstance3D \
+		if service != null else null
+	var container_mesh := batch.multimesh.mesh as BoxMesh \
+		if batch != null and batch.multimesh != null else null
+	var expected_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, -10.0)),
+		Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 0.0)),
+		Transform3D(Basis.IDENTITY, Vector3(18.0, 1.8, 10.0)),
+	]
+	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array \
+		if batch != null else []
+	var material := batch.material_override as StandardMaterial3D if batch != null else null
+	var transforms_exact := authored_transforms.size() == expected_transforms.size()
+	if transforms_exact:
+		for index in expected_transforms.size():
+			transforms_exact = transforms_exact and (
+				authored_transforms[index] as Transform3D
+			).is_equal_approx(expected_transforms[index])
+	var presentation := audit.get("service_presentation", {}) as Dictionary
+	_check(
+		batch != null and container_mesh != null
+		and container_mesh.size.is_equal_approx(Vector3(7.0, 3.6, 7.0))
+		and batch.multimesh.instance_count == 3 and transforms_exact
+		and material != null and material.albedo_color.is_equal_approx(Color("2f5966"))
+		and is_equal_approx(material.metallic, 0.58) and not material.emission_enabled
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and batch.get_child_count() == 0
+		and bool(batch.get_meta(&"visual_detail_only", false))
+		and StringName(batch.get_meta(&"visual_batch_family_id", &"")) \
+			== &"dock_04_cargo_containers",
+		"Dock 04 retains all three exact cargo-container copies and transforms in one childless visual batch"
+	)
+	_check(
+		int(presentation.get("renderer_nodes_before", -1)) == 14
+		and int(presentation.get("renderer_nodes_after", -1)) == 11
+		and int(presentation.get("renderer_node_delta", 0)) == -3
+		and int(presentation.get("geometry_submissions_before", -1)) == 14
+		and int(presentation.get("geometry_submissions_after", -1)) == 11
+		and int(presentation.get("geometry_submission_delta", 0)) == -3
+		and int(presentation.get("visible_mesh_copies", -1)) == 14,
+		"cargo batching contributes two fewer renderers and submissions while all 14 service copies remain visible"
+	)
+	_check(
+		service != null
+		and service.find_children("CargoContainer*", "MeshInstance3D", true, false).is_empty()
+		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and service.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and service.find_children("*", "Area3D", true, false).is_empty(),
+		"the cargo-container batch remains visual-only and owns no route, collision, boarding, or interaction behavior"
 	)
 
 
@@ -302,16 +358,16 @@ func _test_launch_rail_batch(berths: Node3D, audit: Dictionary) -> void:
 	)
 	_check(
 		int(presentation.get("renderer_nodes_before", -1)) == 14
-		and int(presentation.get("renderer_nodes_after", -1)) == 13
-		and int(presentation.get("renderer_node_delta", 0)) == -1
+		and int(presentation.get("renderer_nodes_after", -1)) == 11
+		and int(presentation.get("renderer_node_delta", 0)) == -3
 		and int(presentation.get("geometry_submissions_before", -1)) == 14
-		and int(presentation.get("geometry_submissions_after", -1)) == 13
-		and int(presentation.get("geometry_submission_delta", 0)) == -1
+		and int(presentation.get("geometry_submissions_after", -1)) == 11
+		and int(presentation.get("geometry_submission_delta", 0)) == -3
 		and int(presentation.get("mesh_resource_allocations_before", -1)) == 12
 		and int(presentation.get("mesh_resource_allocations_after", -1)) == 11
 		and int(presentation.get("mesh_resource_delta", 0)) == -1
 		and int(presentation.get("visible_mesh_copies", -1)) == 14,
-		"the rail family reduces renderer nodes, submissions, and mesh allocations by one while retaining all 14 service copies"
+		"the rail and cargo families reduce renderer nodes and submissions by three and mesh allocations by one while retaining all 14 service copies"
 	)
 	_check(
 		service != null
@@ -364,7 +420,7 @@ func _test_underframe_support_batch(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		int(access.get("support_meshes", -1)) == 11
 		and int(access.get("support_renderer_nodes", -1)) == 6
-		and int(audit.get("renderer_nodes", -1)) == 26
+		and int(audit.get("renderer_nodes", -1)) == 24
 		and int(audit.get("mesh_resource_allocations", -1)) == 24,
 		"the support-post family removes five renderer submissions and mesh allocations while retaining all 11 underframe copies"
 	)
