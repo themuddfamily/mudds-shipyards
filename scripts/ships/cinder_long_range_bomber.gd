@@ -26,6 +26,14 @@ const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("b85a3c")
 const SENSOR_COLOR := Color("d6b45d")
 
+# The primary hull is immutable presentation stock. Production may briefly own
+# more than one bomber during fleet composition/replacement, so retain one
+# process-local recipe instead of allocating the same mesh and material for
+# every copy. Renderer nodes, submissions, transforms and physical authority
+# remain per craft.
+static var _shared_hull_mesh: BoxMesh
+static var _shared_hull_material: StandardMaterial3D
+
 var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
 var _bomber_built := false
@@ -280,6 +288,7 @@ func request_payload_release(
 
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
+	var hull_sharing := get_hull_resource_sharing_audit()
 	if not _bomber_built:
 		errors.append("bomber has not built its authored component tree")
 	if not is_instance_valid(get_pilot_seat_anchor()) or not is_instance_valid(_bomber_boarding_marker):
@@ -296,6 +305,8 @@ func get_audit_report() -> Dictionary:
 		errors.append("bounded bomber payload presentation is unavailable")
 	if not bool(get_landing_collision_report().get("valid", false)):
 		errors.append("bomber requires HeroShip root collision")
+	if not bool(hull_sharing.get("valid", false)):
+		errors.append("bomber immutable hull resource sharing drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -318,6 +329,63 @@ func get_audit_report() -> Dictionary:
 		"berth_authority": false,
 		"game_flow_authority": false,
 		"network_authority": false,
+		"hull_resource_sharing": hull_sharing,
+	}.duplicate(true)
+
+
+## Detached exact-recipe evidence for the one cross-copy cached visual family.
+## Structural submissions are mesh surfaces, not a driver draw-call claim.
+func get_hull_resource_sharing_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var visual := get_variant_visual_root()
+	var hull := visual.get_node_or_null(^"LongRangeHull") as MeshInstance3D if visual != null else null
+	var mesh := hull.mesh as BoxMesh if hull != null else null
+	var material := hull.material_override as StandardMaterial3D if hull != null else null
+	if hull == null:
+		errors.append("LongRangeHull renderer is missing")
+	else:
+		if not hull.transform.is_equal_approx(Transform3D.IDENTITY):
+			errors.append("LongRangeHull transform drifted")
+		if not hull.visible or hull.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("LongRangeHull renderer state drifted")
+		if hull.get_child_count() != 0 or hull.get_script() != null:
+			errors.append("LongRangeHull gained semantic children or authority")
+	if mesh == null or mesh != _shared_hull_mesh:
+		errors.append("LongRangeHull shared mesh identity drifted")
+	elif not mesh.size.is_equal_approx(HULL_SIZE) or mesh.get_surface_count() != 1:
+		errors.append("LongRangeHull mesh recipe drifted")
+	elif mesh.resource_local_to_scene:
+		errors.append("LongRangeHull mesh became scene-local")
+	if material == null or material != _shared_hull_material:
+		errors.append("LongRangeHull shared material identity drifted")
+	elif (
+		not material.albedo_color.is_equal_approx(HULL_COLOR)
+		or not is_equal_approx(material.metallic, 0.78)
+		or not is_equal_approx(material.roughness, 0.4)
+		or material.resource_local_to_scene
+	):
+		errors.append("LongRangeHull material recipe drifted")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family": &"LongRangeHull",
+		"renderer_nodes_per_copy": 1 if hull != null else 0,
+		"geometry_submissions_per_copy": mesh.get_surface_count() if mesh != null else 0,
+		"visible_copies_per_bomber": 1 if hull != null and hull.visible else 0,
+		"mesh_resource_id": mesh.get_instance_id() if mesh != null else 0,
+		"material_resource_id": material.get_instance_id() if material != null else 0,
+		"legacy_two_copy": {
+			"renderer_nodes": 2,
+			"geometry_submissions": 2,
+			"unique_mesh_resources": 2,
+			"unique_material_resources": 2,
+		},
+		"current_two_copy": {
+			"renderer_nodes": 2,
+			"geometry_submissions": 2,
+			"unique_mesh_resources": 1,
+			"unique_material_resources": 1,
+		},
 	}.duplicate(true)
 
 
@@ -359,10 +427,15 @@ func _build_collision() -> void:
 func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "LongRangeHull"
-	var mesh := BoxMesh.new()
-	mesh.size = HULL_SIZE
-	hull.mesh = mesh
-	hull.material_override = _material(HULL_COLOR, 0.78, 0.4)
+	if _shared_hull_mesh == null:
+		_shared_hull_mesh = BoxMesh.new()
+		_shared_hull_mesh.size = HULL_SIZE
+		_shared_hull_mesh.resource_local_to_scene = false
+	if _shared_hull_material == null:
+		_shared_hull_material = _material(HULL_COLOR, 0.78, 0.4)
+		_shared_hull_material.resource_local_to_scene = false
+	hull.mesh = _shared_hull_mesh
+	hull.material_override = _shared_hull_material
 	visual.add_child(hull)
 	var ordnance := MeshInstance3D.new()
 	ordnance.name = "OrdnanceSpine"
