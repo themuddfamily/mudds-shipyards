@@ -47,6 +47,29 @@ func _initialize() -> void:
 			and _hull(first).mesh.get_aabb().is_equal_approx(_hull(second).mesh.get_aabb()),
 		"both visible hull copies retain the exact one-surface geometry"
 	)
+	var first_pod := _cargo_pod(first)
+	var second_pod := _cargo_pod(second)
+	var pod_material := first_pod.material_override as StandardMaterial3D \
+		if first_pod != null else null
+	_check(
+		first_pod != null and second_pod != null
+			and first_pod != second_pod
+			and first_pod.mesh == second_pod.mesh
+			and first_pod.material_override == second_pod.material_override
+			and first_pod.mesh is BoxMesh
+			and (first_pod.mesh as BoxMesh).size.is_equal_approx(Vector3(5.2, 2.2, 7.2))
+			and first_pod.position.is_equal_approx(Vector3(0.0, 0.15, 1.0))
+			and first_pod.visible
+			and first_pod.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and first_pod.layers == 1
+			and not first_pod.mesh.resource_local_to_scene
+			and pod_material != null
+			and pod_material.albedo_color.is_equal_approx(Hauler.CARGO_COLOR)
+			and is_equal_approx(pod_material.metallic, 0.45)
+			and is_equal_approx(pod_material.roughness, 0.42)
+			and not pod_material.resource_local_to_scene,
+		"two production haulers retain exact local cargo-pod copies backed by one immutable geometry and paint recipe"
+	)
 	_check(
 		first.get_cockpit_seat_anchor() != null
 			and second.get_cockpit_seat_anchor() != null
@@ -83,7 +106,7 @@ func _initialize() -> void:
 	)
 
 	if _failures.is_empty():
-		print("CINDER_CARGO_HULL_RESOURCE_SHARING: meshes 2->1 materials 2->1 nodes 2->2 submissions 2->2")
+		print("CINDER_CARGO_HULL_RESOURCE_SHARING: hull and cargo-pod immutable recipes are shared across two local renderers")
 		print("PASS cinder_cargo_hauler_hull_resource_sharing_test (%d assertions)" % _assertions)
 		quit(0)
 	else:
@@ -95,6 +118,12 @@ func _initialize() -> void:
 func _hull(craft: CinderCargoHauler) -> MeshInstance3D:
 	var visual := craft.get_variant_visual_root()
 	return visual.get_node_or_null(^"IndustrialHull") as MeshInstance3D \
+		if visual != null else null
+
+
+func _cargo_pod(craft: CinderCargoHauler) -> MeshInstance3D:
+	var visual := craft.get_variant_visual_root()
+	return visual.get_node_or_null(^"CargoPod") as MeshInstance3D \
 		if visual != null else null
 
 

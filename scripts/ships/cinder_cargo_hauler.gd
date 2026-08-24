@@ -33,6 +33,11 @@ const ACCENT_COLOR := Color("42c9cf")
 # while each craft retains its own renderer, transform, collision and authority.
 static var _shared_hull_mesh: BoxMesh
 static var _shared_hull_material: StandardMaterial3D
+# The cargo pod is likewise static exterior presentation. Keep its renderer
+# local so a craft can be detached independently, while sharing its immutable
+# geometry and paint recipe across simultaneously retained haulers.
+static var _shared_cargo_pod_mesh: BoxMesh
+static var _shared_cargo_pod_material: StandardMaterial3D
 
 
 class CinderLoadmasterInteraction:
@@ -1011,11 +1016,16 @@ func _build_hull(visual: Node3D) -> void:
 	visual.add_child(hull)
 	var cargo_pod := MeshInstance3D.new()
 	cargo_pod.name = "CargoPod"
-	var pod_mesh := BoxMesh.new()
-	pod_mesh.size = Vector3(5.2, 2.2, 7.2)
-	cargo_pod.mesh = pod_mesh
+	if _shared_cargo_pod_mesh == null:
+		_shared_cargo_pod_mesh = BoxMesh.new()
+		_shared_cargo_pod_mesh.size = Vector3(5.2, 2.2, 7.2)
+		_shared_cargo_pod_mesh.resource_local_to_scene = false
+	if _shared_cargo_pod_material == null:
+		_shared_cargo_pod_material = _material(CARGO_COLOR, 0.45, 0.42)
+		_shared_cargo_pod_material.resource_local_to_scene = false
+	cargo_pod.mesh = _shared_cargo_pod_mesh
 	cargo_pod.position = Vector3(0.0, 0.15, 1.0)
-	cargo_pod.material_override = _material(CARGO_COLOR, 0.45, 0.42)
+	cargo_pod.material_override = _shared_cargo_pod_material
 	visual.add_child(cargo_pod)
 
 
