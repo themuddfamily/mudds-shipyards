@@ -228,6 +228,7 @@ var _cue_expiry_timers: Dictionary = {}
 var _timer_instance_ids: Dictionary = {}
 var _loop_streams: Dictionary = {}
 var _cue_streams: Dictionary = {}
+var _cue_sample_bytes: Dictionary = {}
 var _resource_instance_ids: Dictionary = {}
 var _fingerprints: Dictionary = {}
 var _resident_sample_bytes := 0
@@ -568,9 +569,10 @@ func play_cue(cue_id: StringName, intensity: float = 1.0) -> bool:
 		return false
 	_ensure_synthesized()
 	var stream := _cue_streams.get(cue_id) as AudioStreamWAV
+	var cue_bytes := _cue_sample_bytes.get(cue_id) as PackedByteArray
 	var voice_id := CUE_TO_VOICE.get(cue_id, &"") as StringName
 	var player := _players.get(voice_id) as AudioStreamPlayer3D
-	if stream == null or not is_instance_valid(player):
+	if stream == null or cue_bytes.is_empty() or not is_instance_valid(player):
 		return false
 	var safe_intensity := clampf(intensity, 0.1, 1.5)
 	var previous_cue := _active_cues_by_voice.get(voice_id, &"") as StringName
@@ -595,6 +597,11 @@ func play_cue(cue_id: StringName, intensity: float = 1.0) -> bool:
 	player.pitch_scale = float(_expected_pitches[voice_id])
 	var playback_queued := false
 	if _playback_queue_allowed:
+		# Each replacement channel owns one reusable WAV wrapper. Its channel's
+		# previous playback is detached above before the next immutable PCM template
+		# is installed, while the other channel remains an independent simultaneous
+		# voice and resource.
+		stream.data = cue_bytes
 		player.stream = stream
 		if _request_player_playback(player):
 			_active_cues_by_voice[voice_id] = cue_id
@@ -800,13 +807,14 @@ func get_spatial_contract() -> Dictionary:
 
 
 func get_synthesis_report() -> Dictionary:
+	var stream_resource_count := _count_unique_stream_resources()
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"sample_rate": SAMPLE_RATE,
 		"channel_count": 1,
 		"sample_format": &"signed_pcm_16_bit",
 		"loop_template_count": _loop_streams.size(),
-		"cue_template_count": _cue_streams.size(),
+		"cue_template_count": _cue_sample_bytes.size(),
 		"expected_loop_template_count": LOOP_IDS.size(),
 		"expected_cue_template_count": CUE_IDS.size(),
 		"resources_ready": _resources_ready,
@@ -816,6 +824,12 @@ func get_synthesis_report() -> Dictionary:
 		"resident_byte_budget_scope": &"component_owned_raw_pcm_data",
 		"fingerprints_sha256": _fingerprints.duplicate(true),
 		"resource_instance_ids": _resource_instance_ids.duplicate(true),
+		"audio_stream_resource_allocation_count": stream_resource_count,
+		"legacy_audio_stream_resource_allocation_count": LOOP_IDS.size() + CUE_IDS.size(),
+		"audio_stream_resource_allocation_reduction": (
+			LOOP_IDS.size() + CUE_IDS.size() - stream_resource_count
+		),
+		"transient_stream_reuse_scope": &"one_wav_wrapper_per_replacement_voice",
 		"loop_seams_pcm": _get_loop_seam_report(),
 		"generation_count": _synthesis_generation_count,
 		"built_profile_id": _built_profile_id,
@@ -839,6 +853,8 @@ func get_performance_report() -> Dictionary:
 		"resident_byte_budget": RESIDENT_BYTE_BUDGET,
 		"resident_byte_budget_scope": &"component_owned_raw_pcm_data",
 		"within_resident_budget": _resident_sample_bytes <= RESIDENT_BYTE_BUDGET,
+		"audio_stream_resource_allocation_count": _count_unique_stream_resources(),
+		"legacy_audio_stream_resource_allocation_count": LOOP_IDS.size() + CUE_IDS.size(),
 		"audio_driver": AudioServer.get_driver_name(),
 		"playback_queue_allowed": _playback_queue_allowed,
 		"output_audibility_verified": false,
@@ -1242,6 +1258,7 @@ func _discard_audio_resources(preserve_build_snapshot: bool) -> void:
 	_stop_all_players()
 	_loop_streams.clear()
 	_cue_streams.clear()
+	_cue_sample_bytes.clear()
 	_resource_instance_ids.clear()
 	_fingerprints.clear()
 	_resident_sample_bytes = 0
@@ -1263,6 +1280,7 @@ func _ensure_synthesized() -> void:
 	var profile := _get_built_profile_spec()
 	_loop_streams.clear()
 	_cue_streams.clear()
+	_cue_sample_bytes.clear()
 	_resource_instance_ids.clear()
 	_fingerprints.clear()
 	_resident_sample_bytes = 0
@@ -1273,15 +1291,29 @@ func _ensure_synthesized() -> void:
 		_resource_instance_ids[loop_id] = loop_stream.get_instance_id()
 		_fingerprints[loop_id] = _sha256(loop_bytes)
 		_resident_sample_bytes += loop_bytes.size()
+	var transient_streams_by_voice := {}
+	for voice_id in TRANSIENT_VOICE_IDS:
+		transient_streams_by_voice[voice_id] = _wave_from_bytes(PackedByteArray(), false)
 	for cue_id in CUE_IDS:
 		var cue_bytes := _synthesize_cue(cue_id, profile)
-		var cue_stream := _wave_from_bytes(cue_bytes, false)
+		var voice_id := CUE_TO_VOICE[cue_id] as StringName
+		var cue_stream := transient_streams_by_voice[voice_id] as AudioStreamWAV
+		_cue_sample_bytes[cue_id] = cue_bytes
 		_cue_streams[cue_id] = cue_stream
 		_resource_instance_ids[cue_id] = cue_stream.get_instance_id()
 		_fingerprints[cue_id] = _sha256(cue_bytes)
 		_resident_sample_bytes += cue_bytes.size()
 	_resources_ready = true
 	_synthesis_generation_count += 1
+
+
+func _count_unique_stream_resources() -> int:
+	var instance_ids := {}
+	for stream_value in _loop_streams.values() + _cue_streams.values():
+		var stream := stream_value as AudioStreamWAV
+		if stream != null:
+			instance_ids[stream.get_instance_id()] = true
+	return instance_ids.size()
 
 
 func _synthesize_loop(loop_id: StringName, profile: Dictionary) -> PackedByteArray:
@@ -1619,18 +1651,19 @@ func _append_resource_errors(errors: PackedStringArray) -> void:
 	if _resident_sample_bytes > RESIDENT_BYTE_BUDGET:
 		errors.append("resident procedural sample data exceeds the strict component budget")
 	if _resources_ready:
-		if _loop_streams.size() != LOOP_IDS.size() or _cue_streams.size() != CUE_IDS.size():
+		if (
+			_loop_streams.size() != LOOP_IDS.size()
+			or _cue_streams.size() != CUE_IDS.size()
+			or _cue_sample_bytes.size() != CUE_IDS.size()
+		):
 			errors.append("ready synthesis must retain exactly four loops and eight cues")
+		if _count_unique_stream_resources() != LOOP_IDS.size() + TRANSIENT_VOICE_IDS.size():
+			errors.append("ready synthesis must reuse exactly one WAV wrapper per transient voice")
 		if _resident_sample_bytes != EXPECTED_RESIDENT_SAMPLE_BYTES:
 			errors.append("resident sample byte count differs from the bounded declared build")
 		var measured_bytes := 0
-		for resource_id in LOOP_IDS + CUE_IDS:
-			var is_loop := LOOP_IDS.has(resource_id)
-			var stream := (
-				_loop_streams.get(resource_id) as AudioStreamWAV
-				if is_loop
-				else _cue_streams.get(resource_id) as AudioStreamWAV
-			)
+		for resource_id in LOOP_IDS:
+			var stream := _loop_streams.get(resource_id) as AudioStreamWAV
 			if stream == null:
 				errors.append("ready synthesis is missing the %s template" % resource_id)
 				continue
@@ -1638,14 +1671,11 @@ func _append_resource_errors(errors: PackedStringArray) -> void:
 				errors.append("%s resource identity changed after synthesis" % resource_id)
 			if stream.format != AudioStreamWAV.FORMAT_16_BITS or stream.mix_rate != SAMPLE_RATE or stream.stereo:
 				errors.append("%s template does not match the declared mono PCM format" % resource_id)
-			if is_loop:
-				if stream.loop_mode != AudioStreamWAV.LOOP_FORWARD or stream.loop_begin != 0 or stream.loop_end != stream.data.size() / 2:
-					errors.append("%s loop lost its complete forward-loop sample bounds" % resource_id)
-				if not _loop_seam_is_bounded(stream):
-					errors.append("%s loop boundary exceeds its ordinary adjacent-sample step" % resource_id)
-			elif stream.loop_mode != AudioStreamWAV.LOOP_DISABLED:
-				errors.append("%s cue must remain a bounded one-shot" % resource_id)
-			var expected_duration := float(LOOP_DURATIONS[resource_id] if is_loop else CUE_DURATIONS[resource_id])
+			if stream.loop_mode != AudioStreamWAV.LOOP_FORWARD or stream.loop_begin != 0 or stream.loop_end != stream.data.size() / 2:
+				errors.append("%s loop lost its complete forward-loop sample bounds" % resource_id)
+			if not _loop_seam_is_bounded(stream):
+				errors.append("%s loop boundary exceeds its ordinary adjacent-sample step" % resource_id)
+			var expected_duration := float(LOOP_DURATIONS[resource_id])
 			var expected_bytes := roundi(expected_duration * SAMPLE_RATE) * 2
 			if stream.data.size() != expected_bytes:
 				errors.append("%s template byte length changed" % resource_id)
@@ -1653,11 +1683,51 @@ func _append_resource_errors(errors: PackedStringArray) -> void:
 			var fingerprint := str(_fingerprints.get(resource_id, ""))
 			if fingerprint.length() != 64 or fingerprint != _sha256(stream.data):
 				errors.append("%s fingerprint does not match its resident template" % resource_id)
+		for cue_id in CUE_IDS:
+			var stream := _cue_streams.get(cue_id) as AudioStreamWAV
+			var cue_bytes := _cue_sample_bytes.get(cue_id) as PackedByteArray
+			if stream == null or cue_bytes.is_empty():
+				errors.append("ready synthesis is missing the %s template" % cue_id)
+				continue
+			if int(_resource_instance_ids.get(cue_id, 0)) != stream.get_instance_id():
+				errors.append("%s resource identity changed after synthesis" % cue_id)
+			if (
+				stream.format != AudioStreamWAV.FORMAT_16_BITS
+				or stream.mix_rate != SAMPLE_RATE
+				or stream.stereo
+				or stream.loop_mode != AudioStreamWAV.LOOP_DISABLED
+			):
+				errors.append("%s reusable stream does not match the declared mono one-shot format" % cue_id)
+			var expected_bytes := roundi(float(CUE_DURATIONS[cue_id]) * SAMPLE_RATE) * 2
+			if cue_bytes.size() != expected_bytes:
+				errors.append("%s template byte length changed" % cue_id)
+			measured_bytes += cue_bytes.size()
+			var fingerprint := str(_fingerprints.get(cue_id, ""))
+			if fingerprint.length() != 64 or fingerprint != _sha256(cue_bytes):
+				errors.append("%s fingerprint does not match its resident template" % cue_id)
+			var voice_id := CUE_TO_VOICE[cue_id] as StringName
+			for routed_cue_id in CUE_IDS:
+				if CUE_TO_VOICE[routed_cue_id] == voice_id and _cue_streams.get(routed_cue_id) != stream:
+					errors.append("%s replacement channel does not share one stable stream resource" % voice_id)
+					break
+		var engine_stream := _cue_streams.get(CUE_STARTUP) as AudioStreamWAV
+		var combat_stream := _cue_streams.get(CUE_FIRE) as AudioStreamWAV
+		if engine_stream == combat_stream:
+			errors.append("engine and combat replacement voices must retain distinct stream resources")
+		for voice_id in TRANSIENT_VOICE_IDS:
+			var active_cue_id := _active_cues_by_voice.get(voice_id, &"") as StringName
+			if active_cue_id == &"":
+				continue
+			var active_stream := _cue_streams.get(active_cue_id) as AudioStreamWAV
+			var active_bytes := _cue_sample_bytes.get(active_cue_id) as PackedByteArray
+			if active_stream == null or active_stream.data != active_bytes:
+				errors.append("%s active reusable stream does not hold its exact cue PCM" % voice_id)
 		if measured_bytes != _resident_sample_bytes:
 			errors.append("resident sample byte report does not match live templates")
 	elif (
 		not _loop_streams.is_empty()
 		or not _cue_streams.is_empty()
+		or not _cue_sample_bytes.is_empty()
 		or not _resource_instance_ids.is_empty()
 		or not _fingerprints.is_empty()
 		or _resident_sample_bytes != 0
