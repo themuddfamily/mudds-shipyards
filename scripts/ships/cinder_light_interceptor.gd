@@ -18,6 +18,9 @@ const CANOPY_RADIUS := 1.25
 const CANOPY_HEIGHT := 1.5
 const CANOPY_POSITION := Vector3(0.0, 1.1, -2.1)
 const WING_COLOR := Color("8b4a38")
+const AFT_RECOGNITION_FIN_SIZE := Vector3(2.7, 1.8, 0.32)
+const AFT_RECOGNITION_FIN_POSITION := Vector3(0.0, 1.2, 2.45)
+const AFT_RECOGNITION_FIN_ROTATION_Y := PI * 0.5
 const WEAPON_ID: StringName = &"cinder_light_repeater"
 const CONSOLE_TOGGLE_VISIBLE_COPIES := 8
 const CONSOLE_TOGGLE_LEGACY_SUBMISSIONS := 8
@@ -60,6 +63,10 @@ static var _shared_hull_material: StandardMaterial3D
 # duplicate resources without merging renderer nodes or changing submissions.
 static var _shared_wing_mesh: BoxMesh
 static var _shared_wing_material: StandardMaterial3D
+# The swept aft fin makes the interceptor's heading readable in profile. It is
+# immutable visual stock, shared across briefly coexisting fleet copies without
+# adding collision, damage routing, or lifecycle ownership.
+static var _shared_aft_recognition_fin_mesh: PrismMesh
 # The canopy shell is immutable exterior presentation stock. Its renderer stays
 # per craft so visibility, culling, and submissions remain unchanged, while the
 # identical emissive sphere recipe is allocated once across live fleet copies.
@@ -240,6 +247,18 @@ func _build_hull(visual: Node3D) -> void:
 	wing.position = Vector3(0.0, -0.15, 0.8)
 	wing.material_override = _shared_wing_material
 	visual.add_child(wing)
+	var aft_fin := MeshInstance3D.new()
+	aft_fin.name = "AftRecognitionFin"
+	if _shared_aft_recognition_fin_mesh == null:
+		_shared_aft_recognition_fin_mesh = PrismMesh.new()
+		_shared_aft_recognition_fin_mesh.size = AFT_RECOGNITION_FIN_SIZE
+		_shared_aft_recognition_fin_mesh.resource_local_to_scene = false
+	aft_fin.mesh = _shared_aft_recognition_fin_mesh
+	aft_fin.position = AFT_RECOGNITION_FIN_POSITION
+	aft_fin.rotation.y = AFT_RECOGNITION_FIN_ROTATION_Y
+	aft_fin.material_override = _shared_wing_material
+	aft_fin.set_meta(&"visual_detail_only", true)
+	visual.add_child(aft_fin)
 	var canopy := MeshInstance3D.new()
 	canopy.name = "Canopy"
 	if _shared_canopy_mesh == null:
