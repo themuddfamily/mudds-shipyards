@@ -165,7 +165,6 @@ func _test_queued_loading_screen_public_mutators_are_inert() -> void:
 	detached.configure({"ui_scale": 1.3, "reduced_motion": false})
 	detached.set_stage("Live stage", 0.35, "Live detail")
 	var detached_backdrop_slot := detached.get_node_or_null("LoadingRoot/BackdropSlot") as Control
-	var detached_report_before := detached.get_report()
 	var detached_palette_before := (detached.get("_palette") as Dictionary).duplicate(true)
 	var detached_backdrop_count_before := (
 		detached_backdrop_slot.get_child_count() if detached_backdrop_slot != null else -1
@@ -179,13 +178,19 @@ func _test_queued_loading_screen_public_mutators_are_inert() -> void:
 	detached.set_stage("Stale stage", 1.0, "Stale detail")
 	detached.attach_backdrop()
 	detached.dismiss()
+	var detached_report := detached.get_report()
 	_check(
 		not detached.is_inside_tree()
 			and not detached.is_queued_for_deletion()
-			and detached.get_report() == detached_report_before
+			and is_zero_approx(float(detached_report.progress))
+			and str(detached_report.stage).is_empty()
+			and str(detached_report.detail).is_empty()
+			and is_equal_approx(float(detached_report.ui_scale), 1.3)
+			and not bool(detached_report.reduced_motion)
+			and not bool(detached_report.dismissed)
 			and (detached.get("_palette") as Dictionary) == detached_palette_before
 			and (detached_backdrop_slot.get_child_count() if detached_backdrop_slot != null else -1) == detached_backdrop_count_before,
-		"a detached loading screen rejects configuration, stage, backdrop, and dismissal mutation atomically"
+		"detach clears transition state while rejecting stale configuration, stage, backdrop, and dismissal mutation"
 	)
 	root.add_child(detached)
 	await process_frame

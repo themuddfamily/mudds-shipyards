@@ -10,8 +10,11 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(5120, 1440)
+	root.add_child(viewport)
 	var screen := LoadingScreenType.new()
-	root.add_child(screen)
+	viewport.add_child(screen)
 	await process_frame
 	screen.configure({"ui_scale": 1.6, "reduced_motion": true})
 	var stack := screen.get_node_or_null("LoadingRoot/Stack") as VBoxContainer
@@ -25,6 +28,8 @@ func _run() -> void:
 	)
 	if stack == null or destination == null or status == null or progress == null or detail == null:
 		screen.queue_free()
+		await process_frame
+		viewport.queue_free()
 		await process_frame
 		_finish()
 		return
@@ -52,15 +57,19 @@ func _run() -> void:
 			and progress.text == "73%",
 		"Ember caller state replaces Cinder identity without a second transition owner"
 	)
-	var viewport_width := screen.get_viewport().get_visible_rect().size.x
+	var viewport_size := screen.get_viewport().get_visible_rect().size
 	_check(
-		stack.position.x >= 0.0
-			and stack.position.x + stack.size.x <= viewport_width
+		viewport_size == Vector2(5120.0, 1440.0)
+			and stack.position.x >= 0.0
+			and stack.position.x + stack.size.x <= viewport_size.x
 			and stack.size.x <= 760.0 * 1.6,
-		"the maximum-scale transition block stays inside the viewport and a bounded readable width"
+		(
+			"the maximum-scale transition block stays inside a real 32:9 viewport and a bounded readable width "
+			+ "(%s, position %s, size %s)" % [viewport_size, stack.position, stack.size]
+		)
 	)
 
-	root.remove_child(screen)
+	viewport.remove_child(screen)
 	_check(
 		destination.text.is_empty()
 			and status.text.is_empty()
@@ -68,15 +77,27 @@ func _run() -> void:
 			and not detail.visible,
 		"detaching clears the painted transition composition before reuse"
 	)
-	root.add_child(screen)
+	viewport.add_child(screen)
 	await process_frame
-	screen.set_stage("Resolving approach", 0.8)
+	screen.configure({"ui_scale": 1.25, "reduced_motion": true})
+	screen.set_stage("Resolving approach", 0.1, "Fresh generation")
+	var fresh_report := screen.get_report()
 	_check(
 		destination.text == "DESTINATION  /  DESTINATION PENDING"
-			and not destination.text.contains("EMBER"),
-		"a reattached screen cannot leak its previous destination into fresh caller state"
+			and not destination.text.contains("EMBER")
+			and status.text == "RESOLVING APPROACH"
+			and detail.text == "Fresh generation"
+			and progress.text == "10%"
+			and is_equal_approx(screen.get_progress(), 0.1)
+			and screen.get_stage_text() == "Resolving approach"
+			and is_equal_approx(float(fresh_report.progress), 0.1)
+			and str(fresh_report.stage) == "Resolving approach"
+			and str(fresh_report.detail) == "Fresh generation",
+		"a reattached screen accepts lower fresh progress across getters, report, and paint"
 	)
 	screen.queue_free()
+	await process_frame
+	viewport.queue_free()
 	await process_frame
 	_finish()
 

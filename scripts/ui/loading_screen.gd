@@ -74,8 +74,7 @@ func _exit_tree() -> void:
 	# This instance may be retained and attached again. Do not let the last
 	# destination remain painted during the gap before its new caller publishes
 	# current state; detached public calls are deliberately rejected below.
-	_destination_text = ""
-	_clear_status_composition()
+	_reset_status_state()
 
 
 ## Applies the stored accessibility preferences. Accepts the same descriptor
@@ -106,9 +105,9 @@ func set_stage(stage_text: String, progress: float, detail_text: String = "") ->
 	if not _can_mutate_live_presentation():
 		return
 	# Zero is the caller's unambiguous beginning-of-load state. It also prevents
-	# a retained screen from lending a previous destination to a new transition.
+	# a retained screen from lending any previous state to a new transition.
 	if progress <= 0.0:
-		_destination_text = ""
+		_reset_status_state()
 	_stage_text = stage_text
 	_detail_text = detail_text
 	_destination_text = _destination_for(stage_text, detail_text, _destination_text)
@@ -432,7 +431,11 @@ func _destination_for(stage_text: String, detail_text: String, current: String) 
 	return "DESTINATION PENDING"
 
 
-func _clear_status_composition() -> void:
+func _reset_status_state() -> void:
+	_progress = 0.0
+	_stage_text = ""
+	_detail_text = ""
+	_destination_text = ""
 	if _destination_label != null:
 		_destination_label.text = ""
 	if _stage_label != null:
