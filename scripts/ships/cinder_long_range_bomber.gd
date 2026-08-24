@@ -8,6 +8,7 @@ const PayloadAuthority := preload("res://scripts/combat/bomber_payload_authority
 const PayloadPresentation := preload("res://scripts/effects/bomber_payload_presentation.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const BomberPayloadAudioBindingType := preload("res://scripts/audio/bomber_payload_audio_binding.gd")
+const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"cinder-long-range-bomber"
@@ -33,6 +34,19 @@ const SENSOR_POSITION := Vector3(0.0, 1.6, -5.2)
 const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("b85a3c")
 const SENSOR_COLOR := Color("d6b45d")
+## Static presentation of an already-authoritative starboard-wing stage. The
+## raised vane sits on the bomber's outboard upper surface, where the chase view
+## sees both its hot face and its silhouette without crossing the central aim,
+## cockpit, boarding, or payload lanes.
+const DAMAGE_CUE_COMPONENT_ID: StringName = &"starboard_wing"
+const DAMAGE_CUE_POSITION := Vector3(5.15, -0.45, 0.65)
+const DAMAGE_CUE_ROTATION_DEGREES := Vector3(0.0, 12.0, 0.0)
+const DAMAGE_SCORCH_SIZE := Vector3(2.6, 0.06, 2.4)
+const DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.18, 0.0)
+const DAMAGE_VANE_SIZE := Vector3(0.22, 0.66, 2.2)
+const DAMAGE_VANE_POSITION := Vector3(0.0, 0.51, 0.0)
+const DAMAGE_SCORCH_COLOR := Color("171b1d")
+const DAMAGE_VANE_COLOR := Color("ff6a36")
 
 # The primary hull, painted ordnance spine and sensor are immutable presentation stock.
 # Production may briefly own more than one bomber during fleet composition or
@@ -46,6 +60,10 @@ static var _shared_ordnance_spine_material: StandardMaterial3D
 static var _shared_strike_wing_mesh: BoxMesh
 static var _shared_sensor_mesh: SphereMesh
 static var _shared_sensor_material: StandardMaterial3D
+static var _shared_damage_scorch_mesh: BoxMesh
+static var _shared_damage_scorch_material: StandardMaterial3D
+static var _shared_damage_vane_mesh: BoxMesh
+static var _shared_damage_vane_material: StandardMaterial3D
 
 var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
@@ -54,6 +72,7 @@ var _payload_authority: BomberPayloadAuthority
 var _payload_presentation
 var _ship_perspective_audio_binding: RefCounted
 var _payload_audio_binding: Node
+var _component_damage_cue: Node3D
 
 
 func _init() -> void:
@@ -92,6 +111,9 @@ func _ready() -> void:
 		_ship_perspective_audio_binding = null
 	if not _bomber_built:
 		_bomber_built = rebuild_variant_presentation(_build_bomber_variant)
+	if not component_damage_changed.is_connected(_on_bomber_component_damage_changed):
+		component_damage_changed.connect(_on_bomber_component_damage_changed)
+	_sync_component_damage_cue()
 	_build_payload_presentation()
 	_build_payload_audio_binding()
 
@@ -151,6 +173,7 @@ func _physics_process(delta: float) -> void:
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	_sync_component_damage_cue()
 	if _payload_authority != null and bool(_payload_authority.get_snapshot().get("active", false)):
 		_payload_authority.detach(&"ship_reused")
 	if is_instance_valid(_payload_presentation):
@@ -168,6 +191,7 @@ func _build_bomber_variant(_controller: HeroShip) -> bool:
 	_build_strike_wings(visual)
 	_build_cockpit_and_boarding(visual)
 	_build_payload_hardpoints(visual)
+	_build_component_damage_cue(visual)
 	return true
 
 
@@ -573,6 +597,50 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## Detached presentation snapshot. It reports the retained renderer state but
+## offers no mutation seam into the component ledger or HeroShip recovery path.
+func get_component_damage_cue_snapshot() -> Dictionary:
+	var visual := get_variant_visual_root()
+	var cue := visual.get_node_or_null(^"StarboardWingDamageCue") as Node3D \
+			if visual != null else null
+	var scorch := cue.get_node_or_null(^"DamageScorch") as MeshInstance3D \
+			if cue != null else null
+	var vane := cue.get_node_or_null(^"ExposedDamageVane") as MeshInstance3D \
+			if cue != null else null
+	var bounds := AABB()
+	var has_bounds := false
+	for renderer in [scorch, vane]:
+		if renderer == null or renderer.mesh == null or cue == null:
+			continue
+		var renderer_bounds: AABB = cue.transform * renderer.transform * renderer.mesh.get_aabb()
+		bounds = renderer_bounds if not has_bounds else bounds.merge(renderer_bounds)
+		has_bounds = true
+	var model := get_component_damage()
+	return {
+		"component_id": DAMAGE_CUE_COMPONENT_ID,
+		"stage": ShipComponentDamageType.state_id_for(
+			model.get_component_state(DAMAGE_CUE_COMPONENT_ID)
+		) if model != null and model.is_configured() else &"unavailable",
+		"visible": cue.visible if cue != null else false,
+		"local_bounds": bounds,
+		"view_lane_clear": has_bounds and bounds.position.x > HULL_SIZE.x * 0.5,
+		"renderer_nodes_per_copy": int(scorch != null) + int(vane != null),
+		"geometry_submissions_per_copy": 2 if scorch != null and vane != null else 0,
+		"mesh_resource_ids": PackedInt64Array([
+			_shared_damage_scorch_mesh.get_instance_id() if _shared_damage_scorch_mesh != null else 0,
+			_shared_damage_vane_mesh.get_instance_id() if _shared_damage_vane_mesh != null else 0,
+		]),
+		"material_resource_ids": PackedInt64Array([
+			_shared_damage_scorch_material.get_instance_id() if _shared_damage_scorch_material != null else 0,
+			_shared_damage_vane_material.get_instance_id() if _shared_damage_vane_material != null else 0,
+		]),
+		"processes": false,
+		"flashes": false,
+		"damage_authority": false,
+		"repair_authority": false,
+	}.duplicate(true)
+
+
 func _build_payload_presentation() -> void:
 	if is_instance_valid(_payload_presentation):
 		return
@@ -666,6 +734,69 @@ func _build_strike_wings(visual: Node3D) -> void:
 		wing.rotation_degrees.y = float(entry[2])
 		wing.material_override = _shared_hull_material
 		visual.add_child(wing)
+
+
+func _build_component_damage_cue(visual: Node3D) -> void:
+	_component_damage_cue = Node3D.new()
+	_component_damage_cue.name = "StarboardWingDamageCue"
+	_component_damage_cue.position = DAMAGE_CUE_POSITION
+	_component_damage_cue.rotation_degrees = DAMAGE_CUE_ROTATION_DEGREES
+	_component_damage_cue.process_mode = Node.PROCESS_MODE_DISABLED
+	_component_damage_cue.set_meta(&"presentation_only", true)
+	_component_damage_cue.set_meta(&"component_id", DAMAGE_CUE_COMPONENT_ID)
+	_component_damage_cue.set_meta(&"damage_authority", false)
+	_component_damage_cue.set_meta(&"repair_authority", false)
+	visual.add_child(_component_damage_cue)
+
+	if _shared_damage_scorch_mesh == null:
+		_shared_damage_scorch_mesh = BoxMesh.new()
+		_shared_damage_scorch_mesh.size = DAMAGE_SCORCH_SIZE
+		_shared_damage_scorch_mesh.resource_local_to_scene = false
+	if _shared_damage_scorch_material == null:
+		_shared_damage_scorch_material = _material(DAMAGE_SCORCH_COLOR, 0.08, 0.92)
+		_shared_damage_scorch_material.resource_local_to_scene = false
+	var scorch := MeshInstance3D.new()
+	scorch.name = "DamageScorch"
+	scorch.mesh = _shared_damage_scorch_mesh
+	scorch.material_override = _shared_damage_scorch_material
+	scorch.position = DAMAGE_SCORCH_POSITION
+	_component_damage_cue.add_child(scorch)
+
+	if _shared_damage_vane_mesh == null:
+		_shared_damage_vane_mesh = BoxMesh.new()
+		_shared_damage_vane_mesh.size = DAMAGE_VANE_SIZE
+		_shared_damage_vane_mesh.resource_local_to_scene = false
+	if _shared_damage_vane_material == null:
+		_shared_damage_vane_material = _material(
+			DAMAGE_VANE_COLOR, 0.18, 0.38, DAMAGE_VANE_COLOR, 1.35
+		)
+		_shared_damage_vane_material.resource_local_to_scene = false
+	var vane := MeshInstance3D.new()
+	vane.name = "ExposedDamageVane"
+	vane.mesh = _shared_damage_vane_mesh
+	vane.material_override = _shared_damage_vane_material
+	vane.position = DAMAGE_VANE_POSITION
+	_component_damage_cue.add_child(vane)
+	_component_damage_cue.visible = false
+
+
+func _on_bomber_component_damage_changed(
+		component_id: StringName,
+		_state: int,
+		_integrity: float
+	) -> void:
+	if component_id == DAMAGE_CUE_COMPONENT_ID:
+		_sync_component_damage_cue()
+
+
+func _sync_component_damage_cue() -> void:
+	if not is_instance_valid(_component_damage_cue):
+		return
+	var model := get_component_damage()
+	_component_damage_cue.visible = model != null \
+		and model.is_configured() \
+		and model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+			!= ShipComponentDamageType.ComponentState.NOMINAL
 
 
 func _build_cockpit_and_boarding(visual: Node3D) -> void:
