@@ -123,6 +123,25 @@ func _run() -> void:
 				.get("state_id", &"")) == &"armed",
 		"complete-detach-rebind admits one fresh generation-fenced target",
 	)
+	ship.global_position = target.target_world_transform.origin + Vector3(8.0, 30.0, 80.0)
+	var converging := controller.evaluate_and_submit(
+		ship.global_position + Vector3.FORWARD * 30_000.0,
+		false,
+		FRAME_GENERATION,
+		controller.get_generation(),
+	)
+	var converging_measurement := converging.get(
+		"final_approach_measurement", {}
+	) as Dictionary
+	_check(
+		bool(converging.get("accepted", false))
+			and converging.get("reason") == &"envelope_submitted"
+			and converging_measurement.get("position_offset_entry_local_m") is Vector3
+			and (converging_measurement.position_offset_entry_local_m as Vector3)
+				.is_equal_approx(Vector3(8.0, 30.0, 80.0))
+			and float(converging_measurement.get("attitude_degrees", INF)) == 0.0,
+		"converging receipt emits the already-computed entry-local offset and attitude",
+	)
 
 	stage.queue_free()
 	await process_frame

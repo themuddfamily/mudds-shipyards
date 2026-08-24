@@ -468,6 +468,7 @@ func evaluate_and_submit(
 	if ship == null:
 		_clear_binding(&"ship_unavailable", true)
 		return _receipt(false, &"ship_unavailable")
+	var final_approach_measurement: Dictionary = {}
 	if _approach_kind == RETURN_APPROACH_KIND \
 			and _final_approach_state in [
 				FinalApproachState.ARMED, FinalApproachState.ACTIVE,
@@ -486,6 +487,7 @@ func evaluate_and_submit(
 			var completion := _measure_final_approach(ship)
 			if bool(completion.get("accepted", false)):
 				return _commit_final_approach_completion(completion)
+			final_approach_measurement = completion.duplicate(true)
 			var retarget := _final_approach_policy_destination(ship)
 			if not retarget.is_finite():
 				return _commit_evaluation_rejection(
@@ -655,6 +657,11 @@ func evaluate_and_submit(
 		"envelope": envelope.duplicate(true),
 		"ship_receipt": submit_receipt.duplicate(true),
 	}.duplicate(true)
+	if not final_approach_measurement.is_empty():
+		_last_result["final_approach_measurement"] = (
+			final_approach_measurement.duplicate(true)
+		)
+		_last_result = _last_result.duplicate(true)
 	_mutation_active = false
 	_emit_evaluation_committed()
 	return _last_result.duplicate(true)

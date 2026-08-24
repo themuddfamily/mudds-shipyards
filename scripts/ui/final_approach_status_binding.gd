@@ -33,6 +33,10 @@ func attach(source: Object, presenter: FinalApproachStatusPresenter = null, redu
 	_source.connect(&"engagement_changed", _on_engagement_changed)
 	_source.connect(&"tick_committed", _on_tick_committed)
 	_source.connect(&"final_approach_completed", _on_completed)
+	if _source is Node and not (_source as Node).tree_exiting.is_connected(
+		_on_source_tree_exiting
+	):
+		(_source as Node).tree_exiting.connect(_on_source_tree_exiting)
 	_apply_snapshot(_source.call(&"get_snapshot") as Dictionary)
 	return {"accepted": true, "reason": &"bound", "generation": _generation, "presentation_only": true}
 
@@ -45,6 +49,10 @@ func detach() -> Dictionary:
 			_source.disconnect(&"tick_committed", _on_tick_committed)
 		if _source.is_connected(&"final_approach_completed", _on_completed):
 			_source.disconnect(&"final_approach_completed", _on_completed)
+		if _source is Node and (_source as Node).tree_exiting.is_connected(
+			_on_source_tree_exiting
+		):
+			(_source as Node).tree_exiting.disconnect(_on_source_tree_exiting)
 	if _presenter != null:
 		var detached_view := _presenter.detach()
 		detached_view["binding_generation"] = _generation + 1
@@ -95,6 +103,13 @@ func _on_completed(receipt: Dictionary) -> void:
 	_apply_snapshot(combined)
 
 
+func _on_source_tree_exiting() -> void:
+	if not _attached:
+		return
+	_emit_rejected_presentation(&"source_lost")
+	detach()
+
+
 func _apply_snapshot(snapshot: Dictionary) -> void:
 	if not _attached:
 		return
@@ -103,6 +118,8 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 		_snapshot = snapshot.duplicate(true)
 		view["binding_generation"] = _generation
 		_emit_view_if_changed(view)
+	else:
+		_emit_rejected_presentation(StringName(view.get("reason", &"invalid_view")))
 
 
 func _emit_view_if_changed(view: Dictionary) -> void:
@@ -111,6 +128,17 @@ func _emit_view_if_changed(view: Dictionary) -> void:
 		return
 	_presenter_view = detached
 	presentation_changed.emit(detached.duplicate(true))
+
+
+func _emit_rejected_presentation(reason: StringName) -> void:
+	presentation_changed.emit({
+		"accepted": false,
+		"reason": reason,
+		"binding_generation": _generation,
+		"presentation_only": true,
+		"movement_authority": false,
+		"landing_authority": false,
+	}.duplicate(true))
 
 
 func _set_receipt_generation(snapshot: Dictionary, receipt: Dictionary) -> void:
