@@ -9,8 +9,9 @@ extends SceneTree
 ##   B. lateral role differentiation against the existing range defender
 ##   C. combat-authority identity lifecycle (register / retire / re-entry / replay)
 ##   D. standoff tactics: arming band, committed-charge abort, engagement state
-##   E. lance firing through the one live resolver and the pooled presentation
-##   F. accepted lance dispatch alternates bounded lateral firing positions
+##   E. charge-locked aim: a lateral dodge leaves the resolver ray behind
+##   F. lance firing through the one live resolver and the pooled presentation
+##   G. accepted lance dispatch alternates bounded lateral firing positions
 ##
 ## Every wait is a bounded frame budget on a fixed physics step. Nothing in this
 ## suite reads a wall clock, and no craft handling, weapon, or balance value of
@@ -54,6 +55,7 @@ func _run() -> void:
 	await _test_role_differentiation()
 	await _test_authority_identity_lifecycle()
 	await _test_standoff_tactics()
+	await _test_charge_locked_aim()
 	await _test_synchronous_escort_stand_down_fence()
 	await _test_dispatch_authority_modes_and_stale_owners()
 	await _test_lance_firing_and_receipts()
@@ -934,6 +936,110 @@ func _test_standoff_tactics() -> void:
 	picket.deactivate()
 	_lance_events.clear()
 
+	await _free_fixture(fixture)
+
+
+## The marksman's long telegraph commits to one world-space line. A target that
+## moves laterally after the lock survives because the single resolver-owned ray
+## goes through the visible retained corridor, not through a freshly sampled
+## target position. This is intentionally the opposite of flank scatter: one
+## direction, one sequence, no pellet fan, and a movement-readable miss.
+func _test_charge_locked_aim() -> void:
+	var fixture := await _make_fixture()
+	var picket: StandoffPicketOpponent = fixture.picket
+	var target: RangeOpponent = fixture.target
+	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
+
+	picket.acceleration = 0.0
+	picket.turn_speed_degrees = 0.0
+	_place(picket, Vector3.ZERO, Vector3(0.0, 0.0, -120.0))
+	_place_target(target, Vector3(0.0, 0.0, -120.0))
+	picket.activate(picket.global_transform)
+	picket.set_target(target)
+	picket._cooldown_remaining = 0.0
+	var initial_aim := picket._get_target_aim_position()
+	var initial_offset := initial_aim - picket.global_position
+	picket._update_weapon(
+		initial_aim,
+		initial_offset.normalized(),
+		initial_offset.length(),
+		0.0,
+	)
+	picket._update_presentation(0.0)
+	var locked := picket.get_lance_charge_snapshot()
+	var cue := picket.get_node_or_null("StandoffTargetingRails") as MultiMeshInstance3D
+	_check(
+		bool(locked.get("active", false))
+		and bool(locked.get("armed", false))
+		and bool(locked.get("aim_locked", false))
+		and StringName(locked.get("aim_rule", &""))
+			== StandoffPicketOpponent.LANCE_AIM_RULE
+		and (locked.get("locked_aim_position", Vector3.INF) as Vector3)
+			.is_equal_approx(initial_aim),
+		"the slow lance freezes one inspectable world-space aim point when its charge begins"
+	)
+	_check(
+		cue != null
+		and cue.visible
+		and (-cue.global_basis.z).dot(
+			(initial_aim - cue.global_position).normalized()
+		) > 0.9999,
+		"the retained twin rails expose the committed resolver line during the charge"
+	)
+
+	# Move far enough sideways to clear both the original target collider and the
+	# old homing hold cone. One physics frame commits the collision transform;
+	# zero turn speed keeps the picket on its already-telegraphed line.
+	var health_before := target.get_health()
+	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
+	_place_target(target, Vector3(48.0, 0.0, -120.0))
+	await physics_frame
+	await process_frame
+	var live_aim := picket._get_target_aim_position()
+	var live_offset := live_aim - picket.global_position
+	picket._update_presentation(0.0)
+	_check(
+		bool(picket.get_lance_charge_snapshot().get("aim_locked", false))
+		and (picket.get_lance_charge_snapshot().get(
+			"locked_aim_position", Vector3.INF
+		) as Vector3).is_equal_approx(initial_aim)
+		and (-cue.global_basis.z).dot(
+			(initial_aim - cue.global_position).normalized()
+		) > 0.9999,
+		"a lateral dodge does not bend the visible charge corridor after lock"
+	)
+	picket._update_weapon(
+		live_aim,
+		live_offset.normalized(),
+		live_offset.length(),
+		picket.telegraph_time + 0.01,
+	)
+	var result := picket.get_last_shot_result()
+	var fired_event: Dictionary = (
+		_lance_events.back() as Dictionary if not _lance_events.is_empty() else {}
+	)
+	var fired_direction := fired_event.get("direction", Vector3.ZERO) as Vector3
+	var muzzle_origin := fired_event.get("origin", Vector3.INF) as Vector3
+	_check(
+		bool(result.get("accepted", false))
+		and bool(result.get("resolved", false))
+		and StringName(result.get("status", &"")) == &"miss"
+		and StringName(result.get("aim_rule", &""))
+			== StandoffPicketOpponent.LANCE_AIM_RULE
+		and (result.get("locked_aim_position", Vector3.INF) as Vector3)
+			.is_equal_approx(initial_aim)
+		and fired_direction.dot((initial_aim - muzzle_origin).normalized()) > 0.9999,
+		"the accepted resolver shot follows the committed line and misses the dodging target"
+	)
+	_check(
+		resolver.get_last_sequence(picket, picket.source_id) == sequence_before + 1
+		and is_equal_approx(target.get_health(), health_before)
+		and not bool(picket.get_lance_charge_snapshot().get("aim_locked", true))
+		and not picket.get_weapon_definition().spread_enabled,
+		"locked aim consumes one resolver sequence and one ray, never the scatter fan or duplicate damage"
+	)
+
+	picket.deactivate()
 	await _free_fixture(fixture)
 
 

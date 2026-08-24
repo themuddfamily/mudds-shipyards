@@ -12,8 +12,11 @@ const SiegeLanceAudioBindingType := preload("res://scripts/audio/siege_lance_aud
 ##
 ## Where `RangeOpponent` is a close orbiting dogfighter that leans on cadence,
 ## this craft is a fragile long-reach marksman. It holds a wide standoff band,
-## charges a long, loud lance telegraph, lands one heavy shot, then relocates
-## laterally to the opposite firing bearing. Closing the distance is the whole
+## charges a long, loud lance telegraph that freezes one world-space aim point,
+## lands one heavy shot along that committed line, then relocates laterally to
+## the opposite firing bearing. A lateral dodge after the rails lock therefore
+## evades the shot instead of asking presentation to follow the target. Closing
+## the distance is the whole
 ## counterplay: inside `minimum_arming_range` its lance cannot arm, an in-progress
 ## charge is aborted with a recovery penalty, and its slow hull and slow turn
 ## rate cannot re-open the gap against a hero craft.
@@ -50,6 +53,7 @@ const DISPLAY_NAME := "Mudds range standoff picket"
 const DEFAULT_SOURCE_ID := 2102
 const DEFAULT_FACTION: StringName = &"range_defence"
 const LANCE_WEAPON_ID: StringName = &"picket_siege_lance"
+const LANCE_AIM_RULE: StringName = &"charge_locked_world_point"
 const LANCE_PULSE_STYLE: StringName = &"magenta"
 const LANCE_PULSE_PROFILE: StringName = PulseWeaponPresentation.PROFILE_SIEGE_LANCE
 const LANCE_AUDIO_PROFILE: StringName = CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
@@ -180,6 +184,7 @@ var _lance_charge_target_instance_id := 0
 var _lance_charge_dispatch_generation := 0
 var _lance_charge_armed := false
 var _lance_charge_cancel_reason: StringName = &""
+var _lance_locked_aim_position := Vector3.INF
 var _audio_sequence := 0
 var _siege_lance_audio_binding: RefCounted
 var _bound_escort_defender: RangeOpponent
@@ -314,6 +319,9 @@ func get_lance_charge_snapshot() -> Dictionary:
 		"target_instance_id": _lance_charge_target_instance_id,
 		"dispatch_generation": _lance_charge_dispatch_generation,
 		"armed": _lance_charge_armed,
+		"aim_rule": LANCE_AIM_RULE,
+		"aim_locked": _lance_charge_armed and _lance_locked_aim_position.is_finite(),
+		"locked_aim_position": _lance_locked_aim_position,
 		"cancel_reason": _lance_charge_cancel_reason,
 	}.duplicate(true)
 
@@ -563,6 +571,10 @@ func get_audit_report() -> Dictionary:
 			"pending_lance_receipts": _lance_receipts.size(),
 			"shots_fired": _shots_fired,
 			"shots_aborted": _shots_aborted,
+			"lance_aim_rule": LANCE_AIM_RULE,
+			"lance_aim_locked": (
+				_lance_charge_armed and _lance_locked_aim_position.is_finite()
+			),
 			"post_shot_relocation": get_post_shot_relocation_snapshot(),
 		},
 	}.duplicate(true)
@@ -601,6 +613,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("standoff band must sit inside the engagement range")
 	if lance_hold_tolerance > lance_aim_tolerance:
 		errors.append("charge hold cone must not be narrower than the arming cone")
+	if _lance_charge_armed != _lance_locked_aim_position.is_finite():
+		errors.append("armed lance state and locked world-space aim must change atomically")
 	if not is_finite(post_shot_relocation_duration) or post_shot_relocation_duration <= 0.0:
 		errors.append("post-shot relocation duration must be finite and positive")
 	if _registered and not is_instance_valid(_get_combat_authority()):
@@ -994,9 +1008,20 @@ func _update_weapon(
 	) -> void:
 	var forward := -global_basis.z
 	if _telegraph_remaining > 0.0:
-		var aim_held := forward.dot(target_direction) >= lance_hold_tolerance
+		# The long-range counterplay is a committed firing line, not a homing
+		# telegraph. Once armed, attitude and world occlusion are checked against
+		# the captured point while the live target distance still owns the hard
+		# minimum-range abort. The resolver remains the sole ray and damage owner.
+		var locked_delta := _lance_locked_aim_position - global_position
+		if not _lance_locked_aim_position.is_finite() \
+				or locked_delta.length_squared() <= 0.000001:
+			_cancel_lance_charge(&"invalid_locked_aim", true)
+			_cooldown_remaining = maxf(_cooldown_remaining, lance_abort_recovery)
+			return
+		var locked_direction := locked_delta.normalized()
+		var aim_held := forward.dot(locked_direction) >= lance_hold_tolerance
 		var in_band := distance <= engagement_range and distance >= minimum_arming_range
-		if not in_band or not aim_held or not _has_line_of_sight(target_position):
+		if not in_band or not aim_held or not _has_line_of_sight(_lance_locked_aim_position):
 			# Closing the gap, breaking the cone, or breaking line of sight all
 			# cancel a committed charge and cost the picket real time.
 			_cancel_lance_charge(&"counterplay", true)
@@ -1006,7 +1031,7 @@ func _update_weapon(
 			return
 		_telegraph_remaining = maxf(0.0, _telegraph_remaining - delta)
 		if _telegraph_remaining <= 0.0:
-			_fire_at_target(_get_target_aim_position())
+			_fire_at_target(_lance_locked_aim_position)
 		return
 	if _cooldown_remaining > 0.0:
 		return
@@ -1020,6 +1045,7 @@ func _update_weapon(
 	_lance_charge_generation = maxi(_lance_charge_generation, 1)
 	_lance_charge_dispatch_generation = _dispatch_generation if escort_enabled else 0
 	_lance_charge_armed = true
+	_lance_locked_aim_position = target_position
 	_lance_charge_cancel_reason = &""
 	_telegraph_remaining = telegraph_time
 	_emit_siege_lance_audio(&"charge_started", true)
@@ -1051,6 +1077,7 @@ func _cancel_lance_charge(reason: StringName, count_abort: bool) -> void:
 		_telegraph_remaining = 0.0
 	_lance_charge_armed = false
 	_lance_charge_dispatch_generation = 0
+	_lance_locked_aim_position = Vector3.INF
 	_lance_charge_cancel_reason = reason
 
 
@@ -1116,6 +1143,7 @@ func _fire_at_target(target_position: Vector3) -> void:
 	# closed here exactly as it does inside the authority's own submit path.
 	var receipt_id := authority.allocate_presentation_receipt_id()
 	if receipt_id < 0:
+		_cancel_lance_charge(&"receipt_exhausted", false)
 		_cooldown_remaining = weapon_cooldown
 		_last_shot_result = {"accepted": false, "status": &"receipt_exhausted"}
 		return
@@ -1133,7 +1161,10 @@ func _fire_at_target(target_position: Vector3) -> void:
 		receipt_id
 	)
 	var result := resolver.resolve_hitscan(request)
+	result["aim_rule"] = LANCE_AIM_RULE
+	result["locked_aim_position"] = target_position
 	_lance_charge_armed = false
+	_lance_locked_aim_position = Vector3.INF
 	_lance_charge_cancel_reason = &""
 	_emit_siege_lance_audio(&"dispatch", bool(result.get("accepted", false)))
 	_cooldown_remaining = weapon_cooldown
@@ -1483,7 +1514,12 @@ func _sync_standoff_intent_cue() -> void:
 		return
 	var origin := _muzzle_port.global_position \
 		if is_instance_valid(_muzzle_port) else global_position
-	var direction := _get_target_aim_position() - origin
+	var cue_target := (
+		_lance_locked_aim_position
+		if _lance_charge_armed and _lance_locked_aim_position.is_finite()
+		else _get_target_aim_position()
+	)
+	var direction := cue_target - origin
 	if direction.length_squared() <= 0.001:
 		_clear_standoff_intent_cue()
 		return
