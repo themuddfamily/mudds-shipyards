@@ -7704,6 +7704,24 @@ func _build_observation_landing_post(upper: Node3D) -> void:
 	# Grip plate over the walking surface. It sits on the collidable landing, so
 	# the discovery sweep keeps proving there is floor beneath it.
 	_box(upper, "LandingDeckInset", Vector3(-11.5, 3.335, 3.0), Vector3(3.9, 0.03, 3.7), _materials["deck"], false)
+	# A single painted keyline carries the ramp centreline onto the landing and
+	# points directly at the observation console. The previous dark inset became
+	# an undifferentiated patch from the junction below; this narrow orange mark
+	# gives the climb an immediate destination read without adding collision,
+	# light, interaction or route authority. Its underside bears 2 mm into the
+	# inset so the presentation cannot read as a floating strip.
+	var approach_keyline := _box(
+		upper,
+		"LandingApproachKeyline",
+		Vector3(-11.5, 3.356, 3.62),
+		Vector3(0.16, 0.016, 2.44),
+		_materials["orange"],
+		false
+	) as MeshInstance3D
+	approach_keyline.mesh.resource_name = "upper_operations_landing_approach_keyline_v1"
+	approach_keyline.set_meta("presentation_only", true)
+	approach_keyline.set_meta("wayfinding_role", &"ramp_to_observation_console")
+	approach_keyline.set_meta("historical_form_identified", false)
 
 	# The console faces the ramp: a reader arriving from higher z looks in -Z, so
 	# the legend's readable +Z face needs no yaw at all. This is the same MAP-004
