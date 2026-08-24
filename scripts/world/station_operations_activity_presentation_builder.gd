@@ -19,13 +19,21 @@ const PROFILE_CARGO_LINE_LONG: StringName = &"cargo_line_long"
 ## Service drones are deliberately nonblocking presentation. A route-height
 ## clearance alone cannot keep their geometry out of every player camera: the
 ## walking camera has user-controlled pitch and an 8 m boom, and can also start
-## from elevated decks. Hide each small drone part before its surface can cross
-## a camera near plane. Normal views are unaffected because the cutoff is only
-## 0.65 m; at that distance the largest part (the 0.38 m-radius drone body)
-## still has 0.15 m between its bounding radius and the production 0.08 m near
-## plane. The hard cutoff is intentional: a dithered emissive lens can still
-## paint a flashing screen-sized slice during the fade interval.
-const DRONE_CAMERA_CLEARANCE_DISTANCE := 0.65
+## from elevated decks. More importantly, GeometryInstance3D measures a range
+## guard from each renderer's own origin. The old 0.65 m per-part cutoff could
+## therefore hide a contacted outer thruster while the remote ceramic body,
+## graphite cargo pod and pulsing navigation lens remained live and crossed the
+## same near plane as a screen-filling slice.
+##
+## Freeze one assembly-wide cutoff on every child renderer instead. An exhaustive
+## pairwise sweep over the authored child surfaces and origins requires 1.70 m to
+## guarantee that every other origin has crossed its guard before any drone
+## surface can reach the production camera's 0.08 m near plane. The extra 0.15 m
+## is the same safety reserve used by the original guard. This stays renderer-
+## managed: the drone root remains visible and owns no camera polling or lifecycle
+## state. The hard cutoff is intentional because a dithered emissive lens can
+## still paint the defect during a fade interval.
+const DRONE_CAMERA_CLEARANCE_DISTANCE := 1.85
 
 ## The Aft Operations placement puts this nonblocking articulated arm directly
 ## behind the third-person camera at the access door. At steep downward pitch

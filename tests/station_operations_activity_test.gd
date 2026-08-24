@@ -8,7 +8,7 @@ const ACTIVITY_SCENE := preload("res://scenes/world/components/station_operation
 const WALKING_CAMERA_SWEEP_TOP_Y := 1.42 + sin(deg_to_rad(10.0)) * 5.2 + 0.16 + 0.28 + 0.08
 const DRONE_LOWEST_VISUAL_OFFSET_Y := -0.61
 const LEGACY_FULL_DRONE_BASE_ELEVATION := 1.48
-const DRONE_CAMERA_CLEARANCE_DISTANCE := 0.65
+const DRONE_CAMERA_CLEARANCE_DISTANCE := 1.85
 const PRODUCTION_CAMERA_NEAR := 0.08
 const MINIMUM_DRONE_CAMERA_SURFACE_CLEARANCE := 0.15
 
@@ -693,30 +693,26 @@ func _test_full_drone_camera_clearance(full: StationOperationsActivity) -> void:
 
 	var proximity_guard_complete := true
 	var guarded_mesh_count := 0
-	var minimum_surface_clearance := INF
+	var maximum_pairwise_camera_span := 0.0
+	var representative_assembly_parts_guarded := true
 	for guarded_activity in [full, roof_patrol]:
 		for drone_index in 2:
 			var drone := guarded_activity.get_node(
 				NodePath("PresentationRoot/AnimatedServiceDrone%02d" % (drone_index + 1))
 			) as Node3D
+			var guarded_meshes: Array[MeshInstance3D] = []
+			var mesh_surface_points: Array[PackedVector3Array] = []
 			for candidate in drone.find_children("*", "MeshInstance3D", true, false):
 				var drone_mesh := candidate as MeshInstance3D
+				guarded_meshes.append(drone_mesh)
 				guarded_mesh_count += 1
-				var bounding_radius := 0.0
+				var surface_points := PackedVector3Array()
 				for surface_index in drone_mesh.mesh.get_surface_count():
 					var surface_arrays := drone_mesh.mesh.surface_get_arrays(surface_index)
 					var vertices := surface_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
 					for vertex in vertices:
-						bounding_radius = maxf(
-							bounding_radius,
-							(drone_mesh.basis * vertex).length()
-						)
-				minimum_surface_clearance = minf(
-					minimum_surface_clearance,
-					DRONE_CAMERA_CLEARANCE_DISTANCE
-						- bounding_radius
-						- PRODUCTION_CAMERA_NEAR
-				)
+						surface_points.append(drone_mesh.transform * vertex)
+				mesh_surface_points.append(surface_points)
 				proximity_guard_complete = (
 					proximity_guard_complete
 					and is_equal_approx(
@@ -727,15 +723,62 @@ func _test_full_drone_camera_clearance(full: StationOperationsActivity) -> void:
 					and drone_mesh.visibility_range_fade_mode
 						== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 				)
+			for source_index in guarded_meshes.size():
+				for target in guarded_meshes:
+					for source_surface_point in mesh_surface_points[source_index]:
+						# If the camera near plane can reach this authored surface point,
+						# the camera can be at most one near-plane distance farther from
+						# every target renderer origin. Every target must already have
+						# crossed the shared hard range before the source can be clipped.
+						maximum_pairwise_camera_span = maxf(
+							maximum_pairwise_camera_span,
+							source_surface_point.distance_to(target.position)
+								+ PRODUCTION_CAMERA_NEAR
+						)
+			for representative_path in [
+				^"Body",
+				^"CargoPod",
+				^"Thruster",
+				^"Thruster2",
+				^"ThrusterGlow",
+				^"ThrusterGlow2",
+				^"NavigationLens",
+			]:
+				var representative := drone.get_node_or_null(
+					representative_path
+				) as MeshInstance3D
+				representative_assembly_parts_guarded = (
+					representative_assembly_parts_guarded
+					and representative != null
+					and is_equal_approx(
+						representative.visibility_range_begin,
+						DRONE_CAMERA_CLEARANCE_DISTANCE
+					)
+				)
 	_check(
-		guarded_mesh_count == 40 and proximity_guard_complete,
-		"all FULL and roof-patrol drone surfaces hard-cut before entering any camera near plane"
+		guarded_mesh_count == 40
+		and proximity_guard_complete
+		and representative_assembly_parts_guarded,
+		"all FULL and roof-patrol ceramic, graphite, outer-thruster and emissive "
+		+ "surfaces share one hard assembly cutoff"
 	)
 	_check(
-		minimum_surface_clearance >= MINIMUM_DRONE_CAMERA_SURFACE_CLEARANCE,
-		"every guarded drone mesh retains at least 0.15 m beyond its radius and the camera near plane (actual %.6f m)"
-			% minimum_surface_clearance
+		DRONE_CAMERA_CLEARANCE_DISTANCE - maximum_pairwise_camera_span
+			>= MINIMUM_DRONE_CAMERA_SURFACE_CLEARANCE,
+		"the common drone cutoff covers the worst surface-to-remote-origin camera "
+		+ "span with at least 0.15 m reserve (span %.6f m)"
+			% maximum_pairwise_camera_span
 	)
+	var guarded_drone_root := full.get_node(
+		^"PresentationRoot/AnimatedServiceDrone01"
+	) as Node3D
+	guarded_drone_root.visible = false
+	_check(
+		not bool(full.get_audit_report().valid),
+		"component audit rejects arbitrary whole-drone hiding instead of treating "
+		+ "it as camera-derived culling"
+	)
+	guarded_drone_root.visible = true
 
 	var guarded_lens := full.get_node(
 		^"PresentationRoot/AnimatedServiceDrone01/NavigationLens"
