@@ -122,6 +122,15 @@ const ENGINE_COLLAR_OUTER_RADIUS := 0.7
 const ENGINE_COLLAR_VISIBLE_COPIES := 2
 const ENGINE_COLLAR_AUTHORED_TESSELLATION := Vector2i(64, 18)
 const ENGINE_COLLAR_BUDGETED_TESSELLATION := Vector2i(40, 18)
+## Static presentation of the existing engine-bay ledger. The starboard collar
+## stays centred over its engine nozzle but pulls outboard into an asymmetric
+## chase-view silhouette when that component is impaired or failed. No new
+## geometry, collision, light, timing, or damage authority is introduced.
+const ENGINE_DAMAGE_CUE_COMPONENT_ID: StringName = &"engine_bay"
+const ENGINE_DAMAGE_CUE_COLLAR_INDEX := 1
+const ENGINE_DAMAGE_COLLAR_COLOR := Color("ff6a36")
+const ENGINE_DAMAGE_COLLAR_POSITION := Vector3(1.10, 0.94, 6.48)
+const ENGINE_DAMAGE_COLLAR_SCALE := Vector3(1.35, 1.0, 1.0)
 const MAIN_GEAR_FOOT_INNER_RADIUS := 0.22
 const MAIN_GEAR_FOOT_OUTER_RADIUS := 0.34
 const MAIN_GEAR_FOOT_SCALE := Vector3(1.4, 0.55, 1.0)
@@ -215,6 +224,8 @@ const ENTRY_HEAT_TARGET_VISUAL_DELTA := {
 	"exclusive_material_allocations": 1,
 }
 
+static var _shared_engine_damage_collar_material: StandardMaterial3D
+
 var _arrow_built := false
 var _arrow_visual: Node3D
 var _entry_heat_target: PlanetaryEntryHeatTarget
@@ -251,7 +262,10 @@ func _ready() -> void:
 		_arrow_built = _reconfigure_component_damage_from_final_root_collision()
 	if _arrow_built:
 		_arrow_built = _install_entry_heat_target()
+	if not component_damage_changed.is_connected(_on_arrow_component_damage_changed):
+		component_damage_changed.connect(_on_arrow_component_damage_changed)
 	_apply_arrow_metadata()
+	_sync_engine_damage_collar()
 	_sync_arrow_engine_presentation_immediately()
 
 
@@ -288,6 +302,45 @@ func get_arrow_visual_root() -> Node3D:
 
 func get_entry_heat_target() -> PlanetaryEntryHeatTarget:
 	return _entry_heat_target
+
+
+## Detached presentation snapshot for the retained engine-collar cue. The
+## component ledger remains the only mutable damage state; this method exposes
+## only renderer state for focused runtime checks and UI-independent diagnosis.
+func get_engine_damage_collar_snapshot() -> Dictionary:
+	var model := get_component_damage()
+	var state := ShipComponentDamage.ComponentState.NOMINAL
+	if model != null and model.is_configured():
+		state = model.get_component_state(ENGINE_DAMAGE_CUE_COMPONENT_ID)
+	var port := _engine_collars[0] if _engine_collars.size() > 0 else null
+	var starboard := _engine_collars[ENGINE_DAMAGE_CUE_COLLAR_INDEX] \
+			if _engine_collars.size() > ENGINE_DAMAGE_CUE_COLLAR_INDEX else null
+	var mesh := starboard.mesh as TorusMesh if starboard != null else null
+	var bounds := AABB()
+	if starboard != null and mesh != null:
+		bounds = (starboard.transform * mesh.get_aabb()).abs()
+	return {
+		"component_id": ENGINE_DAMAGE_CUE_COMPONENT_ID,
+		"stage": ShipComponentDamage.state_id_for(state),
+		"active": state != ShipComponentDamage.ComponentState.NOMINAL,
+		"port_transform": port.transform if port != null else Transform3D(),
+		"starboard_transform": starboard.transform if starboard != null else Transform3D(),
+		"local_bounds": bounds,
+		"mesh_resource_id": mesh.get_instance_id() if mesh != null else 0,
+		"material_resource_id": (
+			_shared_engine_damage_collar_material.get_instance_id()
+			if _shared_engine_damage_collar_material != null else 0
+		),
+		"renderer_nodes_added": 0,
+		"geometry_submissions_added": 0,
+		"collision_shapes_added": 0,
+		"lights_added": 0,
+		"timers_added": 0,
+		"processes_added": 0,
+		"flashes": false,
+		"damage_authority": false,
+		"repair_authority": false,
+	}.duplicate(true)
 
 
 func get_arrow_evidence_report() -> Dictionary:
@@ -895,6 +948,15 @@ func _build_engines_and_landing_gear() -> void:
 	_arrow_engine_lights.clear()
 	_engine_collars.clear()
 	_engine_collar_mesh = null
+	if _shared_engine_damage_collar_material == null:
+		_shared_engine_damage_collar_material = _material(
+			ENGINE_DAMAGE_COLLAR_COLOR,
+			0.22,
+			0.34,
+			ENGINE_DAMAGE_COLLAR_COLOR,
+			1.25
+		)
+		_shared_engine_damage_collar_material.resource_local_to_scene = false
 	_main_gear_feet.clear()
 	_main_gear_foot_mesh = null
 	for side_index in 2:
@@ -1129,6 +1191,40 @@ func _update_arrow_presentation(delta: float) -> void:
 	)
 
 
+func _on_arrow_component_damage_changed(
+	component_id: StringName,
+	_state: int,
+	_integrity: float
+	) -> void:
+	if component_id == ENGINE_DAMAGE_CUE_COMPONENT_ID:
+		_sync_engine_damage_collar()
+
+
+func _sync_engine_damage_collar() -> void:
+	if _engine_collars.size() != ENGINE_COLLAR_VISIBLE_COPIES:
+		return
+	var model := get_component_damage()
+	var state := ShipComponentDamage.ComponentState.NOMINAL
+	if model != null and model.is_configured():
+		state = model.get_component_state(ENGINE_DAMAGE_CUE_COMPONENT_ID)
+	var damaged := state != ShipComponentDamage.ComponentState.NOMINAL
+	var nominal_transforms := _engine_collar_transforms()
+	for index in _engine_collars.size():
+		var collar := _engine_collars[index]
+		if not is_instance_valid(collar):
+			continue
+		collar.transform = (
+			_engine_damage_collar_transform()
+			if damaged and index == ENGINE_DAMAGE_CUE_COLLAR_INDEX
+			else nominal_transforms[index]
+		)
+		collar.material_override = (
+			_shared_engine_damage_collar_material
+			if damaged and index == ENGINE_DAMAGE_CUE_COLLAR_INDEX
+			else null
+		)
+
+
 func _sync_arrow_engine_presentation_immediately() -> void:
 	var telemetry := get_telemetry()
 	var state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
@@ -1159,6 +1255,7 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	_sync_engine_damage_collar()
 
 
 func _apply_arrow_metadata() -> void:
@@ -2332,7 +2429,14 @@ func _inspect_engine_collar_mesh_sharing() -> Dictionary:
 	var errors := PackedStringArray()
 	var node_paths := PackedStringArray()
 	var mesh_identities := {}
-	var expected_transforms := _engine_collar_transforms()
+	var authored_transforms := _engine_collar_transforms()
+	var expected_transforms := authored_transforms.duplicate()
+	var cue := get_engine_damage_collar_snapshot()
+	var cue_active := bool(cue.get("active", false))
+	if cue_active:
+		expected_transforms[ENGINE_DAMAGE_CUE_COLLAR_INDEX] = (
+			_engine_damage_collar_transform()
+		)
 	if _engine_collars.size() != ENGINE_COLLAR_VISIBLE_COPIES:
 		errors.append("engine-collar visible-copy roster drift")
 	for index in _engine_collars.size():
@@ -2349,9 +2453,14 @@ func _inspect_engine_collar_mesh_sharing() -> Dictionary:
 			errors.append("engine-collar mesh missing: %s" % path)
 		else:
 			mesh_identities[collar.mesh.get_instance_id()] = true
+		var expected_material_override: Material = (
+			_shared_engine_damage_collar_material
+			if cue_active and index == ENGINE_DAMAGE_CUE_COLLAR_INDEX
+			else null
+		)
 		if not collar.visible \
 				or collar.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
-				or collar.material_override != null \
+				or collar.material_override != expected_material_override \
 				or collar.material_overlay != null \
 				or collar.layers != 1 \
 				or not is_zero_approx(collar.transparency):
@@ -2397,7 +2506,8 @@ func _inspect_engine_collar_mesh_sharing() -> Dictionary:
 		"valid": errors.is_empty(),
 		"errors": errors,
 		"node_paths": node_paths,
-		"authored_transforms": expected_transforms.duplicate(),
+		"authored_transforms": authored_transforms.duplicate(),
+		"presented_transforms": expected_transforms.duplicate(),
 		"geometry_nodes": _engine_collars.size(),
 		"geometry_submissions": _engine_collars.size(),
 		"visible_geometry_copies": _engine_collars.size(),
@@ -2405,6 +2515,7 @@ func _inspect_engine_collar_mesh_sharing() -> Dictionary:
 		"resource_allocation_reduction": 1,
 		"tessellation": tessellation,
 		"mesh_metadata": mesh.get_meta_list() if mesh != null else [],
+		"damage_cue": cue,
 		"legacy": {
 			"geometry_nodes": 2,
 			"geometry_submissions": 2,
@@ -2496,6 +2607,14 @@ static func _engine_collar_transforms() -> Array[Transform3D]:
 			Vector3(side * 0.92, 0.94, 6.48)
 		))
 	return transforms
+
+
+static func _engine_damage_collar_transform() -> Transform3D:
+	return Transform3D(
+		Basis.from_euler(Vector3(PI * 0.5, 0.0, 0.0)) \
+			* Basis.from_scale(ENGINE_DAMAGE_COLLAR_SCALE),
+		ENGINE_DAMAGE_COLLAR_POSITION
+	)
 
 
 static func _main_gear_foot_transforms() -> Array[Transform3D]:
