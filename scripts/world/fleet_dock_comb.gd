@@ -41,15 +41,16 @@ const WALKABLE_SURFACE_COUNT := 7
 const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
 ## Exact post-batch renderer census. The visual-only trunk expansion strips,
-## slab corner beacons, slab supports, rung edge cues, mooring cleat pads and
-## trunk route lights still draw at their authored transforms, while one
-## MultiMesh per family owns each family's submission. The legacy MeshInstance
-## nodes remain hidden inspection anchors.
+## slab corner beacons, slab supports, rung edge cues, mooring cleat pads,
+## mooring cleat bollards and trunk route lights still draw at their authored
+## transforms, while one MultiMesh per family owns each family's submission.
+## The legacy MeshInstance nodes remain hidden inspection anchors.
 const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
 const SLAB_CORNER_BEACON_COPY_COUNT := 12
 const SLAB_SUPPORT_COPY_COUNT := 6
 const RUNG_EDGE_CUE_COPY_COUNT := 4
 const MOORING_CLEAT_PAD_COPY_COUNT := 6
+const MOORING_CLEAT_BOLLARD_COPY_COUNT := 6
 const TRUNK_ROUTE_LIGHT_COPY_COUNT := 3
 const DOCK_MAST_CAP_COPY_COUNT := 3
 ## Dock 03's deployed service boom is the rendered overhead/header read at the
@@ -70,11 +71,12 @@ const PRE_SLAB_BEACON_GEOMETRY_SUBMISSION_COUNT := 90
 const PRE_SLAB_SUPPORT_GEOMETRY_SUBMISSION_COUNT := 79
 const PRE_RUNG_EDGE_CUE_GEOMETRY_SUBMISSION_COUNT := 74
 const PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT := 71
-const RENDER_DESCENDANT_COUNT := 139
+const PRE_MOORING_CLEAT_BOLLARD_GEOMETRY_SUBMISSION_COUNT := 62
+const RENDER_DESCENDANT_COUNT := 140
 const RENDER_MESH_INSTANCE_COUNT := 89
-const RENDER_MULTIMESH_BATCH_COUNT := 7
+const RENDER_MULTIMESH_BATCH_COUNT := 8
 const RENDER_DRAWN_COPY_COUNT := 101
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 62
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 57
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -249,6 +251,8 @@ var _rung_edge_cue_transforms: Array[Transform3D] = []
 var _rung_edge_cue_batch: MultiMeshInstance3D = null
 var _mooring_cleat_pad_transforms: Array[Transform3D] = []
 var _mooring_cleat_pad_batch: MultiMeshInstance3D = null
+var _mooring_cleat_bollard_transforms: Array[Transform3D] = []
+var _mooring_cleat_bollard_batch: MultiMeshInstance3D = null
 var _trunk_route_light_transforms: Array[Transform3D] = []
 var _trunk_route_light_batch: MultiMeshInstance3D = null
 var _dock_mast_cap_transforms: Array[Transform3D] = []
@@ -632,6 +636,31 @@ func get_render_batch_contract() -> Dictionary:
 			and _mooring_cleat_pad_batch.get_child_count() == 0
 			and _mooring_cleat_pad_batch.get_script() == null
 		)
+	var expected_bollard_buffer := _encode_multimesh_transforms(_mooring_cleat_bollard_transforms)
+	var bollard_buffer_matches := (
+		is_instance_valid(_mooring_cleat_bollard_batch)
+		and _mooring_cleat_bollard_batch.multimesh != null
+		and _mooring_cleat_bollard_batch.multimesh.buffer == expected_bollard_buffer
+	)
+	var bollard_bounds_match := false
+	var bollard_contract_matches := false
+	if is_instance_valid(_mooring_cleat_bollard_batch) and _mooring_cleat_bollard_batch.multimesh != null:
+		var bollard_multi := _mooring_cleat_bollard_batch.multimesh
+		bollard_bounds_match = bollard_multi.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(bollard_multi.mesh.get_aabb(), _mooring_cleat_bollard_transforms)
+		)
+		bollard_contract_matches = (
+			_mooring_cleat_bollard_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and bollard_multi.instance_count == MOORING_CLEAT_BOLLARD_COPY_COUNT
+			and bollard_multi.visible_instance_count == -1
+			and bollard_multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.4, 0.17, 0.4))
+			and bollard_multi.mesh.get_surface_count() == 1
+			and _mooring_cleat_bollard_batch.material_override == _materials.get("underframe")
+			and _mooring_cleat_bollard_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _mooring_cleat_bollard_batch.layers == 1
+			and _mooring_cleat_bollard_batch.get_child_count() == 0
+			and _mooring_cleat_bollard_batch.get_script() == null
+		)
 	var expected_route_light_buffer := _encode_multimesh_transforms(_trunk_route_light_transforms)
 	var route_light_buffer_matches := (
 		is_instance_valid(_trunk_route_light_batch)
@@ -695,11 +724,13 @@ func get_render_batch_contract() -> Dictionary:
 		and _slab_support_transforms.size() == SLAB_SUPPORT_COPY_COUNT
 		and _rung_edge_cue_transforms.size() == RUNG_EDGE_CUE_COPY_COUNT
 		and _mooring_cleat_pad_transforms.size() == MOORING_CLEAT_PAD_COPY_COUNT
+		and _mooring_cleat_bollard_transforms.size() == MOORING_CLEAT_BOLLARD_COPY_COUNT
 		and _trunk_route_light_transforms.size() == TRUNK_ROUTE_LIGHT_COPY_COUNT
 		and _dock_mast_cap_transforms.size() == DOCK_MAST_CAP_COPY_COUNT
 		and support_contract_matches
 		and rung_cue_contract_matches
 		and cleat_pad_contract_matches
+		and bollard_contract_matches
 		and route_light_contract_matches
 		and mast_cap_contract_matches
 	)
@@ -728,6 +759,11 @@ func get_render_batch_contract() -> Dictionary:
 		if is_instance_valid(_mooring_cleat_pad_batch) and _mooring_cleat_pad_batch.multimesh != null
 		else 0
 	)
+	var bollard_buffer_floats := (
+		_mooring_cleat_bollard_batch.multimesh.buffer.size()
+		if is_instance_valid(_mooring_cleat_bollard_batch) and _mooring_cleat_bollard_batch.multimesh != null
+		else 0
+	)
 	var route_light_buffer_floats := (
 		_trunk_route_light_batch.multimesh.buffer.size()
 		if is_instance_valid(_trunk_route_light_batch) and _trunk_route_light_batch.multimesh != null
@@ -750,6 +786,7 @@ func get_render_batch_contract() -> Dictionary:
 		"slab_support_copies": _slab_support_transforms.size(),
 		"rung_edge_cue_copies": _rung_edge_cue_transforms.size(),
 		"mooring_cleat_pad_copies": _mooring_cleat_pad_transforms.size(),
+		"mooring_cleat_bollard_copies": _mooring_cleat_bollard_transforms.size(),
 		"trunk_route_light_copies": _trunk_route_light_transforms.size(),
 		"dock_mast_cap_copies": _dock_mast_cap_transforms.size(),
 		"trunk_route_light_submissions_before": TRUNK_ROUTE_LIGHT_COPY_COUNT,
@@ -758,6 +795,9 @@ func get_render_batch_contract() -> Dictionary:
 		"mooring_cleat_pad_submissions_before": MOORING_CLEAT_PAD_COPY_COUNT,
 		"mooring_cleat_pad_submissions_after": 1,
 		"geometry_submissions_before_mooring_cleat_pad_batch": PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT,
+		"mooring_cleat_bollard_submissions_before": MOORING_CLEAT_BOLLARD_COPY_COUNT,
+		"mooring_cleat_bollard_submissions_after": 1,
+		"geometry_submissions_before_mooring_cleat_bollard_batch": PRE_MOORING_CLEAT_BOLLARD_GEOMETRY_SUBMISSION_COUNT,
 		"rung_edge_cue_submissions_before": RUNG_EDGE_CUE_COPY_COUNT,
 		"rung_edge_cue_submissions_after": 1,
 		"geometry_submissions_before_rung_edge_cue_batch": PRE_RUNG_EDGE_CUE_GEOMETRY_SUBMISSION_COUNT,
@@ -773,28 +813,32 @@ func get_render_batch_contract() -> Dictionary:
 		"slab_support_renderer_buffer_floats": support_buffer_floats,
 		"rung_edge_cue_renderer_buffer_floats": rung_cue_buffer_floats,
 		"mooring_cleat_pad_renderer_buffer_floats": cleat_pad_buffer_floats,
+		"mooring_cleat_bollard_renderer_buffer_floats": bollard_buffer_floats,
 		"trunk_route_light_renderer_buffer_floats": route_light_buffer_floats,
 		"dock_mast_cap_renderer_buffer_floats": mast_cap_buffer_floats,
-		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + route_light_buffer_floats + mast_cap_buffer_floats,
-		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and route_light_buffer_matches and mast_cap_buffer_matches,
+		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + bollard_buffer_floats + route_light_buffer_floats + mast_cap_buffer_floats,
+		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and bollard_buffer_matches and route_light_buffer_matches and mast_cap_buffer_matches,
 		"trunk_renderer_buffer_matches_authored": joint_buffer_matches,
 		"slab_corner_beacon_renderer_buffer_matches_authored": beacon_buffer_matches,
 		"slab_support_renderer_buffer_matches_authored": support_buffer_matches,
 		"rung_edge_cue_renderer_buffer_matches_authored": rung_cue_buffer_matches,
 		"mooring_cleat_pad_renderer_buffer_matches_authored": cleat_pad_buffer_matches,
+		"mooring_cleat_bollard_renderer_buffer_matches_authored": bollard_buffer_matches,
 		"trunk_route_light_renderer_buffer_matches_authored": route_light_buffer_matches,
 		"dock_mast_cap_renderer_buffer_matches_authored": mast_cap_buffer_matches,
-		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and route_light_bounds_match and mast_cap_bounds_match,
+		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and bollard_bounds_match and route_light_bounds_match and mast_cap_bounds_match,
 		"trunk_bounds_match_authored": joint_bounds_match,
 		"slab_corner_beacon_bounds_match_authored": beacon_bounds_match,
 		"slab_support_bounds_match_authored": support_bounds_match,
 		"rung_edge_cue_bounds_match_authored": rung_cue_bounds_match,
 		"mooring_cleat_pad_bounds_match_authored": cleat_pad_bounds_match,
+		"mooring_cleat_bollard_bounds_match_authored": bollard_bounds_match,
 		"trunk_route_light_bounds_match_authored": route_light_bounds_match,
 		"dock_mast_cap_bounds_match_authored": mast_cap_bounds_match,
 		"slab_support_contract_matches": support_contract_matches,
 		"rung_edge_cue_contract_matches": rung_cue_contract_matches,
 		"mooring_cleat_pad_contract_matches": cleat_pad_contract_matches,
+		"mooring_cleat_bollard_contract_matches": bollard_contract_matches,
 		"trunk_route_light_contract_matches": route_light_contract_matches,
 		"dock_mast_cap_contract_matches": mast_cap_contract_matches,
 		"exact_counts": exact_counts,
@@ -803,6 +847,7 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_slab_support_transforms": _slab_support_transforms.duplicate(),
 		"authored_rung_edge_cue_transforms": _rung_edge_cue_transforms.duplicate(),
 		"authored_mooring_cleat_pad_transforms": _mooring_cleat_pad_transforms.duplicate(),
+		"authored_mooring_cleat_bollard_transforms": _mooring_cleat_bollard_transforms.duplicate(),
 		"authored_trunk_route_light_transforms": _trunk_route_light_transforms.duplicate(),
 		"authored_dock_mast_cap_transforms": _dock_mast_cap_transforms.duplicate(),
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
@@ -973,6 +1018,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("comb mooring-cleat-pad batch bounds drifted from its authored copies")
 	if not bool(rendering.mooring_cleat_pad_contract_matches):
 		errors.append("comb mooring-cleat-pad renderer contract drifted")
+	if not bool(rendering.mooring_cleat_bollard_renderer_buffer_matches_authored):
+		errors.append("comb mooring-cleat-bollard renderer buffer drifted from its authored roster")
+	if not bool(rendering.mooring_cleat_bollard_bounds_match_authored):
+		errors.append("comb mooring-cleat-bollard batch bounds drifted from its authored copies")
+	if not bool(rendering.mooring_cleat_bollard_contract_matches):
+		errors.append("comb mooring-cleat-bollard renderer contract drifted")
 	if not bool(rendering.trunk_route_light_renderer_buffer_matches_authored):
 		errors.append("comb trunk-route-light renderer buffer drifted from its authored roster")
 	if not bool(rendering.trunk_route_light_bounds_match_authored):
@@ -1369,6 +1420,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 	service.set_meta("visual_detail_only", true)
 	detail.add_child(service)
 	_mooring_cleat_pad_transforms.clear()
+	_mooring_cleat_bollard_transforms.clear()
 	_dock_mast_cap_transforms.clear()
 
 	for index in DOCK_SLAB_IDS.size():
@@ -1559,6 +1611,10 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			bollard.material_override = _materials["underframe"]
 			bollard.set_meta("visual_detail_only", true)
 			service.add_child(bollard)
+			_mooring_cleat_bollard_transforms.append(bollard.transform)
+			# Retain the stable named bollards as inspection anchors. Their shared
+			# cylinder batch owns the six immutable visual copies.
+			bollard.visible = false
 
 		# The lens is emissive and emission lights nothing in Forward+, which is
 		# the whole reason this module already carries four practicals. Same
@@ -1578,6 +1634,15 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		Vector3(0.66, 0.05, 0.66),
 		_materials["grip"],
 		_mooring_cleat_pad_transforms
+	)
+	_mooring_cleat_bollard_batch = _multimesh_instances(
+		service,
+		"MooringCleatBollardBatch",
+		StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.20, 0.20, 0.17, 16, _chamfered_cylinder_cache
+		),
+		_materials["underframe"],
+		_mooring_cleat_bollard_transforms
 	)
 	_dock_mast_cap_batch = _multimesh_boxes(
 		service,
@@ -1876,9 +1941,19 @@ func _multimesh_boxes(
 		material: Material,
 		transforms: Array[Transform3D]
 	) -> MultiMeshInstance3D:
+	return _multimesh_instances(parent, node_name, _rounded_box_mesh(size), material, transforms)
+
+
+func _multimesh_instances(
+		parent: Node3D,
+		node_name: String,
+		mesh: Mesh,
+		material: Material,
+		transforms: Array[Transform3D]
+	) -> MultiMeshInstance3D:
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.mesh = _rounded_box_mesh(size)
+	multi.mesh = mesh
 	multi.instance_count = transforms.size()
 	multi.visible_instance_count = -1
 	multi.buffer = _encode_multimesh_transforms(transforms)
