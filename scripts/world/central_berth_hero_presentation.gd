@@ -9,10 +9,7 @@ const SCHEMA_VERSION := 1
 const ASSET_PATH := "res://assets/models/station/central_berth_hero_v1.glb"
 const MANIFEST_PATH := "res://assets/models/station/central_berth_hero_v1_asset_manifest.json"
 const ASSET_ID := &"mudds.station.central_berth_hero.v1"
-const DECK_ALBEDO_PATH := "res://assets/materials/shipyard-deck-albedo-v1.png"
-const DECK_NORMAL_PATH := "res://assets/materials/shipyard-deck-normal-v1.png"
-const DECK_ROUGHNESS_PATH := "res://assets/materials/shipyard-deck-roughness-v1.png"
-const STRUCTURAL_TRIPLANAR_SCALE := 0.3
+const PANEL_TRIPLANAR_SCALE := 0.3
 const REQUIRED_ROOTS := [
 	"deck_panels",
 	"edge_fascia",
@@ -78,17 +75,19 @@ func _build_once() -> void:
 
 
 func _configure_runtime_materials() -> void:
-	var structural_alloy := _pbr_material(Color("213843"), 0.72, 0.29)
-	StationSurfaceKit.apply_panel_triplanar(
-		structural_alloy,
-		STRUCTURAL_TRIPLANAR_SCALE,
-		StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY,
-	)
 	_runtime_materials = {
-		&"DeckComposite": _deck_material(),
-		&"EdgeIvory": _pbr_material(Color("b4b8a9"), 0.18, 0.34),
-		&"StructuralAlloy": structural_alloy,
-		&"ServiceGraphite": _pbr_material(Color("081014"), 0.42, 0.48),
+		&"DeckComposite": _panel_material(
+			Color("26373d"), 0.52, 0.38, StationSurfaceKit.PanelFinish.WALKED_DECK
+		),
+		&"EdgeIvory": _panel_material(
+			Color("b4b8a9"), 0.18, 0.34, StationSurfaceKit.PanelFinish.METAL_TRIM
+		),
+		&"StructuralAlloy": _panel_material(
+			Color("213843"), 0.72, 0.29, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+		),
+		&"ServiceGraphite": _panel_material(
+			Color("081014"), 0.42, 0.48, StationSurfaceKit.PanelFinish.PAINTED_METAL
+		),
 		&"GuidanceCyan": _emissive_material(Color("045c6b"), Color("04bacd"), 2.1),
 	}
 	if _asset_root == null:
@@ -117,17 +116,14 @@ func _pbr_material(color: Color, metallic_value: float, roughness_value: float) 
 	return material
 
 
-func _deck_material() -> StandardMaterial3D:
-	var material := _pbr_material(Color("26373d"), 0.52, 0.38)
-	material.albedo_texture = load(DECK_ALBEDO_PATH) as Texture2D
-	material.normal_enabled = true
-	material.normal_texture = load(DECK_NORMAL_PATH) as Texture2D
-	material.normal_scale = 0.42
-	material.roughness_texture = load(DECK_ROUGHNESS_PATH) as Texture2D
-	material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-	material.uv1_triplanar = false
-	material.uv1_scale = Vector3.ONE
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+func _panel_material(
+		color: Color,
+		metallic_value: float,
+		roughness_value: float,
+		finish: StationSurfaceKit.PanelFinish
+	) -> StandardMaterial3D:
+	var material := _pbr_material(color, metallic_value, roughness_value)
+	StationSurfaceKit.apply_panel_triplanar(material, PANEL_TRIPLANAR_SCALE, finish)
 	return material
 
 
@@ -255,12 +251,12 @@ func get_asset_audit_report() -> Dictionary:
 		"deck_top_y": EXPECTED_MAXIMUM.y,
 		"manifest_glb_sha256": str(_manifest.get("glb_sha256", "")),
 		"manifest_blend_sha256": str(_manifest.get("blend_sha256", "")),
-		"deck_texture_coordinate": &"UV0/TEXCOORD_0",
-		"deck_triplanar": false,
+		"deck_texture_coordinate": &"WORLD_TRIPLANAR",
+		"deck_triplanar": true,
 		"deck_maps": {
-			"albedo": DECK_ALBEDO_PATH,
-			"normal": DECK_NORMAL_PATH,
-			"roughness": DECK_ROUGHNESS_PATH,
+			"albedo": StationSurfaceKit.PANEL_ALBEDO_PATH,
+			"normal": StationSurfaceKit.PANEL_NORMAL_PATH,
+			"roughness": StationSurfaceKit.PANEL_ROUGHNESS_PATH,
 		},
 	}.duplicate(true)
 
@@ -382,20 +378,8 @@ func _append_mesh_integrity_errors(mesh_instance: MeshInstance3D, path: String, 
 
 func _append_deck_material_errors(errors: PackedStringArray) -> void:
 	var deck := _runtime_materials.get(&"DeckComposite") as StandardMaterial3D
-	if (
-		deck == null
-		or deck.albedo_texture == null
-		or deck.albedo_texture.resource_path != DECK_ALBEDO_PATH
-		or not deck.normal_enabled
-		or deck.normal_texture == null
-		or deck.normal_texture.resource_path != DECK_NORMAL_PATH
-		or not is_equal_approx(deck.normal_scale, 0.42)
-		or deck.roughness_texture == null
-		or deck.roughness_texture.resource_path != DECK_ROUGHNESS_PATH
-		or deck.roughness_texture_channel != BaseMaterial3D.TEXTURE_CHANNEL_RED
-		or deck.uv1_triplanar
-	):
-		errors.append("deck_composite_uv0_pbr_map_binding_drift")
+	if not _panel_finish_matches(deck, StationSurfaceKit.PanelFinish.WALKED_DECK):
+		errors.append("deck_composite_walked_finish_drift")
 	var deck_root := get_semantic_root(&"deck_panels")
 	if deck_root == null:
 		return
@@ -429,26 +413,58 @@ func _append_material_role_errors(errors: PackedStringArray) -> void:
 		or guidance == null or not guidance.emission_enabled or not is_equal_approx(guidance.emission_energy_multiplier, 2.1)
 	):
 		errors.append("physically_distinct_material_role_contract_drift")
+	var finish_roles := [
+		[&"EdgeIvory", edge, StationSurfaceKit.PanelFinish.METAL_TRIM],
+		[&"StructuralAlloy", structure, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY],
+		[&"ServiceGraphite", service, StationSurfaceKit.PanelFinish.PAINTED_METAL],
+	]
+	for entry in finish_roles:
+		if not _panel_finish_matches(entry[1] as StandardMaterial3D, int(entry[2])):
+			errors.append("panel_finish_hierarchy_drift:%s" % String(entry[0]))
+
+
+func _panel_finish_matches(
+		material: StandardMaterial3D,
+		finish: StationSurfaceKit.PanelFinish
+	) -> bool:
 	if (
-		structure == null
-		or structure.albedo_texture == null
-		or structure.albedo_texture.resource_path != StationSurfaceKit.PANEL_ALBEDO_PATH
-		or not structure.normal_enabled
-		or structure.normal_texture == null
-		or structure.normal_texture.resource_path != StationSurfaceKit.PANEL_NORMAL_PATH
-		or structure.roughness_texture == null
-		or structure.roughness_texture.resource_path != StationSurfaceKit.PANEL_ROUGHNESS_PATH
-		or not structure.uv1_triplanar
-		or not structure.uv1_world_triplanar
-		or not structure.uv1_scale.is_equal_approx(Vector3.ONE * STRUCTURAL_TRIPLANAR_SCALE)
-		or not structure.clearcoat_enabled
-		or not is_equal_approx(structure.clearcoat, StationSurfaceKit.STRUCTURAL_CLEARCOAT)
-		or not is_equal_approx(
-			structure.clearcoat_roughness,
-			StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS,
-		)
+		material == null
+		or material.albedo_texture == null
+		or material.albedo_texture.resource_path != StationSurfaceKit.PANEL_ALBEDO_PATH
+		or not material.normal_enabled
+		or material.normal_texture == null
+		or material.normal_texture.resource_path != StationSurfaceKit.PANEL_NORMAL_PATH
+		or not is_equal_approx(material.normal_scale, StationSurfaceKit.PANEL_NORMAL_SCALE)
+		or material.roughness_texture == null
+		or material.roughness_texture.resource_path != StationSurfaceKit.PANEL_ROUGHNESS_PATH
+		or material.roughness_texture_channel != BaseMaterial3D.TEXTURE_CHANNEL_RED
+		or not material.uv1_triplanar
+		or not material.uv1_world_triplanar
+		or not material.uv1_scale.is_equal_approx(Vector3.ONE * PANEL_TRIPLANAR_SCALE)
+		or not material.clearcoat_enabled
 	):
-		errors.append("structural_alloy_world_metric_finish_drift")
+		return false
+	var expected := {
+		StationSurfaceKit.PanelFinish.WALKED_DECK: [
+			StationSurfaceKit.WALKED_CLEARCOAT,
+			StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS,
+		],
+		StationSurfaceKit.PanelFinish.METAL_TRIM: [
+			StationSurfaceKit.TRIM_CLEARCOAT,
+			StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS,
+		],
+		StationSurfaceKit.PanelFinish.PAINTED_METAL: [
+			StationSurfaceKit.PAINTED_CLEARCOAT,
+			StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS,
+		],
+		StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY: [
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT,
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS,
+		],
+	}.get(finish, []) as Array
+	return expected.size() == 2 \
+		and is_equal_approx(material.clearcoat, float(expected[0])) \
+		and is_equal_approx(material.clearcoat_roughness, float(expected[1]))
 
 
 func _capture_integrity_contract() -> void:

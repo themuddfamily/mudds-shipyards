@@ -172,15 +172,12 @@ func _test_green_runtime_contract(presentation: CentralBerthHeroPresentation) ->
 		)
 	var deck_material := presentation.get_runtime_material(&"DeckComposite")
 	_check(
-		deck_material != null
-		and deck_material.albedo_texture.resource_path == "res://assets/materials/shipyard-deck-albedo-v1.png"
-		and deck_material.normal_enabled
-		and deck_material.normal_texture.resource_path == "res://assets/materials/shipyard-deck-normal-v1.png"
-		and is_equal_approx(deck_material.normal_scale, 0.42)
-		and deck_material.roughness_texture.resource_path == "res://assets/materials/shipyard-deck-roughness-v1.png"
-		and deck_material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
-		and not deck_material.uv1_triplanar,
-		"DeckComposite binds the registered deck PBR maps through authored UV0"
+		_panel_finish_matches(
+			deck_material,
+			StationSurfaceKit.WALKED_CLEARCOAT,
+			StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS,
+		),
+		"DeckComposite uses the shared world-metric walked-deck finish"
 	)
 	var deck_meshes := presentation.get_semantic_root(&"deck_panels").find_children("*", "MeshInstance3D", true, false)
 	_check(deck_meshes.size() == 1 and _mesh_has_uv0((deck_meshes[0] as MeshInstance3D).mesh), "batched deck skin retains non-collapsed runtime TEXCOORD_0")
@@ -194,12 +191,18 @@ func _test_green_runtime_contract(presentation: CentralBerthHeroPresentation) ->
 		)
 	else:
 		_check(false, "DeckComposite mesh resolves for the fascia-clearance check")
+	var edge := presentation.get_runtime_material(&"EdgeIvory")
+	var structure := presentation.get_runtime_material(&"StructuralAlloy")
+	var service := presentation.get_runtime_material(&"ServiceGraphite")
 	_check(
-		is_equal_approx(presentation.get_runtime_material(&"EdgeIvory").metallic, 0.18)
-		and is_equal_approx(presentation.get_runtime_material(&"StructuralAlloy").metallic, 0.72)
-		and is_equal_approx(presentation.get_runtime_material(&"ServiceGraphite").roughness, 0.48)
+		_panel_finish_matches(edge, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS)
+		and _panel_finish_matches(structure, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS)
+		and _panel_finish_matches(service, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS)
+		and is_equal_approx(edge.metallic, 0.18)
+		and is_equal_approx(structure.metallic, 0.72)
+		and is_equal_approx(service.roughness, 0.48)
 		and presentation.get_runtime_material(&"GuidanceCyan").emission_enabled,
-		"remaining material roles are physically distinct rather than one flat shader"
+		"walked, grip, frame, and service roles retain distinct panel finishes while guidance remains emissive"
 	)
 
 
@@ -231,16 +234,16 @@ func _test_structured_red_drift_cases(presentation: CentralBerthHeroPresentation
 
 	var deck_material := presentation.get_runtime_material(&"DeckComposite")
 	var original_triplanar := deck_material.uv1_triplanar
-	deck_material.uv1_triplanar = true
+	deck_material.uv1_triplanar = false
 	var material_drift := presentation.get_asset_audit_report()
 	_check(
 		not bool(material_drift.get("valid", true))
-		and _errors_have(material_drift, "deck_composite_uv0_pbr_map_binding_drift")
+		and _errors_have(material_drift, "deck_composite_walked_finish_drift")
 		and _errors_have(material_drift, "runtime_material_content_drift:DeckComposite"),
-		"reintroducing triplanar mapping returns structured material red"
+		"removing the walked-deck triplanar mapping returns structured material red"
 	)
 	deck_material.uv1_triplanar = original_triplanar
-	_check(bool(presentation.get_asset_audit_report().get("valid", false)), "restoring authored UV0 material mapping returns green")
+	_check(bool(presentation.get_asset_audit_report().get("valid", false)), "restoring the walked-deck mapping returns green")
 
 	var deck_mesh := deck_root.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	var original_mesh := deck_mesh.mesh
@@ -287,6 +290,23 @@ func _test_structured_red_drift_cases(presentation: CentralBerthHeroPresentation
 func _read_manifest() -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH))
 	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+func _panel_finish_matches(material: StandardMaterial3D, clearcoat: float, clearcoat_roughness: float) -> bool:
+	return material != null \
+		and material.albedo_texture != null \
+		and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH \
+		and material.normal_enabled \
+		and material.normal_texture != null \
+		and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH \
+		and material.roughness_texture != null \
+		and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH \
+		and material.uv1_triplanar \
+		and material.uv1_world_triplanar \
+		and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.3) \
+		and material.clearcoat_enabled \
+		and is_equal_approx(material.clearcoat, clearcoat) \
+		and is_equal_approx(material.clearcoat_roughness, clearcoat_roughness)
 
 
 func _array_matches_vector3(value: Variant, expected: Vector3) -> bool:

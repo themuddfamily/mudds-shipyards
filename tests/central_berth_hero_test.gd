@@ -4,10 +4,6 @@ extends SceneTree
 ## Torrent berth. Presentation detail must never become landing/path collision.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
-const DECK_ALBEDO_PATH := "res://assets/materials/shipyard-deck-albedo-v1.png"
-const DECK_NORMAL_PATH := "res://assets/materials/shipyard-deck-normal-v1.png"
-const DECK_ROUGHNESS_PATH := "res://assets/materials/shipyard-deck-roughness-v1.png"
-
 var _failures: Array[String] = []
 
 
@@ -225,9 +221,9 @@ func _test_audit_and_evidence(world: ShipyardWorld) -> void:
 	)
 	_check(
 		str((audit.get("deck_pbr", {}) as Dictionary).get("scope", "")) == "operational_walking_surface_only"
-		and str((audit.get("deck_pbr", {}) as Dictionary).get("texture_coordinate", "")) == "UV0/TEXCOORD_0"
-		and not bool((audit.get("deck_pbr", {}) as Dictionary).get("triplanar", true)),
-		"PBR audit explicitly limits the deck maps to walking surfaces"
+		and str((audit.get("deck_pbr", {}) as Dictionary).get("texture_coordinate", "")) == "WORLD_TRIPLANAR"
+		and bool((audit.get("deck_pbr", {}) as Dictionary).get("triplanar", false)),
+		"PBR audit exposes the walked deck's world-metric panel mapping"
 	)
 
 	# Public reports must not provide a mutation path back into world state.
@@ -353,26 +349,8 @@ func _test_structure_and_material_scope(world: ShipyardWorld) -> void:
 		"identity-mounted authored shell replaces both legacy procedural presentation nodes"
 	)
 	_check(
-		deck_material != null
-		and deck_material.albedo_texture != null
-		and deck_material.albedo_texture.resource_path == DECK_ALBEDO_PATH,
-		"operational pad skin uses the shipyard deck albedo"
-	)
-	_check(
-		deck_material != null
-		and deck_material.normal_enabled
-		and deck_material.normal_texture != null
-		and deck_material.normal_texture.resource_path == DECK_NORMAL_PATH
-		and is_equal_approx(deck_material.normal_scale, 0.42),
-		"operational pad skin uses the bounded normal map"
-	)
-	_check(
-		deck_material != null
-		and deck_material.roughness_texture != null
-		and deck_material.roughness_texture.resource_path == DECK_ROUGHNESS_PATH
-		and deck_material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
-		and not deck_material.uv1_triplanar,
-		"authored deck uses roughness and UV0 rather than procedural triplanar mapping"
+		_panel_finish_matches(deck_material, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS),
+		"operational pad skin uses the world-metric walked-deck panel finish"
 	)
 	var deck_uv0_is_meaningful := false
 	if deck_root != null:
@@ -389,19 +367,14 @@ func _test_structure_and_material_scope(world: ShipyardWorld) -> void:
 				)
 	_check(deck_uv0_is_meaningful, "authored deck batch contains non-collapsed UV0 coordinates")
 
-	var mapped_meshes: Array[MeshInstance3D] = []
-	for candidate in world.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := candidate as MeshInstance3D
-		var material := mesh_instance.material_override as StandardMaterial3D
-		if material != null and material.albedo_texture != null \
-				and material.albedo_texture.resource_path == DECK_ALBEDO_PATH:
-			mapped_meshes.append(mesh_instance)
+	var edge := presentation.get_runtime_material(&"EdgeIvory") if presentation != null else null
+	var structure := presentation.get_runtime_material(&"StructuralAlloy") if presentation != null else null
+	var service := presentation.get_runtime_material(&"ServiceGraphite") if presentation != null else null
 	_check(
-		mapped_meshes.size() == 1
-		and presentation != null
-		and presentation.is_ancestor_of(mapped_meshes[0])
-		and str(mapped_meshes[0].get_meta("central_berth_material_role", "")) == "DeckComposite",
-		"shipyard deck maps do not leak onto fascia, trusses, pressure/service objects, signs, or the moon"
+		_panel_finish_matches(edge, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS)
+		and _panel_finish_matches(structure, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS)
+		and _panel_finish_matches(service, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS),
+		"authored grip, frame, and service surfaces use distinct StationSurfaceKit finishes"
 	)
 	_check(
 		presentation != null
@@ -412,6 +385,22 @@ func _test_structure_and_material_scope(world: ShipyardWorld) -> void:
 		"authored fascia, primary structure, secondary structure, and service channels remain distinct"
 	)
 	_check(presentation != null and not _contains_collision(presentation), "authored berth shell adds no hidden gameplay collision")
+
+
+func _panel_finish_matches(material: StandardMaterial3D, clearcoat: float, clearcoat_roughness: float) -> bool:
+	return material != null \
+		and material.albedo_texture != null \
+		and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH \
+		and material.normal_enabled \
+		and material.normal_texture != null \
+		and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH \
+		and material.roughness_texture != null \
+		and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH \
+		and material.uv1_triplanar and material.uv1_world_triplanar \
+		and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.3) \
+		and material.clearcoat_enabled \
+		and is_equal_approx(material.clearcoat, clearcoat) \
+		and is_equal_approx(material.clearcoat_roughness, clearcoat_roughness)
 
 
 func _test_clamp_alignment_and_service_clearance(world: ShipyardWorld, torrent: HeroShip) -> void:

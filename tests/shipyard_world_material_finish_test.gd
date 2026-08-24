@@ -58,15 +58,16 @@ func _run() -> void:
 			"paired catwalk guards and service equipment use the coherent safety-paint family",
 		)
 		var berth := world.get_central_berth_hero_presentation()
-		var structure := (
-			berth.get_runtime_material(&"StructuralAlloy")
-			if berth != null else null
-		)
+		var deck := berth.get_runtime_material(&"DeckComposite") if berth != null else null
+		var edge := berth.get_runtime_material(&"EdgeIvory") if berth != null else null
+		var structure := berth.get_runtime_material(&"StructuralAlloy") if berth != null else null
+		var service := berth.get_runtime_material(&"ServiceGraphite") if berth != null else null
 		_check(
-			structure != null and structure.uv1_triplanar and structure.uv1_world_triplanar
-			and structure.uv1_scale.is_equal_approx(Vector3.ONE * 0.3)
-			and _finish_matches(structure, 0.18, 0.38),
-			"central-berth structural alloy uses the shared world-metric alloy finish",
+			_panel_mapped(deck) and _finish_matches(deck, 0.06, 0.72)
+			and _panel_mapped(edge) and _finish_matches(edge, 0.30, 0.24)
+			and _panel_mapped(structure) and _finish_matches(structure, 0.18, 0.38)
+			and _panel_mapped(service) and _finish_matches(service, 0.45, 0.12),
+			"central berth separates walked, grip, frame, and service finishes on shared world-metric maps",
 		)
 		var primary := berth.get_semantic_root(&"primary_structure") if berth != null else null
 		var secondary := berth.get_semantic_root(&"secondary_structure") if berth != null else null
@@ -92,6 +93,17 @@ func _finish_matches(value: Variant, clearcoat: float, roughness: float) -> bool
 	return material != null and material.clearcoat_enabled \
 		and is_equal_approx(material.clearcoat, clearcoat) \
 		and is_equal_approx(material.clearcoat_roughness, roughness)
+
+
+func _panel_mapped(material: StandardMaterial3D) -> bool:
+	return material != null and material.albedo_texture != null \
+		and material.albedo_texture.resource_path == StationSurfaceKit.PANEL_ALBEDO_PATH \
+		and material.normal_texture != null \
+		and material.normal_texture.resource_path == StationSurfaceKit.PANEL_NORMAL_PATH \
+		and material.roughness_texture != null \
+		and material.roughness_texture.resource_path == StationSurfaceKit.PANEL_ROUGHNESS_PATH \
+		and material.uv1_triplanar and material.uv1_world_triplanar \
+		and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.3)
 
 
 func _surface_material(body: StaticBody3D) -> Material:
