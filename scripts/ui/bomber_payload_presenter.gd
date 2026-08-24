@@ -14,8 +14,10 @@ var _source_generation := -1
 var _source_release_sequence := -1
 var _source_request_sequence := -1
 var _source_phase_rank := -1
+var _source_terminal_sequence := -1
 var _source_progress_sequence := -1
 var _source_elapsed_lifetime := -1.0
+var _source_payload_phase: StringName = &""
 var _source_projectile_count := -1
 var _source_ammo := -1
 var _source_cooldown := -1.0
@@ -122,15 +124,23 @@ func get_snapshot() -> Dictionary:
 		state = &"cooldown"
 		marker = "[IN FLIGHT]" if payload_phase == &"flying" else "[WAIT]"
 		if payload_phase == &"flying":
-			message = "BOMBER PAYLOAD // %s // NEXT // HOLD %.1f S TO RELEASE" % [_flight_text(projectile_count), cooldown]
+			message = "BOMBER PAYLOAD // %s // NEXT // %s" % [
+				_flight_text(projectile_count),
+				"HOLD %.1f S TO RELEASE" % cooldown if upstream_allowed else "TRACK SERVER AUTHORITY",
+			]
 		else:
 			message = "BOMBER PAYLOAD // REARMING // NEXT // HOLD %.1f S TO RELEASE" % cooldown
 	elif payload_phase == &"flying":
 		state = &"in_flight"
 		marker = "[IN FLIGHT]"
+		var next_flight_action := "TRACK IMPACT"
+		if release_allowed:
+			next_flight_action = "RELEASE ANOTHER PAYLOAD"
+		elif StringName(_snapshot.get("release_denied_reason", &"")) == &"server_authority":
+			next_flight_action = "TRACK SERVER AUTHORITY"
 		message = "BOMBER PAYLOAD // %s // NEXT // %s" % [
 			_flight_text(projectile_count),
-			"RELEASE ANOTHER PAYLOAD" if release_allowed else "TRACK IMPACT",
+			next_flight_action,
 		]
 	elif payload_phase == &"released":
 		state = &"released"
@@ -141,7 +151,9 @@ func get_snapshot() -> Dictionary:
 		marker = "[ARMED]"
 		message = "BOMBER PAYLOAD // ARMED // NEXT // RELEASE PAYLOAD"
 	if not release_allowed and reason.is_empty():
-		if cooldown > 0.0:
+		if not upstream_allowed:
+			reason = StringName(_snapshot.get("release_denied_reason", &"payload_limit"))
+		elif cooldown > 0.0:
 			reason = &"cooldown"
 		elif ammo <= 0:
 			reason = &"empty"
@@ -162,8 +174,10 @@ func _parse_receipt(snapshot: Dictionary, generation: int) -> Dictionary:
 		"release_sequence": 0,
 		"request_sequence": 0,
 		"phase_rank": 0,
+		"terminal_sequence": 0,
 		"progress_sequence": 0,
 		"elapsed_lifetime": 0.0,
+		"receipt_count": 0,
 		"projectile_count": 0,
 		"payload_phase": &"armed",
 	}
@@ -177,7 +191,9 @@ func _parse_receipt(snapshot: Dictionary, generation: int) -> Dictionary:
 		var parsed_projectile := _parse_projectile(projectile, generation)
 		if not bool(parsed_projectile.get("accepted", false)):
 			return parsed_projectile
-		receipt.projectile_count = int(receipt.projectile_count) + 1
+		receipt.receipt_count = int(receipt.receipt_count) + 1
+		if StringName(parsed_projectile.payload_phase) == &"flying":
+			receipt.projectile_count = int(receipt.projectile_count) + 1
 		if int(parsed_projectile.release_sequence) > int(receipt.release_sequence) \
 				or (int(parsed_projectile.release_sequence) == int(receipt.release_sequence) \
 				and int(parsed_projectile.phase_rank) > int(receipt.phase_rank)):
@@ -216,7 +232,7 @@ func _parse_receipt(snapshot: Dictionary, generation: int) -> Dictionary:
 			receipt.phase_rank = 3
 			receipt.payload_phase = &"resolved"
 		elif int(resolved_sequence) == int(receipt.release_sequence) \
-				and int(resolved_sequence) > 0 and int(receipt.projectile_count) == 0:
+				and int(resolved_sequence) > 0 and int(receipt.receipt_count) == 0:
 			receipt.phase_rank = 3
 			receipt.payload_phase = &"resolved"
 	return receipt
@@ -231,41 +247,61 @@ func _parse_projectile(projectile: Dictionary, generation: int) -> Dictionary:
 	var record_generation: Variant = release_record.get("generation", null)
 	var release_sequence: Variant = projectile.get("release_sequence", release_record.get("release_sequence", null))
 	var request_sequence: Variant = projectile.get("request_sequence", release_record.get("request_sequence", null))
+	var record_release_sequence: Variant = release_record.get("release_sequence", null)
+	var record_request_sequence: Variant = release_record.get("request_sequence", null)
 	if not projectile_generation is int or int(projectile_generation) != generation \
 			or not record_generation is int or int(record_generation) != generation \
 			or not _valid_sequence(release_sequence) or not _valid_sequence(request_sequence) \
-			or int(release_record.get("release_sequence", -1)) != int(release_sequence) \
-			or int(release_record.get("request_sequence", -1)) != int(request_sequence):
+			or not _valid_sequence(record_release_sequence) \
+			or not _valid_sequence(record_request_sequence) \
+			or int(record_release_sequence) != int(release_sequence) \
+			or int(record_request_sequence) != int(request_sequence):
 		return {"accepted": false, "reason": &"invalid_release_receipt"}
-	var state := StringName(projectile.get("state", &"flying"))
+	var raw_state: Variant = projectile.get("state", &"flying")
+	if not raw_state is StringName and not raw_state is String:
+		return {"accepted": false, "reason": &"invalid_projectile_receipt"}
+	var state := StringName(raw_state)
 	var terminal: Variant = projectile.get("terminal_intent", {})
 	if not terminal is Dictionary:
 		return {"accepted": false, "reason": &"invalid_terminal_receipt"}
 	var phase_rank := 1
 	var payload_phase: StringName = &"flying" if state == &"flying" else &"released"
-	var progress_sequence := int(projectile.get("last_update_tick", 0))
+	var raw_progress_sequence: Variant = projectile.get("last_update_tick", 0)
+	if not raw_progress_sequence is int:
+		return {"accepted": false, "reason": &"invalid_projectile_receipt"}
+	var progress_sequence := int(raw_progress_sequence)
 	if progress_sequence < 0 or progress_sequence > MAX_SAFE_INTEGER:
 		return {"accepted": false, "reason": &"invalid_projectile_receipt"}
+	var terminal_sequence := 0
 	if state == &"terminal":
 		phase_rank = 2
 		if (terminal as Dictionary).is_empty():
 			payload_phase = &"aborted"
 		else:
 			var terminal_receipt := terminal as Dictionary
-			var terminal_sequence: Variant = terminal_receipt.get("terminal_sequence", null)
-			if not _valid_sequence(terminal_sequence) \
-					or int(terminal_receipt.get("generation", -1)) != generation \
-					or int(terminal_receipt.get("release_sequence", -1)) != int(release_sequence) \
-					or int(terminal_receipt.get("request_sequence", -1)) != int(request_sequence):
+			var raw_terminal_sequence: Variant = terminal_receipt.get("terminal_sequence", null)
+			var terminal_generation: Variant = terminal_receipt.get("generation", null)
+			var terminal_release_sequence: Variant = terminal_receipt.get("release_sequence", null)
+			var terminal_request_sequence: Variant = terminal_receipt.get("request_sequence", null)
+			if not _valid_sequence(raw_terminal_sequence) \
+					or not terminal_generation is int or int(terminal_generation) != generation \
+					or not _valid_sequence(terminal_release_sequence) \
+					or int(terminal_release_sequence) != int(release_sequence) \
+					or not _valid_sequence(terminal_request_sequence) \
+					or int(terminal_request_sequence) != int(request_sequence):
 				return {"accepted": false, "reason": &"invalid_terminal_receipt"}
-			progress_sequence = maxi(progress_sequence, int(terminal_sequence))
+			terminal_sequence = int(raw_terminal_sequence)
+			progress_sequence = maxi(progress_sequence, terminal_sequence)
 			var kind := StringName(terminal_receipt.get("kind", &""))
 			if kind != &"impact" and kind != &"expiry":
 				return {"accepted": false, "reason": &"invalid_terminal_receipt"}
 			payload_phase = kind
 	elif state != &"flying":
 		return {"accepted": false, "reason": &"invalid_projectile_receipt"}
-	var elapsed := float(projectile.get("elapsed_lifetime", 0.0))
+	var raw_elapsed: Variant = projectile.get("elapsed_lifetime", 0.0)
+	if not raw_elapsed is float and not raw_elapsed is int:
+		return {"accepted": false, "reason": &"invalid_projectile_receipt"}
+	var elapsed := float(raw_elapsed)
 	if not is_finite(elapsed) or elapsed < 0.0:
 		return {"accepted": false, "reason": &"invalid_projectile_receipt"}
 	return {
@@ -273,6 +309,7 @@ func _parse_projectile(projectile: Dictionary, generation: int) -> Dictionary:
 		"release_sequence": int(release_sequence),
 		"request_sequence": int(request_sequence),
 		"phase_rank": phase_rank,
+		"terminal_sequence": terminal_sequence,
 		"progress_sequence": progress_sequence,
 		"elapsed_lifetime": elapsed,
 		"payload_phase": payload_phase,
@@ -283,14 +320,19 @@ func _fence_reason(receipt: Dictionary, snapshot: Dictionary) -> StringName:
 	var release_sequence := int(receipt.release_sequence)
 	var request_sequence := int(receipt.request_sequence)
 	var phase_rank := int(receipt.phase_rank)
+	var terminal_sequence := int(receipt.terminal_sequence)
 	var progress_sequence := int(receipt.progress_sequence)
 	var elapsed_lifetime := float(receipt.elapsed_lifetime)
+	var payload_phase := StringName(receipt.payload_phase)
 	var projectile_count := int(receipt.projectile_count)
 	var ammo := maxi(0, int(snapshot.get("ammo", snapshot.get("ammunition_remaining", 0))))
 	var cooldown := maxf(0.0, float(snapshot.get("cooldown_remaining", 0.0)))
 	if release_sequence < _source_release_sequence:
 		return &"stale_release_sequence"
 	if release_sequence > _source_release_sequence:
+		if request_sequence > 0 and _source_request_sequence > 0 \
+				and request_sequence <= _source_request_sequence:
+			return &"stale_request_sequence"
 		return &""
 	if request_sequence > 0 and _source_request_sequence > 0 \
 			and request_sequence != _source_request_sequence:
@@ -299,6 +341,12 @@ func _fence_reason(receipt: Dictionary, snapshot: Dictionary) -> StringName:
 		return &"stale_phase_sequence"
 	if phase_rank > _source_phase_rank:
 		return &""
+	if terminal_sequence < _source_terminal_sequence:
+		return &"stale_terminal_sequence"
+	if terminal_sequence > _source_terminal_sequence:
+		return &""
+	if phase_rank == 2 and payload_phase != _source_payload_phase:
+		return &"terminal_sequence_mismatch"
 	if progress_sequence < _source_progress_sequence \
 			or (progress_sequence == _source_progress_sequence \
 			and elapsed_lifetime < _source_elapsed_lifetime):
@@ -319,6 +367,7 @@ func _copy_latest_receipt(receipt: Dictionary, latest: Dictionary) -> void:
 	receipt.release_sequence = int(latest.release_sequence)
 	receipt.request_sequence = int(latest.request_sequence)
 	receipt.phase_rank = int(latest.phase_rank)
+	receipt.terminal_sequence = int(latest.terminal_sequence)
 	receipt.progress_sequence = int(latest.progress_sequence)
 	receipt.elapsed_lifetime = float(latest.elapsed_lifetime)
 	receipt.payload_phase = StringName(latest.payload_phase)
@@ -329,8 +378,10 @@ func _commit_source_cursor(generation: int, receipt: Dictionary, snapshot: Dicti
 	_source_release_sequence = int(receipt.release_sequence)
 	_source_request_sequence = int(receipt.request_sequence)
 	_source_phase_rank = int(receipt.phase_rank)
+	_source_terminal_sequence = int(receipt.terminal_sequence)
 	_source_progress_sequence = int(receipt.progress_sequence)
 	_source_elapsed_lifetime = float(receipt.elapsed_lifetime)
+	_source_payload_phase = StringName(receipt.payload_phase)
 	_source_projectile_count = int(receipt.projectile_count)
 	_source_ammo = maxi(0, int(snapshot.get("ammo", snapshot.get("ammunition_remaining", 0))))
 	_source_cooldown = maxf(0.0, float(snapshot.get("cooldown_remaining", 0.0)))
@@ -341,8 +392,10 @@ func _clear_source() -> void:
 	_source_release_sequence = -1
 	_source_request_sequence = -1
 	_source_phase_rank = -1
+	_source_terminal_sequence = -1
 	_source_progress_sequence = -1
 	_source_elapsed_lifetime = -1.0
+	_source_payload_phase = &""
 	_source_projectile_count = -1
 	_source_ammo = -1
 	_source_cooldown = -1.0
@@ -353,6 +406,8 @@ func _clear_source() -> void:
 func _terminal_message(result: String, ammo: int, cooldown: float, release_allowed: bool) -> String:
 	if release_allowed:
 		return "BOMBER PAYLOAD // %s // NEXT // RELEASE NEXT PAYLOAD" % result
+	if StringName(_snapshot.get("release_denied_reason", &"")) == &"server_authority":
+		return "BOMBER PAYLOAD // %s // NEXT // TRACK SERVER AUTHORITY" % result
 	if cooldown > 0.0 and ammo > 0:
 		return "BOMBER PAYLOAD // %s // NEXT // HOLD %.1f S TO RELEASE" % [result, cooldown]
 	return "BOMBER PAYLOAD // %s // NEXT // NO FURTHER RELEASE AVAILABLE" % result

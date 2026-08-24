@@ -392,6 +392,7 @@ var _last_bomber_payload_network_result: Dictionary = {}
 var _last_bomber_payload_canonical_result: Dictionary = {}
 var _bomber_payload_replica_migration_generation := 0
 var _bomber_payload_replica_generations: Dictionary = {}
+var _bomber_payload_hud_terminal_receipt: Dictionary = {}
 ## The Torrent pulse remains an already-resolved hitscan presentation. These
 ## records only mirror its bounded visual lifecycle into the server projectile
 ## seam; they never query collision or commit damage.
@@ -2818,6 +2819,7 @@ func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
 			and bool(_ensure_bomber_payload_network_source().get("accepted", false))
 	_bomber_payload_generation += 1
 	_bomber_payload_request_sequence = 0
+	_bomber_payload_hud_terminal_receipt.clear()
 	var started := bomber.begin_payload_generation(_bomber_payload_generation)
 	if not bool(started.get("accepted", false)):
 		return false
@@ -2875,9 +2877,11 @@ func _consume_bomber_payload_release() -> Dictionary:
 		_last_bomber_payload_result = {"accepted": false, "reason": &"projectile_admission_failed"}
 		return _last_bomber_payload_result.duplicate(true)
 	_bomber_payload_projectiles.append(projectile)
+	_bomber_payload_hud_terminal_receipt.clear()
 	_bomber_payload_server_tick += 1
 	_publish_bomber_payload_network(projectile, false)
 	_publish_bomber_payload_canonical_snapshot()
+	_publish_bomber_payload_snapshot(_bomber_payload_ship)
 	_present_bomber_payload_audio(&"present_payload_release", record)
 	_present_bomber_payload_audio(&"present_projectile_launch", record)
 	_last_bomber_payload_result = result.duplicate(true)
@@ -2901,6 +2905,10 @@ func _consume_bomber_payload_terminal(projectile: BomberPayloadProjectile) -> vo
 	_bomber_payload_ship.present_payload_terminal_record(terminal)
 	_present_bomber_payload_audio(&"present_projectile_terminal", terminal)
 	_last_bomber_payload_result = combat_result.duplicate(true)
+	var terminal_receipt := projectile.get_snapshot()
+	if int(terminal_receipt.get("release_sequence", 0)) \
+			>= int(_bomber_payload_hud_terminal_receipt.get("release_sequence", 0)):
+		_bomber_payload_hud_terminal_receipt = terminal_receipt.duplicate(true)
 	_bomber_payload_projectiles.erase(projectile)
 	projectile.detach(&"terminal_forwarded")
 
@@ -2942,6 +2950,8 @@ func _publish_bomber_payload_snapshot(bomber: CinderLongRangeBomber) -> void:
 	for projectile in _bomber_payload_projectiles:
 		if projectile != null:
 			projectiles.append(projectile.get_snapshot())
+	if not _bomber_payload_hud_terminal_receipt.is_empty():
+		projectiles.append(_bomber_payload_hud_terminal_receipt.duplicate(true))
 	var snapshot := {
 		"generation": int(authority.get("generation", _bomber_payload_generation)),
 		"active": bool(authority.get("active", false)) and _piloting and bomber.is_piloted(),
@@ -3626,15 +3636,18 @@ func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> Di
 		return {"accepted": false, "status": &"bomber_replica_unavailable"}
 	if status == &"projectile_terminal_applied":
 		if terminal_intent.is_empty():
-			_clear_bomber_payload_replica_presentation(migration_generation)
+			_clear_bomber_payload_replica_presentation(migration_generation, false)
+			_publish_bomber_payload_replica_hud_snapshot(projectile)
 			return {"accepted": true, "status": &"bomber_projectile_abort_presented"}
 		var terminal_result := bomber.present_payload_terminal_record(terminal_intent)
 		if not bool(terminal_result.get("accepted", false)):
 			return {"accepted": false, "status": &"bomber_terminal_presentation_rejected"}
+		_publish_bomber_payload_replica_hud_snapshot(projectile)
 		_bomber_payload_replica_generations[projectile_id] = generation
 		return {"accepted": true, "status": &"bomber_projectile_terminal_presented"}
 	var prior_generation := int(_bomber_payload_replica_generations.get(projectile_id, 0))
 	if prior_generation == generation:
+		_publish_bomber_payload_replica_hud_snapshot(projectile)
 		return {"accepted": true, "status": &"bomber_projectile_already_presented"}
 	if prior_generation > 0:
 		_clear_bomber_payload_replica_presentation(migration_generation)
@@ -3643,6 +3656,7 @@ func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> Di
 		return {"accepted": false, "status": &"bomber_replica_unavailable"}
 	var presented: Dictionary = presentation.consume_release_record(release_record)
 	if bool(presented.get("accepted", false)):
+		_publish_bomber_payload_replica_hud_snapshot(projectile)
 		_bomber_payload_replica_generations[projectile_id] = generation
 		return {"accepted": true, "status": &"bomber_projectile_presented"}
 	return {"accepted": false, "status": &"bomber_release_presentation_rejected"}
@@ -3689,7 +3703,10 @@ func _bomber_payload_network_records_match(
 	)
 
 
-func _clear_bomber_payload_replica_presentation(migration_generation: int = 0) -> void:
+func _clear_bomber_payload_replica_presentation(
+		migration_generation: int = 0,
+		clear_hud_status: bool = true,
+) -> void:
 	var bomber := _find_flyable_ship_by_id(CINDER_BOMBER_SHIP_ID) as CinderLongRangeBomber
 	if is_instance_valid(bomber):
 		var presentation = bomber.get_payload_presentation()
@@ -3698,6 +3715,35 @@ func _clear_bomber_payload_replica_presentation(migration_generation: int = 0) -
 			presentation.reset_for_reuse()
 	_bomber_payload_replica_generations.clear()
 	_bomber_payload_replica_migration_generation = maxi(0, migration_generation)
+	if clear_hud_status and is_instance_valid(hud) \
+			and hud.has_method(&"clear_bomber_payload_status"):
+		hud.call(&"clear_bomber_payload_status")
+
+
+func _publish_bomber_payload_replica_hud_snapshot(projectile: Dictionary) -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"apply_bomber_payload_snapshot"):
+		return
+	var raw_generation: Variant = projectile.get("projectile_generation", null)
+	if not raw_generation is int:
+		return
+	var generation := int(raw_generation)
+	var release_record := projectile.get("release_record", {}) as Dictionary
+	var raw_ammunition: Variant = release_record.get("ammunition_remaining", null)
+	var raw_cooldown: Variant = release_record.get("cooldown_remaining", null)
+	if generation <= 0 or int(release_record.get("generation", 0)) != generation \
+			or not raw_ammunition is int or not raw_cooldown is float:
+		return
+	var snapshot := {
+		"generation": generation,
+		"active": true,
+		"ammo": int(raw_ammunition),
+		"cooldown_remaining": float(raw_cooldown),
+		"release_allowed": false,
+		"release_denied_reason": &"server_authority",
+		"projectiles": [projectile.duplicate(true)],
+		"adapter": {},
+	}
+	hud.call(&"apply_bomber_payload_snapshot", snapshot)
 
 
 func _clear_bomber_payload_loop(reason: StringName) -> void:
@@ -3712,6 +3758,7 @@ func _clear_bomber_payload_loop(reason: StringName) -> void:
 				_present_bomber_payload_audio(&"present_projectile_abort", release_record)
 			projectile.detach(reason)
 	_bomber_payload_projectiles.clear()
+	_bomber_payload_hud_terminal_receipt.clear()
 	_publish_bomber_payload_canonical_snapshot()
 	_retire_bomber_payload_network_source()
 	if _bomber_payload_adapter != null:
@@ -3725,6 +3772,8 @@ func _clear_bomber_payload_loop(reason: StringName) -> void:
 	_bomber_payload_ship = null
 	_bomber_payload_request_sequence = 0
 	_last_bomber_payload_result = {"accepted": true, "reason": reason, "cleared": true}
+	if is_instance_valid(hud) and hud.has_method(&"clear_bomber_payload_status"):
+		hud.call(&"clear_bomber_payload_status")
 
 
 func get_bomber_payload_loop_snapshot() -> Dictionary:
