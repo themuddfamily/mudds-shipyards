@@ -111,6 +111,16 @@ const RACE_GATE_ABORTED_SIGNAL_POSITION := Vector3(-2.8, 14.0, 0.0)
 const RACE_GATE_ABORTED_TRIM_POSITION := Vector3(2.8, 10.0, 0.0)
 const RACE_GATE_ABORTED_SIGNAL_ROTATION_DEGREES := Vector3(90.0, 0.0, -24.0)
 const RACE_GATE_ABORTED_TRIM_ROTATION_DEGREES := Vector3(90.0, 0.0, 24.0)
+## The race's fifth checkpoint is the platform itself. At the final authored leg
+## distance its low ochre mass used to merge with the surrounding rocks, so a
+## fixed extraction crown now gives that endpoint a tall, asymmetric industrial
+## read. Both feet bury into the processing spine and the whole crown stays on
+## the platform's far side (negative local Z), clear of the positive-Z gantry
+## approach the player is asked to fly.
+const RACE_RETURN_CROWN_FAMILY_ID: StringName = &"cinder-race-return-crown-supports"
+const RACE_RETURN_CROWN_LOCAL_Z := -22.0
+const RACE_RETURN_CROWN_HEADER_POSITION := Vector3(5.0, 54.0, RACE_RETURN_CROWN_LOCAL_Z)
+const RACE_RETURN_CROWN_HEADER_SIZE := Vector3(48.0, 4.0, 4.0)
 
 ## Debris field: an ellipsoid flattened in Y so it reads as a drift rather than a
 ## ball, centred on the platform.
@@ -310,11 +320,11 @@ const PERFORMANCE_BUDGET := {
 	# Includes the production cargo access route (21 bodies/17 meshes/four
 	# batches) and the real destination terminal (two bodies/four meshes).
 	"static_bodies": 61,
-	"mesh_instances": 203,
+	"mesh_instances": 204,
 	# Bounded visual batches retain the debris shell, processing-spine ribs,
-	# gantry rails, and streamed aperture lenses without increasing gameplay or
-	# collision ownership.
-	"multimesh_instances": 15,
+	# gantry rails, race-return crown supports, and streamed aperture lenses
+	# without increasing gameplay or collision ownership.
+	"multimesh_instances": 16,
 	"omni_lights": 26,
 	"spot_lights": 1,
 	"shadow_casting_lights": 0,
@@ -2553,8 +2563,51 @@ func _build_extraction_platform() -> void:
 	_build_derelict_hardware(platform)
 	_build_structure_scan_presentation(platform)
 	_build_platform_mast(platform)
+	_build_race_return_crown(platform)
 	_build_mining_activity_presentation(platform)
 	_build_cargo_access(platform)
+
+
+## A steady, presentation-only endpoint silhouette for the authored race return.
+## The two raked supports meet the existing processing spine at y = 2 m and the
+## orange header spans them above every nearby platform detail. It deliberately
+## lives behind the structure rather than inside the open-dock flight lane.
+func _build_race_return_crown(platform: Node3D) -> void:
+	var support_mesh: Mesh = StationSurfaceKit.rounded_box_mesh_cached(Vector3.ONE, _box_cache)
+	var support_transforms: Array[Transform3D] = []
+	var support_height := 52.0
+	var support_rake := deg_to_rad(21.0)
+	for side in [-1.0, 1.0]:
+		var rotation: float = -support_rake * side
+		var support_basis := Basis.from_euler(Vector3(0.0, 0.0, rotation)) \
+			* Basis.from_scale(Vector3(4.0, support_height, 4.0))
+		support_transforms.append(Transform3D(
+			support_basis,
+			Vector3(side * 9.0, 28.0, RACE_RETURN_CROWN_LOCAL_Z)
+		))
+	var supports := _presentation_multimesh_batch(
+		platform,
+		"RaceReturnCrownSupports",
+		support_mesh,
+		_materials["steel"],
+		support_transforms,
+		RACE_RETURN_CROWN_FAMILY_ID
+	)
+	supports.set_meta(&"activity_id", RACE_ACTIVITY_ID)
+	supports.set_meta(&"physically_supported", true)
+	supports.set_meta(&"route_endpoint", true)
+	var header := _box(
+		platform,
+		"RaceReturnCrownHeader",
+		RACE_RETURN_CROWN_HEADER_POSITION,
+		RACE_RETURN_CROWN_HEADER_SIZE,
+		_materials["orange_glow"],
+		false
+	)
+	header.set_meta(&"presentation_only", true)
+	header.set_meta(&"activity_id", RACE_ACTIVITY_ID)
+	header.set_meta(&"physically_supported", true)
+	header.set_meta(&"route_endpoint", true)
 
 
 ## Production composition only: the access module owns the physical berth and
