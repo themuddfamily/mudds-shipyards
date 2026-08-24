@@ -39,6 +39,20 @@ func _run() -> void:
 		and str(_defense_card(view).objective_text) == "RESET AT THE DEFENSE BOARD TO TRY AGAIN",
 		"failure updates the retained row with recovery and asset loss")
 
+	source.snapshot = _content_snapshot(&"failed", 4, 2, 3, 0, 0, 0, &"lost_hostile")
+	view = hud.set_nearby_activity_snapshot(binding.get_snapshot())
+	row = _defense_row(hud)
+	var lost_hostile := _defense_card(view)
+	var lost_hostile_feedback := lost_hostile.station_defense_feedback as Dictionary
+	_check(row != null and row.get_instance_id() == retained_id
+		and StringName(lost_hostile.state_id) == &"lost_hostile"
+		and _row_text(row).contains("HOSTILE LOST  //  RESET DEFENSE TO REDEPLOY")
+		and str(lost_hostile.objective_text) == "USE RESET TO REDEPLOY HOSTILES AND RESTART THE DEFENSE"
+		and str(lost_hostile.recovery_text) == "RECOVER: RESET DEFENSE TO REDEPLOY HOSTILES"
+		and not bool(lost_hostile_feedback.activity_authority)
+		and not bool(lost_hostile_feedback.combat_authority),
+		"lost-hostile terminal feedback gives a retained, controller-readable reset and redeploy recovery")
+
 	var configured := binding.configure_station_defense_reward(Callable(self, &"_accept_reward"))
 	var adapter := binding.get("_station_reward_adapter") as RefCounted
 	var requested: Dictionary = adapter.call("consume", {

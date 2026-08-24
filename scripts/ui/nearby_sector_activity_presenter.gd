@@ -59,7 +59,7 @@ func _priority_rank(card: Dictionary) -> int:
 	var state_id := StringName(card.get("state_id", &"available"))
 	var convoy := card.get("convoy_feedback", {}) as Dictionary
 	var cargo := card.get("cargo_progress", {}) as Dictionary
-	if state_id in [&"failed", &"expired", &"interrupted", &"wrong_order", &"wrong_position", &"missed_gate"] \
+	if state_id in [&"failed", &"lost_hostile", &"expired", &"interrupted", &"wrong_order", &"wrong_position", &"missed_gate"] \
 			or StringName(convoy.get("threat_id", &"")) in [&"critical", &"lost", &"separated"] \
 			or StringName(cargo.get("deadline_state", &"")) == &"critical":
 		return 0
@@ -226,6 +226,8 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var station_defense_feedback: Dictionary = {}
 	if activity_id == &"station_defense":
 		station_defense_feedback = _station_defense_feedback(state)
+		if StringName(station_defense_feedback.get("stage_id", &"")) == &"lost_hostile":
+			state_id = &"lost_hostile"
 	var progress := (
 		"  //  %s" % str(station_defense_feedback.get("summary", ""))
 		if not station_defense_feedback.is_empty()
@@ -272,7 +274,9 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		),
 		"reset_confirmation_pending": _reset_confirmation_activity == activity_id,
 		"reward_pending": reward_pending,
-		"recovery_text": str(cargo_progress.get("recovery_text", recovery)),
+		"recovery_text": str(station_defense_feedback.get(
+			"recovery_text", cargo_progress.get("recovery_text", recovery)
+		)),
 		"objective_text": str(station_defense_feedback.get(
 			"objective_text", convoy_feedback.get(
 			"objective_text", beacon_feedback.get(
@@ -330,6 +334,7 @@ func _station_defense_feedback(state: Dictionary) -> Dictionary:
 	var stage_id: StringName = &"approach"
 	var summary := "DEFENSE READY  //  %s" % asset_status
 	var objective := "REPORT TO THE STATION DEFENSE BOARD"
+	var recovery_text := ""
 	match state_id:
 		&"active":
 			stage_id = &"active"
@@ -348,12 +353,17 @@ func _station_defense_feedback(state: Dictionary) -> Dictionary:
 				("  //  " + failure_text) if not failure_text.is_empty() else "", asset_status,
 			]
 			objective = "RESET AT THE DEFENSE BOARD TO TRY AGAIN"
+			if failure == &"lost_hostile":
+				stage_id = &"lost_hostile"
+				summary = "HOSTILE LOST  //  RESET DEFENSE TO REDEPLOY"
+				objective = "USE RESET TO REDEPLOY HOSTILES AND RESTART THE DEFENSE"
+				recovery_text = "RECOVER: RESET DEFENSE TO REDEPLOY HOSTILES"
 	return {
 		"stage_id": stage_id, "wave_number": wave, "wave_count": wave_count,
 		"remaining_hostile_count": hostiles, "protected_asset_count": assets.size(),
 		"intact_asset_count": intact, "damaged_asset_count": damaged,
 		"lost_asset_count": lost, "reward_pending": reward_pending,
-		"summary": summary, "objective_text": objective,
+		"summary": summary, "objective_text": objective, "recovery_text": recovery_text,
 		"activity_authority": false, "combat_authority": false,
 		"health_authority": false, "reward_authority": false,
 	}.duplicate(true)
