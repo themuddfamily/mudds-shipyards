@@ -38,9 +38,9 @@ func _run() -> void:
 	var committed: Dictionary = binding.call(&"commit_relay_survey_reward")
 	var completed_snapshot: Dictionary = (binding.call(&"get_snapshot") as Dictionary).relay_survey_presentation
 	var invalid_result: Dictionary = objective.call(&"apply_activity_snapshot", {"state": &"forged"})
-	var relay_material := relay.material_override as StandardMaterial3D
-	var return_material := return_marker.material_override as StandardMaterial3D
-	var completion_material := completion_seal.material_override as StandardMaterial3D if completion_seal != null else null
+	var relay_material := relay.material_override as ShaderMaterial
+	var return_material := return_marker.material_override as ShaderMaterial
+	var completion_material := completion_seal.material_override as ShaderMaterial if completion_seal != null else null
 	var completion_mesh := completion_seal.mesh as BoxMesh if completion_seal != null else null
 	var route_shape_ok := relay != null and relay.mesh is CylinderMesh \
 		and (relay.mesh as CylinderMesh).radial_segments == 4 \
@@ -50,14 +50,15 @@ func _run() -> void:
 		and completion_mesh.size == Vector3(3.4, 3.4, 0.55) \
 		and completion_seal.position == Vector3(540.0, 120030.0, -210.0) \
 		and is_equal_approx(completion_seal.rotation.z, PI * 0.25)
-	var budget_ok := objective.get_child_count() == 3 \
+	var budget_ok: bool = objective.get_child_count() == 3 \
 		and objective.find_children("*", "Light3D", true, false).is_empty() \
 		and not objective.is_processing() and not objective.is_physics_processing() \
 		and relay_material != null and return_material != null and completion_material != null \
-		and relay_material != return_material and completion_material != return_material \
-		and is_equal_approx(relay_material.emission_energy_multiplier, 0.55) \
-		and is_equal_approx(return_material.emission_energy_multiplier, 0.55) \
-		and is_equal_approx(completion_material.emission_energy_multiplier, 0.55)
+		and relay_material == return_material and completion_material == return_material \
+		and relay.get_instance_shader_parameter(&"marker_emission") == Color(0.2, 0.7, 1.0, 1.0) \
+		and return_marker.get_instance_shader_parameter(&"marker_emission") == Color(1.0, 0.55, 0.15, 1.0) \
+		and completion_seal.get_instance_shader_parameter(&"marker_emission") == Color(0.95, 0.82, 0.25, 1.0) \
+		and is_equal_approx(float(relay_material.get_shader_parameter(&"emission_energy")), 0.55)
 	var detached: Dictionary = binding.call(&"detach")
 	var detached_snapshot: Dictionary = objective.call(&"get_snapshot")
 	host.attachment_generation = 2
@@ -80,7 +81,7 @@ func _run() -> void:
 			or not restored.return_visible or not restored.completion_visible \
 			or restored.cue_mode != &"reward_confirmed" \
 			or not restored.reward_confirmation_persistent or not restored.reduced_flash_safe \
-			or restored.renderer_budget != {"mesh_instances": 3, "maximum_visible_submissions": 2, "materials": 3, "lights": 0, "runtime_node_allocations_after_ready": 0}:
+			or restored.renderer_budget != {"mesh_instances": 3, "maximum_visible_submissions": 2, "materials": 1, "lights": 0, "runtime_node_allocations_after_ready": 0}:
 		push_error("relay survey presentation lifecycle failed")
 		quit(1)
 		return

@@ -22,10 +22,25 @@ const RELAY_COLOR := Color(0.2, 0.7, 1.0, 1.0)
 const RETURN_COLOR := Color(1.0, 0.55, 0.15, 1.0)
 const COMPLETION_COLOR := Color(0.95, 0.82, 0.25, 1.0)
 const EMISSION_ENERGY := 0.55
+const MARKER_SHADER_SOURCE := """
+shader_type spatial;
+render_mode unshaded;
+
+instance uniform vec4 marker_emission : source_color = vec4(1.0);
+uniform float emission_energy = 0.55;
+
+void fragment() {
+	// Match the previous StandardMaterial3D defaults: white unshaded albedo
+	// plus the authored per-marker emission at the reduced-flash energy.
+	ALBEDO = vec3(1.0);
+	EMISSION = marker_emission.rgb * emission_energy;
+}
+"""
 
 var _relay_marker: MeshInstance3D
 var _return_marker: MeshInstance3D
 var _completion_seal: MeshInstance3D
+var _marker_material: ShaderMaterial
 var _pad_guides_ref: WeakRef
 var _pad_guide_neutral_transforms: Array[Transform3D] = []
 var _pad_guide_applied_transforms: Array[Transform3D] = []
@@ -40,6 +55,7 @@ var _activity_generation := -1
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
+	_marker_material = _make_marker_material()
 	_relay_marker = _make_relay_marker()
 	_return_marker = _make_return_marker()
 	_completion_seal = _make_completion_seal()
@@ -150,7 +166,7 @@ func get_snapshot() -> Dictionary:
 		"renderer_budget": {
 			"mesh_instances": 3,
 			"maximum_visible_submissions": 2,
-			"materials": 3,
+			"materials": 1,
 			"lights": 0,
 			"runtime_node_allocations_after_ready": 0,
 		},
@@ -443,7 +459,8 @@ func _make_relay_marker() -> MeshInstance3D:
 	mesh.radial_segments = 4
 	marker.mesh = mesh
 	marker.position = RELAY_ANCHOR
-	marker.material_override = _make_material(RELAY_COLOR)
+	marker.material_override = _marker_material
+	marker.set_instance_shader_parameter(&"marker_emission", RELAY_COLOR)
 	marker.visible = false
 	return marker
 
@@ -459,7 +476,8 @@ func _make_return_marker() -> MeshInstance3D:
 	marker.mesh = mesh
 	marker.position = RETURN_ANCHOR
 	marker.rotation = Vector3(PI * 0.5, 0.0, 0.0)
-	marker.material_override = _make_material(RETURN_COLOR)
+	marker.material_override = _marker_material
+	marker.set_instance_shader_parameter(&"marker_emission", RETURN_COLOR)
 	marker.visible = false
 	return marker
 
@@ -472,15 +490,16 @@ func _make_completion_seal() -> MeshInstance3D:
 	marker.mesh = mesh
 	marker.position = RETURN_ANCHOR
 	marker.rotation = Vector3(0.0, 0.0, PI * 0.25)
-	marker.material_override = _make_material(COMPLETION_COLOR)
+	marker.material_override = _marker_material
+	marker.set_instance_shader_parameter(&"marker_emission", COMPLETION_COLOR)
 	marker.visible = false
 	return marker
 
 
-func _make_material(color: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.emission_enabled = true
-	material.emission = color
-	material.emission_energy_multiplier = EMISSION_ENERGY
+func _make_marker_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = MARKER_SHADER_SOURCE
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter(&"emission_energy", EMISSION_ENERGY)
 	return material
