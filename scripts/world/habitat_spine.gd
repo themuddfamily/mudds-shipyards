@@ -86,6 +86,7 @@ const POTTING_PULL_COPY_COUNT := 3
 const MESS_BENCH_LEG_COPY_COUNT := 4
 const GARDEN_RACK_CROWN_COPY_COUNT := 5
 const MESS_MUG_COPY_COUNT := 3
+const BERTH_BOOT_COPY_COUNT := 8
 const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 1230
 const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 1234
 const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1243
@@ -95,11 +96,11 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1237
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1868
-const RENDER_MESH_INSTANCE_COUNT := 1208
-const RENDER_MULTIMESH_BATCH_COUNT := 29
+const RENDER_DESCENDANT_COUNT := 1861
+const RENDER_MESH_INSTANCE_COUNT := 1200
+const RENDER_MULTIMESH_BATCH_COUNT := 30
 const RENDER_DRAWN_COPY_COUNT := 1385
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1228
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1221
 const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 345
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
@@ -230,6 +231,8 @@ var _garden_rack_crown_transforms: Array[Transform3D] = []
 var _garden_rack_crown_batch: MultiMeshInstance3D
 var _mess_mug_transforms: Array[Transform3D] = []
 var _mess_mug_batch: MultiMeshInstance3D
+var _berth_boot_transforms: Array[Transform3D] = []
+var _berth_boot_batch: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -1210,6 +1213,30 @@ func get_render_allocation_report() -> Dictionary:
 		and StringName(_mess_mug_batch.get_meta("authored_source_name", &""))
 			== &"MessMug"
 	)
+	var berth_boot_authored: bool = (
+		is_instance_valid(_berth_boot_batch)
+		and _berth_boot_batch.multimesh != null
+		and _berth_boot_batch.multimesh.instance_count == BERTH_BOOT_COPY_COUNT
+		and _berth_boot_batch.multimesh.visible_instance_count == -1
+		and _berth_boot_batch.multimesh.mesh != null
+		and _berth_boot_batch.multimesh.mesh == _rounded_box_mesh(Vector3(0.14, 0.155, 0.32))
+		and _berth_boot_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_berth_boot_transforms
+		)
+		and _berth_boot_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_berth_boot_batch.multimesh.mesh.get_aabb(), _berth_boot_transforms
+			)
+		)
+		and _berth_boot_batch.material_override == _materials.get("leather")
+		and _berth_boot_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _berth_boot_batch.layers == 1
+		and _berth_boot_batch.get_child_count() == 0
+		and _berth_boot_batch.get_script() == null
+		and _berth_boot_batch.get_groups().is_empty()
+		and bool(_berth_boot_batch.get_meta("visual_detail_only", false))
+		and StringName(_berth_boot_batch.get_meta("authored_source_name", &"")) == &"BerthBoot"
+	)
 	var descendant_count := _render_descendant_count()
 	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -1239,6 +1266,8 @@ func get_render_allocation_report() -> Dictionary:
 		and mess_bench_leg_authored
 		and _mess_mug_transforms.size() == MESS_MUG_COPY_COUNT
 		and mess_mug_authored
+		and _berth_boot_transforms.size() == BERTH_BOOT_COPY_COUNT
+		and berth_boot_authored
 	)
 	return {
 		"schema_version": 1,
@@ -3132,8 +3161,17 @@ func _build_habitat_life(structure: Node3D) -> void:
 	var common := structure.get_node_or_null("ObservationCommon") as Node3D
 	if corridor == null or common == null:
 		return
+	_berth_boot_transforms.clear()
 	for index in _bunk_nodes.size():
 		_build_bunk_berth_life(_bunk_nodes[index], index)
+	_berth_boot_batch = _multimesh_visual_stock(
+		corridor,
+		"BerthBoots",
+		_rounded_box_mesh(Vector3(0.14, 0.155, 0.32)),
+		_materials["leather"],
+		_berth_boot_transforms,
+		&"BerthBoot"
+	)
 	_build_entry_vestibule_life(corridor)
 	_build_common_galley(common)
 	_build_common_mess(common)
@@ -3318,7 +3356,12 @@ func _build_bunk_berth_life(bunk: Node3D, index: int) -> void:
 	# --- deck ------------------------------------------------------------------
 	if occupied:
 		for boot_z in [-0.16, 0.16]:
-			_box(berth, "BerthBoot", Vector3(inboard * 0.42, 0.0775, float(boot_z)), Vector3(0.14, 0.155, 0.32), _materials["leather"], false, Vector3(0, inboard * 7.0, 0))
+			_berth_boot_transforms.append(
+				bunk.transform * Transform3D(
+					Basis.from_euler(Vector3(0, deg_to_rad(inboard * 7.0), 0)),
+					Vector3(inboard * 0.42, 0.0775, float(boot_z))
+				)
+			)
 		_box(berth, "BerthKitBag", Vector3(inboard * 0.62, 0.23, -1.05), Vector3(0.44, 0.46, 0.88), _materials["leather"])
 		_beam_between(berth, "BerthKitStrap", Vector3(inboard * 0.62, 0.47, -1.42), Vector3(inboard * 0.62, 0.47, -0.68), 0.026, _materials["coverall"], false)
 	else:

@@ -52,6 +52,7 @@ func _run() -> void:
 	await _test_physical_support_and_clearance(module)
 	await _test_main_station_door(module)
 	await _test_bunk_alcoves(module)
+	_test_berth_boot_batch(module)
 	await _test_common_room_glazing_and_furniture(module)
 	await _test_garden_pressure_shell(module)
 	_test_service_and_visual_detail(module)
@@ -245,6 +246,50 @@ func _test_bunk_alcoves(module: HabitatSpine) -> void:
 		_check(module.contains_room(room_id, module.to_global(center)), "bunk centre lies in published occupancy volume: %s" % room_id)
 		_check(not module.contains_room(room_id, module.to_global(Vector3(0, 1.0, center.z))), "central corridor is outside bunk occupancy: %s" % room_id)
 		_check(bunk.get_node_or_null("BunkPlinth") is StaticBody3D and bunk.get_node_or_null("Mattress") is StaticBody3D, "bunk sleeping surface is physically backed: %s" % room_id)
+
+
+func _test_berth_boot_batch(module: HabitatSpine) -> void:
+	var corridor := module.get_node_or_null(^"Structure/PressurizedHabitatCorridor") as Node3D
+	var batch := corridor.get_node_or_null(^"BerthBoots") as MultiMeshInstance3D if corridor != null else null
+	_check(
+		batch != null and batch.multimesh != null,
+		"eight occupied-berth boots resolve through one visual-only MultiMesh"
+	)
+	if batch == null or batch.multimesh == null:
+		return
+	var expected: Array[Transform3D] = []
+	for bunk_index in HabitatSpine.BUNK_BERTH_OCCUPANCY.size():
+		if not bool(HabitatSpine.BUNK_BERTH_OCCUPANCY[bunk_index]):
+			continue
+		var bunk := module.get_node_or_null(
+			"Structure/PressurizedHabitatCorridor/BunkAlcove%02d" % (bunk_index + 1)
+		) as Node3D
+		if bunk == null:
+			continue
+		var inboard := 1.0 if bunk_index < 3 else -1.0
+		for boot_z in [-0.16, 0.16]:
+			expected.append(
+				bunk.transform * Transform3D(
+					Basis.from_euler(Vector3(0, deg_to_rad(inboard * 7.0), 0)),
+					Vector3(inboard * 0.42, 0.0775, float(boot_z))
+				)
+			)
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var transforms_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		transforms_exact = transforms_exact and (authored[index] as Transform3D).is_equal_approx(
+			expected[index]
+		)
+	_check(
+		batch.multimesh.instance_count == HabitatSpine.BERTH_BOOT_COPY_COUNT
+		and transforms_exact
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.14, 0.155, 0.32))
+		and batch.material_override == (module.find_child("MessBoot", true, false) as MeshInstance3D).material_override
+		and batch.get_child_count() == 0
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"berth-boot batch preserves all leather copies and transforms without collision or berth authority"
+	)
 
 
 func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
@@ -555,10 +600,10 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_garden_rack_crown_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1868
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 1208
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 29,
-		"visual batching stays frozen at 1868 render nodes, 1208 meshes and 29 MultiMeshes"
+		int(render.descendant_nodes) == 1861
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 1200
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 30,
+		"visual batching stays frozen at 1861 render nodes, 1200 meshes and 30 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -652,7 +697,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
 		and int(report.geometry_submissions_before_deck_seam_batch) == 1251
-		and int(report.geometry_submissions) == 1228
+		and int(report.geometry_submissions) == 1221
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
 		and int(report.drawn_copies) == 1385
 		and bool(report.corridor_deck_seam_authored),
@@ -738,7 +783,7 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.common_ceiling_light_body_submissions) == 1
 		and int(report.common_ceiling_light_body_copies) == 6
 		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 1243
-		and int(report.geometry_submissions) == 1228
+		and int(report.geometry_submissions) == 1221
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
 		and int(report.drawn_copies) == 1385
 		and bool(report.common_ceiling_light_body_authored),
@@ -800,7 +845,7 @@ func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
 		and int(report.galley_door_pull_submissions) == 1
 		and int(report.galley_door_pull_copies) == 4
 		and int(report.geometry_submissions_before_galley_door_pull_batch) == 1240
-		and int(report.geometry_submissions) == 1228
+		and int(report.geometry_submissions) == 1221
 		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
 		and bool(report.galley_door_pull_authored),
 		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -936,7 +981,7 @@ func _test_mess_bench_leg_batch(module: HabitatSpine) -> void:
 		and int(report.mess_bench_leg_submissions) == 1
 		and int(report.mess_bench_leg_copies) == 4
 		and int(report.geometry_submissions_before_mess_bench_leg_batch) == 1237
-		and int(report.geometry_submissions) == 1228
+		and int(report.geometry_submissions) == 1221
 		and int(report.geometry_submissions_removed_by_mess_bench_leg_batch) == 3
 		and bool(report.mess_bench_leg_authored),
 		"mess-bench legs measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1014,7 +1059,7 @@ func _test_garden_rack_crown_batch(module: HabitatSpine) -> void:
 		and int(report.garden_rack_crown_mesh_resources) == 1
 		and int(report.garden_rack_crown_copies) == 5
 		and int(report.geometry_submissions_before_garden_rack_crown_batch) == 1234
-		and int(report.geometry_submissions) == 1228
+		and int(report.geometry_submissions) == 1221
 		and int(report.geometry_submissions_removed_by_garden_rack_crown_batch) == 4
 		and int(report.drawn_copies) == 1385
 		and bool(report.garden_rack_crown_authored),
@@ -1086,7 +1131,7 @@ func _test_mess_mug_batch(module: HabitatSpine) -> void:
 		and int(report.mess_mug_submissions) == 1
 		and int(report.mess_mug_copies) == 3
 		and int(report.geometry_submissions_before_mess_mug_batch) == 1230
-		and int(report.geometry_submissions) == 1228
+		and int(report.geometry_submissions) == 1221
 		and int(report.geometry_submissions_removed_by_mess_mug_batch) == 2
 		and int(report.drawn_copies) == 1385
 		and bool(report.mess_mug_authored),
@@ -1242,21 +1287,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1868
-		and int(report.mesh_instances) == 1208
-		and int(report.multimesh_batches) == 29,
+		int(report.descendant_nodes) == 1861
+		and int(report.mesh_instances) == 1200
+		and int(report.multimesh_batches) == 30,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
 		int(report.drawn_copies) == 1385
-		and int(report.geometry_submissions) == 1228
+		and int(report.geometry_submissions) == 1221
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1385 while surface submissions hold at 1228"
+		"drawn copies freeze at 1385 while surface submissions hold at 1221"
 	)
 	_check(
 		int(report.unique_mesh_resources) == 345
 		and int(report.unique_material_resources) == 33
-		and int(report.multimesh_resources) == 29
+		and int(report.multimesh_resources) == 30
 		and int(report.renderer_buffer_floats) == 144,
 		"mesh/material allocations freeze at 345/33 while the hatch batch retains its 144-float renderer buffer"
 	)
