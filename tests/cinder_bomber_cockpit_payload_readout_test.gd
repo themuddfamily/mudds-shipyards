@@ -119,6 +119,33 @@ func _run() -> void:
 		"authority detach immediately restores a truthful offline cockpit state",
 	)
 
+	_check(
+		bool(bomber.reset_payload_for_reuse(2).get("accepted", false)),
+		"a newer payload generation re-arms the retained Cinder for reuse coverage",
+	)
+	await physics_frame
+	_check(
+		readout.text.contains("PAYLOAD READY")
+			and readout.text.contains("AMMO 4")
+			and readout.text.contains("RELEASE READY"),
+		"the re-armed generation is visible before whole-ship reuse",
+	)
+
+	var reset := bomber.reset_for_reuse(Transform3D.IDENTITY)
+	await physics_frame
+	var payload_after_reset := bomber.get_payload_authority_snapshot()
+	var audio_after_reset := bomber.get_payload_audio_binding().get_snapshot() as Dictionary
+	_check(
+		bool(reset.get("accepted", false))
+			and not bool(payload_after_reset.get("active", true))
+			and not bool(audio_after_reset.get("attached", true))
+			and readout.text.contains("PAYLOAD OFFLINE")
+			and readout.text.contains("AMMO 0")
+			and readout.text.contains("RELEASE LOCKED")
+			and _excludes_cannon_language(readout.text),
+		"whole-ship reuse leaves cockpit and payload audio consistently offline",
+	)
+
 	_finish(bomber)
 
 

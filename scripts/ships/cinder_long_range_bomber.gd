@@ -178,6 +178,10 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 		_payload_authority.detach(&"ship_reused")
 	if is_instance_valid(_payload_presentation):
 		_payload_presentation.detach()
+	if _payload_audio_binding != null:
+		var audio_snapshot: Dictionary = _payload_audio_binding.get_snapshot()
+		if bool(audio_snapshot.get("attached", false)):
+			_payload_audio_binding.detach()
 
 
 func _build_bomber_variant(_controller: HeroShip) -> bool:

@@ -37,6 +37,31 @@ func _run() -> void:
 	var terminal_result := bomber.present_payload_terminal_record(terminal)
 	_check(bool(terminal_result.get("accepted", false)) and semantic_cues == [&"bomber_payload_release", &"bomber_payload_projectile_impact"], "accepted resolver terminal record emits one impact cue")
 	_check(not bool(bomber.present_payload_terminal_record(terminal).get("accepted", false)), "replayed terminal record is rejected by production presentation")
+	var reset := bomber.reset_for_reuse(Transform3D.IDENTITY)
+	var reset_audio: Dictionary = binding.get_snapshot()
+	_check(
+		bool(reset.get("accepted", false))
+			and not bool(bomber.get_payload_authority_snapshot().get("active", true))
+			and not bool(reset_audio.get("attached", true))
+			and (reset_audio.get("active_cue_slots", []) as Array).is_empty()
+			and (reset_audio.get("last_snapshot", {}) as Dictionary).is_empty()
+			and (reset_audio.get("projectile_audio", {}) as Dictionary).is_empty(),
+		"HeroShip reuse retires payload authority and every old-generation audio slot",
+	)
+	_check(
+		binding.present_release_record(record).get("reason", &"") == &"not_attached",
+		"the reused craft rejects an old release while payload audio is offline",
+	)
+	_check(
+		bool(bomber.reset_payload_for_reuse(2).get("accepted", false))
+			and bool(binding.get_snapshot().get("attached", false))
+			and int(binding.get_snapshot().get("generation", -1)) == 2,
+		"the next payload generation reattaches one clean audio lifecycle",
+	)
+	_check(
+		binding.present_release_record(record).get("reason", &"") == &"stale_generation",
+		"the reattached audio lifecycle rejects a record from before reuse",
+	)
 	bomber.detach_payload_authority()
 	_check(not bool(binding.get_snapshot().attached), "payload detach clears the production audio binding")
 	bomber.queue_free()
