@@ -112,6 +112,18 @@ const ARRAY_RECEIVER_BATCH_NAME := "ArrayReceiver"
 const SENSOR_SWEEP_YAW_RATE := 0.42
 const SENSOR_SWEEP_PITCH_RATE := 0.75
 const SENSOR_SWEEP_PITCH_AMPLITUDE := deg_to_rad(6.0)
+## A presentation-only dual-axis passive aperture gives the provisional Arrow
+## a readable reconnaissance crown at normal chase and berth distances. The
+## existing azimuth ring grows into the primary aperture while one orthogonal
+## ring makes the sensor role legible from the flank; neither surface owns a
+## light, collision shape, sensor query, timer, or gameplay authority.
+const RECON_CROWN_PRIMARY_INNER_RADIUS := 0.72
+const RECON_CROWN_PRIMARY_OUTER_RADIUS := 0.86
+const RECON_CROWN_SECONDARY_INNER_RADIUS := 0.54
+const RECON_CROWN_SECONDARY_OUTER_RADIUS := 0.66
+const RECON_CROWN_SECONDARY_ROTATION_DEGREES := Vector3(0.0, 0.0, 90.0)
+const RECON_CROWN_HUB_RADIUS := 0.14
+const RECON_CROWN_MAX_CHASE_PROJECTED_DIAMETER_PX := 30.0
 const BOARDING_STEP_SIZE := Vector3(0.58, 0.1, 0.62)
 const BOARDING_STEP_VISIBLE_COPIES := 3
 # Retain the only stable renderer path from the former three-node family; the
@@ -199,12 +211,12 @@ const PHASE9_ARROW_VISUAL_CENSUS := {
 	"auto_fallback_names": 23,
 }
 const EXPECTED_ARROW_VISUAL_CENSUS := {
-	"nodes": 187,
-	"mesh_instance_nodes": 162,
+	"nodes": 189,
+	"mesh_instance_nodes": 164,
 	"multi_mesh_instance_nodes": 3,
-	"geometry_submissions": 165,
-	"visible_geometry_copies": 169,
-	"unique_mesh_resource_allocations": 122,
+	"geometry_submissions": 167,
+	"visible_geometry_copies": 171,
+	"unique_mesh_resource_allocations": 124,
 	"auto_fallback_names": 20,
 }
 const RECON_PULSE_EMITTER_VISUAL_DELTA := {
@@ -234,6 +246,9 @@ var _escape_pods: Array[Node3D] = []
 var _engine_plumes: Array[MeshInstance3D] = []
 var _arrow_engine_lights: Array[OmniLight3D] = []
 var _sensor_sweep: Node3D
+var _recon_primary_aperture: MeshInstance3D
+var _recon_secondary_aperture: MeshInstance3D
+var _recon_crown_hub: MeshInstance3D
 var _elapsed_arrow := 0.0
 var _wing_root_rib_authored_transforms: Array[Transform3D] = []
 var _lateral_array_curve_joint_mesh: SphereMesh
@@ -294,6 +309,50 @@ func get_escape_pod(side_id: StringName) -> Node3D:
 
 func get_sensor_mast() -> Node3D:
 	return _sensor_sweep
+
+
+## Detached presentation snapshot for the Arrow's modern provisional sensor
+## crown. It intentionally exposes renderer geometry only, so focused visual
+## checks do not promote the assembly into sensing or flight authority.
+func get_recon_crown_snapshot() -> Dictionary:
+	var primary_mesh := (
+		_recon_primary_aperture.mesh as TorusMesh
+		if is_instance_valid(_recon_primary_aperture) else null
+	)
+	var secondary_mesh := (
+		_recon_secondary_aperture.mesh as TorusMesh
+		if is_instance_valid(_recon_secondary_aperture) else null
+	)
+	var hub_mesh := (
+		_recon_crown_hub.mesh as SphereMesh
+		if is_instance_valid(_recon_crown_hub) else null
+	)
+	return {
+		"presentation_status": &"modern_provisional",
+		"evidence_status": EVIDENCE_STATUS,
+		"name_to_model_status": NAME_TO_MODEL_STATUS,
+		"visual_only": true,
+		"gameplay_authority": false,
+		"primary_path": _recon_primary_aperture.get_path() \
+			if is_instance_valid(_recon_primary_aperture) else NodePath(),
+		"secondary_path": _recon_secondary_aperture.get_path() \
+			if is_instance_valid(_recon_secondary_aperture) else NodePath(),
+		"hub_path": _recon_crown_hub.get_path() \
+			if is_instance_valid(_recon_crown_hub) else NodePath(),
+		"primary_inner_radius": primary_mesh.inner_radius if primary_mesh != null else 0.0,
+		"primary_outer_radius": primary_mesh.outer_radius if primary_mesh != null else 0.0,
+		"secondary_inner_radius": secondary_mesh.inner_radius if secondary_mesh != null else 0.0,
+		"secondary_outer_radius": secondary_mesh.outer_radius if secondary_mesh != null else 0.0,
+		"secondary_rotation": _recon_secondary_aperture.rotation \
+			if is_instance_valid(_recon_secondary_aperture) else Vector3.ZERO,
+		"hub_radius": hub_mesh.radius if hub_mesh != null else 0.0,
+		"renderer_nodes": 3,
+		"geometry_submissions": 3,
+		"collision_shapes": 0,
+		"lights": 0,
+		"timers": 0,
+		"sensor_queries": 0,
+	}.duplicate(true)
 
 
 func get_arrow_visual_root() -> Node3D:
@@ -479,11 +538,11 @@ func get_arrow_visual_performance_report() -> Dictionary:
 		"current": current,
 		"entry_heat_target_delta": ENTRY_HEAT_TARGET_VISUAL_DELTA.duplicate(true),
 		"reductions": {
-			"nodes": -10,
-			"geometry_submissions": -6,
-			"unique_mesh_resource_allocations": 19,
+			"nodes": -12,
+			"geometry_submissions": -8,
+			"unique_mesh_resource_allocations": 18,
 			"auto_fallback_names": 4,
-			"visible_geometry_copies": -10,
+			"visible_geometry_copies": -12,
 		},
 		"phase9_reductions_before_entry_heat": {
 			"nodes": 1,
@@ -794,7 +853,41 @@ func _build_recon_systems() -> void:
 	_sensor_sweep.set_meta("visual_only", true)
 	_sensor_sweep.set_meta("gameplay_authority", false)
 	mast.add_child(_sensor_sweep)
-	_torus(_sensor_sweep, "PassiveArrayRing", Vector3.ZERO, 0.45, 0.54, _arrow_materials.sensor, Vector3(90, 0, 0))
+	_recon_primary_aperture = _torus(
+		_sensor_sweep,
+		"PassiveArrayRing",
+		Vector3.ZERO,
+		RECON_CROWN_PRIMARY_INNER_RADIUS,
+		RECON_CROWN_PRIMARY_OUTER_RADIUS,
+		_arrow_materials.sensor,
+		Vector3(90, 0, 0)
+	)
+	_recon_secondary_aperture = _torus(
+		_sensor_sweep,
+		"OrthogonalPassiveAperture",
+		Vector3.ZERO,
+		RECON_CROWN_SECONDARY_INNER_RADIUS,
+		RECON_CROWN_SECONDARY_OUTER_RADIUS,
+		_arrow_materials.sensor,
+		RECON_CROWN_SECONDARY_ROTATION_DEGREES
+	)
+	_recon_crown_hub = _sphere(
+		_sensor_sweep,
+		"PassiveApertureHub",
+		Vector3.ZERO,
+		RECON_CROWN_HUB_RADIUS,
+		_arrow_materials.graphite
+	)
+	for crown_renderer in [
+		_recon_primary_aperture,
+		_recon_secondary_aperture,
+		_recon_crown_hub,
+	]:
+		crown_renderer.set_meta("presentation_status", &"modern_provisional")
+		crown_renderer.set_meta("geometry_status", EVIDENCE_STATUS)
+		crown_renderer.set_meta("authenticated_historical_silhouette", false)
+		crown_renderer.set_meta("visual_only", true)
+		crown_renderer.set_meta("gameplay_authority", false)
 	_cylinder(_sensor_sweep, "ArrayCrossbar", Vector3.ZERO, 0.055, 1.45, _arrow_materials.titanium, Vector3(0, 0, 90))
 	_array_receiver_mesh = _make_array_receiver_mesh()
 	_multi_mesh_from_mesh(
