@@ -38,6 +38,7 @@ func _run() -> void:
 	_test_cargo_restraint_mesh_allocation(jovian)
 	_test_passenger_seat_mesh_allocation(jovian)
 	_test_passenger_cabin_light_strip_allocation(jovian)
+	_test_landing_bogie_foot_batch(jovian)
 	await _test_scale_handling_and_presentation(jovian)
 	_test_connected_interior_contract(jovian)
 	_test_collision_access_and_cameras(jovian)
@@ -46,6 +47,68 @@ func _run() -> void:
 	await _test_engine_weapon_damage_and_reuse(jovian)
 	await _test_cleanup(jovian)
 	_finish()
+
+
+func _test_landing_bogie_foot_batch(jovian: JovianLightFreighter) -> void:
+	var visual := jovian.get_jovian_visual_root()
+	var batch := visual.get_node_or_null("LandingBogieFootBatch") as MultiMeshInstance3D
+	var multi := batch.multimesh if batch != null else null
+	var expected_transforms: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(-5.05, -1.14, -5.8)),
+		Transform3D(Basis.IDENTITY, Vector3(-5.05, -1.14, 7.3)),
+		Transform3D(Basis.IDENTITY, Vector3(5.05, -1.14, -5.8)),
+		Transform3D(Basis.IDENTITY, Vector3(5.05, -1.14, 7.3)),
+	]
+	var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array \
+		if batch != null else []
+	var transforms_match := authored_transforms.size() == expected_transforms.size()
+	for index in mini(authored_transforms.size(), expected_transforms.size()):
+		transforms_match = transforms_match and (authored_transforms[index] as Transform3D) \
+			.is_equal_approx(expected_transforms[index])
+	var expected_bounds := AABB()
+	var foot_bounds := multi.mesh.get_aabb() if multi != null and multi.mesh != null else AABB()
+	for index in expected_transforms.size():
+		var transformed := expected_transforms[index] * foot_bounds
+		expected_bounds = transformed if index == 0 else expected_bounds.merge(transformed)
+	_check(
+		batch != null
+		and multi != null
+		and multi.mesh is ArrayMesh
+		and multi.mesh.get_aabb().size.is_equal_approx(
+			JovianLightFreighter.LANDING_BOGIE_FOOT_SIZE
+		)
+		and multi.mesh.surface_get_material(0) == jovian.get("_jovian_materials").structure
+		and multi.transform_format == MultiMesh.TRANSFORM_3D
+		and not multi.use_colors
+		and not multi.use_custom_data
+		and multi.instance_count == JovianLightFreighter.LANDING_BOGIE_FOOT_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and transforms_match
+		and multi.buffer == jovian.call(
+			"_encode_load_mark_transforms", expected_transforms
+		)
+		and multi.custom_aabb.is_equal_approx(expected_bounds)
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.material_override == null
+		and batch.material_overlay == null
+		and batch.get_child_count() == 0
+		and batch.get_script() == null
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"four visual-only landing-bogie feet retain exact geometry, material, transforms, bounds and shadow state in one batch"
+	)
+	_check(
+		visual.find_children("LandingBogieFoot", "MeshInstance3D", true, false).is_empty()
+		and batch.get_meta("authored_visual_names", PackedStringArray()) \
+			== PackedStringArray([
+				"LandingBogieFoot", "LandingBogieFoot",
+				"LandingBogieFoot", "LandingBogieFoot",
+			])
+		and batch.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and batch.find_children("*", "Light3D", true, false).is_empty(),
+		"landing-foot allocation falls from four renderer nodes, submissions and meshes to one without gaining gameplay authority"
+	)
 
 
 func _test_definition_and_evidence(jovian: JovianLightFreighter) -> void:

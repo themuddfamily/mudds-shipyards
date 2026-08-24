@@ -123,6 +123,14 @@ const LOAD_MARK_SIZE := Vector3(0.12, 0.42, 0.72)
 const SERVICE_PANEL_COPY_COUNT := 7
 const SERVICE_PANEL_SIZE := Vector3(0.1, 1.48, 2.45)
 
+## Four childless landing-bogie feet are one identical structure-material visual
+## recipe at fixed mirrored transforms. The ship-root collision envelope, berth
+## fit and parked contact plane do not read these renderers, so one visual-only
+## batch preserves all four drawn copies while removing three renderer nodes,
+## submissions and private rounded-box mesh allocations.
+const LANDING_BOGIE_FOOT_COPY_COUNT := 4
+const LANDING_BOGIE_FOOT_SIZE := Vector3(1.65, 0.18, 2.2)
+
 # Phase 9 allocation boundary. The five dorsal ribs each retain five ordinary
 # MeshInstance3D curve joints and therefore all 25 authored draw submissions.
 # Their geometry recipe and structure material are exact, so those nodes share
@@ -315,6 +323,9 @@ var _load_mark_transforms: Array[Transform3D] = []
 var _service_panel_mesh: ArrayMesh
 var _service_panel_batch: MultiMeshInstance3D
 var _service_panel_transforms: Array[Transform3D] = []
+var _landing_bogie_foot_mesh: ArrayMesh
+var _landing_bogie_foot_batch: MultiMeshInstance3D
+var _landing_bogie_foot_transforms: Array[Transform3D] = []
 var _cargo_deck_lane_mesh: ArrayMesh
 var _cargo_deck_lane_batch: MultiMeshInstance3D
 var _cargo_deck_lane_transforms: Array[Transform3D] = []
@@ -3929,8 +3940,38 @@ func _build_propulsion_and_gear() -> void:
 	for side in [-1.0, 1.0]:
 		for z_position in [-5.8, 7.3]:
 			_box(_jovian_visual, "LandingBogieStrut", Vector3(side * 4.85, -0.42, z_position), Vector3(0.34, 1.5, 0.34), _jovian_materials.dark, Vector3(0.0, 0.0, side * deg_to_rad(-7.0)))
-			_box(_jovian_visual, "LandingBogieFoot", Vector3(side * 5.05, -1.14, z_position), Vector3(1.65, 0.18, 2.2), _jovian_materials.structure)
+			_landing_bogie_foot_transforms.append(Transform3D(
+				Basis.IDENTITY, Vector3(side * 5.05, -1.14, z_position)
+			))
 			_cylinder(_jovian_visual, "LandingDamper", Vector3(side * 4.64, -0.22, z_position), 0.13, 1.25, _jovian_materials.amber)
+	_landing_bogie_foot_mesh = _rounded_box_mesh(
+		LANDING_BOGIE_FOOT_SIZE, _jovian_materials.structure
+	)
+	var landing_bogie_feet := MultiMesh.new()
+	landing_bogie_feet.transform_format = MultiMesh.TRANSFORM_3D
+	landing_bogie_feet.mesh = _landing_bogie_foot_mesh
+	landing_bogie_feet.instance_count = _landing_bogie_foot_transforms.size()
+	landing_bogie_feet.visible_instance_count = -1
+	landing_bogie_feet.buffer = _encode_load_mark_transforms(
+		_landing_bogie_foot_transforms
+	)
+	landing_bogie_feet.custom_aabb = _load_mark_bounds(
+		_landing_bogie_foot_mesh.get_aabb(), _landing_bogie_foot_transforms
+	)
+	_landing_bogie_foot_batch = MultiMeshInstance3D.new()
+	_landing_bogie_foot_batch.name = "LandingBogieFootBatch"
+	_landing_bogie_foot_batch.multimesh = landing_bogie_feet
+	_landing_bogie_foot_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_landing_bogie_foot_batch.layers = 1
+	_landing_bogie_foot_batch.extra_cull_margin = 0.0
+	_landing_bogie_foot_batch.set_meta("visual_detail_only", true)
+	_landing_bogie_foot_batch.set_meta("authored_visual_names", PackedStringArray([
+		"LandingBogieFoot", "LandingBogieFoot", "LandingBogieFoot", "LandingBogieFoot",
+	]))
+	_landing_bogie_foot_batch.set_meta(
+		"authored_instance_transforms", _landing_bogie_foot_transforms.duplicate()
+	)
+	_jovian_visual.add_child(_landing_bogie_foot_batch)
 
 	# Twin defensive pulse mounts communicate capability without turning the
 	# freighter into a gunship. Their broad bases and compact receivers read as
