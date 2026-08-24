@@ -15,6 +15,11 @@ const REQUIRED_HOST_ID: StringName = &"ember_surface_loop"
 const REQUIRED_WORLD_ID: StringName = &"ember_moon"
 const REQUIRED_PHASE: StringName = &"on_foot"
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
+const REWARD_INTENT_KEYS := [
+	"activity_generation", "activity_id", "attachment_generation",
+	"objective_id", "recovery_id", "return_target_id", "reward_authority_id",
+	"reward_id", "reward_store_id", "run_generation", "world_id",
+]
 
 enum State {
 	IDLE,
@@ -409,6 +414,11 @@ func commit_activity_reward() -> Dictionary:
 		return _reject(&"adapter_activity_not_active")
 	var generations := _host_generations()
 	var runtime_snapshot := _runtime.get_snapshot()
+	var intent_rejection := _reward_intent_rejection(
+		runtime_snapshot.get("pending_reward", {}), runtime_snapshot, generations
+	)
+	if not intent_rejection.is_empty():
+		return _reject(intent_rejection)
 	var result := _runtime.commit_reward(
 		StringName(runtime_snapshot.get("completed_activity_id", &"")),
 		int(runtime_snapshot.get("activity_generation", 0)),
@@ -715,6 +725,46 @@ func _host_generations() -> Dictionary:
 		"run": int(_host.call(&"get_generation")),
 		"attachment": int(_host.call(&"get_attachment_generation")),
 	}
+
+
+func _reward_intent_rejection(
+		value: Variant, runtime_snapshot: Dictionary, generations: Dictionary
+	) -> StringName:
+	if not value is Dictionary:
+		return &"reward_intent_schema_mismatch"
+	var intent := value as Dictionary
+	if intent.size() != REWARD_INTENT_KEYS.size():
+		return &"reward_intent_schema_mismatch"
+	for key in intent:
+		if not key is String or not REWARD_INTENT_KEYS.has(key):
+			return &"reward_intent_schema_mismatch"
+	for key in ["activity_generation", "attachment_generation", "run_generation"]:
+		if not intent.get(key) is int or int(intent.get(key, 0)) < 1:
+			return &"reward_intent_type_mismatch"
+	for key in [
+		"activity_id", "objective_id", "recovery_id", "return_target_id",
+		"reward_authority_id", "reward_id", "reward_store_id", "world_id",
+	]:
+		if not intent.get(key) is StringName \
+				or (intent.get(key) as StringName).is_empty():
+			return &"reward_intent_type_mismatch"
+	if int(intent.run_generation) != int(generations.run) \
+			or int(intent.run_generation) \
+				!= int(runtime_snapshot.get("run_generation", -1)):
+		return &"stale_reward_run_generation"
+	# A pending receipt may survive an explicit detach/re-entry. Its completion
+	# attachment is then older than the live actor attachment, never newer.
+	if int(intent.attachment_generation) > int(generations.attachment) \
+			or int(generations.attachment) \
+				!= int(runtime_snapshot.get("attachment_generation", -1)):
+		return &"stale_reward_attachment_generation"
+	if StringName(intent.world_id) != REQUIRED_WORLD_ID \
+			or StringName(intent.activity_id) \
+				!= StringName(runtime_snapshot.get("completed_activity_id", &"")) \
+			or int(intent.activity_generation) \
+				!= int(runtime_snapshot.get("activity_generation", -1)):
+		return &"reward_completion_identity_mismatch"
+	return &""
 
 
 func _state_id() -> StringName:

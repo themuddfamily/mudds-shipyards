@@ -70,6 +70,17 @@ const RETURN_PERSISTENCE_RECORD_KEYS := [
 	"schema_version", "payload_kind", "slot_id", "binding_generation",
 	"run_generation", "receipt_sha256", "session",
 ]
+const RELAY_REWARD_INTENT_KEYS := [
+	"activity_generation", "activity_id", "attachment_generation",
+	"objective_id", "recovery_id", "return_target_id", "reward_authority_id",
+	"reward_id", "reward_store_id", "run_generation", "world_id",
+]
+const RELAY_REWARD_EVIDENCE_KEYS := [
+	"activity_generation", "actor_instance_id", "actor_kind", "caller_serial",
+	"completion_attachment_generation", "craft_instance_id",
+	"host_attachment_generation", "host_generation", "host_instance_id",
+	"owner_generation", "physics_frame", "session_instance_id",
+]
 
 var _state := State.IDLE
 var _generation := 0
@@ -100,6 +111,14 @@ var _location_generation := 0
 var _planetary_composition: Node
 var _relay_survey_persistence_store: RefCounted
 var _relay_survey_persistence_slot: StringName = &""
+var _planetary_reward_authority := Callable()
+var _active_relay_reward_evidence: Dictionary = {}
+var _relay_reward_authority_in_flight := false
+var _relay_reward_authority_receipt: Dictionary = {}
+var _relay_reward_commit_receipt: Dictionary = {}
+var _last_relay_reward_commit_result: Dictionary = {}
+var _relay_reward_authority_commit_count := 0
+var _relay_reward_persistence_commit_count := 0
 var _atmosphere_composition: Node
 var _last_planetary_altitude_m := 0.0
 var _relay_return_manifest: RefCounted
@@ -180,6 +199,8 @@ func _exit_tree() -> void:
 	# it after a whole composition detach/re-entry.
 	_pending_envelope.clear()
 	_pending_intent.clear()
+	_active_relay_reward_evidence.clear()
+	_relay_reward_authority_in_flight = false
 	_clear_retained_return_context()
 	if _state == State.START_PENDING:
 		_state = State.IDLE
@@ -272,6 +293,8 @@ func configure_planetary_surface(
 		return _reject(&"production_binding_unavailable")
 	if _planetary_composition != null:
 		return _reject(&"planetary_composition_already_bound")
+	if not reward_sink.is_valid():
+		return _reject(&"reward_sink_unavailable")
 	var host_snapshot := _host.get_snapshot() if _host != null else {}
 	if _state != State.RUNNING \
 			or not bool(host_snapshot.get("attached", false)) \
@@ -285,8 +308,11 @@ func configure_planetary_surface(
 	_planetary_composition.connect(
 		&"service_terminal_repair_feedback", _on_service_terminal_repair_feedback
 	)
+	_planetary_reward_authority = reward_sink
 	var result: Dictionary = _planetary_composition.call(
-		&"configure", _host, director, reward_sink, _host.get_generation(),
+		&"configure", _host, director,
+		Callable(self, &"_commit_relay_reward_through_authority"),
+		_host.get_generation(),
 		service_repair_sink
 	)
 	if bool(result.get("accepted", false)) \
@@ -296,10 +322,12 @@ func configure_planetary_surface(
 			_relay_survey_persistence_store, _relay_survey_persistence_slot
 		) as Dictionary
 		if not bool(persistence_configured.get("accepted", false)):
+			_planetary_reward_authority = Callable()
 			_planetary_composition.queue_free()
 			_planetary_composition = null
 			return persistence_configured
 	if not bool(result.get("accepted", false)):
+		_planetary_reward_authority = Callable()
 		_planetary_composition.queue_free()
 		_planetary_composition = null
 	else:
@@ -467,7 +495,11 @@ func submit_planetary_relay_survey_landmark(landmark_id: StringName, position: V
 func commit_planetary_relay_survey_reward() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
-	return _planetary_composition.call(&"commit_relay_survey_reward")
+	if not _relay_reward_commit_receipt.is_empty():
+		return _reject(&"relay_reward_already_committed")
+	# Production commits only from the already validated priority-2 actor
+	# envelope. A public/manual call has no authority to manufacture that witness.
+	return _reject(&"relay_reward_requires_late_actor_evidence")
 
 
 func configure_relay_survey_persistence(
@@ -496,9 +528,10 @@ func restore_relay_survey_persistence() -> Dictionary:
 	return _planetary_composition.call(&"restore_relay_survey_persistence")
 
 
-## Emits a caller-routed return intent after the survey's reward handoff is
-## accepted. This binding never moves the actor, grants the reward, or selects
-## a berth; the receipt only names the authored Mudds Shipyards destination.
+## Emits a caller-routed return intent after the survey's fenced external reward
+## commit is accepted and persisted. This binding never moves the actor, owns
+## the reward authority/store, or selects a berth; the receipt only names the
+## authored Mudds Shipyards destination.
 func issue_planetary_relay_survey_return_manifest() -> Dictionary:
 	if _planetary_composition == null or _relay_return_manifest == null:
 		return _reject(&"planetary_composition_unavailable")
@@ -1655,6 +1688,17 @@ func get_snapshot() -> Dictionary:
 			"actor_instance_id": _retained_return_actor_instance_id,
 			"craft_instance_id": _retained_return_craft_instance_id,
 		}.duplicate(true),
+		"relay_reward_commit": {
+			"authority_commit_count": _relay_reward_authority_commit_count,
+			"persistence_commit_count": _relay_reward_persistence_commit_count,
+			"authority_in_flight": _relay_reward_authority_in_flight,
+			"authority_receipt": _relay_reward_authority_receipt.duplicate(true),
+			"commit_receipt": _relay_reward_commit_receipt.duplicate(true),
+			"last_result": _last_relay_reward_commit_result.duplicate(true),
+			"automatic_late_commit": true,
+			"owns_reward_authority": false,
+			"owns_reward_store": false,
+		}.duplicate(true),
 		"planetary_surface": get_planetary_surface_snapshot(),
 		"entry_presentation": _entry_presentation_binding.get_snapshot() \
 			if _entry_presentation_binding != null else {"attached": false},
@@ -1879,6 +1923,7 @@ func audit() -> Dictionary:
 			"immediate_committed_origin_adoption_invocation": true,
 			"late_physics_cadence": true,
 			"completion_handback_relay": true,
+			"fenced_external_relay_reward_commit": true,
 		}.duplicate(true),
 		"common_authority": _false_roster(COMMON_AUTHORITY_KEYS),
 		"adjacent_authority": _false_roster(ADJACENT_AUTHORITY_KEYS),
@@ -2000,8 +2045,13 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 		return &""
 	var surface_snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
 	var activity: Dictionary = surface_snapshot.get("adapter", {}).get("activity_reward", {}) as Dictionary
-	if StringName(activity.get("state", &"")) not in [&"active", &"awaiting_reward"]:
+	if StringName(activity.get("activity_id", &"")) != &"ember_beacon_survey":
 		return &""
+	var activity_state := StringName(activity.get("state", &""))
+	if activity_state not in [&"active", &"awaiting_reward"]:
+		return &""
+	if activity_state == &"awaiting_reward":
+		return _commit_pending_relay_reward(envelope, activity)
 	var sample: Dictionary = envelope.get("actor_sample", {}) as Dictionary
 	var position: Variant = sample.get("position", Vector3.INF)
 	if not position is Vector3 or not (position as Vector3).is_finite():
@@ -2009,7 +2059,202 @@ func _forward_active_relay_position(envelope: Dictionary) -> StringName:
 	var forwarded: Dictionary = _planetary_composition.call(
 		&"submit_relay_survey_position", position
 	)
-	return &"relay_position_forward_rejected" if not bool(forwarded.get("accepted", false)) else &""
+	if not bool(forwarded.get("accepted", false)):
+		return &"relay_position_forward_rejected"
+	var updated: Dictionary = _planetary_composition.call(&"get_snapshot")
+	var updated_activity := (
+		updated.get("adapter", {}).get("activity_reward", {}) as Dictionary
+	)
+	if StringName(updated_activity.get("state", &"")) == &"awaiting_reward":
+		return _commit_pending_relay_reward(envelope, updated_activity)
+	return &""
+
+
+func _commit_pending_relay_reward(
+		envelope: Dictionary, activity: Dictionary
+	) -> StringName:
+	if not _relay_reward_commit_receipt.is_empty():
+		return &"relay_reward_replayed"
+	if _relay_survey_persistence_store == null \
+			or _relay_survey_persistence_slot.is_empty():
+		return &"relay_reward_persistence_unavailable"
+	var evidence := _build_relay_reward_evidence(envelope, activity)
+	var evidence_rejection := _relay_reward_evidence_rejection(evidence, activity)
+	if not evidence_rejection.is_empty():
+		return evidence_rejection
+	_active_relay_reward_evidence = evidence.duplicate(true)
+	var committed := _planetary_composition.call(
+		&"commit_relay_survey_reward"
+	) as Dictionary
+	_active_relay_reward_evidence.clear()
+	_last_relay_reward_commit_result = committed.duplicate(true)
+	if not bool(committed.get("accepted", false)):
+		return committed.get("reason", &"relay_reward_commit_rejected") as StringName
+	if _relay_reward_authority_receipt.is_empty():
+		return &"relay_reward_authority_receipt_missing"
+	var persistence := committed.get("persistence", {}) as Dictionary
+	if not bool(persistence.get("accepted", false)):
+		return &"relay_reward_persistence_commit_rejected"
+	_relay_reward_persistence_commit_count += 1
+	_relay_reward_commit_receipt = {
+		"commit_id": _relay_reward_authority_receipt.get("commit_id", ""),
+		"owner_generation": _generation,
+		"host_generation": _host.get_generation(),
+		"host_attachment_generation": _host.get_attachment_generation(),
+		"activity_generation": int(activity.get("activity_generation", -1)),
+		"actor_instance_id": int(evidence.get("actor_instance_id", 0)),
+		"session_instance_id": int(evidence.get("session_instance_id", 0)),
+		"authority": _relay_reward_authority_receipt.duplicate(true),
+		"persistence": persistence.duplicate(true),
+	}.duplicate(true)
+	_last_relay_reward_commit_result["production_commit"] = (
+		_relay_reward_commit_receipt.duplicate(true)
+	)
+	return &""
+
+
+func _build_relay_reward_evidence(
+		envelope: Dictionary, activity: Dictionary
+	) -> Dictionary:
+	var sample := envelope.get("actor_sample", {}) as Dictionary
+	var pending := activity.get("pending_reward", {}) as Dictionary
+	var session: Object = _host.get_travel_session_observation_source() \
+		if _host != null else null
+	return {
+		"owner_generation": _generation,
+		"host_instance_id": _host_instance_id,
+		"host_generation": int(envelope.get("host_generation", -1)),
+		"host_attachment_generation": int(
+			envelope.get("host_attachment_generation", -1)
+		),
+		"session_instance_id": session.get_instance_id() \
+			if is_instance_valid(session) else 0,
+		"actor_kind": sample.get("actor_kind", &""),
+		"actor_instance_id": int(sample.get("actor_instance_id", 0)),
+		"craft_instance_id": _ship_instance_id,
+		"caller_serial": int(envelope.get("caller_serial", 0)),
+		"physics_frame": int(envelope.get("physics_frame", -1)),
+		"activity_generation": int(activity.get("activity_generation", -1)),
+		"completion_attachment_generation": int(
+			pending.get("attachment_generation", -1)
+		),
+	}.duplicate(true)
+
+
+func _relay_reward_evidence_rejection(
+		evidence: Variant, activity: Dictionary
+	) -> StringName:
+	if not _configured or _state != State.RUNNING \
+			or _planetary_composition == null \
+			or not _planetary_reward_authority.is_valid():
+		return &"relay_reward_production_unavailable"
+	if not evidence is Dictionary \
+			or not _exact_keys(evidence as Dictionary, RELAY_REWARD_EVIDENCE_KEYS):
+		return &"relay_reward_evidence_schema_mismatch"
+	var witness := evidence as Dictionary
+	for key in [
+		"activity_generation", "actor_instance_id", "caller_serial",
+		"completion_attachment_generation", "craft_instance_id",
+		"host_attachment_generation", "host_generation", "host_instance_id",
+		"owner_generation", "physics_frame", "session_instance_id",
+	]:
+		if not witness.get(key) is int:
+			return &"relay_reward_evidence_type_mismatch"
+	if not witness.get("actor_kind") is StringName:
+		return &"relay_reward_evidence_type_mismatch"
+	if int(witness.owner_generation) != _generation \
+			or int(witness.host_instance_id) != _host_instance_id \
+			or int(witness.host_generation) != _host.get_generation() \
+			or int(witness.host_attachment_generation) \
+				!= _host.get_attachment_generation() \
+			or int(witness.caller_serial) != _last_consumed_caller_serial \
+			or int(witness.physics_frame) != _last_consumed_physics_frame \
+			or int(witness.physics_frame) != int(Engine.get_physics_frames()):
+		return &"stale_relay_reward_evidence"
+	var host_snapshot := _host.get_snapshot() as Dictionary
+	var identities := host_snapshot.get("identities", {}) as Dictionary
+	var session: Object = _host.get_travel_session_observation_source()
+	if not bool(host_snapshot.get("attached", false)) \
+			or StringName(host_snapshot.get("phase_id", &"")) != &"on_foot" \
+			or StringName(witness.actor_kind) != &"player" \
+			or int(witness.actor_instance_id) != _player_instance_id \
+			or int(witness.actor_instance_id) \
+				!= int(identities.get("player_instance_id", 0)) \
+			or int(witness.craft_instance_id) != _ship_instance_id \
+			or int(witness.craft_instance_id) \
+				!= int(identities.get("ship_instance_id", 0)) \
+			or not is_instance_valid(session) \
+			or int(witness.session_instance_id) != session.get_instance_id():
+		return &"forged_relay_reward_actor_session_evidence"
+	var pending := activity.get("pending_reward", {}) as Dictionary
+	if StringName(activity.get("state", &"")) != &"awaiting_reward" \
+			or StringName(activity.get("completed_activity_id", &"")) \
+				!= &"ember_beacon_survey" \
+			or int(witness.activity_generation) \
+				!= int(activity.get("activity_generation", -1)) \
+			or int(witness.completion_attachment_generation) \
+				!= int(pending.get("attachment_generation", -1)) \
+			or int(witness.completion_attachment_generation) < 1 \
+			or int(witness.completion_attachment_generation) \
+				> int(witness.host_attachment_generation):
+		return &"stale_relay_reward_completion_evidence"
+	return &""
+
+
+func _commit_relay_reward_through_authority(intent: Variant) -> Dictionary:
+	if _relay_reward_authority_in_flight:
+		return {"accepted": false, "reason": &"relay_reward_commit_reentrant"}
+	if not _relay_reward_authority_receipt.is_empty():
+		return {"accepted": false, "reason": &"relay_reward_already_committed"}
+	if not intent is Dictionary \
+			or not _exact_keys(intent as Dictionary, RELAY_REWARD_INTENT_KEYS):
+		return {"accepted": false, "reason": &"relay_reward_intent_schema_mismatch"}
+	if _active_relay_reward_evidence.is_empty():
+		return {"accepted": false, "reason": &"relay_reward_evidence_unavailable"}
+	var surface_snapshot: Dictionary = _planetary_composition.call(&"get_snapshot")
+	var activity := (
+		surface_snapshot.get("adapter", {}).get("activity_reward", {}) as Dictionary
+	)
+	var pending := activity.get("pending_reward", {}) as Dictionary
+	if pending != intent:
+		return {"accepted": false, "reason": &"relay_reward_intent_mismatch"}
+	var evidence_rejection := _relay_reward_evidence_rejection(
+		_active_relay_reward_evidence, activity
+	)
+	if not evidence_rejection.is_empty():
+		return {"accepted": false, "reason": evidence_rejection}
+	var request := (intent as Dictionary).duplicate(true)
+	var commit_id := "ember-relay-survey:%d:%d" % [
+		int(request.get("run_generation", -1)),
+		int(request.get("activity_generation", -1)),
+	]
+	request["production_commit_id"] = commit_id
+	request["production_evidence"] = _active_relay_reward_evidence.duplicate(true)
+	_relay_reward_authority_in_flight = true
+	var authority_result: Variant = _planetary_reward_authority.call(
+		request.duplicate(true)
+	) if _planetary_reward_authority.is_valid() else null
+	_relay_reward_authority_in_flight = false
+	if not authority_result is Dictionary \
+			or not bool((authority_result as Dictionary).get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": (authority_result as Dictionary).get(
+				"reason", &"relay_reward_authority_rejected"
+			) as StringName if authority_result is Dictionary \
+				else &"relay_reward_authority_rejected",
+		}.duplicate(true)
+	if not _detached_value_safe(authority_result):
+		return {"accepted": false, "reason": &"relay_reward_authority_result_unsafe"}
+	_relay_reward_authority_commit_count += 1
+	_relay_reward_authority_receipt = {
+		"accepted": true,
+		"reason": &"relay_reward_authority_committed",
+		"commit_id": commit_id,
+		"evidence": _active_relay_reward_evidence.duplicate(true),
+		"authority_result": (authority_result as Dictionary).duplicate(true),
+	}.duplicate(true)
+	return _relay_reward_authority_receipt.duplicate(true)
 
 
 func _abort_active_relay_survey(reason: StringName) -> void:

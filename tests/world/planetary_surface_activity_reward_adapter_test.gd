@@ -112,6 +112,21 @@ func _test_host_activity_reward_path() -> void:
 		completed.accepted and completed.adapter.activity_reward.state == &"awaiting_reward",
 		"the existing Host phase gates a completed activity reward receipt"
 	)
+	host.generation = 8
+	_check(
+		adapter.commit_activity_reward().reason == &"stale_reward_run_generation"
+			and _reward_calls == 0,
+		"a drifted host run cannot substitute stale pending reward evidence"
+	)
+	host.generation = 7
+	host.attachment_generation = 1
+	_check(
+		adapter.commit_activity_reward().reason
+			== &"stale_reward_attachment_generation"
+			and _reward_calls == 0,
+		"an attachment older than completion cannot claim the pending reward"
+	)
+	host.attachment_generation = 2
 	var reward := adapter.commit_activity_reward()
 	_check(
 		reward.accepted and reward.adapter.state == &"completed"
