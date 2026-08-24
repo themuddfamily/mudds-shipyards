@@ -139,7 +139,7 @@ const DRAWN_COPY_COUNT := 270
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
 const SURFACE_SUBMISSION_COUNT := 34
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 32
+const MESH_RESOURCE_COUNT := 25
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
@@ -220,6 +220,14 @@ const BASELINE_LIGHT_MAST_RENDERER_NODE_COUNT := 6
 const LIGHT_MAST_RENDERER_NODE_COUNT := 1
 const BASELINE_LIGHT_MAST_MESH_RESOURCE_COUNT := 6
 const LIGHT_MAST_MESH_RESOURCE_COUNT := 1
+## Eight visual-only scaled trim batches differ only by their instance data.
+const SCALED_VISUAL_BATCH_NAMES := [
+	"VisibleRailBars", "VisibleRailPosts", "PadPavilionBulkheads",
+	"PadPavilionWindows", "PadPavilionMullions", "PadPavilionFascias",
+	"PadPavilionPlinths", "DistrictSignBacks",
+]
+const BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT := 8
+const SCALED_VISUAL_MESH_RESOURCE_COUNT := 1
 
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
@@ -245,6 +253,7 @@ var _logistics_case_mesh: BoxMesh
 ## Immutable visual resource only; each named pallet retains its StaticBody3D
 ## and CollisionShape3D while the three identical pallet renderers share it.
 var _logistics_pallet_mesh: BoxMesh
+var _scaled_visual_box_mesh: BoxMesh
 var _route_markers: Dictionary = {}
 var _walkable_surfaces: Array[StaticBody3D] = []
 var _visible_rail_bar_transforms: Array[Transform3D] = []
@@ -872,6 +881,28 @@ func get_visual_resource_contract() -> Dictionary:
 			)
 		)
 
+	var scaled_visual_mesh_resource_ids := {}
+	var scaled_visual_identities_exact := is_instance_valid(_scaled_visual_box_mesh)
+	for batch_name in SCALED_VISUAL_BATCH_NAMES:
+		var batch_parent := "Structure/SafetyRails" if batch_name.begins_with("VisibleRail") else "Structure/Dressing"
+		var scaled_batch := get_node_or_null(
+			NodePath("%s/%s" % [batch_parent, batch_name])
+		) as MultiMeshInstance3D
+		var scaled_mesh := (
+			scaled_batch.multimesh.mesh as BoxMesh
+			if scaled_batch != null and scaled_batch.multimesh != null else null
+		)
+		if scaled_mesh != null:
+			scaled_visual_mesh_resource_ids[scaled_mesh.get_instance_id()] = true
+		scaled_visual_identities_exact = (
+			scaled_visual_identities_exact
+			and scaled_batch != null
+			and scaled_mesh != null
+			and scaled_mesh == _scaled_visual_box_mesh
+			and scaled_mesh.size.is_equal_approx(Vector3.ONE)
+			and bool(scaled_batch.get_meta("visual_detail_only", false))
+		)
+
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	var exact := (
@@ -893,12 +924,14 @@ func get_visual_resource_contract() -> Dictionary:
 		and logistics_pallet_identities_exact
 		and light_mast_mesh_resource_ids.size() == LIGHT_MAST_MESH_RESOURCE_COUNT
 		and light_mast_identities_exact
+		and scaled_visual_mesh_resource_ids.size() == SCALED_VISUAL_MESH_RESOURCE_COUNT
+		and scaled_visual_identities_exact
 	)
 	return {
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"practical_white_lens_render_batch",
+		"selected_family": &"scaled_visual_trim_mesh",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -912,14 +945,18 @@ func get_visual_resource_contract() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
-		"baseline_family_nodes": BASELINE_PRACTICAL_WHITE_LENS_RENDERER_NODE_COUNT,
-		"family_nodes": PRACTICAL_WHITE_LENS_RENDERER_NODE_COUNT,
-		"baseline_family_submissions": BASELINE_PRACTICAL_WHITE_LENS_RENDERER_NODE_COUNT,
-		"family_submissions": PRACTICAL_WHITE_LENS_RENDERER_NODE_COUNT,
-		"baseline_family_mesh_resources": 1,
-		"family_mesh_resources": practical_lens_mesh_resource_ids.size(),
-		"family_copies": PRACTICAL_WHITE_LENS_COPY_COUNT,
-		"family_identities_exact": practical_white_lens_identities_exact,
+		"baseline_family_nodes": SCALED_VISUAL_BATCH_NAMES.size(),
+		"family_nodes": SCALED_VISUAL_BATCH_NAMES.size(),
+		"baseline_family_submissions": SCALED_VISUAL_BATCH_NAMES.size(),
+		"family_submissions": SCALED_VISUAL_BATCH_NAMES.size(),
+		"baseline_family_mesh_resources": BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT,
+		"family_mesh_resources": scaled_visual_mesh_resource_ids.size(),
+		"family_copies": 0,
+		"family_identities_exact": scaled_visual_identities_exact,
+		"scaled_visual_batch_count": SCALED_VISUAL_BATCH_NAMES.size(),
+		"scaled_visual_mesh_resources": scaled_visual_mesh_resource_ids.size(),
+		"scaled_visual_mesh_resource_delta": scaled_visual_mesh_resource_ids.size() - BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT,
+		"scaled_visual_identities_exact": scaled_visual_identities_exact,
 		"observation_lens_anchor_nodes": OBSERVATION_LENS_COPY_COUNT,
 		"baseline_observation_lens_renderer_nodes": BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT,
 		"observation_lens_renderer_nodes": OBSERVATION_LENS_RENDERER_NODE_COUNT,
@@ -1236,6 +1273,8 @@ func _index_routes() -> void:
 
 
 func _build_module() -> void:
+	_scaled_visual_box_mesh = BoxMesh.new()
+	_scaled_visual_box_mesh.size = Vector3.ONE
 	var structure := Node3D.new()
 	structure.name = "Structure"
 	add_child(structure)
@@ -1828,10 +1867,12 @@ func _multimesh_scaled_boxes(
 		material: Material,
 		transforms: Array[Transform3D]
 	) -> MultiMeshInstance3D:
-	# A unit box plus per-instance scale allows every differently sized rail run
-	# to remain in one submission instead of creating a renderer per segment.
-	var box := BoxMesh.new()
-	box.size = Vector3.ONE
+	# A shared unit box plus per-instance scale keeps every differently sized trim
+	# run in its existing submission without allocating a duplicate mesh per batch.
+	var box := _scaled_visual_box_mesh
+	if box == null:
+		box = BoxMesh.new()
+		box.size = Vector3.ONE
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = box

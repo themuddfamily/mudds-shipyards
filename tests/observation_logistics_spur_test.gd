@@ -295,7 +295,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"practical_white_lens_render_batch"
+		and StringName(performance.selected_family) == &"scaled_visual_trim_mesh"
 		and int(performance.baseline_descendant_nodes) == 144
 		and int(performance.descendant_nodes) == 147
 		and int(performance.baseline_renderer_nodes) == 42
@@ -304,21 +304,49 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.drawn_copies) == 270
 		and int(performance.baseline_surface_submissions) == 42
 		and int(performance.surface_submissions) == 34,
-		"white practical batching preserves 270 visible copies while reducing the district to 34 submissions"
+		"shared scaled trim mesh preserves 270 visible copies and the district's 34 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 32
-		and int(performance.mesh_resource_delta) == -2
+		and int(performance.mesh_resources) == 25
+		and int(performance.mesh_resource_delta) == -9
 		and int(performance.baseline_material_resources) == 10
 		and int(performance.material_resources) == 10
-		and int(performance.baseline_family_nodes) == 2
-		and int(performance.family_nodes) == 1
-		and int(performance.baseline_family_submissions) == 2
-		and int(performance.family_submissions) == 1
-		and int(performance.baseline_family_mesh_resources) == 1
+		and int(performance.baseline_family_nodes) == 8
+		and int(performance.family_nodes) == 8
+		and int(performance.baseline_family_submissions) == 8
+		and int(performance.family_submissions) == 8
+		and int(performance.baseline_family_mesh_resources) == 8
 		and int(performance.family_mesh_resources) == 1,
-		"white practical batching cuts two renderer submissions to one without changing the shared mesh allocation"
+		"eight scaled trim batches keep their submissions while sharing one immutable unit mesh"
+	)
+	var scaled_trim_batches := [
+		"VisibleRailBars", "VisibleRailPosts", "PadPavilionBulkheads",
+		"PadPavilionWindows", "PadPavilionMullions", "PadPavilionFascias",
+		"PadPavilionPlinths", "DistrictSignBacks",
+	]
+	var shared_trim_mesh: Mesh
+	var scaled_trim_exact := true
+	for batch_name in scaled_trim_batches:
+		var batch_parent := "Structure/SafetyRails" if batch_name.begins_with("VisibleRail") else "Structure/Dressing"
+		var batch := module.get_node_or_null(
+			NodePath("%s/%s" % [batch_parent, batch_name])
+		) as MultiMeshInstance3D
+		var mesh := batch.multimesh.mesh as BoxMesh if batch != null and batch.multimesh != null else null
+		if shared_trim_mesh == null:
+			shared_trim_mesh = mesh
+		scaled_trim_exact = scaled_trim_exact \
+			and mesh != null \
+			and mesh == shared_trim_mesh \
+			and mesh.size.is_equal_approx(Vector3.ONE) \
+			and bool(batch.get_meta("visual_detail_only", false))
+	_check(
+		scaled_trim_exact
+		and int(performance.scaled_visual_batch_count) == 8
+		and int(performance.scaled_visual_mesh_resources) == 1
+		and int(performance.scaled_visual_mesh_resource_delta) == -7
+		and bool(performance.scaled_visual_identities_exact),
+		"eight scaled visual trim batches retain their exact transforms and materials on one immutable unit-cube mesh"
 	)
 	var console_batch := module.get_node_or_null(
 		^"Structure/Dressing/ObservationConsoleRenderBatch"
