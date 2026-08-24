@@ -101,6 +101,7 @@ static var _shared_damage_scorch_mesh: BoxMesh
 static var _shared_damage_scorch_material: StandardMaterial3D
 static var _shared_damage_vane_mesh: BoxMesh
 static var _shared_damage_vane_material: StandardMaterial3D
+static var _shared_cockpit_console_key_mesh: Mesh
 
 var _bulwark_built := false
 var _bulwark_visual: Node3D
@@ -632,7 +633,9 @@ func get_component_damage_cue_snapshot() -> Dictionary:
 
 ## The six console keys are immutable cockpit dressing with identical rounded-box
 ## geometry. Retain their individual named MeshInstance3D nodes, exact transforms,
-## two authored finishes, and six submissions while sharing one geometry resource.
+## two authored finishes, and six submissions while sharing one material-free mesh
+## across every Bulwark instance. No renderer consumes or mutates the mesh surface
+## material after the per-node authored finish has moved to material_override.
 func _share_cockpit_console_key_meshes(cockpit: Node3D) -> void:
 	if cockpit == null:
 		return
@@ -654,10 +657,12 @@ func _share_cockpit_console_key_meshes(cockpit: Node3D) -> void:
 		authored_materials.append(key.mesh.surface_get_material(0))
 	if keys.size() != COCKPIT_CONSOLE_KEY_COPY_COUNT:
 		return
-	var shared_mesh := keys[0].mesh
-	shared_mesh.surface_set_material(0, null)
+	if _shared_cockpit_console_key_mesh == null:
+		_shared_cockpit_console_key_mesh = keys[0].mesh
+		_shared_cockpit_console_key_mesh.surface_set_material(0, null)
+		_shared_cockpit_console_key_mesh.resource_local_to_scene = false
 	for index in keys.size():
-		keys[index].mesh = shared_mesh
+		keys[index].mesh = _shared_cockpit_console_key_mesh
 		keys[index].material_override = authored_materials[index]
 
 
