@@ -243,13 +243,34 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 		"finished pavilions retain ten shared material recipes including their dark view band"
 	)
 	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
+	var grip_material := (module.get_node(^"Structure/Dressing/LogisticsPallet01/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
 	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsoleRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
+	var service_material := (module.get_node(^"Structure/Dressing/LogisticsCase01/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
 	_check(
 		deck_material.uv1_triplanar and deck_material.uv1_world_triplanar
 		and deck_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+		and grip_material.uv1_triplanar and grip_material.uv1_world_triplanar
+		and grip_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
 		and shell_material.uv1_triplanar and shell_material.uv1_world_triplanar
-		and shell_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30),
-		"large deck and shell surfaces use the shared 0.30 m world-triplanar panel treatment"
+		and shell_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+		and service_material.uv1_triplanar and service_material.uv1_world_triplanar
+		and service_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30),
+		"walked deck, grip, frame, and service surfaces use the shared 0.30 m world-triplanar panel treatment"
+	)
+	_check(
+		deck_material.albedo_color == Color("59666b")
+		and is_equal_approx(deck_material.clearcoat, StationSurfaceKit.WALKED_CLEARCOAT)
+		and is_equal_approx(deck_material.clearcoat_roughness, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS)
+		and grip_material.albedo_color == Color("60767d")
+		and is_equal_approx(grip_material.clearcoat, StationSurfaceKit.TRIM_CLEARCOAT)
+		and is_equal_approx(grip_material.clearcoat_roughness, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS)
+		and shell_material.albedo_color == Color("9ca7a6")
+		and is_equal_approx(shell_material.clearcoat, StationSurfaceKit.STRUCTURAL_CLEARCOAT)
+		and is_equal_approx(shell_material.clearcoat_roughness, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS)
+		and service_material.albedo_color == Color("735c3d")
+		and is_equal_approx(service_material.clearcoat, StationSurfaceKit.PAINTED_CLEARCOAT)
+		and is_equal_approx(service_material.clearcoat_roughness, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS),
+		"the four major surface families preserve their hues and exact StationSurfaceKit finish roles"
 	)
 	_check(
 		int(materials.practical_lens_recipe_count) == 3

@@ -1408,7 +1408,21 @@ func _create_materials() -> void:
 		0.30,
 		StationSurfaceKit.PanelFinish.WALKED_DECK
 	)
-	StationSurfaceKit.apply_panel_triplanar(_materials["shell"] as StandardMaterial3D, 0.30)
+	StationSurfaceKit.apply_panel_triplanar(
+		_materials["rail"] as StandardMaterial3D,
+		0.30,
+		StationSurfaceKit.PanelFinish.METAL_TRIM
+	)
+	StationSurfaceKit.apply_panel_triplanar(
+		_materials["shell"] as StandardMaterial3D,
+		0.30,
+		StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	StationSurfaceKit.apply_panel_triplanar(
+		_materials["cargo"] as StandardMaterial3D,
+		0.30,
+		StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
 
 
 func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
