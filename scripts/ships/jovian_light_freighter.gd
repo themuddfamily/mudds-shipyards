@@ -95,6 +95,12 @@ const CARGO_APERTURE_HEADER_SIZE := Vector3(0.34, 0.30, 4.20)
 const CARGO_APERTURE_HEADER_END_RADIUS := 0.15
 const CARGO_APERTURE_HEADER_CURVE_SEGMENTS := 8
 
+# Two childless amber edge rails retain their named renderer nodes and exact
+# ramp-aligned transforms. They own no collision, boarding, interaction, or
+# lifecycle authority, so one immutable rounded-box recipe supplies both.
+const CARGO_RAMP_EDGE_RAIL_COPY_COUNT := 2
+const CARGO_RAMP_EDGE_RAIL_SIZE := Vector3(5.15, 0.24, 0.16)
+
 ## Three childless teal deck-lane inlays are one identical visual recipe. They
 ## carry no collision, interaction, cargo, route, or evidence identity, so the
 ## moving cargo bay can submit their three exact local transforms as one batch.
@@ -257,6 +263,7 @@ var _passenger_seat_back_mesh: ArrayMesh
 var _passenger_seat_harness_mesh: ArrayMesh
 var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _cabin_portal_upright_mesh: ArrayMesh
+var _cargo_ramp_edge_rail_mesh: ArrayMesh
 var _cargo_ceiling_light_mesh: ArrayMesh
 var _cargo_ceiling_light_batch: MultiMeshInstance3D
 var _cargo_ceiling_light_transforms: Array[Transform3D] = []
@@ -3095,13 +3102,15 @@ func _build_exterior() -> void:
 		1.7,
 		_jovian_materials.deck
 	)
+	_cargo_ramp_edge_rail_mesh = _rounded_box_mesh(
+		CARGO_RAMP_EDGE_RAIL_SIZE, _jovian_materials.amber
+	)
 	for rail_z in [1.62, 4.78]:
-		_box(
+		_rounded_box_from_mesh(
 			_jovian_visual,
 			"CargoRampEdgeRail",
 			Vector3(-7.9, -0.22, rail_z),
-			Vector3(5.15, 0.24, 0.16),
-			_jovian_materials.amber,
+			_cargo_ramp_edge_rail_mesh,
 			Vector3(0.0, 0.0, ramp_angle)
 		)
 	for vertical_z in [1.25, 5.15]:
