@@ -15,6 +15,12 @@ func _run() -> void:
 	root.add_child(module)
 	await process_frame
 	await physics_frame
+	if OS.get_cmdline_user_args().has("--guide-lens-material-sharing-only"):
+		_test_guide_lens_material_sharing(module)
+		module.queue_free()
+		await process_frame
+		_finish()
+		return
 	var census := _census(module)
 	print("JOVIAN_BATCH_CENSUS: ", census)
 	var apron := module.get_node("LoadingApron")
@@ -80,6 +86,13 @@ func _run() -> void:
 		and authority.network_authority_role == &"none",
 		"semantic authority is unchanged; only all_nodes_checked follows the eleven-node trim"
 	)
+	_test_guide_lens_material_sharing(module)
+	module.queue_free()
+	await process_frame
+	_finish()
+
+
+func _test_guide_lens_material_sharing(module: JovianFreightBerth) -> void:
 	var lens_audit := module.get_guide_lens_visual_allocation_audit()
 	_check(
 		bool(lens_audit.valid)
@@ -88,15 +101,17 @@ func _run() -> void:
 			and int(lens_audit.mesh_resource_identity_count_before) == 18
 			and int(lens_audit.mesh_resource_identity_count_after) == 1
 			and int(lens_audit.mesh_resource_identity_delta) == -17
-			and int(lens_audit.material_resource_identity_count_after) == 18
+			and int(lens_audit.material_resource_identity_count_before) == 18
+			and int(lens_audit.material_resource_identity_count_after) == 2
+			and int(lens_audit.material_resource_identity_delta) == -16
 			and int(lens_audit.cyan_lens_count) == 12
 			and int(lens_audit.amber_lens_count) == 6
 			and int(lens_audit.housing_count) == 18
 			and int(lens_audit.light_count) == 18
 			and not bool(lens_audit.batched)
-			and not bool(lens_audit.material_sharing)
+			and bool(lens_audit.material_sharing)
 			and not bool(lens_audit.collision_authority),
-		"eighteen guide lenses share exactly one mesh while retaining their material, housing, light, and authority contract"
+		"eighteen guide lenses share one mesh and two colour materials while retaining their housing, light, and authority contract"
 	)
 	var lens := module.get_node_or_null(^"FreightPresentation/DockGuideLens18") as MeshInstance3D
 	var shared_mesh := lens.mesh if lens != null else null
@@ -112,8 +127,27 @@ func _run() -> void:
 	if lens != null:
 		lens.mesh = shared_mesh
 	_check(bool(module.get_guide_lens_visual_allocation_audit().valid), "restoring the shared mesh returns the guide-lens audit green")
-	module.queue_free()
-	await process_frame
+	var shared_material := lens.material_override if lens != null else null
+	if lens != null and shared_material != null:
+		lens.material_override = shared_material.duplicate() as Material
+	var drifted_material_audit := module.get_guide_lens_visual_allocation_audit()
+	_check(
+		lens != null
+			and not bool(drifted_material_audit.valid)
+			and (drifted_material_audit.errors as PackedStringArray).has(
+				"guide_lens_material_identity_count_drift"
+			),
+		"one lens escaping its colour material fails the allocation audit closed"
+	)
+	if lens != null:
+		lens.material_override = shared_material
+	_check(
+		bool(module.get_guide_lens_visual_allocation_audit().valid),
+		"restoring the shared colour material returns the guide-lens audit green"
+	)
+
+
+func _finish() -> void:
 	if _failures.is_empty():
 		print("JOVIAN_FREIGHT_BERTH_BATCH_TEST_OK: %d assertions" % _assertions)
 		quit(0)

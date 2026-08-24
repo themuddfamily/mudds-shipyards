@@ -161,8 +161,9 @@ const CABINET_INDICATOR_FAMILY_ID: StringName = &"cargo-service-cabinet-indicato
 const CABINET_INDICATOR_SUBMISSIONS_BEFORE := 6
 
 ## Eighteen named, light-owning guide lenses keep their authored transforms and
-## individual colour materials. Only their identical, one-surface sphere mesh is
-## shared; this is not batching or a light/material consolidation.
+## independent submissions. Their identical sphere mesh and their two immutable
+## colour recipes are shared: twelve cyan lenses reference one material and six
+## amber lenses reference the other. This is resource sharing, not batching.
 const GUIDE_LENS_COPY_COUNT := 18
 const GUIDE_LENS_RADIUS := 0.13
 const GUIDE_LENS_HEIGHT := 0.26
@@ -170,6 +171,7 @@ const GUIDE_LENS_RADIAL_SEGMENTS := 12
 const GUIDE_LENS_RINGS := 6
 const GUIDE_LENS_BASELINE_MESH_RESOURCES := 18
 const GUIDE_LENS_BASELINE_MATERIAL_RESOURCES := 18
+const GUIDE_LENS_SHARED_MATERIAL_RESOURCES := 2
 const GUIDE_LENS_CYAN_COLOR := Color("4bdce3")
 const GUIDE_LENS_AMBER_COLOR := Color("f6a445")
 
@@ -309,6 +311,7 @@ var _portal_chevron_transforms: Array[Transform3D] = []
 var _staging_hatch_batch: MultiMeshInstance3D
 var _staging_hatch_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
+var _guide_lens_materials: Dictionary = {}
 var _route_markers: Dictionary = {}
 var _cargo_units: Array[Node3D] = []
 var _service_details: Array[Node3D] = []
@@ -1596,8 +1599,8 @@ func get_lashing_ring_visual_allocation_audit() -> Dictionary:
 
 
 ## Renderer-independent resource audit for all eighteen named dock guide lenses.
-## Their nodes, per-lens material identities, lights, housings, and submitted
-## surfaces remain independent; only one immutable sphere mesh is shared.
+## Their nodes, lights, housings, and submitted surfaces remain independent;
+## one immutable sphere mesh and two immutable colour materials are shared.
 func get_guide_lens_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var lens_nodes: Array[MeshInstance3D] = []
@@ -1621,11 +1624,23 @@ func get_guide_lens_visual_allocation_audit() -> Dictionary:
 		if lens.material_override != null:
 			material_ids[lens.material_override.get_instance_id()] = true
 			var material := lens.material_override as StandardMaterial3D
+			var expected_color := Color.TRANSPARENT
 			if material != null and material.albedo_color.is_equal_approx(GUIDE_LENS_CYAN_COLOR):
 				cyan_count += 1
+				expected_color = GUIDE_LENS_CYAN_COLOR
 			elif material != null and material.albedo_color.is_equal_approx(GUIDE_LENS_AMBER_COLOR):
 				amber_count += 1
+				expected_color = GUIDE_LENS_AMBER_COLOR
 			else:
+				errors.append("guide_lens_material_recipe_drift:%s" % String(lens.get_path()))
+			if material != null and expected_color != Color.TRANSPARENT \
+				and (
+					not is_zero_approx(material.metallic)
+					or not is_equal_approx(material.roughness, 0.2)
+					or not material.emission_enabled
+					or not material.emission.is_equal_approx(expected_color)
+					or not is_equal_approx(material.emission_energy_multiplier, 1.6)
+				):
 				errors.append("guide_lens_material_recipe_drift:%s" % String(lens.get_path()))
 		child_node_count += lens.get_child_count()
 	var mesh := _guide_lens_mesh
@@ -1649,7 +1664,7 @@ func get_guide_lens_visual_allocation_audit() -> Dictionary:
 		errors.append("guide_lens_roster_drift")
 	if mesh_ids.size() != 1:
 		errors.append("guide_lens_mesh_identity_count_drift")
-	if material_ids.size() != GUIDE_LENS_BASELINE_MATERIAL_RESOURCES:
+	if material_ids.size() != GUIDE_LENS_SHARED_MATERIAL_RESOURCES:
 		errors.append("guide_lens_material_identity_count_drift")
 	if cyan_count != 12 or amber_count != 6:
 		errors.append("guide_lens_colour_roster_drift")
@@ -1677,7 +1692,7 @@ func get_guide_lens_visual_allocation_audit() -> Dictionary:
 		"light_count": light_count,
 		"child_node_count": child_node_count,
 		"batched": false,
-		"material_sharing": false,
+		"material_sharing": true,
 		"collision_authority": false,
 		"route_authority": false,
 		"interaction_authority": false,
@@ -1907,6 +1922,18 @@ func _create_guide_lens_mesh() -> void:
 	_guide_lens_mesh.height = GUIDE_LENS_HEIGHT
 	_guide_lens_mesh.radial_segments = GUIDE_LENS_RADIAL_SEGMENTS
 	_guide_lens_mesh.rings = GUIDE_LENS_RINGS
+	_guide_lens_materials = {
+		&"cyan": _material(GUIDE_LENS_CYAN_COLOR, 0.0, 0.2, GUIDE_LENS_CYAN_COLOR, 1.6),
+		&"amber": _material(GUIDE_LENS_AMBER_COLOR, 0.0, 0.2, GUIDE_LENS_AMBER_COLOR, 1.6),
+	}
+
+
+func _guide_lens_material(color: Color) -> StandardMaterial3D:
+	if color.is_equal_approx(GUIDE_LENS_CYAN_COLOR):
+		return _guide_lens_materials.get(&"cyan") as StandardMaterial3D
+	if color.is_equal_approx(GUIDE_LENS_AMBER_COLOR):
+		return _guide_lens_materials.get(&"amber") as StandardMaterial3D
+	return null
 
 
 func _build_connection_lattice() -> void:
@@ -3790,7 +3817,7 @@ func _guide_light(parent: Node3D, position_value: Vector3, color: Color, energy:
 	lens.name = "DockGuideLens"
 	lens.position = position_value
 	lens.mesh = _guide_lens_mesh
-	lens.material_override = _material(color, 0.0, 0.2, color, 1.6)
+	lens.material_override = _guide_lens_material(color)
 	parent.add_child(lens, true)
 	var light := OmniLight3D.new()
 	light.name = "DockGuideLight"
