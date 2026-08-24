@@ -14,6 +14,9 @@ const DISPLAY_NAME := "Cinder light interceptor"
 const HULL_SIZE := Vector3(4.8, 2.5, 8.8)
 const HULL_COLOR := Color("e0a43d")
 const CANOPY_COLOR := Color("55d5dc")
+const CANOPY_RADIUS := 1.25
+const CANOPY_HEIGHT := 1.5
+const CANOPY_POSITION := Vector3(0.0, 1.1, -2.1)
 const WING_COLOR := Color("8b4a38")
 const WEAPON_ID: StringName = &"cinder_light_repeater"
 const CONSOLE_TOGGLE_VISIBLE_COPIES := 8
@@ -50,6 +53,11 @@ static var _shared_hull_material: StandardMaterial3D
 # duplicate resources without merging renderer nodes or changing submissions.
 static var _shared_wing_mesh: BoxMesh
 static var _shared_wing_material: StandardMaterial3D
+# The canopy shell is immutable exterior presentation stock. Its renderer stays
+# per craft so visibility, culling, and submissions remain unchanged, while the
+# identical emissive sphere recipe is allocated once across live fleet copies.
+static var _shared_canopy_mesh: SphereMesh
+static var _shared_canopy_material: StandardMaterial3D
 
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
@@ -225,12 +233,17 @@ func _build_hull(visual: Node3D) -> void:
 	visual.add_child(wing)
 	var canopy := MeshInstance3D.new()
 	canopy.name = "Canopy"
-	var canopy_mesh := SphereMesh.new()
-	canopy_mesh.radius = 1.25
-	canopy_mesh.height = 1.5
-	canopy.mesh = canopy_mesh
-	canopy.position = Vector3(0.0, 1.1, -2.1)
-	canopy.material_override = _material(CANOPY_COLOR, 0.15, 0.36, CANOPY_COLOR, 2.0)
+	if _shared_canopy_mesh == null:
+		_shared_canopy_mesh = SphereMesh.new()
+		_shared_canopy_mesh.radius = CANOPY_RADIUS
+		_shared_canopy_mesh.height = CANOPY_HEIGHT
+		_shared_canopy_mesh.resource_local_to_scene = false
+	if _shared_canopy_material == null:
+		_shared_canopy_material = _material(CANOPY_COLOR, 0.15, 0.36, CANOPY_COLOR, 2.0)
+		_shared_canopy_material.resource_local_to_scene = false
+	canopy.mesh = _shared_canopy_mesh
+	canopy.position = CANOPY_POSITION
+	canopy.material_override = _shared_canopy_material
 	visual.add_child(canopy)
 
 
