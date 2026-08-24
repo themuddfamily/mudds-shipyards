@@ -839,7 +839,7 @@ func _build_entity_visuals() -> void:
 
 
 func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
-	if not _built or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
+	if not _built or not is_instance_valid(_activity) or not is_inside_tree():
 		return
 	var activity_snapshot := (
 		activity_override.duplicate(true)
@@ -895,14 +895,18 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 		drive_scale = Vector3(1.75, 0.42, 1.0)
 		beacon_scale = Vector3(1.8, 2.5, 1.8)
 
-	_cargo_pod_multimesh.buffer = _encode_multimesh_transforms(
-		_cargo_pod_presentation_transforms(pod_spread)
-	)
-	var starboard_anchor := _convoy_entity.get_node_or_null(^"StarboardCargoPod") as Node3D
-	var drive_glow := _convoy_entity.get_node_or_null(^"DriveGlow") as MeshInstance3D
-	var navigation_beacon := (
-		_convoy_entity.get_node_or_null(^"NavigationBeacon") as MeshInstance3D
-	)
+	var starboard_anchor: Node3D
+	var drive_glow: MeshInstance3D
+	var navigation_beacon: MeshInstance3D
+	if is_instance_valid(_convoy_entity):
+		_cargo_pod_multimesh.buffer = _encode_multimesh_transforms(
+			_cargo_pod_presentation_transforms(pod_spread)
+		)
+		starboard_anchor = _convoy_entity.get_node_or_null(^"StarboardCargoPod") as Node3D
+		drive_glow = _convoy_entity.get_node_or_null(^"DriveGlow") as MeshInstance3D
+		navigation_beacon = (
+			_convoy_entity.get_node_or_null(^"NavigationBeacon") as MeshInstance3D
+		)
 	if starboard_anchor != null:
 		starboard_anchor.position = CARGO_POD_POSITIONS[1] + Vector3(pod_spread, 0.0, 0.0)
 	if drive_glow != null:
@@ -935,7 +939,14 @@ func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:
 		"route_intent_state": route_intent.get("state", &"unavailable"),
 		"route_intent_active": bool(route_intent.get("active", false)),
 		"route_target_index": int(route_intent.get("target_index", -1)),
-		"route_target_position": route_intent.get("target_position", Vector3.ZERO),
+		"route_target_position": route_intent.get("target_local_position", Vector3.ZERO),
+		"route_target_local_position": route_intent.get(
+			"target_local_position", Vector3.ZERO
+		),
+		"route_target_world_position": route_intent.get(
+			"target_world_position", Vector3.ZERO
+		),
+		"route_direction_local": route_intent.get("direction_local", Vector3.ZERO),
 		"route_direction_world": route_intent.get("direction_world", Vector3.ZERO),
 		"route_cue_local_forward": Vector3.FORWARD,
 		"retained_world_space_cue": true,
@@ -962,6 +973,8 @@ func _route_intent_snapshot(
 	) -> Dictionary:
 	var cue_state: StringName = &"unavailable"
 	var target_index := -1
+	if not is_instance_valid(_convoy_entity):
+		return _inactive_route_intent(cue_state)
 	if activity_state == &"idle":
 		cue_state = &"standby"
 		target_index = 1
@@ -977,24 +990,51 @@ func _route_intent_snapshot(
 	elif activity_state in [&"failed", &"aborted"]:
 		cue_state = &"unavailable"
 	if target_index < 0 or target_index >= ROUTE.get_checkpoint_count():
-		return {
-			"state": cue_state,
-			"active": false,
-			"target_index": -1,
-			"target_position": Vector3.ZERO,
-			"direction_world": Vector3.ZERO,
-		}
-	var target_position := ROUTE.get_checkpoint_position(target_index)
-	var direction := target_position - _convoy_entity.position
+		return _inactive_route_intent(cue_state)
+	var target_local_position := ROUTE.get_checkpoint_position(target_index)
+	var direction_local := target_local_position - _convoy_entity.position
+	var target_world_position := to_global(target_local_position)
+	var direction_world := target_world_position - _convoy_entity.global_position
 	return {
 		"state": cue_state,
-		"active": direction.length_squared() > 0.000001,
+		"active": direction_world.length_squared() > 0.000001,
 		"target_index": target_index,
-		"target_position": target_position,
+		"target_local_position": target_local_position,
+		"target_world_position": target_world_position,
+		"direction_local": (
+			direction_local.normalized()
+			if direction_local.length_squared() > 0.000001 else Vector3.ZERO
+		),
 		"direction_world": (
-			direction.normalized() if direction.length_squared() > 0.000001 else Vector3.ZERO
+			direction_world.normalized()
+			if direction_world.length_squared() > 0.000001 else Vector3.ZERO
 		),
 	}
+
+
+func _inactive_route_intent(cue_state: StringName) -> Dictionary:
+	return {
+		"state": cue_state,
+		"active": false,
+		"target_index": -1,
+		"target_local_position": Vector3.ZERO,
+		"target_world_position": Vector3.ZERO,
+		"direction_local": Vector3.ZERO,
+		"direction_world": Vector3.ZERO,
+	}
+
+
+func _deactivate_route_intent_feedback() -> void:
+	if _visual_feedback_snapshot.is_empty():
+		return
+	_visual_feedback_snapshot["route_intent_state"] = &"unavailable"
+	_visual_feedback_snapshot["route_intent_active"] = false
+	_visual_feedback_snapshot["route_target_index"] = -1
+	_visual_feedback_snapshot["route_target_position"] = Vector3.ZERO
+	_visual_feedback_snapshot["route_target_local_position"] = Vector3.ZERO
+	_visual_feedback_snapshot["route_target_world_position"] = Vector3.ZERO
+	_visual_feedback_snapshot["route_direction_local"] = Vector3.ZERO
+	_visual_feedback_snapshot["route_direction_world"] = Vector3.ZERO
 
 
 func _cargo_pod_presentation_transforms(pod_spread: float) -> Array[Transform3D]:
@@ -1127,6 +1167,10 @@ func _finish_actor_loss(expected_generation: int) -> Dictionary:
 	var escort_position := (
 		_last_escort_position if _has_escort_sample else _last_entity_position
 	)
+	# ConvoyEscortActivity emits its failed signal synchronously from submission.
+	# Clear the presentation first so every observer of that transition sees no
+	# stale live route target, even though the vanished actor cannot be updated.
+	_deactivate_route_intent_feedback()
 	var lost := _activity.submit_entity_sample(
 		CONVOY_ID,
 		_entity_generation,
