@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
 	_test_gantry_header_distance_identity(module)
+	_test_jovian_handoff_route_identity(module)
 	_test_floor_label_orientation(module)
 	_test_transfer_lane_label_orientation(module)
 	_test_handling_infrastructure(module)
@@ -610,6 +611,120 @@ func _mesh_aabb_in_module(module: Node3D, visual: MeshInstance3D) -> AABB:
 	).abs()
 
 
+## Freeze the on-foot scale complement to the gantry crown: a destination blade
+## at the real boarding/cargo apparatus, facing the traversed apron and seated on
+## existing physical structure without becoming gameplay authority itself.
+func _test_jovian_handoff_route_identity(module: JovianFreightBerth) -> void:
+	var apparatus := module.get_node_or_null(^"LoadingApparatus") as Node3D
+	var outer_rail := apparatus.get_node_or_null(^"BoardingRailOuter") as StaticBody3D \
+		if apparatus != null else null
+	var rail_visual := outer_rail.get_node_or_null(^"Mesh") as MeshInstance3D \
+		if outer_rail != null else null
+	_check(
+		outer_rail != null
+		and outer_rail.position.is_equal_approx(Vector3(-15.0, 3.14, 30.2)),
+		"handoff identity keeps the exact collision-backed boarding rail and transform"
+	)
+	if apparatus == null:
+		return
+	var materials := module.get("_materials") as Dictionary
+	var crown_center := JovianFreightBerth.HANDOFF_BOARD_CENTER + Vector3(
+		0.0,
+		(
+			JovianFreightBerth.HANDOFF_BOARD_SIZE.y
+			+ JovianFreightBerth.HANDOFF_CROWN_SIZE.y
+		) * 0.5,
+		0.0
+	)
+	var spine_center := JovianFreightBerth.HANDOFF_BOARD_CENTER + Vector3(
+		(
+			JovianFreightBerth.HANDOFF_BOARD_SIZE.x
+			+ JovianFreightBerth.HANDOFF_ROUTE_SPINE_SIZE.x
+		) * 0.5,
+		0.0,
+		0.0
+	)
+	var expected := {
+		"JovianHandoffBoard": [
+			JovianFreightBerth.HANDOFF_BOARD_CENTER,
+			JovianFreightBerth.HANDOFF_BOARD_SIZE,
+			materials.get("deep_blue"),
+		],
+		"JovianHandoffCrown": [
+			crown_center,
+			JovianFreightBerth.HANDOFF_CROWN_SIZE,
+			materials.get("orange"),
+		],
+		"JovianHandoffRouteSpine": [
+			spine_center,
+			JovianFreightBerth.HANDOFF_ROUTE_SPINE_SIZE,
+			materials.get("cyan_dim"),
+		],
+	}
+	var exact := true
+	for node_name in expected:
+		var visual := apparatus.get_node_or_null(NodePath(node_name)) as MeshInstance3D
+		var recipe := expected[node_name] as Array
+		exact = exact and visual != null
+		if visual == null:
+			continue
+		exact = exact \
+			and visual.position.is_equal_approx(recipe[0] as Vector3) \
+			and visual.mesh is ArrayMesh \
+			and visual.mesh.get_aabb().size.is_equal_approx(recipe[1] as Vector3) \
+			and visual.material_override == recipe[2] \
+			and visual.get_child_count() == 0 \
+			and visual.get_script() == null
+	_check(
+		exact,
+		"boarding handoff carries the exact chamfered deep-blue, orange and cyan hierarchy"
+	)
+	var board := apparatus.get_node_or_null(^"JovianHandoffBoard") as MeshInstance3D
+	var crown := apparatus.get_node_or_null(^"JovianHandoffCrown") as MeshInstance3D
+	var spine := apparatus.get_node_or_null(^"JovianHandoffRouteSpine") as MeshInstance3D
+	var rail_box := _mesh_aabb_in_module(module, rail_visual)
+	var board_box := _mesh_aabb_in_module(module, board)
+	var crown_box := _mesh_aabb_in_module(module, crown)
+	var spine_box := _mesh_aabb_in_module(module, spine)
+	_check(
+		rail_visual != null
+		and is_equal_approx(board_box.position.y, rail_box.end.y)
+		and is_equal_approx(crown_box.position.y, board_box.end.y)
+		and is_equal_approx(spine_box.position.x, board_box.end.x),
+		"board, crown and route spine bear on exact non-coplanar faces of existing structure"
+	)
+	_check(
+		board_box.end.x < JovianFreightBerth.SHIP_ENVELOPE_LOCAL_MIN.x,
+		"the entire handoff blade stays outboard of the protected parked hull"
+	)
+	var matching_labels: Array[Label3D] = []
+	for candidate in module.find_children("FreightSign*", "Label3D", true, false):
+		var label := candidate as Label3D
+		if label.text == JovianFreightBerth.HANDOFF_LEGEND:
+			matching_labels.append(label)
+	var label_exact := matching_labels.size() == 1
+	if label_exact:
+		var legend := matching_labels[0]
+		label_exact = legend.position.is_equal_approx(
+			JovianFreightBerth.HANDOFF_BOARD_CENTER
+				+ Vector3(JovianFreightBerth.HANDOFF_BOARD_SIZE.x * 0.5 + 0.025, 0.0, 0.0)
+		) and legend.rotation_degrees.is_equal_approx(Vector3(0, 90, 0)) \
+			and not legend.double_sided \
+			and not legend.no_depth_test
+	_check(
+		label_exact,
+		"one supported JOVIAN HANDOFF legend faces the centre-apron approach at gameplay height"
+	)
+	_check(
+		apparatus.find_children("JovianHandoff*", "CollisionObject3D", false, false).is_empty()
+		and apparatus.find_children("JovianHandoff*", "Area3D", false, false).is_empty()
+		and apparatus.find_children("JovianHandoff*", "Light3D", false, false).is_empty()
+		and module.get_route_ids().size() == 7
+		and module.get_cargo_unit_count() == 8,
+		"handoff identity adds no collision, interaction, light, route, cargo, or berth authority"
+	)
+
+
 func _test_manufactured_material_hierarchy(module: JovianFreightBerth) -> void:
 	var materials := module.get("_materials") as Dictionary
 	var specs := [
@@ -1166,14 +1281,14 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 	)
 	_check(
 		renderer_before == {
-			"descendant_nodes": 904,
-			"mesh_instance_nodes": 406,
+			"descendant_nodes": 908,
+			"mesh_instance_nodes": 409,
 			"multimesh_nodes": 11,
-			"surfaces": 387,
-			"visible_copies": 446,
+			"surfaces": 390,
+			"visible_copies": 449,
 		}
 		and _renderer_census(module) == renderer_before,
-		"lashing-ring batching plus the gantry fascia leaves 904 descendants, 387 submissions, and 446 visible copies"
+		"lashing-ring batching plus the gantry and handoff identity leaves 908 descendants, 390 submissions, and 449 visible copies"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

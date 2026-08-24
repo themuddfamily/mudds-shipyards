@@ -233,6 +233,18 @@ const GANTRY_HEADER_FASCIA_SIZE := Vector3(11.4, 0.72, 0.36)
 const GANTRY_HEADER_END_CAP_SIZE := Vector3(1.25, 0.34, 0.12)
 const GANTRY_HEADER_AXIS_STRIPE_SIZE := Vector3(7.8, 0.12, 0.10)
 
+## Eye-level destination blade seated on the outboard rail of the actual
+## boarding platform. The high gantry fascia identifies the berth's skyline;
+## this lower, approach-facing assembly resolves where a person and freight
+## actually cross to the parked Jovian once the crane fills the view. Its whole
+## visual envelope remains outboard of the protected hull and the stair flight,
+## while its exact face contacts create a supported three-material hierarchy.
+const HANDOFF_BOARD_CENTER := Vector3(-15.0, 3.86, 30.2)
+const HANDOFF_BOARD_SIZE := Vector3(0.18, 1.35, 2.25)
+const HANDOFF_CROWN_SIZE := Vector3(0.28, 0.18, 2.50)
+const HANDOFF_ROUTE_SPINE_SIZE := Vector3(0.04, 0.90, 0.14)
+const HANDOFF_LEGEND := "JOVIAN HANDOFF\n<< BOARDING + CARGO"
+
 const EVIDENCE_REFERENCES := [
 	"RESEARCH.md:A3@2009-11-12 / creator-authored roster names the Jovian-class Light Freighter",
 	"RESEARCH.md:best creator-authored original roster / exact name and light-freighter role",
@@ -2752,6 +2764,44 @@ func _build_loading_apparatus() -> void:
 		_register_handling_fixture(rail, &"boarding-rail")
 	_rounded_box(apparatus, "BoardingToeBoard", Vector3(-15.15, 2.26, 30.175), Vector3(0.1, 0.24, 2.45), _materials["orange"], false)
 
+	# The broad blade bears directly on the existing physical outer rail: its
+	# y = 3.185 underside is the rail's y = 3.185 crown. The orange cap then bears
+	# on the blade, and the shallow cyan spine starts at the blade's +X face. This
+	# keeps every visible layer supported and non-coplanar without turning route
+	# presentation into another collider in a working platform envelope.
+	_rounded_box(
+		apparatus,
+		"JovianHandoffBoard",
+		HANDOFF_BOARD_CENTER,
+		HANDOFF_BOARD_SIZE,
+		_materials["deep_blue"],
+		false
+	)
+	_rounded_box(
+		apparatus,
+		"JovianHandoffCrown",
+		HANDOFF_BOARD_CENTER + Vector3(
+			0.0,
+			(HANDOFF_BOARD_SIZE.y + HANDOFF_CROWN_SIZE.y) * 0.5,
+			0.0
+		),
+		HANDOFF_CROWN_SIZE,
+		_materials["orange"],
+		false
+	)
+	_rounded_box(
+		apparatus,
+		"JovianHandoffRouteSpine",
+		HANDOFF_BOARD_CENTER + Vector3(
+			(HANDOFF_BOARD_SIZE.x + HANDOFF_ROUTE_SPINE_SIZE.x) * 0.5,
+			0.0,
+			0.0
+		),
+		HANDOFF_ROUTE_SPINE_SIZE,
+		_materials["cyan_dim"],
+		false
+	)
+
 	# Service reels on the transfer-lane side, clear of the 3.4 m lane itself.
 	for reel_index in 2:
 		var reel_z := 24.0 + float(reel_index) * 9.5
@@ -3196,6 +3246,18 @@ func _build_lighting_and_signage() -> void:
 	_label(presentation, "STAGING B", STAGING_BAY_STARBOARD_CENTER + Vector3(0.0, 0.14, 0.0), 0.34, Color("ffb45b"), Vector3(-90, 0, 0))
 	_sign_practical(presentation, "StagingBayStarboardWash", STAGING_BAY_STARBOARD_CENTER + Vector3(0.0, 0.55, 0.0), Color("f7b866"), 0.4, 4.2)
 	_label(presentation, "FREIGHT STORES", Vector3(12.86, 1.78, 42.1), 0.3, Color("8df2ed"), Vector3(0, -90, 0))
+	# Read from the centre apron and the starboard transfer decision: +90 degrees
+	# turns the glyph plane toward +X, while its board is physically mounted at the
+	# port-side boarding/cargo handoff it names. No extra practical is needed; the
+	# existing boarding-platform lamp already serves this exact working position.
+	_label(
+		presentation,
+		HANDOFF_LEGEND,
+		HANDOFF_BOARD_CENTER + Vector3(HANDOFF_BOARD_SIZE.x * 0.5 + 0.025, 0.0, 0.0),
+		0.31,
+		Color("bffff6"),
+		Vector3(0, 90, 0)
+	)
 
 	# Two task practicals for the working ends of the yard. Both are warm, both are
 	# shadowless, both sit under the module's 5.5 m practical ceiling, and both are
