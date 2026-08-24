@@ -37,6 +37,10 @@ var _sort_key: StringName = &"name"
 var _sort_descending := false
 var _request_generation := 0
 var _pending_request_generation := 0
+var _source_directory_generation := -1
+var _source_sequence := -1
+var _source_fenced := false
+var _attached := true
 
 
 func configure_filters(region_filter: StringName = &"", max_ping_ms: int = PING_ANY, include_full: bool = true) -> Dictionary:
@@ -57,6 +61,7 @@ func configure_filters(region_filter: StringName = &"", max_ping_ms: int = PING_
 func present(browser: RefCounted) -> Dictionary:
 	if browser == null or not browser.has_method("query"):
 		return _reject(&"invalid_browser")
+	_attached = true
 	var source_rows: Array = browser.query(_region_filter, _max_ping_ms, _include_full)
 	return present_result({"accepted": true, "rows": source_rows})
 
@@ -65,20 +70,32 @@ func present(browser: RefCounted) -> Dictionary:
 ## Error actions are intents for the owning screen; this presenter never retries,
 ## cancels a request, or touches a network transport.
 func present_result(result: Dictionary) -> Dictionary:
-	var result_generation := int(result.get("request_generation", 0))
-	if result_generation > 0 and result_generation != _pending_request_generation:
-		var retained := _last_snapshot.duplicate(true)
-		retained["accepted"] = false
-		retained["reason"] = &"stale_result_ignored"
-		retained["ignored_request_generation"] = result_generation
-		retained["request_generation"] = _pending_request_generation
-		retained["presentation_only"] = true
-		return retained
-	_pending_request_generation = 0
+	if not _attached:
+		return _ignored_result(result, &"view_detached")
+	var cursor := _result_cursor(result)
+	if bool(cursor.get("fenced", false)):
+		if not bool(cursor.get("valid", false)):
+			return _ignored_result(result, &"invalid_result_cursor")
+		var has_request_fence := bool(cursor.get("has_request", false))
+		if has_request_fence and int(cursor.get("request_generation", 0)) != _pending_request_generation:
+			return _ignored_result(result, &"request_generation_mismatch")
+		if bool(cursor.get("source_fenced", false)) and _pending_request_generation > 0 and not has_request_fence:
+			return _ignored_result(result, &"request_generation_required")
+		if bool(cursor.get("source_fenced", false)):
+			var directory_generation := int(cursor.get("directory_generation", -1))
+			var sequence := int(cursor.get("sequence", -1))
+			if _source_fenced and (
+				directory_generation < _source_directory_generation
+				or (directory_generation == _source_directory_generation and sequence <= _source_sequence)
+			):
+				return _ignored_result(result, &"source_cursor_not_advanced")
+			_source_fenced = true
+			_source_directory_generation = directory_generation
+			_source_sequence = sequence
 	var requested_status := StringName(str(result.get("status", &"")))
 	if requested_status == &"expired" or result.get("reason", &"") in [&"directory_expired", &"results_expired"]:
 		_focus_target = &"retry"
-		return _store_snapshot(_status_snapshot(
+		return _complete_result(_status_snapshot(
 			&"expired", [], &"directory_expired",
 			"Server list expired. Refresh to see current servers.", true
 		))
@@ -92,7 +109,7 @@ func present_result(result: Dictionary) -> Dictionary:
 		_focus_target = &"retry" if retryable else &"cancel"
 		var failed := _status_snapshot(&"error", [], reason, message, retryable)
 		failed["retry_after_milliseconds"] = retry_after_milliseconds
-		return _store_snapshot(failed)
+		return _complete_result(failed)
 	var source_rows: Array = result.get("rows", []) as Array
 	var newest_capacity_generation := _latest_capacity_generation
 	for source in source_rows:
@@ -120,11 +137,11 @@ func present_result(result: Dictionary) -> Dictionary:
 		_focus_target = &"row:%s" % str(filtered_rows[0].get("session_id", ""))
 	else:
 		_focus_target = &"refresh"
-	return _store_snapshot(_status_snapshot(
+	return _complete_result(_status_snapshot(
 		&"ready" if not filtered_rows.is_empty() else &"empty",
 		filtered_rows,
 		&"" if not filtered_rows.is_empty() else &"no_matches",
-		"" if not filtered_rows.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers."),
+		"%d session%s available." % [filtered_rows.size(), "" if filtered_rows.size() == 1 else "s"] if not filtered_rows.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers."),
 		false
 	))
 
@@ -194,7 +211,9 @@ func request_retry() -> Dictionary:
 func begin_refresh(focus_target: StringName = &"refresh") -> Dictionary:
 	_request_generation += 1
 	_pending_request_generation = _request_generation
+	_attached = true
 	_focus_target = focus_target if focus_target in [&"refresh", &"retry"] else &"refresh"
+	_last_unfiltered_rows.clear()
 	var refreshing := _status_snapshot(
 		&"refreshing", [], &"refresh_requested", "Refreshing server list…", false
 	)
@@ -214,7 +233,12 @@ func begin_refresh(focus_target: StringName = &"refresh") -> Dictionary:
 func close_view() -> Dictionary:
 	_request_generation += 1
 	_pending_request_generation = 0
-	if _focus_target == &"retry" or _focus_target.begins_with("row:"):
+	_attached = false
+	_source_directory_generation = -1
+	_source_sequence = -1
+	_source_fenced = false
+	_latest_capacity_generation = 0
+	if _focus_target in [&"retry", &"cancel"] or _focus_target.begins_with("row:"):
 		_focus_target = &"refresh"
 	_last_unfiltered_rows.clear()
 	_last_snapshot = _status_snapshot(&"idle", [], &"", "Select refresh to find available sessions.", false)
@@ -232,6 +256,8 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 		if retryable:
 			actions.append({"id": &"retry", "label": "Retry server list", "focusable": true})
 		actions.append({"id": &"cancel", "label": "Cancel", "focusable": true})
+	var next_action := _next_action(status, retryable)
+	var status_message := _message_with_next_action(message, next_action)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -241,9 +267,15 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 		"row_count": rows.size(),
 		"status": status,
 		"error_code": reason,
-		"error_message": message,
+		"error_message": status_message,
 		"retryable": retryable,
 		"request_generation": _pending_request_generation,
+		"directory_generation": _source_directory_generation,
+		"source_sequence": _source_sequence,
+		"source_fenced": _source_fenced,
+		"attached": _attached,
+		"next_action": next_action,
+		"next_action_text": "NEXT ACTION // %s" % next_action,
 		"actions": actions,
 		"focus_target": _focus_target,
 		"focus_order": [&"refresh", &"host_session", &"manual_join", &"compatible_only", &"not_full", &"no_password", &"latency_band", &"clear_filters", &"retry", &"cancel"],
@@ -266,12 +298,20 @@ func _status_snapshot(status: StringName, rows: Array, reason: StringName, messa
 		"accessibility_prompts": get_accessibility_prompts(),
 		"presentation_only": true,
 		"join_authority": false,
+		"color_independent": true,
 	}
 
 
 func _store_snapshot(snapshot: Dictionary) -> Dictionary:
 	_last_snapshot = snapshot.duplicate(true)
 	return snapshot
+
+
+func _complete_result(snapshot: Dictionary) -> Dictionary:
+	var completed_request_generation := _pending_request_generation
+	_pending_request_generation = 0
+	snapshot["request_generation"] = completed_request_generation
+	return _store_snapshot(snapshot)
 
 
 func get_filters() -> Dictionary:
@@ -389,6 +429,8 @@ func audit() -> Dictionary:
 		"browser_owns_join_authority": false,
 		"opens_sockets": false,
 		"accessibility_prompts_textual": true,
+		"exact_source_cursor_fencing": true,
+		"color_independent_next_action": true,
 	}
 
 
@@ -419,7 +461,7 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"capacity_generation": capacity_generation,
 		"full": is_full,
 		"selectable": true,
-		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s" % [
+		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s  //  SELECT TO REQUEST JOINING" % [
 			str(source.get("title", "Server")),
 			ping_label,
 			"%d/%d players" % [players, maximum],
@@ -430,6 +472,66 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"stale": false,
 		"join_authority": false,
 	}.duplicate(true)
+
+
+func _result_cursor(result: Dictionary) -> Dictionary:
+	var has_request := result.has("request_generation")
+	var has_directory_generation := result.has("directory_generation")
+	var has_sequence := result.has("sequence") or result.has("snapshot_sequence") or result.has("server_tick")
+	var fenced := has_request or has_directory_generation or has_sequence
+	var source_fenced := has_directory_generation or has_sequence
+	var request_variant: Variant = result.get("request_generation", null)
+	var directory_variant: Variant = result.get("directory_generation", null)
+	var sequence_variant: Variant = result.get(
+		"sequence", result.get("snapshot_sequence", result.get("server_tick", null))
+	)
+	return {
+		"fenced": fenced,
+		"has_request": has_request,
+		"source_fenced": source_fenced,
+		"valid": not fenced or (
+			(not has_request or (request_variant is int and int(request_variant) > 0))
+			and (not source_fenced or (
+				directory_variant is int and int(directory_variant) >= 0
+				and sequence_variant is int and int(sequence_variant) >= 0
+			))
+		),
+		"request_generation": int(request_variant) if request_variant is int else 0,
+		"directory_generation": int(directory_variant) if directory_variant is int else -1,
+		"sequence": int(sequence_variant) if sequence_variant is int else -1,
+	}
+
+
+func _ignored_result(result: Dictionary, fence_reason: StringName) -> Dictionary:
+	var retained := _last_snapshot.duplicate(true)
+	if retained.is_empty():
+		retained = _status_snapshot(&"idle", [], &"", "Select refresh to find available sessions.", false)
+	retained["accepted"] = false
+	retained["reason"] = &"stale_result_ignored"
+	retained["fence_reason"] = fence_reason
+	retained["ignored_request_generation"] = int(result.get("request_generation", 0))
+	retained["ignored_directory_generation"] = int(result.get("directory_generation", -1))
+	retained["ignored_source_sequence"] = int(result.get(
+		"sequence", result.get("snapshot_sequence", result.get("server_tick", -1))
+	))
+	retained["request_generation"] = _pending_request_generation
+	retained["presentation_only"] = true
+	return retained
+
+
+func _next_action(status: StringName, retryable: bool) -> String:
+	match status:
+		&"refreshing": return "WAIT FOR RESULTS OR RETURN"
+		&"ready": return "SELECT A SESSION TO REQUEST JOINING OR REFRESH"
+		&"empty": return "REFRESH SERVER LIST"
+		&"expired": return "RETRY SERVER LIST OR CANCEL"
+		&"error": return "RETRY SERVER LIST OR CANCEL" if retryable else "CANCEL AND RETURN"
+		&"idle": return "REFRESH SERVER LIST"
+	return "REVIEW SERVER LIST STATUS"
+
+
+func _message_with_next_action(message: String, next_action: String) -> String:
+	return "%s\nNEXT ACTION // %s" % [message, next_action] if not next_action.is_empty() else message
 
 
 func _region_label(value: Variant) -> String:
@@ -543,10 +645,16 @@ func _refresh_filtered_snapshot() -> Dictionary:
 	if _last_snapshot.is_empty():
 		return {"accepted": true, "reason": &"filters_applied", "filters": get_accessibility_filters(), "active_filter_summary": _active_filter_summary(), "presentation_only": true}
 	var filtered := _sort_rows(_filter_rows(_last_unfiltered_rows))
+	var status: StringName = &"ready" if not filtered.is_empty() else &"empty"
+	var message := "%d session%s available." % [filtered.size(), "" if filtered.size() == 1 else "s"] if not filtered.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers.")
+	var next_action := _next_action(status, false)
 	_last_snapshot["rows"] = filtered
 	_last_snapshot["row_count"] = filtered.size()
-	_last_snapshot["status"] = &"ready" if not filtered.is_empty() else &"empty"
-	_last_snapshot["error_message"] = "" if not filtered.is_empty() else ("No sessions match active filters." if _has_active_filters() else "No matching servers.")
+	_last_snapshot["status"] = status
+	_last_snapshot["error_code"] = &"" if not filtered.is_empty() else &"no_matches"
+	_last_snapshot["error_message"] = _message_with_next_action(message, next_action)
+	_last_snapshot["next_action"] = next_action
+	_last_snapshot["next_action_text"] = "NEXT ACTION // %s" % next_action
 	_last_snapshot["generation"] = _generation
 	_last_snapshot["accessibility_filters"] = get_accessibility_filters()
 	_last_snapshot["active_filter_summary"] = _active_filter_summary()

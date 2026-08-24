@@ -104,8 +104,79 @@ func _run() -> void:
 	presenter.close_view()
 	var after_close := presenter.present_result({"accepted": true, "request_generation": pending.request_generation, "rows": entries})
 	_check(not after_close.accepted and after_close.reason == &"stale_result_ignored" and presenter.get_last_snapshot().status == &"idle", "close invalidates pending results and clears transient browser rows")
+	var fenced := Presenter.new()
+	var first_request := fenced.begin_refresh()
+	var wrong_request := fenced.present_result({
+		"accepted": true,
+		"request_generation": int(first_request.request_generation) + 1,
+		"directory_generation": 7,
+		"sequence": 10,
+		"rows": entries,
+	})
+	_check(not wrong_request.accepted and wrong_request.fence_reason == &"request_generation_mismatch" and wrong_request.status == &"refreshing", "an exact source result cannot cross the active refresh request fence")
+	var partial_cursor := fenced.present_result({
+		"accepted": true,
+		"request_generation": first_request.request_generation,
+		"directory_generation": 7,
+		"rows": entries,
+	})
+	_check(not partial_cursor.accepted and partial_cursor.fence_reason == &"invalid_result_cursor", "a partially tagged directory snapshot fails closed")
+	var first_fenced := fenced.present_result({
+		"accepted": true,
+		"request_generation": first_request.request_generation,
+		"directory_generation": 7,
+		"snapshot_sequence": 10,
+		"rows": entries,
+	})
+	_check(first_fenced.status == &"ready" and first_fenced.request_generation == first_request.request_generation and first_fenced.directory_generation == 7 and first_fenced.source_sequence == 10, "the exact request, directory generation, and sequence are retained with the presented rows")
+	_check(first_fenced.next_action == "SELECT A SESSION TO REQUEST JOINING OR REFRESH" and first_fenced.color_independent and "SELECT TO REQUEST JOINING" in first_fenced.rows[0].focus_label, "ready rows give a colour-independent join-or-refresh next action")
+	var second_request := fenced.begin_refresh()
+	var replayed_cursor := fenced.present_result({
+		"accepted": true,
+		"request_generation": second_request.request_generation,
+		"directory_generation": 7,
+		"server_tick": 10,
+		"rows": entries,
+	})
+	_check(not replayed_cursor.accepted and replayed_cursor.fence_reason == &"source_cursor_not_advanced" and replayed_cursor.status == &"refreshing", "a replayed generation and sequence cannot repaint a newer refresh")
+	var current_failure := fenced.present_result({
+		"accepted": false,
+		"request_generation": second_request.request_generation,
+		"directory_generation": 7,
+		"sequence": 11,
+		"reason": &"directory_timeout",
+		"retryable": true,
+	})
+	_check(current_failure.status == &"error" and current_failure.next_action == "RETRY SERVER LIST OR CANCEL" and current_failure.error_message.contains("NEXT ACTION // RETRY SERVER LIST OR CANCEL"), "a current failure names retry or cancel in visible text")
+	var third_request := fenced.request_retry()
+	_check(third_request.accepted and third_request.presentation.next_action == "WAIT FOR RESULTS OR RETURN", "retry immediately presents the colour-independent waiting action")
+	var detached := fenced.close_view()
+	var late_exact := fenced.present_result({
+		"accepted": true,
+		"request_generation": third_request.request_generation,
+		"directory_generation": 8,
+		"sequence": 1,
+		"rows": entries,
+	})
+	_check(not detached.attached and detached.rows.is_empty() and not late_exact.accepted and late_exact.fence_reason == &"view_detached", "close clears rows and rejects exact late completions while detached")
+	var reused_request := fenced.begin_refresh()
+	var reused := fenced.present_result({
+		"accepted": true,
+		"request_generation": reused_request.request_generation,
+		"directory_generation": 1,
+		"sequence": 1,
+		"rows": [entries[0]],
+	})
+	_check(reused.attached and reused.status == &"ready" and reused.row_count == 1 and reused.directory_generation == 1, "a fresh request cleanly reuses the detached presenter without the retired source cursor")
+	var published_snapshot := Presenter.new().present_result({
+		"accepted": true,
+		"directory_generation": 12,
+		"server_tick": 44,
+		"rows": [entries[0]],
+	})
+	_check(published_snapshot.status == &"ready" and published_snapshot.directory_generation == 12 and published_snapshot.source_sequence == 44, "an unsolicited caller-owned directory publication keeps its existing generation and server-tick API")
 	var audit := presenter.audit()
-	_check(bool(audit.presentation_only) and bool(audit.filters_stale_rows) and not bool(audit.browser_owns_join_authority), "audit records presentation boundary")
+	_check(bool(audit.presentation_only) and bool(audit.filters_stale_rows) and not bool(audit.browser_owns_join_authority) and bool(audit.exact_source_cursor_fencing), "audit records presentation and exact cursor boundaries")
 	if _failures.is_empty():
 		print("OK: server browser presenter (%d assertions)" % _assertions)
 		quit(0)
