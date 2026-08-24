@@ -60,6 +60,10 @@ const LANDING_DECK_TOP := 2.9
 const CATWALK_TOP := 3.8
 const STAIR_RISE := 0.3
 const ROUTE_HALF_WIDTH := 1.2
+## Match the coarse world-metric plate scale used by the extraction platform
+## this access module bolts onto, rather than introducing a station-interior
+## texture scale at the streamed Cinder destination.
+const PANEL_SURFACE_SCALE := 0.12
 const ROUTE_IDS: Array[StringName] = [
 	&"berth_exit",
 	&"stair_top",
@@ -798,7 +802,7 @@ func get_terminal_approach_support_visual_audit() -> Dictionary:
 	if mesh == null or not mesh.size.is_equal_approx(TERMINAL_APPROACH_SUPPORT_SIZE) \
 			or mesh.material != null or mesh.get_surface_count() != 1:
 		errors.append("terminal_approach_support_mesh_recipe_drift")
-	if batch.material_override != _materials.rail \
+	if batch.material_override != _materials.service \
 			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			or batch.material_overlay != null or batch.layers != 1 \
 			or not is_zero_approx(batch.extra_cull_margin) \
@@ -1035,7 +1039,7 @@ func _build_structure() -> void:
 		"LandingDeck",
 		Vector3(-27.825, 2.6, 0.8),
 		Vector3(19.05, 0.6, 26.7),
-		_materials.deck,
+		_materials.cargo,
 		true
 	)
 	for step_index in 3:
@@ -1050,7 +1054,7 @@ func _build_structure() -> void:
 				14.45 + float(step_index) * 0.6
 			),
 			Vector3(2.4, step_height, 0.6),
-			_materials.step,
+			_materials.grip,
 			true
 		)
 	_static_horizontal_segment(
@@ -1060,7 +1064,7 @@ func _build_structure() -> void:
 		Vector3(BERTH_ROUTE_X, CATWALK_TOP, 18.0),
 		2.4,
 		0.3,
-		_materials.deck
+		_materials.route
 	)
 	_static_horizontal_segment(
 		structure,
@@ -1069,7 +1073,7 @@ func _build_structure() -> void:
 		Vector3(-4.0, CATWALK_TOP, 18.0),
 		2.4,
 		0.3,
-		_materials.deck
+		_materials.route
 	)
 	_static_horizontal_segment(
 		structure,
@@ -1078,7 +1082,7 @@ func _build_structure() -> void:
 		Vector3(-2.4, CATWALK_TOP, 16.7),
 		2.2,
 		0.3,
-		_materials.deck
+		_materials.route
 	)
 	var approach_start := Vector3(-2.4, CATWALK_TOP, 16.7)
 	var approach_end := Vector3(
@@ -1102,7 +1106,7 @@ func _build_structure() -> void:
 				(step_from.z + step_to.z) * 0.5
 			),
 			Vector3(3.0, step_height, step_direction.length() + 0.08),
-			_materials.step,
+			_materials.grip,
 			true
 		)
 		approach_step.basis = Basis.looking_at(
@@ -1123,7 +1127,7 @@ func _build_structure() -> void:
 			"TerminalApproachSupport%s" % ("Port" if support_side < 0.0 else "Starboard"),
 			Vector3(support_side * 0.56, 4.105, 15.1),
 			TERMINAL_APPROACH_SUPPORT_SIZE,
-			_materials.rail,
+			_materials.service,
 			false,
 			false
 		)
@@ -1132,7 +1136,7 @@ func _build_structure() -> void:
 		structure,
 		"TerminalApproachSupportBatch",
 		_shared_static_box_mesh(TERMINAL_APPROACH_SUPPORT_SIZE),
-		_materials.rail,
+		_materials.service,
 		support_transforms
 	)
 
@@ -1142,32 +1146,32 @@ func _build_structure() -> void:
 	_static_segment(
 		rails, "StairRailPort",
 		Vector3(-25.42, 3.72, 14.15), Vector3(-25.42, 4.62, 15.95),
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 	_static_segment(
 		rails, "StairRailStarboard",
 		Vector3(-23.18, 3.72, 14.15), Vector3(-23.18, 4.62, 15.95),
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 	_static_segment(
 		rails, "RiseRailPort",
 		Vector3(-25.42, 4.62, 15.95), Vector3(-25.42, 4.62, 17.2),
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 	_static_segment(
 		rails, "RiseRailStarboard",
 		Vector3(-23.18, 4.62, 15.95), Vector3(-23.18, 4.62, 17.2),
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 	_static_segment(
 		rails, "CrossRailNorth",
 		Vector3(-23.1, 4.62, 19.12), Vector3(-5.15, 4.62, 19.12),
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 	_static_segment(
 		rails, "CrossRailSouth",
 		Vector3(-23.1, 4.62, 16.88), Vector3(-5.15, 4.62, 16.88),
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 	var handoff_direction := Vector3(0.9, 0.0, -0.75)
 	var handoff_lateral := Vector3(
@@ -1178,12 +1182,12 @@ func _build_structure() -> void:
 	_static_segment(
 		rails, "HandoffRailPort",
 		handoff_start + handoff_lateral, handoff_end + handoff_lateral,
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 	_static_segment(
 		rails, "HandoffRailStarboard",
 		handoff_start - handoff_lateral, handoff_end - handoff_lateral,
-		0.12, _materials.rail
+		0.12, _materials.frame
 	)
 
 
@@ -1242,11 +1246,41 @@ func _build_route_markers_and_cues() -> void:
 
 
 func _create_materials() -> void:
-	_materials.deck = _material(DECK_COLOR, 0.54, 0.32)
-	_materials.step = _material(STEP_COLOR, 0.42, 0.34)
-	_materials.rail = _material(RAIL_COLOR, 0.64, 0.25)
+	# Keep the Cinder palette and scalar PBR values, but give each physical role
+	# the same registered panel maps and response hierarchy as nearby manufactured
+	# world surfaces. Several semantic roles intentionally share one material:
+	# their authored tint and physical finish are identical, so allocating copies
+	# would not change a pixel and would only grow the resource budget.
+	var walked := _panel_material(
+		DECK_COLOR, 0.54, 0.32, StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
+	var grip := _panel_material(
+		STEP_COLOR, 0.42, 0.34, StationSurfaceKit.PanelFinish.WALKED_DECK
+	)
+	var frame := _panel_material(
+		RAIL_COLOR, 0.64, 0.25, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
+	)
+	_materials.deck = walked
+	_materials.route = walked
+	_materials.cargo = walked
+	_materials.step = grip
+	_materials.grip = grip
+	_materials.rail = frame
+	_materials.frame = frame
+	_materials.service = frame
 	_materials.cue = _emissive_material(CUE_COLOR)
 	_materials.hazard = _emissive_material(HAZARD_COLOR)
+
+
+func _panel_material(
+		color: Color,
+		metallic: float,
+		roughness: float,
+		finish: StationSurfaceKit.PanelFinish
+	) -> StandardMaterial3D:
+	var material := _material(color, metallic, roughness)
+	StationSurfaceKit.apply_panel_triplanar(material, PANEL_SURFACE_SCALE, finish)
+	return material
 
 
 func _material(color: Color, metallic: float, roughness: float) -> StandardMaterial3D:
