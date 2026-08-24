@@ -40,6 +40,7 @@ func _run() -> void:
 	await _test_route_stripe_readability(module)
 	await _test_collision_backed_surfaces(module)
 	await _test_stair_circulation(module)
+	await _test_upper_transfer_gate(module)
 	_test_stair_tread_batch(module)
 	_test_low_route_light_batch(module)
 	_test_approach_edge_collar_batch(module)
@@ -358,6 +359,70 @@ func _test_stair_circulation(module: AftJunctionStack) -> void:
 		and is_equal_approx(float(bevel_report.bevel_width), expected_bevel)
 		and (bevel_report.errors as PackedStringArray).is_empty(),
 		"the exposed continuous-ramp skin is chamfered at the station rule without moving its collision-backed route envelope"
+	)
+
+
+func _test_upper_transfer_gate(module: AftJunctionStack) -> void:
+	var profile := module.get_upper_transfer_gate_profile()
+	var gate := module.get_node_or_null(
+		^"Structure/UpperOpenDeck/UpperTransferGate"
+	) as Node3D
+	var rib_batch := gate.get_node_or_null(^"TransferRibRenderBatch") \
+		as MultiMeshInstance3D if gate != null else null
+	var band_batch := gate.get_node_or_null(^"TransferBandRenderBatch") \
+		as MultiMeshInstance3D if gate != null else null
+	var collision_free := gate != null \
+		and gate.find_children("*", "CollisionShape3D", true, false).is_empty()
+
+	var every_rib_supported := gate != null
+	for rib_x in AftJunctionStack.UPPER_TRANSFER_RIB_X_POSITIONS:
+		for rib_z in AftJunctionStack.UPPER_TRANSFER_RIB_Z_POSITIONS:
+			var support := await _ray_local(
+				module,
+				Vector3(float(rib_x), 4.7, float(rib_z)),
+				Vector3(float(rib_x), 3.7, float(rib_z))
+			)
+			if support.is_empty():
+				every_rib_supported = false
+
+	# Exercise the centre and shoulder lanes through the whole threshold. With
+	# no header, the published six-metre jump envelope remains open sky.
+	var route_is_open := true
+	for lane_x in [-6.55, -5.15, -3.75]:
+		for route_z in [14.15, 14.75, 15.35]:
+			var upward_hit := await _ray_local(
+				module,
+				Vector3(float(lane_x), 4.27, float(route_z)),
+				Vector3(
+					float(lane_x),
+					4.27 + float(profile.open_clearance),
+					float(route_z)
+				)
+			)
+			if not upward_hit.is_empty():
+				route_is_open = false
+
+	var materials := module.get("_materials") as Dictionary
+	_check(
+		gate != null
+		and rib_batch != null
+		and band_batch != null
+		and rib_batch.multimesh != null
+		and band_batch.multimesh != null
+		and rib_batch.multimesh.instance_count == int(profile.rib_count)
+		and band_batch.multimesh.instance_count == int(profile.rib_count)
+		and rib_batch.material_override == materials["red"]
+		and band_batch.material_override == materials["brass"]
+		and is_equal_approx(float(profile.clear_width), 3.66)
+		and float(profile.clear_width) > 1.94
+		and int(profile.render_submissions) == 2
+		and StringName(profile.route_authority) == &"none"
+		and StringName(profile.collision_solution) \
+			== &"deck_supported_visual_ribs_outside_lane"
+		and collision_free
+		and every_rib_supported
+		and route_is_open,
+		"the Aft transfer ribs form a deck-supported two-submission threshold outside a 3.66 m open-sky standing and jump lane"
 	)
 
 
@@ -704,11 +769,11 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
 		and report.legacy == {
-			"descendant_nodes": 1174,
-			"renderer_nodes": 857,
-			"drawn_copies": 857,
-			"surface_submissions": 857,
-			"mesh_resource_allocations": 321,
+			"descendant_nodes": 1177,
+			"renderer_nodes": 859,
+			"drawn_copies": 869,
+			"surface_submissions": 859,
+			"mesh_resource_allocations": 323,
 			"material_resource_allocations": 32,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
@@ -716,18 +781,18 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1187,
-			"renderer_nodes": 792,
-			"drawn_copies": 866,
-			"surface_submissions": 792,
-			"mesh_resource_allocations": 292,
+			"descendant_nodes": 1190,
+			"renderer_nodes": 794,
+			"drawn_copies": 878,
+			"surface_submissions": 794,
+			"mesh_resource_allocations": 294,
 			"material_resource_allocations": 32,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus visual batching freeze 1187 descendants, 792 renderers/submissions, 866 copies, and 292 mesh allocations"
+		"shared collar families plus transfer-rib batching freeze 1190 descendants, 794 renderers/submissions, 878 copies, and 294 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -807,7 +872,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 292
+		int(detached.current.mesh_resource_allocations) == 294
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -849,7 +914,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 293
+		and int(identity_red.current.mesh_resource_allocations) == 295
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)

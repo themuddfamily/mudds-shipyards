@@ -223,16 +223,16 @@ const LOW_ROUTE_LIGHT_POSITIONS := [
 const APPROACH_EDGE_COLLAR_RADIUS := 0.115
 const APPROACH_EDGE_COLLAR_HEIGHT := 0.16
 const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
-const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1174
-const RENDER_DESCENDANT_NODE_COUNT := 1187
-const BASELINE_RENDERER_NODE_COUNT := 857
-const RENDERER_NODE_COUNT := 792
-const BASELINE_DRAWN_COPY_COUNT := 857
-const DRAWN_COPY_COUNT := 866
-const BASELINE_SURFACE_SUBMISSION_COUNT := 857
-const SURFACE_SUBMISSION_COUNT := 792
-const BASELINE_MESH_RESOURCE_COUNT := 321
-const MESH_RESOURCE_COUNT := 292
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1177
+const RENDER_DESCENDANT_NODE_COUNT := 1190
+const BASELINE_RENDERER_NODE_COUNT := 859
+const RENDERER_NODE_COUNT := 794
+const BASELINE_DRAWN_COPY_COUNT := 869
+const DRAWN_COPY_COUNT := 878
+const BASELINE_SURFACE_SUBMISSION_COUNT := 859
+const SURFACE_SUBMISSION_COUNT := 794
+const BASELINE_MESH_RESOURCE_COUNT := 323
+const MESH_RESOURCE_COUNT := 294
 const BASELINE_MATERIAL_RESOURCE_COUNT := 32
 const MATERIAL_RESOURCE_COUNT := 32
 
@@ -248,6 +248,18 @@ const STAIR_RISE := UPPER_FLOOR_ELEVATION / float(STAIR_STEP_COUNT - 1)
 const STAIR_RUN := 9.8 / float(STAIR_STEP_COUNT - 1)
 const STAIR_CLEAR_WIDTH := 2.8
 const STAIR_HEAD_CLEARANCE := 2.7
+
+## The upper-deck handoff used to be identified only by a flat red line. These
+## paired ribs give the first few metres beyond the stair a recognisable Aft
+## transfer-zone silhouette while keeping the walking lane open to the sky.
+## Every rib visibly bears on the collision-backed floor outside the lane; the
+## six red skins and six attached brass datum bands cost only two submissions.
+const UPPER_TRANSFER_RIB_SIZE := Vector3(0.24, 2.35, 0.52)
+const UPPER_TRANSFER_BAND_SIZE := Vector3(0.28, 0.16, 0.56)
+const UPPER_TRANSFER_RIB_X_POSITIONS := [-7.1, -3.2]
+const UPPER_TRANSFER_RIB_Z_POSITIONS := [14.15, 14.75, 15.35]
+const UPPER_TRANSFER_CLEAR_WIDTH := 3.66
+const UPPER_TRANSFER_OPEN_CLEARANCE := 6.0
 
 ## The stair-base landing is walked across, not looked at. Its footprint is a
 ## constant because two separate rail runs have to be kept off it: the approach
@@ -434,6 +446,18 @@ func get_stair_surface_samples() -> PackedVector3Array:
 		var progress := float(index) / float(STAIR_STEP_COUNT - 1)
 		samples.append(Vector3(-5.7, progress * UPPER_FLOOR_ELEVATION + 0.11, 3.0 + progress * 9.8))
 	return samples
+
+
+func get_upper_transfer_gate_profile() -> Dictionary:
+	return {
+		"rib_count": UPPER_TRANSFER_RIB_X_POSITIONS.size() \
+			* UPPER_TRANSFER_RIB_Z_POSITIONS.size(),
+		"clear_width": UPPER_TRANSFER_CLEAR_WIDTH,
+		"open_clearance": UPPER_TRANSFER_OPEN_CLEARANCE,
+		"collision_solution": &"deck_supported_visual_ribs_outside_lane",
+		"render_submissions": 2,
+		"route_authority": &"none",
+	}
 
 
 func get_chair_count() -> int:
@@ -3302,6 +3326,7 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 	_box(upper, "UpperFloorInset", Vector3(-5.15, 4.225, 16.4), Vector3(7.7, 0.05, 5.8), _materials["warm_grey_floor"], false)
 	_box(upper, "VIPAccessApronInset", Vector3(-5.15, 4.225, 20.95), Vector3(7.7, 0.05, 3.3), _materials["warm_grey_floor"], false)
 	_box(upper, "UpperRouteStripe", Vector3(-5.15, 4.26, 17.2), Vector3(ROUTE_STRIPE_WIDTH, 0.05, 8.5), _materials["red"], false)
+	_build_upper_transfer_gate(upper)
 	# The former rail began at z=12.7 and joined UpperSouthRail into a sealed
 	# corner. Start it at z=14.5 to preserve the guarded edge while exposing a
 	# 1.8 m player-clear gate onto the Cinder south access transition.
@@ -3324,6 +3349,45 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 		_beam_between(upper, "UpperDiagonalBraceReturn", Vector3(support_x, 3.5, 20.0), Vector3(support_x, 2.35, 17.9), 0.1, _materials["mid_grey"], false)
 
 	_build_stair_head_muster(upper)
+
+
+func _build_upper_transfer_gate(upper: Node3D) -> void:
+	var gate := Node3D.new()
+	gate.name = "UpperTransferGate"
+	upper.add_child(gate)
+
+	var rib_transforms: Array[Transform3D] = []
+	var band_transforms: Array[Transform3D] = []
+	for rib_x in UPPER_TRANSFER_RIB_X_POSITIONS:
+		for rib_z in UPPER_TRANSFER_RIB_Z_POSITIONS:
+			var rib_position := Vector3(
+				float(rib_x),
+				UPPER_FLOOR_ELEVATION + 0.05 + UPPER_TRANSFER_RIB_SIZE.y * 0.5,
+				float(rib_z)
+			)
+			var rib_transform := Transform3D(Basis.IDENTITY, rib_position)
+			rib_transforms.append(rib_transform)
+			band_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(float(rib_x), UPPER_FLOOR_ELEVATION + 1.48, float(rib_z))
+			))
+
+	var rib_batch := _multimesh_rounded_box(
+		gate,
+		"TransferRibRenderBatch",
+		UPPER_TRANSFER_RIB_SIZE,
+		_materials["red"],
+		rib_transforms
+	)
+	rib_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var band_batch := _multimesh_rounded_box(
+		gate,
+		"TransferBandRenderBatch",
+		UPPER_TRANSFER_BAND_SIZE,
+		_materials["brass"],
+		band_transforms
+	)
+	band_batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 
 func _build_operations_room(structure: Node3D) -> void:
