@@ -1248,6 +1248,43 @@ func _test_engine_weapon_damage_and_reuse(jovian: JovianLightFreighter) -> void:
 	await physics_frame
 	_check(str(jovian.get_telemetry().engine_state) == "ONLINE", "re-entry preserves authoritative online engine state")
 	_check(_visible_mesh_count(engine_cores) == 4, "online cores reactivate from authoritative telemetry after re-entry")
+	var component_damage := jovian.get_component_damage()
+	var engine_position := Vector3.ZERO
+	for component in jovian.get_component_damage_report().get("components", []) as Array:
+		if StringName((component as Dictionary).get("id", &"")) == ShipComponentDamage.COMPONENT_ENGINE_BAY:
+			engine_position = (component as Dictionary).get("local_position", Vector3.ZERO) as Vector3
+			break
+	var damage_guard := 0
+	while component_damage.get_component_state(ShipComponentDamage.COMPONENT_ENGINE_BAY) \
+			< ShipComponentDamage.ComponentState.FAILED and damage_guard < 4:
+		component_damage.record_damage(jovian.maximum_hull * 2.0, engine_position)
+		damage_guard += 1
+	jovian.call("_sync_engine_visuals_immediately")
+	_check(
+		jovian.get_engine_exhaust_damage_presentation_profile().get("stage") == &"failed"
+			and str(jovian.get_telemetry().engine_state) == "ONLINE"
+			and _visible_mesh_count(engine_cores) == 4,
+		"failed engine-bay exhaust does not override authoritative online core state"
+	)
+	_check(
+		_visible_mesh_count(engine_plumes) == 0,
+		"failed engine bay retains inherited online exhaust suppression"
+	)
+	var engine_integrity := component_damage.get_component_integrity(
+		ShipComponentDamage.COMPONENT_ENGINE_BAY
+	)
+	component_damage.tick_component_repair(
+		ShipComponentDamage.COMPONENT_ENGINE_BAY,
+		(1.0 - engine_integrity) / maxf(component_damage.repair_rate_per_second, 0.001) + 0.001,
+		true
+	)
+	jovian.call("_sync_engine_visuals_immediately")
+	_check(
+		jovian.get_engine_exhaust_damage_presentation_profile().get("stage") == &"nominal"
+			and _visible_mesh_count(engine_cores) == 4
+			and _visible_mesh_count(engine_plumes) == 4,
+		"engine-bay repair restores nominal exhaust without changing online core state"
+	)
 	Input.action_press("fire")
 	await physics_frame
 	Input.action_release("fire")

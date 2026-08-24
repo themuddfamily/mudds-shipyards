@@ -3888,7 +3888,7 @@ func _update_jovian_presentation(delta: float) -> void:
 	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
 	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for core in _engine_cores:
-		core.visible = engine_active and engine_level > 0.01
+		core.visible = engine_active
 	for plume in _engine_plumes:
 		plume.visible = engine_level > 0.01
 		plume.scale.z = lerpf(
@@ -3913,7 +3913,7 @@ func _sync_jovian_engine_presentation_immediately() -> void:
 	var exhaust_geometry := float(exhaust_profile.get("geometry_multiplier", 1.0))
 	for core in _engine_cores:
 		if is_instance_valid(core):
-			core.visible = active and engine_level > 0.01
+			core.visible = active
 	for plume in _engine_plumes:
 		if is_instance_valid(plume):
 			plume.visible = active
