@@ -73,6 +73,16 @@ const LANCE_EMITTER_CHARGE_SCALE := Vector3(0.72, 1.8, 0.72)
 const LANCE_LENS_CHARGE_SCALE := Vector3.ONE * 1.35
 const LANCE_SPINE_CHARGE_SCALE := Vector3.ONE * 0.78
 
+# One steady, non-flashing long-range read for the picket's assigned-target
+# pressure. The two retained rails share one immutable mesh and the existing
+# magenta emissive material; only their parent transform and visibility change.
+const STANDOFF_INTENT_CUE_ID: StringName = &"picket_standoff_targeting_rails"
+const STANDOFF_INTENT_ROLE_ID: StringName = &"standoff_protected_asset_pressure"
+const STANDOFF_INTENT_RAIL_COPY_COUNT := 2
+const STANDOFF_INTENT_RAIL_LENGTH := 14.0
+const STANDOFF_INTENT_RAIL_SEPARATION := 1.7
+const STANDOFF_INTENT_RAIL_THICKNESS := 0.22
+
 const MAX_PENDING_LANCE_RECEIPTS := 8
 
 # Component-local static presentation budget. The old build allocated one
@@ -175,6 +185,10 @@ var _siege_lance_audio_binding: RefCounted
 var _bound_escort_defender: RangeOpponent
 var _post_shot_relocation_remaining := 0.0
 var _post_shot_relocation_sign := 1.0
+var _standoff_intent_cue: MultiMeshInstance3D
+var _standoff_intent_mesh: BoxMesh
+var _standoff_intent_target_instance_id := 0
+var _standoff_intent_activation_generation := 0
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -202,6 +216,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_standoff_intent_cue()
 	_unbind_siege_lance_audio()
 	_revoke_dispatch_authorization(&"detached")
 	_disconnect_pulse_signals()
@@ -278,6 +293,10 @@ func set_target(target: Node3D) -> void:
 		_lance_charge_generation += 1
 	_lance_charge_target_instance_id = next_id
 	super.set_target(target)
+	if _active and _has_current_target():
+		_standoff_intent_target_instance_id = _target.get_instance_id()
+		_standoff_intent_activation_generation = _activation_generation
+	_sync_standoff_intent_cue()
 
 
 ## Detached caller-physics charge state for HUD/counterplay consumers. The
@@ -296,6 +315,50 @@ func get_lance_charge_snapshot() -> Dictionary:
 		"dispatch_generation": _lance_charge_dispatch_generation,
 		"armed": _lance_charge_armed,
 		"cancel_reason": _lance_charge_cancel_reason,
+	}.duplicate(true)
+
+
+## Detached presentation contract for the steady sighting rails. The cue reads
+## the inherited, coordinator-assigned target and activation generation; it has
+## no target selection, motion, weapon, damage, collision, light or reward
+## authority. Resource instance IDs are exposed only so focused regressions can
+## prove the retained resources are not replaced while the cue tracks a target.
+func get_standoff_intent_cue_snapshot() -> Dictionary:
+	var active := (
+		is_instance_valid(_standoff_intent_cue)
+		and _standoff_intent_cue.visible
+		and _is_standoff_intent_target_current()
+	)
+	var multi := _standoff_intent_cue.multimesh \
+		if is_instance_valid(_standoff_intent_cue) else null
+	return {
+		"cue_id": STANDOFF_INTENT_CUE_ID,
+		"role_id": STANDOFF_INTENT_ROLE_ID,
+		"behavior": &"steady_non_flashing",
+		"active": active,
+		"target_instance_id": _standoff_intent_target_instance_id if active else 0,
+		"target_generation": _lance_charge_generation if active else 0,
+		"activation_generation": _standoff_intent_activation_generation if active else 0,
+		"dispatch_generation": _dispatch_generation if active else 0,
+		"renderer_nodes": 1,
+		"visible_geometry_copies": STANDOFF_INTENT_RAIL_COPY_COUNT,
+		"mesh_resources": 1,
+		"material_resources_added": 0,
+		"rail_length_meters": STANDOFF_INTENT_RAIL_LENGTH,
+		"rail_separation_meters": STANDOFF_INTENT_RAIL_SEPARATION,
+		"mesh_instance_id": _standoff_intent_mesh.get_instance_id() \
+			if is_instance_valid(_standoff_intent_mesh) else 0,
+		"multimesh_instance_id": multi.get_instance_id() if multi != null else 0,
+		"steady": true,
+		"flashing": false,
+		"timer_driven": false,
+		"raw_input_driven": false,
+		"uses_existing_target_assignment": true,
+		"selects_target": false,
+		"movement_authority": false,
+		"fire_authority": false,
+		"damage_authority": false,
+		"reward_authority": false,
 	}.duplicate(true)
 
 
@@ -574,6 +637,7 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 	_shots_aborted = 0
 	_post_shot_relocation_remaining = 0.0
 	_post_shot_relocation_sign = 1.0
+	_clear_standoff_intent_cue()
 	_cancel_lance_charge(&"activation_reset", false)
 	_lance_charge_generation = 0
 	_lance_charge_target_instance_id = 0
@@ -583,6 +647,14 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 		_siege_lance_audio_binding.reset_for_reuse()
 	_register_combat_source()
 	_set_engagement_state(STATE_CLOSING)
+	# Station-defense content assigns its protected asset while the picket is
+	# dormant, then the encounter host activates the retained craft. Re-derive
+	# presentation for that still-current authoritative target in the new
+	# activation generation; this neither changes nor selects the target.
+	if _is_standoff_intent_target_actor_live():
+		_standoff_intent_target_instance_id = _target.get_instance_id()
+		_standoff_intent_activation_generation = _activation_generation
+	_sync_standoff_intent_cue()
 	return activation
 
 
@@ -638,6 +710,7 @@ func activate_authorized_dispatch(
 func deactivate() -> void:
 	_revoke_dispatch_authorization(&"deactivated")
 	_post_shot_relocation_remaining = 0.0
+	_clear_standoff_intent_cue()
 	_cancel_lance_charge(&"deactivated", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -665,6 +738,7 @@ func _unbind_siege_lance_audio() -> void:
 func _destroy_interceptor(death_position: Vector3) -> void:
 	_revoke_dispatch_authorization(&"destroyed")
 	_post_shot_relocation_remaining = 0.0
+	_clear_standoff_intent_cue()
 	_cancel_lance_charge(&"destroyed", false)
 	_lance_charge_target_instance_id = 0
 	_release_combat_registration()
@@ -682,6 +756,10 @@ func _restore_after_reentry() -> void:
 	_attach_damage_proxy()
 	if _active:
 		_register_combat_source()
+		if _is_standoff_intent_target_actor_live():
+			_standoff_intent_target_instance_id = _target.get_instance_id()
+			_standoff_intent_activation_generation = _activation_generation
+	_sync_standoff_intent_cue()
 
 
 # --------------------------------------------------------------- dispatch ----
@@ -1324,12 +1402,116 @@ func _disconnect_pulse_signals() -> void:
 
 # ---------------------------------------------------------- presentation ----
 
+## Two long parallel rails form a readable sighting corridor at the picket's
+## authored 132 m combat band. They are direct presentation children rather
+## than hull geometry, so they never enter the hull collision or static visual
+## census. Both copies share one retained mesh and an already-authored material.
+func _build_standoff_intent_cue() -> void:
+	if is_instance_valid(_standoff_intent_cue):
+		return
+	_standoff_intent_mesh = BoxMesh.new()
+	_standoff_intent_mesh.size = Vector3(
+		STANDOFF_INTENT_RAIL_THICKNESS,
+		STANDOFF_INTENT_RAIL_THICKNESS,
+		STANDOFF_INTENT_RAIL_LENGTH
+	)
+	_standoff_intent_mesh.material = _materials.picket_magenta_emissive
+
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = _standoff_intent_mesh
+	multi.instance_count = STANDOFF_INTENT_RAIL_COPY_COUNT
+	multi.visible_instance_count = -1
+	var bounds := AABB()
+	var authored_transforms: Array[Transform3D] = []
+	for index in STANDOFF_INTENT_RAIL_COPY_COUNT:
+		var side := -1.0 if index == 0 else 1.0
+		var rail_transform := Transform3D(
+			Basis.IDENTITY,
+			Vector3(
+				side * STANDOFF_INTENT_RAIL_SEPARATION * 0.5,
+				0.0,
+				-STANDOFF_INTENT_RAIL_LENGTH * 0.5
+			)
+		)
+		multi.set_instance_transform(index, rail_transform)
+		authored_transforms.append(rail_transform)
+		var rail_bounds := (rail_transform * _standoff_intent_mesh.get_aabb()).abs()
+		bounds = rail_bounds if index == 0 else bounds.merge(rail_bounds)
+	multi.custom_aabb = bounds
+
+	_standoff_intent_cue = MultiMeshInstance3D.new()
+	_standoff_intent_cue.name = "StandoffTargetingRails"
+	_standoff_intent_cue.multimesh = multi
+	_standoff_intent_cue.visible = false
+	_standoff_intent_cue.layers = 1
+	_standoff_intent_cue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_standoff_intent_cue.set_meta(&"presentation_only", true)
+	_standoff_intent_cue.set_meta(&"cue_id", STANDOFF_INTENT_CUE_ID)
+	_standoff_intent_cue.set_meta(&"behavior", &"steady_non_flashing")
+	_standoff_intent_cue.set_meta(&"authored_instance_transforms", authored_transforms.duplicate())
+	add_child(_standoff_intent_cue)
+
+
+func _is_standoff_intent_target_actor_live() -> bool:
+	if not _has_current_target():
+		return false
+	if _target.has_method(&"is_active") and not bool(_target.call(&"is_active")):
+		return false
+	if _target.has_method(&"get_health") \
+		and float(_target.call(&"get_health")) <= 0.0:
+		return false
+	return true
+
+
+func _is_standoff_intent_target_current() -> bool:
+	return (
+		_active
+		and is_inside_tree()
+		and _is_standoff_intent_target_actor_live()
+		and _standoff_intent_target_instance_id > 0
+		and _target.get_instance_id() == _standoff_intent_target_instance_id
+		and _standoff_intent_activation_generation == _activation_generation
+	)
+
+
+func _sync_standoff_intent_cue() -> void:
+	if not is_instance_valid(_standoff_intent_cue):
+		return
+	if not _is_standoff_intent_target_current():
+		_clear_standoff_intent_cue()
+		return
+	var origin := _muzzle_port.global_position \
+		if is_instance_valid(_muzzle_port) else global_position
+	var direction := _get_target_aim_position() - origin
+	if direction.length_squared() <= 0.001:
+		_clear_standoff_intent_cue()
+		return
+	direction = direction.normalized()
+	var up := Vector3.UP
+	if absf(direction.dot(up)) > 0.965:
+		up = Vector3.FORWARD
+	_standoff_intent_cue.global_transform = Transform3D(
+		Basis.looking_at(direction, up).orthonormalized(),
+		origin
+	)
+	_standoff_intent_cue.visible = true
+
+
+func _clear_standoff_intent_cue() -> void:
+	_standoff_intent_target_instance_id = 0
+	_standoff_intent_activation_generation = 0
+	if is_instance_valid(_standoff_intent_cue):
+		_standoff_intent_cue.visible = false
+
+
 ## The long-cadence lance focuses through three retained nodes: a lengthened
 ## emitter, a large muzzle lens, and a smaller spine witness. These are static,
 ## non-color multipliers on the inherited charge size, not another animation or
 ## weapon state.
 func _update_presentation(delta: float) -> void:
 	super(delta)
+	_sync_standoff_intent_cue()
 	if not _active or _telegraph_remaining <= 0.0:
 		return
 	if is_instance_valid(_lance_emitter):
@@ -1355,6 +1537,7 @@ func _build_interceptor() -> void:
 	retreat_range = minimum_arming_range
 	_create_materials()
 	_create_picket_materials()
+	_build_standoff_intent_cue()
 	_visual_root = Node3D.new()
 	_visual_root.name = "StandoffPicketVisual"
 	add_child(_visual_root)
