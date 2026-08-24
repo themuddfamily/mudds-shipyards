@@ -102,6 +102,7 @@ func _initialize() -> void:
 		"the family audit proves mesh allocations 4 -> 2 without changing nodes or submissions"
 	)
 	var performance := module.get_performance_contract()
+	var unit_box_batches := module.get_unit_box_batch_mesh_allocation_audit()
 	_check(
 		bool(performance.within_budget)
 			and bool(performance.resource_sharing_matches_authored)
@@ -110,6 +111,18 @@ func _initialize() -> void:
 			and int(performance.geometry_submissions) == 42
 			and int(performance.visible_geometry_copies) == 200,
 		"the exact production census and all six established structural batches remain unchanged"
+	)
+	_check(
+		bool(unit_box_batches.valid)
+			and int(unit_box_batches.batch_count) == 3
+			and int(unit_box_batches.geometry_submissions) == 3
+			and int(unit_box_batches.visible_geometry_copies) == 144
+			and int(unit_box_batches.mesh_resource_allocations) == 1
+			and int(unit_box_batches.legacy_mesh_resource_allocations) == 3
+			and int(unit_box_batches.mesh_resource_allocation_delta) == -2
+			and int(unit_box_batches.multimesh_resource_allocations) == 3
+			and bool(unit_box_batches.batched),
+		"three transform-scaled structural batches share one immutable unit-box mesh without merging submissions or copies"
 	)
 	var authority := module.get_authority_contract()
 	var roster := module.get_component_roster()
@@ -134,6 +147,20 @@ func _initialize() -> void:
 		"restoring the shared resource restores the live component contract"
 	)
 
+	var frame_batch := module.get_node(^"GeneratedRoot/SalvageFrameBatch") as MultiMeshInstance3D
+	var original_batch_mesh := frame_batch.multimesh.mesh
+	frame_batch.multimesh.mesh = BoxMesh.new()
+	_check(
+		not bool(module.get_unit_box_batch_mesh_allocation_audit().valid)
+			and not bool(module.get_performance_contract().within_budget),
+		"breaking the unit-box mesh identity turns both focused and production audits red"
+	)
+	frame_batch.multimesh.mesh = original_batch_mesh
+	_check(
+		bool(module.get_unit_box_batch_mesh_allocation_audit().valid),
+		"restoring the shared unit-box mesh restores the live component contract"
+	)
+
 	_finish(module)
 
 
@@ -143,6 +170,7 @@ func _finish(module: SalvageTerrace) -> void:
 	_check(not is_instance_valid(module), "the optimized terrace still exits the lifecycle cleanly")
 	if _failures.is_empty():
 		print("SALVAGE_TERRACE_SLOPED_RAIL_SHARING: mesh_resources 4->2 renderer_nodes 4->4 geometry_submissions 4->4")
+		print("SALVAGE_TERRACE_UNIT_BOX_BATCH_SHARING: mesh_resources 3->1 batches 3->3 visible_copies 144->144")
 		print("PASS salvage_terrace_sloped_rail_resource_sharing_test (%d assertions)" % _assertions)
 		quit(0)
 	else:

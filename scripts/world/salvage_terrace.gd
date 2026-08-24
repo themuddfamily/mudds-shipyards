@@ -86,6 +86,11 @@ const MULTIMESH_INSTANCE_COUNTS := {
 	"SortingMachineryBatch": 8,
 	"RailDetailBatch": 126,
 }
+const UNIT_BOX_BATCH_NAMES := [
+	&"RailDetailBatch",
+	&"SalvageFrameBatch",
+	&"SortingMachineryBatch",
+]
 
 ## These four physical rails keep separate bodies, collision shapes, stable
 ## paths and exact transforms. Their conservative solid renderer was already
@@ -154,6 +159,7 @@ var _entry_front_rail_visual_mesh: BoxMesh
 var _top_side_rail_visual_mesh: BoxMesh
 var _main_ramp_rail_visual_mesh: BoxMesh
 var _inspection_ramp_rail_visual_mesh: BoxMesh
+var _unit_box_batch_mesh: BoxMesh
 var _rail_detail_transforms: Array[Transform3D] = []
 
 
@@ -367,15 +373,18 @@ func get_performance_contract() -> Dictionary:
 	var long_rail_visual_sharing := get_long_rail_visual_allocation_audit()
 	var four_meter_rail_visual_sharing := get_four_meter_rail_visual_allocation_audit()
 	var sloped_rail_visual_sharing := get_sloped_rail_visual_allocation_audit()
+	var unit_box_batch_mesh_sharing := get_unit_box_batch_mesh_allocation_audit()
 	contract["short_side_rail_visual_sharing"] = rail_visual_sharing
 	contract["long_rail_visual_sharing"] = long_rail_visual_sharing
 	contract["four_meter_rail_visual_sharing"] = four_meter_rail_visual_sharing
 	contract["sloped_rail_visual_sharing"] = sloped_rail_visual_sharing
+	contract["unit_box_batch_mesh_sharing"] = unit_box_batch_mesh_sharing
 	contract["resource_sharing_matches_authored"] = (
 		bool(rail_visual_sharing.valid)
 		and bool(long_rail_visual_sharing.valid)
 		and bool(four_meter_rail_visual_sharing.valid)
 		and bool(sloped_rail_visual_sharing.valid)
+		and bool(unit_box_batch_mesh_sharing.valid)
 	)
 	var exact_census := true
 	for key in PERFORMANCE_BUDGET:
@@ -702,6 +711,64 @@ func get_sloped_rail_visual_allocation_audit() -> Dictionary:
 		"mesh_resource_allocation_delta": -2,
 		"visual_aabbs_match_collision": visual_aabbs_match_collision,
 		"batched": false,
+	}.duplicate(true)
+
+
+## Three existing transform-scaled batches have the same immutable unit-box
+## recipe. They retain separate MultiMeshes, buffers, materials and submissions;
+## only the redundant primitive mesh allocation is shared.
+func get_unit_box_batch_mesh_allocation_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var mesh_ids := {}
+	var multimesh_ids := {}
+	var instance_count := 0
+	var visible_copy_count := 0
+	var expected_materials := {
+		&"RailDetailBatch": _materials.rail,
+		&"SalvageFrameBatch": _materials.frame,
+		&"SortingMachineryBatch": _materials.machine,
+	}
+	for batch_name in UNIT_BOX_BATCH_NAMES:
+		var batch := get_node_or_null(
+			NodePath("GeneratedRoot/%s" % batch_name)
+		) as MultiMeshInstance3D
+		if batch == null or batch.multimesh == null or not (batch.multimesh.mesh is BoxMesh):
+			errors.append("unit_box_batch_missing")
+			continue
+		var mesh := batch.multimesh.mesh as BoxMesh
+		mesh_ids[mesh.get_instance_id()] = true
+		multimesh_ids[batch.multimesh.get_instance_id()] = true
+		instance_count += batch.multimesh.instance_count
+		visible_copy_count += (
+			batch.multimesh.instance_count
+			if batch.multimesh.visible_instance_count < 0
+			else mini(batch.multimesh.visible_instance_count, batch.multimesh.instance_count)
+		)
+		if (
+			mesh != _unit_box_batch_mesh
+			or not mesh.size.is_equal_approx(Vector3.ONE)
+			or mesh.resource_local_to_scene
+			or batch.material_override != expected_materials[batch_name]
+		):
+			errors.append("unit_box_batch_identity_or_recipe_drift")
+	if mesh_ids.size() != 1:
+		errors.append("unit_box_batch_mesh_count_drift")
+	if multimesh_ids.size() != UNIT_BOX_BATCH_NAMES.size():
+		errors.append("unit_box_batch_submission_identity_drift")
+	if instance_count != 144 or visible_copy_count != 144:
+		errors.append("unit_box_batch_visible_copy_count_drift")
+	errors.sort()
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"batch_count": UNIT_BOX_BATCH_NAMES.size(),
+		"geometry_submissions": multimesh_ids.size(),
+		"visible_geometry_copies": visible_copy_count,
+		"mesh_resource_allocations": mesh_ids.size(),
+		"legacy_mesh_resource_allocations": 3,
+		"mesh_resource_allocation_delta": mesh_ids.size() - 3,
+		"multimesh_resource_allocations": multimesh_ids.size(),
+		"batched": true,
 	}.duplicate(true)
 
 
@@ -1205,8 +1272,16 @@ func _add_multimesh_batch(
 		material: Material,
 		reason: String
 	) -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = size
+	var mesh: BoxMesh
+	if StringName(node_name) in UNIT_BOX_BATCH_NAMES and size.is_equal_approx(Vector3.ONE):
+		if _unit_box_batch_mesh == null:
+			_unit_box_batch_mesh = BoxMesh.new()
+			_unit_box_batch_mesh.resource_name = "SalvageTerraceUnitBoxBatchMesh"
+			_unit_box_batch_mesh.size = Vector3.ONE
+		mesh = _unit_box_batch_mesh
+	else:
+		mesh = BoxMesh.new()
+		mesh.size = size
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.instance_count = transforms.size()
