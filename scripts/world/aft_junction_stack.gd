@@ -206,6 +206,20 @@ const ROOF_VENT_LOUVRE_POSITIONS := [
 	Vector3(8.10, 5.34, 13.0),
 	Vector3(8.34, 5.34, 13.0),
 ]
+## Five identical pressure-rib arcs cross the operations-room roof. Each arc is
+## still represented by its inert named envelope anchor, while the 14 matching
+## tube recipes are submitted once apiece across all five Z planes. The roof box
+## remains the sole collider and the ribs carry no gameplay or light authority.
+const PRESSURE_RIB_COPY_COUNT := 5
+const PRESSURE_RIB_SEGMENT_COUNT := 14
+const PRESSURE_RIB_VISIBLE_COPY_COUNT := PRESSURE_RIB_COPY_COUNT * PRESSURE_RIB_SEGMENT_COUNT
+const PRESSURE_RIB_Z_START := 9.45
+const PRESSURE_RIB_Z_STEP := 1.88
+const PRESSURE_RIB_X_MIN := 0.28
+const PRESSURE_RIB_X_MAX := 10.92
+const PRESSURE_RIB_SPRING_HEIGHT := 4.82
+const PRESSURE_RIB_CROWN_HEIGHT := 5.58
+const PRESSURE_RIB_RADIUS := 0.105
 ## Three identical cyan route-light strips are presentation-only overlays on the
 ## collision-backed lower deck. Their authored names remain childless anchors;
 ## one lower-deck MultiMesh draws the unchanged cached rounded-box surface.
@@ -224,13 +238,13 @@ const APPROACH_EDGE_COLLAR_RADIUS := 0.115
 const APPROACH_EDGE_COLLAR_HEIGHT := 0.16
 const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1177
-const RENDER_DESCENDANT_NODE_COUNT := 1190
+const RENDER_DESCENDANT_NODE_COUNT := 1134
 const BASELINE_RENDERER_NODE_COUNT := 859
-const RENDERER_NODE_COUNT := 794
+const RENDERER_NODE_COUNT := 738
 const BASELINE_DRAWN_COPY_COUNT := 869
 const DRAWN_COPY_COUNT := 878
 const BASELINE_SURFACE_SUBMISSION_COUNT := 859
-const SURFACE_SUBMISSION_COUNT := 794
+const SURFACE_SUBMISSION_COUNT := 738
 const BASELINE_MESH_RESOURCE_COUNT := 323
 const MESH_RESOURCE_COUNT := 294
 const BASELINE_MATERIAL_RESOURCE_COUNT := 32
@@ -1194,10 +1208,10 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": -13,
-			"renderer_nodes": 65,
+			"descendant_nodes": 43,
+			"renderer_nodes": 121,
 			"drawn_copies": -9,
-			"surface_submissions": 65,
+			"surface_submissions": 121,
 			"mesh_resource_allocations": 29,
 			"material_resource_allocations": 0,
 		},
@@ -3619,19 +3633,7 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 			_materials["panel_light"] if panel_index % 2 else _materials["warm_grey"],
 			false
 		)
-	for rib_index in 5:
-		var rib_z := 9.45 + float(rib_index) * 1.88
-		_arch_across_x(
-			envelope,
-			"PressureRib%02d" % rib_index,
-			rib_z,
-			0.28,
-			10.92,
-			4.82,
-			5.58,
-			0.105,
-			_materials["off_white"]
-		)
+	_build_pressure_rib_batches(envelope)
 	_beam_between(envelope, "RoofServiceSpine", Vector3(5.6, 5.62, 9.25), Vector3(5.6, 5.62, 17.22), 0.15, _materials["hull_dark"], false)
 	_spine_clamp_mesh = _torus_mesh(
 		SPINE_CLAMP_INNER_RADIUS,
@@ -5280,6 +5282,66 @@ func _arch_across_x(
 		_beam_between(arch, "TubeSegment%02d" % segment_index, previous, current, radius, material, false)
 		previous = current
 	return arch
+
+
+## Batch the five collision-free pressure-rib copies by segment recipe. A tube
+## at a given segment index has the same mesh and orientation on every rib; only
+## its Z origin differs. This turns 70 renderer nodes/submissions into 14 while
+## retaining all 70 visible tube copies and the five named visual anchors.
+func _build_pressure_rib_batches(envelope: Node3D) -> void:
+	for rib_index in PRESSURE_RIB_COPY_COUNT:
+		var anchor := Node3D.new()
+		anchor.name = "PressureRib%02d" % rib_index
+		anchor.set_meta("visual_detail_only", true)
+		anchor.set_meta("presentation_only", true)
+		envelope.add_child(anchor)
+
+	var half_width := (PRESSURE_RIB_X_MAX - PRESSURE_RIB_X_MIN) * 0.5
+	var center_x := (PRESSURE_RIB_X_MAX + PRESSURE_RIB_X_MIN) * 0.5
+	var previous_points: Array[Vector3] = []
+	for rib_index in PRESSURE_RIB_COPY_COUNT:
+		previous_points.append(Vector3(
+			PRESSURE_RIB_X_MIN,
+			PRESSURE_RIB_SPRING_HEIGHT,
+			PRESSURE_RIB_Z_START + float(rib_index) * PRESSURE_RIB_Z_STEP
+		))
+
+	for segment_index in PRESSURE_RIB_SEGMENT_COUNT:
+		var progress := float(segment_index + 1) / float(PRESSURE_RIB_SEGMENT_COUNT)
+		var x_position := lerpf(PRESSURE_RIB_X_MIN, PRESSURE_RIB_X_MAX, progress)
+		var normalized_x := (x_position - center_x) / half_width
+		var curve_height := PRESSURE_RIB_SPRING_HEIGHT + (
+			PRESSURE_RIB_CROWN_HEIGHT - PRESSURE_RIB_SPRING_HEIGHT
+		) * sqrt(maxf(0.0, 1.0 - normalized_x * normalized_x))
+		var transforms: Array[Transform3D] = []
+		var segment_length := 0.0
+		for rib_index in PRESSURE_RIB_COPY_COUNT:
+			var current := Vector3(
+				x_position,
+				curve_height,
+				PRESSURE_RIB_Z_START + float(rib_index) * PRESSURE_RIB_Z_STEP
+			)
+			var previous := previous_points[rib_index]
+			var direction := current - previous
+			segment_length = direction.length()
+			transforms.append(Transform3D(
+				Basis(Quaternion(Vector3.UP, direction.normalized())),
+				(previous + current) * 0.5
+			))
+			previous_points[rib_index] = current
+		_multimesh_mesh(
+			envelope,
+			"PressureRibSegmentBatch%02d" % segment_index,
+			StationSurfaceKit.chamfered_cylinder_mesh_cached(
+				PRESSURE_RIB_RADIUS,
+				PRESSURE_RIB_RADIUS,
+				segment_length,
+				32,
+				_chamfered_cylinder_cache
+			),
+			_materials["off_white"],
+			transforms
+		)
 
 
 func _omni_light(
