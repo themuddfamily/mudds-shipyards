@@ -35,6 +35,7 @@ func _run() -> void:
 	_test_connection_slots(module)
 	_test_surface_roster_and_area(module)
 	_test_approach_wayfinding(module)
+	_test_approach_route_crown(module)
 	_test_material_retention(module)
 	_test_visual_resource_sharing(module)
 	_test_deterministic_runtime_names(module)
@@ -70,6 +71,86 @@ func _test_approach_wayfinding(module: ObservationLogisticsSpur) -> void:
 		and cue.outline_size == 6
 		and cue.billboard == BaseMaterial3D.BILLBOARD_ENABLED,
 		"branch cue stays overhead before the cross-landing with its legible sign treatment"
+	)
+
+
+func _test_approach_route_crown(module: ObservationLogisticsSpur) -> void:
+	var observation_batch := module.get_node_or_null(
+		^"Structure/Dressing/ObservationZoneTicks"
+	) as MultiMeshInstance3D
+	var logistics_batch := module.get_node_or_null(
+		^"Structure/Dressing/LogisticsZoneTicks"
+	) as MultiMeshInstance3D
+	var observation_lenses := module.get_node_or_null(
+		^"Structure/Dressing/ObservationLensRenderBatch"
+	) as MultiMeshInstance3D
+	var connector_markers := module.get_node_or_null(
+		^"Structure/Dressing/ConnectorMarkers"
+	) as MultiMeshInstance3D
+	var observation_authored := (
+		observation_batch.get_meta("authored_instance_transforms", []) as Array
+		if observation_batch != null else []
+	)
+	var logistics_authored := (
+		logistics_batch.get_meta("authored_instance_transforms", []) as Array
+		if logistics_batch != null else []
+	)
+	var crown_basis := Basis(Vector3.RIGHT, -PI * 0.5)
+	var crown_exact := observation_authored.size() == 8 and logistics_authored.size() == 8
+	for crown_index in 2:
+		var observation_transform := (
+			observation_authored[6 + crown_index] as Transform3D
+			if observation_authored.size() == 8 else Transform3D.IDENTITY
+		)
+		var logistics_transform := (
+			logistics_authored[6 + crown_index] as Transform3D
+			if logistics_authored.size() == 8 else Transform3D.IDENTITY
+		)
+		crown_exact = crown_exact \
+			and observation_transform.is_equal_approx(Transform3D(
+				crown_basis,
+				ObservationLogisticsSpur.OBSERVATION_ROUTE_CROWN_FIN_POSITIONS[crown_index]
+			)) \
+			and logistics_transform.is_equal_approx(Transform3D(
+				crown_basis,
+				ObservationLogisticsSpur.LOGISTICS_ROUTE_CROWN_FIN_POSITIONS[crown_index]
+			))
+	_check(
+		crown_exact
+		and observation_batch != null
+		and logistics_batch != null
+		and observation_batch.multimesh != null
+		and logistics_batch.multimesh != null
+		and observation_batch.multimesh.instance_count == 8
+		and logistics_batch.multimesh.instance_count == 8
+		and (observation_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(
+			ObservationLogisticsSpur.ROUTE_CROWN_FIN_SIZE
+		)
+		and (logistics_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(
+			ObservationLogisticsSpur.ROUTE_CROWN_FIN_SIZE
+		),
+		"the final connector portal gains an exact paired observation/logistics "
+		+ "crown from the existing zone-tick silhouette"
+	)
+	_check(
+		observation_batch != null
+		and logistics_batch != null
+		and observation_lenses != null
+		and connector_markers != null
+		and observation_batch.material_override == observation_lenses.material_override
+		and logistics_batch.material_override == connector_markers.material_override
+		and observation_batch.get_child_count() == 0
+		and logistics_batch.get_child_count() == 0
+		and bool(observation_batch.get_meta("visual_detail_only", false))
+		and bool(logistics_batch.get_meta("visual_detail_only", false))
+		and observation_batch.find_children(
+			"*", "CollisionObject3D", true, false
+		).is_empty()
+		and logistics_batch.find_children(
+			"*", "CollisionObject3D", true, false
+		).is_empty(),
+		"route crown reuses cyan/amber destination materials without adding "
+		+ "collision or authority"
 	)
 
 
@@ -223,8 +304,8 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"PadCanopySupports": 8,
 		"ObservationConsoleTrim": 3,
 		"CargoCaseBands": 12,
-		"ObservationZoneTicks": 6,
-		"LogisticsZoneTicks": 6,
+		"ObservationZoneTicks": 8,
+		"LogisticsZoneTicks": 8,
 		"ReturnBridgeChevrons": 5,
 		"PadPavilionBulkheads": 6,
 		"PadPavilionWindows": 6,
@@ -329,10 +410,10 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.baseline_renderer_nodes) == 42
 		and int(performance.renderer_nodes) == 34
 		and int(performance.baseline_drawn_copies) == 270
-		and int(performance.drawn_copies) == 270
+		and int(performance.drawn_copies) == 274
 		and int(performance.baseline_surface_submissions) == 42
 		and int(performance.surface_submissions) == 34,
-		"shared scaled trim mesh preserves 270 visible copies and the district's 34 submissions"
+		"shared scaled trim mesh preserves 274 visible copies and the district's 34 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34

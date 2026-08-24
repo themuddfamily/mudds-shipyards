@@ -135,7 +135,7 @@ const VISUAL_DESCENDANT_NODE_COUNT := 147
 const BASELINE_RENDERER_NODE_COUNT := 42
 const RENDERER_NODE_COUNT := 34
 const BASELINE_DRAWN_COPY_COUNT := 270
-const DRAWN_COPY_COUNT := 270
+const DRAWN_COPY_COUNT := 274
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
 const SURFACE_SUBMISSION_COUNT := 34
 const BASELINE_MESH_RESOURCE_COUNT := 34
@@ -234,6 +234,22 @@ const SCALED_VISUAL_MESH_RESOURCE_COUNT := 1
 ## before the player reaches the split without adding geometry to either lane.
 const APPROACH_WAYFINDING_TEXT := "←  LOGISTICS    |    OBSERVATION  →"
 const APPROACH_WAYFINDING_POSITION := Vector3(0.0, 3.18, 21.82)
+## The fifth connector portal is the decision point, but its neutral header used
+## to repeat the four transit bays exactly. Two pairs of the existing 0.92 m zone
+## ticks now stand vertically in the header as a cyan/amber crown: observation on
+## local -X and logistics on local +X, matching the physical branches and the
+## overhead label. Their lower ends meet the existing beam at y=3.44, so they add
+## a gameplay-distance silhouette without entering the 3.44 m clear portal or
+## adding a renderer, material, light, collision shape, label, or authority node.
+const ROUTE_CROWN_FIN_SIZE := Vector3(0.14, 0.035, 0.92)
+const OBSERVATION_ROUTE_CROWN_FIN_POSITIONS := [
+	Vector3(-1.42, 3.90, 22.0),
+	Vector3(-1.14, 3.90, 22.0),
+]
+const LOGISTICS_ROUTE_CROWN_FIN_POSITIONS := [
+	Vector3(1.14, 3.90, 22.0),
+	Vector3(1.42, 3.90, 22.0),
+]
 
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
@@ -1642,8 +1658,19 @@ func _build_finishing_details(parent: Node3D) -> void:
 		var tick_z := 27.2 + float(tick_index) * 1.75
 		observation_ticks.append(Transform3D(Basis.IDENTITY, Vector3(-4.25, 0.025, tick_z)))
 		logistics_ticks.append(Transform3D(Basis.IDENTITY, Vector3(4.25, 0.025, tick_z)))
-	_multimesh_boxes(parent, "ObservationZoneTicks", Vector3(0.14, 0.035, 0.92), _materials["cyan"], observation_ticks)
-	_multimesh_boxes(parent, "LogisticsZoneTicks", Vector3(0.14, 0.035, 0.92), _materials["amber"], logistics_ticks)
+	var crown_fin_basis := Basis(Vector3.RIGHT, -PI * 0.5)
+	for fin_position in OBSERVATION_ROUTE_CROWN_FIN_POSITIONS:
+		observation_ticks.append(Transform3D(crown_fin_basis, fin_position))
+	for fin_position in LOGISTICS_ROUTE_CROWN_FIN_POSITIONS:
+		logistics_ticks.append(Transform3D(crown_fin_basis, fin_position))
+	_multimesh_boxes(
+		parent, "ObservationZoneTicks", ROUTE_CROWN_FIN_SIZE,
+		_materials["cyan"], observation_ticks
+	)
+	_multimesh_boxes(
+		parent, "LogisticsZoneTicks", ROUTE_CROWN_FIN_SIZE,
+		_materials["amber"], logistics_ticks
+	)
 	var return_chevrons: Array[Transform3D] = []
 	for chevron_index in 5:
 		return_chevrons.append(Transform3D(Basis.IDENTITY, Vector3(-2.0 + float(chevron_index), 0.025, 38.0)))
