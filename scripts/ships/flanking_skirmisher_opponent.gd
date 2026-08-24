@@ -69,29 +69,42 @@ const SKIRMISHER_ENGINE := Color("b6ffe3")
 const REPEATER_CHARGE_SCALE := Vector3(0.62, 1.6, 0.62)
 
 # Component-local static presentation budget. The old build retained one
-# BoxMesh per chalk-band node. The mirrored pair has one exact immutable recipe,
-# so only its Mesh Resource is shared: nodes, visible copies, materials,
-# transforms, lights, collision, and structural submissions remain unchanged.
+# BoxMesh per chalk-band and winglet-fin node. Each mirrored pair has one exact
+# immutable recipe, so only its Mesh Resource is shared: nodes, visible copies,
+# materials, transforms, lights, collision, and structural submissions remain
+# unchanged.
 const WING_CHALK_BAND_SIZE := Vector3(2.4, 0.05, 0.3)
 const WING_CHALK_BAND_POSITIONS := [
 	Vector3(-2.5, 0.06, 0.4),
 	Vector3(2.5, 0.06, 0.4),
 ]
-const PRESENTATION_DESCENDANT_NODE_COUNT := 29
+const WINGLET_FIN_SIZE := Vector3(0.16, 0.9, 1.3)
+const WINGLET_FIN_POSITIONS := [
+	Vector3(-3.7, 0.36, 1.9),
+	Vector3(3.7, 0.36, 1.9),
+]
+const WINGLET_FIN_ROTATIONS := [
+	Vector3(0.0, -0.16, 0.22),
+	Vector3(0.0, 0.16, -0.22),
+]
+const PRESENTATION_DESCENDANT_NODE_COUNT := 31
 const PRESENTATION_VISUAL_NODE_COUNT := 21
 const PRESENTATION_MESH_INSTANCE_COUNT := 18
-const PRESENTATION_LIGHT_NODE_COUNT := 4
+const PRESENTATION_LIGHT_NODE_COUNT := 5
 const PRESENTATION_COLLISION_SHAPE_COUNT := 3
-const PRESENTATION_PARTICLE_NODE_COUNT := 2
+const PRESENTATION_PARTICLE_NODE_COUNT := 3
 const PRESENTATION_SURFACE_SUBMISSION_COUNT := 18
 const PRESENTATION_MATERIAL_RESOURCE_COUNT := 8
 const BASELINE_PRESENTATION_MESH_RESOURCE_COUNT := 16
-const PRESENTATION_MESH_RESOURCE_COUNT := 15
+const PRESENTATION_MESH_RESOURCE_COUNT := 14
 const BASELINE_PRESENTATION_BOX_MESH_RESOURCE_COUNT := 6
-const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 5
+const PRESENTATION_BOX_MESH_RESOURCE_COUNT := 4
 const WING_CHALK_BAND_INSTANCE_COUNT := 2
 const BASELINE_WING_CHALK_BAND_MESH_RESOURCE_COUNT := 2
 const WING_CHALK_BAND_MESH_RESOURCE_COUNT := 1
+const WINGLET_FIN_INSTANCE_COUNT := 2
+const BASELINE_WINGLET_FIN_MESH_RESOURCE_COUNT := 2
+const WINGLET_FIN_MESH_RESOURCE_COUNT := 1
 
 const CONTENT_NOTE := (
 	"The skirmisher silhouette, palette, role lamp, anchor/flanker split, rear "
@@ -120,6 +133,7 @@ var _role_light: OmniLight3D
 var _muzzle_lens: MeshInstance3D
 var _shots_arc_denied := 0
 var _wing_chalk_band_mesh: BoxMesh
+var _winglet_fin_mesh: BoxMesh
 
 
 # ------------------------------------------------------------- lifecycle ----
@@ -270,9 +284,9 @@ func get_audit_report() -> Dictionary:
 	}.duplicate(true)
 
 
-## Renderer-independent, component-local allocation evidence for the first
-## exact mirrored visual family. Structural submissions are mesh-surface counts,
-## not driver draw calls; no frame-time, draw-call, or VRAM claim is made.
+## Renderer-independent, component-local allocation evidence for the exact
+## mirrored trim families. Structural submissions are mesh-surface counts, not
+## driver draw calls; no frame-time, draw-call, or VRAM claim is made.
 func get_wing_chalk_band_resource_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var mesh_resource_ids := {}
@@ -280,7 +294,10 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 	var material_resource_ids := {}
 	var band_mesh_resource_ids := {}
 	var band_material_resource_ids := {}
+	var fin_mesh_resource_ids := {}
+	var fin_material_resource_ids := {}
 	var behavior_rows: Array[Dictionary] = []
+	var fin_behavior_rows: Array[Dictionary] = []
 	var visual_node_count := 0
 	var mesh_instance_count := 0
 	var surface_submission_count := 0
@@ -290,6 +307,8 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 	var descendant_node_count := 0
 	var band_instance_count := 0
 	var band_submission_count := 0
+	var fin_instance_count := 0
+	var fin_submission_count := 0
 	var authority_node_count := 0
 	var scripted_node_count := 0
 	var child_node_count := 0
@@ -384,6 +403,71 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 				"material": "skirmisher_chalk",
 			})
 
+		for slot_index in WINGLET_FIN_POSITIONS.size():
+			var expected_position: Vector3 = WINGLET_FIN_POSITIONS[slot_index]
+			var matching_nodes: Array[MeshInstance3D] = []
+			for raw_node in visual.get_children():
+				var candidate := raw_node as MeshInstance3D
+				if candidate != null and candidate.position.is_equal_approx(expected_position):
+					matching_nodes.append(candidate)
+			if matching_nodes.size() != 1:
+				errors.append("winglet_fin_transform_slot_count_drift:%d" % slot_index)
+				continue
+			var fin := matching_nodes[0]
+			fin_instance_count += 1
+			var fin_mesh := fin.mesh as BoxMesh
+			if fin_mesh == null:
+				errors.append("winglet_fin_mesh_type_drift:%d" % slot_index)
+			else:
+				fin_mesh_resource_ids[fin_mesh.get_instance_id()] = true
+				fin_submission_count += fin_mesh.get_surface_count()
+				if fin_mesh.material != null:
+					fin_material_resource_ids[fin_mesh.material.get_instance_id()] = true
+				if (
+					not fin_mesh.size.is_equal_approx(WINGLET_FIN_SIZE)
+					or fin_mesh.material != _materials.skirmisher_chalk
+					or fin_mesh.get_surface_count() != 1
+				):
+					errors.append("winglet_fin_mesh_recipe_drift:%d" % slot_index)
+			if (
+				fin.get_parent() != visual
+				or not fin.rotation.is_equal_approx(WINGLET_FIN_ROTATIONS[slot_index])
+				or not fin.scale.is_equal_approx(Vector3.ONE)
+				or not fin.visible
+				or fin.layers != 1
+				or fin.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				or fin.material_override != null
+				or fin.material_overlay != null
+			):
+				errors.append("winglet_fin_node_recipe_drift:%d" % slot_index)
+			if fin.get_script() != null:
+				scripted_node_count += 1
+			metadata_entry_count += fin.get_meta_list().size()
+			if fin.is_processing() or fin.is_physics_processing():
+				processing_node_count += 1
+			child_node_count += fin.get_child_count()
+			for child in fin.find_children("*", "Node", true, false):
+				if child.get_script() != null:
+					scripted_node_count += 1
+				if (
+					child is CollisionObject3D
+					or child is CollisionShape3D
+					or child is NavigationRegion3D
+					or child is Light3D
+					or child is AudioStreamPlayer
+					or child is AudioStreamPlayer3D
+					or child is Camera3D
+				):
+					authority_node_count += 1
+			fin_behavior_rows.append({
+				"side": "port" if slot_index == 0 else "starboard",
+				"position": [fin.position.x, fin.position.y, fin.position.z],
+				"rotation": [fin.rotation.x, fin.rotation.y, fin.rotation.z],
+				"scale": [fin.scale.x, fin.scale.y, fin.scale.z],
+				"size": [WINGLET_FIN_SIZE.x, WINGLET_FIN_SIZE.y, WINGLET_FIN_SIZE.z],
+				"material": "skirmisher_chalk",
+			})
+
 		var descendants := find_children("*", "Node", true, false)
 		descendant_node_count = descendants.size()
 		for node in descendants:
@@ -406,6 +490,16 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		errors.append("wing_chalk_band_instance_count_drift")
 	if band_submission_count != WING_CHALK_BAND_INSTANCE_COUNT:
 		errors.append("wing_chalk_band_submission_count_drift")
+	if fin_mesh_resource_ids.size() != WINGLET_FIN_MESH_RESOURCE_COUNT:
+		errors.append("winglet_fin_mesh_identity_not_shared")
+	if fin_material_resource_ids.size() != 1:
+		errors.append("winglet_fin_material_identity_count_drift")
+	if _winglet_fin_mesh == null or not fin_mesh_resource_ids.has(_winglet_fin_mesh.get_instance_id()):
+		errors.append("winglet_fin_component_mesh_identity_drift")
+	if fin_instance_count != WINGLET_FIN_INSTANCE_COUNT:
+		errors.append("winglet_fin_instance_count_drift")
+	if fin_submission_count != WINGLET_FIN_INSTANCE_COUNT:
+		errors.append("winglet_fin_submission_count_drift")
 	if visual_node_count != PRESENTATION_VISUAL_NODE_COUNT:
 		errors.append("wing_skirmisher_visual_node_count_drift")
 	if mesh_instance_count != PRESENTATION_MESH_INSTANCE_COUNT:
@@ -438,7 +532,7 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
-		"scope": &"wing_skirmisher_mirrored_childless_chalk_bands",
+		"scope": &"wing_skirmisher_mirrored_childless_trim",
 		"descendant_nodes_old": PRESENTATION_DESCENDANT_NODE_COUNT,
 		"descendant_nodes_new": descendant_node_count,
 		"visual_nodes_old": PRESENTATION_VISUAL_NODE_COUNT,
@@ -460,6 +554,11 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		"wing_chalk_band_mesh_resources_new": band_mesh_resource_ids.size(),
 		"wing_chalk_band_submissions_old": WING_CHALK_BAND_INSTANCE_COUNT,
 		"wing_chalk_band_submissions_new": band_submission_count,
+		"winglet_fin_instances": fin_instance_count,
+		"winglet_fin_mesh_resources_old": BASELINE_WINGLET_FIN_MESH_RESOURCE_COUNT,
+		"winglet_fin_mesh_resources_new": fin_mesh_resource_ids.size(),
+		"winglet_fin_submissions_old": WINGLET_FIN_INSTANCE_COUNT,
+		"winglet_fin_submissions_new": fin_submission_count,
 		"light_nodes_old": PRESENTATION_LIGHT_NODE_COUNT,
 		"light_nodes_new": light_node_count,
 		"collision_shapes_old": PRESENTATION_COLLISION_SHAPE_COUNT,
@@ -467,6 +566,7 @@ func get_wing_chalk_band_resource_audit() -> Dictionary:
 		"particle_nodes_old": PRESENTATION_PARTICLE_NODE_COUNT,
 		"particle_nodes_new": particle_node_count,
 		"behavior_rows": behavior_rows,
+		"fin_behavior_rows": fin_behavior_rows,
 		"authority_node_count": authority_node_count,
 		"scripted_node_count": scripted_node_count,
 		"child_node_count": child_node_count,
@@ -730,10 +830,11 @@ func _build_interceptor() -> void:
 	_box(_visual_root, "SpineFairing", Vector3(0.0, 0.42, 1.1), Vector3(0.62, 0.36, 2.6), _materials.skirmisher_moss)
 
 	_wing_chalk_band_mesh = _make_box_mesh(WING_CHALK_BAND_SIZE, _materials.skirmisher_chalk)
+	_winglet_fin_mesh = _make_box_mesh(WINGLET_FIN_SIZE, _materials.skirmisher_chalk)
 	for side in [-1.0, 1.0]:
 		_wedge(_visual_root, "Wing", Vector3(side * 2.4, -0.06, 1.0), Vector3(3.0, 0.22, 3.8), _materials.skirmisher_moss, side * 0.06)
 		_box_from_mesh(_visual_root, "WingChalkBand", Vector3(side * 2.5, 0.06, 0.4), _wing_chalk_band_mesh)
-		_box(_visual_root, "WingletFin", Vector3(side * 3.7, 0.36, 1.9), Vector3(0.16, 0.9, 1.3), _materials.skirmisher_chalk, Vector3(0.0, side * 0.16, side * -0.22))
+		_box_from_mesh(_visual_root, "WingletFin", Vector3(side * 3.7, 0.36, 1.9), _winglet_fin_mesh, Vector3(0.0, side * 0.16, side * -0.22))
 		_cylinder(_visual_root, "EnginePod", Vector3(side * 1.0, -0.02, 2.5), 0.36, 1.3, _materials.skirmisher_deep, Vector3(90.0, 0.0, 0.0))
 		var plume := _cylinder(_visual_root, "EnginePlume", Vector3(side * 1.0, -0.02, 3.42), 0.2, 0.8, _materials.skirmisher_engine, Vector3(90.0, 0.0, 0.0))
 		_engine_glows.append(plume)
