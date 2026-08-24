@@ -94,7 +94,11 @@ const MAXIMUM_PANEL_EMISSION_ENERGY := 0.35
 var _state: int = DoorState.CLOSED
 var _motion_progress := 0.0
 var _closed_panel_transform := Transform3D.IDENTITY
-var _rounded_box_cache: Dictionary = {}
+## The chamfer builder emits geometry only: every colour/finish remains on the
+## individual MeshInstance3D as a material override. All production doors use
+## the same four authored sizes, so keeping that immutable stock at class scope
+## avoids rebuilding four ArrayMeshes for every additional door instance.
+static var _shared_rounded_box_mesh_cache: Dictionary = {}
 var _panel_grain_materials: Array[StandardMaterial3D] = []
 var _panel_grain_scales: Array[Vector3] = []
 var _ready_completed := false
@@ -318,7 +322,7 @@ func _apply_manufactured_edges() -> void:
 		mesh_instance.material_override = authored_box.material
 		mesh_instance.mesh = StationSurfaceKit.rounded_box_mesh_cached(
 			authored_box.size,
-			_rounded_box_cache
+			_shared_rounded_box_mesh_cache
 		)
 
 

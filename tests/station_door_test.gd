@@ -32,6 +32,7 @@ func _run() -> void:
 	_test_root.add_child(door)
 	await process_frame
 	await physics_frame
+	await _test_cross_instance_geometry_sharing(door)
 	_test_frame_post_renderer_batch(door)
 	_test_indicator_renderer_batch(door)
 	await _test_deferred_panel_binding_currentness()
@@ -213,6 +214,56 @@ func _run() -> void:
 	_test_root.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_cross_instance_geometry_sharing(reference_door: StationDoor) -> void:
+	var second_door := DOOR_SCENE.instantiate() as StationDoor
+	second_door.position = Vector3(8.0, 0.0, 0.0)
+	_test_root.add_child(second_door)
+	await process_frame
+
+	var visual_paths: Array[NodePath] = [
+		^"FrameVisuals/LeftPost",
+		^"FrameVisuals/RightPost",
+		^"FrameVisuals/Header",
+		^"SlidingPanel/PanelMesh",
+		^"SlidingPanel/LeftIndicator",
+		^"SlidingPanel/RightIndicator",
+	]
+	var unique_meshes: Dictionary = {}
+	var geometry_is_shared := true
+	var shared_geometry_is_material_free := true
+	for visual_path in visual_paths:
+		var reference_visual := reference_door.get_node(visual_path) as MeshInstance3D
+		var second_visual := second_door.get_node(visual_path) as MeshInstance3D
+		geometry_is_shared = geometry_is_shared and reference_visual.mesh == second_visual.mesh
+		shared_geometry_is_material_free = shared_geometry_is_material_free \
+			and reference_visual.mesh.get_surface_count() == 1 \
+			and reference_visual.mesh.surface_get_material(0) == null
+		unique_meshes[reference_visual.mesh.get_instance_id()] = true
+
+	var reference_panel := reference_door.get_node(
+		^"SlidingPanel/PanelMesh"
+	) as MeshInstance3D
+	var second_panel := second_door.get_node(
+		^"SlidingPanel/PanelMesh"
+	) as MeshInstance3D
+
+	_check(
+		geometry_is_shared
+		and shared_geometry_is_material_free
+		and unique_meshes.size() == 4
+		and reference_panel.mesh == second_panel.mesh
+		and reference_panel.material_override != null
+		and second_panel.material_override != null
+		and reference_panel.material_override != second_panel.material_override
+		and (reference_panel.material_override as StandardMaterial3D).albedo_color \
+			== (second_panel.material_override as StandardMaterial3D).albedo_color,
+		"two doors share four immutable presentation meshes while retaining per-door panel materials"
+	)
+
+	second_door.queue_free()
+	await process_frame
 
 
 func _test_indicator_renderer_batch(door: StationDoor) -> void:
