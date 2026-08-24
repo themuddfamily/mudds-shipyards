@@ -113,6 +113,13 @@ static var _shared_hull_mesh: ArrayMesh
 const FORWARD_COWL_MESH_SIZE := Vector3(0.5, 0.26, 0.34)
 static var _shared_forward_cowl_mesh: ArrayMesh
 
+## The orange underslung cargo pod repeats one immutable, visual-only recipe on
+## every courier. Retaining that recipe once per session removes six mesh
+## allocations from the seven-agent production roster while every renderer node,
+## transform, material override, route clock, and lifecycle remains instance-owned.
+const CARGO_POD_MESH_SIZE := Vector3(0.54, 0.3, 0.62)
+static var _shared_cargo_pod_mesh: ArrayMesh
+
 const CONTENT_NOTE := (
 	"The remake brief supports ambient station activity, cargo movement, and "
 	+ "animated equipment. It does not authenticate this courier silhouette, its "
@@ -1217,7 +1224,14 @@ func _build_courier() -> void:
 	var pod_mesh := _get_shared_pod_mesh()
 	_box(_carriage, "PortPod", PORT_POD_POSITION, POD_MESH_SIZE, _materials["graphite"], pod_mesh)
 	_box(_carriage, "StarboardPod", STARBOARD_POD_POSITION, POD_MESH_SIZE, _materials["graphite"], pod_mesh)
-	_box(_carriage, "CargoPod", Vector3(0.0, -0.3, 0.12), Vector3(0.54, 0.3, 0.62), _materials["orange"])
+	_box(
+		_carriage,
+		"CargoPod",
+		Vector3(0.0, -0.3, 0.12),
+		CARGO_POD_MESH_SIZE,
+		_materials["orange"],
+		_get_shared_cargo_pod_mesh()
+	)
 	_status_lens = _box(_carriage, "StatusLens", Vector3(0.0, 0.2, -0.5), Vector3(0.22, 0.1, 0.06), _materials["cyan_dim"])
 	_box(_carriage, "TailFin", Vector3(0.0, 0.28, 0.5), Vector3(0.08, 0.42, 0.36), _materials["hull_edge"])
 
@@ -1279,6 +1293,17 @@ static func _get_shared_forward_cowl_mesh() -> ArrayMesh:
 			StationSurfaceKit.BevelUV.FACE_GRID
 		)
 	return _shared_forward_cowl_mesh
+
+
+static func _get_shared_cargo_pod_mesh() -> ArrayMesh:
+	if _shared_cargo_pod_mesh == null:
+		_shared_cargo_pod_mesh = StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+			CARGO_POD_MESH_SIZE,
+			StationSurfaceKit.proportional_bevel_for_size(CARGO_POD_MESH_SIZE, 0.2),
+			{},
+			StationSurfaceKit.BevelUV.FACE_GRID
+		)
+	return _shared_cargo_pod_mesh
 
 
 func _capture_built_hierarchy() -> void:
