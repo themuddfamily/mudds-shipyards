@@ -356,11 +356,12 @@ func _build_physical_board() -> void:
 	console.material_override = material
 	var label := Label3D.new()
 	label.name = "ActivityLabel"
-	label.text = "PERIMETER DEFENSE"
-	label.font_size = 32
+	label.text = "STATION\nDEFENSE\nBOARD"
+	label.font_size = 25
 	label.modulate = Color("8ef4f2")
 	label.position = CONSOLE_OFFSET + Vector3(0.0, 0.72, 0.94)
-	label.pixel_size = 0.006
+	label.pixel_size = 0.0048
+	label.outline_size = 5
 	add_child(label)
 	var interaction_shape := CollisionShape3D.new()
 	interaction_shape.name = "InteractionCollision"
