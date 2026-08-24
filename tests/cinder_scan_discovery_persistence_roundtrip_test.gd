@@ -5,6 +5,8 @@ const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const GameFlowScript := preload("res://scripts/game/game_flow.gd")
 const StoreScript := preload("res://scripts/persistence/user_data_store.gd")
 const FilesystemScript := preload("res://scripts/persistence/user_data_filesystem.gd")
+const ScanActivityScript := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
+const ScanPersistenceScript := preload("res://scripts/persistence/cinder_scan_discovery_persistence.gd")
 
 class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
@@ -41,6 +43,8 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_terminal_receipt_gate()
+
 	var filesystem := MemoryFilesystem.new()
 	var store := StoreScript.new("memory://cinder-scan-discovery.json", filesystem)
 	_check(bool(store.load().accepted), "the existing atomic store loads")
@@ -142,6 +146,56 @@ func _run() -> void:
 		push_error(failure)
 	print("CINDER_SCAN_DISCOVERY_PERSISTENCE_ROUNDTRIP_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_terminal_receipt_gate() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store := StoreScript.new("memory://cinder-scan-receipt-gate.json", filesystem)
+	var persistence := ScanPersistenceScript.new()
+	var scan := ScanActivityScript.new()
+	var configured := persistence.configure(store, &"cinder_scan_discovery")
+	var started := scan.start(ScanActivityScript.APPROACH_ANCHOR)
+	var completed := scan.advance_physics(ScanActivityScript.SCAN_SECONDS)
+	var receipt := scan.request_reward()
+	var snapshot := scan.get_snapshot()
+	var saved := persistence.save(snapshot, receipt, "terminal-receipt")
+	var reloaded_store := StoreScript.new("memory://cinder-scan-receipt-gate.json", filesystem)
+	var reloaded_persistence := ScanPersistenceScript.new()
+	var rebound := reloaded_persistence.configure(reloaded_store, &"cinder_scan_discovery")
+	var restored := reloaded_persistence.load()
+	_check(
+		bool(configured.accepted) and bool(started.accepted) and bool(completed.accepted)
+			and bool(receipt.accepted) and bool(saved.accepted) and bool(rebound.accepted)
+			and bool(restored.accepted) and int(reloaded_store.get_generation()) == 1,
+		"one terminal scan receipt restores once through a fresh store and persistence adapter"
+	)
+
+	var interrupted_scan := ScanActivityScript.new()
+	interrupted_scan.start(ScanActivityScript.APPROACH_ANCHOR)
+	interrupted_scan.advance_physics(1.0)
+	var interrupted := interrupted_scan.get_snapshot()
+	interrupted["state"] = ScanActivityScript.State.COMPLETE
+	interrupted["state_id"] = &"complete"
+	interrupted["reward_requested"] = true
+	var interrupted_receipt := receipt.duplicate(true)
+	(interrupted_receipt.reward_request as Dictionary)["generation"] = interrupted.generation
+	var zero_generation := snapshot.duplicate(true)
+	zero_generation["generation"] = 0
+	var zero_generation_receipt := receipt.duplicate(true)
+	(zero_generation_receipt.reward_request as Dictionary)["generation"] = 0
+	var fractional_generation := snapshot.duplicate(true)
+	fractional_generation["generation"] = 1.5
+	var fractional_receipt := receipt.duplicate(true)
+	(fractional_receipt.reward_request as Dictionary)["generation"] = 1.5
+	var stale_receipt := receipt.duplicate(true)
+	(stale_receipt.reward_request as Dictionary)["generation"] = int(snapshot.generation) + 1
+	_check(
+		not bool(persistence.capture(interrupted, interrupted_receipt).accepted)
+			and not bool(persistence.capture(zero_generation, zero_generation_receipt).accepted)
+			and not bool(persistence.capture(fractional_generation, fractional_receipt).accepted)
+			and not bool(persistence.capture(snapshot, stale_receipt).accepted),
+		"interrupted, zero, fractional, and stale generations cannot forge a completed discovery"
+	)
 
 
 func _make_runtime(store: UserDataStore) -> Dictionary:

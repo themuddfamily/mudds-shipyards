@@ -70,8 +70,19 @@ func load() -> Dictionary:
 
 func capture(snapshot: Dictionary, reward_result: Dictionary) -> Dictionary:
 	var request := reward_result.get("reward_request", {}) as Dictionary
+	var generation: Variant = snapshot.get("generation", null)
+	var request_generation: Variant = request.get("generation", null)
+	var elapsed: Variant = snapshot.get("elapsed_seconds", null)
+	var duration: Variant = snapshot.get("scan_seconds", null)
 	if int(snapshot.get("state", -1)) != 2 \
 			or StringName(snapshot.get("state_id", &"")) != &"complete" \
+			or not _positive_integral(generation) \
+			or not _positive_integral(request_generation) \
+			or int(request_generation) != int(generation) \
+			or not (elapsed is float or elapsed is int) \
+			or not (duration is float or duration is int) \
+			or not is_finite(float(elapsed)) or not is_finite(float(duration)) \
+			or not is_equal_approx(float(elapsed), float(duration)) \
 			or not bool(snapshot.get("reward_requested", false)) \
 			or StringName(snapshot.get("activity_id", &"")) != ACTIVITY_ID \
 			or StringName(snapshot.get("content_class", &"")) != CONTENT_CLASS \
@@ -80,7 +91,6 @@ func capture(snapshot: Dictionary, reward_result: Dictionary) -> Dictionary:
 			or StringName(reward_result.get("reason", &"")) != &"reward_request_ready" \
 			or StringName(request.get("activity_id", &"")) != ACTIVITY_ID \
 			or StringName(request.get("reward_id", &"")) != REWARD_ID \
-			or int(request.get("generation", -1)) != int(snapshot.get("generation", -2)) \
 			or bool(request.get("granted", true)):
 		return _result(false, &"scan_discovery_receipt_not_committed")
 	var discovery := {
@@ -151,6 +161,10 @@ func _configured() -> bool:
 
 func _integral(value: Variant) -> bool:
 	return value is int or (value is float and is_finite(value) and value == floor(value))
+
+
+func _positive_integral(value: Variant) -> bool:
+	return _integral(value) and int(value) > 0
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
