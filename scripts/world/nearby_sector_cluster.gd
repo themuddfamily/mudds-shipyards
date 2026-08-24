@@ -289,12 +289,13 @@ const MINING_EXTRACTION_LOCATOR_Z := 18.0
 const STRUCTURE_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
 const STRUCTURE_SCAN_APPROACH_LOCAL := Vector3(0.0, GANTRY_CENTER_Y, 20.0)
 const STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
-	Vector3(-30.0, -4.0, -24.0), Vector3(64.0, 38.0, 40.0)
+	Vector3(-30.0, -4.0, -24.0), Vector3(82.0, 60.0, 40.0)
 )
-const STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET := 12
+const STRUCTURE_SCAN_PRESENTATION_MESH_BUDGET := 13
 const STRUCTURE_SCAN_PRESENTATION_LIGHT_BUDGET := 2
-const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 15
+const STRUCTURE_SCAN_PRESENTATION_DESCENDANT_BUDGET := 16
 const STRUCTURE_SCAN_RUIN_BATCH_FAMILY_ID: StringName = &"cinder-structure-scan-ruin"
+const STRUCTURE_SCAN_SURVEY_FORK_FAMILY_ID: StringName = &"cinder-structure-scan-survey-fork"
 const STRUCTURE_SCAN_PRESENTATION_STATE_NODE_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_LIGHT_DELTA := 0
 const STRUCTURE_SCAN_PRESENTATION_STATE_SUBMISSION_DELTA := 0
@@ -304,6 +305,7 @@ const STRUCTURE_SCAN_MATERIAL_ROLES := {
 	&"painted": &"scan_painted_steel",
 	&"trim": &"scan_trim_orange",
 	&"scan_facing": &"scan_receiver_dead",
+	&"landmark": &"scan_landmark_teal",
 }
 const STRUCTURE_SCAN_RECEIVER_IDLE_ROTATION := Vector3(90.0, 0.0, 0.0)
 const STRUCTURE_SCAN_RECEIVER_RESOLVED_ROTATION := Vector3.ZERO
@@ -1715,6 +1717,10 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 				StationSurfaceKit.PAINTED_CLEARCOAT,
 				StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS
 			),
+			&"landmark": Vector2(
+				StationSurfaceKit.PAINTED_CLEARCOAT,
+				StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS
+			),
 		}
 		var expected_surface_scalars := {
 			&"structural_ruin": Vector3(0.1, 0.94, 0.0),
@@ -1722,6 +1728,7 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 			&"painted": Vector3(0.5, 0.36, 0.0),
 			&"trim": Vector3(0.1, 0.56, 0.0),
 			&"scan_facing": Vector3(0.4, 0.72, 0.0),
+			&"landmark": Vector3(0.35, 0.48, 0.0),
 		}
 		var expected_colors := {
 			&"structural_ruin": HULL_CHAR,
@@ -1729,6 +1736,7 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 			&"painted": STEEL_BLUE,
 			&"trim": KETH_ORANGE,
 			&"scan_facing": Color("101820"),
+			&"landmark": MOONLET_TEAL,
 		}
 		var renderer_roles := {
 			^"ScanStructureRuinBatch": &"structural_ruin",
@@ -1740,6 +1748,7 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 			^"DeadArrayCollar": &"trim",
 			^"HullRuptureShard02": &"service",
 			^"HullRuptureShard03": &"painted",
+			^"StructureScanSurveyFork": &"landmark",
 		}
 		for renderer_path: NodePath in renderer_roles:
 			var renderer := presentation.get_node_or_null(renderer_path) as MeshInstance3D
@@ -1770,6 +1779,13 @@ func get_structure_scan_presentation_audit() -> Dictionary:
 					"SurveyPylonPort", "FracturedHeaderStarboard", "DeadArrayBoom", "HullRuptureShard01"
 				]):
 			errors.append("structure_scan_ruin_batch_drift")
+		var survey_fork := presentation.get_node_or_null(^"StructureScanSurveyFork") as MeshInstance3D
+		if survey_fork == null or survey_fork.mesh == null \
+				or StringName(survey_fork.get_meta(&"visual_batch_family_id", &"")) \
+					!= STRUCTURE_SCAN_SURVEY_FORK_FAMILY_ID \
+				or not bool(survey_fork.get_meta(&"physically_supported", false)) \
+				or not bool(survey_fork.get_meta(&"approach_landmark", false)):
+			errors.append("structure_scan_survey_fork_drift")
 	if approach == null \
 			or not approach.position.is_equal_approx(STRUCTURE_SCAN_APPROACH_LOCAL) \
 			or approach.get_child_count() != 0:
@@ -2956,6 +2972,7 @@ func _build_structure_scan_presentation(platform: Node3D) -> void:
 	presentation.add_child(approach)
 
 	_build_structure_scan_ruin_batch(presentation)
+	_build_structure_scan_survey_fork(presentation)
 	_box(presentation, "SurveyPylonStarboard", Vector3(22.0, 12.0, -5.0), Vector3(3.0, 29.0, 3.0), _materials["scan_service_shadow"], false, Vector3(0.0, 0.0, 13.0))
 	_box(presentation, "FracturedHeaderPort", Vector3(-11.5, 28.0, -5.0), Vector3(20.0, 2.5, 3.0), _materials["scan_painted_steel"], false, Vector3(0.0, 0.0, 6.0))
 	_box(presentation, "FractureBracePort", Vector3(-12.0, 16.0, -5.0), Vector3(25.0, 1.2, 2.0), _materials["scan_service_shadow"], false, Vector3(0.0, 0.0, 44.0))
@@ -3007,6 +3024,48 @@ func _build_structure_scan_ruin_batch(presentation: Node3D) -> MeshInstance3D:
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
 	presentation.add_child(batch)
 	return batch
+
+
+## A tall, asymmetric survey fork gives the derelict scan a teal silhouette at
+## travel distance. Its heel terminates in the processing-spine footing, while
+## every member stays aft of the positive-Z ship and activity lanes. The four
+## rounded members are merged into one immutable surface submission.
+func _build_structure_scan_survey_fork(presentation: Node3D) -> MeshInstance3D:
+	var transforms: Array[Transform3D] = [
+		Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-45.0)))
+				* Basis.from_scale(Vector3(3.6, 35.35534, 4.0)),
+			Vector3(22.5, 14.5, -10.0)
+		),
+		Transform3D(Basis.from_scale(Vector3(3.6, 22.0, 4.0)), Vector3(35.0, 38.0, -10.0)),
+		Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(39.80557)))
+				* Basis.from_scale(Vector3(3.6, 15.6205, 4.0)),
+			Vector3(30.0, 46.0, -10.0)
+		),
+		Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-47.48955)))
+				* Basis.from_scale(Vector3(3.6, 16.27882, 4.0)),
+			Vector3(41.0, 45.5, -10.0)
+		),
+	]
+	var surface := SurfaceTool.new()
+	var unit_box := StationSurfaceKit.rounded_box_mesh_cached(Vector3.ONE, _box_cache)
+	for transform_value in transforms:
+		surface.append_from(unit_box, 0, transform_value)
+	var landmark := MeshInstance3D.new()
+	landmark.name = "StructureScanSurveyFork"
+	landmark.mesh = surface.commit()
+	landmark.material_override = _materials["scan_landmark_teal"]
+	landmark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	landmark.set_meta(&"presentation_only", true)
+	landmark.set_meta(&"activity_id", STRUCTURE_SCAN_ACTIVITY_ID)
+	landmark.set_meta(&"visual_batch_family_id", STRUCTURE_SCAN_SURVEY_FORK_FAMILY_ID)
+	landmark.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	landmark.set_meta(&"physically_supported", true)
+	landmark.set_meta(&"approach_landmark", true)
+	presentation.add_child(landmark)
+	return landmark
 
 
 ## Detached scan state drives only the existing datum practicals, sign, dead
@@ -3494,6 +3553,9 @@ func _create_materials() -> void:
 	)
 	_materials["scan_receiver_dead"] = _panel_material(
 		Color("101820"), 0.4, 0.72, 0.1, StationSurfaceKit.PanelFinish.PAINTED_METAL
+	)
+	_materials["scan_landmark_teal"] = _panel_material(
+		MOONLET_TEAL, 0.35, 0.48, 0.1, StationSurfaceKit.PanelFinish.PAINTED_METAL
 	)
 	# Activity-only finish family. The scalar colours and PBR values are the
 	# existing Cinder palette; only the shared physical finish differs by role.

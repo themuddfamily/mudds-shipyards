@@ -60,11 +60,11 @@ const EXPECTED_STRUCTURE_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_struct
 const EXPECTED_STRUCTURE_SCAN_APPROACH_ANCHOR := Vector3(60.0, -66.0, -680.0)
 const EXPECTED_STRUCTURE_SCAN_APPROACH_LOCAL := Vector3(0.0, 4.0, 20.0)
 const EXPECTED_STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS := AABB(
-	Vector3(-30.0, -4.0, -24.0), Vector3(64.0, 38.0, 40.0)
+	Vector3(-30.0, -4.0, -24.0), Vector3(82.0, 60.0, 40.0)
 )
-const EXPECTED_STRUCTURE_SCAN_MESH_NODES := 12
+const EXPECTED_STRUCTURE_SCAN_MESH_NODES := 13
 const EXPECTED_STRUCTURE_SCAN_LIGHT_NODES := 2
-const EXPECTED_STRUCTURE_SCAN_DESCENDANTS := 15
+const EXPECTED_STRUCTURE_SCAN_DESCENDANTS := 16
 const EXPECTED_BEACON_TRAVERSAL_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
 const EXPECTED_BEACON_TRAVERSAL_CORRIDOR_RADIUS := 42.0
 const EXPECTED_TRAVERSAL_DEBRIS_CLUSTERS := 8
@@ -116,12 +116,12 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 197
+const EXPECTED_LOCAL_MESH_NODES := 198
 const EXPECTED_LOCAL_MULTIMESH_NODES := 17
-const EXPECTED_LOCAL_RENDERER_NODES := 214
-const EXPECTED_LOCAL_VISIBLE_COPIES := 765
-const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 214
-const EXPECTED_LOCAL_TRIANGLES := 126546
+const EXPECTED_LOCAL_RENDERER_NODES := 215
+const EXPECTED_LOCAL_VISIBLE_COPIES := 766
+const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 215
+const EXPECTED_LOCAL_TRIANGLES := 126978
 const EXPECTED_LOCAL_STATIC_BODIES := 61
 const EXPECTED_LOCAL_COLLISION_SHAPES := 62
 const EXPECTED_LAMP_LENS_COPY_COUNT := 26
@@ -548,7 +548,7 @@ func _test_structure_scan_activity_presentation(cluster: NearbySectorCluster) ->
 		and int(budgets.get("mesh_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_MESH_NODES
 		and int(budgets.get("light_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_LIGHT_NODES
 		and int(budgets.get("descendant_nodes", -1)) == EXPECTED_STRUCTURE_SCAN_DESCENDANTS,
-		"the derelict silhouette freezes at 12 meshes, 2 lights, and 15 descendants"
+		"the derelict silhouette freezes at 13 meshes, 2 lights, and 16 descendants"
 	)
 	_check(
 		EXPECTED_STRUCTURE_SCAN_PRESENTATION_LOCAL_BOUNDS.encloses(bounds)
@@ -564,8 +564,9 @@ func _test_structure_scan_activity_presentation(cluster: NearbySectorCluster) ->
 		and presentation.get_node_or_null(^"SurveyPylonStarboard") != null
 		and presentation.get_node_or_null(^"FracturedHeaderPort") != null
 		and presentation.get_node_or_null(^"DeadArrayReceiver") != null
+		and presentation.get_node_or_null(^"StructureScanSurveyFork") != null
 		and presentation.get_node_or_null(^"Sign_DERELICT_SCAN") != null,
-		"the scan approach reads as a fractured datum frame, dead receiver, loose hull, and signed derelict"
+		"the scan approach reads as a teal survey fork, fractured datum, dead receiver, and signed derelict"
 	)
 	var port_light := presentation.get_node_or_null(^"DerelictDatumLampPort") as OmniLight3D \
 		if presentation != null else null
@@ -859,13 +860,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 197 Mesh + 17 MultiMesh renderers with both approach landmarks"
+		"NearbySectorCluster owns 198 Mesh + 17 MultiMesh renderers with all three activity landmarks"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 765 copies, 126546 triangles, and 214 submissions"
+		"the local census freezes 766 copies, 126978 triangles, and 215 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
