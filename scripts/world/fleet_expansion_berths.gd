@@ -31,18 +31,21 @@ const ACCESS_SURFACE_NAMES := [
 ]
 const ACCESS_SUPPORT_MESH_COUNT := 11
 const MAX_STATIC_BODIES := 11
-const MAX_MESH_INSTANCES := 39
+const MAX_MESH_INSTANCES := 38
 const EXPECTED_STATIC_BODIES := 10
 const EXPECTED_COLLISION_SHAPES := 13
-const EXPECTED_MESH_INSTANCES := 39
+const EXPECTED_MESH_INSTANCES := 37
+const EXPECTED_MULTIMESH_INSTANCES := 1
+const EXPECTED_RENDERER_NODES := 38
 const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
 const EXPECTED_WAYFINDING_LABELS := 1
 const EXPECTED_WAYFINDING_BOXES := 14
 const EXPECTED_SERVICE_MESH_INSTANCES := 14
-const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 12
-const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 37
+const EXPECTED_SERVICE_RENDERER_NODES := 13
+const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
+const EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS := 36
 const EXPECTED_GUIDE_LIGHTS := 5
-const EXPECTED_DESCENDANTS := 85
+const EXPECTED_DESCENDANTS := 84
 const SERVICE_MESH_COUNTS := {
 	&"dock_04_cargo": 6,
 	&"dock_05_bomber": 3,
@@ -81,6 +84,11 @@ const PRESENTATION_SUBMISSION_DELTA := 0
 const AFT_ROUTE_LEGEND_TEXT := "DOCK 04  CARGO        < SPINE\nDOCK 05  BOMBER       > EAST\nDOCK 06  INTERCEPTOR  ^ BRANCH"
 const AFT_ROUTE_LEGEND_POSITION := Vector3(7.45, 2.55, -19.55)
 const PANEL_SURFACE_SCALE := 0.30
+const LAUNCH_RAIL_SIZE := Vector3(1.0, 1.0, 38.0)
+const LAUNCH_RAIL_TRANSFORMS: Array[Transform3D] = [
+	Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)),
+	Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)),
+]
 
 var _pads: Dictionary = {}
 var _attachments: Dictionary = {}
@@ -279,6 +287,7 @@ func get_service_presentation_audit() -> Dictionary:
 		var service := pad.get_node_or_null(^"ServicePresentation") as Node3D \
 			if pad != null else null
 		var meshes: Array[Node] = []
+		var batches: Array[Node] = []
 		var lights: Array[Node] = []
 		var local_bounds := AABB()
 		var first_bound := true
@@ -288,6 +297,7 @@ func get_service_presentation_audit() -> Dictionary:
 			errors.append("service presentation missing: %s" % pad_id)
 		else:
 			meshes = service.find_children("*", "MeshInstance3D", true, false)
+			batches = service.find_children("*", "MultiMeshInstance3D", true, false)
 			lights = service.find_children("*", "Light3D", true, false)
 			for raw_mesh in meshes:
 				var instance := raw_mesh as MeshInstance3D
@@ -300,6 +310,30 @@ func get_service_presentation_audit() -> Dictionary:
 				first_bound = false
 				landing_clear = landing_clear and not bounds.intersects(LANDING_VISUAL_CLEARANCE)
 				approach_clear = approach_clear and not bounds.intersects(APPROACH_VISUAL_CLEARANCE)
+			for raw_batch in batches:
+				var batch := raw_batch as MultiMeshInstance3D
+				if batch.multimesh == null or batch.multimesh.mesh == null:
+					errors.append("service batch missing: %s" % pad_id)
+					continue
+				mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
+				# RenderingServer transform readback can be identity-only headless, so
+				# retain the exact submitted parent-space roster for deterministic
+				# clearance and silhouette audits.
+				var authored_transforms := batch.get_meta(
+					&"authored_instance_transforms", []
+				) as Array
+				if authored_transforms.size() != batch.multimesh.instance_count:
+					errors.append("service batch transform roster drift: %s" % pad_id)
+				for authored_transform in authored_transforms:
+					var bounds := (
+						batch.transform
+						* (authored_transform as Transform3D)
+						* batch.multimesh.mesh.get_aabb()
+					).abs()
+					local_bounds = bounds if first_bound else local_bounds.merge(bounds)
+					first_bound = false
+					landing_clear = landing_clear and not bounds.intersects(LANDING_VISUAL_CLEARANCE)
+					approach_clear = approach_clear and not bounds.intersects(APPROACH_VISUAL_CLEARANCE)
 			for raw_light in lights:
 				if (raw_light as Light3D).shadow_enabled:
 					errors.append("shadow light added: %s" % pad_id)
@@ -312,8 +346,28 @@ func get_service_presentation_audit() -> Dictionary:
 					or not service.find_children("*", "CollisionShape3D", true, false).is_empty() \
 					or not service.find_children("*", "Area3D", true, false).is_empty():
 				errors.append("service presentation gained collision or interaction: %s" % pad_id)
-		if meshes.size() != int(SERVICE_MESH_COUNTS[pad_id]):
+		var visible_mesh_copies := meshes.size()
+		for raw_batch in batches:
+			var batch := raw_batch as MultiMeshInstance3D
+			if batch.multimesh != null:
+				visible_mesh_copies += batch.multimesh.instance_count
+		if visible_mesh_copies != int(SERVICE_MESH_COUNTS[pad_id]):
 			errors.append("service mesh budget drift: %s" % pad_id)
+		var expected_batches := 1 if pad_id == &"dock_06_interceptor" else 0
+		if batches.size() != expected_batches:
+			errors.append("service batch roster drift: %s" % pad_id)
+		elif expected_batches == 1:
+			var rail_batch := batches[0] as MultiMeshInstance3D
+			var rail_mesh := rail_batch.multimesh.mesh as BoxMesh \
+				if rail_batch.multimesh != null else null
+			if rail_batch.name != &"LaunchRailBatch" \
+					or rail_mesh == null or not rail_mesh.size.is_equal_approx(LAUNCH_RAIL_SIZE) \
+					or rail_batch.multimesh.instance_count != LAUNCH_RAIL_TRANSFORMS.size() \
+					or rail_batch.material_override != _service_materials["interceptor_marker"] \
+					or rail_batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+					or not bool(rail_batch.get_meta(&"visual_detail_only", false)) \
+					or rail_batch.get_meta(&"authored_instance_transforms", []) != LAUNCH_RAIL_TRANSFORMS:
+				errors.append("launch rail batch recipe drift")
 		if lights.size() != int(SERVICE_LIGHT_COUNTS[pad_id]):
 			errors.append("service light budget drift: %s" % pad_id)
 		if not (SERVICE_LOCAL_BOUNDS[pad_id] as AABB).encloses(local_bounds):
@@ -336,6 +390,8 @@ func get_service_presentation_audit() -> Dictionary:
 		pad_reports[pad_id] = {
 			"service_role": SERVICE_ROLES[pad_id],
 			"mesh_nodes": meshes.size(),
+			"multimesh_nodes": batches.size(),
+			"visible_mesh_copies": visible_mesh_copies,
 			"light_nodes": lights.size(),
 			"local_bounds": local_bounds,
 			"maximum_local_bounds": SERVICE_LOCAL_BOUNDS[pad_id],
@@ -350,12 +406,19 @@ func get_service_presentation_audit() -> Dictionary:
 		"errors": errors,
 		"pads": pad_reports,
 		"renderer_nodes_before": EXPECTED_SERVICE_MESH_INSTANCES,
-		"renderer_nodes_after": EXPECTED_SERVICE_MESH_INSTANCES,
-		"mesh_resource_allocations_before": EXPECTED_SERVICE_MESH_INSTANCES,
+		"renderer_nodes_after": EXPECTED_SERVICE_RENDERER_NODES,
+		"renderer_node_delta": EXPECTED_SERVICE_RENDERER_NODES - EXPECTED_SERVICE_MESH_INSTANCES,
+		"geometry_submissions_before": EXPECTED_SERVICE_MESH_INSTANCES,
+		"geometry_submissions_after": EXPECTED_SERVICE_RENDERER_NODES,
+		"geometry_submission_delta": EXPECTED_SERVICE_RENDERER_NODES - EXPECTED_SERVICE_MESH_INSTANCES,
+		"visible_mesh_copies": EXPECTED_SERVICE_MESH_INSTANCES,
+		"mesh_resource_allocations_before": 12,
 		"mesh_resource_allocations_after": mesh_resource_ids.size(),
-		"mesh_resource_delta": mesh_resource_ids.size() - EXPECTED_SERVICE_MESH_INSTANCES,
+		"mesh_resource_delta": mesh_resource_ids.size() - 12,
 		"budgets": {
 			"mesh_instances": EXPECTED_MESH_INSTANCES,
+			"multimesh_instances": EXPECTED_MULTIMESH_INSTANCES,
+			"renderer_nodes": EXPECTED_RENDERER_NODES,
 			"mesh_resource_allocations": EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS,
 			"service_mesh_resource_allocations": EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS,
 			"guide_lights": EXPECTED_GUIDE_LIGHTS,
@@ -562,21 +625,30 @@ func get_audit_report() -> Dictionary:
 	var bodies := find_children("*", "StaticBody3D", true, false).size()
 	var mesh_nodes := find_children("*", "MeshInstance3D", true, false)
 	var meshes := mesh_nodes.size()
+	var multimesh_nodes := find_children("*", "MultiMeshInstance3D", true, false)
+	var renderer_nodes := meshes + multimesh_nodes.size()
 	var mesh_resource_ids := {}
 	for raw_mesh in mesh_nodes:
 		var mesh_instance := raw_mesh as MeshInstance3D
 		if mesh_instance != null and mesh_instance.mesh != null:
 			mesh_resource_ids[mesh_instance.mesh.get_instance_id()] = true
+	for raw_batch in multimesh_nodes:
+		var batch := raw_batch as MultiMeshInstance3D
+		if batch != null and batch.multimesh != null and batch.multimesh.mesh != null:
+			mesh_resource_ids[batch.multimesh.mesh.get_instance_id()] = true
 	var collision_shapes := find_children("*", "CollisionShape3D", true, false).size()
 	var guide_lights := find_children("*", "OmniLight3D", true, false).size()
 	var descendants := find_children("*", "", true, false).size()
 	if bodies > MAX_STATIC_BODIES:
 		errors.append("static body budget exceeded")
-	if meshes > MAX_MESH_INSTANCES:
+	if renderer_nodes > MAX_MESH_INSTANCES:
 		errors.append("mesh budget exceeded")
 	if bodies != EXPECTED_STATIC_BODIES or collision_shapes != EXPECTED_COLLISION_SHAPES:
 		errors.append("walkable collision roster drift")
-	if meshes != EXPECTED_MESH_INSTANCES or guide_lights != EXPECTED_GUIDE_LIGHTS \
+	if meshes != EXPECTED_MESH_INSTANCES \
+			or multimesh_nodes.size() != EXPECTED_MULTIMESH_INSTANCES \
+			or renderer_nodes != EXPECTED_RENDERER_NODES \
+			or guide_lights != EXPECTED_GUIDE_LIGHTS \
 			or descendants != EXPECTED_DESCENDANTS:
 		errors.append("service presentation census drift")
 	if mesh_resource_ids.size() != EXPECTED_COMPONENT_MESH_RESOURCE_ALLOCATIONS:
@@ -631,6 +703,8 @@ func get_audit_report() -> Dictionary:
 		"pad_count": _pads.size(),
 		"static_bodies": bodies,
 		"mesh_instances": meshes,
+		"multimesh_instances": multimesh_nodes.size(),
+		"renderer_nodes": renderer_nodes,
 		"mesh_resource_allocations": mesh_resource_ids.size(),
 		"service_mesh_resource_allocations": int(
 			service_presentation.get("mesh_resource_allocations_after", -1)
@@ -1085,13 +1159,33 @@ func _build_service_presentation(pad: Node3D, pad_id: StringName) -> void:
 			_visual_box(service, "BlastSafetyDatum", Vector3(0.0, 0.4, -18.0), Vector3(24.0, 0.5, 2.0), _service_materials["bomber_marker"])
 			_guide_light(service, "OrdnanceGuidePort", Vector3(-18.0, 10.5, -1.5), Color("ff9b4a"))
 		&"dock_06_interceptor":
-			_visual_box(service, "LaunchRailPort", Vector3(-16.0, 0.5, 5.0), Vector3(1.0, 1.0, 38.0), _service_materials["interceptor_marker"])
-			_visual_box(service, "LaunchRailStarboard", Vector3(16.0, 0.5, 5.0), Vector3(1.0, 1.0, 38.0), _service_materials["interceptor_marker"])
+			_build_launch_rail_batch(service)
 			_visual_box(service, "LaunchFramePort", Vector3(-16.0, 5.0, -16.0), Vector3(1.5, 10.0, 1.5), _service_materials["interceptor_frame"])
 			_visual_box(service, "LaunchFrameStarboard", Vector3(16.0, 5.0, -16.0), Vector3(1.5, 10.0, 1.5), _service_materials["interceptor_frame"])
 			_visual_box(service, "LaunchFrameHeader", Vector3(0.0, 10.0, -16.0), Vector3(33.5, 1.0, 1.5), _service_materials["interceptor_frame"])
 			_guide_light(service, "LaunchGuidePort", Vector3(-16.0, 1.2, 24.0), Color("61e4ee"))
 			_guide_light(service, "LaunchGuideStarboard", Vector3(16.0, 1.2, 24.0), Color("61e4ee"))
+
+
+func _build_launch_rail_batch(service: Node3D) -> void:
+	var rail_mesh := BoxMesh.new()
+	rail_mesh.size = LAUNCH_RAIL_SIZE
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = rail_mesh
+	multimesh.instance_count = LAUNCH_RAIL_TRANSFORMS.size()
+	multimesh.visible_instance_count = -1
+	var batch := MultiMeshInstance3D.new()
+	batch.name = "LaunchRailBatch"
+	batch.multimesh = multimesh
+	batch.material_override = _service_materials["interceptor_marker"]
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.set_meta(&"visual_detail_only", true)
+	batch.set_meta(&"visual_batch_family_id", &"dock_06_launch_rails")
+	batch.set_meta(&"authored_instance_transforms", LAUNCH_RAIL_TRANSFORMS.duplicate())
+	service.add_child(batch)
+	multimesh.set_instance_transform(0, Transform3D(Basis.IDENTITY, Vector3(-16.0, 0.5, 5.0)))
+	multimesh.set_instance_transform(1, Transform3D(Basis.IDENTITY, Vector3(16.0, 0.5, 5.0)))
 
 
 func _visual_box(
