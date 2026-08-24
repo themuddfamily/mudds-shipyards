@@ -55,7 +55,9 @@ func bind_source(source: Node, source_id: StringName) -> Dictionary:
 	var callback_name := "_on_combat_cue" if source_id == &"combat" \
 			else ("_on_activity_cue" if source_id == &"activity" \
 			else ("_on_crew_cue" if source_id == &"crew" else "_on_scalar_cue"))
-	var callback := Callable(self, callback_name).bind(source_id)
+	# Keep normalized public source kinds while retaining the concrete source in
+	# the private dedup fence. Two fleet ships may truthfully emit the same cue.
+	var callback := Callable(self, callback_name).bind(source.get_instance_id(), source_id)
 	var error := source.connect(signal_name, callback)
 	if error != OK:
 		return _result(false, &"signal_connect_failed")
@@ -99,41 +101,56 @@ func get_binding_count() -> int:
 	return _bindings.size()
 
 
-func _on_combat_cue(cue_id: StringName, world_position: Vector3, intensity: float, source_id: StringName) -> void:
-	_emit_normalized(source_id, cue_id, intensity, world_position)
+func _on_combat_cue(
+		cue_id: StringName, world_position: Vector3, intensity: float,
+		source_instance_id: int, source_id: StringName
+	) -> void:
+	_emit_normalized(source_id, cue_id, intensity, world_position, source_instance_id)
 
 
-func _on_scalar_cue(cue_id: StringName, intensity: float, source_id: StringName) -> void:
-	_emit_normalized(source_id, cue_id, intensity, Vector3.ZERO)
+func _on_scalar_cue(
+		cue_id: StringName, intensity: float, source_instance_id: int, source_id: StringName
+	) -> void:
+	_emit_normalized(source_id, cue_id, intensity, Vector3.ZERO, source_instance_id)
 
 
 func _on_activity_cue(
 		cue_id: StringName,
 		_activity_id: StringName,
 		intensity: float,
+		source_instance_id: int,
 		source_id: StringName
 	) -> void:
-	_emit_normalized(source_id, cue_id, intensity, Vector3.ZERO)
+	_emit_normalized(source_id, cue_id, intensity, Vector3.ZERO, source_instance_id)
 
 
 func _on_crew_cue(
 		cue_id: StringName,
 		role: StringName,
 		intensity: float,
+		source_instance_id: int,
 		source_id: StringName
 	) -> void:
 	var labels: Dictionary = CREW_CUE_LABELS.get(cue_id, {})
 	var normalized_cue: StringName = labels.get(role, &"")
 	if normalized_cue.is_empty():
 		return
-	_emit_normalized(source_id, normalized_cue, intensity, Vector3.ZERO)
+	_emit_normalized(source_id, normalized_cue, intensity, Vector3.ZERO, source_instance_id)
 
 
-func _emit_normalized(source_id: StringName, cue_id: StringName, intensity: float, world_position: Vector3) -> void:
+func _emit_normalized(
+		source_id: StringName,
+		cue_id: StringName,
+		intensity: float,
+		world_position: Vector3,
+		source_instance_id: int = 0
+	) -> void:
 	if cue_id.is_empty() or not is_finite(intensity):
 		return
 	intensity = clampf(intensity, 0.0, MAX_INTENSITY)
-	var event_key := "%s|%s|%s|%s" % [source_id, cue_id, world_position, intensity]
+	var event_key := "%s|%s|%s|%s|%s" % [
+		source_instance_id, source_id, cue_id, world_position, intensity
+	]
 	if event_key == _last_event_key:
 		return
 	_last_event_key = event_key

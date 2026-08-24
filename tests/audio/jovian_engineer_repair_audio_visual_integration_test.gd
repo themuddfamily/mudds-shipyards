@@ -130,14 +130,16 @@ func _run() -> void:
 			and not bool(craft.get_engineer_repair_presentation_snapshot().get("visible", true)),
 		"ship detach emits interruption synchronously then leaves no stale audio or visual"
 	)
+	var events_after_detach := _repair_events.size()
 	root.add_child(craft)
 	await process_frame
 	await process_frame
 	_check(
 		bool(craft.get_engineer_repair_audio_snapshot().get("attached", false))
 			and craft.get_engineer_repair_audio_snapshot().get("last_state", &"unexpected") == &""
-			and not bool(craft.get_engineer_repair_presentation_snapshot().get("visible", true)),
-		"re-entry restores fresh hidden audio and visual generations"
+			and not bool(craft.get_engineer_repair_presentation_snapshot().get("visible", true))
+			and _repair_events.size() == events_after_detach,
+		"re-entry restores fresh hidden generations without replaying the interrupted snapshot"
 	)
 
 	_check(bool(_submit(craft, component_id, selected_generation, 8).get("consumed", false)), "fresh receipt restores work after re-entry")

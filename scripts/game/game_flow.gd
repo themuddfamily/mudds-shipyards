@@ -372,6 +372,9 @@ var pulse_presentation: PulseWeaponPresentation
 var combat_audio: CombatAudioPresentation
 var hud: CanvasLayer
 var audio: Node
+## Exact caller-owned ShipAudioRigs currently registered as the semantic `ship`
+## source set. The physical fleet registry remains authoritative for membership.
+var _fleet_ship_semantic_audio_sources: Dictionary = {}
 var music_bed: StationMusicBed
 var nearby_activity_audio_binding: Node
 var nearby_activity_music_adapter: Node
@@ -775,6 +778,7 @@ func _exit_tree() -> void:
 	_detach_ember_surface_presentations()
 	_detach_optional_semantic_audio()
 	_detach_halyard_crew_semantic_audio()
+	_detach_fleet_ship_semantic_audio()
 	# Travelling pulse slots are presentation-only and are cleared by their own
 	# exit transaction. Their target-side records are likewise invalidated by the
 	# relevant lifecycle components.
@@ -1509,6 +1513,7 @@ func _start_up() -> void:
 	_initialize_cinder_convoy_host()
 	_initialize_caption_presentation()
 	_initialize_live_combat()
+	_sync_fleet_ship_semantic_audio()
 	_initialize_nearby_activity_audio()
 	_initialize_halyard_crew_semantic_audio()
 	_initialize_optional_semantic_audio()
@@ -4237,6 +4242,7 @@ func _restore_runtime_bindings_after_reentry() -> void:
 	_sync_cinder_convoy_stream_presence()
 	_restore_caption_presentation()
 	_connect_runtime_signals()
+	_sync_fleet_ship_semantic_audio()
 	# Station-defense content owns three private hostile source identities. Its
 	# retained subtree can only re-register them after all of its descendants have
 	# re-entered, so its deferred restore is already queued behind this parent
@@ -8483,6 +8489,8 @@ func _register_flyable_ships() -> void:
 	)
 	if not ships.has(ship):
 		push_error("The guided Torrent craft was rejected from the physical fleet registry")
+	if _initialized:
+		_sync_fleet_ship_semantic_audio()
 
 
 func _refresh_production_flyable_registry() -> void:
@@ -8502,6 +8510,83 @@ func _refresh_production_flyable_registry() -> void:
 		await get_tree().process_frame
 	_register_flyable_ships()
 	_initialize_live_combat()
+
+
+func _sync_fleet_ship_semantic_audio() -> Dictionary:
+	if not is_instance_valid(audio) \
+			or not audio.has_method(&"bind_semantic_audio_source") \
+			or not audio.has_method(&"unbind_semantic_audio_source"):
+		return _fleet_ship_semantic_audio_report(&"audio_director_unavailable")
+	var desired: Dictionary = {}
+	for fleet_ship: HeroShip in ships:
+		if not is_instance_valid(fleet_ship):
+			continue
+		var rig := fleet_ship.get_ship_audio_rig()
+		if rig == null or not is_instance_valid(rig):
+			continue
+		desired[rig.get_instance_id()] = {
+			"rig": rig,
+			"ship_id": fleet_ship.get_ship_id(),
+		}
+	for source_id: int in _fleet_ship_semantic_audio_sources.keys():
+		if desired.has(source_id):
+			continue
+		var prior := (_fleet_ship_semantic_audio_sources[source_id] as Dictionary).get("rig") as Node
+		if is_instance_valid(prior):
+			audio.call(&"unbind_semantic_audio_source", prior, &"ship")
+		_fleet_ship_semantic_audio_sources.erase(source_id)
+	for source_id: int in desired.keys():
+		if _fleet_ship_semantic_audio_sources.has(source_id):
+			continue
+		var row := desired[source_id] as Dictionary
+		var result := audio.call(
+			&"bind_semantic_audio_source", row.rig as Node, &"ship"
+		) as Dictionary
+		if bool(result.get("accepted", false)):
+			_fleet_ship_semantic_audio_sources[source_id] = row
+	return _fleet_ship_semantic_audio_report(&"fleet_sources_synchronized")
+
+
+func _detach_fleet_ship_semantic_audio() -> Dictionary:
+	if is_instance_valid(audio) and audio.has_method(&"unbind_semantic_audio_source"):
+		for row_variant: Variant in _fleet_ship_semantic_audio_sources.values():
+			var rig := (row_variant as Dictionary).get("rig") as Node
+			if is_instance_valid(rig):
+				audio.call(&"unbind_semantic_audio_source", rig, &"ship")
+	_fleet_ship_semantic_audio_sources.clear()
+	return _fleet_ship_semantic_audio_report(&"fleet_sources_detached")
+
+
+func get_fleet_ship_semantic_audio_report() -> Dictionary:
+	return _fleet_ship_semantic_audio_report(&"snapshot")
+
+
+func _fleet_ship_semantic_audio_report(reason: StringName) -> Dictionary:
+	var bound_ship_ids: Array[StringName] = []
+	var active_bound := false
+	for row_variant: Variant in _fleet_ship_semantic_audio_sources.values():
+		var row := row_variant as Dictionary
+		bound_ship_ids.append(StringName(row.get("ship_id", &"")))
+		var rig := row.get("rig") as Node
+		active_bound = active_bound or (
+			is_instance_valid(active_ship)
+			and is_instance_valid(rig)
+			and active_ship.get_ship_audio_rig() == rig
+		)
+	bound_ship_ids.sort()
+	return {
+		"reason": reason,
+		"registered_ship_count": ships.size(),
+		"bound_source_count": _fleet_ship_semantic_audio_sources.size(),
+		"bound_ship_ids": bound_ship_ids,
+		"all_registered_ships_bound": (
+			ships.size() == _fleet_ship_semantic_audio_sources.size()
+		),
+		"active_ship_bound": active_bound,
+		"source_kind": &"ship",
+		"presentation_only": true,
+		"gameplay_authority": false,
+	}.duplicate(true)
 
 
 func _get_expansion_flyable_contract(candidate: HeroShip, binding: Node) -> Dictionary:

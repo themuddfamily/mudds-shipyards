@@ -21,8 +21,10 @@ func _init() -> void:
 func _run() -> void:
 	var director := Director.new()
 	var source := MockAudioSource.new()
+	var second_source := MockAudioSource.new()
 	root.add_child(director)
 	director.add_child(source)
+	director.add_child(second_source)
 	director.semantic_cue_emitted.connect(_on_cue)
 	await process_frame
 	_check(director.get_semantic_audio_binding_count() == 0, "production director starts detached")
@@ -39,13 +41,21 @@ func _run() -> void:
 		and is_equal_approx(float(_events[0].intensity), 0.5),
 		"director preserves normalized cue metadata"
 	)
-	_check(director.get_semantic_audio_binding_count() == 1, "director retains the binding")
+	_check(
+		bool(director.bind_semantic_audio_source(second_source, &"music").accepted),
+		"director binds a second concrete source of the same semantic kind"
+	)
+	second_source.emit_music(&"music_landing", 0.5)
+	_check(
+		_events.size() == 2 and director.get_semantic_audio_binding_count() == 2,
+		"deduplication keeps identical events from distinct concrete sources"
+	)
 	_check(bool(director.detach_semantic_audio_sources().accepted), "director detaches semantic sources")
 	source.emit_music(&"music_landing", 0.5)
-	_check(_events.size() == 1 and director.get_semantic_audio_binding_count() == 0, "detach clears forwarding")
+	_check(_events.size() == 2 and director.get_semantic_audio_binding_count() == 0, "detach clears forwarding")
 	_check(bool(director.bind_semantic_audio_source(source, &"music").accepted), "re-entry can bind a fresh source")
 	source.emit_music(&"music_landing", 0.5)
-	_check(_events.size() == 2, "fresh attachment forwards after detach")
+	_check(_events.size() == 3, "fresh attachment forwards after detach")
 	for failure in _failures:
 		push_error(failure)
 	print("audio_director_semantic_router_test: %d assertions" % _assertions)

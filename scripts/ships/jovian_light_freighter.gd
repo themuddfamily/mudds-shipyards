@@ -432,7 +432,9 @@ func _rebind_engineer_repair_console() -> void:
 	var snapshot: Dictionary = _engineer_repair_console.get_snapshot()
 	if not bool(snapshot.get("attached", false)):
 		_engineer_repair_console.bind(_engineer_status_readout, _engineer_console_generation)
-		_refresh_engineer_status_readout()
+		# The retained console may re-observe the authoritative terminal state, but
+		# work presenters must stay fresh and empty until a new repair is admitted.
+		_refresh_engineer_status_readout(false)
 
 
 func _rebind_engineer_repair_presentation() -> void:
@@ -444,8 +446,8 @@ func _rebind_engineer_repair_presentation() -> void:
 	var attached: Dictionary = _engineer_repair_presentation.attach(
 		_engineer_presentation_generation
 	)
-	if bool(attached.get("accepted", false)):
-		_refresh_engineer_status_readout()
+	if not bool(attached.get("accepted", false)):
+		return
 
 
 func _rebind_engineer_repair_audio() -> void:
@@ -1339,7 +1341,7 @@ func _build_engineer_repair_presentation() -> void:
 		_refresh_engineer_status_readout()
 
 
-func _refresh_engineer_status_readout() -> void:
+func _refresh_engineer_status_readout(publish_work_presentations: bool = true) -> void:
 	var network_snapshot := get_engineer_repair_network_snapshot()
 	if _engineer_repair_console != null:
 		_engineer_console_sequence += 1
@@ -1348,6 +1350,8 @@ func _refresh_engineer_status_readout() -> void:
 			"sequence": _engineer_console_sequence,
 			"repair_snapshot": network_snapshot,
 		})
+	if not publish_work_presentations:
+		return
 	if _engineer_repair_presentation != null:
 		_engineer_presentation_sequence += 1
 		_engineer_repair_presentation.present_snapshot(
