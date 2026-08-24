@@ -721,7 +721,7 @@ func get_render_batch_contract() -> Dictionary:
 			and mast_cap_multi.visible_instance_count == -1
 			and mast_cap_multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 0.22, 0.86))
 			and mast_cap_multi.mesh.get_surface_count() == 1
-			and _dock_mast_cap_batch.material_override == _materials.get("deck_light")
+			and _dock_mast_cap_batch.material_override == _materials.get("frame")
 			and _dock_mast_cap_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			and _dock_mast_cap_batch.layers == 1
 			and _dock_mast_cap_batch.get_child_count() == 0
@@ -1612,7 +1612,11 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			"DockMastCap" + suffix,
 			Vector3(21.9, elevation + 3.98, slab_z),
 			Vector3(0.86, 0.22, 0.86),
-			_materials["deck_light"],
+			# The cap used to continue the mast's pale walked-deck material, so this
+			# broad, hard-edged head disappeared into the shaft along the live Dock
+			# 01/02 approach. Dark structural frame stock gives the existing chamfer
+			# a contrasting highlight without changing its mesh or service envelope.
+			_materials["frame"],
 			"mast head cap over open void outboard of the slab"
 		)
 		_dock_mast_cap_transforms.append(mast_cap_anchor.transform)
@@ -1779,7 +1783,7 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		service,
 		"DockMastCaps",
 		Vector3(0.86, 0.22, 0.86),
-		_materials["deck_light"],
+		_materials["frame"],
 		_dock_mast_cap_transforms
 	)
 	_dock_service_mast_batch = _multimesh_instances(

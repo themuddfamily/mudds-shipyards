@@ -992,6 +992,11 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 	var batch := module.get_node_or_null(
 		^"GeneratedComb/SurfaceDetail/DockArmService/DockMastCaps"
 	) as MultiMeshInstance3D
+	var mast_batch := module.get_node_or_null(
+		^"GeneratedComb/SurfaceDetail/DockArmService/ServiceMastBatch"
+	) as MultiMeshInstance3D
+	var frame_reference := service.get_node_or_null(^"DockServiceBracket01") as MeshInstance3D \
+		if service != null else null
 	_check(service != null and batch != null and batch.multimesh != null, "three dock mast caps resolve as one service MultiMesh")
 	if service == null or batch == null or batch.multimesh == null:
 		return
@@ -1018,6 +1023,7 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 		)
 	var multi := batch.multimesh
 	var render := module.get_render_batch_contract()
+	var cap_material := batch.material_override as StandardMaterial3D
 	_check(
 		anchors_exact
 		and multi.instance_count == FleetDockComb.DOCK_MAST_CAP_COPY_COUNT
@@ -1026,12 +1032,25 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
 		and batch.material_override == anchors[0].material_override
+		and frame_reference != null
+		and batch.material_override == frame_reference.material_override
+		and mast_batch != null
+		and batch.material_override != mast_batch.material_override
+		and cap_material != null
+		and cap_material.albedo_texture != null
+		and cap_material.normal_texture != null
+		and cap_material.roughness_texture != null
+		and is_equal_approx(cap_material.clearcoat, StationSurfaceKit.STRUCTURAL_CLEARCOAT)
+		and is_equal_approx(
+			cap_material.clearcoat_roughness,
+			StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS
+		)
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
 		and service.find_children("*", "CollisionObject3D", true, false).is_empty()
 		and service.find_children("*", "Area3D", true, false).is_empty(),
-		"mast-cap batch preserves exact transforms, deck-light material, shadows, culling layer and visual-only ownership"
+		"mast caps retain their exact batched chamfers while dark frame stock separates them from the pale Dock 01/02 masts"
 	)
 	_check(
 		int(render.dock_mast_cap_copies) == 3
