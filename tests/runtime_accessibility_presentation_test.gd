@@ -1,6 +1,14 @@
 extends SceneTree
 
 const Contract := preload("res://scripts/ui/runtime_accessibility_presentation.gd")
+const Settings := preload("res://scripts/settings/runtime_settings.gd")
+
+class MalformedRuntimeSettings extends RuntimeSettings:
+	func get_accessibility_descriptor() -> Dictionary:
+		var malformed := super.get_accessibility_descriptor()
+		malformed["colorblind_palette_id"] = &"tritanopia"
+		return malformed
+
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -37,7 +45,105 @@ func _initialize() -> void:
 	var before := contract.get_snapshot()
 	var rejected := contract.configure({"visual": {"ui_scale": 99.0}, "audio": {"bus_ceilings": {&"NotABus": 0.0}}})
 	_check(not bool(rejected.accepted) and int(contract.get_snapshot().revision) == int(before.revision), "malformed cross-policy changes reject without advancing the runtime revision")
+	_test_active_settings_status(contract)
 	_finish()
+
+
+func _test_active_settings_status(contract: RefCounted) -> void:
+	var settings := Settings.new()
+	settings.captions_enabled = true
+	settings.reduced_flash = true
+	settings.reduced_motion = true
+	settings.ui_scale = 1.35
+	settings.colorblind_palette = Settings.ColorblindPalette.TRITANOPIA
+	var settings_before := settings.to_dictionary()
+	var attached: Dictionary = contract.attach(settings, int(contract.get_snapshot().revision))
+	var status := attached.snapshot.status_confirmation as Dictionary
+	_check(
+		bool(attached.accepted) and bool(attached.snapshot.attached)
+			and status.status_text == "ACCESSIBILITY OPTIONS // ACTIVE",
+		"validated RuntimeSettings produce an immediate active accessibility confirmation"
+	)
+	_check(
+		bool(status.captions_enabled) and bool(status.reduced_flash) and bool(status.reduced_motion)
+			and is_equal_approx(float(status.ui_scale), 1.35)
+			and is_equal_approx(float(status.text_scale), 1.35)
+			and status.colorblind_palette_id == &"tritanopia",
+		"the confirmation covers the actual caption, flash, motion, UI/text scale and colour-alternative fields"
+	)
+	_check(
+		status.rows.size() == 5
+			and status.rows[0].text == "CAPTIONS // ON"
+			and status.rows[1].text == "REDUCED FLASH // ON"
+			and status.rows[2].text == "REDUCED MOTION // ON"
+			and status.rows[3].text == "UI / TEXT SCALE // 135%"
+			and status.rows[4].text == "COLOUR ALTERNATIVE // TRITANOPIA ALTERNATIVE",
+		"every active choice is confirmed in player-readable text rather than colour alone"
+	)
+	_check(
+		bool(status.color_independent) and bool(status.uses_text_labels)
+			and not bool(status.focusable) and not bool(status.steals_focus)
+			and bool(status.safe_area_owned_by_caller),
+		"the status card preserves focus and the caller-owned safe-area contract"
+	)
+	_check(
+		settings.to_dictionary() == settings_before
+			and not bool(attached.settings_authority) and not bool(attached.input_authority)
+			and not bool(attached.camera_authority) and not bool(attached.audio_authority),
+		"reading the active preset cannot mutate settings, input, camera or audio authority"
+	)
+	status.rows[0].text = "tampered"
+	status.announcement_text = "tampered"
+	_check(
+		contract.get_snapshot().status_confirmation.rows[0].text == "CAPTIONS // ON"
+			and not str(contract.get_snapshot().status_confirmation.announcement_text).contains("tampered"),
+		"returned status cards are deeply detached from the retained presentation"
+	)
+	var attached_revision := int(contract.get_snapshot().revision)
+	var invalid_replacement: Dictionary = contract.attach(MalformedRuntimeSettings.new(), attached_revision)
+	_check(
+		not bool(invalid_replacement.accepted) and invalid_replacement.reason == &"invalid_colour_alternative"
+			and int(contract.get_snapshot().revision) == attached_revision
+			and contract.get_snapshot().status_confirmation.colorblind_palette_id == &"tritanopia",
+		"a mismatched palette value/ID rejects atomically without clearing the live settings status"
+	)
+	settings.captions_enabled = false
+	var live: Dictionary = contract.get_snapshot()
+	_check(
+		int(live.revision) == attached_revision + 1
+			and live.status_confirmation.rows[0].text == "CAPTIONS // OFF",
+		"a supported live RuntimeSettings change repaints the textual confirmation immediately"
+	)
+	var live_revision := int(live.revision)
+	settings.master_volume = 0.25
+	_check(
+		int(contract.get_snapshot().revision) == live_revision,
+		"unrelated audio settings do not repaint or grant audio authority to the status presenter"
+	)
+	var stale_detach: Dictionary = contract.detach(live_revision - 1)
+	_check(
+		not bool(stale_detach.accepted) and stale_detach.reason == &"stale_revision"
+			and bool(contract.get_snapshot().attached),
+		"an inexact revision cannot detach the active presentation"
+	)
+	var detached: Dictionary = contract.detach(live_revision)
+	var detached_revision := int(detached.revision)
+	settings.reduced_flash = false
+	_check(
+		bool(detached.accepted) and not bool(detached.snapshot.attached)
+			and detached.snapshot.status_confirmation.is_empty()
+			and int(contract.get_snapshot().revision) == detached_revision,
+		"detach clears the signal and retained card so the old settings owner cannot repaint it"
+	)
+	var replacement := Settings.new()
+	replacement.ui_scale = 1.1
+	replacement.colorblind_palette = Settings.ColorblindPalette.PROTANOPIA
+	var reused: Dictionary = contract.attach(replacement, detached_revision)
+	_check(
+		bool(reused.accepted) and reused.snapshot.status_confirmation.rows[3].text == "UI / TEXT SCALE // 110%"
+			and reused.snapshot.status_confirmation.colorblind_palette_id == &"protanopia",
+		"the detached presenter is reusable at its exact revision without leaking the previous preset"
+	)
 
 
 func _check(condition: bool, message: String) -> void:
