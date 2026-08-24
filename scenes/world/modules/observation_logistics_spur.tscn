@@ -21,11 +21,11 @@ position = Vector3(0, 0, 24)
 
 [node name="ObservationPadMarker" type="Marker3D" parent="."]
 unique_name_in_owner = true
-position = Vector3(-8, 0, 32)
+position = Vector3(-6.75, 0, 32)
 
 [node name="LogisticsPadMarker" type="Marker3D" parent="."]
 unique_name_in_owner = true
-position = Vector3(8, 0, 32)
+position = Vector3(6.75, 0, 32)
 
 [node name="FarReturn" type="Marker3D" parent="."]
 unique_name_in_owner = true

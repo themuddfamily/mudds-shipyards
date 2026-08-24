@@ -20,7 +20,7 @@ const DEFERRED_CONNECTION_ROUTE_IDS := [&"observation-pad", &"logistics-pad"]
 
 const FOOTPRINT_MIN := Vector3(-13.4, -0.3, 0.0)
 const FOOTPRINT_MAX := Vector3(13.4, 4.4, 39.5)
-const WALKABLE_AREA_M2 := 426.0
+const WALKABLE_AREA_M2 := 366.0
 ## This is the first source-current, production-integrated continuation of the
 ## exposed deck language beyond the bounded historical modules.  The report is
 ## intentionally an evidence gate rather than a topology claim: it freezes the
@@ -28,11 +28,13 @@ const WALKABLE_AREA_M2 := 426.0
 ## before another exposed module is allowed to grow the station footprint.
 const SAFETY_RAIL_COUNT := 15
 const FOOTPRINT_HORIZONTAL_AREA_M2 := 1058.6
-const NEGATIVE_SPACE_RATIO := 0.597586611
+const NEGATIVE_SPACE_RATIO := 0.654260344
 
 ## The five rectangles touch at their boundaries without overlapping in plan,
-## so their exact union equals the sum of their horizontal areas: 88 + 80 + 120
-## + 120 + 18 = 426 m².
+## so their exact union equals the sum of their horizontal areas: 88 + 80 + 90
+## + 90 + 18 = 366 m². The two working pads were narrowed only at
+## their redundant outboard edges; their inner seams still meet the landing and
+## far-return bridge exactly, preserving the complete no-jump loop.
 const WALKABLE_SURFACE_SPECS := [
 	{
 		"id": &"exposed-connector",
@@ -51,16 +53,16 @@ const WALKABLE_SURFACE_SPECS := [
 	{
 		"id": &"observation-pad",
 		"node_name": "ObservationPad",
-		"center": Vector3(-8.0, -0.15, 32.0),
-		"size": Vector3(10.0, 0.30, 12.0),
-		"area_m2": 120.0,
+		"center": Vector3(-6.75, -0.15, 32.0),
+		"size": Vector3(7.5, 0.30, 12.0),
+		"area_m2": 90.0,
 	},
 	{
 		"id": &"logistics-pad",
 		"node_name": "LogisticsPad",
-		"center": Vector3(8.0, -0.15, 32.0),
-		"size": Vector3(10.0, 0.30, 12.0),
-		"area_m2": 120.0,
+		"center": Vector3(6.75, -0.15, 32.0),
+		"size": Vector3(7.5, 0.30, 12.0),
+		"area_m2": 90.0,
 	},
 	{
 		"id": &"far-return-bridge",
@@ -123,19 +125,19 @@ const INDEXED_RUNTIME_CHILD_PATHS := [
 ## anchors while one bounded renderer draws the three exact copies.
 const OBSERVATION_LENS_SIZE := Vector3(0.035, 0.26, 0.92)
 const OBSERVATION_LENS_POSITIONS := [
-	Vector3(-11.05, 0.76, 28.6),
-	Vector3(-11.05, 0.76, 31.4),
-	Vector3(-11.05, 0.76, 34.2),
+	Vector3(-8.55, 0.76, 28.6),
+	Vector3(-8.55, 0.76, 31.4),
+	Vector3(-8.55, 0.76, 34.2),
 ]
 const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
-	Vector3(-11.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
+	Vector3(-8.5675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
 const VISUAL_DESCENDANT_NODE_COUNT := 152
 const BASELINE_RENDERER_NODE_COUNT := 42
 const RENDERER_NODE_COUNT := 35
 const BASELINE_DRAWN_COPY_COUNT := 270
-const DRAWN_COPY_COUNT := 280
+const DRAWN_COPY_COUNT := 278
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
 const SURFACE_SUBMISSION_COUNT := 35
 const BASELINE_MESH_RESOURCE_COUNT := 34
@@ -149,12 +151,12 @@ const BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT := 3
 const OBSERVATION_LENS_RENDERER_NODE_COUNT := 1
 const OBSERVATION_CONSOLE_SIZE := Vector3(0.72, 0.96, 1.35)
 const OBSERVATION_CONSOLE_POSITIONS := [
-	Vector3(-11.45, 0.48, 28.6),
-	Vector3(-11.45, 0.48, 31.4),
-	Vector3(-11.45, 0.48, 34.2),
+	Vector3(-8.95, 0.48, 28.6),
+	Vector3(-8.95, 0.48, 31.4),
+	Vector3(-8.95, 0.48, 34.2),
 ]
 const OBSERVATION_CONSOLE_CULLING_BOUNDS := AABB(
-	Vector3(-11.81, 0.0, 27.925), Vector3(0.72, 0.96, 6.95)
+	Vector3(-9.31, 0.0, 27.925), Vector3(0.72, 0.96, 6.95)
 )
 const OBSERVATION_CONSOLE_COPY_COUNT := 3
 const BASELINE_OBSERVATION_CONSOLE_RENDERER_NODE_COUNT := 3
@@ -164,8 +166,8 @@ const PRACTICAL_LENS_POSITIONS := [
 	Vector3(2.32, 2.8, 7.0),
 	Vector3(-2.32, 2.8, 18.0),
 	Vector3(-9.55, 2.8, 23.5),
-	Vector3(-12.72, 2.8, 32.0),
-	Vector3(12.72, 2.8, 32.0),
+	Vector3(-10.22, 2.8, 32.0),
+	Vector3(10.22, 2.8, 32.0),
 	Vector3(2.72, 2.8, 38.0),
 ]
 const PRACTICAL_LENS_COPY_COUNT := 6
@@ -173,7 +175,7 @@ const PRACTICAL_LENS_MESH_RESOURCE_COUNT := 1
 const PRACTICAL_CYAN_LENS_INDICES := [0, 1, 3]
 const PRACTICAL_CYAN_LENS_COPY_COUNT := 3
 const PRACTICAL_CYAN_LENS_CULLING_BOUNDS := AABB(
-	Vector3(-12.86, 2.74, 6.86), Vector3(15.32, 0.12, 25.28)
+	Vector3(-10.36, 2.74, 6.86), Vector3(12.82, 0.12, 25.28)
 )
 const BASELINE_PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT := 3
 const PRACTICAL_CYAN_LENS_RENDERER_NODE_COUNT := 1
@@ -189,14 +191,15 @@ const LOGISTICS_CASE_COPY_COUNT := 6
 const LOGISTICS_CASE_MESH_RESOURCE_COUNT := 1
 const BASELINE_LOGISTICS_CASE_RENDERER_NODE_COUNT := 6
 const LOGISTICS_CASE_RENDERER_NODE_COUNT := 1
+const LOGISTICS_STACK_X := 9.1
 const LOGISTICS_CASE_CULLING_BOUNDS := AABB(
-	Vector3(10.1, 0.22, 28.16), Vector3(2.1, 1.10, 6.78)
+	Vector3(8.05, 0.22, 28.16), Vector3(2.1, 1.10, 6.78)
 )
 const LOGISTICS_PALLET_SIZE := Vector3(2.4, 0.24, 1.55)
 const LOGISTICS_PALLET_POSITIONS := [
-	Vector3(11.15, 0.12, 28.8),
-	Vector3(11.15, 0.12, 31.55),
-	Vector3(11.15, 0.12, 34.3),
+	Vector3(LOGISTICS_STACK_X, 0.12, 28.8),
+	Vector3(LOGISTICS_STACK_X, 0.12, 31.55),
+	Vector3(LOGISTICS_STACK_X, 0.12, 34.3),
 ]
 const LOGISTICS_PALLET_COPY_COUNT := 3
 const BASELINE_LOGISTICS_PALLET_RENDERER_NODE_COUNT := 3
@@ -204,15 +207,15 @@ const LOGISTICS_PALLET_RENDERER_NODE_COUNT := 1
 const BASELINE_LOGISTICS_PALLET_MESH_RESOURCE_COUNT := 3
 const LOGISTICS_PALLET_MESH_RESOURCE_COUNT := 1
 const LOGISTICS_PALLET_CULLING_BOUNDS := AABB(
-	Vector3(9.95, 0.0, 28.025), Vector3(2.4, 0.24, 7.05)
+	Vector3(7.9, 0.0, 28.025), Vector3(2.4, 0.24, 7.05)
 )
 const LIGHT_MAST_SIZE := Vector3(0.16, 2.8, 0.16)
 const LIGHT_MAST_POSITIONS := [
 	Vector3(2.32, 1.4, 7.0),
 	Vector3(-2.32, 1.4, 18.0),
 	Vector3(-9.55, 1.4, 23.5),
-	Vector3(-12.72, 1.4, 32.0),
-	Vector3(12.72, 1.4, 32.0),
+	Vector3(-10.22, 1.4, 32.0),
+	Vector3(10.22, 1.4, 32.0),
 	Vector3(2.72, 1.4, 38.0),
 ]
 const LIGHT_MAST_COPY_COUNT := 6
@@ -254,24 +257,24 @@ const LOGISTICS_ROUTE_CROWN_FIN_POSITIONS := [
 ## The crown resolves the turn; this survey gantry resolves arrival in the
 ## observation work zone. Its two feet bear on the observation deck just beyond
 ## the cross-landing seam and the header touches both feet, forming one physical,
-## non-coplanar frame around an 8.16 m clear opening. One World body owns three
+## non-coplanar frame around a 5.66 m clear opening. One World body owns three
 ## exact collision shapes and one shared-unit-mesh renderer. Three cyan slits are
 ## folded into the existing observation-tick batch, keeping the threshold
 ## readable without another material, light, label, or draw submission.
 const OBSERVATION_THRESHOLD_FRAME_POSITIONS := [
-	Vector3(-12.20, 1.65, 26.30),
+	Vector3(-9.70, 1.65, 26.30),
 	Vector3(-3.80, 1.65, 26.30),
-	Vector3(-8.0, 3.15, 26.30),
+	Vector3(-6.75, 3.15, 26.30),
 ]
 const OBSERVATION_THRESHOLD_FRAME_SIZES := [
 	Vector3(0.24, 3.30, 0.30),
 	Vector3(0.24, 3.30, 0.30),
-	Vector3(8.64, 0.30, 0.30),
+	Vector3(6.14, 0.30, 0.30),
 ]
 const OBSERVATION_THRESHOLD_SLIT_POSITIONS := [
-	Vector3(-8.42, 3.15, 26.12),
-	Vector3(-8.0, 3.15, 26.12),
-	Vector3(-7.58, 3.15, 26.12),
+	Vector3(-7.17, 3.15, 26.12),
+	Vector3(-6.75, 3.15, 26.12),
+	Vector3(-6.33, 3.15, 26.12),
 ]
 
 const CONTENT_NOTE := (
@@ -750,7 +753,7 @@ func get_visual_resource_contract() -> Dictionary:
 		var stack_index := int(case_index / 2)
 		var tier_index := case_index % 2
 		expected_case_transforms.append(Transform3D(Basis.IDENTITY, Vector3(
-			11.15, 0.48 + float(tier_index) * 0.58, 28.8 + float(stack_index) * 2.75
+			LOGISTICS_STACK_X, 0.48 + float(tier_index) * 0.58, 28.8 + float(stack_index) * 2.75
 		)))
 	if logistics_case_identities_exact:
 		var batch_mesh := logistics_case_batch.multimesh.mesh as BoxMesh
@@ -1207,7 +1210,7 @@ func get_validation_errors() -> PackedStringArray:
 		if box == null or not box.size.is_equal_approx(spec.size as Vector3):
 			errors.append("walkable surface extent drifted: %s" % str(spec.id))
 	if not is_equal_approx(area, WALKABLE_AREA_M2):
-		errors.append("walkable surface area roster no longer totals exactly 426 m2")
+		errors.append("walkable surface area roster no longer totals exactly 366 m2")
 	for route_id: StringName in CONNECTION_SLOT_SPECS.keys():
 		var marker := get_route_marker(route_id)
 		var spec := CONNECTION_SLOT_SPECS[route_id] as Dictionary
@@ -1368,9 +1371,9 @@ func _build_safety_rails(parent: Node3D) -> void:
 	# Pad outside edges and inner edges up to the far bridge opening.
 	for side_index in 2:
 		var side := -1.0 + float(side_index) * 2.0
-		_safety_rail(parent, "PadOuterRail%02d" % (side_index + 1), Vector3(side * 13.12, 0.62, 32.0), Vector3(0.16, 1.24, 12.0))
+		_safety_rail(parent, "PadOuterRail%02d" % (side_index + 1), Vector3(side * 10.62, 0.62, 32.0), Vector3(0.16, 1.24, 12.0))
 		_safety_rail(parent, "PadInnerRail%02d" % (side_index + 1), Vector3(side * 2.88, 0.62, 31.1), Vector3(0.16, 1.24, 10.2))
-		_safety_rail(parent, "PadFarRail%02d" % (side_index + 1), Vector3(side * 8.5, 0.62, 38.12), Vector3(9.0, 1.24, 0.16))
+		_safety_rail(parent, "PadFarRail%02d" % (side_index + 1), Vector3(side * 7.25, 0.62, 38.12), Vector3(6.5, 1.24, 0.16))
 	# The far bridge itself has north/south rails and turns the two pad routes into
 	# a loop instead of two dead ends.
 	_safety_rail(parent, "FarBridgeSouthRail", Vector3(0.0, 0.62, 36.38), Vector3(5.7, 1.24, 0.16))
@@ -1470,7 +1473,7 @@ func _build_dressing(parent: Node3D) -> void:
 		observation_lens_transforms
 	)
 	observation_lens_batch.multimesh.custom_aabb = OBSERVATION_LENS_CULLING_BOUNDS
-	_box(parent, "ObservationBench", Vector3(-5.0, 0.30, 28.0), Vector3(2.6, 0.60, 0.62), _materials["shell"], true)
+	_box(parent, "ObservationBench", Vector3(-4.5, 0.30, 28.0), Vector3(2.6, 0.60, 0.62), _materials["shell"], true)
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
 	_logistics_case_mesh = BoxMesh.new()
 	_logistics_case_mesh.size = LOGISTICS_CASE_SIZE
@@ -1497,7 +1500,7 @@ func _build_dressing(parent: Node3D) -> void:
 		for tier_index in 2:
 			var case_index := stack_index * 2 + tier_index + 1
 			var case_position := Vector3(
-				11.15, 0.48 + float(tier_index) * 0.58, stack_z
+				LOGISTICS_STACK_X, 0.48 + float(tier_index) * 0.58, stack_z
 			)
 			var case_body := _box(
 				parent, "LogisticsCase%02d" % case_index, case_position,
@@ -1569,24 +1572,24 @@ func _build_finishing_details(parent: Node3D) -> void:
 	# Perforated ribbon roofs shelter the working zones but keep the two pads and
 	# the void between them visually legible from the approach and from space.
 	var canopy_slats: Array[Transform3D] = []
-	for pad_x in [-8.0, 8.0]:
+	for pad_x in [-6.75, 6.75]:
 		for slat_index in 6:
 			canopy_slats.append(Transform3D(
 				Basis.IDENTITY,
-				Vector3(pad_x - 2.5 + float(slat_index), 3.72, 32.0)
+				Vector3(pad_x - 1.875 + float(slat_index) * 0.75, 3.72, 32.0)
 			))
 	var canopy_ribs: Array[Transform3D] = []
-	for pad_x in [-8.0, 8.0]:
+	for pad_x in [-6.75, 6.75]:
 		for rib_z in [28.15, 30.7, 33.3, 35.85]:
 			canopy_ribs.append(Transform3D(Basis.IDENTITY, Vector3(pad_x, 3.58, rib_z)))
 	var canopy_supports: Array[Transform3D] = []
 	# Supports sit directly outside the pad edges against the safety rails, so a
 	# player never encounters a visual-only post in either walkable route.
-	for support_x in [-13.18, -2.82, 2.82, 13.18]:
+	for support_x in [-10.68, -2.82, 2.82, 10.68]:
 		for support_z in [28.4, 35.6]:
 			canopy_supports.append(Transform3D(Basis.IDENTITY, Vector3(support_x, 1.78, support_z)))
 	_multimesh_boxes(parent, "PadCanopySlats", Vector3(0.62, 0.12, 8.0), _materials["shell"], canopy_slats)
-	_multimesh_boxes(parent, "PadCanopyRibs", Vector3(9.35, 0.20, 0.24), _materials["rail"], canopy_ribs)
+	_multimesh_boxes(parent, "PadCanopyRibs", Vector3(6.85, 0.20, 0.24), _materials["rail"], canopy_ribs)
 	_multimesh_boxes(parent, "PadCanopySupports", Vector3(0.20, 3.56, 0.20), _materials["rail"], canopy_supports)
 
 	# The two pads terminate in compact perimeter pavilions. Their wall panels sit
@@ -1601,16 +1604,16 @@ func _build_finishing_details(parent: Node3D) -> void:
 		for panel_z in [28.45, 31.95, 35.45]:
 			pavilion_panels.append(Transform3D(
 				Basis.from_scale(Vector3(0.24, 3.25, 2.75)),
-				Vector3(side * 13.27, 1.63, panel_z)
+				Vector3(side * 10.77, 1.63, panel_z)
 			))
 			pavilion_windows.append(Transform3D(
 				Basis.from_scale(Vector3(0.04, 0.92, 2.18)),
-				Vector3(side * 13.135, 2.03, panel_z)
+				Vector3(side * 10.635, 2.03, panel_z)
 			))
 		for mullion_z in [27.05, 29.85, 33.35, 36.85]:
 			pavilion_mullions.append(Transform3D(
 				Basis.from_scale(Vector3(0.08, 1.12, 0.10)),
-				Vector3(side * 13.10, 2.03, mullion_z)
+				Vector3(side * 10.60, 2.03, mullion_z)
 			))
 	_multimesh_scaled_boxes(parent, "PadPavilionBulkheads", _materials["shell"], pavilion_panels)
 	_multimesh_scaled_boxes(parent, "PadPavilionWindows", _materials["window"], pavilion_windows)
@@ -1621,9 +1624,9 @@ func _build_finishing_details(parent: Node3D) -> void:
 	# the clear loop remains exactly the one validated by the player traversal.
 	var pavilion_fascias: Array[Transform3D] = []
 	var pavilion_plinths: Array[Transform3D] = []
-	for pad_x in [-8.0, 8.0]:
+	for pad_x in [-6.75, 6.75]:
 		pavilion_fascias.append(Transform3D(
-			Basis.from_scale(Vector3(9.75, 0.48, 0.22)),
+			Basis.from_scale(Vector3(7.25, 0.48, 0.22)),
 			Vector3(pad_x, 3.34, 27.92)
 		))
 	var plinth_side := -1.0
@@ -1631,7 +1634,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 		for plinth_z in [29.0, 32.0, 35.0]:
 			pavilion_plinths.append(Transform3D(
 				Basis.from_scale(Vector3(0.42, 0.72, 2.15)),
-				Vector3(plinth_side * 13.16, 0.36, plinth_z)
+				Vector3(plinth_side * 10.66, 0.36, plinth_z)
 			))
 		plinth_side *= -1.0
 	_multimesh_scaled_boxes(parent, "PadPavilionFascias", _materials["rail"], pavilion_fascias)
@@ -1641,7 +1644,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 	# on the formerly over-bright mast lenses. They are fixture presentation only;
 	# the six bounded practical lights remain the sole illumination nodes.
 	var canopy_task_strips: Array[Transform3D] = []
-	for pad_x in [-8.0, 8.0]:
+	for pad_x in [-6.75, 6.75]:
 		for strip_z in [29.4, 32.0, 34.6]:
 			canopy_task_strips.append(Transform3D(
 				Basis.IDENTITY,
@@ -1653,8 +1656,8 @@ func _build_finishing_details(parent: Node3D) -> void:
 	# tangling with rails, stars and cargo when read from player height.
 	var sign_backs: Array[Transform3D] = [
 		Transform3D(Basis.from_scale(Vector3(5.20, 0.64, 0.12)), Vector3(0.0, 3.18, 21.96)),
-		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(-8.0, 2.98, 27.96)),
-		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(8.0, 2.98, 27.96)),
+		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(-6.75, 2.98, 27.96)),
+		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(6.75, 2.98, 27.96)),
 		Transform3D(Basis.from_scale(Vector3(2.75, 0.50, 0.12)), Vector3(0.0, 2.84, 37.84)),
 	]
 	_multimesh_scaled_boxes(parent, "DistrictSignBacks", _materials["rail"], sign_backs)
@@ -1663,7 +1666,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 	# player distance while staying visual-only and out of the circulation lane.
 	var console_trim: Array[Transform3D] = []
 	for console_z in [28.6, 31.4, 34.2]:
-		console_trim.append(Transform3D(Basis.IDENTITY, Vector3(-11.02, 1.00, console_z)))
+		console_trim.append(Transform3D(Basis.IDENTITY, Vector3(-8.52, 1.00, console_z)))
 	_multimesh_boxes(parent, "ObservationConsoleTrim", Vector3(0.07, 0.12, 1.08), _materials["cyan"], console_trim)
 	var cargo_bands: Array[Transform3D] = []
 	for stack_index in 3:
@@ -1671,7 +1674,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 		for tier_index in 2:
 			var tier_y := 0.48 + float(tier_index) * 0.58
 			for band_offset in [-0.34, 0.34]:
-				cargo_bands.append(Transform3D(Basis.IDENTITY, Vector3(11.15 + band_offset, tier_y + 0.27, stack_z)))
+				cargo_bands.append(Transform3D(Basis.IDENTITY, Vector3(LOGISTICS_STACK_X + band_offset, tier_y + 0.27, stack_z)))
 	_multimesh_boxes(parent, "CargoCaseBands", Vector3(0.12, 0.05, 1.34), _materials["amber"], cargo_bands)
 
 	# Colour-coded deck ticks and bridge chevrons create a readable material and
@@ -1702,8 +1705,8 @@ func _build_finishing_details(parent: Node3D) -> void:
 		return_chevrons.append(Transform3D(Basis.IDENTITY, Vector3(-2.0 + float(chevron_index), 0.025, 38.0)))
 	_multimesh_boxes(parent, "ReturnBridgeChevrons", Vector3(0.48, 0.035, 0.12), _materials["practical_white"], return_chevrons)
 
-	_label(parent, "ObservationArraySign", "OBS  //  ARRAY  04", Vector3(-8.0, 2.98, 27.82), Color("8fe8ef"))
-	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(8.0, 2.98, 27.82), Color("f4bf72"))
+	_label(parent, "ObservationArraySign", "OBS  //  ARRAY  04", Vector3(-6.75, 2.98, 27.82), Color("8fe8ef"))
+	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(6.75, 2.98, 27.82), Color("f4bf72"))
 	_label(parent, "ReturnLoopSign", "RETURN LOOP", Vector3(0.0, 2.84, 37.70), Color("dbe8e4"))
 
 
@@ -1744,8 +1747,8 @@ func _build_lighting(parent: Node3D) -> void:
 		[Vector3(2.32, 2.8, 7.0), Color("8fe8ef"), "practical_cyan"],
 		[Vector3(-2.32, 2.8, 18.0), Color("8fe8ef"), "practical_cyan"],
 		[Vector3(-9.55, 2.8, 23.5), Color("dbe8e4"), "practical_white"],
-		[Vector3(-12.72, 2.8, 32.0), Color("8fe8ef"), "practical_cyan"],
-		[Vector3(12.72, 2.8, 32.0), Color("f4bf72"), "practical_amber"],
+		[Vector3(-10.22, 2.8, 32.0), Color("8fe8ef"), "practical_cyan"],
+		[Vector3(10.22, 2.8, 32.0), Color("f4bf72"), "practical_amber"],
 		[Vector3(2.72, 2.8, 38.0), Color("dbe8e4"), "practical_white"],
 	]
 	var mast_transforms: Array[Transform3D] = []

@@ -724,7 +724,7 @@ func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroS
 	)
 	var audit := spur.get_audit_report()
 	print("OBSERVATION_PRODUCTION_AUDIT: ", audit)
-	_check(bool(audit.valid) and is_equal_approx(float(audit.walkable_area_m2), 426.0), "production Observation audit stays valid with its exact 426 m2 standalone surface union")
+	_check(bool(audit.valid) and is_equal_approx(float(audit.walkable_area_m2), 366.0), "production Observation audit stays valid with its compacted exact 366 m2 standalone surface union")
 
 
 func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) -> void:

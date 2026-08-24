@@ -166,7 +166,7 @@ flowchart LR
   O --- FA3["Fabrication A/B/C dogleg / 99.0 m²"]
   FA3 --- FA["Fabrication Annex / 480.0 m²"]
   FA --- OLC["Observation connector / 2.0 m²"]
-  OLC --- OLS["Observation Logistics Spur / 426.0 m²"]
+  OLC --- OLS["Observation Logistics Spur / 366.0 m²"]
   FA --- STC["Salvage connector / 3.9312 m²"]
   STC --- ST["Salvage Terrace / 456.0 m²"]
   C --- AF["AftSpine"]
@@ -260,8 +260,8 @@ deliberate dead end and never joins the adjacency graph.
 | Comb dock 02 threshold | `fleet-dock-comb` | `dock-02-threshold` | `(37.0, 4.35, 59.05)` | marker `deferred-dock-02`, `assigned_external`, external berth `halyard_fleet_dock_berth` |
 | Comb dock 03 threshold | `fleet-dock-comb` | `dock-03-threshold` | `(52.0, 6.75, 59.05)` | marker `deferred-dock-03`, `deferred_empty` |
 | Fabrication south service gate | `fabrication_annex` | `annex_starboard_service` | `(84.0, 0.53, 24.0)` | open internal route; no station slot declared |
-| Observation pad | `observation-logistics-spur` | `observation-pad` | `(124.5, 0.38, 46.0)` | deferred internal route; no station slot declared |
-| Logistics pad | `observation-logistics-spur` | `logistics-pad` | `(124.5, 0.38, 30.0)` | deferred internal route; no station slot declared |
+| Observation pad | `observation-logistics-spur` | `observation-pad` | `(124.5, 0.38, 44.75)` | deferred internal route; no station slot declared |
+| Logistics pad | `observation-logistics-spur` | `logistics-pad` | `(124.5, 0.38, 31.25)` | deferred internal route; no station slot declared |
 
 <!-- LIVE-GRAPH-DEFERRED:END -->
 
@@ -346,15 +346,15 @@ standalone module budget:
   cross aisle, and back. The test presses only `move_forward`; it never jumps or
   teleports between route legs.
 - The walkable-area census is frozen at 77 surfaces / five ramps:
-  8570.131183 m² gross declared, 8316.775617 m² coplanar union, and
-  8331.597742 m² true surface. Fabrication contributes its exact standalone
+  8510.131183 m² gross declared, 8256.775617 m² coplanar union, and
+  8271.597742 m² true surface. Fabrication contributes its exact standalone
   480 m² plus the connector's exact 99 m²; Observation contributes its exact
-  426 m² plus the connector's exact 2 m²; Salvage contributes its exact 456 m²
+  366 m² plus the connector's exact 2 m²; Salvage contributes its exact 456 m²
   plus the connector's exact 3.9312 m². Live-derived ramp totals are
   140.479998 m² projected / 155.302123 m² true. Against the original
   6849.844560 m² station baseline,
-  the live union adds 1466.931057 m² / 21.415537888%, within the frozen 18–22%
-  expansion band with 40.034746 m² remaining to the upper bound.
+  the live union adds 1406.931057 m² / 20.539605602%, within the frozen 18–22%
+  expansion band with 100.034746 m² remaining to the upper bound.
 - The live station material census is 2632 mapped MeshInstance surfaces at
   `0.22/0.28/0.30 = 130/862/1640`, plus 41 MultiMesh batches, 14 mapped.
   Navigation is seven edges over fourteen endpoints and seven presentation couriers;
@@ -383,7 +383,8 @@ standalone module budget:
 
 - The Spur root transform is yaw `+90°`, origin `(92.5, 0.38, 38)`, with exact
   world footprint `x=92.5…132, y=0.08…4.78, z=24.6…51.4`. Its five
-  non-overlapping tagged level surfaces contribute exactly 426 m².
+  non-overlapping tagged level surfaces contribute exactly 366 m² after the two
+  redundant outboard pad strips were compacted without changing the loop seams.
 - The world connector is one tagged deck centred `(92.25, 0.23, 38)`, size
   `(0.5, 0.3, 4)`, exactly 2.0 m². Shadowless safety rails at
   `(92.25, 1.0, 35.88)` and `(92.25, 1.0, 40.12)`, each

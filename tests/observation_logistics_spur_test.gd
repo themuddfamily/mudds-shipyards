@@ -262,7 +262,7 @@ func _test_exposed_lattice_language_contract(module: ObservationLogisticsSpur) -
 	)
 	_check(
 		int(contract.walkable_surface_count) == 5
-		and is_equal_approx(float(contract.walkable_area_m2), 426.0)
+		and is_equal_approx(float(contract.walkable_area_m2), 366.0)
 		and (contract.walkable_surface_ids as PackedStringArray).size() == 5,
 		"language contract freezes five real player-walkable deck surfaces"
 	)
@@ -326,8 +326,8 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var expected_areas := {
 		&"exposed-connector": 88.0,
 		&"pad-cross-landing": 80.0,
-		&"observation-pad": 120.0,
-		&"logistics-pad": 120.0,
+		&"observation-pad": 90.0,
+		&"logistics-pad": 90.0,
 		&"far-return-bridge": 18.0,
 	}
 	var roster := module.get_walkable_surface_roster()
@@ -347,14 +347,14 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 			and is_equal_approx(entry_area, size.x * size.z) \
 			and StringName(entry.kind) == &"level"
 	_check(every_surface_exact and seen.size() == expected_areas.size(), "surface ids, dimensions, kinds and individual horizontal areas are exact")
-	_check(is_equal_approx(area_sum, 426.0) and is_equal_approx(module.get_walkable_area_m2(), 426.0), "non-overlapping surface union publishes exactly 426.0 m²")
+	_check(is_equal_approx(area_sum, 366.0) and is_equal_approx(module.get_walkable_area_m2(), 366.0), "compacted non-overlapping surface union publishes exactly 366.0 m²")
 	(roster[0] as Dictionary)["horizontal_area_m2"] = -1.0
 	_check(float(module.get_walkable_surface_roster()[0].horizontal_area_m2) == 88.0, "surface roster snapshots are deeply detached")
 	var footprint := module.get_integration_footprint()
 	_check((footprint.local_min as Vector3).is_equal_approx(Vector3(-13.4, -0.3, 0.0)), "footprint begins at the exact local origin connection plane")
 	_check((footprint.local_max as Vector3).is_equal_approx(Vector3(13.4, 4.4, 39.5)), "footprint includes both separated pads and the far bridge")
 	var roster_contract := module.get_component_roster()
-	_check(int(roster_contract.walkable_surface_count) == 5 and is_equal_approx(float(roster_contract.walkable_area_m2), 426.0), "component roster repeats the exact surface count and area")
+	_check(int(roster_contract.walkable_surface_count) == 5 and is_equal_approx(float(roster_contract.walkable_area_m2), 366.0), "component roster repeats the compacted exact surface count and area")
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
@@ -481,10 +481,10 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.baseline_renderer_nodes) == 42
 		and int(performance.renderer_nodes) == 35
 		and int(performance.baseline_drawn_copies) == 270
-		and int(performance.drawn_copies) == 280
+		and int(performance.drawn_copies) == 278
 		and int(performance.baseline_surface_submissions) == 42
 		and int(performance.surface_submissions) == 35,
-		"shared scaled trim mesh preserves 280 visible copies and the district's 35 submissions"
+		"shared scaled trim mesh preserves 278 supported visible copies and the district's 35 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
@@ -758,7 +758,9 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		var stack_index := int(case_index / 2)
 		var tier_index := case_index % 2
 		var expected_transform := Transform3D(Basis.IDENTITY, Vector3(
-			11.15, 0.48 + float(tier_index) * 0.58, 28.8 + float(stack_index) * 2.75
+			ObservationLogisticsSpur.LOGISTICS_STACK_X,
+			0.48 + float(tier_index) * 0.58,
+			28.8 + float(stack_index) * 2.75
 		))
 		case_contract_matches = case_contract_matches and (
 			case_body != null
@@ -995,8 +997,8 @@ func _test_collision_support_and_safe_edges(module: ObservationLogisticsSpur) ->
 	var rail_posts := module.get_node_or_null(^"Structure/SafetyRails/VisibleRailPosts") as MultiMeshInstance3D
 	_check(
 		rail_bars != null and rail_bars.multimesh.instance_count == 30
-		and rail_posts != null and rail_posts.multimesh.instance_count == 84,
-		"fifteen conservative safety volumes render as 30 open bars and 84 spaced posts"
+		and rail_posts != null and rail_posts.multimesh.instance_count == 82,
+		"fifteen conservative safety volumes render as 30 open bars and 82 supported spaced posts"
 	)
 	var rail_collision_exact := true
 	for rail in rails:
@@ -1024,14 +1026,14 @@ func _test_embodied_loop_traversal(module: ObservationLogisticsSpur) -> void:
 
 	var waypoints := [
 		Vector3(0.0, 0.86, 24.0),
-		Vector3(-8.0, 0.86, 24.0),
-		Vector3(-8.0, 0.86, 27.0),
-		Vector3(-8.0, 0.86, 32.0),
+		Vector3(-6.75, 0.86, 24.0),
+		Vector3(-6.75, 0.86, 27.0),
+		Vector3(-6.75, 0.86, 32.0),
 		Vector3(-3.55, 0.86, 37.15),
 		Vector3(0.0, 0.86, 38.0),
 		Vector3(3.55, 0.86, 37.15),
-		Vector3(8.0, 0.86, 32.0),
-		Vector3(8.0, 0.86, 24.0),
+		Vector3(6.75, 0.86, 32.0),
+		Vector3(6.75, 0.86, 24.0),
 		Vector3(0.0, 0.86, 24.0),
 		Vector3(0.0, 0.86, 0.8),
 	]
