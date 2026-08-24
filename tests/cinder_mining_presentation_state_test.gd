@@ -20,10 +20,32 @@ func _run() -> void:
 	) as Node3D
 	var collector_bands := presentation.get_node(^"MiningOreBufferBands") as MultiMeshInstance3D
 	var hopper_band := presentation.get_node(^"HopperServiceBand") as MeshInstance3D
+	var port_light := presentation.get_node(^"MiningCrownLampPort") as OmniLight3D
+	var starboard_light := presentation.get_node(^"MiningCrownLampStarboard") as OmniLight3D
+	var port_lens := presentation.get_node(^"MiningCrownLampPortLens") as MeshInstance3D
+	var starboard_lens := presentation.get_node(^"MiningCrownLampStarboardLens") as MeshInstance3D
+	var extraction_sign := presentation.get_node(^"Sign_ORE_EXTRACTION") as MeshInstance3D
 	var retained_collectors_id := collector_bands.get_instance_id()
 	var retained_hopper_id := hopper_band.get_instance_id()
 	var initial_counts := _presentation_counts(presentation)
 	var initial := cluster.get_mining_activity_presentation_state()
+	_check(
+		is_equal_approx(port_light.position.z, extraction_sign.position.z)
+		and is_equal_approx(starboard_light.position.z, extraction_sign.position.z)
+		and port_lens.position.is_equal_approx(port_light.position)
+		and starboard_lens.position.is_equal_approx(starboard_light.position)
+		and is_equal_approx(port_light.position.x, -12.0)
+		and is_equal_approx(starboard_light.position.x, 12.0)
+		and is_equal_approx(extraction_sign.position.z, 18.0)
+		and initial_counts == {
+			"descendants": 14,
+			"meshes": 6,
+			"batches": 5,
+			"lights": 2,
+			"collision_objects": 0,
+		},
+		"the retained crown beacons frame the forward extraction legend without changing the presentation budget"
+	)
 	_check(
 		initial.state_id == &"available"
 		and is_equal_approx(float(initial.port_energy), 0.7)

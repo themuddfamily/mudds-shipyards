@@ -270,6 +270,7 @@ const MINING_COLLECTOR_BAND_FULL_Y := 7.0
 const MINING_CAPACITY_HOPPER_SCALE := Vector3(1.2, 1.0, 1.2)
 const MINING_FAILED_HOPPER_SCALE := Vector3(0.65, 1.35, 0.65)
 const MINING_FAILED_BAND_TURNS := [-38.0, 38.0, -38.0]
+const MINING_EXTRACTION_LOCATOR_Z := 18.0
 
 ## The scan begins twenty metres in front of the platform centre. A fractured
 ## datum frame gathers the existing torn habitat and collapsed solar wing into
@@ -2655,9 +2656,26 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 			(failed_transform * collector_bands.multimesh.mesh.get_aabb()).abs()
 		)
 
-	_lamp(presentation, "MiningCrownLampPort", Vector3(-12.0, 33.0, 0.0), KETH_CYAN, 2.0, 24.0, false)
-	_lamp(presentation, "MiningCrownLampStarboard", Vector3(12.0, 33.0, 0.0), KETH_ORANGE, 2.0, 24.0, false)
-	_sign(presentation, "ORE EXTRACTION", Vector3(0.0, 27.0, 18.0), Vector3.ZERO, 2.4, _materials["orange_glow"])
+	# Keep the existing crown practicals and legend on one forward locator plane.
+	# The paired cyan/orange points now frame the extraction zone during the dock
+	# approach instead of reading as unrelated lights deeper in the machinery.
+	# This moves retained presentation only: renderer/light/submission budgets and
+	# the platform's physical route remain unchanged.
+	_lamp(
+		presentation, "MiningCrownLampPort",
+		Vector3(-12.0, 33.0, MINING_EXTRACTION_LOCATOR_Z),
+		KETH_CYAN, 2.0, 24.0, false
+	)
+	_lamp(
+		presentation, "MiningCrownLampStarboard",
+		Vector3(12.0, 33.0, MINING_EXTRACTION_LOCATOR_Z),
+		KETH_ORANGE, 2.0, 24.0, false
+	)
+	_sign(
+		presentation, "ORE EXTRACTION",
+		Vector3(0.0, 27.0, MINING_EXTRACTION_LOCATOR_Z),
+		Vector3.ZERO, 2.4, _materials["orange_glow"]
+	)
 	_activity_binding.call(
 		"bind_mining_presentation",
 		Callable(self, "_apply_mining_activity_presentation")
