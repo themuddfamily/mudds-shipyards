@@ -37,6 +37,21 @@ const APPROACH_FASCIA_BOUNDS := AABB(
 	Vector3(-12.75, -1.115, -27.75),
 	Vector3(25.5, 1.21, 35.5),
 )
+## The regeneration deck meets the berth at its +Z edge, where the long cyan
+## service tracers previously continued onto the runway without a positive
+## handoff landmark. These two edge-lit, deck-seated blades frame the open
+## centre route and visually funnel it toward the real pad at z = -10. They sit
+## wholly outside the protected small-craft half-width (6.5 m), never bridge the
+## walking/jump volume, and carry no collision, light, clock or berth authority.
+const ROUTE_HANDOFF_FAMILY_ID := &"central_berth_regeneration_handoff"
+const ROUTE_HANDOFF_PATH := ^"service_channels/RegenerationDeckHandoff"
+const ROUTE_HANDOFF_MEMBER_COUNT := 8
+const ROUTE_HANDOFF_TRIANGLE_COUNT := 864
+const ROUTE_HANDOFF_INNER_CLEARANCE_M := 6.76
+const ROUTE_HANDOFF_BOUNDS := AABB(
+	Vector3(-7.74, 0.095, 5.55),
+	Vector3(15.48, 1.433958, 0.90),
+)
 const REQUIRED_ROOTS := [
 	"deck_panels",
 	"edge_fascia",
@@ -71,6 +86,7 @@ var _built := false
 ## instance-owned. Every production wrapper can therefore retain this immutable
 ## approach silhouette without rebuilding four identical chamfer recipes.
 static var _shared_approach_fascia_mesh: ArrayMesh
+static var _shared_route_handoff_mesh: ArrayMesh
 
 
 func _ready() -> void:
@@ -104,6 +120,7 @@ func _build_once() -> void:
 	_manifest = _read_manifest()
 	_configure_runtime_materials()
 	_configure_approach_fascia_bevel()
+	_configure_route_handoff()
 	_capture_integrity_contract()
 
 
@@ -220,6 +237,74 @@ static func _approach_fascia_recipes() -> Array[Dictionary]:
 	]
 
 
+func _configure_route_handoff() -> void:
+	var service_root := get_semantic_root(&"service_channels")
+	var guidance := get_runtime_material(&"GuidanceCyan")
+	if service_root == null or guidance == null:
+		return
+	var handoff := MeshInstance3D.new()
+	handoff.name = "RegenerationDeckHandoff"
+	handoff.mesh = _get_shared_route_handoff_mesh()
+	handoff.material_override = guidance
+	handoff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	handoff.set_meta(&"central_berth_material_role", &"GuidanceCyan")
+	handoff.set_meta(&"central_berth_route_handoff", ROUTE_HANDOFF_FAMILY_ID)
+	handoff.set_meta(&"authored_visible_member_count", ROUTE_HANDOFF_MEMBER_COUNT)
+	handoff.set_meta(&"presentation_only", true)
+	handoff.set_meta(&"gameplay_authority", false)
+	handoff.set_meta(&"collision_authority", false)
+	service_root.add_child(handoff)
+
+
+static func _get_shared_route_handoff_mesh() -> ArrayMesh:
+	if _shared_route_handoff_mesh != null:
+		return _shared_route_handoff_mesh
+	var cache := {}
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for recipe: Dictionary in _route_handoff_recipes():
+		var basis := Basis(Vector3.FORWARD, deg_to_rad(float(recipe.get("roll", 0.0))))
+		tool.append_from(
+			StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+				recipe.size as Vector3,
+				float(recipe.bevel),
+				cache,
+				StationSurfaceKit.BevelUV.FACE_GRID,
+			),
+			0,
+			Transform3D(basis, recipe.position as Vector3),
+		)
+	_shared_route_handoff_mesh = tool.commit()
+	_shared_route_handoff_mesh.resource_name = String(ROUTE_HANDOFF_FAMILY_ID)
+	return _shared_route_handoff_mesh
+
+
+static func _route_handoff_recipes() -> Array[Dictionary]:
+	var recipes: Array[Dictionary] = []
+	for side: float in [-1.0, 1.0]:
+		var x: float = side * 7.35
+		recipes.append({
+			"position": Vector3(x, 0.155, 6.0),
+			"size": Vector3(0.78, 0.12, 0.90),
+			"bevel": 0.05,
+		})
+		recipes.append({
+			"position": Vector3(x, 0.815, 6.0),
+			"size": Vector3(0.22, 1.20, 0.22),
+			"bevel": 0.045,
+		})
+		# From the regeneration-deck sightline these paired slashes lean inward,
+		# turning the existing parallel service tracers into an unmistakable gate.
+		for roll in [-34.0, 34.0]:
+			recipes.append({
+				"position": Vector3(x - side * 0.20, 1.20, 5.86),
+				"size": Vector3(0.16, 0.72, 0.14),
+				"bevel": 0.035,
+				"roll": roll,
+			})
+	return recipes
+
+
 func get_asset_root() -> Node3D:
 	return _asset_root if _asset_root != null and is_instance_valid(_asset_root) else null
 
@@ -285,15 +370,17 @@ func get_asset_audit_report() -> Dictionary:
 	if forbidden_authority_node_count != 0:
 		errors.append("visual_subtree_contains_gameplay_authority_nodes")
 
-	var mesh_count := live_root.find_children("*", "MeshInstance3D", true, false).size() if live_root != null else 0
-	var whole_wrapper_mesh_count := find_children("*", "MeshInstance3D", true, false).size()
+	var mesh_count := _authored_mesh_instances(live_root).size()
+	var whole_wrapper_mesh_count := _authored_mesh_instances(self).size()
+	var total_render_mesh_count := find_children("*", "MeshInstance3D", true, false).size()
 	if whole_wrapper_mesh_count != mesh_count:
 		errors.append("visual_mesh_exists_outside_authored_asset_root")
 	var surface_count := _subtree_surface_count(live_root)
 	var triangle_count := _subtree_triangle_count(live_root)
-	if mesh_count > MAXIMUM_RUNTIME_MESHES:
+	var total_render_surface_count := _whole_wrapper_surface_count()
+	if total_render_mesh_count > MAXIMUM_RUNTIME_MESHES:
 		errors.append("runtime_mesh_draw_budget_exceeded")
-	if surface_count > MAXIMUM_RUNTIME_SURFACES:
+	if total_render_surface_count > MAXIMUM_RUNTIME_SURFACES:
 		errors.append("runtime_surface_draw_budget_exceeded")
 	var bounds := _runtime_bounds(live_root)
 	if (
@@ -305,6 +392,7 @@ func get_asset_audit_report() -> Dictionary:
 	_append_manifest_errors(errors, mesh_count, surface_count, triangle_count)
 	_append_integrity_errors(errors)
 	_append_approach_fascia_bevel_errors(errors)
+	_append_route_handoff_errors(errors)
 	_append_deck_material_errors(errors)
 	_append_material_role_errors(errors)
 
@@ -330,6 +418,13 @@ func get_asset_audit_report() -> Dictionary:
 		"whole_wrapper_mesh_count": whole_wrapper_mesh_count,
 		"runtime_surface_count": surface_count,
 		"runtime_triangle_count": triangle_count,
+		"total_render_mesh_count": total_render_mesh_count,
+		"total_render_surface_count": total_render_surface_count,
+		"route_handoff_family": ROUTE_HANDOFF_FAMILY_ID,
+		"route_handoff_member_count": ROUTE_HANDOFF_MEMBER_COUNT,
+		"route_handoff_triangle_count": ROUTE_HANDOFF_TRIANGLE_COUNT,
+		"route_handoff_inner_clearance_m": ROUTE_HANDOFF_INNER_CLEARANCE_M,
+		"route_handoff_bounds": ROUTE_HANDOFF_BOUNDS,
 		"approach_fascia_bevel_family": APPROACH_FASCIA_FAMILY_ID,
 		"approach_fascia_member_count": APPROACH_FASCIA_MEMBER_COUNT,
 		"approach_fascia_bevel_m": APPROACH_FASCIA_BEVEL_M,
@@ -432,6 +527,30 @@ func _append_approach_fascia_bevel_errors(errors: PackedStringArray) -> void:
 		or not bool(fascia.get_meta(&"presentation_only", false))
 	):
 		errors.append("approach_fascia_bevel_recipe_drift")
+
+
+func _append_route_handoff_errors(errors: PackedStringArray) -> void:
+	var handoff := _asset_root.get_node_or_null(ROUTE_HANDOFF_PATH) as MeshInstance3D \
+		if _asset_root != null else null
+	if (
+		handoff == null
+		or handoff.mesh == null
+		or handoff.mesh != _get_shared_route_handoff_mesh()
+		or handoff.mesh.resource_name != String(ROUTE_HANDOFF_FAMILY_ID)
+		or handoff.mesh.get_surface_count() != 1
+		or _mesh_triangle_count(handoff.mesh) != ROUTE_HANDOFF_TRIANGLE_COUNT
+		or not handoff.mesh.get_aabb().is_equal_approx(ROUTE_HANDOFF_BOUNDS)
+		or handoff.material_override != get_runtime_material(&"GuidanceCyan")
+		or handoff.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		or StringName(handoff.get_meta(&"central_berth_route_handoff", &""))
+			!= ROUTE_HANDOFF_FAMILY_ID
+		or int(handoff.get_meta(&"authored_visible_member_count", 0))
+			!= ROUTE_HANDOFF_MEMBER_COUNT
+		or not bool(handoff.get_meta(&"presentation_only", false))
+		or bool(handoff.get_meta(&"gameplay_authority", true))
+		or bool(handoff.get_meta(&"collision_authority", true))
+	):
+		errors.append("regeneration_route_handoff_recipe_drift")
 
 
 func _append_integrity_errors(errors: PackedStringArray) -> void:
@@ -638,7 +757,7 @@ func _runtime_bounds(root_node: Node3D) -> Dictionary:
 		return {"minimum": Vector3.INF, "maximum": Vector3.INF}
 	var minimum := Vector3.INF
 	var maximum := -Vector3.INF
-	for candidate in root_node.find_children("*", "MeshInstance3D", true, false):
+	for candidate in _authored_mesh_instances(root_node):
 		var mesh_instance := candidate as MeshInstance3D
 		if mesh_instance.mesh == null:
 			continue
@@ -657,7 +776,7 @@ func _subtree_surface_count(root_node: Node) -> int:
 	if root_node == null:
 		return 0
 	var count := 0
-	for candidate in root_node.find_children("*", "MeshInstance3D", true, false):
+	for candidate in _authored_mesh_instances(root_node):
 		var mesh := (candidate as MeshInstance3D).mesh
 		count += mesh.get_surface_count() if mesh != null else 0
 	return count
@@ -667,8 +786,26 @@ func _subtree_triangle_count(root_node: Node) -> int:
 	if root_node == null:
 		return 0
 	var count := 0
-	for candidate in root_node.find_children("*", "MeshInstance3D", true, false):
+	for candidate in _authored_mesh_instances(root_node):
 		count += _mesh_triangle_count((candidate as MeshInstance3D).mesh)
+	return count
+
+
+func _authored_mesh_instances(root_node: Node) -> Array[Node]:
+	var meshes: Array[Node] = []
+	if root_node == null:
+		return meshes
+	for candidate in root_node.find_children("*", "MeshInstance3D", true, false):
+		if not (candidate as MeshInstance3D).has_meta(&"central_berth_route_handoff"):
+			meshes.append(candidate)
+	return meshes
+
+
+func _whole_wrapper_surface_count() -> int:
+	var count := 0
+	for candidate in find_children("*", "MeshInstance3D", true, false):
+		var mesh := (candidate as MeshInstance3D).mesh
+		count += mesh.get_surface_count() if mesh != null else 0
 	return count
 
 
