@@ -89,6 +89,20 @@ const RECOMMENDED_MAX_INSTANCES := 6
 ## animation remains per instance and swaps only MeshInstance3D overrides.
 static var _shared_material_catalog: Dictionary = {}
 
+## Geometry recipes are immutable after the presentation builder returns. The
+## builder's shape caches deliberately live for only one build, however, so ten
+## production activities otherwise retain duplicate allocations for any
+## box/cylinder recipe repeated between placements (apart from the beacon base's
+## older special case). Keep the
+## renderer-facing nodes and MultiMeshes instance-local, but canonicalise their
+## contained Mesh resources here, at the production component boundary.
+##
+## Keys include every stored mesh property, not merely bounds: two silhouettes
+## with the same AABB cannot alias accidentally. A cached entry is fingerprinted
+## again before reuse so external in-place drift fails every existing user of
+## that shared mesh but cannot contaminate a later build.
+static var _shared_visual_mesh_catalog: Dictionary = {}
+
 ## Exact, not merely bounding: `get_validation_errors()` rejects a live count that
 ## differs from its profile row in either direction.
 ##
@@ -453,6 +467,7 @@ func _ready() -> void:
 		_shared_material_catalog
 	)
 	_adopt_presentation_builder_state()
+	_share_immutable_visual_meshes()
 	if _shared_material_catalog.is_empty():
 		_shared_material_catalog = _materials.duplicate(false)
 	_service_zone_anchor.position = _get_profile_service_zone_center()
@@ -480,6 +495,35 @@ func _adopt_presentation_builder_state() -> void:
 	_station_life_lenses = _presentation_builder.get_station_life_lenses()
 	_station_life_lens_specs = _presentation_builder.get_station_life_lens_specs()
 	_multimesh_batch_transforms = _presentation_builder.get_multimesh_batch_transforms()
+
+
+func _share_immutable_visual_meshes() -> void:
+	for candidate in _presentation_root.find_children("*", "", true, false):
+		var mesh: Mesh = null
+		if candidate is MeshInstance3D:
+			mesh = (candidate as MeshInstance3D).mesh
+		elif candidate is MultiMeshInstance3D:
+			var batch := candidate as MultiMeshInstance3D
+			if batch.multimesh != null:
+				mesh = batch.multimesh.mesh
+		if mesh == null:
+			continue
+		var cache_key := _visual_mesh_cache_key(mesh)
+		var shared_mesh := _shared_visual_mesh_catalog.get(cache_key) as Mesh
+		if shared_mesh == null or _visual_mesh_cache_key(shared_mesh) != cache_key:
+			_shared_visual_mesh_catalog[cache_key] = mesh
+			continue
+		if candidate is MeshInstance3D:
+			(candidate as MeshInstance3D).mesh = shared_mesh
+		else:
+			((candidate as MultiMeshInstance3D).multimesh as MultiMesh).mesh = shared_mesh
+
+
+func _visual_mesh_cache_key(mesh: Mesh) -> String:
+	return "%s|%s" % [
+		mesh.get_class(),
+		"|".join(_resource_storage_fingerprint(mesh)),
+	]
 
 
 func _process(delta: float) -> void:
