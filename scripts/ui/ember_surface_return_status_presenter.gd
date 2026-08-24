@@ -57,6 +57,9 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 		lines.append("REASON  " + str(receipt.get("reason", &"")).replace("_", " ").to_upper())
 	if not manifest.is_empty() and StringName(manifest.get("destination_id", &"")) != &"":
 		lines.append("DESTINATION  " + str(manifest.get("destination_id")))
+	var next_action := _next_action_cue(mapped.get("state", &"rejected") as StringName)
+	if not next_action.is_empty():
+		lines.append("NEXT ACTION  //  " + str(next_action.get("label", "")))
 	lines.append("TRANSITION  //  STATIC" if reduced_motion else "TRANSITION  //  STANDARD")
 	_attached = true
 	_view = {
@@ -66,6 +69,7 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 		"reduced_motion": reduced_motion, "focusable": true,
 		"color_independent": true, "reduced_flash_safe": true,
 		"flash_requested": false, "route_guidance": route_guidance,
+		"next_action": next_action,
 		"presentation_only": true,
 		"movement_authority": false, "landing_authority": false,
 		"session_authority": false, "reward_authority": false,
@@ -103,6 +107,21 @@ func _finite(source: Dictionary, key: StringName) -> float:
 	if not (value is int or value is float) or not is_finite(float(value)) or float(value) < 0.0:
 		return -1.0
 	return float(value)
+
+
+## Reboarding leaves the craft landed and waiting for the already-authenticated
+## take-off transition. This is a readable state cue only: it neither exposes
+## an input binding nor requests travel from the host.
+func _next_action_cue(state: StringName) -> Dictionary:
+	if state == &"reboarded":
+		return {
+			"id": &"takeoff",
+			"label": "TAKE OFF",
+			"focusable": true,
+			"input_authority": false,
+			"travel_authority": false,
+		}.duplicate(true)
+	return {}
 
 
 ## Derives one display-only route vector from the Host's detached actor/route

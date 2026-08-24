@@ -114,9 +114,26 @@ func _run() -> void:
 	host.snapshot.generation = 5
 	production.state_changed.emit({})
 	_check(detail.text == before_stale, "stale return generation cannot overwrite HUD")
+	host.snapshot = {
+		"attached": true,
+		"generation": 7,
+		"attachment_generation": 3,
+		"phase_id": &"reboarded",
+	}
+	production.state_changed.emit({})
+	var takeoff_cue := adapter.get_snapshot().surface_route.get("next_action", {}) as Dictionary
+	_check(
+		detail.text.contains("NEXT // TAKE OFF // EMBER RETURN // REBOARDED")
+			and takeoff_cue.get("id", &"") == &"takeoff"
+			and bool(takeoff_cue.get("focusable", false))
+			and not bool(takeoff_cue.get("input_authority", true))
+			and not bool(takeoff_cue.get("travel_authority", true)),
+		"reboarded state gives controller players a focus-safe take-off cue without gaining input or travel authority",
+	)
+	before_stale = detail.text
 	adapter.detach()
 	_check(hud.get_offscreen_route_marker().is_empty(), "detach clears retained surface guidance")
-	host.snapshot.generation = 7
+	host.snapshot.generation = 8
 	host.snapshot.attachment_generation = 3
 	host.snapshot.phase_id = &"orbit_return"
 	production.state_changed.emit({})

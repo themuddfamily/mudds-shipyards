@@ -101,6 +101,12 @@ func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
 		waypoint_id = guidance.get("target_id", state) as StringName
 		waypoint_label = str(guidance.get("target_label", waypoint_label))
 		distance = float(guidance.get("distance_m", distance))
+	var next_action := view.get("next_action", {}) as Dictionary
+	if not next_action.is_empty():
+		# SurfaceRouteHazardPresenter renders its first waypoint as the retained
+		# controller-readable NEXT row. Keep this cue in that existing focus path
+		# rather than creating a second, non-authoritative action control.
+		waypoint_label = str(next_action.get("label", "NEXT")) + " // " + waypoint_label
 	return {
 		"title": "EMBER RETURN",
 		"message": str(view.get("text", "EMBER RETURN STATUS")),
@@ -117,6 +123,7 @@ func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
 		},
 		"state": state,
 		"route_guidance": guidance.duplicate(true),
+		"next_action": next_action.duplicate(true),
 		"reduced_motion": bool(view.get("reduced_motion", false)),
 		"reduced_flash_safe": bool(view.get("reduced_flash_safe", false)),
 		"navigation_authority": false,
