@@ -160,6 +160,17 @@ const RANGE_ENGINE_POD_POSITIONS := [
 ]
 const RANGE_ENGINE_POD_NAMES := ["PortEnginePod", "StarboardEnginePod"]
 
+## The forward prongs are the same y-symmetric wedge reflected across X. A
+## 180-degree Z rotation performs that reflection together with an invisible Y
+## reflection, retaining proper winding/normals while both ordinary renderers
+## share the port-authored immutable ArrayMesh.
+const FORWARD_PRONG_SIZE := Vector3(1.18, 0.72, 8.35)
+const FORWARD_PRONG_SKEW := 0.025
+const FORWARD_PRONG_POSITIONS := [
+	Vector3(-2.65, -0.02, -0.65),
+	Vector3(2.65, -0.02, -0.65),
+]
+
 @export_category("Defense craft")
 @export_range(1.0, 1000.0, 1.0) var maximum_health := 85.0
 @export_range(10.0, 160.0, 1.0) var cruise_speed := 38.0
@@ -1893,9 +1904,12 @@ func _build_interceptor() -> void:
 	_add_gun_housing_batch(_visual_root)
 	_add_range_engine_pod_batch(_visual_root)
 
+	var forward_prong_mesh: Mesh
 	for side_index in 2:
 		var side := -1.0 if side_index == 0 else 1.0
-		_wedge(_visual_root, "ForwardProng", Vector3(side * 2.65, -0.02, -0.65), Vector3(1.18, 0.72, 8.35), _materials.ivory, side * 0.025)
+		forward_prong_mesh = _add_shared_forward_prong(
+			_visual_root, side_index, forward_prong_mesh
+		)
 		for spec in SYMMETRIC_HULL_BOX_SPECS:
 			var family_name := StringName(spec["name"])
 			_box_from_mesh(
@@ -1949,6 +1963,29 @@ func _build_interceptor() -> void:
 
 	_build_collision()
 	_build_damage_effects()
+
+
+func _add_shared_forward_prong(
+	parent: Node3D,
+	side_index: int,
+	shared_mesh: Mesh
+	) -> Mesh:
+	if side_index == 0:
+		return _wedge(
+			parent,
+			"ForwardProng",
+			FORWARD_PRONG_POSITIONS[0],
+			FORWARD_PRONG_SIZE,
+			_materials.ivory,
+			-FORWARD_PRONG_SKEW
+		).mesh
+	var starboard := MeshInstance3D.new()
+	starboard.name = "ForwardProng"
+	starboard.position = FORWARD_PRONG_POSITIONS[1]
+	starboard.rotation.z = PI
+	starboard.mesh = shared_mesh
+	parent.add_child(starboard)
+	return shared_mesh
 
 
 func _add_gun_housing_batch(parent: Node3D) -> MultiMeshInstance3D:
