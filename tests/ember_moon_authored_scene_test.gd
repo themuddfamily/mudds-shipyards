@@ -369,7 +369,13 @@ func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
 		"the pad-to-egress-to-bunker route has distinct basalt, walked grip, structural metal, and painted service responses",
 	)
 	_check(
-		gantry_sensor_material.albedo_color.is_equal_approx(Color("c66a3d"))
+		route_material.albedo_color.is_equal_approx(Color("f0b35e"))
+			and not route_material.emission_enabled
+			and route_material.albedo_color.get_luminance()
+				> pad_material.albedo_color.get_luminance()
+			and route_material.albedo_color.get_luminance()
+				> floor_material.albedo_color.get_luminance()
+			and gantry_sensor_material.albedo_color.is_equal_approx(Color("c66a3d"))
 			and service_material.albedo_color.is_equal_approx(Color("d99253"))
 			and not gantry_sensor_material.emission_enabled
 			and not service_material.emission_enabled
@@ -377,7 +383,7 @@ func _test_surface_material_hierarchy(scene: EmberMoonAuthoredScene) -> void:
 				> gantry_material.albedo_color.get_luminance()
 			and service_material.albedo_color.get_luminance()
 				> gantry_material.albedo_color.get_luminance(),
-		"existing gantry and bunker landmarks gain brighter non-emissive access accents without a light or flash cue",
+		"the shared route/cue surface and access landmarks stay brighter and non-emissive without a light or flash cue",
 	)
 
 

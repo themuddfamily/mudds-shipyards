@@ -114,7 +114,10 @@ const BODY_COLOR := Color("552817")
 const FLOOR_COLOR := Color("292421")
 const RIM_COLOR := Color("713a25")
 const PAD_COLOR := Color("a85f32")
-const ROUTE_COLOR := Color("d28245")
+## High-value ochre keeps the continuous egress strip and its shared landing
+## cue batches legible against both the dark caldera floor and oxidised pad.
+## It remains a fully lit, non-emissive surface under the airless-sun owner.
+const ROUTE_COLOR := Color("f0b35e")
 const GUIDE_COLOR := Color("71d9da")
 const EQUIPMENT_COLOR := Color("4f4942")
 const RELAY_COLOR := Color("e1a458")
@@ -422,6 +425,10 @@ func _configure_surface_material_hierarchy() -> void:
 		GRIP_PANEL_SCALE, GRIP_METALLIC, GRIP_ROUGHNESS,
 		StationSurfaceKit.PanelFinish.WALKED_DECK,
 	)
+	_configure_non_emissive_accent_material(
+		_material_at(^"LandingRegion/SurfaceLandmarks/EgressRouteVisual"),
+		ROUTE_COLOR,
+	)
 	for path: NodePath in [
 		^"LandingRegion/SurfaceLandmarks/SampleRack/RackVisual",
 		^"LandingRegion/SurfaceLandmarks/StagingRelay/BaseVisual",
@@ -447,11 +454,11 @@ func _configure_surface_material_hierarchy() -> void:
 			_material_at(path), SERVICE_PANEL_SCALE, SERVICE_METALLIC, SERVICE_ROUGHNESS,
 			StationSurfaceKit.PanelFinish.PAINTED_METAL,
 		)
-	_configure_landmark_accent_material(
+	_configure_non_emissive_accent_material(
 		_material_at(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual"),
 		DERELICT_OXIDE_COLOR,
 	)
-	_configure_landmark_accent_material(
+	_configure_non_emissive_accent_material(
 		_material_at(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker/DoorVisual"),
 		BUNKER_DOOR_COLOR,
 	)
@@ -485,10 +492,10 @@ static func _configure_panel_material(
 		material.roughness = roughness
 
 
-## Accent colour is authored on two already-solid landmark surfaces only. The
-## material remains fully lit and non-emissive, so the airless sun evaluation
-## continues to own all illumination and accessibility cadence.
-static func _configure_landmark_accent_material(
+## Accent colour is applied only to existing authored surfaces. The material
+## remains fully lit and non-emissive, so the airless sun evaluation continues
+## to own all illumination and accessibility cadence.
+static func _configure_non_emissive_accent_material(
 		material: StandardMaterial3D, accent_color: Color,
 	) -> void:
 	if material == null:
