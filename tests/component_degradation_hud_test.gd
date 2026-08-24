@@ -10,6 +10,7 @@ class ComponentReportSource:
 	extends Node
 
 	signal component_damage_changed(component_id: StringName, state: int, integrity: float)
+	signal component_repair_progressed(progress: Dictionary)
 
 	var report: Dictionary = {}
 
@@ -21,6 +22,12 @@ class ComponentReportSource:
 	func publish(next_report: Dictionary) -> void:
 		report = next_report.duplicate(true)
 		component_damage_changed.emit(&"engine_bay", 0, 1.0)
+
+
+	func publish_repair(progress: Dictionary, next_report: Dictionary = {}) -> void:
+		if not next_report.is_empty():
+			report = next_report.duplicate(true)
+		component_repair_progressed.emit(progress.duplicate(true))
 
 
 func _init() -> void:
@@ -58,7 +65,8 @@ func _run() -> void:
 		and label.text.contains("DEGRADED")
 		and label.text.contains("%")
 		and degraded.get("authoritative_stage") == &"impaired"
-		and degraded.get("wording") == &"degraded",
+		and degraded.get("wording") == &"degraded"
+		and degraded.get("text") == label.text,
 		"a real component signal publishes section, integrity, and explicit DEGRADED wording"
 	)
 
@@ -68,17 +76,20 @@ func _run() -> void:
 		label.text.begins_with("[!] DAMAGE  //  ENGINE BAY")
 		and label.text.contains("CRITICAL")
 		and critical.get("authoritative_stage") == &"impaired"
-		and critical.get("wording") == &"critical",
+		and critical.get("wording") == &"critical"
+		and critical.get("text") == label.text,
 		"authoritative impaired integrity below forty percent gains explicit non-color CRITICAL wording"
 	)
 
 	var repair := torrent.get_component_damage().tick_component_repair(
 		ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.10, true
 	)
+	var repair_snapshot := hud.get_hero_component_hud_snapshot()
 	_check(
 		bool(repair.get("accepted", false))
 		and label.text.begins_with("[+] RECOVERY  //  ENGINE BAY")
-		and label.text.contains("REPAIRING"),
+		and label.text.contains("REPAIRING")
+		and repair_snapshot.get("text") == label.text,
 		"authorized recovery leads with a steady non-color repair mark and names its component"
 	)
 
@@ -90,7 +101,8 @@ func _run() -> void:
 		and failed.get("authoritative_stage") == &"failed"
 		and failed.get("wording") == &"failed"
 		and bool(failed.get("presentation_only", false))
-		and not bool(failed.get("authority", true)),
+		and not bool(failed.get("authority", true))
+		and failed.get("text") == label.text,
 		"failed component wording remains an explicitly authority-free HUD presentation"
 	)
 
@@ -117,6 +129,7 @@ func _run() -> void:
 	var accepted_report := torrent.get_component_damage_report()
 	accepted_report["ledger_generation"] = 12
 	report_source.report = accepted_report
+	var accepted_revision := int(accepted_report.get("revision", -1))
 	_check(
 		hud.bind_hero_component_ship(report_source)
 		and label.text.begins_with("[!] DAMAGE  //  ENGINE BAY"),
@@ -124,18 +137,88 @@ func _run() -> void:
 	)
 	var accepted_text := label.text
 	var stale_report := arrow.get_component_damage_report()
-	stale_report["ledger_generation"] = 11
+	stale_report["ledger_generation"] = 12
+	stale_report["revision"] = accepted_revision - 1
 	report_source.publish(stale_report)
 	_check(
 		label.text == accepted_text,
-		"a stale ledger generation cannot repaint the retained component line"
+		"an older revision in the accepted generation cannot repaint the component line"
+	)
+	stale_report["revision"] = accepted_revision
+	report_source.publish(stale_report)
+	_check(
+		label.text == accepted_text,
+		"divergent payload at an equal generation and revision replays the accepted snapshot"
 	)
 	var replacement_report := arrow.get_component_damage_report()
-	replacement_report["ledger_generation"] = 13
+	replacement_report["ledger_generation"] = 12
+	replacement_report["revision"] = accepted_revision + 1
 	report_source.publish(replacement_report)
 	_check(
 		label.text == "COMPONENT  //  FORWARD HULL  100%  //  NOMINAL",
-		"a newer actor lifecycle generation atomically replaces the prior damage cue"
+		"a newer same-generation report revision replaces the prior damage cue"
+	)
+
+	var repair_base := accepted_report.duplicate(true)
+	repair_base["ledger_generation"] = 13
+	repair_base["revision"] = accepted_revision + 2
+	report_source.publish(repair_base)
+	var repair_base_text := label.text
+	var stale_progress := _repair_progress_for(repair_base, accepted_revision + 2)
+	report_source.publish_repair(stale_progress)
+	_check(
+		label.text == repair_base_text and not label.text.contains("RECOVERY"),
+		"same-generation repair progress cannot replay an already accepted revision"
+	)
+	var future_progress := _repair_progress_for(repair_base, accepted_revision + 3)
+	future_progress["generation"] = 14
+	report_source.publish_repair(future_progress)
+	_check(
+		label.text == repair_base_text,
+		"an unpaired future-generation repair receipt fails closed"
+	)
+	var mismatched_progress := _repair_progress_for(repair_base, accepted_revision + 3)
+	report_source.publish_repair(mismatched_progress)
+	_check(
+		label.text == repair_base_text,
+		"repair progress cannot advance without an exactly matching live report revision"
+	)
+	var paired_repair_report := repair_base.duplicate(true)
+	paired_repair_report["revision"] = accepted_revision + 3
+	_set_component_state(
+		paired_repair_report,
+		ShipComponentDamageType.COMPONENT_ENGINE_BAY,
+		0.60,
+		&"impaired"
+	)
+	var component_mismatch_progress := _repair_progress_for(
+		repair_base, accepted_revision + 3
+	)
+	report_source.publish_repair(component_mismatch_progress, paired_repair_report)
+	_check(
+		label.text == repair_base_text,
+		"matching chronology still rejects repair component data that disagrees with its report"
+	)
+	var paired_progress := _repair_progress_for(paired_repair_report, accepted_revision + 3)
+	report_source.publish_repair(paired_progress, paired_repair_report)
+	_check(
+		label.text.begins_with("[+] RECOVERY  //  ENGINE BAY")
+		and hud.get_hero_component_hud_snapshot().get("text") == label.text,
+		"only matching report and progress chronology publishes steady recovery semantics"
+	)
+
+	game.remove_child(report_source)
+	_check(
+		not label.visible
+		and label.text.is_empty()
+		and hud.get_hero_component_hud_snapshot().is_empty(),
+		"observed actor loss clears both rendered and inspectable component state"
+	)
+	report_source.free()
+	_check(
+		hud.bind_hero_component_ship(arrow)
+		and label.text == "COMPONENT  //  FORWARD HULL  100%  //  NOMINAL",
+		"switching after actor loss starts a fresh report chronology"
 	)
 
 	hud.set_mode("on-foot")
@@ -186,6 +269,41 @@ func _component_local_position(ship: HeroShip, component_id: StringName) -> Vect
 		if StringName((component as Dictionary).get("id", &"")) == component_id:
 			return (component as Dictionary).get("local_position", Vector3.ZERO) as Vector3
 	return Vector3.ZERO
+
+
+func _set_component_state(
+	report: Dictionary,
+	component_id: StringName,
+	integrity: float,
+	state_id: StringName
+	) -> void:
+	for raw_component in report.get("components", []) as Array:
+		if not raw_component is Dictionary:
+			continue
+		var component := raw_component as Dictionary
+		if StringName(component.get("id", &"")) == component_id:
+			component["integrity"] = integrity
+			component["state_id"] = state_id
+			return
+
+
+func _repair_progress_for(report: Dictionary, revision: int) -> Dictionary:
+	for raw_component in report.get("components", []) as Array:
+		if not raw_component is Dictionary:
+			continue
+		var component := raw_component as Dictionary
+		if StringName(component.get("id", &"")) == ShipComponentDamageType.COMPONENT_ENGINE_BAY:
+			return {
+				"generation": int(report.get("ledger_generation", 0)),
+				"revision": revision,
+				"component_count": 1,
+				"components": [{
+					"component_id": ShipComponentDamageType.COMPONENT_ENGINE_BAY,
+					"integrity": float(component.get("integrity", 0.0)),
+					"state_id": StringName(component.get("state_id", &"")),
+				}],
+			}
+	return {}
 
 
 func _check(condition: bool, message: String) -> void:
