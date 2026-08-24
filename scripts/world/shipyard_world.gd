@@ -302,11 +302,15 @@ const SERVICE_LINE_PRACTICAL_COUNT := 6
 ## this black family removes three submissions without moving or merging any
 ## berth, route, evidence, lifecycle, collision or fixture authority.
 const SERVICE_LINE_BLACK_BIN_STOCK_COPY_COUNT := 4
-const SERVICE_LINE_RENDER_DESCENDANT_COUNT := 224
-const SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT := 96
-const SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT := 1
+## The board's three identical pin sockets are one tight, visual-only family.
+## Their retaining pins remain independent state hardware; only the anonymous
+## black receptacles beneath them share one renderer submission.
+const SERVICE_LINE_BAY_PIN_SOCKET_COPY_COUNT := 3
+const SERVICE_LINE_RENDER_DESCENDANT_COUNT := 222
+const SERVICE_LINE_RENDER_MESH_INSTANCE_COUNT := 93
+const SERVICE_LINE_RENDER_MULTIMESH_BATCH_COUNT := 2
 const SERVICE_LINE_RENDER_DRAWN_COPY_COUNT := 100
-const SERVICE_LINE_RENDER_SUBMISSION_COUNT := 97
+const SERVICE_LINE_RENDER_SUBMISSION_COUNT := 95
 ## Rounded plan profile for the access stand's main boarding platform.
 ##
 ## The old 1.8 x 2.2 m shallow `_box` had only a 0.022 m bevel because its
@@ -6873,6 +6877,7 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 	# the state: seated in the socket for an assignment, parked in the clip for
 	# the one deferral.
 	var bay_states := [true, true, false]
+	var pin_socket_transforms: Array[Transform3D] = []
 	for bay_index in bay_states.size():
 		var assigned: bool = bay_states[bay_index]
 		var tile_x := -0.32 + float(bay_index) * 0.32
@@ -6884,9 +6889,18 @@ func _build_port_flank_ground_support(line: Node3D) -> void:
 			_materials["berth_cyan_glow"] if assigned else _materials["black"],
 			false
 		)
-		_box(board, "BayPinSocket%02d" % bay_index, Vector3(tile_x, 1.34, 0.135), Vector3(0.10, 0.10, 0.02), _materials["black"], false)
+		pin_socket_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(tile_x, 1.34, 0.135))
+		)
 		if assigned:
 			_cylinder(board, "BaySeatedPin%02d" % bay_index, Vector3(tile_x, 1.34, 0.20), 0.028, 0.16, _materials["ivory"], false, Vector3(90.0, 0.0, 0.0))
+	_multimesh_visual_boxes(
+		board,
+		"BayPinSockets",
+		Vector3(0.10, 0.10, 0.02),
+		_materials["black"],
+		pin_socket_transforms
+	)
 	# Hooded lamp over the board. The board is the first object on this flank a
 	# player walking down from the spawn marker meets, and an unlit board is a
 	# board nobody reads.
@@ -7122,7 +7136,7 @@ func _build_dock_mast_foot_hardware(line: Node3D) -> void:
 		)
 
 
-## Deep-detached renderer audit for the service line's one visual-only batch.
+## Deep-detached renderer audit for the service line's bounded visual batches.
 func get_central_berth_service_line_render_contract() -> Dictionary:
 	var line := _central_berth_service_line
 	if line == null or not is_instance_valid(line):
@@ -9305,8 +9319,9 @@ func _horizontal_rounded_rectangle_mesh(
 	return mesh
 
 
-## One audited batch for repeated, anonymous visual stock. Semantic and solid
-## pieces continue through `_box`; this helper must never receive their roster.
+## One audited batch for a tight family of repeated visual-only boxes. Solid
+## pieces continue through `_box`; this helper must never receive collision,
+## interaction, light, berth or other gameplay authority.
 func _multimesh_visual_boxes(
 	parent: Node3D,
 	node_name: String,

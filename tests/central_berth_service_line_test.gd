@@ -61,6 +61,7 @@ func _run() -> void:
 	_test_report_and_roster(world)
 	_test_access_platform_rounded_profile(world)
 	_test_black_bin_stock_batch(world)
+	_test_board_pin_socket_batch(world)
 	_test_solid_pieces_match_their_drawn_mesh(world)
 	_test_pieces_are_seated_on_drawn_geometry(world)
 	_test_lanes_stay_clear(world)
@@ -251,16 +252,16 @@ func _test_black_bin_stock_batch(world: ShipyardWorld) -> void:
 
 	var render := world.get_central_berth_service_line_render_contract()
 	_check(
-		int(render.get("descendant_nodes", -1)) == 224
-		and int(render.get("mesh_instances", -1)) == 96
-		and int(render.get("multimesh_batches", -1)) == 1,
-		"renderer nodes freeze at 224, MeshInstances at 96, and batches at one"
+		int(render.get("descendant_nodes", -1)) == 222
+		and int(render.get("mesh_instances", -1)) == 93
+		and int(render.get("multimesh_batches", -1)) == 2,
+		"renderer nodes freeze at 222, MeshInstances at 93, and batches at two"
 	)
 	_check(
 		int(render.get("drawn_copies", -1)) == 100
-		and int(render.get("geometry_submissions", -1)) == 97
+		and int(render.get("geometry_submissions", -1)) == 95
 		and bool(render.get("exact_counts", false)),
-		"the remaining service line draws 100 copies in 97 geometry submissions"
+		"the remaining service line draws 100 copies in 95 geometry submissions"
 	)
 	_check(
 		int(render.get("physics_bodies", -1)) == 56
@@ -314,6 +315,68 @@ func _test_black_bin_stock_batch(world: ShipyardWorld) -> void:
 	_check(
 		bool(world.get_central_berth_service_line_report().get("valid", false)),
 		"restoring renderer payload and bounds returns the audit to green"
+	)
+
+
+func _test_board_pin_socket_batch(world: ShipyardWorld) -> void:
+	var board := world.get_node_or_null(
+		^"CentralBerthServiceLine/PortFlank/BerthReadinessBoard"
+	) as Node3D
+	var batch := world.get_node_or_null(
+		^"CentralBerthServiceLine/PortFlank/BerthReadinessBoard/BayPinSockets"
+	) as MultiMeshInstance3D
+	_check(board != null and batch != null, "readiness-board pin sockets resolve as one local MultiMesh batch")
+	if board == null or batch == null or batch.multimesh == null:
+		return
+	var multi := batch.multimesh
+	var expected: Array[Transform3D] = [
+		Transform3D(Basis.IDENTITY, Vector3(-0.32, 1.34, 0.135)),
+		Transform3D(Basis.IDENTITY, Vector3(0.0, 1.34, 0.135)),
+		Transform3D(Basis.IDENTITY, Vector3(0.32, 1.34, 0.135)),
+	]
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	var authored_exact := authored.size() == expected.size()
+	for index in mini(authored.size(), expected.size()):
+		authored_exact = authored_exact \
+			and (authored[index] as Transform3D).is_equal_approx(expected[index])
+	_check(
+		multi.instance_count == ShipyardWorld.SERVICE_LINE_BAY_PIN_SOCKET_COPY_COUNT
+		and multi.visible_instance_count == -1
+		and authored_exact,
+		"one batch retains all three bay-major socket transforms"
+	)
+	var former_nodes_absent := true
+	for former_name in [&"BayPinSocket00", &"BayPinSocket01", &"BayPinSocket02"]:
+		former_nodes_absent = former_nodes_absent \
+			and board.get_node_or_null(NodePath(former_name)) == null
+	_check(
+		former_nodes_absent
+		and board.get_node_or_null(^"BaySeatedPin00") is MeshInstance3D
+		and board.get_node_or_null(^"BaySeatedPin01") is MeshInstance3D,
+		"only anonymous sockets are batched; both assigned retaining pins remain independent"
+	)
+	var black_peer := board.get_node_or_null(^"WithdrawnPinClip") as MeshInstance3D
+	_check(
+		multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.10, 0.10, 0.02))
+		and multi.mesh.get_surface_count() == 1
+		and black_peer != null
+		and batch.material_override == black_peer.material_override,
+		"the socket batch preserves chamfered extent, one surface, and black material identity"
+	)
+	_check(
+		batch.get_parent() == board
+		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.get_child_count() == 0
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"the tight board-local batch preserves parent transform, shadows, layer, and visual-only authority"
+	)
+	_check(
+		multi.custom_aabb.is_equal_approx(_transformed_bounds(multi.mesh.get_aabb(), expected))
+		and multi.buffer.size() == expected.size() * 12,
+		"the renderer payload keeps 12 floats per socket and the exact three-copy culling union"
 	)
 
 
@@ -479,14 +542,16 @@ func _test_state_is_carried_by_hardware(world: ShipyardWorld) -> void:
 		return
 	var seated_pins := 0
 	var withdrawn_pins := 0
-	var sockets := 0
+	var socket_batch := board.get_node_or_null(^"BayPinSockets") as MultiMeshInstance3D
+	var sockets := (
+		socket_batch.multimesh.instance_count
+		if socket_batch != null and socket_batch.multimesh != null else 0
+	)
 	for candidate in board.find_children("*", "", true, false):
 		if candidate.name.begins_with("BaySeatedPin"):
 			seated_pins += 1
 		elif candidate.name.begins_with("WithdrawnPin") and not candidate.name.begins_with("WithdrawnPinClip"):
 			withdrawn_pins += 1
-		elif candidate.name.begins_with("BayPinSocket"):
-			sockets += 1
 	_check(
 		sockets == 3 and seated_pins == 2 and withdrawn_pins == 1,
 		"three bays, two pins seated for the assignments and one withdrawn into the clip for dock 03"
