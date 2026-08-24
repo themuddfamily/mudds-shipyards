@@ -24,11 +24,14 @@ const PAYLOAD_AUDIO_ID: StringName = &"payload_release_audio"
 const HULL_SIZE := Vector3(7.0, 3.0, 15.5)
 const ORDNANCE_SPINE_SIZE := Vector3(2.2, 1.25, 8.4)
 const ORDNANCE_SPINE_POSITION := Vector3(0.0, -0.15, 1.5)
+const SENSOR_RADIUS := 0.62
+const SENSOR_HEIGHT := 1.24
+const SENSOR_POSITION := Vector3(0.0, 1.6, -5.2)
 const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("b85a3c")
 const SENSOR_COLOR := Color("d6b45d")
 
-# The primary hull and painted ordnance spine are immutable presentation stock.
+# The primary hull, painted ordnance spine and sensor are immutable presentation stock.
 # Production may briefly own more than one bomber during fleet composition or
 # replacement, so retain one process-local recipe instead of allocating the
 # same meshes and materials for every copy. Renderer nodes, submissions,
@@ -37,6 +40,8 @@ static var _shared_hull_mesh: BoxMesh
 static var _shared_hull_material: StandardMaterial3D
 static var _shared_ordnance_spine_mesh: BoxMesh
 static var _shared_ordnance_spine_material: StandardMaterial3D
+static var _shared_sensor_mesh: SphereMesh
+static var _shared_sensor_material: StandardMaterial3D
 
 var _bomber_boarding_marker: Marker3D
 var _payload_hardpoints: Array[Marker3D] = []
@@ -293,6 +298,7 @@ func request_payload_release(
 func get_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var hull_sharing := get_hull_resource_sharing_audit()
+	var sensor_sharing := get_sensor_resource_sharing_audit()
 	if not _bomber_built:
 		errors.append("bomber has not built its authored component tree")
 	if not is_instance_valid(get_pilot_seat_anchor()) or not is_instance_valid(_bomber_boarding_marker):
@@ -311,6 +317,8 @@ func get_audit_report() -> Dictionary:
 		errors.append("bomber requires HeroShip root collision")
 	if not bool(hull_sharing.get("valid", false)):
 		errors.append("bomber immutable primary visual resource sharing drifted")
+	if not bool(sensor_sharing.get("valid", false)):
+		errors.append("bomber immutable sensor visual resource sharing drifted")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -334,6 +342,7 @@ func get_audit_report() -> Dictionary:
 		"game_flow_authority": false,
 		"network_authority": false,
 		"hull_resource_sharing": hull_sharing,
+		"sensor_resource_sharing": sensor_sharing,
 	}.duplicate(true)
 
 
@@ -444,6 +453,72 @@ func get_hull_resource_sharing_audit() -> Dictionary:
 	}.duplicate(true)
 
 
+## Detached exact-recipe evidence for the cross-copy cached sensor visual stock.
+## Each craft retains its own renderer and structural surface submission.
+func get_sensor_resource_sharing_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var visual := get_variant_visual_root()
+	var sensor := visual.get_node_or_null(^"LongRangeSensor") as MeshInstance3D \
+			if visual != null else null
+	var mesh := sensor.mesh as SphereMesh if sensor != null else null
+	var material := sensor.material_override as StandardMaterial3D if sensor != null else null
+	if sensor == null:
+		errors.append("LongRangeSensor renderer is missing")
+	else:
+		var expected_transform := Transform3D(Basis.IDENTITY, SENSOR_POSITION)
+		if not sensor.transform.is_equal_approx(expected_transform):
+			errors.append("LongRangeSensor transform drifted")
+		if not sensor.visible \
+				or sensor.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("LongRangeSensor renderer state drifted")
+		if sensor.get_child_count() != 0 or sensor.get_script() != null:
+			errors.append("LongRangeSensor gained semantic children or authority")
+	if mesh == null or mesh != _shared_sensor_mesh:
+		errors.append("LongRangeSensor shared mesh identity drifted")
+	elif (
+		not is_equal_approx(mesh.radius, SENSOR_RADIUS)
+		or not is_equal_approx(mesh.height, SENSOR_HEIGHT)
+		or mesh.get_surface_count() != 1
+	):
+		errors.append("LongRangeSensor mesh recipe drifted")
+	elif mesh.resource_local_to_scene:
+		errors.append("LongRangeSensor mesh became scene-local")
+	if material == null or material != _shared_sensor_material:
+		errors.append("LongRangeSensor shared material identity drifted")
+	elif (
+		not material.albedo_color.is_equal_approx(SENSOR_COLOR)
+		or not is_equal_approx(material.metallic, 0.35)
+		or not is_equal_approx(material.roughness, 0.4)
+		or not material.emission_enabled
+		or not material.emission.is_equal_approx(SENSOR_COLOR)
+		or not is_equal_approx(material.emission_energy_multiplier, 1.8)
+		or material.resource_local_to_scene
+	):
+		errors.append("LongRangeSensor material recipe drifted")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family": &"LongRangeSensor",
+		"renderer_nodes_per_copy": 1 if sensor != null else 0,
+		"geometry_submissions_per_copy": mesh.get_surface_count() if mesh != null else 0,
+		"visible_copies_per_bomber": 1 if sensor != null and sensor.visible else 0,
+		"mesh_resource_id": mesh.get_instance_id() if mesh != null else 0,
+		"material_resource_id": material.get_instance_id() if material != null else 0,
+		"legacy_two_copy": {
+			"renderer_nodes": 2,
+			"geometry_submissions": 2,
+			"unique_mesh_resources": 2,
+			"unique_material_resources": 2,
+		},
+		"current_two_copy": {
+			"renderer_nodes": 2,
+			"geometry_submissions": 2,
+			"unique_mesh_resources": 1,
+			"unique_material_resources": 1,
+		},
+	}.duplicate(true)
+
+
 func _build_payload_presentation() -> void:
 	if is_instance_valid(_payload_presentation):
 		return
@@ -507,12 +582,17 @@ func _build_hull(visual: Node3D) -> void:
 	visual.add_child(ordnance)
 	var sensor := MeshInstance3D.new()
 	sensor.name = "LongRangeSensor"
-	var sensor_mesh := SphereMesh.new()
-	sensor_mesh.radius = 0.62
-	sensor_mesh.height = 1.24
-	sensor.mesh = sensor_mesh
-	sensor.position = Vector3(0.0, 1.6, -5.2)
-	sensor.material_override = _material(SENSOR_COLOR, 0.35, 0.4, SENSOR_COLOR, 1.8)
+	if _shared_sensor_mesh == null:
+		_shared_sensor_mesh = SphereMesh.new()
+		_shared_sensor_mesh.radius = SENSOR_RADIUS
+		_shared_sensor_mesh.height = SENSOR_HEIGHT
+		_shared_sensor_mesh.resource_local_to_scene = false
+	if _shared_sensor_material == null:
+		_shared_sensor_material = _material(SENSOR_COLOR, 0.35, 0.4, SENSOR_COLOR, 1.8)
+		_shared_sensor_material.resource_local_to_scene = false
+	sensor.mesh = _shared_sensor_mesh
+	sensor.position = SENSOR_POSITION
+	sensor.material_override = _shared_sensor_material
 	visual.add_child(sensor)
 
 
