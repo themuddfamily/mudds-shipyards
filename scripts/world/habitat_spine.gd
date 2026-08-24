@@ -2031,8 +2031,30 @@ func _build_connector(structure: Node3D) -> void:
 			0.1,
 			_materials["shell_mid"]
 		)
-	for route_z in [-3.15, -1.7, -0.25]:
-		_box(connector, "ConnectorRouteLight", Vector3(0, 0.055, float(route_z)), Vector3(0.72, 0.04, 0.12), _materials["teal"], false)
+	# Three existing visual-only floor breadcrumbs now widen toward the pressure
+	# door, with the final bar changing to the habitat's amber threshold colour.
+	# The old identical teal bars marked the connector but gave a player looking
+	# down it no directional or arrival cue. Keeping the same nodes, centres and
+	# shallow clearance envelope makes this presentation-only: no floor/rail
+	# collision, route marker, door, lifecycle or interaction authority changes.
+	var route_cues := [
+		[-3.15, 0.52, "teal"],
+		[-1.70, 0.72, "teal"],
+		[-0.25, 0.92, "amber"],
+	]
+	for cue_index in route_cues.size():
+		var cue: Array = route_cues[cue_index]
+		var cue_mesh := _box(
+			connector,
+			"ConnectorRouteLight%02d" % (cue_index + 1),
+			Vector3(0, 0.055, float(cue[0])),
+			Vector3(0.72, 0.04, 0.12),
+			_materials[str(cue[2])],
+			false
+		)
+		# Scale the retained 0.72 m stock mesh instead of allocating two new mesh
+		# resources; the renderer/material allocation contract stays unchanged.
+		cue_mesh.scale.x = float(cue[1]) / 0.72
 
 	# The pressure facade is split around the real StationDoor portal.
 	_box(connector, "EntryFacadeLeft", Vector3(-4.15, 2.3, 0.72), Vector3(4.1, 4.6, 0.48), _materials["shell_mid"])

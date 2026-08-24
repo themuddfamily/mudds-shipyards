@@ -49,6 +49,7 @@ func _run() -> void:
 
 	_test_identity_evidence_and_audit(module)
 	_test_route_room_and_footprint_contract(module)
+	_test_connector_route_cue_progression(module)
 	await _test_physical_support_and_clearance(module)
 	await _test_main_station_door(module)
 	await _test_bunk_alcoves(module)
@@ -151,6 +152,56 @@ func _test_route_room_and_footprint_contract(module: HabitatSpine) -> void:
 	_check((footprint.local_min as Vector3).z <= -4.2 and (footprint.local_max as Vector3).z >= 29.2, "footprint includes connector and rear pressure shell")
 	_check((footprint.local_size as Vector3).is_equal_approx((footprint.local_max as Vector3) - (footprint.local_min as Vector3)), "footprint size is internally coherent")
 	_check(module.get_module_anchor().global_transform.is_equal_approx(module.global_transform), "module anchor is the exact root connection transform")
+
+
+func _test_connector_route_cue_progression(module: HabitatSpine) -> void:
+	var connector := module.get_node_or_null(^"Structure/PlayerClearConnector") as Node3D
+	var cues := (
+		connector.find_children("ConnectorRouteLight*", "MeshInstance3D", false, false)
+		if connector != null else []
+	)
+	_check(cues.size() == 3, "connector retains exactly three visual-only route breadcrumbs")
+	if cues.size() != 3:
+		return
+	var expected_z := PackedFloat32Array([-3.15, -1.70, -0.25])
+	var expected_width := PackedFloat32Array([0.52, 0.72, 0.92])
+	var transforms_exact := true
+	var widths_progress := true
+	var cues_are_visual_only := true
+	for index in cues.size():
+		var cue := cues[index] as MeshInstance3D
+		var mesh := cue.mesh
+		transforms_exact = transforms_exact and cue.position.is_equal_approx(
+			Vector3(0.0, 0.055, expected_z[index])
+		)
+		widths_progress = (
+			widths_progress
+			and mesh != null
+			and mesh.get_aabb().size.is_equal_approx(Vector3(0.72, 0.04, 0.12))
+			and is_equal_approx(mesh.get_aabb().size.x * cue.scale.x, expected_width[index])
+			and is_equal_approx(cue.scale.y, 1.0)
+			and is_equal_approx(cue.scale.z, 1.0)
+		)
+		cues_are_visual_only = cues_are_visual_only and cue.get_child_count() == 0
+	var teal_material := (cues[0] as MeshInstance3D).material_override
+	var amber_sign := module.get_node_or_null(
+		^"Structure/PlayerClearConnector/Sign_HABITAT_SPINE____FIXED-ERA-INSPIRED"
+	) as MeshInstance3D
+	_check(
+		transforms_exact and widths_progress,
+		"entry breadcrumbs widen toward the unchanged pressure-door threshold"
+	)
+	_check(
+		(cues[1] as MeshInstance3D).material_override == teal_material
+		and amber_sign != null
+		and (cues[2] as MeshInstance3D).material_override == amber_sign.material_override,
+		"teal travel cues resolve into the Habitat's established amber threshold colour"
+	)
+	_check(
+		cues_are_visual_only
+		and connector.find_children("ConnectorRouteLight*", "CollisionObject3D", false, false).is_empty(),
+		"route-cue polish adds no collision or interaction authority"
+	)
 
 
 func _test_physical_support_and_clearance(module: HabitatSpine) -> void:
