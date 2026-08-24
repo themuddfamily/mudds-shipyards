@@ -872,10 +872,12 @@ func _apply_relay_survey_presentation() -> void:
 	var survey_snapshot := _relay_survey.get_snapshot(_adapter) as Dictionary
 	var checkpoint_snapshot := survey_snapshot.get("optional_checkpoint", {}) as Dictionary
 	var mandatory_route := survey_snapshot.get("mandatory_route", {}) as Dictionary
+	var committed_reward := activity_snapshot.get("committed_reward", {}) as Dictionary
 	if not _restored_relay_survey_completion.is_empty() \
 			and StringName(activity_snapshot.get("state", &"")) == &"ready":
 		activity_snapshot = {
 			"state": &"completed",
+			"activity_id": &"ember_beacon_survey",
 			"activity_generation": int(
 				_restored_relay_survey_completion.get("activity_generation", -1)
 			),
@@ -893,9 +895,12 @@ func _apply_relay_survey_presentation() -> void:
 		mandatory_route = (
 			_restored_relay_survey_completion.get("mandatory_route", {}) as Dictionary
 		).duplicate(true)
+		committed_reward = (
+			_restored_relay_survey_completion.get("committed_reward", {}) as Dictionary
+		).duplicate(true)
 	_relay_survey_presentation.call(
 		&"apply_activity_snapshot", activity_snapshot, checkpoint_snapshot,
-		mandatory_route
+		mandatory_route, committed_reward
 	)
 
 

@@ -100,11 +100,43 @@ func _run() -> void:
 			and reward_response.state == &"reward_confirmed"
 			and reward_response.status_text == "Survey data accepted"
 			and bool(reward_response.reward_committed)
+			and bool(reward_response.receipt_verified)
+			and reward_response.reward_id == &"ember_beacon_data"
 			and reward_response.silhouette == &"ring_and_expanded_diamond"
 			and return_ring.scale == Vector3(1.08, 1.08, 1.08)
 			and reward_seal.visible
 			and reward_seal.scale == Vector3(1.18, 1.18, 1.18),
 		"the existing reward commit expands the diamond exactly once"
+	)
+	var forged_receipt: Dictionary = {
+		"world_id": &"ember_moon",
+		"activity_id": &"ember_beacon_survey",
+		"activity_generation": int(reward_response.activity_generation),
+		"reward_id": &"ember_beacon_data",
+		"reward_store_id": &"game_flow_reward_store",
+		"reward_authority_id": &"game_flow_reward_authority",
+		"run_generation": 32,
+		"attachment_generation": 2,
+		"authority_result": {"accepted": false},
+	}
+	var forged_confirmation := objective.call(
+		&"apply_activity_snapshot",
+		{
+			"state": &"completed", "activity_id": &"ember_beacon_survey",
+			"activity_generation": int(reward_response.activity_generation),
+		}, {}, {}, forged_receipt
+	) as Dictionary
+	var presentation_snapshot: Dictionary = (
+		binding.call(&"get_snapshot") as Dictionary
+	).get("relay_survey_presentation", {}) as Dictionary
+	var preserved_response: Dictionary = (
+		presentation_snapshot.get("completion_response", {}) as Dictionary
+	)
+	_check(
+		not bool(forged_confirmation.accepted)
+			and forged_confirmation.reason == &"invalid_reward_completion_receipt"
+			and bool(preserved_response.get("receipt_verified", false)),
+		"a forged completion receipt cannot replace the confirmed reward feedback"
 	)
 
 	var detached_completed: Dictionary = binding.call(&"detach")

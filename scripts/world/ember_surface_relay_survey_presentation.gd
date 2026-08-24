@@ -22,6 +22,10 @@ const RELAY_COLOR := Color(0.2, 0.7, 1.0, 1.0)
 const RETURN_COLOR := Color(1.0, 0.55, 0.15, 1.0)
 const COMPLETION_COLOR := Color(0.95, 0.82, 0.25, 1.0)
 const EMISSION_ENERGY := 0.55
+const SURVEY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
+const SURVEY_REWARD_ID: StringName = &"ember_beacon_data"
+const REWARD_STORE_ID: StringName = &"game_flow_reward_store"
+const REWARD_AUTHORITY_ID: StringName = &"game_flow_reward_authority"
 const MARKER_SHADER_SOURCE := """
 shader_type spatial;
 render_mode unshaded;
@@ -51,6 +55,7 @@ var _optional_checkpoint: Dictionary = {}
 var _mandatory_route: Dictionary = {}
 var _attached := true
 var _activity_generation := -1
+var _committed_reward: Dictionary = {}
 
 func _ready() -> void:
 	set_process(false)
@@ -95,7 +100,8 @@ func bind_landing_pad_guides(
 func apply_activity_snapshot(
 		snapshot: Variant,
 		optional_checkpoint: Variant = {},
-		mandatory_route: Variant = {}
+		mandatory_route: Variant = {},
+		committed_reward: Variant = {}
 	) -> Dictionary:
 	if not snapshot is Dictionary:
 		return {"accepted": false, "reason": &"invalid_survey_snapshot"}
@@ -107,6 +113,8 @@ func apply_activity_snapshot(
 		return {"accepted": false, "reason": &"invalid_optional_checkpoint_snapshot"}
 	if not mandatory_route is Dictionary:
 		return {"accepted": false, "reason": &"invalid_mandatory_route_snapshot"}
+	if not committed_reward is Dictionary:
+		return {"accepted": false, "reason": &"invalid_reward_completion_receipt"}
 	var checkpoint := optional_checkpoint as Dictionary
 	if not checkpoint.is_empty() and (
 			StringName(checkpoint.get("checkpoint_id", &"")) != &"ember_bunker_gantry_log" \
@@ -123,10 +131,15 @@ func apply_activity_snapshot(
 			or int(route.get("next_checkpoint_index", -1)) > 2
 	):
 		return {"accepted": false, "reason": &"invalid_mandatory_route_snapshot"}
+	var reward := committed_reward as Dictionary
+	var reward_rejection := _reward_completion_receipt_rejection(activity, reward)
+	if not reward_rejection.is_empty():
+		return {"accepted": false, "reason": reward_rejection}
 	_state = state
 	_activity_generation = int(activity.get("activity_generation", -1))
 	_optional_checkpoint = checkpoint.duplicate(true)
 	_mandatory_route = route.duplicate(true)
+	_committed_reward = reward.duplicate(true) if state == &"completed" else {}
 	_attached = true
 	_apply_state(state)
 	return {"accepted": true, "reason": &"survey_presentation_applied", "state": _state}
@@ -161,6 +174,7 @@ func get_snapshot() -> Dictionary:
 		"landing_pad_survey_status": _landing_pad_survey_status_snapshot(),
 		"completion_response": _completion_response_snapshot(),
 		"reward_confirmation_persistent": true,
+		"reward_receipt_verified": not _committed_reward.is_empty(),
 		"hud": _checkpoint_hud_snapshot(),
 		"reduced_flash_safe": true,
 		"renderer_budget": {
@@ -409,6 +423,8 @@ func _completion_response_snapshot() -> Dictionary:
 		"activity_generation": _activity_generation,
 		"route_complete": _state in [&"awaiting_reward", &"completed"],
 		"reward_committed": _state == &"completed",
+		"reward_id": _committed_reward.get("reward_id", &""),
+		"receipt_verified": not _committed_reward.is_empty(),
 		"silhouette": silhouette,
 		"color_independent": true,
 		"ring_scale": _return_marker.scale if _return_marker != null else Vector3.ONE,
@@ -425,6 +441,29 @@ func _completion_response_snapshot() -> Dictionary:
 			"navigation": false, "audio": false,
 		},
 	}.duplicate(true)
+
+
+func _reward_completion_receipt_rejection(
+		activity: Dictionary, receipt: Dictionary
+	) -> StringName:
+	var state := StringName(activity.get("state", &"idle"))
+	if state != &"completed":
+		return &"unexpected_reward_completion_receipt" if not receipt.is_empty() else &""
+	var authority_result := receipt.get("authority_result", {}) as Dictionary
+	if receipt.is_empty() \
+			or StringName(activity.get("activity_id", &"")) != SURVEY_ACTIVITY_ID \
+			or StringName(receipt.get("world_id", &"")) != &"ember_moon" \
+			or StringName(receipt.get("activity_id", &"")) != SURVEY_ACTIVITY_ID \
+			or StringName(receipt.get("reward_id", &"")) != SURVEY_REWARD_ID \
+			or StringName(receipt.get("reward_store_id", &"")) != REWARD_STORE_ID \
+			or StringName(receipt.get("reward_authority_id", &"")) != REWARD_AUTHORITY_ID \
+			or int(receipt.get("activity_generation", -1)) < 1 \
+			or int(receipt.get("activity_generation", -2)) != int(activity.get("activity_generation", -1)) \
+			or int(receipt.get("run_generation", -1)) < 1 \
+			or int(receipt.get("attachment_generation", -1)) < 1 \
+			or not bool(authority_result.get("accepted", false)):
+		return &"invalid_reward_completion_receipt"
+	return &""
 
 
 func _checkpoint_hud_snapshot() -> Dictionary:
