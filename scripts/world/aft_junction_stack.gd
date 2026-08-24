@@ -24,6 +24,9 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 ## 140 m-plus lattice overview.
 const PRACTICAL_FADE_BEGIN := 60.0
 const PRACTICAL_FADE_LENGTH := 25.0
+## Authored room-local colour separation. This is deliberately a static
+## practical hue, not a cue colour or an exposure/glow adjustment.
+const OPERATIONS_WARM_COVE_COLOR := Color("ffb56b")
 const INTERFACE_COLLAR_KIND_META := "aft_interface_collar_kind"
 
 ## The first repeated childless visual family not already served by the rounded
@@ -3655,7 +3658,18 @@ func _build_operations_lighting(room: Node3D) -> void:
 		lens_transforms
 	)
 	for cove_x in [0.86, 10.34]:
-		_beam_between(lighting, "CeilingCoveRail", Vector3(float(cove_x), 4.3, 9.55), Vector3(float(cove_x), 4.3, 16.85), 0.055, _materials["cyan_dim"], false)
+		var warm_side := float(cove_x) > 5.6
+		var cove_rail := _beam_between(
+			lighting,
+			"WarmCeilingCoveRail" if warm_side else "CoolCeilingCoveRail",
+			Vector3(float(cove_x), 4.3, 9.55),
+			Vector3(float(cove_x), 4.3, 16.85),
+			0.055,
+			_materials["amber_light"] if warm_side else _materials["cyan_dim"],
+			false
+		)
+		if warm_side:
+			_mark_authored_interior_warmth(cove_rail, &"operations_cove_source")
 	# The two coves are the room's own fixtures and were lighting nothing. Giving
 	# the starboard cove a warm lamp and the port cove a cool one is the cheapest
 	# honest way to get two colour temperatures across a room: the walls now
@@ -3669,7 +3683,17 @@ func _build_operations_lighting(room: Node3D) -> void:
 	# (warm 0.5 -> 0.34, cool 0.42 -> 0.29) so the midpoint is not brighter than
 	# it was; what changes is that the fixture now lights its own length.
 	for cove_z in [10.7, 13.2, 15.7]:
-		_fixture_practical(lighting, "CoveSpillWarm", Vector3(10.1, 4.05, float(cove_z)), Color("f0c48c"), 0.34, 6.4)
+		_mark_authored_interior_warmth(
+			_fixture_practical(
+				lighting,
+				"CoveSpillWarm",
+				Vector3(10.1, 4.05, float(cove_z)),
+				OPERATIONS_WARM_COVE_COLOR,
+				0.34,
+				6.4
+			),
+			&"operations_cove_spill"
+		)
 		_fixture_practical(lighting, "CoveSpillCool", Vector3(1.1, 4.05, float(cove_z)), Color("bfeef2"), 0.29, 6.4)
 	# Under-console task light. Three consoles standing on a deck with nothing
 	# below waist height meant the plinths, kick strips and chair bases were the
@@ -5090,6 +5114,17 @@ func _fixture_practical(
 	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	light.set_meta("fixture_practical", true)
 	return light
+
+
+## Presentation-only declaration for the bounded static warmth slice. The
+## practical has no process/animation path, so reduced-flash changes do not need
+## to branch it and cannot leave the room in a different lighting state.
+func _mark_authored_interior_warmth(node: Node, role: StringName) -> Node:
+	node.set_meta("station_interior_warmth", role)
+	node.set_meta("evidence_status", &"modern_interpretation")
+	node.set_meta("reduced_flash_safe", true)
+	node.set_meta("presentation_only", true)
+	return node
 
 
 ## Marks only the small, visual-only collars wrapped around an existing solid

@@ -25,6 +25,9 @@ const PANEL_SURFACE_SCALE := 0.28
 ## chosen — see `_fixture_practical`.
 const PRACTICAL_FADE_BEGIN := 60.0
 const PRACTICAL_FADE_LENGTH := 25.0
+## Authored room-local colour separation. This is a static practical hue and
+## does not alter the environment, glow, exposure, or accessibility state.
+const COMMON_WARM_SILL_COLOR := Color("ffc17a")
 
 const FLOOR_ELEVATION := 0.0
 const CONNECTOR_CLEAR_WIDTH := 4.45
@@ -2175,18 +2178,37 @@ func _build_observation_common(structure: Node3D) -> void:
 	# no more light on it than the glass. A window reads as a hole when its
 	# surround is lit and the hole is not.
 	#
-	# So the sill gets a real fixture — a shallow cool cove along its top, the same
-	# `teal_dim` strip the corridor uses at floor level — and three lamps that
-	# carry the strip's own hue. They are sited 0.65 m inboard of the glass and
-	# below its lower edge, so the panes see them at a grazing angle rather than
-	# face-on: a lamp closer than that puts a specular sheet across the glass and
+	# So the sill gets a real fixture — a shallow warm cove along its top — and
+	# three lamps that carry the strip's own hue. The warm edge makes the glazing
+	# read as an inhabited room from both sides, while the table display remains
+	# the cool counterpoint at working height. They are sited 0.65 m inboard of
+	# the glass and below its lower edge, so the panes see them at a grazing angle
+	# rather than face-on: a lamp closer than that puts a specular sheet across
+	# the glass and
 	# turns the window into a lit panel, which is precisely the defect being fixed
 	# here and the same mistake `TableDisplayGlow` was first tuned into. This is
-	# also the room's second colour temperature at working height, arriving from
-	# the room's own most prominent feature and opposing the warm ceiling.
-	_box(common, "RearSillCoveLens", Vector3(0.0, 0.99, 28.24), Vector3(14.2, 0.045, 0.16), _materials["teal_dim"], false)
+	# also a local warm practical at working height rather than anonymous fill.
+	var sill_lens := _box(
+		common,
+		"RearSillCoveLens",
+		Vector3(0.0, 0.99, 28.24),
+		Vector3(14.2, 0.045, 0.16),
+		_materials["warm_light"],
+		false
+	)
+	_mark_authored_interior_warmth(sill_lens, &"common_room_sill_source")
 	for glazing_x in [-5.2, 0.0, 5.2]:
-		_fixture_practical(common, "RearGlazingSpill", Vector3(float(glazing_x), 1.18, 27.85), Color("86d2dc"), 0.3, 4.2)
+		_mark_authored_interior_warmth(
+			_fixture_practical(
+				common,
+				"RearGlazingSpill",
+				Vector3(float(glazing_x), 1.18, 27.85),
+				COMMON_WARM_SILL_COLOR,
+				0.3,
+				4.2
+			),
+			&"common_room_sill_spill"
+		)
 	# The table display was a lit rectangle lying on an unlit table. Its practical
 	# is cool: it is the room's cool counterpoint against the warm overheads, and
 	# it puts a gradient on the chair backs and the copper table edge so the
@@ -3995,6 +4017,17 @@ func _fixture_practical(
 	light.distance_fade_length = PRACTICAL_FADE_LENGTH
 	light.set_meta("fixture_practical", true)
 	return light
+
+
+## Presentation-only declaration for the bounded static warmth slice. These
+## nodes have no animation or process path, so the same authored state is safe
+## under the reduced-flash accessibility setting.
+func _mark_authored_interior_warmth(node: Node, role: StringName) -> Node:
+	node.set_meta("station_interior_warmth", role)
+	node.set_meta("evidence_status", &"modern_interpretation")
+	node.set_meta("reduced_flash_safe", true)
+	node.set_meta("presentation_only", true)
+	return node
 
 
 func _text_sign(
