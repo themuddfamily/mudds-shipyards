@@ -33,6 +33,7 @@ var _last_snapshot: Dictionary = {}
 var _emitted_cue_count := 0
 var _preempted_cue_count := 0
 var _last_preempted_cue: StringName = &""
+var _last_retire_reason: StringName = &""
 
 
 func attach(expected_generation: int = 0) -> Dictionary:
@@ -75,7 +76,23 @@ func detach() -> Dictionary:
 	_attached = false
 	_generation += 1
 	_clear_state()
+	_last_retire_reason = &"detached"
 	return _result(true, &"detached")
+
+
+## Retires bounded presentation voices without erasing the accepted sequence.
+## The caller remains responsible for deciding that a terminal/clear lifecycle
+## event occurred; this binding owns no repair state or playback bank.
+func retire_active_cues(expected_generation: int, reason: StringName) -> Dictionary:
+	if not _attached:
+		return _result(false, &"not_attached")
+	if expected_generation != _generation:
+		return _result(false, &"stale_generation")
+	if reason.is_empty():
+		return _result(false, &"invalid_retire_reason")
+	_active_cue_slots.clear()
+	_last_retire_reason = reason
+	return _result(true, &"cues_retired")
 
 
 func get_snapshot() -> Dictionary:
@@ -90,6 +107,7 @@ func get_snapshot() -> Dictionary:
 		"emitted_cue_count": _emitted_cue_count,
 		"preempted_cue_count": _preempted_cue_count,
 		"last_preempted_cue": _last_preempted_cue,
+		"last_retire_reason": _last_retire_reason,
 		"maximum_simultaneous_voices": MAXIMUM_SIMULTANEOUS_VOICES,
 		"authority": {"repair": false, "components": false, "audio_cues": true},
 	}.duplicate(true)
@@ -116,6 +134,7 @@ func _decode_snapshot(snapshot: Dictionary) -> Dictionary:
 func _emit_cue(cue_id: StringName, intensity: float) -> void:
 	if not _admit_cue(cue_id):
 		return
+	_last_retire_reason = &""
 	var adjusted := clampf(intensity * (0.75 if _reduced_dynamic_range else 1.0), 0.0, 1.0)
 	_emitted_cue_count += 1
 	semantic_engine_cue_emitted.emit(cue_id, adjusted)
@@ -145,6 +164,7 @@ func _clear_state() -> void:
 	_active_cue_slots.clear()
 	_last_snapshot.clear()
 	_last_preempted_cue = &""
+	_last_retire_reason = &""
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:

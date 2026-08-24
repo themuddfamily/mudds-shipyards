@@ -62,6 +62,22 @@ func _run() -> void:
 		bool(generic_fallback.accepted) and generic_fallback.caption == "Hull impact detected",
 		"generic combat caption mappings remain available beside weapon-specific cues"
 	)
+	var engineer_repair_captions := {
+		&"crew_engineer_repair_started": "Engineer repair started",
+		&"crew_engineer_repair_progress": "Engineer repair progressing",
+		&"crew_engineer_repair_interrupted": "Engineer repair interrupted",
+		&"crew_engineer_repair_completed": "Engineer repair complete",
+	}
+	for cue_id: StringName in engineer_repair_captions:
+		var repair_caption := presenter.present_cue(
+			cue_id, &"Jovian engineer", 0.65, position,
+			{"transition_id": String(cue_id)}
+		)
+		_check(
+			bool(repair_caption.get("accepted", false))
+				and repair_caption.get("caption", "") == engineer_repair_captions[cue_id],
+			"%s has a truthful semantic repair caption" % cue_id
+		)
 	for cue_id in [
 		&"station_defense_wave_started", &"station_defense_asset_danger", &"station_defense_asset_critical",
 		&"station_defense_completed", &"station_defense_aborted", &"cargo_transfer_pickup_accepted",

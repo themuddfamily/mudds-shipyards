@@ -32,9 +32,24 @@ func _run() -> void:
 	_check((binding.get_snapshot().active_cue_slots as Array).size() == 2, "repair cues retain two-voice ceiling")
 	_check(int(binding.get_snapshot().preempted_cue_count) >= 1, "completion preempts lower priority cue")
 	_check((binding.get_snapshot().authority as Dictionary).repair == false, "binding owns no repair authority")
+	_check(
+		binding.retire_active_cues(1, &"stale_attempt").reason == &"stale_generation",
+		"foreign generations cannot retire accepted cues"
+	)
+	_check(
+		bool(binding.retire_active_cues(0, &"repair_committed").accepted)
+			and (binding.get_snapshot().active_cue_slots as Array).is_empty()
+			and binding.get_snapshot().last_state == &"completed"
+			and binding.get_snapshot().last_retire_reason == &"repair_committed",
+		"terminal retirement clears voices without erasing its sequence fence"
+	)
 	_check(bool(binding.detach().accepted), "detach clears engineer presentation")
 	_check(binding.present_repair_snapshot(_snapshot(1, 1, &"started", 1.0)).reason == &"not_attached", "detached binding rejects events")
 	_check(binding.attach(1).accepted, "binding re-enters at next generation")
+	_check(
+		binding.present_repair_snapshot(_snapshot(0, 99, &"completed", 1.0)).reason == &"stale_generation",
+		"re-entry rejects stale pre-detach audio samples"
+	)
 	_check(binding.present_repair_snapshot(_snapshot(1, 1, &"started", 1.0)).accepted, "re-entry resets sequence fence")
 	router.detach()
 	for failure in _failures:

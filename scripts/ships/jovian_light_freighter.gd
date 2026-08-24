@@ -18,6 +18,7 @@ const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_game
 const RepairAuthorityType := preload("res://scripts/combat/repair_authority.gd")
 const JovianEngineerRepairConsoleType := preload("res://scripts/ships/jovian_engineer_repair_console.gd")
 const JovianEngineerRepairPresentationType := preload("res://scripts/ships/jovian_engineer_repair_presentation.gd")
+const CrewEngineerAudioBindingType := preload("res://scripts/audio/crew_engineer_audio_binding.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const JovianCopilotNavigationAudioBindingType := preload("res://scripts/audio/jovian_copilot_navigation_audio_binding.gd")
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
@@ -317,6 +318,9 @@ var _engineer_console_sequence := -1
 var _engineer_repair_presentation
 var _engineer_presentation_generation := 0
 var _engineer_presentation_sequence := -1
+var _engineer_repair_audio
+var _engineer_audio_generation := 0
+var _engineer_audio_sequence := -1
 var _copilot_navigation_receipt: Dictionary = {}
 var _copilot_navigation_generation := 1
 var _ship_perspective_audio_binding: RefCounted
@@ -340,6 +344,8 @@ func _enter_tree() -> void:
 		call_deferred("_rebind_engineer_repair_console")
 	if _engineer_repair_presentation != null:
 		call_deferred("_rebind_engineer_repair_presentation")
+	if _engineer_repair_audio != null:
+		call_deferred("_rebind_engineer_repair_audio")
 	if _ship_perspective_audio_binding != null:
 		call_deferred("_rebind_jovian_perspective_audio")
 	if _copilot_navigation_audio_binding != null:
@@ -363,6 +369,8 @@ func _ready() -> void:
 	if _jovian_built:
 		_jovian_built = _reconfigure_component_damage_from_final_root_collision()
 	if _jovian_built:
+		_build_engineer_repair_audio()
+	if _jovian_built:
 		_build_engineer_repair_presentation()
 	if not component_damage_changed.is_connected(_on_jovian_component_damage_changed):
 		component_damage_changed.connect(_on_jovian_component_damage_changed)
@@ -381,6 +389,13 @@ func _exit_tree() -> void:
 		if bool(detached.get("accepted", false)):
 			_engineer_presentation_generation += 1
 			_engineer_presentation_sequence = -1
+	if _engineer_repair_audio != null:
+		var audio_detached: Dictionary = _engineer_repair_audio.detach()
+		if bool(audio_detached.get("accepted", false)):
+			_engineer_audio_generation = int(audio_detached.get(
+				"generation", _engineer_audio_generation + 1
+			))
+			_engineer_audio_sequence = -1
 	if _engineer_repair_console != null:
 		_engineer_repair_console.detach()
 		_engineer_console_generation += 1
@@ -431,6 +446,17 @@ func _rebind_engineer_repair_presentation() -> void:
 	)
 	if bool(attached.get("accepted", false)):
 		_refresh_engineer_status_readout()
+
+
+func _rebind_engineer_repair_audio() -> void:
+	if not is_inside_tree() or _engineer_repair_audio == null:
+		return
+	var snapshot: Dictionary = _engineer_repair_audio.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		return
+	_engineer_audio_generation = int(snapshot.get("generation", _engineer_audio_generation))
+	_engineer_audio_sequence = -1
+	_engineer_repair_audio.attach(_engineer_audio_generation)
 
 
 func _rebind_copilot_navigation_audio() -> void:
@@ -522,6 +548,7 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_reset_engineer_repair_state()
 	_restart_engineer_console_presentation()
 	_restart_engineer_work_presentation()
+	_restart_engineer_repair_audio_presentation()
 	_clear_copilot_navigation_state(&"ship_reused")
 	_copilot_navigation_generation = 1
 	_set_interior_operational(true)
@@ -1282,6 +1309,23 @@ func get_engineer_repair_presentation_snapshot() -> Dictionary:
 		if _engineer_repair_presentation != null else {"attached": false}
 
 
+func get_engineer_repair_audio_snapshot() -> Dictionary:
+	return _engineer_repair_audio.get_snapshot() \
+		if _engineer_repair_audio != null else {"attached": false}
+
+
+func _build_engineer_repair_audio() -> void:
+	if _engineer_repair_audio != null:
+		return
+	_engineer_repair_audio = CrewEngineerAudioBindingType.new()
+	_engineer_repair_audio.name = "EngineerRepairAudioPresentation"
+	add_child(_engineer_repair_audio)
+	_engineer_repair_audio.semantic_engine_cue_emitted.connect(
+		_on_engineer_repair_audio_cue_emitted
+	)
+	_engineer_repair_audio.attach(_engineer_audio_generation)
+
+
 func _build_engineer_repair_presentation() -> void:
 	if _engineer_repair_presentation != null:
 		return
@@ -1318,6 +1362,7 @@ func _refresh_engineer_status_readout() -> void:
 				))
 			)
 		)
+	_present_engineer_repair_audio_snapshot(network_snapshot)
 
 
 func _restart_engineer_console_presentation() -> void:
@@ -1334,6 +1379,68 @@ func _restart_engineer_work_presentation() -> void:
 	_engineer_presentation_generation += 1
 	_engineer_presentation_sequence = -1
 	_engineer_repair_presentation.begin_generation(_engineer_presentation_generation)
+
+
+func _restart_engineer_repair_audio_presentation() -> void:
+	if _engineer_repair_audio == null:
+		return
+	var snapshot: Dictionary = _engineer_repair_audio.get_snapshot()
+	if bool(snapshot.get("attached", false)):
+		var detached: Dictionary = _engineer_repair_audio.detach()
+		if not bool(detached.get("accepted", false)):
+			return
+		snapshot = _engineer_repair_audio.get_snapshot()
+	_engineer_audio_generation = int(snapshot.get("generation", _engineer_audio_generation))
+	_engineer_audio_sequence = -1
+	if is_inside_tree():
+		_engineer_repair_audio.attach(_engineer_audio_generation)
+
+
+func _present_engineer_repair_audio_snapshot(network_snapshot: Dictionary) -> void:
+	if _engineer_repair_audio == null:
+		return
+	var audio_snapshot: Dictionary = _engineer_repair_audio.get_snapshot()
+	if not bool(audio_snapshot.get("attached", false)):
+		return
+	var repair := network_snapshot.get("repair", {}) as Dictionary
+	var status := StringName(repair.get("status", &""))
+	var progress := clampf(float(repair.get("progress", 0.0)), 0.0, 1.0)
+	var last_state := StringName(audio_snapshot.get("last_state", &""))
+	var last_envelope := audio_snapshot.get("last_snapshot", {}) as Dictionary
+	var last_progress := float(last_envelope.get("progress", -1.0))
+	var cue_state: StringName = &""
+	match status:
+		&"repairing":
+			if last_state not in [&"started", &"progress"]:
+				cue_state = &"started"
+			elif progress > last_progress and not is_equal_approx(progress, last_progress):
+				cue_state = &"progress"
+		&"completed":
+			if last_state != &"completed":
+				cue_state = &"completed"
+		&"interrupted":
+			if last_state != &"interrupted":
+				cue_state = &"interrupted"
+	if cue_state.is_empty():
+		return
+	_engineer_audio_sequence += 1
+	var presented: Dictionary = _engineer_repair_audio.present_repair_snapshot({
+		"generation": _engineer_audio_generation,
+		"sequence": _engineer_audio_sequence,
+		"repair_state": cue_state,
+		"progress": progress,
+	})
+	if bool(presented.get("accepted", false)) \
+			and cue_state in [&"completed", &"interrupted"]:
+		_engineer_repair_audio.retire_active_cues(
+			_engineer_audio_generation,
+			StringName(repair.get("reason", cue_state))
+		)
+
+
+func _on_engineer_repair_audio_cue_emitted(cue_id: StringName, intensity: float) -> void:
+	if _ship_audio_rig != null and is_instance_valid(_ship_audio_rig):
+		_ship_audio_rig.semantic_engine_cue_emitted.emit(cue_id, intensity)
 
 
 func _engineer_repair_component_exterior_anchor(component_id: StringName) -> Vector3:
@@ -1396,6 +1503,7 @@ func _clear_engineer_component_selection(reason: StringName, advance_generation:
 			_engineer_repair_elapsed = 0.0
 			_restart_engineer_console_presentation()
 			_restart_engineer_work_presentation()
+			_restart_engineer_repair_audio_presentation()
 		return
 	var component_id := StringName(_engineer_component_selection.get("component_id", &""))
 	var component_generation := int(_engineer_component_selection.get("component_generation", 0))
@@ -1411,6 +1519,7 @@ func _clear_engineer_component_selection(reason: StringName, advance_generation:
 		_engineer_repair_elapsed = 0.0
 		_restart_engineer_console_presentation()
 		_restart_engineer_work_presentation()
+		_restart_engineer_repair_audio_presentation()
 
 
 static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
