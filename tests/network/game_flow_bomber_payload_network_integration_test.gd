@@ -34,6 +34,13 @@ func _run() -> void:
 	server_bomber.set_piloted(true)
 	_check(server_flow._ensure_bomber_payload_session(server_bomber),
 		"server starts the real bomber payload generation")
+	var registered_source := server.get_projectile_source_snapshot(
+		GameFlow.CINDER_BOMBER_SHIP_ID
+	)
+	_check(int(registered_source.get("owner_peer_id", 0)) == 1
+		and int(registered_source.get("source_generation", 0))
+			== server_flow._bomber_payload_generation,
+		"production GameFlow registers the exact server-owned Cinder source generation")
 	var released: Dictionary = server_flow._consume_bomber_payload_release()
 	var launch_packet := server_flow._last_bomber_payload_network_result.get("packet", {}) as Dictionary
 	var launch_projectile := launch_packet.get("projectile", {}) as Dictionary
@@ -52,6 +59,24 @@ func _run() -> void:
 		and not bool(launch_record.get("terminal", true))
 		and (canonical_launch.sections.movement as Array).size() == 1,
 		"real release enters the canonical envelope without erasing live movement")
+	var forged_owner_projectile := launch_projectile.duplicate(true)
+	forged_owner_projectile.owner_peer_id = 2
+	forged_owner_projectile.last_update_tick = 2
+	var forged_owner_publication: Dictionary = server.publish_projectile_snapshot(
+		forged_owner_projectile, [], false, 2, true, true
+	)
+	var forged_generation_projectile := launch_projectile.duplicate(true)
+	forged_generation_projectile.source_generation = (
+		server_flow._bomber_payload_generation + 1
+	)
+	forged_generation_projectile.last_update_tick = 2
+	var forged_generation_publication: Dictionary = server.publish_projectile_snapshot(
+		forged_generation_projectile, [], false, 2, true, true
+	)
+	_check(forged_owner_publication.get("status") == &"projectile_source_owner_mismatch"
+		and forged_generation_publication.get("status")
+			== &"projectile_source_generation_mismatch",
+		"registered source ownership and generation reject malformed snapshots before publication")
 	var projectile := server_flow._bomber_payload_projectiles[0]
 	var launch_position: Vector3 = projectile.get_snapshot().get("position", Vector3.ZERO)
 	server_flow._advance_bomber_payload_loop(0.05)
@@ -110,14 +135,26 @@ func _run() -> void:
 	client_flow._piloting = true
 	client_flow.ships.append(client_bomber)
 	client_bomber.set_piloted(true)
-	var launch_applied: Dictionary = client._apply_projectile_replica_snapshot(launch_packet)
-	var launch_presented := client_flow._on_projectile_replica_packet(launch_packet, launch_applied)
+	var launch_signal_receipt: Dictionary = {}
+	client.projectile_replica_result.connect(func(result: Dictionary) -> void:
+		launch_signal_receipt.merge(result, true)
+	)
+	client.projectile_replica_packet.connect(client_flow._on_projectile_replica_packet)
+	client._send_projectile_snapshot(launch_packet)
+	var launch_applied: Dictionary = launch_signal_receipt
 	var client_visuals: Array = client_bomber.get_payload_presentation().get_active_snapshots()
 	_check(bool(launch_applied.get("accepted", false))
-		and launch_presented.get("status") == &"bomber_projectile_presented"
 		and client_visuals.size() == 1
 		and StringName((client_visuals[0] as Dictionary).get("phase", &"")) == &"flight",
-		"client consumes an adapter-receipted launch into presentation only")
+		"the production replica signal consumes one adapter-receipted launch into presentation only")
+	var forged_owner_packet := tick_packet.duplicate(true)
+	forged_owner_packet.projectile.owner_peer_id = 2
+	var forged_owner_rejected := client_flow._on_projectile_replica_packet(
+		forged_owner_packet, {"accepted": true, "status": &"projectile_presented"}
+	)
+	_check(forged_owner_rejected.get("status") == &"invalid_projectile_identity"
+		and client_bomber.get_payload_presentation().get_active_snapshots().size() == 1,
+		"client presentation rejects a non-server projectile owner without clearing live visuals")
 	var forged_result := {"accepted": true, "status": &"projectile_presented"}
 	var forged_packet := launch_packet.duplicate(true)
 	forged_packet.migration_generation = 2
@@ -258,6 +295,9 @@ func _run() -> void:
 		and server._projectile_authoritative_records.size()
 		<= Adapter.PROJECTILE_CANONICAL_MAX_RECORDS,
 		"abort reaches the bounded canonical cache before local authority detaches")
+	_check(server.get_projectile_source_snapshot(GameFlow.CINDER_BOMBER_SHIP_ID).is_empty()
+		and server_flow._bomber_payload_network_source_generation == 0,
+		"payload teardown retires the exact Cinder source generation and its sequence ledger")
 
 	var solo_flow := GameFlow.new()
 	var solo_bomber := Bomber.new()
@@ -276,7 +316,6 @@ func _run() -> void:
 		"solo release keeps its local projectile behavior without requiring a network session")
 	solo_flow._clear_bomber_payload_loop(&"solo_test_complete")
 
-	server.free()
 	client.free()
 	server_flow.free()
 	client_flow.free()
@@ -285,6 +324,20 @@ func _run() -> void:
 	solo_flow.free()
 	solo_bomber.queue_free()
 	await process_frame
+	_check(server.register_projectile_source(
+		1, GameFlow.CINDER_BOMBER_SHIP_ID, 91, &"player",
+		GameFlow.CINDER_BOMBER_NETWORK_PROJECTILE_PROFILES,
+	).accepted and server.shutdown(&"bomber_source_teardown_probe").accepted,
+		"session shutdown retires an authority-owned Cinder source outside the peer ledger")
+	server._is_server = true
+	server._configured = true
+	_check(server.register_projectile_source(
+		1, GameFlow.CINDER_BOMBER_SHIP_ID, 91, &"player",
+		GameFlow.CINDER_BOMBER_NETWORK_PROJECTILE_PROFILES,
+	).accepted,
+		"a fresh host session can reuse the stable Cinder ID without inheriting stale source state")
+	server.retire_projectile_source(GameFlow.CINDER_BOMBER_SHIP_ID, 91)
+	server.free()
 	if _failures.is_empty():
 		print("OK: GameFlow bomber payload network integration (%d assertions)" % _assertions)
 		quit(0)

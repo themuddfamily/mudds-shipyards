@@ -276,6 +276,13 @@ const CINDER_BOMBER_PAYLOAD_PROFILE := {
 	"damage": 80.0,
 	"origin_tolerance": 30.0,
 }
+const CINDER_BOMBER_NETWORK_PROJECTILE_PROFILES := {
+	CINDER_BOMBER_WEAPON_ID: {
+		"speed": 500.0,
+		"damage": 80.0,
+		"lifetime": 30.0,
+	},
+}
 const PLAYER_WEAPON_PROFILES := {
 	RANGE_WEAPON_ID: {
 		"range": 360.0,
@@ -356,6 +363,7 @@ var _bomber_payload_projectiles: Array[BomberPayloadProjectile] = []
 var _bomber_payload_adapter: BomberPayloadCombatAdapter
 var _last_bomber_payload_result: Dictionary = {}
 var _bomber_payload_server_tick := 0
+var _bomber_payload_network_source_generation := 0
 var _bomber_payload_canonical_publish_pending := false
 var _last_bomber_payload_network_result: Dictionary = {}
 var _last_bomber_payload_canonical_result: Dictionary = {}
@@ -2632,7 +2640,8 @@ func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
 	if _bomber_payload_ship != null and _bomber_payload_ship != bomber:
 		_clear_bomber_payload_loop(&"active_ship_replaced")
 	if _bomber_payload_ship == bomber:
-		return _bomber_payload_adapter != null
+		return _bomber_payload_adapter != null \
+			and bool(_ensure_bomber_payload_network_source().get("accepted", false))
 	_bomber_payload_generation += 1
 	_bomber_payload_request_sequence = 0
 	var started := bomber.begin_payload_generation(_bomber_payload_generation)
@@ -2645,6 +2654,13 @@ func _ensure_bomber_payload_session(bomber: CinderLongRangeBomber) -> bool:
 		_bomber_payload_adapter = null
 		return false
 	_bomber_payload_ship = bomber
+	var network_source := _ensure_bomber_payload_network_source()
+	if not bool(network_source.get("accepted", false)):
+		_bomber_payload_adapter.detach(&"network_source_registration_failed")
+		bomber.detach_payload_authority(&"network_source_registration_failed")
+		_bomber_payload_adapter = null
+		_bomber_payload_ship = null
+		return false
 	_present_bomber_payload_audio(&"begin_payload_audio_generation", {
 		"generation": _bomber_payload_generation,
 	})
@@ -2829,12 +2845,61 @@ func _publish_bomber_payload_network(
 		),
 	}
 	var published: Dictionary = network_session.publish_projectile_snapshot(
-		packet, recipients, terminal, _bomber_payload_server_tick
+		packet, recipients, terminal, _bomber_payload_server_tick, true, true
 	)
 	_last_bomber_payload_network_result = published.duplicate(true)
 	if bool(published.get("accepted", false)):
 		_bomber_payload_canonical_publish_pending = true
 	return published
+
+
+func _ensure_bomber_payload_network_source() -> Dictionary:
+	if (
+		not is_instance_valid(network_session)
+		or not network_session.is_server()
+		or _network_session_mode != &"server"
+	):
+		return {"accepted": true, "status": &"solo_projectile_source"}
+	if _bomber_payload_ship == null or _bomber_payload_generation <= 0:
+		return {"accepted": false, "status": &"bomber_payload_source_unavailable"}
+	var registered: Dictionary = network_session.get_projectile_source_snapshot(
+		CINDER_BOMBER_SHIP_ID
+	)
+	if not registered.is_empty():
+		var registered_generation := int(registered.get("source_generation", 0))
+		if (
+			registered_generation == _bomber_payload_generation
+			and int(registered.get("owner_peer_id", 0)) == 1
+		):
+			_bomber_payload_network_source_generation = registered_generation
+			return {"accepted": true, "status": &"bomber_projectile_source_current"}
+		var retired: Dictionary = network_session.retire_projectile_source(
+			CINDER_BOMBER_SHIP_ID, registered_generation
+		)
+		if not bool(retired.get("accepted", false)):
+			return retired
+	var result: Dictionary = network_session.register_projectile_source(
+		1,
+		CINDER_BOMBER_SHIP_ID,
+		_bomber_payload_generation,
+		&"player",
+		CINDER_BOMBER_NETWORK_PROJECTILE_PROFILES,
+	)
+	if bool(result.get("accepted", false)):
+		_bomber_payload_network_source_generation = _bomber_payload_generation
+	return result
+
+
+func _retire_bomber_payload_network_source() -> Dictionary:
+	var generation := _bomber_payload_network_source_generation
+	_bomber_payload_network_source_generation = 0
+	if generation <= 0:
+		return {"accepted": true, "status": &"bomber_projectile_source_not_registered"}
+	if not is_instance_valid(network_session) or not network_session.is_server():
+		return {"accepted": true, "status": &"network_projectile_source_already_stopped"}
+	return network_session.retire_projectile_source(
+		CINDER_BOMBER_SHIP_ID, generation
+	)
 
 
 func _publish_bomber_payload_canonical_snapshot(force: bool = false) -> Dictionary:
@@ -3349,7 +3414,8 @@ func _on_projectile_replica_packet(packet: Dictionary, result: Dictionary) -> Di
 		return {"accepted": false, "status": &"invalid_migration_generation"}
 	var projectile_id := StringName(projectile.get("projectile_id", &""))
 	var generation := int(projectile.get("projectile_generation", 0))
-	if projectile_id.is_empty() or generation <= 0:
+	if projectile_id.is_empty() or generation <= 0 \
+			or int(projectile.get("owner_peer_id", 0)) != 1:
 		return {"accepted": false, "status": &"invalid_projectile_identity"}
 	var status := StringName(result.get("status", &""))
 	if status not in [&"projectile_presented", &"projectile_terminal_applied"]:
@@ -3423,6 +3489,9 @@ func _bomber_payload_network_records_match(
 		or int(release_record.get("generation", 0)) != generation
 		or not release_record.get("release_sequence") is int
 		or int(release_record.get("release_sequence", 0)) <= 0
+		or projectile_id != StringName(
+			"bomber_payload_release_%06d" % int(release_record.get("release_sequence", 0))
+		)
 		or not release_record.get("request_sequence") is int
 		or int(release_record.get("request_sequence", 0)) <= 0
 	):
@@ -3470,6 +3539,7 @@ func _clear_bomber_payload_loop(reason: StringName) -> void:
 			projectile.detach(reason)
 	_bomber_payload_projectiles.clear()
 	_publish_bomber_payload_canonical_snapshot()
+	_retire_bomber_payload_network_source()
 	if _bomber_payload_adapter != null:
 		if bool(_bomber_payload_adapter.get_snapshot().get("active", false)):
 			_bomber_payload_adapter.detach(reason)
@@ -4076,6 +4146,8 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 func _on_network_session_started(mode: StringName) -> void:
 	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_START)
 	_set_station_defense_network_presentation_only(mode == &"client")
+	if mode == &"server" and _bomber_payload_ship != null:
+		_ensure_bomber_payload_network_source()
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -4087,6 +4159,7 @@ func _on_network_session_started(mode: StringName) -> void:
 func _on_network_session_stopped(reason: StringName) -> void:
 	_record_session_lifecycle_transition(_DIAGNOSTIC_NETWORK_STOP, 0, false)
 	_bomber_payload_canonical_publish_pending = false
+	_bomber_payload_network_source_generation = 0
 	_player_pulse_canonical_publish_pending = false
 	_player_pulse_network_pending.clear()
 	_player_pulse_network_active_shots.clear()

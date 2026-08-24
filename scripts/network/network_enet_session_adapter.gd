@@ -381,6 +381,17 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 						AUTHORITY_PEER_ID, prediction_id, int(prediction_entity.get("entity_generation", 0))
 					)
 					_prediction_entities.erase(prediction_id)
+	# Authority-owned production sources are not associated with a remote peer,
+	# so the peer loop above cannot retire them. Close every remaining source
+	# before the adapter drops server mode; otherwise a later host session could
+	# inherit its generation and accepted intent sequence.
+	for source_id_variant in _projectile_sources.keys():
+		var source_id := StringName(source_id_variant)
+		var source := _projectile_sources[source_id] as Dictionary
+		_projectile.retire_source(
+			AUTHORITY_PEER_ID, source_id, int(source.get("source_generation", 0))
+		)
+	_projectile_sources.clear()
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -674,6 +685,33 @@ func register_projectile_source(
 	return _remember(result)
 
 
+## Retires one exact server-owned source lifecycle. Production projectile
+## composers use this before reusing a stable entity ID so a later generation
+## cannot inherit intent sequences, canonical flight records, or ownership.
+func retire_projectile_source(
+	source_entity_id: StringName,
+	source_generation: int
+) -> Dictionary:
+	if not is_server():
+		return _remember(_result(false, &"authority_required"))
+	var registered := _projectile_sources.get(source_entity_id, {}) as Dictionary
+	if registered.is_empty():
+		return _remember(_result(false, &"unknown_source"))
+	if int(registered.get("source_generation", 0)) != source_generation:
+		return _remember(_result(false, &"stale_source_generation"))
+	var result: Dictionary = _projectile.retire_source(
+		AUTHORITY_PEER_ID, source_entity_id, source_generation
+	)
+	if bool(result.get("accepted", false)):
+		_abort_canonical_projectiles_for_source(source_entity_id, source_generation)
+		_projectile_sources.erase(source_entity_id)
+	return _remember(result)
+
+
+func get_projectile_source_snapshot(source_entity_id: StringName) -> Dictionary:
+	return (_projectile_sources.get(source_entity_id, {}) as Dictionary).duplicate(true)
+
+
 func set_projectile_server_tick(server_tick: int) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
@@ -685,13 +723,18 @@ func publish_projectile_snapshot(
 	recipients: Array = [],
 	terminal: bool = false,
 	budget_tick: int = -1,
-	initial_transition: bool = true
+	initial_transition: bool = true,
+	require_registered_source: bool = false
 ) -> Dictionary:
 	if not is_server():
 		return _remember(_result(false, &"authority_required"))
 	var validation := _validate_projectile_replica_snapshot(projectile)
 	if not bool(validation.get("accepted", false)):
 		return _remember(validation)
+	if require_registered_source:
+		var source_validation := _validate_registered_projectile_source(projectile)
+		if not bool(source_validation.get("accepted", false)):
+			return _remember(source_validation)
 	var target_peers: Array = recipients.duplicate()
 	if target_peers.is_empty():
 		target_peers = _peer_generations.keys()
@@ -830,6 +873,20 @@ func _validate_projectile_replica_snapshot(projectile: Dictionary) -> Dictionary
 			or int(projectile.get("last_update_tick", -1)) < 0:
 		return _result(false, &"invalid_projectile_snapshot")
 	return _result(true, &"valid_projectile_snapshot")
+
+
+func _validate_registered_projectile_source(projectile: Dictionary) -> Dictionary:
+	var source_entity_id := StringName(projectile.get("source_entity_id", &""))
+	var registered := _projectile_sources.get(source_entity_id, {}) as Dictionary
+	if registered.is_empty():
+		return _result(false, &"projectile_source_not_registered")
+	if int(projectile.get("source_generation", 0)) \
+			!= int(registered.get("source_generation", -1)):
+		return _result(false, &"projectile_source_generation_mismatch")
+	if int(projectile.get("owner_peer_id", 0)) \
+			!= int(registered.get("owner_peer_id", -1)):
+		return _result(false, &"projectile_source_owner_mismatch")
+	return _result(true, &"registered_projectile_source_valid")
 
 
 func _stage_canonical_projectile_record(
