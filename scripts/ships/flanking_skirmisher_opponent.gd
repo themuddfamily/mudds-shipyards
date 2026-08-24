@@ -1148,6 +1148,10 @@ func _update_presentation(delta: float) -> void:
 	# that loss through the inherited presentation pass so a committed vane can
 	# never remain on a craft that no longer has a live rear-cross target.
 	_refresh_rear_cross_state()
+	# Physics has already applied `_update_attitude()` for this frame. Re-sample
+	# the same tactic station now so the non-top-level vane remains world-true
+	# after its hull and every transformed ancestor have moved or rotated.
+	_apply_rear_cross_presentation()
 	if (
 		_active
 		and not _weapon_safed
@@ -1163,10 +1167,10 @@ func _update_presentation(delta: float) -> void:
 		_warning_light.light_energy = 0.0
 
 
-## A direct observation, never a phase or animation. At each existing tactic
-## update the retained wedge is reoriented in world space toward the exact cross
-## station used by movement, so transformed parents and a moving/turning target
-## cannot make a hull-local left/right arrow lie about the committed route.
+## A direct observation, never a phase or animation. The retained wedge samples
+## the exact cross station at the existing tactic update and again in the
+## existing post-attitude presentation pass, so transformed parents and a
+## moving/turning hull or target cannot make it lie about the committed route.
 func _apply_rear_cross_presentation() -> void:
 	if not is_instance_valid(_rear_cross_cue):
 		return

@@ -355,20 +355,22 @@ func _run() -> void:
 		transformed_cue.get_active_material(0).get_instance_id()
 	)
 
-	# Move and rotate after commitment; the same tactic callback that recomputes
-	# movement now refreshes presentation from the changed authoritative pose.
+	# Move and rotate after commitment, then let a real inherited physics tick
+	# recompute movement and rotate the hull. The following presentation pass
+	# must correct the child vane after that attitude mutation, not merely before.
 	moving_target.transform = Transform3D(
 		Basis.from_euler(Vector3(-0.27, 1.04, 0.21)),
 		Vector3(-17.0, 9.0, 28.0)
 	)
-	var moved_target_direction := (
-		moving_target.global_position - transformed_skirmisher.global_position
-	).normalized()
-	transformed_skirmisher.call(
-		"_choose_motion_direction",
-		moved_target_direction,
-		transformed_skirmisher.global_position.distance_to(moving_target.global_position)
-	)
+	var hull_basis_before_physics := transformed_skirmisher.global_basis
+	# Exercise the complete production callbacks deterministically: physics owns
+	# movement/attitude inside a real physics phase, then presentation observes
+	# their committed result. Disabling again prevents a second automatic tick.
+	transformed_skirmisher.process_mode = Node.PROCESS_MODE_INHERIT
+	await physics_frame
+	transformed_skirmisher.call("_physics_process", 1.0 / 60.0)
+	transformed_skirmisher.process_mode = Node.PROCESS_MODE_DISABLED
+	transformed_skirmisher.call("_update_presentation", 1.0 / 60.0)
 	var transformed_state := transformed_skirmisher.get_rear_cross_snapshot()
 	var transformed_cue_state := (
 		transformed_skirmisher.get_rear_cross_intent_cue_snapshot()
@@ -391,13 +393,16 @@ func _run() -> void:
 		and transformed_state.state_id == &"active"
 		and bool(transformed_cue_state.visible)
 		and not transformed_host.global_basis.is_equal_approx(Basis.IDENTITY)
+		and not transformed_skirmisher.global_basis.is_equal_approx(
+			hull_basis_before_physics
+		)
 		and presented_world_direction.dot(expected_world_direction) > 0.9999
 		and transformed_cue.mesh.get_instance_id() == transformed_cue_mesh_id
 		and transformed_cue.get_active_material(0).get_instance_id()
 			== transformed_cue_material_id
 		and not bool(transformed_cue_state.movement_authority)
 		and not bool(transformed_cue_state.target_authority),
-		"the existing tactic cadence tracks the true moving world cross station through transformed parents without gaining authority"
+		"the post-attitude presentation pass tracks the true moving world cross station after production hull rotation without gaining authority"
 	)
 
 	transformed_skirmisher.deactivate()
