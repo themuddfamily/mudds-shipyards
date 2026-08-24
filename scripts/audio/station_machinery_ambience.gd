@@ -94,7 +94,11 @@ func _ready() -> void:
 		_cue_player.finished.connect(_on_cue_finished)
 	_set_evidence_metadata()
 	add_to_group(&"station_machinery_ambience")
-	_ensure_synthesized()
+	# A station-wide audio disable can be authored before this node enters the
+	# tree. Do not build three procedural WAV templates that would remain idle and
+	# detached; the first later enable follows the normal bounded synthesis path.
+	if ambience_enabled:
+		_ensure_synthesized()
 	_apply_enabled_state()
 	_initialized = true
 
