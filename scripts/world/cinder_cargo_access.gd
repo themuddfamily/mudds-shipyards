@@ -111,13 +111,17 @@ const PRESENTATION_LIGHT_DELTA := 0
 const PRESENTATION_SUBMISSION_DELTA := 0
 const CARGO_ACTIVITY_STATE_IDLE := 0
 const CARGO_ACTIVITY_STATE_ACTIVE := 1
+const ROUTE_IDENTITY_HEADER := "< JOVIAN PICKUP   |   CARGO DELIVERY >"
+const ROUTE_IDENTITY_COPY_COUNT := 3
+const ROUTE_IDENTITY_LABEL_LOCAL := Vector3(-14.15, 5.96, 18.99)
 
 ## Phase 9 component-local allocation freeze. The five childless, visual-only
-## route cues retain their exact authored copy names/anchors, five visible
-## copies, one immutable BoxMesh, and two exact material identities. Their
-## presentation-only bases may show authoritative cargo state in place. Grouping
-## those copies by material reduces five renderer nodes/submissions to two;
-## route markers, collision, interaction and component lifecycle remain separate.
+## route cues retain their exact authored copy names/anchors. Three additional
+## scaled copies build the static cargo-direction fascia from that same immutable
+## BoxMesh and two exact material identities. Their presentation-only bases may
+## show authoritative cargo state in place. Both families remain in the same two
+## renderer nodes/submissions; route markers, collision, interaction and
+## component lifecycle remain separate.
 const ROUTE_CUE_COUNT := 5
 const ROUTE_CUE_SIZE := Vector3(0.42, 0.08, 0.42)
 const ROUTE_CUE_NODE_NAMES: Array[String] = [
@@ -143,7 +147,7 @@ const ROUTE_CUE_PREBATCH_ALLOCATION := {
 }
 const ROUTE_CUE_CURRENT_ALLOCATION := {
 	"nodes": 2,
-	"visible_copies": 5,
+	"visible_copies": 8,
 	"renderer_submissions": 2,
 	"mesh_resource_allocations": 1,
 	"material_resource_allocations": 2,
@@ -359,7 +363,7 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_cargo_presentation_state"}
 	var cue_energy := 1.5
 	var hazard_energy := 1.5
-	var label_text := "CINDER CARGO — READY"
+	var status_text := "CINDER CARGO — READY"
 	var label_color := CUE_COLOR
 	var geometry_state: StringName = &"pickup_ready"
 	var geometry_scale := Vector3(2.5, 6.0, 2.5)
@@ -377,7 +381,7 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		&"unavailable":
 			cue_energy = 0.18
 			hazard_energy = 0.18
-			label_text = "CINDER CARGO — BERTH REQUIRED"
+			status_text = "CINDER CARGO — BERTH REQUIRED"
 			label_color = HAZARD_COLOR.darkened(0.35)
 			geometry_state = &"unavailable"
 			geometry_scale = Vector3.ONE
@@ -386,7 +390,7 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		&"carrying":
 			cue_energy = 2.6
 			hazard_energy = 0.65
-			label_text = "CINDER CARGO — FOLLOW ROUTE"
+			status_text = "CINDER CARGO — FOLLOW ROUTE"
 			if activity_state == CARGO_ACTIVITY_STATE_ACTIVE and phase_index == 0:
 				geometry_state = &"pickup"
 				geometry_scale = Vector3(2.5, 6.0, 2.5)
@@ -406,19 +410,19 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		&"at_terminal":
 			cue_energy = 3.2
 			hazard_energy = 1.1
-			label_text = "CINDER CARGO — TERMINAL READY"
+			status_text = "CINDER CARGO — TERMINAL READY"
 			geometry_state = &"delivery_ready"
 			geometry_scale = Vector3(4.0, 4.0, 4.0)
 		&"committed":
 			cue_energy = 3.0
 			hazard_energy = 3.0
-			label_text = "CINDER CARGO — TRANSFER COMMITTED"
+			status_text = "CINDER CARGO — TRANSFER COMMITTED"
 			geometry_state = &"delivered"
 			geometry_scale = Vector3(7.0, 0.35, 7.0)
 		&"stale_rejected":
 			cue_energy = 0.15
 			hazard_energy = 3.4
-			label_text = "CINDER CARGO — REQUEST REJECTED"
+			status_text = "CINDER CARGO — REQUEST REJECTED"
 			label_color = HAZARD_COLOR
 			geometry_state = &"failed"
 			geometry_scale = Vector3(1.0, 7.0, 1.0)
@@ -426,7 +430,7 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		&"reset":
 			cue_energy = 0.25
 			hazard_energy = 0.25
-			label_text = "CINDER CARGO — RESET"
+			status_text = "CINDER CARGO — RESET"
 			label_color = HAZARD_COLOR.darkened(0.25)
 			geometry_state = &"reset"
 			geometry_scale = Vector3.ONE
@@ -439,6 +443,7 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 	var label := get_node_or_null(^"VisualRouteCues/CargoAccessLabel") as Label3D
 	if label == null:
 		return {"accepted": false, "reason": &"cargo_route_presentation_missing"}
+	var label_text := "%s\n%s" % [ROUTE_IDENTITY_HEADER, status_text]
 	label.text = label_text
 	label.modulate = label_color
 	_apply_route_cue_geometry(geometry_scale, geometry_turn_degrees)
@@ -474,8 +479,8 @@ func _apply_route_cue_geometry(scale_value: Vector3, turn_degrees: float) -> voi
 		authored, scale_value, turn_degrees
 	)
 	var batch_specs := [
-		{"name": "RouteCueCyanBatch", "indices": PackedInt32Array([0, 2, 4])},
-		{"name": "RouteCueHazardBatch", "indices": PackedInt32Array([1, 3])},
+		{"name": "RouteCueCyanBatch", "indices": PackedInt32Array([0, 2, 4]), "cyan": true},
+		{"name": "RouteCueHazardBatch", "indices": PackedInt32Array([1, 3]), "cyan": false},
 	]
 	for spec in batch_specs:
 		var batch := get_node_or_null(
@@ -483,9 +488,9 @@ func _apply_route_cue_geometry(scale_value: Vector3, turn_degrees: float) -> voi
 		) as MultiMeshInstance3D
 		if batch == null or batch.multimesh == null:
 			continue
-		var transforms: Array[Transform3D] = []
-		for cue_index in spec.indices as PackedInt32Array:
-			transforms.append(presentation[cue_index])
+		var transforms := _compose_route_cue_batch_transforms(
+			presentation, bool(spec.cyan)
+		)
 		batch.multimesh.buffer = _encode_multimesh_transforms(transforms)
 		var mesh := batch.multimesh.mesh as BoxMesh
 		if mesh != null:
@@ -584,12 +589,14 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 		{
 			"name": "RouteCueCyanBatch",
 			"indices": PackedInt32Array([0, 2, 4]),
+			"cyan": true,
 			"material": _materials.cue,
 			"color": CUE_COLOR,
 		},
 		{
 			"name": "RouteCueHazardBatch",
 			"indices": PackedInt32Array([1, 3]),
+			"cyan": false,
 			"material": _materials.hazard,
 			"color": HAZARD_COLOR,
 		},
@@ -617,8 +624,11 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 		):
 			errors.append("route_cue_batch_authority_or_lifecycle_drift_%s" % String(spec.name))
 		var indices := spec.indices as PackedInt32Array
-		if batch.multimesh.instance_count != indices.size() \
-			or batch.multimesh.visible_instance_count != indices.size():
+		var expected_batch_transforms := _compose_route_cue_batch_transforms(
+			presentation_transforms, bool(spec.cyan)
+		)
+		if batch.multimesh.instance_count != expected_batch_transforms.size() \
+			or batch.multimesh.visible_instance_count != expected_batch_transforms.size():
 			errors.append("route_cue_batch_copy_count_drift_%s" % String(spec.name))
 		if not batch.visible:
 			errors.append("route_cue_batch_visibility_drift_%s" % String(spec.name))
@@ -646,22 +656,21 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 			or not _matches_route_cue_material_recipe(material, spec.color as Color):
 			errors.append("route_cue_material_recipe_drift_%s" % String(spec.name))
 		var batch_authored := batch.get_meta("authored_instance_transforms", []) as Array
-		var expected_batch_transforms: Array[Transform3D] = []
-		var authored_batch_transforms: Array[Transform3D] = []
 		for cue_index in indices:
-			expected_batch_transforms.append(presentation_transforms[cue_index])
-			authored_batch_transforms.append(authored_transforms[cue_index])
+			live_transforms[cue_index] = presentation_transforms[cue_index]
 		if batch.multimesh.buffer != _encode_multimesh_transforms(expected_batch_transforms):
 			errors.append("route_cue_transform_buffer_drift_%s" % String(spec.name))
-		if batch_authored.size() != indices.size():
+		var expected_authored_batch := _compose_route_cue_batch_transforms(
+			authored_transforms, bool(spec.cyan)
+		)
+		if batch_authored.size() != expected_authored_batch.size():
 			errors.append("route_cue_authored_transform_count_drift_%s" % String(spec.name))
-		for instance_index in mini(indices.size(), batch_authored.size()):
+		for instance_index in mini(expected_authored_batch.size(), batch_authored.size()):
 			if not batch_authored[instance_index] is Transform3D:
 				errors.append("route_cue_transform_type_drift_%s_%d" % [String(spec.name), instance_index])
 				continue
 			var authored_transform := batch_authored[instance_index] as Transform3D
-			var expected_authored := authored_batch_transforms[instance_index]
-			live_transforms[indices[instance_index]] = expected_batch_transforms[instance_index]
+			var expected_authored := expected_authored_batch[instance_index]
 			if not authored_transform.is_equal_approx(expected_authored):
 				errors.append("route_cue_transform_drift_%s_%d" % [String(spec.name), instance_index])
 		if mesh != null and not batch.multimesh.custom_aabb.is_equal_approx(
@@ -672,7 +681,7 @@ func get_route_cue_visual_allocation_audit() -> Dictionary:
 		errors.append("route_cue_mesh_resource_count_drift")
 	if material_resource_ids.size() != 2:
 		errors.append("route_cue_material_resource_count_drift")
-	if visible_copy_count != ROUTE_CUE_COUNT:
+	if visible_copy_count != ROUTE_CUE_COUNT + ROUTE_IDENTITY_COPY_COUNT:
 		errors.append("route_cue_visible_copy_count_drift")
 	if renderer_submission_count != 2:
 		errors.append("route_cue_renderer_submission_count_drift")
@@ -1052,6 +1061,7 @@ func audit() -> Dictionary:
 		"actual_budget": actual_budget,
 		"budget_exact": actual_budget == LOCAL_BUDGET,
 		"route_cue_visual_allocation": get_route_cue_visual_allocation_audit(),
+		"route_identity_visual": get_route_identity_visual_audit(),
 		"static_box_visual_allocation": get_static_box_visual_allocation_audit(),
 		"rise_rail_visual_allocation": get_rise_rail_visual_audit(),
 		"cross_rail_visual_allocation": get_cross_rail_visual_audit(),
@@ -1098,6 +1108,10 @@ func _get_contract_errors(actual_budget: Dictionary) -> PackedStringArray:
 		"errors", PackedStringArray()
 	):
 		errors.append(String(allocation_error))
+	for identity_error in get_route_identity_visual_audit().get(
+		"errors", PackedStringArray()
+	):
+		errors.append(String(identity_error))
 	var surface_ids := PackedStringArray()
 	for body_node in find_children("*", "StaticBody3D", true, false):
 		var body := body_node as StaticBody3D
@@ -1401,24 +1415,147 @@ func _build_route_markers_and_cues() -> void:
 		"RouteCueCyanBatch",
 		shared_route_cue_mesh,
 		_materials.cue,
-		[authored_transforms[0], authored_transforms[2], authored_transforms[4]]
+		_compose_route_cue_batch_transforms(authored_transforms, true)
 	)
 	_visual_multimesh_boxes(
 		cues,
 		"RouteCueHazardBatch",
 		shared_route_cue_mesh,
 		_materials.hazard,
-		[authored_transforms[1], authored_transforms[3]]
+		_compose_route_cue_batch_transforms(authored_transforms, false)
 	)
 	var label := Label3D.new()
 	label.name = "CargoAccessLabel"
-	label.text = "CINDER CARGO ACCESS"
-	label.position = Vector3(-14.15, 5.5, 18.0)
+	label.text = "%s\nCINDER CARGO — READY" % ROUTE_IDENTITY_HEADER
+	label.position = ROUTE_IDENTITY_LABEL_LOCAL
 	label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
-	label.font_size = 52
+	label.font_size = 46
 	label.modulate = CUE_COLOR
 	label.outline_size = 10
 	cues.add_child(label)
+
+
+## Three extra copies in the two existing cue batches form a legible,
+## rail-supported fascia at the route midpoint for zero new submissions. It is
+## deliberately presentation-only: the real deck, rails, markers, berth and
+## terminal retain all collision and handoff roles.
+func get_route_identity_visual_audit() -> Dictionary:
+	var errors := PackedStringArray()
+	var expected := _get_route_identity_transforms()
+	var cyan := get_node_or_null(
+		^"VisualRouteCues/RouteCueCyanBatch"
+	) as MultiMeshInstance3D
+	var hazard := get_node_or_null(
+		^"VisualRouteCues/RouteCueHazardBatch"
+	) as MultiMeshInstance3D
+	var label := get_node_or_null(
+		^"VisualRouteCues/CargoAccessLabel"
+	) as Label3D
+	if cyan == null or hazard == null \
+			or cyan.multimesh == null or hazard.multimesh == null:
+		errors.append("cargo_route_identity_host_batch_missing")
+		return {"valid": false, "errors": errors}.duplicate(true)
+	var authored_cyan := cyan.get_meta("authored_instance_transforms", []) as Array
+	var authored_hazard := hazard.get_meta("authored_instance_transforms", []) as Array
+	if authored_cyan.size() != 4 \
+			or not (authored_cyan[3] as Transform3D).is_equal_approx(expected[2]):
+		errors.append("cargo_route_identity_cyan_fascia_drift")
+	if authored_hazard.size() != 4 \
+			or not (authored_hazard[2] as Transform3D).is_equal_approx(expected[0]) \
+			or not (authored_hazard[3] as Transform3D).is_equal_approx(expected[1]):
+		errors.append("cargo_route_identity_hazard_support_drift")
+	if not bool(get_route_cue_visual_allocation_audit().valid):
+		errors.append("cargo_route_identity_host_batch_drift")
+	if label == null or label.position != ROUTE_IDENTITY_LABEL_LOCAL \
+			or not label.text.begins_with(ROUTE_IDENTITY_HEADER + "\n"):
+		errors.append("cargo_route_identity_label_drift")
+	var rail := get_node_or_null(^"Rails/CrossRailNorth") as StaticBody3D
+	var rail_collision := (
+		rail.get_node_or_null(^"Collision") as CollisionShape3D
+		if rail != null else null
+	)
+	var rail_shape := (
+		rail_collision.shape as BoxShape3D
+		if rail_collision != null else null
+	)
+	var rail_top := (
+		rail.position.y + rail_shape.size.y * 0.5
+		if rail != null and rail_shape != null else -INF
+	)
+	var post_bottom := expected[0].origin.y - ROUTE_CUE_SIZE.y \
+		* expected[0].basis.get_scale().y * 0.5
+	var post_top := expected[0].origin.y + ROUTE_CUE_SIZE.y \
+		* expected[0].basis.get_scale().y * 0.5
+	var fascia_bottom := expected[2].origin.y - ROUTE_CUE_SIZE.y \
+		* expected[2].basis.get_scale().y * 0.5
+	if not is_equal_approx(post_bottom, rail_top) \
+			or not is_equal_approx(post_top, fascia_bottom):
+		errors.append("cargo_route_identity_support_contact_drift")
+	if is_equal_approx(expected[0].origin.z, expected[2].origin.z) \
+			or is_equal_approx(label.position.z, expected[2].origin.z):
+		errors.append("cargo_route_identity_coplanar_drift")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family_id": &"cargo_route_identity_fascia",
+		"copy_count": ROUTE_IDENTITY_COPY_COUNT,
+		"incremental_renderer_submissions": 0,
+		"material_reused": cyan.material_override == _materials.cue \
+			and hazard.material_override == _materials.hazard,
+		"collision_nodes": get_node(^"VisualRouteCues").find_children(
+			"*", "CollisionObject3D", true, false
+		).size(),
+		"supported": is_equal_approx(post_bottom, rail_top) \
+			and is_equal_approx(post_top, fascia_bottom),
+		"non_coplanar": not is_equal_approx(
+			expected[0].origin.z, expected[2].origin.z
+		) and not is_equal_approx(label.position.z, expected[2].origin.z),
+		"authored_transforms": expected.duplicate(true),
+	}.duplicate(true)
+
+
+func _get_route_identity_transforms() -> Array[Transform3D]:
+	return [
+		Transform3D(
+			Basis.IDENTITY.scaled(Vector3(
+				0.14 / ROUTE_CUE_SIZE.x,
+				0.72 / ROUTE_CUE_SIZE.y,
+				0.14 / ROUTE_CUE_SIZE.z
+			)),
+			Vector3(-17.05, 5.04, 19.12)
+		),
+		Transform3D(
+			Basis.IDENTITY.scaled(Vector3(
+				0.14 / ROUTE_CUE_SIZE.x,
+				0.72 / ROUTE_CUE_SIZE.y,
+				0.14 / ROUTE_CUE_SIZE.z
+			)),
+			Vector3(-11.25, 5.04, 19.12)
+		),
+		Transform3D(
+			Basis.IDENTITY.scaled(Vector3(
+				7.4 / ROUTE_CUE_SIZE.x,
+				1.12 / ROUTE_CUE_SIZE.y,
+				0.14 / ROUTE_CUE_SIZE.z
+			)),
+			Vector3(-14.15, 5.96, 19.08)
+		),
+	]
+
+
+func _compose_route_cue_batch_transforms(
+		route_transforms: Array[Transform3D],
+		cyan: bool
+	) -> Array[Transform3D]:
+	var identity := _get_route_identity_transforms()
+	if cyan:
+		return [
+			route_transforms[0], route_transforms[2], route_transforms[4],
+			identity[2],
+		]
+	return [
+		route_transforms[1], route_transforms[3], identity[0], identity[1],
+	]
 
 
 func _create_materials() -> void:

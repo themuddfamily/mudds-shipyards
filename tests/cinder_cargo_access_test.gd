@@ -251,7 +251,7 @@ func _test_identity_placement_budget_and_authority(
 		}
 		and (route_cue_allocation.current as Dictionary) == {
 			"nodes": 2,
-			"visible_copies": 5,
+			"visible_copies": 8,
 			"renderer_submissions": 2,
 			"mesh_resource_allocations": 1,
 			"material_resource_allocations": 2,
@@ -259,7 +259,7 @@ func _test_identity_placement_budget_and_authority(
 		and int(route_cue_allocation.mesh_resource_allocation_delta) == 0
 		and int(route_cue_allocation.renderer_submission_delta) == -3
 		and int(route_cue_allocation.node_delta) == -3,
-		"route cues batch five exact copies into two material-preserving renderer nodes"
+		"route cues and identity fascia batch eight exact copies into two material-preserving renderer nodes"
 	)
 	var static_box_allocation := access.get_static_box_visual_allocation_audit()
 	_check(
@@ -341,15 +341,15 @@ func _test_identity_placement_budget_and_authority(
 	) as MultiMeshInstance3D
 	_check(
 		route_cue_cyan != null and route_cue_hazard != null
-		and route_cue_cyan.multimesh.instance_count == 3
-		and route_cue_hazard.multimesh.instance_count == 2
+		and route_cue_cyan.multimesh.instance_count == 4
+		and route_cue_hazard.multimesh.instance_count == 4
 		and route_cue_cyan.multimesh.mesh == route_cue_hazard.multimesh.mesh
 		and route_cue_cyan.material_override != route_cue_hazard.material_override
 		and access.find_children("RouteCue*", "MeshInstance3D", true, false).is_empty()
 		and access.get_node(^"VisualRouteCues").find_children(
 			"*", "CollisionObject3D", true, false
 		).is_empty(),
-		"two inert material batches preserve the exact 3+2 cue copy split without collision nodes"
+		"two inert material batches preserve five floor cues plus three fascia copies without collision nodes"
 	)
 	var authored_cyan_buffer := route_cue_cyan.multimesh.buffer.duplicate()
 	var drifted_cyan_buffer := authored_cyan_buffer.duplicate()
@@ -368,6 +368,48 @@ func _test_identity_placement_budget_and_authority(
 	_check(
 		bool(access.get_route_cue_visual_allocation_audit().valid),
 		"restoring the exact route-cue transform buffer repairs the batch contract"
+	)
+	var identity := access.get_route_identity_visual_audit()
+	var identity_label := access.get_node_or_null(
+		^"VisualRouteCues/CargoAccessLabel"
+	) as Label3D
+	var identity_transforms := identity.get("authored_transforms", []) as Array
+	_check(
+		bool(identity.valid)
+		and bool(identity.supported)
+		and bool(identity.non_coplanar)
+		and bool(identity.material_reused)
+		and int(identity.copy_count) == 3
+		and int(identity.incremental_renderer_submissions) == 0
+		and int(identity.collision_nodes) == 0
+		and identity_label != null
+		and identity_label.text.begins_with(
+			"< JOVIAN PICKUP   |   CARGO DELIVERY >\n"
+		)
+		and identity_label.text.contains("CINDER CARGO — ")
+		and identity_transforms.size() == 3
+		and ((identity_transforms[0] as Transform3D).basis.get_scale()
+		* CinderCargoAccess.ROUTE_CUE_SIZE)
+		.is_equal_approx(Vector3(0.14, 0.72, 0.14))
+		and ((identity_transforms[2] as Transform3D).basis.get_scale()
+		* CinderCargoAccess.ROUTE_CUE_SIZE)
+		.is_equal_approx(Vector3(7.4, 1.12, 0.14)),
+		"rail-supported non-coplanar pickup-left/delivery-right fascia remains legible at route scale with no new submission or material"
+	)
+	var identity_buffer := route_cue_cyan.multimesh.buffer.duplicate()
+	var identity_buffer_red := identity_buffer.duplicate()
+	identity_buffer_red[39] += 0.2
+	route_cue_cyan.multimesh.buffer = identity_buffer_red
+	var identity_red := access.get_route_identity_visual_audit()
+	route_cue_cyan.multimesh.buffer = identity_buffer
+	_check(
+		not bool(identity_red.valid)
+		and _has_error(
+			identity_red.errors,
+			"cargo_route_identity_host_batch_drift"
+		)
+		and bool(access.get_route_identity_visual_audit().valid),
+		"structured-red: moving a fascia copy breaks its supported identity roster and restores cleanly"
 	)
 	var surface_ids := PackedStringArray()
 	var surface_census_valid := true
