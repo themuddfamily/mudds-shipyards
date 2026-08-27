@@ -89,6 +89,15 @@ const ROUTE_BEACON_SPECS: Array[Dictionary] = [
 	{"name": "RouteBeaconCharlie", "position": Vector3(46.0, -44.0, -498.0), "index": 3},
 	{"name": "RouteBeaconDelta", "position": Vector3(30.0, -46.0, -600.0), "index": 4},
 ]
+## A colour-independent outbound order cue. Looking down the route from the
+## launch gate, the retained lower vanes open from port-low to starboard-high in
+## four even steps. The progressive chevrons keep Alpha through Delta distinct
+## when perspective stacks their identical rings; no extra renderer or light is
+## needed, and activity presentation continues to scale/translate the same two
+## meshes without owning their authored roll.
+const ROUTE_BEACON_OUTBOUND_CHEVRON_ANGLES: Array[float] = [
+	-36.0, -12.0, 12.0, 36.0,
+]
 const RACE_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
 const RACE_CHECKPOINT_COUNT := 5
 const RACE_GATE_RING_CENTER := Vector3(0.0, 12.0, 0.0)
@@ -2208,6 +2217,12 @@ func _build_route_beacons() -> void:
 		_torus(beacon, "TrimRing", Vector3(0.0, 12.0, 0.0), 6.4, 6.7, _materials["beacon_trim"], Vector3(90.0, 0.0, 0.0))
 		_box(beacon, "CounterVane", Vector3(0.0, -11.0, 0.0), Vector3(9.0, 5.0, 0.5), _materials["beacon_painted_body"], false)
 		_box(beacon, "VaneSpar", Vector3(0.0, -11.0, 0.0), Vector3(0.5, 5.6, 3.2), _materials["beacon_structure"], false)
+		var outbound_chevron_angle := ROUTE_BEACON_OUTBOUND_CHEVRON_ANGLES[index - 1]
+		(beacon.get_node(^"CounterVane") as MeshInstance3D).rotation_degrees.z = \
+			outbound_chevron_angle
+		(beacon.get_node(^"VaneSpar") as MeshInstance3D).rotation_degrees.z = \
+			-outbound_chevron_angle
+		beacon.set_meta(&"outbound_chevron_angle_degrees", outbound_chevron_angle)
 
 		# Homebound face (+Z, toward the station) cyan; outbound face amber.
 		_lamp(beacon, "HomeLamp", Vector3(0.0, 12.0, 3.4), KETH_CYAN, 3.4, 26.0, true)
