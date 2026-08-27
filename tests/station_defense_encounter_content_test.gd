@@ -872,7 +872,13 @@ func _test_checked_in_encounter_content() -> void:
 		and not picket.is_active()
 		and active_presentation.wave_state_id == &"active"
 		and active_presentation.effective_state_id == &"active"
-		and is_equal_approx(float(active_presentation.ring_scale), 1.18)
+		and is_equal_approx(float(active_presentation.ring_scale), 1.32)
+		and (active_presentation.ring_scale_vector as Vector3).is_equal_approx(
+			Vector3(1.32, 0.72, 1.32)
+		)
+		and (active_presentation.core_scale_vector as Vector3).is_equal_approx(
+			Vector3(0.82, 1.34, 0.82)
+		)
 		and is_equal_approx(float(active_presentation.light_energy), 3.0)
 		and bool(active_presentation.hostile_bearing_active)
 		and (active_presentation.hostile_bearing_local as Vector3).is_equal_approx(
@@ -897,20 +903,22 @@ func _test_checked_in_encounter_content() -> void:
 	)
 	var alpha_hostile_shot := await _emit_hostile_projectile(alpha, asset, content)
 	var alpha_terminal := await _shoot(authority, attacker, alpha)
-	var recovery_presentation := asset.get_protected_asset_presentation_snapshot()
+	var inter_wave_approaching_presentation := asset.get_protected_asset_presentation_snapshot()
 	var forming_tactic := content.get_snapshot().later_wave_tactic as Dictionary
 	_check(
-		recovery_presentation.wave_state_id == &"recovery"
-		and recovery_presentation.effective_state_id == &"recovery"
-		and is_equal_approx(float(recovery_presentation.ring_scale), 0.94)
-		and is_equal_approx(float(recovery_presentation.core_scale), 0.86)
-		and (recovery_presentation.light_color as Color).is_equal_approx(Color("4fb9a7"))
-		and is_equal_approx(float(recovery_presentation.light_energy), 1.4)
-		and not bool(recovery_presentation.hostile_bearing_active)
-		and (recovery_presentation.core_position as Vector3).is_equal_approx(
+		inter_wave_approaching_presentation.wave_state_id == &"approaching"
+		and inter_wave_approaching_presentation.effective_state_id == &"approaching"
+		and is_equal_approx(float(inter_wave_approaching_presentation.ring_scale), 0.86)
+		and is_equal_approx(float(inter_wave_approaching_presentation.core_scale), 1.08)
+		and (inter_wave_approaching_presentation.light_color as Color).is_equal_approx(
+			Color("6ba9ff")
+		)
+		and is_equal_approx(float(inter_wave_approaching_presentation.light_energy), 1.8)
+		and not bool(inter_wave_approaching_presentation.hostile_bearing_active)
+		and (inter_wave_approaching_presentation.core_position as Vector3).is_equal_approx(
 			Vector3(0.0, 2.65, 0.0)
 		),
-		"the caller-owned inter-wave delay softens the fixed beacon into a recovery cue"
+		"the caller-owned positive inter-wave delay retains the fixed beacon's approach cue"
 	)
 	_check(
 		forming_tactic.tactic_id == StationDefenseEncounterContent.LATER_WAVE_TACTIC_ID
@@ -1654,8 +1662,9 @@ func _test_checked_in_encounter_content() -> void:
 	)
 	_check(
 		destroyed_presentation.state_id == &"destroyed"
-		and destroyed_presentation.wave_state_id == &"recovery"
+		and destroyed_presentation.wave_state_id == &"idle"
 		and destroyed_presentation.effective_state_id == &"destroyed"
+		and destroyed_presentation.silhouette_id == &"mast_only_failed"
 		and not bool(destroyed_presentation.ring_visible)
 		and not bool(destroyed_presentation.core_visible)
 		and not bool(destroyed_presentation.light_visible)
@@ -1696,6 +1705,9 @@ func _test_checked_in_encounter_content() -> void:
 		and bool(renewed_presentation.ring_visible)
 		and bool(renewed_presentation.core_visible)
 		and is_equal_approx(float(renewed_presentation.ring_scale), 1.0)
+		and (renewed_presentation.ring_scale_vector as Vector3).is_equal_approx(Vector3.ONE)
+		and (renewed_presentation.core_scale_vector as Vector3).is_equal_approx(Vector3.ONE)
+		and renewed_presentation.silhouette_id == &"full_ring_intact"
 		and is_equal_approx(float(renewed_presentation.light_energy), 2.4)
 		and signal_ring.get_instance_id() == signal_ring_id
 		and signal_core.get_instance_id() == signal_core_id
