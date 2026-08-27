@@ -6252,14 +6252,22 @@ func _build_architecture() -> void:
 		0.54,
 		_materials["cyan_glow"]
 	)
-	_text_sign(
+	# The lower line is the decision cue on the normal Regeneration Deck walk
+	# toward the central pad: name the parked craft and make the intended guided
+	# sortie direction explicit before the player reaches the berth.  This is the
+	# existing portal legend, merely relabelled and dropped slightly within its
+	# already-lit header; it adds no station geometry or authority.
+	var torrent_sortie_header := _text_sign(
 		shell,
-		"CENTRAL JUNCTION  //  FLEET DOCKS",
-		Vector3(0, 11.68, 21.84),
+		"TORRENT BERTH  //  GUIDED SORTIE",
+		Vector3(0, 11.60, 21.84),
 		Vector3(0.0, 180.0, 0.0),
 		0.27,
 		_materials["orange_glow"]
 	)
+	# Preserve the established approach-sign path: its semantic copy can evolve
+	# without widening the portal roster or its focused presentation audit.
+	torrent_sortie_header.name = "Sign_CENTRAL_JUNCTION__--__FLEET_DOCKS"
 
 	_apply_habitat_entry_curve()
 
