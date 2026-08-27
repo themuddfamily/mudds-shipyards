@@ -16,6 +16,15 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const AGENT_SCENE := preload("res://scenes/world/components/station_service_agent.tscn")
 
+const STATION_PANEL_ALBEDO_PATH := "res://assets/materials/procedural-panel-triplanar-albedo-v2.png"
+const STATION_PANEL_NORMAL_PATH := "res://assets/materials/procedural-panel-triplanar-normal-v2.png"
+const STATION_PANEL_ROUGHNESS_PATH := "res://assets/materials/procedural-panel-triplanar-roughness-v2.png"
+const STATION_PANEL_SCALE := Vector3.ONE * 0.30
+const STATION_PANEL_NORMAL_SCALE := 1.0
+const STATION_PANEL_TRIPLANAR_SHARPNESS := 4.0
+const STATION_STRUCTURAL_CLEARCOAT := 0.18
+const STATION_STRUCTURAL_CLEARCOAT_ROUGHNESS := 0.38
+
 const CONNECTION_SLOT_META: StringName = &"station_connection_slot"
 const APPROACH_ROUTE_ID: StringName = &"approach"
 const HUB_CLAIMANT_ID: StringName = &"station-hub"
@@ -780,6 +789,34 @@ func _test_production_courier_roster(world: ShipyardWorld) -> void:
 		int(material_counts.bound_material_references) == 49,
 		"catalog sharing preserves all seven visible material bindings on each of seven couriers"
 	)
+	# This post-stage owner closes the gap left by the startup-time station material
+	# census: every courier exists here, so inspect the live structural bindings
+	# directly against the registered StationSurfaceKit recipe rather than accepting
+	# the component's self-captured material contracts as proof.
+	var structural_binding_paths := [
+		^"PresentationRoot/ServiceCarriage/Hull",
+		^"PresentationRoot/ServiceCarriage/PortPod",
+		^"PresentationRoot/ServiceCarriage/StarboardPod",
+		^"PresentationRoot/ServiceCarriage/ForwardCowl",
+		^"PresentationRoot/ServiceCarriage/TailFin",
+	]
+	var structural_binding_count := 0
+	var structural_recipe_exact := true
+	for agent in agents:
+		for binding_path: NodePath in structural_binding_paths:
+			var renderer := agent.get_node_or_null(binding_path) as MeshInstance3D
+			structural_binding_count += 1
+			structural_recipe_exact = (
+				structural_recipe_exact
+				and renderer != null
+				and _uses_registered_station_panel_recipe(
+					renderer.material_override as StandardMaterial3D
+				)
+			)
+	_check(
+		structural_binding_count == 35 and structural_recipe_exact,
+		"all 35 post-stage courier structural bindings use the exact registered StationSurfaceKit recipe"
+	)
 	var pod_mesh_roster := StationServiceAgent.audit_pod_mesh_roster(material_roster_nodes)
 	var pod_mesh_counts := pod_mesh_roster.counts as Dictionary
 	print("STATION_SERVICE_POD_MESH_ROSTER: ", pod_mesh_roster)
@@ -912,6 +949,36 @@ func _test_production_courier_roster(world: ShipyardWorld) -> void:
 		"the navigation audit declares no berth, regeneration, or traversability authority"
 	)
 	_check((report.placements as Dictionary).size() == 7, "the audit publishes every exact courier placement instead of only aggregate counts")
+
+
+func _uses_registered_station_panel_recipe(material: StandardMaterial3D) -> bool:
+	return (
+		material != null
+		and _texture_path(material.albedo_texture) == STATION_PANEL_ALBEDO_PATH
+		and material.normal_enabled
+		and _texture_path(material.normal_texture) == STATION_PANEL_NORMAL_PATH
+		and is_equal_approx(material.normal_scale, STATION_PANEL_NORMAL_SCALE)
+		and _texture_path(material.roughness_texture) == STATION_PANEL_ROUGHNESS_PATH
+		and material.roughness_texture_channel == BaseMaterial3D.TEXTURE_CHANNEL_RED
+		and material.uv1_triplanar
+		and material.uv1_world_triplanar
+		and material.uv1_scale.is_equal_approx(STATION_PANEL_SCALE)
+		and is_equal_approx(
+			material.uv1_triplanar_sharpness,
+			STATION_PANEL_TRIPLANAR_SHARPNESS
+		)
+		and material.texture_repeat
+		and material.clearcoat_enabled
+		and is_equal_approx(material.clearcoat, STATION_STRUCTURAL_CLEARCOAT)
+		and is_equal_approx(
+			material.clearcoat_roughness,
+			STATION_STRUCTURAL_CLEARCOAT_ROUGHNESS
+		)
+	)
+
+
+func _texture_path(texture: Texture2D) -> String:
+	return texture.resource_path if texture != null else ""
 
 
 func _test_production_determinism(world: ShipyardWorld) -> void:
