@@ -63,6 +63,8 @@ func _initialize() -> void:
 		and lens.visible and light.visible
 		and material.emission.is_equal_approx(Interceptor.ENGINE_DAMAGE_IMPAIRED_COLOR)
 		and is_equal_approx(material.emission_energy_multiplier, 3.2)
+		and lens.position.is_equal_approx(Interceptor.ENGINE_DAMAGE_BEACON_POSITION)
+		and lens.scale.is_equal_approx(Interceptor.ENGINE_DAMAGE_BEACON_NOMINAL_SCALE)
 		and is_equal_approx(light.light_energy, 3.2 * 0.48),
 		"the production apply_damage entry routes engine impairment into a steady amber exterior cue"
 	)
@@ -82,8 +84,11 @@ func _initialize() -> void:
 		and lens.visible and light.visible
 		and material.emission.is_equal_approx(Interceptor.ENGINE_DAMAGE_FAILED_COLOR)
 		and is_equal_approx(material.emission_energy_multiplier, 5.0)
+		and lens.position.is_equal_approx(Interceptor.ENGINE_DAMAGE_BEACON_POSITION)
+		and lens.scale.is_equal_approx(Interceptor.ENGINE_DAMAGE_BEACON_FAILED_SCALE)
+		and lens.scale.y > lens.scale.x
 		and is_equal_approx(light.light_energy, 5.0 * 0.48),
-		"the second production damage hit strengthens engine failure to the same steady red cue"
+		"the second production damage hit turns the retained engine lens into a non-color-only failed silhouette"
 	)
 
 	var lens_id := lens.get_instance_id()
@@ -106,8 +111,10 @@ func _initialize() -> void:
 			== ShipComponentDamageType.ComponentState.NOMINAL
 		and not lens.visible and not light.visible
 		and is_zero_approx(material.emission_energy_multiplier)
+		and lens.position.is_equal_approx(Interceptor.ENGINE_DAMAGE_BEACON_POSITION)
+		and lens.scale.is_equal_approx(Interceptor.ENGINE_DAMAGE_BEACON_NOMINAL_SCALE)
 		and is_zero_approx(light.light_energy),
-		"the inherited reuse transaction restores nominal state and clears the beacon"
+		"the inherited reuse transaction restores the exact compact nominal beacon pose"
 	)
 	_check(
 		craft.find_children("EngineDamageBeaconLens", "MeshInstance3D", true, false).size() == 1

@@ -21,6 +21,11 @@ const WING_COLOR := Color("8b4a38")
 ## Upper starboard aft shoulder: the full lens clears the hull silhouette in Y
 ## and the centreline recognition fin in X when viewed from behind the craft.
 const ENGINE_DAMAGE_BEACON_POSITION := Vector3(1.9, 1.54, 3.82)
+## Failure reuses the retained engine-bay beacon lens as a tall, static vane.
+## That change in outline remains legible when its red emission is not, while
+## the nominal/impaired lens keeps its exact compact authored pose.
+const ENGINE_DAMAGE_BEACON_NOMINAL_SCALE := Vector3.ONE
+const ENGINE_DAMAGE_BEACON_FAILED_SCALE := Vector3(1.35, 3.4, 1.0)
 const ENGINE_DAMAGE_IMPAIRED_COLOR := Color("ffd166")
 const ENGINE_DAMAGE_FAILED_COLOR := Color("ff4b3e")
 const AFT_RECOGNITION_FIN_SIZE := Vector3(2.7, 1.8, 0.32)
@@ -519,15 +524,19 @@ func _apply_engine_damage_beacon_state(state: int) -> void:
 		return
 	var colour := ENGINE_DAMAGE_IMPAIRED_COLOR
 	var energy := 0.0
+	var lens_scale := ENGINE_DAMAGE_BEACON_NOMINAL_SCALE
 	match state:
 		ShipComponentDamage.ComponentState.IMPAIRED:
 			energy = 3.2
 		ShipComponentDamage.ComponentState.FAILED:
 			colour = ENGINE_DAMAGE_FAILED_COLOR
 			energy = 5.0
+			lens_scale = ENGINE_DAMAGE_BEACON_FAILED_SCALE
 	_engine_damage_beacon_material.albedo_color = colour.darkened(0.72)
 	_engine_damage_beacon_material.emission = colour
 	_engine_damage_beacon_material.emission_energy_multiplier = energy
+	_engine_damage_beacon_lens.position = ENGINE_DAMAGE_BEACON_POSITION
+	_engine_damage_beacon_lens.scale = lens_scale
 	_engine_damage_beacon_lens.visible = energy > 0.0
 	_engine_damage_beacon_light.light_color = colour
 	_engine_damage_beacon_light.light_energy = energy * 0.48

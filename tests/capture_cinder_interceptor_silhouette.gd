@@ -1,10 +1,12 @@
 extends SceneTree
 
 ## Stable gameplay-distance presentation capture for the NEW Cinder light
-## interceptor. The harness owns only its evidence camera and lighting; it does
-## not exercise flight, collision, boarding, weapons, handling, or berth fit.
+## interceptor. It compares nominal and existing failed engine-bay state through
+## the production damage entry; the harness owns only its evidence camera and
+## lighting, not flight, collision, boarding, weapons, handling, or berth fit.
 
 const Interceptor := preload("res://scripts/ships/cinder_light_interceptor.gd")
+const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 const RESOLUTION := Vector2i(1600, 900)
 
 
@@ -45,11 +47,18 @@ func _run() -> void:
 	rim.rotation_degrees = Vector3(-10.0, 150.0, 0.0)
 	stage.add_child(rim)
 
-	var craft := Interceptor.new() as CinderLightInterceptor
-	craft.name = "CaptureCinderLightInterceptor"
-	stage.add_child(craft)
-	craft.set_process(false)
-	craft.set_physics_process(false)
+	var nominal := Interceptor.new() as CinderLightInterceptor
+	nominal.name = "NominalCinderLightInterceptor"
+	nominal.position = Vector3(-4.4, 0.0, 0.0)
+	stage.add_child(nominal)
+	nominal.set_process(false)
+	nominal.set_physics_process(false)
+	var failed := Interceptor.new() as CinderLightInterceptor
+	failed.name = "FailedEngineBayCinderLightInterceptor"
+	failed.position = Vector3(4.4, 0.0, 0.0)
+	stage.add_child(failed)
+	failed.set_process(false)
+	failed.set_physics_process(false)
 
 	var camera := Camera3D.new()
 	camera.name = "GameplayDistanceChaseCamera"
@@ -61,10 +70,16 @@ func _run() -> void:
 	camera.current = true
 	stage.add_child(camera)
 
-	for _frame in 8:
+	for _frame in 4:
+		await process_frame
+	var engine_position := _component_local_position(failed, ShipComponentDamageType.COMPONENT_ENGINE_BAY)
+	var damage_per_hit := failed.maximum_hull * 0.1
+	failed.apply_damage(damage_per_hit, failed.to_global(engine_position), failed.global_basis.z)
+	failed.apply_damage(damage_per_hit, failed.to_global(engine_position), failed.global_basis.z)
+	for _frame in 4:
 		await process_frame
 	var image := root.get_texture().get_image()
-	var path := "%s/gameplay_distance_chase.png" % output_dir
+	var path := "%s/gameplay_distance_nominal_vs_failed_engine_bay.png" % output_dir
 	var save_error := image.save_png(ProjectSettings.globalize_path(path))
 	if save_error != OK:
 		push_error("Cinder interceptor silhouette capture failed to save: %s" % error_string(save_error))
@@ -72,3 +87,10 @@ func _run() -> void:
 		return
 	print("CINDER_INTERCEPTOR_SILHOUETTE_CAPTURE %s" % path)
 	quit(0)
+
+
+func _component_local_position(ship: HeroShip, component_id: StringName) -> Vector3:
+	for component in ship.get_component_damage_report().get("components", []) as Array:
+		if StringName((component as Dictionary).get("id", &"")) == component_id:
+			return (component as Dictionary).get("local_position", Vector3.ZERO) as Vector3
+	return Vector3.ZERO
