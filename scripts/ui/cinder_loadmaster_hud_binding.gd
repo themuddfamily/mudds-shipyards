@@ -101,21 +101,22 @@ func _publish(status: Dictionary, manifest: Dictionary) -> void:
 			StringName(presentation_status.get("state", &"")),
 			manifest.get("receipt", {}) as Dictionary
 		)
-		presentation_status["roster_status"] = roster_reading["status"]
-		presentation_status["roster_shape"] = roster_reading["shape"]
+		if not roster_reading.is_empty():
+			presentation_status["roster_status"] = roster_reading["status"]
+			presentation_status["roster_shape"] = roster_reading["shape"]
 		presentation_status["presentation_only"] = true
 		_hud.call(&"update_cinder_loadmaster_telemetry", _craft.get_ship_id(), _role, presentation_status, manifest)
 
 
 func _roster_reading(state: StringName, receipt: Dictionary) -> Dictionary:
-	if not receipt.is_empty():
-		return {"shape": "[=]", "status": "SECURED // MANIFEST READY"} \
-			if bool(receipt.get("ready", false)) \
-			else {"shape": "[!]", "status": "BLOCKED // MANIFEST REVIEW"}
 	match state:
 		&"occupied":
-			return {"shape": "[>]", "status": "LOADING // MANIFEST PENDING"}
+			return {"shape": "[>]", "status": "LOADING // MANIFEST PENDING"} \
+				if receipt.is_empty() \
+				else {"shape": "[!]", "status": "BLOCKED // MANIFEST REVIEW"}
+		&"manifest_ready":
+			if not receipt.is_empty() and bool(receipt.get("ready", false)):
+				return {"shape": "[=]", "status": "SECURED // MANIFEST READY"}
 		&"available", &"released":
 			return {"shape": "[/]", "status": "DETACHED // STATION OPEN"}
-		_:
-			return {"shape": "[X]", "status": "FAULT // STATUS UNAVAILABLE"}
+	return {}
