@@ -58,6 +58,7 @@ const DISTRESS_RED := Color("ff4a4a")
 const COURIER_ENGINE := Color("8fd0ff")
 const TAIL_TURRET_CHARGE_SCALE := Vector3(1.65, 0.62, 0.62)
 const MATERIAL_CATALOG_ENTRY_COUNT := 19
+const CARGO_PYLON_SIZE := Vector3(0.9, 0.22, 2.2)
 const POD_BAND_SIZE := Vector3(1.35, 1.35, 0.22)
 const POD_LAMP_RADIUS := 0.13
 ## One steady, world-space arrow above the runner makes its fixed boundary route
@@ -690,10 +691,21 @@ func _build_interceptor() -> void:
 	pod_lamp_mesh.radial_segments = 24
 	pod_lamp_mesh.rings = 12
 	pod_lamp_mesh.material = _materials.courier_lamp
+	# These bilateral freight supports are immutable childless silhouette stock.
+	# Keep both renderer paths and exact transforms, while retaining one courier-
+	# local BoxMesh recipe instead of allocating the same geometry twice.
+	var cargo_pylon_mesh := _make_box_mesh(
+		CARGO_PYLON_SIZE, _materials.courier_shadow
+	)
 	for side in [-1.0, 1.0]:
 		# Slung cargo pods on external pylons: the silhouette detail that says
 		# this craft is carrying something and would rather not stop.
-		_box(_visual_root, "CargoPylon", Vector3(side * 1.5, -0.2, 0.6), Vector3(0.9, 0.22, 2.2), _materials.courier_shadow)
+		_box_from_mesh(
+			_visual_root,
+			"CargoPylon",
+			Vector3(side * 1.5, -0.2, 0.6),
+			cargo_pylon_mesh
+		)
 		_cylinder(_visual_root, "CargoPod", Vector3(side * 2.5, -0.34, 0.6), 0.62, 4.6, _materials.courier_clay, Vector3(90.0, 0.0, 0.0))
 		_box_from_mesh(
 			_visual_root,
