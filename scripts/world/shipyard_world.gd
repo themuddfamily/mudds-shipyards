@@ -7633,12 +7633,12 @@ func _build_catwalks_and_control_room() -> void:
 		pane_shape.size = Vector3(float(bay[2]), 4.7, 0.08)
 		pane_collision.shape = pane_shape
 		pane_body.add_child(pane_collision)
-	# REGEN-DECK-002's mirror image, and measured the same way: the DOCK OPERATIONS
+	# REGEN-DECK-002's mirror image, and measured the same way: the Dock Operations
 	# legend occupied y = 5.003 … 5.268 at z = 22.674, touching nothing. Same
 	# fascia, sized to meet these glyphs where they already stand (fascia face
 	# z = 22.68 against a glyph rear of 22.686) and hung off this roof's leading
-	# edge. The legend's position, rotation, scale and material are untouched, so
-	# its recorded MAP-004 approach-facing expectation still holds.
+	# edge. The legend's position, rotation and material are untouched, so its
+	# recorded MAP-004 approach-facing expectation still holds.
 	_extruded_capsule_fascia(
 		upper,
 		"OperationsPodFascia",
@@ -7654,14 +7654,21 @@ func _build_catwalks_and_control_room() -> void:
 	# lattice deck at lower z, so the legend is yawed 180 degrees to face them.
 	# The glyph extrusion is symmetric about local z = 0, so this does not change
 	# the sign's depth footprint and cannot push it into the glazing behind it.
-	_text_sign(
+	# Name the modern, non-authoritative workspace without implying live service
+	# state. The generated glyph bounds are 7.71725 x 0.568 m before node scale;
+	# 0.84 is the largest clean hundredth that leaves at least 0.05 m inside the
+	# existing fascia at this unchanged low-mounted transform.
+	var dock_operations_sign := _text_sign(
 		upper,
-		"DOCK OPERATIONS",
+		"DOCK OPS // TRAFFIC",
 		Vector3(43.0, 5.15, 22.68),
 		Vector3(0.0, 180.0, 0.0),
-		0.48,
+		0.84,
 		_materials["cyan_glow"]
 	)
+	# The path is a stable production consumer even though its visible copy is
+	# now more concise.
+	dock_operations_sign.name = "Sign_DOCK_OPERATIONS"
 	_build_dock_operations_room(upper)
 
 

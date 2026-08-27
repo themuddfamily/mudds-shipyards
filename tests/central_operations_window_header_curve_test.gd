@@ -10,6 +10,7 @@ const EXPECTED_HEADER_AABB := AABB(
 	Vector3(-6.0, -0.275, -4.0),
 	Vector3(12.0, 0.55, 8.0)
 )
+const SIGN_FASCIA_MARGIN_M := 0.05
 
 var _failures: Array[String] = []
 
@@ -76,6 +77,8 @@ func _run() -> void:
 
 	var fascia := upper.get_node_or_null(^"OperationsPodFascia") as StaticBody3D if upper != null else null
 	var sign := upper.get_node_or_null(^"Sign_DOCK_OPERATIONS") as MeshInstance3D if upper != null else null
+	var fascia_visual := fascia.get_node_or_null(^"Mesh") as MeshInstance3D if fascia != null else null
+	var text_mesh := sign.mesh as TextMesh if sign != null else null
 	var threshold := upper.get_node_or_null(^"OperationsPodThreshold") as StaticBody3D if upper != null else null
 	_check(
 		fascia != null and fascia.position.is_equal_approx(Vector3(43.0, 5.35, 22.9))
@@ -86,6 +89,21 @@ func _run() -> void:
 		and is_equal_approx(float(threshold.get_meta("open_bay_center_x", 0.0)), 43.0)
 		and is_equal_approx(float(threshold.get_meta("open_bay_clear_width", 0.0)), 3.34),
 		"lower fascia, readable room sign and published doorway clearance remain exact"
+	)
+	var fascia_bounds := (
+		fascia.transform * fascia_visual.transform * fascia_visual.mesh.get_aabb()
+		if fascia_visual != null else AABB()
+	)
+	var glyph_bounds := sign.transform * text_mesh.get_aabb() if text_mesh != null else AABB()
+	_check(
+		text_mesh != null
+		and text_mesh.text == "DOCK OPS // TRAFFIC"
+		and sign.scale.is_equal_approx(Vector3.ONE * 0.84)
+		and glyph_bounds.position.x >= fascia_bounds.position.x + SIGN_FASCIA_MARGIN_M
+		and glyph_bounds.end.x <= fascia_bounds.end.x - SIGN_FASCIA_MARGIN_M
+		and glyph_bounds.position.y >= fascia_bounds.position.y + SIGN_FASCIA_MARGIN_M
+		and glyph_bounds.end.y <= fascia_bounds.end.y - SIGN_FASCIA_MARGIN_M,
+		"the exact traffic-workspace identity uses real glyph bounds and stays inside the existing fascia with margin"
 	)
 
 	var glazing_exact := true
