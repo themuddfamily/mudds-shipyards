@@ -418,7 +418,7 @@ func _completion_response_snapshot() -> Dictionary:
 	elif visible and _state == &"completed":
 		response_state = &"reward_confirmed"
 		status_text = "Survey data accepted"
-		silhouette = &"ring_and_expanded_diamond"
+		silhouette = &"ring_and_inset_diamond"
 	return {
 		"visible": visible,
 		"state": response_state,

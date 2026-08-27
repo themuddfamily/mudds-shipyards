@@ -28,28 +28,42 @@ func _run() -> void:
 	var completion_seal := objective.get_node_or_null(^"OwnedRewardCompletionSeal") as MeshInstance3D if objective != null else null
 	var started: Dictionary = binding.call(&"start_relay_survey")
 	var active_snapshot: Dictionary = (binding.call(&"get_snapshot") as Dictionary).relay_survey_presentation
+	var active_relay_scale := relay.scale if relay != null else Vector3.ZERO
 	var reached_relay: Dictionary = binding.call(
 		&"submit_relay_survey_position", Vector3(180.0, 120009.0, -44.0)
 	)
+	var checkpoint_return_scale := return_marker.scale if return_marker != null else Vector3.ZERO
 	var reached_return: Dictionary = binding.call(
 		&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0)
 	)
 	var awaiting_snapshot: Dictionary = (binding.call(&"get_snapshot") as Dictionary).relay_survey_presentation
+	var awaiting_return_scale := return_marker.scale if return_marker != null else Vector3.ZERO
 	var committed: Dictionary = binding.call(&"commit_relay_survey_reward")
 	var completed_snapshot: Dictionary = (binding.call(&"get_snapshot") as Dictionary).relay_survey_presentation
+	var completed_ring_scale := return_marker.scale if return_marker != null else Vector3.ZERO
+	var completed_seal_scale := completion_seal.scale if completion_seal != null else Vector3.ZERO
 	var invalid_result: Dictionary = objective.call(&"apply_activity_snapshot", {"state": &"forged"})
 	var relay_material := relay.material_override as ShaderMaterial
 	var return_material := return_marker.material_override as ShaderMaterial
 	var completion_material := completion_seal.material_override as ShaderMaterial if completion_seal != null else null
 	var completion_mesh := completion_seal.mesh as BoxMesh if completion_seal != null else null
-	var route_shape_ok := relay != null and relay.mesh is CylinderMesh \
+	var relay_mesh := relay.mesh as CylinderMesh if relay != null and relay.mesh is CylinderMesh else null
+	var route_shape_ok := relay_mesh != null \
+		and is_equal_approx(relay_mesh.bottom_radius, 2.0) \
+		and is_equal_approx(relay_mesh.height, 7.2) \
 		and (relay.mesh as CylinderMesh).radial_segments == 4 \
-		and relay.scale == Vector3.ONE and relay.rotation == Vector3.ZERO \
-		and return_marker != null and return_marker.mesh is TorusMesh
-	var completion_shape_ok := completion_mesh != null \
+		and active_relay_scale == Vector3.ONE and relay.rotation == Vector3.ZERO \
+		and return_marker != null and return_marker.mesh is TorusMesh \
+		and checkpoint_return_scale == Vector3(0.78, 1.48, 0.78) \
+		and awaiting_return_scale == Vector3(1.52, 1.52, 1.52)
+	var completion_shape_ok: bool = completion_mesh != null \
 		and completion_mesh.size == Vector3(3.4, 3.4, 0.55) \
 		and completion_seal.position == Vector3(540.0, 120030.0, -210.0) \
-		and is_equal_approx(completion_seal.rotation.z, PI * 0.25)
+		and is_equal_approx(completion_seal.rotation.z, PI * 0.25) \
+		and completed_ring_scale == Vector3(1.05, 1.05, 1.05) \
+		and completed_seal_scale == Vector3(0.94, 0.94, 0.94) \
+		and completed_snapshot.completion_response.silhouette \
+			== &"ring_and_inset_diamond"
 	var budget_ok: bool = objective.get_child_count() == 3 \
 		and objective.find_children("*", "Light3D", true, false).is_empty() \
 		and not objective.is_processing() and not objective.is_physics_processing() \
