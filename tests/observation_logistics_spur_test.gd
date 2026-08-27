@@ -475,7 +475,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"route_zone_tick_mesh"
+		and StringName(performance.selected_family) == &"connector_portal_frame_mesh"
 		and int(performance.baseline_descendant_nodes) == 144
 		and int(performance.descendant_nodes) == 152
 		and int(performance.baseline_renderer_nodes) == 42
@@ -484,12 +484,12 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.drawn_copies) == 278
 		and int(performance.baseline_surface_submissions) == 42
 		and int(performance.surface_submissions) == 35,
-		"shared route-tick geometry preserves 278 supported visible copies and the district's 35 submissions"
+		"shared portal-frame geometry preserves 278 supported visible copies and the district's 35 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 24
-		and int(performance.mesh_resource_delta) == -10
+		and int(performance.mesh_resources) == 22
+		and int(performance.mesh_resource_delta) == -12
 		and int(performance.baseline_material_resources) == 10
 		and int(performance.material_resources) == 10
 		and int(performance.baseline_family_nodes) == 2
@@ -498,7 +498,70 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and int(performance.family_submissions) == 2
 		and int(performance.baseline_family_mesh_resources) == 2
 		and int(performance.family_mesh_resources) == 1,
-		"cyan and amber route-tick batches keep both submissions while sharing one immutable mesh"
+		"the two portal-frame batches retain both submissions while sharing the existing immutable unit mesh"
+	)
+	var portal_posts := module.get_node_or_null(
+		^"Structure/Dressing/ConnectorPortalPosts"
+	) as MultiMeshInstance3D
+	var portal_beams := module.get_node_or_null(
+		^"Structure/Dressing/ConnectorPortalBeams"
+	) as MultiMeshInstance3D
+	var portal_post_transforms := portal_posts.get_meta(
+		"authored_instance_transforms", []
+	) as Array if portal_posts != null else []
+	var portal_beam_transforms := portal_beams.get_meta(
+		"authored_instance_transforms", []
+	) as Array if portal_beams != null else []
+	var portal_mesh := (
+		portal_posts.multimesh.mesh as BoxMesh
+		if portal_posts != null and portal_posts.multimesh != null else null
+	)
+	var portal_poses_exact := portal_post_transforms.size() == 10 \
+		and portal_beam_transforms.size() == 5
+	for bay_index in ObservationLogisticsSpur.PORTAL_BAY_Z.size():
+		var bay_z: float = ObservationLogisticsSpur.PORTAL_BAY_Z[bay_index]
+		for side_index in 2:
+			var side := -1.0 + float(side_index) * 2.0
+			portal_poses_exact = portal_poses_exact and (
+				portal_post_transforms[bay_index * 2 + side_index] as Transform3D
+			).is_equal_approx(Transform3D(
+				Basis.from_scale(ObservationLogisticsSpur.PORTAL_POST_SIZE),
+				Vector3(side * 2.42, 1.80, bay_z)
+			))
+		portal_poses_exact = portal_poses_exact and (
+			portal_beam_transforms[bay_index] as Transform3D
+		).is_equal_approx(Transform3D(
+			Basis.from_scale(ObservationLogisticsSpur.PORTAL_BEAM_SIZE),
+			Vector3(0.0, 3.55, bay_z)
+		))
+	_check(
+		portal_mesh != null
+		and portal_beams != null
+		and portal_beams.multimesh != null
+		and portal_beams.multimesh.mesh == portal_mesh
+		and portal_mesh.size.is_equal_approx(Vector3.ONE)
+		and portal_posts.material_override != portal_beams.material_override
+		and portal_posts.multimesh.instance_count == 10
+		and portal_beams.multimesh.instance_count == 5
+		and portal_posts.get_child_count() == 0
+		and portal_beams.get_child_count() == 0
+		and portal_poses_exact
+		and int(performance.portal_frame_batch_count) == 2
+		and int(performance.portal_frame_mesh_resources) == 1
+		and int(performance.portal_frame_mesh_resource_delta) == -1
+		and int(performance.portal_frame_copies) == 15
+		and bool(performance.portal_frame_identities_exact),
+		"ten portal posts and five headers keep exact geometry, poses, shadows and separate materials on one unit mesh"
+	)
+	portal_beams.multimesh.mesh = portal_mesh.duplicate()
+	_check(
+		not bool(module.get_visual_resource_contract().exact),
+		"red mutation: splitting the portal-header mesh identity fails the sharing contract"
+	)
+	portal_beams.multimesh.mesh = portal_mesh
+	_check(
+		bool(module.get_visual_resource_contract().exact),
+		"restoring the shared portal-frame mesh identity returns the contract green"
 	)
 	var observation_ticks := module.get_node_or_null(
 		^"Structure/Dressing/ObservationZoneTicks"
@@ -527,7 +590,6 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and observation_ticks.material_override != logistics_ticks.material_override
 		and observation_tick_transforms.size() == 11
 		and logistics_tick_transforms.size() == 8
-		and int(performance.family_copies) == 19
 		and int(performance.route_tick_batch_count) == 2
 		and int(performance.route_tick_mesh_resources) == 1
 		and int(performance.route_tick_mesh_resource_delta) == -1

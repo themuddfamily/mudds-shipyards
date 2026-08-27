@@ -141,7 +141,7 @@ const DRAWN_COPY_COUNT := 278
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
 const SURFACE_SUBMISSION_COUNT := 35
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 24
+const MESH_RESOURCE_COUNT := 22
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
@@ -235,6 +235,16 @@ const SCALED_VISUAL_BATCH_NAMES := [
 ]
 const BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT := 8
 const SCALED_VISUAL_MESH_RESOURCE_COUNT := 1
+## The ten open-portal posts and five headers remain two material-separated
+## render batches, but use the existing immutable unit box with exact per-copy
+## scales instead of allocating two more BoxMesh resources.
+const PORTAL_FRAME_BATCH_NAMES := ["ConnectorPortalPosts", "ConnectorPortalBeams"]
+const PORTAL_POST_SIZE := Vector3(0.22, 3.60, 0.22)
+const PORTAL_BEAM_SIZE := Vector3(5.05, 0.22, 0.34)
+const PORTAL_BAY_Z := [2.0, 7.0, 12.0, 17.0, 22.0]
+const PORTAL_FRAME_COPY_COUNT := 15
+const BASELINE_PORTAL_FRAME_MESH_RESOURCE_COUNT := 2
+const PORTAL_FRAME_MESH_RESOURCE_COUNT := 1
 
 ## The approach meets both destination pads at the cross-landing. Keep this cue
 ## attached to the existing overhead sign so the branch choice is readable
@@ -989,6 +999,54 @@ func get_visual_resource_contract() -> Dictionary:
 			and bool(route_tick_batch.get_meta("visual_detail_only", false))
 		)
 
+	var portal_frame_mesh_resource_ids := {}
+	var portal_frame_identities_exact := is_instance_valid(_scaled_visual_box_mesh)
+	var portal_frame_copies := 0
+	var portal_frame_materials := [_materials.get("rail"), _materials.get("shell")]
+	var expected_portal_post_transforms: Array[Transform3D] = []
+	var expected_portal_beam_transforms: Array[Transform3D] = []
+	for bay_z in PORTAL_BAY_Z:
+		for side in [-1.0, 1.0]:
+			expected_portal_post_transforms.append(Transform3D(
+				Basis.from_scale(PORTAL_POST_SIZE), Vector3(side * 2.42, 1.80, bay_z)
+			))
+		expected_portal_beam_transforms.append(Transform3D(
+			Basis.from_scale(PORTAL_BEAM_SIZE), Vector3(0.0, 3.55, bay_z)
+		))
+	for batch_index in PORTAL_FRAME_BATCH_NAMES.size():
+		var expected_batch_transforms: Array[Transform3D] = (
+			expected_portal_post_transforms
+			if batch_index == 0 else expected_portal_beam_transforms
+		)
+		var portal_batch := get_node_or_null(NodePath(
+			"Structure/Dressing/%s" % PORTAL_FRAME_BATCH_NAMES[batch_index]
+		)) as MultiMeshInstance3D
+		var portal_mesh := (
+			portal_batch.multimesh.mesh as BoxMesh
+			if portal_batch != null and portal_batch.multimesh != null else null
+		)
+		var authored_portal_transforms := (
+			portal_batch.get_meta("authored_instance_transforms", []) as Array
+			if portal_batch != null else []
+		)
+		if portal_mesh != null:
+			portal_frame_mesh_resource_ids[portal_mesh.get_instance_id()] = true
+			portal_frame_copies += portal_batch.multimesh.instance_count
+		portal_frame_identities_exact = (
+			portal_frame_identities_exact
+			and portal_batch != null
+			and portal_mesh == _scaled_visual_box_mesh
+			and portal_mesh.size.is_equal_approx(Vector3.ONE)
+			and portal_batch.material_override == portal_frame_materials[batch_index]
+			and portal_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and portal_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and portal_batch.layers == 1
+			and is_zero_approx(portal_batch.extra_cull_margin)
+			and not portal_batch.ignore_occlusion_culling
+			and portal_batch.get_child_count() == 0
+			and bool(portal_batch.get_meta("visual_detail_only", false))
+			and authored_portal_transforms == expected_batch_transforms
+		)
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	var exact := (
@@ -1015,12 +1073,15 @@ func get_visual_resource_contract() -> Dictionary:
 		and route_tick_mesh_resource_ids.size() == ROUTE_TICK_MESH_RESOURCE_COUNT
 		and route_tick_copies == ROUTE_TICK_COPY_COUNT
 		and route_tick_identities_exact
+		and portal_frame_mesh_resource_ids.size() == PORTAL_FRAME_MESH_RESOURCE_COUNT
+		and portal_frame_copies == PORTAL_FRAME_COPY_COUNT
+		and portal_frame_identities_exact
 	)
 	return {
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"route_zone_tick_mesh",
+		"selected_family": &"connector_portal_frame_mesh",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -1034,14 +1095,21 @@ func get_visual_resource_contract() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
-		"baseline_family_nodes": ROUTE_TICK_BATCH_NAMES.size(),
-		"family_nodes": ROUTE_TICK_BATCH_NAMES.size(),
-		"baseline_family_submissions": ROUTE_TICK_BATCH_NAMES.size(),
-		"family_submissions": ROUTE_TICK_BATCH_NAMES.size(),
-		"baseline_family_mesh_resources": BASELINE_ROUTE_TICK_MESH_RESOURCE_COUNT,
-		"family_mesh_resources": route_tick_mesh_resource_ids.size(),
-		"family_copies": route_tick_copies,
-		"family_identities_exact": route_tick_identities_exact,
+		"baseline_family_nodes": PORTAL_FRAME_BATCH_NAMES.size(),
+		"family_nodes": PORTAL_FRAME_BATCH_NAMES.size(),
+		"baseline_family_submissions": PORTAL_FRAME_BATCH_NAMES.size(),
+		"family_submissions": PORTAL_FRAME_BATCH_NAMES.size(),
+		"baseline_family_mesh_resources": BASELINE_PORTAL_FRAME_MESH_RESOURCE_COUNT,
+		"family_mesh_resources": portal_frame_mesh_resource_ids.size(),
+		"family_copies": portal_frame_copies,
+		"family_identities_exact": portal_frame_identities_exact,
+		"portal_frame_batch_count": PORTAL_FRAME_BATCH_NAMES.size(),
+		"portal_frame_mesh_resources": portal_frame_mesh_resource_ids.size(),
+		"portal_frame_mesh_resource_delta": (
+			portal_frame_mesh_resource_ids.size() - BASELINE_PORTAL_FRAME_MESH_RESOURCE_COUNT
+		),
+		"portal_frame_copies": portal_frame_copies,
+		"portal_frame_identities_exact": portal_frame_identities_exact,
 		"route_tick_batch_count": ROUTE_TICK_BATCH_NAMES.size(),
 		"route_tick_mesh_resources": route_tick_mesh_resource_ids.size(),
 		"route_tick_mesh_resource_delta": (
@@ -1611,12 +1679,16 @@ func _build_finishing_details(parent: Node3D) -> void:
 	# without adding walls, floor or collision across its exposed negative space.
 	var portal_posts: Array[Transform3D] = []
 	var portal_beams: Array[Transform3D] = []
-	for bay_z in [2.0, 7.0, 12.0, 17.0, 22.0]:
+	for bay_z in PORTAL_BAY_Z:
 		for side in [-1.0, 1.0]:
-			portal_posts.append(Transform3D(Basis.IDENTITY, Vector3(side * 2.42, 1.80, bay_z)))
-		portal_beams.append(Transform3D(Basis.IDENTITY, Vector3(0.0, 3.55, bay_z)))
-	_multimesh_boxes(parent, "ConnectorPortalPosts", Vector3(0.22, 3.60, 0.22), _materials["rail"], portal_posts)
-	_multimesh_boxes(parent, "ConnectorPortalBeams", Vector3(5.05, 0.22, 0.34), _materials["shell"], portal_beams)
+			portal_posts.append(Transform3D(
+				Basis.from_scale(PORTAL_POST_SIZE), Vector3(side * 2.42, 1.80, bay_z)
+			))
+		portal_beams.append(Transform3D(
+			Basis.from_scale(PORTAL_BEAM_SIZE), Vector3(0.0, 3.55, bay_z)
+		))
+	_multimesh_scaled_boxes(parent, "ConnectorPortalPosts", _materials["rail"], portal_posts)
+	_multimesh_scaled_boxes(parent, "ConnectorPortalBeams", _materials["shell"], portal_beams)
 	_build_observation_threshold(parent)
 
 	# Perforated ribbon roofs shelter the working zones but keep the two pads and
