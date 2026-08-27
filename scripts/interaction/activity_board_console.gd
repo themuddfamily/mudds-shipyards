@@ -35,6 +35,9 @@ const READABILITY_AMBER := Color("ffc36a")
 
 var _built := false
 
+static var _shared_readability_label_mesh: TextMesh
+static var _shared_readability_underline_mesh: BoxMesh
+
 
 func _ready() -> void:
 	monitoring = false
@@ -80,16 +83,9 @@ func _build_readability_visuals() -> void:
 	visuals.set_meta("presentation_only", true)
 	add_child(visuals)
 
-	var label_mesh := TextMesh.new()
-	label_mesh.text = READABILITY_LABEL_TEXT
-	label_mesh.font_size = 64
-	label_mesh.pixel_size = 0.012
-	label_mesh.depth = 0.006
-	label_mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label_mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var label := MeshInstance3D.new()
 	label.name = "ActivityBoardHeader"
-	label.mesh = label_mesh
+	label.mesh = _get_shared_readability_label_mesh()
 	label.position = READABILITY_LABEL_POSITION
 	label.basis = Basis(
 		READABILITY_GLYPH_RIGHT,
@@ -100,16 +96,35 @@ func _build_readability_visuals() -> void:
 	label.material_override = _readability_material(READABILITY_CYAN, 1.35)
 	visuals.add_child(label)
 
-	var underline_mesh := BoxMesh.new()
-	underline_mesh.size = READABILITY_UNDERLINE_SIZE
 	var underline := MeshInstance3D.new()
 	underline.name = "ActivityBoardLocatorUnderline"
-	underline.mesh = underline_mesh
+	underline.mesh = _get_shared_readability_underline_mesh()
 	underline.position = READABILITY_UNDERLINE_POSITION
 	underline.rotation_degrees = Vector3(-12.0, 0.0, 0.0)
 	underline.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	underline.material_override = _readability_material(READABILITY_AMBER, 1.05)
 	visuals.add_child(underline)
+
+
+static func _get_shared_readability_label_mesh() -> TextMesh:
+	if _shared_readability_label_mesh == null:
+		var mesh := TextMesh.new()
+		mesh.text = READABILITY_LABEL_TEXT
+		mesh.font_size = 64
+		mesh.pixel_size = 0.012
+		mesh.depth = 0.006
+		mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_shared_readability_label_mesh = mesh
+	return _shared_readability_label_mesh
+
+
+static func _get_shared_readability_underline_mesh() -> BoxMesh:
+	if _shared_readability_underline_mesh == null:
+		var mesh := BoxMesh.new()
+		mesh.size = READABILITY_UNDERLINE_SIZE
+		_shared_readability_underline_mesh = mesh
+	return _shared_readability_underline_mesh
 
 
 func _readability_material(color: Color, emission_energy: float) -> StandardMaterial3D:

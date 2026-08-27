@@ -11,7 +11,11 @@ func _init() -> void:
 
 func _run() -> void:
 	var console := ActivityBoardConsoleType.new()
+	var console_two := ActivityBoardConsoleType.new()
+	var console_three := ActivityBoardConsoleType.new()
 	root.add_child(console)
+	root.add_child(console_two)
+	root.add_child(console_three)
 	await process_frame
 
 	var visuals := console.get_node_or_null(^"ActivityBoardReadability") as Node3D
@@ -21,6 +25,15 @@ func _run() -> void:
 	var underline := console.get_node_or_null(
 		^"ActivityBoardReadability/ActivityBoardLocatorUnderline"
 	) as MeshInstance3D
+	var headers: Array[MeshInstance3D] = []
+	var underlines: Array[MeshInstance3D] = []
+	for candidate in [console, console_two, console_three]:
+		headers.append(candidate.get_node(
+			^"ActivityBoardReadability/ActivityBoardHeader"
+		) as MeshInstance3D)
+		underlines.append(candidate.get_node(
+			^"ActivityBoardReadability/ActivityBoardLocatorUnderline"
+		) as MeshInstance3D)
 	_check(
 		visuals != null and bool(visuals.get_meta("presentation_only", false)),
 		"console owns one explicitly presentation-only readability group"
@@ -52,6 +65,36 @@ func _run() -> void:
 		and (underline.position - header.position).dot(header_basis.y) < 0.0,
 		"header retains its high-contrast amber locator underline"
 	)
+	var shared_recipe_exact := true
+	for candidate in headers:
+		shared_recipe_exact = shared_recipe_exact \
+			and candidate.mesh == header.mesh \
+			and candidate.transform.is_equal_approx(header.transform) \
+			and candidate.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			and candidate.get_child_count() == 0
+	for candidate in underlines:
+		shared_recipe_exact = shared_recipe_exact \
+			and candidate.mesh == underline.mesh \
+			and candidate.transform.is_equal_approx(underline.transform) \
+			and candidate.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			and candidate.get_child_count() == 0
+	_check(
+		shared_recipe_exact and header.mesh != underline.mesh,
+		"three consoles share exactly one immutable mesh per readability family without changing nodes or transforms"
+	)
+	var material_ids := {}
+	for candidate in headers + underlines:
+		material_ids[candidate.material_override.get_instance_id()] = true
+	_check(
+		material_ids.size() == 6
+		and (headers[1].material_override as StandardMaterial3D).albedo_color.is_equal_approx(
+			ActivityBoardConsoleType.READABILITY_CYAN
+		)
+		and (underlines[1].material_override as StandardMaterial3D).albedo_color.is_equal_approx(
+			ActivityBoardConsoleType.READABILITY_AMBER
+		),
+		"mesh sharing leaves every per-console material instance and color recipe intact"
+	)
 	_check(
 		console.get_node_or_null(^"InteractionCollision") is CollisionShape3D
 		and console.get_child_count() == 2
@@ -77,6 +120,8 @@ func _run() -> void:
 	)
 
 	console.queue_free()
+	console_two.queue_free()
+	console_three.queue_free()
 	actor.queue_free()
 	await process_frame
 	if _failures.is_empty():
