@@ -39,6 +39,7 @@ func _run() -> void:
 
 	_test_identity_evidence_and_audits(module)
 	_test_anchor_routes_and_room_contract(module)
+	_test_approach_portal_direction_identity(module)
 	_test_tow_handoff_rail(module)
 	_test_berth_specification(module)
 	await _test_physical_walkable_surfaces(module)
@@ -147,6 +148,29 @@ func _test_anchor_routes_and_room_contract(module: JovianFreightBerth) -> void:
 	_check(module.contains_service_room(centre), "service-room centre is contained")
 	_check(module.contains_service_room(module.get_route_transform(&"service-room").origin), "service route terminates inside the room")
 	_check(not module.contains_service_room(module.get_route_transform(&"boarding-staging").origin), "boarding apron is not misreported as interior")
+
+
+## The existing, collision-backed entrance board is the first sign encountered
+## from the station connection. Freeze only its player-facing label and pose:
+## no route, physical fixture, authority, lighting or render allocation changes.
+func _test_approach_portal_direction_identity(module: JovianFreightBerth) -> void:
+	var matching_labels: Array[Label3D] = []
+	for candidate in module.find_children("FreightSign*", "Label3D", true, false):
+		var label := candidate as Label3D
+		if label.text == JovianFreightBerth.APPROACH_LEGEND:
+			matching_labels.append(label)
+	var exact := matching_labels.size() == 1
+	if exact:
+		var legend := matching_labels[0]
+		exact = legend.position.is_equal_approx(JovianFreightBerth.APPROACH_LEGEND_POSITION) \
+			and is_equal_approx(legend.pixel_size, JovianFreightBerth.APPROACH_LEGEND_HEIGHT / 32.0) \
+			and legend.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0)) \
+			and not legend.double_sided \
+			and not legend.no_depth_test
+	_check(
+		exact,
+		"the normal walking approach names Jovian Freight Berth and separates port boarding from starboard terminal"
+	)
 
 
 ## The solid FreightApproachGantry exposed that the old east rail crossed the
