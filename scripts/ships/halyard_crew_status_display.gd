@@ -232,7 +232,7 @@ func _repair_token(repair: Dictionary) -> String:
 	if status == &"repairing":
 		return "[WORK // REPAIRING // %s // %d%%]" % [component, percent]
 	if status == &"aborted" or status == &"interrupted":
-		return "[FAULT // ABORTED // %s // %s // %d%%]" % [
+		return "[INTERRUPTED] [%s // %s // %d%%]" % [
 			_readable_id(StringName(repair.get("reason", &"interrupted"))),
 			component,
 			percent,
@@ -271,7 +271,7 @@ func _decode_repair_envelope(envelope: Dictionary) -> Dictionary:
 	match authority_status:
 		&"repairing": state = &"repairing"
 		&"completed": state = &"completed"
-		&"interrupted": state = &"aborted"
+		&"interrupted": state = &"interrupted"
 		&"idle": state = &"idle"
 		_: return {"accepted": false, "reason": &"invalid_repair_state"}
 	var raw_progress: Variant = repair.get("progress", 0.0)

@@ -74,10 +74,11 @@ func _run() -> void:
 	)
 	_check(
 		bool(display.present_engineer_repair_snapshot(
-			_repair_envelope(0, 3, &"interrupted", 0.58, &"engine_bay", &"role_released")
+			_repair_envelope(0, 3, &"interrupted", 0.58, &"engine_bay", &"left_berth")
 		).get("accepted", false))
-			and display.get_readout_text().contains("FAULT // ABORTED // ROLE RELEASED // ENGINE BAY // 58%"),
-		"an interrupted authority snapshot is rendered as an explicit fault state"
+			and StringName(display.get_repair_presentation_snapshot().get("repair", {}).get("state", &"")) == &"interrupted"
+			and display.get_readout_text().contains("[INTERRUPTED] [LEFT BERTH // ENGINE BAY // 58%]"),
+		"an interrupted authority snapshot retains the established truthful interruption token"
 	)
 	_check(bool(display.begin_repair_generation(1).get("accepted", false)), "a new role lifecycle advances the repair fence")
 	_check(

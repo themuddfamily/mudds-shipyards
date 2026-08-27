@@ -71,11 +71,17 @@ func _run() -> void:
 		1, 77, &"engineer_avatar", &"crew_port_01", 2, 1
 	)
 	_check(bool(engineer_release.get("accepted", false)), "the engineer role release is admitted")
+	var released_gameplay: Dictionary = craft.get_crew_role_gameplay_snapshot()
+	var released_network: Dictionary = craft.get_engineer_repair_network_snapshot()
 	_check(
 		int(display.get_repair_presentation_snapshot().get("generation", -1))
 			> generation_before_release
-			and display.get_readout_text().contains("IDLE // REPAIR READY"),
-		"engineer role release clears the physical station and advances its snapshot fence"
+			and display.get_readout_text().contains("E [OPEN]")
+			and display.get_readout_text().contains("ENG ROUTE [NONE]")
+			and display.get_readout_text().contains("IDLE // REPAIR READY")
+			and ((released_gameplay.get("selected_targets", {}) as Dictionary).get("engineer", {}) as Dictionary).is_empty()
+			and ((released_network.get("owner", {}) as Dictionary).is_empty()),
+		"engineer role release opens the station, clears route and owner, and advances its snapshot fence"
 	)
 	var generation_before_reuse := int(
 		display.get_repair_presentation_snapshot().get("generation", -1)
