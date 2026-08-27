@@ -400,6 +400,7 @@ func _test_physics_progress_reentry_and_completion(
 	if patrol_button != null:
 		patrol_button.emit_signal("pressed")
 	var repeated := game.get_active_activity_snapshot()
+	var board_after_repeat := hud.get_activity_selection_report()
 	_check(
 		board_opened
 		and "REPEAT" in str(
@@ -415,7 +416,9 @@ func _test_physics_progress_reentry_and_completion(
 		and int(restart_events["count"]) == 1
 		and int(director_start_events["count"]) == 1
 		and int(game.get_activity_integration_report().get("position_sample_count", -2))
-		== samples_before_repeat,
+		== samples_before_repeat
+		and "LOCKED" in str(board_after_repeat.get("status", ""))
+		and "NOT CHANGED" not in str(board_after_repeat.get("status", "")),
 		"the selected Activity Board action resets then starts exactly one fresh patrol generation"
 	)
 	hud.set_paused(false)

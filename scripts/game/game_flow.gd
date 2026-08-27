@@ -11004,6 +11004,7 @@ func _cargo_delivery_phase_id(state: int, next_phase_index: int) -> StringName:
 
 func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
 	var result: Dictionary
+	var repeat_requested := false
 	var selected_state := StringName(
 		get_active_activity_snapshot().get("state_id", &"idle")
 	)
@@ -11013,15 +11014,23 @@ func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
 		and _activity_selection_locked
 		and selected_state in [&"completed", &"failed", &"aborted"]
 	):
+		repeat_requested = true
 		result = request_activity_start(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
 	else:
 		result = select_activity_kind(activity_kind)
 	if is_instance_valid(hud) and hud.has_method(&"set_activity_selection_state"):
+		# The accepted start already committed the active snapshot. Do not feed its
+		# `started` lifecycle reason back through the selection-error presenter.
+		var status_reason := StringName(
+			result.get("reason", &"selection_rejected")
+		)
+		if repeat_requested and bool(result.get("accepted", false)):
+			status_reason = &""
 		hud.call(
 			&"set_activity_selection_state",
 			_selected_activity_kind,
 			_activity_selection_locked,
-			StringName(result.get("reason", &"selection_rejected"))
+			status_reason
 		)
 
 
