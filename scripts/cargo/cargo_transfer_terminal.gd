@@ -21,6 +21,8 @@ enum Role {
 const SCHEMA_VERSION := 1
 const MAX_PROMPT_CHARACTERS := 96
 const MAX_SNAPSHOT_ENTRIES := 8
+const MAX_PRESENTATION_EMISSION_ENERGY := 3.2
+const REDUCED_FLASH_EMISSION_CAP := 1.15
 const MIN_INTERACTION_RADIUS := 0.5
 const MAX_INTERACTION_RADIUS := 4.0
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
@@ -400,34 +402,46 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_cargo_presentation_state"}
 	var color := accent_color
 	var energy := 1.15
-	var label_text := "CARGO DESTINATION — READY"
+	var state_token: StringName = &"ready"
+	var label_text := "KIT DELIVERY\nREADY  //  KIT INBOUND"
 	match state_id:
 		&"unavailable":
 			color = Color("617078")
 			energy = 0.18
-			label_text = "CARGO DESTINATION — BERTH REQUIRED"
+			state_token = &"berth_required"
+			label_text = "KIT DELIVERY\nBERTH REQUIRED"
 		&"carrying":
 			color = Color("56e0e3")
 			energy = 2.2
-			label_text = "CARGO DESTINATION — ROUTE ACTIVE"
+			state_token = &"route_active"
+			label_text = "KIT DELIVERY\nROUTE ACTIVE"
 		&"at_terminal":
 			color = Color("56e0e3")
 			energy = 3.0
-			label_text = "CARGO DESTINATION — SUBMIT TRANSFER"
+			state_token = &"transfer_ready"
+			label_text = "KIT TERMINAL\nTRANSFER  //  PRESENT KIT"
 		&"committed":
 			color = Color("72e6a0")
 			energy = 2.7
-			label_text = "CARGO DESTINATION — COMMITTED"
+			state_token = &"transfer_accepted"
+			label_text = "KIT DELIVERY\nACCEPTED  //  KIT LOGGED"
 		&"stale_rejected":
 			color = Color("f6a13b")
-			energy = 3.2
-			label_text = "CARGO DESTINATION — REQUEST REJECTED"
+			energy = MAX_PRESENTATION_EMISSION_ENERGY
+			state_token = &"terminal_error"
+			label_text = "KIT TERMINAL\nERROR  //  RETRY"
 		&"reset":
 			color = Color("617078")
 			energy = 0.25
-			label_text = "CARGO DESTINATION — RESET"
+			state_token = &"reset"
+			label_text = "KIT DELIVERY\nRESET  //  MANIFEST CLOSED"
 		_:
 			pass
+	var reduced_flash := bool(snapshot.get("reduced_flash", false))
+	energy = minf(
+		energy,
+		REDUCED_FLASH_EMISSION_CAP if reduced_flash else MAX_PRESENTATION_EMISSION_ENERGY
+	)
 	var screen := get_node_or_null(^"StatusScreen") as MeshInstance3D
 	var label := get_node_or_null(^"TerminalLabel") as Label3D
 	var material := screen.material_override as StandardMaterial3D if screen != null else null
@@ -445,6 +459,10 @@ func apply_cargo_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		"accent_color": color,
 		"emission_energy": energy,
 		"label_text": label_text,
+		"state_token": state_token,
+		"reduced_flash": reduced_flash,
+		"flashing": false,
+		"presentation_behavior": &"steady_text_and_color",
 		"node_delta": 0,
 		"light_delta": 0,
 		"submission_delta": 0,
@@ -941,9 +959,9 @@ func _build_physical_terminal() -> void:
 	label.text = "CARGO SOURCE" if terminal_role == Role.SOURCE else "CARGO DESTINATION"
 	label.position = Vector3(0.0, 1.48, -0.18)
 	label.rotation_degrees = Vector3.ZERO
-	label.font_size = 40
+	label.font_size = 48
 	label.modulate = accent_color
-	label.outline_size = 8
+	label.outline_size = 10
 	add_child(label)
 
 
