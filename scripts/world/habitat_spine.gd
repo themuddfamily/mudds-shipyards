@@ -2185,11 +2185,14 @@ func _build_connector(structure: Node3D) -> void:
 	_box(connector, "EntryFacadeRight", Vector3(4.15, 2.3, 0.72), Vector3(4.1, 4.6, 0.48), _materials["shell_mid"])
 	_box(connector, "EntryFacadeHeader", Vector3(0, 4.48, 0.72), Vector3(4.2, 0.72, 0.48), _materials["shell_light"])
 	_beam_between(connector, "EntryCrownTube", Vector3(-6.15, 4.85, 0.42), Vector3(6.15, 4.85, 0.42), 0.13, _materials["structural"], false)
-	# MAP-004 family. The legend sits at z = 0.43, in front of `EntryFacadeRight`
-	# (z = 0.48 …) on the approach side of the connector, and was authored with
-	# `Vector3.ZERO`, so it read backwards to anyone walking in from the station.
-	# `OBSERVATION COMMON` in the same module already yaws 180 for its reader.
-	_text_sign(connector, "HABITAT SPINE  //  FIXED-ERA-INSPIRED", Vector3(4.0, 3.85, 0.43), Vector3(0, 180, 0), 0.22, _materials["amber"])
+	# The existing approach-facing legend carries the arrival identity and the
+	# destination in one glance. It remains the same visual-only sign, moved only
+	# from the far facade shoulder to the centred, approach-side header plane: the
+	# sign sits just ahead of the final pressure rib so it stays readable through
+	# the normal connector framing. The connector's layout,
+	# clearance, route anchors, collision, lighting, node and submission budgets
+	# stay untouched. Its 180-degree yaw faces the normal station-side approach.
+	_text_sign(connector, "CREW HABITAT  //  COMMON ROOM  -->", Vector3(0.0, 3.85, 0.10), Vector3(0, 180, 0), 0.22, _materials["amber"])
 	# Warm wash on the connector legend, matching its amber type. This is the
 	# first habitat fixture a player walking in from the station sees, and it is
 	# where the module's warmer colour temperature announces itself.
