@@ -46,12 +46,35 @@ func _run() -> void:
 		"work arc and lamp are component-local from the first accepted progress sample"
 	)
 	_check(
+		active.get("visual_phase", &"") == &"work_in_progress"
+			and active.get("shape_hierarchy", &"")
+				== &"segmented_work_arc_to_full_ready_crown"
+			and int(active.get("inactive_slot_count", -1)) == 6
+			and _count_arc_materials(presentation, PresentationType.WORK_COLOR) == 1
+			and _count_arc_materials(
+				presentation, PresentationType.INACTIVE_SLOT_COLOR
+			) == 6,
+		"work-in-progress reads as a cyan filled arc against six dark physical slots"
+	)
+	_check(
 		bounds.size.x <= 2.401 and bounds.size.y <= 1.101 and bounds.size.z <= 2.401
 			and int(active.get("arc_segment_count", 0)) == 7
 			and int(active.get("collision_nodes", -1)) == 0
 			and not bool(active.get("processes", true))
 			and bool(active.get("steady", false)),
 		"the steady effect is spatially bounded and owns no collision or timer loop"
+	)
+	var work_light := presentation.get_node_or_null(^"RepairWorkLight") as OmniLight3D
+	_check(
+		work_light != null
+			and is_equal_approx(PresentationType.READY_EMISSION_ENERGY, 2.5)
+			and PresentationType.WORK_EMISSION_ENERGY
+				<= PresentationType.READY_EMISSION_ENERGY
+			and PresentationType.WORK_LIGHT_ENERGY
+				<= PresentationType.READY_LIGHT_ENERGY
+			and is_equal_approx(work_light.light_energy, PresentationType.WORK_LIGHT_ENERGY)
+			and bool(work_light.get_meta(&"reduced_flash_safe", false)),
+		"the steady work state stays below the inherited emission/light peaks and declares no-flash safety"
 	)
 	_check(
 		_all_component_anchors_clear_hull(),
@@ -100,7 +123,20 @@ func _run() -> void:
 	)
 	_check(
 		bool(presentation.present_snapshot(
-			_envelope(0, 2, &"completed", 1.0, true), Vector3.ZERO
+			_envelope(0, 2, &"repairing", 1.0, true), target
+		).get("accepted", false))
+			and presentation.get_snapshot().get("visual_phase", &"") == &"ready_to_commit"
+			and int(presentation.get_snapshot().get("inactive_slot_count", -1)) == 0
+			and _count_arc_materials(presentation, PresentationType.READY_COLOR) == 7
+			and (presentation.get_node(^"RepairWorkLamp") as MeshInstance3D)
+				.material_override.albedo_color.is_equal_approx(PresentationType.READY_COLOR)
+			and work_light.light_color.is_equal_approx(PresentationType.READY_COLOR)
+			and is_equal_approx(work_light.light_energy, PresentationType.READY_LIGHT_ENERGY),
+		"the terminal admitted sample becomes a full amber crown with an amber center"
+	)
+	_check(
+		bool(presentation.present_snapshot(
+			_envelope(0, 3, &"completed", 1.0, true), Vector3.ZERO
 		).get("accepted", false))
 			and not bool(presentation.get_snapshot().get("visible", true))
 			and presentation.get_snapshot().get("last_clear_reason", &"") == &"repair_committed",
@@ -194,6 +230,20 @@ func _all_component_anchors_clear_hull() -> bool:
 					<= hull_bounds.end.y:
 			return false
 	return true
+
+
+func _count_arc_materials(presentation: Node, color: Color) -> int:
+	var matches := 0
+	for index in PresentationType.ARC_SEGMENT_COUNT:
+		var segment := presentation.get_node_or_null(
+			NodePath("RepairArcSegment%02d" % index)
+		) as MeshInstance3D
+		if segment == null or not segment.visible:
+			continue
+		var material := segment.material_override as StandardMaterial3D
+		if material != null and material.albedo_color.is_equal_approx(color):
+			matches += 1
+	return matches
 
 
 func _check(condition: bool, message: String) -> void:

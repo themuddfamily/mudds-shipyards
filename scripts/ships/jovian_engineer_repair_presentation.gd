@@ -16,10 +16,20 @@ const COMPONENT_CLEARANCE := Vector3(0.0, 0.24, 0.0)
 const LOCAL_EFFECT_BOUNDS := AABB(Vector3(-1.2, -0.15, -1.2), Vector3(2.4, 1.1, 2.4))
 const WORK_COLOR := Color("70eee7")
 const READY_COLOR := Color("e9a844")
+const INACTIVE_SLOT_COLOR := Color("163943")
+const WORK_EMISSION_ENERGY := 2.0
+const READY_EMISSION_ENERGY := 2.5
+const WORK_LIGHT_ENERGY := 0.72
+const READY_LIGHT_ENERGY := 1.15
 
 var _arc_segments: Array[MeshInstance3D] = []
 var _work_lamp: MeshInstance3D
 var _work_light: OmniLight3D
+var _work_material: StandardMaterial3D
+var _ready_material: StandardMaterial3D
+var _inactive_slot_material: StandardMaterial3D
+var _work_lamp_material: StandardMaterial3D
+var _ready_lamp_material: StandardMaterial3D
 var _generation := 0
 var _last_sequence := -1
 var _attached := false
@@ -28,6 +38,7 @@ var _component_generation := 0
 var _target_local_position := Vector3.ZERO
 var _visible_segment_count := 0
 var _last_clear_reason: StringName = &"ready"
+var _visual_phase: StringName = &"cleared"
 
 
 func _ready() -> void:
@@ -80,10 +91,7 @@ func present_snapshot(envelope: Dictionary, component_local_position: Vector3) -
 		1,
 		ARC_SEGMENT_COUNT
 	)
-	for index in _arc_segments.size():
-		_arc_segments[index].visible = index < _visible_segment_count
-	_work_lamp.visible = true
-	_work_light.visible = true
+	_apply_progress_hierarchy(float(decoded.get("progress", 0.0)))
 	visible = true
 	_last_clear_reason = &""
 	return _result(true, &"repair_presentation_presented")
@@ -124,7 +132,10 @@ func get_snapshot() -> Dictionary:
 		"effect_local_position": position,
 		"effect_world_position": global_position if is_inside_tree() else Vector3.INF,
 		"visible_segment_count": _visible_segment_count,
+		"inactive_slot_count": ARC_SEGMENT_COUNT - _visible_segment_count,
 		"arc_segment_count": ARC_SEGMENT_COUNT,
+		"visual_phase": _visual_phase,
+		"shape_hierarchy": &"segmented_work_arc_to_full_ready_crown",
 		"local_effect_bounds": LOCAL_EFFECT_BOUNDS,
 		"last_clear_reason": _last_clear_reason,
 		"steady": true,
@@ -223,12 +234,12 @@ func _decode(envelope: Dictionary, component_local_position: Vector3) -> Diction
 func _build_visuals() -> void:
 	if not _arc_segments.is_empty():
 		return
-	var arc_material := StandardMaterial3D.new()
-	arc_material.albedo_color = WORK_COLOR
-	arc_material.emission_enabled = true
-	arc_material.emission = WORK_COLOR
-	arc_material.emission_energy_multiplier = 2.0
-	arc_material.roughness = 0.28
+	_work_material = _emissive_material(WORK_COLOR, WORK_EMISSION_ENERGY, 0.28)
+	_ready_material = _emissive_material(READY_COLOR, WORK_EMISSION_ENERGY, 0.28)
+	_inactive_slot_material = StandardMaterial3D.new()
+	_inactive_slot_material.albedo_color = INACTIVE_SLOT_COLOR
+	_inactive_slot_material.metallic = 0.48
+	_inactive_slot_material.roughness = 0.54
 	var segment_mesh := BoxMesh.new()
 	segment_mesh.size = Vector3(0.42, 0.09, 0.14)
 	for index in ARC_SEGMENT_COUNT:
@@ -236,19 +247,17 @@ func _build_visuals() -> void:
 		var segment := MeshInstance3D.new()
 		segment.name = "RepairArcSegment%02d" % index
 		segment.mesh = segment_mesh
-		segment.material_override = arc_material
+		segment.material_override = _inactive_slot_material
 		segment.position = Vector3(cos(angle) * ARC_RADIUS, 0.0, sin(angle) * ARC_RADIUS)
 		segment.rotation.y = -angle
 		segment.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(segment)
 		_arc_segments.append(segment)
 
-	var lamp_material := StandardMaterial3D.new()
-	lamp_material.albedo_color = READY_COLOR
-	lamp_material.emission_enabled = true
-	lamp_material.emission = READY_COLOR
-	lamp_material.emission_energy_multiplier = 2.5
-	lamp_material.roughness = 0.2
+	_work_lamp_material = _emissive_material(WORK_COLOR, 1.55, 0.25)
+	_ready_lamp_material = _emissive_material(
+		READY_COLOR, READY_EMISSION_ENERGY, 0.2
+	)
 	var lamp_mesh := SphereMesh.new()
 	lamp_mesh.radius = 0.18
 	lamp_mesh.height = 0.36
@@ -257,7 +266,7 @@ func _build_visuals() -> void:
 	_work_lamp = MeshInstance3D.new()
 	_work_lamp.name = "RepairWorkLamp"
 	_work_lamp.mesh = lamp_mesh
-	_work_lamp.material_override = lamp_material
+	_work_lamp.material_override = _work_lamp_material
 	_work_lamp.position = Vector3(0.0, 0.22, 0.0)
 	_work_lamp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_work_lamp)
@@ -265,11 +274,47 @@ func _build_visuals() -> void:
 	_work_light = OmniLight3D.new()
 	_work_light.name = "RepairWorkLight"
 	_work_light.position = Vector3(0.0, 0.28, 0.0)
-	_work_light.light_color = READY_COLOR
-	_work_light.light_energy = 1.15
+	_work_light.light_color = WORK_COLOR
+	_work_light.light_energy = WORK_LIGHT_ENERGY
 	_work_light.omni_range = 2.4
 	_work_light.shadow_enabled = false
+	_work_light.set_meta(&"reduced_flash_safe", true)
 	add_child(_work_light)
+
+
+func _apply_progress_hierarchy(progress: float) -> void:
+	var ready_to_commit := progress >= 1.0
+	_visual_phase = &"ready_to_commit" if ready_to_commit else &"work_in_progress"
+	for index in _arc_segments.size():
+		var segment := _arc_segments[index]
+		segment.visible = true
+		if ready_to_commit:
+			segment.material_override = _ready_material
+		else:
+			segment.material_override = (
+				_work_material if index < _visible_segment_count else _inactive_slot_material
+			)
+	_work_lamp.visible = true
+	_work_lamp.material_override = (
+		_ready_lamp_material if ready_to_commit else _work_lamp_material
+	)
+	_work_light.visible = true
+	_work_light.light_color = READY_COLOR if ready_to_commit else WORK_COLOR
+	_work_light.light_energy = (
+		READY_LIGHT_ENERGY if ready_to_commit else WORK_LIGHT_ENERGY
+	)
+
+
+func _emissive_material(
+		color: Color, emission_energy: float, material_roughness: float
+	) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = emission_energy
+	material.roughness = material_roughness
+	return material
 
 
 func _clear_visuals(reason: StringName) -> void:
@@ -285,6 +330,7 @@ func _clear_visuals(reason: StringName) -> void:
 	_target_local_position = Vector3.ZERO
 	_visible_segment_count = 0
 	_last_clear_reason = reason
+	_visual_phase = &"cleared"
 
 
 static func _result(accepted: bool, reason: StringName) -> Dictionary:
