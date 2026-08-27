@@ -79,22 +79,25 @@ func _run() -> void:
 
 	var render := craft.get_halyard_render_allocation_report()
 	_check(
-		int(render.get("descendant_nodes", -1)) == 116
-			and int(render.get("mesh_instances", -1)) == 105
-			and int(render.get("multimesh_batches", -1)) == 6
-			and int(render.get("drawn_copies", -1)) == 163
-			and int(render.get("geometry_submissions", -1)) == 111
+		int(render.get("descendant_nodes", -1)) == 115
+			and int(render.get("mesh_instances", -1)) == 102
+			and int(render.get("multimesh_batches", -1)) == 8
+			and int(render.get("drawn_copies", -1)) == 168
+			and int(render.get("geometry_submissions", -1)) == 110
 			and bool(render.get("exact_counts", false)),
-		"the exterior keeps 163 drawn copies while submissions fall 113->111"
+		"the exact current exterior snapshot keeps all 168 copies across 110 submissions"
 	)
 	var full_counts := _render_counts(craft)
+	# The arch family's original 266->264 reduction remains pinned by its exact
+	# local assertions. Later independent work reached 250/12/348/262 at this
+	# branch's parent; the portal batch alone then yields 246/13/348/259.
 	_check(
-		int(full_counts.renderers) == 264
-			and int(full_counts.mesh_instances) == 255
-			and int(full_counts.multimesh_batches) == 9
-			and int(full_counts.authored_copies) == 339
-			and int(full_counts.geometry_submissions) == 264,
-		"the full craft keeps 339 visual copies while allocations fall 266->264"
+		int(full_counts.renderers) == 259
+			and int(full_counts.mesh_instances) == 246
+			and int(full_counts.multimesh_batches) == 13
+			and int(full_counts.authored_copies) == 348
+			and int(full_counts.geometry_submissions) == 259,
+		"the exact current craft snapshot keeps all 348 visual copies across 259 allocations"
 	)
 
 	var collision_count := craft.find_children("*", "CollisionShape3D", true, false).size()
@@ -145,8 +148,9 @@ func _run() -> void:
 	)
 
 	print(
-		"HALYARD_BOW_DOCKING_ARCH_BATCH_METRICS: renderers=266->264 submissions=266->264 "
-		+ "exterior_submissions=113->111 authored_copies=339->339 visual_review=NOT_RUN"
+		"HALYARD_BOW_DOCKING_ARCH_BATCH_METRICS: local_renderers=266->264 "
+		+ "local_submissions=266->264 current_renderers=259 current_submissions=259 "
+		+ "current_exterior_submissions=110 current_authored_copies=348 visual_review=NOT_RUN"
 	)
 	_finish(craft)
 
