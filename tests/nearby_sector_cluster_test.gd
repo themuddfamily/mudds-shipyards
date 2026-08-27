@@ -198,6 +198,7 @@ func _run() -> void:
 	_test_scorched_bay_seam_overlap(cluster)
 	_test_processing_spine_rib_batch(cluster)
 	_test_extraction_arm_collar_batches(cluster)
+	_test_gantry_approach_material_hierarchy(cluster)
 	_test_gantry_rail_batch(cluster)
 	_test_lamp_lens_mesh_sharing(cluster)
 	_test_torus_mesh_sharing(cluster)
@@ -974,6 +975,62 @@ func _test_gantry_rail_batch(cluster: NearbySectorCluster) -> void:
 		if child is MeshInstance3D and (child as MeshInstance3D).name == &"GantryRail":
 			legacy_rails += 1
 	_check(legacy_rails == 0, "no legacy gantry rail renderer remains beside the batch")
+
+
+## The real gate stays physically identical while its retained materials make
+## the near and far frames readable as an opening with depth at flight distance.
+func _test_gantry_approach_material_hierarchy(cluster: NearbySectorCluster) -> void:
+	var near_frame := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/GantryFrame1"
+	) as Node3D
+	var far_frame := cluster.get_node_or_null(
+		^"ExtractionPlatform/CinderReachPlatform/GantryFrame2"
+	) as Node3D
+	_check(
+		near_frame != null and far_frame != null,
+		"the dock gate retains both physical depth frames"
+	)
+	if near_frame == null or far_frame == null:
+		return
+	var near_header := near_frame.get_node_or_null(^"Header/Mesh") as MeshInstance3D
+	var near_sill := near_frame.get_node_or_null(^"Sill/Mesh") as MeshInstance3D
+	var near_port := near_frame.get_node_or_null(^"Post/Mesh") as MeshInstance3D
+	var far_header := far_frame.get_node_or_null(^"Header/Mesh") as MeshInstance3D
+	var far_sill := far_frame.get_node_or_null(^"Sill/Mesh") as MeshInstance3D
+	var near_header_material := near_header.material_override as StandardMaterial3D \
+		if near_header != null else null
+	var near_structure_material := near_sill.material_override as StandardMaterial3D \
+		if near_sill != null else null
+	var far_header_material := far_header.material_override as StandardMaterial3D \
+		if far_header != null else null
+	var far_structure_material := far_sill.material_override as StandardMaterial3D \
+		if far_sill != null else null
+	_check(
+		near_header_material != null
+		and near_structure_material != null
+		and far_header_material != null
+		and far_structure_material != null
+		and near_port != null
+		and (near_port.material_override as StandardMaterial3D) == near_structure_material
+		and near_header_material.albedo_color.is_equal_approx(NearbySectorCluster.KETH_ORANGE)
+		and near_structure_material.albedo_color.is_equal_approx(NearbySectorCluster.STEEL_BLUE)
+		and far_header_material.albedo_color.is_equal_approx(NearbySectorCluster.HULL_OCHRE)
+		and far_structure_material.albedo_color.is_equal_approx(NearbySectorCluster.HULL_SHADOW)
+		and not near_header_material.emission_enabled
+		and not near_structure_material.emission_enabled
+		and not far_header_material.emission_enabled
+		and not far_structure_material.emission_enabled,
+		"the approach frame is non-emissive orange-over-blue and the rear frame is ochre-over-shadow"
+	)
+	_check(
+		StringName(near_frame.get_meta(&"approach_material_role", &""))
+			== NearbySectorCluster.GANTRY_NEAR_FRAME_ROLE
+		and StringName(far_frame.get_meta(&"approach_material_role", &""))
+			== NearbySectorCluster.GANTRY_FAR_FRAME_ROLE
+		and near_frame.find_children("*", "CollisionShape3D", true, false).size() == 4
+		and far_frame.find_children("*", "CollisionShape3D", true, false).size() == 4,
+		"the depth code is explicit while both unchanged gate frames retain four solid members"
+	)
 
 
 func _test_lamp_lens_mesh_sharing(cluster: NearbySectorCluster) -> void:

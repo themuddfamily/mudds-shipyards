@@ -249,6 +249,12 @@ const EXTRACTION_ARM_COLLAR_Y_POSITIONS: Array[float] = [-6.0, -17.0, -28.0]
 const EXTRACTION_ARM_COLLAR_FAMILY_ID: StringName = &"cinder-extraction-arm-collars"
 const GANTRY_RAIL_SIZE := Vector3(1.2, 1.2, GANTRY_NEAR_Z - GANTRY_FAR_Z)
 const GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
+## NEW/modern interpretation: the two retained physical gate frames use their
+## existing Cinder materials as a depth code. The approach frame carries one
+## non-emissive orange header over blue structural members; the rear frame is
+## ochre over shadow stock. No geometry, light, aperture or collision changes.
+const GANTRY_NEAR_FRAME_ROLE: StringName = &"approach-orange-over-steel"
+const GANTRY_FAR_FRAME_ROLE: StringName = &"depth-ochre-over-shadow"
 const LAMP_LENS_RADIUS := 0.45
 const LAMP_LENS_HEIGHT := 0.9
 const LAMP_LENS_RADIAL_SEGMENTS := 12
@@ -3368,14 +3374,26 @@ func _build_gantry(platform: Node3D) -> void:
 		var frame := Node3D.new()
 		frame.name = "GantryFrame%d" % (frame_index + 1)
 		frame.position = Vector3(0.0, GANTRY_CENTER_Y, z_position)
+		frame.set_meta(
+			&"approach_material_role",
+			GANTRY_NEAR_FRAME_ROLE if frame_index == 0 else GANTRY_FAR_FRAME_ROLE
+		)
 		platform.add_child(frame)
 		var span := GANTRY_CLEAR_WIDTH + GANTRY_BEAM * 2.0
+		# A pilot meets the orange-over-blue frame first, then the deliberately
+		# darker ochre-over-shadow frame. This makes the aperture and its depth
+		# readable before the small practical lamps resolve, without adding bloom
+		# or changing any solid member the ship must clear.
+		var header_material: Material = _materials["mining_trim"] \
+			if frame_index == 0 else _materials["hull"]
+		var structure_material: Material = _materials["steel"] \
+			if frame_index == 0 else _materials["hull_shadow"]
 		_box(
 			frame,
 			"Header",
 			Vector3(0.0, half_height + GANTRY_BEAM * 0.5, 0.0),
 			Vector3(span, GANTRY_BEAM, 4.0),
-			_materials["hull"],
+			header_material,
 			true
 		)
 		_box(
@@ -3383,7 +3401,7 @@ func _build_gantry(platform: Node3D) -> void:
 			"Sill",
 			Vector3(0.0, -half_height - GANTRY_BEAM * 0.5, 0.0),
 			Vector3(span, GANTRY_BEAM, 4.0),
-			_materials["hull"],
+			structure_material,
 			true
 		)
 		for side in [-1.0, 1.0]:
@@ -3392,7 +3410,7 @@ func _build_gantry(platform: Node3D) -> void:
 				"Post",
 				Vector3(side * (half_width + GANTRY_BEAM * 0.5), 0.0, 0.0),
 				Vector3(GANTRY_BEAM, GANTRY_CLEAR_HEIGHT, 4.0),
-				_materials["hull"],
+				structure_material,
 				true
 			)
 			_box(
@@ -3400,7 +3418,7 @@ func _build_gantry(platform: Node3D) -> void:
 				"CornerBrace",
 				Vector3(side * (half_width - 2.0), half_height - 2.0, 0.0),
 				Vector3(7.0, 0.8, 2.4),
-				_materials["steel"],
+				header_material,
 				false,
 				Vector3(0.0, 0.0, side * 38.0)
 			)
