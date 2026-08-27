@@ -13,6 +13,8 @@ signal lod_changed(lod_index: int)
 const SCHEMA_VERSION := 1
 const HERO_ASSET_PATH := "res://assets/models/torrent/hero/torrent_hero_art.glb"
 const MANIFEST_PATH := "res://assets/models/torrent/hero/torrent_hero_asset_manifest.json"
+const CRITICAL_ENGINE_CORE_DROP := Vector3(0.0, -0.22, 0.06)
+const CRITICAL_ENGINE_CORE_CANT_DEGREES := 42.0
 
 const REQUIRED_ROOTS := [
 	"LOD0",
@@ -47,6 +49,7 @@ var _runtime_materials: Dictionary = {}
 var _integrity_nodes: Dictionary = {}
 var _integrity_meshes: Dictionary = {}
 var _integrity_materials: Dictionary = {}
+var _engine_core_nominal_transforms: Dictionary = {}
 var _asset_root_parent_id := 0
 var _built_lod_switch_distance := 0.0
 var _built_lod_hysteresis := 0.0
@@ -65,6 +68,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if not _built or _asset_root == null:
 		return
+	_sync_engine_damage_silhouette()
 	var viewport := get_viewport()
 	var camera := viewport.get_camera_3d() if viewport != null else null
 	if camera == null:
@@ -328,6 +332,79 @@ func get_engine_cores() -> Array[MeshInstance3D]:
 	return result
 
 
+## The production component presenter already makes critical engine damage
+## static and non-flashing by suppressing one exhaust. Repose the retained
+## starboard core face in that same state so the failed mount also reads by
+## silhouette from the normal aft chase view. This observes presentation nodes
+## only; it owns no thresholds, integrity, propulsion, collision, or authority.
+func _sync_engine_damage_silhouette() -> void:
+	if _lod0 == null or not is_instance_valid(_lod0):
+		return
+	var lod0_plumes: Array[Node] = _lod0.find_children("*EnginePlume", "MeshInstance3D", true, false)
+	var visible_plumes := 0
+	for plume_variant in lod0_plumes:
+		if (plume_variant as MeshInstance3D).visible:
+			visible_plumes += 1
+	var cores := get_engine_cores()
+	var visible_cores := 0
+	for core in cores:
+		if core.visible:
+			visible_cores += 1
+	var critical := lod0_plumes.size() == 2 and visible_plumes == 1 and visible_cores > 0
+	for core in cores:
+		var nominal: Transform3D = _engine_core_nominal_transforms.get(
+			core.get_instance_id(), core.transform
+		)
+		core.transform = (
+			_critical_engine_core_transform(nominal)
+			if critical and String(core.name).begins_with("Starboard")
+			else nominal
+		)
+
+
+func get_engine_damage_silhouette_snapshot() -> Dictionary:
+	_sync_engine_damage_silhouette()
+	var cores: Array[Dictionary] = []
+	var canted_count := 0
+	for core in get_engine_cores():
+		var nominal: Transform3D = _engine_core_nominal_transforms.get(
+			core.get_instance_id(), core.transform
+		)
+		var canted := not core.transform.is_equal_approx(nominal)
+		if canted:
+			canted_count += 1
+		cores.append({
+			"name": StringName(core.name),
+			"visible": core.visible,
+			"transform": core.transform,
+			"nominal_transform": nominal,
+			"canted": canted,
+			"mesh_instance_id": core.mesh.get_instance_id() if core.mesh != null else 0,
+		})
+	return {
+		"stage": &"critical" if canted_count == 1 else &"nominal",
+		"canted_core_count": canted_count,
+		"core_count": cores.size(),
+		"cores": cores,
+		"cant_degrees": CRITICAL_ENGINE_CORE_CANT_DEGREES,
+		"drop_offset": CRITICAL_ENGINE_CORE_DROP,
+		"added_nodes": 0,
+		"added_meshes": 0,
+		"added_lights": 0,
+		"gameplay_authority": false,
+	}.duplicate(true)
+
+
+func _critical_engine_core_transform(nominal: Transform3D) -> Transform3D:
+	var result := nominal
+	result.origin += CRITICAL_ENGINE_CORE_DROP
+	result.basis = nominal.basis * Basis(
+		Vector3.RIGHT,
+		deg_to_rad(CRITICAL_ENGINE_CORE_CANT_DEGREES)
+	)
+	return result
+
+
 func set_imported_canopy_visible(visible: bool) -> void:
 	if _canopy_pivot != null and is_instance_valid(_canopy_pivot):
 		_canopy_pivot.visible = visible
@@ -423,6 +500,15 @@ func get_asset_audit_report() -> Dictionary:
 			errors.append("semantic anchor transform drift: %s" % anchor_name)
 	for engine_part in get_engine_plumes() + get_engine_cores():
 		if absf(engine_part.basis.z.normalized().dot(Vector3.BACK)) < 0.999:
+			var nominal_core: Transform3D = _engine_core_nominal_transforms.get(
+				engine_part.get_instance_id(), Transform3D.IDENTITY
+			)
+			if (
+				String(engine_part.name).begins_with("Starboard")
+				and String(engine_part.name).ends_with("EngineCore")
+				and _node_transform_matches_contract(engine_part, nominal_core)
+			):
+				continue
 			errors.append("aft engine axis drift: %s" % engine_part.name)
 	if (
 		not is_finite(lod_switch_distance)
@@ -556,6 +642,7 @@ func _capture_integrity_contract() -> void:
 	_integrity_nodes.clear()
 	_integrity_meshes.clear()
 	_integrity_materials.clear()
+	_engine_core_nominal_transforms.clear()
 	_built_lod_switch_distance = lod_switch_distance
 	_built_lod_hysteresis = lod_hysteresis
 	_asset_root_parent_id = (
@@ -583,6 +670,8 @@ func _capture_integrity_contract() -> void:
 		}
 		if candidate is MeshInstance3D:
 			var mesh_instance := candidate as MeshInstance3D
+			if String(mesh_instance.name).ends_with("EngineCore"):
+				_engine_core_nominal_transforms[mesh_instance.get_instance_id()] = mesh_instance.transform
 			var role := StringName(mesh_instance.get_meta("torrent_material_role", &""))
 			_integrity_meshes[relative_path] = {
 				"mesh_id": mesh_instance.mesh.get_instance_id() if mesh_instance.mesh != null else 0,
@@ -737,6 +826,11 @@ func _node_transform_matches_contract(node: Node3D, expected: Transform3D) -> bo
 		var current_rotation := node.rotation
 		var expected_rotation := expected.basis.get_euler()
 		return current_rotation.is_equal_approx(expected_rotation)
+	if String(node.name).begins_with("Starboard") and String(node.name).ends_with("EngineCore"):
+		return (
+			node.transform.is_equal_approx(expected)
+			or node.transform.is_equal_approx(_critical_engine_core_transform(expected))
+		)
 	return node.transform.is_equal_approx(expected)
 
 
