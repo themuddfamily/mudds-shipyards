@@ -6,7 +6,7 @@ extends SceneTree
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const HEADER_PATH := ^"Structure/PlayerClearConnector/EntryFacadeHeader"
-const SIGN_PATH := ^"Structure/PlayerClearConnector/Sign_HABITAT_SPINE____FIXED-ERA-INSPIRED"
+const SIGN_PATH := ^"Structure/PlayerClearConnector/Sign_CREW_HABITAT__COMMON_ROOM_AHEAD"
 const PLAYER_RADIUS := 0.38
 const PLAYER_HEIGHT := 1.94
 
@@ -103,9 +103,9 @@ func _test_curved_header(habitat: HabitatSpine) -> void:
 	var sign_mesh := sign.mesh as TextMesh if sign != null else null
 	_check(
 		sign != null and sign_mesh != null
-		and sign.position.is_equal_approx(Vector3(4.0, 3.85, 0.43))
+		and sign.position.is_equal_approx(Vector3(0.0, 3.85, 0.10))
 		and sign.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0))
-		and sign_mesh.text == "HABITAT SPINE  //  FIXED-ERA-INSPIRED"
+		and sign_mesh.text == "CREW HABITAT // COMMON ROOM AHEAD"
 		and sign.visible,
 		"the approach-facing amber Habitat legend remains in its exact readable transform"
 	)

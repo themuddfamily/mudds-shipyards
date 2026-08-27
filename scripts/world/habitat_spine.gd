@@ -2192,7 +2192,7 @@ func _build_connector(structure: Node3D) -> void:
 	# the normal connector framing. The connector's layout,
 	# clearance, route anchors, collision, lighting, node and submission budgets
 	# stay untouched. Its 180-degree yaw faces the normal station-side approach.
-	_text_sign(connector, "CREW HABITAT  //  COMMON ROOM  -->", Vector3(0.0, 3.85, 0.10), Vector3(0, 180, 0), 0.22, _materials["amber"])
+	_text_sign(connector, "CREW HABITAT // COMMON ROOM AHEAD", Vector3(0.0, 3.85, 0.10), Vector3(0, 180, 0), 0.22, _materials["amber"])
 	# Warm wash on the connector legend, matching its amber type. This is the
 	# first habitat fixture a player walking in from the station sees, and it is
 	# where the module's warmer colour temperature announces itself.

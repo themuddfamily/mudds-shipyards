@@ -190,7 +190,7 @@ func _test_connector_route_cue_progression(module: HabitatSpine) -> void:
 		cues_are_visual_only = cues_are_visual_only and cue.get_child_count() == 0
 	var teal_material := (cues[0] as MeshInstance3D).material_override
 	var amber_sign := module.get_node_or_null(
-		^"Structure/PlayerClearConnector/Sign_CREW_HABITAT____COMMON_ROOM__-->"
+		^"Structure/PlayerClearConnector/Sign_CREW_HABITAT__COMMON_ROOM_AHEAD"
 	) as MeshInstance3D
 	_check(
 		transforms_exact and widths_progress,
@@ -204,10 +204,10 @@ func _test_connector_route_cue_progression(module: HabitatSpine) -> void:
 	)
 	_check(
 		amber_sign != null
-		and (amber_sign.mesh as TextMesh).text == "CREW HABITAT  //  COMMON ROOM  -->"
+		and (amber_sign.mesh as TextMesh).text == "CREW HABITAT // COMMON ROOM AHEAD"
 		and amber_sign.position.is_equal_approx(Vector3(0.0, 3.85, 0.10))
 		and amber_sign.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0)),
-		"approach legend identifies the crew habitat and directs arrivals to the common room"
+		"approach legend identifies the crew habitat and truthfully marks the common room ahead"
 	)
 	_check(
 		cues_are_visual_only
