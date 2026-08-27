@@ -505,9 +505,7 @@ func validate_persistence_state(
 			or int(saved.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
 			or str(saved.get("activity_id", "")) != str(definition.activity_id) \
 			or not _number(saved.get("configured_dwell_seconds")) \
-			or not is_equal_approx(
-				float(saved.get("configured_dwell_seconds", -1.0)), dwell_seconds
-			) \
+			or float(saved.get("configured_dwell_seconds", -1.0)) != dwell_seconds \
 			or not _integral(saved.get("generation")) \
 			or not _integral(saved.get("activity_generation")) \
 			or saved.get("started_once") is not bool \
@@ -540,14 +538,23 @@ func validate_persistence_state(
 			or completed_count != next_checkpoint \
 			or dwell_checkpoint < ANY_CHECKPOINT \
 			or dwell_checkpoint >= checkpoint_count \
-			or dwell_elapsed < 0.0 or dwell_elapsed > dwell_seconds \
+			or dwell_elapsed < 0.0 \
 			or elapsed < 0.0 or last_duration < -1.0:
 		return _persistence_result(false, &"invalid_patrol_state")
-	if dwell_checkpoint == ANY_CHECKPOINT:
-		if not is_zero_approx(dwell_elapsed) or bool(saved.checkpoint_occupied):
-			return _persistence_result(false, &"invalid_patrol_dwell")
-	elif patrol_state != State.ACTIVE or dwell_checkpoint != next_checkpoint:
+	# Dwell is a subset of the caller-owned patrol clock. Runtime completion
+	# consumes the checkpoint as soon as the configured threshold is reached,
+	# and runtime interruption resets dwell to exact zero while retaining the
+	# checkpoint so the next in-volume sample can safely resume from zero.
+	if dwell_elapsed > elapsed:
 		return _persistence_result(false, &"invalid_patrol_dwell")
+	if dwell_checkpoint == ANY_CHECKPOINT:
+		if dwell_elapsed != 0.0 or bool(saved.checkpoint_occupied):
+			return _persistence_result(false, &"invalid_patrol_dwell")
+	else:
+		if patrol_state != State.ACTIVE or dwell_checkpoint != next_checkpoint \
+				or dwell_seconds == 0.0 or dwell_elapsed >= dwell_seconds \
+				or not bool(saved.checkpoint_occupied) and dwell_elapsed != 0.0:
+			return _persistence_result(false, &"invalid_patrol_dwell")
 	var activity_state := saved.activity_state as Dictionary
 	var route_validation := director.validate_activity_persistence_state(
 		definition.activity_id, activity_state

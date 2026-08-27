@@ -246,19 +246,33 @@ func _run() -> void:
 	)
 	restored_craft.global_position = ROUTE.get_checkpoint_position(1)
 	second.call("_physics_process", 0.25)
+	var interrupted_state := patrol.capture_persistence_state()
+	var interrupted_saved := second.save_cinder_patrol_session()
+	var valid_interruption_record := (
+		second_store.get_snapshot().get(String(SLOT), {}) as Dictionary
+	).duplicate(true)
 	restored_craft.global_position = ROUTE.get_checkpoint_position(0)
 	second.call("_physics_process", 0.25)
-	var interruption_saved := second.save_cinder_patrol_session()
+	var resumed_dwell_saved := second.save_cinder_patrol_session()
 	var after_interruption := patrol.capture_persistence_state()
 	var persisted_after_interruption := _stored_patrol_state(second_store)
 	_check(
 		bool(exact_live.get("accepted", false))
-			and bool(interruption_saved.get("accepted", false))
+			and bool(interrupted_saved.get("accepted", false))
+			and int(interrupted_state.get("dwell_checkpoint_index", -1)) == 0
+			and interrupted_state.get("checkpoint_occupied", true) == false
+			and float(interrupted_state.get("dwell_elapsed_seconds", -1.0)) == 0.0
+			and bool(adapter.validate_record(
+				valid_interruption_record,
+				patrol,
+				second.get_activity_director()
+			).get("accepted", false))
+			and bool(resumed_dwell_saved.get("accepted", false))
 			and is_equal_approx(
 				float(after_interruption.get("dwell_elapsed_seconds", -1.0)), 0.25
 			)
 			and persisted_after_interruption == _canonical(after_interruption),
-		"an occupied-to-interrupted edge preserves the next exact live dwell save"
+		"interrupted zero dwell and its next in-volume increment remain exact live saves"
 	)
 
 	var live_state := patrol.capture_persistence_state()
@@ -343,6 +357,7 @@ func _run() -> void:
 	var valid_record := (
 		second_store.get_snapshot().get(String(SLOT), {}) as Dictionary
 	).duplicate(true)
+	await _check_startup_record_dwell_fences(filesystem, valid_record)
 	await _retire_game(second)
 	var corrupt_store := Store.new(CORRUPT_STORE_PATH, filesystem) as UserDataStore
 	corrupt_store.load()
@@ -381,6 +396,196 @@ func _run() -> void:
 		"normal resume and exact saves advance only UserDataStore's commit generation"
 	)
 	_finish()
+
+
+func _check_startup_record_dwell_fences(
+	filesystem: MemoryFilesystem,
+	valid_record: Dictionary
+	) -> void:
+	var unoccupied_positive := valid_record.duplicate(true)
+	var unoccupied_state := _record_patrol_state(unoccupied_positive)
+	unoccupied_state.checkpoint_occupied = false
+
+	var dwell_above_elapsed := valid_record.duplicate(true)
+	var above_elapsed_state := _record_patrol_state(dwell_above_elapsed)
+	above_elapsed_state.elapsed_seconds = (
+		float(above_elapsed_state.dwell_elapsed_seconds) * 0.5
+	)
+
+	var dwell_at_threshold := valid_record.duplicate(true)
+	var threshold_state := _record_patrol_state(dwell_at_threshold)
+	threshold_state.dwell_elapsed_seconds = float(
+		threshold_state.configured_dwell_seconds
+	)
+	threshold_state.elapsed_seconds = maxf(
+		float(threshold_state.elapsed_seconds),
+		float(threshold_state.dwell_elapsed_seconds)
+	)
+
+	var zero_configured_dwell := valid_record.duplicate(true)
+	var zero_configured_state := _record_patrol_state(zero_configured_dwell)
+	zero_configured_state.configured_dwell_seconds = 0.0
+	zero_configured_state.dwell_elapsed_seconds = 0.0
+	zero_configured_state.checkpoint_occupied = true
+
+	var nonfinite_dwell := valid_record.duplicate(true)
+	_record_patrol_state(nonfinite_dwell).dwell_elapsed_seconds = NAN
+	var nonfinite_elapsed := valid_record.duplicate(true)
+	_record_patrol_state(nonfinite_elapsed).elapsed_seconds = INF
+
+	var cases: Array[Dictionary] = [
+		{
+			"label": "unoccupied positive dwell",
+			"record": unoccupied_positive,
+			"configured_dwell_seconds": 2.0,
+			"storable": true,
+		},
+		{
+			"label": "dwell beyond total elapsed",
+			"record": dwell_above_elapsed,
+			"configured_dwell_seconds": 2.0,
+			"storable": true,
+		},
+		{
+			"label": "completion-threshold dwell",
+			"record": dwell_at_threshold,
+			"configured_dwell_seconds": 2.0,
+			"storable": true,
+		},
+		{
+			"label": "zero-configured active dwell",
+			"record": zero_configured_dwell,
+			"configured_dwell_seconds": 0.0,
+			"storable": true,
+		},
+		{
+			"label": "non-finite dwell",
+			"record": nonfinite_dwell,
+			"configured_dwell_seconds": 2.0,
+			"storable": false,
+		},
+		{
+			"label": "non-finite total elapsed",
+			"record": nonfinite_elapsed,
+			"configured_dwell_seconds": 2.0,
+			"storable": false,
+		},
+	]
+	for case_index in cases.size():
+		var test_case := cases[case_index]
+		var path := "memory://corrupt-patrol-dwell-%d.json" % case_index
+		var store := Store.new(path, filesystem) as UserDataStore
+		store.load()
+		var record := test_case.record as Dictionary
+		var seeded := store.commit(
+			{String(SLOT): record, "foreign": {"pilot_callsign": "MUDDS"}},
+			store.get_generation(),
+			"seed-corrupt-patrol-dwell-%d" % case_index
+		)
+		var storable := bool(test_case.storable)
+		_check(
+			bool(seeded.get("accepted", false)) == storable,
+			"%s reaches only its intended startup boundary" % str(test_case.label)
+		)
+
+		var director := ActivityDirector.new()
+		director.name = "CorruptPatrolDirector%d" % case_index
+		director.register_definition(ROUTE)
+		root.add_child(director)
+		var candidate_patrol := PatrolActivity.new(
+			ROUTE, float(test_case.configured_dwell_seconds)
+		)
+		var signal_counts := {"patrol": 0, "director": 0}
+		_connect_rejection_signal_counts(candidate_patrol, director, signal_counts)
+		var patrol_before := candidate_patrol.get_presentation_snapshot()
+		var director_before := director.get_activity_snapshot(ROUTE.activity_id)
+		var generation_before := store.get_generation()
+		var payload_before := store.get_snapshot()
+		var startup_adapter := SessionPersistence.new() as CinderPatrolSessionPersistence
+		startup_adapter.configure(store, SLOT)
+		var rejected := (
+			startup_adapter.load(candidate_patrol, director)
+			if storable
+			else startup_adapter.validate_record(record, candidate_patrol, director)
+		)
+		if bool(rejected.get("accepted", false)):
+			candidate_patrol.restore_persistence_state(
+				director,
+				rejected.get("patrol_state", {}),
+				candidate_patrol.get_generation()
+			)
+		_check(
+			not bool(rejected.get("accepted", true))
+				and rejected.get("reason", &"") == &"patrol_session_payload_corrupt"
+				and store.get_generation() == generation_before
+				and store.get_snapshot() == payload_before
+				and signal_counts == {"patrol": 0, "director": 0}
+				and candidate_patrol.get_presentation_snapshot() == patrol_before
+				and director.get_activity_snapshot(ROUTE.activity_id) == director_before,
+			"%s is rejected without write, signal, or state adoption" % str(
+				test_case.label
+			)
+		)
+		director.queue_free()
+		await process_frame
+
+
+func _connect_rejection_signal_counts(
+	patrol: PatrolActivity,
+	director: ActivityDirector,
+	counts: Dictionary
+	) -> void:
+	patrol.patrol_started.connect(
+		func(_snapshot: Dictionary) -> void: counts.patrol = int(counts.patrol) + 1
+	)
+	patrol.checkpoint_arrived.connect(
+		func(_snapshot: Dictionary, _checkpoint: int) -> void:
+			counts.patrol = int(counts.patrol) + 1
+	)
+	patrol.checkpoint_dwell_completed.connect(
+		func(_snapshot: Dictionary, _checkpoint: int) -> void:
+			counts.patrol = int(counts.patrol) + 1
+	)
+	patrol.patrol_completed.connect(
+		func(_snapshot: Dictionary) -> void: counts.patrol = int(counts.patrol) + 1
+	)
+	patrol.patrol_failed.connect(
+		func(_snapshot: Dictionary) -> void: counts.patrol = int(counts.patrol) + 1
+	)
+	patrol.patrol_aborted.connect(
+		func(_snapshot: Dictionary) -> void: counts.patrol = int(counts.patrol) + 1
+	)
+	patrol.patrol_reset.connect(
+		func(_snapshot: Dictionary) -> void: counts.patrol = int(counts.patrol) + 1
+	)
+	patrol.presentation_changed.connect(
+		func(_snapshot: Dictionary) -> void: counts.patrol = int(counts.patrol) + 1
+	)
+	director.activity_started.connect(
+		func(_activity_id: StringName, _generation: int) -> void:
+			counts.director = int(counts.director) + 1
+	)
+	director.activity_checkpoint_reached.connect(
+		func(_activity_id: StringName, _checkpoint: int, _generation: int) -> void:
+			counts.director = int(counts.director) + 1
+	)
+	director.activity_completed.connect(
+		func(_activity_id: StringName, _generation: int) -> void:
+			counts.director = int(counts.director) + 1
+	)
+	director.activity_failed.connect(
+		func(_activity_id: StringName, _reason: StringName, _generation: int) -> void:
+			counts.director = int(counts.director) + 1
+	)
+	director.activity_reset.connect(
+		func(_activity_id: StringName, _generation: int) -> void:
+			counts.director = int(counts.director) + 1
+	)
+
+
+func _record_patrol_state(record: Dictionary) -> Dictionary:
+	return (((record.activities as Array)[0] as Dictionary).progress as Dictionary) \
+		.patrol_state as Dictionary
 
 
 func _stored_patrol_state(store: UserDataStore) -> Dictionary:
