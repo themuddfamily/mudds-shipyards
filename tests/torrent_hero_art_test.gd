@@ -393,6 +393,39 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		"only eight generic RCS port leaves retire; all four cluster roots remain"
 	)
 
+	var service_panel_mesh: Mesh = null
+	for side_name: String in ["Port", "Starboard"]:
+		var side := -1.0 if side_name == "Port" else 1.0
+		var panel := modern.get_node_or_null(
+			side_name + "FuselageServicePanel"
+		) as MeshInstance3D
+		_check(
+			panel != null
+			and panel.position.is_equal_approx(Vector3(side * 1.62, 1.79, -2.55))
+			and panel.rotation.is_equal_approx(
+				Vector3(0.0, 0.0, side * deg_to_rad(-5.0))
+			)
+			and panel.mesh != null
+			and panel.mesh.get_aabb().size.is_equal_approx(Vector3(0.72, 0.055, 1.08))
+			and panel.mesh.get_surface_count() == 1
+			and panel.mesh.surface_get_material(0) == torrent.get_variant_materials().panel
+			and panel.material_override == null
+			and panel.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and panel.layers == 1
+			and panel.get_child_count() == 0
+			and panel.get_script() == null,
+			"%s service cover retains its exact transform, panel material, shadows and childless visual boundary" % side_name
+		)
+		if panel == null:
+			continue
+		if service_panel_mesh == null:
+			service_panel_mesh = panel.mesh
+		else:
+			_check(
+				panel.mesh == service_panel_mesh,
+				"paired fuselage service covers share one immutable mesh"
+			)
+
 	var report := torrent.get_torrent_render_allocation_report()
 	var component := report.get("component", {}) as Dictionary
 	var fallback := report.get("modern_fallback", {}) as Dictionary
@@ -405,9 +438,9 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 	_check(
 		int(component.get("drawn_copies", -1)) == 253
 		and int(component.get("geometry_submissions", -1)) == 239
-		and int(component.get("unique_mesh_resources", -1)) == 209
+		and int(component.get("unique_mesh_resources", -1)) == 208
 		and int(component.get("unique_material_resources", -1)) == 37,
-		"RCS batching reduces four renderer submissions while preserving all visible copies"
+		"service-panel sharing removes one mesh allocation while preserving all visible copies and submissions"
 	)
 	_check(
 		int(fallback.get("descendant_nodes", -1)) == 109
@@ -433,8 +466,11 @@ func _test_render_allocations(torrent: HeroShip) -> void:
 		and int(report.get("rcs_thruster_port_copies", -1)) == 8
 		and int(report.get("rcs_thruster_port_shared_mesh_resources", -1)) == 1
 		and bool(report.get("rcs_thruster_port_contract_matches", false))
+		and int(report.get("fuselage_service_panel_copies", -1)) == 2
+		and int(report.get("fuselage_service_panel_shared_mesh_resources", -1)) == 1
+		and bool(report.get("fuselage_service_panel_contract_matches", false))
 		and bool(report.get("exact_counts", false)),
-		"louvre, capture-jaw and RCS-port families preserve their visual contracts with immutable shared resources"
+		"louvre, capture-jaw, RCS-port and service-panel families preserve their visual contracts with immutable shared resources"
 	)
 
 	var detached := report.get("authored_bank_transforms", []) as Array

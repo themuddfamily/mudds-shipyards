@@ -214,13 +214,13 @@ const TORRENT_RENDER_MESH_INSTANCE_COUNT := 233
 const TORRENT_RENDER_MULTIMESH_BATCH_COUNT := 6
 const TORRENT_RENDER_DRAWN_COPY_COUNT := 253
 const TORRENT_RENDER_GEOMETRY_SUBMISSION_COUNT := 239
-const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 209
+const TORRENT_RENDER_UNIQUE_MESH_RESOURCE_COUNT := 208
 const TORRENT_RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 37
 const TORRENT_MODERN_DESCENDANT_COUNT := 109
 const TORRENT_MODERN_MESH_INSTANCE_COUNT := 87
 const TORRENT_MODERN_DRAWN_COPY_COUNT := 107
 const TORRENT_MODERN_GEOMETRY_SUBMISSION_COUNT := 93
-const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 74
+const TORRENT_MODERN_UNIQUE_MESH_RESOURCE_COUNT := 73
 const TORRENT_MODERN_UNIQUE_MATERIAL_RESOURCE_COUNT := 11
 
 @export_category("Identity")
@@ -416,6 +416,10 @@ var _legacy_torrent_presentation: Node3D
 var _legacy_torrent_cockpit_art: Node3D
 var _legacy_torrent_canopy_art: Node3D
 var _torrent_unknown_function_panel: MeshInstance3D
+## The mirrored fuselage service covers are immutable, childless surface
+## dressing. They retain distinct semantic nodes and transforms while sharing
+## one exact panel-material rounded-box mesh.
+var _torrent_fuselage_service_panel_mesh: ArrayMesh
 var _torrent_vent_louver_mesh: ArrayMesh
 var _torrent_vent_louver_batches: Array[MultiMeshInstance3D] = []
 ## Torrent-local and immutable: all four articulated-visual-only capture jaws
@@ -4882,6 +4886,35 @@ func get_torrent_render_allocation_report() -> Dictionary:
 	rcs_port_contract_matches = rcs_port_contract_matches and (
 		_torrent_rcs_thruster_port_batches.size() == 4 and retired_rcs_port_nodes == 0
 	)
+	var service_panel_contract_matches := _torrent_fuselage_service_panel_mesh != null
+	for side_name: String in ["Port", "Starboard"]:
+		var side := -1.0 if side_name == "Port" else 1.0
+		var service_panel := (
+			modern.get_node_or_null(side_name + "FuselageServicePanel") as MeshInstance3D
+			if modern != null else null
+		)
+		service_panel_contract_matches = service_panel_contract_matches and (
+			service_panel != null
+			and service_panel.mesh == _torrent_fuselage_service_panel_mesh
+			and service_panel.position.is_equal_approx(Vector3(side * 1.62, 1.79, -2.55))
+			and service_panel.rotation.is_equal_approx(
+				Vector3(0.0, 0.0, side * deg_to_rad(-5.0))
+			)
+			and service_panel.material_override == null
+			and service_panel.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and service_panel.layers == 1
+			and service_panel.get_child_count() == 0
+			and service_panel.get_script() == null
+		)
+	if _torrent_fuselage_service_panel_mesh != null:
+		service_panel_contract_matches = service_panel_contract_matches and (
+			_torrent_fuselage_service_panel_mesh.get_surface_count() == 1
+			and _torrent_fuselage_service_panel_mesh.get_aabb().size.is_equal_approx(
+				Vector3(0.72, 0.055, 1.08)
+			)
+			and _torrent_fuselage_service_panel_mesh.surface_get_material(0) == _materials.get("panel")
+			and not _torrent_fuselage_service_panel_mesh.resource_local_to_scene
+		)
 	var errors := PackedStringArray()
 	if not exact_counts:
 		errors.append("Torrent render allocations drifted from the frozen component-local roster")
@@ -4897,6 +4930,8 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		errors.append("Torrent capture-jaw mesh-sharing contract drifted")
 	if not rcs_port_contract_matches:
 		errors.append("Torrent RCS thruster-port batch contract drifted")
+	if not service_panel_contract_matches:
+		errors.append("Torrent fuselage service-panel mesh-sharing contract drifted")
 	return {
 		"schema_version": 1,
 		"valid": errors.is_empty(),
@@ -4911,6 +4946,10 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		"rcs_thruster_port_batches": _torrent_rcs_thruster_port_batches.size(),
 		"rcs_thruster_port_copies": TORRENT_RCS_THRUSTER_PORT_COPY_COUNT,
 		"rcs_thruster_port_shared_mesh_resources": 1 if _torrent_rcs_thruster_port_mesh != null else 0,
+		"fuselage_service_panel_copies": 2,
+		"fuselage_service_panel_shared_mesh_resources": (
+			1 if _torrent_fuselage_service_panel_mesh != null else 0
+		),
 		"renderer_buffer_floats": renderer_buffer_floats,
 		"renderer_buffer_matches_authored": buffer_matches,
 		"bounds_match_authored": bounds_match,
@@ -4918,6 +4957,7 @@ func get_torrent_render_allocation_report() -> Dictionary:
 		"batch_contract_matches": batch_contract_matches,
 		"capture_jaw_contract_matches": capture_jaw_contract_matches,
 		"rcs_thruster_port_contract_matches": rcs_port_contract_matches,
+		"fuselage_service_panel_contract_matches": service_panel_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_bank_transforms": expected_transforms.duplicate(),
 		"old_family": {
@@ -5244,9 +5284,18 @@ func _build_torrent_service_detail(parent: Node3D) -> void:
 
 	# Recessed access covers, fasteners, and louvred heat-exchanger banks break
 	# large surfaces without presenting them as unsupported historical features.
+	if _torrent_fuselage_service_panel_mesh == null:
+		_torrent_fuselage_service_panel_mesh = _rounded_box_mesh(
+			Vector3(0.72, 0.055, 1.08), _materials.panel
+		)
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(parent, side_name + "FuselageServicePanel", Vector3(side * 1.62, 1.79, -2.55), Vector3(0.72, 0.055, 1.08), _materials.panel, Vector3(0.0, 0.0, side * deg_to_rad(-5.0)))
+		var service_panel := MeshInstance3D.new()
+		service_panel.name = side_name + "FuselageServicePanel"
+		service_panel.position = Vector3(side * 1.62, 1.79, -2.55)
+		service_panel.rotation = Vector3(0.0, 0.0, side * deg_to_rad(-5.0))
+		service_panel.mesh = _torrent_fuselage_service_panel_mesh
+		parent.add_child(service_panel)
 		var vent_bank := Node3D.new()
 		vent_bank.name = side_name + "DorsalVentBank"
 		vent_bank.position = Vector3(side * 1.17, 1.84, 2.72)
