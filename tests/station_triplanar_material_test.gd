@@ -590,12 +590,16 @@ func _test_live_station_coverage(
 	# Fabrication, Observation, Fleet, Aft and central-hub batching commits; no map,
 	# recipe parameter or physical scale changed. Habitat's mess-trestle optimization
 	# adds one deliberately unmapped batch to the total column only.
+	# The Aft stair-handoff datum adds seven ordinary non-emissive `hull_dark` /
+	# `brass` cue surfaces at the existing 0.30 m module scale: 2428 -> 2435
+	# ordinary mapped surfaces and 1561 -> 1568 at 0.30. The 0.22 and 0.28
+	# buckets, instanced batches, ceilings, and every material recipe stay fixed.
 	_check(
-		mapped_surface_count == 2428
+		mapped_surface_count == 2435
 		and scale_022_count == 45
 		and scale_028_count == 822
-		and scale_030_count == 1561,
-		"live static station binds exactly 2428 ordinary surfaces after the merged renderer-batching passes"
+		and scale_030_count == 1568,
+		"live static station binds exactly 2435 ordinary surfaces including the Aft stair-handoff cue"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
