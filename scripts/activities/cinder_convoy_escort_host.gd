@@ -93,6 +93,7 @@ var _entity_generation := 0
 var _entity_status := ConvoyEscortActivity.EntityStatus.ACTIVE
 var _next_route_index := 0
 var _movement_distance := 0.0
+var _movement_backlog := 0.0
 var _physics_tick_count := 0
 var _sample_publication_count := 0
 var _has_escort_sample := false
@@ -158,6 +159,7 @@ func start(expected_generation: int) -> Dictionary:
 	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
 	_next_route_index = 0
 	_movement_distance = 0.0
+	_movement_backlog = 0.0
 	_physics_tick_count = 0
 	_sample_publication_count = 0
 	_has_escort_sample = false
@@ -194,7 +196,7 @@ func advance_physics(
 	if is_zero_approx(delta):
 		return _finish(true, &"no_delta")
 	var candidate_travel := _movement_speed * delta
-	var candidate_total_distance := _movement_distance + candidate_travel
+	var candidate_total_distance := _movement_distance + _movement_backlog + candidate_travel
 	if not is_finite(candidate_travel) or not is_finite(candidate_total_distance):
 		return _finish(false, &"movement_overflow")
 
@@ -237,50 +239,26 @@ func advance_physics(
 		return clock_result
 
 	_physics_tick_count += 1
-	var remaining := candidate_travel
-	var moved_this_tick := false
-	while remaining > 0.0 and _next_route_index < ROUTE.get_checkpoint_count():
+	var remaining := _movement_backlog + candidate_travel
+	_movement_backlog = 0.0
+	# One tick owns one closing publication and therefore at most one ordered
+	# route transition. Surplus travel is retained for the next caller tick rather
+	# than manufacturing center-only samples that cannot be reconstructed later.
+	if remaining > 0.0 and _next_route_index < ROUTE.get_checkpoint_count():
 		var target := ROUTE.get_checkpoint_position(_next_route_index)
 		var distance_to_target := _convoy_entity.position.distance_to(target)
-		if distance_to_target <= ROUTE_CENTER_REACH_TOLERANCE:
-			var at_target := _publish_sample(
-				escort_position,
-				ConvoyEscortActivity.EntityStatus.ACTIVE
-			)
-			if not bool(at_target.get("accepted", false)):
-				return _finish(false, &"sample_publication_rejected")
-			result_reason = _prefer_progress_reason(
-				result_reason,
-				StringName(at_target.get("reason", &"sample_recorded"))
-			)
-			_sync_next_route_index()
-			if _activity.get_state() != ConvoyEscortActivity.State.ACTIVE:
-				break
-			continue
-		var step := minf(remaining, distance_to_target)
-		var direction := (target - _convoy_entity.position) / distance_to_target
-		_set_entity_position(_convoy_entity.position + direction * step)
-		_movement_distance += step
-		remaining -= step
-		moved_this_tick = true
-		_orient_toward_route_index(_next_route_index)
-		if step >= distance_to_target - ROUTE_CENTER_REACH_TOLERANCE:
-			_set_entity_position(target)
-			var reached := _publish_sample(
-				escort_position,
-				ConvoyEscortActivity.EntityStatus.ACTIVE
-			)
-			if not bool(reached.get("accepted", false)):
-				return _finish(false, &"sample_publication_rejected")
-			result_reason = _prefer_progress_reason(
-				result_reason,
-				StringName(reached.get("reason", &"sample_recorded"))
-			)
-			_sync_next_route_index()
-			if _activity.get_state() != ConvoyEscortActivity.State.ACTIVE:
-				break
+		if distance_to_target > ROUTE_CENTER_REACH_TOLERANCE:
+			var step := minf(remaining, distance_to_target)
+			var direction := (target - _convoy_entity.position) / distance_to_target
+			_set_entity_position(_convoy_entity.position + direction * step)
+			_movement_distance += step
+			remaining -= step
+			_orient_toward_route_index(_next_route_index)
+			if step >= distance_to_target - ROUTE_CENTER_REACH_TOLERANCE:
+				_set_entity_position(target)
+	_movement_backlog = remaining
 
-	if moved_this_tick and _activity.get_state() == ConvoyEscortActivity.State.ACTIVE:
+	if _activity.get_state() == ConvoyEscortActivity.State.ACTIVE:
 		var final_sample := _publish_sample(
 			escort_position,
 			ConvoyEscortActivity.EntityStatus.ACTIVE
@@ -350,6 +328,7 @@ func reset(expected_generation: int) -> Dictionary:
 	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
 	_next_route_index = 0
 	_movement_distance = 0.0
+	_movement_backlog = 0.0
 	_physics_tick_count = 0
 	_sample_publication_count = 0
 	_has_escort_sample = false
@@ -393,6 +372,7 @@ func capture_persistence_state() -> Dictionary:
 		"next_route_index": _next_route_index,
 		"configured_movement_speed": _movement_speed,
 		"movement_distance": _movement_distance,
+		"movement_backlog": _movement_backlog,
 		"physics_tick_count": _physics_tick_count,
 		"sample_publication_count": _sample_publication_count,
 		"has_escort_sample": _has_escort_sample,
@@ -408,7 +388,7 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 			or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
 		return _persistence_result(false, &"malformed_convoy_host_state")
 	var saved := candidate as Dictionary
-	if saved.size() != 22 \
+	if saved.size() != 23 \
 			or not _integral(saved.get("schema_version")) \
 			or int(saved.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
 			or str(saved.get("route_resource_path", "")) != ROUTE.resource_path \
@@ -433,6 +413,7 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 				float(saved.get("configured_movement_speed", -1.0)), _movement_speed
 			) \
 			or not _number(saved.get("movement_distance")) \
+			or not _number(saved.get("movement_backlog")) \
 			or not _integral(saved.get("physics_tick_count")) \
 			or not _integral(saved.get("sample_publication_count")) \
 			or saved.get("has_escort_sample") is not bool \
@@ -446,6 +427,7 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	var entity_generation := int(saved.entity_generation)
 	var next_route_index := int(saved.next_route_index)
 	var movement_distance := float(saved.movement_distance)
+	var movement_backlog := float(saved.movement_backlog)
 	var physics_ticks := int(saved.physics_tick_count)
 	var publication_count := int(saved.sample_publication_count)
 	var entity_position := _decode_vector(saved.entity_position as Dictionary)
@@ -462,6 +444,7 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 			or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
 			or next_route_index < 0 or next_route_index >= ROUTE.get_checkpoint_count() \
 			or movement_distance < 0.0 \
+			or movement_backlog < 0.0 \
 			or physics_ticks < 0 or physics_ticks > MAX_PERSISTED_COUNTER \
 			or publication_count < 0 or publication_count > MAX_PERSISTED_COUNTER \
 			or not entity_position.is_equal_approx(last_entity_position) \
@@ -475,41 +458,36 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	if separation_elapsed > elapsed:
 		return _persistence_result(false, &"convoy_clock_progress_mismatch")
 	var expected_movement := _movement_speed * elapsed
-	if not is_finite(expected_movement) \
-			or not is_equal_approx(movement_distance, expected_movement):
+	if not is_finite(expected_movement) or not is_equal_approx(
+		movement_distance + movement_backlog, expected_movement
+	):
 		return _persistence_result(false, &"convoy_movement_progress_mismatch")
 	var route_replay := _route_replay_witness(
 		movement_distance,
 		entity_position,
 		next_route_index,
 		has_sample,
-		activity_state
+		activity_state,
+		physics_ticks
 	)
 	if not bool(route_replay.get("accepted", false)):
 		return _persistence_result(false, &"convoy_route_progress_mismatch")
-	var centered_publication_count := 0
 	if physics_ticks == 0:
 		if not is_zero_approx(elapsed) \
 				or not is_zero_approx(separation_elapsed) \
 				or not is_zero_approx(movement_distance) \
+				or not is_zero_approx(movement_backlog) \
 				or publication_count != 0 or activity_sample_count != 0 \
 				or has_sample or next_route_index != 0:
 			return _persistence_result(false, &"convoy_tick_progress_mismatch")
 	else:
-		centered_publication_count = publication_count - physics_ticks * 2
 		if elapsed <= 0.0 or movement_distance <= 0.0 or not has_sample \
-				or centered_publication_count < 0:
+				or publication_count != physics_ticks * 2:
 			return _persistence_result(false, &"convoy_tick_progress_mismatch")
-		var exact_publication_replay := _route_replay_witness(
-			movement_distance,
-			entity_position,
-			next_route_index,
-			has_sample,
-			activity_state,
-			centered_publication_count
-		)
-		if not bool(exact_publication_replay.get("accepted", false)):
-			return _persistence_result(false, &"convoy_tick_progress_mismatch")
+	if movement_backlog > 0.0 and not _position_can_retain_movement_backlog(
+		entity_position, next_route_index
+	):
+		return _persistence_result(false, &"convoy_movement_backlog_mismatch")
 	if has_sample:
 		if not entity_position.is_equal_approx(
 			_decode_vector(activity_state.convoy_position as Dictionary)
@@ -533,6 +511,7 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	if not _built or get_generation() != 0 \
 			or _activity.get_state() != ConvoyEscortActivity.State.IDLE \
 			or _entity_generation != 0 or _movement_distance != 0.0 \
+			or _movement_backlog != 0.0 \
 			or _physics_tick_count != 0 or _sample_publication_count != 0:
 		return _persistence_result(false, &"convoy_host_already_live")
 	var validated := validate_persistence_state(candidate)
@@ -548,6 +527,7 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
 	_next_route_index = int(saved.next_route_index)
 	_movement_distance = float(saved.movement_distance)
+	_movement_backlog = float(saved.movement_backlog)
 	_physics_tick_count = int(saved.physics_tick_count)
 	_sample_publication_count = int(saved.sample_publication_count)
 	_has_escort_sample = bool(saved.has_escort_sample)
@@ -623,6 +603,7 @@ func get_snapshot() -> Dictionary:
 		"next_route_index": _next_route_index,
 		"movement_speed": _movement_speed,
 		"movement_distance": _movement_distance,
+		"movement_backlog": _movement_backlog,
 		"physics_tick_count": _physics_tick_count,
 		"sample_publication_count": _sample_publication_count,
 		"has_escort_sample": _has_escort_sample,
@@ -926,6 +907,8 @@ func audit() -> Dictionary:
 		errors.append("convoy entity position is non-finite")
 	if not is_finite(_movement_distance) or _movement_distance < 0.0:
 		errors.append("movement distance is invalid")
+	if not is_finite(_movement_backlog) or _movement_backlog < 0.0:
+		errors.append("movement backlog is invalid")
 	if _physics_tick_count < 0 or _sample_publication_count < 0:
 		errors.append("host counters cannot be negative")
 	if is_instance_valid(_activity) and not bool(_activity.audit().get("valid", false)):
@@ -1521,31 +1504,32 @@ func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason}
 
 
-## Replays the host's actual motion seam. A sampled checkpoint advances at the
-## inclusive radius, so a tick may turn toward the following checkpoint from a
-## point up to four metres before the checkpoint centre. The saved aggregate
-## movement and final sample constrain the possible one-dimensional shortcut
-## points for this four-checkpoint route. The publication ledger then selects an
-## exact centered-versus-radius-only witness; no checkpoint-plane crossing is
-## assumed merely from ordered progress.
+## Replays the host's actual motion seam. A closing sample advances at the
+## inclusive radius, so the following tick may turn from a point up to four
+## metres before the checkpoint centre. The saved aggregate movement and final
+## sample constrain the possible one-dimensional shortcut points for this
+## four-checkpoint route. Each progressed intermediate checkpoint is one closing
+## sample and therefore consumes its own physics tick; any following movement
+## consumes another. Publication count itself is now the exact two-per-tick rule
+## and never depends on reconstructing a center-versus-radius category.
 func _route_replay_witness(
 		distance: float,
 		position: Vector3,
 		next_index: int,
 		has_sample: bool,
 		activity_state: Dictionary,
-		required_centered_publications: int = -1
+		available_physics_ticks: int
 	) -> Dictionary:
 	if not has_sample:
 		return {
 			"accepted": next_index == 0 and is_zero_approx(distance) \
 				and position.is_equal_approx(ROUTE.get_checkpoint_position(0)) \
-				and required_centered_publications in [-1, 0],
+				and available_physics_ticks == 0,
 		}
 	if next_index < 1 or next_index >= ROUTE.get_checkpoint_count():
 		return {"accepted": false}
 	var replay := _best_route_replay(
-		distance, position, next_index, required_centered_publications
+		distance, position, next_index, available_physics_ticks
 	)
 	var best_error := float(replay.get("error", INF))
 	if not is_finite(best_error) \
@@ -1567,22 +1551,24 @@ func _best_route_replay(
 		distance: float,
 		position: Vector3,
 		next_index: int,
-		required_centered_publications: int = -1
+		available_physics_ticks: int
 	) -> Dictionary:
 	var shortcut_count := next_index - 1
 	if shortcut_count == 0:
 		var direct := _route_replay_metrics(
 			distance, position, next_index, PackedFloat64Array()
 		)
-		return direct if _route_replay_metric_matches_count(
-			direct, required_centered_publications
+		return direct if _route_replay_metric_fits_ticks(
+			direct, available_physics_ticks
 		) else {"error": INF}
 	var radius := ROUTE.checkpoint_radius
 	var best := PackedFloat64Array()
 	best.resize(shortcut_count)
 	var best_error := INF
 	var step := radius / float(ROUTE_REPLAY_GRID_DIVISIONS)
-	var initial_shortfalls := _route_replay_initial_shortfalls(radius)
+	var initial_shortfalls := _route_replay_initial_shortfalls(
+		radius, position, next_index
+	)
 	if shortcut_count == 1:
 		for first_shortfall in initial_shortfalls:
 			var candidate := PackedFloat64Array([first_shortfall])
@@ -1590,9 +1576,7 @@ func _best_route_replay(
 				distance, position, next_index, candidate
 			)
 			var error := float(metrics.get("error", INF)) if (
-				_route_replay_metric_matches_count(
-					metrics, required_centered_publications
-				)
+				_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
 			) else INF
 			if error < best_error:
 				best_error = error
@@ -1608,9 +1592,7 @@ func _best_route_replay(
 					distance, position, next_index, candidate
 				)
 				var error := float(metrics.get("error", INF)) if (
-					_route_replay_metric_matches_count(
-						metrics, required_centered_publications
-					)
+					_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
 				) else INF
 				if error < best_error:
 					best_error = error
@@ -1627,9 +1609,7 @@ func _best_route_replay(
 					distance, position, next_index, candidate
 				)
 				var error := float(metrics.get("error", INF)) if (
-					_route_replay_metric_matches_count(
-						metrics, required_centered_publications
-					)
+					_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
 				) else INF
 				if error < best_error:
 					best_error = error
@@ -1645,9 +1625,7 @@ func _best_route_replay(
 						distance, position, next_index, candidate
 					)
 					var error := float(metrics.get("error", INF)) if (
-						_route_replay_metric_matches_count(
-							metrics, required_centered_publications
-						)
+						_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
 					) else INF
 					if error < best_error:
 						best_error = error
@@ -1658,7 +1636,11 @@ func _best_route_replay(
 	return _route_replay_metrics(distance, position, next_index, best)
 
 
-func _route_replay_initial_shortfalls(radius: float) -> PackedFloat64Array:
+func _route_replay_initial_shortfalls(
+		radius: float,
+		position: Vector3,
+		next_index: int
+	) -> PackedFloat64Array:
 	var values := PackedFloat64Array()
 	# Seed both sides of the runtime's discontinuous centre-snap boundary. A
 	# radius-wide grid alone cannot discover a micrometre-scale centered witness,
@@ -1674,16 +1656,26 @@ func _route_replay_initial_shortfalls(radius: float) -> PackedFloat64Array:
 	var radius_step := radius / float(ROUTE_REPLAY_GRID_DIVISIONS)
 	for radius_index in range(1, ROUTE_REPLAY_GRID_DIVISIONS + 1):
 		values.append(radius_step * radius_index)
+	# When the latest closing publication advanced at a radius-only point, the
+	# saved position itself gives that exact final shortfall. Seed it explicitly:
+	# the tick lower-bound is discontinuous at zero following movement, so a
+	# coarse grid cannot reliably discover this bounded witness.
+	if next_index > 1:
+		var final_shortfall := position.distance_to(
+			ROUTE.get_checkpoint_position(next_index - 1)
+		)
+		if is_finite(final_shortfall) and final_shortfall <= radius:
+			values.append(final_shortfall)
 	return values
 
 
-func _route_replay_metric_matches_count(
+func _route_replay_metric_fits_ticks(
 		metrics: Dictionary,
-		required_centered_publications: int
+		available_physics_ticks: int
 	) -> bool:
-	return required_centered_publications < 0 or int(
-		metrics.get("centered_publication_count", -1)
-	) == required_centered_publications
+	return available_physics_ticks >= int(
+		metrics.get("minimum_physics_tick_count", MAX_PERSISTED_COUNTER)
+	)
 
 
 func _route_replay_metrics(
@@ -1697,7 +1689,6 @@ func _route_replay_metrics(
 		return {"error": INF}
 	var current := ROUTE.get_checkpoint_position(0)
 	var spent := 0.0
-	var centered_checkpoint_count := 0
 	for offset in shortfalls.size():
 		var target := ROUTE.get_checkpoint_position(offset + 1)
 		var segment_length := current.distance_to(target)
@@ -1708,35 +1699,54 @@ func _route_replay_metrics(
 			return {"error": INF}
 		var travel := segment_length - shortfall
 		if shortfall <= ROUTE_CENTER_REACH_TOLERANCE:
-			# advance_physics snaps to the checkpoint and emits its extra reached
+			# The movement seam snaps to the checkpoint before its one closing
 			# publication when travel ends within this exact tolerance.
 			current = target
-			centered_checkpoint_count += 1
 		else:
 			current = current.move_toward(target, travel)
 		spent += travel
 	var target := ROUTE.get_checkpoint_position(next_index)
 	var segment_length := current.distance_to(target)
 	var remaining := distance - spent
-	if remaining < 0.0 or remaining > segment_length:
+	# Vector3 segment lengths are float-backed while the aggregate ledger is a
+	# float Variant. Clamp only the movement seam's own centre-scale roundoff;
+	# larger disagreement remains an invalid route history.
+	if remaining < -ROUTE_CENTER_REACH_TOLERANCE \
+			or remaining > segment_length + ROUTE_CENTER_REACH_TOLERANCE:
 		return {"error": INF}
+	remaining = clampf(remaining, 0.0, segment_length)
 	var current_target_centered := (
 		remaining >= segment_length - ROUTE_CENTER_REACH_TOLERANCE
 	)
 	var expected := (
 		target if current_target_centered else current.move_toward(target, remaining)
 	)
-	var centered_publication_count := centered_checkpoint_count
-	# The final checkpoint cannot advance while the escort is outside proximity,
-	# but reaching its centre still executes the host's reached-sample seam once.
-	if next_index == ROUTE.get_checkpoint_count() - 1 and current_target_centered:
-		centered_publication_count += 1
+	var minimum_physics_tick_count := maxi(
+		1,
+		shortfalls.size() + (
+			1 if remaining > ROUTE_REPLAY_POSITION_TOLERANCE else 0
+		)
+	)
 	return {
 		"error": expected.distance_squared_to(position),
-		"centered_checkpoint_count": centered_checkpoint_count,
-		"centered_publication_count": centered_publication_count,
 		"current_target_centered": current_target_centered,
+		"minimum_physics_tick_count": minimum_physics_tick_count,
 	}
+
+
+func _position_can_retain_movement_backlog(
+		position: Vector3,
+		next_index: int
+	) -> bool:
+	# Surplus is created only after advance_physics assigns the authored target
+	# Vector3 itself. Exact equality is therefore representable and prevents the
+	# general restore-position tolerance from inventing backlog at a radius turn.
+	if next_index > 1 and position == (
+		ROUTE.get_checkpoint_position(next_index - 1)
+	):
+		return true
+	return next_index == ROUTE.get_checkpoint_count() - 1 \
+		and position == ROUTE.get_checkpoint_position(next_index)
 
 
 func _encode_vector(value: Vector3) -> Dictionary:

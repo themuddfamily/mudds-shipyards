@@ -362,6 +362,95 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 		"the exact live unsampled start state saves with every runtime clock at zero"
 	)
 
+	# Regression for the rejected 1 mm replay alias. A real radius-only turn just
+	# 0.5 mm before checkpoint 1 followed by one metre on the next leg has the
+	# same coarse replay position as a centered witness, but both categories now
+	# publish exactly twice per tick. Raising both ledgers from 4 to 5 must fail
+	# independently of positional tolerance.
+	var threshold_host := CinderConvoyEscortHost.new()
+	root.add_child(threshold_host)
+	await process_frame
+	var threshold_started := threshold_host.start(threshold_host.get_generation())
+	var threshold_checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(1)
+	var threshold_turn := _advance_host_travel(
+		threshold_host,
+		(threshold_host.get_snapshot().entity_position as Vector3).distance_to(
+			threshold_checkpoint
+		) - 0.0005
+	)
+	var threshold_turn_state := threshold_host.capture_persistence_state()
+	var threshold_after := _advance_host_travel(threshold_host, 1.0)
+	var threshold_state := threshold_host.capture_persistence_state()
+	var threshold_forged := threshold_state.duplicate(true)
+	threshold_forged.sample_publication_count = 5
+	(threshold_forged.activity_state as Dictionary).sample_count = 5
+	var threshold_validation := threshold_host.validate_persistence_state(
+		threshold_state
+	)
+	var threshold_forged_validation := threshold_host.validate_persistence_state(
+		threshold_forged
+	)
+	_check(
+		bool(threshold_started.get("accepted", false))
+			and bool(threshold_turn.get("accepted", false))
+			and bool(threshold_after.get("accepted", false))
+			and _decoded_position(threshold_turn_state.entity_position).distance_to(
+				threshold_checkpoint
+			) > CinderConvoyEscortHost.ROUTE_CENTER_REACH_TOLERANCE
+			and _decoded_position(threshold_turn_state.entity_position).distance_to(
+				threshold_checkpoint
+			) < CinderConvoyEscortHost.ROUTE_REPLAY_POSITION_TOLERANCE
+			and int(threshold_state.physics_tick_count) == 2
+			and int(threshold_state.sample_publication_count) == 4
+			and int((threshold_state.activity_state as Dictionary).sample_count) == 4
+			and int(threshold_state.next_route_index) == 2
+			and bool(threshold_validation.get("accepted", false))
+			and not bool(threshold_forged_validation.get("accepted", true)),
+		"the 0.5 mm radius-only replay cannot forge both publication ledgers 4 to 5"
+	)
+
+	# A caller tick whose commanded travel crosses two checkpoint radii may
+	# publish only its first transition and must retain the surplus. The next
+	# transition consumes the next closing publication; rewriting the aggregate
+	# as one tick and its otherwise exact two samples cannot collapse them.
+	var multi_host := CinderConvoyEscortHost.new()
+	root.add_child(multi_host)
+	await process_frame
+	var multi_started := multi_host.start(multi_host.get_generation())
+	var first_checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(1)
+	var second_checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(2)
+	var multi_first := _advance_host_travel(
+		multi_host,
+		(multi_host.get_snapshot().entity_position as Vector3).distance_to(first_checkpoint)
+		+ first_checkpoint.distance_to(second_checkpoint)
+		- CinderConvoyEscortHost.ROUTE.checkpoint_radius * 0.5
+	)
+	var multi_first_state := multi_host.capture_persistence_state()
+	var multi_second := _advance_host_travel(multi_host, 0.01)
+	var multi_state := multi_host.capture_persistence_state()
+	var multi_transition_forged := multi_state.duplicate(true)
+	multi_transition_forged.physics_tick_count = 1
+	multi_transition_forged.sample_publication_count = 2
+	(multi_transition_forged.activity_state as Dictionary).sample_count = 2
+	var multi_validation := multi_host.validate_persistence_state(multi_state)
+	var multi_forged_validation := multi_host.validate_persistence_state(
+		multi_transition_forged
+	)
+	_check(
+		bool(multi_started.get("accepted", false))
+			and bool(multi_first.get("accepted", false))
+			and int(multi_first_state.physics_tick_count) == 1
+			and int(multi_first_state.next_route_index) == 2
+			and float(multi_first_state.movement_backlog) > 0.0
+			and bool(multi_second.get("accepted", false))
+			and int(multi_state.physics_tick_count) == 2
+			and int(multi_state.sample_publication_count) == 4
+			and int(multi_state.next_route_index) == 3
+			and bool(multi_validation.get("accepted", false))
+			and not bool(multi_forged_validation.get("accepted", true)),
+		"two ordered route transitions cannot collapse into one physics tick"
+	)
+
 	var live_saves: Array[Dictionary] = []
 	var checkpoint_states: Array[Dictionary] = []
 	var first_motion := _advance_host_travel(host, 1.0)
@@ -419,10 +508,10 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 		"every exact live radius transition and shortcut movement state is accepted"
 	)
 
-	# A center hit has one more publication than a radius-only turn: the host
-	# publishes the reached checkpoint before its ordinary final sample. Exercise
-	# both intermediate centers and the active far-escort final center so replay
-	# must return the exact centered witness rather than merely a count range.
+	# Centered and radius-only turns now share one deterministic closing sample.
+	# Exercise both intermediate centers and the active far-escort final center so
+	# neither geometric category can change the exact two-publications-per-tick
+	# ledger or collapse more than one ordered transition into a caller tick.
 	var centered_store := Store.new(CENTERED_STORE_PATH, filesystem) as UserDataStore
 	centered_store.load()
 	var centered_host := CinderConvoyEscortHost.new()
@@ -452,9 +541,9 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 		_check(
 			_decoded_position(centered_state.entity_position).is_equal_approx(checkpoint)
 				and int(centered_state.next_route_index) == checkpoint_index + 1
-				and int(centered_state.sample_publication_count)
-				== int(centered_state.physics_tick_count) * 2 + checkpoint_index,
-			"checkpoint %d center hit carries its exact extra reached publication"
+			and int(centered_state.sample_publication_count)
+			== int(centered_state.physics_tick_count) * 2,
+			"checkpoint %d center hit uses the deterministic closing publication"
 				% checkpoint_index
 		)
 	var centered_final_checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(3)
@@ -491,7 +580,7 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 				centered_final_checkpoint
 			)
 			and int(centered_final_state.sample_publication_count)
-			== int(centered_final_state.physics_tick_count) * 2 + 3
+			== int(centered_final_state.physics_tick_count) * 2
 			and bool(centered_restored.get("accepted", false))
 			and _canonical(centered_restore_host.capture_persistence_state())
 			== _canonical(centered_final_state)
@@ -539,6 +628,12 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 
 	var live_session := _stored_session_state(store)
 	var corrupt_sessions: Array[Dictionary] = []
+	var threshold_count_corruption := live_session.duplicate(true)
+	threshold_count_corruption.host_state = threshold_forged.duplicate(true)
+	corrupt_sessions.append(threshold_count_corruption)
+	var collapsed_transition_corruption := live_session.duplicate(true)
+	collapsed_transition_corruption.host_state = multi_transition_forged.duplicate(true)
+	corrupt_sessions.append(collapsed_transition_corruption)
 	var wrong_nested_convoy := live_session.duplicate(true)
 	(((wrong_nested_convoy.host_state as Dictionary).activity_state) as Dictionary).convoy_id = (
 		"forged_supply_tender"
@@ -689,6 +784,8 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 		"the final exact live shortcut state round-trips into a pristine host without signals or store mutation"
 	)
 	host.queue_free()
+	threshold_host.queue_free()
+	multi_host.queue_free()
 	pristine.queue_free()
 	centered_host.queue_free()
 	centered_restore_host.queue_free()
