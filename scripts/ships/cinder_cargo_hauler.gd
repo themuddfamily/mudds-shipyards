@@ -1532,18 +1532,32 @@ func _update_loadmaster_status_display(
 	}
 	if not is_instance_valid(_loadmaster_status_display):
 		return
-	var state_text := "AVAILABLE"
+	var roster_reading := _loadmaster_roster_reading(state)
+	_loadmaster_status_snapshot["roster_shape"] = roster_reading["shape"]
+	_loadmaster_status_snapshot["roster_status"] = roster_reading["status"]
+	_loadmaster_status_display.text = (
+		"LOADMASTER\nROSTER %s %s\nMANIFEST %s\nROUTE %s"
+		% [
+			roster_reading["shape"],
+			roster_reading["status"],
+			str(manifest_id) if not manifest_id.is_empty() else "--",
+			str(route_id) if not route_id.is_empty() else "--",
+		]
+	)
+
+
+func _loadmaster_roster_reading(state: StringName) -> Dictionary:
+	if not _loadmaster_manifest_receipt.is_empty():
+		return {"shape": "[=]", "status": "SECURED"} \
+			if bool(_loadmaster_manifest_receipt.get("ready", false)) \
+			else {"shape": "[!]", "status": "BLOCKED"}
 	match state:
 		&"occupied":
-			state_text = "OCCUPIED"
-		&"manifest_ready":
-			state_text = "MANIFEST READY"
-		&"released":
-			state_text = "RELEASED"
-	_loadmaster_status_display.text = (
-		"LOADMASTER\n[%s]\nMANIFEST %s\nROUTE %s"
-		% [state_text, str(manifest_id) if not manifest_id.is_empty() else "--", str(route_id) if not route_id.is_empty() else "--"]
-	)
+			return {"shape": "[>]", "status": "LOADING"}
+		&"available", &"released":
+			return {"shape": "[/]", "status": "DETACHED"}
+		_:
+			return {"shape": "[X]", "status": "FAULT"}
 
 
 func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:

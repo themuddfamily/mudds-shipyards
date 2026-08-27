@@ -32,6 +32,10 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 	var route := str(snapshot.get("route", snapshot.get("selected_route", snapshot.get("route_id", "NONE")))).strip_edges()
 	var readiness := str(snapshot.get("readiness_receipt", snapshot.get("readiness", "NOT PUBLISHED"))).strip_edges()
 	var seat_state := str(snapshot.get("state", "")).strip_edges().to_upper()
+	var roster_shape := str(snapshot.get("roster_shape", "")).strip_edges()
+	var roster_status := str(snapshot.get("roster_status", "")).strip_edges().to_upper()
+	var cinder_roster := snapshot.has("roster_shape") \
+		or str(snapshot.get("craft_id", "")).strip_edges().to_lower() == "cinder_cargo_hauler"
 	var generation := int(snapshot.get("generation", snapshot.get("manifest_generation", 0)))
 	# Halyard publishes its manifest API directly as `{manifest_generation,
 	# receipt}`; Cinder's two-snapshot HUD seam normalizes to the same view.
@@ -66,6 +70,10 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 	elif manifest.begins_with("READY"):
 		readiness_state = "[READY]"
 		next_action = "CREW REVIEW // CONFIRM PUBLISHED ROUTE"
+	if cinder_roster and (roster_shape.is_empty() or roster_status.is_empty()):
+		var roster_reading := _roster_reading(seat_state, manifest_receipt)
+		roster_shape = str(roster_reading["shape"])
+		roster_status = str(roster_reading["status"])
 	if not seat_state.is_empty():
 		manifest = "%s  //  SEAT %s" % [manifest, seat_state]
 	var history: Array[String] = []
@@ -75,7 +83,10 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 		var text := str(item).strip_edges()
 		if not text.is_empty():
 			history.append(text.to_upper())
-	var message := "ROLE // %s  //  OCCUPANT // %s\nMANIFEST // %s\nROUTE // %s\nREADINESS // %s\nREADINESS STATE // %s\nNEXT ACTION // %s" % [role, occupant, manifest, route, readiness, readiness_state, next_action]
+	var message := "ROLE // %s  //  OCCUPANT // %s\n" % [role, occupant]
+	if cinder_roster:
+		message += "ROSTER STATE // %s %s\n" % [roster_shape, roster_status]
+	message += "MANIFEST // %s\nROUTE // %s\nREADINESS // %s\nREADINESS STATE // %s\nNEXT ACTION // %s" % [manifest, route, readiness, readiness_state, next_action]
 	if not craft_id.is_empty():
 		message = "CRAFT // %s\n%s" % [craft_id, message]
 	if generation > 0:
@@ -96,6 +107,8 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 		"route": route,
 		"readiness_receipt": readiness,
 		"seat_state": seat_state,
+		"roster_shape": roster_shape,
+		"roster_status": roster_status,
 		"generation": generation,
 		"revision": revision,
 		"readiness_state": readiness_state,
@@ -190,3 +203,17 @@ func _clear_state() -> void:
 	_accepted_craft_id = &""
 	_accepted_generation = -1
 	_accepted_revision = -1
+
+
+func _roster_reading(seat_state: String, receipt: Dictionary) -> Dictionary:
+	if not receipt.is_empty():
+		return {"shape": "[=]", "status": "SECURED // MANIFEST READY"} \
+			if bool(receipt.get("ready", false)) \
+			else {"shape": "[!]", "status": "BLOCKED // MANIFEST REVIEW"}
+	match seat_state:
+		"OCCUPIED":
+			return {"shape": "[>]", "status": "LOADING // MANIFEST PENDING"}
+		"AVAILABLE", "RELEASED", "":
+			return {"shape": "[/]", "status": "DETACHED // STATION OPEN"}
+		_:
+			return {"shape": "[X]", "status": "FAULT // STATUS UNAVAILABLE"}

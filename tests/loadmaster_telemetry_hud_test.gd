@@ -43,6 +43,8 @@ func _run() -> void:
 	_check(detail.text.contains("CRAFT // CINDER_CARGO_HAULER") and detail.text.contains("SEAT MANIFEST_READY"), "Cinder craft and detached seat state are explicit")
 	_check(detail.text.contains("GENERATION // 4  //  REVISION // 40") and detail.text.contains("ROUTE // dock_04_cargo") and not detail.text.contains("stale_status_route"), "Cinder uses the current receipt route when status publication has not refreshed yet")
 	_check(detail.text.contains("READINESS STATE // [READY]") and detail.text.contains("NEXT ACTION // CREW REVIEW // CONFIRM ROUTE dock_04_cargo"), "readiness and next action remain explicit without relying on colour")
+	_check(detail.text.contains("ROSTER STATE // [=] SECURED // MANIFEST READY"), "Cinder manifest readiness has an explicit secured shape and label")
+	_check(detail.get_combined_minimum_size().x <= 350.0 and detail.size.x >= 350.0, "the roster label remains within the existing retained card width")
 	var ready_text := detail.text
 	hud.update_cinder_loadmaster_telemetry(
 		&"cinder_cargo_hauler", &"loadmaster",
@@ -61,9 +63,9 @@ func _run() -> void:
 		{"state": "occupied", "manifest_id": "cinder_manifest", "route_id": "dock_04_cargo", "generation": 4},
 		{"manifest_generation": 4, "receipt": {"ready": false, "route_id": &"dock_04_cargo", "manifest_generation": 4, "request_sequence": 41}}
 	)
-	_check(detail.text.contains("READINESS STATE // [ACTION REQUIRED]") and detail.text.contains("NEXT ACTION // RESOLVE MANIFEST BLOCKERS // ROUTE dock_04_cargo"), "a newer authoritative revision publishes a concrete blocked next action")
+	_check(detail.text.contains("READINESS STATE // [ACTION REQUIRED]") and detail.text.contains("ROSTER STATE // [!] BLOCKED // MANIFEST REVIEW") and detail.text.contains("NEXT ACTION // RESOLVE MANIFEST BLOCKERS // ROUTE dock_04_cargo"), "a newer authoritative revision publishes a concrete blocked next action and shape")
 	hud.update_cinder_loadmaster_telemetry(&"cinder_cargo_hauler", &"loadmaster", {"state": "released", "generation": 5}, {"manifest_generation": 5, "receipt": {}})
-	_check(detail.text.contains("SEAT RELEASED") and detail.text.contains("GENERATION // 5"), "Cinder release/re-entry state remains readable")
+	_check(detail.text.contains("SEAT RELEASED") and detail.text.contains("ROSTER STATE // [/] DETACHED // STATION OPEN") and detail.text.contains("GENERATION // 5"), "Cinder release/re-entry state remains readable")
 	var released_text := detail.text
 	hud.update_cinder_loadmaster_telemetry(
 		&"cinder_cargo_hauler", &"loadmaster",
