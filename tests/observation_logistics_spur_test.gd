@@ -207,6 +207,19 @@ func _test_observation_survey_threshold(module: ObservationLogisticsSpur) -> voi
 		slits_exact and observation_batch.multimesh.instance_count == 11,
 		"three cyan survey slits bind the physical threshold to the observation branch identity"
 	)
+	var room_identity := module.get_node_or_null(
+		^"Structure/Dressing/ObservationArraySign"
+	) as Label3D
+	_check(
+		room_identity != null
+		and room_identity.text == ObservationLogisticsSpur.OBSERVATION_ROOM_IDENTITY_TEXT
+		and room_identity.position.is_equal_approx(
+			ObservationLogisticsSpur.OBSERVATION_ROOM_IDENTITY_POSITION
+		)
+		and room_identity.position.z < ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_POSITIONS[0].z
+		and room_identity.position.y > 3.0,
+		"the observation survey room is named on its arrival threshold from the walking approach"
+	)
 	var left_foot := ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_POSITIONS[0] as Vector3
 	var right_foot := ObservationLogisticsSpur.OBSERVATION_THRESHOLD_FRAME_POSITIONS[1] as Vector3
 	var left_support := await _ray_local(
@@ -1380,4 +1393,4 @@ func _count_assertions() -> int:
 	# Kept explicit in output by counting anchored call sites from this suite is not
 	# available at runtime; successful and failed assertions together equal this
 	# frozen suite total.
-	return 71
+	return 72

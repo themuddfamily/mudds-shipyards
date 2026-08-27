@@ -294,6 +294,12 @@ const OBSERVATION_THRESHOLD_SLIT_POSITIONS := [
 	Vector3(-6.75, 3.15, 26.12),
 	Vector3(-6.33, 3.15, 26.12),
 ]
+## The final branch choice already names the destination.  Put the existing
+## observation label on its survey threshold, rather than deeper in the pad, so
+## a walking player reads both the room function and the cyan arrival frame in
+## one sightline. This only retunes an existing label and backing-plate instance.
+const OBSERVATION_ROOM_IDENTITY_TEXT := "OBSERVATION  //  SURVEY ARRAY"
+const OBSERVATION_ROOM_IDENTITY_POSITION := Vector3(-6.75, 3.18, 26.08)
 
 const CONTENT_NOTE := (
 	"NEW project-original station content. No source establishes an observation/logistics "
@@ -1778,7 +1784,7 @@ func _build_finishing_details(parent: Node3D) -> void:
 	# tangling with rails, stars and cargo when read from player height.
 	var sign_backs: Array[Transform3D] = [
 		Transform3D(Basis.from_scale(Vector3(5.20, 0.64, 0.12)), Vector3(0.0, 3.18, 21.96)),
-		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(-6.75, 2.98, 27.96)),
+		Transform3D(Basis.from_scale(Vector3(5.55, 0.58, 0.12)), Vector3(-6.75, 3.18, 26.18)),
 		Transform3D(Basis.from_scale(Vector3(4.65, 0.58, 0.12)), Vector3(6.75, 2.98, 27.96)),
 		Transform3D(Basis.from_scale(Vector3(2.75, 0.50, 0.12)), Vector3(0.0, 2.84, 37.84)),
 	]
@@ -1828,7 +1834,13 @@ func _build_finishing_details(parent: Node3D) -> void:
 		return_chevrons.append(Transform3D(Basis.IDENTITY, Vector3(-2.0 + float(chevron_index), 0.025, 38.0)))
 	_multimesh_boxes(parent, "ReturnBridgeChevrons", Vector3(0.48, 0.035, 0.12), _materials["practical_white"], return_chevrons)
 
-	_label(parent, "ObservationArraySign", "OBS  //  ARRAY  04", Vector3(-6.75, 2.98, 27.82), Color("8fe8ef"))
+	_label(
+		parent,
+		"ObservationArraySign",
+		OBSERVATION_ROOM_IDENTITY_TEXT,
+		OBSERVATION_ROOM_IDENTITY_POSITION,
+		Color("8fe8ef")
+	)
 	_label(parent, "LogisticsManifestSign", "LOG  //  MANIFEST", Vector3(6.75, 2.98, 27.82), Color("f4bf72"))
 	_label(parent, "ReturnLoopSign", "RETURN LOOP", Vector3(0.0, 2.84, 37.70), Color("dbe8e4"))
 
