@@ -408,7 +408,7 @@ func _test_identity_placement_budget_and_authority(
 		and delivery_direction.dot(displayed_right) < -0.5
 		and pickup_direction.dot(displayed_right) > 0.5
 		and pickup_direction.dot(displayed_left) < -0.5
-		and identity_label.text.contains(CinderCargoAccess.ROUTE_IDENTITY_HEADER)
+		and identity_label.text.contains("CINDER CARGO — ")
 		and identity_transforms.size() == 3
 		and ((identity_transforms[0] as Transform3D).basis.get_scale()
 		* CinderCargoAccess.ROUTE_CUE_SIZE)
