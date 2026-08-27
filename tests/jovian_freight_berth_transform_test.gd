@@ -8,6 +8,7 @@ extends SceneTree
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const MODULE_SCENE := preload("res://scenes/world/modules/jovian_freight_berth.tscn")
+const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const RECOMMENDED_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(-53.0, 0.38, 28.8))
 const WORLD_LAYER := PhysicsLayers.WORLD
 
@@ -45,6 +46,7 @@ func _run() -> void:
 	await _test_protected_ship_volume(world, module, original_bodies)
 	await _test_connection_overlap_is_bounded(world, module, original_bodies)
 	await _test_walkable_handoff(world, module)
+	await _test_approach_board_direction_truth(world, module)
 
 	if not module_was_integrated:
 		module.queue_free()
@@ -249,6 +251,62 @@ func _test_walkable_handoff(world: ShipyardWorld, module: JovianFreightBerth) ->
 		previous_y = y
 	_check(every_supported, "port deck, registry bypass, and freight approach have continuous physical support")
 	_check(maximum_step <= 0.41, "connection route contains no step higher than the existing registry shelf")
+
+
+## Resolve the actual ship-owned access points only after applying the live
+## 180-degree dock transform. The approach-facing board derives its right vector
+## from its own pose, so a future ship, berth, or board transform change cannot
+## silently turn the printed arrow into a false instruction.
+func _test_approach_board_direction_truth(
+		world: ShipyardWorld,
+		module: JovianFreightBerth
+	) -> void:
+	var board: Label3D
+	for candidate in module.find_children("FreightSign*", "Label3D", true, false):
+		var label := candidate as Label3D
+		if label.text == JovianFreightBerth.APPROACH_LEGEND:
+			board = label
+			break
+	var ship := JOVIAN_SCENE.instantiate() as JovianLightFreighter
+	world.add_child(ship)
+	await process_frame
+	ship.global_transform = module.get_berth_transform()
+	await physics_frame
+
+	var boarding_area := ship.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	var terminal := module.get_service_access()
+	var finite_geometry := board != null and boarding_area != null and terminal != null
+	_check(finite_geometry, "real docked access geometry and the approach board all resolve")
+	if finite_geometry:
+		var boarding_local := module.to_local(boarding_area.global_position)
+		var pilot_exit_local := module.to_local(ship.get_exit_transform().origin)
+		var cargo_exit_local := module.to_local(ship.get_interior_exit_transform().origin)
+		var terminal_local := module.to_local(terminal.global_position)
+		var approach_forward := -board.global_basis.z.normalized()
+		var approach_right := board.global_basis.y.normalized().cross(approach_forward).normalized()
+		var right_offsets := PackedFloat32Array([
+			(boarding_area.global_position - board.global_position).dot(approach_right),
+			(ship.get_exit_transform().origin - board.global_position).dot(approach_right),
+			(ship.get_interior_exit_transform().origin - board.global_position).dot(approach_right),
+			(terminal.global_position - board.global_position).dot(approach_right),
+		])
+		_check(
+			is_equal_approx(boarding_local.x, 3.4)
+			and is_equal_approx(pilot_exit_local.x, 4.7)
+			and cargo_exit_local.x > 9.5
+			and is_equal_approx(terminal_local.x, 15.75),
+			"the 180-degree dock yaw resolves boarding, pilot exit, cargo-ramp exit and Freight Control to their real module-right positions"
+		)
+		_check(
+			right_offsets[0] > 0.0
+			and right_offsets[1] > right_offsets[0]
+			and right_offsets[2] > right_offsets[1]
+			and right_offsets[3] > right_offsets[2],
+			"boarding, both exits and Freight Control are successively farther approach-right, matching the board arrow"
+		)
+
+	ship.queue_free()
+	await process_frame
 
 
 func _transformed_local_aabb(transform_value: Transform3D, local_min: Vector3, local_max: Vector3) -> AABB:
