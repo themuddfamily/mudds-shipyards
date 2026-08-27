@@ -62,6 +62,25 @@ func get_snapshot() -> Dictionary:
 ## “Critical” is a presentation-only sub-band inside the report's impaired
 ## integrity range; no stage, health, damage, or repair state is written back.
 func present_hero_report(report: Dictionary) -> Dictionary:
+	# Lifecycle facts are supplied by the binding from HeroShip's public,
+	# detached telemetry/recovery reports. They are deliberately read-only: this
+	# presenter only gives the retained component row an unambiguous shape/text
+	# for the already-settled hull lifecycle.
+	var lifecycle := report.get("lifecycle", {}) as Dictionary
+	if bool(lifecycle.get("destroyed", false)):
+		_snapshot = _lifecycle_snapshot(
+			&"destroyed",
+			"[X] DESTROYED  //  HULL LOST  //  BERTH RECOVERY",
+			"DESTROYED"
+		)
+		return _snapshot.duplicate(true)
+	if bool(lifecycle.get("roster_restored", false)):
+		_snapshot = _lifecycle_snapshot(
+			&"respawn_ready",
+			"[+] RESPAWN READY  //  ROSTER RESTORED",
+			"RESPAWN READY"
+		)
+		return _snapshot.duplicate(true)
 	var worst: Dictionary = {}
 	var repairing_component_id := StringName(report.get("repairing_component_id", &""))
 	for raw_component in report.get("components", []) as Array:
@@ -113,6 +132,23 @@ func present_hero_report(report: Dictionary) -> Dictionary:
 		"authority": false,
 	}.duplicate(true)
 	return _snapshot.duplicate(true)
+
+
+func _lifecycle_snapshot(wording: StringName, text: String, state_text: String) -> Dictionary:
+	return {
+		"visible": true,
+		"text": text,
+		"component_id": &"",
+		"component_name": "COMPONENT ROSTER",
+		"integrity": 0.0 if wording == &"destroyed" else 1.0,
+		"percentage": 0 if wording == &"destroyed" else 100,
+		"authoritative_stage": wording,
+		"wording": wording,
+		"state_text": state_text,
+		"repairing": false,
+		"presentation_only": true,
+		"authority": false,
+	}.duplicate(true)
 
 
 func detach() -> Dictionary:

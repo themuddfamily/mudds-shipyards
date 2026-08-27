@@ -244,6 +244,32 @@ func _run() -> void:
 		"whole-Main re-entry restores one retained active-craft component presentation"
 	)
 
+	# The retained flight row reads the bound craft's public telemetry and its
+	# post-reuse audit. These are real lifecycle facts, not a HUD-owned timer or
+	# synthetic recovery phase.
+	hud.bind_hero_component_ship(arrow)
+	arrow.apply_damage(999.0, arrow.global_position, Vector3.UP, -1, false)
+	await process_frame
+	var destroyed_snapshot := hud.get_hero_component_hud_snapshot()
+	_check(
+		label.visible
+		and label.text == "[X] DESTROYED  //  HULL LOST  //  BERTH RECOVERY"
+		and destroyed_snapshot.get("wording") == &"destroyed"
+		and bool(destroyed_snapshot.get("presentation_only", false))
+		and not bool(destroyed_snapshot.get("authority", true)),
+		"a real destroyed ship publishes a persistent non-color destruction marker"
+	)
+	var respawn := arrow.reset_for_reuse(arrow.global_transform)
+	await process_frame
+	var respawn_snapshot := hud.get_hero_component_hud_snapshot()
+	_check(
+		bool(respawn.get("accepted", false))
+		and label.text == "[+] RESPAWN READY  //  ROSTER RESTORED"
+		and respawn_snapshot.get("wording") == &"respawn_ready"
+		and respawn_snapshot.get("authoritative_stage") == &"respawn_ready",
+		"the actual post-reuse roster reports respawn readiness with distinct text and shape"
+	)
+
 	game.queue_free()
 	await process_frame
 	_finish()

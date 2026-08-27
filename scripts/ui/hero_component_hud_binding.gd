@@ -13,6 +13,7 @@ var _repairing_component_id: StringName = &""
 var _accepted_ledger_generation := 0
 var _accepted_report_revision := -1
 var _accepted_report: Dictionary = {}
+var _destroyed_observed := false
 
 
 func attach(hud: Node, ship: Node) -> bool:
@@ -31,6 +32,8 @@ func attach(hud: Node, ship: Node) -> bool:
 		ship.connect(&"component_repair_progressed", _on_component_repair_progressed)
 	if ship.has_signal("hull_changed"):
 		ship.connect(&"hull_changed", _on_hull_changed)
+	if ship.has_signal("destroyed"):
+		ship.connect(&"destroyed", _on_ship_destroyed)
 	ship.connect(&"tree_exiting", _on_ship_tree_exiting)
 	ship.connect(&"tree_entered", _on_ship_tree_entered)
 	return true
@@ -42,6 +45,7 @@ func detach() -> void:
 		_disconnect_if_connected(ship, &"component_damage_changed", _on_component_damage_changed)
 		_disconnect_if_connected(ship, &"component_repair_progressed", _on_component_repair_progressed)
 		_disconnect_if_connected(ship, &"hull_changed", _on_hull_changed)
+		_disconnect_if_connected(ship, &"destroyed", _on_ship_destroyed)
 		_disconnect_if_connected(ship, &"tree_exiting", _on_ship_tree_exiting)
 		_disconnect_if_connected(ship, &"tree_entered", _on_ship_tree_entered)
 	_clear_hud()
@@ -53,6 +57,7 @@ func detach() -> void:
 	_accepted_ledger_generation = 0
 	_accepted_report_revision = -1
 	_accepted_report = {}
+	_destroyed_observed = false
 
 
 func set_presenting(enabled: bool) -> void:
@@ -109,6 +114,7 @@ func refresh() -> bool:
 func _present_report(hud: Node, report: Dictionary) -> void:
 	if not _repairing_component_id.is_empty():
 		report["repairing_component_id"] = _repairing_component_id
+	report["lifecycle"] = _lifecycle_snapshot(report)
 	hud.call("_present_bound_hero_component_report", report)
 	_apply_steady_state_semantics(hud)
 
@@ -129,6 +135,13 @@ func _on_component_damage_changed(_component_id: StringName, _state: int, _integ
 func _on_hull_changed(_current: float, _maximum: float) -> void:
 	# Hull remains unrelated authority; its signal is only a reliable notification
 	# that a localized component observation has just committed at finer-than-stage cadence.
+	refresh()
+
+
+func _on_ship_destroyed(_world_position: Vector3, _inherited_velocity: Vector3) -> void:
+	# The signal is only a redraw notification. The displayed fact comes from
+	# the public telemetry snapshot read in `_lifecycle_snapshot`.
+	_destroyed_observed = true
 	refresh()
 
 
@@ -231,6 +244,49 @@ func _accept_report(report: Dictionary) -> void:
 	_accepted_report = report.duplicate(true)
 
 
+## Reads only published HeroShip snapshots. A respawn-ready row is shown only
+## after this bound craft was actually observed destroyed and its public
+## component-recovery audit says the roster is restored; a fresh nominal craft
+## therefore keeps the ordinary nominal component row.
+func _lifecycle_snapshot(report: Dictionary) -> Dictionary:
+	var ship := _get_ship()
+	if not is_instance_valid(ship) or not ship.has_method("get_telemetry"):
+		return {}
+	var telemetry := ship.call("get_telemetry") as Dictionary
+	var destroyed := bool(telemetry.get("destroyed", false))
+	if destroyed:
+		_destroyed_observed = true
+		return {"destroyed": true}
+	if not _destroyed_observed or not ship.has_method("get_component_recovery_report"):
+		return {}
+	var recovery := ship.call("get_component_recovery_report") as Dictionary
+	if bool(recovery.get("valid", false)):
+		return {"roster_restored": true}
+	# The component report is itself the public, detached roster snapshot. Some
+	# focused production-host captures do not build every optional visual audit
+	# root that the broader recovery report checks, so retain this narrower
+	# roster-only proof for the HUD row rather than claiming a new lifecycle.
+	if _report_roster_is_nominal(report):
+		return {"roster_restored": true}
+	return {}
+
+
+func _report_roster_is_nominal(report: Dictionary) -> bool:
+	var components := report.get("components", []) as Array
+	if not bool(report.get("configured", false)) or components.is_empty():
+		return false
+	for item in components:
+		if not item is Dictionary:
+			return false
+		var component := item as Dictionary
+		if (
+			StringName(component.get("state_id", &"")) != &"nominal"
+			or not is_equal_approx(float(component.get("integrity", -1.0)), 1.0)
+		):
+			return false
+	return true
+
+
 func _strict_int(snapshot: Dictionary, key: String, fallback: int) -> int:
 	var value: Variant = snapshot.get(key, null)
 	return int(value) if value is int else fallback
@@ -246,6 +302,10 @@ func _apply_steady_state_semantics(hud: Node) -> void:
 	var wording := StringName(snapshot.get("wording", &"nominal"))
 	var semantic_lead := ""
 	match wording:
+		&"respawn_ready":
+			semantic_lead = "[+] RESPAWN READY"
+		&"destroyed":
+			semantic_lead = "[X] DESTROYED"
 		&"repairing":
 			semantic_lead = "[+] RECOVERY"
 		&"failed":
@@ -254,6 +314,9 @@ func _apply_steady_state_semantics(hud: Node) -> void:
 			semantic_lead = "[!] DAMAGE"
 		_:
 			return
+	if wording in [&"respawn_ready", &"destroyed"]:
+		# The lifecycle rows already carry their complete, shape-safe text.
+		return
 	var label := hud.find_child("ComponentStatus", true, false) as Label
 	if not is_instance_valid(label):
 		return
