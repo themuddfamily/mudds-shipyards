@@ -49,7 +49,7 @@ const APPROACH_FACING_SIGNS := [
 		Vector3(0.0, 0.0, -1.0),
 	],
 	[
-		"HabitatSpine/Structure/PlayerClearConnector/Sign_HABITAT_SPINE____FIXED-ERA-INSPIRED",
+		"HabitatSpine/Structure/PlayerClearConnector/Sign_CREW_HABITAT__COMMON_ROOM_AHEAD",
 		Vector3(-1.0, 0.0, 0.0),
 	],
 	# Aft operations content pass. The status board hangs on the room's south
