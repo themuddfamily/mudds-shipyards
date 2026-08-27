@@ -31,6 +31,9 @@ const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd
 const CinderRaceSessionPersistenceType := preload(
 	"res://scripts/persistence/cinder_race_session_persistence.gd"
 )
+const CinderPatrolSessionPersistenceType := preload(
+	"res://scripts/persistence/cinder_patrol_session_persistence.gd"
+)
 const SafeStartProductionRecoveryType := preload(
 	"res://scripts/recovery/safe_start_production_recovery.gd"
 )
@@ -109,6 +112,8 @@ const CINDER_RACE_TIMEOUT_SECONDS := 120.0
 const CINDER_RACE_SESSION_PERSISTENCE_SLOT: StringName = &"cinder_timed_race_session"
 const CINDER_RACE_SESSION_COMMIT_PREFIX := "cinder-race-session-"
 const CINDER_PATROL_DWELL_SECONDS := 2.0
+const CINDER_PATROL_SESSION_PERSISTENCE_SLOT: StringName = &"cinder_patrol_session"
+const CINDER_PATROL_SESSION_COMMIT_PREFIX := "cinder-patrol-session-"
 ## Arcade recovery budget between authoritative hull loss and the first safe
 ## berth-regeneration attempt. The attempt still has to pass reset preflight,
 ## acquire the exact home-berth lease, and commit the retained ship lifecycle.
@@ -670,6 +675,11 @@ var _cinder_race_session_restore_attempted := false
 var _cinder_race_session_restore_status: Dictionary = {}
 var _cinder_race_session_save_status: Dictionary = {}
 var _cinder_race_session_saved_fingerprint := ""
+var _cinder_patrol_session_persistence: CinderPatrolSessionPersistence
+var _cinder_patrol_session_restore_attempted := false
+var _cinder_patrol_session_restore_status: Dictionary = {}
+var _cinder_patrol_session_save_status: Dictionary = {}
+var _cinder_patrol_session_saved_fingerprint := ""
 ## Diagnostic only: exactly one increment accompanies each production physics
 ## position sample, proving no second adapter or retired director sampler is live.
 var _cinder_position_sample_count := 0
@@ -785,6 +795,7 @@ func _exit_tree() -> void:
 	# before disconnecting either case; ordinary detach is not treated as orderly
 	# process shutdown and does not touch either recovery marker.
 	save_cinder_race_session()
+	save_cinder_patrol_session()
 	_detach_cinder_race_session()
 	_detach_cinder_loadmaster_hud_binding()
 	_detach_final_approach_hud_composition()
@@ -1232,7 +1243,6 @@ func _initialize_cinder_race_session() -> void:
 			_on_cinder_session_presentation_changed
 		)
 		cinder_race_session.session_completed.connect(_on_cinder_session_completed)
-		_initialize_cinder_race_session_persistence()
 	if patrol_activity == null:
 		var route := activity_director.get_definition(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
 		patrol_activity = PatrolActivity.new(route, CINDER_PATROL_DWELL_SECONDS)
@@ -1240,6 +1250,8 @@ func _initialize_cinder_race_session() -> void:
 			_on_patrol_presentation_changed
 		)
 		patrol_activity.patrol_completed.connect(_on_patrol_completed)
+	_initialize_cinder_race_session_persistence()
+	_initialize_cinder_patrol_session_persistence()
 	_restore_cinder_race_session()
 
 
@@ -1333,6 +1345,103 @@ func get_cinder_race_session_persistence_report() -> Dictionary:
 		"owns_clock": false,
 		"owns_route": false,
 		"owns_results": false,
+	}.duplicate(true)
+
+
+func _initialize_cinder_patrol_session_persistence() -> void:
+	if _cinder_patrol_session_persistence == null \
+			and _runtime_settings_user_data_store != null:
+		_cinder_patrol_session_persistence = CinderPatrolSessionPersistenceType.new()
+		var configured := _cinder_patrol_session_persistence.configure(
+			_runtime_settings_user_data_store,
+			CINDER_PATROL_SESSION_PERSISTENCE_SLOT
+		)
+		if not bool(configured.get("accepted", false)):
+			_cinder_patrol_session_save_status = configured.duplicate(true)
+			_cinder_patrol_session_persistence = null
+			return
+	if _cinder_patrol_session_restore_attempted \
+			or _cinder_patrol_session_persistence == null \
+			or patrol_activity == null or not is_instance_valid(activity_director):
+		return
+	_cinder_patrol_session_restore_attempted = true
+	# The two typed activities intentionally share one route. A successfully
+	# restored race already owns it, so a second saved owner is never adopted.
+	if bool(_cinder_race_session_restore_status.get("accepted", false)):
+		_cinder_patrol_session_restore_status = {
+			"accepted": false,
+			"reason": &"shared_route_already_restored",
+		}.duplicate(true)
+		return
+	var loaded := _cinder_patrol_session_persistence.load(
+		patrol_activity, activity_director
+	)
+	_cinder_patrol_session_restore_status = loaded.duplicate(true)
+	if not bool(loaded.get("accepted", false)):
+		return
+	var restored := patrol_activity.restore_persistence_state(
+		activity_director,
+		loaded.get("patrol_state", {}),
+		patrol_activity.get_generation()
+	)
+	_cinder_patrol_session_restore_status = restored.duplicate(true)
+	_cinder_patrol_session_restore_status["store_generation"] = int(
+		loaded.get("store_generation", -1)
+	)
+	if not bool(restored.get("accepted", false)):
+		return
+	var snapshot := patrol_activity.get_presentation_snapshot()
+	_selected_activity_kind = ACTIVITY_KIND_PATROL
+	_active_activity_id = DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+	_active_activity_generation = int(snapshot.get("generation", 0))
+	_activity_selection_locked = true
+	_cinder_patrol_session_saved_fingerprint = _cinder_patrol_save_fingerprint(snapshot)
+
+
+func save_cinder_patrol_session() -> Dictionary:
+	if _cinder_patrol_session_persistence == null \
+			or patrol_activity == null or not is_instance_valid(activity_director):
+		return {"accepted": false, "reason": &"patrol_session_persistence_unavailable"}
+	var snapshot := patrol_activity.get_presentation_snapshot()
+	if int(snapshot.get("generation", 0)) < 1:
+		return {"accepted": true, "reason": &"patrol_session_not_started"}
+	var next_generation := _runtime_settings_user_data_store.get_generation() + 1
+	if next_generation <= 0 or next_generation > UserDataStoreType.MAX_GENERATION:
+		return {"accepted": false, "reason": &"patrol_session_commit_id_exhausted"}
+	var commit_id := "%s%010d" % [
+		CINDER_PATROL_SESSION_COMMIT_PREFIX,
+		next_generation,
+	]
+	_cinder_patrol_session_save_status = _cinder_patrol_session_persistence.save(
+		patrol_activity, activity_director, commit_id
+	).duplicate(true)
+	if bool(_cinder_patrol_session_save_status.get("accepted", false)):
+		_cinder_patrol_session_saved_fingerprint = _cinder_patrol_save_fingerprint(
+			snapshot
+		)
+		_runtime_settings_commit_serial = maxi(
+			_runtime_settings_commit_serial,
+			_runtime_settings_user_data_store.get_generation()
+		)
+		_sync_production_runtime_settings_state()
+	return _cinder_patrol_session_save_status.duplicate(true)
+
+
+func get_cinder_patrol_session_persistence_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"configured": _cinder_patrol_session_persistence != null,
+		"store_instance_id": (
+			_runtime_settings_user_data_store.get_instance_id()
+			if _runtime_settings_user_data_store != null else 0
+		),
+		"shares_runtime_settings_store": true,
+		"restore_attempted": _cinder_patrol_session_restore_attempted,
+		"restore_status": _cinder_patrol_session_restore_status.duplicate(true),
+		"last_save_status": _cinder_patrol_session_save_status.duplicate(true),
+		"owns_clock": false,
+		"owns_route": false,
+		"owns_actor": false,
 	}.duplicate(true)
 
 
@@ -9636,6 +9745,8 @@ func request_activity_start(
 		_active_activity_generation = _get_selected_activity_generation()
 		if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
 			save_cinder_race_session()
+		if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+			save_cinder_patrol_session()
 		if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
 			# FREE_FLIGHT is reached only after the physical ship has cleared its
 			# berth, so this phase observes an existing lifecycle fact.
@@ -9954,6 +10065,9 @@ func _advance_selected_activity(delta: float, world_position: Vector3) -> void:
 	if _active_activity_id.is_empty():
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
+		if phase != Phase.FREE_FLIGHT or not _piloting \
+				or not is_instance_valid(active_ship):
+			return
 		_advance_patrol(delta, active_ship, world_position)
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
@@ -10138,9 +10252,28 @@ func _on_cinder_session_completed(_snapshot: Dictionary) -> void:
 		hud.toast("Cinder Reach race complete", "Time recorded — no reward granted", 3.2)
 
 
-func _on_patrol_presentation_changed(_snapshot: Dictionary) -> void:
+func _on_patrol_presentation_changed(snapshot: Dictionary) -> void:
+	var fingerprint := _cinder_patrol_save_fingerprint(snapshot)
+	if not fingerprint.is_empty() \
+			and fingerprint != _cinder_patrol_session_saved_fingerprint:
+		save_cinder_patrol_session()
 	if _selected_activity_kind == ACTIVITY_KIND_PATROL:
 		_sync_activity_hud()
+
+
+func _cinder_patrol_save_fingerprint(snapshot: Dictionary) -> String:
+	if int(snapshot.get("generation", 0)) < 1:
+		return ""
+	# Continuous elapsed/dwell time is captured exactly on explicit and detach
+	# saves. Automatic writes track only meaningful lifecycle/ordered progress.
+	return "%d:%s:%d:%d:%s:%s" % [
+		int(snapshot.get("generation", 0)),
+		str(snapshot.get("state_id", &"idle")),
+		int(snapshot.get("completed_checkpoint_count", 0)),
+		int(snapshot.get("dwell_checkpoint_index", PatrolActivity.ANY_CHECKPOINT)),
+		str(bool(snapshot.get("checkpoint_occupied", false))),
+		str(snapshot.get("terminal_reason", &"")),
+	]
 
 
 func _on_patrol_completed(_snapshot: Dictionary) -> void:
@@ -11891,6 +12024,7 @@ func _record_safe_start_recovery_hud_status(
 ## shutdown.
 func mark_orderly_shutdown() -> Dictionary:
 	var race_session_status := save_cinder_race_session()
+	var patrol_session_status := save_cinder_patrol_session()
 	var safe_start_status := (
 		_safe_start_production_recovery.mark_orderly_shutdown()
 		if _safe_start_production_recovery != null
@@ -11913,6 +12047,7 @@ func mark_orderly_shutdown() -> Dictionary:
 		"safe_start": safe_start_status.duplicate(true),
 		"session_diagnostics": session_diagnostics_status.duplicate(true),
 		"cinder_race_session": race_session_status.duplicate(true),
+		"cinder_patrol_session": patrol_session_status.duplicate(true),
 	}.duplicate(true)
 
 

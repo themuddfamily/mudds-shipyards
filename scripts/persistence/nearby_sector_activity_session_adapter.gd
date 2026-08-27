@@ -19,7 +19,14 @@ func capture(binding_snapshot: Dictionary) -> Dictionary:
 	var activities: Array[Dictionary] = []
 	var host := binding_snapshot.get("host", {}) as Dictionary
 	_capture_activity(activities, host.get("activity", {}) as Dictionary, &"cinder_reach_emberline_convoy")
-	_capture_activity(activities, binding_snapshot.get("race", {}) as Dictionary, &"cinder_reach_checkpoint_route")
+	# Race and patrol intentionally share one director route ID. A standalone
+	# persistence slot supplies at most one of them, so prefer the typed patrol
+	# record when present instead of emitting two owners for the same route.
+	var patrol := binding_snapshot.get("patrol", {}) as Dictionary
+	if not patrol.is_empty():
+		_capture_activity(activities, patrol, &"cinder_reach_checkpoint_route")
+	else:
+		_capture_activity(activities, binding_snapshot.get("race", {}) as Dictionary, &"cinder_reach_checkpoint_route")
 	_capture_activity(activities, binding_snapshot.get("cargo", {}) as Dictionary, &"cinder_platform_supply_run")
 	_capture_activity(activities, binding_snapshot.get("mining", {}) as Dictionary, &"cinder_platform_mining_run")
 	_capture_activity(activities, binding_snapshot.get("structure_scan", {}) as Dictionary, &"cinder_derelict_structure_scan")

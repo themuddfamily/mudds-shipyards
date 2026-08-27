@@ -26,6 +26,7 @@ enum State {
 }
 
 const ANY_CHECKPOINT := -1
+const PERSISTENCE_SCHEMA_VERSION := 1
 
 var definition: ActivityDefinition
 var dwell_seconds: float
@@ -465,6 +466,167 @@ func get_presentation_snapshot() -> Dictionary:
 		"save_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+## Captures only the live patrol/dwell facts that are not already owned by the
+## route authority. Actor instance IDs are process-local and deliberately stay
+## out of the record; a restored active patrol binds the next valid production
+## ship sample through the ordinary actor fence.
+func capture_persistence_state() -> Dictionary:
+	return {
+		"schema_version": PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(definition.activity_id) if definition != null else "",
+		"configured_dwell_seconds": dwell_seconds,
+		"generation": _generation,
+		"activity_generation": _activity_generation,
+		"started_once": _started_once,
+		"state": _state,
+		"next_checkpoint_index": _next_checkpoint_index,
+		"completed_checkpoint_count": _completed_checkpoint_count,
+		"dwell_checkpoint_index": _dwell_checkpoint_index,
+		"dwell_elapsed_seconds": _dwell_elapsed,
+		"elapsed_seconds": _elapsed,
+		"last_duration_seconds": _last_duration,
+		"checkpoint_occupied": _checkpoint_occupied,
+		"terminal_reason": String(_terminal_reason),
+		"activity_state": _capture_activity_persistence_state(),
+	}.duplicate(true)
+
+
+func validate_persistence_state(
+	candidate: Variant,
+	director: ActivityDirector
+	) -> Dictionary:
+	if not candidate is Dictionary or not _director_owns_route(director):
+		return _persistence_result(false, &"malformed_patrol_state")
+	var saved := candidate as Dictionary
+	if saved.size() != 16 \
+			or not _integral(saved.get("schema_version")) \
+			or int(saved.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
+			or str(saved.get("activity_id", "")) != str(definition.activity_id) \
+			or not _number(saved.get("configured_dwell_seconds")) \
+			or not is_equal_approx(
+				float(saved.get("configured_dwell_seconds", -1.0)), dwell_seconds
+			) \
+			or not _integral(saved.get("generation")) \
+			or not _integral(saved.get("activity_generation")) \
+			or saved.get("started_once") is not bool \
+			or not _integral(saved.get("state")) \
+			or not _integral(saved.get("next_checkpoint_index")) \
+			or not _integral(saved.get("completed_checkpoint_count")) \
+			or not _integral(saved.get("dwell_checkpoint_index")) \
+			or not _number(saved.get("dwell_elapsed_seconds")) \
+			or not _number(saved.get("elapsed_seconds")) \
+			or not _number(saved.get("last_duration_seconds")) \
+			or saved.get("checkpoint_occupied") is not bool \
+			or not saved.get("terminal_reason") is String \
+			or not saved.get("activity_state") is Dictionary:
+		return _persistence_result(false, &"malformed_patrol_state")
+	var generation := int(saved.generation)
+	var activity_generation := int(saved.activity_generation)
+	var patrol_state := int(saved.state)
+	var next_checkpoint := int(saved.next_checkpoint_index)
+	var completed_count := int(saved.completed_checkpoint_count)
+	var dwell_checkpoint := int(saved.dwell_checkpoint_index)
+	var dwell_elapsed := float(saved.dwell_elapsed_seconds)
+	var elapsed := float(saved.elapsed_seconds)
+	var last_duration := float(saved.last_duration_seconds)
+	var checkpoint_count := definition.get_checkpoint_count()
+	var terminal_reason := str(saved.terminal_reason)
+	if generation < 1 or generation > CheckpointRouteActivity.MAX_PERSISTED_GENERATION \
+			or activity_generation != generation or not bool(saved.started_once) \
+			or patrol_state < State.IDLE or patrol_state > State.ABORTED \
+			or next_checkpoint < 0 or next_checkpoint > checkpoint_count \
+			or completed_count != next_checkpoint \
+			or dwell_checkpoint < ANY_CHECKPOINT \
+			or dwell_checkpoint >= checkpoint_count \
+			or dwell_elapsed < 0.0 or dwell_elapsed > dwell_seconds \
+			or elapsed < 0.0 or last_duration < -1.0:
+		return _persistence_result(false, &"invalid_patrol_state")
+	if dwell_checkpoint == ANY_CHECKPOINT:
+		if not is_zero_approx(dwell_elapsed) or bool(saved.checkpoint_occupied):
+			return _persistence_result(false, &"invalid_patrol_dwell")
+	elif patrol_state != State.ACTIVE or dwell_checkpoint != next_checkpoint:
+		return _persistence_result(false, &"invalid_patrol_dwell")
+	var activity_state := saved.activity_state as Dictionary
+	var route_validation := director.validate_activity_persistence_state(
+		definition.activity_id, activity_state
+	)
+	if not bool(route_validation.get("accepted", false)):
+		return route_validation
+	if int(activity_state.get("generation", -1)) != activity_generation \
+			or int(activity_state.get("next_checkpoint_index", -1)) != completed_count:
+		return _persistence_result(false, &"patrol_route_progress_mismatch")
+	var route_state := int(activity_state.get("state", -1))
+	var route_reason := str(activity_state.get("failure_reason", ""))
+	match patrol_state:
+		State.IDLE:
+			if route_state != CheckpointRouteActivity.State.IDLE \
+					or next_checkpoint != 0 or not is_zero_approx(elapsed) \
+					or dwell_checkpoint != ANY_CHECKPOINT \
+					or not terminal_reason.is_empty():
+				return _persistence_result(false, &"patrol_route_state_mismatch")
+		State.ACTIVE:
+			if route_state != CheckpointRouteActivity.State.ACTIVE \
+					or next_checkpoint >= checkpoint_count \
+					or not terminal_reason.is_empty():
+				return _persistence_result(false, &"patrol_route_state_mismatch")
+		State.COMPLETED:
+			if route_state != CheckpointRouteActivity.State.COMPLETED \
+					or next_checkpoint != checkpoint_count \
+					or dwell_checkpoint != ANY_CHECKPOINT \
+					or not terminal_reason.is_empty() \
+					or not is_equal_approx(last_duration, elapsed):
+				return _persistence_result(false, &"patrol_route_state_mismatch")
+		State.FAILED, State.ABORTED:
+			if route_state != CheckpointRouteActivity.State.FAILED \
+					or dwell_checkpoint != ANY_CHECKPOINT \
+					or terminal_reason.is_empty() or route_reason != terminal_reason:
+				return _persistence_result(false, &"patrol_route_state_mismatch")
+	return _persistence_result(true, &"patrol_state_valid")
+
+
+## Startup-only atomic adoption. Validation happens before either existing
+## authority changes and no historical patrol/director signal is replayed.
+func restore_persistence_state(
+	director: ActivityDirector,
+	candidate: Variant,
+	expected_generation: int
+	) -> Dictionary:
+	if _is_reentrant():
+		return _persistence_result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _persistence_result(false, &"stale_generation")
+	if _closed or _attached or _started_once or _generation != 0:
+		return _persistence_result(false, &"patrol_already_live")
+	var validated := validate_persistence_state(candidate, director)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var saved := candidate as Dictionary
+	var restored_route := director.restore_activity_persistence_state(
+		definition.activity_id, saved.activity_state
+	)
+	if not bool(restored_route.get("accepted", false)):
+		return restored_route
+	_generation = int(saved.generation)
+	_activity_generation = int(saved.activity_generation)
+	_state = int(saved.state) as State
+	_next_checkpoint_index = int(saved.next_checkpoint_index)
+	_completed_checkpoint_count = int(saved.completed_checkpoint_count)
+	_dwell_checkpoint_index = int(saved.dwell_checkpoint_index)
+	_dwell_elapsed = float(saved.dwell_elapsed_seconds)
+	_elapsed = float(saved.elapsed_seconds)
+	_last_duration = float(saved.last_duration_seconds)
+	_checkpoint_occupied = bool(saved.checkpoint_occupied)
+	_terminal_reason = StringName(str(saved.terminal_reason))
+	_started_once = true
+	_pending_submission = false
+	_pending_checkpoint_event = false
+	_activity_route_completed = _state == State.COMPLETED
+	_authority_desynchronized = false
+	_pending_terminal_state = State.IDLE
+	_release_patrol_actor()
+	return _persistence_result(true, &"patrol_state_restored")
 
 
 func audit() -> Dictionary:
@@ -923,6 +1085,34 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	result["accepted"] = accepted
 	result["reason"] = reason
 	return result
+
+
+func _capture_activity_persistence_state() -> Dictionary:
+	if not is_instance_valid(_director) or definition == null:
+		return {}
+	var activity_snapshot := _director.get_activity_snapshot(definition.activity_id)
+	if activity_snapshot.is_empty():
+		return {}
+	return {
+		"schema_version": CheckpointRouteActivity.PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(definition.activity_id),
+		"state": int(activity_snapshot.get("state", CheckpointRouteActivity.State.IDLE)),
+		"generation": int(activity_snapshot.get("generation", 0)),
+		"next_checkpoint_index": int(activity_snapshot.get("next_checkpoint_index", 0)),
+		"failure_reason": String(activity_snapshot.get("failure_reason", &"")),
+	}.duplicate(true)
+
+
+func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {"accepted": accepted, "reason": reason}
+
+
+func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))
+
+
+func _number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
 
 
 func _emit_snapshot_signal(patrol_signal: Signal) -> void:
