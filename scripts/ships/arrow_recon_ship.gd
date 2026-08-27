@@ -146,6 +146,14 @@ const ENGINE_DAMAGE_CUE_COLLAR_INDEX := 1
 const ENGINE_DAMAGE_COLLAR_COLOR := Color("ff6a36")
 const ENGINE_DAMAGE_COLLAR_POSITION := Vector3(1.10, 0.94, 6.48)
 const ENGINE_DAMAGE_COLLAR_SCALE := Vector3(1.35, 1.0, 1.0)
+## A failed core-systems ledger locks the already-retained recon head into an
+## asymmetric mechanical cant. The crossbar and orthogonal aperture then read
+## as a local, non-colour-only silhouette break in the normal chase view. This
+## changes neither sensor authority nor the sweep's renderer roster.
+const CORE_SYSTEMS_DAMAGE_CUE_COMPONENT_ID: StringName = &"core_systems"
+const CORE_SYSTEMS_FAILED_SENSOR_SWEEP_ROTATION := Vector3(
+	deg_to_rad(-24.0), deg_to_rad(31.0), deg_to_rad(26.0)
+)
 const MAIN_GEAR_FOOT_INNER_RADIUS := 0.22
 const MAIN_GEAR_FOOT_OUTER_RADIUS := 0.34
 const MAIN_GEAR_FOOT_SCALE := Vector3(1.4, 0.55, 1.0)
@@ -258,6 +266,7 @@ var _sensor_sweep: Node3D
 var _recon_primary_aperture: MeshInstance3D
 var _recon_secondary_aperture: MeshInstance3D
 var _recon_crown_hub: MeshInstance3D
+var _core_systems_failure_pose_active := false
 var _elapsed_arrow := 0.0
 var _wing_root_rib_authored_transforms: Array[Transform3D] = []
 var _lateral_array_curve_joint_mesh: SphereMesh
@@ -292,6 +301,7 @@ func _ready() -> void:
 		component_damage_changed.connect(_on_arrow_component_damage_changed)
 	_apply_arrow_metadata()
 	_sync_engine_damage_collar()
+	_sync_core_systems_damage_silhouette()
 	_sync_arrow_engine_presentation_immediately()
 
 
@@ -408,6 +418,33 @@ func get_engine_damage_collar_snapshot() -> Dictionary:
 		"timers_added": 0,
 		"processes_added": 0,
 		"flashes": false,
+		"damage_authority": false,
+		"repair_authority": false,
+	}.duplicate(true)
+
+
+## Presentation-only snapshot for the existing core-systems failed silhouette.
+## The retained sensor sweep remains the sole changed node; component state and
+## repair continue to belong entirely to the inherited damage ledger.
+func get_core_systems_damage_silhouette_snapshot() -> Dictionary:
+	var model := get_component_damage()
+	var state := ShipComponentDamage.ComponentState.NOMINAL
+	if model != null and model.is_configured():
+		state = model.get_component_state(CORE_SYSTEMS_DAMAGE_CUE_COMPONENT_ID)
+	return {
+		"component_id": CORE_SYSTEMS_DAMAGE_CUE_COMPONENT_ID,
+		"stage": ShipComponentDamage.state_id_for(state),
+		"active": _core_systems_failure_pose_active,
+		"sensor_sweep_transform": (
+			_sensor_sweep.transform if is_instance_valid(_sensor_sweep) else Transform3D()
+		),
+		"failed_rotation": CORE_SYSTEMS_FAILED_SENSOR_SWEEP_ROTATION,
+		"renderer_nodes_added": 0,
+		"geometry_submissions_added": 0,
+		"collision_shapes_added": 0,
+		"lights_added": 0,
+		"timers_added": 0,
+		"processes_added": 0,
 		"damage_authority": false,
 		"repair_authority": false,
 	}.duplicate(true)
@@ -1279,14 +1316,17 @@ func _add_box_collision(node_name: String, collision_position: Vector3, size: Ve
 
 func _update_arrow_presentation(delta: float) -> void:
 	if _sensor_sweep != null:
-		_sensor_sweep.rotation.y = fmod(
-			_sensor_sweep.rotation.y + delta * SENSOR_SWEEP_YAW_RATE,
-			TAU
-		)
-		_sensor_sweep.rotation.x = (
-			sin(_elapsed_arrow * SENSOR_SWEEP_PITCH_RATE)
-			* SENSOR_SWEEP_PITCH_AMPLITUDE
-		)
+		if _core_systems_failure_pose_active:
+			_sensor_sweep.rotation = CORE_SYSTEMS_FAILED_SENSOR_SWEEP_ROTATION
+		else:
+			_sensor_sweep.rotation.y = fmod(
+				_sensor_sweep.rotation.y + delta * SENSOR_SWEEP_YAW_RATE,
+				TAU
+			)
+			_sensor_sweep.rotation.x = (
+				sin(_elapsed_arrow * SENSOR_SWEEP_PITCH_RATE)
+				* SENSOR_SWEEP_PITCH_AMPLITUDE
+			)
 	var telemetry := get_telemetry()
 	var engine_state := StringName(telemetry.get("engine_state", &"OFFLINE"))
 	var engine_active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
@@ -1322,6 +1362,8 @@ func _on_arrow_component_damage_changed(
 	) -> void:
 	if component_id == ENGINE_DAMAGE_CUE_COMPONENT_ID:
 		_sync_engine_damage_collar()
+	if component_id == CORE_SYSTEMS_DAMAGE_CUE_COMPONENT_ID:
+		_sync_core_systems_damage_silhouette()
 
 
 func _sync_engine_damage_collar() -> void:
@@ -1346,6 +1388,19 @@ func _sync_engine_damage_collar() -> void:
 			_shared_engine_damage_collar_material
 			if damaged and index == ENGINE_DAMAGE_CUE_COLLAR_INDEX
 			else null
+		)
+
+
+func _sync_core_systems_damage_silhouette() -> void:
+	var model := get_component_damage()
+	var state := ShipComponentDamage.ComponentState.NOMINAL
+	if model != null and model.is_configured():
+		state = model.get_component_state(CORE_SYSTEMS_DAMAGE_CUE_COMPONENT_ID)
+	_core_systems_failure_pose_active = state == ShipComponentDamage.ComponentState.FAILED
+	if is_instance_valid(_sensor_sweep):
+		_sensor_sweep.rotation = (
+			CORE_SYSTEMS_FAILED_SENSOR_SWEEP_ROTATION
+			if _core_systems_failure_pose_active else Vector3.ZERO
 		)
 
 
@@ -1379,7 +1434,9 @@ func _preflight_variant_reset_for_reuse(spawn_transform: Transform3D) -> Diction
 
 func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	super._commit_variant_reset_for_reuse(context)
+	_elapsed_arrow = 0.0
 	_sync_engine_damage_collar()
+	_sync_core_systems_damage_silhouette()
 
 
 func _apply_arrow_metadata() -> void:
