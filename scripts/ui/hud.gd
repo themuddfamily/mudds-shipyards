@@ -4328,7 +4328,8 @@ func clear_first_sortie_tutorial(reason: StringName = &"detached") -> Dictionary
 	var result := _first_sortie_tutorial_presenter.detach(reason)
 	_first_sortie_tutorial_source_snapshot.clear()
 	if _runtime_status_kind == &"tutorial" and is_instance_valid(_runtime_status_panel):
-		var focus_owner := get_viewport().gui_get_focus_owner()
+		var viewport := get_viewport()
+		var focus_owner := viewport.gui_get_focus_owner() if viewport != null else null
 		if is_instance_valid(focus_owner) \
 				and _runtime_status_panel.is_ancestor_of(focus_owner):
 			focus_owner.release_focus()
