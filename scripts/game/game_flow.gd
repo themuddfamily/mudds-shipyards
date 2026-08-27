@@ -9493,6 +9493,19 @@ func request_activity_start(
 	var started: Dictionary
 	match _selected_activity_kind:
 		ACTIVITY_KIND_PATROL:
+			# A terminal patrol remains visible and inert until the player makes a
+			# fresh start request.  That one request crosses the existing reset
+			# seam before starting, so callers cannot accidentally create a second
+			# route owner or race a separate reset/start pair.
+			var patrol_state := StringName(
+				patrol_activity.get_presentation_snapshot().get("state_id", &"idle")
+			)
+			if patrol_state in [&"completed", &"failed", &"aborted"]:
+				var repeat_reset := patrol_activity.reset(
+					patrol_activity.get_generation()
+				)
+				if not bool(repeat_reset.get("accepted", false)):
+					return _decorate_activity_snapshot(repeat_reset)
 			started = patrol_activity.start(
 				patrol_activity.get_generation(), active_ship
 			)
@@ -10164,11 +10177,20 @@ func _sync_activity_hud() -> void:
 			snapshot
 		)
 	if hud.has_method(&"set_activity_selection_state"):
+		var board_status_reason: StringName = &""
+		if (
+			_selected_activity_kind == ACTIVITY_KIND_PATROL
+			and _activity_selection_locked
+			and StringName(
+				patrol_activity.get_presentation_snapshot().get("state_id", &"idle")
+			) in [&"completed", &"failed", &"aborted"]
+		):
+			board_status_reason = &"repeat_ready"
 		hud.call(
 			&"set_activity_selection_state",
 			_selected_activity_kind,
 			_activity_selection_locked,
-			&""
+			board_status_reason
 		)
 
 
@@ -10981,7 +11003,19 @@ func _cargo_delivery_phase_id(state: int, next_phase_index: int) -> StringName:
 
 
 func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
-	var result := select_activity_kind(activity_kind)
+	var result: Dictionary
+	var selected_state := StringName(
+		get_active_activity_snapshot().get("state_id", &"idle")
+	)
+	if (
+		activity_kind == ACTIVITY_KIND_PATROL
+		and activity_kind == _selected_activity_kind
+		and _activity_selection_locked
+		and selected_state in [&"completed", &"failed", &"aborted"]
+	):
+		result = request_activity_start(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+	else:
+		result = select_activity_kind(activity_kind)
 	if is_instance_valid(hud) and hud.has_method(&"set_activity_selection_state"):
 		hud.call(
 			&"set_activity_selection_state",

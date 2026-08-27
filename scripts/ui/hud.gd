@@ -342,6 +342,7 @@ var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_selection_kind: StringName = &"timed_race"
 var _activity_selection_locked := false
+var _activity_selection_status_reason: StringName = &""
 var _nearby_activity_presenter: RefCounted
 var _bomber_payload_presenter: RefCounted
 var _nearby_activity_page: Control
@@ -6948,7 +6949,7 @@ func _show_activity_selection_page() -> void:
 	_settings_page.visible = false
 	_server_browser_page.visible = false
 	_activity_selection_page.visible = true
-	_refresh_activity_selection_page(&"")
+	_refresh_activity_selection_page(_activity_selection_status_reason)
 	var selected_button := _activity_selection_buttons.get(
 		_activity_selection_kind
 	) as Button
@@ -6985,6 +6986,7 @@ func set_activity_selection_state(
 		return
 	_activity_selection_kind = selected_kind
 	_activity_selection_locked = selection_locked
+	_activity_selection_status_reason = status_reason
 	_refresh_activity_selection_page(status_reason)
 	if _activity_selection_page != null and _activity_selection_page.visible:
 		var selected_button := _activity_selection_buttons.get(
@@ -7185,7 +7187,11 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 			&"cargo_delivery": "JOVIAN KIT DELIVERY",
 			&"convoy_escort": "EMBERLINE CONVOY ESCORT",
 		}.get(activity_kind, String(activity_kind).to_upper()) as String
-		button.text = ("SELECTED  //  " if selected else "") + base_text
+		button.text = (
+			"REPEAT  //  "
+			if selected and _activity_selection_locked and status_reason == &"repeat_ready"
+			else ("SELECTED  //  " if selected else "")
+		) + base_text
 	if _activity_selection_status_label == null:
 		return
 	var selected_text := {
@@ -7194,7 +7200,10 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 		&"cargo_delivery": "JOVIAN KIT DELIVERY",
 		&"convoy_escort": "EMBERLINE CONVOY ESCORT",
 	}.get(_activity_selection_kind, String(_activity_selection_kind).to_upper()) as String
-	if _activity_selection_locked:
+	if _activity_selection_locked and status_reason == &"repeat_ready":
+		_activity_selection_status_label.text = "READY  //  REPEAT " + selected_text
+		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
+	elif _activity_selection_locked:
 		_activity_selection_status_label.text = "LOCKED  //  CURRENT SORTIE ALREADY STARTED"
 		_activity_selection_status_label.modulate = _c(CAUTION)
 	elif status_reason in [&"", &"selected", &"already_selected"]:

@@ -352,33 +352,78 @@ func _test_physics_progress_reentry_and_completion(
 		"terminal ticks do not resample, re-complete, or imply a reward"
 	)
 
+	var reset_events := {"count": 0}
+	var restart_events := {"count": 0}
+	var director_start_events := {"count": 0}
+	patrol.patrol_reset.connect(
+		func(_snapshot: Dictionary) -> void:
+			reset_events["count"] = int(reset_events["count"]) + 1
+	)
+	patrol.patrol_started.connect(
+		func(_snapshot: Dictionary) -> void:
+			restart_events["count"] = int(restart_events["count"]) + 1
+	)
+	director.activity_started.connect(
+		func(activity_id: StringName, _generation: int) -> void:
+			if activity_id == ROUTE.activity_id:
+				director_start_events["count"] = int(director_start_events["count"]) + 1
+	)
+	var terminal_patrol_id := patrol.get_instance_id()
+	var terminal_generation := int(completed.get("session_generation", -1))
+	root.remove_child(game)
+	await process_frame
+	root.add_child(game)
+	await process_frame
+	await process_frame
+	var preserved_terminal := game.get_active_activity_snapshot()
+	var preserved_report := game.get_activity_integration_report()
+	_check(
+		int(preserved_report.get("patrol_activity_instance_id", 0)) == terminal_patrol_id
+		and int(preserved_terminal.get("session_generation", -1)) == terminal_generation
+		and preserved_terminal.get("state_id", &"") == &"completed"
+		and int(reset_events["count"]) == 0
+		and int(restart_events["count"]) == 0
+		and int(director_start_events["count"]) == 0,
+		"terminal Main detach/re-entry preserves one completed generation without auto-restart"
+	)
+	var board_opened := hud.open_activity_board()
+	var board := hud.get_activity_selection_report()
+	var board_buttons := board.get("buttons", {}) as Dictionary
+	var patrol_button := (
+		(hud.get("_pause") as Control).find_child(
+			"PatrolActivityButton", true, false
+		) as Button
+	)
+	var samples_before_repeat := int(
+		game.get_activity_integration_report().get("position_sample_count", -1)
+	)
+	if patrol_button != null:
+		patrol_button.emit_signal("pressed")
+	var repeated := game.get_active_activity_snapshot()
+	_check(
+		board_opened
+		and "REPEAT" in str(
+			(board_buttons.get(&"patrol", {}) as Dictionary).get("text", "")
+		)
+		and patrol_button != null
+		and repeated.get("state_id", &"") == &"active"
+		and repeated.get("phase_id", &"") == &"travel"
+		and int(repeated.get("session_generation", -1)) > terminal_generation
+		and int(repeated.get("completed_checkpoint_count", -1)) == 0
+		and is_zero_approx(float(repeated.get("dwell_elapsed_seconds", -1.0)))
+		and int(reset_events["count"]) == 1
+		and int(restart_events["count"]) == 1
+		and int(director_start_events["count"]) == 1
+		and int(game.get_activity_integration_report().get("position_sample_count", -2))
+		== samples_before_repeat,
+		"the selected Activity Board action resets then starts exactly one fresh patrol generation"
+	)
+	hud.set_paused(false)
+
 
 func _test_failure_reset_and_generation_safety(game: GameFlow, hud: GameHUD) -> void:
-	var completed_generation := int(
+	var first_repeat_generation := int(
 		game.get_active_activity_snapshot().get("session_generation", -1)
-	)
-	var recorded_duration := float(
-		game.get_active_activity_snapshot().get("last_duration_seconds", -1.0)
-	)
-	_check(game.reset_active_activity(), "a completed patrol resets explicitly")
-	var reset := game.get_active_activity_snapshot()
-	_check(
-		reset.get("state_id", &"") == &"idle"
-		and int(reset.get("session_generation", -1)) == completed_generation + 1
-		and is_equal_approx(float(reset.get("last_duration_seconds", -2.0)), recorded_duration)
-		and not bool(hud.get_activity_objective_report().get("visible", true)),
-		"reset advances generation, retains last duration, and hides inactive HUD state"
-	)
-	var restarted := game.request_activity_start(ROUTE.activity_id)
-	var replacement_generation := int(restarted.get("session_generation", -1))
-	var patrol := game.get_activity_integration_report().get("patrol_activity") as PatrolActivity
-	var stale := patrol.fail(&"stale_destruction", completed_generation)
-	_check(
-		not bool(stale.get("accepted", true))
-		and stale.get("reason", &"") == &"stale_generation"
-		and replacement_generation > completed_generation
-		and game.get_active_activity_snapshot().get("state_id", &"") == &"active",
-		"a delayed pre-reset destruction cannot fail the replacement patrol generation"
 	)
 	_check(
 		game.call("_fail_active_activity", &"ship_destroyed")
@@ -387,32 +432,60 @@ func _test_failure_reset_and_generation_safety(game: GameFlow, hud: GameHUD) -> 
 		and "PATROL  FAILED — SHIP DESTROYED" in str(hud.get_activity_objective_report().get("text", "")),
 		"current-generation ship destruction fails patrol and publishes the typed reason"
 	)
-	_check(game.reset_active_activity(), "destruction failure resets for a later sortie")
+	var failure_repeat := game.request_activity_start(ROUTE.activity_id)
+	var replacement_generation := int(failure_repeat.get("session_generation", -1))
+	var patrol := game.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	var stale := patrol.fail(&"stale_destruction", first_repeat_generation)
+	_check(
+		bool(failure_repeat.get("accepted", false))
+		and replacement_generation > first_repeat_generation
+		and not bool(stale.get("accepted", true))
+		and stale.get("reason", &"") == &"stale_generation"
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"active",
+		"a player start repeats failure once and fences delayed destruction from the replacement generation"
+	)
+	var repeat_samples_before := int(
+		game.get_activity_integration_report().get("position_sample_count", -1)
+	)
+	game.active_ship.global_position = ROUTE.get_checkpoint_position(0)
+	game.call("_physics_process", 0.25)
+	var repeat_dwell := game.get_active_activity_snapshot()
+	_check(
+		repeat_dwell.get("phase_id", &"") == &"dwell"
+		and is_equal_approx(float(repeat_dwell.get("dwell_elapsed_seconds", -1.0)), 0.25)
+		and int(game.get_activity_integration_report().get("position_sample_count", -2))
+		== repeat_samples_before + 1,
+		"one repeated-generation physics tick produces one ship sample and one fresh dwell increment"
+	)
+	var return_aborted := bool(
+		game.call("_fail_active_activity", &"returned_to_shipyard")
+	)
+	var aborted := game.get_active_activity_snapshot()
+	_check(
+		return_aborted
+		and aborted.get("state_id", &"") == &"aborted"
+		and aborted.get("abort_reason", &"") == &"returned_to_shipyard"
+		and "PATROL  ABORTED — RETURNED TO SHIPYARD" in str(
+			hud.get_activity_objective_report().get("text", "")
+		),
+		"a return aborts the replacement generation without converting it to failure"
+	)
 	var return_start := game.request_activity_start(ROUTE.activity_id)
 	var return_generation := int(return_start.get("session_generation", -1))
 	_check(
-		return_generation > replacement_generation
-		and game.call("_fail_active_activity", &"returned_to_shipyard")
-		and game.get_active_activity_snapshot().get("state_id", &"") == &"aborted"
-		and game.get_active_activity_snapshot().get("abort_reason", &"") == &"returned_to_shipyard"
-		and "PATROL  ABORTED — RETURNED TO SHIPYARD" in str(hud.get_activity_objective_report().get("text", "")),
-		"a physical return aborts only its fresh patrol generation without calling it failure"
-	)
-	_check(
-		game.reset_active_activity()
-		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
-		"return abort resets cleanly while the locked patrol selection remains stable"
+		bool(return_start.get("accepted", false))
+		and return_generation > replacement_generation
+		and game.get_active_activity_snapshot().get("state_id", &"") == &"active",
+		"a player start repeats an aborted patrol while the locked route identity remains stable"
 	)
 	var route_ship := game.active_ship
 	var finite_position := route_ship.global_position
-	var nonfinite_start := game.request_activity_start(ROUTE.activity_id)
 	route_ship.global_position = Vector3.INF
 	game.call("_physics_process", 0.1)
 	var nonfinite_failure := game.get_active_activity_snapshot()
 	route_ship.global_position = finite_position
 	_check(
-		bool(nonfinite_start.get("accepted", false))
-		and nonfinite_failure.get("state_id", &"") == &"failed"
+		nonfinite_failure.get("state_id", &"") == &"failed"
 		and nonfinite_failure.get("failure_reason", &"") == &"patrol_actor_invalid_position"
 		and nonfinite_failure.get("recovery_action_id", &"") == &"reset_patrol_then_restart",
 		"production non-finite ship sampling fails patrol instead of leaving it active"
