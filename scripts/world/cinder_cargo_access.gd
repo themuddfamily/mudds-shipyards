@@ -1529,7 +1529,7 @@ func _build_route_markers_and_cues() -> void:
 	)
 	var label := Label3D.new()
 	label.name = "CargoAccessLabel"
-	label.text = "%s\nCINDER CARGO TERMINAL — READY" % ROUTE_IDENTITY_HEADER
+	label.text = "%s\nCINDER CARGO — READY" % ROUTE_IDENTITY_HEADER
 	label.position = ROUTE_IDENTITY_LABEL_LOCAL
 	label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	label.font_size = 46
