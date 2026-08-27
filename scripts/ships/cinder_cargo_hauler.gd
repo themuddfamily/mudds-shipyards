@@ -40,11 +40,14 @@ const ENGINE_FAILED_SHOULDER_COLOR := Color("d95b43")
 const ENGINE_DAMAGE_SHOULDER_X := 2.98
 const ENGINE_DAMAGE_SHOULDER_Y := 0.95
 const ENGINE_DAMAGE_SHOULDER_Y_SCALE := 2.5
-## A failed engine bay deliberately leaves only one raised aft isolation rail.
-## The other retained rail tucks below the roof line, creating an unambiguous
-## asymmetric silhouette even where damage colours cannot be distinguished.
-const ENGINE_FAILED_SHOULDER_Y := 0.54
-const ENGINE_FAILED_SHOULDER_Y_SCALE := 1.35
+## Both failed-state rails retain a root in the aft roof/hull structure. The
+## port support stays nearly upright while the starboard rail folds inward,
+## creating an asymmetric outline without making either retained part float.
+const ENGINE_FAILED_SHOULDER_ROOT_X := 2.45
+const ENGINE_FAILED_SHOULDER_ROOT_Y := 1.50
+const ENGINE_FAILED_SHOULDER_Y_SCALE := 1.0
+const ENGINE_FAILED_PORT_CANT_DEGREES := 0.0
+const ENGINE_FAILED_STARBOARD_CANT_DEGREES := 58.0
 
 # The primary hull is immutable, childless presentation stock. Fleet switching
 # can briefly retain two haulers, so keep one process-local mesh/material recipe
@@ -1108,12 +1111,10 @@ func _build_hull(visual: Node3D) -> void:
 
 
 ## Existing freight shoulders become raised isolation rails when the inherited
-## engine-bay ledger is impaired. A failure collapses the starboard retained
-## rail below the roof line while keeping the port rail raised, making the
-## failed state readable by silhouette rather than colour. The cue is steady
-## and observes authority only; its complete bounds remain inside the existing
-## side wall and roof collision shell, so it adds no collision or gameplay
-## contract.
+## engine-bay ledger is impaired. A failure keeps both aft rails rooted in the
+## roof/hull structure, but folds the starboard rail inward while the port rail
+## remains nearly upright. The cue is steady and observes authority only, so it
+## adds no collision or gameplay contract.
 func _cargo_shoulder_transforms(state: int) -> Array[Transform3D]:
 	var transforms: Array[Transform3D] = [
 		Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, -3.75)),
@@ -1135,12 +1136,27 @@ func _cargo_shoulder_transforms(state: int) -> Array[Transform3D]:
 			raised_basis, Vector3(ENGINE_DAMAGE_SHOULDER_X, ENGINE_DAMAGE_SHOULDER_Y, 3.75)
 		)
 		if state == ShipComponentDamage.ComponentState.FAILED:
-			var collapsed_basis := Basis.IDENTITY.scaled(
+			var rail_scale := Basis.IDENTITY.scaled(
 				Vector3(1.0, ENGINE_FAILED_SHOULDER_Y_SCALE, 1.0)
 			)
+			var local_root := Vector3(0.0, -CARGO_SHOULDER_SIZE.y * 0.5, 0.0)
+			var port_basis := Basis(
+				Vector3.BACK, deg_to_rad(-ENGINE_FAILED_PORT_CANT_DEGREES)
+			) * rail_scale
+			var port_root := Vector3(
+				-ENGINE_FAILED_SHOULDER_ROOT_X, ENGINE_FAILED_SHOULDER_ROOT_Y, 3.75
+			)
+			transforms[2] = Transform3D(
+				port_basis, port_root - port_basis * local_root
+			)
+			var starboard_basis := Basis(
+				Vector3.BACK, deg_to_rad(ENGINE_FAILED_STARBOARD_CANT_DEGREES)
+			) * rail_scale
+			var starboard_root := Vector3(
+				ENGINE_FAILED_SHOULDER_ROOT_X, ENGINE_FAILED_SHOULDER_ROOT_Y, 3.75
+			)
 			transforms[3] = Transform3D(
-				collapsed_basis,
-				Vector3(ENGINE_DAMAGE_SHOULDER_X, ENGINE_FAILED_SHOULDER_Y, 3.75)
+				starboard_basis, starboard_root - starboard_basis * local_root
 			)
 	return transforms
 

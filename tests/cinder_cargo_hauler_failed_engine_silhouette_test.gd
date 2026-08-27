@@ -38,7 +38,9 @@ func _initialize() -> void:
 	var failed := _presented_transforms(shoulders)
 	var roof_top := Hauler.HULL_SIZE.y * 0.5
 	var raised_top := _top_of_instance(shoulders, failed[2])
-	var collapsed_top := _top_of_instance(shoulders, failed[3])
+	var folded_top := _top_of_instance(shoulders, failed[3])
+	var port_root := _rail_root(failed[2])
+	var starboard_root := _rail_root(failed[3])
 	_check(
 		craft.get_component_damage().get_component_state(
 			ShipComponentDamageType.COMPONENT_ENGINE_BAY
@@ -47,12 +49,26 @@ func _initialize() -> void:
 			and not failed[2].is_equal_approx(nominal[2])
 			and not failed[3].is_equal_approx(nominal[3])
 			and raised_top > roof_top + 0.20
-			and collapsed_top < roof_top,
-		"failed engine bay keeps one aft rail raised and collapses the other below the roof silhouette"
+			and raised_top - folded_top > 0.12,
+		"failed engine bay keeps one rooted aft support raised and folds the other down toward the roof"
 	)
 	_check(
-		is_equal_approx(failed[2].origin.x, -failed[3].origin.x)
-			and not is_equal_approx(failed[2].basis.get_scale().y, failed[3].basis.get_scale().y)
+		port_root.is_equal_approx(Vector3(
+			-Hauler.ENGINE_FAILED_SHOULDER_ROOT_X,
+			Hauler.ENGINE_FAILED_SHOULDER_ROOT_Y,
+			3.75
+		))
+			and starboard_root.is_equal_approx(Vector3(
+				Hauler.ENGINE_FAILED_SHOULDER_ROOT_X,
+				Hauler.ENGINE_FAILED_SHOULDER_ROOT_Y,
+				3.75
+			))
+			and _rail_bounds_overlap_hull(shoulders, failed[2])
+			and _rail_bounds_overlap_hull(shoulders, failed[3]),
+		"both retained failed-state rails keep their transformed roots and bounds attached to the aft hull"
+	)
+	_check(
+		not failed[2].basis.is_equal_approx(failed[3].basis)
 			and not bool(shoulders.get_meta(&"damage_authority", true))
 			and not bool(shoulders.get_meta(&"animated", true)),
 		"the failed silhouette is localized, asymmetric, and presentation-only rather than a colour or animation cue"
@@ -92,6 +108,21 @@ func _top_of_instance(batch: MultiMeshInstance3D, transform: Transform3D) -> flo
 	return (transform * batch.multimesh.mesh.get_aabb()).abs().end.y
 
 
+func _rail_root(transform: Transform3D) -> Vector3:
+	return transform * Vector3(0.0, -Hauler.CARGO_SHOULDER_SIZE.y * 0.5, 0.0)
+
+
+func _rail_bounds_overlap_hull(
+	batch: MultiMeshInstance3D,
+	transform: Transform3D
+	) -> bool:
+	if batch == null or batch.multimesh == null:
+		return false
+	var rail_bounds := (transform * batch.multimesh.mesh.get_aabb()).abs()
+	var hull_bounds := AABB(-Hauler.HULL_SIZE * 0.5, Hauler.HULL_SIZE)
+	return rail_bounds.intersection(hull_bounds).has_volume()
+
+
 func _setup_comparison_camera() -> void:
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
@@ -107,7 +138,7 @@ func _setup_comparison_camera() -> void:
 	light.light_energy = 1.45
 	root.add_child(light)
 	var camera := Camera3D.new()
-	var origin := Vector3(0.0, 4.6, 23.0)
+	var origin := Vector3(0.0, 5.0, 14.5)
 	camera.global_transform = Transform3D(
 		Basis.looking_at((Vector3(0.0, 0.45, 0.8) - origin).normalized(), Vector3.UP), origin
 	)
