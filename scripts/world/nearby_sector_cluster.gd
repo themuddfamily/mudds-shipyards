@@ -130,6 +130,13 @@ const RACE_RETURN_CROWN_FAMILY_ID: StringName = &"cinder-race-return-crown-suppo
 const RACE_RETURN_CROWN_LOCAL_Z := -22.0
 const RACE_RETURN_CROWN_HEADER_POSITION := Vector3(5.0, 54.0, RACE_RETURN_CROWN_LOCAL_Z)
 const RACE_RETURN_CROWN_HEADER_SIZE := Vector3(48.0, 4.0, 4.0)
+const RACE_RETURN_CROWN_SUPPORT_HEIGHT := 52.0
+const RACE_RETURN_CROWN_IDLE_RAKE_DEGREES := 21.0
+const RACE_RETURN_CROWN_ACTIVE_RAKE_DEGREES := 7.0
+const RACE_RETURN_CROWN_RETURN_RAKE_DEGREES := -27.0
+const RACE_RETURN_CROWN_COMPLETED_RAKE_DEGREES := 0.0
+const RACE_RETURN_CROWN_ACTIVE_HEADER_POSITION := Vector3(5.0, 47.0, RACE_RETURN_CROWN_LOCAL_Z)
+const RACE_RETURN_CROWN_COMPLETED_HEADER_POSITION := Vector3(5.0, 58.0, RACE_RETURN_CROWN_LOCAL_Z)
 
 ## Debris field: an ellipsoid flattened in Y so it reads as a drift rather than a
 ## ball, centred on the platform.
@@ -841,6 +848,7 @@ func _apply_race_gate_presentation(snapshot: Dictionary) -> Dictionary:
 		"gameplay_authority": false,
 		"reward_authority": false,
 	}.duplicate(true)
+	_apply_race_return_crown_presentation(state_id, next_checkpoint, reset)
 	return {"accepted": true, "reason": &"race_gate_presentation_applied"}
 
 
@@ -2731,17 +2739,9 @@ func _build_extraction_platform() -> void:
 ## lives behind the structure rather than inside the open-dock flight lane.
 func _build_race_return_crown(platform: Node3D) -> void:
 	var support_mesh: Mesh = StationSurfaceKit.rounded_box_mesh_cached(Vector3.ONE, _box_cache)
-	var support_transforms: Array[Transform3D] = []
-	var support_height := 52.0
-	var support_rake := deg_to_rad(21.0)
-	for side in [-1.0, 1.0]:
-		var rotation: float = -support_rake * side
-		var support_basis := Basis.from_euler(Vector3(0.0, 0.0, rotation)) \
-			* Basis.from_scale(Vector3(4.0, support_height, 4.0))
-		support_transforms.append(Transform3D(
-			support_basis,
-			Vector3(side * 9.0, 28.0, RACE_RETURN_CROWN_LOCAL_Z)
-		))
+	var support_transforms := _race_return_crown_support_transforms(
+		RACE_RETURN_CROWN_IDLE_RAKE_DEGREES
+	)
 	var supports := _presentation_multimesh_batch(
 		platform,
 		"RaceReturnCrownSupports",
@@ -2765,6 +2765,66 @@ func _build_race_return_crown(platform: Node3D) -> void:
 	header.set_meta(&"activity_id", RACE_ACTIVITY_ID)
 	header.set_meta(&"physically_supported", true)
 	header.set_meta(&"route_endpoint", true)
+	if not _race_gate_presentation_snapshot.is_empty():
+		_apply_race_return_crown_presentation(
+			StringName(_race_gate_presentation_snapshot.get("state_id", &"idle")),
+			int(_race_gate_presentation_snapshot.get("next_checkpoint_index", 0)),
+			StringName(_race_gate_presentation_snapshot.get("state_id", &"")) == &"reset"
+		)
+
+
+## Reposes only the retained endpoint crown. The actual final checkpoint is the
+## platform (index four), so its approach becomes a pointed return arch while
+## ordinary flight stays a lower, compact portal. No race state is inferred or
+## mutated here; this consumes the same authority snapshot as the route gates.
+func _apply_race_return_crown_presentation(
+	state_id: StringName,
+	next_checkpoint: int,
+	reset: bool
+) -> void:
+	var platform := get_node_or_null(^"ExtractionPlatform/CinderReachPlatform") as Node3D
+	if platform == null:
+		return
+	var supports := platform.get_node_or_null(^"RaceReturnCrownSupports") as MultiMeshInstance3D
+	var header := platform.get_node_or_null(^"RaceReturnCrownHeader") as MeshInstance3D
+	if supports == null or supports.multimesh == null or header == null:
+		return
+	var shape_id: StringName = &"idle"
+	var rake_degrees := RACE_RETURN_CROWN_IDLE_RAKE_DEGREES
+	var header_position := RACE_RETURN_CROWN_HEADER_POSITION
+	if not reset and state_id == &"completed":
+		shape_id = &"completed"
+		rake_degrees = RACE_RETURN_CROWN_COMPLETED_RAKE_DEGREES
+		header_position = RACE_RETURN_CROWN_COMPLETED_HEADER_POSITION
+	elif not reset and state_id in [&"countdown", &"active"]:
+		shape_id = &"active"
+		rake_degrees = RACE_RETURN_CROWN_ACTIVE_RAKE_DEGREES
+		header_position = RACE_RETURN_CROWN_ACTIVE_HEADER_POSITION
+		if state_id == &"active" and next_checkpoint == RACE_CHECKPOINT_COUNT - 1:
+			shape_id = &"return"
+			rake_degrees = RACE_RETURN_CROWN_RETURN_RAKE_DEGREES
+			header_position = RACE_RETURN_CROWN_HEADER_POSITION
+	var transforms := _race_return_crown_support_transforms(rake_degrees)
+	for index in transforms.size():
+		supports.multimesh.set_instance_transform(index, transforms[index])
+	supports.set_meta(&"presentation_instance_transforms", transforms.duplicate())
+	supports.set_meta(&"presentation_shape_id", shape_id)
+	header.position = header_position
+	header.set_meta(&"presentation_shape_id", shape_id)
+
+
+func _race_return_crown_support_transforms(rake_degrees: float) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var support_rake := deg_to_rad(rake_degrees)
+	for side in [-1.0, 1.0]:
+		var rotation: float = -support_rake * side
+		var support_basis := Basis.from_euler(Vector3(0.0, 0.0, rotation)) \
+			* Basis.from_scale(Vector3(4.0, RACE_RETURN_CROWN_SUPPORT_HEIGHT, 4.0))
+		transforms.append(Transform3D(
+			support_basis,
+			Vector3(side * 9.0, 28.0, RACE_RETURN_CROWN_LOCAL_Z)
+		))
+	return transforms
 
 
 ## Production composition only: the access module owns the physical berth and
