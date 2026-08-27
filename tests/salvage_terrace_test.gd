@@ -778,6 +778,7 @@ func _test_machine_dressing_batch(module: SalvageTerrace) -> void:
 	var parts: Array = [] if renderer == null else renderer.get_meta(
 		"salvage_terrace_machine_dressing_parts", []
 	) as Array
+	var material := renderer.material_override as StandardMaterial3D if renderer != null else null
 	var exact_parts := renderer != null and parts.size() == 2
 	if exact_parts:
 		var expected := SalvageTerrace.MACHINE_DRESSING_PARTS
@@ -793,12 +794,20 @@ func _test_machine_dressing_batch(module: SalvageTerrace) -> void:
 			)
 	_check(
 		exact_parts
-		and renderer.material_override == (module.get("_materials") as Dictionary).machine
+		and material == (module.get("_materials") as Dictionary).machine
+		and material.cull_mode == BaseMaterial3D.CULL_BACK
+		and renderer.mesh.get_aabb().is_equal_approx(
+			AABB(Vector3(-10.5, 3.445, 4.1), Vector3(36.275, 1.355, 1.8))
+		)
+		and renderer.custom_aabb == AABB()
+		and is_zero_approx(renderer.extra_cull_margin)
+		and not renderer.ignore_occlusion_culling
+		and renderer.layers == 1
 		and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and int(renderer.get_meta("authored_visible_copy_count", 0)) == 2
 		and module.get_node_or_null(^"GeneratedRoot/CraneTrolley") == null
 		and module.get_node_or_null(^"GeneratedRoot/UpperInspectionConsole") == null,
-		"two exact childless machine props retain material, shadows and authored transforms in one renderer, reducing nodes/submissions 2->1"
+		"two exact childless machine props retain combined bounds, default culling/layer/shadows, material and authored transforms in one renderer, reducing nodes/submissions 2->1"
 	)
 
 
