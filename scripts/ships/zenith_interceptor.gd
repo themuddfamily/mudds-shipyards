@@ -3197,6 +3197,11 @@ const DAMAGE_SCORCH_SIZE := Vector3(1.45, 0.05, 1.30)
 const DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.025, 0.0)
 const DAMAGE_SPAR_SIZE := Vector3(0.16, 0.72, 1.08)
 const DAMAGE_SPAR_POSITION := Vector3(0.0, 0.36, 0.0)
+## The same retained spar has one authored failed-state pose.  The fixed cant
+## and extra height are legible from the chase silhouette even when palette,
+## bloom, or display colour are unavailable; they add no nodes or geometry.
+const DAMAGE_SPAR_FAILED_ROTATION_DEGREES := Vector3(0.0, 0.0, -24.0)
+const DAMAGE_SPAR_FAILED_SCALE := Vector3(1.0, 1.32, 1.0)
 const DAMAGE_SCORCH_COLOR := Color("14181a")
 const DAMAGE_SPAR_COLOR := Color("ff723d")
 
@@ -3315,6 +3320,9 @@ func get_starboard_wing_damage_cue_snapshot() -> Dictionary:
 		"flashes": false,
 		"damage_authority": false,
 		"repair_authority": false,
+		"silhouette_pose": &"failed_canted" if spar != null \
+			and not spar.rotation.is_zero_approx() else &"nominal_upright",
+		"spar_local_transform": spar.transform if spar != null else Transform3D.IDENTITY,
 	}.duplicate(true)
 
 
@@ -3676,9 +3684,24 @@ func _sync_starboard_wing_damage_cue() -> void:
 	if not is_instance_valid(_starboard_wing_damage_cue):
 		return
 	var model := get_component_damage()
+	var state := model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+		if model != null and model.is_configured() \
+		else ShipComponentDamageType.ComponentState.NOMINAL
+	var spar := _starboard_wing_damage_cue.get_node_or_null(
+		^"ExposedWingSpar"
+	) as MeshInstance3D
+	if spar != null:
+		# Repair and pooled reuse must restore the exact pre-damage pose, rather
+		# than merely hiding the previously canted renderer.
+		spar.position = DAMAGE_SPAR_POSITION
+		spar.rotation = Vector3.ZERO
+		spar.scale = Vector3.ONE
+		if state == ShipComponentDamageType.ComponentState.FAILED:
+			spar.rotation_degrees = DAMAGE_SPAR_FAILED_ROTATION_DEGREES
+			spar.scale = DAMAGE_SPAR_FAILED_SCALE
 	_starboard_wing_damage_cue.visible = model != null \
 		and model.is_configured() \
-		and model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+		and state \
 			!= ShipComponentDamageType.ComponentState.NOMINAL
 
 
