@@ -95,6 +95,11 @@ const DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.03, 0.0)
 const DAMAGE_VANE_SIZE := Vector3(0.24, 1.1, 1.25)
 const DAMAGE_VANE_POSITION := Vector3(0.0, 0.55, 0.05)
 const DAMAGE_VANE_ROTATION := Vector3(0.0, deg_to_rad(-8.0), deg_to_rad(-12.0))
+## Failure reuses the retained breach vane in an outboard-canted pose.  The
+## shoulder remains untouched: only this presentation-only child moves, making
+## the failed weapon shoulder legible by shape even with its emission removed.
+const DAMAGE_VANE_FAILED_POSITION := Vector3(1.22, 0.47, 0.34)
+const DAMAGE_VANE_FAILED_ROTATION := Vector3(0.0, deg_to_rad(-8.0), deg_to_rad(-50.0))
 const DAMAGE_SCORCH_COLOR := Color("15191f")
 const DAMAGE_VANE_COLOR := Color("ff6945")
 
@@ -594,10 +599,28 @@ func _sync_component_damage_cue() -> void:
 	if not is_instance_valid(_component_damage_cue):
 		return
 	var model := get_component_damage()
+	var state := model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+		if model != null and model.is_configured() else ShipComponentDamageType.ComponentState.NOMINAL
+	_apply_component_damage_cue_pose(state)
 	_component_damage_cue.visible = model != null \
 		and model.is_configured() \
-		and model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+		and state \
 			!= ShipComponentDamageType.ComponentState.NOMINAL
+
+
+## Keeps the complete retained cue at its authored pose outside the failed
+## ledger stage. Reset and repair therefore restore the exact same nominal
+## transform, while no gameplay, collision, or component state is mutated here.
+func _apply_component_damage_cue_pose(state: int) -> void:
+	var vane := _component_damage_cue.get_node_or_null(^"RaisedBreachVane") as MeshInstance3D
+	if vane == null:
+		return
+	if state == ShipComponentDamageType.ComponentState.FAILED:
+		vane.position = DAMAGE_VANE_FAILED_POSITION
+		vane.rotation = DAMAGE_VANE_FAILED_ROTATION
+		return
+	vane.position = DAMAGE_VANE_POSITION
+	vane.rotation = DAMAGE_VANE_ROTATION
 
 
 ## Detached presentation snapshot for focused tests and diagnostics. This is
@@ -618,11 +641,15 @@ func get_component_damage_cue_snapshot() -> Dictionary:
 		bounds = renderer_bounds if not has_bounds else bounds.merge(renderer_bounds)
 		has_bounds = true
 	var model := get_component_damage()
+	var state := model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+		if model != null and model.is_configured() else -1
 	return {
 		"component_id": DAMAGE_CUE_COMPONENT_ID,
-		"stage": ShipComponentDamageType.state_id_for(
-			model.get_component_state(DAMAGE_CUE_COMPONENT_ID)
-		) if model != null and model.is_configured() else &"unavailable",
+		"stage": ShipComponentDamageType.state_id_for(state) if state >= 0 else &"unavailable",
+		"silhouette_pose": (
+			&"failed_outboard_canted" if state == ShipComponentDamageType.ComponentState.FAILED
+			else &"nominal_upright"
+		),
 		"visible": cue.visible if is_instance_valid(cue) else false,
 		"local_bounds": bounds,
 		"renderer_nodes": int(scorch != null) + int(vane != null),

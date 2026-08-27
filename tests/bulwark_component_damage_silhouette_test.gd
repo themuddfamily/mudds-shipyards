@@ -144,6 +144,7 @@ func _initialize() -> void:
 
 	var cue_id := cue.get_instance_id()
 	var cue_transform := cue.transform
+	var nominal_vane_transform := vane.transform
 	var vane_material_id := vane_material.get_instance_id()
 	for _frame in 4:
 		await process_frame
@@ -155,6 +156,20 @@ func _initialize() -> void:
 		"the impaired presentation remains steady across frames without animation or flashing"
 	)
 
+	craft.apply_damage(craft.maximum_hull * 0.10, shoulder_surface_hit, Vector3.UP)
+	var failed := craft.get_component_damage_cue_snapshot()
+	var failed_vane_bounds := _renderer_local_bounds(cue, vane)
+	_check(
+		craft.get_component_damage().get_component_state(
+			ShipComponentDamageType.COMPONENT_STARBOARD_WING
+		) == ShipComponentDamageType.ComponentState.FAILED
+			and failed.get("stage", &"") == &"failed"
+			and failed.get("silhouette_pose", &"") == &"failed_outboard_canted"
+			and not vane.transform.is_equal_approx(nominal_vane_transform)
+			and failed_vane_bounds.position.x - vane_bounds.position.x >= 0.5,
+		"the existing failed starboard wing cants its retained vane beyond the shoulder as a localized non-color silhouette"
+	)
+
 	root.remove_child(craft)
 	await process_frame
 	root.add_child(craft)
@@ -162,9 +177,9 @@ func _initialize() -> void:
 	_check(
 		visual.get_node(^"StarboardWeaponShoulderDamageCue").get_instance_id() == cue_id
 			and bool(craft.get_component_damage_cue_snapshot().get("visible", false))
-			and craft.get_component_damage_cue_snapshot().get("stage", &"") == &"impaired"
+			and craft.get_component_damage_cue_snapshot().get("stage", &"") == &"failed"
 			and _functional_lane_ids(craft) == lane_ids,
-		"detach and re-entry retain one impaired cue without replacing functional ship lanes"
+		"detach and re-entry retain one failed cue without replacing functional ship lanes"
 	)
 
 	var reset := craft.reset_for_reuse(craft.global_transform)
@@ -177,8 +192,9 @@ func _initialize() -> void:
 			and craft.get_component_damage().get_component_state(
 				ShipComponentDamageType.COMPONENT_STARBOARD_WING
 			) == ShipComponentDamageType.ComponentState.NOMINAL
+			and vane.transform.is_equal_approx(nominal_vane_transform)
 			and _functional_lane_ids(craft) == lane_ids,
-		"pooled reuse restores nominal presentation in place and preserves gunner, boarding, and weapon identity"
+		"pooled reuse restores the exact nominal vane pose in place and preserves gunner, boarding, and weapon identity"
 	)
 
 	craft.queue_free()
