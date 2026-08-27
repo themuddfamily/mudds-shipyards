@@ -596,6 +596,10 @@ var active_ship: HeroShip
 var boarding_candidate: HeroShip
 var station_interaction_candidate: Node3D
 var _boarding_area: ShipBoardingArea
+var _boarding_confirmation_reservation_area: ShipBoardingArea
+var _boarding_confirmation_reservation_actor: Node
+var _boarding_confirmation_reservation_token: Variant = null
+var _boarding_confirmation_reservation_generation := -1
 var _reboard_blocked_ship: HeroShip
 var _guided_activity_complete := false
 ## Destroying the guided defender authorizes the return leg, but is not itself
@@ -5939,7 +5943,6 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	if candidate_area != null and not candidate_area.try_reserve(player):
 		_present_boarding_confirmation(&"rejected", candidate, &"seat_reserved")
 		return
-	_present_boarding_confirmation(&"reserved", candidate)
 	# Retaking the seat of the craft whose cabin the player is already walking is
 	# an interior movement, not an approach across an apron: there is no hull to
 	# climb, no canopy to cycle, and the craft may still be drifting.
@@ -5986,6 +5989,10 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	var open_verb := str(entry.get("open_verb", "open"))
 	_transition_busy = true
 	var transition_generation := _begin_transition_generation()
+	_remember_boarding_confirmation_reservation(
+		candidate_area, player, transition_generation
+	)
+	_present_boarding_confirmation(&"reserved", candidate)
 	phase = Phase.BOARDING
 	_present_boarding_confirmation(&"boarding", active_ship)
 	player.set_control_enabled(false)
@@ -6013,8 +6020,8 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		active_ship if from_cabin else null
 	):
 		_transition_busy = false
-		_present_boarding_confirmation(&"rejected", candidate, &"seat_transition_failed")
 		if from_cabin:
+			_present_boarding_confirmation(&"rejected", candidate, &"seat_transition_failed")
 			# The craft is still idled offline under way; put the player back in its
 			# cabin rather than stranding a failed boarding in a berth phase.
 			phase = Phase.IN_FLIGHT_CABIN
@@ -6027,6 +6034,8 @@ func _board_ship(candidate: HeroShip = null) -> void:
 			return
 		if _boarding_area != null:
 			_boarding_area.release_reservation(player)
+		_clear_boarding_confirmation_reservation()
+		_present_boarding_confirmation(&"rejected", candidate, &"seat_transition_failed")
 		phase = Phase.COMPLETE if _guided_activity_complete else Phase.APPROACH_SHIP
 		player.set_control_enabled(true)
 		if not _guided_activity_complete:
@@ -6139,6 +6148,7 @@ func _try_exit_ship() -> void:
 	if _boarding_area != null:
 		_boarding_area.release_reservation(player)
 	_boarding_area = null
+	_clear_boarding_confirmation_reservation()
 	hud.set_mode("on-foot")
 	_present_boarding_confirmation(&"approach", transition_ship)
 	if hud.has_method("clear_hero_component_ship"):
@@ -11394,6 +11404,7 @@ func _recall_pilot_to_deck() -> void:
 	if _boarding_area != null:
 		_boarding_area.release_reservation(player)
 	_boarding_area = null
+	_clear_boarding_confirmation_reservation()
 	_piloting = false
 	_driving = false
 	player.set_control_enabled(true)
@@ -12333,14 +12344,13 @@ func _present_boarding_confirmation(
 		if not bool(attached.get("accepted", false)):
 			_boarding_confirmation_hud_composition = null
 			return
-	var observed_area := _boarding_area
-	if (observed_area == null or not is_instance_valid(observed_area)) and is_instance_valid(craft):
+	var observed_area: ShipBoardingArea = null
+	if is_instance_valid(craft):
 		observed_area = craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	var retained: bool = (
-		observed_area != null
-		and is_instance_valid(observed_area)
-		and is_instance_valid(player)
-		and observed_area.is_reserved_for(player)
+	if observed_area == null or not is_instance_valid(observed_area):
+		observed_area = _boarding_area
+	var retained := _is_boarding_confirmation_reservation_current(
+		observed_area, player, _transition_generation
 	)
 	_boarding_confirmation_hud_composition.apply_snapshot({
 		"state": state,
@@ -12353,10 +12363,62 @@ func _present_boarding_confirmation(
 	})
 
 
+func get_boarding_confirmation_presentation_report() -> Dictionary:
+	if _boarding_confirmation_hud_composition == null:
+		return {"attached": false, "presentation_only": true}
+	return _boarding_confirmation_hud_composition.get_snapshot()
+
+
+func _remember_boarding_confirmation_reservation(
+		area: ShipBoardingArea, actor: Node, generation: int
+	) -> void:
+	_clear_boarding_confirmation_reservation()
+	if not is_instance_valid(area) or not is_instance_valid(actor):
+		return
+	var token: Variant = area.get_reservation_token()
+	if typeof(token) != TYPE_OBJECT or not is_instance_valid(token) or token != actor:
+		return
+	_boarding_confirmation_reservation_area = area
+	_boarding_confirmation_reservation_actor = actor
+	_boarding_confirmation_reservation_token = token
+	_boarding_confirmation_reservation_generation = generation
+
+
+func _is_boarding_confirmation_reservation_current(
+		area: ShipBoardingArea, actor: Node, generation: int
+	) -> bool:
+	if (
+		not is_instance_valid(area)
+		or not is_instance_valid(actor)
+		or area != _boarding_confirmation_reservation_area
+		or actor != _boarding_confirmation_reservation_actor
+		or generation != _boarding_confirmation_reservation_generation
+		or generation != _transition_generation
+		or typeof(_boarding_confirmation_reservation_token) != TYPE_OBJECT
+		or not is_instance_valid(_boarding_confirmation_reservation_token)
+	):
+		return false
+	var live_token: Variant = area.get_reservation_token()
+	return (
+		typeof(live_token) == TYPE_OBJECT
+		and is_instance_valid(live_token)
+		and live_token == actor
+		and live_token == _boarding_confirmation_reservation_token
+	)
+
+
+func _clear_boarding_confirmation_reservation() -> void:
+	_boarding_confirmation_reservation_area = null
+	_boarding_confirmation_reservation_actor = null
+	_boarding_confirmation_reservation_token = null
+	_boarding_confirmation_reservation_generation = -1
+
+
 func _detach_boarding_confirmation_hud_composition() -> void:
 	if _boarding_confirmation_hud_composition != null:
 		_boarding_confirmation_hud_composition.detach()
 	_boarding_confirmation_hud_composition = null
+	_clear_boarding_confirmation_reservation()
 
 
 func _ensure_final_approach_hud_composition() -> void:
