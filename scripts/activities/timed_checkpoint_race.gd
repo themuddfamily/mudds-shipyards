@@ -28,6 +28,9 @@ signal completed(activity_id: StringName, last_time: float, best_time: float, ge
 signal failed(activity_id: StringName, reason: StringName, generation: int)
 signal race_reset(activity_id: StringName, generation: int)
 
+const PERSISTENCE_SCHEMA_VERSION := 1
+const MAX_PERSISTED_GENERATION := 2_147_483_647
+
 enum State {
 	IDLE,
 	COUNTDOWN,
@@ -296,6 +299,130 @@ func get_snapshot() -> Dictionary:
 	}
 
 
+## Exact clock/result state owned by this race authority. Configuration and
+## checkpoint geometry are intentionally excluded: a caller must reconstruct
+## the authority with the authored definition and constants before validation.
+func capture_persistence_state() -> Dictionary:
+	return {
+		"schema_version": PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(definition.activity_id) if definition != null else "",
+		"state": _state,
+		"generation": _generation,
+		"lap_count": lap_count,
+		"current_lap": _current_lap,
+		"next_checkpoint_index": _next_checkpoint_index,
+		"countdown_remaining_seconds": _countdown_remaining,
+		"race_elapsed_seconds": _race_elapsed,
+		"lap_started_at_seconds": _lap_started_at,
+		"penalty_seconds": _penalty_seconds,
+		"last_time_seconds": _last_time,
+		"best_time_seconds": _best_time,
+		"failure_reason": String(_failure_reason),
+	}.duplicate(true)
+
+
+func validate_persistence_state(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary or not is_configuration_valid():
+		return _persistence_result(false, &"malformed_race_state")
+	var state := candidate as Dictionary
+	if state.size() != 14 \
+			or not _integral(state.get("schema_version")) \
+			or int(state.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
+			or str(state.get("activity_id", "")) != str(definition.activity_id) \
+			or not _integral(state.get("state")) \
+			or not _integral(state.get("generation")) \
+			or not _integral(state.get("lap_count")) \
+			or not _integral(state.get("current_lap")) \
+			or not _integral(state.get("next_checkpoint_index")) \
+			or not _number(state.get("countdown_remaining_seconds")) \
+			or not _number(state.get("race_elapsed_seconds")) \
+			or not _number(state.get("lap_started_at_seconds")) \
+			or not _number(state.get("penalty_seconds")) \
+			or not _number(state.get("last_time_seconds")) \
+			or not _number(state.get("best_time_seconds")) \
+			or not (state.get("failure_reason") is String):
+		return _persistence_result(false, &"malformed_race_state")
+	var restored_state := int(state.state)
+	var generation := int(state.generation)
+	var restored_laps := int(state.lap_count)
+	var current_lap := int(state.current_lap)
+	var next_checkpoint := int(state.next_checkpoint_index)
+	var countdown_remaining := float(state.countdown_remaining_seconds)
+	var elapsed := float(state.race_elapsed_seconds)
+	var lap_started_at := float(state.lap_started_at_seconds)
+	var penalty := float(state.penalty_seconds)
+	var last_time := float(state.last_time_seconds)
+	var best_time := float(state.best_time_seconds)
+	var failure_reason := str(state.failure_reason)
+	var checkpoint_count := definition.get_checkpoint_count()
+	if restored_state < State.IDLE or restored_state > State.FAILED \
+			or generation < 0 or generation > MAX_PERSISTED_GENERATION \
+			or restored_laps != lap_count \
+			or current_lap < 0 or current_lap > lap_count \
+			or next_checkpoint < 0 or next_checkpoint >= checkpoint_count \
+			or countdown_remaining < 0.0 or countdown_remaining > countdown_seconds \
+			or elapsed < 0.0 or penalty < 0.0 \
+			or lap_started_at < 0.0 or lap_started_at > elapsed + penalty \
+			or (last_time != -1.0 and last_time <= 0.0) \
+			or (best_time != -1.0 and best_time <= 0.0) \
+			or ((last_time == -1.0) != (best_time == -1.0)) \
+			or (last_time > 0.0 and best_time > last_time):
+		return _persistence_result(false, &"invalid_race_state")
+	match restored_state:
+		State.IDLE:
+			if current_lap != 0 or next_checkpoint != 0 \
+					or countdown_remaining != 0.0 or elapsed != 0.0 \
+					or lap_started_at != 0.0 or penalty != 0.0 \
+					or not failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_race_state")
+		State.COUNTDOWN:
+			if generation < 1 or current_lap != 0 or next_checkpoint != 0 \
+					or countdown_remaining <= 0.0 or elapsed != 0.0 \
+					or lap_started_at != 0.0 or penalty != 0.0 \
+					or not failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_race_state")
+		State.ACTIVE:
+			if generation < 1 or current_lap >= lap_count \
+					or countdown_remaining != 0.0 \
+					or elapsed + penalty >= timeout_seconds \
+					or not failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_race_state")
+		State.COMPLETED:
+			if generation < 1 or current_lap != lap_count or next_checkpoint != 0 \
+					or countdown_remaining != 0.0 or last_time <= 0.0 \
+					or not is_equal_approx(last_time, elapsed + penalty) \
+					or not failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_race_state")
+		State.FAILED:
+			if generation < 1 or current_lap >= lap_count \
+					or failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_race_state")
+	return _persistence_result(true, &"race_state_valid")
+
+
+## Startup-only, signal-silent state adoption. It cannot replace a live or
+## previously reset authority and therefore cannot roll back its generation.
+func restore_persistence_state(candidate: Variant) -> Dictionary:
+	if _generation != 0 or _state != State.IDLE:
+		return _persistence_result(false, &"race_state_already_live")
+	var validated := validate_persistence_state(candidate)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var state := candidate as Dictionary
+	_state = int(state.state) as State
+	_generation = int(state.generation)
+	_current_lap = int(state.current_lap)
+	_next_checkpoint_index = int(state.next_checkpoint_index)
+	_countdown_remaining = float(state.countdown_remaining_seconds)
+	_race_elapsed = float(state.race_elapsed_seconds)
+	_lap_started_at = float(state.lap_started_at_seconds)
+	_penalty_seconds = float(state.penalty_seconds)
+	_last_time = float(state.last_time_seconds)
+	_best_time = float(state.best_time_seconds)
+	_failure_reason = StringName(str(state.failure_reason))
+	return _persistence_result(true, &"race_state_restored")
+
+
 func audit() -> Dictionary:
 	var errors := get_configuration_errors()
 	var report := get_snapshot()
@@ -352,3 +479,15 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	result["accepted"] = accepted
 	result["reason"] = reason
 	return result
+
+
+func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {"accepted": accepted, "reason": reason}
+
+
+func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))
+
+
+func _number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))

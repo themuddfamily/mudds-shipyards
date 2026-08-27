@@ -28,6 +28,9 @@ const RuntimeSettingsRepairBindingType := preload(
 	"res://scripts/persistence/runtime_settings_repair_binding.gd"
 )
 const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd")
+const CinderRaceSessionPersistenceType := preload(
+	"res://scripts/persistence/cinder_race_session_persistence.gd"
+)
 const SafeStartProductionRecoveryType := preload(
 	"res://scripts/recovery/safe_start_production_recovery.gd"
 )
@@ -103,6 +106,8 @@ const CARGO_DELIVERY_PHASES: Array[StringName] = [
 const CINDER_RACE_LAPS := 1
 const CINDER_RACE_COUNTDOWN_SECONDS := 2.0
 const CINDER_RACE_TIMEOUT_SECONDS := 120.0
+const CINDER_RACE_SESSION_PERSISTENCE_SLOT: StringName = &"cinder_timed_race_session"
+const CINDER_RACE_SESSION_COMMIT_PREFIX := "cinder-race-session-"
 const CINDER_PATROL_DWELL_SECONDS := 2.0
 ## Arcade recovery budget between authoritative hull loss and the first safe
 ## berth-regeneration attempt. The attempt still has to pass reset preflight,
@@ -660,6 +665,11 @@ var _active_activity_generation := 0
 ## private generation history over that one route and cannot safely alternate.
 var _selected_activity_kind: StringName = ACTIVITY_KIND_TIMED_RACE
 var _activity_selection_locked := false
+var _cinder_race_session_persistence: CinderRaceSessionPersistence
+var _cinder_race_session_restore_attempted := false
+var _cinder_race_session_restore_status: Dictionary = {}
+var _cinder_race_session_save_status: Dictionary = {}
+var _cinder_race_session_saved_fingerprint := ""
 ## Diagnostic only: exactly one increment accompanies each production physics
 ## position sample, proving no second adapter or retired director sampler is live.
 var _cinder_position_sample_count := 0
@@ -770,6 +780,11 @@ func _exit_tree() -> void:
 	_detach_network_ship_authority_composition(&"game_flow_exit")
 	_detach_network_halyard_command_bridge()
 	_cancel_ground_transition_for_detach()
+	# A retained Main keeps this exact RefCounted session, while a shift reload may
+	# free it after the same lifecycle boundary. Capture the caller-physics clock
+	# before disconnecting either case; ordinary detach is not treated as orderly
+	# process shutdown and does not touch either recovery marker.
+	save_cinder_race_session()
 	_detach_cinder_race_session()
 	_detach_cinder_loadmaster_hud_binding()
 	_detach_final_approach_hud_composition()
@@ -1217,6 +1232,7 @@ func _initialize_cinder_race_session() -> void:
 			_on_cinder_session_presentation_changed
 		)
 		cinder_race_session.session_completed.connect(_on_cinder_session_completed)
+		_initialize_cinder_race_session_persistence()
 	if patrol_activity == null:
 		var route := activity_director.get_definition(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
 		patrol_activity = PatrolActivity.new(route, CINDER_PATROL_DWELL_SECONDS)
@@ -1225,6 +1241,99 @@ func _initialize_cinder_race_session() -> void:
 		)
 		patrol_activity.patrol_completed.connect(_on_patrol_completed)
 	_restore_cinder_race_session()
+
+
+func _initialize_cinder_race_session_persistence() -> void:
+	if _cinder_race_session_persistence == null \
+			and _runtime_settings_user_data_store != null:
+		_cinder_race_session_persistence = CinderRaceSessionPersistenceType.new()
+		var configured := _cinder_race_session_persistence.configure(
+			_runtime_settings_user_data_store,
+			CINDER_RACE_SESSION_PERSISTENCE_SLOT
+		)
+		if not bool(configured.get("accepted", false)):
+			_cinder_race_session_save_status = configured.duplicate(true)
+			_cinder_race_session_persistence = null
+			return
+	if _cinder_race_session_restore_attempted \
+			or _cinder_race_session_persistence == null \
+			or cinder_race_session == null \
+			or not is_instance_valid(activity_director):
+		return
+	_cinder_race_session_restore_attempted = true
+	var loaded := _cinder_race_session_persistence.load(
+		cinder_race_session, activity_director
+	)
+	_cinder_race_session_restore_status = loaded.duplicate(true)
+	if not bool(loaded.get("accepted", false)):
+		return
+	var restored := cinder_race_session.restore_persistence_state(
+		activity_director,
+		loaded.get("session_state", {}),
+		cinder_race_session.get_session_generation()
+	)
+	_cinder_race_session_restore_status = restored.duplicate(true)
+	_cinder_race_session_restore_status["store_generation"] = int(
+		loaded.get("store_generation", -1)
+	)
+	if not bool(restored.get("accepted", false)):
+		return
+	var snapshot := cinder_race_session.get_presentation_snapshot()
+	_active_activity_id = DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+	_active_activity_generation = int(snapshot.get("session_generation", 0))
+	_activity_selection_locked = true
+	_cinder_race_session_saved_fingerprint = _cinder_race_save_fingerprint(snapshot)
+
+
+## Explicit save surface used by orderly shutdown and meaningful session
+## boundaries. It merges into GameFlow's one loaded UserDataStore and never
+## advances the race, route, or a save-owned clock.
+func save_cinder_race_session() -> Dictionary:
+	if _cinder_race_session_persistence == null \
+			or cinder_race_session == null \
+			or not is_instance_valid(activity_director):
+		return {"accepted": false, "reason": &"race_session_persistence_unavailable"}
+	var snapshot := cinder_race_session.get_presentation_snapshot()
+	if int(snapshot.get("session_generation", 0)) < 1:
+		return {"accepted": true, "reason": &"race_session_not_started"}
+	var next_generation := _runtime_settings_user_data_store.get_generation() + 1
+	if next_generation <= 0 or next_generation > UserDataStoreType.MAX_GENERATION:
+		return {"accepted": false, "reason": &"race_session_commit_id_exhausted"}
+	var commit_id := "%s%010d" % [
+		CINDER_RACE_SESSION_COMMIT_PREFIX,
+		next_generation,
+	]
+	_cinder_race_session_save_status = _cinder_race_session_persistence.save(
+		cinder_race_session, activity_director, commit_id
+	).duplicate(true)
+	if bool(_cinder_race_session_save_status.get("accepted", false)):
+		_cinder_race_session_saved_fingerprint = _cinder_race_save_fingerprint(
+			snapshot
+		)
+		_runtime_settings_commit_serial = maxi(
+			_runtime_settings_commit_serial,
+			_runtime_settings_user_data_store.get_generation()
+		)
+		_sync_production_runtime_settings_state()
+	return _cinder_race_session_save_status.duplicate(true)
+
+
+func get_cinder_race_session_persistence_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"configured": _cinder_race_session_persistence != null,
+		"store_instance_id": (
+			_runtime_settings_user_data_store.get_instance_id()
+			if _runtime_settings_user_data_store != null else 0
+		),
+		"shares_runtime_settings_store": true,
+		"restore_attempted": _cinder_race_session_restore_attempted,
+		"restore_status": _cinder_race_session_restore_status.duplicate(true),
+		"last_save_status": _cinder_race_session_save_status.duplicate(true),
+		"owns_clock": false,
+		"owns_route": false,
+		"owns_results": false,
+	}.duplicate(true)
 
 
 func _initialize_cinder_convoy_host() -> void:
@@ -9525,6 +9634,8 @@ func request_activity_start(
 		_active_activity_id = activity_id
 		_activity_selection_locked = true
 		_active_activity_generation = _get_selected_activity_generation()
+		if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
+			save_cinder_race_session()
 		if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
 			# FREE_FLIGHT is reached only after the physical ship has cleared its
 			# berth, so this phase observes an existing lifecycle fact.
@@ -9848,6 +9959,11 @@ func _advance_selected_activity(delta: float, world_position: Vector3) -> void:
 	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
 		_advance_cargo_delivery(delta)
 		return
+	# A restored race may exist before the player has returned to ordinary free
+	# flight. Boarding the guided-test craft during startup must not make that
+	# retained Cinder clock consume physics from an unrelated phase.
+	if phase != Phase.FREE_FLIGHT:
+		return
 	var generation := cinder_race_session.get_session_generation()
 	var advanced := cinder_race_session.advance_physics(delta, generation)
 	if not bool(advanced.get("accepted", false)):
@@ -9990,9 +10106,31 @@ func _reset_terminal_activity_for_next_sortie() -> void:
 		reset_active_activity()
 
 
-func _on_cinder_session_presentation_changed(_snapshot: Dictionary) -> void:
+func _on_cinder_session_presentation_changed(snapshot: Dictionary) -> void:
+	var fingerprint := _cinder_race_save_fingerprint(snapshot)
+	if not fingerprint.is_empty() \
+			and fingerprint != _cinder_race_session_saved_fingerprint:
+		save_cinder_race_session()
 	if _selected_activity_kind == ACTIVITY_KIND_TIMED_RACE:
 		_sync_activity_hud()
+
+
+func _cinder_race_save_fingerprint(snapshot: Dictionary) -> String:
+	if int(snapshot.get("session_generation", 0)) < 1:
+		return ""
+	# Elapsed time deliberately is not part of this boundary fingerprint: it is
+	# captured exactly on explicit/orderly save, while automatic writes occur only
+	# for meaningful state, gate, lap, penalty, or result transitions.
+	return "%d:%s:%d:%d:%.6f:%.6f:%.6f:%s" % [
+		int(snapshot.get("session_generation", 0)),
+		str(snapshot.get("state_id", &"idle")),
+		int(snapshot.get("lap_number", 0)),
+		int(snapshot.get("next_checkpoint_index", 0)),
+		float(snapshot.get("penalty_seconds", 0.0)),
+		float(snapshot.get("last_time_seconds", -1.0)),
+		float(snapshot.get("best_time_seconds", -1.0)),
+		str(snapshot.get("presentation_reason", &"")),
+	]
 
 
 func _on_cinder_session_completed(_snapshot: Dictionary) -> void:
@@ -11752,6 +11890,7 @@ func _record_safe_start_recovery_hud_status(
 ## streaming never call this method because none of them proves an OS process
 ## shutdown.
 func mark_orderly_shutdown() -> Dictionary:
+	var race_session_status := save_cinder_race_session()
 	var safe_start_status := (
 		_safe_start_production_recovery.mark_orderly_shutdown()
 		if _safe_start_production_recovery != null
@@ -11773,6 +11912,7 @@ func mark_orderly_shutdown() -> Dictionary:
 		"reason": reason,
 		"safe_start": safe_start_status.duplicate(true),
 		"session_diagnostics": session_diagnostics_status.duplicate(true),
+		"cinder_race_session": race_session_status.duplicate(true),
 	}.duplicate(true)
 
 

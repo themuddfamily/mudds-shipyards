@@ -21,6 +21,8 @@ enum State {
 }
 
 const ANY_GENERATION := -1
+const PERSISTENCE_SCHEMA_VERSION := 1
+const MAX_PERSISTED_GENERATION := 2_147_483_647
 
 var definition: ActivityDefinition
 var _state := State.IDLE
@@ -105,6 +107,77 @@ func get_snapshot() -> Dictionary:
 	}
 
 
+## Detached, authority-owned save material. This is deliberately narrower than
+## the public presentation snapshot so a restore cannot smuggle in a second
+## definition, radius, clock, or reward decision.
+func capture_persistence_state() -> Dictionary:
+	return {
+		"schema_version": PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(definition.activity_id) if definition != null else "",
+		"state": _state,
+		"generation": _generation,
+		"next_checkpoint_index": _next_checkpoint_index,
+		"failure_reason": String(_failure_reason),
+	}.duplicate(true)
+
+
+func validate_persistence_state(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary or definition == null:
+		return _persistence_result(false, &"malformed_route_state")
+	var state := candidate as Dictionary
+	if state.size() != 6 \
+			or not _integral(state.get("schema_version")) \
+			or int(state.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
+			or str(state.get("activity_id", "")) != str(definition.activity_id) \
+			or not _integral(state.get("state")) \
+			or not _integral(state.get("generation")) \
+			or not _integral(state.get("next_checkpoint_index")) \
+			or not (state.get("failure_reason") is String):
+		return _persistence_result(false, &"malformed_route_state")
+	var restored_state := int(state.state)
+	var generation := int(state.generation)
+	var next_checkpoint := int(state.next_checkpoint_index)
+	var failure_reason := str(state.failure_reason)
+	var checkpoint_count := definition.get_checkpoint_count()
+	if restored_state < State.IDLE or restored_state > State.FAILED \
+			or generation < 0 or generation > MAX_PERSISTED_GENERATION:
+		return _persistence_result(false, &"invalid_route_state")
+	match restored_state:
+		State.IDLE:
+			if next_checkpoint != 0 or not failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_route_state")
+		State.ACTIVE:
+			if generation < 1 or next_checkpoint < 0 \
+					or next_checkpoint >= checkpoint_count or not failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_route_state")
+		State.COMPLETED:
+			if generation < 1 or next_checkpoint != checkpoint_count \
+					or not failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_route_state")
+		State.FAILED:
+			if generation < 1 or next_checkpoint < 0 \
+					or next_checkpoint >= checkpoint_count or failure_reason.is_empty():
+				return _persistence_result(false, &"invalid_route_state")
+	return _persistence_result(true, &"route_state_valid")
+
+
+## Startup-only adoption by the route authority itself. It emits no lifecycle
+## signal: consumers learn about the restored session from GameFlow's ordinary
+## post-startup snapshot synchronisation, never from replayed historic events.
+func restore_persistence_state(candidate: Variant) -> Dictionary:
+	if _generation != 0 or _state != State.IDLE:
+		return _persistence_result(false, &"route_state_already_live")
+	var validated := validate_persistence_state(candidate)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var state := candidate as Dictionary
+	_state = int(state.state) as State
+	_generation = int(state.generation)
+	_next_checkpoint_index = int(state.next_checkpoint_index)
+	_failure_reason = StringName(str(state.failure_reason))
+	return _persistence_result(true, &"route_state_restored")
+
+
 func _matches_generation(expected_generation: int) -> bool:
 	return expected_generation == _generation
 
@@ -114,3 +187,11 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	result["accepted"] = accepted
 	result["reason"] = reason
 	return result
+
+
+func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {"accepted": accepted, "reason": reason}
+
+
+func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))

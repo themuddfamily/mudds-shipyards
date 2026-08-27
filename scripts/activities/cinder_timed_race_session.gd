@@ -8,6 +8,7 @@ extends RefCounted
 const ROUTE: ActivityDefinition = preload(
 	"res://assets/activities/cinder_reach_checkpoint_route.tres"
 )
+const PERSISTENCE_SCHEMA_VERSION := 1
 
 signal session_started(snapshot: Dictionary)
 signal session_active(snapshot: Dictionary)
@@ -343,6 +344,139 @@ func get_presentation_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+## Captures only state owned by the existing route and race authorities. The
+## session's attachment, signal connections, director identity, and mutation
+## latches are lifecycle facts and never become save material.
+func capture_persistence_state() -> Dictionary:
+	return {
+		"schema_version": PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(ROUTE.activity_id),
+		"configured_laps": _race.lap_count,
+		"configured_countdown_seconds": _race.countdown_seconds,
+		"configured_timeout_seconds": _race.timeout_seconds,
+		"session_generation": _session_generation,
+		"session_started_once": _session_started_once,
+		"activity_state": _capture_activity_persistence_state(),
+		"race_state": _race.capture_persistence_state(),
+		"presentation_reason": String(_presentation_reason),
+	}.duplicate(true)
+
+
+func validate_persistence_state(
+	candidate: Variant,
+	director: ActivityDirector
+	) -> Dictionary:
+	if not candidate is Dictionary or not _director_owns_shared_route(director):
+		return _persistence_result(false, &"malformed_session_state")
+	var state := candidate as Dictionary
+	if state.size() != 10 \
+			or not _integral(state.get("schema_version")) \
+			or int(state.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
+			or str(state.get("activity_id", "")) != str(ROUTE.activity_id) \
+			or not _integral(state.get("configured_laps")) \
+			or int(state.get("configured_laps", 0)) != _race.lap_count \
+			or not _number(state.get("configured_countdown_seconds")) \
+			or not is_equal_approx(
+				float(state.get("configured_countdown_seconds", -1.0)),
+				_race.countdown_seconds
+			) \
+			or not _number(state.get("configured_timeout_seconds")) \
+			or not is_equal_approx(
+				float(state.get("configured_timeout_seconds", -1.0)),
+				_race.timeout_seconds
+			) \
+			or not _integral(state.get("session_generation")) \
+			or state.get("session_started_once") is not bool \
+			or not state.get("activity_state") is Dictionary \
+			or not state.get("race_state") is Dictionary \
+			or not (state.get("presentation_reason") is String):
+		return _persistence_result(false, &"malformed_session_state")
+	var session_generation := int(state.session_generation)
+	if session_generation < 1 or not bool(state.session_started_once) \
+			or str(state.presentation_reason) not in ["", "outside_checkpoint"]:
+		return _persistence_result(false, &"invalid_session_state")
+	var activity_state := state.activity_state as Dictionary
+	var race_state := state.race_state as Dictionary
+	var activity_validation := director.validate_activity_persistence_state(
+		ROUTE.activity_id, activity_state
+	)
+	if not bool(activity_validation.get("accepted", false)):
+		return activity_validation
+	var race_validation := _race.validate_persistence_state(race_state)
+	if not bool(race_validation.get("accepted", false)):
+		return race_validation
+	var activity_generation := int(activity_state.get("generation", -1))
+	var race_generation := int(race_state.get("generation", -2))
+	if session_generation != activity_generation \
+			or session_generation != race_generation:
+		return _persistence_result(false, &"generation_mismatch")
+	var route_state := int(activity_state.get("state", -1))
+	var timed_state := int(race_state.get("state", -1))
+	var coherent := (
+		(timed_state == TimedCheckpointRace.State.IDLE
+			and route_state == CheckpointRouteActivity.State.IDLE)
+		or (timed_state in [
+			TimedCheckpointRace.State.COUNTDOWN,
+			TimedCheckpointRace.State.ACTIVE,
+		] and route_state == CheckpointRouteActivity.State.ACTIVE)
+		or (timed_state == TimedCheckpointRace.State.COMPLETED
+			and route_state == CheckpointRouteActivity.State.COMPLETED)
+		or (timed_state == TimedCheckpointRace.State.FAILED
+			and route_state == CheckpointRouteActivity.State.FAILED)
+	)
+	if not coherent:
+		return _persistence_result(false, &"authority_state_mismatch")
+	if timed_state == TimedCheckpointRace.State.ACTIVE \
+			and int(activity_state.get("next_checkpoint_index", -1)) \
+			!= int(race_state.get("next_checkpoint_index", -2)):
+		return _persistence_result(false, &"checkpoint_mismatch")
+	if timed_state == TimedCheckpointRace.State.FAILED \
+			and str(activity_state.get("failure_reason", "")) \
+			!= str(race_state.get("failure_reason", "")):
+		return _persistence_result(false, &"failure_reason_mismatch")
+	return _persistence_result(true, &"session_state_valid")
+
+
+## Restores both existing authorities before attaching translation signals.
+## Both records are fully validated first, making the two adoptions an atomic
+## startup transaction for all accepted inputs. No historic signal is emitted.
+func restore_persistence_state(
+	director: ActivityDirector,
+	candidate: Variant,
+	expected_session_generation: int
+	) -> Dictionary:
+	if _is_reentrant():
+		return _persistence_result(false, &"reentrant_call")
+	if expected_session_generation != _session_generation:
+		return _persistence_result(false, &"stale_generation")
+	if _closed or _attached or _session_started_once or _session_generation != 0:
+		return _persistence_result(false, &"session_already_live")
+	var validated := validate_persistence_state(candidate, director)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var state := candidate as Dictionary
+	var restored_activity := director.restore_activity_persistence_state(
+		ROUTE.activity_id, state.activity_state
+	)
+	if not bool(restored_activity.get("accepted", false)):
+		return restored_activity
+	var restored_race := _race.restore_persistence_state(state.race_state)
+	if not bool(restored_race.get("accepted", false)):
+		# This can only fail if an authority mutated after the completed validation;
+		# startup is single-threaded and no signal has been connected yet.
+		return restored_race
+	_session_generation = int(state.session_generation)
+	_activity_generation = int((state.activity_state as Dictionary).generation)
+	_race_generation = int((state.race_state as Dictionary).generation)
+	_session_started_once = true
+	_pending_activity_completion = false
+	_pending_race_completion = false
+	_pending_race_failure = &""
+	_authority_desynchronized = false
+	_presentation_reason = StringName(str(state.presentation_reason))
+	return _persistence_result(true, &"session_state_restored")
+
+
 func audit() -> Dictionary:
 	var report := get_presentation_snapshot()
 	report["valid"] = _race.is_configuration_valid() and (
@@ -352,6 +486,22 @@ func audit() -> Dictionary:
 	report["activity_director_authority"] = true
 	report["timed_race_authority"] = true
 	return report
+
+
+func _capture_activity_persistence_state() -> Dictionary:
+	if not is_instance_valid(_director):
+		return {}
+	var activity_snapshot := _director.get_activity_snapshot(ROUTE.activity_id)
+	if activity_snapshot.is_empty():
+		return {}
+	return {
+		"schema_version": CheckpointRouteActivity.PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(ROUTE.activity_id),
+		"state": int(activity_snapshot.get("state", CheckpointRouteActivity.State.IDLE)),
+		"generation": int(activity_snapshot.get("generation", 0)),
+		"next_checkpoint_index": int(activity_snapshot.get("next_checkpoint_index", 0)),
+		"failure_reason": String(activity_snapshot.get("failure_reason", &"")),
+	}.duplicate(true)
 
 
 func _start_next_activity_lap() -> bool:
@@ -627,3 +777,15 @@ func _state_id(state: int) -> StringName:
 			return &"failed"
 		_:
 			return &"idle"
+
+
+func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {"accepted": accepted, "reason": reason}
+
+
+func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))
+
+
+func _number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))

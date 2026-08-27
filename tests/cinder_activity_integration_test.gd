@@ -6,6 +6,35 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+const Store := preload("res://scripts/persistence/user_data_store.gd")
+const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
+
+class MemoryFilesystem extends Filesystem:
+	var files: Dictionary = {}
+	func file_exists(path: String) -> bool: return files.has(path)
+	func directory_exists(_path: String) -> bool: return false
+	func ensure_parent_directory(_path: String) -> Error: return OK
+	func sync_directory(_path: String) -> Error: return OK
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		return {
+			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
+			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
+		}
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		files[path] = bytes.duplicate()
+		return OK
+	func remove_path(path: String) -> Error:
+		if not files.has(path): return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path): return ERR_FILE_NOT_FOUND
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -21,6 +50,9 @@ func _run() -> void:
 	if game == null:
 		_finish()
 		return
+	game.configure_runtime_settings_persistence(
+		Store.new("memory://cinder-activity-integration.json", MemoryFilesystem.new())
+	)
 	root.add_child(game)
 	await process_frame
 	await physics_frame
