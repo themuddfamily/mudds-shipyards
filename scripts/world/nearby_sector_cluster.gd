@@ -3620,8 +3620,9 @@ func _build_gantry(platform: Node3D) -> void:
 
 
 ## The four rails have one exact rounded-box recipe, material and no gameplay or
-## collision authority. One MultiMesh retains the authored four-copy tunnel while
-## removing three renderer nodes and submissions from the nearby-sector cluster.
+## collision authority. Their fixed transforms compile into one immutable mesh
+## surface, retaining the one renderer/submission trim without a second
+## MultiMesh resource or any runtime instance state.
 func _build_gantry_rails(platform: Node3D, half_width: float, half_height: float) -> void:
 	var transforms: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
@@ -3636,21 +3637,22 @@ func _build_gantry_rails(platform: Node3D, half_width: float, half_height: float
 					)
 				)
 			)
-	var multimesh := MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = StationSurfaceKit.rounded_box_mesh_cached(GANTRY_RAIL_SIZE, _box_cache)
-	multimesh.instance_count = transforms.size()
-	multimesh.visible_instance_count = -1
-	multimesh.buffer = _encode_multimesh_transforms(transforms)
-	multimesh.custom_aabb = _transformed_mesh_bounds(multimesh.mesh.get_aabb(), transforms)
-	var batch := MultiMeshInstance3D.new()
+	var rail_source := StationSurfaceKit.rounded_box_mesh(GANTRY_RAIL_SIZE)
+	var rail_surface := SurfaceTool.new()
+	for authored_transform in transforms:
+		rail_surface.append_from(rail_source, 0, authored_transform)
+	var combined_mesh := rail_surface.commit()
+	combined_mesh.resource_name = "nearby_gantry_rails_combined"
+	combined_mesh.resource_local_to_scene = false
+	var batch := MeshInstance3D.new()
 	batch.name = "GantryRails"
-	batch.multimesh = multimesh
+	batch.mesh = combined_mesh
 	batch.material_override = _materials["steel"]
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	batch.set_meta(&"visual_detail_only", true)
 	batch.set_meta(&"visual_batch_family_id", GANTRY_RAIL_FAMILY_ID)
 	batch.set_meta(&"authored_instance_transforms", transforms.duplicate())
+	batch.set_meta(&"authored_visible_copy_count", transforms.size())
 	platform.add_child(batch)
 
 

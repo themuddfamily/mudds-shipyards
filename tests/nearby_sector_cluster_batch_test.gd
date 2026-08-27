@@ -21,30 +21,32 @@ func _run() -> void:
 	await process_frame
 	var rails := cluster.get_node_or_null(
 		^"ExtractionPlatform/CinderReachPlatform/GantryRails"
-	) as MultiMeshInstance3D
-	_check(rails != null and rails.multimesh != null, "the platform exposes the gantry rail batch")
-	if rails != null and rails.multimesh != null:
-		var multimesh := rails.multimesh
+	) as MeshInstance3D
+	_check(rails != null and rails.mesh != null, "the platform exposes the gantry rail batch")
+	if rails != null and rails.mesh != null:
+		var transforms := rails.get_meta(&"authored_instance_transforms", []) as Array
 		_check(
-			multimesh.instance_count == 4
-			and multimesh.visible_instance_count == -1
-			and multimesh.buffer == _encode_transforms(EXPECTED_RAIL_TRANSFORMS),
-			"the rail batch preserves the four authored tunnel transforms"
+			transforms == EXPECTED_RAIL_TRANSFORMS
+			and int(rails.get_meta(&"authored_visible_copy_count", -1)) == 4
+			and rails.mesh.get_surface_count() == 1
+			and rails.mesh.get_faces().size() / 3 == 432
+			and not rails.mesh.resource_local_to_scene,
+			"the combined rail mesh preserves the four authored tunnel transforms"
 		)
 		_check(
 			rails.material_override != null
 			and rails.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			and rails.find_children("*", "CollisionObject3D", true, false).is_empty(),
-			"the batch retains presentation material while owning no shadows or collision"
+			"the combined mesh retains presentation material while owning no shadows or collision"
 		)
 	var census := _census(cluster)
 	_check(
-		int(census["mesh_nodes"]) == 160
-		and int(census["batch_nodes"]) == 3
-		and int(census["submissions"]) == 163
-		and int(census["visible_copies"]) == 688
-		and int(census["triangles"]) == 117457,
-		"the trim freezes 163 submissions while preserving all copies and triangles"
+		int(census["mesh_nodes"]) == 192
+		and int(census["batch_nodes"]) == 17
+		and int(census["submissions"]) == 209
+		and int(census["visible_copies"]) == 758
+		and int(census["triangles"]) == 127002,
+		"the combined rail trim keeps 209 submissions and 127002 triangles within 192 Mesh + 17 MultiMesh renderers"
 	)
 	cluster.queue_free()
 	await process_frame
@@ -67,8 +69,7 @@ func _census(cluster: NearbySectorCluster) -> Dictionary:
 		var mesh := instance.mesh
 		if mesh == null:
 			continue
-		var mesh_triangles := _triangle_count(mesh)
-		triangles += mesh_triangles
+		triangles += _triangle_count(mesh)
 		submissions += mesh.get_surface_count()
 		visible_copies += 1
 	for candidate in batch_nodes:
@@ -81,37 +82,12 @@ func _census(cluster: NearbySectorCluster) -> Dictionary:
 		submissions += multimesh.mesh.get_surface_count()
 		visible_copies += copy_count
 	return {
-		"descendants": cluster.find_children("*", "", true, false).size(),
 		"mesh_nodes": mesh_nodes.size(),
 		"batch_nodes": batch_nodes.size(),
 		"visible_copies": visible_copies,
 		"submissions": submissions,
 		"triangles": triangles,
-		"static_bodies": cluster.find_children("*", "StaticBody3D", true, false).size(),
-		"collision_shapes": cluster.find_children("*", "CollisionShape3D", true, false).size(),
-		"lights": cluster.find_children("*", "Light3D", true, false).size(),
 	}
-
-
-func _encode_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
-	var buffer := PackedFloat32Array()
-	buffer.resize(transforms.size() * 12)
-	for index in transforms.size():
-		var transform_value := transforms[index]
-		var offset := index * 12
-		buffer[offset + 0] = transform_value.basis.x.x
-		buffer[offset + 1] = transform_value.basis.y.x
-		buffer[offset + 2] = transform_value.basis.z.x
-		buffer[offset + 3] = transform_value.origin.x
-		buffer[offset + 4] = transform_value.basis.x.y
-		buffer[offset + 5] = transform_value.basis.y.y
-		buffer[offset + 6] = transform_value.basis.z.y
-		buffer[offset + 7] = transform_value.origin.y
-		buffer[offset + 8] = transform_value.basis.x.z
-		buffer[offset + 9] = transform_value.basis.y.z
-		buffer[offset + 10] = transform_value.basis.z.z
-		buffer[offset + 11] = transform_value.origin.z
-	return buffer
 
 
 func _check(condition: bool, description: String) -> void:

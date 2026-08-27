@@ -116,21 +116,16 @@ const EXPECTED_GANTRY_RAIL_TRANSFORMS: Array[Transform3D] = [
 	Transform3D(Basis.IDENTITY, Vector3(15.5, 17.0, 86.0)),
 ]
 const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
-const EXPECTED_LOCAL_MESH_NODES := 191
-const EXPECTED_LOCAL_MULTIMESH_NODES := 18
+const EXPECTED_LOCAL_MESH_NODES := 192
+const EXPECTED_LOCAL_MULTIMESH_NODES := 17
 const EXPECTED_LOCAL_RENDERER_NODES := 209
-const EXPECTED_LOCAL_VISIBLE_COPIES := 761
+const EXPECTED_LOCAL_VISIBLE_COPIES := 758
 const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 209
-const EXPECTED_LOCAL_TRIANGLES := 126978
+const EXPECTED_LOCAL_TRIANGLES := 127002
 const EXPECTED_LOCAL_STATIC_BODIES := 61
 const EXPECTED_LOCAL_COLLISION_SHAPES := 62
-## The Cinder bomber's two strike-wing renderers now become one exact MultiMesh
-## batch. Keep the component's existing hard ceiling unchanged and require its
-## audit to surface that one renderer-family overage explicitly; aggregate
-## renderer and submission counts still fall by one.
-const EXPECTED_CLUSTER_BUDGET_ERRORS: Array[String] = [
-	"multimesh_instances count 18 exceeds budget 17",
-]
+## The dock gate's four fixed rails remain one renderer/submission, but now
+## compile into one immutable mesh without a retained MultiMesh resource.
 const EXPECTED_LAMP_LENS_COPY_COUNT := 26
 const EXPECTED_LAMP_LENS_RADIUS := 0.45
 const EXPECTED_LAMP_LENS_HEIGHT := 0.9
@@ -277,9 +272,9 @@ func _test_identity_and_authority(world: ShipyardWorld, cluster: NearbySectorClu
 		"the cluster publishes its v1 identity as modern interpretation"
 	)
 	_check(
-		not bool(report.get("valid", true))
-		and (report.get("errors", []) as Array) == EXPECTED_CLUSTER_BUDGET_ERRORS,
-		"the built cluster surfaces only the exact retained MultiMesh ceiling diagnostic: %s"
+		bool(report.get("valid", false))
+		and (report.get("errors", []) as Array).is_empty(),
+		"the built cluster stays within every frozen production budget: %s"
 			% [report.get("errors", [])]
 	)
 	_check(
@@ -322,9 +317,9 @@ func _test_identity_and_authority(world: ShipyardWorld, cluster: NearbySectorClu
 	(mutated["errors"] as Array).append("injected")
 	var reread := cluster.get_cluster_audit_report()
 	_check(
-		not bool(reread.get("valid", true))
+		bool(reread.get("valid", false))
 		and not bool(reread.get("gameplay_authority", true))
-		and (reread.get("errors", []) as Array) == EXPECTED_CLUSTER_BUDGET_ERRORS,
+		and (reread.get("errors", []) as Array).is_empty(),
 		"mutating a returned audit copy leaves the component's own report untouched"
 	)
 
@@ -870,13 +865,13 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["mesh_nodes"]) == EXPECTED_LOCAL_MESH_NODES
 		and int(geometry["multimesh_nodes"]) == EXPECTED_LOCAL_MULTIMESH_NODES
 		and int(geometry["renderer_nodes"]) == EXPECTED_LOCAL_RENDERER_NODES,
-		"NearbySectorCluster owns 191 Mesh + 18 MultiMesh renderers with all three activity landmarks"
+		"NearbySectorCluster owns 192 Mesh + 17 MultiMesh renderers with all three activity landmarks"
 	)
 	_check(
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 761 renderer copies, 126978 triangles, and 209 submissions"
+		"the local census freezes 758 renderer copies, 127002 triangles, and 209 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
@@ -948,27 +943,25 @@ func _test_gantry_rail_batch(cluster: NearbySectorCluster) -> void:
 	) as Node3D
 	var batch := cluster.get_node_or_null(
 		^"ExtractionPlatform/CinderReachPlatform/GantryRails"
-	) as MultiMeshInstance3D
+	) as MeshInstance3D
 	_check(platform != null and batch != null, "the gantry exposes one named rail batch")
-	if platform == null or batch == null or batch.multimesh == null:
+	if platform == null or batch == null or batch.mesh == null:
 		return
-	var multimesh := batch.multimesh
-	_check(
-		multimesh.transform_format == MultiMesh.TRANSFORM_3D
-		and multimesh.instance_count == EXPECTED_GANTRY_RAIL_TRANSFORMS.size()
-		and multimesh.visible_instance_count == -1
-		and multimesh.buffer == _encode_multimesh_transforms(EXPECTED_GANTRY_RAIL_TRANSFORMS),
-		"the one gantry batch preserves all four authored rail transforms"
-	)
 	var authored_transforms := batch.get_meta(&"authored_instance_transforms", []) as Array
 	_check(
 		bool(batch.get_meta(&"visual_detail_only", false))
 		and StringName(batch.get_meta(&"visual_batch_family_id", &"")) == EXPECTED_GANTRY_RAIL_FAMILY_ID
 		and authored_transforms == EXPECTED_GANTRY_RAIL_TRANSFORMS
-		and multimesh.mesh != null
-		and multimesh.mesh.get_aabb().is_equal_approx(EXPECTED_GANTRY_RAIL_AABB)
+		and int(batch.get_meta(&"authored_visible_copy_count", -1)) == EXPECTED_GANTRY_RAIL_TRANSFORMS.size()
+		and batch.mesh.resource_name == "nearby_gantry_rails_combined"
+		and batch.mesh.get_surface_count() == 1
+		and batch.mesh.get_faces().size() / 3 == 432
+		and not batch.mesh.resource_local_to_scene
+		and batch.mesh.get_aabb().is_equal_approx(_transformed_mesh_bounds(
+			EXPECTED_GANTRY_RAIL_AABB, EXPECTED_GANTRY_RAIL_TRANSFORMS
+		))
 		and batch.find_children("*", "CollisionShape3D", true, false).is_empty(),
-		"the rail batch stays visual-only, collision-free, and keeps the exact rail recipe"
+		"the fixed rail mesh stays visual-only, collision-free, and keeps all four exact transforms"
 	)
 	var legacy_rails := 0
 	for child in platform.get_children():
