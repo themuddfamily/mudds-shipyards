@@ -11084,6 +11084,7 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 		)
 	match activity_id:
 		&"cinder_reach_checkpoint_route": return binding.call(&"start_race")
+		&"cinder_relay_patrol": return binding.call(&"start_patrol", active_ship)
 		&"cinder_platform_mining_run": return binding.call(&"start_mining_activity", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
 		&"cinder_derelict_structure_scan": return binding.call(&"start_structure_scan", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
 		&"cinder_debris_beacon_traversal": return binding.call(&"start_beacon_traversal", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
@@ -11102,6 +11103,7 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 		}.duplicate(true)
 	match activity_id:
 		&"cinder_reach_checkpoint_route": return binding.call(&"reset_race")
+		&"cinder_relay_patrol": return binding.call(&"reset_patrol")
 		&"cinder_platform_mining_run": return binding.call(&"reset_mining_activity")
 		&"cinder_derelict_structure_scan": return binding.call(&"reset_structure_scan")
 		&"cinder_debris_beacon_traversal": return binding.call(&"reset_beacon_traversal")
