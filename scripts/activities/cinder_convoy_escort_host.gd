@@ -44,10 +44,13 @@ const CARGO_POD_POSITIONS := [
 	Vector3(3.35, 0.05, 0.4),
 ]
 const CARGO_POD_SIZE := Vector3(2.15, 2.5, 6.4)
-const ROUTE_INTENT_CUE_POSITION := Vector3(0.0, 1.2, -1.9)
+const ROUTE_INTENT_CUE_POSITION := Vector3(0.0, 1.32, -1.9)
 const ROUTE_INTENT_CUE_ROTATION := Vector3(-PI * 0.5, 0.0, 0.0)
-const ROUTE_INTENT_CUE_HEIGHT := 2.8
-const ROUTE_INTENT_CUE_RADIUS := 0.42
+const ROUTE_INTENT_CUE_HEIGHT := 3.4
+const ROUTE_INTENT_CUE_RADIUS := 0.64
+const ROUTE_INTENT_FEATHER_SIZE := Vector3(0.48, 1.28, 0.18)
+const ROUTE_INTENT_FEATHER_OFFSET := Vector3(0.55, -0.82, 0.0)
+const ROUTE_INTENT_FEATHER_YAW := PI * 0.19
 const MAXIMUM_PRESENTATION_POD_SPREAD := 2.2
 const COMPLETED_PRESENTATION_POD_TUCK := -0.75
 const CRITICAL_SEPARATION_FRACTION := 0.75
@@ -74,7 +77,7 @@ var _activity: ConvoyEscortActivity
 var _convoy_entity: Node3D
 var _cargo_pod_mesh: BoxMesh
 var _cargo_pod_multimesh: MultiMesh
-var _route_intent_cue_mesh: CylinderMesh
+var _route_intent_cue_mesh: ArrayMesh
 var _visual_feedback_snapshot: Dictionary = {}
 var _built := false
 var _attached := false
@@ -797,6 +800,9 @@ func _build_entity_visuals() -> void:
 	var beacon_material := _material(
 		"EmberlineBeacon", Color("f4a641"), 0.1, 0.3, Color("f4a641")
 	)
+	# A steady, moderate emission keeps the approach cue legible against Cinder's
+	# dark sky without turning it into another bloom-heavy flashing source.
+	beacon_material.emission_energy_multiplier = 1.35
 	_box("MainHull", Vector3(4.8, 2.0, 9.8), Vector3.ZERO, hull_material)
 	_box("ForwardKeel", Vector3(3.4, 1.25, 2.2), Vector3(0.0, -0.18, -5.45), hull_material)
 	_cargo_pod_mesh = BoxMesh.new()
@@ -822,12 +828,7 @@ func _build_entity_visuals() -> void:
 	_convoy_entity.add_child(starboard_cargo_pod)
 	_box("DriveBlock", Vector3(3.8, 1.5, 1.2), Vector3(0.0, -0.05, 5.25), dark_material)
 	_box("DriveGlow", Vector3(3.0, 0.72, 0.16), Vector3(0.0, -0.05, 5.92), glow_material)
-	_route_intent_cue_mesh = CylinderMesh.new()
-	_route_intent_cue_mesh.top_radius = 0.0
-	_route_intent_cue_mesh.bottom_radius = ROUTE_INTENT_CUE_RADIUS
-	_route_intent_cue_mesh.height = ROUTE_INTENT_CUE_HEIGHT
-	_route_intent_cue_mesh.radial_segments = 12
-	_route_intent_cue_mesh.rings = 1
+	_route_intent_cue_mesh = _build_route_intent_cue_mesh()
 	var route_intent_cue := MeshInstance3D.new()
 	route_intent_cue.name = "NavigationBeacon"
 	route_intent_cue.mesh = _route_intent_cue_mesh
@@ -836,6 +837,37 @@ func _build_entity_visuals() -> void:
 	route_intent_cue.rotation = ROUTE_INTENT_CUE_ROTATION
 	route_intent_cue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_convoy_entity.add_child(route_intent_cue)
+
+
+## One bounded surface combines the central route arrow and two trailing
+## feathers. The broad, asymmetric silhouette survives normal rendezvous range
+## while retaining the existing single visual node, material, and route-facing
+## transform. It carries no collision, light, process, or activity authority.
+func _build_route_intent_cue_mesh() -> ArrayMesh:
+	var arrow := CylinderMesh.new()
+	arrow.top_radius = 0.0
+	arrow.bottom_radius = ROUTE_INTENT_CUE_RADIUS
+	arrow.height = ROUTE_INTENT_CUE_HEIGHT
+	arrow.radial_segments = 12
+	arrow.rings = 1
+	var feather := BoxMesh.new()
+	feather.size = ROUTE_INTENT_FEATHER_SIZE
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.append_from(arrow, 0, Transform3D.IDENTITY)
+	for side in [-1.0, 1.0]:
+		var basis := Basis(Vector3.FORWARD, side * ROUTE_INTENT_FEATHER_YAW)
+		var transform := Transform3D(
+			basis,
+			Vector3(
+				side * ROUTE_INTENT_FEATHER_OFFSET.x,
+				ROUTE_INTENT_FEATHER_OFFSET.y,
+				ROUTE_INTENT_FEATHER_OFFSET.z
+			)
+		)
+		tool.append_from(feather, 0, transform)
+	tool.index()
+	return tool.commit()
 
 
 func _apply_visual_feedback(activity_override: Dictionary = {}) -> void:

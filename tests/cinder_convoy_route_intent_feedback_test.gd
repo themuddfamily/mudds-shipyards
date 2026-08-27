@@ -148,18 +148,25 @@ func _run() -> void:
 
 
 func _assert_cue_recipe(cue: MeshInstance3D) -> void:
-	var mesh := cue.mesh as CylinderMesh
+	var mesh := cue.mesh as ArrayMesh
 	_check(
 		mesh != null
-		and is_zero_approx(mesh.top_radius)
-		and is_equal_approx(mesh.bottom_radius, 0.42)
-		and is_equal_approx(mesh.height, 2.8)
-		and mesh.radial_segments == 12
-		and cue.position.is_equal_approx(Vector3(0.0, 1.2, -1.9))
+		and mesh.get_surface_count() == 1
+		and mesh.get_aabb().size.y >= 3.39
+		and mesh.get_aabb().size.x >= 1.45
+		and mesh.get_aabb().size.z <= 1.3
+		and cue.position.is_equal_approx(Vector3(0.0, 1.32, -1.9))
 		and cue.rotation.is_equal_approx(Vector3(-PI * 0.5, 0.0, 0.0))
+		and cue.material_override is StandardMaterial3D
+		and (cue.material_override as StandardMaterial3D).emission_enabled
+		and is_equal_approx(
+			(cue.material_override as StandardMaterial3D).emission_energy_multiplier,
+			1.35
+		)
+		and cue.get_child_count() == 0
 		and not cue.is_processing()
 		and not cue.is_physics_processing(),
-		"one bounded non-processing cone forms the retained forward route vane"
+		"one bounded non-processing surface forms the steady broad route feather"
 	)
 
 
