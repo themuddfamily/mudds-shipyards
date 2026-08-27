@@ -72,7 +72,8 @@ func _run() -> void:
 		and second_integrity > first_integrity
 		and int(second_snapshot.get("percentage", -1)) > int(berth_snapshot.get("percentage", -1))
 		and second_snapshot.get("wording") == &"repairing"
-		and second_snapshot.get("authoritative_stage") == berth_snapshot.get("authoritative_stage"),
+		and second_snapshot.get("component_stage") == berth_snapshot.get("component_stage")
+		and not second_snapshot.has("authoritative_stage"),
 		"targeted engineer commits advance the displayed percentage without requiring a stage crossing"
 	)
 
@@ -127,8 +128,9 @@ func _run() -> void:
 	var reset := torrent.reset_for_reuse(torrent.global_transform)
 	_check(
 		bool(reset.get("accepted", false))
-		and label.text == "COMPONENT  //  FORWARD HULL  100%  //  NOMINAL",
-		"respawn/reuse clears repair status and restores the authoritative nominal report"
+		and bool(torrent.get_component_recovery_report().get("valid", false))
+		and label.text == "[+] RESPAWN READY  //  RECOVERY VERIFIED",
+		"respawn/reuse clears repair status and reports only verified recovery readiness"
 	)
 
 	hud.set_mode("on-foot")

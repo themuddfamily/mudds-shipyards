@@ -70,15 +70,22 @@ func present_hero_report(report: Dictionary) -> Dictionary:
 	if bool(lifecycle.get("destroyed", false)):
 		_snapshot = _lifecycle_snapshot(
 			&"destroyed",
-			"[X] DESTROYED  //  HULL LOST  //  BERTH RECOVERY",
+			"[X] DESTROYED  //  HULL LOST",
 			"DESTROYED"
 		)
 		return _snapshot.duplicate(true)
-	if bool(lifecycle.get("roster_restored", false)):
+	if bool(lifecycle.get("recovery_ready", false)):
 		_snapshot = _lifecycle_snapshot(
 			&"respawn_ready",
-			"[+] RESPAWN READY  //  ROSTER RESTORED",
+			"[+] RESPAWN READY  //  RECOVERY VERIFIED",
 			"RESPAWN READY"
+		)
+		return _snapshot.duplicate(true)
+	if bool(lifecycle.get("recovery_pending", false)):
+		_snapshot = _lifecycle_snapshot(
+			&"recovery_pending",
+			"[!] RECOVERY PENDING  //  AUDIT NOT READY",
+			"RECOVERY PENDING"
 		)
 		return _snapshot.duplicate(true)
 	var worst: Dictionary = {}
@@ -101,16 +108,16 @@ func present_hero_report(report: Dictionary) -> Dictionary:
 		return _snapshot.duplicate(true)
 	var component_id := StringName(worst.get("id", &"unknown"))
 	var integrity := clampf(float(worst.get("integrity", 0.0)), 0.0, 1.0)
-	var authoritative_stage := StringName(worst.get("state_id", &"failed"))
+	var component_stage := StringName(worst.get("state_id", &"failed"))
 	var wording := &"nominal"
 	var repairing := component_id == repairing_component_id and integrity < 1.0
 	if repairing:
 		wording = &"repairing"
-	elif authoritative_stage == &"failed":
+	elif component_stage == &"failed":
 		wording = &"failed"
 	elif integrity <= CRITICAL_INTEGRITY_THRESHOLD:
 		wording = &"critical"
-	elif authoritative_stage == &"impaired":
+	elif component_stage == &"impaired":
 		wording = &"degraded"
 	var component_name := str(COMPONENT_NAMES.get(component_id, String(component_id))).to_upper()
 	var percentage := clampi(roundi(integrity * 100.0), 0, 100)
@@ -125,7 +132,7 @@ func present_hero_report(report: Dictionary) -> Dictionary:
 		"component_name": component_name,
 		"integrity": integrity,
 		"percentage": percentage,
-		"authoritative_stage": authoritative_stage,
+		"component_stage": component_stage,
 		"wording": wording,
 		"repairing": repairing,
 		"presentation_only": true,
@@ -142,7 +149,6 @@ func _lifecycle_snapshot(wording: StringName, text: String, state_text: String) 
 		"component_name": "COMPONENT ROSTER",
 		"integrity": 0.0 if wording == &"destroyed" else 1.0,
 		"percentage": 0 if wording == &"destroyed" else 100,
-		"authoritative_stage": wording,
 		"wording": wording,
 		"state_text": state_text,
 		"repairing": false,

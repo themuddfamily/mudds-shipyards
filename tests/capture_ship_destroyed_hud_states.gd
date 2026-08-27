@@ -5,7 +5,7 @@ extends SceneTree
 ## this harness owns only a neutral render background and never writes lifecycle.
 
 const HudType := preload("res://scripts/ui/hud.gd")
-const ArrowType := preload("res://scripts/ships/arrow_recon_ship.gd")
+const ArrowScene := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const OUTPUT_DIR := "user://screenshots/ship_destroyed_hud_states"
 
 var _assertions := 0
@@ -30,7 +30,7 @@ func _run() -> void:
 	root.add_child(background)
 	var hud := HudType.new()
 	root.add_child(hud)
-	var arrow := ArrowType.new() as HeroShip
+	var arrow := ArrowScene.instantiate() as HeroShip
 	root.add_child(arrow)
 	await process_frame
 	await physics_frame
@@ -46,12 +46,14 @@ func _run() -> void:
 
 	arrow.apply_damage(999.0, arrow.global_position, Vector3.UP, -1, false)
 	await _settle()
-	_capture("02_destroyed", label, "[X] DESTROYED  //  HULL LOST  //  BERTH RECOVERY", true)
+	_capture("02_destroyed", label, "[X] DESTROYED  //  HULL LOST", true)
 
 	var reset := arrow.reset_for_reuse(arrow.global_transform)
 	_check(bool(reset.get("accepted", false)), "capture accepts the production post-destruction reset")
 	await _settle()
-	_capture("03_respawn_ready", label, "[+] RESPAWN READY  //  ROSTER RESTORED", true)
+	var recovery := arrow.get_component_recovery_report()
+	_check(bool(recovery.get("valid", false)), "capture observes the complete public recovery audit")
+	_capture("03_respawn_ready", label, "[+] RESPAWN READY  //  RECOVERY VERIFIED", true)
 
 	hud.clear_hero_component_ship()
 	await _settle()

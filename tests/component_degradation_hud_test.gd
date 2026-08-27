@@ -30,6 +30,41 @@ class ComponentReportSource:
 		component_repair_progressed.emit(progress.duplicate(true))
 
 
+class LifecycleReportSource:
+	extends Node
+
+	signal component_damage_changed(component_id: StringName, state: int, integrity: float)
+	signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
+
+	var report: Dictionary = {}
+	var telemetry: Dictionary = {"destroyed": false}
+	var recovery: Dictionary = {}
+
+
+	func get_component_damage_report() -> Dictionary:
+		return report.duplicate(true)
+
+
+	func get_telemetry() -> Dictionary:
+		return telemetry.duplicate(true)
+
+
+	func get_component_recovery_report() -> Dictionary:
+		return recovery.duplicate(true)
+
+
+	func publish(
+		next_telemetry: Dictionary,
+		next_recovery: Dictionary,
+		next_report: Dictionary = {}
+	) -> void:
+		telemetry = next_telemetry.duplicate(true)
+		recovery = next_recovery.duplicate(true)
+		if not next_report.is_empty():
+			report = next_report.duplicate(true)
+		component_damage_changed.emit(&"forward_hull", 0, 1.0)
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -64,7 +99,8 @@ func _run() -> void:
 		and label.text.contains("ENGINE BAY")
 		and label.text.contains("DEGRADED")
 		and label.text.contains("%")
-		and degraded.get("authoritative_stage") == &"impaired"
+		and degraded.get("component_stage") == &"impaired"
+		and not degraded.has("authoritative_stage")
 		and degraded.get("wording") == &"degraded"
 		and degraded.get("text") == label.text,
 		"a real component signal publishes section, integrity, and explicit DEGRADED wording"
@@ -75,7 +111,7 @@ func _run() -> void:
 	_check(
 		label.text.begins_with("[!] DAMAGE  //  ENGINE BAY")
 		and label.text.contains("CRITICAL")
-		and critical.get("authoritative_stage") == &"impaired"
+		and critical.get("component_stage") == &"impaired"
 		and critical.get("wording") == &"critical"
 		and critical.get("text") == label.text,
 		"authoritative impaired integrity below forty percent gains explicit non-color CRITICAL wording"
@@ -98,7 +134,7 @@ func _run() -> void:
 	_check(
 		label.text.begins_with("[X] FAILURE  //  ENGINE BAY")
 		and label.text.contains("FAILED")
-		and failed.get("authoritative_stage") == &"failed"
+		and failed.get("component_stage") == &"failed"
 		and failed.get("wording") == &"failed"
 		and bool(failed.get("presentation_only", false))
 		and not bool(failed.get("authority", true))
@@ -109,8 +145,9 @@ func _run() -> void:
 	var torrent_reset := torrent.reset_for_reuse(torrent.global_transform)
 	_check(
 		bool(torrent_reset.get("accepted", false))
-		and label.text == "COMPONENT  //  FORWARD HULL  100%  //  NOMINAL",
-		"respawn component signals restore the compact HUD line to nominal"
+		and bool(torrent.get_component_recovery_report().get("valid", false))
+		and label.text == "[+] RESPAWN READY  //  RECOVERY VERIFIED",
+		"reset component signals publish only complete audited recovery readiness"
 	)
 
 	_check(
@@ -244,30 +281,73 @@ func _run() -> void:
 		"whole-Main re-entry restores one retained active-craft component presentation"
 	)
 
-	# The retained flight row reads the bound craft's public telemetry and its
-	# post-reuse audit. These are real lifecycle facts, not a HUD-owned timer or
-	# synthetic recovery phase.
+	# Lifecycle presentation is a pure projection of current public facts. The
+	# fake source makes a nominal roster disagree with an invalid complete audit,
+	# then changes only the current snapshots to prove no destroyed latch survives.
+	var lifecycle_source := LifecycleReportSource.new()
+	game.add_child(lifecycle_source)
+	var lifecycle_report := arrow.get_component_damage_report()
+	lifecycle_report["ledger_generation"] = 2
+	lifecycle_report["revision"] = int(lifecycle_report.get("revision", 0)) + 20
+	lifecycle_source.report = lifecycle_report.duplicate(true)
+	var invalid_recovery := _recovery_audit(2, false)
+	lifecycle_source.recovery = invalid_recovery.duplicate(true)
+	_check(
+		hud.bind_hero_component_ship(lifecycle_source)
+		and label.text == "[!] RECOVERY PENDING  //  AUDIT NOT READY"
+		and hud.get_hero_component_hud_snapshot().get("wording") == &"recovery_pending",
+		"a nominal roster cannot upgrade an invalid complete recovery audit to readiness"
+	)
+	lifecycle_source.publish({"destroyed": true}, invalid_recovery)
+	_check(
+		label.text == "[X] DESTROYED  //  HULL LOST"
+		and not label.text.contains("BERTH")
+		and hud.get_hero_component_hud_snapshot().get("wording") == &"destroyed",
+		"destroyed telemetry reports hull loss without inventing berth recovery"
+	)
+	lifecycle_source.publish({"destroyed": false}, invalid_recovery)
+	_check(
+		label.text == "[!] RECOVERY PENDING  //  AUDIT NOT READY",
+		"clearing current destroyed telemetry leaves no HUD-owned destroyed lifecycle memory"
+	)
+	var valid_recovery := _recovery_audit(2, true)
+	lifecycle_source.publish({"destroyed": false}, valid_recovery)
+	var verified_snapshot := hud.get_hero_component_hud_snapshot()
+	_check(
+		label.text == "[+] RESPAWN READY  //  RECOVERY VERIFIED"
+		and verified_snapshot.get("wording") == &"respawn_ready"
+		and not verified_snapshot.has("authoritative_stage"),
+		"only the complete current recovery audit publishes readiness"
+	)
+	game.remove_child(lifecycle_source)
+	lifecycle_source.free()
+
+	# The retained flight row also exercises the production Arrow's current
+	# telemetry, reset transaction, and detached recovery audit.
 	hud.bind_hero_component_ship(arrow)
 	arrow.apply_damage(999.0, arrow.global_position, Vector3.UP, -1, false)
 	await process_frame
 	var destroyed_snapshot := hud.get_hero_component_hud_snapshot()
 	_check(
 		label.visible
-		and label.text == "[X] DESTROYED  //  HULL LOST  //  BERTH RECOVERY"
+		and label.text == "[X] DESTROYED  //  HULL LOST"
 		and destroyed_snapshot.get("wording") == &"destroyed"
+		and not destroyed_snapshot.has("authoritative_stage")
 		and bool(destroyed_snapshot.get("presentation_only", false))
 		and not bool(destroyed_snapshot.get("authority", true)),
 		"a real destroyed ship publishes a persistent non-color destruction marker"
 	)
 	var respawn := arrow.reset_for_reuse(arrow.global_transform)
 	await process_frame
+	var recovery := arrow.get_component_recovery_report()
 	var respawn_snapshot := hud.get_hero_component_hud_snapshot()
 	_check(
 		bool(respawn.get("accepted", false))
-		and label.text == "[+] RESPAWN READY  //  ROSTER RESTORED"
+		and bool(recovery.get("valid", false))
+		and label.text == "[+] RESPAWN READY  //  RECOVERY VERIFIED"
 		and respawn_snapshot.get("wording") == &"respawn_ready"
-		and respawn_snapshot.get("authoritative_stage") == &"respawn_ready",
-		"the actual post-reuse roster reports respawn readiness with distinct text and shape"
+		and not respawn_snapshot.has("authoritative_stage"),
+		"the actual post-reuse audit reports verified readiness with distinct text and shape"
 	)
 
 	game.queue_free()
@@ -330,6 +410,30 @@ func _repair_progress_for(report: Dictionary, revision: int) -> Dictionary:
 				}],
 			}
 	return {}
+
+
+func _recovery_audit(generation: int, valid: bool) -> Dictionary:
+	var errors := PackedStringArray() if valid else PackedStringArray(["presentation_residue"])
+	return {
+		"valid": valid,
+		"errors": errors,
+		"scope": &"hero_ship_component_recovery",
+		"model_generation": generation,
+		"presentation_generation": generation,
+		"component_sequence": -1,
+		"pending_presentations": 0,
+		"presentation": {
+			"valid": valid,
+			"errors": errors.duplicate(),
+			"scope": &"hero_damage_component_recovery",
+			"presentation_generation": generation,
+			"pending_presentations": 0,
+			"localized_component_effects": 0,
+			"component_repair_cues": 0,
+			"impact_effects": 0,
+			"debris": 0,
+		},
+	}.duplicate(true)
 
 
 func _check(condition: bool, message: String) -> void:

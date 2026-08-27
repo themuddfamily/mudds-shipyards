@@ -13,7 +13,6 @@ var _repairing_component_id: StringName = &""
 var _accepted_ledger_generation := 0
 var _accepted_report_revision := -1
 var _accepted_report: Dictionary = {}
-var _destroyed_observed := false
 
 
 func attach(hud: Node, ship: Node) -> bool:
@@ -57,7 +56,6 @@ func detach() -> void:
 	_accepted_ledger_generation = 0
 	_accepted_report_revision = -1
 	_accepted_report = {}
-	_destroyed_observed = false
 
 
 func set_presenting(enabled: bool) -> void:
@@ -139,9 +137,8 @@ func _on_hull_changed(_current: float, _maximum: float) -> void:
 
 
 func _on_ship_destroyed(_world_position: Vector3, _inherited_velocity: Vector3) -> void:
-	# The signal is only a redraw notification. The displayed fact comes from
-	# the public telemetry snapshot read in `_lifecycle_snapshot`.
-	_destroyed_observed = true
+	# Redraw only. The displayed fact is re-read from public telemetry below;
+	# this binding retains no destruction or recovery lifecycle memory.
 	refresh()
 
 
@@ -244,31 +241,64 @@ func _accept_report(report: Dictionary) -> void:
 	_accepted_report = report.duplicate(true)
 
 
-## Reads only published HeroShip snapshots. A respawn-ready row is shown only
-## after this bound craft was actually observed destroyed and its public
-## component-recovery audit says the roster is restored; a fresh nominal craft
-## therefore keeps the ordinary nominal component row.
+## Pure projection of the ship's current published snapshots. Generation one is
+## the configured craft's initial life; a later generation is public evidence
+## that reset-for-reuse ran. Readiness requires the complete recovery audit and
+## its nested presentation audit, never a nominal roster on its own.
 func _lifecycle_snapshot(report: Dictionary) -> Dictionary:
 	var ship := _get_ship()
 	if not is_instance_valid(ship) or not ship.has_method("get_telemetry"):
 		return {}
 	var telemetry := ship.call("get_telemetry") as Dictionary
-	var destroyed := bool(telemetry.get("destroyed", false))
-	if destroyed:
-		_destroyed_observed = true
+	if bool(telemetry.get("destroyed", false)):
 		return {"destroyed": true}
-	if not _destroyed_observed or not ship.has_method("get_component_recovery_report"):
+	if not ship.has_method("get_component_recovery_report"):
 		return {}
 	var recovery := ship.call("get_component_recovery_report") as Dictionary
-	if bool(recovery.get("valid", false)):
-		return {"roster_restored": true}
-	# The component report is itself the public, detached roster snapshot. Some
-	# focused production-host captures do not build every optional visual audit
-	# root that the broader recovery report checks, so retain this narrower
-	# roster-only proof for the HUD row rather than claiming a new lifecycle.
-	if _report_roster_is_nominal(report):
-		return {"roster_restored": true}
+	if _recovery_audit_is_complete(recovery, report):
+		return {"recovery_ready": true}
+	if _recovery_audit_is_post_reuse(recovery, report):
+		return {"recovery_pending": true}
 	return {}
+
+
+func _recovery_audit_is_complete(recovery: Dictionary, report: Dictionary) -> bool:
+	var model_generation := _strict_int(recovery, "model_generation", 0)
+	var presentation_generation := _strict_int(recovery, "presentation_generation", 0)
+	var presentation := recovery.get("presentation", {}) as Dictionary
+	return (
+		bool(recovery.get("valid", false))
+		and StringName(recovery.get("scope", &"")) == &"hero_ship_component_recovery"
+		and _errors_are_empty(recovery)
+		and model_generation > 1
+		and presentation_generation == model_generation
+		and _strict_int(report, "ledger_generation", 0) == model_generation
+		and _strict_int(recovery, "component_sequence", -2) == -1
+		and _strict_int(recovery, "pending_presentations", -1) == 0
+		and bool(presentation.get("valid", false))
+		and StringName(presentation.get("scope", &"")) == &"hero_damage_component_recovery"
+		and _errors_are_empty(presentation)
+		and _strict_int(presentation, "presentation_generation", 0) == model_generation
+		and _strict_int(presentation, "pending_presentations", -1) == 0
+		and _strict_int(presentation, "localized_component_effects", -1) == 0
+		and _strict_int(presentation, "component_repair_cues", -1) == 0
+		and _strict_int(presentation, "impact_effects", -1) == 0
+		and _strict_int(presentation, "debris", -1) == 0
+		and _report_roster_is_nominal(report)
+	)
+
+
+func _recovery_audit_is_post_reuse(recovery: Dictionary, report: Dictionary) -> bool:
+	return (
+		_strict_int(recovery, "model_generation", 0) > 1
+		or _strict_int(recovery, "presentation_generation", 0) > 1
+		or _strict_int(report, "ledger_generation", 0) > 1
+	)
+
+
+func _errors_are_empty(snapshot: Dictionary) -> bool:
+	var errors: Variant = snapshot.get("errors", null)
+	return errors is PackedStringArray and (errors as PackedStringArray).is_empty()
 
 
 func _report_roster_is_nominal(report: Dictionary) -> bool:
@@ -306,6 +336,8 @@ func _apply_steady_state_semantics(hud: Node) -> void:
 			semantic_lead = "[+] RESPAWN READY"
 		&"destroyed":
 			semantic_lead = "[X] DESTROYED"
+		&"recovery_pending":
+			semantic_lead = "[!] RECOVERY PENDING"
 		&"repairing":
 			semantic_lead = "[+] RECOVERY"
 		&"failed":
@@ -314,7 +346,7 @@ func _apply_steady_state_semantics(hud: Node) -> void:
 			semantic_lead = "[!] DAMAGE"
 		_:
 			return
-	if wording in [&"respawn_ready", &"destroyed"]:
+	if wording in [&"respawn_ready", &"destroyed", &"recovery_pending"]:
 		# The lifecycle rows already carry their complete, shape-safe text.
 		return
 	var label := hud.find_child("ComponentStatus", true, false) as Label
