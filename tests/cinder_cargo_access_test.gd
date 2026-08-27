@@ -399,11 +399,8 @@ func _test_identity_placement_budget_and_authority(
 		and int(identity.incremental_renderer_submissions) == 0
 		and int(identity.collision_nodes) == 0
 		and identity_label != null
-		and identity_header.find("CINDER CARGO TERMINAL") >= 0
-		and identity_header.find("JOVIAN BERTH") >= 0
-		and identity_header.find("|") >= 0
-		and identity_header.find("CINDER CARGO TERMINAL") < identity_header.find("|")
-		and identity_header.find("JOVIAN BERTH") > identity_header.find("|")
+		and identity_header == "< CINDER CARGO TERMINAL | JOVIAN BERTH >"
+		and CinderCargoAccess.ROUTE_IDENTITY_HEADER == identity_header
 		and delivery_direction.dot(displayed_left) > 0.5
 		and delivery_direction.dot(displayed_right) < -0.5
 		and pickup_direction.dot(displayed_right) > 0.5
