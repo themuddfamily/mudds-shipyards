@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 67
+const EXPECTED_ASSERTIONS := 68
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -189,9 +189,9 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	_check(
 		route_spine != null and route_spine.get_child_count() == 0 \
 			and spine_multi != null and spine_multi.instance_count == 10 \
-			and spine_multi.custom_aabb.is_equal_approx(AABB(
-				Vector3(16.7, 0.02, -1.5), Vector3(24.4, 0.025, 3.0)
-			)) \
+			and spine_multi.custom_aabb.is_equal_approx(
+				_transformed_unit_box_union(spine_transforms)
+			) \
 			and spine_mesh != null and spine_mesh.size == Vector3.ONE \
 			and spine_mesh.material \
 				== (scene.get_node(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry/DeadSensorVisual") as MeshInstance3D).material_override \
@@ -211,6 +211,13 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 				== PackedStringArray(["ember_sample_rack_access", "ember_staging_relay_access"]) \
 			and float(snapshot.geometry.surface_route_spine_maximum_height_m) <= 0.05,
 		"five steady oxide chevrons guide the route forward, then turn toward the existing rack and relay access markers",
+	)
+	_check(
+		_transformed_unit_box_corners_are_enclosed(
+			spine_multi.custom_aabb if spine_multi != null else AABB(),
+			spine_transforms,
+		),
+		"the frozen route batch bound encloses every corner of all ten transformed cue bars",
 	)
 	var gantry := scene.get_node(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
 	var pylon_batch := gantry.get_node_or_null(^"GantryPylonVisuals") as MultiMeshInstance3D \
@@ -858,6 +865,39 @@ func _exact_all_false(candidate: Dictionary, keys: Array) -> bool:
 	for key in keys:
 		if not candidate.has(key) or not candidate[key] is bool or bool(candidate[key]):
 			return false
+	return true
+
+
+func _transformed_unit_box_union(transforms: Array) -> AABB:
+	if transforms.is_empty():
+		return AABB()
+	var unit_box := AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)
+	var bounds := ((transforms[0] as Transform3D) * unit_box).abs()
+	for index in range(1, transforms.size()):
+		bounds = bounds.merge(((transforms[index] as Transform3D) * unit_box).abs())
+	return bounds
+
+
+func _transformed_unit_box_corners_are_enclosed(
+		bounds: AABB,
+		transforms: Array,
+	) -> bool:
+	if transforms.size() != 10 or bounds.size.x <= 0.0:
+		return false
+	var epsilon := 0.00001
+	for transform_value in transforms:
+		var transform := transform_value as Transform3D
+		for x in [-0.5, 0.5]:
+			for y in [-0.5, 0.5]:
+				for z in [-0.5, 0.5]:
+					var point := transform * Vector3(x, y, z)
+					if point.x < bounds.position.x - epsilon \
+							or point.y < bounds.position.y - epsilon \
+							or point.z < bounds.position.z - epsilon \
+							or point.x > bounds.end.x + epsilon \
+							or point.y > bounds.end.y + epsilon \
+							or point.z > bounds.end.z + epsilon:
+						return false
 	return true
 
 

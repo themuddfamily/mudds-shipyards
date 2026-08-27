@@ -54,10 +54,6 @@ const ROUTE_SPINE_HALF_SPAN_M := 1.35
 const ROUTE_SPINE_TIP_OFFSET_M := 1.0
 const ROUTE_SPINE_TAIL_OFFSET_M := 1.15
 const ROUTE_SPINE_Y_M := 0.0325
-const ROUTE_SPINE_BATCH_BOUNDS := AABB(
-	Vector3(16.7, 0.02, -1.5),
-	Vector3(24.4, 0.025, 3.0),
-)
 const PAD_GUIDE_SIZE_M := Vector3(0.5, 1.8, 0.5)
 const PORT_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, -5.0)
 const STARBOARD_PAD_GUIDE_POSITION_M := Vector3(14.8, 0.9, 5.0)
@@ -1701,7 +1697,10 @@ func _configure_surface_route_spine() -> void:
 	multi.instance_count = ROUTE_SPINE_INSTANCE_COUNT
 	var transforms := _surface_route_spine_transforms()
 	multi.buffer = _encode_multi_mesh_transforms(transforms)
-	multi.custom_aabb = ROUTE_SPINE_BATCH_BOUNDS
+	# Freeze the exact transformed unit-box union. This follows the two rotated
+	# destination chevrons as well as the forward spine, preventing Forward+
+	# from culling a turn arm against a stale x-only batch bound.
+	multi.custom_aabb = _surface_route_spine_batch_bounds(transforms)
 	var spine := MultiMeshInstance3D.new()
 	spine.name = &"RouteSpineVisuals"
 	spine.multimesh = multi
@@ -1742,12 +1741,15 @@ func _surface_route_spine_is_exact(
 	if multi.transform_format != MultiMesh.TRANSFORM_3D \
 			or multi.instance_count != ROUTE_SPINE_INSTANCE_COUNT \
 			or multi.visible_instance_count not in [-1, ROUTE_SPINE_INSTANCE_COUNT] \
-			or not multi.custom_aabb.is_equal_approx(ROUTE_SPINE_BATCH_BOUNDS) \
 			or unit_bar == null or unit_bar.size != Vector3.ONE \
 			or unit_bar.material != oxide_accent.material_override \
 			or spine.material_override != oxide_accent.material_override:
 		return false
 	var expected := _surface_route_spine_transforms()
+	if not multi.custom_aabb.is_equal_approx(
+		_surface_route_spine_batch_bounds(expected)
+	):
+		return false
 	var authored: Variant = spine.get_meta("authored_transforms", [])
 	if not authored is Array or (authored as Array).size() != expected.size():
 		return false
@@ -1820,6 +1822,18 @@ static func _surface_route_spine_transforms() -> Array[Transform3D]:
 			ROUTE_SPINE_ARM_HEIGHT_M,
 		))
 	return transforms
+
+
+static func _surface_route_spine_batch_bounds(
+		transforms: Array[Transform3D],
+	) -> AABB:
+	if transforms.is_empty():
+		return AABB()
+	var unit_box := AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)
+	var bounds := (transforms[0] * unit_box).abs()
+	for index in range(1, transforms.size()):
+		bounds = bounds.merge((transforms[index] * unit_box).abs())
+	return bounds
 
 
 func _landing_approach_cues_are_exact(
