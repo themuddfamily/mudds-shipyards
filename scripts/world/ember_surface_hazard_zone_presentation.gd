@@ -26,6 +26,10 @@ var _recovery_cue_material: StandardMaterial3D
 
 const RECOVERY_CUE_DASH_COUNT := 4
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
+const BEACON_HALF_HEIGHT_M := 1.2
+const SAFE_BEACON_SCALE := Vector3(1.35, 0.24, 1.35)
+const WARNING_BEACON_SCALE := Vector3.ONE
+const RECOVERY_BEACON_SCALE := Vector3(0.72, 1.35, 0.72)
 
 
 func _ready() -> void:
@@ -175,6 +179,7 @@ func get_snapshot() -> Dictionary:
 		"anchor_body_local_m": _anchor,
 		"radius_m": _radius_m,
 		"state": _state,
+		"state_shape": _state_shape(_state),
 		"visible": _attached and _ring != null and _ring.visible,
 		"recovery_cue": {
 			"configured": not _recovery_landmark_id.is_empty(),
@@ -203,22 +208,42 @@ func get_snapshot() -> Dictionary:
 
 func _apply_state(state: StringName) -> void:
 	_state = state
+	var beacon_scale := SAFE_BEACON_SCALE
 	if _material != null:
 		match state:
 			&"recovery_required":
 				_material.albedo_color = Color(1.0, 0.12, 0.04, 0.72)
 				_material.emission = Color(1.0, 0.05, 0.01)
 				_material.emission_energy_multiplier = 2.4
+				beacon_scale = RECOVERY_BEACON_SCALE
 			&"warning":
 				_material.albedo_color = Color(1.0, 0.42, 0.04, 0.58)
 				_material.emission = Color(1.0, 0.24, 0.02)
 				_material.emission_energy_multiplier = 1.45
+				beacon_scale = WARNING_BEACON_SCALE
 			_:
 				_material.albedo_color = Color(1.0, 0.62, 0.08, 0.34)
 				_material.emission = Color(0.9, 0.32, 0.03)
 				_material.emission_energy_multiplier = 0.65
+	if _beacon != null:
+		# Keep the authored cone rooted on the surface while its silhouette changes.
+		# Safe is a low landing-pad marker, warning is an upright cone, and recovery
+		# is a narrow spire backed by the directional dashes. This stays legible
+		# without color or flashing and reuses the two existing hazard renderers.
+		_beacon.scale = beacon_scale
+		_beacon.position.y = BEACON_HALF_HEIGHT_M * beacon_scale.y
 	_set_visible(_attached)
 	_set_recovery_cue_visible(_attached and state == &"recovery_required")
+
+
+func _state_shape(state: StringName) -> StringName:
+	match state:
+		&"recovery_required":
+			return &"tall_spire_with_direction_dashes"
+		&"warning":
+			return &"upright_cone"
+		_:
+			return &"low_broad_safe_marker"
 
 
 func _set_visible(value: bool) -> void:
