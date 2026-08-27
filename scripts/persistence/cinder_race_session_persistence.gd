@@ -59,8 +59,9 @@ func save(
 	)
 
 
-## Public only so the authority owner and focused corruption test can exercise
-## the same validation boundary. Production passes the session's exact capture.
+## This remains public for the focused corruption contract, but it is not a
+## caller-authored state ingress: only the canonical JSON representation of the
+## exact live authority capture may proceed to transition validation or bytes.
 func save_state(
 	state: Dictionary,
 	session: CinderTimedRaceSession,
@@ -70,10 +71,18 @@ func save_state(
 	if not _configured() or session == null or not is_instance_valid(director) \
 			or commit_id.strip_edges().is_empty():
 		return _result(false, &"race_session_save_invalid")
-	var record := _record(state)
+	var canonical_state := _canonical_state(state)
+	var canonical_live_state := _canonical_state(
+		session.capture_persistence_state()
+	)
+	if canonical_state.is_empty() or canonical_live_state.is_empty():
+		return _result(false, &"race_session_save_invalid")
+	var record := _record(canonical_state)
 	var validated := validate_record(record, session, director)
 	if not bool(validated.get("accepted", false)):
 		return validated
+	if canonical_state != canonical_live_state:
+		return _result(false, &"race_session_not_live_capture")
 	var loaded := _store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
@@ -89,7 +98,7 @@ func save_state(
 			return existing_validation
 		var existing_record := _decode_record(payload[slot_key] as Dictionary)
 		var transition := _validate_transition(
-			existing_record.session_state as Dictionary, state
+			existing_record.session_state as Dictionary, canonical_state
 		)
 		if not bool(transition.get("accepted", false)):
 			return transition
@@ -165,52 +174,107 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary) -> Dictio
 	if candidate_generation < existing_generation:
 		return _result(false, &"stale_race_session")
 	if candidate_generation > existing_generation:
-		return _result(true, &"new_race_session_generation")
+		if candidate_generation != existing_generation + 1:
+			return _result(false, &"unproven_race_session_generation")
+		return _validate_next_generation_transition(existing, candidate)
 	if existing == candidate:
 		return _result(true, &"race_session_unchanged")
 	var existing_race := existing.race_state as Dictionary
 	var candidate_race := candidate.race_state as Dictionary
 	var existing_state := int(existing_race.get("state", -1))
 	var candidate_state := int(candidate_race.get("state", -1))
-	if _state_rank(candidate_state) < _state_rank(existing_state):
-		return _result(false, &"stale_race_session")
-	if _state_rank(candidate_state) == _state_rank(existing_state) \
-			and candidate_state != existing_state:
-		return _result(false, &"conflicting_race_session_terminal")
-	if existing_state == TimedCheckpointRace.State.COUNTDOWN \
-			and candidate_state == TimedCheckpointRace.State.COUNTDOWN \
-			and float(candidate_race.get("countdown_remaining_seconds", 0.0)) \
-			> float(existing_race.get("countdown_remaining_seconds", 0.0)):
-		return _result(false, &"stale_race_session")
 	if float(candidate_race.get("race_elapsed_seconds", -1.0)) \
 			< float(existing_race.get("race_elapsed_seconds", 0.0)) \
 			or float(candidate_race.get("penalty_seconds", -1.0)) \
 			< float(existing_race.get("penalty_seconds", 0.0)):
 		return _result(false, &"stale_race_session")
-	if existing_state == TimedCheckpointRace.State.ACTIVE \
-			and candidate_state == TimedCheckpointRace.State.ACTIVE:
-		var existing_lap := int(existing_race.get("current_lap", -1))
-		var candidate_lap := int(candidate_race.get("current_lap", -1))
-		var existing_checkpoint := int(existing_race.get("next_checkpoint_index", -1))
-		var candidate_checkpoint := int(candidate_race.get("next_checkpoint_index", -1))
-		if candidate_lap < existing_lap or (
-			candidate_lap == existing_lap and candidate_checkpoint < existing_checkpoint
-		):
-			return _result(false, &"stale_race_session")
-	return _result(true, &"race_session_advanced")
-
-
-func _state_rank(state: int) -> int:
-	match state:
-		TimedCheckpointRace.State.IDLE:
-			return 0
+	match existing_state:
 		TimedCheckpointRace.State.COUNTDOWN:
-			return 1
+			if candidate_state == TimedCheckpointRace.State.COUNTDOWN:
+				if float(candidate_race.countdown_remaining_seconds) \
+						> float(existing_race.countdown_remaining_seconds) \
+						or not _same_results(existing_race, candidate_race):
+					return _result(false, &"stale_race_session")
+				return _result(true, &"race_session_countdown_advanced")
+			if candidate_state == TimedCheckpointRace.State.ACTIVE \
+					and _active_progress_ordinal(candidate_race) == 0 \
+					and _same_results(existing_race, candidate_race):
+				return _result(true, &"race_session_activated")
+			if candidate_state == TimedCheckpointRace.State.FAILED \
+					and _same_checkpoint(existing_race, candidate_race) \
+					and _same_results(existing_race, candidate_race):
+				return _result(true, &"race_session_failed")
 		TimedCheckpointRace.State.ACTIVE:
-			return 2
-		TimedCheckpointRace.State.COMPLETED, TimedCheckpointRace.State.FAILED:
-			return 3
-	return -1
+			if candidate_state == TimedCheckpointRace.State.ACTIVE:
+				var progress_delta := (
+					_active_progress_ordinal(candidate_race)
+					- _active_progress_ordinal(existing_race)
+				)
+				if progress_delta < 0 or progress_delta > 1 \
+						or not _same_results(existing_race, candidate_race):
+					return _result(false, &"unproven_race_session_progress")
+				return _result(true, &"race_session_advanced")
+			if candidate_state == TimedCheckpointRace.State.COMPLETED:
+				var checkpoint_count := CinderTimedRaceSession.ROUTE.get_checkpoint_count()
+				var total_progress := int(existing_race.get("lap_count", 0)) * checkpoint_count
+				if _active_progress_ordinal(existing_race) != total_progress - 1:
+					return _result(false, &"unproven_race_session_completion")
+				return _result(true, &"race_session_completed")
+			if candidate_state == TimedCheckpointRace.State.FAILED \
+					and _same_checkpoint(existing_race, candidate_race) \
+					and _same_results(existing_race, candidate_race):
+				return _result(true, &"race_session_failed")
+	return _result(false, &"unproven_race_session_transition")
+
+
+func _validate_next_generation_transition(
+	existing: Dictionary,
+	candidate: Dictionary
+	) -> Dictionary:
+	var existing_race := existing.race_state as Dictionary
+	var candidate_race := candidate.race_state as Dictionary
+	var candidate_state := int(candidate_race.get("state", -1))
+	if candidate_state not in [
+		TimedCheckpointRace.State.IDLE,
+		TimedCheckpointRace.State.COUNTDOWN,
+	] or not _same_results(existing_race, candidate_race):
+		return _result(false, &"unproven_race_session_generation")
+	if candidate_state == TimedCheckpointRace.State.COUNTDOWN \
+			and not is_equal_approx(
+				float(candidate_race.get("countdown_remaining_seconds", -1.0)),
+				float(candidate.get("configured_countdown_seconds", -2.0))
+			):
+		return _result(false, &"unproven_race_session_generation")
+	return _result(true, &"new_race_session_generation")
+
+
+func _active_progress_ordinal(race: Dictionary) -> int:
+	return (
+		int(race.get("current_lap", 0))
+		* CinderTimedRaceSession.ROUTE.get_checkpoint_count()
+		+ int(race.get("next_checkpoint_index", 0))
+	)
+
+
+func _same_checkpoint(left: Dictionary, right: Dictionary) -> bool:
+	return (
+		int(left.get("current_lap", -1)) == int(right.get("current_lap", -2))
+		and int(left.get("next_checkpoint_index", -1))
+		== int(right.get("next_checkpoint_index", -2))
+	)
+
+
+func _same_results(left: Dictionary, right: Dictionary) -> bool:
+	return (
+		is_equal_approx(
+			float(left.get("last_time_seconds", -1.0)),
+			float(right.get("last_time_seconds", -2.0))
+		)
+		and is_equal_approx(
+			float(left.get("best_time_seconds", -1.0)),
+			float(right.get("best_time_seconds", -2.0))
+		)
+	)
 
 
 func _record(state: Dictionary) -> Dictionary:
@@ -239,6 +303,11 @@ func _decode_record(record: Dictionary) -> Dictionary:
 	return {
 		"session_state": (progress.get("session_state", {}) as Dictionary).duplicate(true),
 	}.duplicate(true)
+
+
+func _canonical_state(state: Dictionary) -> Dictionary:
+	var decoded: Variant = JSON.parse_string(JSON.stringify(state))
+	return (decoded as Dictionary).duplicate(true) if decoded is Dictionary else {}
 
 
 func _configured() -> bool:

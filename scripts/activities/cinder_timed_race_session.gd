@@ -426,7 +426,11 @@ func validate_persistence_state(
 	)
 	if not coherent:
 		return _persistence_result(false, &"authority_state_mismatch")
-	if timed_state == TimedCheckpointRace.State.ACTIVE \
+	if timed_state in [
+		TimedCheckpointRace.State.COUNTDOWN,
+		TimedCheckpointRace.State.ACTIVE,
+		TimedCheckpointRace.State.FAILED,
+	] \
 			and int(activity_state.get("next_checkpoint_index", -1)) \
 			!= int(race_state.get("next_checkpoint_index", -2)):
 		return _persistence_result(false, &"checkpoint_mismatch")
@@ -434,6 +438,12 @@ func validate_persistence_state(
 			and str(activity_state.get("failure_reason", "")) \
 			!= str(race_state.get("failure_reason", "")):
 		return _persistence_result(false, &"failure_reason_mismatch")
+	if not str(state.presentation_reason).is_empty() \
+			and timed_state not in [
+				TimedCheckpointRace.State.ACTIVE,
+				TimedCheckpointRace.State.FAILED,
+			]:
+		return _persistence_result(false, &"presentation_reason_mismatch")
 	return _persistence_result(true, &"session_state_valid")
 
 

@@ -199,36 +199,137 @@ func _run() -> void:
 
 	_check(second.reset_active_activity(), "the restored terminal result resets through production")
 	var replacement := second.request_activity_start(ROUTE.activity_id)
+	var countdown_state := restored_session.capture_persistence_state()
+	second.call("_physics_process", 2.0)
 	var live_state := restored_session.capture_persistence_state()
 	var adapter := SessionPersistence.new() as CinderRaceSessionPersistence
 	adapter.configure(second_store, SLOT)
-	var forged := live_state.duplicate(true)
-	(forged.activity_state as Dictionary).generation = int(forged.session_generation) - 1
-	var generation_before_rejection := second_store.get_generation()
-	var forged_result := adapter.save_state(
-		forged,
+	var exact_live := adapter.save_state(
+		live_state,
 		restored_session,
 		second.get_activity_director(),
-		"forged-cinder-race-session"
+		"exact-live-cinder-race-session"
+	)
+	var generation_before_rejection := second_store.get_generation()
+	var signals_before_rejection := lifecycle_counts.duplicate(true)
+	var persistence_signal_count := {"count": 0}
+	var count_snapshot_signal := func(_snapshot: Dictionary) -> void:
+		persistence_signal_count.count = int(persistence_signal_count.count) + 1
+	restored_session.session_active.connect(count_snapshot_signal)
+	restored_session.penalty_changed.connect(count_snapshot_signal)
+	restored_session.session_failed.connect(count_snapshot_signal)
+	restored_session.session_reset.connect(count_snapshot_signal)
+	restored_session.presentation_changed.connect(count_snapshot_signal)
+	restored_session.lap_advanced.connect(
+		func(_snapshot: Dictionary, _lap_time_seconds: float) -> void:
+			persistence_signal_count.count = int(persistence_signal_count.count) + 1
+	)
+	var forged_generation_mismatch := live_state.duplicate(true)
+	(forged_generation_mismatch.activity_state as Dictionary).generation = (
+		int(forged_generation_mismatch.session_generation) - 1
 	)
 	var stale := live_state.duplicate(true)
 	stale.session_generation = int(stale.session_generation) - 1
 	(stale.activity_state as Dictionary).generation = int(stale.session_generation)
 	(stale.race_state as Dictionary).generation = int(stale.session_generation)
-	var stale_result := adapter.save_state(
+	var forged_forward_gate := live_state.duplicate(true)
+	(forged_forward_gate.activity_state as Dictionary).next_checkpoint_index = 2
+	(forged_forward_gate.race_state as Dictionary).next_checkpoint_index = 2
+	var forged_higher_generation := live_state.duplicate(true)
+	forged_higher_generation.session_generation = (
+		int(forged_higher_generation.session_generation) + 4
+	)
+	(forged_higher_generation.activity_state as Dictionary).generation = int(
+		forged_higher_generation.session_generation
+	)
+	(forged_higher_generation.race_state as Dictionary).generation = int(
+		forged_higher_generation.session_generation
+	)
+	var forged_results := live_state.duplicate(true)
+	(forged_results.race_state as Dictionary).last_time_seconds = 6.0
+	(forged_results.race_state as Dictionary).best_time_seconds = 4.0
+	var countdown_route_divergence := countdown_state.duplicate(true)
+	(countdown_route_divergence.activity_state as Dictionary).next_checkpoint_index = 1
+	var failed_checkpoint_divergence := live_state.duplicate(true)
+	(failed_checkpoint_divergence.activity_state as Dictionary).state = (
+		CheckpointRouteActivity.State.FAILED
+	)
+	(failed_checkpoint_divergence.activity_state as Dictionary).failure_reason = "forged_failure"
+	(failed_checkpoint_divergence.activity_state as Dictionary).next_checkpoint_index = 1
+	(failed_checkpoint_divergence.race_state as Dictionary).state = TimedCheckpointRace.State.FAILED
+	(failed_checkpoint_divergence.race_state as Dictionary).failure_reason = "forged_failure"
+	var failed_reason_divergence := live_state.duplicate(true)
+	(failed_reason_divergence.activity_state as Dictionary).state = CheckpointRouteActivity.State.FAILED
+	(failed_reason_divergence.activity_state as Dictionary).failure_reason = "route_failure"
+	(failed_reason_divergence.race_state as Dictionary).state = TimedCheckpointRace.State.FAILED
+	(failed_reason_divergence.race_state as Dictionary).failure_reason = "race_failure"
+	var forged_states: Array[Dictionary] = [
+		forged_generation_mismatch,
 		stale,
-		restored_session,
-		second.get_activity_director(),
-		"stale-cinder-race-session"
+		forged_forward_gate,
+		forged_higher_generation,
+		forged_results,
+		countdown_route_divergence,
+		failed_checkpoint_divergence,
+		failed_reason_divergence,
+	]
+	var forged_results_by_case: Array[Dictionary] = []
+	for case_index in forged_states.size():
+		forged_results_by_case.append(adapter.save_state(
+			forged_states[case_index],
+			restored_session,
+			second.get_activity_director(),
+			"rejected-cinder-race-session-%d" % case_index
+		))
+	_check(
+		bool(replacement.get("accepted", false)) and bool(exact_live.get("accepted", false)),
+		"a legitimate reset and next generation still admit the exact live capture"
 	)
 	_check(
-		bool(replacement.get("accepted", false))
-			and not bool(forged_result.get("accepted", true))
-			and forged_result.get("reason", &"") == &"race_session_payload_corrupt"
-			and not bool(stale_result.get("accepted", true))
-			and stale_result.get("reason", &"") == &"stale_race_session"
-			and second_store.get_generation() == generation_before_rejection,
-		"forged and stale snapshots are rejected without changing store authority"
+		not bool(forged_results_by_case[0].get("accepted", true))
+			and forged_results_by_case[0].reason == &"race_session_payload_corrupt",
+		"a mismatched route generation is rejected"
+	)
+	_check(
+		not bool(forged_results_by_case[1].get("accepted", true))
+			and forged_results_by_case[1].reason == &"race_session_not_live_capture",
+		"a coherent but stale generation is rejected as non-live"
+	)
+	_check(
+		not bool(forged_results_by_case[2].get("accepted", true))
+			and forged_results_by_case[2].reason == &"race_session_not_live_capture",
+		"a coherent same-generation forward gate skip is rejected as non-live"
+	)
+	_check(
+		not bool(forged_results_by_case[3].get("accepted", true))
+			and forged_results_by_case[3].reason == &"race_session_not_live_capture",
+		"a coherent arbitrary higher generation is rejected as non-live"
+	)
+	_check(
+		not bool(forged_results_by_case[4].get("accepted", true))
+			and forged_results_by_case[4].reason == &"race_session_not_live_capture",
+		"altered last and best results are rejected as non-live"
+	)
+	_check(
+		not bool(forged_results_by_case[5].get("accepted", true))
+			and forged_results_by_case[5].reason == &"race_session_payload_corrupt",
+		"COUNTDOWN route/race checkpoint divergence is rejected"
+	)
+	_check(
+		not bool(forged_results_by_case[6].get("accepted", true))
+			and forged_results_by_case[6].reason == &"race_session_payload_corrupt",
+		"FAILED route/race checkpoint divergence is rejected"
+	)
+	_check(
+		not bool(forged_results_by_case[7].get("accepted", true))
+			and forged_results_by_case[7].reason == &"race_session_payload_corrupt",
+		"FAILED route/race failure-reason divergence is rejected"
+	)
+	_check(
+		second_store.get_generation() == generation_before_rejection
+			and lifecycle_counts == signals_before_rejection
+			and int(persistence_signal_count.count) == 0,
+		"all rejected persistence attempts write no bytes and emit no lifecycle signal"
 	)
 	_check(
 		second_store.get_generation() > stored_generation
