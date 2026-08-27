@@ -11,6 +11,9 @@ const BomberPayloadCombatAdapterType := preload("res://scripts/combat/bomber_pay
 const CinderLongRangeBomberType := preload("res://scripts/ships/cinder_long_range_bomber.gd")
 const CinderCargoHaulerType := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const CinderLoadmasterHudBindingType := preload("res://scripts/ui/cinder_loadmaster_hud_binding.gd")
+const BoardingConfirmationHudCompositionType := preload(
+	"res://scripts/ui/boarding_confirmation_hud_composition.gd"
+)
 const CinderNavigatorPingHudCompositionType := preload(
 	"res://scripts/ui/cinder_navigator_ping_hud_composition.gd"
 )
@@ -449,6 +452,7 @@ var planetary_cruise_binding: PlanetaryCruiseProductionBinding
 var _final_approach_hud_composition: FinalApproachHudComposition
 var _cinder_loadmaster_hud_binding: CinderLoadmasterHudBinding
 var _cinder_loadmaster_hud_craft: CinderCargoHauler
+var _boarding_confirmation_hud_composition: BoardingConfirmationHudComposition
 var _cinder_navigator_ping_hud_composition: RefCounted
 var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
@@ -798,6 +802,7 @@ func _exit_tree() -> void:
 	save_cinder_patrol_session()
 	_detach_cinder_race_session()
 	_detach_cinder_loadmaster_hud_binding()
+	_detach_boarding_confirmation_hud_composition()
 	_detach_final_approach_hud_composition()
 	_detach_caption_presentation()
 	_detach_nearby_activity_audio()
@@ -5190,6 +5195,7 @@ func start_shift() -> void:
 	hud.set_objective(
 		"Board the Torrent interceptor for the guided test — other berthed craft are available for free sorties"
 	)
+	_present_boarding_confirmation(&"approach", ship)
 	publish_first_sortie_tutorial_phase(&"walk_interact", _first_sortie_tutorial_generation)
 	hud.toast("Shipyard access granted", "Guided Torrent test and free-flight fleet access are available")
 	audio.set_on_foot(true)
@@ -5248,6 +5254,7 @@ func _update_on_foot_flow() -> void:
 	elif is_instance_valid(station_interaction_candidate):
 		hud.set_interaction(str(station_interaction_candidate.call("get_interaction_prompt")))
 	elif _near_ship:
+		_present_boarding_confirmation(&"available", boarding_candidate)
 		if _first_sortie_tutorial_active_step == &"walk_interact":
 			publish_first_sortie_tutorial_phase(
 				&"board", _first_sortie_tutorial_generation
@@ -5926,10 +5933,13 @@ func _is_transition_current(
 
 func _board_ship(candidate: HeroShip = null) -> void:
 	if _transition_busy or not is_instance_valid(candidate) or not candidate.is_boardable():
+		_present_boarding_confirmation(&"rejected", candidate, &"craft_unavailable")
 		return
 	var candidate_area := candidate.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if candidate_area != null and not candidate_area.try_reserve(player):
+		_present_boarding_confirmation(&"rejected", candidate, &"seat_reserved")
 		return
+	_present_boarding_confirmation(&"reserved", candidate)
 	# Retaking the seat of the craft whose cabin the player is already walking is
 	# an interior movement, not an approach across an apron: there is no hull to
 	# climb, no canopy to cycle, and the craft may still be drifting.
@@ -5977,6 +5987,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	_transition_busy = true
 	var transition_generation := _begin_transition_generation()
 	phase = Phase.BOARDING
+	_present_boarding_confirmation(&"boarding", active_ship)
 	player.set_control_enabled(false)
 	hud.set_interaction("", false)
 	if from_cabin:
@@ -6002,6 +6013,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 		active_ship if from_cabin else null
 	):
 		_transition_busy = false
+		_present_boarding_confirmation(&"rejected", candidate, &"seat_transition_failed")
 		if from_cabin:
 			# The craft is still idled offline under way; put the player back in its
 			# cabin rather than stranding a failed boarding in a berth phase.
@@ -6041,6 +6053,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	active_ship.set_piloted(true)
 	active_ship.get_camera().current = true
 	phase = Phase.START_ENGINES
+	_present_boarding_confirmation(&"seated", active_ship)
 	publish_first_sortie_tutorial_phase(&"launch", _first_sortie_tutorial_generation)
 	hud.set_mode("piloting")
 	if hud.has_method("bind_hero_component_ship"):
@@ -6093,6 +6106,7 @@ func _try_exit_ship() -> void:
 	var transition_ship := active_ship
 	var transition_generation := _begin_transition_generation()
 	phase = Phase.DISEMBARKING
+	_present_boarding_confirmation(&"disembarking", transition_ship)
 	hud.set_interaction("", false)
 	hud.set_objective("%s the %s and climb back onto the regeneration deck" % [open_verb.capitalize(), entry_noun])
 	audio.play_canopy(true)
@@ -6106,6 +6120,7 @@ func _try_exit_ship() -> void:
 	player.set_camera_active(true)
 	if not player.begin_disembark(active_ship.get_exit_transform(), disembarking_motion_time):
 		_transition_busy = false
+		_present_boarding_confirmation(&"rejected", transition_ship, &"disembark_transition_failed")
 		phase = Phase.SHUT_DOWN
 		return
 	await player.disembarking_completed
@@ -6125,6 +6140,7 @@ func _try_exit_ship() -> void:
 		_boarding_area.release_reservation(player)
 	_boarding_area = null
 	hud.set_mode("on-foot")
+	_present_boarding_confirmation(&"approach", transition_ship)
 	if hud.has_method("clear_hero_component_ship"):
 		hud.clear_hero_component_ship()
 	hud.set_interaction("", false)
@@ -12299,6 +12315,48 @@ func _detach_cinder_loadmaster_hud_binding() -> void:
 		_cinder_loadmaster_hud_binding.detach()
 	_cinder_loadmaster_hud_binding = null
 	_cinder_loadmaster_hud_craft = null
+
+
+## One-way presentation bridge for the existing retained public-status card.
+## Every fact here has already been committed by the physical boarding area or
+## player transition; the composition cannot feed a decision back into either.
+func _present_boarding_confirmation(
+		state: StringName,
+		craft: HeroShip = null,
+		reason: StringName = &""
+	) -> void:
+	if not is_instance_valid(hud):
+		return
+	if _boarding_confirmation_hud_composition == null:
+		_boarding_confirmation_hud_composition = BoardingConfirmationHudCompositionType.new()
+		var attached := _boarding_confirmation_hud_composition.attach(hud)
+		if not bool(attached.get("accepted", false)):
+			_boarding_confirmation_hud_composition = null
+			return
+	var observed_area := _boarding_area
+	if (observed_area == null or not is_instance_valid(observed_area)) and is_instance_valid(craft):
+		observed_area = craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var retained: bool = (
+		observed_area != null
+		and is_instance_valid(observed_area)
+		and is_instance_valid(player)
+		and observed_area.is_reserved_for(player)
+	)
+	_boarding_confirmation_hud_composition.apply_snapshot({
+		"state": state,
+		"craft_name": craft.get_display_name() if is_instance_valid(craft) else "CRAFT",
+		"reason": reason,
+		"generation": _transition_generation,
+		"reservation_retained": retained,
+		"transition_busy": _transition_busy,
+		"player_seated": is_instance_valid(player) and player.is_seated(),
+	})
+
+
+func _detach_boarding_confirmation_hud_composition() -> void:
+	if _boarding_confirmation_hud_composition != null:
+		_boarding_confirmation_hud_composition.detach()
+	_boarding_confirmation_hud_composition = null
 
 
 func _ensure_final_approach_hud_composition() -> void:
