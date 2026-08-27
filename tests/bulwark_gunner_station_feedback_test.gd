@@ -28,6 +28,16 @@ func _run() -> void:
 	root.add_child(combat_authority)
 	await process_frame
 	await physics_frame
+	var readout := craft.get_node_or_null(
+		"BulwarkHeavyGunshipVisual/GunnerStation/GunnerStatusReadout"
+	) as Label3D
+	var feedback := craft.call("get_gunner_station_feedback_snapshot") as Dictionary
+	_check(
+		readout != null
+			and feedback.get("roster_state", &"") == &"detached"
+			and readout.text.contains("[DETACHED]"),
+		"an unbound station explicitly reads DETACHED without relying on colour"
+	)
 
 	var authority := Authority.new(1)
 	for seat in [
@@ -41,17 +51,29 @@ func _run() -> void:
 				seat[0], &"bulwark_heavy_gunship", seat[1], &"bulwark_flight_deck", 1, seat[2]
 			).get("accepted", false)),
 			"required Bulwark seat registers: %s" % seat[0]
-		)
+	)
 	_check(bool(authority.seal_roster().get("accepted", false)), "focused role roster seals")
+	_check(
+		bool(craft.attach_crew_role_authority(authority).get("accepted", false)),
+		"Bulwark consumes the existing role authority"
+	)
+	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
+	_check(
+		feedback.get("roster_state", &"") == &"available"
+			and readout.text.contains("[AVAILABLE]"),
+		"a sealed unclaimed public gunner seat reads AVAILABLE"
+	)
 	_check(
 		bool(authority.claim(
 			1, 88, &"bulwark_gunner", &"gunner_station", Authority.ROLE_GUNNER, 1
 		).get("accepted", false)),
 		"gunner occupies the physical station"
 	)
+	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
 	_check(
-		bool(craft.attach_crew_role_authority(authority).get("accepted", false)),
-		"Bulwark consumes the existing role authority"
+		feedback.get("roster_state", &"") == &"claimed"
+			and readout.text.contains("[CLAIMED]"),
+		"a public gunner assignment reads CLAIMED before aiming"
 	)
 	_check(
 		bool(craft.attach_gunner_combat_authority(combat_authority).get("accepted", false)),
@@ -59,10 +81,7 @@ func _run() -> void:
 	)
 	craft.set("_engine_state", HeroShip.ENGINE_ONLINE)
 
-	var readout := craft.get_node_or_null(
-		"BulwarkHeavyGunshipVisual/GunnerStation/GunnerStatusReadout"
-	) as Label3D
-	var feedback := craft.call("get_gunner_station_feedback_snapshot") as Dictionary
+	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
 	_check(
 		readout != null
 			and feedback.get("state", &"") == Bulwark.GUNNER_FEEDBACK_NO_TARGET
@@ -75,7 +94,9 @@ func _run() -> void:
 	_check(
 		bool(selected.get("consumed", false))
 			and feedback.get("state", &"") == Bulwark.GUNNER_FEEDBACK_READY
+			and feedback.get("roster_state", &"") == &"armed"
 			and feedback.get("target_id", &"") == &"feedback_target"
+			and readout.text.contains("[ARMED]")
 			and readout.text.contains("LOCKED")
 			and readout.text.contains("READY"),
 		"target selection makes lock and fire readiness readable at the station"
@@ -87,6 +108,8 @@ func _run() -> void:
 		bool(charge.get("consumed", false))
 			and (charge.get("effect", {}) as Dictionary).get("status", &"") == &"charge_started"
 			and feedback.get("state", &"") == Bulwark.GUNNER_FEEDBACK_CHARGING
+			and feedback.get("roster_state", &"") == &"active"
+			and readout.text.contains("[ACTIVE]")
 			and readout.text.contains("CHARGING"),
 		"the authoritative charge exposes progress instead of appearing ready"
 	)
@@ -111,6 +134,16 @@ func _run() -> void:
 			and feedback.get("denial_reason", &"") == &"gunner_weapon_component_failed"
 			and readout.text.contains("WEAPON OFFLINE"),
 		"component denial replaces cooldown with an explicit weapon-offline cue"
+	)
+	var released: Dictionary = craft.release_crew_role(
+		1, 88, &"bulwark_gunner", &"gunner_station", 5
+	)
+	feedback = craft.call("get_gunner_station_feedback_snapshot") as Dictionary
+	_check(
+		bool(released.get("accepted", false))
+			and feedback.get("roster_state", &"") == &"released"
+			and readout.text.contains("[RELEASED]"),
+		"an accepted release stays visibly distinct from an available station"
 	)
 
 	craft.queue_free()
