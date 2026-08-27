@@ -15,6 +15,7 @@ func _run() -> void:
 	root.add_child(display)
 	await process_frame
 	var presented := display.present_crew_snapshot({
+		"authority_attached": true,
 		"role_occupancy": {
 			&"pilot": [{"seat_generation": 1}],
 			&"engineer": [{"seat_generation": 1}],
@@ -37,8 +38,9 @@ func _run() -> void:
 	_check(bool(presented.get("pilot_ready", false)), "display reflects detached pilot readiness")
 	_check(
 		int(presented.get("optional_crew_count", 0)) == 1
-			and (presented.get("role_states", {}).get(&"engineer", {}) as Dictionary).get("token", "") == "[ON]",
-		"display uses bounded text tokens for occupied optional crew"
+			and (presented.get("role_states", {}).get(&"engineer", {}) as Dictionary).get("token", "") == "[ACTIVE]"
+			and display.get_readout_text().contains("G [OPEN]"),
+		"display distinguishes linked open stations from active occupied crew without colour"
 	)
 	_check(
 		presented.get("engineer_route", "") == "[MOBILITY]"
@@ -47,8 +49,8 @@ func _run() -> void:
 	)
 	_check(
 		(presented.get("emergency_handoff", {}) as Dictionary).get("transition", "") == "PASSENGER>PILOT"
-			and display.get_readout_text().contains("HANDOFF [PASSENGER>PILOT] [READY] [NEUTRAL]"),
-		"display exposes emergency handoff transition readiness and neutral controls"
+			and display.get_readout_text().contains("HANDOFF [PASSENGER>PILOT] [READY] [ACK]"),
+		"display exposes emergency handoff transition readiness and command acknowledgement"
 	)
 	var repairing := _repair_envelope(0, 1, &"repairing", 0.42, &"engine_bay", &"")
 	_check(
@@ -74,8 +76,8 @@ func _run() -> void:
 		bool(display.present_engineer_repair_snapshot(
 			_repair_envelope(0, 3, &"interrupted", 0.58, &"engine_bay", &"role_released")
 		).get("accepted", false))
-			and display.get_readout_text().contains("ABORTED // ROLE RELEASED // ENGINE BAY // 58%"),
-		"an interrupted authority snapshot is rendered as an explicit aborted state"
+			and display.get_readout_text().contains("FAULT // ABORTED // ROLE RELEASED // ENGINE BAY // 58%"),
+		"an interrupted authority snapshot is rendered as an explicit fault state"
 	)
 	_check(bool(display.begin_repair_generation(1).get("accepted", false)), "a new role lifecycle advances the repair fence")
 	_check(
@@ -92,17 +94,18 @@ func _run() -> void:
 			and bool(repair_authority.get("presentation", false)),
 		"the Halyard station declares presentation ownership only"
 	)
-	var detached := display.present_crew_snapshot({"departure_readiness": {}, "role_occupancy": {}})
+	var detached := display.present_crew_snapshot({"authority_attached": false, "departure_readiness": {}, "role_occupancy": {}})
 	_check(
 		not bool(detached.get("pilot_ready", true))
 			and (detached.get("emergency_handoff", {}) as Dictionary).is_empty()
-			and display.get_readout_text().contains("DEPART [WAIT PILOT]"),
-		"detached snapshot clears visible handoff and readiness state"
+			and display.get_readout_text().contains("ROSTER [DETACHED]")
+			and display.get_readout_text().contains("P [DETACHED]"),
+		"detached snapshot clears visible handoff and marks the actual roster unavailable"
 	)
 	display.clear_for_detach()
 	_check(
 		(display.get_display_snapshot().get("engineer_route", "") == "[NONE]"
-			and display.get_readout_text().contains("CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]")),
+			and display.get_readout_text().contains("ROSTER [DETACHED]")),
 		"explicit detach cleanup resets the in-ship display"
 	)
 	display.queue_free()

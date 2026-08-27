@@ -24,7 +24,7 @@ func _run() -> void:
 		"the Halyard retains one crew status display beneath the authored cabin panel"
 	)
 	_check(
-		display.get_readout_text().contains("CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]"),
+		display.get_readout_text().contains("ROSTER [DETACHED]"),
 		"the retained display starts with a safe empty-crew state"
 	)
 	var authority := Authority.new(1)
@@ -36,7 +36,8 @@ func _run() -> void:
 	_check(
 		bool(refreshed.get("pilot_ready", false))
 			and int(refreshed.get("optional_crew_count", 0)) == 1
-			and display.get_readout_text().contains("CREW [P:[ON] G:[EMPTY] E:[ON] X:[EMPTY]"),
+			and display.get_readout_text().contains("P [ACTIVE] G [OPEN]")
+			and display.get_readout_text().contains("E [ACTIVE] X [OPEN]"),
 		"an explicit detached-snapshot refresh drives pilot readiness and optional-role tokens"
 	)
 	var released: Dictionary = craft.release_crew_role(1, 71, &"pilot_avatar", &"pilot_station", 2, 1)
@@ -51,7 +52,7 @@ func _run() -> void:
 	)
 	craft.call("_set_interior_operational", false)
 	_check(
-		display.get_readout_text().contains("CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]"),
+		display.get_readout_text().contains("ROSTER [DETACHED]"),
 		"interior shutdown clears the retained presentation"
 	)
 	craft.call("_set_interior_operational", true)

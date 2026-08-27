@@ -12,12 +12,6 @@ const SCHEMA_VERSION := 1
 const MAX_SAFE_GENERATION := 9_007_199_254_740_991
 const MAX_SAFE_SEQUENCE := 9_007_199_254_740_991
 const ROLE_ORDER: Array[StringName] = [&"pilot", &"gunner", &"engineer", &"passenger"]
-const ROLE_SHORT_NAMES := {
-	&"pilot": "P",
-	&"gunner": "G",
-	&"engineer": "E",
-	&"passenger": "X",
-}
 
 var _readout: Label3D
 var _display_snapshot: Dictionary = {}
@@ -36,7 +30,7 @@ func _ready() -> void:
 	_readout.outline_size = 8
 	_readout.no_depth_test = true
 	_readout.set_meta("presentation_only", true)
-	_readout.text = "CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]\nDEPART [WAIT PILOT]\nENG ROUTE [NONE] REPAIR [READY]"
+	_readout.text = "ROSTER [DETACHED]\nP [DETACHED] G [DETACHED]\nE [DETACHED] X [DETACHED]\nDEPART [WAIT PILOT]\nENG ROUTE [NONE] REPAIR [READY]"
 	add_child(_readout)
 	_clear_display_snapshot()
 
@@ -50,11 +44,15 @@ func present_crew_snapshot(source: Dictionary) -> Dictionary:
 	var handoff := source.get("emergency_pilot_handoff", {}) as Dictionary
 	var role_states := {}
 	var role_occupancy := source.get("role_occupancy", {}) as Dictionary
+	# The display never inventories seats itself.  The detached roster link is
+	# the only availability fact it formats, so a disconnected authority cannot
+	# look like four vacant-but-claimable stations in the walking view.
+	var roster_linked := bool(source.get("authority_attached", false))
 	for role in ROLE_ORDER:
 		var occupants := role_occupancy.get(role, []) as Array
 		role_states[role] = {
 			"occupied": not occupants.is_empty(),
-			"token": _role_token(role, not occupants.is_empty()),
+			"token": _role_token(roster_linked, not occupants.is_empty()),
 		}
 	var pilot_ready := bool(departure.get("ready", false)) and bool(departure.get("pilot_present", false))
 	var optional_count := int(departure.get("optional_crew_count", 0))
@@ -74,6 +72,7 @@ func present_crew_snapshot(source: Dictionary) -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"pilot_ready": pilot_ready,
 		"optional_crew_count": optional_count,
+		"roster_linked": roster_linked,
 		"role_states": role_states,
 		"engineer_route": route_token,
 		"engineer_repair": _repair_view.duplicate(true),
@@ -161,7 +160,7 @@ func clear_for_detach() -> void:
 	_clear_repair_view()
 	_clear_display_snapshot()
 	if is_instance_valid(_readout):
-		_readout.text = "CREW [P:EMPTY G:EMPTY E:EMPTY X:EMPTY]\nDEPART [WAIT PILOT]\nENG ROUTE [NONE] REPAIR [READY]"
+		_readout.text = "ROSTER [DETACHED]\nP [DETACHED] G [DETACHED]\nE [DETACHED] X [DETACHED]\nDEPART [WAIT PILOT]\nENG ROUTE [NONE] REPAIR [READY]"
 
 
 func _clear_display_snapshot() -> void:
@@ -169,6 +168,7 @@ func _clear_display_snapshot() -> void:
 		"schema_version": SCHEMA_VERSION,
 		"pilot_ready": false,
 		"optional_crew_count": 0,
+		"roster_linked": false,
 		"role_states": {},
 		"engineer_route": "[NONE]",
 		"engineer_repair": _repair_view.duplicate(true),
@@ -181,16 +181,19 @@ func _clear_display_snapshot() -> void:
 
 func _format_readout(snapshot: Dictionary) -> String:
 	var role_states := snapshot.get("role_states", {}) as Dictionary
-	var role_line := "CREW ["
-	for index in ROLE_ORDER.size():
-		if index > 0:
-			role_line += " "
-		var role := ROLE_ORDER[index]
-		role_line += "%s:%s" % [ROLE_SHORT_NAMES[role], (role_states.get(role, {}) as Dictionary).get("token", "[EMPTY]")]
-	role_line += "]"
+	var roster_token := "[LINKED]" if bool(snapshot.get("roster_linked", false)) else "[DETACHED]"
+	var pilot_token := str((role_states.get(&"pilot", {}) as Dictionary).get("token", "[DETACHED]"))
+	var gunner_token := str((role_states.get(&"gunner", {}) as Dictionary).get("token", "[DETACHED]"))
+	var engineer_token := str((role_states.get(&"engineer", {}) as Dictionary).get("token", "[DETACHED]"))
+	var passenger_token := str((role_states.get(&"passenger", {}) as Dictionary).get("token", "[DETACHED]"))
 	var departure_token := "READY" if bool(snapshot.get("pilot_ready", false)) else "WAIT PILOT"
 	var route_token := str(snapshot.get("engineer_route", "[NONE]"))
-	var text := role_line + "\nDEPART [%s] CREW[%d]\nENG ROUTE %s REPAIR %s" % [
+	var text := "ROSTER %s\nP %s G %s\nE %s X %s\nDEPART [%s] CREW[%d]\nENG ROUTE %s REPAIR %s" % [
+		roster_token,
+		pilot_token,
+		gunner_token,
+		engineer_token,
+		passenger_token,
 		departure_token,
 		int(snapshot.get("optional_crew_count", 0)),
 		route_token,
@@ -198,14 +201,16 @@ func _format_readout(snapshot: Dictionary) -> String:
 	]
 	var handoff := snapshot.get("emergency_handoff", {}) as Dictionary
 	if not handoff.is_empty():
-		var controls := "NEUTRAL" if bool(handoff.get("neutral_command_confirmed", false)) else "PENDING"
+		var controls := "ACK" if bool(handoff.get("neutral_command_confirmed", false)) else "NO ACK"
 		var readiness := "READY" if bool(handoff.get("ready", false)) else "WAIT"
 		text += "\nHANDOFF [%s] [%s] [%s]" % [str(handoff.get("transition", "UNKNOWN")), readiness, controls]
 	return text
 
 
-func _role_token(role: StringName, occupied: bool) -> String:
-	return "[ON]" if occupied else "[EMPTY]"
+func _role_token(roster_linked: bool, occupied: bool) -> String:
+	if not roster_linked:
+		return "[DETACHED]"
+	return "[ACTIVE]" if occupied else "[OPEN]"
 
 
 func _route_token(channel: StringName) -> String:
@@ -227,7 +232,7 @@ func _repair_token(repair: Dictionary) -> String:
 	if status == &"repairing":
 		return "[WORK // REPAIRING // %s // %d%%]" % [component, percent]
 	if status == &"aborted" or status == &"interrupted":
-		return "[INTERRUPTED] [ABORTED // %s // %s // %d%%]" % [
+		return "[FAULT // ABORTED // %s // %s // %d%%]" % [
 			_readable_id(StringName(repair.get("reason", &"interrupted"))),
 			component,
 			percent,
