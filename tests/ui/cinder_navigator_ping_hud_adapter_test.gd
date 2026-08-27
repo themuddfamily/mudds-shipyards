@@ -35,7 +35,7 @@ func _run() -> void:
 	_check(bool(accepted.get("accepted", false)), "active bridge receipt reaches the real HUD seam")
 	_check(str((accepted.get("composed", {}) as Dictionary).get("cinder_navigator_ping", {}).get("state", &"")) == "active", "active composition preserves presenter state")
 	_check(str((accepted.get("composed", {}).get("roles", {}).get("passenger", {}).get("occupant", ""))).contains("PING ACTIVE"), "active composition keeps ordinary crew context and adds a bounded ping marker")
-	_check(str(hud.get("_runtime_status_title").text) == "Crew Roles and Seats", "real HUD receives the composed crew-role update")
+	_check_live_card(hud, &"active", "◆", "ACTIVE", "TARGET // LOCKED")
 	var duplicate := adapter.apply_bridge_result(accepted_result, base)
 	_check(duplicate.get("reason") == &"duplicate", "identical generation and sequence are deduplicated")
 	var missing_role := receipt.duplicate(true)
@@ -51,11 +51,13 @@ func _run() -> void:
 	_check(bool(stale.get("accepted", false)) and stale.get("source_state") == &"stale", "stale bridge result reaches the HUD as an accessible state")
 	_check(str((stale.get("composed", {}) as Dictionary).get("roles", {}).get("passenger", {}).get("occupant", "")).contains("PING ACTIVE"), "stale status cannot corrupt the accepted crew HUD row")
 	_check((stale.get("composed", {}) as Dictionary).get("cinder_navigator_ping_status", {}).get("state") == &"stale", "stale bridge status remains separately accessible")
+	_check_live_card(hud, &"stale", "!", "STALE", "PING // STALE")
 	var rejected_envelope := {"accepted": false, "status": &"navigator_identity_mismatch", "policy_version": &"network_cinder_navigator_ping_bridge_v1"}
 	var rejected := adapter.apply_bridge_result(rejected_envelope, base)
 	_check(bool(rejected.get("accepted", false)) and rejected.get("source_state") == &"rejected", "rejected bridge result reaches the HUD as an accessible state")
 	_check(str((rejected.get("composed", {}) as Dictionary).get("roles", {}).get("passenger", {}).get("occupant", "")).contains("PING ACTIVE"), "rejected status cannot corrupt the accepted crew HUD row")
 	_check((adapter.get_snapshot().get("source_view", {}) as Dictionary).get("state") == &"active" and (adapter.get_snapshot().get("status_view", {}) as Dictionary).get("state") == &"rejected", "adapter snapshots retain accepted state beside the latest bounded status")
+	_check_live_card(hud, &"rejected", "×", "REJECTED", "PING // REJECTED")
 	var clear_receipt := receipt.duplicate(true)
 	clear_receipt.action = &"passenger_ping_clear"
 	clear_receipt.request_sequence = 3
@@ -83,6 +85,7 @@ func _run() -> void:
 	}, base)
 	_check(bool(cleared.get("accepted", false)) and cleared.get("source_state") == &"cleared", "release tombstone reaches the HUD as cleared")
 	_check(str((cleared.get("composed", {}) as Dictionary).get("roles", {}).get("passenger", {}).get("occupant", "")).contains("PING CLEARED"), "tombstone clear is visible through the crew HUD seam")
+	_check_live_card(hud, &"cleared", "—", "CLEAR", "TARGET // CLEAR")
 	_check(bool(adapter.detach().get("accepted", false)), "adapter detaches without owning HUD lifecycle")
 	var detached := adapter.apply_bridge_result({"accepted": true, "status": &"attached"}, base)
 	_check(not bool(detached.get("accepted", true)) and detached.get("reason") == &"detached", "detached adapter cannot mutate the retained HUD")
@@ -91,6 +94,11 @@ func _run() -> void:
 	var available := adapter.apply_bridge_result({"accepted": true, "status": &"attached"}, base)
 	_check(available.get("source_state") == &"available", "re-entry restores ordinary crew fallback state")
 	_check(not str((available.get("composed", {}) as Dictionary).get("roles", {}).get("passenger", {}).get("occupant", "")).contains("PING"), "ordinary crew fallback is not polluted after re-entry")
+	_check_live_card(hud, &"available", "+", "READY", "PING // READY")
+	var detached_view := presenter.present_bridge_result({"accepted": true, "status": &"detached"})
+	var detached_applied := adapter.apply_view(detached_view, base)
+	_check(detached_applied.get("source_state") == &"detached", "presenter detach state reaches the bound production card before adapter teardown")
+	_check_live_card(hud, &"detached", "□", "DETACHED", "PING // DETACHED")
 	var foreign_view := adapter.apply_view({"component_id": &"foreign", "state": &"active", "presentation_only": true}, base)
 	_check(not bool(foreign_view.get("accepted", true)) and foreign_view.get("reason") == &"presenter_view_required", "adapter accepts only committed navigator presenter views")
 	hud.queue_free()
@@ -108,6 +116,32 @@ func _check(condition: bool, description: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+
+
+func _check_live_card(hud: Object, state: StringName, marker: String, label: String, value: String) -> void:
+	var panel := hud.get("_runtime_status_panel") as PanelContainer
+	var title := hud.get("_runtime_status_title") as Label
+	var detail := hud.get("_runtime_status_detail") as Label
+	var font: Font = title.get_theme_font(&"font") if title != null else null
+	var visible_marker: String = marker if _font_supports(font, marker) else str({
+		&"active": "*", &"cleared": "-", &"available": "+", &"detached": "[]", &"stale": "!", &"rejected": "X",
+	}.get(state, "?"))
+	_check(panel != null and panel.visible and panel.size == Vector2(396.0, 112.0), "%s uses the unchanged visible 396x112 production card" % state)
+	_check(title != null and title.visible and title.text == "CREW // NAV %s %s" % [visible_marker, label], "%s marker and headline render in the production title" % state)
+	_check(detail != null and detail.visible and detail.text.begins_with(value), "%s status value renders before the clipped crew rows" % state)
+	if title != null:
+		_check(_font_supports(font, visible_marker), "%s marker or explicit ASCII fallback is supported by the live HUD font" % state)
+		var rendered_width := font.get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, title.get_theme_font_size(&"font_size")).x
+		_check(rendered_width <= 368.0, "%s headline fits without horizontal clipping" % state)
+
+
+func _font_supports(font: Font, text: String) -> bool:
+	if font == null or text.is_empty():
+		return false
+	for index in text.length():
+		if not font.has_char(text.unicode_at(index)):
+			return false
+	return true
 
 
 func _wire_receipt() -> Dictionary:

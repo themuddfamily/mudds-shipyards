@@ -18,6 +18,12 @@ var _snapshot: Dictionary = {}
 
 func present_snapshot(source: Dictionary) -> Dictionary:
 	var raw_roles := source.get("roles", {}) as Dictionary
+	var status_headline := _bounded_text(
+		str(source.get("crew_status_headline", "")).strip_edges(), 64
+	)
+	var status_value := _bounded_text(
+		str(source.get("crew_status_value", "")).strip_edges(), 96
+	)
 	var rows: Array = []
 	for role in ROLE_ORDER:
 		var record := raw_roles.get(role, {}) as Dictionary
@@ -92,7 +98,8 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"component_id": COMPONENT_ID,
 		"actor_id": str(source.get("actor_id", "")),
 		"rows": rows,
-		"title": "Crew Roles and Seats",
+		"title": status_headline if not status_headline.is_empty() else "Crew Roles and Seats",
+		"message": status_value,
 		"actions": [
 			{"id": &"claim", "label": "Claim available seat", "focusable": true},
 			{"id": &"release", "label": "Release your seat", "focusable": true},
@@ -144,3 +151,7 @@ func _known_role(role: StringName) -> bool:
 func _bounded_state(raw: Variant, allowed: Array, fallback: StringName) -> StringName:
 	var value := StringName(str(raw).strip_edges().to_lower())
 	return value if allowed.has(value) else fallback
+
+
+func _bounded_text(value: String, max_length: int) -> String:
+	return value.left(max_length) if value.length() > max_length else value

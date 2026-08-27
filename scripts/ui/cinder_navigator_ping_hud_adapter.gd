@@ -151,6 +151,12 @@ func _compose_crew_snapshot(view: Dictionary, base: Dictionary) -> Dictionary:
 	var composed := base.duplicate(true)
 	var roles := composed.get("roles", {}) as Dictionary
 	var state := StringName(view.get("state", &"rejected"))
+	# The public crew card is only 112 px tall. Its title and first detail line
+	# remain visible at the shipping viewport while the role rows may be below
+	# the scroll clip, so publish the navigator distinction through those existing
+	# fields as well as retaining the ordinary role-row decoration.
+	composed["crew_status_headline"] = _navigator_headline(view)
+	composed["crew_status_value"] = _navigator_status_value(view)
 	var stable_view := view
 	if TRANSIENT_STATES.has(state) and not _last_view.is_empty():
 		stable_view = _last_view
@@ -164,7 +170,7 @@ func _compose_crew_snapshot(view: Dictionary, base: Dictionary) -> Dictionary:
 		if occupant.is_empty():
 			occupant = "PEER %d" % int(stable_view.get("peer_id", 0)) if int(stable_view.get("peer_id", 0)) > 0 else "NAVIGATOR"
 		var label := str(stable_view.get("state_label", stable_state)).to_upper()
-		var marker := str(stable_view.get("state_marker", "!"))
+		var marker := _visible_marker(stable_view)
 		passenger["occupant"] = _bounded_text("%s // PING %s %s" % [occupant, label, marker], 96)
 		passenger["available"] = false
 		passenger["navigator_ping_state"] = stable_state
@@ -177,6 +183,51 @@ func _compose_crew_snapshot(view: Dictionary, base: Dictionary) -> Dictionary:
 		composed.erase("cinder_navigator_ping_status")
 	composed["presentation_only"] = true
 	return composed
+
+
+func _navigator_headline(view: Dictionary) -> String:
+	var state := StringName(view.get("state", &"rejected"))
+	var marker := _visible_marker(view)
+	var label: String = {
+		&"active": "ACTIVE",
+		&"cleared": "CLEAR",
+		&"available": "READY",
+		&"detached": "DETACHED",
+		&"stale": "STALE",
+		&"rejected": "REJECTED",
+	}.get(state, "UNAVAILABLE")
+	return _bounded_text("CREW // NAV %s %s" % [marker, label], 64)
+
+
+func _navigator_status_value(view: Dictionary) -> String:
+	var state := StringName(view.get("state", &"rejected"))
+	var value: String = {
+		&"active": "TARGET // LOCKED",
+		&"cleared": "TARGET // CLEAR",
+		&"available": "PING // READY",
+		&"detached": "PING // DETACHED",
+		&"stale": "PING // STALE",
+		&"rejected": "PING // REJECTED",
+	}.get(state, "PING // UNAVAILABLE")
+	return _bounded_text(value, 96)
+
+
+func _visible_marker(view: Dictionary) -> String:
+	var desired := str(view.get("state_marker", "!"))
+	var font := ThemeDB.fallback_font
+	var supported := font != null and not desired.is_empty()
+	for index in desired.length():
+		supported = supported and font.has_char(desired.unicode_at(index))
+	if supported:
+		return desired
+	return str({
+		&"active": "*",
+		&"cleared": "-",
+		&"available": "+",
+		&"detached": "[]",
+		&"stale": "!",
+		&"rejected": "X",
+	}.get(StringName(view.get("state", &"rejected")), "?"))
 
 
 func _view_key(view: Dictionary) -> String:
