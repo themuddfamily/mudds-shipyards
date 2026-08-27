@@ -238,15 +238,15 @@ const APPROACH_EDGE_COLLAR_RADIUS := 0.115
 const APPROACH_EDGE_COLLAR_HEIGHT := 0.16
 const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
 const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1177
-const RENDER_DESCENDANT_NODE_COUNT := 1134
+const RENDER_DESCENDANT_NODE_COUNT := 1142
 const BASELINE_RENDERER_NODE_COUNT := 859
-const RENDERER_NODE_COUNT := 738
+const RENDERER_NODE_COUNT := 745
 const BASELINE_DRAWN_COPY_COUNT := 869
-const DRAWN_COPY_COUNT := 878
+const DRAWN_COPY_COUNT := 885
 const BASELINE_SURFACE_SUBMISSION_COUNT := 859
-const SURFACE_SUBMISSION_COUNT := 738
+const SURFACE_SUBMISSION_COUNT := 745
 const BASELINE_MESH_RESOURCE_COUNT := 323
-const MESH_RESOURCE_COUNT := 294
+const MESH_RESOURCE_COUNT := 299
 const BASELINE_MATERIAL_RESOURCE_COUNT := 32
 const MATERIAL_RESOURCE_COUNT := 32
 
@@ -716,7 +716,7 @@ func get_performance_contract() -> Dictionary:
 		# llvmpipe. What is measured is that every one of these is a chamfered kit
 		# primitive sharing this module's two mesh caches, so the added *unique*
 		# mesh resources are far fewer than the added instances.
-        "mesh_instances": 828,
+        "mesh_instances": 835,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -3311,6 +3311,8 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 			false
 		)
 
+	_build_stair_handoff_cue(circulation)
+
 	for light_progress in [0.18, 0.5, 0.82]:
 		var stair_light_position: Vector3 = start.lerp(finish, float(light_progress))
 		_box(
@@ -3363,6 +3365,75 @@ func _build_stair_and_upper_deck(structure: Node3D) -> void:
 		_beam_between(upper, "UpperDiagonalBraceReturn", Vector3(support_x, 3.5, 20.0), Vector3(support_x, 2.35, 17.9), 0.1, _materials["mid_grey"], false)
 
 	_build_stair_head_muster(upper)
+
+
+## The cyan deck ribbon ends at the stair-base marker, but from the lower
+## junction the ramp reads edge-on against open space. A small overhead datum
+## now names that turn before the player reaches it. Both mounts bear on the
+## existing rail lines outside the 2.8 m clear lane, while the plate's lower edge
+## stays above 2.0 m. Every leaf is non-colliding and uses only the module's
+## non-emissive structural/brass materials: this adds no route, door, light,
+## interaction, traversal, or lifecycle authority.
+func _build_stair_handoff_cue(circulation: Node3D) -> void:
+	var cue := Node3D.new()
+	cue.name = "StairHandoffCue"
+	cue.position = Vector3(-5.7, LOWER_FLOOR_ELEVATION, 3.0)
+	cue.set_meta("presentation_only", true)
+	cue.set_meta("detail_role", &"stair_handoff_navigation_cue")
+	circulation.add_child(cue)
+
+	_box(
+		cue,
+		"BackingPlate",
+		Vector3(0.0, 2.42, 0.05),
+		Vector3(3.05, 0.54, 0.08),
+		_materials["hull_dark"],
+		false
+	)
+	for side in [-1.0, 1.0]:
+		_box(
+			cue,
+			"PortMount" if side < 0.0 else "StarboardMount",
+			Vector3(float(side) * 1.7, 1.075, 0.0),
+			Vector3(0.08, 2.15, 0.08),
+			_materials["brass"],
+			false
+		)
+	_box(
+		cue,
+		"TopDatum",
+		Vector3(0.0, 2.72, 0.05),
+		Vector3(3.17, 0.06, 0.10),
+		_materials["brass"],
+		false
+	)
+	# Raised twin strokes form an upward chevron without relying on colour.
+	_box(
+		cue,
+		"PortArrowStroke",
+		Vector3(1.13, 2.42, 0.105),
+		Vector3(0.08, 0.30, 0.04),
+		_materials["brass"],
+		false,
+		Vector3(0.0, 0.0, -38.0)
+	)
+	_box(
+		cue,
+		"StarboardArrowStroke",
+		Vector3(1.29, 2.42, 0.105),
+		Vector3(0.08, 0.30, 0.04),
+		_materials["brass"],
+		false,
+		Vector3(0.0, 0.0, 38.0)
+	)
+	_text_sign(
+		cue,
+		"UPPER DECK",
+		Vector3(-0.30, 2.42, 0.105),
+		Vector3.ZERO,
+		0.21,
+		_materials["brass"]
+	)
 
 
 func _build_upper_transfer_gate(upper: Node3D) -> void:
