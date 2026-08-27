@@ -28,6 +28,13 @@ const PRESENTATION_LIGHT_ENERGY_CRITICAL := 4.2
 const PRESENTATION_CORE_BASE_POSITION := Vector3(0.0, 2.65, 0.0)
 const PRESENTATION_BEARING_OFFSET := 0.85
 const PRESENTATION_RING_NEUTRAL_YAW := 0.0
+const PRESENTATION_SAFE_RING_SCALE := Vector3(1.0, 1.0, 1.0)
+const PRESENTATION_SAFE_CORE_SCALE := Vector3(1.0, 1.0, 1.0)
+## Deliberate retained-geometry silhouettes. They are readable independently of
+## the signal colour at combat distance: a broad attack shield and no signal
+## form after physical failure. Renewal returns exactly to the intact form.
+const PRESENTATION_ATTACK_RING_SCALE := Vector3(1.32, 0.72, 1.32)
+const PRESENTATION_ATTACK_CORE_SCALE := Vector3(0.82, 1.34, 0.82)
 
 const _AUTHORITY_EXCLUSIONS := {
 	"combat_resolution": false,
@@ -180,20 +187,37 @@ func apply_activity_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 	var delay := float(delay_value)
 	if wave_index < 0 or wave_count < 0 or wave_index > wave_count or not is_finite(delay) or delay < 0.0:
 		return _result(false, &"invalid_activity_presentation_snapshot")
+	var wave_active := bool(wave_active_value)
+	# Accept only state combinations StationDefenseActivity can publish. In
+	# particular, ACTIVE with no live wave and no positive countdown is not an
+	# inter-wave state and cannot be used to invent a same-generation recovery.
+	match state_id:
+		&"idle":
+			if wave_index != 0 or wave_active or not is_zero_approx(delay):
+				return _result(false, &"invalid_activity_presentation_snapshot")
+		&"active":
+			if (
+				wave_count == 0
+				or wave_index >= wave_count
+				or wave_active != is_zero_approx(delay)
+			):
+				return _result(false, &"invalid_activity_presentation_snapshot")
+		&"completed":
+			if wave_index != wave_count or wave_active or not is_zero_approx(delay):
+				return _result(false, &"invalid_activity_presentation_snapshot")
+		&"failed", &"aborted", &"timed_out":
+			if wave_active:
+				return _result(false, &"invalid_activity_presentation_snapshot")
 
 	var next_wave_state: StringName = &"idle"
 	match state_id:
 		&"active":
-			if bool(wave_active_value):
+			if wave_active:
 				next_wave_state = &"active"
-			elif wave_index == 0:
-				next_wave_state = &"approaching"
 			else:
-				next_wave_state = &"recovery"
+				next_wave_state = &"approaching"
 		&"completed":
 			next_wave_state = &"completed"
-		&"failed", &"aborted", &"timed_out":
-			next_wave_state = &"recovery"
 		_:
 			next_wave_state = &"idle"
 	_wave_presentation_state = next_wave_state
@@ -201,7 +225,7 @@ func apply_activity_presentation_snapshot(snapshot: Dictionary) -> Dictionary:
 		"state_id": state_id,
 		"current_wave_index": wave_index,
 		"wave_count": wave_count,
-		"wave_active": bool(wave_active_value),
+		"wave_active": wave_active,
 		"wave_delay_remaining_seconds": delay,
 	}.duplicate(true)
 	_apply_composed_presentation_state()
@@ -270,8 +294,11 @@ func get_protected_asset_presentation_snapshot() -> Dictionary:
 		"ring_yaw": _signal_ring.rotation.y if is_instance_valid(_signal_ring) else INF,
 		"ring_visible": _signal_ring.visible if is_instance_valid(_signal_ring) else false,
 		"ring_scale": _signal_ring.scale.x if is_instance_valid(_signal_ring) else 0.0,
+		"ring_scale_vector": _signal_ring.scale if is_instance_valid(_signal_ring) else Vector3.ZERO,
 		"core_visible": _signal_core.visible if is_instance_valid(_signal_core) else false,
 		"core_scale": _signal_core.scale.x if is_instance_valid(_signal_core) else 0.0,
+		"core_scale_vector": _signal_core.scale if is_instance_valid(_signal_core) else Vector3.ZERO,
+		"silhouette_id": _get_presentation_silhouette_id(),
 		"light_visible": _signal_light.visible if is_instance_valid(_signal_light) else false,
 		"light_color": _signal_light.light_color if is_instance_valid(_signal_light) else Color.TRANSPARENT,
 		"light_energy": _signal_light.light_energy if is_instance_valid(_signal_light) else 0.0,
@@ -333,6 +360,7 @@ func restore_pristine_generation(target_generation: int) -> Dictionary:
 		return preflight
 	handle_generation = target_generation
 	_clear_hostile_bearing_presentation()
+	_reset_asset_presentation()
 	_apply_live_state()
 	return _result(true, &"pristine_generation_restored")
 
@@ -346,6 +374,7 @@ func renew(expected_generation: int) -> Dictionary:
 
 	handle_generation += 1
 	_clear_hostile_bearing_presentation()
+	_reset_asset_presentation()
 	_event_sequence = 0
 	_pending_terminal_event.clear()
 	_last_event_handle.clear()
@@ -473,17 +502,11 @@ func _apply_composed_presentation_state() -> void:
 			_signal_light.light_energy = 1.8
 			_signal_light.omni_range = 8.0
 		&"active":
-			_signal_ring.scale = Vector3.ONE * 1.18
-			_signal_core.scale = Vector3.ONE
+			_signal_ring.scale = PRESENTATION_ATTACK_RING_SCALE
+			_signal_core.scale = PRESENTATION_ATTACK_CORE_SCALE
 			_signal_light.light_color = Color("9beeff")
 			_signal_light.light_energy = 3.0
 			_signal_light.omni_range = 9.5
-		&"recovery":
-			_signal_ring.scale = Vector3.ONE * 0.94
-			_signal_core.scale = Vector3.ONE * 0.86
-			_signal_light.light_color = Color("4fb9a7")
-			_signal_light.light_energy = 1.4
-			_signal_light.omni_range = 7.5
 		&"completed":
 			_signal_ring.scale = Vector3.ONE * 1.32
 			_signal_core.scale = Vector3.ONE * 1.16
@@ -491,8 +514,8 @@ func _apply_composed_presentation_state() -> void:
 			_signal_light.light_energy = 3.4
 			_signal_light.omni_range = 10.0
 		_:
-			_signal_ring.scale = Vector3.ONE * PRESENTATION_RING_SCALE_SAFE
-			_signal_core.scale = Vector3.ONE
+			_signal_ring.scale = PRESENTATION_SAFE_RING_SCALE
+			_signal_core.scale = PRESENTATION_SAFE_CORE_SCALE
 			_signal_light.light_color = Color(0.282, 0.859, 0.886, 1.0)
 			_signal_light.light_energy = PRESENTATION_LIGHT_ENERGY_SAFE
 			_signal_light.omni_range = 9.0
@@ -520,6 +543,28 @@ func _clear_hostile_bearing_presentation() -> void:
 	_hostile_bearing_local = Vector3.ZERO
 	_hostile_bearing_source_snapshot.clear()
 	_apply_hostile_bearing_cue()
+
+
+func _reset_asset_presentation() -> void:
+	_presentation_state = &"safe"
+	_presentation_source_snapshot.clear()
+	_wave_presentation_state = &"idle"
+	_wave_presentation_source_snapshot.clear()
+	_apply_composed_presentation_state()
+
+
+func _get_presentation_silhouette_id() -> StringName:
+	if not is_instance_valid(_signal_ring) or not is_instance_valid(_signal_core):
+		return &"unavailable"
+	if not _signal_ring.visible and not _signal_core.visible:
+		return &"mast_only_failed"
+	match _effective_presentation_state:
+		&"active":
+			return &"broad_shield_attack"
+		&"destroyed":
+			return &"mast_only_failed"
+		_:
+			return &"full_ring_intact"
 
 
 func _on_damage_applied(
