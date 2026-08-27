@@ -115,6 +115,7 @@ var _gunner_station: Node3D
 var _gunner_station_anchor: Marker3D
 var _gunner_status_readout: Label3D
 var _gunner_station_feedback: Dictionary = {}
+var _gunner_roster_presentation_state: StringName = &"detached"
 var _boarding_area: Area3D
 var _crew_role_authority: CrewSeatRoleAuthority
 var _gunner_combat_authority: LiveCombatAuthority
@@ -1208,7 +1209,10 @@ func _update_gunner_station_feedback() -> void:
 	_gunner_station_feedback = _build_gunner_station_feedback()
 	if _gunner_status_readout == null or not is_instance_valid(_gunner_status_readout):
 		return
-	_gunner_status_readout.text = str(_gunner_station_feedback.get("text", "— NO TARGET —"))
+	_gunner_status_readout.text = "%s\n%s" % [
+		str(_gunner_station_feedback.get("roster_text", "× GUNNER [DETACHED]")),
+		str(_gunner_station_feedback.get("text", "— NO TARGET —")),
+	]
 	_gunner_status_readout.modulate = _gunner_station_feedback.get("color", GUNNER_CYAN) as Color
 	_gunner_status_readout.set_meta(
 		"feedback_state", StringName(_gunner_station_feedback.get("state", GUNNER_FEEDBACK_NO_TARGET))
@@ -1225,11 +1229,16 @@ func _build_gunner_station_feedback() -> Dictionary:
 		"state": GUNNER_FEEDBACK_NO_TARGET,
 		"text": "— NO TARGET —",
 		"color": Color("8aa7af"),
+		"roster_state": &"detached",
+		"roster_text": "× GUNNER [DETACHED]",
 		"target_id": StringName(&""),
 		"charge_progress": 0.0,
 		"cooldown_remaining": 0.0,
 		"denial_reason": StringName(&""),
 	}
+	var roster_feedback := _get_gunner_roster_feedback()
+	feedback["roster_state"] = roster_feedback.get("state", &"detached")
+	feedback["roster_text"] = roster_feedback.get("text", "× GUNNER [DETACHED]")
 	if is_destroyed():
 		feedback.merge({
 			"state": GUNNER_FEEDBACK_DENIED,
@@ -1308,6 +1317,56 @@ func _build_gunner_station_feedback() -> Dictionary:
 		"color": GUNNER_CYAN,
 	}, true)
 	return feedback
+
+
+## Formats only the sealed authority's detached public roster. It never claims,
+## releases, or otherwise mutates the crew ledger. A retained RELEASED token is
+## shown only after this station was actually occupied and the public roster
+## subsequently no longer contains that assignment.
+func _get_gunner_roster_feedback() -> Dictionary:
+	if _crew_role_authority == null:
+		_gunner_roster_presentation_state = &"detached"
+		return {"state": &"detached", "text": "× GUNNER [DETACHED]"}
+	var snapshot := _crew_role_authority.get_snapshot()
+	if not bool(snapshot.get("roster_sealed", false)):
+		_gunner_roster_presentation_state = &"detached"
+		return {"state": &"detached", "text": "× GUNNER [DETACHED]"}
+
+	var gunner_assignment := {}
+	for assignment_variant in snapshot.get("assignments", []) as Array:
+		if not assignment_variant is Dictionary:
+			continue
+		var assignment := assignment_variant as Dictionary
+		if StringName(assignment.get("seat_id", &"")) == GUNNER_SEAT_ID \
+				and StringName(assignment.get("role", &"")) == CrewRoleGameplayProfileType.ROLE_GUNNER:
+			gunner_assignment = assignment
+			break
+	if gunner_assignment.is_empty():
+		if _gunner_roster_presentation_state in [&"claimed", &"armed", &"active"]:
+			_gunner_roster_presentation_state = &"released"
+		if _gunner_roster_presentation_state == &"released":
+			return {"state": &"released", "text": "↗ GUNNER [RELEASED]"}
+		_gunner_roster_presentation_state = &"available"
+		return {"state": &"available", "text": "□ GUNNER [AVAILABLE]"}
+
+	var actor_key := _gunner_role_actor_key_from_values(
+		int(gunner_assignment.get("occupant_peer_id", 0)),
+		StringName(gunner_assignment.get("avatar_id", &""))
+	)
+	var state: StringName = &"claimed"
+	if not (_gunner_role_charges.get(actor_key, {}) as Dictionary).is_empty():
+		state = &"active"
+	elif not _gunner_target_selection.is_empty() \
+			and int(_gunner_target_selection.get("occupant_peer_id", 0)) == int(gunner_assignment.get("occupant_peer_id", 0)) \
+			and StringName(_gunner_target_selection.get("avatar_id", &"")) == StringName(gunner_assignment.get("avatar_id", &"")):
+		state = &"armed"
+	_gunner_roster_presentation_state = state
+	match state:
+		&"active":
+			return {"state": state, "text": "▲ GUNNER [ACTIVE]"}
+		&"armed":
+			return {"state": state, "text": "◆ GUNNER [ARMED]"}
+	return {"state": &"claimed", "text": "■ GUNNER [CLAIMED]"}
 
 
 func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
