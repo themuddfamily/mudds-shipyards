@@ -115,7 +115,7 @@ const CARGO_ACTIVITY_STATE_ACTIVE := 1
 ## leads to the real cargo-terminal approach and its displayed-right side leads
 ## back to the Jovian's berth exit. Keep the place names in the header so the
 ## direction is useful before the terminal itself fills the player's view.
-const ROUTE_IDENTITY_HEADER := "< CINDER CARGO TERMINAL   |   JOVIAN BERTH >"
+const ROUTE_IDENTITY_HEADER := "< CINDER CARGO TERMINAL | JOVIAN BERTH >"
 const ROUTE_IDENTITY_COPY_COUNT := 3
 const ROUTE_IDENTITY_LABEL_LOCAL := Vector3(-14.15, 5.96, 18.99)
 
