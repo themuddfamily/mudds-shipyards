@@ -342,25 +342,37 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 	if generation < _presentation_generation:
 		return
 	var state_id := StringName(activity.get("state_id", &"idle"))
-	var status_text := "READY\nINTERACT TO DEPLOY"
+	# Every live board state carries an ASCII silhouette marker in its existing
+	# status label.  The marker keeps the state readable when its colour is
+	# unavailable (glare, accessibility filters, or reduced-flash settings),
+	# without adding geometry, lights, or a local presentation clock.
+	var status_text := "[ ] READY\nDEPLOY AVAILABLE"
 	var status_color := STATUS_COLOR_READY
 	match state_id:
 		&"active":
 			var wave_number := maxi(0, int(activity.get("wave_number", 0)))
 			var wave_count := maxi(wave_number, int(activity.get("wave_count", 0)))
-			var remaining := maxi(0, int(activity.get("remaining_hostile_count", 0)))
-			status_text = "WAVE %d / %d\nTHREATS %d" % [wave_number, wave_count, remaining]
+			var roster_total := maxi(0, int(activity.get("current_wave_hostile_count", 0)))
+			var roster_cleared := clampi(
+				int(activity.get("current_wave_destroyed_count", 0)), 0, roster_total
+			)
+			if roster_total > 0 and roster_cleared >= roster_total:
+				status_text = "[X] WAVE %d COMPLETE\nNEXT WAVE STANDBY" % wave_number
+			else:
+				status_text = ">> WAVE %d / %d\nROSTER %d / %d" % [
+					wave_number, wave_count, roster_cleared, roster_total
+				]
 			status_color = STATUS_COLOR_ACTIVE
 		&"completed":
-			status_text = "PERIMETER SECURE\nRECOVERY AVAILABLE"
+			status_text = "[X] PERIMETER SECURE\n[>] REPEAT AVAILABLE"
 			status_color = STATUS_COLOR_SECURE
 		&"failed", &"aborted", &"timed_out":
-			status_text = "DEFENSE OFFLINE\nRECOVERY REQUIRED"
+			status_text = "[!] DEFENSE OFFLINE\n[<] RECOVERY REQUIRED"
 			status_color = STATUS_COLOR_RECOVERY
 		&"idle":
 			pass
 		_:
-			status_text = "STATUS UNAVAILABLE"
+			status_text = "[?] STATUS UNAVAILABLE"
 			status_color = STATUS_COLOR_RECOVERY
 	_presentation_generation = generation
 	_presentation_state_id = state_id

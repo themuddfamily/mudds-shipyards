@@ -3,6 +3,13 @@ extends SceneTree
 const BOARD_SCRIPT := preload("res://scripts/activities/station_defense_activity_board.gd")
 const PHYSICS_LAYERS := preload("res://scripts/core/physics_layers.gd")
 const OUTPUT_PATH := "/tmp/station-defense-activity-board-readability.png"
+const STATE_CAPTURE_PATHS := {
+	&"ready": "/tmp/station-defense-activity-board-ready.png",
+	&"active": "/tmp/station-defense-activity-board-active.png",
+	&"wave_complete": "/tmp/station-defense-activity-board-wave-complete.png",
+	&"repeat": "/tmp/station-defense-activity-board-repeat.png",
+	&"failed": "/tmp/station-defense-activity-board-failed.png",
+}
 
 var _failures: PackedStringArray = []
 
@@ -121,13 +128,30 @@ func _run() -> void:
 	camera.current = true
 	for _frame in 5:
 		await process_frame
-	var image := viewport.get_texture().get_image()
-	var save_error := image.save_png(OUTPUT_PATH) if image != null and not image.is_empty() \
+	var states := [
+		[&"ready", _snapshot(&"idle", 1), "[ ] READY\nDEPLOY AVAILABLE"],
+		[&"active", _snapshot(&"active", 2, 1, 3, 3, 0), ">> WAVE 1 / 3\nROSTER 0 / 3"],
+		[&"wave_complete", _snapshot(&"active", 3, 1, 3, 3, 3), "[X] WAVE 1 COMPLETE\nNEXT WAVE STANDBY"],
+		[&"repeat", _snapshot(&"completed", 4), "[X] PERIMETER SECURE\n[>] REPEAT AVAILABLE"],
+		[&"failed", _snapshot(&"failed", 5), "[!] DEFENSE OFFLINE\n[<] RECOVERY REQUIRED"],
+	]
+	for state in states:
+		var capture_id := state[0] as StringName
+		board.call("_on_content_snapshot_changed", state[1] as Dictionary)
+		await process_frame
+		var image := viewport.get_texture().get_image()
+		var capture_path := str(STATE_CAPTURE_PATHS[capture_id])
+		var save_error := image.save_png(capture_path) if image != null and not image.is_empty() \
+			else ERR_CANT_CREATE
+		_check(
+			status.text == str(state[2])
+			and save_error == OK and image.get_width() == 960 and image.get_height() == 540,
+			"%s state has an explicit text/shape status at gameplay distance" % capture_id
+		)
+	var final_image := viewport.get_texture().get_image()
+	var final_save_error := final_image.save_png(OUTPUT_PATH) if final_image != null and not final_image.is_empty() \
 		else ERR_CANT_CREATE
-	_check(
-		save_error == OK and image.get_width() == 960 and image.get_height() == 540,
-		"focused gameplay-distance review capture saves at the requested frame size"
-	)
+	_check(final_save_error == OK, "all-state review retains the final failed-state frame")
 
 	viewport.queue_free()
 	await process_frame
@@ -143,3 +167,25 @@ func _run() -> void:
 func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _snapshot(
+		state_id: StringName,
+		generation: int,
+		wave_number: int = 0,
+		wave_count: int = 3,
+		roster_total: int = 0,
+		roster_cleared: int = 0
+	) -> Dictionary:
+	return {
+		"host": {
+			"activity": {
+				"state_id": state_id,
+				"generation": generation,
+				"wave_number": wave_number,
+				"wave_count": wave_count,
+				"current_wave_hostile_count": roster_total,
+				"current_wave_destroyed_count": roster_cleared,
+			}
+		}
+	}

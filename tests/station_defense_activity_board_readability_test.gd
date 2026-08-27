@@ -61,7 +61,7 @@ func _run() -> void:
 		and board.collision_layer == PHYSICS_LAYERS.INTERACTABLE_AREA_LAYER,
 		"readability display preserves the physical identity and both collision seams"
 	)
-	_check_status(board, status_label, &"idle", 0, "READY\nINTERACT TO DEPLOY", "live idle snapshot is deployment-ready")
+	_check_status(board, status_label, &"idle", 0, "[ ] READY\nDEPLOY AVAILABLE", "live idle snapshot is deployment-ready without colour")
 
 	var attacker := Node3D.new()
 	fixture.add_child(attacker)
@@ -76,10 +76,16 @@ func _run() -> void:
 	await process_frame
 	_check(
 		registered and bool(started.get("accepted", false))
-		and _status_text(board) == "WAVE 1 / 3\nTHREATS 4"
+		and _status_text(board) == ">> WAVE 1 / 3\nROSTER 0 / 1"
 		and status_label.text == _status_text(board),
-		"live start signal presents exact wave position and total remaining threats"
+		"live start signal presents the active wave and its actual roster with a text silhouette"
 	)
+	content.snapshot_changed.emit(_snapshot(&"active", generation, 1, 3, 0, 3, 3))
+	_check_status(
+		board, status_label, &"active", generation, "[X] WAVE 1 COMPLETE\nNEXT WAVE STANDBY",
+		"a cleared live-wave roster presents a steady wave-complete marker without a flash"
+	)
+	content.snapshot_changed.emit(content.get_snapshot())
 
 	var roster := content.get_node(^"OpponentRoster") as Node3D
 	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
@@ -103,12 +109,12 @@ func _run() -> void:
 		and content.get_snapshot().host.activity.state_id == &"completed",
 		"live resolver results reach the authoritative completed state"
 	)
-	_check_status(board, status_label, &"completed", generation, "PERIMETER SECURE\nRECOVERY AVAILABLE", "completed signal presents secure recovery guidance")
+	_check_status(board, status_label, &"completed", generation, "[X] PERIMETER SECURE\n[>] REPEAT AVAILABLE", "completed signal presents an explicit repeat cue")
 
 	var completed_reset: Dictionary = content.reset(generation)
 	var idle_generation := int((completed_reset.get("activity", {}) as Dictionary).get("generation", -1))
 	await process_frame
-	_check_status(board, status_label, &"idle", idle_generation, "READY\nINTERACT TO DEPLOY", "completion reset clears terminal copy for redeployment")
+	_check_status(board, status_label, &"idle", idle_generation, "[ ] READY\nDEPLOY AVAILABLE", "completion reset clears terminal copy for redeployment")
 
 	var actor := Node3D.new()
 	fixture.add_child(actor)
@@ -131,11 +137,11 @@ func _run() -> void:
 		and bool(aborted.get("accepted", false)),
 		"real board interaction uses the actor only as a range gate and retains no stale actor identity"
 	)
-	_check_status(board, status_label, &"aborted", abort_generation, "DEFENSE OFFLINE\nRECOVERY REQUIRED", "aborted signal presents recovery-required guidance")
+	_check_status(board, status_label, &"aborted", abort_generation, "[!] DEFENSE OFFLINE\n[<] RECOVERY REQUIRED", "aborted signal presents recovery-required guidance")
 	var aborted_reset: Dictionary = content.reset(abort_generation)
 	var post_abort_generation := int((aborted_reset.get("activity", {}) as Dictionary).get("generation", -1))
 	await process_frame
-	_check_status(board, status_label, &"idle", post_abort_generation, "READY\nINTERACT TO DEPLOY", "authoritative reset clears aborted presentation after the interaction actor is gone")
+	_check_status(board, status_label, &"idle", post_abort_generation, "[ ] READY\nDEPLOY AVAILABLE", "authoritative reset clears aborted presentation after the interaction actor is gone")
 
 	var timeout_start: Dictionary = content.start(post_abort_generation)
 	var timeout_generation := int((timeout_start.get("activity", {}) as Dictionary).get("generation", -1))
@@ -147,7 +153,7 @@ func _run() -> void:
 		and content.get_snapshot().host.activity.state_id == &"timed_out",
 		"caller-owned physics produces the live authoritative timeout terminal"
 	)
-	_check_status(board, status_label, &"timed_out", timeout_generation, "DEFENSE OFFLINE\nRECOVERY REQUIRED", "timed-out signal presents recovery-required guidance")
+	_check_status(board, status_label, &"timed_out", timeout_generation, "[!] DEFENSE OFFLINE\n[<] RECOVERY REQUIRED", "timed-out signal presents recovery-required guidance")
 
 	var history_before_stale := (board.get_session_persistence_snapshot().history as Dictionary).duplicate(true)
 	content.snapshot_changed.emit(_snapshot(&"completed", timeout_generation - 1, 3, 3, 0))
@@ -161,9 +167,9 @@ func _run() -> void:
 	var post_timeout_generation := int((timeout_reset.get("activity", {}) as Dictionary).get("generation", -1))
 	await process_frame
 	content.snapshot_changed.emit(_snapshot(&"unmapped_terminal", post_timeout_generation))
-	_check_status(board, status_label, &"unmapped_terminal", post_timeout_generation, "STATUS UNAVAILABLE", "unknown current state has a steady explicit fallback")
+	_check_status(board, status_label, &"unmapped_terminal", post_timeout_generation, "[?] STATUS UNAVAILABLE", "unknown current state has a steady explicit fallback")
 	content.snapshot_changed.emit(content.get_snapshot())
-	_check_status(board, status_label, &"idle", post_timeout_generation, "READY\nINTERACT TO DEPLOY", "next authoritative snapshot clears unknown fallback copy")
+	_check_status(board, status_label, &"idle", post_timeout_generation, "[ ] READY\nDEPLOY AVAILABLE", "next authoritative snapshot clears unknown fallback copy")
 
 	var detach_start: Dictionary = content.start(post_timeout_generation)
 	var detach_generation := int((detach_start.get("activity", {}) as Dictionary).get("generation", -1))
@@ -182,7 +188,7 @@ func _run() -> void:
 	var detach_reset: Dictionary = content.reset(detach_generation)
 	var final_generation := int((detach_reset.get("activity", {}) as Dictionary).get("generation", -1))
 	await process_frame
-	_check_status(board, status_label, &"idle", final_generation, "READY\nINTERACT TO DEPLOY", "reattach and reset clear the retained detached generation")
+	_check_status(board, status_label, &"idle", final_generation, "[ ] READY\nDEPLOY AVAILABLE", "reattach and reset clear the retained detached generation")
 
 	board_snapshot = board.get_snapshot()
 	_check(
@@ -229,7 +235,15 @@ func _status_text(board: Area3D) -> String:
 	return str(board.get_presentation_snapshot().get("text", ""))
 
 
-func _snapshot(state_id: StringName, generation: int, wave_number: int = 0, wave_count: int = 3, remaining: int = 4) -> Dictionary:
+func _snapshot(
+		state_id: StringName,
+		generation: int,
+		wave_number: int = 0,
+		wave_count: int = 3,
+		remaining: int = 4,
+		roster_total: int = 0,
+		roster_cleared: int = 0
+	) -> Dictionary:
 	return {
 		"host": {
 			"activity": {
@@ -238,6 +252,8 @@ func _snapshot(state_id: StringName, generation: int, wave_number: int = 0, wave
 				"wave_number": wave_number,
 				"wave_count": wave_count,
 				"remaining_hostile_count": remaining,
+				"current_wave_hostile_count": roster_total,
+				"current_wave_destroyed_count": roster_cleared,
 			}
 		}
 	}
