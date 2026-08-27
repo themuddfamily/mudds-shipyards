@@ -11045,7 +11045,10 @@ func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
 			result = _reset_nearby_activity(binding, activity_id)
 		_:
 			return
-	if bool(result.get("accepted", false)):
+	# Activity bindings publish presentation-safe rejection context as well as
+	# accepted lifecycle changes. Re-sample every concrete receipt so recovery
+	# guidance cannot be stranded behind an authority rejection.
+	if not result.is_empty():
 		_sync_nearby_activity_hud()
 
 

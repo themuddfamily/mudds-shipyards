@@ -1,6 +1,9 @@
 extends SceneTree
 
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
+const BindingType := preload("res://scripts/world/nearby_sector_activity_binding.gd")
+const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
+const ScanActivityType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -9,9 +12,15 @@ var _failures: Array[String] = []
 func _initialize() -> void:
 	var hud := HUD_SCENE.instantiate() as GameHUD
 	root.add_child(hud)
+	var binding := BindingType.new() as NearbySectorActivityBinding
+	binding.add_child(ConvoyHostType.new())
+	root.add_child(binding)
 	await process_frame
 
-	var view := hud.set_nearby_activity_snapshot({"structure_scan": _scan(0, 0.0, false)})
+	var initial_scan := (
+		binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	var view := hud.set_nearby_activity_snapshot(binding.get_snapshot())
 	var row := _scan_row(hud)
 	var retained_id := row.get_instance_id() if row != null else 0
 	_check(
@@ -20,15 +29,79 @@ func _initialize() -> void:
 		"idle scan state gives a clear approach objective",
 	)
 
-	var wrong_position := _scan(0, 0.0, false)
-	wrong_position.accepted = false
-	wrong_position.reason = &"outside_scan_approach"
-	view = hud.set_nearby_activity_snapshot({"structure_scan": wrong_position})
+	var expected_rejection := initial_scan.duplicate(true)
+	expected_rejection.erase("presentation_reason")
+	expected_rejection["accepted"] = false
+	expected_rejection["reason"] = &"outside_scan_approach"
+	var rejected := binding.start_structure_scan(Vector3.ZERO)
+	var rejected_snapshot := binding.get_snapshot()
+	view = hud.set_nearby_activity_snapshot(rejected_snapshot)
+	var rejected_feedback := _scan_card(view).get("scan_feedback", {}) as Dictionary
 	_check(
-		_scan_text(_scan_row(hud)).contains("WRONG POSITION  //  MOVE TO DERELICT SCAN MARKER")
-		and StringName((_scan_card(view).scan_feedback as Dictionary).stage_id) == &"wrong_position"
-		and str(_scan_card(view).get("objective_text", "")).contains("DERELICT SCAN MARKER"),
-		"the authoritative rejected-position result names the recovery position",
+		rejected == expected_rejection
+			and StringName(
+				(rejected_snapshot.get("structure_scan", {}) as Dictionary).get(
+					"presentation_reason", &""
+				)
+			) == &"outside_scan_approach"
+			and _scan_text(_scan_row(hud)).contains(
+				"WRONG POSITION  //  MOVE TO DERELICT SCAN MARKER"
+			)
+			and StringName(rejected_feedback.get("stage_id", &"")) == &"wrong_position"
+			and str(_scan_card(view).get("objective_text", "")).contains(
+				"DERELICT SCAN MARKER"
+			),
+		"the exact rejected receipt is retained only as public recovery presentation",
+	)
+
+	root.remove_child(binding)
+	await process_frame
+	root.add_child(binding)
+	for _frame in 2:
+		await process_frame
+	view = hud.set_nearby_activity_snapshot(binding.get_snapshot())
+	_check(
+		StringName(
+			(binding.get_snapshot().get("structure_scan", {}) as Dictionary).get(
+				"presentation_reason", &"stale"
+			)
+		).is_empty()
+			and _scan_text(_scan_row(hud)).contains("SCAN READY  //  APPROACH DERELICT DATUM"),
+		"detach and re-entry clear rejected-position presentation memory",
+	)
+
+	binding.start_structure_scan(Vector3.ZERO)
+	var accepted := binding.start_structure_scan(ScanActivityType.APPROACH_ANCHOR)
+	var accepted_snapshot := binding.get_snapshot()
+	view = hud.set_nearby_activity_snapshot(accepted_snapshot)
+	_check(
+		bool(accepted.get("accepted", false))
+			and StringName(accepted.get("reason", &"")) == &"started"
+			and int(accepted.get("generation", 0)) == 1
+			and StringName(
+				(accepted_snapshot.get("structure_scan", {}) as Dictionary).get(
+					"presentation_reason", &"stale"
+				)
+			).is_empty()
+			and _scan_text(_scan_row(hud)).contains("SCANNING STRUCTURE  //  0%"),
+		"an accepted replacement generation clears stale rejection guidance",
+	)
+
+	var reset := binding.reset_structure_scan()
+	var reset_snapshot := binding.get_snapshot()
+	view = hud.set_nearby_activity_snapshot(reset_snapshot)
+	_check(
+		bool(reset.get("accepted", false))
+			and StringName(reset.get("reason", &"")) == &"reset"
+			and StringName(
+				(reset_snapshot.get("structure_scan", {}) as Dictionary).get(
+					"presentation_reason", &"stale"
+				)
+			).is_empty()
+			and _scan_text(_scan_row(hud)).contains(
+				"INTERRUPTED  //  PROGRESS RESET  //  RETURN TO SCAN MARKER"
+			),
+		"reset clears rejection guidance without altering its authority receipt",
 	)
 
 	view = hud.set_nearby_activity_snapshot({"structure_scan": _scan(1, 1.0, false)})
@@ -66,6 +139,7 @@ func _initialize() -> void:
 		"reward-pending state is readable once without adding scan or grant authority",
 	)
 
+	binding.queue_free()
 	hud.queue_free()
 	await process_frame
 	for failure in _failures:

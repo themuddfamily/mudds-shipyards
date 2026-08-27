@@ -99,11 +99,14 @@ var _last_race_feedback_reason: StringName = &""
 var _last_patrol_feedback_reason: StringName = &""
 var _last_patrol_reward_result: Dictionary = {}
 var _last_mining_feedback_reason: StringName = &""
+var _last_structure_scan_feedback_reason: StringName = &""
+var _last_structure_scan_feedback_generation := -1
 var _last_beacon_feedback_reason: StringName = &""
 var _last_beacon_reward_result: Dictionary = {}
 
 
 func _enter_tree() -> void:
+	_clear_structure_scan_feedback()
 	if _mining_activity != null:
 		call_deferred("_restore_presentation_observers_after_reentry")
 	if _patrol != null:
@@ -161,6 +164,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_structure_scan_feedback()
 	if _patrol != null and bool(
 		_patrol.get_presentation_snapshot().get("attached", false)
 	):
@@ -1327,6 +1331,11 @@ func start_structure_scan(caller_position: Vector3) -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _scan_activity.call("start", caller_position)
+	if bool(result.get("accepted", false)):
+		_clear_structure_scan_feedback()
+	elif StringName(result.get("reason", &"")) == &"outside_scan_approach":
+		_last_structure_scan_feedback_reason = &"outside_scan_approach"
+		_last_structure_scan_feedback_generation = int(result.get("generation", -1))
 	_publish_structure_scan_presentation()
 	return result
 
@@ -1354,8 +1363,14 @@ func reset_structure_scan() -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _scan_activity.call("reset")
+	_clear_structure_scan_feedback()
 	_publish_structure_scan_presentation()
 	return result
+
+
+func _clear_structure_scan_feedback() -> void:
+	_last_structure_scan_feedback_reason = &""
+	_last_structure_scan_feedback_generation = -1
 
 
 func bind_structure_scan_presentation(consumer: Callable) -> Dictionary:
@@ -1794,10 +1809,16 @@ func _structure_scan_presentation_snapshot() -> Dictionary:
 	if not is_instance_valid(_scan_activity):
 		return {}
 	var snapshot := _scan_activity.call("get_snapshot") as Dictionary
+	var generation := int(snapshot.get("generation", 0))
+	if (
+		not _last_structure_scan_feedback_reason.is_empty()
+		and generation != _last_structure_scan_feedback_generation
+	):
+		_clear_structure_scan_feedback()
+	snapshot["presentation_reason"] = _last_structure_scan_feedback_reason
 	if _restored_scan_discovery.is_empty():
 		return snapshot.duplicate(true)
 	var state := int(snapshot.get("state", SCAN_ACTIVITY.State.IDLE))
-	var generation := int(snapshot.get("generation", 0))
 	if state == SCAN_ACTIVITY.State.IDLE and generation == 0:
 		var duration := float(_restored_scan_discovery.get(
 			"scan_seconds", SCAN_ACTIVITY.SCAN_SECONDS

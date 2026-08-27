@@ -198,7 +198,8 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 			== &"outside_approach_anchor":
 		state_id = &"wrong_position"
 	if activity_id == &"cinder_derelict_structure_scan":
-		if StringName(state.get("reason", &"")) == &"outside_scan_approach":
+		if StringName(state.get("presentation_reason", state.get("reason", &""))) \
+				== &"outside_scan_approach":
 			state_id = &"wrong_position"
 		elif int(state.get("state", -1)) == 3:
 			state_id = &"interrupted"
@@ -657,7 +658,7 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 	if state.is_empty():
 		return {}
 	var authority_state := int(state.get("state", 0))
-	var reason := StringName(state.get("reason", &""))
+	var reason := StringName(state.get("presentation_reason", state.get("reason", &"")))
 	var elapsed := maxf(float(state.get("elapsed_seconds", 0.0)), 0.0)
 	var duration := maxf(float(state.get("scan_seconds", 0.0)), 0.0)
 	var progress := clampf(elapsed / duration, 0.0, 1.0) if duration > 0.0 else 0.0

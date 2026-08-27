@@ -2,6 +2,9 @@ extends SceneTree
 
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
+const BindingType := preload("res://scripts/world/nearby_sector_activity_binding.gd")
+const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
+const ScanActivityType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 
 class BindingProbe extends Node3D:
 	var starts: Array[StringName] = []
@@ -66,6 +69,19 @@ class WorldProbe extends Node3D:
 	var cluster := ClusterProbe.new()
 
 	func _init() -> void:
+		add_child(cluster)
+
+	func get_nearby_sector_cluster() -> Node3D:
+		return cluster
+
+
+class ProductionWorldProbe extends Node3D:
+	var cluster := Node3D.new()
+
+	func _init(binding: NearbySectorActivityBinding) -> void:
+		cluster.name = "NearbySectorCluster"
+		binding.name = "ActivityBinding"
+		cluster.add_child(binding)
 		add_child(cluster)
 
 	func get_nearby_sector_cluster() -> Node3D:
@@ -168,10 +184,82 @@ func _run() -> void:
 		"the confirmed retained RESET routes through GameFlow back to AVAILABLE",
 	)
 
+	var production_binding := BindingType.new() as NearbySectorActivityBinding
+	production_binding.add_child(ConvoyHostType.new())
+	var production_world := ProductionWorldProbe.new(production_binding)
+	root.add_child(production_world)
+	var production_convoy_host := ConvoyHostType.new() as CinderConvoyEscortHost
+	root.add_child(production_convoy_host)
+	await process_frame
+	flow.world = production_world
+	flow.cinder_convoy_host = production_convoy_host
+	active_ship.global_position = Vector3.ZERO
+	flow._sync_nearby_activity_hud()
+	var scan_row := _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	var scan_start := scan_row.get_child(2) as Button if scan_row != null else null
+	_check(
+		scan_start != null
+			and _activity_text(scan_row).contains("SCAN READY")
+			and _activity_text(scan_row).contains("APPROACH DERELICT DATUM"),
+		"the real retained scan row begins with its public approach state",
+	)
+	if scan_start != null:
+		scan_start.emit_signal(&"pressed")
+	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	var rejected_scan := (
+		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		StringName(rejected_scan.get("presentation_reason", &"")) \
+				== &"outside_scan_approach"
+			and _activity_text(scan_row).contains(
+				"WRONG POSITION  //  MOVE TO DERELICT SCAN MARKER"
+			),
+		"a rejected real START refreshes the retained row with recovery guidance",
+	)
+
+	active_ship.global_position = ScanActivityType.APPROACH_ANCHOR
+	scan_start = scan_row.get_child(2) as Button if scan_row != null else null
+	if scan_start != null:
+		scan_start.emit_signal(&"pressed")
+	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	var active_scan := (
+		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		int(active_scan.get("state", -1)) == 1
+			and StringName(active_scan.get("presentation_reason", &"stale")).is_empty()
+			and _activity_text(scan_row).contains("SCANNING STRUCTURE  //  0%"),
+		"a subsequent valid real START clears rejection feedback and reaches SCANNING",
+	)
+	var scan_reset := scan_row.get_child(3) as Button if scan_row != null else null
+	if scan_reset != null:
+		scan_reset.emit_signal(&"pressed")
+	_check(
+		scan_reset != null and scan_reset.text == "CONFIRM RESET",
+		"the active real scan retains reset confirmation before authority mutation",
+	)
+	if scan_reset != null:
+		scan_reset.emit_signal(&"pressed")
+	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	var reset_scan := (
+		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		int(reset_scan.get("state", -1)) == 3
+			and StringName(reset_scan.get("presentation_reason", &"stale")).is_empty()
+			and _activity_text(scan_row).contains("INTERRUPTED  //  PROGRESS RESET"),
+		"the confirmed real RESET clears feedback and reaches the normal reset state",
+	)
+
 	flow.hud = null
 	flow.active_ship = null
+	flow.world = null
+	flow.cinder_convoy_host = null
 	retained_hud.queue_free()
 	active_ship.queue_free()
+	production_world.queue_free()
+	production_convoy_host.queue_free()
 	hud.free()
 	world.free()
 	flow.free()
