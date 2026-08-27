@@ -97,6 +97,7 @@ const GALLEY_DOOR_PULL_COPY_COUNT := 4
 const GALLEY_MUG_COPY_COUNT := 6
 const POTTING_PULL_COPY_COUNT := 3
 const MESS_BENCH_LEG_COPY_COUNT := 4
+const MESS_TRESTLE_FOOT_COPY_COUNT := 2
 const GARDEN_RACK_CROWN_COPY_COUNT := 5
 const MESS_MUG_COPY_COUNT := 3
 const BERTH_BOOT_COPY_COUNT := 8
@@ -110,11 +111,14 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1237
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1856
-const RENDER_MESH_INSTANCE_COUNT := 1194
-const RENDER_MULTIMESH_BATCH_COUNT := 31
+const RENDER_DESCENDANT_COUNT := 1855
+const RENDER_MESH_INSTANCE_COUNT := 1192
+const RENDER_MULTIMESH_BATCH_COUNT := 32
+## One reusable StationDoor renderer owns a shared MultiMesh resource across the
+## module's two door instances; all other batches own their component buffer.
+const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 31
 const RENDER_DRAWN_COPY_COUNT := 1385
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1216
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1215
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
@@ -246,6 +250,8 @@ var _potting_pull_transforms: Array[Transform3D] = []
 var _potting_pull_batch: MultiMeshInstance3D
 var _mess_bench_leg_transforms: Array[Transform3D] = []
 var _mess_bench_leg_batch: MultiMeshInstance3D
+var _mess_trestle_foot_transforms: Array[Transform3D] = []
+var _mess_trestle_foot_batch: MultiMeshInstance3D
 var _garden_rack_crown_transforms: Array[Transform3D] = []
 var _garden_rack_crown_batch: MultiMeshInstance3D
 var _mess_mug_transforms: Array[Transform3D] = []
@@ -779,6 +785,13 @@ func get_performance_contract() -> Dictionary:
 	# 1221 -> 1216. All six visible copies remain, while collision, traversal,
 	# galley dressing, its task light, room topology and gameplay authority do not
 	# move.
+	#
+	# Re-frozen after the two identical, childless graphite feet beneath the
+	# collidable mess-table trestles moved into one CommonMess-local batch. The
+	# cached rounded-box mesh, material, exact poses, shadows and two drawn copies
+	# are unchanged; descendants 1856 -> 1855, MeshInstances 1194 -> 1192,
+	# MultiMeshes 31 -> 32, and geometry submissions 1216 -> 1215. The trestles
+	# retain both collision bodies and all table support/gameplay authority.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 1350,
 		"static_bodies": 260,
@@ -1301,7 +1314,7 @@ func get_render_allocation_report() -> Dictionary:
 		and submissions == RENDER_GEOMETRY_SUBMISSION_COUNT
 		and mesh_resource_ids.size() == RENDER_UNIQUE_MESH_RESOURCE_COUNT
 		and material_resource_ids.size() == RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT
-		and multimesh_resource_ids.size() == RENDER_MULTIMESH_BATCH_COUNT
+		and multimesh_resource_ids.size() == RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT
 		and _hatch_fastener_transforms.size() == HATCH_FASTENER_COPY_COUNT
 		and _nutrient_tank_band_transforms.size() == NUTRIENT_TANK_BAND_COPY_COUNT
 		and _nutrient_valve_transforms.size() == NUTRIENT_VALVE_COPY_COUNT
@@ -3688,9 +3701,20 @@ func _build_common_mess(common: Node3D) -> void:
 
 	var table_x := 5.55
 	var table_z := 23.30
+	_mess_trestle_foot_transforms.clear()
 	for trestle_z in [22.45, 24.15]:
 		_box(mess, "MessTrestle", Vector3(table_x, 0.36, float(trestle_z)), Vector3(0.74, 0.72, 0.13), _materials["structural"])
-		_box(mess, "MessTrestleFoot", Vector3(table_x, 0.035, float(trestle_z)), Vector3(0.92, 0.07, 0.20), _materials["graphite"], false)
+		_mess_trestle_foot_transforms.append(
+			Transform3D(Basis.IDENTITY, Vector3(table_x, 0.035, float(trestle_z)))
+		)
+	_mess_trestle_foot_batch = _multimesh_visual_stock(
+		mess,
+		"MessTrestleFeet",
+		_rounded_box_mesh(Vector3(0.92, 0.07, 0.20)),
+		_materials["graphite"],
+		_mess_trestle_foot_transforms,
+		&"MessTrestleFoot"
+	)
 	_beam_between(mess, "MessTrestleTie", Vector3(table_x, 0.58, 22.45), Vector3(table_x, 0.58, 24.15), 0.042, _materials["structural"], false)
 	_box(mess, "MessTableTop", Vector3(table_x, 0.755, table_z), Vector3(1.12, 0.07, 2.32), _materials["shell_light"])
 	_box(mess, "MessTableEdge", Vector3(table_x, 0.755, table_z), Vector3(1.18, 0.045, 2.38), _materials["copper"], false)
