@@ -578,12 +578,22 @@ func _test_live_station_coverage(
 	# three modules' structural finish. Measured on the merged production tree,
 	# Excluding the mobile tow tractor leaves final static-architecture buckets of
 	# 115 / 844 / 1655.
+	#
+	# Re-frozen 2614 -> 2393 after the merged renderer-batching passes. Registered
+	# material identity is preserved on each replacement MultiMesh (and checked
+	# below), so the exact ordinary-surface shift is the expected transfer into the
+	# instanced census: Jovian's 0.22 stock moves 115 -> 45 (-70), Habitat's 0.28
+	# fittings move 844 -> 822 (-22), and the station's 0.30 structure moves
+	# 1655 -> 1526 (-129). The corresponding live batch roster is 219/125 below.
+	# These are the measured production-tree values after the Jovian berth, Habitat,
+	# Fabrication, Observation, Fleet, Aft and central-hub batching commits; no map,
+	# recipe parameter or physical scale changed.
 	_check(
-		mapped_surface_count == 2614
-		and scale_022_count == 115
-		and scale_028_count == 844
-		and scale_030_count == 1655,
-		"live static station binds exactly 2614 ordinary surfaces after the finished outer-district pass"
+		mapped_surface_count == 2393
+		and scale_022_count == 45
+		and scale_028_count == 822
+		and scale_030_count == 1526,
+		"live static station binds exactly 2393 ordinary surfaces after the merged renderer-batching passes"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -675,9 +685,14 @@ func _test_instanced_station_family(
 	# The current production tree also contains the two deliberately painted
 	# maintenance-gantry SafetyBands and the rubber TowTractor wheel batch. Those
 	# three visual-only families are intentionally outside the station plate maps.
+	# Re-frozen 93/35 -> 219/125 after those merged visual populations moved from
+	# ordinary renderers into material-preserving MultiMeshes. This is the other
+	# side of the exact 0.22/0.28/0.30 ordinary-surface transfer frozen above;
+	# deliberately painted, emissive, rubber and sky batches remain counted only
+	# in the total column, while every mapped replacement still passes `exact`.
 	_check(
-		batches == 93 and mapped == 35,
-		"instanced station structure is exactly ninety-three batches, thirty-five of them mapped"
+		batches == 219 and mapped == 125,
+		"instanced station structure is exactly 219 batches, 125 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -691,18 +706,28 @@ func _test_instanced_station_family(
 func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 	var expected := {
 		"CentralBerthServiceLine/PortFlank/PartsBinRack": [15, 14, 1, 1],
-		"ModernFleetRegistry": [35, 22, 1, 1],
-		"FabricationAnnex": [27, 27, 31, 12],
+		# The curved registry header removes one plain ordinary surface; its 22
+		# registered surfaces and one registered column batch are unchanged.
+		"ModernFleetRegistry": [34, 22, 1, 1],
+		# Floor, work-bay, overhead, portal and guardrail batching leaves four
+		# registered ordinary surfaces and moves the other registered populations
+		# behind 24 exact material-family batches.
+		"FabricationAnnex": [4, 4, 29, 24],
 		"ExposedDockLattice/FabricationAnnexConnector": [10, 10, 0, 0],
-		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
-		"ObservationLogisticsSpur": [33, 9, 20, 3],
+		# This startup-time material snapshot precedes the frame-staged courier build;
+		# absence is exact here, while the courier's own focused contract owns its
+		# post-stage material roster.
+		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [-1, -1, -1, -1],
+		# Portal, cargo, practical-lens and trim batching moves the Spur to its live
+		# 7/6 ordinary and 28/17 batch profile without changing registered recipes.
+		"ObservationLogisticsSpur": [7, 6, 28, 17],
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
-		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
+		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [-1, -1, -1, -1],
 		# The machine-dressing merge removes one mapped ordinary renderer only;
 		# six batches and their five mapped material bindings stay unchanged.
 		"SalvageTerrace": [31, 28, 6, 5],
 		"ExposedDockLattice/SalvageTerraceConnector": [3, 3, 0, 0],
-		"OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier": [7, 5, 0, 0],
+		"OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier": [-1, -1, -1, -1],
 	}
 	var exact := true
 	var live := {}
@@ -720,7 +745,7 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 	print("LIVE_RECENT_MODULE_MATERIAL_ROSTERS: ", live)
 	_check(
 		exact,
-		"Central service, Modern registry, Fabrication, Observation and Salvage retain their exact local material rosters"
+		"startup-time Central, Modern, Fabrication, Observation and Salvage material consumers retain their exact local rosters"
 	)
 
 
