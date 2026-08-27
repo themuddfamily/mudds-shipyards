@@ -75,6 +75,7 @@ const DORSAL_BASTION_COPY_COUNT := 2
 const DORSAL_BASTION_CROWN_SIZE := Vector3(1.08, 0.12, 2.55)
 const DORSAL_BASTION_CROWN_COPY_COUNT := 2
 const COCKPIT_CONSOLE_KEY_COPY_COUNT := 6
+const COCKPIT_DISPLAY_BEZEL_PAIR_COUNT := 2
 const NAVIGATION_LAMP_RADIUS := 0.11
 const NAVIGATION_LAMP_COPY_COUNT := 2
 const ENGINE_HOUSING_RADIUS := 0.72
@@ -328,6 +329,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	for mount in hinge_mounts:
 		(mount as Node3D).reparent(_bulwark_visual, true)
 	_share_cockpit_console_key_meshes(cockpit)
+	_share_cockpit_display_bezel_meshes(cockpit)
 
 	var armor_dark := _material(ARMOR_DARK, 0.78, 0.32)
 	var armor_blue := _material(ARMOR_BLUE, 0.72, 0.28)
@@ -664,6 +666,42 @@ func _share_cockpit_console_key_meshes(cockpit: Node3D) -> void:
 	for index in keys.size():
 		keys[index].mesh = _shared_cockpit_console_key_mesh
 		keys[index].material_override = authored_materials[index]
+
+
+## The inherited instrument panel's four bezel leaves are static, childless
+## cockpit dressing. Top/bottom and port/starboard were authored as two exact
+## geometry/material pairs but allocated four separate meshes. Preserve every
+## renderer node, transform, surface material, shadow, layer, and submission;
+## only share the immutable mesh inside each pair for this Bulwark instance.
+func _share_cockpit_display_bezel_meshes(cockpit: Node3D) -> void:
+	if cockpit == null:
+		return
+	var instrument_cluster := cockpit.get_node_or_null(^"InstrumentCluster") as Node3D
+	if instrument_cluster == null:
+		return
+	var bezel_pairs := [
+		PackedStringArray(["DisplayBezelTop", "DisplayBezelBottom"]),
+		PackedStringArray(["PortDisplayBezelSide", "StarboardDisplayBezelSide"]),
+	]
+	for pair_names: PackedStringArray in bezel_pairs:
+		var pair: Array[MeshInstance3D] = []
+		for bezel_name in pair_names:
+			var bezel := instrument_cluster.get_node_or_null(NodePath(bezel_name)) \
+					as MeshInstance3D
+			if bezel == null or bezel.mesh == null or bezel.get_child_count() != 0:
+				return
+			pair.append(bezel)
+		if pair.size() != COCKPIT_DISPLAY_BEZEL_PAIR_COUNT:
+			return
+		var shared_mesh := pair[0].mesh
+		if shared_mesh.get_surface_count() != 1 \
+				or pair[1].mesh.get_surface_count() != 1 \
+				or shared_mesh.get_aabb() != pair[1].mesh.get_aabb() \
+				or shared_mesh.surface_get_material(0) \
+					!= pair[1].mesh.surface_get_material(0):
+			return
+		shared_mesh.resource_local_to_scene = false
+		pair[1].mesh = shared_mesh
 
 
 ## The port and starboard navigation lamps are immutable visual markers with
