@@ -698,7 +698,9 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 		"ObservationLogisticsSpur": [33, 9, 20, 3],
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
-		"SalvageTerrace": [39, 32, 6, 5],
+		# The machine-dressing merge removes one mapped ordinary renderer only;
+		# six batches and their five mapped material bindings stay unchanged.
+		"SalvageTerrace": [31, 28, 6, 5],
 		"ExposedDockLattice/SalvageTerraceConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier": [7, 5, 0, 0],
 	}
