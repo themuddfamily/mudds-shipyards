@@ -26,6 +26,8 @@ func attach(binding: Object, hud: GameHUD, hazard_source: Object = null) -> Dict
 	if hud == null or not is_instance_valid(hud) \
 			or not hud.has_method(&"update_surface_route_status") \
 			or not hud.has_method(&"detach_surface_route_status") \
+			or not hud.has_method(&"set_runtime_status_card") \
+			or not hud.has_method(&"clear_runtime_status_card") \
 			or not hud.has_method(&"update_offscreen_route_marker") \
 			or not hud.has_method(&"clear_offscreen_route_marker") \
 			or not hud.has_method(&"get_minimap_report"):
@@ -55,8 +57,8 @@ func detach() -> Dictionary:
 	if is_instance_valid(_hazard_source) \
 			and _hazard_source.is_connected(&"state_changed", _on_hazard_source_changed):
 		_hazard_source.disconnect(&"state_changed", _on_hazard_source_changed)
-	if not _last_hazard_snapshot.is_empty() and is_instance_valid(_hud):
-		_hud.call(&"detach_surface_route_status")
+	if is_instance_valid(_hud):
+		_hud.call(&"clear_runtime_status_card", &"surface")
 	_binding = null
 	_hazard_source = null
 	if is_instance_valid(_hud):
@@ -161,8 +163,57 @@ func _apply(view: Dictionary) -> void:
 func _restore_cached_route() -> void:
 	if not is_instance_valid(_hud) or _last_snapshot.is_empty():
 		return
-	_hud.call(&"update_surface_route_status", _last_snapshot)
+	_hud.call(
+		&"set_runtime_status_card", &"surface",
+		_to_runtime_status_card(_last_snapshot)
+	)
 	_apply_minimap_guidance(_last_snapshot)
+
+
+## Ordinary Ember lifecycle observations are already resolved presentation
+## states. Feeding them through the generic hazard presenter would fabricate
+## Resume/Abort controls, including on detached or terminal rows. Authored
+## hazards keep their existing route path; ordinary status uses this compact,
+## authority-free public card payload.
+func _to_runtime_status_card(route: Dictionary) -> Dictionary:
+	var lines := PackedStringArray()
+	var semantics := route.get("status_semantics", {}) as Dictionary
+	if not semantics.is_empty():
+		lines.append("STATUS %s // %s" % [
+			str(semantics.get("marker", "[???]")),
+			str(semantics.get("label", "STATUS UNAVAILABLE")),
+		])
+	else:
+		var message := str(route.get("message", "")).strip_edges()
+		if not message.is_empty():
+			lines.append(message.split("\n", false, 1)[0])
+	var guidance := route.get("route_guidance", {}) as Dictionary
+	if bool(guidance.get("available", false)):
+		lines.append("NEXT // %s // %.1f M" % [
+			str(guidance.get("target_label", "ROUTE")),
+			float(guidance.get("distance_m", 0.0)),
+		])
+	var next_action := route.get("next_action", {}) as Dictionary
+	if not next_action.is_empty():
+		lines.append("NEXT // %s // EMBER RETURN // %s" % [
+			str(next_action.get("label", "CHECK STATUS")),
+			str(route.get("state", &"status")).replace("_", " ").to_upper(),
+		])
+	for source_line: String in str(route.get("message", "")).split("\n"):
+		if source_line.begins_with("CACHE PROBE //"):
+			lines.append(source_line)
+	if StringName(semantics.get("kind", &"")) == &"detached":
+		lines = PackedStringArray(["WAIT FOR CURRENT ACTOR / SESSION STATUS"])
+	return {
+		"title": str(route.get("title", "EMBER [???] STATUS UNAVAILABLE")),
+		"message": "\n".join(lines),
+		"actions": [],
+		"presentation_only": true,
+		"input_authority": false,
+		"movement_authority": false,
+		"landing_authority": false,
+		"session_authority": false,
+	}.duplicate(true)
 
 
 func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
@@ -200,6 +251,7 @@ func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
 			"recovery_available": false,
 		},
 		"state": state,
+		"status_semantics": semantics.duplicate(true),
 		"route_guidance": guidance.duplicate(true),
 		"next_action": next_action.duplicate(true),
 		"reduced_motion": bool(view.get("reduced_motion", false)),

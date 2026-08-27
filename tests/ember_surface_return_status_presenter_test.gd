@@ -25,8 +25,6 @@ func _run() -> void:
 		[&"takeoff", true, {}, "[^>>]", "TAKEOFF // CLIMB", "TAKEOFF: CLIMB", &"travel"],
 		[&"ascent", true, {}, "[^^^]", "ASCENT // CLIMB TO ORBIT", "ASCENT: TO ORBIT", &"travel"],
 		[&"orbit_return", true, {}, "[|||]", "ORBIT RETURN // HANDOFF", "ORBIT RETURN: HANDOFF", &"travel"],
-		[&"failed", true, {}, "[!X!]", "ABORTED // CHECK REASON", "ABORTED: CHECK REASON", &"blocked"],
-		[&"on_foot", true, {"accepted": false, "reason": &"return_manifest_denied"}, "[!!!]", "BLOCKED // CHECK REASON", "BLOCKED: CHECK REASON", &"blocked"],
 		[&"on_foot", false, {}, "[---]", "DETACHED // WAIT FOR CURRENT SESSION", "DETACHED: WAIT SESSION", &"detached"],
 	]
 	var visible_titles := {}
@@ -49,8 +47,23 @@ func _run() -> void:
 		markers[marker] = true
 		if index == roster.size() - 1:
 			detached = view
-	_check(visible_titles.size() == 15 and markers.size() == 15,
-		"the complete 15-state production roster has unique title text and marker shapes")
+	_check(visible_titles.size() == 13 and markers.size() == 13,
+		"the complete reachable-state roster has unique title text and marker shapes")
+	var failed := PresenterType.new().present(_snapshot(1, &"failed", true))
+	_check(
+		not bool(failed.get("accepted", false))
+			and failed.get("reason", &"") == &"unsupported_phase",
+		"generic Host failure cannot be relabelled as an abort",
+	)
+	var negative_receipt := PresenterType.new().present(_snapshot(
+		1, &"on_foot", true,
+		{"accepted": false, "reason": &"return_manifest_denied"},
+	))
+	_check_semantics(
+		negative_receipt, "[XXX]", "REJECTED // STATUS UNAVAILABLE",
+		"REJECTED: UNAVAILABLE", &"rejected",
+		"a synthetic negative receipt cannot invent a BLOCKED state",
+	)
 	var exact_rejected := PresenterType.new().present(_snapshot(1, &"rejected", true))
 	_check_semantics(
 		exact_rejected, "[XXX]", "REJECTED // STATUS UNAVAILABLE", "REJECTED: UNAVAILABLE",
