@@ -526,6 +526,11 @@ func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 		&"dock_05_bomber": &"swept_bomber_chevron",
 		&"dock_06_interceptor": &"straight_launch_spear",
 	}
+	var expected_dock05_alignment := [
+		{"centre": Vector3(30.2, 0.035, -20.4), "size": Vector3(0.72, 0.07, 0.10)},
+		{"centre": Vector3(30.2, 0.035, -19.65), "size": Vector3(0.72, 0.07, 0.10)},
+		{"centre": Vector3(30.2, 0.035, -18.9), "size": Vector3(0.72, 0.07, 0.10)},
+	]
 	var route_mesh := berths.get_node_or_null(
 		^"AccessCirculation/BerthRouteEdgeTreatment"
 	) as MeshInstance3D
@@ -535,7 +540,7 @@ func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 	_check(
 		route_mesh != null and route_mesh.mesh is ArrayMesh
 		and route_mesh.mesh.get_surface_count() == 1
-		and int(route_mesh.get_meta(&"batched_box_count", -1)) == 14
+		and int(route_mesh.get_meta(&"batched_box_count", -1)) == 17
 		and route_mesh.get_meta(&"route_cue_grammars", {}) == expected_grammars
 		and bool(route_mesh.get_meta(&"manufactured_edge_treatment", false))
 		and route_legend != null
@@ -544,6 +549,13 @@ func _test_access_circulation(berths: Node3D, audit: Dictionary) -> void:
 		and route_legend.text.contains("DOCK 06  INTERCEPTOR")
 		and route_mesh.find_children("*", "CollisionShape3D", true, false).is_empty(),
 		"one batched station-family edge treatment pairs explicit Aft-junction text with square, chevron, and spear berth identities without colour or collision"
+	)
+	_check(
+		route_mesh != null
+		and int(route_mesh.get_meta(&"batched_box_count", -1)) == 17
+		and route_mesh.get_meta(&"dock05_boarding_alignment_boxes", [])
+			== expected_dock05_alignment,
+		"the same route batch includes three exact Dock 05 boarding-alignment rungs"
 	)
 	var circulation := berths.get_node_or_null(^"AccessCirculation") as Node3D
 	var spine := circulation.get_node_or_null(^"CargoTrunkLeg") as StaticBody3D \
