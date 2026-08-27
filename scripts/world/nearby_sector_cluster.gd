@@ -311,6 +311,20 @@ const MINING_CAPACITY_HOPPER_SCALE := Vector3(1.2, 1.0, 1.2)
 const MINING_FAILED_HOPPER_SCALE := Vector3(0.65, 1.35, 0.65)
 const MINING_FAILED_BAND_TURNS := [-38.0, 38.0, -38.0]
 const MINING_EXTRACTION_LOCATOR_Z := 18.0
+## The two full-height legs are the approach-distance state read. They stay in
+## the same retained renderer: available is an open gate, extraction crosses
+## into an X, and completed/capacity-full lays both retained members flat as a
+## separated double roof bar above the filled collectors.
+## This is deliberately shape-only; colour remains supporting information.
+const MINING_LEG_OPEN_TURNS := [0.0, 0.0]
+const MINING_LEG_ACTIVE_TURNS := [52.0, -52.0]
+const MINING_LEG_SECURED_TURNS := [90.0, -90.0]
+const MINING_LEG_OPEN_CENTRES := [-12.0, 12.0]
+const MINING_LEG_ACTIVE_CENTRES := [-4.0, 4.0]
+const MINING_LEG_SECURED_CENTRES := [0.0, 0.0]
+const MINING_LEG_OPEN_HEIGHTS := [20.0, 20.0]
+const MINING_LEG_ACTIVE_HEIGHTS := [20.0, 20.0]
+const MINING_LEG_SECURED_HEIGHTS := [33.5, 37.5]
 
 ## The scan begins twenty metres in front of the platform centre. A fractured
 ## datum frame gathers the existing torn habitat and collapsed solar wing into
@@ -1595,6 +1609,11 @@ func get_mining_platform_presentation_audit() -> Dictionary:
 		StringName(state_feedback.get("activity_id", &"")) != MINING_ACTIVITY_ID
 		or StringName(state_feedback.get("state_id", &"")) \
 			not in [&"available", &"extracting", &"secured", &"failed", &"reset"]
+		or StringName(state_feedback.get("shape_id", &"")) \
+			not in [&"open_gate", &"crossed_x", &"locked_roof"]
+		or (state_feedback.get("leg_turns", []) as Array).size() != 2
+		or (state_feedback.get("leg_centres", []) as Array).size() != 2
+		or (state_feedback.get("leg_heights", []) as Array).size() != 2
 		or int(state_feedback.get("node_delta", -1)) != 0
 		or int(state_feedback.get("light_delta", -1)) != 0
 		or int(state_feedback.get("submission_delta", -1)) != 0
@@ -2787,11 +2806,10 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 	presentation.add_child(approach)
 
 	_box(presentation, "HeadframeHeader", Vector3(0.0, 31.0, -4.0), Vector3(28.0, 2.0, 4.0), _materials["mining_structure"], false)
-	var leg_transforms: Array[Transform3D] = []
+	var leg_transforms := _mining_headframe_leg_transforms(&"open_gate")
 	var brace_transforms: Array[Transform3D] = []
 	var chute_transforms: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
-		leg_transforms.append(Transform3D(Basis.IDENTITY, Vector3(side * 12.0, 20.0, -4.0)))
 		brace_transforms.append(Transform3D(
 			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(side * 48.0))),
 			Vector3(side * 6.2, 23.0, -4.0)
@@ -2800,11 +2818,16 @@ func _build_mining_activity_presentation(platform: Node3D) -> void:
 			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(side * 24.0))),
 			Vector3(side * 7.0, 11.0, -2.0)
 		))
-	_presentation_multimesh_batch(
+	var headframe_legs := _presentation_multimesh_batch(
 		presentation, "MiningHeadframeLegs",
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(3.0, 22.0, 3.0), _box_cache),
 		_materials["mining_structure"], leg_transforms, &"mining-headframe-legs"
 	)
+	for leg_shape_id in [&"open_gate", &"crossed_x", &"locked_roof"]:
+		for full_transform in _mining_headframe_leg_transforms(leg_shape_id):
+			headframe_legs.custom_aabb = headframe_legs.custom_aabb.merge(
+				(full_transform * headframe_legs.multimesh.mesh.get_aabb()).abs()
+			)
 	_presentation_multimesh_batch(
 		presentation, "MiningHeadframeBraces",
 		StationSurfaceKit.rounded_box_mesh_cached(Vector3(15.0, 1.2, 2.0), _box_cache),
@@ -2933,11 +2956,13 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	var port_lens := presentation.get_node_or_null(^"MiningCrownLampPortLens") as MeshInstance3D
 	var starboard_lens := presentation.get_node_or_null(^"MiningCrownLampStarboardLens") as MeshInstance3D
 	var sign := presentation.get_node_or_null(^"Sign_ORE_EXTRACTION") as MeshInstance3D
+	var headframe_legs := presentation.get_node_or_null(^"MiningHeadframeLegs") \
+		as MultiMeshInstance3D
 	var collector_bands := presentation.get_node_or_null(^"MiningOreBufferBands") as MultiMeshInstance3D
 	var hopper_band := presentation.get_node_or_null(^"HopperServiceBand") as MeshInstance3D
 	if port == null or starboard == null or port_lens == null or starboard_lens == null \
 			or sign == null or collector_bands == null or collector_bands.multimesh == null \
-			or hopper_band == null:
+			or headframe_legs == null or headframe_legs.multimesh == null or hopper_band == null:
 		return {"accepted": false, "reason": &"presentation_roster_incomplete"}
 	var progress := clampf(elapsed / duration, 0.0, 1.0)
 	var collector_levels := _mining_collector_levels(progress)
@@ -2947,6 +2972,7 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		collector_transforms
 	)
 	var state_id: StringName = &"available"
+	var shape_id: StringName = &"open_gate"
 	port.light_color = KETH_CYAN
 	starboard.light_color = KETH_ORANGE
 	port_lens.material_override = _lens_material(KETH_CYAN)
@@ -2958,6 +2984,7 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 	hopper_band.scale = Vector3.ONE
 	if failed:
 		state_id = &"failed"
+		shape_id = &"crossed_x"
 		port.light_energy = 0.2
 		starboard.light_energy = 3.5
 		sign.material_override = _materials["orange_glow"]
@@ -2965,12 +2992,14 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		hopper_band.scale = MINING_FAILED_HOPPER_SCALE
 	elif state == CinderMiningPlatformActivity.State.ACTIVE:
 		state_id = &"extracting"
+		shape_id = &"crossed_x"
 		port.light_energy = lerpf(1.4, 3.2, progress)
 		starboard.light_energy = lerpf(3.2, 1.4, progress)
 		sign.material_override = _materials["cyan_glow"]
 		sign.scale = Vector3.ONE * 2.55
 	elif state == CinderMiningPlatformActivity.State.COMPLETE:
 		state_id = &"secured"
+		shape_id = &"locked_roof"
 		port.light_energy = 3.4
 		starboard.light_energy = 3.4
 		starboard.light_color = KETH_CYAN
@@ -2980,8 +3009,11 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		hopper_band.scale = MINING_CAPACITY_HOPPER_SCALE
 	elif state == CinderMiningPlatformActivity.State.RESET:
 		state_id = &"reset"
+		shape_id = &"open_gate"
 		port.light_energy = 0.35
 		starboard.light_energy = 0.35
+	var leg_transforms := _mining_headframe_leg_transforms(shape_id)
+	headframe_legs.multimesh.buffer = _mining_collector_transform_buffer(leg_transforms)
 	# IDLE retains the authored available state through the defaults above.
 	_mining_presentation_snapshot = {
 		"activity_id": MINING_ACTIVITY_ID,
@@ -2994,6 +3026,16 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		"port_color": port.light_color,
 		"starboard_color": starboard.light_color,
 		"sign_scale": sign.scale.x,
+		"shape_id": shape_id,
+		"leg_turns": leg_transforms.map(
+			func(transform_value: Transform3D) -> float: return _mining_leg_turn(transform_value)
+		),
+		"leg_centres": leg_transforms.map(
+			func(transform_value: Transform3D) -> float: return transform_value.origin.x
+		),
+		"leg_heights": leg_transforms.map(
+			func(transform_value: Transform3D) -> float: return transform_value.origin.y
+		),
 		"collector_levels": collector_levels,
 		"collector_band_heights": collector_transforms.map(
 			func(transform_value: Transform3D) -> float: return transform_value.origin.y
@@ -3010,6 +3052,36 @@ func _apply_mining_activity_presentation(snapshot: Dictionary) -> Dictionary:
 		"reward_authority": false,
 	}.duplicate(true)
 	return {"accepted": true, "reason": &"mining_presentation_applied"}
+
+
+## The two full-height existing legs are deliberately posed as a large binary read
+## at the ship approach camera.  No mesh is changed or allocated: only the
+## retained MultiMesh transforms are swapped from the authority snapshot.
+func _mining_headframe_leg_transforms(shape_id: StringName) -> Array[Transform3D]:
+	var turns := MINING_LEG_OPEN_TURNS
+	var centres := MINING_LEG_OPEN_CENTRES
+	var heights := MINING_LEG_OPEN_HEIGHTS
+	if shape_id == &"crossed_x":
+		turns = MINING_LEG_ACTIVE_TURNS
+		centres = MINING_LEG_ACTIVE_CENTRES
+		heights = MINING_LEG_ACTIVE_HEIGHTS
+	elif shape_id == &"locked_roof":
+		turns = MINING_LEG_SECURED_TURNS
+		centres = MINING_LEG_SECURED_CENTRES
+		heights = MINING_LEG_SECURED_HEIGHTS
+	var transforms: Array[Transform3D] = []
+	for brace_index in turns.size():
+		transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(turns[brace_index]))),
+			Vector3(centres[brace_index], heights[brace_index], -4.0)
+		))
+	return transforms
+
+
+func _mining_leg_turn(transform_value: Transform3D) -> float:
+	return snappedf(rad_to_deg(atan2(
+		transform_value.basis.x.y, transform_value.basis.x.x
+	)), 0.1)
 
 
 func _mining_collector_levels(progress: float) -> Array[float]:
