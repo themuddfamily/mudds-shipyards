@@ -13,7 +13,10 @@ func _init() -> void:
 func _run() -> void:
 	var presenter := PresenterType.new()
 	var roster := [
-		[&"descent", true, {}, "[>>>]", "DESCENT // APPROACH", "DESCENT: APPROACH", &"travel"],
+		[&"orbit_approach", true, {}, "[O>>]", "ORBIT APPROACH // ALIGN ENTRY", "ORBIT: ALIGN ENTRY", &"travel"],
+		[&"descent", true, {}, "[>>>]", "DESCENT // ENTERING", "DESCENT: ENTERING", &"travel"],
+		[&"surface_approach", true, {}, "[>=>]", "ENTRY CORRIDOR // HOLD LINE", "ENTRY: CORRIDOR", &"travel"],
+		[&"landing_approach", true, {}, "[v=v]", "LANDING COMMIT // HOLD STEADY", "LANDING: COMMIT", &"travel"],
 		[&"landed", true, {}, "[===]", "LANDED // HOLD POSITION", "LANDED: HOLD", &"ready"],
 		[&"on_foot", true, {}, "[***]", "ON FOOT // SURFACE TASK", "ON FOOT: SURFACE", &"travel"],
 		[&"on_foot", true, {"accepted": true, "reason": &"return_manifest_ready"}, "[###]", "RETURN MANIFEST // READY", "MANIFEST: READY", &"ready"],
@@ -22,6 +25,7 @@ func _run() -> void:
 		[&"takeoff", true, {}, "[^>>]", "TAKEOFF // CLIMB", "TAKEOFF: CLIMB", &"travel"],
 		[&"ascent", true, {}, "[^^^]", "ASCENT // CLIMB TO ORBIT", "ASCENT: TO ORBIT", &"travel"],
 		[&"orbit_return", true, {}, "[|||]", "ORBIT RETURN // HANDOFF", "ORBIT RETURN: HANDOFF", &"travel"],
+		[&"failed", true, {}, "[!X!]", "ABORTED // CHECK REASON", "ABORTED: CHECK REASON", &"blocked"],
 		[&"on_foot", true, {"accepted": false, "reason": &"return_manifest_denied"}, "[!!!]", "BLOCKED // CHECK REASON", "BLOCKED: CHECK REASON", &"blocked"],
 		[&"on_foot", false, {}, "[---]", "DETACHED // WAIT FOR CURRENT SESSION", "DETACHED: WAIT SESSION", &"detached"],
 	]
@@ -45,8 +49,8 @@ func _run() -> void:
 		markers[marker] = true
 		if index == roster.size() - 1:
 			detached = view
-	_check(visible_titles.size() == 11 and markers.size() == 11,
-		"the complete 11-state production roster has unique title text and marker shapes")
+	_check(visible_titles.size() == 15 and markers.size() == 15,
+		"the complete 15-state production roster has unique title text and marker shapes")
 	var exact_rejected := PresenterType.new().present(_snapshot(1, &"rejected", true))
 	_check_semantics(
 		exact_rejected, "[XXX]", "REJECTED // STATUS UNAVAILABLE", "REJECTED: UNAVAILABLE",

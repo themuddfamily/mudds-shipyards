@@ -5,8 +5,9 @@ extends RefCounted
 ## It never moves actors, admits landing/reboard, selects berths, or grants rewards.
 
 const STATES := [
-	&"descent", &"landed", &"on_foot", &"reboard", &"reboarded",
-	&"takeoff", &"ascent", &"orbit_return", &"return_manifest", &"rejected",
+	&"orbit_approach", &"descent", &"surface_approach", &"landing_approach",
+	&"landed", &"on_foot", &"reboard", &"reboarded", &"takeoff", &"ascent",
+	&"orbit_return", &"return_manifest", &"failed", &"rejected",
 ]
 
 var _source_generation := -1
@@ -107,8 +108,8 @@ func get_snapshot() -> Dictionary:
 
 
 func _map_state(state: StringName) -> Dictionary:
-	if state == &"surface_approach" or state == &"surface_flight" or state == &"landing_approach":
-		state = &"descent"
+	if state == &"surface_flight":
+		state = &"surface_approach"
 	if state == &"disembarking" or state == &"surface_outbound" or state == &"boarding":
 		state = &"on_foot" if state != &"boarding" else &"reboard"
 	if state == &"completed":
@@ -128,10 +129,25 @@ func _status_semantics(
 	var short_label := "STATUS UNAVAILABLE"
 	var kind := &"unavailable"
 	match state:
+		&"orbit_approach":
+			marker = "[O>>]"
+			label = "ORBIT APPROACH // ALIGN ENTRY"
+			short_label = "ORBIT: ALIGN ENTRY"
+			kind = &"travel"
 		&"descent":
 			marker = "[>>>]"
-			label = "DESCENT // APPROACH"
-			short_label = "DESCENT: APPROACH"
+			label = "DESCENT // ENTERING"
+			short_label = "DESCENT: ENTERING"
+			kind = &"travel"
+		&"surface_approach":
+			marker = "[>=>]"
+			label = "ENTRY CORRIDOR // HOLD LINE"
+			short_label = "ENTRY: CORRIDOR"
+			kind = &"travel"
+		&"landing_approach":
+			marker = "[v=v]"
+			label = "LANDING COMMIT // HOLD STEADY"
+			short_label = "LANDING: COMMIT"
 			kind = &"travel"
 		&"landed":
 			marker = "[===]"
@@ -173,6 +189,11 @@ func _status_semantics(
 			label = "RETURN MANIFEST // READY"
 			short_label = "MANIFEST: READY"
 			kind = &"ready"
+		&"failed":
+			marker = "[!X!]"
+			label = "ABORTED // CHECK REASON"
+			short_label = "ABORTED: CHECK REASON"
+			kind = &"blocked"
 		&"rejected":
 			if not host_attached:
 				marker = "[---]"

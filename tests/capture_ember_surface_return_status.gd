@@ -22,17 +22,21 @@ const CAPTURE_SIZE := Vector2i(2560, 1440)
 const OUTPUT_DIR := "/tmp/mudds-wave33-ember-return-status-frames"
 const CONTACT_PATH := OUTPUT_DIR + "/ember_return_status_contact_sheet.png"
 const ROSTER := [
-	["01_descent", &"descent", true, {}],
-	["02_landed", &"landed", true, {}],
-	["03_on_foot", &"on_foot", true, {}],
-	["04_return_manifest", &"on_foot", true, {"accepted": true, "reason": &"return_manifest_ready"}],
-	["05_reboard", &"reboard", true, {}],
-	["06_reboarded", &"reboarded", true, {}],
-	["07_takeoff", &"takeoff", true, {}],
-	["08_ascent", &"ascent", true, {}],
-	["09_orbit_return", &"orbit_return", true, {}],
-	["10_blocked", &"on_foot", true, {"accepted": false, "reason": &"return_manifest_denied"}],
-	["11_detached", &"on_foot", false, {}],
+	["01_orbit_approach", &"orbit_approach", true, {}],
+	["02_descent", &"descent", true, {}],
+	["03_entry_corridor", &"surface_approach", true, {}],
+	["04_landing_commit", &"landing_approach", true, {}],
+	["05_landed", &"landed", true, {}],
+	["06_on_foot", &"on_foot", true, {}],
+	["07_return_manifest", &"on_foot", true, {"accepted": true, "reason": &"return_manifest_ready"}],
+	["08_reboard", &"reboard", true, {}],
+	["09_reboarded", &"reboarded", true, {}],
+	["10_takeoff", &"takeoff", true, {}],
+	["11_ascent", &"ascent", true, {}],
+	["12_orbit_return", &"orbit_return", true, {}],
+	["13_aborted", &"failed", true, {}],
+	["14_blocked", &"on_foot", true, {"accepted": false, "reason": &"return_manifest_denied"}],
+	["15_detached", &"on_foot", false, {}],
 ]
 
 var _failures: PackedStringArray = []
@@ -114,11 +118,12 @@ func _run() -> void:
 		)))
 		print("EMBER_SURFACE_RETURN_STATUS_FRAME: ", output_path)
 	_check(
-		titles.size() == 11 and title_hashes.size() == 11 and card_images.size() == 11,
-		"all 11 production states have unique visible title text and rendered header pixels",
+		titles.size() == ROSTER.size() and title_hashes.size() == ROSTER.size()
+			and card_images.size() == ROSTER.size(),
+		"all production states have unique visible title text and rendered header pixels",
 	)
-	if card_images.size() == 11:
-		_check(_save_contact_sheet(card_images) == OK, "11-state HUD contact sheet saves successfully")
+	if card_images.size() == ROSTER.size():
+		_check(_save_contact_sheet(card_images) == OK, "all-state HUD contact sheet saves successfully")
 		print("EMBER_SURFACE_RETURN_STATUS_CONTACT_SHEET: ", CONTACT_PATH)
 	adapter.call(&"detach")
 	hud.queue_free()
