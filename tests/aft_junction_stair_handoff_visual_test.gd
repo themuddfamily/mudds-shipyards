@@ -32,7 +32,7 @@ func _initialize() -> void:
 		_check(cue != null, "the production stair handoff owns one bounded cue hierarchy")
 		if cue != null:
 			var plate := cue.get_node_or_null(^"BackingPlate") as MeshInstance3D
-			var label := cue.get_node_or_null(^"Sign_UPPER_DECK") as MeshInstance3D
+			var label := cue.get_node_or_null(^"Sign_UPPER_OPERATIONS") as MeshInstance3D
 			var label_mesh := label.mesh as TextMesh if label != null else null
 			var renderers := cue.find_children("*", "MeshInstance3D", true, false)
 			var collision := cue.find_children("*", "CollisionObject3D", true, false)
@@ -50,7 +50,7 @@ func _initialize() -> void:
 				all_non_emissive = all_non_emissive \
 					and material != null and not material.emission_enabled
 			_check(
-				plate != null and label_mesh != null and label_mesh.text == "UPPER DECK" \
+				plate != null and label_mesh != null and label_mesh.text == "UPPER OPERATIONS" \
 					and renderers.size() == 7 and authority_free and all_non_emissive,
 				"the seven-leaf cue is labelled, static, collision-free, light-free, and non-emissive"
 			)
