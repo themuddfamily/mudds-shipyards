@@ -480,8 +480,9 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 			or elapsed < 0.0 or elapsed >= _timeout_seconds \
 			or separation_elapsed < 0.0 \
 			or separation_elapsed >= _maximum_separation_seconds \
+			or separation_elapsed > elapsed \
 			or int(saved.convoy_status) != EntityStatus.ACTIVE \
-			or sample_count < 0:
+			or sample_count < 0 or sample_count > MAX_PERSISTED_GENERATION:
 		return _persistence_result(false, &"invalid_convoy_activity_state")
 	if not has_sample:
 		if sample_count != 0 or not convoy_position.is_zero_approx() \

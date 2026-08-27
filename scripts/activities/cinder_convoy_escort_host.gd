@@ -24,6 +24,10 @@ const CONVOY_ID: StringName = &"emberline_supply_tender"
 const ARRIVAL_ID: StringName = &"cinder_convoy_safe_arrival"
 const REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const PERSISTENCE_SCHEMA_VERSION := 1
+const MAX_PERSISTED_COUNTER := 9_007_199_254_740_991
+const ROUTE_REPLAY_GRID_DIVISIONS := 16
+const ROUTE_REPLAY_REFINEMENT_STEPS := 18
+const ROUTE_REPLAY_POSITION_TOLERANCE := 0.001
 const ROUTE: ActivityDefinition = preload(
 	"res://assets/activities/cinder_reach_emberline_convoy_route.tres"
 )
@@ -446,33 +450,65 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	var entity_position := _decode_vector(saved.entity_position as Dictionary)
 	var last_entity_position := _decode_vector(saved.last_entity_position as Dictionary)
 	var last_escort_position := _decode_vector(saved.last_escort_position as Dictionary)
+	var elapsed := float(activity_state.get("elapsed_seconds", -1.0))
+	var separation_elapsed := float(
+		activity_state.get("separation_elapsed_seconds", -1.0)
+	)
+	var has_sample := bool(saved.has_escort_sample)
+	var activity_sample_count := int(activity_state.get("sample_count", -1))
 	if entity_generation < 1 \
+			or entity_generation > MAX_PERSISTED_COUNTER \
 			or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
 			or next_route_index < 0 or next_route_index >= ROUTE.get_checkpoint_count() \
-			or movement_distance < 0.0 or physics_ticks < 0 or publication_count < 0 \
+			or movement_distance < 0.0 \
+			or physics_ticks < 0 or physics_ticks > MAX_PERSISTED_COUNTER \
+			or publication_count < 0 or publication_count > MAX_PERSISTED_COUNTER \
 			or not entity_position.is_equal_approx(last_entity_position) \
 			or entity_generation != int(activity_state.get("convoy_generation", -1)) \
+			or str(activity_state.get("convoy_id", "")) != str(CONVOY_ID) \
 			or next_route_index != int(activity_state.get("next_leg_index", -1)) \
-			or publication_count != int(activity_state.get("sample_count", -1)) \
-			or bool(saved.has_escort_sample) \
+			or publication_count != activity_sample_count \
+			or has_sample \
 			!= bool(activity_state.get("has_entity_sample", false)):
 		return _persistence_result(false, &"convoy_host_activity_mismatch")
-	var expected_position := _route_position_for_distance(movement_distance)
-	if expected_position == Vector3.INF or not entity_position.is_equal_approx(expected_position):
+	if separation_elapsed > elapsed:
+		return _persistence_result(false, &"convoy_clock_progress_mismatch")
+	var expected_movement := _movement_speed * elapsed
+	if not is_finite(expected_movement) \
+			or not is_equal_approx(movement_distance, expected_movement):
 		return _persistence_result(false, &"convoy_movement_progress_mismatch")
-	var expected_route_index := _route_index_for_distance(
-		movement_distance, bool(saved.has_escort_sample)
-	)
-	if next_route_index != expected_route_index:
+	if physics_ticks == 0:
+		if not is_zero_approx(elapsed) \
+				or not is_zero_approx(separation_elapsed) \
+				or not is_zero_approx(movement_distance) \
+				or publication_count != 0 or activity_sample_count != 0 \
+				or has_sample or next_route_index != 0:
+			return _persistence_result(false, &"convoy_tick_progress_mismatch")
+	else:
+		var minimum_publications := physics_ticks * 2
+		var maximum_publications := minimum_publications + maxi(
+			0, next_route_index - 1
+		)
+		if elapsed <= 0.0 or movement_distance <= 0.0 or not has_sample \
+				or publication_count < minimum_publications \
+				or publication_count > maximum_publications:
+			return _persistence_result(false, &"convoy_tick_progress_mismatch")
+	if not _route_replay_matches(
+		movement_distance,
+		entity_position,
+		next_route_index,
+		has_sample,
+		activity_state
+	):
 		return _persistence_result(false, &"convoy_route_progress_mismatch")
-	if bool(saved.has_escort_sample):
+	if has_sample:
 		if not entity_position.is_equal_approx(
 			_decode_vector(activity_state.convoy_position as Dictionary)
 		) or not last_escort_position.is_equal_approx(
 			_decode_vector(activity_state.escort_position as Dictionary)
 		):
 			return _persistence_result(false, &"convoy_sample_progress_mismatch")
-	elif not last_escort_position.is_zero_approx() or not is_zero_approx(movement_distance):
+	elif not last_escort_position.is_zero_approx():
 		return _persistence_result(false, &"convoy_sample_progress_mismatch")
 	return _persistence_result(true, &"convoy_host_state_valid")
 
@@ -1476,40 +1512,133 @@ func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
 	return {"accepted": accepted, "reason": reason}
 
 
-func _route_position_for_distance(distance: float) -> Vector3:
-	if not is_finite(distance) or distance < 0.0:
-		return Vector3.INF
-	var remaining := distance
-	var current := ROUTE.get_checkpoint_position(0)
-	for index in range(1, ROUTE.get_checkpoint_count()):
-		var target := ROUTE.get_checkpoint_position(index)
-		var segment_length := current.distance_to(target)
-		if remaining <= segment_length or is_equal_approx(remaining, segment_length):
-			if segment_length <= 0.0:
-				return Vector3.INF
-			return current.lerp(target, clampf(remaining / segment_length, 0.0, 1.0))
-		remaining -= segment_length
-		current = target
-	return current if is_zero_approx(remaining) else Vector3.INF
+## Replays the host's actual motion seam. A sampled checkpoint advances at the
+## inclusive radius, so a tick may turn toward the following checkpoint from a
+## point up to four metres before the checkpoint centre. The saved aggregate
+## movement and final sample uniquely constrain those one-dimensional shortcut
+## points for this four-checkpoint route; no exact checkpoint-plane crossing is
+## assumed.
+func _route_replay_matches(
+		distance: float,
+		position: Vector3,
+		next_index: int,
+		has_sample: bool,
+		activity_state: Dictionary
+	) -> bool:
+	if not has_sample:
+		return next_index == 0 and is_zero_approx(distance) \
+			and position.is_equal_approx(ROUTE.get_checkpoint_position(0))
+	if next_index < 1 or next_index >= ROUTE.get_checkpoint_count():
+		return false
+	var best_error := _best_route_replay_error(distance, position, next_index)
+	if not is_finite(best_error) \
+			or best_error > ROUTE_REPLAY_POSITION_TOLERANCE * ROUTE_REPLAY_POSITION_TOLERANCE:
+		return false
+	var target_distance := position.distance_to(
+		ROUTE.get_checkpoint_position(next_index)
+	)
+	if target_distance <= ROUTE.checkpoint_radius:
+		if next_index != ROUTE.get_checkpoint_count() - 1:
+			return false
+		if float(activity_state.get("escort_distance", -1.0)) \
+				<= float(activity_state.get("configured_escort_proximity_radius", -1.0)):
+			return false
+	return true
 
 
-func _route_index_for_distance(distance: float, has_sample: bool) -> int:
-	if not is_finite(distance) or distance < 0.0:
-		return -1
-	if is_zero_approx(distance):
-		return 1 if has_sample else 0
-	var remaining := distance
+func _best_route_replay_error(
+		distance: float,
+		position: Vector3,
+		next_index: int
+	) -> float:
+	var shortcut_count := next_index - 1
+	if shortcut_count == 0:
+		return _route_replay_error(distance, position, next_index, PackedFloat64Array())
+	var radius := ROUTE.checkpoint_radius
+	var best := PackedFloat64Array()
+	best.resize(shortcut_count)
+	var best_error := INF
+	var step := radius / float(ROUTE_REPLAY_GRID_DIVISIONS)
+	if shortcut_count == 1:
+		for first_index in ROUTE_REPLAY_GRID_DIVISIONS + 1:
+			var candidate := PackedFloat64Array([step * first_index])
+			var error := _route_replay_error(distance, position, next_index, candidate)
+			if error < best_error:
+				best_error = error
+				best = candidate
+	else:
+		for first_index in ROUTE_REPLAY_GRID_DIVISIONS + 1:
+			for second_index in ROUTE_REPLAY_GRID_DIVISIONS + 1:
+				var candidate := PackedFloat64Array([
+					step * first_index,
+					step * second_index,
+				])
+				var error := _route_replay_error(
+					distance, position, next_index, candidate
+				)
+				if error < best_error:
+					best_error = error
+					best = candidate
+	for _refinement in ROUTE_REPLAY_REFINEMENT_STEPS:
+		step *= 0.5
+		var refined := best.duplicate()
+		if shortcut_count == 1:
+			for first_offset in [-step, 0.0, step]:
+				var candidate := PackedFloat64Array([
+					clampf(best[0] + first_offset, 0.0, radius),
+				])
+				var error := _route_replay_error(
+					distance, position, next_index, candidate
+				)
+				if error < best_error:
+					best_error = error
+					refined = candidate
+		else:
+			for first_offset in [-step, 0.0, step]:
+				for second_offset in [-step, 0.0, step]:
+					var candidate := PackedFloat64Array([
+						clampf(best[0] + first_offset, 0.0, radius),
+						clampf(best[1] + second_offset, 0.0, radius),
+					])
+					var error := _route_replay_error(
+						distance, position, next_index, candidate
+					)
+					if error < best_error:
+						best_error = error
+						refined = candidate
+		best = refined
+	return best_error
+
+
+func _route_replay_error(
+		distance: float,
+		position: Vector3,
+		next_index: int,
+		shortfalls: PackedFloat64Array
+	) -> float:
+	if not is_finite(distance) or distance < 0.0 \
+			or shortfalls.size() != next_index - 1:
+		return INF
 	var current := ROUTE.get_checkpoint_position(0)
-	for index in range(1, ROUTE.get_checkpoint_count()):
-		var target := ROUTE.get_checkpoint_position(index)
+	var spent := 0.0
+	for offset in shortfalls.size():
+		var target := ROUTE.get_checkpoint_position(offset + 1)
 		var segment_length := current.distance_to(target)
-		if remaining < segment_length and not is_equal_approx(remaining, segment_length):
-			return index
-		remaining -= segment_length
-		if is_zero_approx(remaining):
-			return mini(index + 1, ROUTE.get_checkpoint_count() - 1)
-		current = target
-	return -1
+		var shortfall := shortfalls[offset]
+		if not is_finite(shortfall) or shortfall < 0.0 \
+				or shortfall > ROUTE.checkpoint_radius \
+				or shortfall > segment_length:
+			return INF
+		var travel := segment_length - shortfall
+		current = current.move_toward(target, travel)
+		spent += travel
+	var target := ROUTE.get_checkpoint_position(next_index)
+	var segment_length := current.distance_to(target)
+	var remaining := distance - spent
+	if remaining < 0.0 or remaining > segment_length:
+		return INF
+	var expected := current.move_toward(target, remaining)
+	return expected.distance_squared_to(position)
 
 
 func _encode_vector(value: Vector3) -> Dictionary:

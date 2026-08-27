@@ -16,6 +16,7 @@ const NearbyActivitySessionAdapter := preload(
 
 const STORE_PATH := "memory://cinder-convoy-session.json"
 const CORRUPT_STORE_PATH := "memory://corrupt-cinder-convoy-session.json"
+const RADIUS_STORE_PATH := "memory://cinder-convoy-radius-session.json"
 const SLOT: StringName = &"cinder_convoy_session"
 
 
@@ -73,6 +74,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var filesystem := MemoryFilesystem.new()
+	await _exercise_checkpoint_radius_and_corruption_contract(filesystem)
 	var first_store := Store.new(STORE_PATH, filesystem) as UserDataStore
 	first_store.load()
 	first_store.commit(
@@ -333,6 +335,274 @@ func _run() -> void:
 	_finish()
 
 
+func _exercise_checkpoint_radius_and_corruption_contract(
+		filesystem: MemoryFilesystem
+	) -> void:
+	var store := Store.new(RADIUS_STORE_PATH, filesystem) as UserDataStore
+	store.load()
+	var host := CinderConvoyEscortHost.new()
+	root.add_child(host)
+	await process_frame
+	var live_signals := _new_signal_counts()
+	_connect_host_signal_counts(host, live_signals)
+	var started := host.start(host.get_generation())
+	var adapter := SessionPersistence.new() as CinderConvoySessionPersistence
+	adapter.configure(store, SLOT)
+	var zero_tick_state := host.capture_persistence_state()
+	var zero_tick_save := adapter.save(
+		host, &"torrent", "radius-live-zero-tick"
+	)
+	_check(
+		bool(started.get("accepted", false))
+			and bool(zero_tick_save.get("accepted", false))
+			and int(zero_tick_state.physics_tick_count) == 0
+			and int(zero_tick_state.sample_publication_count) == 0
+			and not bool(zero_tick_state.has_escort_sample),
+		"the exact live unsampled start state saves with every runtime clock at zero"
+	)
+
+	var live_saves: Array[Dictionary] = []
+	var checkpoint_states: Array[Dictionary] = []
+	var first_motion := _advance_host_travel(host, 1.0)
+	live_saves.append(adapter.save(host, &"torrent", "radius-live-after-checkpoint-0"))
+	for checkpoint_index in [1, 2]:
+		var checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(
+			checkpoint_index
+		)
+		var before_travel := (
+			(host.get_snapshot().entity_position as Vector3).distance_to(checkpoint)
+			- CinderConvoyEscortHost.ROUTE.checkpoint_radius - 0.25
+		)
+		var before_advance := _advance_host_travel(host, before_travel)
+		var before_state := host.capture_persistence_state()
+		live_saves.append(adapter.save(
+			host, &"torrent", "radius-live-before-checkpoint-%d" % checkpoint_index
+		))
+		var into_radius := (
+			(host.get_snapshot().entity_position as Vector3).distance_to(checkpoint)
+			- CinderConvoyEscortHost.ROUTE.checkpoint_radius
+		)
+		var boundary_advance := _advance_host_travel(host, into_radius)
+		if int(host.get_snapshot().next_route_index) == checkpoint_index:
+			boundary_advance = _advance_host_travel(host, 0.01)
+		var inside_state := host.capture_persistence_state()
+		checkpoint_states.append(inside_state.duplicate(true))
+		live_saves.append(adapter.save(
+			host, &"torrent", "radius-live-inside-checkpoint-%d" % checkpoint_index
+		))
+		var after_advance := _advance_host_travel(host, 1.0)
+		var after_state := host.capture_persistence_state()
+		live_saves.append(adapter.save(
+			host, &"torrent", "radius-live-after-checkpoint-%d" % checkpoint_index
+		))
+		_check(
+			bool(before_advance.get("accepted", false))
+				and bool(boundary_advance.get("accepted", false))
+				and bool(after_advance.get("accepted", false))
+				and int(before_state.next_route_index) == checkpoint_index
+				and (_decoded_position(inside_state.entity_position)
+					.distance_to(checkpoint)
+					<= CinderConvoyEscortHost.ROUTE.checkpoint_radius)
+				and int(inside_state.next_route_index) == checkpoint_index + 1
+				and int(after_state.next_route_index) == checkpoint_index + 1
+				and _decoded_position(after_state.entity_position).distance_to(
+					_decoded_position(inside_state.entity_position)
+				) > 0.0,
+			"checkpoint %d saves immediately before, inside, and after its inclusive 4 m radius"
+				% checkpoint_index
+		)
+	_check(
+		bool(first_motion.get("accepted", false))
+			and live_saves.all(func(result: Dictionary) -> bool:
+				return bool(result.get("accepted", false))),
+		"every exact live radius transition and shortcut movement state is accepted"
+	)
+
+	var final_checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(3)
+	var final_before_travel := (
+		(host.get_snapshot().entity_position as Vector3).distance_to(final_checkpoint)
+		- CinderConvoyEscortHost.ROUTE.checkpoint_radius - 0.25
+	)
+	var final_before := _advance_host_travel(host, final_before_travel)
+	var final_before_save := adapter.save(
+		host, &"torrent", "radius-live-before-final-checkpoint"
+	)
+	var final_into_radius := (
+		(host.get_snapshot().entity_position as Vector3).distance_to(final_checkpoint)
+		- CinderConvoyEscortHost.ROUTE.checkpoint_radius + 0.001
+	)
+	var far_escort := (host.get_snapshot().entity_position as Vector3) + Vector3(100.0, 0.0, 0.0)
+	var final_inside := host.advance_physics(
+		final_into_radius / float(host.get_snapshot().movement_speed),
+		far_escort,
+		host.get_generation()
+	)
+	var final_inside_state := host.capture_persistence_state()
+	var final_inside_save := adapter.save(
+		host, &"torrent", "radius-live-inside-final-checkpoint"
+	)
+	_check(
+		bool(final_before.get("accepted", false))
+			and bool(final_before_save.get("accepted", false))
+			and bool(final_inside.get("accepted", false))
+			and bool(final_inside_save.get("accepted", false))
+			and int(final_inside_state.next_route_index) == 3
+			and _decoded_position(final_inside_state.entity_position).distance_to(
+				final_checkpoint
+			) <= CinderConvoyEscortHost.ROUTE.checkpoint_radius
+			and float((final_inside_state.activity_state as Dictionary).escort_distance)
+			> float((final_inside_state.activity_state as Dictionary)
+				.configured_escort_proximity_radius),
+		"the active final-leg waiting state saves before and inside the same inclusive radius"
+	)
+
+	var live_session := _stored_session_state(store)
+	var corrupt_sessions: Array[Dictionary] = []
+	var wrong_nested_convoy := live_session.duplicate(true)
+	(((wrong_nested_convoy.host_state as Dictionary).activity_state) as Dictionary).convoy_id = (
+		"forged_supply_tender"
+	)
+	corrupt_sessions.append(wrong_nested_convoy)
+	var forged_host_route := live_session.duplicate(true)
+	(forged_host_route.host_state as Dictionary).route_resource_path = (
+		"res://assets/activities/forged_convoy_route.tres"
+	)
+	corrupt_sessions.append(forged_host_route)
+	var forged_activity_route := live_session.duplicate(true)
+	(((forged_activity_route.host_state as Dictionary).activity_state) as Dictionary).activity_id = (
+		"forged_convoy_activity"
+	)
+	corrupt_sessions.append(forged_activity_route)
+	var forged_terminal := live_session.duplicate(true)
+	var forged_terminal_activity := (
+		(forged_terminal.host_state as Dictionary).activity_state as Dictionary
+	)
+	forged_terminal_activity.state = ConvoyEscortActivity.State.COMPLETED
+	forged_terminal_activity.terminal_result = (
+		ConvoyEscortActivity.TerminalResult.SAFELY_ARRIVED
+	)
+	forged_terminal_activity.terminal_reason = "safely_arrived"
+	corrupt_sessions.append(forged_terminal)
+	var separation_after_elapsed := live_session.duplicate(true)
+	var separation_activity := (
+		(separation_after_elapsed.host_state as Dictionary).activity_state as Dictionary
+	)
+	separation_activity.separation_elapsed_seconds = (
+		float(separation_activity.elapsed_seconds) + 0.25
+	)
+	corrupt_sessions.append(separation_after_elapsed)
+	var forged_movement := live_session.duplicate(true)
+	(forged_movement.host_state as Dictionary).movement_distance = (
+		float((forged_movement.host_state as Dictionary).movement_distance) + 1.0
+	)
+	corrupt_sessions.append(forged_movement)
+	var forged_publications := live_session.duplicate(true)
+	var forged_publication_host := forged_publications.host_state as Dictionary
+	forged_publication_host.sample_publication_count = (
+		int(forged_publication_host.physics_tick_count) * 2 - 1
+	)
+	(forged_publication_host.activity_state as Dictionary).sample_count = (
+		forged_publication_host.sample_publication_count
+	)
+	corrupt_sessions.append(forged_publications)
+	var non_numeric_movement := live_session.duplicate(true)
+	(non_numeric_movement.host_state as Dictionary).movement_distance = "not-a-number"
+	corrupt_sessions.append(non_numeric_movement)
+
+	for positive_field in ["elapsed_seconds", "separation_elapsed_seconds"]:
+		var forged_zero_tick := live_session.duplicate(true)
+		forged_zero_tick.host_state = zero_tick_state.duplicate(true)
+		((forged_zero_tick.host_state as Dictionary).activity_state as Dictionary)[
+			positive_field
+		] = 0.25
+		if positive_field == "separation_elapsed_seconds":
+			((forged_zero_tick.host_state as Dictionary).activity_state as Dictionary).elapsed_seconds = 0.25
+		corrupt_sessions.append(forged_zero_tick)
+	var zero_tick_movement := live_session.duplicate(true)
+	zero_tick_movement.host_state = zero_tick_state.duplicate(true)
+	(zero_tick_movement.host_state as Dictionary).movement_distance = 0.25
+	corrupt_sessions.append(zero_tick_movement)
+	var zero_tick_samples := live_session.duplicate(true)
+	zero_tick_samples.host_state = zero_tick_state.duplicate(true)
+	(zero_tick_samples.host_state as Dictionary).sample_publication_count = 1
+	((zero_tick_samples.host_state as Dictionary).activity_state as Dictionary).sample_count = 1
+	corrupt_sessions.append(zero_tick_samples)
+
+	var first_shortcut := checkpoint_states[0].duplicate(true)
+	for forged_index in [1, 3]:
+		var forged_progress := live_session.duplicate(true)
+		forged_progress.host_state = first_shortcut.duplicate(true)
+		(forged_progress.host_state as Dictionary).next_route_index = forged_index
+		((forged_progress.host_state as Dictionary).activity_state as Dictionary).next_leg_index = (
+			forged_index
+		)
+		corrupt_sessions.append(forged_progress)
+
+	var store_generation_before := store.get_generation()
+	var store_snapshot_before := store.get_snapshot()
+	var live_signals_before := live_signals.duplicate(true)
+	var save_rejections: Array[Dictionary] = []
+	for case_index in corrupt_sessions.size():
+		save_rejections.append(adapter.save_state(
+			corrupt_sessions[case_index],
+			host,
+			&"torrent",
+			"radius-corruption-rejected-%d" % case_index
+		))
+
+	var pristine := CinderConvoyEscortHost.new()
+	root.add_child(pristine)
+	await process_frame
+	var pristine_signals := _new_signal_counts()
+	_connect_host_signal_counts(pristine, pristine_signals)
+	var pristine_before := pristine.capture_persistence_state()
+	var adoption_rejections: Array[Dictionary] = []
+	for corrupt_session in corrupt_sessions:
+		adoption_rejections.append(pristine.restore_persistence_state(
+			corrupt_session.host_state,
+			pristine.get_generation()
+		))
+	var non_finite_host_state := final_inside_state.duplicate(true)
+	non_finite_host_state.movement_distance = NAN
+	adoption_rejections.append(pristine.restore_persistence_state(
+		non_finite_host_state,
+		pristine.get_generation()
+	))
+	_check(
+		save_rejections.all(func(result: Dictionary) -> bool:
+				return not bool(result.get("accepted", true)))
+			and adoption_rejections.all(func(result: Dictionary) -> bool:
+				return not bool(result.get("accepted", true)))
+			and store.get_generation() == store_generation_before
+			and store.get_snapshot() == store_snapshot_before
+			and live_signals == live_signals_before
+			and pristine.capture_persistence_state() == pristine_before
+			and _signal_total(pristine_signals) == 0,
+		"identity, terminal, route, clock, movement, tick, sample, and finite corruptions write, signal, and adopt nothing"
+	)
+
+	var restore_adapter := SessionPersistence.new() as CinderConvoySessionPersistence
+	restore_adapter.configure(store, SLOT)
+	var loaded := restore_adapter.load(pristine)
+	var restored := pristine.restore_persistence_state(
+		(loaded.get("session_state", {}) as Dictionary).get("host_state", {}),
+		pristine.get_generation()
+	) if bool(loaded.get("accepted", false)) else {"accepted": false}
+	_check(
+		bool(loaded.get("accepted", false))
+			and bool(restored.get("accepted", false))
+			and _canonical(pristine.capture_persistence_state())
+			== _canonical(final_inside_state)
+			and store.get_generation() == store_generation_before
+			and _signal_total(pristine_signals) == 0,
+		"the final exact live shortcut state round-trips into a pristine host without signals or store mutation"
+	)
+	host.queue_free()
+	pristine.queue_free()
+	for _frame in 3:
+		await process_frame
+
+
 func _connect_host_signal_counts(
 		host: CinderConvoyEscortHost,
 		counts: Dictionary
@@ -356,6 +626,40 @@ func _connect_host_signal_counts(
 		func(_snapshot: Dictionary) -> void:
 			counts.presentation = int(counts.presentation) + 1
 	)
+
+
+func _new_signal_counts() -> Dictionary:
+	return {
+		"started": 0,
+		"advanced": 0,
+		"arrived": 0,
+		"failed": 0,
+		"reset": 0,
+		"presentation": 0,
+	}
+
+
+func _signal_total(counts: Dictionary) -> int:
+	return int(counts.started) + int(counts.advanced) + int(counts.arrived) \
+		+ int(counts.failed) + int(counts.reset) + int(counts.presentation)
+
+
+func _advance_host_travel(
+		host: CinderConvoyEscortHost,
+		travel_distance: float
+	) -> Dictionary:
+	if travel_distance <= 0.0:
+		return {"accepted": false, "reason": &"invalid_test_travel"}
+	var snapshot := host.get_snapshot()
+	return host.advance_physics(
+		travel_distance / float(snapshot.movement_speed),
+		snapshot.entity_position as Vector3,
+		host.get_generation()
+	)
+
+
+func _decoded_position(encoded: Dictionary) -> Vector3:
+	return Vector3(float(encoded.x), float(encoded.y), float(encoded.z))
 
 
 func _stored_session_state(store: UserDataStore) -> Dictionary:
