@@ -73,6 +73,14 @@ const PORTAL_CHEVRON_COPY_COUNT := 6
 const PORTAL_CHEVRON_SIZE := Vector3(0.9, 0.24, 0.05)
 const PORTAL_CHEVRON_SUBMISSIONS_BEFORE := 6
 const PORTAL_CHEVRON_FAMILY_ID: StringName = &"approach-portal-chevrons"
+## The entrance board faces the normal station walking approach (local -Z).
+## Its left/right wording is therefore the immediate port/starboard choice a
+## walker makes after crossing the gate: boarding is port, Freight Control is
+## starboard. This only relabels the existing portal board; it creates no route,
+## interaction, collision, light, or authority.
+const APPROACH_LEGEND := "JOVIAN FREIGHT BERTH F-01\nBOARDING <<   TERMINAL >>"
+const APPROACH_LEGEND_POSITION := Vector3(0.0, 4.83, PORTAL_Z - 0.20)
+const APPROACH_LEGEND_HEIGHT := 0.38
 
 ## Freight-control doorway lintel. Its broad Y/Z face is visible throughout the
 ## starboard service approach; the old proportional bevel was only 92 mm deep
@@ -3231,7 +3239,11 @@ func _build_lighting_and_signage() -> void:
 	# steel. `FREIGHT CONTROL` had the same problem 0.71 m clear of its own wall and
 	# is bedded onto the sign fascia the portal builder mounts there. The two deck
 	# legends were always painted on the apron and do not move.
-	_label(presentation, "MUDDS FREIGHT NODE  //  JOVIAN", Vector3(0, 4.92, PORTAL_Z - 0.20), 0.62, Color("bffff6"), Vector3(0, 180, 0))
+	# The supported class identity at the real entrance was formerly a generic
+	# node label. Reuse its exact portal board and approach-facing pose, but make
+	# the berth, boarding and terminal choices readable before a walker reaches
+	# the apron decision point.
+	_label(presentation, APPROACH_LEGEND, APPROACH_LEGEND_POSITION, APPROACH_LEGEND_HEIGHT, Color("bffff6"), Vector3(0, 180, 0))
 	_sign_practical(presentation, "FreightNodeSignWash", Vector3(0.0, 4.35, PORTAL_Z - 0.55), Color("8fe6dd"), 0.5, 5.0)
 	_label(presentation, "BERTH F-01", Vector3(0, 0.14, 9.8), 0.46, Color("ffb45b"), Vector3(-90, 0, 180))
 	_sign_practical(presentation, "BerthLegendWash", Vector3(0.0, 0.55, 9.8), Color("f7b866"), 0.44, 4.4)

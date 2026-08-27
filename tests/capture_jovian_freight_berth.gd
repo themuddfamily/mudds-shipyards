@@ -51,7 +51,11 @@ func _run() -> void:
 
 	module.set_equipment_animation_enabled(false)
 	module.advance_equipment_simulation(4.1)
-	_frame(Vector3(40.0, 25.0, -12.0), Vector3(0.0, 2.4, 27.0), 52.0)
+	# The first production frame is deliberately at walking height on the actual
+	# station approach, so it proves that the existing portal board makes the
+	# berth and its port/starboard boarding/terminal choice readable before the
+	# player crosses onto the apron.
+	_frame(Vector3(0.0, 2.15, -8.5), Vector3(0.0, 4.75, JovianFreightBerth.PORTAL_Z), 52.0)
 	await _wait_frames(10)
 	await _capture(CAPTURES[0])
 
