@@ -26,6 +26,7 @@ func _run() -> void:
 	var initial_collision_layer := asset.collision_layer
 	var initial_collision_mask := asset.collision_mask
 	var handle := asset.get_asset_handle()
+	var pristine_presentation := asset.get_protected_asset_presentation_snapshot()
 	var starboard_snapshot := {
 		"asset_handle": handle,
 		"activity_generation": int(handle.generation),
@@ -49,12 +50,38 @@ func _run() -> void:
 		renewal_signal_handle.assign(renewed_handle)
 		renewal_signal_presentation.assign(asset.get_protected_asset_presentation_snapshot())
 	)
-	var renewed := asset.renew(1)
+	var damageable := asset.get_damageable_component()
+	var destruction := damageable.apply_damage(
+		damageable.get_maximum_health(), asset.global_position, Vector3.UP,
+		{"source": &"asset_test"}
+	)
+	var destroyed_snapshot := asset.get_snapshot()
+	var destroyed_presentation_result := asset.apply_authority_presentation_snapshot(
+		destroyed_snapshot
+	)
+	var destroyed_presentation := asset.get_protected_asset_presentation_snapshot()
+	_check(
+		bool(destruction.get("accepted", false))
+		and bool(destruction.get("destroyed", false))
+		and bool(destroyed_snapshot.destroyed)
+		and is_zero_approx(float(destroyed_snapshot.health))
+		and int(destroyed_snapshot.asset_handle.generation) == 1
+		and bool(destroyed_presentation_result.get("accepted", false))
+		and destroyed_presentation.effective_state_id == &"destroyed"
+		and destroyed_presentation.silhouette_id == &"mast_only_failed"
+		and asset.collision_layer == PhysicsLayers.NONE,
+		"production Damageable destruction commits the current generation's failed form"
+	)
+	var renewed := asset.renew(int(handle.generation))
 	_check(
 		bool(renewed.accepted)
 		and int(renewal_signal_handle.generation) == 2
-		and _is_neutral_bearing(renewal_signal_presentation),
-		"renewal observers see the new generation only after its old approach bearing is neutralized"
+		and int(asset.get_asset_handle().generation) == int(handle.generation) + 1
+		and is_equal_approx(damageable.get_health(), damageable.get_maximum_health())
+		and not damageable.is_destroyed()
+		and asset.collision_layer == initial_collision_layer
+		and renewal_signal_presentation == pristine_presentation,
+		"renewal observers see generation two only after real failure resets exactly to intact"
 	)
 
 	var before_stale_renewed := asset.get_protected_asset_presentation_snapshot()
