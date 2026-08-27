@@ -100,6 +100,26 @@ func _run() -> void:
 			and bool(audit.valid),
 		"Habitat stays allocation-green at 2->1 foot renderers and 1216->1215 submissions"
 	)
+	if batch != null and batch.multimesh != null:
+		var original_buffer := batch.multimesh.buffer
+		var drifted_buffer := original_buffer.duplicate()
+		drifted_buffer[3] += 0.125
+		batch.multimesh.buffer = drifted_buffer
+		var drifted := habitat.get_render_allocation_report()
+		_check(
+			not bool(drifted.mess_trestle_foot_authored)
+				and not bool(drifted.exact_counts)
+				and habitat.get_validation_errors().has(
+					"Habitat mess-trestle-foot batch drifted from its authored visual stock"
+				),
+			"RED: moving one live trestle-foot renderer transform fails the local production audit"
+		)
+		batch.multimesh.buffer = original_buffer
+		_check(
+			bool(habitat.get_render_allocation_report().mess_trestle_foot_authored)
+				and habitat.get_validation_errors().is_empty(),
+			"restoring the exact renderer buffer returns the Habitat audit green"
+		)
 
 	habitat.queue_free()
 	await process_frame

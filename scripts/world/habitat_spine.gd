@@ -626,6 +626,8 @@ func get_validation_errors() -> PackedStringArray:
 	var pipe_collar_sharing := render.pipe_collar_mesh_sharing as Dictionary
 	if not bool(pipe_collar_sharing.valid):
 		errors.append_array(pipe_collar_sharing.errors as PackedStringArray)
+	if not bool(render.mess_trestle_foot_authored):
+		errors.append("Habitat mess-trestle-foot batch drifted from its authored visual stock")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -1254,6 +1256,37 @@ func get_render_allocation_report() -> Dictionary:
 		and StringName(_mess_bench_leg_batch.get_meta("authored_source_name", &""))
 			== &"MessBenchLeg"
 	)
+	var mess_trestle_foot_authored: bool = (
+		is_instance_valid(_mess_trestle_foot_batch)
+		and _mess_trestle_foot_batch.multimesh != null
+		and _mess_trestle_foot_transforms.size() == MESS_TRESTLE_FOOT_COPY_COUNT
+		and _mess_trestle_foot_batch.multimesh.instance_count
+			== MESS_TRESTLE_FOOT_COPY_COUNT
+		and _mess_trestle_foot_batch.multimesh.visible_instance_count == -1
+		and _mess_trestle_foot_batch.multimesh.mesh != null
+		and _mess_trestle_foot_batch.multimesh.mesh.get_aabb().size.is_equal_approx(
+			Vector3(0.92, 0.07, 0.20)
+		)
+		and _mess_trestle_foot_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_mess_trestle_foot_transforms
+		)
+		and _mess_trestle_foot_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_mess_trestle_foot_batch.multimesh.mesh.get_aabb(),
+				_mess_trestle_foot_transforms
+			)
+		)
+		and _mess_trestle_foot_batch.material_override == _materials.get("graphite")
+		and _mess_trestle_foot_batch.cast_shadow
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _mess_trestle_foot_batch.layers == 1
+		and _mess_trestle_foot_batch.get_child_count() == 0
+		and _mess_trestle_foot_batch.get_script() == null
+		and _mess_trestle_foot_batch.get_groups().is_empty()
+		and bool(_mess_trestle_foot_batch.get_meta("visual_detail_only", false))
+		and StringName(_mess_trestle_foot_batch.get_meta("authored_source_name", &""))
+			== &"MessTrestleFoot"
+	)
 	var mess_mug_authored: bool = (
 		is_instance_valid(_mess_mug_batch)
 		and _mess_mug_batch.multimesh != null
@@ -1334,6 +1367,7 @@ func get_render_allocation_report() -> Dictionary:
 		and potting_pull_authored
 		and _mess_bench_leg_transforms.size() == MESS_BENCH_LEG_COPY_COUNT
 		and mess_bench_leg_authored
+		and mess_trestle_foot_authored
 		and _mess_mug_transforms.size() == MESS_MUG_COPY_COUNT
 		and mess_mug_authored
 		and _berth_boot_transforms.size() == BERTH_BOOT_COPY_COUNT
@@ -1420,6 +1454,15 @@ func get_render_allocation_report() -> Dictionary:
 			MESS_BENCH_LEG_COPY_COUNT - 1
 		),
 		"authored_mess_bench_leg_transforms": _mess_bench_leg_transforms.duplicate(),
+		"mess_trestle_foot_legacy_renderer_nodes": MESS_TRESTLE_FOOT_COPY_COUNT,
+		"mess_trestle_foot_renderer_nodes": 1 if mess_trestle_foot_authored else 0,
+		"mess_trestle_foot_legacy_submissions": MESS_TRESTLE_FOOT_COPY_COUNT,
+		"mess_trestle_foot_submissions": 1 if mess_trestle_foot_authored else 0,
+		"mess_trestle_foot_copies": _mess_trestle_foot_transforms.size(),
+		"mess_trestle_foot_authored": mess_trestle_foot_authored,
+		"authored_mess_trestle_foot_transforms": (
+			_mess_trestle_foot_transforms.duplicate()
+		),
 		"mess_mug_legacy_renderer_nodes": MESS_MUG_COPY_COUNT,
 		"mess_mug_renderer_nodes": 1 if mess_mug_authored else 0,
 		"mess_mug_legacy_submissions": MESS_MUG_COPY_COUNT,
