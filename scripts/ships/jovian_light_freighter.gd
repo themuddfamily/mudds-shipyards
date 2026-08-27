@@ -104,6 +104,13 @@ const CARGO_APERTURE_HEADER_CURVE_SEGMENTS := 8
 const CARGO_RAMP_EDGE_RAIL_COPY_COUNT := 2
 const CARGO_RAMP_EDGE_RAIL_SIZE := Vector3(5.15, 0.24, 0.16)
 
+# Two childless structure-dark ramp actuators retain their ordinary named
+# renderers and exact ramp-aligned transforms. Boarding and collision remain on
+# the adjacent ramp and ship-root shapes; these cosmetic leaves can therefore
+# share one immutable rounded-box recipe without acquiring route authority.
+const CARGO_RAMP_ACTUATOR_COPY_COUNT := 2
+const CARGO_RAMP_ACTUATOR_SIZE := Vector3(0.24, 0.24, 1.35)
+
 ## Three childless teal deck-lane inlays are one identical visual recipe. They
 ## carry no collision, interaction, cargo, route, or evidence identity, so the
 ## moving cargo bay can submit their three exact local transforms as one batch.
@@ -314,6 +321,7 @@ var _passenger_seat_harness_mesh: ArrayMesh
 var _passenger_cabin_light_strip_mesh: ArrayMesh
 var _cabin_portal_upright_mesh: ArrayMesh
 var _cargo_ramp_edge_rail_mesh: ArrayMesh
+var _cargo_ramp_actuator_mesh: ArrayMesh
 var _cargo_ceiling_light_mesh: ArrayMesh
 var _cargo_ceiling_light_batch: MultiMeshInstance3D
 var _cargo_ceiling_light_transforms: Array[Transform3D] = []
@@ -3491,8 +3499,17 @@ func _build_exterior() -> void:
 		CARGO_APERTURE_HEADER_END_RADIUS,
 		CARGO_APERTURE_HEADER_CURVE_SEGMENTS
 	)
-	_box(_jovian_visual, "CargoRampActuator", Vector3(-6.1, 0.12, 1.3), Vector3(0.24, 0.24, 1.35), _jovian_materials.structure, Vector3(0.0, 0.0, ramp_angle))
-	_box(_jovian_visual, "CargoRampActuator", Vector3(-6.1, 0.12, 5.1), Vector3(0.24, 0.24, 1.35), _jovian_materials.structure, Vector3(0.0, 0.0, ramp_angle))
+	_cargo_ramp_actuator_mesh = _rounded_box_mesh(
+		CARGO_RAMP_ACTUATOR_SIZE, _jovian_materials.structure
+	)
+	for actuator_z in [1.3, 5.1]:
+		_rounded_box_from_mesh(
+			_jovian_visual,
+			"CargoRampActuator",
+			Vector3(-6.1, 0.12, actuator_z),
+			_cargo_ramp_actuator_mesh,
+			Vector3(0.0, 0.0, ramp_angle)
+		)
 
 
 func _build_forward_cargo_guide_silhouette() -> void:
