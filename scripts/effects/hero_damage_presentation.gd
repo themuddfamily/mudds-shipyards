@@ -212,7 +212,8 @@ func set_ship_state(ship_state: StringName, world_velocity: Vector3 = Vector3.ZE
 func present_impact(
 		world_position: Vector3,
 		world_normal: Vector3 = Vector3.UP,
-		intensity: float = 1.0
+		intensity: float = 1.0,
+		component_hit: bool = false
 	) -> void:
 	_ensure_built()
 	if (
@@ -240,16 +241,25 @@ func present_impact(
 	effect_root.add_child(sparks)
 	sparks.emitting = true
 
-	# A resolved hull hit previously produced only thin spark geometry. Against a
-	# bright station deck or at combat distance that could disappear for the exact
-	# frame in which damage landed, while the pulse impact and terminal explosion
-	# both had a luminous contact read. This small core and shadowless practical
-	# supply that missing shared grammar. They consume only the caller's already-
-	# resolved position and intensity and never query collision, health, or damage.
+	# A resolved hit previously produced only thin spark geometry. Against a bright
+	# station deck or at combat distance that could disappear for the exact frame
+	# in which damage landed. An ordinary hull hit uses the compact round core;
+	# a component receipt uses the surface-normal brace below. Both share this
+	# shadowless practical and consume only the caller's already-resolved position
+	# and intensity; neither queries collision, health, or damage.
 	var safe_intensity := clampf(intensity, 0.25, 2.5)
 	var flash := MeshInstance3D.new()
-	flash.name = "ImpactFlash"
-	flash.mesh = _meshes.impact_flash
+	flash.name = "ComponentImpactBrace" if component_hit else "ImpactFlash"
+	flash.mesh = (
+		_meshes.component_impact_brace if component_hit else _meshes.impact_flash
+	)
+	# The component marker is a surface-normal ring rather than the generic
+	# spherical hull flash. A resolved section hit therefore keeps a compact
+	# outline at combat distance, while a terminal receipt remains reserved for
+	# the much larger detached explosion/shockwave grammar. This consumes no
+	# additional node, light, timer, or emission peak.
+	if component_hit:
+		flash.quaternion = Quaternion(Vector3.UP, safe_normal)
 	flash.scale = Vector3.ONE * (
 		IMPACT_FLASH_MINIMUM_SCALE * lerpf(0.82, 1.22, safe_intensity / 2.5)
 	)
@@ -908,12 +918,19 @@ func commit_deferred_damage_presentation(
 		component_revision
 	):
 		return false
-	present_impact(record.position, record.normal, float(record.intensity))
+	var terminal := bool(record.terminal)
+	var component_id := StringName(record.get("component_id", &""))
+	present_impact(
+		record.position,
+		record.normal,
+		float(record.intensity),
+		not terminal and not component_id.is_empty()
+	)
 	deferred_component_impact_committed.emit(
-		StringName(record.get("component_id", &"")),
+		component_id,
 		float(record.get("semantic_intensity", 1.0))
 	)
-	if bool(record.terminal):
+	if terminal:
 		present_destruction(record.velocity, record.world_pose)
 		_pending_damage_presentations.clear()
 		_pending_damage_presentation_order.clear()
@@ -1813,6 +1830,19 @@ func _create_shared_meshes() -> void:
 	impact_flash_mesh.rings = 8
 	impact_flash_mesh.material = _materials.impact_flash
 	_meshes.impact_flash = impact_flash_mesh
+
+	# Component receipts use the same one-surface material and the same transient
+	# slot as a generic hit, but expose an unmistakable ring silhouette instead of
+	# another round flare. The ring's broad band survives reduced-bloom review;
+	# its emission material is shared with the prior flash, so peak emission is
+	# exactly unchanged.
+	var component_impact_brace := TorusMesh.new()
+	component_impact_brace.inner_radius = 0.64
+	component_impact_brace.outer_radius = 1.0
+	component_impact_brace.rings = 18
+	component_impact_brace.ring_segments = 8
+	component_impact_brace.material = _materials.impact_flash
+	_meshes.component_impact_brace = component_impact_brace
 
 	# Both fragments in every failed-section silhouette reuse this one immutable
 	# 12-triangle box. Their transforms supply the distinct fracture patterns.
