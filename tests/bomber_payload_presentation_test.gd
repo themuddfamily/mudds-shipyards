@@ -41,9 +41,9 @@ func _run() -> void:
 	_check(bool(audit.valid), "fresh payload presentation passes its exact structural budget")
 	_check(
 		int(performance.pool_capacity) == 4
-		and int(performance.generated_nodes) == 32
-		and int(performance.mesh_instances) == 28,
-		"four slots preallocate exactly thirty-two generated nodes and twenty-eight meshes"
+		and int(performance.generated_nodes) == 28
+		and int(performance.mesh_instances) == 24,
+		"four slots preallocate exactly twenty-eight generated nodes and twenty-four meshes"
 	)
 	_check(
 		int(performance.lights) == 0
@@ -58,6 +58,24 @@ func _run() -> void:
 		and not bool(performance.runtime_node_allocation)
 		and not bool(performance.runtime_resource_allocation),
 		"all slots use the fixed shared five-mesh/four-material catalog"
+	)
+	var fin_pairs := presentation.find_children("FinPair", "MeshInstance3D", true, false)
+	var shared_fin_mesh: Mesh = null
+	var fin_pair_contract_matches := fin_pairs.size() == 4
+	for fin_pair_variant in fin_pairs:
+		var fin_pair := fin_pair_variant as MeshInstance3D
+		if shared_fin_mesh == null:
+			shared_fin_mesh = fin_pair.mesh
+		fin_pair_contract_matches = fin_pair_contract_matches and (
+			fin_pair.mesh == shared_fin_mesh
+			and fin_pair.material_override != null
+			and int(fin_pair.get_meta(&"authored_copy_count", 0)) == 2
+			and (fin_pair.get_meta(&"authored_copy_transforms", []) as Array).size() == 2
+			and fin_pair.mesh.get_surface_count() == 1
+		)
+	_check(
+		fin_pair_contract_matches,
+		"all slots share one immutable two-copy fin surface with the retained hull material"
 	)
 	_check(
 		integration.authority_policy == &"accepted_release_and_terminal_records_presentation_only"

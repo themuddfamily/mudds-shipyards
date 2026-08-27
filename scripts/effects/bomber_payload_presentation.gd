@@ -17,8 +17,8 @@ signal payload_visual_recycled(retired_record_id: StringName, replacement_record
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"bomber-payload-presentation"
 const POOL_CAPACITY := 4
-const MESHES_PER_SLOT := 7
-const GENERATED_NODES_PER_SLOT := 8
+const MESHES_PER_SLOT := 6
+const GENERATED_NODES_PER_SLOT := 7
 const GENERATED_NODE_COUNT := POOL_CAPACITY * GENERATED_NODES_PER_SLOT
 const GENERATED_MESH_INSTANCE_COUNT := POOL_CAPACITY * MESHES_PER_SLOT
 const GENERATED_LIGHT_COUNT := 0
@@ -393,8 +393,24 @@ func _build_shared_catalog() -> void:
 	orb.height = 0.38
 	orb.radial_segments = 10
 	orb.rings = 5
-	var fin := BoxMesh.new()
-	fin.size = Vector3(0.62, 0.24, 0.045)
+	# The two payload fins are immutable, childless, collision-free cosmetics
+	# with one material. Bake their exact authored transforms into one surface so
+	# each pooled slot retains one fin renderer instead of two.
+	var fin_source := BoxMesh.new()
+	fin_source.size = Vector3(0.62, 0.24, 0.045)
+	var fin_tool := SurfaceTool.new()
+	fin_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	fin_tool.append_from(
+		fin_source,
+		0,
+		Transform3D(Basis.IDENTITY, Vector3.DOWN * 0.27)
+	)
+	fin_tool.append_from(
+		fin_source,
+		0,
+		Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3.DOWN * 0.27)
+	)
+	var fin_pair := fin_tool.commit()
 	var trail := CylinderMesh.new()
 	trail.top_radius = 0.025
 	trail.bottom_radius = 0.075
@@ -408,7 +424,7 @@ func _build_shared_catalog() -> void:
 	ring.ring_segments = 6
 	_shared_catalog[&"mesh_body"] = body
 	_shared_catalog[&"mesh_orb"] = orb
-	_shared_catalog[&"mesh_fin"] = fin
+	_shared_catalog[&"mesh_fin_pair"] = fin_pair
 	_shared_catalog[&"mesh_trail"] = trail
 	_shared_catalog[&"mesh_ring"] = ring
 	_shared_catalog[&"material_hull"] = _material(Color(0.075, 0.09, 0.12), Color(0.08, 0.13, 0.18), 0.35)
@@ -446,11 +462,12 @@ func _build_slot(index: int) -> void:
 	var nose := _mesh_node("Nose", &"mesh_orb", &"material_hull", slot_root)
 	nose.position.y = 0.52
 	nose.scale = Vector3(0.82, 0.72, 0.82)
-	var fin_port := _mesh_node("FinPort", &"mesh_fin", &"material_hull", slot_root)
-	fin_port.position = Vector3.ZERO + Vector3.DOWN * 0.27
-	var fin_starboard := _mesh_node("FinStarboard", &"mesh_fin", &"material_hull", slot_root)
-	fin_starboard.position = Vector3.DOWN * 0.27
-	fin_starboard.rotation.y = PI * 0.5
+	var fin_pair := _mesh_node("FinPair", &"mesh_fin_pair", &"material_hull", slot_root)
+	fin_pair.set_meta(&"authored_copy_count", 2)
+	fin_pair.set_meta(&"authored_copy_transforms", [
+		Transform3D(Basis.IDENTITY, Vector3.DOWN * 0.27),
+		Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3.DOWN * 0.27),
+	])
 	var trail := _mesh_node("Trail", &"mesh_trail", &"material_trail", slot_root)
 	trail.position.y = -2.0
 	var terminal_flare := _mesh_node("TerminalFlare", &"mesh_orb", &"material_impact", slot_root)
@@ -461,7 +478,7 @@ func _build_slot(index: int) -> void:
 		"release_position": Vector3.ZERO, "release_velocity": Vector3.ZERO,
 		"terminal_position": Vector3.ZERO, "terminal_velocity": Vector3.ZERO,
 		"terminal_normal": Vector3.ZERO, "terminal_kind": &"", "root": slot_root,
-		"body": body, "nose": nose, "fin_port": fin_port, "fin_starboard": fin_starboard,
+		"body": body, "nose": nose, "fin_pair": fin_pair,
 		"trail": trail, "terminal_flare": terminal_flare, "terminal_ring": terminal_ring,
 	})
 	_hide_slot_visuals(_slots.size() - 1)
@@ -483,7 +500,7 @@ func _apply_flight_pose(slot_index: int, position: Vector3, velocity: Vector3) -
 	var root := slot.get("root") as Node3D
 	root.global_transform = Transform3D(_basis_y_along(velocity), position)
 	root.visible = true
-	for key: StringName in [&"body", &"nose", &"fin_port", &"fin_starboard", &"trail"]:
+	for key: StringName in [&"body", &"nose", &"fin_pair", &"trail"]:
 		(slot.get(key) as MeshInstance3D).visible = true
 	(slot.get("terminal_flare") as MeshInstance3D).visible = false
 	(slot.get("terminal_ring") as MeshInstance3D).visible = false
@@ -496,7 +513,7 @@ func _apply_terminal_pose(slot_index: int, position: Vector3, velocity: Vector3,
 	var axis := normal if normal.length_squared() > 0.000001 else velocity
 	root.global_transform = Transform3D(_basis_y_along(axis), position)
 	root.visible = true
-	for key: StringName in [&"body", &"nose", &"fin_port", &"fin_starboard", &"trail"]:
+	for key: StringName in [&"body", &"nose", &"fin_pair", &"trail"]:
 		(slot.get(key) as MeshInstance3D).visible = false
 	var material_key: StringName = &"material_impact" if kind == &"impact" else &"material_expiry"
 	var flare := slot.get("terminal_flare") as MeshInstance3D
@@ -619,8 +636,7 @@ func _slot_flight_visible(slot: Dictionary) -> bool:
 	return (
 		(slot.get("body") as MeshInstance3D).visible
 		and (slot.get("nose") as MeshInstance3D).visible
-		and (slot.get("fin_port") as MeshInstance3D).visible
-		and (slot.get("fin_starboard") as MeshInstance3D).visible
+		and (slot.get("fin_pair") as MeshInstance3D).visible
 	)
 
 
