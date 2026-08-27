@@ -473,6 +473,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_engineer_status_readout.outline_modulate = Color("07111d")
 	_engineer_status_readout.outline_size = 6
 	_engineer_status_readout.no_depth_test = true
+	_engineer_status_readout.double_sided = false
 	_engineer_status_readout.set_meta("presentation_only", true)
 	_gunner_station.add_child(_engineer_status_readout)
 	_refresh_engineer_status_readout()
@@ -484,6 +485,7 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_gunner_status_readout.pixel_size = 0.0018
 	_gunner_status_readout.outline_size = 5
 	_gunner_status_readout.outline_modulate = Color("08121c")
+	_gunner_status_readout.double_sided = false
 	_gunner_status_readout.text = "— NO TARGET —"
 	_gunner_station.add_child(_gunner_status_readout)
 	_gunner_station_anchor = Marker3D.new()
