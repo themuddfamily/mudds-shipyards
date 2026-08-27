@@ -14,7 +14,7 @@ const PASSENGER_ROLE: StringName = &"passenger"
 const MAX_MARKER_LENGTH := 48
 const MAX_STATUS_LENGTH := 64
 const MAX_IDENTITY_LENGTH := 64
-const ACTIVE_MARKER: StringName = &"◆"
+const ACTIVE_MARKER: StringName = &"*"
 const AVAILABLE_MARKER: StringName = &"+"
 const CLEARED_MARKER: StringName = &"—"
 const DETACHED_MARKER: StringName = &"□"
@@ -106,14 +106,12 @@ func present_wire_receipt(receipt: Dictionary) -> Dictionary:
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"state": &"active",
-		# A filled diamond remains distinct from the clear/ready outlines when
-		# the HUD has been reduced to its small navigator-row marker.
 		"state_marker": ACTIVE_MARKER,
-		"state_label": "ACTIVE TARGET",
-		"target_status": &"locked",
-		"accessibility_label": "Navigation target locked; navigator ping active",
+		"state_label": "ACTIVE",
+		"marker_status": &"set",
+		"accessibility_label": "Navigation marker set; navigator ping active",
 		"title": "CINDER NAVIGATOR PING",
-		"message": "[◆] NAVIGATION TARGET LOCKED\nPING // ACTIVE  //  ROLE // %s  //  SEAT // %s\nCHANNEL // %s  //  MARKER // %s\nPEER // %d / GEN %d  //  SEAT GEN %d\nMIGRATION // %d  //  SERVER TICK // %d\nREQUEST // %d\nPRESENTATION ONLY  //  NO SENSOR OR WORLD AUTHORITY" % [
+		"message": "[*] NAVIGATOR PING ACTIVE\nMARKER // SET  //  ROLE // %s  //  SEAT // %s\nCHANNEL // %s  //  MARKER ID // %s\nPEER // %d / GEN %d  //  SEAT GEN %d\nMIGRATION // %d  //  SERVER TICK // %d\nREQUEST // %d\nPRESENTATION ONLY  //  NO SENSOR OR WORLD AUTHORITY" % [
 			role, seat, channel, marker_id if not marker_id.is_empty() else "UNSPECIFIED",
 			peer_id, peer_generation, seat_generation, migration_generation,
 			server_tick, request_sequence,
@@ -193,10 +191,10 @@ func _present_rejection(reason: StringName, state: StringName = &"rejected") -> 
 		"state": state,
 		"state_marker": marker,
 		"state_label": label,
-		"target_status": &"stale" if state == &"stale" else &"rejected",
-		"accessibility_label": "Navigation target status %s" % label.to_lower(),
+		"marker_status": &"stale" if state == &"stale" else &"rejected",
+		"accessibility_label": "Navigation ping status %s" % label.to_lower(),
 		"title": "CINDER NAVIGATOR PING",
-		"message": "[%s] NAVIGATION TARGET %s\nREASON // %s\nPRESENTATION ONLY  //  NO NETWORK OR SENSOR AUTHORITY" % [
+		"message": "[%s] NAVIGATOR PING %s\nREASON // %s\nPRESENTATION ONLY  //  NO NETWORK OR SENSOR AUTHORITY" % [
 			str(marker), label, str(bounded_reason).replace("_", " ").to_upper(),
 		],
 		"reason": bounded_reason,
@@ -212,11 +210,11 @@ func _make_available_snapshot(reason: StringName) -> Dictionary:
 		"component_id": COMPONENT_ID,
 		"state": &"available",
 		"state_marker": AVAILABLE_MARKER,
-		"state_label": "PING READY",
-		"target_status": &"ready",
-		"accessibility_label": "Navigation ping ready; no target locked",
+		"state_label": "READY",
+		"marker_status": &"ready",
+		"accessibility_label": "Navigation ping ready; no marker set",
 		"title": "CINDER NAVIGATOR PING",
-		"message": "[+] NAVIGATION PING READY\nTARGET // NONE  //  STATUS // %s\nPRESENTATION ONLY  //  NO SENSOR OR WORLD AUTHORITY" % str(reason).replace("_", " ").to_upper(),
+		"message": "[+] NAVIGATOR PING READY\nMARKER // NONE  //  STATUS // %s\nPRESENTATION ONLY  //  NO SENSOR OR WORLD AUTHORITY" % str(reason).replace("_", " ").to_upper(),
 		"attached": not _detached,
 		"lifecycle": &"available",
 		"presentation_only": true,
@@ -229,8 +227,8 @@ func _make_detached_snapshot(reason: StringName) -> Dictionary:
 	snapshot["state"] = &"detached"
 	snapshot["state_marker"] = DETACHED_MARKER
 	snapshot["state_label"] = "DETACHED"
-	snapshot["target_status"] = &"unavailable"
-	snapshot["accessibility_label"] = "Navigation target unavailable; navigator detached"
+	snapshot["marker_status"] = &"unavailable"
+	snapshot["accessibility_label"] = "Navigation marker unavailable; navigator detached"
 	snapshot["attached"] = false
 	snapshot["lifecycle"] = &"detached"
 	snapshot["message"] = "[□] NAVIGATOR PING DETACHED\nREASON // %s\nPRESENTATION ONLY  //  NO NETWORK OR SENSOR AUTHORITY" % str(reason).replace("_", " ").to_upper()
@@ -244,10 +242,10 @@ func _make_cleared_snapshot(reason: StringName, receipt: Dictionary) -> Dictiona
 		"state": &"cleared",
 		"state_marker": CLEARED_MARKER,
 		"state_label": "CLEARED",
-		"target_status": &"clear",
-		"accessibility_label": "Navigation target cleared; no active ping",
+		"marker_status": &"clear",
+		"accessibility_label": "Navigation marker cleared; no active ping",
 		"title": "CINDER NAVIGATOR PING",
-		"message": "[—] NAVIGATION TARGET CLEAR\nPING // INACTIVE  //  REASON // %s\nMIGRATION // %d  //  SERVER TICK // %d\nPRESENTATION ONLY  //  NO SENSOR OR WORLD AUTHORITY" % [
+		"message": "[—] NAVIGATOR PING CLEAR\nMARKER // CLEAR  //  REASON // %s\nMIGRATION // %d  //  SERVER TICK // %d\nPRESENTATION ONLY  //  NO SENSOR OR WORLD AUTHORITY" % [
 			str(reason).replace("_", " ").to_upper(),
 			int(receipt.get("migration_generation", 0)), int(receipt.get("server_tick", 0)),
 		],

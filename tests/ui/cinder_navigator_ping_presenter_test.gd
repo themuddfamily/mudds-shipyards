@@ -53,12 +53,12 @@ func _run() -> void:
 		{"channel": &"sensor", "marker_id": &"route_beacon"}, 12, 2
 	)
 	var active := presenter.present_bridge_result(accepted)
-	_check(active.get("state") == &"active" and active.get("state_marker") == &"◆", "accepted wire receipt becomes an accessible active state")
+	_check(active.get("state") == &"active" and active.get("state_marker") == &"*", "accepted wire receipt becomes an accessible active state")
 	_check(
-		active.get("target_status") == &"locked"
-			and str(active.get("state_label", "")).contains("TARGET")
-			and str(active.get("accessibility_label", "")).contains("target locked"),
-		"active navigator pings expose a named target lock beside their filled marker"
+		active.get("marker_status") == &"set"
+			and active.get("state_label") == "ACTIVE"
+			and str(active.get("accessibility_label", "")).contains("marker set"),
+		"active navigator pings expose a set navigation marker beside their active state"
 	)
 	_check(active.get("channel") == "SENSOR" and active.get("marker_id") == "route_beacon", "active presentation exposes bounded channel and marker")
 	_check(int(active.get("migration_generation", 0)) == 2 and int(active.get("server_tick", 0)) == 12, "active presentation preserves migration and server tick")
@@ -145,10 +145,10 @@ func _run() -> void:
 	var released_view := presenter.present_bridge_result(released)
 	_check(released_view.get("state") == &"cleared" and released_view.get("state_marker") == &"—", "peer release tombstone clears the visible ping")
 	_check(
-		released_view.get("target_status") == &"clear"
+		released_view.get("marker_status") == &"clear"
 			and released_view.get("state_marker") != active.get("state_marker")
-			and str(released_view.get("accessibility_label", "")).contains("target cleared"),
-		"cleared targets use a distinct horizontal marker and explicit non-hue status"
+			and str(released_view.get("accessibility_label", "")).contains("marker cleared"),
+		"cleared markers use a distinct horizontal marker and explicit non-hue status"
 	)
 	_check(released_view.get("reason") == &"peer_released", "clear reason is retained for accessible presentation")
 	_check(int(released_view.get("migration_generation", 0)) == 3, "exact tombstone clears across a newer migration generation")
@@ -167,17 +167,17 @@ func _run() -> void:
 	_check(attached.get("state") == &"available" and attached.get("attached", false), "re-entry resets the presenter to an available state")
 	_check(
 		attached.get("state_marker") == &"+"
-			and attached.get("target_status") == &"ready"
+			and attached.get("marker_status") == &"ready"
 			and attached.get("state_marker") != released_view.get("state_marker"),
 		"ready and clear navigator states remain shape-distinct at small HUD scale"
 	)
 	var rejected := presenter.present_bridge_result({"accepted": false, "status": &"navigator_identity_mismatch"})
 	_check(rejected.get("state") == &"rejected" and rejected.get("state_marker") == &"×", "rejected bridge result is explicitly accessible")
 	_check(
-		rejected.get("target_status") == &"rejected"
+		rejected.get("marker_status") == &"rejected"
 			and rejected.get("state_marker") != attached.get("state_marker")
 			and str(rejected.get("accessibility_label", "")).contains("rejected"),
-		"rejected target status remains readable without a color cue"
+		"rejected ping status remains readable without a color cue"
 	)
 
 	_check(bool(interaction.release(actor, 1, 62, &"navigator_avatar", 4).get("accepted", false)), "physical navigator actor releases cleanly")

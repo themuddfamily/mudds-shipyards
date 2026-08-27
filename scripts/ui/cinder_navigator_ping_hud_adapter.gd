@@ -202,8 +202,8 @@ func _navigator_headline(view: Dictionary) -> String:
 func _navigator_status_value(view: Dictionary) -> String:
 	var state := StringName(view.get("state", &"rejected"))
 	var value: String = {
-		&"active": "TARGET // LOCKED",
-		&"cleared": "TARGET // CLEAR",
+		&"active": "MARKER // SET",
+		&"cleared": "MARKER // CLEAR",
 		&"available": "PING // READY",
 		&"detached": "PING // DETACHED",
 		&"stale": "PING // STALE",
