@@ -74,11 +74,10 @@ const PORTAL_CHEVRON_SIZE := Vector3(0.9, 0.24, 0.05)
 const PORTAL_CHEVRON_SUBMISSIONS_BEFORE := 6
 const PORTAL_CHEVRON_FAMILY_ID: StringName = &"approach-portal-chevrons"
 ## The entrance board faces the normal station walking approach (local -Z).
-## Its left/right wording is therefore the immediate port/starboard choice a
-## walker makes after crossing the gate: boarding is port, Freight Control is
-## starboard. This only relabels the existing portal board; it creates no route,
-## interaction, collision, light, or authority.
-const APPROACH_LEGEND := "JOVIAN FREIGHT BERTH F-01\nBOARDING <<   TERMINAL >>"
+## The real parked craft's 180-degree dock yaw puts its boarding area, cargo-ramp
+## exit and Freight Control on approach-right. This only relabels the existing
+## portal board; it creates no route, interaction, collision, light, or authority.
+const APPROACH_LEGEND := "JOVIAN FREIGHT BERTH F-01\nBOARDING + TERMINAL >>"
 const APPROACH_LEGEND_POSITION := Vector3(0.0, 4.83, PORTAL_Z - 0.20)
 const APPROACH_LEGEND_HEIGHT := 0.38
 

@@ -169,7 +169,7 @@ func _test_approach_portal_direction_identity(module: JovianFreightBerth) -> voi
 			and not legend.no_depth_test
 	_check(
 		exact,
-		"the normal walking approach names Jovian Freight Berth and separates port boarding from starboard terminal"
+		"the normal walking approach names Jovian Freight Berth and sends boarding plus terminal right"
 	)
 
 
