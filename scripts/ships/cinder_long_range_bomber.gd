@@ -53,6 +53,11 @@ const DAMAGE_SCORCH_SIZE := Vector3(2.6, 0.06, 2.4)
 const DAMAGE_SCORCH_POSITION := Vector3(0.0, 0.18, 0.0)
 const DAMAGE_VANE_SIZE := Vector3(0.22, 0.66, 2.2)
 const DAMAGE_VANE_POSITION := Vector3(0.0, 0.51, 0.0)
+## A failed wing keeps the same retained vane but drops and cants it outboard.
+## The silhouette break is readable without its hot material, while remaining
+## clear of the cockpit, payload and boarding corridors.
+const DAMAGE_VANE_FAILED_POSITION := Vector3(0.34, 0.36, 0.12)
+const DAMAGE_VANE_FAILED_ROTATION_DEGREES := Vector3(0.0, 0.0, -28.0)
 const DAMAGE_SCORCH_COLOR := Color("171b1d")
 const DAMAGE_VANE_COLOR := Color("ff6a36")
 
@@ -781,6 +786,9 @@ func get_component_damage_cue_snapshot() -> Dictionary:
 			model.get_component_state(DAMAGE_CUE_COMPONENT_ID)
 		) if model != null and model.is_configured() else &"unavailable",
 		"visible": cue.visible if cue != null else false,
+		"silhouette_pose": &"failed_outboard_canted" if vane != null \
+			and not vane.rotation.is_zero_approx() else &"nominal_upright",
+		"vane_local_transform": vane.transform if vane != null else Transform3D.IDENTITY,
 		"local_bounds": bounds,
 		"view_lane_clear": has_bounds and bounds.position.x > HULL_SIZE.x * 0.5,
 		"renderer_nodes_per_copy": int(scorch != null) + int(vane != null),
@@ -1035,9 +1043,21 @@ func _sync_component_damage_cue() -> void:
 	if not is_instance_valid(_component_damage_cue):
 		return
 	var model := get_component_damage()
+	var state := model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+		if model != null and model.is_configured() \
+		else ShipComponentDamageType.ComponentState.NOMINAL
+	var vane := _component_damage_cue.get_node_or_null(^"ExposedDamageVane") as MeshInstance3D
+	if vane != null:
+		# Repair and pooling must restore the authored transform rather than merely
+		# hiding a previously failed silhouette.
+		vane.position = DAMAGE_VANE_POSITION
+		vane.rotation = Vector3.ZERO
+		if state == ShipComponentDamageType.ComponentState.FAILED:
+			vane.position = DAMAGE_VANE_FAILED_POSITION
+			vane.rotation_degrees = DAMAGE_VANE_FAILED_ROTATION_DEGREES
 	_component_damage_cue.visible = model != null \
 		and model.is_configured() \
-		and model.get_component_state(DAMAGE_CUE_COMPONENT_ID) \
+		and state \
 			!= ShipComponentDamageType.ComponentState.NOMINAL
 
 
