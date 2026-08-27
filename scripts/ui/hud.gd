@@ -6456,7 +6456,10 @@ func _tutorial_glyphs() -> Dictionary:
 	var glyphs := {}
 	if _runtime_input_glyph_presenter == null:
 		return glyphs
-	for action: StringName in [&"interact", &"fire"]:
+	for action: StringName in [
+		&"interact", &"move_forward", &"move_left", &"move_right",
+		&"pitch_up", &"pitch_down", &"fire", &"landing_assist", &"brake",
+	]:
 		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(action)
 		glyphs[action] = (
 			str(resolved.get("text", "INPUT"))

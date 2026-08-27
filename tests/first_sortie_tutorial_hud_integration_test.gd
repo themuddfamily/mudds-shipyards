@@ -20,7 +20,7 @@ func _run() -> void:
 	_check(hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 4, "revision": 1}), "HUD accepts normal GameFlow tutorial snapshot")
 	var title := hud.get("_runtime_status_title") as Label
 	var detail := hud.get("_runtime_status_detail") as Label
-	_check(title.text == "Board" and detail.text.contains("E"), "HUD resolves current keyboard glyph in tutorial prompt")
+	_check(title.text == "Board the Torrent" and detail.text.contains("E"), "HUD resolves current keyboard glyph in Torrent boarding prompt")
 	var glyph_presenter: Variant = hud.get("_runtime_input_glyph_presenter")
 	glyph_presenter.set_device_family(&"gamepad_xbox")
 	hud.call("_refresh_input_prompts")
@@ -60,7 +60,7 @@ func _run() -> void:
 	_check(
 		(hud.get("_runtime_status_panel") as PanelContainer).visible
 		and not (hud.get("_bomber_status_panel") as PanelContainer).visible
-		and title.text == "Board"
+		and title.text == "Board the Torrent"
 		and detail.text.contains(reentered_interact),
 		"clearing bomber restores the retained tutorial card with current glyphs"
 	)
@@ -162,6 +162,16 @@ func _test_show_tutorials_round_trip() -> void:
 			settings.save_to_file()
 	)
 	_check(hud.apply_first_sortie_tutorial_snapshot({"step_id": &"launch", "generation": 7, "revision": 1}), "enabled persisted setting presents the current tutorial")
+	var launch_detail := hud.get("_runtime_status_detail") as Label
+	_check(
+		launch_detail.text.contains("W")
+		and launch_detail.text.contains("A")
+		and launch_detail.text.contains("D")
+		and launch_detail.text.contains("Up")
+		and launch_detail.text.contains("Down")
+		and not launch_detail.text.contains("{move_"),
+		"HUD resolves the live keyboard throttle and steering bindings"
+	)
 	var controls := hud.get("_settings_controls") as Dictionary
 	var tutorial_toggle := controls.get(&"show_tutorials") as CheckButton
 	tutorial_toggle.button_pressed = false

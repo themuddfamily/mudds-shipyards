@@ -10,18 +10,18 @@ const STEP_ORDER := [
 ]
 const STEP_COPY := {
 	&"walk_interact": {"title": "Reach the craft", "controller": "Walk to the craft, then press {interact} to interact.", "keyboard": "Walk to the craft, then press {interact} to interact.", "accessible": "Walk to the craft and use the interact control."},
-	&"board": {"title": "Board", "controller": "Press {interact} to board the craft.", "keyboard": "Press {interact} to board the craft.", "accessible": "Use the interact control to board the craft."},
+	&"board": {"title": "Board the Torrent", "controller": "Press {interact} to board the Torrent interceptor.", "keyboard": "Press {interact} to board the Torrent interceptor.", "accessible": "Use the interact control to board the Torrent interceptor."},
 	&"take_seat": {"title": "Take the pilot seat", "controller": "Press {interact} to take the pilot seat.", "keyboard": "Press {interact} to take the pilot seat.", "accessible": "Use the interact control to take the pilot seat."},
-	&"launch": {"title": "Launch", "controller": "Apply thrust to launch when the bay is clear.", "keyboard": "Apply thrust to launch when the bay is clear.", "accessible": "Apply thrust to launch when the bay is clear."},
-	&"fire": {"title": "Fire safely", "controller": "Press {fire} to fire only when the range target is clear.", "keyboard": "Press {fire} to fire only when the range target is clear.", "accessible": "Use the fire control only when the range target is clear."},
-	&"return_land": {"title": "Return and land", "controller": "Use landing assist, then follow the return vector.", "keyboard": "Use landing assist, then follow the return vector.", "accessible": "Use landing assist and follow the return vector."},
+	&"launch": {"title": "Throttle and steer", "controller": "Hold {move_forward} for throttle. Steer with {move_left}/{move_right} and {pitch_up}/{pitch_down}.", "keyboard": "Hold {move_forward} for throttle. Steer with {move_left}/{move_right} and {pitch_up}/{pitch_down}.", "accessible": "Apply forward throttle, then use the yaw and pitch controls to steer clear of the bay."},
+	&"fire": {"title": "Fire at range targets", "controller": "Line up a marked RANGE TARGET, then press {fire} to fire.", "keyboard": "Line up a marked RANGE TARGET, then press {fire} to fire.", "accessible": "Line up a marked range target, then use the fire control."},
+	&"return_land": {"title": "Return and land", "controller": "Press {landing_assist}, follow the return vector, then hold {brake} on final approach.", "keyboard": "Press {landing_assist}, follow the return vector, then hold {brake} on final approach.", "accessible": "Enable landing assist, follow the return vector, then brake on final approach."},
 	&"exit": {"title": "Exit the craft", "controller": "Press {interact} after coming to a complete stop.", "keyboard": "Press {interact} after coming to a complete stop.", "accessible": "Come to a complete stop, then use the interact control to exit."},
 }
 const STEP_STATUS := {
 	&"walk_interact": {"next_action": "REACH CRAFT // INTERACT", "recovery": "PROMPT LOST // RETURN TO THE CRAFT"},
-	&"board": {"next_action": "BOARD CRAFT // INTERACT", "recovery": "OUT OF RANGE // STEP BACK TO THE BOARDING POINT"},
+	&"board": {"next_action": "BOARD TORRENT // INTERACT", "recovery": "OUT OF RANGE // STEP BACK TO THE BOARDING POINT"},
 	&"take_seat": {"next_action": "TAKE PILOT SEAT // INTERACT", "recovery": "SEAT PROMPT LOST // FACE THE PILOT SEAT"},
-	&"launch": {"next_action": "CLEAR BAY // APPLY THRUST", "recovery": "LAUNCH HELD // CENTER THE CRAFT AND REAPPLY THRUST"},
+	&"launch": {"next_action": "THROTTLE UP // STEER CLEAR OF BAY", "recovery": "LAUNCH HELD // CENTER THE CRAFT AND REAPPLY THROTTLE"},
 	&"fire": {"next_action": "ALIGN RANGE TARGET // FIRE", "recovery": "TARGET LOST // REACQUIRE THE MARKED RANGE TARGET"},
 	&"return_land": {"next_action": "LANDING ASSIST // FOLLOW RETURN VECTOR", "recovery": "VECTOR LOST // RE-ENABLE LANDING ASSIST"},
 	&"exit": {"next_action": "FULL STOP // EXIT CRAFT", "recovery": "EXIT BLOCKED // STOP COMPLETELY AND INTERACT AGAIN"},
