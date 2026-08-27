@@ -41,11 +41,14 @@ const APPROACH_FACING_SIGNS := [
 	["ModernFleetRegistry/Sign_UTOPIA__ARROW", Vector3(0.0, 0.0, -1.0)],
 	# Widened beyond the intake's six after a sweep of every live `TextMesh`.
 	# Same cause, same fix; all five were rendered and read backwards first.
+	# Keep the path synchronized with the later presentation-only route wording:
+	# the approach-facing contract is unchanged even though the plaque now names
+	# the lower transit / berth flow instead of its evidence classification.
 	["ExposedDockLattice/Sign_MUDDS__--__REGENERATION_DECK", Vector3(0.0, 0.0, -1.0)],
 	["ExposedDockLattice/Sign_CENTRAL_JUNCTION__--__FLEET_DOCKS", Vector3(0.0, 0.0, -1.0)],
 	["AftJunctionStack/Structure/VIPLandmark/Sign_VIP_RECEPTION__--__MODERN_INTERPRETATION", Vector3(0.0, 0.0, -1.0)],
 	[
-		"AftJunctionStack/Structure/OpenStructureDetails/Sign_AFT_JUNCTION__--__MODERN_INTERPRETATION",
+		"AftJunctionStack/Structure/OpenStructureDetails/Sign_AFT_JUNCTION__--__TRANSIT_-_BERTHS",
 		Vector3(0.0, 0.0, -1.0),
 	],
 	[
