@@ -39,9 +39,7 @@ func _run() -> void:
 	await process_frame
 	hud.call(&"_begin")
 	await create_timer(0.4).timeout
-	# The HUD's retained card is asserted below; the four render frames keep the
-	# camera on the paired production cabin sign so its text remains reviewable.
-	hud.visible = false
+	hud.layout_for_viewport(Vector2(RESOLUTION))
 	await physics_frame
 	var camera := Camera3D.new()
 	camera.fov = 34.0
@@ -68,15 +66,15 @@ func _run() -> void:
 	craft.refresh_loadmaster_status_display()
 	binding.detach()
 	_check(bool(binding.attach(craft, hud).get("accepted", false)), "loading state republishes through binding")
-	await _capture(hud, "01_loading.png", "[>] LOADING")
+	await _capture(craft, hud, "01_loading.png", "ROSTER [>] LOADING", "ROSTER STATE // [>] LOADING // MANIFEST PENDING")
 	var blocked := craft.submit_crew_intent(1, 91, &"capture_loadmaster", RoleProfile.ACTION_PASSENGER_CARGO_MANIFEST, {"manifest_id": &"capture_manifest", "route_id": &"dock_04_cargo", "ready": false}, 2)
 	_check(bool(blocked.get("consumed", false)), "actual blocked receipt is admitted")
-	await _capture(hud, "02_blocked.png", "[!] BLOCKED")
+	await _capture(craft, hud, "02_blocked.png", "ROSTER [!] BLOCKED", "ROSTER STATE // [!] BLOCKED // MANIFEST REVIEW")
 	var secured := craft.submit_crew_intent(1, 91, &"capture_loadmaster", RoleProfile.ACTION_PASSENGER_CARGO_MANIFEST, {"manifest_id": &"capture_manifest", "route_id": &"dock_04_cargo", "ready": true}, 3)
 	_check(bool(secured.get("consumed", false)), "actual ready receipt is admitted")
-	await _capture(hud, "03_secured.png", "[=] SECURED")
+	await _capture(craft, hud, "03_secured.png", "ROSTER [=] SECURED", "ROSTER STATE // [=] SECURED // MANIFEST READY")
 	_check(bool(craft.release_crew_role(1, 91, &"capture_loadmaster", Hauler.LOADMASTER_STATION_SEAT_ID, 4, 1).get("accepted", false)), "actual loadmaster releases station")
-	await _capture(hud, "04_detached.png", "[/] DETACHED")
+	await _capture(craft, hud, "04_detached.png", "ROSTER [/] DETACHED", "ROSTER STATE // [/] DETACHED // STATION OPEN")
 	binding.detach()
 	craft.queue_free()
 	hud.queue_free()
@@ -91,11 +89,27 @@ func _run() -> void:
 	quit(1)
 
 
-func _capture(hud: Node, filename: String, expected_roster_text: String) -> void:
+func _capture(craft: Node, hud: Node, filename: String, expected_cabin_text: String, expected_hud_text: String) -> void:
+	var cabin_display := craft.get_node_or_null(^"WalkableInterior/LoadmasterCabin/LoadmasterStatusDisplay") as Label3D
 	var detail := hud.get("_runtime_status_detail") as Label
-	_check(detail != null and detail.text.contains(expected_roster_text), "%s roster text is visible without colour" % filename)
+	var panel := hud.get("_runtime_status_panel") as Control
+	var scroll := hud.get("_runtime_status_scroll") as ScrollContainer
+	_check(cabin_display != null and cabin_display.text.contains(expected_cabin_text), "%s cabin roster text is visible without colour" % filename)
+	_check(panel != null and panel.visible and detail != null and detail.text.contains(expected_hud_text), "%s HUD roster text is visibly composed with the cabin" % filename)
+	# The shipping card is intentionally short and scrollable. Put its existing
+	# viewport on the roster line so the captured pixels prove the state token.
+	for _frame in 2:
+		await process_frame
+	scroll.scroll_vertical = mini(38, int(scroll.get_v_scroll_bar().max_value))
 	for _frame in 12:
 		await process_frame
+	var panel_rect := panel.get_global_rect()
+	_check(
+		Rect2(Vector2.ZERO, Vector2(RESOLUTION)).encloses(panel_rect)
+			and detail.get_combined_minimum_size().x <= detail.size.x
+			and detail.text.split("\n").size() <= 10,
+		"%s HUD card remains bounded and concise after layout" % filename
+	)
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	_check(image != null and not image.is_empty() and image.get_size() == RESOLUTION, "%s is a non-empty 1600x900 frame" % filename)

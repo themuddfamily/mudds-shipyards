@@ -84,7 +84,7 @@ func _present_accepted_snapshot(snapshot: Dictionary, cursor: Dictionary = {}) -
 		if not text.is_empty():
 			history.append(text.to_upper())
 	var message := "ROLE // %s  //  OCCUPANT // %s\n" % [role, occupant]
-	if cinder_roster:
+	if cinder_roster and not roster_shape.is_empty() and not roster_status.is_empty():
 		message += "ROSTER STATE // %s %s\n" % [roster_shape, roster_status]
 	message += "MANIFEST // %s\nROUTE // %s\nREADINESS // %s\nREADINESS STATE // %s\nNEXT ACTION // %s" % [manifest, route, readiness, readiness_state, next_action]
 	if not craft_id.is_empty():
@@ -206,14 +206,14 @@ func _clear_state() -> void:
 
 
 func _roster_reading(seat_state: String, receipt: Dictionary) -> Dictionary:
-	if not receipt.is_empty():
-		return {"shape": "[=]", "status": "SECURED // MANIFEST READY"} \
-			if bool(receipt.get("ready", false)) \
-			else {"shape": "[!]", "status": "BLOCKED // MANIFEST REVIEW"}
 	match seat_state:
 		"OCCUPIED":
-			return {"shape": "[>]", "status": "LOADING // MANIFEST PENDING"}
-		"AVAILABLE", "RELEASED", "":
+			return {"shape": "[>]", "status": "LOADING // MANIFEST PENDING"} \
+				if receipt.is_empty() \
+				else {"shape": "[!]", "status": "BLOCKED // MANIFEST REVIEW"}
+		"MANIFEST_READY":
+			if not receipt.is_empty() and bool(receipt.get("ready", false)):
+				return {"shape": "[=]", "status": "SECURED // MANIFEST READY"}
+		"AVAILABLE", "RELEASED":
 			return {"shape": "[/]", "status": "DETACHED // STATION OPEN"}
-		_:
-			return {"shape": "[X]", "status": "FAULT // STATUS UNAVAILABLE"}
+	return {}

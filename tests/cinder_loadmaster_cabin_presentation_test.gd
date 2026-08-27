@@ -29,8 +29,8 @@ func _run() -> void:
 		display != null
 			and display.get_meta("presentation_only", false)
 			and display.get_meta("color_independent", false)
-			and display.text.contains("[AVAILABLE]"),
-		"the initial state is text-readable AVAILABLE without colour semantics"
+			and display.text == "LOADMASTER\nROSTER [/] DETACHED\nMANIFEST --\nROUTE --",
+		"the available station has the exact detached text-and-shape reading"
 	)
 	_check(
 		panel != null
@@ -67,27 +67,45 @@ func _run() -> void:
 	var occupied := craft.refresh_loadmaster_status_display()
 	_check(
 		occupied.get("state", &"") == &"occupied"
-			and display.text.contains("[OCCUPIED]"),
-		"an admitted occupant is shown as OCCUPIED"
+			and occupied.get("roster_shape", "") == "[>]"
+			and occupied.get("roster_status", "") == "LOADING"
+			and display.text == "LOADMASTER\nROSTER [>] LOADING\nMANIFEST --\nROUTE --",
+		"an admitted occupant has the exact loading text-and-shape reading"
 	)
-	var receipt := craft.submit_crew_intent(
+	var blocked_receipt := craft.submit_crew_intent(
+		1,
+		72,
+		&"display_loadmaster",
+		RoleProfile.ACTION_PASSENGER_CARGO_MANIFEST,
+		{"manifest_id": &"display_manifest", "route_id": &"dock_04_cargo", "ready": false},
+		2
+	)
+	_check(bool(blocked_receipt.get("consumed", false)), "the display receives the authoritative blocked manifest receipt")
+	_check(
+		display.text == "LOADMASTER\nROSTER [!] BLOCKED\nMANIFEST display_manifest\nROUTE dock_04_cargo",
+		"the not-ready receipt has the exact blocked text-and-shape reading"
+	)
+	var ready_receipt := craft.submit_crew_intent(
 		1,
 		72,
 		&"display_loadmaster",
 		RoleProfile.ACTION_PASSENGER_CARGO_MANIFEST,
 		{"manifest_id": &"display_manifest", "route_id": &"dock_04_cargo", "ready": true},
-		2
+		3
 	)
-	_check(bool(receipt.get("consumed", false)), "the display receives the authoritative manifest receipt")
+	_check(bool(ready_receipt.get("consumed", false)), "the display receives the authoritative ready manifest receipt")
 	_check(
-		display.text.contains("[MANIFEST READY]")
-			and display.text.contains("ROUTE dock_04_cargo")
+		craft.get_loadmaster_status_snapshot().get("state", &"") == &"manifest_ready"
+			and display.text == "LOADMASTER\nROSTER [=] SECURED\nMANIFEST display_manifest\nROUTE dock_04_cargo"
 			and craft.get_loadmaster_status_snapshot().get("presentation_only", false),
-		"manifest readiness and route are visible as detached text state"
+		"only the ready receipt has the exact secured text-and-shape reading"
 	)
-	var released := craft.release_crew_role(1, 72, &"display_loadmaster", Hauler.LOADMASTER_STATION_SEAT_ID, 3, 1)
+	var released := craft.release_crew_role(1, 72, &"display_loadmaster", Hauler.LOADMASTER_STATION_SEAT_ID, 4, 1)
 	_check(bool(released.get("accepted", false)), "release follows the existing authority lifecycle")
-	_check(display.text.contains("[RELEASED]"), "release is visibly distinct from an available station")
+	_check(
+		display.text == "LOADMASTER\nROSTER [/] DETACHED\nMANIFEST --\nROUTE --",
+		"release returns to the exact detached text-and-shape reading"
+	)
 	_check(display.get_instance_id() == (craft.get_node(^"WalkableInterior/LoadmasterCabin/LoadmasterStatusDisplay") as Label3D).get_instance_id(), "release does not recreate the display node")
 
 	craft.queue_free()

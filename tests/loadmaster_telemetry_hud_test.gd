@@ -37,6 +37,18 @@ func _run() -> void:
 	_check(actions.get_child_count() == 1 and (actions.get_child(0) as Button).focus_mode == Control.FOCUS_ALL, "loadmaster review is controller and keyboard focusable")
 	hud.update_cinder_loadmaster_telemetry(
 		&"cinder_cargo_hauler", &"loadmaster",
+		{"state": "available", "generation": 1},
+		{"manifest_generation": 1, "receipt": {}}
+	)
+	_check(detail.text.contains("SEAT AVAILABLE") and detail.text.contains("ROSTER STATE // [/] DETACHED // STATION OPEN"), "Cinder available state has the detached text-and-shape reading")
+	hud.update_cinder_loadmaster_telemetry(
+		&"cinder_cargo_hauler", &"loadmaster",
+		{"state": "occupied", "generation": 2},
+		{"manifest_generation": 2, "receipt": {}}
+	)
+	_check(detail.text.contains("SEAT OCCUPIED") and detail.text.contains("ROSTER STATE // [>] LOADING // MANIFEST PENDING"), "Cinder occupied state has the loading text-and-shape reading")
+	hud.update_cinder_loadmaster_telemetry(
+		&"cinder_cargo_hauler", &"loadmaster",
 		{"state": "manifest_ready", "manifest_id": "cinder_manifest", "route_id": "stale_status_route", "generation": 4},
 		{"station_id": &"cinder_loadmaster_station", "manifest_generation": 4, "receipt": {"ready": true, "route_id": &"dock_04_cargo", "manifest_generation": 4, "request_sequence": 40}}
 	)
@@ -44,7 +56,15 @@ func _run() -> void:
 	_check(detail.text.contains("GENERATION // 4  //  REVISION // 40") and detail.text.contains("ROUTE // dock_04_cargo") and not detail.text.contains("stale_status_route"), "Cinder uses the current receipt route when status publication has not refreshed yet")
 	_check(detail.text.contains("READINESS STATE // [READY]") and detail.text.contains("NEXT ACTION // CREW REVIEW // CONFIRM ROUTE dock_04_cargo"), "readiness and next action remain explicit without relying on colour")
 	_check(detail.text.contains("ROSTER STATE // [=] SECURED // MANIFEST READY"), "Cinder manifest readiness has an explicit secured shape and label")
-	_check(detail.get_combined_minimum_size().x <= 350.0 and detail.size.x >= 350.0, "the roster label remains within the existing retained card width")
+	hud.layout_for_viewport(Vector2(1600.0, 900.0))
+	await process_frame
+	var runtime_rect := hud.get_hud_panel_rects().get("runtime_status", Rect2()) as Rect2
+	_check(
+		Rect2(Vector2.ZERO, Vector2(1600.0, 900.0)).encloses(runtime_rect)
+			and detail.get_combined_minimum_size().x <= detail.size.x
+			and detail.text.split("\n").size() <= 10,
+		"the secured roster card remains bounded and concise after shipping layout"
+	)
 	var ready_text := detail.text
 	hud.update_cinder_loadmaster_telemetry(
 		&"cinder_cargo_hauler", &"loadmaster",
