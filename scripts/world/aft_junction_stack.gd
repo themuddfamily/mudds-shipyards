@@ -3426,9 +3426,14 @@ func _build_stair_handoff_cue(circulation: Node3D) -> void:
 		false,
 		Vector3(0.0, 0.0, 38.0)
 	)
+	# This is the one sign read directly from the connector/stair handoff. Name
+	# the destination rather than its elevation: the lower deck's plaque claims
+	# the transit/berth flow, while this warm header reserves the rising route for
+	# Operations. The plate, arrow, mounts, materials and clear stair lane remain
+	# exactly as authored.
 	_text_sign(
 		cue,
-		"UPPER DECK",
+		"UPPER OPERATIONS",
 		Vector3(-0.30, 2.42, 0.105),
 		Vector3.ZERO,
 		0.21,
@@ -5020,7 +5025,12 @@ func _build_open_structure_details(structure: Node3D) -> void:
 	# `(0, 2.4, 52)` — the only place a player stands to see it — the legend was
 	# reversed. Yawed to that reader. It remains deliberately unbacked, like the
 	# rest of this open-lattice exterior dressing.
-	_text_sign(details, "AFT JUNCTION  //  MODERN INTERPRETATION", Vector3(0, 1.25, 9.82), Vector3(0, 180, 0), 0.2, _materials["gold"])
+	# The connector-facing plaque and stair handoff now form a paired, legible
+	# choice: remain on the lower transit/berth flow, or take the rise to upper
+	# Operations. This is a relabel of the existing non-authoritative plaque only;
+	# the route markers, doors, activity ownership and evidence metadata do not
+	# change.
+	_text_sign(details, "AFT JUNCTION  //  TRANSIT / BERTHS", Vector3(0, 1.25, 9.82), Vector3(0, 180, 0), 0.2, _materials["gold"])
 	# Warm wash on the identity plaque, matching its gold legend. The plaque is
 	# deliberately unbacked, so this lights the envelope wall a metre behind it and
 	# the plaque reads as standing off a lit surface rather than floating.
