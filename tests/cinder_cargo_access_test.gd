@@ -399,16 +399,16 @@ func _test_identity_placement_budget_and_authority(
 		and int(identity.incremental_renderer_submissions) == 0
 		and int(identity.collision_nodes) == 0
 		and identity_label != null
-		and identity_header.find("CARGO DELIVERY") >= 0
-		and identity_header.find("JOVIAN PICKUP") >= 0
+		and identity_header.find("CINDER CARGO TERMINAL") >= 0
+		and identity_header.find("JOVIAN BERTH") >= 0
 		and identity_header.find("|") >= 0
-		and identity_header.find("CARGO DELIVERY") < identity_header.find("|")
-		and identity_header.find("JOVIAN PICKUP") > identity_header.find("|")
+		and identity_header.find("CINDER CARGO TERMINAL") < identity_header.find("|")
+		and identity_header.find("JOVIAN BERTH") > identity_header.find("|")
 		and delivery_direction.dot(displayed_left) > 0.5
 		and delivery_direction.dot(displayed_right) < -0.5
 		and pickup_direction.dot(displayed_right) > 0.5
 		and pickup_direction.dot(displayed_left) < -0.5
-		and identity_label.text.contains("CINDER CARGO — ")
+		and identity_label.text.contains(CinderCargoAccess.ROUTE_IDENTITY_HEADER)
 		and identity_transforms.size() == 3
 		and ((identity_transforms[0] as Transform3D).basis.get_scale()
 		* CinderCargoAccess.ROUTE_CUE_SIZE)
@@ -416,7 +416,7 @@ func _test_identity_placement_budget_and_authority(
 		and ((identity_transforms[2] as Transform3D).basis.get_scale()
 		* CinderCargoAccess.ROUTE_CUE_SIZE)
 		.is_equal_approx(Vector3(7.4, 1.12, 0.14)),
-		"label-basis projection maps displayed-left delivery to the terminal and displayed-right pickup to the Jovian berth with no new submission or material"
+		"label-basis projection maps the named terminal to displayed-left and the named Jovian berth to displayed-right with no new submission or material"
 	)
 	var identity_buffer := route_cue_cyan.multimesh.buffer.duplicate()
 	var identity_buffer_red := identity_buffer.duplicate()
