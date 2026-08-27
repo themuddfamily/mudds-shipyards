@@ -195,6 +195,12 @@ const PANEL_TELEMETRY_TOP_OFFSET := 250.0
 ## The authored edge margin still retains 26 logical px before safe-area inset.
 const PANEL_TELEMETRY_CAPTION_CLEARANCE := 2.0
 const PANEL_HELP_WIDTH := 272.0
+const PANEL_SEMANTIC_TRANSCRIPT_WIDTH := 450.0
+const PANEL_SEMANTIC_TRANSCRIPT_MIN_HEIGHT := 212.0
+## The expanded log uses the lane between the two edge gutters. A small right
+## bias preserves clearance from the wider objective gutter at the minimum
+## logical width while leaving enough room before HelpPanel.
+const PANEL_SEMANTIC_TRANSCRIPT_CENTER_OFFSET_X := 36.0
 ## Public runtime cards occupy the narrow band below the enemy readout. Their
 ## body may scroll, but their title and action row never leave this fixed frame.
 ## The 396 px width keeps two logical pixels clear of both floor gutters; the
@@ -2719,7 +2725,7 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 			contract_safe.position / maxf(effective, 0.01),
 			contract_safe.size / maxf(effective, 0.01)
 		)
-		status_rect = _clamp_rect_to_safe_area(status_rect, readable_safe)
+		status_rect = _compose_public_status_below_transcript(status_rect, readable_safe)
 		_runtime_status_panel.position = status_rect.position
 		_runtime_status_panel.size = status_rect.size
 	if is_instance_valid(_bomber_status_panel):
@@ -2730,7 +2736,7 @@ func layout_for_viewport(viewport_size: Vector2) -> float:
 			contract_safe.position / maxf(effective, 0.01),
 			contract_safe.size / maxf(effective, 0.01)
 		)
-		bomber_rect = _clamp_rect_to_safe_area(bomber_rect, bomber_safe)
+		bomber_rect = _compose_public_status_below_transcript(bomber_rect, bomber_safe)
 		_bomber_status_panel.position = bomber_rect.position
 		_bomber_status_panel.size = bomber_rect.size
 	if is_instance_valid(_recovery_prompt_panel):
@@ -2849,6 +2855,19 @@ static func _clamp_rect_to_safe_area(rect: Rect2, safe: Rect2) -> Rect2:
 	return Rect2(position, Vector2(width, height))
 
 
+func _compose_public_status_below_transcript(rect: Rect2, safe: Rect2) -> Rect2:
+	if is_instance_valid(_semantic_transcript_panel) and _semantic_transcript_panel.visible:
+		var transcript_height := maxf(
+			PANEL_SEMANTIC_TRANSCRIPT_MIN_HEIGHT,
+			_semantic_transcript_panel.size.y
+		)
+		rect.position.y = maxf(
+			rect.position.y,
+			safe.position.y + transcript_height + 12.0
+		)
+	return _clamp_rect_to_safe_area(rect, safe)
+
+
 ## Applies physical-pixel display cutout/overscan insets to edge-anchored HUD
 ## panels. The value is retained across viewport changes and intentionally lives
 ## in the HUD presentation layer rather than settings persistence.
@@ -2874,8 +2893,33 @@ func _apply_safe_area_offsets(left: float, top: float, right: float, bottom: flo
 	if is_instance_valid(_help_panel):
 		_help_panel.offset_left = -(PANEL_HELP_WIDTH + PANEL_MARGIN + right)
 		_help_panel.offset_right = -PANEL_MARGIN - right
-		_help_panel.offset_top = 28.0 + top
-		_help_panel.offset_bottom = 342.0 + top
+		# The focusable caption-log button owns the first 42 px of this gutter.
+		# Keep the controls card immediately below it so both controls remain in
+		# the same readable ultrawide band instead of leaving the button stranded
+		# against the physical 32:9 edge.
+		_help_panel.offset_top = 44.0 + top
+		_help_panel.offset_bottom = 358.0 + top
+	if is_instance_valid(_semantic_transcript_toggle):
+		_semantic_transcript_toggle.offset_left = -250.0 - right
+		_semantic_transcript_toggle.offset_right = -20.0 - right
+		_semantic_transcript_toggle.offset_top = top
+		_semantic_transcript_toggle.offset_bottom = 42.0 + top
+	if is_instance_valid(_semantic_transcript_panel):
+		# Centre between asymmetric platform insets, then use the measured bias
+		# that clears both top gutters at the 1180x690 logical floor. Keeping the
+		# expanded card out of the right gutter prevents it from covering the
+		# controls card whose full height must remain readable while the log is open.
+		var safe_center_offset := (left - right) * 0.5
+		_semantic_transcript_panel.offset_left = (
+			safe_center_offset + PANEL_SEMANTIC_TRANSCRIPT_CENTER_OFFSET_X
+			- PANEL_SEMANTIC_TRANSCRIPT_WIDTH * 0.5
+		)
+		_semantic_transcript_panel.offset_right = (
+			safe_center_offset + PANEL_SEMANTIC_TRANSCRIPT_CENTER_OFFSET_X
+			+ PANEL_SEMANTIC_TRANSCRIPT_WIDTH * 0.5
+		)
+		_semantic_transcript_panel.offset_top = top
+		_semantic_transcript_panel.offset_bottom = top + PANEL_SEMANTIC_TRANSCRIPT_MIN_HEIGHT
 	if is_instance_valid(_minimap):
 		_minimap.offset_left = PANEL_MARGIN + left
 		_minimap.offset_right = PANEL_MARGIN + 240.0 + left
@@ -3041,6 +3085,10 @@ func toggle_semantic_caption_transcript() -> void:
 		return
 	_semantic_transcript_panel.visible = not _semantic_transcript_panel.visible
 	_semantic_transcript_toggle.text = "CLOSE CAPTION LOG" if _semantic_transcript_panel.visible else "OPEN CAPTION LOG"
+	# Opening the log composes the retained tutorial/status card immediately
+	# below it. This is presentation-only relayout; it does not alter either
+	# card's retained state, action, or focus owner.
+	_apply_ui_scale()
 
 
 func scroll_semantic_caption_transcript(delta: int) -> void:
@@ -3063,11 +3111,20 @@ func _refresh_semantic_transcript() -> void:
 		var last := 0 if lines.is_empty() else mini(start + 8, lines.size())
 		_semantic_transcript_heading.text = "SEMANTIC CAPTION LOG  //  %d-%d / %d" % [first, last, lines.size()]
 	_semantic_transcript_body.text = "\n".join(lines.slice(start, start + 8)) if not lines.is_empty() else "No semantic captions yet."
+	if is_instance_valid(_semantic_transcript_panel) and _semantic_transcript_panel.visible:
+		# Containers resolve wrapped multi-line minimums on the next layout turn.
+		# Recompose the status stack after that measurement so a dense transcript
+		# can grow without ever covering the retained tutorial card.
+		call_deferred(&"_apply_ui_scale")
 
 
 func _build_semantic_transcript_panel() -> void:
 	_semantic_transcript_toggle = _menu_button("OPEN CAPTION LOG", NOMINAL)
 	_semantic_transcript_toggle.name = "SemanticCaptionTranscriptToggle"
+	# This supplemental action shares the right HUD gutter with the controls
+	# card. A 42 px target keeps both fully readable at the 690 px logical floor
+	# while retaining a comfortably focusable target at the supported scale.
+	_semantic_transcript_toggle.custom_minimum_size.y = 42.0
 	_semantic_transcript_toggle.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_semantic_transcript_toggle.position = Vector2(-250.0, 16.0)
 	_semantic_transcript_toggle.size = Vector2(230.0, 34.0)
@@ -3076,9 +3133,15 @@ func _build_semantic_transcript_panel() -> void:
 	_hud_panels.add_child(_semantic_transcript_toggle)
 	_semantic_transcript_panel = PanelContainer.new()
 	_semantic_transcript_panel.name = "SemanticCaptionTranscriptPanel"
-	_semantic_transcript_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_semantic_transcript_panel.position = Vector2(-470.0, 56.0)
-	_semantic_transcript_panel.size = Vector2(450.0, 190.0)
+	_semantic_transcript_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_semantic_transcript_panel.position = Vector2(
+		-PANEL_SEMANTIC_TRANSCRIPT_WIDTH * 0.5
+			+ PANEL_SEMANTIC_TRANSCRIPT_CENTER_OFFSET_X,
+		24.0
+	)
+	_semantic_transcript_panel.size = Vector2(
+		PANEL_SEMANTIC_TRANSCRIPT_WIDTH, PANEL_SEMANTIC_TRANSCRIPT_MIN_HEIGHT
+	)
 	_semantic_transcript_panel.visible = false
 	_hud_panels.add_child(_semantic_transcript_panel)
 	var margin := _margin(12, 10, 12, 10)
