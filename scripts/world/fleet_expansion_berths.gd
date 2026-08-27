@@ -45,7 +45,15 @@ const EXPECTED_MULTIMESH_INSTANCES := 3
 const EXPECTED_RENDERER_NODES := 24
 const EXPECTED_WAYFINDING_MESH_INSTANCES := 1
 const EXPECTED_WAYFINDING_LABELS := 1
-const EXPECTED_WAYFINDING_BOXES := 14
+const EXPECTED_WAYFINDING_BOXES := 17
+## Three broad, low-profile rungs resolve the narrow Dock 05 boarding leg's
+## centreline from normal eye height. They use the existing manufactured-route
+## batch and material; no renderer, light, collision, route, or berth is added.
+const DOCK05_BOARDING_ALIGNMENT_BOXES: Array[Dictionary] = [
+	{"centre": Vector3(30.2, 0.035, -20.4), "size": Vector3(0.72, 0.07, 0.10)},
+	{"centre": Vector3(30.2, 0.035, -19.65), "size": Vector3(0.72, 0.07, 0.10)},
+	{"centre": Vector3(30.2, 0.035, -18.9), "size": Vector3(0.72, 0.07, 0.10)},
+]
 const EXPECTED_SERVICE_MESH_INSTANCES := 14
 const EXPECTED_SERVICE_RENDERER_NODES := 11
 const EXPECTED_SERVICE_MESH_RESOURCE_ALLOCATIONS := 11
@@ -676,6 +684,8 @@ func get_access_wayfinding_audit() -> Dictionary:
 			errors.append("route edge treatment geometry or material drift")
 		if int(route_mesh.get_meta(&"batched_box_count", -1)) != EXPECTED_WAYFINDING_BOXES \
 				or route_mesh.get_meta(&"route_cue_grammars", {}) != expected_grammars \
+				or route_mesh.get_meta(&"dock05_boarding_alignment_boxes", []) \
+					!= DOCK05_BOARDING_ALIGNMENT_BOXES \
 				or not bool(route_mesh.get_meta(&"manufactured_edge_treatment", false)):
 			errors.append("route shape grammar drift")
 	if legend == null or legend.text != AFT_ROUTE_LEGEND_TEXT \
@@ -977,6 +987,7 @@ func _build_access_wayfinding(circulation: Node3D) -> void:
 		{"centre": Vector3(-2.86, 0.035, 33.86), "size": Vector3(0.30, 0.07, 0.10), "yaw": PI * 0.25},
 		{"centre": Vector3(-2.86, 0.035, 34.14), "size": Vector3(0.30, 0.07, 0.10), "yaw": -PI * 0.25},
 	]
+	boxes.append_array(DOCK05_BOARDING_ALIGNMENT_BOXES)
 	var builder := SurfaceTool.new()
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for spec in boxes:
@@ -1002,6 +1013,10 @@ func _build_access_wayfinding(circulation: Node3D) -> void:
 		&"dock_06_interceptor": &"straight_launch_spear",
 	})
 	route_mesh.set_meta(&"batched_box_count", boxes.size())
+	route_mesh.set_meta(
+		&"dock05_boarding_alignment_boxes",
+		DOCK05_BOARDING_ALIGNMENT_BOXES.duplicate(true)
+	)
 	circulation.add_child(route_mesh)
 
 	var legend := Label3D.new()
