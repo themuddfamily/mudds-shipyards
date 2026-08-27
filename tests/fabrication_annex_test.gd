@@ -356,11 +356,11 @@ func _test_manufactured_material_roles(annex: FabricationAnnex) -> void:
 	var materials := annex.get("_materials") as Dictionary
 	var specs := {
 		&"deck": [Color("34414a"), 0.72, 0.45, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
-		&"floor_inlay": [Color("19353b"), 0.64, 0.28, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
+		&"floor_inlay": [Color("1d4b52"), 0.64, 0.28, StationSurfaceKit.WALKED_CLEARCOAT, StationSurfaceKit.WALKED_CLEARCOAT_ROUGHNESS],
 		&"structure": [Color("202a31"), 0.76, 0.45, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
 		&"ceiling": [Color("151d23"), 0.86, 0.32, StationSurfaceKit.STRUCTURAL_CLEARCOAT, StationSurfaceKit.STRUCTURAL_CLEARCOAT_ROUGHNESS],
 		&"machine": [Color("68727a"), 0.62, 0.5, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
-		&"hazard": [Color("d58b27"), 0.5, 0.35, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
+		&"hazard": [Color("e6a12e"), 0.5, 0.35, StationSurfaceKit.PAINTED_CLEARCOAT, StationSurfaceKit.PAINTED_CLEARCOAT_ROUGHNESS],
 		&"rail": [Color("aeb9bc"), 0.5, 0.55, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS],
 		&"accent": [Color("3b9ca2"), 0.38, 0.4, StationSurfaceKit.TRIM_CLEARCOAT, StationSurfaceKit.TRIM_CLEARCOAT_ROUGHNESS],
 	}
@@ -418,14 +418,22 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 	for raw_label in labels:
 		culled_faces = culled_faces and not (raw_label as Label3D).double_sided
 	_check(culled_faces, "four signs use eight individually culled faces instead of mirrored rear-face text")
-	var entry_front := annex.find_child("FabricationAnnexFront", true, false) as Label3D
-	var entry_rear := annex.find_child("FabricationAnnexRear", true, false) as Label3D
+	var entry_front := annex.find_child("Fabrication__InboundFront", true, false) as Label3D
+	var entry_rear := annex.find_child("Fabrication__InboundRear", true, false) as Label3D
 	_check(
 		entry_front != null and entry_rear != null
 		and is_equal_approx(entry_front.rotation.y, PI)
 		and is_zero_approx(entry_rear.rotation.y)
-		and entry_front.text == entry_rear.text,
-		"the FABRICATION ANNEX legend has correctly oriented front and rear faces"
+		and entry_front.text == FabricationAnnex.ENTRY_LEGEND and entry_rear.text == entry_front.text,
+		"the explicit FABRICATION // INBOUND legend has correctly oriented front and rear faces"
+	)
+	var port_cell_front := annex.find_child("PortWorkCellFront", true, false) as Label3D
+	var starboard_cell_front := annex.find_child("StbdWorkCellFront", true, false) as Label3D
+	_check(
+		port_cell_front != null and starboard_cell_front != null
+		and port_cell_front.text == FabricationAnnex.PORT_WORK_CELL_LEGEND
+		and starboard_cell_front.text == FabricationAnnex.STARBOARD_WORK_CELL_LEGEND,
+		"the existing bay signs explicitly identify port and starboard work-cell function"
 	)
 	var status_batch := annex.find_child("FabricatorStatusBatch", true, false) as MultiMeshInstance3D
 	var status_material := status_batch.material_override as StandardMaterial3D if status_batch != null else null
@@ -470,7 +478,7 @@ func _test_central_casting_line_crown(annex: FabricationAnnex) -> void:
 	var rear := annex.find_child("CastingLine__01Rear", true, false) as Label3D
 	_check(
 		crown_exact and front != null and rear != null
-		and front.text == "CASTING LINE // 01" and rear.text == front.text,
+		and front.text == FabricationAnnex.CASTING_LINE_LEGEND and rear.text == front.text,
 		"the central aisle carries the exact crossbeam-supported casting-line crown and two correctly oriented legend faces"
 	)
 	var crown_bottom := 4.12 - 1.05 * 0.5
