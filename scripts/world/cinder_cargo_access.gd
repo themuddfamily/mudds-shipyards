@@ -111,7 +111,11 @@ const PRESENTATION_LIGHT_DELTA := 0
 const PRESENTATION_SUBMISSION_DELTA := 0
 const CARGO_ACTIVITY_STATE_IDLE := 0
 const CARGO_ACTIVITY_STATE_ACTIVE := 1
-const ROUTE_IDENTITY_HEADER := "< CARGO DELIVERY   |   JOVIAN PICKUP >"
+## This fascia is read from the normal disembark walk: its displayed-left side
+## leads to the real cargo-terminal approach and its displayed-right side leads
+## back to the Jovian's berth exit. Keep the place names in the header so the
+## direction is useful before the terminal itself fills the player's view.
+const ROUTE_IDENTITY_HEADER := "< CINDER CARGO TERMINAL   |   JOVIAN BERTH >"
 const ROUTE_IDENTITY_COPY_COUNT := 3
 const ROUTE_IDENTITY_LABEL_LOCAL := Vector3(-14.15, 5.96, 18.99)
 
@@ -1525,7 +1529,7 @@ func _build_route_markers_and_cues() -> void:
 	)
 	var label := Label3D.new()
 	label.name = "CargoAccessLabel"
-	label.text = "%s\nCINDER CARGO — READY" % ROUTE_IDENTITY_HEADER
+	label.text = "%s\nCINDER CARGO TERMINAL — READY" % ROUTE_IDENTITY_HEADER
 	label.position = ROUTE_IDENTITY_LABEL_LOCAL
 	label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	label.font_size = 46
