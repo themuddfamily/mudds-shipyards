@@ -42,6 +42,7 @@ func _run() -> void:
 	_test_rails_dressing_and_authority(module)
 	_test_short_side_rail_visual_sharing(module)
 	_test_hazard_dressing_batch(module)
+	_test_machine_dressing_batch(module)
 	_test_performance_and_lifecycle(module)
 	await _test_queued_module_enable_guard()
 	await _test_real_player_ramp_traversal(module)
@@ -437,7 +438,7 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 		and module.get_node_or_null(^"GeneratedRoot/LowerBayRoof") != null
 		and module.get_node_or_null(^"GeneratedRoot/HazardDressingBatch") != null
 		and module.get_node_or_null(^"GeneratedRoot/SortingMachineryBatch") != null
-		and module.get_node_or_null(^"GeneratedRoot/UpperInspectionConsole") != null,
+		and module.get_node_or_null(^"GeneratedRoot/MachineDressingBatch") != null,
 		"finished terrace reads as a covered salvage work bay with crane, sorting line, inspection console, and three local work lights"
 	)
 	var work_lights := module.find_children("*", "OmniLight3D", true, false)
@@ -770,12 +771,43 @@ func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
 	)
 
 
+func _test_machine_dressing_batch(module: SalvageTerrace) -> void:
+	var renderer := module.get_node_or_null(
+		^"GeneratedRoot/MachineDressingBatch"
+	) as MeshInstance3D
+	var parts: Array = [] if renderer == null else renderer.get_meta(
+		"salvage_terrace_machine_dressing_parts", []
+	) as Array
+	var exact_parts := renderer != null and parts.size() == 2
+	if exact_parts:
+		var expected := SalvageTerrace.MACHINE_DRESSING_PARTS
+		for index in expected.size():
+			var part := parts[index] as Dictionary
+			var expected_part := expected[index] as Dictionary
+			exact_parts = exact_parts and (
+				part.id == expected_part.id
+				and (part.size as Vector3).is_equal_approx(expected_part.size as Vector3)
+				and (part.transform as Transform3D).is_equal_approx(
+					Transform3D(Basis.IDENTITY, expected_part.position as Vector3)
+				)
+			)
+	_check(
+		exact_parts
+		and renderer.material_override == (module.get("_materials") as Dictionary).machine
+		and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and int(renderer.get_meta("authored_visible_copy_count", 0)) == 2
+		and module.get_node_or_null(^"GeneratedRoot/CraneTrolley") == null
+		and module.get_node_or_null(^"GeneratedRoot/UpperInspectionConsole") == null,
+		"two exact childless machine props retain material, shadows and authored transforms in one renderer, reducing nodes/submissions 2->1"
+	)
+
+
 func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	var performance := module.get_performance_contract()
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget) and bool(performance.exact_census), "module exactly matches every published performance count")
 	_check(
-		int(performance.mesh_instances) == 32
+		int(performance.mesh_instances) == 31
 		and int(performance.static_bodies) == 26
 		and int(performance.collision_shapes) == 26
 		and int(performance.lights) == 3
@@ -784,12 +816,12 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 		and int(performance.multimesh_instances) == 170
 		and int(performance.multimesh_drawn_copies) == 170
 		and int(performance.multimesh_buffer_floats) == 2040
-		and int(performance.geometry_submissions) == 38
+		and int(performance.geometry_submissions) == 37
 		and int(performance.visible_geometry_copies) == 206
-		and int(performance.nodes) == 108
+		and int(performance.nodes) == 107
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"exact census freezes 38 submissions, 206 authored copies, 26 bodies/shapes, 108 nodes, one label, three bounded lights, and zero loops"
+		"exact census freezes 37 submissions, 206 authored copies, 26 bodies/shapes, 107 nodes, one label, three bounded lights, and zero loops"
 	)
 	_check(
 		bool(performance.buffers_match_authored)

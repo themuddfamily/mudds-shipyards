@@ -69,17 +69,17 @@ const ROUTE_IDS := [
 ## build rather than padded during integration, so any added submission/node
 ## turns audit red.
 const PERFORMANCE_BUDGET := {
-	"mesh_instances": 32,
+	"mesh_instances": 31,
 	"multimesh_batches": 6,
 	"multimesh_instances": 170,
-	"geometry_submissions": 38,
+	"geometry_submissions": 37,
 	"visible_geometry_copies": 206,
 	"multimesh_buffer_floats": 2040,
 	"static_bodies": 26,
 	"collision_shapes": 26,
 	"labels": 1,
 	"lights": 3,
-	"nodes": 108,
+	"nodes": 107,
 	"process_loops": 0,
 	"physics_process_loops": 0,
 }
@@ -140,6 +140,21 @@ const HAZARD_DRESSING_PARTS := [
 		"position": Vector3(-10.1, 2.68, 5.5),
 		"size": Vector3(0.35, 0.22, 0.35),
 		"reason": "high suspended crane hook outside route contact",
+	},
+]
+const MACHINE_DRESSING_RENDER_NAME := &"MachineDressingBatch"
+const MACHINE_DRESSING_PARTS := [
+	{
+		"id": &"CraneTrolley",
+		"position": Vector3(-10.1, 3.72, 5.5),
+		"size": Vector3(0.8, 0.55, 0.7),
+		"reason": "overhead crane trolley above player clearance",
+	},
+	{
+		"id": &"UpperInspectionConsole",
+		"position": Vector3(25.55, 4.25, 5.0),
+		"size": Vector3(0.45, 1.1, 1.8),
+		"reason": "inspection console beyond upper outboard rail",
 	},
 ]
 
@@ -1395,11 +1410,10 @@ func _build_salvage_work_bay() -> void:
 	)
 
 	_visual_box("LowerBayRoof", Vector3(-12.0, 4.6, 5.5), Vector3(11.4, 0.22, 6.4), _materials.roof, "high compacted salvage-bay roof above player clearance")
-	_visual_box("CraneTrolley", Vector3(-10.1, 3.72, 5.5), Vector3(0.8, 0.55, 0.7), _materials.machine, "overhead crane trolley above player clearance")
 	_visual_box("CraneDropCable", Vector3(-10.1, 3.15, 5.5), Vector3(0.08, 0.9, 0.08), _materials.rail, "overhead crane cable outside capsule height")
-	_visual_box("UpperInspectionConsole", Vector3(25.55, 4.25, 5.0), Vector3(0.45, 1.1, 1.8), _materials.machine, "inspection console beyond upper outboard rail")
 	_visual_box("UpperConsoleScreen", Vector3(25.28, 4.45, 5.0), Vector3(0.05, 0.55, 1.15), _materials.emissive, "emissive inspection display beyond upper outboard rail")
 	_visual_box("BayNameplate", Vector3(-12.0, 4.15, 2.76), Vector3(4.4, 0.65, 0.12), _materials.emissive, "illuminated salvage-bay nameplate above entry clearance")
+	_build_machine_dressing_render()
 	_build_hazard_dressing_render()
 
 	_add_work_light("LowerBayWorkLight", Vector3(-12.0, 3.9, 5.5), Color("83e9df"), 1.4, 6.5)
@@ -1587,6 +1601,48 @@ func _build_hazard_dressing_render() -> void:
 	renderer.material_override = _materials.hazard
 	renderer.set_meta("non_walkable_reason", "five merged collision-free hazard dressing pieces outside every traversal corridor")
 	renderer.set_meta("salvage_terrace_hazard_dressing_parts", authored_parts)
+	renderer.set_meta("authored_visible_copy_count", authored_parts.size())
+	_build_root.add_child(renderer)
+
+
+## The crane trolley and inspection console are static, childless, collisionless
+## props with one painted-machine material and the same default render state.
+## Bake their exact rounded source meshes into one surface so both authored
+## silhouettes survive while one node and one structural submission disappear.
+func _build_machine_dressing_render() -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var authored_parts: Array[Dictionary] = []
+	for definition_variant in MACHINE_DRESSING_PARTS:
+		var definition := definition_variant as Dictionary
+		var size := definition.size as Vector3
+		var transform := Transform3D(Basis.IDENTITY, definition.position as Vector3)
+		tool.append_from(
+			StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+				size,
+				StationSurfaceKit.proportional_bevel_for_size(size, 0.16),
+				_rounded_box_cache,
+				StationSurfaceKit.BevelUV.FACE_GRID
+			),
+			0,
+			transform
+		)
+		authored_parts.append({
+			"id": definition.id,
+			"size": size,
+			"transform": transform,
+			"reason": definition.reason,
+		})
+	var renderer := MeshInstance3D.new()
+	renderer.name = MACHINE_DRESSING_RENDER_NAME
+	renderer.mesh = tool.commit()
+	renderer.material_override = _materials.machine
+	renderer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	renderer.set_meta(
+		"non_walkable_reason",
+		"two merged collision-free machine props outside traversal corridors"
+	)
+	renderer.set_meta("salvage_terrace_machine_dressing_parts", authored_parts)
 	renderer.set_meta("authored_visible_copy_count", authored_parts.size())
 	_build_root.add_child(renderer)
 
@@ -1875,7 +1931,7 @@ func _dressing_is_batched_and_route_clear() -> bool:
 func _salvage_work_bay_is_complete() -> bool:
 	var required_nodes := PackedStringArray([
 		"SalvageFrameBatch", "SortingMachineryBatch", "LowerBayRoof",
-		String(HAZARD_DRESSING_RENDER_NAME), "CraneTrolley", "UpperInspectionConsole",
+		String(HAZARD_DRESSING_RENDER_NAME), String(MACHINE_DRESSING_RENDER_NAME),
 		"UpperConsoleScreen", "BayNameplate", "LowerBayWorkLight",
 		"SortingLineWorkLight", "UpperInspectionWorkLight",
 	])
