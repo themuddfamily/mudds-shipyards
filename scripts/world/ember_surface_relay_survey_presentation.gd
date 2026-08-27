@@ -11,10 +11,14 @@ const RELAY_ANCHOR := Vector3(180.0, 120009.0, -44.0)
 const RETURN_ANCHOR := Vector3(540.0, 120030.0, -210.0)
 const APPROACH_SCALE := Vector3(1.35, 0.55, 1.35)
 const ACTIVE_SCALE := Vector3.ONE
-const CHECKPOINT_ONE_RING_SCALE := Vector3(0.82, 1.28, 0.82)
-const ROUTE_COMPLETE_RING_SCALE := Vector3(1.35, 1.35, 1.35)
-const REWARD_CONFIRMED_RING_SCALE := Vector3(1.08, 1.08, 1.08)
-const REWARD_CONFIRMED_SEAL_SCALE := Vector3(1.18, 1.18, 1.18)
+## Keep each static state legible by silhouette at the normal pulled-back
+## on-foot camera distance. The pending return is a tall oval, route lock is a
+## broad empty ring, and reward confirmation contracts around a clearly inset
+## diamond.
+const CHECKPOINT_ONE_RING_SCALE := Vector3(0.78, 1.48, 0.78)
+const ROUTE_COMPLETE_RING_SCALE := Vector3(1.52, 1.52, 1.52)
+const REWARD_CONFIRMED_RING_SCALE := Vector3(1.05, 1.05, 1.05)
+const REWARD_CONFIRMED_SEAL_SCALE := Vector3(0.94, 0.94, 0.94)
 const PAD_AVAILABLE_TILT_RADIANS := 0.34
 const PAD_AVAILABLE_SCALE := Vector3(1.0, 1.28, 1.0)
 const PAD_COMPLETE_TILT_RADIANS := PI * 0.5
@@ -34,9 +38,9 @@ instance uniform vec4 marker_emission : source_color = vec4(1.0);
 uniform float emission_energy = 0.55;
 
 void fragment() {
-	// Match the previous StandardMaterial3D defaults: white unshaded albedo
-	// plus the authored per-marker emission at the reduced-flash energy.
-	ALBEDO = vec3(1.0);
+	// Keep the authored state colour present under bright surface lighting while
+	// retaining the existing reduced-flash emission ceiling.
+	ALBEDO = marker_emission.rgb * 0.55;
 	EMISSION = marker_emission.rgb * emission_energy;
 }
 """
@@ -493,8 +497,8 @@ func _make_relay_marker() -> MeshInstance3D:
 	marker.name = &"OwnedRelaySurveyMarker"
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = 0.0
-	mesh.bottom_radius = 2.2
-	mesh.height = 6.0
+	mesh.bottom_radius = 2.0
+	mesh.height = 7.2
 	mesh.radial_segments = 4
 	marker.mesh = mesh
 	marker.position = RELAY_ANCHOR
