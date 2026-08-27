@@ -167,16 +167,25 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 	var spine_mesh := spine_multi.mesh as BoxMesh if spine_multi != null else null
 	var spine_transforms: Array = route_spine.get_meta("authored_transforms", []) as Array \
 		if route_spine != null else []
-	var spine_points_to_staging := spine_transforms.size() == 10
-	if spine_points_to_staging:
-		for index in 5:
+	var spine_points_through_route := spine_transforms.size() == 10
+	if spine_points_through_route:
+		for index in [0, 1, 3]:
 			var port_arm := spine_transforms[index * 2] as Transform3D
 			var starboard_arm := spine_transforms[index * 2 + 1] as Transform3D
-			spine_points_to_staging = spine_points_to_staging \
+			spine_points_through_route = spine_points_through_route \
 				and port_arm.origin.x < 41.0 and starboard_arm.origin.x < 41.0 \
 				and port_arm.basis.z.normalized().x > 0.8 \
 				and starboard_arm.basis.z.normalized().x > 0.8 \
 				and port_arm.origin.z < 0.0 and starboard_arm.origin.z > 0.0
+		var sample_port := spine_transforms[4] as Transform3D
+		var sample_starboard := spine_transforms[5] as Transform3D
+		var relay_port := spine_transforms[8] as Transform3D
+		var relay_starboard := spine_transforms[9] as Transform3D
+		spine_points_through_route = spine_points_through_route \
+			and sample_port.basis.z.normalized().z < -0.8 \
+			and sample_starboard.basis.z.normalized().z < -0.8 \
+			and relay_port.basis.z.normalized().z > 0.8 \
+			and relay_starboard.basis.z.normalized().z > 0.8
 	_check(
 		route_spine != null and route_spine.get_child_count() == 0 \
 			and spine_multi != null and spine_multi.instance_count == 10 \
@@ -190,13 +199,18 @@ func _test_geometry_and_markers(scene: EmberMoonAuthoredScene) -> void:
 				== &"ember_caldera_pad_to_staging" \
 			and StringName(route_spine.get_meta("destination_marker_id", &"")) \
 				== &"caldera_staging_gate" \
+			and route_spine.get_meta("turn_destination_marker_ids", PackedStringArray()) \
+				== PackedStringArray(["ember_sample_rack_access", "ember_staging_relay_access"]) \
 			and StringName(route_spine.get_meta("collision_role", &"")) \
 				== &"flush_supported_decal_geometry" \
 			and not route_spine.is_processing() and not route_spine.is_physics_processing() \
-			and spine_points_to_staging \
+			and spine_points_through_route \
 			and int(snapshot.geometry.surface_route_spine_chevron_count) == 5 \
+			and int(snapshot.geometry.surface_route_turn_cue_count) == 2 \
+			and snapshot.geometry.surface_route_turn_destinations \
+				== PackedStringArray(["ember_sample_rack_access", "ember_staging_relay_access"]) \
 			and float(snapshot.geometry.surface_route_spine_maximum_height_m) <= 0.05,
-		"five steady oxide chevrons form one low-cost, staging-directed survey spine over the weak egress segment",
+		"five steady oxide chevrons guide the route forward, then turn toward the existing rack and relay access markers",
 	)
 	var gantry := scene.get_node(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry") as StaticBody3D
 	var pylon_batch := gantry.get_node_or_null(^"GantryPylonVisuals") as MultiMeshInstance3D \

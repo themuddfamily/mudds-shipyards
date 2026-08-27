@@ -37,11 +37,16 @@ const SURFACE_ROUTE_POINTS_M := [
 	Vector3(42.0, 0.0, 0.0),
 ]
 ## Five broad, low-profile survey chevrons turn the previously uniform egress
-## strip into a readable Ember route at gameplay distance. They point from the
-## pad egress toward the existing staging relay, sit directly on the supported
-## route surface, and remain presentation-only so they cannot snag a low-gravity
-## walk or jump. All ten bars draw in one passive MultiMesh submission.
+## strip into a readable Ember route at gameplay distance. Three chevrons
+## continue along the strip, while the chevrons at the rack and relay
+## turn toward their existing off-spine access markers. They sit directly on
+## the supported route surface and remain presentation-only so they cannot snag
+## a low-gravity walk or jump. All ten bars draw in one passive MultiMesh.
 const ROUTE_SPINE_CENTRES_X_M := [18.0, 23.5, 29.0, 34.5, 40.0]
+const ROUTE_SPINE_SAMPLE_TURN_INDEX := 2
+const ROUTE_SPINE_RELAY_TURN_INDEX := 4
+const ROUTE_SPINE_SAMPLE_DIRECTION := Vector3(0.0, 0.0, -1.0)
+const ROUTE_SPINE_RELAY_DIRECTION := Vector3(0.0, 0.0, 1.0)
 const ROUTE_SPINE_INSTANCE_COUNT := 10
 const ROUTE_SPINE_ARM_WIDTH_M := 0.34
 const ROUTE_SPINE_ARM_HEIGHT_M := 0.025
@@ -404,6 +409,10 @@ func get_snapshot() -> Dictionary:
 			"pad_visual_size_m": PAD_VISUAL_SIZE_M,
 			"surface_route_visual_size_m": SURFACE_ROUTE_VISUAL_SIZE_M,
 			"surface_route_spine_chevron_count": ROUTE_SPINE_CENTRES_X_M.size(),
+			"surface_route_turn_cue_count": 2,
+			"surface_route_turn_destinations": PackedStringArray([
+				"ember_sample_rack_access", "ember_staging_relay_access",
+			]),
 			"surface_route_spine_maximum_height_m": ROUTE_SPINE_Y_M
 				+ ROUTE_SPINE_ARM_HEIGHT_M * 0.5,
 			"pad_guide_size_m": PAD_GUIDE_SIZE_M,
@@ -867,7 +876,7 @@ func _validate_geometry(errors: Array[Dictionary]) -> void:
 			or route == null or route.position != SURFACE_ROUTE_VISUAL_POSITION_M:
 		_append_error(errors, &"surface_route_visual_drift", &"EgressRouteVisual", "continuous pad-to-staging route visual drifted")
 	if not _surface_route_spine_is_exact(route_spine, route_spine_accent):
-		_append_error(errors, &"surface_route_spine_drift", &"RouteSpineVisuals", "passive staging-directed survey spine drifted")
+		_append_error(errors, &"surface_route_spine_drift", &"RouteSpineVisuals", "passive route-and-turn survey spine drifted")
 	if not _landing_approach_cues_are_exact(approach_cues, pad_guides):
 		_append_error(errors, &"landing_approach_cue_drift", &"LandingApproachCues", "batched final-approach chevrons drifted from their bounded passive recipe")
 	if not _orbital_landing_datum_cue_is_exact(orbital_cue, route):
@@ -1702,6 +1711,9 @@ func _configure_surface_route_spine() -> void:
 	spine.set_meta("authored_transforms", transforms.duplicate())
 	spine.set_meta("route_id", SURFACE_ROUTE_ID)
 	spine.set_meta("destination_marker_id", &"caldera_staging_gate")
+	spine.set_meta("turn_destination_marker_ids", PackedStringArray([
+		"ember_sample_rack_access", "ember_staging_relay_access",
+	]))
 	spine.set_meta("content_class", &"NEW")
 	spine.set_meta("status", &"modern_interpretation")
 	spine.set_meta("collision_role", &"flush_supported_decal_geometry")
@@ -1719,6 +1731,8 @@ func _surface_route_spine_is_exact(
 			or spine.gi_mode != GeometryInstance3D.GI_MODE_DISABLED \
 			or StringName(spine.get_meta("route_id", &"")) != SURFACE_ROUTE_ID \
 			or StringName(spine.get_meta("destination_marker_id", &"")) != &"caldera_staging_gate" \
+			or spine.get_meta("turn_destination_marker_ids", PackedStringArray()) \
+				!= PackedStringArray(["ember_sample_rack_access", "ember_staging_relay_access"]) \
 			or StringName(spine.get_meta("content_class", &"")) != &"NEW" \
 			or StringName(spine.get_meta("status", &"")) != &"modern_interpretation" \
 			or StringName(spine.get_meta("collision_role", &"")) != &"flush_supported_decal_geometry":
@@ -1784,16 +1798,23 @@ static func _encode_multi_mesh_transforms(
 
 static func _surface_route_spine_transforms() -> Array[Transform3D]:
 	var transforms: Array[Transform3D] = []
-	for centre_x: float in ROUTE_SPINE_CENTRES_X_M:
-		var tip := Vector3(centre_x + ROUTE_SPINE_TIP_OFFSET_M, ROUTE_SPINE_Y_M, 0.0)
+	for index in ROUTE_SPINE_CENTRES_X_M.size():
+		var centre := Vector3(ROUTE_SPINE_CENTRES_X_M[index], ROUTE_SPINE_Y_M, 0.0)
+		var direction := Vector3.RIGHT
+		if index == ROUTE_SPINE_SAMPLE_TURN_INDEX:
+			direction = ROUTE_SPINE_SAMPLE_DIRECTION
+		elif index == ROUTE_SPINE_RELAY_TURN_INDEX:
+			direction = ROUTE_SPINE_RELAY_DIRECTION
+		var lateral := Vector3(-direction.z, 0.0, direction.x)
+		var tip := centre + direction * ROUTE_SPINE_TIP_OFFSET_M
 		transforms.append(_bar_between(
-			Vector3(centre_x - ROUTE_SPINE_TAIL_OFFSET_M, ROUTE_SPINE_Y_M, -ROUTE_SPINE_HALF_SPAN_M),
+			centre - direction * ROUTE_SPINE_TAIL_OFFSET_M - lateral * ROUTE_SPINE_HALF_SPAN_M,
 			tip,
 			ROUTE_SPINE_ARM_WIDTH_M,
 			ROUTE_SPINE_ARM_HEIGHT_M,
 		))
 		transforms.append(_bar_between(
-			Vector3(centre_x - ROUTE_SPINE_TAIL_OFFSET_M, ROUTE_SPINE_Y_M, ROUTE_SPINE_HALF_SPAN_M),
+			centre - direction * ROUTE_SPINE_TAIL_OFFSET_M + lateral * ROUTE_SPINE_HALF_SPAN_M,
 			tip,
 			ROUTE_SPINE_ARM_WIDTH_M,
 			ROUTE_SPINE_ARM_HEIGHT_M,
