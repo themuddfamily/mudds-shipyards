@@ -18,6 +18,7 @@ var _snapshot: Dictionary = {}
 
 func present_snapshot(source: Dictionary) -> Dictionary:
 	var raw_roles := source.get("roles", {}) as Dictionary
+	var compact_status := bool(source.get("compact_crew_status", false))
 	var status_headline := _bounded_text(
 		str(source.get("crew_status_headline", "")).strip_edges(), 64
 	)
@@ -71,7 +72,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	var gunner_record := raw_roles.get(&"gunner", {}) as Dictionary
 	var raw_weapon := source.get("gunner_weapon", source.get("weapon", gunner_record.get("weapon", {}))) as Dictionary
 	var gunner_disconnected := detached or bool(source.get("disconnected", false)) or bool(gunner_record.get("disconnected", false))
-	if not raw_weapon.is_empty() or not gunner_record.is_empty():
+	if not compact_status and (not raw_weapon.is_empty() or not gunner_record.is_empty()):
 		var reason := _bounded_state(
 			raw_weapon.get("unavailable_reason", gunner_record.get("unavailable_reason", &"")),
 			GUNNER_REASONS, &"weapon_unavailable"
@@ -94,23 +95,27 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			"aim_action": StringName(str(raw_weapon.get("aim_action", &"aim"))),
 			"presentation_only": true,
 		}
+	var actions: Array = []
+	if not compact_status:
+		actions = [
+			{"id": &"claim", "label": "Claim available seat", "focusable": true},
+			{"id": &"release", "label": "Release your seat", "focusable": true},
+			{"id": &"transfer", "label": "Transfer role", "focusable": true},
+		]
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"actor_id": str(source.get("actor_id", "")),
 		"rows": rows,
 		"title": status_headline if not status_headline.is_empty() else "Crew Roles and Seats",
 		"message": status_value,
-		"actions": [
-			{"id": &"claim", "label": "Claim available seat", "focusable": true},
-			{"id": &"release", "label": "Release your seat", "focusable": true},
-			{"id": &"transfer", "label": "Transfer role", "focusable": true},
-		],
+		"actions": actions,
 		"engineer_route": engineer_route,
 		"engineer_route_attached": not detached,
 		"emergency_handoff": emergency_handoff_view,
-		"gunner_weapon": gunner_weapon,
 		"presentation_only": true,
 	}
+	if not compact_status:
+		_snapshot["gunner_weapon"] = gunner_weapon
 	return _snapshot.duplicate(true)
 
 

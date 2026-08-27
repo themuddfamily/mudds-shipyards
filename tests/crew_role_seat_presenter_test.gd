@@ -40,10 +40,12 @@ func _run() -> void:
 	var detached := presenter.get_snapshot()
 	(detached.rows[0] as Dictionary)["status"] = "forged"
 	_check(presenter.get_snapshot().rows[0].status == "pilot-7", "role presentation snapshot is detached")
+	var compact := presenter.present_snapshot({"roles": {}, "compact_crew_status": true})
+	_check(compact.actions.is_empty() and not compact.has("gunner_weapon") and presenter.request_claim(&"gunner").accepted, "compact status cards omit auxiliary button rows without removing role intents")
 	var cleared := presenter.present_snapshot({"roles": {}})
 	_check(cleared.emergency_handoff.is_empty(), "a subsequent detached snapshot clears the emergency handoff state")
 	if _failures.is_empty():
-		print("CREW_ROLE_SEAT_PRESENTER_TEST_OK: 8 assertions")
+		print("CREW_ROLE_SEAT_PRESENTER_TEST_OK: 9 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)

@@ -6,6 +6,9 @@ extends SceneTree
 const Adapter := preload("res://scripts/ui/cinder_navigator_ping_hud_adapter.gd")
 const Presenter := preload("res://scripts/ui/cinder_navigator_ping_presenter.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
+const PUBLIC_CARD_SIZE := Vector2(396.0, 112.0)
+const PUBLIC_CARD_CONTROL_COUNT := 13
+const LAYOUT_SETTLE_FRAMES := 3
 
 const STATE_CASES := [
 	[&"active", "active"],
@@ -18,10 +21,6 @@ const STATE_CASES := [
 
 var _assertions := 0
 var _failures := PackedStringArray()
-var _production_card_size := Vector2.ZERO
-var _production_card_node_count := -1
-
-
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -43,8 +42,7 @@ func _run() -> void:
 	# Reduced motion makes the production intro transition deterministic here.
 	hud.set("_reduced_motion", true)
 	hud.call("_begin")
-	await process_frame
-	await process_frame
+	await _settle_layout()
 
 	var presenter := Presenter.new()
 	var adapter := Adapter.new()
@@ -71,9 +69,7 @@ func _run() -> void:
 		var file_stem := str(state_case[1])
 		var applied: Dictionary = adapter.apply_view(views.get(state, {}) as Dictionary, base)
 		_check(bool(applied.get("accepted", false)) and applied.get("source_state") == state, "%s presenter view reaches the real HUD" % state)
-		await process_frame
-		RenderingServer.force_draw()
-		await process_frame
+		await _settle_layout()
 		var title := hud.get("_runtime_status_title") as Label
 		var detail := hud.get("_runtime_status_detail") as Label
 		var panel := hud.get("_runtime_status_panel") as PanelContainer
@@ -115,26 +111,50 @@ func _inspect_card_clip(
 		detail: Label,
 		scroll: ScrollContainer
 	) -> void:
-	_check(panel != null and panel.visible and panel.size.y == 112.0 and panel.size.x >= 396.0, "%s keeps the unchanged 112 px public-card band" % state)
-	var node_count := panel.find_children("*").size()
-	if _production_card_size == Vector2.ZERO:
-		_production_card_size = panel.size
-		_production_card_node_count = node_count
-	_check(panel.size == _production_card_size and node_count == _production_card_node_count, "%s preserves production card layout and node density" % state)
+	_check(panel != null and panel.visible and panel.size == PUBLIC_CARD_SIZE, "%s settles at the exact unchanged 396x112 public-card size" % state)
+	var node_count := panel.find_children("*", "Control", true, false).size()
+	_check(node_count == PUBLIC_CARD_CONTROL_COUNT, "%s preserves the fixed 13-control production card density" % state)
 	var panel_rect := panel.get_global_rect()
+	var margin := panel.get_child(0) as MarginContainer
+	var content := margin.get_child(0) as Control if margin != null and margin.get_child_count() == 1 else null
+	var content_rect := content.get_global_rect() if content != null else Rect2()
 	var title_rect := title.get_global_rect()
 	var scroll_rect := scroll.get_global_rect()
 	var detail_rect := detail.get_global_rect()
-	_check(panel_rect.encloses(title_rect), "%s headline remains inside the fixed card clip" % state)
-	var visible_detail := detail_rect.intersection(scroll_rect)
 	_check(
-		visible_detail.size.y >= float(detail.get_theme_font_size(&"font_size")),
-		"%s status/value glyph band remains visible while lower crew rows clip" % state
+		content != null and panel_rect.encloses(content_rect)
+			and content_rect.encloses(title_rect) and title.is_visible_in_tree(),
+		"%s visible headline remains inside the card content rect" % state
+	)
+	var detail_font := detail.get_theme_font(&"font")
+	var detail_font_size := detail.get_theme_font_size(&"font_size")
+	var first_detail_line := detail.text.get_slice("\n", 0)
+	var first_line_size := detail_font.get_string_size(
+		first_detail_line, HORIZONTAL_ALIGNMENT_LEFT, -1, detail_font_size
+	)
+	var first_line_rect := Rect2(
+		detail_rect.position,
+		Vector2(first_line_size.x, detail_font.get_height(detail_font_size))
+	)
+	_check(
+		detail.is_visible_in_tree() and not first_detail_line.is_empty()
+			and first_line_size.x <= detail_rect.size.x
+			and detail_rect.encloses(first_line_rect)
+			and scroll_rect.encloses(first_line_rect)
+			and content_rect.encloses(first_line_rect),
+		"%s status/value line is visible and unclipped inside the content rect" % state
 	)
 	var title_width := title.get_theme_font(&"font").get_string_size(
 		title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, title.get_theme_font_size(&"font_size")
 	).x
-	_check(title_width <= title.size.x, "%s headline is not horizontally clipped" % state)
+	_check(title_width <= title.size.x and not title.text.is_empty(), "%s headline glyphs are not horizontally clipped" % state)
+
+
+func _settle_layout() -> void:
+	for _layout_pass in LAYOUT_SETTLE_FRAMES:
+		await process_frame
+	RenderingServer.force_draw()
+	await process_frame
 
 
 func _state_views() -> Dictionary:

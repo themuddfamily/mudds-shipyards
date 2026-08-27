@@ -13,6 +13,8 @@ const TRANSIENT_STATES := [&"stale", &"rejected"]
 const NAVIGATOR_SEAT_ID: StringName = &"cinder_navigator_station"
 const CINDER_SHIP_ID: StringName = &"cinder-cargo-hauler"
 const PASSENGER_ROLE := "PASSENGER"
+const NAVIGATOR_HEADLINE_MAX_LENGTH := 24
+const NAVIGATOR_VALUE_MAX_LENGTH := 20
 
 var _presenter: Object
 var _hud: Object
@@ -157,6 +159,10 @@ func _compose_crew_snapshot(view: Dictionary, base: Dictionary) -> Dictionary:
 	# fields as well as retaining the ordinary role-row decoration.
 	composed["crew_status_headline"] = _navigator_headline(view)
 	composed["crew_status_value"] = _navigator_status_value(view)
+	# The public navigator witness is a compact status card, not a role-transfer
+	# menu. Keeping the ordinary actions here forces their 48 px button row to
+	# widen the fixed card and clips its only visible status line after layout.
+	composed["compact_crew_status"] = true
 	var stable_view := view
 	if TRANSIENT_STATES.has(state) and not _last_view.is_empty():
 		stable_view = _last_view
@@ -196,20 +202,20 @@ func _navigator_headline(view: Dictionary) -> String:
 		&"stale": "STALE",
 		&"rejected": "REJECTED",
 	}.get(state, "UNAVAILABLE")
-	return _bounded_text("CREW // NAV %s %s" % [marker, label], 64)
+	return _bounded_text("NAV %s %s" % [marker, label], NAVIGATOR_HEADLINE_MAX_LENGTH)
 
 
 func _navigator_status_value(view: Dictionary) -> String:
 	var state := StringName(view.get("state", &"rejected"))
 	var value: String = {
-		&"active": "MARKER // SET",
-		&"cleared": "MARKER // CLEAR",
-		&"available": "PING // READY",
-		&"detached": "PING // DETACHED",
-		&"stale": "PING // STALE",
-		&"rejected": "PING // REJECTED",
-	}.get(state, "PING // UNAVAILABLE")
-	return _bounded_text(value, 96)
+		&"active": "MARKER SET",
+		&"cleared": "MARKER CLEAR",
+		&"available": "PING READY",
+		&"detached": "PING DETACHED",
+		&"stale": "PING STALE",
+		&"rejected": "PING REJECTED",
+	}.get(state, "PING UNAVAILABLE")
+	return _bounded_text(value, NAVIGATOR_VALUE_MAX_LENGTH)
 
 
 func _visible_marker(view: Dictionary) -> String:
