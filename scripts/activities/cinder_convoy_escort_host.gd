@@ -21,6 +21,9 @@ const CONTENT_CLASS: StringName = &"NEW"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const SOURCE_CONFIDENCE: StringName = &"none"
 const CONVOY_ID: StringName = &"emberline_supply_tender"
+const ARRIVAL_ID: StringName = &"cinder_convoy_safe_arrival"
+const REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
+const PERSISTENCE_SCHEMA_VERSION := 1
 const ROUTE: ActivityDefinition = preload(
 	"res://assets/activities/cinder_reach_emberline_convoy_route.tres"
 )
@@ -358,6 +361,158 @@ func reset(expected_generation: int) -> Dictionary:
 
 func get_generation() -> int:
 	return _activity.get_generation() if is_instance_valid(_activity) else 0
+
+
+## Captures the two existing live owners as one exact startup-adoption unit.
+## The host owns movement/entity facts; ConvoyEscortActivity owns lifecycle,
+## ordered progress, clocks, and proximity. Arrival and reward identities are
+## negative fences only and never become a second receipt authority.
+func capture_persistence_state() -> Dictionary:
+	return {
+		"schema_version": PERSISTENCE_SCHEMA_VERSION,
+		"route_resource_path": ROUTE.resource_path,
+		"activity_id": String(ROUTE.activity_id),
+		"convoy_id": String(CONVOY_ID),
+		"phase_id": "escort",
+		"arrival_id": String(ARRIVAL_ID),
+		"arrival_committed": false,
+		"reward_id": String(REWARD_ID),
+		"reward_requested": false,
+		"reward_granted": false,
+		"entity_generation": _entity_generation,
+		"entity_status": _entity_status,
+		"entity_position": _encode_vector(
+			_convoy_entity.position if is_instance_valid(_convoy_entity) else Vector3.ZERO
+		),
+		"last_entity_position": _encode_vector(_last_entity_position),
+		"next_route_index": _next_route_index,
+		"configured_movement_speed": _movement_speed,
+		"movement_distance": _movement_distance,
+		"physics_tick_count": _physics_tick_count,
+		"sample_publication_count": _sample_publication_count,
+		"has_escort_sample": _has_escort_sample,
+		"last_escort_position": _encode_vector(_last_escort_position),
+		"activity_state": (
+			_activity.capture_persistence_state() if is_instance_valid(_activity) else {}
+		),
+	}.duplicate(true)
+
+
+func validate_persistence_state(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary or not _built \
+			or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
+		return _persistence_result(false, &"malformed_convoy_host_state")
+	var saved := candidate as Dictionary
+	if saved.size() != 22 \
+			or not _integral(saved.get("schema_version")) \
+			or int(saved.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
+			or str(saved.get("route_resource_path", "")) != ROUTE.resource_path \
+			or str(saved.get("activity_id", "")) != str(ROUTE.activity_id) \
+			or str(saved.get("convoy_id", "")) != str(CONVOY_ID) \
+			or str(saved.get("phase_id", "")) != "escort" \
+			or str(saved.get("arrival_id", "")) != str(ARRIVAL_ID) \
+			or saved.get("arrival_committed") is not bool \
+			or bool(saved.get("arrival_committed", true)) \
+			or str(saved.get("reward_id", "")) != str(REWARD_ID) \
+			or saved.get("reward_requested") is not bool \
+			or bool(saved.get("reward_requested", true)) \
+			or saved.get("reward_granted") is not bool \
+			or bool(saved.get("reward_granted", true)) \
+			or not _integral(saved.get("entity_generation")) \
+			or not _integral(saved.get("entity_status")) \
+			or not _valid_encoded_vector(saved.get("entity_position")) \
+			or not _valid_encoded_vector(saved.get("last_entity_position")) \
+			or not _integral(saved.get("next_route_index")) \
+			or not _number(saved.get("configured_movement_speed")) \
+			or not is_equal_approx(
+				float(saved.get("configured_movement_speed", -1.0)), _movement_speed
+			) \
+			or not _number(saved.get("movement_distance")) \
+			or not _integral(saved.get("physics_tick_count")) \
+			or not _integral(saved.get("sample_publication_count")) \
+			or saved.get("has_escort_sample") is not bool \
+			or not _valid_encoded_vector(saved.get("last_escort_position")) \
+			or not saved.get("activity_state") is Dictionary:
+		return _persistence_result(false, &"malformed_convoy_host_state")
+	var activity_state := saved.activity_state as Dictionary
+	var activity_validation := _activity.validate_persistence_state(activity_state)
+	if not bool(activity_validation.get("accepted", false)):
+		return activity_validation
+	var entity_generation := int(saved.entity_generation)
+	var next_route_index := int(saved.next_route_index)
+	var movement_distance := float(saved.movement_distance)
+	var physics_ticks := int(saved.physics_tick_count)
+	var publication_count := int(saved.sample_publication_count)
+	var entity_position := _decode_vector(saved.entity_position as Dictionary)
+	var last_entity_position := _decode_vector(saved.last_entity_position as Dictionary)
+	var last_escort_position := _decode_vector(saved.last_escort_position as Dictionary)
+	if entity_generation < 1 \
+			or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
+			or next_route_index < 0 or next_route_index >= ROUTE.get_checkpoint_count() \
+			or movement_distance < 0.0 or physics_ticks < 0 or publication_count < 0 \
+			or not entity_position.is_equal_approx(last_entity_position) \
+			or entity_generation != int(activity_state.get("convoy_generation", -1)) \
+			or next_route_index != int(activity_state.get("next_leg_index", -1)) \
+			or publication_count != int(activity_state.get("sample_count", -1)) \
+			or bool(saved.has_escort_sample) \
+			!= bool(activity_state.get("has_entity_sample", false)):
+		return _persistence_result(false, &"convoy_host_activity_mismatch")
+	var expected_position := _route_position_for_distance(movement_distance)
+	if expected_position == Vector3.INF or not entity_position.is_equal_approx(expected_position):
+		return _persistence_result(false, &"convoy_movement_progress_mismatch")
+	var expected_route_index := _route_index_for_distance(
+		movement_distance, bool(saved.has_escort_sample)
+	)
+	if next_route_index != expected_route_index:
+		return _persistence_result(false, &"convoy_route_progress_mismatch")
+	if bool(saved.has_escort_sample):
+		if not entity_position.is_equal_approx(
+			_decode_vector(activity_state.convoy_position as Dictionary)
+		) or not last_escort_position.is_equal_approx(
+			_decode_vector(activity_state.escort_position as Dictionary)
+		):
+			return _persistence_result(false, &"convoy_sample_progress_mismatch")
+	elif not last_escort_position.is_zero_approx() or not is_zero_approx(movement_distance):
+		return _persistence_result(false, &"convoy_sample_progress_mismatch")
+	return _persistence_result(true, &"convoy_host_state_valid")
+
+
+## Startup-only atomic, signal-free adoption into the pristine identity host.
+func restore_persistence_state(candidate: Variant, expected_generation: int) -> Dictionary:
+	if _is_reentrant():
+		return _persistence_result(false, &"reentrant_call")
+	if not _attached or not is_inside_tree() or is_queued_for_deletion():
+		return _persistence_result(false, &"detached")
+	if expected_generation != get_generation():
+		return _persistence_result(false, &"stale_generation")
+	if not _built or get_generation() != 0 \
+			or _activity.get_state() != ConvoyEscortActivity.State.IDLE \
+			or _entity_generation != 0 or _movement_distance != 0.0 \
+			or _physics_tick_count != 0 or _sample_publication_count != 0:
+		return _persistence_result(false, &"convoy_host_already_live")
+	var validated := validate_persistence_state(candidate)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var saved := candidate as Dictionary
+	var restored_activity := _activity.restore_persistence_state(
+		saved.activity_state, expected_generation
+	)
+	if not bool(restored_activity.get("accepted", false)):
+		return restored_activity
+	_entity_generation = int(saved.entity_generation)
+	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
+	_next_route_index = int(saved.next_route_index)
+	_movement_distance = float(saved.movement_distance)
+	_physics_tick_count = int(saved.physics_tick_count)
+	_sample_publication_count = int(saved.sample_publication_count)
+	_has_escort_sample = bool(saved.has_escort_sample)
+	_last_escort_position = _decode_vector(saved.last_escort_position as Dictionary)
+	_terminal_signal_generation = -1
+	_convoy_entity.visible = true
+	_set_entity_position(_decode_vector(saved.entity_position as Dictionary))
+	_orient_toward_route_index(_next_route_index)
+	_apply_visual_feedback()
+	return _persistence_result(true, &"convoy_host_state_restored")
 
 
 ## Applies only the terminal static formation recipe restored by persistence.
@@ -1315,3 +1470,67 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	result["accepted"] = accepted
 	result["reason"] = reason
 	return result.duplicate(true)
+
+
+func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {"accepted": accepted, "reason": reason}
+
+
+func _route_position_for_distance(distance: float) -> Vector3:
+	if not is_finite(distance) or distance < 0.0:
+		return Vector3.INF
+	var remaining := distance
+	var current := ROUTE.get_checkpoint_position(0)
+	for index in range(1, ROUTE.get_checkpoint_count()):
+		var target := ROUTE.get_checkpoint_position(index)
+		var segment_length := current.distance_to(target)
+		if remaining <= segment_length or is_equal_approx(remaining, segment_length):
+			if segment_length <= 0.0:
+				return Vector3.INF
+			return current.lerp(target, clampf(remaining / segment_length, 0.0, 1.0))
+		remaining -= segment_length
+		current = target
+	return current if is_zero_approx(remaining) else Vector3.INF
+
+
+func _route_index_for_distance(distance: float, has_sample: bool) -> int:
+	if not is_finite(distance) or distance < 0.0:
+		return -1
+	if is_zero_approx(distance):
+		return 1 if has_sample else 0
+	var remaining := distance
+	var current := ROUTE.get_checkpoint_position(0)
+	for index in range(1, ROUTE.get_checkpoint_count()):
+		var target := ROUTE.get_checkpoint_position(index)
+		var segment_length := current.distance_to(target)
+		if remaining < segment_length and not is_equal_approx(remaining, segment_length):
+			return index
+		remaining -= segment_length
+		if is_zero_approx(remaining):
+			return mini(index + 1, ROUTE.get_checkpoint_count() - 1)
+		current = target
+	return -1
+
+
+func _encode_vector(value: Vector3) -> Dictionary:
+	return {"x": value.x, "y": value.y, "z": value.z}
+
+
+func _decode_vector(value: Dictionary) -> Vector3:
+	return Vector3(float(value.x), float(value.y), float(value.z))
+
+
+func _valid_encoded_vector(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	var encoded := value as Dictionary
+	return encoded.size() == 3 and _number(encoded.get("x")) \
+		and _number(encoded.get("y")) and _number(encoded.get("z"))
+
+
+func _number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
+
+
+func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))
