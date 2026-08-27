@@ -94,4 +94,28 @@ func _on_manifest_cleared(generation: int, _reason: StringName) -> void:
 
 func _publish(status: Dictionary, manifest: Dictionary) -> void:
 	if is_attached():
-		_hud.call(&"update_cinder_loadmaster_telemetry", _craft.get_ship_id(), _role, status, manifest)
+		# The binding only adds a text-and-shape roster reading to the detached
+		# presentation record.  It never changes the receipt, roster, or authority.
+		var presentation_status := status.duplicate(true)
+		var roster_reading := _roster_reading(
+			StringName(presentation_status.get("state", &"")),
+			manifest.get("receipt", {}) as Dictionary
+		)
+		presentation_status["roster_status"] = roster_reading["status"]
+		presentation_status["roster_shape"] = roster_reading["shape"]
+		presentation_status["presentation_only"] = true
+		_hud.call(&"update_cinder_loadmaster_telemetry", _craft.get_ship_id(), _role, presentation_status, manifest)
+
+
+func _roster_reading(state: StringName, receipt: Dictionary) -> Dictionary:
+	if not receipt.is_empty():
+		return {"shape": "[=]", "status": "SECURED // MANIFEST READY"} \
+			if bool(receipt.get("ready", false)) \
+			else {"shape": "[!]", "status": "BLOCKED // MANIFEST REVIEW"}
+	match state:
+		&"occupied":
+			return {"shape": "[>]", "status": "LOADING // MANIFEST PENDING"}
+		&"available", &"released":
+			return {"shape": "[/]", "status": "DETACHED // STATION OPEN"}
+		_:
+			return {"shape": "[X]", "status": "FAULT // STATUS UNAVAILABLE"}
