@@ -300,6 +300,11 @@ const CREW_SEAT_HALF_SPACING := 1.30
 const CABIN_WINDOW_COUNT := 10
 const CABIN_WINDOW_FIRST_Z := -8.30
 const CABIN_WINDOW_PITCH := 1.55
+## The two existing overhead lockers narrow toward the flight deck (-Z). Their
+## shared matte silhouette gives a standing crew member a persistent fore/aft
+## read without adding a sign, light, route marker or renderer submission.
+const CABIN_STOWAGE_SIZE := Vector3(1.10, 0.52, 7.20)
+const CABIN_STOWAGE_FORWARD_INSET := 0.27
 
 ## Compact dorsal self-defence hardware. These dimensions remain below the
 ## Jovian freighter's 0.68 m base, 0.19 m barrel radius and 1.55 m barrel length:
@@ -3028,6 +3033,7 @@ func _build_crew_cabin() -> void:
 	var crew_seat_back_names := PackedStringArray()
 	var cabin_portal_upright_transforms: Array[Transform3D] = []
 	var cabin_portal_upright_names := PackedStringArray()
+	var cabin_stowage_mesh := _cabin_forward_taper_mesh()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_crew_cabin, side_name + "CabinSidewall", Vector3(side * 2.46, 1.92, -3.65), Vector3(0.18, 2.86, 12.50), _halyard_materials.structure)
@@ -3072,8 +3078,19 @@ func _build_crew_cabin() -> void:
 			anchor.set_meta("seat_id", StringName("crew_%s_%02d" % [side_name.to_lower(), row_index]))
 			seat_root.add_child(anchor)
 			_crew_seat_anchors.append(anchor)
-		# Overhead stowage above the seat rows.
-		_box(_crew_cabin, side_name + "OverheadStowage", Vector3(side * 1.86, 2.98, -5.40), Vector3(1.10, 0.52, 7.20), _halyard_materials.locker)
+		# Overhead stowage above the seat rows. The existing pair retains its exact
+		# envelope and node count, but the forward end narrows by
+		# 27 cm per side. From either cabin portal that matte convergence identifies
+		# the flight-deck direction even when the uniform aisle ribbon is occluded by
+		# another crew member. This is visual dressing only: no route, collision,
+		# seat, hatch or interaction contract is attached to either locker.
+		var stowage := MeshInstance3D.new()
+		stowage.name = side_name + "OverheadStowage"
+		stowage.position = Vector3(side * 1.86, 2.98, -5.40)
+		stowage.mesh = cabin_stowage_mesh
+		stowage.material_override = _halyard_materials.hull_olive
+		stowage.set_meta("orientation_cue", &"flight_deck_forward")
+		_crew_cabin.add_child(stowage)
 	# These inboard panes are repeated cabin illumination only. Keeping their
 	# batch beneath CrewCabin preserves the moving-interior transform while
 	# removing thirteen renderer submissions; the surrounding frames and every
@@ -4155,6 +4172,51 @@ func _box(
 	instance.material_override = material
 	parent.add_child(instance)
 	return instance
+
+
+## One shared six-face prism for the existing port/starboard overhead lockers.
+## The planform keeps the authored 1.10 x 7.20 m envelope at its aft end and
+## tapers both long sides to the narrower forward face. Generated normals keep
+## the existing non-emissive ship-local hull material stable across the diagonal
+## faces.
+func _cabin_forward_taper_mesh() -> ArrayMesh:
+	var half := CABIN_STOWAGE_SIZE * 0.5
+	var forward_half_width := half.x - CABIN_STOWAGE_FORWARD_INSET
+	var outline := PackedVector3Array([
+		Vector3(-half.x, 0.0, half.z),
+		Vector3(-forward_half_width, 0.0, -half.z),
+		Vector3(forward_half_width, 0.0, -half.z),
+		Vector3(half.x, 0.0, half.z),
+	])
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var top_offset := Vector3.UP * half.y
+	var bottom_offset := Vector3.DOWN * half.y
+	for point in outline:
+		tool.add_vertex(point + top_offset)
+	for point in outline:
+		tool.add_vertex(point + bottom_offset)
+	# Top and bottom fans. The opposite winding keeps both broad faces outward.
+	for index in range(1, outline.size() - 1):
+		tool.add_index(0)
+		tool.add_index(index + 1)
+		tool.add_index(index)
+		tool.add_index(outline.size())
+		tool.add_index(outline.size() + index)
+		tool.add_index(outline.size() + index + 1)
+	# Vertical perimeter faces.
+	for index in outline.size():
+		var next := (index + 1) % outline.size()
+		tool.add_index(index)
+		tool.add_index(outline.size() + next)
+		tool.add_index(outline.size() + index)
+		tool.add_index(index)
+		tool.add_index(next)
+		tool.add_index(outline.size() + next)
+	tool.generate_normals()
+	var mesh := tool.commit()
+	mesh.resource_name = "HalyardCabinForwardTaperStowage"
+	return mesh
 
 
 ## One renderer allocation for repeated, childless, non-colliding visual stock.
