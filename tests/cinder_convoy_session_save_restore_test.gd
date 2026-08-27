@@ -17,6 +17,7 @@ const NearbyActivitySessionAdapter := preload(
 const STORE_PATH := "memory://cinder-convoy-session.json"
 const CORRUPT_STORE_PATH := "memory://corrupt-cinder-convoy-session.json"
 const RADIUS_STORE_PATH := "memory://cinder-convoy-radius-session.json"
+const CENTERED_STORE_PATH := "memory://cinder-convoy-centered-session.json"
 const SLOT: StringName = &"cinder_convoy_session"
 
 
@@ -418,6 +419,86 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 		"every exact live radius transition and shortcut movement state is accepted"
 	)
 
+	# A center hit has one more publication than a radius-only turn: the host
+	# publishes the reached checkpoint before its ordinary final sample. Exercise
+	# both intermediate centers and the active far-escort final center so replay
+	# must return the exact centered witness rather than merely a count range.
+	var centered_store := Store.new(CENTERED_STORE_PATH, filesystem) as UserDataStore
+	centered_store.load()
+	var centered_host := CinderConvoyEscortHost.new()
+	root.add_child(centered_host)
+	await process_frame
+	var centered_started := centered_host.start(centered_host.get_generation())
+	var centered_adapter := SessionPersistence.new() as CinderConvoySessionPersistence
+	centered_adapter.configure(centered_store, SLOT)
+	var centered_advances: Array[Dictionary] = []
+	var centered_saves: Array[Dictionary] = []
+	for checkpoint_index in [1, 2]:
+		var checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(
+			checkpoint_index
+		)
+		centered_advances.append(_advance_host_travel(
+			centered_host,
+			(centered_host.get_snapshot().entity_position as Vector3).distance_to(
+				checkpoint
+			) - CinderConvoyEscortHost.ROUTE_CENTER_REACH_TOLERANCE * 0.5
+		))
+		var centered_state := centered_host.capture_persistence_state()
+		centered_saves.append(centered_adapter.save(
+			centered_host,
+			&"torrent",
+			"centered-checkpoint-%d" % checkpoint_index
+		))
+		_check(
+			_decoded_position(centered_state.entity_position).is_equal_approx(checkpoint)
+				and int(centered_state.next_route_index) == checkpoint_index + 1
+				and int(centered_state.sample_publication_count)
+				== int(centered_state.physics_tick_count) * 2 + checkpoint_index,
+			"checkpoint %d center hit carries its exact extra reached publication"
+				% checkpoint_index
+		)
+	var centered_final_checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(3)
+	var centered_final_advance := _advance_host_travel(
+		centered_host,
+		(centered_host.get_snapshot().entity_position as Vector3).distance_to(
+			centered_final_checkpoint
+		) - CinderConvoyEscortHost.ROUTE_CENTER_REACH_TOLERANCE * 0.5
+	)
+	var centered_final_state := centered_host.capture_persistence_state()
+	var centered_final_save := centered_adapter.save(
+		centered_host, &"torrent", "centered-final-checkpoint"
+	)
+	centered_saves.append(centered_final_save)
+	var centered_restore_host := CinderConvoyEscortHost.new()
+	root.add_child(centered_restore_host)
+	await process_frame
+	var centered_restore_signals := _new_signal_counts()
+	_connect_host_signal_counts(centered_restore_host, centered_restore_signals)
+	var centered_loaded := centered_adapter.load(centered_restore_host)
+	var centered_restored := centered_restore_host.restore_persistence_state(
+		(centered_loaded.get("session_state", {}) as Dictionary).get("host_state", {}),
+		centered_restore_host.get_generation()
+	) if bool(centered_loaded.get("accepted", false)) else {"accepted": false}
+	_check(
+		bool(centered_started.get("accepted", false))
+			and centered_advances.all(func(result: Dictionary) -> bool:
+				return bool(result.get("accepted", false)))
+			and centered_saves.all(func(result: Dictionary) -> bool:
+				return bool(result.get("accepted", false)))
+			and bool(centered_final_advance.get("accepted", false))
+			and int(centered_final_state.next_route_index) == 3
+			and _decoded_position(centered_final_state.entity_position).is_equal_approx(
+				centered_final_checkpoint
+			)
+			and int(centered_final_state.sample_publication_count)
+			== int(centered_final_state.physics_tick_count) * 2 + 3
+			and bool(centered_restored.get("accepted", false))
+			and _canonical(centered_restore_host.capture_persistence_state())
+			== _canonical(centered_final_state)
+			and _signal_total(centered_restore_signals) == 0,
+		"centered intermediate and final states save, then final-center state restores signal-free"
+	)
+
 	var final_checkpoint := CinderConvoyEscortHost.ROUTE.get_checkpoint_position(3)
 	var final_before_travel := (
 		(host.get_snapshot().entity_position as Vector3).distance_to(final_checkpoint)
@@ -529,6 +610,16 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 	corrupt_sessions.append(zero_tick_samples)
 
 	var first_shortcut := checkpoint_states[0].duplicate(true)
+	var forged_shortcut_publication := live_session.duplicate(true)
+	forged_shortcut_publication.host_state = first_shortcut.duplicate(true)
+	var forged_shortcut_host := forged_shortcut_publication.host_state as Dictionary
+	forged_shortcut_host.sample_publication_count = (
+		int(forged_shortcut_host.sample_publication_count) + 1
+	)
+	(forged_shortcut_host.activity_state as Dictionary).sample_count = (
+		forged_shortcut_host.sample_publication_count
+	)
+	corrupt_sessions.append(forged_shortcut_publication)
 	for forged_index in [1, 3]:
 		var forged_progress := live_session.duplicate(true)
 		forged_progress.host_state = first_shortcut.duplicate(true)
@@ -599,6 +690,8 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 	)
 	host.queue_free()
 	pristine.queue_free()
+	centered_host.queue_free()
+	centered_restore_host.queue_free()
 	for _frame in 3:
 		await process_frame
 

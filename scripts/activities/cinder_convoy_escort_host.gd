@@ -25,6 +25,7 @@ const ARRIVAL_ID: StringName = &"cinder_convoy_safe_arrival"
 const REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const PERSISTENCE_SCHEMA_VERSION := 1
 const MAX_PERSISTED_COUNTER := 9_007_199_254_740_991
+const ROUTE_CENTER_REACH_TOLERANCE := 0.00001
 const ROUTE_REPLAY_GRID_DIVISIONS := 16
 const ROUTE_REPLAY_REFINEMENT_STEPS := 18
 const ROUTE_REPLAY_POSITION_TOLERANCE := 0.001
@@ -241,7 +242,7 @@ func advance_physics(
 	while remaining > 0.0 and _next_route_index < ROUTE.get_checkpoint_count():
 		var target := ROUTE.get_checkpoint_position(_next_route_index)
 		var distance_to_target := _convoy_entity.position.distance_to(target)
-		if distance_to_target <= 0.00001:
+		if distance_to_target <= ROUTE_CENTER_REACH_TOLERANCE:
 			var at_target := _publish_sample(
 				escort_position,
 				ConvoyEscortActivity.EntityStatus.ACTIVE
@@ -263,7 +264,7 @@ func advance_physics(
 		remaining -= step
 		moved_this_tick = true
 		_orient_toward_route_index(_next_route_index)
-		if step >= distance_to_target - 0.00001:
+		if step >= distance_to_target - ROUTE_CENTER_REACH_TOLERANCE:
 			_set_entity_position(target)
 			var reached := _publish_sample(
 				escort_position,
@@ -477,6 +478,16 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 	if not is_finite(expected_movement) \
 			or not is_equal_approx(movement_distance, expected_movement):
 		return _persistence_result(false, &"convoy_movement_progress_mismatch")
+	var route_replay := _route_replay_witness(
+		movement_distance,
+		entity_position,
+		next_route_index,
+		has_sample,
+		activity_state
+	)
+	if not bool(route_replay.get("accepted", false)):
+		return _persistence_result(false, &"convoy_route_progress_mismatch")
+	var centered_publication_count := 0
 	if physics_ticks == 0:
 		if not is_zero_approx(elapsed) \
 				or not is_zero_approx(separation_elapsed) \
@@ -485,22 +496,20 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 				or has_sample or next_route_index != 0:
 			return _persistence_result(false, &"convoy_tick_progress_mismatch")
 	else:
-		var minimum_publications := physics_ticks * 2
-		var maximum_publications := minimum_publications + maxi(
-			0, next_route_index - 1
-		)
+		centered_publication_count = publication_count - physics_ticks * 2
 		if elapsed <= 0.0 or movement_distance <= 0.0 or not has_sample \
-				or publication_count < minimum_publications \
-				or publication_count > maximum_publications:
+				or centered_publication_count < 0:
 			return _persistence_result(false, &"convoy_tick_progress_mismatch")
-	if not _route_replay_matches(
-		movement_distance,
-		entity_position,
-		next_route_index,
-		has_sample,
-		activity_state
-	):
-		return _persistence_result(false, &"convoy_route_progress_mismatch")
+		var exact_publication_replay := _route_replay_witness(
+			movement_distance,
+			entity_position,
+			next_route_index,
+			has_sample,
+			activity_state,
+			centered_publication_count
+		)
+		if not bool(exact_publication_replay.get("accepted", false)):
+			return _persistence_result(false, &"convoy_tick_progress_mismatch")
 	if has_sample:
 		if not entity_position.is_equal_approx(
 			_decode_vector(activity_state.convoy_position as Dictionary)
@@ -1515,67 +1524,94 @@ func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
 ## Replays the host's actual motion seam. A sampled checkpoint advances at the
 ## inclusive radius, so a tick may turn toward the following checkpoint from a
 ## point up to four metres before the checkpoint centre. The saved aggregate
-## movement and final sample uniquely constrain those one-dimensional shortcut
-## points for this four-checkpoint route; no exact checkpoint-plane crossing is
-## assumed.
-func _route_replay_matches(
+## movement and final sample constrain the possible one-dimensional shortcut
+## points for this four-checkpoint route. The publication ledger then selects an
+## exact centered-versus-radius-only witness; no checkpoint-plane crossing is
+## assumed merely from ordered progress.
+func _route_replay_witness(
 		distance: float,
 		position: Vector3,
 		next_index: int,
 		has_sample: bool,
-		activity_state: Dictionary
-	) -> bool:
+		activity_state: Dictionary,
+		required_centered_publications: int = -1
+	) -> Dictionary:
 	if not has_sample:
-		return next_index == 0 and is_zero_approx(distance) \
-			and position.is_equal_approx(ROUTE.get_checkpoint_position(0))
+		return {
+			"accepted": next_index == 0 and is_zero_approx(distance) \
+				and position.is_equal_approx(ROUTE.get_checkpoint_position(0)) \
+				and required_centered_publications in [-1, 0],
+		}
 	if next_index < 1 or next_index >= ROUTE.get_checkpoint_count():
-		return false
-	var best_error := _best_route_replay_error(distance, position, next_index)
+		return {"accepted": false}
+	var replay := _best_route_replay(
+		distance, position, next_index, required_centered_publications
+	)
+	var best_error := float(replay.get("error", INF))
 	if not is_finite(best_error) \
 			or best_error > ROUTE_REPLAY_POSITION_TOLERANCE * ROUTE_REPLAY_POSITION_TOLERANCE:
-		return false
+		return {"accepted": false}
 	var target_distance := position.distance_to(
 		ROUTE.get_checkpoint_position(next_index)
 	)
 	if target_distance <= ROUTE.checkpoint_radius:
 		if next_index != ROUTE.get_checkpoint_count() - 1:
-			return false
+			return {"accepted": false}
 		if float(activity_state.get("escort_distance", -1.0)) \
 				<= float(activity_state.get("configured_escort_proximity_radius", -1.0)):
-			return false
-	return true
+			return {"accepted": false}
+	return {"accepted": true}
 
 
-func _best_route_replay_error(
+func _best_route_replay(
 		distance: float,
 		position: Vector3,
-		next_index: int
-	) -> float:
+		next_index: int,
+		required_centered_publications: int = -1
+	) -> Dictionary:
 	var shortcut_count := next_index - 1
 	if shortcut_count == 0:
-		return _route_replay_error(distance, position, next_index, PackedFloat64Array())
+		var direct := _route_replay_metrics(
+			distance, position, next_index, PackedFloat64Array()
+		)
+		return direct if _route_replay_metric_matches_count(
+			direct, required_centered_publications
+		) else {"error": INF}
 	var radius := ROUTE.checkpoint_radius
 	var best := PackedFloat64Array()
 	best.resize(shortcut_count)
 	var best_error := INF
 	var step := radius / float(ROUTE_REPLAY_GRID_DIVISIONS)
+	var initial_shortfalls := _route_replay_initial_shortfalls(radius)
 	if shortcut_count == 1:
-		for first_index in ROUTE_REPLAY_GRID_DIVISIONS + 1:
-			var candidate := PackedFloat64Array([step * first_index])
-			var error := _route_replay_error(distance, position, next_index, candidate)
+		for first_shortfall in initial_shortfalls:
+			var candidate := PackedFloat64Array([first_shortfall])
+			var metrics := _route_replay_metrics(
+				distance, position, next_index, candidate
+			)
+			var error := float(metrics.get("error", INF)) if (
+				_route_replay_metric_matches_count(
+					metrics, required_centered_publications
+				)
+			) else INF
 			if error < best_error:
 				best_error = error
 				best = candidate
 	else:
-		for first_index in ROUTE_REPLAY_GRID_DIVISIONS + 1:
-			for second_index in ROUTE_REPLAY_GRID_DIVISIONS + 1:
+		for first_shortfall in initial_shortfalls:
+			for second_shortfall in initial_shortfalls:
 				var candidate := PackedFloat64Array([
-					step * first_index,
-					step * second_index,
+					first_shortfall,
+					second_shortfall,
 				])
-				var error := _route_replay_error(
+				var metrics := _route_replay_metrics(
 					distance, position, next_index, candidate
 				)
+				var error := float(metrics.get("error", INF)) if (
+					_route_replay_metric_matches_count(
+						metrics, required_centered_publications
+					)
+				) else INF
 				if error < best_error:
 					best_error = error
 					best = candidate
@@ -1587,9 +1623,14 @@ func _best_route_replay_error(
 				var candidate := PackedFloat64Array([
 					clampf(best[0] + first_offset, 0.0, radius),
 				])
-				var error := _route_replay_error(
+				var metrics := _route_replay_metrics(
 					distance, position, next_index, candidate
 				)
+				var error := float(metrics.get("error", INF)) if (
+					_route_replay_metric_matches_count(
+						metrics, required_centered_publications
+					)
+				) else INF
 				if error < best_error:
 					best_error = error
 					refined = candidate
@@ -1600,27 +1641,63 @@ func _best_route_replay_error(
 						clampf(best[0] + first_offset, 0.0, radius),
 						clampf(best[1] + second_offset, 0.0, radius),
 					])
-					var error := _route_replay_error(
+					var metrics := _route_replay_metrics(
 						distance, position, next_index, candidate
 					)
+					var error := float(metrics.get("error", INF)) if (
+						_route_replay_metric_matches_count(
+							metrics, required_centered_publications
+						)
+					) else INF
 					if error < best_error:
 						best_error = error
 						refined = candidate
 		best = refined
-	return best_error
+	if not is_finite(best_error):
+		return {"error": INF}
+	return _route_replay_metrics(distance, position, next_index, best)
 
 
-func _route_replay_error(
+func _route_replay_initial_shortfalls(radius: float) -> PackedFloat64Array:
+	var values := PackedFloat64Array()
+	# Seed both sides of the runtime's discontinuous centre-snap boundary. A
+	# radius-wide grid alone cannot discover a micrometre-scale centered witness,
+	# while treating the boundary as centered would hide a just-outside shortcut.
+	for centered_index in 5:
+		values.append(
+			ROUTE_CENTER_REACH_TOLERANCE * float(centered_index) / 4.0
+		)
+	values.append(
+		ROUTE_CENTER_REACH_TOLERANCE
+		+ ROUTE_CENTER_REACH_TOLERANCE / float(ROUTE_REPLAY_GRID_DIVISIONS)
+	)
+	var radius_step := radius / float(ROUTE_REPLAY_GRID_DIVISIONS)
+	for radius_index in range(1, ROUTE_REPLAY_GRID_DIVISIONS + 1):
+		values.append(radius_step * radius_index)
+	return values
+
+
+func _route_replay_metric_matches_count(
+		metrics: Dictionary,
+		required_centered_publications: int
+	) -> bool:
+	return required_centered_publications < 0 or int(
+		metrics.get("centered_publication_count", -1)
+	) == required_centered_publications
+
+
+func _route_replay_metrics(
 		distance: float,
 		position: Vector3,
 		next_index: int,
 		shortfalls: PackedFloat64Array
-	) -> float:
+	) -> Dictionary:
 	if not is_finite(distance) or distance < 0.0 \
 			or shortfalls.size() != next_index - 1:
-		return INF
+		return {"error": INF}
 	var current := ROUTE.get_checkpoint_position(0)
 	var spent := 0.0
+	var centered_checkpoint_count := 0
 	for offset in shortfalls.size():
 		var target := ROUTE.get_checkpoint_position(offset + 1)
 		var segment_length := current.distance_to(target)
@@ -1628,17 +1705,38 @@ func _route_replay_error(
 		if not is_finite(shortfall) or shortfall < 0.0 \
 				or shortfall > ROUTE.checkpoint_radius \
 				or shortfall > segment_length:
-			return INF
+			return {"error": INF}
 		var travel := segment_length - shortfall
-		current = current.move_toward(target, travel)
+		if shortfall <= ROUTE_CENTER_REACH_TOLERANCE:
+			# advance_physics snaps to the checkpoint and emits its extra reached
+			# publication when travel ends within this exact tolerance.
+			current = target
+			centered_checkpoint_count += 1
+		else:
+			current = current.move_toward(target, travel)
 		spent += travel
 	var target := ROUTE.get_checkpoint_position(next_index)
 	var segment_length := current.distance_to(target)
 	var remaining := distance - spent
 	if remaining < 0.0 or remaining > segment_length:
-		return INF
-	var expected := current.move_toward(target, remaining)
-	return expected.distance_squared_to(position)
+		return {"error": INF}
+	var current_target_centered := (
+		remaining >= segment_length - ROUTE_CENTER_REACH_TOLERANCE
+	)
+	var expected := (
+		target if current_target_centered else current.move_toward(target, remaining)
+	)
+	var centered_publication_count := centered_checkpoint_count
+	# The final checkpoint cannot advance while the escort is outside proximity,
+	# but reaching its centre still executes the host's reached-sample seam once.
+	if next_index == ROUTE.get_checkpoint_count() - 1 and current_target_centered:
+		centered_publication_count += 1
+	return {
+		"error": expected.distance_squared_to(position),
+		"centered_checkpoint_count": centered_checkpoint_count,
+		"centered_publication_count": centered_publication_count,
+		"current_target_centered": current_target_centered,
+	}
 
 
 func _encode_vector(value: Vector3) -> Dictionary:
