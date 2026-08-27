@@ -359,6 +359,11 @@ const AIRSTAIR_NOSING_COPY_COUNT := 4
 ## roots and their anchors retain every occupant and role contract.
 const CREW_SEAT_BACK_SIZE := Vector3(0.68, 0.92, 0.15)
 const CREW_SEAT_BACK_COPY_COUNT := 6
+## The paired uprights at each end of the cabin are equal, childless pressure-
+## frame dressing. Separate route markers, hatch collider and seat anchors own
+## every traversal and occupancy fact; the four visible posts share one batch.
+const CABIN_PORTAL_UPRIGHT_SIZE := Vector3(0.18, 2.80, 0.22)
+const CABIN_PORTAL_UPRIGHT_COPY_COUNT := 4
 const RENDER_DESCENDANT_COUNT := 115
 const RENDER_MESH_INSTANCE_COUNT := 102
 const RENDER_MULTIMESH_BATCH_COUNT := 8
@@ -3021,6 +3026,8 @@ func _build_crew_cabin() -> void:
 	var crew_seat_leg_names := PackedStringArray()
 	var crew_seat_back_transforms: Array[Transform3D] = []
 	var crew_seat_back_names := PackedStringArray()
+	var cabin_portal_upright_transforms: Array[Transform3D] = []
+	var cabin_portal_upright_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
 		_box(_crew_cabin, side_name + "CabinSidewall", Vector3(side * 2.46, 1.92, -3.65), Vector3(0.18, 2.86, 12.50), _halyard_materials.structure)
@@ -3114,8 +3121,28 @@ func _build_crew_cabin() -> void:
 	# than leaving two blank bulkheads.
 	for portal_z in [-9.70, 2.50]:
 		for side in [-1.0, 1.0]:
-			_box(_crew_cabin, "CabinPortalUpright", Vector3(side * 1.28, 1.90, portal_z), Vector3(0.18, 2.80, 0.22), _halyard_materials.accent)
+			cabin_portal_upright_transforms.append(Transform3D(
+				Basis.IDENTITY,
+				Vector3(side * 1.28, 1.90, portal_z)
+			))
+			cabin_portal_upright_names.append(
+				("Forward" if portal_z < 0.0 else "Aft")
+					+ ("Port" if side < 0.0 else "Starboard")
+					+ "CabinPortalUpright"
+			)
 		_box(_crew_cabin, "CabinPortalHeader", Vector3(0.0, 3.16, portal_z), Vector3(2.74, 0.22, 0.22), _halyard_materials.accent)
+	var cabin_portal_upright_mesh := StationSurfaceKit.rounded_box_mesh_cached(
+		CABIN_PORTAL_UPRIGHT_SIZE,
+		_box_mesh_cache
+	)
+	_multimesh_visual_stock(
+		_crew_cabin,
+		"CabinPortalUprightBatch",
+		cabin_portal_upright_mesh,
+		_halyard_materials.accent,
+		cabin_portal_upright_transforms,
+		cabin_portal_upright_names
+	)
 	_box(_crew_cabin, "CabinFoldingTable", Vector3(0.0, 1.06, -5.40), Vector3(0.90, 0.09, 1.50), _halyard_materials.trim)
 	var status_panel := _box(
 		_crew_cabin,
