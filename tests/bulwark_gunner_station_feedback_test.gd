@@ -31,12 +31,25 @@ func _run() -> void:
 	var readout := craft.get_node_or_null(
 		"BulwarkHeavyGunshipVisual/GunnerStation/GunnerStatusReadout"
 	) as Label3D
+	var engineer_readout := craft.get_node_or_null(
+		"BulwarkHeavyGunshipVisual/GunnerStation/EngineerRepairReadout"
+	) as Label3D
+	var station_anchor := craft.call("get_gunner_station_anchor") as Marker3D
 	var feedback := craft.call("get_gunner_station_feedback_snapshot") as Dictionary
 	_check(
 		readout != null
+			and engineer_readout != null
+			and station_anchor != null
+			and not readout.double_sided
+			and not engineer_readout.double_sided
+			and readout.position.is_equal_approx(Vector3(0.0, 0.76, -0.985))
+			and readout.rotation.is_equal_approx(Vector3(deg_to_rad(-14.0), 0.0, 0.0))
+			and readout.global_basis.z.normalized().dot(
+				(station_anchor.global_position - readout.global_position).normalized()
+			) > 0.8
 			and feedback.get("roster_state", &"") == &"detached"
 			and readout.text.contains("[DETACHED]"),
-		"an unbound station explicitly reads DETACHED without relying on colour"
+		"an unbound station sees the exact front face and DETACHED token without reverse-label bleed"
 	)
 
 	var authority := Authority.new(1)
