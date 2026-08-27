@@ -63,7 +63,10 @@ func _initialize() -> void:
 			and tailplane.position.z + tailplane_mesh.size.z * 0.5 < 7.75
 			and port_fin.position.z + fin_mesh.size.z * 0.5 < 7.75
 			and baseline_bounds.encloses(empennage_bounds),
-		"the new recognition cue remains inside the bomber's existing visual footprint"
+		"the new recognition cue remains inside the bomber's existing visual footprint: %s encloses %s" % [
+			baseline_bounds,
+			empennage_bounds,
+		]
 	)
 	_check(
 		first.get_payload_hardpoints().size() == 4
@@ -109,16 +112,41 @@ func _merged_renderer_bounds(
 	var merged := AABB()
 	var seeded := false
 	var visual_inverse := visual.global_transform.affine_inverse()
-	for child in visual.find_children("*", "MeshInstance3D", true, false):
-		var renderer := child as MeshInstance3D
-		if renderer == null or renderer.mesh == null:
+	for child in visual.find_children("*", "Node3D", true, false):
+		var renderer := child as Node3D
+		if renderer == null:
 			continue
 		if excluded_names.has(renderer.name):
 			continue
 		if not included_names.is_empty() and not included_names.has(renderer.name):
 			continue
 		var local_transform := visual_inverse * renderer.global_transform
-		var renderer_bounds := local_transform * renderer.mesh.get_aabb()
-		merged = renderer_bounds if not seeded else merged.merge(renderer_bounds)
-		seeded = true
+		if renderer is MeshInstance3D:
+			var mesh_renderer := renderer as MeshInstance3D
+			if mesh_renderer.mesh == null:
+				continue
+			var renderer_bounds := local_transform * mesh_renderer.mesh.get_aabb()
+			merged = renderer_bounds if not seeded else merged.merge(renderer_bounds)
+			seeded = true
+		elif renderer is MultiMeshInstance3D:
+			var batch := renderer as MultiMeshInstance3D
+			var multimesh := batch.multimesh
+			if multimesh == null or multimesh.mesh == null:
+				continue
+			# Headless does not expose the rendering-server buffer through
+			# `get_instance_transform()`. The batch records the same transforms
+			# used to encode that buffer, so merge each authored mesh AABB instead
+			# of trusting the deliberately broader culling `custom_aabb`.
+			var authored_transforms := \
+					batch.get_meta(&"authored_instance_transforms", []) as Array
+			var visible_count := multimesh.visible_instance_count
+			var instance_count := authored_transforms.size() \
+					if visible_count < 0 else mini(visible_count, authored_transforms.size())
+			instance_count = mini(instance_count, multimesh.instance_count)
+			for instance_index in instance_count:
+				var instance_bounds := local_transform \
+						* (authored_transforms[instance_index] as Transform3D) \
+						* multimesh.mesh.get_aabb()
+				merged = instance_bounds if not seeded else merged.merge(instance_bounds)
+				seeded = true
 	return merged
