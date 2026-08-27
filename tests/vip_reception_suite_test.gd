@@ -1178,11 +1178,11 @@ func _test_threshold_route_thread(suite: VipReceptionSuite) -> void:
 	)
 	_check(
 		material != null
-		and material.albedo_color.is_equal_approx(Color("d8b06a"))
+		and material.albedo_color.is_equal_approx(Color("d84d47"))
 		and material.emission_enabled
-		and material.emission.is_equal_approx(Color("d99a3c"))
-		and is_equal_approx(material.emission_energy_multiplier, 0.9),
-		"the dim threshold route uses the suite's modest warm signal finish"
+		and material.emission.is_equal_approx(Color("a9252c"))
+		and is_equal_approx(material.emission_energy_multiplier, 1.05),
+		"the widened threshold datum carries the VIP landmark finish from door to well entry"
 	)
 	_check(
 		bool(thread.get_meta("station_route_landmark", false))

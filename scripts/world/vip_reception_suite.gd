@@ -114,7 +114,9 @@ const WELL_Z_MAX := 11.3
 ## claiming adjacency authority or adding another floor layer.
 const PROCESSIONAL_ROUTE_START := Vector3(0.0, 0.055, 0.05)
 const PROCESSIONAL_ROUTE_END := Vector3(-1.1, 0.055, WELL_Z_MIN)
-const PROCESSIONAL_ROUTE_WIDTH := 0.14
+## Still an inlay rather than a floor surface, but broad enough for the landmark
+## colour to read as a manufactured directional datum from the player approach.
+const PROCESSIONAL_ROUTE_WIDTH := 0.20
 const PROCESSIONAL_ROUTE_THICKNESS := 0.05
 ## Existing floor finishes butt at these exact seams beneath the processional.
 ## They do not overlap one another (which would z-fight), but their closed
@@ -1440,8 +1442,10 @@ func _create_materials() -> void:
 	# the table now; the lens only has to read as on.
 	_materials["inlay"] = _material(Color("bfe6e4"), 0.08, 0.24, Color("6fd0d6"), 0.22)
 	_materials["signal"] = _material(Color("d8b06a"), 0.3, 0.3, Color("d99a3c"), 0.9)
-	# The landmark's own red, carried exactly one element deep into the room so
-	# the door's colour has somewhere to land.
+	# The landmark red is reserved for two purpose-made threshold identification
+	# cues: the interpretation rule and the processional datum. It gives the VIP
+	# door a legible manufactured language without becoming room decoration or a
+	# lighting system.
 	_materials["landmark_red"] = _material(Color("d84d47"), 0.2, 0.39, Color("a9252c"), 1.05)
 	# Keep the suite's warm pearl, dark lacquer and bronze identity while making
 	# the physical hierarchy legible at walking distance. StationSurfaceKit owns
@@ -1599,11 +1603,12 @@ func _build_threshold(structure: Node3D) -> void:
 		_materials["stone"],
 		false
 	)
-	# A single warm signal thread now fulfils its original promise: it runs from
-	# the doorway, through the compressed threshold, and turns directly toward
-	# the broad entry tread at the conversation well.  It remains one shallow
-	# visual-only inlay, lapped into the stone and carpet beneath it, so it adds no
-	# snag, step, practical light, route authority or independent floor surface.
+	# The landmark red is repeated once as a manufactured route datum: it begins
+	# at the VIP door, runs through the compressed threshold, then turns directly
+	# toward the broad entry tread at the conversation well. It remains one
+	# shallow visual-only inlay, lapped into the stone and carpet beneath it, so
+	# the stronger first-read adds no snag, step, practical light, route authority
+	# or independent floor surface.
 	var route_delta := PROCESSIONAL_ROUTE_END - PROCESSIONAL_ROUTE_START
 	var route_thread := _box(
 		threshold,
@@ -1614,7 +1619,7 @@ func _build_threshold(structure: Node3D) -> void:
 			PROCESSIONAL_ROUTE_THICKNESS,
 			Vector2(route_delta.x, route_delta.z).length()
 		),
-		_materials["signal"],
+		_materials["landmark_red"],
 		false,
 		Vector3(0.0, rad_to_deg(atan2(route_delta.x, route_delta.z)), 0.0)
 	)
