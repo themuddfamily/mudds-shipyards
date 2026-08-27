@@ -114,6 +114,10 @@ const ENTRY_THRESHOLD_MARK_POSITIONS := [
 	Vector3(0.0, 0.02, 4.18),
 	Vector3(0.0, 0.02, 4.52),
 ]
+const ENTRY_LEGEND := "FABRICATION // INBOUND"
+const PORT_WORK_CELL_LEGEND := "PORT WORK CELL"
+const STARBOARD_WORK_CELL_LEGEND := "STBD WORK CELL"
+const CASTING_LINE_LEGEND := "CASTING LINE // 01"
 const CASTING_LINE_CROWN_CENTER := Vector3(0.0, 4.12, 10.62)
 const CASTING_LINE_CROWN_CLEARANCE_M := 3.595
 const SOURCE_PRACTICAL_RANGE_M := 8.0
@@ -253,7 +257,7 @@ func _make_materials() -> void:
 		Color("68727a"), 0.62, 0.5, StationSurfaceKit.PanelFinish.PAINTED_METAL
 	)
 	_materials[&"hazard"] = _panel_material(
-		Color("d58b27"), 0.5, 0.35, StationSurfaceKit.PanelFinish.PAINTED_METAL
+		Color("e6a12e"), 0.5, 0.35, StationSurfaceKit.PanelFinish.PAINTED_METAL
 	)
 	_materials[&"rail"] = _panel_material(
 		Color("aeb9bc"), 0.5, 0.55, StationSurfaceKit.PanelFinish.METAL_TRIM
@@ -265,7 +269,7 @@ func _make_materials() -> void:
 		Color("151d23"), 0.86, 0.32, StationSurfaceKit.PanelFinish.STRUCTURAL_ALLOY
 	)
 	_materials[&"floor_inlay"] = _panel_material(
-		Color("19353b"), 0.64, 0.28, StationSurfaceKit.PanelFinish.WALKED_DECK
+		Color("1d4b52"), 0.64, 0.28, StationSurfaceKit.PanelFinish.WALKED_DECK
 	)
 	_materials[&"luminous"] = _emissive_material(Color("64d9dc"), 1.7)
 
@@ -520,7 +524,8 @@ func _build_structure_and_dressing() -> void:
 			_add_mesh("HazardCurb", Vector3(0.22, 0.08, 4.0), Vector3(x, 0.04, z), &"hazard")
 	for x in [-9.5, 9.5]:
 		_add_mesh("ServiceConduit", Vector3(0.22, 0.22, 13.0), Vector3(x, 4.65, 11.0), &"accent")
-	# Flush deck graphics ground each work cell and keep the central route clear.
+	# The brighter amber/teal zoning family separates work-cell territory from the
+	# central run at normal walking range, with no added geometry or collision.
 	for x in [-9.45, -4.55, 4.55, 9.45]:
 		_add_mesh("BayGuideLine", Vector3(0.09, 0.025, 14.7), Vector3(x, 0.018, 12.15), &"floor_inlay")
 	for x in [-7.0, 7.0]:
@@ -549,10 +554,12 @@ func _build_structure_and_dressing() -> void:
 	_add_mesh("CastingLineStatusBand", Vector3(5.25, 0.1, 0.12), Vector3(0.0, 3.76, 10.50), &"luminous")
 	for x in [-2.55, 2.55]:
 		_add_mesh("AisleGuide", Vector3(0.1, 0.028, 14.8), Vector3(x, 0.021, 12.1), &"luminous")
-	_add_label("FABRICATION ANNEX", Vector3(0.0, 3.4, 4.25), 0.65)
-	_add_label("PORT BAY", Vector3(-7.0, 3.65, 10.0), 0.5)
-	_add_label("STARBOARD BAY", Vector3(7.0, 3.65, 10.0), 0.5)
-	_add_label("CASTING LINE // 01", Vector3(0.0, 4.15, 10.62), 0.54)
+	# Existing double-sided legends now name the direction and work-cell purpose,
+	# making the entry-to-cell route readable without changing their backing or pose.
+	_add_label(ENTRY_LEGEND, Vector3(0.0, 3.4, 4.25), 0.65)
+	_add_label(PORT_WORK_CELL_LEGEND, Vector3(-7.0, 3.65, 10.0), 0.5)
+	_add_label(STARBOARD_WORK_CELL_LEGEND, Vector3(7.0, 3.65, 10.0), 0.5)
+	_add_label(CASTING_LINE_LEGEND, Vector3(0.0, 4.15, 10.62), 0.54)
 
 
 func _add_combined_overhead_structure_render() -> void:
