@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 
 ## Frozen directly from the production player scene: 1.42 m pivot, the default
 ## 5.2 m boom at 10 degrees, 0.16 m SpringArm sphere, 0.28 m margin and 0.08 m
@@ -9,8 +10,10 @@ const WALKING_CAMERA_SWEEP_TOP_Y := 1.42 + sin(deg_to_rad(10.0)) * 5.2 + 0.16 + 
 const DRONE_LOWEST_VISUAL_OFFSET_Y := -0.61
 const LEGACY_FULL_DRONE_BASE_ELEVATION := 1.48
 const DRONE_CAMERA_CLEARANCE_DISTANCE := 1.85
-const PRODUCTION_CAMERA_NEAR := 0.08
+const SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE := 0.61
+const SAFETY_BEACON_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN := 0.376431
 const MINIMUM_DRONE_CAMERA_SURFACE_CLEARANCE := 0.15
+const MINIMUM_BEACON_CAMERA_SURFACE_CLEARANCE := 0.15
 
 var _failures: Array[String] = []
 
@@ -20,6 +23,14 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	var production_camera_near := (
+		player.get_node(
+			^"CameraRig/CameraYaw/CameraPitch/SpringArm3D/PlayerCamera"
+		) as Camera3D
+	).near
+	player.free()
+
 	var activity := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
 	root.add_child(activity)
 	await process_frame
@@ -56,7 +67,8 @@ func _run() -> void:
 	)
 	_check((integration.local_size as Vector3).is_equal_approx(Vector3(11.3, 7.25, 9.0)), "integration footprint is complete and finite")
 	_check(_meshes_stay_inside_declared_envelope(activity), "FULL profile render and motion remain inside its published envelope")
-	await _test_full_drone_camera_clearance(activity)
+	await _test_full_drone_camera_clearance(activity, production_camera_near)
+	_check_safety_beacon_camera_clearance(activity, production_camera_near, false)
 
 	var performance := activity.get_performance_audit()
 	var counts := performance.counts as Dictionary
@@ -205,6 +217,11 @@ func _run() -> void:
 			"%s preserves the universal nonphysical safety-beacon policy" % profiled.get_activity_profile_id()
 		)
 		_check(_meshes_stay_inside_declared_envelope(profiled), "%s profile render and motion remain inside its published envelope" % profiled.get_activity_profile_id())
+		_check_safety_beacon_camera_clearance(
+			profiled,
+			production_camera_near,
+			profile == StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON
+		)
 		_check(
 			int(profile_counts.collision_nodes) == 0
 			and int(profile_counts.lights) == 0
@@ -252,10 +269,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 386
+		int(roster_catalog.bound_material_references) == 384
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 386 renderer bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing leaves all 384 real renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -295,17 +312,19 @@ func _run() -> void:
 	# 392 -> 386, without changing the 461 visible-copy total.
 	# Rail faces on the same placements then move nodes 501 -> 499, MeshInstances
 	# 367 -> 363, batches 19 -> 21, copies 94 -> 98 and submissions 386 -> 384.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 501, "ten production placements have the exact 501-node aggregate")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 365, "ten production placements have the exact 365 MeshInstance aggregate")
+	# Removing both broken arm HLOD proxies reduces the roster by two nodes,
+	# submissions and counted copies; the real visible geometry is unchanged.
+	_check(int((roster_audit.counts as Dictionary).node_count) == 499, "ten production placements have the exact 499-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 363, "ten production placements have the exact 363 MeshInstance aggregate")
 	_check(
 		int((roster_audit.counts as Dictionary).multimesh_batches) == 21
 		and int((roster_audit.counts as Dictionary).multimesh_instances) == 98,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(
-		int((roster_audit.counts as Dictionary).geometry_submissions) == 386
-		and int((roster_audit.counts as Dictionary).drawn_copies) == 463,
-		"production retains 461 visible geometry copies plus two non-drawing arm guards"
+		int((roster_audit.counts as Dictionary).geometry_submissions) == 384
+		and int((roster_audit.counts as Dictionary).drawn_copies) == 461,
+		"production retains all 461 visible geometry copies without proxy renderers"
 	)
 	_check(int((roster_audit.counts as Dictionary).instance_count) == 10, "the recommended production roster is exactly ten placements")
 	var mutated_profile := profile_instances[1] as StationOperationsActivity
@@ -609,11 +628,88 @@ func _run() -> void:
 	await process_frame
 	_finish()
 
+func _check_safety_beacon_camera_clearance(
+		activity: StationOperationsActivity,
+		production_camera_near: float,
+		mutate_live_contract: bool
+	) -> void:
+	var hard_guard_complete := true
+	var guarded_mesh_count := 0
+	var maximum_pairwise_span := 0.0
+	for beacon_index in 4:
+		var beacon := activity.get_node(
+			NodePath("PresentationRoot/SafetyBeacon%02d" % (beacon_index + 1))
+		) as Node3D
+		var meshes: Array[MeshInstance3D] = [
+			beacon.get_node(^"Base") as MeshInstance3D,
+			beacon.get_node(^"Lens") as MeshInstance3D,
+		]
+		for guarded_mesh in meshes:
+			guarded_mesh_count += 1
+			hard_guard_complete = (
+				hard_guard_complete
+				and is_equal_approx(
+					guarded_mesh.visibility_range_begin,
+					SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE
+				)
+				and is_zero_approx(guarded_mesh.visibility_range_begin_margin)
+				and is_zero_approx(guarded_mesh.visibility_range_end)
+				and is_zero_approx(guarded_mesh.visibility_range_end_margin)
+				and guarded_mesh.visibility_range_fade_mode
+					== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+				and guarded_mesh.visibility_parent == NodePath()
+			)
+		for source_mesh in meshes:
+			for surface_index in source_mesh.mesh.get_surface_count():
+				var arrays := source_mesh.mesh.surface_get_arrays(surface_index)
+				for vertex in arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+					var surface_point := source_mesh.global_transform * vertex
+					for target_mesh in meshes:
+						maximum_pairwise_span = maxf(
+							maximum_pairwise_span,
+							surface_point.distance_to(target_mesh.global_position)
+						)
+	_check(
+		guarded_mesh_count == 8
+		and hard_guard_complete
+		and is_equal_approx(
+			maximum_pairwise_span,
+			SAFETY_BEACON_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN
+		)
+		and SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE
+			- maximum_pairwise_span
+			- production_camera_near
+			>= MINIMUM_BEACON_CAMERA_SURFACE_CLEARANCE,
+		(
+			"%s applies a no-fade 0.61 m guard to all four collision-free beacon "
+			+ "Base+Lens assemblies with >=0.15 m reserve against the live camera"
+		) % activity.get_activity_profile_id()
+	)
+	if not mutate_live_contract:
+		return
+	var freight_lens := activity.get_node(
+		^"PresentationRoot/SafetyBeacon01/Lens"
+	) as MeshInstance3D
+	freight_lens.visibility_range_begin = 0.0
+	_check(
+		not bool(activity.get_audit_report().valid),
+		"FreightApproachSignage audit rejects an unguarded beacon Lens"
+	)
+	freight_lens.visibility_range_begin = SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE
+	_check(
+		bool(activity.get_audit_report().valid),
+		"FreightApproachSignage audit recovers when the exact beacon guard returns"
+	)
+
+
 ## Regression witness for the Central FULL placement. Before the fix this exact
 ## check fails: the first drone bottoms at 0.69 m, well inside the production
 ## player's default walking-camera sweep. The roof patrol is a separate mounting
 ## contract, so it must remain byte-for-formula identical while FULL moves up.
-func _test_full_drone_camera_clearance(full: StationOperationsActivity) -> void:
+func _test_full_drone_camera_clearance(
+		full: StationOperationsActivity,
+		production_camera_near: float
+	) -> void:
 	var was_paused := full.is_activity_paused()
 	full.set_activity_paused(true)
 	var roof_patrol := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
@@ -735,7 +831,7 @@ func _test_full_drone_camera_clearance(full: StationOperationsActivity) -> void:
 						maximum_pairwise_camera_span = maxf(
 							maximum_pairwise_camera_span,
 							source_surface_point.distance_to(target.position)
-								+ PRODUCTION_CAMERA_NEAR
+								+ production_camera_near
 						)
 			for representative_path in [
 				^"Body",
@@ -981,12 +1077,12 @@ func _check_gantry_safety_band_batch(
 	var counts := performance.counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (83 if is_full else 45)
-		and int(counts.mesh_instances) == (62 if is_full else 30)
+		int(counts.node_count) == (82 if is_full else 45)
+		and int(counts.mesh_instances) == (61 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (66 if is_full else 34)
-		and int(counts.drawn_copies) == (80 if is_full else 48),
+		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s freezes nodes -3, MeshInstances -4, batches +1 and submissions -3 without dropping a copy" % activity.get_activity_profile_id()
 	)
 	if not RenderingServer.get_video_adapter_name().is_empty():
@@ -1085,12 +1181,12 @@ func _check_gantry_rail_fastener_batch(
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (83 if is_full else 45)
-		and int(counts.mesh_instances) == (62 if is_full else 30)
+		int(counts.node_count) == (82 if is_full else 45)
+		and int(counts.mesh_instances) == (61 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (66 if is_full else 34)
-		and int(counts.drawn_copies) == (80 if is_full else 48),
+		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s freezes rail fasteners at 8 -> 1 submissions while retaining all eight visible copies" % activity.get_activity_profile_id()
 	)
 	if not RenderingServer.get_video_adapter_name().is_empty():
@@ -1187,12 +1283,12 @@ func _check_gantry_guide_wheel_batch(activity: StationOperationsActivity) -> voi
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (83 if is_full else 45)
-		and int(counts.mesh_instances) == (62 if is_full else 30)
+		int(counts.node_count) == (82 if is_full else 45)
+		and int(counts.mesh_instances) == (61 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (66 if is_full else 34)
-		and int(counts.drawn_copies) == (80 if is_full else 48),
+		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s guide wheels fall 4 -> 1 submissions while all four moving copies remain" % activity.get_activity_profile_id()
 	)
 
@@ -1253,12 +1349,12 @@ func _check_gantry_rail_face_batch(activity: StationOperationsActivity) -> void:
 	var counts := activity.get_performance_audit().counts as Dictionary
 	var is_full := activity.get_activity_profile() == StationOperationsActivity.ActivityProfile.FULL
 	_check(
-		int(counts.node_count) == (83 if is_full else 45)
-		and int(counts.mesh_instances) == (62 if is_full else 30)
+		int(counts.node_count) == (82 if is_full else 45)
+		and int(counts.mesh_instances) == (61 if is_full else 30)
 		and int(counts.multimesh_batches) == 4
 		and int(counts.multimesh_instances) == 18
-		and int(counts.geometry_submissions) == (66 if is_full else 34)
-		and int(counts.drawn_copies) == (80 if is_full else 48),
+		and int(counts.geometry_submissions) == (65 if is_full else 34)
+		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s rail faces fall 2 -> 1 submissions while both visible copies remain" % activity.get_activity_profile_id()
 	)
 

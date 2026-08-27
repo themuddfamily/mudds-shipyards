@@ -42,16 +42,28 @@ const DRONE_CAMERA_CLEARANCE_DISTANCE := 1.85
 ## meshes was not an assembly guard: a diagnostic fork could touch the near plane
 ## while the remote shoulder renderer remained more than four metres away.
 ##
-## One renderer-native HLOD dependency now makes the decision for the complete
-## animated subtree. Its origin is the shoulder pivot. The exact authored motion
-## envelope has a maximum surface-to-pivot span of 4.721922 m; the production
-## camera near plane adds 0.08 m and this 5.00 m hard boundary retains 0.198078 m
-## of reserve. The proxy's degenerate triangle emits no pixels; its only job is
-## to switch all nine dependent renderers atomically. The fixed collision-backed
-## pedestal remains continuously visible and no camera polling or gameplay state
-## is introduced.
-const SERVICE_ARM_MAXIMUM_SURFACE_SPAN := 4.721922
-const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 5.0
+## Every animated renderer now uses the supported near-distance range directly.
+## The previous visibility-parent/end-range proxy inverted the renderer's HLOD
+## relationship in Forward+: all nine dependants disappeared at ordinary viewing
+## distance while the proxy itself was inside its end range. It was also an
+## unnecessary extra renderer. Across the complete authored motion envelope the
+## exact worst surface-to-remote-renderer-origin span is 4.835124 m. The live
+## player camera's 0.08 m near plane and this 5.10 m hard cutoff therefore retain
+## 0.184876 m of reserve. Every renderer gets the same cutoff, so the complete
+## animated assembly is gone before any one of its surfaces reaches the near
+## plane. The fixed collision-backed pedestal remains continuously visible.
+const SERVICE_ARM_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN := 4.835124
+const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 5.1
+
+## Safety beacons are deliberately collision-free sacrificial route markers in
+## every profile. Their Base and pulsing Lens can therefore be entered by the
+## walking camera, including the four FreightApproachSignage beacons on the
+## Regeneration Deck. The exact worst surface-to-remote-origin span is the Base
+## rim to Lens origin: 0.376431 m. A 0.61 m hard cutoff leaves 0.153569 m beyond
+## that span and the live 0.08 m player-camera near plane. No fade is allowed:
+## even a short dither interval can reproduce the screen-filling emissive flash.
+const SAFETY_BEACON_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN := 0.376431
+const SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE := 0.61
 
 var _presentation_root: Node3D
 var _profile_id: StringName = PROFILE_FULL
@@ -64,7 +76,6 @@ var _gantry_tool: Node3D
 var _service_arm_shoulder: Node3D
 var _service_arm_elbow: Node3D
 var _service_arm_tool: Node3D
-var _service_arm_camera_guard: MeshInstance3D
 var _drone_roots: Array[Node3D] = []
 var _drone_beacon_lenses: Array[MeshInstance3D] = []
 var _beacon_lenses: Array[MeshInstance3D] = []
@@ -146,28 +157,6 @@ func get_service_arm_elbow() -> Node3D:
 
 func get_service_arm_tool() -> Node3D:
 	return _service_arm_tool
-
-
-func get_service_arm_camera_guard() -> MeshInstance3D:
-	return _service_arm_camera_guard
-
-
-func finalize_camera_visibility_dependencies() -> void:
-	# The owner calls this after immutable mesh sharing. RenderingServer does not
-	# permit changing an HLOD dependency's mesh base while the dependency tree is
-	# live, so binding earlier would make later reusable placements emit a renderer
-	# error while adopting the shared mesh catalog.
-	if not is_instance_valid(_service_arm_shoulder) or not is_instance_valid(
-		_service_arm_camera_guard
-	):
-		return
-	for candidate in _service_arm_shoulder.find_children(
-		"*", "MeshInstance3D", true, false
-	):
-		var arm_mesh := candidate as MeshInstance3D
-		if arm_mesh == _service_arm_camera_guard:
-			continue
-		arm_mesh.visibility_parent = arm_mesh.get_path_to(_service_arm_camera_guard)
 
 
 func get_drone_roots() -> Array[Node3D]:
@@ -394,11 +383,6 @@ func _build_service_arm() -> void:
 	_service_arm_shoulder.name = "AnimatedShoulder"
 	_service_arm_shoulder.position = Vector3(0.0, 0.72, 0.0)
 	base.add_child(_service_arm_shoulder)
-	_service_arm_camera_guard = _build_camera_clearance_guard(
-		_service_arm_shoulder,
-		"WholeAssemblyCameraGuard",
-		SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
-	)
 	_cylinder(_service_arm_shoulder, "ShoulderJoint", Vector3.ZERO, 0.42, 0.62, _materials["orange"], Vector3(90, 0, 0))
 	_box(_service_arm_shoulder, "UpperArm", Vector3(-0.05, 1.13, 0.0), Vector3(0.46, 2.22, 0.52), _materials["ceramic"])
 	_box(_service_arm_shoulder, "UpperArmInset", Vector3(-0.05, 1.13, -0.275), Vector3(0.22, 1.7, 0.035), _materials["frame_edge"])
@@ -418,35 +402,13 @@ func _build_service_arm() -> void:
 	_box(_service_arm_tool, "ToolHousing", Vector3(0.0, 0.26, 0.0), Vector3(0.62, 0.34, 0.72), _materials["graphite"])
 	for x_side in [-1.0, 1.0]:
 		_box(_service_arm_tool, "DiagnosticFork", Vector3(x_side * 0.23, 0.62, 0.0), Vector3(0.12, 0.62, 0.16), _materials["cyan_dim"])
-func _build_camera_clearance_guard(
-		parent: Node3D,
-		node_name: String,
-		clearance_distance: float
-	) -> MeshInstance3D:
-	# Visibility dependencies require a GeometryInstance3D. A degenerate indexed
-	# triangle gives RenderingServer a real instance and range state without a
-	# drawable surface, bloom contribution, collision, or gameplay ownership.
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([
-		Vector3.ZERO,
-		Vector3.ZERO,
-		Vector3.ZERO,
-	])
-	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
-	var guard_mesh := ArrayMesh.new()
-	guard_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var guard := MeshInstance3D.new()
-	guard.name = node_name
-	guard.mesh = guard_mesh
-	guard.material_override = _materials["graphite"]
-	guard.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	guard.custom_aabb = AABB(Vector3(-0.001, -0.001, -0.001), Vector3.ONE * 0.002)
-	guard.visibility_range_end = clearance_distance
-	guard.visibility_range_end_margin = 0.0
-	guard.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-	parent.add_child(guard)
-	return guard
+	for candidate in _service_arm_shoulder.find_children(
+		"*", "MeshInstance3D", true, false
+	):
+		_apply_hard_near_camera_guard(
+			candidate as MeshInstance3D,
+			SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+		)
 
 
 func _build_service_drones() -> void:
@@ -840,7 +802,7 @@ func _build_safety_beacons() -> void:
 		beacon.position = positions[index]
 		beacon.set_meta("collision_policy", &"sacrificial_nonblocking_route_marker")
 		_presentation_root.add_child(beacon)
-		_cylinder(
+		var base := _cylinder(
 			beacon,
 			"Base",
 			Vector3.ZERO,
@@ -851,6 +813,8 @@ func _build_safety_beacons() -> void:
 			_safety_beacon_base_mesh()
 		)
 		var lens := _cylinder(beacon, "Lens", Vector3(0.0, 0.2, 0.0), 0.15, 0.24, _materials["amber_dim"])
+		_apply_hard_near_camera_guard(base, SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE)
+		_apply_hard_near_camera_guard(lens, SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE)
 		_beacon_lenses.append(lens)
 		if _profile_id == PROFILE_DRONE_PATROL:
 			# MAP-005. The anchor foot used to be a plinth 0.13 m *below* the base
@@ -858,6 +822,19 @@ func _build_safety_beacons() -> void:
 			# is now a bolt-down flange around the foot of the pedestal, sharing the
 			# pedestal's underside, so the whole assembly seats on one plane.
 			_box(beacon, "AnchorFoot", Vector3(0.0, -0.06, 0.0), Vector3(0.62, 0.06, 0.62), _materials["frame_edge"])
+
+
+func _apply_hard_near_camera_guard(
+		mesh_instance: MeshInstance3D,
+		clearance_distance: float
+	) -> void:
+	mesh_instance.visibility_range_begin = clearance_distance
+	mesh_instance.visibility_range_begin_margin = 0.0
+	mesh_instance.visibility_range_end = 0.0
+	mesh_instance.visibility_range_end_margin = 0.0
+	mesh_instance.visibility_range_fade_mode = (
+		GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	)
 
 
 func _get_beacon_positions() -> Array[Vector3]:

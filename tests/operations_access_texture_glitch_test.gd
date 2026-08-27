@@ -4,10 +4,12 @@ const ACTIVITY_SCENE := preload(
 	"res://scenes/world/components/station_operations_activity.tscn"
 )
 const AFT_SCENE := preload("res://scenes/world/modules/aft_junction_stack.tscn")
-const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 5.0
-const SERVICE_ARM_MAXIMUM_SURFACE_SPAN := 4.721922
-const SERVICE_ARM_MAXIMUM_SPAN_TIME := 196.25409
-const PRODUCTION_CAMERA_NEAR := 0.08
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE := 5.1
+const SERVICE_ARM_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN := 4.835124
+const SERVICE_ARM_MAXIMUM_PAIRWISE_SPAN_TIME := 6.13477
+const SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE := 0.61
+const SAFETY_BEACON_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN := 0.376431
 const MINIMUM_CAMERA_SURFACE_CLEARANCE := 0.15
 const WORLD_LAYER := PhysicsLayers.WORLD
 
@@ -19,13 +21,20 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	var production_camera := player.get_node(
+		^"CameraRig/CameraYaw/CameraPitch/SpringArm3D/PlayerCamera"
+	) as Camera3D
+	var production_camera_near := production_camera.near
+	player.free()
+
 	var activity := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
 	activity.activity_profile = StationOperationsActivity.ActivityProfile.SERVICE_ARM
 	activity.variation_seed = 2207
 	activity.starts_paused = true
 	root.add_child(activity)
 	await process_frame
-	await _test_service_arm_camera_clearance(activity)
+	await _test_service_arm_camera_clearance(activity, production_camera_near)
 	activity.queue_free()
 	await process_frame
 
@@ -49,50 +58,52 @@ func _run() -> void:
 		quit(1)
 
 
-func _test_service_arm_camera_clearance(activity: StationOperationsActivity) -> void:
+func _test_service_arm_camera_clearance(
+		activity: StationOperationsActivity,
+		production_camera_near: float
+	) -> void:
 	var shoulder := activity.get_node(
 		^"PresentationRoot/ArticulatedServiceArm/AnimatedShoulder"
 	) as Node3D
-	var guard := shoulder.get_node(^"WholeAssemblyCameraGuard") as MeshInstance3D
 	var arm_meshes: Array[MeshInstance3D] = []
-	var atomic_dependency_complete := true
+	var hard_guard_complete := true
 	for candidate in shoulder.find_children("*", "MeshInstance3D", true, false):
 		var arm_mesh := candidate as MeshInstance3D
-		if arm_mesh == guard:
-			continue
 		arm_meshes.append(arm_mesh)
-		atomic_dependency_complete = (
-			atomic_dependency_complete
-			and is_zero_approx(arm_mesh.visibility_range_begin)
+		hard_guard_complete = (
+			hard_guard_complete
+			and is_equal_approx(
+				arm_mesh.visibility_range_begin,
+				SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+			)
+			and is_zero_approx(arm_mesh.visibility_range_begin_margin)
 			and is_zero_approx(arm_mesh.visibility_range_end)
-			and arm_mesh.get_node_or_null(arm_mesh.visibility_parent) == guard
+			and is_zero_approx(arm_mesh.visibility_range_end_margin)
+			and arm_mesh.visibility_range_fade_mode
+				== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+			and arm_mesh.visibility_parent == NodePath()
 		)
 	_check(
 		arm_meshes.size() == 9
-		and atomic_dependency_complete
-		and is_zero_approx(guard.visibility_range_begin)
-		and is_equal_approx(
-			guard.visibility_range_end,
-			SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
-		)
-		and is_zero_approx(guard.visibility_range_end_margin)
-		and guard.visibility_range_fade_mode
-			== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-		and guard.cast_shadow
-			== GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
-		"one non-drawing guard switches all nine service-arm renderers atomically"
+		and hard_guard_complete
+		and shoulder.get_node_or_null(^"WholeAssemblyCameraGuard") == null,
+		"all nine animated service-arm renderers use the supported direct hard "
+		+ "near-distance guard with no broken HLOD proxy"
 	)
-	activity.set_activity_time(SERVICE_ARM_MAXIMUM_SPAN_TIME)
-	var maximum_surface_span := _maximum_surface_span(shoulder, arm_meshes)
+	activity.set_activity_time(SERVICE_ARM_MAXIMUM_PAIRWISE_SPAN_TIME)
+	var maximum_pairwise_span := _maximum_pairwise_surface_origin_span(arm_meshes)
 	_check(
-		is_equal_approx(maximum_surface_span, SERVICE_ARM_MAXIMUM_SURFACE_SPAN)
+		is_equal_approx(
+			maximum_pairwise_span,
+			SERVICE_ARM_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN
+		)
 		and SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
-			- maximum_surface_span
-			- PRODUCTION_CAMERA_NEAR
+			- maximum_pairwise_span
+			- production_camera_near
 			>= MINIMUM_CAMERA_SURFACE_CLEARANCE,
-		"the whole-arm guard covers the exact worst animation-pose surface span "
-		+ "with at least 0.15 m beyond the production near plane (span %.6f m)"
-		% maximum_surface_span
+		"the direct arm guard covers the exact worst animated surface-to-remote-origin "
+		+ "span with at least 0.15 m beyond the live production near plane "
+		+ "(span %.6f m, near %.3f m)" % [maximum_pairwise_span, production_camera_near]
 	)
 	var base_plate := activity.get_node(
 		^"PresentationRoot/ArticulatedServiceArm/BasePlate"
@@ -108,48 +119,114 @@ func _test_service_arm_camera_clearance(activity: StationOperationsActivity) -> 
 	var upper_arm := activity.get_node(
 		^"PresentationRoot/ArticulatedServiceArm/AnimatedShoulder/UpperArm"
 	) as MeshInstance3D
-	upper_arm.visibility_parent = NodePath()
+	upper_arm.visibility_range_begin = 0.0
 	_check(
 		not bool(activity.get_audit_report().valid),
-		"the activity audit rejects detaching one renderer from the atomic arm guard"
+		"the activity audit rejects removing one renderer's direct arm guard"
 	)
-	upper_arm.visibility_parent = upper_arm.get_path_to(guard)
-	guard.visibility_range_end = 0.0
-	_check(
-		not bool(activity.get_audit_report().valid),
-		"the activity audit rejects removal of the whole-arm camera boundary"
-	)
-	guard.visibility_range_end = SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
-	_check(bool(activity.get_audit_report().valid), "restoring the atomic arm guard restores the activity audit")
+	upper_arm.visibility_range_begin = SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+	_check(bool(activity.get_audit_report().valid), "restoring the direct arm guard restores the activity audit")
+
+	_test_safety_beacon_camera_clearance(activity, production_camera_near)
 
 	root.remove_child(activity)
 	root.add_child(activity)
 	await process_frame
-	var dependency_survived_reentry := true
+	var guards_survived_reentry := true
 	for arm_mesh in arm_meshes:
-		dependency_survived_reentry = (
-			dependency_survived_reentry
-			and arm_mesh.get_node_or_null(arm_mesh.visibility_parent) == guard
+		guards_survived_reentry = (
+			guards_survived_reentry
+			and is_equal_approx(
+				arm_mesh.visibility_range_begin,
+				SERVICE_ARM_CAMERA_CLEARANCE_DISTANCE
+			)
+			and arm_mesh.visibility_parent == NodePath()
 		)
 	_check(
 		bool(activity.get_audit_report().valid)
-		and dependency_survived_reentry,
-		"detach and re-entry preserve the same whole-assembly visibility dependency"
+		and guards_survived_reentry,
+		"detach and re-entry preserve all nine supported direct arm guards"
 	)
 
 
-func _maximum_surface_span(
-		shoulder: Node3D,
-		arm_meshes: Array[MeshInstance3D]
+func _test_safety_beacon_camera_clearance(
+		activity: StationOperationsActivity,
+		production_camera_near: float
+	) -> void:
+	var guard_complete := true
+	var guarded_mesh_count := 0
+	var maximum_pairwise_span := 0.0
+	for beacon_index in 4:
+		var beacon := activity.get_node(
+			NodePath("PresentationRoot/SafetyBeacon%02d" % (beacon_index + 1))
+		) as Node3D
+		var beacon_meshes: Array[MeshInstance3D] = [
+			beacon.get_node(^"Base") as MeshInstance3D,
+			beacon.get_node(^"Lens") as MeshInstance3D,
+		]
+		for beacon_mesh in beacon_meshes:
+			guarded_mesh_count += 1
+			guard_complete = (
+				guard_complete
+				and is_equal_approx(
+					beacon_mesh.visibility_range_begin,
+					SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE
+				)
+				and is_zero_approx(beacon_mesh.visibility_range_begin_margin)
+				and is_zero_approx(beacon_mesh.visibility_range_end)
+				and is_zero_approx(beacon_mesh.visibility_range_end_margin)
+				and beacon_mesh.visibility_range_fade_mode
+					== GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+				and beacon_mesh.visibility_parent == NodePath()
+			)
+		maximum_pairwise_span = maxf(
+			maximum_pairwise_span,
+			_maximum_pairwise_surface_origin_span(beacon_meshes)
+		)
+	_check(
+		guarded_mesh_count == 8
+		and guard_complete
+		and is_equal_approx(
+			maximum_pairwise_span,
+			SAFETY_BEACON_MAXIMUM_PAIRWISE_SURFACE_ORIGIN_SPAN
+		)
+		and SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE
+			- maximum_pairwise_span
+			- production_camera_near
+			>= MINIMUM_CAMERA_SURFACE_CLEARANCE,
+		"all four collision-free Base+Lens assemblies hard-cut before the live "
+		+ "production near plane with at least 0.15 m reserve "
+		+ "(span %.6f m, near %.3f m)" % [maximum_pairwise_span, production_camera_near]
+	)
+	var lens := activity.get_node(
+		^"PresentationRoot/SafetyBeacon01/Lens"
+	) as MeshInstance3D
+	lens.visibility_range_begin = 0.0
+	_check(
+		not bool(activity.get_audit_report().valid),
+		"the activity audit rejects removing a beacon Lens guard"
+	)
+	lens.visibility_range_begin = SAFETY_BEACON_CAMERA_CLEARANCE_DISTANCE
+	_check(
+		bool(activity.get_audit_report().valid),
+		"restoring the beacon Lens guard restores the activity audit"
+	)
+
+
+func _maximum_pairwise_surface_origin_span(
+		meshes: Array[MeshInstance3D]
 	) -> float:
 	var maximum := 0.0
-	var shoulder_inverse := shoulder.global_transform.affine_inverse()
-	for arm_mesh in arm_meshes:
-		var relative := shoulder_inverse * arm_mesh.global_transform
-		for surface_index in arm_mesh.mesh.get_surface_count():
-			var surface_arrays := arm_mesh.mesh.surface_get_arrays(surface_index)
+	for source_mesh in meshes:
+		for surface_index in source_mesh.mesh.get_surface_count():
+			var surface_arrays := source_mesh.mesh.surface_get_arrays(surface_index)
 			for vertex in surface_arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array:
-				maximum = maxf(maximum, (relative * vertex).length())
+				var surface_point := source_mesh.global_transform * vertex
+				for target_mesh in meshes:
+					maximum = maxf(
+						maximum,
+						surface_point.distance_to(target_mesh.global_position)
+					)
 	return maximum
 
 
