@@ -14,7 +14,9 @@ var _test_root: Node3D
 
 
 func _init() -> void:
-	if OS.get_cmdline_user_args().has("--capture-galley-mugs"):
+	if OS.get_cmdline_user_args().has("--capture-approach"):
+		call_deferred("_capture_forward_plus", false, false, true)
+	elif OS.get_cmdline_user_args().has("--capture-galley-mugs"):
 		call_deferred("_capture_forward_plus", false, true)
 	elif OS.get_cmdline_user_args().has("--capture-service"):
 		call_deferred("_capture_forward_plus", true)
@@ -188,7 +190,7 @@ func _test_connector_route_cue_progression(module: HabitatSpine) -> void:
 		cues_are_visual_only = cues_are_visual_only and cue.get_child_count() == 0
 	var teal_material := (cues[0] as MeshInstance3D).material_override
 	var amber_sign := module.get_node_or_null(
-		^"Structure/PlayerClearConnector/Sign_HABITAT_SPINE____FIXED-ERA-INSPIRED"
+		^"Structure/PlayerClearConnector/Sign_CREW_HABITAT____COMMON_ROOM__-->"
 	) as MeshInstance3D
 	_check(
 		transforms_exact and widths_progress,
@@ -199,6 +201,13 @@ func _test_connector_route_cue_progression(module: HabitatSpine) -> void:
 		and amber_sign != null
 		and (cues[2] as MeshInstance3D).material_override == amber_sign.material_override,
 		"teal travel cues resolve into the Habitat's established amber threshold colour"
+	)
+	_check(
+		amber_sign != null
+		and (amber_sign.mesh as TextMesh).text == "CREW HABITAT  //  COMMON ROOM  -->"
+		and amber_sign.position.is_equal_approx(Vector3(0.0, 3.85, 0.10))
+		and amber_sign.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0)),
+		"approach legend identifies the crew habitat and directs arrivals to the common room"
 	)
 	_check(
 		cues_are_visual_only
@@ -2576,8 +2585,18 @@ func _wait_for_door_state(door: StationDoor, expected_state: int, travel_seconds
 	return is_instance_valid(door) and door.get_state() == expected_state
 
 
-func _capture_forward_plus(service_only: bool, galley_mugs_only: bool = false) -> void:
+func _capture_forward_plus(
+	service_only: bool,
+	galley_mugs_only: bool = false,
+	approach_only: bool = false
+) -> void:
 	root.size = Vector2i(1400, 900)
+	_check(
+		RenderingServer.get_current_rendering_method() == &"forward_plus"
+		and DisplayServer.get_name() == "X11"
+		and not RenderingServer.get_video_adapter_name().is_empty(),
+		"Habitat approach capture has a live X11 Forward+ renderer"
+	)
 	var capture_root := Node3D.new()
 	capture_root.name = "HabitatSpineForwardPlusCapture"
 	root.add_child(capture_root)
@@ -2614,6 +2633,26 @@ func _capture_forward_plus(service_only: bool, galley_mugs_only: bool = false) -
 	camera.current = true
 	camera.position = Vector3(22.0, 14.5, -20.0)
 	capture_root.add_child(camera)
+	if approach_only:
+		# Normal station-side connector approach: the retained sign stays high on
+		# the pressure facade while the threshold and widening floor cues remain in
+		# frame. This is a stable composition-only witness, not a route or collision
+		# test and not a new evidence contract.
+		camera.fov = 52.0
+		camera.position = Vector3(0.0, 1.70, -5.10)
+		camera.look_at(Vector3(0.0, 2.90, 0.10), Vector3.UP)
+		for _frame in 12:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		var approach_image := root.get_texture().get_image()
+		var approach_error := approach_image.save_png("/tmp/habitat-spine-approach.png")
+		if approach_error != OK:
+			push_error("Failed to save habitat approach capture: %s" % approach_error)
+		print("HABITAT_SPINE_APPROACH_CAPTURE_OK")
+		capture_root.queue_free()
+		await process_frame
+		quit(0 if approach_error == OK and _failures.is_empty() else 1)
+		return
 	if galley_mugs_only:
 		_test_galley_mug_batch(module)
 		camera.fov = 45.0
