@@ -340,6 +340,12 @@ const STRUCTURE_SCAN_RECEIVER_IDLE_ROTATION := Vector3(90.0, 0.0, 0.0)
 const STRUCTURE_SCAN_RECEIVER_RESOLVED_ROTATION := Vector3.ZERO
 const STRUCTURE_SCAN_COLLAR_IDLE_POSITION := Vector3(20.0, 15.0, 5.0)
 const STRUCTURE_SCAN_COLLAR_RESOLVED_POSITION := Vector3(20.0, 15.0, 8.0)
+## The same retained receiver carries the three scan reads: a compact idle
+## aperture, a broad active sweep plate, and the settled resolved datum. These
+## are deliberately silhouette changes in the normal +Z approach view, so the
+## state does not depend on the orange/cyan practical colours.
+const STRUCTURE_SCAN_ACTIVE_RECEIVER_SCALE := Vector3(2.2, 1.0, 0.55)
+const STRUCTURE_SCAN_ACTIVE_COLLAR_SCALE := Vector3(1.5, 1.0, 0.6)
 const STRUCTURE_SCAN_COMPLETE_RECEIVER_SCALE := Vector3.ONE * 1.2
 const STRUCTURE_SCAN_COMPLETE_COLLAR_SCALE := Vector3.ONE * 1.35
 const STRUCTURE_SCAN_FAILED_RECEIVER_ROTATION := Vector3(32.0, -48.0, 72.0)
@@ -3225,6 +3231,7 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 	receiver_collar.position = collar_position
 	receiver_collar.scale = Vector3.ONE
 	var state_id: StringName = &"available"
+	var state_shape_id: StringName = &"compact_aperture"
 	port.light_color = KETH_ORANGE
 	starboard.light_color = MOONLET_TEAL
 	port_lens.material_override = _lens_material(KETH_ORANGE)
@@ -3236,12 +3243,16 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 	match state:
 		CinderAbandonedStructureScanActivity.State.SCANNING:
 			state_id = &"scanning"
+			state_shape_id = &"broad_sweep_plate"
 			port.light_energy = lerpf(2.6, 0.9, progress)
 			starboard.light_energy = lerpf(0.9, 2.6, progress)
 			sign.material_override = _materials["cyan_glow"]
 			sign.scale = Vector3.ONE * 2.15
+			receiver.scale = STRUCTURE_SCAN_ACTIVE_RECEIVER_SCALE
+			receiver_collar.scale = STRUCTURE_SCAN_ACTIVE_COLLAR_SCALE
 		CinderAbandonedStructureScanActivity.State.COMPLETE:
 			state_id = &"completed"
+			state_shape_id = &"settled_resolved_datum"
 			port.light_color = KETH_CYAN
 			starboard.light_color = KETH_CYAN
 			port_lens.material_override = _lens_material(KETH_CYAN)
@@ -3260,6 +3271,7 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 			pass
 	if terminal_outcome in [&"failed", &"aborted"]:
 		state_id = terminal_outcome
+		state_shape_id = &"collapsed_failure"
 		receiver.rotation_degrees = STRUCTURE_SCAN_FAILED_RECEIVER_ROTATION
 		receiver.scale = STRUCTURE_SCAN_FAILED_RECEIVER_SCALE
 		receiver_collar.rotation_degrees = STRUCTURE_SCAN_FAILED_COLLAR_ROTATION
@@ -3268,6 +3280,7 @@ func _apply_structure_scan_activity_presentation(snapshot: Dictionary) -> Dictio
 	_structure_scan_presentation_snapshot = {
 		"activity_id": STRUCTURE_SCAN_ACTIVITY_ID,
 		"state_id": state_id,
+		"state_shape_id": state_shape_id,
 		"authority_state": state,
 		"generation": generation,
 		"progress": progress,
