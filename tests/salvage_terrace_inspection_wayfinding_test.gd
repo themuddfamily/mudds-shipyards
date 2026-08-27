@@ -1,8 +1,9 @@
 extends SceneTree
 
-## Focused presentation contract for the upper-terrace turn into the inspection
-## ramp. It deliberately observes only the six new visual strokes and the route,
-## collision, light, and authority boundaries they must not change.
+## Focused presentation contract for the normal-arrival read and upper-terrace
+## turn into the inspection ramp. It deliberately observes only reused visual
+## presentation and the route, collision, light, and authority boundaries it
+## must not change.
 
 const MODULE_SCENE := preload("res://scenes/world/modules/salvage_terrace.tscn")
 const CAPTURE_PATH := "/tmp/salvage-terrace-inspection-wayfinding.png"
@@ -24,6 +25,7 @@ func _run() -> void:
 	await physics_frame
 
 	_test_wayfinding_batch(module)
+	_test_arrival_identity(module)
 	_test_route_and_authority_boundaries(module)
 	if OS.get_cmdline_user_args().has("--capture"):
 		await _capture_forward_plus(stage)
@@ -76,6 +78,26 @@ func _test_wayfinding_batch(module: SalvageTerrace) -> void:
 		batch.get_child_count() == 0
 		and str(batch.get_meta("non_walkable_reason", "")).contains("no dynamic light or authority"),
 		"the flush deck cadence remains childless presentation with no hidden authority"
+	)
+
+
+func _test_arrival_identity(module: SalvageTerrace) -> void:
+	var sign_back := module.get_node_or_null(^"GeneratedRoot/IdentitySignBack") as MeshInstance3D
+	var label := module.get_node_or_null(^"GeneratedRoot/SalvageTerraceIdentity") as Label3D
+	_check(
+		sign_back != null
+		and sign_back.position.is_equal_approx(Vector3(-4.0, 2.1, -0.5))
+		and label != null
+		and label.position.is_equal_approx(Vector3(-4.0, 2.1, -0.64))
+		and label.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0))
+		and label.text == "SALVAGE\nINSPECTION <"
+		and label.font_size == 40
+		and str(label.get_meta("non_walkable_reason", "")).contains("inspection-direction"),
+		"the existing approach-side entry sign's left cue directs arrivals along the +X inspection route"
+	)
+	_check(
+		module.find_children("*", "Label3D", true, false).size() == 1,
+		"arrival identity reuses the single existing label instead of adding presentation nodes"
 	)
 
 
@@ -142,9 +164,11 @@ func _capture_forward_plus(stage: Node3D) -> void:
 	key_light.light_energy = 1.35
 	key_light.shadow_enabled = true
 	stage.add_child(key_light)
+	# Normal connector approach: holds the relabelled arrival sign in the left
+	# foreground while still showing the upper turn it points players toward.
 	var camera := Camera3D.new()
-	camera.position = Vector3(10.5, 7.4, -1.5)
-	camera.look_at_from_position(camera.position, Vector3(21.5, 3.6, 8.7), Vector3.UP)
+	camera.position = Vector3(0.0, 2.8, -12.0)
+	camera.look_at_from_position(camera.position, Vector3(1.5, 2.5, 7.0), Vector3.UP)
 	camera.fov = 60.0
 	camera.current = true
 	stage.add_child(camera)

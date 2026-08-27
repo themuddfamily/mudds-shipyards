@@ -1440,17 +1440,23 @@ func _add_work_light(
 
 
 func _build_identity_sign() -> void:
-	var sign_back := _visual_box("IdentitySignBack", Vector3(-4.0, 2.1, -0.5), Vector3(3.6, 1.6, 0.25), _materials.frame, "vertical identity sign behind the physical entry rail and outside the walkable union")
+	# The sign remains the same approach-side presentation object, but names the
+	# inspection destination before the player reaches the split between the
+	# lower bay and main service ramp.
+	var sign_back := _visual_box("IdentitySignBack", Vector3(-4.0, 2.1, -0.5), Vector3(3.6, 1.6, 0.25), _materials.frame, "vertical arrival and inspection-direction sign behind the physical entry rail and outside the walkable union")
 	sign_back.set_meta("outside_walkable_union", true)
 	var label := Label3D.new()
 	label.name = "SalvageTerraceIdentity"
-	label.text = "SALVAGE\nTERRACE"
-	label.font_size = 52
+	# The approach-facing label is rotated 180 degrees, so this left cue points
+	# along the actual +X inspection route rather than into the lower bay.
+	label.text = "SALVAGE\nINSPECTION <"
+	label.font_size = 40
 	label.outline_size = 8
 	label.modulate = Color("b9f4ee")
 	label.outline_modulate = Color("10252b")
 	label.position = Vector3(-4.0, 2.1, -0.64)
-	label.set_meta("non_walkable_reason", "bounded vertical area identity label")
+	label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+	label.set_meta("non_walkable_reason", "bounded entry identity and inspection-direction label")
 	_build_root.add_child(label)
 
 
