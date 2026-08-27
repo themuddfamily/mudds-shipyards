@@ -7,7 +7,7 @@ extends RefCounted
 const STATES := [
 	&"orbit_approach", &"descent", &"surface_approach", &"landing_approach",
 	&"landed", &"on_foot", &"reboard", &"reboarded", &"takeoff", &"ascent",
-	&"orbit_return", &"return_manifest", &"failed", &"rejected",
+	&"orbit_return", &"return_manifest", &"rejected",
 ]
 
 var _source_generation := -1
@@ -189,22 +189,12 @@ func _status_semantics(
 			label = "RETURN MANIFEST // READY"
 			short_label = "MANIFEST: READY"
 			kind = &"ready"
-		&"failed":
-			marker = "[!X!]"
-			label = "ABORTED // CHECK REASON"
-			short_label = "ABORTED: CHECK REASON"
-			kind = &"blocked"
 		&"rejected":
 			if not host_attached:
 				marker = "[---]"
 				label = "DETACHED // WAIT FOR CURRENT SESSION"
 				short_label = "DETACHED: WAIT SESSION"
 				kind = &"detached"
-			elif receipt.has("accepted") and not bool(receipt.get("accepted", true)):
-				marker = "[!!!]"
-				label = "BLOCKED // CHECK REASON"
-				short_label = "BLOCKED: CHECK REASON"
-				kind = &"blocked"
 			else:
 				marker = "[XXX]"
 				label = "REJECTED // STATUS UNAVAILABLE"
