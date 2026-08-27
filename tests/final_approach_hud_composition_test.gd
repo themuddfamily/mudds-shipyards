@@ -27,12 +27,12 @@ func _run() -> void:
 	await process_frame
 	var composition := CompositionType.new()
 	_check(
-		bool(composition.attach(source, hud, true, false, true).get("accepted", false)),
+		bool(composition.attach(source, hud, true, true, true).get("accepted", false)),
 		"composition attaches source and real HUD with caller controls",
 	)
 	_check(
-		hud.get_planetary_cruise_presentation_report().status_text == "READY — EMBER MOON",
-		"initial armed presentation reaches existing HUD cruise row",
+		hud.get_planetary_cruise_presentation_report().status_text == "QUEUED",
+		"initial engaged armed presentation reaches existing HUD cruise row",
 	)
 	composition.set_cruise_controls(true, true)
 	var target := {"entry_position_half_extents_m": Vector3(20.0, 10.0, 60.0), "maximum_attitude_degrees": 12.0}
@@ -45,7 +45,7 @@ func _run() -> void:
 		"binding presentation signal updates HUD without polling",
 	)
 	var guidance := hud.find_child("FinalApproachGuidance", true, false) as Label
-	_check(guidance != null and guidance.text == "LAT LEFT / VERT UP / RANGE FWD / ALIGN CORRECT", "production-shaped measurement reaches composed directional guidance")
+	_check(guidance != null and guidance.text == "[>] FINAL APPROACH ACTIVE — FOLLOW GUIDANCE\nLAT LEFT / VERT UP / RANGE FWD / ALIGN CORRECT", "production-shaped measurement reaches composed state and directional guidance")
 	hud.set_paused(true)
 	hud.set_safe_area_insets(Rect2(Vector2(24.0, 16.0), Vector2(24.0, 16.0)))
 	var layout_clean := true
@@ -71,26 +71,35 @@ func _run() -> void:
 	source.engagement_changed.emit(source.snapshot)
 	source.tick_committed.emit(measured_tick)
 	_check(hud.find_child("FinalApproachGuidance", true, false) != null, "current authoritative measurement restores guidance after stale input")
-	source.tick_committed.emit({"generation": 3, "accepted": false, "reason": &"final_approach_actor_lost"})
-	_check(hud.find_child("FinalApproachGuidance", true, false) == null, "composed actor loss clears guidance synchronously")
+	composition.set_cruise_controls(false, false)
+	source.snapshot = {"generation": 3, "engagement_requested": false, "last_reason": &"final_approach_actor_lost", "last_result": {"generation": 3, "accepted": false, "reason": &"final_approach_actor_lost"}, "controller": {"final_approach": {"state_id": &"none"}}}
+	source.engagement_changed.emit(source.snapshot)
+	_check((hud.find_child("FinalApproachGuidance", true, false) as Label).text == "[!] APPROACH REJECTED — CHECK STATUS", "retired actor loss reaches the composed warning with disabled controls")
+	composition.set_cruise_controls(true, true)
 	source.snapshot = {"generation": 4, "engagement_requested": true, "controller": {"final_approach": {"state_id": &"final_approach", "target": target}}}
 	source.engagement_changed.emit(source.snapshot)
 	source.tick_committed.emit({"generation": 4, "accepted": true, "controller": {"final_approach_measurement": {"position_offset_entry_local_m": Vector3.ZERO, "speed_mps": 2.0, "attitude_degrees": 0.0}}})
 	_check(hud.find_child("FinalApproachGuidance", true, false) != null, "fresh actor and berth restore composed guidance")
-	source.tick_committed.emit({"generation": 5, "accepted": false, "reason": &"final_approach_landing_root_lost"})
-	_check(hud.find_child("FinalApproachGuidance", true, false) == null, "composed berth loss clears guidance synchronously")
+	composition.set_cruise_controls(false, false)
+	source.snapshot = {"generation": 5, "engagement_requested": false, "last_reason": &"final_approach_landing_root_lost", "last_result": {"generation": 5, "accepted": false, "reason": &"final_approach_landing_root_lost"}, "controller": {"final_approach": {"state_id": &"none"}}}
+	source.engagement_changed.emit(source.snapshot)
+	_check((hud.find_child("FinalApproachGuidance", true, false) as Label).text == "[!] APPROACH REJECTED — CHECK STATUS", "retired berth loss reaches the composed warning with disabled controls")
+	composition.set_cruise_controls(true, true)
 	source.snapshot = {"generation": 6, "engagement_requested": true, "controller": {"final_approach": {"state_id": &"final_approach", "target": target}}}
 	source.engagement_changed.emit(source.snapshot)
 	source.tick_committed.emit({"generation": 6, "accepted": true, "controller": {"final_approach_measurement": {"position_offset_entry_local_m": Vector3.ZERO, "speed_mps": 1.0, "attitude_degrees": 0.0}}})
-	source.final_approach_completed.emit({"accepted": true, "reason": &"final_approach_handoff_ready", "generation": 7})
+	composition.set_cruise_controls(false, false)
+	source.snapshot = {"generation": 7, "engagement_requested": false, "last_reason": &"final_approach_handoff_ready", "last_result": {"accepted": true, "reason": &"final_approach_handoff_ready", "generation": 7, "controller_release": {"accepted": true}}, "controller": {"final_approach": {"state_id": &"none"}}}
+	source.engagement_changed.emit(source.snapshot)
+	source.final_approach_completed.emit(source.snapshot.last_result)
 	_check(
-		hud.get_planetary_cruise_presentation_report().status_id == &"braking_to_speed",
-		"completion receipt maps to handoff row while preserving engagement",
+		hud.get_planetary_cruise_presentation_report().status_id == &"braking",
+		"completion receipt maps to handoff row after controller release",
 	)
-	_check(hud.find_child("FinalApproachGuidance", true, false) == null, "handoff clears manual guidance after craft authority is released")
+	_check((hud.find_child("FinalApproachGuidance", true, false) as Label).text == "[#] FINAL ENVELOPE ACCEPTED — HANDOFF", "handoff replaces manual guidance with the accepted-envelope cue after craft authority is released")
 	source.engagement_changed.emit({"generation": 6, "controller": {"final_approach": {"state_id": &"armed"}}})
 	_check(
-		hud.get_planetary_cruise_presentation_report().status_id == &"braking_to_speed",
+		hud.get_planetary_cruise_presentation_report().status_id == &"braking",
 		"stale source generation cannot overwrite composed HUD",
 	)
 	var before_detach: String = str(hud.get_planetary_cruise_presentation_report().status_text)
@@ -103,11 +112,11 @@ func _run() -> void:
 	)
 	source.snapshot = {"generation": 9, "engagement_requested": true, "controller": {"final_approach": {"state_id": &"armed"}}}
 	_check(
-		bool(composition.attach(source, hud, true, false).get("accepted", false)),
+		bool(composition.attach(source, hud, true, true).get("accepted", false)),
 		"re-entry attaches a fresh binding and adapter pair",
 	)
 	_check(
-		hud.get_planetary_cruise_presentation_report().status_id == &"ready"
+		hud.get_planetary_cruise_presentation_report().status_id == &"queued"
 			and int(composition.get_snapshot().get("generation", 0)) > 0,
 		"re-entry presents the fresh caller snapshot",
 	)

@@ -81,7 +81,10 @@ func apply_view(view: Dictionary, toggle_enabled: bool, engagement_requested: bo
 	if not bool(mapped.get("accepted", false)):
 		_clear_guidance()
 		return mapped
-	mapped["guidance_text"] = _guidance_for_view(view, state)
+	# The cruise row's colour is intentionally only a secondary severity cue.
+	# Keep a compact, static ASCII silhouette and plain-language phase in the
+	# existing row so every final-approach phase remains legible in monochrome.
+	mapped["guidance_text"] = _feedback_for_view(view, state)
 	if (
 		_last_view.has("generation")
 		and int(source_generation) == int(_last_view.get("generation", -1))
@@ -139,8 +142,10 @@ func _map_state(state: StringName, toggle_enabled: bool, engagement_requested: b
 	var status_text: String
 	match state:
 		&"armed":
-			status_id = &"ready"
-			status_text = "READY — EMBER MOON"
+			# Production can arm only after cruise engagement has been accepted.
+			# Preserve that queued control shape; this state proves no lease.
+			status_id = &"queued"
+			status_text = "QUEUED"
 		&"approaching":
 			status_id = &"accelerating"
 			status_text = "ACCELERATING"
@@ -148,18 +153,17 @@ func _map_state(state: StringName, toggle_enabled: bool, engagement_requested: b
 			status_id = &"cruising"
 			status_text = "CRUISING"
 		&"handoff":
-			status_id = &"braking_to_speed" if engagement_requested else &"braking"
-			status_text = "BRAKING TO SPEED" if engagement_requested else "BRAKING"
+			status_id = &"braking"
+			status_text = "BRAKING"
 		&"rejected":
 			status_id = &"unavailable"
 			status_text = "UNAVAILABLE — NAVIGATION OFFLINE"
 		_:
 			return _reject(&"unknown_state")
 	var exact_semantics := (
-		(status_id == &"ready" and toggle_enabled and not engagement_requested)
-		or (status_id == &"accelerating" and toggle_enabled == engagement_requested)
-		or (status_id == &"cruising" and toggle_enabled == engagement_requested)
-		or (status_id == &"braking_to_speed" and toggle_enabled == engagement_requested)
+		(status_id == &"queued" and toggle_enabled and engagement_requested)
+		or (status_id == &"accelerating" and toggle_enabled and engagement_requested)
+		or (status_id == &"cruising" and toggle_enabled and engagement_requested)
 		or (status_id == &"braking" and not toggle_enabled and not engagement_requested)
 		or (status_id == &"unavailable" and not toggle_enabled and not engagement_requested)
 	)
@@ -172,10 +176,11 @@ func _map_state(state: StringName, toggle_enabled: bool, engagement_requested: b
 	}
 
 
-func _guidance_for_view(view: Dictionary, state: StringName) -> String:
+func _feedback_for_view(view: Dictionary, state: StringName) -> String:
+	var phase := _phase_cue(state)
 	if state not in [&"approaching", &"aligned"] \
 			or not bool(view.get("approach_measurement_valid", false)):
-		return ""
+		return phase
 	var offset_variant: Variant = view.get("position_offset_entry_local_m", null)
 	var extents_variant: Variant = view.get("entry_position_half_extents_m", null)
 	var attitude_variant: Variant = view.get("attitude_degrees", null)
@@ -185,7 +190,7 @@ func _guidance_for_view(view: Dictionary, state: StringName) -> String:
 	if not offset_variant is Vector3 or not extents_variant is Vector3 \
 			or not (attitude_variant is int or attitude_variant is float) \
 			or not (maximum_attitude_variant is int or maximum_attitude_variant is float):
-		return ""
+		return phase
 	var offset := offset_variant as Vector3
 	var extents := extents_variant as Vector3
 	var attitude := float(attitude_variant)
@@ -194,7 +199,7 @@ func _guidance_for_view(view: Dictionary, state: StringName) -> String:
 			or extents.x <= 0.0 or extents.y <= 0.0 or extents.z <= 0.0 \
 			or not is_finite(attitude) or attitude < 0.0 \
 			or not is_finite(maximum_attitude) or maximum_attitude <= 0.0:
-		return ""
+		return phase
 	var lateral_deadband := maxf(
 		MIN_AXIS_DEADBAND_M, extents.x * AXIS_DEADBAND_FRACTION
 	)
@@ -211,12 +216,29 @@ func _guidance_for_view(view: Dictionary, state: StringName) -> String:
 	)
 	# Offsets describe the actor in the target's entry-local frame, so each
 	# instruction names the correction back toward the zero-centred envelope.
-	return "LAT %s / VERT %s / RANGE %s / ALIGN %s" % [
+	return "%s\nLAT %s / VERT %s / RANGE %s / ALIGN %s" % [
+		phase,
 		_axis_correction(offset.x, lateral_deadband, "LEFT", "RIGHT", "CENTER"),
 		_axis_correction(offset.y, vertical_deadband, "DOWN", "UP", "LEVEL"),
 		_axis_correction(offset.z, longitudinal_deadband, "FWD", "BACK", "HOLD"),
 		"HELD" if attitude <= attitude_deadband else "CORRECT",
 	]
+
+
+func _phase_cue(state: StringName) -> String:
+	match state:
+		&"armed":
+			return "[ ] APPROACH ARMED — REQUEST ACCEPTED"
+		&"approaching":
+			return "[>] FINAL APPROACH ACTIVE — FOLLOW GUIDANCE"
+		&"aligned":
+			return "[=] CENTERED / ATTITUDE HELD — HOLD COURSE"
+		&"handoff":
+			return "[#] FINAL ENVELOPE ACCEPTED — HANDOFF"
+		&"rejected":
+			return "[!] APPROACH REJECTED — CHECK STATUS"
+		_:
+			return "[?] APPROACH STATUS UNAVAILABLE"
 
 
 func _axis_correction(
