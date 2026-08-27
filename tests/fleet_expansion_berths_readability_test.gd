@@ -4,25 +4,25 @@ const Berths := preload("res://scripts/world/fleet_expansion_berths.gd")
 const EXPECTED_LEGEND := "FLEET EXPANSION // BERTH ASSIGNMENTS\nSOUTH   DOCK 04  CARGO HAULER\nNORTH   DOCK 05  BOMBER\nEAST    DOCK 06  INTERCEPTOR"
 const PRODUCTION_BASIS := Basis(Vector3.UP, PI * 0.5)
 const EXPECTED_ANCHORS := {
-	&"dock_04_cargo": Vector3(-34.0, 4.0, -18.0),
+	&"dock_04_cargo": Vector3(-16.4, 4.0, -8.0),
 	&"dock_05_bomber": Vector3(34.0, 4.0, -18.0),
 	&"dock_06_interceptor": Vector3(0.0, 4.0, 34.0),
 }
 const EXPECTED_FASCIAS := {
 	&"dock_04_cargo": [
 		"DOCK 04  CARGO HAULER  //  APPROACH CLEAR",
-		Vector3(-17.965, -0.28, 0.6), Vector3(0.0, 90.0, 0.0),
-		Vector3.RIGHT, &"Dock04CargoBridge", &"cargo_hauler",
+		Vector3(-19.8, 1.25, -8.535), Vector3.ZERO,
+		Vector3.BACK, &"CargoBoardingLeg", &"cargo_hauler",
 	],
 	&"dock_05_bomber": [
 		"DOCK 05  BOMBER  //  APPROACH CLEAR",
-		Vector3(17.965, -0.28, -22.0), Vector3(0.0, -90.0, 0.0),
-		Vector3.LEFT, &"Dock05BomberBridge", &"bomber",
+		Vector3(30.2, 1.25, -17.965), Vector3(0.0, 180.0, 0.0),
+		Vector3.FORWARD, &"BomberBoardingLeg", &"bomber",
 	],
 	&"dock_06_interceptor": [
 		"DOCK 06  INTERCEPTOR  //  APPROACH CLEAR",
-		Vector3(-10.5, -0.28, 10.965), Vector3(0.0, 180.0, 0.0),
-		Vector3.FORWARD, &"Dock06InterceptorBridge", &"interceptor",
+		Vector3(-3.035, 1.25, 34.0), Vector3(0.0, 90.0, 0.0),
+		Vector3.RIGHT, &"InterceptorBoardingToe", &"interceptor",
 	],
 }
 
@@ -108,8 +108,8 @@ func _initialize() -> void:
 		and EXPECTED_LEGEND.contains("%s   DOCK 05" % production_directions[&"dock_05_bomber"])
 		and EXPECTED_LEGEND.contains("%s    DOCK 06" % production_directions[&"dock_06_interceptor"])
 		and bool(berths.get_audit_report().get("valid", false))
-		and berths.find_children("*", "StaticBody3D", true, false).size() == 10
-		and berths.find_children("*", "CollisionShape3D", true, false).size() == 13,
+		and berths.find_children("*", "StaticBody3D", true, false).size() == 6
+		and berths.find_children("*", "CollisionShape3D", true, false).size() == 6,
 		"readability polish preserves landing anchors, authority, and walkable collision"
 	)
 

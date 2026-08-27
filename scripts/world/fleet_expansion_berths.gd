@@ -93,28 +93,29 @@ const PAD_MARKER_MATERIAL_KEYS := {
 	&"dock_06_interceptor": "interceptor_marker",
 }
 ## Reuse each pad's live availability sign as its ground-level boarding fascia.
-## Positions are pad-local but resolve 35 mm proud of the approach-side vertical
-## face of the named collision-backed bridge. The three different rotations face
-## the real on-foot approach rather than assuming every berth shares an axis.
+## Positions are pad-local but resolve 35 mm proud of the destination-side
+## vertical face of the named collision-backed route. Each front normal points
+## back along the real connector walking approach, so the role/destination
+## header is readable before the player reaches the final boarding projection.
 const PAD_BOARDING_FASCIA_SPECS := {
 	&"dock_04_cargo": {
-		"position": Vector3(-3.4, -0.28, -0.535),
-		"rotation_degrees": Vector3(0.0, 180.0, 0.0),
-		"approach_normal": Vector3.FORWARD,
+		"position": Vector3(-3.4, 1.25, -0.535),
+		"rotation_degrees": Vector3.ZERO,
+		"approach_normal": Vector3.BACK,
 		"support": &"CargoBoardingLeg",
 		"craft_role": &"cargo_hauler",
 	},
 	&"dock_05_bomber": {
-		"position": Vector3(-3.8, -0.28, 0.035),
-		"rotation_degrees": Vector3.ZERO,
-		"approach_normal": Vector3.BACK,
+		"position": Vector3(-3.8, 1.25, 0.035),
+		"rotation_degrees": Vector3(0.0, 180.0, 0.0),
+		"approach_normal": Vector3.FORWARD,
 		"support": &"BomberBoardingLeg",
 		"craft_role": &"bomber",
 	},
 	&"dock_06_interceptor": {
-		"position": Vector3(-3.035, -0.28, 0.0),
-		"rotation_degrees": Vector3(0.0, -90.0, 0.0),
-		"approach_normal": Vector3.LEFT,
+		"position": Vector3(-3.035, 1.25, 0.0),
+		"rotation_degrees": Vector3(0.0, 90.0, 0.0),
+		"approach_normal": Vector3.RIGHT,
 		"support": &"InterceptorBoardingToe",
 		"craft_role": &"interceptor",
 	},
