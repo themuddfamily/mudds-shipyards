@@ -40,6 +40,11 @@ const ENGINE_FAILED_SHOULDER_COLOR := Color("d95b43")
 const ENGINE_DAMAGE_SHOULDER_X := 2.98
 const ENGINE_DAMAGE_SHOULDER_Y := 0.95
 const ENGINE_DAMAGE_SHOULDER_Y_SCALE := 2.5
+## A failed engine bay deliberately leaves only one raised aft isolation rail.
+## The other retained rail tucks below the roof line, creating an unambiguous
+## asymmetric silhouette even where damage colours cannot be distinguished.
+const ENGINE_FAILED_SHOULDER_Y := 0.54
+const ENGINE_FAILED_SHOULDER_Y_SCALE := 1.35
 
 # The primary hull is immutable, childless presentation stock. Fleet switching
 # can briefly retain two haulers, so keep one process-local mesh/material recipe
@@ -1080,7 +1085,7 @@ func _build_hull(visual: Node3D) -> void:
 		visual,
 		"CargoShoulderBatch",
 		CARGO_SHOULDER_SIZE,
-		_cargo_shoulder_transforms(false),
+		_cargo_shoulder_transforms(ShipComponentDamage.ComponentState.NOMINAL),
 		CARGO_COLOR,
 		PackedStringArray([
 			"CargoShoulderPortForward",
@@ -1102,18 +1107,24 @@ func _build_hull(visual: Node3D) -> void:
 	_cargo_shoulders.set_meta(&"damage_state", &"nominal")
 
 
-## Existing freight shoulders become raised, high-contrast isolation rails when
-## the inherited engine-bay ledger is impaired. The cue is steady and observes
-## authority only; its complete damaged bounds remain inside the existing side
-## wall and roof collision shell, so it adds no collision or gameplay contract.
-func _cargo_shoulder_transforms(damaged: bool) -> Array[Transform3D]:
+## Existing freight shoulders become raised isolation rails when the inherited
+## engine-bay ledger is impaired. A failure collapses the starboard retained
+## rail below the roof line while keeping the port rail raised, making the
+## failed state readable by silhouette rather than colour. The cue is steady
+## and observes authority only; its complete bounds remain inside the existing
+## side wall and roof collision shell, so it adds no collision or gameplay
+## contract.
+func _cargo_shoulder_transforms(state: int) -> Array[Transform3D]:
 	var transforms: Array[Transform3D] = [
 		Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, -3.75)),
 		Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, -3.75)),
 		Transform3D(Basis.IDENTITY, Vector3(-3.12, 0.25, 3.75)),
 		Transform3D(Basis.IDENTITY, Vector3(3.12, 0.25, 3.75)),
 	]
-	if damaged:
+	if state in [
+		ShipComponentDamage.ComponentState.IMPAIRED,
+		ShipComponentDamage.ComponentState.FAILED,
+	]:
 		var raised_basis := Basis.IDENTITY.scaled(
 			Vector3(1.0, ENGINE_DAMAGE_SHOULDER_Y_SCALE, 1.0)
 		)
@@ -1123,6 +1134,14 @@ func _cargo_shoulder_transforms(damaged: bool) -> Array[Transform3D]:
 		transforms[3] = Transform3D(
 			raised_basis, Vector3(ENGINE_DAMAGE_SHOULDER_X, ENGINE_DAMAGE_SHOULDER_Y, 3.75)
 		)
+		if state == ShipComponentDamage.ComponentState.FAILED:
+			var collapsed_basis := Basis.IDENTITY.scaled(
+				Vector3(1.0, ENGINE_FAILED_SHOULDER_Y_SCALE, 1.0)
+			)
+			transforms[3] = Transform3D(
+				collapsed_basis,
+				Vector3(ENGINE_DAMAGE_SHOULDER_X, ENGINE_FAILED_SHOULDER_Y, 3.75)
+			)
 	return transforms
 
 
@@ -1146,7 +1165,7 @@ func _sync_engine_damage_shoulders() -> void:
 		ShipComponentDamage.ComponentState.IMPAIRED,
 		ShipComponentDamage.ComponentState.FAILED,
 	]
-	var transforms := _cargo_shoulder_transforms(damaged)
+	var transforms := _cargo_shoulder_transforms(state)
 	var mesh := _cargo_shoulders.multimesh.mesh
 	var bounds := AABB()
 	for index in transforms.size():
