@@ -1,15 +1,18 @@
 extends SceneTree
 
 const BOARD_SCRIPT := preload("res://scripts/activities/station_defense_activity_board.gd")
+const CONTENT_SCENE := preload("res://scenes/activities/station_defense_encounter.tscn")
 const PHYSICS_LAYERS := preload("res://scripts/core/physics_layers.gd")
 const OUTPUT_PATH := "/tmp/station-defense-activity-board-readability.png"
 const STATE_CAPTURE_PATHS := {
 	&"ready": "/tmp/station-defense-activity-board-ready.png",
 	&"active": "/tmp/station-defense-activity-board-active.png",
-	&"wave_complete": "/tmp/station-defense-activity-board-wave-complete.png",
-	&"repeat": "/tmp/station-defense-activity-board-repeat.png",
+	&"inter_wave": "/tmp/station-defense-activity-board-inter-wave.png",
+	&"completed": "/tmp/station-defense-activity-board-completed.png",
 	&"failed": "/tmp/station-defense-activity-board-failed.png",
 }
+const TEST_WEAPON: StringName = &"board_visual_cannon"
+const TEST_SOURCE_ID := 9902
 
 var _failures: PackedStringArray = []
 
@@ -28,8 +31,28 @@ func _run() -> void:
 
 	var stage := Node3D.new()
 	viewport.add_child(stage)
+	var authority := LiveCombatAuthority.new()
+	stage.add_child(authority)
+	var director := ActivityDirector.new()
+	stage.add_child(director)
+	var content := CONTENT_SCENE.instantiate() as StationDefenseEncounterContent
+	stage.add_child(content)
 	var board := BOARD_SCRIPT.new() as Area3D
 	stage.add_child(board)
+	var actor := Node3D.new()
+	stage.add_child(actor)
+	var attacker := Node3D.new()
+	stage.add_child(attacker)
+	await process_frame
+	await physics_frame
+	var configured: Dictionary = board.configure_external_owners(content, authority, director)
+	actor.global_position = board.global_position + Vector3(1.5, 0.0, 0.0)
+	var registered := authority.register_source(
+		attacker,
+		TEST_SOURCE_ID,
+		&"station_allies",
+		{TEST_WEAPON: {"range": 200.0, "damage": 100.0, "origin_tolerance": 8.0}}
+	)
 	await process_frame
 
 	var body := board.get_node_or_null(^"CollisionBackedConsole") as StaticBody3D
@@ -80,10 +103,10 @@ func _run() -> void:
 		"literal two-line title and amber underline fit inside the widened locator face"
 	)
 	_check(
-		status != null and status.text == "AWAITING LINK"
+		status != null and status.text == "[ ] READY\nDEPLOY AVAILABLE"
 		and board.find_children("*", "Light3D", true, false).is_empty()
 		and board.find_children("*", "AnimationPlayer", true, false).is_empty(),
-		"static readability treatment adds no light, pulse, or local activity clock"
+		"public ready binding adds no light, pulse, or local activity clock"
 	)
 	_check(
 		body_collision != null
@@ -128,26 +151,89 @@ func _run() -> void:
 	camera.current = true
 	for _frame in 5:
 		await process_frame
-	var states := [
-		[&"ready", _snapshot(&"idle", 1), "[ ] READY\nDEPLOY AVAILABLE"],
-		[&"active", _snapshot(&"active", 2, 1, 3, 3, 0), ">> WAVE 1 / 3\nROSTER 0 / 3"],
-		[&"wave_complete", _snapshot(&"active", 3, 1, 3, 3, 3), "[X] WAVE 1 COMPLETE\nNEXT WAVE STANDBY"],
-		[&"repeat", _snapshot(&"completed", 4), "[X] PERIMETER SECURE\n[>] REPEAT AVAILABLE"],
-		[&"failed", _snapshot(&"failed", 5), "[!] DEFENSE OFFLINE\n[<] RECOVERY REQUIRED"],
-	]
-	for state in states:
-		var capture_id := state[0] as StringName
-		board.call("_on_content_snapshot_changed", state[1] as Dictionary)
-		await process_frame
-		var image := viewport.get_texture().get_image()
-		var capture_path := str(STATE_CAPTURE_PATHS[capture_id])
-		var save_error := image.save_png(capture_path) if image != null and not image.is_empty() \
-			else ERR_CANT_CREATE
-		_check(
-			status.text == str(state[2])
-			and save_error == OK and image.get_width() == 960 and image.get_height() == 540,
-			"%s state has an explicit text/shape status at gameplay distance" % capture_id
-		)
+	_check(
+		bool(configured.get("accepted", false)) and registered,
+		"visual review uses the configured public content and combat owners"
+	)
+	await _capture(viewport, status, &"ready", "[ ] READY\nDEPLOY AVAILABLE")
+
+	var started: bool = board.interact(actor)
+	await process_frame
+	var generation := content.get_generation()
+	var activity := content.get_snapshot().host.activity as Dictionary
+	_check(
+		started
+		and int(activity.get("wave_number", 0)) == 1
+		and int(activity.get("current_wave_hostile_count", 0)) == 1,
+		"public board interaction reaches the exact one-hostile first wave"
+	)
+	await _capture(viewport, status, &"active", ">> WAVE 1 / 3\nROSTER 0 / 1")
+
+	var roster := content.get_node(^"OpponentRoster") as Node3D
+	var alpha := roster.get_node(^"PerimeterRaiderAlpha") as RangeOpponent
+	var beta := roster.get_node(^"PerimeterRaiderBeta") as RangeOpponent
+	var gamma := roster.get_node(^"PerimeterRaiderGamma") as RangeOpponent
+	var picket := roster.get_node(^"PerimeterHeavyPicket") as RangeOpponent
+	var alpha_terminal := await _destroy(authority, attacker, alpha)
+	activity = content.get_snapshot().host.activity as Dictionary
+	_check(
+		bool(alpha_terminal.get("destroyed", false))
+		and int(activity.get("wave_number", 0)) == 2
+		and int(activity.get("current_wave_hostile_count", 0)) == 2
+		and not bool(activity.get("wave_active", true))
+		and is_equal_approx(float(activity.get("wave_delay_remaining_seconds", 0.0)), 0.5),
+		"wave-1 clearance settles on the reachable positive-delay wave-2 snapshot"
+	)
+	await _capture(
+		viewport, status, &"inter_wave", "[~] NEXT WAVE 2 / 3\nDEPLOY IN 0.5 S"
+	)
+
+	content.advance_physics(0.5, generation)
+	await physics_frame
+	var beta_terminal := await _destroy(authority, attacker, beta)
+	var gamma_terminal := await _destroy(authority, attacker, gamma)
+	content.advance_physics(1.25, generation)
+	await physics_frame
+	var picket_terminal := await _destroy(authority, attacker, picket, 8)
+	await process_frame
+	_check(
+		bool(beta_terminal.get("destroyed", false))
+		and bool(gamma_terminal.get("destroyed", false))
+		and bool(picket_terminal.get("destroyed", false))
+		and content.get_snapshot().host.activity.state_id == &"completed",
+		"public combat and physics APIs reach completed state"
+	)
+	await _capture(
+		viewport, status, &"completed", "[=] COMPLETE // RESET REQUIRED"
+	)
+	_check(
+		not board.interact(actor)
+		and content.get_generation() == generation
+		and content.get_snapshot().host.activity.state_id == &"completed",
+		"completed capture retains direct interaction reset-required semantics"
+	)
+
+	var reset := content.reset(generation)
+	await process_frame
+	var failed_started: bool = board.interact(actor)
+	var failed_generation := content.get_generation()
+	var failed := content.fail(&"visual_test_failure", failed_generation)
+	await process_frame
+	_check(
+		bool(reset.get("accepted", false))
+		and failed_started
+		and bool(failed.get("accepted", false)),
+		"public reset, start, and fail APIs reach failed state"
+	)
+	await _capture(
+		viewport, status, &"failed", "[X] FAILED // RESET REQUIRED"
+	)
+	_check(
+		not board.interact(actor)
+		and content.get_generation() == failed_generation
+		and content.get_snapshot().host.activity.state_id == &"failed",
+		"failed capture retains direct interaction reset-required semantics"
+	)
 	var final_image := viewport.get_texture().get_image()
 	var final_save_error := final_image.save_png(OUTPUT_PATH) if final_image != null and not final_image.is_empty() \
 		else ERR_CANT_CREATE
@@ -169,23 +255,45 @@ func _check(condition: bool, message: String) -> void:
 		_failures.append("FAIL: " + message)
 
 
-func _snapshot(
-		state_id: StringName,
-		generation: int,
-		wave_number: int = 0,
-		wave_count: int = 3,
-		roster_total: int = 0,
-		roster_cleared: int = 0
+func _capture(
+		viewport: SubViewport,
+		status: Label3D,
+		capture_id: StringName,
+		expected_text: String
+	) -> void:
+	await process_frame
+	var image := viewport.get_texture().get_image()
+	var capture_path := str(STATE_CAPTURE_PATHS[capture_id])
+	var save_error := image.save_png(capture_path) if image != null and not image.is_empty() \
+		else ERR_CANT_CREATE
+	_check(
+		status.text == expected_text
+		and save_error == OK and image.get_width() == 960 and image.get_height() == 540,
+		"%s public state has truthful text/shape status at gameplay distance" % capture_id
+	)
+
+
+func _destroy(
+		authority: LiveCombatAuthority,
+		attacker: Node3D,
+		target: Node3D,
+		maximum_shots: int = 4
 	) -> Dictionary:
-	return {
-		"host": {
-			"activity": {
-				"state_id": state_id,
-				"generation": generation,
-				"wave_number": wave_number,
-				"wave_count": wave_count,
-				"current_wave_hostile_count": roster_total,
-				"current_wave_destroyed_count": roster_cleared,
-			}
-		}
-	}
+	var result: Dictionary = {}
+	for _shot in maximum_shots:
+		await physics_frame
+		var aim_position := target.global_position
+		var keel := target.get_node_or_null(^"KeelCollision") as CollisionShape3D
+		if keel != null:
+			aim_position = keel.global_position
+		attacker.global_position = aim_position + Vector3(0.0, 0.0, 18.0)
+		result = authority.submit_hitscan(
+			attacker,
+			TEST_WEAPON,
+			attacker.global_position,
+			(aim_position - attacker.global_position).normalized()
+		)
+		await process_frame
+		if bool(result.get("destroyed", false)):
+			break
+	return result.duplicate(true)

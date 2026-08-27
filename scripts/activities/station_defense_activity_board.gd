@@ -356,18 +356,30 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 			var roster_cleared := clampi(
 				int(activity.get("current_wave_destroyed_count", 0)), 0, roster_total
 			)
-			if roster_total > 0 and roster_cleared >= roster_total:
-				status_text = "[X] WAVE %d COMPLETE\nNEXT WAVE STANDBY" % wave_number
+			var wave_active := bool(activity.get("wave_active", false))
+			var delay_seconds := maxf(
+				0.0, float(activity.get("wave_delay_remaining_seconds", 0.0))
+			)
+			if not wave_active and delay_seconds > 0.0:
+				status_text = "[~] NEXT WAVE %d / %d\nDEPLOY IN %.1f S" % [
+					wave_number, wave_count, delay_seconds,
+				]
 			else:
 				status_text = ">> WAVE %d / %d\nROSTER %d / %d" % [
 					wave_number, wave_count, roster_cleared, roster_total
 				]
 			status_color = STATUS_COLOR_ACTIVE
 		&"completed":
-			status_text = "[X] PERIMETER SECURE\n[>] REPEAT AVAILABLE"
+			status_text = "[=] COMPLETE // RESET REQUIRED"
 			status_color = STATUS_COLOR_SECURE
-		&"failed", &"aborted", &"timed_out":
-			status_text = "[!] DEFENSE OFFLINE\n[<] RECOVERY REQUIRED"
+		&"failed":
+			status_text = "[X] FAILED // RESET REQUIRED"
+			status_color = STATUS_COLOR_RECOVERY
+		&"aborted":
+			status_text = "[X] ABORTED // RESET REQUIRED"
+			status_color = STATUS_COLOR_RECOVERY
+		&"timed_out":
+			status_text = "[X] TIMED OUT // RESET REQUIRED"
 			status_color = STATUS_COLOR_RECOVERY
 		&"idle":
 			pass
