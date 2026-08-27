@@ -36,10 +36,22 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 	var mapped := _map_state(state)
 	if mapped.is_empty():
 		return _reject(&"unsupported_phase")
+	var status_semantics := _status_semantics(
+		mapped.get("state", &"rejected") as StringName,
+		bool(host.get("attached", binding.get("attached", false))), receipt
+	)
+	var visible_title := "EMBER %s %s" % [
+		str(status_semantics.get("marker", "[???]")),
+		str(status_semantics.get("short_label", "STATUS UNAVAILABLE")),
+	]
 	var route_guidance := _route_guidance(
 		host, binding, mapped.get("state", &"rejected") as StringName
 	)
-	var lines := PackedStringArray(["EMBER RETURN  //  %s" % str(mapped.get("label", "UNAVAILABLE"))])
+	var lines := PackedStringArray([visible_title])
+	lines.append("STATUS MARKER  //  %s  //  %s" % [
+		str(status_semantics.get("marker", "[???]")),
+		str(status_semantics.get("label", "STATUS UNAVAILABLE")),
+	])
 	var distance := _finite(host, &"distance_meters")
 	var speed := _finite(host, &"speed_meters_per_second")
 	if bool(route_guidance.get("available", false)):
@@ -64,15 +76,19 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 	_attached = true
 	_view = {
 		"accepted": true, "attached": true, "state": mapped.get("state"),
+		"visible_title": visible_title,
 		"text": "\n".join(lines), "generation": generation,
 		"distance_m": distance, "speed_mps": speed,
 		"reduced_motion": reduced_motion, "focusable": true,
 		"color_independent": true, "reduced_flash_safe": true,
 		"flash_requested": false, "route_guidance": route_guidance,
+		"status_semantics": status_semantics,
 		"next_action": next_action,
 		"presentation_only": true,
+		"input_authority": false, "travel_authority": false,
+		"boarding_authority": false, "reward_authority": false,
 		"movement_authority": false, "landing_authority": false,
-		"session_authority": false, "reward_authority": false,
+		"session_authority": false,
 	}.duplicate(true)
 	return _view.duplicate(true)
 
@@ -100,6 +116,90 @@ func _map_state(state: StringName) -> Dictionary:
 	if state not in STATES:
 		return {}
 	return {"state": state, "label": str(state).replace("_", " ").to_upper()}
+
+
+## Fixed ASCII markers deliberately survive colour loss, motion reduction, and
+## compact HUD rendering. They are presentation labels, never control states.
+func _status_semantics(
+		state: StringName, host_attached: bool, receipt: Dictionary
+	) -> Dictionary:
+	var marker := "[???]"
+	var label := "STATUS UNAVAILABLE"
+	var short_label := "STATUS UNAVAILABLE"
+	var kind := &"unavailable"
+	match state:
+		&"descent":
+			marker = "[>>>]"
+			label = "DESCENT // APPROACH"
+			short_label = "DESCENT: APPROACH"
+			kind = &"travel"
+		&"landed":
+			marker = "[===]"
+			label = "LANDED // HOLD POSITION"
+			short_label = "LANDED: HOLD"
+			kind = &"ready"
+		&"on_foot":
+			marker = "[***]"
+			label = "ON FOOT // SURFACE TASK"
+			short_label = "ON FOOT: SURFACE"
+			kind = &"travel"
+		&"reboard":
+			marker = "[<->]"
+			label = "REBOARD // ENTER CRAFT"
+			short_label = "REBOARD: ENTER"
+			kind = &"ready"
+		&"reboarded":
+			marker = "[=^=]"
+			label = "REBOARDED // READY FOR TAKEOFF"
+			short_label = "REBOARDED: TAKEOFF READY"
+			kind = &"ready"
+		&"takeoff":
+			marker = "[^>>]"
+			label = "TAKEOFF // CLIMB"
+			short_label = "TAKEOFF: CLIMB"
+			kind = &"travel"
+		&"ascent":
+			marker = "[^^^]"
+			label = "ASCENT // CLIMB TO ORBIT"
+			short_label = "ASCENT: TO ORBIT"
+			kind = &"travel"
+		&"orbit_return":
+			marker = "[|||]"
+			label = "ORBIT RETURN // HANDOFF"
+			short_label = "ORBIT RETURN: HANDOFF"
+			kind = &"travel"
+		&"return_manifest":
+			marker = "[###]"
+			label = "RETURN MANIFEST // READY"
+			short_label = "MANIFEST: READY"
+			kind = &"ready"
+		&"rejected":
+			if not host_attached:
+				marker = "[---]"
+				label = "DETACHED // WAIT FOR CURRENT SESSION"
+				short_label = "DETACHED: WAIT SESSION"
+				kind = &"detached"
+			elif receipt.has("accepted") and not bool(receipt.get("accepted", true)):
+				marker = "[!!!]"
+				label = "BLOCKED // CHECK REASON"
+				short_label = "BLOCKED: CHECK REASON"
+				kind = &"blocked"
+			else:
+				marker = "[XXX]"
+				label = "REJECTED // STATUS UNAVAILABLE"
+				short_label = "REJECTED: UNAVAILABLE"
+				kind = &"rejected"
+	return {
+		"marker": marker,
+		"label": label,
+		"short_label": short_label,
+		"kind": kind,
+		"text_independent": true,
+		"shape_independent": true,
+		"color_independent": true,
+		"input_authority": false,
+		"travel_authority": false,
+	}.duplicate(true)
 
 
 func _finite(source: Dictionary, key: StringName) -> float:

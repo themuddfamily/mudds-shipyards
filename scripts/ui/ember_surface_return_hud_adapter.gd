@@ -167,7 +167,8 @@ func _restore_cached_route() -> void:
 
 func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
 	var state := StringName(view.get("state", &"rejected"))
-	var blocked := state == &"rejected"
+	var semantics := view.get("status_semantics", {}) as Dictionary
+	var blocked := StringName(semantics.get("kind", &"")) == &"blocked"
 	var distance := float(view.get("distance_m", -1.0))
 	if not is_finite(distance) or distance < 0.0:
 		distance = 0.0
@@ -185,7 +186,7 @@ func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
 		# rather than creating a second, non-authoritative action control.
 		waypoint_label = str(next_action.get("label", "NEXT")) + " // " + waypoint_label
 	return {
-		"title": "EMBER RETURN",
+		"title": str(view.get("visible_title", "EMBER [???] STATUS UNAVAILABLE")),
 		"message": str(view.get("text", "EMBER RETURN STATUS")),
 		"waypoints": [{
 			"id": waypoint_id,

@@ -304,6 +304,13 @@ func _check_stage(
 	var view := binding.call(&"get_presenter_snapshot") as Dictionary
 	var status := view.get("return_status", {}) as Dictionary
 	var action := view.get("next_action", {}) as Dictionary
+	var visible_title := str(view.get("visible_title", ""))
+	_check(
+		visible_title.begins_with("EMBER [")
+			and visible_title.length() <= 40
+			and str(view.get("text", "")).begins_with(visible_title + "\n"),
+		"%s keeps its complete state meaning in the retained title line" % stage,
+	)
 	_check(
 		status.get("stage", &"") == stage
 			and int(status.get("step", 0)) == step
@@ -346,6 +353,8 @@ func _check_cleared(binding: RefCounted, reason: String, message: String) -> voi
 	var view := binding.call(&"get_presenter_snapshot") as Dictionary
 	_check(
 		view.get("state", &"") == &"rejected"
+			and view.get("visible_title", "") == "EMBER [---] DETACHED: WAIT SESSION"
+			and not str(view.get("visible_title", "")).contains("REJECTED")
 			and (view.get("return_status", {}) as Dictionary).is_empty()
 			and str(view.get("text", "")).contains(reason),
 		message,
