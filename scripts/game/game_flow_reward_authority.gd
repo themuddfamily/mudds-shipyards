@@ -1,10 +1,11 @@
 class_name GameFlowRewardAuthority
 extends RefCounted
 
-## The production reward authority for the four GameFlow-owned Cinder
-## activities. It turns the existing non-authoritative completion handoff into
-## one persisted Shipyard return-incentive receipt. It owns no activity,
-## inventory, currency, ship, berth, combat, or network state.
+## The production reward authority for the four GameFlow-owned route activities
+## and the physical Heavy Breach board. It turns their existing
+## non-authoritative completion handoffs into one persisted Shipyard
+## return-incentive receipt. It owns no activity, inventory, currency, ship,
+## berth, combat, or network state.
 
 const SCHEMA_VERSION := 1
 const PAYLOAD_KIND := "game_flow_reward_store"
@@ -17,23 +18,27 @@ const RACE_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
 const PATROL_ACTIVITY_ID: StringName = &"cinder_relay_patrol"
 const CONVOY_ACTIVITY_ID: StringName = &"cinder_reach_emberline_convoy"
 const CARGO_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
+const HEAVY_BREACH_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
 
 const RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
+const HEAVY_BREACH_REWARD_ID: StringName = &"return_heavy_breach_credit"
 
 const ACTIVITY_REWARDS := {
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
 	PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
 	CONVOY_ACTIVITY_ID: CONVOY_REWARD_ID,
 	CARGO_ACTIVITY_ID: CARGO_REWARD_ID,
+	HEAVY_BREACH_ACTIVITY_ID: HEAVY_BREACH_REWARD_ID,
 }
 const REWARD_LABELS := {
 	RACE_REWARD_ID: "Race record accepted",
 	PATROL_REWARD_ID: "Patrol log accepted",
 	CONVOY_REWARD_ID: "Emberline escort credit logged",
 	CARGO_REWARD_ID: "Fabrication kits returned",
+	HEAVY_BREACH_REWARD_ID: "Heavy Breach credit logged",
 }
 const REQUEST_KEYS := [
 	"activity_id",

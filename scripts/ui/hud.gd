@@ -229,6 +229,7 @@ const ACTIVITY_REWARD_LABELS := [
 	"Patrol log accepted",
 	"Emberline escort credit logged",
 	"Fabrication kits returned",
+	"Heavy Breach credit logged",
 ]
 const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991
 const MAX_SESSION_RECOVERY_PHYSICS_SECONDS := 2_592_000.0

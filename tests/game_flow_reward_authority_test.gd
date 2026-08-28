@@ -124,6 +124,21 @@ func _run() -> void:
 			and int((after_patrol.reward_counts as Dictionary).return_patrol_log_to_shipyard) == 1,
 		"an independent activity generation advances the shared receipt sequence once"
 	)
+	var heavy_breach := authority.commit(_request(
+		&"shipyard_heavy_breach",
+		1,
+		&"return_heavy_breach_credit"
+	))
+	var after_heavy_breach := store.get_snapshot().game_flow_reward_store as Dictionary
+	_check(
+		bool(heavy_breach.accepted)
+			and int((heavy_breach.receipt as Dictionary).receipt_id) == 3
+			and (heavy_breach.receipt as Dictionary).reward_label \
+				== "Heavy Breach credit logged"
+			and int(after_heavy_breach.total_receipts) == 3
+			and int((after_heavy_breach.reward_counts as Dictionary).return_heavy_breach_credit) == 1,
+		"a cleared Heavy Breach generation joins the same persisted receipt sequence"
+	)
 
 	var reloaded_store := StoreScript.new(
 		"memory://game-flow-rewards.json", filesystem
@@ -136,8 +151,8 @@ func _run() -> void:
 	_check(
 		bool(restored_configuration.accepted)
 			and bool(restored.configured)
-			and int(restored_record.total_receipts) == 2
-			and int((restored_record.last_receipt as Dictionary).receipt_id) == 2
+			and int(restored_record.total_receipts) == 3
+			and int((restored_record.last_receipt as Dictionary).receipt_id) == 3
 			and not bool(restored.currency_authority)
 			and not bool(restored.inventory_authority),
 		"reload retains the receipt summary without inventing currency or inventory authority"

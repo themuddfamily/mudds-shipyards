@@ -104,6 +104,7 @@ const CINDER_CONVOY_ACTIVATION_CENTER := Vector3(84.0, -48.0, -724.0)
 const CINDER_CONVOY_ACTIVATION_RADIUS := 4.0
 const CINDER_CONVOY_ESCORT_LANE_OFFSET := Vector3(0.0, 20.0, 0.0)
 const CARGO_DELIVERY_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
+const HEAVY_BREACH_REWARD_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
 const CINDER_RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
@@ -490,12 +491,14 @@ var _cinder_navigator_ping_hud_composition: RefCounted
 var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
-## The four GameFlow-owned activities remain separate progress authorities.
-## Their terminal snapshots cross this one generation-fenced adapter into the
-## one persisted Shipyard return-incentive namespace.
+## The four GameFlow-owned route activities remain separate progress
+## authorities. Their terminal snapshots and the physical Heavy Breach board's
+## cleared-generation handoff converge only at this one persisted Shipyard
+## return-incentive authority.
 var _game_flow_reward_authority: RefCounted
 var _game_flow_reward_adapter: RefCounted
 var _game_flow_reward_configuration: Dictionary = {}
+var _heavy_breach_reward_configuration: Dictionary = {}
 var _last_game_flow_reward_result: Dictionary = {}
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
 ## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
@@ -10689,6 +10692,10 @@ func _reset_terminal_activity_for_next_sortie() -> void:
 
 func _initialize_game_flow_reward_authority() -> void:
 	if _game_flow_reward_authority != null and _game_flow_reward_adapter != null:
+		if not bool(_heavy_breach_reward_configuration.get("accepted", false)):
+			_heavy_breach_reward_configuration = (
+				_configure_heavy_breach_reward_handoff()
+			)
 		return
 	if _runtime_settings_user_data_store == null:
 		_game_flow_reward_configuration = {
@@ -10741,19 +10748,48 @@ func _initialize_game_flow_reward_authority() -> void:
 		"accepted": true,
 		"reason": &"game_flow_reward_authority_ready",
 	}.duplicate(true)
+	_heavy_breach_reward_configuration = _configure_heavy_breach_reward_handoff()
+
+
+## The board already fences admission and the director generation. This binds
+## its non-authoritative request directly to the same callback used by the
+## route-activity adapter; ShipyardWorld and the board still own no store or
+## grant authority.
+func _configure_heavy_breach_reward_handoff() -> Dictionary:
+	if _game_flow_reward_authority == null:
+		return {"accepted": false, "reason": &"reward_authority_unavailable"}
+	if not is_instance_valid(world) \
+			or not world.has_method(&"configure_heavy_breach_reward_handoff"):
+		return {"accepted": false, "reason": &"heavy_breach_board_unavailable"}
+	return world.call(
+		&"configure_heavy_breach_reward_handoff",
+		Callable(self, &"_commit_game_flow_activity_reward")
+	) as Dictionary
 
 
 func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 	if _game_flow_reward_authority == null:
 		return {"accepted": false, "reason": &"reward_authority_unavailable"}
 	var result := _game_flow_reward_authority.call(&"commit", request) as Dictionary
+	if StringName(request.get("activity_id", &"")) == HEAVY_BREACH_REWARD_ACTIVITY_ID:
+		_last_game_flow_reward_result = result.duplicate(true)
 	if bool(result.get("accepted", false)):
 		_runtime_settings_commit_serial = maxi(
 			_runtime_settings_commit_serial,
 			_runtime_settings_user_data_store.get_generation()
 		)
 		_sync_production_runtime_settings_state()
-		_sync_activity_reward_hud()
+	_sync_activity_reward_hud()
+	if StringName(request.get("activity_id", &"")) == HEAVY_BREACH_REWARD_ACTIVITY_ID \
+			and is_instance_valid(hud):
+		var receipt := result.get("receipt", {}) as Dictionary
+		var detail := (
+			"Breach credit receipt #%d saved"
+			% int(receipt.get("receipt_id", 0))
+			if bool(result.get("accepted", false))
+			else "Breach cleared — reward receipt could not be saved"
+		)
+		hud.toast("Heavy Breach cleared", detail, 3.2)
 	return result.duplicate(true)
 
 
@@ -10804,6 +10840,7 @@ func get_activity_reward_report() -> Dictionary:
 			and _game_flow_reward_adapter != null
 		),
 		"configuration": _game_flow_reward_configuration.duplicate(true),
+		"heavy_breach_handoff": _heavy_breach_reward_configuration.duplicate(true),
 		"authority": (
 			_game_flow_reward_authority.call(&"get_snapshot") as Dictionary
 			if _game_flow_reward_authority != null else {}
