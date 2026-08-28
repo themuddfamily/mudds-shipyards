@@ -276,9 +276,29 @@ func start_surface_activity_sequence(activity_ids: Array[StringName]) -> Diction
 
 
 ## Main prepares this composition while the retained Host is IDLE, before
-## cruise hands off final approach. Host.start() advances the run generation
-## exactly once; the scheduler forwards that committed fact before admitting
-## any surface activity or observation.
+## cruise hands off final approach. The late scheduler checks this fence before
+## starting the Host so a detached or stale composition cannot strand a live
+## travel session while the later adoption rejects.
+func preflight_started_host_generation(
+		expected_previous_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _state != State.BOUND or _host == null or not is_instance_valid(_host):
+		return _result(false, &"host_start_adoption_unavailable")
+	if expected_previous_generation >= MAX_SAFE_GENERATION:
+		return _result(false, &"host_start_adoption_generation_exhausted")
+	var current_generation := int(_host.call(&"get_generation"))
+	var current_attachment := int(_host.call(&"get_attachment_generation"))
+	if _host_generation != expected_previous_generation \
+			or current_generation != expected_previous_generation \
+			or current_attachment != expected_attachment_generation:
+		return _result(false, &"host_start_adoption_generation_mismatch")
+	return _result(true, &"host_start_adoption_ready")
+
+
+## Host.start() advances the run generation exactly once; the scheduler
+## forwards that committed fact before admitting surface activity or
+## observation. This is the commit half of the preflight above.
 func adopt_started_host_generation(
 		expected_previous_generation: int,
 		expected_attachment_generation: int

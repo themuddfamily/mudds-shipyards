@@ -629,7 +629,9 @@ func start(
 	)
 	if not bool(bound.get("accepted", false)):
 		return _commit_failure(&"landing_composition_bind_failed")
-	var started := _session.start(0, _attachment_generation)
+	var started := _session.start(
+		_session.get_generation(), _attachment_generation
+	)
 	if not bool(started.get("accepted", false)):
 		return _commit_failure(&"travel_session_start_failed")
 	# All entry/session checks are committed before either external lifecycle
@@ -648,6 +650,53 @@ func start(
 	)
 	_set_phase(Phase.ORBIT_APPROACH)
 	return _finish(true, &"started")
+
+
+## Reverses only the synchronous start transaction, before caller physics has
+## advanced the new visit. This retains the Player's pre-existing boarding
+## reservation and the attached Host, while the session reset advances its
+## generation so every token from the rejected start becomes stale.
+func rollback_uncommitted_start(
+		expected_generation: int,
+		expected_attachment_generation: int,
+		reason: StringName
+	) -> Dictionary:
+	if _mutation_active:
+		return _result(false, &"reentrant_call")
+	_mutation_active = true
+	var rejection := _simple_token_rejection(
+		expected_generation, expected_attachment_generation
+	)
+	if not rejection.is_empty():
+		return _finish(false, rejection)
+	if _phase != Phase.ORBIT_APPROACH or _physics_advance_count != 0 \
+			or _session == null \
+			or _session.get_state() != PlanetaryTravelSession.State.ORBIT_APPROACH:
+		return _finish(false, &"uncommitted_start_rollback_unavailable")
+	var reset := _session.reset(
+		_generation, _session.get_attachment_generation()
+	)
+	if not bool(reset.get("accepted", false)):
+		return _finish(false, &"uncommitted_start_session_reset_rejected")
+	# start() adopted cleanup responsibility for an already-live reservation; a
+	# rollback returns that responsibility without releasing the reservation.
+	_host_acquired_boarding_reservation = false
+	if _node_is_current(_ship) and _ship.get_command_source() == _command_source:
+		_ship.set_command_source(_original_command_source)
+	if is_instance_valid(_command_source):
+		_command_source.set_mode(
+			EmberSurfaceLoopCommandSource.Mode.NEUTRAL, _source_generation
+		)
+	_generation = _session.get_generation()
+	_accepted_approach_entry_measurement.clear()
+	_pending_failure_reason = &""
+	_terminal_reason = &""
+	_set_phase(Phase.IDLE)
+	var rolled_back := _finish(true, &"uncommitted_start_rolled_back")
+	rolled_back["rollback_reason"] = reason
+	rolled_back["generation"] = _generation
+	_last_result = rolled_back.duplicate(true)
+	return rolled_back
 
 
 ## Reads the exact authored approach-entry envelope without beginning the

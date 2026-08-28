@@ -2220,6 +2220,20 @@ func _physics_process(_engine_delta: float) -> void:
 		if phase != EmberSurfaceLoopHost.Phase.IDLE:
 			_fail_late(&"host_start_phase_drift")
 			return
+		if _planetary_composition != null:
+			var adoption_ready := _planetary_composition.call(
+				&"preflight_started_host_generation",
+				int(envelope.get("host_generation", -1)),
+				int(envelope.get("host_attachment_generation", -1)),
+			) as Dictionary
+			if not bool(adoption_ready.get("accepted", false)):
+				_rollback_planetary_surface_start_configuration()
+				_reject_late_start(
+					adoption_ready.get(
+						"reason", &"planetary_surface_host_start_preflight_rejected"
+					) as StringName
+				)
+				return
 		operation = _host.start(
 			_host.get_generation(),
 			_host.get_attachment_generation(),
@@ -2235,12 +2249,27 @@ func _physics_process(_engine_delta: float) -> void:
 				int(envelope.get("host_attachment_generation", -1)),
 			) as Dictionary
 			if not bool(adopted.get("accepted", false)):
-				_fail_late(
-					adopted.get(
-						"reason", &"planetary_surface_host_start_adoption_rejected"
-					) as StringName
+				var adoption_reason := adopted.get(
+					"reason", &"planetary_surface_host_start_adoption_rejected"
+				) as StringName
+				var rolled_back := _host.rollback_uncommitted_start(
+					_host.get_generation(), _host.get_attachment_generation(),
+					adoption_reason
 				)
+				_rollback_planetary_surface_start_configuration()
+				if bool(rolled_back.get("accepted", false)):
+					_generation = _host.get_generation()
+					_reject_late_start(adoption_reason, rolled_back)
+				else:
+					# An unexpected reentrant mutation may invalidate the narrow
+					# rollback window. Detach terminalizes the Host rather than
+					# leaving an unobserved running travel session behind.
+					_host.detach(
+						_host.get_generation(), _host.get_attachment_generation()
+					)
+					_fail_late(&"planetary_surface_host_start_rollback_rejected")
 				return
+		_generation = _host.get_generation()
 		_state = State.RUNNING
 		_start_count += 1
 		_last_late_result = operation.duplicate(true)
@@ -2828,6 +2857,34 @@ func _fail_late(reason: StringName) -> void:
 	_state = State.FAILED
 	_last_late_result = {"accepted": false, "reason": reason}.duplicate(true)
 	_finish_late_signal(reason)
+
+
+func _reject_late_start(reason: StringName, rollback: Dictionary = {}) -> void:
+	_state = State.IDLE
+	_last_late_result = {
+		"accepted": false,
+		"reason": reason,
+		"rolled_back": true,
+		"rollback": rollback.duplicate(true),
+	}.duplicate(true)
+	_finish_late_signal(reason)
+
+
+func _rollback_planetary_surface_start_configuration() -> void:
+	_retire_staging_relay_proximity()
+	if is_instance_valid(_planetary_composition):
+		var snapshot := _planetary_composition.call(&"get_snapshot") as Dictionary
+		if int(snapshot.get("state", -1)) \
+				== EmberPlanetarySurfaceProductionBinding.State.BOUND:
+			_planetary_composition.call(&"detach")
+		_planetary_composition.queue_free()
+	_planetary_composition = null
+	if _relay_return_travel != null:
+		_relay_return_travel.call(&"detach")
+	_relay_return_manifest = null
+	_relay_return_travel = null
+	_planetary_reward_authority = Callable()
+	_atmosphere_composition = null
 
 
 func _finish_late_signal(_reason: StringName) -> void:
