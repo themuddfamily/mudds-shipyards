@@ -9,6 +9,7 @@ extends Area3D
 ## owns the protected objective node.
 
 signal interaction_resolved(actor: Node, result: Dictionary)
+signal snapshot_changed(snapshot: Dictionary)
 
 const COMPONENT_ID: StringName = &"heavy-breach-activity-board"
 const ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
@@ -30,6 +31,9 @@ var _last_result: Dictionary = {}
 var _generation := 1
 var _active_director_generation := 0
 var _highest_reward_generation := 0
+var _sortie_armed := false
+var _sortie_generation := 0
+var _armed_actor_instance_id := 0
 var _built := false
 var _attached := false
 var _audio_binding: RefCounted
@@ -49,6 +53,9 @@ func _exit_tree() -> void:
 			and _director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH:
 		_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 	_active_director_generation = 0
+	_sortie_armed = false
+	_sortie_generation += 1
+	_armed_actor_instance_id = 0
 	_attached = false
 	_generation += 1
 	if _audio_binding != null:
@@ -124,6 +131,23 @@ func get_generation() -> int:
 	return _generation
 
 
+## Player-facing prompt consumed by GameFlow's generic station-interaction
+## discovery. Production deliberately arms here and launches only after a real
+## craft departs; isolated callers may still use [method interact] for the
+## immediate board-owned contract exercised by the component tests.
+func get_interaction_prompt() -> String:
+	if is_instance_valid(_director) and _director.is_running() \
+			and _director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH:
+		return "[ E ]  HEAVY BREACH ACTIVE"
+	if _sortie_armed:
+		return "[ E ]  CANCEL HEAVY BREACH SORTIE"
+	return "[ E ]  ARM HEAVY BREACH SORTIE"
+
+
+func is_sortie_armed() -> bool:
+	return _sortie_armed
+
+
 func get_interaction_snapshot(actor: Node, expected_generation: int = 0) -> Dictionary:
 	var result := {
 		"accepted": false,
@@ -157,6 +181,80 @@ func get_interaction_snapshot(actor: Node, expected_generation: int = 0) -> Dict
 	return result
 
 
+## Records one physical on-foot admission without starting combat against the
+## avatar. GameFlow owns the later embodied boarding/departure lifecycle and
+## supplies the resulting live craft through [method launch_armed_sortie].
+func arm_sortie(actor: Node, expected_generation: int = 0) -> Dictionary:
+	var gate := get_interaction_snapshot(actor, expected_generation)
+	if not bool(gate.get("available", false)):
+		_last_result = gate.duplicate(true)
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return _last_result.duplicate(true)
+	if _director.is_running():
+		_last_result = _result(false, &"activity_busy")
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return _last_result.duplicate(true)
+	if _sortie_armed:
+		_last_result = {
+			"accepted": true,
+			"reason": &"sortie_already_armed",
+			"generation": _generation,
+			"sortie_generation": _sortie_generation,
+			"snapshot": get_snapshot(),
+		}.duplicate(true)
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return _last_result.duplicate(true)
+	_sortie_generation += 1
+	_sortie_armed = true
+	_armed_actor_instance_id = actor.get_instance_id()
+	_last_result = {
+		"accepted": true,
+		"reason": &"sortie_armed",
+		"generation": _generation,
+		"sortie_generation": _sortie_generation,
+		"snapshot": get_snapshot(),
+	}.duplicate(true)
+	interaction_resolved.emit(actor, _last_result.duplicate(true))
+	snapshot_changed.emit(get_snapshot())
+	return _last_result.duplicate(true)
+
+
+## Converts the retained admission into the existing director-owned encounter.
+## Range was already proven at arm time; this seam validates only the board
+## generation and the caller-owned live flight target. A rejected launch keeps
+## the arm so a transient departure-ordering issue can be retried safely.
+func launch_armed_sortie(target: Node3D, expected_sortie_generation: int) -> Dictionary:
+	if expected_sortie_generation != _sortie_generation:
+		return _result(false, &"stale_sortie_generation")
+	if not _sortie_armed:
+		return _result(false, &"sortie_not_armed")
+	if not _attached or not is_instance_valid(_director) \
+			or not is_instance_valid(_protected_objective):
+		return _result(false, &"external_owners_unavailable")
+	if not is_instance_valid(target) or not target.is_inside_tree() \
+			or target.is_queued_for_deletion() \
+			or (target.has_method(&"is_destroyed") and bool(target.call(&"is_destroyed"))):
+		return _result(false, &"invalid_sortie_target")
+	if _director.is_running():
+		return _result(false, &"activity_busy")
+	var accepted := _director.begin_heavy_breach(target, _protected_objective)
+	if accepted:
+		_sortie_armed = false
+		_armed_actor_instance_id = 0
+		_active_director_generation = _director.get_scenario_generation()
+	_last_result = {
+		"accepted": accepted,
+		"reason": &"heavy_breach_started" if accepted else &"director_rejected_start",
+		"generation": _generation,
+		"sortie_generation": _sortie_generation,
+		"director_generation": _director.get_scenario_generation(),
+		"snapshot": get_snapshot(),
+	}.duplicate(true)
+	interaction_resolved.emit(target, _last_result.duplicate(true))
+	snapshot_changed.emit(get_snapshot())
+	return _last_result.duplicate(true)
+
+
 func interact(actor: Node = null, expected_generation: int = 0) -> bool:
 	var gate := get_interaction_snapshot(actor, expected_generation)
 	if not bool(gate.get("available", false)):
@@ -176,8 +274,11 @@ func interact(actor: Node = null, expected_generation: int = 0) -> bool:
 		"snapshot": get_snapshot(),
 	}.duplicate(true)
 	if accepted:
+		_sortie_armed = false
+		_armed_actor_instance_id = 0
 		_active_director_generation = _director.get_scenario_generation()
 	interaction_resolved.emit(actor, _last_result.duplicate(true))
+	snapshot_changed.emit(get_snapshot())
 	return accepted
 
 
@@ -194,6 +295,9 @@ func abort_and_reset(actor: Node, expected_generation: int = 0) -> Dictionary:
 		_director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
 		aborted = true
 	_active_director_generation = 0
+	_sortie_armed = false
+	_sortie_generation += 1
+	_armed_actor_instance_id = 0
 	_generation += 1
 	_last_result = {
 		"accepted": true,
@@ -202,6 +306,7 @@ func abort_and_reset(actor: Node, expected_generation: int = 0) -> Dictionary:
 		"generation": _generation,
 		"snapshot": get_snapshot(),
 	}.duplicate(true)
+	snapshot_changed.emit(get_snapshot())
 	return _last_result.duplicate(true)
 
 
@@ -229,6 +334,9 @@ func get_snapshot() -> Dictionary:
 		"activity_id": ACTIVITY_ID,
 		"generation": _generation,
 		"active_director_generation": _active_director_generation,
+		"sortie_armed": _sortie_armed,
+		"sortie_generation": _sortie_generation,
+		"armed_actor_instance_id": _armed_actor_instance_id,
 		"attached": _attached,
 		"configured": is_instance_valid(_director) and is_instance_valid(_protected_objective),
 		"director_instance_id": _director.get_instance_id()
@@ -287,6 +395,7 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 			if _audio_binding != null:
 				_audio_binding.present_reward(_last_reward_result, generation)
 	_active_director_generation = 0
+	snapshot_changed.emit(get_snapshot())
 
 
 func _build_physical_board() -> void:

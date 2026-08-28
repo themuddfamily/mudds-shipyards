@@ -1236,6 +1236,13 @@ func _restore_regroup_postures() -> void:
 func _is_phase_authorized() -> bool:
 	var host := get_node_or_null(encounter_host_path)
 	if host is GameFlow:
+		# The physical station board arms Heavy Breach before launch, but GameFlow
+		# does not begin the director-owned encounter until the chosen craft has
+		# actually departed into FREE_FLIGHT. Keep that one explicit scenario
+		# authorized for its sortie without widening the guided interceptor phase
+		# or allowing any other automatic scenario to start in sandbox flight.
+		if _state == STATE_RUNNING and _scenario == SCENARIO_HEAVY_BREACH:
+			return (host as GameFlow).phase == GameFlow.Phase.FREE_FLIGHT
 		return (host as GameFlow).phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT
 	# A non-coordinator host (isolated fixtures, evidence harnesses, tools) has
 	# no phase to read. `begin_scenario()` is then the only entry point, and the

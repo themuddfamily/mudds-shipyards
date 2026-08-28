@@ -108,6 +108,7 @@ const CINDER_RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_DELIVERY_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
+const HEAVY_BREACH_HUD_REFRESH_SECONDS := 0.1
 const CARGO_DELIVERY_DISPLAY_NAME := "Jovian fabrication kit delivery"
 const CARGO_DELIVERY_EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const CARGO_DELIVERY_ITEM_ID: StringName = &"fabrication_kits"
@@ -405,6 +406,9 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 var world: Node3D
 var player: CharacterBody3D
 var activity_board_console: Area3D
+var heavy_breach_activity_board: Area3D
+var _heavy_breach_sortie_generation := 0
+var _heavy_breach_hud_refresh_elapsed := 0.0
 ## Legacy primary alias retained for the guided vertical-slice tests. Runtime
 ## gameplay uses `active_ship` and the physical `ships` registry below.
 var ship: HeroShip
@@ -1115,6 +1119,11 @@ func _resolve_scene_bindings() -> void:
 	activity_board_console = (
 		world.call(&"get_activity_board_console") as Area3D
 		if is_instance_valid(world) and world.has_method(&"get_activity_board_console")
+		else null
+	)
+	heavy_breach_activity_board = (
+		world.call(&"get_heavy_breach_activity_board") as Area3D
+		if is_instance_valid(world) and world.has_method(&"get_heavy_breach_activity_board")
 		else null
 	)
 	ship = get_node_or_null(^"TorrentInterceptor") as HeroShip
@@ -2621,6 +2630,16 @@ func _process(delta: float) -> void:
 	_update_pending_regeneration(delta)
 	_update_music_bed_state()
 	_sync_halyard_crew_semantic_audio()
+	if _heavy_breach_activity_is_presentable():
+		_heavy_breach_hud_refresh_elapsed += delta
+		if _heavy_breach_hud_refresh_elapsed >= HEAVY_BREACH_HUD_REFRESH_SECONDS:
+			_heavy_breach_hud_refresh_elapsed = fmod(
+				_heavy_breach_hud_refresh_elapsed,
+				HEAVY_BREACH_HUD_REFRESH_SECONDS
+			)
+			_sync_heavy_breach_activity_hud()
+	else:
+		_heavy_breach_hud_refresh_elapsed = 0.0
 	if phase == Phase.INTRO:
 		return
 	if _piloting:
@@ -4715,6 +4734,7 @@ func _restore_live_combat_after_reentry() -> void:
 
 func _connect_runtime_signals() -> void:
 	_bind_activity_board_console()
+	_bind_heavy_breach_activity_board()
 	_connect_signal_once(
 		combat_authority,
 		&"authoritative_shot_submitted",
@@ -5439,6 +5459,13 @@ func _refresh_interaction_targets() -> void:
 		)
 	):
 		_bind_activity_board_console()
+	if (
+		not is_instance_valid(heavy_breach_activity_board)
+		or not heavy_breach_activity_board.is_connected(
+			&"snapshot_changed", _on_heavy_breach_board_snapshot_changed
+		)
+	):
+		_bind_heavy_breach_activity_board()
 	if is_instance_valid(_reboard_blocked_ship):
 		if player.get_interaction_origin().distance_to(
 			_reboard_blocked_ship.get_boarding_position()
@@ -5711,7 +5738,10 @@ func _update_pilot_flow() -> void:
 				phase = Phase.FREE_FLIGHT
 				hud.set_objective("Free flight — explore, fight, or return to a compatible registered berth", "SANDBOX SORTIE")
 				hud.toast("Sortie underway", "Automatic propulsion is responding to flight demand")
-				_start_default_free_flight_activity()
+				if _heavy_breach_sortie_is_armed():
+					_try_launch_armed_heavy_breach()
+				else:
+					_start_default_free_flight_activity()
 			else:
 				phase = Phase.LAUNCH
 				hud.set_objective("Launch through the illuminated bay aperture")
@@ -5729,6 +5759,8 @@ func _update_pilot_flow() -> void:
 				hud.set_objective("Destroy the %d marked range drones outside the yard" % total_targets)
 				hud.toast("Launch clear", "Weapons range is now live")
 	elif phase == Phase.RETURN_TO_YARD or phase == Phase.FREE_FLIGHT:
+		if phase == Phase.FREE_FLIGHT and _heavy_breach_sortie_is_armed():
+			_try_launch_armed_heavy_breach()
 		var landing_report := _get_active_landing_assist_report()
 		var landing_berth := StringName(landing_report.get("selected_berth_id", &""))
 		if _landing_request_active:
@@ -5946,6 +5978,25 @@ func _bind_activity_board_console() -> void:
 	)
 
 
+func _bind_heavy_breach_activity_board() -> void:
+	if not is_instance_valid(world) \
+			or not world.has_method(&"get_heavy_breach_activity_board"):
+		heavy_breach_activity_board = null
+		return
+	heavy_breach_activity_board = world.call(
+		&"get_heavy_breach_activity_board"
+	) as Area3D
+	_connect_signal_once(
+		heavy_breach_activity_board,
+		&"snapshot_changed",
+		_on_heavy_breach_board_snapshot_changed
+	)
+
+
+func _on_heavy_breach_board_snapshot_changed(_snapshot: Dictionary) -> void:
+	_sync_activity_hud()
+
+
 ## The physical console is a presentation/input adapter only.  It cannot
 ## select, start, reward, or otherwise mutate an activity; it opens the same
 ## existing Activity Board page whose buttons already forward selection intent
@@ -5967,6 +6018,139 @@ func _on_activity_board_console_open_requested(actor: Node) -> void:
 	hud.call(&"open_activity_board")
 
 
+## The board proves the on-foot range and generation once. It deliberately does
+## not start combat against the avatar: GameFlow retains that admitted board
+## generation until a selected production craft physically clears its berth.
+func _arm_heavy_breach_sortie(board: Area3D) -> bool:
+	if (
+		board != heavy_breach_activity_board
+		or not is_instance_valid(player)
+		or not board.has_method(&"arm_sortie")
+		or not board.has_method(&"get_generation")
+		or _selected_activity_is_running()
+		or _other_activity_is_running()
+		or StringName(
+			_station_defense_nearby_activity_snapshot().get("state_id", &"idle")
+		) == &"active"
+	):
+		if is_instance_valid(hud):
+			hud.toast(
+				"Heavy breach unavailable",
+				"Finish the current activity before arming another sortie",
+				3.0
+			)
+		return false
+	var generation := int(board.call(&"get_generation"))
+	var result := board.call(&"arm_sortie", player, generation) as Dictionary
+	if not bool(result.get("accepted", false)):
+		if is_instance_valid(hud):
+			hud.toast(
+				"Heavy breach not armed",
+				str(result.get("reason", &"board_rejected")).replace("_", " ").capitalize(),
+				3.0
+			)
+		return false
+	_heavy_breach_sortie_generation = int(result.get("sortie_generation", 0))
+	if is_instance_valid(hud):
+		hud.set_objective(
+			"Board a combat-capable spacecraft and physically clear its berth",
+			"HEAVY BREACH SORTIE ARMED"
+		)
+		hud.toast(
+			"Heavy breach sortie armed",
+			"Choose a craft and launch; the contact will commit after departure",
+			3.6
+		)
+	_sync_activity_hud()
+	return true
+
+
+func _cancel_armed_heavy_breach_sortie(board: Area3D) -> bool:
+	if (
+		board != heavy_breach_activity_board
+		or not _heavy_breach_sortie_is_armed()
+		or not board.has_method(&"abort_and_reset")
+		or not board.has_method(&"get_generation")
+	):
+		return false
+	var result := board.call(
+		&"abort_and_reset", player, int(board.call(&"get_generation"))
+	) as Dictionary
+	if not bool(result.get("accepted", false)):
+		if is_instance_valid(hud):
+			hud.toast(
+				"Heavy breach cancellation rejected",
+				str(result.get("reason", &"board_rejected")).replace("_", " ").capitalize(),
+				3.0
+			)
+		return false
+	_heavy_breach_sortie_generation = 0
+	if is_instance_valid(hud):
+		_restore_on_foot_objective()
+		hud.toast(
+			"Heavy breach sortie cancelled",
+			"The deck board is ready to arm again",
+			3.0
+		)
+	_sync_activity_hud()
+	return true
+
+
+func _heavy_breach_sortie_is_armed() -> bool:
+	if not is_instance_valid(heavy_breach_activity_board) \
+			or not heavy_breach_activity_board.has_method(&"get_snapshot"):
+		return false
+	var snapshot := heavy_breach_activity_board.call(&"get_snapshot") as Dictionary
+	return (
+		bool(snapshot.get("sortie_armed", false))
+		and _heavy_breach_sortie_generation > 0
+		and int(snapshot.get("sortie_generation", -1))
+			== _heavy_breach_sortie_generation
+	)
+
+
+func _try_launch_armed_heavy_breach() -> bool:
+	if (
+		not _heavy_breach_sortie_is_armed()
+		or phase != Phase.FREE_FLIGHT
+		or not _piloting
+		or not _sortie_departed_berth
+		or not is_instance_valid(active_ship)
+		or not heavy_breach_activity_board.has_method(&"launch_armed_sortie")
+	):
+		return false
+	var expected_source_id := int(PLAYER_SOURCE_IDS.get(active_ship.get_ship_id(), 0))
+	if expected_source_id <= 0 \
+			or not is_instance_valid(combat_authority) \
+			or combat_authority.get_source_id(active_ship) != expected_source_id:
+		if is_instance_valid(hud):
+			hud.set_objective(
+				"This craft has no Heavy Breach weapon authority — return and launch a combat-capable ship",
+				"HEAVY BREACH SORTIE ARMED"
+			)
+		return false
+	var result := heavy_breach_activity_board.call(
+		&"launch_armed_sortie", active_ship, _heavy_breach_sortie_generation
+	) as Dictionary
+	if not bool(result.get("accepted", false)):
+		var reason := StringName(result.get("reason", &"launch_rejected"))
+		if reason in [&"stale_sortie_generation", &"sortie_not_armed"]:
+			_heavy_breach_sortie_generation = 0
+		if is_instance_valid(hud):
+			hud.set_objective(
+				"Heavy breach launch interrupted — retain the craft and retry departure coordination"
+			)
+		return false
+	_heavy_breach_sortie_generation = 0
+	if is_instance_valid(hud):
+		hud.set_objective(
+			"Destroy the charged picket before it reaches the protected station asset",
+			"HEAVY BREACH"
+		)
+	_sync_activity_hud()
+	return true
+
+
 func _on_interact_requested() -> void:
 	if _consume_ember_surface_reboard_interaction():
 		return
@@ -5981,6 +6165,15 @@ func _on_interact_requested() -> void:
 	if is_instance_valid(station_interaction_candidate):
 		if station_interaction_candidate is StationSeat:
 			_sit_in_station_seat(station_interaction_candidate as StationSeat)
+			return
+		if station_interaction_candidate == heavy_breach_activity_board:
+			var heavy_breach_changed := (
+				_cancel_armed_heavy_breach_sortie(heavy_breach_activity_board)
+				if _heavy_breach_sortie_is_armed()
+				else _arm_heavy_breach_sortie(heavy_breach_activity_board)
+			)
+			if heavy_breach_changed:
+				audio.play_ui_confirm()
 			return
 		var accepted := bool(station_interaction_candidate.call("interact", player))
 		if accepted:
@@ -6178,7 +6371,11 @@ func _board_ship(candidate: HeroShip = null) -> void:
 	# The Torrent alias is the one explicitly guided vertical slice. Any other
 	# physical craft remains available before completion, but launches into a
 	# free sortie without consuming or mutating the pending guided activity.
-	_sandbox_sortie = _guided_activity_complete or candidate != ship
+	_sandbox_sortie = (
+		_guided_activity_complete
+		or candidate != ship
+		or _heavy_breach_sortie_is_armed()
+	)
 	_launch_registered = false
 	_return_registered = false
 	_sortie_departed_berth = false
@@ -10952,8 +11149,44 @@ func _on_cargo_delivery_completed(
 		)
 
 
+func _get_heavy_breach_activity_snapshot() -> Dictionary:
+	if not is_instance_valid(heavy_breach_activity_board) \
+			or not heavy_breach_activity_board.has_method(&"get_snapshot"):
+		return {}
+	return heavy_breach_activity_board.call(&"get_snapshot") as Dictionary
+
+
+func _heavy_breach_activity_is_presentable(snapshot: Dictionary = {}) -> bool:
+	var current := snapshot
+	if current.is_empty():
+		current = _get_heavy_breach_activity_snapshot()
+	if current.is_empty():
+		return false
+	if bool(current.get("sortie_armed", false)):
+		return true
+	var director := current.get("director", {}) as Dictionary
+	return (
+		StringName(director.get("scenario", &""))
+			== EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
+		and StringName(director.get("state", &""))
+			== EncounterScenarioDirector.STATE_RUNNING
+	)
+
+
+func _sync_heavy_breach_activity_hud() -> bool:
+	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
+		return false
+	var snapshot := _get_heavy_breach_activity_snapshot()
+	if not _heavy_breach_activity_is_presentable(snapshot):
+		return false
+	hud.call(&"set_activity_objective", "Heavy breach", snapshot)
+	return true
+
+
 func _sync_activity_hud() -> void:
 	_sync_nearby_activity_hud()
+	if _sync_heavy_breach_activity_hud():
+		return
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return
 	if _selected_activity_kind == ACTIVITY_KIND_CONVOY_ESCORT:
@@ -11673,6 +11906,8 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 func _start_physical_station_defense_board() -> Dictionary:
 	if _piloting or _driving or not is_instance_valid(player) or not player.is_inside_tree():
 		return {"accepted": false, "reason": &"on_foot_required"}
+	if _heavy_breach_sortie_is_armed():
+		return {"accepted": false, "reason": &"heavy_breach_sortie_armed"}
 	if not is_instance_valid(world) or not world.has_method(&"get_station_defense_activity_board"):
 		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
 	var board := world.call(&"get_station_defense_activity_board") as Area3D

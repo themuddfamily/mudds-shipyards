@@ -17,8 +17,18 @@ func present(snapshot: Dictionary) -> Dictionary:
 	var state := StringName(director.get("state", &"idle"))
 	var scenario := StringName(director.get("scenario", &"heavy_breach"))
 	var outcome := StringName(director.get("outcome", &"pending"))
+	var sortie_armed := bool(snapshot.get("sortie_armed", false))
+	if sortie_armed:
+		# Physical board admission precedes flight launch. Present that retained
+		# state explicitly instead of leaking a prior terminal director snapshot
+		# while the player walks to the next craft.
+		state = &"armed"
+		scenario = &"heavy_breach"
+		outcome = &"pending"
 	var generation := int(snapshot.get("generation", director.get("scenario_generation", 0)))
-	var objective := str(director.get("protected_anchor", snapshot.get("protected_objective", ""))).strip_edges()
+	var objective := str(director.get("protected_anchor", "")).strip_edges()
+	if objective.is_empty():
+		objective = str(snapshot.get("protected_objective", "")).strip_edges()
 	var picket := str(director.get("breach_picket", "")).strip_edges()
 	var launched := bool(director.get("launched", false))
 	var elapsed := maxf(float(director.get("elapsed", 0.0)), 0.0)
@@ -40,7 +50,9 @@ func present(snapshot: Dictionary) -> Dictionary:
 	if TERMINAL_OUTCOMES.has(outcome):
 		failure_text = "RESULT  %s" % outcome_text
 	var lines := PackedStringArray([
-		"[◆] HEAVY BREACH  %s" % ("LAUNCHED" if launched else "READY"),
+		"[◆] HEAVY BREACH  %s" % (
+			"SORTIE ARMED" if sortie_armed else ("LAUNCHED" if launched else "READY")
+		),
 		phase_text,
 		asset_text,
 		"ELAPSED  %.1fs  GENERATION  %d" % [elapsed, generation],

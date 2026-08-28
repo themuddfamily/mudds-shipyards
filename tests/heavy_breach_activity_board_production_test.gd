@@ -66,7 +66,7 @@ func _run() -> void:
 			and objective != null
 			and board.name == "HeavyBreachActivityBoard"
 			and objective.name == "HeavyBreachProtectedObjective"
-			and board.global_position == Vector3(17.0, 1.0, -26.0)
+			and board.global_position == Vector3(8.0, 1.0, -26.0)
 			and objective.global_position == Vector3(24.0, 1.0, -26.0),
 		"ShipyardWorld places one physical heavy-breach board and caller-owned protected objective"
 	)

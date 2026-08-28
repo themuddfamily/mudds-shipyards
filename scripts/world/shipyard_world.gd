@@ -36,7 +36,9 @@ const STATION_DEFENSE_ACTIVITY_BOARD_TRANSFORM := Transform3D(
 	Basis.IDENTITY, Vector3(12.0, 1.0, -26.0)
 )
 const HEAVY_BREACH_ACTIVITY_BOARD_TRANSFORM := Transform3D(
-	Basis.IDENTITY, Vector3(17.0, 1.0, -26.0)
+	# Keep the board and its +Z interaction face on the launch-transition deck.
+	# The former X=17 placement sat four metres beyond the deck's starboard edge.
+	Basis.IDENTITY, Vector3(8.0, 1.0, -26.0)
 )
 const HEAVY_BREACH_PROTECTED_OBJECTIVE_TRANSFORM := Transform3D(
 	Basis.IDENTITY, Vector3(24.0, 1.0, -26.0)
