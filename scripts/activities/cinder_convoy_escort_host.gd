@@ -1570,6 +1570,25 @@ func _best_route_replay(
 		radius, position, next_index
 	)
 	if shortcut_count == 1:
+		# Seed the exact aggregate-distance witness that ends on this closing
+		# transition. This keeps float-backed route reconstruction from inventing
+		# a later movement tick merely because a grid candidate leaves a positive
+		# rounding residual.
+		var transition_only := _route_replay_transition_only_shortfalls(
+			distance, next_index, PackedFloat64Array()
+		)
+		if transition_only.size() == shortcut_count:
+			var transition_metrics := _route_replay_metrics(
+				distance, position, next_index, transition_only
+			)
+			var transition_error := float(transition_metrics.get("error", INF)) if (
+				_route_replay_metric_fits_ticks(
+					transition_metrics, available_physics_ticks
+				)
+			) else INF
+			if transition_error < best_error:
+				best_error = transition_error
+				best = transition_only
 		for first_shortfall in initial_shortfalls:
 			var candidate := PackedFloat64Array([first_shortfall])
 			var metrics := _route_replay_metrics(
@@ -1583,6 +1602,23 @@ func _best_route_replay(
 				best = candidate
 	else:
 		for first_shortfall in initial_shortfalls:
+			var transition_only := _route_replay_transition_only_shortfalls(
+				distance,
+				next_index,
+				PackedFloat64Array([first_shortfall])
+			)
+			if transition_only.size() == shortcut_count:
+				var transition_metrics := _route_replay_metrics(
+					distance, position, next_index, transition_only
+				)
+				var transition_error := float(
+					transition_metrics.get("error", INF)
+				) if _route_replay_metric_fits_ticks(
+					transition_metrics, available_physics_ticks
+				) else INF
+				if transition_error < best_error:
+					best_error = transition_error
+					best = transition_only
 			for second_shortfall in initial_shortfalls:
 				var candidate := PackedFloat64Array([
 					first_shortfall,
@@ -1634,6 +1670,47 @@ func _best_route_replay(
 	if not is_finite(best_error):
 		return {"error": INF}
 	return _route_replay_metrics(distance, position, next_index, best)
+
+
+func _route_replay_transition_only_shortfalls(
+		distance: float,
+		next_index: int,
+		leading_shortfalls: PackedFloat64Array
+	) -> PackedFloat64Array:
+	var shortcut_count := next_index - 1
+	if not is_finite(distance) or distance < 0.0 \
+			or shortcut_count < 1 \
+			or leading_shortfalls.size() != shortcut_count - 1:
+		return PackedFloat64Array()
+	var current := ROUTE.get_checkpoint_position(0)
+	var spent := 0.0
+	for offset in leading_shortfalls.size():
+		var target := ROUTE.get_checkpoint_position(offset + 1)
+		var segment_length := current.distance_to(target)
+		var shortfall := leading_shortfalls[offset]
+		if not is_finite(shortfall) or shortfall < 0.0 \
+				or shortfall > ROUTE.checkpoint_radius \
+				or shortfall > segment_length:
+			return PackedFloat64Array()
+		var travel := segment_length - shortfall
+		current = (
+			target
+			if shortfall <= ROUTE_CENTER_REACH_TOLERANCE
+			else current.move_toward(target, travel)
+		)
+		spent += travel
+	var target := ROUTE.get_checkpoint_position(shortcut_count)
+	var segment_length := current.distance_to(target)
+	var final_travel := distance - spent
+	var final_shortfall := segment_length - final_travel
+	if not is_finite(final_shortfall) or final_travel < 0.0 \
+			or final_travel > segment_length \
+			or final_shortfall < 0.0 \
+			or final_shortfall > ROUTE.checkpoint_radius:
+		return PackedFloat64Array()
+	var result := leading_shortfalls.duplicate()
+	result.append(final_shortfall)
+	return result
 
 
 func _route_replay_initial_shortfalls(
@@ -1724,7 +1801,11 @@ func _route_replay_metrics(
 	var minimum_physics_tick_count := maxi(
 		1,
 		shortfalls.size() + (
-			1 if remaining > ROUTE_REPLAY_POSITION_TOLERANCE else 0
+			# Every representable positive movement after the latest closing
+			# transition belongs to a later caller tick. Position tolerance may
+			# decide whether a geometric witness matches, but it cannot erase that
+			# tick from the exact two-publications-per-tick ledger.
+			1 if remaining > 0.0 else 0
 		)
 	)
 	return {

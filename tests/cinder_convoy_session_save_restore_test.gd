@@ -451,6 +451,58 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 		"two ordered route transitions cannot collapse into one physics tick"
 	)
 
+	# Once two centered closing transitions have consumed two caller ticks, even
+	# 0.5 mm of positive movement along the following leg consumes a third. The
+	# position tolerance may accept its geometric witness, but rewriting both
+	# publication ledgers from 6 to 4 must not erase that third physics tick.
+	var following_host := CinderConvoyEscortHost.new()
+	root.add_child(following_host)
+	await process_frame
+	var following_started := following_host.start(following_host.get_generation())
+	var following_first_center := _advance_host_travel(
+		following_host,
+		(following_host.get_snapshot().entity_position as Vector3).distance_to(
+			first_checkpoint
+		)
+	)
+	var following_second_center := _advance_host_travel(
+		following_host,
+		(following_host.get_snapshot().entity_position as Vector3).distance_to(
+			second_checkpoint
+		)
+	)
+	var following_motion := _advance_host_travel(following_host, 0.0005)
+	var following_state := following_host.capture_persistence_state()
+	var following_forged := following_state.duplicate(true)
+	following_forged.physics_tick_count = 2
+	following_forged.sample_publication_count = 4
+	(following_forged.activity_state as Dictionary).sample_count = 4
+	var following_validation := following_host.validate_persistence_state(
+		following_state
+	)
+	var following_forged_validation := following_host.validate_persistence_state(
+		following_forged
+	)
+	_check(
+		bool(following_started.get("accepted", false))
+			and bool(following_first_center.get("accepted", false))
+			and bool(following_second_center.get("accepted", false))
+			and bool(following_motion.get("accepted", false))
+			and int(following_state.physics_tick_count) == 3
+			and int(following_state.sample_publication_count) == 6
+			and int((following_state.activity_state as Dictionary).sample_count) == 6
+			and int(following_state.next_route_index) == 3
+			and _decoded_position(following_state.entity_position).distance_to(
+				second_checkpoint
+			) > 0.0
+			and _decoded_position(following_state.entity_position).distance_to(
+				second_checkpoint
+			) < CinderConvoyEscortHost.ROUTE_REPLAY_POSITION_TOLERANCE
+			and bool(following_validation.get("accepted", false))
+			and not bool(following_forged_validation.get("accepted", true)),
+		"0.5 mm following movement cannot collapse a three-tick history to two"
+	)
+
 	var live_saves: Array[Dictionary] = []
 	var checkpoint_states: Array[Dictionary] = []
 	var first_motion := _advance_host_travel(host, 1.0)
@@ -634,6 +686,9 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 	var collapsed_transition_corruption := live_session.duplicate(true)
 	collapsed_transition_corruption.host_state = multi_transition_forged.duplicate(true)
 	corrupt_sessions.append(collapsed_transition_corruption)
+	var collapsed_following_corruption := live_session.duplicate(true)
+	collapsed_following_corruption.host_state = following_forged.duplicate(true)
+	corrupt_sessions.append(collapsed_following_corruption)
 	var wrong_nested_convoy := live_session.duplicate(true)
 	(((wrong_nested_convoy.host_state as Dictionary).activity_state) as Dictionary).convoy_id = (
 		"forged_supply_tender"
@@ -786,6 +841,7 @@ func _exercise_checkpoint_radius_and_corruption_contract(
 	host.queue_free()
 	threshold_host.queue_free()
 	multi_host.queue_free()
+	following_host.queue_free()
 	pristine.queue_free()
 	centered_host.queue_free()
 	centered_restore_host.queue_free()
