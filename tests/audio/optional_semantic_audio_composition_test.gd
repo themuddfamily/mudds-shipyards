@@ -121,7 +121,7 @@ func _navigator_receipt(ship_generation: int, request_sequence: int, server_tick
 		"seat_id": &"cinder_navigator_station",
 		"seat_generation": 1,
 		"role": &"passenger",
-		"ship_id": &"cinder-cargo-hauler",
+		"ship_id": &"cinder_cargo_hauler",
 		"ship_generation": ship_generation,
 		"request_sequence": request_sequence,
 		"server_tick": server_tick,

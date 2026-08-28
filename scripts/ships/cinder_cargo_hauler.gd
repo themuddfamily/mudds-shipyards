@@ -5,12 +5,15 @@ const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const CrewSeatRoleAuthorityType := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const CrewRoleGameplayProfileType := preload("res://scripts/fleet/crew_role_gameplay_profile.gd")
+const SHIP_DEFINITION_TEMPLATE: ShipDefinition = preload(
+	"res://assets/ships/cinder_cargo_hauler_new_design.tres"
+)
 
 ## Original-modern industrial cargo craft component. No historical class,
 ## silhouette, cargo contract, or ownership claim is authenticated here.
 
 const SCHEMA_VERSION := 1
-const COMPONENT_ID: StringName = &"cinder-cargo-hauler"
+const COMPONENT_ID: StringName = &"cinder_cargo_hauler"
 const EVIDENCE_STATUS: StringName = &"NEW"
 const DISPLAY_NAME := "Cinder cargo hauler"
 const CARGO_CAPACITY := 8
@@ -371,6 +374,9 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	# The production binding creates this script directly, so install a private
+	# copy of the authored profile before HeroShip initializes hull and handling.
+	ship_definition = SHIP_DEFINITION_TEMPLATE.duplicate(true) as ShipDefinition
 	_weapon_definition = _build_weapon_definition()
 	ship_id = COMPONENT_ID
 	display_name = DISPLAY_NAME
@@ -967,6 +973,10 @@ func get_audit_report() -> Dictionary:
 		errors.append("craft requires its bounded MovingInteriorFrame cabin")
 	if not is_instance_valid(_loadmaster_station_anchor):
 		errors.append("craft requires a physical loadmaster station anchor")
+	if ship_definition == null \
+			or not ship_definition.is_definition_valid() \
+			or ship_definition.get_ship_id() != COMPONENT_ID:
+		errors.append("authored cargo-hauler flight definition is not applied")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,

@@ -14,7 +14,17 @@ func _initialize() -> void:
 	root.add_child(craft)
 	await process_frame
 	var audit := craft.get_audit_report()
+	var definition := craft.get_ship_definition()
 	_check(bool(audit.get("valid", false)), "the original-modern hauler builds a valid collision and anchor contract")
+	_check(
+		definition != null
+		and definition.is_definition_valid()
+		and definition.get_ship_id() == &"cinder_cargo_hauler"
+		and is_equal_approx(craft.maximum_speed, definition.maximum_speed)
+		and is_equal_approx(craft.engine_start_time, definition.engine_start_time)
+		and is_equal_approx(craft.maximum_hull, definition.maximum_hull),
+		"the live hauler consumes its authored 64 m/s, 3.8 s startup, and 220-hull profile"
+	)
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the hauler makes no historical claim")
 	_check(craft.get_cockpit_seat_anchor() != null and craft.get_boarding_marker() != null, "the craft exposes physical cockpit and boarding anchors")
 	_check(craft.get_cargo_transfer_anchors().size() == 8 and craft.get_cargo_capacity() == 8, "the cargo hold exposes eight stable transfer anchors")

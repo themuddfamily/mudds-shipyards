@@ -197,7 +197,7 @@ func _wire_receipt() -> Dictionary:
 		"seat_id": &"cinder_navigator_station",
 		"seat_generation": 1,
 		"role": &"passenger",
-		"ship_id": &"cinder-cargo-hauler",
+		"ship_id": &"cinder_cargo_hauler",
 		"ship_generation": 1,
 		"request_sequence": 2,
 		"server_tick": 12,

@@ -344,6 +344,8 @@ const CINDER_LIGHT_INTERCEPTOR_PRESENTATION_ID: StringName = &"cyan"
 const CINDER_LIGHT_INTERCEPTOR_FIRE_AUDIO_ID: StringName = &"player_pulse_fire"
 const CINDER_LIGHT_INTERCEPTOR_IMPACT_AUDIO_ID: StringName = &"hull_impact_medium"
 const CINDER_LIGHT_INTERCEPTOR_DRY_FIRE_AUDIO_ID: StringName = &"dry_fire_click"
+const CINDER_CARGO_SHIP_ID: StringName = &"cinder_cargo_hauler"
+const CINDER_CARGO_LEGACY_SHIP_ID: StringName = &"cinder-cargo-hauler"
 const CINDER_BOMBER_SHIP_ID: StringName = &"cinder_long_range_bomber"
 const CINDER_BOMBER_LEGACY_SHIP_ID: StringName = &"cinder-long-range-bomber"
 const CINDER_BOMBER_WEAPON_ID: StringName = &"bomber_payload_release"
@@ -1317,6 +1319,8 @@ func _canonicalize_flyable_ship_id(ship_id: StringName) -> StringName:
 			return CINDER_LIGHT_INTERCEPTOR_SHIP_ID
 		CINDER_BOMBER_LEGACY_SHIP_ID:
 			return CINDER_BOMBER_SHIP_ID
+		CINDER_CARGO_LEGACY_SHIP_ID:
+			return CINDER_CARGO_SHIP_ID
 		_:
 			return ship_id
 

@@ -69,7 +69,7 @@ func _initialize() -> void:
 	await process_frame
 	var startup_registered := flow.get_flyable_ships()
 	_check(startup_registered.any(func(candidate: HeroShip) -> bool:
-		return candidate.get_ship_id() == &"cinder-cargo-hauler"
+		return candidate.get_ship_id() == GameFlow.CINDER_CARGO_SHIP_ID
 	), "startup refresh discovers nested production craft")
 	flow._resolve_scene_bindings()
 	flow._register_flyable_ships()
@@ -79,6 +79,7 @@ func _initialize() -> void:
 	var expansion_count := 0
 	var cinder_light: HeroShip
 	var cinder_bomber: HeroShip
+	var cinder_cargo: HeroShip
 	for candidate in registered:
 		ids[candidate.get_ship_id()] = true
 		berths[candidate.get_home_berth_id()] = true
@@ -86,8 +87,10 @@ func _initialize() -> void:
 			cinder_light = candidate
 		elif candidate.get_ship_id() == GameFlow.CINDER_BOMBER_SHIP_ID:
 			cinder_bomber = candidate
+		elif candidate.get_ship_id() == GameFlow.CINDER_CARGO_SHIP_ID:
+			cinder_cargo = candidate
 		if candidate.get_ship_id() in [
-			&"cinder-cargo-hauler",
+			&"cinder_cargo_hauler",
 			&"cinder_long_range_bomber",
 			&"cinder_light_interceptor",
 		]:
@@ -96,7 +99,7 @@ func _initialize() -> void:
 	_check(ids.size() == registered.size(), "registered ship IDs remain unique")
 	_check(berths.size() == registered.size(), "registered home berth IDs remain unique")
 	_check(registered.any(func(candidate: HeroShip) -> bool:
-		return candidate.get_ship_id() == &"cinder-cargo-hauler"
+		return candidate.get_ship_id() == GameFlow.CINDER_CARGO_SHIP_ID
 	), "cargo hauler is available as a switch target")
 	flow._initialize_live_combat()
 	var authority := flow.get_combat_authority()
@@ -134,6 +137,17 @@ func _initialize() -> void:
 			&"_find_flyable_ship_by_id", GameFlow.CINDER_BOMBER_LEGACY_SHIP_ID
 		) == cinder_bomber,
 		"Cinder bomber source 1106 uses authored handling and migrates its former save identity"
+	)
+	_check(
+		cinder_cargo != null
+		and cinder_cargo.get_ship_definition() != null
+		and cinder_cargo.get_ship_definition().is_definition_valid()
+		and is_equal_approx(cinder_cargo.maximum_speed, 64.0)
+		and is_equal_approx(cinder_cargo.maximum_hull, 220.0)
+		and flow.call(
+			&"_find_flyable_ship_by_id", GameFlow.CINDER_CARGO_LEGACY_SHIP_ID
+		) == cinder_cargo,
+		"Cinder cargo uses authored handling and migrates its former save identity"
 	)
 	var arbitrary := Node3D.new()
 	arbitrary.name = "ArbitraryLiveCombatSource"

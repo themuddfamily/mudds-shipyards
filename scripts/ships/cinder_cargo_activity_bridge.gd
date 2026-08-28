@@ -8,7 +8,7 @@ extends RefCounted
 
 const CRAFT_SCRIPT := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const CARGO_AUDIO_BINDING := preload("res://scripts/audio/cinder_cargo_transfer_audio_binding.gd")
-const COMPONENT_ID: StringName = &"cinder-cargo-hauler"
+const COMPONENT_ID: StringName = &"cinder_cargo_hauler"
 const EXPECTED_CARGO_ID: StringName = &"cinder_supply_crates"
 const CARGO_STATE_IDLE := 0
 const CARGO_STATE_ACTIVE := 1

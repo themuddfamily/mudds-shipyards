@@ -8,7 +8,7 @@ signal semantic_navigator_ping_cue_emitted(cue_id: StringName, intensity: float)
 const PING_ACTION: StringName = &"passenger_ping"
 const CLEAR_ACTION: StringName = &"passenger_ping_clear"
 const NAVIGATOR_SEAT_ID: StringName = &"cinder_navigator_station"
-const CINDER_SHIP_ID: StringName = &"cinder-cargo-hauler"
+const CINDER_SHIP_ID: StringName = &"cinder_cargo_hauler"
 const PASSENGER_ROLE: StringName = &"passenger"
 const ACCEPTED: StringName = &"cinder_navigator_ping_accepted"
 const REJECTED: StringName = &"cinder_navigator_ping_rejected"
