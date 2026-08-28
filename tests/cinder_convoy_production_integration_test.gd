@@ -299,6 +299,21 @@ func _test_reentry_completion_and_lifecycle_failures(
 		and "CONVOY  ARRIVED" in str(hud.get_activity_objective_report().get("text", "")),
 		"the real host traverses all four raw points beside the +20m lane and presents safe arrival"
 	)
+	var reward_record := (
+		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
+			"record", {}
+		) as Dictionary
+	)
+	var reward_receipt := reward_record.get("last_receipt", {}) as Dictionary
+	_check(
+		reward_receipt.get("activity_id", "") \
+				== "cinder_reach_emberline_convoy"
+			and reward_receipt.get("reward_id", "") \
+				== "return_convoy_credit_to_shipyard"
+			and bool(reward_receipt.get("granted", false))
+			and not bool(reward_receipt.get("replay_allowed", true)),
+		"safe arrival persists one non-replayable Emberline escort-credit receipt"
+	)
 
 	# Generation replacement is fail-closed even if a stale observer tries to
 	# report against the prior completed incarnation.

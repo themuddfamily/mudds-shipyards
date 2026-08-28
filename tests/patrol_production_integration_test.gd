@@ -340,6 +340,21 @@ func _test_physics_progress_reentry_and_completion(
 		and "PATROL  COMPLETE 5/5" in str(hud.get_activity_objective_report().get("text", "")),
 		"ordered physical dwell completes once and publishes detached completion progress"
 	)
+	var reward_record := (
+		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
+			"record", {}
+		) as Dictionary
+	)
+	var reward_receipt := reward_record.get("last_receipt", {}) as Dictionary
+	_check(
+		int(reward_record.get("total_receipts", 0)) == 1
+			and reward_receipt.get("activity_id", "") == "cinder_relay_patrol"
+			and reward_receipt.get("reward_id", "") \
+				== "return_patrol_log_to_shipyard"
+			and bool(reward_receipt.get("granted", false))
+			and not bool(reward_receipt.get("replay_allowed", true)),
+		"the completed physical patrol persists one non-replayable Shipyard log receipt"
+	)
 	var samples_at_finish := int(
 		game.get_activity_integration_report().get("position_sample_count", -1)
 	)
@@ -349,7 +364,7 @@ func _test_physics_progress_reentry_and_completion(
 		and int(game.get_activity_integration_report().get("position_sample_count", -2))
 		== samples_at_finish
 		and "REWARD" not in str(hud.get_activity_objective_report().get("text", "")).to_upper(),
-		"terminal ticks do not resample, re-complete, or imply a reward"
+		"terminal ticks do not resample, re-complete, or move reward state into the activity card"
 	)
 
 	var reset_events := {"count": 0}

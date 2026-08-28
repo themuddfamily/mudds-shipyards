@@ -444,6 +444,22 @@ func _test_physics_reentry_and_physical_delivery(
 		and int(receipt.get("quantity", 0)) == 2,
 		"CargoTransferAuthority conserves quantity and returns the exact generation-one receipt"
 	)
+	var reward_record := (
+		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
+			"record", {}
+		) as Dictionary
+	)
+	var reward_receipt := reward_record.get("last_receipt", {}) as Dictionary
+	_check(
+		int(reward_record.get("total_receipts", 0)) == 1
+			and reward_receipt.get("activity_id", "") \
+				== "jovian_fabrication_kit_delivery"
+			and reward_receipt.get("reward_id", "") \
+				== "return_fabrication_kits_to_shipyard"
+			and bool(reward_receipt.get("granted", false))
+			and not bool(reward_receipt.get("replay_allowed", true)),
+		"the landed delivery persists one non-replayable fabrication-kit return receipt"
+	)
 	_check(
 		"DELIVERY  COMPLETE  2 FABRICATION KITS"
 		in str(hud.get_activity_objective_report().get("text", ""))

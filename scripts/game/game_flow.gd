@@ -31,6 +31,12 @@ const RuntimeSettingsRepairBindingType := preload(
 	"res://scripts/persistence/runtime_settings_repair_binding.gd"
 )
 const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd")
+const GameFlowRewardAuthorityType := preload(
+	"res://scripts/game/game_flow_reward_authority.gd"
+)
+const NearbyActivityRewardAdapterType := preload(
+	"res://scripts/world/nearby_activity_reward_adapter.gd"
+)
 const CinderRaceSessionPersistenceType := preload(
 	"res://scripts/persistence/cinder_race_session_persistence.gd"
 )
@@ -82,10 +88,11 @@ const SessionDiagnosticRecordType := preload("res://scripts/diagnostics/session_
 const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
 const SessionDiagnosticLifecycleBridgeType := preload("res://scripts/diagnostics/session_diagnostic_lifecycle_bridge.gd")
 
-## First production nearby activity. It is a modern interpretation and remains
-## a progress-only route: the director and this integration own no rewards,
-## combat, ship, landing, or berth state.
+## First production nearby activity. It is a modern interpretation. The route
+## and session remain progress-only; their terminal observation is handed to
+## GameFlow's separate persisted return-incentive authority.
 const DEFAULT_FREE_FLIGHT_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
+const CINDER_PATROL_REWARD_ACTIVITY_ID: StringName = &"cinder_relay_patrol"
 const ACTIVITY_KIND_TIMED_RACE: StringName = &"timed_race"
 const ACTIVITY_KIND_PATROL: StringName = &"patrol"
 const ACTIVITY_KIND_CARGO_DELIVERY: StringName = &"cargo_delivery"
@@ -97,6 +104,10 @@ const CINDER_CONVOY_ACTIVATION_CENTER := Vector3(84.0, -48.0, -724.0)
 const CINDER_CONVOY_ACTIVATION_RADIUS := 4.0
 const CINDER_CONVOY_ESCORT_LANE_OFFSET := Vector3(0.0, 20.0, 0.0)
 const CARGO_DELIVERY_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
+const CINDER_RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
+const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
+const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
+const CARGO_DELIVERY_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 const CARGO_DELIVERY_DISPLAY_NAME := "Jovian fabrication kit delivery"
 const CARGO_DELIVERY_EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const CARGO_DELIVERY_ITEM_ID: StringName = &"fabrication_kits"
@@ -475,6 +486,13 @@ var _cinder_navigator_ping_hud_composition: RefCounted
 var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
+## The four GameFlow-owned activities remain separate progress authorities.
+## Their terminal snapshots cross this one generation-fenced adapter into the
+## one persisted Shipyard return-incentive namespace.
+var _game_flow_reward_authority: RefCounted
+var _game_flow_reward_adapter: RefCounted
+var _game_flow_reward_configuration: Dictionary = {}
+var _last_game_flow_reward_result: Dictionary = {}
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
 ## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
 var network_session: NetworkSessionAdapterType
@@ -1901,6 +1919,7 @@ func _get_startup_stager() -> MainStartupStagerType:
 ## difference is when the authored subtree became complete.
 func _start_up() -> void:
 	_initialize_runtime_settings()
+	_initialize_game_flow_reward_authority()
 	bind_planetary_return_persistence(ember_surface_loop_production_binding)
 	bind_ember_relay_survey_persistence(ember_surface_loop_production_binding)
 	_restore_and_retire_planetary_return_persistence()
@@ -10470,6 +10489,137 @@ func _reset_terminal_activity_for_next_sortie() -> void:
 		reset_active_activity()
 
 
+func _initialize_game_flow_reward_authority() -> void:
+	if _game_flow_reward_authority != null and _game_flow_reward_adapter != null:
+		return
+	if _runtime_settings_user_data_store == null:
+		_game_flow_reward_configuration = {
+			"accepted": false,
+			"reason": &"reward_store_unavailable",
+		}.duplicate(true)
+		return
+	var authority := GameFlowRewardAuthorityType.new() as RefCounted
+	var authority_result := authority.call(
+		&"configure", _runtime_settings_user_data_store
+	) as Dictionary
+	if not bool(authority_result.get("accepted", false)):
+		_game_flow_reward_configuration = authority_result.duplicate(true)
+		return
+	var adapter := NearbyActivityRewardAdapterType.new() as RefCounted
+	var adapter_result := adapter.call(
+		&"configure",
+		Callable(self, &"_commit_game_flow_activity_reward"),
+		DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+		CINDER_RACE_REWARD_ID
+	) as Dictionary
+	if not bool(adapter_result.get("accepted", false)):
+		_game_flow_reward_configuration = adapter_result.duplicate(true)
+		return
+	for registration: Dictionary in [
+		{
+			"activity_id": CINDER_PATROL_REWARD_ACTIVITY_ID,
+			"reward_id": CINDER_PATROL_REWARD_ID,
+		},
+		{
+			"activity_id": CINDER_CONVOY_ACTIVITY_ID,
+			"reward_id": CINDER_CONVOY_REWARD_ID,
+		},
+		{
+			"activity_id": CARGO_DELIVERY_ACTIVITY_ID,
+			"reward_id": CARGO_DELIVERY_REWARD_ID,
+		},
+	]:
+		var registered := adapter.call(
+			&"register_activity",
+			StringName(registration.activity_id),
+			StringName(registration.reward_id)
+		) as Dictionary
+		if not bool(registered.get("accepted", false)):
+			_game_flow_reward_configuration = registered.duplicate(true)
+			return
+	_game_flow_reward_authority = authority
+	_game_flow_reward_adapter = adapter
+	_game_flow_reward_configuration = {
+		"accepted": true,
+		"reason": &"game_flow_reward_authority_ready",
+	}.duplicate(true)
+
+
+func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
+	if _game_flow_reward_authority == null:
+		return {"accepted": false, "reason": &"reward_authority_unavailable"}
+	var result := _game_flow_reward_authority.call(&"commit", request) as Dictionary
+	if bool(result.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(
+			_runtime_settings_commit_serial,
+			_runtime_settings_user_data_store.get_generation()
+		)
+		_sync_production_runtime_settings_state()
+	return result.duplicate(true)
+
+
+func _request_game_flow_activity_reward(
+	activity_id: StringName,
+	activity_generation: int
+	) -> Dictionary:
+	if _game_flow_reward_adapter == null or activity_generation < 1:
+		_last_game_flow_reward_result = {
+			"accepted": false,
+			"reason": &"reward_handoff_unavailable",
+		}.duplicate(true)
+		return _last_game_flow_reward_result.duplicate(true)
+	var completed := {
+		"activity_id": activity_id,
+		"state_id": &"completed",
+		"outcome": &"cleared",
+		"generation": activity_generation,
+	}.duplicate(true)
+	_last_game_flow_reward_result = _game_flow_reward_adapter.call(
+		&"consume", completed, activity_generation
+	) as Dictionary
+	return _last_game_flow_reward_result.duplicate(true)
+
+
+func _activity_reward_toast_detail(
+	completion_detail: String,
+	reward_result: Dictionary
+	) -> String:
+	if bool(reward_result.get("accepted", false)):
+		var callback := reward_result.get("callback", {}) as Dictionary
+		var receipt := callback.get("receipt", {}) as Dictionary
+		return "%s — Shipyard reward receipt #%d saved" % [
+			completion_detail,
+			int(receipt.get("receipt_id", 0)),
+		]
+	if StringName(reward_result.get("reason", &"")) \
+			in [&"reward_already_consumed", &"reward_generation_already_committed"]:
+		return "%s — reward receipt already saved" % completion_detail
+	return "%s — reward receipt could not be saved" % completion_detail
+
+
+func get_activity_reward_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"configured": (
+			_game_flow_reward_authority != null
+			and _game_flow_reward_adapter != null
+		),
+		"configuration": _game_flow_reward_configuration.duplicate(true),
+		"authority": (
+			_game_flow_reward_authority.call(&"get_snapshot") as Dictionary
+			if _game_flow_reward_authority != null else {}
+		),
+		"adapter": (
+			_game_flow_reward_adapter.call(&"get_snapshot") as Dictionary
+			if _game_flow_reward_adapter != null else {}
+		),
+		"last_result": _last_game_flow_reward_result.duplicate(true),
+		"activity_authority": false,
+		"currency_authority": false,
+		"inventory_authority": false,
+	}.duplicate(true)
+
+
 func _on_cinder_session_presentation_changed(snapshot: Dictionary) -> void:
 	var fingerprint := _cinder_race_save_fingerprint(snapshot)
 	if not fingerprint.is_empty() \
@@ -10497,9 +10647,17 @@ func _cinder_race_save_fingerprint(snapshot: Dictionary) -> String:
 	]
 
 
-func _on_cinder_session_completed(_snapshot: Dictionary) -> void:
+func _on_cinder_session_completed(snapshot: Dictionary) -> void:
+	var reward := _request_game_flow_activity_reward(
+		DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+		int(snapshot.get("activity_generation", 0))
+	)
 	if is_instance_valid(hud):
-		hud.toast("Cinder Reach race complete", "Time recorded — no reward granted", 3.2)
+		hud.toast(
+			"Cinder Reach race complete",
+			_activity_reward_toast_detail("Time recorded", reward),
+			3.2
+		)
 
 
 func _on_patrol_presentation_changed(snapshot: Dictionary) -> void:
@@ -10526,9 +10684,17 @@ func _cinder_patrol_save_fingerprint(snapshot: Dictionary) -> String:
 	]
 
 
-func _on_patrol_completed(_snapshot: Dictionary) -> void:
+func _on_patrol_completed(snapshot: Dictionary) -> void:
+	var reward := _request_game_flow_activity_reward(
+		CINDER_PATROL_REWARD_ACTIVITY_ID,
+		int(snapshot.get("generation", 0))
+	)
 	if is_instance_valid(hud):
-		hud.toast("Cinder Reach patrol complete", "Sweep recorded — no reward granted", 3.2)
+		hud.toast(
+			"Cinder Reach patrol complete",
+			_activity_reward_toast_detail("Sweep recorded", reward),
+			3.2
+		)
 
 
 func _on_cinder_convoy_presentation_changed(snapshot: Dictionary) -> void:
@@ -10540,12 +10706,17 @@ func _on_cinder_convoy_presentation_changed(snapshot: Dictionary) -> void:
 		_sync_activity_hud()
 
 
-func _on_cinder_convoy_safely_arrived(_snapshot: Dictionary) -> void:
+func _on_cinder_convoy_safely_arrived(snapshot: Dictionary) -> void:
 	_retire_cinder_convoy_session()
+	var activity := snapshot.get("activity", {}) as Dictionary
+	var reward := _request_game_flow_activity_reward(
+		CINDER_CONVOY_ACTIVITY_ID,
+		int(activity.get("generation", 0))
+	)
 	if is_instance_valid(hud):
 		hud.toast(
 			"Emberline tender arrived",
-			"Escort recorded — no reward granted",
+			_activity_reward_toast_detail("Escort recorded", reward),
 			3.2
 		)
 
@@ -10705,17 +10876,24 @@ func _on_cargo_delivery_snapshot_changed(_snapshot: Dictionary) -> void:
 
 
 func _on_cargo_delivery_completed(
-	_snapshot: Dictionary,
+	snapshot: Dictionary,
 	receipt: Dictionary
 	) -> void:
 	if _selected_activity_kind != ACTIVITY_KIND_CARGO_DELIVERY:
 		return
+	var reward := _request_game_flow_activity_reward(
+		CARGO_DELIVERY_ACTIVITY_ID,
+		int(snapshot.get("generation", 0))
+	)
 	_sync_activity_hud()
 	if is_instance_valid(hud):
 		hud.toast(
 			"Fabrication kits delivered",
-			"%d units received at the Jovian freight berth — no reward granted"
-			% int(receipt.get("quantity", 0)),
+			_activity_reward_toast_detail(
+				"%d units received at the Jovian freight berth"
+				% int(receipt.get("quantity", 0)),
+				reward
+			),
 			3.2
 		)
 

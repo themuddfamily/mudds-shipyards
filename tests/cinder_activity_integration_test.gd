@@ -2,7 +2,8 @@ extends SceneTree
 
 ## Focused production integration for the timed Cinder activity. It uses the
 ## real Main, ActivityDirector, physical ship position, physics-delta seam, and
-## HUD without entering the guided combat or any reward path.
+## HUD, then verifies the separate GameFlow return-incentive receipt without
+## entering guided combat.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
@@ -104,7 +105,20 @@ func _test_scene_and_authority_boundary(
 		and not bool(integration.get("berth_authority", true))
 		and not bool(audit.get("grants_rewards", true))
 		and not bool(audit.get("network_authority", true)),
-		"the production adapter claims no reward, combat, ship, berth, network, or general gameplay authority"
+		"the timed session adapter claims no reward, combat, ship, berth, network, or general gameplay authority"
+	)
+	var rewards := game.get_activity_reward_report()
+	var reward_authority := rewards.get("authority", {}) as Dictionary
+	_check(
+		bool(rewards.get("configured", false))
+			and bool(reward_authority.get("reward_grant_authority", false))
+			and reward_authority.get("reward_authority_id", &"") \
+				== &"game_flow_reward_authority"
+			and reward_authority.get("reward_store_id", &"") \
+				== &"game_flow_reward_store"
+			and not bool(reward_authority.get("activity_authority", true))
+			and not bool(reward_authority.get("currency_authority", true)),
+		"GameFlow composes one separate persisted return-incentive authority"
 	)
 	var rejected := game.request_activity_start(ROUTE.activity_id)
 	_check(
@@ -293,6 +307,42 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		and "FINISH" in completed_text
 		and "BEST" in completed_text,
 		"completion emits once and the compact HUD records finish and best times"
+	)
+	var reward_report := game.get_activity_reward_report()
+	var reward_record := (
+		(reward_report.get("authority", {}) as Dictionary).get("record", {})
+		as Dictionary
+	)
+	var reward_receipt := reward_record.get("last_receipt", {}) as Dictionary
+	_check(
+		int(reward_record.get("total_receipts", 0)) == 1
+			and reward_receipt.get("activity_id", "") \
+				== "cinder_reach_checkpoint_route"
+			and reward_receipt.get("reward_id", "") \
+				== "return_race_record_to_shipyard"
+			and bool(reward_receipt.get("granted", false))
+			and not bool(reward_receipt.get("replay_allowed", true)),
+		"the real completed lap persists one granted, non-replayable Shipyard receipt"
+	)
+	var store_generation_after_reward := int(
+		(reward_report.get("authority", {}) as Dictionary).get(
+			"store_generation", -1
+		)
+	)
+	game.call("_on_cinder_session_completed", completed)
+	var duplicate_reward_report := game.get_activity_reward_report()
+	var duplicate_authority := (
+		duplicate_reward_report.get("authority", {}) as Dictionary
+	)
+	var duplicate_record := duplicate_authority.get("record", {}) as Dictionary
+	_check(
+		int(duplicate_record.get("total_receipts", 0)) == 1
+			and int(duplicate_authority.get("store_generation", -2)) \
+				== store_generation_after_reward
+			and (duplicate_reward_report.get("last_result", {}) as Dictionary).get(
+				"reason", &""
+			) == &"reward_already_consumed",
+		"a repeated terminal callback cannot duplicate the reward receipt or store write"
 	)
 	var samples_at_finish := int(
 		game.get_activity_integration_report().get("position_sample_count", -1)
