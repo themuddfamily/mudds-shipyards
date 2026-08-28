@@ -407,6 +407,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 var world: Node3D
 var player: CharacterBody3D
 var activity_board_console: Area3D
+var ship_service_console: Area3D
 var heavy_breach_activity_board: Area3D
 var _heavy_breach_sortie_generation := 0
 var _heavy_breach_hud_refresh_elapsed := 0.0
@@ -1122,6 +1123,11 @@ func _resolve_scene_bindings() -> void:
 	activity_board_console = (
 		world.call(&"get_activity_board_console") as Area3D
 		if is_instance_valid(world) and world.has_method(&"get_activity_board_console")
+		else null
+	)
+	ship_service_console = (
+		world.call(&"get_ship_service_console") as Area3D
+		if is_instance_valid(world) and world.has_method(&"get_ship_service_console")
 		else null
 	)
 	heavy_breach_activity_board = (
@@ -4737,6 +4743,7 @@ func _restore_live_combat_after_reentry() -> void:
 
 func _connect_runtime_signals() -> void:
 	_bind_activity_board_console()
+	_bind_ship_service_console()
 	_bind_heavy_breach_activity_board()
 	_connect_signal_once(
 		combat_authority,
@@ -5463,6 +5470,13 @@ func _refresh_interaction_targets() -> void:
 	):
 		_bind_activity_board_console()
 	if (
+		not is_instance_valid(ship_service_console)
+		or not ship_service_console.is_connected(
+			&"service_requested", _on_ship_service_console_requested
+		)
+	):
+		_bind_ship_service_console()
+	if (
 		not is_instance_valid(heavy_breach_activity_board)
 		or not heavy_breach_activity_board.is_connected(
 			&"snapshot_changed", _on_heavy_breach_board_snapshot_changed
@@ -5981,6 +5995,18 @@ func _bind_activity_board_console() -> void:
 	)
 
 
+func _bind_ship_service_console() -> void:
+	if not is_instance_valid(world) or not world.has_method(&"get_ship_service_console"):
+		ship_service_console = null
+		return
+	ship_service_console = world.call(&"get_ship_service_console") as Area3D
+	_connect_signal_once(
+		ship_service_console,
+		&"service_requested",
+		_on_ship_service_console_requested
+	)
+
+
 func _bind_heavy_breach_activity_board() -> void:
 	if not is_instance_valid(world) \
 			or not world.has_method(&"get_heavy_breach_activity_board"):
@@ -6019,6 +6045,74 @@ func _on_activity_board_console_open_requested(actor: Node) -> void:
 	):
 		return
 	hud.call(&"open_activity_board")
+
+
+## Resolves one physical on-foot service request against the last active craft.
+## The console owns no resource mutation; only engineer-capable craft expose the
+## restock method, which delegates to their existing RepairAuthority.
+func _on_ship_service_console_requested(actor: Node) -> void:
+	var result: Dictionary
+	if (
+		actor != player
+		or ship_service_console != station_interaction_candidate
+		or _piloting
+		or _transition_busy
+		or _station_seated
+		or not is_instance_valid(player)
+		or not player.is_control_enabled()
+		or player.is_seated()
+		or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]
+	):
+		result = {"accepted": false, "reason": &"service_admission_rejected"}
+	elif not is_instance_valid(active_ship):
+		result = {"accepted": false, "reason": &"active_ship_unavailable"}
+	elif not active_ship.has_method(&"restock_engineer_repair_kits"):
+		result = {
+			"accepted": false,
+			"reason": &"unsupported_ship",
+			"ship_id": active_ship.get_ship_id(),
+			"display_name": active_ship.get_display_name(),
+		}
+	else:
+		result = active_ship.call(&"restock_engineer_repair_kits") as Dictionary
+	_present_ship_service_result(result)
+
+
+func _present_ship_service_result(result: Dictionary) -> void:
+	if is_instance_valid(ship_service_console) \
+			and ship_service_console.has_method(&"present_service_result"):
+		ship_service_console.call(&"present_service_result", result.duplicate(true))
+	if not is_instance_valid(hud):
+		return
+	var accepted := bool(result.get("accepted", false))
+	var reason := StringName(result.get("reason", &"service_unavailable"))
+	var craft_name := str(result.get("display_name", "Active craft"))
+	if accepted:
+		var units := int(result.get("resource_units", 0))
+		var capacity := int(result.get("resource_capacity", 0))
+		var previous := int(result.get("previous_resource_units", units))
+		if int(result.get("units_added", 0)) > 0:
+			hud.toast(
+				"Repair kits restocked",
+				"%s locker %d/%d -> %d/%d; component damage and cooldown are unchanged"
+					% [craft_name, previous, capacity, units, capacity],
+				3.0
+			)
+		else:
+			hud.toast(
+				"Repair locker already full",
+				"%s has %d/%d repair kits" % [craft_name, units, capacity],
+				2.6
+			)
+		return
+	var detail := {
+		&"unsupported_ship": "Fly and return a Jovian, Halyard, or Bulwark first",
+		&"ship_not_landed": "Land and exit the active craft before requesting service",
+		&"pilot_seated": "Exit the pilot seat before requesting service",
+		&"ship_destroyed": "Berth regeneration must finish before requesting service",
+		&"repair_active": "Finish or interrupt the active engineer repair first",
+	}.get(reason, "The active craft cannot accept dockside service") as String
+	hud.toast("Ship service unavailable", detail, 2.8)
 
 
 ## The board proves the on-foot range and generation once. It deliberately does

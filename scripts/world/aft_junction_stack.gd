@@ -16,6 +16,9 @@ const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 ## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
 const HUB_CONNECTION_SLOT: StringName = &"hub-aft-junction"
 const WORLD_LAYER := PhysicsLayers.WORLD
+const ShipServiceConsoleType := preload(
+	"res://scripts/interaction/ship_service_console.gd"
+)
 
 ## Distance fade applied to every fixture practical in this module. Measured
 ## rather than chosen — see `_fixture_practical`. A fade that ended at 24 m ended
@@ -237,18 +240,18 @@ const LOW_ROUTE_LIGHT_POSITIONS := [
 const APPROACH_EDGE_COLLAR_RADIUS := 0.115
 const APPROACH_EDGE_COLLAR_HEIGHT := 0.16
 const APPROACH_EDGE_COLLAR_COPY_COUNT := 6
-const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1177
-const RENDER_DESCENDANT_NODE_COUNT := 1142
-const BASELINE_RENDERER_NODE_COUNT := 859
-const RENDERER_NODE_COUNT := 745
-const BASELINE_DRAWN_COPY_COUNT := 869
-const DRAWN_COPY_COUNT := 885
-const BASELINE_SURFACE_SUBMISSION_COUNT := 859
-const SURFACE_SUBMISSION_COUNT := 745
-const BASELINE_MESH_RESOURCE_COUNT := 323
-const MESH_RESOURCE_COUNT := 299
-const BASELINE_MATERIAL_RESOURCE_COUNT := 32
-const MATERIAL_RESOURCE_COUNT := 32
+const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1183
+const RENDER_DESCENDANT_NODE_COUNT := 1148
+const BASELINE_RENDERER_NODE_COUNT := 862
+const RENDERER_NODE_COUNT := 748
+const BASELINE_DRAWN_COPY_COUNT := 872
+const DRAWN_COPY_COUNT := 888
+const BASELINE_SURFACE_SUBMISSION_COUNT := 862
+const SURFACE_SUBMISSION_COUNT := 748
+const BASELINE_MESH_RESOURCE_COUNT := 326
+const MESH_RESOURCE_COUNT := 302
+const BASELINE_MATERIAL_RESOURCE_COUNT := 34
+const MATERIAL_RESOURCE_COUNT := 34
 
 const LOWER_FLOOR_ELEVATION := 0.0
 const UPPER_FLOOR_ELEVATION := 4.2
@@ -719,7 +722,9 @@ func get_performance_contract() -> Dictionary:
 		# llvmpipe. What is measured is that every one of these is a chamfered kit
 		# primitive sharing this module's two mesh caches, so the added *unique*
 		# mesh resources are far fewer than the added instances.
-        "mesh_instances": 835,
+		# The adjacent physical Ship Services workstation adds three literal
+		# display meshes to the retained ConsoleBay03; no hidden headroom is used.
+		"mesh_instances": 838,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -3630,6 +3635,14 @@ func _build_operations_room(structure: Node3D) -> void:
 			var activity_board_console := ActivityBoardConsole.new()
 			activity_board_console.name = "ActivityBoardConsole"
 			bay.add_child(activity_board_console)
+		# The adjacent authored workstation is the physical return point for the
+		# finite engineer-kit loop. It owns only proximity and presentation;
+		# GameFlow selects the last active craft and that craft's existing repair
+		# authority owns the actual restock.
+		elif bay_index == 2:
+			var ship_service_console = ShipServiceConsoleType.new()
+			ship_service_console.name = "ShipServiceConsole"
+			bay.add_child(ship_service_console)
 		# The bay's one warm lamp gets its own tiny pool. It is the only warm
 		# source on the console line and it is what stops three identical cyan
 		# consoles reading as one extruded strip.

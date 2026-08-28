@@ -197,6 +197,21 @@ func _run() -> void:
 			and craft.get_crew_status_display().get_readout_text().contains("KITS 5/6"),
 		"completed work visibly spends one kit from Halyard's finite repair stock"
 	)
+	var service_integrity := model.get_component_integrity(system_id)
+	var service_cooldown := float(completed_state.get("cooldown_remaining", 0.0))
+	var restocked: Dictionary = craft.restock_engineer_repair_kits()
+	_check(
+		bool(restocked.get("accepted", false))
+			and restocked.get("reason", &"") == &"resource_restocked"
+			and int(restocked.get("resource_units", -1)) == 6
+			and is_equal_approx(model.get_component_integrity(system_id), service_integrity)
+			and is_equal_approx(
+				float(craft.get_engineer_repair_state().get("cooldown_remaining", -1.0)),
+				service_cooldown
+			)
+			and craft.get_crew_status_display().get_readout_text().contains("KITS 6/6"),
+		"landed Halyard service fills the same locker without repairing damage or clearing cooldown"
+	)
 	_check(selected[0] == 2 and selected_generation[0] == 1, "repair retries retain the generation-fenced component target")
 	var selection_result := effect.get("selection", {}) as Dictionary
 	var selection := selection_result.get("selection", {}) as Dictionary

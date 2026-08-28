@@ -2088,6 +2088,44 @@ func get_engineer_repair_state() -> Dictionary:
 	return snapshot.duplicate(true)
 
 
+## Restocks this landed craft's existing finite engineer locker without
+## resetting component damage, cooldown, role assignment, or ship lifecycle.
+func restock_engineer_repair_kits() -> Dictionary:
+	var telemetry := get_telemetry()
+	if is_destroyed():
+		return {"accepted": false, "reason": &"ship_destroyed"}
+	if is_piloted():
+		return {"accepted": false, "reason": &"pilot_seated"}
+	if not bool(telemetry.get("landed", false)) \
+			or bool(telemetry.get("landing_active", false)):
+		return {"accepted": false, "reason": &"ship_not_landed"}
+	if _engineer_repair_authority == null:
+		return {
+			"accepted": true,
+			"reason": &"resource_already_full",
+			"ship_id": get_ship_id(),
+			"display_name": get_display_name(),
+			"resource_id": ENGINEER_REPAIR_RESOURCE_ID,
+			"resource_capacity": ENGINEER_REPAIR_RESOURCE_CAPACITY,
+			"resource_units": ENGINEER_REPAIR_RESOURCE_CAPACITY,
+			"previous_resource_units": ENGINEER_REPAIR_RESOURCE_CAPACITY,
+			"units_added": 0,
+		}
+	var model := get_component_damage()
+	if model == null:
+		return {"accepted": false, "reason": &"component_authority_unavailable"}
+	var result := _engineer_repair_authority.restock_resource(
+		ENGINEER_REPAIR_RESOURCE_ID, model.get_ledger_generation()
+	)
+	result["ship_id"] = get_ship_id()
+	result["display_name"] = get_display_name()
+	if bool(result.get("accepted", false)) \
+			and int(result.get("units_added", 0)) > 0:
+		engineer_repair_state_changed.emit(get_engineer_repair_state())
+		refresh_crew_status_display()
+	return result.duplicate(true)
+
+
 ## Detached authority view consumed by GameFlow's shared repair-network seam.
 ## The receipt and owner originate in the existing repair/crew authorities;
 ## callers receive no mutation capability.

@@ -91,9 +91,9 @@ func _test_synchronous_parent_validation(module: AftJunctionStack) -> void:
 	)
 	_check(
 		bool(resource_audit.valid)
-		and int(resource_audit.current.material_resource_allocations) == 32
+		and int(resource_audit.current.material_resource_allocations) == 34
 		and (resource_audit.errors as PackedStringArray).is_empty(),
-		"Aft resource census is immediately green at 32 materials before any deferred frame"
+		"Aft resource census is immediately green at 34 materials before any deferred frame"
 	)
 	_check(
 		operations_material != null
@@ -769,30 +769,30 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
 		and report.legacy == {
-			"descendant_nodes": 1177,
-			"renderer_nodes": 859,
-			"drawn_copies": 869,
-			"surface_submissions": 859,
-			"mesh_resource_allocations": 323,
-			"material_resource_allocations": 32,
+			"descendant_nodes": 1183,
+			"renderer_nodes": 862,
+			"drawn_copies": 872,
+			"surface_submissions": 862,
+			"mesh_resource_allocations": 326,
+			"material_resource_allocations": 34,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1142,
-			"renderer_nodes": 745,
-			"drawn_copies": 885,
-			"surface_submissions": 745,
-			"mesh_resource_allocations": 299,
-			"material_resource_allocations": 32,
+			"descendant_nodes": 1148,
+			"renderer_nodes": 748,
+			"drawn_copies": 888,
+			"surface_submissions": 748,
+			"mesh_resource_allocations": 302,
+			"material_resource_allocations": 34,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus transfer-rib batching freeze 1142 descendants, 745 renderers/submissions, 885 copies, and 299 mesh allocations"
+		"shared collar families plus the service console freeze 1148 descendants, 748 renderers/submissions, 888 copies, and 302 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -872,7 +872,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 299
+		int(detached.current.mesh_resource_allocations) == 302
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -914,7 +914,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 300
+		and int(identity_red.current.mesh_resource_allocations) == 303
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)
@@ -2302,7 +2302,7 @@ func _test_vip_facade_column_trim_batch(module: AftJunctionStack) -> void:
 		and int(authority.spawn_authority_count) == 0
 		and str(authority.network_authority_role) == "none"
 		and int(collision.body_count) == 106
-		and int(collision.shape_count) == 117
+		and int(collision.shape_count) == 118
 		and module.get_operations_entrance() != null
 		and module.get_vip_access() != null
 		and vip != null

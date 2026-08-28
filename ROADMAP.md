@@ -1061,13 +1061,22 @@ component-damage path through their production damageable adapters and the share
 Jovian, Halyard and Bulwark engineer repairs now draw from six ship-owned kits per
 craft lifecycle. A committed repair spends one kit, an interrupted repair spends
 none, and changing or releasing the engineer seat preserves both remaining stock
-and cooldown instead of recreating the authority. Only the existing ship reset-for-reuse
-lifecycle refills the stock. The physical Jovian console, Halyard crew display and
-Bulwark engineer readout expose the live `KITS x/6` count and an explicit depleted
-state. Focused authority, presentation and production-role checks cover spending,
-handoff preservation and lifecycle refill without adding a second repair, health or
-inventory owner. A broader station resupply economy, respawn parity, shields, native
-combat readability, and human mix review remain open.
+and cooldown instead of recreating the authority. The existing reset-for-reuse lifecycle
+refills the stock, and Aft Operations Console Bay 03 now provides the player-visible
+dockside return path: leave the active landed Jovian, Halyard or Bulwark, face the
+physical `SHIP SERVICES` display, and press `E` to refill that same ship-owned locker.
+The console services exactly one active craft, refuses a seated pilot, destroyed craft,
+in-flight craft or active repair, reports an already-full locker as a visible no-op, and
+points unsupported craft back to the three engineer-capable choices. Restocking preserves
+component damage, component generation, cooldown and ship lifecycle; it does not create a
+second repair, health or inventory owner. The physical Jovian console, Halyard crew display
+and Bulwark engineer readout repaint to the live `KITS x/6` count and retain their explicit
+depleted state. `repair_authority_test.gd`, `ship_service_console_test.gd`, the three craft
+role checks and `ship_service_console_production_test.gd` cover spending, handoff,
+restocking, repeated no-op service, production interaction and whole-`Main` re-entry. This
+is a free repair-kit dock service, not a currency, cargo or station-economy implementation;
+respawn parity, broader resupply economy, shields, native combat readability, and human mix
+review remain open.
 
 An admitted seated Jovian engineer repair now shows a steady component-local seven-step
 progress arc and work lamp. The cue clears immediately when work completes or is interrupted,

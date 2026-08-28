@@ -143,6 +143,35 @@ func rebind_actor(actor_id: StringName, generation: int) -> Dictionary:
 	return _result(true, &"actor_rebound")
 
 
+## Refills this generation's existing resource ledger without recreating the
+## authority or changing its actor, cooldown, token sequence, or component
+## damage observation. The caller owns the physical service admission; exact
+## resource and generation fences prevent a terminal from filling another
+## craft's locker or reviving a retired lifecycle.
+func restock_resource(resource_id: StringName, generation: int) -> Dictionary:
+	if not is_configuration_valid():
+		return _result(false, &"invalid_configuration")
+	if generation <= 0 or generation != _generation:
+		return _result(false, &"stale_generation")
+	if resource_id != _resource_id:
+		return _result(false, &"resource_mismatch")
+	if not _active.is_empty():
+		return _result(false, &"repair_active")
+	if _initial_resource_units <= 0:
+		return _result(false, &"resource_capacity_unavailable")
+	var previous_units := _resource_units
+	_resource_units = _initial_resource_units
+	var result := _result(
+		true,
+		&"resource_already_full" if previous_units == _resource_units \
+			else &"resource_restocked"
+	)
+	result["resource_id"] = _resource_id
+	result["previous_resource_units"] = previous_units
+	result["units_added"] = _resource_units - previous_units
+	return result
+
+
 ## Advances only the injected physics delta.  An active repair remains pending
 ## until its owner explicitly commits or interrupts it.
 func advance(delta: float) -> Dictionary:

@@ -136,13 +136,39 @@ func _run() -> void:
 		handoff_authority.rebind_actor(&"pilot_three", 2).get("reason", &"") == &"stale_generation",
 		"an actor handoff cannot cross the repair lifecycle generation"
 	)
+	_check(
+		handoff_authority.restock_resource(&"wrong_kit", 1).get("reason", &"") \
+			== &"resource_mismatch"
+			and handoff_authority.restock_resource(&"repair_kit", 2).get("reason", &"") \
+			== &"stale_generation"
+			and handoff_authority.get_resource_units() == 1,
+		"restock rejects another resource and a retired lifecycle without mutation"
+	)
+	var restocked := handoff_authority.restock_resource(&"repair_kit", 1)
+	_check(
+		bool(restocked.get("accepted", false))
+			and restocked.get("reason", &"") == &"resource_restocked"
+			and int(restocked.get("previous_resource_units", -1)) == 1
+			and int(restocked.get("resource_units", -1)) == 2
+			and int(restocked.get("units_added", -1)) == 1
+			and is_equal_approx(float(restocked.get("cooldown_remaining", 0.0)), 1.0),
+		"exact dockside restock fills the existing locker while preserving cooldown"
+	)
+	_check(
+		handoff_authority.restock_resource(&"repair_kit", 1).get("reason", &"") \
+			== &"resource_already_full"
+			and handoff_authority.get_resource_units() == 2,
+		"repeating service on a full locker is an accepted no-op"
+	)
 	handoff_authority.advance(1.0)
 	var rebound_request := base.duplicate(true)
 	rebound_request["actor_id"] = &"pilot_two"
 	_check(
 		bool(handoff_authority.request_repair(rebound_request).get("accepted", false))
-			and handoff_authority.rebind_actor(&"pilot_three", 1).get("reason", &"") == &"repair_active",
-		"the rebound actor can use the remaining kit while an active token blocks another handoff"
+			and handoff_authority.rebind_actor(&"pilot_three", 1).get("reason", &"") == &"repair_active"
+			and handoff_authority.restock_resource(&"repair_kit", 1).get("reason", &"") \
+				== &"repair_active",
+		"an active repair token blocks both actor handoff and dockside restock"
 	)
 	handoff_authority.interrupt(&"test_complete")
 	_check(

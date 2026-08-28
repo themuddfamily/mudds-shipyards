@@ -469,6 +469,23 @@ func _run() -> void:
 			and craft.get_engineer_status_text().contains("KITS 5/6"),
 		"completed Bulwark work targets one component and visibly spends one repair kit"
 	)
+	var service_integrity := component_model.get_component_integrity(repair_target)
+	var service_cooldown := float(completed_repair.get("cooldown_remaining", 0.0))
+	var restocked: Dictionary = craft.call(&"restock_engineer_repair_kits") as Dictionary
+	_check(
+		bool(restocked.get("accepted", false))
+			and restocked.get("reason", &"") == &"resource_restocked"
+			and int(restocked.get("resource_units", -1)) == 6
+			and is_equal_approx(
+				component_model.get_component_integrity(repair_target), service_integrity
+			)
+			and is_equal_approx(
+				float(craft.get_engineer_repair_state().get("cooldown_remaining", -1.0)),
+				service_cooldown
+			)
+			and craft.get_engineer_status_text().contains("KITS 6/6"),
+		"landed Bulwark service fills its locker without repairing damage or clearing cooldown"
+	)
 	var cooldown_attempt: Dictionary = craft.submit_crew_intent(
 		1,
 		77,

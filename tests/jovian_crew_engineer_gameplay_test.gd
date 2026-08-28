@@ -280,6 +280,25 @@ func _run() -> void:
 			and craft.get_engineer_status_text() == "IDLE // REPAIR READY\nKITS // 5/6",
 		"role release clears stale work while preserving the visible remaining stock"
 	)
+	var service_integrity := model.get_component_integrity(component_id)
+	var service_cooldown := float(
+		craft.get_engineer_repair_state().get("cooldown_remaining", 0.0)
+	)
+	var restocked: Dictionary = craft.call(&"restock_engineer_repair_kits") as Dictionary
+	_check(
+		bool(restocked.get("accepted", false))
+			and restocked.get("reason", &"") == &"resource_restocked"
+			and int(restocked.get("previous_resource_units", -1)) == 5
+			and int(restocked.get("resource_units", -1)) == 6
+			and int(restocked.get("units_added", -1)) == 1
+			and is_equal_approx(model.get_component_integrity(component_id), service_integrity)
+			and is_equal_approx(
+				float(craft.get_engineer_repair_state().get("cooldown_remaining", -1.0)),
+				service_cooldown
+			)
+			and craft.get_engineer_status_text() == "IDLE // REPAIR READY\nKITS // 6/6",
+		"landed Jovian service fills only its existing locker and repaints the cabin console"
+	)
 
 	var reset := craft.reset_for_reuse(Transform3D(Basis.IDENTITY, Vector3(4.0, 2.0, 6.0)))
 	_check(bool(reset.get("accepted", false)), "Jovian reuse transaction remains available after role cleanup")
