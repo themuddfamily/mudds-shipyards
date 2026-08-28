@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene load_steps=30 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -35,6 +35,7 @@
 [ext_resource type="Script" path="res://scripts/control/planetary_cruise_production_binding.gd" id="31_cruise_binding"]
 [ext_resource type="Script" path="res://scripts/world/ember_surface_loop_host.gd" id="33_ember_surface_host"]
 [ext_resource type="Script" path="res://scripts/world/ember_surface_berth.gd" id="34_ember_surface_berth"]
+[ext_resource type="PackedScene" path="res://scenes/ships/bulwark_heavy_gunship.tscn" id="35_bulwark"]
 
 [node name="Main" type="Node3D"]
 process_physics_priority = -100
@@ -54,6 +55,8 @@ ship_definition = ExtResource("8_torrent_definition")
 [node name="ZenithInterceptor" parent="." instance=ExtResource("15_zenith")]
 
 [node name="HalyardCrewTransport" parent="." instance=ExtResource("18_halyard")]
+
+[node name="BulwarkHeavyGunship" parent="." instance=ExtResource("35_bulwark")]
 
 [node name="RangeOpponent" parent="." instance=ExtResource("7_opponent")]
 

@@ -2,8 +2,8 @@
 
 `WeaponDefinition` is a strict, reusable Godot `Resource` for authoring one
 weapon configuration. The Resource itself remains a zero-authority Phase 6 data
-foundation. The complete five-craft player fleet converts each distinct weapon
-definition into the existing resolver profile dictionary. The modern role
+foundation. The retained player fleet converts each authored weapon definition
+into the existing resolver profile dictionary. The modern role
 balance changes weapon identity, range, and per-shot damage without altering
 combat source registration, resolver behavior, presentation/audio pools, save
 format, or networking.
@@ -72,7 +72,7 @@ dictionary.
 
 | Registration owner | Source IDs and faction | Weapon profiles | Migration state |
 | --- | --- | --- | --- |
-| `GameFlow` player fleet | Torrent `1101`, Arrow `1102`, Jovian `1103`, Zenith `1104`, Halyard `1105`; `shipyard_flight_test` | All: `range_pulse_cannon` `360 / 50 / 24`. Combat: Torrent `torrent_compact_pulse_cannon` `360 / 34 / 24`; Arrow `arrow_precision_recon_emitter` `480 / 24 / 24`; Jovian `jovian_heavy_defensive_cannon` `650 / 70 / 32`; Zenith `zenith_interceptor_repeater` `420 / 28 / 24`; Halyard `halyard_long_range_defensive_lance` `560 / 52 / 30` | All five combat profiles are converted from their distinct checked-in resources in `assets/weapons/`; no player combat override dictionary entry remains. |
+| `GameFlow` player fleet | Torrent `1101`, Arrow `1102`, Jovian `1103`, Zenith `1104`, Halyard `1105`, Cinder bomber `1106`, Bulwark `1107`; `shipyard_flight_test` | All: `range_pulse_cannon` `360 / 50 / 24`. Combat: Torrent `torrent_compact_pulse_cannon` `360 / 34 / 24`; Arrow `arrow_precision_recon_emitter` `480 / 24 / 24`; Jovian `jovian_heavy_defensive_cannon` `650 / 70 / 32`; Zenith `zenith_interceptor_repeater` `420 / 28 / 24`; Halyard `halyard_long_range_defensive_lance` `560 / 52 / 30`; Cinder `bomber_payload_release` `900 / 80 / 30`; Bulwark pilot `bulwark_sustained_pulse_cannon` `360 / 50 / 24` and gunner `picket_siege_lance` from its checked-in definition. | The six direct-ship pilot combat profiles are converted from distinct checked-in resources in `assets/weapons/`. Bulwark registers its pilot and retained gunner profiles atomically on source `1107`; gunner attachment never replaces an existing pilot dictionary. Cinder's payload profile remains unmigrated. |
 | `GameFlow` range defender | `2101`; `range_defence` | `defence_pulse_cannon` `420 / 11 / 18` | Unmigrated. |
 | `StandoffPicketOpponent` | `2102`; `range_defence` | `picket_lance_cannon` `520 / 21 / 22` | Unmigrated component-local dictionary. |
 | `ResolverBackedOpponent` skirmishers | `2103`, `2104`; `range_defence` | `skirmisher_repeater` `150 / 6 / 22` | Unmigrated component-local dictionary. |
@@ -92,7 +92,7 @@ inherited faction or an exactly matching fixed faction, denied friendly fire,
 and disabled spread/heat/ammunition only. Any unsupported or invalid input
 returns an empty dictionary without a legacy fallback.
 
-The Torrent, Arrow, Jovian, Zenith, and Halyard resources are now the sole
+The Torrent, Arrow, Jovian, Zenith, Halyard, and Bulwark pilot resources are now the sole
 production sources of their respective weapon identity, range, and damage.
 Their distinct registration map is stable: each player source registers only
 the weapon ID assigned to its craft in the table above. Cadence remains exactly

@@ -22,6 +22,7 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	await physics_frame
+	var roster_audit := await _await_settled_roster(game)
 
 	var world := game.get_node("ShipyardWorld") as Node3D
 	var hero := game.get_node("TorrentInterceptor") as HeroShip
@@ -29,6 +30,12 @@ func _run() -> void:
 	var jovian := game.get_node("JovianLightFreighter") as HeroShip
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
 	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
+	var bulwark := game.get_node("BulwarkHeavyGunship") as HeroShip
+	var cinder: HeroShip
+	for craft in game.get_flyable_ships():
+		if craft.get_ship_id() == GameFlow.CINDER_BOMBER_SHIP_ID:
+			cinder = craft
+			break
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 	var hud := game.get_node("HUD") as CanvasLayer
 	var authority := game.call("get_combat_authority") as LiveCombatAuthority
@@ -39,15 +46,21 @@ func _run() -> void:
 		_finish()
 		return
 	resolver.shot_resolved.connect(_on_shot_resolved)
-	# Re-frozen 5 -> 6 when the Halyard crew transport joined the fleet as a
-	# fifth player craft. It is armed, so it registers an authority identity
-	# like the other four; the census is five player craft plus the defender.
-	_check(resolver.get_registered_source_count() == 6, "all five player craft and the defender have registered authority identities")
+	_check(
+		bool(roster_audit.get("valid", false))
+		and int(roster_audit.get("expected_player_source_count", 0)) == 7
+		and int(roster_audit.get("expected_source_count", 0)) == 11
+		and int(roster_audit.get("actual_source_count", 0)) == 11
+		and resolver.get_registered_source_count() == 11,
+		"settled production audit owns seven player, one opponent, and three station sources"
+	)
 	_check(authority.get_source_id(hero) == 1101, "Torrent keeps its explicit stable combat identity")
 	_check(authority.get_source_id(reserve) == 1102, "Arrow owns an explicit stable combat identity")
 	_check(authority.get_source_id(jovian) == 1103, "Jovian owns an explicit stable combat identity")
 	_check(authority.get_source_id(zenith) == 1104, "Zenith owns its protected stable combat identity")
 	_check(authority.get_source_id(halyard) == 1105, "Halyard owns its explicit stable combat identity")
+	_check(cinder != null and authority.get_source_id(cinder) == 1106, "Cinder bomber keeps stable combat identity 1106")
+	_check(authority.get_source_id(bulwark) == 1107, "Bulwark owns unique stable combat identity 1107")
 	_check(authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID, "opponent source keeps its explicit stable combat identity")
 	_check(authority.get_source_id(hero) != authority.get_source_id(reserve), "physical player craft never share a source ledger")
 	_check(
@@ -61,11 +74,13 @@ func _run() -> void:
 		authority.get_source_id(jovian): true,
 		authority.get_source_id(zenith): true,
 		authority.get_source_id(halyard): true,
+		authority.get_source_id(cinder): true,
+		authority.get_source_id(bulwark): true,
 		authority.get_source_id(opponent): true,
 	}
 	_check(
-		production_source_ids.size() == 6,
-		"all five player craft and the defender retain six distinct combat source identities"
+		production_source_ids.size() == 8,
+		"all seven player craft and the defender retain eight distinct combat source identities"
 	)
 	var combat_specs: Array[Dictionary] = [
 		{
@@ -108,6 +123,14 @@ func _run() -> void:
 			"origin_tolerance": 30.0,
 			"name": "Halyard",
 		},
+		{
+			"craft": bulwark,
+			"weapon_id": GameFlow.BULWARK_COMBAT_WEAPON_ID,
+			"range": 360.0,
+			"damage": 50.0,
+			"origin_tolerance": 24.0,
+			"name": "Bulwark",
+		},
 	]
 	var combat_weapon_ids: Array[StringName] = [
 		GameFlow.TORRENT_COMBAT_WEAPON_ID,
@@ -115,6 +138,7 @@ func _run() -> void:
 		GameFlow.ZENITH_COMBAT_WEAPON_ID,
 		GameFlow.JOVIAN_COMBAT_WEAPON_ID,
 		GameFlow.HALYARD_COMBAT_WEAPON_ID,
+		GameFlow.BULWARK_COMBAT_WEAPON_ID,
 	]
 	var combat_profiles: Dictionary = {}
 	var foreign_profiles_absent := true
@@ -142,7 +166,11 @@ func _run() -> void:
 			)
 	_check(
 		foreign_profiles_absent,
-		"every fleet combat profile is absent under all four foreign ship weapon IDs"
+		"every direct fleet combat profile is absent under all five foreign pilot weapon IDs"
+	)
+	_check(
+		not authority.get_weapon_profile(bulwark, GameFlow.BULWARK_CREW_WEAPON_ID).is_empty(),
+		"Bulwark preserves its gunner siege-lance profile beside pilot fire on source 1107"
 	)
 	var foreign_weapon_requests_rejected := true
 	for index in combat_specs.size():
@@ -617,6 +645,19 @@ func _get_live_range_targets(world: Node) -> Array[StaticBody3D]:
 		if candidate.get_meta("is_shipyard_target", false):
 			result.append(candidate as StaticBody3D)
 	return result
+
+
+func _await_settled_roster(game: GameFlow) -> Dictionary:
+	var audit: Dictionary = {}
+	for _attempt in 120:
+		audit = game.get_live_combat_source_roster_audit()
+		if bool(audit.get("valid", false)) \
+				and int(audit.get("expected_player_source_count", 0)) == 7 \
+				and int(audit.get("expected_source_count", 0)) == 11 \
+				and int(audit.get("actual_source_count", 0)) == 11:
+			return audit
+		await process_frame
+	return audit
 
 
 func _make_world_blocker(world_position: Vector3, size: Vector3) -> StaticBody3D:

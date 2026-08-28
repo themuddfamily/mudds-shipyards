@@ -23,6 +23,7 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
+	await _await_settled_roster(game)
 
 	var world := game.get_node_or_null("ShipyardWorld") as Node3D
 	var audio := game.get_node_or_null("AudioDirector") as AudioDirector
@@ -30,7 +31,10 @@ func _run() -> void:
 	var resolver := game.get_combat_resolver() as CombatResolver
 	var pulse := game.get_node_or_null("PulseWeaponPresentation") as PulseWeaponPresentation
 	var opponent := game.get_node_or_null("RangeOpponent") as Node3D
-	var fleet: Array[HeroShip] = game.get_flyable_ships()
+	# Expansion binding completion is intentionally asynchronous. This lifecycle
+	# suite owns the retained direct Main subtree, so select that exact roster by
+	# public ship identity instead of depending on which deferred frame settled.
+	var fleet: Array[HeroShip] = _direct_combat_fleet(game.get_flyable_ships())
 	_check(
 		world != null
 		and audio != null
@@ -38,7 +42,7 @@ func _run() -> void:
 		and resolver != null
 		and pulse != null
 		and opponent != null
-		and fleet.size() == 5,
+		and fleet.size() == 6,
 		"production re-entry fixture exposes the world, audio, pulse, authority, resolver, opponent, and exact fleet"
 	)
 	if (
@@ -48,7 +52,7 @@ func _run() -> void:
 		or resolver == null
 		or pulse == null
 		or opponent == null
-		or fleet.size() != 5
+		or fleet.size() != 6
 	):
 		await _clean_up(game)
 		_finish()
@@ -81,11 +85,14 @@ func _test_whole_main_reentry(
 	var jovian := _ship_by_id(fleet, &"jovian_provisional")
 	var zenith := _ship_by_id(fleet, &"zenith_b7_observed")
 	var halyard := _ship_by_id(fleet, &"halyard_new_design")
+	var bulwark := _ship_by_id(fleet, &"bulwark_heavy_gunship")
 	_check(
-		torrent != null and arrow != null and jovian != null and zenith != null and halyard != null,
-		"whole-tree fixture retains all five exact production ship identities"
+		torrent != null and arrow != null and jovian != null and zenith != null \
+		and halyard != null and bulwark != null,
+		"whole-tree fixture retains all six exact production ship identities"
 	)
-	if torrent == null or arrow == null or jovian == null or zenith == null or halyard == null:
+	if torrent == null or arrow == null or jovian == null or zenith == null \
+			or halyard == null or bulwark == null:
 		return
 	_check(world_owner != null and opponent_ship != null, "re-entry opponent and world targets are correctly typed runtime components")
 	if world_owner == null or opponent_ship == null:
@@ -283,8 +290,9 @@ func _test_whole_main_reentry(
 			and authority.get_source_id(jovian) == 0
 			and authority.get_source_id(zenith) == 0
 			and authority.get_source_id(halyard) == 0
+			and authority.get_source_id(bulwark) == 0
 			and authority.get_source_id(opponent) == 0,
-			"detach cycle %d clears all six source registrations and resolver ownership" % (cycle + 1)
+			"detach cycle %d clears all seven source registrations and resolver ownership" % (cycle + 1)
 		)
 		_check(
 			not bool(detached_audio.resources_ready)
@@ -316,27 +324,24 @@ func _test_whole_main_reentry(
 		await process_frame
 		await physics_frame
 		await process_frame
+		await _await_settled_roster(game)
 		var restored_audio := audio.get_synthesis_report()
 		var restored_resource_ids := restored_audio.resource_instance_ids as Dictionary
 		var unique_resource_ids := {}
 		for instance_id in restored_resource_ids.values():
 			unique_resource_ids[int(instance_id)] = true
-		# Re-frozen 5 -> 6 when the Halyard crew transport landed as the fleet's
-		# fifth armed craft (COMBAT_SOURCE_ID 1105, continuing the 1101-1104 run).
-		# The Halyard pass updated fleet.size() in this file but missed this
-		# assertion, so the census is now five player craft plus the defender.
-		# Intent unchanged: re-entry must restore EXACTLY the registered set, and
-		# the Halyard is enumerated by id rather than absorbed into a count.
 		_check(
-			resolver.get_registered_source_count() == 6
-			and int(authority.get("_registrations_by_instance").size()) == 6
+			resolver.get_registered_source_count() == 11
+			and int(authority.get("_registrations_by_instance").size()) == 11
 			and authority.get_source_id(torrent) == 1101
 			and authority.get_source_id(arrow) == 1102
 			and authority.get_source_id(jovian) == 1103
 			and authority.get_source_id(zenith) == 1104
 			and authority.get_source_id(halyard) == 1105
-			and authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID,
-			"re-entry cycle %d restores the exact six combat authority/resolver sources" % (cycle + 1)
+			and authority.get_source_id(bulwark) == 1107
+			and authority.get_source_id(opponent) == GameFlow.OPPONENT_SOURCE_ID
+			and bool(game.get_live_combat_source_roster_audit().get("valid", false)),
+			"re-entry cycle %d restores the settled exact eleven-source production roster" % (cycle + 1)
 		)
 		_check(
 			bool(restored_audio.resources_ready)
@@ -406,13 +411,14 @@ func _test_whole_main_reentry(
 
 		pulse.clear_effects()
 		var presented_before := int(pulse.get_statistics().presented)
-		var submission_sources: Array[Node3D] = [torrent, arrow, jovian, zenith, halyard, opponent]
+		var submission_sources: Array[Node3D] = [torrent, arrow, jovian, zenith, halyard, bulwark, opponent]
 		var submission_weapons: Array[StringName] = [
 			GameFlow.TORRENT_COMBAT_WEAPON_ID,
 			GameFlow.ARROW_COMBAT_WEAPON_ID,
 			GameFlow.JOVIAN_COMBAT_WEAPON_ID,
 			GameFlow.ZENITH_COMBAT_WEAPON_ID,
 			GameFlow.HALYARD_COMBAT_WEAPON_ID,
+			GameFlow.BULWARK_COMBAT_WEAPON_ID,
 			GameFlow.OPPONENT_WEAPON_ID,
 		]
 		var every_submission_live := true
@@ -432,9 +438,9 @@ func _test_whole_main_reentry(
 			)
 		_check(
 			every_submission_live
-			and int(pulse.get_statistics().presented) == presented_before + 6
+			and int(pulse.get_statistics().presented) == presented_before + 7
 			and pulse.get_active_effect_count() == 6,
-			"re-entry cycle %d accepts live submissions from all six sources and presents each exactly once" % (cycle + 1)
+			"re-entry cycle %d presents all seven live submissions once while Bulwark's adjacent deck impact terminates synchronously" % (cycle + 1)
 		)
 	var queued_health := replay_damageable.get_health()
 	var queued_context := replay_damageable.get_last_hit_context()
@@ -463,11 +469,12 @@ func _test_queued_main_reentry_restore() -> void:
 	await process_frame
 	await physics_frame
 	await process_frame
+	await _await_settled_roster(game)
 	var resolver := game.get_combat_resolver() as CombatResolver
 	var parent := game.get_parent()
 	_check(
-		resolver != null and resolver.get_registered_source_count() == 6,
-		"queued-reentry fixture begins with the live six-source combat registry"
+		resolver != null and resolver.get_registered_source_count() == 11,
+		"queued-reentry fixture begins with the settled eleven-source combat registry"
 	)
 	if resolver == null or parent == null:
 		await _clean_up(game)
@@ -624,6 +631,7 @@ func _test_pre_guide_freeplay_fire_contract(
 		&"jovian_provisional": GameFlow.JOVIAN_COMBAT_WEAPON_ID,
 		&"zenith_b7_observed": GameFlow.ZENITH_COMBAT_WEAPON_ID,
 		&"halyard_new_design": GameFlow.HALYARD_COMBAT_WEAPON_ID,
+		&"bulwark_heavy_gunship": GameFlow.BULWARK_COMBAT_WEAPON_ID,
 	}
 	var all_freeplay_fire_truthful := true
 	for firing_ship in fleet:
@@ -656,7 +664,7 @@ func _test_pre_guide_freeplay_fire_contract(
 	_check(
 		all_freeplay_fire_truthful
 		and is_equal_approx(float(opponent.call("get_health")), opponent_health_before),
-		"all five craft resolve pre-guide freeplay fire through their own weapon profile and stop at world geometry"
+		"all six craft resolve pre-guide freeplay fire through their own weapon profile and stop at world geometry"
 	)
 	game.active_ship = game.get_guided_ship()
 	blocker.queue_free()
@@ -740,6 +748,35 @@ func _ship_by_id(fleet: Array[HeroShip], ship_id: StringName) -> HeroShip:
 	return null
 
 
+func _direct_combat_fleet(fleet: Array[HeroShip]) -> Array[HeroShip]:
+	var direct_ids := {
+		&"torrent_provisional": true,
+		&"arrow_provisional": true,
+		&"jovian_provisional": true,
+		&"zenith_b7_observed": true,
+		&"halyard_new_design": true,
+		&"bulwark_heavy_gunship": true,
+	}
+	var result: Array[HeroShip] = []
+	for candidate in fleet:
+		if direct_ids.has(candidate.get_ship_id()):
+			result.append(candidate)
+	return result
+
+
+func _await_settled_roster(game: GameFlow) -> Dictionary:
+	var audit: Dictionary = {}
+	for _attempt in 120:
+		audit = game.get_live_combat_source_roster_audit()
+		if bool(audit.get("valid", false)) \
+				and int(audit.get("expected_player_source_count", 0)) == 7 \
+				and int(audit.get("expected_source_count", 0)) == 11 \
+				and int(audit.get("actual_source_count", 0)) == 11:
+			return audit
+		await process_frame
+	return audit
+
+
 func _connection_count(source: Object, signal_name: StringName, callback: Callable) -> int:
 	var count := 0
 	for connection: Dictionary in source.get_signal_connection_list(signal_name):
@@ -757,9 +794,19 @@ func _descendant_instance_ids(search_root: Node) -> PackedInt64Array:
 		# lifecycle state rather than authored Main hierarchy identity.
 		if _is_pilot_compat_physical_bone_simulator(node):
 			continue
+		if _is_optional_semantic_runtime_adapter(node):
+			continue
 		ids.append(node.get_instance_id())
 	ids.sort()
 	return ids
+
+
+func _is_optional_semantic_runtime_adapter(node: Node) -> bool:
+	# The optional-audio composition recreates two unnamed presentation adapters
+	# on each attach. They are not authored Main hierarchy or gameplay identity.
+	return node.get_parent() != null \
+		and node.get_parent().name == &"OptionalSemanticAudioComposition" \
+		and String(node.name).begins_with("@Node@")
 
 
 func _is_pilot_compat_physical_bone_simulator(node: Node) -> bool:

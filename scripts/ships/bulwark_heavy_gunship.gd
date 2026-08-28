@@ -21,7 +21,7 @@ const SiegeLanceAudioBindingType := preload("res://scripts/audio/siege_lance_aud
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
 const SCHEMA_VERSION := 1
-const COMBAT_SOURCE_ID := 1106
+const COMBAT_SOURCE_ID := 1107
 const EVIDENCE_STATUS: StringName = &"new"
 const EVIDENCE_STATUS_ENUM: int = ShipDefinition.EvidenceStatus.NEW
 const EVIDENCE_SCOPE: StringName = &"original_modern_design"
@@ -1011,12 +1011,19 @@ func attach_gunner_combat_authority(authority: LiveCombatAuthority) -> Dictionar
 	)
 	if profiles.is_empty():
 		return _crew_role_result(false, &"siege_lance_definition_invalid")
-	_gunner_combat_authority = authority
-	var registered_profile := authority.get_weapon_profile(self, BULWARK_CREW_WEAPON_ID)
-	if registered_profile.is_empty():
+	var registered_source_id := authority.get_source_id(self)
+	if registered_source_id > 0:
+		if registered_source_id != COMBAT_SOURCE_ID \
+				or authority.get_source_faction(self) != BULWARK_CREW_FACTION_ID:
+			return _crew_role_result(false, &"combat_source_identity_mismatch")
+		if authority.get_weapon_profile(self, BULWARK_CREW_WEAPON_ID).is_empty():
+			# Registration replaces the source's entire weapon dictionary. Never
+			# repair a production pilot-only source here by erasing its pilot profile.
+			return _crew_role_result(false, &"siege_lance_profile_missing")
+	else:
 		if not authority.register_source(self, COMBAT_SOURCE_ID, BULWARK_CREW_FACTION_ID, profiles):
-			_gunner_combat_authority = null
 			return _crew_role_result(false, &"combat_source_registration_failed")
+	_gunner_combat_authority = authority
 	return {
 		"accepted": true,
 		"status": &"combat_authority_attached",
