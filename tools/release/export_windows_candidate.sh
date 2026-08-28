@@ -37,7 +37,14 @@ if [[ ! "$short_commit" =~ ^[0-9a-f]{7}$ ]]; then
 	die "Git did not return an exact seven-character source revision"
 fi
 
-build_root="$(realpath -m -- "$REPO_ROOT/builds/windows")"
+builds_root="$REPO_ROOT/builds"
+build_root="$builds_root/windows"
+if [[ -L "$builds_root" || -L "$build_root" ]]; then
+	die "build roots must not be symlinks"
+fi
+mkdir -p -- "$build_root"
+[[ -d "$builds_root" && -d "$build_root" ]] || die "build roots must be directories"
+build_root="$(realpath -e -- "$build_root")"
 requested_output="${1:-builds/windows/MuddsShipyards-${short_commit}.exe}"
 if [[ "$requested_output" == /* ]]; then
 	output_candidate="$requested_output"
@@ -67,16 +74,31 @@ done
 
 output_directory="$(dirname -- "$output_path")"
 mkdir -p -- "$output_directory"
+while [[ "$output_directory" != "$build_root" ]]; do
+	[[ ! -L "$output_directory" ]] || die "output path contains a symlink"
+	output_directory="$(dirname -- "$output_directory")"
+done
+
+temporary_output="$(mktemp "$build_root/.MuddsShipyards-${short_commit}.XXXXXX.exe")" \
+	|| die "cannot reserve temporary output"
+cleanup_temporary() { rm -f -- "$temporary_output"; }
+trap cleanup_temporary EXIT
 
 "$godot_bin" \
 	--headless \
 	--path "$REPO_ROOT" \
 	--export-release "Windows Desktop" \
-	"$output_path"
+	"$temporary_output"
 
-if [[ ! -s "$output_path" ]]; then
-	die "Godot did not create a nonempty Windows executable: $output_path"
+if [[ ! -s "$temporary_output" ]]; then
+	die "Godot did not create a nonempty Windows executable"
 fi
+
+if [[ -e "$output_path" || -L "$output_path" ]]; then
+	die "refusing to overwrite existing output: $output_path"
+fi
+mv -n -- "$temporary_output" "$output_path" || die "cannot publish Windows executable"
+trap - EXIT
 
 byte_size="$(stat -c '%s' -- "$output_path")"
 sha256="$(sha256sum -- "$output_path" | awk '{print $1}')"
