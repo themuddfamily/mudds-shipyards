@@ -67,7 +67,7 @@ func _initialize() -> void:
 	if player == null:
 		_finish(game)
 		return
-	var expansion_ids := [&"cinder-cargo-hauler", &"cinder-long-range-bomber", &"cinder-light-interceptor"]
+	var expansion_ids := [&"cinder-cargo-hauler", &"cinder-long-range-bomber", &"cinder_light_interceptor"]
 	for craft_id: StringName in expansion_ids:
 		var craft := _find_craft(game.get_flyable_ships(), craft_id)
 		_check(craft != null, "%s is registered for physical switching" % craft_id)

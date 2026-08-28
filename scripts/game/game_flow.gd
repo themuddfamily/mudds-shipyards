@@ -249,6 +249,7 @@ const PLAYER_SOURCE_IDS := {
 	&"halyard_new_design": 1105,
 	&"cinder-long-range-bomber": 1106,
 	&"bulwark_heavy_gunship": 1107,
+	&"cinder_light_interceptor": 1108,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -335,6 +336,14 @@ const BULWARK_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUD
 const BULWARK_COMBAT_WEAPON_DEFINITION := preload(
 	"res://assets/weapons/bulwark_combat_pulse.tres"
 )
+const CINDER_LIGHT_INTERCEPTOR_SHIP_ID: StringName = &"cinder_light_interceptor"
+const CINDER_LIGHT_INTERCEPTOR_LEGACY_SHIP_ID: StringName = &"cinder-light-interceptor"
+const CINDER_LIGHT_INTERCEPTOR_WEAPON_ID: StringName = &"cinder_light_repeater"
+const CINDER_LIGHT_INTERCEPTOR_ORIGIN_TOLERANCE_METERS := 24.0
+const CINDER_LIGHT_INTERCEPTOR_PRESENTATION_ID: StringName = &"cyan"
+const CINDER_LIGHT_INTERCEPTOR_FIRE_AUDIO_ID: StringName = &"player_pulse_fire"
+const CINDER_LIGHT_INTERCEPTOR_IMPACT_AUDIO_ID: StringName = &"hull_impact_medium"
+const CINDER_LIGHT_INTERCEPTOR_DRY_FIRE_AUDIO_ID: StringName = &"dry_fire_click"
 const CINDER_BOMBER_SHIP_ID: StringName = &"cinder-long-range-bomber"
 const CINDER_BOMBER_WEAPON_ID: StringName = &"bomber_payload_release"
 const PLAYER_PULSE_NETWORK_MAX_PENDING := 32
@@ -1293,10 +1302,18 @@ func _restore_cargo_delivery_bindings() -> bool:
 
 
 func _find_flyable_ship_by_id(ship_id: StringName) -> HeroShip:
+	var canonical_ship_id := _canonicalize_flyable_ship_id(ship_id)
 	for fleet_ship: HeroShip in ships:
-		if is_instance_valid(fleet_ship) and fleet_ship.get_ship_id() == ship_id:
+		if is_instance_valid(fleet_ship) \
+				and fleet_ship.get_ship_id() == canonical_ship_id:
 			return fleet_ship
 	return null
+
+
+func _canonicalize_flyable_ship_id(ship_id: StringName) -> StringName:
+	if ship_id == CINDER_LIGHT_INTERCEPTOR_LEGACY_SHIP_ID:
+		return CINDER_LIGHT_INTERCEPTOR_SHIP_ID
+	return ship_id
 
 
 ## Owns one lifetime-stable adapter of each supported presentation kind, while
@@ -1570,8 +1587,8 @@ func _initialize_cinder_convoy_session_persistence() -> void:
 	)
 	if not bool(restored.get("accepted", false)):
 		return
-	_cinder_convoy_restored_ship_id = StringName(
-		str(session_state.get("escort_ship_id", ""))
+	_cinder_convoy_restored_ship_id = _canonicalize_flyable_ship_id(
+		StringName(str(session_state.get("escort_ship_id", "")))
 	)
 	_cinder_convoy_runtime_rebind_pending = true
 	_selected_activity_kind = ACTIVITY_KIND_CONVOY_ESCORT
@@ -9372,9 +9389,9 @@ func _initialize_live_combat() -> void:
 	for fleet_ship in ships:
 		var source_id := int(PLAYER_SOURCE_IDS.get(fleet_ship.get_ship_id(), 0))
 		if source_id <= 0:
-			# Production expansion craft are flyable/boardable HeroShips, but
-			# explicitly do not own combat authority until their combat contract is
-			# authored. Keep them in switching while leaving live combat fail-closed.
+			# Expansion craft without a complete combat contract remain flyable and
+			# boardable but fail closed here. The Cinder light interceptor is now the
+			# first nested craft to cross this gate with a full production repeater.
 			continue
 		expected_player_sources += 1
 		if source_owners.has(source_id):
@@ -9648,6 +9665,14 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 		profiles[BULWARK_COMBAT_WEAPON_ID] = migrated_profile
 		profiles[BULWARK_CREW_WEAPON_ID] = gunner_profile.duplicate(true)
 		return profiles
+	if candidate.get_ship_id() == CINDER_LIGHT_INTERCEPTOR_SHIP_ID:
+		var migrated_profile := _get_cinder_light_interceptor_combat_weapon_profile(
+			candidate
+		)
+		if migrated_profile.is_empty():
+			return {}
+		profiles[CINDER_LIGHT_INTERCEPTOR_WEAPON_ID] = migrated_profile
+		return profiles
 	if candidate.get_ship_id() == CINDER_BOMBER_SHIP_ID:
 		profiles[CINDER_BOMBER_WEAPON_ID] = CINDER_BOMBER_PAYLOAD_PROFILE.duplicate(true)
 		return profiles
@@ -9670,6 +9695,8 @@ func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
 			return HALYARD_COMBAT_WEAPON_ID
 		BULWARK_SHIP_ID:
 			return BULWARK_COMBAT_WEAPON_ID
+		CINDER_LIGHT_INTERCEPTOR_SHIP_ID:
+			return CINDER_LIGHT_INTERCEPTOR_WEAPON_ID
 		_:
 			return &""
 
@@ -9749,6 +9776,25 @@ func _get_bulwark_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 		BULWARK_COMBAT_FIRE_AUDIO_ID,
 		BULWARK_COMBAT_IMPACT_AUDIO_ID,
 		BULWARK_COMBAT_DRY_FIRE_AUDIO_ID
+	)
+
+
+func _get_cinder_light_interceptor_combat_weapon_profile(
+	candidate: HeroShip
+	) -> Dictionary:
+	if not is_instance_valid(candidate) \
+			or not candidate.has_method(&"get_weapon_definition"):
+		return {}
+	var definition := candidate.call(&"get_weapon_definition") as WeaponDefinition
+	return _get_migrated_player_combat_weapon_profile(
+		candidate,
+		definition,
+		CINDER_LIGHT_INTERCEPTOR_WEAPON_ID,
+		CINDER_LIGHT_INTERCEPTOR_ORIGIN_TOLERANCE_METERS,
+		CINDER_LIGHT_INTERCEPTOR_PRESENTATION_ID,
+		CINDER_LIGHT_INTERCEPTOR_FIRE_AUDIO_ID,
+		CINDER_LIGHT_INTERCEPTOR_IMPACT_AUDIO_ID,
+		CINDER_LIGHT_INTERCEPTOR_DRY_FIRE_AUDIO_ID
 	)
 
 

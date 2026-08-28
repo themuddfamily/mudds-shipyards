@@ -188,8 +188,8 @@ func _test_activity_board_console(game: GameFlow, player: PlayerController) -> v
 		is_instance_valid(combat_authority)
 		and is_instance_valid(combat_resolver)
 		and bool(startup_roster.get("valid", false))
-		and int(startup_roster.get("actual_source_count", -1)) == 11
-		and int(startup_roster.get("expected_source_count", -1)) == 11
+		and int(startup_roster.get("actual_source_count", -1)) == 12
+		and int(startup_roster.get("expected_source_count", -1)) == 12
 		and int(startup_roster.get("expected_station_defense_source_count", -1)) == 3,
 		"startup owns the exact player, range, station-defense, and retained heavy-picket source roster"
 	)
@@ -217,14 +217,14 @@ func _test_activity_board_console(game: GameFlow, player: PlayerController) -> v
 		game.get_combat_authority().get_instance_id() == authority_instance_id
 		and game.get_combat_resolver().get_instance_id() == resolver_instance_id
 		and bool(rebound_roster.get("valid", false))
-		and int(rebound_roster.get("actual_source_count", -1)) == 11
-		and int(rebound_roster.get("expected_source_count", -1)) == 11
+		and int(rebound_roster.get("actual_source_count", -1)) == 12
+		and int(rebound_roster.get("expected_source_count", -1)) == 12
 		and int(rebound_roster.get("expected_station_defense_source_count", -1)) == 3
 		and int(
 			(rebound_roster.get("station_defense_sources", {}) as Dictionary)
 				.get("exact_registration_count", -1)
 		) == 4,
-		"retained Main restores eleven exact source identities once on the same combat authority and resolver"
+		"retained Main restores twelve exact source identities once on the same combat authority and resolver"
 	)
 
 

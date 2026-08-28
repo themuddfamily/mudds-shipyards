@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_definition")
-ship_id = &"cinder-light-interceptor"
+ship_id = &"cinder_light_interceptor"
 display_name = "Cinder Light Interceptor"
 role_name = "Light interceptor"
 evidence_status = 2

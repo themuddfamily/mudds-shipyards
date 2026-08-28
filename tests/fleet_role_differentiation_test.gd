@@ -87,7 +87,7 @@ const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.
 const EXPANDED_DEFINITIONS := {
 	&"cinder-cargo-hauler": preload("res://assets/ships/cinder_cargo_hauler_new_design.tres"),
 	&"cinder-long-range-bomber": preload("res://assets/ships/cinder_long_range_bomber_new_design.tres"),
-	&"cinder-light-interceptor": preload("res://assets/ships/cinder_light_interceptor_new_design.tres"),
+	&"cinder_light_interceptor": preload("res://assets/ships/cinder_light_interceptor_new_design.tres"),
 }
 # One implementation of the sRGB -> Viénot dichromat -> CIE L*a*b* -> CIEDE2000
 # chain, shared with the design probes that chose the palette below.
@@ -260,7 +260,7 @@ const HEAD_HULL_CLEARANCE_MINIMUM := 0.5
 const SEAT_TO_COCKPIT_CAMERA_RISE := 1.76
 
 const FLEET_SIZE := 5
-const PRODUCTION_FLEET_SIZE := 8
+const PRODUCTION_FLEET_SIZE := 9
 const FIGHTER_IDS := [&"torrent_provisional", &"arrow_provisional", &"zenith_b7_observed"]
 ## Craft that publish a connected walkable interior, with the per-craft floors
 ## their own hulls have to keep. The suite used to assert that exactly one craft
@@ -467,9 +467,9 @@ func _test_role_differentiation(by_id: Dictionary) -> void:
 
 	# Frozen role signatures. Each craft is the sole extreme on its own axis.
 	_check(
-		_is_sole_extreme(profiles, &"jovian_provisional", "maximum_hull", true)
-		and _is_sole_extreme(profiles, &"jovian_provisional", "maximum_speed", false),
-		"the freighter alone owns the highest hull and the lowest top speed"
+		_is_sole_extreme(profiles, &"jovian_provisional", "maximum_speed", false)
+		and _is_sole_extreme(profiles, &"bulwark_heavy_gunship", "maximum_hull", true),
+		"the Jovian freighter alone owns the lowest top speed while Bulwark owns the highest hull"
 	)
 	_check(
 		_is_sole_extreme(profiles, &"zenith_b7_observed", "roll_speed_degrees", true)

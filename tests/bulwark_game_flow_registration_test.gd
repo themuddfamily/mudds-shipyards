@@ -137,10 +137,10 @@ func _initialize() -> void:
 	)
 	_check(
 		bool(roster_audit.get("valid", false))
-		and int(roster_audit.get("expected_player_source_count", 0)) == 7
-		and int(roster_audit.get("expected_source_count", 0)) == 11
-		and int(roster_audit.get("actual_source_count", 0)) == 11,
-		"settled public roster contains seven player sources and eleven exact total sources"
+		and int(roster_audit.get("expected_player_source_count", 0)) == 8
+		and int(roster_audit.get("expected_source_count", 0)) == 12
+		and int(roster_audit.get("actual_source_count", 0)) == 12,
+		"settled public roster contains eight player sources and twelve exact total sources"
 	)
 	if not capture_path.is_empty():
 		await _capture_main_dock03_boarding_hud(flow, bulwark, capture_path)
@@ -168,9 +168,9 @@ func _await_settled_roster(flow: GameFlow) -> Dictionary:
 	for _attempt in 120:
 		audit = flow.get_live_combat_source_roster_audit()
 		if bool(audit.get("valid", false)) \
-				and int(audit.get("expected_player_source_count", 0)) == 7 \
-				and int(audit.get("expected_source_count", 0)) == 11 \
-				and int(audit.get("actual_source_count", 0)) == 11:
+				and int(audit.get("expected_player_source_count", 0)) == 8 \
+				and int(audit.get("expected_source_count", 0)) == 12 \
+				and int(audit.get("actual_source_count", 0)) == 12:
 			return audit
 		await process_frame
 	return audit

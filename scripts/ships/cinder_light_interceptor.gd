@@ -3,12 +3,15 @@ extends HeroShip
 
 const WeaponDefinitionType := preload("res://scripts/combat/weapon_definition.gd")
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
+const SHIP_DEFINITION_TEMPLATE: ShipDefinition = preload(
+	"res://assets/ships/cinder_light_interceptor_new_design.tres"
+)
 
 ## Original-modern lightweight interceptor. No historical craft, weapon, or
 ## combat claim is authenticated here.
 
 const SCHEMA_VERSION := 1
-const COMPONENT_ID: StringName = &"cinder-light-interceptor"
+const COMPONENT_ID: StringName = &"cinder_light_interceptor"
 const EVIDENCE_STATUS: StringName = &"NEW"
 const DISPLAY_NAME := "Cinder light interceptor"
 const HULL_SIZE := Vector3(4.8, 2.5, 8.8)
@@ -128,6 +131,11 @@ func _uses_torrent_reconstruction_presentation() -> bool:
 
 
 func _ready() -> void:
+	# Production composition instantiates this script directly rather than a
+	# packed scene, so the authored handling resource must be installed here
+	# before HeroShip consumes it. A per-craft copy prevents one live instance or
+	# test probe from mutating the template used by another generation.
+	ship_definition = SHIP_DEFINITION_TEMPLATE.duplicate(true) as ShipDefinition
 	_weapon_definition = _build_weapon_definition()
 	ship_id = COMPONENT_ID
 	display_name = DISPLAY_NAME
@@ -223,6 +231,18 @@ func get_audit_report() -> Dictionary:
 		errors.append("interceptor requires HeroShip root collision")
 	if not bool(speed_silhouette.get("valid", false)):
 		errors.append("interceptor speed-silhouette presentation drifted")
+	if ship_definition == null \
+			or not ship_definition.is_definition_valid() \
+			or ship_definition.get_ship_id() != COMPONENT_ID:
+		errors.append("authored interceptor flight definition is not applied")
+	if _weapon_definition == null \
+			or not _weapon_definition.is_definition_valid() \
+			or _weapon_definition.weapon_id != WEAPON_ID \
+			or not is_equal_approx(
+				_weapon_definition.cadence_shots_per_second,
+				1.0 / maxf(weapon_cooldown, 0.001)
+			):
+		errors.append("rapid repeater definition disagrees with the live fire gate")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -308,17 +328,23 @@ func get_speed_silhouette_visual_audit() -> Dictionary:
 func _build_weapon_definition() -> WeaponDefinition:
 	var definition := WeaponDefinitionType.new() as WeaponDefinition
 	definition.weapon_id = WEAPON_ID
-	definition.display_name = "Cinder light repeater"
+	definition.display_name = "Cinder rapid repeater"
 	definition.resolution_mode = WeaponDefinition.ResolutionMode.HITSCAN
 	definition.evidence_status = WeaponDefinition.EvidenceStatus.NEW
 	definition.evidence_notes = "Original-modern lightweight interceptor tuning; not a recovered historical weapon specification."
 	definition.range_meters = 320.0
 	definition.damage_per_hit = 18.0
-	definition.cadence_shots_per_second = 6.0
-	definition.presentation_id = &"cinder_light_repeater"
-	definition.fire_audio_id = &"cinder_light_repeater_fire"
-	definition.impact_audio_id = &"cinder_light_repeater_impact"
-	definition.dry_fire_audio_id = &"cinder_light_repeater_dry_fire"
+	definition.cadence_shots_per_second = (
+		1.0 / maxf(ship_definition.weapon_cooldown, 0.001)
+		if ship_definition != null else 1.0 / 0.28
+	)
+	# The first production slice deliberately reuses the bounded cyan pulse pool
+	# and resident player fire/impact bank. These IDs describe what the running
+	# game actually presents; no parallel effect or audio authority is implied.
+	definition.presentation_id = &"cyan"
+	definition.fire_audio_id = &"player_pulse_fire"
+	definition.impact_audio_id = &"hull_impact_medium"
+	definition.dry_fire_audio_id = &"dry_fire_click"
 	return definition
 
 
