@@ -3,9 +3,7 @@ extends SceneTree
 ## Adversarial production-world contract for the six authored berth-feedback
 ## components. Every destructive probe restores the same cached production
 ## instances and proves that the audit returns to its exact component-clean
-## baseline. The world wrapper still carries the pre-existing four-material
-## roster while each current component intentionally owns two; this test accepts
-## only that exact wrapper mismatch and no additional error.
+## baseline.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const BERTH_SCENE := preload("res://scenes/world/components/ship_berth.tscn")
@@ -151,7 +149,7 @@ func _run() -> void:
 
 func _test_pristine_contract(world: ShipyardWorld) -> void:
 	var report := world.get_ship_berth_feedback_audit_report()
-	_check(_report_matches_component_baseline(report), "pristine production berth-feedback audit has only the known legacy world material-roster mismatch")
+	_check(_report_matches_component_baseline(report), "pristine production berth-feedback audit is component-clean")
 	_check(
 		int(report.get("schema_version", 0)) == 2
 		and int(report.get("component_count", 0)) == 6
@@ -522,17 +520,7 @@ func _test_material_identity_drift(world: ShipyardWorld) -> void:
 
 func _report_matches_component_baseline(report: Dictionary) -> bool:
 	var errors := report.get("errors", PackedStringArray()) as PackedStringArray
-	if bool(report.get("valid", false)) and errors.is_empty():
-		return true
-	var expected := PackedStringArray([
-		"feedback_material_ids_do_not_match_production_contract",
-	])
-	for berth_id in EXPECTED_BERTH_IDS:
-		expected.append("feedback_%s_material_id_count_drift" % berth_id)
-	errors = errors.duplicate()
-	errors.sort()
-	expected.sort()
-	return not bool(report.get("valid", true)) and errors == expected
+	return bool(report.get("valid", false)) and errors.is_empty()
 
 
 func _errors_have(report: Dictionary, expected_error: String) -> bool:

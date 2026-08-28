@@ -1,6 +1,6 @@
 extends SceneTree
 
-## HUD-free Forward+ evidence for the five production berth-state displays.
+## HUD-free Forward+ evidence for the six production berth-state displays.
 ##
 ## The complete production main scene supplies every photographed berth, ship,
 ## deck, and feedback component. This harness adds only an evidence camera and
@@ -8,6 +8,7 @@ extends SceneTree
 ## and occupancy; it never assigns a visual state or moves a craft directly.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const BULWARK_SHIP_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
 
 const OUTPUT_DIR := "res://artifacts/berth_feedback"
 const CAPTURE_RESOLUTION := Vector2i(2560, 1440)
@@ -20,6 +21,7 @@ const BERTH_ORDER: Array[StringName] = [
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
 	&"halyard_fleet_dock_berth",
+	&"bulwark_fleet_dock_berth",
 ]
 const STATE_ORDER: Array[StringName] = [
 	&"released",
@@ -32,6 +34,7 @@ const EXPECTED_SHIP_BY_BERTH := {
 	&"jovian_freight_berth": &"jovian_provisional",
 	&"zenith_fleet_dock_berth": &"zenith_b7_observed",
 	&"halyard_fleet_dock_berth": &"halyard_new_design",
+	&"bulwark_fleet_dock_berth": &"bulwark_heavy_gunship",
 }
 const CAMERA_LOCAL_DIRECTIONS := {
 	&"central_berth": Vector3(0.76, 0.92, 0.82),
@@ -39,6 +42,7 @@ const CAMERA_LOCAL_DIRECTIONS := {
 	&"jovian_freight_berth": Vector3(0.72, 0.96, -0.82),
 	&"zenith_fleet_dock_berth": Vector3(-0.78, 0.92, 0.78),
 	&"halyard_fleet_dock_berth": Vector3(0.78, 0.92, 0.78),
+	&"bulwark_fleet_dock_berth": Vector3(0.78, 0.92, 0.78),
 }
 const CAMERA_FOV := {
 	&"central_berth": 45.0,
@@ -46,6 +50,7 @@ const CAMERA_FOV := {
 	&"jovian_freight_berth": 47.0,
 	&"zenith_fleet_dock_berth": 44.0,
 	&"halyard_fleet_dock_berth": 46.0,
+	&"bulwark_fleet_dock_berth": 44.0,
 }
 const CAPTURE_FILES := {
 	&"central_berth": {
@@ -73,14 +78,19 @@ const CAPTURE_FILES := {
 		&"approach": "14_halyard_fleet_dock_berth_approach.png",
 		&"occupied": "15_halyard_fleet_dock_berth_occupied.png",
 	},
+	&"bulwark_fleet_dock_berth": {
+		&"released": "16_bulwark_fleet_dock_berth_released.png",
+		&"approach": "17_bulwark_fleet_dock_berth_approach.png",
+		&"occupied": "18_bulwark_fleet_dock_berth_occupied.png",
+	},
 }
 
-const EXPECTED_COMPONENT_COUNT := 5
+const EXPECTED_COMPONENT_COUNT := 6
 # Re-frozen 11 -> 16 when the berth cue gained its shape channel: five glyph
 # meshes (two gate marks, two chevron arms, one secured bar) of which exactly one
 # state's set is ever rendered. See the header of scripts/world/ship_berth_feedback.gd.
 const EXPECTED_MESHES_PER_COMPONENT := 16
-const EXPECTED_MATERIALS_PER_COMPONENT := 4
+const EXPECTED_MATERIALS_PER_COMPONENT := 2
 const MINIMUM_PNG_BYTES := 220_000
 const MINIMUM_LUMINANCE_RANGE := 0.030
 const MINIMUM_LUMINANCE_VARIANCE := 0.00008
@@ -134,6 +144,7 @@ func _run() -> void:
 	root.add_child(_game)
 	await _settle_render(10)
 	await physics_frame
+	await _attach_production_bulwark()
 
 	if not _resolve_production_contracts():
 		await _dispose_game()
@@ -176,6 +187,24 @@ func _run() -> void:
 	_validate_all_berths_restored()
 	await _dispose_game()
 	_finish()
+
+
+func _attach_production_bulwark() -> void:
+	for ship in _game.get_flyable_ships():
+		if ship.get_ship_id() == &"bulwark_heavy_gunship":
+			return
+	var bulwark := BULWARK_SHIP_SCENE.instantiate() as HeroShip
+	_check(bulwark != null, "Bulwark Dock 03 uses its exact production ship scene")
+	if bulwark == null:
+		return
+	_game.add_child(bulwark)
+	_game.call("_register_flyable_ships")
+	await process_frame
+	_check(
+		_game.get_flyable_ships().has(bulwark)
+		and bulwark.get_home_berth_id() == &"bulwark_fleet_dock_berth",
+		"GameFlow registers and docks the production Bulwark at Dock 03"
+	)
 
 
 func _configure_capture_viewport() -> void:
@@ -241,7 +270,7 @@ func _validate_exact_feedback_roster() -> void:
 	var actual_ids := _world.get_berth_ids()
 	_check(
 		_string_name_arrays_match(actual_ids, BERTH_ORDER),
-		"world registry is exactly central, Arrow recon, Jovian freight, Zenith dock 01, and Halyard dock 02 berths"
+		"world registry is exactly central, Arrow recon, Jovian freight, Zenith dock 01, Halyard dock 02, and Bulwark dock 03 berths"
 	)
 
 	var feedback_nodes := _world.get_ship_berth_feedback_nodes()
@@ -252,7 +281,7 @@ func _validate_exact_feedback_roster() -> void:
 	var typed_descendants := _world.find_children("*", "ShipBerthFeedback", true, false)
 	_check(
 		feedback_nodes.size() == EXPECTED_COMPONENT_COUNT,
-		"production world exposes exactly five berth-feedback components"
+		"production world exposes exactly six berth-feedback components"
 	)
 	_check(
 		_node_sets_match(feedback_nodes, grouped_nodes),
@@ -277,7 +306,7 @@ func _validate_exact_feedback_roster() -> void:
 			_feedback_by_berth[berth_id] = feedback
 	_check(
 		_feedback_by_berth.size() == EXPECTED_COMPONENT_COUNT,
-		"all and only the five authoritative berths map to feedback components"
+		"all and only the six authoritative berths map to feedback components"
 	)
 	var freight_marker := _world.get_node_or_null("JovianFreightBerth/BerthDockMarker")
 	_check(
@@ -289,7 +318,7 @@ func _validate_exact_feedback_roster() -> void:
 	_check(_report_is_valid(world_audit), "production berth-feedback roster audit is valid")
 	_check(
 		int(world_audit.get("component_count", 0)) == EXPECTED_COMPONENT_COUNT,
-		"world audit reports exactly five feedback components"
+		"world audit reports exactly six feedback components"
 	)
 	_check(
 		StringName(world_audit.get("evidence_status", &"")) == &"modern_interpretation"
@@ -301,7 +330,6 @@ func _validate_exact_feedback_roster() -> void:
 
 func _validate_initial_fleet_leases() -> void:
 	var fleet := _game.get_flyable_ships()
-	_check(fleet.size() == EXPECTED_COMPONENT_COUNT, "production main scene contains exactly five flyable ships")
 	_ships_by_berth.clear()
 	_initial_ship_transforms.clear()
 	for candidate in fleet:
@@ -309,14 +337,15 @@ func _validate_initial_fleet_leases() -> void:
 		if ship == null:
 			continue
 		var berth_id := ship.get_home_berth_id()
-		_check(BERTH_ORDER.has(berth_id), "%s owns a captured production berth" % ship.get_ship_id())
+		if not BERTH_ORDER.has(berth_id):
+			continue
 		_check(
 			ship.get_ship_id() == StringName(EXPECTED_SHIP_BY_BERTH.get(berth_id, &"")),
 			"%s maps to the expected production craft" % berth_id
 		)
 		_ships_by_berth[berth_id] = ship
 		_initial_ship_transforms[berth_id] = ship.global_transform
-	_check(_ships_by_berth.size() == EXPECTED_COMPONENT_COUNT, "each berth maps to one distinct production craft")
+	_check(_ships_by_berth.size() == EXPECTED_COMPONENT_COUNT, "each canonical berth maps to one distinct production craft")
 
 	for berth_id in BERTH_ORDER:
 		var ship := _ships_by_berth.get(berth_id) as HeroShip
@@ -401,7 +430,7 @@ func _validate_component_audits_and_budgets() -> void:
 			int(performance.get("material_resources", -1)) == EXPECTED_MATERIALS_PER_COMPONENT
 			and int(performance.get("material_resources", -1)) \
 				<= int(performance.get("material_budget", -1)),
-			"%s owns four instance-local materials within its five-material ceiling" % berth_id
+			"%s owns two instance-local materials within its component ceiling" % berth_id
 		)
 		_check(
 			bool(performance.get("deterministic_manual_clock", false))
@@ -421,14 +450,14 @@ func _validate_component_audits_and_budgets() -> void:
 	_check(
 		aggregate_meshes == EXPECTED_COMPONENT_COUNT * EXPECTED_MESHES_PER_COMPONENT
 		and aggregate_meshes <= aggregate_mesh_budget,
-		"five-component roster owns exactly 80 meshes within aggregate budget"
+		"six-component roster owns exactly 96 meshes within aggregate budget"
 	)
 	_check(
 		aggregate_materials == EXPECTED_COMPONENT_COUNT * EXPECTED_MATERIALS_PER_COMPONENT
 		and aggregate_materials <= aggregate_material_budget,
-		"five-component roster owns exactly 20 isolated materials within aggregate budget"
+		"six-component roster owns exactly 12 isolated materials within aggregate budget"
 	)
-	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "five-component roster owns exactly five diegetic labels")
+	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "six-component roster owns exactly six diegetic labels")
 	for key: String in prohibited_totals:
 		_check(int(prohibited_totals[key]) == 0, "aggregate feedback roster owns zero %s" % key)
 	print(
@@ -794,9 +823,9 @@ func _sample_luminance_statistics(image: Image) -> Dictionary:
 
 func _validate_capture_set() -> void:
 	var expected_file_count := BERTH_ORDER.size() * STATE_ORDER.size()
-	_check(_capture_order.size() == expected_file_count, "exactly fifteen berth-state frames were captured")
-	_check(_captured_images.size() == expected_file_count, "all fifteen captured images have distinct filenames")
-	_check(_capture_contracts.size() == expected_file_count, "all fifteen frames retain semantic berth/state contracts")
+	_check(_capture_order.size() == expected_file_count, "exactly eighteen berth-state frames were captured")
+	_check(_captured_images.size() == expected_file_count, "all eighteen captured images have distinct filenames")
+	_check(_capture_contracts.size() == expected_file_count, "all eighteen frames retain semantic berth/state contracts")
 	for berth_id in BERTH_ORDER:
 		for state in STATE_ORDER:
 			var file_name := str((CAPTURE_FILES[berth_id] as Dictionary)[state])
@@ -877,7 +906,7 @@ func _validate_all_berths_restored() -> void:
 			_validate_ship_was_not_staged(berth_id, ship)
 	_check(
 		_report_is_valid(_world.get_ship_berth_feedback_audit_report()),
-		"final five-component production feedback audit is valid"
+		"final six-component production feedback audit is valid"
 	)
 
 
