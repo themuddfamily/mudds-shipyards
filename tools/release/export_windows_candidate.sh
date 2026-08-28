@@ -120,8 +120,48 @@ fi
 
 temporary_output="$(mktemp "$build_fd_path/.MuddsShipyards-${short_commit}.XXXXXX.exe")" \
 	|| die "cannot reserve temporary output"
-cleanup_temporary() { rm -f -- "$temporary_output"; }
-trap cleanup_temporary EXIT
+temporary_identity="$(identity_of "$temporary_output")" \
+	|| die "cannot identify reserved temporary output"
+artifact_identity=""
+published=0
+successful_publication=0
+
+cleanup_release() {
+	local status=$?
+	local current_identity=""
+	trap - EXIT
+	set +e
+
+	# The EXIT check is the last observation this process can make. It prevents
+	# a successful return if the public name or any physical build-root component
+	# changed after the ordinary post-publication checks below.
+	if (( status == 0 && successful_publication == 1 )); then
+		current_identity="$(identity_of "$output_path")"
+		if ! release_root_is_stable || [[ "$current_identity" != "$artifact_identity" ]]; then
+			printf '%s\n' \
+				'export-windows-candidate: ERROR: published Windows executable changed before exit' \
+				>&2
+			status=1
+		fi
+	fi
+
+	# Roll back through the already-open directory descriptor. This still reaches
+	# the directory this invocation validated if a racing process has displaced
+	# builds/windows. Never remove a path whose inode is no longer ours.
+	if (( status != 0 && published == 1 )); then
+		current_identity="$(identity_of "$output_path")"
+		if [[ -n "$artifact_identity" && "$current_identity" == "$artifact_identity" ]]; then
+			rm -f -- "$output_path"
+		fi
+	fi
+
+	current_identity="$(identity_of "$temporary_output")"
+	if [[ -n "$temporary_identity" && "$current_identity" == "$temporary_identity" ]]; then
+		rm -f -- "$temporary_output"
+	fi
+	exit "$status"
+}
+trap cleanup_release EXIT
 
 require_stable_release_root
 
@@ -137,29 +177,45 @@ if [[ -L "$temporary_output" || ! -f "$temporary_output" || ! -s "$temporary_out
 fi
 temporary_identity="$(identity_of "$temporary_output")" \
 	|| die "cannot identify temporary Windows executable"
+exec {artifact_fd}<"$temporary_output" \
+	|| die "cannot open exported Windows executable"
+artifact_fd_path="/proc/$$/fd/$artifact_fd"
+artifact_identity="$(identity_of "$artifact_fd_path")" \
+	|| die "cannot identify opened Windows executable"
+[[ "$artifact_identity" == "$temporary_identity" ]] \
+	|| die "temporary Windows executable identity changed while opening"
 
 if [[ -e "$output_path" || -L "$output_path" ]]; then
 	die "refusing to overwrite existing output: $public_output_path"
 fi
 require_stable_release_root
 ln -- "$temporary_output" "$output_path" || die "cannot publish Windows executable"
+published=1
 if [[ "$(identity_of "$output_path")" != "$temporary_identity" ]]; then
 	die "published Windows executable identity changed"
 fi
-if ! release_root_is_stable; then
-	# Remove only the link this invocation created, and only while it still names
-	# the reserved temporary inode. Never remove a racing or pre-existing file.
-	if [[ "$(identity_of "$output_path")" == "$temporary_identity" ]]; then
-		rm -f -- "$output_path"
-	fi
-	die "physical Windows build root changed during publication"
-fi
-rm -f -- "$temporary_output" || die "cannot remove temporary Windows executable"
-trap - EXIT
-
-byte_size="$(stat -c '%s' -- "$output_path")"
-sha256="$(sha256sum -- "$output_path" | awk '{print $1}')"
 require_stable_release_root
+rm -f -- "$temporary_output" || die "cannot remove temporary Windows executable"
+
+# Closing the temporary name is not the end of publication. Revalidate the
+# directory chain and final name after that unlink; the opened artifact FD keeps
+# byte/identity observations tied to the exported inode even if a racing process
+# replaces the public pathname.
+if [[ -e "$temporary_output" || -L "$temporary_output" ]]; then
+	die "temporary Windows executable remained after publication"
+fi
+require_stable_release_root
+[[ "$(identity_of "$output_path")" == "$artifact_identity" ]] \
+	|| die "published Windows executable changed after temporary cleanup"
+
+byte_size="$(stat -c '%s' -- "$artifact_fd_path")"
+sha256="$(sha256sum -- "$artifact_fd_path" | awk '{print $1}')"
+[[ "$(identity_of "$artifact_fd_path")" == "$artifact_identity" ]] \
+	|| die "opened Windows executable identity changed"
+require_stable_release_root
+[[ "$(identity_of "$output_path")" == "$artifact_identity" ]] \
+	|| die "published Windows executable changed while hashing"
+successful_publication=1
 printf 'path=%s\n' "$public_output_path"
 printf 'bytes=%s\n' "$byte_size"
 printf 'sha256=%s\n' "$sha256"
