@@ -98,7 +98,24 @@ func get_objective_marker_legend() -> Array[Dictionary]:
 		{"id": &"station_defense_activity_board", "glyph": "◆", "pattern": &"diamond", "label": "DEFENSE BOARD", "focus_label": "Station defense activity board"},
 		{"id": &"active_route_checkpoint", "glyph": "◎", "pattern": &"ring_dot", "label": "NEXT ROUTE GATE", "focus_label": "Next active route checkpoint"},
 		{"id": &"active_debris_beacon", "glyph": "⊕", "pattern": &"crosshair", "label": "NEXT DEBRIS BEACON", "focus_label": "Next active debris beacon"},
+		{"id": &"active_mining_hold", "glyph": "▤", "pattern": &"striped_square", "label": "EXTRACTION HOLD", "focus_label": "Active extraction hold point"},
+		{"id": &"active_structure_scan_hold", "glyph": "◈", "pattern": &"nested_diamond", "label": "SCAN HOLD", "focus_label": "Active structure scan hold point"},
 	]
+
+
+## The complete legend remains available to controller/accessibility consumers,
+## while the compact map draws only entries actually present in this frame.
+func get_visible_objective_marker_legend() -> Array[Dictionary]:
+	var visible_ids: Dictionary = {}
+	for marker_variant in _snapshot.get("objective_markers", []) as Array:
+		var marker := marker_variant as Dictionary
+		if bool(marker.get("active", true)):
+			visible_ids[StringName(marker.get("id", &""))] = true
+	var visible_legend: Array[Dictionary] = []
+	for legend in get_objective_marker_legend():
+		if visible_ids.has(StringName(legend.get("id", &""))):
+			visible_legend.append(legend.duplicate(true))
+	return visible_legend
 
 
 func get_snapshot() -> Dictionary:
@@ -151,15 +168,18 @@ func get_audit_report() -> Dictionary:
 		"mouse_passthrough": mouse_filter == Control.MOUSE_FILTER_IGNORE,
 		"snapshot_storage": &"deep_detached_scalar_copy",
 		"projection": &"world_xz_north_negative_z_north_up",
-	"contact_glyphs": {"friendly": &"circle_cross", "hostile": &"diamond"},
+		"contact_glyphs": {"friendly": &"circle_cross", "hostile": &"diamond"},
 		"objective_marker_count": (_snapshot.get("objective_markers", []) as Array).size(),
 		"objective_marker_glyphs": {
 			&"cinder_cargo_terminal": "▣",
 			&"station_defense_activity_board": "◆",
 			&"active_route_checkpoint": "◎",
 			&"active_debris_beacon": "⊕",
+			&"active_mining_hold": "▤",
+			&"active_structure_scan_hold": "◈",
 		},
 		"objective_marker_legend": get_objective_marker_legend(),
+		"visible_objective_marker_legend": get_visible_objective_marker_legend(),
 		"contact_state_has_shape_cue": true,
 		"bounded": true,
 		"bounds": {
@@ -254,7 +274,7 @@ func _draw() -> void:
 		var distance: float = marker.position.distance_to(_snapshot.center_position as Vector2)
 		draw_string(ThemeDB.fallback_font, point + Vector2(7.0, 4.0), glyph + " " + label + "  %.0fM" % distance, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, marker_color)
 	var legend_y := size.y - 12.0
-	for legend in get_objective_marker_legend():
+	for legend in get_visible_objective_marker_legend():
 		draw_string(ThemeDB.fallback_font, Vector2(10.0, legend_y), "%s %s" % [legend.get("glyph", ""), legend.get("label", "")], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, _muted_color)
 		legend_y -= 11.0
 

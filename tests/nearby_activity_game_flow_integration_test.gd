@@ -302,6 +302,18 @@ func _run() -> void:
 			and _activity_text(scan_row).contains("SCANNING STRUCTURE  //  0%"),
 		"a subsequent valid real START clears rejection feedback and reaches SCANNING",
 	)
+	var active_scan_marker := _find_marker(
+		flow.call(
+			"_get_active_nearby_minimap_markers", production_binding, 0
+		) as Array,
+		&"active_structure_scan_hold",
+	)
+	_check(
+		(active_scan_marker.get("position", Vector3.INF) as Vector3) \
+			.is_equal_approx(ScanActivityType.APPROACH_ANCHOR)
+			and int(active_scan_marker.get("generation", 0)) == 1,
+		"the active scan publishes its exact authoritative hold point to the minimap",
+	)
 
 	active_ship.global_position = (
 		ScanActivityType.APPROACH_ANCHOR
@@ -361,6 +373,15 @@ func _run() -> void:
 				retained_hud.get_activity_objective_report().get("text", "")
 			),
 		"a rejected receipt leaves the completed scan unconsumed and visibly retryable",
+	)
+	_check(
+		_find_marker(
+			flow.call(
+				"_get_active_nearby_minimap_markers", production_binding, 0
+			) as Array,
+			&"active_structure_scan_hold",
+		).is_empty(),
+		"scan completion withdraws its hold marker without retaining stale guidance",
 	)
 	_check(
 		_scan_reward_requests.size() == 1
@@ -447,6 +468,18 @@ func _run() -> void:
 			),
 		"the public extraction Start action opens the authored six-second hold",
 	)
+	var active_mining_marker := _find_marker(
+		flow.call(
+			"_get_active_nearby_minimap_markers", production_binding, 0
+		) as Array,
+		&"active_mining_hold",
+	)
+	_check(
+		(active_mining_marker.get("position", Vector3.INF) as Vector3) \
+			.is_equal_approx(MiningActivityType.APPROACH_ANCHOR)
+			and int(active_mining_marker.get("generation", 0)) == 1,
+		"active extraction publishes the authored hold point to the minimap",
+	)
 
 	var mining_progress := flow._advance_cinder_mining_extraction(
 		2.0, _ship_sample(active_ship)
@@ -494,6 +527,15 @@ func _run() -> void:
 				retained_hud.get_activity_objective_report().get("visible", true)
 			),
 		"leaving the authored extraction sphere interrupts and clears partial progress",
+	)
+	_check(
+		_find_marker(
+			flow.call(
+				"_get_active_nearby_minimap_markers", production_binding, 0
+			) as Array,
+			&"active_mining_hold",
+		).is_empty(),
+		"extraction interruption withdraws its hold marker with the reset state",
 	)
 
 	active_ship.global_position = MiningActivityType.APPROACH_ANCHOR
@@ -566,9 +608,12 @@ func _run() -> void:
 			),
 		"the public beacon Start action reaches the first authored target",
 	)
-	var first_beacon_marker := flow.call(
-		"_get_active_beacon_minimap_marker", production_binding, 0
-	) as Dictionary
+	var first_beacon_marker := _find_marker(
+		flow.call(
+			"_get_active_nearby_minimap_markers", production_binding, 0
+		) as Array,
+		&"active_debris_beacon",
+	)
 	_check(
 		first_beacon_marker.get("id", &"") == &"active_debris_beacon"
 			and (first_beacon_marker.get("position", Vector3.INF) as Vector3) \
@@ -594,9 +639,12 @@ func _run() -> void:
 			),
 		"entering Beacon 1 advances the ordered route and both HUD surfaces",
 	)
-	var second_beacon_marker := flow.call(
-		"_get_active_beacon_minimap_marker", production_binding, 0
-	) as Dictionary
+	var second_beacon_marker := _find_marker(
+		flow.call(
+			"_get_active_nearby_minimap_markers", production_binding, 0
+		) as Array,
+		&"active_debris_beacon",
+	)
 	_check(
 		(second_beacon_marker.get("position", Vector3.INF) as Vector3) \
 			.is_equal_approx(BeaconActivityType.BEACONS[1])
@@ -658,9 +706,12 @@ func _run() -> void:
 		"the remaining authored beacons complete in order while a failed receipt stays retryable",
 	)
 	_check(
-		(flow.call(
-			"_get_active_beacon_minimap_marker", production_binding, 0
-		) as Dictionary).is_empty(),
+		_find_marker(
+			flow.call(
+				"_get_active_nearby_minimap_markers", production_binding, 0
+			) as Array,
+			&"active_debris_beacon",
+		).is_empty(),
 		"completion removes the debris-beacon marker instead of retaining its last target",
 	)
 	_check(
@@ -743,6 +794,14 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _find_marker(markers: Array, marker_id: StringName) -> Dictionary:
+	for marker_variant in markers:
+		if marker_variant is Dictionary \
+				and marker_variant.get("id", &"") == marker_id:
+			return (marker_variant as Dictionary).duplicate(true)
+	return {}
 
 
 func _commit_scan_reward(request: Dictionary) -> Dictionary:

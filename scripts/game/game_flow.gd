@@ -3161,12 +3161,10 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 	)
 	if not route_marker.is_empty():
 		markers.append(route_marker)
-	var beacon_marker := _get_active_beacon_minimap_marker(
+	markers.append_array(_get_active_nearby_minimap_markers(
 		_get_nearby_activity_binding(),
 		coordinate_frame_generation,
-	)
-	if not beacon_marker.is_empty():
-		markers.append(beacon_marker)
+	))
 	return markers
 
 
@@ -3224,38 +3222,54 @@ func _get_active_route_minimap_marker(
 	}.duplicate(true)
 
 
-## Observes the streamed activity binding's already-authoritative ordered
-## traversal snapshot. The binding supplies the next authored point only while
-## its activity is active; terminal or unloaded state therefore removes the HUD
-## marker without a second lifecycle owner.
-func _get_active_beacon_minimap_marker(
+## Observes one detached snapshot from the streamed activity binding. Each
+## activity supplies its already-authoritative hold/route point only while it is
+## active; terminal or unloaded state therefore removes the HUD marker without
+## a second lifecycle owner or a repeated snapshot allocation per marker kind.
+func _get_active_nearby_minimap_markers(
 	binding: Node,
 	coordinate_frame_generation: int = 0,
-	) -> Dictionary:
+	) -> Array[Dictionary]:
+	var markers: Array[Dictionary] = []
 	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
-		return {}
-	var traversal := (
-		(binding.call(&"get_snapshot") as Dictionary).get(
-			"beacon_traversal", {}
-		) as Dictionary
-	)
-	if StringName(traversal.get("state_id", &"")) != &"active":
-		return {}
-	var position: Variant = traversal.get("next_beacon_position", null)
-	if not position is Vector3 or not (position as Vector3).is_finite():
-		return {}
-	var generation := int(traversal.get("generation", 0))
-	if generation < 1:
-		return {}
-	return {
-		"id": &"active_debris_beacon",
-		"position": position as Vector3,
-		"generation": maxi(
-			maxi(coordinate_frame_generation, 0),
-			generation,
-		),
-		"active": true,
-	}.duplicate(true)
+		return markers
+	var snapshot := binding.call(&"get_snapshot") as Dictionary
+	for profile: Dictionary in [
+		{
+			"snapshot_key": &"mining",
+			"marker_id": &"active_mining_hold",
+			"position_key": &"approach_anchor",
+		},
+		{
+			"snapshot_key": &"structure_scan",
+			"marker_id": &"active_structure_scan_hold",
+			"position_key": &"approach_anchor",
+		},
+		{
+			"snapshot_key": &"beacon_traversal",
+			"marker_id": &"active_debris_beacon",
+			"position_key": &"next_beacon_position",
+		},
+	]:
+		var activity := snapshot.get(profile.snapshot_key, {}) as Dictionary
+		if StringName(activity.get("state_id", &"")) != &"active":
+			continue
+		var position: Variant = activity.get(profile.position_key, null)
+		var generation := int(activity.get("generation", 0))
+		if not position is Vector3 \
+				or not (position as Vector3).is_finite() \
+				or generation < 1:
+			continue
+		markers.append({
+			"id": profile.marker_id,
+			"position": position as Vector3,
+			"generation": maxi(
+				maxi(coordinate_frame_generation, 0),
+				generation,
+			),
+			"active": true,
+		})
+	return markers
 
 
 ## Binds the single retained Ember host only after the asynchronous authored
