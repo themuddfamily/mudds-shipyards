@@ -3166,11 +3166,55 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 	)
 	if not convoy_marker.is_empty():
 		markers.append(convoy_marker)
+	var cargo_return_marker := _get_cargo_delivery_minimap_marker(
+		coordinate_frame_generation
+	)
+	if not cargo_return_marker.is_empty():
+		markers.append(cargo_return_marker)
 	markers.append_array(_get_active_nearby_minimap_markers(
 		_get_nearby_activity_binding(),
 		coordinate_frame_generation,
 	))
 	return markers
+
+
+## The typed delivery owns phase/time and ShipyardWorld owns the physical berth
+## transform. This adapter joins those existing observations only while the
+## Jovian is on its active return phase; landing/completion removes the marker.
+func _get_cargo_delivery_minimap_marker(
+	coordinate_frame_generation: int = 0
+	) -> Dictionary:
+	if (
+		_selected_activity_kind != ACTIVITY_KIND_CARGO_DELIVERY
+		or _active_activity_id != CARGO_DELIVERY_ACTIVITY_ID
+		or cargo_delivery_activity == null
+		or not is_instance_valid(world)
+		or not world.has_method(&"get_berth_transform")
+		or not is_instance_valid(_cargo_delivery_destination)
+	):
+		return {}
+	var activity := get_active_activity_snapshot()
+	if not bool(activity.get("running", false)) \
+			or StringName(activity.get("phase_id", &"")) != &"return":
+		return {}
+	var berth_transform := world.call(
+		&"get_berth_transform",
+		_cargo_delivery_destination.get_berth_id(),
+	) as Transform3D
+	if not berth_transform.origin.is_finite():
+		return {}
+	var generation := int(activity.get("session_generation", 0))
+	if generation < 1:
+		return {}
+	return {
+		"id": &"active_jovian_delivery_return",
+		"position": berth_transform.origin,
+		"generation": maxi(
+			maxi(coordinate_frame_generation, 0),
+			generation,
+		),
+		"active": true,
+	}.duplicate(true)
 
 
 ## Presents the selected convoy's existing admission point before start, then

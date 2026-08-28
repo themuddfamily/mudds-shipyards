@@ -328,6 +328,17 @@ func _test_contract_and_start_gates(
 		and int(started.get("completed_checkpoint_count", 0)) == 1,
 		"free flight starts generation one and records physical departure exactly once"
 	)
+	var return_marker := _find_minimap_marker(
+		game.get_minimap_snapshot().get("objective_markers", []) as Array,
+		&"active_jovian_delivery_return",
+	)
+	_check(
+		(return_marker.get("position", Vector3.INF) as Vector3).is_equal_approx(
+			game.world.get_berth_transform(&"jovian_freight_berth").origin
+		)
+			and int(return_marker.get("generation", 0)) == generation,
+		"the active delivery publishes the exact physical return berth on the minimap"
+	)
 	var ui_report := hud.get_activity_selection_report()
 	_check(
 		bool(ui_report.get("selection_locked", false))
@@ -435,6 +446,13 @@ func _test_physics_reentry_and_physical_delivery(
 		and completed.get("state_id", &"") == &"completed"
 		and completed.get("phase_id", &"") == &"complete",
 		"physical landing submits return and completes the typed delivery at the exact berth transform"
+	)
+	_check(
+		_find_minimap_marker(
+			game.get_minimap_snapshot().get("objective_markers", []) as Array,
+			&"active_jovian_delivery_return",
+		).is_empty(),
+		"physical completion withdraws the delivery marker without a stale berth target"
 	)
 	var inventory := game.get_activity_integration_report()
 	_check(
@@ -572,6 +590,14 @@ func _check(condition: bool, description: String) -> bool:
 		_failures.append(description)
 		push_error("FAIL: " + description)
 	return condition
+
+
+func _find_minimap_marker(markers: Array, marker_id: StringName) -> Dictionary:
+	for marker_variant in markers:
+		if marker_variant is Dictionary \
+				and marker_variant.get("id", &"") == marker_id:
+			return (marker_variant as Dictionary).duplicate(true)
+	return {}
 
 
 func _finish() -> void:

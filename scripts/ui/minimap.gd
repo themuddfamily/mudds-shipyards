@@ -102,6 +102,7 @@ func get_objective_marker_legend() -> Array[Dictionary]:
 		{"id": &"active_structure_scan_hold", "glyph": "◈", "pattern": &"nested_diamond", "label": "SCAN HOLD", "focus_label": "Active structure scan hold point"},
 		{"id": &"active_convoy_rendezvous", "glyph": "◇", "pattern": &"hollow_diamond", "label": "CONVOY RENDEZVOUS", "focus_label": "Convoy rendezvous point"},
 		{"id": &"active_convoy_leg", "glyph": "»", "pattern": &"double_chevron", "label": "CONVOY NEXT LEG", "focus_label": "Convoy next route leg"},
+		{"id": &"active_jovian_delivery_return", "glyph": "⇥", "pattern": &"return_arrow", "label": "JOVIAN RETURN BERTH", "focus_label": "Jovian delivery return berth"},
 	]
 
 
@@ -181,6 +182,7 @@ func get_audit_report() -> Dictionary:
 			&"active_structure_scan_hold": "◈",
 			&"active_convoy_rendezvous": "◇",
 			&"active_convoy_leg": "»",
+			&"active_jovian_delivery_return": "⇥",
 		},
 		"objective_marker_legend": get_objective_marker_legend(),
 		"visible_objective_marker_legend": get_visible_objective_marker_legend(),
