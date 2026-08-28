@@ -100,6 +100,8 @@ func get_objective_marker_legend() -> Array[Dictionary]:
 		{"id": &"active_debris_beacon", "glyph": "⊕", "pattern": &"crosshair", "label": "NEXT DEBRIS BEACON", "focus_label": "Next active debris beacon"},
 		{"id": &"active_mining_hold", "glyph": "▤", "pattern": &"striped_square", "label": "EXTRACTION HOLD", "focus_label": "Active extraction hold point"},
 		{"id": &"active_structure_scan_hold", "glyph": "◈", "pattern": &"nested_diamond", "label": "SCAN HOLD", "focus_label": "Active structure scan hold point"},
+		{"id": &"active_convoy_rendezvous", "glyph": "◇", "pattern": &"hollow_diamond", "label": "CONVOY RENDEZVOUS", "focus_label": "Convoy rendezvous point"},
+		{"id": &"active_convoy_leg", "glyph": "»", "pattern": &"double_chevron", "label": "CONVOY NEXT LEG", "focus_label": "Convoy next route leg"},
 	]
 
 
@@ -177,6 +179,8 @@ func get_audit_report() -> Dictionary:
 			&"active_debris_beacon": "⊕",
 			&"active_mining_hold": "▤",
 			&"active_structure_scan_hold": "◈",
+			&"active_convoy_rendezvous": "◇",
+			&"active_convoy_leg": "»",
 		},
 		"objective_marker_legend": get_objective_marker_legend(),
 		"visible_objective_marker_legend": get_visible_objective_marker_legend(),

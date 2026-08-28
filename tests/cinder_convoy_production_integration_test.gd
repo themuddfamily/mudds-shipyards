@@ -129,6 +129,16 @@ func _test_topology_board_and_rollback(
 		and not bool(selected.get("selection_locked", true)),
 		"the real fourth button selects the private convoy composition before launch"
 	)
+	var rendezvous_marker := _find_minimap_marker(
+		game.get_minimap_snapshot().get("objective_markers", []) as Array,
+		&"active_convoy_rendezvous",
+	)
+	_check(
+		(rendezvous_marker.get("position", Vector3.INF) as Vector3) \
+			.is_equal_approx(GameFlow.CINDER_CONVOY_ACTIVATION_CENTER)
+			and int(rendezvous_marker.get("generation", -1)) == 0,
+		"selecting the convoy exposes its exact audited rendezvous on the minimap"
+	)
 
 
 func _test_exact_activation_and_shared_sampling(
@@ -209,6 +219,18 @@ func _test_exact_activation_and_shared_sampling(
 		and int(game.get_activity_integration_report().get("position_sample_count", -1))
 		== samples_before + 1,
 		"3.99 metres starts the current loaded generation and advances it from the same tick sample"
+	)
+	var leg_marker := _find_minimap_marker(
+		game.get_minimap_snapshot().get("objective_markers", []) as Array,
+		&"active_convoy_leg",
+	)
+	var route_feedback := active.get("visual_feedback", {}) as Dictionary
+	_check(
+		(leg_marker.get("position", Vector3.INF) as Vector3).is_equal_approx(
+			route_feedback.get("route_target_world_position", Vector3.ZERO) as Vector3
+		)
+			and int(leg_marker.get("generation", 0)) == 1,
+		"active escort guidance switches to the host's retained world-space next leg"
 	)
 	var loaded_cluster := bootstrap.get_loaded_instance()
 	var nearby_binding := loaded_cluster.get_node_or_null(
@@ -298,6 +320,17 @@ func _test_reentry_completion_and_lifecycle_failures(
 		and float(completed.get("current_time_seconds", 0.0)) > 0.0
 		and "CONVOY  ARRIVED" in str(hud.get_activity_objective_report().get("text", "")),
 		"the real host traverses all four raw points beside the +20m lane and presents safe arrival"
+	)
+	_check(
+		_find_minimap_marker(
+			game.get_minimap_snapshot().get("objective_markers", []) as Array,
+			&"active_convoy_leg",
+		).is_empty()
+			and _find_minimap_marker(
+				game.get_minimap_snapshot().get("objective_markers", []) as Array,
+				&"active_convoy_rendezvous",
+			).is_empty(),
+		"safe arrival withdraws both convoy marker phases without stale guidance"
 	)
 	var reward_record := (
 		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
@@ -441,6 +474,14 @@ func _check(condition: bool, description: String) -> bool:
 		_failures.append(description)
 		push_error("FAIL: " + description)
 	return condition
+
+
+func _find_minimap_marker(markers: Array, marker_id: StringName) -> Dictionary:
+	for marker_variant in markers:
+		if marker_variant is Dictionary \
+				and marker_variant.get("id", &"") == marker_id:
+			return (marker_variant as Dictionary).duplicate(true)
+	return {}
 
 
 func _finish() -> void:

@@ -3161,11 +3161,55 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 	)
 	if not route_marker.is_empty():
 		markers.append(route_marker)
+	var convoy_marker := _get_convoy_minimap_marker(
+		coordinate_frame_generation
+	)
+	if not convoy_marker.is_empty():
+		markers.append(convoy_marker)
 	markers.append_array(_get_active_nearby_minimap_markers(
 		_get_nearby_activity_binding(),
 		coordinate_frame_generation,
 	))
 	return markers
+
+
+## Presents the selected convoy's existing admission point before start, then
+## the host's retained world-space route intent while escorting. The host still
+## owns movement/leg state and GameFlow still owns selection/admission; the map
+## receives only one detached marker and withdraws it in every terminal state.
+func _get_convoy_minimap_marker(
+	coordinate_frame_generation: int = 0
+	) -> Dictionary:
+	if _selected_activity_kind != ACTIVITY_KIND_CONVOY_ESCORT \
+			or not is_instance_valid(cinder_convoy_host):
+		return {}
+	var activity := get_active_activity_snapshot()
+	var state_id := StringName(activity.get("state_id", &""))
+	var marker_id: StringName
+	var position: Variant
+	if state_id == &"idle":
+		marker_id = &"active_convoy_rendezvous"
+		position = activity.get("activation_center", null)
+	elif state_id == &"active":
+		var feedback := activity.get("visual_feedback", {}) as Dictionary
+		if not bool(feedback.get("route_intent_active", false)):
+			return {}
+		marker_id = &"active_convoy_leg"
+		position = feedback.get("route_target_world_position", null)
+	else:
+		return {}
+	if not position is Vector3 or not (position as Vector3).is_finite():
+		return {}
+	var generation := int(activity.get("session_generation", 0))
+	return {
+		"id": marker_id,
+		"position": position as Vector3,
+		"generation": maxi(
+			maxi(coordinate_frame_generation, 0),
+			maxi(generation, 0),
+		),
+		"active": true,
+	}.duplicate(true)
 
 
 ## Formats the next checkpoint of the already-running timed race or patrol.
