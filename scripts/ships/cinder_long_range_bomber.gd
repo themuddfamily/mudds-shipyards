@@ -9,9 +9,12 @@ const PayloadPresentation := preload("res://scripts/effects/bomber_payload_prese
 const ShipPerspectiveAudioBindingType := preload("res://scripts/audio/ship_perspective_audio_binding.gd")
 const BomberPayloadAudioBindingType := preload("res://scripts/audio/bomber_payload_audio_binding.gd")
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
+const SHIP_DEFINITION_TEMPLATE: ShipDefinition = preload(
+	"res://assets/ships/cinder_long_range_bomber_new_design.tres"
+)
 
 const SCHEMA_VERSION := 1
-const COMPONENT_ID: StringName = &"cinder-long-range-bomber"
+const COMPONENT_ID: StringName = &"cinder_long_range_bomber"
 const EVIDENCE_STATUS: StringName = &"NEW"
 const DISPLAY_NAME := "Cinder long-range bomber"
 const PAYLOAD_HARDPOINT_COUNT := 4
@@ -123,6 +126,10 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	# FleetExpansionProductionBinding instantiates this script directly, so apply
+	# the authored flight/systems profile before HeroShip snapshots hull and
+	# handling state. Keep the Resource instance local to this craft lifecycle.
+	ship_definition = SHIP_DEFINITION_TEMPLATE.duplicate(true) as ShipDefinition
 	ship_id = COMPONENT_ID
 	display_name = DISPLAY_NAME
 	role_name = "Long-range bomber"
@@ -418,6 +425,10 @@ func get_audit_report() -> Dictionary:
 		errors.append("bomber twin-fin aft silhouette drifted")
 	if not bool(sensor_sharing.get("valid", false)):
 		errors.append("bomber immutable sensor visual resource sharing drifted")
+	if ship_definition == null \
+			or not ship_definition.is_definition_valid() \
+			or ship_definition.get_ship_id() != COMPONENT_ID:
+		errors.append("authored bomber flight definition is not applied")
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,

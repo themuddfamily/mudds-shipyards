@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_definition")
-ship_id = &"cinder-long-range-bomber"
+ship_id = &"cinder_long_range_bomber"
 display_name = "Cinder Long-Range Bomber"
 role_name = "Long-range bomber"
 evidence_status = 2

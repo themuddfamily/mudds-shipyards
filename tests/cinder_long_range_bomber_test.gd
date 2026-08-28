@@ -11,7 +11,17 @@ func _initialize() -> void:
 	root.add_child(bomber)
 	await process_frame
 	var audit := bomber.get_audit_report()
+	var definition := bomber.get_ship_definition()
 	_check(bool(audit.get("valid", false)), "the bomber builds a valid collision and payload contract")
+	_check(
+		definition != null
+		and definition.is_definition_valid()
+		and definition.get_ship_id() == &"cinder_long_range_bomber"
+		and is_equal_approx(bomber.maximum_speed, definition.maximum_speed)
+		and is_equal_approx(bomber.engine_start_time, definition.engine_start_time)
+		and is_equal_approx(bomber.maximum_hull, definition.maximum_hull),
+		"the live bomber consumes its authored 72 m/s, 3.6 s startup, and 240-hull profile"
+	)
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the bomber makes no historical claim")
 	_check(bomber.get_cockpit_seat_anchor() != null and bomber.get_boarding_marker() != null, "the bomber exposes physical cockpit and boarding anchors")
 	_check(bomber.get_payload_hardpoints().size() == 4, "the bomber exposes four caller-owned payload hardpoints")

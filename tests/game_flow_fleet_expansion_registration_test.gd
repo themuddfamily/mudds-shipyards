@@ -78,14 +78,17 @@ func _initialize() -> void:
 	var berths := {}
 	var expansion_count := 0
 	var cinder_light: HeroShip
+	var cinder_bomber: HeroShip
 	for candidate in registered:
 		ids[candidate.get_ship_id()] = true
 		berths[candidate.get_home_berth_id()] = true
 		if candidate.get_ship_id() == GameFlow.CINDER_LIGHT_INTERCEPTOR_SHIP_ID:
 			cinder_light = candidate
+		elif candidate.get_ship_id() == GameFlow.CINDER_BOMBER_SHIP_ID:
+			cinder_bomber = candidate
 		if candidate.get_ship_id() in [
 			&"cinder-cargo-hauler",
-			&"cinder-long-range-bomber",
+			&"cinder_long_range_bomber",
 			&"cinder_light_interceptor",
 		]:
 			expansion_count += 1
@@ -119,6 +122,18 @@ func _initialize() -> void:
 			cinder_light, GameFlow.CINDER_LIGHT_INTERCEPTOR_WEAPON_ID
 		) == {"range": 320.0, "damage": 18.0, "origin_tolerance": 24.0},
 		"Cinder light joins production combat as source 1108 with its exact rapid-repeater envelope"
+	)
+	_check(
+		cinder_bomber != null
+		and authority.get_source_id(cinder_bomber) == 1106
+		and cinder_bomber.get_ship_definition() != null
+		and cinder_bomber.get_ship_definition().is_definition_valid()
+		and is_equal_approx(cinder_bomber.maximum_speed, 72.0)
+		and is_equal_approx(cinder_bomber.maximum_hull, 240.0)
+		and flow.call(
+			&"_find_flyable_ship_by_id", GameFlow.CINDER_BOMBER_LEGACY_SHIP_ID
+		) == cinder_bomber,
+		"Cinder bomber source 1106 uses authored handling and migrates its former save identity"
 	)
 	var arbitrary := Node3D.new()
 	arbitrary.name = "ArbitraryLiveCombatSource"

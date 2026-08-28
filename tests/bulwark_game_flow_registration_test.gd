@@ -114,7 +114,7 @@ func _initialize() -> void:
 	_check(authority.get_source_id(bulwark) == 1107, "Bulwark owns stable combat source 1107")
 	var cinder: HeroShip
 	for craft in registered:
-		if craft.get_ship_id() == &"cinder-long-range-bomber":
+		if craft.get_ship_id() == &"cinder_long_range_bomber":
 			cinder = craft
 			break
 	_check(cinder != null and authority.get_source_id(cinder) == 1106, "Cinder bomber retains stable combat source 1106")

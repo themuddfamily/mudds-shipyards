@@ -247,7 +247,7 @@ const PLAYER_SOURCE_IDS := {
 	&"jovian_provisional": 1103,
 	&"zenith_b7_observed": 1104,
 	&"halyard_new_design": 1105,
-	&"cinder-long-range-bomber": 1106,
+	&"cinder_long_range_bomber": 1106,
 	&"bulwark_heavy_gunship": 1107,
 	&"cinder_light_interceptor": 1108,
 }
@@ -344,7 +344,8 @@ const CINDER_LIGHT_INTERCEPTOR_PRESENTATION_ID: StringName = &"cyan"
 const CINDER_LIGHT_INTERCEPTOR_FIRE_AUDIO_ID: StringName = &"player_pulse_fire"
 const CINDER_LIGHT_INTERCEPTOR_IMPACT_AUDIO_ID: StringName = &"hull_impact_medium"
 const CINDER_LIGHT_INTERCEPTOR_DRY_FIRE_AUDIO_ID: StringName = &"dry_fire_click"
-const CINDER_BOMBER_SHIP_ID: StringName = &"cinder-long-range-bomber"
+const CINDER_BOMBER_SHIP_ID: StringName = &"cinder_long_range_bomber"
+const CINDER_BOMBER_LEGACY_SHIP_ID: StringName = &"cinder-long-range-bomber"
 const CINDER_BOMBER_WEAPON_ID: StringName = &"bomber_payload_release"
 const PLAYER_PULSE_NETWORK_MAX_PENDING := 32
 const CINDER_BOMBER_PAYLOAD_PROFILE := {
@@ -1311,9 +1312,13 @@ func _find_flyable_ship_by_id(ship_id: StringName) -> HeroShip:
 
 
 func _canonicalize_flyable_ship_id(ship_id: StringName) -> StringName:
-	if ship_id == CINDER_LIGHT_INTERCEPTOR_LEGACY_SHIP_ID:
-		return CINDER_LIGHT_INTERCEPTOR_SHIP_ID
-	return ship_id
+	match ship_id:
+		CINDER_LIGHT_INTERCEPTOR_LEGACY_SHIP_ID:
+			return CINDER_LIGHT_INTERCEPTOR_SHIP_ID
+		CINDER_BOMBER_LEGACY_SHIP_ID:
+			return CINDER_BOMBER_SHIP_ID
+		_:
+			return ship_id
 
 
 ## Owns one lifetime-stable adapter of each supported presentation kind, while

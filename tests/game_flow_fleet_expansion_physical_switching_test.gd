@@ -67,7 +67,7 @@ func _initialize() -> void:
 	if player == null:
 		_finish(game)
 		return
-	var expansion_ids := [&"cinder-cargo-hauler", &"cinder-long-range-bomber", &"cinder_light_interceptor"]
+	var expansion_ids := [&"cinder-cargo-hauler", &"cinder_long_range_bomber", &"cinder_light_interceptor"]
 	for craft_id: StringName in expansion_ids:
 		var craft := _find_craft(game.get_flyable_ships(), craft_id)
 		_check(craft != null, "%s is registered for physical switching" % craft_id)
@@ -87,7 +87,7 @@ func _initialize() -> void:
 				]
 		)
 		_check(game.get_active_ship() == craft and craft.is_piloted(), "%s becomes the active piloted craft" % craft_id)
-		if craft_id == &"cinder-long-range-bomber" and boarded:
+		if craft_id == &"cinder_long_range_bomber" and boarded:
 			await physics_frame
 			await process_frame
 			var before_payload := game.get_bomber_payload_loop_snapshot()
@@ -114,7 +114,7 @@ func _initialize() -> void:
 			)
 		var disembarked := await _disembark(game, player)
 		_check(disembarked, "%s disembarks through the real GameFlow path" % craft_id)
-		if craft_id == &"cinder-long-range-bomber":
+		if craft_id == &"cinder_long_range_bomber":
 			var cleared := game.get_bomber_payload_loop_snapshot()
 			var cleared_fleet: Dictionary = game.world.get_fleet_expansion_production_binding().get_fleet_snapshot()
 			var cleared_payload_audio := (

@@ -86,7 +86,7 @@ const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 const EXPANDED_DEFINITIONS := {
 	&"cinder-cargo-hauler": preload("res://assets/ships/cinder_cargo_hauler_new_design.tres"),
-	&"cinder-long-range-bomber": preload("res://assets/ships/cinder_long_range_bomber_new_design.tres"),
+	&"cinder_long_range_bomber": preload("res://assets/ships/cinder_long_range_bomber_new_design.tres"),
 	&"cinder_light_interceptor": preload("res://assets/ships/cinder_light_interceptor_new_design.tres"),
 }
 # One implementation of the sRGB -> Viénot dichromat -> CIE L*a*b* -> CIEDE2000
