@@ -30,6 +30,7 @@ const EXPECTED_BERTH_IDS: Array[String] = [
 	"jovian_freight_berth",
 	"zenith_fleet_dock_berth",
 	"halyard_fleet_dock_berth",
+	"bulwark_fleet_dock_berth",
 ]
 const EXPECTED_BODY_SPECS := {
 	&"CelestialGreenBody": {
@@ -221,8 +222,9 @@ func _test_near_black_sky(world: ShipyardWorld) -> void:
 			ShipyardWorld.sky_sun_direction()
 		)
 		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_focus")), 260.0)
-		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_halo")), 0.55),
-		"deep-space sky sun glow is aimed by the same constant as the station key light"
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_halo")), 0.18)
+		and is_equal_approx(float(sky_material.get_shader_parameter(&"sun_halo_focus")), 48.0),
+		"deep-space sky sun glow keeps the aimed narrow-lobe anti-flash profile"
 	)
 	var key_light := world.get_node_or_null(^"SpaceKeyLight") as DirectionalLight3D
 	_check(
@@ -597,7 +599,7 @@ func _test_authority_invariants(world: ShipyardWorld) -> void:
 	)
 	_check(
 		reported_berths == expected_berths and live_berths == expected_berths,
-		"visual backdrop construction preserves the exact five-berth authority registry"
+		"visual backdrop construction preserves the exact six-berth authority registry"
 	)
 	var all_berths_live := true
 	for berth_id_string in EXPECTED_BERTH_IDS:
@@ -640,7 +642,7 @@ func _test_deep_copy_safety(world: ShipyardWorld) -> void:
 		"nested audit mutations cannot change live or future backdrop reports"
 	)
 	_check(
-		world.get_target_count() == 4 and world.get_berth_ids().size() == 5,
+		world.get_target_count() == 4 and world.get_berth_ids().size() == 6,
 		"report mutation cannot escape into target or berth authority state"
 	)
 

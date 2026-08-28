@@ -5141,14 +5141,15 @@ func get_space_backdrop_audit_report() -> Dictionary:
 		# suite compares this list, the live registry and its own expectation
 		# against each other, so an independent statement here is what catches
 		# drift. Deriving it would make that comparison tautological.
-		# HALYARD_FLEET_DOCK_BERTH_ID was missing when the fifth craft landed,
-		# so this report under-stated the registry while the live one was right.
+		# Keep this independent list exact as production berths are added: Halyard
+		# was the fifth berth and Bulwark is the sixth.
 		"berth_ids": PackedStringArray([
 			String(CENTRAL_BERTH_ID),
 			String(ARROW_RECON_BERTH_ID),
 			String(JOVIAN_FREIGHT_BERTH_ID),
 			String(ZENITH_FLEET_DOCK_BERTH_ID),
 			String(HALYARD_FLEET_DOCK_BERTH_ID),
+			String(BULWARK_FLEET_DOCK_BERTH_ID),
 		]),
 	}.duplicate(true)
 
