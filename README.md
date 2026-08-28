@@ -379,9 +379,18 @@ xvfb-run -a -s '-screen 0 2560x1440x24' godot --path . --resolution 2560x1440 --
 # (requires a graphical display; llvmpipe is slow above 1600x900).
 xvfb-run -a -s '-screen 0 1600x900x24' godot --path . --resolution 1600x900 --rendering-method forward_plus --script res://tests/capture_varied_encounters.gd
 
-# Export a Windows x86-64 build after installing official export templates.
-godot --headless --path . --export-release "Windows Desktop" builds/windows/MuddsShipyards.exe
+# Export a source-named Windows x86-64 candidate from a clean exact commit.
+# Set GODOT_BIN to select a non-default Godot executable. The optional argument
+# is only a .exe basename placed directly in the physical, non-symlink
+# builds/windows directory; nested or absolute paths are rejected. Existing
+# outputs are never overwritten.
+tools/release/export_windows_candidate.sh [output.exe]
 ```
+
+The wrapper itself runs on Linux or WSL: it deliberately uses Linux
+`/proc/<pid>/fd` directory descriptors and the GNU command-line tools it checks
+at startup. The emitted artifact is the Windows executable; the wrapper is not
+a `cmd.exe` or PowerShell entry point.
 
 `flight_input_test.gd`, `control_mapping_test.gd`, `flight_path_cue_test.gd`, and `flight_quality_closure_test.gd` are deterministic handling and presentation regressions, not a claim that the controls are fully tuned. The requested human feel pass remains open. The command list above enumerates 86 of the 112 `tests/*_test.gd` headless suites in the current source tree; the frozen matrix runner discovers all of them, and the list is a reading order rather than the roster. The recorded definitive v0.12 Godot 4.7.1 matrix predates the added station-surface and station-triplanar suites: it recorded an editor/import exit of `0` in 2,844 ms and exactly 75 of 75 suite exits of `0`, with 6,969 anchored `PASS:` assertions and exactly one terminal sentinel per suite (73 `OK`, two `PASS`). Its logs contained zero timeout, failure, error, fatal, RID, ObjectDB, resource, or orphan diagnostics; the only warnings were 76 generic root-startup warnings. The 452-file runnable-source scope remained byte-identical before and after at ordered-manifest SHA-256 `2115dddd6c11fa751c804b1e3140e0b2cf1b476b478675fe17ed2f7383e68792`. The exact results table, sentinel validation, and ordered process-hash aggregate have SHA-256 values `521d9bfd278ddec4ba0623f070b08487d962e7748d9eeafce09134f9125fe349`, `c243dfea866cb07a01343ad0300db10f9a72a12948b5a7c9a1d6e76c45ac1e05`, and `f0338503e70ca534a666b04c2ee41e4cb22d180f45fa7818ce110a6cbd493b10`. The now-superseded post-ledger/Fleet-Dock-Comb 72-suite, 6,673-assertion matrix remains historical, as do the earlier 69-, 54-, 44-, and 40-suite checkpoints; none supersedes the v0.12 result. Three shutdown-only Dummy-audio resource diagnostics found across preliminary historical passes were traced to test teardown racing an active WAV; the affected harnesses now explicitly release the presentation bank across a mixer boundary, and the definitive matrices plus repeated verbose focused runs were clean.
 
