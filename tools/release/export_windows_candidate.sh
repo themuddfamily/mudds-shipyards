@@ -7,7 +7,7 @@ die() {
 }
 
 if (( $# > 1 )); then
-	die "usage: $0 [builds/windows/output.exe]"
+	die "usage: $0 [output.exe]"
 fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" \
@@ -37,52 +37,93 @@ if [[ ! "$short_commit" =~ ^[0-9a-f]{7}$ ]]; then
 	die "Git did not return an exact seven-character source revision"
 fi
 
-builds_root="$REPO_ROOT/builds"
-build_root="$builds_root/windows"
-if [[ -L "$builds_root" || -L "$build_root" ]]; then
-	die "build roots must not be symlinks"
+output_basename="${1:-MuddsShipyards-${short_commit}.exe}"
+if [[ "$output_basename" == */* || "$output_basename" == "." || "$output_basename" == ".." ]]; then
+	die "output must be a basename directly inside builds/windows"
 fi
-mkdir -p -- "$build_root"
-[[ -d "$builds_root" && -d "$build_root" ]] || die "build roots must be directories"
-build_root="$(realpath -e -- "$build_root")"
-requested_output="${1:-builds/windows/MuddsShipyards-${short_commit}.exe}"
-if [[ "$requested_output" == /* ]]; then
-	output_candidate="$requested_output"
-else
-	output_candidate="$REPO_ROOT/$requested_output"
-fi
-output_path="$(realpath -m -- "$output_candidate")"
-case "$output_path" in
-	"$build_root"/*) ;;
-	*) die "output must remain beneath $build_root" ;;
-esac
-if [[ "$output_path" != *.exe ]]; then
+if [[ "$output_basename" != *.exe || "$output_basename" == ".exe" ]]; then
 	die "output must use the .exe suffix"
-fi
-if [[ -e "$output_path" || -L "$output_path" ]]; then
-	die "refusing to overwrite existing output: $output_path"
 fi
 
 godot_bin="${GODOT_BIN:-godot}"
 if ! command -v "$godot_bin" >/dev/null 2>&1; then
 	die "configured Godot binary is unavailable: $godot_bin"
 fi
-for required_tool in mkdir realpath sha256sum stat; do
+for required_tool in awk ln mkdir mktemp realpath rm sha256sum stat; do
 	command -v "$required_tool" >/dev/null 2>&1 \
 		|| die "required tool is unavailable: $required_tool"
 done
 
-output_directory="$(dirname -- "$output_path")"
-mkdir -p -- "$output_directory"
-while [[ "$output_directory" != "$build_root" ]]; do
-	[[ ! -L "$output_directory" ]] || die "output path contains a symlink"
-	output_directory="$(dirname -- "$output_directory")"
-done
+identity_of() {
+	stat -Lc '%d:%i' -- "$1" 2>/dev/null
+}
 
-temporary_output="$(mktemp "$build_root/.MuddsShipyards-${short_commit}.XXXXXX.exe")" \
+ensure_directory_component() {
+	local parent_fd_path="$1"
+	local component_name="$2"
+	local expected_path="$3"
+	local component_path="$parent_fd_path/$component_name"
+	[[ ! -L "$component_path" ]] || die "build roots must not be symlinks"
+	if [[ ! -e "$component_path" ]]; then
+		mkdir -- "$component_path" || die "cannot create build directory: $expected_path"
+	fi
+	[[ ! -L "$component_path" ]] || die "build roots must not be symlinks"
+	[[ -d "$component_path" ]] || die "build roots must be directories"
+	local resolved_path
+	resolved_path="$(realpath -e -- "$component_path")" \
+		|| die "cannot resolve build directory: $expected_path"
+	[[ "$resolved_path" == "$expected_path" ]] \
+		|| die "build directory escaped the physical repository: $expected_path"
+}
+
+# Linux/WSL directory descriptors keep every create, export and publish operation
+# attached to the directory inode that passed the physical-path checks. Replacing
+# a later pathname with a symlink cannot redirect any of those operations.
+exec {repo_fd}<"$REPO_ROOT" || die "cannot open repository directory"
+repo_fd_path="/proc/$$/fd/$repo_fd"
+repo_identity="$(identity_of "$repo_fd_path")" || die "cannot identify repository directory"
+[[ "$repo_identity" == "$(identity_of "$REPO_ROOT")" ]] \
+	|| die "repository directory identity changed"
+
+builds_root="$REPO_ROOT/builds"
+ensure_directory_component "$repo_fd_path" "builds" "$builds_root"
+exec {builds_fd}<"$repo_fd_path/builds" || die "cannot open builds directory"
+builds_fd_path="/proc/$$/fd/$builds_fd"
+builds_identity="$(identity_of "$builds_fd_path")" || die "cannot identify builds directory"
+
+build_root="$builds_root/windows"
+ensure_directory_component "$builds_fd_path" "windows" "$build_root"
+exec {build_fd}<"$builds_fd_path/windows" || die "cannot open Windows build directory"
+build_fd_path="/proc/$$/fd/$build_fd"
+build_identity="$(identity_of "$build_fd_path")" || die "cannot identify Windows build directory"
+
+release_root_is_stable() {
+	[[ ! -L "$builds_root" && ! -L "$build_root" ]] \
+		&& [[ -d "$builds_root" && -d "$build_root" ]] \
+		&& [[ "$(identity_of "$REPO_ROOT")" == "$repo_identity" ]] \
+		&& [[ "$(identity_of "$builds_root")" == "$builds_identity" ]] \
+		&& [[ "$(identity_of "$build_root")" == "$build_identity" ]] \
+		&& [[ "$(realpath -e -- "$builds_fd_path" 2>/dev/null)" == "$builds_root" ]] \
+		&& [[ "$(realpath -e -- "$build_fd_path" 2>/dev/null)" == "$build_root" ]]
+}
+
+require_stable_release_root() {
+	release_root_is_stable || die "physical Windows build root changed during export"
+}
+
+require_stable_release_root
+output_path="$build_fd_path/$output_basename"
+public_output_path="$build_root/$output_basename"
+if [[ -e "$output_path" || -L "$output_path" ]]; then
+	die "refusing to overwrite existing output: $public_output_path"
+fi
+
+temporary_output="$(mktemp "$build_fd_path/.MuddsShipyards-${short_commit}.XXXXXX.exe")" \
 	|| die "cannot reserve temporary output"
 cleanup_temporary() { rm -f -- "$temporary_output"; }
 trap cleanup_temporary EXIT
+
+require_stable_release_root
 
 "$godot_bin" \
 	--headless \
@@ -90,18 +131,35 @@ trap cleanup_temporary EXIT
 	--export-release "Windows Desktop" \
 	"$temporary_output"
 
-if [[ ! -s "$temporary_output" ]]; then
+require_stable_release_root
+if [[ -L "$temporary_output" || ! -f "$temporary_output" || ! -s "$temporary_output" ]]; then
 	die "Godot did not create a nonempty Windows executable"
 fi
+temporary_identity="$(identity_of "$temporary_output")" \
+	|| die "cannot identify temporary Windows executable"
 
 if [[ -e "$output_path" || -L "$output_path" ]]; then
-	die "refusing to overwrite existing output: $output_path"
+	die "refusing to overwrite existing output: $public_output_path"
 fi
-mv -n -- "$temporary_output" "$output_path" || die "cannot publish Windows executable"
+require_stable_release_root
+ln -- "$temporary_output" "$output_path" || die "cannot publish Windows executable"
+if [[ "$(identity_of "$output_path")" != "$temporary_identity" ]]; then
+	die "published Windows executable identity changed"
+fi
+if ! release_root_is_stable; then
+	# Remove only the link this invocation created, and only while it still names
+	# the reserved temporary inode. Never remove a racing or pre-existing file.
+	if [[ "$(identity_of "$output_path")" == "$temporary_identity" ]]; then
+		rm -f -- "$output_path"
+	fi
+	die "physical Windows build root changed during publication"
+fi
+rm -f -- "$temporary_output" || die "cannot remove temporary Windows executable"
 trap - EXIT
 
 byte_size="$(stat -c '%s' -- "$output_path")"
 sha256="$(sha256sum -- "$output_path" | awk '{print $1}')"
-printf 'path=%s\n' "$output_path"
+require_stable_release_root
+printf 'path=%s\n' "$public_output_path"
 printf 'bytes=%s\n' "$byte_size"
 printf 'sha256=%s\n' "$sha256"
