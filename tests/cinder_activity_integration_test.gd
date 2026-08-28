@@ -124,14 +124,21 @@ func _test_scene_and_authority_boundary(
 	)
 	var empty_board := hud.get_activity_selection_report()
 	var empty_reward_summary := empty_board.get("reward_summary", {}) as Dictionary
+	var physical_board := game.world.get_activity_board_console() as Area3D
+	var empty_physical := (
+		physical_board.call(&"get_presentation_snapshot") as Dictionary
+		if physical_board != null else {}
+	)
 	_check(
 		bool(empty_reward_summary.get("available", false))
 			and int(empty_reward_summary.get("total_receipts", -1)) == 0
 			and empty_board.get("reward_summary_text", "") \
 				== "SHIPYARD RECEIPTS  //  NONE FILED"
 			and "COMPLETE A LISTED SORTIE" \
-				in str(empty_board.get("reward_latest_text", "")),
-		"the Activity Board exposes the empty persisted receipt record before launch"
+				in str(empty_board.get("reward_latest_text", ""))
+			and empty_physical.get("receipt_status_text", "") \
+				== "BROWSE  //  NO RETURNS FILED",
+		"the HUD and physical Activity Board expose the empty saved record before launch"
 	)
 	var rejected := game.request_activity_start(ROUTE.activity_id)
 	_check(
@@ -341,6 +348,11 @@ func _test_countdown_pause_progress_reentry_and_completion(
 	var completed_reward_summary := (
 		completed_board.get("reward_summary", {}) as Dictionary
 	)
+	var physical_board := game.world.get_activity_board_console() as Area3D
+	var completed_physical := (
+		physical_board.call(&"get_presentation_snapshot") as Dictionary
+		if physical_board != null else {}
+	)
 	_check(
 		int(completed_reward_summary.get("total_receipts", 0)) == 1
 			and int(completed_reward_summary.get("last_receipt_id", 0)) == 1
@@ -349,8 +361,10 @@ func _test_countdown_pause_progress_reentry_and_completion(
 			and completed_board.get("reward_summary_text", "") \
 				== "SHIPYARD RECEIPTS  //  1 FILED"
 			and completed_board.get("reward_latest_text", "") \
-				== "LATEST #1  //  RACE RECORD ACCEPTED",
-		"the completed receipt is immediately inspectable on the existing Activity Board"
+				== "LATEST #1  //  RACE RECORD ACCEPTED"
+			and completed_physical.get("receipt_status_text", "") \
+				== "BROWSE  //  1 RETURNS FILED",
+		"the completed receipt is immediately inspectable on both Activity Board surfaces"
 	)
 	var store_generation_after_reward := int(
 		(reward_report.get("authority", {}) as Dictionary).get(
@@ -465,13 +479,22 @@ func _test_reward_summary_restore(filesystem: MemoryFilesystem) -> void:
 		if restored_hud != null else {}
 	)
 	var restored_summary := restored_board.get("reward_summary", {}) as Dictionary
+	var restored_physical_board := (
+		restored_game.world.get_activity_board_console() as Area3D
+	)
+	var restored_physical := (
+		restored_physical_board.call(&"get_presentation_snapshot") as Dictionary
+		if restored_physical_board != null else {}
+	)
 	_check(
 		restored_hud != null
 			and int(restored_summary.get("total_receipts", 0)) == 1
 			and int(restored_summary.get("last_receipt_id", 0)) == 1
 			and restored_board.get("reward_latest_text", "") \
-				== "LATEST #1  //  RACE RECORD ACCEPTED",
-		"a fresh Main startup restores the saved receipt onto the Activity Board"
+				== "LATEST #1  //  RACE RECORD ACCEPTED"
+			and restored_physical.get("receipt_status_text", "") \
+				== "BROWSE  //  1 RETURNS FILED",
+		"a fresh Main startup restores the saved receipt onto both Activity Board surfaces"
 	)
 	await _clean_up(restored_game)
 

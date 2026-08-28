@@ -25,14 +25,21 @@ func _run() -> void:
 	var underline := console.get_node_or_null(
 		^"ActivityBoardReadability/ActivityBoardLocatorUnderline"
 	) as MeshInstance3D
+	var receipt_status := console.get_node_or_null(
+		^"ActivityBoardReadability/ActivityBoardReceiptStatus"
+	) as MeshInstance3D
 	var headers: Array[MeshInstance3D] = []
 	var underlines: Array[MeshInstance3D] = []
+	var receipt_statuses: Array[MeshInstance3D] = []
 	for candidate in [console, console_two, console_three]:
 		headers.append(candidate.get_node(
 			^"ActivityBoardReadability/ActivityBoardHeader"
 		) as MeshInstance3D)
 		underlines.append(candidate.get_node(
 			^"ActivityBoardReadability/ActivityBoardLocatorUnderline"
+		) as MeshInstance3D)
+		receipt_statuses.append(candidate.get_node(
+			^"ActivityBoardReadability/ActivityBoardReceiptStatus"
 		) as MeshInstance3D)
 	_check(
 		visuals != null and bool(visuals.get_meta("presentation_only", false)),
@@ -65,6 +72,16 @@ func _run() -> void:
 		and (underline.position - header.position).dot(header_basis.y) < 0.0,
 		"header retains its high-contrast amber locator underline"
 	)
+	_check(
+		receipt_status != null
+		and receipt_status.mesh is TextMesh
+		and (receipt_status.mesh as TextMesh).text \
+			== "BROWSE  //  RETURNS OFFLINE"
+		and receipt_status.basis.orthonormalized().is_equal_approx(header_basis)
+		and (receipt_status.material_override as StandardMaterial3D) \
+			.albedo_color.is_equal_approx(ActivityBoardConsoleType.READABILITY_MUTED),
+		"the physical screen exposes a readable detached return-record status"
+	)
 	var shared_recipe_exact := true
 	for candidate in headers:
 		shared_recipe_exact = shared_recipe_exact \
@@ -78,15 +95,23 @@ func _run() -> void:
 			and candidate.transform.is_equal_approx(underline.transform) \
 			and candidate.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			and candidate.get_child_count() == 0
+	var receipt_mesh_ids := {}
+	for candidate in receipt_statuses:
+		receipt_mesh_ids[candidate.mesh.get_instance_id()] = true
+		shared_recipe_exact = shared_recipe_exact \
+			and candidate.transform.is_equal_approx(receipt_status.transform) \
+			and candidate.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			and candidate.get_child_count() == 0
 	_check(
-		shared_recipe_exact and header.mesh != underline.mesh,
-		"three consoles share exactly one immutable mesh per readability family without changing nodes or transforms"
+		shared_recipe_exact and header.mesh != underline.mesh \
+		and receipt_mesh_ids.size() == 3,
+		"static families share immutable meshes while each dynamic receipt status owns a private text mesh"
 	)
 	var material_ids := {}
-	for candidate in headers + underlines:
+	for candidate in headers + underlines + receipt_statuses:
 		material_ids[candidate.material_override.get_instance_id()] = true
 	_check(
-		material_ids.size() == 6
+		material_ids.size() == 9
 		and (headers[1].material_override as StandardMaterial3D).albedo_color.is_equal_approx(
 			ActivityBoardConsoleType.READABILITY_CYAN
 		)
@@ -98,8 +123,58 @@ func _run() -> void:
 	_check(
 		console.get_node_or_null(^"InteractionCollision") is CollisionShape3D
 		and console.get_child_count() == 2
-		and visuals.get_child_count() == 2,
-		"readability polish adds only two visual leaves beside the unchanged interaction shape"
+		and visuals.get_child_count() == 3,
+		"readability polish adds three presentation leaves beside the unchanged interaction shape"
+	)
+	var invalid_summary := {
+		"available": true,
+		"total_receipts": 2,
+		"last_receipt_id": 1,
+		"last_reward_label": "Race record accepted",
+	}
+	_check(
+		not console.set_reward_summary(invalid_summary)
+		and (receipt_status.mesh as TextMesh).text \
+			== "BROWSE  //  RETURNS OFFLINE",
+		"inconsistent receipt data is rejected without repainting the console"
+	)
+	_check(
+		console.set_reward_summary({
+			"available": true,
+			"total_receipts": 0,
+			"last_receipt_id": 0,
+			"last_reward_label": "",
+		})
+		and (receipt_status.mesh as TextMesh).text \
+			== "BROWSE  //  NO RETURNS FILED"
+		and (receipt_status.material_override as StandardMaterial3D) \
+			.albedo_color.is_equal_approx(ActivityBoardConsoleType.READABILITY_CYAN),
+		"an empty saved record is visibly online without inventing a completion"
+	)
+	_check(
+		console.set_reward_summary({
+			"available": true,
+			"total_receipts": 7,
+			"last_receipt_id": 7,
+			"last_reward_label": "Debris navigation data recorded",
+		})
+		and (receipt_status.mesh as TextMesh).text \
+			== "BROWSE  //  7 RETURNS FILED"
+		and (receipt_status.material_override as StandardMaterial3D) \
+			.albedo_color.is_equal_approx(ActivityBoardConsoleType.READABILITY_AMBER),
+		"the exact completed-sortie aggregate repaints the physical screen"
+	)
+	var presentation := console.get_presentation_snapshot()
+	_check(
+		int((presentation.reward_summary as Dictionary).total_receipts) == 7
+		and presentation.receipt_status_text == "BROWSE  //  7 RETURNS FILED"
+		and bool(presentation.presentation_only)
+		and not bool(presentation.activity_authority)
+		and not bool(presentation.reward_authority)
+		and not bool(presentation.save_authority)
+		and not bool(presentation.currency_authority)
+		and not bool(presentation.inventory_authority),
+		"the detached physical-screen snapshot exposes no adjacent authority"
 	)
 
 	var open_events: Array[Node] = []

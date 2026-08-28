@@ -30,10 +30,28 @@ const READABILITY_GLYPH_UP := Vector3(0.0, 0.2079117, 0.9781476)
 const READABILITY_FACE_NORMAL := Vector3(0.0, 0.9781476, -0.2079117)
 const READABILITY_UNDERLINE_POSITION := Vector3(0.0, 1.455, -0.465)
 const READABILITY_UNDERLINE_SIZE := Vector3(1.18, 0.014, 0.025)
+const READABILITY_RECEIPT_POSITION := Vector3(0.0, 1.405, -0.63)
+const READABILITY_RECEIPT_SCALE := 0.058
 const READABILITY_CYAN := Color("9ff5f2")
 const READABILITY_AMBER := Color("ffc36a")
+const READABILITY_MUTED := Color("7897a6")
+const MAX_ACTIVITY_REWARD_RECEIPTS := 9_007_199_254_740_991
+const ACTIVITY_REWARD_SUMMARY_KEYS := [
+	"available",
+	"total_receipts",
+	"last_receipt_id",
+	"last_reward_label",
+]
 
 var _built := false
+var _receipt_status: MeshInstance3D
+var _receipt_status_mesh: TextMesh
+var _reward_summary := {
+	"available": false,
+	"total_receipts": 0,
+	"last_receipt_id": 0,
+	"last_reward_label": "",
+}
 
 static var _shared_readability_label_mesh: TextMesh
 static var _shared_readability_underline_mesh: BoxMesh
@@ -61,6 +79,33 @@ func interact(actor: Node = null) -> bool:
 		return false
 	open_requested.emit(actor)
 	return true
+
+
+## Mirrors the exact detached aggregate already published to the HUD. The
+## console cannot inspect the store, grant a reward, or infer currency or
+## inventory; it only repaints its existing physical screen.
+func set_reward_summary(summary: Dictionary) -> bool:
+	if not _valid_reward_summary(summary):
+		return false
+	_reward_summary = summary.duplicate(true)
+	_apply_reward_summary()
+	return true
+
+
+func get_presentation_snapshot() -> Dictionary:
+	return {
+		"reward_summary": _reward_summary.duplicate(true),
+		"receipt_status_text": (
+			_receipt_status_mesh.text
+			if _receipt_status_mesh != null else ""
+		),
+		"presentation_only": true,
+		"activity_authority": false,
+		"reward_authority": false,
+		"save_authority": false,
+		"currency_authority": false,
+		"inventory_authority": false,
+	}.duplicate(true)
 
 
 func _is_current() -> bool:
@@ -105,6 +150,26 @@ func _build_readability_visuals() -> void:
 	underline.material_override = _readability_material(READABILITY_AMBER, 1.05)
 	visuals.add_child(underline)
 
+	_receipt_status_mesh = TextMesh.new()
+	_receipt_status_mesh.font_size = 48
+	_receipt_status_mesh.pixel_size = 0.01
+	_receipt_status_mesh.depth = 0.004
+	_receipt_status_mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_receipt_status_mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_receipt_status = MeshInstance3D.new()
+	_receipt_status.name = "ActivityBoardReceiptStatus"
+	_receipt_status.mesh = _receipt_status_mesh
+	_receipt_status.position = READABILITY_RECEIPT_POSITION
+	_receipt_status.basis = Basis(
+		READABILITY_GLYPH_RIGHT,
+		READABILITY_GLYPH_UP,
+		READABILITY_FACE_NORMAL
+	).scaled(Vector3.ONE * READABILITY_RECEIPT_SCALE)
+	_receipt_status.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_receipt_status.material_override = _readability_material(READABILITY_MUTED, 0.8)
+	visuals.add_child(_receipt_status)
+	_apply_reward_summary()
+
 
 static func _get_shared_readability_label_mesh() -> TextMesh:
 	if _shared_readability_label_mesh == null:
@@ -136,3 +201,56 @@ func _readability_material(color: Color, emission_energy: float) -> StandardMate
 	material.emission = color
 	material.emission_energy_multiplier = emission_energy
 	return material
+
+
+func _valid_reward_summary(summary: Dictionary) -> bool:
+	if summary.size() != ACTIVITY_REWARD_SUMMARY_KEYS.size():
+		return false
+	for key: String in ACTIVITY_REWARD_SUMMARY_KEYS:
+		if not summary.has(key):
+			return false
+	var available_value: Variant = summary.get("available")
+	var total_value: Variant = summary.get("total_receipts")
+	var receipt_value: Variant = summary.get("last_receipt_id")
+	var label_value: Variant = summary.get("last_reward_label")
+	if available_value is not bool or total_value is not int \
+			or receipt_value is not int or label_value is not String:
+		return false
+	var available := bool(available_value)
+	var total_receipts := int(total_value)
+	var last_receipt_id := int(receipt_value)
+	var last_reward_label := str(label_value)
+	if total_receipts < 0 or total_receipts > MAX_ACTIVITY_REWARD_RECEIPTS \
+			or last_receipt_id < 0 \
+			or last_receipt_id > MAX_ACTIVITY_REWARD_RECEIPTS:
+		return false
+	if not available:
+		return total_receipts == 0 and last_receipt_id == 0 \
+			and last_reward_label.is_empty()
+	if total_receipts == 0:
+		return last_receipt_id == 0 and last_reward_label.is_empty()
+	return last_receipt_id == total_receipts \
+		and not last_reward_label.is_empty() and last_reward_label.length() <= 96
+
+
+func _apply_reward_summary() -> void:
+	if _receipt_status_mesh == null or not is_instance_valid(_receipt_status):
+		return
+	var available := bool(_reward_summary.get("available", false))
+	var total_receipts := int(_reward_summary.get("total_receipts", 0))
+	var text := "BROWSE  //  RETURNS OFFLINE"
+	var color := READABILITY_MUTED
+	var emission_energy := 0.8
+	if available and total_receipts == 0:
+		text = "BROWSE  //  NO RETURNS FILED"
+		color = READABILITY_CYAN
+		emission_energy = 1.0
+	elif available:
+		text = "BROWSE  //  %d RETURNS FILED" % total_receipts
+		color = READABILITY_AMBER
+		emission_energy = 1.15
+	_receipt_status_mesh.text = text
+	var material := _receipt_status.material_override as StandardMaterial3D
+	material.albedo_color = color
+	material.emission = color
+	material.emission_energy_multiplier = emission_energy

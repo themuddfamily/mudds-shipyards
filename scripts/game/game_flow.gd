@@ -6041,6 +6041,7 @@ func _bind_activity_board_console() -> void:
 		&"open_requested",
 		_on_activity_board_console_open_requested
 	)
+	_sync_activity_reward_hud()
 
 
 func _bind_ship_service_console() -> void:
@@ -11054,14 +11055,10 @@ func get_activity_reward_report() -> Dictionary:
 
 
 ## Publishes only the bounded aggregate and latest human-readable receipt to the
-## existing Activity Board. Store access and reward authority remain in the
-## production authority above; the HUD receives no callback or mutable record.
+## Activity Board HUD and physical console. Store access and reward authority
+## remain in the production authority above; neither presenter receives a
+## callback or mutable record.
 func _sync_activity_reward_hud() -> void:
-	if (
-		not is_instance_valid(hud)
-		or not hud.has_method(&"set_activity_reward_summary")
-	):
-		return
 	var summary := {
 		"available": false,
 		"total_receipts": 0,
@@ -11089,7 +11086,11 @@ func _sync_activity_reward_hud() -> void:
 				"last_receipt_id": int(last_receipt.get("receipt_id", 0)),
 				"last_reward_label": str(last_receipt.get("reward_label", "")),
 			}
-	hud.call(&"set_activity_reward_summary", summary.duplicate(true))
+	if is_instance_valid(hud) and hud.has_method(&"set_activity_reward_summary"):
+		hud.call(&"set_activity_reward_summary", summary.duplicate(true))
+	if is_instance_valid(activity_board_console) \
+			and activity_board_console.has_method(&"set_reward_summary"):
+		activity_board_console.call(&"set_reward_summary", summary.duplicate(true))
 
 
 func _on_cinder_session_presentation_changed(snapshot: Dictionary) -> void:
