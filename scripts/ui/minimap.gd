@@ -96,6 +96,7 @@ func get_objective_marker_legend() -> Array[Dictionary]:
 	return [
 		{"id": &"cinder_cargo_terminal", "glyph": "▣", "pattern": &"double_square", "label": "CARGO TERMINAL", "focus_label": "Cargo terminal objective"},
 		{"id": &"station_defense_activity_board", "glyph": "◆", "pattern": &"diamond", "label": "DEFENSE BOARD", "focus_label": "Station defense activity board"},
+		{"id": &"active_route_checkpoint", "glyph": "◎", "pattern": &"ring_dot", "label": "NEXT ROUTE GATE", "focus_label": "Next active route checkpoint"},
 	]
 
 
@@ -151,7 +152,11 @@ func get_audit_report() -> Dictionary:
 		"projection": &"world_xz_north_negative_z_north_up",
 	"contact_glyphs": {"friendly": &"circle_cross", "hostile": &"diamond"},
 		"objective_marker_count": (_snapshot.get("objective_markers", []) as Array).size(),
-		"objective_marker_glyphs": {&"cinder_cargo_terminal": "▣", &"station_defense_activity_board": "◆"},
+		"objective_marker_glyphs": {
+			&"cinder_cargo_terminal": "▣",
+			&"station_defense_activity_board": "◆",
+			&"active_route_checkpoint": "◎",
+		},
 		"objective_marker_legend": get_objective_marker_legend(),
 		"contact_state_has_shape_cue": true,
 		"bounded": true,
@@ -481,17 +486,26 @@ func _sanitize_snapshot(raw: Dictionary) -> Dictionary:
 			var marker_id := StringName(marker.get("id", &""))
 			var marker_position: Variant = _read_position(marker.get("position", null))
 			var generation := int(marker.get("generation", raw.get("generation", 0)))
-			if marker_id not in [&"cinder_cargo_terminal", &"station_defense_activity_board"] or marker_position == null or generation < int(_marker_generations.get(marker_id, -1)):
+			var marker_style := _get_objective_marker_style(marker_id)
+			if marker_style.is_empty() or marker_position == null \
+					or generation < int(_marker_generations.get(marker_id, -1)):
 				continue
 			_marker_generations[marker_id] = generation
 			(sanitized.objective_markers as Array).append({
 				"id": marker_id, "position": marker_position, "generation": generation,
 				"active": bool(marker.get("active", true)),
-				"glyph": "▣" if marker_id == &"cinder_cargo_terminal" else "◆",
-				"pattern": &"double_square" if marker_id == &"cinder_cargo_terminal" else &"diamond",
-				"label": "CARGO TERMINAL" if marker_id == &"cinder_cargo_terminal" else "DEFENSE BOARD",
+				"glyph": marker_style.get("glyph", "◆"),
+				"pattern": marker_style.get("pattern", &"diamond"),
+				"label": marker_style.get("label", "OBJECTIVE"),
 			})
 	return {"accepted": true, "snapshot": sanitized, "warnings": warnings}
+
+
+func _get_objective_marker_style(marker_id: StringName) -> Dictionary:
+	for style in get_objective_marker_legend():
+		if StringName(style.get("id", &"")) == marker_id:
+			return style
+	return {}
 
 
 func _read_position(value: Variant) -> Variant:

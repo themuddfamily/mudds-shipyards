@@ -3130,10 +3130,11 @@ func _get_minimap_contacts() -> Array[Dictionary]:
 	return contacts
 
 
-## Detached activity destinations only. These markers are authored by the
-## world/streaming owners; the minimap never starts, advances, or rewards an
-## activity. A coordinate-frame generation prevents stale streamed transforms
-## from surviving a rebase or unload.
+## Detached activity destinations only. Static markers are authored by the
+## world/streaming owners and the live route marker observes the existing
+## ActivityDirector definition; the minimap never starts, advances, or rewards
+## an activity. A coordinate-frame generation prevents stale streamed
+## transforms from surviving a rebase or unload.
 func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Array[Dictionary]:
 	var markers: Array[Dictionary] = []
 	if is_instance_valid(world):
@@ -3155,7 +3156,66 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 					"generation": maxi(coordinate_frame_generation, 0),
 					"active": true,
 				})
+	var route_marker := _get_active_route_minimap_marker(
+		coordinate_frame_generation
+	)
+	if not route_marker.is_empty():
+		markers.append(route_marker)
 	return markers
+
+
+## Formats the next checkpoint of the already-running timed race or patrol.
+## Route positions remain owned by the director's checked definition and
+## lifecycle state remains owned by the selected adapter; this is only a
+## detached presentation record for the HUD.
+func _get_active_route_minimap_marker(
+	coordinate_frame_generation: int = 0
+	) -> Dictionary:
+	if (
+		_active_activity_id != DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+		or _selected_activity_kind not in [
+			ACTIVITY_KIND_TIMED_RACE,
+			ACTIVITY_KIND_PATROL,
+		]
+		or not is_instance_valid(activity_director)
+	):
+		return {}
+	var activity := get_active_activity_snapshot()
+	if not bool(activity.get("running", false)):
+		return {}
+	var route := activity_director.get_definition(
+		DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+	)
+	if route == null:
+		return {}
+	var next_checkpoint_index := int(
+		activity.get("next_checkpoint_index", -1)
+	)
+	if (
+		next_checkpoint_index < 0
+		or next_checkpoint_index >= route.get_checkpoint_count()
+	):
+		return {}
+	var checkpoint_position := route.get_checkpoint_position(
+		next_checkpoint_index
+	)
+	if not checkpoint_position.is_finite():
+		return {}
+	var activity_generation := int(
+		activity.get(
+			"session_generation",
+			activity.get("generation", 0)
+		)
+	)
+	return {
+		"id": &"active_route_checkpoint",
+		"position": checkpoint_position,
+		"generation": maxi(
+			maxi(coordinate_frame_generation, 0),
+			maxi(activity_generation, 0)
+		),
+		"active": true,
+	}.duplicate(true)
 
 
 ## Binds the single retained Ember host only after the asynchronous authored

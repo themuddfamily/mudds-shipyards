@@ -60,17 +60,39 @@ func _run() -> void:
 	marked["objective_markers"] = [
 		{"id": &"cinder_cargo_terminal", "position": Vector3(2100.0, 0.0, -200.0), "generation": 4},
 		{"id": &"station_defense_activity_board", "position": Vector3(120.0, 0.0, -210.0), "generation": 4},
+		{
+			"id": &"active_route_checkpoint",
+			"position": Vector3(160.0, 0.0, -260.0),
+			"generation": 4,
+			"glyph": "FORGED",
+			"label": "FORGED LABEL",
+		},
 	]
 	_check(minimap.apply_snapshot(marked), "live activity marker snapshot is accepted")
 	audit = minimap.get_audit_report()
-	_check(int(audit.get("objective_marker_count", 0)) == 2, "cargo terminal and defense board markers are retained")
+	_check(int(audit.get("objective_marker_count", 0)) == 3, "static destinations and the active route gate are retained")
+	var accepted_markers := minimap.get_snapshot().get("objective_markers", []) as Array
+	var route_marker := accepted_markers.filter(func(marker: Dictionary) -> bool:
+		return marker.get("id", &"") == &"active_route_checkpoint"
+	)
+	_check(
+		route_marker.size() == 1
+		and route_marker[0].get("glyph", "") == "◎"
+		and route_marker[0].get("label", "") == "NEXT ROUTE GATE",
+		"the active checkpoint uses the frozen readable style instead of caller text"
+	)
 	var legend: Array[Dictionary] = minimap.get_objective_marker_legend()
-	_check(legend.size() == 2 and legend[0].pattern != legend[1].pattern, "objective legend uses distinct non-color patterns")
-	_check(str(legend[0].get("focus_label", "")).length() > 0 and str(legend[1].get("focus_label", "")).length() > 0, "objective legend exposes controller-readable focus labels")
+	var legend_patterns: Dictionary = {}
+	for entry in legend:
+		legend_patterns[entry.get("pattern", &"")] = true
+	_check(legend.size() == 3 and legend_patterns.size() == 3, "objective legend uses distinct non-color patterns")
+	_check(legend.all(func(entry: Dictionary) -> bool:
+		return str(entry.get("focus_label", "")).length() > 0
+	), "objective legend exposes controller-readable focus labels")
 	var stale := marked.duplicate(true)
 	(stale["objective_markers"] as Array)[0]["generation"] = 3
 	_check(minimap.apply_snapshot(stale), "stale marker snapshot remains structurally valid")
-	_check(int(minimap.get_audit_report().get("objective_marker_count", 0)) == 1, "stale marker generation is removed without retaining old location")
+	_check(int(minimap.get_audit_report().get("objective_marker_count", 0)) == 2, "stale marker generation is removed without retaining old location")
 	_check(
 		not bool((audit.authority as Dictionary).gameplay)
 		and not bool((audit.authority as Dictionary).navigation)
