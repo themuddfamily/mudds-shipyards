@@ -194,6 +194,42 @@ func _run() -> void:
 			and int((after_beacon.reward_counts as Dictionary).debris_route_navigation_data) == 1,
 		"the completed production beacon run records one shared navigation-data receipt"
 	)
+	var jovian_cargo := authority.commit(_request(
+		&"jovian_fabrication_kit_delivery",
+		1,
+		&"return_fabrication_kits_to_shipyard"
+	))
+	var after_jovian_cargo := (
+		store.get_snapshot().game_flow_reward_store as Dictionary
+	)
+	_check(
+		bool(jovian_cargo.accepted)
+			and int((jovian_cargo.receipt as Dictionary).receipt_id) == 7
+			and int(after_jovian_cargo.total_receipts) == 7
+			and int(
+				(after_jovian_cargo.reward_counts as Dictionary)
+					.return_fabrication_kits_to_shipyard
+			) == 1,
+		"the existing Jovian delivery establishes the shared fabrication-kit reward counter"
+	)
+	var cinder_cargo := authority.commit(_request(
+		&"cinder_kit_cargo_run",
+		1,
+		&"return_fabrication_kits_to_shipyard"
+	))
+	var after_cinder_cargo := (
+		store.get_snapshot().game_flow_reward_store as Dictionary
+	)
+	_check(
+		bool(cinder_cargo.accepted)
+			and int((cinder_cargo.receipt as Dictionary).receipt_id) == 8
+			and int(after_cinder_cargo.total_receipts) == 8
+			and int(
+				(after_cinder_cargo.reward_counts as Dictionary)
+					.return_fabrication_kits_to_shipyard
+			) == 2,
+		"the embodied Cinder supply run shares the fabrication-kit return receipt authority"
+	)
 
 	var reloaded_store := StoreScript.new(
 		"memory://game-flow-rewards.json", filesystem
@@ -206,10 +242,10 @@ func _run() -> void:
 	_check(
 		bool(restored_configuration.accepted)
 			and bool(restored.configured)
-			and int(restored_record.total_receipts) == 6
-			and int((restored_record.last_receipt as Dictionary).receipt_id) == 6
+			and int(restored_record.total_receipts) == 8
+			and int((restored_record.last_receipt as Dictionary).receipt_id) == 8
 			and (restored_record.last_receipt as Dictionary).activity_id \
-				== "cinder_debris_beacon_traversal"
+				== "cinder_kit_cargo_run"
 			and not bool(restored.currency_authority)
 			and not bool(restored.inventory_authority),
 		"reload retains the receipt summary without inventing currency or inventory authority"

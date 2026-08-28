@@ -93,6 +93,7 @@ var _convoy_arrival_persistence: RefCounted
 var _restored_convoy_arrival: Dictionary = {}
 var _last_convoy_arrival_persistence_result: Dictionary = {}
 var _station_reward_adapter: RefCounted
+var _station_reward_callback := Callable()
 var _cinder_field_audio: RefCounted
 var _cinder_cargo_terminal_audio: RefCounted
 var _last_race_feedback_reason: StringName = &""
@@ -328,6 +329,13 @@ func get_cargo_destination_handle() -> Dictionary:
 
 func _on_cargo_berth_occupancy_changed(occupant: Node) -> void:
 	if not is_instance_valid(occupant):
+		# An active supply sortie must carry its exact manifest away from the
+		# berth. The source is retired after a non-active release, explicit
+		# reset away from the platform, entity retirement, or component teardown.
+		if is_instance_valid(_cargo_activity) \
+				and _cargo_activity.get_state() == CARGO_ACTIVITY.State.ACTIVE:
+			_publish_cargo_presentation()
+			return
 		_release_cargo_source_binding()
 		return
 	if not _cargo_source_handle.is_empty():
@@ -731,6 +739,67 @@ func advance_cargo_run(delta: float) -> Dictionary:
 	return result
 
 
+## Production route seam for the already-authored three phases. Caller physics
+## advances the deadline only for the exact source ship. The real manifest,
+## berth capture volume, and berth occupancy supply the load/depart/return
+## facts; no position, inventory, or landing state is inferred by GameFlow.
+func advance_cargo_run_from_caller_sample(
+		delta: float,
+		actor_instance_id: int,
+		caller_position: Vector3,
+	) -> Dictionary:
+	if not is_instance_valid(_cargo_activity):
+		return _result(false, &"not_ready")
+	var before := _cargo_activity.get_snapshot() as Dictionary
+	if int(before.get("state", -1)) != CARGO_ACTIVITY.State.ACTIVE:
+		var inactive := before.duplicate(true)
+		inactive["accepted"] = false
+		inactive["reason"] = &"not_active"
+		return inactive
+	if actor_instance_id <= 0 or not caller_position.is_finite():
+		var unavailable := before.duplicate(true)
+		unavailable["accepted"] = false
+		unavailable["reason"] = &"cargo_source_sample_unavailable"
+		return unavailable
+	if not is_instance_valid(_cargo_source_entity) \
+			or actor_instance_id != _cargo_source_entity.get_instance_id():
+		var failed := _cargo_activity.fail(
+			&"cargo_source_ship_replaced", _cargo_activity.get_generation()
+		) as Dictionary
+		_publish_cargo_presentation(failed)
+		return failed
+	var timer := advance_cargo_run(delta)
+	if not bool(timer.get("accepted", false)) \
+			or int(timer.get("state", -1)) != CARGO_ACTIVITY.State.ACTIVE:
+		return timer
+	var current := _cargo_activity.get_snapshot() as Dictionary
+	var contract := current.get("contract", {}) as Dictionary
+	var phases := contract.get("ordered_phases", []) as Array
+	var next_index := int(current.get("next_phase_index", -1))
+	if next_index < 0 or next_index >= phases.size():
+		return timer
+	var next_phase := StringName(phases[next_index])
+	var phase_ready := false
+	var berth := _cargo_access.get_berth() if is_instance_valid(_cargo_access) else null
+	match next_phase:
+		&"load_crate":
+			phase_ready = is_instance_valid(berth) \
+				and berth.get_occupant() == _cargo_source_entity
+		&"clear_gate":
+			phase_ready = is_instance_valid(berth) \
+				and berth.get_occupant() != _cargo_source_entity \
+				and not berth.contains_assist_capture(caller_position)
+		&"dock_platform":
+			phase_ready = is_instance_valid(berth) \
+				and berth.get_occupant() == _cargo_source_entity
+	if not phase_ready:
+		return timer
+	var phase_result := submit_cargo_phase(next_phase)
+	phase_result["timer_result"] = timer.duplicate(true)
+	phase_result["production_phase_id"] = next_phase
+	return phase_result
+
+
 func submit_cargo_phase(phase_id: StringName) -> Dictionary:
 	if not is_inside_tree() or _cargo_activity == null:
 		return _result(false, &"not_ready")
@@ -746,7 +815,32 @@ func reset_cargo_run() -> Dictionary:
 	if bool(result.get("accepted", false)) and _cargo_reward_handoff != null:
 		_cargo_reward_handoff.reset(int(result.get("generation", 0)))
 	_publish_cargo_presentation(result)
+	if bool(result.get("accepted", false)) \
+			and not _cargo_source_handle.is_empty() \
+			and is_instance_valid(_cargo_access) \
+			and _cargo_access.get_berth().get_occupant() != _cargo_source_entity:
+		_release_cargo_source_binding()
 	return result
+
+
+## Admits only GameFlow's real post-disembark Player for the exact source ship
+## and current physical berth lease. The access component remains the sole
+## proximity, attachment-generation, occupant, and token validator.
+func authorize_cargo_terminal_actor(actor: Node3D, ship: Node) -> Dictionary:
+	if not is_instance_valid(_cargo_access) or not is_instance_valid(_cargo_source_entity):
+		return _result(false, &"cargo_physical_endpoint_required")
+	if not is_instance_valid(actor) or ship != _cargo_source_entity:
+		return _result(false, &"wrong_terminal_craft")
+	var berth := _cargo_access.get_berth()
+	if not is_instance_valid(berth) or berth.get_occupant() != ship:
+		return _result(false, &"cargo_source_not_docked")
+	var lease_token := berth.get_reservation_token(ship)
+	return _cargo_access.authorize_disembarked_terminal_actor(
+		actor,
+		ship,
+		lease_token,
+		_cargo_access_attachment_generation,
+	) as Dictionary
 
 
 func abort_cargo_run(expected_generation: int) -> Dictionary:
@@ -822,7 +916,12 @@ func configure_station_defense_reward(
 		reward_id: StringName = &"return_defense_report_to_shipyard"
 	) -> Dictionary:
 	if _station_reward_adapter != null:
-		return _result(false, &"station_reward_already_configured")
+		return _result(
+			_station_reward_callback == reward_callback,
+			&"station_reward_already_configured"
+			if _station_reward_callback == reward_callback
+			else &"station_reward_already_bound",
+		)
 	_station_reward_adapter = REWARD_ADAPTER.new() as RefCounted
 	var result: Dictionary = _station_reward_adapter.call(
 		"configure", reward_callback, &"shipyard_perimeter_defense", reward_id
@@ -830,6 +929,7 @@ func configure_station_defense_reward(
 	if not bool(result.get("accepted", false)):
 		_station_reward_adapter = null
 	else:
+		_station_reward_callback = reward_callback
 		_station_reward_adapter.call(
 			"register_activity", &"cinder_reach_emberline_convoy",
 			&"return_convoy_credit_to_shipyard"
@@ -2224,15 +2324,43 @@ func _cargo_presentation_snapshot() -> Dictionary:
 		return {}
 	var handoff := get_cargo_reward_handoff_snapshot()
 	var result := handoff.get("last_result", {}) as Dictionary
+	var completed := int(snapshot.get("state", -1)) == CARGO_ACTIVITY.State.COMPLETED
+	var reward_retry_available := (
+		completed
+		and not result.is_empty()
+		and not bool(result.get("accepted", false))
+		and StringName(result.get("reason", &"")) == &"reward_callback_rejected"
+	)
 	snapshot["reward_pending"] = (
-		int(snapshot.get("state", -1)) == CARGO_ACTIVITY.State.COMPLETED
+		completed
 		and int(handoff.get("completion_generation", -1)) == int(snapshot.get("generation", 0))
 		and bool(result.get("accepted", false))
 	)
+	snapshot["reward_retry_available"] = reward_retry_available
 	snapshot["reward_handoff_reason"] = StringName(result.get("reason", &""))
 	if bool(snapshot.get("delivery_persisted", false)):
 		snapshot["reward_pending"] = false
+		snapshot["reward_retry_available"] = false
 		snapshot["reward_handoff_reason"] = &"delivery_receipt_restored"
+	var state := int(snapshot.get("state", CARGO_ACTIVITY.State.IDLE))
+	snapshot["activity_id"] = &"cinder_platform_supply_run"
+	snapshot["state_id"] = [
+		&"idle", &"active", &"completed", &"failed", &"expired",
+	][clampi(state, CARGO_ACTIVITY.State.IDLE, CARGO_ACTIVITY.State.EXPIRED)]
+	var contract := snapshot.get("contract", {}) as Dictionary
+	var phases := contract.get("ordered_phases", []) as Array
+	var next_phase_index := int(snapshot.get("next_phase_index", 0))
+	var next_phase_id: StringName = &""
+	if next_phase_index >= 0 and next_phase_index < phases.size():
+		next_phase_id = StringName(phases[next_phase_index])
+	snapshot["phase_id"] = next_phase_id
+	snapshot["next_step"] = {
+		&"load_crate": "Secure the platform supply crate",
+		&"clear_gate": "Depart beyond the Cinder berth gate",
+		&"dock_platform": "Return and dock at the Cinder platform",
+	}.get(next_phase_id, "Use the platform cargo terminal")
+	snapshot["completed_checkpoint_count"] = maxi(next_phase_index, 0)
+	snapshot["checkpoint_count"] = int(snapshot.get("phase_count", phases.size()))
 	return snapshot.duplicate(true)
 
 

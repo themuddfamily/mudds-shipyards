@@ -11,6 +11,8 @@ const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
 const JOVIAN_SCRIPT := preload("res://scripts/ships/jovian_light_freighter.gd")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const GAME_FLOW_SCRIPT := preload("res://scripts/game/game_flow.gd")
+const USER_DATA_STORE_SCRIPT := preload("res://scripts/persistence/user_data_store.gd")
 
 const EXPECTED_APPROACH_WORLD := Vector3(60.0, -65.35, -684.9)
 const PLAYER_ROUTE_TOLERANCE := 0.62
@@ -18,6 +20,31 @@ const MAX_CONSECUTIVE_AIRBORNE_FRAMES := 24
 
 var _assertions := 0
 var _failures: Array[String] = []
+
+
+class CargoWorldProbe extends Node3D:
+	var cluster: Node3D
+
+	func _init(cluster_to_expose: Node3D) -> void:
+		cluster = cluster_to_expose
+
+	func get_nearby_sector_cluster() -> Node3D:
+		return cluster
+
+
+class CargoRewardAuthorityProbe extends RefCounted:
+	var accept := false
+	var requests: Array[Dictionary] = []
+
+	func commit(request: Dictionary) -> Dictionary:
+		requests.append(request.duplicate(true))
+		if not accept:
+			return {"accepted": false, "reason": &"simulated_store_rejection"}
+		return {
+			"accepted": true,
+			"reason": &"reward_receipt_committed",
+			"receipt": {"receipt_id": requests.size()},
+		}.duplicate(true)
 
 
 func _init() -> void:
@@ -82,7 +109,9 @@ func _run() -> void:
 	if ship != null and not lease_token.is_empty():
 		await _test_gameflow_compatible_landing_and_egress(access, ship, lease_token)
 		_test_live_cargo_binding(cluster, access, terminal, ship, lease_token)
-		await _test_embodied_bidirectional_route(cluster, access, terminal, ship, lease_token)
+		lease_token = await _test_embodied_bidirectional_route(
+			cluster, access, terminal, ship, lease_token
+		)
 		await _test_detach_reentry(platform, access, ship, lease_token)
 	else:
 		_check(false, "Jovian fixture reaches lifecycle and embodied-access phases")
@@ -663,7 +692,7 @@ func _test_embodied_bidirectional_route(
 		terminal: CargoTransferTerminal,
 		ship: HeroShip,
 		lease_token: StringName
-	) -> void:
+	) -> StringName:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	root.add_child(player)
 	await process_frame
@@ -678,6 +707,18 @@ func _test_embodied_bidirectional_route(
 		await physics_frame
 	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
 	var authority := binding.get_cargo_transfer_authority()
+	var route_world := CargoWorldProbe.new(cluster)
+	root.add_child(route_world)
+	var flow := GAME_FLOW_SCRIPT.new() as GameFlow
+	flow.world = route_world
+	flow.player = player
+	flow.active_ship = ship
+	var reward_authority := CargoRewardAuthorityProbe.new()
+	flow.set("_game_flow_reward_authority", reward_authority)
+	flow.set(
+		"_runtime_settings_user_data_store",
+		USER_DATA_STORE_SCRIPT.new("memory://cinder-cargo-game-flow-reward.json"),
+	)
 	var attachment_generation := access.get_attachment_generation()
 	var wrong_craft := Node3D.new()
 	root.add_child(wrong_craft)
@@ -710,17 +751,41 @@ func _test_embodied_bidirectional_route(
 	)
 	var active := binding.start_cargo_run()
 	var cargo_generation := int(active.generation)
-	var ordered_phases := [&"load_crate", &"clear_gate", &"dock_platform"]
-	var phases_accepted := bool(active.accepted)
-	for phase_id: StringName in ordered_phases:
-		phases_accepted = phases_accepted and bool(binding.submit_cargo_phase(phase_id).accepted)
-	var reward_calls := {"count": 0, "request": {}}
-	var reward_configured := binding.configure_cargo_reward_handoff(
-		func(request: Dictionary) -> Dictionary:
-			reward_calls.count = int(reward_calls.count) + 1
-			reward_calls.request = request.duplicate(true)
-			return {"accepted": true, "reason": &"test_store_accepted"}
+	var source_handle_during_sortie := binding.get_cargo_source_handle()
+	var loaded := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
+	var berth := access.get_berth()
+	var released_for_sortie := berth.release(ship, lease_token)
+	var still_inside_gate := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
+	var outside_gate := berth.get_assist_capture_transform()
+	outside_gate.origin = access.to_global(Vector3(-29.0, 4.15, 120.0))
+	ship.global_transform = outside_gate
+	var cleared := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
+	ship.global_transform = berth.get_dock_transform()
+	var return_lease_token := berth.try_reserve(ship, ship.get_ship_definition())
+	var reoccupied := berth.occupy(ship, return_lease_token)
+	var docked := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
+	var terminal_authorized := flow._authorize_cinder_cargo_terminal_actor(ship)
+	var routed_cargo := binding.get_snapshot().cargo as Dictionary
+	var phases_accepted := (
+		bool(active.accepted)
+		and StringName(loaded.get("production_phase_id", &"")) == &"load_crate"
+		and bool(released_for_sortie)
+		and StringName(still_inside_gate.get("reason", &"")) == &"advanced"
+		and int(still_inside_gate.get("next_phase_index", -1)) == 1
+		and binding.get_cargo_source_handle() == source_handle_during_sortie
+		and StringName(cleared.get("production_phase_id", &"")) == &"clear_gate"
+		and not return_lease_token.is_empty()
+		and return_lease_token != lease_token
+		and reoccupied
+		and StringName(docked.get("production_phase_id", &"")) == &"dock_platform"
+		and bool(terminal_authorized.get("accepted", false))
+		and bool(routed_cargo.get("phases_complete", false))
 	)
+	_check(
+		phases_accepted,
+		"caller physics advances load, rejects a still-inside departure, retains the exact manifest beyond the real gate, and accepts the same Jovian on physical return"
+	)
+	var reward_configured := flow._configure_cinder_cargo_reward_handoff(binding)
 	var out_of_range := terminal.get_interaction_snapshot(
 		player.global_position, terminal.get_terminal_generation()
 	)
@@ -776,24 +841,31 @@ func _test_embodied_bidirectional_route(
 		and authority.get_quantity(destination_handle, &"cinder_supply_crates") == destination_before + 1,
 		"embodied terminal request commits once and CargoDeliveryActivity retains the authority's exact receipt"
 	)
+	var rejected_reward := binding.get_cargo_reward_handoff_snapshot().last_result \
+		as Dictionary
+	reward_authority.accept = true
+	var reward := flow._start_nearby_activity(
+		binding, &"cinder_platform_supply_run"
+	)
 	var replay_interaction := terminal.interact(player)
 	var replay_result := binding.get_last_cargo_terminal_request()
 	var ledger_after_replay := authority.to_dictionary().committed_transfers as Array
-	var reward := binding.request_cargo_reward(cargo_generation)
 	var reward_replay := binding.request_cargo_reward(cargo_generation)
 	var reset_completed := binding.reset_cargo_run()
 	_check(
-		replay_interaction and not bool(replay_result.accepted)
+		not bool(rejected_reward.get("accepted", true))
+		and rejected_reward.get("reason", &"") == &"reward_callback_rejected"
+		and replay_interaction and not bool(replay_result.accepted)
 		and replay_result.reason == &"not_active"
 		and ledger_after_replay.size() == 1
 		and reward.accepted and reward.reason == &"reward_request_committed"
 		and not bool(reward_replay.accepted) and reward_replay.reason == &"reward_already_consumed"
-		and int(reward_calls.count) == 1
-		and StringName((reward_calls.request as Dictionary).activity_id) == &"cinder_kit_cargo_run"
+		and reward_authority.requests.size() == 2
+		and StringName(reward_authority.requests[-1].activity_id) == &"cinder_kit_cargo_run"
 		and reset_completed.accepted
 		and authority.get_quantity(source_handle, &"cinder_supply_crates") == source_before - 1
 		and authority.get_quantity(destination_handle, &"cinder_supply_crates") == destination_before + 1,
-		"replay and reward handoff are exactly once; completed reset preserves conservation with no refill"
+		"a rejected automatic receipt retries through public Start exactly once; transfer replay and completed reset preserve conservation"
 	)
 	var reverse_local := PackedVector3Array([
 		Vector3(-0.8, 4.30, 15.633333),
@@ -817,7 +889,19 @@ func _test_embodied_bidirectional_route(
 	_check(not Input.is_action_pressed("jump"), "embodied bidirectional proof never asserts the jump action")
 	_release_actions()
 	player.queue_free()
+	flow.free()
+	route_world.queue_free()
 	await process_frame
+	return return_lease_token
+
+
+func _ship_sample(ship: HeroShip) -> Dictionary:
+	return {
+		"available": true,
+		"actor_kind": &"ship",
+		"actor_instance_id": ship.get_instance_id(),
+		"position": ship.global_position,
+	}.duplicate(true)
 
 
 func _test_detach_reentry(

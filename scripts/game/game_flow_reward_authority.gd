@@ -18,6 +18,7 @@ const RACE_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
 const PATROL_ACTIVITY_ID: StringName = &"cinder_relay_patrol"
 const CONVOY_ACTIVITY_ID: StringName = &"cinder_reach_emberline_convoy"
 const CARGO_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
+const CINDER_CARGO_ACTIVITY_ID: StringName = &"cinder_kit_cargo_run"
 const CINDER_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
 const CINDER_BEACON_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
 const HEAVY_BREACH_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
@@ -37,6 +38,7 @@ const ACTIVITY_REWARDS := {
 	PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
 	CONVOY_ACTIVITY_ID: CONVOY_REWARD_ID,
 	CARGO_ACTIVITY_ID: CARGO_REWARD_ID,
+	CINDER_CARGO_ACTIVITY_ID: CARGO_REWARD_ID,
 	CINDER_SCAN_ACTIVITY_ID: CINDER_SCAN_REWARD_ID,
 	CINDER_BEACON_ACTIVITY_ID: CINDER_BEACON_REWARD_ID,
 	HEAVY_BREACH_ACTIVITY_ID: HEAVY_BREACH_REWARD_ID,

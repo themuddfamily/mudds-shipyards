@@ -1319,7 +1319,12 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 			&"active", &"started":
 				activity_text = "CARGO  %s%s  %d/%d" % [transfer_prefix, transfer_step.to_upper(), transfer_progress, transfer_total]
 			&"completed", &"complete":
-				activity_text = "CARGO  COMPLETE  %d/%d  REWARD PENDING" % [transfer_progress, transfer_total] if bool(snapshot.get("reward_pending", snapshot.get("reward_requested", false))) else "CARGO  COMPLETE  %d/%d" % [transfer_progress, transfer_total]
+				if bool(snapshot.get("reward_retry_available", false)):
+					activity_text = "CARGO  COMPLETE  %d/%d  START TO RETRY REWARD" % [transfer_progress, transfer_total]
+				elif bool(snapshot.get("reward_pending", snapshot.get("reward_requested", false))):
+					activity_text = "CARGO  COMPLETE  %d/%d  REWARD PENDING" % [transfer_progress, transfer_total]
+				else:
+					activity_text = "CARGO  COMPLETE  %d/%d" % [transfer_progress, transfer_total]
 			&"failed", &"aborted", &"expired":
 				activity_text = "CARGO  %s — %s  RECOVER: RETURN TO TERMINAL" % [transfer_state.to_upper(), str(snapshot.get("failure_reason", snapshot.get("terminal_reason", "RETRY"))).replace("_", " ").to_upper()]
 			_:

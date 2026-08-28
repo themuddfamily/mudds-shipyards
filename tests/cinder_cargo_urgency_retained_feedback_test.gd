@@ -5,6 +5,7 @@ const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 
 var _assertions := 0
 var _failures: Array[String] = []
+var _reward_accept := true
 
 func _initialize() -> void: call_deferred("_run")
 
@@ -80,6 +81,24 @@ func _run() -> void:
 		and not bool(pending.reward_authority),
 		"matching completion handoff presents one pending cue without new authority")
 
+	binding.reset_cargo_run()
+	_reward_accept = false
+	_complete(binding)
+	var retryable := binding.get_snapshot().cargo as Dictionary
+	view = hud.set_nearby_activity_snapshot(binding.get_snapshot())
+	hud.set_activity_objective("Platform supply run", retryable)
+	_check(
+		bool(retryable.get("reward_retry_available", false))
+			and _cargo_text(_cargo_row(hud)).contains(
+				"REWARD SAVE FAILED — START TO RETRY  //  SAVE FAILED — START TO RETRY"
+			)
+			and "START TO RETRY REWARD" in str(
+				hud.get_activity_objective_report().get("text", "")
+			)
+			and bool((_cargo_card(view).cargo_progress as Dictionary).reward_pending),
+		"a rejected reward receipt is visibly retryable on both retained and flight HUD surfaces"
+	)
+
 	hud.queue_free(); cluster.queue_free(); (fixture.authority as Node).queue_free()
 	for _frame in 4: await process_frame
 	for failure in _failures: push_error(failure)
@@ -109,7 +128,8 @@ func _complete(binding: NearbySectorActivityBinding) -> void:
 	var activity := binding.get("_cargo_activity") as CargoDeliveryActivity
 	activity.submit_transfer(activity.get_generation())
 
-func _accept_reward(_request: Dictionary) -> Dictionary: return {"accepted": true}
+func _accept_reward(_request: Dictionary) -> Dictionary:
+	return {"accepted": _reward_accept}
 
 func _cargo_card(view: Dictionary) -> Dictionary:
 	for candidate in view.get("cards", []) as Array:

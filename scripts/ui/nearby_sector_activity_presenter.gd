@@ -270,7 +270,10 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var convoy_recovery := str(convoy_feedback.get("recovery_text", ""))
 	if not convoy_recovery.is_empty():
 		recovery = convoy_recovery
-	var reward_pending := bool(state.get("reward_pending", state.get("reward_requested", false)))
+	var reward_pending := (
+		bool(state.get("reward_pending", state.get("reward_requested", false)))
+		or bool(cargo_progress.get("reward_retry_available", false))
+	)
 	var status_suffix := ""
 	if reward_pending and cargo_progress.is_empty() and station_defense_feedback.is_empty() and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
 			and mining_feedback.is_empty():
@@ -901,6 +904,7 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		return {}
 	var numeric_state := int(state.get("state", -1))
 	var delivery_persisted := bool(state.get("delivery_persisted", false))
+	var reward_retry_available := bool(state.get("reward_retry_available", false))
 	var next_phase_index := maxi(int(state.get("next_phase_index", 0)), 0)
 	var phase_count := maxi(int(state.get("phase_count", 0)), 0)
 	var contract := state.get("contract", {}) as Dictionary
@@ -935,9 +939,12 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		objective = (
 			"DELIVERY RECEIPT RETAINED"
 			if delivery_persisted else (
-				"AWAIT CARGO REWARD HANDOFF"
-				if bool(state.get("reward_pending", false))
-				else "CARGO TRANSFER CONFIRMED"
+				"REWARD SAVE FAILED — START TO RETRY"
+				if reward_retry_available else (
+					"AWAIT CARGO REWARD HANDOFF"
+					if bool(state.get("reward_pending", false))
+					else "CARGO TRANSFER CONFIRMED"
+				)
 			)
 		)
 	elif numeric_state in [CargoDeliveryActivity.State.FAILED, CargoDeliveryActivity.State.EXPIRED]:
@@ -968,8 +975,10 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 	elif numeric_state == CargoDeliveryActivity.State.COMPLETED:
 		summary += "  //  %s" % (
 			"DELIVERY RECEIPT SAVED" if delivery_persisted else (
-				"REWARD PENDING" if bool(state.get("reward_pending", false)) \
-				else "DELIVERY CONFIRMED"
+				"SAVE FAILED — START TO RETRY" if reward_retry_available else (
+					"REWARD PENDING" if bool(state.get("reward_pending", false)) \
+					else "DELIVERY CONFIRMED"
+				)
 			)
 		)
 	elif not recovery_text.is_empty():
@@ -986,7 +995,9 @@ func _cargo_progress(state: Dictionary) -> Dictionary:
 		"deadline_seconds": deadline,
 		"deadline_ratio": deadline_ratio,
 		"deadline_state": deadline_state,
-		"reward_pending": bool(state.get("reward_pending", false)),
+		"reward_pending": bool(state.get("reward_pending", false)) \
+			or reward_retry_available,
+		"reward_retry_available": reward_retry_available,
 		"delivery_persisted": delivery_persisted,
 		"recovery_text": recovery_text,
 		"terminal": terminal,

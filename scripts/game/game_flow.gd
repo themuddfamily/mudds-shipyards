@@ -110,6 +110,7 @@ const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_DELIVERY_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 const HEAVY_BREACH_HUD_REFRESH_SECONDS := 0.1
+const CINDER_CARGO_HUD_REFRESH_SECONDS := 0.1
 const CINDER_MINING_HUD_REFRESH_SECONDS := 0.1
 const CINDER_BEACON_HUD_REFRESH_SECONDS := 0.1
 const CARGO_DELIVERY_DISPLAY_NAME := "Jovian fabrication kit delivery"
@@ -520,6 +521,8 @@ var _game_flow_reward_configuration: Dictionary = {}
 var _heavy_breach_reward_configuration: Dictionary = {}
 var _cinder_structure_scan_reward_configuration: Dictionary = {}
 var _last_cinder_structure_scan_reward_result: Dictionary = {}
+var _cinder_cargo_reward_configuration: Dictionary = {}
+var _cinder_cargo_hud_elapsed := 0.0
 var _cinder_mining_hud_elapsed := 0.0
 var _cinder_beacon_traversal_reward_configuration: Dictionary = {}
 var _last_cinder_beacon_traversal_reward_result: Dictionary = {}
@@ -3365,6 +3368,7 @@ func _physics_process(delta: float) -> void:
 	var cinder_activity_actor_sample := (
 		actor_sample if bool(cinder_streaming_tick.get("accepted", false)) else {}
 	)
+	_advance_cinder_cargo_run(delta, cinder_activity_actor_sample)
 	_advance_cinder_mining_extraction(delta, cinder_activity_actor_sample)
 	_advance_cinder_structure_scan(delta, cinder_activity_actor_sample)
 	_advance_cinder_beacon_traversal(delta, cinder_activity_actor_sample)
@@ -6321,6 +6325,7 @@ func _on_interact_requested() -> void:
 		var accepted := bool(station_interaction_candidate.call("interact", player))
 		if accepted:
 			audio.play_ui_confirm()
+			_sync_activity_hud()
 		return
 	if phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE, Phase.IN_FLIGHT_CABIN] or not _near_ship:
 		return
@@ -6679,6 +6684,7 @@ func _try_exit_ship() -> void:
 	await player.disembarking_completed
 	if not _is_transition_current(transition_generation, transition_ship, Phase.DISEMBARKING):
 		return
+	_authorize_cinder_cargo_terminal_actor(transition_ship)
 	audio.play_canopy(false)
 	active_ship.set_canopy_open(false, canopy_motion_time)
 	await active_ship.canopy_motion_finished
@@ -11025,6 +11031,7 @@ func get_activity_reward_report() -> Dictionary:
 		"last_cinder_structure_scan_result": (
 			_last_cinder_structure_scan_reward_result.duplicate(true)
 		),
+		"cinder_cargo_handoff": _cinder_cargo_reward_configuration.duplicate(true),
 		"cinder_beacon_traversal_handoff": (
 			_cinder_beacon_traversal_reward_configuration.duplicate(true)
 		),
@@ -11287,6 +11294,59 @@ func _sync_cinder_convoy_stream_presence() -> void:
 		_fail_active_activity(&"cinder_stream_replaced")
 
 
+## Drives the streamed supply sortie only from the current production source
+## ship. The binding owns deadline, manifests, ordered phases, berth facts, and
+## transfer authority; GameFlow forwards one accepted ship sample and refreshes
+## the detached HUD at a bounded rate.
+func _advance_cinder_cargo_run(
+		delta: float,
+		actor_sample: Dictionary,
+	) -> Dictionary:
+	var binding := _get_nearby_activity_binding()
+	if (
+		not is_instance_valid(binding)
+		or not binding.has_method(&"advance_cargo_run_from_caller_sample")
+		or not binding.has_method(&"get_snapshot")
+	):
+		_cinder_cargo_hud_elapsed = 0.0
+		return {"accepted": false, "reason": &"cargo_binding_unavailable"}
+	var cargo := (
+		(binding.call(&"get_snapshot") as Dictionary).get("cargo", {})
+		as Dictionary
+	)
+	if StringName(cargo.get("state_id", &"")) != &"active" \
+			or int(cargo.get("generation", 0)) < 1:
+		_cinder_cargo_hud_elapsed = 0.0
+		return {"accepted": false, "reason": &"cargo_inactive"}
+	var caller_position := _cinder_nearby_activity_ship_position(actor_sample)
+	var actor_instance_id := (
+		active_ship.get_instance_id()
+		if caller_position.is_finite() and is_instance_valid(active_ship) else 0
+	)
+	var advanced := binding.call(
+		&"advance_cargo_run_from_caller_sample",
+		delta,
+		actor_instance_id,
+		caller_position,
+	) as Dictionary
+	var reason := StringName(advanced.get("reason", &""))
+	var phase_advanced := reason == &"phase_advanced"
+	var terminal := int(advanced.get("state", CargoDeliveryActivity.State.IDLE)) in [
+		CargoDeliveryActivity.State.FAILED,
+		CargoDeliveryActivity.State.EXPIRED,
+	]
+	if is_finite(delta) and delta > 0.0:
+		_cinder_cargo_hud_elapsed += delta
+	if (
+		phase_advanced
+		or terminal
+		or _cinder_cargo_hud_elapsed >= CINDER_CARGO_HUD_REFRESH_SECONDS
+	):
+		_cinder_cargo_hud_elapsed = 0.0
+		_sync_activity_hud()
+	return advanced.duplicate(true)
+
+
 ## Advances the existing extraction authority from the same accepted production
 ## ship sample used for Cinder streaming. The binding owns the authored hold
 ## sphere, timer, interruption/reset, and capacity receipt; GameFlow only
@@ -11466,6 +11526,19 @@ func _cinder_nearby_activity_ship_position(actor_sample: Dictionary) -> Vector3:
 	return Vector3.INF
 
 
+func _authorize_cinder_cargo_terminal_actor(ship_to_authorize: Node) -> Dictionary:
+	var binding := _get_nearby_activity_binding()
+	if (
+		not is_instance_valid(binding)
+		or not binding.has_method(&"authorize_cargo_terminal_actor")
+		or not is_instance_valid(player)
+	):
+		return {"accepted": false, "reason": &"cargo_terminal_binding_unavailable"}
+	return binding.call(
+		&"authorize_cargo_terminal_actor", player, ship_to_authorize
+	) as Dictionary
+
+
 func _configure_cinder_structure_scan_reward_handoff(binding: Object) -> Dictionary:
 	if _game_flow_reward_authority == null:
 		_cinder_structure_scan_reward_configuration = {
@@ -11484,6 +11557,25 @@ func _configure_cinder_structure_scan_reward_handoff(binding: Object) -> Diction
 			Callable(self, &"_commit_game_flow_activity_reward"),
 		) as Dictionary
 	return _cinder_structure_scan_reward_configuration.duplicate(true)
+
+
+func _configure_cinder_cargo_reward_handoff(binding: Object) -> Dictionary:
+	if _game_flow_reward_authority == null:
+		_cinder_cargo_reward_configuration = {
+			"accepted": false,
+			"reason": &"reward_authority_unavailable",
+		}.duplicate(true)
+	elif binding == null or not binding.has_method(&"configure_cargo_reward_handoff"):
+		_cinder_cargo_reward_configuration = {
+			"accepted": false,
+			"reason": &"cargo_reward_handoff_unavailable",
+		}.duplicate(true)
+	else:
+		_cinder_cargo_reward_configuration = binding.call(
+			&"configure_cargo_reward_handoff",
+			Callable(self, &"_commit_game_flow_activity_reward"),
+		) as Dictionary
+	return _cinder_cargo_reward_configuration.duplicate(true)
 
 
 func _cinder_structure_scan_reward_handoff_ready(binding: Object) -> bool:
@@ -11710,6 +11802,29 @@ func _sync_heavy_breach_activity_hud() -> bool:
 	return true
 
 
+func _sync_cinder_cargo_activity_hud() -> bool:
+	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
+		return false
+	var binding := _get_nearby_activity_binding()
+	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+		return false
+	var cargo := (
+		(binding.call(&"get_snapshot") as Dictionary).get("cargo", {})
+		as Dictionary
+	)
+	if int(cargo.get("generation", 0)) < 1:
+		return false
+	var state_id := StringName(cargo.get("state_id", &""))
+	var presentable := state_id == &"active" or (
+		state_id == &"completed"
+		and not bool(cargo.get("delivery_persisted", false))
+	)
+	if not presentable:
+		return false
+	hud.call(&"set_activity_objective", "Platform supply run", cargo.duplicate(true))
+	return true
+
+
 func _sync_cinder_mining_activity_hud() -> bool:
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return false
@@ -11784,6 +11899,8 @@ func _sync_activity_hud() -> void:
 	_sync_nearby_activity_hud()
 	if _sync_heavy_breach_activity_hud():
 		return
+	if _sync_cinder_cargo_activity_hud():
+		return
 	if _sync_cinder_mining_activity_hud():
 		return
 	if _sync_cinder_structure_scan_activity_hud():
@@ -11857,6 +11974,7 @@ func _sync_nearby_activity_hud() -> void:
 			_set_unloaded_nearby_activity_hud()
 			return
 	if _game_flow_reward_authority != null:
+		_configure_cinder_cargo_reward_handoff(binding)
 		_configure_cinder_structure_scan_reward_handoff(binding)
 		_configure_cinder_beacon_traversal_reward_handoff(binding)
 	bind_cinder_race_best_persistence(binding)
@@ -12553,7 +12671,21 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				active_ship.global_position
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
-		&"cinder_platform_supply_run": return binding.call(&"start_cargo_run")
+		&"cinder_platform_supply_run":
+			var cargo := (
+				(binding.call(&"get_snapshot") as Dictionary).get("cargo", {})
+				as Dictionary
+			)
+			if StringName(cargo.get("state_id", &"")) == &"completed" \
+					and int(cargo.get("generation", 0)) > 0 \
+					and not bool(cargo.get("delivery_persisted", false)):
+				var configured := _configure_cinder_cargo_reward_handoff(binding)
+				if not bool(configured.get("accepted", false)):
+					return configured
+				return binding.call(
+					&"request_cargo_reward", int(cargo.get("generation", 0))
+				) as Dictionary
+			return binding.call(&"start_cargo_run")
 		&"station_defense": return _start_physical_station_defense_board()
 	return {"accepted": false, "reason": &"unknown_activity"}
 
