@@ -1105,10 +1105,35 @@ func _test_collision_access_and_cameras(jovian: JovianLightFreighter) -> void:
 	var seat := jovian.get_pilot_seat_anchor()
 	_check(seat != null and seat.global_position.distance_to(jovian.get_boarding_entry_transform().origin) < 3.0, "pilot hatch retains a short physical seat transition")
 	_check(seat.global_position.z < jovian.get_passenger_cabin_root().global_position.z - 6.0, "pilot seat is forward of the passenger cabin")
+	var cockpit := jovian.get_interior_root().get_node_or_null(^"CockpitInterior") as Node3D
+	for visual_name: StringName in [&"SeatPan", &"SeatBack"]:
+		var visual := cockpit.get_node_or_null(NodePath(visual_name)) as MeshInstance3D \
+			if cockpit != null else null
+		var collision := jovian.get_node_or_null(
+			NodePath("Pilot%sCollision" % visual_name)
+		) as CollisionShape3D
+		var visual_bounds := visual.mesh.get_aabb() if visual != null and visual.mesh != null \
+			else AABB()
+		var expected_transform := (
+			jovian.global_transform.affine_inverse() * visual.global_transform
+			* Transform3D(Basis.IDENTITY, visual_bounds.get_center())
+		) if visual != null else Transform3D.IDENTITY
+		_check(
+			collision != null
+			and collision.shape is BoxShape3D
+			and (collision.shape as BoxShape3D).size.is_equal_approx(visual_bounds.size)
+			and collision.transform.is_equal_approx(expected_transform),
+			"visible pilot %s has an exact ship-owned collision counterpart" % visual_name
+		)
 	jovian.set_piloted(true)
 	_check(jovian.get_camera() != null and jovian.get_camera().name == "ShipCamera", "large craft activates chase camera")
 	jovian.set_cockpit_view(true)
-	_check(jovian.get_camera().name == "CockpitCamera" and jovian.get_camera().get_parent().name == "CockpitInterior", "cockpit view remains inside physical flight deck")
+	_check(
+		jovian.get_camera().name == "CockpitCamera"
+		and jovian.get_camera().get_parent().name == "CockpitInterior"
+		and is_equal_approx(jovian.get_camera().near, 0.04),
+		"cockpit view remains inside the physical flight deck with an interior-scale near plane"
+	)
 	jovian.set_cockpit_view(false)
 	jovian.set_piloted(false)
 
@@ -1234,8 +1259,10 @@ func _inner_probe(bounds: AABB) -> BoxShape3D:
 
 
 func _test_physical_player_traversal(jovian: JovianLightFreighter) -> void:
-	# A real PlayerController walks from the exterior landing deck, up the ship's
-	# sloped collider, through the open aperture, and into the passenger cabin.
+	# A real PlayerController follows the complete public route from the exterior
+	# ramp to the pilot seat, leaves that seat into the in-flight cabin pose,
+	# retakes it, and exits through the pilot hatch. The one staging teleport below
+	# is the only direct pose write in the route.
 	var landing_deck := StaticBody3D.new()
 	landing_deck.name = "JovianTraversalLandingDeck"
 	landing_deck.collision_layer = PhysicsLayers.WORLD_BODY_LAYER
@@ -1275,12 +1302,125 @@ func _test_physical_player_traversal(jovian: JovianLightFreighter) -> void:
 	_check(player.is_on_floor(), "real player stays grounded across the cargo-to-passenger threshold")
 	_check(jovian.get_interior_bounds().has_point(cabin_local), "passenger traversal remains within published ship-local bounds")
 
+	# Keep walking toward the visible pilot chair. Its solid seat back, rather than
+	# the forward pressure wall behind it, must stop the production capsule.
+	Input.action_press("move_forward")
+	for index in 55:
+		await physics_frame
+	Input.action_release("move_forward")
+	var cockpit_local := jovian.to_local(player.global_position)
+	_check(
+		cockpit_local.z > -7.4 and cockpit_local.z < -6.8
+		and absf(cockpit_local.x) < 0.45,
+		"visible pilot chair physically closes the central aisle at its reachable seat approach"
+	)
+	_check(
+		player.is_on_floor()
+		and jovian.get_in_flight_cabin_report().get("local_bounds", AABB()).has_point(
+			cockpit_local
+		),
+		"real player remains supported and contained at the cockpit seat approach"
+	)
+
+	var pilot_seat := jovian.get_pilot_seat_anchor()
+	_check(
+		player.begin_boarding(
+			jovian.get_boarding_entry_transform(), pilot_seat, 0.0, jovian
+		) and player.is_seated(),
+		"public boarding transition takes the embodied ramp-route player into the pilot seat"
+	)
+	jovian.set_piloted(true)
+	_check(
+		is_equal_approx(player.get_camera().near, 0.08)
+		and is_equal_approx(jovian.get_camera().near, 0.15),
+		"on-foot and piloting cameras retain short finite near planes at interior scale"
+	)
+
+	# Exercise the same moving-frame transition used by the production cabin
+	# release. Collision is restored at the published stand pose, so this also
+	# catches a marker hidden inside the visible seat.
+	jovian.set_piloted(false)
+	var cabin_release_started := player.begin_disembark(
+		jovian.get_cabin_stand_transform(), 0.04, jovian
+	)
+	_check(
+		cabin_release_started,
+		"public in-flight disembark transition releases the pilot into the cabin"
+	)
+	if cabin_release_started:
+		await player.disembarking_completed
+	var frame := jovian.get_moving_interior_component()
+	var registration := frame.register_occupant(player, {
+		"require_inside_bounds": false,
+		"registration_source": &"jovian_route_regression",
+	})
+	_check(bool(registration.get("registered", false)), "released pilot is carried by the Jovian moving frame")
+	_check(
+		player.set_cabin_containment(
+			jovian,
+			jovian.get_in_flight_cabin_report().get("local_bounds", AABB()),
+			jovian.get_cabin_stand_transform()
+		),
+		"released pilot receives the production Jovian anti-stranding envelope"
+	)
+	player.set_control_enabled(true)
+	for index in 8:
+		await physics_frame
+	var released_local := jovian.to_local(player.global_position)
+	_check(
+		player.is_on_floor()
+		and released_local.distance_to(JovianLightFreighter.CABIN_STAND_LOCAL_ORIGIN) < 0.08,
+		"in-flight release pose is grounded and collision-clear behind the pilot chair"
+	)
+	var boarding_area := jovian.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	_check(
+		boarding_area != null
+		and player.get_nearby_interactables().has(boarding_area)
+		and boarding_area.is_available_for(player)
+		and boarding_area.get_prompt().contains("FLIGHT DECK"),
+		"released pilot discovers the readable flight-deck prompt at gameplay distance"
+	)
+
+	player.clear_cabin_containment()
+	frame.unregister_occupant(player, false, &"jovian_route_reboard")
+	_check(
+		player.begin_boarding(
+			jovian.get_cabin_stand_transform(), pilot_seat, 0.0, jovian
+		) and player.is_seated(),
+		"released pilot can retake the same seat without a teleport"
+	)
+	_check(
+		player.begin_disembark(jovian.get_exit_transform(), 0.0, jovian),
+		"public landed exit transition returns the reboarded pilot to the exterior hatch"
+	)
+	player.set_control_enabled(true)
+	for index in 8:
+		await physics_frame
+	var hatch_exit_local := jovian.to_local(player.global_position)
+	var hatch_marker_local := jovian.to_local(jovian.get_exit_transform().origin)
+	_check(
+		player.is_on_floor()
+		and Vector2(hatch_exit_local.x, hatch_exit_local.z).distance_to(
+			Vector2(hatch_marker_local.x, hatch_marker_local.z)
+		) < 0.08,
+		"pilot hatch exit is supported and clear of the hull"
+	)
+	Input.action_press("move_left")
+	for index in 20:
+		await physics_frame
+	Input.action_release("move_left")
+	_check(
+		jovian.to_local(player.global_position).z < hatch_exit_local.z - 0.8,
+		"exited pilot can walk away from the Jovian without an invisible blocker"
+	)
+
 	player.queue_free()
 	landing_deck.queue_free()
 	await process_frame
 	await physics_frame
 	Input.action_release("move_right")
 	Input.action_release("move_forward")
+	Input.action_release("move_left")
 
 
 func _test_engine_weapon_damage_and_reuse(jovian: JovianLightFreighter) -> void:

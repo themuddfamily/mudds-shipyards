@@ -49,9 +49,11 @@ const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.
 ## anti-stranding envelope, and `PlayerController` confines the occupant to it,
 ## so the only way out of a flying Jovian is the pilot seat.
 const CABIN_MOVEMENT_BOUNDS := AABB(Vector3(-5.75, 0.30, -10.4), Vector3(11.5, 4.5, 19.65))
-## Standing pose just aft of the cockpit portal, on the shared passenger/cockpit
-## deck plate. Facing aft, into the cabin the pilot has just been given.
-const CABIN_STAND_LOCAL_ORIGIN := Vector3(0.0, 0.52, -7.35)
+## Standing pose one clear stride aft of the cockpit portal, on the passenger
+## deck's central aisle. The full moving-frame disembark needs this separation:
+## a pose closer to the chair can be stepped onto its back as collision returns.
+## Facing aft, into the cabin the pilot has just been given.
+const CABIN_STAND_LOCAL_ORIGIN := Vector3(0.0, 0.52, -6.70)
 const CABIN_STAND_LOCAL_YAW := PI
 ## Secured freight in the hold: four tie-down stations, each carrying a pallet
 ## with a container strapped to it.
@@ -4139,6 +4141,21 @@ func _replace_collision_and_markers() -> void:
 			Vector3(0.22, 2.6, 3.4)
 		)
 	_add_box_collision("CockpitForwardWallCollision", Vector3(0.0, 1.75, -10.46), Vector3(3.55, 2.6, 0.22))
+	# The inherited chair is part of this walkable cockpit, not a presentation
+	# seen only while seated. Its visible back crossed the old cabin standing pose
+	# and had no physics counterpart, so a released pilot spawned partly inside it
+	# and an on-foot pilot could walk straight through it to the pressure wall.
+	# Derive both shapes from the live mesh transforms so restyling or relocating
+	# the cockpit cannot separate the visible chair from the collision that closes
+	# the route at the seat.
+	var cockpit := _walkable_interior.get_node_or_null(^"CockpitInterior") as Node3D
+	if cockpit != null:
+		_add_visual_box_collision(
+			"PilotSeatPanCollision", cockpit.get_node_or_null(^"SeatPan") as MeshInstance3D
+		)
+		_add_visual_box_collision(
+			"PilotSeatBackCollision", cockpit.get_node_or_null(^"SeatBack") as MeshInstance3D
+		)
 	# Secured freight is solid. It was presentation-only for as long as the hold
 	# was scenery a chase camera flew past; once a crew member could leave the seat
 	# and walk it, a crate you walk through — and a chase boom pushed inside a
@@ -4215,6 +4232,31 @@ func _add_box_collision(
 	collision.rotation = rotation
 	var shape := BoxShape3D.new()
 	shape.size = size
+	collision.shape = shape
+	add_child(collision)
+	return collision
+
+
+## Gives a visible, centred box mesh an exact ship-root physics counterpart.
+## Keeping this Jovian-local avoids granting generic presentation nodes collision
+## authority and preserves the physical ship as the one collision owner.
+func _add_visual_box_collision(
+		node_name: String,
+		visual: MeshInstance3D
+	) -> CollisionShape3D:
+	if visual == null or visual.mesh == null:
+		return null
+	var bounds := visual.mesh.get_aabb()
+	if not bounds.has_volume():
+		return null
+	var collision := CollisionShape3D.new()
+	collision.name = node_name
+	collision.transform = (
+		global_transform.affine_inverse() * visual.global_transform
+		* Transform3D(Basis.IDENTITY, bounds.get_center())
+	)
+	var shape := BoxShape3D.new()
+	shape.size = bounds.size
 	collision.shape = shape
 	add_child(collision)
 	return collision
