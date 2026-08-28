@@ -1959,8 +1959,9 @@ func get_landing_pad_deck_connector_allocation_audit() -> Dictionary:
 ## Renderer-independent allocation audit for the four ExteriorTargetRange cores.
 ##
 ## "Submission" is a structural mesh-surface count, not a driver draw-call
-## claim. The four named childless MeshInstance3D nodes retain one surface each;
-## this report proves only that their exact SphereMesh allocation is shared.
+## claim. The four named childless MeshInstance3D nodes retain one surface each
+## and may carry only their steady component-stage presentation state; this
+## report proves only that their exact SphereMesh allocation is shared.
 func get_exterior_target_core_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var core_nodes: Array[MeshInstance3D] = []
@@ -1972,6 +1973,7 @@ func get_exterior_target_core_allocation_audit() -> Dictionary:
 	var scripted_node_count := 0
 	var child_node_count := 0
 	var metadata_entry_count := 0
+	var unexpected_metadata_entry_count := 0
 	var processing_node_count := 0
 	var exterior := get_node_or_null(^"ExteriorTargetRange") as Node3D
 	var discovered_core_count := 0
@@ -2006,7 +2008,15 @@ func get_exterior_target_core_allocation_audit() -> Dictionary:
 			errors.append("target_core_visual_transform_or_visibility_drift")
 		if core.get_script() != null:
 			scripted_node_count += 1
-		metadata_entry_count += core.get_meta_list().size()
+		var metadata_names := core.get_meta_list()
+		metadata_entry_count += metadata_names.size()
+		for metadata_name in metadata_names:
+			if StringName(metadata_name) != &"component_stage":
+				unexpected_metadata_entry_count += 1
+		if core.has_meta(&"component_stage") and not [
+			&"nominal", &"damaged", &"critical", &"destroyed"
+		].has(StringName(core.get_meta(&"component_stage", &""))):
+			unexpected_metadata_entry_count += 1
 		if core.is_processing() or core.is_physics_processing():
 			processing_node_count += 1
 		child_node_count += core.get_child_count()
@@ -2065,10 +2075,11 @@ func get_exterior_target_core_allocation_audit() -> Dictionary:
 		authority_node_count != 0
 		or scripted_node_count != 0
 		or child_node_count != 0
-		or metadata_entry_count != 0
 		or processing_node_count != 0
 	):
 		errors.append("target_core_stock_gained_authority_or_lifecycle_children")
+	if unexpected_metadata_entry_count != 0:
+		errors.append("target_core_presentation_metadata_drift")
 
 	var retained_resource_count := mesh_ids.size() + material_ids.size()
 	return {
@@ -2104,6 +2115,7 @@ func get_exterior_target_core_allocation_audit() -> Dictionary:
 		"scripted_node_count": scripted_node_count,
 		"child_node_count": child_node_count,
 		"metadata_entry_count": metadata_entry_count,
+		"unexpected_metadata_entry_count": unexpected_metadata_entry_count,
 		"processing_node_count": processing_node_count,
 		"authority_exclusions": {
 			"owns_target_registration": false,

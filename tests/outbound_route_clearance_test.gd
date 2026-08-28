@@ -661,7 +661,8 @@ func _test_target_core_allocation(world: ShipyardWorld) -> void:
 		int(audit.get("authority_node_count", -1)) == 0
 		and int(audit.get("scripted_node_count", -1)) == 0
 		and int(audit.get("child_node_count", -1)) == 0
-		and int(audit.get("metadata_entry_count", -1)) == 0
+		and int(audit.get("metadata_entry_count", -1)) == 4
+		and int(audit.get("unexpected_metadata_entry_count", -1)) == 0
 		and int(audit.get("processing_node_count", -1)) == 0
 		and exclusions == {
 			"owns_target_registration": false,
@@ -677,7 +678,7 @@ func _test_target_core_allocation(world: ShipyardWorld) -> void:
 		and not bool(audit.get("gpu_draw_call_claimed", true))
 		and not bool(audit.get("vram_claimed", true))
 		and not bool(audit.get("whole_scene_budget_claimed", true)),
-		"core stock remains childless presentation with the exact authority and performance exclusions"
+		"core stock remains childless presentation with only four steady component-stage metadata entries and the exact authority/performance exclusions"
 	)
 
 	var cores := _target_cores(world)
@@ -698,6 +699,8 @@ func _test_target_core_allocation(world: ShipyardWorld) -> void:
 			and bool(target.get_meta("is_shipyard_target", false))
 			and target.is_in_group("shipyard_targets")
 			and _target_collision_shape_count(target) == 1
+			and core.get_meta_list() == [&"component_stage"]
+			and StringName(core.get_meta(&"component_stage", &"")) == &"nominal"
 		)
 	_check(
 		resource_and_path_contract,
@@ -752,9 +755,20 @@ func _test_target_core_allocation(world: ShipyardWorld) -> void:
 	)
 	cores[0].remove_child(rogue_authority)
 	rogue_authority.free()
+
+	cores[0].set_meta(&"rogue_authority", true)
+	var metadata_mutation := world.get_exterior_target_core_allocation_audit()
+	_check(
+		not bool(metadata_mutation.get("valid", true))
+		and (metadata_mutation.get("errors", PackedStringArray()) as PackedStringArray).has(
+			"target_core_presentation_metadata_drift"
+		),
+		"metadata beyond the steady component stage turns the target-core audit red"
+	)
+	cores[0].remove_meta(&"rogue_authority")
 	_check(
 		bool(world.get_exterior_target_core_allocation_audit().get("valid", false)),
-		"restoring core recipe, identity, and authority returns the audit green"
+		"restoring core recipe, identity, authority, and metadata returns the audit green"
 	)
 
 
