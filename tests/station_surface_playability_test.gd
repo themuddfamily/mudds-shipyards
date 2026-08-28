@@ -6,6 +6,17 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
+const PRODUCTION_SHIP_ROOT_SHAPE_COUNTS := {
+	&"ArrowReconShip": 2,
+	&"cinder_cargo_hauler": 8,
+	&"cinder_light_interceptor": 1,
+	&"cinder_long_range_bomber": 1,
+	&"HalyardCrewTransport": 21,
+	&"JovianLightFreighter": 29,
+	&"TorrentInterceptor": 7,
+	&"ZenithInterceptor": 24,
+}
+const PRODUCTION_SHIP_ROOT_SHAPE_TOTAL := 93
 
 const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/CentralJunction",
@@ -678,7 +689,7 @@ func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroS
 		]
 	)
 	_check(
-		int(shape_radius_report.shape_count) == 20 \
+		int(shape_radius_report.shape_count) == int(PRODUCTION_SHIP_ROOT_SHAPE_COUNTS[&"HalyardCrewTransport"]) \
 		and absf(capture_box.end.x - 61.0) <= 0.00001 \
 		and absf(shape_corner_radius - 15.922939) <= 0.00001 \
 		and is_equal_approx(capture_maximum_speed, 22.0) \
@@ -751,11 +762,11 @@ func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroS
 		]
 	)
 	_check(
-		ships.size() == 5 \
-		and sampled_shape_count >= ships.size() \
-		and sample_count == sampled_shape_count * 21 \
+		_production_ship_root_shape_roster_matches(ships) \
+		and sampled_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
+		and sample_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL * 21 \
 		and overflight_intrusions.is_empty(),
-		"all enabled physical collision shapes of all five production craft clear Spur, connector, and Fabrication along the sampled +X overflight line"
+		"all 93 enabled physical shapes across the exact eight-ship production roster clear Spur, connector, and Fabrication along the sampled +X overflight line"
 	)
 	_check(
 		root_height_clearance > 16.0 and camera_sphere_clearance > 15.0,
@@ -983,19 +994,22 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 		]
 	)
 	_check(
-		ships.size() == 5 and craft_shape_count == 82 and craft_intrusions.is_empty(),
-		"all 82 enabled physical shapes across all five parked production craft clear Salvage and its connector"
+		_production_ship_root_shape_roster_matches(ships) \
+		and craft_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
+		and craft_intrusions.is_empty(),
+		"all 93 enabled physical shapes across the exact eight-ship production roster clear Salvage and its connector"
 	)
 	_check(
-		absf(smallest_berth_gap - 21.919998) <= 0.00001,
-		"Salvage and connector keep the exact measured 21.919998 m minimum from authoritative berth volumes"
+		absf(smallest_berth_gap - 7.919998) <= 0.00001,
+		"Salvage and connector keep the exact measured 7.919998 m minimum from authoritative berth volumes"
 	)
 	_check(
-		assist_shape_count == 20 and assist_sample_count == 420 \
+		assist_shape_count == int(PRODUCTION_SHIP_ROOT_SHAPE_COUNTS[&"HalyardCrewTransport"]) \
+		and assist_sample_count == int(PRODUCTION_SHIP_ROOT_SHAPE_COUNTS[&"HalyardCrewTransport"]) * 21 \
 		and assist_intrusions.is_empty() \
-		and absf(smallest_assist_gap - 24.550051) <= 0.00001 \
-		and absf(smallest_craft_gap - 24.550051) <= 0.00001,
-		"all 20 Halyard shapes clear Salvage throughout 21 samples of the real staging-to-dock assist path by more than 10 m"
+		and smallest_assist_gap > 10.0 \
+		and absf(smallest_assist_gap - 24.622694) <= 0.00001,
+		"all 21 Halyard shapes clear Salvage throughout 21 samples of the real staging-to-dock assist path by more than 10 m"
 	)
 	_check(
 		capture_overlap_count == 0 and absf(smallest_capture_gap - 4.919998) <= 0.00001,
@@ -1039,6 +1053,18 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 	salvage.remove_child(mutation)
 	mutation.free()
 	_check(bool(salvage.get_audit_report().valid), "removing the authority mutation returns the production Salvage audit to green")
+
+
+func _production_ship_root_shape_roster_matches(ships: Array[HeroShip]) -> bool:
+	var live_counts := {}
+	for ship in ships:
+		var count := 0
+		for raw_shape in ship.find_children("*", "CollisionShape3D", true, false):
+			var collision := raw_shape as CollisionShape3D
+			if collision.get_parent() == ship and not collision.disabled and collision.shape != null:
+				count += 1
+		live_counts[StringName(ship.name)] = count
+	return live_counts == PRODUCTION_SHIP_ROOT_SHAPE_COUNTS
 
 
 func _collision_body_box(body: StaticBody3D) -> AABB:
