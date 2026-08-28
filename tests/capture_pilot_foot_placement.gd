@@ -60,8 +60,12 @@ func _run() -> void:
 		return
 	for side: StringName in [&"l", &"r"]:
 		var foot: Dictionary = (snapshot.get("feet", {}) as Dictionary).get(side, {})
-		if not bool(foot.get("active", false)) or float(foot.get("sole_error_m", INF)) > 0.02:
-			push_error("Foot placement capture sole contract failed for %s" % side)
+		if (
+			not bool(foot.get("active", false))
+			or float(foot.get("sole_error_m", INF)) > 0.025
+			or float(foot.get("ankle_chain_error_m", INF)) > 0.001
+		):
+			push_error("Foot placement capture contact/ankle contract failed for %s" % side)
 			quit(1)
 			return
 

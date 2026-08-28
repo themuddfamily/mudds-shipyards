@@ -30,15 +30,20 @@ extends SceneTree
 
 const ENGINE_CALIBRATION_MESHES := ["BoxMesh", "CylinderMesh", "SphereMesh"]
 
-## Every craft that inherits `HeroShip._box`, plus the Halyard, which shadows it
-## onto the kit. All five are swept whole so a craft that grows new geometry is
-## covered the moment it is added.
-const CRAFT_SCENES := {
+## Every production flyable. Packed craft use their shipping scene; the three
+## Cinder craft use the same script construction path as the production fleet
+## binding. All are swept whole so new procedural geometry enters this contract
+## immediately instead of repeating a craft-specific inside-out regression.
+const CRAFT_SOURCES := {
 	"Torrent (HeroShip)": "res://scenes/ships/torrent_interceptor.tscn",
 	"Arrow": "res://scenes/ships/arrow_recon_ship.tscn",
 	"Zenith": "res://scenes/ships/zenith_interceptor.tscn",
 	"Jovian": "res://scenes/ships/jovian_light_freighter.tscn",
 	"Halyard": "res://scenes/ships/halyard_crew_transport.tscn",
+	"Bulwark": "res://scenes/ships/bulwark_heavy_gunship.tscn",
+	"Cinder cargo hauler": "res://scripts/ships/cinder_cargo_hauler.gd",
+	"Cinder long-range bomber": "res://scripts/ships/cinder_long_range_bomber.gd",
+	"Cinder light interceptor": "res://scripts/ships/cinder_light_interceptor.gd",
 }
 
 var _failures: Array[String] = []
@@ -135,12 +140,16 @@ func _check_hero_builders(expected_sign: int) -> void:
 func _check_craft(expected_sign: int) -> void:
 	var fleet_triangles := 0
 	var procedural_craft := 0
-	for label: String in CRAFT_SCENES:
-		var packed := load(CRAFT_SCENES[label]) as PackedScene
-		if packed == null:
-			_fail("%s scene did not load" % label)
+	for label: String in CRAFT_SOURCES:
+		var source: Resource = load(CRAFT_SOURCES[label])
+		var craft: Node
+		if source is PackedScene:
+			craft = (source as PackedScene).instantiate()
+		elif source is Script:
+			craft = (source as Script).new() as Node
+		if craft == null:
+			_fail("%s production source did not instantiate" % label)
 			continue
-		var craft := packed.instantiate()
 		root.add_child(craft)
 		await process_frame
 		await process_frame
@@ -187,10 +196,10 @@ func _check_craft(expected_sign: int) -> void:
 		await process_frame
 
 	# Vacuity guard: the per-craft assertions above would all pass if every craft
-	# quietly stopped building geometry. The Torrent, the Arrow, the Jovian and
-	# the Halyard all build theirs in script.
+	# quietly stopped building geometry. Every current production flyable owns at
+	# least one procedural renderer, even when most of its hull is imported art.
 	_assert(
-		procedural_craft >= 4 and fleet_triangles > 100000,
+		procedural_craft == CRAFT_SOURCES.size() and fleet_triangles > 100000,
 		"the fleet sweep scored real geometry (%d procedural triangles across %d craft)"
 		% [fleet_triangles, procedural_craft]
 	)

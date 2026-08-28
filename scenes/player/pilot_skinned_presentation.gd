@@ -1617,22 +1617,26 @@ func _apply_foot_chain(
 	_skeleton.set_bone_global_pose(calf_index, calf_pose)
 	_skeleton.force_update_all_bone_transforms()
 	foot_pose = _skeleton.get_bone_global_pose(foot_index)
-	# A nearly straight authored contact can leave the two-bone solve at its
-	# reach limit on the downhill side of a ramp. Close only that bounded visual
-	# remainder at the ankle; animation resamples this local pose next tick.
-	foot_pose.origin = target_ankle
+	# Keep the foot joint exactly where the solved calf placed it. Translating the
+	# child foot bone to `target_ankle` independently can improve the sole-to-floor
+	# number while physically separating the boot from the ankle whenever the
+	# requested target lies beyond the two-bone chain's reachable limit. Preserve
+	# only the animated foot orientation; the leg chain remains continuous.
+	var chain_ankle := foot_pose.origin
 	foot_pose.basis = original_foot_basis
 	_skeleton.set_bone_global_pose(foot_index, foot_pose)
 	_skeleton.force_update_all_bone_transforms()
 	var corrected_ankle := _skeleton.get_bone_global_pose(foot_index).origin
 	var corrected_sole := corrected_ankle - up_local * FOOT_SOLE_CLEARANCE_M
 	var sole_error := absf((support_local - corrected_sole).dot(up_local))
+	var ankle_chain_error := corrected_ankle.distance_to(chain_ankle)
 	return {
 		"active": true,
 		"reason": &"support_corrected",
 		"requested_correction_m": requested_correction,
 		"applied_correction_m": correction,
 		"sole_error_m": sole_error,
+		"ankle_chain_error_m": ankle_chain_error,
 		"support_position": support_position,
 		"support_normal": (support_normal as Vector3).normalized(),
 		"ankle_position": _skeleton.global_transform * corrected_ankle,

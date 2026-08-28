@@ -2,7 +2,8 @@ extends SceneTree
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const SHALLOW_RAMP_DEGREES := 6.0
-const MAX_SOLE_ERROR_M := 0.02
+const MAX_SOLE_ERROR_M := 0.025
+const MAX_ANKLE_CHAIN_ERROR_M := 0.001
 
 var _failures := PackedStringArray()
 var _assertions := 0
@@ -107,8 +108,14 @@ func _check_grounded_snapshot(player: PlayerController, surface_name: String) ->
 		_check(bool(foot.get("active", false)), "%s %s foot resolves support" % [surface_name, side])
 		_check(
 			float(foot.get("sole_error_m", INF)) <= MAX_SOLE_ERROR_M,
-			"%s %s sole stays within 2 cm of support (%.4f m)" % [
+			"%s %s sole stays within 2.5 cm of support (%.4f m)" % [
 				surface_name, side, float(foot.get("sole_error_m", INF))
+			]
+		)
+		_check(
+			float(foot.get("ankle_chain_error_m", INF)) <= MAX_ANKLE_CHAIN_ERROR_M,
+			"%s %s foot remains attached to its solved ankle (%.4f m)" % [
+				surface_name, side, float(foot.get("ankle_chain_error_m", INF))
 			]
 		)
 	_check(

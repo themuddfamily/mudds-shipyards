@@ -71,7 +71,9 @@ func _test_curved_threshold(ship: JovianLightFreighter) -> void:
 			+ normals[triangle_start + 1]
 			+ normals[triangle_start + 2]
 		).normalized()
-		winding_matches_normals = winding_matches_normals and face_normal.dot(authored_normal) >= 0.99
+		# Godot's engine primitives use clockwise front faces, so this CCW cross
+		# product must point opposite the authored outward shading normal.
+		winding_matches_normals = winding_matches_normals and face_normal.dot(authored_normal) <= -0.99
 	_check(winding_matches_normals, "all capsule caps and rim triangles face outward under back-face culling")
 	var upright := ship.find_child("CargoApertureUpright", true, false) as MeshInstance3D
 	_check(

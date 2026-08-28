@@ -4776,14 +4776,19 @@ func _cargo_aperture_capsule_mesh(
 		var next := boundary[(index + 1) % boundary.size()]
 		var current_uv := Vector2(current.x / size.z + 0.5, current.y / size.y + 0.5)
 		var next_uv := Vector2(next.x / size.z + 0.5, next.y / size.y + 0.5)
+		# Godot treats clockwise triangles viewed from outside as front-facing.
+		# Keep the emitted winding opposite the authored outward normals, matching
+		# BoxMesh and the fleet's shared rounded-box builders. The former order was
+		# reversed on every triangle, so back-face culling exposed this header's
+		# dark inner shell at the cargo entrance.
 		# Port/approach cap, facing local -X.
 		_emit_cargo_header_vertex(tool, Vector3(-half_depth, 0.0, 0.0), Vector3.LEFT, Vector2(0.5, 0.5))
-		_emit_cargo_header_vertex(tool, Vector3(-half_depth, current.y, current.x), Vector3.LEFT, current_uv)
 		_emit_cargo_header_vertex(tool, Vector3(-half_depth, next.y, next.x), Vector3.LEFT, next_uv)
+		_emit_cargo_header_vertex(tool, Vector3(-half_depth, current.y, current.x), Vector3.LEFT, current_uv)
 		# Cargo-bay cap, facing local +X.
 		_emit_cargo_header_vertex(tool, Vector3(half_depth, 0.0, 0.0), Vector3.RIGHT, Vector2(0.5, 0.5))
-		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), Vector3.RIGHT, next_uv)
 		_emit_cargo_header_vertex(tool, Vector3(half_depth, current.y, current.x), Vector3.RIGHT, current_uv)
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), Vector3.RIGHT, next_uv)
 		var rim_normal := Vector3(
 			0.0,
 			-(next.x - current.x),
@@ -4792,11 +4797,11 @@ func _cargo_aperture_capsule_mesh(
 		var rim_u := float(index) / float(boundary.size())
 		var rim_next_u := float(index + 1) / float(boundary.size())
 		_emit_cargo_header_vertex(tool, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 		_emit_cargo_header_vertex(tool, Vector3(half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 1.0))
-		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 		_emit_cargo_header_vertex(tool, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
-		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 		_emit_cargo_header_vertex(tool, Vector3(-half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 0.0))
+		_emit_cargo_header_vertex(tool, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 	tool.generate_tangents()
 	var mesh := tool.commit()
 	mesh.resource_name = "jovian_cargo_aperture_capsule_header_v1"
