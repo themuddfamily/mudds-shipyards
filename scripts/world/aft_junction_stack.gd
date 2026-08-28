@@ -280,8 +280,11 @@ const UPPER_TRANSFER_OPEN_CLEARANCE := 6.0
 ## rail must stop at its southern edge, and the eastern stair rail must not begin
 ## until the ramp has climbed clear of it. MAP-001 was exactly that pair of rails
 ## closing the only gate between the connection deck and the ramp foot.
-const STAIR_BASE_LANDING_CENTRE := Vector3(-4.6, -0.32, 3.25)
-const STAIR_BASE_LANDING_SIZE := Vector3(4.4, 0.64, 3.5)
+# Hold the landing's east edge at x=-2.40 while extending its west edge to the
+# visible tread edge at x=-7.16. This closes the 0.36 m unsupported frontage
+# beside the ramp collision without moving the stair, route stripe, or signs.
+const STAIR_BASE_LANDING_CENTRE := Vector3(-4.78, -0.32, 3.25)
+const STAIR_BASE_LANDING_SIZE := Vector3(4.76, 0.64, 3.5)
 
 ## Physical size of one station panel plate in this module, in metres of world
 ## space per texture repeat. Frozen; the Fleet Dock comb and the hub match it so

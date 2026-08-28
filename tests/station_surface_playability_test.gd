@@ -1841,7 +1841,9 @@ func _test_aft_stair_mount_and_climb(world: ShipyardWorld, player: PlayerControl
 	if aft == null:
 		_check(false, "Aft stair module resolves for physical traversal")
 		return
-	var local_start := Vector3(-5.7, 0.18, 1.75)
+	# Exercise the west frontage lane that is inside the visible tread width but
+	# was formerly outside the lower landing by 0.20 m at this Player root.
+	var local_start := Vector3(-7.0, 0.18, 1.75)
 	var world_direction := (aft.global_basis * Vector3.BACK).normalized()
 	var result := await _walk_forward_until(
 		player,
@@ -1853,10 +1855,25 @@ func _test_aft_stair_mount_and_climb(world: ShipyardWorld, player: PlayerControl
 		true
 	)
 	print("AFT_STAIR_TRAVERSAL: ", result)
-	_check(bool(result.reached), "continuous W mounts the Aft first tread from its lower deck and reaches the upper floor")
-	_check(not bool(result.fell), "Aft stair approach and ramp remain continuously supported")
+	_check(bool(result.reached), "continuous W mounts the west edge of the Aft first tread and reaches the upper floor")
+	_check(not bool(result.fell), "Aft west-frontage approach and ramp remain continuously supported")
 	var landing := aft.get_node_or_null(^"Structure/LowerOpenDeck/StairBaseLanding") as StaticBody3D
-	_check(landing != null and landing.collision_layer == WORLD_LAYER and landing.collision_mask == 0, "Aft first tread has a collision-backed lower-deck landing")
+	var landing_mesh := landing.get_node_or_null(^"Mesh") as MeshInstance3D if landing != null else null
+	var landing_collision := landing.get_node_or_null(^"Collision") as CollisionShape3D if landing != null else null
+	var landing_shape := landing_collision.shape as BoxShape3D if landing_collision != null else null
+	var landing_size := landing_mesh.mesh.get_aabb().size if landing_mesh != null and landing_mesh.mesh != null else Vector3.ZERO
+	var landing_west_edge := landing.position.x - landing_size.x * 0.5 if landing != null else INF
+	var landing_east_edge := landing.position.x + landing_size.x * 0.5 if landing != null else INF
+	_check(
+		landing != null \
+		and landing.collision_layer == WORLD_LAYER \
+		and landing.collision_mask == 0 \
+		and landing_shape != null \
+		and landing_shape.size.is_equal_approx(landing_size) \
+		and is_equal_approx(landing_west_edge, -7.16) \
+		and is_equal_approx(landing_east_edge, -2.4),
+		"Aft lower landing visibly and physically covers the full tread frontage while retaining its east edge"
+	)
 
 
 func _test_fleet_comb_ramp(world: ShipyardWorld, player: PlayerController) -> void:
