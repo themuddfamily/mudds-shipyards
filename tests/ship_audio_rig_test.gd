@@ -6,6 +6,7 @@ const ARROW_DEFINITION := preload("res://assets/ships/arrow_provisional.tres")
 const JOVIAN_DEFINITION := preload("res://assets/ships/jovian_provisional.tres")
 const ZENITH_DEFINITION := preload("res://assets/ships/zenith_b7_observed.tres")
 const HALYARD_DEFINITION := preload("res://assets/ships/halyard_new_design.tres")
+const BULWARK_DEFINITION := preload("res://assets/ships/bulwark_new_design.tres")
 
 ## Extra simulated frames granted on top of the frames a wait's nominal duration
 ## implies. This is a frame count, never a wall-clock grace. See
@@ -53,7 +54,7 @@ func _run() -> void:
 	root.add_child(_test_root)
 
 	var rigs := await _build_profile_roster()
-	if rigs.size() != 3:
+	if rigs.size() != 4:
 		_finish()
 		return
 
@@ -114,14 +115,16 @@ func _test_declared_identity(rigs: Dictionary) -> void:
 		"standard_fighter",
 		"efficient_twin_recon",
 		"heavy_quad_freighter",
+		"bulwark_heavy_gunship",
 	])
-	_check(ShipAudioRig.get_declared_profile_ids() == exact_ids, "public profile roster exposes the three exact reusable audio profile IDs")
+	_check(ShipAudioRig.get_declared_profile_ids() == exact_ids, "public profile roster preserves the three reusable IDs and adds the exact Bulwark profile")
 	var definition_profile_ids := PackedStringArray([
 		str(TORRENT_DEFINITION.get("audio_profile_id")),
 		str(ARROW_DEFINITION.get("audio_profile_id")),
 		str(JOVIAN_DEFINITION.get("audio_profile_id")),
 		str(ZENITH_DEFINITION.get("audio_profile_id")),
 		str(HALYARD_DEFINITION.get("audio_profile_id")),
+		str(BULWARK_DEFINITION.get("audio_profile_id")),
 	])
 	_check(
 		definition_profile_ids == PackedStringArray([
@@ -130,8 +133,9 @@ func _test_declared_identity(rigs: Dictionary) -> void:
 			"heavy_quad_freighter",
 			"standard_fighter",
 			"heavy_quad_freighter",
+			"bulwark_heavy_gunship",
 		]),
-		"five live ShipDefinitions use declared profiles; Zenith reuses standard_fighter and Halyard reuses heavy_quad_freighter"
+		"six live ShipDefinitions use declared profiles without changing the five existing assignments"
 	)
 	for profile in exact_ids:
 		_check(ShipAudioRig.is_declared_profile_id(StringName(profile)), "%s is accepted as an exact declared profile" % profile)
@@ -189,8 +193,9 @@ func _test_profile_distinction(rigs: Dictionary) -> void:
 			every_fingerprint_complete = every_fingerprint_complete and str(fingerprints[resource_id]).length() == 64
 		_check(every_fingerprint_complete, "%s exposes complete SHA-256 fingerprints for every resident waveform" % profile)
 
-	_check(base_frequencies[0] != base_frequencies[1] and base_frequencies[1] != base_frequencies[2] and base_frequencies[0] != base_frequencies[2], "all three profiles publish measurably different engine fundamentals")
-	_check(idle_volumes[0] != idle_volumes[1] and idle_volumes[1] != idle_volumes[2], "all three profiles publish measurably different idle mix levels")
+	_check(base_frequencies[0] != base_frequencies[1] and base_frequencies[1] != base_frequencies[2] and base_frequencies[0] != base_frequencies[2], "the three reusable profiles keep distinct engine fundamentals")
+	_check(idle_volumes[0] != idle_volumes[1] and idle_volumes[1] != idle_volumes[2], "the three reusable profiles keep distinct idle mix levels")
+	_check(is_equal_approx(base_frequencies[3], base_frequencies[2]) and not is_equal_approx(idle_volumes[3], idle_volumes[2]), "Bulwark composes its existing mix recipe over the heavy synthesis family")
 	_check(fingerprints_by_profile[ShipAudioRig.PROFILE_STANDARD_FIGHTER] != fingerprints_by_profile[ShipAudioRig.PROFILE_EFFICIENT_TWIN_RECON], "standard fighter and efficient twin recon generate distinct complete waveform sets")
 	_check(fingerprints_by_profile[ShipAudioRig.PROFILE_STANDARD_FIGHTER] != fingerprints_by_profile[ShipAudioRig.PROFILE_HEAVY_QUAD_FREIGHTER], "standard fighter and heavy quad freighter generate distinct complete waveform sets")
 	_check(fingerprints_by_profile[ShipAudioRig.PROFILE_EFFICIENT_TWIN_RECON] != fingerprints_by_profile[ShipAudioRig.PROFILE_HEAVY_QUAD_FREIGHTER], "efficient twin recon and heavy quad freighter generate distinct complete waveform sets")

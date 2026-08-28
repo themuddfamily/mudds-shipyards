@@ -2,6 +2,9 @@ class_name ShipAudioRig
 extends Node3D
 
 const HeroFleetAudioBindingScript := preload("res://scripts/audio/hero_fleet_audio_binding.gd")
+const FleetExpansionAudioProfileType := preload(
+	"res://scripts/audio/fleet_expansion_audio_profile.gd"
+)
 
 signal semantic_engine_cue_emitted(cue_id: StringName, intensity: float)
 
@@ -22,10 +25,12 @@ const DESIGN_ORIGIN: StringName = &"project_original_procedural_audio"
 const PROFILE_STANDARD_FIGHTER: StringName = &"standard_fighter"
 const PROFILE_EFFICIENT_TWIN_RECON: StringName = &"efficient_twin_recon"
 const PROFILE_HEAVY_QUAD_FREIGHTER: StringName = &"heavy_quad_freighter"
+const PROFILE_BULWARK_HEAVY_GUNSHIP: StringName = &"bulwark_heavy_gunship"
 const DECLARED_PROFILE_IDS := [
 	PROFILE_STANDARD_FIGHTER,
 	PROFILE_EFFICIENT_TWIN_RECON,
 	PROFILE_HEAVY_QUAD_FREIGHTER,
+	PROFILE_BULWARK_HEAVY_GUNSHIP,
 ]
 
 const LOOP_IDLE: StringName = &"thrust_idle"
@@ -362,7 +367,10 @@ static func get_declared_profile_ids() -> PackedStringArray:
 
 
 static func is_declared_profile_id(candidate: StringName) -> bool:
-	return PROFILE_SPECS.has(candidate)
+	return PROFILE_SPECS.has(candidate) or (
+		candidate == PROFILE_BULWARK_HEAVY_GUNSHIP
+		and not FleetExpansionAudioProfileType.get_profile(candidate).is_empty()
+	)
 
 
 func get_supported_cues() -> PackedStringArray:
@@ -682,7 +690,7 @@ func _can_mutate_runtime_state() -> bool:
 func get_profile_report() -> Dictionary:
 	var requested_supported := is_declared_profile_id(profile_id)
 	var active_profile := get_profile_id()
-	var spec: Dictionary = PROFILE_SPECS.get(active_profile, {})
+	var spec := _compose_profile_spec(active_profile)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"requested_profile_id": profile_id,
@@ -1535,10 +1543,23 @@ func _sha256(bytes: PackedByteArray) -> String:
 
 
 func _get_built_profile_spec() -> Dictionary:
-	return PROFILE_SPECS.get(
-		_built_profile_id if _has_build_snapshot else profile_id,
-		PROFILE_SPECS[PROFILE_STANDARD_FIGHTER]
-	) as Dictionary
+	var spec := _compose_profile_spec(
+		_built_profile_id if _has_build_snapshot else profile_id
+	)
+	return spec if not spec.is_empty() else PROFILE_SPECS[PROFILE_STANDARD_FIGHTER]
+
+
+static func _compose_profile_spec(requested_profile_id: StringName) -> Dictionary:
+	if PROFILE_SPECS.has(requested_profile_id):
+		return (PROFILE_SPECS[requested_profile_id] as Dictionary).duplicate(true)
+	if requested_profile_id != PROFILE_BULWARK_HEAVY_GUNSHIP:
+		return {}
+	var recipe := FleetExpansionAudioProfileType.get_profile(requested_profile_id)
+	if recipe.is_empty():
+		return {}
+	var composed := (PROFILE_SPECS[PROFILE_HEAVY_QUAD_FREIGHTER] as Dictionary).duplicate(true)
+	composed.merge(recipe, true)
+	return composed
 
 
 func _safe_maximum_distance() -> float:

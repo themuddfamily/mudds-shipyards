@@ -212,7 +212,7 @@ func _enter_tree() -> void:
 		_bind_siege_lance_audio()
 	var rig := get_node_or_null("ShipAudioRig") as ShipAudioRig
 	if rig != null:
-		rig.profile_id = ShipAudioRig.PROFILE_HEAVY_QUAD_FREIGHTER
+		rig.profile_id = ShipAudioRig.PROFILE_BULWARK_HEAVY_GUNSHIP
 
 
 func _ready() -> void:

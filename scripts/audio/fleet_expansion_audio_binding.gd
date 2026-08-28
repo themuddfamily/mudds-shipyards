@@ -8,7 +8,7 @@ const Profile := preload("res://scripts/audio/fleet_expansion_audio_profile.gd")
 const ComponentDamageBinding := preload("res://scripts/audio/component_damage_audio_binding.gd")
 const BomberPayloadBinding := preload("res://scripts/audio/bomber_payload_audio_binding.gd")
 const RIG_PROFILE_BY_RECIPE := {
-	&"bulwark_heavy_gunship": &"heavy_quad_freighter",
+	&"bulwark_heavy_gunship": &"bulwark_heavy_gunship",
 	&"cargo_craft": &"heavy_quad_freighter",
 	&"bomber": &"standard_fighter",
 	&"lightweight_interceptor": &"efficient_twin_recon",

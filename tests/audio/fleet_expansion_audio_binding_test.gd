@@ -48,6 +48,14 @@ func _run() -> void:
 	_check(bool(reentry_damage.get("attached", false)), "re-entry restores component damage binding")
 	_check(int(binding.get_snapshot().plan_build_count) == 2, "detach and reuse keep cached plans")
 	_check(bool(binding.detach().accepted), "reused binding detaches cleanly")
+	var bulwark_rig := RigScene.instantiate() as Node
+	bulwark_rig.set("profile_id", &"bulwark_heavy_gunship")
+	root.add_child(bulwark_rig)
+	await process_frame
+	var bulwark_binding := Binding.new()
+	_check(bool(bulwark_binding.bind(&"bulwark_heavy_gunship", bulwark_rig).accepted), "exact Bulwark rig consumes the existing Bulwark recipe")
+	_check(float(bulwark_binding.get_snapshot().applied_plan.engine_pitch_scale) == 0.72, "Bulwark binding preserves its authored recipe pitch")
+	_check(bool(bulwark_binding.detach().accepted), "Bulwark recipe detaches cleanly")
 	var foreign := Node.new()
 	_check(binding.bind(&"cargo_craft", foreign).reason == &"foreign_audio_rig", "foreign rig is rejected")
 	foreign.free()
@@ -70,6 +78,7 @@ func _run() -> void:
 	_check(bool(bomber_binding.present_payload_release({"generation": 1, "request_sequence": 1, "payload_id": &"cinder_payload_alpha"}).accepted), "payload generation resets on re-entry")
 	_check(bool(bomber_binding.detach().accepted), "bomber payload composition final detach")
 	bomber_rig.queue_free()
+	bulwark_rig.queue_free()
 	rig.queue_free()
 	await process_frame
 	for failure in _failures:

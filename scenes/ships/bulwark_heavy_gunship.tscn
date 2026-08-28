@@ -36,7 +36,7 @@ position = Vector3(-5.9, 0.48, 1.0)
 prompt_text = "[ E ]  BOARD BULWARK HEAVY GUNSHIP"
 
 [node name="ShipAudioRig" parent="." instance=ExtResource("5_ship_audio")]
-profile_id = &"heavy_quad_freighter"
+profile_id = &"bulwark_heavy_gunship"
 
 [node name="ShipPerspectiveAudioAdapter" type="Node" parent="."]
 script = ExtResource("6_perspective_audio")
