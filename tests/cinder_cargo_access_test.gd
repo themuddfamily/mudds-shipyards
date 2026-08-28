@@ -462,6 +462,10 @@ func _test_identity_placement_budget_and_authority(
 		{"name": "ConnectorStep1", "top": 3.2},
 		{"name": "ConnectorStep2", "top": 3.5},
 		{"name": "ConnectorStep3", "top": 3.8},
+		{"name": "TerminalApproachStep1", "top": 4.05},
+		{"name": "TerminalApproachStep2", "top": 4.30},
+		{"name": "TerminalApproachStep3", "top": 4.55},
+		{"name": "TerminalApproachPlatform", "top": 4.65},
 	]
 	var exact_step_tops := true
 	var previous_top := 2.9
@@ -487,7 +491,7 @@ func _test_identity_placement_budget_and_authority(
 			previous_top = actual_top
 	_check(
 		exact_step_tops,
-		"collision-backed deck and step tops are exactly 2.9 -> 3.2 -> 3.5 -> 3.8 with no rise above 0.30 m"
+		"collision-backed route tops are exactly 2.9 -> 3.2 -> 3.5 -> 3.8 -> 4.05 -> 4.30 -> 4.55 -> 4.65 with no rise above 0.30 m"
 	)
 	_check(bool(access.audit().valid), "canonical raised-platform height and collision audit is green")
 	var canonical_support_y := approach_support.position.y
@@ -666,7 +670,10 @@ func _test_embodied_bidirectional_route(
 	player.set_camera_active(false)
 	player.set_control_enabled(true)
 	_release_actions()
-	player.teleport_to(ship.get_exit_transform())
+	player.teleport_to(Transform3D(
+		Basis.looking_at((access.global_basis * Vector3.BACK).normalized(), Vector3.UP),
+		ship.get_exit_transform().origin
+	))
 	for _settle in 10:
 		await physics_frame
 	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
@@ -730,13 +737,15 @@ func _test_embodied_bidirectional_route(
 	var outbound_local := PackedVector3Array([
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 2.9, 13.75),
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 3.8, 17.8),
+		Vector3(-14.15, 3.8, 18.0),
 		Vector3(-4.0, 3.8, 18.0),
 		Vector3(-2.4, 3.8, 16.7),
-		Vector3(-1.6, 4.083333, 16.166667),
-		Vector3(-0.8, 4.366667, 15.633333),
+		Vector3(-1.6, 4.05, 16.166667),
+		Vector3(-0.8, 4.30, 15.633333),
 		CinderCargoAccess.DESTINATION_TERMINAL_PLAYER_APPROACH_LOCAL,
 	])
 	var outbound := await _walk_route(access, player, outbound_local)
+	print("CINDER_CARGO_PUBLIC_OUTBOUND: ", outbound)
 	var outbound_final := access.to_local(player.global_position)
 	_check(
 		bool(outbound.reached)
@@ -787,15 +796,17 @@ func _test_embodied_bidirectional_route(
 		"replay and reward handoff are exactly once; completed reset preserves conservation with no refill"
 	)
 	var reverse_local := PackedVector3Array([
-		Vector3(-0.8, 4.366667, 15.633333),
-		Vector3(-1.6, 4.083333, 16.166667),
+		Vector3(-0.8, 4.30, 15.633333),
+		Vector3(-1.6, 4.05, 16.166667),
 		Vector3(-2.4, 3.8, 16.7),
 		Vector3(-4.0, 3.8, 18.0),
+		Vector3(-14.15, 3.8, 18.0),
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 3.8, 17.8),
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 2.9, 13.75),
 		Vector3(CinderCargoAccess.BERTH_ROUTE_X, 2.9, 8.2),
 	])
 	var inbound := await _walk_route(access, player, reverse_local)
+	print("CINDER_CARGO_PUBLIC_RETURN: ", inbound)
 	_check(
 		bool(inbound.reached)
 		and int(inbound.maximum_consecutive_airborne_frames)
@@ -1058,14 +1069,18 @@ func _walk_route(
 		)
 		if horizontal.length() <= PLAYER_ROUTE_TOLERANCE:
 			continue
-		player.teleport_to(Transform3D(
-			Basis.looking_at(horizontal.normalized(), Vector3.UP),
-			player.global_position
-		))
-		Input.action_press("move_forward")
-		Input.action_press("sprint_boost")
 		var segment_reached := false
 		for _frame in 210:
+			var desired := Vector3(
+				target.x - player.global_position.x,
+				0.0,
+				target.z - player.global_position.z
+			).normalized()
+			var forward := (-player.global_basis.z).slide(Vector3.UP).normalized()
+			var right := forward.cross(Vector3.UP).normalized()
+			_set_movement_axis(&"move_left", &"move_right", desired.dot(right))
+			_set_movement_axis(&"move_back", &"move_forward", desired.dot(forward))
+			Input.action_press("sprint_boost")
 			await physics_frame
 			var local_position := access.to_local(player.global_position)
 			minimum_local_y = minf(minimum_local_y, local_position.y)
@@ -1085,8 +1100,7 @@ func _walk_route(
 			if remaining <= PLAYER_ROUTE_TOLERANCE:
 				segment_reached = true
 				break
-		Input.action_release("move_forward")
-		Input.action_release("sprint_boost")
+		_release_actions()
 		await physics_frame
 		if not segment_reached:
 			return {
@@ -1103,6 +1117,15 @@ func _walk_route(
 		"minimum_local_y": minimum_local_y,
 		"maximum_consecutive_airborne_frames": maximum_consecutive_airborne_frames,
 	}
+
+
+func _set_movement_axis(negative_action: StringName, positive_action: StringName, value: float) -> void:
+	Input.action_release(negative_action)
+	Input.action_release(positive_action)
+	if value > 0.02:
+		Input.action_press(positive_action, minf(value, 1.0))
+	elif value < -0.02:
+		Input.action_press(negative_action, minf(-value, 1.0))
 
 
 func _capture_forward_plus_frame() -> void:

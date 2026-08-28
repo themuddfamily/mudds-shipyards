@@ -59,6 +59,11 @@ const COMPATIBILITY_TAGS: Array[StringName] = [&"light_freighter"]
 const LANDING_DECK_TOP := 2.9
 const CATWALK_TOP := 3.8
 const STAIR_RISE := 0.3
+## The terminal frontage keeps three visible approach boxes, but leaves a
+## conservative margin below PlayerController's 0.30 m step ceiling. The prior
+## 0.85 / 3 rise stalled continuous movement on the second lip even though a
+## per-waypoint teleport fixture could mount it.
+const TERMINAL_APPROACH_STEP_RISE := 0.25
 const ROUTE_HALF_WIDTH := 1.2
 ## Match the coarse world-metric plate scale used by the extraction platform
 ## this access module bolts onto, rather than introducing a station-interior
@@ -1358,7 +1363,7 @@ func _build_structure() -> void:
 		var to_weight := float(approach_step_index + 1) / 3.0
 		var step_from := approach_start.lerp(approach_end, from_weight)
 		var step_to := approach_start.lerp(approach_end, to_weight)
-		var step_height := 0.85 * to_weight
+		var step_height := TERMINAL_APPROACH_STEP_RISE * float(approach_step_index + 1)
 		var step_direction := step_to - step_from
 		var approach_step := _static_box(
 			structure,
