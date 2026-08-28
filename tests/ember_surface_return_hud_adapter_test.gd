@@ -30,6 +30,29 @@ class FakePlanetaryComposition:
 			"relay_anchor": Vector3(0.0, 120000.0, -400.0),
 			"return_anchor": Vector3(-400.0, 120000.0, 0.0),
 		},
+		"relay_survey": {
+			"activity_id": &"ember_beacon_survey",
+			"optional_checkpoints": {
+				&"ember_sample_rack_analysis_log": {
+					"checkpoint_id": &"ember_sample_rack_analysis_log",
+					"interaction_id": &"ember_sample_rack_analysis",
+					"status": &"available", "completed": false,
+				},
+				&"ember_bunker_gantry_log": {
+					"checkpoint_id": &"ember_bunker_gantry_log",
+					"interaction_id": &"ember_bunker_gantry_survey",
+					"status": &"available", "completed": false,
+				},
+			},
+		},
+		"sample_rack_interaction": {
+			"interaction_id": &"ember_sample_rack_analysis",
+			"position_body_local_m": Vector3(10.0, 120000.0, 0.0),
+		},
+		"survey_interaction": {
+			"interaction_id": &"ember_bunker_gantry_survey",
+			"position_body_local_m": Vector3(30.0, 120000.0, 0.0),
+		},
 	}
 	var hazard_snapshot: Dictionary = {}
 	func get_snapshot() -> Dictionary: return snapshot.duplicate(true)
@@ -110,11 +133,20 @@ func _run() -> void:
 	var relay_marker := hud.get_offscreen_route_marker()
 	_check(
 		detail.text.contains("NEXT // RELAY // 400.0 M")
+			and detail.text.contains("SIDE TASKS // 0 OF 2")
+			and detail.text.contains("SIDE TASK // SAMPLE RACK // 10.0 M")
 			and relay_marker.route_kind == &"surface_route"
 			and (relay_marker.direction as Vector2).is_equal_approx(Vector2.UP)
 			and not bool((adapter.get_snapshot().surface_route.route_guidance as Dictionary).navigation_authority),
 		"on-foot phase derives relay distance and north-up direction from detached authoritative snapshots",
 	)
+	planetary.snapshot.relay_survey.optional_checkpoints[
+		&"ember_sample_rack_analysis_log"
+	] = {
+		"checkpoint_id": &"ember_sample_rack_analysis_log",
+		"interaction_id": &"ember_sample_rack_analysis",
+		"status": &"completed", "completed": true,
+	}
 	planetary.snapshot.relay_survey_presentation.cue_mode = &"return"
 	host.snapshot.generation = 6
 	production.set("_generation", 6)
@@ -123,6 +155,8 @@ func _run() -> void:
 	var return_marker := hud.get_offscreen_route_marker()
 	_check(
 		detail.text.contains("NEXT // RETURN ROUTE // 400.0 M")
+			and detail.text.contains("SIDE TASKS // 1 OF 2")
+			and detail.text.contains("SIDE TASK // BUNKER / GANTRY LOG // 30.0 M")
 			and (return_marker.direction as Vector2).is_equal_approx(Vector2.LEFT)
 			and not bool(adapter.get_snapshot().surface_route.get("navigation_authority", true))
 			and bool(adapter.get_snapshot().surface_route.get("reduced_flash_safe", false)),

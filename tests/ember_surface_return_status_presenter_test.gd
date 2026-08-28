@@ -74,6 +74,7 @@ func _run() -> void:
 			and not bool((detached.get("status_semantics", {}) as Dictionary).get("input_authority", true)),
 		"status semantics remain presentation-only",
 	)
+	_test_optional_surface_objectives()
 	if _failures.is_empty():
 		print("EMBER_SURFACE_RETURN_STATUS_PRESENTER_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -81,6 +82,123 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_optional_surface_objectives() -> void:
+	var presenter := PresenterType.new()
+	var snapshot := _snapshot(1, &"on_foot", true)
+	snapshot.host["actor_state"] = {
+		"player_position": Vector3(0.0, 120000.0, 0.0),
+	}
+	snapshot.binding = {
+		"attached": true,
+		"planetary_surface": {
+			"relay_survey": {
+				"activity_id": &"ember_beacon_survey",
+				"optional_checkpoints": {
+					&"ember_sample_rack_analysis_log": {
+						"checkpoint_id": &"ember_sample_rack_analysis_log",
+						"interaction_id": &"ember_sample_rack_analysis",
+						"status": &"available", "completed": false,
+					},
+					&"ember_bunker_gantry_log": {
+						"checkpoint_id": &"ember_bunker_gantry_log",
+						"interaction_id": &"ember_bunker_gantry_survey",
+						"status": &"available", "completed": false,
+					},
+				},
+			},
+			"sample_rack_interaction": {
+				"interaction_id": &"ember_sample_rack_analysis",
+				"position_body_local_m": Vector3(6.0, 120000.0, 0.0),
+			},
+			"survey_interaction": {
+				"interaction_id": &"ember_bunker_gantry_survey",
+				"position_body_local_m": Vector3(12.0, 120000.0, 5.0),
+			},
+		},
+	}
+	var available := presenter.present(snapshot)
+	var optional := available.get("optional_objectives", {}) as Dictionary
+	var nearest := optional.get("nearest_incomplete", {}) as Dictionary
+	_check(
+		bool(available.get("accepted", false))
+			and bool(optional.get("available", false))
+			and int(optional.get("completed_count", -1)) == 0
+			and int(optional.get("objective_count", -1)) == 2
+			and nearest.get("checkpoint_id", &"") \
+				== &"ember_sample_rack_analysis_log"
+			and is_equal_approx(float(nearest.get("distance_m", -1.0)), 6.0)
+			and str(available.get("text", "")).contains(
+				"OPTIONAL SURVEY  //  0 OF 2"
+			)
+			and str(available.get("text", "")).contains(
+				"OPTIONAL  [ ]  SAMPLE RACK  //  6.0 m"
+			)
+			and not bool(optional.get("navigation_authority", true))
+			and not bool(optional.get("activity_authority", true))
+			and not bool(optional.get("reward_authority", true)),
+		"on-foot status exposes both real optional interactions and the nearest unfinished distance without authority",
+	)
+	snapshot.generation = 2
+	var checkpoints := snapshot.binding.planetary_surface.relay_survey.optional_checkpoints as Dictionary
+	checkpoints[&"ember_sample_rack_analysis_log"] = {
+		"checkpoint_id": &"ember_sample_rack_analysis_log",
+		"interaction_id": &"ember_sample_rack_analysis",
+		"status": &"completed", "completed": true,
+	}
+	var after_sample := presenter.present(snapshot)
+	optional = after_sample.get("optional_objectives", {}) as Dictionary
+	nearest = optional.get("nearest_incomplete", {}) as Dictionary
+	_check(
+		int(optional.get("completed_count", -1)) == 1
+			and nearest.get("checkpoint_id", &"") == &"ember_bunker_gantry_log"
+			and is_equal_approx(
+				float(nearest.get("distance_m", -1.0)), 13.0
+			)
+			and str(after_sample.get("text", "")).contains(
+				"OPTIONAL  [X]  SAMPLE RACK"
+			),
+		"completing the nearer rack immediately promotes the unfinished bunker log",
+	)
+	snapshot.generation = 3
+	checkpoints[&"ember_bunker_gantry_log"] = {
+		"checkpoint_id": &"ember_bunker_gantry_log",
+		"interaction_id": &"ember_bunker_gantry_survey",
+		"status": &"completed", "completed": true,
+	}
+	var completed := presenter.present(snapshot)
+	optional = completed.get("optional_objectives", {}) as Dictionary
+	_check(
+		int(optional.get("completed_count", -1)) == 2
+			and (optional.get("nearest_incomplete", {}) as Dictionary).is_empty()
+			and str(completed.get("text", "")).contains(
+				"OPTIONAL SURVEY  //  2 OF 2"
+			),
+		"both side-task completions remain visible without inventing another target",
+	)
+	snapshot.generation = 4
+	snapshot.binding.planetary_surface.relay_survey.activity_id = &"foreign_activity"
+	var foreign := presenter.present(snapshot)
+	_check(
+		not bool((foreign.get("optional_objectives", {}) as Dictionary).get(
+			"available", true
+		)),
+		"foreign activity snapshots cannot be relabelled as Ember side tasks",
+	)
+	snapshot.generation = 5
+	snapshot.binding.planetary_surface.relay_survey.activity_id = &"ember_beacon_survey"
+	snapshot.binding.planetary_surface.sample_rack_interaction.interaction_id \
+		= &"foreign_sample_rack"
+	var mismatched := presenter.present(snapshot)
+	var mismatched_optional := mismatched.get("optional_objectives", {}) as Dictionary
+	_check(
+		int(mismatched_optional.get("objective_count", -1)) == 1
+			and (
+				mismatched_optional.get("objectives", []) as Array
+			)[0].checkpoint_id == &"ember_bunker_gantry_log",
+		"a mismatched interaction identity cannot borrow an Ember checkpoint label",
+	)
 
 
 func _snapshot(

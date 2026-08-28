@@ -193,6 +193,22 @@ func _to_runtime_status_card(route: Dictionary) -> Dictionary:
 			str(guidance.get("target_label", "ROUTE")),
 			float(guidance.get("distance_m", 0.0)),
 		])
+	var optional := route.get("optional_objectives", {}) as Dictionary
+	if bool(optional.get("available", false)):
+		var completed := int(optional.get("completed_count", 0))
+		var total := int(optional.get("objective_count", 0))
+		lines.append("SIDE TASKS // %d OF %d" % [completed, total])
+		var nearest := optional.get("nearest_incomplete", {}) as Dictionary
+		if nearest.is_empty():
+			lines.append("SIDE TASKS // COMPLETE")
+		else:
+			var side_task := "SIDE TASK // " + str(
+				nearest.get("label", "SURFACE TASK")
+			)
+			var side_distance := float(nearest.get("distance_m", -1.0))
+			if is_finite(side_distance) and side_distance >= 0.0:
+				side_task += " // %.1f M" % side_distance
+			lines.append(side_task)
 	var next_action := route.get("next_action", {}) as Dictionary
 	if not next_action.is_empty():
 		lines.append("NEXT // %s // EMBER RETURN // %s" % [
@@ -253,6 +269,9 @@ func _to_surface_route_snapshot(view: Dictionary) -> Dictionary:
 		"state": state,
 		"status_semantics": semantics.duplicate(true),
 		"route_guidance": guidance.duplicate(true),
+		"optional_objectives": (
+			view.get("optional_objectives", {}) as Dictionary
+		).duplicate(true),
 		"next_action": next_action.duplicate(true),
 		"reduced_motion": bool(view.get("reduced_motion", false)),
 		"reduced_flash_safe": bool(view.get("reduced_flash_safe", false)),

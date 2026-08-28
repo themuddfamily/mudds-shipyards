@@ -467,6 +467,15 @@ func _clear_view(
 		"reduced_flash_safe": true,
 		"flash_requested": false,
 		"route_guidance": {"available": false, "navigation_authority": false},
+		"optional_objectives": {
+			"available": false,
+			"objectives": [],
+			"nearest_incomplete": {},
+			"presentation_only": true,
+			"navigation_authority": false,
+			"activity_authority": false,
+			"reward_authority": false,
+		},
 		"status_semantics": {
 			"marker": "[---]",
 			"label": "DETACHED // WAIT FOR CURRENT SESSION",

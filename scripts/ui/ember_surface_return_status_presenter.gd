@@ -9,6 +9,20 @@ const STATES := [
 	&"landed", &"on_foot", &"reboard", &"reboarded", &"takeoff", &"ascent",
 	&"orbit_return", &"return_manifest", &"rejected",
 ]
+const OPTIONAL_SURFACE_OBJECTIVE_SPECS := [
+	{
+		"checkpoint_id": &"ember_sample_rack_analysis_log",
+		"interaction_key": &"sample_rack_interaction",
+		"interaction_id": &"ember_sample_rack_analysis",
+		"label": "SAMPLE RACK",
+	},
+	{
+		"checkpoint_id": &"ember_bunker_gantry_log",
+		"interaction_key": &"survey_interaction",
+		"interaction_id": &"ember_bunker_gantry_survey",
+		"label": "BUNKER / GANTRY LOG",
+	},
+]
 
 var _source_generation := -1
 var _attached := false
@@ -48,6 +62,9 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 	var route_guidance := _route_guidance(
 		host, binding, mapped.get("state", &"rejected") as StringName
 	)
+	var optional_objectives := _optional_surface_objectives(
+		host, binding, mapped.get("state", &"rejected") as StringName
+	)
 	var lines := PackedStringArray([visible_title])
 	lines.append("STATUS MARKER  //  %s  //  %s" % [
 		str(status_semantics.get("marker", "[???]")),
@@ -62,6 +79,21 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 				route_guidance.get("target_label", "ROUTE"), distance,
 			]
 		)
+	if bool(optional_objectives.get("available", false)):
+		lines.append("OPTIONAL SURVEY  //  %d OF %d" % [
+			int(optional_objectives.get("completed_count", 0)),
+			int(optional_objectives.get("objective_count", 0)),
+		])
+		for objective: Dictionary in optional_objectives.get("objectives", []) as Array:
+			var objective_line := "OPTIONAL  %s  %s" % [
+				"[X]" if bool(objective.get("completed", false)) else "[ ]",
+				str(objective.get("label", "SURFACE TASK")),
+			]
+			var objective_distance := float(objective.get("distance_m", -1.0))
+			if not bool(objective.get("completed", false)) \
+					and is_finite(objective_distance) and objective_distance >= 0.0:
+				objective_line += "  //  %.1f m" % objective_distance
+			lines.append(objective_line)
 	if distance >= 0.0:
 		lines.append("DISTANCE  %.1f m" % distance)
 	if speed >= 0.0:
@@ -83,6 +115,7 @@ func present(snapshot: Dictionary, reduced_motion: bool = false) -> Dictionary:
 		"reduced_motion": reduced_motion, "focusable": true,
 		"color_independent": true, "reduced_flash_safe": true,
 		"flash_requested": false, "route_guidance": route_guidance,
+		"optional_objectives": optional_objectives,
 		"status_semantics": status_semantics,
 		"next_action": next_action,
 		"presentation_only": true,
@@ -309,6 +342,98 @@ func _unavailable_route_guidance() -> Dictionary:
 		"available": false,
 		"reduced_flash_safe": true,
 		"navigation_authority": false,
+	}.duplicate(true)
+
+
+## Makes both already-authored side interactions discoverable from the retained
+## surface card. It reads only the authenticated detached production snapshot;
+## the primary relay route and its marker remain authoritative and unchanged.
+func _optional_surface_objectives(
+		host: Dictionary, binding: Dictionary, state: StringName
+	) -> Dictionary:
+	if state != &"on_foot":
+		return _unavailable_optional_objectives()
+	var actor: Variant = (
+		host.get("actor_state", {}) as Dictionary
+	).get("player_position", Vector3.INF)
+	if actor is not Vector3 or not (actor as Vector3).is_finite():
+		return _unavailable_optional_objectives()
+	var planetary := binding.get("planetary_surface", {}) as Dictionary
+	var relay := planetary.get("relay_survey", {}) as Dictionary
+	if StringName(relay.get("activity_id", &"")) != &"ember_beacon_survey":
+		return _unavailable_optional_objectives()
+	var checkpoints := relay.get("optional_checkpoints", {}) as Dictionary
+	var objectives: Array[Dictionary] = []
+	var completed_count := 0
+	var nearest: Dictionary = {}
+	for spec: Dictionary in OPTIONAL_SURFACE_OBJECTIVE_SPECS:
+		var checkpoint_id := spec.get("checkpoint_id", &"") as StringName
+		var expected_interaction_id := StringName(spec.get("interaction_id", &""))
+		var checkpoint := checkpoints.get(checkpoint_id, {}) as Dictionary
+		var status := StringName(checkpoint.get("status", &""))
+		var completed := bool(checkpoint.get("completed", false))
+		if StringName(checkpoint.get("checkpoint_id", &"")) != checkpoint_id \
+				or StringName(checkpoint.get("interaction_id", &"")) \
+					!= expected_interaction_id \
+				or status not in [&"available", &"completed"] \
+				or completed != (status == &"completed"):
+			continue
+		var interaction_key := spec.get("interaction_key", &"") as StringName
+		var interaction := planetary.get(interaction_key, {}) as Dictionary
+		if StringName(interaction.get("interaction_id", &"")) \
+				!= expected_interaction_id:
+			continue
+		var position: Variant = interaction.get("position_body_local_m", Vector3.INF)
+		var distance := -1.0
+		if position is Vector3 and (position as Vector3).is_finite():
+			distance = (position as Vector3).distance_to(actor as Vector3)
+		if completed:
+			completed_count += 1
+		var objective := {
+			"checkpoint_id": checkpoint_id,
+			"label": str(spec.get("label", "SURFACE TASK")),
+			"status": status,
+			"completed": completed,
+			"distance_m": distance,
+			"position_body_local_m": (
+				position if position is Vector3 and (position as Vector3).is_finite()
+				else Vector3.INF
+			),
+			"presentation_only": true,
+			"navigation_authority": false,
+			"activity_authority": false,
+			"reward_authority": false,
+		}.duplicate(true)
+		objectives.append(objective)
+		if not completed and distance >= 0.0 \
+				and (nearest.is_empty() \
+					or distance < float(nearest.get("distance_m", INF))):
+			nearest = objective.duplicate(true)
+	return {
+		"available": not objectives.is_empty(),
+		"completed_count": completed_count,
+		"objective_count": objectives.size(),
+		"objectives": objectives,
+		"nearest_incomplete": nearest,
+		"coordinate_source": &"authenticated_detached_surface_interactions",
+		"presentation_only": true,
+		"navigation_authority": false,
+		"activity_authority": false,
+		"reward_authority": false,
+	}.duplicate(true)
+
+
+func _unavailable_optional_objectives() -> Dictionary:
+	return {
+		"available": false,
+		"completed_count": 0,
+		"objective_count": 0,
+		"objectives": [],
+		"nearest_incomplete": {},
+		"presentation_only": true,
+		"navigation_authority": false,
+		"activity_authority": false,
+		"reward_authority": false,
 	}.duplicate(true)
 
 

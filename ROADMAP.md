@@ -1516,7 +1516,12 @@ closes a meaningful-content slice only. While that survey is active, the current
 on-foot player can analyse the authored sample rack and receive an immediate completed
 marker; only a newer survey resets it. Reaching the staging relay records one local
 diagnostic and changes its marker without advancing the route or granting a reward. Both
-labels now sit clear of their physical props. The real surface-loop binding now
+labels now sit clear of their physical props. The retained surface status card also
+lists both optional tasks, their exact two-task completion count, and the nearest
+unfinished task with distance derived from authenticated interaction positions. It
+remains presentation-only and does not replace the mandatory relay/return marker or gain
+navigation, activity, reward, save, or movement authority. The real surface-loop
+binding now
 forwards its existing generation-fenced actor-position observation while the
 survey is active, aborts coherently on actor loss or host-generation drift, and
 issues one caller-routed Mudds Shipyards return manifest after accepted reward
