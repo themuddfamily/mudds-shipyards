@@ -781,26 +781,26 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1190,
-			"renderer_nodes": 794,
-			"drawn_copies": 878,
-			"surface_submissions": 794,
-			"mesh_resource_allocations": 294,
+			"descendant_nodes": 1142,
+			"renderer_nodes": 745,
+			"drawn_copies": 885,
+			"surface_submissions": 745,
+			"mesh_resource_allocations": 299,
 			"material_resource_allocations": 32,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus transfer-rib batching freeze 1190 descendants, 794 renderers/submissions, 878 copies, and 294 mesh allocations"
+		"shared collar families plus transfer-rib batching freeze 1142 descendants, 745 renderers/submissions, 885 copies, and 299 mesh allocations"
 	)
 	_check(
 		report.reductions == {
-			"descendant_nodes": -13,
-			"renderer_nodes": 65,
-			"drawn_copies": -9,
-			"surface_submissions": 65,
-			"mesh_resource_allocations": 29,
+			"descendant_nodes": 35,
+			"renderer_nodes": 114,
+			"drawn_copies": -16,
+			"surface_submissions": 114,
+			"mesh_resource_allocations": 24,
 			"material_resource_allocations": 0,
 		}
 		and not bool(report.batched)
@@ -872,7 +872,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 294
+		int(detached.current.mesh_resource_allocations) == 299
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -914,7 +914,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 295
+		and int(identity_red.current.mesh_resource_allocations) == 300
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)

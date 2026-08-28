@@ -1211,11 +1211,11 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"legacy": legacy,
 		"current": current,
 		"reductions": {
-			"descendant_nodes": 43,
-			"renderer_nodes": 121,
-			"drawn_copies": -9,
-			"surface_submissions": 121,
-			"mesh_resource_allocations": 29,
+			"descendant_nodes": 35,
+			"renderer_nodes": 114,
+			"drawn_copies": -16,
+			"surface_submissions": 114,
+			"mesh_resource_allocations": 24,
 			"material_resource_allocations": 0,
 		},
 		"mesh_recipe": {
