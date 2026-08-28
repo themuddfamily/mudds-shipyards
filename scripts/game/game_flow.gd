@@ -6145,6 +6145,8 @@ func _try_launch_armed_heavy_breach() -> bool:
 			)
 		return false
 	_heavy_breach_sortie_generation = 0
+	if is_instance_valid(audio) and audio.has_method(&"play_combat_alert"):
+		audio.call(&"play_combat_alert")
 	if is_instance_valid(hud):
 		hud.set_objective(
 			"Destroy the charged picket before it reaches the protected station asset",
@@ -10771,7 +10773,11 @@ func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 	if _game_flow_reward_authority == null:
 		return {"accepted": false, "reason": &"reward_authority_unavailable"}
 	var result := _game_flow_reward_authority.call(&"commit", request) as Dictionary
-	if StringName(request.get("activity_id", &"")) == HEAVY_BREACH_REWARD_ACTIVITY_ID:
+	var is_heavy_breach := (
+		StringName(request.get("activity_id", &""))
+		== HEAVY_BREACH_REWARD_ACTIVITY_ID
+	)
+	if is_heavy_breach:
 		_last_game_flow_reward_result = result.duplicate(true)
 	if bool(result.get("accepted", false)):
 		_runtime_settings_commit_serial = maxi(
@@ -10780,8 +10786,14 @@ func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 		)
 		_sync_production_runtime_settings_state()
 	_sync_activity_reward_hud()
-	if StringName(request.get("activity_id", &"")) == HEAVY_BREACH_REWARD_ACTIVITY_ID \
-			and is_instance_valid(hud):
+	if is_heavy_breach and is_instance_valid(audio):
+		if bool(result.get("accepted", false)) \
+				and audio.has_method(&"play_enemy_destroyed"):
+			audio.call(&"play_enemy_destroyed")
+		elif not bool(result.get("accepted", false)) \
+				and audio.has_method(&"play_combat_alert"):
+			audio.call(&"play_combat_alert")
+	if is_heavy_breach and is_instance_valid(hud):
 		var receipt := result.get("receipt", {}) as Dictionary
 		var detail := (
 			"Breach credit receipt #%d saved"

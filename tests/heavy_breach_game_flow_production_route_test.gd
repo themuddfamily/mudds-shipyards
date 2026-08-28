@@ -54,6 +54,7 @@ class MemoryFilesystem extends Filesystem:
 
 var _assertions := 0
 var _failures: Array[String] = []
+var _audio_cues: Array[StringName] = []
 
 
 func _init() -> void:
@@ -76,20 +77,23 @@ func _run() -> void:
 	await physics_frame
 	var player := game.player as PlayerController
 	var hud := game.hud as GameHUD
+	var audio_director := game.audio as AudioDirector
 	var world := game.world as ShipyardWorld
 	var arrow := game.get_node_or_null(^"ArrowReconShip") as HeroShip
 	var director := game.get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
 	var board := world.get_heavy_breach_activity_board() as Area3D
 	var defense_board := world.get_station_defense_activity_board() as Area3D
 	_check(
-		player != null and hud != null and arrow != null and director != null
+		player != null and hud != null and audio_director != null \
+		and arrow != null and director != null
 		and board != null and defense_board != null,
-		"production activity boards, player, Arrow, director, and HUD resolve"
+		"production activity boards, player, Arrow, director, HUD, and audio resolve"
 	)
-	if player == null or arrow == null or director == null \
+	if player == null or audio_director == null or arrow == null or director == null \
 			or board == null or defense_board == null:
 		await _finish(game)
 		return
+	audio_director.cue_started.connect(_on_audio_cue_started)
 	var initial_reward_report := game.get_activity_reward_report()
 	_check(
 		bool(initial_reward_report.get("configured", false))
@@ -244,6 +248,10 @@ func _run() -> void:
 	Input.action_release(&"move_forward")
 	await physics_frame
 	_check(launched, "physical departure launches Heavy Breach in real free flight")
+	_check(
+		_audio_cues.count(&"combat_alert") == 1,
+		"physical Heavy Breach launch plays one bounded production combat alert"
+	)
 	var running_snapshot := board.call(&"get_snapshot") as Dictionary
 	var running_director := running_snapshot.get("director", {}) as Dictionary
 	_check(
@@ -318,6 +326,10 @@ func _run() -> void:
 		and reward_toast_detail.text == "Breach credit receipt #1 saved",
 		"the live HUD confirms the exact saved receipt without implying currency"
 	)
+	_check(
+		_audio_cues.count(&"enemy_destroyed") == 1,
+		"the persisted Heavy Breach clear plays one bounded production success cue"
+	)
 	var store_generation_after_reward := int(
 		reward_authority.get("store_generation", -1)
 	)
@@ -332,8 +344,9 @@ func _run() -> void:
 	_check(
 		int(duplicate_record.get("total_receipts", 0)) == 1
 		and int(duplicate_authority.get("store_generation", -2)) \
-			== store_generation_after_reward,
-		"a repeated terminal callback cannot duplicate the receipt or atomic store write"
+			== store_generation_after_reward
+		and _audio_cues.count(&"enemy_destroyed") == 1,
+		"a repeated terminal callback cannot duplicate the receipt, store write, or success cue"
 	)
 
 	await _clean_up(game)
@@ -377,6 +390,10 @@ func _wait_until(predicate: Callable) -> bool:
 		await physics_frame
 		await process_frame
 	return bool(predicate.call())
+
+
+func _on_audio_cue_started(cue_id: StringName) -> void:
+	_audio_cues.append(cue_id)
 
 
 func _press_action(action: StringName, physics_ticks: int) -> void:
