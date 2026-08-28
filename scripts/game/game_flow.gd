@@ -110,6 +110,7 @@ const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_DELIVERY_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 const HEAVY_BREACH_HUD_REFRESH_SECONDS := 0.1
+const CINDER_MINING_HUD_REFRESH_SECONDS := 0.1
 const CINDER_BEACON_HUD_REFRESH_SECONDS := 0.1
 const CARGO_DELIVERY_DISPLAY_NAME := "Jovian fabrication kit delivery"
 const CARGO_DELIVERY_EVIDENCE_STATUS: StringName = &"modern_interpretation"
@@ -519,6 +520,7 @@ var _game_flow_reward_configuration: Dictionary = {}
 var _heavy_breach_reward_configuration: Dictionary = {}
 var _cinder_structure_scan_reward_configuration: Dictionary = {}
 var _last_cinder_structure_scan_reward_result: Dictionary = {}
+var _cinder_mining_hud_elapsed := 0.0
 var _cinder_beacon_traversal_reward_configuration: Dictionary = {}
 var _last_cinder_beacon_traversal_reward_result: Dictionary = {}
 var _cinder_beacon_hud_elapsed := 0.0
@@ -3363,6 +3365,7 @@ func _physics_process(delta: float) -> void:
 	var cinder_activity_actor_sample := (
 		actor_sample if bool(cinder_streaming_tick.get("accepted", false)) else {}
 	)
+	_advance_cinder_mining_extraction(delta, cinder_activity_actor_sample)
 	_advance_cinder_structure_scan(delta, cinder_activity_actor_sample)
 	_advance_cinder_beacon_traversal(delta, cinder_activity_actor_sample)
 	_sync_cinder_convoy_stream_presence()
@@ -11284,6 +11287,63 @@ func _sync_cinder_convoy_stream_presence() -> void:
 		_fail_active_activity(&"cinder_stream_replaced")
 
 
+## Advances the existing extraction authority from the same accepted production
+## ship sample used for Cinder streaming. The binding owns the authored hold
+## sphere, timer, interruption/reset, and capacity receipt; GameFlow only
+## forwards caller physics and presents the committed result.
+func _advance_cinder_mining_extraction(
+		delta: float,
+		actor_sample: Dictionary,
+	) -> Dictionary:
+	var binding := _get_nearby_activity_binding()
+	if (
+		not is_instance_valid(binding)
+		or not binding.has_method(&"advance_mining_activity_from_caller_sample")
+		or not binding.has_method(&"request_mining_reward")
+		or not binding.has_method(&"get_snapshot")
+	):
+		_cinder_mining_hud_elapsed = 0.0
+		return {"accepted": false, "reason": &"mining_binding_unavailable"}
+	var mining := (
+		(binding.call(&"get_snapshot") as Dictionary).get("mining", {})
+		as Dictionary
+	)
+	if (
+		StringName(mining.get("state_id", &"")) != &"active"
+		or int(mining.get("generation", 0)) < 1
+	):
+		_cinder_mining_hud_elapsed = 0.0
+		return {"accepted": false, "reason": &"mining_inactive"}
+	var advanced := binding.call(
+		&"advance_mining_activity_from_caller_sample",
+		delta,
+		_cinder_nearby_activity_ship_position(actor_sample),
+	) as Dictionary
+	var reason := StringName(advanced.get("reason", &""))
+	var interrupted := reason == &"extraction_interrupted"
+	var completed := bool(advanced.get("accepted", false)) and reason == &"complete"
+	if completed:
+		var reward := binding.call(&"request_mining_reward") as Dictionary
+		advanced["reward_result"] = reward.duplicate(true)
+		_present_cinder_mining_completion(reward)
+	elif interrupted and is_instance_valid(hud):
+		hud.toast(
+			"Extraction interrupted",
+			"Return to the Cinder approach marker and choose Start",
+			3.0,
+		)
+	if is_finite(delta) and delta > 0.0:
+		_cinder_mining_hud_elapsed += delta
+	if (
+		interrupted
+		or completed
+		or _cinder_mining_hud_elapsed >= CINDER_MINING_HUD_REFRESH_SECONDS
+	):
+		_cinder_mining_hud_elapsed = 0.0
+		_sync_activity_hud()
+	return advanced.duplicate(true)
+
+
 ## Advances the streamed derelict scan from the same once-per-physics actor
 ## sample used by Cinder residency. The scan's own binding owns its timer and
 ## approach sphere; GameFlow only selects the current production ship sample and
@@ -11470,6 +11530,21 @@ func _cinder_beacon_traversal_reward_handoff_ready(binding: Object) -> bool:
 	return bool(handoff.get("configured", false))
 
 
+func _present_cinder_mining_completion(reward: Dictionary) -> void:
+	if not is_instance_valid(hud):
+		return
+	var persisted := bool(reward.get("capacity_persisted", false))
+	hud.toast(
+		"Platform extraction complete",
+		(
+			"Ore-sample capacity receipt saved"
+			if persisted
+			else "Capacity receipt was not saved — choose Start to retry"
+		),
+		3.2,
+	)
+
+
 func _present_cinder_structure_scan_completion(reward: Dictionary) -> void:
 	if not is_instance_valid(hud):
 		return
@@ -11635,6 +11710,29 @@ func _sync_heavy_breach_activity_hud() -> bool:
 	return true
 
 
+func _sync_cinder_mining_activity_hud() -> bool:
+	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
+		return false
+	var binding := _get_nearby_activity_binding()
+	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+		return false
+	var mining := (
+		(binding.call(&"get_snapshot") as Dictionary).get("mining", {})
+		as Dictionary
+	)
+	if int(mining.get("generation", 0)) < 1:
+		return false
+	var state_id := StringName(mining.get("state_id", &""))
+	var presentable := state_id == &"active" or (
+		state_id == &"complete"
+		and not bool(mining.get("capacity_persisted", false))
+	)
+	if not presentable:
+		return false
+	hud.call(&"set_activity_objective", "Platform extraction", mining.duplicate(true))
+	return true
+
+
 func _sync_cinder_structure_scan_activity_hud() -> bool:
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return false
@@ -11685,6 +11783,8 @@ func _sync_cinder_beacon_traversal_activity_hud() -> bool:
 func _sync_activity_hud() -> void:
 	_sync_nearby_activity_hud()
 	if _sync_heavy_breach_activity_hud():
+		return
+	if _sync_cinder_mining_activity_hud():
 		return
 	if _sync_cinder_structure_scan_activity_hud():
 		return
@@ -12379,7 +12479,29 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 	match activity_id:
 		&"cinder_reach_checkpoint_route": return binding.call(&"start_race")
 		&"cinder_relay_patrol": return binding.call(&"start_patrol", active_ship)
-		&"cinder_platform_mining_run": return binding.call(&"start_mining_activity", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
+		&"cinder_platform_mining_run":
+			var mining := (
+				(binding.call(&"get_snapshot") as Dictionary).get("mining", {})
+				as Dictionary
+			)
+			if StringName(mining.get("state_id", &"")) == &"complete" \
+					and int(mining.get("generation", 0)) > 0:
+				var receipt_result: Dictionary = {}
+				if not bool(mining.get("reward_requested", false)):
+					receipt_result = binding.call(&"request_mining_reward") as Dictionary
+				elif bool(mining.get("persistence_retry_available", false)) \
+						and binding.has_method(&"retry_mining_capacity_persistence"):
+					receipt_result = binding.call(
+						&"retry_mining_capacity_persistence"
+					) as Dictionary
+				if not receipt_result.is_empty():
+					_present_cinder_mining_completion(receipt_result)
+					return receipt_result
+			return binding.call(
+				&"start_mining_activity",
+				active_ship.global_position
+					if is_instance_valid(active_ship) else Vector3.ZERO,
+			)
 		&"cinder_derelict_structure_scan":
 			var scan := (
 				(binding.call(&"get_snapshot") as Dictionary).get(

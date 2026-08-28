@@ -99,6 +99,7 @@ var _last_race_feedback_reason: StringName = &""
 var _last_patrol_feedback_reason: StringName = &""
 var _last_patrol_reward_result: Dictionary = {}
 var _last_mining_feedback_reason: StringName = &""
+var _last_mining_reward_result: Dictionary = {}
 var _last_structure_scan_feedback_reason: StringName = &""
 var _last_structure_scan_feedback_generation := -1
 var _structure_scan_reward_sink := Callable()
@@ -1196,6 +1197,11 @@ func start_mining_activity(caller_position: Vector3) -> Dictionary:
 	var result: Dictionary = _mining_activity.call("start", caller_position)
 	if bool(result.get("accepted", false)):
 		_last_mining_feedback_reason = &""
+		_last_mining_reward_result.clear()
+		# A new live extraction supersedes the retained terminal presentation.
+		# The previously committed record remains in the atomic store until this
+		# generation successfully replaces it.
+		_restored_mining_capacity.clear()
 	elif StringName(result.get("reason", &"")) == &"outside_approach_anchor":
 		# The mining authority deliberately does not retain rejected caller
 		# positions. Retain only its bounded reason for the current presentation
@@ -1213,13 +1219,74 @@ func advance_mining_activity(delta: float) -> Dictionary:
 	return result
 
 
+## Production hold seam. Progress receives only caller-owned physics time while
+## the current ship remains inside the authored approach sphere. Leaving that
+## sphere commits the activity's existing RESET state, so partial extraction
+## cannot continue remotely or survive a missing actor sample.
+func advance_mining_activity_from_caller_sample(
+		delta: float,
+		caller_position: Vector3,
+	) -> Dictionary:
+	if _mining_activity == null:
+		return _result(false, &"not_ready")
+	var before := _mining_activity.call("get_snapshot") as Dictionary
+	if int(before.get("state", -1)) != MINING_ACTIVITY.State.ACTIVE:
+		var inactive := before.duplicate(true)
+		inactive["accepted"] = false
+		inactive["reason"] = &"not_active"
+		return inactive
+	if (
+		not caller_position.is_finite()
+		or caller_position.distance_to(MINING_ACTIVITY.APPROACH_ANCHOR)
+			> MINING_ACTIVITY.INTERACTION_RADIUS
+	):
+		var interrupted := _mining_activity.call("reset") as Dictionary
+		if bool(interrupted.get("accepted", false)):
+			_last_mining_feedback_reason = &"outside_extraction_radius"
+			interrupted["reason"] = &"extraction_interrupted"
+		_publish_mining_presentation()
+		return interrupted
+	_last_mining_feedback_reason = &""
+	return advance_mining_activity(delta)
+
+
 func request_mining_reward() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _mining_activity.call("request_reward")
+	_last_mining_reward_result = result.duplicate(true)
 	if bool(result.get("accepted", false)):
-		_persist_mining_capacity(result)
+		var persisted := _persist_mining_capacity(result)
+		result["persistence_result"] = persisted.duplicate(true)
+		result["capacity_persisted"] = bool(persisted.get("accepted", false))
+		_last_mining_reward_result = result.duplicate(true)
 	_publish_mining_presentation()
+	return result
+
+
+## Retries only the failed store write for the current completed generation.
+## MiningActivity's one-shot reward request is not replayed or reconstructed.
+func retry_mining_capacity_persistence() -> Dictionary:
+	if _mining_activity == null or _mining_capacity_persistence == null:
+		return _result(false, &"mining_capacity_persistence_unavailable")
+	var snapshot := _mining_activity.call("get_snapshot") as Dictionary
+	var request := _last_mining_reward_result.get("reward_request", {}) as Dictionary
+	if (
+		int(snapshot.get("state", -1)) != MINING_ACTIVITY.State.COMPLETE
+		or not bool(snapshot.get("reward_requested", false))
+		or int(request.get("generation", -1)) != int(snapshot.get("generation", 0))
+	):
+		return _result(false, &"mining_capacity_retry_unavailable")
+	var persisted := _persist_mining_capacity(_last_mining_reward_result)
+	_last_mining_reward_result["persistence_result"] = persisted.duplicate(true)
+	_last_mining_reward_result["capacity_persisted"] = bool(
+		persisted.get("accepted", false)
+	)
+	_publish_mining_presentation()
+	var result := persisted.duplicate(true)
+	result["reward_request"] = request.duplicate(true)
+	result["generation"] = int(snapshot.get("generation", 0))
+	result["capacity_persisted"] = bool(persisted.get("accepted", false))
 	return result
 
 
@@ -1254,13 +1321,13 @@ func get_cinder_mining_capacity_persistence_snapshot() -> Dictionary:
 		"restores_reward_authority": false}.duplicate(true)
 
 
-func _persist_mining_capacity(reward_result: Dictionary) -> void:
+func _persist_mining_capacity(reward_result: Dictionary) -> Dictionary:
 	if _mining_capacity_persistence == null or _mining_activity == null:
-		return
+		return _result(false, &"mining_capacity_persistence_unavailable")
 	var snapshot := _mining_activity.call("get_snapshot") as Dictionary
 	var request := reward_result.get("reward_request", {}) as Dictionary
 	if int(request.get("generation", -1)) != int(snapshot.get("generation", 0)):
-		return
+		return _result(false, &"mining_capacity_generation_mismatch")
 	var commit_id := "cinder-mining-capacity-%010d" % (
 		int(_mining_capacity_persistence.call(&"get_store_generation")) + 1
 	)
@@ -1269,10 +1336,13 @@ func _persist_mining_capacity(reward_result: Dictionary) -> void:
 	) as Dictionary
 	if bool(_last_mining_capacity_persistence_result.get("accepted", false)):
 		var loaded := _mining_capacity_persistence.call(&"load") as Dictionary
-		if bool(loaded.get("accepted", false)):
-			_restored_mining_capacity = (
-				loaded.get("capacity", {}) as Dictionary
-			).duplicate(true)
+		if not bool(loaded.get("accepted", false)):
+			_last_mining_capacity_persistence_result = loaded.duplicate(true)
+			return _last_mining_capacity_persistence_result.duplicate(true)
+		_restored_mining_capacity = (
+			loaded.get("capacity", {}) as Dictionary
+		).duplicate(true)
+	return _last_mining_capacity_persistence_result.duplicate(true)
 
 
 func reset_mining_activity() -> Dictionary:
@@ -1281,6 +1351,7 @@ func reset_mining_activity() -> Dictionary:
 	var result: Dictionary = _mining_activity.call("reset")
 	if bool(result.get("accepted", false)):
 		_last_mining_feedback_reason = &""
+		_last_mining_reward_result.clear()
 	_publish_mining_presentation()
 	return result
 
@@ -2018,21 +2089,42 @@ func _mining_presentation_snapshot() -> Dictionary:
 		return {}
 	var snapshot := _mining_activity.call("get_snapshot") as Dictionary
 	snapshot["presentation_reason"] = _last_mining_feedback_reason
+	var state := int(snapshot.get("state", MINING_ACTIVITY.State.IDLE))
+	snapshot["state_id"] = [
+		&"idle", &"active", &"complete", &"reset",
+	][clampi(state, MINING_ACTIVITY.State.IDLE, MINING_ACTIVITY.State.RESET)]
+	var duration := maxf(float(snapshot.get("extraction_seconds", 0.0)), 0.0)
+	snapshot["progress_unitless"] = (
+		clampf(float(snapshot.get("elapsed_seconds", 0.0)) / duration, 0.0, 1.0)
+		if duration > 0.0 else 0.0
+	)
+	var last_request := _last_mining_reward_result.get(
+		"reward_request", {}
+	) as Dictionary
+	snapshot["persistence_retry_available"] = (
+		state == MINING_ACTIVITY.State.COMPLETE
+		and bool(snapshot.get("reward_requested", false))
+		and int(last_request.get("generation", -1))
+			== int(snapshot.get("generation", 0))
+		and not bool(_last_mining_capacity_persistence_result.get("accepted", false))
+	)
 	if _restored_mining_capacity.is_empty():
 		return snapshot.duplicate(true)
-	var state := int(snapshot.get("state", MINING_ACTIVITY.State.IDLE))
 	var generation := int(snapshot.get("generation", 0))
 	if state == MINING_ACTIVITY.State.IDLE and generation == 0:
-		var duration := float(_restored_mining_capacity.get(
+		duration = float(_restored_mining_capacity.get(
 			"extraction_seconds", MINING_ACTIVITY.EXTRACTION_SECONDS
 		))
 		snapshot["state"] = MINING_ACTIVITY.State.COMPLETE
+		snapshot["state_id"] = &"complete"
 		snapshot["elapsed_seconds"] = duration
 		snapshot["extraction_seconds"] = duration
+		snapshot["progress_unitless"] = 1.0
 	elif state != MINING_ACTIVITY.State.COMPLETE:
 		return snapshot.duplicate(true)
 	snapshot["reward_requested"] = false
 	snapshot["capacity_persisted"] = true
+	snapshot["persistence_retry_available"] = false
 	snapshot["capacity_receipt"] = _restored_mining_capacity.duplicate(true)
 	snapshot["receipt_replay_allowed"] = false
 	return snapshot.duplicate(true)

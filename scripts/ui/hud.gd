@@ -1324,6 +1324,38 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 				activity_text = "CARGO  %s — %s  RECOVER: RETURN TO TERMINAL" % [transfer_state.to_upper(), str(snapshot.get("failure_reason", snapshot.get("terminal_reason", "RETRY"))).replace("_", " ").to_upper()]
 			_:
 				activity_text = "CARGO  %s%s" % [transfer_prefix, transfer_step.to_upper()]
+	elif activity_id == &"cinder_platform_mining_run":
+		var mining_elapsed := clampf(
+			float(snapshot.get("elapsed_seconds", 0.0)), 0.0,
+			maxf(float(snapshot.get("extraction_seconds", 0.0)), 0.0),
+		)
+		var mining_duration := maxf(
+			float(snapshot.get("extraction_seconds", 0.0)), 0.0
+		)
+		var mining_progress := (
+			clampf(mining_elapsed / mining_duration, 0.0, 1.0)
+			if mining_duration > 0.0 else 0.0
+		)
+		var mining_percent := clampi(roundi(mining_progress * 100.0), 0, 100)
+		var mining_remaining := maxf(mining_duration - mining_elapsed, 0.0)
+		match state_id:
+			&"active":
+				activity_text = "PLATFORM EXTRACTION  %d%%  HOLD %.1fs" % [
+					mining_percent, mining_remaining,
+				]
+			&"complete", &"completed":
+				if bool(snapshot.get("capacity_persisted", false)):
+					activity_text = "PLATFORM EXTRACTION  COMPLETE — CAPACITY RECORDED"
+				elif bool(snapshot.get("persistence_retry_available", false)):
+					activity_text = "PLATFORM EXTRACTION  COMPLETE — START TO RETRY SAVE"
+				elif bool(snapshot.get("reward_requested", false)):
+					activity_text = "PLATFORM EXTRACTION  COMPLETE — RECEIPT PENDING"
+				else:
+					activity_text = "PLATFORM EXTRACTION  COMPLETE — FILE ORE SAMPLE"
+			&"reset":
+				activity_text = "PLATFORM EXTRACTION  INTERRUPTED — RETURN TO MARKER"
+			_:
+				activity_text = ""
 	elif activity_id == &"cinder_debris_beacon_traversal":
 		var beacon_next := maxi(int(snapshot.get("next_beacon_index", 0)), 0)
 		var beacon_count := maxi(int(snapshot.get("beacon_count", 0)), 0)
@@ -1527,6 +1559,25 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	}
 	if activity_id == &"shipyard_heavy_breach":
 		_activity_objective_report["heavy_breach"] = _heavy_breach_activity_presenter.present(snapshot)
+	elif activity_id == &"cinder_platform_mining_run":
+		_activity_objective_report["elapsed_seconds"] = float(
+			snapshot.get("elapsed_seconds", 0.0)
+		)
+		_activity_objective_report["extraction_seconds"] = float(
+			snapshot.get("extraction_seconds", 0.0)
+		)
+		_activity_objective_report["progress_unitless"] = float(
+			snapshot.get("progress_unitless", 0.0)
+		)
+		_activity_objective_report["presentation_reason"] = StringName(
+			snapshot.get("presentation_reason", &"")
+		)
+		_activity_objective_report["capacity_persisted"] = bool(
+			snapshot.get("capacity_persisted", false)
+		)
+		_activity_objective_report["persistence_retry_available"] = bool(
+			snapshot.get("persistence_retry_available", false)
+		)
 	elif activity_id == &"cinder_derelict_structure_scan":
 		_activity_objective_report["elapsed_seconds"] = float(
 			snapshot.get("elapsed_seconds", 0.0)

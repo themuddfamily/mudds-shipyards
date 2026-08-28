@@ -4,8 +4,53 @@ const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const BindingType := preload("res://scripts/world/nearby_sector_activity_binding.gd")
 const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
+const MiningActivityType := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const ScanActivityType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 const BeaconActivityType := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
+const StoreType := preload("res://scripts/persistence/user_data_store.gd")
+const FilesystemType := preload("res://scripts/persistence/user_data_filesystem.gd")
+
+
+class MemoryFilesystem extends FilesystemType:
+	var files: Dictionary = {}
+	var fail_writes := false
+
+	func file_exists(path: String) -> bool:
+		return files.has(path)
+
+	func directory_exists(_path: String) -> bool:
+		return false
+
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
+
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes := (files[path] as PackedByteArray).duplicate()
+		return {
+			"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT,
+			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
+		}
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if fail_writes:
+			return ERR_CANT_CREATE
+		files[path] = bytes.duplicate()
+		return OK
+
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path):
+			return ERR_FILE_NOT_FOUND
+		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
+		files.erase(from_path)
+		return OK
 
 class BindingProbe extends Node3D:
 	var starts: Array[StringName] = []
@@ -367,6 +412,137 @@ func _run() -> void:
 			and StringName(reset_scan.get("presentation_reason", &"stale")).is_empty()
 			and _activity_text(scan_row).contains("INTERRUPTED  //  PROGRESS RESET"),
 		"the confirmed real RESET clears feedback and reaches the normal reset state",
+	)
+
+	var mining_filesystem := MemoryFilesystem.new()
+	var mining_store := StoreType.new(
+		"memory://nearby-activity-game-flow.json", mining_filesystem
+	)
+	flow.set("_runtime_settings_user_data_store", mining_store)
+	var mining_persistence := (
+		flow.bind_cinder_mining_capacity_persistence(production_binding)
+		if bool(mining_store.load().get("accepted", false)) else {}
+	) as Dictionary
+	_check(
+		bool(mining_persistence.get("accepted", false)),
+		"the production extraction receipt has one loaded atomic-store handoff",
+	)
+	active_ship.global_position = MiningActivityType.APPROACH_ANCHOR
+	var mining_row := _activity_row(
+		retained_hud, &"cinder_platform_mining_run"
+	)
+	var mining_start := (
+		mining_row.get_child(2) as Button if mining_row != null else null
+	)
+	if mining_start != null:
+		mining_start.emit_signal(&"pressed")
+	var mining_started := (
+		production_binding.get_snapshot().get("mining", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		mining_start != null
+			and StringName(mining_started.get("state_id", &"")) == &"active"
+			and "PLATFORM EXTRACTION  0%  HOLD 6.0s" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"the public extraction Start action opens the authored six-second hold",
+	)
+
+	var mining_progress := flow._advance_cinder_mining_extraction(
+		2.0, _ship_sample(active_ship)
+	)
+	mining_row = _activity_row(retained_hud, &"cinder_platform_mining_run")
+	var mining_after_progress := (
+		production_binding.get_snapshot().get("mining", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		bool(mining_progress.get("accepted", false))
+			and is_equal_approx(
+				float(mining_after_progress.get("elapsed_seconds", 0.0)), 2.0
+			)
+			and _activity_text(mining_row).contains(
+				"EXTRACTING ORE  //  33%  //  4.0s REMAINING"
+			)
+			and "PLATFORM EXTRACTION  33%  HOLD 4.0s" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"the current production ship advances extraction and both HUD surfaces",
+	)
+
+	active_ship.global_position = (
+		MiningActivityType.APPROACH_ANCHOR
+		+ Vector3(MiningActivityType.INTERACTION_RADIUS + 1.0, 0.0, 0.0)
+	)
+	var mining_interrupted := flow._advance_cinder_mining_extraction(
+		0.1, _ship_sample(active_ship)
+	)
+	mining_row = _activity_row(retained_hud, &"cinder_platform_mining_run")
+	var mining_after_interrupt := (
+		production_binding.get_snapshot().get("mining", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		bool(mining_interrupted.get("accepted", false))
+			and mining_interrupted.get("reason", &"") == &"extraction_interrupted"
+			and StringName(mining_after_interrupt.get("state_id", &"")) == &"reset"
+			and is_zero_approx(
+				float(mining_after_interrupt.get("elapsed_seconds", -1.0))
+			)
+			and _activity_text(mining_row).contains(
+				"INTERRUPTED  //  EXTRACTION INTERRUPTED  //  PROGRESS RESET"
+			)
+			and not bool(
+				retained_hud.get_activity_objective_report().get("visible", true)
+			),
+		"leaving the authored extraction sphere interrupts and clears partial progress",
+	)
+
+	active_ship.global_position = MiningActivityType.APPROACH_ANCHOR
+	mining_start = mining_row.get_child(2) as Button if mining_row != null else null
+	if mining_start != null:
+		mining_start.emit_signal(&"pressed")
+	mining_filesystem.fail_writes = true
+	var mining_completed := flow._advance_cinder_mining_extraction(
+		MiningActivityType.EXTRACTION_SECONDS, _ship_sample(active_ship)
+	)
+	var mining_failed_reward := (
+		mining_completed.get("reward_result", {}) as Dictionary
+	)
+	var mining_retryable := (
+		production_binding.get_snapshot().get("mining", {}) as Dictionary
+	).duplicate(true)
+	mining_row = _activity_row(retained_hud, &"cinder_platform_mining_run")
+	_check(
+		bool(mining_completed.get("accepted", false))
+			and not bool(mining_failed_reward.get("capacity_persisted", true))
+			and bool(mining_retryable.get("reward_requested", false))
+			and bool(mining_retryable.get("persistence_retry_available", false))
+			and _activity_text(mining_row).contains("SAVE FAILED  //  START TO RETRY")
+			and "COMPLETE — START TO RETRY SAVE" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"a failed capacity write leaves the completed extraction visibly retryable",
+	)
+
+	mining_filesystem.fail_writes = false
+	mining_start = mining_row.get_child(2) as Button if mining_row != null else null
+	if mining_start != null:
+		mining_start.emit_signal(&"pressed")
+	mining_row = _activity_row(retained_hud, &"cinder_platform_mining_run")
+	var mining_recorded := (
+		production_binding.get_snapshot().get("mining", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		mining_start != null
+			and bool(mining_recorded.get("capacity_persisted", false))
+			and not bool(mining_recorded.get("persistence_retry_available", true))
+			and int(mining_store.get_generation()) == 1
+			and _activity_text(mining_row).contains(
+				"CAPACITY READY  //  EXTRACTION RECEIPT SAVED"
+			)
+			and not bool(
+				retained_hud.get_activity_objective_report().get("visible", true)
+			),
+		"the same public Start action retries only the receipt and clears stale flight HUD",
 	)
 
 	active_ship.global_position = BeaconActivityType.BEACONS[0]

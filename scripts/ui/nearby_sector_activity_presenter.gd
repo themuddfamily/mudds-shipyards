@@ -639,6 +639,7 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 	var remaining := maxf(duration - elapsed, 0.0)
 	var reward_pending := bool(state.get("reward_requested", false))
 	var capacity_persisted := bool(state.get("capacity_persisted", false))
+	var persistence_retry := bool(state.get("persistence_retry_available", false))
 	var stage_id: StringName = &"available"
 	var summary := "EXTRACTION READY  //  0%"
 	var objective := "APPROACH THE CINDER EXTRACTION PLATFORM"
@@ -651,20 +652,28 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 			objective = "HOLD EXTRACTION UNTIL 100%"
 		2:
 			stage_id = &"capacity_recorded" if capacity_persisted else (
-				&"reward_pending" if reward_pending else &"complete"
+				&"save_retry" if persistence_retry else (
+					&"reward_pending" if reward_pending else &"complete"
+				)
 			)
 			summary = (
 				"CAPACITY READY  //  EXTRACTION RECEIPT SAVED"
 				if capacity_persisted else (
-					"EXTRACTION COMPLETE  //  REWARD PENDING"
-					if reward_pending else "EXTRACTION COMPLETE  //  ORE SAMPLE READY"
+					"EXTRACTION COMPLETE  //  SAVE FAILED  //  START TO RETRY"
+					if persistence_retry else (
+						"EXTRACTION COMPLETE  //  REWARD PENDING"
+						if reward_pending else "EXTRACTION COMPLETE  //  ORE SAMPLE READY"
+					)
 				)
 			)
 			objective = (
 				"RETURN-READY CAPACITY RETAINED"
 				if capacity_persisted else (
-					"AWAIT ORE REWARD HANDOFF"
-					if reward_pending else "REQUEST THE ORE SAMPLE REWARD"
+					"CHOOSE START TO RETRY THE CAPACITY RECEIPT"
+					if persistence_retry else (
+						"AWAIT ORE REWARD HANDOFF"
+						if reward_pending else "REQUEST THE ORE SAMPLE REWARD"
+					)
 				)
 			)
 		3:
@@ -683,6 +692,7 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 		"remaining_seconds": remaining,
 		"reward_pending": reward_pending,
 		"capacity_persisted": capacity_persisted,
+		"persistence_retry_available": persistence_retry,
 		"summary": summary,
 		"objective_text": objective,
 		"activity_authority": false,
