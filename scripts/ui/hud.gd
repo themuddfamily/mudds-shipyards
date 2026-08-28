@@ -755,6 +755,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("pause") and _started:
 		if (
 			_pause.visible
+			and _nearby_activity_page != null
+			and _nearby_activity_page.visible
+		):
+			_show_activity_selection_page()
+		elif (
+			_pause.visible
 			and (
 				(_settings_page != null and _settings_page.visible)
 				or (
@@ -2240,6 +2246,8 @@ func _restore_pause_focus_after_reentry() -> void:
 func _pause_focus_fallback() -> Control:
 	if _binding_conflict_panel != null and _binding_conflict_panel.visible:
 		return _binding_conflict_replace_button
+	if _nearby_activity_page != null and _nearby_activity_page.visible:
+		return _first_nearby_activity_focus_target()
 	if _settings_page != null and _settings_page.visible:
 		if (
 			not _binding_capture_action.is_empty()
@@ -4923,8 +4931,8 @@ func _build_activity_selection_page() -> void:
 	_activity_selection_page = PanelContainer.new()
 	_activity_selection_page.name = "ActivitySelectionPage"
 	_activity_selection_page.set_anchors_preset(Control.PRESET_CENTER)
-	_activity_selection_page.position = Vector2(-340.0, -310.0)
-	_activity_selection_page.size = Vector2(680.0, 620.0)
+	_activity_selection_page.position = Vector2(-340.0, -330.0)
+	_activity_selection_page.size = Vector2(680.0, 660.0)
 	_activity_selection_page.mouse_filter = Control.MOUSE_FILTER_STOP
 	_activity_selection_page.add_theme_stylebox_override(
 		"panel",
@@ -5000,6 +5008,14 @@ func _build_activity_selection_page() -> void:
 		"EMBERLINE CONVOY ESCORT",
 		"Rendezvous 20 m above the tender route and remain within escort range."
 	)
+	var nearby := _menu_button("CINDER SECTOR ACTIVITIES", NOMINAL)
+	nearby.name = "NearbyActivityOpenButton"
+	nearby.tooltip_text = (
+		"Open live status and start/reset controls for all eight Cinder activities. "
+		+ "Physical activities still enforce their authored approach gates."
+	)
+	nearby.pressed.connect(show_nearby_activity_page)
+	stack.add_child(nearby)
 	_activity_selection_status_label = _label("READY  //  TIMED CINDER RACE", 10, NOMINAL_SOFT)
 	_activity_selection_status_label.name = "ActivitySelectionStatus"
 	_activity_selection_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -5029,7 +5045,11 @@ func _build_nearby_activity_page() -> void:
 	var title := _label("CINDER ACTIVITY STATUS", 22, PRIMARY)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(title)
-	var subtitle := _label("Select an activity, then forward an explicit start or reset intent.", 11, MUTED)
+	var subtitle := _label(
+		"Eight activity records. Start/reset requests still obey ship, route and physical-board gates.",
+		11,
+		MUTED,
+	)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(subtitle)
 	_nearby_activity_rows = VBoxContainer.new()
@@ -5054,7 +5074,7 @@ func _build_nearby_activity_page() -> void:
 	persistence_row.add_child(load)
 	var back := _menu_button("BACK", MUTED)
 	back.name = "NearbyActivityBackButton"
-	back.pressed.connect(_show_pause_main)
+	back.pressed.connect(_show_activity_selection_page)
 	stack.add_child(back)
 	_nearby_activity_page.visible = false
 
@@ -5065,6 +5085,18 @@ func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 		_nearby_activity_presenter = NearbySectorActivityPresenterType.new()
 	var view: Dictionary = _nearby_activity_presenter.call("present", _nearby_activity_snapshot)
 	_render_nearby_activity_view(view)
+	var binding_available := bool(snapshot.get("binding_available", true))
+	for button_name in ["NearbyActivitySaveButton", "NearbyActivityLoadButton"]:
+		var persistence_button := _nearby_activity_page.find_child(
+			button_name, true, false
+		) as Button
+		if persistence_button != null:
+			persistence_button.disabled = not binding_available
+	if not binding_available and is_instance_valid(_nearby_activity_feedback):
+		_nearby_activity_feedback.text = (
+			"CINDER REACH IS OUT OF STREAMING RANGE  //  LAUNCH TOWARD ITS MARKER TO LOAD FIELD ACTIVITIES"
+		)
+		_nearby_activity_feedback.modulate = _c(CAUTION)
 	_present_nearby_convoy_semantic_transition(view)
 	return view
 
@@ -5157,10 +5189,80 @@ func clear_nearby_activity_snapshot() -> void:
 func show_nearby_activity_page() -> void:
 	if _nearby_activity_page == null:
 		return
+	if _pause_main_page != null:
+		_pause_main_page.visible = false
+	if _activity_selection_page != null:
+		_activity_selection_page.visible = false
+	if _settings_page != null:
+		_settings_page.visible = false
+	if _server_browser_page != null:
+		_server_browser_page.visible = false
 	_nearby_activity_page.visible = true
-	var first := _nearby_activity_rows.get_child(0) as Control if _nearby_activity_rows.get_child_count() > 0 else null
+	var first := _first_nearby_activity_focus_target()
 	if first != null:
 		first.grab_focus()
+
+
+func _first_nearby_activity_focus_target() -> Control:
+	if _nearby_activity_rows != null:
+		for row in _nearby_activity_rows.get_children():
+			for child in row.get_children():
+				if (
+					child is BaseButton
+					and not (child as BaseButton).disabled
+					and (child as Control).focus_mode != Control.FOCUS_NONE
+				):
+					return child as Control
+	return (
+		_nearby_activity_page.find_child("NearbyActivityBackButton", true, false)
+		as Control
+		if _nearby_activity_page != null
+		else null
+	)
+
+
+## Renders only the caller-owned activity result. This page never decides
+## whether a request was valid; GameFlow and the physical activity adapters do.
+func apply_nearby_activity_action_result(
+	action: StringName,
+	activity_id: StringName,
+	result: Dictionary,
+	) -> bool:
+	if not is_instance_valid(_nearby_activity_feedback):
+		return false
+	var accepted := bool(result.get("accepted", false))
+	var reason := StringName(result.get("reason", &"unavailable"))
+	var title := {
+		&"cinder_reach_emberline_convoy": "EMBERLINE CONVOY",
+		&"cinder_reach_checkpoint_route": "BEACON RACE",
+		&"cinder_relay_patrol": "RELAY PATROL",
+		&"cinder_platform_mining_run": "PLATFORM EXTRACTION",
+		&"cinder_derelict_structure_scan": "DERELICT SCAN",
+		&"cinder_debris_beacon_traversal": "DEBRIS BEACON RUN",
+		&"cinder_platform_supply_run": "PLATFORM SUPPLY RUN",
+		&"station_defense": "STATION DEFENSE",
+	}.get(activity_id, "ACTIVITY") as String
+	if accepted:
+		_nearby_activity_feedback.text = "%s  //  %s" % [
+			title,
+			"STARTED" if action == &"start_requested" else "RESET",
+		]
+		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+	elif activity_id == &"station_defense" and reason in [
+		&"out_of_range", &"on_foot_required", &"invalid_actor_or_content",
+	]:
+		_nearby_activity_feedback.text = (
+			"STATION DEFENSE  //  REPORT ON FOOT TO THE MARKED DECK BOARD"
+		)
+		_nearby_activity_feedback.modulate = _c(CAUTION)
+	else:
+		_nearby_activity_feedback.text = "%s NOT %s  //  %s" % [
+			title,
+			"STARTED" if action == &"start_requested" else "RESET",
+			str(reason).replace("_", " ").to_upper(),
+		]
+		_nearby_activity_feedback.modulate = _c(CAUTION)
+	return true
 
 
 func get_nearby_activity_report() -> Dictionary:
@@ -5182,6 +5284,7 @@ func _add_nearby_activity_row(card: Dictionary) -> void:
 			if action == &"reset" else str(action).to_upper()
 		var button := _menu_button(action_label, MUTED)
 		button.focus_mode = Control.FOCUS_ALL
+		button.disabled = not bool(card.get("actions_enabled", true))
 		button.pressed.connect(_forward_nearby_activity_intent.bind(action, activity_id))
 		row.add_child(button)
 	_nearby_activity_rows.add_child(row)
@@ -5191,6 +5294,11 @@ func _update_nearby_activity_row(row: Control, card: Dictionary) -> void:
 	if row.get_child_count() == 0 or not row.get_child(0) is Label:
 		return
 	(row.get_child(0) as Label).text = str(card.get("text", "ACTIVITY — AVAILABLE"))
+	for index in range(1, row.get_child_count()):
+		if row.get_child(index) is Button:
+			(row.get_child(index) as Button).disabled = not bool(
+				card.get("actions_enabled", true)
+			)
 	if row.get_child_count() > 3 and row.get_child(3) is Button:
 		(row.get_child(3) as Button).text = str(card.get("reset_label", "RESET"))
 
@@ -5403,6 +5511,8 @@ func _configure_server_browser_focus_order(
 func _show_server_browser_page() -> void:
 	_pause_main_page.visible = false
 	_activity_selection_page.visible = false
+	if _nearby_activity_page != null:
+		_nearby_activity_page.visible = false
 	_settings_page.visible = false
 	_server_browser_page.visible = true
 	_server_browser_accept_results = true
@@ -7007,6 +7117,8 @@ func _update_setting_value_label(key: StringName, value: float) -> void:
 func _show_settings_page() -> void:
 	_pause_main_page.visible = false
 	_activity_selection_page.visible = false
+	if _nearby_activity_page != null:
+		_nearby_activity_page.visible = false
 	_server_browser_page.visible = false
 	_settings_page.visible = true
 	var target := _settings_focus_target
@@ -7028,7 +7140,10 @@ func _show_pause_main() -> void:
 		or _settings_page == null
 	):
 		return
-	var returning_from_activity := _activity_selection_page.visible
+	var returning_from_activity := (
+		_activity_selection_page.visible
+		or (_nearby_activity_page != null and _nearby_activity_page.visible)
+	)
 	var returning_from_browser := _server_browser_page != null and _server_browser_page.visible
 	if returning_from_browser:
 		var browser_focus_was_transient := (
@@ -7046,6 +7161,8 @@ func _show_pause_main() -> void:
 	_cancel_pending_input_conflict(false)
 	_pause_main_page.visible = true
 	_activity_selection_page.visible = false
+	if _nearby_activity_page != null:
+		_nearby_activity_page.visible = false
 	_server_browser_page.visible = false
 	_settings_page.visible = false
 	var focus_button := _pause_main_page.find_child(
@@ -7060,14 +7177,23 @@ func _show_pause_main() -> void:
 
 
 func _show_activity_selection_page() -> void:
+	var returning_from_nearby := (
+		_nearby_activity_page != null and _nearby_activity_page.visible
+	)
 	_pause_main_page.visible = false
 	_settings_page.visible = false
 	_server_browser_page.visible = false
+	if _nearby_activity_page != null:
+		_nearby_activity_page.visible = false
 	_activity_selection_page.visible = true
 	_refresh_activity_selection_page(_activity_selection_status_reason)
-	var selected_button := _activity_selection_buttons.get(
-		_activity_selection_kind
-	) as Button
+	var selected_button := (
+		_activity_selection_page.find_child(
+			"NearbyActivityOpenButton", true, false
+		) as Button
+		if returning_from_nearby
+		else _activity_selection_buttons.get(_activity_selection_kind) as Button
+	)
 	if selected_button != null:
 		selected_button.grab_focus()
 

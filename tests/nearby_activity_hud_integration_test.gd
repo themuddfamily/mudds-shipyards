@@ -14,9 +14,33 @@ func _initialize() -> void:
 	await process_frame
 	var view := hud.set_nearby_activity_snapshot({"cargo": _cargo_snapshot(1, 0)})
 	_check(bool(view.get("focusable", false)), "HUD accepts the detached presenter view")
-	_check(int(hud.get_nearby_activity_report().get("row_count", 0)) == 7, "HUD retains one focusable row per nearby activity")
-	hud.show_nearby_activity_page()
-	_check(bool(hud.get_nearby_activity_report().get("visible", false)), "nearby activity page can be shown explicitly")
+	_check(int(hud.get_nearby_activity_report().get("row_count", 0)) == 8, "HUD retains one row per production nearby activity")
+	_check(hud.open_activity_board(), "the existing pause Activity Board opens through its public route")
+	var open_button := (
+		hud.get("_activity_selection_page") as Control
+	).find_child("NearbyActivityOpenButton", true, false) as Button
+	_check(open_button != null, "the Activity Board exposes the Cinder Sector activity route")
+	if open_button != null:
+		open_button.emit_signal("pressed")
+	var nearby_page := hud.get("_nearby_activity_page") as Control
+	var selection_page := hud.get("_activity_selection_page") as Control
+	_check(
+		bool(hud.get_nearby_activity_report().get("visible", false))
+		and nearby_page != null and nearby_page.visible
+		and selection_page != null and not selection_page.visible
+		and hud.get_viewport().gui_get_focus_owner() is BaseButton,
+		"the production button opens one exclusive controller-focused Cinder page"
+	)
+	hud.apply_nearby_activity_action_result(
+		&"start_requested", &"station_defense",
+		{"accepted": false, "reason": &"out_of_range"},
+	)
+	_check(
+		"REPORT ON FOOT TO THE MARKED DECK BOARD" in (
+			hud.get("_nearby_activity_feedback") as Label
+		).text,
+		"a rejected remote station-defense start gives physical recovery guidance"
+	)
 	var row := _cargo_row(hud)
 	var retained_row_id := row.get_instance_id() if row != null else 0
 	_check(
@@ -58,10 +82,10 @@ func _initialize() -> void:
 	row = _cargo_row(hud)
 	var failed := _cargo_card(view)
 	_check(
-		_cargo_text(row).contains("FAILED 2/3: DELIVERY FAILED DURING TRANSIT")
-		and _cargo_text(row).contains("RECOVER: EMBODIED TRANSFER ABORTED")
+		_cargo_text(row).contains("LOST 2/3: CARGO RUN LOST DURING TRANSIT")
+		and _cargo_text(row).contains("RECOVER LOST CARGO: RETURN TO THE CINDER BERTH")
 		and not bool((failed.get("cargo_progress", {}) as Dictionary).get("inventory_authority", true)),
-		"failure retains the interrupted stage and recovery reason without claiming inventory authority"
+		"failure retains the current lost-cargo recovery stage without claiming inventory authority"
 	)
 
 	var start := row.get_child(2) as Button if row != null else null
@@ -70,6 +94,7 @@ func _initialize() -> void:
 	_check(_intent.get("reason", &"") == &"start_requested", "HUD forwards a start intent without invoking activity authority")
 	hud.clear_nearby_activity_snapshot()
 	_check(hud.get_nearby_activity_report().get("snapshot", {}) == {}, "detaching/clearing removes retained activity snapshot")
+	hud.set_paused(false)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

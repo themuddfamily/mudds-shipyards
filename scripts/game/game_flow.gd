@@ -10997,8 +10997,7 @@ func _sync_nearby_activity_hud() -> void:
 	var binding := _get_nearby_activity_binding()
 	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
 		_detach_nearby_activity_audio()
-		if hud.has_method(&"clear_nearby_activity_snapshot"):
-			hud.call(&"clear_nearby_activity_snapshot")
+		_set_unloaded_nearby_activity_hud()
 		return
 	if binding.has_method(&"bind_production_convoy_host"):
 		var convoy_binding := binding.call(
@@ -11006,8 +11005,7 @@ func _sync_nearby_activity_hud() -> void:
 		) as Dictionary
 		if not bool(convoy_binding.get("accepted", false)):
 			_detach_nearby_activity_audio()
-			if hud.has_method(&"clear_nearby_activity_snapshot"):
-				hud.call(&"clear_nearby_activity_snapshot")
+			_set_unloaded_nearby_activity_hud()
 			return
 	bind_cinder_race_best_persistence(binding)
 	bind_cinder_scan_discovery_persistence(binding)
@@ -11015,9 +11013,36 @@ func _sync_nearby_activity_hud() -> void:
 	bind_cinder_mining_capacity_persistence(binding)
 	bind_cinder_convoy_arrival_persistence(binding)
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
+	snapshot["binding_available"] = true
 	_sync_nearby_activity_audio(snapshot)
 	if hud.has_method(&"set_nearby_activity_snapshot"):
 		hud.call(&"set_nearby_activity_snapshot", snapshot)
+
+
+func _set_unloaded_nearby_activity_hud() -> void:
+	if not is_instance_valid(hud) or not hud.has_method(&"set_nearby_activity_snapshot"):
+		return
+	hud.call(&"set_nearby_activity_snapshot", {
+		"binding_available": false,
+		"station_defense": _station_defense_nearby_activity_snapshot(),
+	})
+
+
+func _station_defense_nearby_activity_snapshot() -> Dictionary:
+	var content := _get_station_defense_content()
+	if not is_instance_valid(content):
+		return {}
+	var content_snapshot := content.get_snapshot()
+	var host := content_snapshot.get("host", {}) as Dictionary
+	var activity := (host.get("activity", {}) as Dictionary).duplicate(true)
+	if activity.is_empty():
+		return {}
+	activity["presentation_source"] = &"station_defense_encounter_content"
+	activity["activity_authority"] = false
+	activity["combat_authority"] = false
+	activity["health_authority"] = false
+	activity["reward_authority"] = false
+	return activity
 
 
 func _initialize_halyard_crew_semantic_audio() -> void:
@@ -11515,12 +11540,12 @@ func _build_nearby_activity_audio_snapshot(
 
 
 func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
-	var binding := _get_nearby_activity_binding()
-	if not is_instance_valid(binding):
-		return
 	var activity_id := StringName(str(intent.get("activity_id", &"")))
 	var action := StringName(str(intent.get("reason", &"")))
+	var binding := _get_nearby_activity_binding()
 	if action in [&"save_progress", &"load_progress"]:
+		if not is_instance_valid(binding):
+			return
 		var persistence_result := _handle_nearby_activity_persistence(binding, action, intent)
 		if hud.has_method(&"apply_nearby_activity_persistence_result"):
 			hud.call(&"apply_nearby_activity_persistence_result", persistence_result)
@@ -11531,9 +11556,25 @@ func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
 			_sync_nearby_activity_hud()
 			return
 		&"start_requested":
-			result = _start_nearby_activity(binding, activity_id)
+			if activity_id == &"station_defense":
+				result = _start_physical_station_defense_board()
+			elif is_instance_valid(binding):
+				result = _start_nearby_activity(binding, activity_id)
+			else:
+				result = {
+					"accepted": false,
+					"reason": &"cinder_reach_unloaded",
+				}
 		&"reset_requested":
-			result = _reset_nearby_activity(binding, activity_id)
+			if activity_id == &"station_defense":
+				result = _reset_physical_station_defense_board()
+			elif is_instance_valid(binding):
+				result = _reset_nearby_activity(binding, activity_id)
+			else:
+				result = {
+					"accepted": false,
+					"reason": &"cinder_reach_unloaded",
+				}
 		_:
 			return
 	# Activity bindings publish presentation-safe rejection context as well as
@@ -11541,6 +11582,13 @@ func _on_hud_nearby_activity_intent_requested(intent: Dictionary) -> void:
 	# guidance cannot be stranded behind an authority rejection.
 	if not result.is_empty():
 		_sync_nearby_activity_hud()
+		if hud.has_method(&"apply_nearby_activity_action_result"):
+			hud.call(
+				&"apply_nearby_activity_action_result",
+				action,
+				activity_id,
+				result,
+			)
 
 
 func configure_nearby_activity_persistence(store: RefCounted, slot_id: StringName = &"nearby_activity") -> bool:
@@ -11583,7 +11631,7 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 		&"cinder_derelict_structure_scan": return binding.call(&"start_structure_scan", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
 		&"cinder_debris_beacon_traversal": return binding.call(&"start_beacon_traversal", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
 		&"cinder_platform_supply_run": return binding.call(&"start_cargo_run")
-		&"station_defense": return binding.call(&"start_station_defense")
+		&"station_defense": return _start_physical_station_defense_board()
 	return {"accepted": false, "reason": &"unknown_activity"}
 
 
@@ -11602,8 +11650,58 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 		&"cinder_derelict_structure_scan": return binding.call(&"reset_structure_scan")
 		&"cinder_debris_beacon_traversal": return binding.call(&"reset_beacon_traversal")
 		&"cinder_platform_supply_run": return binding.call(&"reset_cargo_run")
-		&"station_defense": return binding.call(&"reset_station_defense")
+		&"station_defense": return _reset_physical_station_defense_board()
 	return {"accepted": false, "reason": &"unknown_activity"}
+
+
+## The nearby status page may forward the request, but the authored deck board
+## remains the only station-defense admission point. This preserves the same
+## on-foot proximity and generation gates as pressing Interact in the world.
+func _start_physical_station_defense_board() -> Dictionary:
+	if _piloting or _driving or not is_instance_valid(player) or not player.is_inside_tree():
+		return {"accepted": false, "reason": &"on_foot_required"}
+	if not is_instance_valid(world) or not world.has_method(&"get_station_defense_activity_board"):
+		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
+	var board := world.call(&"get_station_defense_activity_board") as Area3D
+	var content := _get_station_defense_content()
+	if (
+		not is_instance_valid(board)
+		or not board.has_method(&"get_interaction_snapshot")
+		or not board.has_method(&"interact")
+		or not board.has_method(&"get_last_result")
+		or not is_instance_valid(content)
+	):
+		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
+	var generation := content.get_generation()
+	var gate := board.call(
+		&"get_interaction_snapshot", player, generation
+	) as Dictionary
+	if not bool(gate.get("available", false)):
+		gate["accepted"] = false
+		return gate.duplicate(true)
+	board.call(&"interact", player)
+	return (board.call(&"get_last_result") as Dictionary).duplicate(true)
+
+
+## Reset follows the identical physical-board gate. A pause-menu click cannot
+## remotely despawn combatants or repair protected assets from across the map.
+func _reset_physical_station_defense_board() -> Dictionary:
+	if _piloting or _driving or not is_instance_valid(player) or not player.is_inside_tree():
+		return {"accepted": false, "reason": &"on_foot_required"}
+	if not is_instance_valid(world) or not world.has_method(&"get_station_defense_activity_board"):
+		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
+	var board := world.call(&"get_station_defense_activity_board") as Area3D
+	var content := _get_station_defense_content()
+	if (
+		not is_instance_valid(board)
+		or not board.has_method(&"abort_and_reset")
+		or not is_instance_valid(content)
+	):
+		return {"accepted": false, "reason": &"station_defense_board_unavailable"}
+	return (
+		board.call(&"abort_and_reset", player, content.get_generation())
+		as Dictionary
+	).duplicate(true)
 
 
 func _get_selected_activity_snapshot() -> Dictionary:

@@ -134,6 +134,14 @@ func get_snapshot() -> Dictionary:
 
 
 func _activity_state(activity_id: StringName) -> Dictionary:
+	if (
+		activity_id != &"station_defense"
+		and not bool(_snapshot.get("binding_available", true))
+	):
+		return {
+			"state_id": &"unavailable",
+			"presentation_reason": &"cinder_reach_unloaded",
+		}
 	var source := _snapshot.get("host", {}) as Dictionary
 	if activity_id == &"cinder_reach_emberline_convoy":
 		return source.get("activity", {}) as Dictionary
@@ -175,6 +183,10 @@ func _clear_reset_confirmation() -> void:
 
 func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 	var state_id := StringName(state.get("state_id", _state_label(state)))
+	var actions_enabled := (
+		activity_id == &"station_defense"
+		or bool(_snapshot.get("binding_available", true))
+	)
 	var race_countdown_in_progress := bool(state.get(
 		"countdown_in_progress", state_id == &"countdown"
 	))
@@ -230,6 +242,8 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		if StringName(station_defense_feedback.get("stage_id", &"")) == &"lost_hostile":
 			state_id = &"lost_hostile"
 	var progress := (
+		"  //  FLY TOWARD CINDER REACH TO LOAD"
+		if not actions_enabled else (
 		"  //  %s" % str(station_defense_feedback.get("summary", ""))
 		if not station_defense_feedback.is_empty()
 		else "  //  %s" % str(convoy_feedback.get("summary", ""))
@@ -247,6 +261,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		else "  //  %s" % str(cargo_progress.get("summary", ""))
 		if not cargo_progress.is_empty()
 		else _progress_text(activity_id, state)
+		)
 	)
 	var recovery := (
 		"" if not cargo_progress.is_empty() or not station_defense_feedback.is_empty() or not beacon_feedback.is_empty() or not patrol_feedback.is_empty() or not race_feedback.is_empty() or not scan_feedback.is_empty()
@@ -268,6 +283,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		"state_id": state_id,
 		"text": "%s — %s%s%s" % [_title(activity_id), _state_text(state_id), progress, status_suffix],
 		"focusable": true,
+		"actions_enabled": actions_enabled,
 		"selected": activity_id == _selected_activity,
 		"intents": ["select", "start", "reset"],
 		"reset_label": (
@@ -982,7 +998,7 @@ func _state_label(state: Dictionary) -> String:
 
 
 func _state_text(state_id: StringName) -> String:
-	return {&"idle": "AVAILABLE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"countdown": "COUNTDOWN", &"missed_gate": "MISSED GATE", &"wrong_order": "WRONG ORDER", &"wrong_position": "WRONG POSITION", &"interrupted": "INTERRUPTED", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
+	return {&"idle": "AVAILABLE", &"unavailable": "OUT OF RANGE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"countdown": "COUNTDOWN", &"missed_gate": "MISSED GATE", &"wrong_order": "WRONG ORDER", &"wrong_position": "WRONG POSITION", &"interrupted": "INTERRUPTED", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
 
 
 func _recovery_text(state: Dictionary) -> String:
