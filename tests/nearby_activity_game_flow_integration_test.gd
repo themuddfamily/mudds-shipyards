@@ -5,6 +5,7 @@ const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const BindingType := preload("res://scripts/world/nearby_sector_activity_binding.gd")
 const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
 const ScanActivityType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
+const BeaconActivityType := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
 
 class BindingProbe extends Node3D:
 	var starts: Array[StringName] = []
@@ -108,6 +109,8 @@ var _assertions := 0
 var _failures: PackedStringArray = []
 var _scan_reward_accept := false
 var _scan_reward_requests: Array[Dictionary] = []
+var _beacon_reward_accept := false
+var _beacon_reward_requests: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -203,6 +206,15 @@ func _run() -> void:
 	_check(
 		bool(scan_reward_handoff.get("accepted", false)),
 		"the streamed scan accepts one caller-owned production reward handoff",
+	)
+	var beacon_reward_handoff := (
+		production_binding.configure_beacon_traversal_reward_handoff(
+			Callable(self, &"_commit_beacon_reward")
+		)
+	)
+	_check(
+		bool(beacon_reward_handoff.get("accepted", false)),
+		"the streamed beacon run accepts one caller-owned production reward handoff",
 	)
 	flow.world = production_world
 	flow.cinder_convoy_host = production_convoy_host
@@ -357,6 +369,153 @@ func _run() -> void:
 		"the confirmed real RESET clears feedback and reaches the normal reset state",
 	)
 
+	active_ship.global_position = BeaconActivityType.BEACONS[0]
+	var beacon_row := _activity_row(
+		retained_hud, &"cinder_debris_beacon_traversal"
+	)
+	var beacon_start := (
+		beacon_row.get_child(2) as Button if beacon_row != null else null
+	)
+	if beacon_start != null:
+		beacon_start.emit_signal(&"pressed")
+	var beacon_started := (
+		production_binding.get_snapshot().get("beacon_traversal", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		beacon_start != null
+			and StringName(beacon_started.get("state_id", &"")) == &"active"
+			and int(beacon_started.get("next_beacon_index", -1)) == 0
+			and "BEACON RUN  0/4 CLEARED — NEXT 1/4" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"the public beacon Start action reaches the first authored target",
+	)
+
+	var alpha := flow._advance_cinder_beacon_traversal(
+		0.1, _ship_sample(active_ship)
+	)
+	beacon_row = _activity_row(retained_hud, &"cinder_debris_beacon_traversal")
+	var after_alpha := (
+		production_binding.get_snapshot().get("beacon_traversal", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		bool(alpha.get("accepted", false))
+			and alpha.get("reason", &"") == &"beacon_reached"
+			and int(after_alpha.get("next_beacon_index", -1)) == 1
+			and _activity_text(beacon_row).contains("NEXT BEACON 2/4")
+			and "BEACON RUN  1/4 CLEARED — NEXT 2/4" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"entering Beacon 1 advances the ordered route and both HUD surfaces",
+	)
+
+	active_ship.global_position = BeaconActivityType.BEACONS[2]
+	var skipped := flow._advance_cinder_beacon_traversal(
+		0.1, _ship_sample(active_ship)
+	)
+	beacon_row = _activity_row(retained_hud, &"cinder_debris_beacon_traversal")
+	var after_skip := (
+		production_binding.get_snapshot().get("beacon_traversal", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		not bool(skipped.get("accepted", true))
+			and skipped.get("reason", &"") == &"outside_beacon"
+			and int(after_skip.get("next_beacon_index", -1)) == 1
+			and float(after_skip.get("distance_to_next_beacon", 0.0)) \
+				> BeaconActivityType.CHECKPOINT_RADIUS
+			and _activity_text(beacon_row).contains("NEXT BEACON 2/4")
+			and str(
+				(beacon_row.get_child(0) as Label).text
+			).contains("1/4 CLEARED"),
+		"skipping ahead cannot advance order and keeps Beacon 2 as the visible target",
+	)
+
+	active_ship.global_position = BeaconActivityType.BEACONS[1]
+	var bravo := flow._advance_cinder_beacon_traversal(
+		0.1, _ship_sample(active_ship)
+	)
+	active_ship.global_position = BeaconActivityType.BEACONS[2]
+	var charlie := flow._advance_cinder_beacon_traversal(
+		0.1, _ship_sample(active_ship)
+	)
+	active_ship.global_position = BeaconActivityType.BEACONS[3]
+	var completed_beacon := flow._advance_cinder_beacon_traversal(
+		0.1, _ship_sample(active_ship)
+	)
+	var rejected_beacon_reward := (
+		completed_beacon.get("reward_result", {}) as Dictionary
+	)
+	var completed_beacon_snapshot := (
+		production_binding.get_snapshot().get("beacon_traversal", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		bool(bravo.get("accepted", false))
+			and bool(charlie.get("accepted", false))
+			and bool(completed_beacon.get("accepted", false))
+			and completed_beacon.get("reason", &"") == &"complete"
+			and not bool(rejected_beacon_reward.get("accepted", true))
+			and rejected_beacon_reward.get("reason", &"") \
+				== &"beacon_traversal_reward_handoff_rejected"
+			and not bool(completed_beacon_snapshot.get("reward_requested", true))
+			and "COMPLETE — CLAIM NAV DATA" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"the remaining authored beacons complete in order while a failed receipt stays retryable",
+	)
+	_check(
+		_beacon_reward_requests.size() == 1
+			and _beacon_reward_requests[0].size() == 5
+			and _beacon_reward_requests[0].activity_id \
+				== &"cinder_debris_beacon_traversal"
+			and int(_beacon_reward_requests[0].activity_generation) == 1
+			and _beacon_reward_requests[0].reward_id \
+				== &"debris_route_navigation_data"
+			and not bool(_beacon_reward_requests[0].reward_authority)
+			and not bool(_beacon_reward_requests[0].granted),
+		"beacon completion emits the exact compact non-authoritative reward request",
+	)
+
+	_beacon_reward_accept = true
+	beacon_row = _activity_row(retained_hud, &"cinder_debris_beacon_traversal")
+	beacon_start = beacon_row.get_child(2) as Button if beacon_row != null else null
+	if beacon_start != null:
+		beacon_start.emit_signal(&"pressed")
+	beacon_row = _activity_row(retained_hud, &"cinder_debris_beacon_traversal")
+	var rewarded_beacon := (
+		production_binding.get_snapshot().get("beacon_traversal", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		beacon_start != null
+			and _beacon_reward_requests.size() == 2
+			and bool(rewarded_beacon.get("reward_requested", false))
+			and bool(rewarded_beacon.get("reward_committed", false))
+			and not bool(rewarded_beacon.get("reward_pending", true))
+			and _activity_text(beacon_row).contains(
+				"NAVIGATION DATA RECEIPT SAVED"
+			)
+			and not bool(
+				retained_hud.get_activity_objective_report().get("visible", true)
+			),
+		"the public Start action retries the beacon receipt and clears stale flight HUD",
+	)
+
+	var beacon_reset := (
+		beacon_row.get_child(3) as Button if beacon_row != null else null
+	)
+	if beacon_reset != null:
+		beacon_reset.emit_signal(&"pressed")
+	var reset_beacon := (
+		production_binding.get_snapshot().get("beacon_traversal", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		beacon_reset != null
+			and int(reset_beacon.get("state", -1)) == 3
+			and _activity_text(
+				_activity_row(retained_hud, &"cinder_debris_beacon_traversal")
+			).contains("TRAVERSAL RESET"),
+		"the recorded beacon run resets through its existing authority",
+	)
+
 	flow.hud = null
 	flow.active_ship = null
 	flow.world = null
@@ -396,6 +555,21 @@ func _commit_scan_reward(request: Dictionary) -> Dictionary:
 		"receipt": {
 			"receipt_id": _scan_reward_requests.size(),
 			"reward_label": "Derelict material sample recorded",
+		},
+	}.duplicate(true)
+
+
+func _commit_beacon_reward(request: Dictionary) -> Dictionary:
+	_beacon_reward_requests.append(request.duplicate(true))
+	if not _beacon_reward_accept:
+		return {"accepted": false, "reason": &"simulated_store_rejection"}
+	return {
+		"accepted": true,
+		"reason": &"reward_receipt_committed",
+		"granted": true,
+		"receipt": {
+			"receipt_id": 10 + _beacon_reward_requests.size(),
+			"reward_label": "Debris navigation data recorded",
 		},
 	}.duplicate(true)
 

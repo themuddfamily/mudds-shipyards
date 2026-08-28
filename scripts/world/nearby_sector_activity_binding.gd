@@ -104,6 +104,10 @@ var _last_structure_scan_feedback_generation := -1
 var _structure_scan_reward_sink := Callable()
 var _last_structure_scan_reward_result: Dictionary = {}
 var _last_beacon_feedback_reason: StringName = &""
+var _last_beacon_feedback_generation := -1
+var _last_beacon_distance := -1.0
+var _last_beacon_distance_generation := -1
+var _beacon_traversal_reward_sink := Callable()
 var _last_beacon_reward_result: Dictionary = {}
 
 
@@ -1563,13 +1567,41 @@ func _persist_structure_scan_discovery(reward_result: Dictionary) -> void:
 		}.duplicate(true)
 
 
+func configure_beacon_traversal_reward_handoff(reward_sink: Callable) -> Dictionary:
+	if not reward_sink.is_valid():
+		return _result(false, &"beacon_traversal_reward_sink_invalid")
+	if _beacon_traversal_reward_sink.is_valid():
+		if _beacon_traversal_reward_sink == reward_sink:
+			return _result(true, &"beacon_traversal_reward_handoff_already_configured")
+		return _result(false, &"beacon_traversal_reward_handoff_already_bound")
+	_beacon_traversal_reward_sink = reward_sink
+	return _result(true, &"beacon_traversal_reward_handoff_configured")
+
+
+func get_beacon_traversal_reward_handoff_snapshot() -> Dictionary:
+	return {
+		"configured": _beacon_traversal_reward_sink.is_valid(),
+		"activity_id": BEACON_ACTIVITY.ACTIVITY_ID,
+		"reward_id": BEACON_ACTIVITY.REWARD_ID,
+		"activity_authority": false,
+		"reward_authority": false,
+		"store_authority": false,
+	}.duplicate(true)
+
+
 func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _beacon_activity.call("start", caller_position)
 	if bool(result.get("accepted", false)):
 		_last_beacon_feedback_reason = &""
+		_last_beacon_feedback_generation = int(result.get("generation", -1))
+		_last_beacon_distance = caller_position.distance_to(BEACON_ACTIVITY.BEACONS[0])
+		_last_beacon_distance_generation = int(result.get("generation", -1))
 		_last_beacon_reward_result.clear()
+	else:
+		_last_beacon_feedback_reason = StringName(result.get("reason", &""))
+		_last_beacon_feedback_generation = int(result.get("generation", -1))
 	_publish_beacon_traversal_presentation(result)
 	return result
 
@@ -1582,14 +1614,106 @@ func submit_beacon_traversal(index: int, caller_position: Vector3) -> Dictionary
 		&"" if bool(result.get("accepted", false))
 		else StringName(result.get("reason", &""))
 	)
+	_last_beacon_feedback_generation = int(result.get("generation", -1))
 	_publish_beacon_traversal_presentation(result)
+	return result
+
+
+## Production auto-submit seam. The binding reads only the next authoritative
+## index and one caller-owned ship position; it never predicts or skips route
+## order. An out-of-range sample updates distance guidance without progress.
+func advance_beacon_traversal_from_caller_sample(
+		caller_position: Vector3,
+	) -> Dictionary:
+	if _beacon_activity == null:
+		return _result(false, &"not_ready")
+	var before := _beacon_activity.call("get_snapshot") as Dictionary
+	if int(before.get("state", -1)) != BEACON_ACTIVITY.State.ACTIVE:
+		var inactive := before.duplicate(true)
+		inactive["accepted"] = false
+		inactive["reason"] = &"not_active"
+		return inactive
+	var next_index := int(before.get("next_beacon_index", -1))
+	if next_index < 0 or next_index >= BEACON_ACTIVITY.BEACONS.size():
+		var invalid := before.duplicate(true)
+		invalid["accepted"] = false
+		invalid["reason"] = &"beacon_cursor_invalid"
+		return invalid
+	_last_beacon_distance = (
+		caller_position.distance_to(BEACON_ACTIVITY.BEACONS[next_index])
+		if caller_position.is_finite() else INF
+	)
+	_last_beacon_distance_generation = int(before.get("generation", -1))
+	if _last_beacon_distance > BEACON_ACTIVITY.CHECKPOINT_RADIUS:
+		var feedback_changed := (
+			_last_beacon_feedback_reason != &"outside_beacon"
+			or _last_beacon_feedback_generation
+				!= int(before.get("generation", -1))
+		)
+		_last_beacon_feedback_reason = &"outside_beacon"
+		_last_beacon_feedback_generation = int(before.get("generation", -1))
+		var outside := before.duplicate(true)
+		outside["accepted"] = false
+		outside["reason"] = &"outside_beacon"
+		if feedback_changed:
+			_publish_beacon_traversal_presentation(outside)
+		return outside
+	var result := submit_beacon_traversal(next_index, caller_position)
+	if bool(result.get("accepted", false)) \
+			and int(result.get("state", -1)) == BEACON_ACTIVITY.State.ACTIVE:
+		var new_index := int(result.get("next_beacon_index", -1))
+		if new_index >= 0 and new_index < BEACON_ACTIVITY.BEACONS.size():
+			_last_beacon_distance = caller_position.distance_to(
+				BEACON_ACTIVITY.BEACONS[new_index]
+			)
 	return result
 
 
 func request_beacon_traversal_reward() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
+	var before := _beacon_activity.call("get_snapshot") as Dictionary
+	if _beacon_traversal_reward_sink.is_valid() and (
+		int(before.get("state", -1)) != BEACON_ACTIVITY.State.COMPLETE
+		or bool(before.get("reward_requested", false))
+	):
+		var preflight := _beacon_activity.call("request_reward") as Dictionary
+		_last_beacon_reward_result = preflight.duplicate(true)
+		_publish_beacon_traversal_presentation(preflight)
+		_cinder_field_audio.present_reward_result(preflight)
+		return preflight
+	var authority_result: Dictionary = {}
+	if _beacon_traversal_reward_sink.is_valid():
+		var authority_value: Variant = _beacon_traversal_reward_sink.call({
+			"activity_id": BEACON_ACTIVITY.ACTIVITY_ID,
+			"activity_generation": int(before.get("generation", 0)),
+			"reward_id": BEACON_ACTIVITY.REWARD_ID,
+			"reward_authority": false,
+			"granted": false,
+		}.duplicate(true))
+		if authority_value is Dictionary:
+			authority_result = (authority_value as Dictionary).duplicate(true)
+		else:
+			authority_result = {
+				"accepted": false,
+				"reason": &"beacon_traversal_reward_receipt_invalid",
+			}.duplicate(true)
+		if (
+			not bool(authority_result.get("accepted", false))
+			or not bool(authority_result.get("granted", false))
+		):
+			var rejected := before.duplicate(true)
+			rejected["accepted"] = false
+			rejected["reason"] = &"beacon_traversal_reward_handoff_rejected"
+			rejected["authority_result"] = authority_result.duplicate(true)
+			_last_beacon_reward_result = rejected.duplicate(true)
+			_publish_beacon_traversal_presentation(rejected)
+			_cinder_field_audio.present_reward_result(rejected)
+			return rejected
 	var result: Dictionary = _beacon_activity.call("request_reward")
+	if not authority_result.is_empty():
+		result["authority_result"] = authority_result.duplicate(true)
+		result["reward_committed"] = bool(authority_result.get("granted", false))
 	_last_beacon_reward_result = result.duplicate(true)
 	_publish_beacon_traversal_presentation(result)
 	_cinder_field_audio.present_reward_result(result)
@@ -1602,6 +1726,9 @@ func reset_beacon_traversal() -> Dictionary:
 	var result: Dictionary = _beacon_activity.call("reset")
 	if bool(result.get("accepted", false)):
 		_last_beacon_feedback_reason = &""
+		_last_beacon_feedback_generation = int(result.get("generation", -1))
+		_last_beacon_distance = -1.0
+		_last_beacon_distance_generation = -1
 		_last_beacon_reward_result.clear()
 	_publish_beacon_traversal_presentation(result)
 	return result
@@ -2040,16 +2167,54 @@ func _beacon_traversal_presentation_snapshot() -> Dictionary:
 	if not is_instance_valid(_beacon_activity):
 		return {}
 	var snapshot := _beacon_activity.call("get_snapshot") as Dictionary
+	var generation := int(snapshot.get("generation", 0))
+	if (
+		not _last_beacon_feedback_reason.is_empty()
+		and generation != _last_beacon_feedback_generation
+	):
+		_last_beacon_feedback_reason = &""
+		_last_beacon_feedback_generation = -1
 	var request := _last_beacon_reward_result.get("reward_request", {}) as Dictionary
 	var request_matches := (
 		StringName(request.get("activity_id", &"")) == BEACON_ACTIVITY.ACTIVITY_ID
-		and int(request.get("generation", -1)) == int(snapshot.get("generation", 0))
+		and int(request.get("generation", -1)) == generation
 	)
+	var reward_result_matches := (
+		int(_last_beacon_reward_result.get("generation", -1)) == generation
+	)
+	var authority_result := (
+		_last_beacon_reward_result.get("authority_result", {}) as Dictionary
+		if reward_result_matches else {}
+	)
+	var reward_committed := (
+		reward_result_matches
+		and bool(_last_beacon_reward_result.get("accepted", false))
+		and bool(authority_result.get("accepted", false))
+		and bool(authority_result.get("granted", false))
+	)
+	var authority_state := int(snapshot.get("state", BEACON_ACTIVITY.State.IDLE))
+	snapshot["state_id"] = [
+		&"idle", &"active", &"complete", &"reset",
+	][clampi(authority_state, BEACON_ACTIVITY.State.IDLE, BEACON_ACTIVITY.State.RESET)]
 	snapshot["presentation_reason"] = _last_beacon_feedback_reason
 	snapshot["reward_pending"] = (
 		bool(_last_beacon_reward_result.get("accepted", false))
-		and bool(snapshot.get("reward_requested", false)) and request_matches
+		and bool(snapshot.get("reward_requested", false))
+		and request_matches
+		and not reward_committed
 	)
+	if reward_result_matches:
+		snapshot["reward_committed"] = reward_committed
+		snapshot["reward_handoff_reason"] = StringName(
+			_last_beacon_reward_result.get("reason", &"")
+		)
+	var next_index := int(snapshot.get("next_beacon_index", -1))
+	if authority_state == BEACON_ACTIVITY.State.ACTIVE \
+			and next_index >= 0 and next_index < BEACON_ACTIVITY.BEACONS.size():
+		snapshot["next_beacon_position"] = BEACON_ACTIVITY.BEACONS[next_index]
+		snapshot["checkpoint_radius"] = BEACON_ACTIVITY.CHECKPOINT_RADIUS
+		if _last_beacon_distance_generation == generation:
+			snapshot["distance_to_next_beacon"] = _last_beacon_distance
 	return snapshot.duplicate(true)
 
 

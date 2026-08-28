@@ -399,6 +399,12 @@ func _beacon_feedback(state: Dictionary) -> Dictionary:
 		state.get("presentation_reason", state.get("reason", &""))
 	)
 	var reward_pending := bool(state.get("reward_pending", false))
+	var reward_committed := bool(state.get("reward_committed", false))
+	var distance := float(state.get("distance_to_next_beacon", -1.0))
+	var distance_text := (
+		"  //  %.0fm" % distance
+		if is_finite(distance) and distance >= 0.0 else ""
+	)
 	var stage_id: StringName = &"approach"
 	var summary := "RUN READY  //  START AT BEACON 1/%d" % beacon_count
 	var objective := "ENTER THE FIRST DEBRIS BEACON"
@@ -408,6 +414,12 @@ func _beacon_feedback(state: Dictionary) -> Dictionary:
 			expected_number, beacon_count, next_index, beacon_count,
 		]
 		objective = "RETURN TO EXPECTED BEACON %d" % expected_number
+	elif authority_state == 1 and presentation_reason == &"outside_beacon":
+		stage_id = &"active"
+		summary = "NEXT BEACON %d/%d%s  //  %d/%d CLEARED" % [
+			expected_number, beacon_count, distance_text, next_index, beacon_count,
+		]
+		objective = "FLY TO EXPECTED BEACON %d" % expected_number
 	else:
 		match authority_state:
 			1:
@@ -417,11 +429,19 @@ func _beacon_feedback(state: Dictionary) -> Dictionary:
 				]
 				objective = "ENTER EXPECTED BEACON %d" % expected_number
 			2:
-				stage_id = &"reward_pending" if reward_pending else &"complete"
-				summary = "ROUTE COMPLETE  //  %s" % (
-					"REWARD PENDING" if reward_pending else "NAVIGATION DATA READY"
+				stage_id = &"reward_recorded" if reward_committed else (
+					&"reward_pending" if reward_pending else &"complete"
 				)
-				objective = "AWAIT NAVIGATION DATA HANDOFF" if reward_pending else "REQUEST NAVIGATION DATA REWARD"
+				summary = "ROUTE COMPLETE  //  %s" % (
+					"NAVIGATION DATA RECEIPT SAVED" if reward_committed else (
+						"REWARD PENDING" if reward_pending else "NAVIGATION DATA READY"
+					)
+				)
+				objective = "RETURN THE RECORDED ROUTE DATA TO THE SHIPYARD" \
+					if reward_committed else (
+						"AWAIT NAVIGATION DATA HANDOFF"
+						if reward_pending else "REQUEST NAVIGATION DATA REWARD"
+					)
 			3:
 				stage_id = &"reset"
 				summary = "TRAVERSAL RESET  //  START AGAIN AT BEACON 1/%d" % beacon_count
@@ -431,7 +451,9 @@ func _beacon_feedback(state: Dictionary) -> Dictionary:
 		"next_beacon_index": next_index,
 		"beacon_count": beacon_count,
 		"expected_beacon_number": expected_number,
+		"distance_to_next_beacon": distance,
 		"reward_pending": reward_pending,
+		"reward_committed": reward_committed,
 		"summary": summary,
 		"objective_text": objective,
 		"activity_authority": false,

@@ -79,6 +79,29 @@ func _run() -> void:
 		}),
 		"the Activity Board accepts the retained Ember survey label",
 	)
+	hud.set_activity_objective("Debris beacon run", {
+		"activity_id": &"cinder_debris_beacon_traversal",
+		"state_id": &"active",
+		"generation": 1,
+		"next_beacon_index": 1,
+		"beacon_count": 4,
+		"distance_to_next_beacon": 128.0,
+	})
+	_check(
+		"BEACON RUN  1/4 CLEARED — NEXT 2/4  128m" in str(
+			hud.get_activity_objective_report().get("text", "")
+		),
+		"the flight objective renders ordered beacon progress and distance",
+	)
+	_check(
+		hud.set_activity_reward_summary({
+			"available": true,
+			"total_receipts": 3,
+			"last_receipt_id": 3,
+			"last_reward_label": "Debris navigation data recorded",
+		}),
+		"the Activity Board accepts the persisted debris-navigation label",
+	)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

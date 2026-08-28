@@ -110,6 +110,7 @@ const CINDER_PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CINDER_CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_DELIVERY_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 const HEAVY_BREACH_HUD_REFRESH_SECONDS := 0.1
+const CINDER_BEACON_HUD_REFRESH_SECONDS := 0.1
 const CARGO_DELIVERY_DISPLAY_NAME := "Jovian fabrication kit delivery"
 const CARGO_DELIVERY_EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const CARGO_DELIVERY_ITEM_ID: StringName = &"fabrication_kits"
@@ -509,15 +510,18 @@ var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
 ## The four GameFlow-owned route activities remain separate progress
-## authorities. Their terminal snapshots, the streamed Cinder scan, the physical
-## Heavy Breach board, and the retained Ember relay survey converge only at this
-## one persisted Shipyard return-incentive authority.
+## authorities. Their terminal snapshots, the streamed Cinder scan and beacon
+## run, the physical Heavy Breach board, and the retained Ember relay survey
+## converge only at this one persisted Shipyard return-incentive authority.
 var _game_flow_reward_authority: RefCounted
 var _game_flow_reward_adapter: RefCounted
 var _game_flow_reward_configuration: Dictionary = {}
 var _heavy_breach_reward_configuration: Dictionary = {}
 var _cinder_structure_scan_reward_configuration: Dictionary = {}
 var _last_cinder_structure_scan_reward_result: Dictionary = {}
+var _cinder_beacon_traversal_reward_configuration: Dictionary = {}
+var _last_cinder_beacon_traversal_reward_result: Dictionary = {}
+var _cinder_beacon_hud_elapsed := 0.0
 var _last_game_flow_reward_result: Dictionary = {}
 ## Opt-in multiplayer transport. Normal solo startup never creates this node;
 ## explicit host/join calls retain the ENet/lifecycle seam beneath GameFlow.
@@ -3356,10 +3360,11 @@ func _physics_process(delta: float) -> void:
 		cinder_streaming_tick = cinder_streaming_binding.physics_tick_from_caller_sample(
 			delta, actor_sample
 		)
-	_advance_cinder_structure_scan(
-		delta,
-		actor_sample if bool(cinder_streaming_tick.get("accepted", false)) else {},
+	var cinder_activity_actor_sample := (
+		actor_sample if bool(cinder_streaming_tick.get("accepted", false)) else {}
 	)
+	_advance_cinder_structure_scan(delta, cinder_activity_actor_sample)
+	_advance_cinder_beacon_traversal(delta, cinder_activity_actor_sample)
 	_sync_cinder_convoy_stream_presence()
 	# A live convoy owns one exact streamed Cinder generation, but that retained
 	# residency cannot substitute for the required current caller-sampled update.
@@ -11017,6 +11022,12 @@ func get_activity_reward_report() -> Dictionary:
 		"last_cinder_structure_scan_result": (
 			_last_cinder_structure_scan_reward_result.duplicate(true)
 		),
+		"cinder_beacon_traversal_handoff": (
+			_cinder_beacon_traversal_reward_configuration.duplicate(true)
+		),
+		"last_cinder_beacon_traversal_result": (
+			_last_cinder_beacon_traversal_reward_result.duplicate(true)
+		),
 		"authority": (
 			_game_flow_reward_authority.call(&"get_snapshot") as Dictionary
 			if _game_flow_reward_authority != null else {}
@@ -11297,17 +11308,7 @@ func _advance_cinder_structure_scan(
 	):
 		return {"accepted": false, "reason": &"structure_scan_inactive"}
 	var reward_handoff_ready := _cinder_structure_scan_reward_handoff_ready(binding)
-	var caller_position := Vector3.INF
-	if (
-		bool(actor_sample.get("available", false))
-		and StringName(actor_sample.get("actor_kind", &"")) == &"ship"
-		and is_instance_valid(active_ship)
-		and int(actor_sample.get("actor_instance_id", 0))
-			== active_ship.get_instance_id()
-		and actor_sample.get("position") is Vector3
-		and (actor_sample.get("position") as Vector3).is_finite()
-	):
-		caller_position = actor_sample.get("position") as Vector3
+	var caller_position := _cinder_nearby_activity_ship_position(actor_sample)
 	var previous_reason := StringName(scan.get("presentation_reason", &""))
 	var advanced := binding.call(
 		&"advance_structure_scan_from_caller_sample", delta, caller_position
@@ -11334,6 +11335,75 @@ func _advance_cinder_structure_scan(
 	):
 		_sync_activity_hud()
 	return advanced.duplicate(true)
+
+
+func _advance_cinder_beacon_traversal(
+		delta: float,
+		actor_sample: Dictionary,
+	) -> Dictionary:
+	var binding := _get_nearby_activity_binding()
+	if (
+		not is_instance_valid(binding)
+		or not binding.has_method(&"advance_beacon_traversal_from_caller_sample")
+		or not binding.has_method(&"request_beacon_traversal_reward")
+		or not binding.has_method(&"get_snapshot")
+	):
+		_cinder_beacon_hud_elapsed = 0.0
+		return {"accepted": false, "reason": &"beacon_traversal_binding_unavailable"}
+	var binding_snapshot := binding.call(&"get_snapshot") as Dictionary
+	var traversal := binding_snapshot.get("beacon_traversal", {}) as Dictionary
+	if (
+		StringName(traversal.get("state_id", &"")) != &"active"
+		or int(traversal.get("generation", 0)) < 1
+	):
+		_cinder_beacon_hud_elapsed = 0.0
+		return {"accepted": false, "reason": &"beacon_traversal_inactive"}
+	var reward_handoff_ready := _cinder_beacon_traversal_reward_handoff_ready(binding)
+	var caller_position := _cinder_nearby_activity_ship_position(actor_sample)
+	var previous_reason := StringName(traversal.get("presentation_reason", &""))
+	var advanced := binding.call(
+		&"advance_beacon_traversal_from_caller_sample", caller_position
+	) as Dictionary
+	var completed := (
+		bool(advanced.get("accepted", false))
+		and StringName(advanced.get("reason", &"")) == &"complete"
+	)
+	if completed:
+		var reward := (
+			binding.call(&"request_beacon_traversal_reward") as Dictionary
+			if reward_handoff_ready else {
+				"accepted": false,
+				"reason": &"beacon_traversal_reward_handoff_unavailable",
+			}
+		)
+		_last_cinder_beacon_traversal_reward_result = reward.duplicate(true)
+		advanced["reward_result"] = reward.duplicate(true)
+		_present_cinder_beacon_traversal_completion(reward)
+	if is_finite(delta) and delta > 0.0:
+		_cinder_beacon_hud_elapsed += delta
+	if (
+		bool(advanced.get("accepted", false))
+		or completed
+		or previous_reason != StringName(advanced.get("reason", &""))
+		or _cinder_beacon_hud_elapsed >= CINDER_BEACON_HUD_REFRESH_SECONDS
+	):
+		_cinder_beacon_hud_elapsed = 0.0
+		_sync_activity_hud()
+	return advanced.duplicate(true)
+
+
+func _cinder_nearby_activity_ship_position(actor_sample: Dictionary) -> Vector3:
+	if (
+		bool(actor_sample.get("available", false))
+		and StringName(actor_sample.get("actor_kind", &"")) == &"ship"
+		and is_instance_valid(active_ship)
+		and int(actor_sample.get("actor_instance_id", 0))
+			== active_ship.get_instance_id()
+		and actor_sample.get("position") is Vector3
+		and (actor_sample.get("position") as Vector3).is_finite()
+	):
+		return actor_sample.get("position") as Vector3
+	return Vector3.INF
 
 
 func _configure_cinder_structure_scan_reward_handoff(binding: Object) -> Dictionary:
@@ -11368,6 +11438,38 @@ func _cinder_structure_scan_reward_handoff_ready(binding: Object) -> bool:
 	return bool(handoff.get("configured", false))
 
 
+func _configure_cinder_beacon_traversal_reward_handoff(binding: Object) -> Dictionary:
+	if _game_flow_reward_authority == null:
+		_cinder_beacon_traversal_reward_configuration = {
+			"accepted": false,
+			"reason": &"reward_authority_unavailable",
+		}.duplicate(true)
+	elif binding == null \
+			or not binding.has_method(&"configure_beacon_traversal_reward_handoff"):
+		_cinder_beacon_traversal_reward_configuration = {
+			"accepted": false,
+			"reason": &"beacon_traversal_reward_handoff_unavailable",
+		}.duplicate(true)
+	else:
+		_cinder_beacon_traversal_reward_configuration = binding.call(
+			&"configure_beacon_traversal_reward_handoff",
+			Callable(self, &"_commit_game_flow_activity_reward"),
+		) as Dictionary
+	return _cinder_beacon_traversal_reward_configuration.duplicate(true)
+
+
+func _cinder_beacon_traversal_reward_handoff_ready(binding: Object) -> bool:
+	if binding == null \
+			or not binding.has_method(&"get_beacon_traversal_reward_handoff_snapshot"):
+		return false
+	if _game_flow_reward_authority != null:
+		_configure_cinder_beacon_traversal_reward_handoff(binding)
+	var handoff := binding.call(
+		&"get_beacon_traversal_reward_handoff_snapshot"
+	) as Dictionary
+	return bool(handoff.get("configured", false))
+
+
 func _present_cinder_structure_scan_completion(reward: Dictionary) -> void:
 	if not is_instance_valid(hud):
 		return
@@ -11384,6 +11486,27 @@ func _present_cinder_structure_scan_completion(reward: Dictionary) -> void:
 	else:
 		hud.toast(
 			"Derelict scan complete",
+			"Reward receipt was not saved — choose Start to retry",
+			3.2,
+		)
+
+
+func _present_cinder_beacon_traversal_completion(reward: Dictionary) -> void:
+	if not is_instance_valid(hud):
+		return
+	var authority := reward.get("authority_result", {}) as Dictionary
+	var receipt := authority.get("receipt", {}) as Dictionary
+	if bool(reward.get("accepted", false)) \
+			and bool(authority.get("accepted", false)):
+		hud.toast(
+			"Debris beacon run complete",
+			"Navigation data recorded — Shipyard receipt #%d saved"
+				% int(receipt.get("receipt_id", 0)),
+			3.2,
+		)
+	else:
+		hud.toast(
+			"Debris beacon run complete",
 			"Reward receipt was not saved — choose Start to retry",
 			3.2,
 		)
@@ -11536,11 +11659,36 @@ func _sync_cinder_structure_scan_activity_hud() -> bool:
 	return true
 
 
+func _sync_cinder_beacon_traversal_activity_hud() -> bool:
+	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
+		return false
+	var binding := _get_nearby_activity_binding()
+	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+		return false
+	var traversal := (
+		(binding.call(&"get_snapshot") as Dictionary).get("beacon_traversal", {})
+		as Dictionary
+	)
+	if int(traversal.get("generation", 0)) < 1:
+		return false
+	var state_id := StringName(traversal.get("state_id", &""))
+	var presentable := state_id == &"active" or (
+		state_id == &"complete"
+		and not bool(traversal.get("reward_committed", false))
+	)
+	if not presentable:
+		return false
+	hud.call(&"set_activity_objective", "Debris beacon run", traversal.duplicate(true))
+	return true
+
+
 func _sync_activity_hud() -> void:
 	_sync_nearby_activity_hud()
 	if _sync_heavy_breach_activity_hud():
 		return
 	if _sync_cinder_structure_scan_activity_hud():
+		return
+	if _sync_cinder_beacon_traversal_activity_hud():
 		return
 	if not is_instance_valid(hud) or not hud.has_method(&"set_activity_objective"):
 		return
@@ -11610,6 +11758,7 @@ func _sync_nearby_activity_hud() -> void:
 			return
 	if _game_flow_reward_authority != null:
 		_configure_cinder_structure_scan_reward_handoff(binding)
+		_configure_cinder_beacon_traversal_reward_handoff(binding)
 	bind_cinder_race_best_persistence(binding)
 	bind_cinder_scan_discovery_persistence(binding)
 	bind_cinder_cargo_delivery_persistence(binding)
@@ -12257,7 +12406,31 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				active_ship.global_position
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
-		&"cinder_debris_beacon_traversal": return binding.call(&"start_beacon_traversal", active_ship.global_position if is_instance_valid(active_ship) else Vector3.ZERO)
+		&"cinder_debris_beacon_traversal":
+			var traversal := (
+				(binding.call(&"get_snapshot") as Dictionary).get(
+					"beacon_traversal", {}
+				) as Dictionary
+			)
+			if (
+				StringName(traversal.get("state_id", &"")) == &"complete"
+				and int(traversal.get("generation", 0)) > 0
+				and not bool(traversal.get("reward_requested", false))
+			):
+				if not _cinder_beacon_traversal_reward_handoff_ready(binding):
+					return {
+						"accepted": false,
+						"reason": &"beacon_traversal_reward_handoff_unavailable",
+					}
+				var retry := binding.call(&"request_beacon_traversal_reward") as Dictionary
+				_last_cinder_beacon_traversal_reward_result = retry.duplicate(true)
+				_present_cinder_beacon_traversal_completion(retry)
+				return retry
+			return binding.call(
+				&"start_beacon_traversal",
+				active_ship.global_position
+					if is_instance_valid(active_ship) else Vector3.ZERO,
+			)
 		&"cinder_platform_supply_run": return binding.call(&"start_cargo_run")
 		&"station_defense": return _start_physical_station_defense_board()
 	return {"accepted": false, "reason": &"unknown_activity"}

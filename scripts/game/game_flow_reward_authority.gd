@@ -2,8 +2,8 @@ class_name GameFlowRewardAuthority
 extends RefCounted
 
 ## The production reward authority for the four GameFlow-owned route activities,
-## the Cinder derelict scan, the physical Heavy Breach board, and the retained
-## Ember relay survey. It turns their existing non-authoritative completion
+## the Cinder derelict scan and beacon run, the physical Heavy Breach board, and
+## the retained Ember relay survey. It turns their non-authoritative completion
 ## handoffs into one persisted Shipyard return-incentive receipt. It owns no
 ## activity, inventory, currency, ship, berth, combat, or network state.
 
@@ -19,6 +19,7 @@ const PATROL_ACTIVITY_ID: StringName = &"cinder_relay_patrol"
 const CONVOY_ACTIVITY_ID: StringName = &"cinder_reach_emberline_convoy"
 const CARGO_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
 const CINDER_SCAN_ACTIVITY_ID: StringName = &"cinder_derelict_structure_scan"
+const CINDER_BEACON_ACTIVITY_ID: StringName = &"cinder_debris_beacon_traversal"
 const HEAVY_BREACH_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
 const EMBER_RELAY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
 
@@ -27,6 +28,7 @@ const PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 const CINDER_SCAN_REWARD_ID: StringName = &"derelict_material_sample"
+const CINDER_BEACON_REWARD_ID: StringName = &"debris_route_navigation_data"
 const HEAVY_BREACH_REWARD_ID: StringName = &"return_heavy_breach_credit"
 const EMBER_RELAY_REWARD_ID: StringName = &"ember_beacon_data"
 
@@ -36,6 +38,7 @@ const ACTIVITY_REWARDS := {
 	CONVOY_ACTIVITY_ID: CONVOY_REWARD_ID,
 	CARGO_ACTIVITY_ID: CARGO_REWARD_ID,
 	CINDER_SCAN_ACTIVITY_ID: CINDER_SCAN_REWARD_ID,
+	CINDER_BEACON_ACTIVITY_ID: CINDER_BEACON_REWARD_ID,
 	HEAVY_BREACH_ACTIVITY_ID: HEAVY_BREACH_REWARD_ID,
 	EMBER_RELAY_ACTIVITY_ID: EMBER_RELAY_REWARD_ID,
 }
@@ -45,6 +48,7 @@ const REWARD_LABELS := {
 	CONVOY_REWARD_ID: "Emberline escort credit logged",
 	CARGO_REWARD_ID: "Fabrication kits returned",
 	CINDER_SCAN_REWARD_ID: "Derelict material sample recorded",
+	CINDER_BEACON_REWARD_ID: "Debris navigation data recorded",
 	HEAVY_BREACH_REWARD_ID: "Heavy Breach credit logged",
 	EMBER_RELAY_REWARD_ID: "Survey data accepted",
 }

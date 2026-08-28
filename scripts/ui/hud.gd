@@ -232,6 +232,7 @@ const ACTIVITY_REWARD_LABELS := [
 	"Heavy Breach credit logged",
 	"Survey data accepted",
 	"Derelict material sample recorded",
+	"Debris navigation data recorded",
 ]
 const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991
 const MAX_SESSION_RECOVERY_PHYSICS_SECONDS := 2_592_000.0
@@ -1323,6 +1324,36 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 				activity_text = "CARGO  %s — %s  RECOVER: RETURN TO TERMINAL" % [transfer_state.to_upper(), str(snapshot.get("failure_reason", snapshot.get("terminal_reason", "RETRY"))).replace("_", " ").to_upper()]
 			_:
 				activity_text = "CARGO  %s%s" % [transfer_prefix, transfer_step.to_upper()]
+	elif activity_id == &"cinder_debris_beacon_traversal":
+		var beacon_next := maxi(int(snapshot.get("next_beacon_index", 0)), 0)
+		var beacon_count := maxi(int(snapshot.get("beacon_count", 0)), 0)
+		var beacon_cleared := mini(beacon_next, beacon_count)
+		var beacon_number := mini(beacon_next + 1, beacon_count)
+		var beacon_distance := float(snapshot.get("distance_to_next_beacon", -1.0))
+		var beacon_distance_text := (
+			"  %.0fm" % beacon_distance
+			if is_finite(beacon_distance) and beacon_distance >= 0.0 else ""
+		)
+		match state_id:
+			&"active":
+				activity_text = "BEACON RUN  %d/%d CLEARED — NEXT %d/%d%s" % [
+					beacon_cleared,
+					beacon_count,
+					beacon_number,
+					beacon_count,
+					beacon_distance_text,
+				]
+			&"complete", &"completed":
+				if bool(snapshot.get("reward_committed", false)):
+					activity_text = "BEACON RUN  COMPLETE — NAV DATA RECORDED"
+				elif bool(snapshot.get("reward_pending", false)):
+					activity_text = "BEACON RUN  COMPLETE — REWARD PENDING"
+				else:
+					activity_text = "BEACON RUN  COMPLETE — CLAIM NAV DATA"
+			&"reset":
+				activity_text = "BEACON RUN  RESET — RETURN TO BEACON 1"
+			_:
+				activity_text = ""
 	elif activity_id == &"cinder_derelict_structure_scan":
 		var scan_elapsed := clampf(
 			float(snapshot.get("elapsed_seconds", 0.0)), 0.0,
@@ -1517,6 +1548,25 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 		)
 		_activity_objective_report["discovery_persisted"] = bool(
 			snapshot.get("discovery_persisted", false)
+		)
+	elif activity_id == &"cinder_debris_beacon_traversal":
+		_activity_objective_report["next_beacon_index"] = int(
+			snapshot.get("next_beacon_index", 0)
+		)
+		_activity_objective_report["beacon_count"] = int(
+			snapshot.get("beacon_count", 0)
+		)
+		_activity_objective_report["distance_to_next_beacon"] = float(
+			snapshot.get("distance_to_next_beacon", -1.0)
+		)
+		_activity_objective_report["presentation_reason"] = StringName(
+			snapshot.get("presentation_reason", &"")
+		)
+		_activity_objective_report["reward_pending"] = bool(
+			snapshot.get("reward_pending", false)
+		)
+		_activity_objective_report["reward_committed"] = bool(
+			snapshot.get("reward_committed", false)
 		)
 	if is_instance_valid(_activity_objective_label):
 		_activity_objective_label.text = activity_text
@@ -5304,13 +5354,16 @@ func apply_nearby_activity_action_result(
 	}.get(activity_id, "ACTIVITY") as String
 	if (
 		accepted
-		and activity_id == &"cinder_derelict_structure_scan"
+		and activity_id in [
+			&"cinder_derelict_structure_scan",
+			&"cinder_debris_beacon_traversal",
+		]
 		and reason == &"reward_request_ready"
 		and bool((result.get("authority_result", {}) as Dictionary).get(
 			"accepted", false
 		))
 	):
-		_nearby_activity_feedback.text = "DERELICT SCAN  //  REWARD FILED"
+		_nearby_activity_feedback.text = "%s  //  REWARD FILED" % title
 		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
 	elif accepted:
 		_nearby_activity_feedback.text = "%s  //  %s" % [
