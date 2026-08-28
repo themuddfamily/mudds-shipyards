@@ -37,6 +37,23 @@ if [[ ! "$short_commit" =~ ^[0-9a-f]{7}$ ]]; then
 	die "Git did not return an exact seven-character source revision"
 fi
 
+source_tree_is_stable() {
+	local current_commit=""
+	local current_dirty_state=""
+	current_commit="$(git -C "$REPO_ROOT" rev-parse --verify 'HEAD^{commit}' 2>/dev/null)" \
+		|| return 1
+	[[ "$current_commit" == "$commit" ]] || return 1
+	current_dirty_state="$(
+		git -C "$REPO_ROOT" status --porcelain=v1 --untracked-files=all
+	)" || return 1
+	[[ -z "$current_dirty_state" ]]
+}
+
+require_stable_source_tree() {
+	source_tree_is_stable \
+		|| die "source commit or worktree changed during export"
+}
+
 output_basename="${1:-MuddsShipyards-${short_commit}.exe}"
 if [[ "$output_basename" == */* || "$output_basename" == "." || "$output_basename" == ".." ]]; then
 	die "output must be a basename directly inside builds/windows"
@@ -137,9 +154,11 @@ cleanup_release() {
 	# changed after the ordinary post-publication checks below.
 	if (( status == 0 && successful_publication == 1 )); then
 		current_identity="$(identity_of "$output_path")"
-		if ! release_root_is_stable || [[ "$current_identity" != "$artifact_identity" ]]; then
+		if ! source_tree_is_stable \
+				|| ! release_root_is_stable \
+				|| [[ "$current_identity" != "$artifact_identity" ]]; then
 			printf '%s\n' \
-				'export-windows-candidate: ERROR: published Windows executable changed before exit' \
+				'export-windows-candidate: ERROR: source or published executable changed before exit' \
 				>&2
 			status=1
 		fi
@@ -171,6 +190,7 @@ require_stable_release_root
 	--export-release "Windows Desktop" \
 	"$temporary_output"
 
+require_stable_source_tree
 require_stable_release_root
 if [[ -L "$temporary_output" || ! -f "$temporary_output" || ! -s "$temporary_output" ]]; then
 	die "Godot did not create a nonempty Windows executable"
@@ -208,10 +228,11 @@ require_stable_release_root
 [[ "$(identity_of "$output_path")" == "$artifact_identity" ]] \
 	|| die "published Windows executable changed after temporary cleanup"
 
-byte_size="$(stat -c '%s' -- "$artifact_fd_path")"
+byte_size="$(stat -Lc '%s' -- "$artifact_fd_path")"
 sha256="$(sha256sum -- "$artifact_fd_path" | awk '{print $1}')"
 [[ "$(identity_of "$artifact_fd_path")" == "$artifact_identity" ]] \
 	|| die "opened Windows executable identity changed"
+require_stable_source_tree
 require_stable_release_root
 [[ "$(identity_of "$output_path")" == "$artifact_identity" ]] \
 	|| die "published Windows executable changed while hashing"
