@@ -230,6 +230,8 @@ const ACTIVITY_REWARD_LABELS := [
 	"Emberline escort credit logged",
 	"Fabrication kits returned",
 	"Heavy Breach credit logged",
+	"Survey data accepted",
+	"Derelict material sample recorded",
 ]
 const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991
 const MAX_SESSION_RECOVERY_PHYSICS_SECONDS := 2_592_000.0
@@ -1321,6 +1323,41 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 				activity_text = "CARGO  %s — %s  RECOVER: RETURN TO TERMINAL" % [transfer_state.to_upper(), str(snapshot.get("failure_reason", snapshot.get("terminal_reason", "RETRY"))).replace("_", " ").to_upper()]
 			_:
 				activity_text = "CARGO  %s%s" % [transfer_prefix, transfer_step.to_upper()]
+	elif activity_id == &"cinder_derelict_structure_scan":
+		var scan_elapsed := clampf(
+			float(snapshot.get("elapsed_seconds", 0.0)), 0.0,
+			maxf(float(snapshot.get("scan_seconds", 0.0)), 0.0),
+		)
+		var scan_duration := maxf(float(snapshot.get("scan_seconds", 0.0)), 0.0)
+		var scan_progress := (
+			clampf(scan_elapsed / scan_duration, 0.0, 1.0)
+			if scan_duration > 0.0 else 0.0
+		)
+		var scan_percent := clampi(roundi(scan_progress * 100.0), 0, 100)
+		var scan_remaining := maxf(scan_duration - scan_elapsed, 0.0)
+		var scan_reason := StringName(snapshot.get("presentation_reason", &""))
+		match state_id:
+			&"active":
+				activity_text = (
+					"DERELICT SCAN  PAUSED — RETURN TO MARKER"
+					if scan_reason == &"outside_scan_approach"
+					else "DERELICT SCAN  %d%%  HOLD %.1fs" % [
+						scan_percent, scan_remaining,
+					]
+				)
+			&"complete", &"completed":
+				if bool(snapshot.get("discovery_persisted", false)):
+					activity_text = "DERELICT SCAN  COMPLETE — DISCOVERY RECORDED"
+				elif bool(snapshot.get("reward_committed", false)):
+					activity_text = "DERELICT SCAN  COMPLETE — SAMPLE RECORDED"
+				elif bool(snapshot.get("reward_pending", false)):
+					activity_text = "DERELICT SCAN  COMPLETE — REWARD PENDING"
+				else:
+					activity_text = "DERELICT SCAN  COMPLETE — CLAIM SAMPLE"
+			&"reset":
+				activity_text = "DERELICT SCAN  RESET — RETURN TO MARKER"
+			_:
+				activity_text = ""
 	elif activity_id == &"station_defense" or activity_kind == &"station_defense":
 		var defense_state := state_id if not state_id.is_empty() else &"available"
 		var wave := maxi(int(snapshot.get("current_wave_index", snapshot.get("wave_index", 0))), 0)
@@ -1459,6 +1496,28 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 	}
 	if activity_id == &"shipyard_heavy_breach":
 		_activity_objective_report["heavy_breach"] = _heavy_breach_activity_presenter.present(snapshot)
+	elif activity_id == &"cinder_derelict_structure_scan":
+		_activity_objective_report["elapsed_seconds"] = float(
+			snapshot.get("elapsed_seconds", 0.0)
+		)
+		_activity_objective_report["scan_seconds"] = float(
+			snapshot.get("scan_seconds", 0.0)
+		)
+		_activity_objective_report["progress_unitless"] = float(
+			snapshot.get("progress_unitless", 0.0)
+		)
+		_activity_objective_report["presentation_reason"] = StringName(
+			snapshot.get("presentation_reason", &"")
+		)
+		_activity_objective_report["reward_pending"] = bool(
+			snapshot.get("reward_pending", false)
+		)
+		_activity_objective_report["reward_committed"] = bool(
+			snapshot.get("reward_committed", false)
+		)
+		_activity_objective_report["discovery_persisted"] = bool(
+			snapshot.get("discovery_persisted", false)
+		)
 	if is_instance_valid(_activity_objective_label):
 		_activity_objective_label.text = activity_text
 		_activity_objective_label.visible = visible
@@ -5243,7 +5302,17 @@ func apply_nearby_activity_action_result(
 		&"cinder_platform_supply_run": "PLATFORM SUPPLY RUN",
 		&"station_defense": "STATION DEFENSE",
 	}.get(activity_id, "ACTIVITY") as String
-	if accepted:
+	if (
+		accepted
+		and activity_id == &"cinder_derelict_structure_scan"
+		and reason == &"reward_request_ready"
+		and bool((result.get("authority_result", {}) as Dictionary).get(
+			"accepted", false
+		))
+	):
+		_nearby_activity_feedback.text = "DERELICT SCAN  //  REWARD FILED"
+		_nearby_activity_feedback.modulate = _c(NOMINAL_SOFT)
+	elif accepted:
 		_nearby_activity_feedback.text = "%s  //  %s" % [
 			title,
 			"STARTED" if action == &"start_requested" else "RESET",

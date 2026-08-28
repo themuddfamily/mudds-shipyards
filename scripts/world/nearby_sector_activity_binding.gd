@@ -101,6 +101,8 @@ var _last_patrol_reward_result: Dictionary = {}
 var _last_mining_feedback_reason: StringName = &""
 var _last_structure_scan_feedback_reason: StringName = &""
 var _last_structure_scan_feedback_generation := -1
+var _structure_scan_reward_sink := Callable()
+var _last_structure_scan_reward_result: Dictionary = {}
 var _last_beacon_feedback_reason: StringName = &""
 var _last_beacon_reward_result: Dictionary = {}
 
@@ -1327,12 +1329,42 @@ func _publish_mining_presentation() -> void:
 	)
 
 
+## Binds the scan's non-authoritative completion request to its production
+## reward owner. The callback is intentionally write-only from this component:
+## it receives one detached compact request and returns a detached receipt.
+func configure_structure_scan_reward_handoff(reward_sink: Callable) -> Dictionary:
+	if not reward_sink.is_valid():
+		return _result(false, &"structure_scan_reward_sink_invalid")
+	if _structure_scan_reward_sink.is_valid():
+		if _structure_scan_reward_sink == reward_sink:
+			return _result(true, &"structure_scan_reward_handoff_already_configured")
+		return _result(false, &"structure_scan_reward_handoff_already_bound")
+	_structure_scan_reward_sink = reward_sink
+	return _result(true, &"structure_scan_reward_handoff_configured")
+
+
+func get_structure_scan_reward_handoff_snapshot() -> Dictionary:
+	return {
+		"configured": _structure_scan_reward_sink.is_valid(),
+		"activity_id": SCAN_ACTIVITY.ACTIVITY_ID,
+		"reward_id": SCAN_ACTIVITY.REWARD_ID,
+		"activity_authority": false,
+		"reward_authority": false,
+		"store_authority": false,
+	}.duplicate(true)
+
+
 func start_structure_scan(caller_position: Vector3) -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _scan_activity.call("start", caller_position)
 	if bool(result.get("accepted", false)):
 		_clear_structure_scan_feedback()
+		_last_structure_scan_reward_result.clear()
+		# A fresh live generation supersedes any restored terminal presentation.
+		# The persisted record remains in the store and will be restored again on a
+		# later binding lifetime; it must not make this new scan look pre-completed.
+		_restored_scan_discovery.clear()
 	elif StringName(result.get("reason", &"")) == &"outside_scan_approach":
 		_last_structure_scan_feedback_reason = &"outside_scan_approach"
 		_last_structure_scan_feedback_generation = int(result.get("generation", -1))
@@ -1348,10 +1380,83 @@ func advance_structure_scan(delta: float) -> Dictionary:
 	return result
 
 
+## Production hold-to-scan seam. Time advances only while the exact caller
+## sample remains inside the authored approach sphere; leaving it pauses the
+## current generation without erasing progress.
+func advance_structure_scan_from_caller_sample(
+		delta: float,
+		caller_position: Vector3,
+	) -> Dictionary:
+	if _scan_activity == null:
+		return _result(false, &"not_ready")
+	if (
+		not caller_position.is_finite()
+		or caller_position.distance_to(SCAN_ACTIVITY.APPROACH_ANCHOR)
+			> SCAN_ACTIVITY.INTERACTION_RADIUS
+	):
+		var snapshot := _scan_activity.call("get_snapshot") as Dictionary
+		var generation := int(snapshot.get("generation", -1))
+		var feedback_changed := (
+			_last_structure_scan_feedback_reason != &"outside_scan_approach"
+			or _last_structure_scan_feedback_generation != generation
+		)
+		_last_structure_scan_feedback_reason = &"outside_scan_approach"
+		_last_structure_scan_feedback_generation = generation
+		if feedback_changed:
+			_publish_structure_scan_presentation()
+		snapshot["accepted"] = false
+		snapshot["reason"] = &"outside_scan_approach"
+		return snapshot.duplicate(true)
+	_clear_structure_scan_feedback()
+	return advance_structure_scan(delta)
+
+
 func request_structure_scan_reward() -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
+	var before := _scan_activity.call("get_snapshot") as Dictionary
+	if _structure_scan_reward_sink.is_valid() and (
+		int(before.get("state", -1)) != SCAN_ACTIVITY.State.COMPLETE
+		or bool(before.get("reward_requested", false))
+	):
+		var preflight := _scan_activity.call("request_reward") as Dictionary
+		_last_structure_scan_reward_result = preflight.duplicate(true)
+		_publish_structure_scan_presentation()
+		_cinder_field_audio.present_reward_result(preflight)
+		return preflight
+	var authority_result: Dictionary = {}
+	if _structure_scan_reward_sink.is_valid():
+		var authority_value: Variant = _structure_scan_reward_sink.call({
+			"activity_id": SCAN_ACTIVITY.ACTIVITY_ID,
+			"activity_generation": int(before.get("generation", 0)),
+			"reward_id": SCAN_ACTIVITY.REWARD_ID,
+			"reward_authority": false,
+			"granted": false,
+		}.duplicate(true))
+		if authority_value is Dictionary:
+			authority_result = (authority_value as Dictionary).duplicate(true)
+		else:
+			authority_result = {
+				"accepted": false,
+				"reason": &"structure_scan_reward_receipt_invalid",
+			}.duplicate(true)
+		if (
+			not bool(authority_result.get("accepted", false))
+			or not bool(authority_result.get("granted", false))
+		):
+			var rejected := before.duplicate(true)
+			rejected["accepted"] = false
+			rejected["reason"] = &"structure_scan_reward_handoff_rejected"
+			rejected["authority_result"] = authority_result.duplicate(true)
+			_last_structure_scan_reward_result = rejected.duplicate(true)
+			_publish_structure_scan_presentation()
+			_cinder_field_audio.present_reward_result(rejected)
+			return rejected
 	var result: Dictionary = _scan_activity.call("request_reward")
+	if not authority_result.is_empty():
+		result["authority_result"] = authority_result.duplicate(true)
+		result["reward_committed"] = bool(authority_result.get("granted", false))
+	_last_structure_scan_reward_result = result.duplicate(true)
 	if bool(result.get("accepted", false)):
 		_persist_structure_scan_discovery(result)
 	_publish_structure_scan_presentation()
@@ -1364,6 +1469,7 @@ func reset_structure_scan() -> Dictionary:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _scan_activity.call("reset")
 	_clear_structure_scan_feedback()
+	_last_structure_scan_reward_result.clear()
 	_publish_structure_scan_presentation()
 	return result
 
@@ -1816,6 +1922,25 @@ func _structure_scan_presentation_snapshot() -> Dictionary:
 	):
 		_clear_structure_scan_feedback()
 	snapshot["presentation_reason"] = _last_structure_scan_feedback_reason
+	var reward_result_matches := (
+		int(_last_structure_scan_reward_result.get("generation", -1)) == generation
+	)
+	if reward_result_matches:
+		var authority_result := (
+			_last_structure_scan_reward_result.get("authority_result", {}) as Dictionary
+		)
+		var reward_committed := (
+			bool(_last_structure_scan_reward_result.get("accepted", false))
+			and bool(authority_result.get("accepted", false))
+			and bool(authority_result.get("granted", false))
+		)
+		snapshot["reward_committed"] = reward_committed
+		snapshot["reward_pending"] = (
+			bool(snapshot.get("reward_requested", false)) and not reward_committed
+		)
+		snapshot["reward_handoff_reason"] = StringName(
+			_last_structure_scan_reward_result.get("reason", &"")
+		)
 	if _restored_scan_discovery.is_empty():
 		return snapshot.duplicate(true)
 	var state := int(snapshot.get("state", SCAN_ACTIVITY.State.IDLE))

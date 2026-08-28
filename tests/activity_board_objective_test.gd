@@ -32,6 +32,53 @@ func _run() -> void:
 		"failure_reason": &"terminal_unavailable",
 	})
 	_check("RECOVER: RETURN TO TERMINAL" in str(hud.get_activity_objective_report().get("text", "")), "failed cargo state exposes recovery step")
+	hud.set_activity_objective("Derelict scan", {
+		"activity_id": &"cinder_derelict_structure_scan",
+		"state_id": &"active",
+		"generation": 1,
+		"elapsed_seconds": 2.0,
+		"scan_seconds": 4.0,
+		"progress_unitless": 0.5,
+	})
+	_check(
+		"DERELICT SCAN  50%  HOLD 2.0s" in str(
+			hud.get_activity_objective_report().get("text", "")
+		),
+		"the flight objective renders the live derelict hold percentage",
+	)
+	hud.set_activity_objective("Derelict scan", {
+		"activity_id": &"cinder_derelict_structure_scan",
+		"state_id": &"active",
+		"generation": 1,
+		"elapsed_seconds": 2.0,
+		"scan_seconds": 4.0,
+		"progress_unitless": 0.5,
+		"presentation_reason": &"outside_scan_approach",
+	})
+	_check(
+		"PAUSED — RETURN TO MARKER" in str(
+			hud.get_activity_objective_report().get("text", "")
+		),
+		"the flight objective makes an interrupted hold recoverable",
+	)
+	_check(
+		hud.set_activity_reward_summary({
+			"available": true,
+			"total_receipts": 1,
+			"last_receipt_id": 1,
+			"last_reward_label": "Derelict material sample recorded",
+		}),
+		"the Activity Board accepts the persisted derelict sample label",
+	)
+	_check(
+		hud.set_activity_reward_summary({
+			"available": true,
+			"total_receipts": 2,
+			"last_receipt_id": 2,
+			"last_reward_label": "Survey data accepted",
+		}),
+		"the Activity Board accepts the retained Ember survey label",
+	)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

@@ -106,6 +106,8 @@ class HudProbe extends CanvasLayer:
 
 var _assertions := 0
 var _failures: PackedStringArray = []
+var _scan_reward_accept := false
+var _scan_reward_requests: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -129,7 +131,11 @@ func _run() -> void:
 	_check(binding.starts.size() == 1, "unknown activity cannot invoke a binding method")
 	flow.world = null
 	flow._sync_nearby_activity_hud()
-	_check(hud.cleared == 1, "unloaded nearby cluster clears stale HUD snapshot")
+	_check(
+		hud.cleared == 0
+			and not bool(hud.snapshots[-1].get("binding_available", true)),
+		"an unloaded cluster replaces stale progress with the retained out-of-range snapshot",
+	)
 
 	var retained_hud := HUD_SCENE.instantiate() as GameHUD
 	root.add_child(retained_hud)
@@ -191,6 +197,13 @@ func _run() -> void:
 	var production_convoy_host := ConvoyHostType.new() as CinderConvoyEscortHost
 	root.add_child(production_convoy_host)
 	await process_frame
+	var scan_reward_handoff := production_binding.configure_structure_scan_reward_handoff(
+		Callable(self, &"_commit_scan_reward")
+	)
+	_check(
+		bool(scan_reward_handoff.get("accepted", false)),
+		"the streamed scan accepts one caller-owned production reward handoff",
+	)
 	flow.world = production_world
 	flow.cinder_convoy_host = production_convoy_host
 	active_ship.global_position = Vector3.ZERO
@@ -232,15 +245,107 @@ func _run() -> void:
 			and _activity_text(scan_row).contains("SCANNING STRUCTURE  //  0%"),
 		"a subsequent valid real START clears rejection feedback and reaches SCANNING",
 	)
+
+	active_ship.global_position = (
+		ScanActivityType.APPROACH_ANCHOR
+		+ Vector3(ScanActivityType.INTERACTION_RADIUS + 1.0, 0.0, 0.0)
+	)
+	var paused_step := flow._advance_cinder_structure_scan(
+		1.0, _ship_sample(active_ship)
+	)
+	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	var paused_scan := (
+		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		not bool(paused_step.get("accepted", true))
+			and paused_step.get("reason", &"") == &"outside_scan_approach"
+			and is_zero_approx(float(paused_scan.get("elapsed_seconds", -1.0)))
+			and _activity_text(scan_row).contains("MOVE TO DERELICT SCAN MARKER")
+			and "PAUSED — RETURN TO MARKER" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"leaving the authored hold sphere pauses progress and updates both HUD surfaces",
+	)
+
+	active_ship.global_position = ScanActivityType.APPROACH_ANCHOR
+	var half_step := flow._advance_cinder_structure_scan(
+		2.0, _ship_sample(active_ship)
+	)
+	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	var half_scan := (
+		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		bool(half_step.get("accepted", false))
+			and is_equal_approx(float(half_scan.get("elapsed_seconds", 0.0)), 2.0)
+			and _activity_text(scan_row).contains("SCANNING STRUCTURE  //  50%")
+			and "DERELICT SCAN  50%  HOLD 2.0s" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"returning to the marker resumes the exact hold and publishes live progress",
+	)
+
+	var completed_step := flow._advance_cinder_structure_scan(
+		2.0, _ship_sample(active_ship)
+	)
+	var rejected_reward := completed_step.get("reward_result", {}) as Dictionary
+	var completed_scan := (
+		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		bool(completed_step.get("accepted", false))
+			and completed_step.get("reason", &"") == &"complete"
+			and not bool(rejected_reward.get("accepted", true))
+			and rejected_reward.get("reason", &"") \
+				== &"structure_scan_reward_handoff_rejected"
+			and not bool(completed_scan.get("reward_requested", true))
+			and "COMPLETE — CLAIM SAMPLE" in str(
+				retained_hud.get_activity_objective_report().get("text", "")
+			),
+		"a rejected receipt leaves the completed scan unconsumed and visibly retryable",
+	)
+	_check(
+		_scan_reward_requests.size() == 1
+			and _scan_reward_requests[0].size() == 5
+			and _scan_reward_requests[0].activity_id \
+				== &"cinder_derelict_structure_scan"
+			and int(_scan_reward_requests[0].activity_generation) == 1
+			and _scan_reward_requests[0].reward_id == &"derelict_material_sample"
+			and not bool(_scan_reward_requests[0].reward_authority)
+			and not bool(_scan_reward_requests[0].granted),
+		"completion emits the exact compact non-authoritative reward request",
+	)
+
+	_scan_reward_accept = true
+	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	scan_start = scan_row.get_child(2) as Button if scan_row != null else null
+	if scan_start != null:
+		scan_start.emit_signal(&"pressed")
+	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
+	var rewarded_scan := (
+		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
+	).duplicate(true)
+	_check(
+		scan_start != null
+			and _scan_reward_requests.size() == 2
+			and bool(rewarded_scan.get("reward_requested", false))
+			and bool(rewarded_scan.get("reward_committed", false))
+			and not bool(rewarded_scan.get("reward_pending", true))
+			and _activity_text(scan_row).contains("MATERIAL SAMPLE RECEIPT SAVED")
+			and not bool(
+				retained_hud.get_activity_objective_report().get("visible", true)
+			),
+		"the same public Start action retries once, records the sample, and clears stale flight HUD",
+	)
+
 	var scan_reset := scan_row.get_child(3) as Button if scan_row != null else null
 	if scan_reset != null:
 		scan_reset.emit_signal(&"pressed")
 	_check(
-		scan_reset != null and scan_reset.text == "CONFIRM RESET",
-		"the active real scan retains reset confirmation before authority mutation",
+		scan_reset != null and scan_reset.text == "RESET",
+		"the completed recorded scan resets without an unnecessary confirmation",
 	)
-	if scan_reset != null:
-		scan_reset.emit_signal(&"pressed")
 	scan_row = _activity_row(retained_hud, &"cinder_derelict_structure_scan")
 	var reset_scan := (
 		production_binding.get_snapshot().get("structure_scan", {}) as Dictionary
@@ -278,6 +383,30 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _commit_scan_reward(request: Dictionary) -> Dictionary:
+	_scan_reward_requests.append(request.duplicate(true))
+	if not _scan_reward_accept:
+		return {"accepted": false, "reason": &"simulated_store_rejection"}
+	return {
+		"accepted": true,
+		"reason": &"reward_receipt_committed",
+		"granted": true,
+		"receipt": {
+			"receipt_id": _scan_reward_requests.size(),
+			"reward_label": "Derelict material sample recorded",
+		},
+	}.duplicate(true)
+
+
+func _ship_sample(ship: HeroShip) -> Dictionary:
+	return {
+		"available": true,
+		"actor_kind": &"ship",
+		"actor_instance_id": ship.get_instance_id(),
+		"position": ship.global_position,
+	}.duplicate(true)
 
 
 func _activity_row(hud: GameHUD, activity_id: StringName) -> Control:

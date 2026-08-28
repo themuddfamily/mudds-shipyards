@@ -164,6 +164,21 @@ func _run() -> void:
 			and int((after_ember.reward_counts as Dictionary).ember_beacon_data) == 1,
 		"the typed Ember relay completion joins the same persisted receipt sequence"
 	)
+	var scan := authority.commit(_request(
+		&"cinder_derelict_structure_scan",
+		1,
+		&"derelict_material_sample"
+	))
+	var after_scan := store.get_snapshot().game_flow_reward_store as Dictionary
+	_check(
+		bool(scan.accepted)
+			and int((scan.receipt as Dictionary).receipt_id) == 5
+			and (scan.receipt as Dictionary).reward_label \
+				== "Derelict material sample recorded"
+			and int(after_scan.total_receipts) == 5
+			and int((after_scan.reward_counts as Dictionary).derelict_material_sample) == 1,
+		"the completed production derelict scan records one shared material-sample receipt"
+	)
 
 	var reloaded_store := StoreScript.new(
 		"memory://game-flow-rewards.json", filesystem
@@ -176,8 +191,10 @@ func _run() -> void:
 	_check(
 		bool(restored_configuration.accepted)
 			and bool(restored.configured)
-			and int(restored_record.total_receipts) == 4
-			and int((restored_record.last_receipt as Dictionary).receipt_id) == 4
+			and int(restored_record.total_receipts) == 5
+			and int((restored_record.last_receipt as Dictionary).receipt_id) == 5
+			and (restored_record.last_receipt as Dictionary).activity_id \
+				== "cinder_derelict_structure_scan"
 			and not bool(restored.currency_authority)
 			and not bool(restored.inventory_authority),
 		"reload retains the receipt summary without inventing currency or inventory authority"

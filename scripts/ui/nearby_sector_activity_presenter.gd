@@ -680,7 +680,10 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 	var progress := clampf(elapsed / duration, 0.0, 1.0) if duration > 0.0 else 0.0
 	var percentage := clampi(roundi(progress * 100.0), 0, 100)
 	var remaining := maxf(duration - elapsed, 0.0)
-	var reward_pending := bool(state.get("reward_requested", false))
+	var reward_pending := bool(state.get(
+		"reward_pending", state.get("reward_requested", false)
+	))
+	var reward_committed := bool(state.get("reward_committed", false))
 	var discovery_persisted := bool(state.get("discovery_persisted", false))
 	var stage_id: StringName = &"approach"
 	var summary := "SCAN READY  //  APPROACH DERELICT DATUM"
@@ -699,19 +702,27 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 				objective = "HOLD POSITION UNTIL SCAN REACHES 100%"
 			2:
 				stage_id = &"discovery_recorded" if discovery_persisted else (
-					&"reward_pending" if reward_pending else &"complete"
+					&"reward_recorded" if reward_committed else (
+						&"reward_pending" if reward_pending else &"complete"
+					)
 				)
 				summary = (
 					"DISCOVERY RECORDED  //  MATERIAL SAMPLE RECEIPT SAVED"
 					if discovery_persisted else (
-						"REWARD PENDING" if reward_pending else "MATERIAL SAMPLE READY"
+						"MATERIAL SAMPLE RECEIPT SAVED"
+						if reward_committed else (
+							"REWARD PENDING" if reward_pending else "MATERIAL SAMPLE READY"
+						)
 					)
 				)
 				objective = (
 					"DERELICT DISCOVERY RETAINED"
 					if discovery_persisted else (
-						"AWAIT SCAN REWARD HANDOFF"
-						if reward_pending else "REQUEST THE MATERIAL SAMPLE REWARD"
+						"RETURN THE RECORDED SAMPLE TO THE SHIPYARD"
+						if reward_committed else (
+							"AWAIT SCAN REWARD HANDOFF"
+								if reward_pending else "REQUEST THE MATERIAL SAMPLE REWARD"
+						)
 					)
 				)
 			3:
@@ -725,6 +736,7 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 		"elapsed_seconds": elapsed,
 		"remaining_seconds": remaining,
 		"reward_pending": reward_pending,
+		"reward_committed": reward_committed,
 		"discovery_persisted": discovery_persisted,
 		"summary": summary,
 		"objective_text": objective,
