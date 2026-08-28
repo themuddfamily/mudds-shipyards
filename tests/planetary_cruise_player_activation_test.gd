@@ -185,13 +185,21 @@ func _run() -> void:
 	, CONNECT_ONE_SHOT)
 	await _activate_focused_control()
 	var queued := hud.get_planetary_cruise_presentation_report()
+	var surface_pending := game.get("_pending_ember_surface_request") as Dictionary
+	var surface_reward_sink := game.get("_pending_ember_surface_reward_sink") as Callable
 	_check(
 		queued.get("status_id") == &"queued"
 		and queued.get("status_text") == "QUEUED"
 		and bool(queued.get("engagement_requested", false))
 		and int(queued.get("request_serial", 0)) == 1
-		and bool(binding.get_snapshot().get("engagement_requested", false)),
-		"controller accept emits one typed request and commits the queued state",
+		and bool(binding.get_snapshot().get("engagement_requested", false))
+		and int(surface_pending.get("caller_serial", 0)) == 1
+		and int(surface_pending.get("host_instance_id", 0))
+			== game.ember_surface_loop_host.get_instance_id()
+		and surface_reward_sink.is_valid()
+		and surface_reward_sink.get_object_id() == game.get_instance_id()
+		and surface_reward_sink.get_method() == &"_commit_game_flow_activity_reward",
+		"controller accept queues the complete typed Ember surface expedition",
 	)
 	_check(
 		bool(nested_request_attempted[0])
@@ -255,8 +263,10 @@ func _run() -> void:
 		and braking.get("status_text") == "BRAKING"
 		and bool(braking.get("button_disabled", false))
 		and not bool(braking.get("engagement_requested", true))
-		and not bool(binding.get_snapshot().get("engagement_requested", true)),
-		"the same toggle requests bounded braking disengage and disables repeats",
+		and not bool(binding.get_snapshot().get("engagement_requested", true))
+		and (game.get("_pending_ember_surface_request") as Dictionary).is_empty()
+		and not bool(game.get("_ember_surface_journey_active")),
+		"the same toggle cancels the expedition and requests bounded braking",
 	)
 	ship._physics_process(1.0 / 60.0)
 	game.call("_sync_planetary_cruise_hud")
@@ -275,6 +285,9 @@ func _run() -> void:
 		bool(binding.get_snapshot().get("engagement_requested", false))
 		and int(hud.get_planetary_cruise_presentation_report().get(
 			"request_serial", 0
+		)) == 3
+		and int((game.get("_pending_ember_surface_request") as Dictionary).get(
+			"caller_serial", 0
 		)) == 3,
 		"a third explicit press starts one fresh pre-reentry request",
 	)
@@ -307,6 +320,8 @@ func _run() -> void:
 		not bool(binding.get_snapshot().get("engagement_requested", true))
 		and not bool(reentered.get("engagement_requested", true))
 		and reentered.get("status_id") == &"ready"
+		and (game.get("_pending_ember_surface_request") as Dictionary).is_empty()
+		and not bool(game.get("_ember_surface_journey_active"))
 		and int(reentered.get("request_serial", 0)) == 3
 		and int(game.get_planetary_cruise_report().get(
 			"last_hud_toggle_serial", 0
@@ -324,6 +339,9 @@ func _run() -> void:
 		)) == 4
 		and int(game.get_planetary_cruise_report().get(
 			"last_hud_toggle_serial", 0
+		)) == 4
+		and int((game.get("_pending_ember_surface_request") as Dictionary).get(
+			"caller_serial", 0
 		)) == 4
 		and int(hud.get("_toast_serial")) == reentry_toast_serial + 1
 		and hud.get_signal_connection_list(

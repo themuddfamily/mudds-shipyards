@@ -509,8 +509,8 @@ var _cinder_navigator_presentation_ship_generation := 0
 var cargo_transfer_authority: CargoTransferAuthority
 var cargo_delivery_activity: CargoDeliveryActivity
 ## The four GameFlow-owned route activities remain separate progress
-## authorities. Their terminal snapshots and the physical Heavy Breach board's
-## cleared-generation handoff converge only at this one persisted Shipyard
+## authorities. Their terminal snapshots, the physical Heavy Breach board, and
+## the retained Ember relay survey converge only at this one persisted Shipyard
 ## return-incentive authority.
 var _game_flow_reward_authority: RefCounted
 var _game_flow_reward_adapter: RefCounted
@@ -12394,13 +12394,16 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 	_planetary_cruise_hud_toggle_active = true
 	var before := _planetary_cruise_presentation()
 	var result: Dictionary
-	if bool(before.get("engagement_requested", false)):
+	if not _pending_ember_surface_request.is_empty() \
+			or _ember_surface_journey_active:
+		result = cancel_ember_surface_journey()
+	elif bool(before.get("engagement_requested", false)):
 		result = disengage_planetary_cruise(true)
 	elif (
 		before.get("status_id", &"") == &"ready"
 		and bool(before.get("toggle_enabled", false))
 	):
-		result = engage_planetary_cruise()
+		result = _begin_player_ember_surface_journey(request_serial)
 	else:
 		_sync_planetary_cruise_hud()
 		if is_instance_valid(hud):
@@ -13208,6 +13211,25 @@ func engage_planetary_cruise() -> Dictionary:
 	)
 	_sync_planetary_cruise_hud()
 	return result
+
+
+## The shipping HUD starts the complete retained expedition, not a detached
+## flight-controller demo. The existing surface Host, ActivityDirector, reward
+## authority, streaming binding, and cruise binding retain their own domains.
+func _begin_player_ember_surface_journey(caller_serial: int) -> Dictionary:
+	if not is_instance_valid(ember_surface_loop_host) \
+			or not is_instance_valid(activity_director) \
+			or not is_instance_valid(ember_streaming_binding) \
+			or not is_instance_valid(ember_surface_loop_production_binding) \
+			or _game_flow_reward_authority == null \
+			or not bool(_game_flow_reward_configuration.get("accepted", false)):
+		return {"accepted": false, "reason": &"ember_surface_composition_unavailable"}
+	return begin_ember_surface_journey(
+		ember_surface_loop_host,
+		activity_director,
+		Callable(self, &"_commit_game_flow_activity_reward"),
+		caller_serial,
+	)
 
 
 func disengage_planetary_cruise(brake_to_stop: bool = true) -> Dictionary:

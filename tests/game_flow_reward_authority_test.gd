@@ -139,6 +139,31 @@ func _run() -> void:
 			and int((after_heavy_breach.reward_counts as Dictionary).return_heavy_breach_credit) == 1,
 		"a cleared Heavy Breach generation joins the same persisted receipt sequence"
 	)
+	var generation_before_ember := store.get_generation()
+	var evidence_free_ember := authority.commit(_request(
+		&"ember_beacon_survey", 1, &"ember_beacon_data"
+	))
+	var forged_ember_request := _ember_request(1, 7, 3)
+	forged_ember_request["production_commit_id"] = "ember-relay-survey:forged"
+	var forged_ember := authority.commit(forged_ember_request)
+	_check(
+		not bool(evidence_free_ember.accepted)
+			and evidence_free_ember.reason == &"reward_request_invalid"
+			and not bool(forged_ember.accepted)
+			and forged_ember.reason == &"reward_request_invalid"
+			and store.get_generation() == generation_before_ember,
+		"evidence-free and forged Ember requests cannot reach the shared store"
+	)
+	var ember := authority.commit(_ember_request(1, 7, 3))
+	var after_ember := store.get_snapshot().game_flow_reward_store as Dictionary
+	_check(
+		bool(ember.accepted)
+			and int((ember.receipt as Dictionary).receipt_id) == 4
+			and (ember.receipt as Dictionary).reward_label == "Survey data accepted"
+			and int(after_ember.total_receipts) == 4
+			and int((after_ember.reward_counts as Dictionary).ember_beacon_data) == 1,
+		"the typed Ember relay completion joins the same persisted receipt sequence"
+	)
 
 	var reloaded_store := StoreScript.new(
 		"memory://game-flow-rewards.json", filesystem
@@ -151,8 +176,8 @@ func _run() -> void:
 	_check(
 		bool(restored_configuration.accepted)
 			and bool(restored.configured)
-			and int(restored_record.total_receipts) == 3
-			and int((restored_record.last_receipt as Dictionary).receipt_id) == 3
+			and int(restored_record.total_receipts) == 4
+			and int((restored_record.last_receipt as Dictionary).receipt_id) == 4
 			and not bool(restored.currency_authority)
 			and not bool(restored.inventory_authority),
 		"reload retains the receipt summary without inventing currency or inventory authority"
@@ -193,6 +218,43 @@ func _request(
 		"reward_id": reward_id,
 		"reward_authority": false,
 		"granted": false,
+	}.duplicate(true)
+
+
+func _ember_request(
+	activity_generation: int,
+	run_generation: int,
+	attachment_generation: int,
+	) -> Dictionary:
+	return {
+		"world_id": &"ember_moon",
+		"activity_id": &"ember_beacon_survey",
+		"objective_id": &"survey_beacon_network",
+		"activity_generation": activity_generation,
+		"reward_id": &"ember_beacon_data",
+		"reward_store_id": &"game_flow_reward_store",
+		"reward_authority_id": &"game_flow_reward_authority",
+		"return_target_id": &"mudds_shipyards",
+		"recovery_id": &"return_to_landed_ship",
+		"run_generation": run_generation,
+		"attachment_generation": attachment_generation,
+		"production_commit_id": "ember-relay-survey:%d:%d" % [
+			run_generation, activity_generation,
+		],
+		"production_evidence": {
+			"owner_generation": 6,
+			"host_instance_id": 10,
+			"host_generation": run_generation,
+			"host_attachment_generation": attachment_generation,
+			"session_instance_id": 11,
+			"actor_kind": &"player",
+			"actor_instance_id": 12,
+			"craft_instance_id": 13,
+			"caller_serial": 14,
+			"physics_frame": 15,
+			"activity_generation": activity_generation,
+			"completion_attachment_generation": attachment_generation,
+		}.duplicate(true),
 	}.duplicate(true)
 
 

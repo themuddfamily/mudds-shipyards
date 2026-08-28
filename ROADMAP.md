@@ -1484,6 +1484,21 @@ is no longer accepted. `tests/planetary_cruise_return_approach_controller_test.g
 whole-`Main` loops with every craft, native performance, audibility, and human
 review remain open; this fixed Ember-to-Mudds route is not a general selectable
 destination catalog.
+
+The controller-accessible pause-menu `EMBER CRUISE` action now enters that
+complete surface expedition instead of starting the detached cruise controller
+alone. One accepted press passes the exact retained Host, ActivityDirector and
+GameFlow reward callback into `begin_ember_surface_journey`, queues streaming
+when required, and then uses the existing final-approach handoff; a second press
+before Host start cancels the same expedition and bounded braking state rather
+than stranding a pending request. Replay, skipped-serial and signal-reentry
+fences remain intact across whole-`Main` detach/re-entry.
+`tests/planetary_cruise_player_activation_test.gd`,
+`tests/ember_surface_loop_deferred_start_test.gd`,
+`tests/ember_surface_loop_stream_activation_test.gd`, and
+`tests/ember_final_approach_production_handoff_test.gd` cover that player-facing
+seam.
+
 Global terrain/clipmap generation, spherical vehicle gravity, an atmospheric
 authored destination with complete sky/cloud/weather/entry/audio presentation,
 activity/reward, save/network, native performance and repeated orbit-to-surface
@@ -1513,8 +1528,15 @@ evidence, publishes the authority-free station intent while the Host is still
 attached, and completes the existing station arrival/berth lifecycle. The
 validated live actor observation now grants the survey reward exactly once
 through GameFlow authority and requires the existing UserDataStore persistence
-commit before return-manifest flow proceeds. Packaged completion, native
-performance, human review and repeated whole-game loop endurance remain open.
+commit before return-manifest flow proceeds. That authority now accepts only the
+surface binding's exact evidence-bearing Ember contract for
+`ember_beacon_data`; the compact nearby-activity request shape, a forged
+production commit ID, and generation replay all fail without advancing the
+shared store. The accepted reward joins the existing persisted receipt sequence
+without adding currency, inventory, or a second reward owner
+(`tests/game_flow_reward_authority_test.gd`, 13 focused assertions). Packaged
+completion, native performance, human review and repeated whole-game loop
+endurance remain open.
 
 - [ ] Turn the nearby coloured bodies into authored, visitable destinations rather than decorative spheres. Begin with one vertical slice planet or moon and complete it before multiplying worlds: orbital approach, atmospheric entry where applicable, descent, surface flight, landing, on-foot traversal, activities, take-off, ascent, orbit, and return to Mudds Shipyards without a loading/lifecycle dead end.
 - [ ] Build a reusable planetary-world contract covering scale and coordinate frames, streaming/origin management, terrain LOD and collision, biome/material layers, atmosphere and sky scattering, clouds, weather, wind, fog, day/night and sun/moon lighting, water where appropriate, surface audio, navigation, landing sites, settlements/structures, hazards, wildlife only if deliberately authored, and save/session persistence.

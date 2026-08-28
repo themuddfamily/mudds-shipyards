@@ -1,11 +1,11 @@
 class_name GameFlowRewardAuthority
 extends RefCounted
 
-## The production reward authority for the four GameFlow-owned route activities
-## and the physical Heavy Breach board. It turns their existing
-## non-authoritative completion handoffs into one persisted Shipyard
-## return-incentive receipt. It owns no activity, inventory, currency, ship,
-## berth, combat, or network state.
+## The production reward authority for the four GameFlow-owned route activities,
+## the physical Heavy Breach board, and the retained Ember relay survey. It turns
+## their existing non-authoritative completion handoffs into one persisted
+## Shipyard return-incentive receipt. It owns no activity, inventory, currency,
+## ship, berth, combat, or network state.
 
 const SCHEMA_VERSION := 1
 const PAYLOAD_KIND := "game_flow_reward_store"
@@ -19,12 +19,14 @@ const PATROL_ACTIVITY_ID: StringName = &"cinder_relay_patrol"
 const CONVOY_ACTIVITY_ID: StringName = &"cinder_reach_emberline_convoy"
 const CARGO_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
 const HEAVY_BREACH_ACTIVITY_ID: StringName = &"shipyard_heavy_breach"
+const EMBER_RELAY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
 
 const RACE_REWARD_ID: StringName = &"return_race_record_to_shipyard"
 const PATROL_REWARD_ID: StringName = &"return_patrol_log_to_shipyard"
 const CONVOY_REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const CARGO_REWARD_ID: StringName = &"return_fabrication_kits_to_shipyard"
 const HEAVY_BREACH_REWARD_ID: StringName = &"return_heavy_breach_credit"
+const EMBER_RELAY_REWARD_ID: StringName = &"ember_beacon_data"
 
 const ACTIVITY_REWARDS := {
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
@@ -32,6 +34,7 @@ const ACTIVITY_REWARDS := {
 	CONVOY_ACTIVITY_ID: CONVOY_REWARD_ID,
 	CARGO_ACTIVITY_ID: CARGO_REWARD_ID,
 	HEAVY_BREACH_ACTIVITY_ID: HEAVY_BREACH_REWARD_ID,
+	EMBER_RELAY_ACTIVITY_ID: EMBER_RELAY_REWARD_ID,
 }
 const REWARD_LABELS := {
 	RACE_REWARD_ID: "Race record accepted",
@@ -39,6 +42,7 @@ const REWARD_LABELS := {
 	CONVOY_REWARD_ID: "Emberline escort credit logged",
 	CARGO_REWARD_ID: "Fabrication kits returned",
 	HEAVY_BREACH_REWARD_ID: "Heavy Breach credit logged",
+	EMBER_RELAY_REWARD_ID: "Survey data accepted",
 }
 const REQUEST_KEYS := [
 	"activity_id",
@@ -46,6 +50,18 @@ const REQUEST_KEYS := [
 	"reward_id",
 	"reward_authority",
 	"granted",
+]
+const EMBER_RELAY_REQUEST_KEYS := [
+	"activity_generation", "activity_id", "attachment_generation",
+	"objective_id", "production_commit_id", "production_evidence",
+	"recovery_id", "return_target_id", "reward_authority_id", "reward_id",
+	"reward_store_id", "run_generation", "world_id",
+]
+const EMBER_RELAY_EVIDENCE_KEYS := [
+	"activity_generation", "actor_instance_id", "actor_kind", "caller_serial",
+	"completion_attachment_generation", "craft_instance_id",
+	"host_attachment_generation", "host_generation", "host_instance_id",
+	"owner_generation", "physics_frame", "session_instance_id",
 ]
 const RECORD_KEYS := [
 	"schema_version",
@@ -99,9 +115,10 @@ func configure(store: RefCounted) -> Dictionary:
 	return _accept(&"reward_authority_configured")
 
 
-## Accepts only the exact request produced by NearbyActivityRewardAdapter. The
-## adapter and this authority both fence a completion generation, so a repeated
-## signal cannot advance either the receipt serial or the atomic store.
+## Accepts only an exact request produced by NearbyActivityRewardAdapter or the
+## retained Ember surface binding. Each producer and this authority fence a
+## completion generation, so a repeated signal cannot advance either the
+## receipt serial or the atomic store.
 func commit(request: Variant) -> Dictionary:
 	if not _configured or _store == null:
 		return _reject(&"reward_authority_unavailable")
@@ -282,12 +299,18 @@ func _validate_request(candidate: Variant) -> Dictionary:
 	if not candidate is Dictionary:
 		return _result(false, &"reward_request_invalid")
 	var request := candidate as Dictionary
-	if not _has_exact_keys(request, REQUEST_KEYS) \
-			or not _integral(request.get("activity_generation")) \
-			or request.get("reward_authority") is not bool \
-			or bool(request.get("reward_authority", true)) \
-			or request.get("granted") is not bool \
-			or bool(request.get("granted", true)):
+	var nearby_request := _has_exact_keys(request, REQUEST_KEYS)
+	var ember_request := _has_exact_keys(request, EMBER_RELAY_REQUEST_KEYS)
+	if not nearby_request and not ember_request:
+		return _result(false, &"reward_request_invalid")
+	if not _integral(request.get("activity_generation")):
+		return _result(false, &"reward_request_invalid")
+	if nearby_request and (
+		request.get("reward_authority") is not bool
+		or bool(request.get("reward_authority", true))
+		or request.get("granted") is not bool
+		or bool(request.get("granted", true))
+	):
 		return _result(false, &"reward_request_invalid")
 	var generation := int(request.get("activity_generation", 0))
 	var activity_id := StringName(request.get("activity_id", &""))
@@ -298,7 +321,61 @@ func _validate_request(candidate: Variant) -> Dictionary:
 		return _result(false, &"reward_activity_unknown")
 	if StringName(ACTIVITY_REWARDS[activity_id]) != reward_id:
 		return _result(false, &"reward_contract_mismatch")
+	# The Ember survey is admitted only through its evidence-bearing surface
+	# binding contract; the compact nearby-activity shape cannot impersonate it.
+	if activity_id == EMBER_RELAY_ACTIVITY_ID and not ember_request:
+		return _result(false, &"reward_request_invalid")
+	if ember_request:
+		var ember_rejection := _validate_ember_relay_request(request)
+		if not ember_rejection.is_empty():
+			return _result(false, ember_rejection)
 	return _result(true, &"reward_request_valid")
+
+
+func _validate_ember_relay_request(request: Dictionary) -> StringName:
+	if StringName(request.get("activity_id", &"")) != EMBER_RELAY_ACTIVITY_ID \
+			or StringName(request.get("reward_id", &"")) != EMBER_RELAY_REWARD_ID \
+			or StringName(request.get("world_id", &"")) != &"ember_moon" \
+			or StringName(request.get("objective_id", &"")) \
+				!= &"survey_beacon_network" \
+			or StringName(request.get("reward_store_id", &"")) != SLOT_ID \
+			or StringName(request.get("reward_authority_id", &"")) \
+				!= AUTHORITY_ID \
+			or StringName(request.get("return_target_id", &"")) \
+				!= &"mudds_shipyards" \
+			or StringName(request.get("recovery_id", &"")) \
+				!= &"return_to_landed_ship" \
+			or not _integral(request.get("run_generation")) \
+			or int(request.get("run_generation", 0)) < 1 \
+			or not _integral(request.get("attachment_generation")) \
+			or int(request.get("attachment_generation", 0)) < 1:
+		return &"reward_request_invalid"
+	var expected_commit_id := "ember-relay-survey:%d:%d" % [
+		int(request.get("run_generation", 0)),
+		int(request.get("activity_generation", 0)),
+	]
+	if str(request.get("production_commit_id", "")) != expected_commit_id:
+		return &"reward_request_invalid"
+	var evidence_value: Variant = request.get("production_evidence")
+	if not evidence_value is Dictionary \
+			or not _has_exact_keys(
+				evidence_value as Dictionary, EMBER_RELAY_EVIDENCE_KEYS
+			):
+		return &"reward_request_invalid"
+	var evidence := evidence_value as Dictionary
+	for key in EMBER_RELAY_EVIDENCE_KEYS:
+		if key == "actor_kind":
+			continue
+		if not evidence.get(key) is int:
+			return &"reward_request_invalid"
+	if not evidence.get("actor_kind") is StringName \
+			or StringName(evidence.get("actor_kind", &"")) != &"player" \
+			or int(evidence.get("activity_generation", 0)) \
+				!= int(request.get("activity_generation", -1)) \
+			or int(evidence.get("completion_attachment_generation", 0)) \
+				!= int(request.get("attachment_generation", -1)):
+		return &"reward_request_invalid"
+	return &""
 
 
 func _empty_record() -> Dictionary:
