@@ -231,10 +231,85 @@ func _init() -> void:
 func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
+	await _test_surface_adoption_rollback()
 	await _test_real_scheduler_complete_loop()
 	await _test_stale_frame_and_partial_handback_reds()
 	Engine.time_scale = _original_time_scale
 	_finish()
+
+
+func _test_surface_adoption_rollback() -> void:
+	var fixture := await _real_fixture()
+	if fixture.is_empty():
+		return
+	var world := fixture.world as Node3D
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var production := EmberSurfaceLoopProductionBinding.new()
+	production.name = "EmberSurfaceLoopProductionBinding"
+	world.add_child(production)
+	_active_production = production
+	var early := EarlyCaller.new()
+	early.name = "GameFlowEarlyCaller"
+	early.production = production
+	early.streaming = fixture.origin_binding
+	early.origin_owner = fixture.origin_owner
+	early.frame = fixture.frame
+	early.host = host
+	early.ship = ship
+	early.player = fixture.player
+	world.add_child(early)
+	var director := ActivityDirector.new()
+	world.add_child(director)
+	await process_frame
+	var configured := production.configure(host, production.get_generation())
+	var composed := production.configure_planetary_surface(
+		director, Callable(self, "_planetary_reward_sink")
+	)
+	# Force the exact once-only race: preflight sees BOUND, Host.start() advances
+	# the session, then a synchronous session observer detaches the composition
+	# before the production binding can commit generation adoption.
+	var session := host.get_travel_session_observation_source()
+	session.session_started.connect(
+		func(_snapshot: Dictionary) -> void:
+			production.detach_planetary_surface(),
+		CONNECT_ONE_SHOT,
+	)
+	early.enabled = true
+	await _one_physics()
+	early.enabled = false
+	var rejection := production.get_snapshot().get("last_late_result", {}) as Dictionary
+	var rollback := rejection.get("rollback", {}) as Dictionary
+	_check(
+		bool(configured.get("accepted", false))
+			and bool(composed.get("accepted", false))
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.IDLE
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and host.get_generation() == 2
+			and production.get_generation() == 2
+			and ship.get_command_source() == fixture.original_source
+			and (fixture.area as ShipBoardingArea).get_reservation_token() == fixture.player
+			and bool(rejection.get("rolled_back", false))
+			and bool(rollback.get("accepted", false))
+			and rejection.get("reason", &"") == &"host_start_adoption_unavailable"
+			and production.get_planetary_surface_snapshot().is_empty(),
+		"a rejected post-start adoption rolls Host and binding back atomically",
+	)
+	var recomposed := production.configure_planetary_surface(
+		director, Callable(self, "_planetary_reward_sink")
+	)
+	early.enabled = true
+	await _one_physics()
+	early.enabled = false
+	_check(
+		bool(recomposed.get("accepted", false))
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.ORBIT_APPROACH
+			and host.get_generation() == 3
+			and host.get_generation() == production.get_generation(),
+		"a fresh surface configuration retries the next caller serial exactly once",
+	)
+	await _cleanup(world)
 
 
 func _test_real_scheduler_complete_loop() -> void:

@@ -304,9 +304,10 @@ func configure_planetary_surface(
 	if not reward_sink.is_valid():
 		return _reject(&"reward_sink_unavailable")
 	var host_snapshot := _host.get_snapshot() if _host != null else {}
-	if _state != State.RUNNING \
+	if _state not in [State.IDLE, State.RUNNING] \
 			or not bool(host_snapshot.get("attached", false)) \
-			or int(host_snapshot.get("generation", -1)) != _generation \
+			or (_state == State.RUNNING \
+				and int(host_snapshot.get("generation", -1)) != _generation) \
 			or int(host_snapshot.get("attachment_generation", -1)) \
 				!= _host.get_attachment_generation():
 		return _reject(&"planetary_composition_lifecycle_unavailable")
@@ -1445,7 +1446,80 @@ func detach_planetary_surface() -> Dictionary:
 			return diagnostic_detached
 	if bool(result.get("accepted", false)) and _relay_return_travel != null:
 		_relay_return_travel.call(&"detach")
+	if bool(result.get("accepted", false)) and _terminal_station_return_completed():
+		_retire_completed_journey_for_repeat()
 	return result
+
+
+func _terminal_station_return_completed() -> bool:
+	if _return_berth_adapter == null:
+		return false
+	var snapshot := _return_berth_adapter.call(&"get_snapshot") as Dictionary
+	return bool(snapshot.get("physical_arrival_completed", false)) \
+		and bool(snapshot.get("contract_completed", false))
+
+
+## The station lifecycle has consumed the terminal receipt, so the old
+## scheduler/location identities must not block the next streamed Ember visit.
+## This releases only Ember-owned compositions and evidence; the occupied Mudds
+## berth and all GameFlow/ship authority remain untouched.
+func _retire_completed_journey_for_repeat() -> void:
+	_retire_staging_relay_proximity()
+	if is_instance_valid(_planetary_composition):
+		_planetary_composition.queue_free()
+	_planetary_composition = null
+	_relay_return_manifest = null
+	_relay_return_travel = null
+	_return_berth_adapter = null
+	_clear_retained_return_context()
+	_station_return_handoff_intent.clear()
+	_station_return_handoff_delivered = false
+	_active_relay_reward_evidence.clear()
+	_relay_reward_authority_in_flight = false
+	_relay_reward_authority_receipt.clear()
+	_relay_reward_commit_receipt.clear()
+	_last_relay_reward_commit_result.clear()
+	_planetary_reward_authority = Callable()
+	_atmosphere_composition = null
+	if _travel_audio_binding != null:
+		_travel_audio_binding.detach()
+		_travel_audio_binding = null
+	if _fleet_landing_wash_binding != null:
+		_fleet_landing_wash_binding.call(&"detach")
+		_fleet_landing_wash_binding = null
+	if _fleet_entry_envelope_binding != null:
+		_fleet_entry_envelope_binding.call(&"detach")
+		_fleet_entry_envelope_binding = null
+	if _entry_presentation_binding != null:
+		_entry_presentation_binding.call(&"detach")
+	_entry_presentation_binding = null
+	_last_entry_presentation_result.clear()
+	_last_fleet_landing_wash_result.clear()
+	_last_fleet_entry_envelope_result.clear()
+	_pending_envelope.clear()
+	_pending_intent.clear()
+	_last_prepared_evidence.clear()
+	_last_late_result.clear()
+	_completion_handback.clear()
+	_completion_handback_delivered = false
+	_planetary_orbit_return_consumed = false
+	_last_caller_serial = 0
+	_last_prepared_physics_frame = -1
+	_last_consumed_caller_serial = 0
+	_last_consumed_physics_frame = -1
+	_last_intent_serial = 0
+	_prepared_count = 0
+	_late_consume_count = 0
+	_intent_consume_count = 0
+	_start_count = 0
+	_advance_count = 0
+	_origin_adoption_count = 0
+	_handback_count = 0
+	_state = State.IDLE
+	_configured = false
+	_configuration_error = &""
+	_generation += 1
+	set_physics_process(false)
 
 
 func reenter_planetary_surface() -> Dictionary:
@@ -2146,6 +2220,20 @@ func _physics_process(_engine_delta: float) -> void:
 		if phase != EmberSurfaceLoopHost.Phase.IDLE:
 			_fail_late(&"host_start_phase_drift")
 			return
+		if _planetary_composition != null:
+			var adoption_ready := _planetary_composition.call(
+				&"preflight_started_host_generation",
+				int(envelope.get("host_generation", -1)),
+				int(envelope.get("host_attachment_generation", -1)),
+			) as Dictionary
+			if not bool(adoption_ready.get("accepted", false)):
+				_rollback_planetary_surface_start_configuration()
+				_reject_late_start(
+					adoption_ready.get(
+						"reason", &"planetary_surface_host_start_preflight_rejected"
+					) as StringName
+				)
+				return
 		operation = _host.start(
 			_host.get_generation(),
 			_host.get_attachment_generation(),
@@ -2154,6 +2242,34 @@ func _physics_process(_engine_delta: float) -> void:
 		if not bool(operation.get("accepted", false)):
 			_fail_late(operation.get("reason", &"host_start_rejected") as StringName)
 			return
+		if _planetary_composition != null:
+			var adopted := _planetary_composition.call(
+				&"adopt_started_host_generation",
+				int(envelope.get("host_generation", -1)),
+				int(envelope.get("host_attachment_generation", -1)),
+			) as Dictionary
+			if not bool(adopted.get("accepted", false)):
+				var adoption_reason := adopted.get(
+					"reason", &"planetary_surface_host_start_adoption_rejected"
+				) as StringName
+				var rolled_back := _host.rollback_uncommitted_start(
+					_host.get_generation(), _host.get_attachment_generation(),
+					adoption_reason
+				)
+				_rollback_planetary_surface_start_configuration()
+				if bool(rolled_back.get("accepted", false)):
+					_generation = _host.get_generation()
+					_reject_late_start(adoption_reason, rolled_back)
+				else:
+					# An unexpected reentrant mutation may invalidate the narrow
+					# rollback window. Detach terminalizes the Host rather than
+					# leaving an unobserved running travel session behind.
+					_host.detach(
+						_host.get_generation(), _host.get_attachment_generation()
+					)
+					_fail_late(&"planetary_surface_host_start_rollback_rejected")
+				return
+		_generation = _host.get_generation()
 		_state = State.RUNNING
 		_start_count += 1
 		_last_late_result = operation.duplicate(true)
@@ -2741,6 +2857,34 @@ func _fail_late(reason: StringName) -> void:
 	_state = State.FAILED
 	_last_late_result = {"accepted": false, "reason": reason}.duplicate(true)
 	_finish_late_signal(reason)
+
+
+func _reject_late_start(reason: StringName, rollback: Dictionary = {}) -> void:
+	_state = State.IDLE
+	_last_late_result = {
+		"accepted": false,
+		"reason": reason,
+		"rolled_back": true,
+		"rollback": rollback.duplicate(true),
+	}.duplicate(true)
+	_finish_late_signal(reason)
+
+
+func _rollback_planetary_surface_start_configuration() -> void:
+	_retire_staging_relay_proximity()
+	if is_instance_valid(_planetary_composition):
+		var snapshot := _planetary_composition.call(&"get_snapshot") as Dictionary
+		if int(snapshot.get("state", -1)) \
+				== EmberPlanetarySurfaceProductionBinding.State.BOUND:
+			_planetary_composition.call(&"detach")
+		_planetary_composition.queue_free()
+	_planetary_composition = null
+	if _relay_return_travel != null:
+		_relay_return_travel.call(&"detach")
+	_relay_return_manifest = null
+	_relay_return_travel = null
+	_planetary_reward_authority = Callable()
+	_atmosphere_composition = null
 
 
 func _finish_late_signal(_reason: StringName) -> void:
