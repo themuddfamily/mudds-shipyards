@@ -80,8 +80,8 @@ func _run() -> void:
 	_check(
 		bool(audit.get("valid", false))
 			and bool(allocation.get("exact_counts", false))
-			and int(allocation.get("drawn_copies", -1)) == 167
-			and int(allocation.get("multimesh_batches", -1)) == 7,
+			and int(allocation.get("drawn_copies", -1)) == 168
+			and int(allocation.get("multimesh_batches", -1)) == 8,
 		"the complete Halyard audit accepts the visual-only four-copy addition"
 	)
 
