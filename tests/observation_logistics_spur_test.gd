@@ -371,11 +371,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 7
+		and int(performance.mesh_instances) == 2
 		and int(performance.static_bodies) == 34
 		and int(performance.collision_shapes) == 36
-		and module.find_children("*", "Node", true, false).size() == 152,
-		"finished district freezes 152 nodes, 7 meshes, 34 bodies and 36 shapes"
+		and module.find_children("*", "Node", true, false).size() == 153,
+		"finished district freezes 153 nodes, 2 meshes, 34 bodies and 36 shapes"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -438,7 +438,7 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 		and int(materials.retained_unique_materials) == 10,
 		"finished pavilions retain ten shared material recipes including their dark view band"
 	)
-	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh") as MeshInstance3D).material_override as StandardMaterial3D
+	var deck_material := (module.get_node(^"Structure/Walkable/WalkableDeckRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	var grip_material := (module.get_node(^"Structure/Dressing/LogisticsPalletRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	var shell_material := (module.get_node(^"Structure/Dressing/ObservationConsoleRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
 	var service_material := (module.get_node(^"Structure/Dressing/LogisticsCaseRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
@@ -488,30 +488,73 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"connector_portal_frame_mesh"
+		and StringName(performance.selected_family) == &"walkable_deck_renderers"
 		and int(performance.baseline_descendant_nodes) == 144
-		and int(performance.descendant_nodes) == 152
+		and int(performance.descendant_nodes) == 153
 		and int(performance.baseline_renderer_nodes) == 42
-		and int(performance.renderer_nodes) == 35
+		and int(performance.renderer_nodes) == 31
 		and int(performance.baseline_drawn_copies) == 270
 		and int(performance.drawn_copies) == 278
 		and int(performance.baseline_surface_submissions) == 42
-		and int(performance.surface_submissions) == 35,
-		"shared portal-frame geometry preserves 278 supported visible copies and the district's 35 submissions"
+		and int(performance.surface_submissions) == 31,
+		"batched walkable decks preserve 278 supported visible copies and reduce the district to 31 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 22
-		and int(performance.mesh_resource_delta) == -12
+		and int(performance.mesh_resources) == 17
+		and int(performance.mesh_resource_delta) == -17
 		and int(performance.baseline_material_resources) == 10
 		and int(performance.material_resources) == 10
-		and int(performance.baseline_family_nodes) == 2
-		and int(performance.family_nodes) == 2
-		and int(performance.baseline_family_submissions) == 2
-		and int(performance.family_submissions) == 2
-		and int(performance.baseline_family_mesh_resources) == 2
+		and int(performance.baseline_family_nodes) == 5
+		and int(performance.family_nodes) == 1
+		and int(performance.baseline_family_submissions) == 5
+		and int(performance.family_submissions) == 1
+		and int(performance.baseline_family_mesh_resources) == 5
 		and int(performance.family_mesh_resources) == 1,
-		"the two portal-frame batches retain both submissions while sharing the existing immutable unit mesh"
+		"five named walkable decks retain five visible copies while sharing one renderer and the immutable unit mesh"
+	)
+	var walkable_batch := module.get_node_or_null(
+		^"Structure/Walkable/WalkableDeckRenderBatch"
+	) as MultiMeshInstance3D
+	var walkable_transforms := (
+		walkable_batch.get_meta("authored_instance_transforms", []) as Array
+		if walkable_batch != null else []
+	)
+	var walkable_exact := walkable_batch != null \
+		and walkable_batch.multimesh != null \
+		and walkable_batch.multimesh.instance_count == 5 \
+		and walkable_transforms.size() == 5
+	for surface_index in ObservationLogisticsSpur.WALKABLE_SURFACE_SPECS.size():
+		var spec := ObservationLogisticsSpur.WALKABLE_SURFACE_SPECS[surface_index] as Dictionary
+		var body := module.get_node_or_null(NodePath(
+			"Structure/Walkable/%s" % str(spec.node_name)
+		)) as StaticBody3D
+		var anchor := body.get_node_or_null(^"Mesh") as Marker3D if body != null else null
+		var collision := (
+			body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
+			if body != null else null
+		)
+		walkable_exact = walkable_exact \
+			and body != null \
+			and body.position.is_equal_approx(spec.center as Vector3) \
+			and anchor != null \
+			and anchor.transform.is_equal_approx(Transform3D.IDENTITY) \
+			and bool(anchor.get_meta("batched_visual_anchor", false)) \
+			and collision != null \
+			and collision.shape is BoxShape3D \
+			and (collision.shape as BoxShape3D).size.is_equal_approx(spec.size as Vector3) \
+			and (walkable_transforms[surface_index] as Transform3D).is_equal_approx(
+				Transform3D(Basis.from_scale(spec.size as Vector3), spec.center as Vector3)
+			)
+	_check(
+		walkable_exact
+		and walkable_batch.get_child_count() == 0
+		and walkable_batch.material_override is StandardMaterial3D
+		and (walkable_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(Vector3.ONE)
+		and int(performance.walkable_deck_renderer_delta) == -4
+		and int(performance.walkable_deck_mesh_resource_delta) == -4
+		and bool(performance.walkable_deck_identities_exact),
+		"walkable batching preserves every named body, local Mesh anchor, exact transform, deck material and collision extent"
 	)
 	var portal_posts := module.get_node_or_null(
 		^"Structure/Dressing/ConnectorPortalPosts"

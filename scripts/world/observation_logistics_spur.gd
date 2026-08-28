@@ -133,17 +133,22 @@ const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 	Vector3(-9.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
-const VISUAL_DESCENDANT_NODE_COUNT := 152
+const VISUAL_DESCENDANT_NODE_COUNT := 153
 const BASELINE_RENDERER_NODE_COUNT := 42
-const RENDERER_NODE_COUNT := 35
+const RENDERER_NODE_COUNT := 31
 const BASELINE_DRAWN_COPY_COUNT := 270
 const DRAWN_COPY_COUNT := 278
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
-const SURFACE_SUBMISSION_COUNT := 35
+const SURFACE_SUBMISSION_COUNT := 31
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 22
+const MESH_RESOURCE_COUNT := 17
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
+const WALKABLE_DECK_COPY_COUNT := 5
+const BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT := 5
+const WALKABLE_DECK_RENDERER_NODE_COUNT := 1
+const BASELINE_WALKABLE_DECK_MESH_RESOURCE_COUNT := 5
+const WALKABLE_DECK_MESH_RESOURCE_COUNT := 1
 const BASELINE_OBSERVATION_LENS_MESH_RESOURCE_COUNT := 3
 const OBSERVATION_LENS_MESH_RESOURCE_COUNT := 1
 const OBSERVATION_LENS_COPY_COUNT := 3
@@ -462,8 +467,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 152 descendant
-	# nodes, 7 MeshInstance3D nodes plus twenty-eight MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 153 descendant
+	# nodes, 2 MeshInstance3D nodes plus twenty-nine MultiMesh batches,
 	# 34 bodies, 36 shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
@@ -471,7 +476,7 @@ func get_performance_contract() -> Dictionary:
 	# band material for the two perimeter pavilions.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 7,
+		"mesh_instances": 2,
 		"static_bodies": 34,
 		"collision_shapes": 36,
 		"labels": 4,
@@ -1053,6 +1058,65 @@ func get_visual_resource_contract() -> Dictionary:
 			and bool(portal_batch.get_meta("visual_detail_only", false))
 			and authored_portal_transforms == expected_batch_transforms
 		)
+	var walkable_deck_mesh_resource_ids := {}
+	var walkable_deck_identities_exact := is_instance_valid(_scaled_visual_box_mesh)
+	var walkable_deck_batch := get_node_or_null(
+		^"Structure/Walkable/WalkableDeckRenderBatch"
+	) as MultiMeshInstance3D
+	var authored_walkable_transforms := (
+		walkable_deck_batch.get_meta("authored_instance_transforms", []) as Array
+		if walkable_deck_batch != null else []
+	)
+	var expected_walkable_transforms: Array[Transform3D] = []
+	for spec_variant in WALKABLE_SURFACE_SPECS:
+		var spec := spec_variant as Dictionary
+		var expected_transform := Transform3D(
+			Basis.from_scale(spec.size as Vector3), spec.center as Vector3
+		)
+		expected_walkable_transforms.append(expected_transform)
+		var body := get_node_or_null(NodePath(
+			"Structure/Walkable/%s" % str(spec.node_name)
+		)) as StaticBody3D
+		var anchor := body.get_node_or_null(^"Mesh") as Marker3D if body != null else null
+		var collision := (
+			body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
+			if body != null else null
+		)
+		walkable_deck_identities_exact = (
+			walkable_deck_identities_exact
+			and body != null
+			and body.position.is_equal_approx(spec.center as Vector3)
+			and anchor != null
+			and anchor.transform.is_equal_approx(Transform3D.IDENTITY)
+			and bool(anchor.get_meta("visual_detail_only", false))
+			and bool(anchor.get_meta("batched_visual_anchor", false))
+			and collision != null
+			and collision.shape is BoxShape3D
+			and (collision.shape as BoxShape3D).size.is_equal_approx(spec.size as Vector3)
+		)
+	if walkable_deck_batch != null and walkable_deck_batch.multimesh != null:
+		var walkable_mesh := walkable_deck_batch.multimesh.mesh as BoxMesh
+		if walkable_mesh != null:
+			walkable_deck_mesh_resource_ids[walkable_mesh.get_instance_id()] = true
+		walkable_deck_identities_exact = (
+			walkable_deck_identities_exact
+			and walkable_mesh == _scaled_visual_box_mesh
+			and walkable_mesh != null
+			and walkable_mesh.size.is_equal_approx(Vector3.ONE)
+			and walkable_deck_batch.material_override == _materials.get("deck")
+			and walkable_deck_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and walkable_deck_batch.cast_shadow
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and walkable_deck_batch.layers == 1
+			and is_zero_approx(walkable_deck_batch.extra_cull_margin)
+			and not walkable_deck_batch.ignore_occlusion_culling
+			and walkable_deck_batch.get_child_count() == 0
+			and bool(walkable_deck_batch.get_meta("visual_detail_only", false))
+			and walkable_deck_batch.multimesh.instance_count == WALKABLE_DECK_COPY_COUNT
+			and authored_walkable_transforms == expected_walkable_transforms
+		)
+	else:
+		walkable_deck_identities_exact = false
 	var descendant_nodes := find_children("*", "Node", true, false).size()
 	var renderer_nodes := mesh_nodes.size() + batch_nodes.size()
 	var exact := (
@@ -1062,6 +1126,8 @@ func get_visual_resource_contract() -> Dictionary:
 		and surface_submissions == SURFACE_SUBMISSION_COUNT
 		and mesh_resource_ids.size() == MESH_RESOURCE_COUNT
 		and material_resource_ids.size() == MATERIAL_RESOURCE_COUNT
+		and walkable_deck_mesh_resource_ids.size() == WALKABLE_DECK_MESH_RESOURCE_COUNT
+		and walkable_deck_identities_exact
 		and lens_mesh_resource_ids.size() == OBSERVATION_LENS_MESH_RESOURCE_COUNT
 		and lens_identities_exact
 		and console_mesh_resource_ids.size() == 1
@@ -1087,7 +1153,7 @@ func get_visual_resource_contract() -> Dictionary:
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"connector_portal_frame_mesh",
+		"selected_family": &"walkable_deck_renderers",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -1101,14 +1167,22 @@ func get_visual_resource_contract() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
-		"baseline_family_nodes": PORTAL_FRAME_BATCH_NAMES.size(),
-		"family_nodes": PORTAL_FRAME_BATCH_NAMES.size(),
-		"baseline_family_submissions": PORTAL_FRAME_BATCH_NAMES.size(),
-		"family_submissions": PORTAL_FRAME_BATCH_NAMES.size(),
-		"baseline_family_mesh_resources": BASELINE_PORTAL_FRAME_MESH_RESOURCE_COUNT,
-		"family_mesh_resources": portal_frame_mesh_resource_ids.size(),
-		"family_copies": portal_frame_copies,
-		"family_identities_exact": portal_frame_identities_exact,
+		"baseline_family_nodes": BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT,
+		"family_nodes": WALKABLE_DECK_RENDERER_NODE_COUNT,
+		"baseline_family_submissions": BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT,
+		"family_submissions": WALKABLE_DECK_RENDERER_NODE_COUNT,
+		"baseline_family_mesh_resources": BASELINE_WALKABLE_DECK_MESH_RESOURCE_COUNT,
+		"family_mesh_resources": walkable_deck_mesh_resource_ids.size(),
+		"family_copies": WALKABLE_DECK_COPY_COUNT,
+		"family_identities_exact": walkable_deck_identities_exact,
+		"walkable_deck_renderer_delta": (
+			WALKABLE_DECK_RENDERER_NODE_COUNT - BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT
+		),
+		"walkable_deck_mesh_resource_delta": (
+			walkable_deck_mesh_resource_ids.size()
+			- BASELINE_WALKABLE_DECK_MESH_RESOURCE_COUNT
+		),
+		"walkable_deck_identities_exact": walkable_deck_identities_exact,
 		"portal_frame_batch_count": PORTAL_FRAME_BATCH_NAMES.size(),
 		"portal_frame_mesh_resources": portal_frame_mesh_resource_ids.size(),
 		"portal_frame_mesh_resource_delta": (
@@ -1453,6 +1527,7 @@ func _build_module() -> void:
 	var walkable := Node3D.new()
 	walkable.name = "Walkable"
 	structure.add_child(walkable)
+	var walkable_visual_transforms: Array[Transform3D] = []
 	for spec_variant in WALKABLE_SURFACE_SPECS:
 		var spec := spec_variant as Dictionary
 		var body := _box(
@@ -1461,14 +1536,32 @@ func _build_module() -> void:
 			spec.center as Vector3,
 			spec.size as Vector3,
 			_materials["deck"],
-			true
+			true,
+			_scaled_visual_box_mesh
 		) as StaticBody3D
+		var renderer := body.get_node(^"Mesh") as MeshInstance3D
+		body.remove_child(renderer)
+		renderer.free()
+		var visual_anchor := Marker3D.new()
+		visual_anchor.name = "Mesh"
+		visual_anchor.set_meta("visual_detail_only", true)
+		visual_anchor.set_meta("batched_visual_anchor", true)
+		body.add_child(visual_anchor)
+		walkable_visual_transforms.append(Transform3D(
+			Basis.from_scale(spec.size as Vector3), spec.center as Vector3
+		))
 		body.set_meta("walkable_surface", true)
 		body.set_meta("walkable_surface_id", StringName(spec.id))
 		body.set_meta("walkable_surface_kind", &"level")
 		body.set_meta("walkable_surface_owner", MODULE_ID)
 		body.set_meta("horizontal_area_m2", float(spec.area_m2))
 		_walkable_surfaces.append(body)
+	_multimesh_scaled_boxes(
+		walkable,
+		"WalkableDeckRenderBatch",
+		_materials["deck"],
+		walkable_visual_transforms
+	)
 
 	var safety := Node3D.new()
 	safety.name = "SafetyRails"
