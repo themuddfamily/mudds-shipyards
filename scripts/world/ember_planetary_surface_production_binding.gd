@@ -274,6 +274,27 @@ func start_surface_activity_sequence(activity_ids: Array[StringName]) -> Diction
 	_refresh_sample_rack_presentation()
 	return result
 
+
+## Main prepares this composition while the retained Host is IDLE, before
+## cruise hands off final approach. Host.start() advances the run generation
+## exactly once; the scheduler forwards that committed fact before admitting
+## any surface activity or observation.
+func adopt_started_host_generation(
+		expected_previous_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _state != State.BOUND or _host == null or not is_instance_valid(_host):
+		return _result(false, &"host_start_adoption_unavailable")
+	var current_generation := int(_host.call(&"get_generation"))
+	var current_attachment := int(_host.call(&"get_attachment_generation"))
+	if _host_generation != expected_previous_generation \
+			or current_generation != expected_previous_generation + 1 \
+			or current_attachment != expected_attachment_generation:
+		return _result(false, &"host_start_adoption_generation_mismatch")
+	_host_generation = current_generation
+	return _result(true, &"host_start_generation_adopted")
+
+
 func start_relay_survey() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
 	var result: Dictionary = _relay_survey.begin(_adapter, _navigation)

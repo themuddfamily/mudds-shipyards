@@ -460,8 +460,12 @@ func bind_dependencies(
 		return _finish(false, &"stale_generation")
 	if expected_attachment_generation != _attachment_generation:
 		return _finish(false, &"stale_attachment_generation")
-	if _bound_once:
-		return _finish(false, &"single_use_host")
+	var repeat_bind := _bound_once
+	if repeat_bind and (
+		_attached or _phase != Phase.COMPLETED or not _runtime_ownership_returned
+		or _session == null
+	):
+		return _finish(false, &"repeat_bind_unavailable")
 	var resolved_composition_root := composition_root \
 		if composition_root != null else self
 	var validation := _validate_dependencies(
@@ -547,25 +551,40 @@ func bind_dependencies(
 		return _finish(false, _configuration_error)
 	_source_generation = _command_source.get_generation()
 
-	_session = PlanetaryTravelSession.new(
-		HOST_ID,
-		_WORLD.duplicate(true) as PlanetaryWorldDefinition,
-		_frame,
-		_world_report
-	)
-	if not _session.is_configuration_valid():
-		_configuration_error = &"travel_session_configuration_failed"
-		_release_leases()
-		_restore_runtime_bindings()
-		return _finish(false, _configuration_error)
+	if not repeat_bind:
+		_session = PlanetaryTravelSession.new(
+			HOST_ID,
+			_WORLD.duplicate(true) as PlanetaryWorldDefinition,
+			_frame,
+			_world_report
+		)
+		if not _session.is_configuration_valid():
+			_configuration_error = &"travel_session_configuration_failed"
+			_release_leases()
+			_restore_runtime_bindings()
+			return _finish(false, _configuration_error)
 	var session_attach := _session.attach(
-		WORLD_ID, _frame, _coordinate_frame_generation, 0, 0
+		WORLD_ID, _frame, _coordinate_frame_generation,
+		_session.get_generation(), _session.get_attachment_generation()
 	)
 	if not bool(session_attach.get("accepted", false)):
 		_configuration_error = &"travel_session_attach_failed"
 		_release_leases()
 		_restore_runtime_bindings()
 		return _finish(false, _configuration_error)
+	if repeat_bind:
+		var session_reset := _session.reset(
+			_session.get_generation(), _session.get_attachment_generation()
+		)
+		if not bool(session_reset.get("accepted", false)):
+			_configuration_error = &"travel_session_repeat_reset_failed"
+			_session.detach(
+				_session.get_generation(), _session.get_attachment_generation()
+			)
+			_release_leases()
+			_restore_runtime_bindings()
+			return _finish(false, _configuration_error)
+		_reset_repeat_visit_state()
 
 	_connect_dependency_signals()
 	_attachment_generation = _session.get_attachment_generation()
@@ -606,7 +625,7 @@ func start(
 		return _finish(false, ownership_rejection)
 	_accepted_approach_entry_measurement = approach_entry.duplicate(true)
 	var bound := _session.bind_landing_composition_report(
-		_landing_report, 0, _attachment_generation
+		_landing_report, _session.get_generation(), _attachment_generation
 	)
 	if not bool(bound.get("accepted", false)):
 		return _commit_failure(&"landing_composition_bind_failed")
@@ -1159,6 +1178,45 @@ func detach(
 	_attached = false
 	_attachment_generation += 1
 	return _finish(true, &"detached")
+
+
+## Clears only visit-scoped evidence after the completed runtime handback. The
+## retained Host identity and travel session survive; bind_dependencies() must
+## still validate a fresh streamed Ember root and the same live production
+## actors before another visit can start.
+func _reset_repeat_visit_state() -> void:
+	_phase = Phase.IDLE
+	_generation = _session.get_generation()
+	_attachment_generation = _session.get_attachment_generation()
+	_pending_failure_reason = &""
+	_configuration_error = &""
+	_terminal_reason = &""
+	_elapsed_seconds = 0.0
+	_phase_elapsed_seconds = 0.0
+	_transition_count = 0
+	_physics_advance_count = 0
+	_gravity_sample_count = 0
+	_gravity_application_count = 0
+	_surface_route_outbound_complete = false
+	_surface_route_return_complete = false
+	_return_departed_staging = false
+	_disembark_requested = false
+	_takeoff_requested = false
+	_landing_completed_observed = false
+	_landing_aborted_reason = &""
+	_disembarking_completed_observed = false
+	_boarding_completed_observed = false
+	_surface_clear_submitted = false
+	_last_gravity_sample.clear()
+	_last_result.clear()
+	_berth_token = &""
+	_accepted_approach_entry_measurement.clear()
+	_origin_adoption_count = 0
+	_last_origin_adoption_receipt.clear()
+	_runtime_ownership_returned = false
+	_last_runtime_ownership_return_receipt.clear()
+	_host_acquired_boarding_reservation = false
+	_runtime_bindings_restored = false
 
 
 func get_generation() -> int:
