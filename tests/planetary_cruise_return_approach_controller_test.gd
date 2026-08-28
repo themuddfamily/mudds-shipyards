@@ -33,6 +33,20 @@ func _run() -> void:
 		).get("accepted", false)),
 		"the sole physical cruise controller binds the active craft",
 	)
+	var every_flyable_identity_valid := true
+	for candidate_id: StringName in ControllerType.RETURN_APPROACH_FLEET_IDS:
+		var candidate: Variant = _target_for(ship, 1)
+		candidate.active_ship_id = candidate_id
+		candidate.collision_bounds = candidate.fleet_collision_bounds.get(
+			candidate_id, AABB()
+		) as AABB
+		every_flyable_identity_valid = every_flyable_identity_valid \
+			and candidate.validation_reason().is_empty()
+	_check(
+		ControllerType.RETURN_APPROACH_FLEET_IDS.size() == 9
+			and every_flyable_identity_valid,
+		"the return target admits each exact production flyable identity",
+	)
 	var target: Variant = _target_for(ship, 1)
 	var armed := controller.arm_return_approach(
 		target, FRAME_GENERATION, controller.get_generation()
@@ -47,8 +61,8 @@ func _run() -> void:
 			and armed_state.get("state_id") == &"armed"
 			and armed_state.get("approach_kind") == ControllerType.RETURN_APPROACH_KIND
 			and bool(fleet_proof.get("accepted", false))
-			and (fleet_proof.get("fleet_ids", []) as Array).size() == 5,
-		"one typed target freezes all five hulls inside the 750 km corridor",
+			and (fleet_proof.get("fleet_ids", []) as Array).size() == 9,
+		"one typed target freezes all nine production hulls inside the 750 km corridor",
 	)
 	var stale_abort := controller.abort_return_approach(
 		&"stale_attempt", 2, controller.get_generation()
@@ -97,7 +111,9 @@ func _run() -> void:
 	_check(
 		bool(measurement.get("inside_brake_complete_shell", false))
 			and bool(measurement.get("full_hull_inside_return_corridor", false))
-			and bool(measurement.get("all_five_craft_corridor_proven", false))
+			and bool(measurement.get(
+				"full_flyable_fleet_corridor_proven", false
+			))
 			and float(measurement.get("speed_mps", INF)) <= 12.0
 			and float(measurement.get("distance_to_home_m", INF)) == 100.0,
 		"completion measures shell, live hull, fleet proof, speed, and distance",
@@ -158,6 +174,10 @@ func _target_for(ship: HeroShip, generation: int) -> Variant:
 		&"jovian_provisional": AABB(Vector3(-15.0, -6.0, -24.0), Vector3(30.0, 12.0, 48.0)),
 		&"zenith_b7_observed": AABB(Vector3(-7.0, -3.0, -13.0), Vector3(14.0, 6.0, 26.0)),
 		&"halyard_new_design": AABB(Vector3(-18.0, -8.0, -30.0), Vector3(36.0, 16.0, 60.0)),
+		&"bulwark_heavy_gunship": AABB(Vector3(-14.0, -5.0, -22.0), Vector3(28.0, 10.0, 44.0)),
+		&"cinder_cargo_hauler": AABB(Vector3(-12.0, -5.0, -20.0), Vector3(24.0, 10.0, 40.0)),
+		&"cinder_long_range_bomber": AABB(Vector3(-16.0, -4.0, -18.0), Vector3(32.0, 8.0, 36.0)),
+		&"cinder_light_interceptor": AABB(Vector3(-6.0, -2.5, -10.0), Vector3(12.0, 5.0, 20.0)),
 	}
 	return target
 

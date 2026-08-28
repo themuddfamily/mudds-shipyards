@@ -771,7 +771,7 @@ func audit() -> Dictionary:
 			"typed_final_approach_lifecycle": true,
 			"typed_return_approach_lifecycle": true,
 			"caller_supplied_return_target": true,
-			"all_five_craft_return_corridor_proof": true,
+			"full_flyable_fleet_return_corridor_proof": true,
 			"completion_receipt_relay": true,
 			"input_sampling": false,
 			"actor_sampling": false,

@@ -436,7 +436,9 @@ func _physical_shell_rejection(
 			or StringName(target.get("home_target_id", &"")) != DESTINATION_ID \
 			or not bool(measurement.get("accepted", false)) \
 			or not bool(measurement.get("inside_brake_complete_shell", false)) \
-			or not bool(measurement.get("all_five_craft_corridor_proven", false)):
+			or not bool(measurement.get(
+				"full_flyable_fleet_corridor_proven", false
+			)):
 		return &"physical_arrival_shell_invalid"
 	return &""
 

@@ -167,7 +167,7 @@ func _run() -> void:
 	for _index in 180:
 		await process_frame
 		await physics_frame
-		if bool(game.get("_initialized")) and game.get_flyable_ships().size() == 5:
+		if bool(game.get("_initialized")) and game.get_flyable_ships().size() == 9:
 			break
 	game.set_physics_process(false)
 	var craft := game.active_ship as HeroShip
@@ -344,7 +344,9 @@ func _run() -> void:
 	var target_result := game._build_mudds_return_approach_target()
 	var target := target_result.get("target", {}) as Dictionary
 	var fleet_bounds := target.get("fleet_collision_bounds", {}) as Dictionary
-	var exact_hulls := fleet_bounds.size() == 5
+	var exact_hulls := fleet_bounds.size() == 9 \
+		and GameFlow.MUDDS_RETURN_FLEET_IDS \
+		== PlanetaryCruisePhysicalController.RETURN_APPROACH_FLEET_IDS
 	for fleet_ship in game.get_flyable_ships():
 		if not GameFlow.MUDDS_RETURN_FLEET_IDS.has(fleet_ship.get_ship_id()):
 			continue
@@ -370,7 +372,7 @@ func _run() -> void:
 			and (target.get("corridor_half_extents_m") as Vector3).z == 750_000.0
 			and float(target.get("brake_shell_max_distance_m", 0.0)) == 65_000.0
 			and exact_hulls,
-		"the station owner and exact five live hull owners supply the detached route proof",
+		"the station owner and all nine live hull owners supply the detached route proof",
 	)
 
 	var cruise := game.planetary_cruise_binding as PlanetaryCruiseProductionBinding
@@ -400,7 +402,9 @@ func _run() -> void:
 		.get("measurement", {}) as Dictionary)
 	_check(
 		completed.get("reason") == &"return_approach_handoff_ready"
-			and bool(proof.get("all_five_craft_corridor_proven", false))
+			and bool(proof.get(
+				"full_flyable_fleet_corridor_proven", false
+			))
 			and bool(handed_off.get("accepted", false))
 			and handed_off.get("reason") == &"return_approach_handed_to_station_lifecycle"
 			and game.phase == GameFlow.Phase.RETURN_TO_YARD,

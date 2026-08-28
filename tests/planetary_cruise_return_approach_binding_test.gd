@@ -167,6 +167,10 @@ func _return_target(ship: HeroShip) -> Dictionary:
 			&"jovian_provisional": AABB(Vector3(-15.0, -6.0, -24.0), Vector3(30.0, 12.0, 48.0)),
 			&"zenith_b7_observed": AABB(Vector3(-7.0, -3.0, -13.0), Vector3(14.0, 6.0, 26.0)),
 			&"halyard_new_design": AABB(Vector3(-18.0, -8.0, -30.0), Vector3(36.0, 16.0, 60.0)),
+			&"bulwark_heavy_gunship": AABB(Vector3(-14.0, -5.0, -22.0), Vector3(28.0, 10.0, 44.0)),
+			&"cinder_cargo_hauler": AABB(Vector3(-12.0, -5.0, -20.0), Vector3(24.0, 10.0, 40.0)),
+			&"cinder_long_range_bomber": AABB(Vector3(-16.0, -4.0, -18.0), Vector3(32.0, 8.0, 36.0)),
+			&"cinder_light_interceptor": AABB(Vector3(-6.0, -2.5, -10.0), Vector3(12.0, 5.0, 20.0)),
 		},
 	}.duplicate(true)
 

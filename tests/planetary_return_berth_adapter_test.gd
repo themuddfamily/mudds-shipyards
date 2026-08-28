@@ -421,7 +421,7 @@ func _shell_receipt(
 			"measurement": {
 				"accepted": true,
 				"inside_brake_complete_shell": true,
-				"all_five_craft_corridor_proven": true,
+				"full_flyable_fleet_corridor_proven": true,
 			},
 		},
 	}.duplicate(true)

@@ -33,6 +33,10 @@ const RETURN_APPROACH_FLEET_IDS := [
 	&"jovian_provisional",
 	&"zenith_b7_observed",
 	&"halyard_new_design",
+	&"bulwark_heavy_gunship",
+	&"cinder_cargo_hauler",
+	&"cinder_long_range_bomber",
+	&"cinder_light_interceptor",
 ]
 const FINAL_APPROACH_ACCELERATION_MPS2 := 500.0
 const FINAL_APPROACH_BRAKING_MPS2 := 750.0
@@ -235,7 +239,7 @@ class ReturnApproachTarget:
 			all_fit = all_fit and fits
 		return {
 			"accepted": all_fit and hulls.size() == RETURN_APPROACH_FLEET_IDS.size(),
-			"reason": &"all_five_hulls_inside_corridor" if all_fit \
+			"reason": &"full_flyable_fleet_inside_corridor" if all_fit \
 				else &"fleet_hull_outside_corridor",
 			"route_clearance_m": CLEARANCE_PROOF_HORIZON_METERS,
 			"fleet_ids": RETURN_APPROACH_FLEET_IDS.duplicate(),
@@ -766,7 +770,7 @@ func audit() -> Dictionary:
 			"typed_final_approach_target": true,
 			"final_approach_completion_measurement": true,
 			"typed_return_approach_target": true,
-			"all_five_craft_return_corridor_proof": true,
+			"full_flyable_fleet_return_corridor_proof": true,
 			"return_brake_complete_shell_measurement": true,
 			"input_sampling": false,
 			"velocity_write": false,
@@ -871,7 +875,7 @@ func _measure_return_approach(ship: HeroShip) -> Dictionary:
 		"inside_brake_complete_shell": shell_inside,
 		"root_inside_return_corridor": root_inside,
 		"full_hull_inside_return_corridor": hull_inside,
-		"all_five_craft_corridor_proven": bool(
+		"full_flyable_fleet_corridor_proven": bool(
 			fleet_proof.get("accepted", false)
 		),
 		"fleet_corridor_proof": fleet_proof.duplicate(true),

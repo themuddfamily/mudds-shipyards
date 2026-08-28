@@ -1470,9 +1470,20 @@ authenticated station-return intent after real reboarding, take-off, ascent and
 orbit evidence, reuses the existing cruise-to-manual-landing path, and confirms
 real touchdown, engine shutdown, disembark and occupancy of the compatible home
 berth exactly once. Replays, forged actors, stale frames and handback-generation
-drift fail closed. Repeated whole-`Main` cycles, a live all-five-craft 750 km
-route proof, native performance, audibility, and human review remain open; this
-fixed Ember-to-Mudds route is not a general selectable destination catalog.
+drift fail closed. The return corridor now freezes the exact live landing hull
+of all nine production flyables rather than the former five-craft subset, and
+the controller admits any one of those exact identities as the active returning
+craft. This removes the source-level Ember-return rejection for Bulwark and the
+three Cinder craft while leaving physical home-berth reservation, landing,
+shutdown and disembark with their existing owners. The typed terminal receipt
+now requires a full-flyable-fleet 750 km corridor proof; the old five-craft key
+is no longer accepted. `tests/planetary_cruise_return_approach_controller_test.gd`,
+`tests/planetary_cruise_return_approach_binding_test.gd`,
+`tests/game_flow_planetary_return_approach_test.gd`, and
+`tests/planetary_return_berth_adapter_test.gd` cover the source route. Repeated
+whole-`Main` loops with every craft, native performance, audibility, and human
+review remain open; this fixed Ember-to-Mudds route is not a general selectable
+destination catalog.
 Global terrain/clipmap generation, spherical vehicle gravity, an atmospheric
 authored destination with complete sky/cloud/weather/entry/audio presentation,
 activity/reward, save/network, native performance and repeated orbit-to-surface

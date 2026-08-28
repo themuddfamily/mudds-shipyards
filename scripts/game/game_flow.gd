@@ -174,6 +174,10 @@ const MUDDS_RETURN_FLEET_IDS: Array[StringName] = [
 	&"jovian_provisional",
 	&"zenith_b7_observed",
 	&"halyard_new_design",
+	&"bulwark_heavy_gunship",
+	&"cinder_cargo_hauler",
+	&"cinder_long_range_bomber",
+	&"cinder_light_interceptor",
 ]
 const EMBER_STATION_RETURN_HANDOFF_KEYS := [
 	"schema_version",
@@ -8409,8 +8413,8 @@ func _build_mudds_return_approach_target() -> Dictionary:
 		if not is_instance_valid(fleet_ship):
 			return {"accepted": false, "reason": &"return_approach_fleet_hull_unavailable"}
 		var ship_id := fleet_ship.get_ship_id()
-		# Additional expansion craft have their own berth owner and are outside
-		# the production binding's frozen five-ID return contract.
+		# The return proof covers every production flyable, including craft whose
+		# home berth is owned by the expansion binding rather than ShipyardWorld.
 		if not MUDDS_RETURN_FLEET_IDS.has(ship_id):
 			continue
 		if fleet_bounds.has(ship_id):
@@ -8483,7 +8487,7 @@ func _mudds_return_approach_completion_is_current(receipt: Dictionary) -> bool:
 			== expected.get("home_target_world_transform", Transform3D.IDENTITY) \
 		and target.get("fleet_collision_bounds", {}) \
 			== expected.get("fleet_collision_bounds", {}) \
-		and bool(measurement.get("all_five_craft_corridor_proven", false))
+		and bool(measurement.get("full_flyable_fleet_corridor_proven", false))
 
 
 ## Consumes the cruise terminal receipt once, then selects the ordinary yard
