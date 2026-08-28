@@ -9,10 +9,11 @@ extends CanvasLayer
 ## is a 2 MB import, so it is attached separately by [method attach_backdrop]
 ## once the text has already reached the screen: the player never waits on it.
 ##
-## Progress reported here is real. [method set_stage] is driven by the startup
-## loader from the resource loader's own percentage and from the count of
-## construction stages that have actually finished, so the bar never jumps from
-## nothing to done, and it never advances while nothing is happening.
+## Progress reported here is real. [method set_stage] is driven by completed
+## startup phase boundaries and by the count of construction stages that have
+## actually finished. While the scene resource is loading on its worker the bar
+## holds at the phase boundary and the caret continues pulsing; it advances only
+## when that resource or a named construction stage really completes.
 ##
 ## The accessibility presets are honoured, not bypassed. The stored preferences
 ## are read through `RuntimeSettings` before gameplay exists, so the colourblind

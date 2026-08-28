@@ -15,10 +15,11 @@ extends Node3D
 ## first frames, then does the same work in two halves that both let the main
 ## loop breathe:
 ##
-## 1. **Resources.** `scenes/main.tscn` is pulled in with
-##    `ResourceLoader.load_threaded_request()`, so the import work happens on
-##    loader threads while this scene keeps drawing and pumping input. The bar
-##    is driven by `load_threaded_get_status()`'s own percentage.
+## 1. **Resources.** An explicitly owned worker calls `ResourceLoader.load()`
+##    for `scenes/main.tscn`, so the import work happens off the main thread
+##    while this scene keeps drawing and pumping input. The worker is always
+##    joined before either handoff or cancellation; unlike the engine's global
+##    threaded-request queue, it cannot leave request state alive at shutdown.
 ## 2. **Construction.** Scene-tree mutation must stay on the main thread, so it
 ##    is chunked instead: [GameFlow] hands back its authored children before it
 ##    enters the tree and re-adds them a frame at a time, and [ShipyardWorld]
@@ -74,6 +75,11 @@ var _worst_frame_ms := 0.0
 var _last_frame_usec := 0
 var _display_settings_report: Dictionary = {}
 var _early_cli_exit_code := 0
+## The scene resource load has one explicit owner. Keeping this handle on Boot
+## lets `_exit_tree()` join it even if Boot is cancelled while the worker is in
+## ResourceLoader, so no thread or returned Resource can outlive the scene that
+## requested it.
+var _resource_worker: Thread
 
 
 func _ready() -> void:
@@ -162,16 +168,19 @@ static func format_cli_output(mode: StringName) -> String:
 
 
 func _exit_tree() -> void:
-	# ResourceLoader work cannot be cancelled, but its eventual continuation must
-	# never perform scene-tree work for a boot root that has left the tree.
-	if _running and is_instance_valid(_main):
+	# Retire continuations before joining. The worker callable is static and never
+	# touches this node, so the join only waits for ResourceLoader; it cannot run
+	# stale scene-tree work while this callback is blocked.
+	var interrupted_startup := _running
+	_startup_generation += 1
+	_running = false
+	_retire_resource_worker()
+	if interrupted_startup and is_instance_valid(_main):
 		var incomplete_main := _main
 		_main = null
 		if incomplete_main.get_parent() == self:
 			remove_child(incomplete_main)
 		incomplete_main.queue_free()
-	_startup_generation += 1
-	_running = false
 
 
 ## Loads and constructs Main behind the loading screen. Awaitable; also safe to
@@ -286,50 +295,68 @@ func _load_main_scene(startup_generation: int) -> PackedScene:
 	if not _is_startup_current(startup_generation):
 		return null
 	var tree := get_tree()
-	var request := ResourceLoader.load_threaded_request(MAIN_SCENE_PATH, "PackedScene", false)
-	if request != OK:
-		# A loader thread was refused. Fall back to the blocking load rather than
+	_screen.set_stage(
+		"Loading station data", 0.0, "Reading station scene in the background",
+		"MUDDS SHIPYARDS", "Station data", 1, 3
+	)
+	var worker := Thread.new()
+	_resource_worker = worker
+	var start_error := worker.start(_load_main_scene_resource)
+	if start_error != OK:
+		_resource_worker = null
+		# A worker was refused. Fall back to the blocking load rather than
 		# failing to boot; the loading screen is still up, it just stops moving.
 		_screen.set_stage(
 			"Loading station data", PHASE_RESOURCES, "Fallback resource load",
 			"MUDDS SHIPYARDS", "Station data", 1, 3
 		)
-		var fallback := load(MAIN_SCENE_PATH) as PackedScene
+		var fallback := ResourceLoader.load(
+			MAIN_SCENE_PATH,
+			"PackedScene",
+			ResourceLoader.CACHE_MODE_REUSE
+		) as PackedScene
 		_note_stage("resources", "Loading station data")
 		return fallback
-	var progress: Array = []
-	while true:
-		if not _is_startup_current(startup_generation):
-			return null
-		var status := ResourceLoader.load_threaded_get_status(MAIN_SCENE_PATH, progress)
-		var ratio := 0.0
-		if not progress.is_empty():
-			ratio = clampf(float(progress[0]), 0.0, 1.0)
-		_screen.set_stage(
-			"Loading station data",
-			PHASE_RESOURCES * ratio,
-			"Resource load %d%%" % roundi(ratio * 100.0),
-			"MUDDS SHIPYARDS",
-			"Station data",
-			1,
-			3
-		)
-		if status == ResourceLoader.THREAD_LOAD_LOADED:
-			break
-		if status != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-			_note_stage("resources", "Loading station data")
-			return null
-		# Yielding here is the point: the window repaints and pumps input while
-		# the loader threads work.
+	while worker.is_alive():
+		# Yielding here is the point: the window repaints and pumps input while the
+		# owned worker loads. A cancelled Boot still joins the worker in
+		# `_exit_tree()`; this continuation then observes that its ownership was
+		# retired and returns without a second join or a stale scene attachment.
 		await tree.process_frame
-		if not _is_startup_current(startup_generation):
+		if _resource_worker != worker:
 			return null
+	if _resource_worker != worker:
+		return null
+	var loaded: Variant = worker.wait_to_finish()
+	_resource_worker = null
+	if not _is_startup_current(startup_generation):
+		return null
 	_screen.set_stage(
-		"Loading station data", PHASE_RESOURCES, "Resource load 100%",
+		"Loading station data", PHASE_RESOURCES, "Station scene loaded",
 		"MUDDS SHIPYARDS", "Station data", 1, 3
 	)
 	_note_stage("resources", "Loading station data")
-	return ResourceLoader.load_threaded_get(MAIN_SCENE_PATH) as PackedScene
+	return loaded as PackedScene
+
+
+## ResourceLoader itself is thread-safe for a single isolated load. Keeping the
+## callable static is the lifetime boundary: the worker holds no Callable back
+## to Boot, and therefore cannot retain or touch a node after cancellation.
+static func _load_main_scene_resource() -> PackedScene:
+	return ResourceLoader.load(
+		MAIN_SCENE_PATH,
+		"PackedScene",
+		ResourceLoader.CACHE_MODE_REUSE
+	) as PackedScene
+
+
+func _retire_resource_worker() -> void:
+	if _resource_worker == null:
+		return
+	var worker := _resource_worker
+	_resource_worker = null
+	if worker.is_started():
+		worker.wait_to_finish()
 
 
 ## Progress sink handed to [method GameFlow.run_staged_startup]. `ratio` is the

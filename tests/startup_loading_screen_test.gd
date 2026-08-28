@@ -35,10 +35,44 @@ func _init() -> void:
 func _run() -> void:
 	await _test_queued_loading_screen_public_mutators_are_inert()
 	await _test_stager_rejects_stale_host_generation_after_yield()
+	await _test_detached_boot_joins_resource_worker()
 	await _test_detached_boot_cancels_stale_continuation()
 	await _test_boot_presents_before_it_builds()
 	await _test_direct_instantiation_is_unstaged()
 	_finish()
+
+
+static func _short_worker_job() -> int:
+	OS.delay_msec(25)
+	return 1
+
+
+func _test_detached_boot_joins_resource_worker() -> void:
+	var boot := BOOT_SCENE.instantiate() as StartupLoader
+	_check(boot != null, "boot worker-lifetime fixture instantiates")
+	if boot == null:
+		return
+	boot.auto_start = false
+	root.add_child(boot)
+	await process_frame
+	var worker := Thread.new()
+	var start_error := worker.start(_short_worker_job)
+	_check(start_error == OK, "boot worker-lifetime fixture starts an in-flight worker")
+	if start_error != OK:
+		boot.queue_free()
+		await process_frame
+		return
+	boot.set("_resource_worker", worker)
+	root.remove_child(boot)
+	_check(
+		boot.get("_resource_worker") == null
+		and not worker.is_started()
+		and not worker.is_alive(),
+		"detaching Boot joins and releases its in-flight resource worker"
+	)
+	root.add_child(boot)
+	boot.queue_free()
+	await process_frame
 
 
 func _test_stager_rejects_stale_host_generation_after_yield() -> void:
@@ -314,6 +348,10 @@ func _test_boot_presents_before_it_builds() -> void:
 		boot.queue_free()
 		await process_frame
 		return
+	_check(
+		boot.get("_resource_worker") == null,
+		"successful startup joins and releases its scene resource worker before construction"
+	)
 
 	var distinct: Array[float] = []
 	var monotonic := true
@@ -374,7 +412,7 @@ func _test_boot_presents_before_it_builds() -> void:
 		"the coordinator's bindings resolve to the re-added children"
 	)
 	var fleet: Array[HeroShip] = flow.get_flyable_ships()
-	_check(fleet.size() == 8, "the staged startup registers the complete eight-craft fleet")
+	_check(fleet.size() == 9, "the staged startup registers the complete nine-craft fleet")
 	_check(
 		world != null and world.get_target_count() > 0,
 		"the staged world finished its procedural build, not just its authored modules"
@@ -435,7 +473,7 @@ func _test_boot_presents_before_it_builds() -> void:
 	await physics_frame
 	await process_frame
 	_check(
-		flow.get_flyable_ships().size() == 8,
+		flow.get_flyable_ships().size() == 9,
 		"a loader-built Main survives a whole-subtree detach and re-add"
 	)
 	_check(
