@@ -8,6 +8,10 @@ const BULWARK_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const Bulwark := preload("res://scripts/ships/bulwark_heavy_gunship.gd")
 const LiveCombatAuthority := preload("res://scripts/combat/live_combat_authority.gd")
+const WeaponDefinitionResolverProfile := preload(
+	"res://scripts/combat/weapon_definition_resolver_profile.gd"
+)
+const PILOT_WEAPON_ID: StringName = &"bulwark_sustained_pulse_cannon"
 
 var _checks := 0
 var _failures: Array[String] = []
@@ -30,6 +34,23 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	await physics_frame
+	var profiles := WeaponDefinitionResolverProfile.to_resolver_profiles(
+		craft.get_gunner_weapon_definition(), Bulwark.BULWARK_CREW_FACTION_ID, 12.0
+	)
+	profiles[PILOT_WEAPON_ID] = {
+		"range": 360.0,
+		"damage": 50.0,
+		"origin_tolerance": 24.0,
+	}
+	_check(
+		combat_authority.register_source(
+			craft,
+			Bulwark.COMBAT_SOURCE_ID,
+			Bulwark.BULWARK_CREW_FACTION_ID,
+			profiles
+		),
+		"production-style source starts with both pilot and siege-lance profiles"
+	)
 
 	var authority = _build_authority()
 	_check(
@@ -41,6 +62,44 @@ func _run() -> void:
 		bool(craft.attach_gunner_combat_authority(combat_authority).get("accepted", false)),
 		"Bulwark gunner binds the shared resolver authority"
 	)
+	_check(
+		combat_authority.get_weapon_profile(craft, PILOT_WEAPON_ID)
+			== profiles.get(PILOT_WEAPON_ID, {}),
+		"gunner attach preserves the existing pilot-only dictionary entry"
+	)
+	var pilot_only_craft := BULWARK_SCENE.instantiate() as HeroShip
+	var pilot_only_authority := LiveCombatAuthority.new()
+	root.add_child(pilot_only_craft)
+	root.add_child(pilot_only_authority)
+	await process_frame
+	var pilot_only_profile := profiles.get(PILOT_WEAPON_ID, {}) as Dictionary
+	_check(
+		pilot_only_authority.register_source(
+			pilot_only_craft,
+			Bulwark.COMBAT_SOURCE_ID,
+			Bulwark.BULWARK_CREW_FACTION_ID,
+			{PILOT_WEAPON_ID: pilot_only_profile}
+		),
+		"pilot-only regression fixture owns source 1107"
+	)
+	var rejected_attach: Dictionary = pilot_only_craft.attach_gunner_combat_authority(
+		pilot_only_authority
+	)
+	_check(
+		not bool(rejected_attach.get("accepted", true))
+		and rejected_attach.get("status", &"") == &"siege_lance_profile_missing",
+		"gunner attach fails closed when an existing source lacks the siege profile"
+	)
+	_check(
+		pilot_only_authority.get_weapon_profile(pilot_only_craft, PILOT_WEAPON_ID)
+			== pilot_only_profile
+		and pilot_only_authority.get_weapon_profile(
+			pilot_only_craft, Bulwark.BULWARK_CREW_WEAPON_ID
+		).is_empty(),
+		"failed gunner attach never replaces a pilot-only weapon dictionary"
+	)
+	pilot_only_craft.queue_free()
+	pilot_only_authority.queue_free()
 	_check(
 		craft.get_engineer_status_text().contains("[READY]"),
 		"the physical Bulwark crew display boots with engineer repair ready"

@@ -42,7 +42,7 @@ const HEAVY_BREACH_PROTECTED_OBJECTIVE_TRANSFORM := Transform3D(
 	Basis.IDENTITY, Vector3(24.0, 1.0, -26.0)
 )
 const SHIP_BERTH_FEEDBACK_SCHEMA_VERSION := 2
-const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 4
+const SHIP_BERTH_FEEDBACK_MATERIAL_COUNT := 2
 const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
 	CENTRAL_BERTH_ID,
 	ARROW_RECON_BERTH_ID,
@@ -53,9 +53,7 @@ const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
 ]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
-	&"cyan",
-	&"amber",
-	&"secured",
+	&"active",
 ]
 ## Contact bias between a seated berth cue plate and the deck it marks.
 ##

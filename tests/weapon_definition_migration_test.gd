@@ -11,6 +11,8 @@ const ARROW_DEFINITION_PATH := "res://assets/weapons/arrow_combat_pulse.tres"
 const ZENITH_DEFINITION_PATH := "res://assets/weapons/zenith_combat_pulse.tres"
 const JOVIAN_DEFINITION_PATH := "res://assets/weapons/jovian_combat_pulse.tres"
 const HALYARD_DEFINITION_PATH := "res://assets/weapons/halyard_combat_pulse.tres"
+const BULWARK_DEFINITION_PATH := "res://assets/weapons/bulwark_combat_pulse.tres"
+const BULWARK_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
 const SKIRMISHER_SCATTER_DEFINITION_PATH := (
 	"res://assets/weapons/skirmisher_flank_scatter.tres"
 )
@@ -19,12 +21,14 @@ const ARROW_SOURCE_ID := 1102
 const JOVIAN_SOURCE_ID := 1103
 const ZENITH_SOURCE_ID := 1104
 const HALYARD_SOURCE_ID := 1105
+const BULWARK_SOURCE_ID := 1107
 const SOURCE_FACTION: StringName = &"shipyard_flight_test"
 const TORRENT_WEAPON_ID: StringName = &"torrent_compact_pulse_cannon"
 const ARROW_WEAPON_ID: StringName = &"arrow_precision_recon_emitter"
 const ZENITH_WEAPON_ID: StringName = &"zenith_interceptor_repeater"
 const JOVIAN_WEAPON_ID: StringName = &"jovian_heavy_defensive_cannon"
 const HALYARD_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
+const BULWARK_WEAPON_ID: StringName = &"bulwark_sustained_pulse_cannon"
 const ORIGIN_TOLERANCE := 24.0
 const JOVIAN_ORIGIN_TOLERANCE := 32.0
 const HALYARD_ORIGIN_TOLERANCE := 30.0
@@ -52,6 +56,11 @@ const HALYARD_EXPECTED_PROFILE := {
 	"range": 560.0,
 	"damage": 52.0,
 	"origin_tolerance": HALYARD_ORIGIN_TOLERANCE,
+}
+const BULWARK_EXPECTED_PROFILE := {
+	"range": 360.0,
+	"damage": 50.0,
+	"origin_tolerance": ORIGIN_TOLERANCE,
 }
 const SKIRMISHER_SCATTER_EXPECTED_PROFILE := {
 	"range": 180.0,
@@ -87,6 +96,9 @@ func _run() -> void:
 	var halyard_definition := ResourceLoader.load(
 		HALYARD_DEFINITION_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
 	) as WeaponDefinition
+	var bulwark_definition := ResourceLoader.load(
+		BULWARK_DEFINITION_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
+	) as WeaponDefinition
 	var skirmisher_scatter_definition := ResourceLoader.load(
 		SKIRMISHER_SCATTER_DEFINITION_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
 	) as WeaponDefinition
@@ -95,13 +107,15 @@ func _run() -> void:
 	_test_zenith_checked_in_resource(zenith_definition)
 	_test_jovian_checked_in_resource(jovian_definition)
 	_test_halyard_checked_in_resource(halyard_definition)
+	_test_bulwark_checked_in_resource(bulwark_definition)
 	_test_skirmisher_scatter_checked_in_resource(skirmisher_scatter_definition)
 	_test_weapon_class_distinction(
 		torrent_definition,
 		arrow_definition,
 		zenith_definition,
 		jovian_definition,
-		halyard_definition
+		halyard_definition,
+		bulwark_definition
 	)
 	_test_pure_converter(torrent_definition)
 	_test_production_selection(
@@ -109,7 +123,8 @@ func _run() -> void:
 		arrow_definition,
 		zenith_definition,
 		jovian_definition,
-		halyard_definition
+		halyard_definition,
+		bulwark_definition
 	)
 	await _test_authority_lifecycle(
 		torrent_definition,
@@ -160,6 +175,16 @@ func _run() -> void:
 		560.0,
 		52.0,
 		"Halyard"
+	)
+	await _test_authority_lifecycle(
+		bulwark_definition,
+		BULWARK_SOURCE_ID,
+		ORIGIN_TOLERANCE,
+		BULWARK_EXPECTED_PROFILE,
+		BULWARK_WEAPON_ID,
+		360.0,
+		50.0,
+		"Bulwark"
 	)
 	_finish()
 
@@ -424,6 +449,38 @@ func _test_halyard_checked_in_resource(definition: WeaponDefinition) -> void:
 	)
 
 
+func _test_bulwark_checked_in_resource(definition: WeaponDefinition) -> void:
+	_check(definition != null, "checked-in Bulwark pilot weapon definition loads")
+	if definition == null:
+		return
+	_check(
+		definition.resource_path == BULWARK_DEFINITION_PATH
+		and definition.is_definition_valid()
+		and definition.weapon_id == BULWARK_WEAPON_ID
+		and definition.resolution_mode == WeaponDefinition.ResolutionMode.HITSCAN,
+		"Bulwark pilot resource is one valid checked-in hitscan definition"
+	)
+	_check(
+		is_equal_approx(definition.range_meters, 360.0)
+		and is_equal_approx(definition.damage_per_hit, 50.0)
+		and is_equal_approx(1.0 / definition.cadence_shots_per_second, 0.30),
+		"Bulwark definition matches the existing 0.30s and 360m/50 envelope"
+	)
+	_check(
+		definition.presentation_id == &"cyan"
+		and definition.fire_audio_id == &"player_pulse_fire"
+		and definition.impact_audio_id == &"hull_impact_medium"
+		and definition.dry_fire_audio_id == &"dry_fire_click",
+		"Bulwark uses the established player pulse presentation route"
+	)
+	_check(
+		ConverterScript.to_resolver_profiles(
+			definition, SOURCE_FACTION, ORIGIN_TOLERANCE
+		).get(BULWARK_WEAPON_ID, {}) == BULWARK_EXPECTED_PROFILE,
+		"Bulwark resource converts to the exact production resolver envelope"
+	)
+
+
 func _test_skirmisher_scatter_checked_in_resource(definition: WeaponDefinition) -> void:
 	_check(definition != null, "checked-in skirmisher scatter definition loads with its concrete type")
 	if definition == null:
@@ -458,7 +515,8 @@ func _test_weapon_class_distinction(
 	arrow_definition: WeaponDefinition,
 	zenith_definition: WeaponDefinition,
 	jovian_definition: WeaponDefinition,
-	halyard_definition: WeaponDefinition
+	halyard_definition: WeaponDefinition,
+	bulwark_definition: WeaponDefinition
 	) -> void:
 	if (
 		torrent_definition == null
@@ -466,6 +524,7 @@ func _test_weapon_class_distinction(
 		or zenith_definition == null
 		or jovian_definition == null
 		or halyard_definition == null
+		or bulwark_definition == null
 	):
 		return
 	var definitions: Array[WeaponDefinition] = [
@@ -474,6 +533,7 @@ func _test_weapon_class_distinction(
 		zenith_definition,
 		jovian_definition,
 		halyard_definition,
+		bulwark_definition,
 	]
 	var weapon_ids := {}
 	for definition in definitions:
@@ -624,7 +684,8 @@ func _test_production_selection(
 	arrow_definition: WeaponDefinition,
 	zenith_definition: WeaponDefinition,
 	jovian_definition: WeaponDefinition,
-	halyard_definition: WeaponDefinition
+	halyard_definition: WeaponDefinition,
+	bulwark_definition: WeaponDefinition
 	) -> void:
 	if (
 		torrent_definition == null
@@ -632,6 +693,7 @@ func _test_production_selection(
 		or zenith_definition == null
 		or jovian_definition == null
 		or halyard_definition == null
+		or bulwark_definition == null
 	):
 		return
 	var flow := GameFlow.new()
@@ -847,6 +909,33 @@ func _test_production_selection(
 		(flow.call("_get_player_weapon_profiles", candidate) as Dictionary).is_empty(),
 		"cadence drift rejects Halyard registration instead of borrowing another player profile"
 	)
+	var bulwark_candidate := BULWARK_SCENE.instantiate() as HeroShip
+	bulwark_candidate.weapon_cooldown = 0.30
+	var bulwark_profiles := flow.call(
+		"_get_player_weapon_profiles", bulwark_candidate
+	) as Dictionary
+	_check(
+		bulwark_profiles.size() == 3
+		and bulwark_profiles.get(BULWARK_WEAPON_ID, {}) == BULWARK_EXPECTED_PROFILE
+		and not (bulwark_profiles.get(GameFlow.BULWARK_CREW_WEAPON_ID, {}) as Dictionary).is_empty(),
+		"production Bulwark selection combines range, pilot, and retained gunner profiles"
+	)
+	_check(
+		GameFlow.PLAYER_SOURCE_IDS.get(GameFlow.CINDER_BOMBER_SHIP_ID, 0) == 1106
+		and GameFlow.PLAYER_SOURCE_IDS.get(GameFlow.BULWARK_SHIP_ID, 0) == BULWARK_SOURCE_ID,
+		"Bulwark source 1107 is unique while Cinder retains 1106"
+	)
+	_check(
+		GameFlow.BULWARK_COMBAT_WEAPON_DEFINITION.resource_path
+			== bulwark_definition.resource_path,
+		"GameFlow binds the checked-in Bulwark pilot definition"
+	)
+	bulwark_candidate.weapon_cooldown = 0.31
+	_check(
+		(flow.call("_get_player_weapon_profiles", bulwark_candidate) as Dictionary).is_empty(),
+		"cadence drift fails the combined Bulwark source closed"
+	)
+	bulwark_candidate.free()
 	candidate.ship_id = &"legacy_override_probe"
 	candidate.weapon_cooldown = 0.95
 	var legacy_probe_profiles := flow.call(
@@ -859,7 +948,8 @@ func _test_production_selection(
 			and not legacy_probe_profiles.has(ARROW_WEAPON_ID)
 			and not legacy_probe_profiles.has(ZENITH_WEAPON_ID)
 			and not legacy_probe_profiles.has(JOVIAN_WEAPON_ID)
-			and not legacy_probe_profiles.has(HALYARD_WEAPON_ID),
+			and not legacy_probe_profiles.has(HALYARD_WEAPON_ID)
+			and not legacy_probe_profiles.has(BULWARK_WEAPON_ID),
 		"unknown player identity cannot enter combat through a legacy override fallback"
 	)
 	candidate.free()

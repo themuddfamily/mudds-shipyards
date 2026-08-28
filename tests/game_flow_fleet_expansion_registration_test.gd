@@ -99,15 +99,15 @@ func _initialize() -> void:
 	_check(
 		authority != null and resolver != null
 		and bool(live_roster.valid)
-		and int(live_roster.expected_player_source_count) == 6
+		and int(live_roster.expected_player_source_count) == 7
 		and int(live_roster.expected_opponent_source_count) == 1
 		and int(live_roster.expected_station_defense_source_count) == 3
 		and int(live_roster.authored_station_defense_source_count) == 4
-		and int(live_roster.expected_source_count) == 10
-		and int(live_roster.actual_source_count) == 10
+		and int(live_roster.expected_source_count) == 11
+		and int(live_roster.actual_source_count) == 11
 		and bool(live_roster.station_defense_ready)
 		and bool((live_roster.station_defense_sources as Dictionary).valid),
-		"strict production roster composes six player, one range-opponent, three live station-defense sources, and one dormant heavy picket"
+		"strict production roster composes seven player, one range-opponent, three live station-defense sources, and one dormant heavy picket"
 	)
 	var arbitrary := Node3D.new()
 	arbitrary.name = "ArbitraryLiveCombatSource"
@@ -122,7 +122,7 @@ func _initialize() -> void:
 	_check(
 		authority.register_source(arbitrary, 9901, &"arbitrary", arbitrary_profiles)
 		and not bool(flow.get_live_combat_source_roster_audit().valid)
-		and int(flow.get_live_combat_source_roster_audit().actual_source_count) == 11,
+		and int(flow.get_live_combat_source_roster_audit().actual_source_count) == 12,
 		"strict equality rejects one arbitrary extra source"
 	)
 	authority.forget_source(arbitrary, 9901)
@@ -137,11 +137,11 @@ func _initialize() -> void:
 	var same_count_red := flow.get_live_combat_source_roster_audit()
 	_check(
 		same_count_registered
-		and int(same_count_red.actual_source_count) == 10
-		and int(same_count_red.expected_source_count) == 10
+		and int(same_count_red.actual_source_count) == 11
+		and int(same_count_red.expected_source_count) == 11
 		and not bool(same_count_red.valid)
 		and not bool((same_count_red.station_defense_sources as Dictionary).valid),
-		"an arbitrary source cannot substitute for an authored hostile even when total count remains ten"
+		"an arbitrary source cannot substitute for an authored hostile even when total count remains eleven"
 	)
 	authority.forget_source(arbitrary, 9901)
 	_check(
@@ -152,7 +152,7 @@ func _initialize() -> void:
 			StationDefenseEncounterContent.HOSTILE_WEAPON_PROFILES
 		)
 		and bool(flow.get_live_combat_source_roster_audit().valid),
-		"restoring the exact alpha source restores the strict ten-source roster"
+		"restoring the exact alpha source restores the strict eleven-source roster"
 	)
 	arbitrary.queue_free()
 	flow.queue_free()

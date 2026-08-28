@@ -235,6 +235,7 @@ const PLAYER_SOURCE_IDS := {
 	&"zenith_b7_observed": 1104,
 	&"halyard_new_design": 1105,
 	&"cinder-long-range-bomber": 1106,
+	&"bulwark_heavy_gunship": 1107,
 }
 const FLIGHT_PATH_MINIMUM_SPEED := 1.5
 const FLIGHT_PATH_PROJECTION_DISTANCE := 100.0
@@ -261,6 +262,8 @@ const ARROW_COMBAT_WEAPON_ID: StringName = &"arrow_precision_recon_emitter"
 const ZENITH_COMBAT_WEAPON_ID: StringName = &"zenith_interceptor_repeater"
 const JOVIAN_COMBAT_WEAPON_ID: StringName = &"jovian_heavy_defensive_cannon"
 const HALYARD_COMBAT_WEAPON_ID: StringName = &"halyard_long_range_defensive_lance"
+const BULWARK_COMBAT_WEAPON_ID: StringName = &"bulwark_sustained_pulse_cannon"
+const BULWARK_CREW_WEAPON_ID: StringName = &"picket_siege_lance"
 ## Compatibility name for the guided Torrent activity. Other ships must use
 ## their explicit per-hull weapon IDs above.
 const COMBAT_WEAPON_ID: StringName = TORRENT_COMBAT_WEAPON_ID
@@ -309,6 +312,15 @@ const HALYARD_COMBAT_IMPACT_AUDIO_ID: StringName = TORRENT_COMBAT_IMPACT_AUDIO_I
 const HALYARD_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUDIO_ID
 const HALYARD_COMBAT_WEAPON_DEFINITION := preload(
 	"res://assets/weapons/halyard_combat_pulse.tres"
+)
+const BULWARK_SHIP_ID: StringName = &"bulwark_heavy_gunship"
+const BULWARK_COMBAT_ORIGIN_TOLERANCE_METERS := 24.0
+const BULWARK_COMBAT_PRESENTATION_ID: StringName = TORRENT_COMBAT_PRESENTATION_ID
+const BULWARK_COMBAT_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_FIRE_AUDIO_ID
+const BULWARK_COMBAT_IMPACT_AUDIO_ID: StringName = TORRENT_COMBAT_IMPACT_AUDIO_ID
+const BULWARK_COMBAT_DRY_FIRE_AUDIO_ID: StringName = TORRENT_COMBAT_DRY_FIRE_AUDIO_ID
+const BULWARK_COMBAT_WEAPON_DEFINITION := preload(
+	"res://assets/weapons/bulwark_combat_pulse.tres"
 )
 const CINDER_BOMBER_SHIP_ID: StringName = &"cinder-long-range-bomber"
 const CINDER_BOMBER_WEAPON_ID: StringName = &"bomber_payload_release"
@@ -9304,6 +9316,22 @@ func _get_player_weapon_profiles(candidate: HeroShip) -> Dictionary:
 			return {}
 		profiles[HALYARD_COMBAT_WEAPON_ID] = migrated_profile
 		return profiles
+	if candidate.get_ship_id() == BULWARK_SHIP_ID:
+		var migrated_profile := _get_bulwark_combat_weapon_profile(candidate)
+		if migrated_profile.is_empty() or not candidate.has_method(&"get_gunner_weapon_definition"):
+			return {}
+		var gunner_definition := candidate.call(&"get_gunner_weapon_definition") as WeaponDefinition
+		var gunner_profiles := WeaponDefinitionResolverProfileType.to_resolver_profiles(
+			gunner_definition,
+			PLAYER_FACTION,
+			12.0
+		)
+		var gunner_profile := gunner_profiles.get(BULWARK_CREW_WEAPON_ID, {}) as Dictionary
+		if gunner_profiles.size() != 1 or gunner_profile.is_empty():
+			return {}
+		profiles[BULWARK_COMBAT_WEAPON_ID] = migrated_profile
+		profiles[BULWARK_CREW_WEAPON_ID] = gunner_profile.duplicate(true)
+		return profiles
 	if candidate.get_ship_id() == CINDER_BOMBER_SHIP_ID:
 		profiles[CINDER_BOMBER_WEAPON_ID] = CINDER_BOMBER_PAYLOAD_PROFILE.duplicate(true)
 		return profiles
@@ -9324,6 +9352,8 @@ func _get_player_combat_weapon_id(candidate: HeroShip) -> StringName:
 			return JOVIAN_COMBAT_WEAPON_ID
 		HALYARD_SHIP_ID:
 			return HALYARD_COMBAT_WEAPON_ID
+		BULWARK_SHIP_ID:
+			return BULWARK_COMBAT_WEAPON_ID
 		_:
 			return &""
 
@@ -9390,6 +9420,19 @@ func _get_halyard_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
 		HALYARD_COMBAT_FIRE_AUDIO_ID,
 		HALYARD_COMBAT_IMPACT_AUDIO_ID,
 		HALYARD_COMBAT_DRY_FIRE_AUDIO_ID
+	)
+
+
+func _get_bulwark_combat_weapon_profile(candidate: HeroShip) -> Dictionary:
+	return _get_migrated_player_combat_weapon_profile(
+		candidate,
+		BULWARK_COMBAT_WEAPON_DEFINITION,
+		BULWARK_COMBAT_WEAPON_ID,
+		BULWARK_COMBAT_ORIGIN_TOLERANCE_METERS,
+		BULWARK_COMBAT_PRESENTATION_ID,
+		BULWARK_COMBAT_FIRE_AUDIO_ID,
+		BULWARK_COMBAT_IMPACT_AUDIO_ID,
+		BULWARK_COMBAT_DRY_FIRE_AUDIO_ID
 	)
 
 

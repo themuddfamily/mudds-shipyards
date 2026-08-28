@@ -1,11 +1,11 @@
 extends SceneTree
 
-## HUD-free Forward+ evidence for the five production berth-state displays.
+## HUD-free Forward+ evidence for the six production berth-state displays.
 ##
 ## The complete production main scene supplies every photographed berth, ship,
 ## deck, and feedback component. This harness adds only an evidence camera and
-## drives GameFlow's existing lease coordinator through release, reservation,
-## and occupancy; it never assigns a visual state or moves a craft directly.
+## drives each production ShipBerth through its public release, reservation,
+## and occupancy API; it never assigns a visual state or moves a craft directly.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
@@ -20,6 +20,7 @@ const BERTH_ORDER: Array[StringName] = [
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
 	&"halyard_fleet_dock_berth",
+	&"bulwark_fleet_dock_berth",
 ]
 const STATE_ORDER: Array[StringName] = [
 	&"released",
@@ -32,6 +33,7 @@ const EXPECTED_SHIP_BY_BERTH := {
 	&"jovian_freight_berth": &"jovian_provisional",
 	&"zenith_fleet_dock_berth": &"zenith_b7_observed",
 	&"halyard_fleet_dock_berth": &"halyard_new_design",
+	&"bulwark_fleet_dock_berth": &"bulwark_heavy_gunship",
 }
 const CAMERA_LOCAL_DIRECTIONS := {
 	&"central_berth": Vector3(0.76, 0.92, 0.82),
@@ -39,6 +41,7 @@ const CAMERA_LOCAL_DIRECTIONS := {
 	&"jovian_freight_berth": Vector3(0.72, 0.96, -0.82),
 	&"zenith_fleet_dock_berth": Vector3(-0.78, 0.92, 0.78),
 	&"halyard_fleet_dock_berth": Vector3(0.78, 0.92, 0.78),
+	&"bulwark_fleet_dock_berth": Vector3(0.78, 0.92, 0.78),
 }
 const CAMERA_FOV := {
 	&"central_berth": 45.0,
@@ -46,6 +49,7 @@ const CAMERA_FOV := {
 	&"jovian_freight_berth": 47.0,
 	&"zenith_fleet_dock_berth": 44.0,
 	&"halyard_fleet_dock_berth": 46.0,
+	&"bulwark_fleet_dock_berth": 44.0,
 }
 const CAPTURE_FILES := {
 	&"central_berth": {
@@ -73,14 +77,20 @@ const CAPTURE_FILES := {
 		&"approach": "14_halyard_fleet_dock_berth_approach.png",
 		&"occupied": "15_halyard_fleet_dock_berth_occupied.png",
 	},
+	&"bulwark_fleet_dock_berth": {
+		&"released": "16_bulwark_fleet_dock_berth_released.png",
+		&"approach": "17_bulwark_fleet_dock_berth_approach.png",
+		&"occupied": "18_bulwark_fleet_dock_berth_occupied.png",
+	},
 }
 
-const EXPECTED_COMPONENT_COUNT := 5
+const EXPECTED_COMPONENT_COUNT := 6
 # Re-frozen 11 -> 16 when the berth cue gained its shape channel: five glyph
 # meshes (two gate marks, two chevron arms, one secured bar) of which exactly one
 # state's set is ever rendered. See the header of scripts/world/ship_berth_feedback.gd.
 const EXPECTED_MESHES_PER_COMPONENT := 16
-const EXPECTED_MATERIALS_PER_COMPONENT := 4
+const EXPECTED_MATERIALS_PER_COMPONENT := 2
+const EXPECTED_MATERIAL_ROLES: Array[StringName] = [&"dim", &"active"]
 const MINIMUM_PNG_BYTES := 220_000
 const MINIMUM_LUMINANCE_RANGE := 0.030
 const MINIMUM_LUMINANCE_VARIANCE := 0.00008
@@ -96,6 +106,9 @@ var _capture_contracts: Dictionary = {}
 var _ships_by_berth: Dictionary = {}
 var _feedback_by_berth: Dictionary = {}
 var _initial_ship_transforms: Dictionary = {}
+var _definitions_by_berth: Dictionary = {}
+var _initial_tokens_by_berth: Dictionary = {}
+var _active_tokens_by_berth: Dictionary = {}
 
 var _game: GameFlow
 var _world: ShipyardWorld
@@ -189,9 +202,6 @@ func _resolve_production_contracts() -> bool:
 	_world = _game.get_node_or_null("ShipyardWorld") as ShipyardWorld
 	_check(_world != null, "production ShipyardWorld exists")
 	_check(_game.has_method("get_flyable_ships"), "main scene publishes its live flyable fleet")
-	_check(_game.has_method("_release_ship_berth"), "GameFlow publishes its real lease-release coordinator")
-	_check(_game.has_method("_reserve_berth_for_ship"), "GameFlow publishes its real lease-reservation coordinator")
-	_check(_game.has_method("_occupy_reserved_berth"), "GameFlow publishes its real lease-occupancy coordinator")
 	if _world == null:
 		return false
 	_check(_world.has_method("get_berth_ids"), "world publishes its physical berth registry")
@@ -205,9 +215,6 @@ func _resolve_production_contracts() -> bool:
 		"world publishes its fail-red berth-feedback integration audit"
 	)
 	return _game.has_method("get_flyable_ships") \
-		and _game.has_method("_release_ship_berth") \
-		and _game.has_method("_reserve_berth_for_ship") \
-		and _game.has_method("_occupy_reserved_berth") \
 		and _world.has_method("get_berth_ids") \
 		and _world.has_method("get_berth_node") \
 		and _world.has_method("get_ship_berth_feedback_nodes") \
@@ -241,7 +248,7 @@ func _validate_exact_feedback_roster() -> void:
 	var actual_ids := _world.get_berth_ids()
 	_check(
 		_string_name_arrays_match(actual_ids, BERTH_ORDER),
-		"world registry is exactly central, Arrow recon, Jovian freight, Zenith dock 01, and Halyard dock 02 berths"
+		"world registry is exactly central, Arrow recon, Jovian freight, Zenith dock 01, Halyard dock 02, and Bulwark dock 03 berths"
 	)
 
 	var feedback_nodes := _world.get_ship_berth_feedback_nodes()
@@ -252,7 +259,7 @@ func _validate_exact_feedback_roster() -> void:
 	var typed_descendants := _world.find_children("*", "ShipBerthFeedback", true, false)
 	_check(
 		feedback_nodes.size() == EXPECTED_COMPONENT_COUNT,
-		"production world exposes exactly five berth-feedback components"
+		"production world exposes exactly six berth-feedback components"
 	)
 	_check(
 		_node_sets_match(feedback_nodes, grouped_nodes),
@@ -277,7 +284,7 @@ func _validate_exact_feedback_roster() -> void:
 			_feedback_by_berth[berth_id] = feedback
 	_check(
 		_feedback_by_berth.size() == EXPECTED_COMPONENT_COUNT,
-		"all and only the five authoritative berths map to feedback components"
+		"all and only the six authoritative berths map to feedback components"
 	)
 	var freight_marker := _world.get_node_or_null("JovianFreightBerth/BerthDockMarker")
 	_check(
@@ -286,11 +293,37 @@ func _validate_exact_feedback_roster() -> void:
 	)
 
 	var world_audit := _world.get_ship_berth_feedback_audit_report()
-	_check(_report_is_valid(world_audit), "production berth-feedback roster audit is valid")
 	_check(
-		int(world_audit.get("component_count", 0)) == EXPECTED_COMPONENT_COUNT,
-		"world audit reports exactly five feedback components"
+		int(world_audit.get("schema_version", 0)) == 2,
+		"production berth-feedback roster audit uses schema 2"
 	)
+	_check(
+		bool(world_audit.get("valid", false)) and _error_count(world_audit.get("errors", [])) == 0,
+		"production berth-feedback roster audit is valid with an empty error set"
+	)
+	_check(
+		int(world_audit.get("component_count", 0)) == EXPECTED_COMPONENT_COUNT
+		and int(world_audit.get("live_berth_count", 0)) == EXPECTED_COMPONENT_COUNT
+		and int(world_audit.get("live_feedback_count", 0)) == EXPECTED_COMPONENT_COUNT,
+		"world audit reports exactly six berths and six feedback components"
+	)
+	var audited_berth_ids := world_audit.get("expected_berth_ids", []) as Array
+	_check(
+		_string_name_arrays_match(audited_berth_ids, BERTH_ORDER),
+		"world audit names the exact six production berth IDs"
+	)
+	var placements := world_audit.get("placements", {}) as Dictionary
+	_check(placements.size() == EXPECTED_COMPONENT_COUNT, "world audit publishes exactly six berth placements")
+	for berth_id in BERTH_ORDER:
+		var placement := placements.get(berth_id, {}) as Dictionary
+		_check(not placement.is_empty(), "%s has one world-audit placement" % berth_id)
+		_check(
+			_dictionary_has_exact_string_name_keys(
+				placement.get("material_instance_ids", {}) as Dictionary,
+				EXPECTED_MATERIAL_ROLES
+			),
+			"%s world-audit placement owns exactly dim and active material roles" % berth_id
+		)
 	_check(
 		StringName(world_audit.get("evidence_status", &"")) == &"modern_interpretation"
 		and not bool(world_audit.get("authenticated_original_docking_feedback", true))
@@ -301,22 +334,31 @@ func _validate_exact_feedback_roster() -> void:
 
 func _validate_initial_fleet_leases() -> void:
 	var fleet := _game.get_flyable_ships()
-	_check(fleet.size() == EXPECTED_COMPONENT_COUNT, "production main scene contains exactly five flyable ships")
 	_ships_by_berth.clear()
 	_initial_ship_transforms.clear()
+	_definitions_by_berth.clear()
+	_initial_tokens_by_berth.clear()
+	_active_tokens_by_berth.clear()
 	for candidate in fleet:
 		var ship := candidate as HeroShip
 		if ship == null:
 			continue
 		var berth_id := ship.get_home_berth_id()
-		_check(BERTH_ORDER.has(berth_id), "%s owns a captured production berth" % ship.get_ship_id())
+		if not BERTH_ORDER.has(berth_id):
+			continue
 		_check(
 			ship.get_ship_id() == StringName(EXPECTED_SHIP_BY_BERTH.get(berth_id, &"")),
 			"%s maps to the expected production craft" % berth_id
 		)
+		_check(not _ships_by_berth.has(berth_id), "%s has exactly one public-roster craft" % berth_id)
+		if _ships_by_berth.has(berth_id):
+			continue
 		_ships_by_berth[berth_id] = ship
 		_initial_ship_transforms[berth_id] = ship.global_transform
-	_check(_ships_by_berth.size() == EXPECTED_COMPONENT_COUNT, "each berth maps to one distinct production craft")
+	_check(
+		_ships_by_berth.size() == EXPECTED_COMPONENT_COUNT,
+		"public GameFlow roster resolves one distinct production craft for every canonical berth"
+	)
 
 	for berth_id in BERTH_ORDER:
 		var ship := _ships_by_berth.get(berth_id) as HeroShip
@@ -328,12 +370,30 @@ func _validate_initial_fleet_leases() -> void:
 		)
 		if ship == null or berth == null or feedback == null:
 			continue
+		var definition := ship.get_ship_definition()
+		var token := berth.get_reservation_token(ship)
+		_check(definition != null, "%s production craft publishes its ShipDefinition" % berth_id)
+		if definition == null:
+			continue
+		_check(
+			definition.ship_id == ship.get_ship_id()
+			and definition.ship_id == StringName(EXPECTED_SHIP_BY_BERTH[berth_id]),
+			"%s preserves exact production definition and ship identity" % berth_id
+		)
+		_check(berth.is_compatible_with(definition), "%s accepts its exact production definition" % berth_id)
 		_check(
 			berth.get_reservation_owner() == ship
 			and berth.get_occupant() == ship
 			and berth.get_reserved_ship_id() == ship.get_ship_id(),
 			"%s begins with its real production occupied lease" % berth_id
 		)
+		_check(
+			not token.is_empty() and berth.has_valid_lease(ship, token, definition.ship_id),
+			"%s begins with its exact valid opaque production token" % berth_id
+		)
+		_definitions_by_berth[berth_id] = definition
+		_initial_tokens_by_berth[berth_id] = token
+		_active_tokens_by_berth[berth_id] = token
 		_check(
 			feedback.get_feedback_state() == &"occupied",
 			"%s feedback begins synchronized to occupied" % berth_id
@@ -401,7 +461,14 @@ func _validate_component_audits_and_budgets() -> void:
 			int(performance.get("material_resources", -1)) == EXPECTED_MATERIALS_PER_COMPONENT
 			and int(performance.get("material_resources", -1)) \
 				<= int(performance.get("material_budget", -1)),
-			"%s owns four instance-local materials within its five-material ceiling" % berth_id
+			"%s owns two instance-local materials within its component ceiling" % berth_id
+		)
+		_check(
+			_dictionary_has_exact_string_name_keys(
+				audit.get("material_instance_ids", {}) as Dictionary,
+				EXPECTED_MATERIAL_ROLES
+			),
+			"%s component audit owns exactly dim and active material roles" % berth_id
 		)
 		_check(
 			bool(performance.get("deterministic_manual_clock", false))
@@ -421,14 +488,14 @@ func _validate_component_audits_and_budgets() -> void:
 	_check(
 		aggregate_meshes == EXPECTED_COMPONENT_COUNT * EXPECTED_MESHES_PER_COMPONENT
 		and aggregate_meshes <= aggregate_mesh_budget,
-		"five-component roster owns exactly 80 meshes within aggregate budget"
+		"six-component roster owns exactly 96 meshes within aggregate budget"
 	)
 	_check(
 		aggregate_materials == EXPECTED_COMPONENT_COUNT * EXPECTED_MATERIALS_PER_COMPONENT
 		and aggregate_materials <= aggregate_material_budget,
-		"five-component roster owns exactly 20 isolated materials within aggregate budget"
+		"six-component roster owns exactly 12 isolated materials within aggregate budget"
 	)
-	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "five-component roster owns exactly five diegetic labels")
+	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "six-component roster owns exactly six diegetic labels")
 	for key: String in prohibited_totals:
 		_check(int(prohibited_totals[key]) == 0, "aggregate feedback roster owns zero %s" % key)
 	print(
@@ -449,7 +516,9 @@ func _capture_berth_state_sequence(berth_id: StringName) -> void:
 	var ship := _ships_by_berth.get(berth_id) as HeroShip
 	var berth := _world.get_berth_node(berth_id)
 	var feedback := _feedback_by_berth.get(berth_id) as ShipBerthFeedback
-	if ship == null or berth == null or feedback == null:
+	var definition := _definitions_by_berth.get(berth_id) as ShipDefinition
+	var initial_token := StringName(_initial_tokens_by_berth.get(berth_id, &""))
+	if ship == null or berth == null or feedback == null or definition == null:
 		_fail("%s cannot run its state sequence because production dependencies are missing" % berth_id)
 		return
 
@@ -457,20 +526,28 @@ func _capture_berth_state_sequence(berth_id: StringName) -> void:
 	_frame_berth(berth_id, berth, anchors)
 	_validate_frame_anchors(berth_id, anchors)
 
-	# Boot begins occupied. GameFlow owns the opaque token map, so every mutation
-	# runs through its existing coordinator and therefore through ShipBerth's real
-	# release/try_reserve/occupy contract.
-	_game.call("_release_ship_berth", ship)
+	# Boot begins occupied. Drive only the authoritative berth's public API while
+	# preserving the exact production craft and definition identity.
+	var released := berth.release(ship, initial_token)
+	_check(released, "%s releases its exact initial public lease token" % berth_id)
+	_active_tokens_by_berth.erase(berth_id)
 	await process_frame
 	await _capture_state(berth_id, &"released", berth, feedback, ship, anchors)
 
-	var reserved := bool(_game.call("_reserve_berth_for_ship", ship, berth_id, false))
-	_check(reserved, "%s acquires a real pending reservation through GameFlow" % berth_id)
+	var reserved_token := berth.try_reserve(ship, definition)
+	_check(
+		not reserved_token.is_empty()
+		and reserved_token != initial_token
+		and berth.get_reservation_token(ship) == reserved_token
+		and berth.has_valid_lease(ship, reserved_token, definition.ship_id),
+		"%s acquires a fresh exact public reservation token for its production definition" % berth_id
+	)
+	_active_tokens_by_berth[berth_id] = reserved_token
 	await process_frame
 	await _capture_state(berth_id, &"approach", berth, feedback, ship, anchors)
 
-	var occupied := bool(_game.call("_occupy_reserved_berth", ship))
-	_check(occupied, "%s converts the exact pending lease to real occupancy" % berth_id)
+	var occupied := berth.occupy(ship, reserved_token)
+	_check(occupied, "%s occupies through the same exact public reservation token" % berth_id)
 	await process_frame
 	await _capture_state(berth_id, &"occupied", berth, feedback, ship, anchors)
 
@@ -509,6 +586,8 @@ func _validate_lease_and_feedback_state(
 	var occupant := berth.get_occupant()
 	var reserved_ship_id := berth.get_reserved_ship_id()
 	var token := berth.get_reservation_token(ship)
+	var expected_token := StringName(_active_tokens_by_berth.get(berth_id, &""))
+	var definition := _definitions_by_berth.get(berth_id) as ShipDefinition
 	var snapshot := feedback.get_state_snapshot()
 	var berth_audit := berth.get_audit_report()
 	var feedback_audit := feedback.get_audit_report()
@@ -520,7 +599,8 @@ func _validate_lease_and_feedback_state(
 
 	if expected_state == &"released":
 		_check(
-			owner == null and occupant == null and reserved_ship_id.is_empty() and token.is_empty(),
+			owner == null and occupant == null and reserved_ship_id.is_empty()
+			and token.is_empty() and expected_token.is_empty(),
 			"%s RELEASED has no owner, occupant, ship identity, or token" % berth_id
 		)
 		_check(
@@ -530,12 +610,14 @@ func _validate_lease_and_feedback_state(
 		)
 	elif expected_state == &"approach":
 		_check(
-			owner == ship and occupant == null and reserved_ship_id == ship.get_ship_id(),
+			owner == ship and occupant == null and reserved_ship_id == ship.get_ship_id()
+			and definition != null and definition.ship_id == ship.get_ship_id(),
 			"%s APPROACH is a real reserved-only lease" % berth_id
 		)
 		_check(
-			not token.is_empty() and berth.has_valid_lease(ship, token, ship.get_ship_id()),
-			"%s APPROACH retains its valid opaque production token" % berth_id
+			not expected_token.is_empty() and token == expected_token
+			and berth.has_valid_lease(ship, expected_token, ship.get_ship_id()),
+			"%s APPROACH retains its exact opaque production token" % berth_id
 		)
 		_check(
 			int(snapshot.get("reservation_owner_instance_id", 0)) == ship.get_instance_id()
@@ -544,12 +626,14 @@ func _validate_lease_and_feedback_state(
 		)
 	else:
 		_check(
-			owner == ship and occupant == ship and reserved_ship_id == ship.get_ship_id(),
+			owner == ship and occupant == ship and reserved_ship_id == ship.get_ship_id()
+			and definition != null and definition.ship_id == ship.get_ship_id(),
 			"%s OCCUPIED is owned and occupied by its production craft" % berth_id
 		)
 		_check(
-			not token.is_empty() and berth.has_valid_lease(ship, token, ship.get_ship_id()),
-			"%s OCCUPIED retains the same valid opaque lease authority" % berth_id
+			not expected_token.is_empty() and token == expected_token
+			and berth.has_valid_lease(ship, expected_token, ship.get_ship_id()),
+			"%s OCCUPIED retains the same exact opaque lease authority" % berth_id
 		)
 		_check(
 			int(snapshot.get("reservation_owner_instance_id", 0)) == ship.get_instance_id()
@@ -600,10 +684,15 @@ func _validate_other_berths_remain_occupied(active_berth_id: StringName) -> void
 		var ship := _ships_by_berth.get(berth_id) as HeroShip
 		var berth := _world.get_berth_node(berth_id)
 		var feedback := _feedback_by_berth.get(berth_id) as ShipBerthFeedback
+		var definition := _definitions_by_berth.get(berth_id) as ShipDefinition
+		var token := StringName(_active_tokens_by_berth.get(berth_id, &""))
 		_check(
 			berth != null and ship != null and feedback != null
 			and berth.get_reservation_owner() == ship
 			and berth.get_occupant() == ship
+			and definition != null and definition == ship.get_ship_definition()
+			and berth.get_reservation_token(ship) == token
+			and berth.has_valid_lease(ship, token, definition.ship_id)
 			and feedback.get_feedback_state() == &"occupied",
 			"controlled %s transition leaves %s authentically occupied" % [active_berth_id, berth_id]
 		)
@@ -794,9 +883,9 @@ func _sample_luminance_statistics(image: Image) -> Dictionary:
 
 func _validate_capture_set() -> void:
 	var expected_file_count := BERTH_ORDER.size() * STATE_ORDER.size()
-	_check(_capture_order.size() == expected_file_count, "exactly fifteen berth-state frames were captured")
-	_check(_captured_images.size() == expected_file_count, "all fifteen captured images have distinct filenames")
-	_check(_capture_contracts.size() == expected_file_count, "all fifteen frames retain semantic berth/state contracts")
+	_check(_capture_order.size() == expected_file_count, "exactly eighteen berth-state frames were captured")
+	_check(_captured_images.size() == expected_file_count, "all eighteen captured images have distinct filenames")
+	_check(_capture_contracts.size() == expected_file_count, "all eighteen frames retain semantic berth/state contracts")
 	for berth_id in BERTH_ORDER:
 		for state in STATE_ORDER:
 			var file_name := str((CAPTURE_FILES[berth_id] as Dictionary)[state])
@@ -866,18 +955,23 @@ func _validate_all_berths_restored() -> void:
 		var ship := _ships_by_berth.get(berth_id) as HeroShip
 		var berth := _world.get_berth_node(berth_id)
 		var feedback := _feedback_by_berth.get(berth_id) as ShipBerthFeedback
+		var definition := _definitions_by_berth.get(berth_id) as ShipDefinition
+		var token := StringName(_active_tokens_by_berth.get(berth_id, &""))
 		_check(
 			berth != null and ship != null and feedback != null
 			and berth.get_reservation_owner() == ship
 			and berth.get_occupant() == ship
+			and definition != null and definition == ship.get_ship_definition()
+			and berth.get_reservation_token(ship) == token
+			and berth.has_valid_lease(ship, token, definition.ship_id)
 			and feedback.get_feedback_state() == &"occupied",
-			"%s is restored to its production occupied lease" % berth_id
+			"%s is restored with its exact production ship, definition, and occupied token" % berth_id
 		)
 		if ship != null:
 			_validate_ship_was_not_staged(berth_id, ship)
 	_check(
 		_report_is_valid(_world.get_ship_berth_feedback_audit_report()),
-		"final five-component production feedback audit is valid"
+		"final six-component production feedback audit is valid"
 	)
 
 
@@ -913,11 +1007,23 @@ func _node_sets_match(first: Array, second: Array) -> bool:
 	return true
 
 
-func _string_name_arrays_match(first: Array[StringName], second: Array[StringName]) -> bool:
+func _string_name_arrays_match(first: Array, second: Array[StringName]) -> bool:
 	if first.size() != second.size():
 		return false
 	for value in first:
 		if not second.has(value):
+			return false
+	return true
+
+
+func _dictionary_has_exact_string_name_keys(
+	dictionary: Dictionary,
+	expected: Array[StringName]
+	) -> bool:
+	if dictionary.size() != expected.size():
+		return false
+	for key in expected:
+		if not dictionary.has(key):
 			return false
 	return true
 

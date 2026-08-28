@@ -63,7 +63,7 @@ func _initialize() -> void:
 	await physics_frame
 	await process_frame
 	var player := game.get_node_or_null(^"Player") as PlayerController
-	_check(player != null and game.get_flyable_ships().size() == 8, "GameFlow exposes baseline and all three nested craft")
+	_check(player != null and game.get_flyable_ships().size() == 9, "GameFlow exposes six direct ships and all three nested craft")
 	if player == null:
 		_finish(game)
 		return
@@ -74,7 +74,18 @@ func _initialize() -> void:
 		if craft == null:
 			continue
 		var boarded := await _approach_and_board(game, player, craft)
-		_check(boarded, "%s boards through the real walked-up GameFlow path" % craft_id)
+		_check(
+			boarded,
+			"%s boards through the real walked-up GameFlow path (candidate=%s craft=%s boarding=%s player=%s phase=%s)"
+				% [
+					craft_id,
+					game.boarding_candidate.get_ship_id() if game.boarding_candidate != null else &"none",
+					craft.global_position,
+					craft.get_boarding_position(),
+					player.global_position,
+					game.phase,
+				]
+		)
 		_check(game.get_active_ship() == craft and craft.is_piloted(), "%s becomes the active piloted craft" % craft_id)
 		if craft_id == &"cinder-long-range-bomber" and boarded:
 			await physics_frame
@@ -135,9 +146,13 @@ func _fleet_craft_audio(snapshot: Dictionary, craft_id: StringName) -> Dictionar
 
 func _approach_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) -> bool:
 	var start := craft.get_boarding_position() + craft.global_basis * Vector3(0.0, 0.0, 5.0)
+	# Expansion craft sit four metres above their service deck. Begin at player
+	# deck height, not at the elevated cockpit marker, then walk into the real
+	# boarding sphere through GameFlow's ordinary interaction discovery.
+	start.y = craft.get_boarding_position().y - 3.0
 	var direction := (craft.get_boarding_position() - start).slide(Vector3.UP).normalized()
 	player.teleport_to(Transform3D(Basis.looking_at(direction, Vector3.UP).orthonormalized(), start))
-	for _settle in 8:
+	for _settle in 2:
 		await physics_frame
 		await process_frame
 	if game.boarding_candidate == craft:
