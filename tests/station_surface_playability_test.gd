@@ -212,15 +212,66 @@ func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
 			for candidate in body.find_children("*", "CollisionShape3D", false, false):
 				collision = candidate as CollisionShape3D
 				break
-		if mesh_instance == null or mesh_instance.mesh == null or collision == null or collision.shape == null or collision.disabled:
+		if mesh_instance == null or mesh_instance.mesh == null:
+			if _has_exact_batched_surface_visual(owner, body):
+				continue
+			print("SURFACE_ROSTER_INVALID_CHILDREN: ", owner.name, "/", raw_path)
+			valid = false
+			continue
+		if collision == null or collision.shape == null or collision.disabled:
 			print("SURFACE_ROSTER_INVALID_CHILDREN: ", owner.name, "/", raw_path)
 			valid = false
 			continue
 		var box := collision.shape as BoxShape3D
-		if box != null and mesh_instance.mesh.get_aabb().size.distance_to(box.size) > 0.035:
-			print("SURFACE_ROSTER_SIZE_DRIFT: ", owner.name, "/", raw_path, " mesh=", mesh_instance.mesh.get_aabb().size, " collision=", box.size)
+		var rendered_size := mesh_instance.mesh.get_aabb().size * mesh_instance.scale.abs()
+		if box != null and rendered_size.distance_to(box.size) > 0.035:
+			print("SURFACE_ROSTER_SIZE_DRIFT: ", owner.name, "/", raw_path, " mesh=", rendered_size, " collision=", box.size)
 			valid = false
 	return valid
+
+
+func _has_exact_batched_surface_visual(owner: Node3D, body: StaticBody3D) -> bool:
+	if owner is ObservationLogisticsSpur:
+		var anchor := body.get_node_or_null(^"Mesh") as Marker3D
+		var batch := owner.get_node_or_null(
+			^"Structure/Walkable/WalkableDeckRenderBatch"
+		) as MultiMeshInstance3D
+		var collision := body.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		var transforms := batch.get_meta("authored_instance_transforms", []) as Array if batch != null else []
+		var expected := Transform3D(
+			Basis.from_scale(shape.size), body.position
+		) if shape != null else Transform3D.IDENTITY
+		return anchor != null \
+			and bool(anchor.get_meta("visual_detail_only", false)) \
+			and bool(anchor.get_meta("batched_visual_anchor", false)) \
+			and batch != null and batch.multimesh != null \
+			and transforms.has(expected)
+	if owner is FabricationAnnex:
+		var surface_id := StringName(body.get_meta(&"walkable_surface_id", &""))
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		if shape == null:
+			return false
+		var floor_batch := owner.get_node_or_null(^"GeneratedAnnex/FloorSlabRenderBatch") as MeshInstance3D
+		for part_variant in floor_batch.get_meta(&"fabrication_floor_render_parts", []) as Array if floor_batch != null else []:
+			var part := part_variant as Dictionary
+			if StringName(part.get("id", &"")) == surface_id \
+					and (part.get("size", Vector3.ZERO) as Vector3).is_equal_approx(shape.size) \
+					and (part.get("transform", Transform3D.IDENTITY) as Transform3D).origin.is_equal_approx(body.position):
+				return true
+		for raw_batch in owner.find_children("*", "MultiMeshInstance3D", true, false):
+			var batch := raw_batch as MultiMeshInstance3D
+			if not batch.has_meta(&"fabrication_annex_batch_key") \
+					or batch.multimesh == null or batch.multimesh.mesh == null \
+					or not batch.multimesh.mesh.get_aabb().size.is_equal_approx(shape.size):
+				continue
+			for transform_variant in _authored_batch_transforms(batch):
+				var transform := transform_variant as Transform3D
+				if transform.origin.is_equal_approx(body.position) \
+						and transform.basis.is_equal_approx(Basis.IDENTITY):
+					return true
+	return false
 
 
 func _test_fabrication_annex_siting(world: ShipyardWorld) -> void:
@@ -1514,7 +1565,7 @@ func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -
 		var visible_count := multi.visible_instance_count
 		if visible_count < 0:
 			visible_count = multi.instance_count
-		var authored_transforms := batch.get_meta("authored_instance_transforms", []) as Array
+		var authored_transforms := _authored_batch_transforms(batch)
 		for instance_index in visible_count:
 			# MultiMesh buffers read back as identity under headless. Habitat batches
 			# publish the same authored transform roster used to fill that buffer; use
@@ -1579,6 +1630,23 @@ func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -
 		orphan_names.is_empty(),
 		"every standable World collision surface in the station has visible geometry drawn at it"
 	)
+
+
+func _authored_batch_transforms(batch: MultiMeshInstance3D) -> Array:
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	if not authored.is_empty():
+		return authored
+	if not batch.has_meta(&"fabrication_annex_batch_key"):
+		return []
+	var owner: Node = batch.get_parent()
+	while owner != null and not owner is FabricationAnnex:
+		owner = owner.get_parent()
+	if not owner is FabricationAnnex:
+		return []
+	var render: Dictionary = (owner as FabricationAnnex).get_render_submission_contract()
+	return (render.authored_batch_transforms as Dictionary).get(
+		String(batch.get_meta(&"fabrication_annex_batch_key", "")), []
+	) as Array
 
 
 ## RUNWAY-SEAM-001. The 2026-08-16 report: "the runway here is PERFECT but it's
