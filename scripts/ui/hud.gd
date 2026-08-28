@@ -217,6 +217,19 @@ const MIN_UI_SCALE := 0.75
 const MAX_UI_SCALE := 1.6
 const GAMEPAD_CAPTURE_THRESHOLD := 0.75
 const MAX_PLANETARY_CRUISE_TOGGLE_SERIAL := 9_007_199_254_740_991
+const MAX_ACTIVITY_REWARD_RECEIPTS := 9_007_199_254_740_991
+const ACTIVITY_REWARD_SUMMARY_KEYS := [
+	"available",
+	"total_receipts",
+	"last_receipt_id",
+	"last_reward_label",
+]
+const ACTIVITY_REWARD_LABELS := [
+	"Race record accepted",
+	"Patrol log accepted",
+	"Emberline escort credit logged",
+	"Fabrication kits returned",
+]
 const MAX_SESSION_RECOVERY_TOKEN := 9_007_199_254_740_991
 const MAX_SESSION_RECOVERY_PHYSICS_SECONDS := 2_592_000.0
 const MAX_SESSION_RECOVERY_UNCLEAN_STARTS := 3
@@ -346,6 +359,15 @@ var _server_browser_sort_summary: Label
 var _server_browser_accept_results := true
 var _activity_selection_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
+var _activity_reward_panel: PanelContainer
+var _activity_reward_summary_label: Label
+var _activity_reward_latest_label: Label
+var _activity_reward_summary := {
+	"available": false,
+	"total_receipts": 0,
+	"last_receipt_id": 0,
+	"last_reward_label": "",
+}
 var _activity_selection_kind: StringName = &"timed_race"
 var _activity_selection_locked := false
 var _activity_selection_status_reason: StringName = &""
@@ -4925,6 +4947,35 @@ func _build_activity_selection_page() -> void:
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(subtitle)
+	_activity_reward_panel = PanelContainer.new()
+	_activity_reward_panel.name = "ActivityRewardSummary"
+	_activity_reward_panel.add_theme_stylebox_override(
+		"panel",
+		_border_box(Color("102332"), 5, NOMINAL)
+	)
+	stack.add_child(_activity_reward_panel)
+	var reward_margin := _margin(12, 7, 12, 7)
+	_activity_reward_panel.add_child(reward_margin)
+	var reward_stack := VBoxContainer.new()
+	reward_stack.add_theme_constant_override("separation", 2)
+	reward_margin.add_child(reward_stack)
+	_activity_reward_summary_label = _label(
+		"SHIPYARD RECEIPTS  //  OFFLINE",
+		11,
+		NOMINAL_SOFT
+	)
+	_activity_reward_summary_label.name = "ActivityRewardSummaryLabel"
+	_activity_reward_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_stack.add_child(_activity_reward_summary_label)
+	_activity_reward_latest_label = _label(
+		"PERSISTENT RETURN RECORDS ARE UNAVAILABLE",
+		10,
+		MUTED
+	)
+	_activity_reward_latest_label.name = "ActivityRewardLatestLabel"
+	_activity_reward_latest_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_activity_reward_latest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reward_stack.add_child(_activity_reward_latest_label)
 	_add_activity_selection_row(
 		stack,
 		&"timed_race",
@@ -7037,6 +7088,89 @@ func open_activity_board() -> bool:
 	return _pause.visible and _activity_selection_page.visible
 
 
+## Accepts a detached, bounded receipt summary only. The HUD can display the
+## persisted return record, but it cannot inspect the store, grant a reward, or
+## infer currency or inventory from the receipt label.
+func set_activity_reward_summary(summary: Dictionary) -> bool:
+	if not _has_exact_string_keys(summary, ACTIVITY_REWARD_SUMMARY_KEYS):
+		return false
+	var available_value: Variant = summary.get("available")
+	var total_value: Variant = summary.get("total_receipts")
+	var receipt_value: Variant = summary.get("last_receipt_id")
+	var label_value: Variant = summary.get("last_reward_label")
+	if (
+		available_value is not bool
+		or total_value is not int
+		or receipt_value is not int
+		or label_value is not String
+	):
+		return false
+	var available := bool(available_value)
+	var total_receipts := int(total_value)
+	var last_receipt_id := int(receipt_value)
+	var last_reward_label := str(label_value)
+	if (
+		total_receipts < 0
+		or total_receipts > MAX_ACTIVITY_REWARD_RECEIPTS
+		or last_receipt_id < 0
+		or last_receipt_id > MAX_ACTIVITY_REWARD_RECEIPTS
+		or (
+			not available
+			and (
+				total_receipts != 0
+				or last_receipt_id != 0
+				or not last_reward_label.is_empty()
+			)
+		)
+		or (
+			available
+			and total_receipts == 0
+			and (
+				last_receipt_id != 0
+				or not last_reward_label.is_empty()
+			)
+		)
+		or (
+			available
+			and total_receipts > 0
+			and (
+				last_receipt_id != total_receipts
+				or last_reward_label not in ACTIVITY_REWARD_LABELS
+			)
+		)
+	):
+		return false
+	_activity_reward_summary = summary.duplicate(true)
+	_refresh_activity_reward_summary()
+	return true
+
+
+func _refresh_activity_reward_summary() -> void:
+	if (
+		not is_instance_valid(_activity_reward_summary_label)
+		or not is_instance_valid(_activity_reward_latest_label)
+	):
+		return
+	if not bool(_activity_reward_summary.get("available", false)):
+		_activity_reward_summary_label.text = "SHIPYARD RECEIPTS  //  OFFLINE"
+		_activity_reward_latest_label.text = (
+			"PERSISTENT RETURN RECORDS ARE UNAVAILABLE"
+		)
+		return
+	var total_receipts := int(_activity_reward_summary.get("total_receipts", 0))
+	if total_receipts == 0:
+		_activity_reward_summary_label.text = "SHIPYARD RECEIPTS  //  NONE FILED"
+		_activity_reward_latest_label.text = (
+			"COMPLETE A LISTED SORTIE TO FILE A RETURN RECEIPT"
+		)
+		return
+	_activity_reward_summary_label.text = "SHIPYARD RECEIPTS  //  %d FILED" % total_receipts
+	_activity_reward_latest_label.text = "LATEST #%d  //  %s" % [
+		int(_activity_reward_summary.get("last_receipt_id", 0)),
+		str(_activity_reward_summary.get("last_reward_label", "")).to_upper(),
+	]
+
+
 ## Commits presentation only after GameFlow returns its validated result. A
 ## rejected button press therefore cannot make the board lie about selection.
 func set_activity_selection_state(
@@ -7322,6 +7456,32 @@ func get_activity_selection_report() -> Dictionary:
 		"status_rect": (
 			_activity_selection_status_label.get_global_rect()
 			if _activity_selection_status_label != null
+			else Rect2()
+		),
+		"reward_summary": _activity_reward_summary.duplicate(true),
+		"reward_summary_text": (
+			_activity_reward_summary_label.text
+			if is_instance_valid(_activity_reward_summary_label)
+			else ""
+		),
+		"reward_latest_text": (
+			_activity_reward_latest_label.text
+			if is_instance_valid(_activity_reward_latest_label)
+			else ""
+		),
+		"reward_panel_rect": (
+			_activity_reward_panel.get_global_rect()
+			if is_instance_valid(_activity_reward_panel)
+			else Rect2()
+		),
+		"reward_summary_rect": (
+			_activity_reward_summary_label.get_global_rect()
+			if is_instance_valid(_activity_reward_summary_label)
+			else Rect2()
+		),
+		"reward_latest_rect": (
+			_activity_reward_latest_label.get_global_rect()
+			if is_instance_valid(_activity_reward_latest_label)
 			else Rect2()
 		),
 		"back_rect": back.get_global_rect() if back != null else Rect2(),

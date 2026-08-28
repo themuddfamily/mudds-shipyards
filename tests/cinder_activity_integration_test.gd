@@ -46,13 +46,14 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var filesystem := MemoryFilesystem.new()
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates with the timed Cinder session")
 	if game == null:
 		_finish()
 		return
 	game.configure_runtime_settings_persistence(
-		Store.new("memory://cinder-activity-integration.json", MemoryFilesystem.new())
+		Store.new("memory://cinder-activity-integration.json", filesystem)
 	)
 	root.add_child(game)
 	await process_frame
@@ -78,6 +79,7 @@ func _run() -> void:
 	_test_failure_reset_and_generation_recovery(game, director, hud)
 
 	await _clean_up(game)
+	await _test_reward_summary_restore(filesystem)
 	_finish()
 
 
@@ -119,6 +121,17 @@ func _test_scene_and_authority_boundary(
 			and not bool(reward_authority.get("activity_authority", true))
 			and not bool(reward_authority.get("currency_authority", true)),
 		"GameFlow composes one separate persisted return-incentive authority"
+	)
+	var empty_board := hud.get_activity_selection_report()
+	var empty_reward_summary := empty_board.get("reward_summary", {}) as Dictionary
+	_check(
+		bool(empty_reward_summary.get("available", false))
+			and int(empty_reward_summary.get("total_receipts", -1)) == 0
+			and empty_board.get("reward_summary_text", "") \
+				== "SHIPYARD RECEIPTS  //  NONE FILED"
+			and "COMPLETE A LISTED SORTIE" \
+				in str(empty_board.get("reward_latest_text", "")),
+		"the Activity Board exposes the empty persisted receipt record before launch"
 	)
 	var rejected := game.request_activity_start(ROUTE.activity_id)
 	_check(
@@ -324,6 +337,21 @@ func _test_countdown_pause_progress_reentry_and_completion(
 			and not bool(reward_receipt.get("replay_allowed", true)),
 		"the real completed lap persists one granted, non-replayable Shipyard receipt"
 	)
+	var completed_board := hud.get_activity_selection_report()
+	var completed_reward_summary := (
+		completed_board.get("reward_summary", {}) as Dictionary
+	)
+	_check(
+		int(completed_reward_summary.get("total_receipts", 0)) == 1
+			and int(completed_reward_summary.get("last_receipt_id", 0)) == 1
+			and completed_reward_summary.get("last_reward_label", "") \
+				== "Race record accepted"
+			and completed_board.get("reward_summary_text", "") \
+				== "SHIPYARD RECEIPTS  //  1 FILED"
+			and completed_board.get("reward_latest_text", "") \
+				== "LATEST #1  //  RACE RECORD ACCEPTED",
+		"the completed receipt is immediately inspectable on the existing Activity Board"
+	)
 	var store_generation_after_reward := int(
 		(reward_report.get("authority", {}) as Dictionary).get(
 			"store_generation", -1
@@ -335,13 +363,17 @@ func _test_countdown_pause_progress_reentry_and_completion(
 		duplicate_reward_report.get("authority", {}) as Dictionary
 	)
 	var duplicate_record := duplicate_authority.get("record", {}) as Dictionary
+	var duplicate_board_reward := (
+		(hud.get_activity_selection_report().get("reward_summary", {}) as Dictionary)
+	)
 	_check(
 		int(duplicate_record.get("total_receipts", 0)) == 1
 			and int(duplicate_authority.get("store_generation", -2)) \
 				== store_generation_after_reward
 			and (duplicate_reward_report.get("last_result", {}) as Dictionary).get(
 				"reason", &""
-			) == &"reward_already_consumed",
+			) == &"reward_already_consumed"
+			and int(duplicate_board_reward.get("total_receipts", 0)) == 1,
 		"a repeated terminal callback cannot duplicate the reward receipt or store write"
 	)
 	var samples_at_finish := int(
@@ -416,6 +448,32 @@ func _test_failure_reset_and_generation_recovery(
 		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
 		"return failure resets cleanly for later free-flight activation"
 	)
+
+
+func _test_reward_summary_restore(filesystem: MemoryFilesystem) -> void:
+	var restored_game := MAIN_SCENE.instantiate() as GameFlow
+	restored_game.configure_runtime_settings_persistence(
+		Store.new("memory://cinder-activity-integration.json", filesystem)
+	)
+	root.add_child(restored_game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var restored_hud := restored_game.get_node_or_null(^"HUD") as GameHUD
+	var restored_board := (
+		restored_hud.get_activity_selection_report()
+		if restored_hud != null else {}
+	)
+	var restored_summary := restored_board.get("reward_summary", {}) as Dictionary
+	_check(
+		restored_hud != null
+			and int(restored_summary.get("total_receipts", 0)) == 1
+			and int(restored_summary.get("last_receipt_id", 0)) == 1
+			and restored_board.get("reward_latest_text", "") \
+				== "LATEST #1  //  RACE RECORD ACCEPTED",
+		"a fresh Main startup restores the saved receipt onto the Activity Board"
+	)
+	await _clean_up(restored_game)
 
 
 func _clean_up(game: GameFlow) -> void:

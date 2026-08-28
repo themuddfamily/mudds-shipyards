@@ -1963,6 +1963,7 @@ func _start_up() -> void:
 	_sync_optional_semantic_audio()
 	_apply_torus_geometry_budget()
 	_sync_activity_hud()
+	_sync_activity_reward_hud()
 	_sync_planetary_cruise_hud()
 	_publish_runtime_settings_repair_to_hud()
 	_initialized = true
@@ -10555,6 +10556,7 @@ func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:
 			_runtime_settings_user_data_store.get_generation()
 		)
 		_sync_production_runtime_settings_state()
+		_sync_activity_reward_hud()
 	return result.duplicate(true)
 
 
@@ -10618,6 +10620,45 @@ func get_activity_reward_report() -> Dictionary:
 		"currency_authority": false,
 		"inventory_authority": false,
 	}.duplicate(true)
+
+
+## Publishes only the bounded aggregate and latest human-readable receipt to the
+## existing Activity Board. Store access and reward authority remain in the
+## production authority above; the HUD receives no callback or mutable record.
+func _sync_activity_reward_hud() -> void:
+	if (
+		not is_instance_valid(hud)
+		or not hud.has_method(&"set_activity_reward_summary")
+	):
+		return
+	var summary := {
+		"available": false,
+		"total_receipts": 0,
+		"last_receipt_id": 0,
+		"last_reward_label": "",
+	}
+	if _game_flow_reward_authority != null:
+		var authority_snapshot := (
+			_game_flow_reward_authority.call(&"get_snapshot") as Dictionary
+		)
+		var record := authority_snapshot.get("record", {}) as Dictionary
+		var total_receipts := int(record.get("total_receipts", -1))
+		var last_receipt := record.get("last_receipt", {}) as Dictionary
+		if total_receipts == 0 and last_receipt.is_empty():
+			summary = {
+				"available": true,
+				"total_receipts": 0,
+				"last_receipt_id": 0,
+				"last_reward_label": "",
+			}
+		elif total_receipts > 0:
+			summary = {
+				"available": true,
+				"total_receipts": total_receipts,
+				"last_receipt_id": int(last_receipt.get("receipt_id", 0)),
+				"last_reward_label": str(last_receipt.get("reward_label", "")),
+			}
+	hud.call(&"set_activity_reward_summary", summary.duplicate(true))
 
 
 func _on_cinder_session_presentation_changed(snapshot: Dictionary) -> void:

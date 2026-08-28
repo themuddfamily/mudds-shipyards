@@ -52,6 +52,12 @@ func _run() -> void:
 		"item_display_name": "Fabrication kits",
 	})
 	hud.set_activity_selection_state(&"cargo_delivery", false, &"selected")
+	hud.set_activity_reward_summary({
+		"available": true,
+		"total_receipts": 3,
+		"last_receipt_id": 3,
+		"last_reward_label": "Fabrication kits returned",
+	})
 	hud.set_paused(true)
 	var pause_overlay := hud.get("_pause") as Control
 	var board_open := pause_overlay.find_child(
@@ -72,6 +78,7 @@ func _run() -> void:
 			activity_kind, Rect2()
 		) as Rect2
 		regions.append(row)
+	regions.append(report.get("reward_panel_rect", Rect2()) as Rect2)
 	regions.append(report.get("status_rect", Rect2()) as Rect2)
 	regions.append(report.get("back_rect", Rect2()) as Rect2)
 	var geometry_valid := frame_rect.encloses(page)
@@ -84,13 +91,17 @@ func _run() -> void:
 				and not regions[index].intersects(regions[other_index])
 			)
 	var buttons := report.get("buttons", {}) as Dictionary
-	var copy_valid := (
+	var copy_valid: bool = (
 		str((buttons.get(&"timed_race", {}) as Dictionary).get("text", ""))
 		== "TIMED CINDER RACE"
 		and str((buttons.get(&"patrol", {}) as Dictionary).get("text", ""))
 		== "CINDER PATROL"
 		and str((buttons.get(&"cargo_delivery", {}) as Dictionary).get("text", ""))
 		== "SELECTED  //  JOVIAN KIT DELIVERY"
+		and str(report.get("reward_summary_text", "")) \
+			== "SHIPYARD RECEIPTS  //  3 FILED"
+		and str(report.get("reward_latest_text", "")) \
+			== "LATEST #3  //  FABRICATION KITS RETURNED"
 		and "READY" in str(report.get("status", ""))
 		and hud.get_viewport().gui_get_focus_owner()
 		== pause_overlay.find_child("CargoDeliveryActivityButton", true, false)

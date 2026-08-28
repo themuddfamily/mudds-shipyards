@@ -566,6 +566,15 @@ func _test_planetary_cruise_pause_layout() -> void:
 ## The Activity Board is a player-facing pause page, so its safe enclosure and
 ## focus geometry are frozen across the same viewport/scale endpoints as HUD.
 func _test_activity_board_layout() -> void:
+	_check(
+		_hud.set_activity_reward_summary({
+			"available": true,
+			"total_receipts": GameHUD.MAX_ACTIVITY_REWARD_RECEIPTS,
+			"last_receipt_id": GameHUD.MAX_ACTIVITY_REWARD_RECEIPTS,
+			"last_reward_label": "Emberline escort credit logged",
+		}),
+		"Activity Board accepts the longest valid persisted receipt summary"
+	)
 	_hud.set_paused(true)
 	var pause_overlay := _hud.get("_pause") as Control
 	var board_open := pause_overlay.find_child(
@@ -599,6 +608,20 @@ func _test_activity_board_layout() -> void:
 			var buttons := report.get("buttons", {}) as Dictionary
 			var row_rects := report.get("row_rects", {}) as Dictionary
 			var vertical_regions: Array[Rect2] = []
+			var reward_panel_rect := report.get("reward_panel_rect", Rect2()) as Rect2
+			var reward_summary_rect := report.get("reward_summary_rect", Rect2()) as Rect2
+			var reward_latest_rect := report.get("reward_latest_rect", Rect2()) as Rect2
+			vertical_regions.append(reward_panel_rect)
+			if (
+				not page.encloses(reward_panel_rect)
+				or not reward_panel_rect.encloses(reward_summary_rect)
+				or not reward_panel_rect.encloses(reward_latest_rect)
+			):
+				dirty.append(
+					"%.0fx%.0f @%.2f receipt summary enclosure" % [
+						viewport.x, viewport.y, scale_request
+					]
+				)
 			for activity_kind: StringName in [
 				&"timed_race", &"patrol", &"cargo_delivery", &"convoy_escort"
 			]:
@@ -660,7 +683,11 @@ func _test_activity_board_layout() -> void:
 			(selected_buttons.get(&"cargo_delivery", {}) as Dictionary).get(
 				"disabled", true
 			)
-		),
+		)
+		and selected.get("reward_summary_text", "") \
+			== "SHIPYARD RECEIPTS  //  9007199254740991 FILED"
+		and selected.get("reward_latest_text", "") \
+			== "LATEST #9007199254740991  //  EMBERLINE ESCORT CREDIT LOGGED",
 		"the open board communicates selection in text and keeps pre-start choices enabled"
 	)
 	_check(
