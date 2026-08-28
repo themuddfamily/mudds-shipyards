@@ -63,6 +63,58 @@ func _run() -> void:
 		"station defense remains live because its physical board is station-owned"
 	)
 
+	# The Activity Board intentionally pauses the world, so close it before
+	# exercising the real caller-sampled production streaming route. No activity
+	# intent or page-open refresh is emitted between the transition and the report:
+	# the coordinator signal itself must update the retained cards.
+	hud.set_paused(false)
+	var cinder_anchor := CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
+	var toward_station := (Vector3.ZERO - cinder_anchor).normalized()
+	game.player.teleport_to(Transform3D(
+		Basis.IDENTITY,
+		cinder_anchor + toward_station * 499.9,
+	))
+	var cinder_loaded := await _wait_for_cinder_residency(game, true)
+	race_row = _row(rows, &"cinder_reach_checkpoint_route")
+	var loaded_report := hud.get_nearby_activity_report()
+	_check(
+		cinder_loaded
+		and bool((loaded_report.get("snapshot", {}) as Dictionary).get(
+			"binding_available", false
+		))
+		and not nearby_page.is_visible_in_tree()
+		and race_row != null
+		and "OUT OF RANGE" not in (race_row.get_child(0) as Label).text
+		and not (race_row.get_child(1) as Button).disabled
+		and not (race_row.get_child(2) as Button).disabled
+		and not (race_row.get_child(3) as Button).disabled,
+		"crossing Cinder's real load radius refreshes the retained directory immediately"
+	)
+
+	game.player.teleport_to(game.world.get_player_spawn())
+	var cinder_unloaded := await _wait_for_cinder_residency(game, false)
+	race_row = _row(rows, &"cinder_reach_checkpoint_route")
+	var unloaded_report := hud.get_nearby_activity_report()
+	_check(
+		cinder_unloaded
+		and not bool((unloaded_report.get("snapshot", {}) as Dictionary).get(
+			"binding_available", true
+		))
+		and not nearby_page.is_visible_in_tree()
+		and race_row != null
+		and "OUT OF RANGE" in (race_row.get_child(0) as Label).text
+		and (race_row.get_child(1) as Button).disabled
+		and (race_row.get_child(2) as Button).disabled
+		and (race_row.get_child(3) as Button).disabled,
+		"crossing Cinder's real unload radius restores disabled retained cards"
+	)
+	_check(hud.open_activity_board(), "the refreshed Activity Board reopens after return")
+	open_button.emit_signal("pressed")
+	_check(
+		nearby_page.visible and not activity_page.visible,
+		"the reopened directory presents the already-refreshed unloaded state"
+	)
+
 	var defense_before: Dictionary = (
 		game.world.get_station_defense_content().get_snapshot()
 	)
@@ -136,6 +188,20 @@ func _row(rows: VBoxContainer, activity_id: StringName) -> Control:
 		if StringName(candidate.get_meta(&"activity_id", &"")) == activity_id:
 			return candidate as Control
 	return null
+
+
+func _wait_for_cinder_residency(game: GameFlow, expected_loaded: bool) -> bool:
+	# Unload intentionally includes the production half-second presentation fade,
+	# so use a frame budget rather than a wall-clock sleep.
+	for _frame in 240:
+		await physics_frame
+		await process_frame
+		var cluster_available := is_instance_valid(
+			game.world.get_nearby_sector_cluster()
+		)
+		if cluster_available == expected_loaded:
+			return true
+	return false
 
 
 func _check(condition: bool, message: String) -> void:

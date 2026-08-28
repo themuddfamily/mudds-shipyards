@@ -10797,6 +10797,12 @@ func _on_cinder_location_loaded(
 	) -> void:
 	if location_id != CinderStreamingBootstrap.LOCATION_ID:
 		return
+	# The coordinator has committed and parented this generation before it emits
+	# `location_loaded`, so the world's nullable accessor can now discover the
+	# real ActivityBinding. Refresh the retained directory from that authority in
+	# the same transition instead of leaving its station-side OUT OF RANGE cards
+	# stale until some unrelated activity event happens.
+	_sync_nearby_activity_hud()
 	if is_instance_valid(cinder_convoy_host):
 		cinder_convoy_host.visible = is_instance_valid(instance)
 	if _cinder_convoy_runtime_rebind_pending:
@@ -10814,7 +10820,10 @@ func _on_cinder_location_load_failed(
 	_generation: int,
 	_reason: StringName
 	) -> void:
-	if location_id == CinderStreamingBootstrap.LOCATION_ID and is_instance_valid(cinder_convoy_host):
+	if location_id != CinderStreamingBootstrap.LOCATION_ID:
+		return
+	_sync_nearby_activity_hud()
+	if is_instance_valid(cinder_convoy_host):
 		cinder_convoy_host.visible = false
 
 
@@ -10824,6 +10833,10 @@ func _on_cinder_location_unloaded(
 	) -> void:
 	if location_id != CinderStreamingBootstrap.LOCATION_ID:
 		return
+	# Coordinator ownership is already retired before this signal. Re-reading the
+	# world accessor therefore clears the streamed binding, detaches its optional
+	# audio, and immediately restores honest disabled directory cards.
+	_sync_nearby_activity_hud()
 	if _convoy_is_running() and not _cinder_convoy_runtime_rebind_pending:
 		_fail_active_activity(&"cinder_stream_unloaded")
 	if is_instance_valid(cinder_convoy_host):
