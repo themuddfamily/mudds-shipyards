@@ -92,6 +92,10 @@ func get_resource_units() -> int:
 	return _resource_units
 
 
+func get_resource_capacity() -> int:
+	return _initial_resource_units
+
+
 func get_cooldown_remaining() -> float:
 	return _cooldown_remaining
 
@@ -117,6 +121,26 @@ func begin_generation(generation: int) -> Dictionary:
 	_cooldown_remaining = 0.0
 	_active.clear()
 	return _result(true, &"generation_started")
+
+
+## Transfers the same live repair inventory to a newly admitted actor without
+## recreating the authority. Crew-seat authority has already validated the
+## handoff; this method keeps the ship-generation resource and cooldown ledger
+## intact while changing the actor fence used by the next request.
+func rebind_actor(actor_id: StringName, generation: int) -> Dictionary:
+	if not is_configuration_valid():
+		return _result(false, &"invalid_configuration")
+	if generation <= 0 or generation != _generation:
+		return _result(false, &"stale_generation")
+	if not _is_stable_id(actor_id):
+		return _result(false, &"invalid_actor")
+	if not _active.is_empty():
+		return _result(false, &"repair_active")
+	if actor_id == _actor_id:
+		return _result(true, &"actor_unchanged")
+	_actor_id = actor_id
+	_observed_component_damage_revision = -1
+	return _result(true, &"actor_rebound")
 
 
 ## Advances only the injected physics delta.  An active repair remains pending
@@ -528,6 +552,7 @@ func get_snapshot() -> Dictionary:
 		"max_range_meters": _max_range_meters,
 		"cooldown_seconds": _cooldown_seconds,
 		"repair_amount": _repair_amount,
+		"resource_capacity": _initial_resource_units,
 		"resource_units": _resource_units,
 		"generation": _generation,
 		"cooldown_remaining": _cooldown_remaining,
@@ -574,6 +599,7 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 		"accepted": accepted,
 		"reason": reason,
 		"generation": _generation,
+		"resource_capacity": _initial_resource_units,
 		"resource_units": _resource_units,
 		"cooldown_remaining": _cooldown_remaining,
 	}

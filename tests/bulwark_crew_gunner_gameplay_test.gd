@@ -464,8 +464,10 @@ func _run() -> void:
 			and int(repair_operation.get("repaired_components", 0)) == 1
 			and selected_gain > adjacent_gain
 			and float(completed_repair.get("cooldown_remaining", 0.0)) > 0.0
-			and craft.get_engineer_status_text().contains("[COOLDOWN"),
-		"completed Bulwark work targets one component and exposes the shared cooldown"
+			and int(completed_repair.get("resource_units", -1)) == 5
+			and int(completed_repair.get("resource_capacity", -1)) == 6
+			and craft.get_engineer_status_text().contains("KITS 5/6"),
+		"completed Bulwark work targets one component and visibly spends one repair kit"
 	)
 	var cooldown_attempt: Dictionary = craft.submit_crew_intent(
 		1,

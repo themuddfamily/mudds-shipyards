@@ -1054,9 +1054,20 @@ hero repair/reset and the physical Jovian/Halyard engineer roles route through
 the existing `ShipComponentDamage` ledger rather than duplicate health. The
 audio-only component binding maps degraded/critical/repaired snapshots into the
 existing six-voice `ShipAudioRig`, including reduced-dynamic-range handling and
-engineer repair cues. World targets, bomber payload resolution, broader repair
-resource/interruption policy, respawn parity, shields, native combat readability,
-and human mix review remain open.
+engineer repair cues. World targets and bomber payloads already enter that same
+component-damage path through their production damageable adapters and the shared
+`CombatResolver`; neither owns a parallel health ledger.
+
+Jovian, Halyard and Bulwark engineer repairs now draw from six ship-owned kits per
+craft lifecycle. A committed repair spends one kit, an interrupted repair spends
+none, and changing or releasing the engineer seat preserves both remaining stock
+and cooldown instead of recreating the authority. Only the existing ship reset-for-reuse
+lifecycle refills the stock. The physical Jovian console, Halyard crew display and
+Bulwark engineer readout expose the live `KITS x/6` count and an explicit depleted
+state. Focused authority, presentation and production-role checks cover spending,
+handoff preservation and lifecycle refill without adding a second repair, health or
+inventory owner. A broader station resupply economy, respawn parity, shields, native
+combat readability, and human mix review remain open.
 
 An admitted seated Jovian engineer repair now shows a steady component-local seven-step
 progress arc and work lamp. The cue clears immediately when work completes or is interrupted,

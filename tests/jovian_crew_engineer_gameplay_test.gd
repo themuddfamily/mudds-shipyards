@@ -35,8 +35,8 @@ func _run() -> void:
 	_check(craft.get_pilot_seat_anchor() != null, "pilot remains immediately available")
 	_check(craft.get_engineer_seat_anchor() != null, "engineer maps to a physical passenger-cabin seat")
 	_check(
-		craft.get_engineer_status_text() == "IDLE // REPAIR READY",
-		"the physical cabin status panel boots with a text-readable idle state"
+		craft.get_engineer_status_text() == "IDLE // REPAIR READY\nKITS // 6/6",
+		"the physical cabin panel boots with a text-readable finite repair stock"
 	)
 	var console_boot: Dictionary = craft.get_engineer_console_presentation_snapshot()
 	_check(
@@ -174,9 +174,11 @@ func _run() -> void:
 			and int(completion_operation.get("repaired_components", 0)) == 1
 			and selected_gain > adjacent_gain
 			and float(completed.get("cooldown_remaining", 0.0)) > 0.0
+			and int(completed.get("resource_units", -1)) == 5
+			and int(completed.get("resource_capacity", -1)) == 6
 			and craft.get_engineer_status_text().contains("COMPLETED //")
-			and craft.get_engineer_status_text().contains("PROGRESS // 100%"),
-		"completion targets one component and exposes the shared physics-time cooldown"
+			and craft.get_engineer_status_text().contains("KITS // 5/6"),
+		"completion targets one component and visibly spends one finite repair kit"
 	)
 	_check(selected[0] == 2 and selected_generation[0] == 1, "repair retry retains the generation-fenced target")
 	model.record_damage(20.0, Vector3.INF)
@@ -223,8 +225,9 @@ func _run() -> void:
 	_check(
 		bool(handoff.get("accepted", false))
 			and cleared[0] == 1
-			and clear_reason[0] == &"role_handoff",
-		"engineer handoff clears the outgoing component selection exactly once"
+			and clear_reason[0] == &"role_handoff"
+			and int(craft.get_engineer_repair_state().get("resource_units", -1)) == 5,
+		"engineer handoff clears selection without refilling the ship's repair kits"
 	)
 	var refreshed_damage := model.record_damage(20.0, Vector3.ZERO)
 	_check(bool(refreshed_damage.get("accepted", false)), "the existing component owner can expose a fresh damaged generation")
@@ -273,9 +276,9 @@ func _run() -> void:
 	var released_console: Dictionary = craft.get_engineer_console_presentation_snapshot()
 	_check(
 		StringName(released_console.get("state", &"")) == &"idle"
-			and int(released_console.get("last_sequence", -2)) == -1
-			and craft.get_engineer_status_text() == "IDLE // REPAIR READY",
-		"role release clears the physical console and its sequence fence"
+			and int(released_console.get("last_sequence", -2)) >= 0
+			and craft.get_engineer_status_text() == "IDLE // REPAIR READY\nKITS // 5/6",
+		"role release clears stale work while preserving the visible remaining stock"
 	)
 
 	var reset := craft.reset_for_reuse(Transform3D(Basis.IDENTITY, Vector3(4.0, 2.0, 6.0)))
@@ -285,8 +288,9 @@ func _run() -> void:
 		(state.get("selection", {}) as Dictionary).is_empty()
 			and int(state.get("component_generation", 0)) == 1
 			and StringName((state.get("repair", {}) as Dictionary).get("status", &"")) == &"idle"
-			and craft.get_engineer_status_text() == "IDLE // REPAIR READY",
-		"reuse resets engineer selection and component generation"
+			and int((state.get("repair", {}) as Dictionary).get("resource_units", -1)) == 6
+			and craft.get_engineer_status_text() == "IDLE // REPAIR READY\nKITS // 6/6",
+		"reuse resets selection and restores the authored repair-kit budget"
 	)
 
 	craft.queue_free()

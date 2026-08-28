@@ -192,8 +192,10 @@ func _run() -> void:
 			and model.get_component_integrity(system_id) > restart_before
 			and int(completion_operation.get("repaired_components", 0)) == 1
 			and float(completed_state.get("cooldown_remaining", 0.0)) > 0.0
-			and craft.get_crew_status_display().get_readout_text().contains("[COOLDOWN"),
-		"completed work repairs the selected component and exposes the physics-time cooldown"
+			and int(completed_state.get("resource_units", -1)) == 5
+			and int(completed_state.get("resource_capacity", -1)) == 6
+			and craft.get_crew_status_display().get_readout_text().contains("KITS 5/6"),
+		"completed work visibly spends one kit from Halyard's finite repair stock"
 	)
 	_check(selected[0] == 2 and selected_generation[0] == 1, "repair retries retain the generation-fenced component target")
 	var selection_result := effect.get("selection", {}) as Dictionary

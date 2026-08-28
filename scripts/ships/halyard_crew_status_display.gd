@@ -107,6 +107,8 @@ func present_engineer_repair_snapshot(envelope: Dictionary) -> Dictionary:
 		"progress": float(decoded.get("progress", 0.0)),
 		"reason": StringName(decoded.get("reason", &"")),
 		"cooldown_remaining": float(decoded.get("cooldown_remaining", 0.0)),
+		"resource_units": int(decoded.get("resource_units", 0)),
+		"resource_capacity": int(decoded.get("resource_capacity", 0)),
 	}.duplicate(true)
 	_repair_view["token"] = _repair_token(_repair_view)
 	if not _display_snapshot.is_empty():
@@ -229,22 +231,36 @@ func _repair_token(repair: Dictionary) -> String:
 	var status := StringName(repair.get("state", repair.get("status", &"idle")))
 	var component := _readable_id(StringName(repair.get("component_id", &"")))
 	var percent := int(round(clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0))
+	var resource_units := int(repair.get("resource_units", 0))
+	var resource_capacity := int(repair.get("resource_capacity", 0))
+	var resource_token := (
+		" // KITS %d/%d" % [resource_units, resource_capacity]
+		if resource_capacity > 0 else ""
+	)
 	if status == &"repairing":
-		return "[WORK // REPAIRING // %s // %d%%]" % [component, percent]
+		return "[WORK // REPAIRING // %s // %d%%%s]" % [
+			component, percent, resource_token
+		]
 	if status == &"aborted" or status == &"interrupted":
-		return "[INTERRUPTED] [%s // %s // %d%%]" % [
+		return "[INTERRUPTED] [%s // %s // %d%%%s]" % [
 			_readable_id(StringName(repair.get("reason", &"interrupted"))),
 			component,
 			percent,
+			resource_token,
 		]
 	if status == &"completed":
 		var completed_cooldown := maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0)
-		return "[COOLDOWN %.1fs // COMPLETED // %s // 100%%]" % [completed_cooldown, component] \
-			if completed_cooldown > 0.0 else "[COMPLETED // %s // 100%%]" % component
+		return "[COOLDOWN %.1fs // COMPLETED // %s // 100%%%s]" % [
+			completed_cooldown, component, resource_token
+		] if completed_cooldown > 0.0 else "[COMPLETED // %s // 100%%%s]" % [
+			component, resource_token
+		]
 	var cooldown := maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0)
 	if cooldown > 0.0:
-		return "[COOLDOWN %.1fs]" % cooldown
-	return "[READY // IDLE // REPAIR READY]"
+		return "[COOLDOWN %.1fs%s]" % [cooldown, resource_token]
+	if resource_capacity > 0 and resource_units <= 0:
+		return "[DEPLETED // KITS 0/%d]" % resource_capacity
+	return "[READY // IDLE // REPAIR READY%s]" % resource_token
 
 
 func _decode_repair_envelope(envelope: Dictionary) -> Dictionary:
@@ -279,6 +295,13 @@ func _decode_repair_envelope(envelope: Dictionary) -> Dictionary:
 			or not is_finite(float(raw_progress)) \
 			or float(raw_progress) < 0.0 or float(raw_progress) > 1.0:
 		return {"accepted": false, "reason": &"invalid_progress"}
+	var raw_resource_units: Variant = repair.get("resource_units", null)
+	var raw_resource_capacity: Variant = repair.get("resource_capacity", null)
+	if not raw_resource_units is int or not raw_resource_capacity is int \
+			or int(raw_resource_capacity) <= 0 \
+			or int(raw_resource_units) < 0 \
+			or int(raw_resource_units) > int(raw_resource_capacity):
+		return {"accepted": false, "reason": &"invalid_repair_resources"}
 	var component_id := StringName(repair.get("component_id", &""))
 	var component_generation := int(repair.get("component_generation", 0))
 	if state != &"idle" and (component_id.is_empty() or component_generation <= 0):
@@ -297,6 +320,8 @@ func _decode_repair_envelope(envelope: Dictionary) -> Dictionary:
 		"progress": float(raw_progress),
 		"reason": StringName(repair.get("reason", &"")),
 		"cooldown_remaining": maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0),
+		"resource_units": int(raw_resource_units),
+		"resource_capacity": int(raw_resource_capacity),
 	}
 
 
@@ -309,6 +334,8 @@ func _clear_repair_view() -> void:
 		"progress": 0.0,
 		"reason": &"",
 		"cooldown_remaining": 0.0,
+		"resource_units": 0,
+		"resource_capacity": 0,
 	}.duplicate(true)
 
 

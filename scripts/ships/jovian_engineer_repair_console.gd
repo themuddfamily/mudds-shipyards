@@ -132,6 +132,13 @@ func _decode(envelope: Dictionary) -> Dictionary:
 			or not is_finite(float(raw_progress)) \
 			or float(raw_progress) < 0.0 or float(raw_progress) > 1.0:
 		return _result(false, &"invalid_progress")
+	var raw_resource_units: Variant = repair.get("resource_units", null)
+	var raw_resource_capacity: Variant = repair.get("resource_capacity", null)
+	if not raw_resource_units is int or not raw_resource_capacity is int \
+			or int(raw_resource_capacity) <= 0 \
+			or int(raw_resource_units) < 0 \
+			or int(raw_resource_units) > int(raw_resource_capacity):
+		return _result(false, &"invalid_repair_resources")
 	var component_id := StringName(repair.get("component_id", &""))
 	var component_generation := int(repair.get("component_generation", 0))
 	if state != &"idle" and (component_id.is_empty() or component_generation <= 0):
@@ -150,6 +157,8 @@ func _decode(envelope: Dictionary) -> Dictionary:
 		"progress": float(raw_progress),
 		"reason": StringName(repair.get("reason", &"")),
 		"cooldown_remaining": maxf(float(repair.get("cooldown_remaining", 0.0)), 0.0),
+		"resource_units": int(raw_resource_units),
+		"resource_capacity": int(raw_resource_capacity),
 	}
 
 
@@ -157,23 +166,32 @@ func _format_text(decoded: Dictionary) -> String:
 	var state := StringName(decoded.get("state", &"idle"))
 	var component := _readable_id(StringName(decoded.get("component_id", &"")))
 	var percent := int(round(clampf(float(decoded.get("progress", 0.0)), 0.0, 1.0) * 100.0))
+	var resource_line := "\nKITS // %d/%d" % [
+		int(decoded.get("resource_units", 0)),
+		int(decoded.get("resource_capacity", 0)),
+	]
 	match state:
 		&"repairing":
-			return "REPAIRING // %s\nPROGRESS // %d%%" % [component, percent]
+			return "REPAIRING // %s\nPROGRESS // %d%%%s" % [component, percent, resource_line]
 		&"completed":
 			var cooldown := float(decoded.get("cooldown_remaining", 0.0))
-			return "COMPLETED // %s\nPROGRESS // 100%%%s" % [
+			return "COMPLETED // %s\nPROGRESS // 100%%%s%s" % [
 				component,
 				" // %.1fs" % cooldown if cooldown > 0.0 else "",
+				resource_line,
 			]
 		&"aborted":
-			return "ABORTED // %s\n%s // %d%%" % [
+			return "ABORTED // %s\n%s // %d%%%s" % [
 				_readable_id(StringName(decoded.get("reason", &"interrupted"))),
 				component,
 				percent,
+				resource_line,
 			]
 		_:
-			return "IDLE // REPAIR READY"
+			return (
+				"IDLE // REPAIR READY%s" if int(decoded.get("resource_units", 0)) > 0
+				else "IDLE // KITS DEPLETED%s"
+			) % resource_line
 
 
 func _readable_id(value: StringName) -> String:

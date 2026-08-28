@@ -106,6 +106,51 @@ func _run() -> void:
 		"interruption clears the token without consuming resource or allowing replay"
 	)
 
+	# A crew handoff changes only the actor fence. The same ship-generation stock
+	# and cooldown stay authoritative, so releasing/reclaiming a seat cannot refill
+	# finite repair kits.
+	var handoff_authority = Authority.new(
+		&"pilot_one", &"torrent_hull", &"repair_kit", 4.0, 1.0, 5.0, 2
+	)
+	handoff_authority.begin_generation(1)
+	var handoff_commit := handoff_authority.commit_repair(
+		model,
+		int(handoff_authority.request_repair(base).get("token", -1))
+	)
+	_check(
+		bool(handoff_commit.get("accepted", false))
+			and handoff_authority.get_resource_units() == 1
+			and handoff_authority.get_resource_capacity() == 2,
+		"the fixture spends one unit from a finite two-kit ship inventory"
+	)
+	var rebound := handoff_authority.rebind_actor(&"pilot_two", 1)
+	_check(
+		bool(rebound.get("accepted", false))
+			and rebound.get("reason", &"") == &"actor_rebound"
+			and int(rebound.get("resource_units", -1)) == 1
+			and int(rebound.get("resource_capacity", -1)) == 2
+			and is_equal_approx(float(rebound.get("cooldown_remaining", 0.0)), 1.0),
+		"same-generation actor handoff preserves spent stock and active cooldown"
+	)
+	_check(
+		handoff_authority.rebind_actor(&"pilot_three", 2).get("reason", &"") == &"stale_generation",
+		"an actor handoff cannot cross the repair lifecycle generation"
+	)
+	handoff_authority.advance(1.0)
+	var rebound_request := base.duplicate(true)
+	rebound_request["actor_id"] = &"pilot_two"
+	_check(
+		bool(handoff_authority.request_repair(rebound_request).get("accepted", false))
+			and handoff_authority.rebind_actor(&"pilot_three", 1).get("reason", &"") == &"repair_active",
+		"the rebound actor can use the remaining kit while an active token blocks another handoff"
+	)
+	handoff_authority.interrupt(&"test_complete")
+	_check(
+		bool(handoff_authority.begin_generation(2).get("accepted", false))
+			and handoff_authority.get_resource_units() == 2,
+		"only a newer ship lifecycle restores the authored repair-kit capacity"
+	)
+
 	# Only a new accepted component receipt for this authority's exact craft and
 	# generation may interrupt. Rejected, unrelated, and replayed observations
 	# leave the pending token available, and interruption charges no resource.

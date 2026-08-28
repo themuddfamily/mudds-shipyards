@@ -53,6 +53,7 @@ const ENGINEER_SEAT_ID: StringName = &"engineer_slot"
 const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
 const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
 const ENGINEER_REPAIR_RESOURCE_ID: StringName = &"bulwark_repair_tool"
+const ENGINEER_REPAIR_RESOURCE_CAPACITY := 6
 const GUNNER_FEEDBACK_NO_TARGET: StringName = &"no_target"
 const GUNNER_FEEDBACK_READY: StringName = &"ready"
 const GUNNER_FEEDBACK_CHARGING: StringName = &"charging"
@@ -1202,6 +1203,7 @@ func get_gunner_gameplay_state() -> Dictionary:
 			and not bool(get_telemetry().get("landing_active", false))
 			and not _engineer_component_selection.is_empty()
 			and bool(engineer_repair.get("cooldown_ready", false))
+			and bool(engineer_repair.get("resource_ready", false))
 			and not bool(engineer_repair.get("active", false)),
 		"gunner_component": _get_gunner_component_operational_state(),
 	}.duplicate(true)
@@ -1581,9 +1583,23 @@ func _prepare_engineer_repair_authority(
 	var actor_id := StringName("peer_%d" % int(intent.get("occupant_peer_id", 0)))
 	var ledger_generation := model.get_ledger_generation()
 	if _engineer_repair_authority != null \
-			and _engineer_repair_actor_id == actor_id \
 			and _engineer_repair_authority.get_generation() == ledger_generation:
-		return _crew_role_result(true, &"repair_authority_ready")
+		if _engineer_repair_actor_id == actor_id:
+			return _crew_role_result(true, &"repair_authority_ready")
+		if _engineer_repair_authority.has_active_repair():
+			_interrupt_engineer_repair(&"repair_actor_changed")
+		var rebound := _engineer_repair_authority.rebind_actor(
+			actor_id, ledger_generation
+		)
+		if not bool(rebound.get("accepted", false)):
+			var rejected := _crew_role_result(
+				false,
+				StringName(rebound.get("reason", &"repair_actor_rebind_rejected"))
+			)
+			rejected["repair"] = rebound.duplicate(true)
+			return rejected
+		_engineer_repair_actor_id = actor_id
+		return _crew_role_result(true, &"repair_authority_rebound")
 	if _engineer_repair_authority != null \
 			and _engineer_repair_authority.has_active_repair():
 		_interrupt_engineer_repair(&"repair_actor_changed")
@@ -1594,7 +1610,7 @@ func _prepare_engineer_repair_authority(
 		1.0,
 		ENGINEER_REPAIR_COOLDOWN_SECONDS,
 		1.0,
-		RepairAuthority.MAX_RESOURCE_UNITS
+		ENGINEER_REPAIR_RESOURCE_CAPACITY
 	) as RepairAuthority
 	_engineer_repair_actor_id = actor_id
 	if _engineer_repair_authority == null \
@@ -1754,6 +1770,14 @@ func get_engineer_repair_state() -> Dictionary:
 	snapshot["cooldown_seconds"] = ENGINEER_REPAIR_COOLDOWN_SECONDS
 	snapshot["cooldown_remaining"] = cooldown
 	snapshot["cooldown_ready"] = cooldown <= 0.0
+	var resource_units := (
+		_engineer_repair_authority.get_resource_units()
+		if _engineer_repair_authority != null else ENGINEER_REPAIR_RESOURCE_CAPACITY
+	)
+	snapshot["resource_id"] = ENGINEER_REPAIR_RESOURCE_ID
+	snapshot["resource_capacity"] = ENGINEER_REPAIR_RESOURCE_CAPACITY
+	snapshot["resource_units"] = resource_units
+	snapshot["resource_ready"] = resource_units > 0
 	snapshot["active"] = _engineer_repair_authority != null \
 		and _engineer_repair_authority.has_active_repair()
 	return snapshot.duplicate(true)
@@ -1793,7 +1817,9 @@ func _refresh_engineer_status_readout() -> void:
 		return
 	var repair := get_engineer_repair_state()
 	var status := StringName(repair.get("status", &"idle"))
-	var token := "[READY]"
+	var resource_units := int(repair.get("resource_units", 0))
+	var resource_capacity := int(repair.get("resource_capacity", 0))
+	var token := "[READY]" if resource_units > 0 else "[DEPLETED]"
 	if status == &"repairing":
 		token = "[WORK %d%%]" % int(round(
 			clampf(float(repair.get("progress", 0.0)), 0.0, 1.0) * 100.0
@@ -1802,7 +1828,9 @@ func _refresh_engineer_status_readout() -> void:
 		token = "[INTERRUPTED]"
 	elif float(repair.get("cooldown_remaining", 0.0)) > 0.0:
 		token = "[COOLDOWN %.1fs]" % float(repair.get("cooldown_remaining", 0.0))
-	_engineer_status_readout.text = "ENGINEER REPAIR\n%s" % token
+	_engineer_status_readout.text = "ENGINEER REPAIR\n%s // KITS %d/%d" % [
+		token, resource_units, resource_capacity
+	]
 
 
 func _cleanup_detached_engineer_state() -> void:
@@ -1838,11 +1866,16 @@ func _clear_engineer_component_state(
 
 func _clear_engineer_component_selection(reason: StringName, advance_generation: bool = true) -> void:
 	_interrupt_engineer_repair(reason)
+	_engineer_repair_state = {
+		"status": &"idle",
+		"reason": &"",
+		"component_id": &"",
+		"component_generation": 0,
+		"progress": 0.0,
+	}
 	_engineer_component_selection.clear()
 	if advance_generation:
 		_engineer_component_generation = mini(_engineer_component_generation + 1, MAX_GUNNER_TARGET_GENERATION)
-		_engineer_repair_authority = null
-		_engineer_repair_actor_id = &""
 		_engineer_repair_elapsed = 0.0
 
 

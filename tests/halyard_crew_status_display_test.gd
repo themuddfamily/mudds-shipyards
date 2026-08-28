@@ -55,8 +55,9 @@ func _run() -> void:
 	var repairing := _repair_envelope(0, 1, &"repairing", 0.42, &"engine_bay", &"")
 	_check(
 		bool(display.present_engineer_repair_snapshot(repairing).get("accepted", false))
-			and display.get_readout_text().contains("REPAIRING // ENGINE BAY // 42%"),
-		"the physical readout names the repairing component and numeric progress"
+			and display.get_readout_text().contains("REPAIRING // ENGINE BAY // 42%")
+			and display.get_readout_text().contains("KITS 5/6"),
+		"the physical readout names repairing progress and finite supplies"
 	)
 	_check(
 		display.present_engineer_repair_snapshot(repairing).get("reason", &"") == &"duplicate_sequence"
@@ -77,7 +78,9 @@ func _run() -> void:
 			_repair_envelope(0, 3, &"interrupted", 0.58, &"engine_bay", &"left_berth")
 		).get("accepted", false))
 			and StringName(display.get_repair_presentation_snapshot().get("repair", {}).get("state", &"")) == &"interrupted"
-			and display.get_readout_text().contains("[INTERRUPTED] [LEFT BERTH // ENGINE BAY // 58%]"),
+			and display.get_readout_text().contains(
+				"[INTERRUPTED] [LEFT BERTH // ENGINE BAY // 58% // KITS 5/6]"
+			),
 		"an interrupted authority snapshot retains the established truthful interruption token"
 	)
 	_check(bool(display.begin_repair_generation(1).get("accepted", false)), "a new role lifecycle advances the repair fence")
@@ -143,10 +146,12 @@ func _repair_envelope(
 				"status": status,
 				"reason": reason,
 				"component_id": component_id,
-				"component_generation": 1,
-				"progress": progress,
-				"cooldown_remaining": 0.5 if status == &"completed" else 0.0,
-			},
+					"component_generation": 1,
+					"progress": progress,
+					"cooldown_remaining": 0.5 if status == &"completed" else 0.0,
+					"resource_units": 5,
+					"resource_capacity": 6,
+				},
 			"owner": {
 				"seat_id": &"crew_port_01",
 				"occupant_peer_id": 77,

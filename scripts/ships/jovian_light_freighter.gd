@@ -36,6 +36,7 @@ const MAX_ENGINEER_COMPONENT_GENERATION := 1_000_000
 const ENGINEER_REPAIR_DURATION_SECONDS := 0.4
 const ENGINEER_REPAIR_COOLDOWN_SECONDS := 0.75
 const ENGINEER_REPAIR_RESOURCE_ID: StringName = &"jovian_repair_tool"
+const ENGINEER_REPAIR_RESOURCE_CAPACITY := 6
 const INTERIOR_BOUNDS := AABB(Vector3(-5.72, 0.0, -8.0), Vector3(11.44, 4.6, 17.25))
 ## Ship-local envelope a crew member may occupy while the freighter is under way.
 ##
@@ -955,6 +956,7 @@ func get_engineer_gameplay_state() -> Dictionary:
 			and not bool(get_telemetry().get("landing_active", false))
 			and not _engineer_component_selection.is_empty()
 			and bool(repair.get("cooldown_ready", false))
+			and bool(repair.get("resource_ready", false))
 			and not bool(repair.get("active", false)),
 	}.duplicate(true)
 
@@ -1141,9 +1143,23 @@ func _prepare_engineer_repair_authority(
 	var actor_id := StringName("peer_%d" % int(intent.get("occupant_peer_id", 0)))
 	var ledger_generation := model.get_ledger_generation()
 	if _engineer_repair_authority != null \
-			and _engineer_repair_actor_id == actor_id \
 			and _engineer_repair_authority.get_generation() == ledger_generation:
-		return _crew_role_result(true, &"repair_authority_ready")
+		if _engineer_repair_actor_id == actor_id:
+			return _crew_role_result(true, &"repair_authority_ready")
+		if _engineer_repair_authority.has_active_repair():
+			_interrupt_engineer_repair(&"repair_actor_changed")
+		var rebound := _engineer_repair_authority.rebind_actor(
+			actor_id, ledger_generation
+		)
+		if not bool(rebound.get("accepted", false)):
+			var rejected := _crew_role_result(
+				false,
+				StringName(rebound.get("reason", &"repair_actor_rebind_rejected"))
+			)
+			rejected["repair"] = rebound.duplicate(true)
+			return rejected
+		_engineer_repair_actor_id = actor_id
+		return _crew_role_result(true, &"repair_authority_rebound")
 	if _engineer_repair_authority != null \
 			and _engineer_repair_authority.has_active_repair():
 		_interrupt_engineer_repair(&"repair_actor_changed")
@@ -1154,7 +1170,7 @@ func _prepare_engineer_repair_authority(
 		1.0,
 		ENGINEER_REPAIR_COOLDOWN_SECONDS,
 		1.0,
-		RepairAuthority.MAX_RESOURCE_UNITS
+		ENGINEER_REPAIR_RESOURCE_CAPACITY
 	) as RepairAuthority
 	_engineer_repair_actor_id = actor_id
 	if _engineer_repair_authority == null \
@@ -1314,6 +1330,14 @@ func get_engineer_repair_state() -> Dictionary:
 	snapshot["cooldown_seconds"] = ENGINEER_REPAIR_COOLDOWN_SECONDS
 	snapshot["cooldown_remaining"] = cooldown
 	snapshot["cooldown_ready"] = cooldown <= 0.0
+	var resource_units := (
+		_engineer_repair_authority.get_resource_units()
+		if _engineer_repair_authority != null else ENGINEER_REPAIR_RESOURCE_CAPACITY
+	)
+	snapshot["resource_id"] = ENGINEER_REPAIR_RESOURCE_ID
+	snapshot["resource_capacity"] = ENGINEER_REPAIR_RESOURCE_CAPACITY
+	snapshot["resource_units"] = resource_units
+	snapshot["resource_ready"] = resource_units > 0
 	snapshot["active"] = _engineer_repair_authority != null \
 		and _engineer_repair_authority.has_active_repair()
 	return snapshot.duplicate(true)
@@ -1422,7 +1446,11 @@ func _restart_engineer_console_presentation() -> void:
 		return
 	_engineer_console_generation += 1
 	_engineer_console_sequence = -1
-	_engineer_repair_console.begin_generation(_engineer_console_generation)
+	var begun: Dictionary = _engineer_repair_console.begin_generation(
+		_engineer_console_generation
+	)
+	if bool(begun.get("accepted", false)):
+		_refresh_engineer_status_readout(false)
 
 
 func _restart_engineer_work_presentation() -> void:
@@ -1544,14 +1572,19 @@ func _clear_engineer_component_state(
 
 func _clear_engineer_component_selection(reason: StringName, advance_generation: bool = true) -> void:
 	_interrupt_engineer_repair(reason)
+	_engineer_repair_state = {
+		"status": &"idle",
+		"reason": &"",
+		"component_id": &"",
+		"component_generation": 0,
+		"progress": 0.0,
+	}
 	if _engineer_component_selection.is_empty():
 		if advance_generation:
 			_engineer_component_generation = mini(
 				_engineer_component_generation + 1,
 				MAX_ENGINEER_COMPONENT_GENERATION
 			)
-			_engineer_repair_authority = null
-			_engineer_repair_actor_id = &""
 			_engineer_repair_elapsed = 0.0
 			_restart_engineer_console_presentation()
 			_restart_engineer_work_presentation()
@@ -1566,8 +1599,6 @@ func _clear_engineer_component_selection(reason: StringName, advance_generation:
 			_engineer_component_generation + 1,
 			MAX_ENGINEER_COMPONENT_GENERATION
 		)
-		_engineer_repair_authority = null
-		_engineer_repair_actor_id = &""
 		_engineer_repair_elapsed = 0.0
 		_restart_engineer_console_presentation()
 		_restart_engineer_work_presentation()

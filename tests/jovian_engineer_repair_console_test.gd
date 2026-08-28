@@ -15,8 +15,8 @@ func _init() -> void:
 	var repairing := _envelope(0, 1, &"repairing", 0.42, &"engine_array", &"")
 	_check(bool(console.present_snapshot(repairing).get("accepted", false)), "repair snapshot is presented")
 	_check(
-		readout.text == "REPAIRING // ENGINE ARRAY\nPROGRESS // 42%",
-		"repairing names the component and numeric progress"
+		readout.text == "REPAIRING // ENGINE ARRAY\nPROGRESS // 42%\nKITS // 5/6",
+		"repairing names the component, numeric progress, and finite supplies"
 	)
 	_check(
 		console.present_snapshot(repairing).get("reason", &"") == &"duplicate_sequence",
@@ -54,7 +54,7 @@ func _init() -> void:
 	)
 	_check(
 		bool(console.present_snapshot(_envelope(0, 3, &"interrupted", 0.58, &"engine_array", &"role_released")).get("accepted", false))
-			and readout.text == "ABORTED // ROLE RELEASED\nENGINE ARRAY // 58%",
+			and readout.text == "ABORTED // ROLE RELEASED\nENGINE ARRAY // 58%\nKITS // 5/6",
 		"authority interruption is rendered as a concise aborted state"
 	)
 	_check(bool(console.begin_generation(1).get("accepted", false)), "role cleanup advances presentation generation")
@@ -99,10 +99,12 @@ func _envelope(
 				"status": status,
 				"reason": reason,
 				"component_id": component_id,
-				"component_generation": 1,
-				"progress": progress,
-				"cooldown_remaining": 0.5 if status == &"completed" else 0.0,
-			},
+					"component_generation": 1,
+					"progress": progress,
+					"cooldown_remaining": 0.5 if status == &"completed" else 0.0,
+					"resource_units": 5,
+					"resource_capacity": 6,
+				},
 			"owner": {
 				"seat_id": &"passenger_port_01",
 				"occupant_peer_id": 77,
