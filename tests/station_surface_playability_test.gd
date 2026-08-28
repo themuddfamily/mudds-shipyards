@@ -1282,17 +1282,29 @@ func _test_station_panel_material_bindings(world: ShipyardWorld) -> void:
 	_check(audited_station_meshes >= 450, "texture traversal audits the complete live ShipyardWorld station subtree")
 	_check(no_arrow_station_materials, "no live station MeshInstance3D uses the directional Arrow or Jovian hull atlases")
 
-	var treads := aft.find_children("VisibleTread*", "MeshInstance3D", true, false) if aft != null else []
+	var treads := aft.find_children("VisibleTread*", "Marker3D", true, false) if aft != null else []
 	var tread_world_phase := treads.size() == AftJunctionStack.STAIR_STEP_COUNT
 	var tread_origins := {}
-	for candidate in treads:
-		var tread := candidate as MeshInstance3D
-		var material := tread.material_override as StandardMaterial3D
+	var tread_batch := aft.get_node_or_null(
+		^"Structure/Circulation/VisibleTreadRenderBatch"
+	) as MultiMeshInstance3D if aft != null else null
+	var tread_material := tread_batch.material_override as StandardMaterial3D if tread_batch != null else null
+	var tread_transforms := tread_batch.get_meta("authored_instance_transforms", []) as Array if tread_batch != null else []
+	for index in treads.size():
+		var tread := treads[index] as Marker3D
 		tread_world_phase = tread_world_phase \
-			and material != null \
-			and material.uv1_world_triplanar \
-			and material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
+			and tread.name == "VisibleTread%02d" % index \
+			and index < tread_transforms.size() \
+			and tread.transform.is_equal_approx(tread_transforms[index] as Transform3D)
 		tread_origins[tread.global_position] = true
+	tread_world_phase = tread_world_phase \
+		and tread_batch != null and tread_batch.multimesh != null \
+		and tread_batch.multimesh.instance_count == AftJunctionStack.STAIR_STEP_COUNT \
+		and tread_transforms.size() == AftJunctionStack.STAIR_STEP_COUNT \
+		and tread_material == (aft.get("_materials") as Dictionary).get("off_white_floor") \
+		and tread_material != null \
+		and tread_material.uv1_world_triplanar \
+		and tread_material.uv1_scale.is_equal_approx(Vector3.ONE * 0.30)
 	_check(tread_world_phase and tread_origins.size() == AftJunctionStack.STAIR_STEP_COUNT, "all fifteen Aft treads sample one world-space panel field instead of cloning local-origin patches")
 
 	# Same-role coplanar pieces must share the same resource. Combined with
@@ -1382,6 +1394,30 @@ func _surface_material(owner: Node3D, path: NodePath) -> Material:
 	var body := owner.get_node_or_null(path) as StaticBody3D
 	if body == null:
 		return null
+	if owner is FabricationAnnex:
+		var surface_id := StringName(body.get_meta(&"walkable_surface_id", &""))
+		var collision := body.get_node_or_null(^"Collision") as CollisionShape3D
+		var shape := collision.shape as BoxShape3D if collision != null else null
+		var floor_batch := owner.get_node_or_null(^"GeneratedAnnex/FloorSlabRenderBatch") as MeshInstance3D
+		for part_variant in floor_batch.get_meta(&"fabrication_floor_render_parts", []) as Array if floor_batch != null else []:
+			var part := part_variant as Dictionary
+			if StringName(part.get("id", &"")) == surface_id \
+					and shape != null \
+					and (part.get("size", Vector3.ZERO) as Vector3).is_equal_approx(shape.size) \
+					and (part.get("transform", Transform3D.IDENTITY) as Transform3D).origin.is_equal_approx(body.position):
+				return floor_batch.material_override
+		for raw_batch in owner.find_children("*", "MultiMeshInstance3D", true, false):
+			var batch := raw_batch as MultiMeshInstance3D
+			if not batch.has_meta(&"fabrication_annex_batch_key") \
+					or batch.multimesh == null or batch.multimesh.mesh == null \
+					or shape == null \
+					or not batch.multimesh.mesh.get_aabb().size.is_equal_approx(shape.size):
+				continue
+			for transform_variant in _authored_batch_transforms(batch):
+				var transform := transform_variant as Transform3D
+				if transform.origin.is_equal_approx(body.position) \
+						and transform.basis.is_equal_approx(Basis.IDENTITY):
+					return batch.material_override
 	var mesh_instance := body.get_node_or_null(^"Mesh") as MeshInstance3D
 	if mesh_instance == null:
 		mesh_instance = body.get_node_or_null(^"RampMesh") as MeshInstance3D
