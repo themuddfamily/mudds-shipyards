@@ -3161,6 +3161,12 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 	)
 	if not route_marker.is_empty():
 		markers.append(route_marker)
+	var beacon_marker := _get_active_beacon_minimap_marker(
+		_get_nearby_activity_binding(),
+		coordinate_frame_generation,
+	)
+	if not beacon_marker.is_empty():
+		markers.append(beacon_marker)
 	return markers
 
 
@@ -3213,6 +3219,40 @@ func _get_active_route_minimap_marker(
 		"generation": maxi(
 			maxi(coordinate_frame_generation, 0),
 			maxi(activity_generation, 0)
+		),
+		"active": true,
+	}.duplicate(true)
+
+
+## Observes the streamed activity binding's already-authoritative ordered
+## traversal snapshot. The binding supplies the next authored point only while
+## its activity is active; terminal or unloaded state therefore removes the HUD
+## marker without a second lifecycle owner.
+func _get_active_beacon_minimap_marker(
+	binding: Node,
+	coordinate_frame_generation: int = 0,
+	) -> Dictionary:
+	if not is_instance_valid(binding) or not binding.has_method(&"get_snapshot"):
+		return {}
+	var traversal := (
+		(binding.call(&"get_snapshot") as Dictionary).get(
+			"beacon_traversal", {}
+		) as Dictionary
+	)
+	if StringName(traversal.get("state_id", &"")) != &"active":
+		return {}
+	var position: Variant = traversal.get("next_beacon_position", null)
+	if not position is Vector3 or not (position as Vector3).is_finite():
+		return {}
+	var generation := int(traversal.get("generation", 0))
+	if generation < 1:
+		return {}
+	return {
+		"id": &"active_debris_beacon",
+		"position": position as Vector3,
+		"generation": maxi(
+			maxi(coordinate_frame_generation, 0),
+			generation,
 		),
 		"active": true,
 	}.duplicate(true)

@@ -67,10 +67,15 @@ func _run() -> void:
 			"glyph": "FORGED",
 			"label": "FORGED LABEL",
 		},
+		{
+			"id": &"active_debris_beacon",
+			"position": Vector3(180.0, 0.0, -300.0),
+			"generation": 2,
+		},
 	]
 	_check(minimap.apply_snapshot(marked), "live activity marker snapshot is accepted")
 	audit = minimap.get_audit_report()
-	_check(int(audit.get("objective_marker_count", 0)) == 3, "static destinations and the active route gate are retained")
+	_check(int(audit.get("objective_marker_count", 0)) == 4, "static destinations and active route targets are retained")
 	var accepted_markers := minimap.get_snapshot().get("objective_markers", []) as Array
 	var route_marker := accepted_markers.filter(func(marker: Dictionary) -> bool:
 		return marker.get("id", &"") == &"active_route_checkpoint"
@@ -85,14 +90,14 @@ func _run() -> void:
 	var legend_patterns: Dictionary = {}
 	for entry in legend:
 		legend_patterns[entry.get("pattern", &"")] = true
-	_check(legend.size() == 3 and legend_patterns.size() == 3, "objective legend uses distinct non-color patterns")
+	_check(legend.size() == 4 and legend_patterns.size() == 4, "objective legend uses distinct non-color patterns")
 	_check(legend.all(func(entry: Dictionary) -> bool:
 		return str(entry.get("focus_label", "")).length() > 0
 	), "objective legend exposes controller-readable focus labels")
 	var stale := marked.duplicate(true)
 	(stale["objective_markers"] as Array)[0]["generation"] = 3
 	_check(minimap.apply_snapshot(stale), "stale marker snapshot remains structurally valid")
-	_check(int(minimap.get_audit_report().get("objective_marker_count", 0)) == 2, "stale marker generation is removed without retaining old location")
+	_check(int(minimap.get_audit_report().get("objective_marker_count", 0)) == 3, "stale marker generation is removed without retaining old location")
 	_check(
 		not bool((audit.authority as Dictionary).gameplay)
 		and not bool((audit.authority as Dictionary).navigation)

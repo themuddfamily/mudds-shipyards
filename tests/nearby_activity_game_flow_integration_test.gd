@@ -566,6 +566,16 @@ func _run() -> void:
 			),
 		"the public beacon Start action reaches the first authored target",
 	)
+	var first_beacon_marker := flow.call(
+		"_get_active_beacon_minimap_marker", production_binding, 0
+	) as Dictionary
+	_check(
+		first_beacon_marker.get("id", &"") == &"active_debris_beacon"
+			and (first_beacon_marker.get("position", Vector3.INF) as Vector3) \
+				.is_equal_approx(BeaconActivityType.BEACONS[0])
+			and int(first_beacon_marker.get("generation", 0)) == 1,
+		"the minimap observes Beacon 1 from the active production generation",
+	)
 
 	var alpha := flow._advance_cinder_beacon_traversal(
 		0.1, _ship_sample(active_ship)
@@ -583,6 +593,15 @@ func _run() -> void:
 				retained_hud.get_activity_objective_report().get("text", "")
 			),
 		"entering Beacon 1 advances the ordered route and both HUD surfaces",
+	)
+	var second_beacon_marker := flow.call(
+		"_get_active_beacon_minimap_marker", production_binding, 0
+	) as Dictionary
+	_check(
+		(second_beacon_marker.get("position", Vector3.INF) as Vector3) \
+			.is_equal_approx(BeaconActivityType.BEACONS[1])
+			and int(second_beacon_marker.get("generation", 0)) == 1,
+		"the same minimap marker advances to Beacon 2 without changing authority generation",
 	)
 
 	active_ship.global_position = BeaconActivityType.BEACONS[2]
@@ -637,6 +656,12 @@ func _run() -> void:
 				retained_hud.get_activity_objective_report().get("text", "")
 			),
 		"the remaining authored beacons complete in order while a failed receipt stays retryable",
+	)
+	_check(
+		(flow.call(
+			"_get_active_beacon_minimap_marker", production_binding, 0
+		) as Dictionary).is_empty(),
+		"completion removes the debris-beacon marker instead of retaining its last target",
 	)
 	_check(
 		_beacon_reward_requests.size() == 1

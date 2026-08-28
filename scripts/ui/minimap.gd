@@ -97,6 +97,7 @@ func get_objective_marker_legend() -> Array[Dictionary]:
 		{"id": &"cinder_cargo_terminal", "glyph": "▣", "pattern": &"double_square", "label": "CARGO TERMINAL", "focus_label": "Cargo terminal objective"},
 		{"id": &"station_defense_activity_board", "glyph": "◆", "pattern": &"diamond", "label": "DEFENSE BOARD", "focus_label": "Station defense activity board"},
 		{"id": &"active_route_checkpoint", "glyph": "◎", "pattern": &"ring_dot", "label": "NEXT ROUTE GATE", "focus_label": "Next active route checkpoint"},
+		{"id": &"active_debris_beacon", "glyph": "⊕", "pattern": &"crosshair", "label": "NEXT DEBRIS BEACON", "focus_label": "Next active debris beacon"},
 	]
 
 
@@ -156,6 +157,7 @@ func get_audit_report() -> Dictionary:
 			&"cinder_cargo_terminal": "▣",
 			&"station_defense_activity_board": "◆",
 			&"active_route_checkpoint": "◎",
+			&"active_debris_beacon": "⊕",
 		},
 		"objective_marker_legend": get_objective_marker_legend(),
 		"contact_state_has_shape_cue": true,
