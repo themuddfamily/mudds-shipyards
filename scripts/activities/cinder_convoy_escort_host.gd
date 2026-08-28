@@ -21,6 +21,14 @@ const CONTENT_CLASS: StringName = &"NEW"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const SOURCE_CONFIDENCE: StringName = &"none"
 const CONVOY_ID: StringName = &"emberline_supply_tender"
+const ARRIVAL_ID: StringName = &"cinder_convoy_safe_arrival"
+const REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
+const PERSISTENCE_SCHEMA_VERSION := 1
+const MAX_PERSISTED_COUNTER := 9_007_199_254_740_991
+const ROUTE_CENTER_REACH_TOLERANCE := 0.00001
+const ROUTE_REPLAY_GRID_DIVISIONS := 16
+const ROUTE_REPLAY_REFINEMENT_STEPS := 18
+const ROUTE_REPLAY_POSITION_TOLERANCE := 0.001
 const ROUTE: ActivityDefinition = preload(
 	"res://assets/activities/cinder_reach_emberline_convoy_route.tres"
 )
@@ -85,6 +93,7 @@ var _entity_generation := 0
 var _entity_status := ConvoyEscortActivity.EntityStatus.ACTIVE
 var _next_route_index := 0
 var _movement_distance := 0.0
+var _movement_backlog := 0.0
 var _physics_tick_count := 0
 var _sample_publication_count := 0
 var _has_escort_sample := false
@@ -150,6 +159,7 @@ func start(expected_generation: int) -> Dictionary:
 	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
 	_next_route_index = 0
 	_movement_distance = 0.0
+	_movement_backlog = 0.0
 	_physics_tick_count = 0
 	_sample_publication_count = 0
 	_has_escort_sample = false
@@ -186,7 +196,7 @@ func advance_physics(
 	if is_zero_approx(delta):
 		return _finish(true, &"no_delta")
 	var candidate_travel := _movement_speed * delta
-	var candidate_total_distance := _movement_distance + candidate_travel
+	var candidate_total_distance := _movement_distance + _movement_backlog + candidate_travel
 	if not is_finite(candidate_travel) or not is_finite(candidate_total_distance):
 		return _finish(false, &"movement_overflow")
 
@@ -229,50 +239,26 @@ func advance_physics(
 		return clock_result
 
 	_physics_tick_count += 1
-	var remaining := candidate_travel
-	var moved_this_tick := false
-	while remaining > 0.0 and _next_route_index < ROUTE.get_checkpoint_count():
+	var remaining := _movement_backlog + candidate_travel
+	_movement_backlog = 0.0
+	# One tick owns one closing publication and therefore at most one ordered
+	# route transition. Surplus travel is retained for the next caller tick rather
+	# than manufacturing center-only samples that cannot be reconstructed later.
+	if remaining > 0.0 and _next_route_index < ROUTE.get_checkpoint_count():
 		var target := ROUTE.get_checkpoint_position(_next_route_index)
 		var distance_to_target := _convoy_entity.position.distance_to(target)
-		if distance_to_target <= 0.00001:
-			var at_target := _publish_sample(
-				escort_position,
-				ConvoyEscortActivity.EntityStatus.ACTIVE
-			)
-			if not bool(at_target.get("accepted", false)):
-				return _finish(false, &"sample_publication_rejected")
-			result_reason = _prefer_progress_reason(
-				result_reason,
-				StringName(at_target.get("reason", &"sample_recorded"))
-			)
-			_sync_next_route_index()
-			if _activity.get_state() != ConvoyEscortActivity.State.ACTIVE:
-				break
-			continue
-		var step := minf(remaining, distance_to_target)
-		var direction := (target - _convoy_entity.position) / distance_to_target
-		_set_entity_position(_convoy_entity.position + direction * step)
-		_movement_distance += step
-		remaining -= step
-		moved_this_tick = true
-		_orient_toward_route_index(_next_route_index)
-		if step >= distance_to_target - 0.00001:
-			_set_entity_position(target)
-			var reached := _publish_sample(
-				escort_position,
-				ConvoyEscortActivity.EntityStatus.ACTIVE
-			)
-			if not bool(reached.get("accepted", false)):
-				return _finish(false, &"sample_publication_rejected")
-			result_reason = _prefer_progress_reason(
-				result_reason,
-				StringName(reached.get("reason", &"sample_recorded"))
-			)
-			_sync_next_route_index()
-			if _activity.get_state() != ConvoyEscortActivity.State.ACTIVE:
-				break
+		if distance_to_target > ROUTE_CENTER_REACH_TOLERANCE:
+			var step := minf(remaining, distance_to_target)
+			var direction := (target - _convoy_entity.position) / distance_to_target
+			_set_entity_position(_convoy_entity.position + direction * step)
+			_movement_distance += step
+			remaining -= step
+			_orient_toward_route_index(_next_route_index)
+			if step >= distance_to_target - ROUTE_CENTER_REACH_TOLERANCE:
+				_set_entity_position(target)
+	_movement_backlog = remaining
 
-	if moved_this_tick and _activity.get_state() == ConvoyEscortActivity.State.ACTIVE:
+	if _activity.get_state() == ConvoyEscortActivity.State.ACTIVE:
 		var final_sample := _publish_sample(
 			escort_position,
 			ConvoyEscortActivity.EntityStatus.ACTIVE
@@ -342,6 +328,7 @@ func reset(expected_generation: int) -> Dictionary:
 	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
 	_next_route_index = 0
 	_movement_distance = 0.0
+	_movement_backlog = 0.0
 	_physics_tick_count = 0
 	_sample_publication_count = 0
 	_has_escort_sample = false
@@ -358,6 +345,199 @@ func reset(expected_generation: int) -> Dictionary:
 
 func get_generation() -> int:
 	return _activity.get_generation() if is_instance_valid(_activity) else 0
+
+
+## Captures the two existing live owners as one exact startup-adoption unit.
+## The host owns movement/entity facts; ConvoyEscortActivity owns lifecycle,
+## ordered progress, clocks, and proximity. Arrival and reward identities are
+## negative fences only and never become a second receipt authority.
+func capture_persistence_state() -> Dictionary:
+	return {
+		"schema_version": PERSISTENCE_SCHEMA_VERSION,
+		"route_resource_path": ROUTE.resource_path,
+		"activity_id": String(ROUTE.activity_id),
+		"convoy_id": String(CONVOY_ID),
+		"phase_id": "escort",
+		"arrival_id": String(ARRIVAL_ID),
+		"arrival_committed": false,
+		"reward_id": String(REWARD_ID),
+		"reward_requested": false,
+		"reward_granted": false,
+		"entity_generation": _entity_generation,
+		"entity_status": _entity_status,
+		"entity_position": _encode_vector(
+			_convoy_entity.position if is_instance_valid(_convoy_entity) else Vector3.ZERO
+		),
+		"last_entity_position": _encode_vector(_last_entity_position),
+		"next_route_index": _next_route_index,
+		"configured_movement_speed": _movement_speed,
+		"movement_distance": _movement_distance,
+		"movement_backlog": _movement_backlog,
+		"physics_tick_count": _physics_tick_count,
+		"sample_publication_count": _sample_publication_count,
+		"has_escort_sample": _has_escort_sample,
+		"last_escort_position": _encode_vector(_last_escort_position),
+		"activity_state": (
+			_activity.capture_persistence_state() if is_instance_valid(_activity) else {}
+		),
+	}.duplicate(true)
+
+
+func validate_persistence_state(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary or not _built \
+			or not is_instance_valid(_activity) or not is_instance_valid(_convoy_entity):
+		return _persistence_result(false, &"malformed_convoy_host_state")
+	var saved := candidate as Dictionary
+	if saved.size() != 23 \
+			or not _integral(saved.get("schema_version")) \
+			or int(saved.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
+			or str(saved.get("route_resource_path", "")) != ROUTE.resource_path \
+			or str(saved.get("activity_id", "")) != str(ROUTE.activity_id) \
+			or str(saved.get("convoy_id", "")) != str(CONVOY_ID) \
+			or str(saved.get("phase_id", "")) != "escort" \
+			or str(saved.get("arrival_id", "")) != str(ARRIVAL_ID) \
+			or saved.get("arrival_committed") is not bool \
+			or bool(saved.get("arrival_committed", true)) \
+			or str(saved.get("reward_id", "")) != str(REWARD_ID) \
+			or saved.get("reward_requested") is not bool \
+			or bool(saved.get("reward_requested", true)) \
+			or saved.get("reward_granted") is not bool \
+			or bool(saved.get("reward_granted", true)) \
+			or not _integral(saved.get("entity_generation")) \
+			or not _integral(saved.get("entity_status")) \
+			or not _valid_encoded_vector(saved.get("entity_position")) \
+			or not _valid_encoded_vector(saved.get("last_entity_position")) \
+			or not _integral(saved.get("next_route_index")) \
+			or not _number(saved.get("configured_movement_speed")) \
+			or not is_equal_approx(
+				float(saved.get("configured_movement_speed", -1.0)), _movement_speed
+			) \
+			or not _number(saved.get("movement_distance")) \
+			or not _number(saved.get("movement_backlog")) \
+			or not _integral(saved.get("physics_tick_count")) \
+			or not _integral(saved.get("sample_publication_count")) \
+			or saved.get("has_escort_sample") is not bool \
+			or not _valid_encoded_vector(saved.get("last_escort_position")) \
+			or not saved.get("activity_state") is Dictionary:
+		return _persistence_result(false, &"malformed_convoy_host_state")
+	var activity_state := saved.activity_state as Dictionary
+	var activity_validation := _activity.validate_persistence_state(activity_state)
+	if not bool(activity_validation.get("accepted", false)):
+		return activity_validation
+	var entity_generation := int(saved.entity_generation)
+	var next_route_index := int(saved.next_route_index)
+	var movement_distance := float(saved.movement_distance)
+	var movement_backlog := float(saved.movement_backlog)
+	var physics_ticks := int(saved.physics_tick_count)
+	var publication_count := int(saved.sample_publication_count)
+	var entity_position := _decode_vector(saved.entity_position as Dictionary)
+	var last_entity_position := _decode_vector(saved.last_entity_position as Dictionary)
+	var last_escort_position := _decode_vector(saved.last_escort_position as Dictionary)
+	var elapsed := float(activity_state.get("elapsed_seconds", -1.0))
+	var separation_elapsed := float(
+		activity_state.get("separation_elapsed_seconds", -1.0)
+	)
+	var has_sample := bool(saved.has_escort_sample)
+	var activity_sample_count := int(activity_state.get("sample_count", -1))
+	if entity_generation < 1 \
+			or entity_generation > MAX_PERSISTED_COUNTER \
+			or int(saved.entity_status) != ConvoyEscortActivity.EntityStatus.ACTIVE \
+			or next_route_index < 0 or next_route_index >= ROUTE.get_checkpoint_count() \
+			or movement_distance < 0.0 \
+			or movement_backlog < 0.0 \
+			or physics_ticks < 0 or physics_ticks > MAX_PERSISTED_COUNTER \
+			or publication_count < 0 or publication_count > MAX_PERSISTED_COUNTER \
+			or not entity_position.is_equal_approx(last_entity_position) \
+			or entity_generation != int(activity_state.get("convoy_generation", -1)) \
+			or str(activity_state.get("convoy_id", "")) != str(CONVOY_ID) \
+			or next_route_index != int(activity_state.get("next_leg_index", -1)) \
+			or publication_count != activity_sample_count \
+			or has_sample \
+			!= bool(activity_state.get("has_entity_sample", false)):
+		return _persistence_result(false, &"convoy_host_activity_mismatch")
+	if separation_elapsed > elapsed:
+		return _persistence_result(false, &"convoy_clock_progress_mismatch")
+	var expected_movement := _movement_speed * elapsed
+	if not is_finite(expected_movement) or not is_equal_approx(
+		movement_distance + movement_backlog, expected_movement
+	):
+		return _persistence_result(false, &"convoy_movement_progress_mismatch")
+	var route_replay := _route_replay_witness(
+		movement_distance,
+		entity_position,
+		next_route_index,
+		has_sample,
+		activity_state,
+		physics_ticks
+	)
+	if not bool(route_replay.get("accepted", false)):
+		return _persistence_result(false, &"convoy_route_progress_mismatch")
+	if physics_ticks == 0:
+		if not is_zero_approx(elapsed) \
+				or not is_zero_approx(separation_elapsed) \
+				or not is_zero_approx(movement_distance) \
+				or not is_zero_approx(movement_backlog) \
+				or publication_count != 0 or activity_sample_count != 0 \
+				or has_sample or next_route_index != 0:
+			return _persistence_result(false, &"convoy_tick_progress_mismatch")
+	else:
+		if elapsed <= 0.0 or movement_distance <= 0.0 or not has_sample \
+				or publication_count != physics_ticks * 2:
+			return _persistence_result(false, &"convoy_tick_progress_mismatch")
+	if movement_backlog > 0.0 and not _position_can_retain_movement_backlog(
+		entity_position, next_route_index
+	):
+		return _persistence_result(false, &"convoy_movement_backlog_mismatch")
+	if has_sample:
+		if not entity_position.is_equal_approx(
+			_decode_vector(activity_state.convoy_position as Dictionary)
+		) or not last_escort_position.is_equal_approx(
+			_decode_vector(activity_state.escort_position as Dictionary)
+		):
+			return _persistence_result(false, &"convoy_sample_progress_mismatch")
+	elif not last_escort_position.is_zero_approx():
+		return _persistence_result(false, &"convoy_sample_progress_mismatch")
+	return _persistence_result(true, &"convoy_host_state_valid")
+
+
+## Startup-only atomic, signal-free adoption into the pristine identity host.
+func restore_persistence_state(candidate: Variant, expected_generation: int) -> Dictionary:
+	if _is_reentrant():
+		return _persistence_result(false, &"reentrant_call")
+	if not _attached or not is_inside_tree() or is_queued_for_deletion():
+		return _persistence_result(false, &"detached")
+	if expected_generation != get_generation():
+		return _persistence_result(false, &"stale_generation")
+	if not _built or get_generation() != 0 \
+			or _activity.get_state() != ConvoyEscortActivity.State.IDLE \
+			or _entity_generation != 0 or _movement_distance != 0.0 \
+			or _movement_backlog != 0.0 \
+			or _physics_tick_count != 0 or _sample_publication_count != 0:
+		return _persistence_result(false, &"convoy_host_already_live")
+	var validated := validate_persistence_state(candidate)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var saved := candidate as Dictionary
+	var restored_activity := _activity.restore_persistence_state(
+		saved.activity_state, expected_generation
+	)
+	if not bool(restored_activity.get("accepted", false)):
+		return restored_activity
+	_entity_generation = int(saved.entity_generation)
+	_entity_status = ConvoyEscortActivity.EntityStatus.ACTIVE
+	_next_route_index = int(saved.next_route_index)
+	_movement_distance = float(saved.movement_distance)
+	_movement_backlog = float(saved.movement_backlog)
+	_physics_tick_count = int(saved.physics_tick_count)
+	_sample_publication_count = int(saved.sample_publication_count)
+	_has_escort_sample = bool(saved.has_escort_sample)
+	_last_escort_position = _decode_vector(saved.last_escort_position as Dictionary)
+	_terminal_signal_generation = -1
+	_convoy_entity.visible = true
+	_set_entity_position(_decode_vector(saved.entity_position as Dictionary))
+	_orient_toward_route_index(_next_route_index)
+	_apply_visual_feedback()
+	return _persistence_result(true, &"convoy_host_state_restored")
 
 
 ## Applies only the terminal static formation recipe restored by persistence.
@@ -423,6 +603,7 @@ func get_snapshot() -> Dictionary:
 		"next_route_index": _next_route_index,
 		"movement_speed": _movement_speed,
 		"movement_distance": _movement_distance,
+		"movement_backlog": _movement_backlog,
 		"physics_tick_count": _physics_tick_count,
 		"sample_publication_count": _sample_publication_count,
 		"has_escort_sample": _has_escort_sample,
@@ -726,6 +907,8 @@ func audit() -> Dictionary:
 		errors.append("convoy entity position is non-finite")
 	if not is_finite(_movement_distance) or _movement_distance < 0.0:
 		errors.append("movement distance is invalid")
+	if not is_finite(_movement_backlog) or _movement_backlog < 0.0:
+		errors.append("movement backlog is invalid")
 	if _physics_tick_count < 0 or _sample_publication_count < 0:
 		errors.append("host counters cannot be negative")
 	if is_instance_valid(_activity) and not bool(_activity.audit().get("valid", false)):
@@ -1315,3 +1498,357 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	result["accepted"] = accepted
 	result["reason"] = reason
 	return result.duplicate(true)
+
+
+func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {"accepted": accepted, "reason": reason}
+
+
+## Replays the host's actual motion seam. A closing sample advances at the
+## inclusive radius, so the following tick may turn from a point up to four
+## metres before the checkpoint centre. The saved aggregate movement and final
+## sample constrain the possible one-dimensional shortcut points for this
+## four-checkpoint route. Each progressed intermediate checkpoint is one closing
+## sample and therefore consumes its own physics tick; any following movement
+## consumes another. Publication count itself is now the exact two-per-tick rule
+## and never depends on reconstructing a center-versus-radius category.
+func _route_replay_witness(
+		distance: float,
+		position: Vector3,
+		next_index: int,
+		has_sample: bool,
+		activity_state: Dictionary,
+		available_physics_ticks: int
+	) -> Dictionary:
+	if not has_sample:
+		return {
+			"accepted": next_index == 0 and is_zero_approx(distance) \
+				and position.is_equal_approx(ROUTE.get_checkpoint_position(0)) \
+				and available_physics_ticks == 0,
+		}
+	if next_index < 1 or next_index >= ROUTE.get_checkpoint_count():
+		return {"accepted": false}
+	var replay := _best_route_replay(
+		distance, position, next_index, available_physics_ticks
+	)
+	var best_error := float(replay.get("error", INF))
+	if not is_finite(best_error) \
+			or best_error > ROUTE_REPLAY_POSITION_TOLERANCE * ROUTE_REPLAY_POSITION_TOLERANCE:
+		return {"accepted": false}
+	var target_distance := position.distance_to(
+		ROUTE.get_checkpoint_position(next_index)
+	)
+	if target_distance <= ROUTE.checkpoint_radius:
+		if next_index != ROUTE.get_checkpoint_count() - 1:
+			return {"accepted": false}
+		if float(activity_state.get("escort_distance", -1.0)) \
+				<= float(activity_state.get("configured_escort_proximity_radius", -1.0)):
+			return {"accepted": false}
+	return {"accepted": true}
+
+
+func _best_route_replay(
+		distance: float,
+		position: Vector3,
+		next_index: int,
+		available_physics_ticks: int
+	) -> Dictionary:
+	var shortcut_count := next_index - 1
+	if shortcut_count == 0:
+		var direct := _route_replay_metrics(
+			distance, position, next_index, PackedFloat64Array()
+		)
+		return direct if _route_replay_metric_fits_ticks(
+			direct, available_physics_ticks
+		) else {"error": INF}
+	var radius := ROUTE.checkpoint_radius
+	var best := PackedFloat64Array()
+	best.resize(shortcut_count)
+	var best_error := INF
+	var step := radius / float(ROUTE_REPLAY_GRID_DIVISIONS)
+	var initial_shortfalls := _route_replay_initial_shortfalls(
+		radius, position, next_index
+	)
+	if shortcut_count == 1:
+		# Seed the exact aggregate-distance witness that ends on this closing
+		# transition. This keeps float-backed route reconstruction from inventing
+		# a later movement tick merely because a grid candidate leaves a positive
+		# rounding residual.
+		var transition_only := _route_replay_transition_only_shortfalls(
+			distance, next_index, PackedFloat64Array()
+		)
+		if transition_only.size() == shortcut_count:
+			var transition_metrics := _route_replay_metrics(
+				distance, position, next_index, transition_only
+			)
+			var transition_error := float(transition_metrics.get("error", INF)) if (
+				_route_replay_metric_fits_ticks(
+					transition_metrics, available_physics_ticks
+				)
+			) else INF
+			if transition_error < best_error:
+				best_error = transition_error
+				best = transition_only
+		for first_shortfall in initial_shortfalls:
+			var candidate := PackedFloat64Array([first_shortfall])
+			var metrics := _route_replay_metrics(
+				distance, position, next_index, candidate
+			)
+			var error := float(metrics.get("error", INF)) if (
+				_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
+			) else INF
+			if error < best_error:
+				best_error = error
+				best = candidate
+	else:
+		for first_shortfall in initial_shortfalls:
+			var transition_only := _route_replay_transition_only_shortfalls(
+				distance,
+				next_index,
+				PackedFloat64Array([first_shortfall])
+			)
+			if transition_only.size() == shortcut_count:
+				var transition_metrics := _route_replay_metrics(
+					distance, position, next_index, transition_only
+				)
+				var transition_error := float(
+					transition_metrics.get("error", INF)
+				) if _route_replay_metric_fits_ticks(
+					transition_metrics, available_physics_ticks
+				) else INF
+				if transition_error < best_error:
+					best_error = transition_error
+					best = transition_only
+			for second_shortfall in initial_shortfalls:
+				var candidate := PackedFloat64Array([
+					first_shortfall,
+					second_shortfall,
+				])
+				var metrics := _route_replay_metrics(
+					distance, position, next_index, candidate
+				)
+				var error := float(metrics.get("error", INF)) if (
+					_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
+				) else INF
+				if error < best_error:
+					best_error = error
+					best = candidate
+	for _refinement in ROUTE_REPLAY_REFINEMENT_STEPS:
+		step *= 0.5
+		var refined := best.duplicate()
+		if shortcut_count == 1:
+			for first_offset in [-step, 0.0, step]:
+				var candidate := PackedFloat64Array([
+					clampf(best[0] + first_offset, 0.0, radius),
+				])
+				var metrics := _route_replay_metrics(
+					distance, position, next_index, candidate
+				)
+				var error := float(metrics.get("error", INF)) if (
+					_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
+				) else INF
+				if error < best_error:
+					best_error = error
+					refined = candidate
+		else:
+			for first_offset in [-step, 0.0, step]:
+				for second_offset in [-step, 0.0, step]:
+					var candidate := PackedFloat64Array([
+						clampf(best[0] + first_offset, 0.0, radius),
+						clampf(best[1] + second_offset, 0.0, radius),
+					])
+					var metrics := _route_replay_metrics(
+						distance, position, next_index, candidate
+					)
+					var error := float(metrics.get("error", INF)) if (
+						_route_replay_metric_fits_ticks(metrics, available_physics_ticks)
+					) else INF
+					if error < best_error:
+						best_error = error
+						refined = candidate
+		best = refined
+	if not is_finite(best_error):
+		return {"error": INF}
+	return _route_replay_metrics(distance, position, next_index, best)
+
+
+func _route_replay_transition_only_shortfalls(
+		distance: float,
+		next_index: int,
+		leading_shortfalls: PackedFloat64Array
+	) -> PackedFloat64Array:
+	var shortcut_count := next_index - 1
+	if not is_finite(distance) or distance < 0.0 \
+			or shortcut_count < 1 \
+			or leading_shortfalls.size() != shortcut_count - 1:
+		return PackedFloat64Array()
+	var current := ROUTE.get_checkpoint_position(0)
+	var spent := 0.0
+	for offset in leading_shortfalls.size():
+		var target := ROUTE.get_checkpoint_position(offset + 1)
+		var segment_length := current.distance_to(target)
+		var shortfall := leading_shortfalls[offset]
+		if not is_finite(shortfall) or shortfall < 0.0 \
+				or shortfall > ROUTE.checkpoint_radius \
+				or shortfall > segment_length:
+			return PackedFloat64Array()
+		var travel := segment_length - shortfall
+		current = (
+			target
+			if shortfall <= ROUTE_CENTER_REACH_TOLERANCE
+			else current.move_toward(target, travel)
+		)
+		spent += travel
+	var target := ROUTE.get_checkpoint_position(shortcut_count)
+	var segment_length := current.distance_to(target)
+	var final_travel := distance - spent
+	var final_shortfall := segment_length - final_travel
+	if not is_finite(final_shortfall) or final_travel < 0.0 \
+			or final_travel > segment_length \
+			or final_shortfall < 0.0 \
+			or final_shortfall > ROUTE.checkpoint_radius:
+		return PackedFloat64Array()
+	var result := leading_shortfalls.duplicate()
+	result.append(final_shortfall)
+	return result
+
+
+func _route_replay_initial_shortfalls(
+		radius: float,
+		position: Vector3,
+		next_index: int
+	) -> PackedFloat64Array:
+	var values := PackedFloat64Array()
+	# Seed both sides of the runtime's discontinuous centre-snap boundary. A
+	# radius-wide grid alone cannot discover a micrometre-scale centered witness,
+	# while treating the boundary as centered would hide a just-outside shortcut.
+	for centered_index in 5:
+		values.append(
+			ROUTE_CENTER_REACH_TOLERANCE * float(centered_index) / 4.0
+		)
+	values.append(
+		ROUTE_CENTER_REACH_TOLERANCE
+		+ ROUTE_CENTER_REACH_TOLERANCE / float(ROUTE_REPLAY_GRID_DIVISIONS)
+	)
+	var radius_step := radius / float(ROUTE_REPLAY_GRID_DIVISIONS)
+	for radius_index in range(1, ROUTE_REPLAY_GRID_DIVISIONS + 1):
+		values.append(radius_step * radius_index)
+	# When the latest closing publication advanced at a radius-only point, the
+	# saved position itself gives that exact final shortfall. Seed it explicitly:
+	# the tick lower-bound is discontinuous at zero following movement, so a
+	# coarse grid cannot reliably discover this bounded witness.
+	if next_index > 1:
+		var final_shortfall := position.distance_to(
+			ROUTE.get_checkpoint_position(next_index - 1)
+		)
+		if is_finite(final_shortfall) and final_shortfall <= radius:
+			values.append(final_shortfall)
+	return values
+
+
+func _route_replay_metric_fits_ticks(
+		metrics: Dictionary,
+		available_physics_ticks: int
+	) -> bool:
+	return available_physics_ticks >= int(
+		metrics.get("minimum_physics_tick_count", MAX_PERSISTED_COUNTER)
+	)
+
+
+func _route_replay_metrics(
+		distance: float,
+		position: Vector3,
+		next_index: int,
+		shortfalls: PackedFloat64Array
+	) -> Dictionary:
+	if not is_finite(distance) or distance < 0.0 \
+			or shortfalls.size() != next_index - 1:
+		return {"error": INF}
+	var current := ROUTE.get_checkpoint_position(0)
+	var spent := 0.0
+	for offset in shortfalls.size():
+		var target := ROUTE.get_checkpoint_position(offset + 1)
+		var segment_length := current.distance_to(target)
+		var shortfall := shortfalls[offset]
+		if not is_finite(shortfall) or shortfall < 0.0 \
+				or shortfall > ROUTE.checkpoint_radius \
+				or shortfall > segment_length:
+			return {"error": INF}
+		var travel := segment_length - shortfall
+		if shortfall <= ROUTE_CENTER_REACH_TOLERANCE:
+			# The movement seam snaps to the checkpoint before its one closing
+			# publication when travel ends within this exact tolerance.
+			current = target
+		else:
+			current = current.move_toward(target, travel)
+		spent += travel
+	var target := ROUTE.get_checkpoint_position(next_index)
+	var segment_length := current.distance_to(target)
+	var remaining := distance - spent
+	# Vector3 segment lengths are float-backed while the aggregate ledger is a
+	# float Variant. Clamp only the movement seam's own centre-scale roundoff;
+	# larger disagreement remains an invalid route history.
+	if remaining < -ROUTE_CENTER_REACH_TOLERANCE \
+			or remaining > segment_length + ROUTE_CENTER_REACH_TOLERANCE:
+		return {"error": INF}
+	remaining = clampf(remaining, 0.0, segment_length)
+	var current_target_centered := (
+		remaining >= segment_length - ROUTE_CENTER_REACH_TOLERANCE
+	)
+	var expected := (
+		target if current_target_centered else current.move_toward(target, remaining)
+	)
+	var minimum_physics_tick_count := maxi(
+		1,
+		shortfalls.size() + (
+			# Every representable positive movement after the latest closing
+			# transition belongs to a later caller tick. Position tolerance may
+			# decide whether a geometric witness matches, but it cannot erase that
+			# tick from the exact two-publications-per-tick ledger.
+			1 if remaining > 0.0 else 0
+		)
+	)
+	return {
+		"error": expected.distance_squared_to(position),
+		"current_target_centered": current_target_centered,
+		"minimum_physics_tick_count": minimum_physics_tick_count,
+	}
+
+
+func _position_can_retain_movement_backlog(
+		position: Vector3,
+		next_index: int
+	) -> bool:
+	# Surplus is created only after advance_physics assigns the authored target
+	# Vector3 itself. Exact equality is therefore representable and prevents the
+	# general restore-position tolerance from inventing backlog at a radius turn.
+	if next_index > 1 and position == (
+		ROUTE.get_checkpoint_position(next_index - 1)
+	):
+		return true
+	return next_index == ROUTE.get_checkpoint_count() - 1 \
+		and position == ROUTE.get_checkpoint_position(next_index)
+
+
+func _encode_vector(value: Vector3) -> Dictionary:
+	return {"x": value.x, "y": value.y, "z": value.z}
+
+
+func _decode_vector(value: Dictionary) -> Vector3:
+	return Vector3(float(value.x), float(value.y), float(value.z))
+
+
+func _valid_encoded_vector(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	var encoded := value as Dictionary
+	return encoded.size() == 3 and _number(encoded.get("x")) \
+		and _number(encoded.get("y")) and _number(encoded.get("z"))
+
+
+func _number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
+
+
+func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))

@@ -53,6 +53,8 @@ enum TerminalResult {
 }
 
 const SCHEMA_VERSION := 1
+const PERSISTENCE_SCHEMA_VERSION := 1
+const MAX_PERSISTED_GENERATION := 9_007_199_254_740_991
 
 var _escort_proximity_radius: float
 var _maximum_separation_seconds: float
@@ -392,6 +394,147 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+## Exact live authority owned by this activity. Runtime object identities and
+## signal state never enter the record; vectors use a JSON-safe fixed shape.
+func capture_persistence_state() -> Dictionary:
+	return {
+		"schema_version": PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(_definition.activity_id) if _definition != null else "",
+		"configured_escort_proximity_radius": _escort_proximity_radius,
+		"configured_maximum_separation_seconds": _maximum_separation_seconds,
+		"configured_timeout_seconds": _timeout_seconds,
+		"state": _state,
+		"generation": _generation,
+		"terminal_result": _terminal_result,
+		"terminal_reason": String(_terminal_reason),
+		"convoy_id": String(_convoy_id),
+		"convoy_generation": _convoy_generation,
+		"next_leg_index": _next_leg_index,
+		"elapsed_seconds": _elapsed_seconds,
+		"separation_elapsed_seconds": _separation_elapsed_seconds,
+		"has_entity_sample": _has_sample,
+		"convoy_position": _encode_vector(_convoy_position),
+		"escort_position": _encode_vector(_escort_position),
+		"escort_distance": _escort_distance,
+		"convoy_status": _last_entity_status,
+		"sample_count": _sample_count,
+	}.duplicate(true)
+
+
+func validate_persistence_state(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary or not is_configuration_valid():
+		return _persistence_result(false, &"malformed_convoy_activity_state")
+	var saved := candidate as Dictionary
+	if saved.size() != 20 \
+			or not _integral(saved.get("schema_version")) \
+			or int(saved.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
+			or str(saved.get("activity_id", "")) != str(_definition.activity_id) \
+			or not _number(saved.get("configured_escort_proximity_radius")) \
+			or not is_equal_approx(
+				float(saved.get("configured_escort_proximity_radius", -1.0)),
+				_escort_proximity_radius
+			) \
+			or not _number(saved.get("configured_maximum_separation_seconds")) \
+			or not is_equal_approx(
+				float(saved.get("configured_maximum_separation_seconds", -1.0)),
+				_maximum_separation_seconds
+			) \
+			or not _number(saved.get("configured_timeout_seconds")) \
+			or not is_equal_approx(
+				float(saved.get("configured_timeout_seconds", -1.0)),
+				_timeout_seconds
+			) \
+			or not _integral(saved.get("state")) \
+			or not _integral(saved.get("generation")) \
+			or not _integral(saved.get("terminal_result")) \
+			or not saved.get("terminal_reason") is String \
+			or not saved.get("convoy_id") is String \
+			or not _integral(saved.get("convoy_generation")) \
+			or not _integral(saved.get("next_leg_index")) \
+			or not _number(saved.get("elapsed_seconds")) \
+			or not _number(saved.get("separation_elapsed_seconds")) \
+			or saved.get("has_entity_sample") is not bool \
+			or not _valid_encoded_vector(saved.get("convoy_position")) \
+			or not _valid_encoded_vector(saved.get("escort_position")) \
+			or not _number(saved.get("escort_distance")) \
+			or not _integral(saved.get("convoy_status")) \
+			or not _integral(saved.get("sample_count")):
+		return _persistence_result(false, &"malformed_convoy_activity_state")
+	var generation := int(saved.generation)
+	var convoy_generation := int(saved.convoy_generation)
+	var next_leg_index := int(saved.next_leg_index)
+	var elapsed := float(saved.elapsed_seconds)
+	var separation_elapsed := float(saved.separation_elapsed_seconds)
+	var has_sample := bool(saved.has_entity_sample)
+	var convoy_position := _decode_vector(saved.convoy_position as Dictionary)
+	var escort_position := _decode_vector(saved.escort_position as Dictionary)
+	var escort_distance := float(saved.escort_distance)
+	var sample_count := int(saved.sample_count)
+	if int(saved.state) != State.ACTIVE \
+			or generation < 1 or generation > MAX_PERSISTED_GENERATION \
+			or int(saved.terminal_result) != TerminalResult.NONE \
+			or not str(saved.terminal_reason).is_empty() \
+			or not WorldLocationDefinition._is_stable_id(str(saved.convoy_id)) \
+			or convoy_generation < 1 or convoy_generation > MAX_PERSISTED_GENERATION \
+			or next_leg_index < 0 or next_leg_index >= _definition.get_checkpoint_count() \
+			or elapsed < 0.0 or elapsed >= _timeout_seconds \
+			or separation_elapsed < 0.0 \
+			or separation_elapsed >= _maximum_separation_seconds \
+			or separation_elapsed > elapsed \
+			or int(saved.convoy_status) != EntityStatus.ACTIVE \
+			or sample_count < 0 or sample_count > MAX_PERSISTED_GENERATION:
+		return _persistence_result(false, &"invalid_convoy_activity_state")
+	if not has_sample:
+		if sample_count != 0 or not convoy_position.is_zero_approx() \
+				or not escort_position.is_zero_approx() \
+				or not is_zero_approx(escort_distance) \
+				or not is_zero_approx(separation_elapsed) \
+				or next_leg_index != 0:
+			return _persistence_result(false, &"invalid_convoy_sample_state")
+	else:
+		var measured_distance := convoy_position.distance_to(escort_position)
+		if sample_count < 1 or not is_equal_approx(measured_distance, escort_distance):
+			return _persistence_result(false, &"invalid_convoy_sample_state")
+		if measured_distance <= _escort_proximity_radius \
+				and not is_zero_approx(separation_elapsed):
+			return _persistence_result(false, &"invalid_convoy_separation_state")
+	return _persistence_result(true, &"convoy_activity_state_valid")
+
+
+## Startup-only, signal-free adoption. The host validates its movement ledger
+## against this record before calling, so every accepted input is already known
+## to be coherent across both owners.
+func restore_persistence_state(candidate: Variant, expected_generation: int) -> Dictionary:
+	if _signal_dispatch_active:
+		return _persistence_result(false, &"reentrant_call")
+	if not _is_current():
+		return _persistence_result(false, &"activity_detached")
+	if expected_generation != _generation:
+		return _persistence_result(false, &"stale_generation")
+	if _state != State.IDLE or _generation != 0:
+		return _persistence_result(false, &"convoy_activity_already_live")
+	var validated := validate_persistence_state(candidate)
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var saved := candidate as Dictionary
+	_state = State.ACTIVE
+	_generation = int(saved.generation)
+	_terminal_result = TerminalResult.NONE
+	_terminal_reason = &""
+	_convoy_id = StringName(str(saved.convoy_id))
+	_convoy_generation = int(saved.convoy_generation)
+	_next_leg_index = int(saved.next_leg_index)
+	_elapsed_seconds = float(saved.elapsed_seconds)
+	_separation_elapsed_seconds = float(saved.separation_elapsed_seconds)
+	_has_sample = bool(saved.has_entity_sample)
+	_convoy_position = _decode_vector(saved.convoy_position as Dictionary)
+	_escort_position = _decode_vector(saved.escort_position as Dictionary)
+	_escort_distance = float(saved.escort_distance)
+	_last_entity_status = EntityStatus.ACTIVE
+	_sample_count = int(saved.sample_count)
+	return _persistence_result(true, &"convoy_activity_state_restored")
+
+
 func audit() -> Dictionary:
 	var errors := get_configuration_errors()
 	if _generation < 0:
@@ -444,6 +587,34 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	result["accepted"] = accepted
 	result["reason"] = reason
 	return result.duplicate(true)
+
+
+func _persistence_result(accepted: bool, reason: StringName) -> Dictionary:
+	return {"accepted": accepted, "reason": reason}
+
+
+func _encode_vector(value: Vector3) -> Dictionary:
+	return {"x": value.x, "y": value.y, "z": value.z}
+
+
+func _decode_vector(value: Dictionary) -> Vector3:
+	return Vector3(float(value.x), float(value.y), float(value.z))
+
+
+func _valid_encoded_vector(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	var encoded := value as Dictionary
+	return encoded.size() == 3 and _number(encoded.get("x")) \
+		and _number(encoded.get("y")) and _number(encoded.get("z"))
+
+
+func _number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
+
+
+func _integral(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value) and value == floor(value))
 
 
 static func _state_id(state: int) -> StringName:
