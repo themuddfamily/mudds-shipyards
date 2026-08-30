@@ -58,6 +58,16 @@ func _initialize() -> void:
 		var production_wing := first.get_variant_visual_root().get_node_or_null(
 			^"RapidResponseWing"
 		) as MeshInstance3D
+		var wing_top := production_wing.position.y \
+			+ (production_wing.mesh as BoxMesh).size.y * 0.5 if production_wing != null else INF
+		var rails_seated := production_wing != null
+		for transform_value in first_rails.get_meta(&"authored_instance_transforms", []):
+			var rail_bounds := ((transform_value as Transform3D) * first_rails.multimesh.mesh.get_aabb()).abs()
+			rails_seated = rails_seated and is_equal_approx(rail_bounds.position.y, wing_top)
+		_check(
+			rails_seated,
+			"both luminous speed rails seat exactly on the response wing with no detached seam"
+		)
 		var visual_bounds := _batch_bounds(first_rails).merge(_batch_bounds(first_blades))
 		_check(
 			production_wing != null

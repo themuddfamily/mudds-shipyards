@@ -39,7 +39,11 @@ const AFT_RECOGNITION_FIN_ROTATION_Y := PI * 0.5
 ## bounds stay inside the existing 12 m wing, 8.8 m hull and 2.5 m hull-height
 ## envelope: this is presentation detail, not a new berth-fit claim.
 const SPEED_RAIL_SIZE := Vector3(3.2, 0.16, 0.32)
-const SPEED_RAIL_OFFSET := Vector3(4.25, 0.16, 0.35)
+# The 0.16 m rail section now seats its lower face exactly on the response
+# wing's y = 0.075 upper face. The former y = 0.160 centre left both rails
+# floating 5 mm above the wing, visible as a detached cyan seam at close chase
+# distance. This 5 mm seating correction leaves the planform unchanged.
+const SPEED_RAIL_OFFSET := Vector3(4.25, 0.155, 0.35)
 const SPEED_RAIL_SWEEP_DEGREES := 22.0
 const WINGTIP_BLADE_SIZE := Vector3(0.28, 0.78, 2.6)
 const WINGTIP_BLADE_OFFSET := Vector3(5.52, 0.24, 0.72)
