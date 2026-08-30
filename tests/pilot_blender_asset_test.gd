@@ -27,9 +27,9 @@ const LOOPING := [&"idle", &"walk", &"run", &"airborne", &"seated_control"]
 ## authored motion. Every animation curve changed and the per-clip imported
 ## track count went 17 -> 23; the mesh, rig, bind bounds, bone tree, skin,
 ## materials, clip roster and clip durations did not.
-## The rigid harness-light split changes the source graph without changing the
-## armature or the nine authored clips.
-const SOURCE_CONTENT_SIGNATURE := "5f89c5b26fad25fe9c59e47f1838bcaa536bee27a510401a5c87e8bc8d0e4ceb"
+## The rigid harness-light split and filled, calf-to-foot weighted ankle sleeves
+## change the source graph without changing the armature or nine authored clips.
+const SOURCE_CONTENT_SIGNATURE := "79d93a27f1cf2524a0439d426cf6d9a45debf8ced0655989fb44dd2154d30665"
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -237,6 +237,7 @@ func _test_exact_rig_and_skin(presentation: PilotSkinnedPresentation) -> void:
 		"HarnessWebbing", "VisorGlazing", "CyanStatusLight", "AmberStatusLight",
 	]:
 		_check(role_names.has(required_role), "%s material role survives the GLB boundary" % required_role)
+	_test_ankle_bridge_skinning(suit)
 	var visor_bounds := _surface_bounds_for_role(suit.mesh, &"VisorGlazing")
 	var face_light_bounds := _surface_bounds_for_role(suit.mesh, &"CyanStatusLight")
 	_check(
@@ -244,6 +245,76 @@ func _test_exact_rig_and_skin(presentation: PilotSkinnedPresentation) -> void:
 		and face_light_bounds.has_volume() and face_light_bounds.position.z >= 0.21,
 		"raw GLB visor and face status light prove semantic imported forward is +Z"
 	)
+
+
+func _test_ankle_bridge_skinning(suit: MeshInstance3D) -> void:
+	var surface_index := -1
+	for candidate_index in suit.mesh.get_surface_count():
+		var material := suit.mesh.surface_get_material(candidate_index)
+		if material != null and material.resource_name == &"JointRubber":
+			surface_index = candidate_index
+			break
+	if surface_index < 0 or suit.skin == null:
+		_check(false, "pilot exposes the skinned JointRubber ankle bridge surface")
+		return
+	var arrays := suit.mesh.surface_get_arrays(surface_index)
+	var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var bones := arrays[Mesh.ARRAY_BONES] as PackedInt32Array
+	var weights := arrays[Mesh.ARRAY_WEIGHTS] as PackedFloat32Array
+	var indices := arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
+	var referenced := {}
+	for vertex_index in indices:
+		referenced[vertex_index] = true
+	for side in [-1, 1]:
+		var side_x := float(side) * 0.14
+		var calf_name := StringName("calf_l" if side < 0 else "calf_r")
+		var foot_name := StringName("foot_l" if side < 0 else "foot_r")
+		var selected := 0
+		var lower_y := INF
+		var upper_y := -INF
+		var calf_rim_y := -INF
+		var foot_rim_y := INF
+		var foreign_weight := 0.0
+		for vertex_index in vertices.size():
+			if not referenced.has(vertex_index):
+				continue
+			var vertex := vertices[vertex_index]
+			if (
+				absf(vertex.x - side_x) > 0.09
+				or vertex.y < 0.10 or vertex.y > 0.21
+				or absf(vertex.z) > 0.09
+			):
+				continue
+			selected += 1
+			lower_y = minf(lower_y, vertex.y)
+			upper_y = maxf(upper_y, vertex.y)
+			var calf_weight := 0.0
+			var foot_weight := 0.0
+			for influence in 4:
+				var offset := vertex_index * 4 + influence
+				var weight := weights[offset]
+				if weight <= 0.0:
+					continue
+				var bind_index := bones[offset]
+				var bone_name := StringName(suit.skin.get_bind_name(bind_index))
+				if bone_name == calf_name:
+					calf_weight += weight
+				elif bone_name == foot_name:
+					foot_weight += weight
+				else:
+					foreign_weight = maxf(foreign_weight, weight)
+			if calf_weight > 0.90:
+				calf_rim_y = maxf(calf_rim_y, vertex.y)
+			if foot_weight > 0.90:
+				foot_rim_y = minf(foot_rim_y, vertex.y)
+		_check(
+			selected >= 40
+			and lower_y <= 0.116 and upper_y >= 0.194
+			and foot_rim_y <= 0.116 and calf_rim_y >= 0.194
+			and foreign_weight <= 0.0001,
+			("%s ankle is one filled 0.115-0.195 m sleeve whose lower rim follows "
+			+ "the foot and upper rim follows the calf") % ("left" if side < 0 else "right")
+		)
 
 
 func _test_imported_motion_library(presentation: PilotSkinnedPresentation) -> void:

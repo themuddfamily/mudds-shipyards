@@ -1,11 +1,10 @@
 extends SceneTree
 
-## Before/after visual evidence for the ship rounded-box winding fix.
+## Before/after visual evidence for the ship procedural-surface winding fixes.
 ##
-## Instantiates each of the four craft that build their boxes through
-## `HeroShip._box`, lights them with a single key light plus a weak fill, and
-## renders hull / cockpit / engine framings from angles where a culled outward
-## face shows as the unlit inside of the craft's own back faces.
+## Instantiates the four original production craft, lights them with a single key
+## plus a weak fill, and renders hull / cockpit / engine framings from angles
+## where a reversed rounded box, closed-loft sidewall, or end cap reads hollow.
 ##
 ## Run with `MUDDS_WINDING_EVIDENCE_LABEL=before` or `=after`.
 

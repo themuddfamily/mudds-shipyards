@@ -4187,6 +4187,10 @@ func _halyard_material(
 	material.albedo_color = color
 	material.metallic = clampf(metallic, 0.0, 1.0)
 	material.roughness = clampf(roughness, 0.04, 1.0)
+	# Opaque procedural cabin and hull pieces render both sides so one bad face
+	# cannot reopen the recurring hollow-block defect. `_halyard_glass` below
+	# retains back-face culling for its deliberately single-layer transparency.
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	material.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
@@ -4208,17 +4212,11 @@ func _halyard_glass(color: Color) -> StandardMaterial3D:
 
 ## Chamfered box built by the shared `StationSurfaceKit`.
 ##
-## This deliberately shadows `HeroShip._box`, which routes through the
-## controller's own private `_rounded_box_mesh`. That copy emits its two
-## triangles in `0-1-2 / 0-2-3` order, which is precisely the order the kit
-## documents as the reversed case it had to fix — with the same vertex normals,
-## that winding disagrees with the outward normal on all six faces. Every box on
-## this craft therefore goes through `StationSurfaceKit.rounded_box_mesh_cached`,
-## whose emission order (`0-2-1 / 0-3-2`) is the one
-## `tests/station_surface_winding_test.gd` calibrates against the engine's own
-## primitives. `tests/halyard_crew_transport_test.gd` re-measures every mesh this
-## craft builds against that same calibration, so the craft cannot regress into
-## the reversed builder.
+## This deliberately shadows `HeroShip._box` so the many repeated Halyard pieces
+## can share `StationSurfaceKit`'s size-keyed mesh cache. Both builders now use
+## the same engine-calibrated front-face order. The station and fleet winding
+## suites re-measure their respective builders, so a future change cannot revive
+## the old inside-out split between them.
 func _box(
 		parent: Node3D,
 		node_name: String,

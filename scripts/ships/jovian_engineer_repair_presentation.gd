@@ -240,6 +240,7 @@ func _build_visuals() -> void:
 	_inactive_slot_material.albedo_color = INACTIVE_SLOT_COLOR
 	_inactive_slot_material.metallic = 0.48
 	_inactive_slot_material.roughness = 0.54
+	_inactive_slot_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var segment_mesh := BoxMesh.new()
 	segment_mesh.size = Vector3(0.42, 0.09, 0.14)
 	for index in ARC_SEGMENT_COUNT:
@@ -314,6 +315,7 @@ func _emissive_material(
 	material.emission = color
 	material.emission_energy_multiplier = emission_energy
 	material.roughness = material_roughness
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return material
 
 

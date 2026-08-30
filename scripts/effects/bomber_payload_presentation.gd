@@ -426,8 +426,10 @@ func _material(color: Color, emission: Color, roughness: float, transparent := f
 	material.emission_enabled = true
 	material.emission = emission
 	material.emission_energy_multiplier = 1.0
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if transparent:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.cull_mode = BaseMaterial3D.CULL_BACK
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		material.no_depth_test = false
 	return material

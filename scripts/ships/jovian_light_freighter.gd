@@ -4522,6 +4522,10 @@ func _jovian_material(
 	material.albedo_color = color
 	material.metallic = clampf(metallic, 0.0, 1.0)
 	material.roughness = clampf(roughness, 0.04, 1.0)
+	# The freighter is dominated by runtime-authored plate and block geometry.
+	# Two-sided opaque materials keep those closed if a later mesh edit reverses
+	# a face; `_jovian_glass` explicitly restores the single-sided alpha path.
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	material.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
@@ -4569,14 +4573,12 @@ func _loft_hull(
 			var current_next := section_index * ring_count + next_ring
 			var following := (section_index + 1) * ring_count + ring_index
 			var following_next := (section_index + 1) * ring_count + next_ring
-			# Keep the radial side facing outward. Reversing these triangles makes
-			# back-face culling hide the near hull and expose the far inner shell.
 			tool.add_index(current)
-			tool.add_index(following_next)
 			tool.add_index(following)
-			tool.add_index(current)
-			tool.add_index(current_next)
 			tool.add_index(following_next)
+			tool.add_index(current)
+			tool.add_index(following_next)
+			tool.add_index(current_next)
 	var front_center := sections.size() * ring_count
 	tool.add_vertex(Vector3(0.0, 0.0, sections[0].z))
 	var rear_center := front_center + 1
@@ -4584,17 +4586,18 @@ func _loft_hull(
 	for ring_index in ring_count:
 		var next_ring := (ring_index + 1) % ring_count
 		tool.add_index(front_center)
-		tool.add_index(next_ring)
 		tool.add_index(ring_index)
+		tool.add_index(next_ring)
 		var rear_base := (sections.size() - 1) * ring_count
 		tool.add_index(rear_center)
-		tool.add_index(rear_base + ring_index)
 		tool.add_index(rear_base + next_ring)
+		tool.add_index(rear_base + ring_index)
 	tool.generate_normals()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = origin
 	instance.mesh = tool.commit()
+	instance.set_meta("closed_loft_hull", true)
 	parent.add_child(instance)
 	return instance
 

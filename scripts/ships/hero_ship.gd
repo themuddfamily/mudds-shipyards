@@ -6998,6 +6998,13 @@ func _material(color: Color, metallic: float, roughness: float, emission := Colo
 	material.albedo_color = color
 	material.metallic = clampf(metallic, 0.0, 1.0)
 	material.roughness = clampf(roughness, 0.04, 1.0)
+	# Opaque procedural hull pieces must remain visually closed even if a future
+	# builder introduces one reversed face. Winding is still validated separately
+	# (and remains the shading authority), but it is no longer also a catastrophic
+	# visibility switch that can turn a solid block into a hollow shell. Glass is
+	# constructed outside this helper and deliberately keeps back-face culling so
+	# cockpit views do not accumulate two transparent layers.
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	material.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX

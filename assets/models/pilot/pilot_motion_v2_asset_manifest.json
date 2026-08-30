@@ -74,7 +74,7 @@
       1.945
     ]
   },
-  "blend_sha256": "612840e09b44342f06c596b162dda4e67bb711713ff0bf20a34babf36326a1a6",
+  "blend_sha256": "749906a1f73d4d5443dc84b375702a9fae2a72a5933075d5dce38694c00a8fe8",
   "blender_version": "4.0.2",
   "bone_count": 23,
   "bone_tree": {
@@ -114,8 +114,8 @@
     "source": "Blender Z-up, -Y forward, metres"
   },
   "generator": "tools/blender/generate_pilot_motion_v2.py",
-  "generator_sha256": "301c21620d32465cb89c4efc8503bb8313e097ae55ce3caaf08991fd3192cf1a",
-  "glb_sha256": "457c783ba0c27ef21531ce17c15d62d486bfa7216a0b8a120d09f0b046af4099",
+  "generator_sha256": "0b4629f7e4cb3d813e36bc75f531ecc677e0d6b25368dac1b78b7883fc43e85b",
+  "glb_sha256": "71fd1695d678fc364ae5715d5af69b1ccb8ed9575e3331ccfb4c4f6fff2e3835",
   "hierarchy_contract": [
     "PilotArt",
     "HarnessRelease",
@@ -133,8 +133,8 @@
     "PressureTextile",
     "VisorGlazing"
   ],
-  "mesh_triangles_exported_evaluated": 14764,
-  "mesh_vertices_exported_evaluated": 7474,
+  "mesh_triangles_exported_evaluated": 14468,
+  "mesh_vertices_exported_evaluated": 7330,
   "motion_capture": false,
   "rigid_bone_attachment": "HarnessRelease -> spine_02",
   "rigid_bone_attachment_mesh_count": 1,

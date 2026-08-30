@@ -2206,6 +2206,9 @@ func _material(color: Color, metallic: float, roughness: float, emission := Colo
 	material.albedo_color = color
 	material.metallic = metallic
 	material.roughness = roughness
+	# Keep opaque procedural structure visibly closed independently of face
+	# culling. `_transparent_material` restores CULL_BACK for the canopy below.
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	material.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
@@ -2334,17 +2337,18 @@ func _loft_hull(parent: Node3D, node_name: String, origin: Vector3, sections: Pa
 	for ring_index in RING_COUNT:
 		var next_ring := (ring_index + 1) % RING_COUNT
 		tool.add_index(front_center)
-		tool.add_index(next_ring)
 		tool.add_index(ring_index)
+		tool.add_index(next_ring)
 		var rear_base := (sections.size() - 1) * RING_COUNT
 		tool.add_index(rear_center)
-		tool.add_index(rear_base + ring_index)
 		tool.add_index(rear_base + next_ring)
+		tool.add_index(rear_base + ring_index)
 	tool.generate_normals()
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = origin
 	instance.mesh = tool.commit()
+	instance.set_meta("closed_loft_hull", true)
 	parent.add_child(instance)
 	return instance
 

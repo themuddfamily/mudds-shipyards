@@ -1008,8 +1008,8 @@ func _test_scale_handling_and_presentation(jovian: JovianLightFreighter) -> void
 		var first_side_normal := (faces[1] - faces[0]).cross(faces[2] - faces[0]).normalized()
 		var first_side_center := (faces[0] + faces[1] + faces[2]) / 3.0
 		_check(
-			first_side_normal.dot(Vector3(first_side_center.x, first_side_center.y, 0.0)) > 0.0,
-			"flight-deck loft side faces point outward instead of exposing a hollow shell"
+			first_side_normal.dot(Vector3(first_side_center.x, first_side_center.y, 0.0)) < 0.0,
+			"flight-deck loft uses Godot's clockwise outward front face instead of exposing a hollow shell"
 		)
 	_check(visual.get_node_or_null("PortRadiator") is MeshInstance3D and visual.get_node_or_null("StarboardRadiator") is MeshInstance3D, "paired radiator planforms distinguish the utility silhouette")
 	var canopy := visual.get_node_or_null("CanopyHinge") as Node3D

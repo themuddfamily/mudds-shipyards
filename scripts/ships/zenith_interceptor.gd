@@ -3641,6 +3641,7 @@ func _build_starboard_wing_damage_cue(visual: Node3D) -> void:
 		_shared_damage_scorch_material.albedo_color = DAMAGE_SCORCH_COLOR
 		_shared_damage_scorch_material.metallic = 0.12
 		_shared_damage_scorch_material.roughness = 0.94
+		_shared_damage_scorch_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_shared_damage_scorch_material.resource_local_to_scene = false
 	var scorch := MeshInstance3D.new()
 	scorch.name = "DamageScorch"
@@ -3658,6 +3659,7 @@ func _build_starboard_wing_damage_cue(visual: Node3D) -> void:
 		_shared_damage_spar_material.albedo_color = DAMAGE_SPAR_COLOR
 		_shared_damage_spar_material.metallic = 0.26
 		_shared_damage_spar_material.roughness = 0.42
+		_shared_damage_spar_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_shared_damage_spar_material.emission_enabled = true
 		_shared_damage_spar_material.emission = DAMAGE_SPAR_COLOR
 		_shared_damage_spar_material.emission_energy_multiplier = 1.45

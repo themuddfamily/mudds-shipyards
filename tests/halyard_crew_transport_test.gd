@@ -1635,7 +1635,7 @@ func _test_berth_and_production_roster() -> void:
 		transport != null,
 		"the transport is accepted into the production flyable roster (%d craft)" % fleet.size()
 	)
-	_check(fleet.size() == 8, "the current production roster expands the former five-craft fleet to eight")
+	_check(fleet.size() == 9, "the current production roster contains all nine flyable craft")
 	if transport == null:
 		await _clean_up(game)
 		return

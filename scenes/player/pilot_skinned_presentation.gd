@@ -31,9 +31,9 @@ const MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest
 ## spine_02 at runtime. Windows Forward+ intermittently expanded triangles from
 ## its former joined skinned surface into the reported screen-sized red panes;
 ## rigid single-bone detail has no reason to enter the GPU skinning buffer.
-const EXPECTED_ASSET_SHA256 := "457c783ba0c27ef21531ce17c15d62d486bfa7216a0b8a120d09f0b046af4099"
-const EXPECTED_SOURCE_SHA256 := "612840e09b44342f06c596b162dda4e67bb711713ff0bf20a34babf36326a1a6"
-const EXPECTED_SOURCE_CONTENT_SHA256 := "5f89c5b26fad25fe9c59e47f1838bcaa536bee27a510401a5c87e8bc8d0e4ceb"
+const EXPECTED_ASSET_SHA256 := "71fd1695d678fc364ae5715d5af69b1ccb8ed9575e3331ccfb4c4f6fff2e3835"
+const EXPECTED_SOURCE_SHA256 := "749906a1f73d4d5443dc84b375702a9fae2a72a5933075d5dce38694c00a8fe8"
+const EXPECTED_SOURCE_CONTENT_SHA256 := "79d93a27f1cf2524a0439d426cf6d9a45debf8ced0655989fb44dd2154d30665"
 const EXPECTED_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_38ank"
 const EXPECTED_RIGID_HARNESS_MESH_RESOURCE_PATH := ASSET_PATH + "::ArrayMesh_dfldj"
 const EXPECTED_SKIN_RESOURCE_PATH := ASSET_PATH + "::Skin_l0rqn"

@@ -871,8 +871,10 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 The animation item's earlier “there is no foot IK” remainder is superseded by
 the grounded per-foot solve: each contact is sampled independently and the
 calf-solved ankle chain is retained, eliminating the detached/floating-foot
-regression. The solve remains procedural, and human animation review is still
-open.
+regression. The former hollow ankle torus is also replaced by one filled sleeve
+that overlaps the shin and boot and blends from foot weighting at its lower rim
+to calf weighting at its upper rim. The solve remains procedural, and human
+animation review is still open.
 
 - [ ] Conduct external playtests for flight feel, camera comfort, and nostalgia recognition.
 - [ ] Establish performance budgets for a representative mid-range Windows PC.
@@ -1321,14 +1323,19 @@ and the production clearance suite sweeps the whole outbound route with every
 current flyable rather than three selected historical envelope extremes.
 
 The reported hollow ship blocks and detached pilot feet were source regressions,
-not exposure tweaks. The shared rounded-box winding and Jovian cargo-aperture cap now
-follow Godot's front-face order; the fleet sweep scores all nine production flyables
-and currently finds zero reversed procedural faces across 289,584 triangles. The
-grounding solve no longer translates a foot bone independently beyond the reachable
-calf chain merely to improve its sole-height number: both foot joints retain the exact
-solved ankle position, with flat and ramp contact covered by the focused placement
-test. Imported mesh faces remain outside the procedural winding scanner, and native
-Windows visual repetition remains a human review gate.
+not exposure tweaks. The shared rounded boxes remain correctly wound, and the Arrow
+and Jovian closed-loft builders now put their sidewalls and both end caps in Godot's
+clockwise front-face order. The earlier scanner could miss a face whose generated normal
+was reversed with it; the fleet guard now also derives outside from each loft's interior,
+covering all 14 live Arrow/Jovian volumes independently of their normals. It still scores
+all nine production flyables with zero reversed procedural faces across 289,584 triangles,
+and every opaque runtime-authored hull material is two-sided as a final visibility
+failsafe while transparent glass retains back-face culling. The grounding solve retains
+the exact calf-solved ankle position on flat and ramp contacts, and the pilot asset's
+hollow ankle rings are replaced by filled, overlapping calf-to-foot weighted sleeves.
+Focused placement, asset, pose, ship and rendered Forward+ checks are green. Imported
+mesh faces remain outside the procedural scanner, and native-Windows visual repetition
+remains a human review gate.
 
 The recurring screen-filling warm flash was reproduced from current `Main` at the
 reported fleet/deck camera and isolated to a dormant retained

@@ -239,6 +239,52 @@ def torus_part(name, loc, major, minor, mat, weights, rotation=(0.0, 0.0, 0.0)):
     return finish_part(bpy.context.object, name, mat, weights)
 
 
+def ankle_bridge_part(
+    name: str,
+    x: float,
+    mat: bpy.types.Material,
+    calf: str,
+    foot: str,
+) -> bpy.types.Object:
+    """Build one filled, overlapping and smoothly skinned ankle connection.
+
+    The former torus was mathematically attached to both bones but had an empty
+    centre and only 42/58 uniform weights. As calf and foot rotated apart, the
+    dark ring could expose background between the shin and boot and read as a
+    floating foot. This filled sleeve overlaps both hard parts and changes its
+    weights continuously from the foot at its lower rim to the calf at its upper
+    rim, so there is no rigid seam for animation or runtime placement to open.
+    """
+    lower_z = 0.115
+    upper_z = 0.195
+    bridge = cylinder_part(
+        name,
+        (x, 0.0, lower_z),
+        (x, 0.0, upper_z),
+        0.076,
+        mat,
+        {calf: 0.5, foot: 0.5},
+        vertices=20,
+        bevel=0.009,
+    )
+    for group in list(bridge.vertex_groups):
+        bridge.vertex_groups.remove(group)
+    calf_group = bridge.vertex_groups.new(name=calf)
+    foot_group = bridge.vertex_groups.new(name=foot)
+    span = upper_z - lower_z
+    for vertex in bridge.data.vertices:
+        world_z = (bridge.matrix_world @ vertex.co).z
+        calf_weight = min(max((world_z - lower_z) / span, 0.0), 1.0)
+        # Smoothstep removes a weight kink at both overlapping rims.
+        calf_weight = calf_weight * calf_weight * (3.0 - 2.0 * calf_weight)
+        foot_weight = 1.0 - calf_weight
+        if calf_weight > 0.0:
+            calf_group.add([vertex.index], calf_weight, "REPLACE")
+        if foot_weight > 0.0:
+            foot_group.add([vertex.index], foot_weight, "REPLACE")
+    return bridge
+
+
 def build_rig(pilot_art: bpy.types.Object) -> bpy.types.Object:
     armature_data = bpy.data.armatures.new("PilotSkeleton")
     rig = bpy.data.objects.new("PilotRig", armature_data)
@@ -364,8 +410,7 @@ def build_original_suit(rig: bpy.types.Object) -> bpy.types.Object:
                       textile, {calf: .92, thigh: .08}, 22)
         box_part(f"ShinGuard{suffix}", (x, -.085, .315), (.15, .07, .25), armor,
                  {calf: 1.0}, .024)
-        torus_part(f"AnkleSeal{suffix}", (x, 0, .145), .083, .021, rubber,
-                   {calf: .42, foot: .58})
+        ankle_bridge_part(f"AnkleSeal{suffix}", x, rubber, calf, foot)
         box_part(f"BootBody{suffix}", (x, -.075, .105), (.175, .28, .15),
                  dark_armor, {foot: .78, toe: .22}, .025)
         box_part(f"BootToe{suffix}", (x, -.225, .075), (.18, .18, .105),

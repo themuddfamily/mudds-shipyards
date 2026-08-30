@@ -140,6 +140,7 @@ func _check_hero_builders(expected_sign: int) -> void:
 func _check_craft(expected_sign: int) -> void:
 	var fleet_triangles := 0
 	var procedural_craft := 0
+	var closed_lofts := 0
 	for label: String in CRAFT_SOURCES:
 		var source: Resource = load(CRAFT_SOURCES[label])
 		var craft: Node
@@ -158,6 +159,8 @@ func _check_craft(expected_sign: int) -> void:
 		var backwards := 0
 		var meshes := 0
 		var imported_meshes := 0
+		var opaque_procedural_materials: Dictionary = {}
+		var culled_opaque_materials := PackedStringArray()
 		var worst: Array[String] = []
 		for candidate in craft.find_children("*", "MeshInstance3D", true, false):
 			var instance := candidate as MeshInstance3D
@@ -166,6 +169,13 @@ func _check_craft(expected_sign: int) -> void:
 			if not instance.mesh.resource_path.is_empty():
 				imported_meshes += 1
 				continue
+			_collect_opaque_material_culling(
+				instance.mesh,
+				instance.material_override,
+				"%s/%s" % [label, craft.get_path_to(instance)],
+				opaque_procedural_materials,
+				culled_opaque_materials
+			)
 			meshes += 1
 			var report := _score(instance.mesh)
 			var mesh_triangles := int(report["triangles"])
@@ -175,6 +185,13 @@ func _check_craft(expected_sign: int) -> void:
 			backwards += mesh_backwards
 			if mesh_backwards > 0 and worst.size() < 6:
 				worst.append("%s (%d/%d)" % [instance.name, mesh_backwards, mesh_triangles])
+			if instance.get_meta("closed_loft_hull", false):
+				closed_lofts += 1
+				_assert_closed_mesh_faces_outward(
+					"%s/%s" % [label, craft.get_path_to(instance)],
+					instance.mesh,
+					expected_sign
+				)
 		if meshes == 0:
 			_assert(
 				imported_meshes > 0,
@@ -191,6 +208,31 @@ func _check_craft(expected_sign: int) -> void:
 					imported_meshes,
 				]
 			)
+		for candidate in craft.find_children("*", "MultiMeshInstance3D", true, false):
+			var batch := candidate as MultiMeshInstance3D
+			if batch == null or batch.multimesh == null or batch.multimesh.mesh == null:
+				continue
+			var batch_mesh := batch.multimesh.mesh
+			if not batch_mesh.resource_path.is_empty():
+				continue
+			_collect_opaque_material_culling(
+				batch_mesh,
+				batch.material_override,
+				"%s/%s" % [label, craft.get_path_to(batch)],
+				opaque_procedural_materials,
+				culled_opaque_materials
+			)
+		_assert(
+			not opaque_procedural_materials.is_empty()
+			and culled_opaque_materials.is_empty(),
+			"%s keeps all %d opaque runtime-authored material resources two-sided (%s)"
+			% [
+				label,
+				opaque_procedural_materials.size(),
+				"none culled" if culled_opaque_materials.is_empty()
+				else ", ".join(culled_opaque_materials),
+			]
+		)
 		root.remove_child(craft)
 		craft.queue_free()
 		await process_frame
@@ -203,6 +245,33 @@ func _check_craft(expected_sign: int) -> void:
 		"the fleet sweep scored real geometry (%d procedural triangles across %d craft)"
 		% [fleet_triangles, procedural_craft]
 	)
+	_assert(
+		closed_lofts == 14,
+		"the normal-independent closed-loft guard covered all 14 Arrow/Jovian hull volumes"
+	)
+
+
+func _collect_opaque_material_culling(
+		mesh: Mesh,
+		material_override: Material,
+		label: String,
+		opaque_materials: Dictionary,
+		culled_materials: PackedStringArray
+	) -> void:
+	for surface_index in mesh.get_surface_count():
+		var material := material_override
+		if material == null:
+			material = mesh.surface_get_material(surface_index)
+		if not material is StandardMaterial3D:
+			continue
+		var standard := material as StandardMaterial3D
+		if standard.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			continue
+		opaque_materials[standard.get_instance_id()] = true
+		if standard.cull_mode != BaseMaterial3D.CULL_DISABLED:
+			var finding := "%s[%d]=%s" % [label, surface_index, standard.resource_name]
+			if not culled_materials.has(finding):
+				culled_materials.append(finding)
 
 
 ## Structured-red control: a deliberately reversed copy of a builder mesh must be
@@ -240,6 +309,15 @@ func _check_detects_reversal(expected_sign: int) -> void:
 		triangles > 0 and backwards == triangles,
 		"a deliberately reversed HeroShip box is detected as fully backwards (%d/%d)" % [backwards, triangles]
 	)
+	var interior_report := _score_faces_from_interior(reversed_mesh)
+	var interior_triangles := int(interior_report["triangles"])
+	var positive := int(interior_report["positive"])
+	var interior_backwards := positive if expected_sign == -1 else interior_triangles - positive
+	_assert(
+		interior_triangles > 0 and interior_backwards == interior_triangles,
+		("the normal-independent interior guard also rejects every triangle of the "
+		+ "deliberately reversed closed box (%d/%d)") % [interior_backwards, interior_triangles]
+	)
 
 
 func _assert_wound(label: String, mesh: Mesh, expected_sign: int) -> void:
@@ -255,6 +333,55 @@ func _assert_wound(label: String, mesh: Mesh, expected_sign: int) -> void:
 		"%s winds every one of its %d triangles to face outward (%d backwards)"
 		% [label, triangles, backwards]
 	)
+
+
+## Unlike `_score`, this check does not consult authored or generated normals.
+## A face and its normal can both point inward and fool that relationship test.
+## These lofts surround their AABB centre, so the vector from that interior point
+## to each triangle is independent evidence of which side is actually outside.
+func _assert_closed_mesh_faces_outward(label: String, mesh: Mesh, expected_sign: int) -> void:
+	var report := _score_faces_from_interior(mesh)
+	var triangles := int(report["triangles"])
+	var positive := int(report["positive"])
+	var backwards := positive if expected_sign == -1 else triangles - positive
+	_assert(
+		triangles > 0 and backwards == 0,
+		"%s faces all %d closed-loft triangles away from its interior (%d backwards)"
+		% [label, triangles, backwards]
+	)
+
+
+func _score_faces_from_interior(mesh: Mesh) -> Dictionary:
+	var triangles := 0
+	var positive := 0
+	var interior := mesh.get_aabb().get_center()
+	for surface in range(mesh.get_surface_count()):
+		var arrays: Array = mesh.surface_get_arrays(surface)
+		if arrays.is_empty():
+			continue
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = (
+			arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		)
+		var count := idx.size() if idx.size() > 0 else verts.size()
+		var cursor := 0
+		while cursor + 2 < count:
+			var a_i := idx[cursor] if idx.size() > 0 else cursor
+			var b_i := idx[cursor + 1] if idx.size() > 0 else cursor + 1
+			var c_i := idx[cursor + 2] if idx.size() > 0 else cursor + 2
+			cursor += 3
+			var a := verts[a_i]
+			var b := verts[b_i]
+			var c := verts[c_i]
+			var geometric := (b - a).cross(c - a)
+			var outside := (a + b + c) / 3.0 - interior
+			var direction := geometric.dot(outside)
+			if absf(direction) < 1e-9:
+				continue
+			triangles += 1
+			if direction > 0.0:
+				positive += 1
+	return {"triangles": triangles, "positive": positive}
 
 
 ## Counts triangles whose CCW geometric normal agrees with the shading normal.
