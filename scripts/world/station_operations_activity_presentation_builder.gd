@@ -649,10 +649,14 @@ func _build_wayfinding_pylon() -> void:
 		pylon, "BerthRouteLabelFront", "BERTHS  >>\nROUTE A",
 		Vector3(0.0, 3.0, 0.385), 0.0
 	)
-	_wayfinding_label(
-		pylon, "BerthRouteLabelRear", "<<  BERTHS\nROUTE A",
-		Vector3(0.0, 3.0, 0.205), 180.0
+	var rear_label := _wayfinding_label(
+		pylon, "BerthRouteLabelRear", "BERTHS\n<<  A",
+		Vector3(-0.49, 3.0, 0.205), 180.0
 	)
+	# The mast is physically in front of the board from this approach. Keep the
+	# complete rear message inside its clear half-panel rather than letting that
+	# legitimate structure cut through the destination and route identifier.
+	rear_label.pixel_size = 0.0035
 
 	_box(pylon, "ChevronRail", Vector3(0.0, 2.15, 0.26), Vector3(1.9, 0.5, 0.1), _materials["graphite"])
 	for index in 5:

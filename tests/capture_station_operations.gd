@@ -791,7 +791,7 @@ func _capture_wayfinding_pylon() -> void:
 	_check(
 		front != null and rear != null
 			and front.text == "BERTHS  >>\nROUTE A"
-			and rear.text == "<<  BERTHS\nROUTE A",
+			and rear.text == "BERTHS\n<<  A",
 		"two pylon faces publish the concise berth destination, route ID, and non-colour arrow"
 	)
 	for label in [front, rear]:
