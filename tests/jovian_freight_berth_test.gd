@@ -53,6 +53,7 @@ func _run() -> void:
 	_test_floor_label_orientation(module)
 	_test_transfer_lane_label_orientation(module)
 	_test_handling_infrastructure(module)
+	_test_envelope_bollard_collar_batches(module)
 	_test_recessed_lashing_ring_profile(module)
 	_test_lashing_ring_visual_allocation(module)
 	_test_catwalk_ladder_hoop_visual_allocation(module)
@@ -1013,6 +1014,64 @@ func _test_handling_infrastructure(module: JovianFreightBerth) -> void:
 	)
 
 
+func _test_envelope_bollard_collar_batches(module: JovianFreightBerth) -> void:
+	var zones := module.get_node_or_null(^"HandlingZones") as Node3D
+	var material_peer := module.get_node_or_null(
+		^"FreightStores/DunnageSkipBand"
+	) as MeshInstance3D
+	var batch_names := [
+		"EnvelopeBollardCollarsPortFore", "EnvelopeBollardCollarsPortAft",
+		"EnvelopeBollardCollarsStarboardFore", "EnvelopeBollardCollarsStarboardAft",
+	]
+	var sides := [-1.0, -1.0, 1.0, 1.0]
+	var z_rows := [[13.5, 20.0, 26.5], [33.0, 39.5], [13.5, 20.0, 26.5], [33.0, 39.5]]
+	var exact := zones != null and material_peer != null
+	for batch_index in batch_names.size():
+		var batch := zones.get_node_or_null(batch_names[batch_index]) as MultiMeshInstance3D \
+			if zones != null else null
+		var expected: Array[Transform3D] = []
+		for z_position in z_rows[batch_index]:
+			expected.append(Transform3D(
+				Basis.IDENTITY, Vector3(float(sides[batch_index]) * 12.4, 0.72, float(z_position))
+			))
+		var authored := batch.get_meta("authored_instance_transforms", []) as Array \
+			if batch != null else []
+		var transforms_exact := authored.size() == expected.size()
+		for index in mini(authored.size(), expected.size()):
+			transforms_exact = transforms_exact and (
+				authored[index] as Transform3D
+			).is_equal_approx(expected[index])
+		var expected_bounds := AABB(
+			Vector3(float(sides[batch_index]) * 12.4 - 0.23, 0.65, float(z_rows[batch_index][0]) - 0.23),
+			Vector3(0.46, 0.14, float(z_rows[batch_index][-1]) - float(z_rows[batch_index][0]) + 0.46)
+		)
+		exact = exact and batch != null and batch.multimesh != null \
+			and batch.multimesh.mesh != null \
+			and batch.multimesh.instance_count == expected.size() \
+			and batch.multimesh.mesh.get_aabb().size.is_equal_approx(Vector3(0.46, 0.14, 0.46)) \
+			and batch.material_override == material_peer.material_override \
+			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			and batch.multimesh.custom_aabb.is_equal_approx(expected_bounds) \
+			and bool(batch.get_meta("explicit_authored_bounds", false)) \
+			and StringName(batch.get_meta("visual_batch_family_id", &"")) \
+				== &"envelope-bollard-collars" \
+			and transforms_exact and batch.get_child_count() == 0
+		if batch != null and not RenderingServer.get_video_adapter_name().is_empty():
+			for index in expected.size():
+				exact = exact and batch.multimesh.get_instance_transform(index).is_equal_approx(
+					expected[index]
+				)
+	var bodies := module.find_children("EnvelopeBollard*", "StaticBody3D", true, false)
+	_check(
+		exact and bodies.size() == 10
+		and module.find_children(
+			"EnvelopeBollardCollar*", "MeshInstance3D", true, false
+		).is_empty()
+		and int(module.get_handling_fixture_classes().get(&"envelope-bollard", 0)) == 10,
+		"ten glow collars retain exact copies through four local batches while all ten physical bollards remain registered"
+	)
+
+
 func _test_catwalk_ladder_hoop_visual_allocation(
 		module: JovianFreightBerth
 	) -> void:
@@ -1390,16 +1449,20 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 		and int(profile_report.get("triangles_after", 0)) == 4096,
 		"profile report derives the exact one-resource/eight-instance/eight-surface family after sharing"
 	)
+	# The live parent roster was 899 descendants, 399 MeshInstances, 12 batches
+	# and 381 submissions (the older literal here had fallen stale). Replacing
+	# ten visual-only collar leaves with four local batches therefore removes the
+	# exact six nodes/submissions claimed below while retaining every drawn copy.
 	_check(
 		renderer_before == {
-			"descendant_nodes": 906,
-			"mesh_instance_nodes": 407,
-			"multimesh_nodes": 11,
-			"surfaces": 388,
+			"descendant_nodes": 893,
+			"mesh_instance_nodes": 389,
+			"multimesh_nodes": 16,
+			"surfaces": 375,
 			"visible_copies": 447,
 		}
 		and _renderer_census(module) == renderer_before,
-		"handoff identity adds one honest combined submission: 906 descendants, 388 submissions, and 447 visible copies"
+		"collar batching preserves 447 visible copies through 893 descendants and 375 submissions"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

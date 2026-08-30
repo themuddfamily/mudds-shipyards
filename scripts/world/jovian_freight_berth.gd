@@ -2521,8 +2521,12 @@ func _build_handling_zones() -> void:
 	# at x = +/-12.4 with a 0.19 m radius, so the whole line clears the envelope by
 	# 0.71 m and the published 3.4 m cargo-transfer lane at z = 29.0 by 1.3 m.
 	var bollard_z := [13.5, 20.0, 26.5, 33.0, 39.5]
+	var collar_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.23 * 0.94, 0.23, 0.14, 16, _chamfered_cylinder_cache, 2
+	)
 	for side in [-1.0, 1.0]:
 		var side_tag := "Port" if side < 0.0 else "Starboard"
+		var collar_transforms: Array[Transform3D] = []
 		for index in bollard_z.size():
 			var z_position := float(bollard_z[index])
 			# Named per station side and index. Godot renames same-named siblings,
@@ -2537,15 +2541,32 @@ func _build_handling_zones() -> void:
 				_materials["orange"]
 			)
 			_register_handling_fixture(bollard, &"envelope-bollard")
-			_cylinder(
+			collar_transforms.append(Transform3D(
+				Basis.IDENTITY, Vector3(side * 12.4, 0.72, z_position)
+			))
+		# Keep culling local to each berth side and half of the envelope run. The
+		# ten named collision-backed bollards above retain every physical contract;
+		# these four batches replace only their non-collidable glow collars.
+		for cluster_index in 2:
+			var cluster_transforms: Array[Transform3D] = []
+			var first_index := 0 if cluster_index == 0 else 3
+			var past_last_index := 3 if cluster_index == 0 else 5
+			for transform_index in range(first_index, past_last_index):
+				cluster_transforms.append(collar_transforms[transform_index])
+			var batch := _multimesh_visuals(
 				zones,
-				"EnvelopeBollardCollar%s%02d" % [side_tag, index + 1],
-				Vector3(side * 12.4, 0.72, z_position),
-				0.23,
-				0.14,
+				"EnvelopeBollardCollars%s%s" % [
+					side_tag, "Fore" if cluster_index == 0 else "Aft",
+				],
+				collar_mesh,
 				_materials["orange_glow"],
-				false
+				cluster_transforms,
+				&"envelope-bollard-collars"
 			)
+			batch.multimesh.custom_aabb = _transformed_mesh_bounds(
+				collar_mesh.get_aabb(), cluster_transforms
+			)
+			batch.set_meta("explicit_authored_bounds", true)
 
 	# Securing points. Recessed lashing rings on the hull tie-down line, drawn
 	# flush: a ring standing proud of a working apron is a trip hazard, and one
@@ -3524,6 +3545,19 @@ func _multimesh_rounded_boxes(
 		transforms,
 		family_id
 	)
+
+
+func _transformed_mesh_bounds(
+		mesh_bounds: AABB,
+		transforms: Array[Transform3D]
+	) -> AABB:
+	var result := AABB()
+	var first := true
+	for transform_value in transforms:
+		var transformed := (transform_value * mesh_bounds).abs()
+		result = transformed if first else result.merge(transformed)
+		first = false
+	return result
 
 
 func _rounded_box(
