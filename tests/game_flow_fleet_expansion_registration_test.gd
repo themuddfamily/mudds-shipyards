@@ -2,6 +2,7 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Settings := preload("res://scripts/settings/runtime_settings.gd")
+const Profile := preload("res://scripts/settings/input_binding_profile.gd")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 
@@ -53,6 +54,16 @@ func _initialize() -> void:
 	var filesystem := IsolatedFilesystem.new()
 	var store := Store.new("memory://game-flow-fleet-expansion.json", filesystem)
 	var settings := Settings.new("memory://game-flow-fleet-expansion.cfg")
+	var custom_profile := settings.get_input_binding_profile()
+	_check(
+		custom_profile.set_action_options(&"move_forward", {
+			"deadzone": 0.37,
+			"curve": Profile.CURVE_SQUARED,
+			"hold_mode": Profile.HOLD,
+		})
+		and settings.set_input_binding_profile(custom_profile),
+		"fixture prepares a non-default persisted flight-input profile"
+	)
 	_check(bool(store.load().get("accepted", false)), "isolated settings store opens empty")
 	_check(
 		bool(store.commit({Adapter.SETTINGS_PAYLOAD_KEY: settings.to_user_data_payload()}, 0, "fixture").get("accepted", false)),
@@ -71,6 +82,18 @@ func _initialize() -> void:
 	_check(startup_registered.any(func(candidate: HeroShip) -> bool:
 		return candidate.get_ship_id() == GameFlow.CINDER_CARGO_SHIP_ID
 	), "startup refresh discovers nested production craft")
+	var profile_mismatches := PackedStringArray()
+	var expected_profile := settings.get_input_binding_profile().to_dictionary()
+	for candidate: HeroShip in startup_registered:
+		var source := candidate.get_local_input_source()
+		if source == null or source.get_input_binding_profile().to_dictionary() \
+				!= expected_profile:
+			profile_mismatches.append(String(candidate.get_ship_id()))
+	_check(
+		startup_registered.size() == 9 and profile_mismatches.is_empty(),
+		"the deferred nine-craft registry inherits the persisted profile atomically: %s"
+			% [", ".join(profile_mismatches)]
+	)
 	flow._resolve_scene_bindings()
 	flow._register_flyable_ships()
 	var registered := flow.get_flyable_ships()

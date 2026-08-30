@@ -9641,6 +9641,10 @@ func _on_camera_view_changed(view: StringName, source_ship: HeroShip = null) -> 
 
 
 func _register_flyable_ships() -> void:
+	var previously_registered_instance_ids: Dictionary = {}
+	for registered_ship: HeroShip in ships:
+		if is_instance_valid(registered_ship):
+			previously_registered_instance_ids[registered_ship.get_instance_id()] = true
 	ships.clear()
 	var seen_ship_ids: Dictionary = {}
 	var seen_home_berths: Dictionary = {}
@@ -9710,8 +9714,12 @@ func _register_flyable_ships() -> void:
 			if is_production_candidate
 			else world.call("get_berth_transform", berth_id) as Transform3D
 		)
-		candidate.global_transform = berth_transform
-		candidate.set_piloted(false)
+		# A deferred expansion refresh must not teleport or revoke input authority
+		# from craft that were already admitted. Only newly discovered ships need
+		# their initial berth placement and unpiloted lifecycle boundary.
+		if not previously_registered_instance_ids.has(candidate.get_instance_id()):
+			candidate.global_transform = berth_transform
+			candidate.set_piloted(false)
 		ships.append(candidate)
 		candidate.add_to_group("flyable_ships")
 		_connect_flyable_ship_signals(candidate)
@@ -9721,6 +9729,22 @@ func _register_flyable_ships() -> void:
 	if not ships.has(ship):
 		push_error("The guided Torrent craft was rejected from the physical fleet registry")
 	if _initialized:
+		# The expansion binding builds Dock 04/05/06 after the initial settings
+		# transaction. Registry admission is therefore also the synchronization
+		# boundary for every newly discovered ship-local settings consumer;
+		# otherwise those craft retain project defaults until the player happens to
+		# change each setting again. Global window/audio/HUD consumers are not
+		# replayed here.
+		for fleet_ship: HeroShip in ships:
+			_apply_runtime_settings_to_fleet_ship(fleet_ship)
+		# The shared input transaction preflights the complete current roster and
+		# leaves already-current banks untouched.
+		var input_profile_sync := _apply_runtime_input_bindings_and_options()
+		if not bool(input_profile_sync.get("accepted", false)):
+			push_error(
+				"Deferred fleet input-profile synchronization failed: %s"
+				% str(input_profile_sync.get("reason", &"profile_sync_rejected"))
+			)
 		_sync_fleet_ship_semantic_audio()
 
 
@@ -15084,9 +15108,7 @@ func _apply_all_runtime_settings() -> void:
 			_safe_start_production_recovery.note_first_settings_apply()
 	_apply_runtime_input_bindings_and_options()
 	for fleet_ship in ships:
-		fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
-		fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
-		fleet_ship.set_camera_fov(runtime_settings.camera_fov)
+		_apply_runtime_settings_to_fleet_ship(fleet_ship)
 	player.mouse_sensitivity = runtime_settings.on_foot_mouse_sensitivity
 	player.invert_mouse_y = runtime_settings.invert_on_foot_y
 	player.set_camera_fov(runtime_settings.camera_fov)
@@ -15106,6 +15128,31 @@ func _apply_all_runtime_settings() -> void:
 	_apply_accessibility_settings()
 	_sync_runtime_settings_hud()
 	_sync_production_runtime_settings_state()
+
+
+## Applies only settings consumed by one retained HeroShip. This is safe both
+## during the initial whole-settings transaction and when a deferred production
+## binding admits a craft after that transaction has completed.
+func _apply_runtime_settings_to_fleet_ship(fleet_ship: HeroShip) -> void:
+	if runtime_settings == null or not is_instance_valid(fleet_ship):
+		return
+	fleet_ship.mouse_sensitivity = runtime_settings.ship_mouse_sensitivity
+	fleet_ship.invert_mouse_y = runtime_settings.invert_ship_y
+	fleet_ship.set_camera_fov(runtime_settings.camera_fov)
+	var instance_id := fleet_ship.get_instance_id()
+	if not _authored_chase_camera_lag.has(instance_id):
+		_authored_chase_camera_lag[instance_id] = (
+			fleet_ship.maximum_chase_camera_rotation_lag_degrees
+		)
+	fleet_ship.maximum_chase_camera_rotation_lag_degrees = (
+		0.0
+		if runtime_settings.reduced_motion
+		else float(_authored_chase_camera_lag[instance_id])
+	)
+	if fleet_ship is CinderLongRangeBomber:
+		_apply_bomber_payload_presentation_profile(
+			fleet_ship as CinderLongRangeBomber
+		)
 
 
 func _sync_runtime_settings_hud() -> void:

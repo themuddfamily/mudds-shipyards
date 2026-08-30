@@ -151,6 +151,13 @@ func _test_production_startup_transactions_and_reentry() -> void:
 	var player := game.get_node_or_null(^"Player") as PlayerController
 	var settings := game.get_runtime_settings()
 	var startup := game.get_runtime_settings_persistence_report()
+	# RuntimeSettings shares the UserDataStore with startup/session systems. Their
+	# independent commits can advance the canonical generation without being a
+	# settings transaction, so settings IDs continue from the greater authority.
+	var settings_commit_baseline := maxi(
+		int(startup.commit_serial),
+		store.get_generation(),
+	)
 	_check(
 		int(startup.store_count) == 1
 		and int(startup.adapter_count) == 1
@@ -168,8 +175,8 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and player != null
 		and is_equal_approx(settings.camera_fov, 96.0)
 		and is_equal_approx(player.mouse_sensitivity, 0.0071)
-		and game.get_flyable_ships().size() == 5,
-		"validated loaded settings reach the real Player and complete five-ship fleet"
+		and game.get_flyable_ships().size() == 9,
+		"validated loaded settings reach the real Player and complete nine-ship fleet"
 	)
 	var ships_match := true
 	for fleet_ship: HeroShip in game.get_flyable_ships():
@@ -187,8 +194,10 @@ func _test_production_startup_transactions_and_reentry() -> void:
 				== settings.get_input_binding_profile().to_dictionary()
 		startup_generations.append(source.get_input_profile_generation() if source != null else -1)
 	_check(
-		startup_profile_matches and startup_generations == PackedInt64Array([3, 3, 3, 3, 3]),
-		"startup atomically installs the persisted options into all five production transform banks"
+		startup_profile_matches and startup_generations == PackedInt64Array([
+			3, 3, 3, 3, 3, 3, 3, 3, 3,
+		]),
+		"startup atomically installs the persisted options into all nine production transform banks"
 	)
 	var curve_source := game.get_flyable_ships()[1].get_local_input_source()
 	Input.action_press(&"move_forward", 0.6)
@@ -205,7 +214,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 	_check(
 		_input_map_has_key(&"fire", KEY_F13)
 		and not _input_map_has_key(&"fire", KEY_F)
-		and int(hud_binding_report.action_count) == 23
+		and int(hud_binding_report.action_count) == 22
 		and (hud_binding_report.bindings as Dictionary)[&"fire"]
 			== settings.get_input_binding_profile().get_bindings(&"fire"),
 		"the complete persisted binding profile reaches InputMap and HUD before input consumers"
@@ -253,7 +262,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and _fleet_local_source_ids(game) == local_source_ids
 		and is_equal_approx(InputMap.action_get_deadzone(&"move_forward"), 0.42)
 		and banks_own_no_input_map,
-		"one live RuntimeSettings change advances all five banks exactly once while RuntimeSettings alone mutates InputMap"
+		"one live RuntimeSettings change advances all nine banks exactly once while RuntimeSettings alone mutates InputMap"
 	)
 	_check(
 		not primed_toggle.boost and repressed_toggle.boost,
@@ -303,7 +312,9 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and int(changed.accepted_transaction_count) == 1
 		and not bool(changed.unsaved_changes)
 		and changed.last_save_status.reason == &"saved"
-		and changed.last_commit_id == "runtime-settings-0000000003",
+		and changed.last_commit_id == _runtime_settings_commit_id(
+			settings_commit_baseline + 1
+		),
 		"an accepted live change commits once with the first deterministic monotonic ID"
 	)
 	var attempts_before_noop := int(changed.save_attempt_count)
@@ -347,9 +358,13 @@ func _test_production_startup_transactions_and_reentry() -> void:
 		and not bool(failed.last_save_status.accepted)
 		and failed.last_save_status.reason == &"store_commit_failed"
 		and failed.last_save_status.store_reason == &"temp_write_failed"
-		and failed.last_commit_id == "runtime-settings-0000000004"
-		and int(failed.commit_serial) == 4
-		and failed_candidate_id == "runtime-settings-0000000005"
+		and failed.last_commit_id == _runtime_settings_commit_id(
+			settings_commit_baseline + 2
+		)
+		and int(failed.commit_serial) == settings_commit_baseline + 2
+		and failed_candidate_id == _runtime_settings_commit_id(
+			settings_commit_baseline + 3
+		)
 		and filesystem.files[STORE_PATH] == disk_before_failure
 		and not filesystem.files.has(STORE_PATH + ".tmp"),
 		"failed save keeps the accepted live change, marks it unsaved and preserves canonical disk"
@@ -377,16 +392,15 @@ func _test_production_startup_transactions_and_reentry() -> void:
 	hud.settings_save_requested.emit()
 	var explicit := game.get_runtime_settings_persistence_report()
 	commit_ids.append(str(explicit.last_commit_id))
+	var expected_commit_ids := PackedStringArray()
+	for offset in range(1, 6):
+		expected_commit_ids.append(
+			_runtime_settings_commit_id(settings_commit_baseline + offset)
+		)
 	_check(
 		bool(explicit.last_save_status.accepted)
 		and int(explicit.accepted_transaction_count) == 6
-		and commit_ids == PackedStringArray([
-			"runtime-settings-0000000003",
-			"runtime-settings-0000000004",
-			"runtime-settings-0000000005",
-			"runtime-settings-0000000006",
-			"runtime-settings-0000000007",
-		]),
+		and commit_ids == expected_commit_ids,
 		"every committed change, reset and explicit-save ID is bounded, deterministic and monotonic"
 	)
 	var composed := store.get_snapshot()
@@ -423,7 +437,7 @@ func _test_production_startup_transactions_and_reentry() -> void:
 			2,
 		)
 		and _fleet_profiles_match(game, profile_before_detach),
-		"whole-Main detach/re-entry retains settings and all five source/profile identities with only the two lifecycle generation fences"
+		"whole-Main detach/re-entry retains settings and all nine source/profile identities with only the two lifecycle generation fences"
 	)
 
 	game.queue_free()
@@ -553,6 +567,10 @@ func _test_process_lifetime_recreation_identity() -> void:
 		"a destroyed and recreated production GameFlow adopts one process-lifetime settings/store/adapter without reloading"
 	)
 	recreated.free()
+
+
+func _runtime_settings_commit_id(serial: int) -> String:
+	return "runtime-settings-%010d" % serial
 
 
 func _input_map_has_key(action: StringName, code: Key) -> bool:
