@@ -672,6 +672,24 @@ func _test_cockpit_canopy_and_contracts(torrent: HeroShip) -> void:
 		and _batch_members_contain(canopy_batches, "StarboardCanopySill"),
 		"imported canopy hierarchy retains the protected glass and paired source sills"
 	)
+	var imported_glass := blender_canopy.get_node_or_null("CanopyGlass") as MeshInstance3D \
+		if blender_canopy != null else null
+	var imported_glass_material := imported_glass.material_override as StandardMaterial3D \
+		if imported_glass != null else null
+	var cockpit_camera := cockpit.get_node_or_null("CockpitCamera") as Camera3D \
+		if cockpit != null else null
+	var chase_camera := torrent.get_camera()
+	_check(
+		imported_glass_material != null
+			and imported_glass_material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA
+			and imported_glass != null
+			and imported_glass.layers == TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK
+			and cockpit_camera != null
+			and (cockpit_camera.cull_mask & TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK) == 0
+			and chase_camera != null
+			and (chase_camera.cull_mask & TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK) != 0,
+		"imported glazing remains exterior-visible while the cockpit omits only its dedicated layer"
+	)
 	var anchor_before := torrent.get_pilot_seat_anchor().global_transform
 	var entry_before := torrent.get_boarding_entry_transform()
 	var boarding_before := torrent.get_boarding_position()
