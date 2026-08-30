@@ -20,6 +20,12 @@ const CANOPY_COLOR := Color("55d5dc")
 const CANOPY_RADIUS := 1.25
 const CANOPY_HEIGHT := 1.5
 const CANOPY_POSITION := Vector3(0.0, 1.1, -2.1)
+## Closed visual transition between the 1.25 m hull crown and the inherited
+## cockpit floor's 1.87 m underside. The forward end overlaps the canopy dome;
+## the aft end reaches the rear floor edge, so the complete cabin no longer
+## reads as a separate assembly floating above the interceptor hull.
+const COCKPIT_FAIRING_SIZE := Vector3(2.5, 0.62, 2.6)
+const COCKPIT_FAIRING_POSITION := Vector3(0.0, 1.56, -0.2)
 const WING_COLOR := Color("8b4a38")
 ## Upper starboard aft shoulder: the full lens clears the hull silhouette in Y
 ## and the centreline recognition fin in X when viewed from behind the craft.
@@ -109,6 +115,7 @@ static var _shared_wingtip_blade_mesh: BoxMesh
 # identical emissive sphere recipe is allocated once across live fleet copies.
 static var _shared_canopy_mesh: SphereMesh
 static var _shared_canopy_material: StandardMaterial3D
+static var _shared_cockpit_fairing_mesh: BoxMesh
 
 var _interceptor_boarding_marker: Marker3D
 var _interceptor_built := false
@@ -369,6 +376,19 @@ func _build_hull(visual: Node3D) -> void:
 	hull.mesh = _shared_hull_mesh
 	hull.material_override = _shared_hull_material
 	visual.add_child(hull)
+	var cockpit_fairing := MeshInstance3D.new()
+	cockpit_fairing.name = "ClosedCockpitFairing"
+	if _shared_cockpit_fairing_mesh == null:
+		_shared_cockpit_fairing_mesh = BoxMesh.new()
+		_shared_cockpit_fairing_mesh.size = COCKPIT_FAIRING_SIZE
+		_shared_cockpit_fairing_mesh.resource_local_to_scene = false
+	cockpit_fairing.mesh = _shared_cockpit_fairing_mesh
+	cockpit_fairing.position = COCKPIT_FAIRING_POSITION
+	cockpit_fairing.material_override = _shared_hull_material
+	cockpit_fairing.set_meta(&"visual_detail_only", true)
+	cockpit_fairing.set_meta(&"presentation_only", true)
+	cockpit_fairing.set_meta(&"gameplay_authority", false)
+	visual.add_child(cockpit_fairing)
 	var wing := MeshInstance3D.new()
 	wing.name = "RapidResponseWing"
 	if _shared_wing_mesh == null:
