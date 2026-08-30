@@ -374,8 +374,8 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		and int(performance.mesh_instances) == 2
 		and int(performance.static_bodies) == 34
 		and int(performance.collision_shapes) == 36
-		and module.find_children("*", "Node", true, false).size() == 153,
-		"finished district freezes 153 nodes, 2 meshes, 34 bodies and 36 shapes"
+		and module.find_children("*", "Node", true, false).size() == 152,
+		"finished district freezes 152 nodes, 2 meshes, 34 bodies and 36 shapes"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -384,8 +384,7 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 		"ConnectorPortalPosts": 10,
 		"ConnectorPortalBeams": 5,
 		"PadCanopySlats": 12,
-		"PadCanopyRibs": 8,
-		"PadCanopySupports": 8,
+		"PadCanopyRailFrame": 16,
 		"ObservationConsoleTrim": 3,
 		"CargoCaseBands": 12,
 		"ObservationZoneTicks": 11,
@@ -488,30 +487,30 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	_check(
 		bool(performance.exact)
 		and bool(performance.headless_safe)
-		and StringName(performance.selected_family) == &"walkable_deck_renderers"
+		and StringName(performance.selected_family) == &"pad_canopy_frame_renderers"
 		and int(performance.baseline_descendant_nodes) == 144
-		and int(performance.descendant_nodes) == 153
+		and int(performance.descendant_nodes) == 152
 		and int(performance.baseline_renderer_nodes) == 42
-		and int(performance.renderer_nodes) == 31
+		and int(performance.renderer_nodes) == 30
 		and int(performance.baseline_drawn_copies) == 270
 		and int(performance.drawn_copies) == 278
 		and int(performance.baseline_surface_submissions) == 42
-		and int(performance.surface_submissions) == 31,
-		"batched walkable decks preserve 278 supported visible copies and reduce the district to 31 submissions"
+		and int(performance.surface_submissions) == 30,
+		"batched visuals preserve 278 supported visible copies and reduce the district to 30 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 17
-		and int(performance.mesh_resource_delta) == -17
+		and int(performance.mesh_resources) == 15
+		and int(performance.mesh_resource_delta) == -19
 		and int(performance.baseline_material_resources) == 10
 		and int(performance.material_resources) == 10
-		and int(performance.baseline_family_nodes) == 5
+		and int(performance.baseline_family_nodes) == 2
 		and int(performance.family_nodes) == 1
-		and int(performance.baseline_family_submissions) == 5
+		and int(performance.baseline_family_submissions) == 2
 		and int(performance.family_submissions) == 1
-		and int(performance.baseline_family_mesh_resources) == 5
+		and int(performance.baseline_family_mesh_resources) == 2
 		and int(performance.family_mesh_resources) == 1,
-		"five named walkable decks retain five visible copies while sharing one renderer and the immutable unit mesh"
+		"the selected canopy-frame family reduces two renderers, submissions and meshes to one"
 	)
 	var walkable_batch := module.get_node_or_null(
 		^"Structure/Walkable/WalkableDeckRenderBatch"
@@ -666,7 +665,7 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 	var scaled_trim_batches := [
 		"VisibleRailBars", "VisibleRailPosts", "PadPavilionBulkheads",
 		"PadPavilionWindows", "PadPavilionMullions", "PadPavilionFascias",
-		"PadPavilionPlinths", "DistrictSignBacks",
+		"PadPavilionPlinths", "DistrictSignBacks", "PadCanopyRailFrame",
 	]
 	var shared_trim_mesh: Mesh
 	var scaled_trim_exact := true
@@ -685,11 +684,69 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 			and bool(batch.get_meta("visual_detail_only", false))
 	_check(
 		scaled_trim_exact
-		and int(performance.scaled_visual_batch_count) == 8
+		and int(performance.scaled_visual_batch_count) == 9
 		and int(performance.scaled_visual_mesh_resources) == 1
-		and int(performance.scaled_visual_mesh_resource_delta) == -7
+		and int(performance.scaled_visual_mesh_resource_delta) == -9
 		and bool(performance.scaled_visual_identities_exact),
-		"eight scaled visual trim batches retain their exact transforms and materials on one immutable unit-cube mesh"
+		"nine scaled visual trim batches retain their exact transforms and materials on one immutable unit-cube mesh"
+	)
+	var canopy_frame := module.get_node_or_null(
+		^"Structure/Dressing/PadCanopyRailFrame"
+	) as MultiMeshInstance3D
+	var canopy_frame_transforms := (
+		canopy_frame.get_meta("authored_instance_transforms", []) as Array
+		if canopy_frame != null else []
+	)
+	var canopy_frame_exact := canopy_frame != null \
+		and canopy_frame.multimesh != null \
+		and canopy_frame.multimesh.instance_count == 16 \
+		and canopy_frame.multimesh.visible_instance_count == 16 \
+		and canopy_frame_transforms.size() == 16
+	for pad_index in 2:
+		for rib_index in 4:
+			var transform_index := pad_index * 4 + rib_index
+			canopy_frame_exact = canopy_frame_exact and (
+				canopy_frame_transforms[transform_index] as Transform3D
+			).is_equal_approx(Transform3D(
+				Basis.from_scale(ObservationLogisticsSpur.PAD_CANOPY_RIB_SIZE),
+				Vector3(-6.75 + float(pad_index) * 13.5, 3.58,
+					[28.15, 30.7, 33.3, 35.85][rib_index])
+			))
+	for support_index in 4:
+		for depth_index in 2:
+			var transform_index := 8 + support_index * 2 + depth_index
+			canopy_frame_exact = canopy_frame_exact and (
+				canopy_frame_transforms[transform_index] as Transform3D
+			).is_equal_approx(Transform3D(
+				Basis.from_scale(ObservationLogisticsSpur.PAD_CANOPY_SUPPORT_SIZE),
+				Vector3([-10.68, -2.82, 2.82, 10.68][support_index], 1.78,
+					[28.4, 35.6][depth_index])
+			))
+	_check(
+		canopy_frame_exact
+		and canopy_frame.multimesh.mesh == shared_trim_mesh
+		and int(performance.baseline_pad_canopy_frame_renderer_nodes) == 2
+		and int(performance.pad_canopy_frame_renderer_nodes) == 1
+		and int(performance.pad_canopy_frame_renderer_delta) == -1
+		and int(performance.baseline_pad_canopy_frame_mesh_resources) == 2
+		and int(performance.pad_canopy_frame_mesh_resources) == 1
+		and int(performance.pad_canopy_frame_mesh_resource_delta) == -1
+		and int(performance.pad_canopy_frame_copies) == 16
+		and bool(performance.pad_canopy_frame_identities_exact),
+		"eight canopy ribs and eight supports retain exact poses in one shared rail batch"
+	)
+	var original_canopy_buffer := canopy_frame.multimesh.buffer
+	var moved_canopy_buffer := original_canopy_buffer.duplicate()
+	moved_canopy_buffer[3] += 0.25
+	canopy_frame.multimesh.buffer = moved_canopy_buffer
+	_check(
+		not bool(module.get_visual_resource_contract().exact),
+		"red mutation: moving one canopy member fails the exact batched-pose contract"
+	)
+	canopy_frame.multimesh.buffer = original_canopy_buffer
+	_check(
+		bool(module.get_visual_resource_contract().exact),
+		"restoring the canopy member pose returns the visual resource contract green"
 	)
 	var console_batch := module.get_node_or_null(
 		^"Structure/Dressing/ObservationConsoleRenderBatch"

@@ -133,15 +133,15 @@ const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 	Vector3(-9.0675, 0.63, 28.14), Vector3(0.035, 0.26, 6.52)
 )
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 144
-const VISUAL_DESCENDANT_NODE_COUNT := 153
+const VISUAL_DESCENDANT_NODE_COUNT := 152
 const BASELINE_RENDERER_NODE_COUNT := 42
-const RENDERER_NODE_COUNT := 31
+const RENDERER_NODE_COUNT := 30
 const BASELINE_DRAWN_COPY_COUNT := 270
 const DRAWN_COPY_COUNT := 278
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
-const SURFACE_SUBMISSION_COUNT := 31
+const SURFACE_SUBMISSION_COUNT := 30
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 17
+const MESH_RESOURCE_COUNT := 15
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
 const MATERIAL_RESOURCE_COUNT := 10
 const WALKABLE_DECK_COPY_COUNT := 5
@@ -232,14 +232,26 @@ const BASELINE_LIGHT_MAST_RENDERER_NODE_COUNT := 6
 const LIGHT_MAST_RENDERER_NODE_COUNT := 1
 const BASELINE_LIGHT_MAST_MESH_RESOURCE_COUNT := 6
 const LIGHT_MAST_MESH_RESOURCE_COUNT := 1
-## Eight visual-only scaled trim batches differ only by their instance data.
+## Nine visual-only scaled trim batches differ only by their instance data.
 const SCALED_VISUAL_BATCH_NAMES := [
 	"VisibleRailBars", "VisibleRailPosts", "PadPavilionBulkheads",
 	"PadPavilionWindows", "PadPavilionMullions", "PadPavilionFascias",
-	"PadPavilionPlinths", "DistrictSignBacks",
+	"PadPavilionPlinths", "DistrictSignBacks", "PadCanopyRailFrame",
 ]
-const BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT := 8
+const BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT := 10
 const SCALED_VISUAL_MESH_RESOURCE_COUNT := 1
+## The canopy's eight ribs and eight supports are one immutable rail-material
+## family. Per-copy scale retains every exact member while one unit-box batch
+## replaces the former two renderers and their two dedicated BoxMesh resources.
+const PAD_CANOPY_RIB_SIZE := Vector3(6.85, 0.20, 0.24)
+const PAD_CANOPY_SUPPORT_SIZE := Vector3(0.20, 3.56, 0.20)
+const PAD_CANOPY_RIB_COPY_COUNT := 8
+const PAD_CANOPY_SUPPORT_COPY_COUNT := 8
+const PAD_CANOPY_FRAME_COPY_COUNT := 16
+const BASELINE_PAD_CANOPY_FRAME_RENDERER_NODE_COUNT := 2
+const PAD_CANOPY_FRAME_RENDERER_NODE_COUNT := 1
+const BASELINE_PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT := 2
+const PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT := 1
 ## The ten open-portal posts and five headers remain two material-separated
 ## render batches, but use the existing immutable unit box with exact per-copy
 ## scales instead of allocating two more BoxMesh resources.
@@ -467,8 +479,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 153 descendant
-	# nodes, 2 MeshInstance3D nodes plus twenty-nine MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 152 descendant
+	# nodes, 2 MeshInstance3D nodes plus twenty-eight MultiMesh batches,
 	# 34 bodies, 36 shapes, four Label3Ds and six practicals. The fifteen conservative
 	# safety volumes deliberately retain collision shapes but no solid renderer.
 	# owns no processing callback. The practical lenses reuse three exact recipes,
@@ -984,6 +996,51 @@ func get_visual_resource_contract() -> Dictionary:
 			and bool(scaled_batch.get_meta("visual_detail_only", false))
 		)
 
+	var canopy_frame_batch := get_node_or_null(
+		^"Structure/Dressing/PadCanopyRailFrame"
+	) as MultiMeshInstance3D
+	var expected_canopy_frame_transforms: Array[Transform3D] = []
+	for pad_x in [-6.75, 6.75]:
+		for rib_z in [28.15, 30.7, 33.3, 35.85]:
+			expected_canopy_frame_transforms.append(Transform3D(
+				Basis.from_scale(PAD_CANOPY_RIB_SIZE), Vector3(pad_x, 3.58, rib_z)
+			))
+	for support_x in [-10.68, -2.82, 2.82, 10.68]:
+		for support_z in [28.4, 35.6]:
+			expected_canopy_frame_transforms.append(Transform3D(
+				Basis.from_scale(PAD_CANOPY_SUPPORT_SIZE),
+				Vector3(support_x, 1.78, support_z)
+			))
+	var authored_canopy_frame_transforms := (
+		canopy_frame_batch.get_meta("authored_instance_transforms", []) as Array
+		if canopy_frame_batch != null else []
+	)
+	var canopy_frame_mesh := (
+		canopy_frame_batch.multimesh.mesh as BoxMesh
+		if canopy_frame_batch != null and canopy_frame_batch.multimesh != null else null
+	)
+	var canopy_frame_identities_exact: bool = (
+		canopy_frame_batch != null
+		and canopy_frame_mesh == _scaled_visual_box_mesh
+		and canopy_frame_mesh != null
+		and canopy_frame_mesh.size.is_equal_approx(Vector3.ONE)
+		and canopy_frame_batch.material_override == _materials.get("rail")
+		and canopy_frame_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		and canopy_frame_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and canopy_frame_batch.layers == 1
+		and is_zero_approx(canopy_frame_batch.extra_cull_margin)
+		and not canopy_frame_batch.ignore_occlusion_culling
+		and canopy_frame_batch.multimesh.transform_format == MultiMesh.TRANSFORM_3D
+		and canopy_frame_batch.multimesh.instance_count == PAD_CANOPY_FRAME_COPY_COUNT
+		and canopy_frame_batch.multimesh.visible_instance_count == PAD_CANOPY_FRAME_COPY_COUNT
+		and expected_canopy_frame_transforms.size()
+			== PAD_CANOPY_RIB_COPY_COUNT + PAD_CANOPY_SUPPORT_COPY_COUNT
+		and canopy_frame_batch.multimesh.buffer
+			== _encode_multimesh_transforms(expected_canopy_frame_transforms)
+		and authored_canopy_frame_transforms == expected_canopy_frame_transforms
+		and bool(canopy_frame_batch.get_meta("visual_detail_only", false))
+	)
+
 	var route_tick_mesh_resource_ids := {}
 	var route_tick_identities_exact := is_instance_valid(_route_tick_mesh)
 	var route_tick_copies := 0
@@ -1142,6 +1199,7 @@ func get_visual_resource_contract() -> Dictionary:
 		and light_mast_identities_exact
 		and scaled_visual_mesh_resource_ids.size() == SCALED_VISUAL_MESH_RESOURCE_COUNT
 		and scaled_visual_identities_exact
+		and canopy_frame_identities_exact
 		and route_tick_mesh_resource_ids.size() == ROUTE_TICK_MESH_RESOURCE_COUNT
 		and route_tick_copies == ROUTE_TICK_COPY_COUNT
 		and route_tick_identities_exact
@@ -1153,7 +1211,7 @@ func get_visual_resource_contract() -> Dictionary:
 		"exact": exact,
 		"headless_safe": true,
 		"scope": &"ObservationLogisticsSpur_static_visuals",
-		"selected_family": &"walkable_deck_renderers",
+		"selected_family": &"pad_canopy_frame_renderers",
 		"baseline_descendant_nodes": BASELINE_VISUAL_DESCENDANT_NODE_COUNT,
 		"descendant_nodes": descendant_nodes,
 		"baseline_renderer_nodes": BASELINE_RENDERER_NODE_COUNT,
@@ -1167,14 +1225,14 @@ func get_visual_resource_contract() -> Dictionary:
 		"mesh_resource_delta": mesh_resource_ids.size() - BASELINE_MESH_RESOURCE_COUNT,
 		"baseline_material_resources": BASELINE_MATERIAL_RESOURCE_COUNT,
 		"material_resources": material_resource_ids.size(),
-		"baseline_family_nodes": BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT,
-		"family_nodes": WALKABLE_DECK_RENDERER_NODE_COUNT,
-		"baseline_family_submissions": BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT,
-		"family_submissions": WALKABLE_DECK_RENDERER_NODE_COUNT,
-		"baseline_family_mesh_resources": BASELINE_WALKABLE_DECK_MESH_RESOURCE_COUNT,
-		"family_mesh_resources": walkable_deck_mesh_resource_ids.size(),
-		"family_copies": WALKABLE_DECK_COPY_COUNT,
-		"family_identities_exact": walkable_deck_identities_exact,
+		"baseline_family_nodes": BASELINE_PAD_CANOPY_FRAME_RENDERER_NODE_COUNT,
+		"family_nodes": PAD_CANOPY_FRAME_RENDERER_NODE_COUNT,
+		"baseline_family_submissions": BASELINE_PAD_CANOPY_FRAME_RENDERER_NODE_COUNT,
+		"family_submissions": PAD_CANOPY_FRAME_RENDERER_NODE_COUNT,
+		"baseline_family_mesh_resources": BASELINE_PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT,
+		"family_mesh_resources": PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT,
+		"family_copies": PAD_CANOPY_FRAME_COPY_COUNT,
+		"family_identities_exact": canopy_frame_identities_exact,
 		"walkable_deck_renderer_delta": (
 			WALKABLE_DECK_RENDERER_NODE_COUNT - BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT
 		),
@@ -1201,6 +1259,20 @@ func get_visual_resource_contract() -> Dictionary:
 		"scaled_visual_mesh_resources": scaled_visual_mesh_resource_ids.size(),
 		"scaled_visual_mesh_resource_delta": scaled_visual_mesh_resource_ids.size() - BASELINE_SCALED_VISUAL_MESH_RESOURCE_COUNT,
 		"scaled_visual_identities_exact": scaled_visual_identities_exact,
+		"baseline_pad_canopy_frame_renderer_nodes": BASELINE_PAD_CANOPY_FRAME_RENDERER_NODE_COUNT,
+		"pad_canopy_frame_renderer_nodes": PAD_CANOPY_FRAME_RENDERER_NODE_COUNT,
+		"pad_canopy_frame_renderer_delta": (
+			PAD_CANOPY_FRAME_RENDERER_NODE_COUNT
+			- BASELINE_PAD_CANOPY_FRAME_RENDERER_NODE_COUNT
+		),
+		"baseline_pad_canopy_frame_mesh_resources": BASELINE_PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT,
+		"pad_canopy_frame_mesh_resources": PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT,
+		"pad_canopy_frame_mesh_resource_delta": (
+			PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT
+			- BASELINE_PAD_CANOPY_FRAME_MESH_RESOURCE_COUNT
+		),
+		"pad_canopy_frame_copies": PAD_CANOPY_FRAME_COPY_COUNT,
+		"pad_canopy_frame_identities_exact": canopy_frame_identities_exact,
 		"observation_lens_anchor_nodes": OBSERVATION_LENS_COPY_COUNT,
 		"baseline_observation_lens_renderer_nodes": BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT,
 		"observation_lens_renderer_nodes": OBSERVATION_LENS_RENDERER_NODE_COUNT,
@@ -1802,16 +1874,28 @@ func _build_finishing_details(parent: Node3D) -> void:
 	var canopy_ribs: Array[Transform3D] = []
 	for pad_x in [-6.75, 6.75]:
 		for rib_z in [28.15, 30.7, 33.3, 35.85]:
-			canopy_ribs.append(Transform3D(Basis.IDENTITY, Vector3(pad_x, 3.58, rib_z)))
+			canopy_ribs.append(Transform3D(
+				Basis.from_scale(PAD_CANOPY_RIB_SIZE), Vector3(pad_x, 3.58, rib_z)
+			))
 	var canopy_supports: Array[Transform3D] = []
 	# Supports sit directly outside the pad edges against the safety rails, so a
 	# player never encounters a visual-only post in either walkable route.
 	for support_x in [-10.68, -2.82, 2.82, 10.68]:
 		for support_z in [28.4, 35.6]:
-			canopy_supports.append(Transform3D(Basis.IDENTITY, Vector3(support_x, 1.78, support_z)))
+			canopy_supports.append(Transform3D(
+				Basis.from_scale(PAD_CANOPY_SUPPORT_SIZE),
+				Vector3(support_x, 1.78, support_z)
+			))
 	_multimesh_boxes(parent, "PadCanopySlats", Vector3(0.62, 0.12, 8.0), _materials["shell"], canopy_slats)
-	_multimesh_boxes(parent, "PadCanopyRibs", Vector3(6.85, 0.20, 0.24), _materials["rail"], canopy_ribs)
-	_multimesh_boxes(parent, "PadCanopySupports", Vector3(0.20, 3.56, 0.20), _materials["rail"], canopy_supports)
+	var canopy_frame_transforms := canopy_ribs.duplicate()
+	canopy_frame_transforms.append_array(canopy_supports)
+	var canopy_frame_batch := _multimesh_scaled_boxes(
+		parent, "PadCanopyRailFrame", _materials["rail"], canopy_frame_transforms
+	)
+	canopy_frame_batch.multimesh.visible_instance_count = PAD_CANOPY_FRAME_COPY_COUNT
+	canopy_frame_batch.multimesh.buffer = _encode_multimesh_transforms(
+		canopy_frame_transforms
+	)
 
 	# The two pads terminate in compact perimeter pavilions. Their wall panels sit
 	# between each outboard safety rail and the footprint boundary, so they add a
