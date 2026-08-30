@@ -101,7 +101,7 @@ cue_half_width = 4.7
 cue_half_length = 11.3
 
 [node name="BulwarkFleetDockBerth" parent="." instance=ExtResource("2_berth")]
-position = Vector3(52, 5.28, 53.3)
+position = Vector3(52, 7.68, 53.05)
 berth_id = &"bulwark_fleet_dock_berth"
 compatibility_tags = PackedStringArray("bulwark_gunship")
 landing_half_extents = Vector3(6, 4.5, 6.4)
@@ -111,7 +111,7 @@ assist_capture_maximum_speed = 26.0
 assist_maximum_tilt_degrees = 75.0
 
 [node name="BerthFeedback" parent="BulwarkFleetDockBerth" instance=ExtResource("6_berth_feedback")]
-position = Vector3(0, 1.19, 0)
+position = Vector3(0, -1.21, 0)
 cue_half_width = 4.7
 cue_half_length = 4.7
 

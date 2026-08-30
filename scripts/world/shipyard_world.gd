@@ -53,6 +53,17 @@ const SHIP_BERTH_FEEDBACK_BERTH_IDS: Array[StringName] = [
 	HALYARD_FLEET_DOCK_BERTH_ID,
 	BULWARK_FLEET_DOCK_BERTH_ID,
 ]
+const SHIP_BERTH_PRODUCTION_IDS: Array[StringName] = [
+	CENTRAL_BERTH_ID,
+	ARROW_RECON_BERTH_ID,
+	JOVIAN_FREIGHT_BERTH_ID,
+	ZENITH_FLEET_DOCK_BERTH_ID,
+	HALYARD_FLEET_DOCK_BERTH_ID,
+	BULWARK_FLEET_DOCK_BERTH_ID,
+	&"dock_04_cargo",
+	&"dock_05_bomber",
+	&"dock_06_interceptor",
+]
 const SHIP_BERTH_FEEDBACK_MATERIAL_IDS: Array[StringName] = [
 	&"dim",
 	&"active",
@@ -238,7 +249,7 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"berth_path": NodePath("BulwarkFleetDockBerth"),
 		"berth_local_transform": Transform3D(
 			Basis.IDENTITY,
-			Vector3(52.0, 5.28, 53.3)
+			Vector3(52.0, 7.68, 53.05)
 		),
 		"dock_transform": Transform3D.IDENTITY,
 		"landing_half_extents": Vector3(6.0, 4.5, 6.4),
@@ -248,10 +259,10 @@ const SHIP_BERTH_FEEDBACK_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["bulwark_gunship"],
 		"feedback_path": NodePath("BulwarkFleetDockBerth/BerthFeedback"),
-		# Fleet Dock 03 is the comb's raised deck: its top is 2.4 m above Dock 02.
-		# Seat this presentation cue on that surface without moving the berth,
-		# landing volume, or ship authority owned by ShipBerth.
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, 1.19, 0.0)),
+		# Fleet Dock 03 is the comb's raised deck. The parked root therefore uses
+		# the same 1.08 m deck clearance as Docks 01/02 at y = 7.68, and this cue
+		# seats back down on the y = 6.6 surface exactly like its siblings.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.21, 0.0)),
 		"cue_half_width": 4.7,
 		"cue_half_length": 4.7,
 	},
@@ -2538,7 +2549,7 @@ func get_fleet_dock_comb_integration_audit_report() -> Dictionary:
 		if bulwark_berth.get_parent() != self:
 			errors.append("Bulwark fleet dock berth must remain owned directly by ShipyardWorld")
 		if not bulwark_berth.global_transform.is_equal_approx(
-			Transform3D(Basis.IDENTITY, Vector3(52.0, 5.28, 53.3))
+			Transform3D(Basis.IDENTITY, Vector3(52.0, 7.68, 53.05))
 		):
 			errors.append("Bulwark fleet dock berth no longer aligns above assigned dock 03")
 		if bulwark_berth.get_compatibility_tags() != PackedStringArray(["bulwark_gunship"]):
@@ -3432,11 +3443,24 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 	var placements: Dictionary = {}
 	var expected_ids: Array[StringName] = []
 	expected_ids.assign(SHIP_BERTH_FEEDBACK_BERTH_IDS)
-	if not _dictionary_has_exact_keys(_berth_nodes, expected_ids):
+	# The Dock 04/05/06 berths assemble after the world's initial index pass.
+	# Until GameFlow refreshes that index, the three berth caches truthfully hold
+	# the six feedback-equipped berths; afterwards they truthfully hold all nine.
+	# Both atomic states are valid, but partial or foreign cache rosters are not.
+	if (
+		not _dictionary_has_exact_keys(_berth_nodes, expected_ids)
+		and not _dictionary_has_exact_keys(_berth_nodes, SHIP_BERTH_PRODUCTION_IDS)
+	):
 		errors.append("cached_berth_registry_ids_do_not_match_production_contract")
-	if not _dictionary_has_exact_keys(_berth_transforms, expected_ids):
+	if (
+		not _dictionary_has_exact_keys(_berth_transforms, expected_ids)
+		and not _dictionary_has_exact_keys(_berth_transforms, SHIP_BERTH_PRODUCTION_IDS)
+	):
 		errors.append("cached_berth_transform_ids_do_not_match_production_contract")
-	if not _dictionary_has_exact_keys(_berth_half_extents, expected_ids):
+	if (
+		not _dictionary_has_exact_keys(_berth_half_extents, expected_ids)
+		and not _dictionary_has_exact_keys(_berth_half_extents, SHIP_BERTH_PRODUCTION_IDS)
+	):
 		errors.append("cached_berth_extent_ids_do_not_match_production_contract")
 	if not _dictionary_has_exact_keys(_berth_feedback_nodes, expected_ids):
 		errors.append("cached_feedback_registry_ids_do_not_match_production_contract")
@@ -3597,7 +3621,13 @@ func get_ship_berth_feedback_audit_report() -> Dictionary:
 			"component_audit": report,
 		}
 
-	if not _node_instance_sets_match(live_berths, canonical_berths):
+	var live_berth_ids: Dictionary = {}
+	for live_berth in live_berths:
+		live_berth_ids[live_berth.get_berth_id()] = true
+	if (
+		live_berths.size() != SHIP_BERTH_PRODUCTION_IDS.size()
+		or not _dictionary_has_exact_keys(live_berth_ids, SHIP_BERTH_PRODUCTION_IDS)
+	):
 		errors.append("ship_berth_descendants_do_not_match_production_contract")
 	if not _node_instance_sets_match(live_feedback_nodes, canonical_feedback_nodes):
 		errors.append("feedback_descendants_do_not_match_production_contract")

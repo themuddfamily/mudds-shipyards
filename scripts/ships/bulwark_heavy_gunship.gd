@@ -2151,11 +2151,18 @@ static func _crew_role_result(accepted: bool, status: StringName) -> Dictionary:
 
 
 func get_berth_clearance_report() -> Dictionary:
+	# Publish the same live root-shape union that landing assist consumes. The
+	# former literal omitted the chin collision's lower 0.33 m and shifted the
+	# longitudinal bounds, allowing berth-route audits to reason about a smaller
+	# hull than the player could actually hit.
+	var collision_bounds := get_landing_collision_report().get(
+		"local_bounds", AABB()
+	) as AABB
 	return {
 		"schema_version": 1,
 		"home_berth_id": get_home_berth_id(),
 		"parked_render_bounds": AABB(Vector3(-5.8, -0.9, -6.0), Vector3(11.6, 5.0, 12.0)),
-		"flight_collision_bounds": AABB(Vector3(-5.8, -0.2, -5.3), Vector3(11.6, 3.1, 10.8)),
+		"flight_collision_bounds": collision_bounds,
 		"landing_contact_y": -1.21,
 		"dock_role": &"fleet_dock_03",
 		"provisional": false,

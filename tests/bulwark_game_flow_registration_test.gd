@@ -107,9 +107,9 @@ func _initialize() -> void:
 		clearance.get("home_berth_id", &"") == &"bulwark_fleet_dock_berth"
 		and clearance.get("dock_role", &"") == &"fleet_dock_03"
 		and clearance.get("flight_collision_bounds", AABB())
-			== AABB(Vector3(-5.8, -0.2, -5.3), Vector3(11.6, 3.1, 10.8))
+			== bulwark.get_landing_collision_report().get("local_bounds", AABB())
 		and bool(clearance.get("physical_boarding_contract", false)),
-		"retention preserves Bulwark's exact flight collision and physical boarding envelope"
+		"retention publishes Bulwark's complete live flight collision and physical boarding envelope"
 	)
 	_check(authority.get_source_id(bulwark) == 1107, "Bulwark owns stable combat source 1107")
 	var cinder: HeroShip

@@ -1393,6 +1393,19 @@ exit-ready shutdown at that pad. Binding lifecycle, physical boarding/switching,
 legacy Arrow recovery and shared landing-clearance checks remain green. Native
 Windows repetition remains `NOT_RUN`.
 
+The player-path audit then reproduced Fleet Dock 03's upper ramp as a genuine P1
+blocker: its parked Bulwark used the lower Dock 01/02 root height, placing the live
+hull collision through the raised deck and across the ramp threshold. The berth now
+follows Dock 03's 6.6 m deck top, keeps the complete hull at least 0.5 m above it,
+and shifts 0.25 m away from the threshold to leave a capsule-clear upper landing;
+the feedback cue is reseated on the same deck. Bulwark's public clearance report now
+publishes the live
+landing-collision union instead of a smaller stale literal. Continuous production
+`W` input reaches the upper deck without a jump or fall, and the station sweep covers
+all 98 enabled root collision shapes across the exact nine-craft fleet. The existing
+berth-feedback audit also now distinguishes nine physical berths from its six visual
+feedback components. Native Windows repetition remains `NOT_RUN`.
+
 - [ ] Perform repeated end-to-end playthroughs of walking, boarding, automatic propulsion, every flyable craft, combat, destruction/recovery, landing, activities, settings, save/re-entry, and long-session teardown. Record reproducible defects with severity, exact location/state, source commit, and graphical evidence where the defect is visual.
 - [ ] Add focused regressions for every fixed P0/P1 defect and representative P2 defects. Run the full matrix only on stable merge candidates, then verify the exported package separately on native Windows hardware.
 - [ ] Audit world geometry from the embodied player and ship perspectives for clipping, camera near-plane intrusions, z-fighting, invisible blockers, collision-free solid-looking dressing, inaccessible routes, flashing materials/lights, and lifecycle-dependent phantom geometry.

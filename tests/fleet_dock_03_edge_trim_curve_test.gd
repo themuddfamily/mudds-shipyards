@@ -99,7 +99,7 @@ func _run() -> void:
 	var authority := module.get_authority_contract() if module != null else {}
 	_check(
 		berth != null
-		and berth.global_position.is_equal_approx(Vector3(52.0, 5.28, 53.3))
+		and berth.global_position.is_equal_approx(Vector3(52.0, 7.68, 53.05))
 		and berth.get_landing_half_extents().is_equal_approx(Vector3(6.0, 4.5, 6.4))
 		and int(authority.get("ship_berth_count", -1)) == 0
 		and int(authority.get("landing_or_interaction_area_count", -1)) == 0,

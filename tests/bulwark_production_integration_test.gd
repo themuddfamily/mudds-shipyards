@@ -89,6 +89,34 @@ func _test_berth_contract(world: ShipyardWorld, ship: HeroShip) -> void:
 	_check(clearance.get("recovery_contract", &"") == &"HeroShip.request_berth_landing", "recovery delegates to the shared HeroShip landing authority")
 	var collision: Dictionary = ship.get_landing_collision_report()
 	_check(bool(collision.get("valid", false)) and int(collision.get("shape_count", 0)) >= 3, "Bulwark publishes a valid root collision envelope for landing")
+	var module := world.get_fleet_dock_comb()
+	var raised_slab := module.find_child(
+		"DockSlab03Upper", true, false
+	) as StaticBody3D
+	var slab_collision := raised_slab.get_node_or_null(^"Collision") as CollisionShape3D \
+		if raised_slab != null else null
+	var slab_shape := slab_collision.shape as BoxShape3D \
+		if slab_collision != null else null
+	var deck_top := (
+		raised_slab.global_position.y + slab_shape.size.y * 0.5
+		if raised_slab != null and slab_shape != null else -INF
+	)
+	var hull_bounds := collision.get("local_bounds", AABB()) as AABB
+	var parked_hull := (berth.get_dock_transform() * hull_bounds).abs()
+	var vertical_top := module.get_route_marker(&"vertical-top")
+	var ramp_to_hull_gap := (
+		vertical_top.global_position.z - parked_hull.end.z
+		if vertical_top != null else -INF
+	)
+	_check(
+		is_equal_approx(berth.global_position.y - deck_top, 1.08)
+		and parked_hull.position.y - deck_top >= 0.5,
+		"Dock 03 parks the complete Bulwark above its raised deck instead of through it"
+	)
+	_check(
+		ramp_to_hull_gap >= 0.5,
+		"the parked Bulwark leaves a capsule-clear upper-ramp threshold"
+	)
 	var token := berth.try_reserve(ship, ship.get_ship_definition())
 	_check(not token.is_empty() and berth.has_valid_lease(ship, token, ship.get_ship_id()), "Dock 03 issues a valid Bulwark berth lease")
 	_check(berth.release(ship, token), "Bulwark berth lease releases cleanly")

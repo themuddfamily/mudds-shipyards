@@ -8,15 +8,16 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const WORLD_LAYER := PhysicsLayers.WORLD
 const PRODUCTION_SHIP_ROOT_SHAPE_COUNTS := {
 	&"ArrowReconShip": 2,
+	&"BulwarkHeavyGunship": 3,
 	&"cinder_cargo_hauler": 8,
 	&"cinder_light_interceptor": 1,
 	&"cinder_long_range_bomber": 1,
 	&"HalyardCrewTransport": 21,
-	&"JovianLightFreighter": 29,
+	&"JovianLightFreighter": 31,
 	&"TorrentInterceptor": 7,
 	&"ZenithInterceptor": 24,
 }
-const PRODUCTION_SHIP_ROOT_SHAPE_TOTAL := 93
+const PRODUCTION_SHIP_ROOT_SHAPE_TOTAL := 98
 
 const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/CentralJunction",
@@ -766,7 +767,7 @@ func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroS
 		and sampled_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
 		and sample_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL * 21 \
 		and overflight_intrusions.is_empty(),
-		"all 93 enabled physical shapes across the exact eight-ship production roster clear Spur, connector, and Fabrication along the sampled +X overflight line"
+		"all 98 enabled physical shapes across the exact nine-ship production roster clear Spur, connector, and Fabrication along the sampled +X overflight line"
 	)
 	_check(
 		root_height_clearance > 16.0 and camera_sphere_clearance > 15.0,
@@ -997,11 +998,11 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 		_production_ship_root_shape_roster_matches(ships) \
 		and craft_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
 		and craft_intrusions.is_empty(),
-		"all 93 enabled physical shapes across the exact eight-ship production roster clear Salvage and its connector"
+		"all 98 enabled physical shapes across the exact nine-ship production roster clear Salvage and its connector"
 	)
 	_check(
-		absf(smallest_berth_gap - 7.919998) <= 0.00001,
-		"Salvage and connector keep the exact measured 7.919998 m minimum from authoritative berth volumes"
+		absf(smallest_berth_gap - 8.060792) <= 0.00001,
+		"Salvage and connector keep the exact measured 8.060792 m minimum from authoritative berth volumes"
 	)
 	_check(
 		assist_shape_count == int(PRODUCTION_SHIP_ROOT_SHAPE_COUNTS[&"HalyardCrewTransport"]) \

@@ -143,7 +143,7 @@ func _test_landing_and_berth_authority_unchanged(world: ShipyardWorld, module: F
 		&"jovian_freight_berth": Transform3D(Basis(Vector3.UP, PI), Vector3(-53.0, 1.63, 57.3)),
 		&"zenith_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(22.0, 5.28, 53.3)),
 		&"halyard_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(37.0, 5.28, 53.3)),
-		&"bulwark_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(52.0, 5.28, 53.3)),
+		&"bulwark_fleet_dock_berth": Transform3D(Basis.IDENTITY, Vector3(52.0, 7.68, 53.05)),
 	}
 	var all_transforms_exact := true
 	var all_live := true

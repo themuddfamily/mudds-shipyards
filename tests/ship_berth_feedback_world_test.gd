@@ -1,9 +1,9 @@
 extends SceneTree
 
 ## Adversarial production-world contract for the six authored berth-feedback
-## components. Every destructive probe restores the same cached production
-## instances and proves that the audit returns to its exact component-clean
-## baseline.
+## components within the nine-berth physical fleet. Every destructive probe
+## restores the same cached production instances and proves that the audit
+## returns to its exact component-clean baseline.
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const BERTH_SCENE := preload("res://scenes/world/components/ship_berth.tscn")
@@ -98,7 +98,7 @@ const PRODUCTION_SPECS := {
 	},
 	&"bulwark_fleet_dock_berth": {
 		"berth_path": NodePath("BulwarkFleetDockBerth"),
-		"berth_local_transform": Transform3D(Basis.IDENTITY, Vector3(52.0, 5.28, 53.3)),
+		"berth_local_transform": Transform3D(Basis.IDENTITY, Vector3(52.0, 7.68, 53.05)),
 		"dock_transform": Transform3D.IDENTITY,
 		"landing_half_extents": Vector3(6.0, 4.5, 6.4),
 		"assist_capture_center": Vector3(0.0, 10.0, -18.0),
@@ -107,8 +107,9 @@ const PRODUCTION_SPECS := {
 		"assist_maximum_tilt_degrees": 75.0,
 		"compatibility_tags": ["bulwark_gunship"],
 		"feedback_path": NodePath("BulwarkFleetDockBerth/BerthFeedback"),
-		# Dock 03 is the comb's 2.4 m raised deck; only its feedback cue moves.
-		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, 1.19, 0.0)),
+		# Dock 03 is the comb's 2.4 m raised deck; the parked root follows that
+		# deck while the feedback cue seats back onto its top surface.
+		"local_transform": Transform3D(Basis.IDENTITY, Vector3(0.0, -1.21, 0.0)),
 		"cue_half_width": 4.7,
 		"cue_half_length": 4.7,
 	},
@@ -153,9 +154,9 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 	_check(
 		int(report.get("schema_version", 0)) == 2
 		and int(report.get("component_count", 0)) == 6
-		and int(report.get("live_berth_count", 0)) == 6
+		and int(report.get("live_berth_count", 0)) == 9
 		and int(report.get("live_feedback_count", 0)) == 6,
-		"audit reports the exact six-berth and six-feedback production roster"
+		"audit reports the exact nine-berth physical and six-feedback production rosters"
 	)
 	_check(
 		_string_name_arrays_equal(report.get("expected_berth_ids", []) as Array, EXPECTED_BERTH_IDS),
@@ -253,7 +254,7 @@ func _test_pristine_contract(world: ShipyardWorld) -> void:
 			"%s audit placement publishes the exact immutable authored contract" % berth_id
 		)
 	_check(all_material_instance_ids.size() == 12, "all six feedback instances own twelve globally unique material ObjectIDs")
-	_check(_count_descendants(world, "ShipBerth") == 6, "production world contains no extra ShipBerth descendant")
+	_check(_count_descendants(world, "ShipBerth") == 9, "production world contains exactly nine ShipBerth descendants")
 	_check(_count_descendants(world, "ShipBerthFeedback") == 6, "production world contains no extra ShipBerthFeedback descendant")
 
 
@@ -286,20 +287,20 @@ func _test_pre_tree_authored_drift() -> void:
 
 func _test_rogue_descendants(world: ShipyardWorld) -> void:
 	var rogue_berth := BERTH_SCENE.instantiate() as ShipBerth
-	rogue_berth.name = "RogueSixthBerth"
-	rogue_berth.berth_id = &"rogue_sixth_berth"
+	rogue_berth.name = "RogueTenthBerth"
+	rogue_berth.berth_id = &"rogue_tenth_berth"
 	world.add_child(rogue_berth)
 	await process_frame
 	var rogue_berth_report := world.get_ship_berth_feedback_audit_report()
 	_check(
 		not bool(rogue_berth_report.get("valid", true))
-		and int(rogue_berth_report.get("live_berth_count", 0)) == 7
+		and int(rogue_berth_report.get("live_berth_count", 0)) == 10
 		and _errors_have(rogue_berth_report, "ship_berth_descendants_do_not_match_production_contract"),
-		"audit rejects a valid rogue seventh ShipBerth even though the startup registry is unchanged"
+		"audit rejects a valid rogue tenth ShipBerth even though the startup registry is unchanged"
 	)
 	rogue_berth.queue_free()
 	await process_frame
-	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "removing the rogue sixth ShipBerth restores baseline")
+	_check(_report_matches_component_baseline(world.get_ship_berth_feedback_audit_report()), "removing the rogue tenth ShipBerth restores baseline")
 
 	var central_berth := world.get_node("CentralBerth") as ShipBerth
 	var rogue_feedback := FEEDBACK_SCENE.instantiate() as ShipBerthFeedback
