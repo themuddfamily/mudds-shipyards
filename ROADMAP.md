@@ -51,7 +51,7 @@ The next expansion slice may begin only when one fresh, source-pinned Windows ca
 - The on-foot avatar visibly faces its actual horizontal velocity for forward, back, strafe, and diagonal movement at multiple camera headings; input/velocity must not be reversed to compensate for art orientation.
 - A no-cheat traversal from spawn reaches the Central berth, Aft upper level, Habitat, Freight branch, and Fleet Dock walking surfaces without falling through, snagging on decorative treads, or requiring an undocumented jump. Every broad route surface that visually reads as floor/deck/ramp must have immediate World collision support or explicit non-walkable presentation metadata.
 - Station floor/wall/stair materials use a coherent station material family with continuous metric mapping; ship-specific atlases stay on their registered ships. Authored UV0 surfaces have non-degenerate, consistent outward-view handedness and bounded texel-density distortion.
-- All eight production ships can be approached from collision-clear routes, boarded through the production reservation path, powered by same-tick flight demand, launched, flown, fired, returned with forgiving assist acquisition, strictly docked, idled automatically offline after exactly `1.5` neutral physics seconds, and exited. Destroy/recover/switch-craft reuse must not duplicate authority or strand a berth. Dock 04/05/06 use their `FleetExpansionBerths` attachment contract rather than the legacy `ShipBerth` lease table.
+- All nine production ships can be approached from collision-clear routes, boarded through the production reservation path, powered by same-tick flight demand, launched, flown, fired where their role supports it, returned with forgiving assist acquisition, strictly docked, idled automatically offline after exactly `1.5` neutral physics seconds, and exited. Destroy/recover/switch-craft reuse must not duplicate authority or strand a berth. Dock 04/05/06 are physical `ShipBerth` children owned by `FleetExpansionBerths` and indexed into the same world lease table as the original fleet.
 - The guided Torrent loop completes only after its actual combat, return, dock, automatic engine-offline, and disembark lifecycle, once per generation.
 - The complete sorted `tests/*_test.gd` matrix passes in isolated processes after a clean editor/import gate, with exact terminal sentinels and no unreviewed diagnostics.
 - A human completes at least one uninterrupted packaged sortie using normal controls—no harness teleport, direct state mutation, or debugger shortcut—and records control, camera, collision, texture, prompt, audio, and performance observations.
@@ -1377,18 +1377,21 @@ reset/re-entry retain the captured geometry. Hero reset preflight captures and
 revalidates generic reset availability/generation, so exhausted or stale generic
 state rejects before berth, hull, transform, presentation, or lifecycle mutation.
 
-The nine-craft recovery audit found Dock 04-06 falling through the legacy
-`ShipBerth` regeneration branch. A destroyed Cinder craft therefore reset at
-the station's generic ship spawn instead of its occupied expansion pad, and a
-craft lost while rolled or pitched retained that flight basis at recovery. The
-expansion berth contract now publishes its complete authored landing transform;
-attach/reuse restores that transform exactly, and `GameFlow` routes a recognized
-Cinder generation through the existing expansion binding while revalidating the
-same craft, pad and retained attachment. The focused test destroys a deliberately
-tilted live Cinder interceptor and proves same-instance recovery at Dock 06; all
-three binding lifecycle paths, physical boarding/switching and the legacy Arrow
-destruction/re-entry path remain green. Native Windows repetition remains
-`NOT_RUN`.
+The nine-craft recovery audit found Dock 04-06 absent from the world `ShipBerth`
+registry. A destroyed Cinder craft therefore reset at the station's generic ship
+spawn instead of its expansion pad, and an ordinary Cinder sortie could release
+its composition attachment but had no physical home berth to request on return.
+Each existing logical pad is now the single `ShipBerth` lease and landing authority;
+the deferred production boundary re-indexes those exact children before admitting
+the three nested craft. Attach/reuse and the ordinary transactional regeneration
+path restore the complete authored transform, including basis, while occupancy
+signals continue to drive the existing pad presentation. The focused production
+test proves all three complete collision envelopes fit their strict home volume,
+destroys a deliberately tilted Cinder interceptor for same-instance Dock 06
+recovery, then performs a real departure, assist capture, guided touchdown and
+exit-ready shutdown at that pad. Binding lifecycle, physical boarding/switching,
+legacy Arrow recovery and shared landing-clearance checks remain green. Native
+Windows repetition remains `NOT_RUN`.
 
 - [ ] Perform repeated end-to-end playthroughs of walking, boarding, automatic propulsion, every flyable craft, combat, destruction/recovery, landing, activities, settings, save/re-entry, and long-session teardown. Record reproducible defects with severity, exact location/state, source commit, and graphical evidence where the defect is visual.
 - [ ] Add focused regressions for every fixed P0/P1 defect and representative P2 defects. Run the full matrix only on stable merge candidates, then verify the exported package separately on native Windows hardware.

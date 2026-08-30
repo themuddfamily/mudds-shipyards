@@ -70,7 +70,13 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 	var registered := flow.get_flyable_ships()
-	_check(registered.size() >= 8, "baseline and nested production craft share the flyable registry")
+	var registered_by_id := {}
+	for candidate: HeroShip in registered:
+		registered_by_id[candidate.get_ship_id()] = candidate
+	_check(
+		registered.size() == 9,
+		"all six direct ships and three nested production craft share the flyable registry"
+	)
 	_check(
 		registered.any(func(candidate: HeroShip) -> bool:
 			return candidate.get_ship_id() == &"torrent_provisional"
@@ -86,6 +92,21 @@ func _initialize() -> void:
 	]:
 		var contract := binding.get_craft_compatibility_contract(craft_id)
 		_check(bool(contract.get("valid", false)), "%s keeps its physical switching contract" % craft_id)
+		var craft := registered_by_id.get(craft_id) as HeroShip
+		var berth := world.get_berth_node(StringName(contract.get("pad_id", &"")))
+		var collision := craft.get_landing_collision_report() if craft != null else {}
+		var capture := berth.evaluate_assist_capture_candidate(
+			berth.get_assist_staging_transform(),
+			collision.get("local_bounds", AABB()) as AABB,
+			Vector3.ZERO,
+			craft.landing_maximum_speed
+		) if berth != null and craft != null else {}
+		_check(
+			berth != null
+			and bool(capture.get("assist_capture_accepted", false))
+			and bool(capture.get("docked_hull_fits", false)),
+			"%s home pad registers a physical landing capture that fits its complete hull" % craft_id
+		)
 		var reset := binding.reset_craft_for_reuse(craft_id)
 		_check(bool(reset.get("accepted", false)) and bool(reset.get("attachment_preserved", false)), "%s accepts safe reuse" % craft_id)
 		var detached := binding.detach_craft(craft_id)
@@ -106,9 +127,9 @@ func _initialize() -> void:
 	)
 
 	# GameFlow owns destruction/regeneration for every registered flyable. The
-	# Cinder pads are not legacy ShipBerths, so this proves that recovery consumes
-	# the expansion binding's authored landing transform instead of falling back to
-	# the station's generic ship spawn.
+	# Cinder pads now share the same registered ShipBerth authority as the legacy
+	# fleet, so recovery must reacquire the released home lease and consume its
+	# authored transform instead of falling back to the station's generic spawn.
 	var recovery_craft := flow.get_flyable_ships().filter(func(candidate: HeroShip) -> bool:
 		return candidate.get_ship_id() == &"cinder_light_interceptor"
 	).front() as HeroShip
@@ -147,6 +168,54 @@ func _initialize() -> void:
 		and recovery_craft.global_transform.is_equal_approx(recovery_transform)
 		and bool(recovered_attachment.get("attached", false)),
 		"GameFlow regenerates Cinder at its authored occupied expansion pad without replacing it"
+	)
+
+	# Exercise the same public landing-assist composition used by an ordinary
+	# free sortie. Setup places the live craft at the authored broad capture; the
+	# production HeroShip assist must perform the alignment/descent and GameFlow
+	# must commit the existing ShipBerth lease on touchdown.
+	var recovery_berth := world.get_berth_node(
+		StringName(recovery_contract.get("pad_id", &""))
+	)
+	flow.set("active_ship", recovery_craft)
+	flow.set("phase", GameFlow.Phase.FREE_FLIGHT)
+	flow.set("_piloting", true)
+	flow.set("_sortie_departed_berth", false)
+	recovery_craft.set_piloted(true)
+	var departed := flow.call("_mark_sortie_departed") as Dictionary
+	var departed_attachment := binding.get_fleet_snapshot().get("craft", []).filter(
+		func(row: Dictionary) -> bool:
+			return StringName(row.get("craft_id", &"")) == recovery_craft.get_ship_id()
+	).front() as Dictionary
+	_check(
+		bool(departed.get("accepted", false))
+		and recovery_berth.get_occupant() == null
+		and not bool(departed_attachment.get("attached", true)),
+		"Cinder departure releases its physical home pad through GameFlow"
+	)
+	recovery_craft.global_transform = recovery_berth.get_assist_staging_transform()
+	recovery_craft.velocity = Vector3.ZERO
+	flow.call("_try_request_landing")
+	_check(
+		recovery_craft.is_landing_active()
+		and flow.get("_active_landing_berth_id") == recovery_berth.get_berth_id(),
+		"Cinder landing assist accepts its registered home-pad capture"
+	)
+	for _landing_frame in 900:
+		if not recovery_craft.is_landing_active():
+			break
+		recovery_craft.call("_update_landing", 1.0 / 60.0)
+	var landed_attachment := binding.get_fleet_snapshot().get("craft", []).filter(
+		func(row: Dictionary) -> bool:
+			return StringName(row.get("craft_id", &"")) == recovery_craft.get_ship_id()
+	).front() as Dictionary
+	_check(
+		not recovery_craft.is_landing_active()
+		and recovery_craft.global_transform.is_equal_approx(recovery_berth.get_dock_transform())
+		and recovery_berth.get_occupant() == recovery_craft
+		and bool(landed_attachment.get("attached", false))
+		and flow.get("phase") == GameFlow.Phase.SHUT_DOWN,
+		"Cinder completes physical home-pad landing and reaches the normal exit-ready shutdown phase"
 	)
 	flow.queue_free()
 	await process_frame

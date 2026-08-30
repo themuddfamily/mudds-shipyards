@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Berths := preload("res://scripts/world/fleet_expansion_berths.gd")
+const CargoHauler := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const StationSurfaceKit := preload("res://scripts/world/station_surface_kit.gd")
 const EXPECTED_PAD_IDS: Array[StringName] = [
 	&"dock_04_cargo", &"dock_05_bomber", &"dock_06_interceptor"
@@ -44,7 +45,7 @@ func _initialize() -> void:
 		_check(not bool(contract.get("ship_authority", true)) and not bool(contract.get("berth_lease_authority", true)), "contract remains caller-owned for %s" % pad_id)
 	var unknown := berths.get_landing_contract(&"dock_99")
 	_check(not bool(unknown.get("accepted", true)), "unknown pad IDs fail closed")
-	var craft := Node3D.new()
+	var craft := CargoHauler.new() as HeroShip
 	craft.set_meta(&"evidence_status", &"NEW")
 	root.add_child(craft)
 	await process_frame

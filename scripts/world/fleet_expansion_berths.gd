@@ -15,6 +15,18 @@ const PAD_POSITIONS: Array[Vector3] = [
 const PAD_SIZE := Vector3(28.0, 0.6, 42.0)
 const APPROACH_OFFSET := Vector3(0.0, 0.0, 30.0)
 const LANDING_ANCHOR_Y := 4.0
+const PAD_COMPATIBILITY_TAGS := {
+	&"dock_04_cargo": ["cargo_hauler"],
+	&"dock_05_bomber": ["bomber"],
+	&"dock_06_interceptor": ["rapid_response"],
+}
+const PAD_LANDING_HALF_EXTENTS := {
+	&"dock_04_cargo": Vector3(3.8, 2.0, 6.5),
+	&"dock_05_bomber": Vector3(3.9, 2.0, 8.2),
+	&"dock_06_interceptor": Vector3(2.8, 1.7, 4.8),
+}
+const LANDING_ASSIST_CAPTURE_CENTER := Vector3(0.0, 8.0, 30.0)
+const LANDING_ASSIST_CAPTURE_HALF_EXTENTS := Vector3(12.0, 12.0, 18.0)
 ## The craft are held by their kinematic attachment contracts four metres above
 ## this plane; World collision never supported their hulls. The former broad
 ## 3,220.8 m2 pad plates therefore created player floor without serving the
@@ -148,7 +160,6 @@ const UNDERFRAME_SUPPORT_TRANSFORMS: Array[Transform3D] = [
 ]
 
 var _pads: Dictionary = {}
-var _attachments: Dictionary = {}
 var _service_materials: Dictionary = {}
 var _built := false
 var _pad_presentation_states: Dictionary = {}
@@ -185,15 +196,20 @@ func get_pad_snapshot(pad_id: StringName) -> Dictionary:
 
 func get_landing_contract(pad_id: StringName) -> Dictionary:
 	var pad := _pads.get(pad_id, {}) as Dictionary
-	if pad.is_empty():
+	var berth := get_node_or_null(NodePath(String(pad_id))) as ShipBerth
+	if pad.is_empty() or berth == null:
 		return {"accepted": false, "reason": &"unknown_pad"}
+	var route := berth.get_node_or_null(^"ApproachMarker") as Marker3D
+	var landing_transform := berth.get_dock_transform()
 	return {
 		"accepted": true,
 		"pad_id": pad_id,
-		"landing_anchor": pad.get("landing_anchor", Vector3.INF),
-		"landing_transform": pad.get("landing_transform", Transform3D.IDENTITY),
-		"approach_anchor": pad.get("approach_anchor", Vector3.INF),
+		"landing_anchor": landing_transform.origin,
+		"landing_transform": landing_transform,
+		"approach_anchor": route.global_position if route != null else Vector3.INF,
 		"approach_radius": 12.0,
+		"berth_instance_id": berth.get_instance_id(),
+		"lease_authority": &"ShipBerth",
 		"ship_authority": false,
 		"berth_lease_authority": false,
 	}.duplicate(true)
@@ -208,23 +224,28 @@ func attach_craft(pad_id: StringName, craft: Node3D, craft_id: StringName) -> Di
 		return {"accepted": false, "reason": &"invalid_craft_id"}
 	if StringName(craft.get_meta(&"evidence_status", &"")) != EVIDENCE_STATUS:
 		return {"accepted": false, "reason": &"craft_evidence_not_new"}
-	if _attachments.has(pad_id):
-		return {"accepted": false, "reason": &"pad_occupied"}
-	for attachment in _attachments.values():
-		if (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref() == craft:
+	var berth := get_node_or_null(NodePath(String(pad_id))) as ShipBerth
+	if berth == null:
+		return {"accepted": false, "reason": &"berth_unavailable"}
+	for other_pad_id in PAD_IDS:
+		var other_berth := get_node_or_null(NodePath(String(other_pad_id))) as ShipBerth
+		if other_berth != null and other_berth != berth \
+				and other_berth.get_occupant() == craft:
 			return {"accepted": false, "reason": &"craft_already_attached"}
-	var anchor: Vector3 = _pads[pad_id].get("landing_anchor", Vector3.INF)
-	var landing_transform := _pads[pad_id].get(
-		"landing_transform", Transform3D(Basis.IDENTITY, anchor)
-	) as Transform3D
+	if not craft.has_method(&"get_ship_definition"):
+		return {"accepted": false, "reason": &"craft_definition_unavailable"}
+	var definition := craft.call(&"get_ship_definition") as ShipDefinition
+	if definition == null or definition.ship_id != craft_id:
+		return {"accepted": false, "reason": &"craft_definition_mismatch"}
+	var token := berth.try_reserve(craft, definition)
+	if token.is_empty():
+		return {"accepted": false, "reason": &"pad_occupied"}
+	if not berth.occupy(craft, token):
+		berth.release(craft, token)
+		return {"accepted": false, "reason": &"pad_occupancy_rejected"}
+	var landing_transform := berth.get_dock_transform()
+	var anchor := landing_transform.origin
 	craft.global_transform = landing_transform
-	_attachments[pad_id] = {
-		"craft": weakref(craft),
-		"craft_id": craft_id,
-		"landing_anchor": anchor,
-		"landing_transform": landing_transform,
-	}
-	_publish_pad_presentation(pad_id)
 	return {
 		"accepted": true,
 		"reason": &"attached",
@@ -236,40 +257,39 @@ func attach_craft(pad_id: StringName, craft: Node3D, craft_id: StringName) -> Di
 
 
 func detach_craft(pad_id: StringName, craft: Node3D) -> Dictionary:
-	if not _attachments.has(pad_id):
+	var berth := get_node_or_null(NodePath(String(pad_id))) as ShipBerth
+	if berth == null or berth.get_occupant() == null:
 		return {"accepted": false, "reason": &"pad_empty"}
-	var attachment := _attachments[pad_id] as Dictionary
-	var owner: Object = (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref()
-	if owner != craft:
+	if berth.get_occupant() != craft:
 		return {"accepted": false, "reason": &"foreign_craft"}
-	_attachments.erase(pad_id)
-	_publish_pad_presentation(pad_id)
+	var token := berth.get_reservation_token(craft)
+	if token.is_empty() or not berth.release(craft, token):
+		return {"accepted": false, "reason": &"pad_release_rejected"}
 	return {"accepted": true, "reason": &"detached", "pad_id": pad_id}
 
 
 func get_attachment_snapshot(pad_id: StringName) -> Dictionary:
-	var attachment := _attachments.get(pad_id, {}) as Dictionary
-	if attachment.is_empty():
+	var berth := get_node_or_null(NodePath(String(pad_id))) as ShipBerth
+	var occupant := berth.get_occupant() if berth != null else null
+	var route := berth.get_node_or_null(^"ApproachMarker") as Marker3D \
+		if berth != null else null
+	var approach_anchor := route.global_position if route != null else Vector3.INF
+	if occupant == null:
 		return {
 			"attached": false,
 			"pad_id": pad_id,
 			"lease_state_id": &"available",
-			"approach_anchor": (_pads.get(pad_id, {}) as Dictionary).get(
-				"approach_anchor", Vector3.INF
-			),
+			"approach_anchor": approach_anchor,
 		}.duplicate(true)
 	return {
 		"attached": true,
 		"pad_id": pad_id,
 		"lease_state_id": &"occupied",
-		"craft_id": attachment.get("craft_id", &""),
-		"landing_anchor": attachment.get("landing_anchor", Vector3.INF),
-		"landing_transform": attachment.get(
-			"landing_transform", Transform3D.IDENTITY
-		),
-		"approach_anchor": (_pads.get(pad_id, {}) as Dictionary).get(
-			"approach_anchor", Vector3.INF
-		),
+		"craft_id": occupant.call(&"get_ship_id") \
+			if occupant.has_method(&"get_ship_id") else &"",
+		"landing_anchor": berth.get_dock_transform().origin,
+		"landing_transform": berth.get_dock_transform(),
+		"approach_anchor": approach_anchor,
 	}.duplicate(true)
 
 
@@ -279,25 +299,24 @@ func _apply_detached_berth_snapshot(snapshot: Dictionary) -> Dictionary:
 	var pad_id := StringName(snapshot.get("pad_id", &""))
 	if pad_id not in PAD_IDS or not _pads.has(pad_id):
 		return {"accepted": false, "reason": &"unknown_pad"}
+	var contract := get_landing_contract(pad_id)
 	var attached := bool(snapshot.get("attached", false))
 	var lease_state_id := StringName(snapshot.get("lease_state_id", &""))
 	if lease_state_id != (&"occupied" if attached else &"available"):
 		return {"accepted": false, "reason": &"invalid_lease_snapshot"}
 	if not (snapshot.get("approach_anchor", Vector3.INF) as Vector3).is_equal_approx(
-		(_pads[pad_id] as Dictionary).get("approach_anchor", Vector3.INF)
+		contract.get("approach_anchor", Vector3.INF)
 	):
 		return {"accepted": false, "reason": &"approach_anchor_drift"}
 	if attached and (
 		not _is_stable_craft_id(StringName(snapshot.get("craft_id", &"")))
 		or not (snapshot.get("landing_anchor", Vector3.INF) as Vector3).is_equal_approx(
-			(_pads[pad_id] as Dictionary).get("landing_anchor", Vector3.INF)
+			contract.get("landing_anchor", Vector3.INF)
 		)
 		or not (
 			snapshot.get("landing_transform", Transform3D.IDENTITY) as Transform3D
 		).is_equal_approx(
-			(_pads[pad_id] as Dictionary).get(
-				"landing_transform", Transform3D.IDENTITY
-			)
+			contract.get("landing_transform", Transform3D.IDENTITY)
 		)
 	):
 		return {"accepted": false, "reason": &"occupied_lease_snapshot_invalid"}
@@ -897,15 +916,14 @@ func get_audit_report() -> Dictionary:
 		if pad == null:
 			errors.append("logical pad missing: %s" % pad_id)
 			continue
+		if not pad is ShipBerth \
+				or not (pad as ShipBerth).get_validation_errors().is_empty():
+			errors.append("physical berth authority invalid: %s" % pad_id)
 		if pad.get_node_or_null(^"WalkablePadCollision") != null \
 				or not pad.find_children("ServicePadSurface*", "MeshInstance3D", true, false).is_empty() \
 				or not pad.find_children("*", "StaticBody3D", true, false).is_empty() \
 				or not pad.find_children("*", "CollisionShape3D", true, false).is_empty():
 			errors.append("logical pad regained broad collision or render: %s" % pad_id)
-	for pad_id in _attachments:
-		var attachment := _attachments[pad_id] as Dictionary
-		if (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref() == null:
-			errors.append("attachment has lost its craft owner: %s" % pad_id)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"component_id": COMPONENT_ID,
@@ -935,8 +953,16 @@ func get_audit_report() -> Dictionary:
 
 
 func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
-	var pad := Node3D.new()
+	var pad := ShipBerth.new()
 	pad.name = String(pad_id)
+	pad.berth_id = pad_id
+	pad.compatibility_tags = PackedStringArray(PAD_COMPATIBILITY_TAGS[pad_id] as Array)
+	pad.dock_transform = Transform3D(
+		Basis.IDENTITY, Vector3(0.0, LANDING_ANCHOR_Y, 0.0)
+	)
+	pad.landing_half_extents = PAD_LANDING_HALF_EXTENTS[pad_id] as Vector3
+	pad.assist_capture_center = LANDING_ASSIST_CAPTURE_CENTER
+	pad.assist_capture_half_extents = LANDING_ASSIST_CAPTURE_HALF_EXTENTS
 	pad.position = pad_position
 	pad.set_meta(&"landing_contract_anchor", true)
 	add_child(pad)
@@ -975,9 +1001,17 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 		"landing_anchor": landing.global_position,
 		"landing_transform": landing.global_transform,
 		"approach_anchor": route.global_position,
+		"berth_instance_id": pad.get_instance_id(),
 		"position": pad_position,
 		"size": PAD_SIZE,
 	}
+	pad.occupancy_changed.connect(_on_pad_occupancy_changed.bind(pad_id))
+
+
+func _on_pad_occupancy_changed(_occupant: Node, pad_id: StringName) -> void:
+	_publish_pad_presentation(pad_id)
+
+
 func _build_access_circulation() -> void:
 	var circulation := Node3D.new()
 	circulation.name = "AccessCirculation"

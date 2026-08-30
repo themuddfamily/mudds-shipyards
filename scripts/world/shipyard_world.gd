@@ -2406,6 +2406,24 @@ func get_fleet_expansion_production_binding() -> FleetExpansionProductionBinding
 	return _fleet_expansion_production_binding as FleetExpansionProductionBinding
 
 
+## Re-indexes the three deferred ShipBerth children after their production
+## binding has assembled. The initial world berth pass necessarily runs before
+## those children exist; GameFlow calls this once at the same deferred boundary
+## where it admits the corresponding flyable craft.
+func refresh_deferred_fleet_expansion_berths() -> bool:
+	var binding := get_fleet_expansion_production_binding()
+	if binding == null \
+			or not bool(binding.get_fleet_snapshot().get("built", false)):
+		return false
+	_initialize_berths()
+	for row_variant: Variant in binding.get_fleet_snapshot().get("craft", []) as Array:
+		var row := row_variant as Dictionary
+		var pad_id := StringName(row.get("pad_id", &""))
+		if pad_id.is_empty() or get_berth_node(pad_id) == null:
+			return false
+	return true
+
+
 func get_fleet_expansion_production_audit_report() -> Dictionary:
 	var errors := PackedStringArray()
 	var binding := get_fleet_expansion_production_binding()
