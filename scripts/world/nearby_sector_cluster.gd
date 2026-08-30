@@ -146,6 +146,10 @@ const BOULDER_COUNT := 16
 const BOULDER_MINIMUM_EXTENT := 20.0
 const BOULDER_MAXIMUM_EXTENT := 46.0
 const BOULDER_MINIMUM_SEPARATION := 56.0
+## The generated sphere is 40% of the sampled mean extent. Placement happens
+## before that extent is sampled, so the published keep-clear volumes must
+## reserve the largest possible collider rather than only testing its centre.
+const BOULDER_MAXIMUM_COLLISION_RADIUS := BOULDER_MAXIMUM_EXTENT * 0.40
 const DEBRIS_CHIP_COUNT := 520
 const DEBRIS_CHIP_SEED := 5512803
 ## The one debris batch uses vertex colour as its albedo, so the shared material
@@ -2555,30 +2559,44 @@ func _distance_to_beacon_traversal(world_position: Vector3) -> float:
 	return nearest
 
 
-## Whether this platform-relative offset is outside both the keep-clear sphere
-## around the structure and the lane the pilot flies down to reach it. Shared by
-## the boulders and the fine debris shell, because a chip in the gate aperture
-## blocks the view exactly as effectively as a rock does.
-func _is_clear_of_platform_and_lane(offset: Vector3) -> bool:
-	if offset.length() < PLATFORM_KEEP_CLEAR_RADIUS:
+## Whether this platform-relative candidate, including its supplied physical or
+## visual margin, is outside both the structure keep-clear sphere and the capped
+## lane the pilot flies down to reach it.
+func _is_clear_of_platform_and_lane(
+		offset: Vector3, collision_margin: float = 0.0
+	) -> bool:
+	if offset.length() < PLATFORM_KEEP_CLEAR_RADIUS + collision_margin:
 		return false
-	if offset.z > 0.0 and offset.z < APPROACH_CORRIDOR_LENGTH:
-		if Vector2(offset.x, offset.y - GANTRY_CENTER_Y).length() < APPROACH_CORRIDOR_RADIUS:
-			return false
+	# Measure the whole capped approach segment, not only centres whose Z lies
+	# between its ends. Otherwise a sphere just past an endpoint can still clip
+	# the route at cruise speed.
+	var closest_lane_point := Vector3(
+		0.0,
+		GANTRY_CENTER_Y,
+		clampf(offset.z, 0.0, APPROACH_CORRIDOR_LENGTH),
+	)
+	if offset.distance_to(closest_lane_point) \
+			< APPROACH_CORRIDOR_RADIUS + collision_margin:
+		return false
 	return true
 
 
 ## A boulder may stand here only if it clears the platform, the lane the pilot
 ## flies down to reach it, every route beacon, and the boulders already placed.
 func _is_placeable_boulder_offset(offset: Vector3) -> bool:
-	if not _is_clear_of_platform_and_lane(offset):
+	if not _is_clear_of_platform_and_lane(
+		offset, BOULDER_MAXIMUM_COLLISION_RADIUS
+	):
 		return false
 	var world_position := PLATFORM_ANCHOR + offset
 	if _distance_to_beacon_traversal(world_position) \
-			< BEACON_TRAVERSAL_CORRIDOR_RADIUS + BOULDER_MAXIMUM_EXTENT * 0.40:
+			< BEACON_TRAVERSAL_CORRIDOR_RADIUS \
+				+ BOULDER_MAXIMUM_COLLISION_RADIUS:
 		return false
 	for spec in ROUTE_BEACON_SPECS:
-		if world_position.distance_to(spec["position"] as Vector3) < BEACON_KEEP_CLEAR_RADIUS:
+		if world_position.distance_to(spec["position"] as Vector3) \
+				< BEACON_KEEP_CLEAR_RADIUS \
+					+ BOULDER_MAXIMUM_COLLISION_RADIUS:
 			return false
 	for placed in _boulder_offsets:
 		if offset.distance_to(placed) < BOULDER_MINIMUM_SEPARATION:

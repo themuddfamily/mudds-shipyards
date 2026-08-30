@@ -1306,6 +1306,39 @@ func _test_placement_envelope(cluster: NearbySectorCluster) -> void:
 	)
 	_check(keep_clear_intrusions == 0, "no boulder stands inside the platform keep-clear sphere")
 	_check(lane_intrusions == 0, "no boulder stands inside the approach lane")
+	var minimum_physical_keep_clear := INF
+	var minimum_physical_lane_clear := INF
+	for candidate in cluster.get_node(^"DebrisField").get_children():
+		var boulder := candidate as StaticBody3D
+		if boulder == null or not String(boulder.name).begins_with("Boulder"):
+			continue
+		var collision := boulder.get_node_or_null(^"Collision") as CollisionShape3D
+		var sphere := collision.shape as SphereShape3D if collision != null else null
+		if sphere == null:
+			continue
+		var offset := boulder.position - EXPECTED_PLATFORM_ANCHOR
+		minimum_physical_keep_clear = minf(
+			minimum_physical_keep_clear, offset.length() - sphere.radius
+		)
+		var closest_lane_point := Vector3(
+			0.0,
+			EXPECTED_LANE_CENTER_Y,
+			clampf(offset.z, 0.0, EXPECTED_LANE_LENGTH),
+		)
+		minimum_physical_lane_clear = minf(
+			minimum_physical_lane_clear,
+			offset.distance_to(closest_lane_point) - sphere.radius,
+		)
+	_check(
+		minimum_physical_keep_clear >= EXPECTED_PLATFORM_KEEP_CLEAR,
+		"boulder collision, not only its centre, stays outside the platform keep-clear sphere (%.2f m)"
+		% minimum_physical_keep_clear,
+	)
+	_check(
+		minimum_physical_lane_clear >= EXPECTED_LANE_RADIUS,
+		"boulder collision, not only its centre, stays outside the flyable approach lane (%.2f m)"
+		% minimum_physical_lane_clear,
+	)
 
 	# The gate the lane leads to has to actually be open, and wide enough that a
 	# 7 m interceptor is threading a structure rather than scraping one.
@@ -1352,6 +1385,30 @@ func _test_placement_predicate_rejects_the_lane(cluster: NearbySectorCluster) ->
 		not bool(cluster.call("_is_placeable_boulder_offset", inside_lane)),
 		"a boulder offset inside the approach lane is rejected"
 	)
+	var maximum_collision_radius := 46.0 * 0.40
+	var centre_clear_but_collider_inside_platform := Vector3(
+		EXPECTED_PLATFORM_KEEP_CLEAR + maximum_collision_radius - 0.1,
+		0.0,
+		0.0,
+	)
+	var centre_past_but_collider_inside_lane_end := Vector3(
+		0.0,
+		EXPECTED_LANE_CENTER_Y,
+		EXPECTED_LANE_LENGTH + maximum_collision_radius - 0.1,
+	)
+	_check(
+		not bool(cluster.call(
+			"_is_clear_of_platform_and_lane",
+			centre_clear_but_collider_inside_platform,
+			maximum_collision_radius,
+		))
+		and not bool(cluster.call(
+			"_is_clear_of_platform_and_lane",
+			centre_past_but_collider_inside_lane_end,
+			maximum_collision_radius,
+		)),
+		"placement reserves the complete maximum collider at the platform sphere and capped lane endpoint",
+	)
 	_check(
 		not bool(cluster.call("_is_placeable_boulder_offset", on_a_beacon)),
 		"a boulder offset on top of a route beacon is rejected"
@@ -1361,14 +1418,18 @@ func _test_placement_predicate_rejects_the_lane(cluster: NearbySectorCluster) ->
 	# outside the lane, is scanned rather than one hand-picked point, because a
 	# single point can land inside the separation radius of a placed boulder.
 	var accepted := 0
-	for step in 36:
-		var angle := TAU * float(step) / 36.0
-		var probe := Vector3(cos(angle), 0.0, sin(angle)) * 150.0
-		if bool(cluster.call("_is_placeable_boulder_offset", probe)):
-			accepted += 1
+	var probe_count := 0
+	for radius: float in PackedFloat32Array([130.0, 150.0, 170.0]):
+		for step in 36:
+			probe_count += 1
+			var angle := TAU * float(step) / 36.0
+			var probe := Vector3(cos(angle), 0.0, sin(angle)) * radius
+			if bool(cluster.call("_is_placeable_boulder_offset", probe)):
+				accepted += 1
 	_check(
 		accepted > 0,
-		"open field outside the lane still accepts boulders (%d of 36 ring probes)" % accepted
+		"open field outside the lane still accepts boulders (%d of %d ring probes)"
+		% [accepted, probe_count]
 	)
 
 
