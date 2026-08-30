@@ -1325,6 +1325,15 @@ The focused combat suite, four-archetype component-damage integration suite and 
 exact HUD-free 2560x1440 Forward+ combat capture are green. Native Windows visual
 review remains `NOT_RUN`.
 
+The retained-particle census also found the ship-local Ember landing wash stopped
+emission without hiding its dust renderer, while both dust and thruster nodes entered
+the tree in Godot's default visible state before their first reset. The shared wash
+now enters dormant, keeps particle visibility and emission under one resolved load,
+and renderer-hides again for unsupported landing phases, climb, high altitude,
+detach and clean re-entry. The focused Arrow production caller and four-craft shared
+landing-wash suites are green, including an exact 2560x1440 Forward+ execution of the
+Arrow path. Native Windows visual review remains `NOT_RUN`.
+
 The generic `ComponentDamageModel` now provides one generation-safe detached
 ledger with strict stages, ordered scalar and atomic multi-component damage and
 repair, all-or-none prevalidation, one aggregate revision, detached ordered

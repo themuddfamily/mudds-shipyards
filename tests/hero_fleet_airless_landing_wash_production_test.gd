@@ -85,6 +85,7 @@ func _run() -> void:
 				)
 			)
 		var partial_dust_emitting := dust != null and dust.emitting
+		var partial_dust_visible := dust != null and dust.visible
 
 		production.set("_last_planetary_altitude_m", 45.0)
 		var full := _advance(production, ship, 2, -60.0)
@@ -119,12 +120,14 @@ func _run() -> void:
 		)
 		var unsupported_dust_scale := dust.scale \
 			if dust != null else Vector3.ZERO
+		var unsupported_dust_visible := dust != null and dust.visible
 		var fleet_binding := production.get(
 			"_fleet_landing_wash_binding"
 		) as RefCounted
 		var detached := fleet_binding.call(&"detach") as Dictionary
 		var cleared := wash_node.call(&"get_snapshot") as Dictionary
 		var cleared_dust_scale := dust.scale if dust != null else Vector3.ZERO
+		var cleared_dust_visible := dust != null and dust.visible
 		await process_frame
 		var removed_after_detach := visual_root.get_node_or_null(
 			^"AirlessLandingDustWashPresentation"
@@ -149,6 +152,9 @@ func _run() -> void:
 		).size()
 		var reentry_id := reentry_node.get_instance_id() \
 			if reentry_node != null else 0
+		var reentry_dust := reentry_node.get_node_or_null(
+			^"ShipLocalDustWash"
+		) as CPUParticles3D if reentry_node != null else null
 
 		_check(
 			bool(partial.get("accepted", false))
@@ -157,6 +163,8 @@ func _run() -> void:
 			and anchor.get("collision_derived") == true
 			and first_wash_instance_id > 0
 			and partial_anchor_ok and partial_dust_emitting
+			and partial_dust_visible
+			and partial_wash.get("dust_renderer_visible") == true
 			and partial_opacity > 0.0 and partial_scale > 1.0
 			and bool(full.get("accepted", false))
 			and is_equal_approx(float(full_wash.get(
@@ -176,6 +184,8 @@ func _run() -> void:
 				"dust_opacity", -1.0
 			)))
 			and unsupported_dust_scale.is_equal_approx(footprint_baseline)
+			and not unsupported_dust_visible
+			and unsupported_wash.get("dust_renderer_visible") == false
 			and bool(retained.get("accepted", false))
 			and retained.get("reason") == &"landing_wash_retained"
 			and duplicate_count == 1
@@ -188,12 +198,17 @@ func _run() -> void:
 			and cleared.get("last_reason") == &"detached_zero"
 			and is_zero_approx(float(cleared.get("dust_opacity", -1.0)))
 			and cleared_dust_scale.is_equal_approx(footprint_baseline)
+			and not cleared_dust_visible
+			and cleared.get("dust_renderer_visible") == false
 			and removed_after_detach
 			and bool(reentered.get("accepted", false))
 			and reentry_node != null and reentry_count == 1
 			and reentry_id != first_wash_instance_id
 			and reentry_id != prior_wash_instance_id
-			and float(reentry_wash.get("dust_opacity", 0.0)) > 0.0,
+			and float(reentry_wash.get("dust_opacity", 0.0)) > 0.0
+			and reentry_wash.get("dust_renderer_visible") == true
+			and reentry_dust != null and reentry_dust.visible
+			and reentry_dust.emitting,
 			"%s gets one anchored, bounded, lifecycle-clean production wash" \
 				% String(craft_case.id),
 		)

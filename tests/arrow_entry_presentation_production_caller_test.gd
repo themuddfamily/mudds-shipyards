@@ -122,6 +122,7 @@ func _run() -> void:
 		and safe_presentation.get("descent_advisory_id") == &"safe_descent"
 		and float(normal_wash.get("intensity", 0.0)) > 0.0
 		and normal_wash.get("dust_emitting") == true
+		and normal_wash.get("dust_renderer_visible") == true
 		and normal_wash.get("thruster_visible_count") == 2
 		and normal_wash.get("landing_supported") == true
 		and float(normal_wash.get("support_clearance_factor", 0.0)) > 0.0
@@ -130,6 +131,7 @@ func _run() -> void:
 		and normal_wash.get("continuous_clearance_descent_response") == true
 		and physical_wash != null
 		and physical_dust != null and physical_dust.emitting
+		and physical_dust.visible
 		and is_equal_approx(
 			physical_dust.color.a, float(normal_wash.get("dust_opacity", -1.0))
 		)
@@ -316,6 +318,8 @@ func _run() -> void:
 			"presentation_load", -1.0
 		)))
 		and not physical_dust.emitting
+		and not physical_dust.visible
+		and unsupported_wash.get("dust_renderer_visible") == false
 		and physical_dust.scale.is_equal_approx(Vector3.ONE)
 		and not physical_thruster.visible
 		and physical_thruster.scale.is_equal_approx(Vector3.ONE),
@@ -341,6 +345,8 @@ func _run() -> void:
 		bool(climbing_airless.get("accepted", false))
 		and is_zero_approx(float(climb_zero.get("intensity", -1.0)))
 		and climb_zero.get("dust_emitting") == false
+		and climb_zero.get("dust_renderer_visible") == false
+		and not physical_dust.visible
 		and climb_zero.get("last_reason") == &"climb_or_level_zero"
 		and climb_cockpit.get("text") \
 			== "AIRLESS | [^] CLIMB / EXIT | E[-----] 0/5 RECOVER"
@@ -368,6 +374,8 @@ func _run() -> void:
 	_check(
 		bool(high_airless.get("accepted", false))
 		and is_zero_approx(float(high_zero.get("intensity", -1.0)))
+		and high_zero.get("dust_renderer_visible") == false
+		and not physical_dust.visible
 		and high_zero.get("last_reason") == &"high_altitude_zero",
 		"high-altitude descent keeps the landing wash at exact zero",
 	)
@@ -630,6 +638,9 @@ func _run() -> void:
 	var reentry_wash_snapshot := reentry_wash.call(
 		&"get_snapshot"
 	) as Dictionary if reentry_wash != null else {}
+	var reentry_dust := reentry_wash.get_node_or_null(
+		^"ShipLocalDustWash"
+	) as CPUParticles3D if reentry_wash != null else null
 	_check(
 		bool(reattached.get("accepted", false))
 		and bool(reentered.get("accepted", false))
@@ -641,6 +652,9 @@ func _run() -> void:
 		and is_equal_approx(float(reentry_wash_snapshot.get(
 			"dust_scale", 0.0
 		)), 1.0)
+		and reentry_wash_snapshot.get("dust_renderer_visible") == false
+		and reentry_dust != null and not reentry_dust.visible
+		and not reentry_dust.emitting
 		and reentry_wash_snapshot.get("landing_supported") == false
 		and reentry_readout != null
 		and reentry_readout.get_instance_id() != physical_readout_id

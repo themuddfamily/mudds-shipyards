@@ -39,9 +39,18 @@ var _reduced_flash := false
 var _reduced_motion := false
 
 
+func _enter_tree() -> void:
+	if _dust != null:
+		call_deferred("_refresh_retained_particle_visibility")
+
+
 func _ready() -> void:
 	_build_visuals()
 	_reset_visuals()
+	# The particle render instance completes registration after its owner is
+	# ready. Reassert the resolved state once that registration has completed so
+	# its default draw buffer cannot appear during an inactive early frame.
+	call_deferred("_refresh_retained_particle_visibility")
 
 
 func _exit_tree() -> void:
@@ -124,6 +133,7 @@ func get_snapshot() -> Dictionary:
 		"footprint_longitudinal_scale": _footprint_longitudinal_scale,
 		"visible": _intensity > 0.0,
 		"dust_emitting": _dust != null and _dust.emitting,
+		"dust_renderer_visible": _dust != null and _dust.visible,
 		"thruster_visible_count": _visible_thruster_count(),
 		"observation_count": _observation_count,
 		"last_reason": _last_reason,
@@ -195,6 +205,7 @@ func _build_visuals() -> void:
 		cone.material = _thruster_material
 		thruster.mesh = cone
 		thruster.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		thruster.visible = false
 		add_child(thruster)
 		_thrusters.append(thruster)
 
@@ -222,6 +233,11 @@ func _build_visuals() -> void:
 	_dust.randomness = 0.0
 	_dust.visibility_aabb = AABB(Vector3(-8.0, -4.0, -8.0), Vector3(16.0, 8.0, 16.0))
 	_dust.mesh = dust_quad
+	# Retained renderers must enter the tree dormant. Stopping emission alone
+	# does not guarantee that a previously allocated particle draw buffer is not
+	# submitted by every renderer/backend.
+	_dust.emitting = false
+	_dust.visible = false
 	add_child(_dust)
 
 
@@ -245,7 +261,9 @@ func _apply_load(
 	_thruster_scale = 1.0 + _presentation_load * thruster_scale_delta
 	_intensity = _dust_opacity
 	if _dust != null:
-		_dust.emitting = _intensity > 0.0 and is_inside_tree()
+		_set_retained_particles_active(
+			_dust, _intensity > 0.0 and is_inside_tree()
+		)
 		_dust.amount = maxi(1, roundi(6.0 + 18.0 * _presentation_load))
 		_dust.color = Color(1.0, 1.0, 1.0, _dust_opacity)
 		_dust.scale = Vector3(
@@ -278,6 +296,28 @@ func _visible_thruster_count() -> int:
 		if thruster.visible:
 			count += 1
 	return count
+
+
+## A retained CPUParticles3D can preserve draw-buffer contents after emission
+## stops. Keep renderer visibility and emission under the same resolved state so
+## a dormant landing wash cannot submit stale near-camera geometry.
+func _set_retained_particles_active(
+		particles: CPUParticles3D, active: bool
+	) -> void:
+	if not is_instance_valid(particles):
+		return
+	if active:
+		particles.visible = true
+		particles.emitting = true
+		return
+	particles.emitting = false
+	particles.visible = false
+
+
+func _refresh_retained_particle_visibility() -> void:
+	if not is_inside_tree() or is_queued_for_deletion() or _dust == null:
+		return
+	_set_retained_particles_active(_dust, _intensity > 0.0)
 
 
 func _result(accepted: bool, reason: StringName) -> Dictionary:
