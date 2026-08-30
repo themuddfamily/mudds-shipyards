@@ -147,8 +147,9 @@ const SERVERY_STOOL_FOOT_RING_SEGMENTS := 12
 ## shelves, six collision-backed outboard mullions, seven banquette cushions,
 ## eight armchair arms, four port-shell rib heads, four downlight housings, four
 ## downlight lenses, four port-wall pilaster fillets and four collision-backed
-## clerestory mullions still draw, but twelve
+## clerestory mullions and twelve under-deck keel webs still draw, but thirteen
 ## MultiMeshes own their visual-only submissions.
+const KEEL_WEB_COPY_COUNT := 12
 const BANQUETTE_JOINT_COPY_COUNT := 14
 const BANQUETTE_CUSHION_COPY_COUNT := 7
 const ROOF_CASSETTE_COPY_COUNT := 5
@@ -179,11 +180,15 @@ const PRE_ARMCHAIR_ARM_GEOMETRY_SUBMISSION_COUNT := 243
 const PRE_PORT_SHELL_RIB_HEAD_GEOMETRY_SUBMISSION_COUNT := 236
 const PRE_DOWNLIGHT_HOUSING_GEOMETRY_SUBMISSION_COUNT := 230
 const PRE_PORT_PILASTER_FILLET_GEOMETRY_SUBMISSION_COUNT := 227
-const RENDER_DESCENDANT_COUNT := 454
-const RENDER_MESH_INSTANCE_COUNT := 236
-const RENDER_MULTIMESH_BATCH_COUNT := 12
+const PRE_KEEL_WEB_RENDER_DESCENDANT_COUNT := 454
+const PRE_KEEL_WEB_RENDER_MESH_INSTANCE_COUNT := 236
+const PRE_KEEL_WEB_RENDER_MULTIMESH_BATCH_COUNT := 12
+const PRE_KEEL_WEB_GEOMETRY_SUBMISSION_COUNT := 221
+const RENDER_DESCENDANT_COUNT := 443
+const RENDER_MESH_INSTANCE_COUNT := 224
+const RENDER_MULTIMESH_BATCH_COUNT := 13
 const RENDER_DRAWN_COPY_COUNT := 278
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 221
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 210
 
 const FOOTPRINT_MIN := Vector3(-7.6, -1.6, -0.6)
 const FOOTPRINT_MAX := Vector3(4.9, 8.6, 14.7)
@@ -214,6 +219,8 @@ var _materials: Dictionary = {}
 var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _servery_stool_foot_ring_mesh: TorusMesh
+var _keel_web_transforms: Array[Transform3D] = []
+var _keel_web_batch: MultiMeshInstance3D = null
 var _seat_nodes: Array[Node3D] = []
 var _glazing_panes: Array[Node3D] = []
 var _support_members: Array[Node3D] = []
@@ -597,6 +604,12 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("VIP port-pilaster-fillet batch bounds drifted from its authored copies")
 	if not bool(rendering.port_pilaster_fillet_visual_contract_matches):
 		errors.append("VIP port-pilaster-fillet visual contract drifted")
+	if not bool(rendering.keel_web_renderer_buffer_matches_authored):
+		errors.append("VIP keel-web renderer buffer drifted from its authored roster")
+	if not bool(rendering.keel_web_bounds_match_authored):
+		errors.append("VIP keel-web batch bounds drifted from its authored copies")
+	if not bool(rendering.keel_web_visual_contract_matches):
+		errors.append("VIP keel-web visual contract drifted")
 	return errors
 
 
@@ -1014,6 +1027,35 @@ func get_render_batch_contract() -> Dictionary:
 			and _port_pilaster_fillet_batch.get_child_count() == 0
 			and _port_pilaster_fillet_batch.get_script() == null
 		)
+	var expected_keel_web_buffer := _encode_multimesh_transforms(
+		_keel_web_transforms
+	)
+	var keel_web_renderer_buffer_matches := (
+		is_instance_valid(_keel_web_batch)
+		and _keel_web_batch.multimesh != null
+		and _keel_web_batch.multimesh.buffer == expected_keel_web_buffer
+	)
+	var keel_web_bounds_match := false
+	var keel_web_visual_contract_matches := false
+	if is_instance_valid(_keel_web_batch) and _keel_web_batch.multimesh != null:
+		var expected_keel_web_bounds := _transformed_mesh_bounds(
+			_keel_web_batch.multimesh.mesh.get_aabb(), _keel_web_transforms
+		)
+		keel_web_bounds_match = _keel_web_batch.multimesh.custom_aabb.is_equal_approx(
+			expected_keel_web_bounds
+		)
+		keel_web_visual_contract_matches = (
+			_keel_web_batch.multimesh.instance_count == KEEL_WEB_COPY_COUNT
+			and _keel_web_batch.multimesh.visible_instance_count == -1
+			and _keel_web_batch.multimesh.mesh.get_surface_count() == 1
+			and _keel_web_batch.material_override == _materials.get("bronze_panel")
+			and _keel_web_batch.cast_shadow \
+				== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _keel_web_batch.layers == 1
+			and _keel_web_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and _keel_web_batch.get_child_count() == 0
+			and _keel_web_batch.get_script() == null
+		)
 	var descendant_count := _render_descendant_count()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -1028,6 +1070,7 @@ func get_render_batch_contract() -> Dictionary:
 		and _perimeter_downlight_lens_transforms.size() == PERIMETER_DOWNLIGHT_LENS_COPY_COUNT
 		and _port_pilaster_fillet_transforms.size() == PORT_PILASTER_FILLET_COPY_COUNT
 		and _clerestory_mullion_transforms.size() == CLERESTORY_MULLION_COPY_COUNT
+		and _keel_web_transforms.size() == KEEL_WEB_COPY_COUNT
 	)
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -1041,6 +1084,19 @@ func get_render_batch_contract() -> Dictionary:
 		"drawn_copies": drawn_copies,
 		"baseline_geometry_submissions": BASELINE_RENDER_GEOMETRY_SUBMISSION_COUNT,
 		"geometry_submissions": submissions,
+		"pre_keel_web_descendant_nodes": PRE_KEEL_WEB_RENDER_DESCENDANT_COUNT,
+		"pre_keel_web_mesh_instances": PRE_KEEL_WEB_RENDER_MESH_INSTANCE_COUNT,
+		"pre_keel_web_multimesh_batches": PRE_KEEL_WEB_RENDER_MULTIMESH_BATCH_COUNT,
+		"pre_keel_web_geometry_submissions": PRE_KEEL_WEB_GEOMETRY_SUBMISSION_COUNT,
+		"keel_web_copies": _keel_web_transforms.size(),
+		"keel_web_baseline_renderer_nodes": KEEL_WEB_COPY_COUNT,
+		"keel_web_renderer_nodes": 1 if is_instance_valid(_keel_web_batch) else 0,
+		"keel_web_renderer_nodes_removed": KEEL_WEB_COPY_COUNT - 1,
+		"keel_web_baseline_submissions": KEEL_WEB_COPY_COUNT,
+		"keel_web_submissions": 1 if keel_web_visual_contract_matches else 0,
+		"keel_web_geometry_submissions_removed": (
+			PRE_KEEL_WEB_GEOMETRY_SUBMISSION_COUNT - submissions
+		),
 		"pre_banquette_cushion_geometry_submissions": PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT,
 		"banquette_cushion_geometry_submissions_removed": (
 			PRE_BANQUETTE_CUSHION_GEOMETRY_SUBMISSION_COUNT
@@ -1164,6 +1220,11 @@ func get_render_batch_contract() -> Dictionary:
 			if is_instance_valid(_port_pilaster_fillet_batch)
 			and _port_pilaster_fillet_batch.multimesh != null else 0
 		),
+		"keel_web_renderer_buffer_floats": (
+			_keel_web_batch.multimesh.buffer.size()
+			if is_instance_valid(_keel_web_batch) \
+			and _keel_web_batch.multimesh != null else 0
+		),
 		"renderer_buffer_floats": (
 			(_banquette_joint_batch.multimesh.buffer.size()
 				if is_instance_valid(_banquette_joint_batch) and _banquette_joint_batch.multimesh != null
@@ -1198,6 +1259,9 @@ func get_render_batch_contract() -> Dictionary:
 			+ (_port_pilaster_fillet_batch.multimesh.buffer.size()
 				if is_instance_valid(_port_pilaster_fillet_batch)
 				and _port_pilaster_fillet_batch.multimesh != null else 0)
+			+ (_keel_web_batch.multimesh.buffer.size()
+				if is_instance_valid(_keel_web_batch)
+				and _keel_web_batch.multimesh != null else 0)
 		),
 		"banquette_renderer_buffer_matches_authored": joint_renderer_buffer_matches,
 		"banquette_bounds_match_authored": joint_bounds_match,
@@ -1230,6 +1294,9 @@ func get_render_batch_contract() -> Dictionary:
 		"port_pilaster_fillet_renderer_buffer_matches_authored": port_pilaster_fillet_renderer_buffer_matches,
 		"port_pilaster_fillet_bounds_match_authored": port_pilaster_fillet_bounds_match,
 		"port_pilaster_fillet_visual_contract_matches": port_pilaster_fillet_visual_contract_matches,
+		"keel_web_renderer_buffer_matches_authored": keel_web_renderer_buffer_matches,
+		"keel_web_bounds_match_authored": keel_web_bounds_match,
+		"keel_web_visual_contract_matches": keel_web_visual_contract_matches,
 		"renderer_buffer_matches_authored": (
 			joint_renderer_buffer_matches
 			and roof_renderer_buffer_matches
@@ -1249,13 +1316,16 @@ func get_render_batch_contract() -> Dictionary:
 			and downlight_lens_visual_contract_matches
 			and port_pilaster_fillet_renderer_buffer_matches
 			and port_pilaster_fillet_visual_contract_matches
+			and keel_web_renderer_buffer_matches
+			and keel_web_visual_contract_matches
 		),
 		"bounds_match_authored": joint_bounds_match and roof_bounds_match \
 			and mullion_bounds_match and structural_mullion_bounds_match \
 			and clerestory_mullion_bounds_match \
 			and cushion_bounds_match and armchair_arm_bounds_match \
 			and port_shell_rib_head_bounds_match and downlight_housing_bounds_match \
-			and downlight_lens_bounds_match and port_pilaster_fillet_bounds_match,
+			and downlight_lens_bounds_match and port_pilaster_fillet_bounds_match \
+			and keel_web_bounds_match,
 		"outboard_mullion_baseline_mesh_instances": OUTBOARD_MULLION_COPY_COUNT,
 		"outboard_mullion_mesh_instances": 0,
 		"outboard_mullion_multimesh_resources": (
@@ -1338,6 +1408,7 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_perimeter_downlight_housing_transforms": _perimeter_downlight_housing_transforms.duplicate(),
 		"authored_perimeter_downlight_lens_transforms": _perimeter_downlight_lens_transforms.duplicate(),
 		"authored_port_pilaster_fillet_transforms": _port_pilaster_fillet_transforms.duplicate(),
+		"authored_keel_web_transforms": _keel_web_transforms.duplicate(),
 	}
 
 
@@ -1506,6 +1577,7 @@ func _build_cantilever_frame(structure: Node3D) -> void:
 	frame.name = "CantileverFrame"
 	structure.add_child(frame)
 
+	var keel_web_transforms: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
 		var keel_x := -1.3 + float(side) * 3.3
 		var keel := _box(
@@ -1521,15 +1593,24 @@ func _build_cantilever_frame(structure: Node3D) -> void:
 		# station's existing under-deck idiom.
 		for web_index in 6:
 			var web_z := 0.6 + float(web_index) * 2.2
-			_beam_between(
-				frame,
-				"KeelWeb%02d" % web_index,
-				Vector3(keel_x, -1.35, web_z),
-				Vector3(keel_x, -0.62, web_z + 1.5),
-				0.075,
-				_materials["bronze_panel"],
-				false
+			var web_start := Vector3(keel_x, -1.35, web_z)
+			var web_end := Vector3(keel_x, -0.62, web_z + 1.5)
+			var web_direction := web_end - web_start
+			keel_web_transforms.append(
+				Transform3D(
+					Basis(Quaternion(Vector3.UP, web_direction.normalized())),
+					(web_start + web_end) * 0.5
+				)
 			)
+	_keel_web_transforms.assign(keel_web_transforms)
+	_keel_web_batch = _multimesh_cylinders(
+		frame,
+		"KeelWebs",
+		0.075,
+		Vector3(0.0, 0.73, 1.5).length(),
+		_materials["bronze_panel"],
+		_keel_web_transforms
+	)
 	var cross := _box(frame, "KeelCrossTie", Vector3(-1.3, -1.03, 13.9), Vector3(7.15, 0.6, 0.5), _materials["graphite"], false)
 	_register_support(cross, &"keel girders", &"port and starboard keel girders")
 
