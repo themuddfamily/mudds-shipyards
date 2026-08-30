@@ -86,6 +86,23 @@ func _test_hatch_geometry(craft: HalyardCrewTransport) -> void:
 	if blocker != null and blocker.shape is BoxShape3D:
 		var blocker_box := blocker.shape as BoxShape3D
 		_check(blocker_box.size.is_equal_approx(Vector3(0.14, 2.00, 1.80)), "hatch blocker matches the visible door leaf instead of resealing the whole hull wall")
+	for aperture_path in [
+		^"HalyardTransportVisual/AirstairHatchSurround",
+		^"HalyardTransportVisual/HullCore",
+		^"HalyardTransportVisual/PortWindowFrame",
+		^"HalyardTransportVisual/PortWindowSill",
+		^"HalyardTransportVisual/PortIdentificationBand",
+		^"WalkableInterior/CrewCabin/PortCabinSidewall",
+	]:
+		var aperture_skin := craft.get_node_or_null(aperture_path) as MeshInstance3D
+		var aperture_size: Vector2 = aperture_skin.get_meta(&"aperture_size", Vector2.ZERO) \
+			if aperture_skin != null else Vector2.ZERO
+		_check(
+			aperture_skin != null
+				and bool(aperture_skin.get_meta(&"port_hatch_aperture", false))
+				and aperture_size.y >= HATCH_WIDTH - 0.001,
+			"%s carries the aligned closed visual aperture" % aperture_path
+		)
 
 
 func _test_hatch_state(craft: HalyardCrewTransport, open: bool) -> void:
