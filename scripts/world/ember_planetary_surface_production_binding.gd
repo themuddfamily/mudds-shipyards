@@ -417,6 +417,42 @@ func restore_relay_survey_persistence() -> Dictionary:
 		"completion": _restored_relay_survey_completion.duplicate(true),
 	}.duplicate(true)
 
+
+## Forwards a caller-built detached save contract through the already-bound
+## Ember persistence slot. This composition does not create the checkpoint,
+## detach an actor, or acquire route/reward authority.
+func save_interrupted_relay_survey_journey(
+		session_contract: Object,
+		route_snapshot: Variant,
+		commit_id: String
+	) -> Dictionary:
+	if not _live() or _relay_survey_persistence == null:
+		return _result(false, &"survey_persistence_unavailable")
+	return _relay_survey_persistence.call(
+		&"save_interrupted_journey", session_contract, route_snapshot, commit_id
+	) as Dictionary
+
+
+func load_interrupted_relay_survey_journey() -> Dictionary:
+	if not _live() or _relay_survey_persistence == null:
+		return _result(false, &"survey_persistence_unavailable")
+	return _relay_survey_persistence.call(&"load_interrupted_journey") as Dictionary
+
+
+func retire_interrupted_relay_survey_journey(
+		expected_store_generation: int,
+		expected_receipt_sha256: String,
+		commit_id: String
+	) -> Dictionary:
+	if not _live() or _relay_survey_persistence == null:
+		return _result(false, &"survey_persistence_unavailable")
+	return _relay_survey_persistence.call(
+		&"retire_interrupted_journey",
+		expected_store_generation,
+		expected_receipt_sha256,
+		commit_id
+	) as Dictionary
+
 func abort_relay_survey(reason: StringName = &"caller_evidence_lost") -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
 	var result := _adapter.call(&"abort_activity", reason) as Dictionary
