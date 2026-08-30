@@ -1179,13 +1179,13 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1140,
-			"renderer_nodes": 723,
+			"descendant_nodes": 1139,
+			"renderer_nodes": 722,
 			"drawn_copies": 830,
 			"atlas_display_nodes": 2,
-			"authored_display_nodes": 725,
+			"authored_display_nodes": 724,
 			"authored_display_copies": 832,
-			"surface_submissions": 723,
+			"surface_submissions": 722,
 			"mesh_resource_allocations": 301,
 			"material_resource_allocations": 38,
 			"family_visual_nodes": 4,
@@ -1193,7 +1193,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"static knob batching freezes 1140 descendants, 725 display slots (723 mesh submissions + two atlas labels), 832 displayed copies, and 301 mesh allocations"
+		"static knob batching freezes 1139 descendants, 724 display slots (722 mesh submissions + two atlas labels), 832 displayed copies, and 301 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -1567,40 +1567,53 @@ func _test_roof_vent_collar_visual_resource_sharing(module: AftJunctionStack) ->
 	var report := module.get_roof_vent_collar_visual_allocation_audit()
 	_check(
 		bool(report.valid)
-		and report.legacy == {"visual_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 2, "material_resource_allocations": 1}
-		and report.current == {"visual_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 1, "material_resource_allocations": 1}
-		and report.reductions == {"visual_nodes": 0, "drawn_copies": 0, "surface_submissions": 0, "mesh_resource_allocations": 1, "material_resource_allocations": 0}
-		and not bool(report.batched) and not bool(report.renderer_values_changed),
-		"two roof-vent collars retain nodes, submissions and renderer values while immutable TorusMesh allocations fall 2 -> 1"
+		and report.before == {"renderer_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 1, "multimesh_resource_allocations": 0, "renderer_buffer_floats": 0, "material_resource_allocations": 1}
+		and report.current == {"renderer_nodes": 1, "drawn_copies": 2, "surface_submissions": 1, "mesh_resource_allocations": 1, "multimesh_resource_allocations": 1, "renderer_buffer_floats": 24, "material_resource_allocations": 1}
+		and report.delta == {"renderer_nodes": -1, "drawn_copies": 0, "surface_submissions": -1, "mesh_resource_allocations": 0, "multimesh_resource_allocations": 1, "renderer_buffer_floats": 24, "material_resource_allocations": 0}
+		and bool(report.batched) and not bool(report.renderer_values_changed),
+		"two roof-vent collars consolidate from two renderer submissions to one while retaining both visible copies"
 	)
-	var collars: Array[MeshInstance3D] = []
-	for path_value in report.node_paths as PackedStringArray:
-		var collar := module.get_node_or_null(NodePath(path_value)) as MeshInstance3D
-		if collar != null:
-			collars.append(collar)
-	var shared_mesh := collars[0].mesh as TorusMesh if collars.size() == 2 else null
+	var batch := module.get_node_or_null(NodePath(str(report.batch_path))) as MultiMeshInstance3D
+	var shared_mesh := batch.multimesh.mesh as TorusMesh \
+		if batch != null and batch.multimesh != null else null
+	var expected_transforms: Array[Transform3D] = []
+	for collar_position in AftJunctionStack.ROOF_VENT_COLLAR_POSITIONS:
+		expected_transforms.append(
+			Transform3D(Basis.IDENTITY, collar_position as Vector3)
+		)
 	_check(
-		collars.size() == 2 and shared_mesh != null
-		and collars[0].mesh == shared_mesh and collars[1].mesh == shared_mesh
-		and collars[0].position.is_equal_approx(AftJunctionStack.ROOF_VENT_COLLAR_POSITIONS[0])
-		and collars[1].position.is_equal_approx(AftJunctionStack.ROOF_VENT_COLLAR_POSITIONS[1])
+		batch != null and batch.multimesh != null and shared_mesh != null
+		and batch.multimesh.instance_count == 2
+		and batch.multimesh.visible_instance_count == 2
+		and (report.authored_transforms as Array) == expected_transforms
+		and (report.renderer_buffer as PackedFloat32Array) == _encode_transforms(expected_transforms)
+		and batch.material_override == (module.get("_materials") as Dictionary).get("mid_grey")
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1
+		and batch.get_child_count() == 0
 		and is_equal_approx(shared_mesh.inner_radius, AftJunctionStack.ROOF_VENT_COLLAR_INNER_RADIUS)
 		and is_equal_approx(shared_mesh.outer_radius, AftJunctionStack.ROOF_VENT_COLLAR_OUTER_RADIUS)
-		and shared_mesh.rings == AftJunctionStack.ROOF_VENT_COLLAR_RINGS
-		and shared_mesh.ring_segments == AftJunctionStack.ROOF_VENT_COLLAR_RING_SEGMENTS
+		and shared_mesh.rings == AftJunctionStack.ROOF_VENT_COLLAR_BUDGETED_RINGS
+		and shared_mesh.ring_segments \
+			== AftJunctionStack.ROOF_VENT_COLLAR_BUDGETED_RING_SEGMENTS
+		and shared_mesh.get_meta(TorusGeometryBudget.AUTHORED_META, Vector2i.ZERO) \
+			== Vector2i(
+				AftJunctionStack.ROOF_VENT_COLLAR_RINGS,
+				AftJunctionStack.ROOF_VENT_COLLAR_RING_SEGMENTS
+			)
 		and shared_mesh.get_surface_count() == 1 and shared_mesh.material == null,
-		"roof-vent collar paths, transforms, mid-grey overrides and exact torus recipe remain intact"
+		"roof-vent collar transforms, mid-grey override, shadows and exact torus recipe remain intact"
 	)
-	if collars.size() == 2:
-		var original_mesh := collars[1].mesh
-		collars[1].mesh = shared_mesh.duplicate() as TorusMesh
+	if batch != null and batch.multimesh != null:
+		var original_mesh := batch.multimesh.mesh
+		batch.multimesh.mesh = shared_mesh.duplicate() as TorusMesh
 		var red := module.get_roof_vent_collar_visual_allocation_audit()
 		_check(
 			not bool(red.valid) and (red.errors as PackedStringArray).has("roof_vent_collar_mesh_identity_not_shared")
-			and int((red.current as Dictionary).mesh_resource_allocations) == 2,
+			and int((red.current as Dictionary).mesh_resource_allocations) == 1,
 			"RED: a private exact-looking roof-vent collar mesh fails the sharing audit"
 		)
-		collars[1].mesh = original_mesh
+		batch.multimesh.mesh = original_mesh
 		_check(bool(module.get_roof_vent_collar_visual_allocation_audit().valid), "restoring the roof-vent shared mesh returns its audit green")
 
 
@@ -3622,6 +3635,27 @@ func _check(condition: bool, description: String) -> void:
 	else:
 		_failures.append(description)
 		push_error("FAIL: " + description)
+
+
+func _encode_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(transforms.size() * 12)
+	for index in transforms.size():
+		var value := transforms[index]
+		var offset := index * 12
+		buffer[offset + 0] = value.basis.x.x
+		buffer[offset + 1] = value.basis.y.x
+		buffer[offset + 2] = value.basis.z.x
+		buffer[offset + 3] = value.origin.x
+		buffer[offset + 4] = value.basis.x.y
+		buffer[offset + 5] = value.basis.y.y
+		buffer[offset + 6] = value.basis.z.y
+		buffer[offset + 7] = value.origin.y
+		buffer[offset + 8] = value.basis.x.z
+		buffer[offset + 9] = value.basis.y.z
+		buffer[offset + 10] = value.basis.z.z
+		buffer[offset + 11] = value.origin.z
+	return buffer
 
 
 func _finish() -> void:

@@ -187,8 +187,9 @@ const EXTERIOR_PIPE_CLAMP_POSITIONS := [
 	Vector3(11.18, 0.82, 14.2),
 	Vector3(11.18, 0.82, 16.2),
 ]
-## Two childless roof-vent collars retain their authored visual nodes and one
-## surface each; only their identical immutable TorusMesh allocation is shared.
+## Two childless roof-vent collars share one immutable TorusMesh, material and
+## renderer buffer. The adjacent vent bodies retain the authored envelope pose;
+## the collars own no collision, route, interaction, lighting or evidence role.
 const ROOF_VENT_COLLAR_INNER_RADIUS := 0.34
 const ROOF_VENT_COLLAR_OUTER_RADIUS := 0.46
 const ROOF_VENT_COLLAR_RINGS := 48
@@ -312,18 +313,18 @@ const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
 # census falls by sixty-five while actual triangle totals remain unchanged.
 # Twenty decorative rack knobs now share one bank-local renderer. All twenty
 # copies keep the exact turned-stock recipe and poses; nineteen nodes vanish.
-const RENDER_DESCENDANT_NODE_COUNT := 1140
+const RENDER_DESCENDANT_NODE_COUNT := 1139
 const BASELINE_RENDERER_NODE_COUNT := 868
 # Two Ship Services displays now use engine-managed glyph atlases. Keep their
 # authored display slots separate from explicit mesh submissions/resources.
 const SHIP_SERVICE_ATLAS_DISPLAY_COUNT := 2
-const AUTHORED_DISPLAY_NODE_COUNT := 725
+const AUTHORED_DISPLAY_NODE_COUNT := 724
 const RENDERER_NODE_COUNT := AUTHORED_DISPLAY_NODE_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_DRAWN_COPY_COUNT := 878
 const AUTHORED_DISPLAY_COPY_COUNT := 832
 const DRAWN_COPY_COUNT := AUTHORED_DISPLAY_COPY_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_SURFACE_SUBMISSION_COUNT := 868
-const SURFACE_SUBMISSION_COUNT := 725 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
+const SURFACE_SUBMISSION_COUNT := 724 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_MESH_RESOURCE_COUNT := 332
 # The former header and status each owned one unique TextMesh. The former
 # cyan material was private to the header; the amber material remains on the
@@ -470,6 +471,7 @@ var _console_shock_collar_batch: MultiMeshInstance3D
 var _cabinet_fastener_batch: MultiMeshInstance3D
 var _ceiling_luminaire_lens_batch: MultiMeshInstance3D
 var _roof_vent_louvre_batch: MultiMeshInstance3D
+var _roof_vent_collar_batch: MultiMeshInstance3D
 var _pressure_envelope_shadow_sources: Array[MeshInstance3D] = []
 ## Radius/height of every visual-only turned part this module builds, keyed by
 ## renderer instance id, and the cache for the shadow-only stand-ins derived from
@@ -1606,50 +1608,51 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 	}.duplicate(true)
 
 
-## Detached component-local proof for the two ordinary RoofVentCollar renderers.
-## Sharing changes resource identity only: the named nodes, transforms, graphite
-## family material, visibility, and zero collision/semantic authority remain.
+## Detached component-local proof for the two batched RoofVentCollar copies.
+## Their exact transforms, shared immutable mesh, mid-grey material, visibility,
+## and zero collision/semantic authority remain while submissions fall 2 -> 1.
 func get_roof_vent_collar_visual_allocation_audit() -> Dictionary:
 	var errors := PackedStringArray()
-	var collars: Array[MeshInstance3D] = []
-	var mesh_ids := {}
-	var material_ids := {}
-	var paths := PackedStringArray()
-	var submissions := 0
-	var collision_nodes := 0
 	var expected_parent := get_node_or_null(^"Structure/OperationsRoom/VisualPressureEnvelope") as Node3D
-	for raw_node in find_children("*", "MeshInstance3D", true, false):
-		var collar := raw_node as MeshInstance3D
-		if StringName(collar.get_meta(ROOF_VENT_COLLAR_FAMILY_META, &"")) != ROOF_VENT_COLLAR_FAMILY_ID:
-			continue
-		collars.append(collar)
-		paths.append(String(get_path_to(collar)))
-		if collar.mesh != null:
-			mesh_ids[collar.mesh.get_instance_id()] = true
-			submissions += collar.mesh.get_surface_count()
-		if collar.material_override != null:
-			material_ids[collar.material_override.get_instance_id()] = true
-		var index := collars.size() - 1
-		if collar.mesh != _roof_vent_collar_mesh:
-			errors.append("roof_vent_collar_mesh_identity_not_shared")
-		if collar.material_override != _materials.get("mid_grey") \
-				or index >= ROOF_VENT_COLLAR_POSITIONS.size() \
-				or not collar.position.is_equal_approx(ROOF_VENT_COLLAR_POSITIONS[index] as Vector3) \
-				or not collar.rotation_degrees.is_equal_approx(Vector3.ZERO) \
-				or collar.scale != Vector3.ONE \
-				or not collar.visible \
-				or collar.get_parent() != expected_parent \
-				or collar.get_child_count() != 0 \
-				or collar.get_script() != null:
-			errors.append("roof_vent_collar_render_state_drift")
-		collision_nodes += collar.find_children("*", "CollisionObject3D", true, false).size()
-		collision_nodes += collar.find_children("*", "CollisionShape3D", true, false).size()
-	if collars.size() != ROOF_VENT_COLLAR_COPY_COUNT:
-		errors.append("roof_vent_collar_visual_node_count_drift")
-	if mesh_ids.size() != 1:
+	var expected_transforms: Array[Transform3D] = []
+	for collar_position in ROOF_VENT_COLLAR_POSITIONS:
+		expected_transforms.append(
+			Transform3D(Basis.IDENTITY, collar_position as Vector3)
+		)
+	var batch := _roof_vent_collar_batch
+	var multimesh := batch.multimesh if is_instance_valid(batch) else null
+	if multimesh == null or multimesh.mesh != _roof_vent_collar_mesh:
 		errors.append("roof_vent_collar_mesh_identity_not_shared")
-	if material_ids.size() != 1:
-		errors.append("roof_vent_collar_material_identity_drift")
+	if multimesh == null \
+			or multimesh.instance_count != ROOF_VENT_COLLAR_COPY_COUNT \
+			or multimesh.visible_instance_count != ROOF_VENT_COLLAR_COPY_COUNT \
+			or multimesh.buffer != _encode_multimesh_transforms(expected_transforms) \
+			or not multimesh.custom_aabb.is_equal_approx(
+				_transformed_mesh_bounds(_roof_vent_collar_mesh.get_aabb(), expected_transforms)
+			) \
+			or batch.material_override != _materials.get("mid_grey") \
+			or batch.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or batch.layers != 1 \
+			or not batch.visible \
+			or batch.get_parent() != expected_parent \
+			or batch.get_child_count() != 0 \
+			or batch.get_script() != null \
+			or not bool(batch.get_meta("visual_detail_only", false)) \
+			or StringName(batch.get_meta(ROOF_VENT_COLLAR_FAMILY_META, &"")) \
+				!= ROOF_VENT_COLLAR_FAMILY_ID \
+			or not _transform_arrays_match(
+				batch.get_meta("authored_instance_transforms", []) as Array,
+				expected_transforms
+			):
+		errors.append("roof_vent_collar_batch_transform_or_render_state_drift")
+	var legacy_renderers := expected_parent.find_children(
+		"RoofVentCollar*", "MeshInstance3D", false, false
+	) if expected_parent != null else []
+	if not legacy_renderers.is_empty():
+		errors.append("roof_vent_collar_legacy_renderer_present")
+	var collision_nodes := batch.find_children(
+		"*", "CollisionObject3D", true, false
+	).size() if is_instance_valid(batch) else 0
 	if collision_nodes != 0:
 		errors.append("roof_vent_collar_gained_collision_authority")
 	var normalised := _roof_vent_collar_mesh != null and _roof_vent_collar_mesh.has_meta(TorusGeometryBudget.AUTHORED_META)
@@ -1675,12 +1678,15 @@ func get_roof_vent_collar_visual_allocation_audit() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"valid": errors.is_empty(), "errors": errors,
 		"scope": &"aft_junction_stack_roof_vent_collar_visuals",
-		"legacy": {"visual_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 2, "material_resource_allocations": 1},
-		"current": {"visual_nodes": collars.size(), "drawn_copies": collars.size(), "surface_submissions": submissions, "mesh_resource_allocations": mesh_ids.size(), "material_resource_allocations": material_ids.size()},
-		"reductions": {"visual_nodes": 0, "drawn_copies": 0, "surface_submissions": 0, "mesh_resource_allocations": 1, "material_resource_allocations": 0},
-		"node_paths": paths, "collision_authority_count": collision_nodes,
+		"before": {"renderer_nodes": 2, "drawn_copies": 2, "surface_submissions": 2, "mesh_resource_allocations": 1, "multimesh_resource_allocations": 0, "renderer_buffer_floats": 0, "material_resource_allocations": 1},
+		"current": {"renderer_nodes": 1 if batch != null else 0, "drawn_copies": multimesh.instance_count if multimesh != null else 0, "surface_submissions": multimesh.mesh.get_surface_count() if multimesh != null and multimesh.mesh != null else 0, "mesh_resource_allocations": 1 if multimesh != null and multimesh.mesh != null else 0, "multimesh_resource_allocations": 1 if multimesh != null else 0, "renderer_buffer_floats": multimesh.buffer.size() if multimesh != null else 0, "material_resource_allocations": 1 if batch != null and batch.material_override != null else 0},
+		"delta": {"renderer_nodes": -1, "drawn_copies": 0, "surface_submissions": -1, "mesh_resource_allocations": 0, "multimesh_resource_allocations": 1, "renderer_buffer_floats": ROOF_VENT_COLLAR_COPY_COUNT * 12, "material_resource_allocations": 0},
+		"batch_path": String(get_path_to(batch)) if batch != null else "",
+		"authored_transforms": expected_transforms.duplicate(),
+		"renderer_buffer": multimesh.buffer.duplicate() if multimesh != null else PackedFloat32Array(),
+		"collision_authority_count": collision_nodes,
 		"authored_tessellation": Vector2i(ROOF_VENT_COLLAR_RINGS, ROOF_VENT_COLLAR_RING_SEGMENTS), "live_tessellation": live_tessellation, "normalised": normalised, "metadata_exact": metadata_exact,
-		"batched": false, "renderer_values_changed": false,
+		"batched": true, "renderer_values_changed": false,
 	}.duplicate(true)
 
 
@@ -4279,11 +4285,11 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 		ROOF_VENT_COLLAR_RING_SEGMENTS
 	)
 	TorusGeometryBudget.declare_nearest_view(_roof_vent_collar_mesh, ROOF_MEMBER_NEAREST_VIEW_METRES)
+	# Batched tori sit outside the global MeshInstance3D budget sweep.
+	TorusGeometryBudget.apply(_roof_vent_collar_mesh, 1.0)
 	for vent_index in 2:
 		var vent_x := 3.05 + float(vent_index) * 5.05
 		_cylinder(envelope, "RoofVent", Vector3(vent_x, 5.18, 13.0), 0.42, 0.28, _materials["hull_dark"], false, Vector3.ZERO, ROOF_MEMBER_NEAREST_VIEW_METRES)
-		var collar := _torus(envelope, "RoofVentCollar", Vector3(vent_x, 5.31, 13.0), ROOF_VENT_COLLAR_INNER_RADIUS, ROOF_VENT_COLLAR_OUTER_RADIUS, _materials["mid_grey"], Vector3.ZERO, _roof_vent_collar_mesh)
-		collar.set_meta(ROOF_VENT_COLLAR_FAMILY_META, ROOF_VENT_COLLAR_FAMILY_ID)
 		for louvre_index in 3:
 			var anchor := Marker3D.new()
 			anchor.name = "VentLouvre%02d" % (vent_index * 3 + louvre_index)
@@ -4296,6 +4302,21 @@ func _build_operations_shell_detail(room: Node3D) -> void:
 			anchor.set_meta("collision_free", true)
 			anchor.set_meta("detail_role", &"roof_vent_louvre")
 			envelope.add_child(anchor)
+	var roof_vent_collar_transforms: Array[Transform3D] = []
+	for collar_position in ROOF_VENT_COLLAR_POSITIONS:
+		roof_vent_collar_transforms.append(
+			Transform3D(Basis.IDENTITY, collar_position as Vector3)
+		)
+	_roof_vent_collar_batch = _multimesh_torus(
+		envelope,
+		"RoofVentCollarBatch",
+		_roof_vent_collar_mesh,
+		_materials["mid_grey"],
+		roof_vent_collar_transforms
+	)
+	_roof_vent_collar_batch.set_meta(
+		ROOF_VENT_COLLAR_FAMILY_META, ROOF_VENT_COLLAR_FAMILY_ID
+	)
 	var louvre_transforms: Array[Transform3D] = []
 	for louvre_position in ROOF_VENT_LOUVRE_POSITIONS:
 		louvre_transforms.append(Transform3D(Basis.IDENTITY, louvre_position as Vector3))
