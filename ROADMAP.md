@@ -1527,8 +1527,9 @@ join through both composition validators, and its standalone composition is the
 sole `WorldEnvironment` owner. Its body-centred scene now owns the first bounded
 runtime terrain generator rather than only a flat proxy: five caller-built
 65 × 65 spherical clipmap rings produce **21,125 vertices / 40,096 visible
-triangles**, one shared biome-band material and one **7,904-triangle** finest-ring
-collision shape. The complete authored approach corridor stays inside a 750 m
+triangles**, one shared biome-band material and one **32,768-triangle**
+relief-matched collision shape reaching the profile's 1.5 km physical boundary.
+The complete authored approach corridor stays inside a 750 m
 flat envelope, the 94 m centre opening exposes the existing landing-floor disc,
 and the 48 m collision opening hands support to the existing 96 m walkable patch
 without coplanar fighting. Generation, rebuild and retirement are fenced;
@@ -1589,8 +1590,9 @@ the 119,999 m orbital silhouette and bounded caldera with five basalt-tinted
 65 x 65 spherical terrain rings: **21,125 vertices / 34,504 visible triangles**
 reach 18.432 km from the landing focus in five submissions. The complete 600 m
 approach remains level; a 256 m visual opening retains the caldera floor/rim/pad
-without overlap, while one 7,904-triangle finest-ring collision shape takes over
-at the exact +/-48 m edge of the existing 96 x 0.5 x 96 m pad support. The
+without overlap, while one 32,768-triangle relief-matched collision shape takes
+over at the exact +/-48 m edge of the existing 96 x 0.5 x 96 m pad support and
+reaches the profile's circular 1.5 km physical boundary. The
 continuous 4 m pad-to-egress-to-staging route, guide posts, sample rack, relay,
 gantry and bunker are unchanged; their exact on-foot Forward+ review frame is
 pixel-identical before/after, while a low-flight review now shows surrounding
@@ -1666,8 +1668,8 @@ fences remain intact across whole-`Main` detach/re-entry.
 seam.
 
 Production focus-driven terrain recentering beyond the fixed landing build,
-collision beyond the finest ring, an atmospheric authored destination with
-complete sky/cloud/weather/entry/audio presentation, broader save/network
+collision beyond the current 1.5 km profile boundary, an atmospheric authored
+destination with complete sky/cloud/weather/entry/audio presentation, broader save/network
 coverage, native performance and repeated orbit-to-surface lifecycle evidence
 all remain open. These are prerequisites for—not substitutes for—a visitable
 planet.

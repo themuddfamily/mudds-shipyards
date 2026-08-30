@@ -3,8 +3,9 @@
 This NEW standalone witness gives Aurora one body-centred ocean sphere, one
 bounded +Y landing patch, and one caller-driven spherical terrain clipmap. The
 clipmap consumes Aurora's real terrain profile and commits five 65 × 65 radial
-rings: 21,125 vertices, 40,096 visible triangles and one 7,904-triangle
-finest-ring collision shape. One shared vertex-colour material separates shore,
+rings: 21,125 vertices, 40,096 visible triangles and one 32,768-triangle
+relief-matched collision shape reaching 1.5 km. One shared vertex-colour
+material separates shore,
 lowland, highland, rock and snow. The complete 600 m approach box sits inside a
 750 m flat envelope, and the authored landing-floor disc occupies a deliberate
 94 m visual opening rather than fighting the generated surface. The atmosphere
@@ -13,8 +14,8 @@ configure it automatically.
 
 It owns no streaming, player, camera, gameplay, landing decision, origin
 shifting, save, network, navigation, or production binding. Terrain rebuilds
-remain explicit caller operations and collision currently exists only on the
-finest 256 m ring. It does not make Aurora visitable.
+remain explicit caller operations and collision currently ends at the terrain
+profile's 1.5 km physical boundary. It does not make Aurora visitable.
 
 ## Detached surface-route and landmark audit
 
@@ -28,7 +29,7 @@ It publishes this only as detached content data; `traversable` and
 
 This is neither a navigation graph nor a clearance/traversal claim. The bounded
 96 m patch remains the sole authored centre support, surrounded by generated
-finest-ring collision outside its 48 m half-width. No Player, NavigationRegion,
+relief collision outside its 48 m half-width. No Player, NavigationRegion,
 landing decision, streaming, production binding, Main/GameFlow ownership, or
 origin/rebase application is introduced.
 
@@ -64,6 +65,6 @@ Those artifacts prove only that this standalone authored scene configured and
 rendered its fixed observation—including the committed terrain—under the named
 native renderer. They do not prove Main/GameFlow integration, streaming,
 visitability, Player or production-camera ownership, movement, landing
-eligibility, collision beyond the finest ring, runtime focus updates,
-weather/time progression, audio, save/networking, performance, visual fidelity,
+eligibility, collision beyond the current 1.5 km profile boundary, runtime
+focus updates, weather/time progression, audio, save/networking, performance, visual fidelity,
 or production visual quality.

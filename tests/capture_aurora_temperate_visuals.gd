@@ -436,7 +436,7 @@ func _write_evidence_manifest() -> void:
 		"does_not_prove": [
 			"Main or GameFlow integration.", "streaming, loading, unloading, or visitability.",
 			"Player or production-camera ownership, input, movement, or landing eligibility.",
-			"Production focus updates or collision beyond the generated finest terrain ring.",
+			"Production focus updates or collision beyond the generated 1.5 km terrain boundary.",
 			"Weather, time-of-day, audio, save, networking, or native-GPU performance.",
 			"Production visual quality, fidelity, or craftsmanship.",
 		],

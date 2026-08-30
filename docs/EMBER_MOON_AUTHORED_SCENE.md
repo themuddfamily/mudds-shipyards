@@ -31,11 +31,12 @@ compose the landing resource's pad, approach, egress, and staging positions:
 
 One 96 x 0.5 x 96 m box is centred at local y=-0.25, putting its top at y=0.
 It supports the pad and both original on-foot route anchors and uses the
-canonical World layer and zero mask. The finest generated ring takes over at
-the box's exact +/-48 m edge with one 7,904-triangle concave World shape, so the
-player or ship no longer falls into space immediately beyond the authored pad.
-Only that 512 x 512 m finest-ring square is collision-backed in this slice; the
-four coarser visible rings, silhouette, and caldera rim remain non-colliding.
+canonical World layer and zero mask. Generated terrain collision takes over at
+the box's exact +/-48 m edge with one 16,640-vertex / 32,768-triangle concave
+World shape. That relief-matched surface expands from the square handoff to the
+terrain profile's circular 1.5 km boundary, so the player or ship no longer
+falls into space outside the old 512 x 512 m finest-ring footprint. The visible
+terrain beyond 1.5 km, silhouette, and caldera rim remain non-colliding.
 
 ## Bounded surface content
 
@@ -99,6 +100,6 @@ checked scene generation resident in a correctly rebased local frame. The
 retained surface-loop composition now connects real-actor travel, berth, egress,
 activity/reward, reboarding, takeoff, orbit return, and the existing station
 arrival authority. The composition still does not claim final visitability.
-Focus-following terrain rebuilds, collision beyond the finest landing ring,
-global spherical locomotion, atmosphere, production light and sky, native
+Focus-following terrain rebuilds, collision beyond the current 1.5 km profile
+boundary, global spherical locomotion, atmosphere, production light and sky, native
 performance review, and repeated packaged lifecycle review remain deferred.

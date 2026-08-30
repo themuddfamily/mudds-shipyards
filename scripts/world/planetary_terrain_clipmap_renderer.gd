@@ -7,9 +7,9 @@ extends Node3D
 ## elevation envelope and budgets. One explicit rebuild creates a bounded stack
 ## of nested spherical tangent grids around a body-local focus. Successive
 ## coarser grids sit a few centimetres below the finer grid, hiding transition
-## cracks without skirts or duplicate coplanar faces. Only the finest grid owns
-## collision in this first production slice; an authored landing patch may own
-## a square clearance at its centre.
+## cracks without skirts or duplicate coplanar faces. One separately bounded
+## relief-matched collision surface reaches the profile's collision distance;
+## an authored landing patch may own a square clearance at its centre.
 ##
 ## The component owns its generated MeshInstance3D and StaticBody3D children.
 ## It never observes a camera, advances a clock, moves an actor, shifts an
@@ -29,6 +29,9 @@ const MAX_FLATTEN_RADIUS_M := 10_000.0
 const MAX_VISUAL_CLEARANCE_RADIUS_M := 10_000.0
 const MAX_COLLISION_CLEARANCE_RADIUS_M := 10_000.0
 const MAX_AUTHORED_RELIEF_M := 420.0
+const MAX_COLLISION_RADIAL_SEGMENTS := 64
+const COLLISION_ANGULAR_SEGMENTS_PER_RADIAL := 4
+const MAX_COLLISION_TRIANGLES := 32_768
 const COARSE_RING_RADIAL_BIAS_M := 0.25
 const DEFAULT_SEED := 20_260_830
 const COMMITTED_ROOT_NAME := &"CommittedTerrain"
@@ -59,6 +62,7 @@ var _flatten_direction := Vector3.ZERO
 var _flatten_radius_m := 0.0
 var _visual_clearance_radius_m := 0.0
 var _collision_clearance_radius_m := 0.0
+var _collision_maximum_distance_m := 0.0
 var _material_tint := Color.WHITE
 var _last_focus_body_local_m := Vector3.ZERO
 var _last_snapshot: Dictionary = {}
@@ -156,6 +160,16 @@ func configure(
 		return _result(false, &"generation_exhausted")
 
 	var snapshot := profile.get_snapshot()
+	var collision_maximum_distance_m := float(
+		snapshot.get("collision_maximum_distance_meters", 0.0)
+	)
+	if (
+		not is_finite(collision_maximum_distance_m)
+		or collision_maximum_distance_m <= 0.0
+		or collision_clearance_radius_m * sqrt(2.0)
+			>= collision_maximum_distance_m
+	):
+		return _result(false, &"invalid_collision_distance")
 	_mutation_active = true
 	_profile_id = profile.profile_id
 	_profile_snapshot = snapshot.duplicate(true)
@@ -173,6 +187,7 @@ func configure(
 	_flatten_radius_m = flatten_radius_m
 	_visual_clearance_radius_m = visual_clearance_radius_m
 	_collision_clearance_radius_m = collision_clearance_radius_m
+	_collision_maximum_distance_m = collision_maximum_distance_m
 	_material_tint = material_tint
 	_shared_material = _create_shared_material()
 	_generation += 1
@@ -185,6 +200,8 @@ func configure(
 		"resolution_vertices_per_edge": _resolution,
 		"maximum_render_vertices": vertex_count,
 		"maximum_render_triangles": triangle_count,
+		"collision_maximum_distance_m": _collision_maximum_distance_m,
+		"maximum_collision_triangles": MAX_COLLISION_TRIANGLES,
 		"material_tint": _material_tint,
 	})
 
@@ -228,7 +245,6 @@ func rebuild(
 	var ring_reports: Array[Dictionary] = []
 	var total_vertices := 0
 	var total_triangles := 0
-	var collision_triangles := 0
 	var minimum_generated_height := INF
 	var maximum_generated_height := -INF
 	for ring_index in _ring_distances_m.size():
@@ -272,28 +288,39 @@ func rebuild(
 			maximum_generated_height,
 			float(built.get("maximum_height_m", -INF)),
 		)
-		var ring_collision_faces := (
-			built.get("collision_faces", PackedVector3Array())
-			as PackedVector3Array
-		)
-		if not ring_collision_faces.is_empty():
-			var shape := ConcavePolygonShape3D.new()
-			shape.set_faces(ring_collision_faces)
-			shape.backface_collision = false
-			var collision := CollisionShape3D.new()
-			collision.name = "TerrainRing%02dCollision" % ring_index
-			collision.shape = shape
-			collision_body.add_child(collision)
-			collision_triangles += ring_collision_faces.size() / 3
 		ring_reports.append({
 			"ring_index": ring_index,
 			"outer_extent_m": extent_m,
 			"resolution_vertices_per_edge": _resolution,
 			"vertex_count": ring_vertices,
 			"triangle_count": ring_triangles,
-			"collision_triangle_count": ring_collision_faces.size() / 3,
+			"collision_triangle_count": 0,
 			"radial_bias_m": float(ring_index) * COARSE_RING_RADIAL_BIAS_M,
 		}.duplicate(true))
+
+	var collision_surface := _build_collision_surface(
+		focus_up,
+		tangent_right,
+		tangent_back,
+	)
+	var collision_faces := collision_surface.get(
+		"faces", PackedVector3Array()
+	) as PackedVector3Array
+	var collision_triangles := collision_faces.size() / 3
+	if (
+		collision_faces.is_empty()
+		or collision_triangles > MAX_COLLISION_TRIANGLES
+	):
+		staged_root.free()
+		_mutation_active = false
+		return _result(false, &"collision_build_failed")
+	var collision_shape := ConcavePolygonShape3D.new()
+	collision_shape.set_faces(collision_faces)
+	collision_shape.backface_collision = false
+	var collision := CollisionShape3D.new()
+	collision.name = "TerrainCollisionSurface"
+	collision.shape = collision_shape
+	collision_body.add_child(collision)
 
 	if (
 		total_vertices > MAX_RENDER_VERTICES
@@ -331,12 +358,15 @@ func rebuild(
 		"render_vertex_count": total_vertices,
 		"render_triangle_count": total_triangles,
 		"collision_triangle_count": collision_triangles,
+		"collision_vertex_count": int(collision_surface.get("vertex_count", 0)),
 		"collision_ring_count": collision_body.get_child_count(),
 		"minimum_generated_height_m": minimum_generated_height,
 		"maximum_generated_height_m": maximum_generated_height,
 		"flatten_radius_m": _flatten_radius_m,
 		"visual_clearance_radius_m": _visual_clearance_radius_m,
 		"collision_clearance_radius_m": _collision_clearance_radius_m,
+		"collision_maximum_distance_m": _collision_maximum_distance_m,
+		"collision_topology": &"square_clearance_to_circular_profile_boundary",
 		"material_tint": _material_tint,
 		"authority": _authority_snapshot(),
 	}.duplicate(true)
@@ -420,6 +450,7 @@ func audit() -> Dictionary:
 		or _body_radius_m <= 0.0
 		or _ring_distances_m.is_empty()
 		or _resolution < MIN_RESOLUTION_VERTICES_PER_EDGE
+		or _collision_maximum_distance_m <= _collision_clearance_radius_m
 		or _shared_material == null
 		or not _shared_material.albedo_color.is_equal_approx(_material_tint)
 	):
@@ -445,6 +476,10 @@ func audit() -> Dictionary:
 			int(_last_snapshot.get("render_vertex_count", 0)) > MAX_RENDER_VERTICES
 			or int(_last_snapshot.get("render_triangle_count", 0))
 				> MAX_RENDER_TRIANGLES
+			or int(_last_snapshot.get("collision_triangle_count", 0))
+				> MAX_COLLISION_TRIANGLES
+			or float(_last_snapshot.get("collision_maximum_distance_m", 0.0))
+				!= _collision_maximum_distance_m
 		):
 			errors.append("terrain renderer exceeded its hard budget")
 	return {
@@ -456,7 +491,7 @@ func audit() -> Dictionary:
 		"authority": _authority_snapshot(),
 		"cadence": &"caller_driven_rebuild_only",
 		"lod_strategy": &"nested_spherical_tangent_clipmap_grids",
-		"collision_strategy": &"finest_ring_with_authored_landing_clearance",
+		"collision_strategy": &"profile_distance_relief_surface_with_authored_square_clearance",
 	}.duplicate(true)
 
 
@@ -472,7 +507,6 @@ func _build_ring(
 	var colors := PackedColorArray()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	var collision_faces := PackedVector3Array()
 	var minimum_height := INF
 	var maximum_height := -INF
 	var segment_count := _resolution - 1
@@ -516,15 +550,6 @@ func _build_ring(
 			if not inside_visual_clearance:
 				_append_clockwise_triangle(indices, vertices, i00, i10, i11)
 				_append_clockwise_triangle(indices, vertices, i00, i11, i01)
-			if ring_index == 0:
-				if maxf(absf(center_x), absf(center_z)) \
-						>= _collision_clearance_radius_m:
-					_append_collision_triangle(
-						collision_faces, vertices, i00, i10, i11
-					)
-					_append_collision_triangle(
-						collision_faces, vertices, i00, i11, i01
-					)
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -539,10 +564,164 @@ func _build_ring(
 		"mesh": mesh,
 		"vertex_count": vertices.size(),
 		"triangle_count": indices.size() / 3,
-		"collision_faces": collision_faces,
 		"minimum_height_m": minimum_height,
 		"maximum_height_m": maximum_height,
 	}
+
+
+func _build_collision_surface(
+	focus_up: Vector3,
+	tangent_right: Vector3,
+	tangent_back: Vector3,
+) -> Dictionary:
+	var vertices := PackedVector3Array()
+	var faces := PackedVector3Array()
+	var radial_segments := mini(
+		_resolution - 1,
+		MAX_COLLISION_RADIAL_SEGMENTS,
+	)
+	var angular_segments := (
+		radial_segments * COLLISION_ANGULAR_SEGMENTS_PER_RADIAL
+	)
+	if radial_segments <= 0 or angular_segments < 3:
+		return {}
+
+	if is_zero_approx(_collision_clearance_radius_m):
+		vertices.append(_collision_surface_vertex(
+			focus_up,
+			tangent_right,
+			tangent_back,
+			Vector2.ZERO,
+		))
+		for radial_index in range(1, radial_segments + 1):
+			var radius_m := (
+				_collision_maximum_distance_m
+				* float(radial_index)
+				/ float(radial_segments)
+			)
+			_append_collision_vertex_ring(
+				vertices,
+				focus_up,
+				tangent_right,
+				tangent_back,
+				radius_m,
+				radius_m,
+				angular_segments,
+			)
+		for angular_index in angular_segments:
+			var next_angular := (angular_index + 1) % angular_segments
+			_append_collision_triangle(
+				faces,
+				vertices,
+				0,
+				1 + angular_index,
+				1 + next_angular,
+			)
+		for radial_index in range(1, radial_segments):
+			var inner_start := 1 + (radial_index - 1) * angular_segments
+			var outer_start := inner_start + angular_segments
+			_append_collision_band(
+				faces,
+				vertices,
+				inner_start,
+				outer_start,
+				angular_segments,
+			)
+	else:
+		for radial_index in range(radial_segments + 1):
+			var blend := float(radial_index) / float(radial_segments)
+			_append_collision_vertex_ring(
+				vertices,
+				focus_up,
+				tangent_right,
+				tangent_back,
+				_collision_clearance_radius_m,
+				_collision_maximum_distance_m,
+				angular_segments,
+				blend,
+			)
+		for radial_index in radial_segments:
+			_append_collision_band(
+				faces,
+				vertices,
+				radial_index * angular_segments,
+				(radial_index + 1) * angular_segments,
+				angular_segments,
+			)
+
+	return {
+		"faces": faces,
+		"vertex_count": vertices.size(),
+		"triangle_count": faces.size() / 3,
+		"radial_segments": radial_segments,
+		"angular_segments": angular_segments,
+	}
+
+
+func _append_collision_vertex_ring(
+	vertices: PackedVector3Array,
+	focus_up: Vector3,
+	tangent_right: Vector3,
+	tangent_back: Vector3,
+	inner_radius_m: float,
+	outer_radius_m: float,
+	angular_segments: int,
+	radial_blend: float = 1.0,
+) -> void:
+	for angular_index in angular_segments:
+		var angle := TAU * float(angular_index) / float(angular_segments)
+		var radial_direction := Vector2(cos(angle), sin(angle))
+		var square_boundary_distance := (
+			inner_radius_m
+			/ maxf(absf(radial_direction.x), absf(radial_direction.y))
+		)
+		var radius_m := lerpf(
+			square_boundary_distance,
+			outer_radius_m,
+			radial_blend,
+		)
+		vertices.append(_collision_surface_vertex(
+			focus_up,
+			tangent_right,
+			tangent_back,
+			radial_direction * radius_m,
+		))
+
+
+func _collision_surface_vertex(
+	focus_up: Vector3,
+	tangent_right: Vector3,
+	tangent_back: Vector3,
+	tangent_offset_m: Vector2,
+) -> Vector3:
+	var tangent_point := (
+		focus_up * _body_radius_m
+		+ tangent_right * tangent_offset_m.x
+		+ tangent_back * tangent_offset_m.y
+	)
+	var direction := tangent_point.normalized()
+	return direction * (_body_radius_m + _sample_height_direction(direction))
+
+
+static func _append_collision_band(
+	faces: PackedVector3Array,
+	vertices: PackedVector3Array,
+	inner_start: int,
+	outer_start: int,
+	angular_segments: int,
+) -> void:
+	for angular_index in angular_segments:
+		var next_angular := (angular_index + 1) % angular_segments
+		var inner_current := inner_start + angular_index
+		var inner_next := inner_start + next_angular
+		var outer_current := outer_start + angular_index
+		var outer_next := outer_start + next_angular
+		_append_collision_triangle(
+			faces, vertices, inner_current, outer_current, outer_next
+		)
+		_append_collision_triangle(
+			faces, vertices, inner_current, outer_next, inner_next
+		)
 
 
 func _sample_height_direction(direction: Vector3) -> float:

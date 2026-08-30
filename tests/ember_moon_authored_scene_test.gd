@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 69
+const EXPECTED_ASSERTIONS := 70
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -100,7 +100,11 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 			and int(terrain.render_vertex_count) == 21_125
 			and int(terrain.render_triangle_count) > 30_000
 			and int(terrain.collision_ring_count) == 1
-			and int(terrain.collision_triangle_count) > 0
+			and int(terrain.collision_triangle_count) == 32_768
+			and int(terrain.collision_vertex_count) == 16_640
+			and is_equal_approx(float(terrain.collision_maximum_distance_m), 1_500.0)
+			and terrain.collision_topology
+				== &"square_clearance_to_circular_profile_boundary"
 			and is_equal_approx(float(terrain.flatten_radius_m), 750.0)
 			and is_equal_approx(float(terrain.visual_clearance_radius_m), 256.0)
 			and is_equal_approx(float(terrain.collision_clearance_radius_m), 48.0)
@@ -536,6 +540,22 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 		not outside.is_empty() and outside.collider == terrain_body,
 		"generated terrain takes over physical support immediately beyond the authored +/-48m patch",
 	)
+	var terrain_renderer := scene.get_node(^"TerrainClipmap") \
+		as PlanetaryTerrainClipmapRenderer
+	var supported_surface := _terrain_surface_point(
+		terrain_renderer, Vector2(1_400.0, 0.0)
+	)
+	var unsupported_surface := _terrain_surface_point(
+		terrain_renderer, Vector2(1_520.0, 0.0)
+	)
+	var supported_hit := _radial_ray_hit(space, supported_surface)
+	var unsupported_hit := _radial_ray_hit(space, unsupported_surface)
+	_check(
+		not supported_hit.is_empty()
+			and supported_hit.collider == terrain_body
+			and unsupported_hit.is_empty(),
+		"relief-matched support reaches 1.4 km and stops beyond the 1.5 km profile boundary",
+	)
 	var landmark_paths := [
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort",
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard",
@@ -866,6 +886,35 @@ func _ray_hit(space: PhysicsDirectSpaceState3D, origin: Vector3) -> Dictionary:
 	var query := PhysicsRayQueryParameters3D.create(
 		origin,
 		origin + Vector3(0.0, -4.0, 0.0),
+		PhysicsLayers.WORLD,
+	)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	return space.intersect_ray(query)
+
+
+func _terrain_surface_point(
+	renderer: PlanetaryTerrainClipmapRenderer,
+	tangent_offset_m: Vector2,
+) -> Vector3:
+	var tangent_point := Vector3(
+		tangent_offset_m.x,
+		120_000.0,
+		tangent_offset_m.y,
+	)
+	var direction := tangent_point.normalized()
+	var sample := renderer.sample_height(direction)
+	return direction * (120_000.0 + float(sample.get("height_m", 0.0)))
+
+
+func _radial_ray_hit(
+	space: PhysicsDirectSpaceState3D,
+	surface_point: Vector3,
+) -> Dictionary:
+	var radial_up := surface_point.normalized()
+	var query := PhysicsRayQueryParameters3D.create(
+		surface_point + radial_up * 10.0,
+		surface_point - radial_up * 10.0,
 		PhysicsLayers.WORLD,
 	)
 	query.collide_with_areas = false

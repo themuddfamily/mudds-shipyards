@@ -15,7 +15,9 @@ const COLLISION_CLEARANCE_M := 48.0
 const EXPECTED_RING_COUNT := 5
 const EXPECTED_VERTEX_COUNT := EXPECTED_RING_COUNT * RESOLUTION * RESOLUTION
 const EXPECTED_VISIBLE_TRIANGLE_COUNT := 40_096
-const EXPECTED_COLLISION_TRIANGLE_COUNT := 7_904
+const EXPECTED_COLLISION_VERTEX_COUNT := 16_640
+const EXPECTED_COLLISION_TRIANGLE_COUNT := 32_768
+const EXPECTED_COLLISION_DISTANCE_M := 1_500.0
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -33,6 +35,21 @@ func _run() -> void:
 	_check(
 		not bool(renderer.configure(null, RESOLUTION).get("accepted", true)),
 		"configuration rejects a missing terrain profile without mutating the renderer",
+	)
+	var folded_profile := AuroraTerrain.duplicate(true) as PlanetaryTerrainProfile
+	folded_profile.collision_maximum_distance_meters = 60.0
+	_check(
+		not bool(renderer.configure(
+			folded_profile,
+			RESOLUTION,
+			20_260_830,
+			LANDING_CENTER,
+			FLATTEN_RADIUS_M,
+			VISUAL_CLEARANCE_M,
+			COLLISION_CLEARANCE_M,
+		).get("accepted", true))
+		and renderer.get_generation() == 0,
+		"configuration rejects an outer collision circle that cannot contain the square landing clearance",
 	)
 	var configured := renderer.configure(
 		AuroraTerrain,
@@ -70,11 +87,19 @@ func _run() -> void:
 		int(snapshot.get("collision_ring_count", 0)) == 1
 		and int(snapshot.get("collision_triangle_count", 0))
 			== EXPECTED_COLLISION_TRIANGLE_COUNT
+		and int(snapshot.get("collision_vertex_count", 0))
+			== EXPECTED_COLLISION_VERTEX_COUNT
+		and is_equal_approx(
+			float(snapshot.get("collision_maximum_distance_m", 0.0)),
+			EXPECTED_COLLISION_DISTANCE_M,
+		)
+		and snapshot.get("collision_topology")
+			== &"square_clearance_to_circular_profile_boundary"
 		and float(snapshot.get("minimum_generated_height_m", -INF))
 			>= AuroraTerrain.minimum_elevation_meters
 		and float(snapshot.get("maximum_generated_height_m", INF))
 			<= AuroraTerrain.maximum_elevation_meters,
-		"generated render and finest-ring collision stay inside Aurora's frozen envelope",
+		"generated render and profile-distance collision stay inside Aurora's frozen envelope",
 	)
 
 	var committed := renderer.get_node(^"CommittedTerrain") as Node3D
@@ -100,8 +125,13 @@ func _run() -> void:
 		and int(collision_report.get("face_count", 0))
 			== int(snapshot.get("collision_triangle_count", -1))
 		and float(collision_report.get("minimum_square_radius_m", 0.0))
-			>= COLLISION_CLEARANCE_M - 0.01,
-		"generated collision leaves the authored 96 m landing patch as the sole centre support",
+			>= COLLISION_CLEARANCE_M - 0.01
+		and float(collision_report.get("maximum_tangent_radius_m", 0.0))
+			>= EXPECTED_COLLISION_DISTANCE_M - 0.1
+		and float(collision_report.get("maximum_tangent_radius_m", INF))
+			<= EXPECTED_COLLISION_DISTANCE_M + 0.1
+		and int(collision_report.get("backward_triangle_count", -1)) == 0,
+		"one outward terrain surface hands off at the 96 m patch and reaches the 1.5 km collision boundary",
 	)
 
 	var landing_height := renderer.sample_height(Vector3.UP)
@@ -224,6 +254,8 @@ func _inspect_collision_clearance(body: StaticBody3D) -> Dictionary:
 	var shape_count := 0
 	var face_count := 0
 	var minimum_square_radius := INF
+	var maximum_tangent_radius := 0.0
+	var backward_triangle_count := 0
 	for child in body.get_children():
 		var collision := child as CollisionShape3D
 		var shape := collision.shape as ConcavePolygonShape3D if collision != null else null
@@ -233,15 +265,31 @@ func _inspect_collision_clearance(body: StaticBody3D) -> Dictionary:
 		var faces := shape.get_faces()
 		face_count += faces.size() / 3
 		for start in range(0, faces.size(), 3):
-			var centre := (faces[start] + faces[start + 1] + faces[start + 2]) / 3.0
+			var a := faces[start]
+			var b := faces[start + 1]
+			var c := faces[start + 2]
+			var centre := (a + b + c) / 3.0
 			minimum_square_radius = minf(
 				minimum_square_radius,
 				maxf(absf(centre.x), absf(centre.z)),
 			)
+			for candidate in [a, b, c]:
+				var vertex := candidate as Vector3
+				var direction := vertex.normalized()
+				maximum_tangent_radius = maxf(
+					maximum_tangent_radius,
+					LANDING_CENTER.length()
+						* Vector2(direction.x, direction.z).length()
+						/ direction.y,
+				)
+			if (b - a).cross(c - a).dot(a + b + c) >= 0.0:
+				backward_triangle_count += 1
 	return {
 		"shape_count": shape_count,
 		"face_count": face_count,
 		"minimum_square_radius_m": minimum_square_radius,
+		"maximum_tangent_radius_m": maximum_tangent_radius,
+		"backward_triangle_count": backward_triangle_count,
 	}
 
 

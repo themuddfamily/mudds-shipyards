@@ -16,11 +16,18 @@ Aurora currently uses all five authored LOD extents at a 65 × 65 grid per ring:
 
 - 21,125 generated vertices;
 - 40,096 rendered triangles after the landing-floor visual clearance;
-- one 7,904-triangle finest-ring collision shape;
+- one 16,640-vertex / 32,768-triangle relief-matched collision shape reaching
+  the profile's 1.5 km physical boundary;
 - a 750 m flat approach envelope covering the complete authored landing
   corridor, with relief blended back outside it;
 - a 94 m visual opening for the authored landing-floor disc and a separate
   48 m square collision opening for the existing 96 m walkable patch.
+
+The collision surface is generated independently of the visual grid overlap.
+Its inner loop follows the authored patch's exact square boundary, then expands
+to the profile's circular collision limit while sampling the same spherical
+height field as the renderer. This keeps the centre support single-owned and
+provides physical relief beyond the old 256 m finest-ring footprint.
 
 The component hard-caps ring count, grid resolution, vertices and triangles
 before mutation. Rebuild is staged and replaces the prior committed root only
