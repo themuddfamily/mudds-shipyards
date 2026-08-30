@@ -15,7 +15,9 @@ const HERO_ASSET_PATH := "res://assets/models/torrent/hero/torrent_hero_art.glb"
 const MANIFEST_PATH := "res://assets/models/torrent/hero/torrent_hero_asset_manifest.json"
 const CRITICAL_ENGINE_CORE_DROP := Vector3(0.0, -0.22, 0.06)
 const CRITICAL_ENGINE_CORE_CANT_DEGREES := 42.0
-const EXTERIOR_CANOPY_VISUAL_LAYER_MASK := 1 << 1
+# Layer 18 is reserved to this imported Torrent glazing. Lower presentation
+# layers already have ship-local consumers, so the cockpit must not hide them.
+const EXTERIOR_CANOPY_VISUAL_LAYER_MASK := 1 << 17
 
 const REQUIRED_ROOTS := [
 	"LOD0",
@@ -151,8 +153,9 @@ func _configure_runtime_materials() -> void:
 			if role in [&"CyanStatus", &"NeutralCanopyGlass"]:
 				mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			if role == &"NeutralCanopyGlass":
-				# The closed imported shell contains mixed-facing panes. Keep it on a
-				# dedicated exterior layer so only the cockpit camera can omit it.
+				# The closed imported shell contains mixed-facing panes. Keep it on the
+				# globally dedicated Torrent exterior layer so only this glazing is
+				# omitted by the cockpit camera.
 				mesh_instance.layers = EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 
 

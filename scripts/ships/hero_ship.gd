@@ -4710,8 +4710,8 @@ func _install_torrent_hero_presentation() -> void:
 		push_error("Torrent hero presentation lacks cockpit/canopy art roots")
 		presentation.queue_free()
 		return
-	# The exterior glazing is deliberately omitted only from the seated view.
-	# On-foot, chase, and every ordinary camera retain the complete canopy shell.
+	# Torrent's globally dedicated layer 18 glazing is omitted only from the
+	# seated view. On-foot, chase, and ordinary cameras retain the complete shell.
 	_cockpit_camera.cull_mask &= ~TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 	_legacy_torrent_cockpit_art = Node3D.new()
 	_legacy_torrent_cockpit_art.name = "LegacyCockpitArt"
