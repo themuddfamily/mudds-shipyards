@@ -45,6 +45,7 @@ class PersistenceForwarder extends RefCounted:
 	var terminal_load_calls := 0
 	var active_load_calls := 0
 	var retire_calls := 0
+	var stage_calls := 0
 
 	func configure_relay_survey_persistence(
 		store: RefCounted, slot_id: StringName
@@ -78,6 +79,17 @@ class PersistenceForwarder extends RefCounted:
 			digest,
 			commit_id
 		) as Dictionary
+
+	func stage_interrupted_relay_survey_resume(
+		route_identity: Variant, retirement_request: Variant
+	) -> Dictionary:
+		stage_calls += 1
+		return {
+			"accepted": route_identity is Dictionary \
+				and retirement_request is Dictionary,
+			"reason": &"relay_survey_resume_staged",
+			"receipt_retirement_deferred": true,
+		}
 
 
 class TerminalForwarder extends RefCounted:
@@ -178,6 +190,7 @@ func _run() -> void:
 	var contract := admission_restore.get("contract", {}) as Dictionary
 	var route := admission_restore.get("route_identity", {}) as Dictionary
 	var authority := admission_restore.get("authority", {}) as Dictionary
+	var checkpoint_resume := admission_restore.get("checkpoint_resume", {}) as Dictionary
 	_check(
 		bool(admission_restore.get("accepted", false))
 			and admission_restore.reason == &"ember_active_journey_passively_adopted"
@@ -188,13 +201,18 @@ func _run() -> void:
 			and contract.state == "active"
 			and int(contract.attachment_generation) == 7
 			and int(route.next_checkpoint_index) == 1
-			and route.next_objective_id == "ember_return_beacon",
+			and route.next_objective_id == "ember_return_beacon"
+			and bool(checkpoint_resume.get("accepted", false))
+			and bool(checkpoint_resume.get(
+				"receipt_retirement_deferred", false
+			)),
 		"normal admission adopts the exact session, phase, and mandatory route passively",
 	)
 	_check(
 		second_binding.terminal_load_calls == 1
 			and second_binding.active_load_calls == 1
-			and second_binding.retire_calls == 1
+			and second_binding.retire_calls == 0
+			and second_binding.stage_calls == 1
 			and authority.size() == 5
 			and not bool(authority.movement)
 			and not bool(authority.actor)
@@ -207,18 +225,19 @@ func _run() -> void:
 	_check(
 		bool(report.adopted)
 			and bool(report.restore_attempted)
-			and int(second_store.get_generation()) == 3
-			and not second_store.get_snapshot().has(String(SLOT))
+			and int(second_store.get_generation()) == 2
+			and second_store.get_snapshot().has(String(SLOT))
 			and int((second_store.get_snapshot().foreign as Dictionary).retained) == 91,
-		"successful admission exposes the passive report and retires only its slot",
+		"passive admission exposes its report and retains the slot until activity resumes",
 	)
 	var replay := second_flow._restore_ember_surface_persistence_for_admission()
 	_check(
 		not bool(replay.get("accepted", false))
-			and replay.reason == &"survey_persistence_not_found"
+			and replay.reason == &"ember_active_journey_restore_already_attempted"
 			and second_binding.active_load_calls == 1
-			and second_binding.retire_calls == 1,
-		"a later admission cannot replay the adopted route or retirement",
+			and second_binding.retire_calls == 0
+			and second_binding.stage_calls == 1,
+		"a later admission cannot replay the staged route before retirement",
 	)
 	second_flow.free()
 

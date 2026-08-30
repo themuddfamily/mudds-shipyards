@@ -84,6 +84,8 @@ var _relay_survey_presentation: Node
 var _relay_survey_persistence: RefCounted
 var _restored_relay_survey_completion: Dictionary = {}
 var _pending_relay_survey_route_resume: Dictionary = {}
+var _pending_relay_survey_retirement: Dictionary = {}
+var _interrupted_relay_survey_resume_blocked := false
 var _survey_interaction: Area3D
 var _sample_rack_interaction: Area3D
 var _settlement: RefCounted
@@ -318,15 +320,17 @@ func adopt_started_host_generation(
 
 func start_relay_survey() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
+	if _interrupted_relay_survey_resume_blocked:
+		return _result(false, &"relay_survey_resume_relaunch_required")
 	var result: Dictionary
-	if not _pending_relay_survey_route_resume.is_empty():
+	var interrupted_resume := not _pending_relay_survey_route_resume.is_empty()
+	if interrupted_resume:
 		result = _relay_survey.resume_mandatory_route(
 			_adapter, _pending_relay_survey_route_resume
 		)
 	else:
 		result = _relay_survey.begin(_adapter, _navigation)
 	if bool(result.get("accepted", false)):
-		_pending_relay_survey_route_resume.clear()
 		_restored_relay_survey_completion.clear()
 		var runtime := (
 			_adapter.get_snapshot().get("activity_reward", {}) as Dictionary
@@ -340,7 +344,37 @@ func start_relay_survey() -> Dictionary:
 			&"activate_for_activity_generation", next_generation
 		) as Dictionary
 		if not bool(rack_activation.get("accepted", false)):
+			if interrupted_resume:
+				var aborted := _adapter.call(
+					&"abort_activity", &"resume_start_side_effect_failed"
+				) as Dictionary
+				_pending_relay_survey_route_resume.clear()
+				_pending_relay_survey_retirement.clear()
+				_interrupted_relay_survey_resume_blocked = true
+				var rejected := _result(
+					false, &"sample_rack_activation_rejected"
+				)
+				rejected["resume_abort"] = aborted.duplicate(true)
+				return rejected
 			return _result(false, &"sample_rack_activation_rejected")
+		if interrupted_resume:
+			var retirement := _relay_survey_persistence.call(
+				&"retire_interrupted_journey",
+				int(_pending_relay_survey_retirement.expected_store_generation),
+				str(_pending_relay_survey_retirement.expected_receipt_sha256),
+				str(_pending_relay_survey_retirement.commit_id)
+			) as Dictionary
+			result["persistence_retirement"] = retirement.duplicate(true)
+			_pending_relay_survey_route_resume.clear()
+			_pending_relay_survey_retirement.clear()
+			if not bool(retirement.get("accepted", false)):
+				var aborted := _adapter.call(
+					&"abort_activity", &"resume_receipt_retirement_failed"
+				) as Dictionary
+				result["resume_abort"] = aborted.duplicate(true)
+				result["accepted"] = false
+				result["reason"] = &"relay_survey_resume_retirement_failed"
+				_interrupted_relay_survey_resume_blocked = true
 	_apply_relay_survey_presentation()
 	return result
 
@@ -348,10 +382,15 @@ func start_relay_survey() -> Dictionary:
 ## GameFlow stages a validated passive receipt during journey admission. The
 ## route authority is untouched until start_relay_survey(), the same normal
 ## seam used for a fresh Beacon Survey.
-func stage_interrupted_relay_survey_resume(route_identity: Variant) -> Dictionary:
+func stage_interrupted_relay_survey_resume(
+		route_identity: Variant, retirement_request: Variant
+	) -> Dictionary:
 	if not _live():
 		return _result(false, &"composition_detached")
-	if not _pending_relay_survey_route_resume.is_empty():
+	if _relay_survey_persistence == null:
+		return _result(false, &"survey_persistence_unavailable")
+	if not _pending_relay_survey_route_resume.is_empty() \
+			or not _pending_relay_survey_retirement.is_empty():
 		return _result(false, &"relay_survey_resume_already_staged")
 	var validated: Dictionary = _relay_survey.validate_mandatory_route_resume(
 		route_identity
@@ -361,14 +400,24 @@ func stage_interrupted_relay_survey_resume(route_identity: Variant) -> Dictionar
 			false,
 			validated.get("reason", &"invalid_mandatory_route_identity") as StringName
 		)
+	if not retirement_request is Dictionary:
+		return _result(false, &"relay_survey_retirement_invalid")
+	var retirement := retirement_request as Dictionary
+	if retirement.size() != 3 \
+			or int(retirement.get("expected_store_generation", -1)) < 0 \
+			or str(retirement.get("expected_receipt_sha256", "")).length() != 64 \
+			or str(retirement.get("commit_id", "")).strip_edges().is_empty():
+		return _result(false, &"relay_survey_retirement_invalid")
 	_pending_relay_survey_route_resume = (
 		route_identity as Dictionary
 	).duplicate(true)
+	_pending_relay_survey_retirement = retirement.duplicate(true)
 	var result := _result(true, &"relay_survey_resume_staged")
 	result["route_identity"] = _pending_relay_survey_route_resume.duplicate(true)
 	result["authority"] = {
 		"activity": false, "movement": false, "actor": false, "reward": false,
 	}
+	result["receipt_retirement_deferred"] = true
 	return result
 
 
@@ -387,6 +436,8 @@ func submit_relay_survey_landmark(landmark_id: StringName, position: Vector3) ->
 
 func submit_relay_survey_position(position: Vector3) -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
+	if _interrupted_relay_survey_resume_blocked:
+		return _result(false, &"relay_survey_resume_relaunch_required")
 	var result: Dictionary = _relay_survey.submit_position(_adapter, position)
 	_apply_relay_survey_presentation()
 	_refresh_sample_rack_presentation()
@@ -394,6 +445,8 @@ func submit_relay_survey_position(position: Vector3) -> Dictionary:
 
 func commit_relay_survey_reward() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
+	if _interrupted_relay_survey_resume_blocked:
+		return _result(false, &"relay_survey_resume_relaunch_required")
 	var result: Dictionary = _relay_survey.commit_reward(_adapter)
 	_apply_relay_survey_presentation()
 	_refresh_sample_rack_presentation()

@@ -8233,23 +8233,24 @@ func restore_interrupted_ember_journey() -> Dictionary:
 		recovery.get("route_identity", {}) as Dictionary
 	).duplicate(true)
 	var expected_store_generation := int(loaded.get("store_generation", -1))
-	var retire_commit_id := EMBER_INTERRUPTED_JOURNEY_RETIRE_PREFIX \
-		+ "%010d" % (expected_store_generation + 1)
-	var retired := _ember_relay_survey_persistence_binding.call(
-		&"retire_interrupted_relay_survey_journey",
-		expected_store_generation,
-		str(recovery.get("receipt_sha256", "")),
-		retire_commit_id
-	) as Dictionary
+	var retirement_request := {
+		"expected_store_generation": expected_store_generation,
+		"expected_receipt_sha256": str(recovery.get("receipt_sha256", "")),
+		"commit_id": EMBER_INTERRUPTED_JOURNEY_RETIRE_PREFIX \
+			+ "%010d" % (expected_store_generation + 1),
+	}.duplicate(true)
 	_ember_interrupted_journey_restore_status = {
 		"accepted": true,
-		"reason": &"ember_active_journey_passively_adopted" \
-			if bool(retired.get("accepted", false)) \
-			else &"ember_active_journey_adopted_retirement_pending",
+		"reason": &"ember_active_journey_passively_adopted",
 		"recovery": recovery.duplicate(true),
 		"contract": contract.get_snapshot().duplicate(true),
 		"route_identity": _ember_interrupted_journey_route.duplicate(true),
-		"retirement": retired.duplicate(true),
+		"retirement_request": retirement_request,
+		"retirement": {
+			"accepted": false,
+			"reason": &"ember_active_journey_retirement_deferred",
+			"deferred_until_activity_resume": true,
+		},
 		"authority": {
 			"movement": false,
 			"actor": false,
@@ -8258,13 +8259,6 @@ func restore_interrupted_ember_journey() -> Dictionary:
 			"berth": false,
 		},
 	}.duplicate(true)
-	if bool(retired.get("accepted", false)) \
-			and _runtime_settings_user_data_store != null:
-		_runtime_settings_commit_serial = maxi(
-			_runtime_settings_commit_serial,
-			_runtime_settings_user_data_store.get_generation()
-		)
-		_sync_production_runtime_settings_state()
 	return _ember_interrupted_journey_restore_status.duplicate(true)
 
 
@@ -8286,7 +8280,8 @@ func _restore_ember_surface_persistence_for_admission() -> Dictionary:
 					):
 				staged = _ember_relay_survey_persistence_binding.call(
 					&"stage_interrupted_relay_survey_resume",
-					interrupted.get("route_identity", {})
+					interrupted.get("route_identity", {}),
+					interrupted.get("retirement_request", {})
 				) as Dictionary
 			interrupted["checkpoint_resume"] = staged.duplicate(true)
 		return interrupted.duplicate(true)
