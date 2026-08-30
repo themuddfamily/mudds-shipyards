@@ -238,7 +238,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.SIGNAGE_PYLON: {
-		"node_count": 43,
+		"node_count": 45,
 		"mesh_instances": 33,
 		"unique_materials": 17,
 		"lights": 0,
@@ -329,11 +329,14 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## visible copies, named rail anchors and animated assemblies remain. The two
 ## The broken service-arm HLOD proxies were then removed from both arm-bearing
 ## placements. The supported near-range lives on the existing nine animated
-## renderers, so the roster is now 499 nodes, 363 MeshInstances, 384 submissions
-## and 461 visible copies with no proxy geometry counted as presentation.
+## renderers, so the roster was 499 nodes, 363 MeshInstances, 384 submissions
+## and 461 visible copies with no proxy geometry counted as presentation. The
+## two presentation-only Label3D faces on the Operations wayfinding pylon then
+## move the node roster 499 -> 501 without changing MeshInstances, materials,
+## collision, activity authority, or any existing transform.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 499,
+	"node_count": 501,
 	"mesh_instances": 363,
 	"unique_materials": 17,
 	"lights": 0,

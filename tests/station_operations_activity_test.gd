@@ -314,7 +314,9 @@ func _run() -> void:
 	# 367 -> 363, batches 19 -> 21, copies 94 -> 98 and submissions 386 -> 384.
 	# Removing both broken arm HLOD proxies reduces the roster by two nodes,
 	# submissions and counted copies; the real visible geometry is unchanged.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 499, "ten production placements have the exact 499-node aggregate")
+	# Two presentation-only wayfinding labels then move nodes 499 -> 501 without
+	# changing geometry copies, materials, collision, or activity authority.
+	_check(int((roster_audit.counts as Dictionary).node_count) == 501, "ten production placements have the exact 501-node aggregate")
 	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 363, "ten production placements have the exact 363 MeshInstance aggregate")
 	_check(
 		int((roster_audit.counts as Dictionary).multimesh_batches) == 21
