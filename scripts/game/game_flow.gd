@@ -104,7 +104,9 @@ const AuroraWorldDefinition := preload(
 ## and session remain progress-only; their terminal observation is handed to
 ## GameFlow's separate persisted return-incentive authority.
 const DEFAULT_FREE_FLIGHT_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
+const CINDER_PLATFORM_PATROL_ROUTE_ID: StringName = &"cinder_reach_platform_patrol_route"
 const CINDER_PATROL_REWARD_ACTIVITY_ID: StringName = &"cinder_relay_patrol"
+const CINDER_PLATFORM_PATROL_REWARD_ACTIVITY_ID: StringName = &"cinder_platform_patrol"
 const ACTIVITY_KIND_TIMED_RACE: StringName = &"timed_race"
 const ACTIVITY_KIND_PATROL: StringName = &"patrol"
 const ACTIVITY_KIND_CARGO_DELIVERY: StringName = &"cargo_delivery"
@@ -1380,7 +1382,12 @@ func _initialize_cinder_race_session() -> void:
 		cinder_race_session.session_completed.connect(_on_cinder_session_completed)
 	if patrol_activity == null:
 		var route := activity_director.get_definition(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
-		patrol_activity = PatrolActivity.new(route, CINDER_PATROL_DWELL_SECONDS)
+		var platform_route := activity_director.get_definition(
+			CINDER_PLATFORM_PATROL_ROUTE_ID
+		)
+		patrol_activity = PatrolActivity.new(
+			route, CINDER_PATROL_DWELL_SECONDS, platform_route
+		)
 		patrol_activity.presentation_changed.connect(
 			_on_patrol_presentation_changed
 		)
@@ -1539,7 +1546,9 @@ func _initialize_cinder_patrol_session_persistence() -> void:
 		return
 	var snapshot := patrol_activity.get_presentation_snapshot()
 	_selected_activity_kind = ACTIVITY_KIND_PATROL
-	_active_activity_id = DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+	_active_activity_id = StringName(snapshot.get(
+		"activity_id", DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+	))
 	_active_activity_generation = int(snapshot.get("generation", 0))
 	_activity_selection_locked = true
 	_cinder_patrol_session_saved_fingerprint = _cinder_patrol_save_fingerprint(snapshot)
@@ -3395,7 +3404,10 @@ func _get_active_route_minimap_marker(
 	coordinate_frame_generation: int = 0
 	) -> Dictionary:
 	if (
-		_active_activity_id != DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+		_active_activity_id not in [
+			DEFAULT_FREE_FLIGHT_ACTIVITY_ID,
+			CINDER_PLATFORM_PATROL_ROUTE_ID,
+		]
 		or _selected_activity_kind not in [
 			ACTIVITY_KIND_TIMED_RACE,
 			ACTIVITY_KIND_PATROL,
@@ -3406,9 +3418,7 @@ func _get_active_route_minimap_marker(
 	var activity := get_active_activity_snapshot()
 	if not bool(activity.get("running", false)):
 		return {}
-	var route := activity_director.get_definition(
-		DEFAULT_FREE_FLIGHT_ACTIVITY_ID
-	)
+	var route := activity_director.get_definition(_active_activity_id)
 	if route == null:
 		return {}
 	var next_checkpoint_index := int(
@@ -5158,6 +5168,11 @@ func _connect_runtime_signals() -> void:
 		hud,
 		&"activity_selection_requested",
 		_on_hud_activity_selection_requested
+	)
+	_connect_signal_once(
+		hud,
+		&"patrol_branch_selection_requested",
+		_on_hud_patrol_branch_selection_requested
 	)
 	_connect_signal_once(
 		hud,
@@ -11399,6 +11414,10 @@ func _initialize_game_flow_reward_authority() -> void:
 			"reward_id": CINDER_PATROL_REWARD_ID,
 		},
 		{
+			"activity_id": CINDER_PLATFORM_PATROL_REWARD_ACTIVITY_ID,
+			"reward_id": CINDER_PATROL_REWARD_ID,
+		},
+		{
 			"activity_id": CINDER_CONVOY_ACTIVITY_ID,
 			"reward_id": CINDER_CONVOY_REWARD_ID,
 		},
@@ -11644,8 +11663,9 @@ func _cinder_patrol_save_fingerprint(snapshot: Dictionary) -> String:
 		return ""
 	# Continuous elapsed/dwell time is captured exactly on explicit and detach
 	# saves. Automatic writes track only meaningful lifecycle/ordered progress.
-	return "%d:%s:%d:%d:%s:%s" % [
+	return "%d:%s:%s:%d:%d:%s:%s" % [
 		int(snapshot.get("generation", 0)),
+		str(snapshot.get("branch_id", PatrolActivity.BRANCH_RELAY_SWEEP)),
 		str(snapshot.get("state_id", &"idle")),
 		int(snapshot.get("completed_checkpoint_count", 0)),
 		int(snapshot.get("dwell_checkpoint_index", PatrolActivity.ANY_CHECKPOINT)),
@@ -11655,8 +11675,14 @@ func _cinder_patrol_save_fingerprint(snapshot: Dictionary) -> String:
 
 
 func _on_patrol_completed(snapshot: Dictionary) -> void:
+	var reward_activity_id := (
+		CINDER_PLATFORM_PATROL_REWARD_ACTIVITY_ID
+		if StringName(snapshot.get("branch_id", PatrolActivity.BRANCH_RELAY_SWEEP))
+		== PatrolActivity.BRANCH_PLATFORM_SWEEP
+		else CINDER_PATROL_REWARD_ACTIVITY_ID
+	)
 	var reward := _request_game_flow_activity_reward(
-		CINDER_PATROL_REWARD_ACTIVITY_ID,
+		reward_activity_id,
 		int(snapshot.get("generation", 0))
 	)
 	if is_instance_valid(hud):
@@ -12443,6 +12469,14 @@ func _sync_activity_hud() -> void:
 			_selected_activity_kind,
 			_activity_selection_locked,
 			board_status_reason
+		)
+	if hud.has_method(&"set_patrol_branch_selection_state") \
+			and patrol_activity != null:
+		hud.call(
+			&"set_patrol_branch_selection_state",
+			patrol_activity.get_selected_branch_id(),
+			_activity_selection_locked,
+			&""
 		)
 
 
@@ -13402,6 +13436,12 @@ func _activity_selection_result(accepted: bool, reason: StringName) -> Dictionar
 func _get_selected_activity_id() -> StringName:
 	if _selected_activity_kind == ACTIVITY_KIND_CONVOY_ESCORT:
 		return CINDER_CONVOY_ACTIVITY_ID
+	if _selected_activity_kind == ACTIVITY_KIND_PATROL and patrol_activity != null:
+		return StringName(
+			patrol_activity.get_presentation_snapshot().get(
+				"activity_id", DEFAULT_FREE_FLIGHT_ACTIVITY_ID
+			)
+		)
 	return (
 		CARGO_DELIVERY_ACTIVITY_ID
 		if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY
@@ -13461,7 +13501,7 @@ func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
 		and selected_state in [&"completed", &"failed", &"aborted"]
 	):
 		repeat_requested = true
-		result = request_activity_start(DEFAULT_FREE_FLIGHT_ACTIVITY_ID)
+		result = request_activity_start(_get_selected_activity_id())
 	else:
 		result = select_activity_kind(activity_kind)
 	if is_instance_valid(hud) and hud.has_method(&"set_activity_selection_state"):
@@ -13477,6 +13517,38 @@ func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
 			_selected_activity_kind,
 			_activity_selection_locked,
 			status_reason
+		)
+
+
+func select_patrol_branch(branch_id: StringName) -> Dictionary:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return {"accepted": false, "reason": &"detached"}
+	if patrol_activity == null:
+		return {"accepted": false, "reason": &"patrol_unavailable"}
+	if _activity_selection_locked:
+		return {"accepted": false, "reason": &"selection_locked"}
+	if _selected_activity_kind != ACTIVITY_KIND_PATROL:
+		var selected := select_activity_kind(ACTIVITY_KIND_PATROL)
+		if not bool(selected.get("accepted", false)):
+			return selected
+	var result := patrol_activity.select_branch(
+		branch_id, patrol_activity.get_generation()
+	)
+	if bool(result.get("accepted", false)):
+		_active_activity_id = &""
+		_active_activity_generation = 0
+	_sync_activity_hud()
+	return result
+
+
+func _on_hud_patrol_branch_selection_requested(branch_id: StringName) -> void:
+	var result := select_patrol_branch(branch_id)
+	if is_instance_valid(hud) and hud.has_method(&"set_patrol_branch_selection_state"):
+		hud.call(
+			&"set_patrol_branch_selection_state",
+			patrol_activity.get_selected_branch_id(),
+			_activity_selection_locked,
+			StringName(result.get("reason", &"selection_rejected"))
 		)
 
 

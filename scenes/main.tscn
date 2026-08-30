@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3]
+[gd_scene load_steps=31 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game_flow.gd" id="1_flow"]
 [ext_resource type="PackedScene" path="res://scenes/world/shipyard_world.tscn" id="2_world"]
@@ -24,6 +24,7 @@
 [ext_resource type="Script" path="res://scripts/combat/wing_coordinator.gd" id="21_wing"]
 [ext_resource type="Script" path="res://scripts/activities/activity_director.gd" id="22_activity_director"]
 [ext_resource type="Resource" path="res://assets/activities/cinder_reach_checkpoint_route.tres" id="23_cinder_route"]
+[ext_resource type="Resource" path="res://assets/activities/cinder_reach_platform_patrol_route.tres" id="36_platform_patrol"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/cinder_streaming_bootstrap.tscn" id="24_cinder_streaming"]
 [ext_resource type="Script" path="res://scripts/world/cinder_streaming_production_binding.gd" id="25_cinder_binding"]
 [ext_resource type="Script" path="res://scripts/activities/cinder_convoy_escort_host.gd" id="26_cinder_convoy"]
@@ -93,7 +94,7 @@ script = ExtResource("6_audio")
 
 [node name="ActivityDirector" type="Node" parent="."]
 script = ExtResource("22_activity_director")
-activity_definitions = [ExtResource("23_cinder_route")]
+activity_definitions = [ExtResource("23_cinder_route"), ExtResource("36_platform_patrol")]
 
 [node name="HUD" parent="." instance=ExtResource("5_hud")]
 

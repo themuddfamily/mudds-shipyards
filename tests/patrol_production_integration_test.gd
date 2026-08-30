@@ -7,6 +7,9 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+const PLATFORM_ROUTE := preload(
+	"res://assets/activities/cinder_reach_platform_patrol_route.tres"
+)
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://patrol-production-settings.json"
 
@@ -92,6 +95,7 @@ func _run() -> void:
 	_test_failure_reset_and_generation_safety(game, hud)
 
 	await _clean_up(game)
+	await _test_platform_branch_choice()
 	await _test_queued_activity_requests()
 	_finish()
 
@@ -508,6 +512,125 @@ func _test_failure_reset_and_generation_safety(game: GameFlow, hud: GameHUD) -> 
 		and nonfinite_failure.get("recovery_action_id", &"") == &"reset_patrol_then_restart",
 		"production non-finite ship sampling fails patrol instead of leaving it active"
 	)
+
+
+func _test_platform_branch_choice() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	var store := Store.new(
+		"memory://platform-patrol-production-settings.json", MemoryFilesystem.new()
+	) as UserDataStore
+	_check(
+		game.configure_runtime_settings_persistence(
+			store, "memory://platform-patrol-production-legacy.cfg"
+		),
+		"the platform-branch fixture configures one isolated production Main"
+	)
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+
+	var director := game.get_activity_director()
+	var hud := game.get_node_or_null(^"HUD") as GameHUD
+	var platform_button := (
+		hud.find_child("PlatformSweepPatrolBranchButton", true, false) as Button
+		if hud != null else null
+	)
+	if platform_button != null:
+		platform_button.pressed.emit()
+	var branch_report := hud.get_activity_selection_report() if hud != null else {}
+	var branch_buttons := branch_report.get("patrol_branch_buttons", {}) as Dictionary
+	var page_rect := branch_report.get("page_rect", Rect2()) as Rect2
+	var platform_rect := (
+		(branch_buttons.get(&"platform_sweep", {}) as Dictionary).get(
+			"rect", Rect2()
+		) as Rect2
+	)
+	_check(
+		director != null
+		and director.get_definition(PLATFORM_ROUTE.activity_id) == PLATFORM_ROUTE
+		and branch_buttons.size() == 2
+		and page_rect.encloses(platform_rect)
+		and branch_report.get("selected_patrol_branch_id", &"") \
+			== PatrolActivity.BRANCH_PLATFORM_SWEEP
+		and game.get_activity_integration_report().get("selected_activity_kind", &"") \
+			== GameFlow.ACTIVITY_KIND_PATROL,
+		"the accessible pre-start board exposes two choices and selects the authored platform order"
+	)
+
+	var route_ship := game.get_flyable_ships()[1] as HeroShip
+	game.active_ship = route_ship
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var started := game.request_activity_start(PLATFORM_ROUTE.activity_id)
+	var locked_change := game.select_patrol_branch(
+		PatrolActivity.BRANCH_RELAY_SWEEP
+	)
+	var locked_report := hud.get_activity_selection_report() if hud != null else {}
+	var locked_buttons := locked_report.get("patrol_branch_buttons", {}) as Dictionary
+	_check(
+		bool(started.get("accepted", false))
+		and started.get("activity_id", &"") == PLATFORM_ROUTE.activity_id
+		and started.get("branch_id", &"") == PatrolActivity.BRANCH_PLATFORM_SWEEP
+		and not bool(locked_change.get("accepted", true))
+		and locked_change.get("reason", &"") == &"selection_locked"
+		and bool((locked_buttons.get(&"relay_sweep", {}) as Dictionary).get("disabled", false))
+		and bool((locked_buttons.get(&"platform_sweep", {}) as Dictionary).get("disabled", false)),
+		"starting locks the chosen branch for that patrol generation and disables both route controls"
+	)
+
+	game.set_physics_process(false)
+	route_ship.global_position = ROUTE.get_checkpoint_position(0)
+	game.call("_physics_process", 2.0)
+	var wrong_gate := game.get_active_activity_snapshot()
+	var marker := {}
+	for candidate: Dictionary in game.get_minimap_snapshot().get("objective_markers", []):
+		if candidate.get("id", &"") == &"active_route_checkpoint":
+			marker = candidate
+			break
+	_check(
+		int(wrong_gate.get("completed_checkpoint_count", -1)) == 0
+		and wrong_gate.get("phase_id", &"") == &"travel"
+		and marker.get("position", Vector3.INF) \
+			== PLATFORM_ROUTE.get_checkpoint_position(0)
+		and marker.get("position", Vector3.INF) != ROUTE.get_checkpoint_position(0),
+		"the relay-first gate cannot advance Platform Sweep and only its selected next gate is guided"
+	)
+
+	var parent := game.get_parent()
+	parent.remove_child(game)
+	await process_frame
+	parent.add_child(game)
+	await process_frame
+	await process_frame
+	var reentered := game.get_active_activity_snapshot()
+	_check(
+		reentered.get("branch_id", &"") == PatrolActivity.BRANCH_PLATFORM_SWEEP
+		and reentered.get("activity_id", &"") == PLATFORM_ROUTE.activity_id
+		and int(reentered.get("completed_checkpoint_count", -1)) == 0,
+		"whole-Main detach and re-entry retain the locked branch and its ordered progress"
+	)
+
+	for checkpoint_index in range(PLATFORM_ROUTE.get_checkpoint_count()):
+		route_ship.global_position = PLATFORM_ROUTE.get_checkpoint_position(checkpoint_index)
+		game.call("_physics_process", 2.0)
+	var completed := game.get_active_activity_snapshot()
+	var reward_record := (
+		(game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
+			"record", {}
+		) as Dictionary
+	)
+	var receipt := reward_record.get("last_receipt", {}) as Dictionary
+	_check(
+		completed.get("state_id", &"") == &"completed"
+		and completed.get("branch_id", &"") == PatrolActivity.BRANCH_PLATFORM_SWEEP
+		and int(reward_record.get("total_receipts", 0)) == 1
+		and receipt.get("activity_id", "") == "cinder_platform_patrol"
+		and receipt.get("reward_id", "") == "return_patrol_log_to_shipyard"
+		and bool(receipt.get("granted", false)),
+		"Platform Sweep completes through the same authority and records exactly one branch-specific receipt"
+	)
+	await _clean_up(game)
 
 
 func _test_queued_activity_requests() -> void:
