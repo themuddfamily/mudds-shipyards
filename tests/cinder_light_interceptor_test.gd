@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_check(audit.get("evidence_status", &"") == &"NEW" and not bool(audit.get("historically_supported", true)), "the interceptor makes no historical claim")
 	_check(craft.get_cockpit_seat_anchor() != null and craft.get_boarding_marker() != null, "the interceptor exposes physical cockpit and boarding anchors")
 	_check(bool(craft is HeroShip) and bool(audit.get("flight_authority", false)) and not bool(audit.get("combat_authority", true)) and not bool(audit.get("weapon_authority", true)), "HeroShip owns flight while the component adds no duplicate combat or weapon authority")
+	_test_closed_cockpit_fairing(craft)
 	_test_console_toggle_batch(craft)
 	_test_console_key_batch(craft)
 	_test_console_center_key_batch(craft)
@@ -33,6 +34,44 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _test_closed_cockpit_fairing(craft: CinderLightInterceptor) -> void:
+	var visual := craft.get_variant_visual_root()
+	var hull := visual.get_node_or_null(^"HighVisibilityHull") as MeshInstance3D
+	var fairing := visual.get_node_or_null(^"ClosedCockpitFairing") as MeshInstance3D
+	var cockpit_floor := visual.get_node_or_null(
+		^"CockpitInterior/CockpitFloor"
+	) as MeshInstance3D
+	var canopy := visual.get_node_or_null(^"Canopy") as MeshInstance3D
+	var hull_bounds := (hull.transform * hull.mesh.get_aabb()).abs() if hull != null else AABB()
+	var fairing_bounds := (fairing.transform * fairing.mesh.get_aabb()).abs() \
+		if fairing != null else AABB()
+	var floor_bounds := (cockpit_floor.transform * cockpit_floor.mesh.get_aabb()).abs() \
+		if cockpit_floor != null else AABB()
+	var canopy_bounds := (canopy.transform * canopy.mesh.get_aabb()).abs() \
+		if canopy != null else AABB()
+	_check(
+		hull != null
+		and fairing != null
+		and cockpit_floor != null
+		and canopy != null
+		and fairing.mesh is BoxMesh
+		and (fairing.mesh as BoxMesh).size.is_equal_approx(
+			CinderLightInterceptor.COCKPIT_FAIRING_SIZE
+		)
+		and is_equal_approx(fairing_bounds.position.y, hull_bounds.end.y)
+		and is_equal_approx(fairing_bounds.end.y, floor_bounds.position.y)
+		and fairing_bounds.intersects(canopy_bounds)
+		and fairing.material_override == hull.material_override
+		and fairing.layers == 1
+		and fairing.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and fairing.get_child_count() == 0
+		and bool(fairing.get_meta(&"visual_detail_only", false))
+		and not bool(fairing.get_meta(&"gameplay_authority", true))
+		and fairing.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"one closed visual-only fairing joins the hull crown, canopy and cockpit floor without collision authority"
+	)
 
 
 func _test_console_toggle_batch(craft: CinderLightInterceptor) -> void:
