@@ -2,6 +2,7 @@ extends SceneTree
 
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const SHIP_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
+const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 
 var _checks := 0
 var _failures := 0
@@ -31,11 +32,16 @@ func _run() -> void:
 	root.add_child(ship)
 	await process_frame
 	await physics_frame
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	root.add_child(player)
+	await process_frame
+	await physics_frame
 
 	_test_production_identity(ship)
 	_test_dock_three(world, ship)
-	_test_berth_contract(world, ship)
+	await _test_berth_contract(world, ship, player)
 
+	player.queue_free()
 	ship.queue_free()
 	world.queue_free()
 	await process_frame
@@ -74,7 +80,9 @@ func _test_dock_three(world: ShipyardWorld, ship: HeroShip) -> void:
 	_check(ship.get_home_berth_id() == &"bulwark_fleet_dock_berth", "Bulwark home berth matches Dock 03")
 
 
-func _test_berth_contract(world: ShipyardWorld, ship: HeroShip) -> void:
+func _test_berth_contract(
+	world: ShipyardWorld, ship: HeroShip, player: PlayerController
+	) -> void:
 	var berth := world.get_berth_node(&"bulwark_fleet_dock_berth")
 	_check(berth != null, "world owns the Bulwark physical berth")
 	if berth == null:
@@ -119,7 +127,51 @@ func _test_berth_contract(world: ShipyardWorld, ship: HeroShip) -> void:
 	)
 	var token := berth.try_reserve(ship, ship.get_ship_definition())
 	_check(not token.is_empty() and berth.has_valid_lease(ship, token, ship.get_ship_id()), "Dock 03 issues a valid Bulwark berth lease")
+	_check(berth.occupy(ship, token), "Dock 03 admits the production Bulwark onto its live berth")
+	ship.global_transform = dock_transform
+	await physics_frame
+	var exit_transform := ship.get_exit_transform()
+	var support := await _ray_support(world, exit_transform.origin)
+	_check(
+		not support.is_empty()
+		and absf(
+			exit_transform.origin.y
+			- (support.get("position", Vector3.INF) as Vector3).y
+		) <= 0.02,
+		"Dock 03 places Bulwark's exit directly on walkable support"
+	)
+	player.teleport_to(Transform3D(Basis.IDENTITY, ship.get_boarding_position()))
+	_check(
+		player.begin_boarding(
+			ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(), 0.0
+		),
+		"the real player enters Bulwark through the shared boarding transition"
+	)
+	await player.boarding_completed
+	_check(
+		player.begin_disembark(exit_transform, 0.0),
+		"the same seated player begins Bulwark's shared disembark transition"
+	)
+	await player.disembarking_completed
+	for _settle_frame in 4:
+		await physics_frame
+	_check(
+		not player.is_seated()
+		and player.global_position.distance_to(exit_transform.origin) <= 0.05
+		and not (await _ray_support(world, player.global_position)).is_empty(),
+		"Bulwark returns the embodied player onto Dock 03 without falling or clipping"
+	)
 	_check(berth.release(ship, token), "Bulwark berth lease releases cleanly")
+
+
+func _ray_support(world: Node3D, point: Vector3) -> Dictionary:
+	var query := PhysicsRayQueryParameters3D.create(
+		point + Vector3.UP * 0.08,
+		point - Vector3.UP * 8.0,
+		PhysicsLayers.WORLD
+	)
+	query.collide_with_areas = false
+	return world.get_world_3d().direct_space_state.intersect_ray(query)
 
 
 func _find_dock(roster: Array[Dictionary], dock_id: StringName) -> Dictionary:
