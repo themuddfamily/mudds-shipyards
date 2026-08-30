@@ -202,38 +202,63 @@ func _test_assigned_dock_status_stripe_readability(module: FleetDockComb) -> voi
 		Vector3(15.0, 0.055, 25.0),
 		Vector3(15.0, 2.455, 40.0),
 	]
-	var exact_visuals := true
-	var status_material: Material = null
-	for index in expected_centres.size():
-		var cross := detail.get_node_or_null("DockCrossStripe%02d" % (index + 1)) as MeshInstance3D
-		var longitudinal := detail.get_node_or_null("DockLongStripe%02d" % (index + 1)) as MeshInstance3D
+	var cross := detail.get_node_or_null(^"DockCrossStripes") as MultiMeshInstance3D
+	var longitudinal := detail.get_node_or_null(^"DockLongStripes") as MultiMeshInstance3D
+	var exact_visuals := cross != null and longitudinal != null
+	if exact_visuals:
+		var cross_transforms: Array = cross.get_meta("authored_instance_transforms", [])
+		var long_transforms: Array = longitudinal.get_meta("authored_instance_transforms", [])
 		exact_visuals = (
-			exact_visuals
-			and cross != null
-			and longitudinal != null
-			and cross.position.is_equal_approx(expected_centres[index] + Vector3(0.0, 0.0, 0.0))
-			and longitudinal.position.is_equal_approx(expected_centres[index] + Vector3(0.0, 0.003, 0.0))
-			and cross.mesh.get_aabb().size.is_equal_approx(
+			cross.multimesh != null
+			and longitudinal.multimesh != null
+			and cross.multimesh.instance_count == expected_centres.size()
+			and longitudinal.multimesh.instance_count == expected_centres.size()
+			and cross.multimesh.mesh.get_aabb().size.is_equal_approx(
 				Vector3(FleetDockComb.DOCK_STATUS_STRIPE_LENGTH, 0.03, FleetDockComb.DOCK_STATUS_STRIPE_WIDTH)
 			)
-			and longitudinal.mesh.get_aabb().size.is_equal_approx(
+			and longitudinal.multimesh.mesh.get_aabb().size.is_equal_approx(
 				Vector3(FleetDockComb.DOCK_STATUS_STRIPE_WIDTH, 0.03, FleetDockComb.DOCK_STATUS_STRIPE_LENGTH)
 			)
 			and cross.material_override == longitudinal.material_override
 			and cross.get_child_count() == 0
 			and longitudinal.get_child_count() == 0
+			and cross_transforms.size() == expected_centres.size()
+			and long_transforms.size() == expected_centres.size()
 		)
-		if cross != null:
-			if status_material == null:
-				status_material = cross.material_override
-			else:
-				exact_visuals = exact_visuals and cross.material_override == status_material
+		for index in expected_centres.size():
+			exact_visuals = (
+				exact_visuals
+				and (cross_transforms[index] as Transform3D).origin.is_equal_approx(expected_centres[index])
+				and (long_transforms[index] as Transform3D).origin.is_equal_approx(
+					expected_centres[index] + Vector3(0.0, 0.003, 0.0)
+				)
+			)
 	_check(
 		exact_visuals
 		and is_equal_approx(FleetDockComb.DOCK_STATUS_STRIPE_WIDTH, 0.28)
+		and detail.get_node_or_null(^"DockCrossStripe01") == null
+		and detail.get_node_or_null(^"DockLongStripe01") == null
 		and detail.find_children("Dock*Stripe*", "CollisionObject3D", true, false).is_empty()
 		and detail.find_children("Dock*Stripe*", "Area3D", true, false).is_empty(),
-		"all three assigned docks keep centred 8.2 m status crosses with a readable 0.28 m visual-only stroke"
+		"two batches preserve all three centred 8.2 m status crosses with a readable 0.28 m visual-only stroke"
+	)
+	var render := module.get_render_batch_contract()
+	_check(
+		int(render.dock_cross_stripe_copies) == 3
+		and int(render.dock_long_stripe_copies) == 3
+		and int(render.dock_status_stripe_submissions_before) == 6
+		and int(render.dock_status_stripe_submissions_after) == 2
+		and int(render.geometry_submissions_before_dock_status_stripe_batch) == 53
+		and int(render.geometry_submissions) == 49
+		and int(render.dock_cross_stripe_renderer_buffer_floats) == 36
+		and int(render.dock_long_stripe_renderer_buffer_floats) == 36
+		and bool(render.dock_cross_stripe_renderer_buffer_matches_authored)
+		and bool(render.dock_long_stripe_renderer_buffer_matches_authored)
+		and bool(render.dock_cross_stripe_bounds_match_authored)
+		and bool(render.dock_long_stripe_bounds_match_authored)
+		and bool(render.dock_cross_stripe_contract_matches)
+		and bool(render.dock_long_stripe_contract_matches),
+		"status stripes reduce six renderer submissions to two with exact buffers, bounds and materials"
 	)
 
 
@@ -410,24 +435,24 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 
 	var render := module.get_render_batch_contract()
 	_check(
-		int(render.descendant_nodes) == 145
-		and int(render.mesh_instances) == 89
-		and int(render.multimesh_batches) == 10,
-		"renderer census includes all ten bounded visual-detail batches"
+		int(render.descendant_nodes) == 141
+		and int(render.mesh_instances) == 83
+		and int(render.multimesh_batches) == 12,
+		"renderer census includes all twelve bounded visual-detail batches"
 	)
 	_check(
 		int(render.drawn_copies) == 101
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.trunk_expansion_joint_copies) == 12,
-		"drawn copies remain 101 while surface submissions become 53"
+		"drawn copies remain 101 while surface submissions become 49"
 	)
 	_check(
 		int(render.trunk_renderer_buffer_floats) == 144
-		and int(render.renderer_buffer_floats) == 696
+		and int(render.renderer_buffer_floats) == 768
 		and bool(render.renderer_buffer_matches_authored)
 		and bool(render.bounds_match_authored)
 		and bool(render.exact_counts),
-		"all renderer buffers freeze at 696 floats with exact authored culling unions"
+		"all renderer buffers freeze at 768 floats with exact authored culling unions"
 	)
 	var collision := module.get_collision_contract()
 	var authority := module.get_authority_contract()
@@ -539,7 +564,7 @@ func _test_trunk_route_light_batch(module: FleetDockComb) -> void:
 		int(render.trunk_route_light_submissions_before) == 3
 		and int(render.trunk_route_light_submissions_after) == 1
 		and int(render.geometry_submissions_before_trunk_route_light_batch) == 66
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.drawn_copies) == 101
 		and int(render.trunk_route_light_renderer_buffer_floats) == 36
 		and bool(render.trunk_route_light_renderer_buffer_matches_authored)
@@ -631,10 +656,10 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 		int(render.slab_corner_beacon_submissions_before) == 12
 		and int(render.slab_corner_beacon_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_beacon_batch) == 90
-		and int(render.geometry_submissions) == 53
-		and int(render.geometry_submissions_removed) == 37
+		and int(render.geometry_submissions) == 49
+		and int(render.geometry_submissions_removed) == 41
 		and int(render.slab_corner_beacon_renderer_buffer_floats) == 144,
-		"corner-beacon and later batches preserve the 12 -> 1 beacon reduction and reach 53 overall"
+		"corner-beacon and later batches preserve the 12 -> 1 beacon reduction and reach 49 overall"
 	)
 	_check(
 		bool(render.slab_corner_beacon_renderer_buffer_matches_authored)
@@ -728,7 +753,7 @@ func _test_slab_support_batch(module: FleetDockComb) -> void:
 		int(render.slab_support_submissions_before) == 6
 		and int(render.slab_support_submissions_after) == 1
 		and int(render.geometry_submissions_before_slab_support_batch) == 79
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.slab_support_renderer_buffer_floats) == 72
 		and bool(render.slab_support_renderer_buffer_matches_authored)
 		and bool(render.slab_support_bounds_match_authored)
@@ -828,7 +853,7 @@ func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
 		int(render.rung_edge_cue_submissions_before) == 4
 		and int(render.rung_edge_cue_submissions_after) == 1
 		and int(render.geometry_submissions_before_rung_edge_cue_batch) == 74
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.drawn_copies) == 101
 		and int(render.rung_edge_cue_renderer_buffer_floats) == 48
 		and bool(render.rung_edge_cue_renderer_buffer_matches_authored)
@@ -920,7 +945,7 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 		int(render.mooring_cleat_pad_submissions_before) == 6
 		and int(render.mooring_cleat_pad_submissions_after) == 1
 		and int(render.geometry_submissions_before_mooring_cleat_pad_batch) == 71
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.drawn_copies) == 101
 		and int(render.mooring_cleat_pad_renderer_buffer_floats) == 72
 		and bool(render.mooring_cleat_pad_renderer_buffer_matches_authored)
@@ -1007,7 +1032,7 @@ func _test_mooring_cleat_bollard_batch(module: FleetDockComb) -> void:
 		int(render.mooring_cleat_bollard_submissions_before) == 6
 		and int(render.mooring_cleat_bollard_submissions_after) == 1
 		and int(render.geometry_submissions_before_mooring_cleat_bollard_batch) == 62
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.drawn_copies) == 101
 		and int(render.mooring_cleat_bollard_renderer_buffer_floats) == 72
 		and bool(render.mooring_cleat_bollard_renderer_buffer_matches_authored)
@@ -1099,7 +1124,7 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 	_check(
 		int(render.dock_mast_cap_copies) == 3
 		and int(render.dock_mast_cap_renderer_buffer_floats) == 36
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.drawn_copies) == 101
 		and bool(render.dock_mast_cap_renderer_buffer_matches_authored)
 		and bool(render.dock_mast_cap_bounds_match_authored)
@@ -1174,7 +1199,7 @@ func _test_dock_service_mast_batch(module: FleetDockComb) -> void:
 		and int(render.dock_service_mast_submissions_before) == 3
 		and int(render.dock_service_mast_submissions_after) == 1
 		and int(render.geometry_submissions_before_dock_service_mast_batch) == 57
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.drawn_copies) == 101
 		and int(render.dock_service_mast_renderer_buffer_floats) == 36
 		and bool(render.dock_service_mast_renderer_buffer_matches_authored)
@@ -1254,7 +1279,7 @@ func _test_dock_service_bracket_batch(module: FleetDockComb) -> void:
 		and int(render.dock_service_bracket_submissions_before) == 3
 		and int(render.dock_service_bracket_submissions_after) == 1
 		and int(render.geometry_submissions_before_dock_service_bracket_batch) == 55
-		and int(render.geometry_submissions) == 53
+		and int(render.geometry_submissions) == 49
 		and int(render.drawn_copies) == 101
 		and int(render.dock_service_bracket_renderer_buffer_floats) == 36
 		and bool(render.dock_service_bracket_renderer_buffer_matches_authored)
