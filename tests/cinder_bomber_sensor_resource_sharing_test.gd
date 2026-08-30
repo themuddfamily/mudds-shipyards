@@ -57,6 +57,18 @@ func _initialize() -> void:
 			and is_equal_approx(sensor_material.emission_energy_multiplier, 1.8),
 		"sharing preserves the sensor silhouette, placement, color and emission"
 	)
+	var first_cockpit := first.find_child("CockpitCamera", true, false) as Camera3D
+	var first_chase := first.find_child("ShipCamera", true, false) as Camera3D
+	_check(
+		first_sensor.layers == Bomber.EXTERIOR_SENSOR_VISUAL_LAYER
+			and first_cockpit != null
+			and (first_cockpit.cull_mask & Bomber.EXTERIOR_SENSOR_VISUAL_LAYER) == 0
+			and first_chase != null
+			and (first_chase.cull_mask & Bomber.EXTERIOR_SENSOR_VISUAL_LAYER) != 0
+			and bool(first_report.get("cockpit_omits_sensor", false))
+			and bool(first_report.get("chase_retains_sensor", false)),
+		"the unchanged dorsal sensor remains in exterior views but no longer blocks the cockpit"
+	)
 	_check(
 		bool(first.get_landing_collision_report().get("valid", false))
 			and bool(second.get_landing_collision_report().get("valid", false))
