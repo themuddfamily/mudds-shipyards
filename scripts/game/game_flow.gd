@@ -31,6 +31,9 @@ const RuntimeSettingsRepairBindingType := preload(
 	"res://scripts/persistence/runtime_settings_repair_binding.gd"
 )
 const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd")
+const PlanetarySaveSessionContractType := preload(
+	"res://scripts/world/planetary_save_session_contract.gd"
+)
 const GameFlowRewardAuthorityType := preload(
 	"res://scripts/game/game_flow_reward_authority.gd"
 )
@@ -701,8 +704,15 @@ var _planetary_return_receipt_consumed := false
 var _planetary_return_persistence_binding: Object
 const PLANETARY_RETURN_PERSISTENCE_SLOT: StringName = &"ember_planetary_return"
 var _ember_relay_survey_persistence_binding: Object
+var _ember_interrupted_journey_contract: RefCounted
+var _ember_interrupted_journey_save_status: Dictionary = {}
+var _ember_interrupted_journey_restore_status: Dictionary = {}
+var _ember_interrupted_journey_route: Dictionary = {}
+var _ember_interrupted_journey_restore_attempted := false
 const EMBER_RELAY_SURVEY_PERSISTENCE_SLOT: StringName = \
 	&"ember_relay_survey_completion"
+const EMBER_INTERRUPTED_JOURNEY_COMMIT_PREFIX := "ember-active-journey-"
+const EMBER_INTERRUPTED_JOURNEY_RETIRE_PREFIX := "ember-active-journey-retire-"
 const CINDER_RACE_BEST_PERSISTENCE_SLOT: StringName = &"cinder_race_best_result"
 const CINDER_SCAN_DISCOVERY_PERSISTENCE_SLOT: StringName = &"cinder_scan_discovery"
 const CINDER_CARGO_DELIVERY_PERSISTENCE_SLOT: StringName = &"cinder_cargo_delivery"
@@ -897,6 +907,7 @@ func _exit_tree() -> void:
 	# free it after the same lifecycle boundary. Capture the caller-physics clock
 	# before disconnecting either case; ordinary detach is not treated as orderly
 	# process shutdown and does not touch either recovery marker.
+	save_interrupted_ember_journey()
 	save_cinder_race_session()
 	save_cinder_patrol_session()
 	save_cinder_convoy_session()
@@ -8095,6 +8106,250 @@ func restore_ember_relay_survey_persistence() -> Dictionary:
 	) as Dictionary
 
 
+## Captures one active Ember survey at the existing Main detach/save boundary.
+## The contract is built from the current coordinate frame and a read-only
+## production snapshot, then detached before it reaches persistence. No live
+## actor, route, movement, berth, or reward owner is serialized.
+func save_interrupted_ember_journey() -> Dictionary:
+	if not _ember_surface_journey_active:
+		return {"accepted": true, "reason": &"ember_active_journey_not_running"}
+	if _runtime_settings_user_data_store == null \
+			or _ember_relay_survey_persistence_binding == null \
+			or not _ember_relay_survey_persistence_binding.has_method(
+				&"save_interrupted_relay_survey_journey"
+			):
+		return {"accepted": false, "reason": &"ember_active_journey_persistence_unavailable"}
+	var evidence := _collect_ember_interrupted_journey_save_evidence()
+	if not bool(evidence.get("accepted", false)):
+		_ember_interrupted_journey_save_status = evidence.duplicate(true)
+		return _ember_interrupted_journey_save_status.duplicate(true)
+	var frame: Object = evidence.get("frame") as Object
+	var host := evidence.get("host", {}) as Dictionary
+	var route := evidence.get("route", {}) as Dictionary
+	var coordinate := evidence.get("coordinate", {}) as Dictionary
+	var contract := PlanetarySaveSessionContractType.new(&"ember_moon", frame)
+	var session_id := StringName("ember_expedition_%010d_%010d" % [
+		int(host.get("generation", 0)),
+		int(route.get("activity_generation", 0)),
+	])
+	var started := contract.begin_session(
+		session_id,
+		int(host.get("attachment_generation", 0)),
+		int(host.get("coordinate_frame_generation", 0))
+	) as Dictionary
+	if not bool(started.get("accepted", false)):
+		_ember_interrupted_journey_save_status = started.duplicate(true)
+		return _ember_interrupted_journey_save_status.duplicate(true)
+	var checkpoint := contract.save_surface_checkpoint(
+		int(host.get("attachment_generation", 0)),
+		int(host.get("coordinate_frame_generation", 0)),
+		int(host.get("physics_advance_count", 0)),
+		coordinate.get("orbital_coordinate", {}) as Dictionary,
+		coordinate.get("surface_tangent_position", Vector3.ZERO) as Vector3,
+		{
+			"activity_id": str(route.get("activity_id", "")),
+			"journey_phase_id": str(host.get("phase_id", "")),
+			"route_checkpoint_index": int(
+				route.get("next_checkpoint_index", -1)
+			),
+		}
+	) as Dictionary
+	if not bool(checkpoint.get("accepted", false)):
+		_ember_interrupted_journey_save_status = checkpoint.duplicate(true)
+		return _ember_interrupted_journey_save_status.duplicate(true)
+	var detached := contract.detach_session(
+		int(host.get("attachment_generation", 0)),
+		int(host.get("coordinate_frame_generation", 0))
+	) as Dictionary
+	if not bool(detached.get("accepted", false)):
+		_ember_interrupted_journey_save_status = detached.duplicate(true)
+		return _ember_interrupted_journey_save_status.duplicate(true)
+	var next_generation := _runtime_settings_user_data_store.get_generation() + 1
+	if next_generation <= 0 or next_generation > UserDataStoreType.MAX_GENERATION:
+		return {"accepted": false, "reason": &"ember_active_journey_commit_id_exhausted"}
+	var commit_id := EMBER_INTERRUPTED_JOURNEY_COMMIT_PREFIX \
+		+ "%010d" % next_generation
+	_ember_interrupted_journey_save_status = (
+		_ember_relay_survey_persistence_binding.call(
+			&"save_interrupted_relay_survey_journey",
+			contract,
+			route,
+			commit_id
+		) as Dictionary
+	).duplicate(true)
+	if bool(_ember_interrupted_journey_save_status.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(
+			_runtime_settings_commit_serial,
+			_runtime_settings_user_data_store.get_generation()
+		)
+		_sync_production_runtime_settings_state()
+	return _ember_interrupted_journey_save_status.duplicate(true)
+
+
+## Loads and validates a passive recovery receipt during normal Ember surface
+## admission. The restored contract is retained only as evidence; its route is
+## not installed into ActivityDirector and no actor state is applied.
+func restore_interrupted_ember_journey() -> Dictionary:
+	if _ember_interrupted_journey_restore_attempted:
+		return {"accepted": false, "reason": &"ember_active_journey_restore_already_attempted"}
+	_ember_interrupted_journey_restore_attempted = true
+	if _ember_relay_survey_persistence_binding == null \
+			or not _ember_relay_survey_persistence_binding.has_method(
+				&"load_interrupted_relay_survey_journey"
+			) \
+			or not _ember_relay_survey_persistence_binding.has_method(
+				&"retire_interrupted_relay_survey_journey"
+			):
+		_ember_interrupted_journey_restore_status = {
+			"accepted": false,
+			"reason": &"ember_active_journey_persistence_unavailable",
+		}.duplicate(true)
+		return _ember_interrupted_journey_restore_status.duplicate(true)
+	var loaded := _ember_relay_survey_persistence_binding.call(
+		&"load_interrupted_relay_survey_journey"
+	) as Dictionary
+	if not bool(loaded.get("accepted", false)):
+		_ember_interrupted_journey_restore_status = loaded.duplicate(true)
+		return _ember_interrupted_journey_restore_status.duplicate(true)
+	var recovery := loaded.get("recovery", {}) as Dictionary
+	var frame := _get_ember_interrupted_journey_restore_frame()
+	if frame == null or not frame.has_method(&"get_generation"):
+		_ember_interrupted_journey_restore_status = {
+			"accepted": false,
+			"reason": &"ember_active_journey_frame_unavailable",
+		}.duplicate(true)
+		return _ember_interrupted_journey_restore_status.duplicate(true)
+	var contract := PlanetarySaveSessionContractType.new(&"ember_moon", frame)
+	var adopted := contract.restore_detached_snapshot(
+		recovery.get("detached_session", {}) as Dictionary,
+		int(recovery.get("attachment_generation", 0)) + 1,
+		int(frame.call(&"get_generation"))
+	) as Dictionary
+	if not bool(adopted.get("accepted", false)):
+		_ember_interrupted_journey_restore_status = adopted.duplicate(true)
+		return _ember_interrupted_journey_restore_status.duplicate(true)
+	_ember_interrupted_journey_contract = contract
+	_ember_interrupted_journey_route = (
+		recovery.get("route_identity", {}) as Dictionary
+	).duplicate(true)
+	var expected_store_generation := int(loaded.get("store_generation", -1))
+	var retire_commit_id := EMBER_INTERRUPTED_JOURNEY_RETIRE_PREFIX \
+		+ "%010d" % (expected_store_generation + 1)
+	var retired := _ember_relay_survey_persistence_binding.call(
+		&"retire_interrupted_relay_survey_journey",
+		expected_store_generation,
+		str(recovery.get("receipt_sha256", "")),
+		retire_commit_id
+	) as Dictionary
+	_ember_interrupted_journey_restore_status = {
+		"accepted": true,
+		"reason": &"ember_active_journey_passively_adopted" \
+			if bool(retired.get("accepted", false)) \
+			else &"ember_active_journey_adopted_retirement_pending",
+		"recovery": recovery.duplicate(true),
+		"contract": contract.get_snapshot().duplicate(true),
+		"route_identity": _ember_interrupted_journey_route.duplicate(true),
+		"retirement": retired.duplicate(true),
+		"authority": {
+			"movement": false,
+			"actor": false,
+			"activity": false,
+			"reward": false,
+			"berth": false,
+		},
+	}.duplicate(true)
+	if bool(retired.get("accepted", false)) \
+			and _runtime_settings_user_data_store != null:
+		_runtime_settings_commit_serial = maxi(
+			_runtime_settings_commit_serial,
+			_runtime_settings_user_data_store.get_generation()
+		)
+		_sync_production_runtime_settings_state()
+	return _ember_interrupted_journey_restore_status.duplicate(true)
+
+
+## Exact admission composition: terminal completion remains the first consumer
+## of the shared slot. Only its explicit active-journey marker selects passive
+## recovery, so the two persisted meanings can never be applied together.
+func _restore_ember_surface_persistence_for_admission() -> Dictionary:
+	var terminal := restore_ember_relay_survey_persistence()
+	if StringName(terminal.get("reason", &"")) \
+			== &"survey_persistence_active_journey_present":
+		var interrupted := restore_interrupted_ember_journey()
+		interrupted["persistence_kind"] = &"interrupted_journey"
+		interrupted["terminal_probe"] = terminal.duplicate(true)
+		return interrupted.duplicate(true)
+	return terminal.duplicate(true)
+
+
+func get_ember_interrupted_journey_persistence_report() -> Dictionary:
+	return {
+		"schema_version": 1,
+		"restore_attempted": _ember_interrupted_journey_restore_attempted,
+		"last_save_status": _ember_interrupted_journey_save_status.duplicate(true),
+		"restore_status": _ember_interrupted_journey_restore_status.duplicate(true),
+		"adopted": _ember_interrupted_journey_contract != null,
+		"route_identity": _ember_interrupted_journey_route.duplicate(true),
+		"authority": {
+			"movement": false, "actor": false, "activity": false,
+			"reward": false, "berth": false,
+		},
+	}.duplicate(true)
+
+
+func _collect_ember_interrupted_journey_save_evidence() -> Dictionary:
+	if not is_instance_valid(ember_surface_loop_host) \
+			or not is_instance_valid(ember_surface_loop_production_binding) \
+			or not is_instance_valid(ember_streaming_bootstrap) \
+			or not is_instance_valid(player):
+		return {"accepted": false, "reason": &"ember_active_journey_runtime_unavailable"}
+	var host := ember_surface_loop_host.get_snapshot()
+	if not bool(host.get("attached", false)) \
+			or StringName(host.get("phase_id", &"")) != &"on_foot":
+		return {"accepted": false, "reason": &"ember_active_journey_phase_unavailable"}
+	var surface := ember_surface_loop_production_binding.get_planetary_surface_snapshot()
+	var runtime := (
+		(surface.get("adapter", {}) as Dictionary).get("activity_reward", {}) \
+		as Dictionary
+	)
+	var route := (
+		(surface.get("relay_survey", {}) as Dictionary).get("mandatory_route", {}) \
+		as Dictionary
+	)
+	if StringName(runtime.get("state", &"")) not in [&"active", &"awaiting_reward"] \
+			or StringName(runtime.get("activity_id", &"")) != &"ember_beacon_survey" \
+			or StringName(route.get("activity_id", &"")) != &"ember_beacon_survey":
+		return {"accepted": false, "reason": &"ember_active_journey_route_unavailable"}
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null or not frame.is_configured() \
+			or frame.get_generation() \
+				!= int(host.get("coordinate_frame_generation", -1)):
+		return {"accepted": false, "reason": &"ember_active_journey_frame_unavailable"}
+	var decoded := frame.decode_world_streaming_position(
+		player.global_position,
+		frame.get_generation()
+	) as Dictionary
+	if not bool(decoded.get("accepted", false)):
+		return {"accepted": false, "reason": &"ember_active_journey_coordinate_unavailable"}
+	return {
+		"accepted": true,
+		"reason": &"ember_active_journey_evidence_ready",
+		"frame": frame,
+		"host": host.duplicate(true),
+		"route": route.duplicate(true),
+		"coordinate": (
+			decoded.get("coordinate", {}) as Dictionary
+		).duplicate(true),
+	}
+
+
+func _get_ember_interrupted_journey_restore_frame() -> Object:
+	if not is_instance_valid(ember_streaming_bootstrap):
+		return null
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	return frame if frame != null and frame.is_configured() else null
+
+
 ## Consumes one trusted physical service-terminal request. GameFlow supplies
 ## player/craft/landing/ownership evidence; RepairAuthority retains the only
 ## repair token and commits through the ship-local component adapter.
@@ -8448,12 +8703,12 @@ func begin_ember_surface_journey(
 		)
 		if not bool(composed.get("accepted", false)):
 			return composed
-	var survey_restore: Dictionary = {}
-	if binding == _ember_relay_survey_persistence_binding:
-		survey_restore = restore_ember_relay_survey_persistence()
 	var final_approach := _arm_ember_final_approach(host)
 	if not bool(final_approach.get("accepted", false)):
 		return final_approach
+	var survey_restore: Dictionary = {}
+	if binding == _ember_relay_survey_persistence_binding:
+		survey_restore = _restore_ember_surface_persistence_for_admission()
 	# Admission starts the retained surface journey. Disembark is a later,
 	# phase-specific caller intent after the Host has actually reached LANDED;
 	# queuing it while the binding is still IDLE necessarily rejects because no

@@ -646,6 +646,44 @@ func restore_relay_survey_persistence() -> Dictionary:
 	return _planetary_composition.call(&"restore_relay_survey_persistence")
 
 
+func save_interrupted_relay_survey_journey(
+		session_contract: Object,
+		route_snapshot: Variant,
+		commit_id: String
+	) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"save_interrupted_relay_survey_journey",
+		session_contract,
+		route_snapshot,
+		commit_id
+	) as Dictionary
+
+
+func load_interrupted_relay_survey_journey() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"load_interrupted_relay_survey_journey"
+	) as Dictionary
+
+
+func retire_interrupted_relay_survey_journey(
+		expected_store_generation: int,
+		expected_receipt_sha256: String,
+		commit_id: String
+	) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"retire_interrupted_relay_survey_journey",
+		expected_store_generation,
+		expected_receipt_sha256,
+		commit_id
+	) as Dictionary
+
+
 ## Emits a caller-routed return intent after the survey's fenced external reward
 ## commit is accepted and persisted. This binding never moves the actor, owns
 ## the reward authority/store, or selects a berth; the receipt only names the
