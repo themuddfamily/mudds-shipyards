@@ -26,8 +26,9 @@ func _run() -> void:
 	var apron := module.get_node("LoadingApron")
 	_check(
 		census == JovianFreightBerth.DOCK_GUIDE_BATCH_CENSUS_AFTER,
-		"standalone census freezes 920 -> 899 nodes and 439 -> 412 submissions with 464 copies and collision exact"
+		"standalone census freezes 899 nodes, 411 submissions, 477 visible copies, and collision exact"
 	)
+	_test_apron_diagonal_batch(module, apron)
 	var contract := module.get_dock_guide_batch_contract()
 	_check(
 		contract.census_before == JovianFreightBerth.DOCK_GUIDE_BATCH_CENSUS_BEFORE
@@ -73,7 +74,7 @@ func _run() -> void:
 		and bool(collision.all_layers_match_lifecycle)
 		and bool(collision.all_masks_zero)
 		and bool(collision.all_shapes_present_and_enabled),
-		"collision remains exactly 207 bodies/210 shapes with the lifecycle contract intact"
+		"collision remains exactly 206 bodies/209 shapes with the lifecycle contract intact"
 	)
 	_check(
 		(authority.authority_ids as PackedStringArray).is_empty()
@@ -90,6 +91,51 @@ func _run() -> void:
 	module.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_apron_diagonal_batch(module: JovianFreightBerth, apron: Node) -> void:
+	var contract := module.get_apron_diagonal_batch_contract()
+	var batch := apron.get_node_or_null("ApronDiagonalBatch") as MultiMeshInstance3D
+	_check(
+		bool(contract.valid)
+		and int(contract.legacy.renderer_allocations) == 8
+		and int(contract.current.renderer_allocations) == 1
+		and int(contract.reductions.renderer_allocations) == 7
+		and int(contract.legacy.renderer_submissions) == 8
+		and int(contract.current.renderer_submissions) == 1
+		and int(contract.reductions.renderer_submissions) == 7
+		and int(contract.current.visible_copies) == 8
+		and int(contract.reductions.visible_copies) == 0,
+		"eight apron diagonals retain every visible copy while reducing eight renderers and submissions to one"
+	)
+	_check(
+		batch != null
+		and batch.multimesh != null
+		and batch.multimesh.instance_count == JovianFreightBerth.APRON_DIAGONAL_COPY_COUNT
+		and batch.multimesh.mesh != null
+		and batch.multimesh.mesh.get_aabb().size.is_equal_approx(JovianFreightBerth.APRON_DIAGONAL_SIZE)
+		and batch.get_child_count() == 0
+		and bool(batch.get_meta("visual_detail_only", false))
+		and _exact_apron_diagonal_transforms(batch)
+		and _retired_apron_diagonals(apron).is_empty(),
+		"one childless visual batch preserves the exact apron-diagonal mesh and transform roster"
+	)
+	var original_material := batch.material_override if batch != null else null
+	if batch != null:
+		batch.material_override = StandardMaterial3D.new()
+	var drifted := module.get_apron_diagonal_batch_contract()
+	_check(
+		batch != null
+		and not bool(drifted.valid)
+		and (drifted.errors as PackedStringArray).has("apron_diagonal_batch_payload_drift"),
+		"apron-diagonal material drift fails the production allocation audit closed"
+	)
+	if batch != null:
+		batch.material_override = original_material
+	_check(
+		bool(module.get_apron_diagonal_batch_contract().valid),
+		"restoring the shared apron-diagonal material returns the production audit green"
+	)
 
 
 func _test_guide_lens_material_sharing(module: JovianFreightBerth) -> void:
@@ -223,10 +269,35 @@ func _exact_transforms(batch: MultiMeshInstance3D) -> bool:
 	return true
 
 
+func _exact_apron_diagonal_transforms(batch: MultiMeshInstance3D) -> bool:
+	var authored := batch.get_meta("authored_instance_transforms", []) as Array
+	if authored.size() != JovianFreightBerth.APRON_DIAGONAL_COPY_COUNT:
+		return false
+	var expected: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		for z_position in [14.2, 23.2, 32.2, 41.2]:
+			expected.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(34.0), 0.0, 0.0)),
+				Vector3(side * 14.1, -1.65, z_position)
+			))
+	for index in expected.size():
+		if not (authored[index] as Transform3D).is_equal_approx(expected[index]):
+			return false
+	return true
+
+
 func _retired_guide_meshes(apron: Node) -> Array[Node]:
 	var result: Array[Node] = []
 	for node in apron.get_children():
 		if node is MeshInstance3D and str(node.name).begins_with("DockGuide"):
+			result.append(node)
+	return result
+
+
+func _retired_apron_diagonals(apron: Node) -> Array[Node]:
+	var result: Array[Node] = []
+	for node in apron.get_children():
+		if node is MeshInstance3D and str(node.name).begins_with("ApronDiagonal"):
 			result.append(node)
 	return result
 

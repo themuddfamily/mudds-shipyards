@@ -123,6 +123,15 @@ const DOCK_GUIDE_Z_POSITIONS := [13.0, 18.0, 23.0, 34.0, 39.0, 44.0]
 const DOCK_GUIDE_COPY_COUNT := 12
 const LASHING_PLATE_COPY_COUNT := 8
 
+## Eight immutable visual-only diagonals brace the loading apron lattice. They
+## share one rounded-box mesh, orange material, render state, and authored
+## transform roster; collision remains on the separate chords and pylons.
+const APRON_DIAGONAL_COPY_COUNT := 8
+const APRON_DIAGONAL_SIZE := Vector3(0.35, 0.42, 8.4)
+const APRON_DIAGONAL_ROTATION_DEGREES := Vector3(34.0, 0.0, 0.0)
+const APRON_DIAGONAL_SUBMISSIONS_BEFORE := 8
+const APRON_DIAGONAL_FAMILY_ID: StringName = &"loading-apron-lattice-diagonals"
+
 ## Explicit selector for the eight recessed visual-only lashing rings. The
 ## torus budget reads its own profile metadata; this second family tag makes the
 ## exact roster independently auditable without inferring membership from node
@@ -200,11 +209,11 @@ const DOCK_GUIDE_BATCH_CENSUS_BEFORE := {
 }
 const DOCK_GUIDE_BATCH_CENSUS_AFTER := {
 	"descendant_nodes": 899,
-	"mesh_instance_nodes": 402,
-	"multimesh_nodes": 10,
-	"geometry_submissions": 412,
-	"visible_geometry_copies": 464,
-	"drawn_triangles": 67324,
+	"mesh_instance_nodes": 399,
+	"multimesh_nodes": 12,
+	"geometry_submissions": 411,
+	"visible_geometry_copies": 477,
+	"drawn_triangles": 77020,
 	"static_bodies": 206,
 	"collision_shapes": 209,
 }
@@ -317,6 +326,8 @@ var _portal_chevron_batch: MultiMeshInstance3D
 var _portal_chevron_transforms: Array[Transform3D] = []
 var _staging_hatch_batch: MultiMeshInstance3D
 var _staging_hatch_transforms: Array[Transform3D] = []
+var _apron_diagonal_batch: MultiMeshInstance3D
+var _apron_diagonal_transforms: Array[Transform3D] = []
 var _guide_lens_mesh: SphereMesh
 var _guide_lens_materials: Dictionary = {}
 var _route_markers: Dictionary = {}
@@ -764,6 +775,90 @@ func get_dock_guide_batch_contract() -> Dictionary:
 		"census_before": DOCK_GUIDE_BATCH_CENSUS_BEFORE.duplicate(true),
 		"census_after": DOCK_GUIDE_BATCH_CENSUS_AFTER.duplicate(true),
 	}
+
+
+func get_apron_diagonal_batch_contract() -> Dictionary:
+	var apron := get_node_or_null(^"LoadingApron") as Node3D
+	var expected_transforms: Array[Transform3D] = []
+	for side in [-1.0, 1.0]:
+		for z_position in [14.2, 23.2, 32.2, 41.2]:
+			expected_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(APRON_DIAGONAL_ROTATION_DEGREES.x), 0.0, 0.0)),
+				Vector3(side * 14.1, -1.65, z_position)
+			))
+	var authored := (
+		_apron_diagonal_batch.get_meta("authored_instance_transforms", []) as Array
+		if is_instance_valid(_apron_diagonal_batch) else []
+	)
+	var transforms_exact := authored.size() == expected_transforms.size() \
+		and _apron_diagonal_transforms.size() == expected_transforms.size()
+	for index in mini(authored.size(), expected_transforms.size()):
+		transforms_exact = transforms_exact \
+			and (authored[index] as Transform3D).is_equal_approx(expected_transforms[index]) \
+			and _apron_diagonal_transforms[index].is_equal_approx(expected_transforms[index])
+	var multi: MultiMesh = (
+		_apron_diagonal_batch.multimesh
+		if is_instance_valid(_apron_diagonal_batch) else null
+	)
+	var batch_exact: bool = (
+		apron != null
+		and is_instance_valid(_apron_diagonal_batch)
+		and _apron_diagonal_batch.get_parent() == apron
+		and _apron_diagonal_batch.name == &"ApronDiagonalBatch"
+		and multi != null
+		and multi.instance_count == APRON_DIAGONAL_COPY_COUNT
+		and multi.visible_instance_count in [-1, APRON_DIAGONAL_COPY_COUNT]
+		and multi.mesh != null
+		and multi.mesh.get_aabb().size.is_equal_approx(APRON_DIAGONAL_SIZE)
+		and _apron_diagonal_batch.material_override == _materials.get("orange")
+		and _apron_diagonal_batch.layers == 1
+		and _apron_diagonal_batch.cast_shadow \
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and not _apron_diagonal_batch.ignore_occlusion_culling
+		and is_zero_approx(_apron_diagonal_batch.extra_cull_margin)
+		and _apron_diagonal_batch.get_child_count() == 0
+		and _apron_diagonal_batch.get_script() == null
+		and _apron_diagonal_batch.get_groups().is_empty()
+		and bool(_apron_diagonal_batch.get_meta("visual_detail_only", false))
+		and StringName(_apron_diagonal_batch.get_meta("visual_batch_family_id", &"")) \
+			== APRON_DIAGONAL_FAMILY_ID
+		and transforms_exact
+	)
+	var retired_renderers := apron.find_children(
+		"ApronDiagonal", "MeshInstance3D", false, false
+	).size() if apron != null else 0
+	var errors := PackedStringArray()
+	if not batch_exact:
+		errors.append("apron_diagonal_batch_payload_drift")
+	if retired_renderers != 0:
+		errors.append("apron_diagonal_legacy_renderers_present")
+	return {
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"family_id": APRON_DIAGONAL_FAMILY_ID,
+		"legacy": {
+			"renderer_allocations": APRON_DIAGONAL_COPY_COUNT,
+			"renderer_submissions": APRON_DIAGONAL_SUBMISSIONS_BEFORE,
+			"visible_copies": APRON_DIAGONAL_COPY_COUNT,
+		},
+		"current": {
+			"renderer_allocations": 1 if batch_exact else 0,
+			"renderer_submissions": 1 if batch_exact else 0,
+			"visible_copies": _apron_diagonal_transforms.size(),
+		},
+		"reductions": {
+			"renderer_allocations": APRON_DIAGONAL_COPY_COUNT - 1,
+			"renderer_submissions": APRON_DIAGONAL_SUBMISSIONS_BEFORE - 1,
+			"visible_copies": 0,
+		},
+		"authored_transforms": _apron_diagonal_transforms.duplicate(),
+		"collision_authority": false,
+		"route_authority": false,
+		"interaction_authority": false,
+		"berth_authority": false,
+		"light_authority": false,
+		"lifecycle_authority": false,
+	}.duplicate(true)
 
 
 func get_catwalk_ladder_rung_batch_contract() -> Dictionary:
@@ -1782,16 +1877,19 @@ func get_performance_contract() -> Dictionary:
 	var rung_batching := get_catwalk_ladder_rung_batch_contract()
 	var trolley_wheel_batching := get_trolley_wheel_batch_contract()
 	var staging_hatch_batching := get_staging_hatch_batch_contract()
+	var apron_diagonal_batching := get_apron_diagonal_batch_contract()
 	contract["catwalk_ladder_hoop_visual_sharing"] = hoop_sharing
 	contract["catwalk_ladder_rung_batching"] = rung_batching
 	contract["trolley_wheel_batching"] = trolley_wheel_batching
 	contract["staging_hatch_batching"] = staging_hatch_batching
+	contract["apron_diagonal_batching"] = apron_diagonal_batching
 	contract["within_budget"] = (
 		bool(contract.within_budget)
 		and bool(hoop_sharing.valid)
 		and bool(rung_batching.valid)
 		and bool(trolley_wheel_batching.valid)
 		and bool(staging_hatch_batching.valid)
+		and bool(apron_diagonal_batching.valid)
 	)
 	return contract
 
@@ -2041,7 +2139,18 @@ func _build_loading_apron() -> void:
 	for side in [-1.0, 1.0]:
 		_cylinder(apron, "ApronLongChord", Vector3(side * 14.1, -2.45, 29.2), 0.26, 41.0, _materials["steel_blue"], true, Vector3(90, 0, 0))
 		for z_position in [14.2, 23.2, 32.2, 41.2]:
-			_rounded_box(apron, "ApronDiagonal", Vector3(side * 14.1, -1.65, z_position), Vector3(0.35, 0.42, 8.4), _materials["orange"], false, Vector3(34, 0, 0))
+			_apron_diagonal_transforms.append(Transform3D(
+				Basis.from_euler(Vector3(deg_to_rad(APRON_DIAGONAL_ROTATION_DEGREES.x), 0.0, 0.0)),
+				Vector3(side * 14.1, -1.65, z_position)
+			))
+	_apron_diagonal_batch = _multimesh_rounded_boxes(
+		apron,
+		"ApronDiagonalBatch",
+		APRON_DIAGONAL_SIZE,
+		_materials["orange"],
+		_apron_diagonal_transforms,
+		APRON_DIAGONAL_FAMILY_ID
+	)
 
 	# Collision-backed safety rails are outside the protected ship width. The
 	# outbound +Z edge deliberately remains open for launch and recovery.
