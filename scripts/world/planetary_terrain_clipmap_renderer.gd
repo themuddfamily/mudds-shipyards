@@ -9,7 +9,9 @@ extends Node3D
 ## coarser grids sit a few centimetres below the finer grid, hiding transition
 ## cracks without skirts or duplicate coplanar faces. One separately bounded
 ## relief-matched collision surface reaches the profile's collision distance;
-## an authored landing patch may own a square clearance at its centre.
+## an authored landing patch may own a square clearance at its centre. When a
+## caller moves beyond that fixed landing footprint, one bounded polar sector
+## extends physical support from the exact outer seam toward the live focus.
 ##
 ## The component owns its generated MeshInstance3D and StaticBody3D children.
 ## It never observes a camera, advances a clock, moves an actor, shifts an
@@ -31,12 +33,20 @@ const MAX_COLLISION_CLEARANCE_RADIUS_M := 10_000.0
 const MAX_AUTHORED_RELIEF_M := 420.0
 const MAX_COLLISION_RADIAL_SEGMENTS := 64
 const COLLISION_ANGULAR_SEGMENTS_PER_RADIAL := 4
-const MAX_COLLISION_TRIANGLES := 32_768
+const MAX_FIXED_COLLISION_TRIANGLES := 32_768
+const MAX_DYNAMIC_COLLISION_TRIANGLES := 8_320
+const MAX_TOTAL_COLLISION_TRIANGLES := (
+	MAX_FIXED_COLLISION_TRIANGLES + MAX_DYNAMIC_COLLISION_TRIANGLES
+)
+const COLLISION_CORRIDOR_PREFETCH_MARGIN_M := 300.0
+const COLLISION_CORRIDOR_RADIAL_STEP_M := 48.0
 const COARSE_RING_RADIAL_BIAS_M := 0.25
 const DEFAULT_SEED := 20_260_830
 const COMMITTED_ROOT_NAME := &"CommittedTerrain"
 const VISUAL_ROOT_NAME := &"TerrainVisuals"
 const COLLISION_BODY_NAME := &"TerrainCollision"
+const FIXED_COLLISION_NAME := &"TerrainCollisionSurface"
+const FOCUS_COLLISION_NAME := &"TerrainFocusCollisionCorridor"
 const TERRAIN_LAYER := 1
 
 const SHORE_COLOR := Color("5c796d")
@@ -203,7 +213,9 @@ func configure(
 		"maximum_render_vertices": vertex_count,
 		"maximum_render_triangles": triangle_count,
 		"collision_maximum_distance_m": _collision_maximum_distance_m,
-		"maximum_collision_triangles": MAX_COLLISION_TRIANGLES,
+		"maximum_collision_triangles": MAX_TOTAL_COLLISION_TRIANGLES,
+		"maximum_fixed_collision_triangles": MAX_FIXED_COLLISION_TRIANGLES,
+		"maximum_dynamic_collision_triangles": MAX_DYNAMIC_COLLISION_TRIANGLES,
 		"material_tint": _material_tint,
 	})
 
@@ -328,7 +340,7 @@ func rebuild(
 		var built_collision_triangles := collision_faces.size() / 3
 		if (
 			collision_faces.is_empty()
-			or built_collision_triangles > MAX_COLLISION_TRIANGLES
+			or built_collision_triangles > MAX_FIXED_COLLISION_TRIANGLES
 		):
 			staged_root.free()
 			_mutation_active = false
@@ -349,16 +361,79 @@ func rebuild(
 			),
 		}.duplicate(true)
 		commit_fixed_collision_cache = fixed_landing_collision
-	var collision_triangles := int(collision_report.get("triangle_count", 0))
-	if collision_shape == null or collision_triangles <= 0 \
-			or collision_triangles > MAX_COLLISION_TRIANGLES:
+	var fixed_collision_triangles := int(collision_report.get("triangle_count", 0))
+	var fixed_collision_vertices := int(collision_report.get("vertex_count", 0))
+	if collision_shape == null or fixed_collision_triangles <= 0 \
+			or fixed_collision_triangles > MAX_FIXED_COLLISION_TRIANGLES:
 		staged_root.free()
 		_mutation_active = false
 		return _result(false, &"collision_build_failed")
 	var collision := CollisionShape3D.new()
-	collision.name = "TerrainCollisionSurface"
+	collision.name = FIXED_COLLISION_NAME
 	collision.shape = collision_shape
 	collision_body.add_child(collision)
+
+	var focus_collision_report := {
+		"active": false,
+		"reason": &"fixed_landing_collision_unavailable",
+		"vertex_count": 0,
+		"triangle_count": 0,
+		"radial_segments": 0,
+		"angular_segments": 0,
+		"radial_step_m": 0.0,
+		"inner_distance_m": _collision_maximum_distance_m,
+		"outer_distance_m": _collision_maximum_distance_m,
+		"focus_surface_distance_m": 0.0,
+		"focus_tangent_distance_m": 0.0,
+		"activation_distance_m": _collision_corridor_activation_distance_m(),
+		"maximum_focus_distance_m": float(
+			_ring_distances_m[_ring_distances_m.size() - 1]
+		),
+	}.duplicate(true)
+	if fixed_landing_collision:
+		focus_collision_report = _build_focus_collision_corridor(
+			focus_up,
+			collision_focus_up,
+			collision_tangent_right,
+			collision_tangent_back,
+		)
+	if bool(focus_collision_report.get("active", false)):
+		var focus_collision_faces := focus_collision_report.get(
+			"faces", PackedVector3Array()
+		) as PackedVector3Array
+		var focus_collision_triangles := focus_collision_faces.size() / 3
+		if (
+			focus_collision_faces.is_empty()
+			or focus_collision_triangles
+				> MAX_DYNAMIC_COLLISION_TRIANGLES
+		):
+			staged_root.free()
+			_mutation_active = false
+			return _result(false, &"focus_collision_build_failed")
+		var focus_collision_shape := ConcavePolygonShape3D.new()
+		focus_collision_shape.set_faces(focus_collision_faces)
+		focus_collision_shape.backface_collision = false
+		var focus_collision := CollisionShape3D.new()
+		focus_collision.name = FOCUS_COLLISION_NAME
+		focus_collision.shape = focus_collision_shape
+		collision_body.add_child(focus_collision)
+		focus_collision_report["triangle_count"] = focus_collision_triangles
+		focus_collision_report.erase("faces")
+
+	var dynamic_collision_triangles := int(
+		focus_collision_report.get("triangle_count", 0)
+	)
+	var dynamic_collision_vertices := int(
+		focus_collision_report.get("vertex_count", 0)
+	)
+	var collision_triangles := (
+		fixed_collision_triangles + dynamic_collision_triangles
+	)
+	var collision_vertices := fixed_collision_vertices + dynamic_collision_vertices
+	if collision_triangles > MAX_TOTAL_COLLISION_TRIANGLES:
+		staged_root.free()
+		_mutation_active = false
+		return _result(false, &"collision_budget_exceeded")
 
 	if (
 		total_vertices > MAX_RENDER_VERTICES
@@ -399,12 +474,47 @@ func rebuild(
 		"render_vertex_count": total_vertices,
 		"render_triangle_count": total_triangles,
 		"collision_triangle_count": collision_triangles,
-		"collision_vertex_count": int(collision_report.get("vertex_count", 0)),
+		"collision_vertex_count": collision_vertices,
 		"collision_ring_count": collision_body.get_child_count(),
 		"collision_focus_radial_up": collision_report.get(
 			"focus_radial_up", Vector3.ZERO
 		),
 		"collision_reused": fixed_landing_collision and not commit_fixed_collision_cache,
+		"fixed_collision_triangle_count": fixed_collision_triangles,
+		"fixed_collision_vertex_count": fixed_collision_vertices,
+		"dynamic_collision_active": bool(
+			focus_collision_report.get("active", false)
+		),
+		"dynamic_collision_reason": focus_collision_report.get("reason", &""),
+		"dynamic_collision_triangle_count": dynamic_collision_triangles,
+		"dynamic_collision_vertex_count": dynamic_collision_vertices,
+		"dynamic_collision_radial_segment_count": int(
+			focus_collision_report.get("radial_segments", 0)
+		),
+		"dynamic_collision_angular_segment_count": int(
+			focus_collision_report.get("angular_segments", 0)
+		),
+		"dynamic_collision_radial_step_m": float(
+			focus_collision_report.get("radial_step_m", 0.0)
+		),
+		"dynamic_collision_inner_distance_m": float(
+			focus_collision_report.get("inner_distance_m", 0.0)
+		),
+		"dynamic_collision_outer_distance_m": float(
+			focus_collision_report.get("outer_distance_m", 0.0)
+		),
+		"dynamic_collision_focus_surface_distance_m": float(
+			focus_collision_report.get("focus_surface_distance_m", 0.0)
+		),
+		"dynamic_collision_focus_tangent_distance_m": float(
+			focus_collision_report.get("focus_tangent_distance_m", 0.0)
+		),
+		"dynamic_collision_activation_distance_m": float(
+			focus_collision_report.get("activation_distance_m", 0.0)
+		),
+		"dynamic_collision_maximum_focus_distance_m": float(
+			focus_collision_report.get("maximum_focus_distance_m", 0.0)
+		),
 		"minimum_generated_height_m": minimum_generated_height,
 		"maximum_generated_height_m": maximum_generated_height,
 		"flatten_radius_m": _flatten_radius_m,
@@ -524,16 +634,47 @@ func audit() -> Dictionary:
 			var collision := committed.get_node_or_null(
 				NodePath(String(COLLISION_BODY_NAME))
 			) as StaticBody3D
+			var expected_collision_shape_count := (
+				2
+				if bool(_last_snapshot.get("dynamic_collision_active", false))
+				else 1
+			)
+			var fixed_collision := (
+				collision.get_node_or_null(NodePath(String(FIXED_COLLISION_NAME)))
+					as CollisionShape3D
+				if collision != null
+				else null
+			)
+			var focus_collision := (
+				collision.get_node_or_null(NodePath(String(FOCUS_COLLISION_NAME)))
+					as CollisionShape3D
+				if collision != null
+				else null
+			)
 			if visuals == null or visuals.get_child_count() != _ring_distances_m.size():
 				errors.append("terrain visual ring roster drifted")
-			if collision == null or collision.collision_layer != TERRAIN_LAYER:
+			if collision == null \
+					or collision.collision_layer != TERRAIN_LAYER \
+					or collision.collision_mask != 0 \
+					or collision.get_child_count() != expected_collision_shape_count \
+					or fixed_collision == null \
+					or not fixed_collision.shape is ConcavePolygonShape3D \
+					or (expected_collision_shape_count == 2 and (
+						focus_collision == null
+						or not focus_collision.shape is ConcavePolygonShape3D
+					)) \
+					or (expected_collision_shape_count == 1 and focus_collision != null):
 				errors.append("terrain collision owner drifted")
 		if (
 			int(_last_snapshot.get("render_vertex_count", 0)) > MAX_RENDER_VERTICES
 			or int(_last_snapshot.get("render_triangle_count", 0))
 				> MAX_RENDER_TRIANGLES
 			or int(_last_snapshot.get("collision_triangle_count", 0))
-				> MAX_COLLISION_TRIANGLES
+				> MAX_TOTAL_COLLISION_TRIANGLES
+			or int(_last_snapshot.get("fixed_collision_triangle_count", 0))
+				> MAX_FIXED_COLLISION_TRIANGLES
+			or int(_last_snapshot.get("dynamic_collision_triangle_count", 0))
+				> MAX_DYNAMIC_COLLISION_TRIANGLES
 			or float(_last_snapshot.get("collision_maximum_distance_m", 0.0))
 				!= _collision_maximum_distance_m
 		):
@@ -547,7 +688,7 @@ func audit() -> Dictionary:
 		"authority": _authority_snapshot(),
 		"cadence": &"caller_driven_rebuild_only",
 		"lod_strategy": &"nested_spherical_tangent_clipmap_grids",
-		"collision_strategy": &"profile_distance_relief_surface_with_authored_square_clearance",
+		"collision_strategy": &"fixed_landing_surface_with_bounded_focus_corridor",
 	}.duplicate(true)
 
 
@@ -717,6 +858,178 @@ func _build_collision_surface(
 		"radial_segments": radial_segments,
 		"angular_segments": angular_segments,
 	}
+
+
+func _build_focus_collision_corridor(
+	focus_up: Vector3,
+	landing_up: Vector3,
+	tangent_right: Vector3,
+	tangent_back: Vector3,
+) -> Dictionary:
+	var activation_distance_m := _collision_corridor_activation_distance_m()
+	var maximum_focus_distance_m := float(
+		_ring_distances_m[_ring_distances_m.size() - 1]
+	)
+	var focus_surface_distance_m := _surface_distance_m(focus_up, landing_up)
+	var report := {
+		"active": false,
+		"reason": &"focus_inside_fixed_collision",
+		"vertex_count": 0,
+		"triangle_count": 0,
+		"radial_segments": 0,
+		"angular_segments": 0,
+		"radial_step_m": 0.0,
+		"inner_distance_m": _collision_maximum_distance_m,
+		"outer_distance_m": _collision_maximum_distance_m,
+		"focus_surface_distance_m": focus_surface_distance_m,
+		"focus_tangent_distance_m": 0.0,
+		"activation_distance_m": activation_distance_m,
+		"maximum_focus_distance_m": maximum_focus_distance_m,
+	}.duplicate(true)
+	if focus_surface_distance_m < activation_distance_m:
+		return report
+	if focus_surface_distance_m > maximum_focus_distance_m:
+		report["reason"] = &"focus_outside_collision_streaming_envelope"
+		return report
+
+	var landing_projection := focus_up.dot(landing_up)
+	if landing_projection <= 0.0:
+		report["reason"] = &"focus_outside_landing_tangent_hemisphere"
+		return report
+	var focus_tangent_offset_m := Vector2(
+		focus_up.dot(tangent_right),
+		focus_up.dot(tangent_back),
+	) * (_body_radius_m / landing_projection)
+	var focus_tangent_distance_m := focus_tangent_offset_m.length()
+	report["focus_tangent_distance_m"] = focus_tangent_distance_m
+	if focus_tangent_distance_m < activation_distance_m:
+		return report
+
+	var fixed_radial_segments := mini(
+		_resolution - 1,
+		MAX_COLLISION_RADIAL_SEGMENTS,
+	)
+	var full_angular_segments := (
+		fixed_radial_segments * COLLISION_ANGULAR_SEGMENTS_PER_RADIAL
+	)
+	if full_angular_segments < 3:
+		report["active"] = true
+		report["reason"] = &"invalid_fixed_collision_topology"
+		return report
+	var angular_step_rad := TAU / float(full_angular_segments)
+	var focus_bearing_rad := fposmod(
+		atan2(focus_tangent_offset_m.y, focus_tangent_offset_m.x),
+		TAU,
+	)
+	var half_angle_rad := asin(clampf(
+		_collision_maximum_distance_m
+			/ maxf(focus_tangent_distance_m, _collision_maximum_distance_m),
+		0.0,
+		1.0,
+	))
+	var half_angular_segments := clampi(
+		# The corridor bearing is snapped to the fixed seam's angular grid.
+		# Reserve another half segment so the snap cannot narrow either side
+		# of the promised collision-distance disc around the live focus.
+		ceili(half_angle_rad / angular_step_rad + 0.5),
+		1,
+		(full_angular_segments >> 1) + 1,
+	)
+	var angular_segments := half_angular_segments * 2
+	var centre_angular_index := posmod(
+		int(floor(focus_bearing_rad / angular_step_rad + 0.5)),
+		full_angular_segments,
+	)
+	var start_angular_index := centre_angular_index - half_angular_segments
+	var inner_distance_m := _collision_maximum_distance_m
+	var outer_distance_m := (
+		focus_tangent_distance_m + _collision_maximum_distance_m
+	)
+	var target_radial_segments := ceili(
+		(outer_distance_m - inner_distance_m)
+			/ COLLISION_CORRIDOR_RADIAL_STEP_M
+	)
+	var maximum_radial_segments := maxi(
+		1,
+		floori(
+			float(MAX_DYNAMIC_COLLISION_TRIANGLES)
+				/ float(angular_segments * 2)
+		),
+	)
+	var radial_segments := mini(
+		target_radial_segments,
+		maximum_radial_segments,
+	)
+	var radial_step_m := (
+		(outer_distance_m - inner_distance_m) / float(radial_segments)
+	)
+	var triangle_count := radial_segments * angular_segments * 2
+	report.merge({
+		"active": true,
+		"reason": &"focus_collision_corridor_built",
+		"radial_segments": radial_segments,
+		"angular_segments": angular_segments,
+		"radial_step_m": radial_step_m,
+		"inner_distance_m": inner_distance_m,
+		"outer_distance_m": outer_distance_m,
+		"bearing_angle_rad": focus_bearing_rad,
+		"centre_angular_index": centre_angular_index,
+		"start_angular_index": start_angular_index,
+		"full_angular_segments": full_angular_segments,
+		"triangle_count": triangle_count,
+	}, true)
+	if radial_segments <= 0 or triangle_count > MAX_DYNAMIC_COLLISION_TRIANGLES:
+		report["reason"] = &"focus_collision_budget_exceeded"
+		return report
+
+	var vertices := PackedVector3Array()
+	var faces := PackedVector3Array()
+	for radial_index in range(radial_segments + 1):
+		var radial_blend := float(radial_index) / float(radial_segments)
+		var radius_m := lerpf(
+			inner_distance_m,
+			outer_distance_m,
+			radial_blend,
+		)
+		for angular_offset in range(angular_segments + 1):
+			var angular_index := posmod(
+				start_angular_index + angular_offset,
+				full_angular_segments,
+			)
+			var angle := (
+				TAU * float(angular_index) / float(full_angular_segments)
+			)
+			vertices.append(_collision_surface_vertex(
+				landing_up,
+				tangent_right,
+				tangent_back,
+				Vector2(cos(angle), sin(angle)) * radius_m,
+			))
+	var angular_vertex_count := angular_segments + 1
+	for radial_index in radial_segments:
+		var inner_start := radial_index * angular_vertex_count
+		var outer_start := inner_start + angular_vertex_count
+		for angular_index in angular_segments:
+			var inner_current := inner_start + angular_index
+			var inner_next := inner_current + 1
+			var outer_current := outer_start + angular_index
+			var outer_next := outer_current + 1
+			_append_collision_triangle(
+				faces, vertices, inner_current, outer_current, outer_next
+			)
+			_append_collision_triangle(
+				faces, vertices, inner_current, outer_next, inner_next
+			)
+	report["faces"] = faces
+	report["vertex_count"] = vertices.size()
+	return report
+
+
+func _collision_corridor_activation_distance_m() -> float:
+	return _collision_maximum_distance_m - minf(
+		COLLISION_CORRIDOR_PREFETCH_MARGIN_M,
+		_collision_maximum_distance_m * 0.2,
+	)
 
 
 func _append_collision_vertex_ring(

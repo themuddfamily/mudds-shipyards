@@ -100,6 +100,12 @@ discards it that ship tick, so landing, shutdown or disembark cannot leave a
 latent force. During the bounded planar surface walk, the embodied Player's
 separate tangent-Y projection updates public `gravity_multiplier`; Player's
 existing `_physics_process()` remains its only movement/collision integrator.
+That same authenticated body-local actor sample is forwarded to the authored
+scene's generation-fenced terrain-focus seam. The scene/renderer—not the Host—
+recentres visible terrain and creates the bounded collision corridor when the
+actor moves beyond the fixed caldera surface. A focused production-shaped tick
+proves this at 3 km without giving the Host terrain generation or actor-movement
+authority.
 
 ## Generation and failure boundary
 

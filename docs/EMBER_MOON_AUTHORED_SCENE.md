@@ -35,8 +35,12 @@ canonical World layer and zero mask. Generated terrain collision takes over at
 the box's exact +/-48 m edge with one 16,640-vertex / 32,768-triangle concave
 World shape. That relief-matched surface expands from the square handoff to the
 terrain profile's circular 1.5 km boundary, so the player or ship no longer
-falls into space outside the old 512 x 512 m finest-ring footprint. The visible
-terrain beyond 1.5 km, silhouette, and caldera rim remain non-colliding.
+falls into space outside the old 512 x 512 m finest-ring footprint. Once the
+authenticated focus reaches 1.2 km from the caldera, one second concave sector
+shares the fixed surface's exact circular seam and extends to 1.5 km beyond the
+focus. Its angular width also preserves 1.5 km of lateral support around that
+focus. It follows the actor only within the current 18.432 km surface envelope;
+the silhouette and caldera rim remain non-colliding.
 
 ## Bounded surface content
 
@@ -84,13 +88,18 @@ The component privately copies `ember_basalt_terrain`, configures one immutable
 query; the clipmap itself has no camera or automatic process cadence. It builds
 once during scene readiness, then accepts generation-fenced caller focus
 updates. Movement below 192 m retains the current meshes; crossing that
-threshold atomically recentres the five visible rings. The fixed authored pad
-and generated 1.5 km collision remain centred on the caldera and reuse the same
-concave shape across those visual rebuilds.
+threshold atomically recentres the five visible rings and, when required, one
+bounded landing-to-focus collision corridor. The fixed authored pad and
+generated 1.5 km collision remain centred on the caldera and reuse the same
+concave shape across every rebuild. The corridor begins only 1.2 km from the
+landing focus, is capped at 8,320 triangles, and neither enters the fixed
+surface nor the authored pad opening.
 
-The current exact live budget is 81 nodes, 30 render submissions (22 ordinary
-meshes plus eight MultiMeshes drawing 42 copies), eight static bodies, 26
-collision shapes, and at most 60,000 primitive triangles. Audit reports
+The current exact baseline budget is 81 nodes, 30 render submissions (22
+ordinary meshes plus eight MultiMeshes drawing 42 copies), eight static bodies,
+26 collision shapes, and at most 60,000 rendered primitive triangles. An active
+focus corridor adds exactly one generated node/collision shape, making the live
+roster 82/27 without another render submission. Audit reports
 presentation geometry, bounded static and generated terrain collision, terrain
 generation, the authored landmark roster, and the authored surface route.
 Streaming, GameFlow, gameplay, landing decisions, actor movement, world
@@ -106,6 +115,6 @@ no terrain-generation or movement authority. The
 retained surface-loop composition now connects real-actor travel, berth, egress,
 activity/reward, reboarding, takeoff, orbit return, and the existing station
 arrival authority. The composition still does not claim final visitability.
-Focus-following collision beyond the current 1.5 km landing boundary, global
-spherical locomotion, atmosphere, production light and sky, native
+Collision beyond the bounded 18.432 km landing-relative surface envelope,
+global spherical locomotion, atmosphere, production light and sky, native
 performance review, and repeated packaged lifecycle review remain deferred.

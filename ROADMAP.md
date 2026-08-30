@@ -1585,7 +1585,7 @@ network authority was added.
 The first authored destination is the original airless `ember_moon`, with exact
 `ember_basalt_terrain` and sole radial `ember_caldera` landing definitions; the
 orange backdrop sphere is palette inspiration only and is not promoted into a
-physical destination. Its streamed body-centred **81-node** scene now surrounds
+physical destination. Its streamed body-centred **81-node baseline** scene now surrounds
 the 119,999 m orbital silhouette and bounded caldera with five basalt-tinted
 65 x 65 spherical terrain rings: **21,125 vertices / 34,504 visible triangles**
 reach 18.432 km from the landing focus in five submissions. The complete 600 m
@@ -1601,9 +1601,21 @@ landing focus, then the production surface Host forwards its existing
 authenticated body-local actor sample: movement below 192 m retains the current
 meshes and crossing that threshold atomically recentres all five visible rings.
 The authored pad hole and 1.5 km collision remain fixed at the caldera and reuse
-one immutable concave shape, so visual following neither moves the landing seam
-nor regenerates 32,768 collision triangles. This is actor-following visible
-terrain around the retained surface loop, not global collision streaming. Main
+one immutable concave shape. At 1.2 km, a second open polar collision sector is
+prefetched from the fixed surface's exact 256-step outer seam toward the live
+focus. It extends 1.5 km beyond the focus, is widened to contain a complete
+1.5 km focus-centred support disc despite angular-grid snapping, and is limited
+to the current 18.432 km landing-relative surface envelope. A 3 km production
+focus adds **2,880 vertices / 5,544 collision triangles**; the worst boundary
+case is capped at **8,320**, keeping the combined fixed-plus-following ceiling at
+**41,088 collision triangles**. The conditional sector adds one node/shape
+(82/27 live versus the 81/26 baseline), never overlaps the fixed radial area,
+and disappears when not required. Renderer geometry/physics checks, the
+75-assertion authored-scene suite, and a real authenticated Host physics tick
+prove exact seam sharing, outward winding, path/focus support, bounded misses,
+fixed-shape reuse, and green live audit. This is bounded actor-following terrain
+and physical support around the retained surface loop, not global collision
+streaming. Main
 now owns the
 Ember bootstrap/binding and the sole `CommonWorldOriginRebaseOwner`: the shared
 `nearby_sector_orbital` frame places Ember at an exact 8,000 km absolute offset,
@@ -1674,8 +1686,8 @@ fences remain intact across whole-`Main` detach/re-entry.
 `tests/ember_final_approach_production_handoff_test.gd` cover that player-facing
 seam.
 
-Production focus-driven collision beyond the current 1.5 km landing boundary,
-an atmospheric authored
+Collision streaming beyond the current 18.432 km landing-relative surface
+envelope, an atmospheric authored
 destination with complete sky/cloud/weather/entry/audio presentation, broader save/network
 coverage, native performance and repeated orbit-to-surface lifecycle evidence
 all remain open. These are prerequisites for—not substitutes for—a visitable

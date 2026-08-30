@@ -392,8 +392,8 @@ func get_terrain_clipmap_generation() -> int:
 ## Caller-driven production focus update. The caller supplies an authenticated
 ## body-local actor position and the renderer generation it observed. Small
 ## movements retain the committed meshes; crossing the bounded threshold
-## atomically recentres only the visible clipmap. The renderer keeps the
-## authored landing collision fixed at the caldera seam.
+## atomically recentres the visible clipmap and its bounded focus corridor. The
+## renderer keeps the authored landing collision fixed at the caldera seam.
 func update_terrain_focus(
 	focus_body_local_m: Vector3,
 	expected_terrain_generation: int,
@@ -851,12 +851,16 @@ func _validate_terrain_clipmap(errors: Array[Dictionary]) -> void:
 		return
 	var terrain_audit := _terrain_clipmap.audit()
 	var snapshot := terrain_audit.get("snapshot", {}) as Dictionary
+	var expected_collision_ring_count := (
+		2 if bool(snapshot.get("dynamic_collision_active", false)) else 1
+	)
 	if (
 		not bool(terrain_audit.get("valid", false))
 		or StringName(snapshot.get("profile_id", &"")) != TERRAIN_PROFILE_ID
 		or int(snapshot.get("ring_count", 0)) != TERRAIN_RING_COUNT
 		or int(snapshot.get("render_vertex_count", 0)) != TERRAIN_RENDER_VERTEX_COUNT
-		or int(snapshot.get("collision_ring_count", 0)) != 1
+		or int(snapshot.get("collision_ring_count", 0))
+			!= expected_collision_ring_count
 		or not (snapshot.get(
 			"collision_focus_radial_up", Vector3.ZERO
 		) as Vector3).is_equal_approx(Vector3.UP)
@@ -959,8 +963,12 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 		var node := get_node_or_null(path)
 		if node == null or not node.is_class(expected[path]):
 			_append_error(errors, &"missing_or_wrong_node", StringName(str(path)), "required authored node is missing or has the wrong type")
-	if _count_nodes() != EXPECTED_NODE_COUNT:
-		_append_error(errors, &"node_roster_drift", &"scene", "authored scene must contain exactly thirty-six nodes")
+	var dynamic_collision_active := bool(
+		get_terrain_clipmap_snapshot().get("dynamic_collision_active", false)
+	)
+	var generated_collision_delta := 1 if dynamic_collision_active else 0
+	if _count_nodes() != EXPECTED_NODE_COUNT + generated_collision_delta:
+		_append_error(errors, &"node_roster_drift", &"scene", "authored scene exact node roster drifted")
 	var landing_root := get_node_or_null(^"LandingRegion")
 	var walkable := get_node_or_null(^"LandingRegion/WalkablePatch")
 	var markers := get_node_or_null(^"LandingRegion/Markers")
@@ -981,7 +989,9 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 			or terrain_root == null or terrain_root.get_child_count() != 1 \
 			or committed_terrain == null or committed_terrain.get_child_count() != 2 \
 			or terrain_visuals == null or terrain_visuals.get_child_count() != TERRAIN_RING_COUNT \
-			or terrain_collision == null or terrain_collision.get_child_count() != 1 \
+			or terrain_collision == null \
+			or terrain_collision.get_child_count() \
+				!= 1 + generated_collision_delta \
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
@@ -2306,14 +2316,23 @@ func _performance_census() -> Dictionary:
 
 
 func _performance_budget() -> Dictionary:
+	var dynamic_collision_delta := (
+		1
+		if _terrain_clipmap != null and bool(
+			_terrain_clipmap.get_snapshot().get("dynamic_collision_active", false)
+		)
+		else 0
+	)
 	return {
-		"node_count": EXPECTED_NODE_COUNT,
+		"node_count": EXPECTED_NODE_COUNT + dynamic_collision_delta,
 		"mesh_instances": EXPECTED_MESH_INSTANCE_COUNT,
 		"multi_mesh_instances": EXPECTED_MULTI_MESH_INSTANCE_COUNT,
 		"multi_mesh_copies": EXPECTED_MULTI_MESH_COPY_COUNT,
 		"render_submissions": EXPECTED_RENDER_SUBMISSION_COUNT,
 		"static_bodies": EXPECTED_STATIC_BODY_COUNT,
-		"collision_shapes": EXPECTED_COLLISION_SHAPE_COUNT,
+		"collision_shapes": (
+			EXPECTED_COLLISION_SHAPE_COUNT + dynamic_collision_delta
+		),
 	}.duplicate(true)
 
 

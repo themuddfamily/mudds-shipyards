@@ -23,6 +23,7 @@ func _run() -> void:
 	await _test_read_only_approach_ready_probe()
 	await _test_shared_composition_and_measured_entry()
 	await _test_committed_origin_receipt_adoption()
+	await _test_authenticated_focus_builds_collision_corridor()
 	await _test_normal_public_actor_loop()
 	await _test_queued_host_lifecycle_currentness()
 	await _test_active_command_source_replacement()
@@ -745,6 +746,52 @@ func _test_normal_public_actor_loop() -> void:
 			and ship.get_command_source() == original_source
 			and area.get_reservation_token() == player,
 		"retired attachment cannot repeat or drop an already returned reservation",
+	)
+	await _cleanup(fixture)
+
+
+func _test_authenticated_focus_builds_collision_corridor() -> void:
+	var fixture := await _fixture()
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var scene := fixture.scene as EmberMoonAuthoredScene
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var landing_root := fixture.landing_root as Node3D
+	var before := scene.get_terrain_clipmap_snapshot()
+	var fixed_collision_shape_id := (
+		(scene.get_node(
+			^"TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()
+	)
+	ship.global_transform = landing_root.global_transform * Transform3D(
+		Basis.IDENTITY,
+		Vector3(3_000.0, 0.0, 0.0),
+	)
+	ship.velocity = Vector3.ZERO
+	player.teleport_to(ship.get_pilot_seat_anchor().global_transform)
+	var advanced := await _tick(fixture)
+	var after := scene.get_terrain_clipmap_snapshot()
+	var current_fixed_collision_shape_id := (
+		(scene.get_node(
+			^"TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()
+	)
+	_check(
+		bool(advanced.get("accepted", false))
+		and int(after.get("revision", 0)) > int(before.get("revision", 0))
+		and bool(after.get("dynamic_collision_active", false))
+		and int(after.get("collision_ring_count", 0)) == 2
+		and int(after.get("dynamic_collision_triangle_count", 0)) > 0
+		and int(after.get("dynamic_collision_triangle_count", 0)) <= 8_320
+		and current_fixed_collision_shape_id == fixed_collision_shape_id
+		and scene.get_node_or_null(
+			^"TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainFocusCollisionCorridor"
+		) != null
+		and bool(scene.audit().get("valid", false))
+		and host.get_phase() != EmberSurfaceLoopHost.Phase.FAILED,
+		"one authenticated Host physics sample extends bounded terrain collision to a 3 km live actor",
 	)
 	await _cleanup(fixture)
 

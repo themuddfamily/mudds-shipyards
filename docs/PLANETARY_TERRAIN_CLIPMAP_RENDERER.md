@@ -35,6 +35,22 @@ against that fixed body direction rather than drifting with the current focus.
 This lets a production caller move the visible rings without moving the pad
 hole, duplicating landing support, or rebuilding 32,768 collision triangles.
 
+The same caller focus now drives one optional collision corridor. At 300 m
+inside the fixed collision limit, the renderer prefetches an open polar sector
+whose inner vertices use the fixed surface's exact 256-step circular seam. Its
+outer radius is the focus's landing-tangent distance plus the profile's 1.5 km
+collision distance, and its grid-aligned angular width encloses a complete
+1.5 km disc around that focus. The current profile keeps radial steps at most
+48 m; a larger valid profile may coarsen them rather than cross the hard
+triangle ceiling. The sector is rebuilt only with an accepted focus rebuild,
+contains no overlapping triangles inside the fixed surface, and disappears
+when the focus returns inside the prefetch threshold or leaves the bounded
+outermost clipmap-distance envelope.
+For the current 1.5 km / 18.432 km profile this adds at most 8,320 triangles,
+for a hard combined ceiling of 41,088. A 3 km focus uses 2,880 vertices and
+5,544 triangles. This is continuous landing-to-focus support, not global
+planetary collision streaming.
+
 The component hard-caps ring count, grid resolution, vertices and triangles
 before mutation. Rebuild is staged and replaces the prior committed root only
 after every ring is valid. Retirement and rebuild are generation-fenced;

@@ -21,6 +21,9 @@ const EXPECTED_FULL_TRIANGLE_COUNT := (
 const EXPECTED_COLLISION_VERTEX_COUNT := 16_640
 const EXPECTED_COLLISION_TRIANGLE_COUNT := 32_768
 const EXPECTED_COLLISION_DISTANCE_M := 1_500.0
+const CORRIDOR_FOCUS_DISTANCE_M := 3_000.0
+const EXPECTED_CORRIDOR_VERTEX_COUNT := 2_880
+const EXPECTED_CORRIDOR_TRIANGLE_COUNT := 5_544
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -155,12 +158,124 @@ func _run() -> void:
 			^"TerrainCollision/TerrainCollisionSurface"
 		) as CollisionShape3D).shape.get_instance_id()
 	)
+	var prefetch_rebuild := renderer.rebuild(
+		Vector3(EXPECTED_COLLISION_DISTANCE_M, LANDING_CENTER.y, 0.0),
+		renderer.get_generation(),
+	)
+	var prefetch_snapshot := renderer.get_snapshot()
+	_check(
+		bool(prefetch_rebuild.get("accepted", false))
+		and bool(prefetch_snapshot.get("dynamic_collision_active", false))
+		and int(prefetch_snapshot.get("dynamic_collision_triangle_count", 0))
+			== 8_320
+		and int(prefetch_snapshot.get("collision_triangle_count", 0))
+			== 41_088
+		and ((renderer.get_node(
+			^"CommittedTerrain/TerrainCollision/TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()) == north_collision_shape_id,
+		"the widest prefetch corridor fits its exact hard budget at the fixed-surface boundary",
+	)
+	var corridor_focus := Vector3(
+		CORRIDOR_FOCUS_DISTANCE_M,
+		LANDING_CENTER.y,
+		0.0,
+	)
+	var corridor_rebuild := renderer.rebuild(
+		corridor_focus,
+		renderer.get_generation(),
+	)
+	await physics_frame
+	var corridor_snapshot := renderer.get_snapshot()
+	var corridor_collision_body := renderer.get_node(
+		^"CommittedTerrain/TerrainCollision"
+	) as StaticBody3D
+	var current_fixed_collision := corridor_collision_body.get_node(
+		^"TerrainCollisionSurface"
+	) as CollisionShape3D
+	var focus_corridor_collision := corridor_collision_body.get_node_or_null(
+		^"TerrainFocusCollisionCorridor"
+	) as CollisionShape3D
+	_check(
+		bool(corridor_rebuild.get("accepted", false))
+		and bool(corridor_snapshot.get("dynamic_collision_active", false))
+		and corridor_snapshot.get("dynamic_collision_reason")
+			== &"focus_collision_corridor_built"
+		and int(corridor_snapshot.get("collision_ring_count", 0)) == 2
+		and int(corridor_snapshot.get("fixed_collision_triangle_count", 0))
+			== EXPECTED_COLLISION_TRIANGLE_COUNT
+		and int(corridor_snapshot.get("dynamic_collision_triangle_count", 0))
+			== EXPECTED_CORRIDOR_TRIANGLE_COUNT
+		and int(corridor_snapshot.get("dynamic_collision_vertex_count", 0))
+			== EXPECTED_CORRIDOR_VERTEX_COUNT
+		and int(corridor_snapshot.get("collision_triangle_count", 0))
+			== EXPECTED_COLLISION_TRIANGLE_COUNT
+				+ EXPECTED_CORRIDOR_TRIANGLE_COUNT
+		and is_equal_approx(
+			float(corridor_snapshot.get("dynamic_collision_inner_distance_m", 0.0)),
+			EXPECTED_COLLISION_DISTANCE_M,
+		)
+		and is_equal_approx(
+			float(corridor_snapshot.get("dynamic_collision_outer_distance_m", 0.0)),
+			CORRIDOR_FOCUS_DISTANCE_M + EXPECTED_COLLISION_DISTANCE_M,
+		)
+		and current_fixed_collision.shape.get_instance_id()
+			== north_collision_shape_id
+		and focus_corridor_collision != null,
+		"a 3 km focus keeps the cached landing surface and adds one exact bounded collision corridor",
+	)
+	var corridor_geometry := _inspect_focus_collision_corridor(
+		current_fixed_collision.shape as ConcavePolygonShape3D,
+		focus_corridor_collision.shape as ConcavePolygonShape3D,
+	)
+	_check(
+		int(corridor_geometry.get("face_count", 0))
+			== EXPECTED_CORRIDOR_TRIANGLE_COUNT
+		and int(corridor_geometry.get("backward_triangle_count", -1)) == 0
+		and int(corridor_geometry.get("seam_vertex_count", 0)) == 45
+		and int(corridor_geometry.get("seam_mismatch_count", -1)) == 0
+		and float(corridor_geometry.get("maximum_seam_gap_m", INF))
+			<= 0.001
+		and absf(
+			float(corridor_geometry.get("minimum_tangent_radius_m", 0.0))
+				- EXPECTED_COLLISION_DISTANCE_M
+		) <= 0.02
+		and absf(
+			float(corridor_geometry.get("maximum_tangent_radius_m", 0.0))
+				- (
+					CORRIDOR_FOCUS_DISTANCE_M
+					+ EXPECTED_COLLISION_DISTANCE_M
+				)
+		) <= 0.02,
+		"the corridor is outward-facing and shares every inner vertex with the fixed 1.5 km seam",
+	)
+	var terrain_space := root.get_world_3d().direct_space_state
+	_check(
+		_ray_hit_at_tangent(renderer, terrain_space, Vector2(2_000.0, 0.0))
+			.get("collider") == corridor_collision_body
+		and _ray_hit_at_tangent(
+			renderer,
+			terrain_space,
+			Vector2(CORRIDOR_FOCUS_DISTANCE_M, 0.0),
+		).get("collider") == corridor_collision_body
+		and _ray_hit_at_tangent(
+			renderer,
+			terrain_space,
+			Vector2(CORRIDOR_FOCUS_DISTANCE_M + 1_501.0, 0.0),
+		).is_empty()
+		and _ray_hit_at_tangent(
+			renderer,
+			terrain_space,
+			Vector2.from_angle(deg_to_rad(40.0))
+				* CORRIDOR_FOCUS_DISTANCE_M,
+		).is_empty(),
+		"physical rays find the actor path and focus while remaining bounded beyond the corridor edges",
+	)
 	var equator_focus := Vector3.RIGHT * 120000.0
 	var equator := renderer.rebuild(equator_focus, renderer.get_generation())
 	var equator_snapshot := renderer.get_snapshot()
 	_check(
 		bool(equator.get("accepted", false))
-		and renderer.get_revision() == 2
+		and renderer.get_revision() == 4
 		and renderer.get_node(^"CommittedTerrain").get_instance_id() != north_root_id
 		and (equator_snapshot.get("focus_radial_up", Vector3.ZERO) as Vector3)
 			.is_equal_approx(Vector3.RIGHT)
@@ -168,6 +283,10 @@ func _run() -> void:
 			"collision_focus_radial_up", Vector3.ZERO
 		) as Vector3).is_equal_approx(Vector3.UP)
 		and bool(equator_snapshot.get("collision_reused", false))
+		and not bool(equator_snapshot.get("dynamic_collision_active", true))
+		and equator_snapshot.get("dynamic_collision_reason")
+			== &"focus_outside_collision_streaming_envelope"
+		and int(equator_snapshot.get("collision_ring_count", 0)) == 1
 		and int(equator_snapshot.get("render_triangle_count", 0))
 			== EXPECTED_FULL_TRIANGLE_COUNT
 		and ((renderer.get_node(
@@ -308,6 +427,98 @@ func _inspect_collision_clearance(body: StaticBody3D) -> Dictionary:
 		"maximum_tangent_radius_m": maximum_tangent_radius,
 		"backward_triangle_count": backward_triangle_count,
 	}
+
+
+func _inspect_focus_collision_corridor(
+	fixed_shape: ConcavePolygonShape3D,
+	corridor_shape: ConcavePolygonShape3D,
+) -> Dictionary:
+	var fixed_seam := {}
+	for vertex in fixed_shape.get_faces():
+		var offset := _landing_tangent_offset(vertex)
+		if absf(offset.length() - EXPECTED_COLLISION_DISTANCE_M) <= 0.02:
+			fixed_seam[_quantized_tangent_key(offset)] = offset
+	var corridor_faces := corridor_shape.get_faces()
+	var corridor_seam := {}
+	var minimum_tangent_radius_m := INF
+	var maximum_tangent_radius_m := 0.0
+	var maximum_seam_gap_m := 0.0
+	var backward_triangle_count := 0
+	for start in range(0, corridor_faces.size(), 3):
+		var a := corridor_faces[start]
+		var b := corridor_faces[start + 1]
+		var c := corridor_faces[start + 2]
+		for vertex in [a, b, c]:
+			var offset := _landing_tangent_offset(vertex)
+			var radius_m := offset.length()
+			minimum_tangent_radius_m = minf(
+				minimum_tangent_radius_m,
+				radius_m,
+			)
+			maximum_tangent_radius_m = maxf(
+				maximum_tangent_radius_m,
+				radius_m,
+			)
+			if absf(radius_m - EXPECTED_COLLISION_DISTANCE_M) <= 0.02:
+				corridor_seam[_quantized_tangent_key(offset)] = offset
+		if (b - a).cross(c - a).dot(a + b + c) >= 0.0:
+			backward_triangle_count += 1
+	var seam_mismatch_count := 0
+	for key in corridor_seam:
+		if not fixed_seam.has(key):
+			seam_mismatch_count += 1
+			continue
+		maximum_seam_gap_m = maxf(
+			maximum_seam_gap_m,
+			(corridor_seam[key] as Vector2).distance_to(
+				fixed_seam[key] as Vector2
+			),
+		)
+	return {
+		"face_count": corridor_faces.size() / 3,
+		"minimum_tangent_radius_m": minimum_tangent_radius_m,
+		"maximum_tangent_radius_m": maximum_tangent_radius_m,
+		"seam_vertex_count": corridor_seam.size(),
+		"seam_mismatch_count": seam_mismatch_count,
+		"maximum_seam_gap_m": maximum_seam_gap_m,
+		"backward_triangle_count": backward_triangle_count,
+	}
+
+
+func _ray_hit_at_tangent(
+	renderer: PlanetaryTerrainClipmapRenderer,
+	space: PhysicsDirectSpaceState3D,
+	tangent_offset_m: Vector2,
+) -> Dictionary:
+	var tangent_point := Vector3(
+		tangent_offset_m.x,
+		LANDING_CENTER.length(),
+		tangent_offset_m.y,
+	)
+	var direction := tangent_point.normalized()
+	var sampled := renderer.sample_height(direction)
+	var surface_point := direction * (
+		LANDING_CENTER.length() + float(sampled.get("height_m", 0.0))
+	)
+	var query := PhysicsRayQueryParameters3D.create(
+		surface_point + direction * 20.0,
+		surface_point - direction * 20.0,
+		1,
+	)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	return space.intersect_ray(query)
+
+
+func _landing_tangent_offset(vertex: Vector3) -> Vector2:
+	var direction := vertex.normalized()
+	return Vector2(direction.x, direction.z) * (
+		LANDING_CENTER.length() / direction.y
+	)
+
+
+func _quantized_tangent_key(offset: Vector2) -> Vector2i:
+	return Vector2i(roundi(offset.x * 10.0), roundi(offset.y * 10.0))
 
 
 func _check(condition: bool, description: String) -> void:

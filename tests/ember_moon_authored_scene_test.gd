@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 73
+const EXPECTED_ASSERTIONS := 75
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -840,6 +840,61 @@ func _test_terrain_focus_recenter(scene: EmberMoonAuthoredScene) -> void:
 			and not pad_hit.is_empty() and pad_hit.collider == pad_body
 			and bool(scene.audit().get("valid", false)),
 		"distant actor focus recentres all visible rings while cached landing collision and pad support remain fixed",
+	)
+	var corridor_focus := Vector3(3_000.0, 120_000.0, 0.0)
+	var corridor_recentered := scene.update_terrain_focus(
+		corridor_focus,
+		generation,
+	)
+	await physics_frame
+	var corridor_snapshot := scene.get_terrain_clipmap_snapshot()
+	var terrain_body := scene.get_node(
+		^"TerrainClipmap/CommittedTerrain/TerrainCollision"
+	) as StaticBody3D
+	var corridor_fixed_shape_id := (
+		(terrain_body.get_node(
+			^"TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()
+	)
+	var corridor_audit := scene.audit()
+	_check(
+		bool(corridor_recentered.get("accepted", false))
+		and bool(corridor_recentered.get("rebuilt", false))
+		and bool(corridor_snapshot.get("dynamic_collision_active", false))
+		and int(corridor_snapshot.get("collision_ring_count", 0)) == 2
+		and int(corridor_snapshot.get("dynamic_collision_triangle_count", 0))
+			== 5_544
+		and int(corridor_snapshot.get("collision_triangle_count", 0))
+			== 38_312
+		and corridor_fixed_shape_id == collision_shape_id
+		and terrain_body.get_node_or_null(^"TerrainFocusCollisionCorridor")
+			!= null
+		and bool(corridor_audit.get("valid", false))
+		and int((corridor_audit.get("performance", {}) as Dictionary).get(
+			"node_count", 0
+		)) == 82
+		and int((corridor_audit.get("performance", {}) as Dictionary).get(
+			"collision_shapes", 0
+		)) == 27,
+		"the live Ember scene adds one audited focus corridor without replacing the caldera collision",
+	)
+	var renderer := scene.get_node(^"TerrainClipmap") \
+		as PlanetaryTerrainClipmapRenderer
+	var terrain_space := scene.get_world_3d().direct_space_state
+	_check(
+		_radial_ray_hit(
+			terrain_space,
+			_terrain_surface_point(renderer, Vector2(2_000.0, 0.0)),
+		).get("collider") == terrain_body
+		and _radial_ray_hit(
+			terrain_space,
+			_terrain_surface_point(renderer, Vector2(3_000.0, 0.0)),
+		).get("collider") == terrain_body
+		and _radial_ray_hit(
+			terrain_space,
+			_terrain_surface_point(renderer, Vector2(4_501.0, 0.0)),
+		).is_empty(),
+		"production physics supports the landing-to-actor corridor and stops beyond its bounded outer edge",
 	)
 
 
