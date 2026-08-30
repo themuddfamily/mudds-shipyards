@@ -42,9 +42,11 @@ const COLLISION_BODY_COUNT := 7
 const COLLISION_SHAPE_COUNT := 7
 ## Exact post-batch renderer census. The visual-only trunk expansion strips,
 ## slab corner beacons, slab supports, rung edge cues, mooring cleat pads,
-## mooring cleat bollards, dock service brackets, dock service masts and trunk route lights still draw at their authored
-## transforms, while one MultiMesh per family owns each family's submission.
-## The legacy MeshInstance nodes remain hidden inspection anchors.
+## mooring cleat bollards, dock service brackets, dock service masts, trunk route
+## lights and assigned dock-status stripes still draw at their authored
+## transforms, while one MultiMesh per compatible mesh family owns the
+## submissions. Existing inspection anchors remain where required; the six
+## status-stripe renderers are replaced outright by their two batches.
 const TRUNK_EXPANSION_JOINT_COPY_COUNT := 12
 const SLAB_CORNER_BEACON_COPY_COUNT := 12
 const SLAB_SUPPORT_COPY_COUNT := 6
@@ -55,6 +57,8 @@ const DOCK_SERVICE_BRACKET_COPY_COUNT := 3
 const TRUNK_ROUTE_LIGHT_COPY_COUNT := 3
 const DOCK_MAST_CAP_COPY_COUNT := 3
 const DOCK_SERVICE_MAST_COPY_COUNT := 3
+const DOCK_CROSS_STRIPE_COPY_COUNT := 3
+const DOCK_LONG_STRIPE_COPY_COUNT := 3
 ## The assigned-dock cross is the only status mark spanning each 10.4 m grip
 ## inset. Its former 0.18 m stroke disappeared into the panel texture at
 ## approach distance, especially beneath a berthed hull. Widening the same two
@@ -83,11 +87,12 @@ const PRE_MOORING_CLEAT_PAD_GEOMETRY_SUBMISSION_COUNT := 71
 const PRE_MOORING_CLEAT_BOLLARD_GEOMETRY_SUBMISSION_COUNT := 62
 const PRE_DOCK_SERVICE_MAST_GEOMETRY_SUBMISSION_COUNT := 57
 const PRE_DOCK_SERVICE_BRACKET_GEOMETRY_SUBMISSION_COUNT := 55
-const RENDER_DESCENDANT_COUNT := 145
-const RENDER_MESH_INSTANCE_COUNT := 89
-const RENDER_MULTIMESH_BATCH_COUNT := 10
+const PRE_DOCK_STATUS_STRIPE_GEOMETRY_SUBMISSION_COUNT := 53
+const RENDER_DESCENDANT_COUNT := 141
+const RENDER_MESH_INSTANCE_COUNT := 83
+const RENDER_MULTIMESH_BATCH_COUNT := 12
 const RENDER_DRAWN_COPY_COUNT := 101
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 53
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 49
 const ASSIGNED_DOCK_01_CENTER := Vector3(15.0, -0.3, 8.5)
 const ASSIGNED_DOCK_01_SIZE := Vector3(12.0, 0.6, 15.0)
 
@@ -275,6 +280,10 @@ var _dock_mast_cap_transforms: Array[Transform3D] = []
 var _dock_mast_cap_batch: MultiMeshInstance3D = null
 var _dock_service_mast_transforms: Array[Transform3D] = []
 var _dock_service_mast_batch: MultiMeshInstance3D = null
+var _dock_cross_stripe_transforms: Array[Transform3D] = []
+var _dock_cross_stripe_batch: MultiMeshInstance3D = null
+var _dock_long_stripe_transforms: Array[Transform3D] = []
+var _dock_long_stripe_batch: MultiMeshInstance3D = null
 
 
 func _ready() -> void:
@@ -780,6 +789,60 @@ func get_render_batch_contract() -> Dictionary:
 			and _dock_service_bracket_batch.get_child_count() == 0
 			and _dock_service_bracket_batch.get_script() == null
 		)
+	var expected_cross_stripe_buffer := _encode_multimesh_transforms(_dock_cross_stripe_transforms)
+	var cross_stripe_buffer_matches := (
+		is_instance_valid(_dock_cross_stripe_batch)
+		and _dock_cross_stripe_batch.multimesh != null
+		and _dock_cross_stripe_batch.multimesh.buffer == expected_cross_stripe_buffer
+	)
+	var expected_long_stripe_buffer := _encode_multimesh_transforms(_dock_long_stripe_transforms)
+	var long_stripe_buffer_matches := (
+		is_instance_valid(_dock_long_stripe_batch)
+		and _dock_long_stripe_batch.multimesh != null
+		and _dock_long_stripe_batch.multimesh.buffer == expected_long_stripe_buffer
+	)
+	var cross_stripe_bounds_match := false
+	var cross_stripe_contract_matches := false
+	if is_instance_valid(_dock_cross_stripe_batch) and _dock_cross_stripe_batch.multimesh != null:
+		var cross_multi := _dock_cross_stripe_batch.multimesh
+		cross_stripe_bounds_match = cross_multi.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(cross_multi.mesh.get_aabb(), _dock_cross_stripe_transforms)
+		)
+		cross_stripe_contract_matches = (
+			_dock_cross_stripe_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and cross_multi.instance_count == DOCK_CROSS_STRIPE_COPY_COUNT
+			and cross_multi.visible_instance_count == -1
+			and cross_multi.mesh.get_aabb().size.is_equal_approx(
+				Vector3(DOCK_STATUS_STRIPE_LENGTH, 0.03, DOCK_STATUS_STRIPE_WIDTH)
+			)
+			and cross_multi.mesh.get_surface_count() == 1
+			and _dock_cross_stripe_batch.material_override == _materials.get("cyan")
+			and _dock_cross_stripe_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _dock_cross_stripe_batch.layers == 1
+			and _dock_cross_stripe_batch.get_child_count() == 0
+			and _dock_cross_stripe_batch.get_script() == null
+		)
+	var long_stripe_bounds_match := false
+	var long_stripe_contract_matches := false
+	if is_instance_valid(_dock_long_stripe_batch) and _dock_long_stripe_batch.multimesh != null:
+		var long_multi := _dock_long_stripe_batch.multimesh
+		long_stripe_bounds_match = long_multi.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(long_multi.mesh.get_aabb(), _dock_long_stripe_transforms)
+		)
+		long_stripe_contract_matches = (
+			_dock_long_stripe_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+			and long_multi.instance_count == DOCK_LONG_STRIPE_COPY_COUNT
+			and long_multi.visible_instance_count == -1
+			and long_multi.mesh.get_aabb().size.is_equal_approx(
+				Vector3(DOCK_STATUS_STRIPE_WIDTH, 0.03, DOCK_STATUS_STRIPE_LENGTH)
+			)
+			and long_multi.mesh.get_surface_count() == 1
+			and _dock_long_stripe_batch.material_override == _materials.get("cyan")
+			and _dock_long_stripe_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and _dock_long_stripe_batch.layers == 1
+			and _dock_long_stripe_batch.get_child_count() == 0
+			and _dock_long_stripe_batch.get_script() == null
+		)
 	var descendant_count := find_children("*", "Node", true, false).size()
 	var exact_counts := (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -797,6 +860,8 @@ func get_render_batch_contract() -> Dictionary:
 		and _trunk_route_light_transforms.size() == TRUNK_ROUTE_LIGHT_COPY_COUNT
 		and _dock_mast_cap_transforms.size() == DOCK_MAST_CAP_COPY_COUNT
 		and _dock_service_mast_transforms.size() == DOCK_SERVICE_MAST_COPY_COUNT
+		and _dock_cross_stripe_transforms.size() == DOCK_CROSS_STRIPE_COPY_COUNT
+		and _dock_long_stripe_transforms.size() == DOCK_LONG_STRIPE_COPY_COUNT
 		and support_contract_matches
 		and rung_cue_contract_matches
 		and cleat_pad_contract_matches
@@ -805,6 +870,8 @@ func get_render_batch_contract() -> Dictionary:
 		and mast_cap_contract_matches
 		and service_mast_contract_matches
 		and service_bracket_contract_matches
+		and cross_stripe_contract_matches
+		and long_stripe_contract_matches
 	)
 	var joint_buffer_floats := (
 		_trunk_expansion_joint_batch.multimesh.buffer.size()
@@ -856,6 +923,16 @@ func get_render_batch_contract() -> Dictionary:
 		if is_instance_valid(_dock_service_bracket_batch) and _dock_service_bracket_batch.multimesh != null
 		else 0
 	)
+	var cross_stripe_buffer_floats := (
+		_dock_cross_stripe_batch.multimesh.buffer.size()
+		if is_instance_valid(_dock_cross_stripe_batch) and _dock_cross_stripe_batch.multimesh != null
+		else 0
+	)
+	var long_stripe_buffer_floats := (
+		_dock_long_stripe_batch.multimesh.buffer.size()
+		if is_instance_valid(_dock_long_stripe_batch) and _dock_long_stripe_batch.multimesh != null
+		else 0
+	)
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"descendant_nodes": descendant_count,
@@ -873,6 +950,11 @@ func get_render_batch_contract() -> Dictionary:
 		"trunk_route_light_copies": _trunk_route_light_transforms.size(),
 		"dock_mast_cap_copies": _dock_mast_cap_transforms.size(),
 		"dock_service_mast_copies": _dock_service_mast_transforms.size(),
+		"dock_cross_stripe_copies": _dock_cross_stripe_transforms.size(),
+		"dock_long_stripe_copies": _dock_long_stripe_transforms.size(),
+		"dock_status_stripe_submissions_before": DOCK_CROSS_STRIPE_COPY_COUNT + DOCK_LONG_STRIPE_COPY_COUNT,
+		"dock_status_stripe_submissions_after": 2,
+		"geometry_submissions_before_dock_status_stripe_batch": PRE_DOCK_STATUS_STRIPE_GEOMETRY_SUBMISSION_COUNT,
 		"dock_service_mast_submissions_before": DOCK_SERVICE_MAST_COPY_COUNT,
 		"dock_service_mast_submissions_after": 1,
 		"geometry_submissions_before_dock_service_mast_batch": PRE_DOCK_SERVICE_MAST_GEOMETRY_SUBMISSION_COUNT,
@@ -908,8 +990,10 @@ func get_render_batch_contract() -> Dictionary:
 		"dock_mast_cap_renderer_buffer_floats": mast_cap_buffer_floats,
 		"dock_service_mast_renderer_buffer_floats": service_mast_buffer_floats,
 		"dock_service_bracket_renderer_buffer_floats": service_bracket_buffer_floats,
-		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + bollard_buffer_floats + route_light_buffer_floats + mast_cap_buffer_floats + service_mast_buffer_floats + service_bracket_buffer_floats,
-		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and bollard_buffer_matches and route_light_buffer_matches and mast_cap_buffer_matches and service_mast_buffer_matches and service_bracket_buffer_matches,
+		"dock_cross_stripe_renderer_buffer_floats": cross_stripe_buffer_floats,
+		"dock_long_stripe_renderer_buffer_floats": long_stripe_buffer_floats,
+		"renderer_buffer_floats": joint_buffer_floats + beacon_buffer_floats + support_buffer_floats + rung_cue_buffer_floats + cleat_pad_buffer_floats + bollard_buffer_floats + route_light_buffer_floats + mast_cap_buffer_floats + service_mast_buffer_floats + service_bracket_buffer_floats + cross_stripe_buffer_floats + long_stripe_buffer_floats,
+		"renderer_buffer_matches_authored": joint_buffer_matches and beacon_buffer_matches and support_buffer_matches and rung_cue_buffer_matches and cleat_pad_buffer_matches and bollard_buffer_matches and route_light_buffer_matches and mast_cap_buffer_matches and service_mast_buffer_matches and service_bracket_buffer_matches and cross_stripe_buffer_matches and long_stripe_buffer_matches,
 		"trunk_renderer_buffer_matches_authored": joint_buffer_matches,
 		"slab_corner_beacon_renderer_buffer_matches_authored": beacon_buffer_matches,
 		"slab_support_renderer_buffer_matches_authored": support_buffer_matches,
@@ -920,7 +1004,9 @@ func get_render_batch_contract() -> Dictionary:
 		"dock_mast_cap_renderer_buffer_matches_authored": mast_cap_buffer_matches,
 		"dock_service_mast_renderer_buffer_matches_authored": service_mast_buffer_matches,
 		"dock_service_bracket_renderer_buffer_matches_authored": service_bracket_buffer_matches,
-		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and bollard_bounds_match and route_light_bounds_match and mast_cap_bounds_match and service_mast_bounds_match and service_bracket_bounds_match,
+		"dock_cross_stripe_renderer_buffer_matches_authored": cross_stripe_buffer_matches,
+		"dock_long_stripe_renderer_buffer_matches_authored": long_stripe_buffer_matches,
+		"bounds_match_authored": joint_bounds_match and beacon_bounds_match and support_bounds_match and rung_cue_bounds_match and cleat_pad_bounds_match and bollard_bounds_match and route_light_bounds_match and mast_cap_bounds_match and service_mast_bounds_match and service_bracket_bounds_match and cross_stripe_bounds_match and long_stripe_bounds_match,
 		"trunk_bounds_match_authored": joint_bounds_match,
 		"slab_corner_beacon_bounds_match_authored": beacon_bounds_match,
 		"slab_support_bounds_match_authored": support_bounds_match,
@@ -931,6 +1017,8 @@ func get_render_batch_contract() -> Dictionary:
 		"dock_mast_cap_bounds_match_authored": mast_cap_bounds_match,
 		"dock_service_mast_bounds_match_authored": service_mast_bounds_match,
 		"dock_service_bracket_bounds_match_authored": service_bracket_bounds_match,
+		"dock_cross_stripe_bounds_match_authored": cross_stripe_bounds_match,
+		"dock_long_stripe_bounds_match_authored": long_stripe_bounds_match,
 		"slab_support_contract_matches": support_contract_matches,
 		"rung_edge_cue_contract_matches": rung_cue_contract_matches,
 		"mooring_cleat_pad_contract_matches": cleat_pad_contract_matches,
@@ -939,6 +1027,8 @@ func get_render_batch_contract() -> Dictionary:
 		"dock_mast_cap_contract_matches": mast_cap_contract_matches,
 		"dock_service_mast_contract_matches": service_mast_contract_matches,
 		"dock_service_bracket_contract_matches": service_bracket_contract_matches,
+		"dock_cross_stripe_contract_matches": cross_stripe_contract_matches,
+		"dock_long_stripe_contract_matches": long_stripe_contract_matches,
 		"exact_counts": exact_counts,
 		"authored_joint_transforms": _trunk_expansion_joint_transforms.duplicate(),
 		"authored_slab_corner_beacon_transforms": _slab_corner_beacon_transforms.duplicate(),
@@ -950,6 +1040,8 @@ func get_render_batch_contract() -> Dictionary:
 		"authored_dock_mast_cap_transforms": _dock_mast_cap_transforms.duplicate(),
 		"authored_dock_service_mast_transforms": _dock_service_mast_transforms.duplicate(),
 		"authored_dock_service_bracket_transforms": _dock_service_bracket_transforms.duplicate(),
+		"authored_dock_cross_stripe_transforms": _dock_cross_stripe_transforms.duplicate(),
+		"authored_dock_long_stripe_transforms": _dock_long_stripe_transforms.duplicate(),
 		"static_bodies": find_children("*", "StaticBody3D", true, false).size(),
 		"collision_shapes": find_children("*", "CollisionShape3D", true, false).size(),
 		"route_markers": get_route_ids().size(),
@@ -1148,6 +1240,15 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("comb dock-service-bracket batch bounds drifted from its authored copies")
 	if not bool(rendering.dock_service_bracket_contract_matches):
 		errors.append("comb dock-service-bracket renderer contract drifted")
+	if not bool(rendering.dock_cross_stripe_renderer_buffer_matches_authored) \
+		or not bool(rendering.dock_long_stripe_renderer_buffer_matches_authored):
+		errors.append("comb dock-status-stripe renderer buffer drifted from its authored roster")
+	if not bool(rendering.dock_cross_stripe_bounds_match_authored) \
+		or not bool(rendering.dock_long_stripe_bounds_match_authored):
+		errors.append("comb dock-status-stripe batch bounds drifted from its authored copies")
+	if not bool(rendering.dock_cross_stripe_contract_matches) \
+		or not bool(rendering.dock_long_stripe_contract_matches):
+		errors.append("comb dock-status-stripe renderer contract drifted")
 	var lifecycle := get_lifecycle_contract()
 	if not bool(lifecycle.reversible) \
 		or not bool(lifecycle.visible_matches_enabled) \
@@ -1396,6 +1497,8 @@ func _build_surface_detail() -> void:
 		[Vector3(15.0, 2.42, 40.0), 2.4],
 	]
 	_slab_corner_beacon_transforms.clear()
+	_dock_cross_stripe_transforms.clear()
+	_dock_long_stripe_transforms.clear()
 	for index in slab_specs.size():
 		var top_center := slab_specs[index][0] as Vector3
 		var elevation := float(slab_specs[index][1])
@@ -1406,22 +1509,16 @@ func _build_surface_detail() -> void:
 		# pass, but this line kept painting arm 02 in the deferred red because it
 		# tested the index instead of the dock's own status. Paint now cannot
 		# disagree with the roster it is painting.
-		var status_material: Material = (
-			_materials["cyan"] if _dock_is_assigned(index) else _materials["deferred"]
+		# All three live markers are assigned, so the immutable cyan crosses can
+		# share two exact box batches without retaining six renderer anchors.
+		# The two orientations remain separate meshes to preserve their authored
+		# dimensions and identity-basis transforms byte-for-byte.
+		assert(_dock_is_assigned(index))
+		_dock_cross_stripe_transforms.append(
+			Transform3D(Basis.IDENTITY, top_center + Vector3(0, 0.035, 0))
 		)
-		_visual_box(
-			detail,
-			"DockCrossStripe%02d" % (index + 1),
-			top_center + Vector3(0, 0.035, 0),
-			Vector3(DOCK_STATUS_STRIPE_LENGTH, 0.03, DOCK_STATUS_STRIPE_WIDTH),
-			status_material
-		)
-		_visual_box(
-			detail,
-			"DockLongStripe%02d" % (index + 1),
-			top_center + Vector3(0, 0.038, 0),
-			Vector3(DOCK_STATUS_STRIPE_WIDTH, 0.03, DOCK_STATUS_STRIPE_LENGTH),
-			status_material
+		_dock_long_stripe_transforms.append(
+			Transform3D(Basis.IDENTITY, top_center + Vector3(0, 0.038, 0))
 		)
 		for corner in [Vector2(-5.1, -5.1), Vector2(-5.1, 5.1), Vector2(5.1, -5.1), Vector2(5.1, 5.1)]:
 			var beacon_anchor := _visual_box(
@@ -1449,6 +1546,20 @@ func _build_surface_detail() -> void:
 			0.6,
 			7.2
 		)
+	_dock_cross_stripe_batch = _multimesh_boxes(
+		detail,
+		"DockCrossStripes",
+		Vector3(DOCK_STATUS_STRIPE_LENGTH, 0.03, DOCK_STATUS_STRIPE_WIDTH),
+		_materials["cyan"],
+		_dock_cross_stripe_transforms
+	)
+	_dock_long_stripe_batch = _multimesh_boxes(
+		detail,
+		"DockLongStripes",
+		Vector3(DOCK_STATUS_STRIPE_WIDTH, 0.03, DOCK_STATUS_STRIPE_LENGTH),
+		_materials["cyan"],
+		_dock_long_stripe_transforms
+	)
 	_slab_corner_beacon_batch = _multimesh_boxes(
 		detail,
 		"SlabCornerBeacons",
