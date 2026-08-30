@@ -26,8 +26,10 @@ func _initialize() -> void:
 		if first_hull != null else null
 	_check(
 		first_hull != null
-			and first_hull.mesh is BoxMesh
-			and (first_hull.mesh as BoxMesh).size.is_equal_approx(Hauler.HULL_SIZE)
+			and first_hull.mesh is ArrayMesh
+			and first_hull.mesh.get_aabb().is_equal_approx(AABB(-Hauler.HULL_SIZE * 0.5, Hauler.HULL_SIZE))
+			and _port_aperture_is_open(first_hull, Hauler.HULL_SIZE)
+			and bool(first_hull.mesh.get_meta(&"closed_aperture_reveals", false))
 			and first_hull.transform.is_equal_approx(Transform3D.IDENTITY)
 			and first_hull.visible
 			and first_hull.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -40,7 +42,7 @@ func _initialize() -> void:
 			and is_equal_approx(material.metallic, 0.72)
 			and is_equal_approx(material.roughness, 0.42)
 			and not material.resource_local_to_scene,
-		"sharing preserves the IndustrialHull silhouette, transform, material and renderer policy"
+		"sharing preserves the IndustrialHull outer silhouette, opens the bounded port route, and retains its material and renderer policy"
 	)
 	_check(
 		_hull(second).mesh.get_surface_count() == 1
@@ -56,9 +58,13 @@ func _initialize() -> void:
 			and first_pod != second_pod
 			and first_pod.mesh == second_pod.mesh
 			and first_pod.material_override == second_pod.material_override
-			and first_pod.mesh is BoxMesh
-			and (first_pod.mesh as BoxMesh).size.is_equal_approx(Vector3(5.2, 2.2, 7.2))
-			and first_pod.position.is_equal_approx(Vector3(0.0, 0.15, 1.0))
+			and first_pod.mesh is ArrayMesh
+			and first_pod.mesh.get_aabb().is_equal_approx(AABB(
+				-Hauler.CARGO_POD_SIZE * 0.5, Hauler.CARGO_POD_SIZE
+			))
+			and first_pod.position.is_equal_approx(Hauler.CARGO_POD_POSITION)
+			and _port_aperture_is_open(first_pod, Hauler.CARGO_POD_SIZE)
+			and bool(first_pod.mesh.get_meta(&"closed_aperture_reveals", false))
 			and first_pod.visible
 			and first_pod.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			and first_pod.layers == 1
@@ -68,7 +74,7 @@ func _initialize() -> void:
 			and is_equal_approx(pod_material.metallic, 0.45)
 			and is_equal_approx(pod_material.roughness, 0.42)
 			and not pod_material.resource_local_to_scene,
-		"two production haulers retain exact local cargo-pod copies backed by one immutable geometry and paint recipe"
+		"two production haulers retain exact cargo-pod bounds and an aligned port opening backed by one immutable geometry and paint recipe"
 	)
 	_check(
 		first.get_cockpit_seat_anchor() != null
@@ -80,6 +86,16 @@ func _initialize() -> void:
 			and first.get_cargo_hold_root() != null
 			and second.get_cargo_hold_root() != null,
 		"cockpit, boarding and the cargo-access anchor bridge remain per craft"
+	)
+	var cockpit_view := first.get_cockpit_quality_report()
+	var chase_view := first.get_chase_camera_self_hull_boundary_report()
+	_check(
+		bool(cockpit_view.get("forward_sight_clear", false))
+			and int(cockpit_view.get("opaque_obstruction_count", -1)) == 0
+			and int(cockpit_view.get("sight_sample_count", 0)) == 5
+			and bool(chase_view.get("valid", false))
+			and int(chase_view.get("sample_count", 0)) == 5,
+		"production cockpit sight rays and chase-camera near-plane samples remain clear of opaque self-geometry"
 	)
 	var first_audit := first.get_audit_report()
 	var second_audit := second.get_audit_report()
@@ -125,6 +141,31 @@ func _cargo_pod(craft: CinderCargoHauler) -> MeshInstance3D:
 	var visual := craft.get_variant_visual_root()
 	return visual.get_node_or_null(^"CargoPod") as MeshInstance3D \
 		if visual != null else null
+
+
+func _port_aperture_is_open(renderer: MeshInstance3D, expected_size: Vector3) -> bool:
+	if renderer == null or renderer.mesh == null or renderer.mesh.get_surface_count() != 1:
+		return false
+	var arrays := renderer.mesh.surface_get_arrays(0)
+	var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var indices := arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
+	if vertices.is_empty() or indices.size() < 66 or indices.size() % 3 != 0:
+		return false
+	var left_x := -expected_size.x * 0.5
+	for triangle_offset in range(0, indices.size(), 3):
+		var a := vertices[indices[triangle_offset]] + renderer.position
+		var b := vertices[indices[triangle_offset + 1]] + renderer.position
+		var c := vertices[indices[triangle_offset + 2]] + renderer.position
+		if is_equal_approx(a.x, left_x) \
+				and is_equal_approx(b.x, left_x) \
+				and is_equal_approx(c.x, left_x):
+			var centre := (a + b + c) / 3.0
+			if centre.y > Hauler.PORT_APERTURE_Y_MIN \
+					and centre.y < Hauler.PORT_APERTURE_Y_MAX \
+					and centre.z > Hauler.PORT_APERTURE_Z_MIN \
+					and centre.z < Hauler.PORT_APERTURE_Z_MAX:
+				return false
+	return true
 
 
 func _check(condition: bool, message: String) -> void:

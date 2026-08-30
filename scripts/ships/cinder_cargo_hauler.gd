@@ -18,6 +18,16 @@ const EVIDENCE_STATUS: StringName = &"NEW"
 const DISPLAY_NAME := "Cinder cargo hauler"
 const CARGO_CAPACITY := 8
 const HULL_SIZE := Vector3(6.4, 3.2, 12.0)
+const CARGO_POD_SIZE := Vector3(5.2, 2.2, 7.2)
+const CARGO_POD_POSITION := Vector3(0.0, 0.15, 1.0)
+## The live collision and walkable cabin already leave this port-side doorway
+## open. These bounds cut the same route through both nested exterior recipes,
+## preventing their former full box faces from becoming opaque blockers.
+const PORT_APERTURE_Y_MIN := -0.97
+const PORT_APERTURE_Y_MAX := 1.29
+const PORT_APERTURE_Z_MIN := -2.30
+const PORT_APERTURE_Z_MAX := 2.30
+const EXTERIOR_SHELL_THICKNESS := 0.30
 const WEAPON_ID: StringName = &"cinder_cargo_mass_driver"
 const LOADMASTER_STATION_SEAT_ID: StringName = &"cinder_loadmaster_station"
 const NAVIGATOR_STATION_SEAT_ID: StringName = &"cinder_navigator_station"
@@ -55,12 +65,12 @@ const ENGINE_FAILED_STARBOARD_CANT_DEGREES := 58.0
 # The primary hull is immutable, childless presentation stock. Fleet switching
 # can briefly retain two haulers, so keep one process-local mesh/material recipe
 # while each craft retains its own renderer, transform, collision and authority.
-static var _shared_hull_mesh: BoxMesh
+static var _shared_hull_mesh: ArrayMesh
 static var _shared_hull_material: StandardMaterial3D
 # The cargo pod is likewise static exterior presentation. Keep its renderer
 # local so a craft can be detached independently, while sharing its immutable
 # geometry and paint recipe across simultaneously retained haulers.
-static var _shared_cargo_pod_mesh: BoxMesh
+static var _shared_cargo_pod_mesh: ArrayMesh
 static var _shared_cargo_pod_material: StandardMaterial3D
 
 
@@ -1044,8 +1054,14 @@ func _build_hull(visual: Node3D) -> void:
 	var hull := MeshInstance3D.new()
 	hull.name = "IndustrialHull"
 	if _shared_hull_mesh == null:
-		_shared_hull_mesh = BoxMesh.new()
-		_shared_hull_mesh.size = HULL_SIZE
+		_shared_hull_mesh = _port_aperture_shell_mesh(
+			HULL_SIZE,
+			PORT_APERTURE_Y_MIN,
+			PORT_APERTURE_Y_MAX,
+			PORT_APERTURE_Z_MIN,
+			PORT_APERTURE_Z_MAX,
+			EXTERIOR_SHELL_THICKNESS
+		)
 		_shared_hull_mesh.resource_local_to_scene = false
 	if _shared_hull_material == null:
 		_shared_hull_material = _material(HULL_COLOR, 0.72, 0.42)
@@ -1056,14 +1072,20 @@ func _build_hull(visual: Node3D) -> void:
 	var cargo_pod := MeshInstance3D.new()
 	cargo_pod.name = "CargoPod"
 	if _shared_cargo_pod_mesh == null:
-		_shared_cargo_pod_mesh = BoxMesh.new()
-		_shared_cargo_pod_mesh.size = Vector3(5.2, 2.2, 7.2)
+		_shared_cargo_pod_mesh = _port_aperture_shell_mesh(
+			CARGO_POD_SIZE,
+			PORT_APERTURE_Y_MIN - CARGO_POD_POSITION.y,
+			PORT_APERTURE_Y_MAX - CARGO_POD_POSITION.y,
+			PORT_APERTURE_Z_MIN - CARGO_POD_POSITION.z,
+			PORT_APERTURE_Z_MAX - CARGO_POD_POSITION.z,
+			EXTERIOR_SHELL_THICKNESS
+		)
 		_shared_cargo_pod_mesh.resource_local_to_scene = false
 	if _shared_cargo_pod_material == null:
 		_shared_cargo_pod_material = _material(CARGO_COLOR, 0.45, 0.42)
 		_shared_cargo_pod_material.resource_local_to_scene = false
 	cargo_pod.mesh = _shared_cargo_pod_mesh
-	cargo_pod.position = Vector3(0.0, 0.15, 1.0)
+	cargo_pod.position = CARGO_POD_POSITION
 	cargo_pod.material_override = _shared_cargo_pod_material
 	visual.add_child(cargo_pod)
 	# Eight bright, repeated load-frame ribs expose the otherwise nested cargo
@@ -1118,6 +1140,115 @@ func _build_hull(visual: Node3D) -> void:
 	_cargo_shoulders.set_meta(&"damage_authority", false)
 	_cargo_shoulders.set_meta(&"animated", false)
 	_cargo_shoulders.set_meta(&"damage_state", &"nominal")
+
+
+## One closed exterior surface with a bounded port aperture. The five intact
+## outer faces and the remaining port panels retain the exact box AABB; four
+## reveal faces prevent a hollow/backface seam around the doorway. Cabin-local
+## deck, ceiling, starboard and end walls remain the interior presentation.
+static func _port_aperture_shell_mesh(
+		size: Vector3,
+		aperture_y_min: float,
+		aperture_y_max: float,
+		aperture_z_min: float,
+		aperture_z_max: float,
+		thickness: float
+	) -> ArrayMesh:
+	var half := size * 0.5
+	var x0 := -half.x
+	var x1 := x0 + thickness
+	var y0 := -half.y
+	var y1 := half.y
+	var z0 := -half.z
+	var z1 := half.z
+	aperture_y_min = clampf(aperture_y_min, y0, y1)
+	aperture_y_max = clampf(aperture_y_max, aperture_y_min, y1)
+	aperture_z_min = clampf(aperture_z_min, z0, z1)
+	aperture_z_max = clampf(aperture_z_max, aperture_z_min, z1)
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var indices := PackedInt32Array()
+	# Intact outer faces.
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, y1, z0), Vector3(half.x, y1, z0),
+		Vector3(half.x, y1, z1), Vector3(x0, y1, z1), Vector3.UP)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, y0, z0), Vector3(x0, y0, z1),
+		Vector3(half.x, y0, z1), Vector3(half.x, y0, z0), Vector3.DOWN)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(half.x, y0, z0), Vector3(half.x, y0, z1),
+		Vector3(half.x, y1, z1), Vector3(half.x, y1, z0), Vector3.RIGHT)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, y0, z0), Vector3(half.x, y0, z0),
+		Vector3(half.x, y1, z0), Vector3(x0, y1, z0), Vector3.FORWARD)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, y0, z1), Vector3(x0, y1, z1),
+		Vector3(half.x, y1, z1), Vector3(half.x, y0, z1), Vector3.BACK)
+	# Port face around the exact boarding aperture.
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, y0, z0), Vector3(x0, y1, z0),
+		Vector3(x0, y1, aperture_z_min), Vector3(x0, y0, aperture_z_min), Vector3.LEFT)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, y0, aperture_z_max), Vector3(x0, y1, aperture_z_max),
+		Vector3(x0, y1, z1), Vector3(x0, y0, z1), Vector3.LEFT)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, y0, aperture_z_min), Vector3(x0, aperture_y_min, aperture_z_min),
+		Vector3(x0, aperture_y_min, aperture_z_max), Vector3(x0, y0, aperture_z_max), Vector3.LEFT)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, aperture_y_max, aperture_z_min), Vector3(x0, y1, aperture_z_min),
+		Vector3(x0, y1, aperture_z_max), Vector3(x0, aperture_y_max, aperture_z_max), Vector3.LEFT)
+	# Doorway reveals close the shell thickness from exterior to cabin.
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, aperture_y_min, aperture_z_min), Vector3(x1, aperture_y_min, aperture_z_min),
+		Vector3(x1, aperture_y_max, aperture_z_min), Vector3(x0, aperture_y_max, aperture_z_min), Vector3.BACK)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, aperture_y_min, aperture_z_max), Vector3(x0, aperture_y_max, aperture_z_max),
+		Vector3(x1, aperture_y_max, aperture_z_max), Vector3(x1, aperture_y_min, aperture_z_max), Vector3.FORWARD)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, aperture_y_min, aperture_z_min), Vector3(x0, aperture_y_min, aperture_z_max),
+		Vector3(x1, aperture_y_min, aperture_z_max), Vector3(x1, aperture_y_min, aperture_z_min), Vector3.UP)
+	_append_shell_quad(vertices, normals, indices,
+		Vector3(x0, aperture_y_max, aperture_z_min), Vector3(x1, aperture_y_max, aperture_z_min),
+		Vector3(x1, aperture_y_max, aperture_z_max), Vector3(x0, aperture_y_max, aperture_z_max), Vector3.DOWN)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.set_meta(&"port_aperture_local_bounds", AABB(
+		Vector3(x0, aperture_y_min, aperture_z_min),
+		Vector3(thickness, aperture_y_max - aperture_y_min, aperture_z_max - aperture_z_min)
+	))
+	mesh.set_meta(&"closed_aperture_reveals", true)
+	return mesh
+
+
+static func _append_shell_quad(
+		vertices: PackedVector3Array,
+		normals: PackedVector3Array,
+		indices: PackedInt32Array,
+		a: Vector3,
+		b: Vector3,
+		c: Vector3,
+		d: Vector3,
+		normal: Vector3
+	) -> void:
+	if (b - a).cross(c - a).length_squared() <= 0.000001 \
+			or (c - a).cross(d - a).length_squared() <= 0.000001:
+		return
+	var base := vertices.size()
+	var ordered := [a, b, c, d]
+	if (b - a).cross(c - a).dot(normal) < 0.0:
+		ordered = [a, d, c, b]
+	for vertex in ordered:
+		vertices.append(vertex)
+		normals.append(normal)
+	indices.append_array(PackedInt32Array([
+		base, base + 1, base + 2,
+		base, base + 2, base + 3,
+	]))
 
 
 ## Existing freight shoulders become raised isolation rails when the inherited
