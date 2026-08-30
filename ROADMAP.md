@@ -1315,6 +1315,16 @@ resolved visibility after child render instances finish entering the tree. Focus
 and component lifecycle suites are green, and the untouched exact-camera 2560x1440
 Forward+ llvmpipe capture is clean. Native-Windows package repetition remains `NOT_RUN`.
 
+The same retained-particle census found a second route for that defect class: the
+base range defender and its Courier, Flanker and Picket derivatives left healthy or
+inactive hull, engine and weapon-damage particle renderers visible while only
+stopping emission. `RangeOpponent` now owns one visibility/emission lifecycle for
+those retained channels, hiding them through healthy, repair, destruction, reuse and
+detach/re-entry states while restoring only the bounded damaged and critical cues.
+The focused combat suite, four-archetype component-damage integration suite and an
+exact HUD-free 2560x1440 Forward+ combat capture are green. Native Windows visual
+review remains `NOT_RUN`.
+
 The generic `ComponentDamageModel` now provides one generation-safe detached
 ledger with strict stages, ordered scalar and atomic multi-component damage and
 repair, all-or-none prevalidation, one aggregate revision, detached ordered
