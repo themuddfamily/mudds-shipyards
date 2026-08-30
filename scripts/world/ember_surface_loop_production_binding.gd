@@ -673,6 +673,14 @@ func save_interrupted_relay_survey_journey(
 	) as Dictionary
 
 
+func capture_interrupted_relay_survey_optional_progress() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"capture_interrupted_relay_survey_optional_progress"
+	) as Dictionary
+
+
 func load_interrupted_relay_survey_journey() -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")

@@ -202,6 +202,47 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 	return _result(true, &"sample_rack_reentered")
 
 
+## Reapplies a persistence-validated completion to the current physical
+## interaction without submitting or emitting a second checkpoint receipt.
+func restore_interrupted_completion(completion: Variant) -> Dictionary:
+	if not _current() or _completed or not completion is Dictionary:
+		return _result(false, &"sample_rack_interrupted_restore_invalid")
+	var saved := completion as Dictionary
+	if saved.size() != 7 \
+			or saved.get("completed") is not bool \
+			or not bool(saved.get("completed", false)) \
+			or StringName(saved.get("checkpoint_id", &"")) != CHECKPOINT_ID \
+			or StringName(saved.get("interaction_id", &"")) != INTERACTION_ID \
+			or int(saved.get("activity_generation", -1)) != _activity_generation \
+			or int(saved.get("run_generation", -1)) != _host_generation \
+			or int(saved.get("attachment_generation", -1)) < 1 \
+			or int(saved.get("attachment_generation", -1)) >= _attachment_generation \
+			or not saved.get("receipt", {}) is Dictionary:
+		return _result(false, &"sample_rack_interrupted_restore_invalid")
+	_completed = true
+	_completion_attachment_generation = _attachment_generation
+	_last_receipt = {
+		"checkpoint_id": CHECKPOINT_ID,
+		"interaction_id": INTERACTION_ID,
+		"world_id": &"ember_moon",
+		"host_generation": _host_generation,
+		"attachment_generation": _attachment_generation,
+		"activity_generation": _activity_generation,
+		"activity_started": false,
+		"reward_granted": false,
+		"historical_claim": false,
+		"completion_response_id": COMPLETION_RESPONSE_ID,
+		"restored_interrupted_presentation": true,
+	}.duplicate(true)
+	_apply_presentation()
+	return {
+		"accepted": true,
+		"reason": &"sample_rack_interrupted_completion_restored",
+		"interaction_replayed": false,
+		"reward_replayed": false,
+	}.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	_apply_presentation()
 	return {

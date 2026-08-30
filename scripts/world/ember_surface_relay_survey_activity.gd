@@ -12,6 +12,7 @@ const FINISH_LANDMARK_ID: StringName = &"ember_return_beacon"
 const REWARD_ID: StringName = &"ember_beacon_data"
 const OPTIONAL_CHECKPOINT_ID: StringName = &"ember_bunker_gantry_log"
 const OPTIONAL_INTERACTION_ID: StringName = &"ember_bunker_gantry_survey"
+const OPTIONAL_RESPONSE_ID: StringName = &"ember_bunker_service_alcove"
 const SAMPLE_RACK_CHECKPOINT_ID: StringName = &"ember_sample_rack_analysis_log"
 const SAMPLE_RACK_INTERACTION_ID: StringName = &"ember_sample_rack_analysis"
 const SAMPLE_RACK_RESPONSE_ID: StringName = &"ember_sample_rack_analysis_marker"
@@ -274,6 +275,148 @@ func restore_persistence_snapshot(snapshot: Variant, adapter: Object) -> Diction
 	return _checkpoint_result(true, &"optional_checkpoint_restored", adapter)
 
 
+## Captures only the two detached optional completion observations associated
+## with the live Beacon Survey generation. The ActivityDirector route remains
+## authoritative and no interaction, movement, or reward capability is saved.
+func capture_interrupted_optional_progress(adapter: Object) -> Dictionary:
+	if adapter == null or not adapter.has_method(&"get_snapshot"):
+		return {"accepted": false, "reason": &"optional_progress_runtime_unavailable"}
+	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
+	if StringName(adapter_snapshot.get("state", &"")) != &"active" \
+			or StringName(runtime.get("state", &"")) not in [&"active", &"awaiting_reward"] \
+			or StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID:
+		return {"accepted": false, "reason": &"optional_progress_activity_unavailable"}
+	var progress := {
+		"schema_version": 1,
+		"activity_id": ACTIVITY_ID,
+		"source_run_generation": int(runtime.get("run_generation", -1)),
+		"source_attachment_generation": int(runtime.get("attachment_generation", -1)),
+		"checkpoints": {
+			OPTIONAL_CHECKPOINT_ID: _interrupted_optional_checkpoint_record(
+				OPTIONAL_CHECKPOINT_ID, OPTIONAL_INTERACTION_ID,
+				_optional_checkpoint_completed, _optional_activity_generation,
+				_optional_run_generation, _optional_attachment_generation,
+				_optional_receipt
+			),
+			SAMPLE_RACK_CHECKPOINT_ID: _interrupted_optional_checkpoint_record(
+				SAMPLE_RACK_CHECKPOINT_ID, SAMPLE_RACK_INTERACTION_ID,
+				_sample_rack_completed, _sample_rack_activity_generation,
+				_sample_rack_run_generation, _sample_rack_attachment_generation,
+				_sample_rack_receipt
+			),
+		},
+		"authority": {
+			"activity": false, "route": false, "movement": false,
+			"reward": false, "interaction_replay": false,
+		},
+	}.duplicate(true)
+	var validation := validate_interrupted_optional_progress(
+		progress, _mandatory_route_progress
+	)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	return {
+		"accepted": true,
+		"reason": &"interrupted_optional_progress_captured",
+		"optional_progress": progress,
+	}.duplicate(true)
+
+
+func validate_interrupted_optional_progress(
+		candidate: Variant, route_identity: Variant
+	) -> Dictionary:
+	if candidate is Dictionary and (candidate as Dictionary).is_empty():
+		return {"accepted": true, "reason": &"optional_progress_empty"}
+	if not candidate is Dictionary or not route_identity is Dictionary:
+		return {"accepted": false, "reason": &"invalid_interrupted_optional_progress"}
+	var saved := candidate as Dictionary
+	var route := route_identity as Dictionary
+	var authority := saved.get("authority", {}) as Dictionary
+	var checkpoints := saved.get("checkpoints", {}) as Dictionary
+	if saved.size() != 6 \
+			or int(saved.get("schema_version", -1)) != 1 \
+			or StringName(saved.get("activity_id", &"")) != ACTIVITY_ID \
+			or int(saved.get("source_run_generation", -1)) < 1 \
+			or int(saved.get("source_attachment_generation", -1)) < 1 \
+			or authority.size() != 5 \
+			or bool(authority.get("activity", true)) \
+			or bool(authority.get("route", true)) \
+			or bool(authority.get("movement", true)) \
+			or bool(authority.get("reward", true)) \
+			or bool(authority.get("interaction_replay", true)) \
+			or checkpoints.size() != 2 \
+			or not checkpoints.has(OPTIONAL_CHECKPOINT_ID) \
+			or not checkpoints.has(SAMPLE_RACK_CHECKPOINT_ID):
+		return {"accepted": false, "reason": &"invalid_interrupted_optional_progress"}
+	var activity_generation := int(route.get("activity_generation", -1))
+	for definition in [
+		[OPTIONAL_CHECKPOINT_ID, OPTIONAL_INTERACTION_ID, OPTIONAL_RESPONSE_ID],
+		[SAMPLE_RACK_CHECKPOINT_ID, SAMPLE_RACK_INTERACTION_ID, SAMPLE_RACK_RESPONSE_ID],
+	]:
+		var checkpoint_id := definition[0] as StringName
+		var record: Variant = checkpoints.get(checkpoint_id)
+		if not _valid_interrupted_optional_checkpoint(
+			record, checkpoint_id, definition[1] as StringName,
+			definition[2] as StringName, activity_generation,
+			int(saved.source_run_generation),
+			int(saved.source_attachment_generation)
+		):
+			return {"accepted": false, "reason": &"invalid_interrupted_optional_progress"}
+	return {"accepted": true, "reason": &"interrupted_optional_progress_valid"}
+
+
+## Reinstates completion facts only after ActivityDirector has adopted the
+## saved mandatory route. It emits no interaction signal and grants no reward.
+func restore_interrupted_optional_progress(
+		candidate: Variant, route_identity: Variant, adapter: Object
+	) -> Dictionary:
+	var validation := validate_interrupted_optional_progress(
+		candidate, route_identity
+	)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	if candidate is Dictionary and (candidate as Dictionary).is_empty():
+		return {"accepted": true, "reason": &"optional_progress_empty"}
+	if adapter == null or not adapter.has_method(&"get_snapshot"):
+		return {"accepted": false, "reason": &"optional_progress_runtime_unavailable"}
+	var saved := candidate as Dictionary
+	var runtime := (
+		(adapter.call(&"get_snapshot") as Dictionary).get("activity_reward", {}) \
+		as Dictionary
+	)
+	if StringName(runtime.get("state", &"")) != &"active" \
+			or StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID \
+			or int(runtime.get("activity_generation", -1)) \
+				!= int((route_identity as Dictionary).get("activity_generation", -2)) \
+			or int(runtime.get("run_generation", -1)) \
+				!= int(saved.get("source_run_generation", -2)) \
+			or int(runtime.get("attachment_generation", -1)) \
+				<= int(saved.get("source_attachment_generation", -2)):
+		return {"accepted": false, "reason": &"stale_interrupted_optional_progress"}
+	var checkpoints := saved.get("checkpoints", {}) as Dictionary
+	var bunker := checkpoints.get(OPTIONAL_CHECKPOINT_ID, {}) as Dictionary
+	var rack := checkpoints.get(SAMPLE_RACK_CHECKPOINT_ID, {}) as Dictionary
+	_optional_checkpoint_completed = bool(bunker.get("completed", false))
+	_optional_activity_generation = int(bunker.get("activity_generation", -1))
+	_optional_run_generation = int(bunker.get("run_generation", -1))
+	_optional_attachment_generation = int(bunker.get("attachment_generation", -1))
+	_optional_receipt = (bunker.get("receipt", {}) as Dictionary).duplicate(true)
+	_sample_rack_completed = bool(rack.get("completed", false))
+	_sample_rack_activity_generation = int(rack.get("activity_generation", -1))
+	_sample_rack_run_generation = int(rack.get("run_generation", -1))
+	_sample_rack_attachment_generation = int(rack.get("attachment_generation", -1))
+	_sample_rack_receipt = (rack.get("receipt", {}) as Dictionary).duplicate(true)
+	return {
+		"accepted": true,
+		"reason": &"interrupted_optional_progress_restored",
+		"completed_count": int(_optional_checkpoint_completed) \
+			+ int(_sample_rack_completed),
+		"interaction_replayed": false,
+		"reward_replayed": false,
+	}.duplicate(true)
+
+
 func get_snapshot(adapter: Object = null) -> Dictionary:
 	var bunker := _optional_checkpoint_snapshot(adapter)
 	var sample_rack := _sample_rack_optional_checkpoint_snapshot(adapter)
@@ -310,7 +453,8 @@ func _optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
 	if adapter != null and adapter.has_method(&"get_snapshot"):
 		var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
 		var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
-		eligible = StringName(adapter_snapshot.get("state", &"")) == &"active" \
+		eligible = not _optional_checkpoint_completed \
+			and StringName(adapter_snapshot.get("state", &"")) == &"active" \
 			and StringName(runtime.get("state", &"")) == &"active" \
 			and StringName(runtime.get("activity_id", &"")) == ACTIVITY_ID
 		current_activity_generation = int(runtime.get("activity_generation", -1))
@@ -350,7 +494,8 @@ func _sample_rack_optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
 	if adapter != null and adapter.has_method(&"get_snapshot"):
 		var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
 		var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
-		eligible = StringName(adapter_snapshot.get("state", &"")) == &"active" \
+		eligible = not _sample_rack_completed \
+			and StringName(adapter_snapshot.get("state", &"")) == &"active" \
 			and StringName(runtime.get("state", &"")) == &"active" \
 			and StringName(runtime.get("activity_id", &"")) == ACTIVITY_ID
 		current_activity_generation = int(runtime.get("activity_generation", -1))
@@ -460,6 +605,63 @@ func _apply_authoritative_route_result(result: Dictionary) -> void:
 		"complete": next_checkpoint_index == checkpoint_count,
 		"authority": {"navigation": false, "movement": false, "reward": false},
 	}.duplicate(true)
+
+
+func _interrupted_optional_checkpoint_record(
+		checkpoint_id: StringName, interaction_id: StringName, completed: bool,
+		activity_generation: int, run_generation: int,
+		attachment_generation: int, receipt: Dictionary
+	) -> Dictionary:
+	return {
+		"checkpoint_id": checkpoint_id,
+		"interaction_id": interaction_id,
+		"completed": completed,
+		"activity_generation": activity_generation if completed else -1,
+		"run_generation": run_generation if completed else -1,
+		"attachment_generation": attachment_generation if completed else -1,
+		"receipt": receipt.duplicate(true) if completed else {},
+	}.duplicate(true)
+
+
+func _valid_interrupted_optional_checkpoint(
+		record_value: Variant, checkpoint_id: StringName,
+		interaction_id: StringName, response_id: StringName,
+		activity_generation: int, source_run_generation: int,
+		source_attachment_generation: int
+	) -> bool:
+	if not record_value is Dictionary:
+		return false
+	var record := record_value as Dictionary
+	if record.size() != 7 \
+			or StringName(record.get("checkpoint_id", &"")) != checkpoint_id \
+			or StringName(record.get("interaction_id", &"")) != interaction_id \
+			or record.get("completed") is not bool \
+			or not record.get("receipt", {}) is Dictionary:
+		return false
+	if not bool(record.completed):
+		return int(record.get("activity_generation", -2)) == -1 \
+			and int(record.get("run_generation", -2)) == -1 \
+			and int(record.get("attachment_generation", -2)) == -1 \
+			and (record.get("receipt", {}) as Dictionary).is_empty()
+	var receipt := record.get("receipt", {}) as Dictionary
+	return int(record.get("activity_generation", -1)) == activity_generation \
+		and int(record.get("run_generation", -1)) == source_run_generation \
+		and int(record.get("attachment_generation", -1)) >= 1 \
+		and int(record.get("attachment_generation", -1)) \
+			<= source_attachment_generation \
+		and StringName(receipt.get("interaction_id", &"")) == interaction_id \
+		and StringName(receipt.get("world_id", &"")) == &"ember_moon" \
+		and int(receipt.get("host_generation", -1)) == source_run_generation \
+		and int(receipt.get("attachment_generation", -1)) \
+			== int(record.get("attachment_generation", -2)) \
+		and StringName(receipt.get("completion_response_id", &"")) == response_id \
+		and not bool(receipt.get("activity_started", true)) \
+		and not bool(receipt.get("reward_granted", true)) \
+		and not bool(receipt.get("historical_claim", true)) \
+		and (checkpoint_id != SAMPLE_RACK_CHECKPOINT_ID or (
+			StringName(receipt.get("checkpoint_id", &"")) == checkpoint_id \
+			and int(receipt.get("activity_generation", -1)) == activity_generation
+		))
 
 
 func _checkpoint_result(

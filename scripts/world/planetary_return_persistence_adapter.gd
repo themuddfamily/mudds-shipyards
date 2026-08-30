@@ -40,6 +40,12 @@ const CONTRACT_RECEIPT_REASONS := [
 const INTERRUPTED_JOURNEY_KEYS := [
 	"accepted", "schema_version", "marker", "world_id", "session_id",
 	"attachment_generation", "checkpoint_generation", "phase_id", "journey_phase_id",
+	"route_identity", "optional_progress", "detached_session", "receipt_sha256",
+	"surface_attachment", "movement_replay_allowed", "reward_replay_allowed",
+]
+const LEGACY_INTERRUPTED_JOURNEY_KEYS := [
+	"accepted", "schema_version", "marker", "world_id", "session_id",
+	"attachment_generation", "checkpoint_generation", "phase_id", "journey_phase_id",
 	"route_identity", "detached_session", "receipt_sha256",
 	"surface_attachment", "movement_replay_allowed", "reward_replay_allowed",
 ]
@@ -132,9 +138,22 @@ func capture_interrupted_journey(
 		return _reject(&"interrupted_journey_not_detached")
 	if StringName(inspected.get("world_id", &"")) != WORLD_ID:
 		return _reject(&"interrupted_journey_world_invalid")
-	var route := _wire_copy(route_snapshot) as Dictionary
+	var journey := route_snapshot as Dictionary
+	var optional_progress: Dictionary = {}
+	var route_value: Variant = route_snapshot
+	if journey.size() == 2 and journey.has("route_identity") \
+			and journey.has("optional_progress"):
+		route_value = journey.get("route_identity", {})
+		if not journey.get("optional_progress", {}) is Dictionary:
+			return _reject(&"interrupted_journey_optional_progress_invalid")
+		optional_progress = _wire_copy(
+			journey.get("optional_progress", {})
+		) as Dictionary
+	var route := _wire_copy(route_value) as Dictionary
 	if not _valid_interrupted_route(route) or _contains_live_authority(route):
 		return _reject(&"interrupted_journey_route_invalid")
+	if _contains_live_authority(optional_progress):
+		return _reject(&"interrupted_journey_authority_present")
 	var checkpoint := inspected.get("checkpoint", {}) as Dictionary
 	if not _checkpoint_matches_route(checkpoint, route):
 		return _reject(&"interrupted_journey_identity_mismatch")
@@ -143,6 +162,7 @@ func capture_interrupted_journey(
 	var evidence := {
 		"detached_session": session,
 		"route_identity": route,
+		"optional_progress": optional_progress,
 	}
 	var digest := _digest(evidence)
 	if digest.is_empty():
@@ -158,6 +178,7 @@ func capture_interrupted_journey(
 		"phase_id": str(inspected.get("phase", "")),
 		"journey_phase_id": str(checkpoint_payload.get("journey_phase_id", "")),
 		"route_identity": route,
+		"optional_progress": optional_progress,
 		"detached_session": session,
 		"receipt_sha256": digest,
 		"surface_attachment": {"active": false, "state": "detached"},
@@ -176,8 +197,11 @@ func restore_interrupted_journey(candidate: Variant) -> Dictionary:
 	var schema := int(saved.get("schema_version", 0))
 	if schema > SCHEMA_VERSION:
 		return _reject(&"interrupted_journey_newer_schema")
-	if not _has_exact_keys(saved, INTERRUPTED_JOURNEY_KEYS) \
-			or not _is_integral_number(saved.get("schema_version")) \
+	var has_optional_progress := _has_exact_keys(saved, INTERRUPTED_JOURNEY_KEYS)
+	if not has_optional_progress \
+			and not _has_exact_keys(saved, LEGACY_INTERRUPTED_JOURNEY_KEYS):
+		return _reject(&"interrupted_journey_snapshot_invalid")
+	if not _is_integral_number(saved.get("schema_version")) \
 			or schema != SCHEMA_VERSION \
 			or saved.get("accepted") is not bool \
 			or not bool(saved.get("accepted", false)) \
@@ -205,6 +229,13 @@ func restore_interrupted_journey(candidate: Variant) -> Dictionary:
 	var route := saved.get("route_identity", {}) as Dictionary
 	if not _valid_interrupted_route(route):
 		return _reject(&"interrupted_journey_route_invalid")
+	var optional_progress: Dictionary = {}
+	if has_optional_progress:
+		if not saved.get("optional_progress", {}) is Dictionary:
+			return _reject(&"interrupted_journey_optional_progress_invalid")
+		optional_progress = saved.get("optional_progress", {}) as Dictionary
+		if _contains_live_authority(optional_progress):
+			return _reject(&"interrupted_journey_authority_present")
 	var inspected := SaveSessionContract.inspect_detached_recovery(
 		saved.get("detached_session", {})
 	) as Dictionary
@@ -227,6 +258,8 @@ func restore_interrupted_journey(candidate: Variant) -> Dictionary:
 		"detached_session": saved.get("detached_session", {}),
 		"route_identity": route,
 	}
+	if has_optional_progress:
+		evidence["optional_progress"] = optional_progress
 	var digest := str(saved.get("receipt_sha256", ""))
 	if digest.length() != 64 or digest != _digest(evidence):
 		return _reject(&"interrupted_journey_receipt_corrupt")
@@ -243,6 +276,7 @@ func restore_interrupted_journey(candidate: Variant) -> Dictionary:
 		"attachment_generation": int(saved.get("attachment_generation", 0)),
 		"checkpoint_generation": int(saved.get("checkpoint_generation", 0)),
 		"route_identity": route.duplicate(true),
+		"optional_progress": optional_progress.duplicate(true),
 		"detached_session": (saved.get("detached_session", {}) as Dictionary).duplicate(true),
 		"receipt_sha256": digest,
 		"surface_attachment": {"active": false, "state": &"detached"},
