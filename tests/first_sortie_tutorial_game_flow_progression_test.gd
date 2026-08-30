@@ -27,12 +27,29 @@ func _init() -> void:
 func _run() -> void:
 	var flow := GameFlowType.new()
 	var hud := HudProbe.new()
+	var jovian := HeroShip.new()
+	jovian.display_name = "Jovian-class Light Freighter candidate"
 	flow.hud = hud
 	flow.runtime_settings = SettingsType.new("user://first_sortie_tutorial_game_flow_progression_test.cfg")
 	_check(flow.publish_first_sortie_tutorial_phase(&"walk_interact", 0), "on-foot phase publishes through GameFlow")
 	_check(hud.snapshots.back().step_id == &"walk_interact" and hud.snapshots.back().revision == 1, "initial prompt is the next on-foot action with an authoritative revision")
-	_check(flow.publish_first_sortie_tutorial_phase(&"board", 0), "reaching boarding range publishes Board as the next action")
-	_check(hud.snapshots.back().step_id == &"board" and hud.snapshots.back().revision == 2, "boarding prompt follows completed approach without claiming completion")
+	_check(flow.publish_first_sortie_tutorial_phase(&"board", 0, jovian), "reaching a free-sortie craft publishes Board as the next action")
+	_check(
+		hud.snapshots.back().step_id == &"board"
+		and hud.snapshots.back().revision == 2
+		and hud.snapshots.back().craft_display_name \
+			== "Jovian-class Light Freighter candidate"
+		and flow._first_sortie_tutorial_board_context_matches(jovian),
+		"boarding prompt carries the selected physical craft without claiming completion",
+	)
+	flow._detach_first_sortie_tutorial_presentation(&"game_flow_detached")
+	_check(
+		flow._republish_first_sortie_tutorial_presentation()
+		and hud.snapshots.back().craft_display_name \
+			== "Jovian-class Light Freighter candidate"
+		and hud.snapshots.back().revision == 2,
+		"retained HUD re-entry republishes the same fenced boarding-craft context",
+	)
 	flow._advance_first_sortie_tutorial_source(&"boarding_actor_changed")
 	_check(flow._first_sortie_tutorial_generation == 1 and flow._first_sortie_tutorial_revision == 0 and hud.clears.back() == &"boarding_actor_changed", "boarding actor change clears presentation and starts a fresh source fence")
 	_check(flow.publish_first_sortie_tutorial_phase(&"launch", 1), "completed boarding publishes launch as the next action")
@@ -79,6 +96,7 @@ func _run() -> void:
 	_check(not flow.publish_first_sortie_tutorial_phase(&"unknown", 3), "invalid phase cannot create a prompt")
 	flow.free()
 	hud.free()
+	jovian.free()
 	if _failures.is_empty():
 		print("FIRST_SORTIE_TUTORIAL_GAME_FLOW_PROGRESSION_TEST_OK (%d assertions)" % _assertions)
 		quit(0)

@@ -17,10 +17,23 @@ func _run() -> void:
 	root.add_child(hud)
 	await process_frame
 	hud.presentation_intent_requested.connect(_on_intent)
-	_check(hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 4, "revision": 1}), "HUD accepts normal GameFlow tutorial snapshot")
+	_check(
+		hud.apply_first_sortie_tutorial_snapshot({
+			"step_id": &"board",
+			"generation": 4,
+			"revision": 1,
+			"craft_display_name": "Jovian-class Light Freighter candidate",
+		}),
+		"HUD accepts the selected free-sortie craft in a normal GameFlow tutorial snapshot"
+	)
 	var title := hud.get("_runtime_status_title") as Label
 	var detail := hud.get("_runtime_status_detail") as Label
-	_check(title.text == "Board the Torrent" and detail.text.contains("E"), "HUD resolves current keyboard glyph in Torrent boarding prompt")
+	_check(
+		title.text == "Board Jovian-class Light Freighter"
+		and detail.text.contains("E")
+		and detail.text.contains("Jovian-class Light Freighter"),
+		"HUD names the selected craft and resolves its current keyboard interaction glyph"
+	)
 	var glyph_presenter: Variant = hud.get("_runtime_input_glyph_presenter")
 	glyph_presenter.set_device_family(&"gamepad_xbox")
 	hud.call("_refresh_input_prompts")
@@ -60,9 +73,9 @@ func _run() -> void:
 	_check(
 		(hud.get("_runtime_status_panel") as PanelContainer).visible
 		and not (hud.get("_bomber_status_panel") as PanelContainer).visible
-		and title.text == "Board the Torrent"
+		and title.text == "Board Jovian-class Light Freighter"
 		and detail.text.contains(reentered_interact),
-		"clearing bomber restores the retained tutorial card with current glyphs"
+		"clearing bomber restores the retained selected-craft tutorial with current glyphs"
 	)
 	hud.set_paused(true)
 	hud.call("_show_server_browser_page")

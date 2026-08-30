@@ -31,6 +31,7 @@ var _snapshot: Dictionary = {}
 var _source_generation := -1
 var _source_revision := -1
 var _source_step: StringName = &""
+var _source_craft_display_name := ""
 var _attached := false
 
 
@@ -59,15 +60,30 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	if not revision_value is int or int(revision_value) < 0:
 		return _reject(&"invalid_revision")
 	var revision := int(revision_value)
+	var craft_context := _resolve_board_craft_context(source, step_id)
+	if not bool(craft_context.get("accepted", false)):
+		return _reject(craft_context.get("reason", &"invalid_craft_context") as StringName)
+	var craft_display_name := str(craft_context.get("craft_display_name", ""))
 	if _attached and generation < _source_generation:
 		return _reject(&"stale_generation")
 	if _attached and generation == _source_generation and revision < _source_revision:
 		return _reject(&"stale_revision")
 	if _attached and generation == _source_generation \
-			and revision == _source_revision and step_id != _source_step:
+			and revision == _source_revision and (
+				step_id != _source_step
+				or craft_display_name != _source_craft_display_name
+			):
 		return _reject(&"conflicting_revision")
-	var copy := STEP_COPY[step_id] as Dictionary
-	var status := STEP_STATUS[step_id] as Dictionary
+	var copy := (STEP_COPY[step_id] as Dictionary).duplicate(true)
+	var status := (STEP_STATUS[step_id] as Dictionary).duplicate(true)
+	if step_id == &"board" and not craft_display_name.is_empty():
+		copy["title"] = "Board %s" % craft_display_name
+		copy["controller"] = "Press {interact} to board %s." % craft_display_name
+		copy["keyboard"] = "Press {interact} to board %s." % craft_display_name
+		copy["accessible"] = (
+			"Use the interact control to board %s." % craft_display_name
+		)
+		status["next_action"] = "BOARD SELECTED CRAFT // INTERACT"
 	var family := StringName(str(source.get("input_family", &"controller")))
 	var accessible := bool(source.get("accessible", false))
 	var prompt := str(copy.accessible if accessible else (copy.keyboard if family == &"keyboard" else copy.controller))
@@ -85,6 +101,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	_source_generation = generation
 	_source_revision = revision
 	_source_step = step_id
+	_source_craft_display_name = craft_display_name
 	_attached = true
 	_snapshot = {
 		"component_id": COMPONENT_ID,
@@ -97,6 +114,8 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"title": copy.title,
 		"prompt": prompt,
 		"accessible_prompt": accessible_prompt,
+		"craft_display_name": craft_display_name,
+		"contextual_craft": not craft_display_name.is_empty(),
 		"progress_label": progress_label,
 		"next_action": next_action,
 		"recovery": recovery,
@@ -162,7 +181,32 @@ func _clear_state() -> void:
 	_source_generation = -1
 	_source_revision = -1
 	_source_step = &""
+	_source_craft_display_name = ""
 	_attached = false
+
+
+func _resolve_board_craft_context(
+		source: Dictionary, step_id: StringName
+	) -> Dictionary:
+	if step_id != &"board" or not source.has("craft_display_name"):
+		return {"accepted": true, "craft_display_name": ""}
+	var value: Variant = source.get("craft_display_name")
+	if not value is String:
+		return {"accepted": false, "reason": &"invalid_craft_context"}
+	var display_name := str(value).strip_edges()
+	if display_name.is_empty() or display_name.length() > 80 \
+			or display_name.contains("\n") or display_name.contains("\r") \
+			or display_name.contains("\t"):
+		return {"accepted": false, "reason": &"invalid_craft_context"}
+	# Authorship/evidence qualifiers remain available on the ship identity panel,
+	# but the immediate action title needs the craft family and role at a glance.
+	if display_name.contains(" — "):
+		display_name = display_name.get_slice(" — ", 0).strip_edges()
+	if display_name.to_lower().ends_with(" candidate"):
+		display_name = display_name.left(display_name.length() - 10).strip_edges()
+	if display_name.is_empty():
+		return {"accepted": false, "reason": &"invalid_craft_context"}
+	return {"accepted": true, "craft_display_name": display_name}
 
 
 func _reject(reason: StringName) -> Dictionary:

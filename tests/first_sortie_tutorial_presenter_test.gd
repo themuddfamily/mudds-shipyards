@@ -72,6 +72,32 @@ func _run() -> void:
 	_check(not actor_loss.accepted and actor_loss.reason == &"actor_unavailable" and presenter.get_snapshot().is_empty() and not presenter.request(&"repeat").accepted, "actor loss clears retained prompt and actions")
 	var reused := presenter.present_snapshot({"step_id": &"board", "generation": 0, "revision": 1})
 	_check(reused.accepted and reused.generation == 0, "cleared presenter can be reused for a new tutorial source")
+	var contextual := presenter.present_snapshot({
+		"step_id": &"board", "generation": 0, "revision": 2,
+		"craft_display_name": "Jovian-class Light Freighter candidate",
+		"input_family": &"keyboard", "glyphs": {&"interact": "E"},
+	})
+	_check(
+		contextual.accepted
+		and contextual.title == "Board Jovian-class Light Freighter"
+		and contextual.prompt.contains(
+			"Press E to board Jovian-class Light Freighter."
+		)
+		and contextual.next_action == "BOARD SELECTED CRAFT // INTERACT"
+		and contextual.craft_display_name == "Jovian-class Light Freighter"
+		and contextual.contextual_craft,
+		"boarding prompt names the selected free-sortie craft instead of the Torrent",
+	)
+	var invalid_context := presenter.present_snapshot({
+		"step_id": &"board", "generation": 0, "revision": 3,
+		"craft_display_name": "Jovian\nspoof",
+	})
+	_check(
+		not invalid_context.accepted
+		and invalid_context.reason == &"invalid_craft_context"
+		and presenter.get_snapshot().revision == 2,
+		"invalid dynamic craft copy cannot replace the retained prompt",
+	)
 	var detached := presenter.detach(&"session_lost")
 	_check(not detached.attached and detached.reason == &"session_lost" and presenter.get_snapshot().is_empty(), "session detach clears retained source and fence")
 	var disabled := presenter.present_snapshot({"step_id": &"board", "generation": 1, "revision": 1, "show_tutorials": false})

@@ -601,6 +601,7 @@ var _first_sortie_tutorial_revision := 0
 var _first_sortie_tutorial_completed_steps: Dictionary = {}
 var _first_sortie_tutorial_dismissed_generation := -1
 var _first_sortie_tutorial_active_step: StringName = &""
+var _first_sortie_tutorial_craft_context: Dictionary = {}
 var _transition_busy := false
 ## Every awaited boarding/disembarking coroutine captures this generation. A
 ## destructive recovery advances it before restoring the player, so stale
@@ -5518,7 +5519,10 @@ func apply_first_sortie_tutorial_snapshot(snapshot: Dictionary) -> bool:
 	return bool(hud.call(&"apply_first_sortie_tutorial_snapshot", caller_snapshot))
 
 
-func publish_first_sortie_tutorial_phase(step_id: StringName, generation: int = -1) -> bool:
+func publish_first_sortie_tutorial_phase(
+		step_id: StringName, generation: int = -1,
+		context_craft: HeroShip = null
+	) -> bool:
 	if step_id not in [
 		&"walk_interact", &"board", &"take_seat", &"launch", &"fire", &"return_land", &"exit"
 	]:
@@ -5529,6 +5533,10 @@ func publish_first_sortie_tutorial_phase(step_id: StringName, generation: int = 
 		return false
 	_first_sortie_tutorial_revision += 1
 	_first_sortie_tutorial_active_step = step_id
+	_first_sortie_tutorial_craft_context = (
+		_first_sortie_tutorial_context_for_craft(context_craft)
+		if step_id == &"board" else {}
+	)
 	var snapshot := {
 		"step_id": step_id,
 		"generation": _first_sortie_tutorial_generation,
@@ -5537,6 +5545,10 @@ func publish_first_sortie_tutorial_phase(step_id: StringName, generation: int = 
 		"session_active": true,
 		"show_tutorials": true if runtime_settings == null else runtime_settings.show_tutorials,
 	}
+	if not _first_sortie_tutorial_craft_context.is_empty():
+		snapshot["craft_display_name"] = str(
+			_first_sortie_tutorial_craft_context.get("craft_display_name", "")
+		)
 	return apply_first_sortie_tutorial_snapshot(snapshot)
 
 
@@ -5550,6 +5562,7 @@ func _advance_first_sortie_tutorial_source(reason: StringName) -> void:
 	_first_sortie_tutorial_generation += 1
 	_first_sortie_tutorial_revision = 0
 	_first_sortie_tutorial_active_step = &""
+	_first_sortie_tutorial_craft_context.clear()
 	_first_sortie_tutorial_dismissed_generation = -1
 
 
@@ -5557,13 +5570,40 @@ func _republish_first_sortie_tutorial_presentation() -> bool:
 	if _first_sortie_tutorial_active_step.is_empty() \
 			or _first_sortie_tutorial_dismissed_generation == _first_sortie_tutorial_generation:
 		return false
-	return apply_first_sortie_tutorial_snapshot({
+	var snapshot := {
 		"step_id": _first_sortie_tutorial_active_step,
 		"generation": _first_sortie_tutorial_generation,
 		"revision": _first_sortie_tutorial_revision,
 		"actor_attached": true,
 		"session_active": true,
-	})
+	}
+	if not _first_sortie_tutorial_craft_context.is_empty():
+		snapshot["craft_display_name"] = str(
+			_first_sortie_tutorial_craft_context.get("craft_display_name", "")
+		)
+	return apply_first_sortie_tutorial_snapshot(snapshot)
+
+
+func _first_sortie_tutorial_context_for_craft(craft: HeroShip) -> Dictionary:
+	if not is_instance_valid(craft):
+		return {}
+	var display_name := craft.get_display_name().strip_edges()
+	if display_name.is_empty():
+		return {}
+	return {
+		"craft_instance_id": craft.get_instance_id(),
+		"craft_display_name": display_name,
+	}.duplicate(true)
+
+
+func _first_sortie_tutorial_board_context_matches(craft: HeroShip) -> bool:
+	return (
+		_first_sortie_tutorial_active_step == &"board"
+		and is_instance_valid(craft)
+		and int(_first_sortie_tutorial_craft_context.get(
+			"craft_instance_id", 0
+		)) == craft.get_instance_id()
+	)
 
 
 func _handle_first_sortie_tutorial_intent(payload: Dictionary) -> void:
@@ -5905,9 +5945,16 @@ func _update_on_foot_flow() -> void:
 		hud.set_interaction(str(station_interaction_candidate.call("get_interaction_prompt")))
 	elif _near_ship:
 		_present_boarding_confirmation(&"available", boarding_candidate)
-		if _first_sortie_tutorial_active_step == &"walk_interact":
+		if _first_sortie_tutorial_active_step == &"walk_interact" \
+				or (
+					_first_sortie_tutorial_active_step == &"board"
+					and not _first_sortie_tutorial_board_context_matches(
+						boarding_candidate
+					)
+				):
 			publish_first_sortie_tutorial_phase(
-				&"board", _first_sortie_tutorial_generation
+				&"board", _first_sortie_tutorial_generation,
+				boarding_candidate
 			)
 		hud.set_interaction("[ E ]  BOARD %s" % boarding_candidate.get_display_name().to_upper())
 	else:

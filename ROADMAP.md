@@ -1334,6 +1334,16 @@ detach and clean re-entry. The focused Arrow production caller and four-craft sh
 landing-wash suites are green, including an exact 2560x1440 Forward+ execution of the
 Arrow path. Native Windows visual review remains `NOT_RUN`.
 
+The first-sortie boarding card no longer hard-codes Torrent while the embodied
+player is beside another free-sortie craft. `GameFlow` now carries the physical
+boarding candidate's display name through the existing tutorial generation and
+revision fence, refreshes the card only when that candidate changes, and retains
+the same context through HUD removal, re-entry, input-device changes and temporary
+status-card overlap. This is presentation context only: the pending guided objective
+and boarding authority remain unchanged. Focused presenter, GameFlow progression and
+HUD lifecycle checks are green, including an exact 2560x1440 Forward+ HUD execution.
+Native Windows visual review remains `NOT_RUN`.
+
 The generic `ComponentDamageModel` now provides one generation-safe detached
 ledger with strict stages, ordered scalar and atomic multi-component damage and
 repair, all-or-none prevalidation, one aggregate revision, detached ordered
