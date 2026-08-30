@@ -81,9 +81,12 @@ policy for its focused proof; global spherical locomotion remains absent.
 The component privately copies `ember_basalt_terrain`, configures one immutable
 `PlanetaryTerrainLodPolicy`, and gives the same profile to one
 `PlanetaryTerrainClipmapRenderer`. `evaluate_terrain_lod_hint()` remains a pure
-query; the clipmap itself rebuilds once during scene readiness and has no camera
-or automatic process cadence. It preserves the fixed authored collision patch
-and owns only the surrounding generated render/collision nodes.
+query; the clipmap itself has no camera or automatic process cadence. It builds
+once during scene readiness, then accepts generation-fenced caller focus
+updates. Movement below 192 m retains the current meshes; crossing that
+threshold atomically recentres the five visible rings. The fixed authored pad
+and generated 1.5 km collision remain centred on the caldera and reuse the same
+concave shape across those visual rebuilds.
 
 The current exact live budget is 81 nodes, 30 render submissions (22 ordinary
 meshes plus eight MultiMeshes drawing 42 copies), eight static bodies, 26
@@ -96,10 +99,13 @@ authority remain false.
 
 Production `Main` now owns the Ember orbital bootstrap and observation binding,
 plus one `CommonWorldOriginRebaseOwner`; together they can make exactly one
-checked scene generation resident in a correctly rebased local frame. The
+checked scene generation resident in a correctly rebased local frame. During
+the retained surface loop, the Host forwards its existing authenticated
+body-local actor sample to the scene's thresholded terrain-focus seam; it gains
+no terrain-generation or movement authority. The
 retained surface-loop composition now connects real-actor travel, berth, egress,
 activity/reward, reboarding, takeoff, orbit return, and the existing station
 arrival authority. The composition still does not claim final visitability.
-Focus-following terrain rebuilds, collision beyond the current 1.5 km profile
-boundary, global spherical locomotion, atmosphere, production light and sky, native
+Focus-following collision beyond the current 1.5 km landing boundary, global
+spherical locomotion, atmosphere, production light and sky, native
 performance review, and repeated packaged lifecycle review remain deferred.

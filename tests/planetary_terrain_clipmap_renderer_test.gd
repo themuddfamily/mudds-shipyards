@@ -15,6 +15,9 @@ const COLLISION_CLEARANCE_M := 48.0
 const EXPECTED_RING_COUNT := 5
 const EXPECTED_VERTEX_COUNT := EXPECTED_RING_COUNT * RESOLUTION * RESOLUTION
 const EXPECTED_VISIBLE_TRIANGLE_COUNT := 40_096
+const EXPECTED_FULL_TRIANGLE_COUNT := (
+	EXPECTED_RING_COUNT * (RESOLUTION - 1) * (RESOLUTION - 1) * 2
+)
 const EXPECTED_COLLISION_VERTEX_COUNT := 16_640
 const EXPECTED_COLLISION_TRIANGLE_COUNT := 32_768
 const EXPECTED_COLLISION_DISTANCE_M := 1_500.0
@@ -147,6 +150,11 @@ func _run() -> void:
 	)
 
 	var north_root_id := committed.get_instance_id()
+	var north_collision_shape_id := (
+		(committed.get_node(
+			^"TerrainCollision/TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()
+	)
 	var equator_focus := Vector3.RIGHT * 120000.0
 	var equator := renderer.rebuild(equator_focus, renderer.get_generation())
 	var equator_snapshot := renderer.get_snapshot()
@@ -155,8 +163,17 @@ func _run() -> void:
 		and renderer.get_revision() == 2
 		and renderer.get_node(^"CommittedTerrain").get_instance_id() != north_root_id
 		and (equator_snapshot.get("focus_radial_up", Vector3.ZERO) as Vector3)
-			.is_equal_approx(Vector3.RIGHT),
-		"a caller can rebuild the same bounded clipmap at a different global radial focus",
+			.is_equal_approx(Vector3.RIGHT)
+		and (equator_snapshot.get(
+			"collision_focus_radial_up", Vector3.ZERO
+		) as Vector3).is_equal_approx(Vector3.UP)
+		and bool(equator_snapshot.get("collision_reused", false))
+		and int(equator_snapshot.get("render_triangle_count", 0))
+			== EXPECTED_FULL_TRIANGLE_COUNT
+		and ((renderer.get_node(
+			^"CommittedTerrain/TerrainCollision/TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()) == north_collision_shape_id,
+		"a caller can move the visible clipmap while the authored landing collision remains fixed and cached",
 	)
 	var tangent_right := equator_snapshot.get("tangent_right", Vector3.ZERO) as Vector3
 	var tangent_back := equator_snapshot.get("tangent_back", Vector3.ZERO) as Vector3

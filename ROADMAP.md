@@ -1596,8 +1596,15 @@ reaches the profile's circular 1.5 km physical boundary. The
 continuous 4 m pad-to-egress-to-staging route, guide posts, sample rack, relay,
 gantry and bunker are unchanged; their exact on-foot Forward+ review frame is
 pixel-identical before/after, while a low-flight review now shows surrounding
-relief instead of the old isolated ground proxy. This is a fixed landing-focus
-build, not camera-following global terrain. Main now owns the
+relief instead of the old isolated ground proxy. The scene initializes at the
+landing focus, then the production surface Host forwards its existing
+authenticated body-local actor sample: movement below 192 m retains the current
+meshes and crossing that threshold atomically recentres all five visible rings.
+The authored pad hole and 1.5 km collision remain fixed at the caldera and reuse
+one immutable concave shape, so visual following neither moves the landing seam
+nor regenerates 32,768 collision triangles. This is actor-following visible
+terrain around the retained surface loop, not global collision streaming. Main
+now owns the
 Ember bootstrap/binding and the sole `CommonWorldOriginRebaseOwner`: the shared
 `nearby_sector_orbital` frame places Ember at an exact 8,000 km absolute offset,
 the production coordinator uses 250/300 km load/unload thresholds, and one
@@ -1667,8 +1674,8 @@ fences remain intact across whole-`Main` detach/re-entry.
 `tests/ember_final_approach_production_handoff_test.gd` cover that player-facing
 seam.
 
-Production focus-driven terrain recentering beyond the fixed landing build,
-collision beyond the current 1.5 km profile boundary, an atmospheric authored
+Production focus-driven collision beyond the current 1.5 km landing boundary,
+an atmospheric authored
 destination with complete sky/cloud/weather/entry/audio presentation, broader save/network
 coverage, native performance and repeated orbit-to-surface lifecycle evidence
 all remain open. These are prerequisites for—not substitutes for—a visitable

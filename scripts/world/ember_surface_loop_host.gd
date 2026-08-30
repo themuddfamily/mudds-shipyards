@@ -1940,6 +1940,16 @@ func _sample_and_compose_gravity() -> Dictionary:
 	var actor_sample := _gravity_policy.sample(actor_body_local)
 	if not bool(actor_sample.get("accepted", false)):
 		return actor_sample
+	var terrain_focus := _scene.update_terrain_focus(
+		actor_body_local,
+		_scene.get_terrain_clipmap_generation(),
+	)
+	if not bool(terrain_focus.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": &"terrain_focus_update_rejected",
+			"terrain_reason": terrain_focus.get("reason", &"unknown"),
+		}.duplicate(true)
 	var ship_body_local := world_to_body_basis * (
 		_ship.global_position - _bootstrap.global_position
 	)

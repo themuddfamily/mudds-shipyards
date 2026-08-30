@@ -67,6 +67,8 @@ var _material_tint := Color.WHITE
 var _last_focus_body_local_m := Vector3.ZERO
 var _last_snapshot: Dictionary = {}
 var _shared_material: StandardMaterial3D
+var _fixed_collision_shape: ConcavePolygonShape3D
+var _fixed_collision_report: Dictionary = {}
 
 
 func _ready() -> void:
@@ -228,6 +230,14 @@ func rebuild(
 	var focus_up := focus_body_local_m.normalized()
 	var tangent_right := _tangent_right(focus_up)
 	var tangent_back := tangent_right.cross(focus_up).normalized()
+	var fixed_landing_collision := _collision_clearance_radius_m > 0.0
+	var collision_focus_up := (
+		_flatten_direction if fixed_landing_collision else focus_up
+	)
+	var collision_tangent_right := _tangent_right(collision_focus_up)
+	var collision_tangent_back := (
+		collision_tangent_right.cross(collision_focus_up).normalized()
+	)
 	var staged_root := Node3D.new()
 	staged_root.name = COMMITTED_ROOT_NAME
 	staged_root.set_meta(&"terrain_generation", _generation)
@@ -298,25 +308,53 @@ func rebuild(
 			"radial_bias_m": float(ring_index) * COARSE_RING_RADIAL_BIAS_M,
 		}.duplicate(true))
 
-	var collision_surface := _build_collision_surface(
-		focus_up,
-		tangent_right,
-		tangent_back,
-	)
-	var collision_faces := collision_surface.get(
-		"faces", PackedVector3Array()
-	) as PackedVector3Array
-	var collision_triangles := collision_faces.size() / 3
-	if (
-		collision_faces.is_empty()
-		or collision_triangles > MAX_COLLISION_TRIANGLES
-	):
+	var collision_report: Dictionary = {}
+	var collision_shape: ConcavePolygonShape3D
+	var commit_fixed_collision_cache := false
+	if fixed_landing_collision \
+			and _fixed_collision_shape != null \
+			and not _fixed_collision_report.is_empty():
+		collision_shape = _fixed_collision_shape
+		collision_report = _fixed_collision_report.duplicate(true)
+	else:
+		var collision_surface := _build_collision_surface(
+			collision_focus_up,
+			collision_tangent_right,
+			collision_tangent_back,
+		)
+		var collision_faces := collision_surface.get(
+			"faces", PackedVector3Array()
+		) as PackedVector3Array
+		var built_collision_triangles := collision_faces.size() / 3
+		if (
+			collision_faces.is_empty()
+			or built_collision_triangles > MAX_COLLISION_TRIANGLES
+		):
+			staged_root.free()
+			_mutation_active = false
+			return _result(false, &"collision_build_failed")
+		collision_shape = ConcavePolygonShape3D.new()
+		collision_shape.set_faces(collision_faces)
+		collision_shape.backface_collision = false
+		collision_report = {
+			"vertex_count": int(collision_surface.get("vertex_count", 0)),
+			"triangle_count": built_collision_triangles,
+			"radial_segments": int(collision_surface.get("radial_segments", 0)),
+			"angular_segments": int(collision_surface.get("angular_segments", 0)),
+			"focus_radial_up": collision_focus_up,
+			"topology": (
+				&"square_clearance_to_circular_profile_boundary"
+				if fixed_landing_collision
+				else &"disc_to_circular_profile_boundary"
+			),
+		}.duplicate(true)
+		commit_fixed_collision_cache = fixed_landing_collision
+	var collision_triangles := int(collision_report.get("triangle_count", 0))
+	if collision_shape == null or collision_triangles <= 0 \
+			or collision_triangles > MAX_COLLISION_TRIANGLES:
 		staged_root.free()
 		_mutation_active = false
 		return _result(false, &"collision_build_failed")
-	var collision_shape := ConcavePolygonShape3D.new()
-	collision_shape.set_faces(collision_faces)
-	collision_shape.backface_collision = false
 	var collision := CollisionShape3D.new()
 	collision.name = "TerrainCollisionSurface"
 	collision.shape = collision_shape
@@ -339,6 +377,9 @@ func rebuild(
 		remove_child(previous)
 		previous.free()
 	add_child(staged_root)
+	if commit_fixed_collision_cache:
+		_fixed_collision_shape = collision_shape
+		_fixed_collision_report = collision_report.duplicate(true)
 	_revision += 1
 	_last_focus_body_local_m = focus_body_local_m
 	_last_snapshot = {
@@ -358,15 +399,19 @@ func rebuild(
 		"render_vertex_count": total_vertices,
 		"render_triangle_count": total_triangles,
 		"collision_triangle_count": collision_triangles,
-		"collision_vertex_count": int(collision_surface.get("vertex_count", 0)),
+		"collision_vertex_count": int(collision_report.get("vertex_count", 0)),
 		"collision_ring_count": collision_body.get_child_count(),
+		"collision_focus_radial_up": collision_report.get(
+			"focus_radial_up", Vector3.ZERO
+		),
+		"collision_reused": fixed_landing_collision and not commit_fixed_collision_cache,
 		"minimum_generated_height_m": minimum_generated_height,
 		"maximum_generated_height_m": maximum_generated_height,
 		"flatten_radius_m": _flatten_radius_m,
 		"visual_clearance_radius_m": _visual_clearance_radius_m,
 		"collision_clearance_radius_m": _collision_clearance_radius_m,
 		"collision_maximum_distance_m": _collision_maximum_distance_m,
-		"collision_topology": &"square_clearance_to_circular_profile_boundary",
+		"collision_topology": collision_report.get("topology", &""),
 		"material_tint": _material_tint,
 		"authority": _authority_snapshot(),
 	}.duplicate(true)
@@ -411,6 +456,14 @@ func get_revision() -> int:
 	return _revision
 
 
+func get_focus_radial_up() -> Vector3:
+	return (
+		_last_focus_body_local_m.normalized()
+		if not _last_focus_body_local_m.is_zero_approx()
+		else Vector3.ZERO
+	)
+
+
 func get_snapshot() -> Dictionary:
 	if _last_snapshot.is_empty():
 		return {
@@ -451,6 +504,9 @@ func audit() -> Dictionary:
 		or _ring_distances_m.is_empty()
 		or _resolution < MIN_RESOLUTION_VERTICES_PER_EDGE
 		or _collision_maximum_distance_m <= _collision_clearance_radius_m
+		or (_revision > 0 and _collision_clearance_radius_m > 0.0 and (
+			_fixed_collision_shape == null or _fixed_collision_report.is_empty()
+		))
 		or _shared_material == null
 		or not _shared_material.albedo_color.is_equal_approx(_material_tint)
 	):
@@ -542,11 +598,16 @@ func _build_ring(
 			var i11 := i01 + 1
 			var center_x := -extent_m + (float(x_index) + 0.5) * step_m
 			var center_z := -extent_m + (float(z_index) + 0.5) * step_m
-			var inside_visual_clearance := (
-				ring_index == 0
-				and Vector2(center_x, center_z).length()
-					< _visual_clearance_radius_m
-			)
+			var inside_visual_clearance := false
+			if ring_index == 0 and _visual_clearance_radius_m > 0.0:
+				var center_direction := (
+					focus_up * _body_radius_m
+					+ tangent_right * center_x
+					+ tangent_back * center_z
+				).normalized()
+				inside_visual_clearance = _surface_distance_m(
+					center_direction, _flatten_direction
+				) < _visual_clearance_radius_m
 			if not inside_visual_clearance:
 				_append_clockwise_triangle(indices, vertices, i00, i10, i11)
 				_append_clockwise_triangle(indices, vertices, i00, i11, i01)
@@ -767,6 +828,11 @@ func _sample_height_direction(direction: Vector3) -> float:
 		)
 		height_m *= flatten_blend
 	return clampf(height_m, _minimum_elevation_m, _maximum_elevation_m)
+
+
+func _surface_distance_m(a: Vector3, b: Vector3) -> float:
+	var chord := clampf(a.distance_to(b), 0.0, 2.0)
+	return 2.0 * asin(chord * 0.5) * _body_radius_m
 
 
 func _terrain_color(height_m: float, direction: Vector3) -> Color:

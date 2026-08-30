@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 70
+const EXPECTED_ASSERTIONS := 73
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -38,6 +38,7 @@ func _run() -> void:
 	await _test_embodied_surface_traversal(scene)
 	await _test_embodied_crown_jump_collision(scene)
 	_test_lod_seam(scene)
+	await _test_terrain_focus_recenter(scene)
 	await _test_detachment_and_structured_reds(packed, scene)
 	scene.queue_free()
 	await process_frame
@@ -780,6 +781,66 @@ func _test_lod_seam(scene: EmberMoonAuthoredScene) -> void:
 	var far_edge := scene.evaluate_terrain_lod_hint(18_432.0, false)
 	var beyond := scene.evaluate_terrain_lod_hint(18_432.001, false)
 	_check(far_edge.render_ring_index == 4 and beyond.accepted and not beyond.render_participates, "outermost ring is inclusive and farther distances do not participate")
+
+
+func _test_terrain_focus_recenter(scene: EmberMoonAuthoredScene) -> void:
+	var before := scene.get_terrain_clipmap_snapshot()
+	var generation := int(before.get("generation", 0))
+	var revision := int(before.get("revision", 0))
+	var collision_shape_id := (
+		(scene.get_node(
+			^"TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()
+	)
+	var stale := scene.update_terrain_focus(
+		Vector3(600.0, 120_000.0, 0.0), generation + 1
+	)
+	_check(
+		not bool(stale.get("accepted", true))
+			and stale.get("reason") == &"stale_terrain_generation"
+			and int(scene.get_terrain_clipmap_snapshot().get("revision", -1)) == revision,
+		"a stale terrain-focus caller cannot replace the committed terrain",
+	)
+	var retained := scene.update_terrain_focus(
+		Vector3(100.0, 120_000.0, 0.0), generation
+	)
+	_check(
+		bool(retained.get("accepted", false))
+			and not bool(retained.get("rebuilt", true))
+			and retained.get("reason") == &"terrain_focus_retained"
+			and int(scene.get_terrain_clipmap_snapshot().get("revision", -1)) == revision,
+		"sub-threshold actor movement retains the existing terrain meshes",
+	)
+	var far_focus := Vector3(600.0, 120_000.0, 0.0)
+	var recentered := scene.update_terrain_focus(far_focus, generation)
+	await physics_frame
+	var after := scene.get_terrain_clipmap_snapshot()
+	var current_collision_shape_id := (
+		(scene.get_node(
+			^"TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface"
+		) as CollisionShape3D).shape.get_instance_id()
+	)
+	var pad_body := scene.get_node(^"LandingRegion/WalkablePatch") as StaticBody3D
+	var pad_hit := _ray_hit(
+		scene.get_world_3d().direct_space_state,
+		Vector3(0.0, 120_002.0, 0.0),
+	)
+	_check(
+		bool(recentered.get("accepted", false))
+			and bool(recentered.get("rebuilt", false))
+			and recentered.get("reason") == &"terrain_focus_recentered"
+			and int(after.get("revision", 0)) == revision + 1
+			and (after.get("focus_radial_up", Vector3.ZERO) as Vector3)
+				.is_equal_approx(far_focus.normalized())
+			and (after.get("collision_focus_radial_up", Vector3.ZERO) as Vector3)
+				.is_equal_approx(Vector3.UP)
+			and bool(after.get("collision_reused", false))
+			and current_collision_shape_id == collision_shape_id
+			and int(after.get("render_triangle_count", 0)) == 40_960
+			and not pad_hit.is_empty() and pad_hit.collider == pad_body
+			and bool(scene.audit().get("valid", false)),
+		"distant actor focus recentres all visible rings while cached landing collision and pad support remain fixed",
+	)
 
 
 func _test_detachment_and_structured_reds(packed: PackedScene, scene: EmberMoonAuthoredScene) -> void:

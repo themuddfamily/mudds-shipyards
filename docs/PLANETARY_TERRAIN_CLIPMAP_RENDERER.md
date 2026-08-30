@@ -28,6 +28,12 @@ Its inner loop follows the authored patch's exact square boundary, then expands
 to the profile's circular collision limit while sampling the same spherical
 height field as the renderer. This keeps the centre support single-owned and
 provides physical relief beyond the old 256 m finest-ring footprint.
+When an authored collision clearance exists, that surface remains centred on
+the authored flatten/landing direction and its immutable concave shape is
+reused across later visual-focus rebuilds. The visual clearance is also tested
+against that fixed body direction rather than drifting with the current focus.
+This lets a production caller move the visible rings without moving the pad
+hole, duplicating landing support, or rebuilding 32,768 collision triangles.
 
 The component hard-caps ring count, grid resolution, vertices and triangles
 before mutation. Rebuild is staged and replaces the prior committed root only

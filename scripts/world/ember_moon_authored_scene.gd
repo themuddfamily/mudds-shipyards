@@ -2,9 +2,10 @@ class_name EmberMoonAuthoredScene
 extends Node3D
 
 ## Body-centred production content for the bounded Ember Moon vertical slice.
-## It loads copied definition data, builds one fixed landing-focus terrain
-## clipmap, validates its authored and generated nodes, and exposes terrain-LOD
-## hints. The world coordinator still owns placement, streaming and retirement.
+## It loads copied definition data, builds one landing-initialized terrain
+## clipmap, accepts thresholded caller focus updates, validates its authored and
+## generated nodes, and exposes terrain-LOD hints. The world coordinator still
+## owns placement, streaming and retirement.
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"ember-moon-authored-scene"
@@ -38,6 +39,7 @@ const TERRAIN_COLLISION_CLEARANCE_RADIUS_M := WALKABLE_PATCH_SIZE_M.x * 0.5
 const TERRAIN_MATERIAL_TINT := Color("bd704f")
 const TERRAIN_RING_COUNT := 5
 const TERRAIN_RENDER_VERTEX_COUNT := 21_125
+const TERRAIN_FOCUS_RECENTER_DISTANCE_M := 192.0
 const PAD_VISUAL_SIZE_M := Vector3(28.0, 0.04, 32.0)
 const PAD_VISUAL_POSITION_REGION_LOCAL_M := Vector3(0.0, 0.02, 0.0)
 const SURFACE_ROUTE_ID: StringName = &"ember_caldera_pad_to_staging"
@@ -383,6 +385,77 @@ func get_terrain_clipmap_snapshot() -> Dictionary:
 	).duplicate(true)
 
 
+func get_terrain_clipmap_generation() -> int:
+	return _terrain_clipmap.get_generation() if _terrain_clipmap != null else 0
+
+
+## Caller-driven production focus update. The caller supplies an authenticated
+## body-local actor position and the renderer generation it observed. Small
+## movements retain the committed meshes; crossing the bounded threshold
+## atomically recentres only the visible clipmap. The renderer keeps the
+## authored landing collision fixed at the caldera seam.
+func update_terrain_focus(
+	focus_body_local_m: Vector3,
+	expected_terrain_generation: int,
+) -> Dictionary:
+	if not _initialized or _terrain_clipmap == null:
+		return {
+			"accepted": false,
+			"reason": &"terrain_clipmap_unavailable",
+		}.duplicate(true)
+	if expected_terrain_generation != _terrain_clipmap.get_generation():
+		return {
+			"accepted": false,
+			"reason": &"stale_terrain_generation",
+		}.duplicate(true)
+	if not focus_body_local_m.is_finite() or focus_body_local_m.is_zero_approx():
+		return {
+			"accepted": false,
+			"reason": &"invalid_terrain_focus",
+		}.duplicate(true)
+	var previous_direction := _terrain_clipmap.get_focus_radial_up()
+	if previous_direction.is_zero_approx():
+		return {
+			"accepted": false,
+			"reason": &"terrain_focus_unavailable",
+		}.duplicate(true)
+	var focus_direction := focus_body_local_m.normalized()
+	var focus_distance_m := _surface_distance_m(
+		previous_direction,
+		focus_direction,
+	)
+	if focus_distance_m < TERRAIN_FOCUS_RECENTER_DISTANCE_M:
+		return {
+			"accepted": true,
+			"reason": &"terrain_focus_retained",
+			"rebuilt": false,
+			"generation": _terrain_clipmap.get_generation(),
+			"revision": _terrain_clipmap.get_revision(),
+			"distance_from_committed_focus_m": focus_distance_m,
+			"recenter_distance_m": TERRAIN_FOCUS_RECENTER_DISTANCE_M,
+		}.duplicate(true)
+	var rebuilt := _terrain_clipmap.rebuild(
+		focus_direction * BODY_RADIUS_M,
+		expected_terrain_generation,
+	)
+	if not bool(rebuilt.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": rebuilt.get("reason", &"terrain_rebuild_rejected"),
+			"rebuilt": false,
+		}.duplicate(true)
+	return {
+		"accepted": true,
+		"reason": &"terrain_focus_recentered",
+		"rebuilt": true,
+		"generation": _terrain_clipmap.get_generation(),
+		"revision": _terrain_clipmap.get_revision(),
+		"distance_from_previous_focus_m": focus_distance_m,
+		"recenter_distance_m": TERRAIN_FOCUS_RECENTER_DISTANCE_M,
+		"focus_body_local_m": focus_direction * BODY_RADIUS_M,
+	}.duplicate(true)
+
+
 func get_snapshot() -> Dictionary:
 	var lod_snapshot := _terrain_lod_policy.get_snapshot() \
 		if _terrain_lod_policy != null else {}
@@ -479,6 +552,11 @@ func get_snapshot() -> Dictionary:
 		},
 		"terrain_lod_policy": lod_snapshot,
 		"terrain_clipmap": get_terrain_clipmap_snapshot(),
+		"terrain_focus": {
+			"caller_driven": true,
+			"recenter_distance_m": TERRAIN_FOCUS_RECENTER_DISTANCE_M,
+			"collision_focus": &"authored_landing_region",
+		},
 		"evidence": _evidence_report(),
 		"owned_capabilities": _owned_capabilities(),
 		"integration_authority": _integration_authority(),
@@ -779,6 +857,9 @@ func _validate_terrain_clipmap(errors: Array[Dictionary]) -> void:
 		or int(snapshot.get("ring_count", 0)) != TERRAIN_RING_COUNT
 		or int(snapshot.get("render_vertex_count", 0)) != TERRAIN_RENDER_VERTEX_COUNT
 		or int(snapshot.get("collision_ring_count", 0)) != 1
+		or not (snapshot.get(
+			"collision_focus_radial_up", Vector3.ZERO
+		) as Vector3).is_equal_approx(Vector3.UP)
 		or not is_equal_approx(
 			float(snapshot.get("flatten_radius_m", -1.0)),
 			TERRAIN_FLATTEN_RADIUS_M,
@@ -2234,6 +2315,11 @@ func _performance_budget() -> Dictionary:
 		"static_bodies": EXPECTED_STATIC_BODY_COUNT,
 		"collision_shapes": EXPECTED_COLLISION_SHAPE_COUNT,
 	}.duplicate(true)
+
+
+func _surface_distance_m(a: Vector3, b: Vector3) -> float:
+	var chord := clampf(a.distance_to(b), 0.0, 2.0)
+	return 2.0 * asin(chord * 0.5) * BODY_RADIUS_M
 
 
 func _expected_landing_region_transform() -> Transform3D:

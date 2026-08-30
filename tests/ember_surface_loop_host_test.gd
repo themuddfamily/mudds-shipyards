@@ -588,6 +588,17 @@ func _test_normal_public_actor_loop() -> void:
 	if not reached_landed:
 		await _cleanup(fixture)
 		return
+	var terrain_focus := (
+		fixture.scene as EmberMoonAuthoredScene
+	).get_terrain_clipmap_snapshot()
+	_check(
+		int(terrain_focus.get("revision", 0)) > 1
+			and (terrain_focus.get(
+				"collision_focus_radial_up", Vector3.ZERO
+			) as Vector3).is_equal_approx(Vector3.UP)
+			and bool(terrain_focus.get("collision_reused", false)),
+		"the authenticated Host actor sample recentres visible terrain while reusing fixed landing collision",
+	)
 	var landed_report := ship.get_landing_contract_report()
 	var gravity_snapshot := host.get_snapshot().gravity as Dictionary
 	var ship_gravity_report := gravity_snapshot.ship_report as Dictionary
