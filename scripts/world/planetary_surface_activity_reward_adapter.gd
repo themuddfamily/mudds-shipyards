@@ -122,6 +122,34 @@ func start_activity_sequence(activity_ids: Array[StringName]) -> Dictionary:
 	return started
 
 
+## Restores the currently active member of a sequence on the live Host
+## attachment. The supplied state is adopted by ActivityDirector; this adapter
+## only rejoins the ordinary runtime/sequence identities.
+func resume_active_activity_sequence(
+		activity_ids: Array[StringName], route_state: Variant
+	) -> Dictionary:
+	if activity_ids.size() != 1 or not route_state is Dictionary:
+		return _reject(&"activity_resume_invalid")
+	if _state != State.READY:
+		return _reject(&"adapter_not_ready")
+	var generations := _host_generations()
+	_sequence_ids = activity_ids.duplicate()
+	_sequence_index = 0
+	var resumed := _runtime.resume_active_activity(
+		_sequence_ids[0], route_state, generations.run, generations.attachment
+	) as Dictionary
+	if not bool(resumed.get("accepted", false)):
+		_sequence_ids = []
+		_sequence_index = -1
+		return _with_adapter(
+			resumed,
+			false,
+			resumed.get("reason", &"activity_resume_rejected") as StringName
+		)
+	_state = State.ACTIVE
+	return _with_adapter(resumed, true, &"activity_sequence_resumed")
+
+
 ## Starts an activity sequence alongside the authored surface route. Route
 ## evidence is consumed by the navigation runtime; this adapter only admits
 ## the next activity after the current reward is already committed.

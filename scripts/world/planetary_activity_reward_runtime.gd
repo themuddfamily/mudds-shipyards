@@ -139,6 +139,60 @@ func start_activity(
 	return _with_runtime(result, true, &"activity_started")
 
 
+## Reopens one already-authenticated active checkpoint route during startup.
+## ActivityDirector remains the sole route authority and adopts its own
+## persistence shape without replaying historical checkpoint/completion
+## signals. This path cannot restore completed routes, so it cannot synthesize
+## a pending reward.
+func resume_active_activity(
+		activity_id: StringName,
+		route_state: Variant,
+		expected_run_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _state != State.READY:
+		return _reject(&"activity_not_available")
+	if not _bound_once or _director == null or not is_instance_valid(_director) \
+			or not _director.is_inside_tree():
+		return _reject(&"activity_director_unavailable")
+	if not _valid_generation(expected_run_generation) \
+			or not _valid_generation(expected_attachment_generation):
+		return _reject(&"invalid_generation")
+	if _active_activity_id != &"":
+		return _reject(&"activity_already_active")
+	if _manifest.activity_ids.find(String(activity_id)) < 0:
+		return _reject(&"unknown_planetary_activity")
+	if not route_state is Dictionary \
+			or int((route_state as Dictionary).get("state", -1)) \
+			!= CheckpointRouteActivity.State.ACTIVE:
+		return _reject(&"active_route_state_required")
+	var validated := _director.validate_activity_persistence_state(
+		activity_id, route_state
+	) as Dictionary
+	if not bool(validated.get("accepted", false)):
+		return _reject(
+			validated.get("reason", &"activity_restore_rejected") as StringName
+		)
+	var restored := _director.restore_activity_persistence_state(
+		activity_id, route_state
+	) as Dictionary
+	if not bool(restored.get("accepted", false)):
+		return _reject(
+			restored.get("reason", &"activity_restore_rejected") as StringName
+		)
+	var snapshot := _director.get_activity_snapshot(activity_id)
+	if int(snapshot.get("state", -1)) != CheckpointRouteActivity.State.ACTIVE \
+			or int(snapshot.get("generation", 0)) < 1:
+		return _reject(&"activity_restore_identity_mismatch")
+	_run_generation = expected_run_generation
+	_attachment_generation = expected_attachment_generation
+	_failure_reason = &""
+	_state = State.ACTIVE
+	_active_activity_id = activity_id
+	_activity_generation = int(snapshot.generation)
+	return _with_runtime(snapshot, true, &"activity_resumed")
+
+
 func submit_position(
 		position: Vector3,
 		expected_activity_generation: int,

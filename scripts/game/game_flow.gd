@@ -8278,6 +8278,17 @@ func _restore_ember_surface_persistence_for_admission() -> Dictionary:
 		var interrupted := restore_interrupted_ember_journey()
 		interrupted["persistence_kind"] = &"interrupted_journey"
 		interrupted["terminal_probe"] = terminal.duplicate(true)
+		if bool(interrupted.get("accepted", false)):
+			var staged := {"accepted": false, "reason": &"relay_survey_resume_unavailable"}
+			if _ember_relay_survey_persistence_binding != null \
+					and _ember_relay_survey_persistence_binding.has_method(
+						&"stage_interrupted_relay_survey_resume"
+					):
+				staged = _ember_relay_survey_persistence_binding.call(
+					&"stage_interrupted_relay_survey_resume",
+					interrupted.get("route_identity", {})
+				) as Dictionary
+			interrupted["checkpoint_resume"] = staged.duplicate(true)
 		return interrupted.duplicate(true)
 	return terminal.duplicate(true)
 
