@@ -86,6 +86,12 @@ func resume_mandatory_route(adapter: Object, route_identity: Variant) -> Diction
 	if bool(resumed.get("accepted", false)):
 		_reconcile_optional_checkpoint_generation(adapter)
 		_apply_authoritative_route_result(resumed)
+		# Current main can retain a harmless bunker observation made before
+		# survey admission. Use its existing promotion hook after a restored
+		# start as well, without making that newer presentation feature a
+		# dependency of this persistence stack.
+		if has_method(&"_admit_deferred_bunker_checkpoint"):
+			call(&"_admit_deferred_bunker_checkpoint", adapter)
 	return resumed
 
 

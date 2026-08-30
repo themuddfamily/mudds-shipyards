@@ -145,9 +145,104 @@ func _run() -> void:
 		bool(saved.accepted) and saved.binding_reason == &"active_journey_saved",
 		"the normal save boundary persists the interrupted checkpoint identity",
 	)
+	var failed_filesystem := MemoryFilesystem.new()
+	failed_filesystem.files = filesystem.files.duplicate(true)
+	var stale_filesystem := MemoryFilesystem.new()
+	stale_filesystem.files = filesystem.files.duplicate(true)
 	first_flow.free()
 	first_binding.queue_free()
 	first_director.queue_free()
+	await process_frame
+
+	var failed_store = StoreScript.new(STORE_PATH, failed_filesystem)
+	var failed_host := FakeHost.new()
+	failed_host.attachment_generation = 7
+	var failed_director := DirectorScript.new()
+	root.add_child(failed_director)
+	var failed_binding := BindingScript.new()
+	root.add_child(failed_binding)
+	_check(
+		bool(failed_binding.configure(
+			failed_host, failed_director, Callable(self, "_reward_sink"), 31
+		).accepted),
+		"failed-start fixture creates a fresh production composition",
+	)
+	var failed_flow := LifecycleFlow.new()
+	failed_flow.restore_frame = _frame()
+	_check(
+		failed_flow.configure_runtime_settings_persistence(failed_store)
+			and bool(failed_flow.bind_ember_relay_survey_persistence(
+				failed_binding
+			).accepted)
+			and bool(failed_flow._restore_ember_surface_persistence_for_admission().accepted),
+		"failed-start fixture passively stages the same saved receipt",
+	)
+	var conflicting_start := failed_director.start_activity(&"ember_beacon_survey")
+	var rejected_resume := failed_binding.start_relay_survey()
+	_check(
+		bool(conflicting_start.accepted)
+			and not bool(rejected_resume.accepted)
+			and failed_store.get_snapshot().has("ember_relay_survey_completion")
+			and int(failed_store.get_generation()) == 1
+			and _reward_calls == 0,
+		"a rejected ActivityDirector adoption leaves the exact receipt retryable",
+	)
+	failed_flow.free()
+	failed_binding.queue_free()
+	failed_director.queue_free()
+	await process_frame
+
+	var stale_store = StoreScript.new(STORE_PATH, stale_filesystem)
+	var stale_host := FakeHost.new()
+	stale_host.attachment_generation = 7
+	var stale_director := DirectorScript.new()
+	root.add_child(stale_director)
+	var stale_binding := BindingScript.new()
+	root.add_child(stale_binding)
+	_check(
+		bool(stale_binding.configure(
+			stale_host, stale_director, Callable(self, "_reward_sink"), 31
+		).accepted),
+		"stale-retirement fixture creates a fresh production composition",
+	)
+	var stale_flow := LifecycleFlow.new()
+	stale_flow.restore_frame = _frame()
+	_check(
+		stale_flow.configure_runtime_settings_persistence(stale_store)
+			and bool(stale_flow.bind_ember_relay_survey_persistence(
+				stale_binding
+			).accepted)
+			and bool(stale_flow._restore_ember_surface_persistence_for_admission().accepted),
+		"stale-retirement fixture stages the observed store generation",
+	)
+	var concurrent_payload := stale_store.get_snapshot()
+	concurrent_payload["foreign"] = {"retained": true}
+	_check(
+		bool(stale_store.commit(
+			concurrent_payload, stale_store.get_generation(), "concurrent-write"
+		).accepted),
+		"an unrelated atomic write advances the store before retirement",
+	)
+	var stale_resume := stale_binding.start_relay_survey()
+	var stale_runtime := (
+		stale_binding.get_snapshot().adapter.activity_reward as Dictionary
+	)
+	_check(
+		not bool(stale_resume.accepted)
+			and stale_resume.reason == &"relay_survey_resume_retirement_failed"
+			and (stale_resume.persistence_retirement as Dictionary).reason \
+				== &"survey_active_journey_store_generation_stale"
+			and stale_runtime.state == &"failed"
+			and stale_store.get_snapshot().has("ember_relay_survey_completion")
+			and stale_binding.submit_relay_survey_position(
+				Vector3(540.0, 120030.0, -210.0)
+			).reason == &"relay_survey_resume_relaunch_required"
+			and _reward_calls == 0,
+		"a stale retirement fails closed, retains the receipt, and blocks reward progress",
+	)
+	stale_flow.free()
+	stale_binding.queue_free()
+	stale_director.queue_free()
 	await process_frame
 
 	var second_store = StoreScript.new(STORE_PATH, filesystem)
@@ -180,8 +275,10 @@ func _run() -> void:
 			and bool(staged.get("accepted", false))
 			and staged.reason == &"relay_survey_resume_staged"
 			and second_director.get_activity_snapshot(&"ember_beacon_survey").is_empty()
+			and second_store.get_snapshot().has("ember_relay_survey_completion")
+			and int(second_store.get_generation()) == 1
 			and _reward_calls == 0,
-		"admission stages the receipt passively without touching activity or reward authority",
+		"admission stages passively and keeps the receipt until activity authority accepts",
 	)
 
 	var resumed := second_binding.start_relay_survey()
@@ -194,10 +291,15 @@ func _run() -> void:
 	_check(
 		bool(resumed.accepted)
 			and resumed.reason == &"activity_sequence_resumed"
+			and bool((resumed.get(
+				"persistence_retirement", {}
+			) as Dictionary).get("accepted", false))
 			and int(director_route.generation) == int(first_route.activity_generation)
 			and int(director_route.next_checkpoint_index) == 1
 			and int(resumed_route.next_checkpoint_index) == 1
-			and resumed_route.next_objective_id == &"ember_return_beacon",
+			and resumed_route.next_objective_id == &"ember_return_beacon"
+			and not second_store.get_snapshot().has("ember_relay_survey_completion")
+			and int(second_store.get_generation()) == 2,
 		"the normal survey-start seam restores the exact director checkpoint and objective",
 	)
 	_check(
