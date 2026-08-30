@@ -228,12 +228,16 @@ func get_craft_compatibility_contract(craft_id: StringName) -> Dictionary:
 			continue
 		var craft := _craft_by_id[craft_id] as Node3D
 		var berth_contract: Dictionary = _berths.call("get_landing_contract", spec.pad_id)
+		var landing_transform := berth_contract.get(
+			"landing_transform", Transform3D.IDENTITY
+		) as Transform3D
 		var collision: Dictionary = craft.call("get_landing_collision_report")
 		var seat := craft.call("get_pilot_seat_anchor") as Node3D
 		var boarding := craft.call("get_boarding_marker") as Node3D
 		var valid := bool(berth_contract.get("accepted", false)) \
 			and bool(collision.get("valid", false)) \
 			and is_instance_valid(seat) and is_instance_valid(boarding) \
+			and landing_transform.is_finite() \
 			and seat.global_position.is_finite() and boarding.global_position.is_finite() \
 			and float(berth_contract.get("approach_radius", 0.0)) >= 12.0
 		return {
@@ -242,6 +246,7 @@ func get_craft_compatibility_contract(craft_id: StringName) -> Dictionary:
 			"craft_id": craft_id,
 			"pad_id": spec.pad_id,
 			"landing_anchor": berth_contract.get("landing_anchor", Vector3.INF),
+			"landing_transform": landing_transform,
 			"approach_anchor": berth_contract.get("approach_anchor", Vector3.INF),
 			"approach_radius": berth_contract.get("approach_radius", 0.0),
 			"seat_anchor": seat.global_position if is_instance_valid(seat) else Vector3.INF,
@@ -262,7 +267,7 @@ func reset_craft_for_reuse(craft_id: StringName) -> Dictionary:
 	if not bool(contract.get("valid", false)):
 		return {"accepted": false, "reason": &"compatibility_contract_invalid"}
 	var craft := _craft_by_id[craft_id] as Node3D
-	var spawn := Transform3D(craft.global_transform.basis, contract.landing_anchor)
+	var spawn := contract.get("landing_transform", Transform3D.IDENTITY) as Transform3D
 	var result: Dictionary = craft.call("reset_for_reuse", spawn)
 	result["craft_id"] = craft_id
 	result["pad_id"] = contract.pad_id

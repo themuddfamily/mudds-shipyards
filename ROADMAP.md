@@ -1377,6 +1377,19 @@ reset/re-entry retain the captured geometry. Hero reset preflight captures and
 revalidates generic reset availability/generation, so exhausted or stale generic
 state rejects before berth, hull, transform, presentation, or lifecycle mutation.
 
+The nine-craft recovery audit found Dock 04-06 falling through the legacy
+`ShipBerth` regeneration branch. A destroyed Cinder craft therefore reset at
+the station's generic ship spawn instead of its occupied expansion pad, and a
+craft lost while rolled or pitched retained that flight basis at recovery. The
+expansion berth contract now publishes its complete authored landing transform;
+attach/reuse restores that transform exactly, and `GameFlow` routes a recognized
+Cinder generation through the existing expansion binding while revalidating the
+same craft, pad and retained attachment. The focused test destroys a deliberately
+tilted live Cinder interceptor and proves same-instance recovery at Dock 06; all
+three binding lifecycle paths, physical boarding/switching and the legacy Arrow
+destruction/re-entry path remain green. Native Windows repetition remains
+`NOT_RUN`.
+
 - [ ] Perform repeated end-to-end playthroughs of walking, boarding, automatic propulsion, every flyable craft, combat, destruction/recovery, landing, activities, settings, save/re-entry, and long-session teardown. Record reproducible defects with severity, exact location/state, source commit, and graphical evidence where the defect is visual.
 - [ ] Add focused regressions for every fixed P0/P1 defect and representative P2 defects. Run the full matrix only on stable merge candidates, then verify the exported package separately on native Windows hardware.
 - [ ] Audit world geometry from the embodied player and ship perspectives for clipping, camera near-plane intrusions, z-fighting, invisible blockers, collision-free solid-looking dressing, inaccessible routes, flashing materials/lights, and lifecycle-dependent phantom geometry.

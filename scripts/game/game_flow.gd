@@ -9710,7 +9710,10 @@ func _register_flyable_ships() -> void:
 			push_error("Flyable ship %s could not occupy home berth %s" % [candidate.name, berth_id])
 			continue
 		var berth_transform := (
-			Transform3D(candidate.global_basis, production_contract.get("landing_anchor", candidate.global_position))
+			production_contract.get(
+				"landing_transform",
+				Transform3D(candidate.global_basis, candidate.global_position)
+			) as Transform3D
 			if is_production_candidate
 			else world.call("get_berth_transform", berth_id) as Transform3D
 		)
@@ -9849,16 +9852,27 @@ func _get_expansion_flyable_contract(candidate: HeroShip, binding: Node) -> Dict
 		return {}
 	if not binding.has_method(&"get_fleet_snapshot") or not binding.has_method(&"get_craft_compatibility_contract"):
 		return {}
-	var snapshot := binding.call(&"get_fleet_snapshot") as Dictionary
-	for row_variant: Variant in snapshot.get("craft", []) as Array:
-		var row := row_variant as Dictionary
+	var row := _get_expansion_flyable_snapshot_row(candidate, binding)
+	if not row.is_empty():
 		var craft_id := StringName(row.get("craft_id", &""))
-		if binding.get_node_or_null(NodePath(String(craft_id))) != candidate:
-			continue
 		var contract := binding.call(&"get_craft_compatibility_contract", craft_id) as Dictionary
 		if bool(contract.get("accepted", false)) and bool(contract.get("valid", false)):
 			contract["attached"] = bool(row.get("attached", false))
 			return contract if bool(contract.get("attached", false)) else {}
+	return {}
+
+
+func _get_expansion_flyable_snapshot_row(candidate: HeroShip, binding: Node) -> Dictionary:
+	if not is_instance_valid(candidate) or not is_instance_valid(binding) \
+			or not binding.has_method(&"get_fleet_snapshot"):
+		return {}
+	var snapshot := binding.call(&"get_fleet_snapshot") as Dictionary
+	for row_variant: Variant in snapshot.get("craft", []) as Array:
+		var row := row_variant as Dictionary
+		var craft_id := StringName(row.get("craft_id", &""))
+		if craft_id == candidate.get_ship_id() \
+				and int(row.get("instance_id", 0)) == candidate.get_instance_id():
+			return row.duplicate(true)
 	return {}
 
 
@@ -13618,6 +13632,20 @@ func _attempt_pending_regeneration(
 	entry: Dictionary,
 	pending_ship: HeroShip
 ) -> void:
+	var expansion_binding: Node = (
+		world.call(&"get_fleet_expansion_production_binding") as Node
+		if is_instance_valid(world) \
+			and world.has_method(&"get_fleet_expansion_production_binding")
+		else null
+	)
+	var expansion_row := _get_expansion_flyable_snapshot_row(
+		pending_ship, expansion_binding
+	)
+	if not expansion_row.is_empty():
+		_attempt_pending_expansion_regeneration(
+			instance_id, entry, pending_ship, expansion_binding, expansion_row
+		)
+		return
 	var berth_id := pending_ship.get_home_berth_id()
 	var berth_transform: Transform3D = world.call("get_ship_spawn") as Transform3D
 	var has_registered_berth: bool = (
@@ -13667,6 +13695,63 @@ func _attempt_pending_regeneration(
 			or (has_registered_berth \
 			and not _ship_owns_exact_occupied_berth(pending_ship, berth_id)):
 		_release_ship_berth(pending_ship)
+		return
+	hud.toast(
+		"Berth regeneration complete",
+		"%s is available again" % pending_ship.get_display_name(),
+		2.2
+	)
+	_regeneration_pending.erase(instance_id)
+
+
+func _attempt_pending_expansion_regeneration(
+		instance_id: int,
+		entry: Dictionary,
+		pending_ship: HeroShip,
+		binding: Node,
+		row: Dictionary
+	) -> void:
+	# Dock 04-06 are composition-owned occupied attachments, not legacy
+	# ShipBerth leases. Their binding already owns the exact authored home
+	# transform and the HeroShip reset receipt; routing them through the fallback
+	# station spawn would visibly regenerate a Cinder hull on the wrong deck.
+	if not is_instance_valid(binding) \
+			or not binding.has_method(&"get_craft_compatibility_contract") \
+			or not binding.has_method(&"reset_craft_for_reuse"):
+		_hold_pending_regeneration(instance_id, entry, pending_ship)
+		return
+	var craft_id := pending_ship.get_ship_id()
+	var contract := binding.call(
+		&"get_craft_compatibility_contract", craft_id
+	) as Dictionary
+	var landing_transform := contract.get(
+		"landing_transform", Transform3D.IDENTITY
+	) as Transform3D
+	if not bool(row.get("attached", false)) \
+			or not bool(contract.get("accepted", false)) \
+			or not bool(contract.get("valid", false)) \
+			or StringName(row.get("pad_id", &"")) \
+				!= StringName(contract.get("pad_id", &"")) \
+			or not landing_transform.is_finite() \
+			or not _pending_regeneration_is_current(instance_id, pending_ship):
+		_hold_pending_regeneration(instance_id, entry, pending_ship)
+		return
+	var committed := binding.call(
+		&"reset_craft_for_reuse", craft_id
+	) as Dictionary
+	if not bool(committed.get("accepted", false)):
+		_hold_pending_regeneration(instance_id, entry, pending_ship)
+		return
+	var current_row := _get_expansion_flyable_snapshot_row(
+		pending_ship, binding
+	)
+	if not _pending_regeneration_entry_matches(instance_id, pending_ship) \
+			or not bool(committed.get("attachment_preserved", false)) \
+			or current_row.is_empty() \
+			or not bool(current_row.get("attached", false)) \
+			or StringName(current_row.get("pad_id", &"")) \
+				!= StringName(contract.get("pad_id", &"")) \
+			or not pending_ship.global_transform.is_equal_approx(landing_transform):
 		return
 	hud.toast(
 		"Berth regeneration complete",

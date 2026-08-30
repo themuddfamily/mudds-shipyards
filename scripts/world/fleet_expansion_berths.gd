@@ -191,6 +191,7 @@ func get_landing_contract(pad_id: StringName) -> Dictionary:
 		"accepted": true,
 		"pad_id": pad_id,
 		"landing_anchor": pad.get("landing_anchor", Vector3.INF),
+		"landing_transform": pad.get("landing_transform", Transform3D.IDENTITY),
 		"approach_anchor": pad.get("approach_anchor", Vector3.INF),
 		"approach_radius": 12.0,
 		"ship_authority": false,
@@ -213,10 +214,25 @@ func attach_craft(pad_id: StringName, craft: Node3D, craft_id: StringName) -> Di
 		if (attachment.get("craft", WeakRef.new()) as WeakRef).get_ref() == craft:
 			return {"accepted": false, "reason": &"craft_already_attached"}
 	var anchor: Vector3 = _pads[pad_id].get("landing_anchor", Vector3.INF)
-	craft.global_transform = Transform3D(craft.global_transform.basis, anchor)
-	_attachments[pad_id] = {"craft": weakref(craft), "craft_id": craft_id, "landing_anchor": anchor}
+	var landing_transform := _pads[pad_id].get(
+		"landing_transform", Transform3D(Basis.IDENTITY, anchor)
+	) as Transform3D
+	craft.global_transform = landing_transform
+	_attachments[pad_id] = {
+		"craft": weakref(craft),
+		"craft_id": craft_id,
+		"landing_anchor": anchor,
+		"landing_transform": landing_transform,
+	}
 	_publish_pad_presentation(pad_id)
-	return {"accepted": true, "reason": &"attached", "pad_id": pad_id, "craft_id": craft_id, "landing_anchor": anchor}
+	return {
+		"accepted": true,
+		"reason": &"attached",
+		"pad_id": pad_id,
+		"craft_id": craft_id,
+		"landing_anchor": anchor,
+		"landing_transform": landing_transform,
+	}
 
 
 func detach_craft(pad_id: StringName, craft: Node3D) -> Dictionary:
@@ -248,6 +264,9 @@ func get_attachment_snapshot(pad_id: StringName) -> Dictionary:
 		"lease_state_id": &"occupied",
 		"craft_id": attachment.get("craft_id", &""),
 		"landing_anchor": attachment.get("landing_anchor", Vector3.INF),
+		"landing_transform": attachment.get(
+			"landing_transform", Transform3D.IDENTITY
+		),
 		"approach_anchor": (_pads.get(pad_id, {}) as Dictionary).get(
 			"approach_anchor", Vector3.INF
 		),
@@ -272,6 +291,13 @@ func _apply_detached_berth_snapshot(snapshot: Dictionary) -> Dictionary:
 		not _is_stable_craft_id(StringName(snapshot.get("craft_id", &"")))
 		or not (snapshot.get("landing_anchor", Vector3.INF) as Vector3).is_equal_approx(
 			(_pads[pad_id] as Dictionary).get("landing_anchor", Vector3.INF)
+		)
+		or not (
+			snapshot.get("landing_transform", Transform3D.IDENTITY) as Transform3D
+		).is_equal_approx(
+			(_pads[pad_id] as Dictionary).get(
+				"landing_transform", Transform3D.IDENTITY
+			)
 		)
 	):
 		return {"accepted": false, "reason": &"occupied_lease_snapshot_invalid"}
@@ -947,6 +973,7 @@ func _build_pad(pad_id: StringName, pad_position: Vector3, index: int) -> void:
 	_pads[pad_id] = {
 		"pad_id": pad_id,
 		"landing_anchor": landing.global_position,
+		"landing_transform": landing.global_transform,
 		"approach_anchor": route.global_position,
 		"position": pad_position,
 		"size": PAD_SIZE,

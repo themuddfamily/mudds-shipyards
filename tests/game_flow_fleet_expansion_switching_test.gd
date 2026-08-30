@@ -92,11 +92,61 @@ func _initialize() -> void:
 		_check(bool(detached.get("accepted", false)), "%s detaches for safe switching" % craft_id)
 		var reattached := binding.reattach_craft(craft_id)
 		_check(bool(reattached.get("accepted", false)), "%s reattaches after switching" % craft_id)
+	var expansion_ids := [
+		&"cinder_cargo_hauler",
+		&"cinder_long_range_bomber",
+		&"cinder_light_interceptor",
+	]
+	var registered_expansion := flow.get_flyable_ships().filter(func(candidate: HeroShip) -> bool:
+		return candidate.get_ship_id() in expansion_ids
+	)
 	_check(
-		(flow.get_flyable_ships().filter(func(candidate: HeroShip) -> bool:
-			return candidate.get_ship_id().begins_with("cinder-")
-	).size() == 3),
+		registered_expansion.size() == 3,
 		"all three production craft remain registered after reuse cycles"
+	)
+
+	# GameFlow owns destruction/regeneration for every registered flyable. The
+	# Cinder pads are not legacy ShipBerths, so this proves that recovery consumes
+	# the expansion binding's authored landing transform instead of falling back to
+	# the station's generic ship spawn.
+	var recovery_craft := flow.get_flyable_ships().filter(func(candidate: HeroShip) -> bool:
+		return candidate.get_ship_id() == &"cinder_light_interceptor"
+	).front() as HeroShip
+	var recovery_contract := binding.get_craft_compatibility_contract(recovery_craft.get_ship_id())
+	var recovery_transform := recovery_contract.get(
+		"landing_transform", Transform3D.IDENTITY
+	) as Transform3D
+	var recovery_instance_id := recovery_craft.get_instance_id()
+	# A real loss can occur at any flight attitude. Recovery must restore the
+	# authored pad basis as well as its position, not park a rolled hull through
+	# the deck.
+	recovery_craft.global_basis = Basis(Vector3.UP, 0.42) * Basis(Vector3.RIGHT, -0.18)
+	recovery_craft.apply_damage(
+		recovery_craft.maximum_hull + 1.0,
+		recovery_craft.global_position,
+		Vector3.UP
+	)
+	var pending := flow.get("_regeneration_pending") as Dictionary
+	_check(
+		recovery_craft.is_destroyed() and pending.has(recovery_instance_id),
+		"destroyed Cinder craft enters GameFlow's same-instance regeneration queue"
+	)
+	var pending_entry := pending.get(recovery_instance_id, {}) as Dictionary
+	pending_entry["ready_at_msec"] = 0
+	pending[recovery_instance_id] = pending_entry
+	flow.set("_regeneration_pending", pending)
+	flow.call("_update_pending_regeneration", 0.0)
+	var recovered_attachment := (
+		binding.get_fleet_snapshot().get("craft", []) as Array
+	).filter(func(row: Dictionary) -> bool:
+		return StringName(row.get("craft_id", &"")) == recovery_craft.get_ship_id()
+	).front() as Dictionary
+	_check(
+		not recovery_craft.is_destroyed()
+		and recovery_craft.get_instance_id() == recovery_instance_id
+		and recovery_craft.global_transform.is_equal_approx(recovery_transform)
+		and bool(recovered_attachment.get("attached", false)),
+		"GameFlow regenerates Cinder at its authored occupied expansion pad without replacing it"
 	)
 	flow.queue_free()
 	await process_frame
