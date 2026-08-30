@@ -8126,6 +8126,7 @@ func save_interrupted_ember_journey() -> Dictionary:
 	var frame: Object = evidence.get("frame") as Object
 	var host := evidence.get("host", {}) as Dictionary
 	var route := evidence.get("route", {}) as Dictionary
+	var optional_progress := evidence.get("optional_progress", {}) as Dictionary
 	var coordinate := evidence.get("coordinate", {}) as Dictionary
 	var contract := PlanetarySaveSessionContractType.new(&"ember_moon", frame)
 	var session_id := StringName("ember_expedition_%010d_%010d" % [
@@ -8169,11 +8170,17 @@ func save_interrupted_ember_journey() -> Dictionary:
 		return {"accepted": false, "reason": &"ember_active_journey_commit_id_exhausted"}
 	var commit_id := EMBER_INTERRUPTED_JOURNEY_COMMIT_PREFIX \
 		+ "%010d" % next_generation
+	var journey_snapshot: Dictionary = route.duplicate(true)
+	if not optional_progress.is_empty():
+		journey_snapshot = {
+			"route_identity": route,
+			"optional_progress": optional_progress,
+		}.duplicate(true)
 	_ember_interrupted_journey_save_status = (
 		_ember_relay_survey_persistence_binding.call(
 			&"save_interrupted_relay_survey_journey",
 			contract,
-			route,
+			journey_snapshot,
 			commit_id
 		) as Dictionary
 	).duplicate(true)
@@ -8278,9 +8285,21 @@ func _restore_ember_surface_persistence_for_admission() -> Dictionary:
 					and _ember_relay_survey_persistence_binding.has_method(
 						&"stage_interrupted_relay_survey_resume"
 					):
+				var recovery := interrupted.get("recovery", {}) as Dictionary
+				var optional_progress := recovery.get(
+					"optional_progress", {}
+				) as Dictionary
+				var journey_resume: Dictionary = (
+					interrupted.get("route_identity", {}) as Dictionary
+				).duplicate(true)
+				if not optional_progress.is_empty():
+					journey_resume = {
+						"route_identity": interrupted.get("route_identity", {}),
+						"optional_progress": optional_progress,
+					}.duplicate(true)
 				staged = _ember_relay_survey_persistence_binding.call(
 					&"stage_interrupted_relay_survey_resume",
-					interrupted.get("route_identity", {}),
+					journey_resume,
 					interrupted.get("retirement_request", {})
 				) as Dictionary
 			interrupted["checkpoint_resume"] = staged.duplicate(true)
@@ -8326,6 +8345,15 @@ func _collect_ember_interrupted_journey_save_evidence() -> Dictionary:
 			or StringName(runtime.get("activity_id", &"")) != &"ember_beacon_survey" \
 			or StringName(route.get("activity_id", &"")) != &"ember_beacon_survey":
 		return {"accepted": false, "reason": &"ember_active_journey_route_unavailable"}
+	if not ember_surface_loop_production_binding.has_method(
+			&"capture_interrupted_relay_survey_optional_progress"
+		):
+		return {"accepted": false, "reason": &"ember_optional_progress_unavailable"}
+	var optional_capture := ember_surface_loop_production_binding.call(
+		&"capture_interrupted_relay_survey_optional_progress"
+	) as Dictionary
+	if not bool(optional_capture.get("accepted", false)):
+		return optional_capture
 	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
 	if frame == null or not frame.is_configured() \
 			or frame.get_generation() \
@@ -8343,6 +8371,9 @@ func _collect_ember_interrupted_journey_save_evidence() -> Dictionary:
 		"frame": frame,
 		"host": host.duplicate(true),
 		"route": route.duplicate(true),
+		"optional_progress": (
+			optional_capture.get("optional_progress", {}) as Dictionary
+		).duplicate(true),
 		"coordinate": (
 			decoded.get("coordinate", {}) as Dictionary
 		).duplicate(true),

@@ -44,6 +44,7 @@ class MemoryFilesystem extends FilesystemScript:
 class FakeHost:
 	var generation := 31
 	var attachment_generation := 6
+	var player_instance_id := 101
 	var session := RefCounted.new()
 	func get_generation() -> int: return generation
 	func get_attachment_generation() -> int: return attachment_generation
@@ -57,7 +58,8 @@ class FakeHost:
 			"attachment_generation": attachment_generation,
 			"phase_id": &"on_foot",
 			"identities": {
-				"world_id": &"ember_moon", "player_instance_id": 101,
+				"world_id": &"ember_moon",
+				"player_instance_id": player_instance_id,
 			},
 		}
 
@@ -82,9 +84,12 @@ func _init() -> void:
 
 func _run() -> void:
 	var filesystem := MemoryFilesystem.new()
+	var actor := Node3D.new()
+	root.add_child(actor)
 	var first_store = StoreScript.new(STORE_PATH, filesystem)
 	_check(bool(first_store.load().accepted), "first normal user-data store loads")
 	var first_host := FakeHost.new()
+	first_host.player_instance_id = actor.get_instance_id()
 	var first_director := DirectorScript.new()
 	root.add_child(first_director)
 	var first_binding := BindingScript.new()
@@ -116,6 +121,30 @@ func _run() -> void:
 			and first_route.next_objective_id == &"ember_return_beacon",
 		"the live ActivityDirector advances to the return-beacon objective",
 	)
+	var bunker_interaction := first_binding.get_node(
+		^"OwnedSurveyBunkerInteraction"
+	)
+	var sample_rack_interaction := first_binding.get_node(
+		^"OwnedSampleRackInteraction"
+	)
+	var bunker_completed := bunker_interaction.call(
+		&"submit_interaction", actor, 31, 6
+	) as Dictionary
+	var sample_completed := sample_rack_interaction.call(
+		&"submit_interaction", actor, 31, 6,
+		int(first_route.get("activity_generation", -1))
+	) as Dictionary
+	var optional_capture := first_binding.call(
+		&"capture_interrupted_relay_survey_optional_progress"
+	) as Dictionary
+	_check(
+		bool(bunker_completed.get("accepted", false))
+			and bool(sample_completed.get("accepted", false))
+			and bool(optional_capture.get("accepted", false))
+			and int((first_binding.get_snapshot().relay_survey.optional_progress \
+				as Dictionary).completed_count) == 2,
+		"both optional survey interactions are consumed before the save",
+	)
 
 	var frame = _frame()
 	var tangent := Vector3(24.0, 8.0, -13.0)
@@ -135,6 +164,7 @@ func _run() -> void:
 			"phase_id": &"on_foot",
 		},
 		"route": first_route,
+		"optional_progress": optional_capture.get("optional_progress", {}),
 		"coordinate": {
 			"orbital_coordinate": orbital.coordinate,
 			"surface_tangent_position": tangent,
@@ -157,6 +187,7 @@ func _run() -> void:
 	var failed_store = StoreScript.new(STORE_PATH, failed_filesystem)
 	var failed_host := FakeHost.new()
 	failed_host.attachment_generation = 7
+	failed_host.player_instance_id = actor.get_instance_id()
 	var failed_director := DirectorScript.new()
 	root.add_child(failed_director)
 	var failed_binding := BindingScript.new()
@@ -195,6 +226,7 @@ func _run() -> void:
 	var stale_store = StoreScript.new(STORE_PATH, stale_filesystem)
 	var stale_host := FakeHost.new()
 	stale_host.attachment_generation = 7
+	stale_host.player_instance_id = actor.get_instance_id()
 	var stale_director := DirectorScript.new()
 	root.add_child(stale_director)
 	var stale_binding := BindingScript.new()
@@ -248,6 +280,7 @@ func _run() -> void:
 	var second_store = StoreScript.new(STORE_PATH, filesystem)
 	var second_host := FakeHost.new()
 	second_host.attachment_generation = 7
+	second_host.player_instance_id = actor.get_instance_id()
 	var second_director := DirectorScript.new()
 	root.add_child(second_director)
 	var second_binding := BindingScript.new()
@@ -288,6 +321,16 @@ func _run() -> void:
 	var resumed_route := (
 		second_binding.get_snapshot().relay_survey.mandatory_route as Dictionary
 	)
+	var resumed_snapshot := second_binding.get_snapshot()
+	var resumed_optional := (
+		resumed_snapshot.relay_survey.optional_checkpoints as Dictionary
+	)
+	var resumed_bunker := resumed_optional.get(
+		&"ember_bunker_gantry_log", {}
+	) as Dictionary
+	var resumed_rack := resumed_optional.get(
+		&"ember_sample_rack_analysis_log", {}
+	) as Dictionary
 	_check(
 		bool(resumed.accepted)
 			and resumed.reason == &"activity_sequence_resumed"
@@ -301,6 +344,29 @@ func _run() -> void:
 			and not second_store.get_snapshot().has("ember_relay_survey_completion")
 			and int(second_store.get_generation()) == 2,
 		"the normal survey-start seam restores the exact director checkpoint and objective",
+	)
+	var bunker_replay := second_binding.get_node(
+		^"OwnedSurveyBunkerInteraction"
+	).call(&"submit_interaction", actor, 31, 7) as Dictionary
+	var rack_replay := second_binding.get_node(
+		^"OwnedSampleRackInteraction"
+	).call(
+		&"submit_interaction", actor, 31, 7,
+		int(first_route.get("activity_generation", -1))
+	) as Dictionary
+	_check(
+		bool(resumed_bunker.get("completed", false))
+			and not bool(resumed_bunker.get("eligible", true))
+			and bool(resumed_rack.get("completed", false))
+			and not bool(resumed_rack.get("eligible", true))
+			and int((resumed_snapshot.relay_survey.optional_progress \
+				as Dictionary).completed_count) == 2
+			and not bool(bunker_replay.get("accepted", false))
+			and bunker_replay.reason == &"survey_interaction_already_completed"
+			and not bool(rack_replay.get("accepted", false))
+			and rack_replay.reason == &"sample_rack_already_completed"
+			and _reward_calls == 0,
+		"save-relaunch-resume retains both optional completions as ineligible without replay",
 	)
 	_check(
 		_reward_calls == 0
@@ -324,6 +390,7 @@ func _run() -> void:
 	await process_frame
 
 	var fresh_host := FakeHost.new()
+	fresh_host.player_instance_id = actor.get_instance_id()
 	var fresh_director := DirectorScript.new()
 	root.add_child(fresh_director)
 	var fresh_binding := BindingScript.new()
@@ -340,6 +407,7 @@ func _run() -> void:
 	)
 	fresh_binding.queue_free()
 	fresh_director.queue_free()
+	actor.queue_free()
 	await process_frame
 
 	for failure in _failures:

@@ -84,6 +84,7 @@ var _relay_survey_presentation: Node
 var _relay_survey_persistence: RefCounted
 var _restored_relay_survey_completion: Dictionary = {}
 var _pending_relay_survey_route_resume: Dictionary = {}
+var _pending_relay_survey_optional_progress: Dictionary = {}
 var _pending_relay_survey_retirement: Dictionary = {}
 var _interrupted_relay_survey_resume_blocked := false
 var _survey_interaction: Area3D
@@ -349,6 +350,7 @@ func start_relay_survey() -> Dictionary:
 					&"abort_activity", &"resume_start_side_effect_failed"
 				) as Dictionary
 				_pending_relay_survey_route_resume.clear()
+				_pending_relay_survey_optional_progress.clear()
 				_pending_relay_survey_retirement.clear()
 				_interrupted_relay_survey_resume_blocked = true
 				var rejected := _result(
@@ -358,6 +360,22 @@ func start_relay_survey() -> Dictionary:
 				return rejected
 			return _result(false, &"sample_rack_activation_rejected")
 		if interrupted_resume:
+			var optional_restored := _restore_interrupted_optional_progress()
+			result["optional_progress_restore"] = optional_restored.duplicate(true)
+			if not bool(optional_restored.get("accepted", false)):
+				var optional_abort := _adapter.call(
+					&"abort_activity", &"resume_optional_progress_restore_failed"
+				) as Dictionary
+				_pending_relay_survey_route_resume.clear()
+				_pending_relay_survey_optional_progress.clear()
+				_pending_relay_survey_retirement.clear()
+				_interrupted_relay_survey_resume_blocked = true
+				var optional_rejected := _result(
+					false, &"relay_survey_optional_progress_restore_failed"
+				)
+				optional_rejected["optional_progress_restore"] = optional_restored
+				optional_rejected["resume_abort"] = optional_abort
+				return optional_rejected
 			var retirement := _relay_survey_persistence.call(
 				&"retire_interrupted_journey",
 				int(_pending_relay_survey_retirement.expected_store_generation),
@@ -366,6 +384,7 @@ func start_relay_survey() -> Dictionary:
 			) as Dictionary
 			result["persistence_retirement"] = retirement.duplicate(true)
 			_pending_relay_survey_route_resume.clear()
+			_pending_relay_survey_optional_progress.clear()
 			_pending_relay_survey_retirement.clear()
 			if not bool(retirement.get("accepted", false)):
 				var aborted := _adapter.call(
@@ -390,10 +409,23 @@ func stage_interrupted_relay_survey_resume(
 	if _relay_survey_persistence == null:
 		return _result(false, &"survey_persistence_unavailable")
 	if not _pending_relay_survey_route_resume.is_empty() \
+			or not _pending_relay_survey_optional_progress.is_empty() \
 			or not _pending_relay_survey_retirement.is_empty():
 		return _result(false, &"relay_survey_resume_already_staged")
+	var route_value: Variant = route_identity
+	var optional_progress: Dictionary = {}
+	if route_identity is Dictionary:
+		var journey := route_identity as Dictionary
+		if journey.size() == 2 and journey.has("route_identity") \
+				and journey.has("optional_progress"):
+			route_value = journey.get("route_identity", {})
+			if not journey.get("optional_progress", {}) is Dictionary:
+				return _result(false, &"invalid_interrupted_optional_progress")
+			optional_progress = (
+				journey.get("optional_progress", {}) as Dictionary
+			).duplicate(true)
 	var validated: Dictionary = _relay_survey.validate_mandatory_route_resume(
-		route_identity
+		route_value
 	)
 	if not bool(validated.get("accepted", false)):
 		return _result(
@@ -408,12 +440,26 @@ func stage_interrupted_relay_survey_resume(
 			or str(retirement.get("expected_receipt_sha256", "")).length() != 64 \
 			or str(retirement.get("commit_id", "")).strip_edges().is_empty():
 		return _result(false, &"relay_survey_retirement_invalid")
+	var optional_validated := _relay_survey.call(
+		&"validate_interrupted_optional_progress", optional_progress, route_value
+	) as Dictionary
+	if not bool(optional_validated.get("accepted", false)):
+		return _result(
+			false,
+			optional_validated.get(
+				"reason", &"invalid_interrupted_optional_progress"
+			) as StringName
+		)
 	_pending_relay_survey_route_resume = (
-		route_identity as Dictionary
+		route_value as Dictionary
 	).duplicate(true)
+	_pending_relay_survey_optional_progress = optional_progress.duplicate(true)
 	_pending_relay_survey_retirement = retirement.duplicate(true)
 	var result := _result(true, &"relay_survey_resume_staged")
 	result["route_identity"] = _pending_relay_survey_route_resume.duplicate(true)
+	result["optional_progress"] = (
+		_pending_relay_survey_optional_progress.duplicate(true)
+	)
 	result["authority"] = {
 		"activity": false, "movement": false, "actor": false, "reward": false,
 	}
@@ -518,6 +564,14 @@ func save_interrupted_relay_survey_journey(
 		return _result(false, &"survey_persistence_unavailable")
 	return _relay_survey_persistence.call(
 		&"save_interrupted_journey", session_contract, route_snapshot, commit_id
+	) as Dictionary
+
+
+func capture_interrupted_relay_survey_optional_progress() -> Dictionary:
+	if not _live() or _relay_survey == null or _adapter == null:
+		return _result(false, &"relay_survey_unavailable")
+	return _relay_survey.call(
+		&"capture_interrupted_optional_progress", _adapter
 	) as Dictionary
 
 
@@ -1335,6 +1389,41 @@ func _submit_sample_rack_optional_checkpoint(receipt: Dictionary) -> Dictionary:
 	if _relay_survey == null or _adapter == null:
 		return {"accepted": false, "reason": &"relay_survey_unavailable"}
 	return _relay_survey.call(&"submit_optional_checkpoint", _adapter, receipt)
+
+
+func _restore_interrupted_optional_progress() -> Dictionary:
+	var restored := _relay_survey.call(
+		&"restore_interrupted_optional_progress",
+		_pending_relay_survey_optional_progress,
+		_pending_relay_survey_route_resume,
+		_adapter
+	) as Dictionary
+	if not bool(restored.get("accepted", false)) \
+			or _pending_relay_survey_optional_progress.is_empty():
+		return restored
+	var checkpoints := (
+		_pending_relay_survey_optional_progress.get("checkpoints", {}) \
+		as Dictionary
+	)
+	var bunker := checkpoints.get(
+		_relay_survey.OPTIONAL_CHECKPOINT_ID, {}
+	) as Dictionary
+	if bool(bunker.get("completed", false)):
+		var bunker_restored := _survey_interaction.call(
+			&"restore_interrupted_completion", bunker
+		) as Dictionary
+		if not bool(bunker_restored.get("accepted", false)):
+			return _result(false, &"survey_interrupted_presentation_restore_rejected")
+	var rack := checkpoints.get(
+		_relay_survey.SAMPLE_RACK_CHECKPOINT_ID, {}
+	) as Dictionary
+	if bool(rack.get("completed", false)):
+		var rack_restored := _sample_rack_interaction.call(
+			&"restore_interrupted_completion", rack
+		) as Dictionary
+		if not bool(rack_restored.get("accepted", false)):
+			return _result(false, &"sample_rack_interrupted_presentation_restore_rejected")
+	return restored
 
 
 func _refresh_sample_rack_presentation() -> void:
