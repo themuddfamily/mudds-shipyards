@@ -69,17 +69,17 @@ const ROUTE_IDS := [
 ## build rather than padded during integration, so any added submission/node
 ## turns audit red.
 const PERFORMANCE_BUDGET := {
-	"mesh_instances": 31,
+	"mesh_instances": 30,
 	"multimesh_batches": 6,
 	"multimesh_instances": 170,
-	"geometry_submissions": 37,
+	"geometry_submissions": 36,
 	"visible_geometry_copies": 206,
 	"multimesh_buffer_floats": 2040,
 	"static_bodies": 26,
 	"collision_shapes": 26,
 	"labels": 1,
 	"lights": 3,
-	"nodes": 107,
+	"nodes": 106,
 	"process_loops": 0,
 	"physics_process_loops": 0,
 }
@@ -155,6 +155,21 @@ const MACHINE_DRESSING_PARTS := [
 		"position": Vector3(25.55, 4.25, 5.0),
 		"size": Vector3(0.45, 1.1, 1.8),
 		"reason": "inspection console beyond upper outboard rail",
+	},
+]
+const EMISSIVE_DRESSING_RENDER_NAME := &"EmissiveDressingBatch"
+const EMISSIVE_DRESSING_PARTS := [
+	{
+		"id": &"UpperConsoleScreen",
+		"position": Vector3(25.28, 4.45, 5.0),
+		"size": Vector3(0.05, 0.55, 1.15),
+		"reason": "emissive inspection display beyond upper outboard rail",
+	},
+	{
+		"id": &"BayNameplate",
+		"position": Vector3(-12.0, 4.15, 2.76),
+		"size": Vector3(4.4, 0.65, 0.12),
+		"reason": "illuminated salvage-bay nameplate above entry clearance",
 	},
 ]
 
@@ -1411,8 +1426,7 @@ func _build_salvage_work_bay() -> void:
 
 	_visual_box("LowerBayRoof", Vector3(-12.0, 4.6, 5.5), Vector3(11.4, 0.22, 6.4), _materials.roof, "high compacted salvage-bay roof above player clearance")
 	_visual_box("CraneDropCable", Vector3(-10.1, 3.15, 5.5), Vector3(0.08, 0.9, 0.08), _materials.rail, "overhead crane cable outside capsule height")
-	_visual_box("UpperConsoleScreen", Vector3(25.28, 4.45, 5.0), Vector3(0.05, 0.55, 1.15), _materials.emissive, "emissive inspection display beyond upper outboard rail")
-	_visual_box("BayNameplate", Vector3(-12.0, 4.15, 2.76), Vector3(4.4, 0.65, 0.12), _materials.emissive, "illuminated salvage-bay nameplate above entry clearance")
+	_build_emissive_dressing_render()
 	_build_machine_dressing_render()
 	_build_hazard_dressing_render()
 
@@ -1649,6 +1663,43 @@ func _build_machine_dressing_render() -> void:
 		"two merged collision-free machine props outside traversal corridors"
 	)
 	renderer.set_meta("salvage_terrace_machine_dressing_parts", authored_parts)
+	renderer.set_meta("authored_visible_copy_count", authored_parts.size())
+	_build_root.add_child(renderer)
+
+
+func _build_emissive_dressing_render() -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var authored_parts: Array[Dictionary] = []
+	for definition_variant in EMISSIVE_DRESSING_PARTS:
+		var definition := definition_variant as Dictionary
+		var size := definition.size as Vector3
+		var transform := Transform3D(Basis.IDENTITY, definition.position as Vector3)
+		tool.append_from(
+			StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+				size,
+				StationSurfaceKit.proportional_bevel_for_size(size, 0.16),
+				_rounded_box_cache,
+				StationSurfaceKit.BevelUV.FACE_GRID
+			),
+			0,
+			transform
+		)
+		authored_parts.append({
+			"id": definition.id,
+			"size": size,
+			"transform": transform,
+			"reason": definition.reason,
+		})
+	var renderer := MeshInstance3D.new()
+	renderer.name = EMISSIVE_DRESSING_RENDER_NAME
+	renderer.mesh = tool.commit()
+	renderer.material_override = _materials.emissive
+	renderer.set_meta(
+		"non_walkable_reason",
+		"two merged collision-free emissive identifiers outside traversal corridors"
+	)
+	renderer.set_meta("salvage_terrace_emissive_dressing_parts", authored_parts)
 	renderer.set_meta("authored_visible_copy_count", authored_parts.size())
 	_build_root.add_child(renderer)
 
@@ -1938,12 +1989,45 @@ func _salvage_work_bay_is_complete() -> bool:
 	var required_nodes := PackedStringArray([
 		"SalvageFrameBatch", "SortingMachineryBatch", "LowerBayRoof",
 		String(HAZARD_DRESSING_RENDER_NAME), String(MACHINE_DRESSING_RENDER_NAME),
-		"UpperConsoleScreen", "BayNameplate", "LowerBayWorkLight",
+		String(EMISSIVE_DRESSING_RENDER_NAME), "LowerBayWorkLight",
 		"SortingLineWorkLight", "UpperInspectionWorkLight",
 	])
 	for node_name in required_nodes:
 		var candidate := _build_root.get_node_or_null(NodePath(node_name))
 		if candidate == null or str(candidate.get_meta("non_walkable_reason", "")).is_empty():
+			return false
+	var emissive_batch := _build_root.get_node_or_null(
+		NodePath(EMISSIVE_DRESSING_RENDER_NAME)
+	) as MeshInstance3D
+	var emissive_parts: Array = [] if emissive_batch == null else emissive_batch.get_meta(
+		"salvage_terrace_emissive_dressing_parts", []
+	) as Array
+	if (
+		emissive_batch == null
+		or emissive_batch.mesh == null
+		or emissive_batch.mesh.get_surface_count() != 1
+		or not emissive_batch.mesh.get_aabb().is_equal_approx(
+			AABB(Vector3(-14.2, 3.825, 2.70), Vector3(39.505, 0.9, 2.875))
+		)
+		or emissive_batch.material_override != _materials.emissive
+		or not emissive_batch.transform.is_equal_approx(Transform3D.IDENTITY)
+		or int(emissive_batch.get_meta("authored_visible_copy_count", 0)) != 2
+		or emissive_parts.size() != EMISSIVE_DRESSING_PARTS.size()
+	):
+		return false
+	for index in EMISSIVE_DRESSING_PARTS.size():
+		var expected := EMISSIVE_DRESSING_PARTS[index] as Dictionary
+		var actual := emissive_parts[index] as Dictionary
+		if (
+			actual.get("id", &"") != expected.id
+			or not (actual.get("size", Vector3.ZERO) as Vector3).is_equal_approx(
+				expected.size as Vector3
+			)
+			or not (actual.get("transform", Transform3D.IDENTITY) as Transform3D).is_equal_approx(
+				Transform3D(Basis.IDENTITY, expected.position as Vector3)
+			)
+			or actual.get("reason", "") != expected.reason
+		):
 			return false
 	var frame_batch := _build_root.get_node_or_null(^"SalvageFrameBatch") as MultiMeshInstance3D
 	var machinery_batch := _build_root.get_node_or_null(^"SortingMachineryBatch") as MultiMeshInstance3D

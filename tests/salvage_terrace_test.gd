@@ -43,6 +43,7 @@ func _run() -> void:
 	_test_short_side_rail_visual_sharing(module)
 	_test_hazard_dressing_batch(module)
 	_test_machine_dressing_batch(module)
+	_test_emissive_dressing_batch(module)
 	_test_performance_and_lifecycle(module)
 	await _test_queued_module_enable_guard()
 	await _test_real_player_ramp_traversal(module)
@@ -438,7 +439,8 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 		and module.get_node_or_null(^"GeneratedRoot/LowerBayRoof") != null
 		and module.get_node_or_null(^"GeneratedRoot/HazardDressingBatch") != null
 		and module.get_node_or_null(^"GeneratedRoot/SortingMachineryBatch") != null
-		and module.get_node_or_null(^"GeneratedRoot/MachineDressingBatch") != null,
+		and module.get_node_or_null(^"GeneratedRoot/MachineDressingBatch") != null
+		and module.get_node_or_null(^"GeneratedRoot/EmissiveDressingBatch") != null,
 		"finished terrace reads as a covered salvage work bay with crane, sorting line, inspection console, and three local work lights"
 	)
 	var work_lights := module.find_children("*", "OmniLight3D", true, false)
@@ -811,12 +813,59 @@ func _test_machine_dressing_batch(module: SalvageTerrace) -> void:
 	)
 
 
+func _test_emissive_dressing_batch(module: SalvageTerrace) -> void:
+	var renderer := module.get_node_or_null(
+		^"GeneratedRoot/EmissiveDressingBatch"
+	) as MeshInstance3D
+	var parts: Array = [] if renderer == null else renderer.get_meta(
+		"salvage_terrace_emissive_dressing_parts", []
+	) as Array
+	var exact_parts := renderer != null and parts.size() == 2
+	if exact_parts:
+		for index in SalvageTerrace.EMISSIVE_DRESSING_PARTS.size():
+			var expected := SalvageTerrace.EMISSIVE_DRESSING_PARTS[index] as Dictionary
+			var actual := parts[index] as Dictionary
+			exact_parts = exact_parts and (
+				actual.id == expected.id
+				and (actual.size as Vector3).is_equal_approx(expected.size as Vector3)
+				and (actual.transform as Transform3D).is_equal_approx(
+					Transform3D(Basis.IDENTITY, expected.position as Vector3)
+				)
+				and actual.reason == expected.reason
+			)
+	_check(
+		exact_parts
+		and renderer.material_override == (module.get("_materials") as Dictionary).emissive
+		and renderer.mesh.get_surface_count() == 1
+		and renderer.mesh.get_aabb().is_equal_approx(
+			AABB(Vector3(-14.2, 3.825, 2.70), Vector3(39.505, 0.9, 2.875))
+		)
+		and renderer.transform.is_equal_approx(Transform3D.IDENTITY)
+		and int(renderer.get_meta("authored_visible_copy_count", 0)) == 2
+		and module.get_node_or_null(^"GeneratedRoot/UpperConsoleScreen") == null
+		and module.get_node_or_null(^"GeneratedRoot/BayNameplate") == null,
+		"two immutable emissive identifiers retain exact rounded parts/material while renderers and submissions fall 2->1"
+	)
+	var original_parts := parts.duplicate(true)
+	parts[0].transform = Transform3D.IDENTITY
+	renderer.set_meta("salvage_terrace_emissive_dressing_parts", parts)
+	_check(
+		not bool(module.get_audit_report().valid),
+		"MUTATION: changing one baked emissive-part transform turns focused and full audits red"
+	)
+	renderer.set_meta("salvage_terrace_emissive_dressing_parts", original_parts)
+	_check(
+		bool(module.get_audit_report().valid),
+		"restoring both emissive part recipes returns the module audit green"
+	)
+
+
 func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	var performance := module.get_performance_contract()
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget) and bool(performance.exact_census), "module exactly matches every published performance count")
 	_check(
-		int(performance.mesh_instances) == 31
+		int(performance.mesh_instances) == 30
 		and int(performance.static_bodies) == 26
 		and int(performance.collision_shapes) == 26
 		and int(performance.lights) == 3
@@ -825,12 +874,12 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 		and int(performance.multimesh_instances) == 170
 		and int(performance.multimesh_drawn_copies) == 170
 		and int(performance.multimesh_buffer_floats) == 2040
-		and int(performance.geometry_submissions) == 37
+		and int(performance.geometry_submissions) == 36
 		and int(performance.visible_geometry_copies) == 206
-		and int(performance.nodes) == 107
+		and int(performance.nodes) == 106
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"exact census freezes 37 submissions, 206 authored copies, 26 bodies/shapes, 107 nodes, one label, three bounded lights, and zero loops"
+		"exact census freezes 36 submissions, 206 authored copies, 26 bodies/shapes, 106 nodes, one label, three bounded lights, and zero loops"
 	)
 	_check(
 		bool(performance.buffers_match_authored)
