@@ -230,6 +230,8 @@ func _run() -> void:
 		)
 		if profile == StationOperationsActivity.ActivityProfile.CREW_WORKPOST:
 			_check_crew_workpost_hung_tool_batch(profiled)
+		if profile == StationOperationsActivity.ActivityProfile.OBSERVATORY:
+			_check_skywatch_tripod_batches(profiled)
 		if profile == StationOperationsActivity.ActivityProfile.GANTRY:
 			_check_gantry_safety_band_batch(profiled, true)
 			_check_gantry_rail_fastener_batch(profiled, true)
@@ -269,10 +271,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 384
+		int(roster_catalog.bound_material_references) == 378
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 384 real renderer bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing leaves all 378 real renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -314,15 +316,17 @@ func _run() -> void:
 	# 367 -> 363, batches 19 -> 21, copies 94 -> 98 and submissions 386 -> 384.
 	# Removing both broken arm HLOD proxies reduces the roster by two nodes,
 	# submissions and counted copies; the real visible geometry is unchanged.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 499, "ten production placements have the exact 499-node aggregate")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 363, "ten production placements have the exact 363 MeshInstance aggregate")
+	# The Observatory tripod then replaces nine immutable leaves with three
+	# family-local batches: nodes/submissions -6, MeshInstances -9, batches +3.
+	_check(int((roster_audit.counts as Dictionary).node_count) == 493, "ten production placements have the exact 493-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 354, "ten production placements have the exact 354 MeshInstance aggregate")
 	_check(
-		int((roster_audit.counts as Dictionary).multimesh_batches) == 21
-		and int((roster_audit.counts as Dictionary).multimesh_instances) == 98,
+		int((roster_audit.counts as Dictionary).multimesh_batches) == 24
+		and int((roster_audit.counts as Dictionary).multimesh_instances) == 107,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(
-		int((roster_audit.counts as Dictionary).geometry_submissions) == 384
+		int((roster_audit.counts as Dictionary).geometry_submissions) == 378
 		and int((roster_audit.counts as Dictionary).drawn_copies) == 461,
 		"production retains all 461 visible geometry copies without proxy renderers"
 	)
@@ -1356,6 +1360,85 @@ func _check_gantry_rail_face_batch(activity: StationOperationsActivity) -> void:
 		and int(counts.geometry_submissions) == (65 if is_full else 34)
 		and int(counts.drawn_copies) == (79 if is_full else 48),
 		"%s rail faces fall 2 -> 1 submissions while both visible copies remain" % activity.get_activity_profile_id()
+	)
+
+
+func _check_skywatch_tripod_batches(activity: StationOperationsActivity) -> void:
+	var post := activity.get_node_or_null(
+		^"PresentationRoot/SkywatchPost"
+	) as Node3D
+	var batch_names := ["LegFeet", "LegColumns", "MountRibs"]
+	var leaf_names := ["LegFoot", "LegColumn", "MountRib"]
+	var sizes := [
+		Vector3(0.52, 0.18, 0.52), Vector3(0.24, 1.28, 0.24),
+		Vector3(0.9, 0.16, 0.18),
+	]
+	var material_keys := [&"graphite", &"frame", &"frame_edge"]
+	var transforms := [
+		[] as Array[Transform3D], [] as Array[Transform3D],
+		[] as Array[Transform3D],
+	]
+	for index in 3:
+		var angle := float(index) * TAU / 3.0
+		(transforms[0] as Array[Transform3D]).append(
+			Transform3D(Basis.IDENTITY, Vector3(cos(angle) * 1.05, 0.09, sin(angle) * 1.05))
+		)
+		(transforms[1] as Array[Transform3D]).append(
+			Transform3D(Basis.IDENTITY, Vector3(cos(angle) * 1.05, 0.72, sin(angle) * 1.05))
+		)
+		(transforms[2] as Array[Transform3D]).append(Transform3D(
+			Basis.from_euler(Vector3(0.0, -angle, 0.0)),
+			Vector3(cos(angle) * 0.6, 1.44, sin(angle) * 0.6)
+		))
+	var exact := post != null
+	var material_ids := activity.get_material_catalog_audit().identity_by_key as Dictionary
+	if post != null:
+		for family_index in 3:
+			var batch := post.get_node_or_null(batch_names[family_index]) as MultiMeshInstance3D
+			var expected := transforms[family_index] as Array[Transform3D]
+			var authored := (
+				batch.get_meta("authored_instance_transforms", []) as Array
+				if batch != null else []
+			)
+			var transforms_exact := authored.size() == expected.size()
+			for transform_index in mini(authored.size(), expected.size()):
+				transforms_exact = transforms_exact and (
+					authored[transform_index] as Transform3D
+				).is_equal_approx(expected[transform_index])
+			exact = exact and batch != null \
+				and batch.multimesh != null and batch.multimesh.mesh != null \
+				and batch.multimesh.instance_count == 3 \
+				and batch.multimesh.mesh.get_aabb().size.is_equal_approx(sizes[family_index]) \
+				and batch.material_override != null \
+				and batch.material_override.get_instance_id() \
+					== int(material_ids[material_keys[family_index]]) \
+				and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				and batch.multimesh.custom_aabb.is_equal_approx(
+					_transformed_mesh_bounds(batch.multimesh.mesh.get_aabb(), expected)
+				) and bool(batch.get_meta("explicit_authored_bounds", false)) \
+				and batch.get_meta("authored_visual_names", PackedStringArray()) \
+					== PackedStringArray([
+						leaf_names[family_index], leaf_names[family_index] + "2",
+						leaf_names[family_index] + "3",
+					]) \
+				and transforms_exact and batch.get_child_count() == 0 \
+				and post.find_children(
+					leaf_names[family_index] + "*", "MeshInstance3D", false, false
+				).is_empty()
+			if batch != null and not RenderingServer.get_video_adapter_name().is_empty():
+				for transform_index in expected.size():
+					exact = exact and batch.multimesh.get_instance_transform(
+						transform_index
+					).is_equal_approx(expected[transform_index])
+	var counts := activity.get_performance_audit().counts as Dictionary
+	_check(
+		exact and activity.get_solid_volume_contract().is_empty()
+		and int(counts.node_count) == 38 and int(counts.mesh_instances) == 24
+		and int(counts.multimesh_batches) == 3
+		and int(counts.multimesh_instances) == 9
+		and int(counts.geometry_submissions) == 27
+		and int(counts.drawn_copies) == 33,
+		"Observatory tripod preserves nine exact visual copies through three family-local batches with zero physics authority"
 	)
 
 

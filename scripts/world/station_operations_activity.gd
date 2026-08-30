@@ -171,6 +171,11 @@ static var _shared_visual_mesh_catalog: Dictionary = {}
 ## geometry and gain supported direct near ranges, so FULL and SERVICE_ARM each
 ## lose one node, MeshInstance, submission and proxy copy without losing a
 ## player-visible part.
+##
+## The Observatory tripod then batches each three-copy foot, column and rib
+## family independently. It keeps the three meshes, materials and tight family
+## bounds while moving 9 visual leaves to 3 batches: nodes 44 -> 38,
+## MeshInstances 33 -> 24, submissions 33 -> 27 and visible copies stay 33.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
 		"node_count": 82,
@@ -251,15 +256,15 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 1,
 	},
 	ActivityProfile.OBSERVATORY: {
-		"node_count": 44,
-		"mesh_instances": 33,
+		"node_count": 38,
+		"mesh_instances": 24,
 		"unique_materials": 17,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
-		"multimesh_batches": 0,
-		"multimesh_instances": 0,
-		"geometry_submissions": 33,
+		"multimesh_batches": 3,
+		"multimesh_instances": 9,
+		"geometry_submissions": 27,
 		"drawn_copies": 33,
 		"animated_assemblies": 2,
 	},
@@ -331,17 +336,20 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## placements. The supported near-range lives on the existing nine animated
 ## renderers, so the roster is now 499 nodes, 363 MeshInstances, 384 submissions
 ## and 461 visible copies with no proxy geometry counted as presentation.
+## The one Observatory placement's three tripod batches then move the roster to
+## 493 nodes, 354 MeshInstances, 24 batches / 107 batched copies and 378
+## submissions. All 461 visible copies remain.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 499,
-	"mesh_instances": 363,
+	"node_count": 493,
+	"mesh_instances": 354,
 	"unique_materials": 17,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
-	"multimesh_batches": 21,
-	"multimesh_instances": 98,
-	"geometry_submissions": 384,
+	"multimesh_batches": 24,
+	"multimesh_instances": 107,
+	"geometry_submissions": 378,
 	"drawn_copies": 461,
 	"animated_assemblies": 21,
 }

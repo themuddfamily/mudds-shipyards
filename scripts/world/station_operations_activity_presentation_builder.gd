@@ -677,20 +677,44 @@ func _build_skywatch_post() -> void:
 	post.name = "SkywatchPost"
 	_presentation_root.add_child(post)
 
+	var foot_transforms: Array[Transform3D] = []
+	var column_transforms: Array[Transform3D] = []
+	var rib_transforms: Array[Transform3D] = []
 	for index in 3:
 		var angle := float(index) * TAU / 3.0
 		var leg_x := cos(angle) * 1.05
 		var leg_z := sin(angle) * 1.05
-		_box(post, "LegFoot", Vector3(leg_x, 0.09, leg_z), Vector3(0.52, 0.18, 0.52), _materials["graphite"])
-		_box(post, "LegColumn", Vector3(leg_x, 0.72, leg_z), Vector3(0.24, 1.28, 0.24), _materials["frame"])
-		_box(
-			post,
-			"MountRib",
-			Vector3(cos(angle) * 0.6, 1.44, sin(angle) * 0.6),
-			Vector3(0.9, 0.16, 0.18),
-			_materials["frame_edge"],
-			Vector3(0.0, -rad_to_deg(angle), 0.0)
+		foot_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(leg_x, 0.09, leg_z)
+		))
+		column_transforms.append(Transform3D(
+			Basis.IDENTITY, Vector3(leg_x, 0.72, leg_z)
+		))
+		rib_transforms.append(Transform3D(
+			Basis.from_euler(Vector3(0.0, -angle, 0.0)),
+			Vector3(cos(angle) * 0.6, 1.44, sin(angle) * 0.6)
+		))
+	# Three family-local batches preserve the tripod's independent material and
+	# culling contracts while replacing nine immutable visual leaves with three.
+	var tripod_batches := [
+		_box_batch(post, "LegFeet", Vector3(0.52, 0.18, 0.52), foot_transforms, _materials["graphite"]),
+		_box_batch(post, "LegColumns", Vector3(0.24, 1.28, 0.24), column_transforms, _materials["frame"]),
+		_box_batch(post, "MountRibs", Vector3(0.9, 0.16, 0.18), rib_transforms, _materials["frame_edge"]),
+	]
+	var tripod_transforms := [foot_transforms, column_transforms, rib_transforms]
+	var tripod_names := ["LegFoot", "LegColumn", "MountRib"]
+	for batch_index in tripod_batches.size():
+		var batch := tripod_batches[batch_index] as MultiMeshInstance3D
+		var transforms := tripod_transforms[batch_index] as Array[Transform3D]
+		batch.multimesh.custom_aabb = _transformed_mesh_bounds(
+			batch.multimesh.mesh.get_aabb(), transforms
 		)
+		batch.set_meta("explicit_authored_bounds", true)
+		batch.set_meta("authored_visual_names", PackedStringArray([
+			tripod_names[batch_index],
+			tripod_names[batch_index] + "2",
+			tripod_names[batch_index] + "3",
+		]))
 	_cylinder(post, "MountRing", Vector3(0.0, 1.44, 0.0), 1.15, 0.22, _materials["frame_edge"])
 	_cylinder(post, "Pedestal", Vector3(0.0, 1.78, 0.0), 0.5, 0.5, _materials["frame"])
 
