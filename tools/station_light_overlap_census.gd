@@ -174,7 +174,7 @@ const FROZEN_SAMPLE_SPECS := [
 		"source_kind": &"node_path",
 		"source_path": NodePath("ShipyardWorld/LaunchGate"),
 		"offset": Vector3.ZERO,
-		"expected_world_position": Vector3(0, 2.5, -64),
+		"expected_world_position": Vector3(0, 2.7, -64),
 	},
 	{
 		"point_id": &"flight-cinder-checkpoint-01",

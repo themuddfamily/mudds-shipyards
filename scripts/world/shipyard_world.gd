@@ -927,11 +927,16 @@ const KEY_LIGHT_ROTATION_DEGREES := Vector3(-42.0, -28.0, 0.0)
 ## a ship-origin altitude on the launch centreline (`tests/outbound_route_clearance_test.gd`
 ## re-measures all of this from the live tree rather than trusting these numbers):
 ##
-##   craft    hull (m)              clear under the gate   blocked band
-##   Torrent   7.20 x 4.50 x  9.00  y <= 4.70              4.80 .. 10.20
-##   Arrow    11.10 x 1.65 x 12.20  y <= 6.80              6.90 ..  9.50
-##   Jovian   18.53 x 5.94 x 26.15  y <= 3.80              3.90 .. 10.70
-##   Zenith   14.42 x 4.28 x 10.45  y <= 5.20              5.30 .. 10.50
+##   craft          hull (m)              gate ceiling   corridor floor
+##   Torrent         7.20 x 4.50 x  9.00  y <= 4.70      y >= 0.80
+##   Arrow          11.10 x 1.65 x 12.20  y <= 6.80      y >= 0.00
+##   Jovian         18.52 x 5.94 x 26.15  y <= 3.80      y >= 1.30
+##   Zenith         14.42 x 4.28 x 10.45  y <= 5.20      y >= 1.10
+##   Halyard         9.60 x 5.58 x 28.35  y <= 3.90      y >= 1.10
+##   Bulwark        11.60 x 3.43 x 10.80  y <= 5.50      y >= 0.60
+##   Cinder cargo    7.10 x 3.20 x 12.00  y <= 6.60      y >= 1.40
+##   Cinder bomber   7.00 x 3.00 x 15.50  y <= 6.90      y >= 1.60
+##   Cinder light    4.80 x 2.50 x  8.80  y <= 7.20      y >= 1.30
 ##
 ## The aperture is uniform across the whole span: every sampled x from -35 to +35
 ## gives a Torrent the same 4.70 m ceiling, so there is no lateral way around it
@@ -942,14 +947,14 @@ const KEY_LIGHT_ROTATION_DEGREES := Vector3(-42.0, -28.0, 0.0)
 ## fly**, which is also the line the Cinder Reach beacon chain was already drawn
 ## for.
 ##
-## `OUTBOUND_CLEARANCE_CEILING` is the fleet-worst ceiling: the Jovian's, because
-## it is the deepest hull. `OUTBOUND_CLEARANCE_FLOOR` is the same craft's clearance
-## over the launch arm deck at z = -64. The launch gate is aimed at the centre of
-## that band, so the largest craft in the fleet leaves the station with the same
-## margin under the beam as it has over its own deck.
+## `OUTBOUND_CLEARANCE_CEILING` is the fleet-worst ceiling from the Jovian's
+## tallest vertical landing envelope. `OUTBOUND_CLEARANCE_FLOOR` is independently
+## fleet-worst at the corridor mouth from the Cinder bomber. The launch gate is
+## aimed at the centre of their shared band, leaving every production craft at
+## least one metre below the beam and above the deck.
 const OUTBOUND_CLEARANCE_CEILING := 3.80
-const OUTBOUND_CLEARANCE_FLOOR := 1.24
-const LAUNCH_GATE_AIM_Y := 2.5
+const OUTBOUND_CLEARANCE_FLOOR := 1.60
+const LAUNCH_GATE_AIM_Y := 2.70
 ## Central launch signal crossbeam. Its old 176 mm proportional bevel still read
 ## as a rectangular bar from the berth approach; this half-height capsule radius
 ## visibly authors the silhouette while retaining its exact presentation-only
@@ -1385,11 +1390,11 @@ func get_ship_spawn() -> Transform3D:
 ## The station's published outbound aim point, at the mouth of the launch
 ## corridor.
 ##
-## Re-aimed in the open, `(0, 8, -64)` -> `(0, 2.5, -64)`. The old altitude was
+## Re-aimed in the open, `(0, 8, -64)` -> `(0, 2.7, -64)`. The old altitude was
 ## inside the band the exterior range's own header beam blocks — a craft holding
 ## it out of the corridor meets the beam 51 m later, and a review flight did, at
-## 46 m/s. The new altitude is the centre of the measured lane the deepest hull in
-## the fleet can hold between the launch arm deck and the beam's 8.5 m underside;
+## 46 m/s. The new altitude is the centre of the measured lane all nine production
+## hulls can hold between the launch arm deck and the beam's 8.5 m underside;
 ## see `OUTBOUND_CLEARANCE_CEILING` for the full per-craft measurement and
 ## `tests/outbound_route_clearance_test.gd` for the guard. The range itself did
 ## not move.

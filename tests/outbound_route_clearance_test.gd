@@ -21,7 +21,7 @@ extends SceneTree
 ##
 ## What is measured here, from the live production tree with the real production
 ## hulls and the real World collision layer, rather than asserted from constants:
-## the vertical clear band under the gate for each of the five craft; that the
+## the vertical clear band under the gate for each of the nine craft; that the
 ## published clearance band and the launch gate aim sit inside the fleet-worst
 ## one with margin; that the whole outbound polyline — launch gate, then the four
 ## Cinder Reach route beacons, then the platform approach lane — is flyable by the
@@ -35,12 +35,16 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const PLATFORM_APPROACH_OFFSET := Vector3(0.0, 4.0, 170.0)
 
-const CRAFT_PATHS := {
-	&"torrent": "TorrentInterceptor",
-	&"arrow": "ArrowReconShip",
-	&"jovian": "JovianLightFreighter",
-	&"zenith": "ZenithInterceptor",
-	&"halyard": "HalyardCrewTransport",
+const CRAFT_IDS := {
+	&"torrent": &"torrent_provisional",
+	&"arrow": &"arrow_provisional",
+	&"jovian": &"jovian_provisional",
+	&"zenith": &"zenith_b7_observed",
+	&"halyard": &"halyard_new_design",
+	&"bulwark": &"bulwark_heavy_gunship",
+	&"cinder_cargo": &"cinder_cargo_hauler",
+	&"cinder_bomber": &"cinder_long_range_bomber",
+	&"cinder_light": &"cinder_light_interceptor",
 }
 
 ## The range gate, frozen. These are the recorded positions of the geometry this
@@ -344,10 +348,10 @@ func _test_whole_outbound_route_is_flyable(world: ShipyardWorld, hulls: Dictiona
 		+ PLATFORM_APPROACH_OFFSET
 	)
 
-	# The Jovian is the widest and tallest hull; the Halyard is the deepest. Sweep
-	# both independent envelope extremes, plus the Torrent that reproduced the
-	# original strike, so this route claim cannot silently remain four-craft-era.
-	for craft_id: StringName in [&"torrent", &"jovian", &"halyard"]:
+	# Sweep every production hull rather than retaining a manually selected set of
+	# historical extremes; a newly admitted craft must not silently lose the only
+	# published route out of the station.
+	for craft_id: StringName in hulls:
 		var hull: AABB = hulls[craft_id]
 		var blocked_at := _first_route_block(hull, route)
 		_check(
@@ -922,8 +926,11 @@ func _target_collision_shape_count(target: StaticBody3D) -> int:
 
 func _collect_hulls(game: Node) -> Dictionary:
 	var hulls := {}
-	for craft_id: StringName in CRAFT_PATHS:
-		var craft := game.get_node_or_null(CRAFT_PATHS[craft_id]) as CollisionObject3D
+	var craft_by_id: Dictionary = {}
+	for candidate: HeroShip in (game as GameFlow).get_flyable_ships():
+		craft_by_id[candidate.get_ship_id()] = candidate
+	for craft_id: StringName in CRAFT_IDS:
+		var craft := craft_by_id.get(CRAFT_IDS[craft_id]) as CollisionObject3D
 		_check(craft != null, "production Main exposes the %s" % craft_id)
 		if craft == null:
 			continue

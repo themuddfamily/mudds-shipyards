@@ -316,7 +316,7 @@ Exact implementation anchors:
 | Live branch | Current implementation fact | Evidence boundary |
 | --- | --- | --- |
 | Central | `PlayerSpawn (-8.5, 0.18, 11)` on `CentralJunction`, centre `(0, 14)`, size `25 × 18`; modern stair reaches the observation landing at `(-11.5, 3.05, 3.0)` | B3 supports a spawn/deck/short-transition motif; every coordinate and adjacency is modern. |
-| Torrent/launch | Central → JunctionLink → HeroBerthNode at `(0, 1.15, -10)`, then OpenLaunchSpine to `LaunchGate (0, 8, -64)` | Physical berth/launch loop is source-supported; runway, gate, orientation, and dimensions are modern. |
+| Torrent/launch | Central → JunctionLink → HeroBerthNode at `(0, 1.15, -10)`, then OpenLaunchSpine to `LaunchGate (0, 2.7, -64)` | Physical berth/launch loop is source-supported; runway, gate, orientation, and dimensions are modern. |
 | Port/Arrow | Central → PortBranchArm → PortBerthNode → Arrow berth `(-43, 1.15, 15.5)`, yaw `90°` | Separate physical berths are source-bounded; Arrow placement and berth shape are modern. |
 | Port/registry | Port node → ModernFleetRegistry, `RegistryPodDeck (-43, 0.18, 27)` | Chat/name regeneration is creator-proven; the terminal and adjacency are new. |
 | Port/freight | `RegistryPodDeck` publishes the `hub-registry-pod-freight` endpoint; freight root `(-53, 0.38, 28.8)` claims it through its `approach` marker at `(-53, 0.53, 25.4)`, and the module carries the Jovian berth `(-53, 1.63, 57.3)`, yaw `180°` | Jovian name/role only; branch, interior, and placement are modern. The slot pairs by declaration, not by the roughly 10 m coordinate offset between the two endpoints. |

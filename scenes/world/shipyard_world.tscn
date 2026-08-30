@@ -30,7 +30,7 @@ position = Vector3(0, 0.12, -10)
 
 [node name="LaunchGate" type="Marker3D" parent="."]
 unique_name_in_owner = true
-position = Vector3(0, 2.5, -64)
+position = Vector3(0, 2.7, -64)
 
 [node name="CentralBerth" parent="." instance=ExtResource("2_berth")]
 position = Vector3(0, 1.15, -10)

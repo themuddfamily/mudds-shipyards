@@ -115,9 +115,9 @@ func _test_curved_signal_gantry(world: ShipyardWorld, launch: Node3D) -> void:
 	var band := world.get_outbound_clearance_band()
 	_check(
 		launch_gate != null and central_berth != null
-		and launch_gate.position.is_equal_approx(Vector3(0.0, 2.5, -64.0))
+		and launch_gate.position.is_equal_approx(Vector3(0.0, 2.7, -64.0))
 		and world.get_ship_spawn().is_equal_approx(central_berth.get_dock_transform())
-		and is_equal_approx(float(band.get("aim_y", -1.0)), 2.5),
+		and is_equal_approx(float(band.get("aim_y", -1.0)), 2.7),
 		"central berth and published launch-gate authority remain at their exact retained transforms"
 	)
 	var evidence := world.get_central_berth_evidence_metadata()
