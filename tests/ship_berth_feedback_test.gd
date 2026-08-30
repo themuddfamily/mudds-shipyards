@@ -23,7 +23,9 @@ extends SceneTree
 ##
 ## Colour is never the only channel. The shape assertions freeze a second,
 ## non-colour cue — a deck glyph whose silhouette encodes the state — so the
-## three states stay separable in a fully desaturated frame.
+## three states stay separable in a fully desaturated frame. One bounded
+## state-matched practical puts that colour onto nearby plate; the light remains
+## presentation-only and the glyph remains the accessibility channel.
 
 const FEEDBACK_SCENE := preload("res://scenes/world/components/ship_berth_feedback.tscn")
 const BERTH_SCENE := preload("res://scenes/world/components/ship_berth.tscn")
@@ -90,7 +92,7 @@ func _run() -> void:
 	# retain the exact dimensions while one unit BoxMesh replaces sixteen meshes,
 	# and one state-driven material replaces three mutually exclusive palettes.
 	_check(
-		int(perf.owned_nodes) == 19
+		int(perf.owned_nodes) == 20
 		and int(perf.mesh_instances) == 16
 		and int(perf.drawn_copies) == 16
 		and int(perf.render_submissions) == 16
@@ -98,7 +100,7 @@ func _run() -> void:
 		and int(perf.material_resources) == 2
 		and int(perf.material_resource_savings) == 2
 		and perf.material_sharing_policy == &"component_local_state_material",
-		"component preserves nineteen nodes and sixteen submissions while reducing four instance-local materials to two"
+		"component preserves twenty nodes and sixteen submissions while reducing four instance-local materials to two"
 	)
 	_check(
 		int(perf.mesh_resources_before_sharing) == 16
@@ -129,11 +131,38 @@ func _run() -> void:
 		"the four independent boundary nodes share the build-frozen unit-box recipe"
 	)
 	var lease_plate := feedback.get_node("FeedbackVisual/LeaseStatePlate") as MeshInstance3D
+	var state_practical := feedback.get_node(
+		"FeedbackVisual/LeaseStatePractical"
+	) as OmniLight3D
 	_check(
 		boundary_port_forward.material_override == lease_plate.material_override,
 		"released boundary and lease plate share the one component-local active material"
 	)
-	_check(int(perf.collision_nodes) == 0 and int(perf.lights) == 0 and int(perf.audio_nodes) == 0 and int(perf.particle_emitters) == 0, "feedback adds no collision, light, audio, or particle authority")
+	_check(
+		state_practical != null
+		and state_practical.light_color == ShipBerthFeedback.EMISSION_RELEASED
+		and is_equal_approx(
+			state_practical.light_energy,
+			ShipBerthFeedback.PRACTICAL_ENERGY_RELEASED
+		)
+		and is_equal_approx(state_practical.omni_range, ShipBerthFeedback.PRACTICAL_RANGE)
+		and is_equal_approx(
+			state_practical.omni_attenuation,
+			ShipBerthFeedback.PRACTICAL_ATTENUATION
+		)
+		and not state_practical.shadow_enabled
+		and state_practical.distance_fade_enabled
+		and bool(state_practical.get_meta(&"reduced_flash_safe", false)),
+		"released cue owns one bounded shadowless reduced-flash-safe practical"
+	)
+	_check(
+		int(perf.collision_nodes) == 0
+		and int(perf.lights) == 1
+		and int(perf.light_budget) == 1
+		and int(perf.audio_nodes) == 0
+		and int(perf.particle_emitters) == 0,
+		"feedback adds one presentation practical and no collision, audio, or particle authority"
+	)
 	_check(feedback.get_evidence_metadata().evidence_status == &"modern_interpretation" and not bool(feedback.get_evidence_metadata().historically_supported), "feedback remains an explicit unsupported modern interpretation")
 
 	var ship := Node3D.new()
@@ -142,6 +171,14 @@ func _run() -> void:
 	var token := berth.try_reserve(ship, TORRENT_DEFINITION)
 	await process_frame
 	_check(not token.is_empty() and feedback.get_feedback_state() == &"approach", "real reservation transition renders approach state")
+	_check(
+		state_practical.light_color == ShipBerthFeedback.EMISSION_APPROACH
+		and is_equal_approx(
+			state_practical.light_energy,
+			ShipBerthFeedback.PRACTICAL_ENERGY_APPROACH
+		),
+		"approach moves the practical onto the same amber state palette"
+	)
 	var approach_guide := feedback.get_node("FeedbackVisual/ApproachGuide01") as MeshInstance3D
 	_check(
 		approach_guide.material_override == lease_plate.material_override
@@ -193,6 +230,14 @@ func _run() -> void:
 	await process_frame
 	_check(feedback.get_feedback_state() == &"occupied" and feedback.get_state_snapshot().label == "BERTH SECURED", "real occupancy transition renders secured state")
 	_check(
+		state_practical.light_color == ShipBerthFeedback.EMISSION_OCCUPIED
+		and is_equal_approx(
+			state_practical.light_energy,
+			ShipBerthFeedback.PRACTICAL_ENERGY_OCCUPIED
+		),
+		"secured state moves the practical onto the same blue state palette"
+	)
+	_check(
 		approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible),
 		"occupancy clears every approach-only alignment lane segment"
 	)
@@ -204,6 +249,14 @@ func _run() -> void:
 	_check(berth.release(ship, token), "fixture releases the authoritative occupied lease")
 	await process_frame
 	_check(feedback.get_feedback_state() == &"released", "real lease release restores open state")
+	_check(
+		state_practical.light_color == ShipBerthFeedback.EMISSION_RELEASED
+		and is_equal_approx(
+			state_practical.light_energy,
+			ShipBerthFeedback.PRACTICAL_ENERGY_RELEASED
+		),
+		"release restores the pale-cyan practical without retaining stale state"
+	)
 	_check(
 		approach_guides.all(func(guide: MeshInstance3D) -> bool: return not guide.visible),
 		"release clears every approach-only alignment lane segment"
@@ -226,7 +279,12 @@ func _run() -> void:
 	_check(absf(float(feedback.get_state_snapshot().elapsed) - 0.25) < 0.00001, "paused feedback rejects manual time advancement")
 	feedback.set_feedback_paused(false)
 	feedback.set_feedback_enabled(false)
-	_check(not feedback.visible and int(feedback.get_performance_report().visible_meshes) == 0, "disabled lifecycle hides every presentation mesh")
+	_check(
+		not feedback.visible
+		and int(feedback.get_performance_report().visible_meshes) == 0
+		and not state_practical.is_visible_in_tree(),
+		"disabled lifecycle hides every presentation mesh and the state practical"
+	)
 	_check(bool(feedback.get_audit_report().valid), "disabled presentation remains a valid intentional lifecycle state")
 	feedback.set_feedback_enabled(true)
 	_check(bool(feedback.get_audit_report().valid), "re-enabled feedback restores a valid presentation")
@@ -503,6 +561,17 @@ func _run() -> void:
 	_check(not bool(feedback.get_audit_report().valid), "audit rejects live state-material palette drift")
 	plate_material.emission = active_emission
 	_check(bool(feedback.get_audit_report().valid), "restoring the authoritative state emission restores a green audit")
+	var practical_energy := state_practical.light_energy
+	state_practical.light_energy = practical_energy + 0.2
+	_check(
+		not bool(feedback.get_audit_report().valid),
+		"audit rejects live state-practical energy drift"
+	)
+	state_practical.light_energy = practical_energy
+	_check(
+		bool(feedback.get_audit_report().valid),
+		"restoring the authoritative practical energy restores a green audit"
+	)
 
 	var state_label := feedback.get_node("FeedbackVisual/LeaseStateLabel") as Label3D
 	var label_text := state_label.text

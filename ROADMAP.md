@@ -868,6 +868,12 @@ Checkpoint terms such as `source-current` and `finalized` in the retained histor
 - [ ] Verify the complete uninterrupted player-driven loop in a freshly packaged build, including the live encounter without automated shortcuts.
 - [ ] Complete a final human visual review of the expanded station, cockpit/boarding, dogfight/damage, landing, and disembark capture set after the revisions settle; automated blank/duplicate checks are necessary but not an art-quality sign-off.
 - [ ] Replace procedural placeholder animation with authored character/boarding animation. Partially closed: all nine pilot clips are no longer pose lerps between a handful of keys. `tools/blender/generate_pilot_motion_v2.py` now authors poses in one anatomical frame — swing positive towards the face for every bone — and converts to bone-local euler from each bone's own rest matrix, which fixed two things a hand-kept sign table could not. The arm chain lies out of the sagittal plane, so its old local-X keys produced a mixed back-and-up motion, and both locomotion cycles were swinging each arm forward with the leg on the *same* side; there was no counter-swing at all. Separately, the walk and run keyed `pelvis` location as `(0, 0, lift)`, and the pelvis bone's local Z is world -Y, so those clips were sliding the hips 18 and 25 mm *forward* twice per stride and never lifting them — the recorded observation is confirmed and corrected. Clips are now sampled every other source frame from Catmull-Rom timing curves and keyed LINEAR, so cycles close on themselves with continuous velocity. Pelvis height through walk, run, idle and the grounded ends of the two seat transitions is solved at author time against the real deformed rig so the stance sole sits on the floor: worst-case sole error fell from -61/+23 mm to -5/+12 mm on the walk and to below a tenth of a millimetre on idle. Boarding is authored as five beats — sink and reach, step up, weight transfer, lower in, settle with a torso rock past the seated angle — and a generator-time check fails the build if boarding's last frame and disembark's first frame do not join up with `seated_control` on every channel. Contracts re-frozen in the open in `scenes/player/pilot_skinned_presentation.gd`. Still open: this remains script-assisted authoring, not an animator's hand-keyed work; there is no foot IK, so contact is solved for the sole's lowest corner rather than per foot; and the human art review below has not been done. Recorded while doing it, unfixed: re-running the pinned generator reproduces the asset semantically but not byte for byte — three runs gave three GLB digests differing only in the triangle index buffers of five primitives — so the SHA contracts pin the shipped bytes and are not a reproducibility claim; and the rig's `_l` bones sit at negative X while the pilot faces -Y, so the side suffixes are swapped with respect to his anatomy, which is cosmetic on a symmetric character but must never be "fixed" downstream.
+The animation item's earlier “there is no foot IK” remainder is superseded by
+the grounded per-foot solve: each contact is sampled independently and the
+calf-solved ankle chain is retained, eliminating the detached/floating-foot
+regression. The solve remains procedural, and human animation review is still
+open.
+
 - [ ] Conduct external playtests for flight feel, camera comfort, and nostalgia recognition.
 - [ ] Establish performance budgets for a representative mid-range Windows PC.
 
@@ -1465,6 +1471,17 @@ route distinct walked, structural, painted/service and metal-trim responses
 while retaining their exact palettes and emissive state cues. This improves
 hierarchy in the next package, but native gameplay-distance before/after capture
 and human review remain open.
+
+The six lease-state displays attached to the central, Arrow, Jovian, Zenith,
+Halyard and Bulwark berths now put their existing released/approach/occupied
+palette onto the nearby deck and parked hull through exactly one static,
+shadowless practical each. Every practical is presentation-only, short-range
+(`5.4 m`), steeply attenuated, distance-faded and reduced-flash-safe; no timer,
+tween, particle, collision, audio or berth authority was added. Focused component
+and production-world checks pass 133 and 81 assertions, and the corrected
+Forward+ harness captured all 18 HUD-free fleet/state frames while distinguishing
+the nine physical production berths from the six displays. Native-Windows frame
+cost and player-distance human visual review remain `NOT_RUN`.
 
 - [ ] Run a deliberate art-direction pass over the station, fleet, nearby sector, UI, effects, lighting, materials, silhouettes, signage, animation, and transitions. Prioritize navigation/readability, coherent scale, material hierarchy, colour-safe cues, and strong compositions before adding decorative density.
 - [ ] Replace placeholder or inconsistent assets, remove visible seams/z-fighting, improve LOD transitions and distant silhouettes, tune exposure/fog/bloom/particles, and give important spaces distinct but coherent visual identities. Preserve the evidence boundary: invented polish remains `modern_interpretation` and never becomes historical evidence.

@@ -247,8 +247,8 @@ func _validate_hud_exclusion() -> void:
 func _validate_exact_feedback_roster() -> void:
 	var actual_ids := _world.get_berth_ids()
 	_check(
-		_string_name_arrays_match(actual_ids, BERTH_ORDER),
-		"world registry is exactly central, Arrow recon, Jovian freight, Zenith dock 01, Halyard dock 02, and Bulwark dock 03 berths"
+		_string_name_arrays_match(actual_ids, ShipyardWorld.SHIP_BERTH_PRODUCTION_IDS),
+		"world registry contains the exact nine physical production berths"
 	)
 
 	var feedback_nodes := _world.get_ship_berth_feedback_nodes()
@@ -303,9 +303,10 @@ func _validate_exact_feedback_roster() -> void:
 	)
 	_check(
 		int(world_audit.get("component_count", 0)) == EXPECTED_COMPONENT_COUNT
-		and int(world_audit.get("live_berth_count", 0)) == EXPECTED_COMPONENT_COUNT
+		and int(world_audit.get("live_berth_count", 0)) \
+			== ShipyardWorld.SHIP_BERTH_PRODUCTION_IDS.size()
 		and int(world_audit.get("live_feedback_count", 0)) == EXPECTED_COMPONENT_COUNT,
-		"world audit reports exactly six berths and six feedback components"
+		"world audit separates nine physical berths from six feedback components"
 	)
 	var audited_berth_ids := world_audit.get("expected_berth_ids", []) as Array
 	_check(
@@ -436,10 +437,10 @@ func _validate_component_audits_and_budgets() -> void:
 	var aggregate_materials := 0
 	var aggregate_material_budget := 0
 	var aggregate_labels := 0
+	var aggregate_lights := 0
 	var prohibited_totals := {
 		"collision_nodes": 0,
 		"physics_query_nodes": 0,
-		"lights": 0,
 		"audio_nodes": 0,
 		"particle_emitters": 0,
 		"timers": 0,
@@ -481,6 +482,12 @@ func _validate_component_audits_and_budgets() -> void:
 		aggregate_materials += int(performance.get("material_resources", 0))
 		aggregate_material_budget += int(performance.get("material_budget", 0))
 		aggregate_labels += int(performance.get("labels", 0))
+		var light_count := int(performance.get("lights", 0))
+		aggregate_lights += light_count
+		_check(
+			light_count == 1 and int(performance.get("light_budget", 0)) == 1,
+			"%s feedback owns exactly one bounded state practical" % berth_id
+		)
 		for key: String in prohibited_totals:
 			var count := int(performance.get(key, 0))
 			prohibited_totals[key] = int(prohibited_totals[key]) + count
@@ -496,10 +503,14 @@ func _validate_component_audits_and_budgets() -> void:
 		"six-component roster owns exactly 12 isolated materials within aggregate budget"
 	)
 	_check(aggregate_labels == EXPECTED_COMPONENT_COUNT, "six-component roster owns exactly six diegetic labels")
+	_check(
+		aggregate_lights == EXPECTED_COMPONENT_COUNT,
+		"six-component roster owns exactly six state practicals"
+	)
 	for key: String in prohibited_totals:
 		_check(int(prohibited_totals[key]) == 0, "aggregate feedback roster owns zero %s" % key)
 	print(
-		"BERTH_FEEDBACK_BUDGET: components=%d meshes=%d/%d materials=%d/%d labels=%d prohibited=%s"
+		"BERTH_FEEDBACK_BUDGET: components=%d meshes=%d/%d materials=%d/%d labels=%d lights=%d prohibited=%s"
 		% [
 			EXPECTED_COMPONENT_COUNT,
 			aggregate_meshes,
@@ -507,6 +518,7 @@ func _validate_component_audits_and_budgets() -> void:
 			aggregate_materials,
 			aggregate_material_budget,
 			aggregate_labels,
+			aggregate_lights,
 			str(prohibited_totals),
 		]
 	)

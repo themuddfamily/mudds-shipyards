@@ -5,7 +5,9 @@ extends Node3D
 ##
 ## The direct parent remains the sole reservation/occupancy authority. This
 ## component only renders that existing state and deliberately owns no collision,
-## navigation, audio, timers, tweens, particles, or random behaviour.
+## navigation, audio, timers, tweens, particles, or random behaviour. One small,
+## shadowless practical lets the emissive lease plate tint the deck immediately
+## around it; it remains presentation-only and never evaluates a ship or berth.
 ##
 ## Colour-vision readability. Lease state used to be signalled by colour alone,
 ## in cyan / amber / green. Measured with `tests/fleet_colour_metrics.gd` (the one
@@ -63,8 +65,25 @@ const MESH_RESOURCE_COUNT := 1
 const MESH_RESOURCE_COPY_ROSTER := [16]
 const MATERIAL_RESOURCE_COUNT_BEFORE_STATE_SHARING := 4
 const MATERIAL_COUNT := 2
+const LIGHT_COUNT := 1
 const RENDER_MIN_Y := 0.14
 const RENDER_MAX_Y := 0.22
+
+# The berth display used to be the station's one emissive cue family with no
+# practical spill. Emission and glow affect only the drawn pixels, so the plate
+# changed colour while the deck and parked hull beside it stayed bit-identical.
+# A single local pool makes the state read as installed equipment rather than a
+# decal. It is deliberately shadowless, short-range, steeply attenuated and
+# distance-faded; the static pool is reduced-flash safe and adds no process path.
+const PRACTICAL_POSITION := Vector3(0.0, 0.48, 0.0)
+const PRACTICAL_RANGE := 5.4
+const PRACTICAL_ATTENUATION := 2.1
+const PRACTICAL_SPECULAR := 0.24
+const PRACTICAL_FADE_BEGIN := 60.0
+const PRACTICAL_FADE_LENGTH := 25.0
+const PRACTICAL_ENERGY_RELEASED := 0.28
+const PRACTICAL_ENERGY_APPROACH := 0.30
+const PRACTICAL_ENERGY_OCCUPIED := 0.34
 
 ## Stable IDs for the shape channel, published in the state snapshot so an audit
 ## can prove the non-colour cue exists and differs per state without inspecting
@@ -120,6 +139,7 @@ const LABEL_OCCUPIED := Color("6f88ee")
 var _berth: ShipBerth
 var _visual_root: Node3D
 var _label: Label3D
+var _state_practical: OmniLight3D
 var _meshes: Array[MeshInstance3D] = []
 var _boundary_meshes: Array[MeshInstance3D] = []
 var _guide_meshes: Array[MeshInstance3D] = []
@@ -142,6 +162,9 @@ var _visual_root_storage_contract: Dictionary = {}
 var _label_instance_id := 0
 var _label_transform := Transform3D.IDENTITY
 var _label_storage_contract: Dictionary = {}
+var _state_practical_instance_id := 0
+var _state_practical_transform := Transform3D.IDENTITY
+var _state_practical_storage_contract: Dictionary = {}
 var _state: StringName = STATE_RELEASED
 var _elapsed := 0.0
 var _feedback_enabled := true
@@ -295,6 +318,10 @@ func get_state_snapshot() -> Dictionary:
 		"cue_glyph": get_state_glyph_id(_state),
 		"cue_glyph_mesh_names": _visible_glyph_mesh_names(),
 		"cue_glyph_footprint": _visible_glyph_footprint(),
+		"practical_color": _state_practical.light_color \
+			if is_instance_valid(_state_practical) else Color.BLACK,
+		"practical_energy": _state_practical.light_energy \
+			if is_instance_valid(_state_practical) else 0.0,
 	}.duplicate(true)
 
 
@@ -371,6 +398,7 @@ func get_performance_report() -> Dictionary:
 			live_meshes.size() == MESH_COUNT
 			and _materials.size() == MATERIAL_COUNT
 			and mesh_sharing_exact
+			and find_children("*", "Light3D", true, false).size() == LIGHT_COUNT
 		),
 		"owned_nodes": owned_node_count,
 		"mesh_instances": live_meshes.size(),
@@ -402,6 +430,7 @@ func get_performance_report() -> Dictionary:
 		"physics_query_nodes": find_children("*", "RayCast3D", true, false).size() \
 			+ find_children("*", "ShapeCast3D", true, false).size(),
 		"lights": find_children("*", "Light3D", true, false).size(),
+		"light_budget": LIGHT_COUNT,
 		"audio_nodes": find_children("*", "AudioStreamPlayer3D", true, false).size(),
 		"particle_emitters": find_children("*", "GPUParticles3D", true, false).size() \
 			+ find_children("*", "CPUParticles3D", true, false).size(),
@@ -447,10 +476,10 @@ func get_audit_report() -> Dictionary:
 	var live_descendants := find_children("*", "", true, false)
 	if _meshes.size() != MESH_COUNT or live_meshes.size() != MESH_COUNT:
 		errors.append("mesh_count_changed")
-	if live_labels.size() != 1 or live_visuals.size() != MESH_COUNT + 1:
+	if live_labels.size() != 1 or live_visuals.size() != MESH_COUNT + 2:
 		errors.append("visual_descendant_count_changed")
-	# One owned Node3D root plus eleven meshes and one Label3D.
-	if live_descendants.size() != MESH_COUNT + 2:
+	# One owned Node3D root plus sixteen meshes, one label and one practical.
+	if live_descendants.size() != MESH_COUNT + 3:
 		errors.append("node_hierarchy_count_changed")
 	if _materials.size() != MATERIAL_COUNT:
 		errors.append("material_count_changed")
@@ -489,12 +518,16 @@ func get_audit_report() -> Dictionary:
 			errors.append("owned_mesh_contract_changed_%s" % mesh.name)
 	if not _label_matches_contract():
 		errors.append("label_contract_changed")
+	if not _state_practical_matches_contract():
+		errors.append("state_practical_contract_changed")
 	var performance := get_performance_report()
 	if not bool(performance.get("mesh_sharing_exact", false)):
 		errors.append("mesh_resource_sharing_contract_changed")
-	for key in ["collision_nodes", "physics_query_nodes", "lights", "audio_nodes", "particle_emitters", "timers"]:
+	for key in ["collision_nodes", "physics_query_nodes", "audio_nodes", "particle_emitters", "timers"]:
 		if int(performance.get(key, 0)) != 0:
 			errors.append("prohibited_%s_present" % key)
+	if int(performance.get("lights", 0)) != LIGHT_COUNT:
+		errors.append("state_practical_count_changed")
 	var expected_state := _derive_state()
 	if _state != expected_state:
 		errors.append("rendered_state_diverges_from_berth")
@@ -588,6 +621,23 @@ func _build_presentation() -> void:
 	_label.text = "BERTH OPEN"
 	_label.set_meta(&"presentation_only", true)
 	_visual_root.add_child(_label)
+
+	_state_practical = OmniLight3D.new()
+	_state_practical.name = "LeaseStatePractical"
+	_state_practical.position = PRACTICAL_POSITION
+	_state_practical.light_color = EMISSION_RELEASED
+	_state_practical.light_energy = PRACTICAL_ENERGY_RELEASED
+	_state_practical.light_specular = PRACTICAL_SPECULAR
+	_state_practical.omni_range = PRACTICAL_RANGE
+	_state_practical.omni_attenuation = PRACTICAL_ATTENUATION
+	_state_practical.shadow_enabled = false
+	_state_practical.distance_fade_enabled = true
+	_state_practical.distance_fade_begin = PRACTICAL_FADE_BEGIN
+	_state_practical.distance_fade_length = PRACTICAL_FADE_LENGTH
+	_state_practical.set_meta(&"fixture_practical", true)
+	_state_practical.set_meta(&"presentation_only", true)
+	_state_practical.set_meta(&"reduced_flash_safe", true)
+	_visual_root.add_child(_state_practical)
 	_apply_visual_state()
 
 
@@ -699,6 +749,12 @@ func _capture_integrity_contract() -> void:
 	_label_storage_contract = _storage_property_snapshot(
 		_label,
 		PackedStringArray(["transform", "text", "visible", "modulate"])
+	)
+	_state_practical_instance_id = _state_practical.get_instance_id()
+	_state_practical_transform = _state_practical.transform
+	_state_practical_storage_contract = _storage_property_snapshot(
+		_state_practical,
+		PackedStringArray(["transform", "light_color", "light_energy"])
 	)
 	_material_contracts.clear()
 	for material_id: StringName in _materials:
@@ -843,6 +899,14 @@ func _active_material_palette() -> Dictionary:
 	return {"albedo": ALBEDO_RELEASED, "emission": EMISSION_RELEASED, "energy": EMISSION_ENERGY_RELEASED}
 
 
+func _active_practical_energy() -> float:
+	if _state == STATE_APPROACH:
+		return PRACTICAL_ENERGY_APPROACH
+	if _state == STATE_OCCUPIED:
+		return PRACTICAL_ENERGY_OCCUPIED
+	return PRACTICAL_ENERGY_RELEASED
+
+
 func _label_matches_contract() -> bool:
 	if not is_instance_valid(_label) \
 			or _label.get_instance_id() != _label_instance_id \
@@ -867,15 +931,47 @@ func _label_matches_contract() -> bool:
 		)
 
 
+func _state_practical_matches_contract() -> bool:
+	if not is_instance_valid(_state_practical) \
+			or _state_practical.get_instance_id() != _state_practical_instance_id \
+			or not is_instance_valid(_visual_root) \
+			or _state_practical.get_parent() != _visual_root \
+			or get_node_or_null("FeedbackVisual/LeaseStatePractical") != _state_practical:
+		return false
+	var palette := _active_material_palette()
+	return _state_practical.transform.is_equal_approx(_state_practical_transform) \
+		and _state_practical.light_color == palette.emission \
+		and is_equal_approx(_state_practical.light_energy, _active_practical_energy()) \
+		and not _state_practical.shadow_enabled \
+		and _state_practical.distance_fade_enabled \
+		and is_equal_approx(_state_practical.omni_range, PRACTICAL_RANGE) \
+		and is_equal_approx(_state_practical.omni_attenuation, PRACTICAL_ATTENUATION) \
+		and is_equal_approx(_state_practical.light_specular, PRACTICAL_SPECULAR) \
+		and is_equal_approx(_state_practical.distance_fade_begin, PRACTICAL_FADE_BEGIN) \
+		and is_equal_approx(_state_practical.distance_fade_length, PRACTICAL_FADE_LENGTH) \
+		and bool(_state_practical.get_meta(&"fixture_practical", false)) \
+		and bool(_state_practical.get_meta(&"presentation_only", false)) \
+		and bool(_state_practical.get_meta(&"reduced_flash_safe", false)) \
+		and _storage_properties_match(
+			_state_practical,
+			_state_practical_storage_contract,
+			PackedStringArray(["transform", "light_color", "light_energy"])
+		)
+
+
 func _owned_children_match_live_hierarchy() -> bool:
 	if not is_instance_valid(_visual_root) \
-			or _visual_root.get_child_count() != MESH_COUNT + 1 \
-			or _owned_child_instance_ids.size() != MESH_COUNT + 1:
+			or _visual_root.get_child_count() != MESH_COUNT + 2 \
+			or _owned_child_instance_ids.size() != MESH_COUNT + 2:
 		return false
 	var live_ids: Dictionary = {}
 	for child in _visual_root.get_children():
 		if not is_instance_valid(child) \
-				or (not child is MeshInstance3D and not child is Label3D):
+				or (
+					not child is MeshInstance3D
+					and not child is Label3D
+					and not child is OmniLight3D
+				):
 			return false
 		live_ids[child.get_instance_id()] = true
 	return live_ids == _owned_child_instance_ids
@@ -1109,6 +1205,9 @@ func _apply_visual_state() -> void:
 	if is_instance_valid(_label):
 		_label.text = label_text
 		_label.modulate = label_color
+	if is_instance_valid(_state_practical):
+		_state_practical.light_color = palette.emission as Color
+		_state_practical.light_energy = _active_practical_energy()
 	_apply_animation()
 
 
