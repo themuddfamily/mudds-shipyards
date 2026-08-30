@@ -42,9 +42,10 @@ const RADIATOR_VENT_COUNT := 6
 const TASK_STRIP_COUNT := 2
 const FASCIA_FASTENER_COUNT := 6
 const TOTAL_VISIBLE_PRIMITIVE_COUNT := 41
-const BATCHED_MESH_INSTANCE_COUNT := TOTAL_VISIBLE_PRIMITIVE_COUNT - RADIATOR_VENT_COUNT - TASK_STRIP_COUNT - FASCIA_FASTENER_COUNT - CROSS_BRACE_COUNT - STRUCTURAL_POST_COUNT - CONDUIT_CLAMP_COUNT
+const BATCHED_MESH_INSTANCE_COUNT := 5
 const MULTIMESH_BATCH_COUNT := 6
 const RENDERER_NODE_COUNT := BATCHED_MESH_INSTANCE_COUNT + MULTIMESH_BATCH_COUNT
+const GEOMETRY_SUBMISSION_COUNT := 14
 
 ## The four resident dressing instances all publish this one material-free,
 ## immutable fastener recipe. It intentionally lives for the session rather
@@ -65,11 +66,11 @@ static var _task_strip_mesh_cache: Dictionary = {}
 static var _radiator_vent_mesh_cache: Dictionary = {}
 
 const PERFORMANCE_BUDGET := {
-	"node_count": 49,
+	"node_count": 44,
 	"visible_primitives": 41,
-	"mesh_instances": 10,
+	"mesh_instances": BATCHED_MESH_INSTANCE_COUNT,
 	"multimesh_batches": 6,
-	"geometry_submissions": 16,
+	"geometry_submissions": GEOMETRY_SUBMISSION_COUNT,
 	"unique_materials": 8,
 	"lights": 1,
 	"visible_lights": 1,
@@ -116,6 +117,9 @@ var _fascia_fastener_batch: MultiMeshInstance3D
 var _cross_brace_batch: MultiMeshInstance3D
 var _keel_post_batch: MultiMeshInstance3D
 var _conduit_clamp_batch: MultiMeshInstance3D
+var _conduit_manifold_renderer: MeshInstance3D
+var _conduit_manifold_part_transforms: Array[Transform3D] = []
+var _conduit_manifold_bounds := AABB()
 var _dressing_enabled := true
 var _quality_level: int = DetailQuality.HIGH
 var _built := false
@@ -769,7 +773,9 @@ func get_validation_errors() -> PackedStringArray:
 	if (
 		int(counts["mesh_instances"]) != BATCHED_MESH_INSTANCE_COUNT
 		or int(counts["multimesh_batches"]) != MULTIMESH_BATCH_COUNT
-		or int(counts["geometry_submissions"]) != RENDERER_NODE_COUNT
+		or int(counts["mesh_instances"]) + int(counts["multimesh_batches"]) \
+			!= RENDERER_NODE_COUNT
+		or int(counts["geometry_submissions"]) != GEOMETRY_SUBMISSION_COUNT
 	):
 		errors.append("stable maximum-detail primitive contract changed")
 	if int(counts["lights"]) != 1:
@@ -791,6 +797,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("fascia fastener shared-resource contract diverged")
 	if not bool(get_radiator_vent_batch_audit().get("valid", false)):
 		errors.append("radiator vent batch contract diverged")
+	if not _conduit_manifold_renderer_is_valid():
+		errors.append("conduit/manifold merged renderer diverged")
 	if not bool(get_cross_brace_batch_audit().get("valid", false)):
 		errors.append("cross-brace batch contract diverged")
 	if not bool(get_keel_post_batch_audit().get("valid", false)):
@@ -840,6 +848,41 @@ func get_audit_report() -> Dictionary:
 ## recursive deep copy; callers cannot mutate component-owned audit state.
 func audit() -> Dictionary:
 	return get_audit_report().duplicate(true)
+
+
+func _conduit_manifold_renderer_is_valid() -> bool:
+	if (
+		not is_instance_valid(_conduit_manifold_renderer)
+		or _service_detail_root.get_node_or_null(^"ConduitManifoldServiceRun")
+			!= _conduit_manifold_renderer
+		or _conduit_manifold_renderer.mesh == null
+		or _conduit_manifold_renderer.mesh.get_surface_count() != 4
+		or not _conduit_manifold_renderer.transform.is_equal_approx(Transform3D.IDENTITY)
+		or _conduit_manifold_renderer.material_override != null
+		or _conduit_manifold_renderer.get_child_count() != 0
+		or _conduit_manifold_part_transforms.size() != 6
+		or not _conduit_manifold_renderer.mesh.get_aabb().is_equal_approx(
+			_conduit_manifold_bounds
+		)
+	):
+		return false
+	var material_keys: Array[StringName] = [
+		&"conduit_dark", &"conduit_cyan", &"conduit_amber", &"frame_edge",
+	]
+	for surface_index in material_keys.size():
+		if _conduit_manifold_renderer.mesh.surface_get_material(surface_index) \
+				!= _materials.get(material_keys[surface_index]):
+			return false
+	return (
+		_service_detail_root.find_children(
+			"Conduit??", "MeshInstance3D", true, false
+		).is_empty()
+		and _service_detail_root.find_children(
+			"ManifoldCoupler*", "MeshInstance3D", true, false
+		).is_empty()
+		and _service_detail_root.get_node_or_null(^"RadiatorBackplate") \
+			is MeshInstance3D
+	)
 
 
 func _build_structural_core(dimensions: Dictionary) -> void:
@@ -935,24 +978,28 @@ func _build_service_detail(dimensions: Dictionary) -> void:
 	# Keep the deepest 0.25 m manifold box entirely on the outward side of the
 	# attachment plane, including the shallow LIGHT profile.
 	var conduit_z := maxf(depth * 0.2, 0.125)
-	var conduit_materials := [
-		_materials["conduit_dark"],
-		_materials["conduit_cyan"],
-		_materials["conduit_amber"],
+	var surface_tools := {
+		&"conduit_dark": SurfaceTool.new(),
+		&"conduit_cyan": SurfaceTool.new(),
+		&"conduit_amber": SurfaceTool.new(),
+		&"frame_edge": SurfaceTool.new(),
+	}
+	var conduit_material_keys: Array[StringName] = [
+		&"conduit_dark", &"conduit_cyan", &"conduit_amber",
 	]
+	var sideways := Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(90.0)))
 	for conduit_index in CONDUIT_COUNT:
-		_tag_visual_detail(
-			_cylinder(
-				_service_detail_root,
-				"Conduit%02d" % (conduit_index + 1),
-				Vector3(0.0, conduit_center_y - conduit_spacing + conduit_spacing * conduit_index, conduit_z),
-				0.032 + float(conduit_index) * 0.008,
-				conduit_length,
-				conduit_materials[conduit_index],
-				Vector3(0.0, 0.0, 90.0)
+		var radius := 0.032 + float(conduit_index) * 0.008
+		_append_conduit_manifold_part(
+			surface_tools[conduit_material_keys[conduit_index]] as SurfaceTool,
+			StationSurfaceKit.chamfered_cylinder_mesh_cached(
+				radius, radius, conduit_length, 16, _chamfered_cylinder_cache, 1
 			),
-			&"conduit",
-			DetailQuality.MEDIUM
+			Transform3D(sideways, Vector3(
+				0.0,
+				conduit_center_y - conduit_spacing + conduit_spacing * conduit_index,
+				conduit_z
+			))
 		)
 	var clamp_transforms := _conduit_clamp_transforms()
 	for clamp_index in CONDUIT_CLAMP_COUNT:
@@ -975,31 +1022,40 @@ func _build_service_detail(dimensions: Dictionary) -> void:
 	)
 	_tag_visual_batch(_conduit_clamp_batch, &"conduit_clamp", DetailQuality.MEDIUM)
 	var manifold_x := -conduit_length * 0.5
-	_tag_visual_detail(
-		_box(
-			_service_detail_root,
-			"ServiceManifold",
-			Vector3(manifold_x, conduit_center_y, conduit_z),
-			Vector3(0.34, conduit_spacing * 3.5, 0.25),
-			_materials["frame_edge"]
+	_append_conduit_manifold_part(
+		surface_tools[&"frame_edge"] as SurfaceTool,
+		StationSurfaceKit.rounded_box_mesh_cached(
+			Vector3(0.34, conduit_spacing * 3.5, 0.25), _rounded_box_cache
 		),
-		&"conduit_manifold",
-		DetailQuality.MEDIUM
+		Transform3D(Basis.IDENTITY, Vector3(manifold_x, conduit_center_y, conduit_z))
 	)
 	for coupler_index in 2:
-		_tag_visual_detail(
-			_cylinder(
-				_service_detail_root,
-				"ManifoldCoupler%02d" % (coupler_index + 1),
-				Vector3(manifold_x + (-0.22 if coupler_index == 0 else 0.22), conduit_center_y, conduit_z),
-				0.07,
-				0.18,
-				_materials["conduit_amber"] if coupler_index == 0 else _materials["conduit_cyan"],
-				Vector3(0.0, 0.0, 90.0)
+		_append_conduit_manifold_part(
+			surface_tools[&"conduit_amber" if coupler_index == 0 else &"conduit_cyan"] as SurfaceTool,
+			StationSurfaceKit.chamfered_cylinder_mesh_cached(
+				0.07, 0.07, 0.18, 16, _chamfered_cylinder_cache, 1
 			),
-			&"conduit_coupler",
-			DetailQuality.MEDIUM
+			Transform3D(sideways, Vector3(
+				manifold_x + (-0.22 if coupler_index == 0 else 0.22),
+				conduit_center_y,
+				conduit_z
+			))
 		)
+	var merged_mesh := ArrayMesh.new()
+	for material_key: StringName in [
+		&"conduit_dark", &"conduit_cyan", &"conduit_amber", &"frame_edge",
+	]:
+		(surface_tools[material_key] as SurfaceTool).commit(merged_mesh)
+		merged_mesh.surface_set_material(
+			merged_mesh.get_surface_count() - 1, _materials[material_key]
+		)
+	_conduit_manifold_renderer = MeshInstance3D.new()
+	_conduit_manifold_renderer.name = "ConduitManifoldServiceRun"
+	_conduit_manifold_renderer.mesh = merged_mesh
+	_service_detail_root.add_child(_conduit_manifold_renderer)
+	_tag_visual_detail(
+		_conduit_manifold_renderer, &"conduit_manifold_service_run", DetailQuality.MEDIUM
+	)
 
 	var radiator_width := minf(3.1, maxf(1.8, length * 0.28))
 	var radiator_height := crossface_span * 0.48
@@ -1094,6 +1150,19 @@ func _build_high_detail(dimensions: Dictionary) -> void:
 	_high_detail_root.add_child(_task_light)
 
 
+func _append_conduit_manifold_part(
+		surface_tool: SurfaceTool, mesh: Mesh, part_transform: Transform3D
+	) -> void:
+	surface_tool.append_from(mesh, 0, part_transform)
+	var part_bounds := _transformed_mesh_bounds(mesh.get_aabb(), [part_transform])
+	_conduit_manifold_bounds = (
+		part_bounds
+		if _conduit_manifold_part_transforms.is_empty()
+		else _conduit_manifold_bounds.merge(part_bounds)
+	)
+	_conduit_manifold_part_transforms.append(part_transform)
+
+
 func _refresh_visibility() -> void:
 	if _presentation_root == null:
 		return
@@ -1168,9 +1237,9 @@ func _get_feature_counts() -> Dictionary:
 	return {
 		"structural_posts": _structural_core_root.find_children("KeelPost??", "Marker3D", true, false).size() if _structural_core_root != null else 0,
 		"cross_braces": _structural_core_root.find_children("CrossBrace?*", "Marker3D", true, false).size() if _structural_core_root != null else 0,
-		"conduits": _service_detail_root.find_children("Conduit??", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
+		"conduits": CONDUIT_COUNT if _conduit_manifold_renderer_is_valid() else 0,
 		"conduit_clamps": _service_detail_root.find_children("ConduitClamp??", "Marker3D", true, false).size() if _service_detail_root != null else 0,
-		"manifold_couplers": _service_detail_root.find_children("ManifoldCoupler*", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
+		"manifold_couplers": 2 if _conduit_manifold_renderer_is_valid() else 0,
 		"radiator_backplates": _service_detail_root.find_children("RadiatorBackplate", "MeshInstance3D", true, false).size() if _service_detail_root != null else 0,
 		"radiator_vents": _radiator_vent_batch.multimesh.instance_count if is_instance_valid(_radiator_vent_batch) and _radiator_vent_batch.multimesh != null else 0,
 		"task_strips": _high_detail_root.find_children("TaskStrip*", "Marker3D", true, false).size() if _high_detail_root != null else 0,
@@ -1339,8 +1408,18 @@ func _built_mesh_contracts_are_live() -> bool:
 			or _resource_storage_fingerprint(mesh_instance.mesh)
 				!= (contract.get("mesh_storage", PackedStringArray()) as PackedStringArray)
 			or not mesh_instance.transform.is_equal_approx(contract.get("transform", Transform3D.IDENTITY) as Transform3D)
-			or mesh_instance.material_override == null
-			or mesh_instance.material_override.get_instance_id() != int(contract.get("material_instance_id", 0))
+			or (
+				int(contract.get("material_instance_id", 0)) == 0
+				and mesh_instance.material_override != null
+			)
+			or (
+				int(contract.get("material_instance_id", 0)) != 0
+				and (
+					mesh_instance.material_override == null
+					or mesh_instance.material_override.get_instance_id()
+						!= int(contract.get("material_instance_id", 0))
+				)
+			)
 			or mesh_instance.cast_shadow != int(contract.get("cast_shadow", -1))
 			or mesh_instance.layers != int(contract.get("layers", 0))
 			or not is_equal_approx(mesh_instance.visibility_range_begin, float(contract.get("visibility_range_begin", 0.0)))
@@ -1460,7 +1539,7 @@ func _all_live_meshes_fit_published_footprint() -> bool:
 			)
 			if not footprint.has_point(relative_transform * corner):
 				return false
-		mesh_count += 1
+		mesh_count += 6 if mesh_instance == _conduit_manifold_renderer else 1
 	for candidate in find_children("*", "MultiMeshInstance3D", true, false):
 		var batch := candidate as MultiMeshInstance3D
 		if batch.multimesh == null or batch.multimesh.mesh == null:
@@ -1507,13 +1586,25 @@ func _node_transform_relative_to_component(node: Node3D) -> Variant:
 func _count_runtime_resources(node: Node, counts: Dictionary, material_ids: Dictionary) -> void:
 	counts["node_count"] = int(counts["node_count"]) + 1
 	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
 		counts["mesh_instances"] = int(counts["mesh_instances"]) + 1
-		counts["geometry_submissions"] = int(counts["geometry_submissions"]) + 1
-		if (node as MeshInstance3D).is_visible_in_tree():
-			counts["visible_primitives"] = int(counts["visible_primitives"]) + 1
-		var material := (node as MeshInstance3D).material_override
+		counts["geometry_submissions"] = (
+			int(counts["geometry_submissions"])
+			+ (mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 0)
+		)
+		if mesh_instance.is_visible_in_tree():
+			counts["visible_primitives"] = (
+				int(counts["visible_primitives"])
+				+ (6 if mesh_instance == _conduit_manifold_renderer else 1)
+			)
+		var material := mesh_instance.material_override
 		if material != null:
 			material_ids[material.get_instance_id()] = true
+		elif mesh_instance.mesh != null:
+			for surface_index in mesh_instance.mesh.get_surface_count():
+				var surface_material := mesh_instance.mesh.surface_get_material(surface_index)
+				if surface_material != null:
+					material_ids[surface_material.get_instance_id()] = true
 	if node is MultiMeshInstance3D:
 		var batch := node as MultiMeshInstance3D
 		counts["multimesh_batches"] = int(counts["multimesh_batches"]) + 1

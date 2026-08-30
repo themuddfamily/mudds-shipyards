@@ -86,12 +86,47 @@ func _run() -> void:
 	print("STATION_STRUCTURAL_DRESSING_PERFORMANCE: ", performance)
 	_check(bool(performance["within_budget"]), "maximum-detail component remains within every explicit budget")
 	_check(
-		int(counts["mesh_instances"]) == 10
+		int(counts["mesh_instances"]) == 5
 		and int(counts["multimesh_batches"]) == 6
-		and int(counts["geometry_submissions"]) == 16
+		and int(counts["geometry_submissions"]) == 14
 		and int(counts["visible_primitives"]) == 41,
-		"high quality preserves 41 visible copies through 16 renderer submissions"
+		"high quality preserves 41 visible copies through 11 renderers and 14 submissions"
 	)
+	var merged_service := dressing.get_node_or_null(
+		^"PresentationRoot/ServiceDetailRoot/ConduitManifoldServiceRun"
+	) as MeshInstance3D
+	var merged_transforms := dressing.get("_conduit_manifold_part_transforms") as Array
+	var expected_origins := [
+		Vector3(0.0, -0.468, 0.156), Vector3(0.0, -0.3672, 0.156),
+		Vector3(0.0, -0.2664, 0.156), Vector3(-5.46, -0.3672, 0.156),
+		Vector3(-5.68, -0.3672, 0.156), Vector3(-5.24, -0.3672, 0.156),
+	]
+	var transforms_exact := merged_transforms.size() == expected_origins.size()
+	for index in mini(merged_transforms.size(), expected_origins.size()):
+		transforms_exact = transforms_exact and (
+			merged_transforms[index] is Transform3D
+			and (merged_transforms[index] as Transform3D).origin.is_equal_approx(
+				expected_origins[index]
+			)
+		)
+	_check(
+		merged_service != null and merged_service.mesh.get_surface_count() == 4
+		and merged_service.material_override == null and transforms_exact
+		and merged_service.get_aabb().is_equal_approx(
+			dressing.get("_conduit_manifold_bounds") as AABB
+		)
+		and dressing.find_children("Conduit??", "MeshInstance3D", true, false).is_empty()
+		and dressing.find_children("ManifoldCoupler*", "MeshInstance3D", true, false).is_empty()
+		and dressing.get_node_or_null(
+			^"PresentationRoot/ServiceDetailRoot/RadiatorBackplate"
+		) is MeshInstance3D,
+		"six exact service-run copies retain transforms, materials, tight culling, and an independent radiator through one renderer"
+	)
+	var first_surface_material := merged_service.mesh.surface_get_material(0)
+	merged_service.mesh.surface_set_material(0, null)
+	_check(not bool(dressing.audit()["valid"]), "merged service material drift fails the component audit")
+	merged_service.mesh.surface_set_material(0, first_surface_material)
+	_check(bool(dressing.audit()["valid"]), "restoring the merged service material repairs the component audit")
 	var clamp_batch := dressing.get_node_or_null(
 		^"PresentationRoot/ServiceDetailRoot/ConduitClampBatch"
 	) as MultiMeshInstance3D
@@ -251,9 +286,9 @@ func _run() -> void:
 		"eight stable cross-brace paths retain exact geometry and transforms through one inert visual batch"
 	)
 	_check(
-		int(counts["mesh_instances"]) == 27 - 8 - 5 - 4
-		and int(counts["multimesh_batches"]) == 3 + 1 + 1 + 1
-		and int(counts["geometry_submissions"]) == 30 - 7 - 4 - 3,
+		int(counts["mesh_instances"]) == 5
+		and int(counts["multimesh_batches"]) == 6
+		and int(counts["geometry_submissions"]) == 14,
 		"cross-brace family records 8 -> 1 renderer submissions with all eight copies preserved"
 	)
 	if brace_batch != null and brace_batch.multimesh != null:
@@ -555,7 +590,7 @@ func _run() -> void:
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.MEDIUM), "quality API accepts medium")
 	performance = dressing.get_performance_audit()
 	counts = performance["counts"] as Dictionary
-	_check(int(counts["mesh_instances"]) == 10 and int(counts["visible_primitives"]) == 33, "medium quality keeps 10 allocated meshes plus six batches and exposes 33 copies")
+	_check(int(counts["mesh_instances"]) == 5 and int(counts["visible_primitives"]) == 33, "medium quality keeps five allocated meshes plus six batches and exposes 33 copies")
 	_check(int(counts["visible_lights"]) == 0, "medium quality hides the high-tier task light")
 	_check(int(counts["node_count"]) == high_node_count, "medium quality performs no structural allocation")
 	_check(dressing.set_quality_level(StationStructuralServiceDressing.DetailQuality.LOW), "quality API accepts low")
@@ -661,7 +696,7 @@ func _run() -> void:
 	(detached_audit["evidence"] as Dictionary).clear()
 	(detached_audit["node_contract"] as Dictionary).clear()
 	var fresh_audit := dressing.audit()
-	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 10, "deep-copy audit protects nested performance counts")
+	_check(int(((fresh_audit["performance"] as Dictionary)["counts"] as Dictionary)["mesh_instances"]) == 5, "deep-copy audit protects nested performance counts")
 	_check(not (fresh_audit["integration"] as Dictionary).is_empty(), "deep-copy audit protects integration state")
 	_check(not (fresh_audit["evidence"] as Dictionary).is_empty(), "deep-copy audit protects evidence state")
 	_check(not (fresh_audit["node_contract"] as Dictionary).is_empty(), "deep-copy audit protects semantic node paths")
