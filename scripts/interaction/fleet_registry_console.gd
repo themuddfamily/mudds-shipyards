@@ -167,7 +167,10 @@ func _build_screen() -> void:
 	_status_label.position = TEXT_POSITION
 	_status_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	_status_label.font_size = 40
-	_status_label.pixel_size = 0.0032
+	# Ten production lines (header plus nine retained craft) need to fit the
+	# terminal's 1.46 m screen with a readable top/bottom margin. The former
+	# 0.0032 scale visibly lost the header and last row at the normal approach.
+	_status_label.pixel_size = 0.0022
 	_status_label.modulate = Color("071217")
 	_status_label.outline_size = 0
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

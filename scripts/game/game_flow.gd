@@ -5957,6 +5957,11 @@ func _update_on_foot_flow() -> void:
 		else:
 			hud.set_interaction("WALK FORWARD TO THE COCKPIT", true)
 	elif is_instance_valid(station_interaction_candidate):
+		# A station console wins this press over a nearby boarding area. Retire the
+		# last proximity-only boarding card at the same boundary so it cannot stay
+		# centered over the console the player is actually reading; leaving the
+		# console recreates the card from the live boarding candidate as before.
+		_detach_boarding_confirmation_hud_composition()
 		hud.set_interaction(str(station_interaction_candidate.call("get_interaction_prompt")))
 	elif _near_ship:
 		_present_boarding_confirmation(&"available", boarding_candidate)

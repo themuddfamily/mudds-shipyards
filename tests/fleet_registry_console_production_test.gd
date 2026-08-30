@@ -52,8 +52,11 @@ func _run() -> void:
 	_check(
 		player.global_position.distance_to(walk_start) > 0.35
 			and game.station_interaction_candidate == console
-			and str(console.call(&"get_interaction_prompt")).contains("VIEW FLEET REGISTRY"),
-		"normal locomotion reaches the existing shared interaction candidate and prompt"
+			and str(console.call(&"get_interaction_prompt")).contains("VIEW FLEET REGISTRY")
+			and not bool(game.get_boarding_confirmation_presentation_report().get(
+				"attached", true
+			)),
+		"normal locomotion reaches the shared prompt without a stale boarding card"
 	)
 
 	var berths_before := _berth_snapshot(game.world)
