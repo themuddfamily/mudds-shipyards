@@ -26,6 +26,11 @@ const PAYLOAD_WEAPON_ID: StringName = &"bomber_payload_release"
 const PAYLOAD_PRESENTATION_ID: StringName = &"payload_release_flash"
 const PAYLOAD_AUDIO_ID: StringName = &"payload_release_audio"
 const HULL_SIZE := Vector3(7.0, 3.0, 15.5)
+## Bomber-local closed support beneath the inherited cockpit. The 0.41 m
+## height bridges hull top y=1.50 to cockpit-floor bottom y=1.87 while seating
+## 20 mm into each solid, so no lit angle can reveal the former air gap.
+const COCKPIT_SUPPORT_FAIRING_SIZE := Vector3(2.1, 0.41, 3.4)
+const COCKPIT_SUPPORT_FAIRING_POSITION := Vector3(0.0, 1.685, -0.55)
 const ORDNANCE_SPINE_SIZE := Vector3(2.2, 1.25, 8.4)
 const ORDNANCE_SPINE_POSITION := Vector3(0.0, -0.15, 1.5)
 const STRIKE_WING_SIZE := Vector3(5.0, 0.3, 6.2)
@@ -76,6 +81,7 @@ const DAMAGE_VANE_COLOR := Color("ff6a36")
 # transforms and physical authority remain per craft.
 static var _shared_hull_mesh: BoxMesh
 static var _shared_hull_material: StandardMaterial3D
+static var _shared_cockpit_support_fairing_mesh: BoxMesh
 static var _shared_ordnance_spine_mesh: BoxMesh
 static var _shared_ordnance_spine_material: StandardMaterial3D
 static var _shared_strike_wing_mesh: BoxMesh
@@ -231,6 +237,7 @@ func _build_bomber_variant(_controller: HeroShip) -> bool:
 	visual.set_meta(&"geometry_status", EVIDENCE_STATUS)
 	visual.set_meta(&"historically_supported", false)
 	_build_hull(visual)
+	_build_cockpit_support_fairing(visual)
 	_build_strike_wings(visual)
 	_build_aft_empennage(visual)
 	_build_cockpit_and_boarding(visual)
@@ -914,6 +921,20 @@ func _build_hull(visual: Node3D) -> void:
 	sensor.material_override = _shared_sensor_material
 	sensor.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	visual.add_child(sensor)
+
+
+func _build_cockpit_support_fairing(visual: Node3D) -> void:
+	var fairing := MeshInstance3D.new()
+	fairing.name = "CockpitSupportFairing"
+	if _shared_cockpit_support_fairing_mesh == null:
+		_shared_cockpit_support_fairing_mesh = BoxMesh.new()
+		_shared_cockpit_support_fairing_mesh.size = COCKPIT_SUPPORT_FAIRING_SIZE
+		_shared_cockpit_support_fairing_mesh.resource_local_to_scene = false
+	fairing.mesh = _shared_cockpit_support_fairing_mesh
+	fairing.position = COCKPIT_SUPPORT_FAIRING_POSITION
+	fairing.material_override = _shared_hull_material
+	fairing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	visual.add_child(fairing)
 
 
 func _build_strike_wings(visual: Node3D) -> void:
