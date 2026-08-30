@@ -417,9 +417,13 @@ func _test_boot_presents_before_it_builds() -> void:
 		world != null and world.get_target_count() > 0,
 		"the staged world finished its procedural build, not just its authored modules"
 	)
+	var berth_ids := world.get_berth_ids() if world != null else []
 	_check(
-		world != null and world.get_berth_ids().size() >= 5,
-		"the staged world registered its berths"
+		berth_ids.size() == 9
+		and berth_ids.has(&"dock_04_cargo")
+		and berth_ids.has(&"dock_05_bomber")
+		and berth_ids.has(&"dock_06_interceptor"),
+		"the staged world indexes all nine physical berths before fleet admission"
 	)
 	_check(
 		hud != null and not bool(hud.get("_started")),

@@ -9658,13 +9658,32 @@ func _register_flyable_ships() -> void:
 	var expansion_binding: Node = null
 	if is_instance_valid(world) and world.has_method(&"get_fleet_expansion_production_binding"):
 		expansion_binding = world.call(&"get_fleet_expansion_production_binding") as Node
+	var fleet_snapshot: Dictionary = {}
 	if is_instance_valid(expansion_binding) and expansion_binding.has_method(&"get_fleet_snapshot"):
-		var pending_snapshot := expansion_binding.call(&"get_fleet_snapshot") as Dictionary
-		if not bool(pending_snapshot.get("built", false)) and not _production_registry_refresh_queued:
+		fleet_snapshot = expansion_binding.call(&"get_fleet_snapshot") as Dictionary
+		if bool(fleet_snapshot.get("built", false)):
+			# Staged startup gives the nested Dock 04/05/06 composition time to
+			# finish before GameFlow starts. In that ordering no deferred refresh
+			# was queued, so the live craft were validated against the world's
+			# earlier six-berth cache and all three were rejected. Bring the
+			# already-built physical pads into the registry before inspecting any
+			# candidate; ordinary startup still follows the deferred path below.
+			var expansion_berths_registered := true
+			for row_variant: Variant in fleet_snapshot.get("craft", []) as Array:
+				var row := row_variant as Dictionary
+				var pad_id := StringName(row.get("pad_id", &""))
+				if pad_id.is_empty() or not world.has_method(&"has_berth") \
+						or not bool(world.call(&"has_berth", pad_id)):
+					expansion_berths_registered = false
+					break
+			if not expansion_berths_registered:
+				if not world.has_method(&"refresh_deferred_fleet_expansion_berths") \
+						or not bool(world.call(&"refresh_deferred_fleet_expansion_berths")):
+					push_error("Built fleet expansion berths could not enter the physical registry")
+		elif not _production_registry_refresh_queued:
 			_production_registry_refresh_queued = true
 			call_deferred(&"_refresh_production_flyable_registry")
-	if is_instance_valid(expansion_binding) and expansion_binding.has_method(&"get_fleet_snapshot"):
-		var fleet_snapshot := expansion_binding.call(&"get_fleet_snapshot") as Dictionary
+	if not fleet_snapshot.is_empty():
 		for row_variant: Variant in fleet_snapshot.get("craft", []) as Array:
 			var row := row_variant as Dictionary
 			var craft_id := StringName(row.get("craft_id", &""))
