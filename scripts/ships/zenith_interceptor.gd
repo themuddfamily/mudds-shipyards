@@ -31,10 +31,12 @@ const EXPECTED_MATERIAL_ROLES := 10
 # The authored modern canopy's graphite frame is a single exterior batch. Its
 # centre spine crosses the physical pilot eye because the imported shell is
 # intentionally presentation-only and has no cockpit cutaway. Keep that batch
-# visible to every normal exterior camera on the last 3D render layer, while
-# the Zenith cockpit camera alone omits it. This changes no B7 source geometry,
-# mesh/material identity, collision, or external silhouette.
-const COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER := 20
+# visible to every normal exterior camera on a dedicated, otherwise unused 3D
+# render layer, while the Zenith cockpit camera alone omits it. Layer 20 is
+# reserved project-wide for AvatarSelfView; using it here would make an on-foot
+# first-person camera hide this ship exterior too. This changes no B7 source
+# geometry, mesh/material identity, collision, or external silhouette.
+const COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER := 19
 const COCKPIT_FRAME_EXTERIOR_VISUAL_MASK := 1 << (COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER - 1)
 const COLLISION_ORACLE_ID: StringName = &"zenith_b7_runtime_24_mixed_v2"
 const COLLISION_GEOMETRY_SHA256 := "7717ba624158dca52c71dc271e13663436b9b9bf52658972f92fbc9e4482c273"

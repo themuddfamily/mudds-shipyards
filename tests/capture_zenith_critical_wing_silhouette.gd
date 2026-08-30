@@ -65,7 +65,13 @@ func _run() -> void:
 			and (failed as ZenithInterceptor).get_camera().current
 			and (nominal as ZenithInterceptor).get_camera().get_cull_mask_value(
 				ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER
-			),
+			)
+			and ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER
+				!= PilotSkinnedPresentation.LOCAL_OBSERVER_CULL_LAYER
+			and (
+				((1 << 20) - 1) & ~PilotSkinnedPresentation.LOCAL_OBSERVER_CULL_MASK
+				& ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_MASK
+			) != 0,
 		"both production chase cameras become authoritative"
 	)
 	await _save_audit_frame(
@@ -97,6 +103,51 @@ func _run() -> void:
 	await _save_audit_frame(
 		"res://artifacts/zenith_critical_wing_silhouette/production_cockpit_comparison.png",
 		"production cockpit"
+	)
+
+	for craft in [nominal as ZenithInterceptor, failed as ZenithInterceptor]:
+		craft.set_canopy_open(true, 0.0)
+	await _settle_physics(6)
+	_check(
+		(nominal as ZenithInterceptor).is_canopy_open()
+			and (failed as ZenithInterceptor).is_canopy_open()
+			and not (nominal as ZenithInterceptor).get_camera().get_cull_mask_value(
+				ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER
+			)
+			and bool((nominal as ZenithInterceptor).get_zenith_audit_report().valid)
+			and bool((failed as ZenithInterceptor).get_zenith_audit_report().valid),
+		"nominal and damaged open-canopy cockpit lifecycle preserves the clear-view contract"
+	)
+	await _save_audit_frame(
+		"res://artifacts/zenith_critical_wing_silhouette/production_cockpit_canopy_open_comparison.png",
+		"production cockpit with canopy open"
+	)
+
+	for craft in [nominal as ZenithInterceptor, failed as ZenithInterceptor]:
+		craft.set_cockpit_view(false)
+	await _settle_physics(6)
+	_check(
+		(nominal as ZenithInterceptor).get_camera().get_cull_mask_value(
+			ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER
+		)
+			and (failed as ZenithInterceptor).get_camera().get_cull_mask_value(
+				ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER
+			),
+		"nominal and damaged chase cameras retain the complete open canopy"
+	)
+	await _save_audit_frame(
+		"res://artifacts/zenith_critical_wing_silhouette/production_chase_canopy_open_comparison.png",
+		"production chase with canopy open"
+	)
+	for craft in [nominal as ZenithInterceptor, failed as ZenithInterceptor]:
+		craft.set_canopy_open(false, 0.0)
+	await _settle_physics(6)
+	_check(
+		not (nominal as ZenithInterceptor).is_canopy_open()
+			and not (failed as ZenithInterceptor).is_canopy_open()
+			and bool((nominal as ZenithInterceptor).get_zenith_audit_report().valid)
+			and bool((failed as ZenithInterceptor).get_zenith_audit_report().valid),
+		"nominal and damaged canopy lifecycle reseals with both runtime audits green"
 	)
 	for craft in [nominal as ZenithInterceptor, failed as ZenithInterceptor]:
 		craft.set_piloted(false)
