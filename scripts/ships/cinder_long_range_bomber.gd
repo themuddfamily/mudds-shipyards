@@ -42,6 +42,11 @@ const AFT_FIN_CANT_DEGREES := 12.0
 const SENSOR_RADIUS := 0.62
 const SENSOR_HEIGHT := 1.24
 const SENSOR_POSITION := Vector3(0.0, 1.6, -5.2)
+## The dorsal sensor remains visible to chase/world cameras, but its placement
+## intersects the physical pilot's forward framing. A dedicated presentation
+## layer lets the cockpit omit only this exterior emitter without moving it or
+## changing the bomber silhouette seen by every exterior camera.
+const EXTERIOR_SENSOR_VISUAL_LAYER := 1 << 1
 const HULL_COLOR := Color("3e4d57")
 const ORDNANCE_COLOR := Color("b85a3c")
 const SENSOR_COLOR := Color("d6b45d")
@@ -724,6 +729,8 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 		if not sensor.visible \
 				or sensor.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
 			errors.append("LongRangeSensor renderer state drifted")
+		if sensor.layers != EXTERIOR_SENSOR_VISUAL_LAYER:
+			errors.append("LongRangeSensor exterior camera layer drifted")
 		if sensor.get_child_count() != 0 or sensor.get_script() != null:
 			errors.append("LongRangeSensor gained semantic children or authority")
 	if mesh == null or mesh != _shared_sensor_mesh:
@@ -748,6 +755,16 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 		or material.resource_local_to_scene
 	):
 		errors.append("LongRangeSensor material recipe drifted")
+	var cockpit_camera := find_child("CockpitCamera", true, false) as Camera3D
+	var chase_camera := find_child("ShipCamera", true, false) as Camera3D
+	var cockpit_omits_sensor := cockpit_camera != null \
+		and (cockpit_camera.cull_mask & EXTERIOR_SENSOR_VISUAL_LAYER) == 0
+	var chase_retains_sensor := chase_camera != null \
+		and (chase_camera.cull_mask & EXTERIOR_SENSOR_VISUAL_LAYER) != 0
+	if not cockpit_omits_sensor:
+		errors.append("LongRangeSensor remains visible in cockpit camera")
+	if not chase_retains_sensor:
+		errors.append("LongRangeSensor disappeared from chase camera")
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
@@ -757,6 +774,8 @@ func get_sensor_resource_sharing_audit() -> Dictionary:
 		"visible_copies_per_bomber": 1 if sensor != null and sensor.visible else 0,
 		"mesh_resource_id": mesh.get_instance_id() if mesh != null else 0,
 		"material_resource_id": material.get_instance_id() if material != null else 0,
+		"cockpit_omits_sensor": cockpit_omits_sensor,
+		"chase_retains_sensor": chase_retains_sensor,
 		"legacy_two_copy": {
 			"renderer_nodes": 2,
 			"geometry_submissions": 2,
@@ -893,6 +912,7 @@ func _build_hull(visual: Node3D) -> void:
 	sensor.mesh = _shared_sensor_mesh
 	sensor.position = SENSOR_POSITION
 	sensor.material_override = _shared_sensor_material
+	sensor.layers = EXTERIOR_SENSOR_VISUAL_LAYER
 	visual.add_child(sensor)
 
 
@@ -1077,6 +1097,11 @@ func _build_cockpit_and_boarding(visual: Node3D) -> void:
 		NodePath("CockpitInterior/InstrumentCluster")
 	) as Node3D
 	_install_variant_cockpit_system_readout(instrument_cluster)
+	var cockpit_camera := visual.get_node_or_null(
+		NodePath("CockpitInterior/CockpitCamera")
+	) as Camera3D
+	if cockpit_camera != null:
+		cockpit_camera.cull_mask &= ~EXTERIOR_SENSOR_VISUAL_LAYER
 	_bomber_boarding_marker = Marker3D.new()
 	_bomber_boarding_marker.name = "BoardingMarker"
 	_bomber_boarding_marker.position = Vector3(-3.8, -1.0, -0.5)
