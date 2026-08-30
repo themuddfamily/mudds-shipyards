@@ -10,6 +10,14 @@ const ATMOSPHERE_PATH := "res://assets/world/planets/aurora_temperate_atmosphere
 const TERRAIN_PATH := "res://assets/world/planets/aurora_temperate_terrain.tres"
 const LANDING_PATH := "res://assets/world/planets/aurora_foundation_landing.tres"
 const BODY_RADIUS_M := 120000.0
+const TERRAIN_RENDER_RESOLUTION := 65
+const TERRAIN_SEED := 20_260_830
+# The authored approach box runs from the pad to 600 m along local +Z. Keep
+# that complete flight volume at sea-level height; relief blends back in beyond
+# it instead of putting the final-approach camera or ship underneath a hill.
+const TERRAIN_FLATTEN_RADIUS_M := 750.0
+const TERRAIN_VISUAL_CLEARANCE_RADIUS_M := 94.0
+const TERRAIN_COLLISION_CLEARANCE_RADIUS_M := 48.0
 const ORBITAL_FRAME_ID := &"aurora_foundation_system"
 const ORBITAL_CELL_SIZE_M := 1000000.0
 const ORIGIN_SHIFT_THRESHOLD_M := 10000.0
@@ -25,10 +33,39 @@ const SURFACE_LANDMARK_MARKER_PATHS := {
 var _surface_audio_binding: RefCounted
 var _water_contact_audio_binding: RefCounted
 var _settlement_audio_binding: RefCounted
+var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
 
 func _ready() -> void:
 	set_process(false)
 	set_physics_process(false)
+	_terrain_clipmap = get_node_or_null(^"TerrainClipmap") \
+		as PlanetaryTerrainClipmapRenderer
+	var terrain := load(TERRAIN_PATH) as PlanetaryTerrainProfile
+	if _terrain_clipmap == null or terrain == null:
+		push_error("Aurora terrain clipmap contract is unavailable")
+	else:
+		var configured := _terrain_clipmap.configure(
+			terrain,
+			TERRAIN_RENDER_RESOLUTION,
+			TERRAIN_SEED,
+			Vector3.UP * BODY_RADIUS_M,
+			TERRAIN_FLATTEN_RADIUS_M,
+			TERRAIN_VISUAL_CLEARANCE_RADIUS_M,
+			TERRAIN_COLLISION_CLEARANCE_RADIUS_M,
+		)
+		var rebuilt := (
+			_terrain_clipmap.rebuild(
+				Vector3.UP * BODY_RADIUS_M,
+				_terrain_clipmap.get_generation(),
+			)
+			if bool(configured.get("accepted", false))
+			else {"accepted": false, "reason": configured.get("reason", &"configure_failed")}
+		)
+		if not bool(rebuilt.get("accepted", false)):
+			push_error(
+				"Aurora terrain clipmap failed: %s"
+				% String(rebuilt.get("reason", &"unknown"))
+			)
 	_surface_audio_binding = AuroraSurfaceAudioBindingType.new()
 	_surface_audio_binding.attach(0)
 	_water_contact_audio_binding = WaterContactAudioBindingType.new()
@@ -86,6 +123,14 @@ func set_settlement_audio_perspective(perspective: StringName) -> Dictionary:
 func get_settlement_audio_snapshot() -> Dictionary:
 	return _settlement_audio_binding.get_snapshot() if _settlement_audio_binding != null else {"attached": false}
 
+
+func get_terrain_clipmap_snapshot() -> Dictionary:
+	return (
+		_terrain_clipmap.get_snapshot()
+		if _terrain_clipmap != null
+		else {"configured": false, "ring_count": 0}
+	)
+
 func audit() -> Dictionary:
 	var errors := PackedStringArray()
 	var world := load(WORLD_PATH) as PlanetaryWorldDefinition
@@ -117,8 +162,23 @@ func audit() -> Dictionary:
 	if not bool(frame_configuration.get("accepted", false)) or not bool(landing_composition.get("valid", false)):
 		errors.append("landing_composition_invalid")
 
-	if get_node_or_null("BodyVisual") == null or get_node_or_null("LandingRegion/WalkablePatch/CollisionShape3D") == null or get_node_or_null("AuroraAtmosphereComposition") == null:
+	if get_node_or_null("BodyVisual") == null or get_node_or_null("LandingRegion/WalkablePatch/CollisionShape3D") == null or get_node_or_null("AuroraAtmosphereComposition") == null or _terrain_clipmap == null:
 		errors.append("required_node_missing")
+	var terrain_clipmap_audit := (
+		_terrain_clipmap.audit() if _terrain_clipmap != null else {"valid": false}
+	) as Dictionary
+	var terrain_clipmap_snapshot := terrain_clipmap_audit.get("snapshot", {}) \
+		as Dictionary
+	if (
+		not bool(terrain_clipmap_audit.get("valid", false))
+		or terrain_clipmap_snapshot.get("profile_id", &"")
+			!= &"aurora_temperate_terrain"
+		or int(terrain_clipmap_snapshot.get("ring_count", 0)) != 5
+		or int(terrain_clipmap_snapshot.get("collision_ring_count", 0)) != 1
+		or int(terrain_clipmap_snapshot.get("render_vertex_count", 0)) > 300000
+		or int(terrain_clipmap_snapshot.get("render_triangle_count", 0)) > 600000
+	):
+		errors.append("terrain_clipmap_invalid")
 	var region := get_node_or_null("LandingRegion") as Node3D
 	if region == null or region.position != Vector3.UP * BODY_RADIUS_M or region.basis != Basis.IDENTITY:
 		errors.append("landing_transform_drift")
@@ -128,7 +188,7 @@ func audit() -> Dictionary:
 		errors.append("world_environment_census_drift")
 	if is_processing() or is_physics_processing():
 		errors.append("process_authority_added")
-	return {"valid": errors.is_empty(), "errors": errors, "world_composition": world_composition, "landing_composition": landing_composition, "surface_content": _surface_content_snapshot(landing), "authority": {"renderer": true, "gameplay": false, "streaming": false, "physics": false, "world_generation": false, "terrain_generation": false, "collision_generation": false, "origin_shift": false, "save": false, "network": false, "audio": false, "camera": false, "surface_route": false}}.duplicate(true)
+	return {"valid": errors.is_empty(), "errors": errors, "world_composition": world_composition, "landing_composition": landing_composition, "terrain_clipmap": terrain_clipmap_audit, "surface_content": _surface_content_snapshot(landing), "authority": {"renderer": true, "gameplay": false, "streaming": false, "physics": true, "world_generation": false, "terrain_generation": true, "collision_generation": true, "origin_shift": false, "save": false, "network": false, "audio": false, "camera": false, "surface_route": false}}.duplicate(true)
 
 
 func _validate_surface_route(errors: PackedStringArray, landing: PlanetaryLandingRegionDefinition) -> void:

@@ -1,0 +1,684 @@
+class_name PlanetaryTerrainClipmapRenderer
+extends Node3D
+
+## Caller-driven spherical terrain clipmap renderer.
+##
+## A validated PlanetaryTerrainProfile supplies the radius, LOD extents,
+## elevation envelope and budgets. One explicit rebuild creates a bounded stack
+## of nested spherical tangent grids around a body-local focus. Successive
+## coarser grids sit a few centimetres below the finer grid, hiding transition
+## cracks without skirts or duplicate coplanar faces. Only the finest grid owns
+## collision in this first production slice; an authored landing patch may own
+## a square clearance at its centre.
+##
+## The component owns its generated MeshInstance3D and StaticBody3D children.
+## It never observes a camera, advances a clock, moves an actor, shifts an
+## origin, streams a scene, chooses gameplay state, saves, or networks.
+
+signal terrain_rebuilt(generation: int, revision: int, snapshot: Dictionary)
+
+const COMPONENT_ID: StringName = &"planetary-terrain-clipmap-renderer"
+const SCHEMA_VERSION := 1
+const MAX_GENERATION := 9_007_199_254_740_991
+const MAX_RENDER_VERTICES := 300_000
+const MAX_RENDER_TRIANGLES := 600_000
+const MAX_ACTIVE_RING_COUNT := 16
+const MIN_RESOLUTION_VERTICES_PER_EDGE := 17
+const MAX_RESOLUTION_VERTICES_PER_EDGE := 257
+const MAX_FLATTEN_RADIUS_M := 10_000.0
+const MAX_VISUAL_CLEARANCE_RADIUS_M := 10_000.0
+const MAX_COLLISION_CLEARANCE_RADIUS_M := 10_000.0
+const MAX_AUTHORED_RELIEF_M := 420.0
+const COARSE_RING_RADIAL_BIAS_M := 0.25
+const DEFAULT_SEED := 20_260_830
+const COMMITTED_ROOT_NAME := &"CommittedTerrain"
+const VISUAL_ROOT_NAME := &"TerrainVisuals"
+const COLLISION_BODY_NAME := &"TerrainCollision"
+const TERRAIN_LAYER := 1
+
+const SHORE_COLOR := Color("5c796d")
+const LOWLAND_COLOR := Color("426f4c")
+const HIGHLAND_COLOR := Color("69755d")
+const ROCK_COLOR := Color("727a78")
+const SNOW_COLOR := Color("c3d0ce")
+
+var _configured := false
+var _generation := 0
+var _revision := 0
+var _mutation_active := false
+var _signal_dispatch_active := false
+var _profile_id: StringName = &""
+var _profile_snapshot: Dictionary = {}
+var _body_radius_m := 0.0
+var _minimum_elevation_m := 0.0
+var _maximum_elevation_m := 0.0
+var _ring_distances_m := PackedFloat64Array()
+var _resolution := 0
+var _seed := DEFAULT_SEED
+var _flatten_direction := Vector3.ZERO
+var _flatten_radius_m := 0.0
+var _visual_clearance_radius_m := 0.0
+var _collision_clearance_radius_m := 0.0
+var _last_focus_body_local_m := Vector3.ZERO
+var _last_snapshot: Dictionary = {}
+var _shared_material: StandardMaterial3D
+
+
+func _ready() -> void:
+	set_process(false)
+	set_physics_process(false)
+
+
+func configure(
+	profile: PlanetaryTerrainProfile,
+	resolution_vertices_per_edge: int,
+	seed: int = DEFAULT_SEED,
+	flatten_center_body_local_m: Vector3 = Vector3.ZERO,
+	flatten_radius_m: float = 0.0,
+	visual_clearance_radius_m: float = 0.0,
+	collision_clearance_radius_m: float = 0.0,
+) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if _configured:
+		return _result(false, &"already_configured")
+	if profile == null or not profile.is_profile_valid():
+		return _result(false, &"invalid_terrain_profile")
+	if (
+		resolution_vertices_per_edge < MIN_RESOLUTION_VERTICES_PER_EDGE
+		or resolution_vertices_per_edge > MAX_RESOLUTION_VERTICES_PER_EDGE
+		or not _is_power_of_two_plus_one(resolution_vertices_per_edge)
+		or resolution_vertices_per_edge
+			> profile.tile_resolution_vertices_per_edge
+	):
+		return _result(false, &"invalid_render_resolution")
+	var rings := profile.get_clipmap_ring_distances_meters()
+	if rings.is_empty() or rings.size() > MAX_ACTIVE_RING_COUNT:
+		return _result(false, &"invalid_ring_roster")
+	var vertex_count := rings.size() * (
+		resolution_vertices_per_edge * resolution_vertices_per_edge
+	)
+	var triangle_count := rings.size() * (
+		(resolution_vertices_per_edge - 1)
+		* (resolution_vertices_per_edge - 1)
+		* 2
+	)
+	if (
+		vertex_count > MAX_RENDER_VERTICES
+		or triangle_count > MAX_RENDER_TRIANGLES
+		or vertex_count > profile.maximum_visible_tile_count * 2048
+	):
+		return _result(false, &"render_budget_exceeded")
+	if (
+		not is_finite(flatten_radius_m)
+		or flatten_radius_m < 0.0
+		or flatten_radius_m > MAX_FLATTEN_RADIUS_M
+		or not is_finite(visual_clearance_radius_m)
+		or visual_clearance_radius_m < 0.0
+		or visual_clearance_radius_m > MAX_VISUAL_CLEARANCE_RADIUS_M
+		or not is_finite(collision_clearance_radius_m)
+		or collision_clearance_radius_m < 0.0
+		or collision_clearance_radius_m > MAX_COLLISION_CLEARANCE_RADIUS_M
+	):
+		return _result(false, &"invalid_landing_clearance")
+	if (
+		flatten_radius_m > 0.0
+		and (
+			not flatten_center_body_local_m.is_finite()
+			or flatten_center_body_local_m.is_zero_approx()
+		)
+	):
+		return _result(false, &"invalid_flatten_center")
+	if (
+		visual_clearance_radius_m > 0.0
+		and flatten_radius_m <= 0.0
+	) or (
+		collision_clearance_radius_m > 0.0
+		and flatten_radius_m <= 0.0
+	):
+		return _result(false, &"collision_clearance_requires_flatten_region")
+	if (
+		visual_clearance_radius_m > flatten_radius_m
+		or collision_clearance_radius_m > flatten_radius_m
+	):
+		return _result(false, &"collision_clearance_exceeds_flatten_region")
+	if _generation >= MAX_GENERATION:
+		return _result(false, &"generation_exhausted")
+
+	var snapshot := profile.get_snapshot()
+	_mutation_active = true
+	_profile_id = profile.profile_id
+	_profile_snapshot = snapshot.duplicate(true)
+	_body_radius_m = profile.reference_planet_radius_meters
+	_minimum_elevation_m = profile.minimum_elevation_meters
+	_maximum_elevation_m = profile.maximum_elevation_meters
+	_ring_distances_m = rings.duplicate()
+	_resolution = resolution_vertices_per_edge
+	_seed = seed
+	_flatten_direction = (
+		flatten_center_body_local_m.normalized()
+		if flatten_radius_m > 0.0
+		else Vector3.ZERO
+	)
+	_flatten_radius_m = flatten_radius_m
+	_visual_clearance_radius_m = visual_clearance_radius_m
+	_collision_clearance_radius_m = collision_clearance_radius_m
+	_shared_material = _create_shared_material()
+	_generation += 1
+	_configured = true
+	_mutation_active = false
+	return _result(true, &"configured", {
+		"generation": _generation,
+		"profile_id": _profile_id,
+		"ring_count": _ring_distances_m.size(),
+		"resolution_vertices_per_edge": _resolution,
+		"maximum_render_vertices": vertex_count,
+		"maximum_render_triangles": triangle_count,
+	})
+
+
+func rebuild(
+	focus_body_local_m: Vector3,
+	expected_generation: int,
+) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if not _configured:
+		return _result(false, &"not_configured")
+	if expected_generation != _generation:
+		return _result(false, &"stale_generation")
+	if (
+		not focus_body_local_m.is_finite()
+		or focus_body_local_m.is_zero_approx()
+	):
+		return _result(false, &"invalid_focus")
+	if not is_inside_tree() or is_queued_for_deletion():
+		return _result(false, &"renderer_detached")
+
+	_mutation_active = true
+	var focus_up := focus_body_local_m.normalized()
+	var tangent_right := _tangent_right(focus_up)
+	var tangent_back := tangent_right.cross(focus_up).normalized()
+	var staged_root := Node3D.new()
+	staged_root.name = COMMITTED_ROOT_NAME
+	staged_root.set_meta(&"terrain_generation", _generation)
+	staged_root.set_meta(&"terrain_revision", _revision + 1)
+	var visuals := Node3D.new()
+	visuals.name = VISUAL_ROOT_NAME
+	staged_root.add_child(visuals)
+	var collision_body := StaticBody3D.new()
+	collision_body.name = COLLISION_BODY_NAME
+	collision_body.collision_layer = TERRAIN_LAYER
+	collision_body.collision_mask = 0
+	collision_body.set_meta(&"generated_planetary_terrain", true)
+	staged_root.add_child(collision_body)
+
+	var ring_reports: Array[Dictionary] = []
+	var total_vertices := 0
+	var total_triangles := 0
+	var collision_triangles := 0
+	var minimum_generated_height := INF
+	var maximum_generated_height := -INF
+	for ring_index in _ring_distances_m.size():
+		var extent_m := float(_ring_distances_m[ring_index])
+		var built := _build_ring(
+			ring_index,
+			extent_m,
+			focus_up,
+			tangent_right,
+			tangent_back,
+		)
+		var mesh := built.get("mesh") as ArrayMesh
+		if mesh == null or mesh.get_surface_count() != 1:
+			staged_root.free()
+			_mutation_active = false
+			return _result(false, &"ring_build_failed", {
+				"ring_index": ring_index,
+			})
+		var instance := MeshInstance3D.new()
+		instance.name = "TerrainRing%02d" % ring_index
+		instance.mesh = mesh
+		instance.material_override = _shared_material
+		instance.cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			if ring_index <= 1
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		)
+		instance.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		instance.set_meta(&"clipmap_ring_index", ring_index)
+		instance.set_meta(&"clipmap_outer_extent_m", extent_m)
+		visuals.add_child(instance)
+		var ring_vertices := int(built.get("vertex_count", 0))
+		var ring_triangles := int(built.get("triangle_count", 0))
+		total_vertices += ring_vertices
+		total_triangles += ring_triangles
+		minimum_generated_height = minf(
+			minimum_generated_height,
+			float(built.get("minimum_height_m", INF)),
+		)
+		maximum_generated_height = maxf(
+			maximum_generated_height,
+			float(built.get("maximum_height_m", -INF)),
+		)
+		var ring_collision_faces := (
+			built.get("collision_faces", PackedVector3Array())
+			as PackedVector3Array
+		)
+		if not ring_collision_faces.is_empty():
+			var shape := ConcavePolygonShape3D.new()
+			shape.set_faces(ring_collision_faces)
+			shape.backface_collision = false
+			var collision := CollisionShape3D.new()
+			collision.name = "TerrainRing%02dCollision" % ring_index
+			collision.shape = shape
+			collision_body.add_child(collision)
+			collision_triangles += ring_collision_faces.size() / 3
+		ring_reports.append({
+			"ring_index": ring_index,
+			"outer_extent_m": extent_m,
+			"resolution_vertices_per_edge": _resolution,
+			"vertex_count": ring_vertices,
+			"triangle_count": ring_triangles,
+			"collision_triangle_count": ring_collision_faces.size() / 3,
+			"radial_bias_m": float(ring_index) * COARSE_RING_RADIAL_BIAS_M,
+		}.duplicate(true))
+
+	if (
+		total_vertices > MAX_RENDER_VERTICES
+		or total_triangles > MAX_RENDER_TRIANGLES
+		or not is_finite(minimum_generated_height)
+		or not is_finite(maximum_generated_height)
+		or minimum_generated_height < _minimum_elevation_m
+		or maximum_generated_height > _maximum_elevation_m
+	):
+		staged_root.free()
+		_mutation_active = false
+		return _result(false, &"generated_terrain_contract_invalid")
+
+	var previous := get_node_or_null(NodePath(String(COMMITTED_ROOT_NAME)))
+	if previous != null:
+		remove_child(previous)
+		previous.free()
+	add_child(staged_root)
+	_revision += 1
+	_last_focus_body_local_m = focus_body_local_m
+	_last_snapshot = {
+		"schema_version": SCHEMA_VERSION,
+		"component_id": COMPONENT_ID,
+		"configured": true,
+		"generation": _generation,
+		"revision": _revision,
+		"profile_id": _profile_id,
+		"focus_body_local_m": focus_body_local_m,
+		"focus_radial_up": focus_up,
+		"tangent_right": tangent_right,
+		"tangent_back": tangent_back,
+		"body_radius_m": _body_radius_m,
+		"ring_count": ring_reports.size(),
+		"rings": ring_reports,
+		"render_vertex_count": total_vertices,
+		"render_triangle_count": total_triangles,
+		"collision_triangle_count": collision_triangles,
+		"collision_ring_count": collision_body.get_child_count(),
+		"minimum_generated_height_m": minimum_generated_height,
+		"maximum_generated_height_m": maximum_generated_height,
+		"flatten_radius_m": _flatten_radius_m,
+		"visual_clearance_radius_m": _visual_clearance_radius_m,
+		"collision_clearance_radius_m": _collision_clearance_radius_m,
+		"authority": _authority_snapshot(),
+	}.duplicate(true)
+	_mutation_active = false
+	_signal_dispatch_active = true
+	terrain_rebuilt.emit(_generation, _revision, _last_snapshot.duplicate(true))
+	_signal_dispatch_active = false
+	return _result(true, &"terrain_rebuilt", {
+		"generation": _generation,
+		"revision": _revision,
+		"snapshot": _last_snapshot,
+	})
+
+
+func retire(expected_generation: int) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if not _configured:
+		return _result(false, &"not_configured")
+	if expected_generation != _generation:
+		return _result(false, &"stale_generation")
+	if _generation >= MAX_GENERATION:
+		return _result(false, &"generation_exhausted")
+	_mutation_active = true
+	var committed := get_node_or_null(NodePath(String(COMMITTED_ROOT_NAME)))
+	if committed != null:
+		remove_child(committed)
+		committed.free()
+	_generation += 1
+	_revision = 0
+	_last_focus_body_local_m = Vector3.ZERO
+	_last_snapshot.clear()
+	_mutation_active = false
+	return _result(true, &"terrain_retired", {"generation": _generation})
+
+
+func get_generation() -> int:
+	return _generation
+
+
+func get_revision() -> int:
+	return _revision
+
+
+func get_snapshot() -> Dictionary:
+	if _last_snapshot.is_empty():
+		return {
+			"schema_version": SCHEMA_VERSION,
+			"component_id": COMPONENT_ID,
+			"configured": _configured,
+			"generation": _generation,
+			"revision": _revision,
+			"profile_id": _profile_id,
+			"ring_count": 0,
+			"rings": [],
+			"authority": _authority_snapshot(),
+		}.duplicate(true)
+	return _last_snapshot.duplicate(true)
+
+
+func sample_height(body_direction: Vector3) -> Dictionary:
+	if not _configured:
+		return _result(false, &"not_configured")
+	if not body_direction.is_finite() or body_direction.is_zero_approx():
+		return _result(false, &"invalid_body_direction")
+	var direction := body_direction.normalized()
+	return _result(true, &"height_sampled", {
+		"body_direction": direction,
+		"height_m": _sample_height_direction(direction),
+	})
+
+
+func audit() -> Dictionary:
+	var errors := PackedStringArray()
+	if not _configured:
+		errors.append("terrain renderer is not configured")
+	if is_processing() or is_physics_processing():
+		errors.append("terrain renderer gained automatic cadence")
+	if _configured and (
+		_profile_id.is_empty()
+		or _body_radius_m <= 0.0
+		or _ring_distances_m.is_empty()
+		or _resolution < MIN_RESOLUTION_VERTICES_PER_EDGE
+		or _shared_material == null
+	):
+		errors.append("frozen terrain renderer contract is invalid")
+	var committed := get_node_or_null(NodePath(String(COMMITTED_ROOT_NAME)))
+	if _revision == 0 and committed != null:
+		errors.append("unbuilt renderer owns committed terrain")
+	elif _revision > 0:
+		if committed == null:
+			errors.append("committed terrain root is unavailable")
+		else:
+			var visuals := committed.get_node_or_null(
+				NodePath(String(VISUAL_ROOT_NAME))
+			) as Node3D
+			var collision := committed.get_node_or_null(
+				NodePath(String(COLLISION_BODY_NAME))
+			) as StaticBody3D
+			if visuals == null or visuals.get_child_count() != _ring_distances_m.size():
+				errors.append("terrain visual ring roster drifted")
+			if collision == null or collision.collision_layer != TERRAIN_LAYER:
+				errors.append("terrain collision owner drifted")
+		if (
+			int(_last_snapshot.get("render_vertex_count", 0)) > MAX_RENDER_VERTICES
+			or int(_last_snapshot.get("render_triangle_count", 0))
+				> MAX_RENDER_TRIANGLES
+		):
+			errors.append("terrain renderer exceeded its hard budget")
+	return {
+		"schema_version": SCHEMA_VERSION,
+		"component_id": COMPONENT_ID,
+		"valid": errors.is_empty(),
+		"errors": errors,
+		"snapshot": get_snapshot(),
+		"authority": _authority_snapshot(),
+		"cadence": &"caller_driven_rebuild_only",
+		"lod_strategy": &"nested_spherical_tangent_clipmap_grids",
+		"collision_strategy": &"finest_ring_with_authored_landing_clearance",
+	}.duplicate(true)
+
+
+func _build_ring(
+	ring_index: int,
+	extent_m: float,
+	focus_up: Vector3,
+	tangent_right: Vector3,
+	tangent_back: Vector3,
+) -> Dictionary:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var collision_faces := PackedVector3Array()
+	var minimum_height := INF
+	var maximum_height := -INF
+	var segment_count := _resolution - 1
+	var step_m := extent_m * 2.0 / float(segment_count)
+	var radial_bias_m := float(ring_index) * COARSE_RING_RADIAL_BIAS_M
+	for z_index in _resolution:
+		var z_m := -extent_m + float(z_index) * step_m
+		for x_index in _resolution:
+			var x_m := -extent_m + float(x_index) * step_m
+			var tangent_point := (
+				focus_up * _body_radius_m
+				+ tangent_right * x_m
+				+ tangent_back * z_m
+			)
+			var direction := tangent_point.normalized()
+			var height_m := _sample_height_direction(direction)
+			minimum_height = minf(minimum_height, height_m)
+			maximum_height = maxf(maximum_height, height_m)
+			vertices.append(direction * (
+				_body_radius_m + height_m - radial_bias_m
+			))
+			normals.append(direction)
+			colors.append(_terrain_color(height_m, direction))
+			uvs.append(Vector2(
+				float(x_index) / float(segment_count),
+				float(z_index) / float(segment_count),
+			))
+	for z_index in segment_count:
+		for x_index in segment_count:
+			var i00 := z_index * _resolution + x_index
+			var i10 := i00 + 1
+			var i01 := i00 + _resolution
+			var i11 := i01 + 1
+			var center_x := -extent_m + (float(x_index) + 0.5) * step_m
+			var center_z := -extent_m + (float(z_index) + 0.5) * step_m
+			var inside_visual_clearance := (
+				ring_index == 0
+				and Vector2(center_x, center_z).length()
+					< _visual_clearance_radius_m
+			)
+			if not inside_visual_clearance:
+				_append_clockwise_triangle(indices, vertices, i00, i10, i11)
+				_append_clockwise_triangle(indices, vertices, i00, i11, i01)
+			if ring_index == 0:
+				if maxf(absf(center_x), absf(center_z)) \
+						>= _collision_clearance_radius_m:
+					_append_collision_triangle(
+						collision_faces, vertices, i00, i10, i11
+					)
+					_append_collision_triangle(
+						collision_faces, vertices, i00, i11, i01
+					)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.resource_name = "%s_ring_%02d" % [_profile_id, ring_index]
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return {
+		"mesh": mesh,
+		"vertex_count": vertices.size(),
+		"triangle_count": indices.size() / 3,
+		"collision_faces": collision_faces,
+		"minimum_height_m": minimum_height,
+		"maximum_height_m": maximum_height,
+	}
+
+
+func _sample_height_direction(direction: Vector3) -> float:
+	var phase := float(posmod(_seed, 4093)) * 0.0017
+	var continental := sin(direction.x * 19.0 + direction.z * 7.0 + phase)
+	continental += sin(direction.z * 27.0 - direction.y * 11.0 - phase * 0.7) * 0.58
+	continental += sin(
+		(direction.x + direction.y - direction.z) * 43.0 + phase * 1.9
+	) * 0.29
+	continental /= 1.87
+	var detail := sin(direction.x * 101.0 - direction.z * 71.0 + phase * 2.7)
+	detail += sin(direction.y * 137.0 + direction.z * 83.0 - phase) * 0.55
+	detail /= 1.55
+	var ridge := 1.0 - absf(
+		sin((direction.x - direction.z) * 67.0 + direction.y * 23.0)
+	)
+	var normalized := clampf(
+		continental * 0.70 + detail * 0.20 + (ridge - 0.5) * 0.22,
+		-1.0,
+		1.0,
+	)
+	var negative_amplitude := minf(
+		absf(minf(_minimum_elevation_m, 0.0)),
+		MAX_AUTHORED_RELIEF_M * 0.62,
+	)
+	var positive_amplitude := minf(
+		maxf(_maximum_elevation_m, 0.0),
+		MAX_AUTHORED_RELIEF_M,
+	)
+	var height_m := (
+		normalized * positive_amplitude
+		if normalized >= 0.0
+		else normalized * negative_amplitude
+	)
+	if _flatten_radius_m > 0.0:
+		var angular_distance := acos(clampf(
+			direction.dot(_flatten_direction), -1.0, 1.0
+		)) * _body_radius_m
+		var flatten_blend := smoothstep(
+			_flatten_radius_m,
+			_flatten_radius_m * 2.2,
+			angular_distance,
+		)
+		height_m *= flatten_blend
+	return clampf(height_m, _minimum_elevation_m, _maximum_elevation_m)
+
+
+func _terrain_color(height_m: float, direction: Vector3) -> Color:
+	var moisture := clampf(
+		0.5 + sin(direction.x * 53.0 + direction.z * 31.0) * 0.24,
+		0.0,
+		1.0,
+	)
+	if height_m < 8.0:
+		return SHORE_COLOR.lerp(LOWLAND_COLOR, moisture * 0.28)
+	if height_m < 260.0:
+		return LOWLAND_COLOR.lerp(HIGHLAND_COLOR, height_m / 260.0 * 0.45)
+	if height_m < 620.0:
+		return HIGHLAND_COLOR.lerp(ROCK_COLOR, (height_m - 260.0) / 360.0)
+	return ROCK_COLOR.lerp(
+		SNOW_COLOR,
+		clampf((height_m - 620.0) / 280.0, 0.0, 1.0),
+	)
+
+
+func _create_shared_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.resource_name = "%s_clipmap_vertex_material" % _profile_id
+	material.vertex_color_use_as_albedo = true
+	material.albedo_color = Color.WHITE
+	material.roughness = 0.92
+	material.metallic = 0.0
+	material.cull_mode = BaseMaterial3D.CULL_BACK
+	return material
+
+
+static func _append_clockwise_triangle(
+	indices: PackedInt32Array,
+	vertices: PackedVector3Array,
+	a: int,
+	b: int,
+	c: int,
+) -> void:
+	var va := vertices[a]
+	var vb := vertices[b]
+	var vc := vertices[c]
+	var mathematical_normal := (vb - va).cross(vc - va)
+	var outward := (va + vb + vc).normalized()
+	indices.append(a)
+	if mathematical_normal.dot(outward) > 0.0:
+		indices.append(c)
+		indices.append(b)
+	else:
+		indices.append(b)
+		indices.append(c)
+
+
+static func _append_collision_triangle(
+	faces: PackedVector3Array,
+	vertices: PackedVector3Array,
+	a: int,
+	b: int,
+	c: int,
+) -> void:
+	var ordered := PackedInt32Array()
+	_append_clockwise_triangle(ordered, vertices, a, b, c)
+	faces.append(vertices[ordered[0]])
+	faces.append(vertices[ordered[1]])
+	faces.append(vertices[ordered[2]])
+
+
+static func _tangent_right(up: Vector3) -> Vector3:
+	var reference := Vector3.FORWARD
+	if absf(reference.dot(up)) > 0.95:
+		reference = Vector3.RIGHT
+	return reference.cross(up).normalized()
+
+
+static func _is_power_of_two_plus_one(value: int) -> bool:
+	var candidate := value - 1
+	return candidate > 0 and (candidate & (candidate - 1)) == 0
+
+
+func _is_reentrant() -> bool:
+	return _mutation_active or _signal_dispatch_active
+
+
+static func _authority_snapshot() -> Dictionary:
+	return {
+		"renderer": true,
+		"terrain_generation": true,
+		"collision_generation": true,
+		"automatic_process": false,
+		"camera_observation": false,
+		"movement": false,
+		"origin_shift": false,
+		"scene_streaming": false,
+		"landing_decision": false,
+		"gameplay": false,
+		"save": false,
+		"network": false,
+	}.duplicate(true)
+
+
+static func _result(
+	accepted: bool,
+	reason: StringName,
+	extra: Dictionary = {},
+) -> Dictionary:
+	var result := {"accepted": accepted, "reason": reason}
+	for key: Variant in extra:
+		result[key] = extra[key]
+	return result.duplicate(true)

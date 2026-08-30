@@ -435,12 +435,29 @@ const SPACE_BACKDROP_BODY_MESH_RADIUS := 1.0
 const SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS := 24
 const SPACE_BACKDROP_BODY_MESH_RINGS := 12
 const SPACE_BACKDROP_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
+const AURORA_ORBITAL_BODY_ID: StringName = &"CelestialGreenBody"
+const AURORA_ORBITAL_DESTINATION_ID: StringName = &"aurora_temperate_world"
+const AURORA_ORBITAL_SHADER_PATH := "res://scripts/rendering/aurora_orbital_silhouette.gdshader"
+const AURORA_ORBITAL_SHADER := preload(
+	"res://scripts/rendering/aurora_orbital_silhouette.gdshader"
+)
+const AURORA_ORBITAL_OCEAN_COLOR := Color("0e3045")
+const AURORA_ORBITAL_SHELF_COLOR := Color("295e59")
+const AURORA_ORBITAL_LOWLAND_COLOR := Color("336b40")
+const AURORA_ORBITAL_HIGHLAND_COLOR := Color("737f5c")
+const AURORA_ORBITAL_CLOUD_COLOR := Color("c7e0e8")
+const AURORA_ORBITAL_ATMOSPHERE_COLOR := Color("38a8db")
+const AURORA_ORBITAL_LAND_THRESHOLD := 0.04
+const AURORA_ORBITAL_CLOUD_COVERAGE := 0.48
+const AURORA_ORBITAL_ATMOSPHERE_STRENGTH := 0.30
 const SPACE_BACKDROP_BODY_SPECS := {
 	&"CelestialGreenBody": {
 		"position": Vector3(-310.0, 100.0, -890.0),
 		"radius": 95.0,
-		"palette_role": &"green",
+		"palette_role": &"aurora_temperate",
 		"color": Color("5a9b58"),
+		"destination_id": AURORA_ORBITAL_DESTINATION_ID,
+		"presentation_recipe": &"procedural_ocean_land_cloud_atmosphere",
 	},
 	&"CelestialTanBody": {
 		"position": Vector3(250.0, -120.0, -1040.0),
@@ -4925,7 +4942,9 @@ func get_space_backdrop_evidence_metadata() -> Dictionary:
 			"Registered sources support near-black dense stars, large simple colourful "
 			+ "bodies, exposed grey station forms, and pale craft as a broad relationship. "
 			+ "The exact four-body count, blocking colours, positions, radii, materials, "
-			+ "star count, and nebula attenuation are modern composition decisions."
+			+ "star count, and nebula attenuation are modern composition decisions. "
+			+ "Promoting the green body to Aurora and its procedural ocean, land, cloud, "
+			+ "and atmosphere recipe are explicitly NEW modern presentation."
 		),
 	}.duplicate(true)
 
@@ -4943,6 +4962,31 @@ static func _sky_vector_matches(material: ShaderMaterial, name: StringName, expe
 static func _sky_scalar_matches(material: ShaderMaterial, name: StringName, expected: float) -> bool:
 	var value = material.get_shader_parameter(name)
 	return (value is float or value is int) and is_equal_approx(float(value), expected)
+
+
+static func _aurora_orbital_material_matches(material: ShaderMaterial) -> bool:
+	return (
+		material != null
+		and material.shader != null
+		and material.shader.resource_path == AURORA_ORBITAL_SHADER_PATH
+		and _sky_color_matches(material, &"ocean_color", AURORA_ORBITAL_OCEAN_COLOR)
+		and _sky_color_matches(material, &"shelf_color", AURORA_ORBITAL_SHELF_COLOR)
+		and _sky_color_matches(material, &"lowland_color", AURORA_ORBITAL_LOWLAND_COLOR)
+		and _sky_color_matches(material, &"highland_color", AURORA_ORBITAL_HIGHLAND_COLOR)
+		and _sky_color_matches(material, &"cloud_color", AURORA_ORBITAL_CLOUD_COLOR)
+		and _sky_color_matches(
+			material, &"atmosphere_color", AURORA_ORBITAL_ATMOSPHERE_COLOR
+		)
+		and _sky_scalar_matches(
+			material, &"land_threshold", AURORA_ORBITAL_LAND_THRESHOLD
+		)
+		and _sky_scalar_matches(
+			material, &"cloud_coverage", AURORA_ORBITAL_CLOUD_COVERAGE
+		)
+		and _sky_scalar_matches(
+			material, &"atmosphere_strength", AURORA_ORBITAL_ATMOSPHERE_STRENGTH
+		)
+	)
 
 
 func get_space_backdrop_audit_report() -> Dictionary:
@@ -5075,35 +5119,44 @@ func get_space_backdrop_audit_report() -> Dictionary:
 			errors.append("space body is unavailable: %s" % String(body_name))
 			continue
 		var sphere := body.mesh as SphereMesh
-		var material := body.material_override as StandardMaterial3D
+		var material := body.material_override
 		mesh_resource_ids[sphere.get_instance_id()] = true
 		if material != null:
 			material_resource_ids[material.get_instance_id()] = true
 		surface_submission_count += sphere.get_surface_count()
 		visible_copy_count += 1
-		if (
+		var common_contract_drifted: bool = (
 			not body.position.is_equal_approx(spec.position as Vector3)
 			or not body.scale.is_equal_approx(Vector3.ONE * float(spec.radius))
 			or not is_equal_approx(sphere.radius, SPACE_BACKDROP_BODY_MESH_RADIUS)
 			or not is_equal_approx(sphere.height, SPACE_BACKDROP_BODY_MESH_RADIUS * 2.0)
 			or sphere.radial_segments != SPACE_BACKDROP_BODY_MESH_RADIAL_SEGMENTS
 			or sphere.rings != SPACE_BACKDROP_BODY_MESH_RINGS
-			or material == null
-			or not material.albedo_color.is_equal_approx(spec.color as Color)
-			or not material.emission_enabled
-			or not material.emission.is_equal_approx(spec.color as Color)
-			# Re-frozen from 0.32/0.9 by the anti-flare presentation pass. See the body material
-			# construction for the full reason: at 0.32 emission each body filled its
-			# own night side back in and rendered as a flat saturated disc rather
-			# than a lit sphere. Still an exact equality, still the same four
-			# source-bounded colours and placements, with deliberately bounded radii.
-			or not is_equal_approx(material.emission_energy_multiplier, 0.04)
-			or not is_equal_approx(material.roughness, 1.0)
 			or body.get_meta(&"palette_role", &"") != spec.palette_role
 			or body.get_meta(&"visual_resource_family_id", &"") != SPACE_BACKDROP_BODY_MESH_FAMILY_ID
 			or body.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			or body.gi_mode != GeometryInstance3D.GI_MODE_DISABLED
-		):
+		)
+		var material_contract_valid := false
+		if body_name == AURORA_ORBITAL_BODY_ID:
+			material_contract_valid = (
+				_aurora_orbital_material_matches(material as ShaderMaterial)
+				and body.get_meta(&"destination_id", &"")
+					== AURORA_ORBITAL_DESTINATION_ID
+			)
+		else:
+			var standard := material as StandardMaterial3D
+			material_contract_valid = (
+				standard != null
+				and standard.albedo_color.is_equal_approx(spec.color as Color)
+				and standard.emission_enabled
+				and standard.emission.is_equal_approx(spec.color as Color)
+				# At 0.04 emission the night side remains readable without erasing
+				# the shared station-light terminator.
+				and is_equal_approx(standard.emission_energy_multiplier, 0.04)
+				and is_equal_approx(standard.roughness, 1.0)
+			)
+		if common_contract_drifted or not material_contract_valid:
 			errors.append("space body presentation contract drifted: %s" % String(body_name))
 
 	var authority_node_count := 0
@@ -8734,8 +8787,15 @@ func _build_space_backdrop() -> void:
 		# colours and placements remain source-bounded; the radii are deliberately
 		# reduced to keep a low-poly facet from becoming a screen-sized white/orange
 		# flare when it crosses the station sightline.
-		var body_material := _material(body_color, 0.0, 1.0, body_color, 0.04)
-		body_material.disable_receive_shadows = true
+		var body_material: Material
+		if body_name == AURORA_ORBITAL_BODY_ID:
+			body_material = _aurora_orbital_material()
+		else:
+			var standard := _material(
+				body_color, 0.0, 1.0, body_color, 0.04
+			)
+			standard.disable_receive_shadows = true
+			body_material = standard
 		# The bodies deliberately stay *in* the depth fog, unlike the star shell.
 		# Exempting them was tried and reverted: unfogged and lit by the raised key
 		# they came back as vivid, fully saturated green and orange billiard balls,
@@ -8753,7 +8813,36 @@ func _build_space_backdrop() -> void:
 		body.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		body.set_meta(&"palette_role", spec.palette_role)
 		body.set_meta(&"visual_resource_family_id", SPACE_BACKDROP_BODY_MESH_FAMILY_ID)
+		if body_name == AURORA_ORBITAL_BODY_ID:
+			body.set_meta(&"destination_id", AURORA_ORBITAL_DESTINATION_ID)
+			body.set_meta(
+				&"presentation_recipe",
+				&"procedural_ocean_land_cloud_atmosphere",
+			)
 		backdrop.add_child(body)
+
+
+func _aurora_orbital_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = AURORA_ORBITAL_SHADER
+	material.set_shader_parameter(&"ocean_color", AURORA_ORBITAL_OCEAN_COLOR)
+	material.set_shader_parameter(&"shelf_color", AURORA_ORBITAL_SHELF_COLOR)
+	material.set_shader_parameter(&"lowland_color", AURORA_ORBITAL_LOWLAND_COLOR)
+	material.set_shader_parameter(&"highland_color", AURORA_ORBITAL_HIGHLAND_COLOR)
+	material.set_shader_parameter(&"cloud_color", AURORA_ORBITAL_CLOUD_COLOR)
+	material.set_shader_parameter(
+		&"atmosphere_color", AURORA_ORBITAL_ATMOSPHERE_COLOR
+	)
+	material.set_shader_parameter(
+		&"land_threshold", AURORA_ORBITAL_LAND_THRESHOLD
+	)
+	material.set_shader_parameter(
+		&"cloud_coverage", AURORA_ORBITAL_CLOUD_COVERAGE
+	)
+	material.set_shader_parameter(
+		&"atmosphere_strength", AURORA_ORBITAL_ATMOSPHERE_STRENGTH
+	)
+	return material
 
 
 func _create_target(parent: Node3D, index: int, target_position: Vector3) -> void:

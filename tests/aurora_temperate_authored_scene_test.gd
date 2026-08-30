@@ -8,7 +8,7 @@ const WORLD := preload("res://assets/world/planets/aurora_temperate_world.tres")
 const ATMOSPHERE := preload("res://assets/world/planets/aurora_temperate_atmosphere.tres")
 const TERRAIN := preload("res://assets/world/planets/aurora_temperate_terrain.tres")
 const LANDING := preload("res://assets/world/planets/aurora_foundation_landing.tres")
-const EXPECTED_ASSERTIONS := 8
+const EXPECTED_ASSERTIONS := 9
 var failures := PackedStringArray()
 var assertions := 0
 func _init() -> void: call_deferred("run")
@@ -25,6 +25,8 @@ func run() -> void:
 	var landing_report := LandingCompositionValidatorScript.new().validate_composition(WORLD, TERRAIN, frame.get_snapshot(), LANDING)
 	check(configured.accepted and landing_report.valid and landing_report.world_id == WORLD.world_id and landing_report.body_id == LANDING.body_id and landing_report.region_id == LANDING.region_id, "Aurora landing resolves through its configured +Y coordinate frame")
 	check(scene.get_node("LandingRegion").position == Vector3.UP * 120000.0 and scene.get_node("LandingRegion/WalkablePatch").collision_layer == 1 and scene.get_node("LandingRegion/WalkablePatch").collision_mask == 0, "bounded +Y landing patch has World-only collision")
+	var terrain_snapshot := scene.get_terrain_clipmap_snapshot()
+	check(terrain_snapshot.get("profile_id") == &"aurora_temperate_terrain" and int(terrain_snapshot.get("ring_count", 0)) == 5 and int(terrain_snapshot.get("render_vertex_count", 0)) == 21125 and int(terrain_snapshot.get("render_triangle_count", 0)) == 40096 and int(terrain_snapshot.get("collision_triangle_count", 0)) == 7904 and int(terrain_snapshot.get("collision_ring_count", 0)) == 1 and bool((scene.audit().get("terrain_clipmap", {}) as Dictionary).get("valid", false)), "Aurora instantiates its five-ring spherical terrain and finest-ring collision")
 	var environments := scene.find_children("*", "WorldEnvironment", true, false)
 	check(environments.size() == 1 and environments[0] == scene.get_node("AuroraAtmosphereComposition/WorldEnvironment") and not scene.is_processing() and bool(scene.audit().valid), "composition remains the exactly-one WorldEnvironment owner and scene has no cadence")
 	check(scene.get_node("LandingRegion/Markers/ApproachEntry").position == Vector3(0,60,300) and scene.get_node("LandingRegion/Markers/AuroraEgress").position == Vector3(18,0,0), "scene markers match the bounded landing declaration")

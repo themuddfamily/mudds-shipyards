@@ -18,6 +18,9 @@ const EXPECTED_BODY_MESH_RADIUS := 1.0
 const EXPECTED_BODY_MESH_RADIAL_SEGMENTS := 24
 const EXPECTED_BODY_MESH_RINGS := 12
 const EXPECTED_BODY_MESH_FAMILY_ID: StringName = &"space-backdrop-celestial-bodies"
+const AURORA_BODY_ID: StringName = &"CelestialGreenBody"
+const AURORA_DESTINATION_ID: StringName = &"aurora_temperate_world"
+const AURORA_SHADER_PATH := "res://scripts/rendering/aurora_orbital_silhouette.gdshader"
 const EXPECTED_LOCAL_MESH_RESOURCES := 2
 const EXPECTED_LOCAL_MATERIAL_RESOURCES := 5
 const EXPECTED_LOCAL_RENDERER_NODES := 5
@@ -36,8 +39,10 @@ const EXPECTED_BODY_SPECS := {
 	&"CelestialGreenBody": {
 		"position": Vector3(-310.0, 100.0, -890.0),
 		"radius": 95.0,
-		"palette_role": &"green",
+		"palette_role": &"aurora_temperate",
 		"color": Color("5a9b58"),
+		"destination_id": AURORA_DESTINATION_ID,
+		"presentation_recipe": &"procedural_ocean_land_cloud_atmosphere",
 	},
 	&"CelestialTanBody": {
 		"position": Vector3(250.0, -120.0, -1040.0),
@@ -389,7 +394,7 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 		var reported := report_specs.get(body_name, {}) as Dictionary
 		var body := backdrop.get_node_or_null(NodePath(String(body_name))) as MeshInstance3D
 		var sphere := body.mesh as SphereMesh if body != null else null
-		var material := body.material_override as StandardMaterial3D if body != null else null
+		var material := body.material_override if body != null else null
 		var expected_radius := float(expected.radius)
 		# Rebuild the exact pre-sharing resource, rather than comparing against an
 		# ideal sphere: Godot's 24 sampled longitudes do not put every X/Z cardinal
@@ -423,27 +428,31 @@ func _test_exact_body_roster(world: ShipyardWorld) -> void:
 			StringName(body.get_meta(&"visual_resource_family_id", &"")) == EXPECTED_BODY_MESH_FAMILY_ID,
 			"%s explicitly belongs to the celestial-body mesh-sharing family" % body_name
 		)
-		_check(
-			material != null
-			and material.albedo_color.is_equal_approx(expected.color as Color)
-			and material.emission_enabled
-			and material.emission.is_equal_approx(expected.color as Color)
-			# Re-frozen from 0.32 emission / 0.9 roughness. At 0.32 each body lit its
-			# own night side back in, so the four of them rendered as flat saturated
-			# discs with no terminator - the most toy-like objects in any wide frame,
-			# and untouched by every previous presentation pass because none of them
-			# reached a kilometre out. At 0.04 the emission is a floor under the
-			# night side rather than a fill, and a body reads as a sphere lit from
-			# the same direction as the station. Colour, placement and the
-			# non-lighting/non-shadowing contract remain unchanged; the bounded radii
-			# above are the explicit anti-flare presentation correction.
-			and is_equal_approx(material.emission_energy_multiplier, 0.04)
-			and is_equal_approx(material.roughness, 1.0)
-			and material.disable_receive_shadows
-			and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			and body.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
-			"%s uses the exact low-emission, rough, non-lighting body material" % body_name
-		)
+		if body_name == AURORA_BODY_ID:
+			var aurora_material := material as ShaderMaterial
+			_check(
+				_aurora_material_matches(aurora_material)
+				and body.get_meta(&"destination_id", &"") == AURORA_DESTINATION_ID
+				and body.get_meta(&"presentation_recipe", &"")
+					== &"procedural_ocean_land_cloud_atmosphere"
+				and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				and body.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
+				"Aurora uses one exact ocean/land/cloud/atmosphere orbital material",
+			)
+		else:
+			var standard := material as StandardMaterial3D
+			_check(
+				standard != null
+				and standard.albedo_color.is_equal_approx(expected.color as Color)
+				and standard.emission_enabled
+				and standard.emission.is_equal_approx(expected.color as Color)
+				and is_equal_approx(standard.emission_energy_multiplier, 0.04)
+				and is_equal_approx(standard.roughness, 1.0)
+				and standard.disable_receive_shadows
+				and body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				and body.gi_mode == GeometryInstance3D.GI_MODE_DISABLED,
+				"%s uses the exact low-emission, rough, non-lighting body material" % body_name,
+			)
 		_check(
 			reported.get("position", Vector3.INF) == expected.position
 			and is_equal_approx(float(reported.get("radius", -1.0)), float(expected.radius))
@@ -702,6 +711,44 @@ func _get_sky_material(world: ShipyardWorld) -> ShaderMaterial:
 	if environment_node == null or environment_node.environment == null or environment_node.environment.sky == null:
 		return null
 	return environment_node.environment.sky.sky_material as ShaderMaterial
+
+
+func _aurora_material_matches(material: ShaderMaterial) -> bool:
+	if (
+		material == null
+		or material.shader == null
+		or material.shader.resource_path != AURORA_SHADER_PATH
+	):
+		return false
+	var expected_colors := {
+		&"ocean_color": Color("0e3045"),
+		&"shelf_color": Color("295e59"),
+		&"lowland_color": Color("336b40"),
+		&"highland_color": Color("737f5c"),
+		&"cloud_color": Color("c7e0e8"),
+		&"atmosphere_color": Color("38a8db"),
+	}
+	for parameter: StringName in expected_colors:
+		var value: Variant = material.get_shader_parameter(parameter)
+		if not value is Color or not (value as Color).is_equal_approx(
+			expected_colors[parameter] as Color
+		):
+			return false
+	var expected_scalars := {
+		&"land_threshold": 0.04,
+		&"cloud_coverage": 0.48,
+		&"atmosphere_strength": 0.30,
+	}
+	for parameter: StringName in expected_scalars:
+		var value: Variant = material.get_shader_parameter(parameter)
+		if (
+			not value is float
+			and not value is int
+		) or not is_equal_approx(
+			float(value), float(expected_scalars[parameter])
+		):
+			return false
+	return true
 
 
 func _is_forbidden_authority(candidate: Node) -> bool:

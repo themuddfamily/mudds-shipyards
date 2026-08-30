@@ -1,7 +1,8 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/aurora_temperate_authored_scene.gd" id="1_scene"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/aurora_temperate_atmosphere_composition.tscn" id="2_composition"]
+[ext_resource type="Script" path="res://scripts/world/planetary_terrain_clipmap_renderer.gd" id="3_terrain_clipmap"]
 
 [sub_resource type="StandardMaterial3D" id="BodyMaterial"]
 shading_mode = 0
@@ -37,6 +38,8 @@ script = ExtResource("1_scene")
 cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("BodyMesh")
+[node name="TerrainClipmap" type="Node3D" parent="."]
+script = ExtResource("3_terrain_clipmap")
 [node name="LandingRegion" type="Node3D" parent="."]
 position = Vector3(0, 120000, 0)
 [node name="LandingFloor" type="MeshInstance3D" parent="LandingRegion"]

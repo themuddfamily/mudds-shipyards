@@ -54,6 +54,7 @@ var _source_paths: PackedStringArray = PackedStringArray([
 	"res://assets/world/planets/aurora_temperate_terrain.tres",
 	"res://assets/world/planets/aurora_foundation_landing.tres",
 	"res://scripts/world/aurora_temperate_authored_scene.gd",
+	"res://scripts/world/planetary_terrain_clipmap_renderer.gd",
 	"res://scripts/world/planetary_atmosphere_composition.gd",
 	"res://scripts/world/planetary_atmosphere_world_rig.gd",
 	"res://scripts/world/planetary_atmosphere_presentation.gd",
@@ -435,7 +436,7 @@ func _write_evidence_manifest() -> void:
 		"does_not_prove": [
 			"Main or GameFlow integration.", "streaming, loading, unloading, or visitability.",
 			"Player or production-camera ownership, input, movement, or landing eligibility.",
-			"Terrain or collision generation beyond the authored 96 metre landing patch.",
+			"Production focus updates or collision beyond the generated finest terrain ring.",
 			"Weather, time-of-day, audio, save, networking, or native-GPU performance.",
 			"Production visual quality, fidelity, or craftsmanship.",
 		],

@@ -1403,14 +1403,25 @@ against exact streamed Ember identities, but it is also standalone and has no
 Main/GameFlow caller. These are coherent foundations, not a complete
 atmosphere, and no authored atmospheric production world consumes them yet.
 
-`aurora_temperate_world` is now a separate, explicitly non-production
+`aurora_temperate_world` remains a separate, explicitly non-production
 atmospheric witness: matching 120 km world/terrain/atmosphere/landing resources
-join through both composition validators, a body-centred scene provides an
-inset silhouette, bounded +Y landing patch/collision markers, and a detached
-non-traversable pad-to-staging route/landmark audit, and its
-standalone composition is the sole `WorldEnvironment` owner. It has no
-streaming, Player, camera, gameplay, terrain-generation or Main/GameFlow
-authority, so it does not yet make Aurora visitable.
+join through both composition validators, and its standalone composition is the
+sole `WorldEnvironment` owner. Its body-centred scene now owns the first bounded
+runtime terrain generator rather than only a flat proxy: five caller-built
+65 × 65 spherical clipmap rings produce **21,125 vertices / 40,096 visible
+triangles**, one shared biome-band material and one **7,904-triangle** finest-ring
+collision shape. The complete authored approach corridor stays inside a 750 m
+flat envelope, the 94 m centre opening exposes the existing landing-floor disc,
+and the 48 m collision opening hands support to the existing 96 m walkable patch
+without coplanar fighting. Generation, rebuild and retirement are fenced;
+detach retains the committed terrain, a different radial focus rebuilds the
+same bounded roster, and no camera or automatic cadence was added. The live
+Shipyard backdrop's former plain green sphere now also uses one authored Aurora
+ocean/land/cloud/atmospheric-limb shader while retaining the same single draw
+submission and zero gameplay authority. Aurora still has no streaming, Player,
+production focus caller, navigation, gameplay or Main/GameFlow route, and its
+detached pad-to-staging audit remains non-traversable, so neither presentation
+slice makes it visitable.
 
 `PlanetaryTerrainLodPolicy` selects inclusive near-to-far render/collision
 rings and exposes only bounded tile-ceiling hints. `PlanetarySurfaceGravityPolicy`
@@ -1528,11 +1539,11 @@ fences remain intact across whole-`Main` detach/re-entry.
 `tests/ember_final_approach_production_handoff_test.gd` cover that player-facing
 seam.
 
-Global terrain/clipmap generation, an atmospheric authored destination with
-complete sky/cloud/weather/entry/audio presentation, activity/reward,
-save/network, native performance and repeated orbit-to-surface lifecycle
-evidence all remain open. These are prerequisites for—not substitutes for—a
-visitable planet.
+Production focus-driven terrain streaming, collision beyond the finest ring,
+an atmospheric authored destination with complete sky/cloud/weather/entry/audio
+presentation, activity/reward, save/network, native performance and repeated
+orbit-to-surface lifecycle evidence all remain open. These are prerequisites
+for—not substitutes for—a visitable planet.
 
 One authored Ember surface activity is now composed through the real retained
 planetary and surface-loop bindings. `ember_beacon_survey` registers a strict
