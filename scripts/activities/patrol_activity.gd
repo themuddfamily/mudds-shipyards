@@ -26,10 +26,15 @@ enum State {
 }
 
 const ANY_CHECKPOINT := -1
-const PERSISTENCE_SCHEMA_VERSION := 1
+const PERSISTENCE_SCHEMA_VERSION := 2
+const BRANCH_RELAY_SWEEP: StringName = &"relay_sweep"
+const BRANCH_PLATFORM_SWEEP: StringName = &"platform_sweep"
+const VALID_BRANCH_IDS: Array[StringName] = [BRANCH_RELAY_SWEEP, BRANCH_PLATFORM_SWEEP]
 
 var definition: ActivityDefinition
 var dwell_seconds: float
+var _branch_definitions: Dictionary = {}
+var _selected_branch_id: StringName = BRANCH_RELAY_SWEEP
 
 var _director: ActivityDirector
 var _generation := 0
@@ -62,9 +67,16 @@ var _patrol_actor_loss_pending := false
 var _patrol_actor_pending_reason: StringName = &""
 
 
-func _init(route_definition: ActivityDefinition, configured_dwell_seconds: float = 2.0) -> void:
+func _init(
+	route_definition: ActivityDefinition,
+	configured_dwell_seconds: float = 2.0,
+	platform_route_definition: ActivityDefinition = null
+	) -> void:
 	definition = route_definition
 	dwell_seconds = configured_dwell_seconds
+	_branch_definitions[BRANCH_RELAY_SWEEP] = route_definition
+	if platform_route_definition != null:
+		_branch_definitions[BRANCH_PLATFORM_SWEEP] = platform_route_definition
 
 
 func get_configuration_errors() -> PackedStringArray:
@@ -75,7 +87,47 @@ func get_configuration_errors() -> PackedStringArray:
 		errors.append("definition must own a checkpoint route")
 	if not is_finite(dwell_seconds) or dwell_seconds < 0.0:
 		errors.append("dwell_seconds must be finite and non-negative")
+	if _branch_definitions.has(BRANCH_PLATFORM_SWEEP):
+		var platform_route := _branch_definitions[BRANCH_PLATFORM_SWEEP] as ActivityDefinition
+		if platform_route == null or not platform_route.is_definition_valid() \
+				or platform_route.activity_kind != ActivityDefinition.ACTIVITY_KIND_CHECKPOINT_ROUTE:
+			errors.append("platform branch must own a valid checkpoint route")
+		elif definition != null and (
+			platform_route.get_checkpoint_count() != definition.get_checkpoint_count()
+			or not is_equal_approx(platform_route.checkpoint_radius, definition.checkpoint_radius)
+		):
+			errors.append("patrol branches must reuse one checkpoint-volume roster")
 	return errors
+
+
+## Selects one of the two authored inspection orders before the next start.
+## The choice is patrol-local policy only: ActivityDirector still owns every
+## checkpoint commit, and a live/terminal generation cannot change underneath
+## the player. Reset returns the patrol to the only state where choice is legal.
+func select_branch(branch_id: StringName, expected_generation: int) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _result(false, &"stale_generation")
+	if branch_id not in VALID_BRANCH_IDS or not _branch_definitions.has(branch_id):
+		return _result(false, &"unsupported_patrol_branch")
+	if _state != State.IDLE:
+		return _result(false, &"branch_locked")
+	var candidate := _branch_definitions[branch_id] as ActivityDefinition
+	if _attached and (
+		not is_instance_valid(_director)
+		or _director.get_definition(candidate.activity_id) != candidate
+	):
+		return _result(false, &"route_not_registered")
+	_selected_branch_id = branch_id
+	definition = candidate
+	var result := _result(true, &"branch_selected")
+	_emit_snapshot_signal(presentation_changed)
+	return result
+
+
+func get_selected_branch_id() -> StringName:
+	return _selected_branch_id
 
 
 func is_configuration_valid() -> bool:
@@ -425,6 +477,12 @@ func get_presentation_snapshot() -> Dictionary:
 		"activity_id": definition.activity_id if definition != null else &"",
 		"display_name": definition.display_name if definition != null else "",
 		"activity_kind": &"patrol",
+		"branch_id": _selected_branch_id,
+		"branch_display_name": (
+			"Platform sweep"
+			if _selected_branch_id == BRANCH_PLATFORM_SWEEP
+			else "Relay sweep"
+		),
 		"state": _state,
 		"state_id": _state_id(_state),
 		"phase_id": phase_id,
@@ -476,6 +534,7 @@ func capture_persistence_state() -> Dictionary:
 	return {
 		"schema_version": PERSISTENCE_SCHEMA_VERSION,
 		"activity_id": String(definition.activity_id) if definition != null else "",
+		"branch_id": String(_selected_branch_id),
 		"configured_dwell_seconds": dwell_seconds,
 		"generation": _generation,
 		"activity_generation": _activity_generation,
@@ -497,13 +556,24 @@ func validate_persistence_state(
 	candidate: Variant,
 	director: ActivityDirector
 	) -> Dictionary:
-	if not candidate is Dictionary or not _director_owns_route(director):
+	if not candidate is Dictionary:
 		return _persistence_result(false, &"malformed_patrol_state")
 	var saved := candidate as Dictionary
-	if saved.size() != 16 \
+	var saved_schema := int(saved.get("schema_version", 0))
+	var saved_branch := StringName(str(saved.get(
+		"branch_id", BRANCH_RELAY_SWEEP if saved_schema == 1 else &""
+	)))
+	var saved_definition := _branch_definitions.get(saved_branch) as ActivityDefinition
+	if saved_definition == null \
+			or not is_instance_valid(director) \
+			or director.get_definition(saved_definition.activity_id) != saved_definition:
+		return _persistence_result(false, &"malformed_patrol_state")
+	if saved.size() != (16 if saved_schema == 1 else 17) \
 			or not _integral(saved.get("schema_version")) \
-			or int(saved.get("schema_version", 0)) != PERSISTENCE_SCHEMA_VERSION \
-			or str(saved.get("activity_id", "")) != str(definition.activity_id) \
+			or saved_schema not in [1, PERSISTENCE_SCHEMA_VERSION] \
+			or str(saved.get("activity_id", "")) != str(saved_definition.activity_id) \
+			or saved_branch not in VALID_BRANCH_IDS \
+			or (saved_schema == PERSISTENCE_SCHEMA_VERSION and not saved.has("branch_id")) \
 			or not _number(saved.get("configured_dwell_seconds")) \
 			or float(saved.get("configured_dwell_seconds", -1.0)) != dwell_seconds \
 			or not _integral(saved.get("generation")) \
@@ -529,7 +599,7 @@ func validate_persistence_state(
 	var dwell_elapsed := float(saved.dwell_elapsed_seconds)
 	var elapsed := float(saved.elapsed_seconds)
 	var last_duration := float(saved.last_duration_seconds)
-	var checkpoint_count := definition.get_checkpoint_count()
+	var checkpoint_count := saved_definition.get_checkpoint_count()
 	var terminal_reason := str(saved.terminal_reason)
 	if generation < 1 or generation > CheckpointRouteActivity.MAX_PERSISTED_GENERATION \
 			or activity_generation != generation or not bool(saved.started_once) \
@@ -557,7 +627,7 @@ func validate_persistence_state(
 			return _persistence_result(false, &"invalid_patrol_dwell")
 	var activity_state := saved.activity_state as Dictionary
 	var route_validation := director.validate_activity_persistence_state(
-		definition.activity_id, activity_state
+		saved_definition.activity_id, activity_state
 	)
 	if not bool(route_validation.get("accepted", false)):
 		return route_validation
@@ -610,6 +680,14 @@ func restore_persistence_state(
 	if not bool(validated.get("accepted", false)):
 		return validated
 	var saved := candidate as Dictionary
+	var saved_branch := StringName(str(saved.get(
+		"branch_id", BRANCH_RELAY_SWEEP
+	)))
+	var saved_definition := _branch_definitions.get(saved_branch) as ActivityDefinition
+	if saved_definition == null:
+		return _persistence_result(false, &"malformed_patrol_state")
+	_selected_branch_id = saved_branch
+	definition = saved_definition
 	var restored_route := director.restore_activity_persistence_state(
 		definition.activity_id, saved.activity_state
 	)

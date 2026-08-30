@@ -35,6 +35,7 @@ const LoadmasterTelemetryPresenterType := preload("res://scripts/ui/loadmaster_t
 signal start_requested
 signal restart_requested
 signal activity_selection_requested(activity_kind: StringName)
+signal patrol_branch_selection_requested(branch_id: StringName)
 signal planetary_cruise_toggle_requested(request_serial: int)
 signal planetary_destination_requested(destination_id: StringName, request_serial: int)
 signal setting_change_requested(key: StringName, value: Variant)
@@ -374,6 +375,7 @@ var _server_browser_sort_controls: Dictionary = {}
 var _server_browser_sort_summary: Label
 var _server_browser_accept_results := true
 var _activity_selection_buttons: Dictionary = {}
+var _patrol_branch_buttons: Dictionary = {}
 var _activity_selection_status_label: Label
 var _activity_reward_panel: PanelContainer
 var _activity_reward_summary_label: Label
@@ -385,6 +387,7 @@ var _activity_reward_summary := {
 	"last_reward_label": "",
 }
 var _activity_selection_kind: StringName = &"timed_race"
+var _patrol_branch_id: StringName = &"relay_sweep"
 var _activity_selection_locked := false
 var _activity_selection_status_reason: StringName = &""
 var _nearby_activity_presenter: RefCounted
@@ -1472,29 +1475,38 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 				activity_text = "[ %s ] DEFENSE  START WAVE" % _action_prompts([&"interact"])
 	elif activity_kind == &"patrol":
 		var gate_number := mini(next_index + 1, checkpoint_count)
+		var patrol_prefix := (
+			"PATROL  PLATFORM SWEEP"
+			if StringName(snapshot.get("branch_id", &"")) == &"platform_sweep"
+			else "PATROL"
+		)
 		match state_id:
 			&"active":
 				if phase_id == &"dwell":
-					activity_text = "PATROL  DWELL G%d/%d  HOLD %s" % [
+					activity_text = "%s  DWELL G%d/%d  HOLD %s" % [
+						patrol_prefix,
 						gate_number,
 						checkpoint_count,
 						_format_activity_time(dwell_remaining),
 					]
 				else:
-					activity_text = "PATROL  TRAVEL G%d/%d  %s" % [
+					activity_text = "%s  TRAVEL G%d/%d  %s" % [
+						patrol_prefix,
 						gate_number,
 						checkpoint_count,
 						_format_activity_time(current_time),
 					]
 			&"completed":
-				activity_text = "PATROL  COMPLETE %d/%d  %s" % [
+				activity_text = "%s  COMPLETE %d/%d  %s" % [
+					patrol_prefix,
 					completed_checkpoints,
 					checkpoint_count,
 					_format_activity_time(last_duration),
 				]
 			&"failed", &"aborted":
 				var readable_reason := str(terminal_reason).replace("_", " ").to_upper()
-				activity_text = "PATROL  %s%s  %d/%d" % [
+				activity_text = "%s  %s%s  %d/%d" % [
+					patrol_prefix,
 					"ABORTED" if state_id == &"aborted" else "FAILED",
 					(" — " + readable_reason) if not readable_reason.is_empty() else "",
 					completed_checkpoints,
@@ -5292,6 +5304,7 @@ func _build_activity_selection_page() -> void:
 		"CINDER PATROL",
 		"Travel to each published anchor and hold through its dwell window."
 	)
+	_add_patrol_branch_choices(stack)
 	_add_activity_selection_row(
 		stack,
 		&"cargo_delivery",
@@ -6628,6 +6641,33 @@ func _add_activity_selection_row(
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(detail)
 	_activity_selection_buttons[activity_kind] = button
+
+
+func _add_patrol_branch_choices(parent: VBoxContainer) -> void:
+	var choices := HBoxContainer.new()
+	choices.name = "PatrolBranchChoices"
+	choices.add_theme_constant_override("separation", 8)
+	parent.add_child(choices)
+	for branch: Dictionary in [
+		{
+			"id": &"relay_sweep",
+			"text": "RELAY SWEEP",
+			"tooltip": "Inspect the relay-side beacon order.",
+		},
+		{
+			"id": &"platform_sweep",
+			"text": "PLATFORM SWEEP",
+			"tooltip": "Inspect the platform-side beacon order.",
+		},
+	]:
+		var branch_id := StringName(branch.id)
+		var button := _menu_button(str(branch.text), MUTED)
+		button.name = String(branch_id).to_pascal_case() + "PatrolBranchButton"
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.tooltip_text = str(branch.tooltip)
+		button.pressed.connect(_request_patrol_branch_selection.bind(branch_id))
+		choices.add_child(button)
+		_patrol_branch_buttons[branch_id] = button
 
 
 func _build_settings_page() -> void:
@@ -8149,8 +8189,32 @@ func set_activity_selection_state(
 			selected_button.grab_focus()
 
 
+func set_patrol_branch_selection_state(
+	branch_id: StringName,
+	selection_locked: bool,
+	status_reason: StringName = &""
+	) -> bool:
+	if branch_id not in [&"relay_sweep", &"platform_sweep"]:
+		return false
+	_patrol_branch_id = branch_id
+	_activity_selection_locked = selection_locked
+	_refresh_patrol_branch_choices()
+	if status_reason not in [&"", &"branch_selected", &"already_selected"] \
+			and is_instance_valid(_activity_selection_status_label):
+		_activity_selection_status_label.text = (
+			"ROUTE NOT CHANGED  //  "
+			+ str(status_reason).replace("_", " ").to_upper()
+		)
+		_activity_selection_status_label.modulate = _c(DANGER)
+	return true
+
+
 func _request_activity_selection(activity_kind: StringName) -> void:
 	activity_selection_requested.emit(activity_kind)
+
+
+func _request_patrol_branch_selection(branch_id: StringName) -> void:
+	patrol_branch_selection_requested.emit(branch_id)
 
 
 func _request_planetary_cruise_toggle() -> void:
@@ -8330,6 +8394,7 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 			if selected and _activity_selection_locked and status_reason == &"repeat_ready"
 			else ("SELECTED  //  " if selected else "")
 		) + base_text
+	_refresh_patrol_branch_choices()
 	if _activity_selection_status_label == null:
 		return
 	var selected_text := {
@@ -8355,11 +8420,26 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 		_activity_selection_status_label.modulate = _c(DANGER)
 
 
+func _refresh_patrol_branch_choices() -> void:
+	for raw_branch_id: Variant in _patrol_branch_buttons:
+		var branch_id := StringName(raw_branch_id)
+		var button := _patrol_branch_buttons[branch_id] as Button
+		if not is_instance_valid(button):
+			continue
+		var selected := branch_id == _patrol_branch_id
+		button.disabled = _activity_selection_locked
+		var base_text := (
+			"PLATFORM SWEEP" if branch_id == &"platform_sweep" else "RELAY SWEEP"
+		)
+		button.text = ("SELECTED  //  " if selected else "") + base_text
+
+
 ## Detached geometry/state evidence for the production button-route and layout
 ## regressions. It exposes no callback and cannot mutate selection.
 func get_activity_selection_report() -> Dictionary:
 	var buttons := {}
 	var rows := {}
+	var patrol_branches := {}
 	for raw_kind: Variant in _activity_selection_buttons:
 		var activity_kind := StringName(raw_kind)
 		var button := _activity_selection_buttons[activity_kind] as Button
@@ -8369,6 +8449,14 @@ func get_activity_selection_report() -> Dictionary:
 			"disabled": button.disabled,
 		}
 		rows[activity_kind] = (button.get_parent() as Control).get_global_rect()
+	for raw_branch_id: Variant in _patrol_branch_buttons:
+		var branch_id := StringName(raw_branch_id)
+		var branch_button := _patrol_branch_buttons[branch_id] as Button
+		patrol_branches[branch_id] = {
+			"rect": branch_button.get_global_rect(),
+			"text": branch_button.text,
+			"disabled": branch_button.disabled,
+		}
 	var back := (
 		_activity_selection_page.find_child(
 			"ActivitySelectionBackButton", true, false
@@ -8379,6 +8467,7 @@ func get_activity_selection_report() -> Dictionary:
 	return {
 		"selected_activity_kind": _activity_selection_kind,
 		"selection_locked": _activity_selection_locked,
+		"selected_patrol_branch_id": _patrol_branch_id,
 		"page_visible": (
 			_activity_selection_page != null
 			and _activity_selection_page.visible
@@ -8426,6 +8515,7 @@ func get_activity_selection_report() -> Dictionary:
 		),
 		"back_rect": back.get_global_rect() if back != null else Rect2(),
 		"buttons": buttons,
+		"patrol_branch_buttons": patrol_branches,
 		"row_rects": rows,
 	}.duplicate(true)
 
