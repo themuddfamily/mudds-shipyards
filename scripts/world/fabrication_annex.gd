@@ -99,6 +99,7 @@ const FABRICATOR_BASE_POSITIONS := [
 	Vector3(7.0, 0.2, 15.0),
 ]
 const FABRICATOR_BASE_BATCH_KEY := "machine:4.000:0.400:3.000"
+const FABRICATOR_LUMINOUS_RENDER_NAME := &"FabricatorLuminousRenderBatch"
 const WORK_BENCH_SIZE := Vector3(1.0, 0.9, 3.0)
 const WORK_BENCH_POSITIONS := [
 	Vector3(-3.5, 0.45, 7.0),
@@ -172,32 +173,32 @@ const CONNECTION_SLOTS := {
 	&"annex_inbound": &"fabrication_annex_inbound",
 }
 const PERFORMANCE_BUDGETS := {
-	"mesh_instances": 4,
-	"multi_mesh_instances": 29,
-	"geometry_instances": 33,
+	"mesh_instances": 5,
+	"multi_mesh_instances": 27,
+	"geometry_instances": 32,
 	"visible_geometry_copies": 211,
-	"multi_mesh_drawn_copies": 140,
+	"multi_mesh_drawn_copies": 132,
 	"static_bodies": 34,
 	"collision_shapes": 34,
 	"labels": 8,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 121,
+	"nodes": 120,
 }
 const OBSERVATION_GATE_PERFORMANCE_BUDGETS := {
-	"mesh_instances": 4,
-	"multi_mesh_instances": 29,
-	"geometry_instances": 33,
+	"mesh_instances": 5,
+	"multi_mesh_instances": 27,
+	"geometry_instances": 32,
 	"visible_geometry_copies": 212,
-	"multi_mesh_drawn_copies": 140,
+	"multi_mesh_drawn_copies": 132,
 	"static_bodies": 35,
 	"collision_shapes": 35,
 	"labels": 8,
 	"lights": 3,
 	"process_loops": 0,
 	"physics_process_loops": 0,
-	"nodes": 123,
+	"nodes": 122,
 }
 
 ## Production integration seam. The standalone module keeps its complete rear
@@ -215,6 +216,7 @@ var _mesh_batches: Dictionary = {}
 var _authored_batch_transforms: Dictionary = {}
 var _name_counters: Dictionary = {}
 var _guardrail_render_parts: Array[Dictionary] = []
+var _fabricator_luminous_render_parts: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -480,9 +482,20 @@ func _build_work_bays() -> void:
 			_add_mesh("FabricatorColumn", Vector3(0.5, 2.8, 0.5), Vector3(bay_x + side * 1.45, 1.8, z - 1.0), &"structure")
 			_add_mesh("FabricatorGantry", Vector3(3.4, 0.45, 0.55), Vector3(bay_x, 3.0, z - 1.0), &"hazard")
 			_add_mesh("FabricatorHead", Vector3(1.1, 1.5, 1.1), Vector3(bay_x, 1.65, z), &"accent")
-			_add_mesh("FabricatorNozzle", Vector3(0.28, 0.72, 0.28), Vector3(bay_x, 0.75, z), &"luminous")
+			_fabricator_luminous_render_parts.append({
+				"id": &"nozzle",
+				"size": Vector3(0.28, 0.72, 0.28),
+				"transform": Transform3D(Basis.IDENTITY, Vector3(bay_x, 0.75, z)),
+			})
 			_add_mesh("FabricatorControl", Vector3(0.18, 0.72, 1.05), Vector3(bay_x - side * 1.76, 1.25, z + 0.55), &"machine")
-			_add_mesh("FabricatorStatus", Vector3(0.08, 0.18, 0.72), Vector3(bay_x - side * 1.87, 1.35, z + 0.55), &"luminous")
+			_fabricator_luminous_render_parts.append({
+				"id": &"status",
+				"size": Vector3(0.08, 0.18, 0.72),
+				"transform": Transform3D(
+					Basis.IDENTITY,
+					Vector3(bay_x - side * 1.87, 1.35, z + 0.55)
+				),
+			})
 			_add_batched_fixed_equipment("WorkBench", WORK_BENCH_SIZE, Vector3(bench_x, 0.45, z), &"structure")
 			_add_mesh("BenchBackboard", Vector3(0.16, 1.35, 2.7), Vector3(bench_x + side * 0.42, 1.5, z), &"machine")
 			for tool_z in [-0.72, 0.0, 0.72]:
@@ -492,6 +505,35 @@ func _build_work_bays() -> void:
 				_add_mesh("RackShelf", Vector3(0.86, 0.08, 2.3), Vector3(rack_x, shelf_y, z), &"hazard")
 			for canister_z in [-0.72, 0.0, 0.72]:
 				_add_mesh("RackCanister", Vector3(0.42, 0.42, 0.42), Vector3(rack_x - side * 0.08, 1.42, z + canister_z), &"accent")
+	_add_combined_fabricator_luminous_render()
+
+
+func _add_combined_fabricator_luminous_render() -> void:
+	# The four nozzles and four status strips are immutable visual-only parts
+	# with one emissive finish. Baking both former size-keyed MultiMesh families
+	# into one surface retains their exact poses while removing a renderer node,
+	# one submission, one retained mesh and both transform buffers.
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for part in _fabricator_luminous_render_parts:
+		tool.append_from(
+			StationSurfaceKit.rounded_box_mesh(part.size as Vector3),
+			0,
+			part.transform as Transform3D
+		)
+	var renderer := MeshInstance3D.new()
+	renderer.name = FABRICATOR_LUMINOUS_RENDER_NAME
+	renderer.mesh = tool.commit()
+	renderer.material_override = _materials[&"luminous"]
+	renderer.set_meta(
+		&"fabrication_luminous_render_parts",
+		_fabricator_luminous_render_parts.duplicate(true)
+	)
+	renderer.set_meta(
+		&"authored_visible_copy_count",
+		_fabricator_luminous_render_parts.size()
+	)
+	_build_root.add_child(renderer)
 
 
 func _build_structure_and_dressing() -> void:
@@ -1346,6 +1388,106 @@ func get_fabricator_base_render_optimization_contract() -> Dictionary:
 	}.duplicate(true)
 
 
+func get_fabricator_luminous_render_optimization_contract() -> Dictionary:
+	var renderer := _build_root.get_node_or_null(
+		NodePath(str(FABRICATOR_LUMINOUS_RENDER_NAME))
+	) as MeshInstance3D
+	var live_parts := (
+		renderer.get_meta(&"fabrication_luminous_render_parts", []) as Array
+		if renderer != null
+		else []
+	)
+	var expected_parts: Array[Dictionary] = []
+	for raw_side in [-1.0, 1.0]:
+		var side: float = raw_side
+		var bay_x := side * 7.0
+		for z in [7.0, 15.0]:
+			expected_parts.append({
+				"id": &"nozzle",
+				"size": Vector3(0.28, 0.72, 0.28),
+				"transform": Transform3D(Basis.IDENTITY, Vector3(bay_x, 0.75, z)),
+			})
+			expected_parts.append({
+				"id": &"status",
+				"size": Vector3(0.08, 0.18, 0.72),
+				"transform": Transform3D(
+					Basis.IDENTITY,
+					Vector3(bay_x - side * 1.87, 1.35, z + 0.55)
+				),
+			})
+	var parts_exact := live_parts.size() == expected_parts.size()
+	for index in mini(live_parts.size(), expected_parts.size()):
+		var live := live_parts[index] as Dictionary
+		var expected := expected_parts[index] as Dictionary
+		parts_exact = parts_exact \
+			and StringName(live.get("id", &"")) == StringName(expected.id) \
+			and (live.get("size", Vector3.ZERO) as Vector3).is_equal_approx(
+				expected.size as Vector3
+			) \
+			and (live.get("transform", Transform3D()) as Transform3D).is_equal_approx(
+				expected.transform as Transform3D
+			)
+	var mesh := renderer.mesh as ArrayMesh if renderer != null else null
+	var vertex_count := 0
+	if mesh != null and mesh.get_surface_count() == 1:
+		var arrays := mesh.surface_get_arrays(0)
+		if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
+			vertex_count = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var render_state_exact: bool = (
+		renderer != null
+		and renderer.name == FABRICATOR_LUMINOUS_RENDER_NAME
+		and mesh != null
+		and mesh.get_surface_count() == 1
+		and vertex_count == expected_parts.size() * 324
+		and renderer.material_override == _materials[&"luminous"]
+		and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and is_zero_approx(renderer.visibility_range_begin)
+		and is_zero_approx(renderer.visibility_range_end)
+		and is_zero_approx(renderer.extra_cull_margin)
+		and int(renderer.get_meta(&"authored_visible_copy_count", 0))
+			== expected_parts.size()
+	)
+	var legacy_keys := PackedStringArray([
+		"luminous:0.280:0.720:0.280",
+		"luminous:0.080:0.180:0.720",
+	])
+	var live_keys := get_render_submission_contract().batch_keys as PackedStringArray
+	var removed_keys_absent := true
+	for key in legacy_keys:
+		removed_keys_absent = removed_keys_absent and not live_keys.has(key)
+	return {
+		"valid": parts_exact and render_state_exact and removed_keys_absent,
+		"family": &"fabricator_luminous_presentation",
+		"before": {
+			"renderer_submissions": 2,
+			"presentation_nodes": 2,
+			"visible_geometry_copies": expected_parts.size(),
+			"retained_mesh_resources": 2,
+			"multi_mesh_transform_buffer_floats": expected_parts.size() * 12,
+		},
+		"after": {
+			"renderer_submissions": 1 if renderer != null else 0,
+			"presentation_nodes": 1 if renderer != null else 0,
+			"visible_geometry_copies": int(
+				renderer.get_meta(&"authored_visible_copy_count", 0)
+			) if renderer != null else 0,
+			"retained_mesh_resources": 1 if mesh != null else 0,
+			"multi_mesh_transform_buffer_floats": 0,
+		},
+		"delta": {
+			"renderer_submissions": -1,
+			"presentation_nodes": -1,
+			"retained_mesh_resources": -1,
+			"multi_mesh_transform_buffer_floats": -expected_parts.size() * 12,
+		},
+		"authored_parts": live_parts.duplicate(true),
+		"visual_parts_exact": parts_exact,
+		"render_state_and_combined_geometry_exact": render_state_exact,
+		"combined_vertex_count": vertex_count,
+		"legacy_dedicated_batch_keys_absent": removed_keys_absent,
+	}.duplicate(true)
+
+
 func get_work_bench_render_optimization_contract() -> Dictionary:
 	var batch: MultiMeshInstance3D = null
 	for raw_batch in find_children("*", "MultiMeshInstance3D", true, false):
@@ -1791,6 +1933,8 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("roof-column presentation batch or physical roster drifted")
 	if not bool(get_fabricator_base_render_optimization_contract().valid):
 		errors.append("fabricator-base presentation batch or physical roster drifted")
+	if not bool(get_fabricator_luminous_render_optimization_contract().valid):
+		errors.append("fabricator luminous combined presentation drifted")
 	if not bool(get_work_bench_render_optimization_contract().valid):
 		errors.append("work-bench presentation batch or physical roster drifted")
 	if not bool(get_guardrail_render_optimization_contract().valid):
@@ -1804,7 +1948,7 @@ func get_validation_errors() -> PackedStringArray:
 	var naming := get_deterministic_naming_contract()
 	if not bool(get_ceiling_portal_render_optimization_contract().valid):
 		errors.append("ceiling and portal dressing render batch drifted")
-	var expected_name_allocations := 64 if observation_rear_gate_open else 63
+	var expected_name_allocations := 62 if observation_rear_gate_open else 61
 	if int(naming.node_count) != int(budgets.nodes) or int(naming.generated_name_allocation_count) != expected_name_allocations or int(naming.auto_generated_fallback_path_count) != 0 or int(naming.duplicate_sibling_name_count) != 0:
 		errors.append("deterministic runtime naming drifted")
 	var rear_gate := get_rear_observation_gate_contract()

@@ -173,10 +173,10 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 	_check(pools_exact, "warm side pairs and the cool central pair retain exact midpoint identities and colours")
 	var render := annex.get_render_submission_contract()
 	print("FABRICATION_ANNEX_BUFFER: floats=%d authored=%d matches=%s keys=%d" % [render.forward_plus_buffer_float_count, render.authored_transform_count, render.forward_plus_buffers_match_authored, (render.batch_keys as PackedStringArray).size()])
-	_check(int(render.multi_mesh_batches) == 29 and int(render.multi_mesh_drawn_copies) == 140, "29 restrained batches store all 140 remaining MultiMesh-authored architectural and equipment copies")
-	_check(int(render.geometry_submissions) == 33 and int(render.visible_geometry_copies) == 211, "33 submissions draw the frozen 211 visible geometry copies")
-	_check(int(render.authored_transform_count) == 140, "every remaining MultiMesh copy retains an authored transform")
-	_check(int(render.forward_plus_buffer_float_count) == 1680 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 140 valid 3D transforms")
+	_check(int(render.multi_mesh_batches) == 27 and int(render.multi_mesh_drawn_copies) == 132, "27 restrained batches store all 132 remaining MultiMesh-authored architectural and equipment copies")
+	_check(int(render.geometry_submissions) == 32 and int(render.visible_geometry_copies) == 211, "32 submissions draw the frozen 211 visible geometry copies")
+	_check(int(render.authored_transform_count) == 132, "every remaining MultiMesh copy retains an authored transform")
+	_check(int(render.forward_plus_buffer_float_count) == 1584 and bool(render.forward_plus_buffers_match_authored), "Forward+ transform buffers contain exactly 132 valid 3D transforms")
 	var floor_render := annex.get_floor_render_optimization_contract()
 	_check(
 		bool(floor_render.valid)
@@ -334,10 +334,29 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 		and bool(guardrails.legacy_dedicated_batch_keys_absent),
 		"all 51 authored rail and post pieces retain their exact trim finish and renderer-free collision while three meshes and 612 transform floats disappear"
 	)
+	var fabricator_luminous := annex.get_fabricator_luminous_render_optimization_contract()
+	_check(
+		bool(fabricator_luminous.valid)
+		and int(fabricator_luminous.before.renderer_submissions) == 2
+		and int(fabricator_luminous.after.renderer_submissions) == 1
+		and int(fabricator_luminous.delta.renderer_submissions) == -1
+		and int(fabricator_luminous.delta.presentation_nodes) == -1
+		and int(fabricator_luminous.delta.retained_mesh_resources) == -1
+		and int(fabricator_luminous.delta.multi_mesh_transform_buffer_floats) == -96,
+		"the eight luminous fabricator parts combine into one immutable surface, removing one submission, node, mesh and 96 transform floats"
+	)
+	_check(
+		int(fabricator_luminous.after.visible_geometry_copies) == 8
+		and int(fabricator_luminous.combined_vertex_count) == 2592
+		and bool(fabricator_luminous.visual_parts_exact)
+		and bool(fabricator_luminous.render_state_and_combined_geometry_exact)
+		and bool(fabricator_luminous.legacy_dedicated_batch_keys_absent),
+		"all four nozzles and four status strips retain exact transforms, emissive material, shadows and rounded topology"
+	)
 	_test_material_rack_batch(annex)
 	var naming := annex.get_deterministic_naming_contract()
 	print("FABRICATION_ANNEX_NAMING: nodes=%d allocations=%d fallbacks=%d duplicates=%d paths=%s" % [naming.node_count, naming.generated_name_allocation_count, naming.auto_generated_fallback_path_count, naming.duplicate_sibling_name_count, naming.auto_generated_fallback_paths])
-	_check(int(naming.node_count) == 121 and int(naming.generated_name_allocation_count) == 63, "all 121 nodes and 63 generated allocations are frozen deterministically")
+	_check(int(naming.node_count) == 120 and int(naming.generated_name_allocation_count) == 61, "all 120 nodes and 61 generated allocations are frozen deterministically")
 	_check(int(naming.auto_generated_fallback_path_count) == 0 and int(naming.duplicate_sibling_name_count) == 0, "no runtime path contains an auto-generated @ fallback or duplicate sibling name")
 
 	var mapped_materials := {}
@@ -402,7 +421,7 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 		"RoofColumnBatch",
 		"EntryJambBatch", "EntryHeaderBatch",
 		"MainSignBackingBatch", "BayGuideLineBatch", "AisleGuideBatch",
-		"FabricatorDeckBatch", "FabricatorControlBatch", "FabricatorStatusBatch",
+		"FabricatorDeckBatch", "FabricatorControlBatch",
 		"BenchBackboardBatch", "ToolDockBatch", "RackCanisterBatch",
 	]
 	var complete := true
@@ -410,7 +429,8 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 		complete = complete and annex.find_child(node_name, true, false) is MultiMeshInstance3D
 	complete = complete \
 		and annex.find_child("OverheadStructureRenderBatch", true, false) is MeshInstance3D \
-		and annex.find_child("CeilingPortalRenderBatch", true, false) is MeshInstance3D
+		and annex.find_child("CeilingPortalRenderBatch", true, false) is MeshInstance3D \
+		and annex.find_child("FabricatorLuminousRenderBatch", true, false) is MeshInstance3D
 	_check(complete, "roof, facade, deck zoning, controls, benches, and material racks all carry their finishing geometry")
 
 	var labels := annex.find_children("*", "Label3D", true, false)
@@ -435,7 +455,7 @@ func _test_finishing_pass(annex: FabricationAnnex) -> void:
 		and starboard_cell_front.text == FabricationAnnex.STARBOARD_WORK_CELL_LEGEND,
 		"the existing bay signs explicitly identify port and starboard work-cell function"
 	)
-	var status_batch := annex.find_child("FabricatorStatusBatch", true, false) as MultiMeshInstance3D
+	var status_batch := annex.find_child("FabricatorLuminousRenderBatch", true, false) as MeshInstance3D
 	var status_material := status_batch.material_override as StandardMaterial3D if status_batch != null else null
 	_check(status_material != null and status_material.emission_enabled, "fabricator status strips and aisle guides use a grounded emissive material")
 
@@ -570,10 +590,10 @@ func _test_observation_gate_variant(stage: Node3D) -> void:
 		performance.visible_geometry_copies, performance.nodes,
 	])
 	_check(
-		int(performance.mesh_instances) == 4
-		and int(performance.multi_mesh_instances) == 29
+		int(performance.mesh_instances) == 5
+		and int(performance.multi_mesh_instances) == 27
 		and int(performance.visible_geometry_copies) == 212
-		and int(performance.nodes) == 123,
+		and int(performance.nodes) == 122,
 		"the integrated Observation-gate variant retains its exact finished rendering budget"
 	)
 	_check(bool(gate_annex.get_audit_report().valid), "the finished Observation-gate variant retains its production integration contract")
