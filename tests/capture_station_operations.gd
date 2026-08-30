@@ -22,6 +22,7 @@ const CAPTURE_FILES: Array[String] = [
 	"06_launch_landmark_flypast.png",
 	"07_original_identity_backdrop.png",
 ]
+const WAYFINDING_CAPTURE_FILE := "08_wayfinding_pylon_player_eye.png"
 
 const EXPECTED_SHIP_IDS: Array[StringName] = [
 	&"arrow_provisional",
@@ -74,6 +75,7 @@ const NEAR_DUPLICATE_CHANGED_FRACTION := 0.055
 const PIXEL_CHANGE_THRESHOLD := 0.035
 const FRAME_MARGIN_FRACTION := 0.018
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_STATION_OPERATIONS_PARSE_ONLY"
+const WAYFINDING_ONLY_ENVIRONMENT_VARIABLE := "MUDDS_CAPTURE_STATION_WAYFINDING_ONLY"
 
 var _failures: Array[String] = []
 var _captured_images: Dictionary = {}
@@ -116,6 +118,9 @@ func _run() -> void:
 			CAPTURE_RESOLUTION.y,
 		]
 	)
+	if OS.get_environment(WAYFINDING_ONLY_ENVIRONMENT_VARIABLE) == "1":
+		await _run_wayfinding_only()
+		return
 
 	_game = MAIN_SCENE.instantiate() as Node3D
 	_check(_game != null, "complete production main scene instantiates")
@@ -181,6 +186,46 @@ func _run() -> void:
 			ship.set_piloted(false)
 	await _dispose_game()
 	_finish()
+
+
+func _run_wayfinding_only() -> void:
+	_game = MAIN_SCENE.instantiate() as Node3D
+	_check(_game != null, "wayfinding review instantiates the complete production Main scene")
+	if _game == null:
+		_finish()
+		return
+	root.add_child(_game)
+	await _settle_render(10)
+	await physics_frame
+	_world = _game.get_node_or_null("ShipyardWorld") as ShipyardWorld
+	_check(_world != null, "wayfinding review resolves production ShipyardWorld")
+	if _world == null:
+		await _dispose_game()
+		_finish()
+		return
+	_disable_all_canvas_layers()
+	var quality := _world.apply_visual_quality(2)
+	_check(bool(quality.get("applied", false)), "production High visual profile applies to wayfinding review")
+	_activities.clear()
+	var activity_value: Variant = _world.call(WORLD_ACTIVITY_GETTER)
+	if activity_value is Array:
+		for candidate: Variant in activity_value as Array:
+			if candidate is StationOperationsActivity:
+				_activities.append(candidate as StationOperationsActivity)
+	_camera = Camera3D.new()
+	_camera.name = "StationOperationsWayfindingReviewCamera"
+	_camera.near = 0.08
+	_camera.far = 2500.0
+	_camera.keep_aspect = Camera3D.KEEP_HEIGHT
+	_game.add_child(_camera)
+	_camera.current = true
+	await _capture_wayfinding_pylon()
+	await _dispose_game()
+	if _failures.is_empty():
+		print("STATION_OPERATIONS_WAYFINDING_CAPTURE_OK: %s/%s" % [OUTPUT_DIR, WAYFINDING_CAPTURE_FILE])
+		quit(0)
+	else:
+		_finish()
 
 
 func _configure_capture_viewport() -> void:
@@ -723,6 +768,71 @@ func _capture_original_identity_backdrop() -> void:
 		20.0,
 		1.08
 	)
+
+
+func _capture_wayfinding_pylon() -> void:
+	var signage: StationOperationsActivity
+	for activity in _activities:
+		if activity.get_activity_profile_id() == &"signage_pylon":
+			signage = activity
+			break
+	_check(signage != null, "player-eye wayfinding frame resolves the production signage pylon")
+	if signage == null:
+		return
+	_check(bool(signage.get_audit_report().get("valid", false)), "readable signage profile passes its focused production audit")
+	var pylon := signage.get_node_or_null(^"PresentationRoot/WayfindingPylon") as Node3D
+	_check(pylon != null, "signage profile retains its production WayfindingPylon")
+	if pylon == null:
+		return
+	var front := pylon.get_node_or_null(^"BerthRouteLabelFront") as Label3D \
+		if pylon != null else null
+	var rear := pylon.get_node_or_null(^"BerthRouteLabelRear") as Label3D \
+		if pylon != null else null
+	_check(
+		front != null and rear != null
+			and front.text == "BERTHS  >>\nROUTE A"
+			and rear.text == "<<  BERTHS\nROUTE A",
+		"two pylon faces publish the concise berth destination, route ID, and non-colour arrow"
+	)
+	for label in [front, rear]:
+		_check(
+			label != null
+				and bool(label.get_meta(&"presentation_only", false))
+				and bool(label.get_meta(&"non_authoritative_presentation", false))
+				and StringName(label.get_meta(&"evidence_status", &"")) == &"modern_interpretation"
+				and StringName(label.get_meta(&"destination", &"")) == &"berths"
+				and StringName(label.get_meta(&"route_identifier", &"")) == &"route_a"
+				and StringName(label.get_meta(&"world_direction", &"")) == &"positive_local_x",
+			"wayfinding label remains modern-interpretation presentation with no route authority"
+		)
+	_check(
+		pylon.find_children("*", "CollisionObject3D", true, false).is_empty()
+			and pylon.find_children("*", "CollisionShape3D", true, false).is_empty(),
+		"readable pylon remains collision- and interaction-authority free"
+	)
+	_seek_activity_tableau(6.5)
+	_camera.global_position = pylon.to_global(Vector3(0.0, 1.65, 5.4))
+	_camera.look_at(pylon.to_global(Vector3(0.0, 2.65, 0.0)), pylon.global_basis.y.normalized())
+	_camera.fov = 50.0
+	await _settle_render(9)
+	var anchors := PackedVector3Array([
+		front.global_position,
+		pylon.to_global(Vector3(-0.85, 2.15, 0.0)),
+		pylon.to_global(Vector3(0.85, 2.15, 0.0)),
+	])
+	_validate_frame_anchors(WAYFINDING_CAPTURE_FILE, anchors)
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	_check(image != null and not image.is_empty(), "player-eye wayfinding frame renders")
+	if image != null and not image.is_empty():
+		var output_absolute := ProjectSettings.globalize_path(OUTPUT_DIR)
+		var directory_error := DirAccess.make_dir_recursive_absolute(output_absolute)
+		_check(
+			directory_error == OK or directory_error == ERR_ALREADY_EXISTS,
+			"wayfinding capture output directory is available"
+		)
+		var output_path := output_absolute.path_join(WAYFINDING_CAPTURE_FILE)
+		_check(image.save_png(output_path) == OK, "player-eye wayfinding PNG saves")
 
 
 func _render_shot(

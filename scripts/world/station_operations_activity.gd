@@ -243,7 +243,7 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.SIGNAGE_PYLON: {
-		"node_count": 43,
+		"node_count": 45,
 		"mesh_instances": 33,
 		"unique_materials": 17,
 		"lights": 0,
@@ -338,10 +338,13 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## and 461 visible copies with no proxy geometry counted as presentation.
 ## The one Observatory placement's three tripod batches then move the roster to
 ## 493 nodes, 354 MeshInstances, 24 batches / 107 batched copies and 378
-## submissions. All 461 visible copies remain.
+## submissions. The two presentation-only Label3D faces on the Operations
+## wayfinding pylon finally move the node roster 493 -> 495 without changing
+## meshes, materials, submissions, collision, activity authority, or any
+## existing transform. All 461 visible copies remain.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 493,
+	"node_count": 495,
 	"mesh_instances": 354,
 	"unique_materials": 17,
 	"lights": 0,

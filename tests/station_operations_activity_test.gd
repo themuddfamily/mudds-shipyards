@@ -318,7 +318,9 @@ func _run() -> void:
 	# submissions and counted copies; the real visible geometry is unchanged.
 	# The Observatory tripod then replaces nine immutable leaves with three
 	# family-local batches: nodes/submissions -6, MeshInstances -9, batches +3.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 493, "ten production placements have the exact 493-node aggregate")
+	# Two presentation-only wayfinding labels then move nodes 493 -> 495 without
+	# changing geometry copies, materials, collision, or activity authority.
+	_check(int((roster_audit.counts as Dictionary).node_count) == 495, "ten production placements have the exact 495-node aggregate")
 	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 354, "ten production placements have the exact 354 MeshInstance aggregate")
 	_check(
 		int((roster_audit.counts as Dictionary).multimesh_batches) == 24

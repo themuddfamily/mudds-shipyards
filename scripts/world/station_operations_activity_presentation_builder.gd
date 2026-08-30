@@ -640,6 +640,19 @@ func _build_wayfinding_pylon() -> void:
 	_box(pylon, "SignBoard", Vector3(0.0, 3.0, 0.28), Vector3(1.7, 1.15, 0.12), _materials["graphite"])
 	_box(pylon, "SignFace", Vector3(0.0, 3.0, 0.35), Vector3(1.55, 1.0, 0.04), _materials["sign_lit"])
 	_box(pylon, "SignRule", Vector3(0.0, 3.02, 0.375), Vector3(1.4, 0.06, 0.02), _materials["graphite"])
+	# Both faces name the same modern route in the direction the retained amber
+	# chase already travels. The reversed glyph on the rear face still points
+	# toward world-local +X when read from that side, so direction survives without
+	# colour or animation. These labels are presentation-only: no collider,
+	# interaction target, route marker, or gameplay authority is introduced.
+	_wayfinding_label(
+		pylon, "BerthRouteLabelFront", "BERTHS  >>\nROUTE A",
+		Vector3(0.0, 3.0, 0.385), 0.0
+	)
+	_wayfinding_label(
+		pylon, "BerthRouteLabelRear", "<<  BERTHS\nROUTE A",
+		Vector3(0.0, 3.0, 0.205), 180.0
+	)
 
 	_box(pylon, "ChevronRail", Vector3(0.0, 2.15, 0.26), Vector3(1.9, 0.5, 0.1), _materials["graphite"])
 	for index in 5:
@@ -667,6 +680,34 @@ func _build_wayfinding_pylon() -> void:
 	for z_side in [-1.0, 1.0]:
 		_box(drum, "DrumGlyph", Vector3(0.0, 0.02, z_side * 0.41), Vector3(0.5, 0.3, 0.04), _materials["cyan_lit"])
 	_cylinder(drum, "DrumCap", Vector3(0.0, 0.29, 0.0), 0.3, 0.08, _materials["graphite"])
+
+
+func _wayfinding_label(
+		parent: Node3D,
+		node_name: String,
+		copy: String,
+		position: Vector3,
+		yaw_degrees: float
+	) -> Label3D:
+	var label := Label3D.new()
+	label.name = node_name
+	label.text = copy
+	label.position = position
+	label.rotation_degrees.y = yaw_degrees
+	label.font_size = 38
+	label.pixel_size = 0.0065
+	label.modulate = Color("071b1d")
+	label.outline_modulate = Color("b9ffff")
+	label.outline_size = 4
+	label.no_depth_test = false
+	label.set_meta(&"presentation_only", true)
+	label.set_meta(&"non_authoritative_presentation", true)
+	label.set_meta(&"evidence_status", &"modern_interpretation")
+	label.set_meta(&"destination", &"berths")
+	label.set_meta(&"route_identifier", &"route_a")
+	label.set_meta(&"world_direction", &"positive_local_x")
+	parent.add_child(label)
+	return label
 
 
 ## Observatory beat: a three-legged skywatch post whose yoke pans and whose optic
