@@ -87,6 +87,18 @@ const CrashRecoveryCoordinatorType := preload("res://scripts/diagnostics/crash_r
 const SessionDiagnosticRecordType := preload("res://scripts/diagnostics/session_diagnostic_record.gd")
 const SessionDiagnosticFileSinkType := preload("res://scripts/diagnostics/session_diagnostic_file_sink.gd")
 const SessionDiagnosticLifecycleBridgeType := preload("res://scripts/diagnostics/session_diagnostic_lifecycle_bridge.gd")
+const PlanetaryDestinationCatalogType := preload(
+	"res://scripts/world/planetary_destination_catalog.gd"
+)
+const NearbySectorOrbitalRegistryType := preload(
+	"res://scripts/world/nearby_sector_orbital_registry.gd"
+)
+const EmberWorldDefinition := preload(
+	"res://assets/world/planets/ember_moon_world.tres"
+)
+const AuroraWorldDefinition := preload(
+	"res://assets/world/planets/aurora_temperate_world.tres"
+)
 
 ## First production nearby activity. It is a modern interpretation. The route
 ## and session remain progress-only; their terminal observation is handed to
@@ -163,6 +175,8 @@ const SAFE_START_RECOMMENDATION_PRESERVED_KEYS := (
 )
 const PLANETARY_CRUISE_MAX_CALLER_TICK := 9_007_199_254_740_991
 const PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL := 9_007_199_254_740_991
+const EMBER_DESTINATION_ID: StringName = &"ember_moon"
+const EMBER_DESTINATION_ROUTE_ID: StringName = &"ember_surface_expedition"
 const MUDDS_RETURN_TARGET_ID: StringName = &"mudds_shipyards"
 const MUDDS_RETURN_CORRIDOR_HALF_LENGTH_METERS := 750_000.0
 const MUDDS_RETURN_CORRIDOR_MINIMUM_HALF_WIDTH_METERS := 100.0
@@ -503,6 +517,7 @@ var _ember_surface_return_status_binding: RefCounted
 var _ember_surface_return_hud_adapter: RefCounted
 var common_world_origin_rebase_owner: CommonWorldOriginRebaseOwner
 var planetary_cruise_binding: PlanetaryCruiseProductionBinding
+var _planetary_destination_catalog: PlanetaryDestinationCatalogType
 var _final_approach_hud_composition: FinalApproachHudComposition
 var _cinder_loadmaster_hud_binding: CinderLoadmasterHudBinding
 var _cinder_loadmaster_hud_craft: CinderCargoHauler
@@ -1993,6 +2008,7 @@ func _start_up() -> void:
 	_resolve_ground_vehicle()
 	active_ship = ship
 	_initialize_minimap_topology()
+	_initialize_planetary_destination_catalog()
 	_initialize_cargo_delivery_composition()
 	_initialize_cinder_convoy_host()
 	_initialize_cinder_race_session()
@@ -3061,6 +3077,42 @@ func _initialize_minimap_topology() -> void:
 				world_inverse * berth_transform.origin,
 				&"berth",
 			)
+
+
+func _initialize_planetary_destination_catalog() -> void:
+	if _planetary_destination_catalog != null:
+		return
+	var registry := NearbySectorOrbitalRegistryType.new()
+	var placement := registry.relative_position_meters(
+		NearbySectorOrbitalRegistryType.STATION_DATUM_ID,
+		NearbySectorOrbitalRegistryType.EMBER_BODY_CENTER_ID,
+	)
+	if not bool(placement.get("accepted", false)):
+		push_error("Planetary destination catalog could not resolve Ember's orbital datum")
+		return
+	var relative_position := placement.get("position_meters", Vector3.ZERO) as Vector3
+	var catalog: PlanetaryDestinationCatalogType = PlanetaryDestinationCatalogType.new()
+	var ember_result := catalog.register_destination(EmberWorldDefinition, {
+		"route_id": EMBER_DESTINATION_ROUTE_ID,
+		"route_available": true,
+		"orbital_distance_meters": relative_position.length(),
+		"travel_summary": "LAND // RELAY SURVEY // RETURN",
+		"unavailable_reason": "",
+	})
+	var aurora_result := catalog.register_destination(AuroraWorldDefinition, {
+		"route_id": &"",
+		"route_available": false,
+		"orbital_distance_meters": -1.0,
+		"travel_summary": "ATMOSPHERIC FOUNDATION // ROUTE NOT COMMISSIONED",
+		"unavailable_reason": "NOT YET VISITABLE",
+	})
+	if (
+		not bool(ember_result.get("accepted", false))
+		or not bool(aurora_result.get("accepted", false))
+	):
+		push_error("Planetary destination catalog rejected its authored production roster")
+		return
+	_planetary_destination_catalog = catalog
 
 
 func _append_minimap_topology_node(
@@ -5107,6 +5159,11 @@ func _connect_runtime_signals() -> void:
 		hud,
 		&"planetary_cruise_toggle_requested",
 		_on_hud_planetary_cruise_toggle_requested
+	)
+	_connect_signal_once(
+		hud,
+		&"planetary_destination_requested",
+		_on_hud_planetary_destination_requested
 	)
 	_connect_signal_once(hud, &"setting_change_requested", _on_setting_change_requested)
 	_connect_signal_once(hud, &"settings_save_requested", _on_settings_save_requested)
@@ -13320,6 +13377,47 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 	_planetary_cruise_hud_toggle_active = false
 
 
+## Generic Destination Board ingress. Only catalog-routed Ember requests reach
+## the established expedition toggle; a disabled or forged world ID can neither
+## select a route nor mutate travel state. A well-formed rejected serial is
+## consumed so the retained HUD and GameFlow sequence cannot drift apart.
+func _on_hud_planetary_destination_requested(
+	destination_id: StringName,
+	request_serial: int,
+) -> void:
+	var route := (
+		_planetary_destination_catalog.resolve_route(destination_id)
+		if _planetary_destination_catalog != null
+		else {"accepted": false, "reason": &"catalog_unavailable"}
+	) as Dictionary
+	if (
+		bool(route.get("accepted", false))
+		and destination_id == EMBER_DESTINATION_ID
+		and route.get("route_id") == EMBER_DESTINATION_ROUTE_ID
+	):
+		_on_hud_planetary_cruise_toggle_requested(request_serial)
+		return
+	if _planetary_cruise_hud_toggle_active:
+		return
+	if (
+		request_serial < 1
+		or request_serial > PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL
+		or _last_hud_planetary_cruise_toggle_serial
+			>= PLANETARY_CRUISE_MAX_HUD_TOGGLE_SERIAL
+		or request_serial != _last_hud_planetary_cruise_toggle_serial + 1
+	):
+		_sync_planetary_cruise_hud()
+		return
+	_last_hud_planetary_cruise_toggle_serial = request_serial
+	_sync_planetary_cruise_hud()
+	if is_instance_valid(hud):
+		hud.toast(
+			"ROUTE UNAVAILABLE",
+			"THIS DESTINATION IS AUTHORED BUT NOT YET VISITABLE",
+			2.4,
+		)
+
+
 ## Restores one coherent, controllable on-foot pilot at the deck spawn.
 ##
 ## Extracted from the destroyed-craft recovery so the tow tractor's own loss path
@@ -14224,12 +14322,12 @@ func _planetary_cruise_presentation() -> Dictionary:
 
 
 func _sync_planetary_cruise_hud() -> void:
-	if (
-		not is_instance_valid(hud)
-		or not hud.has_method(&"set_planetary_cruise_state")
-	):
+	if not is_instance_valid(hud):
 		return
 	var presentation := _planetary_cruise_presentation()
+	_sync_planetary_destination_hud(presentation)
+	if not hud.has_method(&"set_planetary_cruise_state"):
+		return
 	if _final_approach_hud_composition != null:
 		var final_controls := _final_approach_hud_composition.set_cruise_controls(
 			bool(presentation.get("toggle_enabled", false)),
@@ -14250,6 +14348,60 @@ func _sync_planetary_cruise_hud() -> void:
 		bool(presentation.get("toggle_enabled", false)),
 		bool(presentation.get("engagement_requested", false)),
 	)
+
+
+func _sync_planetary_destination_hud(
+	cruise_presentation: Dictionary,
+) -> bool:
+	if (
+		_planetary_destination_catalog == null
+		or not is_instance_valid(hud)
+		or not hud.has_method(&"set_planetary_destination_snapshot")
+	):
+		return false
+	var snapshot := _planetary_destination_catalog.get_presentation_snapshot({
+		EMBER_DESTINATION_ID: {
+			"status_id": StringName(
+				cruise_presentation.get("status_id", &"unavailable")
+			),
+			"status_text": str(cruise_presentation.get(
+				"status_text", "UNAVAILABLE — SYSTEM OFFLINE"
+			)),
+			"action_enabled": bool(cruise_presentation.get(
+				"toggle_enabled", false
+			)),
+			"engagement_requested": bool(cruise_presentation.get(
+				"engagement_requested", false
+			)),
+		},
+	})
+	return bool(hud.call(&"set_planetary_destination_snapshot", snapshot))
+
+
+func get_planetary_destination_catalog_snapshot() -> Dictionary:
+	if _planetary_destination_catalog == null:
+		return {}
+	var presentation := _planetary_cruise_presentation()
+	return _planetary_destination_catalog.get_presentation_snapshot({
+		EMBER_DESTINATION_ID: {
+			"status_id": StringName(
+				presentation.get("status_id", &"unavailable")
+			),
+			"status_text": str(
+				presentation.get(
+					"status_text", "UNAVAILABLE — SYSTEM OFFLINE"
+				)
+			),
+			"action_enabled": bool(
+				presentation.get("toggle_enabled", false)
+			),
+			"engagement_requested": bool(
+				presentation.get(
+					"engagement_requested", false
+				)
+			),
+		},
+	})
 
 
 func _sync_cinder_loadmaster_hud_binding() -> void:

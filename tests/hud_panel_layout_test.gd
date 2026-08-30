@@ -1,5 +1,15 @@
 extends SceneTree
 
+const PlanetaryDestinationCatalogType := preload(
+	"res://scripts/world/planetary_destination_catalog.gd"
+)
+const EmberWorldDefinition := preload(
+	"res://assets/world/planets/ember_moon_world.tres"
+)
+const AuroraWorldDefinition := preload(
+	"res://assets/world/planets/aurora_temperate_world.tres"
+)
+
 ## Proves the gameplay HUD panels never occlude one another anywhere in the
 ## supported UI-scale range.
 ##
@@ -86,6 +96,7 @@ func _run() -> void:
 	await _test_headroom_below_the_contract()
 	_test_uncapped_hundred_percent_still_holds()
 	await _test_build_identity_pause_label()
+	await _test_planetary_destination_layout()
 	await _test_planetary_cruise_pause_layout()
 	await _test_activity_board_layout()
 
@@ -538,6 +549,135 @@ func _test_build_identity_pause_label() -> void:
 	_hud.set_paused(false)
 
 
+func _test_planetary_destination_layout() -> void:
+	var catalog := PlanetaryDestinationCatalogType.new()
+	var ember_registration := catalog.register_destination(EmberWorldDefinition, {
+		"route_id": &"ember_surface_expedition",
+		"route_available": true,
+		"orbital_distance_meters": 8_000_000.0,
+		"travel_summary": "LAND // RELAY SURVEY // RETURN",
+		"unavailable_reason": "",
+	})
+	var aurora_registration := catalog.register_destination(AuroraWorldDefinition, {
+		"route_id": &"",
+		"route_available": false,
+		"orbital_distance_meters": -1.0,
+		"travel_summary": "ATMOSPHERIC FOUNDATION // ROUTE NOT COMMISSIONED",
+		"unavailable_reason": "NOT YET VISITABLE",
+	})
+	var snapshot := catalog.get_presentation_snapshot({
+		&"ember_moon": {
+			"status_id": &"ready",
+			"status_text": "READY — EMBER MOON",
+			"action_enabled": true,
+			"engagement_requested": false,
+		},
+	})
+	_check(
+		bool(ember_registration.get("accepted", false))
+		and bool(aurora_registration.get("accepted", false))
+		and _hud.set_planetary_destination_snapshot(snapshot),
+		"the pause HUD accepts the two-world authored production catalog",
+	)
+	var forged := snapshot.duplicate(true)
+	var forged_rows := forged.get("destinations", []) as Array
+	(forged_rows[1] as Dictionary)["action_enabled"] = true
+	forged["destinations"] = forged_rows
+	_check(
+		not _hud.set_planetary_destination_snapshot(forged)
+		and _hud.get_planetary_destination_report().get("snapshot") == snapshot,
+		"the HUD rejects a forged action on an unrouted destination without mutating its retained view",
+	)
+	_hud.set_paused(true)
+	var pause_overlay := _hud.get("_pause") as Control
+	var open := pause_overlay.find_child(
+		"PlanetaryDestinationOpenButton", true, false
+	) as Button
+	open.emit_signal("pressed")
+	await process_frame
+	await process_frame
+	var ember := pause_overlay.find_child(
+		"PlanetaryDestinationAction_ember_moon", true, false
+	) as Button
+	var aurora := pause_overlay.find_child(
+		"PlanetaryDestinationAction_aurora_temperate_world", true, false
+	) as Button
+	var back := pause_overlay.find_child(
+		"PlanetaryDestinationBackButton", true, false
+	) as Button
+	_check(
+		open != null
+		and ember != null
+		and not ember.disabled
+		and aurora != null
+		and aurora.disabled
+		and back != null
+		and root.gui_get_focus_owner() == ember
+		and ember.get_node_or_null(ember.focus_neighbor_bottom) == back
+		and back.get_node_or_null(back.focus_neighbor_top) == ember,
+		"the board opens on the sole routed world and skips unavailable Aurora in controller focus",
+	)
+	var dirty: Array[String] = []
+	var cases := 0
+	for viewport: Vector2 in [
+		Vector2(1280.0, 720.0),
+		Vector2(1600.0, 900.0),
+		Vector2(1920.0, 1080.0),
+		Vector2(3440.0, 1440.0),
+	]:
+		for scale_request: float in [
+			GameHUD.MIN_UI_SCALE, 1.0, GameHUD.MAX_UI_SCALE
+		]:
+			_hud.set_ui_scale(scale_request)
+			var effective := _hud.layout_for_viewport(viewport)
+			await process_frame
+			await process_frame
+			cases += 1
+			var report := _hud.get_planetary_destination_report()
+			var page := report.get("page_rect", Rect2()) as Rect2
+			var viewport_rect := Rect2(Vector2.ZERO, viewport)
+			var action_rows := report.get("actions", []) as Array
+			if not bool(report.get("page_visible", false)) \
+					or not viewport_rect.grow(0.01).encloses(page):
+				dirty.append(
+					"%.0fx%.0f @%.2f destination page outside viewport" % [
+						viewport.x, viewport.y, scale_request
+					]
+				)
+			var card_rects: Array[Rect2] = []
+			for action_variant: Variant in action_rows:
+				var action := action_variant as Dictionary
+				var card_rect := action.get("card_rect", Rect2()) as Rect2
+				var button_rect := action.get("button_rect", Rect2()) as Rect2
+				card_rects.append(card_rect)
+				if (
+					not page.grow(0.01).encloses(card_rect)
+					or not card_rect.grow(0.01).encloses(button_rect)
+				):
+					dirty.append(
+						"%.0fx%.0f @%.2f destination row escaped page" % [
+							viewport.x, viewport.y, scale_request
+						]
+					)
+			if card_rects.size() == 2 and card_rects[0].intersects(card_rects[1]):
+				dirty.append(
+					"%.0fx%.0f @%.2f destination cards overlap" % [
+						viewport.x, viewport.y, scale_request
+					]
+				)
+			print(
+				"MEASURED: destination board %.0fx%.0f request %.2f -> effective %.4f page %s"
+				% [viewport.x, viewport.y, scale_request, effective, str(page)]
+			)
+	_check(
+		dirty.is_empty(),
+		"Destination Board and both world rows stay enclosed and disjoint across %d endpoint cases%s"
+		% [cases, "" if dirty.is_empty() else " -- " + "; ".join(dirty.slice(0, 8))],
+	)
+	back.emit_signal("pressed")
+	_hud.set_paused(false)
+
+
 ## The player-facing cruise control shares the pause main page, including the
 ## maximum effective accessibility scale. Its compact status row must never
 ## escape the panel or overlap the controller-focusable button.
@@ -549,6 +689,12 @@ func _test_planetary_cruise_pause_layout() -> void:
 	) as Button
 	var settings := pause_overlay.find_child(
 		"SettingsOpenButton", true, false
+	) as Button
+	var server := pause_overlay.find_child(
+		"ServerBrowserButton", true, false
+	) as Button
+	var destinations := pause_overlay.find_child(
+		"PlanetaryDestinationOpenButton", true, false
 	) as Button
 	var restart := pause_overlay.find_child("RestartButton", true, false) as Button
 	var exit := pause_overlay.find_child("ExitButton", true, false) as Button
@@ -624,13 +770,18 @@ func _test_planetary_cruise_pause_layout() -> void:
 	_check(
 		button != null
 		and settings != null
+		and server != null
+		and destinations != null
 		and restart != null
 		and exit != null
 		and build_identity != null
 		and button.focus_mode == Control.FOCUS_ALL
-		and settings.get_node_or_null(settings.focus_neighbor_bottom) == button
+		and settings.get_node_or_null(settings.focus_neighbor_bottom) == server
+		and server.get_node_or_null(server.focus_neighbor_bottom) == destinations
+		and destinations.get_node_or_null(destinations.focus_neighbor_bottom) == button
+		and button.get_node_or_null(button.focus_neighbor_top) == destinations
 		and button.get_node_or_null(button.focus_neighbor_bottom) == restart,
-		"existing pause navigation exposes one controller-focusable Ember cruise row",
+		"pause navigation reaches browser, Destination Board, and the Ember quick action in order",
 	)
 	_check(
 		dirty.is_empty(),

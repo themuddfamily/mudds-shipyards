@@ -36,6 +36,7 @@ signal start_requested
 signal restart_requested
 signal activity_selection_requested(activity_kind: StringName)
 signal planetary_cruise_toggle_requested(request_serial: int)
+signal planetary_destination_requested(destination_id: StringName, request_serial: int)
 signal setting_change_requested(key: StringName, value: Variant)
 signal settings_save_requested
 signal settings_reset_requested
@@ -283,6 +284,10 @@ const PLANETARY_CRUISE_UNAVAILABLE_TEXTS := [
 	"UNAVAILABLE — ORIGIN SHIFT PENDING",
 	"UNAVAILABLE — NOT AVAILABLE",
 ]
+const PLANETARY_DESTINATION_CATALOG_ID: StringName = &"mudds_planetary_destinations"
+const PLANETARY_DESTINATION_SCHEMA_VERSION := 1
+const MAX_PLANETARY_DESTINATIONS := 16
+const PLANETARY_DESTINATION_STATUS_IDS := PLANETARY_CRUISE_STATUS_IDS
 
 const INPUT_ACTION_LABELS := {
 	&"move_forward": "Move / thrust forward",
@@ -398,6 +403,11 @@ var _planetary_cruise_toggle_enabled := false
 var _planetary_cruise_engagement_requested := false
 var _planetary_cruise_toggle_serial := 0
 var _planetary_cruise_request_dispatch_active := false
+var _planetary_destination_page: Control
+var _planetary_destination_rows: VBoxContainer
+var _planetary_destination_back_button: Button
+var _planetary_destination_buttons: Dictionary = {}
+var _planetary_destination_snapshot: Dictionary = {}
 var _settings_page: Control
 var _settings_scroll: ScrollContainer
 var _settings_controls: Dictionary = {}
@@ -770,6 +780,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			and _nearby_activity_page.visible
 		):
 			_show_activity_selection_page()
+		elif (
+			_pause.visible
+			and _planetary_destination_page != null
+			and _planetary_destination_page.visible
+		):
+			_show_pause_main()
 		elif (
 			_pause.visible
 			and (
@@ -2430,6 +2446,11 @@ func _pause_focus_fallback() -> Control:
 		return _settings_controls.get(&"ship_mouse_sensitivity") as Control
 	if _activity_selection_page != null and _activity_selection_page.visible:
 		return _activity_selection_buttons.get(_activity_selection_kind) as Control
+	if (
+		_planetary_destination_page != null
+		and _planetary_destination_page.visible
+	):
+		return _first_planetary_destination_focus_target()
 	if _pause_main_page != null and _pause_main_page.visible:
 		return _pause_main_page.find_child("ResumeButton", true, false) as Control
 	return null
@@ -5001,6 +5022,7 @@ func _build_pause() -> void:
 	_build_pause_main_page()
 	_build_activity_selection_page()
 	_build_nearby_activity_page()
+	_build_planetary_destination_page()
 	_build_server_browser_page()
 	_build_settings_page()
 	_show_pause_main()
@@ -5047,6 +5069,13 @@ func _build_pause_main_page() -> void:
 	server_browser.name = "ServerBrowserButton"
 	server_browser.pressed.connect(_show_server_browser_page)
 	stack.add_child(server_browser)
+	var destinations := _menu_button("DESTINATION BOARD", NOMINAL_SOFT)
+	destinations.name = "PlanetaryDestinationOpenButton"
+	destinations.tooltip_text = (
+		"Browse authored worlds and see which expeditions have a production route."
+	)
+	destinations.pressed.connect(_show_planetary_destination_page)
+	stack.add_child(destinations)
 	var cruise_row := VBoxContainer.new()
 	cruise_row.name = "PlanetaryCruiseRow"
 	cruise_row.add_theme_constant_override("separation", 4)
@@ -5100,14 +5129,18 @@ func _build_pause_main_page() -> void:
 	resume.focus_neighbor_bottom = resume.get_path_to(settings)
 	settings.focus_neighbor_top = settings.get_path_to(resume)
 	settings.focus_neighbor_right = settings.get_path_to(activity_board)
-	settings.focus_neighbor_bottom = settings.get_path_to(_planetary_cruise_button)
+	settings.focus_neighbor_bottom = settings.get_path_to(server_browser)
 	activity_board.focus_neighbor_top = activity_board.get_path_to(resume)
 	activity_board.focus_neighbor_left = activity_board.get_path_to(settings)
-	activity_board.focus_neighbor_bottom = activity_board.get_path_to(
+	activity_board.focus_neighbor_bottom = activity_board.get_path_to(server_browser)
+	server_browser.focus_neighbor_top = server_browser.get_path_to(settings)
+	server_browser.focus_neighbor_bottom = server_browser.get_path_to(destinations)
+	destinations.focus_neighbor_top = destinations.get_path_to(server_browser)
+	destinations.focus_neighbor_bottom = destinations.get_path_to(
 		_planetary_cruise_button
 	)
 	_planetary_cruise_button.focus_neighbor_top = (
-		_planetary_cruise_button.get_path_to(settings)
+		_planetary_cruise_button.get_path_to(destinations)
 	)
 	_planetary_cruise_button.focus_neighbor_bottom = (
 		_planetary_cruise_button.get_path_to(restart)
@@ -5342,6 +5375,464 @@ func _build_nearby_activity_page() -> void:
 	_nearby_activity_page.visible = false
 
 
+func _build_planetary_destination_page() -> void:
+	_planetary_destination_page = PanelContainer.new()
+	_planetary_destination_page.name = "PlanetaryDestinationPage"
+	_planetary_destination_page.set_anchors_preset(Control.PRESET_CENTER)
+	_planetary_destination_page.position = Vector2(-360.0, -290.0)
+	_planetary_destination_page.size = Vector2(720.0, 580.0)
+	_planetary_destination_page.mouse_filter = Control.MOUSE_FILTER_STOP
+	_planetary_destination_page.add_theme_stylebox_override(
+		"panel",
+		_border_box(PANEL_SOLID, 10, NOMINAL),
+	)
+	_pause_panels.add_child(_planetary_destination_page)
+	var margin := _margin(30, 24, 30, 24)
+	_planetary_destination_page.add_child(margin)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 10)
+	margin.add_child(stack)
+	var title := _label("DESTINATION BOARD", 26, PRIMARY)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(title)
+	var subtitle := _label(
+		"Authored nearby worlds. Only commissioned routes can launch an expedition.",
+		12,
+		MUTED,
+	)
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(subtitle)
+	_planetary_destination_rows = VBoxContainer.new()
+	_planetary_destination_rows.name = "PlanetaryDestinationRows"
+	_planetary_destination_rows.add_theme_constant_override("separation", 10)
+	_planetary_destination_rows.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.add_child(_planetary_destination_rows)
+	var waiting := _label("NAVIGATION CATALOG OFFLINE", 12, MUTED)
+	waiting.name = "PlanetaryDestinationWaitingLabel"
+	waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_planetary_destination_rows.add_child(waiting)
+	_planetary_destination_back_button = _menu_button("BACK", MUTED)
+	_planetary_destination_back_button.name = "PlanetaryDestinationBackButton"
+	_planetary_destination_back_button.pressed.connect(_show_pause_main)
+	stack.add_child(_planetary_destination_back_button)
+	_planetary_destination_page.visible = false
+
+
+## Accepts only the catalog's detached bounded view. A row can request travel,
+## but it never supplies the ship, route target, gate result, or journey owner.
+func set_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
+	if not _valid_planetary_destination_snapshot(snapshot):
+		return false
+	if snapshot == _planetary_destination_snapshot:
+		return true
+	var focused_id := &""
+	if is_inside_tree() and get_viewport() != null:
+		var focus_owner := get_viewport().gui_get_focus_owner()
+		if (
+			is_instance_valid(focus_owner)
+			and _planetary_destination_page != null
+			and _planetary_destination_page.is_ancestor_of(focus_owner)
+		):
+			focused_id = StringName(
+				focus_owner.get_meta(&"planetary_destination_id", &"")
+			)
+	_planetary_destination_snapshot = snapshot.duplicate(true)
+	_render_planetary_destination_rows()
+	if _planetary_destination_page.visible:
+		call_deferred(&"_restore_planetary_destination_focus", focused_id)
+	return true
+
+
+func _render_planetary_destination_rows() -> void:
+	if not is_instance_valid(_planetary_destination_rows):
+		return
+	var retained: Dictionary = {}
+	for child in _planetary_destination_rows.get_children():
+		var retained_id := StringName(
+			child.get_meta(&"planetary_destination_id", &"")
+		)
+		if not retained_id.is_empty():
+			retained[retained_id] = child
+	_planetary_destination_buttons.clear()
+	var presented_ids: Array[StringName] = []
+	var presentation_index := 0
+	for row_variant: Variant in _planetary_destination_snapshot.get(
+		"destinations", []
+	) as Array:
+		var row := row_variant as Dictionary
+		var destination_id := StringName(row.get("destination_id", &""))
+		presented_ids.append(destination_id)
+		var card := retained.get(destination_id) as Control
+		if is_instance_valid(card):
+			_update_planetary_destination_row(card, row)
+		else:
+			card = _add_planetary_destination_row(row)
+		if is_instance_valid(card) and card.get_index() != presentation_index:
+			_planetary_destination_rows.move_child(card, presentation_index)
+		presentation_index += 1
+	for child in _planetary_destination_rows.get_children():
+		var retained_id := StringName(
+			child.get_meta(&"planetary_destination_id", &"")
+		)
+		if retained_id.is_empty() or retained_id not in presented_ids:
+			child.queue_free()
+	_configure_planetary_destination_focus_order()
+
+
+func _add_planetary_destination_row(row: Dictionary) -> Control:
+	var destination_id := StringName(row.get("destination_id", &""))
+	var status_id := StringName(row.get("status_id", &"unavailable"))
+	var border_role := (
+		CAUTION
+		if status_id in [&"queued", &"accelerating", &"cruising", &"braking_to_speed", &"braking"]
+		else NOMINAL
+		if status_id == &"ready"
+		else MUTED
+	)
+	var card := PanelContainer.new()
+	card.name = "PlanetaryDestination_%s" % destination_id
+	card.set_meta(&"planetary_destination_id", destination_id)
+	card.add_theme_stylebox_override(
+		"panel",
+		_border_box(Color("102332"), 6, border_role),
+	)
+	_planetary_destination_rows.add_child(card)
+	var margin := _margin(16, 12, 16, 12)
+	card.add_child(margin)
+	var row_layout := HBoxContainer.new()
+	row_layout.add_theme_constant_override("separation", 18)
+	margin.add_child(row_layout)
+	var copy := VBoxContainer.new()
+	copy.add_theme_constant_override("separation", 3)
+	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row_layout.add_child(copy)
+	var heading := _label(
+		"%s  //  %s" % [
+			str(row.get("display_name", "UNKNOWN DESTINATION")).to_upper(),
+			str(row.get("environment_text", "UNKNOWN")),
+		],
+		15,
+		PRIMARY,
+	)
+	heading.name = "PlanetaryDestinationHeading"
+	copy.add_child(heading)
+	var distance := _label(str(row.get("distance_text", "ROUTE UNCHARTED")), 11, NOMINAL_SOFT)
+	distance.name = "PlanetaryDestinationDistance"
+	copy.add_child(distance)
+	var summary := _label(str(row.get("travel_summary", "")), 11, MUTED)
+	summary.name = "PlanetaryDestinationSummary"
+	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	copy.add_child(summary)
+	var status := _label(
+		"STATUS  //  %s" % str(row.get("status_text", "UNAVAILABLE")),
+		10,
+		border_role,
+	)
+	status.name = "PlanetaryDestinationStatus"
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	copy.add_child(status)
+	var action := _menu_button(str(row.get("action_text", "ROUTE UNAVAILABLE")), border_role)
+	action.name = "PlanetaryDestinationAction_%s" % destination_id
+	action.custom_minimum_size = Vector2(190.0, 48.0)
+	action.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	action.set_meta(&"planetary_destination_id", destination_id)
+	action.disabled = not bool(row.get("action_enabled", false))
+	action.focus_mode = Control.FOCUS_NONE if action.disabled else Control.FOCUS_ALL
+	action.tooltip_text = (
+		"Uses the existing production expedition route."
+		if bool(row.get("route_available", false))
+		else "This authored world has no commissioned production route yet."
+	)
+	if bool(row.get("route_available", false)):
+		action.pressed.connect(_request_planetary_destination.bind(destination_id))
+	row_layout.add_child(action)
+	_planetary_destination_buttons[destination_id] = action
+	return card
+
+
+func _update_planetary_destination_row(card: Control, row: Dictionary) -> void:
+	var destination_id := StringName(row.get("destination_id", &""))
+	var status_id := StringName(row.get("status_id", &"unavailable"))
+	var border_role := (
+		CAUTION
+		if status_id in [&"queued", &"accelerating", &"cruising", &"braking_to_speed", &"braking"]
+		else NOMINAL
+		if status_id == &"ready"
+		else MUTED
+	)
+	card.add_theme_stylebox_override(
+		"panel",
+		_border_box(Color("102332"), 6, border_role),
+	)
+	var heading := card.find_child(
+		"PlanetaryDestinationHeading", true, false
+	) as Label
+	if is_instance_valid(heading):
+		heading.text = "%s  //  %s" % [
+			str(row.get("display_name", "UNKNOWN DESTINATION")).to_upper(),
+			str(row.get("environment_text", "UNKNOWN")),
+		]
+	var distance := card.find_child(
+		"PlanetaryDestinationDistance", true, false
+	) as Label
+	if is_instance_valid(distance):
+		distance.text = str(row.get("distance_text", "ROUTE UNCHARTED"))
+	var summary := card.find_child(
+		"PlanetaryDestinationSummary", true, false
+	) as Label
+	if is_instance_valid(summary):
+		summary.text = str(row.get("travel_summary", ""))
+	var status := card.find_child(
+		"PlanetaryDestinationStatus", true, false
+	) as Label
+	if is_instance_valid(status):
+		status.text = "STATUS  //  %s" % str(row.get("status_text", "UNAVAILABLE"))
+		status.modulate = _c(border_role)
+	var action := card.find_child(
+		"PlanetaryDestinationAction_%s" % destination_id, true, false
+	) as Button
+	if is_instance_valid(action):
+		action.text = str(row.get("action_text", "ROUTE UNAVAILABLE"))
+		action.disabled = not bool(row.get("action_enabled", false))
+		action.focus_mode = Control.FOCUS_NONE if action.disabled else Control.FOCUS_ALL
+		_planetary_destination_buttons[destination_id] = action
+
+
+func _request_planetary_destination(destination_id: StringName) -> void:
+	if (
+		_planetary_cruise_request_dispatch_active
+		or _planetary_cruise_toggle_serial >= MAX_PLANETARY_CRUISE_TOGGLE_SERIAL
+	):
+		return
+	var selected: Dictionary = {}
+	for row_variant: Variant in _planetary_destination_snapshot.get(
+		"destinations", []
+	) as Array:
+		var row := row_variant as Dictionary
+		if StringName(row.get("destination_id", &"")) == destination_id:
+			selected = row
+			break
+	if selected.is_empty() or not bool(selected.get("action_enabled", false)):
+		return
+	_planetary_cruise_toggle_serial += 1
+	_refresh_planetary_cruise_row()
+	_planetary_cruise_request_dispatch_active = true
+	planetary_destination_requested.emit(
+		destination_id,
+		_planetary_cruise_toggle_serial,
+	)
+	_planetary_cruise_request_dispatch_active = false
+
+
+func _restore_planetary_destination_focus(preferred_id: StringName = &"") -> void:
+	if (
+		not is_instance_valid(_planetary_destination_page)
+		or not _planetary_destination_page.visible
+	):
+		return
+	var target := _planetary_destination_buttons.get(preferred_id) as Button
+	if not is_instance_valid(target) or target.disabled:
+		target = _first_planetary_destination_focus_target() as Button
+	if is_instance_valid(target):
+		target.grab_focus()
+
+
+func _first_planetary_destination_focus_target() -> Control:
+	for destination_id: StringName in _planetary_destination_buttons:
+		var button := _planetary_destination_buttons[destination_id] as Button
+		if is_instance_valid(button) and not button.disabled:
+			return button
+	return _planetary_destination_back_button
+
+
+func _configure_planetary_destination_focus_order() -> void:
+	var ordered: Array[Control] = []
+	for row_variant: Variant in _planetary_destination_snapshot.get(
+		"destinations", []
+	) as Array:
+		var destination_id := StringName(
+			(row_variant as Dictionary).get("destination_id", &"")
+		)
+		var button := _planetary_destination_buttons.get(destination_id) as Button
+		if is_instance_valid(button) and not button.disabled:
+			ordered.append(button)
+	if is_instance_valid(_planetary_destination_back_button):
+		ordered.append(_planetary_destination_back_button)
+	for index in ordered.size():
+		var control := ordered[index]
+		control.focus_neighbor_top = control.get_path_to(
+			ordered[maxi(0, index - 1)]
+		)
+		control.focus_neighbor_bottom = control.get_path_to(
+			ordered[mini(ordered.size() - 1, index + 1)]
+		)
+
+
+func _valid_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
+	if not _has_exact_string_keys(snapshot, [
+		"schema_version",
+		"catalog_id",
+		"destination_count",
+		"available_destination_ids",
+		"destinations",
+		"authority",
+	]):
+		return false
+	if (
+		snapshot.get("schema_version") is not int
+		or int(snapshot.get("schema_version", 0))
+			!= PLANETARY_DESTINATION_SCHEMA_VERSION
+		or snapshot.get("catalog_id") is not StringName
+		or snapshot.get("catalog_id") != PLANETARY_DESTINATION_CATALOG_ID
+		or snapshot.get("destination_count") is not int
+		or snapshot.get("available_destination_ids") is not PackedStringArray
+		or snapshot.get("destinations") is not Array
+		or snapshot.get("authority") is not Dictionary
+	):
+		return false
+	var rows := snapshot.get("destinations", []) as Array
+	if (
+		rows.is_empty()
+		or rows.size() > MAX_PLANETARY_DESTINATIONS
+		or int(snapshot.get("destination_count", 0)) != rows.size()
+	):
+		return false
+	var advertised_available := snapshot.get(
+		"available_destination_ids", PackedStringArray()
+	) as PackedStringArray
+	var actual_available := PackedStringArray()
+	var seen: Dictionary = {}
+	for row_variant: Variant in rows:
+		if row_variant is not Dictionary:
+			return false
+		var row := row_variant as Dictionary
+		if not _valid_planetary_destination_row(row):
+			return false
+		var destination_id := StringName(row.get("destination_id", &""))
+		if seen.has(destination_id):
+			return false
+		seen[destination_id] = true
+		if bool(row.get("route_available", false)):
+			actual_available.append(str(destination_id))
+	if advertised_available != actual_available:
+		return false
+	var authority := snapshot.get("authority", {}) as Dictionary
+	if authority.is_empty():
+		return false
+	for value: Variant in authority.values():
+		if value is not bool or bool(value):
+			return false
+	return true
+
+
+func _valid_planetary_destination_row(row: Dictionary) -> bool:
+	if not _has_exact_string_keys(row, [
+		"destination_id",
+		"display_name",
+		"sector_id",
+		"environment_id",
+		"environment_text",
+		"evidence_status",
+		"route_id",
+		"route_available",
+		"orbital_distance_meters",
+		"distance_text",
+		"travel_summary",
+		"status_id",
+		"status_text",
+		"action_enabled",
+		"engagement_requested",
+		"action_text",
+		"presentation_only",
+	]):
+		return false
+	if (
+		row.get("destination_id") is not StringName
+		or StringName(row.get("destination_id", &"")).is_empty()
+		or row.get("display_name") is not String
+		or row.get("sector_id") is not StringName
+		or row.get("environment_id") is not StringName
+		or row.get("environment_text") is not String
+		or row.get("evidence_status") is not StringName
+		or row.get("route_id") is not StringName
+		or row.get("route_available") is not bool
+		or row.get("orbital_distance_meters") is not float
+		or row.get("distance_text") is not String
+		or row.get("travel_summary") is not String
+		or row.get("status_id") is not StringName
+		or row.get("status_text") is not String
+		or row.get("action_enabled") is not bool
+		or row.get("engagement_requested") is not bool
+		or row.get("action_text") is not String
+		or row.get("presentation_only") is not bool
+		or not bool(row.get("presentation_only", false))
+	):
+		return false
+	for copy_key: String in [
+		"display_name",
+		"environment_text",
+		"distance_text",
+		"travel_summary",
+		"status_text",
+		"action_text",
+	]:
+		var copy := str(row.get(copy_key, ""))
+		if (
+			copy.is_empty()
+			or copy != copy.strip_edges()
+			or copy.length() > 128
+			or copy.contains("\n")
+			or copy.contains("\r")
+		):
+			return false
+	var route_available := bool(row.get("route_available", false))
+	if (
+		StringName(row.get("status_id", &"")) not in PLANETARY_DESTINATION_STATUS_IDS
+		or (not route_available and not StringName(row.get("route_id", &"")).is_empty())
+		or (not route_available and bool(row.get("action_enabled", false)))
+		or (not route_available and bool(row.get("engagement_requested", false)))
+	):
+		return false
+	return true
+
+
+func get_planetary_destination_report() -> Dictionary:
+	var action_rows: Array[Dictionary] = []
+	for row_variant: Variant in _planetary_destination_snapshot.get(
+		"destinations", []
+	) as Array:
+		var row := row_variant as Dictionary
+		var destination_id := StringName(row.get("destination_id", &""))
+		var button := _planetary_destination_buttons.get(destination_id) as Button
+		var card := _planetary_destination_rows.find_child(
+			"PlanetaryDestination_%s" % destination_id, true, false
+		) as Control
+		action_rows.append({
+			"destination_id": destination_id,
+			"button_text": button.text if is_instance_valid(button) else "",
+			"button_disabled": button.disabled if is_instance_valid(button) else true,
+			"button_rect": button.get_global_rect() if is_instance_valid(button) else Rect2(),
+			"card_rect": card.get_global_rect() if is_instance_valid(card) else Rect2(),
+		}.duplicate(true))
+	return {
+		"snapshot": _planetary_destination_snapshot.duplicate(true),
+		"actions": action_rows,
+		"page_visible": (
+			is_instance_valid(_planetary_destination_page)
+			and _planetary_destination_page.visible
+		),
+		"page_rect": (
+			_planetary_destination_page.get_global_rect()
+			if is_instance_valid(_planetary_destination_page)
+			else Rect2()
+		),
+		"presentation_only": true,
+		"destination_selection_authority": false,
+		"movement_authority": false,
+	}.duplicate(true)
+
+
 func set_nearby_activity_snapshot(snapshot: Dictionary) -> Dictionary:
 	_nearby_activity_snapshot = snapshot.duplicate(true)
 	if _nearby_activity_presenter == null:
@@ -5460,6 +5951,8 @@ func show_nearby_activity_page() -> void:
 		_settings_page.visible = false
 	if _server_browser_page != null:
 		_server_browser_page.visible = false
+	if _planetary_destination_page != null:
+		_planetary_destination_page.visible = false
 	_nearby_activity_page.visible = true
 	var first := _first_nearby_activity_focus_target()
 	if first != null:
@@ -5790,6 +6283,8 @@ func _show_server_browser_page() -> void:
 	if _nearby_activity_page != null:
 		_nearby_activity_page.visible = false
 	_settings_page.visible = false
+	if _planetary_destination_page != null:
+		_planetary_destination_page.visible = false
 	_server_browser_page.visible = true
 	_server_browser_accept_results = true
 	var target := _server_browser_focus_target
@@ -7396,6 +7891,8 @@ func _show_settings_page() -> void:
 	if _nearby_activity_page != null:
 		_nearby_activity_page.visible = false
 	_server_browser_page.visible = false
+	if _planetary_destination_page != null:
+		_planetary_destination_page.visible = false
 	_settings_page.visible = true
 	var target := _settings_focus_target
 	if (
@@ -7421,6 +7918,10 @@ func _show_pause_main() -> void:
 		or (_nearby_activity_page != null and _nearby_activity_page.visible)
 	)
 	var returning_from_browser := _server_browser_page != null and _server_browser_page.visible
+	var returning_from_destinations := (
+		_planetary_destination_page != null
+		and _planetary_destination_page.visible
+	)
 	if returning_from_browser:
 		var browser_focus_was_transient := (
 			not is_instance_valid(_server_browser_focus_target)
@@ -7440,10 +7941,16 @@ func _show_pause_main() -> void:
 	if _nearby_activity_page != null:
 		_nearby_activity_page.visible = false
 	_server_browser_page.visible = false
+	if _planetary_destination_page != null:
+		_planetary_destination_page.visible = false
 	_settings_page.visible = false
 	var focus_button := _pause_main_page.find_child(
 		"ActivityBoardButton" if returning_from_activity else (
-			"ServerBrowserButton" if returning_from_browser else "SettingsOpenButton"
+			"ServerBrowserButton" if returning_from_browser else (
+				"PlanetaryDestinationOpenButton"
+				if returning_from_destinations
+				else "SettingsOpenButton"
+			)
 		),
 		true,
 		false
@@ -7459,6 +7966,8 @@ func _show_activity_selection_page() -> void:
 	_pause_main_page.visible = false
 	_settings_page.visible = false
 	_server_browser_page.visible = false
+	if _planetary_destination_page != null:
+		_planetary_destination_page.visible = false
 	if _nearby_activity_page != null:
 		_nearby_activity_page.visible = false
 	_activity_selection_page.visible = true
@@ -7472,6 +7981,19 @@ func _show_activity_selection_page() -> void:
 	)
 	if selected_button != null:
 		selected_button.grab_focus()
+
+
+func _show_planetary_destination_page() -> void:
+	if not is_instance_valid(_planetary_destination_page):
+		return
+	_pause_main_page.visible = false
+	_activity_selection_page.visible = false
+	if _nearby_activity_page != null:
+		_nearby_activity_page.visible = false
+	_server_browser_page.visible = false
+	_settings_page.visible = false
+	_planetary_destination_page.visible = true
+	_restore_planetary_destination_focus()
 
 
 ## Public embodied entry point for the existing Activity Board.  The board is

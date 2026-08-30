@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://planetary-cruise-player-activation-settings.json"
-const EXPECTED_ASSERTIONS := 26
+const EXPECTED_ASSERTIONS := 29
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -77,15 +77,25 @@ func _run() -> void:
 	var cruise_status := pause_overlay.find_child(
 		"PlanetaryCruiseStatus", true, false
 	) as Label
+	var destination_open := pause_overlay.find_child(
+		"PlanetaryDestinationOpenButton", true, false
+	) as Button
 	_check(
 		cruise_button != null
 		and cruise_status != null
+		and destination_open != null
 		and hud.has_signal(&"planetary_cruise_toggle_requested")
+		and hud.has_signal(&"planetary_destination_requested")
 		and cruise_button.focus_mode == Control.FOCUS_ALL,
-		"pause Main owns one typed controller-focusable Ember cruise row",
+		"pause Main owns one typed Ember quick action and Destination Board entry",
 	)
 
 	var initial := hud.get_planetary_cruise_presentation_report()
+	var initial_destinations := game.get_planetary_destination_catalog_snapshot()
+	var initial_ember := _destination_row(initial_destinations, &"ember_moon")
+	var initial_aurora := _destination_row(
+		initial_destinations, &"aurora_temperate_world"
+	)
 	_check(
 		initial.get("status_id") == &"unavailable"
 		and initial.get("status_text") == "UNAVAILABLE — PILOT REQUIRED"
@@ -96,8 +106,12 @@ func _run() -> void:
 		and not bool(initial.get("policy_authority", true))
 		and not bool(initial.get("movement_authority", true))
 		and not bool(initial.get("origin_authority", true))
-		and not bool(initial.get("destination_selection_authority", true)),
-		"startup is unavailable on foot and never auto-engages",
+		and not bool(initial.get("destination_selection_authority", true))
+		and not bool(initial_ember.get("action_enabled", true))
+		and initial_ember.get("distance_text") == "8,000 KM FROM MUDDS"
+		and initial_aurora.get("status_text") == "NOT YET VISITABLE"
+		and not bool(initial_aurora.get("action_enabled", true)),
+		"startup is unavailable on foot while both authored destinations remain honestly catalogued",
 	)
 
 	_test_exact_presentation_vocabulary(hud)
@@ -126,12 +140,19 @@ func _run() -> void:
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	game.call("_sync_planetary_cruise_hud")
 	var ready := hud.get_planetary_cruise_presentation_report()
+	var ready_destination_report := hud.get_planetary_destination_report()
+	var ready_ember := _destination_row(
+		ready_destination_report.get("snapshot", {}) as Dictionary,
+		&"ember_moon",
+	)
 	_check(
 		ready.get("status_id") == &"ready"
 		and ready.get("status_text") == "READY — EMBER MOON"
 		and bool(ready.get("toggle_enabled", false))
-		and not bool(ready.get("button_disabled", true)),
-		"departed clear flight synchronizes the exact ready presentation",
+		and not bool(ready.get("button_disabled", true))
+		and bool(ready_ember.get("action_enabled", false))
+		and ready_ember.get("action_text") == "LAUNCH EXPEDITION",
+		"departed clear flight synchronizes the quick action and catalog route",
 	)
 	var ready_generation := binding.get_generation()
 	game._physics_process(1.0 / 60.0)
@@ -168,9 +189,37 @@ func _run() -> void:
 		"one controller down press follows the frozen pause navigation to Settings",
 	)
 	await _push_joypad_button(JOY_BUTTON_DPAD_DOWN)
+	var server_browser := pause_overlay.find_child(
+		"ServerBrowserButton", true, false
+	) as Button
 	_check(
-		root.gui_get_focus_owner() == cruise_button,
-		"a second controller down press reaches Ember cruise without pointer input",
+		root.gui_get_focus_owner() == server_browser,
+		"a second controller down press reaches Server Browser in the explicit sequence",
+	)
+	await _push_joypad_button(JOY_BUTTON_DPAD_DOWN)
+	_check(
+		root.gui_get_focus_owner() == destination_open,
+		"a third controller down press reaches Destination Board without pointer input",
+	)
+	await _activate_focused_control()
+	var destination_page := pause_overlay.find_child(
+		"PlanetaryDestinationPage", true, false
+	) as Control
+	var ember_action := pause_overlay.find_child(
+		"PlanetaryDestinationAction_ember_moon", true, false
+	) as Button
+	var aurora_action := pause_overlay.find_child(
+		"PlanetaryDestinationAction_aurora_temperate_world", true, false
+	) as Button
+	_check(
+		destination_page != null
+		and destination_page.visible
+		and ember_action != null
+		and not ember_action.disabled
+		and root.gui_get_focus_owner() == ember_action
+		and aurora_action != null
+		and aurora_action.disabled,
+		"controller acceptance opens the board on Ember while Aurora remains visibly unavailable",
 	)
 
 	var reads_before_request := int(
@@ -255,7 +304,6 @@ func _run() -> void:
 		and bool(accelerating.get("engagement_requested", false)),
 		"HeroShip alone consumes the envelope and publishes accelerating",
 	)
-
 	await _activate_focused_control()
 	var braking := hud.get_planetary_cruise_presentation_report()
 	_check(
@@ -276,6 +324,9 @@ func _run() -> void:
 		"Hero-owned braking returns the row to ready only after velocity reaches zero",
 	)
 
+	# Return to the compact pause page and use its retained quick action for the
+	# re-entry half, proving both entry points share the one serial/authority.
+	hud.call("_show_pause_main")
 	# A fresh player request is intentionally live when Main leaves the tree. The
 	# binding must retire it; the retained pause focus may return, but engagement
 	# may not.
@@ -346,10 +397,33 @@ func _run() -> void:
 		and int(hud.get("_toast_serial")) == reentry_toast_serial + 1
 		and hud.get_signal_connection_list(
 			&"planetary_cruise_toggle_requested"
+		).size() == 1
+		and hud.get_signal_connection_list(
+			&"planetary_destination_requested"
 		).size() == 1,
 		"the first post-reentry click reaches one retained connection and one transition",
 	)
 	game.disengage_planetary_cruise(false)
+	var rejected_generation := binding.get_generation()
+	var rejected_toast_serial := int(hud.get("_toast_serial"))
+	hud.planetary_destination_requested.emit(
+		&"aurora_temperate_world",
+		5,
+	)
+	var rejected_aurora := _destination_row(
+		game.get_planetary_destination_catalog_snapshot(),
+		&"aurora_temperate_world",
+	)
+	_check(
+		binding.get_generation() == rejected_generation
+		and not bool(binding.get_snapshot().get("engagement_requested", true))
+		and int(game.get_planetary_cruise_report().get(
+			"last_hud_toggle_serial", 0
+		)) == 5
+		and int(hud.get("_toast_serial")) == rejected_toast_serial + 1
+		and not bool(rejected_aurora.get("action_enabled", true)),
+		"a forged Aurora request starts no travel and preserves the shared request sequence",
+	)
 
 	paused = false
 	await _cleanup(game)
@@ -444,6 +518,14 @@ func _test_public_gate_vocabulary(game: GameFlow) -> void:
 		exact = exact and copy == gates[raw_reason]
 		exact = exact and copy.length() <= 32 and not copy.contains("_")
 	_check(exact, "GameFlow exposes only the bounded public cruise gate vocabulary")
+
+
+func _destination_row(snapshot: Dictionary, destination_id: StringName) -> Dictionary:
+	for row_variant: Variant in snapshot.get("destinations", []) as Array:
+		var row := row_variant as Dictionary
+		if StringName(row.get("destination_id", &"")) == destination_id:
+			return row
+	return {}
 
 
 func _push_joypad_button(button_index: int) -> void:
