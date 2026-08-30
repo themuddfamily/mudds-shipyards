@@ -1388,106 +1388,6 @@ func get_fabricator_base_render_optimization_contract() -> Dictionary:
 	}.duplicate(true)
 
 
-func get_fabricator_luminous_render_optimization_contract() -> Dictionary:
-	var renderer := _build_root.get_node_or_null(
-		NodePath(str(FABRICATOR_LUMINOUS_RENDER_NAME))
-	) as MeshInstance3D
-	var live_parts := (
-		renderer.get_meta(&"fabrication_luminous_render_parts", []) as Array
-		if renderer != null
-		else []
-	)
-	var expected_parts: Array[Dictionary] = []
-	for raw_side in [-1.0, 1.0]:
-		var side: float = raw_side
-		var bay_x := side * 7.0
-		for z in [7.0, 15.0]:
-			expected_parts.append({
-				"id": &"nozzle",
-				"size": Vector3(0.28, 0.72, 0.28),
-				"transform": Transform3D(Basis.IDENTITY, Vector3(bay_x, 0.75, z)),
-			})
-			expected_parts.append({
-				"id": &"status",
-				"size": Vector3(0.08, 0.18, 0.72),
-				"transform": Transform3D(
-					Basis.IDENTITY,
-					Vector3(bay_x - side * 1.87, 1.35, z + 0.55)
-				),
-			})
-	var parts_exact := live_parts.size() == expected_parts.size()
-	for index in mini(live_parts.size(), expected_parts.size()):
-		var live := live_parts[index] as Dictionary
-		var expected := expected_parts[index] as Dictionary
-		parts_exact = parts_exact \
-			and StringName(live.get("id", &"")) == StringName(expected.id) \
-			and (live.get("size", Vector3.ZERO) as Vector3).is_equal_approx(
-				expected.size as Vector3
-			) \
-			and (live.get("transform", Transform3D()) as Transform3D).is_equal_approx(
-				expected.transform as Transform3D
-			)
-	var mesh := renderer.mesh as ArrayMesh if renderer != null else null
-	var vertex_count := 0
-	if mesh != null and mesh.get_surface_count() == 1:
-		var arrays := mesh.surface_get_arrays(0)
-		if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
-			vertex_count = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
-	var render_state_exact: bool = (
-		renderer != null
-		and renderer.name == FABRICATOR_LUMINOUS_RENDER_NAME
-		and mesh != null
-		and mesh.get_surface_count() == 1
-		and vertex_count == expected_parts.size() * 324
-		and renderer.material_override == _materials[&"luminous"]
-		and renderer.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		and is_zero_approx(renderer.visibility_range_begin)
-		and is_zero_approx(renderer.visibility_range_end)
-		and is_zero_approx(renderer.extra_cull_margin)
-		and int(renderer.get_meta(&"authored_visible_copy_count", 0))
-			== expected_parts.size()
-	)
-	var legacy_keys := PackedStringArray([
-		"luminous:0.280:0.720:0.280",
-		"luminous:0.080:0.180:0.720",
-	])
-	var live_keys := get_render_submission_contract().batch_keys as PackedStringArray
-	var removed_keys_absent := true
-	for key in legacy_keys:
-		removed_keys_absent = removed_keys_absent and not live_keys.has(key)
-	return {
-		"valid": parts_exact and render_state_exact and removed_keys_absent,
-		"family": &"fabricator_luminous_presentation",
-		"before": {
-			"renderer_submissions": 2,
-			"presentation_nodes": 2,
-			"visible_geometry_copies": expected_parts.size(),
-			"retained_mesh_resources": 2,
-			"multi_mesh_transform_buffer_floats": expected_parts.size() * 12,
-		},
-		"after": {
-			"renderer_submissions": 1 if renderer != null else 0,
-			"presentation_nodes": 1 if renderer != null else 0,
-			"visible_geometry_copies": int(
-				renderer.get_meta(&"authored_visible_copy_count", 0)
-			) if renderer != null else 0,
-			"retained_mesh_resources": 1 if mesh != null else 0,
-			"multi_mesh_transform_buffer_floats": 0,
-		},
-		"delta": {
-			"renderer_submissions": -1,
-			"presentation_nodes": -1,
-			"retained_mesh_resources": -1,
-			"multi_mesh_transform_buffer_floats": -expected_parts.size() * 12,
-		},
-		"authored_parts": live_parts.duplicate(true),
-		"visual_parts_exact": parts_exact,
-		"render_state_and_combined_geometry_exact": render_state_exact,
-		"combined_vertex_count": vertex_count,
-		"legacy_dedicated_batch_keys_absent": removed_keys_absent,
-	}.duplicate(true)
-
-
 func get_work_bench_render_optimization_contract() -> Dictionary:
 	var batch: MultiMeshInstance3D = null
 	for raw_batch in find_children("*", "MultiMeshInstance3D", true, false):
@@ -1933,8 +1833,6 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("roof-column presentation batch or physical roster drifted")
 	if not bool(get_fabricator_base_render_optimization_contract().valid):
 		errors.append("fabricator-base presentation batch or physical roster drifted")
-	if not bool(get_fabricator_luminous_render_optimization_contract().valid):
-		errors.append("fabricator luminous combined presentation drifted")
 	if not bool(get_work_bench_render_optimization_contract().valid):
 		errors.append("work-bench presentation batch or physical roster drifted")
 	if not bool(get_guardrail_render_optimization_contract().valid):

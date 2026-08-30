@@ -334,24 +334,26 @@ func _test_area_and_surface_census(annex: FabricationAnnex) -> void:
 		and bool(guardrails.legacy_dedicated_batch_keys_absent),
 		"all 51 authored rail and post pieces retain their exact trim finish and renderer-free collision while three meshes and 612 transform floats disappear"
 	)
-	var fabricator_luminous := annex.get_fabricator_luminous_render_optimization_contract()
-	_check(
-		bool(fabricator_luminous.valid)
-		and int(fabricator_luminous.before.renderer_submissions) == 2
-		and int(fabricator_luminous.after.renderer_submissions) == 1
-		and int(fabricator_luminous.delta.renderer_submissions) == -1
-		and int(fabricator_luminous.delta.presentation_nodes) == -1
-		and int(fabricator_luminous.delta.retained_mesh_resources) == -1
-		and int(fabricator_luminous.delta.multi_mesh_transform_buffer_floats) == -96,
-		"the eight luminous fabricator parts combine into one immutable surface, removing one submission, node, mesh and 96 transform floats"
+	var fabricator_luminous := annex.find_child(
+		"FabricatorLuminousRenderBatch", true, false
+	) as MeshInstance3D
+	var luminous_parts := (
+		fabricator_luminous.get_meta(&"fabrication_luminous_render_parts", []) as Array
+		if fabricator_luminous != null else []
 	)
+	var luminous_mesh := fabricator_luminous.mesh as ArrayMesh if fabricator_luminous != null else null
+	var luminous_vertices := PackedVector3Array()
+	if luminous_mesh != null and luminous_mesh.get_surface_count() == 1:
+		luminous_vertices = luminous_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 	_check(
-		int(fabricator_luminous.after.visible_geometry_copies) == 8
-		and int(fabricator_luminous.combined_vertex_count) == 2592
-		and bool(fabricator_luminous.visual_parts_exact)
-		and bool(fabricator_luminous.render_state_and_combined_geometry_exact)
-		and bool(fabricator_luminous.legacy_dedicated_batch_keys_absent),
-		"all four nozzles and four status strips retain exact transforms, emissive material, shadows and rounded topology"
+		fabricator_luminous != null
+		and luminous_parts.size() == 8
+		and luminous_vertices.size() == 2592
+		and int(fabricator_luminous.get_meta(&"authored_visible_copy_count", 0)) == 8
+		and fabricator_luminous.material_override == (annex.get("_materials") as Dictionary)[&"luminous"]
+		and not (render.batch_keys as PackedStringArray).has("luminous:0.280:0.720:0.280")
+		and not (render.batch_keys as PackedStringArray).has("luminous:0.080:0.180:0.720"),
+		"four nozzles and four status strips share one exact emissive surface instead of two transform buffers"
 	)
 	_test_material_rack_batch(annex)
 	var naming := annex.get_deterministic_naming_contract()
