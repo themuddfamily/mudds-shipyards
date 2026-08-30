@@ -72,8 +72,8 @@ const CONNECTOR_RIB_NEAREST_VIEW_METRES := 3.65 - OVERHEAD_VIEW_EYE_HEIGHT
 ## service/collision authority; the brass fasteners, copper bands, red
 ## valve-wheel trim and copper column collars have no collider, room, route,
 ## door, seat, readiness, state or evidence role. The batches retain every
-## authored copy through MultiMesh submissions; the named collar nodes retain
-## their three ordinary submissions while sharing one immutable TorusMesh.
+## authored copy through MultiMesh submissions; the stable collar landmark stays
+## ordinary while its two anonymous visual siblings share one MultiMesh draw.
 const HATCH_FASTENER_RADIUS := 0.03
 const HATCH_FASTENER_HEIGHT := 0.025
 const HATCH_FASTENER_COPY_COUNT := 12
@@ -160,14 +160,14 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 896
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
 ## The static common-room display adds one quad renderer/mesh/material to this roster.
-const RENDER_DESCENDANT_COUNT := 1454
-const RENDER_MESH_INSTANCE_COUNT := 780
-const RENDER_MULTIMESH_BATCH_COUNT := 43
+const RENDER_DESCENDANT_COUNT := 1453
+const RENDER_MESH_INSTANCE_COUNT := 778
+const RENDER_MULTIMESH_BATCH_COUNT := 44
 ## One reusable StationDoor renderer owns a shared MultiMesh resource across the
 ## module's two door instances; all other batches own their component buffer.
-const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 42
+const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 43
 const RENDER_DRAWN_COPY_COUNT := 1006
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 846
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 845
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
@@ -338,6 +338,8 @@ var _nutrient_valve_mesh: TorusMesh
 var _nutrient_valve_batch: MultiMeshInstance3D
 var _nutrient_valve_transforms: Array[Transform3D] = []
 var _garden_column_collar_mesh: TorusMesh
+var _garden_column_collar_batch: MultiMeshInstance3D
+var _garden_column_collar_batch_transforms: Array[Transform3D] = []
 var _pipe_collar_mesh: TorusMesh
 var _garden_bench_leg_longitudinal_transforms: Array[Transform3D] = []
 var _garden_bench_leg_transverse_transforms: Array[Transform3D] = []
@@ -1052,6 +1054,12 @@ func get_performance_contract() -> Dictionary:
 	# are unchanged; descendants 1856 -> 1855, MeshInstances 1194 -> 1192,
 	# MultiMeshes 31 -> 32, and geometry submissions 1216 -> 1215. The trestles
 	# retain both collision bodies and all table support/gameplay authority.
+	#
+	# Re-frozen after the two anonymous garden-column collar renderers moved into
+	# one visual-only batch. The first ordinary collar remains the stable capture
+	# landmark and all three copies retain one copper TorusMesh. Descendants move
+	# 1855 -> 1854, MeshInstances 1192 -> 1190, MultiMeshes 32 -> 33, and geometry
+	# submissions 1215 -> 1214; drawn copies, collision and authority stay fixed.
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 1350,
 		"static_bodies": 260,
@@ -1924,11 +1932,8 @@ func _render_descendant_count() -> int:
 	return count
 
 
-## The column collars stay as ordinary named MeshInstance3D nodes because the
-## first path is a presentation/capture landmark. Only their immutable primitive
-## resource is shared. This audit deliberately discovers the live direct-child
-## roster by exact recipe instead of trusting the retained member alone, so a
-## private duplicate, missing sibling or newly authoritative look-alike is red.
+## The six visual-only garden-bench legs retain two exact size families and one
+## structural material while their renderer copies are submitted in two batches.
 func _inspect_garden_bench_leg_batching() -> Dictionary:
 	var errors := PackedStringArray()
 	var family_specs := [
@@ -2003,58 +2008,72 @@ func _inspect_garden_bench_leg_batching() -> Dictionary:
 	}.duplicate(true)
 
 
+## The first collar remains an ordinary named presentation/capture landmark.
+## Its two anonymous siblings share the same immutable TorusMesh through one
+## childless visual-only MultiMesh batch.
 func _inspect_garden_column_collar_mesh_sharing() -> Dictionary:
 	var errors := PackedStringArray()
-	var collars: Array[MeshInstance3D] = []
-	var actual_paths := PackedStringArray()
-	var mesh_identities := {}
-	var submission_count := 0
 	var column := get_node_or_null(
 		^"Structure/SideBranchGarden/GardenColumn"
 	) as Node3D
 	var expected_transforms := _garden_column_collar_transforms()
+	var landmark: MeshInstance3D = null
+	var landmark_path := ""
 	if column == null:
 		errors.append("garden-column collar parent missing")
 	else:
-		for child in column.get_children():
-			var collar := child as MeshInstance3D
-			var torus := collar.mesh as TorusMesh if collar != null else null
-			if torus == null \
-				or not is_equal_approx(torus.inner_radius, GARDEN_COLUMN_COLLAR_INNER_RADIUS) \
-				or not is_equal_approx(torus.outer_radius, GARDEN_COLUMN_COLLAR_OUTER_RADIUS):
-				continue
-			var index := collars.size()
-			collars.append(collar)
-			var path := str(column.get_path_to(collar))
-			actual_paths.append(path)
-			mesh_identities[torus.get_instance_id()] = true
-			submission_count += torus.get_surface_count()
-			if index >= expected_transforms.size() \
-				or not collar.transform.is_equal_approx(expected_transforms[index]):
-				errors.append("garden-column collar transform drift: %s" % path)
-			if not collar.visible \
-				or collar.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
-				or collar.material_override != _materials.get("copper") \
-				or collar.material_overlay != null \
-				or collar.layers != 1 \
-				or not is_zero_approx(collar.transparency):
-				errors.append("garden-column collar render-state drift: %s" % path)
-			if collar.get_child_count() != 0 \
-				or collar.get_script() != null \
-				or not collar.get_groups().is_empty() \
-				or not collar.get_meta_list().is_empty():
-				errors.append("garden-column collar gained semantic authority: %s" % path)
+		landmark = column.get_node_or_null(^"ColumnCollar") as MeshInstance3D
+		landmark_path = str(column.get_path_to(landmark)) if landmark != null else ""
+	if landmark == null or landmark.mesh != _garden_column_collar_mesh:
+		errors.append("garden-column collar landmark or shared-mesh identity drift")
+	elif not landmark.transform.is_equal_approx(expected_transforms[0]):
+		errors.append("garden-column collar landmark transform drift")
+	elif not landmark.visible \
+			or landmark.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			or landmark.material_override != _materials.get("copper") \
+			or landmark.material_overlay != null \
+			or landmark.layers != 1 \
+			or not is_zero_approx(landmark.transparency):
+		errors.append("garden-column collar landmark render-state drift")
+	elif landmark.get_child_count() != 0 \
+			or landmark.get_script() != null \
+			or not landmark.get_groups().is_empty() \
+			or not landmark.get_meta_list().is_empty():
+		errors.append("garden-column collar landmark gained semantic authority")
 
-	if collars.size() != GARDEN_COLUMN_COLLAR_COPY_COUNT \
-		or actual_paths.is_empty() \
-		or actual_paths[0] != "ColumnCollar":
-		errors.append("garden-column collar visible/path roster drift")
-	for index in range(1, actual_paths.size()):
-		if not actual_paths[index].begins_with("@MeshInstance3D@"):
-			errors.append("garden-column collar generated sibling path drift")
-			break
-	if mesh_identities.size() != 1:
-		errors.append("garden-column collar shared-mesh identity drift")
+	var batch_transforms: Array[Transform3D] = []
+	batch_transforms.assign(expected_transforms.slice(1))
+	var batch_multi := (
+		_garden_column_collar_batch.multimesh
+		if is_instance_valid(_garden_column_collar_batch)
+		else null
+	)
+	var batch_exact: bool = (
+		batch_multi != null
+		and batch_multi.mesh == _garden_column_collar_mesh
+		and batch_multi.instance_count == GARDEN_COLUMN_COLLAR_COPY_COUNT - 1
+		and batch_multi.visible_instance_count == -1
+		and batch_multi.buffer == _encode_multimesh_transforms(batch_transforms)
+		and batch_multi.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(_garden_column_collar_mesh.get_aabb(), batch_transforms)
+		)
+		and _garden_column_collar_batch.material_override == _materials.get("copper")
+		and _garden_column_collar_batch.cast_shadow
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _garden_column_collar_batch.layers == 1
+		and _garden_column_collar_batch.get_child_count() == 0
+		and _garden_column_collar_batch.get_script() == null
+		and _garden_column_collar_batch.get_groups().is_empty()
+		and bool(_garden_column_collar_batch.get_meta("visual_detail_only", false))
+		and StringName(
+			_garden_column_collar_batch.get_meta("authored_source_name", &"")
+		) == &"ColumnCollar"
+		and (_garden_column_collar_batch.get_meta(
+			"authored_instance_transforms", []
+		) as Array) == batch_transforms
+	)
+	if not batch_exact:
+		errors.append("garden-column collar batch recipe, transforms or render state drift")
 
 	var mesh := _garden_column_collar_mesh
 	if mesh == null \
@@ -2080,20 +2099,22 @@ func _inspect_garden_column_collar_mesh_sharing() -> Dictionary:
 			errors.append("garden-column collar torus-budget metadata drift")
 		if mesh.resource_local_to_scene:
 			errors.append("garden-column collar shared mesh became scene-local")
-	for collar in collars:
-		if collar.mesh != mesh:
-			errors.append("garden-column collar retained a private mesh")
-			break
 
 	return {
 		"valid": errors.is_empty(),
 		"errors": errors,
-		"node_paths": actual_paths,
+		"landmark_path": landmark_path,
+		"batch_path": str(column.get_path_to(_garden_column_collar_batch)) \
+			if column != null and is_instance_valid(_garden_column_collar_batch) else "",
 		"authored_transforms": expected_transforms.duplicate(),
-		"geometry_nodes": collars.size(),
-		"geometry_submissions": submission_count,
-		"visible_geometry_copies": collars.size(),
-		"primitive_mesh_allocations": mesh_identities.size(),
+		"geometry_nodes": 2 if landmark != null and batch_multi != null else 0,
+		"geometry_submissions": 2 if landmark != null and batch_multi != null else 0,
+		"visible_geometry_copies": 1 + batch_multi.instance_count \
+			if landmark != null and batch_multi != null else 0,
+		"primitive_mesh_allocations": 1 if mesh != null else 0,
+		"multimesh_allocations": 1 if batch_multi != null else 0,
+		"renderer_buffer_floats": _encode_multimesh_transforms(batch_transforms).size(),
+		"renderer_buffer_matches_authored": batch_exact,
 		"resource_allocation_reduction": 2,
 		"component_retained_mesh_present": mesh != null,
 		"resource_local_to_scene": mesh.resource_local_to_scene if mesh != null else true,
@@ -2104,11 +2125,21 @@ func _inspect_garden_column_collar_mesh_sharing() -> Dictionary:
 		"live_tessellation": Vector2i(
 			mesh.rings, mesh.ring_segments
 		) if mesh != null else Vector2i.ZERO,
-		"legacy": {
+		"before": {
 			"geometry_nodes": GARDEN_COLUMN_COLLAR_COPY_COUNT,
 			"geometry_submissions": GARDEN_COLUMN_COLLAR_COPY_COUNT,
 			"visible_geometry_copies": GARDEN_COLUMN_COLLAR_COPY_COUNT,
-			"primitive_mesh_allocations": GARDEN_COLUMN_COLLAR_COPY_COUNT,
+			"primitive_mesh_allocations": 1,
+			"multimesh_allocations": 0,
+			"renderer_buffer_floats": 0,
+		},
+		"delta": {
+			"geometry_nodes": -1,
+			"geometry_submissions": -1,
+			"visible_geometry_copies": 0,
+			"primitive_mesh_allocations": 0,
+			"multimesh_allocations": 1,
+			"renderer_buffer_floats": batch_transforms.size() * 12,
 		},
 	}.duplicate(true)
 
@@ -3528,21 +3559,31 @@ func _build_garden_column(branch: Node3D) -> void:
 	_garden_column_collar_mesh.outer_radius = GARDEN_COLUMN_COLLAR_OUTER_RADIUS
 	_garden_column_collar_mesh.rings = GARDEN_COLUMN_COLLAR_AUTHORED_RINGS
 	_garden_column_collar_mesh.ring_segments = GARDEN_COLUMN_COLLAR_AUTHORED_RING_SEGMENTS
-	# These remain ordinary named MeshInstance3D nodes. Eagerly apply the same
-	# global budget they already received in ShipyardWorld so the retained shared
-	# resource is honest even when Habitat is validated synchronously on its own.
+	# Eagerly apply the same global budget the collars already received in
+	# ShipyardWorld so the retained shared resource is honest even when Habitat is
+	# validated synchronously on its own. The first ordinary renderer remains the
+	# stable capture landmark; only its two anonymous, authority-free siblings batch.
 	TorusGeometryBudget.apply(_garden_column_collar_mesh, 1.0)
-	for collar_y in [1.20, 2.90, 4.50]:
-		_torus(
-			column,
-			"ColumnCollar",
-			Vector3(14.4, float(collar_y), 20.2),
-			GARDEN_COLUMN_COLLAR_INNER_RADIUS,
-			GARDEN_COLUMN_COLLAR_OUTER_RADIUS,
-			_materials["copper"],
-			Vector3.ZERO,
-			_garden_column_collar_mesh
-		)
+	var collar_transforms := _garden_column_collar_transforms()
+	_torus(
+		column,
+		"ColumnCollar",
+		collar_transforms[0].origin,
+		GARDEN_COLUMN_COLLAR_INNER_RADIUS,
+		GARDEN_COLUMN_COLLAR_OUTER_RADIUS,
+		_materials["copper"],
+		Vector3.ZERO,
+		_garden_column_collar_mesh
+	)
+	_garden_column_collar_batch_transforms.assign(collar_transforms.slice(1))
+	_garden_column_collar_batch = _multimesh_visual_stock(
+		column,
+		"ColumnCollarBatch",
+		_garden_column_collar_mesh,
+		_materials["copper"],
+		_garden_column_collar_batch_transforms,
+		&"ColumnCollar"
+	)
 	_cylinder(column, "ColumnHead", Vector3(14.4, 5.07, 20.2), 0.72, 0.30, _materials["structural"], true)
 	_torus(column, "ColumnHeadRing", Vector3(14.4, 5.16, 20.2), 0.72, 0.90, _materials["copper"], Vector3.ZERO, null, GARDEN_COLUMN_HEAD_RING_NEAREST_VIEW_METRES)
 	for feed_angle in [45.0, 165.0, 285.0]:
