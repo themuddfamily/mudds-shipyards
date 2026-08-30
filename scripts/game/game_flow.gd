@@ -442,6 +442,7 @@ var player: CharacterBody3D
 var activity_board_console: Area3D
 var planetary_destination_console: Area3D
 var ship_service_console: Area3D
+var fleet_registry_console: Area3D
 var heavy_breach_activity_board: Area3D
 var _heavy_breach_sortie_generation := 0
 var _heavy_breach_hud_refresh_elapsed := 0.0
@@ -729,6 +730,7 @@ var _landing_request_active := false
 var _active_landing_berth_id: StringName = &""
 var _recovering := false
 var _regeneration_pending: Dictionary = {}
+var _fleet_registry_snapshot_sequence := 0
 ## Synchronous berth signals may call back into the coordinator. One ship may
 ## own only one preflight/reserve/commit attempt at a time.
 var _regeneration_attempts_active: Dictionary = {}
@@ -1178,6 +1180,11 @@ func _resolve_scene_bindings() -> void:
 	ship_service_console = (
 		world.call(&"get_ship_service_console") as Area3D
 		if is_instance_valid(world) and world.has_method(&"get_ship_service_console")
+		else null
+	)
+	fleet_registry_console = (
+		world.call(&"get_fleet_registry_console") as Area3D
+		if is_instance_valid(world) and world.has_method(&"get_fleet_registry_console")
 		else null
 	)
 	heavy_breach_activity_board = (
@@ -5131,6 +5138,7 @@ func _connect_runtime_signals() -> void:
 	_bind_activity_board_console()
 	_bind_planetary_destination_console()
 	_bind_ship_service_console()
+	_bind_fleet_registry_console()
 	_bind_heavy_breach_activity_board()
 	_connect_signal_once(
 		combat_authority,
@@ -5915,6 +5923,13 @@ func _refresh_interaction_targets() -> void:
 	):
 		_bind_ship_service_console()
 	if (
+		not is_instance_valid(fleet_registry_console)
+		or not fleet_registry_console.is_connected(
+			&"snapshot_requested", _on_fleet_registry_snapshot_requested
+		)
+	):
+		_bind_fleet_registry_console()
+	if (
 		not is_instance_valid(heavy_breach_activity_board)
 		or not heavy_breach_activity_board.is_connected(
 			&"snapshot_changed", _on_heavy_breach_board_snapshot_changed
@@ -6471,6 +6486,18 @@ func _bind_ship_service_console() -> void:
 	)
 
 
+func _bind_fleet_registry_console() -> void:
+	if not is_instance_valid(world) or not world.has_method(&"get_fleet_registry_console"):
+		fleet_registry_console = null
+		return
+	fleet_registry_console = world.call(&"get_fleet_registry_console") as Area3D
+	_connect_signal_once(
+		fleet_registry_console,
+		&"snapshot_requested",
+		_on_fleet_registry_snapshot_requested
+	)
+
+
 func _bind_heavy_breach_activity_board() -> void:
 	if not is_instance_valid(world) \
 			or not world.has_method(&"get_heavy_breach_activity_board"):
@@ -6561,6 +6588,98 @@ func _on_ship_service_console_requested(actor: Node) -> void:
 	else:
 		result = active_ship.call(&"restock_engineer_repair_kits") as Dictionary
 	_present_ship_service_result(result)
+
+
+## Rechecks the same embodied admission used by all station consoles, then
+## projects live fleet/berth lifecycle into detached scalar rows. No operation
+## in this lane reserves a berth, retires regeneration, or invokes a craft.
+func _on_fleet_registry_snapshot_requested(actor: Node) -> void:
+	if (
+		actor != player
+		or fleet_registry_console != station_interaction_candidate
+		or _piloting
+		or _transition_busy
+		or _station_seated
+		or not is_instance_valid(player)
+		or not player.is_control_enabled()
+		or player.is_seated()
+		or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]
+	):
+		return
+	var snapshot := _build_fleet_registry_snapshot()
+	if is_instance_valid(fleet_registry_console) \
+			and fleet_registry_console.has_method(&"present_fleet_snapshot"):
+		fleet_registry_console.call(&"present_fleet_snapshot", snapshot.duplicate(true))
+	if is_instance_valid(hud):
+		var counts := snapshot.get("counts", {}) as Dictionary
+		hud.toast(
+			"Fleet registry refreshed",
+			"%d available // %d occupied // %d destroyed // %d regenerating" % [
+				int(counts.get(&"available", 0)),
+				int(counts.get(&"occupied", 0)),
+				int(counts.get(&"destroyed", 0)),
+				int(counts.get(&"regenerating", 0)),
+			],
+			2.4
+		)
+
+
+func _build_fleet_registry_snapshot() -> Dictionary:
+	_fleet_registry_snapshot_sequence += 1
+	var rows: Array[Dictionary] = []
+	var counts := {
+		&"available": 0,
+		&"occupied": 0,
+		&"destroyed": 0,
+		&"regenerating": 0,
+	}
+	for candidate in ships:
+		if not is_instance_valid(candidate):
+			continue
+		var state := _fleet_registry_state(candidate)
+		counts[state] = int(counts.get(state, 0)) + 1
+		rows.append({
+			"ship_id": candidate.get_ship_id(),
+			"display_name": candidate.get_display_name(),
+			"berth_id": candidate.get_home_berth_id(),
+			"state": state,
+		})
+	rows.sort_custom(func(first: Dictionary, second: Dictionary) -> bool:
+		return String(first.get("ship_id", "")) < String(second.get("ship_id", ""))
+	)
+	return {
+		"schema_version": 1,
+		"sequence": _fleet_registry_snapshot_sequence,
+		"rows": rows,
+		"counts": counts,
+		"authority": {
+			"berth": false,
+			"regeneration": false,
+			"ship_lifecycle": false,
+			"fleet_membership": false,
+		},
+	}.duplicate(true)
+
+
+func _fleet_registry_state(candidate: HeroShip) -> StringName:
+	if _regeneration_pending.has(candidate.get_instance_id()):
+		return &"regenerating"
+	if candidate.is_destroyed():
+		return &"destroyed"
+	if candidate.is_piloted():
+		return &"occupied"
+	var berth := (
+		world.call(&"get_berth_node", candidate.get_home_berth_id()) as ShipBerth
+		if is_instance_valid(world) and world.has_method(&"get_berth_node")
+		else null
+	)
+	if berth != null:
+		var occupant := berth.get_occupant()
+		var reservation_owner := berth.get_reservation_owner()
+		if (is_instance_valid(occupant) and occupant != candidate) \
+				or (is_instance_valid(reservation_owner) and reservation_owner != candidate):
+			return &"occupied"
+	return &"available"
 
 
 func _present_ship_service_result(result: Dictionary) -> void:

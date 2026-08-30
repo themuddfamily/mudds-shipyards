@@ -20,6 +20,9 @@ const HALYARD_FLEET_DOCK_BERTH_ID: StringName = &"halyard_fleet_dock_berth"
 const BULWARK_FLEET_DOCK_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
 const COMPONENT_DAMAGE_AUDIO_BINDING := preload("res://scripts/audio/component_damage_audio_binding.gd")
 const FLEET_EXPANSION_BINDING := preload("res://scripts/world/fleet_expansion_production_binding.gd")
+const FLEET_REGISTRY_CONSOLE_SCRIPT := preload(
+	"res://scripts/interaction/fleet_registry_console.gd"
+)
 const STATION_SOLAR_READABILITY_SCRIPT := preload(
 	"res://scripts/world/station_solar_readability_presentation.gd"
 )
@@ -2324,6 +2327,14 @@ func get_ship_service_console() -> Area3D:
 	var console := get_node_or_null(
 		^"AftJunctionStack/Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole"
 	) as Area3D
+	return console if is_instance_valid(console) else null
+
+
+## Exposes the read-only adapter physically placed over ModernFleetRegistry's
+## existing terminal. It is a world sibling so the pod's frozen renderer and
+## collision audit remains about authored structure, not interaction plumbing.
+func get_fleet_registry_console() -> Area3D:
+	var console := get_node_or_null(^"FleetRegistryConsole") as Area3D
 	return console if is_instance_valid(console) else null
 
 
@@ -8134,6 +8145,15 @@ func _build_regeneration_gallery() -> void:
 	_text_sign(gallery, "KATANA  PARADOX  PREDATOR  DYNAMIC", terminal_position + Vector3(0, -0.02, -1.04), Vector3(0.0, 180.0, 0.0), 0.14, _materials["black"])
 	_text_sign(gallery, "UTOPIA  ARROW", terminal_position + Vector3(0, -0.27, -1.04), Vector3(0.0, 180.0, 0.0), 0.15, _materials["black"])
 	_add_guide_light(gallery, terminal_position + Vector3(1.72, 0.95, -1.05), KETH_ORANGE, false, 1.4, 6.0)
+
+	# A separate input/presentation adapter sits exactly over the existing screen.
+	# It deliberately remains outside `gallery`: that subtree's bounded contract
+	# audits authored pod geometry, while this node accepts detached read data and
+	# owns no physical-fleet or regeneration behavior.
+	var registry_console := FLEET_REGISTRY_CONSOLE_SCRIPT.new() as Area3D
+	registry_console.name = "FleetRegistryConsole"
+	registry_console.position = terminal_position
+	add_child(registry_console)
 
 	# Physical destination indicator for the active berth. It communicates the
 	# modern slice workflow but makes no name-to-silhouette historical claim.
