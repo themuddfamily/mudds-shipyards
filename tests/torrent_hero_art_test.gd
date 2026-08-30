@@ -680,15 +680,18 @@ func _test_cockpit_canopy_and_contracts(torrent: HeroShip) -> void:
 		if cockpit != null else null
 	var chase_camera := torrent.get_camera()
 	_check(
-		imported_glass_material != null
+		TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK == (1 << 17)
+			and imported_glass_material != null
 			and imported_glass_material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA
 			and imported_glass != null
 			and imported_glass.layers == TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 			and cockpit_camera != null
 			and (cockpit_camera.cull_mask & TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK) == 0
 			and chase_camera != null
-			and (chase_camera.cull_mask & TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK) != 0,
-		"imported glazing remains exterior-visible while the cockpit omits only its dedicated layer"
+			and (chase_camera.cull_mask & TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK) != 0
+			and (cockpit_camera.cull_mask ^ chase_camera.cull_mask)
+				== TorrentHeroPresentation.EXTERIOR_CANOPY_VISUAL_LAYER_MASK,
+		"imported glazing remains exterior-visible while the cockpit omits only its globally dedicated layer 18"
 	)
 	var anchor_before := torrent.get_pilot_seat_anchor().global_transform
 	var entry_before := torrent.get_boarding_entry_transform()
