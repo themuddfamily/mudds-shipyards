@@ -56,6 +56,10 @@ const ORBIT_RETURN_ALTITUDE_M := 20_000.0
 const APPROACH_BRAKE_Z_M := 45.0
 const APPROACH_HANDOFF_MAXIMUM_SPEED_MPS := 1.0
 const ROUTE_ANCHOR_RADIUS_M := 1.35
+## Direct-root and streamed-child transforms can differ by a few millimetres
+## after the same large common-origin translation because Transform3D stores
+## float components. This is a precision allowance, not a landing-volume one.
+const ORIGIN_REBASE_SURFACE_FRAME_TOLERANCE_M := 0.01
 const APPROACH_READY_PROBE_SCHEMA_VERSION := 1
 const MAX_CALLER_DELTA_SECONDS := PlanetaryTravelSession.MAX_CALLER_PHYSICS_DELTA_SECONDS
 const MAX_SAFE_INTEGER := 9_007_199_254_740_991
@@ -379,6 +383,7 @@ var _transition_count := 0
 var _physics_advance_count := 0
 var _gravity_sample_count := 0
 var _gravity_application_count := 0
+var _ship_gravity_submission_count := 0
 var _surface_route_outbound_complete := false
 var _surface_route_return_complete := false
 var _return_departed_staging := false
@@ -390,6 +395,7 @@ var _disembarking_completed_observed := false
 var _boarding_completed_observed := false
 var _surface_clear_submitted := false
 var _last_gravity_sample: Dictionary = {}
+var _last_ship_gravity_sample: Dictionary = {}
 var _last_result: Dictionary = {}
 var _berth_token: StringName = &""
 var _source_generation := 0
@@ -634,17 +640,36 @@ func start(
 	)
 	if not bool(started.get("accepted", false)):
 		return _commit_failure(&"travel_session_start_failed")
+	_generation = _session.get_generation()
+	var gravity_attached := _ship.attach_planetary_surface_gravity(
+		get_instance_id(), _generation
+	)
+	if not bool(gravity_attached.get("accepted", false)):
+		# The session has already started, while the Host phase is intentionally
+		# still IDLE until every runtime capability is held. Fail it explicitly
+		# before the common terminal cleanup releases any partial ownership.
+		_session.fail(
+			&"ship_surface_gravity_attach_failed",
+			_generation,
+			_session.get_attachment_generation()
+		)
+		return _commit_failure(&"ship_surface_gravity_attach_failed")
 	# All entry/session checks are committed before either external lifecycle
-	# capability changes hands. The reservation already belongs to this exact
-	# Player; this flag transfers only cleanup responsibility. Installing the
-	# command source is verified synchronously before the running phase is visible.
+	# capability changes hands. The gravity ingress above grants no movement
+	# authority. The reservation already belongs to this exact Player; this flag
+	# transfers only cleanup responsibility. Installing the command source is
+	# verified synchronously before the running phase is visible.
 	_host_acquired_boarding_reservation = true
 	_ship.set_command_source(_command_source)
 	if _ship.get_command_source() != _command_source \
 			or _boarding_area.get_reservation_token() != _player:
 		_host_acquired_boarding_reservation = false
+		_session.fail(
+			&"runtime_ownership_commit_failed",
+			_generation,
+			_session.get_attachment_generation()
+		)
 		return _commit_failure(&"runtime_ownership_commit_failed")
-	_generation = _session.get_generation()
 	_command_source.set_mode(
 		EmberSurfaceLoopCommandSource.Mode.APPROACH, _source_generation
 	)
@@ -673,10 +698,18 @@ func rollback_uncommitted_start(
 			or _session == null \
 			or _session.get_state() != PlanetaryTravelSession.State.ORBIT_APPROACH:
 		return _finish(false, &"uncommitted_start_rollback_unavailable")
+	if not _ship_surface_gravity_binding_is_current():
+		return _finish(false, &"ship_surface_gravity_binding_mismatch")
+	var gravity_released := _release_ship_surface_gravity()
+	if not bool(gravity_released.get("accepted", false)):
+		return _finish(false, &"ship_surface_gravity_release_rejected")
 	var reset := _session.reset(
 		_generation, _session.get_attachment_generation()
 	)
 	if not bool(reset.get("accepted", false)):
+		var gravity_rollback := _attach_ship_surface_gravity()
+		if not bool(gravity_rollback.get("accepted", false)):
+			return _commit_failure(&"ship_surface_gravity_rollback_failed")
 		return _finish(false, &"uncommitted_start_session_reset_rejected")
 	# start() adopted cleanup responsibility for an already-live reservation; a
 	# rollback returns that responsibility without releasing the reservation.
@@ -1150,16 +1183,24 @@ func return_runtime_ownership(
 	var retired_attachment_generation := _attachment_generation
 	var host_source_instance_id := _command_source.get_instance_id()
 	var original_source_instance_id := _original_command_source.get_instance_id()
+	var gravity_release := _release_ship_surface_gravity()
+	if not bool(gravity_release.get("accepted", false)):
+		return _finish(false, &"ship_surface_gravity_release_rejected")
 	_ship.set_command_source(_original_command_source)
 	if _ship.get_command_source() != _original_command_source:
 		_ship.set_command_source(_command_source)
+		var gravity_rollback := _attach_ship_surface_gravity()
+		if not bool(gravity_rollback.get("accepted", false)):
+			return _commit_failure(&"runtime_ownership_return_rollback_failed")
 		return _finish(false, &"command_source_return_rejected")
 	var session_detach := _session.detach(
 		_generation, _session.get_attachment_generation()
 	)
 	if not bool(session_detach.get("accepted", false)):
 		_ship.set_command_source(_command_source)
-		if _ship.get_command_source() != _command_source:
+		var gravity_rollback := _attach_ship_surface_gravity()
+		if _ship.get_command_source() != _command_source \
+				or not bool(gravity_rollback.get("accepted", false)):
 			return _commit_failure(&"runtime_ownership_return_rollback_failed")
 		return _finish(false, &"travel_session_return_rejected")
 
@@ -1246,6 +1287,7 @@ func _reset_repeat_visit_state() -> void:
 	_physics_advance_count = 0
 	_gravity_sample_count = 0
 	_gravity_application_count = 0
+	_ship_gravity_submission_count = 0
 	_surface_route_outbound_complete = false
 	_surface_route_return_complete = false
 	_return_departed_staging = false
@@ -1257,6 +1299,7 @@ func _reset_repeat_visit_state() -> void:
 	_boarding_completed_observed = false
 	_surface_clear_submitted = false
 	_last_gravity_sample.clear()
+	_last_ship_gravity_sample.clear()
 	_last_result.clear()
 	_berth_token = &""
 	_accepted_approach_entry_measurement.clear()
@@ -1389,9 +1432,16 @@ func get_snapshot() -> Dictionary:
 		"gravity": {
 			"sample_count": _gravity_sample_count,
 			"application_count": _gravity_application_count,
+			"ship_submission_count": _ship_gravity_submission_count,
 			"last_sample": _last_gravity_sample.duplicate(true),
+			"last_ship_sample": _last_ship_gravity_sample.duplicate(true),
+			"ship_report": (
+				_ship.get_planetary_surface_gravity_report()
+				if is_instance_valid(_ship) else {}
+			),
 			"policy": _gravity_policy.get_snapshot() if _gravity_policy != null else {},
 			"application": &"player_public_gravity_multiplier_tangent_projection",
+			"ship_application": &"hero_ship_single_tick_world_vector_ingress",
 		},
 		"berth": _berth.audit() if is_instance_valid(_berth) else {},
 		"boarding_reserved_for_player": _boarding_area.get_reservation_token() == _player \
@@ -1438,8 +1488,15 @@ func audit() -> Dictionary:
 	if _attached and _phase == Phase.IDLE and (
 		_host_acquired_boarding_reservation
 		or (_node_is_current(_ship) and _ship.get_command_source() == _command_source)
+		or (_node_is_current(_ship) and bool(
+			_ship.get_planetary_surface_gravity_report().get("attached", false)
+		))
 	):
 		errors.append("idle preflight acquired runtime ownership before start")
+	if _attached and _phase not in [Phase.IDLE, Phase.FAILED] \
+			and not _runtime_ownership_returned \
+			and not _ship_surface_gravity_binding_is_current():
+		errors.append("ship surface-gravity binding is no longer current")
 	if _runtime_ownership_returned and (
 		_attached or _last_runtime_ownership_return_receipt.is_empty()
 	):
@@ -1875,12 +1932,41 @@ func _complete_orbit_return() -> Dictionary:
 func _sample_and_compose_gravity() -> Dictionary:
 	var actor_position := _player.global_position if is_instance_valid(_player) \
 		else _ship.global_position
-	var body_local := actor_position - _bootstrap.global_position
-	var sample := _gravity_policy.sample(body_local)
-	if not bool(sample.get("accepted", false)):
-		return sample
-	_last_gravity_sample = sample.duplicate(true)
+	var body_to_world_basis := _bootstrap.global_basis.orthonormalized()
+	var world_to_body_basis := body_to_world_basis.transposed()
+	var actor_body_local := world_to_body_basis * (
+		actor_position - _bootstrap.global_position
+	)
+	var actor_sample := _gravity_policy.sample(actor_body_local)
+	if not bool(actor_sample.get("accepted", false)):
+		return actor_sample
+	var ship_body_local := world_to_body_basis * (
+		_ship.global_position - _bootstrap.global_position
+	)
+	var ship_sample := actor_sample
+	if not actor_position.is_equal_approx(_ship.global_position):
+		ship_sample = _gravity_policy.sample(ship_body_local)
+		if not bool(ship_sample.get("accepted", false)):
+			return ship_sample
+	_last_gravity_sample = actor_sample.duplicate(true)
+	_last_ship_gravity_sample = ship_sample.duplicate(true)
 	_gravity_sample_count += 1
+	var gravity_vector_world := body_to_world_basis * (
+		ship_sample.gravity_vector_mps2 as Vector3
+	)
+	var submitted := _ship.submit_planetary_surface_gravity_sample(
+		get_instance_id(),
+		_generation,
+		_gravity_sample_count,
+		gravity_vector_world
+	)
+	if not bool(submitted.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": &"ship_surface_gravity_submission_rejected",
+			"ship_receipt": submitted.duplicate(true),
+		}
+	_ship_gravity_submission_count += 1
 	if _phase in [
 		Phase.DISEMBARKING, Phase.SURFACE_OUTBOUND, Phase.ON_FOOT, Phase.BOARDING,
 	]:
@@ -1890,7 +1976,7 @@ func _sample_and_compose_gravity() -> Dictionary:
 		if not is_finite(project_gravity) or project_gravity <= 0.0:
 			return {"accepted": false, "reason": &"project_gravity_invalid"}
 		var tangent_gravity := _reference_tangent_basis_body.transposed() \
-			* (sample.gravity_vector_mps2 as Vector3)
+			* (actor_sample.gravity_vector_mps2 as Vector3)
 		var multiplier := -tangent_gravity.y / project_gravity
 		if not is_finite(multiplier) or multiplier <= 0.0:
 			return {"accepted": false, "reason": &"gravity_projection_invalid"}
@@ -2178,11 +2264,13 @@ func _validate_committed_origin_receipt(receipt: Variant) -> Dictionary:
 			or int(streaming.get("coordinate_frame_generation", 0)) != target_generation \
 			or int(streaming.get("location_generation", -1)) != _location_generation:
 		return {"accepted": false, "reason": &"origin_receipt_streaming_mismatch"}
-	if not _berth.global_transform.is_equal_approx(_landing_root.global_transform) \
+	if not _berth.global_basis.is_equal_approx(_landing_root.global_basis) \
+			or _berth.global_position.distance_to(_landing_root.global_position) \
+				> ORIGIN_REBASE_SURFACE_FRAME_TOLERANCE_M \
 			or not _landing_root.global_basis.is_equal_approx(_reference_tangent_basis_body) \
-			or not _landing_root.global_position.is_equal_approx(
+			or _landing_root.global_position.distance_to(
 				_bootstrap.global_position + _REGION.body_local_center_m
-			):
+			) > ORIGIN_REBASE_SURFACE_FRAME_TOLERANCE_M:
 		return {"accepted": false, "reason": &"origin_receipt_surface_frame_drift"}
 
 	var sample := value.adjusted_actor_sample as Dictionary \
@@ -2365,6 +2453,8 @@ func _runtime_ownership_return_preflight() -> StringName:
 	if _session == null \
 			or not bool(_session.get_presentation_snapshot().get("attached", false)):
 		return &"runtime_ownership_session_mismatch"
+	if not _ship_surface_gravity_binding_is_current():
+		return &"runtime_ownership_surface_gravity_mismatch"
 	return &""
 
 
@@ -2642,10 +2732,44 @@ func _disconnect_dependency_signals() -> void:
 	_connections.clear()
 
 
+func _attach_ship_surface_gravity() -> Dictionary:
+	if not _node_is_current(_ship) or _generation <= 0:
+		return {"accepted": false, "reason": &"ship_unavailable"}
+	return _ship.attach_planetary_surface_gravity(
+		get_instance_id(), _generation
+	)
+
+
+func _release_ship_surface_gravity() -> Dictionary:
+	if not is_instance_valid(_ship):
+		return {"accepted": true, "reason": &"ship_already_detached"}
+	var report := _ship.get_planetary_surface_gravity_report()
+	if not bool(report.get("attached", false)):
+		return {"accepted": true, "reason": &"already_released"}
+	if int(report.get("source_instance_id", 0)) != get_instance_id() \
+			or int(report.get("source_generation", 0)) != _generation:
+		return {"accepted": false, "reason": &"foreign_gravity_binding"}
+	return _ship.detach_planetary_surface_gravity(
+		get_instance_id(), _generation
+	)
+
+
+func _ship_surface_gravity_binding_is_current() -> bool:
+	if not _node_is_current(_ship):
+		return false
+	var report := _ship.get_planetary_surface_gravity_report()
+	return bool(report.get("attached", false)) \
+		and int(report.get("source_instance_id", 0)) == get_instance_id() \
+		and int(report.get("source_generation", 0)) == _generation \
+		and bool(report.get("body_owns_velocity", false)) \
+		and bool(report.get("body_owns_move_and_slide", false))
+
+
 func _restore_runtime_bindings(recover_embodiment: bool = false) -> void:
 	if _runtime_bindings_restored:
 		return
 	_runtime_bindings_restored = true
+	_release_ship_surface_gravity()
 	var composition_current := _node_is_current(_composition_root)
 	var recovered_on_foot := recover_embodiment and composition_current \
 		and _node_is_current(_player)

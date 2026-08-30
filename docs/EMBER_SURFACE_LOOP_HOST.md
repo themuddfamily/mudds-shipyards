@@ -45,8 +45,9 @@ The evaluator only reads the public ship transform and velocity.
 installs its command source nor accepts reservation-cleanup ownership. `start()`
 first measures the complete typed approach envelope, then preflights the exact
 live Player token, piloted/seated state, and original command source. Only after
-the landing report and TravelSession start are accepted does it install the
-bounded command source and accept cleanup responsibility for that already-held
+the landing report and TravelSession start are accepted does it attach one
+generation-fenced, value-only gravity source to the ship, install the bounded
+command source, and accept cleanup responsibility for that already-held
 reservation. A rejected start therefore cannot steal or reacquire GameFlow's
 command/reservation state and remains retryable. After an accepted start, the
 host writes no actor transform, velocity, parent, collision state, or
@@ -90,11 +91,15 @@ delta (maximum 0.25 seconds).
    observes 15 m surface clearance, 20 km orbital return, and completion.
 
 The gravity policy is configured from the exact world, terrain, coordinate
-frame, and caller-supplied reference magnitude. During the bounded planar
-surface walk, its tangent-Y projection updates Player's public
-`gravity_multiplier`; Player's existing `_physics_process()` remains the only
-movement/collision integrator. This is intentionally a bounded tangent-patch
-composition, not global spherical locomotion.
+frame, and caller-supplied reference magnitude. Every Host tick samples the
+exact ship position and queues one bounded world-space vector for the next
+`HeroShip` tick. HeroShip consumes that vector once inside ordinary flight,
+remains the sole velocity/`move_and_slide()` owner, and uses its radial up for
+hover braking and alignment. A lifecycle branch that cannot consume the sample
+discards it that ship tick, so landing, shutdown or disembark cannot leave a
+latent force. During the bounded planar surface walk, the embodied Player's
+separate tangent-Y projection updates public `gravity_multiplier`; Player's
+existing `_physics_process()` remains its only movement/collision integrator.
 
 ## Generation and failure boundary
 
@@ -139,9 +144,11 @@ bootstrap, production-binding and coordinate-frame identity, and only for an
 exact current N→N+1 frame commit with no pending rebase. It reconstructs the
 complete sorted Node3D root roster and covered-instance roster from the frozen
 composition root, matches every path/mode/instance ID, preserves the exact
-bootstrap/location/loaded-scene identities and landing tangent relations, and
-re-encodes the current ship or Player position to prove the receipt's absolute
-orbital observation is unchanged. A valid receipt updates only the host's
+bootstrap/location/loaded-scene identities and landing tangent relations (with
+only a 1 cm allowance for float rounding between a direct root and streamed
+child after the same large translation), and re-encodes the current ship or
+Player position to prove the receipt's absolute orbital observation is
+unchanged. A valid receipt updates only the host's
 coordinate-frame-generation fence and detached audit evidence. The host never
 requests, applies, commits, cancels, or defers an origin transaction; standalone
 self-root composition deliberately rejects this production-oriented adoption
@@ -153,14 +160,16 @@ then calls the existing public `force_recovery_to_on_foot()` cancellation seam.
 When the live loaded surface is still current, recovery uses the Arrow's exit
 only after a ray proves that transform is supported by the exact current
 `WalkablePatch`; canopy, camera, piloted state, control, command source and
-gravity bindings are restored coherently. If the surface itself is already
+Player gravity are restored coherently, while the ship's pending gravity
+sample is retired. If the surface itself is already
 unloading, the transition is still cancelled at the Player's current transform
 but locomotion remains disabled for a later world-owner recovery decision.
 
 ## Authority and remaining production work
 
 The host owns the caller-clocked session composition, bounded command
-transport, gravity-multiplier composition, and berth/boarding orchestration. It
+transport, gravity sampling/value submission, Player multiplier composition,
+and berth/boarding orchestration. It
 does not own HeroShip or Player physics, InputMap, static collision, terrain,
 origin shifting, streaming cadence, Main, GameFlow, activity, rewards, combat,
 HUD, audio, save, or networking.
@@ -184,10 +193,11 @@ manual-approach, landing, surface, or production handoff policy.
 
 After `COMPLETED`, `return_runtime_ownership()` provides one atomic handback for
 a later production GameFlow owner. It preflights the exact host command source,
-seated Player token, actor/control/camera/gravity state, empty berth lease, and
-attached TravelSession; restores the original ship command source; detaches the
-session and bounded producer; retires the host attachment generation; and leaves
-the exact Player reservation continuously held. Its returned dictionary is a
+ship-gravity binding, seated Player token, actor/control/camera/gravity state,
+empty berth lease, and attached TravelSession; releases the ship-gravity
+binding, restores the original ship command source, detaches the session and
+bounded producer, retires the host attachment generation, and leaves the exact
+Player reservation continuously held. Its returned dictionary is a
 deep-detached identity/serial receipt, not a capability. If a preflight or
 session detach is rejected, command/reservation ownership remains unchanged.
 The host stays single-use. Ordinary failure/detach continues to restore bindings
@@ -205,6 +215,8 @@ save progress.
 Focused gate (after editor import):
 
 ```sh
+godot --headless --audio-driver Dummy --path . \
+  --script res://tests/hero_ship_planetary_surface_gravity_test.gd
 godot --headless --audio-driver Dummy --path . \
   --script res://tests/ember_surface_loop_host_test.gd
 ```

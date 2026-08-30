@@ -73,6 +73,11 @@ const PLANETARY_CRUISE_MAX_SAFE_INTEGER := 9_007_199_254_740_991
 const PLANETARY_CRUISE_MAX_SPEED_METERS_PER_SECOND := 100_000.0
 const PLANETARY_CRUISE_MAX_ACCELERATION_METERS_PER_SECOND_SQUARED := 10_000.0
 const PLANETARY_CRUISE_DIRECTION_EPSILON := 0.00001
+## A surface-loop host may submit one bounded world-space gravity vector for
+## the body's next physics step. HeroShip remains the only velocity/movement
+## authority; the host never receives a movement capability.
+const PLANETARY_SURFACE_GRAVITY_MAX_MAGNITUDE_MPS2 := 2_000.0
+const PLANETARY_SURFACE_GRAVITY_VECTOR_EPSILON := 0.000001
 const RESET_FOR_REUSE_SCHEMA_VERSION := 1
 const RESET_FOR_REUSE_MAX_SAFE_RECEIPT_ID := 9_007_199_254_740_991
 const RESET_FOR_REUSE_RESULT_KEYS := [
@@ -452,6 +457,21 @@ var _planetary_cruise_braking_acceleration := 0.0
 var _planetary_cruise_mutation_active := false
 var _planetary_cruise_signal_dispatch_active := false
 var _planetary_cruise_policy := PlanetaryCruisePolicyType.new()
+## Generation-fenced, single-tick ingress for spherical vehicle gravity. A
+## submitted sample is either consumed by ordinary flight on the next HeroShip
+## tick or discarded by that tick's lifecycle branch; it can never accumulate
+## invisibly and apply after landing, boarding, or engine state changes.
+var _planetary_surface_gravity_source_instance_id := 0
+var _planetary_surface_gravity_source_generation := 0
+var _planetary_surface_gravity_last_sequence := 0
+var _planetary_surface_gravity_pending_sequence := 0
+var _planetary_surface_gravity_pending_vector_world := Vector3.ZERO
+var _planetary_surface_gravity_last_applied_sequence := 0
+var _planetary_surface_gravity_last_applied_vector_world := Vector3.ZERO
+var _planetary_surface_gravity_submission_count := 0
+var _planetary_surface_gravity_application_count := 0
+var _planetary_surface_gravity_reason: StringName = &"never_attached"
+var _planetary_surface_gravity_mutation_active := false
 
 
 func _enter_tree() -> void:
@@ -468,6 +488,7 @@ func _exit_tree() -> void:
 	# A detached body performs no physics. Fence every envelope captured against
 	# the old World3D so re-entry requires a new physical proof and submission.
 	_retire_planetary_cruise(&"ship_detached", true)
+	_retire_planetary_surface_gravity(&"ship_detached")
 
 
 func _ready() -> void:
@@ -510,6 +531,7 @@ func _physics_process(delta: float) -> void:
 	# Production holds a preflight for one synchronous GameFlow call. Freezing the
 	# body also makes a deliberately delayed external transaction deterministic.
 	if _reset_for_reuse_mutation_blocked():
+		_discard_pending_planetary_surface_gravity(&"reset_mutation_blocked")
 		return
 	_elapsed += delta
 	_weapon_timer = maxf(0.0, _weapon_timer - delta)
@@ -546,6 +568,9 @@ func _physics_process(delta: float) -> void:
 		velocity = velocity.move_toward(Vector3.ZERO, passive_drag * delta)
 		if not _landed:
 			move_and_slide()
+	# A sample is deliberately one ship tick wide. Landing, shutdown, boarding,
+	# or any other branch that did not consume it closes the capability here.
+	_discard_pending_planetary_surface_gravity(&"not_applied_this_ship_tick")
 	# Publish the state produced by this immutable command, including same-tick
 	# throttle, boost, landing, shutdown, and destruction transitions.
 	_sync_ship_audio(command)
@@ -1237,6 +1262,127 @@ func get_landing_collision_report() -> Dictionary:
 	}
 
 
+## Attaches one live lifecycle owner for spherical vehicle gravity. The owner
+## may submit values only; HeroShip keeps sole velocity and move_and_slide
+## authority. Planetary cruise is mutually exclusive because its envelope owns
+## a different large-scale integration mode.
+func attach_planetary_surface_gravity(
+	source_instance_id: int,
+	source_generation: int
+) -> Dictionary:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_surface_gravity_mutation_active:
+		return _planetary_surface_gravity_receipt(false, &"reentrant_call")
+	if not _planetary_cruise_body_is_live() or _destroyed:
+		return _planetary_surface_gravity_receipt(false, &"ship_unavailable")
+	if source_instance_id <= 0 or source_generation <= 0 \
+			or source_generation > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
+		return _planetary_surface_gravity_receipt(false, &"invalid_source_identity")
+	var source_candidate := instance_from_id(source_instance_id)
+	if not source_candidate is Node \
+			or not is_instance_valid(source_candidate) \
+			or (source_candidate as Node).is_queued_for_deletion() \
+			or not (source_candidate as Node).is_inside_tree():
+		return _planetary_surface_gravity_receipt(false, &"source_unavailable")
+	if _planetary_cruise_controller_instance_id != 0 \
+			or _planetary_cruise_state != PLANETARY_CRUISE_STATE_INACTIVE \
+			or not _planetary_cruise_pending_envelope.is_empty():
+		return _planetary_surface_gravity_receipt(false, &"planetary_cruise_active")
+	if _planetary_surface_gravity_source_instance_id != 0:
+		if _planetary_surface_gravity_source_instance_id == source_instance_id \
+				and _planetary_surface_gravity_source_generation == source_generation:
+			return _planetary_surface_gravity_receipt(true, &"already_attached")
+		return _planetary_surface_gravity_receipt(false, &"source_collision")
+	_planetary_surface_gravity_mutation_active = true
+	_planetary_surface_gravity_source_instance_id = source_instance_id
+	_planetary_surface_gravity_source_generation = source_generation
+	_planetary_surface_gravity_last_sequence = 0
+	_planetary_surface_gravity_pending_sequence = 0
+	_planetary_surface_gravity_pending_vector_world = Vector3.ZERO
+	_planetary_surface_gravity_last_applied_sequence = 0
+	_planetary_surface_gravity_last_applied_vector_world = Vector3.ZERO
+	_planetary_surface_gravity_submission_count = 0
+	_planetary_surface_gravity_application_count = 0
+	_planetary_surface_gravity_reason = &"attached"
+	_planetary_surface_gravity_mutation_active = false
+	return _planetary_surface_gravity_receipt(true, &"attached")
+
+
+## Queues exactly the next sample in the attached source stream. A pending
+## sample cannot be overwritten: missing HeroShip cadence therefore fails
+## closed instead of silently replacing an unapplied force.
+func submit_planetary_surface_gravity_sample(
+	source_instance_id: int,
+	source_generation: int,
+	sequence: int,
+	gravity_vector_world: Vector3
+) -> Dictionary:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_surface_gravity_mutation_active:
+		return _planetary_surface_gravity_receipt(false, &"reentrant_call")
+	if source_instance_id != _planetary_surface_gravity_source_instance_id \
+			or source_generation != _planetary_surface_gravity_source_generation:
+		return _planetary_surface_gravity_receipt(false, &"source_identity_mismatch")
+	if source_instance_id == 0:
+		return _planetary_surface_gravity_receipt(false, &"not_attached")
+	if not _planetary_surface_gravity_source_is_live():
+		_retire_planetary_surface_gravity(&"source_unavailable")
+		return _planetary_surface_gravity_receipt(false, &"source_unavailable")
+	if sequence <= 0 or sequence > PLANETARY_CRUISE_MAX_SAFE_INTEGER \
+			or sequence != _planetary_surface_gravity_last_sequence + 1:
+		return _planetary_surface_gravity_receipt(false, &"sequence_mismatch")
+	if _planetary_surface_gravity_pending_sequence != 0:
+		return _planetary_surface_gravity_receipt(false, &"sample_already_pending")
+	var magnitude := gravity_vector_world.length()
+	if not gravity_vector_world.is_finite() or not is_finite(magnitude) \
+			or magnitude <= PLANETARY_SURFACE_GRAVITY_VECTOR_EPSILON \
+			or magnitude > PLANETARY_SURFACE_GRAVITY_MAX_MAGNITUDE_MPS2:
+		return _planetary_surface_gravity_receipt(false, &"gravity_vector_out_of_bounds")
+	_planetary_surface_gravity_mutation_active = true
+	_planetary_surface_gravity_last_sequence = sequence
+	_planetary_surface_gravity_pending_sequence = sequence
+	_planetary_surface_gravity_pending_vector_world = gravity_vector_world
+	_planetary_surface_gravity_submission_count += 1
+	_planetary_surface_gravity_reason = &"sample_queued"
+	_planetary_surface_gravity_mutation_active = false
+	return _planetary_surface_gravity_receipt(true, &"sample_queued")
+
+
+func detach_planetary_surface_gravity(
+	source_instance_id: int,
+	source_generation: int
+) -> Dictionary:
+	if _reset_for_reuse_mutation_blocked() \
+			or _planetary_surface_gravity_mutation_active:
+		return _planetary_surface_gravity_receipt(false, &"reentrant_call")
+	if source_instance_id != _planetary_surface_gravity_source_instance_id \
+			or source_generation != _planetary_surface_gravity_source_generation \
+			or source_instance_id == 0:
+		return _planetary_surface_gravity_receipt(false, &"source_identity_mismatch")
+	_retire_planetary_surface_gravity(&"detached")
+	return _planetary_surface_gravity_receipt(true, &"detached")
+
+
+func get_planetary_surface_gravity_report() -> Dictionary:
+	return {
+		"attached": _planetary_surface_gravity_source_instance_id > 0,
+		"source_instance_id": _planetary_surface_gravity_source_instance_id,
+		"source_generation": _planetary_surface_gravity_source_generation,
+		"last_sequence": _planetary_surface_gravity_last_sequence,
+		"pending_sequence": _planetary_surface_gravity_pending_sequence,
+		"pending_vector_world": _planetary_surface_gravity_pending_vector_world,
+		"last_applied_sequence": _planetary_surface_gravity_last_applied_sequence,
+		"last_applied_vector_world": (
+			_planetary_surface_gravity_last_applied_vector_world
+		),
+		"submission_count": _planetary_surface_gravity_submission_count,
+		"application_count": _planetary_surface_gravity_application_count,
+		"reason": _planetary_surface_gravity_reason,
+		"body_owns_velocity": true,
+		"body_owns_move_and_slide": true,
+	}.duplicate(true)
+
+
 ## Binds exactly one caller-owned cruise controller to this lifecycle epoch.
 ## The controller receives no movement capability: it can only submit validated,
 ## detached envelopes that this body may consume during its own physics step.
@@ -1249,6 +1395,8 @@ func attach_planetary_cruise_controller(
 		return _planetary_cruise_receipt(false, &"reentrant_call")
 	if not _planetary_cruise_body_is_live():
 		return _planetary_cruise_receipt(false, &"ship_unavailable")
+	if _planetary_surface_gravity_source_instance_id != 0:
+		return _planetary_cruise_receipt(false, &"surface_gravity_active")
 	if expected_attachment_generation != _planetary_cruise_attachment_generation:
 		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
 	if _planetary_cruise_state == PLANETARY_CRUISE_STATE_BRAKING:
@@ -1904,6 +2052,7 @@ func commit_reset_for_reuse(receipt: Dictionary) -> Dictionary:
 	var spawn_transform := context.get("spawn_transform", Transform3D.IDENTITY) as Transform3D
 	_destruction_serial += 1
 	_retire_planetary_cruise(&"reset_for_reuse", true)
+	_retire_planetary_surface_gravity(&"reset_for_reuse")
 	_end_landing_for_lifecycle(&"reset_for_reuse")
 	_destroyed = false
 	global_transform = spawn_transform
@@ -2387,6 +2536,7 @@ func apply_damage(
 	if _hull <= 0.0:
 		_destroyed = true
 		_retire_planetary_cruise(&"ship_destroyed", true)
+		_retire_planetary_surface_gravity(&"ship_destroyed")
 		_destruction_serial += 1
 		var destruction_serial := _destruction_serial
 		var destruction_position := global_position
@@ -2992,6 +3142,70 @@ func _planetary_cruise_body_is_live() -> bool:
 		and get_world_3d() != null
 
 
+func _planetary_surface_gravity_source_is_live() -> bool:
+	if _planetary_surface_gravity_source_instance_id <= 0:
+		return false
+	var source := instance_from_id(
+		_planetary_surface_gravity_source_instance_id
+	)
+	return source is Node \
+		and is_instance_valid(source) \
+		and not (source as Node).is_queued_for_deletion() \
+		and (source as Node).is_inside_tree()
+
+
+func _consume_planetary_surface_gravity_sample() -> Vector3:
+	if _planetary_surface_gravity_pending_sequence <= 0:
+		return Vector3.ZERO
+	if not _planetary_surface_gravity_source_is_live():
+		_retire_planetary_surface_gravity(&"source_unavailable")
+		return Vector3.ZERO
+	var gravity := _planetary_surface_gravity_pending_vector_world
+	_planetary_surface_gravity_last_applied_sequence = (
+		_planetary_surface_gravity_pending_sequence
+	)
+	_planetary_surface_gravity_last_applied_vector_world = gravity
+	_planetary_surface_gravity_pending_sequence = 0
+	_planetary_surface_gravity_pending_vector_world = Vector3.ZERO
+	_planetary_surface_gravity_application_count += 1
+	_planetary_surface_gravity_reason = &"sample_applied"
+	return gravity
+
+
+func _discard_pending_planetary_surface_gravity(reason: StringName) -> void:
+	if _planetary_surface_gravity_pending_sequence <= 0:
+		return
+	_planetary_surface_gravity_pending_sequence = 0
+	_planetary_surface_gravity_pending_vector_world = Vector3.ZERO
+	_planetary_surface_gravity_reason = reason
+
+
+func _retire_planetary_surface_gravity(reason: StringName) -> void:
+	_planetary_surface_gravity_mutation_active = true
+	_planetary_surface_gravity_source_instance_id = 0
+	_planetary_surface_gravity_source_generation = 0
+	_planetary_surface_gravity_last_sequence = 0
+	_planetary_surface_gravity_pending_sequence = 0
+	_planetary_surface_gravity_pending_vector_world = Vector3.ZERO
+	_planetary_surface_gravity_reason = reason
+	_planetary_surface_gravity_mutation_active = false
+
+
+func _planetary_surface_gravity_receipt(
+	accepted: bool,
+	reason: StringName
+) -> Dictionary:
+	return {
+		"accepted": accepted,
+		"reason": reason,
+		"ship_instance_id": get_instance_id(),
+		"source_instance_id": _planetary_surface_gravity_source_instance_id,
+		"source_generation": _planetary_surface_gravity_source_generation,
+		"last_sequence": _planetary_surface_gravity_last_sequence,
+		"pending_sequence": _planetary_surface_gravity_pending_sequence,
+	}.duplicate(true)
+
+
 func _planetary_cruise_can_brake() -> bool:
 	return _piloted and not _destroyed and not _landing_active
 
@@ -3219,6 +3433,13 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 		)
 		velocity = velocity.lerp(assisted_velocity, assist_weight)
 
+	# The surface host submits a detached vector, never a velocity write. Consume
+	# it after nose-alignment assistance so ordinary flight cannot erase gravity,
+	# and before hover so the pilot can deliberately counter its radial component.
+	var planetary_gravity := _consume_planetary_surface_gravity_sample()
+	if planetary_gravity != Vector3.ZERO:
+		velocity += planetary_gravity * maxf(delta, 0.0)
+
 	if command.barrel_roll and damage_power > 0.0 and absf(_roll_animation) < 0.01:
 		_roll_animation = TAU
 	if _roll_animation > 0.0:
@@ -3230,16 +3451,32 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 		_roll_animation -= roll_step
 
 	if command.hover:
-		velocity.y = move_toward(
-			velocity.y,
-			0.0,
-			brake_acceleration * manual_brake_power * delta
-		)
+		var hover_target_basis := Basis(Vector3.UP, rotation.y)
+		if planetary_gravity != Vector3.ZERO:
+			var radial_up := -planetary_gravity.normalized()
+			var radial_speed := velocity.dot(radial_up)
+			var target_radial_speed := move_toward(
+				radial_speed,
+				0.0,
+				brake_acceleration * manual_brake_power * delta
+			)
+			velocity += radial_up * (target_radial_speed - radial_speed)
+			hover_target_basis = _planetary_hover_target_basis(radial_up)
+		else:
+			velocity.y = move_toward(
+				velocity.y,
+				0.0,
+				brake_acceleration * manual_brake_power * delta
+			)
 		var upright := Quaternion(global_basis).slerp(
-			Quaternion(Basis(Vector3.UP, rotation.y)),
+			Quaternion(hover_target_basis),
 			1.0 - exp(-2.0 * delta)
 		)
 		global_basis = Basis(upright).orthonormalized()
+	# Gravity is part of the same bounded integration and may not bypass the
+	# craft's current damage-adjusted speed envelope.
+	if velocity.length() > speed_limit:
+		velocity = velocity.normalized() * speed_limit
 	if command.fire and _uses_inherited_primary_weapon():
 		_fire_weapon()
 	var pre_collision_velocity := velocity
@@ -3255,6 +3492,21 @@ func _update_flight(delta: float, command: ShipCommand, suppress_look: bool = fa
 	):
 		_landed = false
 	_apply_collision_damage(pre_collision_velocity)
+
+
+func _planetary_hover_target_basis(radial_up: Vector3) -> Basis:
+	var safe_up := radial_up.normalized()
+	var tangent_forward := (-global_basis.z).slide(safe_up)
+	if tangent_forward.length_squared() <= 0.000001:
+		var tangent_right := global_basis.x.slide(safe_up)
+		if tangent_right.length_squared() <= 0.000001:
+			var fallback_axis := Vector3.RIGHT \
+				if absf(safe_up.dot(Vector3.RIGHT)) < 0.9 else Vector3.FORWARD
+			tangent_right = fallback_axis.slide(safe_up)
+		tangent_forward = safe_up.cross(tangent_right.normalized())
+	tangent_forward = tangent_forward.normalized()
+	var right := tangent_forward.cross(safe_up).normalized()
+	return Basis(right, safe_up, -tangent_forward).orthonormalized()
 
 
 func _update_landing(delta: float) -> void:

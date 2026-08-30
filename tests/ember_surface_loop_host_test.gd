@@ -337,13 +337,17 @@ func _test_shared_composition_and_measured_entry() -> void:
 	var composition := snapshot.composition as Dictionary
 	var entry := snapshot.approach_entry as Dictionary
 	var measurement := (entry.accepted_measurement as Dictionary).measurement as Dictionary
+	var gravity_binding := ship.get_planetary_surface_gravity_report()
 	_check(
 		started.accepted and host.get_phase() == EmberSurfaceLoopHost.Phase.ORBIT_APPROACH
 			and ship.global_transform == before_pose and ship.velocity == before_velocity
 			and ship.get_command_source() != original_source
 			and area.get_reservation_token() == player
-			and bool((snapshot.approach_entry as Dictionary).boarding_cleanup_owned),
-		"accepted measured entry transfers only command and reservation cleanup ownership without actor writes",
+			and bool((snapshot.approach_entry as Dictionary).boarding_cleanup_owned)
+			and bool(gravity_binding.get("attached", false))
+			and int(gravity_binding.get("source_instance_id", 0)) == host.get_instance_id()
+			and int(gravity_binding.get("source_generation", 0)) == host.get_generation(),
+		"accepted measured entry transfers command, reservation cleanup, and value-only gravity ingress without actor writes",
 	)
 	_check(
 		int(composition.root_instance_id) == composition_root.get_instance_id()
@@ -366,8 +370,11 @@ func _test_shared_composition_and_measured_entry() -> void:
 	_check(
 		host.detach(host.get_generation(), host.get_attachment_generation()).accepted
 			and ship.get_command_source() == original_source
-			and area.get_reservation_token() == null,
-		"ordinary detach restores command and releases only the reservation cleanup ownership accepted at start",
+			and area.get_reservation_token() == null
+			and not bool(ship.get_planetary_surface_gravity_report().get(
+				"attached", true
+			)),
+		"ordinary detach restores command and releases reservation cleanup plus gravity ingress",
 	)
 	await _cleanup(fixture)
 
@@ -582,12 +589,25 @@ func _test_normal_public_actor_loop() -> void:
 		await _cleanup(fixture)
 		return
 	var landed_report := ship.get_landing_contract_report()
+	var gravity_snapshot := host.get_snapshot().gravity as Dictionary
+	var ship_gravity_report := gravity_snapshot.ship_report as Dictionary
 	_check(
 		bool(ship.get_telemetry().get("landed", false))
 			and bool(landed_report.get("strict_dock_acceptance", false))
 			and berth.get_occupant() == ship
 			and not berth.get_reservation_token(ship).is_empty(),
 		"TravelSession landing follows exact public telemetry, hull acceptance, occupant and token",
+	)
+	_check(
+		int(gravity_snapshot.get("sample_count", 0)) > 0
+			and int(gravity_snapshot.get("ship_submission_count", 0))
+				== int(gravity_snapshot.get("sample_count", -1))
+			and int(ship_gravity_report.get("application_count", 0)) > 0
+			and (ship_gravity_report.get(
+				"last_applied_vector_world", Vector3.ZERO
+			) as Vector3).length() > 0.0
+			and bool(ship_gravity_report.get("body_owns_velocity", false)),
+		"real approach samples Ember gravity every Host tick and HeroShip applies it inside its sole mover",
 	)
 	_check(
 		host.request_disembark(host.get_generation(), host.get_attachment_generation()).accepted,
@@ -694,8 +714,11 @@ func _test_normal_public_actor_loop() -> void:
 			and bool(return_receipt.get("boarding_reservation_retained", false))
 			and bool(return_receipt.get("command_source_restored", false))
 			and int(return_receipt.get("ship_instance_id", 0)) == ship.get_instance_id()
-			and int(return_receipt.get("player_instance_id", 0)) == player.get_instance_id(),
-		"completion atomically returns command ownership while continuously retaining the seated Player reservation",
+			and int(return_receipt.get("player_instance_id", 0)) == player.get_instance_id()
+			and not bool(ship.get_planetary_surface_gravity_report().get(
+				"attached", true
+			)),
+		"completion atomically returns command and gravity ownership while continuously retaining the seated Player reservation",
 	)
 	return_receipt["ship_instance_id"] = -1
 	_check(

@@ -1415,7 +1415,13 @@ authority, so it does not yet make Aurora visitable.
 `PlanetaryTerrainLodPolicy` selects inclusive near-to-far render/collision
 rings and exposes only bounded tile-ceiling hints. `PlanetarySurfaceGravityPolicy`
 supplies pure body-local radial up, inward inverse-square gravity and tangent
-frames without applying a force. `PlanetaryTravelSession` composes validated
+frames. The production Ember Host now samples that policy for the exact live
+ship on every caller-owned physics tick and submits one generation-fenced
+world-space vector to `HeroShip`; the ship consumes it once inside its existing
+flight integration, keeps sole velocity/`move_and_slide()` authority, and uses
+radial up for hover braking and alignment. Landing, shutdown, detach,
+destruction, reset and ownership return discard or retire pending force, while
+planetary cruise is mutually exclusive. `PlanetaryTravelSession` composes validated
 world and landing reports into a caller-physics
 orbit/entry/descent/surface/landing/on-foot/take-off/ascent/return state
 machine. `PlanetaryCruisePolicy` now publishes a strict 20,000 m/s recommendation
@@ -1470,12 +1476,12 @@ and atomic recovery during both embodiment transitions. A later 84-assertion
 prerequisite lets the host bind through an explicit shared composition root and
 accepts a typed measured approach envelope (full Arrow hull inside the authored
 corridor, at most 12 m/s and 12 degrees) rather than a fixture-only exact pose.
-The current 99-assertion Host suite additionally proves exact adoption of the
-sole common-origin owner's real N→N+1 receipt, pre-start reservation/command
-preservation, foreign command-source non-clobber and an atomic runtime-ownership
-handback. It still never stages, teleports or reparents an actor, requests or
-commits an origin shift, streams a location, selects an activity, grants a
-reward or edits GameFlow.
+The current focused Host suite additionally proves exact adoption of the sole
+common-origin owner's real N→N+1 receipt, pre-start reservation/command
+preservation, foreign command-source non-clobber, one-tick ship-gravity
+application and atomic runtime-ownership handback. It still never stages,
+teleports or reparents an actor, requests or commits an origin shift, streams a
+location, selects an activity, grants a reward or edits GameFlow.
 
 The first planet is therefore **not yet proven production-visitable end to end**.
 The physical cruise path reaches a fixed Ember navigation target, and production now
@@ -1522,11 +1528,11 @@ fences remain intact across whole-`Main` detach/re-entry.
 `tests/ember_final_approach_production_handoff_test.gd` cover that player-facing
 seam.
 
-Global terrain/clipmap generation, spherical vehicle gravity, an atmospheric
-authored destination with complete sky/cloud/weather/entry/audio presentation,
-activity/reward, save/network, native performance and repeated orbit-to-surface
-lifecycle evidence all remain open. These are prerequisites for—not
-substitutes for—a visitable planet.
+Global terrain/clipmap generation, an atmospheric authored destination with
+complete sky/cloud/weather/entry/audio presentation, activity/reward,
+save/network, native performance and repeated orbit-to-surface lifecycle
+evidence all remain open. These are prerequisites for—not substitutes for—a
+visitable planet.
 
 One authored Ember surface activity is now composed through the real retained
 planetary and surface-loop bindings. `ember_beacon_survey` registers a strict
