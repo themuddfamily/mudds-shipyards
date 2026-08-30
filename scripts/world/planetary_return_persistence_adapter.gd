@@ -1,13 +1,19 @@
 class_name PlanetaryReturnPersistenceAdapter
 extends RefCounted
 
-## Detached persistence record for one completed planetary return. The record
-## retains terminal evidence, never a live surface attachment, berth lease, or
-## reward grant. Replay is a one-shot observation and retirement is explicit.
+## Detached persistence records for the Ember planetary loop. Completed returns
+## retain terminal evidence; interrupted journeys retain only exact save-session
+## and route identity. Neither form carries a live surface attachment, movement,
+## berth, or reward grant. Replay is a one-shot observation and retirement is
+## explicit.
 
 const SCHEMA_VERSION := 1
+const SaveSessionContract := preload("res://scripts/world/planetary_save_session_contract.gd")
 const RETURN_TARGET_ID: StringName = &"mudds_shipyards"
 const WORLD_ID: StringName = &"ember_moon"
+const EMBER_SURVEY_ACTIVITY_ID: StringName = &"ember_beacon_survey"
+const EMBER_SURVEY_START_ID: StringName = &"ember_relay_tower"
+const EMBER_SURVEY_FINISH_ID: StringName = &"ember_return_beacon"
 const RECORD_KEYS := [
 	"accepted", "schema_version", "marker", "world_id", "return_target_id",
 	"run_generation", "attachment_generation", "actor_instance_id",
@@ -31,9 +37,20 @@ const AUTHORITY_MAP_KEYS := [
 const CONTRACT_RECEIPT_REASONS := [
 	"returned_to_station", "physical_station_arrival_completed",
 ]
+const INTERRUPTED_JOURNEY_KEYS := [
+	"accepted", "schema_version", "marker", "world_id", "session_id",
+	"attachment_generation", "checkpoint_generation", "phase_id", "journey_phase_id",
+	"route_identity", "detached_session", "receipt_sha256",
+	"surface_attachment", "movement_replay_allowed", "reward_replay_allowed",
+]
+const ROUTE_IDENTITY_KEYS := [
+	"source", "activity_id", "activity_generation", "next_checkpoint_index",
+	"checkpoint_count", "next_objective_id", "complete", "authority",
+]
 
 var _restored_generation := -1
 var _retired_generation := -1
+var _restored_interrupted_receipts: Dictionary = {}
 
 
 func capture(
@@ -93,6 +110,143 @@ func capture(
 		"receipt_sha256": digest,
 		"surface_attachment": {"active": false, "state": "detached"},
 		"berth_lease": {"active": false, "state": "fresh_station"},
+		"reward_replay_allowed": false,
+	}.duplicate(true)
+
+
+## Captures an interrupted Ember expedition only after its caller-owned save
+## contract has detached. The receipt is sufficient to reconstruct the exact
+## session/checkpoint and mandatory-route identity, but deliberately contains
+## no actor, movement, attachment, reward, or berth authority.
+func capture_interrupted_journey(
+		session_contract: Object, route_snapshot: Variant
+	) -> Dictionary:
+	if session_contract == null or not session_contract.has_method(&"get_snapshot"):
+		return _reject(&"interrupted_journey_runtime_unavailable")
+	if not route_snapshot is Dictionary:
+		return _reject(&"interrupted_journey_route_invalid")
+	var inspected := SaveSessionContract.inspect_detached_recovery(
+		session_contract.call(&"get_snapshot")
+	) as Dictionary
+	if not bool(inspected.get("accepted", false)):
+		return _reject(&"interrupted_journey_not_detached")
+	if StringName(inspected.get("world_id", &"")) != WORLD_ID:
+		return _reject(&"interrupted_journey_world_invalid")
+	var route := _wire_copy(route_snapshot) as Dictionary
+	if not _valid_interrupted_route(route) or _contains_live_authority(route):
+		return _reject(&"interrupted_journey_route_invalid")
+	var checkpoint := inspected.get("checkpoint", {}) as Dictionary
+	if not _checkpoint_matches_route(checkpoint, route):
+		return _reject(&"interrupted_journey_identity_mismatch")
+	var checkpoint_payload := checkpoint.get("payload", {}) as Dictionary
+	var session := _wire_copy(inspected.get("detached_snapshot", {})) as Dictionary
+	var evidence := {
+		"detached_session": session,
+		"route_identity": route,
+	}
+	var digest := _digest(evidence)
+	if digest.is_empty():
+		return _reject(&"interrupted_journey_snapshot_invalid")
+	return {
+		"accepted": true,
+		"schema_version": SCHEMA_VERSION,
+		"marker": "interrupted_planetary_journey",
+		"world_id": String(WORLD_ID),
+		"session_id": str(inspected.get("session_id", "")),
+		"attachment_generation": int(inspected.get("attachment_generation", 0)),
+		"checkpoint_generation": int(inspected.get("checkpoint_generation", 0)),
+		"phase_id": str(inspected.get("phase", "")),
+		"journey_phase_id": str(checkpoint_payload.get("journey_phase_id", "")),
+		"route_identity": route,
+		"detached_session": session,
+		"receipt_sha256": digest,
+		"surface_attachment": {"active": false, "state": "detached"},
+		"movement_replay_allowed": false,
+		"reward_replay_allowed": false,
+	}.duplicate(true)
+
+
+## Restores only a recovery description. Installing the detached save contract,
+## allocating a fresh attachment generation, and reconstructing actors remain
+## caller-owned operations.
+func restore_interrupted_journey(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary:
+		return _reject(&"interrupted_journey_snapshot_invalid")
+	var saved := candidate as Dictionary
+	var schema := int(saved.get("schema_version", 0))
+	if schema > SCHEMA_VERSION:
+		return _reject(&"interrupted_journey_newer_schema")
+	if not _has_exact_keys(saved, INTERRUPTED_JOURNEY_KEYS) \
+			or not _is_integral_number(saved.get("schema_version")) \
+			or schema != SCHEMA_VERSION \
+			or saved.get("accepted") is not bool \
+			or not bool(saved.get("accepted", false)) \
+			or str(saved.get("marker", "")) != "interrupted_planetary_journey" \
+			or StringName(saved.get("world_id", &"")) != WORLD_ID \
+			or not saved.get("session_id") is String \
+			or not saved.get("phase_id") is String \
+			or not saved.get("journey_phase_id") is String \
+			or not _positive_integral(saved.get("attachment_generation")) \
+			or not _positive_integral(saved.get("checkpoint_generation")) \
+			or not saved.get("route_identity") is Dictionary \
+			or not saved.get("detached_session") is Dictionary:
+		return _reject(&"interrupted_journey_snapshot_invalid")
+	if saved.get("movement_replay_allowed") is not bool \
+			or bool(saved.get("movement_replay_allowed", true)) \
+			or saved.get("reward_replay_allowed") is not bool \
+			or bool(saved.get("reward_replay_allowed", true)) \
+			or not saved.get("surface_attachment") is Dictionary:
+		return _reject(&"interrupted_journey_authority_present")
+	var surface := saved.get("surface_attachment", {}) as Dictionary
+	if surface.get("active") is not bool or bool(surface.get("active", true)) \
+			or str(surface.get("state", "")) != "detached" \
+			or _contains_live_authority(saved):
+		return _reject(&"interrupted_journey_authority_present")
+	var route := saved.get("route_identity", {}) as Dictionary
+	if not _valid_interrupted_route(route):
+		return _reject(&"interrupted_journey_route_invalid")
+	var inspected := SaveSessionContract.inspect_detached_recovery(
+		saved.get("detached_session", {})
+	) as Dictionary
+	if not bool(inspected.get("accepted", false)) \
+			or StringName(inspected.get("world_id", &"")) != WORLD_ID \
+			or str(inspected.get("session_id", "")) != str(saved.get("session_id", "")) \
+			or int(inspected.get("attachment_generation", 0)) \
+				!= int(saved.get("attachment_generation", -1)) \
+			or int(inspected.get("checkpoint_generation", 0)) \
+				!= int(saved.get("checkpoint_generation", -1)) \
+			or str(inspected.get("phase", "")) != str(saved.get("phase_id", "")):
+		return _reject(&"interrupted_journey_identity_mismatch")
+	var inspected_checkpoint := inspected.get("checkpoint", {}) as Dictionary
+	var inspected_payload := inspected_checkpoint.get("payload", {}) as Dictionary
+	if not _checkpoint_matches_route(inspected_checkpoint, route) \
+			or str(inspected_payload.get("journey_phase_id", "")) \
+				!= str(saved.get("journey_phase_id", "")):
+		return _reject(&"interrupted_journey_identity_mismatch")
+	var evidence := {
+		"detached_session": saved.get("detached_session", {}),
+		"route_identity": route,
+	}
+	var digest := str(saved.get("receipt_sha256", ""))
+	if digest.length() != 64 or digest != _digest(evidence):
+		return _reject(&"interrupted_journey_receipt_corrupt")
+	if _restored_interrupted_receipts.has(digest):
+		return _reject(&"interrupted_journey_already_observed")
+	_restored_interrupted_receipts[digest] = true
+	return {
+		"accepted": true,
+		"reason": &"interrupted_journey_recovery_loaded",
+		"world_id": WORLD_ID,
+		"session_id": StringName(saved.get("session_id", &"")),
+		"phase_id": StringName(saved.get("phase_id", &"")),
+		"journey_phase_id": StringName(saved.get("journey_phase_id", &"")),
+		"attachment_generation": int(saved.get("attachment_generation", 0)),
+		"checkpoint_generation": int(saved.get("checkpoint_generation", 0)),
+		"route_identity": route.duplicate(true),
+		"detached_session": (saved.get("detached_session", {}) as Dictionary).duplicate(true),
+		"receipt_sha256": digest,
+		"surface_attachment": {"active": false, "state": &"detached"},
+		"movement_replay_allowed": false,
 		"reward_replay_allowed": false,
 	}.duplicate(true)
 
@@ -193,11 +347,65 @@ func get_snapshot() -> Dictionary:
 		"schema_version": SCHEMA_VERSION,
 		"restored_generation": _restored_generation,
 		"retired_generation": _retired_generation,
+		"restored_interrupted_journey_count": _restored_interrupted_receipts.size(),
 		"save_authority": false,
 		"movement_authority": false,
 		"berth_authority": false,
 		"reward_authority": false,
 	}
+
+
+func _valid_interrupted_route(route: Dictionary) -> bool:
+	if not _has_exact_keys(route, ROUTE_IDENTITY_KEYS) \
+			or str(route.get("source", "")) != "activity_director_checkpoint_result" \
+			or StringName(route.get("activity_id", &"")) != EMBER_SURVEY_ACTIVITY_ID \
+			or not _positive_integral(route.get("activity_generation")) \
+			or not _is_integral_number(route.get("next_checkpoint_index")) \
+			or not _is_integral_number(route.get("checkpoint_count")) \
+			or int(route.get("checkpoint_count", -1)) != 2 \
+			or not route.get("next_objective_id") is String \
+			or not route.get("complete") is bool \
+			or not route.get("authority") is Dictionary:
+		return false
+	var next_index := int(route.get("next_checkpoint_index", -1))
+	if next_index < 0 or next_index > 2 \
+			or bool(route.get("complete", false)) != (next_index == 2):
+		return false
+	var expected_objective := EMBER_SURVEY_START_ID if next_index == 0 \
+		else (EMBER_SURVEY_FINISH_ID if next_index == 1 else &"")
+	if StringName(route.get("next_objective_id", &"")) != expected_objective:
+		return false
+	var authority := route.get("authority", {}) as Dictionary
+	return authority.size() == 3 \
+		and authority.get("navigation") is bool \
+		and authority.get("movement") is bool \
+		and authority.get("reward") is bool \
+		and not bool(authority.get("navigation", true)) \
+		and not bool(authority.get("movement", true)) \
+		and not bool(authority.get("reward", true))
+
+
+func _checkpoint_matches_route(checkpoint: Dictionary, route: Dictionary) -> bool:
+	if not checkpoint.get("payload") is Dictionary:
+		return false
+	var payload := checkpoint.get("payload", {}) as Dictionary
+	var journey_phase_id := str(payload.get("journey_phase_id", ""))
+	return StringName(payload.get("activity_id", &"")) == EMBER_SURVEY_ACTIVITY_ID \
+		and _is_integral_number(payload.get("route_checkpoint_index")) \
+		and int(payload.get("route_checkpoint_index", -1)) \
+			== int(route.get("next_checkpoint_index", -2)) \
+		and _stable_identifier(journey_phase_id)
+
+
+func _stable_identifier(value: String) -> bool:
+	if value.is_empty() or value.to_utf8_buffer().size() > 128:
+		return false
+	for character in value:
+		if not ((character >= "a" and character <= "z") \
+				or (character >= "0" and character <= "9") \
+				or character == "_"):
+			return false
+	return true
 
 
 func _completed_evidence_rejection(
