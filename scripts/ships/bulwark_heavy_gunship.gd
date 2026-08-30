@@ -354,10 +354,14 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	var boarding := _material(BOARDING_LIGHT, 0.18, 0.22, BOARDING_LIGHT, 1.2)
 
 	# Armored slab, raised shoulders, chin keel, and rear engine housings form a
-	# broad, compact silhouette with a visible centerline armor spine.
-	_box(_bulwark_visual, "ArmoredCentralSlab", Vector3(0.0, 1.35, 0.25), Vector3(6.4, 2.7, 8.5), armor_blue)
-	_wedge(_bulwark_visual, "ArmoredNose", Vector3(0.0, 1.5, -4.65), Vector3(5.8, 2.8, 3.9), armor_highlight, 0.0)
-	_box(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.95, 0.45), Vector3(1.35, 0.38, 8.4), armor_highlight)
+	# broad, compact silhouette. Keep the central slab below the inherited cabin
+	# floor and terminate the dorsal spine behind its rear pressure wall. The old
+	# full-height slab/spine occupied the same volume as the physical cockpit, so
+	# the production pilot-eye camera looked into solid blue armor instead of out
+	# through the canopy.
+	_box(_bulwark_visual, "ArmoredCentralSlab", Vector3(0.0, 0.9, 0.25), Vector3(6.4, 1.8, 8.5), armor_blue)
+	_wedge(_bulwark_visual, "ArmoredNose", Vector3(0.0, 0.9, -4.65), Vector3(5.8, 1.8, 3.9), armor_highlight, 0.0)
+	_box(_bulwark_visual, "CenterlineArmorSpine", Vector3(0.0, 2.0, 3.1), Vector3(1.35, 0.38, 3.1), armor_highlight)
 	_box(_bulwark_visual, "ChinArmor", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE, armor_dark)
 	var armored_shoulder_transforms: Array[Transform3D] = []
 	var armored_shoulder_names := PackedStringArray()
