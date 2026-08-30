@@ -375,7 +375,10 @@ const RENDER_MESH_INSTANCE_COUNT := 102
 const RENDER_MULTIMESH_BATCH_COUNT := 8
 const RENDER_DRAWN_COPY_COUNT := 168
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 110
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 67
+# NoseBelly now clears the deck using the same 4.30 x 0.36 x 2.40 stock as
+# NoseRoof; material overrides keep their finishes distinct while the cache
+# deliberately shares that mesh resource.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 66
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 16
 
 var _halyard_built := false
@@ -2758,9 +2761,13 @@ func _build_pressure_hull() -> void:
 		_box(_halyard_visual, side_name + "FlightDeckQuarterlight", Vector3(side * 1.66, 2.05, -12.55), Vector3(0.14, 1.05, 1.50), _halyard_materials.glass)
 		_box(_halyard_visual, side_name + "NoseChine", Vector3(side * 2.05, 0.72, -11.75), Vector3(0.44, 0.34, 2.30), _halyard_materials.accent)
 	_box(_halyard_visual, "NoseRoof", Vector3(0.0, 2.98, -11.75), Vector3(4.30, 0.36, 2.40), _halyard_materials.hull_olive)
-	_box(_halyard_visual, "NoseBelly", Vector3(0.0, 0.28, -11.75), Vector3(4.30, 0.56, 2.40), _halyard_materials.hull_shade)
+	# Keep the exterior lower silhouette at y=0.00/0.10, but stop its upper
+	# faces below the inherited cockpit floor (y=0.40..0.52 after COCKPIT_SHIFT).
+	# The former 0.56/0.58 m tops swallowed the entire deck plate where the two
+	# volumes overlap, so the hull skin won the depth test inside the flight deck.
+	_box(_halyard_visual, "NoseBelly", Vector3(0.0, 0.18, -11.75), Vector3(4.30, 0.36, 2.40), _halyard_materials.hull_shade)
 	_box(_halyard_visual, "NoseCapRoof", Vector3(0.0, 2.70, -12.85), Vector3(3.20, 0.34, 0.90), _halyard_materials.hull_shade)
-	_box(_halyard_visual, "NoseCapBelly", Vector3(0.0, 0.34, -12.85), Vector3(3.20, 0.48, 0.90), _halyard_materials.hull_shade)
+	_box(_halyard_visual, "NoseCapBelly", Vector3(0.0, 0.23, -12.85), Vector3(3.20, 0.26, 0.90), _halyard_materials.hull_shade)
 	# Flight-deck glazing wraps the forward face. Transparent, so it is excluded
 	# from the body-tone measurement by construction rather than by luck.
 	_box(_halyard_visual, "FlightDeckGlazing", Vector3(0.0, 1.85, -13.28), Vector3(3.00, 1.90, 0.14), _halyard_materials.glass)
