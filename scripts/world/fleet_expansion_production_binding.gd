@@ -18,6 +18,17 @@ const CRAFT_SPECS: Array[Dictionary] = [
 	{"pad_id": &"dock_05_bomber", "craft_id": &"cinder_long_range_bomber", "script": Bomber},
 	{"pad_id": &"dock_06_interceptor", "craft_id": &"cinder_light_interceptor", "script": Interceptor},
 ]
+## The Cinder hulls sit on four-metre landing anchors while their six narrow
+## pedestrian surfaces remain at deck level. HeroShip's generic exit marker is
+## therefore neither a safe height nor inside these pad-specific routes. Bind
+## the existing boarding/exit seam to the exact collision-backed endpoint owned
+## by each pad after every attachment; no parallel interaction authority is
+## introduced here.
+const PEDESTRIAN_HANDOFF_SUPPORTS := {
+	&"dock_04_cargo": ^"AccessCirculation/CargoBoardingLeg",
+	&"dock_05_bomber": ^"AccessCirculation/BomberBoardingLeg",
+	&"dock_06_interceptor": ^"AccessCirculation/InterceptorBoardingToe",
+}
 const AUDIO_RECIPE_BY_CRAFT := {
 	&"cinder_cargo_hauler": &"cargo_craft",
 	&"cinder_long_range_bomber": &"bomber",
@@ -108,6 +119,14 @@ func _assemble() -> void:
 		)
 		if not bool(result.get("accepted", false)):
 			_composition_error = StringName(result.get("reason", &"attachment_failed"))
+			return
+		var handoff_result := _bind_pedestrian_handoff(
+			spec.craft_id, spec.pad_id, _craft_by_id[spec.craft_id]
+		)
+		if not bool(handoff_result.get("accepted", false)):
+			_composition_error = StringName(
+				handoff_result.get("reason", &"pedestrian_handoff_failed")
+			)
 			return
 		var audio_result := _bind_craft_audio(spec.craft_id, _craft_by_id[spec.craft_id])
 		if not bool(audio_result.get("accepted", false)):
@@ -210,6 +229,11 @@ func reattach_craft(craft_id: StringName) -> Dictionary:
 		if spec.craft_id == craft_id:
 			var result: Dictionary = _berths.call("attach_craft", spec.pad_id, _craft_by_id[craft_id], craft_id)
 			if bool(result.get("accepted", false)):
+				var handoff_result := _bind_pedestrian_handoff(
+					craft_id, spec.pad_id, _craft_by_id[craft_id]
+				)
+				if not bool(handoff_result.get("accepted", false)):
+					return handoff_result
 				var audio_result := _bind_craft_audio(craft_id, _craft_by_id[craft_id])
 				if not bool(audio_result.get("accepted", false)):
 					return audio_result
@@ -269,10 +293,70 @@ func reset_craft_for_reuse(craft_id: StringName) -> Dictionary:
 	var craft := _craft_by_id[craft_id] as Node3D
 	var spawn := contract.get("landing_transform", Transform3D.IDENTITY) as Transform3D
 	var result: Dictionary = craft.call("reset_for_reuse", spawn)
+	if bool(result.get("accepted", false)):
+		var handoff_result := _bind_pedestrian_handoff(
+			craft_id, StringName(contract.pad_id), craft
+		)
+		if not bool(handoff_result.get("accepted", false)):
+			return handoff_result
 	result["craft_id"] = craft_id
 	result["pad_id"] = contract.pad_id
 	result["attachment_preserved"] = bool(_berths.call("get_attachment_snapshot", contract.pad_id).get("attached", false))
 	return result
+
+
+func _bind_pedestrian_handoff(
+	craft_id: StringName, pad_id: StringName, craft: Node3D
+	) -> Dictionary:
+	if not is_instance_valid(craft) or not PEDESTRIAN_HANDOFF_SUPPORTS.has(pad_id):
+		return {"accepted": false, "reason": &"pedestrian_handoff_owner_missing"}
+	var support := _berths.get_node_or_null(
+		PEDESTRIAN_HANDOFF_SUPPORTS[pad_id]
+	) as StaticBody3D if _berths != null else null
+	var support_bounds := _box_support_bounds(support)
+	var authored_marker := craft.call("get_boarding_marker") as Node3D \
+		if craft.has_method(&"get_boarding_marker") else null
+	var boarding_point := craft.get_node_or_null(^"BoardingPoint") as Marker3D
+	var exit_point := craft.get_node_or_null(^"ExitPoint") as Marker3D
+	if support_bounds.size == Vector3.ZERO or not is_instance_valid(authored_marker) \
+			or boarding_point == null or exit_point == null:
+		return {"accepted": false, "reason": &"pedestrian_handoff_node_missing"}
+	var deck_position := Vector3(
+		authored_marker.global_position.x,
+		support_bounds.end.y,
+		authored_marker.global_position.z
+	)
+	if not _support_contains_xz(support_bounds, deck_position):
+		return {"accepted": false, "reason": &"pedestrian_handoff_off_support"}
+	authored_marker.global_position = deck_position
+	boarding_point.global_position = deck_position
+	exit_point.global_position = deck_position
+	var boarding_area := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	if boarding_area != null:
+		boarding_area.global_position = deck_position
+	return {
+		"accepted": true,
+		"reason": &"pedestrian_handoff_bound",
+		"craft_id": craft_id,
+		"pad_id": pad_id,
+		"position": deck_position,
+		"support_path": support.get_path(),
+	}.duplicate(true)
+
+
+func _box_support_bounds(body: StaticBody3D) -> AABB:
+	var collision := body.get_node_or_null(^"Collision") as CollisionShape3D \
+		if body != null else null
+	var shape := collision.shape as BoxShape3D if collision != null else null
+	return (collision.global_transform * AABB(-shape.size * 0.5, shape.size)).abs() \
+		if shape != null else AABB()
+
+
+func _support_contains_xz(bounds: AABB, point: Vector3) -> bool:
+	return point.x >= bounds.position.x - 0.001 \
+		and point.x <= bounds.end.x + 0.001 \
+		and point.z >= bounds.position.z - 0.001 \
+		and point.z <= bounds.end.z + 0.001
 
 
 ## Binds the caller's existing NearbySectorActivityBinding to the real Dock04
