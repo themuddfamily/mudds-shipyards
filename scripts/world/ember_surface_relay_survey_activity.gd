@@ -57,6 +57,54 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 		_apply_authoritative_route_result(started)
 	return started
 
+
+## Adopts the mandatory route identity previously authenticated by GameFlow's
+## interrupted-journey receipt. Only an incomplete active route is eligible;
+## completed progress stays passive so this path cannot recreate a reward.
+func resume_mandatory_route(adapter: Object, route_identity: Variant) -> Dictionary:
+	var validation := validate_mandatory_route_resume(route_identity)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	if adapter == null or not adapter.has_method(&"resume_active_activity_sequence"):
+		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
+	var route := route_identity as Dictionary
+	var state := {
+		"schema_version": CheckpointRouteActivity.PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(ACTIVITY_ID),
+		"state": CheckpointRouteActivity.State.ACTIVE,
+		"generation": int(route.activity_generation),
+		"next_checkpoint_index": int(route.next_checkpoint_index),
+		"failure_reason": "",
+	}
+	var ids: Array[StringName] = [ACTIVITY_ID]
+	var resumed := adapter.call(
+		&"resume_active_activity_sequence", ids, state
+	) as Dictionary
+	if bool(resumed.get("accepted", false)):
+		_reconcile_optional_checkpoint_generation(adapter)
+		_apply_authoritative_route_result(resumed)
+	return resumed
+
+
+func validate_mandatory_route_resume(route_identity: Variant) -> Dictionary:
+	if not route_identity is Dictionary:
+		return {"accepted": false, "reason": &"invalid_mandatory_route_identity"}
+	var route := route_identity as Dictionary
+	var next_index := int(route.get("next_checkpoint_index", -1))
+	var expected_objective := START_LANDMARK_ID if next_index == 0 \
+		else (FINISH_LANDMARK_ID if next_index == 1 else &"")
+	if StringName(route.get("source", &"")) \
+			!= &"activity_director_checkpoint_result" \
+			or StringName(route.get("activity_id", &"")) != ACTIVITY_ID \
+			or int(route.get("activity_generation", -1)) < 1 \
+			or int(route.get("checkpoint_count", -1)) != 2 \
+			or next_index < 0 or next_index >= 2 \
+			or StringName(route.get("next_objective_id", &"")) \
+			!= expected_objective \
+			or bool(route.get("complete", true)):
+		return {"accepted": false, "reason": &"invalid_mandatory_route_identity"}
+	return {"accepted": true, "reason": &"mandatory_route_identity_valid"}
+
 func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"submit_activity_landmark_discovery") \
 			or not position.is_finite() or landmark_id.is_empty():

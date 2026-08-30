@@ -83,6 +83,7 @@ var _relay_survey: RefCounted
 var _relay_survey_presentation: Node
 var _relay_survey_persistence: RefCounted
 var _restored_relay_survey_completion: Dictionary = {}
+var _pending_relay_survey_route_resume: Dictionary = {}
 var _survey_interaction: Area3D
 var _sample_rack_interaction: Area3D
 var _settlement: RefCounted
@@ -317,8 +318,15 @@ func adopt_started_host_generation(
 
 func start_relay_survey() -> Dictionary:
 	if not _live(): return _result(false, &"composition_detached")
-	var result: Dictionary = _relay_survey.begin(_adapter, _navigation)
+	var result: Dictionary
+	if not _pending_relay_survey_route_resume.is_empty():
+		result = _relay_survey.resume_mandatory_route(
+			_adapter, _pending_relay_survey_route_resume
+		)
+	else:
+		result = _relay_survey.begin(_adapter, _navigation)
 	if bool(result.get("accepted", false)):
+		_pending_relay_survey_route_resume.clear()
 		_restored_relay_survey_completion.clear()
 		var runtime := (
 			_adapter.get_snapshot().get("activity_reward", {}) as Dictionary
@@ -334,6 +342,33 @@ func start_relay_survey() -> Dictionary:
 		if not bool(rack_activation.get("accepted", false)):
 			return _result(false, &"sample_rack_activation_rejected")
 	_apply_relay_survey_presentation()
+	return result
+
+
+## GameFlow stages a validated passive receipt during journey admission. The
+## route authority is untouched until start_relay_survey(), the same normal
+## seam used for a fresh Beacon Survey.
+func stage_interrupted_relay_survey_resume(route_identity: Variant) -> Dictionary:
+	if not _live():
+		return _result(false, &"composition_detached")
+	if not _pending_relay_survey_route_resume.is_empty():
+		return _result(false, &"relay_survey_resume_already_staged")
+	var validated: Dictionary = _relay_survey.validate_mandatory_route_resume(
+		route_identity
+	)
+	if not bool(validated.get("accepted", false)):
+		return _result(
+			false,
+			validated.get("reason", &"invalid_mandatory_route_identity") as StringName
+		)
+	_pending_relay_survey_route_resume = (
+		route_identity as Dictionary
+	).duplicate(true)
+	var result := _result(true, &"relay_survey_resume_staged")
+	result["route_identity"] = _pending_relay_survey_route_resume.duplicate(true)
+	result["authority"] = {
+		"activity": false, "movement": false, "actor": false, "reward": false,
+	}
 	return result
 
 

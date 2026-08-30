@@ -598,6 +598,14 @@ func start_planetary_relay_survey() -> Dictionary:
 	return _planetary_composition.call(&"start_relay_survey")
 
 
+func stage_interrupted_relay_survey_resume(route_identity: Variant) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	return _planetary_composition.call(
+		&"stage_interrupted_relay_survey_resume", route_identity
+	)
+
+
 func submit_planetary_relay_survey_position(position: Vector3) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
