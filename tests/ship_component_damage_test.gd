@@ -749,10 +749,16 @@ func _test_presentation_channel() -> void:
 	var impaired_smoke := impaired_rig.get_node("ComponentSmoke") as CPUParticles3D
 	var failed_smoke := failed_rig.get_node("ComponentSmoke") as CPUParticles3D
 	_check(
-		impaired_sparks.emitting and not impaired_smoke.emitting,
-		"an impaired section sparks without venting smoke"
+		impaired_sparks.emitting
+		and impaired_sparks.visible
+		and not impaired_smoke.emitting
+		and not impaired_smoke.visible,
+		"an impaired section shows sparks while renderer-hiding dormant smoke"
 	)
-	_check(failed_smoke.emitting, "a failed section vents smoke as well as sparking")
+	_check(
+		failed_smoke.emitting and failed_smoke.visible,
+		"a failed section vents visible smoke as well as sparking"
+	)
 	_check(
 		_failure_started.size() == 1
 		and _failure_started[0].get("id") == &"engine_bay"
@@ -862,7 +868,9 @@ func _test_presentation_cleanup_and_reentry() -> void:
 	)
 	root.add_child(presentation)
 	_check(
-		presentation.get_active_component_effect_count() == 1 and smoke.emitting,
+		presentation.get_active_component_effect_count() == 1
+		and smoke.emitting
+		and smoke.visible,
 		"re-entry resumes exactly the roster the craft left with"
 	)
 	_check(
@@ -872,8 +880,8 @@ func _test_presentation_cleanup_and_reentry() -> void:
 
 	presentation.present_destruction(Vector3.ZERO)
 	_check(
-		not smoke.emitting,
-		"a destroyed craft silences its component rigs along with the staged hull channel"
+		not smoke.emitting and not smoke.visible,
+		"a destroyed craft silences and renderer-hides its component rigs with the staged hull channel"
 	)
 	presentation.reset_for_reuse(1.0, HeroDamagePresentation.STATE_POWERED_DOWN)
 	_check(

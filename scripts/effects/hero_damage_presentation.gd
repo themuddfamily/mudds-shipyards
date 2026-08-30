@@ -145,6 +145,8 @@ func _enter_tree() -> void:
 	# this node. Re-state their emitters so a detached-then-re-added craft resumes
 	# exactly the roster it left with, and never a stale one.
 	_apply_component_effect_visibility()
+	if _built:
+		call_deferred("_refresh_retained_particle_visibility")
 	if _built and _pending_destruction:
 		call_deferred("_resume_pending_destruction_after_reentry")
 
@@ -152,6 +154,10 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	_ensure_built()
 	_apply_stage_visuals()
+	# Newly-created particle render instances are registered after their owner is
+	# ready. Reassert the resolved lifecycle once registration is complete so an
+	# inactive emitter cannot submit its default draw buffer for an early frame.
+	call_deferred("_refresh_retained_particle_visibility")
 	if _pending_destruction:
 		_pending_destruction = false
 		_spawn_destruction_effects(_pending_destruction_pose, _pending_destruction_pose_valid)
@@ -433,6 +439,7 @@ func _create_component_effect(
 	sparks.scale_amount_min = 0.7
 	sparks.scale_amount_max = 1.7
 	sparks.emitting = false
+	sparks.visible = false
 	rig.add_child(sparks)
 	var smoke := _make_smoke(false)
 	smoke.name = "ComponentSmoke"
@@ -449,6 +456,7 @@ func _create_component_effect(
 	if smoke_mesh != null:
 		smoke_mesh.material = _materials.component_smoke
 	smoke.emitting = false
+	smoke.visible = false
 	rig.add_child(smoke)
 	# The same practical-light grammar the alarm and engine-failure cues already
 	# use, so a failing section is legible without a new visual vocabulary.
@@ -598,10 +606,8 @@ func _start_component_repair_cue(component_id: StringName, effect: Dictionary) -
 		return
 	_component_repair_serial += 1
 	rig.name = "ComponentRepair_%s_%03d" % [String(component_id), _component_repair_serial]
-	if is_instance_valid(sparks):
-		sparks.emitting = false
-	if is_instance_valid(smoke):
-		smoke.emitting = false
+	_set_retained_particles_active(sparks, false)
+	_set_retained_particles_active(smoke, false)
 	_set_component_failure_shards_visible(effect, false)
 	glow.light_color = ENGINE_CYAN
 	glow.light_energy = COMPONENT_REPAIR_CUE_LIGHT_PEAK
@@ -808,10 +814,14 @@ func _apply_component_effect_visibility() -> void:
 			effect,
 			allowed and state >= COMPONENT_STATE_FAILED
 		)
-		if is_instance_valid(sparks):
-			sparks.emitting = allowed and state >= COMPONENT_STATE_IMPAIRED
-		if is_instance_valid(smoke):
-			smoke.emitting = allowed and state >= COMPONENT_STATE_FAILED
+		_set_retained_particles_active(
+			sparks,
+			allowed and state >= COMPONENT_STATE_IMPAIRED
+		)
+		_set_retained_particles_active(
+			smoke,
+			allowed and state >= COMPONENT_STATE_FAILED
+		)
 		if is_instance_valid(glow):
 			glow.light_color = (
 				DAMAGE_RED if state >= COMPONENT_STATE_FAILED else DAMAGE_AMBER
@@ -1317,9 +1327,18 @@ func _apply_stage_visuals() -> void:
 	var visible_damage := _ship_state != STATE_HIDDEN and _stage != DamageStage.DESTROYED
 	_apply_component_effect_visibility()
 	_apply_resolved_damage_severity()
-	_damage_sparks.emitting = visible_damage and _stage >= DamageStage.DAMAGED
-	_engine_failure_sparks.emitting = visible_damage and _stage >= DamageStage.CRITICAL
-	_engine_smoke.emitting = visible_damage and _stage >= DamageStage.CRITICAL
+	_set_retained_particles_active(
+		_damage_sparks,
+		visible_damage and _stage >= DamageStage.DAMAGED
+	)
+	_set_retained_particles_active(
+		_engine_failure_sparks,
+		visible_damage and _stage >= DamageStage.CRITICAL
+	)
+	_set_retained_particles_active(
+		_engine_smoke,
+		visible_damage and _stage >= DamageStage.CRITICAL
+	)
 
 	var next_alarm_active := (
 		_is_powered_active()
@@ -1689,6 +1708,7 @@ func _ensure_built() -> void:
 	_damage_sparks.name = "DamageSparks"
 	_damage_sparks.position = spark_anchor
 	_damage_sparks.emitting = false
+	_damage_sparks.visible = false
 	add_child(_damage_sparks)
 
 	_engine_failure_sparks = _make_sparks(ENGINE_SPARK_CRITICAL_AMOUNT, 0.46, 3.6, false)
@@ -1696,12 +1716,14 @@ func _ensure_built() -> void:
 	_engine_failure_sparks.position = smoke_anchor
 	_engine_failure_sparks.direction = Vector3(0.0, 0.15, 1.0)
 	_engine_failure_sparks.emitting = false
+	_engine_failure_sparks.visible = false
 	add_child(_engine_failure_sparks)
 
 	_engine_smoke = _make_smoke(false)
 	_engine_smoke.name = "EngineSmoke"
 	_engine_smoke.position = smoke_anchor
 	_engine_smoke.emitting = false
+	_engine_smoke.visible = false
 	add_child(_engine_smoke)
 
 	_warning_light = OmniLight3D.new()
@@ -1766,13 +1788,34 @@ func _make_smoke(one_shot_value: bool) -> CPUParticles3D:
 	return particles
 
 
-func _restart_particles_cleared(particles: CPUParticles3D) -> void:
-	if particles == null:
+## Retained particle nodes must be hidden as well as stopped. Godot can preserve
+## their draw buffer after emission stops; leaving the renderer visible lets a
+## dormant buffer appear as screen-filling spark geometry on some render paths.
+func _set_retained_particles_active(particles: CPUParticles3D, active: bool) -> void:
+	if not is_instance_valid(particles):
+		return
+	if active:
+		particles.visible = true
+		particles.emitting = true
 		return
 	particles.emitting = false
+	particles.visible = false
+
+
+func _refresh_retained_particle_visibility() -> void:
+	if _tearing_down or not is_inside_tree() or is_queued_for_deletion():
+		return
+	_apply_stage_visuals()
+
+
+func _restart_particles_cleared(particles: CPUParticles3D) -> void:
+	if not is_instance_valid(particles):
+		return
+	_set_retained_particles_active(particles, false)
 	if particles.is_inside_tree():
 		particles.restart(true)
 		particles.emitting = false
+		particles.visible = false
 
 
 func _create_materials() -> void:

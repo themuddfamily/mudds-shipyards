@@ -1306,6 +1306,15 @@ Complete these tracks in order. Do not hide a known stability or performance def
 
 The first focused audit wave has already closed several concrete production defects without treating that as an end-to-end playthrough: cargo source/destination reattachment is now one atomic, generation-safe transaction under synchronous removal and signal re-entry; orderly HUD/window exit enters the existing safe-start clean-shutdown seam before quitting; settings profiles reach all five retained ship input banks atomically; and whole-`Main` re-entry restores the exact retained pause/settings/activity focus target instead of leaving controller navigation unfocused or jumping Activity Back to Timed Race. Active activities now terminalize on pilot unseating and active-hull replacement even when Cinder is already fading or Main has detached/re-entered, rather than leaking non-convoy cargo/activity generations. Combat fire from a destroyed source epoch is quarantined across re-entry while consuming the rejected source sequence, so a same-instance regeneration cannot make that stale request current. Fleet destruction/regeneration, ship cameras, combat authority, audio teardown, berth indexes and long-lived Main identities have focused green lifecycle evidence, but packaged/native repetition and a reviewed residual P2 list remain open.
 
+The recurring screen-filling warm flash was reproduced from current `Main` at the
+reported fleet/deck camera and isolated to a dormant retained
+`HeroDamagePresentation/DamageSparks` renderer on Halyard. The shared presentation now
+stops and renderer-hides every inactive hull and component particle channel across
+healthy, repair, destruction, reset, hide and re-entry states, then reasserts that
+resolved visibility after child render instances finish entering the tree. Focused hull
+and component lifecycle suites are green, and the untouched exact-camera 2560x1440
+Forward+ llvmpipe capture is clean. Native-Windows package repetition remains `NOT_RUN`.
+
 The generic `ComponentDamageModel` now provides one generation-safe detached
 ledger with strict stages, ordered scalar and atomic multi-component damage and
 repair, all-or-none prevalidation, one aggregate revision, detached ordered

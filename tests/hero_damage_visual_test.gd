@@ -73,7 +73,15 @@ func _run() -> void:
 	_check(engine_smoke != null, "component builds persistent engine smoke")
 	_check(warning_light != null and failure_light != null, "component builds warning and engine-failure light cues")
 	_check(int(presentation.call("get_damage_stage")) == 0, "presentation begins healthy")
-	_check(not damage_sparks.emitting and not engine_smoke.emitting, "healthy presentation has no damage particles")
+	_check(
+		not damage_sparks.emitting
+		and not damage_sparks.visible
+		and not failure_sparks.emitting
+		and not failure_sparks.visible
+		and not engine_smoke.emitting
+		and not engine_smoke.visible,
+		"healthy presentation stops and renderer-hides every retained damage particle channel"
+	)
 	var persistent_spark_audit := presentation.call("get_spark_mesh_allocation_audit") as Dictionary
 	_check(
 		bool(persistent_spark_audit.get("valid", false)),
@@ -239,8 +247,17 @@ func _run() -> void:
 	presentation.call("update_state", 0.68, &"active", Vector3(4.0, 1.0, -7.0))
 	_check(int(presentation.call("get_damage_stage")) == 1, "damaged threshold is inclusive")
 	_check(StringName(presentation.call("get_status")) == &"damaged", "damaged stage exposes a stable status label")
-	_check(damage_sparks.emitting, "damaged stage emits persistent sparks")
-	_check(not engine_smoke.emitting and not failure_sparks.emitting, "damaged stage does not show critical engine cues early")
+	_check(
+		damage_sparks.emitting and damage_sparks.visible,
+		"damaged stage emits visible persistent sparks"
+	)
+	_check(
+		not engine_smoke.emitting
+		and not engine_smoke.visible
+		and not failure_sparks.emitting
+		and not failure_sparks.visible,
+		"damaged stage renderer-hides critical engine cues until needed"
+	)
 	_check(bool(presentation.call("is_alarm_active")), "an active damaged ship requests a warning alarm")
 	_check(not bool(presentation.call("is_engine_failure_active")), "damaged stage retains normal engine behavior")
 
@@ -313,8 +330,17 @@ func _run() -> void:
 	presentation.call("update_state", 0.32, &"active", critical_velocity)
 	_check(int(presentation.call("get_damage_stage")) == 2, "critical threshold is inclusive")
 	_check(StringName(presentation.call("get_status")) == &"critical", "critical stage exposes a stable status label")
-	_check(damage_sparks.emitting and failure_sparks.emitting, "critical stage combines hull and engine sparks")
-	_check(engine_smoke.emitting, "critical stage emits persistent engine smoke")
+	_check(
+		damage_sparks.emitting
+		and damage_sparks.visible
+		and failure_sparks.emitting
+		and failure_sparks.visible,
+		"critical stage combines visible hull and engine sparks"
+	)
+	_check(
+		engine_smoke.emitting and engine_smoke.visible,
+		"critical stage emits visible persistent engine smoke"
+	)
 	_check(bool(presentation.call("is_alarm_active")), "critical stage keeps the alarm active")
 	_check(bool(presentation.call("is_engine_failure_active")), "critical stage raises an engine-failure cue")
 	_check((presentation.call("get_last_world_velocity") as Vector3).is_equal_approx(critical_velocity), "component retains authoritative world velocity")
@@ -351,7 +377,15 @@ func _run() -> void:
 	_check(destruction_root != null and destruction_root.get_node_or_null("ExplosionFlash") != null, "lethal stage creates a flash")
 	_check(destruction_root != null and destruction_root.get_node_or_null("ExplosionShockwave") != null, "lethal stage creates a shockwave")
 	_check(_count_debris(destruction_root) == 7, "lethal stage creates the configured physical debris count")
-	_check(not damage_sparks.emitting and not engine_smoke.emitting, "lethal stage stops persistent ship-local emitters")
+	_check(
+		not damage_sparks.emitting
+		and not damage_sparks.visible
+		and not failure_sparks.emitting
+		and not failure_sparks.visible
+		and not engine_smoke.emitting
+		and not engine_smoke.visible,
+		"lethal stage stops and renderer-hides persistent ship-local emitters"
+	)
 	_check(_destruction_events.size() == 1, "lethal stage reports destruction once")
 	if not _destruction_events.is_empty():
 		var event_position: Vector3 = _destruction_events[0].get("position", Vector3.ZERO)
@@ -374,7 +408,15 @@ func _run() -> void:
 	_check(int(presentation.call("get_live_world_effect_count")) == 0, "reset clears impact and destruction world effects synchronously")
 	_check(presentation.call("get_destruction_effect_root") == null, "reset drops the destruction effect reference")
 	_check(not destruction_root.is_inside_tree(), "reset detaches the old lethal effect root")
-	_check(not damage_sparks.emitting and not failure_sparks.emitting and not engine_smoke.emitting, "reset clears every local damage emitter")
+	_check(
+		not damage_sparks.emitting
+		and not damage_sparks.visible
+		and not failure_sparks.emitting
+		and not failure_sparks.visible
+		and not engine_smoke.emitting
+		and not engine_smoke.visible,
+		"reset clears and renderer-hides every local damage emitter"
+	)
 	_check(not bool(presentation.call("is_alarm_active")) and not bool(presentation.call("is_engine_failure_active")), "reset clears alarm and engine-failure state")
 	_check(_clear_events == clear_events_before_reset + 1, "reset reports completed effect cleanup")
 
