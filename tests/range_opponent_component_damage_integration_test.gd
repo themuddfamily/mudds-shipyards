@@ -252,7 +252,9 @@ func _test_derived_archetype_component_presentation() -> void:
 		var activated := opponent.activate_with_result(
 			Transform3D(Basis.IDENTITY, Vector3(archetype_index * 20.0, 0.0, 0.0))
 		)
+		var hull_sparks := opponent.get_node_or_null("DamageSparks") as CPUParticles3D
 		var weapon_sparks := opponent.get_node_or_null("WeaponDamageSparks") as CPUParticles3D
+		var engine_smoke := opponent.get("_damage_smoke") as CPUParticles3D
 		var sensor_light := opponent.get_node_or_null("SensorDamageLight") as OmniLight3D
 		var engine_lights := opponent.get("_engine_lights") as Array
 		var engine_glows := opponent.get("_engine_glows") as Array
@@ -265,8 +267,15 @@ func _test_derived_archetype_component_presentation() -> void:
 			)
 		_check(
 			bool(activated.get("accepted", false))
+				and hull_sparks != null
+				and not hull_sparks.emitting
+				and not hull_sparks.visible
 				and weapon_sparks != null
 				and not weapon_sparks.emitting
+				and not weapon_sparks.visible
+				and engine_smoke != null
+				and not engine_smoke.emitting
+				and not engine_smoke.visible
 				and sensor_light != null
 				and is_zero_approx(sensor_light.light_energy)
 				and engine_lights.size() == 2
@@ -289,7 +298,10 @@ func _test_derived_archetype_component_presentation() -> void:
 		opponent.call("_update_presentation", 0.1)
 		var muzzle := opponent.call("_get_firing_muzzle") as Node3D
 		_check(
-			weapon_sparks.emitting
+			hull_sparks.emitting
+				and hull_sparks.visible
+				and weapon_sparks.emitting
+				and weapon_sparks.visible
 				and muzzle != null
 				and weapon_sparks.global_position.is_equal_approx(muzzle.global_position),
 			"%s weapon degradation sparks at its real archetype muzzle" % archetype_id
@@ -321,13 +333,13 @@ func _test_derived_archetype_component_presentation() -> void:
 			opponent.global_position
 		)
 		opponent.call("_update_presentation", 0.1)
-		var engine_smoke := opponent.get("_damage_smoke") as CPUParticles3D
 		var port_engine := engine_glows[0] as MeshInstance3D
 		engine_state = _component_state(opponent, &"engine")
 		_check(
 			(engine_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"critical"
 				and engine_smoke != null
 				and engine_smoke.emitting
+				and engine_smoke.visible
 				and port_engine != null
 				and engine_smoke.global_position.distance_to(port_engine.global_position) < 1.2,
 			"%s critical engine stage reuses smoke at the authored port propulsion mount" % archetype_id
@@ -341,7 +353,11 @@ func _test_derived_archetype_component_presentation() -> void:
 				and is_zero_approx(engine_light.light_energy)
 		_check(
 			not opponent.is_active()
+				and not hull_sparks.emitting
+				and not hull_sparks.visible
 				and not weapon_sparks.emitting
+				and not weapon_sparks.visible
+				and not engine_smoke.visible
 				and is_zero_approx(sensor_light.light_energy)
 				and propulsion_presentation_cleared
 				and opponent.get_destruction_effect_root() != null
@@ -363,7 +379,12 @@ func _test_derived_archetype_component_presentation() -> void:
 				and bool((reused.get("recovery", {}) as Dictionary).get("valid", false))
 				and bool(recovery.get("valid", false))
 				and int(recovery.get("model_generation", -1)) == destroyed_generation + 1
+				and not hull_sparks.emitting
+				and not hull_sparks.visible
 				and not weapon_sparks.emitting
+				and not weapon_sparks.visible
+				and not engine_smoke.emitting
+				and not engine_smoke.visible
 				and (weapon_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal"
 				and is_zero_approx(sensor_light.light_energy)
 				and (sensor_state.get("stage", {}) as Dictionary).get("stage_id", &"") == &"nominal"

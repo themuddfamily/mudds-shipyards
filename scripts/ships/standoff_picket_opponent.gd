@@ -1869,11 +1869,13 @@ func _build_damage_effects() -> void:
 	_damage_sparks.position = Vector3(0.5, 0.35, 1.6)
 	_damage_sparks.one_shot = false
 	_damage_sparks.emitting = false
+	_damage_sparks.visible = false
 	add_child(_damage_sparks)
 	_damage_smoke = _make_smoke_particles(false)
 	_damage_smoke.name = "LanceSmoke"
 	_damage_smoke.position = Vector3(-0.86, 0.1, 4.6)
 	_damage_smoke.emitting = false
+	_damage_smoke.visible = false
 	add_child(_damage_smoke)
 
 

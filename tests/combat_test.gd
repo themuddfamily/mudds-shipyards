@@ -85,20 +85,38 @@ func _run() -> void:
 	var damage_sparks := opponent.get_node_or_null("DamageSparks") as CPUParticles3D
 	var engine_smoke := opponent.get_node_or_null("EngineSmoke") as CPUParticles3D
 	var visual_root := opponent.get_node_or_null("RangeInterceptorVisual") as Node3D
-	_check(damage_sparks != null and not damage_sparks.emitting, "healthy stage has no damage sparks")
-	_check(engine_smoke != null and not engine_smoke.emitting, "healthy stage has no engine smoke")
+	_check(
+		damage_sparks != null and not damage_sparks.emitting and not damage_sparks.visible,
+		"healthy stage stops and renderer-hides retained damage sparks"
+	)
+	_check(
+		engine_smoke != null and not engine_smoke.emitting and not engine_smoke.visible,
+		"healthy stage stops and renderer-hides retained engine smoke"
+	)
 
 	# Damage progresses through readable healthy, damaged, and critical stages.
 	var first_hit := opponent.global_position + Vector3(0.8, 0.3, -1.2)
 	opponent.call("apply_damage", maximum_health * 0.4, first_hit)
 	_check(is_equal_approx(float(opponent.call("get_health")), maximum_health * 0.6), "damage reduces authoritative health")
-	_check(damage_sparks != null and damage_sparks.emitting, "damaged stage emits persistent sparks")
-	_check(engine_smoke != null and not engine_smoke.emitting, "damaged stage does not enter critical smoke early")
+	_check(
+		damage_sparks != null and damage_sparks.emitting and damage_sparks.visible,
+		"damaged stage emits visible persistent sparks"
+	)
+	_check(
+		engine_smoke != null and not engine_smoke.emitting and not engine_smoke.visible,
+		"damaged stage renderer-hides critical smoke until needed"
+	)
 
 	opponent.call("apply_damage", maximum_health * 0.3, first_hit + Vector3.UP)
 	_check(is_equal_approx(float(opponent.call("get_health")), maximum_health * 0.3), "second hit reaches critical health")
-	_check(damage_sparks != null and damage_sparks.emitting, "critical stage retains damage sparks")
-	_check(engine_smoke != null and engine_smoke.emitting, "critical stage emits engine smoke")
+	_check(
+		damage_sparks != null and damage_sparks.emitting and damage_sparks.visible,
+		"critical stage retains visible damage sparks"
+	)
+	_check(
+		engine_smoke != null and engine_smoke.emitting and engine_smoke.visible,
+		"critical stage emits visible engine smoke"
+	)
 	_check(_health_events.size() == 3, "each accepted damage event reports health")
 
 	# A lethal hit disables the physical craft and leaves a staged debris burst.
@@ -117,6 +135,13 @@ func _run() -> void:
 	_check(destruction_root != null and destruction_root.get_node_or_null("DestructionSmoke") != null, "destruction creates a smoke burst")
 	_check(destruction_root != null and destruction_root.get_node_or_null("DestructionFlash") != null, "destruction creates a flash")
 	_check(_count_debris(destruction_root) == 10, "destruction creates the complete physical debris stage")
+	_check(
+		not damage_sparks.emitting
+		and not damage_sparks.visible
+		and not engine_smoke.emitting
+		and not engine_smoke.visible,
+		"destruction stops and renderer-hides retained opponent particles"
+	)
 	_test_particle_mesh_sharing(opponent as RangeOpponent, damage_sparks, engine_smoke, destruction_root)
 	var destruction_pose := destruction_root.global_transform if destruction_root != null else Transform3D.IDENTITY
 	var moved_owner_pose := opponent.global_transform
@@ -137,7 +162,15 @@ func _run() -> void:
 	_check(is_equal_approx(absf(opponent.global_basis.determinant()), 1.0), "reactivation normalizes the spawn basis")
 	_check(is_equal_approx(float(opponent.call("get_health")), maximum_health), "reactivation restores health")
 	_check(visual_root != null and visual_root.visible, "reactivation restores the hull presentation")
-	_check(damage_sparks != null and not damage_sparks.emitting and engine_smoke != null and not engine_smoke.emitting, "reactivation clears damage stages")
+	_check(
+		damage_sparks != null
+		and not damage_sparks.emitting
+		and not damage_sparks.visible
+		and engine_smoke != null
+		and not engine_smoke.emitting
+		and not engine_smoke.visible,
+		"reactivation clears and renderer-hides retained damage stages"
+	)
 	_check(not destruction_root.is_inside_tree(), "reactivation synchronously detaches the prior world-effect root")
 	_check(opponent.call("get_destruction_effect_root") == null, "reactivation clears every destruction effect reference")
 

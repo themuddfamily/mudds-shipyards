@@ -271,6 +271,8 @@ var _presented_component_generation := 0
 
 func _enter_tree() -> void:
 	_tearing_down = false
+	if _built:
+		call_deferred("_refresh_retained_particle_visibility")
 
 
 func _ready() -> void:
@@ -292,6 +294,10 @@ func _ready() -> void:
 			_apply_spawn_on_ready = false
 	else:
 		deactivate()
+	# Retained particle render instances finish registering after their owner is
+	# ready. Reassert the resolved stage once registration completes so a dormant
+	# opponent cannot submit a default or stale particle buffer for an early frame.
+	call_deferred("_refresh_retained_particle_visibility")
 
 
 func _exit_tree() -> void:
@@ -1530,7 +1536,10 @@ func _set_damage_stage_for_health(presented_health: float, presentation_active: 
 	if _damage_sparks == null or _damage_smoke == null:
 		return
 	var ratio := presented_health / maxf(get_maximum_health(), 0.001)
-	_damage_sparks.emitting = presentation_active and ratio <= 0.67
+	_set_retained_particles_active(
+		_damage_sparks,
+		presentation_active and ratio <= 0.67
+	)
 	_set_engine_component_damage_presentation(presentation_active)
 	_set_weapon_component_damage_presentation(presentation_active)
 	_set_sensor_component_damage_presentation(presentation_active)
@@ -1553,10 +1562,8 @@ func _restore_component_damage_presentation_after_reset(reset_result: Dictionary
 
 func _clear_component_damage_presentation() -> void:
 	if _damage_sparks != null:
-		_damage_sparks.emitting = false
 		_restart_particles_cleared(_damage_sparks)
 	if _weapon_damage_sparks != null:
-		_weapon_damage_sparks.emitting = false
 		_restart_particles_cleared(_weapon_damage_sparks)
 	if _sensor_damage_light != null:
 		_sensor_damage_light.light_energy = 0.0
@@ -1714,9 +1721,12 @@ func _set_engine_component_damage_presentation(presentation_active: bool) -> voi
 		if presentation_active else 1.0
 	)
 	if _damage_smoke != null:
-		_damage_smoke.emitting = presentation_active and (
-			_presented_engine_damage_stage == &"critical"
-			or _presented_engine_damage_stage == &"destroyed"
+		_set_retained_particles_active(
+			_damage_smoke,
+			presentation_active and (
+				_presented_engine_damage_stage == &"critical"
+				or _presented_engine_damage_stage == &"destroyed"
+			)
 		)
 
 
@@ -1724,7 +1734,6 @@ func _clear_engine_component_damage_presentation() -> void:
 	_presented_engine_damage_stage = &"nominal"
 	_presented_engine_performance_multiplier = 1.0
 	if _damage_smoke != null:
-		_damage_smoke.emitting = false
 		_restart_particles_cleared(_damage_smoke)
 	for glow in _engine_glows:
 		if glow != null and is_instance_valid(glow):
@@ -1748,10 +1757,13 @@ func _set_weapon_component_damage_presentation(presentation_active: bool) -> voi
 	var stage_id := StringName(stage.get("stage_id", &"nominal"))
 	var should_emit := presentation_active and stage_id != &"nominal"
 	_sync_weapon_damage_anchor()
-	if _weapon_damage_sparks.emitting and not should_emit:
+	if (
+		(_weapon_damage_sparks.emitting or _weapon_damage_sparks.visible)
+		and not should_emit
+	):
 		_restart_particles_cleared(_weapon_damage_sparks)
 	else:
-		_weapon_damage_sparks.emitting = should_emit
+		_set_retained_particles_active(_weapon_damage_sparks, should_emit)
 
 
 func _ensure_weapon_component_damage_presentation() -> void:
@@ -1762,6 +1774,7 @@ func _ensure_weapon_component_damage_presentation() -> void:
 	_weapon_damage_sparks.name = "WeaponDamageSparks"
 	_weapon_damage_sparks.one_shot = false
 	_weapon_damage_sparks.emitting = false
+	_weapon_damage_sparks.visible = false
 	add_child(_weapon_damage_sparks)
 	_sync_weapon_damage_anchor()
 
@@ -2008,11 +2021,35 @@ func _remove_transient_effect(effect_id: int) -> void:
 		effect.queue_free()
 
 
-func _restart_particles_cleared(particles: CPUParticles3D) -> void:
-	if particles == null or not is_instance_valid(particles):
+## Persistent opponent particle nodes are hidden as well as stopped. A dormant
+## CPUParticles3D can retain renderer buffer contents after emission ends; hiding
+## the GeometryInstance prevents that buffer from appearing as near-camera or
+## screen-filling geometry until the authoritative damage stage needs it again.
+func _set_retained_particles_active(particles: CPUParticles3D, active: bool) -> void:
+	if not is_instance_valid(particles):
 		return
-	particles.restart(true)
+	if active:
+		particles.visible = true
+		particles.emitting = true
+		return
 	particles.emitting = false
+	particles.visible = false
+
+
+func _refresh_retained_particle_visibility() -> void:
+	if _tearing_down or not is_inside_tree() or is_queued_for_deletion() or not _built:
+		return
+	_set_damage_stage_for_health(get_health(), _active)
+
+
+func _restart_particles_cleared(particles: CPUParticles3D) -> void:
+	if not is_instance_valid(particles):
+		return
+	_set_retained_particles_active(particles, false)
+	if particles.is_inside_tree():
+		particles.restart(true)
+		particles.emitting = false
+		particles.visible = false
 
 
 func _clear_destruction_effects() -> void:
@@ -2308,11 +2345,13 @@ func _build_damage_effects() -> void:
 	_damage_sparks.position = Vector3(-1.2, 0.45, 1.8)
 	_damage_sparks.one_shot = false
 	_damage_sparks.emitting = false
+	_damage_sparks.visible = false
 	add_child(_damage_sparks)
 	_damage_smoke = _make_smoke_particles(false)
 	_damage_smoke.name = "EngineSmoke"
 	_damage_smoke.position = Vector3(-2.67, 0.15, 3.55)
 	_damage_smoke.emitting = false
+	_damage_smoke.visible = false
 	add_child(_damage_smoke)
 	_ensure_weapon_component_damage_presentation()
 
