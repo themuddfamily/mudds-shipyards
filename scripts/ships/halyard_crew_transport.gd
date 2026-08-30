@@ -385,7 +385,7 @@ const RENDER_GEOMETRY_SUBMISSION_COUNT := 110
 # NoseBelly now clears the deck using the same 4.30 x 0.36 x 2.40 stock as
 # NoseRoof; material overrides keep their finishes distinct while the cache
 # deliberately shares that mesh resource.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 66
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 69
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 16
 
 var _halyard_built := false
@@ -2769,7 +2769,16 @@ func _relocate_and_restyle_cockpit(
 func _build_pressure_hull() -> void:
 	var length := TUBE_AFT_Z - TUBE_FORWARD_Z
 	var centre_z := (TUBE_AFT_Z + TUBE_FORWARD_Z) * 0.5
-	_box(_halyard_visual, "HullCore", Vector3(0.0, 1.85, centre_z), Vector3(HULL_HALF_WIDTH * 2.0, 2.90, length), _halyard_materials.hull_olive)
+	_port_aperture_box(
+		_halyard_visual,
+		"HullCore",
+		Vector3(0.0, 1.85, centre_z),
+		Vector3(HULL_HALF_WIDTH * 2.0, 2.90, length),
+		_halyard_materials.hull_olive,
+		Vector2(1.55, AIRSTAIR_Z),
+		Vector2(2.10, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
+		0.07
+	)
 	_box(_halyard_visual, "HullCrown", Vector3(0.0, 3.35, centre_z), Vector3(4.20, 1.00, length - 0.60), _halyard_materials.hull_olive)
 	_box(_halyard_visual, "HullCrownCap", Vector3(0.0, 3.90, centre_z), Vector3(2.60, 0.30, length - 1.40), _halyard_materials.hull_shade)
 	_box(_halyard_visual, "HullBelly", Vector3(0.0, 0.12, centre_z), Vector3(4.30, 0.80, length - 0.20), _halyard_materials.hull_shade)
@@ -2905,10 +2914,34 @@ func _build_flank_detail() -> void:
 	var airstair_nosing_names := PackedStringArray()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(_halyard_visual, side_name + "WindowFrame", Vector3(side * (HULL_HALF_WIDTH + 0.04), 2.35, band_centre_z), Vector3(0.12, 0.78, band_length), _halyard_materials.structure)
-		_box(_halyard_visual, side_name + "WindowSill", Vector3(side * (HULL_HALF_WIDTH + 0.06), 1.92, band_centre_z), Vector3(0.16, 0.14, band_length), _halyard_materials.accent)
+		if side < 0.0:
+			_port_aperture_box(
+				_halyard_visual,
+				side_name + "WindowFrame",
+				Vector3(side * (HULL_HALF_WIDTH + 0.04), 2.35, band_centre_z),
+				Vector3(0.12, 0.78, band_length),
+				_halyard_materials.structure,
+				Vector2(2.35, AIRSTAIR_Z),
+				Vector2(0.78, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
+				0.12
+			)
+			_port_aperture_box(
+				_halyard_visual,
+				side_name + "WindowSill",
+				Vector3(side * (HULL_HALF_WIDTH + 0.06), 1.92, band_centre_z),
+				Vector3(0.16, 0.14, band_length),
+				_halyard_materials.accent,
+				Vector2(1.92, AIRSTAIR_Z),
+				Vector2(0.14, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
+				0.16
+			)
+		else:
+			_box(_halyard_visual, side_name + "WindowFrame", Vector3(side * (HULL_HALF_WIDTH + 0.04), 2.35, band_centre_z), Vector3(0.12, 0.78, band_length), _halyard_materials.structure)
+			_box(_halyard_visual, side_name + "WindowSill", Vector3(side * (HULL_HALF_WIDTH + 0.06), 1.92, band_centre_z), Vector3(0.16, 0.14, band_length), _halyard_materials.accent)
 		for window_index in CABIN_WINDOW_COUNT:
 			var window_z := CABIN_WINDOW_FIRST_Z + float(window_index) * CABIN_WINDOW_PITCH
+			if side < 0.0 and window_index == 2:
+				window_z = -9.55
 			# The lit pane sits proud of the recessed frame. Authored inboard of it
 			# on the first pass, every window was hidden inside the hull skin and
 			# the band rendered as an unbroken dark stripe.
@@ -2924,7 +2957,19 @@ func _build_flank_detail() -> void:
 			cabin_window_pane_names.append(side_name + "WindowPane%02d" % window_index)
 		# A single continuous banding stripe in the identification accent, low on
 		# the flank where it is unbroken by windows or hardware.
-		_box(_halyard_visual, side_name + "IdentificationBand", Vector3(side * (HULL_HALF_WIDTH + 0.05), 0.92, -1.20), Vector3(0.14, 0.36, 17.60), _halyard_materials.accent)
+		if side < 0.0:
+			_port_aperture_box(
+				_halyard_visual,
+				side_name + "IdentificationBand",
+				Vector3(side * (HULL_HALF_WIDTH + 0.05), 0.92, -1.20),
+				Vector3(0.14, 0.36, 17.60),
+				_halyard_materials.accent,
+				Vector2(0.92, AIRSTAIR_Z),
+				Vector2(0.36, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
+				0.14
+			)
+		else:
+			_box(_halyard_visual, side_name + "IdentificationBand", Vector3(side * (HULL_HALF_WIDTH + 0.05), 0.92, -1.20), Vector3(0.14, 0.36, 17.60), _halyard_materials.accent)
 		# Defensive pulse mount. The Halyard's cadence is the slowest in the
 		# fleet; this is self-defence hardware, not an armament.
 		var weapon_parts: Array[MeshInstance3D] = []
@@ -2987,7 +3032,16 @@ func _build_flank_detail() -> void:
 				))
 				airstair_nosing_names.append("AirstairNosing%02d" % tread_index)
 			_box(_halyard_visual, "AirstairStringer", Vector3(-3.60, -0.36, AIRSTAIR_Z), Vector3(2.00, 0.16, 0.14), _halyard_materials.structure, Vector3(0.0, 0.0, deg_to_rad(-46.0)))
-			_box(_halyard_visual, "AirstairHatchSurround", Vector3(-2.70, 1.55, AIRSTAIR_Z), Vector3(0.16, 2.10, 1.90), _halyard_materials.accent)
+			_port_aperture_box(
+				_halyard_visual,
+				"AirstairHatchSurround",
+				Vector3(-2.70, 1.55, AIRSTAIR_Z),
+				Vector3(0.16, 2.30, 2.14),
+				_halyard_materials.accent,
+				Vector2(1.55, AIRSTAIR_Z),
+				Vector2(2.00, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
+				0.16
+			)
 	# The visible steps are not the boarding surface: PortAirstairCollision and
 	# the access/deck markers retain that physical contract. This batch keeps the
 	# exact four-step silhouette while replacing four one-surface submissions.
@@ -3132,14 +3186,28 @@ func _build_crew_cabin() -> void:
 	var cabin_stowage_mesh := _cabin_forward_taper_mesh()
 	for side in [-1.0, 1.0]:
 		var side_name := "Port" if side < 0.0 else "Starboard"
-		_box(_crew_cabin, side_name + "CabinSidewall", Vector3(side * 2.46, 1.92, -3.65), Vector3(0.18, 2.86, 12.50), _halyard_materials.structure)
+		if side < 0.0:
+			_port_aperture_box(
+				_crew_cabin,
+				side_name + "CabinSidewall",
+				Vector3(side * 2.46, 1.92, -3.65),
+				Vector3(0.18, 2.86, 12.50),
+				_halyard_materials.structure,
+				Vector2(1.55, AIRSTAIR_Z),
+				Vector2(2.10, PORT_AIRSTAIR_HATCH_APERTURE_WIDTH),
+				0.18
+			)
+		else:
+			_box(_crew_cabin, side_name + "CabinSidewall", Vector3(side * 2.46, 1.92, -3.65), Vector3(0.18, 2.86, 12.50), _halyard_materials.structure)
 		_box(_crew_cabin, side_name + "CabinLightStrip", Vector3(side * 2.30, 3.22, -3.65), Vector3(0.05, 0.12, 11.60), _halyard_materials.interior_light)
 		# Inboard faces of the same ten windows. Without these the cabin sidewall
 		# is a blank bulkhead: the exterior band is outboard of it, so the first
 		# rendered pass produced a passenger cabin with no windows in it.
 		for window_index in CABIN_WINDOW_COUNT:
 			var window_z := CABIN_WINDOW_FIRST_Z + float(window_index) * CABIN_WINDOW_PITCH
-			if window_z < -9.30 or window_z > 2.10:
+			if side < 0.0 and window_index == 2:
+				window_z = -9.55
+			if window_z < -9.80 or window_z > 2.10:
 				continue
 			_box(_crew_cabin, side_name + "CabinWindowSurround%02d" % window_index, Vector3(side * 2.40, 2.35, window_z), Vector3(0.09, 0.68, 1.20), _halyard_materials.trim)
 			cabin_window_pane_transforms.append(Transform3D(
@@ -4290,6 +4358,88 @@ func _box(
 	instance.material_override = material
 	parent.add_child(instance)
 	return instance
+
+
+## One closed box shell with a rectangular opening through its port (-X) face.
+## The four reveal faces close the jamb, sill and header back to the next skin,
+## so opening the hatch cannot expose backfaces or a hollow hull edge. This is
+## used by the aligned exterior surround, hull skin and cabin wall without
+## adding renderer nodes or changing the craft's collision authority.
+func _port_aperture_box(
+		parent: Node3D,
+		node_name: String,
+		box_position: Vector3,
+		size: Vector3,
+		material: Material,
+		aperture_center_yz: Vector2,
+		aperture_size_yz: Vector2,
+		reveal_depth: float
+	) -> MeshInstance3D:
+	var half := size * 0.5
+	var min_x := -half.x
+	var max_x := half.x
+	var min_y := -half.y
+	var max_y := half.y
+	var min_z := -half.z
+	var max_z := half.z
+	var aperture_y := aperture_center_yz.x - box_position.y
+	var aperture_z := aperture_center_yz.y - box_position.z
+	var aperture_min_y := aperture_y - aperture_size_yz.x * 0.5
+	var aperture_max_y := aperture_y + aperture_size_yz.x * 0.5
+	var aperture_min_z := aperture_z - aperture_size_yz.y * 0.5
+	var aperture_max_z := aperture_z + aperture_size_yz.y * 0.5
+	var reveal_x := minf(min_x + reveal_depth, max_x)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Five complete outer faces. The port face is emitted as four rectangles
+	# around the aperture below.
+	if reveal_depth < size.x - 0.001:
+		_add_aperture_quad(tool, Vector3(max_x, min_y, min_z), Vector3(max_x, max_y, min_z), Vector3(max_x, max_y, max_z), Vector3(max_x, min_y, max_z), Vector3.RIGHT)
+	else:
+		# Thin trim and cabin-wall layers need a true through-opening, not a
+		# recess whose unseen inner face still seals the route.
+		_add_aperture_quad(tool, Vector3(max_x, min_y, min_z), Vector3(max_x, aperture_min_y, min_z), Vector3(max_x, aperture_min_y, max_z), Vector3(max_x, min_y, max_z), Vector3.RIGHT)
+		_add_aperture_quad(tool, Vector3(max_x, aperture_max_y, min_z), Vector3(max_x, max_y, min_z), Vector3(max_x, max_y, max_z), Vector3(max_x, aperture_max_y, max_z), Vector3.RIGHT)
+		_add_aperture_quad(tool, Vector3(max_x, aperture_min_y, min_z), Vector3(max_x, aperture_max_y, min_z), Vector3(max_x, aperture_max_y, aperture_min_z), Vector3(max_x, aperture_min_y, aperture_min_z), Vector3.RIGHT)
+		_add_aperture_quad(tool, Vector3(max_x, aperture_min_y, aperture_max_z), Vector3(max_x, aperture_max_y, aperture_max_z), Vector3(max_x, aperture_max_y, max_z), Vector3(max_x, aperture_min_y, max_z), Vector3.RIGHT)
+	_add_aperture_quad(tool, Vector3(min_x, max_y, min_z), Vector3(min_x, max_y, max_z), Vector3(max_x, max_y, max_z), Vector3(max_x, max_y, min_z), Vector3.UP)
+	_add_aperture_quad(tool, Vector3(min_x, min_y, max_z), Vector3(min_x, min_y, min_z), Vector3(max_x, min_y, min_z), Vector3(max_x, min_y, max_z), Vector3.DOWN)
+	_add_aperture_quad(tool, Vector3(min_x, min_y, min_z), Vector3(min_x, max_y, min_z), Vector3(max_x, max_y, min_z), Vector3(max_x, min_y, min_z), Vector3.FORWARD)
+	_add_aperture_quad(tool, Vector3(max_x, min_y, max_z), Vector3(max_x, max_y, max_z), Vector3(min_x, max_y, max_z), Vector3(min_x, min_y, max_z), Vector3.BACK)
+	_add_aperture_quad(tool, Vector3(min_x, min_y, min_z), Vector3(min_x, min_y, max_z), Vector3(min_x, aperture_min_y, max_z), Vector3(min_x, aperture_min_y, min_z), Vector3.LEFT)
+	_add_aperture_quad(tool, Vector3(min_x, aperture_max_y, min_z), Vector3(min_x, aperture_max_y, max_z), Vector3(min_x, max_y, max_z), Vector3(min_x, max_y, min_z), Vector3.LEFT)
+	_add_aperture_quad(tool, Vector3(min_x, aperture_min_y, min_z), Vector3(min_x, aperture_min_y, aperture_min_z), Vector3(min_x, aperture_max_y, aperture_min_z), Vector3(min_x, aperture_max_y, min_z), Vector3.LEFT)
+	_add_aperture_quad(tool, Vector3(min_x, aperture_min_y, aperture_max_z), Vector3(min_x, aperture_min_y, max_z), Vector3(min_x, aperture_max_y, max_z), Vector3(min_x, aperture_max_y, aperture_max_z), Vector3.LEFT)
+	# Closed reveals point into the opening and terminate exactly on the next
+	# authored skin, rather than extending across the walkable cabin.
+	_add_aperture_quad(tool, Vector3(min_x, aperture_min_y, aperture_min_z), Vector3(reveal_x, aperture_min_y, aperture_min_z), Vector3(reveal_x, aperture_max_y, aperture_min_z), Vector3(min_x, aperture_max_y, aperture_min_z), Vector3.BACK)
+	_add_aperture_quad(tool, Vector3(reveal_x, aperture_min_y, aperture_max_z), Vector3(min_x, aperture_min_y, aperture_max_z), Vector3(min_x, aperture_max_y, aperture_max_z), Vector3(reveal_x, aperture_max_y, aperture_max_z), Vector3.FORWARD)
+	_add_aperture_quad(tool, Vector3(min_x, aperture_min_y, aperture_max_z), Vector3(reveal_x, aperture_min_y, aperture_max_z), Vector3(reveal_x, aperture_min_y, aperture_min_z), Vector3(min_x, aperture_min_y, aperture_min_z), Vector3.UP)
+	_add_aperture_quad(tool, Vector3(min_x, aperture_max_y, aperture_min_z), Vector3(reveal_x, aperture_max_y, aperture_min_z), Vector3(reveal_x, aperture_max_y, aperture_max_z), Vector3(min_x, aperture_max_y, aperture_max_z), Vector3.DOWN)
+	var mesh := tool.commit()
+	mesh.resource_name = node_name + "PortAperture"
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.position = box_position
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.set_meta(&"port_hatch_aperture", true)
+	instance.set_meta(&"aperture_size", aperture_size_yz)
+	parent.add_child(instance)
+	return instance
+
+
+func _add_aperture_quad(
+		tool: SurfaceTool,
+		a: Vector3,
+		b: Vector3,
+		c: Vector3,
+		d: Vector3,
+		normal: Vector3
+	) -> void:
+	for vertex in [a, b, c, a, c, d]:
+		tool.set_normal(normal)
+		tool.add_vertex(vertex)
 
 
 ## One shared six-face prism for the existing port/starboard overhead lockers.
