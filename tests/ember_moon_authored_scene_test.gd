@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 75
+const EXPECTED_ASSERTIONS := 79
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -83,13 +83,13 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	)
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 81
+		audit.performance.node_count == 83
 			and audit.performance.mesh_instances == 22
 			and audit.performance.multi_mesh_instances == 8
 			and audit.performance.multi_mesh_copies == 42
 			and audit.performance.render_submissions == 30
-			and audit.performance.static_bodies == 8
-			and audit.performance.collision_shapes == 26
+			and audit.performance.static_bodies == 9
+			and audit.performance.collision_shapes == 27
 			and audit.performance.triangle_count <= 60_000,
 		"authored content plus five terrain rings stay inside the exact bounded budget",
 	)
@@ -109,8 +109,14 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 			and is_equal_approx(float(terrain.flatten_radius_m), 750.0)
 			and is_equal_approx(float(terrain.visual_clearance_radius_m), 256.0)
 			and is_equal_approx(float(terrain.collision_clearance_radius_m), 48.0)
+			and not bool((terrain.actor_collision as Dictionary).active)
+			and float((terrain.actor_collision as Dictionary).activation_distance_m)
+				== 18_432.0
+			and int(terrain.scene_collision_triangle_ceiling) == 41_088
+			and int(terrain.scene_collision_vertex_ceiling) == 41_600
+			and int(terrain.scene_active_node_ceiling) == 84
 			and (terrain.material_tint as Color).is_equal_approx(Color("bd704f")),
-		"five basalt-tinted rings surround the clear caldera and extend physical support beyond its patch",
+		"five basalt-tinted rings and one dormant bounded actor-support owner surround the fixed caldera",
 	)
 	_check(_forbidden_node_count(scene) == 0, "the scene owns no camera, light, audio, navigation, actor, area, particle, or animation node")
 
@@ -872,10 +878,10 @@ func _test_terrain_focus_recenter(scene: EmberMoonAuthoredScene) -> void:
 		and bool(corridor_audit.get("valid", false))
 		and int((corridor_audit.get("performance", {}) as Dictionary).get(
 			"node_count", 0
-		)) == 82
+		)) == 84
 		and int((corridor_audit.get("performance", {}) as Dictionary).get(
 			"collision_shapes", 0
-		)) == 27,
+		)) == 28,
 		"the live Ember scene adds one audited focus corridor without replacing the caldera collision",
 	)
 	var renderer := scene.get_node(^"TerrainClipmap") \
@@ -895,6 +901,114 @@ func _test_terrain_focus_recenter(scene: EmberMoonAuthoredScene) -> void:
 			_terrain_surface_point(renderer, Vector2(4_501.0, 0.0)),
 		).is_empty(),
 		"production physics supports the landing-to-actor corridor and stops beyond its bounded outer edge",
+	)
+	var actor_body := scene.get_node(^"TerrainActorCollision") as StaticBody3D
+	var actor_collision := actor_body.get_node(
+		^"TerrainActorCollisionSurface"
+	) as CollisionShape3D
+	var actor_body_id := actor_body.get_instance_id()
+	var actor_collision_node_id := actor_collision.get_instance_id()
+	var streamed_focus := Vector3(25_000.0, 120_000.0, 0.0)
+	var far_recentered := scene.update_terrain_focus(streamed_focus, generation)
+	await physics_frame
+	var far_snapshot := scene.get_terrain_clipmap_snapshot()
+	var far_actor_report := far_snapshot.actor_collision as Dictionary
+	var far_shape_id := actor_collision.shape.get_instance_id()
+	var far_audit := scene.audit()
+	_check(
+		bool(far_recentered.get("accepted", false))
+			and bool(far_recentered.get("rebuilt", false))
+			and bool(far_recentered.get("actor_collision_active", false))
+			and not bool(far_snapshot.get("dynamic_collision_active", true))
+			and far_snapshot.get("dynamic_collision_reason")
+				== &"focus_outside_collision_streaming_envelope"
+			and (far_snapshot.get("focus_radial_up", Vector3.ZERO) as Vector3)
+				.is_equal_approx(streamed_focus.normalized())
+			and int(far_snapshot.get("render_vertex_count", 0)) == 21_125
+			and int(far_snapshot.get("render_triangle_count", 0)) == 40_960
+			and bool(far_actor_report.get("active", false))
+			and far_actor_report.get("reason") == &"actor_collision_patch_built"
+			and int(far_actor_report.get("vertex_count", 0)) == 4_097
+			and int(far_actor_report.get("triangle_count", 0)) == 8_064
+			and float(far_actor_report.get("support_radius_m", 0.0)) == 1_500.0
+			and bool(far_actor_report.get("common_origin", false))
+			and bool(far_actor_report.get("outward_clockwise_winding", false))
+			and int(far_snapshot.get("scene_collision_triangle_count", 0))
+				== 40_832
+			and int(far_snapshot.get("scene_collision_vertex_count", 0))
+				== 20_737
+			and bool(far_audit.get("valid", false))
+			and int((far_audit.performance as Dictionary).node_count) == 83
+			and int((far_audit.performance as Dictionary).static_bodies) == 9
+			and int((far_audit.performance as Dictionary).collision_shapes) == 27,
+		"beyond 18.432 km one exact common-origin relief disc replaces the landing corridor inside hard budgets",
+	)
+	var far_direction := streamed_focus.normalized()
+	_check(
+		_radial_ray_hit(
+			terrain_space,
+			_focused_terrain_surface_point(
+				renderer, far_direction, Vector2.ZERO
+			),
+		).get("collider") == actor_body
+		and _ray_hit(
+			terrain_space, Vector3(0.0, 120_002.0, 0.0)
+		).get("collider") == pad_body
+		and _radial_ray_hit(
+			terrain_space,
+			_focused_terrain_surface_point(
+				renderer, far_direction, Vector2(1_490.0, 0.0)
+			),
+		).get("collider") == actor_body
+		and _radial_ray_hit(
+			terrain_space,
+			_focused_terrain_surface_point(
+				renderer, far_direction, Vector2(1_510.0, 0.0)
+			),
+		).is_empty(),
+		"production physics supports the far actor through 1.5 km and stops immediately beyond the local disc",
+	)
+	var farther_focus := Vector3(40_000.0, 120_000.0, 0.0)
+	var farther_recentered := scene.update_terrain_focus(farther_focus, generation)
+	await physics_frame
+	var farther_direction := farther_focus.normalized()
+	var farther_snapshot := scene.get_terrain_clipmap_snapshot()
+	_check(
+		bool(farther_recentered.get("accepted", false))
+			and bool(farther_snapshot.actor_collision.active)
+			and actor_body.get_instance_id() == actor_body_id
+			and actor_collision.get_instance_id() == actor_collision_node_id
+			and actor_collision.shape.get_instance_id() != far_shape_id
+			and actor_body.get_child_count() == 1
+			and _radial_ray_hit(
+				terrain_space,
+				_focused_terrain_surface_point(
+					renderer, far_direction, Vector2.ZERO
+				),
+			).is_empty()
+			and _radial_ray_hit(
+				terrain_space,
+				_focused_terrain_surface_point(
+					renderer, farther_direction, Vector2.ZERO
+				),
+			).get("collider") == actor_body,
+		"successive far focus rebuilds reuse one collision node and move support instead of accumulating shapes",
+	)
+	var landing_return := scene.update_terrain_focus(
+		Vector3(3_000.0, 120_000.0, 0.0), generation
+	)
+	await physics_frame
+	var landing_return_snapshot := scene.get_terrain_clipmap_snapshot()
+	_check(
+		bool(landing_return.get("accepted", false))
+			and not bool(landing_return_snapshot.actor_collision.active)
+			and actor_collision.disabled
+			and bool(landing_return_snapshot.dynamic_collision_active)
+			and actor_body.get_instance_id() == actor_body_id
+			and actor_collision.get_instance_id() == actor_collision_node_id
+			and actor_body.get_child_count() == 1
+			and bool(scene.audit().valid),
+		"returning inside the inclusive renderer envelope disables the same patch and restores the fixed-seam corridor",
 	)
 
 
@@ -1017,6 +1131,26 @@ func _terrain_surface_point(
 		tangent_offset_m.x,
 		120_000.0,
 		tangent_offset_m.y,
+	)
+	var direction := tangent_point.normalized()
+	var sample := renderer.sample_height(direction)
+	return direction * (120_000.0 + float(sample.get("height_m", 0.0)))
+
+
+func _focused_terrain_surface_point(
+	renderer: PlanetaryTerrainClipmapRenderer,
+	focus_up: Vector3,
+	tangent_offset_m: Vector2,
+) -> Vector3:
+	var reference := Vector3.FORWARD
+	if absf(reference.dot(focus_up)) > 0.95:
+		reference = Vector3.RIGHT
+	var tangent_right := reference.cross(focus_up).normalized()
+	var tangent_back := tangent_right.cross(focus_up).normalized()
+	var tangent_point := (
+		focus_up * 120_000.0
+			+ tangent_right * tangent_offset_m.x
+			+ tangent_back * tangent_offset_m.y
 	)
 	var direction := tangent_point.normalized()
 	var sample := renderer.sample_height(direction)

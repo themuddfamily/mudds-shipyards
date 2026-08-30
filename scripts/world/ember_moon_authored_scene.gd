@@ -40,6 +40,31 @@ const TERRAIN_MATERIAL_TINT := Color("bd704f")
 const TERRAIN_RING_COUNT := 5
 const TERRAIN_RENDER_VERTEX_COUNT := 21_125
 const TERRAIN_FOCUS_RECENTER_DISTANCE_M := 192.0
+## The five-ring renderer remains bounded to 18.432 km around its committed
+## focus. Beyond the landing-relative ring envelope, one reusable body-local
+## collision disc follows authenticated focus rebuilds. It does not bridge back
+## to the caldera or create a global collider: exactly one 1.5 km relief-matched
+## patch exists, and the fixed landing collision remains untouched.
+const TERRAIN_RENDER_MAXIMUM_DISTANCE_M := 18_432.0
+const TERRAIN_ACTOR_COLLISION_RADIUS_M := 1_500.0
+const TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS := 32
+const TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS := 128
+const TERRAIN_ACTOR_COLLISION_VERTEX_COUNT := (
+	1 + TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS
+		* TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS
+)
+const TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT := (
+	TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS
+		+ (TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS - 1)
+			* TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS * 2
+)
+# The fixed landing surface uses 32,768 triangles / 16,640 unique vertices.
+# The mutually exclusive renderer corridor is capped at 8,320 triangles; a
+# conservative three unique vertices per triangle freezes its vertex ceiling.
+# The actor disc is smaller (8,064 triangles / 4,097 vertices).
+const TERRAIN_COLLISION_VERTEX_CEILING := 41_600
+const TERRAIN_COLLISION_TRIANGLE_CEILING := 41_088
+const TERRAIN_ACTIVE_NODE_CEILING := 84
 const PAD_VISUAL_SIZE_M := Vector3(28.0, 0.04, 32.0)
 const PAD_VISUAL_POSITION_REGION_LOCAL_M := Vector3(0.0, 0.02, 0.0)
 const SURFACE_ROUTE_ID: StringName = &"ember_caldera_pad_to_staging"
@@ -222,13 +247,13 @@ const METAL_ROUGHNESS := 0.78
 const OXIDE_ROUGHNESS := 0.92
 const SERVICE_ROUGHNESS := 0.72
 
-const EXPECTED_NODE_COUNT := 81
+const EXPECTED_NODE_COUNT := 83
 const EXPECTED_MESH_INSTANCE_COUNT := 22
 const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 8
 const EXPECTED_MULTI_MESH_COPY_COUNT := 42
 const EXPECTED_RENDER_SUBMISSION_COUNT := 30
-const EXPECTED_STATIC_BODY_COUNT := 8
-const EXPECTED_COLLISION_SHAPE_COUNT := 26
+const EXPECTED_STATIC_BODY_COUNT := 9
+const EXPECTED_COLLISION_SHAPE_COUNT := 27
 const MAXIMUM_TRIANGLE_COUNT := 60_000
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const WORLD_MASK := PhysicsLayers.WORLD_BODY_MASK
@@ -266,6 +291,9 @@ var _terrain_profile: PlanetaryTerrainProfile
 var _landing_region: PlanetaryLandingRegionDefinition
 var _terrain_lod_policy: PlanetaryTerrainLodPolicy
 var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
+var _actor_collision_body: StaticBody3D
+var _actor_collision_shape: CollisionShape3D
+var _actor_collision_report: Dictionary = {}
 var _initialized := false
 
 
@@ -319,6 +347,7 @@ func _ready() -> void:
 	_configure_orbital_landing_datum_cue()
 	_configure_pad_guide_visuals()
 	_initialize_contract()
+	_configure_actor_collision_owner()
 	_configure_terrain_clipmap()
 
 
@@ -378,11 +407,33 @@ func evaluate_terrain_lod_hint(
 
 
 func get_terrain_clipmap_snapshot() -> Dictionary:
-	return (
+	var result := (
 		_terrain_clipmap.get_snapshot()
 		if _terrain_clipmap != null
 		else {"configured": false, "ring_count": 0}
 	).duplicate(true)
+	var actor_collision := _actor_collision_report.duplicate(true)
+	var renderer_collision_triangles := int(result.get(
+		"collision_triangle_count", 0
+	))
+	var renderer_collision_vertices := int(result.get(
+		"collision_vertex_count", 0
+	))
+	result["actor_collision"] = actor_collision
+	result["scene_collision_triangle_count"] = (
+		renderer_collision_triangles
+			+ int(actor_collision.get("triangle_count", 0))
+	)
+	result["scene_collision_vertex_count"] = (
+		renderer_collision_vertices
+			+ int(actor_collision.get("vertex_count", 0))
+	)
+	result["scene_collision_triangle_ceiling"] = (
+		TERRAIN_COLLISION_TRIANGLE_CEILING
+	)
+	result["scene_collision_vertex_ceiling"] = TERRAIN_COLLISION_VERTEX_CEILING
+	result["scene_active_node_ceiling"] = TERRAIN_ACTIVE_NODE_CEILING
+	return result.duplicate(true)
 
 
 func get_terrain_clipmap_generation() -> int:
@@ -434,6 +485,19 @@ func update_terrain_focus(
 			"distance_from_committed_focus_m": focus_distance_m,
 			"recenter_distance_m": TERRAIN_FOCUS_RECENTER_DISTANCE_M,
 		}.duplicate(true)
+	var landing_distance_m := _surface_distance_m(Vector3.UP, focus_direction)
+	var staged_actor_collision := _stage_actor_collision_support(
+		focus_direction,
+		landing_distance_m,
+	)
+	if not bool(staged_actor_collision.get("accepted", false)):
+		return {
+			"accepted": false,
+			"reason": staged_actor_collision.get(
+				"reason", &"actor_collision_build_failed"
+			),
+			"rebuilt": false,
+		}.duplicate(true)
 	var rebuilt := _terrain_clipmap.rebuild(
 		focus_direction * BODY_RADIUS_M,
 		expected_terrain_generation,
@@ -444,6 +508,7 @@ func update_terrain_focus(
 			"reason": rebuilt.get("reason", &"terrain_rebuild_rejected"),
 			"rebuilt": false,
 		}.duplicate(true)
+	_commit_actor_collision_support(staged_actor_collision)
 	return {
 		"accepted": true,
 		"reason": &"terrain_focus_recentered",
@@ -453,6 +518,10 @@ func update_terrain_focus(
 		"distance_from_previous_focus_m": focus_distance_m,
 		"recenter_distance_m": TERRAIN_FOCUS_RECENTER_DISTANCE_M,
 		"focus_body_local_m": focus_direction * BODY_RADIUS_M,
+		"actor_collision_active": bool(
+			_actor_collision_report.get("active", false)
+		),
+		"actor_collision_reason": _actor_collision_report.get("reason", &""),
 	}.duplicate(true)
 
 
@@ -555,7 +624,9 @@ func get_snapshot() -> Dictionary:
 		"terrain_focus": {
 			"caller_driven": true,
 			"recenter_distance_m": TERRAIN_FOCUS_RECENTER_DISTANCE_M,
-			"collision_focus": &"authored_landing_region",
+			"collision_focus": &"fixed_landing_plus_bounded_actor_patch",
+			"renderer_envelope_m": TERRAIN_RENDER_MAXIMUM_DISTANCE_M,
+			"actor_support_radius_m": TERRAIN_ACTOR_COLLISION_RADIUS_M,
 		},
 		"evidence": _evidence_report(),
 		"owned_capabilities": _owned_capabilities(),
@@ -640,6 +711,203 @@ func _configure_terrain_clipmap() -> void:
 			"Ember terrain clipmap failed: %s"
 			% String(rebuilt.get("reason", &"unknown"))
 		)
+
+
+func _configure_actor_collision_owner() -> void:
+	_actor_collision_body = StaticBody3D.new()
+	_actor_collision_body.name = &"TerrainActorCollision"
+	_actor_collision_body.collision_layer = WORLD_LAYER
+	_actor_collision_body.collision_mask = 0
+	_actor_collision_body.set_meta(&"common_origin_owner", true)
+	_actor_collision_shape = CollisionShape3D.new()
+	_actor_collision_shape.name = &"TerrainActorCollisionSurface"
+	_actor_collision_shape.disabled = true
+	_actor_collision_body.add_child(_actor_collision_shape)
+	add_child(_actor_collision_body)
+	_actor_collision_report = _inactive_actor_collision_report(
+		&"focus_inside_renderer_envelope"
+	)
+
+
+func _stage_actor_collision_support(
+		focus_up: Vector3,
+		landing_distance_m: float,
+	) -> Dictionary:
+	if landing_distance_m <= TERRAIN_RENDER_MAXIMUM_DISTANCE_M:
+		return {
+			"accepted": true,
+			"report": _inactive_actor_collision_report(
+				&"focus_inside_renderer_envelope"
+			),
+		}.duplicate(true)
+	if _terrain_clipmap == null:
+		return {"accepted": false, "reason": &"terrain_clipmap_unavailable"}
+	var tangent_right := _terrain_tangent_right(focus_up)
+	var tangent_back := tangent_right.cross(focus_up).normalized()
+	if tangent_right.is_zero_approx() or tangent_back.is_zero_approx():
+		return {"accepted": false, "reason": &"actor_collision_basis_invalid"}
+	var vertices := PackedVector3Array()
+	vertices.append(_actor_collision_vertex(
+		focus_up, tangent_right, tangent_back, Vector2.ZERO
+	))
+	for radial_index in range(1, TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS + 1):
+		var radius_m := (
+			TERRAIN_ACTOR_COLLISION_RADIUS_M * float(radial_index)
+				/ float(TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS)
+		)
+		for angular_index in TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS:
+			var angle := (
+				TAU * float(angular_index)
+					/ float(TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS)
+			)
+			vertices.append(_actor_collision_vertex(
+				focus_up,
+				tangent_right,
+				tangent_back,
+				Vector2(cos(angle), sin(angle)) * radius_m,
+			))
+	if vertices.size() != TERRAIN_ACTOR_COLLISION_VERTEX_COUNT:
+		return {"accepted": false, "reason": &"actor_collision_vertex_budget_drift"}
+	var faces := PackedVector3Array()
+	for angular_index in TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS:
+		var next_angular := (
+			(angular_index + 1) % TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS
+		)
+		_append_actor_collision_triangle(
+			faces, vertices, 0, 1 + angular_index, 1 + next_angular
+		)
+	for radial_index in range(1, TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS):
+		var inner_start := (
+			1 + (radial_index - 1) * TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS
+		)
+		var outer_start := (
+			inner_start + TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS
+		)
+		for angular_index in TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS:
+			var next_angular := (
+				(angular_index + 1) % TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS
+			)
+			_append_actor_collision_triangle(
+				faces,
+				vertices,
+				inner_start + angular_index,
+				outer_start + angular_index,
+				outer_start + next_angular,
+			)
+			_append_actor_collision_triangle(
+				faces,
+				vertices,
+				inner_start + angular_index,
+				outer_start + next_angular,
+				inner_start + next_angular,
+			)
+	var triangle_count := faces.size() / 3
+	if triangle_count != TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT:
+		return {"accepted": false, "reason": &"actor_collision_triangle_budget_drift"}
+	var collision_shape := ConcavePolygonShape3D.new()
+	collision_shape.set_faces(faces)
+	collision_shape.backface_collision = false
+	return {
+		"accepted": true,
+		"shape": collision_shape,
+		"report": {
+			"active": true,
+			"reason": &"actor_collision_patch_built",
+			"focus_radial_up": focus_up,
+			"landing_surface_distance_m": landing_distance_m,
+			"activation_distance_m": TERRAIN_RENDER_MAXIMUM_DISTANCE_M,
+			"maximum_landing_surface_distance_m": PI * BODY_RADIUS_M,
+			"support_radius_m": TERRAIN_ACTOR_COLLISION_RADIUS_M,
+			"radial_segments": TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS,
+			"angular_segments": TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS,
+			"vertex_count": vertices.size(),
+			"triangle_count": triangle_count,
+			"topology": &"single_actor_following_relief_disc",
+			"common_origin": true,
+			"outward_clockwise_winding": true,
+		}.duplicate(true),
+	}.duplicate(true)
+
+
+func _commit_actor_collision_support(staged: Dictionary) -> void:
+	if _actor_collision_shape == null:
+		return
+	var report := staged.get("report", {}) as Dictionary
+	if not bool(report.get("active", false)):
+		_actor_collision_shape.disabled = true
+		_actor_collision_report = report.duplicate(true)
+		return
+	var shape := staged.get("shape") as ConcavePolygonShape3D
+	if shape == null:
+		return
+	_actor_collision_shape.shape = shape
+	_actor_collision_shape.disabled = false
+	_actor_collision_report = report.duplicate(true)
+
+
+func _inactive_actor_collision_report(reason: StringName) -> Dictionary:
+	return {
+		"active": false,
+		"reason": reason,
+		"focus_radial_up": Vector3.ZERO,
+		"landing_surface_distance_m": 0.0,
+		"activation_distance_m": TERRAIN_RENDER_MAXIMUM_DISTANCE_M,
+		"maximum_landing_surface_distance_m": PI * BODY_RADIUS_M,
+		"support_radius_m": TERRAIN_ACTOR_COLLISION_RADIUS_M,
+		"radial_segments": TERRAIN_ACTOR_COLLISION_RADIAL_SEGMENTS,
+		"angular_segments": TERRAIN_ACTOR_COLLISION_ANGULAR_SEGMENTS,
+		"vertex_count": 0,
+		"triangle_count": 0,
+		"topology": &"single_actor_following_relief_disc",
+		"common_origin": true,
+		"outward_clockwise_winding": true,
+	}.duplicate(true)
+
+
+func _actor_collision_vertex(
+		focus_up: Vector3,
+		tangent_right: Vector3,
+		tangent_back: Vector3,
+		tangent_offset_m: Vector2,
+	) -> Vector3:
+	var tangent_point := (
+		focus_up * BODY_RADIUS_M
+			+ tangent_right * tangent_offset_m.x
+			+ tangent_back * tangent_offset_m.y
+	)
+	var direction := tangent_point.normalized()
+	var sample := _terrain_clipmap.sample_height(direction)
+	return direction * (
+		BODY_RADIUS_M + float(sample.get("height_m", 0.0))
+	)
+
+
+static func _append_actor_collision_triangle(
+		faces: PackedVector3Array,
+		vertices: PackedVector3Array,
+		a: int,
+		b: int,
+		c: int,
+	) -> void:
+	var va := vertices[a]
+	var vb := vertices[b]
+	var vc := vertices[c]
+	var mathematical_normal := (vb - va).cross(vc - va)
+	var outward := (va + vb + vc).normalized()
+	faces.append(va)
+	if mathematical_normal.dot(outward) > 0.0:
+		faces.append(vc)
+		faces.append(vb)
+	else:
+		faces.append(vb)
+		faces.append(vc)
+
+
+static func _terrain_tangent_right(up: Vector3) -> Vector3:
+	var reference := Vector3.FORWARD
+	if absf(reference.dot(up)) > 0.95:
+		reference = Vector3.RIGHT
+	return reference.cross(up).normalized()
 
 
 func _configure_surface_material_hierarchy() -> void:
@@ -854,6 +1122,8 @@ func _validate_terrain_clipmap(errors: Array[Dictionary]) -> void:
 	var expected_collision_ring_count := (
 		2 if bool(snapshot.get("dynamic_collision_active", false)) else 1
 	)
+	var scene_snapshot := get_terrain_clipmap_snapshot()
+	var actor_collision := scene_snapshot.get("actor_collision", {}) as Dictionary
 	if (
 		not bool(terrain_audit.get("valid", false))
 		or StringName(snapshot.get("profile_id", &"")) != TERRAIN_PROFILE_ID
@@ -883,12 +1153,28 @@ func _validate_terrain_clipmap(errors: Array[Dictionary]) -> void:
 			errors, &"terrain_clipmap_invalid", &"TerrainClipmap",
 			"production Ember terrain roster, landing clearance, or basalt tint drifted",
 		)
+	if bool(snapshot.get("dynamic_collision_active", false)) \
+			and bool(actor_collision.get("active", false)):
+		_append_error(
+			errors, &"terrain_collision_overlap", &"TerrainActorCollision",
+			"landing corridor and actor-following patch must remain mutually exclusive",
+		)
+	if int(scene_snapshot.get("scene_collision_triangle_count", -1)) \
+			> TERRAIN_COLLISION_TRIANGLE_CEILING \
+			or int(scene_snapshot.get("scene_collision_vertex_count", -1)) \
+				> TERRAIN_COLLISION_VERTEX_CEILING:
+		_append_error(
+			errors, &"terrain_collision_budget_exceeded", &"TerrainActorCollision",
+			"combined fixed, corridor, and actor collision exceeded its hard ceiling",
+		)
 
 
 func _validate_topology(errors: Array[Dictionary]) -> void:
 	var expected := {
 		^"BodyVisual": "MeshInstance3D",
 		^"TerrainClipmap": "Node3D",
+		^"TerrainActorCollision": "StaticBody3D",
+		^"TerrainActorCollision/TerrainActorCollisionSurface": "CollisionShape3D",
 		^"LandingRegion": "Node3D",
 		^"LandingRegion/CalderaFloor": "MeshInstance3D",
 		^"LandingRegion/CalderaRim": "MeshInstance3D",
@@ -985,13 +1271,17 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 	var terrain_collision := get_node_or_null(
 		^"TerrainClipmap/CommittedTerrain/TerrainCollision"
 	)
-	if get_child_count() != 3 \
+	var actor_collision := get_node_or_null(^"TerrainActorCollision") \
+		as StaticBody3D
+	if get_child_count() != 4 \
 			or terrain_root == null or terrain_root.get_child_count() != 1 \
 			or committed_terrain == null or committed_terrain.get_child_count() != 2 \
 			or terrain_visuals == null or terrain_visuals.get_child_count() != TERRAIN_RING_COUNT \
 			or terrain_collision == null \
 			or terrain_collision.get_child_count() \
 				!= 1 + generated_collision_delta \
+			or actor_collision == null \
+			or actor_collision.get_child_count() != 1 \
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
@@ -1211,6 +1501,51 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 	if collision == null or collision.transform != Transform3D.IDENTITY \
 			or collision.disabled or shape == null or shape.size != WALKABLE_PATCH_SIZE_M:
 		_append_error(errors, &"walkable_shape_drift", &"CollisionShape3D", "single bounded walkable box drifted")
+	var actor_body := get_node_or_null(^"TerrainActorCollision") \
+		as StaticBody3D
+	var actor_collision := get_node_or_null(
+		^"TerrainActorCollision/TerrainActorCollisionSurface"
+	) as CollisionShape3D
+	var actor_active := bool(_actor_collision_report.get("active", false))
+	var actor_shape := actor_collision.shape as ConcavePolygonShape3D \
+		if actor_collision != null else null
+	var actor_faces := actor_shape.get_faces() \
+		if actor_shape != null else PackedVector3Array()
+	var actor_contract_valid := (
+		actor_body != null
+			and actor_body.transform == Transform3D.IDENTITY
+			and actor_body.collision_layer == WORLD_LAYER
+			and actor_body.collision_mask == 0
+			and bool(actor_body.get_meta(&"common_origin_owner", false))
+			and actor_collision != null
+			and actor_collision.transform == Transform3D.IDENTITY
+			and actor_collision.disabled != actor_active
+			and int(_actor_collision_report.get("triangle_count", -1))
+				== (
+					TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT
+					if actor_active else 0
+				)
+			and int(_actor_collision_report.get("vertex_count", -1))
+				== (
+					TERRAIN_ACTOR_COLLISION_VERTEX_COUNT
+					if actor_active else 0
+				)
+	)
+	if actor_active:
+		actor_contract_valid = actor_contract_valid \
+			and actor_shape != null \
+			and not actor_shape.backface_collision \
+			and actor_faces.size() \
+				== TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT * 3 \
+			and float(_actor_collision_report.get(
+				"landing_surface_distance_m", 0.0
+			)) > TERRAIN_RENDER_MAXIMUM_DISTANCE_M \
+			and _actor_collision_winding_is_outward(actor_faces)
+	if not actor_contract_valid:
+		_append_error(
+			errors, &"actor_collision_support_drift", &"TerrainActorCollision",
+			"single common-origin actor collision patch drifted from its bounded contract",
+		)
 	var body_specs := {
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort": PORT_PAD_GUIDE_POSITION_M,
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard": STARBOARD_PAD_GUIDE_POSITION_M,
@@ -1254,6 +1589,23 @@ func _validate_collision(errors: Array[Dictionary]) -> void:
 	var bunker := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker") as StaticBody3D
 	if not _survey_bunker_collision_is_exact(bunker):
 		_append_error(errors, &"survey_bunker_collision_drift", &"SurveyServiceBunker", "survey bunker visual-solid collision recipe drifted")
+
+
+static func _actor_collision_winding_is_outward(
+		faces: PackedVector3Array,
+	) -> bool:
+	if faces.size() != TERRAIN_ACTOR_COLLISION_TRIANGLE_COUNT * 3:
+		return false
+	for face_index in range(0, faces.size(), 3):
+		var a := faces[face_index]
+		var b := faces[face_index + 1]
+		var c := faces[face_index + 2]
+		var mathematical_normal := (b - a).cross(c - a)
+		var outward := (a + b + c).normalized()
+		if mathematical_normal.is_zero_approx() \
+				or mathematical_normal.dot(outward) >= 0.0:
+			return false
+	return true
 
 
 func _derelict_gantry_collision_is_exact(gantry: StaticBody3D) -> bool:
@@ -2277,6 +2629,8 @@ func _validate_performance(errors: Array[Dictionary], census: Dictionary) -> voi
 			_append_error(errors, &"performance_roster_drift", StringName(key), "exact authored performance roster drifted")
 	if int(census.get("triangle_count", -1)) > MAXIMUM_TRIANGLE_COUNT:
 		_append_error(errors, &"triangle_budget_exceeded", &"triangle_count", "primitive triangle count exceeds the bounded ceiling")
+	if int(census.get("node_count", -1)) > TERRAIN_ACTIVE_NODE_CEILING:
+		_append_error(errors, &"node_budget_exceeded", &"node_count", "active terrain node count exceeds the bounded ceiling")
 
 
 func _performance_census() -> Dictionary:
