@@ -548,7 +548,11 @@ func _test_berth_cues_are_seated_on_the_deck_they_mark(world: ShipyardWorld) -> 
 func _measure_hovering_berth_cues(world: ShipyardWorld, verbose: bool) -> PackedStringArray:
 	var hovering := PackedStringArray()
 	var measured := PackedStringArray()
-	for berth_id in world.get_berth_ids():
+	# Dock 04/05/06 are physical ShipBerths, but their pad presentation remains
+	# owned by FleetExpansionBerths rather than ShipBerthFeedback. This witness
+	# audits the exact six production feedback components, not every lease node in
+	# the now nine-berth physical registry.
+	for berth_id in ShipyardWorld.SHIP_BERTH_FEEDBACK_BERTH_IDS:
 		var spec: Dictionary = ShipyardWorld.SHIP_BERTH_FEEDBACK_SPECS.get(berth_id, {})
 		var feedback := world.get_node_or_null(
 			spec.get("feedback_path", NodePath()) as NodePath
