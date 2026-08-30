@@ -130,6 +130,20 @@ func _run() -> void:
 			and int(presented.get("presentation_sequence", 0)) == sequence_before_rejection,
 		"the terminal refuses Object-bearing input instead of retaining live authority"
 	)
+	var callable_bearing_snapshot := vocabulary_snapshot.duplicate(true)
+	callable_bearing_snapshot["live_callback"] = Callable(game, &"queue_free")
+	receipt = console.call(
+		&"present_fleet_snapshot", callable_bearing_snapshot
+	) as Dictionary
+	presented = console.call(&"get_presentation_snapshot") as Dictionary
+	_check(
+		not bool(receipt.get("accepted", true))
+			and StringName(receipt.get("reason", &"")) \
+				== &"registry_snapshot_not_detached"
+			and int(presented.get("presentation_sequence", 0)) \
+				== sequence_before_rejection,
+		"the terminal refuses Callables that retain live object/method authority"
+	)
 
 	await _finish(game)
 

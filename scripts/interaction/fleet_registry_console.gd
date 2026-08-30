@@ -55,7 +55,7 @@ func interact(actor: Node = null) -> bool:
 func present_fleet_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not _is_current():
 		return {"accepted": false, "reason": &"console_unavailable"}
-	if _contains_object(snapshot):
+	if _contains_live_reference(snapshot):
 		return {"accepted": false, "reason": &"registry_snapshot_not_detached"}
 	var rows_raw: Variant = snapshot.get("rows", null)
 	if not rows_raw is Array or (rows_raw as Array).size() > MAX_ROWS:
@@ -117,16 +117,21 @@ func _is_current() -> bool:
 	return is_inside_tree() and not is_queued_for_deletion()
 
 
-func _contains_object(value: Variant) -> bool:
-	if value is Object:
+func _contains_live_reference(value: Variant) -> bool:
+	# Callables and Signals can retain an Object even though Variant does not
+	# classify either value as TYPE_OBJECT. RIDs likewise name live engine-side
+	# state. None is detached presentation data, so reject all four categories
+	# recursively before retaining the snapshot.
+	if typeof(value) in [TYPE_OBJECT, TYPE_CALLABLE, TYPE_SIGNAL, TYPE_RID]:
 		return true
 	if value is Dictionary:
 		for key: Variant in (value as Dictionary).keys():
-			if _contains_object(key) or _contains_object((value as Dictionary).get(key)):
+			if _contains_live_reference(key) \
+					or _contains_live_reference((value as Dictionary).get(key)):
 				return true
 	elif value is Array:
 		for item: Variant in value as Array:
-			if _contains_object(item):
+			if _contains_live_reference(item):
 				return true
 	return false
 
