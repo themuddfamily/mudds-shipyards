@@ -35,8 +35,17 @@ func _run() -> void:
 	await _settle()
 
 	_test_hatch_geometry(craft)
+	await _walk_closed_hatch(craft, "closed hatch blocks the embodied player")
+	craft.set_canopy_open(true, 0.0)
+	await physics_frame
+	_test_hatch_state(craft, true)
 	await _walk_airstair_into_cabin(craft, "open hatch admits the embodied player")
-	await _test_closed_aperture_red_witness(craft)
+	craft.set_canopy_open(false, 0.0)
+	await physics_frame
+	_test_hatch_state(craft, false)
+	await _walk_closed_hatch(craft, "reclosed hatch restores the physical barrier")
+	craft.set_canopy_open(true, 0.0)
+	await physics_frame
 
 	# Re-enter the same production instance.  The split hull must survive a real
 	# detach/re-entry, not just initial construction.
@@ -45,6 +54,7 @@ func _run() -> void:
 	_test_root.add_child(craft)
 	await _settle()
 	_test_hatch_geometry(craft)
+	_test_hatch_state(craft, true)
 	await _walk_airstair_into_cabin(craft, "open hatch remains traversable after detach/re-entry")
 
 	craft.queue_free()
@@ -71,6 +81,28 @@ func _test_hatch_geometry(craft: HalyardCrewTransport) -> void:
 	_check(is_equal_approx(aperture_width, HATCH_WIDTH), "physical hatch aperture preserves its exact 1.90 m width")
 	_check(aperture_width - PLAYER_CAPSULE_RADIUS * 2.0 >= 1.14, "hatch leaves 1.14 m lateral clearance beyond the production capsule diameter")
 	_check(forward_box.size.z > 4.0 and aft_box.size.z > 12.0, "substantial hull-wall support remains on both exterior sides of the hatch")
+	var blocker := craft.get_node_or_null("PortHatchDoorCollision") as CollisionShape3D
+	_check(blocker != null and blocker.shape is BoxShape3D, "the visible port hatch owns one matching physical blocker")
+	if blocker != null and blocker.shape is BoxShape3D:
+		var blocker_box := blocker.shape as BoxShape3D
+		_check(blocker_box.size.is_equal_approx(Vector3(0.14, 2.00, 1.80)), "hatch blocker matches the visible door leaf instead of resealing the whole hull wall")
+
+
+func _test_hatch_state(craft: HalyardCrewTransport, open: bool) -> void:
+	var door := craft.get_node_or_null("WalkableInterior/CrewCabin/PortHatchDoor") as MeshInstance3D
+	var seal := craft.get_node_or_null("WalkableInterior/CrewCabin/PortHatchDoorSeal") as MeshInstance3D
+	var blocker := craft.get_node_or_null("PortHatchDoorCollision") as CollisionShape3D
+	_check(door != null and seal != null and blocker != null, "port hatch visual and physical nodes resolve")
+	if door == null or seal == null or blocker == null:
+		return
+	var expected_z := HATCH_Z + (2.0 if open else 0.0)
+	_check(is_equal_approx(door.position.z, expected_z), "%s hatch door occupies its authored endpoint" % ("open" if open else "closed"))
+	_check(is_equal_approx(seal.position.z, expected_z), "%s hatch seal follows the door" % ("open" if open else "closed"))
+	_check(blocker.position.is_equal_approx(door.position), "%s hatch blocker stays aligned to the visible door" % ("open" if open else "closed"))
+	if open:
+		var blocker_box := blocker.shape as BoxShape3D
+		var blocker_min_z := blocker.position.z - blocker_box.size.z * 0.5
+		_check(blocker_min_z > HATCH_Z + HATCH_WIDTH * 0.5, "fully open hatch clears the complete 1.90 m walking aperture")
 
 
 func _walk_airstair_into_cabin(craft: HalyardCrewTransport, label: String) -> void:
@@ -111,18 +143,7 @@ func _walk_airstair_into_cabin(craft: HalyardCrewTransport, label: String) -> vo
 	Input.action_release("move_right")
 
 
-func _test_closed_aperture_red_witness(craft: HalyardCrewTransport) -> void:
-	# This test-local collider recreates the old continuous wall.  It proves the
-	# embodied witness discriminates an open hatch from the exact regression,
-	# without adding a production-only switch.
-	var blocker := CollisionShape3D.new()
-	blocker.name = "ClosedPortHatchRedWitness"
-	var blocker_shape := BoxShape3D.new()
-	blocker_shape.size = Vector3(0.28, 2.90, HATCH_WIDTH)
-	blocker.shape = blocker_shape
-	blocker.position = Vector3(-2.58, 1.95, HATCH_Z)
-	craft.add_child(blocker)
-	await physics_frame
+func _walk_closed_hatch(craft: HalyardCrewTransport, label: String) -> void:
 	var access := craft.get_interior_access_marker()
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	_test_root.add_child(player)
@@ -138,9 +159,8 @@ func _test_closed_aperture_red_witness(craft: HalyardCrewTransport) -> void:
 		await physics_frame
 	Input.action_release("move_right")
 	var local_position := craft.to_local(player.global_position)
-	_check(local_position.x < -2.95, "RED: restoring a closed hatch stops the real player before the cabin deck")
+	_check(local_position.x < -2.62, "%s: player remains outside the pressure hull" % label)
 	player.queue_free()
-	blocker.queue_free()
 	await process_frame
 	Input.action_release("move_right")
 
