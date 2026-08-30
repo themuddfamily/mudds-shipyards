@@ -15,6 +15,7 @@ const HERO_ASSET_PATH := "res://assets/models/torrent/hero/torrent_hero_art.glb"
 const MANIFEST_PATH := "res://assets/models/torrent/hero/torrent_hero_asset_manifest.json"
 const CRITICAL_ENGINE_CORE_DROP := Vector3(0.0, -0.22, 0.06)
 const CRITICAL_ENGINE_CORE_CANT_DEGREES := 42.0
+const EXTERIOR_CANOPY_VISUAL_LAYER_MASK := 1 << 1
 
 const REQUIRED_ROOTS := [
 	"LOD0",
@@ -149,6 +150,10 @@ func _configure_runtime_materials() -> void:
 			mesh_instance.set_meta("torrent_material_role", role)
 			if role in [&"CyanStatus", &"NeutralCanopyGlass"]:
 				mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if role == &"NeutralCanopyGlass":
+				# The closed imported shell contains mixed-facing panes. Keep it on a
+				# dedicated exterior layer so only the cockpit camera can omit it.
+				mesh_instance.layers = EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 
 
 func _pbr_material(
@@ -563,6 +568,7 @@ func get_asset_audit_report() -> Dictionary:
 		canopy_material == null
 		or canopy_material.transparency != BaseMaterial3D.TRANSPARENCY_ALPHA
 		or canopy_material.albedo_color.a > 0.22
+		or canopy_glass.layers != EXTERIOR_CANOPY_VISUAL_LAYER_MASK
 	):
 		errors.append("close canopy material is not a bounded transparent glazing contract")
 	for hull_role: StringName in [&"WarmIvoryHull", &"IvorySecondary"]:
