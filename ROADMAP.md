@@ -1519,8 +1519,14 @@ diagnostic and changes its marker without advancing the route or granting a rewa
 labels now sit clear of their physical props. The retained surface status card also
 lists both optional tasks, their exact two-task completion count, and the nearest
 unfinished task with distance derived from authenticated interaction positions. It
-remains presentation-only and does not replace the mandatory relay/return marker or gain
-navigation, activity, reward, save, or movement authority. The real surface-loop
+now also places the current mandatory surface route and nearest unfinished side task
+inside the retained minimap with distinct non-colour markers; the existing off-screen
+direction remains in use beyond map range, so crossing that boundary no longer makes
+the destination disappear. An authenticated idle Host keeps its presentation observers
+attached without seizing the ordinary HUD route, eliminating pre-expedition attachment
+churn. All of this remains presentation-only and does not replace the mandatory
+relay/return marker or gain navigation, activity, reward, save, or movement authority
+(`tests/game_flow_ember_surface_presentation_integration_test.gd`, 16 assertions). The real surface-loop
 binding now
 forwards its existing generation-fenced actor-position observation while the
 survey is active, aborts coherently on actor loss or host-generation drift, and

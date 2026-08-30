@@ -104,6 +104,8 @@ func get_objective_marker_legend() -> Array[Dictionary]:
 		{"id": &"active_convoy_leg", "glyph": "»", "pattern": &"double_chevron", "label": "CONVOY NEXT LEG", "focus_label": "Convoy next route leg"},
 		{"id": &"active_jovian_delivery_return", "glyph": "⇥", "pattern": &"return_arrow", "label": "JOVIAN RETURN BERTH", "focus_label": "Jovian delivery return berth"},
 		{"id": &"active_platform_supply_target", "glyph": "⬡", "pattern": &"hex_target", "label": "PLATFORM SUPPLY TARGET", "focus_label": "Current platform supply objective"},
+		{"id": &"active_ember_surface_route", "glyph": "⌖", "pattern": &"four_tick_target", "label": "EMBER SURFACE ROUTE", "focus_label": "Current Ember surface route target"},
+		{"id": &"active_ember_side_task", "glyph": "✦", "pattern": &"star_point", "label": "EMBER SIDE TASK", "focus_label": "Nearest unfinished Ember side task"},
 	]
 
 
@@ -185,6 +187,8 @@ func get_audit_report() -> Dictionary:
 			&"active_convoy_leg": "»",
 			&"active_jovian_delivery_return": "⇥",
 			&"active_platform_supply_target": "⬡",
+			&"active_ember_surface_route": "⌖",
+			&"active_ember_side_task": "✦",
 		},
 		"objective_marker_legend": get_objective_marker_legend(),
 		"visible_objective_marker_legend": get_visible_objective_marker_legend(),

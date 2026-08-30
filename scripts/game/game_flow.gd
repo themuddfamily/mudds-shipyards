@@ -3171,11 +3171,82 @@ func _get_minimap_objective_markers(coordinate_frame_generation: int = 0) -> Arr
 	)
 	if not cargo_return_marker.is_empty():
 		markers.append(cargo_return_marker)
+	markers.append_array(_get_ember_surface_minimap_markers(
+		coordinate_frame_generation
+	))
 	markers.append_array(_get_active_nearby_minimap_markers(
 		_get_nearby_activity_binding(),
 		coordinate_frame_generation,
 	))
 	return markers
+
+
+## Completes the retained Ember HUD handoff for targets already inside the map
+## range. The status presenter owns the authenticated route/interaction
+## positions; this adapter only freezes them into the same detached marker
+## roster as other activities. Off-screen direction remains owned by the Ember
+## HUD adapter, and neither path gains movement or navigation authority.
+func _get_ember_surface_minimap_markers(
+		coordinate_frame_generation: int = 0,
+	) -> Array[Dictionary]:
+	var markers: Array[Dictionary] = []
+	if _ember_surface_return_status_binding == null \
+			or not _ember_surface_return_status_binding.has_method(&"get_snapshot"):
+		return markers
+	var binding_snapshot := _ember_surface_return_status_binding.call(
+		&"get_snapshot"
+	) as Dictionary
+	var view := binding_snapshot.get("view", {}) as Dictionary
+	if not bool(binding_snapshot.get("attached", false)) \
+			or not bool(view.get("accepted", false)) \
+			or not bool(view.get("attached", false)) \
+			or not bool(view.get("presentation_only", false)):
+		return markers
+	var generation := int(view.get("generation", -1))
+	if generation < 0:
+		return markers
+	var guidance := view.get("route_guidance", {}) as Dictionary
+	if bool(guidance.get("available", false)) \
+			and not bool(guidance.get("navigation_authority", true)):
+		_append_ember_surface_minimap_marker(
+			markers,
+			&"active_ember_surface_route",
+			guidance.get("target_position", null),
+			generation,
+			coordinate_frame_generation,
+		)
+	var optional := view.get("optional_objectives", {}) as Dictionary
+	if bool(optional.get("available", false)) \
+			and not bool(optional.get("navigation_authority", true)):
+		var nearest := optional.get("nearest_incomplete", {}) as Dictionary
+		_append_ember_surface_minimap_marker(
+			markers,
+			&"active_ember_side_task",
+			nearest.get("position_body_local_m", null),
+			generation,
+			coordinate_frame_generation,
+		)
+	return markers
+
+
+func _append_ember_surface_minimap_marker(
+		markers: Array[Dictionary],
+		marker_id: StringName,
+		position: Variant,
+		activity_generation: int,
+		coordinate_frame_generation: int,
+	) -> void:
+	if position is not Vector3 or not (position as Vector3).is_finite():
+		return
+	markers.append({
+		"id": marker_id,
+		"position": position as Vector3,
+		"generation": maxi(
+			maxi(coordinate_frame_generation, 0),
+			activity_generation,
+		),
+		"active": true,
+	})
 
 
 ## The typed delivery owns phase/time and ShipyardWorld owns the physical berth

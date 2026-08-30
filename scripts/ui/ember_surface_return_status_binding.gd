@@ -175,6 +175,19 @@ func _publish(reduced_motion: bool) -> Dictionary:
 		# phase becomes the clearer status source. The manifest remains available
 		# from production without pinning every later row to RETURN MANIFEST.
 		_last_result = {}
+	# A freshly bound production Host may be physically authenticated before a
+	# surface expedition starts. Keep the observer attached so its first real
+	# phase signal is not missed, but leave the ordinary HUD route owner visible
+	# instead of turning the intentional idle state into an attachment failure.
+	if StringName(host_snapshot.get("phase_id", &"")) == &"idle":
+		_presenter.call(&"detach")
+		_view = {}
+		return {
+			"accepted": true,
+			"reason": &"idle_observation",
+			"generation": _generation,
+			"presentation_only": true,
+		}.duplicate(true)
 	var source_generation := maxi(_generation, int(production_snapshot.get("generation", 0)))
 	source_generation = maxi(source_generation, int(host_snapshot.get("generation", 0)))
 	source_generation = maxi(source_generation, int(host_snapshot.get("attachment_generation", 0)))
