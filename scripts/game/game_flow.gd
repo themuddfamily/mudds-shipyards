@@ -440,6 +440,7 @@ const RUNTIME_SETTING_KEYS: Array[StringName] = [
 var world: Node3D
 var player: CharacterBody3D
 var activity_board_console: Area3D
+var planetary_destination_console: Area3D
 var ship_service_console: Area3D
 var heavy_breach_activity_board: Area3D
 var _heavy_breach_sortie_generation := 0
@@ -1165,6 +1166,12 @@ func _resolve_scene_bindings() -> void:
 	activity_board_console = (
 		world.call(&"get_activity_board_console") as Area3D
 		if is_instance_valid(world) and world.has_method(&"get_activity_board_console")
+		else null
+	)
+	planetary_destination_console = (
+		world.call(&"get_planetary_destination_console") as Area3D
+		if is_instance_valid(world)
+			and world.has_method(&"get_planetary_destination_console")
 		else null
 	)
 	ship_service_console = (
@@ -5121,6 +5128,7 @@ func _restore_live_combat_after_reentry() -> void:
 
 func _connect_runtime_signals() -> void:
 	_bind_activity_board_console()
+	_bind_planetary_destination_console()
 	_bind_ship_service_console()
 	_bind_heavy_breach_activity_board()
 	_connect_signal_once(
@@ -5853,6 +5861,13 @@ func _refresh_interaction_targets() -> void:
 	):
 		_bind_activity_board_console()
 	if (
+		not is_instance_valid(planetary_destination_console)
+		or not planetary_destination_console.is_connected(
+			&"open_requested", _on_planetary_destination_console_open_requested
+		)
+	):
+		_bind_planetary_destination_console()
+	if (
 		not is_instance_valid(ship_service_console)
 		or not ship_service_console.is_connected(
 			&"service_requested", _on_ship_service_console_requested
@@ -6379,6 +6394,24 @@ func _bind_activity_board_console() -> void:
 	_sync_activity_reward_hud()
 
 
+func _bind_planetary_destination_console() -> void:
+	if (
+		not is_instance_valid(world)
+		or not world.has_method(&"get_planetary_destination_console")
+	):
+		planetary_destination_console = null
+		return
+	planetary_destination_console = world.call(
+		&"get_planetary_destination_console"
+	) as Area3D
+	_connect_signal_once(
+		planetary_destination_console,
+		&"open_requested",
+		_on_planetary_destination_console_open_requested,
+	)
+	_sync_planetary_cruise_hud()
+
+
 func _bind_ship_service_console() -> void:
 	if not is_instance_valid(world) or not world.has_method(&"get_ship_service_console"):
 		ship_service_console = null
@@ -6429,6 +6462,27 @@ func _on_activity_board_console_open_requested(actor: Node) -> void:
 	):
 		return
 	hud.call(&"open_activity_board")
+
+
+## The navigation console only opens the already-owned HUD catalog. The
+## candidate, embodiment, lifecycle, and focus gates are rechecked here so a
+## forged signal cannot launch travel or open a remote modal.
+func _on_planetary_destination_console_open_requested(actor: Node) -> void:
+	if (
+		actor != player
+		or planetary_destination_console != station_interaction_candidate
+		or _piloting
+		or _transition_busy
+		or _station_seated
+		or not is_instance_valid(player)
+		or not player.is_control_enabled()
+		or player.is_seated()
+		or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]
+		or not is_instance_valid(hud)
+		or not hud.has_method(&"open_planetary_destination_board")
+	):
+		return
+	hud.call(&"open_planetary_destination_board")
 
 
 ## Resolves one physical on-foot service request against the last active craft.
@@ -14375,7 +14429,32 @@ func _sync_planetary_destination_hud(
 			)),
 		},
 	})
+	_sync_planetary_destination_console(snapshot)
 	return bool(hud.call(&"set_planetary_destination_snapshot", snapshot))
+
+
+func _sync_planetary_destination_console(snapshot: Dictionary) -> void:
+	if (
+		not is_instance_valid(planetary_destination_console)
+		or not planetary_destination_console.has_method(&"present_catalog_status")
+	):
+		return
+	var rows := snapshot.get("destinations", []) as Array
+	var available := snapshot.get(
+		"available_destination_ids", PackedStringArray()
+	) as PackedStringArray
+	var ember_status_id: StringName = &"unavailable"
+	for row_variant: Variant in rows:
+		var row := row_variant as Dictionary
+		if StringName(row.get("destination_id", &"")) == EMBER_DESTINATION_ID:
+			ember_status_id = StringName(row.get("status_id", &"unavailable"))
+			break
+	planetary_destination_console.call(
+		&"present_catalog_status",
+		rows.size(),
+		available.size(),
+		ember_status_id,
+	)
 
 
 func get_planetary_destination_catalog_snapshot() -> Dictionary:

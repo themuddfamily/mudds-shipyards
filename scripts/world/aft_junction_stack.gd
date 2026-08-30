@@ -19,6 +19,9 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 const ShipServiceConsoleType := preload(
 	"res://scripts/interaction/ship_service_console.gd"
 )
+const PlanetaryDestinationConsoleType := preload(
+	"res://scripts/interaction/planetary_destination_console.gd"
+)
 
 ## Distance fade applied to every fixture practical in this module. Measured
 ## rather than chosen — see `_fixture_practical`. A fade that ended at 24 m ended
@@ -3628,10 +3631,17 @@ func _build_operations_room(structure: Node3D) -> void:
 			0.42,
 			3.4
 		)
+		# The first authored workstation is the physical navigation entry point.
+		# It opens the retained Destination Board through GameFlow and owns no
+		# route selection, travel, streaming, or movement authority.
+		if bay_index == 0:
+			var destination_console = PlanetaryDestinationConsoleType.new()
+			destination_console.name = "PlanetaryDestinationConsole"
+			bay.add_child(destination_console)
 		# One existing console is an embodied entry point to the Activity Board.
 		# The adapter adds only proximity discovery; GameFlow and HUD retain the
 		# selection and activity lifecycle authority.
-		if bay_index == 1:
+		elif bay_index == 1:
 			var activity_board_console := ActivityBoardConsole.new()
 			activity_board_console.name = "ActivityBoardConsole"
 			bay.add_child(activity_board_console)

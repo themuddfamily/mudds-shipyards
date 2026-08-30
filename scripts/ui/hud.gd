@@ -7996,6 +7996,22 @@ func _show_planetary_destination_page() -> void:
 	_restore_planetary_destination_focus()
 
 
+## Public embodied entry point for the station's physical navigation console.
+## It opens the same retained page as the pause-menu button and adds no route or
+## travel authority of its own.
+func open_planetary_destination_board() -> bool:
+	if (
+		is_queued_for_deletion()
+		or not is_inside_tree()
+		or _pause == null
+		or _planetary_destination_page == null
+	):
+		return false
+	set_paused(true)
+	_show_planetary_destination_page()
+	return _pause.visible and _planetary_destination_page.visible
+
+
 ## Public embodied entry point for the existing Activity Board.  The board is
 ## still the pause-overlay page: this method only exposes its established
 ## visibility and focus lifecycle to a physical station console.

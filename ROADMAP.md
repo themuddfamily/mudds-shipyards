@@ -1432,13 +1432,19 @@ both the controller-reachable fixed `EMBER CRUISE` engage/disengage row and a
 retained Destination Board backed by a two-world catalog. Ember is the sole
 routed/actionable entry and reports its exact 8,000 km distance, itinerary and
 live cruise state; authored Aurora remains visible as `NOT YET VISITABLE` with
-its action disabled. A catalog request resolves the exact static Ember route,
-then delegates to the existing generation-fenced expedition toggle instead of
-creating another travel path. The retained Ember journey owns one surface
-handoff and fixed Mudds Shipyards return target; the existing cruise,
-manual-landing and berth authorities own arrival rather than a parallel mover.
-No new raw-input, ship-command, movement, streaming, origin, landing, activity,
-reward, save or network authority was added.
+its action disabled. The previously decorative Aft Operations Console Bay 01
+is now a readable physical Destination Board terminal: it mirrors the retained
+two-world/one-route count plus Ember's public status and opens that exact HUD
+page through ordinary on-foot interaction. It survives Main detach/re-entry
+with one signal binding and cannot select or launch a route
+(`tests/planetary_destination_console_production_test.gd`, 9 assertions). A
+catalog request resolves the exact static Ember route, then delegates to the
+existing generation-fenced expedition toggle instead of creating another
+travel path. The retained Ember journey owns one surface handoff and fixed
+Mudds Shipyards return target; the existing cruise, manual-landing and berth
+authorities own arrival rather than a parallel mover. No new raw-input,
+ship-command, movement, streaming, origin, landing, activity, reward, save or
+network authority was added.
 
 The first authored destination is the original airless `ember_moon`, with exact
 `ember_basalt_terrain` and sole radial `ember_caldera` landing definitions; the

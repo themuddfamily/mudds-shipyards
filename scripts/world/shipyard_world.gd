@@ -2276,6 +2276,15 @@ func get_activity_board_console() -> Area3D:
 	return console if is_instance_valid(console) else null
 
 
+## Exposes the first Aft Operations workstation as the diegetic entry point to
+## the retained Destination Board. The console remains presentation/input only.
+func get_planetary_destination_console() -> Area3D:
+	var console := get_node_or_null(
+		^"AftJunctionStack/Structure/OperationsRoom/ConsoleBay01/PlanetaryDestinationConsole"
+	) as Area3D
+	return console if is_instance_valid(console) else null
+
+
 ## Exposes the adjacent physical ship-service adapter. The console owns no
 ## resource or ship mutation; GameFlow binds its request to the active craft.
 func get_ship_service_console() -> Area3D:
