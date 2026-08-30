@@ -335,6 +335,11 @@ const MODE_ABOARD: StringName = &"aboard"
 ## Seated in a deck vehicle: not piloting, and not walking either.
 const MODE_DRIVING: StringName = &"driving"
 
+## Release exports use this exact filename stamp. The pause footer only claims
+## a source revision when the running executable still carries that stamp;
+## renamed packages deliberately fall back to an honest unversioned label.
+const BUILD_FILENAME_PATTERN := "^MuddsShipyards-([0-9a-fA-F]{7})\\.exe$"
+
 var _root: Control
 var _debug_overlay: DebugOverlay
 var _minimap: Minimap
@@ -344,6 +349,8 @@ var _hud_panels: Control
 var _pause: Control
 var _pause_panels: Control
 var _pause_main_page: Control
+var _build_identity_label: Label
+var _build_identity_snapshot: Dictionary = {}
 var _activity_selection_page: Control
 var _server_browser_page: Control
 var _server_browser_title: Label
@@ -5069,6 +5076,24 @@ func _build_pause_main_page() -> void:
 	exit.name = "ExitButton"
 	exit.pressed.connect(func() -> void: orderly_shutdown_requested.emit())
 	stack.add_child(exit)
+	_build_identity_snapshot = resolve_build_identity(
+		OS.get_executable_path(),
+		str(ProjectSettings.get_setting("application/config/version", "unknown")),
+		OS.has_feature("editor"),
+	)
+	_build_identity_label = _label(
+		str(_build_identity_snapshot.get("display_text", "BUILD UNKNOWN")),
+		10,
+		MUTED,
+	)
+	_build_identity_label.name = "BuildIdentityLabel"
+	_build_identity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_build_identity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_build_identity_label.focus_mode = Control.FOCUS_NONE
+	_build_identity_label.tooltip_text = str(
+		_build_identity_snapshot.get("detail_text", "Build identity unavailable.")
+	)
+	stack.add_child(_build_identity_label)
 	# Freeze a controller-only path through the existing pause page. Horizontal
 	# movement still crosses the paired Settings/Activity buttons; either route
 	# reaches the cruise row on the next down press without pointer input.
@@ -5088,6 +5113,78 @@ func _build_pause_main_page() -> void:
 		_planetary_cruise_button.get_path_to(restart)
 	)
 	restart.focus_neighbor_top = restart.get_path_to(_planetary_cruise_button)
+
+
+## Resolves the player-facing build stamp without consulting Git or mutable
+## package metadata. The release exporter names each executable from the exact
+## clean HEAD revision; preserving that filename is therefore the only case in
+## which this presenter claims a revision.
+static func resolve_build_identity(
+	executable_path: String,
+	project_version: String,
+	editor_binary: bool,
+) -> Dictionary:
+	var normalized_path := executable_path.replace("\\", "/")
+	var executable_name := normalized_path.get_file().strip_edges()
+	var version := project_version.strip_edges()
+	if version.is_empty():
+		version = "unknown"
+	var revision := ""
+	var matcher := RegEx.new()
+	if matcher.compile(BUILD_FILENAME_PATTERN) == OK:
+		var stamped := matcher.search(executable_name)
+		if stamped != null:
+			revision = stamped.get_string(1).to_lower()
+	if not revision.is_empty():
+		return {
+			"mode": &"stamped_package",
+			"revision": revision,
+			"exact_revision": true,
+			"version": version,
+			"executable_name": executable_name,
+			"display_text": "BUILD %s  //  v%s" % [revision.to_upper(), version],
+			"detail_text": "Stamped package: %s" % executable_name,
+			"presentation_only": true,
+		}.duplicate(true)
+	if editor_binary:
+		return {
+			"mode": &"source_run",
+			"revision": "",
+			"exact_revision": false,
+			"version": version,
+			"executable_name": executable_name,
+			"display_text": "SOURCE RUN  //  v%s" % version,
+			"detail_text": "Running from the Godot development executable.",
+			"presentation_only": true,
+		}.duplicate(true)
+	return {
+		"mode": &"unstamped_package",
+		"revision": "",
+		"exact_revision": false,
+		"version": version,
+		"executable_name": executable_name,
+		"display_text": "UNSTAMPED BUILD  //  v%s" % version,
+		"detail_text": "The executable filename contains no source revision.",
+		"presentation_only": true,
+	}.duplicate(true)
+
+
+## Detached support information for screenshots and pause-layout checks.
+func get_build_identity_report() -> Dictionary:
+	var report := _build_identity_snapshot.duplicate(true)
+	report["label_text"] = (
+		_build_identity_label.text
+		if is_instance_valid(_build_identity_label)
+		else ""
+	)
+	report["label_rect"] = (
+		_build_identity_label.get_global_rect()
+		if is_instance_valid(_build_identity_label)
+		else Rect2()
+	)
+	report["pause_visible"] = _pause != null and _pause.visible
+	report["presentation_only"] = true
+	return report
 
 
 ## The smallest reachable selection surface for the four production activities.

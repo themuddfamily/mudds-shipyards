@@ -85,6 +85,7 @@ func _run() -> void:
 	await _test_ceiling_delivers_the_contract()
 	await _test_headroom_below_the_contract()
 	_test_uncapped_hundred_percent_still_holds()
+	await _test_build_identity_pause_label()
 	await _test_planetary_cruise_pause_layout()
 	await _test_activity_board_layout()
 
@@ -478,6 +479,65 @@ func _test_uncapped_hundred_percent_still_holds() -> void:
 	)
 
 
+## The pause footer lets a screenshot identify the tested package without
+## adding another focus stop. Only an intact release filename may claim an exact
+## source revision; source runs and renamed packages stay explicit.
+func _test_build_identity_pause_label() -> void:
+	var stamped := GameHUD.resolve_build_identity(
+		"C:\\Builds\\MuddsShipyards-a1B2c3D.exe",
+		"0.12.0",
+		false,
+	)
+	_check(
+		stamped.get("mode") == &"stamped_package"
+		and stamped.get("revision") == "a1b2c3d"
+		and stamped.get("exact_revision") == true
+		and stamped.get("display_text") == "BUILD A1B2C3D  //  v0.12.0",
+		"an intact Windows release filename exposes its exact seven-character revision",
+	)
+	var renamed := GameHUD.resolve_build_identity(
+		"C:\\Builds\\MuddsShipyards.exe",
+		"0.12.0",
+		false,
+	)
+	_check(
+		renamed.get("mode") == &"unstamped_package"
+		and renamed.get("revision") == ""
+		and renamed.get("exact_revision") == false
+		and str(renamed.get("display_text", "")).begins_with("UNSTAMPED BUILD"),
+		"a renamed package does not claim a source revision it can no longer identify",
+	)
+	var source := GameHUD.resolve_build_identity(
+		"/usr/bin/godot",
+		"0.12.0",
+		true,
+	)
+	_check(
+		source.get("mode") == &"source_run"
+		and source.get("revision") == ""
+		and source.get("display_text") == "SOURCE RUN  //  v0.12.0",
+		"an editor executable is identified as a source run without a false revision",
+	)
+	_hud.set_paused(true)
+	await process_frame
+	var pause_overlay := _hud.get("_pause") as Control
+	var label := pause_overlay.find_child(
+		"BuildIdentityLabel", true, false
+	) as Label
+	var report := _hud.get_build_identity_report()
+	_check(
+		label != null
+		and label.visible
+		and not label.text.is_empty()
+		and label.text == str(report.get("label_text", ""))
+		and label.mouse_filter == Control.MOUSE_FILTER_IGNORE
+		and label.focus_mode == Control.FOCUS_NONE
+		and report.get("presentation_only") == true,
+		"the live pause footer is visible, detached, and never becomes a controller focus stop",
+	)
+	_hud.set_paused(false)
+
+
 ## The player-facing cruise control shares the pause main page, including the
 ## maximum effective accessibility scale. Its compact status row must never
 ## escape the panel or overlap the controller-focusable button.
@@ -491,6 +551,10 @@ func _test_planetary_cruise_pause_layout() -> void:
 		"SettingsOpenButton", true, false
 	) as Button
 	var restart := pause_overlay.find_child("RestartButton", true, false) as Button
+	var exit := pause_overlay.find_child("ExitButton", true, false) as Button
+	var build_identity := pause_overlay.find_child(
+		"BuildIdentityLabel", true, false
+	) as Label
 	var dirty: Array[String] = []
 	var cases := 0
 	for viewport: Vector2 in [
@@ -512,6 +576,8 @@ func _test_planetary_cruise_pause_layout() -> void:
 			var row := report.get("row_rect", Rect2()) as Rect2
 			var button_rect := report.get("button_rect", Rect2()) as Rect2
 			var status_rect := report.get("status_rect", Rect2()) as Rect2
+			var build_rect := build_identity.get_global_rect()
+			var exit_rect := exit.get_global_rect()
 			var viewport_rect := Rect2(Vector2.ZERO, viewport)
 			if not viewport_rect.encloses(page):
 				dirty.append(
@@ -542,6 +608,15 @@ func _test_planetary_cruise_pause_layout() -> void:
 						viewport.x, viewport.y, scale_request
 					]
 				)
+			if (
+				not page.grow(0.01).encloses(build_rect)
+				or build_rect.intersects(exit_rect)
+			):
+				dirty.append(
+					"%.0fx%.0f @%.2f build footer escaped or overlapped Exit" % [
+						viewport.x, viewport.y, scale_request
+					]
+				)
 			print(
 				"MEASURED: cruise row %.0fx%.0f request %.2f -> effective %.4f page %s"
 				% [viewport.x, viewport.y, scale_request, effective, str(page)]
@@ -550,6 +625,8 @@ func _test_planetary_cruise_pause_layout() -> void:
 		button != null
 		and settings != null
 		and restart != null
+		and exit != null
+		and build_identity != null
 		and button.focus_mode == Control.FOCUS_ALL
 		and settings.get_node_or_null(settings.focus_neighbor_bottom) == button
 		and button.get_node_or_null(button.focus_neighbor_bottom) == restart,
