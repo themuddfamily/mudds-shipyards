@@ -1,12 +1,17 @@
 class_name EmberRelaySurveyPersistenceBinding
 extends RefCounted
 
-## Namespaced atomic-store bridge for one terminal Ember relay-survey receipt.
-## It persists only an already committed reward observation and restores no
-## ActivityDirector or reward authority.
+## Namespaced atomic-store bridge for one Ember relay-survey slot. It persists
+## either an already committed reward observation or a detached active-journey
+## recovery receipt, and restores no ActivityDirector, movement, or reward
+## authority.
 
+const ReturnPersistenceAdapterScript := preload(
+	"res://scripts/world/planetary_return_persistence_adapter.gd"
+)
 const SCHEMA_VERSION := 1
 const PAYLOAD_KIND := "ember_relay_survey_completion"
+const ACTIVE_JOURNEY_PAYLOAD_KIND := "ember_relay_survey_active_journey"
 const ACTIVITY_ID := "ember_beacon_survey"
 const WORLD_ID := "ember_moon"
 const REWARD_ID := "ember_beacon_data"
@@ -18,6 +23,8 @@ const OPTIONAL_RESPONSE_ID := "ember_bunker_service_alcove"
 
 var _store: RefCounted
 var _slot_id: StringName = &""
+var _active_journey_adapter: RefCounted
+var _loaded_active_journey_receipt := ""
 
 
 func configure(store: RefCounted, slot_id: StringName) -> Dictionary:
@@ -60,6 +67,10 @@ func load() -> Dictionary:
 	if not payload.has(slot_key):
 		return _result(false, &"survey_persistence_not_found")
 	var record: Variant = payload.get(slot_key)
+	if record is Dictionary and str(
+		(record as Dictionary).get("payload_kind", "")
+	) == ACTIVE_JOURNEY_PAYLOAD_KIND:
+		return _result(false, &"survey_persistence_active_journey_present")
 	var validation := validate_record(record)
 	if not bool(validation.get("accepted", false)):
 		return validation
@@ -70,6 +81,124 @@ func load() -> Dictionary:
 		"completion": (record as Dictionary).completion.duplicate(true),
 		"reward_replay_allowed": false,
 	}.duplicate(true)
+
+
+## Atomically replaces this slot with a detached active-journey recovery
+## receipt. The existing UserDataStore remains the only filesystem and
+## transaction authority; this bridge captures no actor or reward capability.
+func save_interrupted_journey(
+		session_contract: Object,
+		route_snapshot: Variant,
+		commit_id: String
+	) -> Dictionary:
+	if not _configured() or commit_id.strip_edges().is_empty():
+		return _result(false, &"survey_active_journey_save_invalid")
+	var adapter := ReturnPersistenceAdapterScript.new() as RefCounted
+	var captured := adapter.call(
+		&"capture_interrupted_journey", session_contract, route_snapshot
+	) as Dictionary
+	if not bool(captured.get("accepted", false)):
+		return captured
+	var recovery := _wire_copy(captured) as Dictionary
+	var record := {
+		"schema_version": float(SCHEMA_VERSION),
+		"payload_kind": ACTIVE_JOURNEY_PAYLOAD_KIND,
+		"slot_id": String(_slot_id),
+		"receipt_sha256": _digest(recovery),
+		# Keep the established five-key wire envelope. `payload_kind` defines
+		# whether this legacy-named field is a completion or a recovery receipt.
+		"completion": recovery,
+	}
+	var expected_generation := int(_store.call(&"get_generation"))
+	var payload := _store.call(&"get_snapshot") as Dictionary
+	payload[String(_slot_id)] = record
+	var committed := _store.call(
+		&"commit", payload, expected_generation, commit_id
+	) as Dictionary
+	committed["binding_reason"] = (
+		&"active_journey_saved" if bool(committed.get("accepted", false)) \
+		else &"store_rejected"
+	)
+	committed["receipt_sha256"] = str(recovery.get("receipt_sha256", ""))
+	return committed
+
+
+## Loads a passive resume description. The caller must separately reconstruct
+## the correct frame, restore the detached save-session contract with a fresh
+## attachment generation, and then retire this receipt.
+func load_interrupted_journey() -> Dictionary:
+	if not _configured():
+		return _result(false, &"survey_persistence_unavailable")
+	if not _loaded_active_journey_receipt.is_empty():
+		return _result(false, &"survey_active_journey_already_loaded")
+	var loaded := _store.call(&"load") as Dictionary
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	var payload := loaded.get("payload", {}) as Dictionary
+	var slot_key := String(_slot_id)
+	if not payload.has(slot_key):
+		return _result(false, &"survey_active_journey_not_found")
+	var record: Variant = payload.get(slot_key)
+	var validation := validate_interrupted_journey_record(record)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	_active_journey_adapter = ReturnPersistenceAdapterScript.new() as RefCounted
+	var restored := _active_journey_adapter.call(
+		&"restore_interrupted_journey",
+		(record as Dictionary).get("completion", {})
+	) as Dictionary
+	if not bool(restored.get("accepted", false)):
+		return restored
+	_loaded_active_journey_receipt = str(restored.get("receipt_sha256", ""))
+	return {
+		"accepted": true,
+		"reason": &"survey_active_journey_loaded",
+		"store_generation": int(loaded.get("generation", -1)),
+		"recovery": restored.duplicate(true),
+		"movement_replay_allowed": false,
+		"reward_replay_allowed": false,
+	}.duplicate(true)
+
+
+## Removes only the exact active receipt observed at the supplied store
+## generation. Callers do this after their own save-session contract accepts
+## re-entry so a crash before adoption remains retryable.
+func retire_interrupted_journey(
+		expected_store_generation: int,
+		expected_receipt_sha256: String,
+		commit_id: String
+	) -> Dictionary:
+	if not _configured() or expected_store_generation < 0 \
+			or expected_receipt_sha256.length() != 64 \
+			or commit_id.strip_edges().is_empty():
+		return _result(false, &"survey_active_journey_retire_invalid")
+	if expected_receipt_sha256 != _loaded_active_journey_receipt:
+		return _result(false, &"survey_active_journey_receipt_not_observed")
+	if int(_store.call(&"get_generation")) != expected_store_generation:
+		return _result(false, &"survey_active_journey_store_generation_stale")
+	var payload := _store.call(&"get_snapshot") as Dictionary
+	var slot_key := String(_slot_id)
+	if not payload.has(slot_key):
+		return _result(false, &"survey_active_journey_not_found")
+	var record: Variant = payload.get(slot_key)
+	var validation := validate_interrupted_journey_record(record)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	var recovery := (record as Dictionary).get("completion", {}) as Dictionary
+	if str(recovery.get("receipt_sha256", "")) != expected_receipt_sha256:
+		return _result(false, &"survey_active_journey_receipt_mismatch")
+	payload.erase(slot_key)
+	var committed := _store.call(
+		&"commit", payload, expected_store_generation, commit_id
+	) as Dictionary
+	committed["binding_reason"] = (
+		&"active_journey_retired" if bool(committed.get("accepted", false)) \
+		else &"store_rejected"
+	)
+	if bool(committed.get("accepted", false)):
+		_loaded_active_journey_receipt = ""
+		_active_journey_adapter = null
+	return committed
 
 
 func get_store_generation() -> int:
@@ -190,6 +319,27 @@ func validate_record(candidate: Variant) -> Dictionary:
 	):
 		return _result(false, &"survey_persistence_payload_corrupt")
 	return _result(true, &"survey_persistence_payload_valid")
+
+
+func validate_interrupted_journey_record(candidate: Variant) -> Dictionary:
+	if not candidate is Dictionary:
+		return _result(false, &"survey_active_journey_payload_corrupt")
+	var record := candidate as Dictionary
+	if record.size() != 5 or not _integral(record.get("schema_version")) \
+			or int(record.get("schema_version", 0)) != SCHEMA_VERSION \
+			or str(record.get("payload_kind", "")) != ACTIVE_JOURNEY_PAYLOAD_KIND \
+			or StringName(record.get("slot_id", &"")) != _slot_id \
+			or not record.get("receipt_sha256") is String \
+			or not record.get("completion") is Dictionary:
+		return _result(false, &"survey_active_journey_payload_corrupt")
+	var recovery := record.get("completion", {}) as Dictionary
+	if str(record.get("receipt_sha256", "")) != _digest(recovery):
+		return _result(false, &"survey_active_journey_payload_corrupt")
+	var adapter := ReturnPersistenceAdapterScript.new() as RefCounted
+	var restored := adapter.call(&"restore_interrupted_journey", recovery) as Dictionary
+	if not bool(restored.get("accepted", false)):
+		return restored
+	return _result(true, &"survey_active_journey_payload_valid")
 
 
 func _capture_optional_completion(

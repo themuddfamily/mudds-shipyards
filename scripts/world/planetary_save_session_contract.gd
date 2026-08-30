@@ -216,6 +216,41 @@ func get_snapshot() -> Dictionary:
 	return _snapshot().duplicate(true)
 
 
+## Decodes one detached checkpoint into the identity a caller needs to decide
+## whether it can safely reconstruct the interrupted visit. This is an
+## observation only: it does not attach an actor, advance a route, move a craft,
+## or install the snapshot into this contract.
+static func inspect_detached_recovery(candidate: Variant) -> Dictionary:
+	var decoded := decode_snapshot(candidate)
+	if not bool(decoded.get("accepted", false)):
+		return _rejection(StringName(decoded.get("reason", &"snapshot_invalid")))
+	var snapshot := decoded.get("snapshot", {}) as Dictionary
+	if StringName(snapshot.get("state", &"")) != STATE_DETACHED:
+		return _rejection(&"snapshot_not_detached")
+	var checkpoint := snapshot.get("checkpoint", {}) as Dictionary
+	if checkpoint.is_empty():
+		return _rejection(&"checkpoint_missing")
+	return {
+		"accepted": true,
+		"reason": &"detached_recovery_available",
+		"world_id": StringName(snapshot.get("world_id", &"")),
+		"session_id": StringName(snapshot.get("session_id", &"")),
+		"attachment_generation": int(snapshot.get("attachment_generation", 0)),
+		"checkpoint_generation": int(snapshot.get("checkpoint_generation", 0)),
+		"physics_tick": int(snapshot.get("physics_tick", 0)),
+		"frame_generation": int(snapshot.get("frame_generation", 0)),
+		"phase": StringName(checkpoint.get("phase", &"")),
+		"checkpoint": checkpoint.duplicate(true),
+		"detached_snapshot": snapshot.duplicate(true),
+		"authority": {
+			"movement": false,
+			"attachment": false,
+			"streaming": false,
+			"reward": false,
+		},
+	}.duplicate(true)
+
+
 func audit() -> Dictionary:
 	var decoded := decode_snapshot(_snapshot())
 	return {
@@ -286,9 +321,7 @@ static func decode_snapshot(candidate: Variant) -> Dictionary:
 		var checkpoint_validation := _decode_checkpoint(checkpoint_dict)
 		if not bool(checkpoint_validation.accepted):
 			return _rejection(StringName(checkpoint_validation.reason))
-		if int(snapshot.get("checkpoint_generation")) <= 0 \
-			or int(snapshot.get("checkpoint_generation")) \
-			!= int(snapshot.get("checkpoint_generation")):
+		if int(snapshot.get("checkpoint_generation")) <= 0:
 			return _rejection(&"checkpoint_generation_invalid")
 		if int(snapshot.get("physics_tick")) \
 			!= int(checkpoint_dict.get("physics_tick", -1)):
@@ -537,7 +570,12 @@ static func _valid_generation(value: Variant) -> bool:
 
 
 static func _valid_bounded_integer(value: Variant, minimum: int, maximum: int) -> bool:
-	if not value is int:
+	# UserDataStore's JSON decoder exposes wire numbers as floats. Accept only
+	# exact finite integral values so a persisted contract can actually re-enter
+	# without weakening any generation or bound fence.
+	if not value is int and not (
+		value is float and is_finite(value) and value == floor(value)
+	):
 		return false
 	return int(value) >= minimum and int(value) <= maximum
 
