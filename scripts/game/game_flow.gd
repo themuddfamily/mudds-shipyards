@@ -3324,6 +3324,11 @@ func _get_active_nearby_minimap_markers(
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
 	for profile: Dictionary in [
 		{
+			"snapshot_key": &"cargo",
+			"marker_id": &"active_platform_supply_target",
+			"position_key": &"minimap_target_position",
+		},
+		{
 			"snapshot_key": &"mining",
 			"marker_id": &"active_mining_hold",
 			"position_key": &"approach_anchor",

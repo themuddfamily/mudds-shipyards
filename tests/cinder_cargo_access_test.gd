@@ -752,18 +752,34 @@ func _test_embodied_bidirectional_route(
 	var active := binding.start_cargo_run()
 	var cargo_generation := int(active.generation)
 	var source_handle_during_sortie := binding.get_cargo_source_handle()
+	var load_marker := _find_minimap_marker(
+		flow._get_active_nearby_minimap_markers(binding, 17),
+		&"active_platform_supply_target",
+	)
 	var loaded := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
 	var berth := access.get_berth()
+	var clear_target := access.get_supply_phase_target_position(&"clear_gate")
+	var clear_marker := _find_minimap_marker(
+		flow._get_active_nearby_minimap_markers(binding, 17),
+		&"active_platform_supply_target",
+	)
 	var released_for_sortie := berth.release(ship, lease_token)
 	var still_inside_gate := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
 	var outside_gate := berth.get_assist_capture_transform()
 	outside_gate.origin = access.to_global(Vector3(-29.0, 4.15, 120.0))
 	ship.global_transform = outside_gate
 	var cleared := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
+	var dock_marker := _find_minimap_marker(
+		flow._get_active_nearby_minimap_markers(binding, 17),
+		&"active_platform_supply_target",
+	)
 	ship.global_transform = berth.get_dock_transform()
 	var return_lease_token := berth.try_reserve(ship, ship.get_ship_definition())
 	var reoccupied := berth.occupy(ship, return_lease_token)
 	var docked := flow._advance_cinder_cargo_run(0.1, _ship_sample(ship))
+	var completed_phase_markers := flow._get_active_nearby_minimap_markers(
+		binding, 17
+	)
 	var terminal_authorized := flow._authorize_cinder_cargo_terminal_actor(ship)
 	var routed_cargo := binding.get_snapshot().cargo as Dictionary
 	var phases_accepted := (
@@ -784,6 +800,23 @@ func _test_embodied_bidirectional_route(
 	_check(
 		phases_accepted,
 		"caller physics advances load, rejects a still-inside departure, retains the exact manifest beyond the real gate, and accepts the same Jovian on physical return"
+	)
+	_check(
+		not load_marker.is_empty()
+		and (load_marker.position as Vector3).is_equal_approx(
+			berth.get_dock_transform().origin
+		)
+		and not clear_marker.is_empty()
+		and (clear_marker.position as Vector3).is_equal_approx(clear_target)
+		and not berth.contains_assist_capture(clear_target)
+		and not dock_marker.is_empty()
+		and (dock_marker.position as Vector3).is_equal_approx(
+			berth.get_dock_transform().origin
+		)
+		and _find_minimap_marker(
+			completed_phase_markers, &"active_platform_supply_target"
+		).is_empty(),
+		"platform-supply guidance follows the exact dock, physical clear-gate target, and return berth before withdrawing after the three phases"
 	)
 	var reward_configured := flow._configure_cinder_cargo_reward_handoff(binding)
 	var out_of_range := terminal.get_interaction_snapshot(
@@ -1112,6 +1145,16 @@ func _cast_conservative_hull_sweep(
 		"unsafe_fraction": cast[1] if cast.size() > 1 else 0.0,
 		"collision_names": collision_names,
 	}
+
+
+func _find_minimap_marker(
+		markers: Array[Dictionary],
+		marker_id: StringName,
+	) -> Dictionary:
+	for marker in markers:
+		if StringName(marker.get("id", &"")) == marker_id:
+			return marker.duplicate(true)
+	return {}
 
 
 func _query_conservative_hull(

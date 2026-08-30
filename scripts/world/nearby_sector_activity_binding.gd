@@ -2359,6 +2359,12 @@ func _cargo_presentation_snapshot() -> Dictionary:
 		&"clear_gate": "Depart beyond the Cinder berth gate",
 		&"dock_platform": "Return and dock at the Cinder platform",
 	}.get(next_phase_id, "Use the platform cargo terminal")
+	if state == CARGO_ACTIVITY.State.ACTIVE and is_instance_valid(_cargo_access):
+		var target_position := _cargo_access.get_supply_phase_target_position(
+			next_phase_id
+		)
+		if target_position.is_finite():
+			snapshot["minimap_target_position"] = target_position
 	snapshot["completed_checkpoint_count"] = maxi(next_phase_index, 0)
 	snapshot["checkpoint_count"] = int(snapshot.get("phase_count", phases.size()))
 	return snapshot.duplicate(true)

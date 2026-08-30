@@ -54,6 +54,11 @@ const ASSIST_CAPTURE_CENTER := Vector3(0.0, 3.0, 42.0)
 const ASSIST_CAPTURE_HALF_EXTENTS := Vector3(15.0, 18.0, 48.0)
 const ASSIST_CAPTURE_MAXIMUM_SPEED := 35.0
 const ASSIST_MAXIMUM_TILT_DEGREES := 75.0
+## Keeps the navigation target visibly beyond the same root-based capture box
+## that accepts the clear-gate phase, without inventing a second completion
+## volume. The target stays level with the docked ship root on the authored
+## departure side of the berth.
+const SUPPLY_CLEAR_GATE_MARGIN := 12.0
 const COMPATIBILITY_TAGS: Array[StringName] = [&"light_freighter"]
 
 const LANDING_DECK_TOP := 2.9
@@ -237,6 +242,33 @@ func _ready() -> void:
 
 func get_berth() -> ShipBerth:
 	return _berth
+
+
+## Presentation-only destination for the live platform-supply phase. The berth
+## remains the sole docking and capture authority; this merely exposes an exact
+## point derived from that physical contract for HUD/minimap consumers.
+func get_supply_phase_target_position(phase_id: StringName) -> Vector3:
+	if not is_instance_valid(_berth):
+		return Vector3.INF
+	var dock := _berth.get_dock_transform()
+	if not dock.origin.is_finite():
+		return Vector3.INF
+	match phase_id:
+		&"load_crate", &"dock_platform":
+			return dock.origin
+		&"clear_gate":
+			var capture_center := _berth.get_assist_capture_center()
+			var capture_half_extents := _berth.get_assist_capture_half_extents()
+			var dock_local_target := Vector3(
+				0.0,
+				0.0,
+				capture_center.z
+					- capture_half_extents.z
+					- SUPPLY_CLEAR_GATE_MARGIN,
+			)
+			var world_target := dock * dock_local_target
+			return world_target if world_target.is_finite() else Vector3.INF
+	return Vector3.INF
 
 
 func get_build_generation() -> int:
