@@ -21,6 +21,7 @@ var _optional_activity_generation := -1
 var _optional_run_generation := -1
 var _optional_attachment_generation := -1
 var _optional_receipt: Dictionary = {}
+var _deferred_bunker_receipt: Dictionary = {}
 var _sample_rack_completed := false
 var _sample_rack_activity_generation := -1
 var _sample_rack_run_generation := -1
@@ -43,6 +44,7 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 		if bool(restarted.get("accepted", false)):
 			_reconcile_optional_checkpoint_generation(adapter)
 			_apply_authoritative_route_result(restarted)
+			_admit_deferred_bunker_checkpoint(adapter)
 		return restarted
 	var ids: Array[StringName] = [ACTIVITY_ID]
 	var started: Dictionary
@@ -55,6 +57,7 @@ func begin(adapter: Object, navigation: RefCounted = null) -> Dictionary:
 	if bool(started.get("accepted", false)):
 		_reconcile_optional_checkpoint_generation(adapter)
 		_apply_authoritative_route_result(started)
+		_admit_deferred_bunker_checkpoint(adapter)
 	return started
 
 func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3) -> Dictionary:
@@ -95,10 +98,6 @@ func submit_optional_checkpoint(adapter: Object, receipt: Variant) -> Dictionary
 		return _checkpoint_result(
 			false, &"optional_checkpoint_already_completed", adapter, checkpoint_id
 		)
-	if StringName(adapter_snapshot.get("state", &"")) != &"active" \
-			or StringName(runtime.get("state", &"")) != &"active" \
-			or StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID:
-		return _checkpoint_result(false, &"relay_survey_not_active", adapter, checkpoint_id)
 	if StringName(evidence.get("world_id", &"")) != &"ember_moon" \
 			or bool(evidence.get("activity_started", true)) \
 			or bool(evidence.get("reward_granted", true)) \
@@ -109,9 +108,35 @@ func submit_optional_checkpoint(adapter: Object, receipt: Variant) -> Dictionary
 	var run_generation := int(runtime.get("run_generation", -1))
 	var attachment_generation := int(runtime.get("attachment_generation", -1))
 	var activity_generation := int(runtime.get("activity_generation", -1))
-	if int(evidence.get("host_generation", -2)) != run_generation \
-			or int(evidence.get("attachment_generation", -2)) != attachment_generation \
-			or run_generation < 1 or attachment_generation < 1 or activity_generation < 1:
+	var evidence_run_generation := int(evidence.get("host_generation", -1))
+	var evidence_attachment_generation := int(
+		evidence.get("attachment_generation", -1)
+	)
+	if evidence_run_generation < 1 or evidence_attachment_generation < 1:
+		return _checkpoint_result(
+			false, &"stale_optional_checkpoint_generation", adapter, checkpoint_id
+		)
+	var survey_active := StringName(adapter_snapshot.get("state", &"")) == &"active" \
+		and StringName(runtime.get("state", &"")) == &"active" \
+		and StringName(runtime.get("activity_id", &"")) == ACTIVITY_ID \
+		and activity_generation >= 1
+	if not survey_active:
+		# The physical bunker exists before the activity is accepted. Retain that
+		# one harmless observation so exploring it early cannot permanently burn
+		# the console; begin() promotes it only after the real survey authority is
+		# active. Sample analysis remains activity-gated at its own interaction.
+		if checkpoint_id == OPTIONAL_CHECKPOINT_ID \
+				and StringName(adapter_snapshot.get("state", &"")) == &"ready" \
+				and StringName(runtime.get("state", &"")) == &"ready" \
+				and _deferred_bunker_receipt.is_empty():
+			_deferred_bunker_receipt = evidence.duplicate(true)
+			return _checkpoint_result(
+				true, &"optional_checkpoint_held_for_survey", adapter, checkpoint_id
+			)
+		return _checkpoint_result(false, &"relay_survey_not_active", adapter, checkpoint_id)
+	if evidence_run_generation != run_generation \
+			or evidence_attachment_generation != attachment_generation \
+			or run_generation < 1 or attachment_generation < 1:
 		return _checkpoint_result(
 			false, &"stale_optional_checkpoint_generation", adapter, checkpoint_id
 		)
@@ -130,6 +155,7 @@ func submit_optional_checkpoint(adapter: Object, receipt: Variant) -> Dictionary
 		_optional_run_generation = run_generation
 		_optional_attachment_generation = attachment_generation
 		_optional_receipt = evidence.duplicate(true)
+		_deferred_bunker_receipt = {}
 	else:
 		_sample_rack_completed = true
 		_sample_rack_activity_generation = activity_generation
@@ -248,7 +274,10 @@ func _optional_checkpoint_snapshot(adapter: Object) -> Dictionary:
 		"progress_text": "OPTIONAL BUNKER LOG  1 / 1" if _optional_checkpoint_completed \
 			else "OPTIONAL BUNKER LOG  0 / 1",
 		"status_text": "Bunker / gantry log recorded" if _optional_checkpoint_completed \
-			else ("Bunker / gantry log available" if eligible else "Optional log inactive"),
+			else ("Bunker / gantry log available" if eligible \
+			else ("Bunker log held — start relay survey" \
+			if not _deferred_bunker_receipt.is_empty() else "Optional log inactive")),
+		"observation_held": not _deferred_bunker_receipt.is_empty(),
 		"activity_generation": _optional_activity_generation,
 		"current_activity_generation": current_activity_generation,
 		"run_generation": _optional_run_generation,
@@ -324,6 +353,37 @@ func _reconcile_optional_checkpoint_generation(adapter: Object) -> void:
 		_sample_rack_run_generation = -1
 		_sample_rack_attachment_generation = -1
 		_sample_rack_receipt = {}
+
+
+func _admit_deferred_bunker_checkpoint(adapter: Object) -> void:
+	if _deferred_bunker_receipt.is_empty() or adapter == null \
+			or not adapter.has_method(&"get_snapshot"):
+		return
+	var adapter_snapshot := adapter.call(&"get_snapshot") as Dictionary
+	var runtime := adapter_snapshot.get("activity_reward", {}) as Dictionary
+	var run_generation := int(runtime.get("run_generation", -1))
+	var attachment_generation := int(runtime.get("attachment_generation", -1))
+	var activity_generation := int(runtime.get("activity_generation", -1))
+	var evidence_attachment := int(
+		_deferred_bunker_receipt.get("attachment_generation", -1)
+	)
+	if StringName(adapter_snapshot.get("state", &"")) != &"active" \
+			or StringName(runtime.get("state", &"")) != &"active" \
+			or StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID \
+			or run_generation < 1 or attachment_generation < 1 \
+			or activity_generation < 1 \
+			or int(_deferred_bunker_receipt.get("host_generation", -1)) \
+				!= run_generation \
+			or evidence_attachment < 1 \
+			or evidence_attachment > attachment_generation:
+		_deferred_bunker_receipt = {}
+		return
+	_optional_checkpoint_completed = true
+	_optional_activity_generation = activity_generation
+	_optional_run_generation = run_generation
+	_optional_attachment_generation = attachment_generation
+	_optional_receipt = _deferred_bunker_receipt.duplicate(true)
+	_deferred_bunker_receipt = {}
 
 
 func _apply_authoritative_route_result(result: Dictionary) -> void:

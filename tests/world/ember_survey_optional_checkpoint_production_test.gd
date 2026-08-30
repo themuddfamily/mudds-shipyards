@@ -291,13 +291,22 @@ func _run() -> void:
 		bool(standalone_configured.accepted) and bool(standalone_completed.accepted)
 			and before_start.adapter.state == &"ready"
 			and not bool(before_start.relay_survey.optional_checkpoint.completed)
+			and bool(before_start.relay_survey.optional_checkpoint.observation_held)
+			and before_start.relay_survey.optional_checkpoint.status_text \
+				== "Bunker log held — start relay survey"
 			and bool(before_start.survey_interaction.completed)
 			and bool(standalone_detached.accepted)
 			and bool(standalone_reentered.accepted)
 			and bool(standalone_restored.accepted)
 			and bool(standalone_started.accepted)
 			and bool(after_start.relay_survey.optional_checkpoint.eligible)
-			and not bool(after_start.relay_survey.optional_checkpoint.completed)
+			and bool(after_start.relay_survey.optional_checkpoint.completed)
+			and not bool(after_start.relay_survey.optional_checkpoint.observation_held)
+			and after_start.relay_survey.optional_checkpoint.progress_text \
+				== "OPTIONAL BUNKER LOG  1 / 1"
+			and bool(after_start.relay_survey_presentation.hud.completed)
+			and after_start.relay_survey_presentation.hud.status_text \
+				== "Bunker / gantry log recorded"
 			and bool(standalone_aborted.accepted)
 			and not bool(terminal_failure.sample_rack_interaction.active)
 			and terminal_failure_layer == 0
@@ -308,7 +317,7 @@ func _run() -> void:
 			and not bool(failed_sample.eligible)
 			and not bool(failed_sample.completed)
 			and _reward_calls == 2,
-		"standalone logging never starts activity and a failed survey hides its rack"
+		"early bunker exploration waits for the live survey without starting or advancing it"
 	)
 
 	for failure in _failures:
