@@ -28,6 +28,14 @@ const EXPECTED_FAR_TRIANGLES := 5_412
 const EXPECTED_RUNTIME_MESHES := 22
 const EXPECTED_RUNTIME_SURFACES := 22
 const EXPECTED_MATERIAL_ROLES := 10
+# The authored modern canopy's graphite frame is a single exterior batch. Its
+# centre spine crosses the physical pilot eye because the imported shell is
+# intentionally presentation-only and has no cockpit cutaway. Keep that batch
+# visible to every normal exterior camera on the last 3D render layer, while
+# the Zenith cockpit camera alone omits it. This changes no B7 source geometry,
+# mesh/material identity, collision, or external silhouette.
+const COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER := 20
+const COCKPIT_FRAME_EXTERIOR_VISUAL_MASK := 1 << (COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER - 1)
 const COLLISION_ORACLE_ID: StringName = &"zenith_b7_runtime_24_mixed_v2"
 const COLLISION_GEOMETRY_SHA256 := "7717ba624158dca52c71dc271e13663436b9b9bf52658972f92fbc9e4482c273"
 const COLLISION_TYPE_COUNTS := {
@@ -3561,6 +3569,11 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 		remove_child(staged_visual)
 		staged_visual.queue_free()
 		return false
+	var cockpit_exterior_frame := _find_cockpit_exterior_frame(presentation)
+	if cockpit_exterior_frame == null:
+		remove_child(staged_visual)
+		staged_visual.queue_free()
+		return false
 
 	var staged_collisions: Array[CollisionShape3D] = []
 	for spec in COLLISION_SPECS:
@@ -3597,6 +3610,12 @@ func _build_zenith_variant(_controller: HeroShip) -> bool:
 	boarding_entry.rotation = Vector3(0.0, -PI * 0.5, 0.0)
 	cockpit_camera.position = EXPECTED_ANCHORS[&"CockpitCamera"]
 	cockpit_camera.rotation = Vector3.ZERO
+	# The render-layer split is camera-local: chase, station and evidence cameras
+	# retain the complete silhouette, while first person no longer begins inside
+	# the solid graphite centre spine. The translucent glass and pale nose remain
+	# visible from the physical eye point.
+	cockpit_exterior_frame.layers = COCKPIT_FRAME_EXTERIOR_VISUAL_MASK
+	cockpit_camera.set_cull_mask_value(COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER, false)
 
 	_apply_runtime_marker_contract()
 	var inherited_collisions: Array[CollisionShape3D] = []
@@ -3745,6 +3764,26 @@ func _preflight_authored_presentation(presentation: Node3D) -> bool:
 	var expected_names := PackedStringArray(REQUIRED_PLUME_NAMES)
 	expected_names.sort()
 	return plume_names == expected_names
+
+
+func _find_cockpit_exterior_frame(presentation: Node3D) -> MeshInstance3D:
+	if presentation == null or not presentation.has_method("get_canopy_pivot"):
+		return null
+	var canopy := presentation.call("get_canopy_pivot") as Node3D
+	if canopy == null:
+		return null
+	var matched_frame: MeshInstance3D
+	for candidate in canopy.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := candidate as MeshInstance3D
+		if StringName(mesh_instance.get_meta(&"zenith_material_role", &"")) \
+				!= &"GraphitePanel":
+			continue
+		# Ambiguity fails closed instead of silently hiding a newly split or
+		# unrelated authored batch from the cockpit.
+		if matched_frame != null:
+			return null
+		matched_frame = mesh_instance
+	return matched_frame
 
 
 func _make_collision(spec: Dictionary) -> CollisionShape3D:
@@ -4306,6 +4345,20 @@ func _audit_functional_authority(violations: Array[Dictionary]) -> void:
 		var authored_canopy := _authored_presentation.call("get_canopy_pivot") as Node3D
 		if authored_canopy == null:
 			_violation(violations, &"authored_canopy_missing", "CanopyPivot", "authored canopy pivot is missing")
+	var cockpit_camera := (
+		_functional_cockpit.get_node_or_null("CockpitCamera") as Camera3D
+		if _functional_cockpit != null else null
+	)
+	var cockpit_exterior_frame := _find_cockpit_exterior_frame(_authored_presentation)
+	if cockpit_camera == null or cockpit_exterior_frame == null \
+			or cockpit_exterior_frame.layers != COCKPIT_FRAME_EXTERIOR_VISUAL_MASK \
+			or cockpit_camera.get_cull_mask_value(COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER):
+		_violation(
+			violations,
+			&"cockpit_exterior_filter_drift",
+			"CockpitCamera.cull_mask",
+			"cockpit-only exterior-frame filter drifted"
+		)
 	var plume_names := PackedStringArray()
 	for plume in get_zenith_engine_plumes():
 		plume_names.append(str(plume.name))

@@ -52,6 +52,54 @@ func _run() -> void:
 		DirAccess.make_dir_recursive_absolute(output.get_base_dir())
 		_check(image.save_png(output) == OK, "Forward+ comparison saves successfully")
 		print("ZENITH_CRITICAL_WING_SILHOUETTE_CAPTURE: ", output)
+
+	# Exercise the exact cameras used during normal play. The original evidence
+	# camera only proves the external aft silhouette and cannot expose self-hull
+	# intrusion at either production eye point.
+	for craft in [nominal as ZenithInterceptor, failed as ZenithInterceptor]:
+		craft.set_piloted(true)
+		craft.set_cockpit_view(false)
+	await _settle_physics(12)
+	_check(
+		(nominal as ZenithInterceptor).get_camera().current
+			and (failed as ZenithInterceptor).get_camera().current
+			and (nominal as ZenithInterceptor).get_camera().get_cull_mask_value(
+				ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER
+			),
+		"both production chase cameras become authoritative"
+	)
+	await _save_audit_frame(
+		"res://artifacts/zenith_critical_wing_silhouette/production_chase_comparison.png",
+		"production chase"
+	)
+
+	for craft in [nominal as ZenithInterceptor, failed as ZenithInterceptor]:
+		craft.set_cockpit_view(true)
+	await _settle_physics(12)
+	_check(
+		(nominal as ZenithInterceptor).get_camera().current
+			and (failed as ZenithInterceptor).get_camera().current
+			and not (nominal as ZenithInterceptor).get_camera().get_cull_mask_value(
+				ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_LAYER
+			),
+		"both production cockpit cameras become authoritative"
+	)
+	var cockpit_frame := (nominal as ZenithInterceptor).find_child(
+		"ModernSystemsCanopyPivotStaticBatch_GraphitePanel", true, false
+	) as MeshInstance3D
+	_check(
+		cockpit_frame != null
+			and cockpit_frame.layers
+				== ZenithInterceptor.COCKPIT_FRAME_EXTERIOR_VISUAL_MASK
+			and bool((nominal as ZenithInterceptor).get_zenith_audit_report().valid),
+		"cockpit omits only the dedicated exterior frame layer while runtime audit stays green"
+	)
+	await _save_audit_frame(
+		"res://artifacts/zenith_critical_wing_silhouette/production_cockpit_comparison.png",
+		"production cockpit"
+	)
+	for craft in [nominal as ZenithInterceptor, failed as ZenithInterceptor]:
+		craft.set_piloted(false)
 	row.queue_free()
 	await process_frame
 	_finish()
@@ -127,6 +175,27 @@ func _component_local_position(craft: HeroShip, component_id: StringName) -> Vec
 		if StringName(component.get("id", &"")) == component_id:
 			return component.get("local_position", Vector3.ZERO) as Vector3
 	return Vector3.ZERO
+
+
+func _settle_physics(count: int) -> void:
+	for _frame in count:
+		await physics_frame
+		await process_frame
+
+
+func _save_audit_frame(path: String, label: String) -> void:
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	_check(
+		image != null and not image.is_empty() and image.get_size() == RESOLUTION,
+		"%s capture returns one stable frame" % label
+	)
+	if image == null or image.is_empty():
+		return
+	var output := ProjectSettings.globalize_path(path)
+	DirAccess.make_dir_recursive_absolute(output.get_base_dir())
+	_check(image.save_png(output) == OK, "%s capture saves successfully" % label)
+	print("ZENITH_CAMERA_AUDIT_CAPTURE: ", output)
 
 
 func _check(condition: bool, message: String) -> void:
