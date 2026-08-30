@@ -63,6 +63,12 @@ const GUNNER_FEEDBACK_DENIED: StringName = &"denied"
 const HULL_COLLISION_SIZE := Vector3(6.9, 3.1, 10.8)
 const SHOULDER_COLLISION_SIZE := Vector3(11.6, 2.1, 5.8)
 const CHIN_COLLISION_SIZE := Vector3(4.8, 1.1, 4.0)
+## Dock 03's raised slab leaves a narrow but capsule-clear aft-port corner.
+## HeroShip's generic (-7.6, -1.0, 0.75) exit projects into the comb's genuine
+## negative-space gap. This point sits directly on the y = 6.6 deck when parked,
+## with 0.12 m lateral and 0.17 m aft clearance beyond the player's 0.38 m
+## capsule; the shared boarding/disembark authority continues to consume it.
+const FLEET_DOCK_EXIT_LOCAL_POSITION := Vector3(-5.5, -1.08, 5.7)
 const GUNNER_STATION_LOCAL_POSITION := Vector3(2.35, 1.55, 0.55)
 const ARMORED_SHOULDER_SIZE := Vector3(3.4, 1.9, 5.3)
 const ARMORED_SHOULDER_COPY_COUNT := 2
@@ -509,6 +515,10 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	if boarding_marker != null:
 		boarding_marker.position = Vector3(-5.9, 0.1, 1.0)
 		boarding_marker.set_meta("interaction_role", &"boarding")
+	var exit_marker := get_node_or_null("ExitPoint") as Marker3D
+	if exit_marker != null:
+		exit_marker.position = FLEET_DOCK_EXIT_LOCAL_POSITION
+		exit_marker.rotation = Vector3(0.0, -PI * 0.5, 0.0)
 	var pilot := get_pilot_seat_anchor()
 	if pilot != null:
 		pilot.set_meta("crew_role", &"pilot")
