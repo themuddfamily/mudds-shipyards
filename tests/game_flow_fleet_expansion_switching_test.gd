@@ -85,6 +85,13 @@ func _initialize() -> void:
 	)
 	var world := flow.get_node(^"ShipyardWorld") as ShipyardWorld
 	var binding := world.get_fleet_expansion_production_binding()
+	var berths := binding.get_node(^"FleetExpansionBerths") as Node3D
+	var endpoint_paths := {
+		&"dock_04_cargo": ^"AccessCirculation/CargoBoardingLeg",
+		&"dock_05_bomber": ^"AccessCirculation/BomberBoardingLeg",
+		&"dock_06_interceptor": ^"AccessCirculation/InterceptorBoardingToe",
+	}
+	var player := flow.get_node(^"Player") as PlayerController
 	for craft_id: StringName in [
 		&"cinder_cargo_hauler",
 		&"cinder_long_range_bomber",
@@ -93,6 +100,35 @@ func _initialize() -> void:
 		var contract := binding.get_craft_compatibility_contract(craft_id)
 		_check(bool(contract.get("valid", false)), "%s keeps its physical switching contract" % craft_id)
 		var craft := registered_by_id.get(craft_id) as HeroShip
+		var endpoint := berths.get_node(
+			endpoint_paths[StringName(contract.get("pad_id", &""))]
+		) as StaticBody3D
+		var endpoint_bounds := _box_bounds(endpoint)
+		var boarding_position := craft.get_boarding_position()
+		var exit_transform := craft.get_exit_transform()
+		_check(
+			_point_on_top(boarding_position, endpoint_bounds)
+			and _point_on_top(exit_transform.origin, endpoint_bounds),
+			"%s binds boarding and disembark to its collision-backed endpoint" % craft_id
+		)
+		_check(
+			player.begin_boarding(
+				craft.get_boarding_entry_transform(), craft.get_pilot_seat_anchor(), 0.0
+			),
+			"the embodied player enters %s through the production seat seam" % craft_id
+		)
+		await player.boarding_completed
+		_check(
+			player.begin_disembark(exit_transform, 0.0),
+			"the embodied player leaves %s through the production exit seam" % craft_id
+		)
+		await player.disembarking_completed
+		await physics_frame
+		_check(
+			player.global_position.distance_to(exit_transform.origin) <= 0.02
+			and _has_world_support(player.global_position),
+			"%s returns the embodied player onto immediate walkable support" % craft_id
+		)
 		var berth := world.get_berth_node(StringName(contract.get("pad_id", &"")))
 		var collision := craft.get_landing_collision_report() if craft != null else {}
 		var capture := berth.evaluate_assist_capture_candidate(
@@ -113,6 +149,11 @@ func _initialize() -> void:
 		_check(bool(detached.get("accepted", false)), "%s detaches for safe switching" % craft_id)
 		var reattached := binding.reattach_craft(craft_id)
 		_check(bool(reattached.get("accepted", false)), "%s reattaches after switching" % craft_id)
+		_check(
+			_point_on_top(craft.get_boarding_position(), endpoint_bounds)
+			and _point_on_top(craft.get_exit_transform().origin, endpoint_bounds),
+			"%s restores its supported pedestrian handoff after reattachment" % craft_id
+		)
 	var expansion_ids := [
 		&"cinder_cargo_hauler",
 		&"cinder_long_range_bomber",
@@ -232,3 +273,29 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append(message)
+
+
+func _box_bounds(body: StaticBody3D) -> AABB:
+	var collision := body.get_node_or_null(^"Collision") as CollisionShape3D \
+		if body != null else null
+	var shape := collision.shape as BoxShape3D if collision != null else null
+	return (collision.global_transform * AABB(-shape.size * 0.5, shape.size)).abs() \
+		if shape != null else AABB()
+
+
+func _point_on_top(point: Vector3, bounds: AABB) -> bool:
+	return point.x >= bounds.position.x - 0.001 \
+		and point.x <= bounds.end.x + 0.001 \
+		and point.z >= bounds.position.z - 0.001 \
+		and point.z <= bounds.end.z + 0.001 \
+		and absf(point.y - bounds.end.y) <= 0.02
+
+
+func _has_world_support(point: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(
+		point + Vector3.UP * 0.08,
+		point - Vector3.UP * 0.18,
+		PhysicsLayers.WORLD
+	)
+	query.collide_with_areas = false
+	return not root.world_3d.direct_space_state.intersect_ray(query).is_empty()
