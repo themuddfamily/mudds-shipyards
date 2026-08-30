@@ -516,8 +516,9 @@ func _test_failure_reset_and_generation_safety(game: GameFlow, hud: GameHUD) -> 
 
 func _test_platform_branch_choice() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
+	var filesystem := MemoryFilesystem.new()
 	var store := Store.new(
-		"memory://platform-patrol-production-settings.json", MemoryFilesystem.new()
+		"memory://platform-patrol-production-settings.json", filesystem
 	) as UserDataStore
 	_check(
 		game.configure_runtime_settings_persistence(
@@ -631,6 +632,42 @@ func _test_platform_branch_choice() -> void:
 		"Platform Sweep completes through the same authority and records exactly one branch-specific receipt"
 	)
 	await _clean_up(game)
+
+	var restored_game := MAIN_SCENE.instantiate() as GameFlow
+	var restored_store := Store.new(
+		"memory://platform-patrol-production-settings.json", filesystem
+	) as UserDataStore
+	_check(
+		restored_game.configure_runtime_settings_persistence(
+			restored_store, "memory://platform-patrol-production-legacy.cfg"
+		),
+		"a fresh production Main reuses the isolated platform-patrol store"
+	)
+	root.add_child(restored_game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var restored_snapshot := restored_game.get_active_activity_snapshot()
+	var restored_status := (
+		restored_game.get_cinder_patrol_session_persistence_report().get(
+			"restore_status", {}
+		) as Dictionary
+	)
+	var restored_reward_record := (
+		(restored_game.get_activity_reward_report().get("authority", {}) as Dictionary).get(
+			"record", {}
+		) as Dictionary
+	)
+	_check(
+		bool(restored_status.get("accepted", false))
+		and restored_snapshot.get("activity_id", &"") == PLATFORM_ROUTE.activity_id
+		and restored_snapshot.get("branch_id", &"") \
+			== PatrolActivity.BRANCH_PLATFORM_SWEEP
+		and restored_snapshot.get("state_id", &"") == &"completed"
+		and int(restored_reward_record.get("total_receipts", 0)) == 1,
+		"a fresh Main restores the selected platform branch without replaying its reward receipt"
+	)
+	await _clean_up(restored_game)
 
 
 func _test_queued_activity_requests() -> void:
