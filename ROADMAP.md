@@ -1584,10 +1584,18 @@ network authority was added.
 The first authored destination is the original airless `ember_moon`, with exact
 `ember_basalt_terrain` and sole radial `ember_caldera` landing definitions; the
 orange backdrop sphere is palette inspiration only and is not promoted into a
-physical destination. Its body-centred **35-node** scene retains the 119,999 m
-non-colliding silhouette, bounded caldera floor/rim/pad, continuous 4 m
-pad-to-egress-to-staging route, solid guide posts, sample rack and relay; the
-96 x 0.5 x 96 m tangent patch remains the only ground proxy. Main now owns the
+physical destination. Its streamed body-centred **81-node** scene now surrounds
+the 119,999 m orbital silhouette and bounded caldera with five basalt-tinted
+65 x 65 spherical terrain rings: **21,125 vertices / 34,504 visible triangles**
+reach 18.432 km from the landing focus in five submissions. The complete 600 m
+approach remains level; a 256 m visual opening retains the caldera floor/rim/pad
+without overlap, while one 7,904-triangle finest-ring collision shape takes over
+at the exact +/-48 m edge of the existing 96 x 0.5 x 96 m pad support. The
+continuous 4 m pad-to-egress-to-staging route, guide posts, sample rack, relay,
+gantry and bunker are unchanged; their exact on-foot Forward+ review frame is
+pixel-identical before/after, while a low-flight review now shows surrounding
+relief instead of the old isolated ground proxy. This is a fixed landing-focus
+build, not camera-following global terrain. Main now owns the
 Ember bootstrap/binding and the sole `CommonWorldOriginRebaseOwner`: the shared
 `nearby_sector_orbital` frame places Ember at an exact 8,000 km absolute offset,
 the production coordinator uses 250/300 km load/unload thresholds, and one
@@ -1657,11 +1665,12 @@ fences remain intact across whole-`Main` detach/re-entry.
 `tests/ember_final_approach_production_handoff_test.gd` cover that player-facing
 seam.
 
-Production focus-driven terrain streaming, collision beyond the finest ring,
-an atmospheric authored destination with complete sky/cloud/weather/entry/audio
-presentation, activity/reward, save/network, native performance and repeated
-orbit-to-surface lifecycle evidence all remain open. These are prerequisites
-for—not substitutes for—a visitable planet.
+Production focus-driven terrain recentering beyond the fixed landing build,
+collision beyond the finest ring, an atmospheric authored destination with
+complete sky/cloud/weather/entry/audio presentation, broader save/network
+coverage, native performance and repeated orbit-to-surface lifecycle evidence
+all remain open. These are prerequisites for—not substitutes for—a visitable
+planet.
 
 One authored Ember surface activity is now composed through the real retained
 planetary and surface-loop bindings. `ember_beacon_survey` registers a strict

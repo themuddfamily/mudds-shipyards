@@ -1,6 +1,7 @@
-[gd_scene load_steps=47 format=3 uid="uid://dtembermoonworld"]
+[gd_scene load_steps=48 format=3 uid="uid://dtembermoonworld"]
 
 [ext_resource type="Script" path="res://scripts/world/ember_moon_authored_scene.gd" id="1_scene"]
+[ext_resource type="Script" path="res://scripts/world/planetary_terrain_clipmap_renderer.gd" id="2_terrain_clipmap"]
 
 [sub_resource type="StandardMaterial3D" id="Material_body"]
 shading_mode = 0
@@ -216,6 +217,9 @@ cast_shadow = 0
 gi_mode = 0
 mesh = SubResource("Sphere_body")
 material_override = SubResource("Material_body")
+
+[node name="TerrainClipmap" type="Node3D" parent="."]
+script = ExtResource("2_terrain_clipmap")
 
 [node name="LandingRegion" type="Node3D" parent="."]
 position = Vector3(0, 120000, 0)

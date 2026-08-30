@@ -59,6 +59,7 @@ var _flatten_direction := Vector3.ZERO
 var _flatten_radius_m := 0.0
 var _visual_clearance_radius_m := 0.0
 var _collision_clearance_radius_m := 0.0
+var _material_tint := Color.WHITE
 var _last_focus_body_local_m := Vector3.ZERO
 var _last_snapshot: Dictionary = {}
 var _shared_material: StandardMaterial3D
@@ -77,6 +78,7 @@ func configure(
 	flatten_radius_m: float = 0.0,
 	visual_clearance_radius_m: float = 0.0,
 	collision_clearance_radius_m: float = 0.0,
+	material_tint: Color = Color.WHITE,
 ) -> Dictionary:
 	if _is_reentrant():
 		return _result(false, &"reentrant_call")
@@ -122,6 +124,14 @@ func configure(
 	):
 		return _result(false, &"invalid_landing_clearance")
 	if (
+		not is_finite(material_tint.r)
+		or not is_finite(material_tint.g)
+		or not is_finite(material_tint.b)
+		or not is_finite(material_tint.a)
+		or not is_equal_approx(material_tint.a, 1.0)
+	):
+		return _result(false, &"invalid_material_tint")
+	if (
 		flatten_radius_m > 0.0
 		and (
 			not flatten_center_body_local_m.is_finite()
@@ -163,6 +173,7 @@ func configure(
 	_flatten_radius_m = flatten_radius_m
 	_visual_clearance_radius_m = visual_clearance_radius_m
 	_collision_clearance_radius_m = collision_clearance_radius_m
+	_material_tint = material_tint
 	_shared_material = _create_shared_material()
 	_generation += 1
 	_configured = true
@@ -174,6 +185,7 @@ func configure(
 		"resolution_vertices_per_edge": _resolution,
 		"maximum_render_vertices": vertex_count,
 		"maximum_render_triangles": triangle_count,
+		"material_tint": _material_tint,
 	})
 
 
@@ -325,6 +337,7 @@ func rebuild(
 		"flatten_radius_m": _flatten_radius_m,
 		"visual_clearance_radius_m": _visual_clearance_radius_m,
 		"collision_clearance_radius_m": _collision_clearance_radius_m,
+		"material_tint": _material_tint,
 		"authority": _authority_snapshot(),
 	}.duplicate(true)
 	_mutation_active = false
@@ -408,6 +421,7 @@ func audit() -> Dictionary:
 		or _ring_distances_m.is_empty()
 		or _resolution < MIN_RESOLUTION_VERTICES_PER_EDGE
 		or _shared_material == null
+		or not _shared_material.albedo_color.is_equal_approx(_material_tint)
 	):
 		errors.append("frozen terrain renderer contract is invalid")
 	var committed := get_node_or_null(NodePath(String(COMMITTED_ROOT_NAME)))
@@ -598,7 +612,7 @@ func _create_shared_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.resource_name = "%s_clipmap_vertex_material" % _profile_id
 	material.vertex_color_use_as_albedo = true
-	material.albedo_color = Color.WHITE
+	material.albedo_color = _material_tint
 	material.roughness = 0.92
 	material.metallic = 0.0
 	material.cull_mode = BaseMaterial3D.CULL_BACK

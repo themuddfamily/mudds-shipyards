@@ -1,9 +1,10 @@
 class_name EmberMoonAuthoredScene
 extends Node3D
 
-## Static, body-centred visual and collision witness for the bounded Ember Moon
-## vertical slice. It loads copied definition data, validates its own authored
-## nodes, and exposes pure terrain-LOD hints. It never places or streams itself.
+## Body-centred production content for the bounded Ember Moon vertical slice.
+## It loads copied definition data, builds one fixed landing-focus terrain
+## clipmap, validates its authored and generated nodes, and exposes terrain-LOD
+## hints. The world coordinator still owns placement, streaming and retirement.
 
 const SCHEMA_VERSION := 1
 const COMPONENT_ID: StringName = &"ember-moon-authored-scene"
@@ -25,6 +26,18 @@ const CALDERA_RIM_INNER_RADIUS_M := 240.0
 const CALDERA_RIM_OUTER_RADIUS_M := 280.0
 const WALKABLE_PATCH_SIZE_M := Vector3(96.0, 0.5, 96.0)
 const WALKABLE_PATCH_POSITION_REGION_LOCAL_M := Vector3(0.0, -0.25, 0.0)
+## The streamed production moon now carries the same bounded terrain renderer
+## already proven by the Aurora witness. The complete 600 m approach corridor
+## remains level, the authored caldera floor fills the 256 m visual opening, and
+## the existing 96 m patch remains sole collision support inside its exact edge.
+const TERRAIN_RENDER_RESOLUTION := 65
+const TERRAIN_SEED := 20_260_830
+const TERRAIN_FLATTEN_RADIUS_M := 750.0
+const TERRAIN_VISUAL_CLEARANCE_RADIUS_M := CALDERA_FLOOR_RADIUS_M
+const TERRAIN_COLLISION_CLEARANCE_RADIUS_M := WALKABLE_PATCH_SIZE_M.x * 0.5
+const TERRAIN_MATERIAL_TINT := Color("bd704f")
+const TERRAIN_RING_COUNT := 5
+const TERRAIN_RENDER_VERTEX_COUNT := 21_125
 const PAD_VISUAL_SIZE_M := Vector3(28.0, 0.04, 32.0)
 const PAD_VISUAL_POSITION_REGION_LOCAL_M := Vector3(0.0, 0.02, 0.0)
 const SURFACE_ROUTE_ID: StringName = &"ember_caldera_pad_to_staging"
@@ -207,14 +220,14 @@ const METAL_ROUGHNESS := 0.78
 const OXIDE_ROUGHNESS := 0.92
 const SERVICE_ROUGHNESS := 0.72
 
-const EXPECTED_NODE_COUNT := 71
-const EXPECTED_MESH_INSTANCE_COUNT := 17
+const EXPECTED_NODE_COUNT := 81
+const EXPECTED_MESH_INSTANCE_COUNT := 22
 const EXPECTED_MULTI_MESH_INSTANCE_COUNT := 8
 const EXPECTED_MULTI_MESH_COPY_COUNT := 42
-const EXPECTED_RENDER_SUBMISSION_COUNT := 25
-const EXPECTED_STATIC_BODY_COUNT := 7
-const EXPECTED_COLLISION_SHAPE_COUNT := 25
-const MAXIMUM_TRIANGLE_COUNT := 8192
+const EXPECTED_RENDER_SUBMISSION_COUNT := 30
+const EXPECTED_STATIC_BODY_COUNT := 8
+const EXPECTED_COLLISION_SHAPE_COUNT := 26
+const MAXIMUM_TRIANGLE_COUNT := 60_000
 const WORLD_LAYER := PhysicsLayers.WORLD_BODY_LAYER
 const WORLD_MASK := PhysicsLayers.WORLD_BODY_MASK
 
@@ -250,6 +263,7 @@ var _world_definition: PlanetaryWorldDefinition
 var _terrain_profile: PlanetaryTerrainProfile
 var _landing_region: PlanetaryLandingRegionDefinition
 var _terrain_lod_policy: PlanetaryTerrainLodPolicy
+var _terrain_clipmap: PlanetaryTerrainClipmapRenderer
 var _initialized := false
 
 
@@ -303,6 +317,7 @@ func _ready() -> void:
 	_configure_orbital_landing_datum_cue()
 	_configure_pad_guide_visuals()
 	_initialize_contract()
+	_configure_terrain_clipmap()
 
 
 func get_world_id() -> StringName:
@@ -357,6 +372,14 @@ func evaluate_terrain_lod_hint(
 	return _terrain_lod_policy.evaluate(
 		camera_to_surface_distance_meters,
 		collision_needed,
+	).duplicate(true)
+
+
+func get_terrain_clipmap_snapshot() -> Dictionary:
+	return (
+		_terrain_clipmap.get_snapshot()
+		if _terrain_clipmap != null
+		else {"configured": false, "ring_count": 0}
 	).duplicate(true)
 
 
@@ -455,6 +478,7 @@ func get_snapshot() -> Dictionary:
 			"route_clear_half_width_m": SURFACE_ROUTE_WIDTH_M * 0.5,
 		},
 		"terrain_lod_policy": lod_snapshot,
+		"terrain_clipmap": get_terrain_clipmap_snapshot(),
 		"evidence": _evidence_report(),
 		"owned_capabilities": _owned_capabilities(),
 		"integration_authority": _integration_authority(),
@@ -467,6 +491,7 @@ func audit() -> Dictionary:
 	if not _initialized:
 		_append_error(errors, &"scene_contract_not_initialized", &"scene", "scene contract did not initialize")
 	_validate_resource_join(errors)
+	_validate_terrain_clipmap(errors)
 	_validate_topology(errors)
 	_validate_transforms(errors)
 	_validate_geometry(errors)
@@ -506,6 +531,37 @@ func _initialize_contract() -> void:
 	if _terrain_profile != null:
 		_terrain_lod_policy.configure(_terrain_profile)
 	_initialized = true
+
+
+func _configure_terrain_clipmap() -> void:
+	_terrain_clipmap = get_node_or_null(^"TerrainClipmap") \
+		as PlanetaryTerrainClipmapRenderer
+	if _terrain_clipmap == null or _terrain_profile == null:
+		push_error("Ember terrain clipmap contract is unavailable")
+		return
+	var configured := _terrain_clipmap.configure(
+		_terrain_profile,
+		TERRAIN_RENDER_RESOLUTION,
+		TERRAIN_SEED,
+		Vector3.UP * BODY_RADIUS_M,
+		TERRAIN_FLATTEN_RADIUS_M,
+		TERRAIN_VISUAL_CLEARANCE_RADIUS_M,
+		TERRAIN_COLLISION_CLEARANCE_RADIUS_M,
+		TERRAIN_MATERIAL_TINT,
+	)
+	var rebuilt := (
+		_terrain_clipmap.rebuild(
+			Vector3.UP * BODY_RADIUS_M,
+			_terrain_clipmap.get_generation(),
+		)
+		if bool(configured.get("accepted", false))
+		else {"accepted": false, "reason": configured.get("reason", &"configure_failed")}
+	)
+	if not bool(rebuilt.get("accepted", false)):
+		push_error(
+			"Ember terrain clipmap failed: %s"
+			% String(rebuilt.get("reason", &"unknown"))
+		)
 
 
 func _configure_surface_material_hierarchy() -> void:
@@ -708,9 +764,46 @@ func _validate_resource_join(errors: Array[Dictionary]) -> void:
 		_append_error(errors, &"invalid_terrain_lod_policy", &"terrain_lod", "copied terrain profile did not configure the pure LOD policy")
 
 
+func _validate_terrain_clipmap(errors: Array[Dictionary]) -> void:
+	if _terrain_clipmap == null:
+		_append_error(
+			errors, &"terrain_clipmap_missing", &"TerrainClipmap",
+			"production Ember must own its bounded terrain renderer",
+		)
+		return
+	var terrain_audit := _terrain_clipmap.audit()
+	var snapshot := terrain_audit.get("snapshot", {}) as Dictionary
+	if (
+		not bool(terrain_audit.get("valid", false))
+		or StringName(snapshot.get("profile_id", &"")) != TERRAIN_PROFILE_ID
+		or int(snapshot.get("ring_count", 0)) != TERRAIN_RING_COUNT
+		or int(snapshot.get("render_vertex_count", 0)) != TERRAIN_RENDER_VERTEX_COUNT
+		or int(snapshot.get("collision_ring_count", 0)) != 1
+		or not is_equal_approx(
+			float(snapshot.get("flatten_radius_m", -1.0)),
+			TERRAIN_FLATTEN_RADIUS_M,
+		)
+		or not is_equal_approx(
+			float(snapshot.get("visual_clearance_radius_m", -1.0)),
+			TERRAIN_VISUAL_CLEARANCE_RADIUS_M,
+		)
+		or not is_equal_approx(
+			float(snapshot.get("collision_clearance_radius_m", -1.0)),
+			TERRAIN_COLLISION_CLEARANCE_RADIUS_M,
+		)
+		or not (snapshot.get("material_tint", Color.BLACK) as Color)
+			.is_equal_approx(TERRAIN_MATERIAL_TINT)
+	):
+		_append_error(
+			errors, &"terrain_clipmap_invalid", &"TerrainClipmap",
+			"production Ember terrain roster, landing clearance, or basalt tint drifted",
+		)
+
+
 func _validate_topology(errors: Array[Dictionary]) -> void:
 	var expected := {
 		^"BodyVisual": "MeshInstance3D",
+		^"TerrainClipmap": "Node3D",
 		^"LandingRegion": "Node3D",
 		^"LandingRegion/CalderaFloor": "MeshInstance3D",
 		^"LandingRegion/CalderaRim": "MeshInstance3D",
@@ -795,7 +888,19 @@ func _validate_topology(errors: Array[Dictionary]) -> void:
 	var relay := get_node_or_null(^"LandingRegion/SurfaceLandmarks/StagingRelay")
 	var gantry := get_node_or_null(^"LandingRegion/SurfaceLandmarks/DerelictSurveyGantry")
 	var bunker := get_node_or_null(^"LandingRegion/SurfaceLandmarks/SurveyServiceBunker")
-	if get_child_count() != 2 \
+	var terrain_root := get_node_or_null(^"TerrainClipmap")
+	var committed_terrain := get_node_or_null(^"TerrainClipmap/CommittedTerrain")
+	var terrain_visuals := get_node_or_null(
+		^"TerrainClipmap/CommittedTerrain/TerrainVisuals"
+	)
+	var terrain_collision := get_node_or_null(
+		^"TerrainClipmap/CommittedTerrain/TerrainCollision"
+	)
+	if get_child_count() != 3 \
+			or terrain_root == null or terrain_root.get_child_count() != 1 \
+			or committed_terrain == null or committed_terrain.get_child_count() != 2 \
+			or terrain_visuals == null or terrain_visuals.get_child_count() != TERRAIN_RING_COUNT \
+			or terrain_collision == null or terrain_collision.get_child_count() != 1 \
 			or landing_root == null or landing_root.get_child_count() != 6 \
 			or walkable == null or walkable.get_child_count() != 1 \
 			or markers == null or markers.get_child_count() != 4 \
@@ -2182,7 +2287,7 @@ func _evidence_report() -> Dictionary:
 		"authenticated": false,
 		"space_backdrop_palette_inspiration_only": true,
 		"space_backdrop_physical_reuse": false,
-		"notes": "Original Ember Moon visual proxy, bounded static pad collision, traversable surface route, and modern landmarks including a derelict gantry and survey service bunker; no historical or production-placement claim.",
+		"notes": "Original Ember Moon bounded spherical terrain, static landing collision, traversable surface route, and modern landmarks including a derelict gantry and survey service bunker; no historical geometry claim.",
 	}.duplicate(true)
 
 
@@ -2190,6 +2295,8 @@ func _owned_capabilities() -> Dictionary:
 	return {
 		"presentation_geometry": true,
 		"static_world_collision": true,
+		"generated_spherical_terrain": true,
+		"generated_terrain_collision": true,
 		"authored_surface_landmarks": true,
 		"authored_surface_route": true,
 	}.duplicate(true)
@@ -2199,6 +2306,8 @@ func _integration_authority() -> Dictionary:
 	var result := {}
 	for key in INTEGRATION_AUTHORITY_KEYS:
 		result[key] = false
+	result["terrain_generation"] = true
+	result["collision_generation"] = true
 	return result.duplicate(true)
 
 

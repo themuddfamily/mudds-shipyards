@@ -1,20 +1,23 @@
 # Ember Moon authored scene
 
-`EmberMoonAuthoredScene` is a standalone, loadable, body-centred witness for the
-existing Ember Moon definitions. It owns a bounded visual surface patch, one
-World-layer walkable collision box, and a small original surface-content roster.
+`EmberMoonAuthoredScene` is the loadable, body-centred production scene for the
+existing Ember Moon definitions. It owns a bounded spherical terrain build, the
+authored landing patch, and a small original surface-content roster.
 Production's `EmberMoonStreamingBootstrap` registers and can stream this scene
 beneath its private coordinator. The scene itself owns no production `Main`,
 `GameFlow`, Cinder Reach, travel-session, or streaming authority.
 
 The scene root is the physical body centre. A non-colliding 119,999 m sphere is
-an intentionally inset silhouette proxy, one metre inside the exact 120,000 m
-sea-level datum. It prevents z-fighting without changing the authored radius or
-claiming terrain. At +Y 120,000 m, a 256 m visual floor and 240–280 m torus rim
-establish one bounded caldera. These primitives are original muted basalt and
-burnt-orange blocks. `SpaceBackdrop/CelestialOrangeBody` is palette inspiration
-only; its exact colour, node, transform, 105 m radius, material, and physical
-identity are not reused.
+an intentionally inset orbital silhouette, one metre inside the exact 120,000 m
+sea-level datum. Around the +Y landing focus, five 65 x 65 spherical tangent
+grids extend through 256, 768, 2,048, 6,144, and 18,432 m. They contribute
+21,125 vertices and 34,504 visible triangles in five submissions, share one
+opaque rust-basalt-tinted vertex-colour material, and keep the complete 600 m
+approach corridor level by blending relief only beyond 750 m. A 256 m visual
+opening retains the authored caldera floor and 240–280 m torus rim without
+coplanar fighting. `SpaceBackdrop/CelestialOrangeBody` remains palette
+inspiration only; its exact colour, node, transform, 105 m radius, material, and
+physical identity are not reused.
 
 ## Landing and collision seam
 
@@ -27,30 +30,34 @@ compose the landing resource's pad, approach, egress, and staging positions:
 - `caldera_staging_gate`: `(42, 0, 0)`.
 
 One 96 x 0.5 x 96 m box is centred at local y=-0.25, putting its top at y=0.
-It supports the pad and both original on-foot route anchors, uses the canonical
-World layer and zero mask, and is the entire walkable-surface promise. The
-silhouette, caldera rim, approach corridor, and everything outside +/-48 m are
-non-colliding.
+It supports the pad and both original on-foot route anchors and uses the
+canonical World layer and zero mask. The finest generated ring takes over at
+the box's exact +/-48 m edge with one 7,904-triangle concave World shape, so the
+player or ship no longer falls into space immediately beyond the authored pad.
+Only that 512 x 512 m finest-ring square is collision-backed in this slice; the
+four coarser visible rings, silhouette, and caldera rim remain non-colliding.
 
 ## Bounded surface content
 
 The `NEW` / `modern_interpretation` surface roster establishes one continuous,
 four-metre-wide pad-to-egress-to-staging path along local +X. Its exact
 centreline is `(0, 0, 0)` -> `(18, 0, 0)` -> `(42, 0, 0)`, and the visual stripe
-touches the pad edge at x=14 without a gap. Three stable access markers identify
-the guidance threshold, sealed sample-rack access, and staging-relay access.
+touches the pad edge at x=14 without a gap. Five stable access markers identify
+the guidance threshold, sample-rack access, staging-relay access, derelict
+gantry access, and survey-bunker access.
 
-Four stable landmark identities dress the route:
+Six stable landmark identities dress the route:
 
 - paired `ember_pad_guidance_port` / `ember_pad_guidance_starboard` posts at
   x=14.8 and z=+/-5;
 - low `ember_sample_rack` equipment at `(28, 0.5, -7)`;
-- `ember_staging_relay` base, mast, and head rooted at `(42, 0, 7)`.
+- `ember_staging_relay` base, mast, and head rooted at `(42, 0, 7)`;
+- the solid `ember_derelict_survey_gantry` over the route; and
+- the solid `ember_survey_service_bunker` at `(-24, 0, -24)`.
 
-Every visually solid part has matching static World collision: the guides and
-rack each use one exact box, while the relay uses separate base, mast, and head
-shapes. The nearest solid edge remains 4.75 m from the route centreline, beyond
-the 2 m route half-width plus the production Player's 0.38 m capsule radius.
+Every visually solid part has matching static World collision. The nearest
+solid edge remains 4.75 m from the route centreline, beyond the 2 m route
+half-width plus the production Player's 0.38 m capsule radius.
 Focused evidence places the body-centred authored scene behind an explicit
 test-only local-origin translation, then drives the real production Player from
 the pad through egress to staging using ordinary forward locomotion. After the
@@ -70,26 +77,28 @@ policy for its focused proof; global spherical locomotion remains absent.
 
 ## LOD and ownership
 
-The component privately copies `ember_basalt_terrain` and configures one
-immutable `PlanetaryTerrainLodPolicy`. `evaluate_terrain_lod_hint()` returns the
-policy's detached inclusive-ring and collision hints. It never changes node
-visibility, creates tiles, or disables the fixed authored collision patch. The
-visual disk is not a clipmap tile or height-generation result.
+The component privately copies `ember_basalt_terrain`, configures one immutable
+`PlanetaryTerrainLodPolicy`, and gives the same profile to one
+`PlanetaryTerrainClipmapRenderer`. `evaluate_terrain_lod_hint()` remains a pure
+query; the clipmap itself rebuilds once during scene readiness and has no camera
+or automatic process cadence. It preserves the fixed authored collision patch
+and owns only the surrounding generated render/collision nodes.
 
-The exact budget is 35 nodes, 11 mesh submissions, five static bodies, seven
-collision shapes, no active presentation/integration nodes, and at most 8,192
-primitive triangles. Audit reports presentation geometry, bounded static
-collision, the authored landmark roster, and the authored surface route as its
-only capabilities. Streaming, GameFlow, gameplay, landing decisions, movement,
-world/terrain/collision generation, origin shifting, save, network, rewards,
-audio, camera, and lighting authority are all false.
+The current exact live budget is 81 nodes, 30 render submissions (22 ordinary
+meshes plus eight MultiMeshes drawing 42 copies), eight static bodies, 26
+collision shapes, and at most 60,000 primitive triangles. Audit reports
+presentation geometry, bounded static and generated terrain collision, terrain
+generation, the authored landmark roster, and the authored surface route.
+Streaming, GameFlow, gameplay, landing decisions, actor movement, world
+generation, origin shifting, save, network, rewards, audio, camera, and lighting
+authority remain false.
 
 Production `Main` now owns the Ember orbital bootstrap and observation binding,
 plus one `CommonWorldOriginRebaseOwner`; together they can make exactly one
 checked scene generation resident in a correctly rebased local frame. The
-standalone `EmberSurfaceLoopHost` separately proves real-actor travel, berth,
-egress, reboarding, takeoff, and orbit return, but production GameFlow/activity
-selection and handoff remain absent. The composition therefore does not yet
-claim visitability. Production actor staging, landing selection, global terrain
-and collision, global spherical locomotion, atmosphere, production light and
-sky, audio/VFX, missions, economy, persistence, and networking remain deferred.
+retained surface-loop composition now connects real-actor travel, berth, egress,
+activity/reward, reboarding, takeoff, orbit return, and the existing station
+arrival authority. The composition still does not claim final visitability.
+Focus-following terrain rebuilds, collision beyond the finest landing ring,
+global spherical locomotion, atmosphere, production light and sky, native
+performance review, and repeated packaged lifecycle review remain deferred.

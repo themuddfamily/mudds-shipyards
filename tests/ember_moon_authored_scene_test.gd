@@ -2,7 +2,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/world/planets/ember_moon.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
-const EXPECTED_ASSERTIONS := 68
+const EXPECTED_ASSERTIONS := 69
 const EMBER_SURFACE_GRAVITY_MPS2 := 1.62
 const PROJECT_GRAVITY_MPS2 := 18.0
 const INTEGRATION_AUTHORITY_KEYS := [
@@ -48,7 +48,7 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 	var audit := scene.audit()
 	if not bool(audit.valid):
 		print("EMBER_MOON_AUTHORED_SCENE_AUDIT_ERRORS: %s" % [audit.errors])
-	_check(audit.valid and (audit.errors as Array).is_empty(), "the exact static authored scene audits green")
+	_check(audit.valid and (audit.errors as Array).is_empty(), "the authored scene and generated production terrain audit green")
 	_check(
 		scene.get_world_id() == &"ember_moon"
 			and scene.get_body_id() == &"ember_body"
@@ -67,23 +67,45 @@ func _test_identity_and_audit(scene: EmberMoonAuthoredScene) -> void:
 		(audit.owned_capabilities as Dictionary) == {
 			"presentation_geometry": true,
 			"static_world_collision": true,
+			"generated_spherical_terrain": true,
+			"generated_terrain_collision": true,
 			"authored_surface_landmarks": true,
 			"authored_surface_route": true,
 		},
-		"audit owns only bounded presentation, landmark, route, and static collision capabilities",
+		"audit owns bounded terrain, presentation, landmark, route, and collision capabilities",
 	)
-	_check(_exact_all_false(audit.integration_authority, INTEGRATION_AUTHORITY_KEYS), "all runtime integration authority remains exactly false")
+	_check(
+		_exact_terrain_generation_authority(
+			audit.integration_authority, INTEGRATION_AUTHORITY_KEYS,
+		),
+		"only terrain and terrain-collision generation authority are added",
+	)
 	_check(not scene.is_processing() and not scene.is_physics_processing(), "the authored scene has no automatic process loop")
 	_check(
-		audit.performance.node_count == 71
-			and audit.performance.mesh_instances == 17
+		audit.performance.node_count == 81
+			and audit.performance.mesh_instances == 22
 			and audit.performance.multi_mesh_instances == 8
 			and audit.performance.multi_mesh_copies == 42
-			and audit.performance.render_submissions == 25
-			and audit.performance.static_bodies == 7
-			and audit.performance.collision_shapes == 25
-			and audit.performance.triangle_count <= 8192,
-		"live topology and primitive triangles stay inside the exact bounded budget",
+			and audit.performance.render_submissions == 30
+			and audit.performance.static_bodies == 8
+			and audit.performance.collision_shapes == 26
+			and audit.performance.triangle_count <= 60_000,
+		"authored content plus five terrain rings stay inside the exact bounded budget",
+	)
+	var terrain := scene.get_terrain_clipmap_snapshot()
+	_check(
+		bool(terrain.configured)
+			and terrain.profile_id == &"ember_basalt_terrain"
+			and int(terrain.ring_count) == 5
+			and int(terrain.render_vertex_count) == 21_125
+			and int(terrain.render_triangle_count) > 30_000
+			and int(terrain.collision_ring_count) == 1
+			and int(terrain.collision_triangle_count) > 0
+			and is_equal_approx(float(terrain.flatten_radius_m), 750.0)
+			and is_equal_approx(float(terrain.visual_clearance_radius_m), 256.0)
+			and is_equal_approx(float(terrain.collision_clearance_radius_m), 48.0)
+			and (terrain.material_tint as Color).is_equal_approx(Color("bd704f")),
+		"five basalt-tinted rings surround the clear caldera and extend physical support beyond its patch",
 	)
 	_check(_forbidden_node_count(scene) == 0, "the scene owns no camera, light, audio, navigation, actor, area, particle, or animation node")
 
@@ -507,7 +529,13 @@ func _test_collision(scene: EmberMoonAuthoredScene) -> void:
 	_check(not hit_pad.is_empty() and hit_pad.collider == body, "the pad point is collision-supported")
 	_check(not hit_egress.is_empty() and hit_egress.collider == body, "the egress point is collision-supported")
 	_check(not hit_staging.is_empty() and hit_staging.collider == body, "the staging point is collision-supported")
-	_check(outside.is_empty(), "collision fails closed immediately beyond the authored +/-48m patch")
+	var terrain_body := scene.get_node(
+		^"TerrainClipmap/CommittedTerrain/TerrainCollision"
+	) as StaticBody3D
+	_check(
+		not outside.is_empty() and outside.collider == terrain_body,
+		"generated terrain takes over physical support immediately beyond the authored +/-48m patch",
+	)
 	var landmark_paths := [
 		^"LandingRegion/SurfaceLandmarks/PadGuidancePort",
 		^"LandingRegion/SurfaceLandmarks/PadGuidanceStarboard",
@@ -864,6 +892,18 @@ func _exact_all_false(candidate: Dictionary, keys: Array) -> bool:
 		return false
 	for key in keys:
 		if not candidate.has(key) or not candidate[key] is bool or bool(candidate[key]):
+			return false
+	return true
+
+
+func _exact_terrain_generation_authority(candidate: Dictionary, keys: Array) -> bool:
+	if candidate.size() != keys.size():
+		return false
+	for key in keys:
+		if not candidate.has(key) or not candidate[key] is bool:
+			return false
+		var expected: bool = key in ["terrain_generation", "collision_generation"]
+		if bool(candidate[key]) != expected:
 			return false
 	return true
 
