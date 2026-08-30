@@ -151,15 +151,7 @@ func _test_staged_construction(reference: HabitatSpine) -> void:
 		"all Habitat phases retain their original order and owned rooms on separate loading frames")
 	var staged_render := module.get_render_allocation_report()
 	var direct_render := reference.get_render_allocation_report()
-	# Only engine-generated numeric name segments differ between instances.
-	# Keep authored names and sibling positions in the full report comparison.
-	for fixture: HabitatSpine in [module, reference]:
-		var report: Dictionary = staged_render if fixture == module else direct_render
-		var column := fixture.get_node(^"Structure/SideBranchGarden/GardenColumn")
-		var paths := report.garden_column_collar_mesh_sharing.node_paths as PackedStringArray
-		for index in paths.size():
-			paths[index] = String(_stable_module_path(column, column.get_node(NodePath(paths[index]))))
-		report.garden_column_collar_mesh_sharing.node_paths = paths
+	# Both collar renderer paths are now authored and stable across instances.
 	_test_arch_colour_migration(module, source_snapshot, 27)
 	_test_arch_shadow_batches(module)
 	_check(staged_render == direct_render, "staged Habitat matches the direct render allocation report")
@@ -1443,10 +1435,10 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_garden_rack_crown_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1454
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 780
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 43,
-		"visual batching stays frozen at 1454 render nodes, 780 meshes and 43 MultiMeshes"
+		int(render.descendant_nodes) == 1453
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 778
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 44,
+		"visual batching stays frozen at 1453 render nodes, 778 meshes and 44 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -1590,7 +1582,7 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
 		and int(report.geometry_submissions_before_deck_seam_batch) == 910
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
 		and int(report.drawn_copies) == 1006
 		and bool(report.corridor_deck_seam_authored),
@@ -1670,7 +1662,7 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.common_ceiling_light_body_submissions) == 1
 		and int(report.common_ceiling_light_body_copies) == 6
 		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 902
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
 		and int(report.drawn_copies) == 1006
 		and bool(report.common_ceiling_light_body_authored),
@@ -1732,7 +1724,7 @@ func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
 		and int(report.galley_door_pull_submissions) == 1
 		and int(report.galley_door_pull_copies) == 4
 		and int(report.geometry_submissions_before_galley_door_pull_batch) == 899
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
 		and bool(report.galley_door_pull_authored),
 		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1805,7 +1797,7 @@ func _test_galley_mug_batch(module: HabitatSpine) -> void:
 		and int(report.galley_mug_submissions) == 1
 		and int(report.galley_mug_copies) == 6
 		and int(report.geometry_submissions_before_galley_mug_batch) == 880
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.geometry_submissions_removed_by_galley_mug_batch) == 5
 		and int(report.drawn_copies) == 1006
 		and bool(report.galley_mug_authored),
@@ -1942,7 +1934,7 @@ func _test_mess_bench_leg_batch(module: HabitatSpine) -> void:
 		and int(report.mess_bench_leg_submissions) == 1
 		and int(report.mess_bench_leg_copies) == 4
 		and int(report.geometry_submissions_before_mess_bench_leg_batch) == 896
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.geometry_submissions_removed_by_mess_bench_leg_batch) == 3
 		and bool(report.mess_bench_leg_authored),
 		"mess-bench legs measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1966,7 +1958,7 @@ func _test_mess_trestle_foot_batch(module: HabitatSpine) -> void:
 			and int(report.mess_trestle_foot_submissions) == 1
 			and int(report.mess_trestle_foot_copies) == 2
 			and bool(report.mess_trestle_foot_authored)
-			and int(report.geometry_submissions) == 846
+			and int(report.geometry_submissions) == 845
 			and int(report.drawn_copies) == 1006,
 		"mess-trestle feet measure renderer nodes/submissions 2 -> 1 while both visible copies remain"
 	)
@@ -2088,7 +2080,7 @@ func _test_garden_rack_crown_batch(module: HabitatSpine) -> void:
 		and int(report.garden_rack_crown_mesh_resources) == 1
 		and int(report.garden_rack_crown_copies) == 5
 		and int(report.geometry_submissions_before_garden_rack_crown_batch) == 893
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.geometry_submissions_removed_by_garden_rack_crown_batch) == 4
 		and int(report.drawn_copies) == 1006
 		and bool(report.garden_rack_crown_authored),
@@ -2160,7 +2152,7 @@ func _test_mess_mug_batch(module: HabitatSpine) -> void:
 		and int(report.mess_mug_submissions) == 1
 		and int(report.mess_mug_copies) == 3
 		and int(report.geometry_submissions_before_mess_mug_batch) == 889
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.geometry_submissions_removed_by_mess_mug_batch) == 2
 		and int(report.drawn_copies) == 1006
 		and bool(report.mess_mug_authored),
@@ -2316,21 +2308,21 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1454
-		and int(report.mesh_instances) == 780
-		and int(report.multimesh_batches) == 43,
+		int(report.descendant_nodes) == 1453
+		and int(report.mesh_instances) == 778
+		and int(report.multimesh_batches) == 44,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
 		int(report.drawn_copies) == 1006
-		and int(report.geometry_submissions) == 846
+		and int(report.geometry_submissions) == 845
 		and int(report.hatch_fastener_copies) == 12,
-		"complete arcs reduce drawn instances to 1006 and surface submissions to 846"
+		"complete arcs reduce drawn instances to 1006 and surface submissions to 845"
 	)
 	_check(
 		int(report.unique_mesh_resources) == HabitatSpine.RENDER_UNIQUE_MESH_RESOURCE_COUNT
 		and int(report.unique_material_resources) == 34
-		and int(report.multimesh_resources) == 42
+		and int(report.multimesh_resources) == 43
 		and int(report.renderer_buffer_floats) == 144,
 		"arch shadow meshes bring mesh/material allocations to 349/34 while the hatch batch retains its 144-float renderer buffer"
 	)
@@ -2934,63 +2926,77 @@ func _test_garden_column_collar_mesh_sharing(module: HabitatSpine) -> void:
 	_check(
 		bool(sharing.valid)
 		and (sharing.errors as PackedStringArray).is_empty()
-		and sharing.legacy == {
+		and sharing.before == {
 			"geometry_nodes": 3,
 			"geometry_submissions": 3,
 			"visible_geometry_copies": 3,
-			"primitive_mesh_allocations": 3,
+			"primitive_mesh_allocations": 1,
+			"multimesh_allocations": 0,
+			"renderer_buffer_floats": 0,
 		}
-		and int(sharing.geometry_nodes) == 3
-		and int(sharing.geometry_submissions) == 3
+		and sharing.delta == {
+			"geometry_nodes": -1,
+			"geometry_submissions": -1,
+			"visible_geometry_copies": 0,
+			"primitive_mesh_allocations": 0,
+			"multimesh_allocations": 1,
+			"renderer_buffer_floats": 24,
+		}
+		and int(sharing.geometry_nodes) == 2
+		and int(sharing.geometry_submissions) == 2
 		and int(sharing.visible_geometry_copies) == 3
 		and int(sharing.primitive_mesh_allocations) == 1
-		and int(sharing.resource_allocation_reduction) == 2,
-		"garden-column collars retain 3 nodes/submissions/copies while immutable TorusMesh allocations fall 3 -> 1"
+		and int(sharing.multimesh_allocations) == 1
+		and int(sharing.renderer_buffer_floats) == 24
+		and bool(sharing.renderer_buffer_matches_authored),
+		"garden-column collars reduce renderer nodes/submissions 3 -> 2 while retaining three copies and one shared TorusMesh"
 	)
-	var paths := sharing.node_paths as PackedStringArray
 	_check(
-		paths.size() == 3
-		and paths[0] == "ColumnCollar"
-		and paths[1].begins_with("@MeshInstance3D@")
-		and paths[2].begins_with("@MeshInstance3D@")
+		str(sharing.landmark_path) == "ColumnCollar"
+		and str(sharing.batch_path) == "ColumnCollarBatch"
 		and module.has_node(
 			^"Structure/SideBranchGarden/GardenColumn/ColumnCollar"
+		)
+		and module.has_node(
+			^"Structure/SideBranchGarden/GardenColumn/ColumnCollarBatch"
 		),
-		"the stable presentation path and both ordinary generated collar siblings remain present"
+		"the stable capture landmark remains ordinary while two anonymous siblings use one named visual-only batch"
 	)
-	if paths.size() != 3:
-		return
 	var column := module.get_node(
 		^"Structure/SideBranchGarden/GardenColumn"
 	) as Node3D
-	var collars: Array[MeshInstance3D] = []
-	for path in paths:
-		collars.append(column.get_node(NodePath(path)) as MeshInstance3D)
+	var landmark := column.get_node(^"ColumnCollar") as MeshInstance3D
+	var batch := column.get_node(^"ColumnCollarBatch") as MultiMeshInstance3D
 	var expected_transforms := [
 		Transform3D(Basis.IDENTITY, Vector3(14.4, 1.20, 20.2)),
 		Transform3D(Basis.IDENTITY, Vector3(14.4, 2.90, 20.2)),
 		Transform3D(Basis.IDENTITY, Vector3(14.4, 4.50, 20.2)),
 	]
-	var shared_mesh := collars[0].mesh as TorusMesh
-	var copies_exact := shared_mesh != null
-	for index in collars.size():
-		var collar := collars[index]
-		copies_exact = copies_exact \
-			and collar != null \
-			and collar.mesh == shared_mesh \
-			and collar.transform.is_equal_approx(expected_transforms[index]) \
-			and collar.material_override == collars[0].material_override \
-			and collar.material_overlay == null \
-			and collar.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
-			and collar.layers == 1 \
-			and collar.visible \
-			and collar.get_child_count() == 0 \
-			and collar.get_script() == null \
-			and collar.get_groups().is_empty() \
-			and collar.get_meta_list().is_empty()
+	var shared_mesh := landmark.mesh as TorusMesh
+	var batched_transforms := (batch.get_meta("authored_instance_transforms", []) as Array)
+	var copies_exact: bool = (
+		shared_mesh != null
+		and landmark.transform.is_equal_approx(expected_transforms[0])
+		and batch.multimesh != null
+		and batch.multimesh.mesh == shared_mesh
+		and batch.multimesh.instance_count == 2
+		and batched_transforms == expected_transforms.slice(1)
+		and landmark.material_override == batch.material_override
+		and landmark.material_overlay == null
+		and landmark.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and landmark.layers == 1 and batch.layers == 1
+		and landmark.visible and batch.visible
+		and landmark.get_child_count() == 0 and batch.get_child_count() == 0
+		and landmark.get_script() == null and batch.get_script() == null
+		and landmark.get_groups().is_empty() and batch.get_groups().is_empty()
+		and landmark.get_meta_list().is_empty()
+		and bool(batch.get_meta("visual_detail_only", false))
+		and StringName(batch.get_meta("authored_source_name", &"")) == &"ColumnCollar"
+	)
 	_check(
 		copies_exact,
-		"all three ordinary collars retain exact transforms, copper identity, renderer state and zero authority"
+		"landmark and batch retain all three exact transforms, copper identity, renderer state and zero authority"
 	)
 	_check(
 		shared_mesh != null
@@ -3039,15 +3045,14 @@ func _test_garden_column_collar_mesh_sharing(module: HabitatSpine) -> void:
 	)
 
 	var baseline_errors := module.get_validation_errors()
-	var last_collar := collars[-1]
-	last_collar.mesh = shared_mesh.duplicate() as TorusMesh
+	batch.multimesh.mesh = shared_mesh.duplicate() as TorusMesh
 	_check(
 		module.get_validation_errors().has(
-			"garden-column collar shared-mesh identity drift"
+			"garden-column collar batch recipe, transforms or render state drift"
 		),
-		"RED: one private collar mesh fails immutable shared-resource identity"
+		"RED: a private batch mesh fails immutable shared-resource identity"
 	)
-	last_collar.mesh = shared_mesh
+	batch.multimesh.mesh = shared_mesh
 	var original_rings := shared_mesh.rings
 	shared_mesh.rings = original_rings + 1
 	_check(
@@ -3070,31 +3075,31 @@ func _test_garden_column_collar_mesh_sharing(module: HabitatSpine) -> void:
 		"RED: shared collar authored-budget mutation fails its 48x16 metadata gate"
 	)
 	shared_mesh.set_meta(TorusGeometryBudget.AUTHORED_META, authored_tessellation)
-	var copper_material := last_collar.material_override
-	last_collar.material_override = null
+	var copper_material := batch.material_override
+	batch.material_override = null
 	_check(
 		module.get_validation_errors().has(
-			"garden-column collar render-state drift: %s" % paths[-1]
+			"garden-column collar batch recipe, transforms or render state drift"
 		),
 		"RED: collar material-identity mutation fails the renderer-state gate"
 	)
-	last_collar.material_override = copper_material
-	last_collar.layers = 2
+	batch.material_override = copper_material
+	batch.layers = 2
 	_check(
 		module.get_validation_errors().has(
-			"garden-column collar render-state drift: %s" % paths[-1]
+			"garden-column collar batch recipe, transforms or render state drift"
 		),
 		"RED: collar renderer-layer mutation fails the renderer-state gate"
 	)
-	last_collar.layers = 1
-	last_collar.set_meta("station_service_detail", true)
+	batch.layers = 1
+	landmark.set_meta("station_service_detail", true)
 	_check(
 		module.get_validation_errors().has(
-			"garden-column collar gained semantic authority: %s" % paths[-1]
+			"garden-column collar landmark gained semantic authority"
 		),
 		"RED: service metadata on visual collar stock fails the zero-authority gate"
 	)
-	last_collar.remove_meta("station_service_detail")
+	landmark.remove_meta("station_service_detail")
 	_check(
 		module.get_validation_errors() == baseline_errors,
 		"restoring collar identity, recipe, budget, renderer and authority state restores the Habitat audit"
