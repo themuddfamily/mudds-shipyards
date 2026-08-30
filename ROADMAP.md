@@ -1393,6 +1393,22 @@ exit-ready shutdown at that pad. Binding lifecycle, physical boarding/switching,
 legacy Arrow recovery and shared landing-clearance checks remain green. Native
 Windows repetition remains `NOT_RUN`.
 
+The first source-exact package after that change exposed a second ordering defect
+that direct `Main` startup did not: the packaged loading screen gave the nested Cinder
+composition time to finish before `GameFlow` started, so the old deferred-refresh
+condition never queued and all three already-live Cinder craft were rejected against
+the earlier six-berth cache. Fleet admission now synchronously indexes an already-built
+Dock 04/05/06 composition before validating any candidate, while the ordinary unfinished
+composition retains its deferred path. The real staged boot now reaches exactly nine
+physical berths and nine flyable craft, and direct Cinder registration plus the
+six-feedback/nine-physical-berth audit remain green. Corrected source commit `8c8da352f`
+exports as `MuddsShipyards-8c8da35.exe` (162,608,000 bytes; SHA-256
+`fd57019ded163485016778a0b098bd7925750eb37a64ef5309e06917d301392b`). A 300-frame
+native Windows run exited `0`, initialized Vulkan Forward+ on the RTX 5070 Ti, emitted
+no Cinder/berth startup errors, and retained only the known fixed seven-Texture-RID
+engine shutdown warning. This is package startup evidence, not an interactive human
+playtest, audibility check, or performance result.
+
 The player-path audit then reproduced Fleet Dock 03's upper ramp as a genuine P1
 blocker: its parked Bulwark used the lower Dock 01/02 root height, placing the live
 hull collision through the raised deck and across the ramp threshold. The berth now
