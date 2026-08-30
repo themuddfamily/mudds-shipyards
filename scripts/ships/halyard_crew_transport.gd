@@ -283,6 +283,13 @@ const AIRSTAIR_Z := -4.80
 ## crew member can actually pass from the stair onto the cabin deck while the
 ## wall continues to protect both adjacent exterior edges.
 const PORT_AIRSTAIR_HATCH_APERTURE_WIDTH := 1.90
+## The port hatch follows the inherited canopy lifecycle, but slides aft into
+## the pressure-wall pocket instead of reproducing the hidden fighter canopy.
+## At this offset the 1.90 m seal is 0.10 m clear of the physical aperture.
+const PORT_HATCH_OPEN_OFFSET := Vector3(0.0, 0.0, 2.00)
+const PORT_HATCH_DOOR_CLOSED_POSITION := Vector3(-2.36, 1.55, AIRSTAIR_Z)
+const PORT_HATCH_SEAL_CLOSED_POSITION := Vector3(-2.30, 1.55, AIRSTAIR_Z)
+const PORT_HATCH_BLOCKER_SIZE := Vector3(0.14, 2.00, 1.80)
 ## Transverse engine yoke station, clear aft of the pressure hull.
 const TAIL_YOKE_Z := 11.20
 ## A mechanically hinged isolation vane on the tail-yoke cap. In nominal state
@@ -387,6 +394,9 @@ var _halyard_materials: Dictionary = {}
 var _box_mesh_cache: Dictionary = {}
 var _walkable_interior: Node3D
 var _crew_cabin: Node3D
+var _port_hatch_door: MeshInstance3D
+var _port_hatch_door_seal: MeshInstance3D
+var _port_hatch_blocker: CollisionShape3D
 var _aft_systems_bay: Node3D
 var _moving_interior_component: MovingInteriorFrame
 var _occupant_volume: Area3D
@@ -491,6 +501,24 @@ func _ready() -> void:
 	_apply_halyard_metadata()
 	_sync_halyard_engine_presentation_immediately()
 	_build_loadmaster_station_display()
+
+
+## Reuses the common canopy state as the sole boarding-surface lifecycle. The
+## inherited fighter canopy remains hidden, while Halyard's real port hatch and
+## its matching blocker move together through every tweened fraction.
+func _set_canopy_open_fraction(open_fraction: float) -> void:
+	super._set_canopy_open_fraction(open_fraction)
+	_sync_port_hatch_open_fraction(open_fraction)
+
+
+func _sync_port_hatch_open_fraction(open_fraction: float) -> void:
+	var offset := PORT_HATCH_OPEN_OFFSET * clampf(open_fraction, 0.0, 1.0)
+	if is_instance_valid(_port_hatch_door):
+		_port_hatch_door.position = PORT_HATCH_DOOR_CLOSED_POSITION + offset
+	if is_instance_valid(_port_hatch_door_seal):
+		_port_hatch_door_seal.position = PORT_HATCH_SEAL_CLOSED_POSITION + offset
+	if is_instance_valid(_port_hatch_blocker):
+		_port_hatch_blocker.position = PORT_HATCH_DOOR_CLOSED_POSITION + offset
 
 
 func _exit_tree() -> void:
@@ -2711,8 +2739,8 @@ func _relocate_and_restyle_cockpit(
 		# sat directly across the seated pilot's forward view. Its nodes and the
 		# canopy state machine are left intact so boarding, the open/close
 		# lifecycle and every canopy assertion still run; only its meshes are
-		# hidden. Making the port hatch itself the animated entry surface is
-		# recorded as follow-up work rather than faked here.
+		# hidden. The real port hatch consumes that same open fraction below, so
+		# the controller retains one entry-surface authority.
 		for canopy_mesh in canopy.find_children("*", "MeshInstance3D", true, false):
 			(canopy_mesh as MeshInstance3D).visible = false
 		for glass in canopy.find_children("CanopyGlass", "MeshInstance3D", true, false):
@@ -3258,8 +3286,20 @@ func _build_crew_cabin() -> void:
 		_halyard_materials.boarding_route
 	)
 	_mark_boarding_route_cue(airstair_route_branch, &"hatch_branch")
-	_box(_crew_cabin, "PortHatchDoor", Vector3(-2.36, 1.55, AIRSTAIR_Z), Vector3(0.10, 2.00, 1.80), _halyard_materials.dark)
-	_box(_crew_cabin, "PortHatchDoorSeal", Vector3(-2.30, 1.55, AIRSTAIR_Z), Vector3(0.05, 2.10, 1.90), _halyard_materials.accent)
+	_port_hatch_door = _box(
+		_crew_cabin,
+		"PortHatchDoor",
+		PORT_HATCH_DOOR_CLOSED_POSITION,
+		Vector3(0.10, 2.00, 1.80),
+		_halyard_materials.dark
+	)
+	_port_hatch_door_seal = _box(
+		_crew_cabin,
+		"PortHatchDoorSeal",
+		PORT_HATCH_SEAL_CLOSED_POSITION,
+		Vector3(0.05, 2.10, 1.90),
+		_halyard_materials.accent
+	)
 	for light_z in [-8.00, -3.65, 0.70]:
 		var cabin_light := OmniLight3D.new()
 		cabin_light.name = "CabinPracticalLight"
@@ -3589,6 +3629,15 @@ func _replace_collision_and_markers() -> void:
 		Vector3(-2.58, 1.95, (hatch_max_z + port_wall_max_z) * 0.5),
 		Vector3(0.28, 2.90, port_wall_max_z - hatch_max_z)
 	)
+	# The visible hatch is not collision-free dressing: this box matches the
+	# door leaf and slides into the same aft wall pocket with the inherited
+	# canopy fraction. It grants no new boarding or canopy authority.
+	_port_hatch_blocker = _add_box_collision(
+		"PortHatchDoorCollision",
+		PORT_HATCH_DOOR_CLOSED_POSITION,
+		PORT_HATCH_BLOCKER_SIZE
+	)
+	_sync_port_hatch_open_fraction(1.0 if is_canopy_open() else 0.0)
 	_add_box_collision("StarboardHullWallCollision", Vector3(2.58, 1.95, -1.20), Vector3(0.28, 2.90, 18.80))
 	_add_box_collision("VentralHullCollision", Vector3(0.0, 0.04, -1.20), Vector3(5.20, 0.78, 18.80))
 	# The nose is a shell around the flight deck, so its collision is roof and
