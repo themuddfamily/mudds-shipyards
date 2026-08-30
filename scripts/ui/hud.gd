@@ -1475,29 +1475,38 @@ func set_activity_objective(display_name: String, snapshot: Dictionary) -> void:
 				activity_text = "[ %s ] DEFENSE  START WAVE" % _action_prompts([&"interact"])
 	elif activity_kind == &"patrol":
 		var gate_number := mini(next_index + 1, checkpoint_count)
+		var patrol_prefix := (
+			"PATROL  PLATFORM SWEEP"
+			if StringName(snapshot.get("branch_id", &"")) == &"platform_sweep"
+			else "PATROL"
+		)
 		match state_id:
 			&"active":
 				if phase_id == &"dwell":
-					activity_text = "PATROL  DWELL G%d/%d  HOLD %s" % [
+					activity_text = "%s  DWELL G%d/%d  HOLD %s" % [
+						patrol_prefix,
 						gate_number,
 						checkpoint_count,
 						_format_activity_time(dwell_remaining),
 					]
 				else:
-					activity_text = "PATROL  TRAVEL G%d/%d  %s" % [
+					activity_text = "%s  TRAVEL G%d/%d  %s" % [
+						patrol_prefix,
 						gate_number,
 						checkpoint_count,
 						_format_activity_time(current_time),
 					]
 			&"completed":
-				activity_text = "PATROL  COMPLETE %d/%d  %s" % [
+				activity_text = "%s  COMPLETE %d/%d  %s" % [
+					patrol_prefix,
 					completed_checkpoints,
 					checkpoint_count,
 					_format_activity_time(last_duration),
 				]
 			&"failed", &"aborted":
 				var readable_reason := str(terminal_reason).replace("_", " ").to_upper()
-				activity_text = "PATROL  %s%s  %d/%d" % [
+				activity_text = "%s  %s%s  %d/%d" % [
+					patrol_prefix,
 					"ABORTED" if state_id == &"aborted" else "FAILED",
 					(" — " + readable_reason) if not readable_reason.is_empty() else "",
 					completed_checkpoints,

@@ -576,7 +576,10 @@ func _test_platform_branch_choice() -> void:
 		and not bool(locked_change.get("accepted", true))
 		and locked_change.get("reason", &"") == &"selection_locked"
 		and bool((locked_buttons.get(&"relay_sweep", {}) as Dictionary).get("disabled", false))
-		and bool((locked_buttons.get(&"platform_sweep", {}) as Dictionary).get("disabled", false)),
+		and bool((locked_buttons.get(&"platform_sweep", {}) as Dictionary).get("disabled", false))
+		and "PATROL  PLATFORM SWEEP  TRAVEL G1/5" in str(
+			hud.get_activity_objective_report().get("text", "")
+		),
 		"starting locks the chosen branch for that patrol generation and disables both route controls"
 	)
 
