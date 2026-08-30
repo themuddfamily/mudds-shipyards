@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ActivityDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/activities/activity_definition.gd" id="1_activity"]
+[ext_resource type="Resource" path="res://assets/world/locations/cinder_reach.tres" id="2_location"]
+
+[resource]
+script = ExtResource("1_activity")
+activity_id = &"cinder_reach_platform_patrol_route"
+display_name = "Cinder Reach platform sweep"
+activity_kind = &"checkpoint_route"
+content_note = "A finite alternate inspection order through the existing authored Cinder beacon volumes; it adds no world geometry, reward, or vehicle authority."
+location = ExtResource("2_location")
+checkpoint_positions = PackedVector3Array(32, -26, -372, 16, -9, -240, 30, -46, -600, 46, -44, -498, 60, -70, -700)
+checkpoint_radius = 32.0

@@ -127,10 +127,12 @@ func validate_record(
 	if not raw_activity is Dictionary:
 		return _result(false, &"patrol_session_payload_corrupt")
 	var activity := raw_activity as Dictionary
+	var saved_activity_id := str(activity.get("activity_id", ""))
 	if activity.size() != 6 \
 			or activity.get("activity_id") is not String \
-			or str(activity.get("activity_id", "")) \
-			!= str(patrol.definition.activity_id) \
+			or not NearbySectorActivitySessionAdapter.SUPPORTED_ACTIVITY_IDS.has(
+				StringName(saved_activity_id)
+			) \
 			or not _integral(activity.get("generation")) \
 			or not _integral(activity.get("state")) \
 			or activity.get("reward_requested") is not bool \
@@ -142,8 +144,7 @@ func validate_record(
 	var progress := activity.progress as Dictionary
 	if progress.size() != 4 \
 			or progress.get("activity_id") is not String \
-			or str(progress.get("activity_id", "")) \
-			!= str(patrol.definition.activity_id) \
+			or str(progress.get("activity_id", "")) != saved_activity_id \
 			or not _integral(progress.get("generation")) \
 			or not _integral(progress.get("state")) \
 			or not progress.get("patrol_state") is Dictionary \
@@ -151,7 +152,8 @@ func validate_record(
 			or int(progress.state) != int(activity.state):
 		return _result(false, &"patrol_session_payload_corrupt")
 	var patrol_state := progress.patrol_state as Dictionary
-	if int(progress.generation) != int(patrol_state.get("generation", -1)) \
+	if str(patrol_state.get("activity_id", "")) != saved_activity_id \
+			or int(progress.generation) != int(patrol_state.get("generation", -1)) \
 			or int(progress.state) != int(patrol_state.get("state", -1)):
 		return _result(false, &"patrol_session_payload_corrupt")
 	var validated := patrol.validate_persistence_state(

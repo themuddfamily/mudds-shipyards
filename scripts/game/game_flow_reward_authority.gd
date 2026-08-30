@@ -16,6 +16,7 @@ const COMMIT_PREFIX := "game-flow-reward-"
 
 const RACE_ACTIVITY_ID: StringName = &"cinder_reach_checkpoint_route"
 const PATROL_ACTIVITY_ID: StringName = &"cinder_relay_patrol"
+const PLATFORM_PATROL_ACTIVITY_ID: StringName = &"cinder_platform_patrol"
 const CONVOY_ACTIVITY_ID: StringName = &"cinder_reach_emberline_convoy"
 const CARGO_ACTIVITY_ID: StringName = &"jovian_fabrication_kit_delivery"
 const CINDER_CARGO_ACTIVITY_ID: StringName = &"cinder_kit_cargo_run"
@@ -36,6 +37,7 @@ const EMBER_RELAY_REWARD_ID: StringName = &"ember_beacon_data"
 const ACTIVITY_REWARDS := {
 	RACE_ACTIVITY_ID: RACE_REWARD_ID,
 	PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
+	PLATFORM_PATROL_ACTIVITY_ID: PATROL_REWARD_ID,
 	CONVOY_ACTIVITY_ID: CONVOY_REWARD_ID,
 	CARGO_ACTIVITY_ID: CARGO_REWARD_ID,
 	CINDER_CARGO_ACTIVITY_ID: CARGO_REWARD_ID,
