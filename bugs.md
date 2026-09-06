@@ -149,21 +149,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Scope / repair:** This affects `run_matrix.sh`. Delegate to the maintained
   runner's content checks instead of preserving another acceptance path.
 
-### TEST-004 — Passing display HUD suite lacks the required success marker — P2
-
-- **Location:** [`tests/display_settings_hud_integration_test.gd`](tests/display_settings_hud_integration_test.gd#L57).
-- **Reproduce:** Run
-  `tools/run_affected_suites.sh display_settings_hud_integration_test`.
-- **Expected / actual:** A passing suite should emit the maintained runner's
-  required terminal success marker. It prints only
-  `display_settings_hud_integration_test: 16 assertions`, so the runner rejects
-  it with `sentinel_count=0` and `no_sentinel_found`.
-- **Verified:** All **16 assertions** completed, exit was **0**, and diagnostics
-  were **0**, but the maintained matrix correctly reported **FAIL** because the
-  suite did not meet its output contract.
-- **Repair:** Emit the suite-specific `_OK` or `_PASS` marker only on successful
-  completion, retaining a nonzero exit and failure output otherwise.
-
 ### WORLD-001 — Normal survey movement fails the entire Ember journey — P1
 
 - **Locations:** [`_forward_active_relay_position()`](scripts/world/ember_surface_loop_production_binding.gd#L2394),

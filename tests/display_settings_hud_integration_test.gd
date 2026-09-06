@@ -54,7 +54,8 @@ func _run() -> void:
 	await process_frame
 	for failure in _failures:
 		push_error(failure)
-	print("display_settings_hud_integration_test: %d assertions" % _assertions)
+	if _failures.is_empty():
+		print("DISPLAY_SETTINGS_HUD_INTEGRATION_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
 
 
