@@ -651,6 +651,19 @@ func _test_cockpit_canopy_and_contracts(torrent: HeroShip) -> void:
 	_check(legacy_canopy != null and not legacy_canopy.visible, "legacy canopy cage remains a hidden fallback")
 	_check(blender_cockpit != null and blender_cockpit.get_node_or_null("CrimsonSeatPan") is MeshInstance3D, "authored close cockpit retains the recognisable red seat")
 	_check(blender_cockpit != null and blender_cockpit.get_node_or_null("PrimaryDisplay") is MeshInstance3D, "authored close cockpit owns the primary display")
+	var readout := cockpit.get_node_or_null("FlightDataReadout") as Label3D
+	var screen := blender_cockpit.get_node_or_null("PrimaryDisplay") as MeshInstance3D
+	await process_frame
+	var text_on_screen := readout != null and screen != null
+	if text_on_screen:
+		var screen_bounds := screen.get_aabb()
+		for corner in 8:
+			var point := screen.to_local(readout.to_global(readout.get_aabb().get_endpoint(corner)))
+			text_on_screen = text_on_screen \
+				and point.x >= screen_bounds.position.x and point.x <= screen_bounds.end.x \
+				and point.y >= screen_bounds.position.y and point.y <= screen_bounds.end.y \
+				and point.z > screen_bounds.end.z and point.z < screen_bounds.end.z + 0.01
+	_check(text_on_screen, "live three-line telemetry fits on the imported physical screen face")
 	var art_manifest := _read_json("res://assets/models/torrent/hero/torrent_hero_asset_manifest.json")
 	var art_batching := art_manifest.get("runtime_static_batching", {}) as Dictionary
 	var cockpit_batches := (art_batching.get("batch_member_map", {}) as Dictionary).get(

@@ -414,6 +414,7 @@ var _last_direct_command_sequence := -1
 var _last_camera_command_stream_id := -1
 var _last_camera_command_sequence := -1
 var _cockpit_readout: Label3D
+var _torrent_fallback_readout_transform := Transform3D.IDENTITY
 var _cockpit_practical_light: SpotLight3D
 var _ship_audio_rig: ShipAudioRig
 var _torrent_hero_presentation: TorrentHeroPresentation
@@ -4732,6 +4733,14 @@ func _install_torrent_hero_presentation() -> void:
 	# immutable graph after a successful preflight audit.
 	if _cockpit_readout != null:
 		_cockpit_readout.reparent(_cockpit_root, true)
+		_torrent_fallback_readout_transform = _cockpit_readout.transform
+		# The imported screen has a different position and tilt from the retained
+		# fallback cluster. Mount the live three-line readout on its physical face.
+		var imported_display := imported_cockpit.get_node_or_null("PrimaryDisplay") as MeshInstance3D
+		if imported_display != null:
+			_cockpit_readout.global_transform = imported_display.global_transform.translated_local(
+				Vector3(0.0, 0.0, imported_display.get_aabb().end.z + 0.004)
+			)
 	var imported_seat := imported_cockpit.get_node_or_null("CrimsonSeatPan") as MeshInstance3D
 	if imported_seat != null:
 		imported_seat.set_meta("historically_observed_colour", true)
@@ -6590,6 +6599,8 @@ func _get_live_torrent_hero_presentation() -> TorrentHeroPresentation:
 		_legacy_torrent_presentation.visible = true
 	if _cockpit_readout != null and is_instance_valid(_cockpit_readout):
 		_cockpit_readout.visible = true
+		if _legacy_torrent_cockpit_art != null and is_instance_valid(_legacy_torrent_cockpit_art):
+			_cockpit_readout.transform = _torrent_fallback_readout_transform
 	if _cockpit_practical_light != null and is_instance_valid(_cockpit_practical_light):
 		_cockpit_practical_light.visible = true
 	return null
