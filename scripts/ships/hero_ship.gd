@@ -568,7 +568,9 @@ func _physics_process(delta: float) -> void:
 		_clear_pending_look_motion()
 		velocity = velocity.move_toward(Vector3.ZERO, passive_drag * delta)
 		if not _landed:
+			var pre_collision_velocity := velocity
 			move_and_slide()
+			_apply_collision_damage(pre_collision_velocity)
 	# A sample is deliberately one ship tick wide. Landing, shutdown, boarding,
 	# or any other branch that did not consume it closes the capability here.
 	_discard_pending_planetary_surface_gravity(&"not_applied_this_ship_tick")

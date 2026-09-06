@@ -16,22 +16,6 @@ This is a bounded source review with focused execution, not a claim that every
 bug has been found. Native Windows, physical controllers, representative GPU
 performance, and human visual review were **NOT_RUN** in this review.
 
-### FLIGHT-001 — Automatic engine idle makes coasting collisions harmless — P1
-
-- **Location:** [`HeroShip._physics_process()`](scripts/ships/hero_ship.gd#L565).
-- **Trigger:** Accelerate above the 45 m/s impact threshold, release controls for
-  more than 1.5 seconds, then coast into station geometry.
-- **Expected / actual:** Impact damage should depend on the collision. The
-  automatically offline ship instead retains its hull: its movement branch
-  calls `move_and_slide()` without `_apply_collision_damage()`. Powered flight
-  does apply that damage.
-- **Verified:** Two real Torrent instances started 200 m along Z at 80 m/s toward
-  identical static walls. After 250 physics ticks, the naturally idled ship had
-  hull **100.0**, while the comparison ship kept online had **2.144094**. Both
-  reached the same relative contact position and reported one slide collision.
-- **Repair:** Apply collision consequences after coasting movement as well as
-  powered movement, preserving landing rules, cooldowns, and destruction guards.
-
 ### DISPLAY-001 — Display rollback countdown freezes in the settings menu — P2
 
 - **Locations:** [`GameFlow._process()`](scripts/game/game_flow.gd#L2723),
