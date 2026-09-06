@@ -16,6 +16,43 @@ This is a bounded source review with focused execution, not a claim that every
 bug has been found. Native Windows, physical controllers, representative GPU
 performance, and human visual review were **NOT_RUN** in this review.
 
+### NET-004 — Targeted interior snapshots leave permanent revision gaps — P1
+
+- **Location:** Moving-interior publication, budget flushing, and resync in
+  [`network_enet_session_adapter.gd`](scripts/network/network_enet_session_adapter.gd).
+- **Found during fix verification:** With two admitted clients, target the
+  first interior update to client A and the second to client B, then continue
+  targeting updates through the real ENet adapter.
+- **Expected / actual:** Each recipient should order only the snapshots sent
+  to it. Publication uses one global revision counter despite targeting and
+  coalescing per recipient. B waits forever for revision 1 while holding revision
+  2; A subsequently waits for revision 2 while holding revisions 3–9. Resync also
+  synthesizes one cursor revision per relationship instead of aligning with the
+  subsequent recipient stream.
+- **Verified:** The real two-client socket regression failed six delivery and
+  ordering assertions. Budget flushing also retained already-sent entries by
+  erasing a dictionary value instead of its entity key.
+- **Repair:** Use contiguous emitted revisions per recipient, align resync with
+  that stream, and retire delivered pending entries by key. Keep canonical and
+  interior ordering independent as established by NET-002's completed fix.
+
+### WORLD-004 — Valid terrain beyond the landing pad is rejected as lost support — P1
+
+- **Location:** [`EmberSurfaceLoopHost._surface_actor_supported()`](scripts/world/ember_surface_loop_host.gd).
+- **Found during fix verification:** Walk from Ember's 96×96 m landing pad onto
+  the generated terrain toward the authored survey checkpoint and Relay Arc.
+- **Expected / actual:** Authored traversable terrain should support the on-foot
+  journey. The host requires the original pad's exact collider and a narrow
+  landing-height band. It rejects the existing `generated_planetary_terrain`
+  collider and terminates the journey with `surface_support_lost`.
+- **Verified:** The active-survey walking fixture stopped advancing after
+  leaving the pad near local X=50. Source inspection confirms that the actual
+  checkpoint at X=180 / Y=9 and hazard near X=176 / Y=6 lie outside the host's
+  permitted footprint/height, despite real terrain collision being present.
+- **Repair:** Admit current authored terrain support in the correct body frame,
+  while retaining generation, actor, slope, and fall-safety checks. Verify real
+  movement from the pad onto the route rather than teleporting test samples.
+
 ### WORLD-001 — Normal survey movement fails the entire Ember journey — P1
 
 - **Locations:** [`_forward_active_relay_position()`](scripts/world/ember_surface_loop_production_binding.gd#L2394),
