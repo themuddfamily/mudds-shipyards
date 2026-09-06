@@ -47,7 +47,7 @@ func _run() -> void:
 		},
 		&"trim": {
 			"key": &"mining_trim",
-			"nodes": [^"MiningHeadframeBraces", ^"HopperServiceBand", ^"MiningOreBufferBands"],
+			"nodes": [^"MiningHeadframeBraces", ^"HopperServiceBand", ^"MiningOreBufferBands", ^"MiningOreLiftPick"],
 			"color": NearbySectorCluster.KETH_ORANGE,
 			"metallic": 0.1,
 			"roughness": 0.56,
@@ -79,18 +79,27 @@ func _run() -> void:
 
 	var audit := cluster.get_mining_platform_presentation_audit()
 	var counts := audit.counts as Dictionary
+	# The fixed ore-lift landmark adds one four-copy trim batch to the original
+	# silhouette: one renderer, submission, mesh resource and descendant; no light.
+	var ore_lift := presentation.get_node(^"MiningOreLiftPick") as MultiMeshInstance3D
+	_check(
+		ore_lift.multimesh.instance_count == 4
+		and bool(ore_lift.get_meta(&"presentation_only", false))
+		and presentation.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"the ore-lift's two stays, pick head and hanging lift share one collision-free trim batch"
+	)
 	_check(
 		bool(audit.valid) and (audit.errors as PackedStringArray).is_empty(),
 		"production mining audit accepts the live material hierarchy"
 	)
 	_check(
-		int(counts.renderer_nodes) == 11
-		and int(counts.visible_copies) == 18
-		and int(counts.surface_submissions) == 11
-		and int(counts.mesh_resource_allocations) == 10
+		int(counts.renderer_nodes) == 12
+		and int(counts.visible_copies) == 22
+		and int(counts.surface_submissions) == 12
+		and int(counts.mesh_resource_allocations) == 11
 		and int(counts.light_nodes) == 2
-		and int(counts.descendant_nodes) == 14,
-		"material hierarchy preserves every mining render, light, and node budget"
+		and int(counts.descendant_nodes) == 15,
+		"material hierarchy includes the four-piece ore-lift landmark within the authored mining budgets"
 	)
 
 	var feed_chutes := presentation.get_node(^"MiningFeedChutes") as MultiMeshInstance3D

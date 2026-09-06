@@ -25,6 +25,9 @@ func _run() -> void:
 	var port_lens := presentation.get_node(^"MiningCrownLampPortLens") as MeshInstance3D
 	var starboard_lens := presentation.get_node(^"MiningCrownLampStarboardLens") as MeshInstance3D
 	var extraction_sign := presentation.get_node(^"Sign_ORE_EXTRACTION") as MeshInstance3D
+	var ore_lift := presentation.get_node(^"MiningOreLiftPick") as MultiMeshInstance3D
+	var retained_ore_lift_id := ore_lift.get_instance_id()
+	var retained_ore_lift_buffer := ore_lift.multimesh.buffer
 	var retained_collectors_id := collector_bands.get_instance_id()
 	var retained_hopper_id := hopper_band.get_instance_id()
 	var initial_counts := _presentation_counts(presentation)
@@ -38,9 +41,10 @@ func _run() -> void:
 		and is_equal_approx(starboard_light.position.x, 12.0)
 		and is_equal_approx(extraction_sign.position.z, 18.0)
 		and initial_counts == {
-			"descendants": 14,
+			# The four fixed ore-lift pieces share one additional retained batch.
+			"descendants": 15,
 			"meshes": 6,
-			"batches": 5,
+			"batches": 6,
 			"lights": 2,
 			"collision_objects": 0,
 		},
@@ -155,8 +159,10 @@ func _run() -> void:
 		and int(restarted_state.generation) == 2
 		and restarted_state.collector_levels == [0.0, 0.0, 0.0]
 		and collector_bands.get_instance_id() == retained_collectors_id
-		and hopper_band.get_instance_id() == retained_hopper_id,
-		"a fresh authoritative generation reuses the reset collector and hopper nodes"
+		and hopper_band.get_instance_id() == retained_hopper_id
+		and ore_lift.get_instance_id() == retained_ore_lift_id
+		and ore_lift.multimesh.buffer == retained_ore_lift_buffer,
+		"a fresh authoritative generation reuses the gauges and leaves the fixed ore-lift landmark unchanged"
 	)
 
 	cluster.queue_free()
