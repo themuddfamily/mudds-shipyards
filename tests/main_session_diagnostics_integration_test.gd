@@ -13,6 +13,7 @@ class MemoryFilesystem extends Filesystem:
 	var files: Dictionary = {}
 	var write_count := 0
 	var fail_write_number := -1
+	var fail_all_writes := false
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -33,7 +34,7 @@ class MemoryFilesystem extends Filesystem:
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		write_count += 1
-		if write_count == fail_write_number:
+		if fail_all_writes or write_count == fail_write_number:
 			return ERR_FILE_CANT_WRITE
 		files[path] = bytes.duplicate()
 		return OK
@@ -194,6 +195,7 @@ func _run() -> void:
 	)
 	discard_flow.mark_orderly_session_shutdown()
 	discard_flow.free()
+	_test_persistent_diagnostic_write_failure()
 	_test_orderly_shutdown_composition()
 	await _test_detach_reentry_and_free_remain_dirty()
 	if _failures.is_empty():
@@ -202,6 +204,63 @@ func _run() -> void:
 		return
 	printerr("MAIN_SESSION_DIAGNOSTICS_INTEGRATION_TEST_FAILED: ", _failures)
 	quit(1)
+
+
+func _test_persistent_diagnostic_write_failure() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var path := "memory://diagnostic-retry.json"
+	var flow := _new_composed_marker_flow(path, filesystem)
+	var store := flow.get("_runtime_settings_user_data_store") as Store
+	filesystem.fail_all_writes = true
+	var writes_before := filesystem.write_count
+	flow._record_session_startup_completed()
+	_check(filesystem.write_count == writes_before + 1,
+		"first diagnostic save is attempted immediately")
+	for delta in [0.0, -1.0, NAN, INF]:
+		flow._advance_session_diagnostics_physics(delta)
+	_check(filesystem.write_count == writes_before + 1,
+		"zero and invalid deltas cannot bypass the retry delay")
+	for tick in range(16):
+		flow.set("_piloting", tick % 2 == 0)
+		flow._advance_session_diagnostics_physics(0.125)
+	_check(filesystem.write_count == writes_before + 3,
+		"persistent failure retries once per second despite frequent new observations")
+	var retained := flow.get_session_diagnostics_snapshot().bridge.record.events as Array
+	_check(bool(flow.get("_session_diagnostics_persist_pending")) and retained.size() > 2,
+		"failed saves retain the latest observation ring as pending")
+	filesystem.fail_all_writes = false
+	flow._advance_session_diagnostics_physics(0.5)
+	_check(filesystem.write_count == writes_before + 3,
+		"storage recovery waits for the existing retry delay")
+	flow._advance_session_diagnostics_physics(0.5)
+	var reloaded := Store.new(path, filesystem)
+	var loaded := reloaded.load()
+	_check(filesystem.write_count == writes_before + 4
+		and not bool(flow.get("_session_diagnostics_persist_pending"))
+		and bool(loaded.accepted)
+		and reloaded.get_snapshot().session_diagnostics.events == JSON.parse_string(JSON.stringify(retained)),
+		"retry recovery commits all retained observations to reloadable storage")
+	flow.set("_piloting", true)
+	flow._observe_session_diagnostic_runtime_mode()
+	_check(filesystem.write_count == writes_before + 5,
+		"successful persistence resets the delay for the next observation")
+	filesystem.fail_all_writes = true
+	flow.set("_piloting", false)
+	flow._observe_session_diagnostic_runtime_mode()
+	filesystem.fail_all_writes = false
+	var closed := flow.mark_orderly_session_shutdown()
+	_check(bool(closed.accepted)
+		and store.get_snapshot().session_diagnostics.events[-1].event_code == "session_ended"
+		and not bool(flow.get("_session_diagnostics_persist_pending")),
+		"explicit orderly shutdown flushes pending data without waiting for retry delay")
+	flow.free()
+	var replacement := _new_composed_marker_flow(path, filesystem, store)
+	var replacement_writes := filesystem.write_count
+	replacement.set("_piloting", true)
+	replacement._observe_session_diagnostic_runtime_mode()
+	_check(filesystem.write_count == replacement_writes + 1,
+		"a replacement session starts with prompt diagnostic persistence")
+	replacement.free()
 
 
 func _test_orderly_shutdown_composition() -> void:

@@ -658,6 +658,8 @@ var _session_diagnostics_session_id := 0
 var _session_diagnostics_physics_tick := 0
 var _session_diagnostics_elapsed_physics_seconds := 0.0
 var _session_diagnostics_runtime_mode := 0
+const SESSION_DIAGNOSTICS_RETRY_DELAY_SECONDS := 1.0
+var _session_diagnostics_retry_remaining_seconds := 0.0
 var _session_diagnostics_persist_pending := false
 var _session_diagnostics_clean_observation_recorded := false
 var _session_recovery_command_status: Dictionary = {}
@@ -2115,6 +2117,9 @@ func _initialize_session_diagnostics() -> void:
 	)
 	if bool(_session_diagnostics_last_status.get("accepted", false)):
 		_session_diagnostics_record = record
+		_session_diagnostics_persist_pending = false
+		_session_diagnostics_retry_remaining_seconds = 0.0
+		_session_diagnostics_clean_observation_recorded = false
 
 
 func get_session_diagnostics_snapshot() -> Dictionary:
@@ -2156,7 +2161,7 @@ func mark_orderly_session_shutdown() -> Dictionary:
 		_session_diagnostics_clean_observation_recorded = true
 	if _session_diagnostics_clean_observation_recorded \
 			and _session_diagnostics_persist_pending:
-		var pending_retry := _persist_session_diagnostics_ring()
+		var pending_retry := _persist_session_diagnostics_ring(true)
 		observation["accepted"] = bool(pending_retry.get("accepted", false))
 		observation["retry_status"] = pending_retry.duplicate(true)
 	var clean_commit_id := "main-session-clean-%d" % (_runtime_settings_user_data_store.get_generation() + 1)
@@ -2169,7 +2174,7 @@ func mark_orderly_session_shutdown() -> Dictionary:
 			and bool((observation.get("record_status", {}) as Dictionary).get(
 				"accepted", false
 			)):
-		var retry := _persist_session_diagnostics_ring()
+		var retry := _persist_session_diagnostics_ring(true)
 		observation["retry_status"] = retry.duplicate(true)
 		observation["accepted"] = bool(retry.get("accepted", false))
 		observation["reason"] = (
@@ -2648,15 +2653,22 @@ func _record_session_diagnostic_observation(
 	return result
 
 
-func _persist_session_diagnostics_ring() -> Dictionary:
+## Normal observations share one retry window, retaining the latest ring on failure.
+## Only explicit orderly shutdown may force a final flush through that window.
+func _persist_session_diagnostics_ring(force_flush: bool = false) -> Dictionary:
 	if _session_diagnostics_record == null:
 		return {"accepted": false, "reason": &"diagnostics_unavailable"}
+	if not force_flush and _session_diagnostics_retry_remaining_seconds > 0.0:
+		return {"accepted": false, "reason": &"retry_deferred"}
 	var persisted := _session_diagnostics_record.persist(
 		"main-session-observation-%d"
 		% (_runtime_settings_user_data_store.get_generation() + 1)
 	)
 	if bool(persisted.get("accepted", false)):
 		_session_diagnostics_persist_pending = false
+		_session_diagnostics_retry_remaining_seconds = 0.0
+	else:
+		_session_diagnostics_retry_remaining_seconds = SESSION_DIAGNOSTICS_RETRY_DELAY_SECONDS
 	return persisted.duplicate(true)
 
 
@@ -2693,7 +2705,11 @@ func _advance_session_diagnostics_physics(delta: float) -> void:
 		_session_diagnostics_elapsed_physics_seconds + delta,
 		SessionDiagnosticRecordType.MAX_SESSION_PHYSICS_SECONDS,
 	)
-	if _session_diagnostics_persist_pending:
+	_session_diagnostics_retry_remaining_seconds = maxf(
+		0.0, _session_diagnostics_retry_remaining_seconds - delta
+	)
+	if _session_diagnostics_persist_pending \
+			and _session_diagnostics_retry_remaining_seconds <= 0.0:
 		_persist_session_diagnostics_ring()
 	_observe_session_diagnostic_runtime_mode()
 
