@@ -2,6 +2,378 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
+## Code review — 2026-09-06
+
+Reviewed source: `aceff1619`. The findings below are **OPEN**; this review changes
+documentation only. P1 means a major feature or gameplay path is broken; P2 means
+an actionable correctness defect; P3 means a bounded lifecycle or robustness
+defect. The existing accepted `RENDER-001` record remains below.
+
+Scope: flight/boarding/combat, world activities/streaming, network transport,
+startup/settings/persistence, and executable packaging/test runners. Findings
+distinguish production behavior from defects reproduced through component APIs.
+This is a bounded source review with focused execution, not a claim that every
+bug has been found. Native Windows, physical controllers, representative GPU
+performance, and human visual review were **NOT_RUN** in this review.
+
+### FLIGHT-001 — Automatic engine idle makes coasting collisions harmless — P1
+
+- **Location:** [`HeroShip._physics_process()`](scripts/ships/hero_ship.gd#L565).
+- **Trigger:** Accelerate above the 45 m/s impact threshold, release controls for
+  more than 1.5 seconds, then coast into station geometry.
+- **Expected / actual:** Impact damage should depend on the collision. The
+  automatically offline ship instead retains its hull: its movement branch
+  calls `move_and_slide()` without `_apply_collision_damage()`. Powered flight
+  does apply that damage.
+- **Verified:** Two real Torrent instances started 200 m along Z at 80 m/s toward
+  identical static walls. After 250 physics ticks, the naturally idled ship had
+  hull **100.0**, while the comparison ship kept online had **2.144094**. Both
+  reached the same relative contact position and reported one slide collision.
+- **Repair:** Apply collision consequences after coasting movement as well as
+  powered movement, preserving landing rules, cooldowns, and destruction guards.
+
+### DISPLAY-001 — Display rollback countdown freezes in the settings menu — P2
+
+- **Locations:** [`GameFlow._process()`](scripts/game/game_flow.gd#L2723),
+  [`_update_display_confirmation()`](scripts/game/game_flow.gd#L15830),
+  [`GameHUD.set_paused()`](scripts/ui/hud.gd#L2389).
+- **Reproduce:** Open Pause → Settings, change resolution/window mode, and leave
+  the displayed 15-second confirmation unanswered.
+- **Expected / actual:** The display automatically reverts after 15 seconds.
+  Instead, opening the menu pauses the SceneTree, and GameFlow inherits the
+  pausable process mode. Its countdown does not advance until gameplay resumes.
+  A player who cannot use the new display cannot rely on automatic recovery.
+- **Verified:** In the production Main scene under Xvfb, after changing
+  1920×1080 to 1280×720, `paused=true`, `game.can_process()=false`, and the pending
+  countdown remained exactly **15.0** across an independent 0.5-second timer.
+- **Repair:** Run only display confirmation timing in an owner that processes
+  while paused; do not enable gameplay simulation during pause.
+
+### DISPLAY-002 — Other settings save an unconfirmed display change — P2
+
+- **Locations:** [`_on_setting_change_requested()`](scripts/game/game_flow.gd#L15822),
+  [`_on_settings_save_requested()`](scripts/game/game_flow.gd#L16105),
+  [`_revert_display_settings()`](scripts/game/game_flow.gd#L15864).
+- **Reproduce:** Preview another resolution, then adjust Master volume or press
+  Apply + Save before pressing Keep Display. Press Revert Display and restart.
+- **Expected / actual:** An unconfirmed display choice must remain transient.
+  Ordinary settings saves serialize the entire live settings object, including
+  the pending resolution. Revert changes only runtime state, so the rejected
+  resolution returns on the next launch.
+- **Verified:** With the production Main scene and an injected in-memory store,
+  changing volume during a 1280×720 preview saved **1280×720** while confirmation
+  remained pending. After Revert, runtime was **1920×1080** but a fresh settings
+  adapter still loaded **1280×720** from the store.
+- **Repair:** Persist the last confirmed display fields during unrelated saves,
+  or isolate display preview state until Keep commits it.
+
+### DISPLAY-003 — A second preview replaces the rollback baseline — P2
+
+- **Location:** [`_on_setting_change_requested()`](scripts/game/game_flow.gd#L15809).
+- **Reproduce:** From confirmed 1920×1080, preview 1280×720; without confirming,
+  preview 2560×1440, then press Revert.
+- **Expected / actual:** Revert should restore the last confirmed 1920×1080.
+  Each new preview replaces `prior` with the current, still-unconfirmed settings,
+  so the result is **1280×720**. The settings controls remain available during
+  confirmation.
+- **Verified:** The production Main display probe returned 1280×720 after this
+  exact sequence, with 1920×1080 as the original baseline.
+- **Repair:** Keep one confirmed baseline for the whole preview transaction;
+  subsequent changes should update only its candidate and deadline.
+
+### NET-001 — Late joiners never apply canonical state snapshots — P1
+
+- **Locations:** [`NetworkENetSessionAdapter`](scripts/network/network_enet_session_adapter.gd#L3361),
+  [`_broadcast_snapshot_fragment()`](scripts/network/network_enet_session_adapter.gd#L3815),
+  [`NetworkSnapshotJitterBuffer`](scripts/network/network_snapshot_jitter_buffer.gd#L65).
+- **Reproduce:** Have the server publish revision 1 before a client joins, admit
+  the client, then publish revisions 2–27 through the real ENet adapter.
+- **Expected / actual:** The new client should initialize from current authority
+  and receive subsequent updates. Initial deltas lack a decoder baseline. Even
+  when periodic full revision 9 arrives, the jitter buffer still waits for
+  revision 1, which will never arrive.
+- **Verified:** A real ENet late-join fixture admitted the client but applied
+  **zero snapshots**. Its cursor remained `next_revision=1`; pending revisions
+  `[9..24]` exhausted the 16-packet buffer.
+- **Impact:** This path carries production canonical ship telemetry and
+  projectile snapshots. Direct replica tests bypass the broken transport path.
+- **Repair:** Bootstrap each newly admitted peer with a full authoritative
+  snapshot and initialize its ordering cursor to that baseline.
+
+### NET-002 — Independent snapshot streams share one ordering cursor — P1
+
+- **Locations:** [`consume_moving_interior_snapshot()`](scripts/network/network_enet_session_adapter.gd#L2550),
+  [`_broadcast_snapshot_fragment()`](scripts/network/network_enet_session_adapter.gd#L3820).
+- **Reproduce:** Deliver canonical revision 1 and then a valid moving-interior
+  revision 1 to a client through the adapter's production receive paths.
+- **Expected / actual:** Both independent sequences should accept their first
+  packet. Both use `_snapshot_jitter`, so canonical delivery consumes revision 1
+  and the interior packet is rejected as `stale_or_duplicate`. Buffered packets
+  can also be released into the other stream's parser.
+- **Verified:** The fragment callback applied canonical revision **1**; the
+  following valid interior packet returned **`stale_or_duplicate`**.
+- **Impact:** GameFlow publishes both streams in production, including walking
+  inside moving craft and canonical telemetry/projectile updates.
+- **Repair:** Give each stream its own jitter buffer, lifecycle resets, and
+  resynchronization cursor.
+
+### NET-003 — Movement RPC rejects the sender's own valid envelope — P2
+
+- **Location:** [`_receive_movement_intent()`](scripts/network/network_enet_session_adapter.gd#L3644);
+  sender at [`send_movement_intent()`](scripts/network/network_enet_session_adapter.gd#L549).
+- **Reproduce:** Run
+  `godot --headless --path . --script tests/network/network_enet_session_adapter_test.gd`.
+- **Expected / actual:** An admitted client's valid movement reaches movement
+  authority; replay and spoof checks then reject invalid follow-ups. The
+  receiver instead requires top-level `protocol_version` and
+  `package_generation`, which the exact secure transport envelope does not
+  contain. Both default to zero, producing `protocol_mismatch` first.
+- **Verified:** The existing 80-assertion integration test exited **1** with
+  three failed movement assertions. Its unconditional final `_OK` line is not a
+  passing result.
+- **Scope:** Confirmed socket/API defect. Current GameFlow has no caller of
+  `send_movement_intent()`; this does not demonstrate broken local flight input.
+- **Repair:** Align the receiver with the negotiated admission/transport
+  contract. Adding fields only to the sender would violate the existing exact
+  transport schema.
+
+### PACKAGE-001 — Distribution contains the wrong Python installer — P2
+
+- **Location:** [`assemble_distribution()`](tools/package/windows_distribution_assembler.py#L153).
+- **Reproduce:** Assemble a distribution and run
+  `python3 <distribution>/install/windows_portable_installer.py --help`.
+- **Expected / actual:** The packaged installer should start and display help.
+  The assembler copies `Path(__file__)`—itself—under the installer's filename.
+  Execution fails before argument parsing with a circular
+  `ImportError: cannot import name 'LAUNCHER_NAME'`.
+- **Verified:** Real assembly of fixture package inputs, followed by execution
+  of the packaged file, exited **1**. Existing tests checked that the file
+  existed, so they passed. The separate PowerShell installer is unaffected by
+  this finding.
+- **Repair:** Copy the actual sibling `windows_portable_installer.py` and
+  exercise the assembled file in the existing packaging test.
+
+### PACKAGE-002 — Progress exporter publishes source changed during export — P2
+
+- **Locations:** [`export_and_assemble()` preflight](tools/package/export_windows_progress_build.py#L83),
+  [publication](tools/package/export_windows_progress_build.py#L118).
+- **Reproduce:** Start a clean progress export, then edit tracked source or
+  change HEAD while Godot is exporting.
+- **Expected / actual:** Publication should reject a changed source identity.
+  Cleanliness and HEAD are checked only before the export. The archive can
+  contain changed content while its name/manifest still claim the original
+  commit.
+- **Verified:** In an isolated Git fixture, an injected export runner changed
+  tracked `project.godot` and produced an EXE fixture. The real assembler and
+  archive verifier still published successfully under the original HEAD.
+  This verifies the publication guard defect, not a native Windows export.
+- **Repair:** Recheck tracked content and HEAD before assembly and publication,
+  or export from an immutable isolated checkout. The separate shell candidate
+  exporter already performs repeated source checks.
+
+### TEST-001 — Legacy matrix reports failing process exits as success — P2
+
+- **Location:** [`tools/release/run_matrix.sh`](tools/release/run_matrix.sh#L51).
+- **Reproduce:** Run this runner against a fixture suite whose Godot command
+  prints `PROBE_TEST_OK` and exits **7**.
+- **Expected / actual:** The result must retain exit 7 and fail the matrix.
+  Inside `if ! timeout ...`, `$?` is the successful negation's status, so the
+  runner records **0**. With one sentinel and no diagnostics, it prints
+  `MATRIX_OK` and exits **0**.
+- **Verified:** An unchanged copy of the runner in an isolated one-suite Git
+  fixture produced exactly that false pass.
+- **Scope / repair:** This affects legacy `run_matrix.sh`, not the maintained
+  `run_test_matrix.sh`. Retire/delegate the legacy runner or capture the actual
+  child exit status without negating it first.
+
+### TEST-002 — Legacy matrix source guard hashes the same filename list twice — P2
+
+- **Locations:** [`manifest capture`](tools/release/run_matrix.sh#L35),
+  [`post-run comparison`](tools/release/run_matrix.sh#L96).
+- **Reproduce:** Run the legacy matrix while its fixture Godot command rewrites
+  a tracked suite.
+- **Expected / actual:** A source change should invalidate the run. The runner
+  hashes a saved `git ls-files` list before execution and hashes the exact same
+  unchanged list afterward; it never compares source bytes or refreshes the
+  tracked-file inventory. It reports `manifest_unchanged=true` and `MATRIX_OK`.
+- **Verified:** An isolated fixture retained both the modified tracked suite
+  and the successful matrix result after execution.
+- **Scope / repair:** This affects `run_matrix.sh`. Delegate to the maintained
+  runner's content checks instead of preserving another acceptance path.
+
+### TEST-003 — Settings regression expects an obsolete accessibility descriptor — P2
+
+- **Location:** [`tests/runtime_settings_test.gd`](tests/runtime_settings_test.gd#L62).
+- **Reproduce:** Run
+  `godot --headless --path . --script tests/runtime_settings_test.gd`.
+- **Expected / actual:** The default-settings regression should agree with the
+  supported accessibility preferences. Its exact dictionary comparison omits
+  `reduced_flash` and `payload_visual_intensity`, both returned by the production
+  descriptor and exposed by the settings UI. It therefore fails on current
+  defaults, blocking the maintained release matrix.
+- **Verified:** The focused matrix recorded exit **1**, 136 passing assertions,
+  and `FAIL: the accessibility descriptor exposes the five presentation presets`.
+- **Repair:** Update the existing expected contract to cover the supported
+  fields and defaults; preserve the runtime preferences.
+
+### TEST-004 — Passing display HUD suite lacks the required success marker — P2
+
+- **Location:** [`tests/display_settings_hud_integration_test.gd`](tests/display_settings_hud_integration_test.gd#L57).
+- **Reproduce:** Run
+  `tools/run_affected_suites.sh display_settings_hud_integration_test`.
+- **Expected / actual:** A passing suite should emit the maintained runner's
+  required terminal success marker. It prints only
+  `display_settings_hud_integration_test: 16 assertions`, so the runner rejects
+  it with `sentinel_count=0` and `no_sentinel_found`.
+- **Verified:** All **16 assertions** completed, exit was **0**, and diagnostics
+  were **0**, but the maintained matrix correctly reported **FAIL** because the
+  suite did not meet its output contract.
+- **Repair:** Emit the suite-specific `_OK` or `_PASS` marker only on successful
+  completion, retaining a nonzero exit and failure output otherwise.
+
+### WORLD-001 — Normal survey movement fails the entire Ember journey — P1
+
+- **Locations:** [`_forward_active_relay_position()`](scripts/world/ember_surface_loop_production_binding.gd#L2394),
+  [scheduler failure handling](scripts/world/ember_surface_loop_production_binding.gd#L2269).
+- **Reproduce:** Reach Ember's on-foot phase and start Relay Survey away from
+  its next checkpoint. Alternatively, reach the first checkpoint and remain
+  there for another physics tick.
+- **Expected / actual:** The survey should remain active while the player walks
+  toward the next checkpoint. The route's ordinary `outside_checkpoint` result
+  is converted to `relay_position_forward_rejected`, which moves the production
+  scheduler into `FAILED` and stops subsequent journey advancement.
+- **Verified:** A temporary extension of the real scheduler integration fixture
+  passed 31 startup, landing, and walking checks. Survey start returned
+  `activity_sequence_started`; the next real physics tick produced **state 4
+  (`FAILED`)** and **`relay_position_forward_rejected`**. Separately, real
+  surface/director components accepted checkpoint one and returned
+  `outside_checkpoint` for the next stationary sample, which the forwarder
+  converted to the same fatal error.
+- **Repair:** Treat valid observations outside a checkpoint as no progress;
+  reserve terminal failure for invalid identity/lifecycle conditions.
+
+### WORLD-002 — Rebased player positions use the wrong survey/hazard frame — P1
+
+- **Locations:** [`survey forwarding`](scripts/world/ember_surface_loop_production_binding.gd#L2387),
+  [`hazard forwarding`](scripts/world/ember_surface_loop_production_binding.gd#L2422),
+  [`authored checkpoints`](scripts/world/ember_planetary_surface_production_binding.gd#L1017).
+- **Trigger:** Visit Ember after CommonWorldOrigin rebases the world.
+- **Expected / actual:** The shared actor position should be converted into
+  body-local coordinates before comparing it with authored survey/hazard
+  geometry. The sample is checked against `actor.global_position`, then passed
+  unchanged to the body-local survey API and labeled `position_body_local_m`
+  for hazards. The authored coordinates retain their original frame.
+- **Verified:** In the actual rebased scheduler fixture, player world position
+  was `(41.5498, -59.96806, -290.4699)` and the surface bootstrap was
+  `(0, -120060, -290.2366)`. The first checkpoint remains
+  `(180, 120009, -44)` body-local; its rendered world position is approximately
+  `(180, -51, -334.2366)`, which the unchanged forwarding cannot match. Both
+  forwarding and comparison paths were traced in production source.
+- **Impact / limit:** Survey progress and hazard exposure use incorrect
+  positions. The hazard was not separately traversed in this review. This
+  coordinate defect remains even after fixing `WORLD-001`.
+- **Repair:** Convert the admitted world sample through the current body frame
+  once, retain the coordinate generation, and use it for both consumers.
+
+### WORLD-003 — Detached streaming completion strands a pending load — P2
+
+- **Locations:** [`WorldStreamingCoordinator.complete_load()`](scripts/world/world_streaming_coordinator.gd#L190),
+  [`distance-policy load decisions`](scripts/world/world_streaming_distance_policy.gd#L260).
+- **Reproduce:** Request a bound scene, detach the coordinator's parent before
+  deferred completion, allow that callback to execute, then reattach the parent
+  while remaining inside the load radius.
+- **Expected / actual:** Reentry should resume the completion or retire and
+  retry the request. Completion returns `coordinator_unavailable` but retains
+  `_loading`. The distance policy sees a pending load and never requests another.
+- **Verified:** With the built-in deferred loader, real coordinator/policy, and
+  Cinder definition, three updates after reentry each reported
+  `attempted_count=0`, `loading=["cinder_reach"]`, and `loaded=[]`.
+- **Scope:** Confirmed supported detach/reentry lifecycle defect, not tied to
+  a demonstrated player menu action. Explicit unload/reload, or moving beyond
+  the unload radius, provides a workaround.
+- **Repair:** Preserve deferred completions safely across detachment or retire
+  lost requests so ordinary reentry policy can retry.
+
+### ACTIVITY-001 — Nonfinite positions complete checkpoint routes — P2
+
+- **Location:** [`CheckpointRouteActivity.submit_position()`](scripts/activities/checkpoint_route_activity.gd#L54).
+- **Reproduce:** Start the real Cinder route/race and submit
+  `Vector3(NAN, 0, 0)` once per checkpoint through its public API.
+- **Expected / actual:** Reject nonfinite coordinates without changing progress.
+  `NaN > checkpoint_radius` evaluates false, so every sample counts as reaching
+  the next checkpoint.
+- **Verified:** With the actual ActivityDirector, Cinder route, and
+  `CinderTimedRaceSession.new(1, 0.0, 120.0)`, five NaN samples all returned
+  `checkpoint_reached`. The race finished with **0-second last and best times**.
+- **Scope:** Public API validation defect. No ordinary player action producing
+  NaN was demonstrated; upstream actor sampling can reject it.
+- **Repair:** Require finite positions at the route authority boundary before
+  performing distance comparisons.
+
+### ACTIVITY-002 — Checkpoint callback failure is overwritten by completion — P2
+
+- **Location:** [`CheckpointRouteActivity.submit_position()`](scripts/activities/checkpoint_route_activity.gd#L59).
+- **Reproduce:** Connect a `checkpoint_reached` observer that calls
+  `fail(&"actor_lost", generation)` on the final checkpoint, then reach it.
+- **Expected / actual:** Either reject nested lifecycle mutation or retain the
+  accepted failure and emit one terminal outcome. `fail()` succeeds and emits
+  `failed`, but the outer call then sets `COMPLETED` and emits `completed`.
+- **Verified:** A valid one-checkpoint route emitted `failed`, returned true from
+  the callback's `fail()`, then emitted `completed`. Its final snapshot combined
+  **state 2 (`COMPLETED`)** with **`failure_reason=actor_lost`**, an invalid
+  combination for its persistence validator.
+- **Scope:** Confirmed synchronous observer/API defect; an ordinary production
+  observer causing this exact callback was not demonstrated.
+- **Repair:** Guard lifecycle reentrancy or revalidate state/generation after
+  emitting the checkpoint signal before committing completion.
+
+### AUDIO-001 — Boarding cue producer is lost after scene reentry — P3
+
+- **Location:** [`ShipBoardingArea` lifecycle](scripts/interaction/ship_boarding_area.gd#L46).
+- **Reproduce:** Add a boarding area, remove its ship/parent from the tree, then
+  readd the same instance.
+- **Expected / actual:** Reentry should restore the cue binding alongside
+  availability. `_exit_tree()` clears `_audio_binding`; initialized
+  `_enter_tree()` restores only availability, and `_ready()` is not rerun.
+- **Verified:** The initial binding existed; after reentry, availability was
+  **true** and `get_audio_binding()` was **null**.
+- **Scope:** Confirmed loss of the semantic cue producer. No production consumer
+  of its getter was found; missing audible playback was not demonstrated.
+- **Repair:** Restore the binding during initialized reentry.
+
+### AUDIO-002 — Boarding cue slots become a permanent priority lockout — P3
+
+- **Location:** [`BoardingSeatAudioBinding._admit()`](scripts/audio/boarding_seat_audio_binding.gd#L133).
+- **Reproduce:** Reserve and release one boarding point three times without
+  detaching it.
+- **Expected / actual:** Every independent cycle should emit reserve, start,
+  and release cues. The two supposedly simultaneous voice slots never expire.
+  Release priority 60 eventually fills both slots, permanently rejecting reserve
+  priority 45 and boarding-start priority 55.
+- **Verified:** Successive cycles emitted **3, 2, then 1** semantic cues.
+- **Scope:** Confirmed event suppression, with the same audible-playback
+  qualification as `AUDIO-001`.
+- **Repair:** Retire slots when playback completes or expires, so a concurrency
+  limit does not become a lifetime priority threshold.
+
+### Review validation
+
+- Godot `4.7.1.stable.official.a13da4feb`; headless component/physics and real
+  ENet fixtures, plus production display transactions under Xvfb with 3D drawing
+  disabled and isolated user data. Display probes used Compatibility/llvmpipe;
+  they do not qualify the production Forward+ visuals.
+- 31 focused Python packaging/release tests passed, as did
+  `tools/release/test_run_test_matrix_canonical.sh`.
+- Existing production settings persistence, activity director, and streaming
+  coordinator suites passed (34, 33, and 85 assertions respectively).
+- Existing network adapter integration failed three movement assertions;
+  existing runtime settings regression failed its descriptor assertion; the
+  display HUD test passed its assertions but failed the runner's output contract.
+  These are recorded above, not presented as a clean test run.
+- Temporary reproduction scripts/fixtures were used for the additional
+  findings. The full test matrix and native Windows package execution were not
+  run; production code and existing tests were not modified.
+
 ## RENDER-001 — Seven `Texture` RIDs leak at `RenderingDevice::finalize()` on every rendered run — **ACCEPTED_RISK**
 
 - Status: `ACCEPTED_RISK`. Severity: **P3**. Disposition: **accepted, engine-side, no code
