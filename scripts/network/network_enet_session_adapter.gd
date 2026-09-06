@@ -3796,6 +3796,14 @@ func _receive_hello(wire: Dictionary) -> void:
 		"capacity": get_session_capacity_snapshot(),
 	}
 	_send_server_offer.rpc_id(source_peer_id, offer)
+	# The shared encoder already advanced before a late peer connected. Seed
+	# only this recipient with the current full packet, without changing the
+	# encoder baseline used by existing peers' next delta.
+	var snapshot: Dictionary = _lifecycle.get_authoritative_snapshot()
+	if int(snapshot.get("revision", 0)) > 0:
+		var bootstrap: Dictionary = SnapshotDeltaCodec.new().encode(snapshot, true)
+		for fragment in _snapshot_fragmenter.fragment(bootstrap, 1, int(snapshot.revision)):
+			_broadcast_snapshot_fragment.rpc_id(source_peer_id, fragment)
 	peer_admitted.emit(peer_id, offer.duplicate(true))
 	_refresh_hosted_directory()
 
@@ -3827,7 +3835,20 @@ func _broadcast_snapshot_fragment(fragment: Dictionary) -> void:
 	if not bool(decoded.get("accepted", false)):
 		_last_result = decoded.duplicate(true)
 		return
-	var buffered: Dictionary = _snapshot_jitter.push(decoded.get("packet", {}) as Dictionary)
+	var decoded_packet: Dictionary = decoded.get("packet", {}) as Dictionary
+	var ordering: Dictionary = _snapshot_jitter.get_snapshot()
+	if decoded.get("status") == &"full_snapshot" and int(ordering.last_released_revision) == 0:
+		# Validate authority, schema, identities and lifecycle ordering before
+		# adopting a first full baseline whose earlier revisions cannot arrive.
+		var baseline: Dictionary = _lifecycle.apply_replica_snapshot(AUTHORITY_PEER_ID, decoded_packet)
+		if bool(baseline.get("accepted", false)):
+			_snapshot_jitter.reset(int(ordering.migration_generation), int(decoded_packet.revision))
+			_snapshot_jitter.push(decoded_packet)
+			_snapshot_jitter.pop_ready()
+		snapshot_applied.emit(baseline.duplicate(true))
+		_last_result = baseline.duplicate(true)
+		return
+	var buffered: Dictionary = _snapshot_jitter.push(decoded_packet)
 	if not bool(buffered.get("accepted", false)):
 		_last_result = buffered.duplicate(true)
 		return

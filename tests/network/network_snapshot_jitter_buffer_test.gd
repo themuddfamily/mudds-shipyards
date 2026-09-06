@@ -26,6 +26,12 @@ func _run() -> void:
 	_check(buffer.push(_packet(3, 1215)).status == &"snapshot_gap_too_large", "buffer rejects an excessive server tick gap")
 	_check(buffer.push(_packet(4, 1199)).status == &"stale_server_tick", "buffer rejects a stale server tick")
 	_check(buffer.reset(4).accepted and buffer.pop_ready().is_empty(), "migration reset clears pending snapshots and cursors")
+	_check(buffer.reset(5, 27).accepted, "late full baseline can initialize its first revision")
+	_check(buffer.push(_packet(27, 1200)).accepted and buffer.pop_ready().revision == 27,
+		"late baseline releases without waiting for unavailable history")
+	_check(buffer.push(_packet(26, 1199)).status == &"stale_or_duplicate", "bootstrap still rejects old revisions")
+	_check(not buffer.reset(5, 0).accepted and buffer.get_snapshot().next_revision == 28,
+		"invalid baseline leaves ordering unchanged")
 	if _failures.is_empty():
 		print("OK: network snapshot jitter buffer (%d assertions)" % _assertions)
 		quit(0)

@@ -65,25 +65,6 @@ performance, and human visual review were **NOT_RUN** in this review.
 - **Repair:** Keep one confirmed baseline for the whole preview transaction;
   subsequent changes should update only its candidate and deadline.
 
-### NET-001 — Late joiners never apply canonical state snapshots — P1
-
-- **Locations:** [`NetworkENetSessionAdapter`](scripts/network/network_enet_session_adapter.gd#L3361),
-  [`_broadcast_snapshot_fragment()`](scripts/network/network_enet_session_adapter.gd#L3815),
-  [`NetworkSnapshotJitterBuffer`](scripts/network/network_snapshot_jitter_buffer.gd#L65).
-- **Reproduce:** Have the server publish revision 1 before a client joins, admit
-  the client, then publish revisions 2–27 through the real ENet adapter.
-- **Expected / actual:** The new client should initialize from current authority
-  and receive subsequent updates. Initial deltas lack a decoder baseline. Even
-  when periodic full revision 9 arrives, the jitter buffer still waits for
-  revision 1, which will never arrive.
-- **Verified:** A real ENet late-join fixture admitted the client but applied
-  **zero snapshots**. Its cursor remained `next_revision=1`; pending revisions
-  `[9..24]` exhausted the 16-packet buffer.
-- **Impact:** This path carries production canonical ship telemetry and
-  projectile snapshots. Direct replica tests bypass the broken transport path.
-- **Repair:** Bootstrap each newly admitted peer with a full authoritative
-  snapshot and initialize its ordering cursor to that baseline.
-
 ### TEST-001 — Legacy matrix reports failing process exits as success — P2
 
 - **Location:** [`tools/release/run_matrix.sh`](tools/release/run_matrix.sh#L51).

@@ -23,11 +23,13 @@ var _gap_rejection_count := 0
 var _max_pending_depth := 0
 
 
-func reset(migration_generation: int = 1) -> Dictionary:
+func reset(migration_generation: int = 1, first_revision: int = 1) -> Dictionary:
 	if migration_generation <= 0:
 		return _remember({"accepted": false, "status": &"invalid_migration_generation"})
+	if first_revision <= 0:
+		return _remember({"accepted": false, "status": &"invalid_snapshot_revision"})
 	_migration_generation = migration_generation
-	_next_revision = 1
+	_next_revision = first_revision
 	_last_released_revision = 0
 	_last_released_server_tick = -1
 	_pending.clear()
