@@ -21,7 +21,7 @@ func _run() -> void:
 	bed.set_process(false)
 	var snapshot := {
 		"activity_id": &"cinder_reach_emberline_convoy",
-		"host": {"state_id": &"active", "generation": 7},
+		"host": {"activity": {"state_id": &"active", "generation": 7}},
 	}
 	flow._sync_nearby_activity_audio(snapshot)
 	var music_adapter: Node = flow.get("nearby_activity_music_adapter")
@@ -40,7 +40,7 @@ func _run() -> void:
 	_check(bool(bed.notify_music_phase(&"combat")), "combat presentation is accepted")
 	flow._sync_nearby_activity_audio({
 		"activity_id": &"cinder_reach_emberline_convoy",
-		"host": {"state_id": &"active", "generation": 8},
+		"host": {"activity": {"state_id": &"active", "generation": 8}},
 	})
 	_check(bed.get_presentation_state() == &"combat", "combat preempts forwarded activity music")
 	flow._detach_nearby_activity_audio()
@@ -48,6 +48,7 @@ func _run() -> void:
 	_check(not bool(audio_binding.get_snapshot().attached), "activity audio binding detaches")
 	flow.queue_free()
 	bed.queue_free()
+	await process_frame
 	for failure in _failures:
 		push_error(failure)
 	print("game_flow_nearby_activity_music_integration_test: %d assertions" % _assertions)

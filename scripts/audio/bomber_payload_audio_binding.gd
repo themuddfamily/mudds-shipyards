@@ -34,6 +34,9 @@ func attach(expected_generation: int = 0) -> Dictionary:
 	_attached = true
 	_clear_state()
 	_projectile_binding = ProjectileBinding.new()
+	# The projectile presenter shares this binding's lifetime even when its
+	# owner is freed without an explicit presentation detach.
+	add_child(_projectile_binding)
 	_projectile_binding.semantic_engine_cue_emitted.connect(_on_projectile_cue)
 	var projectile_result: Dictionary = _projectile_binding.attach(0)
 	for generation in range(expected_generation):

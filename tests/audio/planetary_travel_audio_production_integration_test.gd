@@ -20,6 +20,7 @@ func _run() -> void:
 	_check(int(production.get_planetary_travel_audio_snapshot().get("maximum_simultaneous_voices", 0)) == 2, "travel audio remains bounded")
 	_check(bool(production.detach_planetary_travel_audio().accepted), "production detaches travel audio cleanly")
 	_check(not bool(production.get_planetary_travel_audio_snapshot().get("attached", true)), "detached production travel audio rejects stale lifecycle")
+	production.free()
 	for failure in _failures:
 		push_error(failure)
 	print("planetary_travel_audio_production_integration_test: %d assertions" % _assertions)

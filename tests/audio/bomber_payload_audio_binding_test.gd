@@ -37,6 +37,10 @@ func _run() -> void:
 	_check(bool(binding.reset_for_reuse(1).accepted), "binding re-enters at next generation")
 	_check(bool(binding.present_release_record(_record(1, 1, &"cinder_payload_alpha")).accepted), "re-entry resets sequence fence")
 	router.detach()
+	var projectile_reference: WeakRef = weakref(binding.get("_projectile_binding"))
+	binding.free()
+	_check(projectile_reference.get_ref() == null, "freeing an attached payload binding releases its projectile presenter")
+	router.free()
 	for failure in _failures:
 		push_error(failure)
 	print("bomber_payload_audio_binding_test: %d assertions" % _assertions)

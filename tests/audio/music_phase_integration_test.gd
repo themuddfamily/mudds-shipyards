@@ -12,12 +12,15 @@ func _init() -> void:
 
 
 func _run() -> void:
-	# Keep this focused on the owned production seam. A full Main composition
-	# currently depends on unrelated dirty HUD work, so do not load or mutate it.
+	# Keep this focused on the production music seam without loading full Main.
 	var game := GameFlowType.new()
 	var bed := MusicBedScene.instantiate() as StationMusicBed
 	_check(game != null and bed != null, "production GameFlow and station bed instantiate")
 	if game == null or bed == null:
+		if game != null:
+			game.free()
+		if bed != null:
+			bed.free()
 		_finish()
 		return
 	root.add_child(bed)
@@ -81,6 +84,7 @@ func _run() -> void:
 	)
 	bed.set_bed_enabled(false)
 	bed.release_audio_resources()
+	game.free()
 	bed.queue_free()
 	await process_frame
 	await process_frame

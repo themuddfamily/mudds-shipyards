@@ -28,6 +28,7 @@ func _run() -> void:
 	_check(bool(station.unregister_audio_director().get("accepted", false)), "station deregisters on lifecycle end")
 	_check(bool(cinder.unregister_audio_director().get("accepted", false)), "cargo deregisters on lifecycle end")
 	_check(bool(cinder.detach().get("accepted", false)), "cargo detach remains clean after deregistration")
+	director.free()
 	if _failures.is_empty():
 		print("PASS station_cinder_audio_director_integration_test (%d assertions)" % _assertions)
 		quit(0)
