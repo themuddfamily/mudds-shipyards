@@ -42,14 +42,30 @@ func _run() -> void:
 			and not threshold_light.get_meta("animated", true),
 		"the threshold uses one static shadowless reduced-flash-safe light"
 	)
-	for node_name in ["CargoThresholdPostPort", "CargoThresholdPostStarboard", "CargoThresholdHeader"]:
-		var cue := craft.get_node_or_null(NodePath("CinderCargoVisual/" + node_name)) as MeshInstance3D
+	var posts := craft.get_node_or_null(^"CinderCargoVisual/CargoThresholdPostBatch") as MultiMeshInstance3D
+	var post_names := PackedStringArray(["CargoThresholdPostPort", "CargoThresholdPostStarboard"])
+	var post_transforms: Array = posts.get_meta(&"authored_instance_transforms", []) as Array \
+		if posts != null else []
+	for index in post_names.size():
 		_check(
-			cue != null
-				and cue.get_meta("presentation_only", false)
-				and cue.get_meta("route_id", &"") == Hauler.CABIN_ROUTE_ID,
-			"%s is a presentation-only physical route cue" % node_name
+			posts != null and boarding != null and posts.multimesh != null
+				and posts.get_meta("presentation_only", false)
+				and posts.get_meta("route_id", &"") == Hauler.CABIN_ROUTE_ID
+				and posts.get_meta("authored_visual_names", PackedStringArray()) == post_names
+				and posts.get_child_count() == 0
+				and posts.multimesh.instance_count == 2
+				and post_transforms.size() == 2
+				and (post_transforms[index] as Transform3D).is_equal_approx(
+					Transform3D(Basis.IDENTITY, boarding.position + Vector3(0.0, 1.02, -0.72 if index == 0 else 0.72))
+				),
+			"%s retains its exact presentation-only route cue in the two-post batch" % post_names[index]
 		)
+	var header := craft.get_node_or_null(^"CinderCargoVisual/CargoThresholdHeader") as MeshInstance3D
+	_check(
+		header != null and header.get_meta("presentation_only", false)
+			and header.get_meta("route_id", &"") == Hauler.CABIN_ROUTE_ID,
+		"CargoThresholdHeader is a presentation-only physical route cue"
+	)
 	if boarding != null and sign != null:
 		_check(
 			sign.global_position.distance_to(boarding.global_position) < 2.1,

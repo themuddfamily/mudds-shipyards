@@ -248,7 +248,11 @@ func get_berth() -> ShipBerth:
 ## remains the sole docking and capture authority; this merely exposes an exact
 ## point derived from that physical contract for HUD/minimap consumers.
 func get_supply_phase_target_position(phase_id: StringName) -> Vector3:
-	if not is_instance_valid(_berth):
+	# Cluster observer teardown can sample after the berth leaves the tree.
+	# A detached physical route has no world-space guidance target.
+	if not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(_berth) or not _berth.is_inside_tree() \
+			or _berth.is_queued_for_deletion():
 		return Vector3.INF
 	var dock := _berth.get_dock_transform()
 	if not dock.origin.is_finite():

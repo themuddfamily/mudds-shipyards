@@ -126,7 +126,7 @@ func _run() -> void:
 
 	var resident_nodes := _resident_node_identities(world)
 	_test_resident_only_startup(game, binding, bootstrap, coordinator, world)
-	await _test_zero_berth_load_and_reentry(
+	await _test_loaded_berth_and_reentry(
 		game, binding, bootstrap, coordinator, world, resident_nodes
 	)
 	await _test_unload_reload_generations(
@@ -179,10 +179,10 @@ func _test_resident_only_startup(
 		== CinderStreamedShipBerthBinding.RESIDENT_BERTH_IDS
 		and merged.get("berth_ids")
 		== CinderStreamedShipBerthBinding.RESIDENT_BERTH_IDS
-		and int((merged.get("entries", []) as Array).size()) == 5
+		and int((merged.get("entries", []) as Array).size()) == 9
 		and int(overlay.get("active_location_count", -1)) == 0
 		and int(overlay.get("active_berth_count", -1)) == 0,
-		"resident-only startup exposes exactly the unchanged five-berth world roster"
+		"resident-only startup exposes exactly the nine-berth world roster"
 	)
 	_check(
 		int(snapshot.get("registration_signal_count", -1)) == 0
@@ -194,11 +194,11 @@ func _test_resident_only_startup(
 	_check(
 		game.find_children("*", "CinderCargoAccess", true, false).is_empty()
 		and game.find_children("*", "CargoDestinationTerminal", true, false).is_empty(),
-		"Stage B places no Cinder access or cargo-terminal content"
+		"unloaded startup contains no streamed Cinder access or cargo-terminal content"
 	)
 
 
-func _test_zero_berth_load_and_reentry(
+func _test_loaded_berth_and_reentry(
 	game: GameFlow,
 	binding: CinderStreamedShipBerthBinding,
 	bootstrap: CinderStreamingBootstrap,
@@ -215,37 +215,45 @@ func _test_zero_berth_load_and_reentry(
 	_check(
 		cluster != null
 		and int(cluster.get_meta(&"world_location_generation", -1)) == 1
-		and cluster.find_children("*", "ShipBerth", true, false).is_empty(),
-		"the real generation-1 Cinder scene truthfully contains zero ShipBerths"
+		and cluster.find_children("*", "ShipBerth", true, false).size() == 1
+		and cluster.get_cinder_cargo_access().get_berth().get_berth_id()
+			== CinderCargoAccess.BERTH_ID,
+		"generation-1 Cinder contains the one physical cargo-access Jovian berth"
 	)
 	var loaded := binding.get_snapshot()
 	var overlay := loaded.get("overlay", {}) as Dictionary
 	var last_load := overlay.get("last_loaded_observation", {}) as Dictionary
 	_check(
 		int(overlay.get("loaded_observation_count", -1)) == 1
-		and last_load.get("reason") == &"no_ship_berths"
-		and not bool(last_load.get("accepted", true))
+		and last_load.get("reason") == &"registered"
+		and bool(last_load.get("accepted", false))
 		and int(last_load.get("load_generation", -1)) == 1
-		and int(overlay.get("active_location_count", -1)) == 0
-		and int(overlay.get("active_berth_count", -1)) == 0
-		and int(loaded.get("registration_signal_count", -1)) == 0,
-		"generation 1 is observed exactly once and fails closed without a fake roster"
+		and int(overlay.get("active_location_count", -1)) == 1
+		and int(overlay.get("active_berth_count", -1)) == 1
+		and int(loaded.get("registration_signal_count", -1)) == 1,
+		"generation 1 registers its one physical berth exactly once"
 	)
 	_check(
 		binding.get_merged_berth_snapshot().get("berth_ids")
-		== CinderStreamedShipBerthBinding.RESIDENT_BERTH_IDS
+		== _loaded_berth_ids()
 		and _resident_nodes_match(world, resident_nodes)
 		and bool(binding.audit().get("valid", false)),
-		"zero-berth load preserves the exact five resident identities and valid audit"
+		"streamed cargo berth merges with nine unchanged resident identities and a valid audit"
 	)
-	var unknown := binding.lookup_streamed_berth_record(&"cinder_cargo_jovian_berth")
+	var berth := cluster.get_cinder_cargo_access().get_berth() as ShipBerth
+	var record := binding.lookup_streamed_berth_record(CinderCargoAccess.BERTH_ID)
 	_check(
-		not bool(unknown.get("found", true))
+		bool(record.get("found", false))
+		and int(record.get("berth_instance_id", 0)) == berth.get_instance_id()
 		and binding.resolve_streamed_berth_node(
-			&"cinder_reach", 1, cluster.get_instance_id(),
-			&"cinder_cargo_jovian_berth", 1
+			CinderStreamingBootstrap.LOCATION_ID, 1, cluster.get_instance_id(),
+			CinderCargoAccess.BERTH_ID, berth.get_instance_id()
+		) == berth
+		and binding.resolve_streamed_berth_node(
+			CinderStreamingBootstrap.LOCATION_ID, 2, cluster.get_instance_id(),
+			CinderCargoAccess.BERTH_ID, berth.get_instance_id()
 		) == null,
-		"no live Cinder berth capability is invented for an absent access module"
+		"only exact live-generation provenance resolves the physical Cinder cargo berth"
 	)
 
 	var binding_id := binding.get_instance_id()
@@ -266,7 +274,7 @@ func _test_zero_berth_load_and_reentry(
 		and int((detached.get("overlay", {}) as Dictionary).get(
 			"loaded_observation_count", -1
 		)) == 1
-		and int(detached.get("registration_signal_count", -1)) == 0
+		and int(detached.get("registration_signal_count", -1)) == 1
 		and bootstrap.get_loaded_instance() == cluster,
 		"whole-Main detach retains the loaded generation and freezes observations"
 	)
@@ -283,7 +291,7 @@ func _test_zero_berth_load_and_reentry(
 		and bootstrap.get_loaded_instance() == cluster
 		and cluster.get_instance_id() == cluster_id
 		and int(reentered.get("configuration_attempt_count", -1)) == 1
-		and int(reentered.get("registration_signal_count", -1)) == 0
+		and int(reentered.get("registration_signal_count", -1)) == 1
 		and int((reentered.get("overlay", {}) as Dictionary).get(
 			"loaded_observation_count", -1
 		)) == 1
@@ -319,12 +327,14 @@ func _test_unload_reload_generations(
 		bootstrap.get_loaded_instance() == null
 		and first_ref.get_ref() == null
 		and int(unloaded_overlay.get("unloaded_observation_count", -1)) == 1
-		and last_unload.get("reason") == &"unknown_location"
+		and last_unload.get("reason") == &"retired"
+		and bool(last_unload.get("accepted", false))
 		and int(last_unload.get("load_generation", -1)) == 1
 		and int(last_unload.get("retirement_generation", -1)) == 2
-		and int(unloaded.get("retirement_signal_count", -1)) == 0
-		and (unloaded_overlay.get("location_tombstones", []) as Array).is_empty(),
-		"zero-roster unload is observed once without a fabricated retirement signal or tombstone"
+		and int(unloaded.get("retirement_signal_count", -1)) == 1
+		and (unloaded_overlay.get("location_tombstones", []) as Array).size() == 1
+		and not bool(binding.lookup_streamed_berth_record(CinderCargoAccess.BERTH_ID).get("found", true)),
+		"unload retires the physical berth once, records its tombstone, and withdraws lookup"
 	)
 
 	var reload := coordinator.request_load(CinderStreamingBootstrap.LOCATION_ID)
@@ -343,10 +353,10 @@ func _test_unload_reload_generations(
 		and second_cluster.get_instance_id() != first_instance_id
 		and int(second_cluster.get_meta(&"world_location_generation", -1)) == 3
 		and int(reloaded_overlay.get("loaded_observation_count", -1)) == 2
-		and second_last_load.get("reason") == &"no_ship_berths"
+		and second_last_load.get("reason") == &"registered"
 		and int(second_last_load.get("load_generation", -1)) == 3
-		and int(reloaded.get("registration_signal_count", -1)) == 0
-		and int(reloaded.get("retirement_signal_count", -1)) == 0
+		and int(reloaded.get("registration_signal_count", -1)) == 2
+		and int(reloaded.get("retirement_signal_count", -1)) == 1
 		and _resident_nodes_match(world, resident_nodes)
 		and bool(binding.audit().get("valid", false)),
 		"reload observes the replacement generation once with resident identity unchanged"
@@ -367,15 +377,15 @@ func _test_unload_reload_generations(
 	_check(
 		int(final_overlay.get("loaded_observation_count", -1)) == 2
 		and int(final_overlay.get("unloaded_observation_count", -1)) == 2
-		and int(final.get("registration_signal_count", -1)) == 0
-		and int(final.get("retirement_signal_count", -1)) == 0
+		and int(final.get("registration_signal_count", -1)) == 2
+		and int(final.get("retirement_signal_count", -1)) == 2
 		and int(coordinator_audit.get("load_request_count", -1)) == 2
 		and int(coordinator_audit.get("unload_count", -1)) == 2
 		and binding.get_merged_berth_snapshot().get("berth_ids")
 		== CinderStreamedShipBerthBinding.RESIDENT_BERTH_IDS
 		and _resident_nodes_match(world, resident_nodes)
 		and bool(binding.audit().get("valid", false)),
-		"two load/unload generations produce exactly two observations and zero duplicate roster signals"
+		"two load/unload generations produce exactly two registration and retirement signals"
 	)
 
 
@@ -417,7 +427,7 @@ func _test_detached_reports_and_authority(
 	(snapshot.get("overlay", {}) as Dictionary).clear()
 	var fresh := binding.get_snapshot()
 	_check(
-		(fresh.get("resident_berth_ids", []) as Array).size() == 5
+		(fresh.get("resident_berth_ids", []) as Array).size() == 9
 		and not bool((fresh.get("authority", {}) as Dictionary).get("gameplay", true))
 		and int(((fresh.get("overlay", {}) as Dictionary).get(
 			"location_tombstones", []
@@ -425,6 +435,12 @@ func _test_detached_reports_and_authority(
 		and JSON.stringify(fresh) == snapshot_json,
 		"nested caller mutation cannot change deterministic binding or overlay state"
 	)
+
+
+func _loaded_berth_ids() -> Array[StringName]:
+	var ids := CinderStreamedShipBerthBinding.RESIDENT_BERTH_IDS.duplicate()
+	ids.append(CinderCargoAccess.BERTH_ID)
+	return _sorted_ids(ids)
 
 
 func _resident_node_identities(world: ShipyardWorld) -> Dictionary:

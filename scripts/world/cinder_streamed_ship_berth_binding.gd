@@ -5,7 +5,7 @@ extends Node
 ##
 ## Main owns this node beside the existing Cinder streaming bootstrap. It binds
 ## the overlay to that bootstrap's coordinator before the deferred streaming
-## driver can request a load, and supplies the exact five resident ShipyardWorld
+## driver can request a load, and supplies the exact nine resident ShipyardWorld
 ## IDs for collision-free merged reads. It does not add streamed content or
 ## change ShipyardWorld's physical registry.
 
@@ -15,7 +15,11 @@ const WORLD_PATH := NodePath("../ShipyardWorld")
 const COORDINATOR_PATH := NodePath("WorldStreamingCoordinator")
 const RESIDENT_BERTH_IDS: Array[StringName] = [
 	&"arrow_recon_berth",
+	&"bulwark_fleet_dock_berth",
 	&"central_berth",
+	&"dock_04_cargo",
+	&"dock_05_bomber",
+	&"dock_06_interceptor",
 	&"halyard_fleet_dock_berth",
 	&"jovian_freight_berth",
 	&"zenith_fleet_dock_berth",
@@ -206,7 +210,7 @@ func audit() -> Dictionary:
 			or _world.get_parent() != host \
 			or get_node_or_null(WORLD_PATH) != _world:
 		errors.append("ShipyardWorld identity drifted")
-	elif _sorted_world_berth_ids() != RESIDENT_BERTH_IDS:
+	elif not _resident_roster_is_current():
 		errors.append("resident ShipyardWorld berth roster drifted")
 	if not is_instance_valid(_coordinator) \
 			or not is_instance_valid(_bootstrap) \
@@ -264,7 +268,7 @@ func _configuration_preflight_error() -> StringName:
 		return &"invalid_cinder_bootstrap"
 	if not is_instance_valid(_world) or _world.get_parent() != get_parent():
 		return &"invalid_shipyard_world"
-	if _sorted_world_berth_ids() != RESIDENT_BERTH_IDS:
+	if not _resident_roster_is_current():
 		return &"resident_berth_roster_mismatch"
 	if not is_instance_valid(_coordinator) or _coordinator.get_parent() != _bootstrap:
 		return &"invalid_cinder_coordinator"
@@ -309,6 +313,24 @@ func _audit_live_cinder_observation(
 			or int(location.get("load_generation", -1)) != load_generation \
 			or int(location.get("root_instance_id", 0)) != loaded_root.get_instance_id():
 		errors.append("active Cinder berth roster provenance drifted")
+
+
+## ShipyardWorld indexes six authored berths synchronously, then its existing
+## fleet owner assembles and GameFlow indexes Dock 04/05/06. Reserve all nine
+## names in the overlay immediately, admitting only those two exact rosters.
+func _resident_roster_is_current() -> bool:
+	var live_ids := _sorted_world_berth_ids()
+	if live_ids == RESIDENT_BERTH_IDS:
+		return true
+	var expansion := _world.get_fleet_expansion_production_binding()
+	if not is_instance_valid(expansion) \
+			or bool(expansion.get_fleet_snapshot().get("built", false)):
+		return false
+	var startup_ids := ShipyardWorld.SHIP_BERTH_FEEDBACK_BERTH_IDS.duplicate()
+	startup_ids.sort_custom(func(a: StringName, b: StringName) -> bool:
+		return str(a) < str(b)
+	)
+	return live_ids == startup_ids
 
 
 func _sorted_world_berth_ids() -> Array[StringName]:

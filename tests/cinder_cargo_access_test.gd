@@ -35,15 +35,26 @@ class CargoWorldProbe extends Node3D:
 class CargoRewardAuthorityProbe extends RefCounted:
 	var accept := false
 	var requests: Array[Dictionary] = []
+	var _committed_receipts: Array[Dictionary] = []
 
 	func commit(request: Dictionary) -> Dictionary:
 		requests.append(request.duplicate(true))
 		if not accept:
 			return {"accepted": false, "reason": &"simulated_store_rejection"}
+		var receipt := {"receipt_id": requests.size()}
+		_committed_receipts.append(receipt)
 		return {
 			"accepted": true,
 			"reason": &"reward_receipt_committed",
-			"receipt": {"receipt_id": requests.size()},
+			"receipt": receipt,
+		}.duplicate(true)
+
+	func get_snapshot() -> Dictionary:
+		return {
+			"record": {
+				"total_receipts": _committed_receipts.size(),
+				"last_receipt": _committed_receipts[-1] if not _committed_receipts.is_empty() else {},
+			},
 		}.duplicate(true)
 
 
@@ -894,6 +905,7 @@ func _test_embodied_bidirectional_route(
 		and reward.accepted and reward.reason == &"reward_request_committed"
 		and not bool(reward_replay.accepted) and reward_replay.reason == &"reward_already_consumed"
 		and reward_authority.requests.size() == 2
+		and int(reward_authority.get_snapshot().record.total_receipts) == 1
 		and StringName(reward_authority.requests[-1].activity_id) == &"cinder_kit_cargo_run"
 		and reset_completed.accepted
 		and authority.get_quantity(source_handle, &"cinder_supply_crates") == source_before - 1

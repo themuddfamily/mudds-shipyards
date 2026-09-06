@@ -80,11 +80,19 @@ func _run() -> void:
 
 	root.remove_child(cluster)
 	await process_frame
+	_check(
+		access.get_supply_phase_target_position(&"dock_platform") == Vector3.INF
+		and not (binding.get_snapshot().cargo as Dictionary).has("minimap_target_position"),
+		"detached cargo access withdraws world guidance without reading a detached berth transform"
+	)
 	root.add_child(cluster)
 	for _frame in 3:
 		await process_frame
 	_check(
 		access.get_cargo_presentation_state().state_id == &"at_terminal"
+		and access.get_supply_phase_target_position(&"dock_platform").is_equal_approx(
+			berth.get_dock_transform().origin
+		)
 		and int(access.get_cargo_presentation_state().attachment_generation) \
 			== access.get_attachment_generation(),
 		"detach/re-entry republishes the current detached activity state at the new attachment generation"
